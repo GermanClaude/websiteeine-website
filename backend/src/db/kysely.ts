@@ -30,9 +30,11 @@ export function parseInt8(value: string): number {
 
 type TextParser = (value: string) => unknown;
 type TypeParserLookup = CustomTypesConfig['getTypeParser'];
+/** pg-types' TypeId enum (not every OID is a member, e.g. int8[]). */
+type TypeOid = Parameters<TypeParserLookup>[0];
 
 // pg's default int8[] parser yields string elements (or null); convert each.
-const defaultInt8ArrayParser = pg.types.getTypeParser(INT8_ARRAY_OID, 'text') as TextParser;
+const defaultInt8ArrayParser = pg.types.getTypeParser(INT8_ARRAY_OID as TypeOid, 'text') as TextParser;
 
 function parseInt8Array(value: string): (number | null)[] {
   const parsed = defaultInt8ArrayParser(value);
@@ -45,7 +47,7 @@ const getTypeParser = ((oid: number, format?: 'text' | 'binary'): TextParser => 
     if (oid === INT8_OID) return parseInt8;
     if (oid === INT8_ARRAY_OID) return parseInt8Array;
   }
-  return pg.types.getTypeParser(oid, format) as TextParser;
+  return pg.types.getTypeParser(oid as TypeOid, format) as TextParser;
 }) as TypeParserLookup;
 
 /** Per-pool type parser configuration (see module comment). */

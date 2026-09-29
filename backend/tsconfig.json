@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@scpsl-trust/shared": ["../shared/src/index.ts"]
+    },
+    "noEmit": true
+  },
+  "include": ["src", "tests", "vitest.config.ts", "tsup.config.ts"]
+}
