@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Game-independent logic: crypto, signed API client, policy engine, proof codes, config model.
+    netstandard2.0 so it loads in the game's Mono runtime and in net8.0 tests/tools.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>ScpslTrust.Core</RootNamespace>
+    <AssemblyName>ScpslTrust.Core</AssemblyName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningLevel>9999</WarningLevel>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Both ship with the game (SCPSL_Data/Managed); the plugin never deploys them. -->
+    <PackageReference Include="BouncyCastle.Cryptography" />
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+</Project>

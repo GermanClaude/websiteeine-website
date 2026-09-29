@@ -1,0 +1,30 @@
+<Project>
+  <!--
+    Shared build settings for every project under plugin/.
+    Game reference assemblies are resolved from $(SCPSL_MANAGED_DIR); see lib/README.md.
+  -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Authors>SCP:SL Trust Network</Authors>
+    <Company>SCP:SL Trust Network</Company>
+    <Product>SCP:SL Trust Network</Product>
+    <Copyright>SCP:SL Trust Network contributors</Copyright>
+    <NeutralLanguage>en</NeutralLanguage>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Directory with the game's managed assemblies (SCPSL_Data/Managed). Environment variable or -p: override. -->
+    <SCPSL_MANAGED_DIR Condition="'$(SCPSL_MANAGED_DIR)' == ''">$(MSBuildThisFileDirectory)lib</SCPSL_MANAGED_DIR>
+    <SCPSL_MANAGED_DIR>$([MSBuild]::EnsureTrailingSlash('$(SCPSL_MANAGED_DIR)'))</SCPSL_MANAGED_DIR>
+  </PropertyGroup>
+</Project>
