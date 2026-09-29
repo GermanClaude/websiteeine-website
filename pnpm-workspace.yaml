@@ -1,0 +1,7 @@
+packages:
+  - shared
+  - backend
+  - web
+onlyBuiltDependencies:
+  - argon2
+  - esbuild

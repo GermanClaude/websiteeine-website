@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+# backend runtime data
+backend/.data/
+backend/.dev-mail/
+# plugin build output and game reference assemblies (never commit game DLLs)
+plugin/**/bin/
+plugin/**/obj/
+plugin/lib/*
+!plugin/lib/README.md
+*.user
+.vs/
+.idea/
