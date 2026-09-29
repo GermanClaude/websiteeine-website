@@ -139,7 +139,8 @@ so tests never need a prior build.
 * JSON everywhere, **snake_case** keys.
 * **Enum values on the wire and in the DB are lowercase snake_case** (e.g. `under_review`,
   `not_detected`, `admin_notify`, `super_admin`). Docs may name them in upper case (`UNDER_REVIEW`);
-  the serialized value is always lowercase.
+  the serialized value is always lowercase. The single exception is `AuditAction`: audit events are
+  named by their upper-case event name (`REPORT_CREATED`), in the database, on the wire and in the hash chain.
 * Timestamps: ISO‑8601 UTC strings with milliseconds (`2026-09-29T15:42:20.000Z`).
 * IDs: UUID v4 (`id`) unless a human-readable number exists (`case_number`, `server_id`).
 * Lists: `{ "items": [...], "page": 1, "page_size": 25, "total": 123 }`; query `?page=&page_size=` (max 100).
@@ -229,6 +230,15 @@ General rules:
 * **Raw IP addresses are never stored.** Only HMAC-SHA256 network hashes (see §8.3).
 * Secrets (TOTP secret, overwatch session secret) are stored AES-256-GCM encrypted
   (`DATA_ENCRYPTION_KEY`), format `v1:<iv b64>:<ciphertext b64>:<tag b64>`.
+* The migrations enforce more than this section lists (documented in `docs/DATABASE.md`, binding for the
+  application code): every protection trigger raises SQLSTATE `TN403` and also blocks `TRUNCATE`; a policy
+  version and its rules are immutable once inserted (saving = new version); a confirmation may only be revoked
+  once and is then frozen; evidence follows an allow-list (only the four status columns, `updated_at` and the
+  one-time `superseded_by_evidence_id` may change; the superseding row must belong to the same case); usernames
+  are unique case-insensitively and e-mails are stored lowercase; `password_hash` must be an argon2id string;
+  `audit_events.prev_hash` is unique (the chain cannot fork) and `created_at` has millisecond precision;
+  format checks exist for ids, hashes, keys and fingerprints. Audit writers call `pg_advisory_xact_lock(7274001)`,
+  take `nextval('audit_events_seq')` and insert in the same transaction.
 
 ### 4.1 Identity & access
 
