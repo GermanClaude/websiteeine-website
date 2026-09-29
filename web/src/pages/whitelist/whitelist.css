@@ -1,0 +1,4 @@
+/* Whitelist / bypass tables: highlighted row for deep links (?id=…). */
+.table-row-highlight td {
+  background: var(--tone-info-bg);
+}

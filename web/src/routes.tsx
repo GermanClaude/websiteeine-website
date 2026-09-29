@@ -17,7 +17,10 @@
  */
 import { createBrowserRouter, type RouteObject } from 'react-router';
 
+import { Permission } from '@scpsl-trust/shared';
+
 import { RequireAuth } from './auth/RequireAuth';
+import { RequirePermission } from './auth/RequirePermission';
 import { AppLayout, AuthLayout, RootLayout } from './components/Layout';
 import { LoadingScreen } from './components/Spinner';
 import { ForbiddenPage } from './pages/errors/ForbiddenPage';
@@ -48,7 +51,12 @@ const authRoutes: RouteObject[] = [
 // ---------------------------------------------------------------------------
 const publicRoutes: RouteObject[] = [
   // tools routes (proof verification, public case lookup)
+  { path: 'tools/proof', lazy: lazyPage(() => import('./pages/proof/ProofPage')) },
+  { path: 'proof', lazy: lazyPage(() => import('./pages/proof/ProofPage')) },
+  { path: 'tools/case-lookup', lazy: lazyPage(() => import('./pages/public/PublicCaseLookupPage')) },
   // public case routes (/public/cases/:caseNumber)
+  { path: 'public/cases', lazy: lazyPage(() => import('./pages/public/PublicCaseLookupPage')) },
+  { path: 'public/cases/:caseNumber', lazy: lazyPage(() => import('./pages/public/PublicCasePage')) },
 ];
 
 // ---------------------------------------------------------------------------
@@ -63,22 +71,77 @@ const protectedRoutes: RouteObject[] = [
   { path: 'account/security', lazy: lazyPage(() => import('./pages/account/SecurityPage')) },
 
   // cases routes
+  {
+    element: <RequirePermission permission={Permission.CASE_VIEW_STAFF} allowIf={(auth) => auth.hasServerMembership} />,
+    children: [{ path: 'cases', lazy: lazyPage(() => import('./pages/cases/CaseListPage')) }],
+  },
+  // The case page itself is open to every signed-in user: it falls back to the public view on 403 (e.g. the reported player following a link).
+  { path: 'cases/:caseNumber', lazy: lazyPage(() => import('./pages/cases/CaseDetailPage')) },
 
   // reports routes
+  { path: 'reports', lazy: lazyPage(() => import('./pages/reports/ReportListPage')) },
+  { path: 'reports/new', lazy: lazyPage(() => import('./pages/reports/ReportNewPage')) },
+  { path: 'reports/:id', lazy: lazyPage(() => import('./pages/reports/ReportDetailPage')) },
 
   // evidence routes
+  {
+    element: <RequirePermission permission={Permission.EVIDENCE_VIEW} />,
+    children: [{ path: 'evidence', lazy: lazyPage(() => import('./pages/evidence/EvidenceListPage')) }],
+  },
+  // Evidence detail is also readable by the uploader and the uploader server's team (the backend decides).
+  { path: 'evidence/:id', lazy: lazyPage(() => import('./pages/evidence/EvidenceDetailPage')) },
 
-  // appeals routes
+  // appeals routes (everyone sees their own appeals; appeal:decide sees all)
+  { path: 'appeals', lazy: lazyPage(() => import('./pages/appeals/AppealListPage')) },
+  { path: 'appeals/new', lazy: lazyPage(() => import('./pages/appeals/AppealNewPage')) },
+  { path: 'appeals/:id', lazy: lazyPage(() => import('./pages/appeals/AppealDetailPage')) },
 
   // players routes
+  {
+    element: <RequirePermission permission={Permission.PLAYER_VIEW_STAFF} />,
+    children: [{ path: 'players', lazy: lazyPage(() => import('./pages/players/PlayerSearchPage')) }],
+  },
+  // Player page: public view for everyone with a session; the backend adds the staff view with player:view_staff.
+  { path: 'players/:userId', lazy: lazyPage(() => import('./pages/players/PlayerDetailPage')) },
 
   // overwatch routes
+  {
+    element: <RequirePermission permission={Permission.OVERWATCH_VIEW} />,
+    children: [
+      { path: 'overwatch', lazy: lazyPage(() => import('./pages/overwatch/OverwatchListPage')) },
+      { path: 'overwatch/:id', lazy: lazyPage(() => import('./pages/overwatch/OverwatchDetailPage')) },
+    ],
+  },
 
-  // servers routes
+  // servers routes (server-team membership, server:create or server:manage_any)
+  {
+    element: <RequirePermission permission={[Permission.SERVER_CREATE, Permission.SERVER_MANAGE_ANY]} allowIf={(auth) => auth.hasServerMembership} />,
+    children: [
+      { path: 'servers', lazy: lazyPage(() => import('./pages/servers/ServerListPage')) },
+      { path: 'servers/:serverId', lazy: lazyPage(() => import('./pages/servers/ServerDetailPage')) },
+    ],
+  },
+  {
+    element: <RequirePermission permission={Permission.SERVER_CREATE} />,
+    children: [{ path: 'servers/new', lazy: lazyPage(() => import('./pages/servers/ServerCreatePage')) }],
+  },
 
-  // whitelist routes
+  // whitelist routes (players request, server teams decide)
+  { path: 'whitelist-requests', lazy: lazyPage(() => import('./pages/whitelist/WhitelistRequestsPage')) },
 
   // admin routes (users, audit, global bypasses)
+  {
+    element: <RequirePermission permission={Permission.USER_VIEW} />,
+    children: [{ path: 'admin/users', lazy: lazyPage(() => import('./pages/admin/AdminUsersPage')) }],
+  },
+  {
+    element: <RequirePermission permission={Permission.AUDIT_VIEW} />,
+    children: [{ path: 'admin/audit', lazy: lazyPage(() => import('./pages/admin/AdminAuditPage')) }],
+  },
+  {
+    element: <RequirePermission permission={Permission.BYPASS_MANAGE_GLOBAL} />,
+    children: [{ path: 'admin/bypasses', lazy: lazyPage(() => import('./pages/admin/AdminBypassesPage')) }],
+  },
 
   { path: 'forbidden', element: <ForbiddenPage /> },
 ];

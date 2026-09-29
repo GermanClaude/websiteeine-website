@@ -19,21 +19,11 @@ import { Pagination } from '../../components/Pagination';
 import { StatusBadge, humanizeEnum } from '../../components/StatusBadge';
 import { useUrlFilters } from '../../components/useUrlFilters';
 import { shortFingerprint } from '../../lib/format';
+import { OnlineIndicator } from './OnlineIndicator';
 import { pickEnum } from './lib/forms';
-import { isServerOnline } from './serverUtils';
 
 const FILTER_DEFAULTS = { q: '', status: '' };
 const STATUS_OPTIONS = SERVER_STATUSES.map((status) => ({ value: status, label: humanizeEnum(status) }));
-
-export function OnlineIndicator({ lastSeenAt, status }: { lastSeenAt: string | null; status: ServerSummary['status'] }) {
-  if (status !== 'active') return null;
-  const online = isServerOnline(lastSeenAt);
-  return (
-    <Badge tone={online ? 'success' : 'muted'} dot title={online ? 'Heartbeat received recently' : 'No recent heartbeat'}>
-      {online ? 'Online' : 'Offline'}
-    </Badge>
-  );
-}
 
 const columns: readonly Column<ServerSummary>[] = [
   { key: 'name', header: 'Server', render: (row) => <ServerLink serverId={row.server_id} name={row.name} />, sortValue: (row) => row.name },

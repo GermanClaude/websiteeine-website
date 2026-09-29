@@ -13,6 +13,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { ServerLink, UserIdLink } from '../../components/Links';
 import { StatusBadge } from '../../components/StatusBadge';
 import { WhitelistDialogs, type WhitelistDialogState } from './WhitelistDialogs';
+import './whitelist.css';
 
 export interface WhitelistRequestTableProps {
   rows: readonly WhitelistRequestView[];
@@ -22,17 +23,20 @@ export interface WhitelistRequestTableProps {
   canDecide: boolean;
   /** Hide the requester column (own requests). */
   mine?: boolean;
+  /** Hide the server column (server-scoped views). */
+  hideServer?: boolean;
   emptyState?: ReactNode;
   highlightId?: string | null;
 }
 
-export function WhitelistRequestTable({ rows, loading = false, error, canDecide, mine = false, emptyState, highlightId = null }: WhitelistRequestTableProps) {
+export function WhitelistRequestTable({ rows, loading = false, error, canDecide, mine = false, hideServer = false, emptyState, highlightId = null }: WhitelistRequestTableProps) {
   const [dialog, setDialog] = useState<WhitelistDialogState>(null);
 
-  const columns: Column<WhitelistRequestView>[] = [
-    { key: 'server', header: 'Server', render: (row) => <ServerLink serverId={row.server.server_id} name={row.server.name} /> },
-    { key: 'type', header: 'Type', render: (row) => <StatusBadge kind="whitelistType" value={row.type} /> },
-  ];
+  const columns: Column<WhitelistRequestView>[] = [];
+  if (!hideServer) {
+    columns.push({ key: 'server', header: 'Server', render: (row) => <ServerLink serverId={row.server.server_id} name={row.server.name} /> });
+  }
+  columns.push({ key: 'type', header: 'Type', render: (row) => <StatusBadge kind="whitelistType" value={row.type} /> });
   if (!mine) {
     columns.push({
       key: 'player',

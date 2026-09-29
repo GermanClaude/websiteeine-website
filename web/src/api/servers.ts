@@ -1,6 +1,8 @@
 /**
  * Server management endpoints (ARCHITECTURE §13 "Servers"). `{id}` is the public `srv_…` id.
  */
+import type { z } from 'zod';
+
 import {
   BypassListResponseSchema,
   BypassViewSchema,
@@ -12,6 +14,7 @@ import {
   ServerListResponseSchema,
   ServerMemberListResponseSchema,
   ServerMemberViewSchema,
+  ServerUpdateRequestSchema,
   ServerViewSchema,
   type BypassCreateRequest,
   type BypassListQuery,
@@ -31,9 +34,11 @@ import {
   type ServerMemberView,
   type ServerStatusChangeRequest,
   type ServerTrustRequest,
-  type ServerUpdateRequest,
   type ServerView,
 } from '@scpsl-trust/shared';
+
+/** PATCH body as typed by forms (every field optional; '' clears the description). */
+export type ServerUpdateInput = z.input<typeof ServerUpdateRequestSchema>;
 
 import { api } from './client';
 import { createQueryKeys } from './keys';
@@ -55,7 +60,7 @@ export function createServer(body: ServerCreateRequest): Promise<ServerCreateRes
   return api.post<ServerCreateResponse>('/servers', body, { schema: ServerCreateResponseSchema });
 }
 
-export function updateServer(serverId: string, body: ServerUpdateRequest): Promise<ServerView> {
+export function updateServer(serverId: string, body: ServerUpdateInput): Promise<ServerView> {
   return api.patch<ServerView>(path(serverId), body, { schema: ServerViewSchema });
 }
 
