@@ -19,7 +19,7 @@ import { pipeline } from 'node:stream/promises';
 
 import type { Config } from '../config';
 import { AppError, isAppError } from '../lib/errors';
-import { HashingLimitStream } from './hashing-stream';
+import { captureSourceError, HashingLimitStream, type CapturedSourceError } from './hashing-stream';
 import { assertStorageKey, type ObjectHead, type ObjectStorage, type PutObjectOptions, type PutObjectResult } from './types';
 
 /** Upload runner (injectable for tests); resolves when the object is committed. */
@@ -112,8 +112,16 @@ export class S3ObjectStorage implements ObjectStorage {
 
   async put(key: string, body: Readable, options: PutObjectOptions): Promise<PutObjectResult> {
     assertStorageKey(key);
-    if (await this.exists(key)) throw new AppError('ALREADY_EXISTS', 'Object already exists');
+    const source = captureSourceError(body);
+    try {
+      if (await this.exists(key)) throw new AppError('ALREADY_EXISTS', 'Object already exists');
+      return await this.upload(key, body, options, source);
+    } finally {
+      source.release();
+    }
+  }
 
+  private async upload(key: string, body: Readable, options: PutObjectOptions, source: CapturedSourceError): Promise<PutObjectResult> {
     const hasher = new HashingLimitStream(options.maxBytes);
     const abort = new AbortController();
     const feeding = pipeline(body, hasher).catch((err: unknown) => {
@@ -144,7 +152,7 @@ export class S3ObjectStorage implements ObjectStorage {
       const cause = streamError ?? err;
       if (isAppError(cause)) throw cause;
       if (isPreconditionFailed(cause)) throw new AppError('ALREADY_EXISTS', 'Object already exists');
-      throw new AppError('STORAGE_ERROR', undefined, undefined, { cause });
+      throw new AppError('STORAGE_ERROR', undefined, undefined, { cause: source.error ?? cause });
     }
     return { size: hasher.size, sha256: hasher.sha256 };
   }

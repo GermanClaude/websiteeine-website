@@ -205,10 +205,10 @@ const EnvSchema = z.object({
   MAIL_TRANSPORT: z.enum(MAIL_TRANSPORTS).optional(),
   MAIL_FROM: z.string().max(320).optional(),
   SMTP_URL: envUrl(['smtp:', 'smtps:']).optional(),
-  MAIL_FILE_DIR: z.string().default('./data/mail'),
+  MAIL_FILE_DIR: z.string().default('./.data/mail'),
 
   STORAGE_DRIVER: z.enum(STORAGE_DRIVERS).default('local'),
-  STORAGE_LOCAL_DIR: z.string().default('./data/evidence'),
+  STORAGE_LOCAL_DIR: z.string().default('./.data/evidence'),
   STORAGE_ENDPOINT: envUrl().optional(),
   STORAGE_REGION: z.string().max(64).default('us-east-1'),
   STORAGE_BUCKET: z

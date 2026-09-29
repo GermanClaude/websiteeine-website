@@ -1,0 +1,75 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    LabAPI entry point (net48; runs on the game's Mono runtime).
+
+    Game assemblies are referenced from $(SCPSL_MANAGED_DIR) with Private=false, and NuGet assets are
+    never copied (CopyLocalLockFileAssemblies=false): BouncyCastle.Cryptography and System.Text.Json ship
+    with the game and must not be deployed twice. The only files to deploy are the two produced here:
+      ScpslTrust.Plugin.dll  -> LabAPI/plugins/<port or global>/
+      ScpslTrust.Core.dll    -> LabAPI/dependencies/<port or global>/
+    After a build both are staged under plugin/dist/ (see docs/PLUGIN.md).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <RootNamespace>ScpslTrust.Plugin</RootNamespace>
+    <AssemblyName>ScpslTrust.Plugin</AssemblyName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+    <DebugType>portable</DebugType>
+    <StageDir>$(MSBuildThisFileDirectory)../../dist/</StageDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" PrivateAssets="all" />
+    <ProjectReference Include="../ScpslTrust.Core/ScpslTrust.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Game reference assemblies (never copied, never committed). -->
+  <ItemGroup>
+    <Reference Include="LabApi">
+      <HintPath>$(SCPSL_MANAGED_DIR)LabApi.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(SCPSL_MANAGED_DIR)Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>$(SCPSL_MANAGED_DIR)Assembly-CSharp-firstpass.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="CommandSystem.Core">
+      <HintPath>$(SCPSL_MANAGED_DIR)CommandSystem.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Mirror">
+      <HintPath>$(SCPSL_MANAGED_DIR)Mirror.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="NorthwoodLib">
+      <HintPath>$(SCPSL_MANAGED_DIR)NorthwoodLib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(SCPSL_MANAGED_DIR)UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="CheckGameReferences" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(SCPSL_MANAGED_DIR)LabApi.dll')"
+           Text="Game reference assemblies not found in '$(SCPSL_MANAGED_DIR)'. Copy &lt;server&gt;/SCPSL_Data/Managed/*.dll to plugin/lib/ or build with -p:SCPSL_MANAGED_DIR=&lt;path&gt; (see plugin/lib/README.md)." />
+  </Target>
+
+  <!-- Stage the deployable files: dist/plugins/ScpslTrust.Plugin.dll and dist/dependencies/ScpslTrust.Core.dll. -->
+  <Target Name="StageDeployment" AfterTargets="Build" Condition="'$(StageDeployment)' != 'false'">
+    <ItemGroup>
+      <_StageCore Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)%(Extension)' == 'ScpslTrust.Core.dll'" />
+    </ItemGroup>
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(StageDir)plugins/" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_StageCore)" DestinationFolder="$(StageDir)dependencies/" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Staged plugin files in $(StageDir)" />
+  </Target>
+</Project>

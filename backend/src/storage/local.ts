@@ -14,7 +14,7 @@ import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
 import { AppError, isAppError } from '../lib/errors';
-import { HashingLimitStream } from './hashing-stream';
+import { captureSourceError, HashingLimitStream } from './hashing-stream';
 import { assertStorageKey, type ObjectHead, type ObjectStorage, type PutObjectOptions, type PutObjectResult } from './types';
 
 function errnoCode(err: unknown): string | undefined {
@@ -62,25 +62,32 @@ export class LocalObjectStorage implements ObjectStorage {
   }
 
   async put(key: string, body: Readable, options: PutObjectOptions): Promise<PutObjectResult> {
-    const target = await this.resolveKey(key);
-    if (await this.exists(key)) throw new AppError('ALREADY_EXISTS', 'Object already exists');
-    const dir = path.dirname(target);
-    await fs.mkdir(dir, { recursive: true, mode: 0o700 });
-    await this.assertRealParentWithinRoot(target);
-
-    const temp = path.join(dir, `.tmp-${randomUUID()}`);
-    const hasher = new HashingLimitStream(options.maxBytes);
+    // A source that fails before pipeline() attaches its handlers (e.g. the client disconnects
+    // during the checks below) must not raise an unhandled 'error' event.
+    const source = captureSourceError(body);
+    let temp: string | undefined;
     try {
-      await pipeline(body, hasher, createWriteStream(temp, { flags: 'wx', mode: 0o600 }));
-      await this.publish(temp, target);
-    } catch (err) {
-      body.destroy();
-      if (isAppError(err)) throw err;
-      throw new AppError('STORAGE_ERROR', undefined, undefined, { cause: err });
+      const target = await this.resolveKey(key);
+      if (await this.exists(key)) throw new AppError('ALREADY_EXISTS', 'Object already exists');
+      const dir = path.dirname(target);
+      await fs.mkdir(dir, { recursive: true, mode: 0o700 });
+      await this.assertRealParentWithinRoot(target);
+
+      temp = path.join(dir, `.tmp-${randomUUID()}`);
+      const hasher = new HashingLimitStream(options.maxBytes);
+      try {
+        await pipeline(body, hasher, createWriteStream(temp, { flags: 'wx', mode: 0o600 }));
+        await this.publish(temp, target);
+      } catch (err) {
+        body.destroy();
+        if (isAppError(err)) throw err;
+        throw new AppError('STORAGE_ERROR', undefined, undefined, { cause: source.error ?? err });
+      }
+      return { size: hasher.size, sha256: hasher.sha256 };
     } finally {
-      await fs.rm(temp, { force: true });
+      source.release();
+      if (temp !== undefined) await fs.rm(temp, { force: true });
     }
-    return { size: hasher.size, sha256: hasher.sha256 };
   }
 
   /** link(2) never replaces; copyFile(EXCL) is the fallback for filesystems without hard links. */

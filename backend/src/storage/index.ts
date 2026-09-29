@@ -12,7 +12,7 @@ export function createStorage(config: Config): ObjectStorage {
     : new LocalObjectStorage(config.storage.localDir);
 }
 
-export { HashingLimitStream } from './hashing-stream';
+export { captureSourceError, HashingLimitStream, type CapturedSourceError } from './hashing-stream';
 export { LocalObjectStorage } from './local';
 export { defaultS3Uploader, S3ObjectStorage, type S3Uploader } from './s3';
 export * from './types';

@@ -3,7 +3,7 @@
  * 413 PAYLOAD_TOO_LARGE as soon as the limit is exceeded.
  */
 import { createHash, type Hash } from 'node:crypto';
-import { Transform, type TransformCallback } from 'node:stream';
+import { Transform, type Readable, type TransformCallback } from 'node:stream';
 
 import { AppError } from '../lib/errors';
 
@@ -42,4 +42,32 @@ export class HashingLimitStream extends Transform {
     if (this.digestHex === null) throw new Error('HashingLimitStream has not finished');
     return this.digestHex;
   }
+}
+
+export interface CapturedSourceError {
+  /** First error the source emitted (undefined while healthy). */
+  readonly error: unknown;
+  /** Detaches the listener (call once the upload is finished). */
+  release(): void;
+}
+
+/**
+ * Attaches an 'error' listener to an upload source before any asynchronous work, so a source
+ * that fails early (client disconnect during pre-checks) neither crashes the process with an
+ * unhandled 'error' event nor loses the reason.
+ */
+export function captureSourceError(source: Readable): CapturedSourceError {
+  let captured: unknown;
+  const onError = (err: unknown): void => {
+    captured ??= err;
+  };
+  source.on('error', onError);
+  return {
+    get error(): unknown {
+      return captured;
+    },
+    release(): void {
+      source.off('error', onError);
+    },
+  };
 }
