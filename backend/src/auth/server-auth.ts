@@ -59,6 +59,11 @@ export interface SignedRequestInput {
   headers: IncomingHttpHeaders;
   /** Raw body bytes; undefined/empty for requests without body. */
   rawBody: Buffer | undefined;
+  /**
+   * Parsed body. A body that was parsed without raw bytes (non-JSON parser) is not covered
+   * by the signature and is rejected.
+   */
+  body?: unknown;
 }
 
 export interface VerifyServerSignatureDeps {
@@ -196,6 +201,7 @@ async function verify(deps: VerifyServerSignatureDeps, input: SignedRequestInput
   }
 
   // 5. Signature over the canonical string (raw body bytes, raw path + query).
+  if (input.rawBody === undefined && input.body !== undefined && input.body !== null) fail('INVALID_SIGNATURE');
   let canonical: string;
   try {
     canonical = buildCanonicalRequest({
@@ -337,6 +343,7 @@ export function createServerSignatureHandler(deps: ServerAuthDeps): preHandlerAs
         url: request.raw.url ?? request.url,
         headers: request.headers,
         rawBody: request.rawBody,
+        body: request.body,
       });
     } catch (err) {
       if (err instanceof AppError && COUNTED_FAILURES.has(err.code)) {

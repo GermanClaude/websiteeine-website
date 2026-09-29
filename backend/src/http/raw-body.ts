@@ -5,6 +5,8 @@
  * - empty body → request.body undefined (allowed; schemas decide whether a body is required)
  * - invalid JSON → 400 VALIDATION_FAILED
  * - prototype-poisoning keys (`__proto__`, `constructor.prototype`) → 400 VALIDATION_FAILED
+ * - Fastify's default text/plain parser is removed: the API only accepts JSON (and multipart
+ *   where a module registers it), so no body can bypass rawBody capture.
  */
 import type { FastifyInstance } from 'fastify';
 
@@ -31,7 +33,7 @@ export function parseJsonBody(body: Buffer): unknown {
 }
 
 export function registerRawJsonParser(app: FastifyInstance): void {
-  app.removeContentTypeParser('application/json');
+  app.removeContentTypeParser(['application/json', 'text/plain']);
   app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (request, body, done) => {
     const buffer = Buffer.isBuffer(body) ? body : Buffer.from(body);
     request.rawBody = buffer;

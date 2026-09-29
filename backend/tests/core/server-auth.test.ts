@@ -7,10 +7,12 @@ import { SIGNING_HEADERS_LOWER } from '@scpsl-trust/shared';
 
 import { generateEd25519KeyPair, signEd25519 } from '../../src/lib/crypto';
 import { MemoryShortLivedStore } from '../../src/redis/store';
+import { verifyServerSignature } from '../../src/auth/server-auth';
 import {
   addServerKey,
   createServerWithKey,
   expectError,
+  prepareSignedRequest,
   randomNonce,
   signedRequest,
   useTestApp,
@@ -416,6 +418,17 @@ function runSuite(label: string, options: { redis: boolean }): void {
       t().clock.advance(-11_000);
     });
 
+    it('rejects non-JSON bodies on signed routes (no body may bypass the signature)', async () => {
+      const res = await signedRequest(app(), identityOf(srv), {
+        method: 'POST',
+        url: SIGNED_PATH,
+        rawBody: 'server_id=srv_other',
+        contentType: 'text/plain',
+        sign: { body: '' },
+      });
+      expectError(res, 415, 'UNSUPPORTED_MEDIA_TYPE');
+    });
+
     it('does not require a CSRF token for signed requests without cookies', async () => {
       const res = await signedRequest(app(), identityOf(srv), {
         method: 'POST',
@@ -427,6 +440,46 @@ function runSuite(label: string, options: { redis: boolean }): void {
     });
   });
 }
+
+describe('verifyServerSignature (without HTTP)', () => {
+  const t = useTestApp({ modules: [] });
+
+  it('verifies steps 1-7 and 9 and rejects parsed bodies without raw bytes', async () => {
+    const srv = await createServerWithKey(t().deps);
+    const deps = {
+      db: t().db,
+      nonceStore: t().deps.nonceStore,
+      clock: t().clock,
+      maxSkewSeconds: t().config.serverAuth.signatureMaxSkewSeconds,
+    };
+    const body = Buffer.from(JSON.stringify({ server_id: srv.server.server_id }));
+    const prepared = prepareSignedRequest(identityOf(srv), { method: 'POST', url: '/api/v1/x', rawBody: body }, t().clock.now().getTime());
+    const server = await verifyServerSignature(deps, {
+      method: 'POST',
+      url: '/api/v1/x',
+      headers: prepared.headers,
+      rawBody: body,
+      body: JSON.parse(body.toString('utf8')) as unknown,
+    });
+    expect(server).toMatchObject({ id: srv.server.id, server_id: srv.server.server_id, key_id: srv.key?.id });
+
+    const again = prepareSignedRequest(identityOf(srv), { method: 'POST', url: '/api/v1/x' }, t().clock.now().getTime());
+    await expect(
+      verifyServerSignature(deps, { method: 'POST', url: '/api/v1/x', headers: again.headers, rawBody: undefined, body: 'smuggled' }),
+    ).rejects.toMatchObject({ code: 'INVALID_SIGNATURE' });
+
+    const mismatch = prepareSignedRequest(identityOf(srv), { method: 'POST', url: '/api/v1/x', body: { server_id: 'srv_0000000000000001' } }, t().clock.now().getTime());
+    await expect(
+      verifyServerSignature(deps, {
+        method: 'POST',
+        url: '/api/v1/x',
+        headers: mismatch.headers,
+        rawBody: mismatch.payload,
+        body: { server_id: 'srv_0000000000000001' },
+      }),
+    ).rejects.toMatchObject({ code: 'SERVER_ID_MISMATCH' });
+  });
+});
 
 runSuite('memory store', { redis: false });
 runSuite('redis store', { redis: true });

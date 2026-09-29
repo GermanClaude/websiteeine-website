@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ScpslTrust.Core.Storage;
 
@@ -271,6 +272,8 @@ namespace ScpslTrust.Core.Security
             {
                 PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
                 WriteIndented = true,
+                // Keep base64 '+' readable in the file (the default encoder writes \u002B).
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             };
         }
     }

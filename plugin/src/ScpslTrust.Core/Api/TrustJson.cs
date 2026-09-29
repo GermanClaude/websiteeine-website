@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -15,7 +16,7 @@ namespace ScpslTrust.Core.Api
         /// <summary>Shared, read-only serializer options.</summary>
         public static readonly JsonSerializerOptions Options = CreateOptions(writeIndented: false);
 
-        /// <summary>Indented variant for human-readable files and tool output.</summary>
+        /// <summary>Indented variant for human-readable local files and tool output (never sent on the wire).</summary>
         public static readonly JsonSerializerOptions IndentedOptions = CreateOptions(writeIndented: true);
 
         public static byte[] SerializeToUtf8Bytes<T>(T value) => JsonSerializer.SerializeToUtf8Bytes(value, Options);
@@ -43,6 +44,8 @@ namespace ScpslTrust.Core.Api
                 AllowTrailingCommas = false,
                 MaxDepth = 32,
                 WriteIndented = writeIndented,
+                // Files and console output stay readable; wire JSON keeps the default (strict) escaping.
+                Encoder = writeIndented ? JavaScriptEncoder.UnsafeRelaxedJsonEscaping : null,
                 TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
             };
             options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, allowIntegerValues: false));

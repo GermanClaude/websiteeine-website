@@ -24,6 +24,9 @@ namespace ScpslTrust.Core.Services
 
         public KeyStore Store { get; }
 
+        /// <summary>Why the last <see cref="TryLoad"/> failed (identity.json unreadable), or null.</summary>
+        public string? LoadError { get; private set; }
+
         public ServerIdentity? Current
         {
             get
@@ -48,6 +51,23 @@ namespace ScpslTrust.Core.Services
             return identity;
         }
 
+        /// <summary>Like <see cref="Load"/> but records failures in <see cref="LoadError"/> instead of throwing.</summary>
+        public bool TryLoad()
+        {
+            try
+            {
+                Load();
+                LoadError = null;
+                return true;
+            }
+            catch (KeyStoreException ex)
+            {
+                LoadError = ex.Message;
+                _logger.Error("Cannot load the server identity: " + ex.Message + " The plugin runs unregistered until this is fixed.");
+                return false;
+            }
+        }
+
         /// <summary>Switches to an identity that has already been persisted.</summary>
         public void Replace(ServerIdentity identity, bool previousKeptForCleanup)
         {
@@ -61,6 +81,8 @@ namespace ScpslTrust.Core.Services
                 _current = identity;
                 _previousPendingCleanup = previousKeptForCleanup;
             }
+
+            LoadError = null;
         }
 
         public void OnSignedRequestSucceeded(ServerIdentity identity)

@@ -60,6 +60,11 @@ namespace ScpslTrust.Core.Services
             await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                if (_identities.LoadError != null && !force)
+                {
+                    throw new InvalidOperationException(KeyStore.IdentityFileName + " exists but is unreadable (" + _identities.LoadError + "). Fix or move it, or use 'trust register <token> --force'.");
+                }
+
                 var existing = _identities.Current;
                 if (existing != null && !force)
                 {
