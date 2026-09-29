@@ -79,6 +79,19 @@ export function optionalText(max: number) {
     .transform((value): string | null => (value === undefined || value === null || value === '' ? null : value));
 }
 
+/**
+ * Text field of a PATCH body: absent stays undefined (= unchanged); null and '' become null
+ * (= clear); other values are trimmed.
+ */
+export function patchText(max: number) {
+  return z
+    .string()
+    .trim()
+    .max(max)
+    .nullish()
+    .transform((value): string | null | undefined => (value === '' ? null : value));
+}
+
 // ---------------------------------------------------------------------------
 // Player identity
 // ---------------------------------------------------------------------------
