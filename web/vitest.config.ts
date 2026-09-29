@@ -1,0 +1,20 @@
+import { fileURLToPath } from 'node:url';
+
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@scpsl-trust/shared': fileURLToPath(new URL('../shared/src/index.ts', import.meta.url)),
+    },
+  },
+  test: {
+    environment: 'jsdom',
+    globals: false,
+    setupFiles: ['./tests/setup.ts'],
+    include: ['tests/**/*.test.{ts,tsx}', 'src/**/__tests__/**/*.test.{ts,tsx}'],
+    css: false,
+  },
+});
