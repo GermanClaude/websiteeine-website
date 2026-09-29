@@ -494,8 +494,11 @@ Implemented once in `shared/src/signing.ts` (`buildCanonicalRequest(parts)`) and
 5. Ed25519 verify over canonical string computed from the **raw body** (captured by `raw-body.ts`) → else `401 INVALID_SIGNATURE`.
 6. Nonce: Redis `SET nonce:{server_id}:{nonce} 1 NX PX (2*skew+30s)` → if exists `401 REPLAYED_NONCE`.
 7. Request id: Redis `SET reqid:{server_id}:{request_id} 1 NX PX 600000` → if exists `409 DUPLICATE_REQUEST_ID`.
-8. `request.server = { id, server_id, key_id, fingerprint, plugin_version }`; update `last_seen_at`/`plugin_version`
-   (throttled to once per 60 s via Redis).
+8. `request.authServer = { id, server_id, key_id, fingerprint, plugin_version, name, owner_user_id }` (named
+   `authServer` because Fastify reserves `request.server` for the instance); update `last_seen_at`/`plugin_version`
+   (throttled to once per 60 s via Redis). A `pending` (never registered) server answers `401 NO_ACTIVE_KEY`.
+   Repeated failures are counted per claimed server and per client and answered `429 RATE_LIMITED`
+   (`RATE_LIMIT_SERVER_AUTH_FAILURES_PER_MINUTE`) before any database work.
 9. If body contains `server_id` it must equal the header → else `400 SERVER_ID_MISMATCH`.
 
 Steps 6–7 run only after a valid signature (prevents nonce-store pollution). A `NonceStore` interface has a Redis
@@ -1032,8 +1035,11 @@ REGISTRATION_TOKEN_TTL_HOURS, VPN_PROVIDERS, VPN_CIDR_LIST_PATHS, VPN_CIDR_CONFI
 VPN_PROVIDER_TIMEOUT_MS, VPN_CACHE_TTL_SECONDS, STEAM_WEB_API_KEY, ACCOUNT_AGE_CACHE_DAYS, ALT_LOOKBACK_DAYS,
 ALT_MAX_SHARED_ACCOUNTS, OVERWATCH_INTERVAL_SECONDS, OVERWATCH_HEARTBEAT_TIMEOUT_SECONDS, PROOF_RATE_LIMIT_PER_MINUTE,
 WHITELIST_REQUEST_TTL_DAYS, RETENTION_*, JOBS_ENABLED, PUBLIC_CASE_LOOKUP, OPENAPI_UI, LOG_LEVEL, LOG_CLIENT_IP,
-RATE_LIMIT_*`. Missing/weak secrets → startup failure in production (`NODE_ENV=production`), generated
-ephemeral values only allowed in development with a loud warning.
+RATE_LIMIT_*, SHUTDOWN_TIMEOUT_MS, DATABASE_STATEMENT_TIMEOUT_MS, AUTO_MIGRATE, MIGRATIONS_DIR, REDIS_KEY_PREFIX,
+LOG_PRETTY, RATE_LIMIT_ENABLED, RATE_LIMIT_SERVER_AUTH_FAILURES_PER_MINUTE`. Missing/weak secrets → startup failure
+in production (`NODE_ENV=production`), generated ephemeral values only allowed in development with a loud warning.
+The defaults of `MAIL_TRANSPORT` (smtp/file/noop) and `OPENAPI_UI` depend on `NODE_ENV`; `docs/CONFIGURATION.md`
+is the authoritative variable reference.
 
 ---
 
