@@ -46,7 +46,7 @@ export const PluginVersionSchema = z
   .max(LIMITS.PLUGIN_VERSION_MAX)
   .regex(PLUGIN_VERSION_REGEX, 'Plugin version must be a semantic version');
 export const GameVersionSchema = z.string().trim().min(1).max(LIMITS.GAME_VERSION_MAX);
-export const UsernameSchema = z.string().regex(USERNAME_REGEX, 'Username must be 3–32 characters [A-Za-z0-9_.-]');
+export const UsernameSchema = z.string().regex(USERNAME_REGEX, 'Username must be 3-32 characters [A-Za-z0-9_.-]');
 /** Unix epoch milliseconds (JSON number). */
 export const EpochMsSchema = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 export const IpAddressSchema = z.union([z.ipv4(), z.ipv6()]);

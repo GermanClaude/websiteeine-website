@@ -1,0 +1,4305 @@
+{
+  "version": "1",
+  "description": "Policy engine vectors (ARCHITECTURE §7.2). Evaluate `policy` against `input` with `context`; the result must equal `expected_decision` (and therefore `expected`).",
+  "cases": [
+    {
+      "name": "empty_policy_allows",
+      "description": "No rules → allow, nothing applied, no message.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": []
+      },
+      "input": {
+        "global_status": "confirmed",
+        "case_id": "CASE-2026-001337",
+        "confirmed_servers": 3,
+        "open_reports": 0,
+        "account_age": {
+          "days": 0
+        },
+        "vpn": {
+          "confidence": "confirmed"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "default_policy_clean_player",
+      "description": "Default policy (§7.4) with a clean player → allow.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "default-global-verdict",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": null
+          },
+          {
+            "id": "default-account-age",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 3,
+            "match_unknown_age": false
+          },
+          {
+            "id": "default-vpn",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          },
+          {
+            "id": "default-alt-account",
+            "enabled": true,
+            "signal": "alt_account",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_alt_confidence": "medium",
+            "require_linked_confirmed_case": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "default_policy_confirmed_cheater_only_notifies",
+      "description": "Default policy never kicks: a confirmed verdict only notifies admins.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "default-global-verdict",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": null
+          },
+          {
+            "id": "default-account-age",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 3,
+            "match_unknown_age": false
+          },
+          {
+            "id": "default-vpn",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          },
+          {
+            "id": "default-alt-account",
+            "enabled": true,
+            "signal": "alt_account",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_alt_confidence": "medium",
+            "require_linked_confirmed_case": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "confirmed",
+        "case_id": "CASE-2026-001337",
+        "confirmed_servers": 3,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "admin_notify",
+        "applied_rule_ids": [
+          "default-global-verdict"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Player matched a server policy rule.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "admin_notify",
+        "applied": [
+          {
+            "rule_id": "default-global-verdict",
+            "signal": "global_verdict",
+            "action": "admin_notify",
+            "reason_code": "global_verdict_match"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Player matched a server policy rule.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "default_policy_all_signals",
+      "description": "All four default rules match; applied list keeps rule order.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "default-global-verdict",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": null
+          },
+          {
+            "id": "default-account-age",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 3,
+            "match_unknown_age": false
+          },
+          {
+            "id": "default-vpn",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          },
+          {
+            "id": "default-alt-account",
+            "enabled": true,
+            "signal": "alt_account",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_alt_confidence": "medium",
+            "require_linked_confirmed_case": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "confirmed",
+        "case_id": "CASE-2026-001337",
+        "confirmed_servers": 3,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": true,
+          "confidence": "medium",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "admin_notify",
+        "applied_rule_ids": [
+          "default-global-verdict",
+          "default-account-age",
+          "default-vpn",
+          "default-alt-account"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Player matched a server policy rule.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "admin_notify",
+        "applied": [
+          {
+            "rule_id": "default-global-verdict",
+            "signal": "global_verdict",
+            "action": "admin_notify",
+            "reason_code": "global_verdict_match"
+          },
+          {
+            "rule_id": "default-account-age",
+            "signal": "account_age",
+            "action": "admin_notify",
+            "reason_code": "account_age_below_threshold"
+          },
+          {
+            "rule_id": "default-vpn",
+            "signal": "vpn",
+            "action": "admin_notify",
+            "reason_code": "vpn_confidence"
+          },
+          {
+            "rule_id": "default-alt-account",
+            "signal": "alt_account",
+            "action": "admin_notify",
+            "reason_code": "alt_account_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Player matched a server policy rule.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "default_policy_account_age_equal_threshold",
+      "description": "Default account-age rule is \"< 3 days\": exactly 3 days does not match.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "default-global-verdict",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": null
+          },
+          {
+            "id": "default-account-age",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 3,
+            "match_unknown_age": false
+          },
+          {
+            "id": "default-vpn",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          },
+          {
+            "id": "default-alt-account",
+            "enabled": true,
+            "signal": "alt_account",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_alt_confidence": "medium",
+            "require_linked_confirmed_case": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 3
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "global_verdict_status_not_listed",
+      "description": "under_review is not in statuses [confirmed].",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "v1",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "ban",
+            "message": null,
+            "ban_duration_minutes": null,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": null
+          }
+        ]
+      },
+      "input": {
+        "global_status": "under_review",
+        "case_id": "CASE-2026-000001",
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "global_verdict_multiple_statuses_warn",
+      "description": "statuses [under_review, confirmed] matches under_review; warn notifies (notify_on_enforcement).",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "v1",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "warn",
+            "message": null,
+            "ban_duration_minutes": null,
+            "statuses": [
+              "under_review",
+              "confirmed"
+            ],
+            "min_confirmed_servers": null
+          }
+        ]
+      },
+      "input": {
+        "global_status": "under_review",
+        "case_id": "CASE-2026-000001",
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "warn",
+        "applied_rule_ids": [
+          "v1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Your account has been flagged by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "warn",
+        "applied": [
+          {
+            "rule_id": "v1",
+            "signal": "global_verdict",
+            "action": "warn",
+            "reason_code": "global_verdict_match"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Your account has been flagged by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "global_verdict_min_confirmed_servers_not_met",
+      "description": "min_confirmed_servers 3 with only 2 confirmations → no match.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "v1",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "ban",
+            "message": null,
+            "ban_duration_minutes": 60,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": 3
+          }
+        ]
+      },
+      "input": {
+        "global_status": "confirmed",
+        "case_id": "CASE-2026-001337",
+        "confirmed_servers": 2,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "global_verdict_min_confirmed_servers_met_exactly_ban",
+      "description": "confirmed_servers == min matches; custom message with {case_id}; ban duration from the rule.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "v1",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "ban",
+            "message": "Banned: confirmed cheating ({case_id}).",
+            "ban_duration_minutes": 1440,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": 3
+          }
+        ]
+      },
+      "input": {
+        "global_status": "confirmed",
+        "case_id": "CASE-2026-001337",
+        "confirmed_servers": 3,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "ban",
+        "applied_rule_ids": [
+          "v1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Banned: confirmed cheating (CASE-2026-001337).",
+        "ban_duration_minutes": 1440
+      },
+      "expected_decision": {
+        "action": "ban",
+        "applied": [
+          {
+            "rule_id": "v1",
+            "signal": "global_verdict",
+            "action": "ban",
+            "reason_code": "global_verdict_match"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Banned: confirmed cheating (CASE-2026-001337).",
+        "ban_duration_minutes": 1440
+      }
+    },
+    {
+      "name": "global_verdict_min_confirmed_servers_zero",
+      "description": "min_confirmed_servers 0 matches any confirmed status.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "v1",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": 0
+          }
+        ]
+      },
+      "input": {
+        "global_status": "confirmed",
+        "case_id": "CASE-2026-001337",
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "kick",
+        "applied_rule_ids": [
+          "v1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "kick",
+        "applied": [
+          {
+            "rule_id": "v1",
+            "signal": "global_verdict",
+            "action": "kick",
+            "reason_code": "global_verdict_match"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "account_age_below_threshold_kick_with_days",
+      "description": "days 3 < 7 → kick; {days} substituted.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "kick",
+            "message": "Your account must be at least 7 days old (currently {days} days).",
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 3
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "kick",
+        "applied_rule_ids": [
+          "a1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Your account must be at least 7 days old (currently 3 days).",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "kick",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "kick",
+            "reason_code": "account_age_below_threshold"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Your account must be at least 7 days old (currently 3 days).",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "account_age_equal_threshold_no_match",
+      "description": "Strict \"<\": days 7 with max 7 does not match.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 7
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "account_age_zero_days_matches",
+      "description": "A brand-new account (0 days) matches max 1.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "warn",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 1,
+            "match_unknown_age": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 0
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "warn",
+        "applied_rule_ids": [
+          "a1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Your account has been flagged by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "warn",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "warn",
+            "reason_code": "account_age_below_threshold"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Your account has been flagged by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "account_age_unknown_not_matched_by_default",
+      "description": "days null with match_unknown_age false → no match.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": null
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "account_age_unknown_matched_require_review",
+      "description": "days null with match_unknown_age true → require_review (reason account_age_unknown); {days} → empty.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "require_review",
+            "message": "Account age unknown ({days}).",
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": true
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": null
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "require_review",
+        "applied_rule_ids": [
+          "a1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Account age unknown ().",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "require_review",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "require_review",
+            "reason_code": "account_age_unknown"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Account age unknown ().",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "account_age_known_ignores_match_unknown_age",
+      "description": "match_unknown_age only applies to unknown ages; an old known account does not match.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": true
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 30
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "vpn_possible_below_likely",
+      "description": "possible < likely → no match.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "possible"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "vpn_likely_require_whitelist_default_message",
+      "description": "likely ≥ likely → require_whitelist with the default message and {whitelist_url}.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "require_whitelist",
+        "applied_rule_ids": [
+          "n1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "A VPN/proxy was detected. Request a whitelist at https://trust.example.org/whitelist",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "require_whitelist",
+        "applied": [
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "A VPN/proxy was detected. Request a whitelist at https://trust.example.org/whitelist",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "vpn_confirmed_exceeds_possible",
+      "description": "confirmed ≥ possible → kick.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "possible"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "confirmed"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "kick",
+        "applied_rule_ids": [
+          "n1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "kick",
+        "applied": [
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "kick",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "vpn_not_detected_never_matches",
+      "description": "not_detected never reaches a schema-valid threshold.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "possible"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "vpn_require_whitelist_without_whitelist_url",
+      "description": "whitelist_url null → {whitelist_url} becomes the empty string.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": null,
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "require_whitelist",
+        "applied_rule_ids": [
+          "n1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "A VPN/proxy was detected. Request a whitelist at ",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "require_whitelist",
+        "applied": [
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "A VPN/proxy was detected. Request a whitelist at ",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "alt_not_possible_never_matches",
+      "description": "possible false → no match regardless of confidence.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "l1",
+            "enabled": true,
+            "signal": "alt_account",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_alt_confidence": "low",
+            "require_linked_confirmed_case": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "high",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "alt_confidence_below_min",
+      "description": "low < medium → no match.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "l1",
+            "enabled": true,
+            "signal": "alt_account",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_alt_confidence": "medium",
+            "require_linked_confirmed_case": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": true,
+          "confidence": "low",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "alt_require_linked_confirmed_case_missing",
+      "description": "require_linked_confirmed_case with no linked confirmed cases → no match.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "l1",
+            "enabled": true,
+            "signal": "alt_account",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_alt_confidence": "medium",
+            "require_linked_confirmed_case": true
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": true,
+          "confidence": "high",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "alt_require_linked_confirmed_case_present",
+      "description": "require_linked_confirmed_case with a linked confirmed case → kick.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "l1",
+            "enabled": true,
+            "signal": "alt_account",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_alt_confidence": "medium",
+            "require_linked_confirmed_case": true
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": true,
+          "confidence": "medium",
+          "linked_confirmed_cases": [
+            "CASE-2026-000999"
+          ]
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "kick",
+        "applied_rule_ids": [
+          "l1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "kick",
+        "applied": [
+          {
+            "rule_id": "l1",
+            "signal": "alt_account",
+            "action": "kick",
+            "reason_code": "alt_account_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "open_reports_threshold_met",
+      "description": "open_reports == min → warn.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "r1",
+            "enabled": true,
+            "signal": "open_reports",
+            "action": "warn",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_open_reports": 2
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 2,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "warn",
+        "applied_rule_ids": [
+          "r1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Your account has been flagged by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "warn",
+        "applied": [
+          {
+            "rule_id": "r1",
+            "signal": "open_reports",
+            "action": "warn",
+            "reason_code": "open_reports_threshold"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Your account has been flagged by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "open_reports_threshold_not_met",
+      "description": "open_reports 2 < min 3 → no match.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "r1",
+            "enabled": true,
+            "signal": "open_reports",
+            "action": "warn",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_open_reports": 3
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 2,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "bypass_vpn_whitelist_exempts_vpn_rule",
+      "description": "vpn_whitelist bypass: the matching vpn rule is listed as bypassed, not applied.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "confirmed"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": [
+            "vpn_whitelist"
+          ]
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [
+          "n1"
+        ],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "bypass_other_type_does_not_exempt_vpn",
+      "description": "account_age_whitelist does not exempt a vpn rule.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": [
+            "account_age_whitelist"
+          ]
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "require_whitelist",
+        "applied_rule_ids": [
+          "n1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "A VPN/proxy was detected. Request a whitelist at https://trust.example.org/whitelist",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "require_whitelist",
+        "applied": [
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "A VPN/proxy was detected. Request a whitelist at https://trust.example.org/whitelist",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "bypass_account_age_whitelist",
+      "description": "account_age_whitelist exempts the account_age rule.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": [
+            "account_age_whitelist"
+          ]
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [
+          "a1"
+        ],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "kick",
+            "reason_code": "account_age_below_threshold"
+          }
+        ],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "bypass_alt_account_whitelist",
+      "description": "alt_account_whitelist exempts the alt_account rule.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "l1",
+            "enabled": true,
+            "signal": "alt_account",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_alt_confidence": "medium",
+            "require_linked_confirmed_case": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": true,
+          "confidence": "high",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": [
+            "alt_account_whitelist"
+          ]
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [
+          "l1"
+        ],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [
+          {
+            "rule_id": "l1",
+            "signal": "alt_account",
+            "action": "kick",
+            "reason_code": "alt_account_confidence"
+          }
+        ],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "bypass_verdict_override_exempts_global_verdict",
+      "description": "verdict_override exempts global_verdict rules.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "v1",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "ban",
+            "message": null,
+            "ban_duration_minutes": 0,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": null
+          }
+        ]
+      },
+      "input": {
+        "global_status": "confirmed",
+        "case_id": "CASE-2026-001337",
+        "confirmed_servers": 3,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": [
+            "verdict_override"
+          ]
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [
+          "v1"
+        ],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [
+          {
+            "rule_id": "v1",
+            "signal": "global_verdict",
+            "action": "ban",
+            "reason_code": "global_verdict_match"
+          }
+        ],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "bypass_verdict_override_exempts_open_reports",
+      "description": "verdict_override also exempts open_reports rules.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "r1",
+            "enabled": true,
+            "signal": "open_reports",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_open_reports": 2
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 5,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": [
+            "verdict_override"
+          ]
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [
+          "r1"
+        ],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [
+          {
+            "rule_id": "r1",
+            "signal": "open_reports",
+            "action": "kick",
+            "reason_code": "open_reports_threshold"
+          }
+        ],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "bypass_partial_one_of_two",
+      "description": "vpn bypassed, account_age still applied.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          },
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 2
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": [
+            "vpn_whitelist"
+          ]
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "kick",
+        "applied_rule_ids": [
+          "a1"
+        ],
+        "bypassed_rule_ids": [
+          "n1"
+        ],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "kick",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "kick",
+            "reason_code": "account_age_below_threshold"
+          }
+        ],
+        "bypassed": [
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "bypass_only_lists_matching_rules",
+      "description": "A bypass exists but its rule does not match → neither applied nor bypassed.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "possible"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": [
+            "vpn_whitelist"
+          ]
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "severity_ban_wins_over_all",
+      "description": "warn, kick, ban, admin_notify all match → ban; ban duration 0 = permanent.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "r1",
+            "enabled": true,
+            "signal": "open_reports",
+            "action": "warn",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_open_reports": 1
+          },
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          },
+          {
+            "id": "v1",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "ban",
+            "message": null,
+            "ban_duration_minutes": 0,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": null
+          },
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "confirmed",
+        "case_id": "CASE-2026-001337",
+        "confirmed_servers": 3,
+        "open_reports": 1,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "ban",
+        "applied_rule_ids": [
+          "r1",
+          "a1",
+          "v1",
+          "n1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "You have been banned by this server's trust policy.",
+        "ban_duration_minutes": 0
+      },
+      "expected_decision": {
+        "action": "ban",
+        "applied": [
+          {
+            "rule_id": "r1",
+            "signal": "open_reports",
+            "action": "warn",
+            "reason_code": "open_reports_threshold"
+          },
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "kick",
+            "reason_code": "account_age_below_threshold"
+          },
+          {
+            "rule_id": "v1",
+            "signal": "global_verdict",
+            "action": "ban",
+            "reason_code": "global_verdict_match"
+          },
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "admin_notify",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "You have been banned by this server's trust policy.",
+        "ban_duration_minutes": 0
+      }
+    },
+    {
+      "name": "severity_kick_beats_require_whitelist",
+      "description": "require_whitelist (4) < kick (5); message of the kick rule.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          },
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "kick",
+            "message": "Too new.",
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "kick",
+        "applied_rule_ids": [
+          "n1",
+          "a1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Too new.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "kick",
+        "applied": [
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "reason_code": "vpn_confidence"
+          },
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "kick",
+            "reason_code": "account_age_below_threshold"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Too new.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "severity_require_whitelist_beats_require_review",
+      "description": "require_review (3) < require_whitelist (4); require_review still forces notify.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": false,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "require_review",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          },
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "require_whitelist",
+        "applied_rule_ids": [
+          "a1",
+          "n1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "A VPN/proxy was detected. Request a whitelist at https://trust.example.org/whitelist",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "require_whitelist",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "require_review",
+            "reason_code": "account_age_below_threshold"
+          },
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "require_whitelist",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "A VPN/proxy was detected. Request a whitelist at https://trust.example.org/whitelist",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "message_first_rule_with_winning_action",
+      "description": "Two kick rules with messages → the first one wins.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "kick",
+            "message": "First kick.",
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          },
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "kick",
+            "message": "Second kick.",
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "kick",
+        "applied_rule_ids": [
+          "a1",
+          "n1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "First kick.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "kick",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "kick",
+            "reason_code": "account_age_below_threshold"
+          },
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "kick",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "First kick.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "message_first_winning_rule_without_message_uses_default",
+      "description": "First kick rule has no message → default kick text even though a later kick rule has one.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          },
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "kick",
+            "message": "Second kick.",
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "kick",
+        "applied_rule_ids": [
+          "a1",
+          "n1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "kick",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "kick",
+            "reason_code": "account_age_below_threshold"
+          },
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "kick",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "message_empty_string_uses_default",
+      "description": "An empty message is treated like null.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "warn",
+            "message": "",
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "warn",
+        "applied_rule_ids": [
+          "a1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Your account has been flagged by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "warn",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "warn",
+            "reason_code": "account_age_below_threshold"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Your account has been flagged by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "message_of_lower_severity_rule_ignored",
+      "description": "Only rules with the winning action provide the message.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "warn",
+            "message": "Warn text.",
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          },
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "kick",
+        "applied_rule_ids": [
+          "a1",
+          "n1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "kick",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "warn",
+            "reason_code": "account_age_below_threshold"
+          },
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "kick",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "ban_duration_from_first_ban_rule",
+      "description": "Two ban rules (60, 1440) → 60 from the first.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "ban",
+            "message": null,
+            "ban_duration_minutes": 60,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          },
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "ban",
+            "message": null,
+            "ban_duration_minutes": 1440,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "ban",
+        "applied_rule_ids": [
+          "a1",
+          "n1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "You have been banned by this server's trust policy.",
+        "ban_duration_minutes": 60
+      },
+      "expected_decision": {
+        "action": "ban",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "ban",
+            "reason_code": "account_age_below_threshold"
+          },
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "ban",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "You have been banned by this server's trust policy.",
+        "ban_duration_minutes": 60
+      }
+    },
+    {
+      "name": "ban_duration_null_means_permanent",
+      "description": "A ban rule without duration yields 0 (permanent).",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "ban",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "ban",
+        "applied_rule_ids": [
+          "a1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "You have been banned by this server's trust policy.",
+        "ban_duration_minutes": 0
+      },
+      "expected_decision": {
+        "action": "ban",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "ban",
+            "reason_code": "account_age_below_threshold"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "You have been banned by this server's trust policy.",
+        "ban_duration_minutes": 0
+      }
+    },
+    {
+      "name": "ban_duration_ignored_when_ban_bypassed",
+      "description": "The ban rule is bypassed; the kick rule wins and no ban duration is reported.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "v1",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "ban",
+            "message": null,
+            "ban_duration_minutes": 60,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": null
+          },
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "confirmed",
+        "case_id": "CASE-2026-001337",
+        "confirmed_servers": 3,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": [
+            "verdict_override"
+          ]
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "kick",
+        "applied_rule_ids": [
+          "a1"
+        ],
+        "bypassed_rule_ids": [
+          "v1"
+        ],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "kick",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "kick",
+            "reason_code": "account_age_below_threshold"
+          }
+        ],
+        "bypassed": [
+          {
+            "rule_id": "v1",
+            "signal": "global_verdict",
+            "action": "ban",
+            "reason_code": "global_verdict_match"
+          }
+        ],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "disabled_rule_ignored",
+      "description": "A disabled matching kick rule is neither applied nor bypassed.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": false,
+            "signal": "account_age",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          },
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "admin_notify",
+        "applied_rule_ids": [
+          "n1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Player matched a server policy rule.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "admin_notify",
+        "applied": [
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "admin_notify",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Player matched a server policy rule.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "all_rules_disabled",
+      "description": "Every rule disabled → allow.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "v1",
+            "enabled": false,
+            "signal": "global_verdict",
+            "action": "ban",
+            "message": null,
+            "ban_duration_minutes": null,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": null
+          },
+          {
+            "id": "n1",
+            "enabled": false,
+            "signal": "vpn",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "confirmed",
+        "case_id": "CASE-2026-001337",
+        "confirmed_servers": 3,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "confirmed"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "unknown_signal_ignored",
+      "description": "A rule with a signal unknown to this version is ignored (forward compatibility).",
+      "schema_valid": false,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "f1",
+            "enabled": true,
+            "signal": "future_signal",
+            "action": "ban",
+            "message": null,
+            "ban_duration_minutes": 0,
+            "threshold": 1
+          },
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "warn",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "warn",
+        "applied_rule_ids": [
+          "a1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Your account has been flagged by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "warn",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "warn",
+            "reason_code": "account_age_below_threshold"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Your account has been flagged by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "unknown_action_ignored",
+      "description": "A rule with an action unknown to this version is ignored.",
+      "schema_valid": false,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "quarantine",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "confirmed"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "notify_on_enforcement_false_kick_silent",
+      "description": "notify_on_enforcement false and only a kick applied → no admin notification.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": false,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "kick",
+        "applied_rule_ids": [
+          "a1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "kick",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "kick",
+            "reason_code": "account_age_below_threshold"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "notify_on_enforcement_false_admin_notify_still_notifies",
+      "description": "An applied admin_notify rule always notifies, even when the winning action is kick.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": false,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          },
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "kick",
+            "message": null,
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": false
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 1
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "kick",
+        "applied_rule_ids": [
+          "n1",
+          "a1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "kick",
+        "applied": [
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "admin_notify",
+            "reason_code": "vpn_confidence"
+          },
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "kick",
+            "reason_code": "account_age_below_threshold"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "You were removed by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "notify_on_enforcement_false_require_review_notifies",
+      "description": "require_review always notifies.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": false,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "r1",
+            "enabled": true,
+            "signal": "open_reports",
+            "action": "require_review",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_open_reports": 2
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 3,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "require_review",
+        "applied_rule_ids": [
+          "r1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Player requires staff review under the server policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "require_review",
+        "applied": [
+          {
+            "rule_id": "r1",
+            "signal": "open_reports",
+            "action": "require_review",
+            "reason_code": "open_reports_threshold"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Player requires staff review under the server policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "notify_on_enforcement_false_warn_silent",
+      "description": "warn with notify_on_enforcement false → no notification.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": false,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "r1",
+            "enabled": true,
+            "signal": "open_reports",
+            "action": "warn",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_open_reports": 2
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 2,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "warn",
+        "applied_rule_ids": [
+          "r1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": "Your account has been flagged by this server's trust policy.",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "warn",
+        "applied": [
+          {
+            "rule_id": "r1",
+            "signal": "open_reports",
+            "action": "warn",
+            "reason_code": "open_reports_threshold"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": "Your account has been flagged by this server's trust policy.",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "bypassed_admin_notify_does_not_notify",
+      "description": "A bypassed admin_notify rule does not trigger a notification.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "admin_notify",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": [
+            "vpn_whitelist"
+          ]
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [],
+        "bypassed_rule_ids": [
+          "n1"
+        ],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [],
+        "bypassed": [
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "admin_notify",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "allow_rule_applied_without_effect",
+      "description": "A matching rule with action allow is applied but changes nothing (no notify, no message).",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "n1",
+            "enabled": true,
+            "signal": "vpn",
+            "action": "allow",
+            "message": null,
+            "ban_duration_minutes": null,
+            "min_vpn_confidence": "likely"
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "likely"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "allow",
+        "applied_rule_ids": [
+          "n1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "allow",
+        "applied": [
+          {
+            "rule_id": "n1",
+            "signal": "vpn",
+            "action": "allow",
+            "reason_code": "vpn_confidence"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": false,
+        "message": null,
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "placeholders_all_known_and_unknown",
+      "description": "Known placeholders substituted; unknown, differently-cased or spaced placeholders left as-is.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "v1",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "kick",
+            "message": "{case_id}|{days}|{whitelist_url}|{server_name}|{unknown}|{CASE_ID}|{ days }|{case_id}",
+            "ban_duration_minutes": null,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": null
+          }
+        ]
+      },
+      "input": {
+        "global_status": "confirmed",
+        "case_id": "CASE-2026-001337",
+        "confirmed_servers": 3,
+        "open_reports": 0,
+        "account_age": {
+          "days": 12
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {
+        "server_name": "Site-19 Official"
+      },
+      "expected": {
+        "action": "kick",
+        "applied_rule_ids": [
+          "v1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "CASE-2026-001337|12|https://trust.example.org/whitelist|Site-19 Official|{unknown}|{CASE_ID}|{ days }|CASE-2026-001337",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "kick",
+        "applied": [
+          {
+            "rule_id": "v1",
+            "signal": "global_verdict",
+            "action": "kick",
+            "reason_code": "global_verdict_match"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "CASE-2026-001337|12|https://trust.example.org/whitelist|Site-19 Official|{unknown}|{CASE_ID}|{ days }|CASE-2026-001337",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "placeholders_missing_values_empty",
+      "description": "No case, unknown age, no whitelist_url, no server_name → all substituted by empty strings.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": null,
+        "rules": [
+          {
+            "id": "a1",
+            "enabled": true,
+            "signal": "account_age",
+            "action": "warn",
+            "message": "[{case_id}][{days}][{whitelist_url}][{server_name}]",
+            "ban_duration_minutes": null,
+            "max_account_age_days": 7,
+            "match_unknown_age": true
+          }
+        ]
+      },
+      "input": {
+        "global_status": "none",
+        "case_id": null,
+        "confirmed_servers": 0,
+        "open_reports": 0,
+        "account_age": {
+          "days": null
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {},
+      "expected": {
+        "action": "warn",
+        "applied_rule_ids": [
+          "a1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "[][][][]",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "warn",
+        "applied": [
+          {
+            "rule_id": "a1",
+            "signal": "account_age",
+            "action": "warn",
+            "reason_code": "account_age_unknown"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "[][][][]",
+        "ban_duration_minutes": null
+      }
+    },
+    {
+      "name": "placeholders_not_recursive",
+      "description": "A substituted value containing a placeholder is not expanded again.",
+      "schema_valid": true,
+      "policy": {
+        "version": 1,
+        "backend_unavailable_action": "allow",
+        "notify_on_enforcement": true,
+        "honor_global_bypasses": false,
+        "whitelist_url": "https://trust.example.org/whitelist",
+        "rules": [
+          {
+            "id": "v1",
+            "enabled": true,
+            "signal": "global_verdict",
+            "action": "warn",
+            "message": "Welcome to {server_name}",
+            "ban_duration_minutes": null,
+            "statuses": [
+              "confirmed"
+            ],
+            "min_confirmed_servers": null
+          }
+        ]
+      },
+      "input": {
+        "global_status": "confirmed",
+        "case_id": "CASE-2026-001337",
+        "confirmed_servers": 3,
+        "open_reports": 0,
+        "account_age": {
+          "days": 400
+        },
+        "vpn": {
+          "confidence": "not_detected"
+        },
+        "alt_account": {
+          "possible": false,
+          "confidence": "none",
+          "linked_confirmed_cases": []
+        },
+        "bypass": {
+          "types": []
+        }
+      },
+      "context": {
+        "server_name": "{case_id}"
+      },
+      "expected": {
+        "action": "warn",
+        "applied_rule_ids": [
+          "v1"
+        ],
+        "bypassed_rule_ids": [],
+        "notify_admins": true,
+        "message": "Welcome to {case_id}",
+        "ban_duration_minutes": null
+      },
+      "expected_decision": {
+        "action": "warn",
+        "applied": [
+          {
+            "rule_id": "v1",
+            "signal": "global_verdict",
+            "action": "warn",
+            "reason_code": "global_verdict_match"
+          }
+        ],
+        "bypassed": [],
+        "notify_admins": true,
+        "message": "Welcome to {case_id}",
+        "ban_duration_minutes": null
+      }
+    }
+  ]
+}

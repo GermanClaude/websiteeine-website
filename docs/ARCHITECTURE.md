@@ -143,6 +143,7 @@ so tests never need a prior build.
 * Timestamps: ISO‑8601 UTC strings with milliseconds (`2026-09-29T15:42:20.000Z`).
 * IDs: UUID v4 (`id`) unless a human-readable number exists (`case_number`, `server_id`).
 * Lists: `{ "items": [...], "page": 1, "page_size": 25, "total": 123 }`; query `?page=&page_size=` (max 100).
+  Small bounded collections (a server's keys, members, a user's sessions) are returned as `{ "items": [...] }` only.
 * Errors (always this shape, never stack traces):
   ```json
   { "error": { "code": "INVALID_SIGNATURE", "message": "Request signature is invalid", "details": {}, "request_id": "…" } }
@@ -203,7 +204,17 @@ All defined as `export const X = { UPPER: 'lower' } as const` + `export type X =
 | `PolicyAction` | `allow`, `admin_notify`, `warn`, `require_review`, `require_whitelist`, `kick`, `ban` (ascending severity 0–6) |
 | `ActorType` | `user`, `server`, `system`, `player` |
 | `OverwatchSessionStatus` | `active`, `ended`, `expired` |
-| `AuditAction` | see §9.2 |
+| `AuditAction` | see §9.2 (values are the upper-case event names) |
+| `BackendUnavailableAction` | `allow`, `admin_notify`, `kick` |
+| `UserTokenType` | `email_verification`, `password_reset` |
+| `ReviewKind` | `review_started`, `verdict_set`, `note`, `appeal_decision`, `reopened` |
+| `WhitelistDecision` | `approve`, `reject` |
+| `OverwatchEndReason` | `target_changed`, `overwatch_disabled`, `spectator_left`, `target_left`, `round_ended`, `manual`, `heartbeat_timeout` (backend only) |
+| `PlayerSignalType` | `vpn_detected`, `possible_alt_account`, `young_account` |
+| `VpnCheckError` | `provider_unavailable` |
+
+Further enums (`SessionRevokeReason`, `PolicyReasonCode`, `AuditTargetType`, `AuditVerifyFailure`) are defined in
+`shared/src/enums.ts`, which is the authoritative list.
 
 ---
 
@@ -643,7 +654,17 @@ Input: `PlayerCheckResponse` + policy. Output:
    (`require_whitelist` default: "A VPN/proxy was detected. Request a whitelist at {whitelist_url}").
    Placeholders: `{case_id}`, `{days}`, `{whitelist_url}`, `{server_name}`.
 5. `notify_admins` = any applied `admin_notify`/`require_review`, or (`notify_on_enforcement` and action ≥ warn).
-6. `ban_duration_minutes` from the winning `ban` rule (first).
+6. `ban_duration_minutes` from the winning `ban` rule (first); a `ban` rule without a duration reports `0`
+   (permanent). The field is `null` when the winning action is not `ban`.
+
+Clarifications (fixed by `shared/test-vectors/policy.json`, binding for the C# port):
+* Rules whose `action` is unknown are ignored like rules with an unknown `signal`.
+* The array order of `rules` is the evaluation order; the wire model has no `sort_order` field.
+* A rule may only carry the condition fields of its own signal (others absent or `null`); `min_vpn_confidence`
+  must be `possible|likely|confirmed` and `min_alt_confidence` must be `low|medium|high` (the excluded values would
+  match every player); `ban_duration_minutes` is only allowed on `ban` rules. A missing `enabled` means `true`.
+* The message comes from the first applied rule with the winning action; if that rule has no message the default
+  text for the action is used. Placeholder substitution is a single pass; unknown placeholders stay as they are.
 
 ### 7.3 Enforcement semantics (plugin)
 | Action | Plugin behavior |
@@ -892,9 +913,15 @@ to reviewers and servers but **never change a verdict automatically**.
 | `user:manage` (roles ≤ moderator), `server:manage_any`, `server:trust`, `audit:view`, `audit:verify`, `bypass:manage_global` | | | | | ✓ | ✓ |
 | `user:manage_admins`, `appeal:override_conflict` | | | | | | ✓ |
 
-Server-scoped checks (`own`) additionally require membership in `server_members` with an adequate member role
-(`owner|admin` for manage/policy/confirm/bypass; `owner|admin|moderator` for whitelist decisions). `rbac.ts` offers
-`requirePermission(p)` and `requireServerRole(serverIdParam, roles)` preHandlers; services re-check scoped access.
+**Server-scoped ("own") actions are authorized by server-team membership, not by the global role.** A user who is a
+member of a server in `server_members` with an adequate member role may act on that server whatever their global role
+is (`owner|admin` for manage/policy/confirm/bypass; `owner|admin|moderator` for whitelist decisions), so a server owner
+can add moderators who only hold the `player` role. The global role matters only for `server:create`, for the override
+permissions (`server:manage_any`, `whitelist:decide_any`) and for the web navigation hints. Case staff scope
+`own_servers` (cases the user's servers reported or confirmed) applies to `server_admin` and to any user with at least
+one membership (`caseStaffScope(role, hasServerMembership)`). `rbac.ts` offers `requirePermission(p)` and
+`requireServerRole(serverIdParam, roles)` preHandlers; server-scoped routes use `requireAuth` + membership checks
+(`assertServerRole` with the override permission), never `requirePermission('server:manage')`.
 
 ---
 
@@ -963,7 +990,7 @@ user:manage_admins), `GET /admin/audit` (audit:view; filters actor, action, targ
 * Error handler maps `AppError(code)` → status via `shared/errors.ts`; unknown errors → `500 INTERNAL_ERROR`
   with generic message; details never include stack traces or SQL.
 
-### 14.1 Error codes (subset; full list in shared/errors.ts)
+### 14.1 Error codes (subset; the full list of 59 codes with statuses is `shared/src/errors.ts`)
 `VALIDATION_FAILED 400, INVALID_AUTH_HEADERS 400, SERVER_ID_MISMATCH 400, UNAUTHENTICATED 401,
 INVALID_CREDENTIALS 401, MISSING_AUTH_HEADERS 401, INVALID_SIGNATURE 401, TIMESTAMP_OUT_OF_RANGE 401,
 REPLAYED_NONCE 401, UNKNOWN_SERVER 401, KEY_REVOKED 401, NO_ACTIVE_KEY 401, INVALID_MFA_CODE 401, MFA_TOKEN_INVALID 401,

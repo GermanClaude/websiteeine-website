@@ -15,12 +15,17 @@
     },
     "./test-vectors/*": "./test-vectors/*"
   },
-  "files": ["dist", "test-vectors"],
+  "files": [
+    "dist",
+    "test-vectors"
+  ],
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "vectors": "tsx scripts/generate-test-vectors.ts",
+    "vectors:check": "tsx scripts/generate-test-vectors.ts --check"
   },
   "dependencies": {
     "zod": "^4.6.5"

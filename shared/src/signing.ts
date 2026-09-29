@@ -73,8 +73,10 @@ export const REQUEST_ID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-
 export const KEY_FINGERPRINT_REGEX = /^SHA256:[0-9a-f]{64}$/;
 /** X-Timestamp: unix epoch milliseconds, decimal without sign or leading zeros. */
 export const TIMESTAMP_MS_REGEX = /^(?:0|[1-9][0-9]{0,15})$/;
-/** Canonical padded base64 of exactly 32 bytes (Ed25519 public key). */
-export const PUBLIC_KEY_B64_REGEX = /^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/;
+/** Canonical padded base64 of exactly 32 bytes (padding bits zero). */
+export const BASE64_32_BYTES_REGEX = /^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/;
+/** Ed25519 public key: canonical base64 of the 32 raw bytes. */
+export const PUBLIC_KEY_B64_REGEX = BASE64_32_BYTES_REGEX;
 /** Canonical padded base64 of exactly 64 bytes (Ed25519 signature). */
 export const SIGNATURE_B64_REGEX = /^[A-Za-z0-9+/]{85}[AQgw]==$/;
 /** X-Plugin-Version: semantic version. */
@@ -83,7 +85,7 @@ export const PLUGIN_VERSION_REGEX =
 /** HTTP method token after upper-casing. */
 const METHOD_REGEX = /^[A-Z]{1,16}$/;
 /** Characters that can never appear in a request target or canonical field. */
-const FORBIDDEN_FIELD_CHARS = /[\u0000- \u007f]/;
+const FORBIDDEN_FIELD_CHARS = /[\x00-\x20\x7f]/;
 
 // ---------------------------------------------------------------------------
 // Canonical request (§5.3)

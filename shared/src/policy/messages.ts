@@ -3,12 +3,16 @@
  */
 import type { PolicyAction } from '../enums';
 
-/** Default text per action when the winning rule has no message (null for allow). */
+/**
+ * Default text per action when the winning rule has no message (null for allow).
+ * admin_notify / require_review texts are shown to staff (the player is let in, §7.3);
+ * warn / require_whitelist / kick / ban texts are shown to the player.
+ */
 export const DEFAULT_ACTION_MESSAGES: Readonly<Record<PolicyAction, string | null>> = Object.freeze({
   allow: null,
-  admin_notify: 'Player matched a server policy rule. Staff has been notified.',
+  admin_notify: 'Player matched a server policy rule.',
   warn: "Your account has been flagged by this server's trust policy.",
-  require_review: 'Your account is pending review by the server staff.',
+  require_review: 'Player requires staff review under the server policy.',
   require_whitelist: 'A VPN/proxy was detected. Request a whitelist at {whitelist_url}',
   kick: "You were removed by this server's trust policy.",
   ban: "You have been banned by this server's trust policy.",

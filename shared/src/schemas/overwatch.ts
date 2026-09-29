@@ -5,10 +5,7 @@
 import { z } from 'zod';
 import { OverwatchEndReasonSchema, OverwatchSessionStatusSchema, PluginOverwatchEndReasonSchema } from '../enums';
 import { samePlayer } from '../identity';
-import {
-  OVERWATCH_MAX_INTERVAL_SECONDS,
-  OVERWATCH_MIN_INTERVAL_SECONDS,
-} from '../signing';
+import { BASE64_32_BYTES_REGEX, OVERWATCH_MAX_INTERVAL_SECONDS, OVERWATCH_MIN_INTERVAL_SECONDS } from '../signing';
 import {
   IsoDateTimeSchema,
   paginated,
@@ -31,7 +28,7 @@ export const OverwatchIntervalSchema = z
   .max(OVERWATCH_MAX_INTERVAL_SECONDS);
 
 /** Canonical padded base64 of exactly 32 bytes. */
-export const SessionSecretB64Schema = z.string().regex(/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/, 'Invalid secret');
+export const SessionSecretB64Schema = z.string().regex(BASE64_32_BYTES_REGEX, 'Invalid secret');
 
 // ---------------------------------------------------------------------------
 // Plugin (signed)

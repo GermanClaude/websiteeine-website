@@ -176,13 +176,15 @@ export function canChangeUserRole(actorRole: UserRole, currentRole: UserRole, ne
 }
 
 /**
- * Case staff access: reviewers+ see all cases; server_admin (case:view_staff without
- * case:review) only sees cases their servers reported or confirmed.
+ * Case staff access: reviewers+ see all cases; server operators (server_admin role, or any
+ * user who is a member of at least one server team) only see cases their servers reported
+ * or confirmed.
  */
 export type CaseStaffScope = 'all' | 'own_servers' | 'none';
-export function caseStaffScope(role: UserRole): CaseStaffScope {
-  if (!hasPermission(role, Permission.CASE_VIEW_STAFF)) return 'none';
-  return hasPermission(role, Permission.CASE_REVIEW) ? 'all' : 'own_servers';
+export function caseStaffScope(role: UserRole, hasServerMembership = false): CaseStaffScope {
+  if (hasPermission(role, Permission.CASE_REVIEW)) return 'all';
+  if (hasPermission(role, Permission.CASE_VIEW_STAFF) || hasServerMembership) return 'own_servers';
+  return 'none';
 }
 
 // ---------------------------------------------------------------------------
@@ -202,9 +204,15 @@ export const SERVER_MEMBER_ROLES_FOR: Readonly<Record<ServerScopedAction, readon
   });
 
 /**
- * Global permission required for each scoped action, plus the optional permission that
- * grants it on every server without membership. Confirmations have no override: they are
- * statements of the server itself and must come from its members.
+ * The "own server" permission each scoped action corresponds to (used by the web panel to
+ * decide which navigation to show), plus the optional permission that grants the action on
+ * every server without membership. Confirmations have no override: they are statements of
+ * the server itself and must come from its members.
+ *
+ * Authorization for scoped actions is decided by server-team membership (§12.3): a member
+ * with an adequate member role may act on that server whatever their global role is, so
+ * a server owner can add moderators who only hold the `player` role. The global role only
+ * matters for the override permissions and for creating servers (`server:create`).
  */
 export const SERVER_SCOPED_PERMISSIONS: Readonly<
   Record<ServerScopedAction, { readonly permission: Permission; readonly override: Permission | null }>
@@ -226,17 +234,17 @@ export function hasServerMemberRole(
 }
 
 /**
- * Full scoped check: override permission, or the scoped permission plus an adequate
- * membership on that server.
+ * Full scoped check: override permission (global role), or an adequate membership on that
+ * server. Membership alone is sufficient — see SERVER_SCOPED_PERMISSIONS.
  */
 export function canActOnServer(
   role: UserRole,
   memberRole: ServerMemberRole | null | undefined,
   action: ServerScopedAction,
 ): boolean {
-  const { permission, override } = SERVER_SCOPED_PERMISSIONS[action];
+  const { override } = SERVER_SCOPED_PERMISSIONS[action];
   if (override !== null && hasPermission(role, override)) return true;
-  return hasPermission(role, permission) && hasServerMemberRole(memberRole, action);
+  return hasServerMemberRole(memberRole, action);
 }
 
 /** Default REQUIRE_2FA_ROLES (§12.2). */
