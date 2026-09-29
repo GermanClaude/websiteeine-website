@@ -5,6 +5,8 @@
 --   hash = sha256_hex(canonical_json(event_without_hashes) + prev_hash)
 -- seq is strictly increasing but may have gaps (rolled back transactions);
 -- the chain order is ORDER BY seq.
+-- action holds the upper-case AuditAction event names of §9.2 (e.g. REPORT_CREATED):
+-- the one enum whose values are not lowercase (see shared/src/enums.ts; they are hashed).
 
 CREATE SEQUENCE audit_events_seq AS bigint START WITH 1 MINVALUE 1 NO CYCLE;
 
@@ -34,22 +36,22 @@ CREATE TABLE audit_events (
   CONSTRAINT audit_events_actor_type_check CHECK (actor_type IN ('user', 'server', 'system', 'player')),
   CONSTRAINT audit_events_actor_id_check CHECK (char_length(actor_id) BETWEEN 1 AND 128),
   CONSTRAINT audit_events_action_check CHECK (action IN (
-    'user_registered', 'user_email_verified', 'user_login_succeeded', 'user_login_failed',
-    'user_locked', 'user_logout', 'user_password_changed', 'user_password_reset_requested',
-    'user_password_reset', 'user_2fa_enabled', 'user_2fa_disabled', 'user_recovery_code_used',
-    'user_role_changed', 'user_status_changed', 'session_revoked', 'player_linked',
-    'player_unlinked', 'server_created', 'server_registration_token_created', 'server_registered',
-    'server_updated', 'server_status_changed', 'server_trust_changed', 'server_member_added',
-    'server_member_removed', 'server_key_rotated', 'server_key_revoked',
-    'server_key_rotation_requested', 'policy_updated', 'case_created', 'case_updated',
-    'review_started', 'case_note_added', 'verdict_changed', 'case_reopened',
-    'case_confirmed_by_server', 'case_confirmation_revoked', 'report_created',
-    'report_status_changed', 'evidence_uploaded', 'evidence_reviewed', 'evidence_verified',
-    'evidence_rejected', 'evidence_superseded', 'evidence_accessed', 'appeal_created',
-    'appeal_assigned', 'appeal_resolved', 'appeal_withdrawn', 'bypass_requested',
-    'bypass_approved', 'bypass_rejected', 'bypass_revoked', 'bypass_expired', 'bypass_created',
-    'whitelist_request_expired', 'overwatch_session_started', 'overwatch_session_ended',
-    'proof_verified', 'audit_chain_verified', 'retention_run'
+    'USER_REGISTERED', 'USER_EMAIL_VERIFIED', 'USER_LOGIN_SUCCEEDED', 'USER_LOGIN_FAILED',
+    'USER_LOCKED', 'USER_LOGOUT', 'USER_PASSWORD_CHANGED', 'USER_PASSWORD_RESET_REQUESTED',
+    'USER_PASSWORD_RESET', 'USER_2FA_ENABLED', 'USER_2FA_DISABLED', 'USER_RECOVERY_CODE_USED',
+    'USER_ROLE_CHANGED', 'USER_STATUS_CHANGED', 'SESSION_REVOKED', 'PLAYER_LINKED',
+    'PLAYER_UNLINKED', 'SERVER_CREATED', 'SERVER_REGISTRATION_TOKEN_CREATED', 'SERVER_REGISTERED',
+    'SERVER_UPDATED', 'SERVER_STATUS_CHANGED', 'SERVER_TRUST_CHANGED', 'SERVER_MEMBER_ADDED',
+    'SERVER_MEMBER_REMOVED', 'SERVER_KEY_ROTATED', 'SERVER_KEY_REVOKED',
+    'SERVER_KEY_ROTATION_REQUESTED', 'POLICY_UPDATED', 'CASE_CREATED', 'CASE_UPDATED',
+    'REVIEW_STARTED', 'CASE_NOTE_ADDED', 'VERDICT_CHANGED', 'CASE_REOPENED',
+    'CASE_CONFIRMED_BY_SERVER', 'CASE_CONFIRMATION_REVOKED', 'REPORT_CREATED',
+    'REPORT_STATUS_CHANGED', 'EVIDENCE_UPLOADED', 'EVIDENCE_REVIEWED', 'EVIDENCE_VERIFIED',
+    'EVIDENCE_REJECTED', 'EVIDENCE_SUPERSEDED', 'EVIDENCE_ACCESSED', 'APPEAL_CREATED',
+    'APPEAL_ASSIGNED', 'APPEAL_RESOLVED', 'APPEAL_WITHDRAWN', 'BYPASS_REQUESTED',
+    'BYPASS_APPROVED', 'BYPASS_REJECTED', 'BYPASS_REVOKED', 'BYPASS_EXPIRED', 'BYPASS_CREATED',
+    'WHITELIST_REQUEST_EXPIRED', 'OVERWATCH_SESSION_STARTED', 'OVERWATCH_SESSION_ENDED',
+    'PROOF_VERIFIED', 'AUDIT_CHAIN_VERIFIED', 'RETENTION_RUN'
   )),
   CONSTRAINT audit_events_target_type_check CHECK (target_type ~ '^[a-z][a-z_]{0,63}$'),
   CONSTRAINT audit_events_target_id_check CHECK (char_length(target_id) BETWEEN 1 AND 256),

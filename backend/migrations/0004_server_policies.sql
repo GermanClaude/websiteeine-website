@@ -21,7 +21,7 @@ CREATE TABLE server_policies (
     backend_unavailable_action IN ('allow', 'admin_notify', 'kick')
   ),
   CONSTRAINT server_policies_whitelist_url_check CHECK (
-    char_length(whitelist_url) <= 2048 AND whitelist_url ~ '^https?://'
+    char_length(whitelist_url) <= 2048 AND whitelist_url ~* '^https?://'
   )
 );
 
@@ -76,7 +76,7 @@ CREATE TABLE server_policy_rules (
   CONSTRAINT server_policy_rules_min_alt_confidence_check CHECK (
     min_alt_confidence IN ('none', 'low', 'medium', 'high')
   ),
-  CONSTRAINT server_policy_rules_min_confirmed_servers_check CHECK (min_confirmed_servers BETWEEN 1 AND 1000),
+  CONSTRAINT server_policy_rules_min_confirmed_servers_check CHECK (min_confirmed_servers BETWEEN 0 AND 1000),
   CONSTRAINT server_policy_rules_max_account_age_days_check CHECK (max_account_age_days BETWEEN 1 AND 36500),
   CONSTRAINT server_policy_rules_min_open_reports_check CHECK (min_open_reports BETWEEN 1 AND 1000),
   CONSTRAINT server_policy_rules_message_check CHECK (char_length(message) <= 256),

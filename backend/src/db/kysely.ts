@@ -121,7 +121,10 @@ export function createPool(options: DatabaseOptions): Pool {
   return pool;
 }
 
-/** Wraps an existing pool in a Kysely instance. Destroying Kysely ends the pool. */
+/**
+ * Wraps an existing pool in a Kysely instance. Kysely ends the pool on
+ * destroy() only if it has executed a query; prefer createDatabase().destroy().
+ */
 export function createKysely(pool: Pool): Kysely<Database> {
   return new Kysely<Database>({ dialect: new PostgresDialect({ pool }) });
 }
@@ -135,7 +138,11 @@ export function createDatabase(options: DatabaseOptions): DatabaseHandle {
     db,
     pool,
     destroy(): Promise<void> {
-      destroyed ??= db.destroy();
+      destroyed ??= (async () => {
+        await db.destroy();
+        // Kysely only adopts the pool on its first query; end it ourselves otherwise.
+        if (!pool.ended && !pool.ending) await pool.end();
+      })();
       return destroyed;
     },
   };

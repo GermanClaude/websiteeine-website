@@ -88,7 +88,7 @@ CREATE TABLE evidence (
   CONSTRAINT evidence_original_filename_check CHECK (char_length(original_filename) <= 255),
   CONSTRAINT evidence_storage_key_check CHECK (char_length(storage_key) BETWEEN 1 AND 1024),
   CONSTRAINT evidence_external_url_check CHECK (
-    char_length(external_url) <= 2048 AND external_url ~ '^https://'
+    char_length(external_url) <= 2048 AND external_url ~* '^https://'
   ),
   -- link evidence is only a URL; everything else is a stored, hashed object
   CONSTRAINT evidence_content_check CHECK (

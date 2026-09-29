@@ -51,7 +51,9 @@ function redact(message: string, connectionString: string): string {
   return result;
 }
 
-async function main(argv: readonly string[]): Promise<number> {
+async function main(rawArgs: readonly string[]): Promise<number> {
+  // `pnpm migrate -- --status` forwards the literal "--" separator.
+  const argv = rawArgs.filter((arg) => arg !== '--');
   const unknown = argv.filter((arg) => arg !== '--status' && arg !== '--help' && arg !== '-h');
   if (argv.includes('--help') || argv.includes('-h')) {
     process.stdout.write(`${USAGE}\n`);
