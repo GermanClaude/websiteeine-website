@@ -85,3 +85,9 @@ export function dateTimeInput(label = 'Date') {
 export function isoDaysFromNow(days: number, now: number = Date.now()): string {
   return new Date(now + days * 24 * 3600 * 1000).toISOString();
 }
+
+/** Narrows a free-text filter value (query string) to an enum member; anything else → undefined. */
+export function pickEnum<T extends string>(values: readonly T[], raw: string | null | undefined): T | undefined {
+  if (raw === null || raw === undefined || raw === '') return undefined;
+  return (values as readonly string[]).includes(raw) ? (raw as T) : undefined;
+}

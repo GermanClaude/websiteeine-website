@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { CASE_STATUSES, CASE_VERDICTS, Permission, type CaseSummary } from '@scpsl-trust/shared';
+import { CASE_STATUSES, CASE_VERDICTS, Permission, type CaseListQuery, type CaseSummary } from '@scpsl-trust/shared';
 
 import { caseKeys, listCases } from '../../api/cases';
 import { useAuth } from '../../auth/useAuth';
@@ -18,6 +18,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { Pagination } from '../../components/Pagination';
 import { StatusBadge, humanizeEnum } from '../../components/StatusBadge';
 import { useUrlFilters } from '../../components/useUrlFilters';
+import { emptyToUndefined, enumFilter } from './formHelpers';
 import { NewCaseModal } from './NewCaseModal';
 
 const FILTER_DEFAULTS = { status: '', verdict: '', player: '', q: '', server_id: '' } as const;
@@ -54,9 +55,18 @@ export function CaseListPage() {
   const filters = useUrlFilters(FILTER_DEFAULTS);
   const [createOpen, setCreateOpen] = useState(false);
 
+  const query: Partial<CaseListQuery> = {
+    page: filters.page,
+    page_size: filters.pageSize,
+    status: enumFilter(filters.values.status, CASE_STATUSES),
+    verdict: enumFilter(filters.values.verdict, CASE_VERDICTS),
+    player: emptyToUndefined(filters.values.player),
+    q: emptyToUndefined(filters.values.q),
+    server_id: emptyToUndefined(filters.values.server_id),
+  };
   const cases = useQuery({
-    queryKey: caseKeys.list(filters.query),
-    queryFn: () => listCases(filters.query),
+    queryKey: caseKeys.list(query),
+    queryFn: () => listCases(query),
     placeholderData: (previous) => previous,
   });
 

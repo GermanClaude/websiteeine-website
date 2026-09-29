@@ -14,7 +14,11 @@ import {
 describe('password hashing (argon2id m=19456 t=2 p=1)', () => {
   it('hashes with the documented parameters and verifies', async () => {
     const hash = await hashPassword('Correct-horse-42');
-    expect(hash).toMatch(/^\$argon2id\$v=19\$m=19456,t=2,p=1\$/);
+    // argon2 serializes the parameters in its own order (0.45: m,p,t); compare the parsed set.
+    const [, algorithm, version, params] = hash.split('$');
+    expect(algorithm).toBe('argon2id');
+    expect(version).toBe('v=19');
+    expect(new Set((params ?? '').split(','))).toEqual(new Set(['m=19456', 't=2', 'p=1']));
     expect(await verifyPassword(hash, 'Correct-horse-42')).toBe(true);
     expect(await verifyPassword(hash, 'correct-horse-42')).toBe(false);
     expect(needsRehash(hash)).toBe(false);

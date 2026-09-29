@@ -31,3 +31,13 @@ export function lengthHint(value: string | null | undefined, max: number, min = 
   const length = value === null || value === undefined ? 0 : value.trim().length;
   return min > 0 ? `${length} / ${max} characters (at least ${min})` : `${length} / ${max} characters`;
 }
+
+/** Narrows a free-form filter value (query string) to a member of an enum tuple, else `undefined`. */
+export function enumFilter<T extends string>(value: string | undefined, values: readonly T[]): T | undefined {
+  return value !== undefined && (values as readonly string[]).includes(value) ? (value as T) : undefined;
+}
+
+/** '' / undefined → undefined (for optional query parameters built from URL filters). */
+export function emptyToUndefined(value: string | undefined): string | undefined {
+  return value === undefined || value.trim() === '' ? undefined : value.trim();
+}

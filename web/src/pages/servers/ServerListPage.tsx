@@ -19,6 +19,7 @@ import { Pagination } from '../../components/Pagination';
 import { StatusBadge, humanizeEnum } from '../../components/StatusBadge';
 import { useUrlFilters } from '../../components/useUrlFilters';
 import { shortFingerprint } from '../../lib/format';
+import { pickEnum } from './lib/forms';
 import { isServerOnline } from './serverUtils';
 
 const FILTER_DEFAULTS = { q: '', status: '' };
@@ -71,7 +72,8 @@ export function ServerListPage() {
   const auth = useAuth();
   const navigate = useNavigate();
   const filters = useUrlFilters(FILTER_DEFAULTS);
-  const servers = useQuery({ queryKey: serverKeys.list(filters.query), queryFn: () => listServers(filters.query), placeholderData: (previous) => previous });
+  const query = { ...filters.query, status: pickEnum(SERVER_STATUSES, filters.values.status) };
+  const servers = useQuery({ queryKey: serverKeys.list(query), queryFn: () => listServers(query), placeholderData: (previous) => previous });
   const canCreate = auth.hasPermission(Permission.SERVER_CREATE);
   const seesAll = auth.hasPermission(Permission.SERVER_MANAGE_ANY);
 
