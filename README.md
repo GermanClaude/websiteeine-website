@@ -134,7 +134,7 @@ Production: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 │   └── Dockerfile
 ├── web/                @scpsl-trust/web — React panel; Dockerfile + nginx.conf
 ├── plugin/             ScpslTrust.sln — Core (netstandard2.0), Plugin (net48, LabAPI), Core.Tests, DevClient
-├── scripts/            dev-up.sh, generate-secrets.sh, docker/ entrypoint, db/ role setup
+├── scripts/            dev-up.sh, generate-secrets.sh, check-doc-links.mjs, docker/ entrypoint, db/ role setup
 ├── docs/               documentation (above)
 ├── docker-compose.yml       development stack (+ `storage` profile with MinIO)
 ├── docker-compose.prod.yml  production stack

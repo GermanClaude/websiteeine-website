@@ -3,7 +3,7 @@
 #
 #   serve                 (default) optionally migrate, then start the API + job scheduler
 #   migrate [--status]    apply pending migrations (or list them) and exit
-#   create-admin --email <e> --username <u>   bootstrap a verified super_admin (ADMIN_PASSWORD or prompt; use -it)
+#   create-admin --email <e> --username <u>   bootstrap a verified super_admin (ADMIN_PASSWORD or a prompt, needs a TTY)
 #   verify-audit [--from-seq N] [--limit N] [--record] [--json]
 #   <anything else>       executed as-is (e.g. `sh`)
 #

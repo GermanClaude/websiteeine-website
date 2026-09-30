@@ -88,6 +88,8 @@ jobs:
       - run: pnpm --filter @scpsl-trust/web typecheck
       - run: pnpm --filter @scpsl-trust/web test
       - run: pnpm --filter @scpsl-trust/web build
+      - name: documentation links resolve
+        run: node scripts/check-doc-links.mjs
 
   # ---------------------------------------------------------------------------
   # The LabAPI plugin project (src/ScpslTrust.Plugin, net48) needs the game's managed assemblies
