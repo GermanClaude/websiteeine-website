@@ -8,12 +8,11 @@ import { sql, type SelectQueryBuilder } from 'kysely';
 import type { DbExecutor } from '../../db/tx';
 import type {
   CaseRow,
-  CaseStatus,
-  CaseVerdict,
   NewCase,
   PlayerRow,
   ServerRow,
 } from '../../db/types';
+import type { CaseStatus, CaseVerdict } from '../../db/enums';
 import type { CaseSummaryRow, ConfirmationViewRow, EvidenceViewRow, ReviewViewRow } from './views';
 
 // ---------------------------------------------------------------------------

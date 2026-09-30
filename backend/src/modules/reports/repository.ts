@@ -5,7 +5,10 @@
 import type { SelectQueryBuilder } from 'kysely';
 
 import type { DbExecutor } from '../../db/tx';
-import type { ReportRow, ReportStatus } from '../../db/types';
+import type {
+  ReportRow,
+} from '../../db/types';
+import type { ReportStatus } from '../../db/enums';
 import type { ReportViewRow } from '../cases/views';
 
 // ---------------------------------------------------------------------------

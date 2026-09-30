@@ -19,16 +19,9 @@ import {
 
 import type {
   CaseServerConfirmationRow,
-  CaseVerdict,
-  CaseStatus,
   EvidenceRow,
-  EvidenceStatus,
-  EvidenceType,
-  PlayerIdType,
-  ReporterType,
-  ReportStatus,
-  ReviewKind,
 } from '../../db/types';
+import type { CaseStatus, CaseVerdict, EvidenceStatus, EvidenceType, PlayerIdType, ReportStatus, ReporterType, ReviewKind } from '../../db/enums';
 
 // ---------------------------------------------------------------------------
 // References

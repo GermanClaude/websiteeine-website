@@ -23,7 +23,10 @@ import type { Deps } from '../../container';
 import { isUniqueViolation } from '../../db/errors';
 import { allocateCaseNumber } from '../../db/sequences';
 import { withTransaction, type DbExecutor, type DbTransaction } from '../../db/tx';
-import type { CaseRow, CaseVerdict, ReviewKind } from '../../db/types';
+import type {
+  CaseRow,
+} from '../../db/types';
+import type { CaseVerdict, ReviewKind } from '../../db/enums';
 import { AppError, forbidden, invalidState, notFound } from '../../lib/errors';
 import type { AuditActor } from '../audit/service';
 import { auditContext } from '../audit/actor';
