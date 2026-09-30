@@ -126,6 +126,25 @@ export type CaseStaffView = z.infer<typeof CaseStaffViewSchema>;
 // Public view — GET /public/cases/{caseNumber} (intentionally limited)
 // ---------------------------------------------------------------------------
 
+/**
+ * One public timeline entry: a selected audit event with no actor identity except
+ * reviewer pseudonyms (`Reviewer #n`) where applicable.
+ */
+export const CasePublicTimelineEntrySchema = z.object({
+  action: z.enum([
+    'REPORT_CREATED',
+    'EVIDENCE_UPLOADED',
+    'EVIDENCE_VERIFIED',
+    'VERDICT_CHANGED',
+    'APPEAL_CREATED',
+    'APPEAL_RESOLVED',
+  ]),
+  /** Reviewer pseudonym when the actor is a reviewer, otherwise null. */
+  actor: z.string().nullable(),
+  created_at: IsoDateTimeSchema,
+});
+export type CasePublicTimelineEntry = z.infer<typeof CasePublicTimelineEntrySchema>;
+
 export const CasePublicViewSchema = z.object({
   case_number: CaseNumberSchema,
   player: z.object({
@@ -141,6 +160,8 @@ export const CasePublicViewSchema = z.object({
   verified_evidence_count: z.number().int().min(0),
   confirmed_servers: z.number().int().min(0),
   appeal_status: AppealStatusSchema.nullable(),
+  /** Selected public events (§13 "Cases"); optional so older clients are unaffected. */
+  timeline: z.array(CasePublicTimelineEntrySchema).optional(),
   created_at: IsoDateTimeSchema,
   updated_at: IsoDateTimeSchema,
 });
