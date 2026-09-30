@@ -6,11 +6,11 @@
  *
  * Raw IPs never reach this file: callers pass HMAC network hashes only.
  */
-import { sql, type ExpressionBuilder } from 'kysely';
+import { sql } from 'kysely';
 
 import type { GlobalStatus, PlayerRef, PlayerSearchQuery } from '@scpsl-trust/shared';
 
-import type { Database, DbExecutor, PlayerRow } from '../../db';
+import type { DbExecutor, PlayerRow } from '../../db';
 
 const OPEN_REPORT_STATUSES = ['open', 'under_review'] as const;
 
@@ -216,7 +216,7 @@ export async function activeBypasses(
 // Search (player:view_staff)
 // ---------------------------------------------------------------------------
 
-function globalStatusExpr(eb: ExpressionBuilder<Database, 'players'>) {
+function globalStatusExpr() {
   const caseExists = (cond: string) =>
     sql`EXISTS (SELECT 1 FROM cases c WHERE c.player_id = players.id AND ${sql.raw(cond)})`;
   return sql<GlobalStatus>`CASE
@@ -227,7 +227,7 @@ function globalStatusExpr(eb: ExpressionBuilder<Database, 'players'>) {
     WHEN ${caseExists("c.current_verdict = 'inconclusive'")} THEN 'inconclusive'
     WHEN ${caseExists("c.current_verdict = 'rejected'")} THEN 'rejected'
     ELSE 'none'
-  END`.$castTo<GlobalStatus>() ?? eb.val('none');
+  END`;
 }
 
 function escapeLike(value: string): string {
@@ -245,9 +245,6 @@ export async function searchPlayers(
   query: PlayerSearchQuery,
   page: { limit: number; offset: number },
 ): Promise<{ rows: PlayerSearchRow[]; total: number }> {
-  const applyFilters = <QB extends { where: (...args: never[]) => QB }>(qb: QB): QB => qb;
-  void applyFilters;
-
   let base = db.selectFrom('players');
   if (query.type !== undefined) base = base.where('id_type', '=', query.type);
   if (query.q !== undefined) {
@@ -267,14 +264,14 @@ export async function searchPlayers(
     });
   }
   if (query.global_status !== undefined) {
-    base = base.where((eb) => eb(globalStatusExpr(eb as ExpressionBuilder<Database, 'players'>), '=', query.global_status!));
+    base = base.where((eb) => eb(globalStatusExpr(), '=', query.global_status!));
   }
 
   const totalRow = await base.select((eb) => eb.fn.countAll<number>().as('n')).executeTakeFirst();
   const rows = await base
     .selectAll('players')
     .select((eb) => [
-      globalStatusExpr(eb as ExpressionBuilder<Database, 'players'>).as('global_status'),
+      globalStatusExpr().as('global_status'),
       eb
         .selectFrom('cases as c')
         .whereRef('c.player_id', '=', 'players.id')
