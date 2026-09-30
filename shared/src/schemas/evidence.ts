@@ -219,5 +219,7 @@ export const ProofResponseSchema = z.object({
   timestamp_window: ProofTimestampWindowSchema,
   window_offset: z.union([z.literal(-1), z.literal(0), z.literal(1)]).optional(),
   code: ProofCodeSchema.optional(),
+  /** Only for proof:view_code callers: the covering session's secret was wiped by retention. */
+  reason: z.literal('secret_expired').optional(),
 });
 export type ProofResponse = z.infer<typeof ProofResponseSchema>;
