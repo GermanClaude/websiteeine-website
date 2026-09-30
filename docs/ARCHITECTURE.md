@@ -811,6 +811,8 @@ Query: `server_id`, `player_id` (canonical user id), `spectator_id`, `timestamp`
   (`PROOF_RATE_LIMIT_PER_MINUTE`, default 20 per IP/user). Codes carry 30 bits; with 3 accepted windows brute force is
   infeasible under the rate limit.
 * **A valid proof establishes session identity only; it never changes a verdict (R6).**
+* For reviewers only, an invalid result may carry `reason: "secret_expired"` when the session secret was wiped by
+  retention (verification is then impossible).
 Evidence can reference `overwatch_session_id`; reviewers record the identity assessment separately.
 
 ---
@@ -904,7 +906,9 @@ to reviewers and servers but **never change a verdict automatically**.
 * If 2FA enabled → `200 { "mfa_required": true, "mfa_token": "…" }` (Redis, 5 min, single use); then
   `POST /auth/login/2fa { mfa_token, code }` (TOTP or recovery code). TOTP step reuse rejected.
 * Roles in `REQUIRE_2FA_ROLES` (default `reviewer,moderator,admin,super_admin`) without 2FA get a session flagged
-  `mfa_enrollment_required`: every permission-protected route except `/auth/*` and `/me` returns `403 MFA_ENROLLMENT_REQUIRED`.
+  `mfa_enrollment_required`: every authenticated route except `/auth/*` and `/me` returns `403 MFA_ENROLLMENT_REQUIRED`
+  — including routes guarded only by authentication (`requireEnrolledAuth`), so staff data cannot be reached through
+  "own items" list routes before enrollment.
 * Endpoints: `POST /auth/register`, `POST /auth/verify-email {token}`, `POST /auth/resend-verification`,
   `POST /auth/password/forgot {email}` (always 202), `POST /auth/password/reset {token, password}`,
   `POST /auth/password/change`, `GET /auth/session`, `POST /auth/logout`, `GET /auth/sessions`,
@@ -953,7 +957,8 @@ pending whitelist requests, server status list, recent audit events) scoped by p
 `POST /cases` (case:create), `GET /cases/{caseNumber}` (staff view: reports, evidence, reviews, appeals,
 confirmations, audit history), `POST /cases/{caseNumber}/reviews/start`, `/notes`, `/verdict`, `/reopen`,
 `POST /cases/{caseNumber}/confirmations`, `DELETE /cases/{caseNumber}/confirmations/{id}`,
-`GET /public/cases/{caseNumber}` (no auth; limited public view, `PUBLIC_CASE_LOOKUP=true`).
+`GET /public/cases/{caseNumber}` (no auth; limited public view, `PUBLIC_CASE_LOOKUP=true`; optionally carries a
+`timeline` of selected public events; public lookups are not audited).
 
 **Reports**: `GET /reports` (report:review, or own reports), `POST /reports` (report:create),
 `GET /reports/{id}`, `POST /reports/{id}/status { status, note }` (report:review).
