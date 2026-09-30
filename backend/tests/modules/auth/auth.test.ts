@@ -2,7 +2,7 @@
  * Auth module: registration, email verification, login, lockout, sessions, passwords.
  * 2FA flows live in twofactor.test.ts.
  */
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 import { MODULES } from '../../../src/modules';
 import { buildTestApp, createUser, expectError, sessionFor, useTestApp, DEFAULT_TEST_PASSWORD } from '../../helpers';
@@ -393,6 +393,33 @@ describe('auth module', () => {
   // -------------------------------------------------------------------------
 
   describe('password reset', () => {
+    // Regression (docs/OPERATIONS.md, SMTP drill): when the mail server is unreachable the
+    // route must still answer 202. A 500 for a known address next to a 202 for an unknown one
+    // turns an SMTP outage into a user-enumeration oracle.
+    it('forgot still answers 202 when the mail server is unreachable', async () => {
+      const failing = vi
+        .spyOn(t().mailer, 'send')
+        .mockRejectedValue(Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:25'), { code: 'ECONNREFUSED' }));
+      try {
+        await createUser(t().deps, { email: 'smtp-down@example.test' });
+        const known = await t().app.inject({
+          method: 'POST',
+          url: '/api/v1/auth/password/forgot',
+          payload: { email: 'smtp-down@example.test' },
+        });
+        const unknown = await t().app.inject({
+          method: 'POST',
+          url: '/api/v1/auth/password/forgot',
+          payload: { email: 'never-existed@example.test' },
+        });
+        expect(known.statusCode).toBe(202);
+        expect(unknown.statusCode).toBe(known.statusCode);
+        expect(failing).toHaveBeenCalledTimes(1);
+      } finally {
+        failing.mockRestore();
+      }
+    });
+
     it('forgot always answers 202; reset is single use, revokes sessions and clears lockout', async () => {
       const unknown = await t().app.inject({
         method: 'POST',

@@ -106,10 +106,22 @@ Same response, different server, different outcome. That is the whole point.
 
 ### When something is down
 
-If the plugin cannot reach the backend at all, the server's own `backend_unavailable_action`
-decides (`allow`, `admin_notify` or `kick`) — the shipped default is `allow`, i.e. permissive, and
-the last cached policy is used for everything else. Provider outages, degraded signals and the
-full failure matrix: [docs/OPERATIONS.md](docs/OPERATIONS.md).
+**The backend fails closed, the game server fails open — and that default is the server owner's
+choice** (R1). If the plugin cannot reach the backend, it does not guess: it applies the server's
+own `backend_unavailable_action`.
+
+| `backend_unavailable_action` | Player experience while the backend is down |
+|---|---|
+| `allow` (**default**) | The player joins normally; the failure is a warning in the server log. |
+| `admin_notify` | The player joins and online staff are told the check could not be made. |
+| `kick` | The player is kicked with a "could not verify your account" message, staff are notified. |
+
+The last successfully fetched policy is cached on disk, so a server restarting during an outage
+still enforces the owner's real policy rather than the built-in default. The trust network is an
+information source, never an authority over who may play.
+
+Provider outages, degraded signals and the full dependency failure matrix (Redis, PostgreSQL,
+evidence storage, Steam, VPN providers, SMTP): [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 ## Components
 

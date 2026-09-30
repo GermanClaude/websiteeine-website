@@ -41,7 +41,11 @@ export class LocalObjectStorage implements ObjectStorage {
       return fs.realpath(this.root);
     })().catch((err: unknown) => {
       this.realRoot = undefined;
-      throw err;
+      // The root is missing, not a directory, read-only or unreadable: that is the local
+      // driver's "storage unavailable", so it must surface as 502 STORAGE_ERROR like the S3
+      // driver does, not as an opaque 500 (docs/OPERATIONS.md).
+      if (isAppError(err)) throw err;
+      throw new AppError('STORAGE_ERROR', undefined, undefined, { cause: err });
     });
     return this.realRoot;
   }
@@ -70,8 +74,13 @@ export class LocalObjectStorage implements ObjectStorage {
       const target = await this.resolveKey(key);
       if (await this.exists(key)) throw new AppError('ALREADY_EXISTS', 'Object already exists');
       const dir = path.dirname(target);
-      await fs.mkdir(dir, { recursive: true, mode: 0o700 });
-      await this.assertRealParentWithinRoot(target);
+      try {
+        await fs.mkdir(dir, { recursive: true, mode: 0o700 });
+        await this.assertRealParentWithinRoot(target);
+      } catch (err) {
+        if (isAppError(err)) throw err;
+        throw new AppError('STORAGE_ERROR', undefined, undefined, { cause: err });
+      }
 
       temp = path.join(dir, `.tmp-${randomUUID()}`);
       const hasher = new HashingLimitStream(options.maxBytes);

@@ -223,6 +223,24 @@ describe('LocalObjectStorage', () => {
     expect(await storage.exists('missing/obj')).toBe(false);
   });
 
+  // Regression (docs/OPERATIONS.md, failure drill 4): an unusable storage root is "evidence
+  // storage unavailable" and must surface as STORAGE_ERROR (502) like the S3 driver, not as an
+  // opaque errno error that the HTTP layer turns into 500 INTERNAL_ERROR.
+  it('reports an unusable storage root as STORAGE_ERROR, not a raw errno error', async () => {
+    const blocker = path.join(root, 'not-a-directory');
+    await fs.writeFile(blocker, 'regular file');
+    const broken = new LocalObjectStorage(path.join(blocker, 'evidence'));
+
+    const put = await expectAppError(
+      broken.put('cases/2026/a.bin', Readable.from([Buffer.from('x')]), { contentType: 'application/octet-stream', maxBytes: 1_000 }),
+      'STORAGE_ERROR',
+    );
+    expect(put.statusCode).toBe(502);
+    await expectAppError(broken.get('cases/2026/a.bin'), 'STORAGE_ERROR');
+    await expectAppError(broken.head('cases/2026/a.bin'), 'STORAGE_ERROR');
+    await expectAppError(broken.ping(), 'STORAGE_ERROR');
+  });
+
   it('is selected by createStorage for STORAGE_DRIVER=local', () => {
     const config = loadConfig(testEnv({ STORAGE_DRIVER: 'local', STORAGE_LOCAL_DIR: root }));
     expect(createStorage(config)).toBeInstanceOf(LocalObjectStorage);

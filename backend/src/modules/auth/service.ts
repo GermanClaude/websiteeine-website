@@ -578,14 +578,23 @@ export class AuthService {
         target_id: user.id,
       });
     });
-    await this.deps.mailer.send(
-      mailTemplates.passwordReset({
-        to: user.email,
-        username: user.username,
-        actionUrl: `${this.config.http.webOrigin}/reset-password?token=${token}`,
-        expiresInText: '1 hour',
-      }),
-    );
+    try {
+      await this.deps.mailer.send(
+        mailTemplates.passwordReset({
+          to: user.email,
+          username: user.username,
+          actionUrl: `${this.config.http.webOrigin}/reset-password?token=${token}`,
+          expiresInText: '1 hour',
+        }),
+      );
+    } catch (err) {
+      // An unreachable SMTP server must not break the "always 202" contract above: a mail
+      // failure for a known address and a silent return for an unknown one would otherwise be
+      // distinguishable (500 vs 202), turning an outage into a user-enumeration oracle.
+      // The reset token is already stored, so the user can request a new mail once SMTP is
+      // back; the outage is visible in the log (docs/OPERATIONS.md).
+      request.log.error({ err }, 'password reset mail could not be sent');
+    }
   }
 
   async resetPassword(request: FastifyRequest, input: { token: string; password: string }): Promise<void> {
