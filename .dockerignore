@@ -11,9 +11,9 @@
 **/*.tsbuildinfo
 
 # secrets and local environment
-.env
-.env.*
-!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 secrets/
 
 # runtime data of a locally running backend

@@ -137,3 +137,6 @@ The DevClient drives the real Core code against your local backend ([PLUGIN.md Â
    ```
 
 Plain `http://` is accepted for loopback addresses only.
+
+A scripted version of this flow (backend, DevClient and web API against a real database) is
+`e2e/run.sh`, described in [E2E.md](./E2E.md).

@@ -119,6 +119,7 @@ Production: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 | [docs/API.md](docs/API.md) | Every public endpoint (generated from OpenAPI) + examples |
 | [docs/PLUGIN.md](docs/PLUGIN.md) | Plugin build, installation, configuration, commands |
 | [docs/SERVER_REGISTRATION.md](docs/SERVER_REGISTRATION.md) | Registration, key rotation, revocation, troubleshooting |
+| [docs/E2E.md](docs/E2E.md) | End-to-end verification (`e2e/run.sh`: backend + DevClient + web API) |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production with and without Docker, backups, upgrades |
 | [docs/SECURITY.md](docs/SECURITY.md) | Threat model and security controls |
 | [docs/PRIVACY.md](docs/PRIVACY.md) | Data minimization, retention, deletion |
@@ -135,6 +136,7 @@ Production: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 ├── web/                @scpsl-trust/web — React panel; Dockerfile + nginx.conf
 ├── plugin/             ScpslTrust.sln — Core (netstandard2.0), Plugin (net48, LabAPI), Core.Tests, DevClient
 ├── scripts/            dev-up.sh, generate-secrets.sh, check-doc-links.mjs, docker/ entrypoint, db/ role setup
+├── e2e/                end-to-end suite (run.sh, e2e.mjs; see docs/E2E.md)
 ├── docs/               documentation (above)
 ├── docker-compose.yml       development stack (+ `storage` profile with MinIO)
 ├── docker-compose.prod.yml  production stack
