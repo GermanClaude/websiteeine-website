@@ -30,7 +30,7 @@ describe('two-factor authentication', () => {
     return t().app.inject({ method: 'POST', url: '/api/v1/auth/login/2fa', payload: { mfa_token: mfaToken, code } });
   }
 
-  async function auditCount(action: string, targetId: string): Promise<number> {
+  async function auditCount(action: import('@scpsl-trust/shared').AuditAction, targetId: string): Promise<number> {
     const rows = await t().db
       .selectFrom('audit_events')
       .select('event_id')

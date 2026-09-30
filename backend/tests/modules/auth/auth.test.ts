@@ -32,7 +32,7 @@ describe('auth module', () => {
     t().mailer.clear();
   });
 
-  async function auditEvents(action: string) {
+  async function auditEvents(action: import('@scpsl-trust/shared').AuditAction) {
     return t().db.selectFrom('audit_events').selectAll().where('action', '=', action).orderBy('seq', 'asc').execute();
   }
 

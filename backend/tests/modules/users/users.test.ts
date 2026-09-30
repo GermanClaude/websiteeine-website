@@ -21,7 +21,7 @@ const usersModules = MODULES.filter((m) => ['auth', 'users'].includes(m.name));
 describe('users module', () => {
   const t = useTestApp({ now: '2026-09-29T12:00:00.000Z', modules: usersModules });
 
-  async function auditEvents(action: string) {
+  async function auditEvents(action: import('@scpsl-trust/shared').AuditAction) {
     return t().db.selectFrom('audit_events').selectAll().where('action', '=', action).orderBy('seq', 'asc').execute();
   }
 
