@@ -1,11 +1,15 @@
 /**
- * dashboard module entry point (registered under /api/v1 by src/modules/index.ts).
- * Optionally export `registerJobs(scheduler, deps)` to add background jobs.
+ * dashboard module (§13 "Dashboard").
  */
 import type { FastifyInstance } from 'fastify';
 
 import type { Deps } from '../../container';
+import { registerDashboardRoutes } from './routes';
+import { DashboardService } from './service';
 
-export default async function register(_app: FastifyInstance, _deps: Deps): Promise<void> {
-  // implemented by the dashboard module
+export { DashboardService } from './service';
+
+export default async function register(app: FastifyInstance, deps: Deps): Promise<void> {
+  const service = new DashboardService(deps);
+  await registerDashboardRoutes(app, deps, service);
 }

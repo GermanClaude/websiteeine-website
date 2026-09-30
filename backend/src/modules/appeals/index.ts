@@ -1,11 +1,15 @@
 /**
- * appeals module entry point (registered under /api/v1 by src/modules/index.ts).
- * Optionally export `registerJobs(scheduler, deps)` to add background jobs.
+ * appeals module (§11.5): appeal lifecycle with independent decisions.
  */
 import type { FastifyInstance } from 'fastify';
 
 import type { Deps } from '../../container';
+import { registerAppealRoutes } from './routes';
+import { AppealsService } from './service';
 
-export default async function register(_app: FastifyInstance, _deps: Deps): Promise<void> {
-  // implemented by the appeals module
+export { AppealsService, toAppealView } from './service';
+
+export default async function register(app: FastifyInstance, deps: Deps): Promise<void> {
+  const service = new AppealsService(deps);
+  await registerAppealRoutes(app, deps, service);
 }

@@ -24,10 +24,10 @@ export async function registerOverwatchPluginRoutes(
   service: OverwatchService,
 ): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
-  const signed = {
+  const signed = () => ({
     config: { rateLimit: deps.rateLimits.plugin },
     preHandler: [app.requireServerSignature],
-  } as const;
+  });
 
   r.post(
     '/overwatch/sessions',
@@ -38,7 +38,7 @@ export async function registerOverwatchPluginRoutes(
         body: OverwatchSessionStartRequestSchema,
         response: { 201: OverwatchSessionStartResponseSchema },
       },
-      ...signed,
+      ...signed(),
     },
     async (request, reply) => {
       const result = await service.startSession(request, request.authServer!, request.body);
@@ -56,7 +56,7 @@ export async function registerOverwatchPluginRoutes(
         body: OverwatchSessionHeartbeatRequestSchema,
         response: { 200: OverwatchSessionHeartbeatResponseSchema },
       },
-      ...signed,
+      ...signed(),
     },
     async (request) => service.heartbeat(request.authServer!, request.params.id),
   );
@@ -71,7 +71,7 @@ export async function registerOverwatchPluginRoutes(
         body: OverwatchSessionEndRequestSchema,
         response: { 200: OverwatchSessionEndResponseSchema },
       },
-      ...signed,
+      ...signed(),
     },
     async (request) => service.endSession(request, request.authServer!, request.params.id, request.body.reason),
   );
