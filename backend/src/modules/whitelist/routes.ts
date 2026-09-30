@@ -17,7 +17,7 @@ import {
   WhitelistRevokeRequestSchema,
 } from '@scpsl-trust/shared';
 
-import { assertAuthenticated, assertMfaEnrollment, requireAuth, requirePermission } from '../../auth/rbac';
+import { assertAuthenticated, assertMfaEnrollment, requireEnrolledAuth, requirePermission } from '../../auth/rbac';
 import type { Deps } from '../../container';
 import type { WhitelistService } from './service';
 
@@ -55,7 +55,7 @@ export async function registerWhitelistRoutes(
         querystring: WhitelistRequestListQuerySchema,
         response: { 200: WhitelistRequestListResponseSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);
@@ -73,7 +73,7 @@ export async function registerWhitelistRoutes(
         params: WhitelistRequestParamsSchema,
         response: { 200: WhitelistRequestViewSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);
@@ -91,7 +91,7 @@ export async function registerWhitelistRoutes(
         body: WhitelistDecisionRequestSchema,
         response: { 200: WhitelistRequestViewSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);
@@ -110,7 +110,7 @@ export async function registerWhitelistRoutes(
         body: WhitelistRevokeRequestSchema,
         response: { 200: WhitelistRequestViewSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);

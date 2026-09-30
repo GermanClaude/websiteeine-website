@@ -16,7 +16,7 @@ import {
   Permission,
 } from '@scpsl-trust/shared';
 
-import { assertAuthenticated, requireAuth, requirePermission } from '../../auth/rbac';
+import { assertAuthenticated, requireEnrolledAuth, requirePermission } from '../../auth/rbac';
 import type { Deps } from '../../container';
 import type { AppealsService } from './service';
 
@@ -50,7 +50,7 @@ export async function registerAppealRoutes(app: FastifyInstance, _deps: Deps, se
         querystring: AppealListQuerySchema,
         response: { 200: AppealListResponseSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);
@@ -68,7 +68,7 @@ export async function registerAppealRoutes(app: FastifyInstance, _deps: Deps, se
         params: AppealParamsSchema,
         response: { 200: AppealViewSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);
@@ -122,7 +122,7 @@ export async function registerAppealRoutes(app: FastifyInstance, _deps: Deps, se
         body: AppealWithdrawRequestSchema,
         response: { 200: AppealViewSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);

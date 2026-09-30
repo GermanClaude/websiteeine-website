@@ -23,7 +23,7 @@ import {
   Permission,
 } from '@scpsl-trust/shared';
 
-import { assertAuthenticated, requireAuth, requireMfaSession, requirePermission } from '../../auth/rbac';
+import { assertAuthenticated, requireEnrolledAuth, requireMfaSession, requirePermission } from '../../auth/rbac';
 import type { Deps } from '../../container';
 import type { CasesService } from './service';
 
@@ -39,7 +39,7 @@ export async function registerCaseRoutes(app: FastifyInstance, deps: Deps, servi
         querystring: CaseListQuerySchema,
         response: { 200: CaseListResponseSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);
@@ -75,7 +75,7 @@ export async function registerCaseRoutes(app: FastifyInstance, deps: Deps, servi
         params: CaseParamsSchema,
         response: { 200: CaseStaffViewSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);
@@ -170,7 +170,7 @@ export async function registerCaseRoutes(app: FastifyInstance, deps: Deps, servi
         body: CaseConfirmationCreateRequestSchema,
         response: { 201: CaseMutationResponseSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request, reply) => {
       const user = assertAuthenticated(request);
@@ -186,10 +186,12 @@ export async function registerCaseRoutes(app: FastifyInstance, deps: Deps, servi
         tags: ['cases'],
         summary: 'Revoke a server confirmation (soft)',
         params: CaseConfirmationParamsSchema,
-        body: CaseConfirmationRevokeRequestSchema.optional(),
+        // .nullish(): Fastify passes `null` for a DELETE without a body; the web
+        // contract says the {reason} body is optional.
+        body: CaseConfirmationRevokeRequestSchema.nullish(),
         response: { 200: OkResponseSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);

@@ -19,7 +19,7 @@ import {
   ServerParamsSchema,
 } from '@scpsl-trust/shared';
 
-import { assertAuthenticated, assertMfaEnrollment, requireAuth, requirePermission, requireServerRole } from '../../auth/rbac';
+import { assertAuthenticated, assertMfaEnrollment, requireEnrolledAuth, requirePermission, requireServerRole } from '../../auth/rbac';
 import type { Deps } from '../../container';
 import type { BypassService } from './service';
 
@@ -84,7 +84,7 @@ export async function registerBypassRoutes(app: FastifyInstance, deps: Deps, ser
         response: { 200: OkResponseSchema },
       },
       // Authorization depends on the bypass scope; checked in the service.
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);

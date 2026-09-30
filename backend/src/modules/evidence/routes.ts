@@ -25,7 +25,7 @@ import {
   Permission,
 } from '@scpsl-trust/shared';
 
-import { assertAuthenticated, requireAuth, requirePermission } from '../../auth/rbac';
+import { assertAuthenticated, requireEnrolledAuth, requirePermission } from '../../auth/rbac';
 import type { Deps } from '../../container';
 import { validation } from '../../lib/errors';
 import type { EvidenceService, UploadedFile } from './service';
@@ -83,7 +83,7 @@ export async function registerEvidenceRoutes(app: FastifyInstance, deps: Deps, s
         params: CaseParamsSchema,
         response: { 201: EvidenceViewSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request, reply) => {
       const user = assertAuthenticated(request);
@@ -104,7 +104,7 @@ export async function registerEvidenceRoutes(app: FastifyInstance, deps: Deps, s
         body: EvidenceLinkCreateRequestSchema,
         response: { 201: EvidenceViewSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request, reply) => {
       const user = assertAuthenticated(request);
@@ -140,7 +140,7 @@ export async function registerEvidenceRoutes(app: FastifyInstance, deps: Deps, s
         querystring: EvidenceDetailQuerySchema,
         response: { 200: EvidenceDetailSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);
@@ -157,7 +157,7 @@ export async function registerEvidenceRoutes(app: FastifyInstance, deps: Deps, s
         params: EvidenceParamsSchema,
         response: { 200: EvidenceTicketResponseSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);
@@ -217,7 +217,7 @@ export async function registerEvidenceRoutes(app: FastifyInstance, deps: Deps, s
         params: EvidenceParamsSchema,
         response: { 201: EvidenceViewSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request, reply) => {
       const user = assertAuthenticated(request);

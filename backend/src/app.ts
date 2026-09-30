@@ -38,6 +38,8 @@ export interface BuildAppOptions {
   modules?: readonly NamedModule[];
   /** Registers additional routes after the core (tests). */
   extend?: (app: FastifyInstance) => Promise<void> | void;
+  /** Called for every registered route (tests: route inventory). Added before any route is registered. */
+  onRoute?: (route: { method: string | string[]; url: string; preHandler?: unknown }) => void;
 }
 
 function toFastifyTrustProxy(setting: TrustProxySetting): boolean | string[] | ((address: string, hop: number) => boolean) {
@@ -98,6 +100,13 @@ export async function buildApp(deps: Deps, options: BuildAppOptions = {}): Promi
       ipHashSecret: config.secrets.ipHashSecret,
     }),
   );
+
+  const { onRoute } = options;
+  if (onRoute !== undefined) {
+    app.addHook('onRoute', (route) => {
+      onRoute({ method: route.method, url: route.url, preHandler: route.preHandler });
+    });
+  }
 
   await registerHealthRoutes(app, deps);
   await registerModules(app, deps, options.modules ?? MODULES);

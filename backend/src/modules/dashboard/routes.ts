@@ -7,7 +7,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
 import { DashboardResponseSchema } from '@scpsl-trust/shared';
 
-import { assertAuthenticated, requireAuth } from '../../auth/rbac';
+import { assertAuthenticated, requireEnrolledAuth } from '../../auth/rbac';
 import type { Deps } from '../../container';
 import type { DashboardService } from './service';
 
@@ -26,7 +26,7 @@ export async function registerDashboardRoutes(
         summary: 'Scoped dashboard counts, server status and recent audit events',
         response: { 200: DashboardResponseSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);

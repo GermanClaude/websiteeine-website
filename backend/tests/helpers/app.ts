@@ -19,7 +19,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Kysely } from 'kysely';
 import { afterAll, beforeAll } from 'vitest';
 
-import { buildApp } from '../../src/app';
+import { buildApp, type BuildAppOptions } from '../../src/app';
 import { loadConfig, type Config } from '../../src/config';
 import { createContainer, type Deps } from '../../src/container';
 import type { Database } from '../../src/db/types';
@@ -44,6 +44,8 @@ export interface TestAppOptions {
   modules?: readonly NamedModule[];
   /** Extra routes for the test (registered after the core and modules). */
   extend?: (app: FastifyInstance) => Promise<void> | void;
+  /** Route inventory callback (see BuildAppOptions.onRoute). */
+  onRoute?: BuildAppOptions['onRoute'];
   /** Reuse an existing test database (not destroyed by close()). */
   database?: TestDatabase;
   /** Custom logger (default silent). */
@@ -111,6 +113,7 @@ export async function buildTestApp(options: TestAppOptions = {}): Promise<TestAp
     const buildOptions: Parameters<typeof buildApp>[1] = {};
     if (options.modules !== undefined) buildOptions.modules = options.modules;
     if (options.extend !== undefined) buildOptions.extend = options.extend;
+    if (options.onRoute !== undefined) buildOptions.onRoute = options.onRoute;
     const app = await buildApp(deps, buildOptions);
     await app.ready();
 

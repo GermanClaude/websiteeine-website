@@ -58,6 +58,16 @@ export const requireAuth: preHandlerAsyncHookHandler = async function requireAut
 };
 
 /**
+ * requireAuth plus the MFA-enrollment gate (§12.2), for session routes whose fine-grained
+ * authorization happens at service level (membership/ownership scoping) rather than via
+ * requirePermission/requireServerRole. Use on every such route except /auth/* and /me.
+ */
+export const requireEnrolledAuth: preHandlerAsyncHookHandler = async function requireEnrolledAuth(request) {
+  assertAuthenticated(request);
+  assertMfaEnrollment(request.session);
+};
+
+/**
  * Authenticated + 2FA enrolled when required + every listed permission. Use on every
  * permission-protected route except /auth/* and /me (they use requireAuth only).
  */

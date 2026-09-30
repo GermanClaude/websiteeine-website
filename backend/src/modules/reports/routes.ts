@@ -15,7 +15,7 @@ import {
   ReportViewSchema,
 } from '@scpsl-trust/shared';
 
-import { assertAuthenticated, requireAuth, requirePermission, requireVerifiedEmail } from '../../auth/rbac';
+import { assertAuthenticated, requireEnrolledAuth, requirePermission, requireVerifiedEmail } from '../../auth/rbac';
 import type { Deps } from '../../container';
 import type { ReportsService } from './service';
 
@@ -31,7 +31,7 @@ export async function registerReportRoutes(app: FastifyInstance, deps: Deps, ser
         querystring: ReportListQuerySchema,
         response: { 200: ReportListResponseSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);
@@ -68,7 +68,7 @@ export async function registerReportRoutes(app: FastifyInstance, deps: Deps, ser
         params: ReportParamsSchema,
         response: { 200: ReportViewSchema },
       },
-      preHandler: [requireAuth],
+      preHandler: [requireEnrolledAuth],
     },
     async (request) => {
       const user = assertAuthenticated(request);
