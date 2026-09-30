@@ -30,6 +30,17 @@ export interface RouteRateLimits {
 const errorResponseBuilder = (_request: FastifyRequest, context: { ttl: number }) => rateLimited(context.ttl / 1000);
 
 /**
+ * Degrade instead of failing when the limiter store (Redis) is unreachable: without this the
+ * plugin turns every request — including unauthenticated reads and `/api/v1/time` — into a
+ * 500 after the ioredis command timeout, i.e. a Redis outage becomes a total API outage.
+ * Rate limiting is a protective layer, not an authorization decision: the checks that must
+ * stay closed (nonce/replay protection in server-auth, MFA tokens, job locks) fail closed on
+ * their own with 503. A Redis outage is visible on `/readyz` and in the log; see
+ * docs/OPERATIONS.md.
+ */
+const SKIP_ON_STORE_ERROR = { skipOnError: true } as const;
+
+/**
  * Data minimization (§8.1/§29): limiter keys never contain the raw client IP, only a truncated
  * HMAC of it (IP_HASH_SECRET), like the server-auth failure counters.
  */
@@ -50,6 +61,7 @@ export function createRouteRateLimits(config: Config): RouteRateLimits {
       timeWindow: 60_000,
       keyGenerator: (request: FastifyRequest) => `auth:ip:${ipKey(config, request.ip)}`,
       errorResponseBuilder,
+      ...SKIP_ON_STORE_ERROR,
     },
     proof: {
       max: config.proof.rateLimitPerMinute,
@@ -58,6 +70,7 @@ export function createRouteRateLimits(config: Config): RouteRateLimits {
       hook: 'preHandler',
       keyGenerator: userOrIpKey(config, 'proof'),
       errorResponseBuilder,
+      ...SKIP_ON_STORE_ERROR,
     },
     plugin: {
       max: limits.pluginPerMinute,
@@ -66,6 +79,7 @@ export function createRouteRateLimits(config: Config): RouteRateLimits {
       keyGenerator: (request: FastifyRequest) =>
         request.authServer !== null ? `plugin:srv:${request.authServer.server_id}` : `plugin:ip:${ipKey(config, request.ip)}`,
       errorResponseBuilder,
+      ...SKIP_ON_STORE_ERROR,
     },
     reportCreate: {
       max: limits.reportsPerHour,
@@ -73,12 +87,14 @@ export function createRouteRateLimits(config: Config): RouteRateLimits {
       hook: 'preHandler',
       keyGenerator: userOrIpKey(config, 'reports'),
       errorResponseBuilder,
+      ...SKIP_ON_STORE_ERROR,
     },
     serverRegistration: {
       max: limits.authPerMinute,
       timeWindow: 60_000,
       keyGenerator: (request: FastifyRequest) => `register:ip:${ipKey(config, request.ip)}`,
       errorResponseBuilder,
+      ...SKIP_ON_STORE_ERROR,
     },
   } satisfies RouteRateLimits);
 }
@@ -94,5 +110,6 @@ export async function registerRateLimit(app: FastifyInstance, config: Config, re
     allowList: (request: FastifyRequest) => request.url === '/healthz' || request.url === '/readyz',
     keyGenerator: (request: FastifyRequest) => `ip:${ipKey(config, request.ip)}`,
     errorResponseBuilder,
+    ...SKIP_ON_STORE_ERROR,
   });
 }

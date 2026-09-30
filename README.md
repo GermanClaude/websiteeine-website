@@ -4,8 +4,10 @@ A global anti-cheat, reporting, evidence and trust platform for **SCP: Secret La
 a LabAPI server plugin (C#), a TypeScript backend (Fastify, PostgreSQL, Redis) and a React web
 panel for players, server teams, reviewers and administrators.
 
-**Status:** feature-complete, MIT-licensed, not yet released as a tagged version.
-Verified: 2 606 automated tests (shared 833, backend 1189 incl. PostgreSQL/Redis integration,
+## Project status
+
+Feature-complete, MIT-licensed, not yet released as a tagged version.
+Verified: 2,606 automated tests (shared 833, backend 1189 incl. PostgreSQL/Redis integration,
 web 115, plugin 469 — the C# plugin runs the same cross-language test vectors as the TypeScript
 reference engine), a 12-step end-to-end API run and a 24-step browser walkthrough of the panel
 (screenshots below), and the plugin loaded and exercised inside a real SCP:SL dedicated server.
@@ -122,12 +124,12 @@ full failure matrix: [docs/OPERATIONS.md](docs/OPERATIONS.md).
                │ HTTPS, Ed25519-signed requests            │
                │ (timestamp, nonce, request id)            │
                ▼                                           ▼
-        ┌──────────────────────────────────────────────────────────┐
+        ┌───────────────────────────────────────────────────────────┐
         │ Backend API (Fastify 5, TypeScript) — /api/v1             │
         │ server auth · RBAC · cases/reports/evidence · appeals ·   │
         │ whitelist/bypasses · VPN/account-age/alt signals ·        │
         │ Overwatch proof API · audit chain · background jobs       │
-        └───────┬───────────────┬───────────────┬───────────┬──────┘
+        └───────┬───────────────┬───────────────┬───────────┬───────┘
                 │               │               │           ╎
         ┌───────▼───────┐ ┌─────▼─────────┐ ┌───▼──────────┐╎
         │ PostgreSQL 16 │ │   Redis 7     │ │ Evidence     │╎
@@ -135,9 +137,9 @@ full failure matrix: [docs/OPERATIONS.md](docs/OPERATIONS.md).
         │ record        │ │ limits, cache │ │ disk or S3   │╎
         └───────────────┘ └───────────────┘ └──────────────┘╎
                                                             ╎
-      ╌╌╌╌ OPTIONAL outbound — each may be absent ╌╌╌╌╌╌╌╌╌╌╌┘
+      ╌╌╌╌ OPTIONAL outbound — each may be absent ╌╌╌╌╌╌╌╌╌╌┘
         Steam Web API          → account age   (else: server hint, else unknown)
-        proxycheck.io / IPHub  → VPN signal    (else: CIDR lists only, else `checked: false`)
+        proxycheck.io / IPHub  → VPN signal    (else: CIDR lists only, else "checked": false)
         SMTP                   → mail          (else: file transport, the dev default)
         S3 / MinIO             → evidence blob (else: local disk)
 ```
@@ -181,16 +183,17 @@ retention window is configurable: [docs/PRIVACY.md](docs/PRIVACY.md).
 
 ## Web panel
 
-From the scripted browser walkthrough ([docs/E2E.md](docs/E2E.md)); 1280px light theme.
+From the scripted browser walkthrough ([docs/E2E.md](docs/E2E.md)), light theme, 1280px wide.
 
 | | |
 |---|---|
 | ![Dashboard](docs/images/dashboard.png)<br>Dashboard: open work per queue, your servers, recent audit events. | ![Case detail](docs/images/case-detail.png)<br>Case detail: verdict, reports, evidence, appeals and review history — separate assessments (R2). |
 | ![Server policy editor](docs/images/server-policy.png)<br>Server policy editor: the rules *this* server enforces, with a live preview of the same engine the plugin runs (R1). | ![Audit log](docs/images/audit-log.png)<br>Audit log: append-only and hash-chained, verifiable from the UI (R8). |
 
-<img src="docs/images/mobile-nav.png" alt="Mobile navigation" width="300">
+<img src="docs/images/mobile-nav.png" alt="Mobile navigation at 390px" width="300">
 
-The panel is responsive; the walkthrough captures every page at 1280px and 390px, light and dark.
+*Same panel at 390px: the navigation collapses into a drawer.* The walkthrough captures every page
+at both widths in light and dark themes.
 
 ## Quick start (Docker)
 
