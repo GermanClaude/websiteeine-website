@@ -81,12 +81,12 @@ describe('POST /reports', () => {
     const { session } = await verifiedUser();
     const suspended = await createServerWithKey(t().deps, { status: 'suspended' });
     expectError(
-      await postReport(session.headers, { player: steamRef(), reason: 'x', server_id: suspended.server.server_id }),
+      await postReport(session.headers, { player: steamRef(), reason: 'xxx', server_id: suspended.server.server_id }),
       409,
       'SERVER_NOT_ACTIVE',
     );
     const active = await createServerWithKey(t().deps);
-    const ok = await postReport(session.headers, { player: steamRef(), reason: 'x', server_id: active.server.server_id });
+    const ok = await postReport(session.headers, { player: steamRef(), reason: 'xxx', server_id: active.server.server_id });
     expect(ok.statusCode).toBe(201);
     const report = await t().db.selectFrom('reports').selectAll().where('id', '=', ok.json().report_id).executeTakeFirstOrThrow();
     expect(report.server_id).toBe(active.server.id);
@@ -95,9 +95,9 @@ describe('POST /reports', () => {
   it('requires a verified email and authentication', async () => {
     const { user } = await createUser(t().deps, { verified: false });
     const session = await loginAs(t().app, user);
-    expectError(await postReport(session.headers, { player: steamRef(), reason: 'x' }), 403, 'EMAIL_NOT_VERIFIED');
+    expectError(await postReport(session.headers, { player: steamRef(), reason: 'xxx' }), 403, 'EMAIL_NOT_VERIFIED');
     expectError(
-      await t().app.inject({ method: 'POST', url: '/api/v1/reports', body: { player: steamRef(), reason: 'x' } }),
+      await t().app.inject({ method: 'POST', url: '/api/v1/reports', body: { player: steamRef(), reason: 'xxx' } }),
       401,
       'UNAUTHENTICATED',
     );
@@ -178,7 +178,12 @@ describe('POST /server/reports (signed)', () => {
       body: { player, reason: 'suspicious' },
     });
     expect(first.statusCode).toBe(201);
-    expect(await t().db.selectFrom('evidence').selectAll().execute()).toHaveLength(0);
+    const firstReport = await t()
+      .db.selectFrom('reports')
+      .select('case_id')
+      .where('id', '=', first.json().report_id)
+      .executeTakeFirstOrThrow();
+    expect(await t().db.selectFrom('evidence').selectAll().where('case_id', '=', firstReport.case_id).execute()).toHaveLength(0);
 
     const dup = await signedRequest(t().app, identity, {
       method: 'POST',
@@ -190,14 +195,14 @@ describe('POST /server/reports (signed)', () => {
 
   it('rejects unsigned and tampered requests', async () => {
     const identity = await createServerWithKey(t().deps);
-    const body = { player: steamRef(), reason: 'x' };
+    const body = { player: steamRef(), reason: 'xxx' };
     const unsigned = await t().app.inject({ method: 'POST', url: '/api/v1/server/reports', body });
     expect(unsigned.statusCode).toBe(401);
     const tampered = await signedRequest(t().app, identity, {
       method: 'POST',
       url: '/api/v1/server/reports',
       body,
-      sign: { body: { player: steamRef(), reason: 'other' } },
+      sign: { body: JSON.stringify({ player: steamRef(), reason: 'other' }) },
     });
     expect(tampered.statusCode).toBe(401);
   });

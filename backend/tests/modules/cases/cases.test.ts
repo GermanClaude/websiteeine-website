@@ -76,16 +76,18 @@ async function addLinkEvidence(
   statuses: Partial<{ status: string; cheating: string; authenticity: string }> = {},
 ) {
   const now = deps.clock.now();
+  const uploader = (await createUser(deps)).user;
   return deps.db
     .insertInto('evidence')
     .values({
       case_id: caseRow.id,
       type: 'link',
       title: 'clip',
+      uploader_user_id: uploader.id,
       external_url: 'https://example.com/clip',
-      status: (statuses.status ?? 'pending') as never,
-      cheating_status: (statuses.cheating ?? 'pending') as never,
-      authenticity_status: (statuses.authenticity ?? 'pending') as never,
+      status: (statuses.status ?? 'unverified') as never,
+      cheating_status: (statuses.cheating ?? 'unverified') as never,
+      authenticity_status: (statuses.authenticity ?? 'unverified') as never,
       uploaded_at: now,
       created_at: now,
       updated_at: now,
@@ -360,7 +362,7 @@ describe('POST /cases/{caseNumber}/verdict', () => {
     const player = await createPlayer(t().deps);
     const row = await makeCase(t().deps, player, { status: 'under_review' });
     // Only partially verified evidence exists.
-    await addLinkEvidence(t().deps, row, { cheating: 'verified', authenticity: 'pending' });
+    await addLinkEvidence(t().deps, row, { cheating: 'verified', authenticity: 'unverified' });
     expectError(
       await t().app.inject({
         method: 'POST',
@@ -385,6 +387,7 @@ describe('POST /cases/{caseNumber}/verdict', () => {
         type: 'link',
         title: 'replacement',
         external_url: 'https://example.com/clip2',
+        uploader_user_id: (await createUser(t().deps)).user.id,
         supersedes_evidence_id: oldEvidence.id,
         uploaded_at: t().clock.now(),
         created_at: t().clock.now(),

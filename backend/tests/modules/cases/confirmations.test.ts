@@ -7,7 +7,8 @@ import { describe, expect, it } from 'vitest';
 import { allocateCaseNumber } from '../../../src/db/sequences';
 import { generateServerId } from '../../../src/lib/ids';
 import type { Deps } from '../../../src/container';
-import type { CaseRow, PlayerRow, ServerMemberRole } from '../../../src/db/types';
+import type { ServerMemberRole } from '../../../src/db/enums';
+import type { CaseRow, PlayerRow } from '../../../src/db/types';
 import { createPlayer, createServerWithKey, createUser, expectError, loginAs, useTestApp } from '../../helpers';
 
 const t = useTestApp({ now: '2026-09-29T12:00:00.000Z' });
