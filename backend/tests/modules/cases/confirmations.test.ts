@@ -44,6 +44,17 @@ async function addMember(deps: Deps, serverUuid: string, userId: string, role: S
     .execute();
 }
 
+/** §11.4: a server may only confirm a case whose player it has seen (or reported on). */
+async function seen(deps: Deps, serverUuid: string, row: CaseRow): Promise<CaseRow> {
+  const now = deps.clock.now();
+  await deps.db
+    .insertInto('player_server_sightings')
+    .values({ player_id: row.player_id, server_id: serverUuid, first_seen_at: now, last_seen_at: now })
+    .onConflict((oc) => oc.doNothing())
+    .execute();
+  return row;
+}
+
 function confirmUrl(caseNumber: string): string {
   return `/api/v1/cases/${caseNumber}/confirmations`;
 }
@@ -52,7 +63,7 @@ describe('POST /cases/{caseNumber}/confirmations', () => {
   it('owner member of an active server confirms a case under review (audited)', async () => {
     const { server, owner } = await createServerWithKey(t().deps);
     const session = await loginAs(t().app, owner);
-    const row = await makeCase(t().deps, await createPlayer(t().deps));
+    const row = await seen(t().deps, server.id, await makeCase(t().deps, await createPlayer(t().deps)));
 
     const res = await t().app.inject({
       method: 'POST',
@@ -79,7 +90,7 @@ describe('POST /cases/{caseNumber}/confirmations', () => {
 
   it('admin member (global role player) may confirm; moderator member and non-members may not', async () => {
     const { server, owner } = await createServerWithKey(t().deps);
-    const row = await makeCase(t().deps, await createPlayer(t().deps));
+    const row = await seen(t().deps, server.id, await makeCase(t().deps, await createPlayer(t().deps)));
     const body = { server_id: server.server_id, note: null };
 
     const { user: adminMember } = await createUser(t().deps); // global role: player
@@ -138,7 +149,11 @@ describe('POST /cases/{caseNumber}/confirmations', () => {
       'INVALID_STATE',
     );
     // Closed + confirmed verdict is allowed.
-    const confirmedCase = await makeCase(t().deps, await createPlayer(t().deps), { status: 'closed', verdict: 'confirmed' });
+    const confirmedCase = await seen(
+      t().deps,
+      server.id,
+      await makeCase(t().deps, await createPlayer(t().deps), { status: 'closed', verdict: 'confirmed' }),
+    );
     const ok = await t().app.inject({
       method: 'POST',
       url: confirmUrl(confirmedCase.case_number),
@@ -151,7 +166,7 @@ describe('POST /cases/{caseNumber}/confirmations', () => {
   it('one active confirmation per server (duplicate → ALREADY_EXISTS); revoke allows a new one', async () => {
     const { server, owner } = await createServerWithKey(t().deps);
     const session = await loginAs(t().app, owner);
-    const row = await makeCase(t().deps, await createPlayer(t().deps));
+    const row = await seen(t().deps, server.id, await makeCase(t().deps, await createPlayer(t().deps)));
     const body = { server_id: server.server_id, note: null };
 
     expect((await t().app.inject({ method: 'POST', url: confirmUrl(row.case_number), headers: session.headers, body })).statusCode).toBe(201);
@@ -215,7 +230,7 @@ describe('POST /cases/{caseNumber}/confirmations', () => {
   it('revocation is only allowed for members of the confirming server', async () => {
     const { server, owner } = await createServerWithKey(t().deps);
     const ownerSession = await loginAs(t().app, owner);
-    const row = await makeCase(t().deps, await createPlayer(t().deps));
+    const row = await seen(t().deps, server.id, await makeCase(t().deps, await createPlayer(t().deps)));
     await t().app.inject({
       method: 'POST',
       url: confirmUrl(row.case_number),
@@ -248,6 +263,7 @@ describe('POST /cases/{caseNumber}/confirmations', () => {
     const s2 = await createServerWithKey(t().deps, { owner: commonOwner });
     const s3 = await createServerWithKey(t().deps);
     const row = await makeCase(t().deps, await createPlayer(t().deps));
+    for (const s of [s1, s2, s3]) await seen(t().deps, s.server.id, row);
 
     const commonSession = await loginAs(t().app, commonOwner);
     const s3Session = await loginAs(t().app, s3.owner);
@@ -278,6 +294,24 @@ describe('POST /cases/{caseNumber}/confirmations', () => {
     // Public view exposes the distinct server count.
     const publicView = await t().app.inject({ method: 'GET', url: `/api/v1/public/cases/${row.case_number}` });
     expect(publicView.json().confirmed_servers).toBe(3);
+  });
+
+  it('a server without a report on the case or a sighting of the player cannot confirm (§11.4)', async () => {
+    const { server, owner } = await createServerWithKey(t().deps);
+    const session = await loginAs(t().app, owner);
+    const row = await makeCase(t().deps, await createPlayer(t().deps));
+    expectError(
+      await t().app.inject({
+        method: 'POST',
+        url: confirmUrl(row.case_number),
+        headers: session.headers,
+        body: { server_id: server.server_id, note: null },
+      }),
+      403,
+      'FORBIDDEN',
+    );
+    const count = await t().db.selectFrom('case_server_confirmations').select('id').where('case_id', '=', row.id).execute();
+    expect(count).toHaveLength(0);
   });
 
   it('rejects confirmations for unknown servers and unknown cases', async () => {

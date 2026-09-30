@@ -17,3 +17,10 @@ plugin/lib/*
 *.user
 .vs/
 .idea/
+# runtime data when the backend is started from another directory (MAIL_FILE_DIR / STORAGE_LOCAL_DIR default ./.data/…)
+**/.data/
+# plugin / DevClient identity (contains the Ed25519 private seed — never commit)
+trust-identity/
+**/identity.json
+**/identity.pending.json
+**/identity.previous.json

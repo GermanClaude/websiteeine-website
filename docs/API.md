@@ -21,8 +21,10 @@ generated from it by `backend/scripts/generate-api-docs.ts`.
 
 Sessions of staff roles (`REQUIRE_2FA_ROLES`, default reviewer/moderator/admin/super_admin)
 that have not enrolled 2FA are limited to `/auth/*` and `GET /me` and receive
-`403 MFA_ENROLLMENT_REQUIRED` everywhere else. `POST /cases/{caseNumber}/verdict`
-additionally requires the session itself to be MFA-verified.
+`403 MFA_ENROLLMENT_REQUIRED` everywhere else (also on the optional-auth routes
+`GET /evidence/{id}/content` and, for the expected code, `GET /evidence/proof`).
+`POST /cases/{caseNumber}/verdict`, `POST /appeals/{id}/decision` and
+`POST /evidence/{id}/reviews` additionally require the session itself to be MFA-verified.
 
 **Membership vs. global role**: "member owner/admin" in the tables means authorization by
 *server-team membership* (`server_members`), whatever the user's global role is — a
@@ -61,7 +63,9 @@ permissions (`server:manage_any`, `whitelist:decide_any`, `bypass:manage_global`
   `UNSUPPORTED_MEDIA_TYPE` 415.
 * **Rate limits**: global 300/min per IP (web), 600/min per server (plugin routes),
   auth 10/min per IP, proof 20/min, report creation 10/h per user, server registration
-  per IP. Exceeding them returns `429 RATE_LIMITED` with `Retry-After`.
+  per IP, evidence uploads per user (`EVIDENCE_UPLOADS_PER_HOUR[_NON_STAFF]`, plus per-file and
+  per-day byte caps for non-staff uploaders), failed link codes 20/h per server. Exceeding them
+  returns `429 RATE_LIMITED` with `Retry-After`.
 
 ## 3. Endpoint reference
 
@@ -126,7 +130,7 @@ permissions (`server:manage_any`, `whitelist:decide_any`, `bypass:manage_global`
 | GET | `/api/v1/cases` | Session | case staff scope (reviewer+: all; server team: own servers) | List cases (staff; server teams see only their servers) |
 | POST | `/api/v1/cases` | Session + CSRF | case:create | Create a case |
 | GET | `/api/v1/cases/{caseNumber}` | Session | case staff scope; 403 outside (UI falls back to public view) | Staff case view |
-| POST | `/api/v1/cases/{caseNumber}/confirmations` | Session + CSRF | member owner/admin of an active server | Confirm the case for one of your servers |
+| POST | `/api/v1/cases/{caseNumber}/confirmations` | Session + CSRF | member owner/admin of an active server that reported on / saw the player | Confirm the case for one of your servers |
 | DELETE | `/api/v1/cases/{caseNumber}/confirmations/{id}` | Session + CSRF | member owner/admin of the confirming server | Revoke a server confirmation (soft) |
 | POST | `/api/v1/cases/{caseNumber}/notes` | Session + CSRF | case:review | Add an internal note |
 | POST | `/api/v1/cases/{caseNumber}/reopen` | Session + CSRF | case:reopen | Reopen a closed case |
@@ -147,13 +151,13 @@ permissions (`server:manage_any`, `whitelist:decide_any`, `bypass:manage_global`
 
 | Method | Path | Auth | Permission / scope | Description |
 |---|---|---|---|---|
-| POST | `/api/v1/cases/{caseNumber}/evidence` | Session + CSRF | reviewer+, the reporter, or member of a reporting server | Upload evidence to a case (multipart; streamed, hashed, MIME-sniffed) |
+| POST | `/api/v1/cases/{caseNumber}/evidence` | Session + CSRF | reviewer+, the reporter, or member of a reporting server; per-user upload quotas | Upload evidence to a case (multipart; streamed, hashed, MIME-sniffed) |
 | POST | `/api/v1/cases/{caseNumber}/evidence/link` | Session + CSRF | same upload rule; https URLs only | Attach link evidence to a case (https only; nothing is stored) |
 | GET | `/api/v1/evidence` | Session | evidence:view | Evidence review queue (evidence:view; filters status/type/case) |
 | GET | `/api/v1/evidence/{id}` | Session | §11.3 access rule; ?verify=true reviewer+ | Evidence metadata, review history and supersede chain (§11.3 access rule) |
-| GET | `/api/v1/evidence/{id}/content` | Session or ?ticket= | audited; hardened headers; no CSRF for tickets | Download evidence content (session or ?ticket=; audited; hardened headers) |
-| POST | `/api/v1/evidence/{id}/reviews` | Session + CSRF | evidence:review; no self-review | Review evidence: three independent assessments + overall (never the verdict, R2) |
-| POST | `/api/v1/evidence/{id}/supersede` | Session + CSRF | upload rule; once per object | Replace evidence with a new object (multipart; the old row is kept and linked) |
+| GET | `/api/v1/evidence/{id}/content` | Session or ?ticket= | audited; hardened headers; no CSRF for tickets; 2FA enrollment gate for sessions | Download evidence content (session or ?ticket=; audited; hardened headers) |
+| POST | `/api/v1/evidence/{id}/reviews` | Session (2FA-verified) + CSRF | evidence:review; not uploader, reporter or case subject | Review evidence: three independent assessments + overall (never the verdict, R2) |
+| POST | `/api/v1/evidence/{id}/supersede` | Session + CSRF | uploader, uploader-server member or evidence:review; once per object; upload quotas | Replace evidence with a new object (multipart; the old row is kept and linked) |
 | POST | `/api/v1/evidence/{id}/ticket` | Session + CSRF | §11.3 access rule; audited | 60 s download ticket for media elements (same access rule; audited) |
 
 ### Players
@@ -198,7 +202,7 @@ permissions (`server:manage_any`, `whitelist:decide_any`, `bypass:manage_global`
 | POST | `/api/v1/appeals` | Session + CSRF | appeal:create + linked player | Appeal a confirmed/inconclusive case verdict (linked player only) |
 | GET | `/api/v1/appeals/{id}` | Session | appeal:decide or the submitter | Appeal detail (decider or submitter) |
 | POST | `/api/v1/appeals/{id}/assign` | Session + CSRF | appeal:assign | Assign an appeal to a reviewer |
-| POST | `/api/v1/appeals/{id}/decision` | Session + CSRF | appeal:decide; §11.5 independence rule | Decide an appeal (independence rule §11.5) |
+| POST | `/api/v1/appeals/{id}/decision` | Session (2FA-verified) + CSRF | appeal:decide; §11.5 independence rule (never the submitter/case subject) | Decide an appeal (independence rule §11.5) |
 | POST | `/api/v1/appeals/{id}/withdraw` | Session + CSRF | submitter | Withdraw an appeal (submitter) |
 
 ### Whitelist
@@ -223,7 +227,7 @@ permissions (`server:manage_any`, `whitelist:decide_any`, `bypass:manage_global`
 
 | Method | Path | Auth | Permission / scope | Description |
 |---|---|---|---|---|
-| GET | `/api/v1/evidence/proof` | Public (optional session) | proof rate limit; code required without proof:view_code | Verify an Overwatch proof code (optional auth; strict rate limit) |
+| GET | `/api/v1/evidence/proof` | Public (optional session) | proof rate limit; code required without proof:view_code (or without 2FA enrollment) | Verify an Overwatch proof code (optional auth; strict rate limit) |
 | GET | `/api/v1/overwatch/sessions` | Session | overwatch:view | List Overwatch sessions (overwatch:view) |
 | GET | `/api/v1/overwatch/sessions/{id}` | Session | overwatch:view; never contains the secret | Overwatch session detail (overwatch:view; no secret, ever) |
 
@@ -386,7 +390,8 @@ Response `200` (valid):
 Invalid proofs return `valid: false` with the checked window and **no** oracle about
 which part mismatched. Adjacent windows (±1) are accepted and reported via
 `window_offset`. Reviewers may receive `reason: "secret_expired"` when retention already
-wiped the session secret. Every verification is audited (`PROOF_VERIFIED`).
+wiped the session secret. Verifications by signed-in callers and valid anonymous verifications are
+audited (`PROOF_VERIFIED`); anonymous invalid lookups are only logged.
 
 ### 4.6 `POST /api/v1/cases/{caseNumber}/verdict` (session + CSRF; `case:set_verdict`; MFA-verified session)
 

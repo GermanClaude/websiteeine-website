@@ -114,6 +114,10 @@ The three text secrets must differ from each other (error in production, warning
 | `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY` | strings | unset | Static S3 credentials; set both or neither (then the AWS SDK default credential chain applies: instance role, `AWS_*` variables, profile). |
 | `STORAGE_FORCE_PATH_STYLE` | boolean | `false` | Path-style bucket addressing (needed by MinIO and most self-hosted S3 services). |
 | `EVIDENCE_MAX_BYTES` | integer 1024–10 GiB | `524288000` (500 MiB) | Maximum size of one evidence upload; exceeding it aborts the upload with `413 PAYLOAD_TOO_LARGE` and discards the partial object. |
+| `EVIDENCE_MAX_BYTES_NON_STAFF` | integer 1024–10 GiB | `209715200` (200 MiB) | Per-file cap for uploaders without `evidence:upload` (reporting users, server teams); never larger than `EVIDENCE_MAX_BYTES`. |
+| `EVIDENCE_UPLOADS_PER_HOUR` | integer ≥ 1 | `60` | Evidence uploads, links and supersedes per user and hour for `evidence:upload` holders (reviewer+); `429 RATE_LIMITED` above. |
+| `EVIDENCE_UPLOADS_PER_HOUR_NON_STAFF` | integer ≥ 1 | `10` | Same limit for all other uploaders. |
+| `EVIDENCE_DAILY_BYTES_NON_STAFF` | integer 1024–1 TiB | `1073741824` (1 GiB) | Stored evidence bytes per non-staff user and UTC day; a single upload is capped to the remaining quota (`413`), an exhausted quota answers `429`. |
 
 ## SCP:SL server (plugin) authentication
 
@@ -162,7 +166,7 @@ never treated as cheating (R3); it only feeds the `vpn` policy signal.
 |---|---|---|---|
 | `RETENTION_NETWORK_OBSERVATIONS_DAYS` | integer 1–36500 | `30` | Delete `player_network_observations` older than this. |
 | `RETENTION_PLAYER_SIGNALS_DAYS` | integer 1–36500 | `90` | Delete `player_signals` older than this. |
-| `RETENTION_SESSIONS_DAYS` | integer 1–36500 | `30` | Delete expired/revoked sessions and used tokens older than this. |
+| `RETENTION_SESSIONS_DAYS` | integer 1–36500 | `30` | Hourly job `auth-sessions-retention` deletes sessions that expired (absolute or idle) or were revoked, and e-mail verification / password reset tokens that were used or expired, more than this many days ago (audited `RETENTION_RUN`). |
 | `RETENTION_OVERWATCH_SECRETS_DAYS` | integer 1–36500 | `365` | Wipe `overwatch_sessions.secret_enc` of sessions older than this (rows are kept; proof verification is then impossible). |
 
 Case history, reports, evidence metadata, confirmations, appeals and audit events are never deleted

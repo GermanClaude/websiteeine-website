@@ -33,7 +33,13 @@ A server operator can send arbitrary data with a valid signature.
   (`INSUFFICIENT_EVIDENCE`). Report counts never change verdicts (`backend/src/modules/cases`,
   `backend/src/modules/reports`).
 * **Confirmations are counted per server and per owner** (`independent_confirmed_servers`), are shown
-  as information only and never change a verdict; admins mark trusted servers (`is_trusted`).
+  as information only and never change a verdict; admins mark trusted servers (`is_trusted`). A server may
+  only confirm a case it reported on or whose player it has seen (`player_server_sightings`).
+* **Limited staff view for server teams**: the `own_servers` case view (servers that reported/confirmed)
+  hides other reporters' identities, evidence the team may not access, appeals and the case audit history.
+* **Player linking** is attested by the signing server; failed link codes are throttled per server
+  (20/hour) and staff can resolve a hijacked identity by disabling the hijacking account, after which the
+  real player can re-claim it (see §3).
 * **Untrusted hints**: `account_created_at` is only a `server_reported` fallback; IPs are hashed on
   arrival; `server_id` in a body must match the signed header (`SERVER_ID_MISMATCH`).
 * **Size and rate limits**: JSON body limit 1 MiB (in-game reports 128 KiB), 600 requests/min per
@@ -86,11 +92,15 @@ within the replay window (AOF in `docker-compose.prod.yml`).
   not equal to e-mail/username; unknown e-mail and wrong password return the same error with equal timing
   (dummy hash verification).
 * **Lockout and throttling**: 10 auth requests/min per IP; after `LOGIN_MAX_FAILURES` (5) the account is
-  locked for 15 min × 2^(n−5), max 24 h (`USER_LOCKED` audited).
+  locked for 15 min × 2^(n−5), max 24 h (`USER_LOCKED` audited). Wrong 2FA codes count toward the same
+  counter and are audited (`USER_LOGIN_FAILED`, `invalid_mfa_code`); an `mfa_token` dies after 5 wrong
+  codes; TOTP step reuse is prevented atomically.
 * **2FA** (`backend/src/auth/totp.ts`): TOTP (RFC 6238) + 10 single-use recovery codes (stored hashed);
   TOTP secrets encrypted at rest (AES-256-GCM, `DATA_ENCRYPTION_KEY`, `backend/src/lib/crypto.ts`).
   Roles in `REQUIRE_2FA_ROLES` cannot use any route except `/auth/*` and `/me` until enrolled
-  (`MFA_ENROLLMENT_REQUIRED`); setting a verdict requires an MFA-verified session.
+  (`MFA_ENROLLMENT_REQUIRED`) — including the optional-auth routes `GET /evidence/{id}/content` and
+  `GET /evidence/proof` (no expected codes for unenrolled sessions); setting a verdict, deciding an appeal and
+  reviewing evidence require an MFA-verified session.
 * **RBAC** (`backend/src/auth/rbac.ts`, matrix in `shared/src/permissions.ts`): checked on every route;
   server-scoped actions require membership with an adequate team role; the UI only hides controls (R10).
   An automated authorization-matrix test checks that every protected route rejects unauthorized roles.
@@ -98,12 +108,15 @@ within the replay window (AOF in `docker-compose.prod.yml`).
 * **Browser hardening**: `@fastify/helmet` on the API (strict CSP, HSTS when `COOKIE_SECURE`), and CSP with
   a script hash, `frame-ancestors 'none'`, `nosniff`, `X-Frame-Options DENY` on the panel (`web/nginx.conf`).
 * **Uploads**: MIME type sniffed from magic bytes against an allow-list (`415 UNSUPPORTED_MEDIA_TYPE`),
-  size limit `EVIDENCE_MAX_BYTES`, sanitized filenames; downloads use `Content-Disposition: attachment`,
+  size limit `EVIDENCE_MAX_BYTES`, per-user upload quotas (count per hour; per-file and per-day byte caps
+  for non-staff uploaders, `EVIDENCE_*_NON_STAFF`), sanitized filenames; downloads use `Content-Disposition: attachment`,
   `nosniff`, `Content-Security-Policy: sandbox; default-src 'none'`, `Cache-Control: private, no-store`.
 * **Proof API brute force**: 30-bit codes, ±1 window, 20 requests/min (`PROOF_RATE_LIMIT_PER_MINUTE`);
   invalid answers do not reveal which field was wrong; callers without `proof:view_code` never see the
   expected code.
 * **Report spam**: 10 reports/hour per user, one open report per reporter and player.
+* **Audit-log growth**: anonymous invalid proof lookups are not audited (only logged); web requests
+  cannot choose the `request_id` stored in audit events; rate-limit keys use an HMAC of the IP.
 
 ### 2.5 Evidence tampering
 
@@ -112,7 +125,8 @@ within the replay window (AOF in `docker-compose.prod.yml`).
 * Database trigger: evidence rows cannot be deleted; hash, size, MIME type, storage key, URL, uploader,
   case and type cannot be updated; `superseded_by_evidence_id` can be set only once
   ([DATABASE.md §3](./DATABASE.md#3-protection-triggers-r7-r8)). Replacement creates a new row
-  (`POST /evidence/{id}/supersede`), history stays visible.
+  (`POST /evidence/{id}/supersede`), history stays visible. Only the uploader, members of the uploader
+  server or reviewers may supersede — a reporter cannot replace other people's evidence.
 * Evidence reviews are append-only (`evidence_reviews`: no UPDATE/DELETE); the three assessments
   (identity, authenticity, cheating) are independent and never change the verdict by themselves (R2).
 * Access: metadata and content only for `evidence:view` holders, the uploader and members of the
@@ -123,9 +137,11 @@ within the replay window (AOF in `docker-compose.prod.yml`).
 
 ### 2.6 Insider (reviewer, moderator, admin)
 
-* **Conflict of interest**: a reviewer who reported on a case cannot set its verdict; an appeal cannot be
-  decided by the verdict setter or a reporter (`CONFLICT_OF_INTEREST`) unless a `super_admin` explicitly
-  overrides it, which is recorded and audited.
+* **Conflict of interest**: a reviewer who reported on a case, or whose linked player is the case subject,
+  cannot set its verdict or review its evidence; an appeal cannot be decided by the verdict setter or a
+  reporter (`CONFLICT_OF_INTEREST`) unless a `super_admin` explicitly overrides it, which is recorded and
+  audited. The appeal submitter and the case subject can never decide or be assigned the appeal — not even
+  with the override.
 * **Append-only history** (R7): cases, reports, reviews, confirmations, appeals, whitelist requests,
   bypasses and policy versions cannot be deleted (triggers raise SQLSTATE `TN403`, also for `TRUNCATE`).
 * **Audit hash chain** (R8, `backend/src/modules/audit/service.ts`): every privileged action is written in the
@@ -164,6 +180,11 @@ within the replay window (AOF in `docker-compose.prod.yml`).
 * **Client devices** of staff (malware, stolen unlocked sessions) — mitigated only by 2FA, session lifetimes
   and session revocation.
 * **VPN / account-age / alt signals** are heuristics; they are signals by design (R3–R5), not evidence.
+* **In-game identity attestation**: the in-game identity of a linked account, of in-game reports and of
+  sightings is asserted by the signing server. A malicious server operator can link any player id to an
+  account whose link code they know, or fabricate sightings. Mitigations are audit (`PLAYER_LINKED` records
+  the linking server), throttling, server suspension/revocation and the re-claim path after staff disable
+  the hijacking account; a cryptographic proof (e.g. Steam OpenID login) is not implemented.
 
 ## 4. Reporting a security issue
 

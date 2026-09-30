@@ -126,6 +126,12 @@ missing `api_base_url` leaves the plugin idle (players are treated per
 `backend_unavailable_action` of the active policy only when a check was actually
 attempted — without any backend configured nothing is enforced).
 
+`api_base_url` may carry a path prefix (e.g. `https://example.org/trust`). The signature covers the
+**full request path** (prefix + `/api/v1/…` + query string, ARCHITECTURE §5.3), so a reverse proxy in
+front of the backend must forward the prefix unchanged — a proxy that strips `/trust` before
+forwarding makes every signed request fail with `401 INVALID_SIGNATURE`. Serve the backend under
+the same prefix, or use an origin without a prefix.
+
 ## 6. Commands
 
 RA = remote admin console, SC = server console. Permissions are LabAPI/game

@@ -34,9 +34,8 @@ processors in your privacy notice.
 E-mail (lower-case), username, Argon2id password hash, role/status, e-mail verification and login
 timestamps, encrypted TOTP secret and hashed recovery codes, optional link to a player identity
 (`DELETE /me/player-link` removes it). Sessions store the SHA-256 of the cookie token, a truncated user agent and
-a network hash — no raw IP. `RETENTION_SESSIONS_DAYS` (30) is the configured retention for expired sessions and
-used tokens, but **no job deletes them yet** in this version (known gap; expired sessions are unusable, they
-are only not purged).
+a network hash — no raw IP. Sessions that expired or were revoked, and used/expired e-mail and reset tokens,
+are deleted `RETENTION_SESSIONS_DAYS` (30) after they ended (hourly job `auth-sessions-retention`).
 
 ### Audit log and logs
 
@@ -69,7 +68,7 @@ Executed by the in-process `retention` jobs (`JOBS_ENABLED=true`, see [DATABASE.
 |---|---|---|
 | `RETENTION_NETWORK_OBSERVATIONS_DAYS` | 30 | delete network observations not seen for this long |
 | `RETENTION_PLAYER_SIGNALS_DAYS` | 90 | delete derived signals older than this |
-| `RETENTION_SESSIONS_DAYS` | 30 | intended: delete expired sessions and used/expired tokens — parsed, but not yet executed by any job |
+| `RETENTION_SESSIONS_DAYS` | 30 | delete sessions/tokens that expired, were revoked or were used more than this long ago |
 | `RETENTION_OVERWATCH_SECRETS_DAYS` | 365 | wipe Overwatch session secrets (proofs become unverifiable, the session row stays) |
 | `VPN_CACHE_TTL_SECONDS` | 21600 | Redis TTL of cached VPN results |
 | `ALT_LOOKBACK_DAYS` | 30 | how far back alt analysis looks (≤ network retention is sensible) |

@@ -27,7 +27,7 @@ const calls: C[] = [
  ['post','/appeals/{id}/withdraw',null,null,'AppealView'],
  ['get','/auth/session',null,null,'AuthSessionResponse'],
  ['post','/auth/login','LoginRequest',null,'LoginResponse'],
- ['post','/auth/login/2fa','Login2faRequest',null,'AuthSessionResponse'],
+ ['post','/auth/login/2fa','Login2faRequest',null,'LoginSuccessResponse'],
  ['post','/auth/logout',null,null,null],
  ['post','/auth/register','RegisterRequest',null,'RegisterResponse'],
  ['post','/auth/verify-email','VerifyEmailRequest',null,'OkResponse'],
@@ -101,8 +101,6 @@ const calls: C[] = [
 
 /** Known, harmless differences (prefix match on the reported issue). */
 const ALLOWED: Record<string, string[]> = {
-  // backend answers with the login-success variant (extra `mfa_required: false`); web ignores it.
-  'POST /auth/login/2fa': ['resp.properties.mfa_required', 'resp.required'],
   // backend accepts an absent/null body on DELETE; web always sends `{ reason }`.
   'DELETE /cases/{caseNumber}/confirmations/{id}': ['body.'],
 };

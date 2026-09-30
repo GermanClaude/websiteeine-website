@@ -21,7 +21,9 @@ Internet ──TLS──▶ reverse proxy (host nginx / load balancer)   https:/
   the session cookie is `SameSite=Lax; Secure` and CSRF checks compare `Origin` with `WEB_ORIGIN`.
 * SCP:SL servers use the same origin (`api_base_url: https://trust.example.org` in the plugin config).
   The plugin signs the path **including the query string** and the raw body: proxies must forward both
-  unchanged (no URL normalisation, re-encoding, body rewriting or compression of requests).
+  unchanged (no URL normalisation, re-encoding, body rewriting or compression of requests). If
+  `api_base_url` contains a path prefix (`https://example.org/trust`), the proxy must forward that prefix
+  unchanged too — the signature covers the full path, so prefix stripping breaks every signed request.
 * `/healthz` and `/readyz` are for your orchestrator/monitoring; the bundled nginx does not expose them.
 * `TRUST_PROXY` must describe exactly the proxies you control, otherwise rate limits and network
   hashes are computed from spoofable `X-Forwarded-For` values (see §3.4 / §4.3).

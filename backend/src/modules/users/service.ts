@@ -24,7 +24,7 @@ import type { Deps } from '../../container';
 import { nextReviewerNumber } from '../../db/sequences';
 import { withTransaction } from '../../db/tx';
 import type { PlayerRow, UserRow } from '../../db/types';
-import { AppError, forbidden, invalidState, notFound } from '../../lib/errors';
+import { AppError, forbidden, invalidState, notFound, rateLimited } from '../../lib/errors';
 import { generateLinkCode } from '../../lib/ids';
 import { addMilliseconds } from '../../lib/time';
 import { auditContext } from '../audit/actor';
@@ -33,6 +33,8 @@ import * as repo from './repository';
 import type { AdminUserRow } from './repository';
 
 export const LINK_CODE_TTL_MS = 10 * 60_000;
+/** Failed link-code attempts per server and hour before 429 (SR-07). */
+export const LINK_FAILURES_PER_HOUR = 20;
 
 const REVIEWER_RANK = roleRank(UserRole.REVIEWER);
 
@@ -141,16 +143,41 @@ export class UsersService {
     input: { player: PlayerRef; code: string },
   ): Promise<{ linked: true; username: string }> {
     const code = input.code.trim().toUpperCase();
+    // Failed link-code attempts are throttled per server (SR-07): LINK_FAILURES_PER_HOUR.
+    const failKey = storeKeys.rateLimit('link-fail', server.server_id);
+    const failures = Number.parseInt((await this.deps.store.get(failKey)) ?? '0', 10) || 0;
+    if (failures >= LINK_FAILURES_PER_HOUR) {
+      const ttl = await this.deps.store.ttl(failKey);
+      throw rateLimited(ttl !== null ? ttl / 1000 : 3600);
+    }
+    const invalid = async (): Promise<never> => {
+      await this.deps.store.incr(failKey, 3_600_000);
+      throw new AppError('LINK_CODE_INVALID');
+    };
     const userId = await this.deps.store.get(storeKeys.linkCode(code));
-    if (userId === null) throw new AppError('LINK_CODE_INVALID');
+    if (userId === null) return invalid();
     const user = await repo.findUserById(this.db, userId);
-    if (user === undefined || user.status !== 'active') throw new AppError('LINK_CODE_INVALID');
+    if (user === undefined || user.status !== 'active') return invalid();
 
     const now = this.deps.clock.now();
     const username = await withTransaction(this.db, async (trx) => {
       const player = await repo.upsertPlayer(trx, input.player, now);
       const existing = await repo.findUserByPlayerId(trx, player.id);
-      if (existing !== undefined && existing.id !== user.id) throw new AppError('PLAYER_ALREADY_LINKED');
+      if (existing !== undefined && existing.id !== user.id) {
+        // Dispute path: staff disable a hijacking account; the real player can then re-claim
+        // the identity (the old link is removed and audited).
+        if (existing.status !== 'disabled') throw new AppError('PLAYER_ALREADY_LINKED');
+        await trx.updateTable('users').set({ player_id: null, updated_at: now }).where('id', '=', existing.id).execute();
+        await this.deps.audit.record(trx, {
+          actor: { actor_type: 'server', actor_id: server.server_id },
+          request_id: request.id,
+          action: 'PLAYER_UNLINKED',
+          target_type: 'user',
+          target_id: existing.id,
+          server_id: server.id,
+          metadata: { player_id: player.id, reason: 'reclaimed_from_disabled_account', reclaimed_by_user_id: user.id },
+        });
+      }
       await trx.updateTable('users').set({ player_id: player.id, updated_at: now }).where('id', '=', user.id).execute();
       await this.deps.audit.record(trx, {
         actor: { actor_type: 'server', actor_id: server.server_id },
@@ -159,7 +186,7 @@ export class UsersService {
         target_type: 'user',
         target_id: user.id,
         server_id: server.id,
-        metadata: { player_user_id: toUserId(input.player) },
+        metadata: { player_user_id: toUserId(input.player), linked_via_server_id: server.server_id },
       });
       return user.username;
     });

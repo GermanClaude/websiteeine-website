@@ -16,7 +16,7 @@ import {
   Permission,
 } from '@scpsl-trust/shared';
 
-import { assertAuthenticated, requireEnrolledAuth, requirePermission } from '../../auth/rbac';
+import { assertAuthenticated, requireEnrolledAuth, requireMfaSession, requirePermission } from '../../auth/rbac';
 import type { Deps } from '../../container';
 import type { AppealsService } from './service';
 
@@ -104,7 +104,8 @@ export async function registerAppealRoutes(app: FastifyInstance, _deps: Deps, se
         body: AppealDecisionRequestSchema,
         response: { 200: AppealViewSchema },
       },
-      preHandler: [requirePermission(Permission.APPEAL_DECIDE)],
+      // Decisions can change the verdict (§11.5) → same 2FA-session guard as /verdict.
+      preHandler: [requirePermission(Permission.APPEAL_DECIDE), requireMfaSession],
     },
     async (request) => {
       const user = assertAuthenticated(request);

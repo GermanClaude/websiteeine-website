@@ -243,6 +243,26 @@ export async function caseInvolvesServers(db: DbExecutor, caseId: string, server
   return confirmed !== undefined;
 }
 
+/** §11.4: the server reported on the case or has a sighting of the case player. */
+export async function serverRelatedToCase(db: DbExecutor, caseId: string, playerId: string, serverUuid: string): Promise<boolean> {
+  const reported = await db
+    .selectFrom('reports')
+    .select('id')
+    .where('case_id', '=', caseId)
+    .where('server_id', '=', serverUuid)
+    .limit(1)
+    .executeTakeFirst();
+  if (reported !== undefined) return true;
+  const seen = await db
+    .selectFrom('player_server_sightings')
+    .select('player_id')
+    .where('player_id', '=', playerId)
+    .where('server_id', '=', serverUuid)
+    .limit(1)
+    .executeTakeFirst();
+  return seen !== undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Detail collections
 // ---------------------------------------------------------------------------

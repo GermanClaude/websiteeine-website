@@ -40,6 +40,8 @@ import * as repo from './repository';
 export const EMAIL_VERIFICATION_TTL_HOURS = 24;
 export const PASSWORD_RESET_TTL_HOURS = 1;
 export const MFA_TOKEN_TTL_MS = 5 * 60_000;
+/** Wrong 2FA codes accepted per mfa_token before the token is invalidated (§12.2). */
+export const MFA_MAX_ATTEMPTS_PER_TOKEN = 5;
 export const TOTP_SETUP_TTL_MS = 10 * 60_000;
 export const RECOVERY_CODE_COUNT = 10;
 /** §12.2: locked_until = now + 15 min × 2^(n−LOGIN_MAX_FAILURES), capped at 24 h. */
@@ -286,7 +288,7 @@ export class AuthService {
 
     const passwordOk = await verifyPassword(user.password_hash, input.password);
     if (!passwordOk) {
-      await this.registerLoginFailure(request, user, now);
+      await this.registerLoginFailure(request, user, now, 'wrong_password');
       throw new AppError('INVALID_CREDENTIALS');
     }
 
@@ -317,7 +319,12 @@ export class AuthService {
     }
   }
 
-  private async registerLoginFailure(request: FastifyRequest, user: UserRow, now: Date): Promise<void> {
+  private async registerLoginFailure(
+    request: FastifyRequest,
+    user: UserRow,
+    now: Date,
+    reason: 'wrong_password' | 'invalid_mfa_code',
+  ): Promise<void> {
     await withTransaction(this.db, async (trx) => {
       const updated = await repo.incrementFailedLogins(trx, user.id);
       const failures = updated?.failed_login_count ?? user.failed_login_count + 1;
@@ -327,7 +334,7 @@ export class AuthService {
         action: 'USER_LOGIN_FAILED',
         target_type: 'user',
         target_id: user.id,
-        metadata: { reason: 'wrong_password', failures },
+        metadata: { reason, failures },
       });
       const max = this.config.auth.loginMaxFailures;
       if (failures < max) return;
@@ -354,6 +361,17 @@ export class AuthService {
   ): Promise<AuthSessionResponse> {
     const now = this.clock.now();
     const { response, token, expiresAt } = await withTransaction(this.db, async (trx) => {
+      if (options.totpStepUsed !== undefined) {
+        // Atomic replay check: two concurrent requests cannot both use the same TOTP step.
+        const claimed = await trx
+          .updateTable('users')
+          .set({ totp_last_used_step: options.totpStepUsed })
+          .where('id', '=', user.id)
+          .where((eb) => eb.or([eb('totp_last_used_step', 'is', null), eb('totp_last_used_step', '<', options.totpStepUsed!)]))
+          .returning('id')
+          .executeTakeFirst();
+        if (claimed === undefined) throw new AppError('INVALID_MFA_CODE');
+      }
       await trx
         .updateTable('users')
         .set({
@@ -361,7 +379,6 @@ export class AuthService {
           locked_until: null,
           last_login_at: now,
           updated_at: now,
-          ...(options.totpStepUsed !== undefined ? { totp_last_used_step: options.totpStepUsed } : {}),
         })
         .where('id', '=', user.id)
         .execute();
@@ -404,7 +421,15 @@ export class AuthService {
     this.assertNotLocked(user, this.clock.now());
 
     const verified = await this.verifyMfaCode(this.db, user, input.code, { consumeRecoveryCode: false });
-    if (verified === null) throw new AppError('INVALID_MFA_CODE');
+    if (verified === null) {
+      // Wrong codes count toward the account lockout (same counter as wrong passwords) and are
+      // audited; the token dies after MFA_MAX_ATTEMPTS_PER_TOKEN failures.
+      const tokenHash = hashToken(input.mfa_token);
+      const attempts = await this.deps.store.incr(storeKeys.rateLimit('mfa-fail', tokenHash), MFA_TOKEN_TTL_MS);
+      if (attempts >= MFA_MAX_ATTEMPTS_PER_TOKEN) await this.deps.store.del(key);
+      await this.registerLoginFailure(request, user, this.clock.now(), 'invalid_mfa_code');
+      throw new AppError('INVALID_MFA_CODE');
+    }
 
     // Single use: the token is consumed exactly once, on success.
     const consumed = await this.deps.store.delIfEquals(key, userId);
@@ -732,11 +757,14 @@ export class AuthService {
     });
     if (verified === null) throw new AppError('INVALID_MFA_CODE');
     if (verified.kind === 'totp') {
-      await this.db
+      const claimed = await this.db
         .updateTable('users')
         .set({ totp_last_used_step: verified.step, updated_at: this.clock.now() })
         .where('id', '=', row.id)
-        .execute();
+        .where((eb) => eb.or([eb('totp_last_used_step', 'is', null), eb('totp_last_used_step', '<', verified.step)]))
+        .returning('id')
+        .executeTakeFirst();
+      if (claimed === undefined) throw new AppError('INVALID_MFA_CODE');
     }
   }
 }

@@ -19,14 +19,15 @@ import {
   type EvidenceView,
 } from '@scpsl-trust/shared';
 
-import { userHasPermission } from '../../auth/rbac';
+import { assertMfaEnrollment, userHasPermission } from '../../auth/rbac';
 import type { AuthenticatedUser } from '../../auth/types';
 import type { Deps } from '../../container';
 import { withTransaction, type DbExecutor } from '../../db/tx';
 import type { EvidenceRow } from '../../db/types';
-import { AppError, forbidden, notFound, validation } from '../../lib/errors';
+import { AppError, forbidden, notFound, rateLimited, validation } from '../../lib/errors';
 import { generateUuid } from '../../lib/ids';
 import { toIso } from '../../lib/time';
+import { storeKeys } from '../../redis/keys';
 import { auditContext } from '../audit/actor';
 import * as caseRepo from '../cases/repository';
 import { toEvidenceView, toReviewerRef } from '../cases/views';
@@ -80,6 +81,67 @@ export class EvidenceService {
     if (!(await this.canAccess(user, row))) throw forbidden();
   }
 
+  /**
+   * Supersede (§11.3): the caller must be able to access the old row AND be its uploader, a member
+   * of its uploader server, or hold evidence:review (reviewer+). Upload rights on the case alone are
+   * not enough — otherwise any reporter could replace other people's evidence. Non-reviewers may
+   * not supersede evidence of a closed case.
+   */
+  private async assertSupersedePermission(user: AuthenticatedUser, old: EvidenceRow): Promise<void> {
+    await this.assertAccess(user, old);
+    if (userHasPermission(user, Permission.EVIDENCE_REVIEW)) return;
+    const isUploader = old.uploader_user_id !== null && old.uploader_user_id === user.id;
+    const isUploaderServerMember =
+      old.uploader_server_id !== null && (await repo.isMemberOfServer(this.db, old.uploader_server_id, user.id));
+    if (!isUploader && !isUploaderServerMember) throw forbidden('Only the uploader or a reviewer can supersede this evidence');
+    await this.assertUploadPermission(this.db, user, old.case_id);
+    const caseRow = await this.db.selectFrom('cases').select('status').where('id', '=', old.case_id).executeTakeFirst();
+    if (caseRow?.status === 'closed') throw new AppError('INVALID_STATE', 'The case is closed');
+  }
+
+  // -------------------------------------------------------------------------
+  // Upload quotas (SR-06): per-user uploads per hour for everyone; per-file cap and bytes
+  // per UTC day for uploaders without evidence:upload (reporters, server teams).
+  // -------------------------------------------------------------------------
+
+  private isStaffUploader(user: AuthenticatedUser): boolean {
+    return userHasPermission(user, Permission.EVIDENCE_UPLOAD);
+  }
+
+  /** Counts one upload against the hourly limit; returns the byte cap for this upload. */
+  private async reserveUpload(user: AuthenticatedUser): Promise<number> {
+    const cfg = this.deps.config.evidence;
+    const staff = this.isStaffUploader(user);
+    const limit = staff ? cfg.uploadsPerHour : cfg.nonStaffUploadsPerHour;
+    const countKey = storeKeys.rateLimit('evidence-uploads', user.id);
+    const count = await this.deps.store.incr(countKey, 3_600_000);
+    if (count > limit) {
+      const ttl = await this.deps.store.ttl(countKey);
+      throw rateLimited(ttl !== null ? ttl / 1000 : 3600);
+    }
+    if (staff) return cfg.maxBytes;
+    const used = Number.parseInt((await this.deps.store.get(this.dailyBytesKey(user))) ?? '0', 10) || 0;
+    const remaining = cfg.nonStaffDailyBytes - used;
+    if (remaining <= 0) throw rateLimited(this.secondsUntilUtcMidnight());
+    return Math.min(cfg.nonStaffMaxBytes, remaining);
+  }
+
+  private async recordUploadedBytes(user: AuthenticatedUser, size: number): Promise<void> {
+    if (this.isStaffUploader(user) || size < 1) return;
+    await this.deps.store.incrBy(this.dailyBytesKey(user), size, 86_400_000 + 3_600_000);
+  }
+
+  private dailyBytesKey(user: AuthenticatedUser): string {
+    const day = this.deps.clock.now().toISOString().slice(0, 10);
+    return storeKeys.rateLimit('evidence-bytes', `${user.id}.${day}`);
+  }
+
+  private secondsUntilUtcMidnight(): number {
+    const now = this.deps.clock.now();
+    const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+    return (midnight - now.getTime()) / 1000;
+  }
+
   /** The uploader identity is only shown to reviewers+ and the uploader (pseudonymized otherwise). */
   private redact(row: repo.EvidenceDetailRow, viewer: AuthenticatedUser): repo.EvidenceDetailRow {
     if (userHasPermission(viewer, Permission.EVIDENCE_VIEW) || row.uploader_user_id === viewer.id) return row;
@@ -103,7 +165,9 @@ export class EvidenceService {
     const reportId = await this.resolveReportId(caseRow.id, fields.report_id);
     const overwatchSessionId = await this.resolveOverwatchSessionId(fields.overwatch_session_id);
 
-    const stored = await this.storeObject(file);
+    const maxBytes = await this.reserveUpload(user);
+    const stored = await this.storeObject(file, maxBytes);
+    await this.recordUploadedBytes(user, stored.size);
     const now = this.deps.clock.now();
 
     const evidence = await withTransaction(this.db, async (trx) => {
@@ -152,6 +216,7 @@ export class EvidenceService {
     await this.assertUploadPermission(this.db, user, caseRow.id);
     const reportId = await this.resolveReportId(caseRow.id, input.report_id);
     const overwatchSessionId = await this.resolveOverwatchSessionId(input.overwatch_session_id);
+    await this.reserveUpload(user);
     const now = this.deps.clock.now();
 
     const evidence = await withTransaction(this.db, async (trx) => {
@@ -194,12 +259,14 @@ export class EvidenceService {
   ): Promise<EvidenceView> {
     const old = await repo.findEvidenceById(this.db, evidenceId);
     if (old === undefined) throw notFound('Evidence not found');
-    await this.assertUploadPermission(this.db, user, old.case_id);
+    await this.assertSupersedePermission(user, old);
     if (old.superseded_by_evidence_id !== null) throw new AppError('EVIDENCE_ALREADY_SUPERSEDED');
 
     // The stored object cannot be rolled back; a failed transaction leaves at most an
     // unreferenced object behind (same trade-off as uploads).
-    const stored = await this.storeObject(file);
+    const maxBytes = await this.reserveUpload(user);
+    const stored = await this.storeObject(file, maxBytes);
+    await this.recordUploadedBytes(user, stored.size);
     const now = this.deps.clock.now();
 
     const created = await withTransaction(this.db, async (trx) => {
@@ -247,7 +314,7 @@ export class EvidenceService {
     return this.viewOf(created.id, user);
   }
 
-  private async storeObject(file: UploadedFile): Promise<StoredObject> {
+  private async storeObject(file: UploadedFile, maxBytes: number): Promise<StoredObject> {
     const { mime, stream } = await sniffUpload(file.stream, file.mimeType);
     const now = this.deps.clock.now();
     const yyyy = String(now.getUTCFullYear());
@@ -255,7 +322,7 @@ export class EvidenceService {
     const key = `evidence/${yyyy}/${mm}/${generateUuid()}`;
     const result = await this.deps.storage.put(key, stream, {
       contentType: mime,
-      maxBytes: this.deps.config.evidence.maxBytes,
+      maxBytes,
     });
     return { key, sha256: result.sha256, size: result.size, mime, filename: sanitizeFilename(file.filename) };
   }
@@ -392,6 +459,9 @@ export class EvidenceService {
     id: string,
     ticket: string | undefined,
   ): Promise<{ row: EvidenceRow; stream: Readable }> {
+    // Optional-auth route: a cookie session gets the §12.2 enrollment gate that preHandlers
+    // apply elsewhere (before any lookup, so unenrolled staff learn nothing).
+    if (ticket === undefined && user !== null) assertMfaEnrollment(request.session);
     const row = await repo.findEvidenceById(this.db, id);
     if (row === undefined) throw notFound('Evidence not found');
 
@@ -434,6 +504,16 @@ export class EvidenceService {
       if (row === undefined) throw notFound('Evidence not found');
       if (row.uploader_user_id !== null && row.uploader_user_id === user.id) {
         throw new AppError('CONFLICT_OF_INTEREST', 'You cannot review evidence you uploaded');
+      }
+      // Independence (§11.3): reporters on the case and the case subject may not assess its evidence.
+      if (await repo.isReporterOnCase(trx, row.case_id, user.id)) {
+        throw new AppError('CONFLICT_OF_INTEREST', 'You reported this case and cannot review its evidence');
+      }
+      if (user.player_id !== null) {
+        const subject = await trx.selectFrom('cases').select('player_id').where('id', '=', row.case_id).executeTakeFirst();
+        if (subject?.player_id === user.player_id) {
+          throw new AppError('CONFLICT_OF_INTEREST', 'You cannot review evidence on a case about your own player');
+        }
       }
       const inserted = await trx
         .insertInto('evidence_reviews')

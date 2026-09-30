@@ -120,13 +120,35 @@ export async function applyVerdictChange(
     .executeTakeFirstOrThrow();
 
   // §11.2: open/under_review reports → resolved (rejected verdict → rejected).
+  // Each affected report gets its own REPORT_STATUS_CHANGED event (R7/R8: no silent change).
   const reportStatus = newVerdict === 'rejected' ? 'rejected' : 'resolved';
-  await trx
-    .updateTable('reports')
-    .set({ status: reportStatus, resolved_by: actor.userId, resolved_at: now, updated_at: now })
+  const affected = await trx
+    .selectFrom('reports')
+    .select(['id', 'status', 'server_id'])
     .where('case_id', '=', caseRow.id)
     .where('status', 'in', ['open', 'under_review'])
+    .orderBy('created_at')
+    .orderBy('id')
+    .forUpdate()
     .execute();
+  if (affected.length > 0) {
+    await trx
+      .updateTable('reports')
+      .set({ status: reportStatus, resolved_by: actor.userId, resolved_at: now, updated_at: now })
+      .where('id', 'in', affected.map((r) => r.id))
+      .execute();
+  }
+  for (const report of affected) {
+    await deps.audit.record(trx, {
+      ...actor.audit,
+      action: 'REPORT_STATUS_CHANGED',
+      target_type: 'report',
+      target_id: report.id,
+      case_id: caseRow.id,
+      ...(report.server_id !== null ? { server_id: report.server_id } : {}),
+      metadata: { previous_status: report.status, new_status: reportStatus, cause: 'verdict', kind: options.kind },
+    });
+  }
 
   await deps.audit.record(trx, {
     ...actor.audit,
@@ -140,6 +162,7 @@ export async function applyVerdictChange(
       new_verdict: newVerdict,
       kind: options.kind,
       appeal_id: options.appealId ?? null,
+      affected_report_ids: affected.map((r) => r.id),
     },
   });
   return updated;
@@ -305,7 +328,9 @@ export class CasesService {
         repo.listReviewsForCase(this.db, caseRow.id),
         repo.listConfirmationsForCase(this.db, caseRow.id),
         repo.listAppealsForCase(this.db, caseRow.id),
-        this.deps.audit.list({ case_id: caseRow.id }, { page: 1, page_size: 100 }),
+        scope === 'own_servers'
+          ? Promise.resolve({ items: [] as Awaited<ReturnType<Deps['audit']['list']>>['items'] })
+          : this.deps.audit.list({ case_id: caseRow.id }, { page: 1, page_size: 100 }),
         caseRow.verdict_set_by !== null
           ? this.db
               .selectFrom('users')
@@ -315,6 +340,28 @@ export class CasesService {
           : Promise.resolve(undefined),
       ]);
     if (player === undefined) throw notFound('Case not found');
+
+    // own_servers scope (server teams) gets a reduced projection (§11.3/§12.3): only evidence the
+    // caller may access (own uploads / own server's uploads), no identities of other reporters,
+    // no appeal statements and no case audit history.
+    const restricted = scope === 'own_servers';
+    const ownPublicIds = new Set<string>();
+    if (restricted) {
+      const rows = await this.db.selectFrom('servers').select('server_id').where('id', 'in', serverUuids).execute();
+      for (const r of rows) ownPublicIds.add(r.server_id);
+    }
+    const isOwnReport = (r: (typeof reports)[number]) =>
+      r.reporter_user_id === user.id || (r.reporter_type === 'server' && r.server_public_id !== null && ownPublicIds.has(r.server_public_id));
+    const visibleReports = restricted
+      ? reports.map((r) => (isOwnReport(r) ? toReportView(r) : { ...toReportView(r), reporter_user: null, reporter_player: null }))
+      : reports.map(toReportView);
+    const visibleEvidence = restricted
+      ? evidence.filter(
+          (e) =>
+            e.uploader_user_id === user.id ||
+            (e.uploader_server_public_id !== null && ownPublicIds.has(e.uploader_server_public_id)),
+        )
+      : evidence;
 
     return {
       id: caseRow.id,
@@ -331,10 +378,10 @@ export class CasesService {
       updated_at: caseRow.updated_at.toISOString(),
       confirmed_servers: counts.confirmed_servers,
       independent_confirmed_servers: counts.independent_confirmed_servers,
-      reports: reports.map(toReportView),
-      evidence: evidence.map((row) => toEvidenceView(caseRow.case_number, row)),
+      reports: visibleReports,
+      evidence: visibleEvidence.map((row) => toEvidenceView(caseRow.case_number, row)),
       reviews: reviews.map(toCaseReviewView),
-      appeals: appeals.map((a) => ({
+      appeals: (restricted ? [] : appeals).map((a) => ({
         id: a.id,
         case_number: caseRow.case_number,
         player: toPlayerSummary(player),
@@ -351,7 +398,7 @@ export class CasesService {
         updated_at: a.updated_at.toISOString(),
       })),
       confirmations: confirmations.map(toConfirmationView),
-      history: history.items.map((e) => ({
+      history: (restricted ? [] : history.items).map((e) => ({
         seq: e.seq,
         event_id: e.event_id,
         created_at: e.created_at instanceof Date ? e.created_at.toISOString() : String(e.created_at),
@@ -470,6 +517,9 @@ export class CasesService {
       if (caseRow.status === 'closed') {
         throw invalidState('The case is closed; reopen it before changing the verdict');
       }
+      if (user.player_id !== null && user.player_id === caseRow.player_id) {
+        throw new AppError('CONFLICT_OF_INTEREST', 'You cannot set the verdict of a case about your own player');
+      }
       if (await repo.isReporterOnCase(trx, caseRow.id, user.id)) {
         throw new AppError('CONFLICT_OF_INTEREST');
       }
@@ -536,6 +586,12 @@ export class CasesService {
       if (server.status !== 'active') throw new AppError('SERVER_NOT_ACTIVE');
       if (!(row.current_verdict === 'confirmed' || row.status === 'under_review')) {
         throw invalidState('Confirmations require a confirmed verdict or a case under review');
+      }
+      // A server may only confirm a case it is related to: it reported on the case, or the case
+      // player was seen on it. Otherwise any operator could self-grant the staff view of arbitrary
+      // cases and inflate confirmed_servers (§11.4).
+      if (!(await repo.serverRelatedToCase(trx, row.id, row.player_id, server.id))) {
+        throw forbidden('This server has no report on this case and has never seen the player');
       }
       if ((await repo.findActiveConfirmation(trx, row.id, server.id)) !== undefined) {
         throw new AppError('ALREADY_EXISTS', 'This server already confirmed the case');

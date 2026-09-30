@@ -164,7 +164,10 @@ export class OverwatchService {
 
   async verifyProof(request: FastifyRequest, user: AuthenticatedUser | null, query: ProofQuery): Promise<ProofResponse> {
     const now = this.deps.clock.now();
-    const canViewCode = user !== null && userHasPermission(user, Permission.PROOF_VIEW_CODE);
+    // §12.2: a staff session still awaiting 2FA enrollment gets no staff privileges here (it is
+    // treated like any caller without proof:view_code).
+    const enrolled = request.session?.mfa_enrollment_required !== true;
+    const canViewCode = user !== null && enrolled && userHasPermission(user, Permission.PROOF_VIEW_CODE);
     if (!canViewCode && query.code === undefined) {
       throw validation([{ path: 'code', message: 'code is required' }]);
     }
@@ -239,6 +242,12 @@ export class OverwatchService {
       response = { ...response, reason: 'secret_expired' };
     }
 
+    // Anonymous invalid lookups are not audited (anyone could otherwise grow the append-only chain
+    // and serialize audit writes); they are only logged. Authenticated callers and valid proofs are.
+    if (user === null && !response.valid) {
+      request.log.info({ proof_lookup: 'anonymous_invalid', server_id: query.server_id }, 'proof lookup');
+      return response;
+    }
     await withTransaction(this.db, async (trx) => {
       await this.deps.audit.record(trx, {
         actor: user !== null ? auditContext(request).actor : { actor_type: 'system', actor_id: null },

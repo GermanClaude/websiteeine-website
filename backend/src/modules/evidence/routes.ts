@@ -25,7 +25,7 @@ import {
   Permission,
 } from '@scpsl-trust/shared';
 
-import { assertAuthenticated, requireEnrolledAuth, requirePermission } from '../../auth/rbac';
+import { assertAuthenticated, requireEnrolledAuth, requireMfaSession, requirePermission } from '../../auth/rbac';
 import type { Deps } from '../../container';
 import { validation } from '../../lib/errors';
 import type { EvidenceService, UploadedFile } from './service';
@@ -199,7 +199,8 @@ export async function registerEvidenceRoutes(app: FastifyInstance, deps: Deps, s
         body: EvidenceReviewRequestSchema,
         response: { 201: EvidenceReviewViewSchema },
       },
-      preHandler: [requirePermission(Permission.EVIDENCE_REVIEW)],
+      // Reviews unlock `confirmed` verdicts → 2FA-verified session like /verdict (§11.3).
+      preHandler: [requirePermission(Permission.EVIDENCE_REVIEW), requireMfaSession],
     },
     async (request, reply) => {
       const user = assertAuthenticated(request);

@@ -1,10 +1,8 @@
 /**
- * Adversarial security review — confirmation tests.
+ * Adversarial security review — regression tests.
  *
- * Every test here reproduces a finding of the security review and is marked `it.fails`:
- * it FAILS today (the vulnerable behaviour is observed) and must PASS once the finding is
- * fixed — then remove `.fails`. Each test was first run as a plain `it` to make sure it fails
- * at the security assertion and not during setup.
+ * Every test here reproduced a finding of the security review (SR-01 … SR-05) against the
+ * vulnerable code; all findings are fixed and these tests now guard the fixes.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -73,8 +71,7 @@ async function uploadPng(headers: Record<string, string>, caseNumber: string) {
 }
 
 describe('security review', () => {
-  // SECURITY-REVIEW: expected to fail until SR-01 is fixed
-  it.fails('SR-01: a mere reporter cannot supersede evidence uploaded by a reviewer', async () => {
+  it('SR-01: a mere reporter cannot supersede evidence uploaded by a reviewer', async () => {
     const { deps } = t();
     const player = await createPlayer(deps);
     const caseRow = await makeCase(deps, player, { status: 'under_review' });
@@ -100,12 +97,11 @@ describe('security review', () => {
       headers: { ...reporterSession.headers, ...mp },
       payload,
     });
-    // Today: 201 — the reviewer's evidence is marked superseded by the reporter's junk.
+    // Was 201 (the reviewer's evidence got superseded by the reporter's junk).
     expect(res.statusCode).toBe(403);
   });
 
-  // SECURITY-REVIEW: expected to fail until SR-02 is fixed
-  it.fails('SR-02: a reviewer cannot decide an appeal on a case about their own linked player', async () => {
+  it('SR-02: a reviewer cannot decide an appeal on a case about their own linked player', async () => {
     const { deps } = t();
     const player = await createPlayer(deps);
     const { user: otherReviewer } = await createUser(deps, { role: 'reviewer', totp: true });
@@ -130,12 +126,11 @@ describe('security review', () => {
       headers: session.headers,
       body: { decision: 'reverse', reason: 'Reversing my own confirmed verdict.' },
     });
-    // Today: 200 and the case verdict becomes `rejected`.
+    // Was 200 (the case verdict became `rejected`).
     expect(decided.statusCode).toBe(409);
   });
 
-  // SECURITY-REVIEW: expected to fail until SR-02 is fixed
-  it.fails('SR-02b: a reviewer cannot set the verdict of a case about their own linked player', async () => {
+  it('SR-02b: a reviewer cannot set the verdict of a case about their own linked player', async () => {
     const { deps } = t();
     const player = await createPlayer(deps);
     const caseRow = await makeCase(deps, player, { status: 'under_review' });
@@ -148,12 +143,11 @@ describe('security review', () => {
       headers: session.headers,
       body: { verdict: 'rejected', comment: 'Nothing to see here, closing my own case.' },
     });
-    // Today: 200 — the accused reviewer closes their own case as rejected.
+    // Was 200 (the accused reviewer closed their own case as rejected).
     expect(res.statusCode).toBe(409);
   });
 
-  // SECURITY-REVIEW: expected to fail until SR-03 is fixed
-  it.fails('SR-03a: staff without enrolled 2FA cannot download evidence content with the session cookie', async () => {
+  it('SR-03a: staff without enrolled 2FA cannot download evidence content with the session cookie', async () => {
     const { deps } = t();
     const player = await createPlayer(deps);
     const caseRow = await makeCase(deps, player, { status: 'under_review' });
@@ -173,12 +167,11 @@ describe('security review', () => {
       url: `/api/v1/evidence/${evidenceId}/content`,
       headers: { cookie: session.cookie },
     });
-    // … but today the content route answers 200 with the file.
+    // … and so is the content route (was 200 with the file).
     expect(res.statusCode).toBe(403);
   });
 
-  // SECURITY-REVIEW: expected to fail until SR-03 is fixed
-  it.fails('SR-03b: staff without enrolled 2FA do not get expected proof codes (proof:view_code)', async () => {
+  it('SR-03b: staff without enrolled 2FA do not get expected proof codes (proof:view_code)', async () => {
     const { deps } = t();
     const identity = await createServerWithKey(deps);
     const target = { type: 'steam' as const, id: '76561198000000101' };
@@ -199,13 +192,12 @@ describe('security review', () => {
       timestamp: String(deps.clock.now().getTime()),
     });
     const res = await t().app.inject({ method: 'GET', url: `/api/v1/evidence/proof?${query}`, headers: { cookie: session.cookie } });
-    // Today: 200 { valid: true, code: "XXX-XXX" } — the code oracle is open to a session that
-    // every other staff route rejects with MFA_ENROLLMENT_REQUIRED.
+    // Was 200 { valid: true, code: "XXX-XXX" } for a session that every other staff route
+    // rejects with MFA_ENROLLMENT_REQUIRED.
     expect(res.statusCode === 200 && (res.json() as { code?: string }).code !== undefined).toBe(false);
   });
 
-  // SECURITY-REVIEW: expected to fail until SR-04 is fixed
-  it.fails('SR-04: a server owner cannot self-grant the staff view of an unrelated case by confirming it', async () => {
+  it('SR-04: a server owner cannot self-grant the staff view of an unrelated case by confirming it', async () => {
     const { deps } = t();
     const identity = await createServerWithKey(deps); // owner = fresh server_admin
     const player = await createPlayer(deps);
@@ -217,20 +209,19 @@ describe('security review', () => {
     const before = await t().app.inject({ method: 'GET', url: `/api/v1/cases/${caseRow.case_number}`, headers: session.headers });
     expect(before.statusCode).toBe(403);
 
-    await t().app.inject({
+    const confirm = await t().app.inject({
       method: 'POST',
       url: `/api/v1/cases/${caseRow.case_number}/confirmations`,
       headers: session.headers,
       body: { server_id: identity.server.server_id, note: null },
     });
+    expect(confirm.statusCode).toBe(403);
     const after = await t().app.inject({ method: 'GET', url: `/api/v1/cases/${caseRow.case_number}`, headers: session.headers });
-    // Today: 201 on the confirmation, then 200 with reports (reporter identities), appeal
-    // statements, reviews and audit history of a case the server never saw.
+    // Was 201 on the confirmation, then 200 with the staff view of a case the server never saw.
     expect(after.statusCode).toBe(403);
   });
 
-  // SECURITY-REVIEW: expected to fail until SR-05 is fixed
-  it.fails('SR-05: an mfa_token is invalidated after repeated wrong 2FA codes', async () => {
+  it('SR-05: an mfa_token is invalidated after repeated wrong 2FA codes', async () => {
     const { deps } = t();
     const { user, password, totpSecret } = await createUser(deps, { role: 'reviewer', totp: true });
     const login = await t().app.inject({ method: 'POST', url: '/api/v1/auth/login', body: { email: user.email, password } });
@@ -250,7 +241,7 @@ describe('security review', () => {
       url: '/api/v1/auth/login/2fa',
       body: { mfa_token: mfaToken, code: generateTotpCode(totpSecret!, deps.clock.now()) },
     });
-    // Today: 200 — 25 wrong guesses on one token, no per-account counter, no lockout, no audit.
+    // Was 200 (25 wrong guesses on one token, no per-account counter, no lockout, no audit).
     expect(correct.statusCode).not.toBe(200);
   });
 });

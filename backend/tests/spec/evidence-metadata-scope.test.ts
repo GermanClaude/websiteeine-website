@@ -4,8 +4,8 @@
  *
  * A server_admin whose server reported on a case is denied GET /evidence/{id} for evidence uploaded by a
  * web user, but GET /cases/{caseNumber} returns the same evidence metadata including the uploader's
- * username (which the evidence endpoint deliberately redacts for non-reviewers). The last expectation
- * documents the expected behaviour and FAILS against the current implementation.
+ * username (which the evidence endpoint deliberately redacts for non-reviewers). This leak (review
+ * finding SPEC-3) is fixed: the own_servers staff view only lists evidence the caller may access.
  */
 import { describe, expect, it } from 'vitest';
 

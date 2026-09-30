@@ -250,7 +250,7 @@ DELETE only from tables without protection triggers:
 |---|---|---|
 | network observations | `player_network_observations` (`last_seen_at` index) | delete after `RETENTION_NETWORK_OBSERVATIONS_DAYS` (30) |
 | player signals | `player_signals` (`created_at` index) | delete after `RETENTION_PLAYER_SIGNALS_DAYS` (90) |
-| expired sessions, used/expired tokens | `sessions`, `user_tokens` (`expires_at` indexes) | delete after `RETENTION_SESSIONS_DAYS` (30) |
+| expired/revoked sessions, used/expired tokens | `sessions`, `user_tokens` (`expires_at` indexes) | delete once expired (absolute or idle), revoked or used more than `RETENTION_SESSIONS_DAYS` (30) ago — job `auth-sessions-retention` |
 | overwatch secrets | `overwatch_sessions.secret_enc` | set to NULL after `RETENTION_OVERWATCH_SECRETS_DAYS` (365); the row stays, proofs become unverifiable |
 | job history | `job_runs` | may be pruned freely |
 

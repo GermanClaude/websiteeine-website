@@ -455,7 +455,8 @@ describe('POST /cases/{caseNumber}/verdict', () => {
 
     const review = await t().db.selectFrom('reviews').selectAll().where('case_id', '=', row.id).executeTakeFirstOrThrow();
     expect(review).toMatchObject({ kind: 'verdict_set', previous_verdict: 'unknown', new_verdict: 'confirmed' });
-    expect(await auditActions(row.id)).toEqual(['VERDICT_CHANGED']);
+    // Each resolved report is audited individually (R7/R8) before VERDICT_CHANGED.
+    expect(await auditActions(row.id)).toEqual(['REPORT_STATUS_CHANGED', 'VERDICT_CHANGED']);
   });
 
   it('rejected verdict rejects open reports', async () => {

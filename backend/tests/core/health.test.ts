@@ -32,10 +32,19 @@ describe('health, time and request context', () => {
     expect(res.json()).toEqual({ server_time: '2026-09-29T15:42:20.123Z', epoch_ms: Date.parse('2026-09-29T15:42:20.123Z') });
   });
 
-  it('adopts a valid X-Request-Id and replaces invalid ones', async () => {
+  it('adopts a valid X-Request-Id only for (claimed) signed requests and replaces invalid ones', async () => {
     const id = randomUUID();
-    const adopted = await t().app.inject({ method: 'GET', url: '/healthz', headers: { 'x-request-id': id } });
+    const adopted = await t().app.inject({ method: 'GET', url: '/healthz', headers: { 'x-request-id': id, 'x-signature': 'sig' } });
     expect(adopted.headers['x-request-id']).toBe(id);
+    // Web requests (no signature, or with cookies) never choose their audited request id.
+    const web = await t().app.inject({ method: 'GET', url: '/healthz', headers: { 'x-request-id': id } });
+    expect(web.headers['x-request-id']).not.toBe(id);
+    const withCookie = await t().app.inject({
+      method: 'GET',
+      url: '/healthz',
+      headers: { 'x-request-id': id, 'x-signature': 'sig', cookie: 'stn_session=x' },
+    });
+    expect(withCookie.headers['x-request-id']).not.toBe(id);
 
     for (const bad of ['not-a-uuid', `${id}\r\nx-injected: 1`, 'a'.repeat(300), '00000000-0000-1000-8000-000000000000']) {
       const res = await t().app.inject({ method: 'GET', url: '/healthz', headers: { 'x-request-id': bad } });

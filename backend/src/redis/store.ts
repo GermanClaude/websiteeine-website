@@ -22,6 +22,8 @@ export interface ShortLivedStore {
   delIfEquals(key: string, value: string): Promise<boolean>;
   /** Increments a counter; the TTL is applied when the counter is created. */
   incr(key: string, ttlMs: number): Promise<number>;
+  /** Like incr, but adds `amount` (a positive integer); the TTL is set when the key is created. */
+  incrBy(key: string, amount: number, ttlMs: number): Promise<number>;
   /** Remaining TTL in ms, or null when the key does not exist / has no TTL. */
   ttl(key: string): Promise<number | null>;
   /** Throws when the backing store is unreachable (readiness probe). */
@@ -42,6 +44,17 @@ if value == 1 or redis.call('PTTL', KEYS[1]) < 0 then
   redis.call('PEXPIRE', KEYS[1], ARGV[1])
 end
 return value`;
+
+const INCRBY_WITH_TTL = `
+local value = redis.call('INCRBY', KEYS[1], ARGV[2])
+if value == tonumber(ARGV[2]) or redis.call('PTTL', KEYS[1]) < 0 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+end
+return value`;
+
+function assertAmount(amount: number): void {
+  if (!Number.isSafeInteger(amount) || amount < 1) throw new RangeError('amount must be a positive integer');
+}
 
 const DEL_IF_EQUALS = `
 if redis.call('GET', KEYS[1]) == ARGV[1] then
@@ -84,6 +97,13 @@ export class RedisShortLivedStore implements ShortLivedStore {
   async incr(key: string, ttlMs: number): Promise<number> {
     assertTtl(ttlMs);
     const result = await this.redis.eval(INCR_WITH_TTL, 1, key, String(ttlMs));
+    return Number(result);
+  }
+
+  async incrBy(key: string, amount: number, ttlMs: number): Promise<number> {
+    assertTtl(ttlMs);
+    assertAmount(amount);
+    const result = await this.redis.eval(INCRBY_WITH_TTL, 1, key, String(ttlMs), String(amount));
     return Number(result);
   }
 
@@ -208,6 +228,19 @@ export class MemoryShortLivedStore implements ShortLivedStore {
       return 1;
     }
     const next = (Number.parseInt(entry.value, 10) || 0) + 1;
+    entry.value = String(next);
+    return next;
+  }
+
+  async incrBy(key: string, amount: number, ttlMs: number): Promise<number> {
+    assertTtl(ttlMs);
+    assertAmount(amount);
+    const entry = this.live(key);
+    if (entry === undefined) {
+      this.write(key, String(amount), ttlMs);
+      return amount;
+    }
+    const next = (Number.parseInt(entry.value, 10) || 0) + amount;
     entry.value = String(next);
     return next;
   }

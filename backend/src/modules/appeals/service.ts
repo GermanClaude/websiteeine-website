@@ -171,7 +171,7 @@ export class AppealsService {
       }
       const reviewer = await trx
         .selectFrom('users')
-        .select(['id', 'role', 'status'])
+        .select(['id', 'role', 'status', 'player_id'])
         .where('id', '=', reviewerUserId)
         .executeTakeFirst();
       if (reviewer === undefined) throw notFound('Reviewer not found');
@@ -180,8 +180,13 @@ export class AppealsService {
       }
       const caseRow = await findCaseById(trx, appeal.case_id);
       if (caseRow === undefined) throw notFound('Case not found');
-      // §11.5 independence also applies to the assignee.
-      if (caseRow.verdict_set_by === reviewer.id || (await isReporterOnCase(trx, caseRow.id, reviewer.id))) {
+      // §11.5 independence also applies to the assignee (incl. the case subject and the submitter).
+      if (
+        caseRow.verdict_set_by === reviewer.id ||
+        appeal.submitted_by_user_id === reviewer.id ||
+        (reviewer.player_id !== null && reviewer.player_id === caseRow.player_id) ||
+        (await isReporterOnCase(trx, caseRow.id, reviewer.id))
+      ) {
         throw new AppError('CONFLICT_OF_INTEREST', 'The assignee is involved in the case');
       }
       await trx
@@ -221,6 +226,14 @@ export class AppealsService {
       const caseRow = await findCaseById(trx, appeal.case_id);
       if (caseRow === undefined) throw notFound('Case not found');
 
+      // Self-dealing (§11.5): the submitter and the case subject can never decide the appeal —
+      // not even with the super_admin conflict override.
+      if (
+        appeal.submitted_by_user_id === user.id ||
+        (user.player_id !== null && user.player_id === caseRow.player_id)
+      ) {
+        throw new AppError('CONFLICT_OF_INTEREST', 'You cannot decide an appeal on your own case');
+      }
       const conflicted =
         caseRow.verdict_set_by === user.id || (await isReporterOnCase(trx, caseRow.id, user.id));
       let conflictOverride = false;

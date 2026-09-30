@@ -306,6 +306,11 @@ async function main() {
     eq(reg.status, 'active', 'server 2 status');
     const forbidden = await owner2.post(`/cases/${S.caseNo}/confirmations`, { server_id: S.server1, note: 'not mine' }, { expect: 403 });
     eq(forbidden.json.error.code, 'FORBIDDEN', 'confirm for a foreign server');
+    // §11.4: server 2 never saw the player yet → it may not confirm the case.
+    const unrelated = await owner2.post(`/cases/${S.caseNo}/confirmations`, { server_id: S.server2, note: 'never saw them' }, { expect: 403 });
+    eq(unrelated.json.error.code, 'FORBIDDEN', 'confirm without a sighting');
+    // The player joins server 2 (signed /player/check records the sighting); now the confirmation is allowed.
+    await dev(idDir('srv2'), ['check', '--player', PLAYER]);
     await owner2.post(`/cases/${S.caseNo}/confirmations`, { server_id: S.server2, note: 'Seen on our server too' }, { expect: 201 });
     const c = await dev(idDir('srv1'), ['check', '--player', PLAYER]);
     assert(c.confirmed_servers >= 1, 'confirmed_servers >= 1', c.confirmed_servers);

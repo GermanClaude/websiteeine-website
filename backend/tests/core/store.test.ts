@@ -75,6 +75,15 @@ function storeContract(label: string, create: () => Promise<ShortLivedStore>, wa
       expect(await store.incr(k, 400)).toBe(1);
     });
 
+    it('incrBy adds amounts within a window and rejects non-positive amounts', async () => {
+      const k = key('incrby');
+      expect(await store.incrBy(k, 100, 400)).toBe(100);
+      expect(await store.incrBy(k, 23, 400)).toBe(123);
+      expect(await store.ttl(k)).not.toBeNull();
+      await expect(store.incrBy(k, 0, 400)).rejects.toThrow(RangeError);
+      await expect(store.incrBy(k, 1.5, 400)).rejects.toThrow(RangeError);
+    });
+
     it('rejects invalid TTLs', async () => {
       for (const ttl of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
         await expect(store.setNx(key('ttl'), 'x', ttl)).rejects.toThrow(RangeError);

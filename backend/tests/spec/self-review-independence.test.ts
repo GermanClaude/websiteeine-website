@@ -3,8 +3,8 @@
  * ARCHITECTURE §11.2/§11.5 independence): a staff member whose linked in-game identity IS the case
  * subject must not be able to decide the verdict of, or the appeal on, their own case.
  *
- * These tests document the expected behaviour; they FAIL against the current implementation
- * (see the spec-compliance review report).
+ * Both failed against the original implementation (review findings SPEC-1/SPEC-2) and now
+ * guard the self-dealing conflict rule.
  */
 import { describe, expect, it } from 'vitest';
 

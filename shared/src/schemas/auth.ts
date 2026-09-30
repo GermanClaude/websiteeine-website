@@ -117,6 +117,7 @@ export const AuthSessionResponseSchema = z.object({
 export type AuthSessionResponse = z.infer<typeof AuthSessionResponseSchema>;
 
 export const LoginSuccessResponseSchema = AuthSessionResponseSchema.extend({ mfa_required: z.literal(false) });
+export type LoginSuccessResponse = z.infer<typeof LoginSuccessResponseSchema>;
 export const LoginMfaRequiredResponseSchema = z.object({
   mfa_required: z.literal(true),
   mfa_token: z.string(),

@@ -4,6 +4,7 @@
 import {
   AuthSessionResponseSchema,
   LoginResponseSchema,
+  LoginSuccessResponseSchema,
   OkResponseSchema,
   RecoveryCodesResponseSchema,
   RegisterResponseSchema,
@@ -13,6 +14,7 @@ import {
   type Login2faRequest,
   type LoginRequest,
   type LoginResponse,
+  type LoginSuccessResponse,
   type OkResponse,
   type PasswordChangeRequest,
   type PasswordForgotRequest,
@@ -31,7 +33,7 @@ import {
 
 import { api, clearCsrfToken, setCsrfToken } from './client';
 
-function rememberCsrf(session: AuthSessionResponse): AuthSessionResponse {
+function rememberCsrf<T extends AuthSessionResponse>(session: T): T {
   setCsrfToken(session.csrf_token);
   return session;
 }
@@ -48,8 +50,9 @@ export async function login(body: LoginRequest): Promise<LoginResponse> {
 }
 
 /** Step 2 of login: TOTP or recovery code. */
-export async function login2fa(body: Login2faRequest): Promise<AuthSessionResponse> {
-  return rememberCsrf(await api.post<AuthSessionResponse>('/auth/login/2fa', body, { schema: AuthSessionResponseSchema }));
+export async function login2fa(body: Login2faRequest): Promise<LoginSuccessResponse> {
+  // The backend answers with the login-success variant (session + `mfa_required: false`).
+  return rememberCsrf(await api.post<LoginSuccessResponse>('/auth/login/2fa', body, { schema: LoginSuccessResponseSchema }));
 }
 
 export async function logout(): Promise<void> {

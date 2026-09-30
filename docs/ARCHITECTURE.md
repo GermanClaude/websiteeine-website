@@ -150,8 +150,9 @@ so tests never need a prior build.
   { "error": { "code": "INVALID_SIGNATURE", "message": "Request signature is invalid", "details": {}, "request_id": "…" } }
   ```
   `details` is optional (validation issues: `[{ "path": "player.id", "message": "…" }]`).
-* Every response carries `X-Request-Id`. Plugin requests supply their own request id (see §5); web
-  requests get a server-generated UUID unless a valid `X-Request-Id` UUID was supplied.
+* Every response carries `X-Request-Id`. Plugin requests supply their own request id (see §5; it is adopted only
+  for requests that carry `X-Signature` and no `Cookie` header, and the signature check binds and claims it once);
+  web requests always get a server-generated UUID, so browsers cannot choose the `request_id` stored in audit events.
 
 ### 2.2 Player identity
 A player is identified by `{ "type": "steam" | "discord" | "northwood", "id": "<raw id>" }`.
@@ -619,8 +620,14 @@ network hash (`VPN_CACHE_TTL_SECONDS`, default 21600). Provider failures → `co
 ### 6.6 Linking a web account to an in-game identity
 Web: `POST /api/v1/me/player-link` → `{ "code": "LNK-7K4X92", "expires_at" }` (Redis, 10 min, one active per user).
 In game the player types the client console command `.trustlink LNK-7K4X92`; plugin calls
-`POST /api/v1/player/link { "player": {…}, "code": "…" }` → backend links `users.player_id` (fails if that player is
-already linked to another user), audit `PLAYER_LINKED`. Needed for appeals and whitelist requests.
+`POST /api/v1/player/link { "player": {…}, "code": "…" }` → backend links `users.player_id` (fails with
+`PLAYER_ALREADY_LINKED` if that player is linked to another **active** user), audit `PLAYER_LINKED` (metadata
+`linked_via_server_id`). Failed link codes are counted per server: after 20 per hour → `429 RATE_LIMITED`.
+Dispute path: when staff disable an account that hijacked an identity (`status=disabled`), the real player can
+re-claim it through any server; the old link is removed and audited (`PLAYER_UNLINKED`, reason
+`reclaimed_from_disabled_account`). Trust model: the identity is attested by the signing server alone (a server
+operator could link any player id to an account whose code they know); this residual risk is documented in
+`docs/SECURITY.md`. Needed for appeals and whitelist requests.
 
 ---
 
@@ -724,7 +731,7 @@ identities are only visible to staff in the web panel (`player_links`), never to
 |---|---|---|
 | network observations | `RETENTION_NETWORK_OBSERVATIONS_DAYS` | 30 |
 | player signals | `RETENTION_PLAYER_SIGNALS_DAYS` | 90 |
-| expired sessions / used tokens | `RETENTION_SESSIONS_DAYS` | 30 |
+| expired/revoked sessions, used/expired tokens (job `auth-sessions-retention`) | `RETENTION_SESSIONS_DAYS` | 30 |
 | overwatch secrets (wiped, row kept) | `RETENTION_OVERWATCH_SECRETS_DAYS` | 365 |
 | VPN cache (Redis TTL) | `VPN_CACHE_TTL_SECONDS` | 21600 |
 Case history, evidence metadata and audit events are **not** deleted (R7); evidence files may only be removed by a
@@ -806,7 +813,10 @@ Query: `server_id`, `player_id` (canonical user id), `spectator_id`, `timestamp`
   never contains the expected code: `{ "valid": bool, "server_id", "player_id", "spectator_id", "session_id"?, "timestamp_window": { "start", "end" }, "window_offset"? }`
   Accepts windows w−1, w, w+1 (clock drift) and reports which offset matched. `session_id` only when valid.
 * Caller **with** `proof:view_code` (reviewer+): response additionally contains `"code"` (expected code for window w)
-  even without a supplied code. Access is audited (`PROOF_VERIFIED`, metadata: session_id, valid).
+  even without a supplied code. A staff session still awaiting 2FA enrollment (§12.2) is treated as a caller without
+  `proof:view_code`. Lookups by authenticated callers and valid anonymous lookups are audited (`PROOF_VERIFIED`,
+  metadata: session_id, valid); anonymous invalid lookups are only logged, so anonymous callers cannot grow the audit
+  chain.
 * Invalid/unknown → `200 { "valid": false, … }` (no oracle about which field was wrong). Strict rate limit
   (`PROOF_RATE_LIMIT_PER_MINUTE`, default 20 per IP/user). Codes carry 30 bits; with 3 accepted windows brute force is
   infeasible under the rate limit.
@@ -830,9 +840,11 @@ are audited (`REPORT_STATUS_CHANGED`). Rate limit: 10 reports/hour/user, 1 open 
 `POST /cases/{id}/verdict { verdict, comment, public_summary? }` (`case:set_verdict`, 2FA session):
 * `confirmed` requires ≥ 1 non-superseded evidence with `cheating_status = verified` **and** `authenticity_status = verified`
   (else `422 INSUFFICIENT_EVIDENCE`).
-* Reviewer must not be a reporter on the case (`409 CONFLICT_OF_INTEREST`).
+* Reviewer must not be a reporter on the case, nor the case subject (`users.player_id = cases.player_id`)
+  (`409 CONFLICT_OF_INTEREST`).
 * Writes `reviews(kind=verdict_set)`, sets `verdict_set_by/at`, status `closed` (for confirmed/rejected/inconclusive),
-  open/under_review reports → `resolved` (or `rejected` if verdict rejected). Audit `VERDICT_CHANGED`.
+  open/under_review reports → `resolved` (or `rejected` if verdict rejected), each audited as `REPORT_STATUS_CHANGED`
+  (metadata `cause: "verdict"`). Audit `VERDICT_CHANGED` (metadata lists `affected_report_ids`).
 * `POST /cases/{id}/reviews/start` → status `under_review`, `REVIEW_STARTED`. `POST /cases/{id}/notes` → `CASE_NOTE_ADDED`.
 * `POST /cases/{id}/reopen` (`case:reopen`) → `under_review`, `CASE_REOPENED`.
 
@@ -842,19 +854,31 @@ are audited (`REPORT_STATUS_CHANGED`). Rate limit: 10 reports/hour/user, 1 open 
   MIME sniffed from magic bytes (`file-type`) and checked against allow-list (`video/mp4, video/webm, video/x-matroska,
   image/png, image/jpeg, image/webp, image/gif, text/plain, application/json, application/zip, application/gzip`);
   mismatch → `415 UNSUPPORTED_MEDIA_TYPE`. `link` evidence: `POST /cases/{id}/evidence/link { url, title, … }` (https only).
+* Upload quotas (per user, Redis/short-lived store): `EVIDENCE_UPLOADS_PER_HOUR` (60) uploads/links/supersedes per
+  hour for `evidence:upload` holders, `EVIDENCE_UPLOADS_PER_HOUR_NON_STAFF` (10) for everyone else; non-staff uploaders
+  are also limited to `EVIDENCE_MAX_BYTES_NON_STAFF` (200 MiB) per file and `EVIDENCE_DAILY_BYTES_NON_STAFF` (1 GiB)
+  per UTC day → `429 RATE_LIMITED` / `413 PAYLOAD_TOO_LARGE`.
 * Evidence rows immutable (trigger). Replacement: `POST /evidence/{id}/supersede` (multipart) → new row with
   `supersedes_evidence_id`, old row gets `superseded_by_evidence_id`; audit `EVIDENCE_SUPERSEDED`. History preserved.
+  Only the original uploader, a member of the uploader server, or an `evidence:review` holder may supersede, and the
+  caller must pass the access rule below on the old row (upload rights on the case alone are not enough);
+  non-reviewers cannot supersede evidence of a `closed` case (`409 INVALID_STATE`).
 * Review: `POST /evidence/{id}/reviews { status, identity_status, authenticity_status, cheating_status, comment }`
-  (`evidence:review`) → `evidence_reviews` row + current values; audit `EVIDENCE_REVIEWED` plus `EVIDENCE_VERIFIED` /
-  `EVIDENCE_REJECTED` when overall status becomes verified/rejected. **Never changes the case verdict (R2).**
+  (`evidence:review`, 2FA-verified session) → `evidence_reviews` row + current values; audit `EVIDENCE_REVIEWED` plus
+  `EVIDENCE_VERIFIED` / `EVIDENCE_REJECTED` when overall status becomes verified/rejected. The uploader, reporters on
+  the case and the case subject cannot review it (`409 CONFLICT_OF_INTEREST`). **Never changes the case verdict (R2).**
 * Access: metadata → `evidence:view` (reviewer+), the uploader, members of the uploader server. Content download
   `GET /evidence/{id}/content` same rule, audited `EVIDENCE_ACCESSED`, served with `Content-Disposition: attachment`,
   `X-Content-Type-Options: nosniff`, `Content-Security-Policy: sandbox; default-src 'none'`, `Cache-Control: private, no-store`.
+  The content route has optional auth (ticket or session); a session still awaiting 2FA enrollment gets
+  `403 MFA_ENROLLMENT_REQUIRED` there as well.
   Integrity check: `GET /evidence/{id}` returns sha256; optional `?verify=true` re-hashes stored object (reviewer+).
 
 ### 11.4 Server confirmations
 `POST /cases/{id}/confirmations { server_id, note }` — caller must be `owner`/`admin` member of that **active** server
-(`case:confirm_for_server`), case verdict must be `confirmed` or case under review; one active confirmation per
+(`case:confirm_for_server`), case verdict must be `confirmed` or case under review, and the server must be related
+to the case — it has a report on the case or a `player_server_sightings` row for the case player (else `403 FORBIDDEN`),
+so an operator cannot self-grant the `own_servers` staff view of arbitrary cases; one active confirmation per
 server; `DELETE /cases/{id}/confirmations/{confirmationId}` = revoke (soft; `revoked_at`), audited. Counts are shown
 to reviewers and servers but **never change a verdict automatically**.
 
@@ -864,6 +888,10 @@ to reviewers and servers but **never change a verdict automatically**.
 * `POST /appeals/{id}/assign { reviewer_user_id }` (`appeal:assign`); `POST /appeals/{id}/decision { decision, reason, override_conflict? }` (`appeal:decide`).
 * Independence: decider ≠ `cases.verdict_set_by`, ≠ any reporter; else `409 CONFLICT_OF_INTEREST` unless caller has
   `appeal:override_conflict` (super_admin) and `override_conflict: true` (recorded, audited).
+  Self-dealing is never overridable: the appeal submitter and the case subject (`users.player_id = cases.player_id`)
+  can neither decide nor be assigned the appeal (`409 CONFLICT_OF_INTEREST`). The assignee check applies the same
+  rules (verdict setter, reporter, submitter, case subject). The decision route requires a 2FA-verified session
+  (like `/verdict`), because `reverse`/`inconclusive` change the verdict.
 * Effects: `confirm` → verdict unchanged; `reverse` → verdict `rejected`; `inconclusive` → verdict `inconclusive`.
   Each writes a `reviews(kind=appeal_decision)` row, `APPEAL_RESOLVED`, and `VERDICT_CHANGED` if changed.
 * `POST /appeals/{id}/withdraw` by submitter → `APPEAL_WITHDRAWN`.
@@ -904,7 +932,10 @@ to reviewers and servers but **never change a verdict automatically**.
   password return the same `401 INVALID_CREDENTIALS` with equal timing (dummy hash verify).
 * If email not verified and `EMAIL_VERIFICATION_REQUIRED=true` → `403 EMAIL_NOT_VERIFIED`.
 * If 2FA enabled → `200 { "mfa_required": true, "mfa_token": "…" }` (Redis, 5 min, single use); then
-  `POST /auth/login/2fa { mfa_token, code }` (TOTP or recovery code). TOTP step reuse rejected.
+  `POST /auth/login/2fa { mfa_token, code }` (TOTP or recovery code). TOTP step reuse rejected (conditional,
+  atomic update of `totp_last_used_step`). Every wrong code is audited (`USER_LOGIN_FAILED`, reason
+  `invalid_mfa_code`) and counts toward `failed_login_count`/lockout like a wrong password; an `mfa_token` is
+  invalidated after 5 wrong codes.
 * Roles in `REQUIRE_2FA_ROLES` (default `reviewer,moderator,admin,super_admin`) without 2FA get a session flagged
   `mfa_enrollment_required`: every authenticated route except `/auth/*` and `/me` returns `403 MFA_ENROLLMENT_REQUIRED`
   — including routes guarded only by authentication (`requireEnrolledAuth`), so staff data cannot be reached through
@@ -936,7 +967,9 @@ is (`owner|admin` for manage/policy/confirm/bypass; `owner|admin|moderator` for 
 can add moderators who only hold the `player` role. The global role matters only for `server:create`, for the override
 permissions (`server:manage_any`, `whitelist:decide_any`) and for the web navigation hints. Case staff scope
 `own_servers` (cases the user's servers reported or confirmed) applies to `server_admin` and to any user with at least
-one membership (`caseStaffScope(role, hasServerMembership)`). `rbac.ts` offers `requirePermission(p)` and
+one membership (`caseStaffScope(role, hasServerMembership)`). It is a reduced projection of the staff view: evidence
+only when the caller may access it (§11.3: own uploads or uploads of their servers), reporter identities only on the
+caller's own / their servers' reports, no appeals and no case audit history. `rbac.ts` offers `requirePermission(p)` and
 `requireServerRole(serverIdParam, roles)` preHandlers; server-scoped routes use `requireAuth` + membership checks
 (`assertServerRole` with the override permission), never `requirePermission('server:manage')`.
 
@@ -974,7 +1007,8 @@ adds signals, links, sightings, bypasses — never raw IPs).
 **Servers**: `GET /servers` (own memberships; all with server:manage_any), `POST /servers` (server:create →
 returns registration token once), `GET /servers/{id}`, `PATCH /servers/{id}`, `POST /servers/{id}/registration-token`,
 `GET /servers/{id}/keys`, `POST /servers/{id}/keys/{keyId}/revoke`, `POST /servers/{id}/keys/rotation-request`,
-`GET /servers/{id}/policy`, `PUT /servers/{id}/policy`, `POST /servers/{id}/policy/preview` (evaluate policy against a
+`GET /servers/{id}/policy`, `PUT /servers/{id}/policy`, `GET /servers/{id}/policy/history` (saved versions),
+`POST /servers/{id}/policy/preview` (evaluate policy against a
 sample check response using the shared engine), `GET/POST /servers/{id}/members`, `DELETE /servers/{id}/members/{userId}`,
 `GET /servers/{id}/bypasses`, `POST /servers/{id}/bypasses`, `POST /bypasses/{id}/revoke`,
 `POST /servers/{id}/status { status }` (server:manage_any), `POST /servers/{id}/trust { is_trusted }` (server:trust).
@@ -1000,7 +1034,8 @@ user:manage_admins), `GET /admin/audit` (audit:view; filters actor, action, targ
   response schemas prevent accidental leakage of internal fields).
 * Size limits: JSON `bodyLimit` 1 MiB (plugin `/server/reports` 128 KiB); multipart per §11.3.
 * Rate limiting (`@fastify/rate-limit`, Redis store): global 300/min per IP (web), 600/min per server (plugin),
-  auth 10/min per IP, proof 20/min, report creation 10/h per user.
+  auth 10/min per IP, proof 20/min, report creation 10/h per user; evidence upload quotas per §11.3; failed link
+  codes per server per §6.6. Limiter keys never contain raw IPs, only a truncated HMAC (`IP_HASH_SECRET`).
 * Headers: `@fastify/helmet` (strict CSP for API responses, HSTS when `COOKIE_SECURE`), `Cache-Control: no-store` on
   authenticated responses, CORS only for `WEB_ORIGIN` with credentials.
 * Replay protection: timestamp + nonce + request-id (§5.4); mfa tokens and reset tokens single-use.
@@ -1035,7 +1070,8 @@ REDIS_URL, JWT_SECRET, SESSION_SECRET, DATA_ENCRYPTION_KEY (32 bytes base64), IP
 SESSION_TTL_HOURS, SESSION_IDLE_TIMEOUT_MINUTES, EMAIL_VERIFICATION_REQUIRED, ALLOW_REGISTRATION, REQUIRE_2FA_ROLES,
 LOGIN_MAX_FAILURES, MAIL_TRANSPORT (smtp|file|noop), MAIL_FROM, SMTP_URL, MAIL_FILE_DIR, STORAGE_DRIVER (local|s3),
 STORAGE_LOCAL_DIR, STORAGE_ENDPOINT, STORAGE_REGION, STORAGE_BUCKET, STORAGE_ACCESS_KEY, STORAGE_SECRET_KEY,
-STORAGE_FORCE_PATH_STYLE, EVIDENCE_MAX_BYTES, SIGNATURE_MAX_SKEW_SECONDS, KEY_ROTATION_GRACE_SECONDS,
+STORAGE_FORCE_PATH_STYLE, EVIDENCE_MAX_BYTES, EVIDENCE_MAX_BYTES_NON_STAFF, EVIDENCE_UPLOADS_PER_HOUR,
+EVIDENCE_UPLOADS_PER_HOUR_NON_STAFF, EVIDENCE_DAILY_BYTES_NON_STAFF, SIGNATURE_MAX_SKEW_SECONDS, KEY_ROTATION_GRACE_SECONDS,
 REGISTRATION_TOKEN_TTL_HOURS, VPN_PROVIDERS, VPN_CIDR_LIST_PATHS, VPN_CIDR_CONFIDENCE, PROXYCHECK_API_KEY, IPHUB_API_KEY,
 VPN_PROVIDER_TIMEOUT_MS, VPN_CACHE_TTL_SECONDS, STEAM_WEB_API_KEY, ACCOUNT_AGE_CACHE_DAYS, ALT_LOOKBACK_DAYS,
 ALT_MAX_SHARED_ACCOUNTS, OVERWATCH_INTERVAL_SECONDS, OVERWATCH_HEARTBEAT_TIMEOUT_SECONDS, PROOF_RATE_LIMIT_PER_MINUTE,
@@ -1067,8 +1103,8 @@ is the authoritative variable reference.
 * Events: `PlayerEvents.Joined` (async check → policy → enforcement on main thread), `PlayerEvents.Left`,
   `PlayerEvents.ChangedSpectator` + overwatch state (`Player.IsOverwatchEnabled`) for proof sessions,
   `PlayerEvents.ReportedCheater`/`ReportedPlayer` (forward if `forward_ingame_reports`), `ServerEvents.RoundEnded`.
-* Commands (CommandSystem): RA/console parent `trust` with `register <token>`, `status`, `rotatekey`,
-  `check <player>`, `proof start <player> | stop`, `policy reload`; client command `.trustlink <code>`.
+* Commands (CommandSystem): RA/console parent `trust` with `register <token> [--force]`, `status`, `rotatekey`,
+  `check <player>`, `proof start <player> | stop | list`, `policy [show|reload]`; client command `.trustlink <code>`.
 * Hints: proof code overlay to the spectator (refresh 1 s), staff notifications via RA console + hint.
 * Never logs private key, signatures, or full IPs.
 
@@ -1077,7 +1113,9 @@ is the authoritative variable reference.
 policy_refresh_seconds (300), check_on_join (true), send_ip_for_vpn_check (true), send_account_age_hint (false),
 forward_ingame_reports (true), heartbeat_seconds (60), staff_notifications { enabled, use_hints, use_console },
 overwatch_proof { enabled, auto_start_on_spectate, only_in_overwatch, required_permission, hint_vertical_offset },
-local_policy { … §7.1 … }, max_ban_duration_minutes (0 = unlimited), debug (false)`.
+local_policy { … §7.1 … }, command_permissions { admin (ServerConsoleCommands), staff (PlayersManagement) },
+max_ban_duration_minutes (0 = unlimited), debug (false)`. If `api_base_url` has a path prefix, a reverse proxy must
+forward it unchanged: the signature covers the full request path (§5.3).
 
 ---
 

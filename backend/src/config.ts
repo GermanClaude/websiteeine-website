@@ -107,7 +107,16 @@ export interface Config {
     readonly secretKey: string | null;
     readonly forcePathStyle: boolean;
   };
-  readonly evidence: { readonly maxBytes: number };
+  readonly evidence: {
+    readonly maxBytes: number;
+    /** Per-file cap for uploaders without evidence:upload (reporters, server teams). */
+    readonly nonStaffMaxBytes: number;
+    /** Uploads (files, links, supersedes) per user and hour: holders of evidence:upload / others. */
+    readonly uploadsPerHour: number;
+    readonly nonStaffUploadsPerHour: number;
+    /** Stored bytes per non-staff user and UTC day. */
+    readonly nonStaffDailyBytes: number;
+  };
   readonly serverAuth: {
     readonly signatureMaxSkewSeconds: number;
     readonly keyRotationGraceSeconds: number;
@@ -220,6 +229,10 @@ const EnvSchema = z.object({
   STORAGE_FORCE_PATH_STYLE: envBool(false),
 
   EVIDENCE_MAX_BYTES: envInt(DEFAULT_EVIDENCE_MAX_BYTES, 1024, 10 * 1024 * 1024 * 1024),
+  EVIDENCE_MAX_BYTES_NON_STAFF: envInt(209_715_200, 1024, 10 * 1024 * 1024 * 1024),
+  EVIDENCE_UPLOADS_PER_HOUR: envInt(60, 1, 1_000_000),
+  EVIDENCE_UPLOADS_PER_HOUR_NON_STAFF: envInt(10, 1, 1_000_000),
+  EVIDENCE_DAILY_BYTES_NON_STAFF: envInt(1_073_741_824, 1024, 1024 * 1024 * 1024 * 1024),
 
   SIGNATURE_MAX_SKEW_SECONDS: envInt(DEFAULT_SIGNATURE_MAX_SKEW_SECONDS, 5, 600),
   KEY_ROTATION_GRACE_SECONDS: envInt(DEFAULT_KEY_ROTATION_GRACE_SECONDS, 0, 86_400),
@@ -548,7 +561,13 @@ function buildConfig(raw: ParsedEnv, cwd: string): Config {
       fileDir: path.resolve(cwd, raw.MAIL_FILE_DIR),
     },
     storage,
-    evidence: { maxBytes: raw.EVIDENCE_MAX_BYTES },
+    evidence: {
+      maxBytes: raw.EVIDENCE_MAX_BYTES,
+      nonStaffMaxBytes: Math.min(raw.EVIDENCE_MAX_BYTES_NON_STAFF, raw.EVIDENCE_MAX_BYTES),
+      uploadsPerHour: raw.EVIDENCE_UPLOADS_PER_HOUR,
+      nonStaffUploadsPerHour: raw.EVIDENCE_UPLOADS_PER_HOUR_NON_STAFF,
+      nonStaffDailyBytes: raw.EVIDENCE_DAILY_BYTES_NON_STAFF,
+    },
     serverAuth: {
       signatureMaxSkewSeconds: raw.SIGNATURE_MAX_SKEW_SECONDS,
       keyRotationGraceSeconds: raw.KEY_ROTATION_GRACE_SECONDS,

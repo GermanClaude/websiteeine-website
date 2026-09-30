@@ -79,7 +79,7 @@ const AUTH: Record<string, { auth: string; scope: string }> = {
   'POST /api/v1/cases/{caseNumber}/notes': { auth: 'Session + CSRF', scope: 'case:review' },
   'POST /api/v1/cases/{caseNumber}/verdict': { auth: 'Session + CSRF', scope: 'case:set_verdict + MFA-verified session' },
   'POST /api/v1/cases/{caseNumber}/reopen': { auth: 'Session + CSRF', scope: 'case:reopen' },
-  'POST /api/v1/cases/{caseNumber}/confirmations': { auth: 'Session + CSRF', scope: 'member owner/admin of an active server' },
+  'POST /api/v1/cases/{caseNumber}/confirmations': { auth: 'Session + CSRF', scope: 'member owner/admin of an active server that reported on / saw the player' },
   'DELETE /api/v1/cases/{caseNumber}/confirmations/{id}': { auth: 'Session + CSRF', scope: 'member owner/admin of the confirming server' },
   'GET /api/v1/public/cases/{caseNumber}': { auth: 'Public', scope: 'PUBLIC_CASE_LOOKUP=true' },
 
@@ -90,14 +90,14 @@ const AUTH: Record<string, { auth: string; scope: string }> = {
   'POST /api/v1/reports/{id}/status': { auth: 'Session + CSRF', scope: 'report:review' },
 
   // --- evidence ---------------------------------------------------------------------
-  'POST /api/v1/cases/{caseNumber}/evidence': { auth: 'Session + CSRF', scope: 'reviewer+, the reporter, or member of a reporting server' },
+  'POST /api/v1/cases/{caseNumber}/evidence': { auth: 'Session + CSRF', scope: 'reviewer+, the reporter, or member of a reporting server; per-user upload quotas' },
   'POST /api/v1/cases/{caseNumber}/evidence/link': { auth: 'Session + CSRF', scope: 'same upload rule; https URLs only' },
   'GET /api/v1/evidence': { auth: 'Session', scope: 'evidence:view' },
   'GET /api/v1/evidence/{id}': { auth: 'Session', scope: '§11.3 access rule; ?verify=true reviewer+' },
   'POST /api/v1/evidence/{id}/ticket': { auth: 'Session + CSRF', scope: '§11.3 access rule; audited' },
-  'GET /api/v1/evidence/{id}/content': { auth: 'Session or ?ticket=', scope: 'audited; hardened headers; no CSRF for tickets' },
-  'POST /api/v1/evidence/{id}/reviews': { auth: 'Session + CSRF', scope: 'evidence:review; no self-review' },
-  'POST /api/v1/evidence/{id}/supersede': { auth: 'Session + CSRF', scope: 'upload rule; once per object' },
+  'GET /api/v1/evidence/{id}/content': { auth: 'Session or ?ticket=', scope: 'audited; hardened headers; no CSRF for tickets; 2FA enrollment gate for sessions' },
+  'POST /api/v1/evidence/{id}/reviews': { auth: 'Session (2FA-verified) + CSRF', scope: 'evidence:review; not uploader, reporter or case subject' },
+  'POST /api/v1/evidence/{id}/supersede': { auth: 'Session + CSRF', scope: 'uploader, uploader-server member or evidence:review; once per object; upload quotas' },
 
   // --- players ----------------------------------------------------------------------
   'GET /api/v1/players': { auth: 'Session', scope: 'player:view_staff' },
@@ -132,7 +132,7 @@ const AUTH: Record<string, { auth: string; scope: string }> = {
   'GET /api/v1/appeals': { auth: 'Session', scope: 'appeal:decide → all; others own' },
   'GET /api/v1/appeals/{id}': { auth: 'Session', scope: 'appeal:decide or the submitter' },
   'POST /api/v1/appeals/{id}/assign': { auth: 'Session + CSRF', scope: 'appeal:assign' },
-  'POST /api/v1/appeals/{id}/decision': { auth: 'Session + CSRF', scope: 'appeal:decide; §11.5 independence rule' },
+  'POST /api/v1/appeals/{id}/decision': { auth: 'Session (2FA-verified) + CSRF', scope: 'appeal:decide; §11.5 independence rule (never the submitter/case subject)' },
   'POST /api/v1/appeals/{id}/withdraw': { auth: 'Session + CSRF', scope: 'submitter' },
 
   // --- whitelist --------------------------------------------------------------------
@@ -143,7 +143,7 @@ const AUTH: Record<string, { auth: string; scope: string }> = {
   'POST /api/v1/whitelist-requests/{id}/revoke': { auth: 'Session + CSRF', scope: 'member owner/admin/moderator or whitelist:decide_any' },
 
   // --- overwatch (web) + proof ------------------------------------------------------
-  'GET /api/v1/evidence/proof': { auth: 'Public (optional session)', scope: 'proof rate limit; code required without proof:view_code' },
+  'GET /api/v1/evidence/proof': { auth: 'Public (optional session)', scope: 'proof rate limit; code required without proof:view_code (or without 2FA enrollment)' },
   'GET /api/v1/overwatch/sessions': { auth: 'Session', scope: 'overwatch:view' },
   'GET /api/v1/overwatch/sessions/{id}': { auth: 'Session', scope: 'overwatch:view; never contains the secret' },
 

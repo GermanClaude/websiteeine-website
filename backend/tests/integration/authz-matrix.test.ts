@@ -445,6 +445,35 @@ describe('authz matrix', () => {
     expect(errorCode(res)).toBe('MFA_ENROLLMENT_REQUIRED');
   });
 
+  it('optional-auth routes apply the enrollment gate to unenrolled staff sessions (SR-03)', async () => {
+    const content = await t.app.inject({
+      method: 'GET',
+      url: concretePath('/api/v1/evidence/:id/content'),
+      headers: { cookie: reviewerNoTotp.cookie },
+    });
+    expect(content.statusCode, content.body).toBe(403);
+    expect(errorCode(content)).toBe('MFA_ENROLLMENT_REQUIRED');
+
+    // Proof API: treated like a caller without proof:view_code (code required, never revealed).
+    const proof = await t.app.inject({
+      method: 'GET',
+      url: `/api/v1/evidence/proof?server_id=srv_0000000000000000&player_id=${PLAYER_USER_ID}&spectator_id=${PLAYER_USER_ID}&timestamp=${Date.now()}`,
+      headers: { cookie: reviewerNoTotp.cookie },
+    });
+    expect(proof.statusCode, proof.body).toBe(400);
+    expect(errorCode(proof)).toBe('VALIDATION_FAILED');
+  });
+
+  it('appeal decisions require an MFA-verified session (SPEC-6)', async () => {
+    const res = await t.app.inject({
+      method: 'POST',
+      url: concretePath('/api/v1/appeals/:id/decision'),
+      headers: reviewerUnverified.headers,
+      payload: { decision: 'confirm', reason: REASON },
+    });
+    expect(res.statusCode, res.body).toBe(403);
+  });
+
   it('verdict requires an MFA-verified session', async () => {
     const res = await t.app.inject({
       method: 'POST',
