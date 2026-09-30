@@ -3,6 +3,7 @@
  * report:review — a note is mandatory and the change is audited).
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useParams } from 'react-router';
 
 import { LIMITS, Permission, REPORT_STATUSES, ReportStatusChangeRequestSchema, type ReportView } from '@scpsl-trust/shared';
@@ -23,6 +24,7 @@ import { StatusBadge, humanizeEnum } from '../../components/StatusBadge';
 import { useToast } from '../../components/Toasts';
 import { useZodForm } from '../../components/useZodForm';
 import { ReporterCell } from '../cases/CaseSections';
+import { EvidenceUploadModal } from '../evidence/EvidenceUploadModal';
 import { lengthHint } from '../cases/formHelpers';
 
 const STATUS_OPTIONS = REPORT_STATUSES.map((value) => ({ value, label: humanizeEnum(value) }));
@@ -71,6 +73,7 @@ export function ReportDetailPage() {
   const id = params.id ?? '';
   const auth = useAuth();
   const report = useQuery({ queryKey: reportKeys.detail(id), queryFn: () => getReport(id), enabled: id !== '' });
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const breadcrumbs = [{ label: 'Reports', to: '/reports' }, { label: id.slice(0, 8) }];
 
@@ -93,6 +96,10 @@ export function ReportDetailPage() {
 
   const data = report.data;
   const canReview = auth.hasPermission(Permission.REPORT_REVIEW);
+  // The reporting user may add evidence to the case (§11.3) but only sees the public case view,
+  // so the upload is offered here, on their own report.
+  const isReporter = auth.user !== null && data.reporter_user?.id === auth.user.id;
+  const canUpload = isReporter || auth.hasPermission(Permission.EVIDENCE_UPLOAD);
 
   return (
     <>
@@ -150,12 +157,41 @@ export function ReportDetailPage() {
             A report is a claim. It never changes the verdict by itself; evidence is reviewed and the verdict is decided on the case page.
           </p>
         </Card>
-        {canReview && (
-          <Card title="Change status">
-            <ReportStatusForm report={data} />
-          </Card>
+        {(canReview || canUpload) && (
+          <div className="stack">
+            {canUpload && (
+              <Card
+                title="Evidence"
+                actions={
+                  <Button size="sm" variant="primary" onClick={() => setUploadOpen(true)}>
+                    Add evidence
+                  </Button>
+                }
+              >
+                <p className="text-sm text-muted" style={{ margin: 0 }}>
+                  Recordings, screenshots or logs help reviewers decide. Uploaded items are attached to case{' '}
+                  <CaseLink caseNumber={data.case_number} /> and linked to this report.
+                </p>
+              </Card>
+            )}
+            {canReview && (
+              <Card title="Change status">
+                <ReportStatusForm report={data} />
+              </Card>
+            )}
+          </div>
         )}
       </div>
+      {canUpload && (
+        <EvidenceUploadModal
+          open={uploadOpen}
+          caseNumber={data.case_number}
+          reports={[data]}
+          defaultReportId={data.id}
+          onClose={() => setUploadOpen(false)}
+          onCreated={() => void report.refetch()}
+        />
+      )}
     </>
   );
 }

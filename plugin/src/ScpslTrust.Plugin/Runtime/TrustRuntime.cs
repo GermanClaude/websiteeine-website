@@ -250,6 +250,8 @@ namespace ScpslTrust.Plugin.Runtime
             {
                 await backend.ClockSkew.MeasureAsync(cancellationToken).ConfigureAwait(false);
 
+                // RegisterAsync already loads the policy and sends the first heartbeat.
+                var justRegistered = false;
                 if (Settings.RegistrationToken != null)
                 {
                     if (Identities.Current == null && Identities.LoadError == null)
@@ -258,6 +260,7 @@ namespace ScpslTrust.Plugin.Runtime
                         try
                         {
                             await RegisterAsync(Settings.RegistrationToken, force: false, cancellationToken).ConfigureAwait(false);
+                            justRegistered = true;
                         }
                         catch (Exception ex) when (!(ex is OperationCanceledException))
                         {
@@ -274,6 +277,11 @@ namespace ScpslTrust.Plugin.Runtime
                 if (Identities.Current == null)
                 {
                     Logger.Warn("This server is not registered with the trust network: create it in the web panel and run 'trust register <token>' in the server console. Player checks are skipped until then.");
+                    return;
+                }
+
+                if (justRegistered)
+                {
                     return;
                 }
 

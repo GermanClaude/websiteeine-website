@@ -264,7 +264,7 @@ namespace ScpslTrust.Core.Api
                     }
                     catch (HttpRequestException ex)
                     {
-                        throw new TrustApiException(TrustApiErrorKind.Network, ApiErrorCodes.NetworkError, "Cannot reach the trust backend: " + ex.Message, requestId: requestId, innerException: ex);
+                        throw new TrustApiException(TrustApiErrorKind.Network, ApiErrorCodes.NetworkError, "Cannot reach the trust backend: " + ex.Message + NetworkErrorHint(ex), requestId: requestId, innerException: ex);
                     }
 
                     using (response)
@@ -362,6 +362,23 @@ namespace ScpslTrust.Core.Api
             }
 
             return new TrustApiException(TrustApiErrorKind.Http, Truncate(error.Code, 64), Truncate(error.Message ?? error.Code, 300), status, error.RequestId ?? requestId);
+        }
+
+        /// <summary>
+        /// Mono's HttpClient (the game runtime) always opens an IPv6 dual-mode socket; on hosts whose kernel has
+        /// no IPv6 support at all this fails with EAFNOSUPPORT even for IPv4 backends (seen on a real server).
+        /// </summary>
+        internal static string NetworkErrorHint(Exception ex)
+        {
+            for (var e = ex.InnerException; e != null; e = e.InnerException)
+            {
+                if (e is System.Net.Sockets.SocketException se && se.SocketErrorCode == System.Net.Sockets.SocketError.AddressFamilyNotSupported)
+                {
+                    return " (this host has no IPv6 support, which the game's HTTP stack requires even for IPv4 backends; enable IPv6 in the kernel/container, see docs/PLUGIN.md troubleshooting)";
+                }
+            }
+
+            return string.Empty;
         }
 
         private static async Task<byte[]> ReadBodyAsync(HttpContent? content, int maxBytes, CancellationToken cancellationToken)

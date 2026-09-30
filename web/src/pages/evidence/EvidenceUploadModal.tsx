@@ -50,6 +50,8 @@ export interface EvidenceUploadModalProps {
   /** Reports of the case (optional association). */
   reports?: readonly ReportView[];
   onClose: () => void;
+  /** Pre-selected related report (e.g. when opened from that report's page). */
+  defaultReportId?: string;
   /** Called with the created evidence after the modal was acknowledged. */
   onCreated?: (evidence: EvidenceView) => void;
 }
@@ -61,7 +63,7 @@ function reportLabel(report: ReportView): string {
   return `${report.reason} — ${who} (${report.id.slice(0, 8)})`;
 }
 
-export function EvidenceUploadModal({ open, caseNumber, reports = [], onClose, onCreated }: EvidenceUploadModalProps) {
+export function EvidenceUploadModal({ open, caseNumber, reports = [], defaultReportId = '', onClose, onCreated }: EvidenceUploadModalProps) {
   const [mode, setMode] = useState<Mode>('file');
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | undefined>(undefined);
@@ -89,7 +91,7 @@ export function EvidenceUploadModal({ open, caseNumber, reports = [], onClose, o
 
   const fileForm = useZodForm({
     schema: UploadFormSchema,
-    initialValues: { type: 'video', title: '', description: '', report_id: '', overwatch_session_id: '' },
+    initialValues: { type: 'video', title: '', description: '', report_id: defaultReportId, overwatch_session_id: '' },
     onSubmit: async (fields) => {
       if (file === null) {
         setFileError('Choose a file to upload.');
@@ -117,7 +119,7 @@ export function EvidenceUploadModal({ open, caseNumber, reports = [], onClose, o
 
   const linkForm = useZodForm({
     schema: LinkFormSchema,
-    initialValues: { url: '', title: '', description: '', report_id: '', overwatch_session_id: '' },
+    initialValues: { url: '', title: '', description: '', report_id: defaultReportId, overwatch_session_id: '' },
     onSubmit: async (body) => {
       const evidence = await link.mutateAsync(body);
       setCreated(evidence);

@@ -324,6 +324,23 @@ public sealed class TrustApiClientTests : IDisposable
         Assert.True(ex.IsTransient);
     }
 
+    [Fact]
+    public async Task Missing_ipv6_support_is_reported_with_an_actionable_hint()
+    {
+        // Real SCP:SL server on a kernel without IPv6: Mono's HttpClient fails creating its dual-mode socket.
+        var inner = new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.AddressFamilyNotSupported);
+        var handler = new RecordingHandler((_, _) => throw new HttpRequestException(inner.Message, inner));
+        using var client = Client(handler);
+        var ex = await Assert.ThrowsAsync<TrustApiException>(() => client.CheckPlayerAsync(new PlayerCheckRequest { Player = Player }));
+        Assert.Equal(TrustApiErrorKind.Network, ex.Kind);
+        Assert.Contains("no IPv6 support", ex.Message);
+
+        var plain = new RecordingHandler((_, _) => throw new HttpRequestException("connection refused", new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionRefused)));
+        using var client2 = Client(plain);
+        var ex2 = await Assert.ThrowsAsync<TrustApiException>(() => client2.CheckPlayerAsync(new PlayerCheckRequest { Player = Player }));
+        Assert.DoesNotContain("IPv6", ex2.Message);
+    }
+
     [Theory]
     [InlineData("not json")]
     [InlineData("[]")]

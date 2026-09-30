@@ -73,6 +73,32 @@ instances. The config directory is always per-port. Steps:
 3. Start the server once; edit `configs/<port>/ScpslTrust/config.yml` (`api_base_url` at minimum).
 4. Register (SERVER_REGISTRATION.md): server console → `trust register <token>`.
 
+Verified on a real dedicated server (game 14.2.7, LabAPI loader, Linux): the first start
+creates `LabAPI/LabApi-<port>.yml`, `plugins/{global,<port>}/`, `dependencies/{global,<port>}/`,
+`configs/permissions.yml` and, once the plugin is loaded, `configs/<port>/ScpslTrust/config.yml`
+(plus LabAPI's `properties.yml`). Expected log lines:
+
+```
+[LabApi] [LOADER] Successfully loaded ScpslTrust.Core, Version=1.0.0.0, …
+[LabApi] [LOADER] Successfully enabled 'ScpslTrust', Version: 1.0.0, Author: 'SCP:SL Trust Network'
+[ScpslTrust.Plugin] Registered as srv_… with key SHA256:… (status active).
+[ScpslTrust.Plugin] Policy version 1 loaded (4 rules).
+```
+
+LabAPI then prints "This server has been flagged as transparently modded …" — that is the
+game's normal notice for any installed plugin, not an error. For an unattended first start,
+`LocalAdmin <port> --acceptEULA --useDefault` skips the interactive questions; server console
+commands (`trust status`, `trust register …`) are typed into LocalAdmin's stdin.
+
+### Troubleshooting: `CLIENT_NETWORK_ERROR … An address incompatible with the requested protocol was used`
+
+The game's Mono runtime `HttpClient` always opens an IPv6 dual-mode socket, even for IPv4
+backends such as `http://127.0.0.1:…`. On a host whose kernel has **no IPv6 support at all**
+(`ipv6.disable=1`, some minimal VMs/containers — `/proc/net/if_inet6` is missing) every request
+fails with this error, and so do the game's own central-server requests. Enable IPv6 in the
+kernel/container (an IPv6 address or route is not needed, only the address family). The plugin
+appends a hint to the error when it detects this case.
+
 ## 5. Configuration reference (`config.yml`)
 
 LabAPI serializes the config with snake_case keys. Defaults shown.

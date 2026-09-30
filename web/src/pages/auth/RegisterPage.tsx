@@ -76,7 +76,7 @@ export function RegisterPage() {
           type="password"
           autoComplete="new-password"
           required
-          hint={`${LIMITS.PASSWORD_MIN}–${LIMITS.PASSWORD_MAX} characters; must not equal your email or username. A passphrase works well.`}
+          hint={`${LIMITS.PASSWORD_MIN}–${LIMITS.PASSWORD_MAX} characters; must not equal or contain your email or username. A passphrase works well.`}
           {...form.field('password')}
         />
         <Input label="Confirm password" type="password" autoComplete="new-password" required {...form.field('password_confirm')} />
