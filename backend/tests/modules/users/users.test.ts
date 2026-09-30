@@ -327,7 +327,7 @@ describe('users module', () => {
       expectError(
         await t().app.inject({
           method: 'PATCH',
-          url: '/api/v1/admin/users/6f9619ff-8b86-d011-b42d-00c04fc964ff',
+          url: '/api/v1/admin/users/11111111-1111-4111-8111-111111111111',
           headers: superSession.headers,
           payload: { role: 'reviewer' },
         }),

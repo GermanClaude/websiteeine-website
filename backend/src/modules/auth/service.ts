@@ -4,6 +4,8 @@
  * recovery codes. Controllers stay thin; every state change is one transaction that
  * also writes its audit event.
  */
+import { randomBytes } from 'node:crypto';
+
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import {
@@ -53,15 +55,12 @@ export function totpSetupKey(userId: string): string {
 }
 
 function generateRecoveryCode(): string {
-  const groups: string[] = [];
-  for (let g = 0; g < 3; g += 1) {
-    let group = '';
-    for (let i = 0; i < 4; i += 1) {
-      group += RECOVERY_CODE_ALPHABET[Math.floor(Math.random() * RECOVERY_CODE_ALPHABET.length)];
-    }
-    groups.push(group);
+  const bytes = randomBytes(12);
+  const chars: string[] = [];
+  for (let i = 0; i < 12; i += 1) {
+    chars.push(RECOVERY_CODE_ALPHABET[bytes[i]! % RECOVERY_CODE_ALPHABET.length]!);
   }
-  return groups.join('-');
+  return `${chars.slice(0, 4).join('')}-${chars.slice(4, 8).join('')}-${chars.slice(8, 12).join('')}`;
 }
 
 /** Canonical form of a recovery code before hashing (case-insensitive comparison). */
