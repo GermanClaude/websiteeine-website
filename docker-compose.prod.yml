@@ -1,0 +1,125 @@
+# SCP:SL Trust Network — production stack (standalone file, not an override).
+#
+#   scripts/generate-secrets.sh --env > .env.production     # then edit URLs, SMTP, storage, …
+#   scripts/generate-secrets.sh --postgres > .env.postgres   # database role passwords
+#   chmod 600 .env.production .env.postgres
+#   docker compose -f docker-compose.prod.yml build
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# See docs/DEPLOYMENT.md. Summary:
+# * TLS is terminated by a reverse proxy on the host (or a load balancer) in front of `web`
+#   (and optionally `backend`); both are published on ${BIND_ADDRESS:-127.0.0.1} only.
+# * postgres and redis have no published ports and live on an internal network.
+# * All configuration and secrets come from env files (never from this file).
+# * The database uses two roles (docs/DATABASE.md §1.1): the schema owner runs migrations
+#   (MIGRATE_DATABASE_URL), the backend runs as the runtime role (DATABASE_URL).
+
+name: scpsl-trust
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB (superuser, used only for initialisation)
+    # and SCPSL_OWNER_PASSWORD / SCPSL_APP_PASSWORD for the two application roles.
+    env_file:
+      - .env.postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # runs once, on the first start with an empty data directory
+      - ./scripts/db/init-roles.sh:/docker-entrypoint-initdb.d/10-init-roles.sh:ro
+      - ./scripts/db/post-migrate-grants.sql:/opt/scpsl/post-migrate-grants.sql:ro
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER:-postgres}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: always
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    # Nonces, request ids, rate limits and short-lived tokens; AOF keeps them across restarts.
+    command: ["redis-server", "--appendonly", "yes", "--save", "", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: always
+    logging: *default-logging
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: ${BACKEND_IMAGE:-scpsl-trust-backend:latest}
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      LOG_PRETTY: "false"
+      STORAGE_LOCAL_DIR: /data/evidence
+    volumes:
+      # evidence files when STORAGE_DRIVER=local — back this volume up (docs/DEPLOYMENT.md)
+      - backenddata:/data
+    networks: [internal, edge]
+    ports:
+      # Plugins may use this directly behind your TLS proxy, or go through `web` (/api).
+      - "${BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    restart: always
+    stop_grace_period: 30s
+    logging: *default-logging
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    image: ${WEB_IMAGE:-scpsl-trust-web:latest}
+    environment:
+      BACKEND_UPSTREAM: backend:3000
+    networks: [edge]
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    restart: always
+    logging: *default-logging
+
+networks:
+  # no route to the outside world for the databases
+  internal:
+    internal: true
+  # backend needs egress (SMTP, S3, VPN/Steam providers); web talks only to backend
+  edge: {}
+
+volumes:
+  pgdata:
+  redisdata:
+  backenddata:

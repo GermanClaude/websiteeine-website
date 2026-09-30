@@ -45,7 +45,7 @@ namespace ScpslTrust.DevClient
     {
         private static readonly HashSet<string> Flags = new HashSet<string>(StringComparer.Ordinal)
         {
-            "--force", "--insecure", "--debug",
+            "--force", "--insecure", "--debug", "--tamper-signature", "--replay",
         };
 
         private readonly Dictionary<string, string> _options = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -218,7 +218,11 @@ namespace ScpslTrust.DevClient
             {
                 RequestTimeout = TimeSpan.FromSeconds(Args.IntOption("--timeout", 10, 1, 300)),
             };
-            _client = new TrustApiClient(options, Identities, Clock, Logger);
+            var tamper = Args.Has("--tamper-signature");
+            var replay = Args.Has("--replay");
+            _client = tamper || replay
+                ? new TrustApiClient(options, Identities, Clock, Logger, new DebugTransport(tamper, replay))
+                : new TrustApiClient(options, Identities, Clock, Logger);
             return _client;
         }
 

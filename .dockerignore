@@ -1,0 +1,28 @@
+# Build context for backend/Dockerfile and web/Dockerfile is the repository root.
+# Keep it small and never send secrets or local state to the Docker daemon.
+.git
+.github
+**/node_modules
+**/dist
+**/coverage
+**/*.log
+**/.DS_Store
+**/.vite
+**/*.tsbuildinfo
+
+# secrets and local environment
+.env
+.env.*
+!.env.example
+secrets/
+
+# runtime data of a locally running backend
+backend/.data
+backend/.dev-mail
+
+# not needed by any image
+plugin/
+docs/
+*.zip
+.idea
+.vs

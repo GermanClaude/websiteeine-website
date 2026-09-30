@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  shared-backend:
+    name: shared + backend
+    runs-on: ubuntu-latest
+    services:
+      # Integration tests create throw-away databases through TEST_DATABASE_ADMIN_URL
+      # (default postgres://scpsl:scpsl@localhost:5432/postgres; needs CREATEDB, reset() needs superuser).
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: scpsl
+          POSTGRES_PASSWORD: scpsl
+          POSTGRES_DB: scpsl_trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U scpsl -d scpsl_trust"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      TEST_DATABASE_ADMIN_URL: postgres://scpsl:scpsl@localhost:5432/postgres
+      REDIS_TEST_URL: redis://localhost:6379/15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # version from package.json "packageManager"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: shared — typecheck
+        run: pnpm --filter @scpsl-trust/shared typecheck
+      - name: shared — test
+        run: pnpm --filter @scpsl-trust/shared test
+      - name: shared — test vectors up to date
+        run: pnpm --filter @scpsl-trust/shared vectors:check
+      - name: shared — build
+        run: pnpm --filter @scpsl-trust/shared build
+
+      - name: backend — typecheck
+        run: pnpm --filter @scpsl-trust/backend typecheck
+      - name: backend — migrations apply cleanly
+        run: pnpm --filter @scpsl-trust/backend migrate
+        env:
+          DATABASE_URL: postgres://scpsl:scpsl@localhost:5432/scpsl_trust
+      - name: backend — test
+        run: pnpm --filter @scpsl-trust/backend test
+      - name: backend — docs/API.md matches the OpenAPI document
+        working-directory: backend
+        run: pnpm exec tsx scripts/generate-api-docs.ts --check
+      - name: backend — build
+        run: pnpm --filter @scpsl-trust/backend build
+
+  # ---------------------------------------------------------------------------
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # version from package.json "packageManager"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @scpsl-trust/web typecheck
+      - run: pnpm --filter @scpsl-trust/web test
+      - run: pnpm --filter @scpsl-trust/web build
+
+  # ---------------------------------------------------------------------------
+  # The LabAPI plugin project (src/ScpslTrust.Plugin, net48) needs the game's managed assemblies
+  # (SCPSL_Data/Managed), which cannot be redistributed and are not available here. The solution
+  # maps that project into the Release configuration only, so a Debug build of the solution
+  # compiles exactly ScpslTrust.Core, ScpslTrust.Core.Tests and the DevClient. BouncyCastle and
+  # System.Text.Json come from NuGet for these projects.
+  plugin:
+    name: plugin (Core + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugin
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - run: dotnet build ScpslTrust.sln -c Debug
+      - run: dotnet test ScpslTrust.sln -c Debug --no-build
+
+  # ---------------------------------------------------------------------------
+  docker:
+    name: docker images + compose files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: compose files are valid
+        run: |
+          docker compose -f docker-compose.yml config -q
+          docker compose -f docker-compose.yml --profile storage config -q
+          touch .env.production .env.postgres
+          docker compose -f docker-compose.prod.yml config -q
+      - uses: docker/setup-buildx-action@v3
+      - name: build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: false
+          tags: scpsl-trust-backend:ci
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+      - name: build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: web/Dockerfile
+          push: false
+          tags: scpsl-trust-web:ci
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web

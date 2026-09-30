@@ -22,6 +22,8 @@ Common options:
   --timeout <s>      request timeout seconds (default 10)
   --insecure         allow plain http for non-loopback hosts (development only)
   --debug            verbose logging on stderr
+  --tamper-signature negative test: corrupt X-Signature of signed requests (expect INVALID_SIGNATURE)
+  --replay           negative test: send each signed request twice (expect REPLAYED_NONCE)
 
 Commands:
   init                                       create an unregistered identity file

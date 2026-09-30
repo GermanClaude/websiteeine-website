@@ -1,0 +1,150 @@
+# SCP:SL Trust Network — local development stack.
+#
+#   cp .env.example .env                 # optional; the stack runs without it
+#   docker compose up -d --build         # postgres, redis, backend (:3000), web (:8080)
+#   docker compose --profile storage up -d --build   # + MinIO (S3) — set STORAGE_DRIVER=s3 to use it
+#   docker compose up -d postgres redis  # only the databases, for running backend/web on the host
+#                                        # (scripts/dev-up.sh)
+#
+# The web panel at http://localhost:8080 proxies /api to the backend, so the browser sees one origin.
+# Development only: fixed passwords, NODE_ENV=development (ephemeral secrets unless set in .env),
+# plain HTTP cookies. Production: docker-compose.prod.yml and docs/DEPLOYMENT.md.
+
+name: scpsl-trust
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: scpsl
+      POSTGRES_PASSWORD: scpsl
+      POSTGRES_DB: scpsl_trust
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scpsl -d scpsl_trust"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: scpsl-trust-backend:dev
+    # Optional: your .env (docs/CONFIGURATION.md). The values below override the host-oriented
+    # ones in it (localhost URLs, relative paths) with container equivalents.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      HOST: 0.0.0.0
+      PUBLIC_BASE_URL: http://localhost:${WEB_PORT:-8080}
+      WEB_ORIGIN: http://localhost:${WEB_PORT:-8080}
+      # the web container (nginx) is the only proxy hop in front of the backend
+      TRUST_PROXY: "1"
+      COOKIE_SECURE: "false"
+      DATABASE_URL: postgres://scpsl:scpsl@postgres:5432/scpsl_trust
+      REDIS_URL: redis://redis:6379
+      AUTO_MIGRATE: "true"
+      LOG_PRETTY: "false"
+      MAIL_TRANSPORT: file
+      MAIL_FILE_DIR: /data/mail
+      STORAGE_LOCAL_DIR: /data/evidence
+      # MinIO (profile "storage"): `STORAGE_DRIVER=s3 docker compose --profile storage up -d`
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_REGION: us-east-1
+      STORAGE_BUCKET: scpsl-trust-evidence
+      STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER:-scpsl-minio}
+      STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-scpsl-minio-dev-password}
+      STORAGE_FORCE_PATH_STYLE: "true"
+    volumes:
+      - backenddata:/data
+    ports:
+      # direct API access for the DevClient / a local SCP:SL server (http is accepted for loopback)
+      - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+        required: false
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        VITE_REGISTRATION_ENABLED: ${VITE_REGISTRATION_ENABLED:-true}
+    image: scpsl-trust-web:dev
+    environment:
+      BACKEND_UPSTREAM: backend:3000
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- optional S3-compatible evidence storage (profile "storage") -------------------------
+  minio:
+    profiles: ["storage"]
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-scpsl-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-scpsl-minio-dev-password}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Creates the private evidence bucket once MinIO is up, then exits.
+  minio-init:
+    profiles: ["storage"]
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-scpsl-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-scpsl-minio-dev-password}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" &&
+        mc mb --ignore-existing local/scpsl-trust-evidence &&
+        mc anonymous set none local/scpsl-trust-evidence
+
+volumes:
+  pgdata:
+  redisdata:
+  backenddata:
+  miniodata:
