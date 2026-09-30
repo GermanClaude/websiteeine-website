@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Development/E2E client for the trust backend, built on ScpslTrust.Core: the same signing,
+    key storage and API code the plugin uses, driven from the command line. Never deploy to a game server.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>ScpslTrust.DevClient</RootNamespace>
+    <AssemblyName>trust-devclient</AssemblyName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/ScpslTrust.Core/ScpslTrust.Core.csproj" />
+  </ItemGroup>
+</Project>

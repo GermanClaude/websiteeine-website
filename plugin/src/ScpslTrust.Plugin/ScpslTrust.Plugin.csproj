@@ -2,7 +2,7 @@
   <!--
     LabAPI entry point (net48; runs on the game's Mono runtime).
 
-    Game assemblies are referenced from $(SCPSL_MANAGED_DIR) with Private=false, and NuGet assets are
+    Game assemblies are referenced from $(GameManagedDir) with Private=false, and NuGet assets are
     never copied (CopyLocalLockFileAssemblies=false): BouncyCastle.Cryptography and System.Text.Json ship
     with the game and must not be deployed twice. The only files to deploy are the two produced here:
       ScpslTrust.Plugin.dll  -> LabAPI/plugins/<port or global>/
@@ -26,41 +26,46 @@
     <ProjectReference Include="../ScpslTrust.Core/ScpslTrust.Core.csproj" />
   </ItemGroup>
 
+  <!-- Framework assemblies (present in the game's Mono runtime). -->
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
   <!-- Game reference assemblies (never copied, never committed). -->
   <ItemGroup>
     <Reference Include="LabApi">
-      <HintPath>$(SCPSL_MANAGED_DIR)LabApi.dll</HintPath>
+      <HintPath>$(GameManagedDir)LabApi.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Assembly-CSharp">
-      <HintPath>$(SCPSL_MANAGED_DIR)Assembly-CSharp.dll</HintPath>
+      <HintPath>$(GameManagedDir)Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Assembly-CSharp-firstpass">
-      <HintPath>$(SCPSL_MANAGED_DIR)Assembly-CSharp-firstpass.dll</HintPath>
+      <HintPath>$(GameManagedDir)Assembly-CSharp-firstpass.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="CommandSystem.Core">
-      <HintPath>$(SCPSL_MANAGED_DIR)CommandSystem.Core.dll</HintPath>
+      <HintPath>$(GameManagedDir)CommandSystem.Core.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Mirror">
-      <HintPath>$(SCPSL_MANAGED_DIR)Mirror.dll</HintPath>
+      <HintPath>$(GameManagedDir)Mirror.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="NorthwoodLib">
-      <HintPath>$(SCPSL_MANAGED_DIR)NorthwoodLib.dll</HintPath>
+      <HintPath>$(GameManagedDir)NorthwoodLib.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(SCPSL_MANAGED_DIR)UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>$(GameManagedDir)UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
 
   <Target Name="CheckGameReferences" BeforeTargets="ResolveAssemblyReferences">
-    <Error Condition="!Exists('$(SCPSL_MANAGED_DIR)LabApi.dll')"
-           Text="Game reference assemblies not found in '$(SCPSL_MANAGED_DIR)'. Copy &lt;server&gt;/SCPSL_Data/Managed/*.dll to plugin/lib/ or build with -p:SCPSL_MANAGED_DIR=&lt;path&gt; (see plugin/lib/README.md)." />
+    <Error Condition="!Exists('$(GameManagedDir)LabApi.dll')"
+           Text="Game reference assemblies not found in '$(GameManagedDir)'. Copy &lt;server&gt;/SCPSL_Data/Managed/*.dll to plugin/lib/ or build with -p:SCPSL_MANAGED_DIR=&lt;path&gt; (see plugin/lib/README.md)." />
   </Target>
 
   <!-- Stage the deployable files: dist/plugins/ScpslTrust.Plugin.dll and dist/dependencies/ScpslTrust.Core.dll. -->

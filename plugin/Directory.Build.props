@@ -23,8 +23,13 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <!-- Directory with the game's managed assemblies (SCPSL_Data/Managed). Environment variable or -p: override. -->
-    <SCPSL_MANAGED_DIR Condition="'$(SCPSL_MANAGED_DIR)' == ''">$(MSBuildThisFileDirectory)lib</SCPSL_MANAGED_DIR>
-    <SCPSL_MANAGED_DIR>$([MSBuild]::EnsureTrailingSlash('$(SCPSL_MANAGED_DIR)'))</SCPSL_MANAGED_DIR>
+    <!--
+      Directory with the game's managed assemblies (SCPSL_Data/Managed). Environment variable or -p: override.
+      SCPSL_MANAGED_DIR may arrive as a global property (-p:), which project files cannot reassign,
+      so the normalized value lives in the derived GameManagedDir property.
+    -->
+    <GameManagedDir Condition="'$(SCPSL_MANAGED_DIR)' != ''">$(SCPSL_MANAGED_DIR)</GameManagedDir>
+    <GameManagedDir Condition="'$(GameManagedDir)' == ''">$(MSBuildThisFileDirectory)lib</GameManagedDir>
+    <GameManagedDir>$([MSBuild]::EnsureTrailingSlash('$(GameManagedDir)'))</GameManagedDir>
   </PropertyGroup>
 </Project>
