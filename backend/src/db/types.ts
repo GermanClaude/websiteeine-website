@@ -41,6 +41,10 @@ import type {
   ReporterType,
   ReportStatus,
   ReviewKind,
+  SecurityActionTaken,
+  SecurityEventKind,
+  SecuritySeverity,
+  SecuritySourceType,
   ServerKeyStatus,
   ServerMemberRole,
   ServerStatus,
@@ -505,6 +509,26 @@ export interface JobRunsTable {
   details: DefaultJsonObject;
 }
 
+/**
+ * Append-only security-monitoring record (intrusion detection & anomaly flagging).
+ * `score` is a PostgreSQL numeric (returned as a string by pg); it is inserted as a number
+ * and selected cast to double precision by the repository.
+ */
+export type SecurityEventsTable = AppendOnly<{
+  id: PrimaryKey;
+  created_at: DefaultTimestamp;
+  kind: SecurityEventKind;
+  severity: SecuritySeverity;
+  source_type: SecuritySourceType;
+  source_ref: string | null;
+  score: ColumnType<string | null, number | string | null | undefined, never>;
+  action_taken: Generated<SecurityActionTaken>;
+  endpoint: string | null;
+  request_id: string | null;
+  metadata: DefaultJsonObject;
+  expires_at: NullableTimestamp;
+}>;
+
 /** Managed by src/db/migrator.ts. */
 export interface SchemaMigrationsTable {
   version: string;
@@ -545,6 +569,7 @@ export interface Database {
   bypasses: BypassesTable;
   audit_events: AuditEventsTable;
   job_runs: JobRunsTable;
+  security_events: SecurityEventsTable;
   schema_migrations: SchemaMigrationsTable;
 }
 
@@ -661,5 +686,8 @@ export type NewAuditEvent = Insertable<AuditEventsTable>;
 export type JobRunRow = Selectable<JobRunsTable>;
 export type NewJobRun = Insertable<JobRunsTable>;
 export type JobRunUpdate = Updateable<JobRunsTable>;
+
+export type SecurityEventRow = Selectable<SecurityEventsTable>;
+export type NewSecurityEvent = Insertable<SecurityEventsTable>;
 
 export type SchemaMigrationRow = Selectable<SchemaMigrationsTable>;

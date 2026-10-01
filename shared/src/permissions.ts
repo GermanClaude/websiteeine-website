@@ -47,6 +47,8 @@ export const Permission = {
   AUDIT_VIEW: 'audit:view',
   AUDIT_VERIFY: 'audit:verify',
   BYPASS_MANAGE_GLOBAL: 'bypass:manage_global',
+  SECURITY_VIEW: 'security:view',
+  SECURITY_MANAGE: 'security:manage',
   // Super admin
   USER_MANAGE_ADMINS: 'user:manage_admins',
   APPEAL_OVERRIDE_CONFLICT: 'appeal:override_conflict',
@@ -106,6 +108,8 @@ const ADMINISTRATION: readonly Permission[] = [
   Permission.AUDIT_VIEW,
   Permission.AUDIT_VERIFY,
   Permission.BYPASS_MANAGE_GLOBAL,
+  Permission.SECURITY_VIEW,
+  Permission.SECURITY_MANAGE,
 ];
 const SUPER_ADMINISTRATION: readonly Permission[] = [
   Permission.USER_MANAGE_ADMINS,

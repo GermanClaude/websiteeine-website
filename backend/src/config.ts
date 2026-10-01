@@ -27,7 +27,7 @@ import {
   type VpnConfidence,
 } from '@scpsl-trust/shared';
 
-import { envBool, envEnumList, envInt, envOptionalBool, envUrl, normalizeEnv, splitList, type RawEnv } from './lib/env';
+import { envBool, envEnumList, envInt, envNumber, envOptionalBool, envUrl, normalizeEnv, splitList, type RawEnv } from './lib/env';
 import { assessKeyBytes, assessSecret, type SecretWeakness } from './lib/secret-strength';
 
 export const NODE_ENVS = ['development', 'production', 'test'] as const;
@@ -143,6 +143,25 @@ export interface Config {
     readonly overwatchSecretsDays: number;
   };
   readonly jobs: { readonly enabled: boolean };
+  /**
+   * Server-side intrusion detection & anomaly flagging. Detection records privacy-preserving
+   * signals and transiently blocks abusive sources; anomaly flagging only surfaces review
+   * items. Both fail open (degrade to off) when the short-lived store is unavailable.
+   */
+  readonly security: {
+    readonly detectionEnabled: boolean;
+    /** Score at which a source is auto-blocked within the window. */
+    readonly blockThreshold: number;
+    /** Scoring/decay window in seconds. */
+    readonly windowSeconds: number;
+    /** Base block duration; doubled on each repeat (exponential backoff), capped. */
+    readonly blockTtlSeconds: number;
+    /** Requests per source and minute beyond which a burst signal is emitted. */
+    readonly burstPerMinute: number;
+    readonly anomalyEnabled: boolean;
+    /** Robust z-score / EWMA deviation threshold for anomaly flagging (higher = quieter). */
+    readonly anomalySensitivity: number;
+  };
   readonly features: { readonly publicCaseLookup: boolean; readonly openapiUi: boolean };
   readonly logging: { readonly level: LogLevel; readonly clientIp: boolean; readonly pretty: boolean };
   readonly rateLimit: {
@@ -266,6 +285,15 @@ const EnvSchema = z.object({
   RETENTION_OVERWATCH_SECRETS_DAYS: envInt(365, 1, 36_500),
 
   JOBS_ENABLED: envBool(true),
+
+  SECURITY_DETECTION_ENABLED: envBool(true),
+  SECURITY_BLOCK_THRESHOLD: envInt(100, 1, 1_000_000),
+  SECURITY_WINDOW_SECONDS: envInt(300, 10, 86_400),
+  SECURITY_BLOCK_TTL_SECONDS: envInt(900, 1, 604_800),
+  SECURITY_BURST_PER_MINUTE: envInt(300, 1, 1_000_000),
+  SECURITY_ANOMALY_ENABLED: envBool(true),
+  SECURITY_ANOMALY_SENSITIVITY: envNumber(3.5, 1, 20),
+
   PUBLIC_CASE_LOOKUP: envBool(true),
   OPENAPI_UI: envOptionalBool(),
   LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
@@ -597,6 +625,15 @@ function buildConfig(raw: ParsedEnv, cwd: string): Config {
       overwatchSecretsDays: raw.RETENTION_OVERWATCH_SECRETS_DAYS,
     },
     jobs: { enabled: raw.JOBS_ENABLED },
+    security: {
+      detectionEnabled: raw.SECURITY_DETECTION_ENABLED,
+      blockThreshold: raw.SECURITY_BLOCK_THRESHOLD,
+      windowSeconds: raw.SECURITY_WINDOW_SECONDS,
+      blockTtlSeconds: raw.SECURITY_BLOCK_TTL_SECONDS,
+      burstPerMinute: raw.SECURITY_BURST_PER_MINUTE,
+      anomalyEnabled: raw.SECURITY_ANOMALY_ENABLED,
+      anomalySensitivity: raw.SECURITY_ANOMALY_SENSITIVITY,
+    },
     features: {
       publicCaseLookup: raw.PUBLIC_CASE_LOOKUP,
       openapiUi: raw.OPENAPI_UI ?? !isProduction,

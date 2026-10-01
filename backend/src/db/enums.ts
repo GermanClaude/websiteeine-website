@@ -109,9 +109,30 @@ export const DB_ENUMS = {
     'OVERWATCH_SESSION_ENDED',
     'PROOF_VERIFIED',
     'AUDIT_CHAIN_VERIFIED',
+    'SECURITY_SOURCE_BLOCKED',
+    'SECURITY_SOURCE_UNBLOCKED',
+    'SECURITY_THRESHOLD_EXCEEDED',
     'RETENTION_RUN',
   ],
   job_run_result: ['running', 'succeeded', 'failed', 'skipped'],
+  security_event_kind: [
+    'auth_failure_burst',
+    'request_burst',
+    'invalid_signature',
+    'replayed_nonce',
+    'duplicate_request_id',
+    'csrf_failure',
+    'malformed_auth',
+    'injection_probe',
+    'scanner_user_agent',
+    'threshold_exceeded',
+    'source_blocked',
+    'source_unblocked',
+    'anomaly',
+  ],
+  security_severity: ['info', 'low', 'medium', 'high', 'critical'],
+  security_source_type: ['network', 'user', 'server', 'unknown'],
+  security_action_taken: ['none', 'flagged', 'throttled', 'blocked', 'unblocked'],
 } as const;
 
 export type DbEnumName = keyof typeof DB_ENUMS;
@@ -151,3 +172,7 @@ export type BypassScope = DbEnumValue<'bypass_scope'>;
 export type ActorType = DbEnumValue<'actor_type'>;
 export type AuditAction = DbEnumValue<'audit_action'>;
 export type JobRunResult = DbEnumValue<'job_run_result'>;
+export type SecurityEventKind = DbEnumValue<'security_event_kind'>;
+export type SecuritySeverity = DbEnumValue<'security_severity'>;
+export type SecuritySourceType = DbEnumValue<'security_source_type'>;
+export type SecurityActionTaken = DbEnumValue<'security_action_taken'>;

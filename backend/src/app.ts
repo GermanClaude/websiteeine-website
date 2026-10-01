@@ -28,6 +28,7 @@ import { registerRawJsonParser } from './http/raw-body';
 import { genReqId, registerRequestContext } from './http/request-context';
 import { registerSecurity } from './http/security';
 import { MODULES, registerModules } from './modules';
+import { registerSecurityObserver } from './modules/security';
 import type { NamedModule } from './modules/types';
 
 /** JSON body limit (ARCHITECTURE §14); routes may lower it (plugin reports: 128 KiB). */
@@ -77,6 +78,8 @@ export async function buildApp(deps: Deps, options: BuildAppOptions = {}): Promi
   await app.register(cookie, { secret: config.secrets.sessionSecret, hook: 'onRequest' });
   await registerSecurity(app, config);
   await registerRateLimit(app, config, deps.redis);
+  // Intrusion-detection observer: after request-context + rate limit, before route handlers.
+  registerSecurityObserver(app, deps.security);
   await registerOpenApi(app, config);
 
   registerSessionHook(app, deps.sessions);

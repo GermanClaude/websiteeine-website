@@ -101,7 +101,7 @@ describe('enum conventions', () => {
   });
 
   it('contains the full §9.2 audit action list', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(61);
+    expect(AUDIT_ACTIONS).toHaveLength(64);
     expect(AUDIT_ACTIONS).toContain('BYPASS_CREATED');
     expect(AUDIT_ACTIONS).toContain('RETENTION_RUN');
     expect(new Set(AUDIT_ACTIONS).size).toBe(AUDIT_ACTIONS.length);

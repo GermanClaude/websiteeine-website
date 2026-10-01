@@ -517,6 +517,9 @@ export const AuditAction = {
   OVERWATCH_SESSION_ENDED: 'OVERWATCH_SESSION_ENDED',
   PROOF_VERIFIED: 'PROOF_VERIFIED',
   AUDIT_CHAIN_VERIFIED: 'AUDIT_CHAIN_VERIFIED',
+  SECURITY_SOURCE_BLOCKED: 'SECURITY_SOURCE_BLOCKED',
+  SECURITY_SOURCE_UNBLOCKED: 'SECURITY_SOURCE_UNBLOCKED',
+  SECURITY_THRESHOLD_EXCEEDED: 'SECURITY_THRESHOLD_EXCEEDED',
   RETENTION_RUN: 'RETENTION_RUN',
 } as const;
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
@@ -557,6 +560,80 @@ export const AuditVerifyFailure = {
 export type AuditVerifyFailure = (typeof AuditVerifyFailure)[keyof typeof AuditVerifyFailure];
 export const AUDIT_VERIFY_FAILURES = enumValues(AuditVerifyFailure);
 export const AuditVerifyFailureSchema = z.enum(AUDIT_VERIFY_FAILURES);
+
+// ---------------------------------------------------------------------------
+// Security monitoring (server-side intrusion detection & anomaly flagging)
+// ---------------------------------------------------------------------------
+
+/**
+ * Kind of a recorded `security_events` row. Detection kinds describe a signal or a
+ * crossed threshold; `anomaly` is a heuristic review item (never auto-punishing).
+ */
+export const SecurityEventKind = {
+  AUTH_FAILURE_BURST: 'auth_failure_burst',
+  REQUEST_BURST: 'request_burst',
+  INVALID_SIGNATURE: 'invalid_signature',
+  REPLAYED_NONCE: 'replayed_nonce',
+  DUPLICATE_REQUEST_ID: 'duplicate_request_id',
+  CSRF_FAILURE: 'csrf_failure',
+  MALFORMED_AUTH: 'malformed_auth',
+  INJECTION_PROBE: 'injection_probe',
+  SCANNER_USER_AGENT: 'scanner_user_agent',
+  THRESHOLD_EXCEEDED: 'threshold_exceeded',
+  SOURCE_BLOCKED: 'source_blocked',
+  SOURCE_UNBLOCKED: 'source_unblocked',
+  ANOMALY: 'anomaly',
+} as const;
+export type SecurityEventKind = (typeof SecurityEventKind)[keyof typeof SecurityEventKind];
+export const SECURITY_EVENT_KINDS = enumValues(SecurityEventKind);
+export const SecurityEventKindSchema = z.enum(SECURITY_EVENT_KINDS);
+
+/** Severity of a security event; ascending (see securitySeverityRank). */
+export const SecuritySeverity = {
+  INFO: 'info',
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
+  CRITICAL: 'critical',
+} as const;
+export type SecuritySeverity = (typeof SecuritySeverity)[keyof typeof SecuritySeverity];
+export const SECURITY_SEVERITIES = enumValues(SecuritySeverity);
+export const SecuritySeveritySchema = z.enum(SECURITY_SEVERITIES);
+
+/** Privacy-preserving source identity of a signal/block (never a raw IP). */
+export const SecuritySourceType = {
+  /** HMAC network hash of anonymous traffic. */
+  NETWORK: 'network',
+  /** Authenticated web user id. */
+  USER: 'user',
+  /** Signed plugin server id. */
+  SERVER: 'server',
+  UNKNOWN: 'unknown',
+} as const;
+export type SecuritySourceType = (typeof SecuritySourceType)[keyof typeof SecuritySourceType];
+export const SECURITY_SOURCE_TYPES = enumValues(SecuritySourceType);
+export const SecuritySourceTypeSchema = z.enum(SECURITY_SOURCE_TYPES);
+
+/** What the detector did about a source when the event was recorded. */
+export const SecurityActionTaken = {
+  NONE: 'none',
+  /** Surfaced for human review (anomalies); no request impact. */
+  FLAGGED: 'flagged',
+  /** The request was answered with 429/403 because the source is blocked. */
+  THROTTLED: 'throttled',
+  /** A transient block was placed on the source. */
+  BLOCKED: 'blocked',
+  /** A block was cleared (auto-expiry is not recorded; only admin clears). */
+  UNBLOCKED: 'unblocked',
+} as const;
+export type SecurityActionTaken = (typeof SecurityActionTaken)[keyof typeof SecurityActionTaken];
+export const SECURITY_ACTIONS_TAKEN = enumValues(SecurityActionTaken);
+export const SecurityActionTakenSchema = z.enum(SECURITY_ACTIONS_TAKEN);
+
+/** info 0 … critical 4. */
+export function securitySeverityRank(severity: SecuritySeverity): number {
+  return ordinal(SECURITY_SEVERITIES, severity);
+}
 
 // ---------------------------------------------------------------------------
 // Type guards

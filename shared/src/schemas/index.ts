@@ -14,3 +14,4 @@ export * from './whitelist';
 export * from './bypasses';
 export * from './audit';
 export * from './dashboard';
+export * from './security';

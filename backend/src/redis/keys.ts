@@ -33,4 +33,12 @@ export const storeKeys = Object.freeze({
   vpnCache: (networkHash: string): string => `vpn:${part('networkHash', networkHash)}`,
   /** Distributed lock (jobs, one-off critical sections). */
   lock: (name: string): string => `lock:${part('name', name)}`,
+  /** Intrusion detection: decaying risk score of a source (`<type>.<ref>`). */
+  securityScore: (source: string): string => `secscore:${part('source', source)}`,
+  /** Intrusion detection: repeat-offence counter driving exponential block backoff. */
+  securityStrikes: (source: string): string => `secstk:${part('source', source)}`,
+  /** Intrusion detection: active transient block of a source. */
+  securityBlock: (source: string): string => `secblk:${part('source', source)}`,
+  /** Intrusion detection: sliding per-minute request counter of a source. */
+  securityBurst: (source: string): string => `secburst:${part('source', source)}`,
 });

@@ -81,6 +81,10 @@ const ENUM_COLUMNS: EnumColumn[] = [
   { table: 'audit_events', column: 'actor_type', enumName: 'actor_type' },
   { table: 'audit_events', column: 'action', enumName: 'audit_action' },
   { table: 'job_runs', column: 'result', enumName: 'job_run_result', where: "result <> 'running'" },
+  { table: 'security_events', column: 'kind', enumName: 'security_event_kind' },
+  { table: 'security_events', column: 'severity', enumName: 'security_severity' },
+  { table: 'security_events', column: 'source_type', enumName: 'security_source_type' },
+  { table: 'security_events', column: 'action_taken', enumName: 'security_action_taken' },
 ];
 
 function enumConstraintName(entry: EnumColumn): string {
@@ -109,6 +113,10 @@ describe('enum CHECK constraints', () => {
       })
       .execute();
     await db.insertInto('job_runs').values({ job: 'retention', result: 'succeeded', finished_at: new Date() }).execute();
+    await db
+      .insertInto('security_events')
+      .values({ kind: 'request_burst', severity: 'low', source_type: 'network', source_ref: 'fixture', action_taken: 'flagged' })
+      .execute();
   });
 
   it('lists exactly the values of DB_ENUMS in every enum CHECK constraint', async () => {

@@ -17,6 +17,7 @@ import { createLogger, type AppLogger } from './lib/logger';
 import { systemClock, type Clock } from './lib/time';
 import { createMailer, type Mailer } from './mail';
 import { AuditService } from './modules/audit/service';
+import { SecurityService } from './modules/security/service';
 import { closeRedis, createRedis, type RedisClient } from './redis/client';
 import { MemoryShortLivedStore, RedisShortLivedStore, type ShortLivedStore } from './redis/store';
 import { createStorage, type ObjectStorage } from './storage';
@@ -33,6 +34,8 @@ export interface Deps {
   readonly clock: Clock;
   readonly logger: AppLogger;
   readonly audit: AuditService;
+  /** Server-side intrusion detection & anomaly flagging (shared by the observer, routes and job). */
+  readonly security: SecurityService;
   readonly storage: ObjectStorage;
   readonly mailer: Mailer;
   readonly scheduler: JobScheduler;
@@ -96,6 +99,8 @@ export function createContainer(config: Config, overrides: ContainerOverrides = 
   if (overrides.mailer === undefined) closers.push(() => mailer.close());
 
   const scheduler = new JobScheduler({ db, store, clock, logger });
+  const audit = new AuditService({ db, clock, logger });
+  const security = new SecurityService({ config, db, store, clock, logger, audit });
   let closed: Promise<void> | undefined;
 
   const deps: Deps = {
@@ -107,7 +112,8 @@ export function createContainer(config: Config, overrides: ContainerOverrides = 
     nonceStore: createNonceStore(store),
     clock,
     logger,
-    audit: new AuditService({ db, clock, logger }),
+    audit,
+    security,
     storage: overrides.storage ?? createStorage(config),
     mailer,
     scheduler,

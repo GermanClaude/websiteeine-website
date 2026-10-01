@@ -29,6 +29,18 @@ export function envInt(defaultValue: number, min: number, max: number) {
     .default(defaultValue);
 }
 
+const DECIMAL = /^-?\d+(\.\d+)?$/;
+
+/** Decimal number (integer or fractional) within [min, max]. */
+export function envNumber(defaultValue: number, min: number, max: number) {
+  return z
+    .string()
+    .regex(DECIMAL, 'must be a number')
+    .transform(Number)
+    .pipe(z.number().min(min).max(max))
+    .default(defaultValue);
+}
+
 /** Optional decimal integer within [min, max] (undefined when unset). */
 export function envOptionalInt(min: number, max: number) {
   return z.string().regex(INTEGER, 'must be an integer').transform(Number).pipe(z.number().int().min(min).max(max)).optional();

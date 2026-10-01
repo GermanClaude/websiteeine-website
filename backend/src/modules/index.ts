@@ -19,6 +19,7 @@ import * as overwatch from './overwatch';
 import * as players from './players';
 import * as policies from './policies';
 import * as reports from './reports';
+import * as security from './security';
 import * as servers from './servers';
 import * as users from './users';
 import * as whitelist from './whitelist';
@@ -39,6 +40,7 @@ export const MODULES: readonly NamedModule[] = Object.freeze([
   { name: 'bypasses', module: bypasses },
   { name: 'dashboard', module: dashboard },
   { name: 'audit', module: audit },
+  { name: 'security', module: security },
 ]);
 
 /** Registers all module routes under /api/v1, each in its own encapsulated context. */

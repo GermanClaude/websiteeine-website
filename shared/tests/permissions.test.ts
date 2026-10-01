@@ -56,7 +56,16 @@ const MATRIX: Array<{ permissions: string[]; roles: UserRole[] }> = [
     roles: ['moderator', 'admin', 'super_admin'],
   },
   {
-    permissions: ['user:manage', 'server:manage_any', 'server:trust', 'audit:view', 'audit:verify', 'bypass:manage_global'],
+    permissions: [
+      'user:manage',
+      'server:manage_any',
+      'server:trust',
+      'audit:view',
+      'audit:verify',
+      'bypass:manage_global',
+      'security:view',
+      'security:manage',
+    ],
     roles: ['admin', 'super_admin'],
   },
   {
