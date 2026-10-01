@@ -239,6 +239,10 @@ permissions (`server:manage_any`, `whitelist:decide_any`, `bypass:manage_global`
 | GET | `/api/v1/admin/audit/verify` | Session | audit:verify | Verify the audit hash chain |
 | GET | `/api/v1/admin/bypasses` | Session | bypass:manage_global | List global bypasses |
 | POST | `/api/v1/admin/bypasses` | Session + CSRF | bypass:manage_global | Grant a global bypass |
+| GET | `/api/v1/admin/security/blocks` | Session | security:view | List active transient source blocks |
+| POST | `/api/v1/admin/security/blocks/{id}/clear` | Session + CSRF | security:manage | Clear a transient source block |
+| GET | `/api/v1/admin/security/events` | Session | security:view | List intrusion-detection / anomaly events |
+| GET | `/api/v1/admin/security/summary` | Session | security:view | Security monitor summary (last 24h) |
 | GET | `/api/v1/admin/users` | Session | user:view | List user accounts |
 | PATCH | `/api/v1/admin/users/{id}` | Session + CSRF | user:manage (admin targets need user:manage_admins); no self-change | Change a user role or status |
 <!-- END GENERATED ENDPOINT TABLES -->
@@ -432,6 +436,58 @@ Response `200` (the updated request view):
 Approval creates the matching bypass (`vpn_whitelist` / `account_age_whitelist`) in the
 same transaction; rejects create nothing. Revoking an approved request also revokes its
 bypass. Pending requests expire after `WHITELIST_REQUEST_TTL_DAYS` (background job).
+
+### 4.8 Security monitor (`/api/v1/admin/security/*`; `security:view` / `security:manage`)
+
+The server-side intrusion-detection layer (detection and transient blocking happen entirely
+on the backend — it never reaches a client device; see [SECURITY.md §2.8](./SECURITY.md#28-server-side-intrusion-detection-and-anomaly-flagging))
+records privacy-preserving events into the append-only `security_events` table and exposes a
+read/clear monitor for admins. Sources are identified by type + reference — `network` (a
+64-hex HMAC network hash, never a raw IP), `user` (user id) or `server` (server id) — never by
+address.
+
+`GET /admin/security/events` (`security:view`) — filters `kind`, `severity`, `source_type`,
+`source_ref`, `from`, `to`, plus `page`/`page_size`:
+
+```json
+{
+  "items": [
+    {
+      "id": "a0e5…",
+      "created_at": "2026-10-01T12:00:00.000Z",
+      "kind": "source_blocked",
+      "severity": "high",
+      "source_type": "network",
+      "source_ref": "3b1f…<64 hex>",
+      "score": 120,
+      "action_taken": "blocked",
+      "endpoint": "/api/v1/auth/login",
+      "request_id": "9d54…",
+      "metadata": { "source_type": "network", "strikes": 3, "ttl_seconds": 3600 },
+      "expires_at": "2026-10-01T13:00:00.000Z"
+    }
+  ],
+  "page": 1,
+  "page_size": 25,
+  "total": 1
+}
+```
+
+`GET /admin/security/blocks` (`security:view`) returns the currently active transient blocks
+(`{ items: [{ id, source_type, source_ref, score, strikes, expires_at, ttl_seconds }] }`),
+where `id` is `"<source_type>.<source_ref>"` (regex
+`^(network|user|server|unknown)\.[A-Za-z0-9_.@:-]{1,200}$`).
+
+`POST /admin/security/blocks/{id}/clear` (`security:manage` + CSRF; audited
+`SECURITY_SOURCE_UNBLOCKED`) lifts a block early. Body `{ "reason": "false positive" }` (optional);
+response `{ "ok": true, "cleared": true, "source_type": "network", "source_ref": "3b1f…" }`
+(`cleared` is `false` when nothing was blocking that source).
+
+`GET /admin/security/summary` (`security:view`) gives the last-24h rollup: event counts by
+severity, `anomalies_last_24h`, `active_blocks`, `top_sources` and the `detection_enabled` /
+`anomaly_enabled` config flags. `anomaly` events are heuristic review items (`action_taken:
+"flagged"`) and never cause an automatic block or any account change — escalation is a human
+decision.
 
 ## 5. Regenerating this document
 

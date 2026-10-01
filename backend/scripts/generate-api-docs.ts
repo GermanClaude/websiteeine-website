@@ -154,6 +154,10 @@ const AUTH: Record<string, { auth: string; scope: string }> = {
   'GET /api/v1/admin/audit/verify': { auth: 'Session', scope: 'audit:verify' },
   'GET /api/v1/admin/bypasses': { auth: 'Session', scope: 'bypass:manage_global' },
   'POST /api/v1/admin/bypasses': { auth: 'Session + CSRF', scope: 'bypass:manage_global' },
+  'GET /api/v1/admin/security/events': { auth: 'Session', scope: 'security:view' },
+  'GET /api/v1/admin/security/blocks': { auth: 'Session', scope: 'security:view' },
+  'POST /api/v1/admin/security/blocks/{id}/clear': { auth: 'Session + CSRF', scope: 'security:manage' },
+  'GET /api/v1/admin/security/summary': { auth: 'Session', scope: 'security:view' },
 };
 
 /** Table grouping and order; every OpenAPI tag must appear exactly once. */

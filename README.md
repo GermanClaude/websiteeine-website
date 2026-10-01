@@ -185,6 +185,7 @@ and the reference policy engine, plus JSON test vectors that the C# plugin is ve
 - [x] Case management
 - [x] Player management (staff player view, signals, links, bypasses)
 - [x] Admin panel (users, audit log, global bypasses)
+- [x] Server-side intrusion detection: transient auto-blocking of abusive sources and human-review anomaly flagging, privacy-preserving and fails open ([docs/SECURITY.md §2.8](docs/SECURITY.md#28-server-side-intrusion-detection-and-anomaly-flagging))
 - [x] API documentation (OpenAPI + [docs/API.md](docs/API.md))
 - [x] Database migrations (plain SQL, checksummed)
 - [x] Docker development environment

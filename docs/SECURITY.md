@@ -162,6 +162,61 @@ within the replay window (AOF in `docker-compose.prod.yml`).
   `backend/src/http/logging.ts`). Audit metadata never contains passwords, tokens, keys, raw IPs or evidence content.
 * The plugin never logs private keys, signatures or full IPs.
 
+### 2.8 Server-side intrusion detection and anomaly flagging
+
+A defensive detection layer (`backend/src/modules/security`) watches the request stream, scores
+abusive sources and transiently blocks them, and surfaces unusual activity for human review. It
+is wired into the request pipeline as a global observer (`registerSecurityObserver`, after the
+rate limiter and before route handlers) and backed by the append-only `security_events` table
+and an admin monitor API (`/api/v1/admin/security/*`, [API.md §4.8](./API.md#48-security-monitor-apiv1adminsecurity-securityview--securitymanage)).
+
+**What it is — and explicitly is not.** Detection and blocking happen **entirely on the
+backend**. The layer inspects requests that arrive at the server and decides whether to answer
+them. It **never reaches, scans, runs code on, or deletes anything from a visitor's or operator's
+device** — a web service cannot and must not do that (browsers sandbox pages for exactly this
+reason, and "reaching into the client's PC to close a program" would itself be malware/RCE). The
+feasible, safe equivalent of "detect an attack and stop it" is implemented: recognise malicious
+requests and refuse to serve them, and flag anomalies for the human team. Nothing here touches a
+client machine.
+
+**What it detects** (signals, `signals.ts`): bursts of authentication failures, invalid Ed25519
+signatures, replayed nonces, duplicate request ids, CSRF failures, malformed auth headers,
+per-source request bursts, and — at deliberately *low* weight — conservative request-**metadata**
+heuristics (SQL-injection / path-traversal / reflected-script patterns in the URL, and
+well-known offensive scanner user-agents such as `sqlmap`/`nikto`/`nuclei`). The metadata scan is
+bounded (URL ≤ 2 KiB, UA ≤ 512 B, a fixed pattern set) and never reads the request body. A single
+heuristic hit can never block on its own.
+
+**How it blocks.** Each signal adds a weight to the source's score in a fixed window
+(`SECURITY_WINDOW_SECONDS`). Crossing `SECURITY_BLOCK_THRESHOLD` places a **transient** block with
+exponential backoff (`SECURITY_BLOCK_TTL_SECONDS`, doubling per strike, capped at 7 days); a
+blocked source is answered `429` before any handler or database work. Blocks expire on their own;
+an admin with `security:manage` can lift one early. **No human account is ever auto-disabled** —
+only the in-flight requests of a source are throttled. Escalating to disabling an account is a
+human decision taken in the monitor, exactly as for the rest of the platform.
+
+**Anomaly flagging is review-only.** A deterministic, dependency-free EWMA detector (`anomaly.ts`,
+run by the `security-baseline` job) keeps a per-actor/per-endpoint baseline and flags an upward
+spike (`SECURITY_ANOMALY_SENSITIVITY` standard deviations, after a warm-up) as an `anomaly` event
+with `action_taken: flagged`. It never blocks, throttles or punishes — it only creates a review
+item. It is a heuristic, not a guarantee.
+
+**Privacy.** A source is a type + reference: an HMAC **network hash** (anonymous; §2.7 and
+[PRIVACY.md](./PRIVACY.md)), a user id, or a server id — **never a raw IP**, in the store, the
+`security_events` table, audit metadata or logs. `request.ip` is hashed on arrival and the raw
+value never leaves `networkSource()`.
+
+**Audit & integrity.** Every automatic block records `SECURITY_THRESHOLD_EXCEEDED` and
+`SECURITY_SOURCE_BLOCKED`, and every manual clear records `SECURITY_SOURCE_UNBLOCKED`, in the audit
+hash chain. `security_events` has the same delete/update/truncate protection triggers as the other
+history tables (SQLSTATE `TN403`).
+
+**Fail-open.** All detection goes through the short-lived (Redis) store. When the store is
+unavailable, detection degrades to off: block checks return "not blocked", signal recording is
+skipped, and the request proceeds — a detection outage never turns legitimate traffic into errors.
+Set `SECURITY_DETECTION_ENABLED=false` / `SECURITY_ANOMALY_ENABLED=false` to disable either half;
+all knobs are documented in [CONFIGURATION.md](./CONFIGURATION.md) (`SECURITY_*`).
+
 ## 3. What is NOT protected
 
 * **A compromised backend host or database superuser** can read and change everything: it holds the
@@ -185,6 +240,25 @@ within the replay window (AOF in `docker-compose.prod.yml`).
   account whose link code they know, or fabricate sightings. Mitigations are audit (`PLAYER_LINKED` records
   the linking server), throttling, server suspension/revocation and the re-claim path after staff disable
   the hijacking account; a cryptographic proof (e.g. Steam OpenID login) is not implemented.
+* **Intrusion detection is not a guarantee** (§2.8). A determined attacker evades source-based
+  blocking by **rotating the source reference**: the network hash is derived from the IP, so a new
+  IP (a botnet, a large proxy/VPN pool, CGNAT churn) is a fresh unblocked source, and an
+  authenticated attacker who controls several accounts/servers rotates among those identities. The
+  layer raises the cost of naive, high-rate, single-source abuse and gives the team visibility and
+  a kill switch; it does not stop a distributed or low-and-slow attacker. The metadata heuristics
+  are a small, fixed pattern set (they catch unsophisticated/scripted probes, not a tailored
+  payload) and are intentionally low-weight to keep **false positives** rare, which equally means
+  false negatives are common — by design, detection favours not blocking legitimate traffic.
+  Anomaly flagging shares the usual **base-rate problem**: on a low-incident stream most flags are
+  benign spikes, so flags are review items for a human, never an automatic penalty, and the
+  baseline is per-process (each API replica learns its own traffic; it is not a cross-replica
+  consensus). None of this protects availability against volumetric DDoS (use your provider's
+  protection) and, like the rest of the stack, it fails open if Redis is down.
+* **Reaching into a client device is explicitly out of scope and impossible by design** (§2.8).
+  This platform cannot — and must not — access, scan or delete software on a visitor's or
+  operator's computer; such behaviour is what hostile software does, and browsers prevent it. "AI
+  protection against intrusion" here means server-side request detection + blocking + human-review
+  flagging, nothing more.
 
 ## 4. Reporting a security issue
 

@@ -198,6 +198,12 @@ Look at it in the morning:
 * `msg: "password reset mail could not be sent"` — SMTP is broken; users cannot recover accounts.
 * Sustained `RATE_LIMITED`, `INVALID_SIGNATURE`, `REPLAYED_NONCE`, `ACCOUNT_LOCKED` bursts — see
   [SECURITY.md](SECURITY.md).
+* **`event: "security_source_blocked"`** bursts or a climbing `active_blocks` in the security monitor
+  (`GET /api/v1/admin/security/summary`) — the intrusion-detection layer is transiently blocking sources
+  ([SECURITY.md §2.8](SECURITY.md#28-server-side-intrusion-detection-and-anomaly-flagging)). Note this
+  detection is **fail-open and Redis-backed**: when Redis is down (above) it silently stops blocking and
+  stops recording events — do not read a quiet monitor during a Redis outage as "no attacks". Review
+  `event: "security_anomalies_flagged"` items by hand; they never auto-block or change an account.
 * Request latency: a `latency_ms` around 5000 on routes that are normally instant is the signature of a
   Redis command timing out.
 
