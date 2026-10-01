@@ -24,6 +24,7 @@ function pingRoute(app: FastifyInstance): void {
 const t = useTestApp({
   now: NOW,
   env: {
+    SECURITY_DETECTION_ENABLED: 'true',
     SECURITY_BLOCK_THRESHOLD: '40',
     SECURITY_WINDOW_SECONDS: '300',
     SECURITY_BLOCK_TTL_SECONDS: '10',
@@ -155,7 +156,7 @@ describe('intrusion detection configuration', () => {
   it('fails open when the short-lived store is unavailable (no 500s, traffic still 200)', async () => {
     const app = await buildTestApp({
       now: NOW,
-      env: { SECURITY_BLOCK_THRESHOLD: '40' },
+      env: { SECURITY_DETECTION_ENABLED: 'true', SECURITY_BLOCK_THRESHOLD: '40' },
       extend: pingRoute,
     });
     try {

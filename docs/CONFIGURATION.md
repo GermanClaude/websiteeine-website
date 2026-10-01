@@ -200,6 +200,29 @@ private keys or raw IPs (redaction paths in `backend/src/lib/logger.ts`, ARCHITE
 Counters live in Redis when `REDIS_URL` is set (shared across replicas), otherwise in process
 memory. Exceeded limits answer `429 RATE_LIMITED` with a `Retry-After` header.
 
+## Security: intrusion detection & anomaly flagging (§8, §14)
+
+Server-side only. The observer inspects each request cheaply, scores privacy-preserving sources
+(HMAC network hash for anonymous traffic, user id for sessions, server id for plugins — never a
+raw IP), and transiently blocks abusive sources (`429`/`403`) before any handler or DB work.
+Anomaly flagging only surfaces review items; it never blocks or disables an account. No feature
+ever reaches or runs code on a client device. Everything fails open: when the short-lived store
+is unavailable, detection degrades to off rather than blocking legitimate traffic.
+
+| Variable | Type / values | Default | Purpose |
+|---|---|---|---|
+| `SECURITY_DETECTION_ENABLED` | boolean | `true` | Master switch for the observer, scoring and auto-blocking. When off, the observer is not registered. |
+| `SECURITY_BLOCK_THRESHOLD` | integer ≥ 1 | `100` | Decaying risk score at which a source is auto-blocked within the window. |
+| `SECURITY_WINDOW_SECONDS` | integer 10–86400 | `300` | Scoring/decay window in seconds. |
+| `SECURITY_BLOCK_TTL_SECONDS` | integer 1–604800 | `900` | Base transient-block duration; doubled on each repeat offence (exponential backoff, capped at 7 days). Blocks auto-expire; an admin can clear one early. |
+| `SECURITY_BURST_PER_MINUTE` | integer ≥ 1 | `300` | Requests per source and minute above which a burst signal is emitted. |
+| `SECURITY_ANOMALY_ENABLED` | boolean | `true` | Heuristic anomaly flagging (review items only). |
+| `SECURITY_ANOMALY_SENSITIVITY` | number 1–20 | `3.5` | Robust z-score / EWMA deviation threshold; higher is quieter. Heuristic, not a guarantee. |
+
+Blocks and crossed thresholds are written to the hash-chained audit log (`SECURITY_SOURCE_BLOCKED`,
+`SECURITY_SOURCE_UNBLOCKED`, `SECURITY_THRESHOLD_EXCEEDED`) and to the queryable `security_events`
+table surfaced by the admin monitor (`security:view` to read, `security:manage` to clear a block).
+
 ## Command-line tools and tests
 
 | Variable | Used by | Purpose |

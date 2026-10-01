@@ -189,6 +189,10 @@ const SPECS: Record<string, RouteSpec> = {
   'GET /api/v1/admin/audit/verify': {},
   'GET /api/v1/admin/bypasses': {},
   'POST /api/v1/admin/bypasses': { body: { player: REF, type: 'vpn_whitelist', reason: REASON } },
+  'GET /api/v1/admin/security/events': {},
+  'GET /api/v1/admin/security/blocks': {},
+  'POST /api/v1/admin/security/blocks/:id/clear': { body: {} },
+  'GET /api/v1/admin/security/summary': {},
 
   // Plugin (signed)
   'POST /api/v1/servers/register': {
@@ -219,6 +223,7 @@ function specKey(route: CollectedRoute): string {
 
 function concretePath(pattern: string): string {
   return pattern
+    .replace('/admin/security/blocks/:id/clear', '/admin/security/blocks/network.abc/clear')
     .replace('/servers/:id', `/servers/${srv}`)
     .replace(':caseNumber', CASE)
     .replace('/players/:userId', `/players/${encodeURIComponent(PLAYER_USER_ID)}`)
@@ -392,6 +397,8 @@ describe('authz matrix', () => {
       ['reviewer', 'GET', '/api/v1/admin/users'],
       ['reviewer', 'GET', '/api/v1/admin/audit'],
       ['reviewer', 'POST', '/api/v1/admin/bypasses'],
+      ['reviewer', 'GET', '/api/v1/admin/security/events'],
+      ['reviewer', 'POST', '/api/v1/admin/security/blocks/:id/clear'],
       // moderator — no user:manage, audit:view/verify, global bypasses, server administration
       ['moderator', 'PATCH', '/api/v1/admin/users/:id'],
       ['moderator', 'GET', '/api/v1/admin/audit'],

@@ -30,6 +30,9 @@ export function testEnv(overrides: Record<string, string | undefined> = {}): Rec
     RATE_LIMIT_REPORTS_PER_HOUR: '100000',
     RATE_LIMIT_SERVER_AUTH_FAILURES_PER_MINUTE: '100000',
     PROOF_RATE_LIMIT_PER_MINUTE: '100000',
+    // Intrusion detection is off by default in tests (like the raised rate limits) so repeated
+    // failures in functional tests are not auto-blocked; the security tests enable it explicitly.
+    SECURITY_DETECTION_ENABLED: 'false',
     ...PROCESS_SECRETS,
     ...overrides,
   };

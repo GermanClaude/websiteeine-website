@@ -13,7 +13,7 @@ const NOW = '2026-10-01T12:00:00.000Z';
 
 const t = useTestApp({
   now: NOW,
-  env: { SECURITY_BLOCK_THRESHOLD: '40', SECURITY_BLOCK_TTL_SECONDS: '600' },
+  env: { SECURITY_DETECTION_ENABLED: 'true', SECURITY_BLOCK_THRESHOLD: '40', SECURITY_BLOCK_TTL_SECONDS: '600' },
 });
 
 let adminHeaders: Record<string, string>;
