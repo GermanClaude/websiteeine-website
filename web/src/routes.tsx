@@ -142,6 +142,10 @@ const protectedRoutes: RouteObject[] = [
     element: <RequirePermission permission={Permission.BYPASS_MANAGE_GLOBAL} />,
     children: [{ path: 'admin/bypasses', lazy: lazyPage(() => import('./pages/admin/AdminBypassesPage')) }],
   },
+  {
+    element: <RequirePermission permission={Permission.SECURITY_VIEW} />,
+    children: [{ path: 'admin/security', lazy: lazyPage(() => import('./pages/admin/security/SecurityMonitorPage')) }],
+  },
 
   { path: 'forbidden', element: <ForbiddenPage /> },
 ];

@@ -85,6 +85,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
       { label: 'Users', to: '/admin/users', permission: Permission.USER_VIEW },
       { label: 'Audit log', to: '/admin/audit', permission: Permission.AUDIT_VIEW },
       { label: 'Global bypasses', to: '/admin/bypasses', permission: Permission.BYPASS_MANAGE_GLOBAL },
+      { label: 'Security monitor', to: '/admin/security', permission: Permission.SECURITY_VIEW },
     ],
   },
   {
