@@ -46,7 +46,7 @@ namespace ScpslTrust.Plugin.Commands
             {
                 var result = await runtime.RegisterAsync(token, force, cancellationToken).ConfigureAwait(false);
                 return "Registered as " + result.ServerId + " with key " + result.KeyFingerprint + " (status " + result.Status + ").\n"
-                    + "The private key is stored in " + runtime.ConfigDirectory + "/" + KeyStore.IdentityFileName + " — keep it private and back it up. "
+                    + "The private key is stored in " + System.IO.Path.Combine(runtime.ConfigDirectory, KeyStore.IdentityFileName) + " — keep it private and back it up. "
                     + "Remove registration_token from config.yml if you had set it there.";
             });
             return true;

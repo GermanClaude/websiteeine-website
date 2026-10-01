@@ -58,7 +58,7 @@ namespace ScpslTrust.Plugin.Runtime
             }
             else
             {
-                Logger.Error("api_base_url is not usable (" + (Settings.ApiBaseUriError ?? "not configured") + "). Set it in " + ConfigDirectory + "/config.yml and restart; the plugin stays idle until then.");
+                Logger.Error("api_base_url is not usable (" + (Settings.ApiBaseUriError ?? "not configured") + "). Set it in " + System.IO.Path.Combine(ConfigDirectory, "config.yml") + " and restart; the plugin stays idle until then.");
             }
 
             _playerHandlers = new PlayerEventHandlers(this);
