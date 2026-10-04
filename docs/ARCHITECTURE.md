@@ -554,5 +554,22 @@ full game. Harness pages use the same import map.
 - Everything must also work when served from a sub-path (GitHub Pages `/<repo>/`): only
   relative URLs.
 
+### 11a. Mobile is a first-class target (user requirement)
+
+The user explicitly requires that the website **and** the game are fully usable and playable
+on phones and tablets (iOS Safari + Android Chrome), not only desktop:
+- Website: mobile-first layouts from 360 px, touch-friendly targets (≥ 44 px), no hover-only
+  features (every hover effect has a tap/scroll equivalent), the 3D arsenal viewer rotates by
+  touch drag, no horizontal scroll, fast on mid-range phones.
+- Game: touch controls are the primary input on touch devices (COD-Mobile layout, §5), HUD
+  scaled and positioned for thumbs and safe areas (`env(safe-area-inset-*)`, notches),
+  landscape play (portrait shows a rotate hint), fullscreen where possible, `quality: auto`
+  picks `low`/`medium` on phones, dynamic resolution if fps drops (< 40 for 3 s → lower
+  pixel ratio), lobby/menus/end screen fully operable by touch (big targets, no keyboard
+  needed, no Esc-only actions), text readable at phone size, iOS audio unlock on first touch,
+  no 300 ms delays, no accidental text selection / callouts / zoom.
+- Test every feature with Playwright mobile emulation (`hasTouch`, `isMobile`, landscape
+  915×412 and portrait 412×915) in addition to desktop.
+
 ## Changelog
 - (append entries: date — owner — what changed and why)
