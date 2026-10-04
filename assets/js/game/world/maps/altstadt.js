@@ -223,7 +223,7 @@ function house(b, M, o) {
   else if (o.upperClosed && floors > 1) b.noNav(x0 + 0.1, z0 + 0.1, x1 - 0.1, z1 - 0.1, fh - 0.6, roofY - 0.6);
   // Innentreppe ins Obergeschoss
   if (st) {
-    stairs(b, { x: st.x, z: st.z, y0: st.y0, y1: st.y1, w: st.w, dir: st.dir, run: st.run, style: 'solid', mat: 'tiles_terracotta', tint: '#d9b49a', rail: st.open, railTint: IRON, interior: true });
+    stairs(b, { x: st.x, z: st.z, y0: st.y0, y1: st.y1, w: st.w, dir: st.dir, run: st.run, style: 'solid', mat: 'tiles_terracotta', tint: '#d9b49a', rail: st.open, railTint: IRON, railFrom: 1.2, interior: true });
     const [ax, az] = st.P(1.0, st.os * (st.w / 2 + 0.06)), [bx, bz] = st.P(st.run + 0.02, st.os * (st.w / 2 + 0.06));
     railing(b, ax, az, bx, bz, st.y1, { tint: IRON, posts: 3 });
     const [cx, cz] = st.P(1.0, -st.w / 2 - 0.06), [ex, ez] = st.P(1.0, st.w / 2 + 0.06);
@@ -275,7 +275,7 @@ function balcony(b, M, h, o) {
 function extStairs(b, M, o) {
   const st = stairGeom(M, { ...o, y0: o.y0 ?? 0, slope: o.slope ?? 0.7 });
   const tint = o.tint || '#efe6d4';
-  stairs(b, { x: st.x, z: st.z, y0: st.y0, y1: st.y1, w: st.w, dir: st.dir, run: st.run, style: 'solid', mat: 'plaster_white', tint, rail: st.open, railTint: IRON });
+  stairs(b, { x: st.x, z: st.z, y0: st.y0, y1: st.y1, w: st.w, dir: st.dir, run: st.run, style: 'solid', mat: 'plaster_white', tint, rail: st.open, railTint: IRON, railFrom: 1.2 });
   // Podest (massiv bis zum Boden)
   const L = o.landing ?? 1.3, wg = o.wallGap ?? 0;
   const c0 = st.P(st.run - 0.02, st.os * (st.w / 2)), c1 = st.P(st.run + L, -st.os * (st.w / 2 + wg));
@@ -735,7 +735,8 @@ function torhaus(b) {
 function workshop(b) {
   const M = mirror(1);
   const h = house(b, M, {
-    x0: 35, x1: 46, z0: -9, z1: 9, floors: 1, fh: 3.6, color: '#e8dccb', shutter: '#4f6f7a', mat: 'plaster_white', roof: 'terrace', parapet: 0.6,
+    x0: 35, x1: 46, z0: -9, z1: 9, floors: 1, fh: 3.4, color: '#e8dccb', shutter: '#4f6f7a', mat: 'plaster_white', roof: 'terrace', parapet: 0.6,
+    gaps: [{ side: 'w', a: -1.0, b: 1.0 }],
     floorMat: 'concrete', band: false,
     open: [
       { side: 'w', at: -4.5, w: 1.3, h: 2.4, kind: 'door' },
@@ -752,11 +753,11 @@ function workshop(b) {
   crateStack(b, 44.6, -1.2, { ry: 0.1, y: 0.12, pattern: [[0, 0, 0, 1.0], [0, 0, 1.05, 0.9], [0, 1, 0.5, 0.8]] });
   barrelGroup(b, 37.2, 6.9, { n: 3, y: 0.12, colors: ['#c8402f', '#3a6f8a'] });
   b.sign(34.97, 2.75, 0, 3.2, 0.7, 'werkstatt', { ry: -Math.PI / 2, depth: 0.03 });
-  b.light('point', 41, 2.9, 0, { color: '#ffe2b0', intensity: 10, distance: 10 });
-  b.box(41, 3.3, 0, 1.4, 0.06, 0.25, 'lamp_warm', { collide: false, minimap: false, ao: false, cast: false });
+  b.light('point', 41, 2.7, 0, { color: '#ffe2b0', intensity: 10, distance: 10 });
+  b.box(41, 3.08, 0, 1.4, 0.06, 0.25, 'lamp_warm', { collide: false, minimap: false, ao: false, cast: false });
   // Dach: Solarwarmwasser, Wassertank
-  waterTank(b, 43.5, 3.6, -5);
-  waterTank(b, 43.5, 3.6, 5);
+  waterTank(b, 43.5, 3.425, -5);
+  waterTank(b, 43.5, 3.425, 5);
   void h;
 }
 
@@ -869,7 +870,7 @@ function half(b, M) {
       { side: 'n', at: 1.6, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1, shutters: true },
       { side: 's', at: -3.0, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1 },
     ],
-    stairsIn: { x: -17.2, z: 18.1, dir: 'w', w: 1.1, open: 'right' },
+    stairsIn: { x: -17.6, z: 18.1, dir: 'w', w: 1.1, open: 'right' },
     balconies: [{ side: 'e', at: 1.0, floor: 1, w: 2.0 }],
     ac: [{ side: 's', at: 2.2, y: 4.2 }],
   });
@@ -992,7 +993,7 @@ function half(b, M) {
       { side: 'e', at: -2.0, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1, shutters: true },
       { side: 's', at: 3.5, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1 },
     ],
-    stairsIn: { x: 29.6, z: 22.1, dir: 'w', w: 1.1, open: 'right' },
+    stairsIn: { x: 29.4, z: 22.1, dir: 'w', w: 1.1, open: 'right' },
     vines: [{ side: 'w', at: 3.6, n: 3 }],
   });
   {
@@ -1053,7 +1054,7 @@ function half(b, M) {
       { side: 'n', at: -1.5, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1 },
       { side: 'n', at: 3.0, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1, shutters: true },
     ],
-    stairsIn: { x: 44.6, z: 20.1, dir: 'w', w: 1.1, open: 'right' },
+    stairsIn: { x: 44.4, z: 20.1, dir: 'w', w: 1.1, open: 'right' },
     gaps: [{ side: 's', a: 35.6, b: 45.4 }, { side: 'n', a: 40.0, b: 41.6 }],
   });
   {

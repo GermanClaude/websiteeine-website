@@ -140,7 +140,7 @@ export function slab(b, x0, z0, x1, z1, y, th, mat, holes = [], o = {}) {
 
 /**
  * Treppe. Aufstieg in Richtung dir ('n'|'s'|'e'|'w') ab (x,z) = Mitte der untersten Stufenkante.
- * o: { y0, y1, w=1.4, run (Länge), style: 'solid'|'steel', mat, tint, rail: true|'left'|'right'|false }
+ * o: { y0, y1, w=1.4, run (Länge), style: 'solid'|'steel', mat, tint, rail: true|'left'|'right'|false, railFrom (m ab unten) }
  * Kollision als glatte Rampe; Navigationspunkte unten/oben.
  */
 export function stairs(b, o) {
@@ -175,8 +175,10 @@ export function stairs(b, o) {
   if (o.rail) {
     const sides = o.rail === 'left' ? [-1] : o.rail === 'right' ? [1] : [-1, 1];
     for (const side of sides) {
-      const [ax, az] = P(0, side * (w / 2 + 0.02)), [bx, bz] = P(run, side * (w / 2 + 0.02));
-      railing(b, ax, az, bx, bz, y0, { y1, h: 1.0, posts: Math.max(2, Math.round(run / 1.2) + 1), tint: o.railTint, collider: o.railCollider ?? true });
+      // railFrom: Geländer erst ab dieser Lauflänge (unten seitlich betretbar)
+      const f0 = Math.min(run * 0.5, o.railFrom ?? 0), ya = y0 + (rise * f0) / run;
+      const [ax, az] = P(f0, side * (w / 2 + 0.02)), [bx, bz] = P(run, side * (w / 2 + 0.02));
+      railing(b, ax, az, bx, bz, ya, { y1, h: 1.0, posts: Math.max(2, Math.round((run - f0) / 1.2) + 1), tint: o.railTint, collider: o.railCollider ?? true });
     }
   }
   const [bx0, bz0] = P(-0.7, 0), [tx, tz] = P(run + 0.7, 0);

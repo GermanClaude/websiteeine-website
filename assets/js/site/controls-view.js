@@ -12,14 +12,14 @@ const TOUCH = [
   ['fire', 87, 70, 'FEUER', 'Halten feuert. Links und rechts erreichbar; rechts dreht Ziehen dabei die Sicht.', 'big'],
   ['ads', 72, 64, 'ZIELEN', 'Tippen legt an, erneutes Tippen nimmt die Waffe herunter.'],
   ['reload', 72, 44, 'NACHLADEN', 'Lädt nach. Leuchtet, wenn das Magazin fast leer ist.'],
-  ['jump', 96, 50, 'SPRINGEN', 'Springen. Über niedrige Deckung und Kanten.'],
-  ['crouch', 96, 92, 'DUCKEN', 'Ducken. Im Sprint: rutschen.'],
+  ['jump', 91, 48, 'SPRINGEN', 'Springen. Über niedrige Deckung und Kanten.'],
+  ['crouch', 92, 90, 'DUCKEN', 'Ducken. Im Sprint: rutschen.'],
   ['grenade', 58, 87, 'GRANATE', 'Wirft die Granate in Blickrichtung.'],
   ['melee', 73, 92, 'MESSER', 'Nahkampf mit dem Kampfmesser.'],
   ['swap', 44, 95, 'WAFFE', 'Wechselt zwischen Primär- und Zweitwaffe; zeigt die aktive Waffe.'],
-  ['streak', 87, 22, 'SERIE', 'Serienprämien. Leuchten golden, sobald sie bereit sind.'],
-  ['score', 87, 7, 'PUNKTE', 'Punktestand ein- und ausblenden.'],
-  ['pause', 96, 7, 'PAUSE', 'Pause, Einstellungen und Match verlassen.'],
+  ['streak', 86, 24, 'SERIE', 'Serienprämien. Leuchten golden, sobald sie bereit sind.'],
+  ['score', 82, 9, 'PUNKTE', 'Punktestand ein- und ausblenden.'],
+  ['pause', 93, 9, 'PAUSE', 'Pause, Einstellungen und Match verlassen.'],
   ['map', 9, 14, 'KARTE', 'Minikarte: Verbündete, Ziele, feuernde Gegner.'],
 ];
 
@@ -77,15 +77,16 @@ export async function init(sec, D, ctx = {}) {
   const btns = [];
   const choose = (item) => {
     for (const b of btns) b.el.setAttribute('aria-pressed', String(b.item === item));
-    explain.textContent = `${item[3]} · ${item[4]}`;
+    explain.textContent = `${item[0] === 'fireL' ? 'FEUER LINKS' : item[0] === 'fire' ? 'FEUER RECHTS' : item[3]} · ${item[4]}`;
     snd?.ui('click');
   };
   for (const item of TOUCH) {
     const [id, x, y, word, , shape] = item;
-    if (shape === 'ring') phone.append(h('span.ring', { style: { left: `${x}%`, top: `${y}%`, width: '18%', aspectRatio: '1' }, 'aria-hidden': 'true' }));
+    if (shape === 'ring') phone.append(h('span.ring', { style: { left: `${x}%`, top: `${y}%`, width: '17%', 'aspect-ratio': '1' }, 'aria-hidden': 'true' }));
     if (shape === 'area') phone.append(h('span.area', { style: { left: '50%', top: '4%', right: '3%', bottom: '4%' }, 'aria-hidden': 'true' }));
     const inPhone = h(`button.tp${shape === 'big' ? '.big' : ''}`, { type: 'button', 'aria-pressed': 'false', 'data-id': id, style: { left: `${x}%`, top: `${y}%` } }, word);
-    const inList = h('button.tl', { type: 'button', 'aria-pressed': 'false', 'data-id': id }, word);
+    const listWord = id === 'fireL' ? 'FEUER LINKS' : id === 'fire' ? 'FEUER RECHTS' : word;
+    const inList = h('button.tl', { type: 'button', 'aria-pressed': 'false', 'data-id': id }, listWord);
     inPhone.addEventListener('click', () => choose(item));
     inList.addEventListener('click', () => choose(item));
     btns.push({ el: inPhone, item }, { el: inList, item });

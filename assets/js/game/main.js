@@ -406,7 +406,7 @@ async function startMatch(config) {
   if (G._starting) return;
   G._starting = true;
   // Wird direkt aus dem Klick-Handler aufgerufen → Nutzergeste für Audio + Pointer-Lock
-  safe('audio.unlock', () => G.audio.unlock());
+  safe('audio.unlock', () => { const p = G.audio.unlock(); if (p && typeof p.catch === 'function') p.catch(() => {}); });
   if (G.input.mode === 'desktop' && !AUTOSTART) G.input.requestLock();
   else if (G.input.mode === 'touch') requestFullscreen();
   try {
@@ -658,6 +658,7 @@ function restart() {
 /* ===================================================== Schleife */
 
 let lastNow = 0;
+let idleRenderAt = 0;
 
 function frame(now) {
   requestAnimationFrame(frame);
@@ -689,7 +690,9 @@ function frame(now) {
   }
   if (G._endScreenAt && G.time.real >= G._endScreenAt) showEndScreen();
 
-  if (G.world && G.camera && st !== 'loading') {
+  // Pausiert/Ende: Bild steht still → nur ~4×/s neu zeichnen (Akku auf Mobilgeräten)
+  if (G.world && G.camera && st !== 'loading' && (sim || now - idleRenderAt > 250)) {
+    idleRenderAt = now;
     step('render', () => G.renderer.render(G.scene, G.camera, G.viewmodel.scene, G.viewmodel.camera));
   }
   if (sim) G.input.endFrame();

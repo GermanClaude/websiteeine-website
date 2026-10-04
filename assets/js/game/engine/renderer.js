@@ -49,10 +49,20 @@ export function isLowEndDevice() {
   return touch || lowMem || fewCores;
 }
 
-/** 'auto' | Stufe → konkrete Stufe. */
+/**
+ * 'auto' | Stufe → konkrete Stufe. auto: Telefone/Tablets low (Spitzengeräte mit ≥ 8 GB/8 Kernen medium),
+ * schwache Desktops medium, sonst high. Die dynamische Auflösung in main.js regelt danach nach unten.
+ */
 export function resolveQuality(q) {
   if (QUALITY_LEVELS.includes(q)) return q;
-  return isLowEndDevice() ? 'low' : 'high';
+  if (typeof window === 'undefined') return 'high';
+  const mem = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : 0;
+  const cores = typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency : 0;
+  const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  const fine = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+  if (coarse || (navigator.maxTouchPoints > 0 && !fine)) return mem >= 8 && cores >= 8 ? 'medium' : 'low';
+  if ((mem && mem <= 4) || (cores && cores <= 2)) return 'medium';
+  return 'high';
 }
 
 /* ------------------------------------------------------------ Farblook */

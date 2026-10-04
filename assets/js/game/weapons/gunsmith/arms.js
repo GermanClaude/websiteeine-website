@@ -125,25 +125,28 @@ function curlFinger(i, shape, splay, free = FREE) {
       }
     }
     if (!hit) th[s] = free[s];
+    curlFinger.hits[s] = hit;
   }
   return th;
 }
+curlFinger.hits = [false, false, false];
 
-// Zeigefinger mit der Kuppe an einen Punkt (Abzug) führen
+// Zeigefinger mit der Kuppe an einen Punkt (Abzug) führen; Rückgabe [b1, b2, b3, Zusatzspreizung]
 function reachFinger(i, target, splay, shape) {
-  let best = [0.3, 0.6, 0.3], bestCost = Infinity;
+  let best = [0.3, 0.6, 0.3, 0], bestCost = Infinity;
   const f = FINGERS[i];
-  const evalAt = (t0, t1) => {
+  const evalAt = (t0, t1, sp) => {
     const th = [t0, t1, t1 * 0.6];
-    fingerFK(i, th, splay);
+    fingerFK(i, th, splay + sp);
     _a.lerpVectors(_fp[2], _fp[3], 0.6).add(_b.set(0, -f.r[2] * 0.9, 0).applyQuaternion(_fq[2]));
-    let cost = _a.distanceToSquared(target);
+    let cost = _a.distanceToSquared(target) + sp * sp * 0.0004;
     if (shape) for (let s = 0; s < 3; s++) { _c.lerpVectors(_fp[s], _fp[s + 1], 0.6); if (inside(shape, _c, f.r[s] * 0.7)) cost += 0.002; }
-    if (cost < bestCost) { bestCost = cost; best = th; }
+    if (cost < bestCost) { bestCost = cost; best = [th[0], th[1], th[2], sp]; }
   };
-  for (let a = 0; a <= 14; a++) for (let b = 0; b <= 14; b++) evalAt(-0.15 + a / 14 * 1.45, b / 14 * 1.7);
-  const [c0, c1] = best;
-  for (let a = -4; a <= 4; a++) for (let b = -4; b <= 4; b++) evalAt(c0 + a * 0.026, Math.max(0, c1 + b * 0.03));
+  for (let a = 0; a <= 12; a++) for (let b = 0; b <= 12; b++) for (let c = 0; c <= 5; c++) evalAt(-0.15 + a / 12 * 1.45, b / 12 * 1.7, -0.1 + c * 0.09);
+  const [c0, c1, , cs] = best;
+  for (let a = -3; a <= 3; a++) for (let b = -3; b <= 3; b++) for (let c = -2; c <= 2; c++) evalAt(c0 + a * 0.04, Math.max(0, c1 + b * 0.045), cs + c * 0.03);
+  reachFinger.cost = bestCost;
   return best;
 }
 
@@ -163,34 +166,27 @@ function thumbBase(alpha, beta, shape, out) {
 function solveThumb(shape, target, free = [0.3, 0.25]) {
   const q = new THREE.Quaternion();
   let best = null, bestCost = Infinity;
-  const tryAt = (al, be) => {
+  const flex = [0, 0];
+  const tryAt = (al, be, k) => {
     thumbBase(al, be, shape, q);
-    const flex = [0.05, 0.05];
-    let pen = 0;
+    flex[0] = shape ? k : free[0]; flex[1] = shape ? k * 0.85 : free[1];
     thumbFK(q, flex);
-    if (shape) {
-      _d.lerpVectors(_tp[0], _tp[1], 0.6);
-      if (inside(shape, _tp[1], THUMB.r[0] * 0.8) || inside(shape, _d, THUMB.r[0] * 0.8)) pen += 0.004;
-      for (let s = 1; s < 3; s++) {
-        let hit = false;
-        for (let k = 0; k <= 20; k++) {
-          flex[s - 1] = 0.05 + k / 20 * (s === 1 ? 0.95 : 1.05);
-          thumbFK(q, flex);
-          _d.lerpVectors(_tp[s], _tp[s + 1], 0.55);
-          if (inside(shape, _tp[s + 1], THUMB.r[s] * 0.9) || inside(shape, _d, THUMB.r[s] * 0.9)) { hit = true; flex[s - 1] = Math.max(0.05, flex[s - 1] - 0.025); break; }
-        }
-        if (!hit) flex[s - 1] = free[s - 1];
-      }
-      thumbFK(q, flex);
-    } else { flex[0] = free[0]; flex[1] = free[1]; thumbFK(q, flex); }
-    // Kuppe nicht durch die Handfläche
-    for (const p of [_tp[2], _tp[3]]) if (Math.abs(p.x) < 0.038 && p.y > -0.03 && p.y < 0.02 && p.z < -0.01 && p.z > -0.085) pen += 0.003;
+    let pen = 0;
+    if (shape) for (let s = 0; s < 3; s++) {
+      _d.lerpVectors(_tp[s], _tp[s + 1], 0.5);
+      if (inside(shape, _d, THUMB.r[s] * 0.75)) pen += 0.002;
+      if (inside(shape, _tp[s + 1], THUMB.r[s] * 0.75)) pen += 0.002;
+    }
+    // Kuppe/Glieder nicht durch die Handfläche
+    for (const p of [_tp[2], _tp[3]]) if (Math.abs(p.x) < 0.036 && p.y > -0.028 && p.y < 0.02 && p.z < -0.012 && p.z > -0.085) pen += 0.003;
     const cost = _tp[3].distanceToSquared(target) + pen;
-    if (cost < bestCost) { bestCost = cost; best = { al, be, q: q.clone(), flex: flex.slice() }; }
+    if (cost < bestCost) { bestCost = cost; best = { al, be, k, q: q.clone(), flex: flex.slice() }; }
   };
-  for (let i = 0; i <= 9; i++) for (let j = 0; j <= 9; j++) tryAt(-0.35 + i * 0.2, -0.6 + j * 0.23);
-  const { al, be } = best;
-  for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) tryAt(al + i * 0.065, be + j * 0.075);
+  const ks = shape ? [0.08, 0.3, 0.55, 0.85] : [0];
+  for (let i = 0; i <= 9; i++) for (let j = 0; j <= 9; j++) for (const k of ks) tryAt(-0.35 + i * 0.2, -0.6 + j * 0.23, k);
+  const b0 = best;
+  for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) for (const dk of shape ? [-0.1, 0, 0.1] : [0]) tryAt(b0.al + i * 0.065, b0.be + j * 0.075, Math.max(0, b0.k + dk));
+  best.cost = bestCost;
   return best;
 }
 
@@ -244,7 +240,7 @@ const leftOf = (s, ext, up, fwd) => s.c.clone().addScaledVector(s.V, -(s.b + ext
 export const GRIPS = {
   // Rechte Hand am Pistolengriff, Zeigefinger am Abzug, Daumen links am Gehäuse
   pistolGrip: {
-    shape: d => gripShape(d), F: (d, s) => s.U, B: () => [1, 0.05, 0], hOff: d => d.ho ?? 0.018, pc: [0, -0.0175, -0.048],
+    shape: d => gripShape(d), F: (d, s) => s.U, B: () => [1, 0.05, 0.3], hOff: d => d.ho ?? 0.018, pc: [0, -0.0175, -0.066],
     index: 'trigger', thumb: (d, s) => leftOf(s, 0.011, d.tu ?? 0.034, s.a * 0.35),
   },
   // Linke Hand unter dem Handschutz (Handfläche links unten, Finger um die rechte Seite, Daumen links vorn)
@@ -321,14 +317,15 @@ function solveGrip(style, d, side) {
     return { pos, quat, pose };
   }
   const sA = g.shape(d);
-  const F = g.F(d, sA), B = g.B(d, sA);
+  const ov = d.__ov || {};
+  const F = ov.F || g.F(d, sA), B = ov.B || g.B(d, sA);
   basisQuat(F.isVector3 ? F : V3(...F), B.isVector3 ? B : V3(...B), quat);
   // Kontakt: Oberflächenpunkt, dessen Normale zum Handrücken zeigt
   const n = V3(0, 1, 0).applyQuaternion(quat);
   if (sA.type === 'cyl') n.addScaledVector(sA.A, -n.dot(sA.A)).normalize();
   const S = surfacePoint(sA, n, V3());
   if (sA.type === 'cyl') S.addScaledVector(sA.A, g.hOff(d));
-  const pc = V3(...g.pc);
+  const pc = V3(...(ov.pc || g.pc));
   if (mirror) pc.x = -pc.x;
   pos.copy(S).sub(pc.applyQuaternion(quat));
   // Finger + Daumen im Handraum lösen
@@ -338,14 +335,15 @@ function solveGrip(style, d, side) {
     const splay = FINGERS[i].splay * 0.5;
     if (i === 0 && g.index === 'trigger' && d.trigger && !mirror) {
       const T = V3(...d.trigger).sub(pos).applyQuaternion(quat.clone().invert());
-      f.push(reachFinger(0, T, splay, sH).concat(0));
+      f.push(reachFinger(0, T, splay, sH));
     } else f.push(curlFinger(i, sH, splay).concat(0));
   }
-  const tA = g.thumb(d, sA);
+  const tA = ov.T ? V3(...ov.T) : g.thumb(d, sA);
   const tH = tA.sub(pos).applyQuaternion(quat.clone().invert());
   if (mirror) tH.x = -tH.x;
-  const pose = makePose(f, solveThumb(sH, tH));
-  return { pos, quat, pose };
+  const th = solveThumb(sH, tH);
+  const pose = makePose(f, th);
+  return { pos, quat, pose, thumbCost: th.cost };
 }
 
 /**
@@ -756,5 +754,7 @@ export function gripDebug(style, data = {}, side = 1) {
   const thumb = _tp.map(toA);
   const fingers = r.pose.f.map((th, i) => { fingerFK(i, th, th[3] + FINGERS[i].splay * 0.5); return toA(_fp[3]); });
   const sA = g.shape ? g.shape(data) : null;
-  return { pos: r.pos.toArray().map(x => +x.toFixed(4)), thumb, fingers, f: r.pose.f.map(a => a.map(x => +x.toFixed(2))), target: sA && g.thumb ? g.thumb(data, sA).toArray().map(x => +x.toFixed(4)) : null, shapeC: sA ? sA.c.toArray() : null };
+  const sH = sA ? toHand(sA, r.pos, r.quat, side < 0) : null;
+  const hits = sH ? [0, 1, 2, 3].map(i => { curlFinger(i, sH, FINGERS[i].splay * 0.5); return curlFinger.hits.map(h => (h ? 1 : 0)).join(''); }) : null;
+  return { hits, thumbCost: r.thumbCost, pos: r.pos.toArray().map(x => +x.toFixed(4)), thumb, fingers, f: r.pose.f.map(a => a.map(x => +x.toFixed(2))), target: sA && g.thumb ? g.thumb(data, sA).toArray().map(x => +x.toFixed(4)) : null, shapeC: sA ? sA.c.toArray() : null };
 }

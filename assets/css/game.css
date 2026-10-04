@@ -55,6 +55,17 @@ body[data-match-state="countdown"] #game-canvas { cursor: crosshair; }
 }
 body.np-css-vignette #vignette { display: block; }
 
+/* Scrollbare Menübereiche (input.js blockiert touchmove überall sonst) */
+[data-scrollable], .np-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+/* Eingabefelder (Spielername) bleiben bedienbar */
+input, textarea, select { user-select: text; -webkit-user-select: text; touch-action: manipulation; }
+
 #hud { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
 #menu-root { position: absolute; inset: 0; z-index: 30; pointer-events: none; }
 #menu-root > * { pointer-events: auto; }

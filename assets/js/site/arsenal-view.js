@@ -145,7 +145,7 @@ export async function init(sec, D, ctx) {
     if (!e) continue;
     gearList.append(h('li', { 'data-id': id },
       h('span.gi', { 'aria-hidden': 'true', html: e.icon || '' }),
-      h('span', {}, h('span.gn', {}, e.name), h('br'), h('span.gf', {}, `Zünder ${dec(e.fuse, 1)}${NNBSP}s · Radius ${dec(e.radius, 1)}${NNBSP}m${e.sticky ? ' · haftet' : ''}`)),
+      h('span', {}, h('span.gn', {}, e.name), h('br'), h('span.gf', {}, `Zünder ${dec(e.fuse, 1)}${NNBSP}s · Radius ${dec(e.radius, 1)}${NNBSP}m`)),
       h('span.gl', {}, `ab Stufe ${e.unlockLevel ?? 1}`)));
   }
   gear.append(h('div.r', {}, h('h3.sub-h', {}, 'AUSRÜSTUNG.'), h('p.kicker', {}, 'Eine Granate pro Leben.')), h('div.m', {}, gearList));
@@ -194,7 +194,7 @@ export async function init(sec, D, ctx) {
   const restG = () => (adsOn ? 900 - cutG(def) : 0);
 
   function maskSize() {
-    const H = stage.clientHeight || 300;
+    const H = mask.clientHeight || stage.clientHeight || 300;
     const lines = maskName.querySelectorAll('.fl').length || 1;
     const fs = H * (lines > 1 ? 0.56 : 0.62);
     maskName.style.setProperty('--mfs', `${fs.toFixed(1)}px`);

@@ -152,7 +152,7 @@ export class HUD {
     const G = this.G;
     const cls = (a) => (a && a.isPlayer ? 'me' : a && a.team === 'B' ? 'b' : a && a.team === 'A' ? 'a' : 'b');
     const W = G.data && G.data.WEAPONS;
-    const wname = weaponId && W && W[weaponId] ? W[weaponId].name : weaponId === 'frag' ? 'Splittergranate' : weaponId === 'semtex' ? 'Haftgranate' : weaponId === 'world' ? 'Absturz' : weaponId || '';
+    const wname = weaponId && W && W[weaponId] ? W[weaponId].name : weaponId === 'frag' ? 'Splittergranate' : weaponId === 'semtex' ? 'Haftgranate' : weaponId === 'world' ? 'Umgebung' : weaponId === 'fall' ? 'Sturz' : weaponId || '';
     const row = document.createElement('div');
     row.innerHTML = killer && killer !== victim
       ? `<span class="${cls(killer)}">${esc(killer.name)}</span> <span class="wpn">[${esc(wname)}${headshot ? ' · Kopf' : ''}]</span> <span class="${cls(victim)}">${esc(victim.name)}</span>`

@@ -164,6 +164,8 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
       tri(va, vb, vc, surface);
     }
   }
+  // Octree verliert Dreiecke exakt auf der Oberkante seines Würfels → Grenze mit einem Hilfsdreieck anheben
+  tri(new THREE.Vector3(HALF_X + 3, 40, HALF_Z + 3), new THREE.Vector3(HALF_X + 3.1, 40, HALF_Z + 3), new THREE.Vector3(HALF_X + 3, 40, HALF_Z + 3.1), 'concrete');
   collider.build();
   progress(0.45);
   await tick();

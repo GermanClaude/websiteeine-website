@@ -506,14 +506,18 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .w-btn::before { content: ''; position: absolute; left: 0; top: 50%; width: 2px; height: .9em; margin-top: -.45em; background: transparent; }
 .w-btn[aria-pressed="true"]::before { background: var(--np-signal); }
 .w-btn.locked .nm { color: transparent; -webkit-text-stroke: 1px var(--np-ink-2); }
-.w-btn .lk { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .08em; color: var(--ink-2); font-stretch: 100%; }
+.w-btn .lk { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .08em; color: var(--ink-2); font-stretch: 100%; white-space: nowrap; }
+.w-btn .nm { min-width: 0; }
 .w-btn:focus-visible { outline-offset: 0; }
 @media (max-width: 1023px) {
   .w-index { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--gap); }
   .w-index .w-group { align-content: start; }
 }
 @media (min-width: 720px) and (max-width: 1023px) { .w-index { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 1023px) { .w-btn { min-height: 56px; align-items: center; font-size: clamp(22px, 5vw, 32px); } }
+@media (max-width: 1023px) {
+  .w-btn { min-height: 56px; align-items: center; align-content: center; row-gap: 2px; font-size: clamp(20px, 4.6vw, 30px); white-space: normal; }
+  .w-btn .nm { overflow-wrap: anywhere; }
+}
 
 .stage-col { display: grid; gap: 40px; min-width: 0; }
 .stage {
@@ -523,10 +527,20 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
   -webkit-touch-callout: none;
 }
 @media (min-width: 720px) { .stage { aspect-ratio: 16 / 9; } }
+/* Telefon: Bild und Name im Quadrat, darunter ein schwarzer HUD-Streifen für Daumen und Munition. */
+@media (max-width: 719px) {
+  .stage { aspect-ratio: 1 / 1.34; }
+  .stage-col .stage > canvas, .stage-col .stage > .pic, .stage-col .stage > .mask { bottom: auto; height: 74.63%; }
+  .stage .hud-btns { right: 12px; bottom: 14px; }
+  .stage .hud-ammo { left: 12px; right: auto; bottom: auto; top: calc(74.63% + 12px); text-align: left; mix-blend-mode: normal; }
+  .stage .hud-info { left: 12px; right: 196px; bottom: 12px; mix-blend-mode: normal; }
+  .stage .hud-reset { top: 8px; right: 12px; }
+}
 .stage:focus-visible { outline-offset: 4px; }
 .stage canvas, .stage .pic { position: absolute; inset: 0; width: 100%; height: 100%; }
 .stage .pic { display: grid; place-items: center; background: var(--np-ink); color: var(--np-black); }
-.stage .pic svg { width: 92%; height: auto; max-width: none; stroke-width: 1.4; }
+.stage .pic svg { width: 92%; height: auto; max-width: none; }
+.stage .pic svg * { vector-effect: non-scaling-stroke; stroke-width: 2.5px; }
 .stage .pic.hatch { background: repeating-linear-gradient(135deg, var(--np-ink) 0 6px, var(--np-ink-2) 6px 7px); }
 .stage .mask {
   position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; align-content: center;
@@ -538,6 +552,8 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .mask-name .vis { display: block; will-change: transform; }
 .mask-name .fl { display: block; }
 .stage .hud { position: absolute; inset: 0; z-index: 2; pointer-events: none; font-family: var(--font-hud); font-weight: 600; color: var(--np-ink); }
+/* HUD-Text liegt oft auf hellen Buchstaben: Differenz hält ihn lesbar (hell auf Schwarz, dunkel auf Papier). */
+.hud-ammo, .hud-info, .hud-reset, .hud-load, .hud-3d { mix-blend-mode: difference; }
 .hud button, .hud .hud-hit { pointer-events: auto; }
 .hud-ammo { position: absolute; right: 16px; bottom: 12px; text-align: right; line-height: 1; }
 .hud-ammo .num { font-size: clamp(28px, 3vw, 40px); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
@@ -612,6 +628,11 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .rank-row .vl { font-family: var(--font-mono); font-size: var(--fs-data); color: var(--ink-2); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rank-row[aria-pressed="true"] .rk { color: var(--np-ink); }
 .rank-row:focus-visible { outline-offset: -2px; }
+@media (max-width: 719px) {
+  .rank-row { grid-template-columns: 2.4em minmax(0, 1fr); row-gap: 2px; padding: 10px 0; }
+  .rank-row .vl { grid-column: 2; text-align: left; }
+  .rank-row .nm { white-space: normal; overflow-wrap: anywhere; }
+}
 .duel { margin-top: 40px; display: grid; gap: 16px; }
 .duel-go { font-size: var(--fs-ds); font-weight: 800; justify-self: start; text-decoration: underline 2px var(--np-line-strong); text-underline-offset: .12em; transition: font-stretch 240ms var(--spring); font-stretch: 100%; line-height: 1.1; }
 .duel-go:hover, .duel-go:focus-visible { font-stretch: 112%; }
@@ -962,6 +983,7 @@ html.static-type .hl { --sq: 0; }
   .plan .dim text, .plan .solid text:not(.on) { fill: var(--np-ink-2); font-weight: 300; }
 }
 @media (forced-colors: active) {
+  .hud-ammo, .hud-info, .hud-reset, .hud-load, .hud-3d { mix-blend-mode: normal; }
   .stage .mask { mix-blend-mode: normal; background: Canvas; color: CanvasText; position: relative; inset: auto; }
   .stage { contain: none; aspect-ratio: auto; }
   .stage canvas, .stage .pic { position: relative; height: auto; aspect-ratio: 16 / 9; }
@@ -973,4 +995,14 @@ html.static-type .hl { --sq: 0; }
 @media print {
   .status, .index, .bar, .visier, .xhair, .hm, .fahne, .stage { display: none !important; }
   body { background: #fff; color: #000; }
+}
+
+/* ───────────────────────────────────────────── Grobe Zeiger: Ziele ≥ 44 px */
+
+@media (pointer: coarse) {
+  .play-link, .duel-go, .hud-reset, .touch-play a, .foot-line a { min-height: 44px; display: inline-flex; align-items: center; }
+  .touch-play a { padding-block: 0; margin-block: 0; }
+  .plan-text summary { min-height: 44px; }
+  .go { padding-block: 6px; margin-block: -6px; }
+  .tab { min-height: 44px; }
 }
