@@ -231,7 +231,8 @@ export class StreakManager {
     const cur = this.uav.get(key);
     const entry = cur && cur.until > now ? cur : { key, owner: actor, until: now, nextSweep: now, sweepAt: now, blips: [], interval: (def.params && def.params.sweepInterval) || 2 };
     entry.owner = actor;
-    entry.until = Math.max(entry.until, now) + dur;
+    // Stapeln verlängert, aber höchstens auf 1,5 × Dauer ab jetzt
+    entry.until = Math.min(Math.max(entry.until, now) + dur, now + dur * 1.5);
     entry.nextSweep = now;
     this.uav.set(key, entry);
     G.events.emit('uav:state', { team: key, active: true, until: entry.until, owner: actor });

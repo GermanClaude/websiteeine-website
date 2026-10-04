@@ -12,8 +12,8 @@ const TOUCH = [
   ['fire', 87, 70, 'FEUER', 'Halten feuert. Links und rechts erreichbar; rechts dreht Ziehen dabei die Sicht.', 'big'],
   ['ads', 72, 64, 'ZIELEN', 'Tippen legt an, erneutes Tippen nimmt die Waffe herunter.'],
   ['reload', 72, 44, 'NACHLADEN', 'Lädt nach. Leuchtet, wenn das Magazin fast leer ist.'],
-  ['jump', 91, 48, 'SPRINGEN', 'Springen. Über niedrige Deckung und Kanten.'],
-  ['crouch', 92, 90, 'DUCKEN', 'Ducken. Im Sprint: rutschen.'],
+  ['jump', 91, 48, 'SPRINGEN', 'Über niedrige Deckung und Kanten.'],
+  ['crouch', 92, 90, 'DUCKEN', 'Kleiner werden. Im Sprint: rutschen.'],
   ['grenade', 58, 87, 'GRANATE', 'Wirft die Granate in Blickrichtung.'],
   ['melee', 73, 92, 'MESSER', 'Nahkampf mit dem Kampfmesser.'],
   ['swap', 44, 95, 'WAFFE', 'Wechselt zwischen Primär- und Zweitwaffe; zeigt die aktive Waffe.'],
@@ -116,11 +116,27 @@ export async function init(sec, D, ctx = {}) {
     const sm = w < 600;
     for (const b of btns) if (b.el.classList.contains('tp')) { b.el.tabIndex = sm ? -1 : 0; if (sm) b.el.setAttribute('aria-hidden', 'true'); else b.el.removeAttribute('aria-hidden'); }
   };
-  if ('ResizeObserver' in window) new ResizeObserver(([e]) => small(e.contentRect.width)).observe(touchmap);
+  // Wörter am Rand nach innen rücken, damit keines über den Telefonrahmen ragt
+  const clampLabels = () => {
+    const P = phone.getBoundingClientRect();
+    if (!P.width) return;
+    const pad = Math.max(8, P.height * 0.06);
+    for (const el of phone.querySelectorAll('.tp')) {
+      el.style.removeProperty('--dx');
+      el.style.removeProperty('--dy');
+      if (!el.getClientRects().length) continue;
+      const r = el.getBoundingClientRect();
+      const dx = Math.min(0, P.right - pad - r.right) + Math.max(0, P.left + pad - r.left);
+      const dy = Math.min(0, P.bottom - pad - r.bottom) + Math.max(0, P.top + pad - r.top);
+      if (dx) el.style.setProperty('--dx', `${dx.toFixed(1)}px`);
+      if (dy) el.style.setProperty('--dy', `${dy.toFixed(1)}px`);
+    }
+  };
+  if ('ResizeObserver' in window) new ResizeObserver(([e]) => { small(e.contentRect.width); requestAnimationFrame(clampLabels); }).observe(touchmap);
   panels.touch.append(
     touchmap,
     explain,
-    h('p.touch-hint', {}, 'Quer halten. Im Spiel liegen die Knöpfe genau hier; Größe und Lage folgen den Rändern deines Telefons.'),
+    h('p.touch-hint', {}, 'Im Spiel liegen die Knöpfe genau hier; Größe und Lage folgen den Rändern deines Telefons.'),
     states);
 
   /* ------------------------------------------------------------ Tastatur & Maus */
@@ -139,6 +155,19 @@ export async function init(sec, D, ctx = {}) {
   panels.keys.append(h('div.keyprobe', {}, h('div.probe-tools', {}, testBtn, hint), echo, area));
   testBtn.addEventListener('click', () => area.focus());
   let litT = 0;
+  // STEUERUNG. antwortet: Steht der gedrückte Buchstabe im Wort, leuchtet er kurz auf.
+  const h2 = document.getElementById('h-steuer');
+  let keyT = 0;
+  const lightLetter = (ch) => {
+    if (!h2 || !ch || ch.length !== 1) return;
+    const up = ch.toLocaleUpperCase('de-DE');
+    const gs = [...h2.querySelectorAll('.vis .g')].filter((g) => g.textContent === up);
+    for (const g of h2.querySelectorAll('.g.key-lit')) g.classList.remove('key-lit');
+    if (!gs.length) return;
+    for (const g of gs) g.classList.add('key-lit');
+    clearTimeout(keyT);
+    keyT = setTimeout(() => { for (const g of gs) g.classList.remove('key-lit'); }, 700);
+  };
   const light = (row, label) => {
     for (const x of rows) x.tr.classList.toggle('lit', x === row);
     echo.textContent = row ? `${label}. ${row.r[2]}.` : `${label} ist frei.`;
@@ -156,6 +185,7 @@ export async function init(sec, D, ctx = {}) {
     const row = rows.find((x) => (x.r[3] || []).includes(e.code));
     const label = KEY_NAMES[e.code] || (e.key.length === 1 ? e.key.toLocaleUpperCase('de-DE') : e.key.toLocaleUpperCase('de-DE'));
     light(row, label);
+    lightLetter(e.key);
   });
   area.addEventListener('pointerdown', (e) => {
     if (e.pointerType !== 'mouse' || document.activeElement !== area) return;

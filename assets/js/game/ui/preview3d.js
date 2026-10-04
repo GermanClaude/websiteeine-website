@@ -34,7 +34,7 @@ export class WeaponPreview {
     const cam = new THREE.PerspectiveCamera(26, 16 / 9, 0.05, 50);
     cam.position.set(0, 0.05, 3);
     const hemi = new THREE.HemisphereLight(0xdfe8f0, 0x2a2420, 0.7);
-    const key = new THREE.DirectionalLight(0xfff1de, 2.6);
+    const key = new THREE.DirectionalLight(0xfff1de, 3.2);
     key.position.set(2.2, 2.8, 2.4);
     const fill = new THREE.DirectionalLight(0x9fc4ff, 0.7);
     fill.position.set(-2.5, 0.6, 1.5);
@@ -48,7 +48,7 @@ export class WeaponPreview {
       pm.dispose();
       env.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
       scene.environment = this._env;
-      scene.environmentIntensity = 0.55;
+      scene.environmentIntensity = 0.75;
     } catch { /* ohne Umgebung */ }
     // weicher Schatten-/Bodenfleck
     const c = document.createElement('canvas');

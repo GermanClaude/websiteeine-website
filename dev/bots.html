@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bot-Prüfstand – NULLPUNKT</title>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0d10; color: #e8ecef; font-family: "JetBrains Mono NP", ui-monospace, monospace; overflow: hidden; }
+  canvas#view { display: block; width: 100vw; height: 100vh; touch-action: none; cursor: grab; }
+  #panel { position: fixed; top: 10px; left: 10px; width: 290px; max-height: calc(100vh - 20px); overflow-y: auto; background: rgba(12,14,17,.86); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 12px; font-size: 12px; line-height: 1.45; backdrop-filter: blur(6px); box-sizing: border-box; }
+  #panel h1 { font: 800 15px/1 "Archivo NP", sans-serif; letter-spacing: .04em; margin: 0 0 10px; }
+  #panel h1 span { color: #ff5b1f; }
+  #panel h2 { font: 700 11px/1 "Archivo NP", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #8a949d; margin: 12px 0 6px; }
+  #panel select, #panel button, #panel input[type=range] { font: inherit; color: inherit; background: #1b1f24; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; padding: 5px 8px; min-height: 30px; }
+  #panel button.on { background: #ff5b1f; color: #111; border-color: #ff5b1f; }
+  #panel label { display: flex; align-items: center; gap: 6px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; align-items: center; }
+  #stats { white-space: pre; color: #b9c2ca; margin-top: 8px; }
+  #help { color: #7d8790; margin-top: 8px; }
+  #progress { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font: 700 14px "Archivo NP", sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+  #progress div { background: rgba(0,0,0,.6); padding: 14px 20px; border-radius: 10px; }
+  #panel.collapsed > :not(h1) { display: none; }
+  @media (max-width: 700px) { #panel { width: 220px; font-size: 11px; } }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="panel">
+  <h1>BOT<span>·</span>PRÜFSTAND</h1>
+  <div class="row">
+    <button data-view="gallery" class="on">Galerie</button>
+    <button data-view="sandbox">Sandkasten</button>
+    <button id="collapse">–</button>
+  </div>
+  <div id="gal-ui">
+    <h2>Soldaten</h2>
+    <div class="row">
+      <select id="scheme"></select>
+      <select id="weapon"></select>
+    </div>
+    <div class="row">
+      <select id="anim"></select>
+      <select id="lod"><option value="auto">LOD auto</option><option value="0">LOD 0</option><option value="1">LOD 1</option><option value="2">LOD 2</option></select>
+    </div>
+    <div class="row">
+      <button id="shoot">Schuss</button><button id="hit">Treffer</button><button id="die">Tod</button><button id="respawn">Zurück</button>
+    </div>
+    <div class="row">
+      <label>Kamera <select id="cam"><option value="row">Reihe</option><option value="close">Nah</option><option value="side">Seite</option><option value="back">Hinten</option><option value="top">Oben</option><option value="face">Gesicht</option></select></label>
+    </div>
+  </div>
+  <div id="sb-ui" hidden>
+    <h2>Karte & Bots</h2>
+    <div class="row">
+      <select id="map"><option value="hafen">Hafen</option><option value="altstadt">Altstadt</option><option value="werk">Werk</option><option value="range">Schießstand</option></select>
+      <select id="mode"><option value="tdm">TDM</option><option value="ffa">FFA</option><option value="dom">Herrschaft</option><option value="gun">Waffenspiel</option></select>
+    </div>
+    <div class="row">
+      <select id="diff"><option value="rekrut">Rekrut</option><option value="regulaer" selected>Regulär</option><option value="veteran">Veteran</option><option value="elite">Elite</option></select>
+      <label>Bots <input id="count" type="number" min="2" max="18" value="10" style="width:52px;background:#1b1f24;color:inherit;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:4px"></label>
+      <button id="go">Start</button>
+    </div>
+    <h2>Anzeige</h2>
+    <div class="row">
+      <button data-dbg="paths" class="on">Pfade</button>
+      <button data-dbg="cones">Sichtkegel</button>
+      <button data-dbg="states" class="on">Zustände</button>
+      <button data-dbg="cover">Deckung</button>
+      <button data-dbg="nav">Navigation</button>
+      <button data-dbg="hitboxes">Trefferzonen</button>
+    </div>
+    <div class="row">
+      <label>Zeit <input id="ts" type="range" min="0" max="3" step="0.05" value="1"></label><span id="tsv">1,0×</span>
+    </div>
+    <div class="row">
+      <label>Folgen <select id="follow"><option value="">Frei</option></select></label>
+    </div>
+  </div>
+  <div id="stats">–</div>
+  <div id="help">Ziehen: drehen · Rad/Pinch: Zoom · Rechts ziehen: verschieben · WASD/QE: Freiflug (Sandkasten)</div>
+</div>
+<div id="progress"><div id="ptext">Lade …</div></div>
+<script type="module" src="./bots.js"></script>
+</body>
+</html>

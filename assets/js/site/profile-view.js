@@ -95,6 +95,9 @@ export async function init(sec, D, ctx = {}) {
     cut.style.fontWeight = String(wg);
     cutLabel.textContent = `ARCHIVO ${wg} / ${wd}`;
     fit(cut, { now: true });
+    // PROFIL. steht in deiner eigenen Stärke (die Breite füllt weiter die Spalte)
+    const h2 = document.getElementById('h-profil');
+    if (h2 && h2.style.getPropertyValue('--wght') !== String(wg)) { h2.style.setProperty('--wght', String(wg)); fit(h2, { now: true }); }
 
     // Dienstgrad
     const r = st.rank || PM?.rankFor?.(p.level);

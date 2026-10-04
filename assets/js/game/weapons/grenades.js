@@ -48,26 +48,29 @@ export class GrenadeSystem {
 
   _model(type) {
     const G = this.G;
+    const models = G.modules && G.modules.models;
+    // createWeaponModel liefert bereits einen günstigen Klon (geteilte Geometrien) – nicht selbst klonen
+    let inner = null;
+    try { if (models && models.createWeaponModel) inner = models.createWeaponModel(type, { lod: 'third' }); } catch { inner = null; }
     let tpl = this._templates.get(type);
-    if (!tpl) {
-      let inner = null;
-      const models = G.modules && G.modules.models;
-      try { if (models && models.createWeaponModel) inner = models.createWeaponModel(type, { lod: 'third' }); } catch { inner = null; }
-      if (!inner) {
-        inner = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), new THREE.MeshStandardMaterial({ color: type === 'semtex' ? 0x3d434a : 0x4a5236, roughness: 0.6, metalness: 0.3 }));
-        inner.userData.ownGeometry = true;
+    if (!inner) {
+      if (!tpl || !tpl.fallback) {
+        const geo = new THREE.SphereGeometry(0.055, 10, 8);
+        const mat = new THREE.MeshStandardMaterial({ color: type === 'semtex' ? 0x3d434a : 0x4a5236, roughness: 0.6, metalness: 0.3 });
+        tpl = { type, fallback: { geo, mat }, center: new THREE.Vector3() };
+        this._templates.set(type, tpl);
       }
+      inner = new THREE.Mesh(tpl.fallback.geo, tpl.fallback.mat);
+    } else if (!tpl) {
       _box.setFromObject(inner);
-      const c = _box.getCenter(new THREE.Vector3());
-      tpl = { type, inner, center: c };
+      tpl = { type, fallback: null, center: _box.getCenter(new THREE.Vector3()) };
       this._templates.set(type, tpl);
     }
     const pivot = new THREE.Group();
     pivot.name = `granate:${type}`;
-    const m = tpl.inner.clone(true);
-    m.position.copy(tpl.center).multiplyScalar(-1);
-    m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
-    pivot.add(m);
+    inner.position.copy(tpl.center).multiplyScalar(-1);
+    inner.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+    pivot.add(inner);
     if (type === 'semtex') {
       const led = new THREE.Sprite(this._led());
       led.scale.setScalar(0.11);
@@ -387,7 +390,7 @@ export class GrenadeSystem {
   dispose() {
     this.clear();
     for (const t of this._templates.values()) {
-      if (t.inner.userData.ownGeometry) { t.inner.geometry.dispose(); t.inner.material.dispose(); }
+      if (t.fallback) { t.fallback.geo.dispose(); t.fallback.mat.dispose(); }
     }
     this._templates.clear();
     if (this._ledMat) { this._ledMat.dispose(); this._ledTex.dispose(); this._ledMat = null; this._ledTex = null; }

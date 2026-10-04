@@ -187,9 +187,9 @@ export function getDecalAtlas() {
     const d = Math.hypot(u, v);
     const ang = Math.atan2(v, u);
     const n = nz(Math.cos(ang) * 2 + off, Math.sin(ang) * 2 + off, 4);
-    const hole = 1 - sstep(0.1, 0.16, d);
-    const chip = 1 - sstep(0.24 + n * 0.22, 0.3 + n * 0.24, d);
-    const dust = (1 - sstep(0.3, 0.85, d + (n - 0.5) * 0.3)) * 0.35;
+    const hole = 1 - sstep(0.15, 0.21, d);
+    const chip = 1 - sstep(0.32 + n * 0.22, 0.38 + n * 0.24, d);
+    const dust = (1 - sstep(0.35, 0.92, d + (n - 0.5) * 0.3)) * 0.4;
     const a = Math.max(hole, chip * 0.92, dust);
     const c = hole > 0.5 ? 0.04 : chip > 0.5 ? ring - n * 0.12 : rim;
     o[0] = o[1] = o[2] = c; o[3] = a;
@@ -200,9 +200,9 @@ export function getDecalAtlas() {
   // Metall: kleines Loch mit hellem, aufgeworfenem Rand
   paintCell(ctx, ...at(DECAL.METAL), S, (u, v, o) => {
     const d = Math.hypot(u, v);
-    const hole = 1 - sstep(0.1, 0.14, d);
-    const rim = (1 - sstep(0.15, 0.22, d)) * sstep(0.1, 0.14, d);
-    const smudge = (1 - sstep(0.18, 0.5, d)) * 0.4;
+    const hole = 1 - sstep(0.15, 0.2, d);
+    const rim = (1 - sstep(0.22, 0.3, d)) * sstep(0.15, 0.2, d);
+    const smudge = (1 - sstep(0.25, 0.65, d)) * 0.45;
     o[0] = o[1] = o[2] = hole > 0.5 ? 0.03 : rim > 0.3 ? 0.85 : 0.18;
     o[3] = Math.max(hole, rim, smudge);
   });
@@ -211,8 +211,8 @@ export function getDecalAtlas() {
     const d = Math.hypot(u, v);
     const ang = Math.atan2(v, u);
     const spikes = Math.pow(Math.abs(Math.sin(ang * 3.5 + n2(ang, 0.5, 2) * 4)), 6);
-    const hole = 1 - sstep(0.1, 0.15, d);
-    const spl = (1 - sstep(0.18, 0.2 + spikes * 0.45, d)) * 0.9;
+    const hole = 1 - sstep(0.14, 0.2, d);
+    const spl = (1 - sstep(0.22, 0.26 + spikes * 0.5, d)) * 0.9;
     o[0] = hole > 0.5 ? 0.05 : 0.28; o[1] = hole > 0.5 ? 0.04 : 0.2; o[2] = hole > 0.5 ? 0.03 : 0.12;
     o[3] = Math.max(hole, spl);
   });

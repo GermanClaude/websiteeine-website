@@ -66,14 +66,35 @@ export function drawMapArt(canvas, map, { flags = true } = {}) {
 function drawLayout(ctx, map, W, H, pal, flags) {
   const dim = map.dimensions || { x: 100, z: 100 };
   const s = Math.min(W / (dim.x + 8), H / (dim.z + 8)) * 1.25;
+  // Mittelpunkt der Spielfläche (bounds) in die Bildmitte
+  const b = map.bounds;
+  const cx = b ? (b.minX + b.maxX) / 2 : 0;
+  const cz = b ? (b.minZ + b.maxZ) / 2 : 0;
   ctx.save();
-  ctx.translate(W / 2, H / 2);
-  const colors = { building: shade(pal[0], -0.05), cover: shade(pal[4] || pal[1], -0.35), container: pal[1], wall: shade(pal[0], -0.35), water: '#173246', stairs: shade(pal[0], 0.1), vehicle: shade(pal[2] || pal[1], -0.2), catwalk: shade(pal[4] || pal[0], -0.15), zone: 'rgba(255,255,255,.05)' };
-  for (const b of map.layout) {
-    const [x, z, w, dd, kind] = b;
+  ctx.translate(W / 2 - cx * s, H / 2 - cz * s);
+  const build = shade(pal[0], -0.05);
+  const land = shade(pal[2] || pal[0], 0.05);
+  const colors = {
+    building: build, house: build, werkstatt: build, torhaus: build, leitstand: build, bunker: shade(pal[1], -0.2),
+    kirche: land, turm: land, loggia: land, well: land, kesselhaus: land, schornstein: land, ofen: land, tank: land,
+    cover: shade(pal[4] || pal[1], -0.35), container: pal[1], wall: shade(pal[0], -0.35), water: '#173246',
+    stairs: shade(pal[0], 0.1), vehicle: shade(pal[2] || pal[1], -0.2), truck: shade(pal[2] || pal[1], -0.2), car: shade(pal[2] || pal[1], -0.25),
+    catwalk: shade(pal[4] || pal[0], -0.15), rollgang: shade(pal[4] || pal[0], -0.2), machine: shade(pal[3] || pal[1], -0.1),
+    market: shade(pal[2] || pal[1], -0.05), zone: 'rgba(255,255,255,.05)', lane: 'rgba(255,255,255,.06)',
+  };
+  const order = (k) => (k === 'water' || k === 'zone' || k === 'lane' ? 0 : 1);
+  const list = map.layout.slice().sort((a, c) => order(a[4]) - order(c[4]));
+  for (const bl of list) {
+    const [x, z, w, dd, kind, rot] = bl;
     ctx.fillStyle = colors[kind] || shade(pal[1], -0.2);
-    ctx.globalAlpha = kind === 'zone' ? 1 : 0.92;
-    ctx.fillRect((x - w / 2) * s, (z - dd / 2) * s, w * s, dd * s);
+    ctx.globalAlpha = kind === 'zone' || kind === 'lane' ? 1 : 0.92;
+    if (rot) {
+      ctx.save();
+      ctx.translate(x * s, z * s);
+      ctx.rotate(-rot);
+      ctx.fillRect((-w / 2) * s, (-dd / 2) * s, w * s, dd * s);
+      ctx.restore();
+    } else ctx.fillRect((x - w / 2) * s, (z - dd / 2) * s, w * s, dd * s);
   }
   ctx.globalAlpha = 1;
   if (flags && Array.isArray(map.flags)) {

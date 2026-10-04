@@ -119,6 +119,7 @@ export class Menus {
       const act = b.dataset.act;
       if (act === 'start') this._start(b);
       else if (act === 'settings') this.showSettings('lobby');
+      else if (act === 'profile') { this.settingsPanel.group = 'profil'; this.showSettings('lobby'); }
       else if (act === 'controls') this.showControls('lobby');
       else if (act === 'exit') { this.sound('back'); if (this.onExit) this.onExit(); }
     });
@@ -246,6 +247,7 @@ export class Menus {
     if (!m || m.isOver) return;
     m.end('finished');
     this.sound('confirm');
+    this.hideAll();
     G.events.emit('match:end', { result: m.result });
   }
 

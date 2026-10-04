@@ -30,7 +30,7 @@ export class Lobby {
       MODES: D.MODES || {}, ORDER: (D.MODE_ORDER || Object.keys(D.MODES || {})).filter((m) => (D.MODES || {})[m]),
       MAPS: D.MAPS || {}, MAP_ORDER: D.MAP_ORDER || Object.keys(D.MAPS || {}), W: D.WEAPONS || {}, EQ: D.EQUIPMENT || {},
       DIFF: D.DIFFICULTIES || {}, LOADOUTS: D.DEFAULT_LOADOUTS || [], CLASSES: D.WEAPON_CLASSES || {}, CLASS_ORDER: D.CLASS_ORDER || [],
-      SIGHTS: D.SIGHTS || {}, FIRE: D.FIRE_MODES || {}, ttk: D.ttk, effectiveRange: D.effectiveRange, STREAKS: D.STREAKS || {},
+      SIGHTS: D.SIGHTS || {}, FIRE: D.FIRE_MODES || {}, ttk: D.ttk, shotsToKill: D.shotsToKill, effectiveRange: D.effectiveRange, STREAKS: D.STREAKS || {},
     };
   }
 
@@ -135,10 +135,10 @@ export class Lobby {
             <button type="button" class="m-tab" role="tab" data-tab="deploy" aria-selected="${this.tab === 'deploy'}">${ICON.map}<span>Einsatz</span></button>
             <button type="button" class="m-tab" role="tab" data-tab="loadout" aria-selected="${this.tab === 'loadout'}">${ICON.target}<span>Ausrüstung</span></button>
           </div>
-          <div class="lb-profile" title="${esc(prof.name)}">
+          <button type="button" class="lb-profile" data-act="profile" title="Rufzeichen ändern" aria-label="Profil: ${esc(prof.name)}, Stufe ${prof.level}. Rufzeichen ändern">
             <span class="lb-rank">${P.rankIcon ? P.rankIcon(prof.level, { size: 30 }) : ''}</span>
             <span class="lb-pinfo"><b>${esc(prof.name)}</b><small>Stufe ${prof.level} · ${esc(rank.name)}</small><i class="lb-xp"><u style="transform:scaleX(${(prog.progress || 0).toFixed(3)})"></u></i></span>
-          </div>
+          </button>
           <div class="lb-tools">
             <button type="button" class="m-icon" data-act="settings" aria-label="Einstellungen" title="Einstellungen">${ICON.gear}</button>
             <button type="button" class="m-icon" data-act="controls" aria-label="Steuerung" title="Steuerung">${ICON.pad}</button>
@@ -366,6 +366,7 @@ export class Lobby {
         return `<div class="lo-stat"><span>${l}</span><i><u style="width:${v}%"></u>${o != null ? `<s style="left:${Math.min(v, o)}%;width:${Math.abs(v - o)}%" class="${v >= o ? 'up' : 'dn'}"></s>` : ''}</i><b>${v}${delta}</b></div>`;
       }).join('');
       const ttk15 = typeof d.ttk === 'function' && def.cls !== 'melee' ? d.ttk(def, 15) : null;
+      const stk15 = typeof d.shotsToKill === 'function' && def.cls !== 'melee' ? d.shotsToKill(def, 15) : null;
       const eff = typeof d.effectiveRange === 'function' && def.cls !== 'melee' ? d.effectiveRange(def) : null;
       body = `
         <div class="lo-stats">${bars}</div>
@@ -374,7 +375,8 @@ export class Lobby {
           ${fact('Schaden', def.pellets > 1 ? `${def.pellets} × ${num(def.damage.max)}` : `${num(def.damage.max)}–${num(def.damage.min)}`)}
           ${fact('Kadenz', `${num(def.rpm)}/min`)}${fact('Magazin', `${def.mag} / ${def.reserve}`)}
           ${fact('Nachladen', secs(def.reloadTime, 1))}${fact('Anschlag', secs(def.adsTime, 2))}
-          ${ttk15 != null && Number.isFinite(ttk15) ? fact('Zeit bis Abschuss (15 m)', secs(ttk15, 2)) : ''}
+          ${stk15 != null && Number.isFinite(stk15) ? fact('Treffer bis Abschuss', `${stk15} auf 15 m`) : ''}
+          ${ttk15 != null && Number.isFinite(ttk15) && ttk15 > 0 ? fact('Zeit bis Abschuss', `${num(Math.round(ttk15))} ms auf 15 m`) : ''}
           ${eff != null && Number.isFinite(eff) ? fact('Wirksam bis', meters(eff)) : ''}
           ${fact('Visier', (d.SIGHTS[def.sight] && d.SIGHTS[def.sight].name) || '—')}${fact('Feuermodus', d.FIRE[def.fireMode] || def.fireMode)}
         </div>`;

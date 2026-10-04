@@ -11,6 +11,7 @@ import { signalLost } from './dom.js';
 import { initJumps, jumpTo, setEnsureUpTo } from './jump.js';
 
 const html = document.documentElement;
+const DEBUG = /[?&]debug=1/.test(location.search);
 html.classList.remove('no-js');
 html.classList.add('js');
 
@@ -126,7 +127,9 @@ async function boot() {
     const p = (async () => {
       try {
         const m = await VIEWS[key]();
+        const t0 = performance.now();
         await m.init(sec, D, ctx);
+        if (DEBUG) console.info(`[NULLPUNKT] Abschnitt ${key}: ${Math.round(performance.now() - t0)} ms`);
       } catch (err) {
         console.error(`[NULLPUNKT] Abschnitt ${key}:`, err);
         signalLost(sec.querySelector('.content'), 'Dieser Abschnitt konnte nicht aufgebaut werden.');
@@ -159,7 +162,17 @@ async function boot() {
     if (!sec) return;
     start(sec).then(() => idle(next, { timeout: 1200 }));
   };
-  idle(next, { timeout: 1200 });
+  // Erst wenn die Seite ein paar Sekunden steht: Der erste Bildschirm bleibt flüssig, Ankersprünge und Tab
+  // bauen bei Bedarf ohnehin sofort auf. Eine erste Bewegung (Scrollen, Tippen) zieht den Aufbau vor.
+  let queued = false;
+  const kick = () => {
+    if (queued) return;
+    queued = true;
+    for (const t of ['scroll', 'pointerdown', 'keydown']) window.removeEventListener(t, kick, true);
+    idle(next, { timeout: 1500 });
+  };
+  for (const t of ['scroll', 'pointerdown', 'keydown']) window.addEventListener(t, kick, { capture: true, passive: true });
+  setTimeout(kick, 4000);
   // Tastatur: Beim ersten Tab sofort alles aufbauen, damit die Fokusreihenfolge vollständig ist.
   const onTab = (e) => { if (e.key === 'Tab') { window.removeEventListener('keydown', onTab, true); ensureAll(); } };
   window.addEventListener('keydown', onTab, true);

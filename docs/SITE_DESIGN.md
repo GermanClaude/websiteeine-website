@@ -1032,3 +1032,56 @@ Stand der Umsetzung und bewusste Abweichungen von diesem Entwurf. Alles Übrige 
 **Geprüft** mit Playwright (SwiftShader): 360 × 740, 390 × 844 (mobil), 412 × 915, 915 × 412, 844 × 390, 768 × 1024, 1024 × 768, 1280 × 720, 1440 × 900, 1920 × 1080, 2560 × 1440; ohne WebGL, mit reduzierter Bewegung, ohne JavaScript; Tastaturreihenfolge; keine Konsolenfehler, kein waagerechter Überlauf, Touch-Ziele ≥ 44 px; in Ruhe 0 rAF-Aufrufe.
 
 **Budgets (gzip)**: `index.html` 5,5 KB, `site.css` 13 KB, kritische Site-Skripte ≈ 29,6 KB, alle Site-Skripte zusammen ≈ 72 KB (knapp über 70 KB; der Großteil ist `arsenal-view.js`, das erst in Sichtnähe des Arsenals lädt).
+
+## 16. Überarbeitung nach der Kritik (site, 2026-10-04)
+
+Ergänzt §15; wo sich etwas widerspricht, gilt dieser Abschnitt.
+
+**Navigation und Aufbau**
+- *Ankersprünge* (`jump.js`): Ein Klickhandler für alle `a[href^="#"]` (Index, Index-Dialog, untere Leiste, Hero, Fuß). `jumpTo(id)` baut erst alle Abschnitte bis zum Ziel auf (`ctx.ensureUpTo(el)`), wartet zwei Bilder, scrollt und führt 1,5 s lang per `ResizeObserver` auf `main` nach (Abbruch bei Rad, Berührung, Taste); danach eine Korrektur ohne Bewegung. Fokus auf die Abschnittsüberschrift. Direktlinks (`index.html#einstellungen`) und `hashchange` laufen über denselben Weg. CSS-`scroll-behavior` ist entfallen (die Seite steuert selbst).
+- *Abschnitte*: wie bisher per IntersectionObserver in Sichtnähe, zusätzlich der Reihe nach im Leerlauf – ab 4 s nach dem Start oder ab der ersten Eingabe (Scrollen, Tippen, Taste); beim ersten Tab sofort alle (vollständige Fokusreihenfolge). Arsenal und Karten bauen in Etappen auf (kein langer Block); die Rangliste nutzt FLIP erst nach dem Aufbau.
+- *Index ab 1280 px in der Statuszeile* statt unten in der Randspalte (die Randspalte bleibt frei, kein Falten mehr). Jeder Eintrag reserviert die Breite seines stärksten Schnitts (`::after` mit `attr(data-t)`), der Scroll-Spy ändert nur die Zeichnung. Aktueller Eintrag: Tinte, 800, 1-px-Unterstrich. Darunter (< 1280) der Knopf „Index“ mit Dialog. Rufzeichen erst ab 1440 px; das Rangabzeichen (20 px, nur Zierde) ebenfalls erst ab 1440 px.
+
+**Hero**
+- Hinweis „Fünf Schuss auf den Punkt. ↓“ steht direkt über der Wortmarke, rechtsbündig mit dem Punkt; Fortschritt und Ergebnis stehen in einer Zeile direkt darunter (zwei Zeilen reserviert), „Neu einschießen“ daneben. Löcher und Punkt sind auf die *Unterkante* des Zielfelds bezogen, damit Höhenänderungen darüber nichts verschieben.
+- Hochkant bis 1199 px: Wortmarke zweizeilig NULL / PUNKT. Quer begrenzt die Höhe die Schriftgröße (Satz und Aufruf bleiben im ersten Bildschirm); hochkant gewinnt die Breite.
+- Hero höchstens 1120 px hoch: auf sehr hohen Bildschirmen schaut die nächste Seite hervor statt einer leeren Fläche.
+- Nach gelungenem Einschießen 1,8 s „Durchblick“: der Hafen aus dem Spiel in den Buchstaben von NULLPUNKT (`background-clip: text`), nicht bei reduzierter Bewegung.
+- Telefon quer (`(pointer: coarse) and (max-height: 500px)`): einspaltiges Telefonlayout mit unterer Leiste; Hero ohne Abschnittszeile und Datenzeile, Satz einzeilig, Aufruf in einer Reihe. „Quer halten …“ erscheint nur hochkant und nur im Hero (aus §01 und §07 entfernt).
+
+**Fahne**: Kopfzeile mit „Abreißen“ rechts (immer erreichbar), `touch-action: pan-y`; Abreißen per Wisch nur nach oben und nur von der Abrisskante (unterste 28 px). Rechner: fest unter der Statuszeile, nach dem Hero auf eine Zeile gefaltet („FAHNE · SIEG. · +1.840 EP“, antippen öffnet). Telefon und quer: liegt oben im Hero und scrollt mit ihm weg, Ergebniswort höchstens 40 px, EP und Aufstieg in einer Mono-Zeile. Lochung als Seitenschwarz (keine Durchsicht).
+
+**Arsenal**
+- *Bühne*: Bild (`.pic-box`, 16 : 9, Telefon hochkant 1 : 1) und darunter ein schwarzes HUD-Band (Hinweis, Munition, Feuerart, R / ZIELEN / FEUER) – nichts liegt mehr auf den Glyphen, kein `mix-blend-mode` im HUD. Telefon quer: Bild und Band nebeneinander. „Ansicht zurücksetzen“ erscheint erst, wenn gedreht wurde. Eine „aufhellen“-Ebene in Seitenschwarz macht alles außerhalb der Buchstaben exakt zur Seitenfarbe.
+- *Der Name feuert*: Name auf 88 % der Breite. `fit.js` misst auf Wunsch (`fitOpts.weight`) zusätzlich, wie jede Glyphe mit der Stärke wächst; `kinetic.js` sagt mit `limit` die Zeilenbreite samt Achsengrenzen voraus und dämpft alle Ausschläge gemeinsam, bis die Zeile passt (Grenze 93 % der Maske, weil überlange Zeilen linksbündig überlaufen). Wellenstärke je Schuss × min(1, (60/rpm)/0,18 s); seitlicher Rückstoß höchstens 4,5 % der Breite.
+- *Duell*: Namen in ihre Spalte gesetzt (gemessen im Siegerschnitt 900, nur verkleinern); der Siegerpunkt ist als unsichtbare Glyphe mitgemessen. Unter 1024 px untereinander mit „GEGEN“ dazwischen.
+- *Typenbalken*: Der Wert ist eine 2-px-Linie mit Marke auf einer gemeinsamen Spur aller sechs Zeilen; die Breite des Worts trägt ihn zusätzlich.
+- *Tablet 720–1023*: Arsenal über die volle Breite (deckend schwarz über der Visierlinie), Waffenindex in drei Spalten, Namen einzeilig und bei Bedarf kleiner gesetzt, weiche Trennstellen in Klassenwörtern (SCHARF­SCHÜTZEN­GEWEHR). Datenblatt erst ab 760 px Containerbreite zweispaltig; Werte brechen nur an „·“.
+- Überschriften der Randspalte (AUF DISTANZ., AUSRÜSTUNG.) und der Dienstgrad im Profil werden nur verkleinert, nie breiter als die Spalte.
+- Formate: Schaden/Abfall ganzzahlig („25–19“, „3,5“ bleibt), Rangliste fest zwei Nachkommastellen, „Abschusszeit“ statt TTK.
+- *3D erst bei Bedarf*: eine Bildschirmhöhe vorher nur `modulepreload` (three.js, `stage3d.js`, `models.js`); gebaut wird, wenn die Bühne zu 25 % sichtbar ist und das Scrollen 150 ms ruht. Zwischen Import, Renderer und Modell gibt der Aufbau den Hauptfaden frei; Shader werden vor dem ersten Bild kompiliert (`compileAsync` nur mit `KHR_parallel_shader_compile`, sonst `compile`).
+- Ohne WebGL: Strichzeichnung mit 3-px-Linien, kein Ziehen, kein „Ziehen: drehen“ im Hinweis.
+
+**Karten**
+- *Durchblick*: Standbild jeder Karte aus dem Spiel, sichtbar nur in den Buchstaben ihres Namens (wie die Bühne), über dem Plan. Dateien `assets/img/maps/<id>.webp` (1600 × 600, ≈ 60 KB) und `<id>-s.webp` (800 × 300), lazy. Erzeugt mit `node tools/stills.mjs` aus `dev/world.html` (Kameras dort; nach Änderungen an den Karten neu rendern).
+- *Plan*: ein Wort je Gruppe gleichartiger, sich berührender Blöcke (der größte), kein Wort auf einem Block, der zu mehr als der Hälfte unter einem beschrifteten liegt, keine Abkürzungen mehr (zu lange Wörter werden kleiner gesetzt), nichts unter 9 px (bei jeder Größenänderung neu geprüft). Arten: `building` → BAU (Text: Gebäude), `cover` → DECKUNG, `tank` → TANK, Stege verdecken keine Sicht; deutsche Wahrzeichen-Arten (`kirche`, `turm`, `kesselhaus` …) erscheinen wörtlich.
+- *Ohne Layout*: Ersatzplan aus `dimensions` (echtes Seitenverhältnis), die drei `lanes` als senkrechte Wörter (West / Mitte / Ost), `features` als Mono-Zeilen, Maßstab 10 m. Ohne Operator und Ablesewerte.
+- Reihenfolge der Randspalte: Name, Untertitel, Beschreibung, Daten (mit „96 × 104 m“), Palette, Ablesewerte, Maßstab, „Hier spielen.“ (Punkt in Tinte – das Orange gehört dem Operator). Das leere Band unter den Reitern ist entfallen.
+
+**Weitere Abschnitte**
+- *Überschriften*: Glyphen in festen Boxen (`data-fit-slots`, auch die Modusnamen): Eintritt, Stauchung und Wellen ändern nur die Zeichnung, nie die Lage der Nachbarn – gemessene Layoutverschiebung beim schnellen Durchscrollen ≈ 0. Eigene Auftritte: ARSENAL. feuert eine Welle, KARTEN. wird von der Mitte aus sichtbar, EINSTELLUNGEN. stellt erst die Stärke, dann die Breite scharf, PROFIL. steht in der eigenen Stärke aus K/D, STEUERUNG. lässt bei der Tastenprobe den gedrückten Buchstaben aufleuchten.
+- *SERIEN.*: Zählzeile „4 — Aufklärer. / 6 — Präzisionsschlag. / 8 — Wachgeschütz.“; die Mono-Ziffern werden stärker, sobald die Zeile in die Bildmitte kommt (Zeiger: sofort); darunter die Beschreibungen als Legende.
+- *Satzbau*: Wortgruppen („6 Bots“, „mit 5 Verbündeten“, „auf Regulär.“) brechen nie in sich; Spielaufruf-Zeile bricht nur vor „&“; auswählbare Wörter haben mindestens 44 × 44 px Trefferfläche. Schlitzname „Schwierigkeit“.
+- *Profil*: Siege „5 · N 5 · U 2“, „Profil zurücksetzen“ erst ab dem ersten Match, unbekannte Medaillen-IDs werden nicht gezeigt.
+- *Einstellungen*: Regler-Marke in Tinte, Orange nur bei Fokus/Ziehen; Sichtfeld-Keil mit Spitze unten (≈ 60 % der Spalte), SICHTFELD zwischen den Schenkeln eingepasst; „Bildrate anzeigen“ statt „FPS anzeigen“.
+- *Steuerung*: Tastentabelle volle Breite, Wörter der Touch-Skizze werden in den Telefonrahmen gerückt, Erklärungen ohne Wiederholung des Worts. Leitsatz „Drück eine Taste. Sie verrät, was sie tut.“
+- *Über*: „Kein Spielserver.“
+- Mono-Beschriftungen ab 1440 px 13 px, sonst 12 px (keine 11-px-Texte mehr in HUD, Sperrhinweisen, Skalen).
+
+**Wächter** (`loop.js`): Stufe 1 schaltet nur die Schusswellen der Bühne ab (`html.calm-waves`), Stufe 2 die bewegte Schrift (`html.static-type`). Bilder, in denen die 3D-Bühne gezeichnet hat, zählen nicht. Nach 5 s ruhiger Bilder (< 20 ms) eine Stufe zurück. `?nowatchdog=1` schaltet ihn für Tests ab.
+
+**Offen bei den Datenbesitzern** (nicht von der Website änderbar): „Rekrut“ ist zugleich Schwierigkeit (`DIFFICULTIES.rekrut`) und Dienstgrad (Stufe 1) – die Website trennt das nur über die Beschriftung „Schwierigkeit“. `maps.data.js` beschreibt Gebäude nur als `building`; beschreibende Arten (z. B. `warehouse`, `office`, `crane`) würden im Plan als HALLE/KRAN erscheinen.
+
+**Budgets (gzip, nach dieser Runde)**: `index.html` 5,8 KB, `site.css` 15,9 KB, Site-Skripte im kritischen Pfad ≈ 34 KB, alle Site-Skripte ≈ 83 KB (der Zuwachs steckt in Arsenal, Karten und `jump.js`; die Kartenbilder sind lazy und zählen nicht zum ersten Laden).
+
+**Geprüft** (Playwright, SwiftShader): 360 × 740, 390 × 844 (iPhone 13), 750 × 342 (Telefon quer), 768 × 1024 (Touch), 1024 × 768, 1024 × 1366, 1440 × 900, 1920 × 1080, 2560 × 1440; reduzierte Bewegung, ohne WebGL, ohne JavaScript; Ankersprünge (Index, Dialog, Hero-Link, Direktlink) landen auf ±0 px; schnelles Tabben (120 ms) durchläuft alle Abschnitte; Dauerfeuer ohne Überlauf des Namens; keine Konsolenfehler, kein waagerechter Überlauf, Touch-Ziele ≥ 44 px; CLS beim Laden 0, beim schnellen Durchscrollen < 0,001.

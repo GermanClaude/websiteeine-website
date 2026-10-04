@@ -5,7 +5,7 @@ import { fit } from './fit.js';
 import { split, Kinetic } from './kinetic.js';
 import { buildPlayUrl } from './deploy.js';
 import { ui } from './state.js';
-import { calm, reduced, pointerFine, ease, tween } from './motion.js';
+import { calm, reduced, pointerFine, ease } from './motion.js';
 import { clamp } from './fmt.js';
 
 const up = (s) => String(s ?? '').toLocaleUpperCase('de-DE');
@@ -53,7 +53,7 @@ function makeAct(id, row, D) {
   const cleanup = () => {
     for (let i = 0; i < n; i++) { k.setOffset(i, 0, 0); k.set(i, { ty: 0, color: '', opacity: 1 }); }
     for (const s of row.name.querySelectorAll('.sup')) s.remove();
-    if (row.count) row.count.textContent = '';
+    if (row.count) row.count.textContent = '\u00a0';
   };
 
   if (id === 'tdm') {
@@ -84,7 +84,7 @@ function makeAct(id, row, D) {
           const sup = document.createElement('span');
           sup.className = 'sup';
           sup.textContent = 'ABC'[j];
-          k.glyphs[gi].after(sup);
+          k.glyphs[gi].append(sup); // in der Glyphe, absolut gesetzt: verschiebt nichts
         });
       }
       uniq.forEach((gi, j) => {
@@ -188,8 +188,8 @@ export async function init(sec, D, ctx = {}) {
     const m = M.MODES[id];
     const bid = `mode-b-${id}`;
     const pid = `mode-p-${id}`;
-    const name = h('span.mode-name', { 'data-fit': '', 'data-fit-grow': '0' }, m.name);
-    const count = id === 'gun' ? h('span.mode-count', { 'aria-hidden': 'true' }) : null;
+    const name = h('span.mode-name', { 'data-fit': '', 'data-fit-grow': '0', 'data-fit-slots': '' }, m.name);
+    const count = id === 'gun' ? h('span.mode-count', { 'aria-hidden': 'true' }, '\u00a0') : null;
     const line = h('span.mono-s.mode-line', {}, modeLine(m), count);
     const head = h('button.mode-head', { type: 'button', id: bid, 'aria-expanded': 'false', 'aria-controls': pid }, name, line);
     const recos = (m.recommendedMaps || []).map((mid) => D.P.MAPS[mid]?.name).filter(Boolean);
@@ -268,29 +268,25 @@ export async function init(sec, D, ctx = {}) {
   for (const r of rows) band.observe(r.head);
 
   /* ---------------------------------------------------------------- SERIEN */
+  // Eine Zählzeile statt einer Kachelreihe: „4 — Aufklärer. 6 — Präzisionsschlag. 8 — Wachgeschütz.“
+  // Die Ziffern werden stärker, sobald die Zeile in die Bildmitte kommt (oder unter dem Zeiger liegt).
   const box = $('#streaks', sec);
+  const notes = $('#streak-notes', sec);
   if (box && M.STREAK_ORDER?.length) {
     const items = M.STREAK_ORDER.map((sid) => M.STREAKS[sid]).filter(Boolean);
-    const nums = [];
-    box.replaceChildren(...items.map((s) => {
-      const n = h('span.streak-n', { 'aria-hidden': 'true' }, String(s.kills ?? s.cost ?? ''));
-      nums.push({ el: n, v: Number(s.kills ?? s.cost) || 0 });
-      return h('li', {},
-        n,
-        s.icon ? h('span.streak-ic', { 'aria-hidden': 'true', html: s.icon }) : null,
-        h('h4', {}, s.name),
-        h('p', {}, s.description || ''),
-        h('p.sr-only', {}, `${s.kills ?? s.cost} Abschüsse ohne Tod`));
-    }));
-    if (!reduced()) {
-      const counted = new IntersectionObserver((entries) => {
+    const n = (x) => x.kills ?? x.cost ?? '';
+    box.replaceChildren(...items.map((x) => h('li', {},
+      h('span.sn', {}, String(n(x))), h('span.sdash', { 'aria-hidden': 'true' }, '\u00a0— '), h('span.snm', {}, `${x.name}.`),
+      h('span.sr-only', {}, ` ${n(x)} Abschüsse ohne Tod.`))));
+    notes?.replaceChildren(...items.map((x) => h('div', {}, h('dt', {}, `${n(x)} Abschüsse · ${x.name}`), h('dd', {}, x.description || ''))));
+    if (reduced()) box.classList.add('lit');
+    else {
+      const lit = new IntersectionObserver((entries) => {
         if (!entries.some((e) => e.isIntersecting)) return;
-        counted.disconnect();
-        if (reduced()) return;
-        for (const x of nums) x.el.textContent = '0';
-        tween(600, (p) => { for (const x of nums) x.el.textContent = String(Math.round(x.v * p)); }, ease.out, { kinetic: false });
-      }, { rootMargin: '-40% 0px -40% 0px' });
-      counted.observe(box);
+        lit.disconnect();
+        box.classList.add('lit');
+      }, { rootMargin: '-35% 0px -35% 0px' });
+      lit.observe(box);
     }
   }
 }

@@ -335,7 +335,7 @@ export class Sentry {
     this._flashT = 0.045;
     this.flash.rotation.z = Math.random() * Math.PI;
     this.flash.scale.setScalar(0.8 + Math.random() * 0.5);
-    G.events.emit('weapon:fire', { actor: this, weaponId: 'sentry', origin: _a.clone(), dir: _dir.clone(), suppressed: false });
+    G.events.emit('weapon:fire', { actor: this, weaponId: 'sentry', origin: _a.clone(), dir: _dir.clone(), muzzle: _a.clone(), suppressed: false });
     let res = null;
     if (target.isStreakEntity) {
       // Geschütz gegen Geschütz: direkt über den Weltstrahl (enthält Geschütze)

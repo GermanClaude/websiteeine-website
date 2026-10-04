@@ -7,6 +7,8 @@
 //   data-fit-wdth="125"    feste Breite, gelöst wird die Schriftgröße (auch auf .fl-Zeilen)
 //   data-fit-grow="0"      nie größer als die CSS-Schriftgröße (nur Breite anpassen, notfalls schrumpfen)
 //   fitOpts.weight = true  zusätzlich messen, wie stark jede Glyphe mit der Stärke wächst (für Breitenausgleich)
+//   data-fit-slots         jede Glyphe bekommt ihre Ruhebreite als feste Box: bewegte Schnitte (Eintritt, Stauchung,
+//                          Wellen) verändern dann nur die Zeichnung in der Box, nie die Lage der Nachbarn (kein CLS)
 //   .fl-Kinder mit display:block werden einzeln gesetzt (Zeilenmodus)
 
 const all = new Set();
@@ -26,7 +28,7 @@ const ro = 'ResizeObserver' in window ? new ResizeObserver((entries) => {
 }) : null;
 
 const STRIP_ROOT = ['--wdth', 'font-size', '--sv', '--dc', 'transform', 'width'];
-const STRIP_G = ['--dw', '--dg', '--ww', '--wg', 'transform', 'opacity', 'color', '--dc'];
+const STRIP_G = ['--dw', '--dg', '--ww', '--wg', 'transform', 'opacity', 'color', '--dc', 'width'];
 
 function schedule() {
   if (scheduled || !fontsOk) return;
@@ -204,6 +206,13 @@ function flush() {
   }
 
   for (const u of units) {
+    if (u.el.dataset.fitSlots !== undefined) {
+      const gs = u.unit.querySelectorAll('.g');
+      gs.forEach((g, i) => {
+        const w = ((u.ga[i] ?? 0) + (u.gb[i] ?? 0) * (u.wd - 62)) * u.scale;
+        if (w > 0) g.style.width = `${w.toFixed(2)}px`;
+      });
+    }
     models.set(u.unit, {
       b: u.gb.map((b) => b * u.scale), a: u.ga.map((a) => a * u.scale), c: u.gc ? u.gc.map((c) => c * u.scale) : null,
       rw: u.rw ?? null, wdth: u.wd, fs: u.fs, W: u.W,

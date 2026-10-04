@@ -20,6 +20,8 @@ const HELP = {
   reducedMotion: 'Stoppt Federn, Wellen und Übergänge auf der Website, im Spiel Kamerawackeln.',
 };
 
+/** Website-eigene Beschriftungen, wo das Schema englischen Fachjargon nutzt. */
+const LABELS = { showFps: 'Bildrate anzeigen' };
 const isVolume = (k) => /Volume$/.test(k);
 function fmtValue(k, s, v) {
   if (isVolume(k)) return `${num(v * 100)}${NNBSP}%`;
@@ -64,7 +66,7 @@ export async function init(sec, D, ctx = {}) {
     const fs = h('fieldset.set-grp');
     fs.append(h('legend.set-legend', {}, legend));
     for (const k of keys) {
-      const row = buildRow(k, schema[k]);
+      const row = buildRow(k, { ...schema[k], label: LABELS[k] || schema[k].label });
       if (row) fs.append(row);
     }
     form.append(fs);
@@ -104,14 +106,23 @@ export async function init(sec, D, ctx = {}) {
         const svgEl = h('span.fov-svg', { 'aria-hidden': 'true' });
         const txt = h('span.mono-s');
         ctl.append(h('div.fov-prev', {}, svgEl, txt));
+        // Keil mit Spitze unten (das Auge), Schenkel im echten Winkel; SICHTFELD steht zwischen den Schenkeln
+        // und füllt deren Abstand auf seiner Höhe – breiter Winkel, breiter Schnitt.
         fov = (v) => {
           const half = (v / 2) * (Math.PI / 180);
-          const L = 92;
-          const x = Math.cos(half) * L;
-          const y = Math.sin(half) * L;
+          const L = 100;
+          const x = Math.sin(half) * L;
+          const y = Math.cos(half) * L;
           const hz = Math.round((2 * Math.atan(Math.tan(half) * 16 / 9) * 180) / Math.PI);
-          const wd = (62 + 63 * clamp01((v - s.min) / (s.max - s.min))).toFixed(1);
-          svgEl.innerHTML = `<svg viewBox="0 -48 160 96" width="160" height="96"><line x1="0" y1="0" x2="${x.toFixed(1)}" y2="${(-y).toFixed(1)}"/><line x1="0" y1="0" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/><text x="${(x * 0.62).toFixed(1)}" y="0" dominant-baseline="central" text-anchor="middle" style="font-stretch:${wd}%">SICHTFELD</text></svg>`;
+          const f = clamp01((v - s.min) / (s.max - s.min));
+          const wd = (62 + 63 * f).toFixed(1);
+          const ty = y * 0.62; // Höhe der Schrift über der Spitze
+          // Schriftgröße so, dass das Wort auch an seiner Unterkante zwischen die Schenkel passt
+          const per = 9 * (0.45 + 0.35 * f);
+          let fsz = ty * 0.4;
+          for (let it = 0; it < 3; it++) fsz = Math.min(ty * 0.4, (2 * Math.tan(half) * (ty - 0.38 * fsz) * 0.84) / per);
+          const W = 2 * Math.sin(55 * Math.PI / 180) * L; // Rahmen für den größten Winkel (110°)
+          svgEl.innerHTML = `<svg viewBox="${(-W / 2).toFixed(1)} ${(-L - 2).toFixed(1)} ${W.toFixed(1)} ${(L + 6).toFixed(1)}"><line x1="0" y1="0" x2="${(-x).toFixed(1)}" y2="${(-y).toFixed(1)}"/><line x1="0" y1="0" x2="${x.toFixed(1)}" y2="${(-y).toFixed(1)}"/><circle cx="0" cy="0" r="2"/><text x="0" y="${(-ty).toFixed(1)}" font-size="${fsz.toFixed(2)}" dominant-baseline="central" text-anchor="middle" style="font-stretch:${wd}%">SICHTFELD</text></svg>`;
           txt.textContent = `${num(v)}° vertikal · ${num(hz)}° horizontal bei 16:9`;
         };
       }

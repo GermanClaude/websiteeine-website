@@ -2,7 +2,7 @@
 // Visierlinie und Überschriften (Eintritt + Stauchung bei schnellem Scrollen).
 import { loop } from './loop.js';
 import { reduced, calm } from './motion.js';
-import { split } from './kinetic.js';
+import { split, Kinetic } from './kinetic.js';
 import { jumpTo } from './jump.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -105,10 +105,32 @@ function onScroll() {
   }
 }
 
+/**
+ * Jede Überschrift tritt ein (62/100 → gesetzt/800); einige spielen dabei ihren Abschnitt vor:
+ * ARSENAL. feuert eine Welle, KARTEN. wird von der Mitte aus „sichtbar“ (wie das Sichtpolygon),
+ * EINSTELLUNGEN. stellt erst die Stärke, dann die Breite scharf (wie ein Objektiv),
+ * PROFIL. steht im eigenen Schnitt (profile-view), STEUERUNG. antwortet auf die Tastenprobe (controls-view).
+ */
+function prepAct(h) {
+  const act = h.dataset.act;
+  const g = [...h.querySelectorAll('.vis .g')];
+  if (act === 'light') {
+    const mid = (g.length - 1) / 2;
+    g.forEach((x, i) => x.style.setProperty('--i', String(Math.round(Math.abs(i - mid) * 1.6))));
+  }
+}
+function afterEntry(h) {
+  if (h.dataset.act === 'wave' && !reduced()) {
+    const k = h._kin || (h._kin = new Kinetic(h, { conserve: true, limit: () => h.clientWidth }));
+    k.wave(18, 260, { stagger: 18 });
+  }
+}
+
 function initHeadlines() {
   const heads = $$('.hl');
   for (const h of heads) {
     split(h);
+    prepAct(h);
     if (!reduced()) h.classList.add('pre');
   }
   const enter = new IntersectionObserver((entries) => {
@@ -121,7 +143,7 @@ function initHeadlines() {
       h.classList.add('entering');
       requestAnimationFrame(() => h.classList.remove('pre'));
       const n = h.querySelectorAll('.g').length;
-      setTimeout(() => h.classList.remove('entering'), 700 + n * 24);
+      setTimeout(() => { h.classList.remove('entering'); afterEntry(h); }, 700 + n * 24);
     }
   }, { threshold: 0.15 });
   const seen = new IntersectionObserver((entries) => {

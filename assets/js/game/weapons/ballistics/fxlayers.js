@@ -85,7 +85,7 @@ export const PF = { BOUNCE: 1, ANIM: 2, STRETCH: 4, SPIN_SLOW: 8 };
  * Splitter, Blut). Spawn über spawn(...) → Index, Werte direkt in die Arrays.
  */
 export class ParticleLayer {
-  constructor({ capacity, additive, texture, name }) {
+  constructor({ capacity, additive, texture, name, lit = true }) {
     this.cap = capacity;
     this.n = 0;
     this.additive = !!additive;
@@ -126,7 +126,7 @@ export class ParticleLayer {
       depthWrite: false,
       blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
       fog: true,
-      defines: additive ? { ADDITIVE: '' } : { LIT: '' },
+      defines: additive ? { ADDITIVE: '' } : lit ? { LIT: '' } : {},
     });
     this.material.uniforms.map.value = texture;
     this.mesh = new THREE.Mesh(geo, this.material);
@@ -170,7 +170,7 @@ export class ParticleLayer {
     this.floorY[i] = this.floorY[j]; this.flags[i] = this.flags[j];
   }
 
-  clear() { this.n = 0; this._cursor = 0; this.geometry.instanceCount = 0; }
+  clear() { this.n = 0; this._cursor = 0; this.geometry.instanceCount = 0; this.mesh.visible = false; }
 
   update(dt) {
     const d0 = this.b0.array, d1 = this.b1.array, d2 = this.b2.array, d3 = this.b3.array;
@@ -216,6 +216,7 @@ export class ParticleLayer {
       w++;
     }
     this.geometry.instanceCount = w;
+    this.mesh.visible = w > 0;
     if (w > 0) {
       upload(this.b0, w * 4);
       upload(this.b1, w * 4);
@@ -339,7 +340,7 @@ export class TracerLayer {
     this.seg[i] = this.seg[j]; this.width[i] = this.width[j]; this.inten[i] = this.inten[j];
   }
 
-  clear() { this.n = 0; this.geometry.instanceCount = 0; }
+  clear() { this.n = 0; this.geometry.instanceCount = 0; this.mesh.visible = false; }
 
   update(dt, pxScale) {
     this.material.uniforms.uPx.value = pxScale;
@@ -359,6 +360,7 @@ export class TracerLayer {
       B[o] = this.fx[k] + this.dx[k] * head; B[o + 1] = this.fy[k] + this.dy[k] * head; B[o + 2] = this.fz[k] + this.dz[k] * head; B[o + 3] = this.inten[k];
     }
     this.geometry.instanceCount = this.n;
+    this.mesh.visible = this.n > 0;
     if (this.n) { upload(this.bA, this.n * 4); upload(this.bB, this.n * 4); }
   }
 

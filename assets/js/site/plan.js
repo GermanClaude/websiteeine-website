@@ -88,10 +88,13 @@ export function segmentsFrom(blocks) {
 /** Liegt der Punkt in einem sichtverdeckenden Block? */
 export function blocked(solid, x, z, pad = 0) {
   for (const b of solid) {
-    const c = Math.cos(-(b.rot || 0));
-    const s = Math.sin(-(b.rot || 0));
     const dx = x - b.x;
     const dz = z - b.z;
+    // schneller Ausschluss über den Umkreis, Drehung nur einmal je Block berechnen
+    const rr = b._r ?? (b._r = Math.hypot(b.w, b.d) / 2);
+    if (dx * dx + dz * dz > (rr + pad) * (rr + pad)) continue;
+    const c = b._c ?? (b._c = Math.cos(-(b.rot || 0)));
+    const s = b._s ?? (b._s = Math.sin(-(b.rot || 0)));
     const lx = dx * c - dz * s;
     const lz = dx * s + dz * c;
     if (Math.abs(lx) <= b.w / 2 + pad && Math.abs(lz) <= b.d / 2 + pad) return true;

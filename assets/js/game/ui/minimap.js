@@ -99,11 +99,14 @@ export class Minimap {
       ctx.drawImage(this.mapImg, 0, 0);
       ctx.restore();
     }
-    // Abdunklung zum Rand
-    const grd = ctx.createRadialGradient(half, half, rad * 0.55, half, half, rad);
-    grd.addColorStop(0, 'rgba(10,11,13,0)');
-    grd.addColorStop(1, 'rgba(10,11,13,.55)');
-    ctx.fillStyle = grd;
+    // Abdunklung zum Rand (Verlauf je Größe einmal erzeugt)
+    if (!this._edge || this._edgeW !== W) {
+      this._edgeW = W;
+      this._edge = ctx.createRadialGradient(half, half, rad * 0.55, half, half, rad);
+      this._edge.addColorStop(0, 'rgba(10,11,13,0)');
+      this._edge.addColorStop(1, 'rgba(10,11,13,.55)');
+    }
+    ctx.fillStyle = this._edge;
     ctx.fillRect(0, 0, W, W);
 
     const mode = G.mode;

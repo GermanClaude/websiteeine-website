@@ -79,8 +79,8 @@ export async function init(sec, D, ctx) {
   const maskName = h('p.mask-name', { 'data-fit': '' });
   const mask = h('div.mask', { 'aria-hidden': 'true' }, maskName);
   const hitm = h('div.hitm', { 'aria-hidden': 'true', html: '<svg viewBox="0 0 28 28"><g stroke="currentColor" stroke-width="1.5"><line x1="5" y1="5" x2="10" y2="10"/><line x1="23" y1="5" x2="18" y2="10"/><line x1="5" y1="23" x2="10" y2="18"/><line x1="23" y1="23" x2="18" y2="18"/></g></svg>' });
-  const picBox = h('div.pic-box', {}, pic, mask, hitm);
   const load = h('span.hud-load', { 'aria-hidden': 'true', hidden: true }, 'LÄDT …');
+  const picBox = h('div.pic-box', {}, pic, mask, hitm, load);
   const resetBtn = h('button.txt-btn.hud-reset', { type: 'button', hidden: true }, 'Ansicht zurücksetzen');
   const load3d = h('button.txt-btn.hud-3d', { type: 'button', hidden: true }, '3D laden');
   const btnR = h('button.hud-btn.rl', { type: 'button', 'aria-label': 'Nachladen' }, 'R');
@@ -91,7 +91,7 @@ export async function init(sec, D, ctx) {
   const reloadLine = h('span.reload-line');
   const ammo = h('div.hud-ammo', {}, ammoNum, ammoMode, reloadLine);
   const info = h('p.hud-info');
-  const infoBox = h('div.hud-text', {}, info, h('p.hud-tools', {}, load, resetBtn, load3d));
+  const infoBox = h('div.hud-text', {}, info, h('p.hud-tools', {}, resetBtn, load3d));
   const band = h('div.hud-band', {}, infoBox, ammo, h('div.hud-btns', {}, btnR, btnAds, btnFire));
   stage.append(picBox, band);
   const stageCol = h('div.stage-col');
@@ -172,6 +172,7 @@ export async function init(sec, D, ctx) {
   // Einhängen: unter die Kopfzeile des Abschnitts (Raster-Unterzeilen)
   sec.append(main, dist, gear);
   root.remove();
+  await yieldTask(); // Aufbau in Etappen: kein langer Block auf schwachen Telefonen
 
   // Index: Randspalte ab 1024 px, sonst unter der Bühne
   const wide = window.matchMedia('(min-width: 1024px)');
@@ -218,7 +219,7 @@ export async function init(sec, D, ctx) {
       resplit(maskName, up(d.name), { lines, sr: d.name });
       maskName.style.setProperty('--wght', String(Math.max(500, Math.round(cutG(d)))));
       maskSize();
-      fit(maskName, { now: true });
+      fit(maskName, { now: !!animate });
       if (!kin) kin = new Kinetic(maskName, { conserve: true, limit: () => (mask.clientWidth || 300) * 0.93 }); else kin.refresh();
       maskName.querySelector('.vis').style.transform = '';
       recoil = { x: 0, y: 0 };
@@ -689,6 +690,7 @@ export async function init(sec, D, ctx) {
     rankList.append(li);
   }
   let lastOrder = '';
+  let started = false;
   let lastFlip = 0;
   let flipT = 0;
   let ranking = [];
@@ -726,7 +728,9 @@ export async function init(sec, D, ctx) {
       const doFlip = () => {
         lastFlip = performance.now();
         lastOrder = ranking.map((r) => r.id).join();
-        flip(rankList, () => { for (const r of ranking) rankList.append(rows[r.id].li); });
+        const mutate = () => { for (const r of ranking) rankList.append(rows[r.id].li); };
+        // Beim Aufbau ohne FLIP (keine erzwungenen Layouts), danach mit
+        if (!started) mutate(); else flip(rankList, mutate);
       };
       clearTimeout(flipT);
       if (force || now - lastFlip >= 120) doFlip();
@@ -833,6 +837,7 @@ export async function init(sec, D, ctx) {
   select(def.id, false);
   updateRanking(true);
   setLocks();
+  started = true;
   if (P) {
     P.ready?.then?.(() => { setLocks(); setFacts(def); });
     P.onChange(() => setLocks());

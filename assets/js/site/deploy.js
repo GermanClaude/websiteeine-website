@@ -110,7 +110,7 @@ export function initDeploy(data, { snd, webgl } = {}) {
   // Bausteine (einmal erzeugt, danach nur umgestellt – der Fokus bleibt erhalten)
   const mk = (cls, text) => { const s = document.createElement('span'); s.className = cls; s.textContent = text; return s; };
   const slots = {};
-  for (const [key, label] of [['mode', 'Modus'], ['map', 'Karte'], ['allies', 'Verbündete'], ['enemies', 'Gegner'], ['diff', 'Stufe']]) {
+  for (const [key, label] of [['mode', 'Modus'], ['map', 'Karte'], ['allies', 'Verbündete'], ['enemies', 'Gegner'], ['diff', 'Schwierigkeit']]) {
     const l = document.createElement('label');
     l.className = 'slot';
     l.dataset.slot = key;
@@ -260,7 +260,6 @@ export function initDeploy(data, { snd, webgl } = {}) {
   });
 
   // Hinweise
-  if (window.matchMedia('(pointer: coarse)').matches) $('#note-touch').hidden = false;
   if (!webgl) $('#note-webgl').hidden = false;
 
   // Externe Änderungen (anderer Tab, Spiel) übernehmen

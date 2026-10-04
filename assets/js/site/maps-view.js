@@ -242,6 +242,7 @@ export async function init(sec, D, ctx = {}) {
 
   root.replaceChildren(list);
   sec.append(panel);
+  await new Promise((r) => setTimeout(r, 0)); // in Etappen aufbauen
 
   /* ------------------------------------------------------------ Zustand */
   const plans = new Map();
@@ -344,7 +345,7 @@ export async function init(sec, D, ctx = {}) {
     if (still.complete && still.naturalWidth) durch.classList.add('ready');
     durchName.textContent = up(map.name);
     durchName.fitOpts = { max: () => (durch.clientHeight || 240) * 0.95 };
-    fit(durchName, { now: true });
+    fit(durchName);
   }
 
   function showMap(id, user = false) {
@@ -388,7 +389,7 @@ export async function init(sec, D, ctx = {}) {
         : `${map.name}, ${fmtInt(Math.round(plan.bounds.w - 8))} × ${fmtInt(Math.round(plan.bounds.h - 8))} m.${lanesText} Für diese Karte liegt noch kein vermessener Plan vor.`;
       feats.hidden = isLive || !(map.features || []).length;
       feats.replaceChildren(...(map.features || []).map((f) => h('li', {}, f)));
-      placeScale();
+      requestAnimationFrame(placeScale);
       if (isLive) {
         op = defaultPoint(map.blocks, plan.geo.solid, plan.bounds);
         queueCast(false);

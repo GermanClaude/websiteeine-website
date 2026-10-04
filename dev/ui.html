@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NULLPUNKT – UI-Prüfstand</title>
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--np-black); color: var(--np-ink); font: 14px/1.4 var(--font-hud); display: grid; grid-template-columns: 260px 1fr; height: 100vh; }
+  aside { padding: 14px; border-right: 1px solid var(--np-line); overflow: auto; }
+  h1 { font: 900 18px var(--font-display); font-stretch: 120%; margin: 0 0 4px; text-transform: uppercase; }
+  h1 em { font-style: normal; color: var(--np-signal); }
+  h2 { font: 600 11px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--np-dim); margin: 16px 0 6px; }
+  p { margin: 0 0 8px; color: var(--np-ink-2); font-size: 12px; }
+  button, select { width: 100%; margin: 0 0 4px; min-height: 32px; border: 1px solid var(--np-line-strong); background: var(--np-black-2); color: var(--np-ink); font: 600 13px var(--font-hud); letter-spacing: .04em; text-align: left; padding: 0 10px; cursor: pointer; }
+  button:hover { border-color: var(--np-signal); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  main { position: relative; display: grid; place-items: center; background: #050506; }
+  iframe { border: 0; background: #000; }
+  #log { font: 11px var(--font-mono); color: var(--np-ok); white-space: pre-wrap; margin-top: 8px; }
+</style>
+</head>
+<body>
+<aside>
+  <h1>UI<em>.</em></h1>
+  <p>Spiel im Rahmen (Stubs für Welt/Bots wählbar). Knöpfe steuern <code>__game</code> im Rahmen.</p>
+  <h2>Rahmen</h2>
+  <select id="size"><option value="1280x720">Desktop 1280×720</option><option value="915x412">Telefon quer 915×412</option><option value="740x360">Kleines Telefon 740×360</option><option value="1024x768">Tablet 1024×768</option></select>
+  <select id="mode"><option>tdm</option><option>dom</option><option>ffa</option><option>gun</option><option>training</option></select>
+  <select id="stubs"><option value="world,bots,audio">Testgelände + Stub-Bots</option><option value="bots">Echte Karte + Stub-Bots</option><option value="">Alles echt</option></select>
+  <div class="row"><button data-x="lobby">Lobby laden</button><button data-x="auto">Direkt starten</button></div>
+  <h2>Ereignisse</h2>
+  <button data-x="kills">Alle Gegner ausschalten</button>
+  <button data-x="ready">Alle Serienprämien bereit</button>
+  <div class="row"><button data-x="uav">Aufklärer</button><button data-x="strike">Zielkarte</button></div>
+  <div class="row"><button data-x="sentry">Geschütz</button><button data-x="enemyuav">Feind-UAV</button></div>
+  <div class="row"><button data-x="hurt">Treffer</button><button data-x="die">Tod</button></div>
+  <button data-x="board">Punktetabelle umschalten</button>
+  <button data-x="parcours">Parcours (Schießstand)</button>
+  <h2>Menüs</h2>
+  <div class="row"><button data-x="pause">Pause</button><button data-x="resume">Weiter</button></div>
+  <button data-x="end">Match beenden → Endbildschirm</button>
+  <button data-x="tolobby">Zur Lobby</button>
+  <div id="log"></div>
+</aside>
+<main><iframe id="f" title="Spiel"></iframe></main>
+<script>
+  const f = document.getElementById('f');
+  const $ = (id) => document.getElementById(id);
+  const log = (t) => { $('log').textContent = t; };
+  const G = () => f.contentWindow && f.contentWindow.__game;
+  function load(auto) {
+    const [w, h] = $('size').value.split('x');
+    f.width = w; f.height = h;
+    const p = new URLSearchParams({ mode: $('mode').value, time: '300' });
+    if ($('stubs').value) p.set('stubs', $('stubs').value);
+    if ($('mode').value === 'training') p.set('map', 'range');
+    if (auto) p.set('autostart', '1');
+    f.src = `../spielen.html?${p}`;
+  }
+  const act = {
+    lobby: () => load(false), auto: () => load(true),
+    kills: (g) => g.debugApi.killAllEnemies(),
+    ready: (g) => { const s = g.mode && g.mode.streaks; if (s) s.onKill(g.player, 8); },
+    uav: (g) => g.input.simulate.tap('streak1'), strike: (g) => g.input.simulate.tap('streak2'), sentry: (g) => g.input.simulate.tap('streak3'),
+    enemyuav: (g) => { const s = g.mode && g.mode.streaks; const b = g.actors.find((a) => a !== g.player && g.combat.isHostile(g.player, a)); if (s && b) { s.onKill(b, 4); s.activate(b, 'uav'); } },
+    hurt: (g) => { const b = g.actors.find((a) => a !== g.player && g.combat.isHostile(g.player, a)); g.combat.damage(g.player, { amount: 35, attacker: b, weaponId: 'ar_kv47', zone: 'body', dir: new g.THREE.Vector3(1, 0, 0) }); },
+    die: (g) => { const b = g.actors.find((a) => a !== g.player && g.combat.isHostile(g.player, a)); g.player.godMode = false; g.combat.damage(g.player, { amount: 999, attacker: b, weaponId: 'sr_brecher', zone: 'head', dir: new g.THREE.Vector3(1, 0, 0), distance: 41 }); },
+    board: (g) => { if (g.input.down('scoreboard')) g.input.simulate.release('scoreboard'); else g.input.simulate.press('scoreboard'); },
+    parcours: (g) => g.mode && g.mode.interact && g.mode.interact(),
+    pause: (g) => g.debugApi.pause(), resume: (g) => g.debugApi.resume(), end: (g) => g.debugApi.endMatch(), tolobby: (g) => g.debugApi.toLobby(),
+  };
+  document.querySelector('aside').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-x]');
+    if (!b) return;
+    const k = b.dataset.x;
+    if (k === 'lobby' || k === 'auto') { act[k](); return; }
+    const g = G();
+    if (!g) { log('Spiel nicht geladen.'); return; }
+    try { const r = act[k](g); log(`${k}: ${JSON.stringify(r ?? 'ok')}\n${g.match.state}`); } catch (err) { log(String(err)); }
+  });
+  load(false);
+</script>
+</body>
+</html>

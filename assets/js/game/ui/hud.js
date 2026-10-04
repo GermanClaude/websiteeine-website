@@ -82,6 +82,7 @@ export class HUD {
       <div class="h-hitdirs">${'<div class="h-hitdir"><i></i></div>'.repeat(6)}</div>
       <div class="h-cross" data-style="cross"><i class="l"></i><i class="r"></i><i class="t"></i><i class="b"></i><i class="c"></i><i class="o"></i></div>
       <div class="h-hit"><i></i><i></i><i></i><i></i></div>
+      <div class="h-killico"></div>
       <div class="h-cook"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19"/></svg><b></b></div>
       <div class="h-ammo-hint"><span class="t"></span><kbd></kbd><i class="bar"></i></div>
       <div class="h-tl"><div class="h-mm"></div><div class="h-uav" hidden>${ICON.radar}<span></span></div></div>
@@ -111,7 +112,7 @@ export class HUD {
     const q = (s) => r.querySelector(s);
     this.el = {
       lowhp: q('.h-lowhp'), flash: q('.h-flash'), acog: q('.h-acog'), scope: q('.h-scope'), markers: q('.h-markers'), dmgnums: q('.h-dmgnums'),
-      dirs: [...r.querySelectorAll('.h-hitdir')], cross: q('.h-cross'), hit: q('.h-hit'), cook: q('.h-cook'), cookFg: q('.h-cook .fg'), cookT: q('.h-cook b'),
+      dirs: [...r.querySelectorAll('.h-hitdir')], cross: q('.h-cross'), hit: q('.h-hit'), killico: q('.h-killico'), cook: q('.h-cook'), cookFg: q('.h-cook .fg'), cookT: q('.h-cook b'),
       ammoHint: q('.h-ammo-hint'), ammoHintT: q('.h-ammo-hint .t'), ammoHintK: q('.h-ammo-hint kbd'), ammoHintBar: q('.h-ammo-hint .bar'),
       mm: q('.h-mm'), uav: q('.h-uav'), uavT: q('.h-uav span'), feed: q('.h-feed'), top: q('.h-top'), mtag: q('.h-mtag'),
       sA: q('.h-s-a'), sAv: q('.h-s-a b'), sAbar: q('.h-s-a u'), sAs: q('.h-s-a small'), sB: q('.h-s-b'), sBv: q('.h-s-b b'), sBbar: q('.h-s-b u'), sBs: q('.h-s-b small'),
@@ -180,6 +181,9 @@ export class HUD {
     const modeId = mode ? mode.id : G.match.modeId;
     this.root.dataset.mode = modeId || '';
     this.root.dataset.teams = mode && mode.teams ? '1' : '0';
+    // Touch-Knöpfe ohne Funktion im Modus ausblenden (Serien im Waffenspiel/Schießstand, Granaten im Waffenspiel)
+    document.body.dataset.streaks = mode && mode.streaks ? '1' : '0';
+    document.body.dataset.lethals = mode && mode.def && mode.def.lethals === false ? '0' : '1';
     this.minimap.setWorld(G.world);
     this._buildModeSections();
     this._buildStreaks();
@@ -188,7 +192,7 @@ export class HUD {
     this.el.capture.hidden = true;
     this.el.board.hidden = true;
     this.el.banner.classList.remove('is-on');
-    setText(this.el.count, '');
+    setHtml(this.el.count, '');
     this.el.notices.innerHTML = '';
     this.el.medal.innerHTML = '';
     this.el.pop.classList.remove('is-on');
@@ -238,6 +242,8 @@ export class HUD {
     if (this.feed) this.feed.clear();
     this._setPostDesat(0);
     if (this.topUi) this.topUi.hidden = true;
+    delete document.body.dataset.streaks;
+    delete document.body.dataset.lethals;
     this._attached = false;
   }
 
@@ -378,6 +384,15 @@ export class HUD {
     const G = this.G;
     this.feed.pushKill(e);
     const p = G.player;
+    // Abschuss-Bestätigung unter dem Fadenkreuz
+    const k = e.killer;
+    if (k && e.victim !== p && (k === p || (k.isStreakEntity && k.owner === p))) {
+      const n = this.el.killico;
+      n.innerHTML = e.headshot ? ICON.head : ICON.skull;
+      n.className = `h-killico${e.headshot ? ' is-head' : ''}`;
+      void n.offsetWidth;
+      n.classList.add('go');
+    }
     if (e.victim === p) {
       const k = e.killer && e.killer.isStreakEntity ? e.killer : e.killer;
       const owner = k && k.isStreakEntity ? k.owner : k;
@@ -440,7 +455,7 @@ export class HUD {
       const n = el('div', `h-notice h-notice-medal tier-${tier || def.tier || 'bronze'}`, `${medalBadge(label || def.label || id, tier || def.tier)}<span>${esc(label || def.label || id)}</span>`);
       this.el.notices.appendChild(n);
       this._notices.push({ n, t: 1.8 });
-      while (this._notices.length > 3) this._notices.shift().n.remove();
+      while (this._notices.length > 2) this._notices.shift().n.remove();
       return;
     }
     if (this._medals.length > 5) return;
@@ -459,7 +474,8 @@ export class HUD {
     const n = el('div', `h-notice ${tone ? `is-${tone}` : ''}`, `${esc(text)}${key ? `<kbd>${esc(key)}</kbd>` : ''}`);
     this.el.notices.appendChild(n);
     this._notices.push({ n, t: life });
-    while (this._notices.length > 3) this._notices.shift().n.remove();
+    const max = this.G.input && this.G.input.mode === 'touch' ? 2 : 3;
+    while (this._notices.length > max) this._notices.shift().n.remove();
   }
 
   _damageDir({ amount, dir, attacker }) {
@@ -636,6 +652,7 @@ export class HUD {
     const cam = G.camera;
     const style = G.settings.get('crosshairStyle');
     const alive = !!(p && p.alive);
+    toggle(this.root, 'is-dead', !!p && !alive);
     const melee = def && def.cls === 'melee';
     const hide = !alive || scoped || ads > 0.55 || (p && p.sprinting) || (this.targeting && this.targeting.open);
     const cross = this.el.cross;
@@ -784,7 +801,7 @@ export class HUD {
     /* ---------- Countdown / Startbanner */
     if (this._countT > 0) {
       this._countT -= dt;
-      if (this._countT <= 0) setText(this.el.count, '');
+      if (this._countT <= 0) setHtml(this.el.count, '');
     }
     if (this._bannerT > 0) {
       this._bannerT -= dt;
@@ -831,10 +848,11 @@ export class HUD {
     const eq = lethal && lethal.id ? EQ[lethal.id] : null;
     let left = null;
     let total = eq ? eq.fuse || 2.8 : 2.8;
-    // Bevorzugt: Controller-Zustand (falls vorhanden), sonst Tastendauer
-    if (w && Number.isFinite(w.cookTime) && w.cookTime > 0 && eq) left = Math.max(0, total - w.cookTime);
-    else if (w && Number.isFinite(w.fuseLeft) && w.cooking) left = w.fuseLeft;
-    else if (eq && eq.cookable && lethal.count > 0 && input && input.down('grenade') && G.player && G.player.alive) {
+    // Bevorzugt: Controller-Zustand (cooking/fuseLeft/cookTime), sonst Dauer des Tastendrucks
+    if (w && typeof w.cooking === 'boolean') {
+      this._cook = null;
+      if (w.cooking && eq) left = Number.isFinite(w.fuseLeft) ? Math.max(0, w.fuseLeft) : Math.max(0, total - (w.cookTime || 0));
+    } else if (eq && eq.cookable && lethal.count > 0 && input && input.down('grenade') && G.player && G.player.alive) {
       if (!this._cook) this._cook = { t: 0 };
       this._cook.t += dt;
       left = Math.max(0, total - this._cook.t);
@@ -1027,7 +1045,7 @@ export class HUD {
     const p = G.player;
     const cam = G.camera;
     const objs = (mode && mode.objectives) || [];
-    if (!objs.length || !cam || !p) { this.el.capture.hidden = true; return; }
+    if (!objs.length || !cam || !p) { this.el.capture.hidden = true; toggle(this.root, 'is-capturing', false); return; }
     cam.updateMatrixWorld();
     const byId = new Map(objs.map((f) => [f.id, f]));
     const margin = 46;
@@ -1062,6 +1080,7 @@ export class HUD {
     }
     // Einnahmebalken
     const cb = this.el.capture;
+    toggle(this.root, 'is-capturing', !!inside);
     if (!inside) { cb.hidden = true; return; }
     cb.hidden = false;
     const f = inside;
