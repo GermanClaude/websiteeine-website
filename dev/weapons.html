@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Waffenlabor – NULLPUNKT</title>
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--np-black); color: var(--np-ink); font: 13px/1.4 var(--font-mono); overflow: hidden; }
+  #stage { position: fixed; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+  header { position: fixed; top: 0; left: 0; right: 0; display: flex; gap: 14px; align-items: center; padding: 10px 16px; z-index: 5; pointer-events: none; }
+  header h1 { margin: 0; font: 800 15px/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase; font-stretch: 125%; }
+  header h1 b { color: var(--np-signal); }
+  header nav { display: flex; gap: 6px; pointer-events: auto; }
+  button, select { font: inherit; color: var(--np-ink); background: rgba(17,19,22,.82); border: 1px solid var(--np-line-strong); padding: 6px 10px; cursor: pointer; border-radius: 0; }
+  button:hover { border-color: var(--np-signal); }
+  button[aria-pressed="true"], button.on { background: var(--np-signal); color: #111; border-color: var(--np-signal); }
+  aside { position: fixed; top: 48px; left: 16px; bottom: 16px; width: 214px; display: flex; flex-direction: column; gap: 4px; z-index: 4; overflow: auto; }
+  aside button { text-align: left; }
+  aside .grp { margin-top: 10px; color: var(--np-dim); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+  #info { position: fixed; right: 16px; top: 48px; width: 250px; z-index: 4; background: rgba(17,19,22,.82); border: 1px solid var(--np-line); padding: 10px 12px; white-space: pre-wrap; }
+  #controls { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; z-index: 4; max-width: calc(100% - 32px); }
+  #scope { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 3;
+    background: radial-gradient(circle at 50% 50%, transparent 0 31vh, #000 31.4vh); }
+  #scope::before, #scope::after { content: ''; position: absolute; background: #000; }
+  #scope::before { left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; }
+  #scope::after { top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; }
+  #cross { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255,255,255,.5); z-index: 3; display: none; }
+  .hint { color: var(--np-dim); font-size: 11px; }
+  @media (max-width: 760px) { aside { width: 150px; } #info { display: none; } }
+</style>
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<header>
+  <h1>NULL<b>PUNKT</b> · Waffenlabor</h1>
+  <nav>
+    <button data-view="models">Modelle</button>
+    <button data-view="grid">Übersicht</button>
+    <button data-view="bench">Ego-Ansicht</button>
+  </nav>
+</header>
+<aside id="side"></aside>
+<div id="info"></div>
+<div id="controls"></div>
+<div id="scope"></div>
+<div id="cross"></div>
+<script type="module" src="../assets/js/game/weapons/gunsmith/bench.js"></script>
+</body>
+</html>

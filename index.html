@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="de" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NULLPUNKT – Ego-Shooter im Browser</title>
+<meta name="description" content="Taktischer Ego-Shooter im Browser: fünf Modi, vier Karten, zehn Waffen, Bots. Kein Download, kein Konto, kein Tracking.">
+<meta name="theme-color" content="#0A0B0D">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="de_DE">
+<meta property="og:site_name" content="NULLPUNKT">
+<meta property="og:title" content="NULLPUNKT – Ego-Shooter im Browser">
+<meta property="og:description" content="Ein Schriftmusterbuch, das zurückschießt. Fünf Modi, vier Karten, zehn Waffen, Bots. Kein Download, kein Konto.">
+<meta property="og:image" content="assets/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="NULLPUNKT. in schwerer Schrift auf Schwarz, der Punkt in Signalorange.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/fonts/archivo-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/jetbrains-mono-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/css/fonts.css">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/site.css">
+<script type="importmap">{"imports":{"three":"./assets/vendor/three/three.module.min.js","three/addons/":"./assets/vendor/three/addons/"}}</script>
+<script>document.documentElement.classList.replace('no-js', 'js');</script>
+<link rel="modulepreload" href="assets/js/site/main.js">
+<link rel="modulepreload" href="assets/js/shared/weapons.data.js">
+<link rel="modulepreload" href="assets/js/shared/modes.data.js">
+<link rel="modulepreload" href="assets/js/shared/maps.data.js">
+<link rel="modulepreload" href="assets/js/shared/settings.js">
+<script type="module" src="assets/js/site/main.js"></script>
+</head>
+<body>
+<a class="skip" href="#einsatz">Zum Inhalt</a>
+<a class="skip" href="spielen.html?mode=tdm&amp;map=hafen&amp;diff=regulaer&amp;allies=5&amp;enemies=6" data-play>Direkt spielen</a>
+
+<div class="visier" aria-hidden="true"></div>
+
+<header class="status" id="status">
+  <a class="brand" href="#nullpunkt">NULLPUNKT.</a>
+  <p class="who" hidden><span class="callsign" id="st-callsign">OPERATOR</span><span class="lvl"><span id="st-level">STUFE 1</span><span class="rank-ic" id="st-rank"></span></span></p>
+  <div class="st-actions">
+    <button class="st-index js-only" type="button" aria-haspopup="dialog" data-open-index>Index</button>
+    <button class="st-sound js-only" type="button" aria-pressed="false" id="sound-toggle">Ton: aus</button>
+    <a class="st-play" href="spielen.html?mode=tdm&amp;map=hafen&amp;diff=regulaer&amp;allies=5&amp;enemies=6" data-play data-kill hidden>Spielen<span class="o">.</span></a>
+  </div>
+</header>
+
+<nav class="index" aria-label="Abschnitte">
+  <ol>
+    <li><a href="#einsatz">Einsatz</a></li>
+    <li><a href="#modi">Modi</a></li>
+    <li><a href="#karten">Karten</a></li>
+    <li><a href="#arsenal">Arsenal</a></li>
+    <li><a href="#profil">Profil</a></li>
+    <li><a href="#einstellungen">Einstellungen</a></li>
+    <li><a href="#steuerung">Steuerung</a></li>
+    <li><a href="#ueber">Über</a></li>
+  </ol>
+</nav>
+
+<main id="main">
+
+  <!-- §00 ─────────────────────────────────────────────── -->
+  <section id="nullpunkt" class="sec hero" aria-labelledby="h-null">
+    <div class="hero-top">
+      <div class="ht-rail">
+        <p class="rail-label"><span class="sec-no">§00</span> / NULLPUNKT / Einschießen</p>
+        <p class="zero-best" id="zero-best" hidden></p>
+      </div>
+      <div class="ht-main js-only">
+        <p class="zero-msg" id="zero-msg">Fünf Schuss auf den Punkt.</p>
+        <button class="txt-btn" type="button" id="zero-reset" hidden>Neu einschießen</button>
+      </div>
+    </div>
+    <div class="target" id="target">
+      <h1 class="wordmark" id="h-null" data-fit data-fit-max="420" data-kinetic>
+        <span class="fl" data-fit-wdth="125">NULL</span><span class="fl" data-fit-wdth="100">PUNKT<span class="bull-g">.</span></span>
+      </h1>
+      <button class="bull js-only" type="button" aria-label="Auf den Nullpunkt schießen" id="bull"></button>
+      <div class="holes" id="holes" aria-hidden="true"></div>
+    </div>
+    <p class="data-line" id="data-line">5 MODI · 4 KARTEN · 10 WAFFEN · BIS ZU 15 BOTS</p>
+    <div class="hero-body">
+      <p class="lead">Ego-Shooter im Browser. Du gegen Bots. Kein Download, kein Konto.</p>
+      <div class="hero-cta">
+        <a class="cta-fill" href="spielen.html?mode=tdm&amp;map=hafen&amp;diff=regulaer&amp;allies=5&amp;enemies=6" data-play data-kill>Sofort spielen<span class="o">.</span></a>
+        <a class="cta-down" href="#einsatz">Einsatz zusammenstellen <span class="arrow" aria-hidden="true">↓</span></a>
+      </div>
+      <p class="cta-cfg" id="cta-cfg">TDM · IM HAFEN · REGULÄR</p>
+    </div>
+  </section>
+
+  <!-- §01 ─────────────────────────────────────────────── -->
+  <section id="einsatz" class="sec" aria-labelledby="h-einsatz" data-view="deploy">
+    <div class="rail">
+      <p class="rail-label"><span class="sec-no">§01</span> / EINSATZ / Satzbau</p>
+      <p class="kicker">Jedes Wort ist eine Wahl.</p>
+    </div>
+    <div class="content">
+      <h2 class="hl" id="h-einsatz" data-fit>EINSATZ.</h2>
+      <p class="tagline">Satz für Satz ins Gefecht.</p>
+      <form class="satz" id="satz" action="spielen.html" method="get" novalidate>
+        <p class="satz-text">
+          <span class="w">Ich</span> <span class="w" data-pre="lead">spiele</span>
+          <label class="slot" data-slot="mode"><span class="sr-only">Modus</span><span class="word" aria-hidden="true">Team-Deathmatch</span><select name="mode"><option value="tdm" selected>Team-Deathmatch</option><option value="dom">Herrschaft</option><option value="ffa">Jeder gegen jeden</option><option value="gun">Waffenspiel</option><option value="training">Schießstand</option></select></label>
+          <span class="w prep" id="prep-map">im</span>
+          <label class="slot" data-slot="map"><span class="sr-only">Karte</span><span class="word" aria-hidden="true">Hafen</span><select name="map"><option value="hafen" selected>Hafen</option><option value="altstadt">Altstadt</option><option value="werk">Werk</option></select></label>
+          <span class="grp" data-grp="allies"><span class="w">mit</span>
+          <label class="slot" data-slot="allies"><span class="sr-only">Verbündete</span><span class="word" aria-hidden="true">5</span><select name="allies"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option></select></label>
+          <span class="w">Verbündeten</span></span>
+          <span class="grp" data-grp="enemies"><span class="w">gegen</span>
+          <label class="slot" data-slot="enemies"><span class="sr-only">Gegner</span><span class="word" aria-hidden="true">6</span><select name="enemies"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option selected>6</option><option>7</option><option>8</option></select></label>
+          <span class="w" id="bot-word">Bots</span></span>
+          <span class="grp" data-grp="diff"><span class="w">auf</span>
+          <label class="slot" data-slot="diff"><span class="sr-only">Stufe</span><span class="word" aria-hidden="true">Regulär</span><select name="diff"><option value="rekrut">Rekrut</option><option value="regulaer" selected>Regulär</option><option value="veteran">Veteran</option><option value="elite">Elite</option></select></label></span><span class="w">.</span>
+          <a class="go" href="spielen.html?mode=tdm&amp;map=hafen&amp;diff=regulaer&amp;allies=5&amp;enemies=6" data-play data-kill id="go"><span class="go-w">Los</span><span class="o">.</span></a>
+        </p>
+      </form>
+      <div class="url-line">
+        <code class="url" id="play-url">spielen.html?mode=tdm&amp;map=hafen&amp;diff=regulaer&amp;allies=5&amp;enemies=6</code>
+        <button class="txt-btn js-only" type="button" id="copy-url">Link kopieren</button>
+      </div>
+      <p class="note" id="note-touch" hidden>Am Telefon: quer halten.</p>
+      <p class="note" id="note-webgl" hidden>Dein Browser meldet kein WebGL. Das Spiel läuft hier vermutlich nicht.</p>
+    </div>
+  </section>
+
+  <!-- §02 ─────────────────────────────────────────────── -->
+  <section id="modi" class="sec" aria-labelledby="h-modi" data-view="modes">
+    <div class="rail">
+      <p class="rail-label"><span class="sec-no">§02</span> / MODI / Regelwerk</p>
+    </div>
+    <div class="content">
+      <h2 class="hl" id="h-modi" data-fit>MODI.</h2>
+      <p class="tagline">Fünf Modi. Ein Fadenkreuz.</p>
+      <ol class="modes static" id="modes-list">
+        <li><h3>Team-Deathmatch</h3><p class="mono-s">TDM · 6 GEGEN 6 · 40 ABSCHÜSSE · 10 MIN</p><p>Sechs gegen sechs. Wer zuerst 40 erreicht, gewinnt.</p></li>
+        <li><h3>Herrschaft</h3><p class="mono-s">DOM · 6 GEGEN 6 · 150 PUNKTE · 10 MIN</p><p>Drei Flaggen. Halte zwei, und die Uhr arbeitet für dich.</p></li>
+        <li><h3>Jeder gegen jeden</h3><p class="mono-s">FFA · 8 SPIELER · 25 ABSCHÜSSE · 10 MIN</p><p>Acht Spieler. Keine Freunde. 25 Abschüsse.</p></li>
+        <li><h3>Waffenspiel</h3><p class="mono-s">GUN · 8 SPIELER · 18 STUFEN · 10 MIN</p><p>18 Stufen, ein Messer. Jeder Abschuss lädt nach.</p></li>
+        <li><h3>Schießstand</h3><p class="mono-s">TRN · KEIN LIMIT</p><p>Kein Druck, kein Limit. Nur du und die Ziele.</p></li>
+      </ol>
+      <div class="serien" id="serien">
+        <h3 class="sub-h" id="h-serien">SERIEN.</h3>
+        <p class="sub-rail">Serienprämien</p>
+        <p class="sub-copy">Abschüsse ohne Tod schalten frei, was über dir kreist.</p>
+        <ol class="streaks" id="streaks">
+          <li><span class="streak-n" aria-hidden="true">4</span><h4>Aufklärer</h4><p>Eine Drohne kreist über der Karte und zeigt 30 Sekunden lang alle Gegner auf der Minikarte.</p><p class="sr-only">4 Abschüsse</p></li>
+          <li><span class="streak-n" aria-hidden="true">6</span><h4>Präzisionsschlag</h4><p>Markiere einen Punkt auf der Karte, Sekunden später schlagen drei Raketen in einer Linie ein.</p><p class="sr-only">6 Abschüsse</p></li>
+          <li><span class="streak-n" aria-hidden="true">8</span><h4>Wachgeschütz</h4><p>Ein automatisches Geschütz bewacht 45 Sekunden lang deine Position.</p><p class="sr-only">8 Abschüsse</p></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- §03 ─────────────────────────────────────────────── -->
+  <section id="karten" class="sec" aria-labelledby="h-karten" data-view="maps">
+    <div class="rail">
+      <p class="rail-label"><span class="sec-no">§03</span> / KARTEN / Sichtlinien-Satz</p>
+      <p class="kicker js-only">Bewege dich durch den Plan. Was du siehst, steht fett.</p>
+    </div>
+    <div class="content">
+      <h2 class="hl" id="h-karten" data-fit>KARTEN.</h2>
+      <p class="tagline">Miss zweimal. Schieß einmal.</p>
+      <div class="maps-root" id="maps-root">
+        <ul class="maps-static static">
+          <li><h3>Hafen</h3><p>Containerlabyrinth, Portalkran und Lagerhalle bei goldenem Abendlicht.</p></li>
+          <li><h3>Altstadt</h3><p>Mediterrane Gassen, Markt und Dachterrassen in der Mittagssonne.</p></li>
+          <li><h3>Werk</h3><p>Industriehalle mit Laufstegen, Pressen und Lkw-Hof in der Abenddämmerung.</p></li>
+          <li><h3>Schießstand</h3><p>Trainingsanlage mit Klappzielen von 10 bis 100 Metern.</p></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- §04 ─────────────────────────────────────────────── -->
+  <section id="arsenal" class="sec" aria-labelledby="h-arsenal" data-view="arsenal">
+    <div class="rail">
+      <p class="rail-label"><span class="sec-no">§04</span> / ARSENAL / Schriftmusterbuch</p>
+      <p class="kicker">Breite ist Reichweite. Stärke ist Schaden.</p>
+      <div class="w-index-slot" id="w-index-rail"></div>
+    </div>
+    <div class="content">
+      <h2 class="hl" id="h-arsenal" data-fit>ARSENAL.</h2>
+      <p class="tagline">Jede Waffe hat ihren eigenen Schnitt.</p>
+      <div class="arsenal-root" id="arsenal-root">
+        <ul class="arsenal-static static">
+          <li>KV-47</li><li>M-17 Falke</li><li>VP-9 Viper</li><li>QX-90</li><li>HM-60 Hammer</li><li>SK-14</li><li>Brecher .338</li><li>Bulldog 12</li><li>P-9 Kompakt</li><li>Adler .50</li><li>Kampfmesser</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- §05 ─────────────────────────────────────────────── -->
+  <section id="profil" class="sec" aria-labelledby="h-profil" data-view="profile">
+    <div class="rail">
+      <p class="rail-label"><span class="sec-no">§05</span> / PROFIL / Dein Schnitt</p>
+    </div>
+    <div class="content">
+      <h2 class="hl" id="h-profil" data-fit>PROFIL.</h2>
+      <p class="tagline">Dein Schnitt, gesetzt aus deinen Treffern.</p>
+      <div class="profile-root" id="profile-root">
+        <p class="static">Noch kein Einsatz. Dein Schnitt ist ungeschrieben.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- §06 ─────────────────────────────────────────────── -->
+  <section id="einstellungen" class="sec" aria-labelledby="h-einst" data-view="settings">
+    <div class="rail">
+      <p class="rail-label"><span class="sec-no">§06</span> / EINSTELLUNGEN / Setzkasten</p>
+    </div>
+    <div class="content">
+      <h2 class="hl" id="h-einst" data-fit>EINSTELLUNGEN.</h2>
+      <p class="tagline">Gilt für Website und Spiel.</p>
+      <div class="settings-root" id="settings-root">
+        <p class="static nojs-only">Die Einstellungen brauchen JavaScript.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- §07 ─────────────────────────────────────────────── -->
+  <section id="steuerung" class="sec" aria-labelledby="h-steuer" data-view="controls">
+    <div class="rail">
+      <p class="rail-label"><span class="sec-no">§07</span> / STEUERUNG / Belegung</p>
+    </div>
+    <div class="content">
+      <h2 class="hl" id="h-steuer" data-fit>STEUERUNG.</h2>
+      <p class="tagline">Drück eine Taste. Wir sagen dir, was sie tut.</p>
+      <div class="controls-root" id="controls-root">
+        <table class="keymap static">
+          <caption class="sr-only">Tastatur und Maus</caption>
+          <tbody>
+            <tr><th scope="row">W A S D</th><td>Bewegen</td></tr>
+            <tr><th scope="row">Maus</th><td>Umsehen</td></tr>
+            <tr><th scope="row">LMT</th><td>Feuer</td></tr>
+            <tr><th scope="row">RMT</th><td>Zielen (halten)</td></tr>
+            <tr><th scope="row">R</th><td>Nachladen</td></tr>
+            <tr><th scope="row">Leertaste</th><td>Springen</td></tr>
+            <tr><th scope="row">C / Strg</th><td>Ducken, im Sprint rutschen</td></tr>
+            <tr><th scope="row">Umschalt</th><td>Sprinten</td></tr>
+            <tr><th scope="row">V / Maus 4</th><td>Nahkampf</td></tr>
+            <tr><th scope="row">G / Q</th><td>Granate</td></tr>
+            <tr><th scope="row">1 / 2 / Mausrad</th><td>Waffe wechseln</td></tr>
+            <tr><th scope="row">3 / 4 / 5</th><td>Serienprämien</td></tr>
+            <tr><th scope="row">Tab</th><td>Punktestand</td></tr>
+            <tr><th scope="row">Esc</th><td>Pause</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- §08 ─────────────────────────────────────────────── -->
+  <section id="ueber" class="sec" aria-labelledby="h-ueber" data-view="about">
+    <div class="rail">
+      <p class="rail-label"><span class="sec-no">§08</span> / ÜBER / Impressum &amp; Datenschutz</p>
+    </div>
+    <div class="content">
+      <h2 class="hl" id="h-ueber" data-fit>ÜBER.</h2>
+      <p class="tagline">NULLPUNKT ist ein Ego-Shooter, der vollständig in deinem Browser läuft. Du spielst gegen Bots, nicht gegen Menschen.</p>
+      <p class="statement"><span>Keine Cookies.</span> <span>Kein Tracking.</span> <span>Kein Server.</span></p>
+      <div class="about-cols">
+        <div class="about-store" id="datenschutz">
+          <h3 class="mono-h">Datenschutz</h3>
+          <p>Nichts verlässt dieses Gerät. Gespeichert wird nur, was du hier und im Spiel einstellst, im lokalen Speicher deines Browsers:</p>
+          <dl class="keys">
+            <div><dt><code>nullpunkt:settings</code></dt><dd>Einstellungen</dd></div>
+            <div><dt><code>nullpunkt:profile</code></dt><dd>Stufe, Statistik, Verlauf</dd></div>
+            <div><dt><code>nullpunkt:site</code></dt><dd>Website: Streukreis, zuletzt gesehener Einsatz, Ton</dd></div>
+          </dl>
+          <button class="txt-btn js-only" type="button" id="wipe-open" aria-haspopup="dialog">Lokale Daten löschen</button>
+        </div>
+        <div class="about-legal">
+          <section class="impressum" id="impressum" aria-labelledby="h-impressum" hidden>
+            <h3 class="mono-h" id="h-impressum">Impressum</h3>
+            <div id="impressum-body"></div>
+          </section>
+          <p class="credits">Schriften: Archivo, JetBrains Mono, Rajdhani, SIL Open Font License 1.1. 3D: three.js, MIT-Lizenz. Alle Waffen, Karten und Namen sind frei erfunden.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p class="foot-mark" aria-hidden="true" data-fit data-fit-max="320"><span class="vis-static">NULLPUNKT.</span></p>
+  <p class="foot-line"><span>Ziel. Atmen. Punkt.</span> <a href="#nullpunkt">Nach oben <span class="arrow" aria-hidden="true">↑</span></a></p>
+</footer>
+
+<nav class="bar js-only" aria-label="Schnellzugriff" id="bar" hidden>
+  <button class="bar-sec" type="button" aria-haspopup="dialog" data-open-index><span class="sr-only">Index öffnen, aktueller Abschnitt: </span><span class="bar-name" id="bar-name">Einsatz</span></button>
+  <a class="bar-play" href="spielen.html?mode=tdm&amp;map=hafen&amp;diff=regulaer&amp;allies=5&amp;enemies=6" data-play data-kill>Spielen<span class="o">.</span></a>
+</nav>
+
+<dialog class="index-dialog" id="index-dialog" aria-labelledby="index-dialog-h">
+  <div class="dlg-head"><p class="rail-label" id="index-dialog-h">Index</p><button class="txt-btn" type="button" data-close>Schließen</button></div>
+  <ol class="dlg-list">
+    <li><a href="#nullpunkt">Nullpunkt</a></li>
+    <li><a href="#einsatz">Einsatz</a></li>
+    <li><a href="#modi">Modi</a></li>
+    <li><a href="#karten">Karten</a></li>
+    <li><a href="#arsenal">Arsenal</a></li>
+    <li><a href="#profil">Profil</a></li>
+    <li><a href="#einstellungen">Einstellungen</a></li>
+    <li><a href="#steuerung">Steuerung</a></li>
+    <li><a href="#ueber">Über</a></li>
+  </ol>
+</dialog>
+
+<dialog class="wipe-dialog" id="wipe-dialog" aria-labelledby="wipe-h">
+  <p class="rail-label" id="wipe-h">Lokale Daten löschen</p>
+  <p class="dlg-text">Alle NULLPUNKT-Daten in diesem Browser löschen? Stufe, Statistik und Einstellungen gehen verloren.</p>
+  <div class="dlg-actions">
+    <button class="txt-btn" type="button" data-close>Abbrechen</button>
+    <button class="dlg-go" type="button" id="wipe-go">Löschen<span class="o">.</span></button>
+  </div>
+</dialog>
+
+<div class="sr-only" id="live" aria-live="polite"></div>
+<noscript><p class="noscript">Ohne JavaScript bleibt diese Seite ein Schriftmuster. Das Spiel braucht JavaScript und WebGL.</p></noscript>
+</body>
+</html>

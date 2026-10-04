@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Welt-Prüfseite – NULLPUNKT</title>
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0d10; color: #e8ecef; font-family: "JetBrains Mono NP", ui-monospace, monospace; overflow: hidden; }
+  canvas#view { display: block; width: 100vw; height: 100vh; cursor: grab; }
+  canvas#view.drag { cursor: grabbing; }
+  #panel { position: fixed; top: 10px; left: 10px; width: 270px; background: rgba(12,14,17,.84); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 12px; font-size: 12px; line-height: 1.45; backdrop-filter: blur(6px); }
+  #panel h1 { font: 800 15px/1 "Archivo NP", sans-serif; letter-spacing: .04em; margin: 0 0 10px; }
+  #panel h1 span { color: #ff5b1f; }
+  #panel select, #panel button { font: inherit; color: inherit; background: #1b1f24; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; padding: 4px 8px; }
+  #panel button.on { background: #ff5b1f; color: #111; border-color: #ff5b1f; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  #stats { white-space: pre; color: #b9c2ca; margin-top: 8px; }
+  #help { color: #7d8790; margin-top: 8px; }
+  #mini { position: fixed; right: 10px; top: 10px; width: 256px; height: 256px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; display: none; image-rendering: auto; }
+  #progress { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font: 700 14px "Archivo NP", sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+  #progress div { background: rgba(0,0,0,.6); padding: 14px 20px; border-radius: 10px; }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<canvas id="mini" width="512" height="512"></canvas>
+<div id="panel">
+  <h1>WELT<span>·</span>PRÜFSEITE</h1>
+  <div class="row">
+    <select id="map">
+      <option value="hafen">Hafen</option>
+      <option value="altstadt">Altstadt</option>
+      <option value="werk">Werk</option>
+      <option value="range">Schießstand</option>
+    </select>
+    <select id="quality">
+      <option value="high">Hoch</option>
+      <option value="low">Niedrig</option>
+      <option value="ultra">Ultra</option>
+    </select>
+  </div>
+  <div class="row">
+    <button data-t="collider">Kollision</button>
+    <button data-t="nav">Navigation</button>
+    <button data-t="spawns">Spawns</button>
+    <button data-t="objectives">Flaggen</button>
+    <button data-t="minimap">Minikarte</button>
+    <button data-t="walk">Laufen</button>
+  </div>
+  <div id="stats">–</div>
+  <div id="help">WASD bewegen · Q/E runter/hoch · Umschalt schnell · Maus ziehen schauen · G Laufen · T Ziele hoch/runter (Schießstand)</div>
+</div>
+<div id="progress"><div id="ptext">Lade …</div></div>
+<script type="module">
+import * as THREE from 'three';
+import { loadWorld } from '../assets/js/game/world/index.js';
+import { textureStats } from '../assets/js/game/engine/textures.js';
+
+const params = new URLSearchParams(location.search);
+const canvas = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.info.autoReset = false;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(Number(params.get('fov') || 75), 1, 0.05, 1200);
+const debugGroup = new THREE.Group(); scene.add(debugGroup);
+const quality = params.get('quality') || 'high';
+document.getElementById('quality').value = quality;
+const preset = quality === 'low' ? { shadows: false, shadowMapSize: 1024 } : quality === 'ultra' ? { shadows: true, shadowMapSize: 4096 } : { shadows: true, shadowMapSize: 2048 };
+renderer.shadowMap.enabled = preset.shadows;
+const G = { THREE, scene, camera, renderer: { renderer, quality, preset }, params, debug: params.get('debug') !== '0' };
+
+let world = null, loadMs = 0, yaw = 0, pitch = 0, speed = 8;
+const keys = new Set();
+const toggles = new Set((params.get('show') || '').split(',').filter(Boolean));
+const mini = document.getElementById('mini');
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+function setCam(x, y, z, yw = yaw, pt = pitch) {
+  camera.position.set(x, y, z); yaw = yw; pitch = pt; applyRot();
+}
+function applyRot() { camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); }
+
+async function load(mapId) {
+  document.getElementById('progress').style.display = 'grid';
+  if (world) { world.dispose(); world = null; }
+  clearDebug();
+  const t0 = performance.now();
+  const ms0 = textureStats.ms;
+  world = await loadWorld(G, mapId, { onProgress: (p, l) => { document.getElementById('ptext').textContent = `${Math.round(p * 100)} % · ${l}`; } });
+  loadMs = performance.now() - t0;
+  world.texMs = textureStats.ms - ms0;
+  document.getElementById('progress').style.display = 'none';
+  document.getElementById('map').value = world.id;
+  const cam = (params.get('cam') || '').split(',').map(Number);
+  if (cam.length >= 3 && cam.every(v => !Number.isNaN(v))) setCam(cam[0], cam[1], cam[2], (cam[3] || 0) * Math.PI / 180, (cam[4] || 0) * Math.PI / 180);
+  else { const s = world.spawns.A[0]; setCam(s.position.x, s.position.y + 1.65, s.position.z, s.yaw, -0.05); }
+  rebuildDebug();
+  const mctx = mini.getContext('2d'); mctx.clearRect(0, 0, 512, 512); mctx.drawImage(world.minimap.canvas, 0, 0, 512, 512);
+  drawMiniMarkers();
+  window.__dev.ready = true;
+  return world;
+}
+
+function drawMiniMarkers() {
+  const mctx = mini.getContext('2d');
+  const mm = world.minimap;
+  const dot = (x, z, col, r = 4) => { const { u, v } = mm.worldToMap(x, z); mctx.fillStyle = col; mctx.beginPath(); mctx.arc(u * 512, v * 512, r, 0, 7); mctx.fill(); };
+  for (const s of world.spawns.A) dot(s.position.x, s.position.z, '#38b6ff', 3);
+  for (const s of world.spawns.B) dot(s.position.x, s.position.z, '#ff3b3b', 3);
+  for (const s of world.spawns.ffa) dot(s.position.x, s.position.z, '#ffffff', 2);
+  mctx.font = '700 18px "Rajdhani NP", sans-serif'; mctx.textAlign = 'center'; mctx.textBaseline = 'middle';
+  for (const o of world.objectives.dom) { const { u, v } = mm.worldToMap(o.position.x, o.position.z); mctx.fillStyle = 'rgba(255,91,31,.9)'; mctx.beginPath(); mctx.arc(u * 512, v * 512, 11, 0, 7); mctx.fill(); mctx.fillStyle = '#111'; mctx.fillText(o.id, u * 512, v * 512 + 1); }
+}
+
+function clearDebug() {
+  for (const c of [...debugGroup.children]) { debugGroup.remove(c); c.geometry?.dispose(); c.material?.dispose(); }
+}
+
+function rebuildDebug() {
+  clearDebug();
+  if (!world) return;
+  if (toggles.has('collider')) {
+    const bvh = world.debugData.colliderBVH;
+    // aus der BVH zurückgewonnene Dreiecke (v0 + Kanten)
+    const n = bvh.count, pos = new Float32Array(n * 9);
+    for (let i = 0; i < n; i++) { const o = i * 9; const ax = bvh.tri[o], ay = bvh.tri[o + 1], az = bvh.tri[o + 2]; pos.set([ax, ay, az, ax + bvh.tri[o + 3], ay + bvh.tri[o + 4], az + bvh.tri[o + 5], ax + bvh.tri[o + 6], ay + bvh.tri[o + 7], az + bvh.tri[o + 8]], o); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    debugGroup.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x00ffaa, wireframe: true, transparent: true, opacity: 0.35, depthTest: true })));
+  }
+  if (toggles.has('nav')) {
+    const nav = world.nav, lp = [], lc = [], pp = [], pc = [];
+    for (const n of nav.nodes) {
+      pp.push(n.position.x, n.position.y + 0.15, n.position.z);
+      const c = n.cover ? (n.coverHigh ? [1, 0.55, 0.1] : [1, 0.9, 0.2]) : [0.3, 0.8, 1];
+      pc.push(...c);
+      for (const k of n.links) {
+        if (k < n.id && nav.nodes[k].links.includes(n.id)) continue;
+        const m = nav.nodes[k].position, oneWay = !nav.nodes[k].links.includes(n.id);
+        lp.push(n.position.x, n.position.y + 0.15, n.position.z, m.x, m.y + 0.15, m.z);
+        const col = oneWay ? [1, 0.2, 0.8] : [0.2, 0.6, 1];
+        lc.push(...col, ...col);
+      }
+    }
+    const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3)); lg.setAttribute('color', new THREE.Float32BufferAttribute(lc, 3));
+    debugGroup.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55 })));
+    const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(pp, 3)); pg.setAttribute('color', new THREE.Float32BufferAttribute(pc, 3));
+    debugGroup.add(new THREE.Points(pg, new THREE.PointsMaterial({ size: 4, sizeAttenuation: false, vertexColors: true })));
+    // entfernte (unerreichbare) Punkte
+    if (nav.removed?.length) {
+      const rp = []; for (const r of nav.removed) rp.push(r.x, r.y + 0.2, r.z);
+      const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(rp, 3));
+      debugGroup.add(new THREE.Points(rg, new THREE.PointsMaterial({ size: 5, sizeAttenuation: false, color: 0xff2020 })));
+    }
+  }
+  const marker = (p, color, h = 2.0, yaw) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, h, 12), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6 }));
+    m.position.set(p.x, p.y + h / 2, p.z); debugGroup.add(m);
+    if (yaw !== undefined) {
+      const a = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.6, 8), new THREE.MeshBasicMaterial({ color }));
+      a.position.set(p.x - Math.sin(yaw) * 0.6, p.y + 1.65, p.z - Math.cos(yaw) * 0.6); a.rotation.set(-Math.PI / 2, 0, 0); a.rotation.order = 'YXZ'; a.rotation.y = yaw; debugGroup.add(a);
+    }
+  };
+  if (toggles.has('spawns')) {
+    for (const s of world.spawns.A) marker(s.position, 0x38b6ff, 1.8, s.yaw);
+    for (const s of world.spawns.B) marker(s.position, 0xff3b3b, 1.8, s.yaw);
+    for (const s of world.spawns.ffa) marker(s.position, 0xffffff, 1.2, s.yaw);
+  }
+  if (toggles.has('objectives')) {
+    for (const o of world.objectives.dom) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(o.radius - 0.15, o.radius, 48), new THREE.MeshBasicMaterial({ color: 0xff5b1f, side: THREE.DoubleSide }));
+      ring.rotation.x = -Math.PI / 2; ring.position.copy(o.position).y += 0.08; debugGroup.add(ring);
+      marker(o.position, 0xff5b1f, 4);
+    }
+  }
+  mini.style.display = toggles.has('minimap') ? 'block' : 'none';
+  for (const btn of document.querySelectorAll('[data-t]')) btn.classList.toggle('on', toggles.has(btn.dataset.t));
+}
+
+for (const btn of document.querySelectorAll('[data-t]')) btn.addEventListener('click', () => { const t = btn.dataset.t; toggles.has(t) ? toggles.delete(t) : toggles.add(t); rebuildDebug(); });
+document.getElementById('map').addEventListener('change', e => { const u = new URL(location.href); u.searchParams.set('map', e.target.value); u.searchParams.delete('cam'); history.replaceState(null, '', u); params.delete('cam'); load(e.target.value); });
+document.getElementById('quality').addEventListener('change', e => { const u = new URL(location.href); u.searchParams.set('quality', e.target.value); location.href = u.href; });
+
+// Steuerung
+let dragging = false, lx = 0, ly = 0;
+canvas.addEventListener('pointerdown', e => { dragging = true; lx = e.clientX; ly = e.clientY; canvas.classList.add('drag'); canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerup', e => { dragging = false; canvas.classList.remove('drag'); canvas.releasePointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  yaw -= (e.clientX - lx) * 0.004; pitch -= (e.clientY - ly) * 0.004;
+  pitch = Math.max(-1.55, Math.min(1.55, pitch)); lx = e.clientX; ly = e.clientY; applyRot();
+});
+canvas.addEventListener('wheel', e => { speed = Math.max(1, Math.min(60, speed * (e.deltaY > 0 ? 0.85 : 1.18))); });
+addEventListener('keydown', e => {
+  keys.add(e.code);
+  if (e.code === 'KeyG') { toggles.has('walk') ? toggles.delete('walk') : toggles.add('walk'); rebuildDebug(); }
+  if (e.code === 'KeyT' && world?.targets?.length) { const up = world.targets.some(t => t.isUp); for (const t of world.targets) up ? t.drop() : t.raise(); }
+});
+addEventListener('keyup', e => keys.delete(e.code));
+
+let last = performance.now();
+let frames = 0, fpsT = 0, fps = 0;
+const v = new THREE.Vector3(), fwd = new THREE.Vector3(), right = new THREE.Vector3();
+function frame() {
+  if (window.__dev.paused) { last = performance.now(); requestAnimationFrame(frame); return; }
+  const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (keys.size) {
+    camera.getWorldDirection(fwd); right.crossVectors(fwd, camera.up).normalize();
+    v.set(0, 0, 0);
+    if (keys.has('KeyW')) v.add(fwd); if (keys.has('KeyS')) v.sub(fwd);
+    if (keys.has('KeyD')) v.add(right); if (keys.has('KeyA')) v.sub(right);
+    if (keys.has('KeyE')) v.y += 1; if (keys.has('KeyQ')) v.y -= 1;
+    if (toggles.has('walk')) v.y = 0;
+    if (v.lengthSq()) camera.position.addScaledVector(v.normalize(), speed * (keys.has('ShiftLeft') ? 3 : 1) * dt);
+  }
+  if (world && toggles.has('walk')) {
+    const gy = world.groundHeight(camera.position.x, camera.position.z, camera.position.y + 0.5);
+    if (gy !== null) camera.position.y = gy + 1.65;
+  }
+  if (world) world.update(dt, camera);
+  renderer.info.reset();
+  renderer.render(scene, camera);
+  frames++; fpsT += dt;
+  if (fpsT > 0.5) { fps = frames / fpsT; frames = 0; fpsT = 0; updateStats(); }
+  requestAnimationFrame(frame);
+}
+
+function updateStats() {
+  if (!world) return;
+  const i = renderer.info.render, s = world.stats, n = world.nav.stats;
+  const p = camera.position;
+  document.getElementById('stats').textContent =
+`FPS ${fps.toFixed(0)}  Draw ${i.calls}  Dreiecke ${(i.triangles / 1000).toFixed(0)}k
+Laden ${loadMs.toFixed(0)} ms · Texturen ${world.texMs.toFixed(0)} ms
+Statisch: ${s.meshes} Meshes, ${(s.triangles / 1000).toFixed(0)}k Dreiecke
+Kugel-BVH ${(s.bulletTris / 1000).toFixed(0)}k · Kollision ${(s.colliderTris / 1000).toFixed(1)}k
+Nav ${n.nodes} Knoten · ${n.links} Links · ${n.cover} Deckung · ${n.ms} ms
+Kamera ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)} · ${(yaw * 180 / Math.PI).toFixed(0)}°/${(pitch * 180 / Math.PI).toFixed(0)}°`;
+}
+
+window.__dev = {
+  G, get world() { return world; }, load, setCam, ready: false,
+  /** Rendert einen Frame (für Screenshots). */
+  render() { renderer.info.reset(); world?.update(0.016, camera); renderer.render(scene, camera); return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles }; },
+  setToggles(list) { toggles.clear(); for (const t of list) toggles.add(t); rebuildDebug(); },
+  /** Vereinfachte Draufsicht für maps.data.js */
+  exportLayout() {
+    const out = [];
+    for (const f of world.debugData.footprints) {
+      if (!['building', 'roof', 'container', 'cover', 'wall', 'vehicle', 'catwalk', 'stairs', 'pillar'].includes(f.kind)) continue;
+      const w = f.hw * 2, d = f.hd * 2;
+      if (w * d < 0.8 && f.kind !== 'pillar') continue;
+      const c = Math.abs(Math.cos(f.ry)), sn = Math.abs(Math.sin(f.ry));
+      const W = w * c + d * sn, D = w * sn + d * c;
+      out.push([+f.x.toFixed(1), +f.z.toFixed(1), +W.toFixed(1), +D.toFixed(1), f.kind === 'roof' ? 'building' : f.kind === 'pillar' ? 'cover' : f.kind]);
+    }
+    for (const z of world.debugData.zones) if (z.kind === 'water') out.unshift([+((z.x0 + z.x1) / 2).toFixed(1), +((z.z0 + z.z1) / 2).toFixed(1), +Math.abs(z.x1 - z.x0).toFixed(1), +Math.abs(z.z1 - z.z0).toFixed(1), 'water']);
+    return out;
+  },
+};
+
+const first = params.get('map') || 'hafen';
+document.getElementById('map').value = first;
+load(first).catch(e => { console.error(e); document.getElementById('ptext').textContent = 'Fehler: ' + e.message; });
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

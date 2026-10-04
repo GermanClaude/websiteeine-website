@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NULLPUNKT – Datenblatt</title>
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 16px 64px; background: var(--np-black); color: var(--np-ink); font: 14px/1.45 var(--font-display); }
+  h1 { font-weight: 800; font-stretch: 125%; letter-spacing: -.02em; margin: 0 0 4px; }
+  h2 { font: 600 12px var(--font-mono); text-transform: uppercase; letter-spacing: .12em; color: var(--np-signal); margin: 40px 0 12px; }
+  p.note { color: var(--np-dim); font-family: var(--font-mono); font-size: 12px; margin: 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .card { border: 1px solid var(--np-line); background: var(--np-black-2); padding: 14px; }
+  .card svg { color: var(--np-ink); display: block; }
+  .gun svg { width: 100%; height: 72px; }
+  .small svg { width: 28px; height: 28px; color: var(--np-signal); }
+  .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .head b { font-size: 17px; font-weight: 700; }
+  .head span, .meta { color: var(--np-dim); font: 11px var(--font-mono); }
+  .desc { color: var(--np-ink-2); font-size: 13px; margin: 8px 0; }
+  .bar { display: grid; grid-template-columns: 80px 1fr 28px; gap: 8px; align-items: center; font: 11px var(--font-mono); color: var(--np-ink-2); margin: 3px 0; }
+  .bar i { display: block; height: 4px; background: var(--np-line); position: relative; }
+  .bar i::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--v); background: var(--np-signal); }
+  table { border-collapse: collapse; width: 100%; font: 12px var(--font-mono); }
+  th, td { border-bottom: 1px solid var(--np-line); padding: 6px 8px; text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--np-dim); font-weight: 500; }
+  .scroll { overflow-x: auto; }
+  ul { margin: 8px 0 0; padding-left: 18px; color: var(--np-ink-2); font-size: 13px; }
+  .tier-gold { color: var(--np-gold); } .tier-silber { color: var(--np-ink); } .tier-bronze { color: #C98B5A; }
+</style>
+</head>
+<body>
+<h1>Datenblatt</h1>
+<p class="note">weapons.data.js · modes.data.js — Werte, Balken, Icons, TTK (ms, Torso, 100 HP)</p>
+
+<h2>Waffen</h2><div class="grid" id="weapons"></div>
+<h2>TTK-Tabelle</h2><div class="scroll"><table id="ttk"></table></div>
+<h2>Ausrüstung &amp; Loadouts</h2><div class="grid" id="equip"></div>
+<h2>Modi</h2><div class="grid" id="modes"></div>
+<h2>Serienprämien</h2><div class="grid" id="streaks"></div>
+<h2>Schwierigkeit</h2><div class="scroll"><table id="diff"></table></div>
+<h2>Medaillen</h2><div class="scroll"><table id="medals"></table></div>
+
+<script type="module">
+import * as W from '../assets/js/shared/weapons.data.js';
+import * as M from '../assets/js/shared/modes.data.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const STAT_LABELS = { damage: 'Schaden', fireRate: 'Kadenz', range: 'Reichweite', accuracy: 'Präzision', mobility: 'Mobilität', control: 'Kontrolle' };
+const ms = (v) => (Number.isFinite(v) ? `${v}` : '—');
+
+$('weapons').innerHTML = W.listByClass().flatMap((g) => g.weapons).map((w) => `
+  <div class="card gun">
+    <div class="head"><b>${esc(w.name)}</b><span>${esc(W.WEAPON_CLASSES[w.cls])} · Lvl ${w.unlockLevel}</span></div>
+    ${w.icon}
+    <p class="desc">${esc(w.description)}</p>
+    ${Object.entries(w.stats).map(([k, v]) => `<div class="bar"><span>${STAT_LABELS[k]}</span><i style="--v:${v}%"></i><span>${v}</span></div>`).join('')}
+    <p class="meta">${W.FIRE_MODES[w.fireMode]} · ${w.rpm} rpm · ${w.mag ? `${w.mag}/${w.reserve}` : '∞'} · ${W.SIGHTS[w.sight].name} · ADS ${w.adsTime} s</p>
+  </div>`).join('');
+
+const D = [5, 15, 30, 50];
+$('ttk').innerHTML = `<tr><th>Waffe</th>${D.map((d) => `<th>${d} m Schüsse</th><th>${d} m TTK</th>`).join('')}</tr>` +
+  W.WEAPON_IDS.map((id) => W.WEAPONS[id]).map((w) => {
+    const dist = w.cls === 'melee' ? [2, 2, 2, 2] : D;
+    return `<tr><td>${esc(w.name)}</td>${W.killProfile(w, dist).map((p) => `<td>${Number.isFinite(p.shots) ? p.shots : '—'}</td><td>${ms(p.ttk)}</td>`).join('')}</tr>`;
+  }).join('');
+
+$('equip').innerHTML = W.EQUIPMENT_IDS.map((id) => W.EQUIPMENT[id]).map((e) => `
+  <div class="card small"><div class="head"><b>${esc(e.name)}</b><span>Lvl ${e.unlockLevel}</span></div>${e.icon}
+  <p class="desc">${esc(e.description)}</p>
+  <p class="meta">Zünder ${e.fuse} s · Radius ${e.radius} m · tödlich ≤ ${W.explosionKillRadius(e).toFixed(1)} m</p></div>`).join('') +
+  W.DEFAULT_LOADOUTS.map((l) => `
+  <div class="card"><div class="head"><b>${esc(l.name)}</b><span>ab Lvl ${l.unlockLevel}</span></div>
+  <p class="desc">${esc(l.description)}</p>
+  <p class="meta">${W.WEAPONS[l.primary].name} · ${W.WEAPONS[l.secondary].name} · ${W.EQUIPMENT[l.lethal].name}</p></div>`).join('');
+
+$('modes').innerHTML = M.listModes().map((m) => `
+  <div class="card small"><div class="head"><b>${esc(m.name)}</b><span>${m.short}</span></div>${m.icon}
+  <p class="desc"><strong>${esc(m.tagline)}</strong><br>${esc(m.description)}</p>
+  <ul>${m.rules.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+  <p class="meta">Limit ${m.scoreLimit || '—'} · ${M.formatTimeLimit(m.timeLimit)} · Bots ${m.defaultAllies}/${m.defaultEnemies} · ${m.recommendedMaps.join(', ')}</p></div>`).join('');
+
+$('streaks').innerHTML = M.STREAK_ORDER.map((id) => M.STREAKS[id]).map((s) => `
+  <div class="card small"><div class="head"><b>${esc(s.name)}</b><span>${s.kills} Abschüsse</span></div>${s.icon}
+  <p class="desc">${esc(s.description)}</p></div>`).join('');
+
+const DK = ['reactionTime', 'aimError', 'trackingSpeed', 'burstMin', 'burstMax', 'accuracyFalloff', 'grenadeChance', 'strafeChance', 'peekChance', 'headshotChance', 'xpMult'];
+$('diff').innerHTML = `<tr><th>Grad</th>${DK.map((k) => `<th>${k}</th>`).join('')}</tr>` +
+  M.DIFFICULTY_ORDER.map((id) => M.DIFFICULTIES[id]).map((d) => `<tr><td>${esc(d.name)}</td>${DK.map((k) => `<td>${d[k]}</td>`).join('')}</tr>`).join('');
+
+$('medals').innerHTML = '<tr><th>Medaille</th><th>Beschreibung</th><th>XP</th></tr>' +
+  M.MEDAL_ORDER.map((id) => M.MEDALS[id]).map((m) => `<tr><td class="tier-${m.tier}">${esc(m.label)}</td><td style="text-align:left">${esc(m.description)}</td><td>${m.xp}</td></tr>`).join('');
+</script>
+</body>
+</html>

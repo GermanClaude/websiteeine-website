@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0A0B0D">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NULLPUNKT">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="description" content="NULLPUNKT – schneller Ego-Shooter im Browser gegen Bots: Team-Deathmatch, Jeder gegen jeden, Herrschaft, Waffenspiel. Mit Touch-Steuerung für Smartphones.">
+  <title>Einsatz · NULLPUNKT</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/rajdhani-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/archivo-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/game.css">
+  <script type="importmap">{"imports":{"three":"./assets/vendor/three/three.module.min.js","three/addons/":"./assets/vendor/three/addons/"}}</script>
+  <link rel="modulepreload" href="assets/vendor/three/three.module.min.js">
+  <link rel="modulepreload" href="assets/js/game/main.js">
+</head>
+<body data-match-state="boot" data-input-mode="desktop">
+  <div id="game-root">
+    <canvas id="game-canvas" tabindex="-1" aria-label="Spielansicht"></canvas>
+    <div id="vignette" aria-hidden="true"></div>
+    <div id="hud" aria-live="off"></div>
+    <div id="touch-ui" aria-label="Touch-Steuerung"></div>
+    <div id="menu-root"></div>
+
+    <div id="match-banner" hidden aria-live="assertive"><span data-banner-text></span></div>
+    <div id="lock-hint" hidden>Klicken, um weiterzuspielen</div>
+    <div id="context-lost" hidden role="status">Grafik wird wiederhergestellt …</div>
+
+    <div id="boot" role="progressbar" aria-label="Spiel wird geladen" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="boot-grid" aria-hidden="true"></div>
+      <div class="boot-inner">
+        <div class="boot-mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="22"/><path d="M32 2v14M32 48v14M2 32h14M48 32h14"/><circle class="dot" cx="32" cy="32" r="3"/></svg>
+        </div>
+        <div class="boot-brand">NULL<em>PUNKT</em></div>
+        <div class="boot-sub">Einsatz wird vorbereitet</div>
+        <div class="boot-bar"><i id="boot-bar"></i></div>
+        <div class="boot-status" id="boot-status">Lade …</div>
+        <p class="boot-tip" id="boot-tip"></p>
+      </div>
+    </div>
+
+    <div id="fatal" hidden role="alertdialog" aria-labelledby="fatal-title">
+      <div class="fatal-inner">
+        <div class="boot-brand small">NULL<em>PUNKT</em></div>
+        <h1 id="fatal-title" data-fatal-title>Fehler</h1>
+        <p data-fatal-text></p>
+        <pre data-fatal-detail hidden></pre>
+        <div class="fatal-actions">
+          <button type="button" class="np-btn primary" data-fatal-reload>Neu laden</button>
+          <a class="np-btn" href="index.html">Zurück zur Website</a>
+        </div>
+      </div>
+    </div>
+
+    <div id="rotate-overlay" aria-live="polite">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="20" y="8" width="24" height="44" rx="4"/><path d="M50 40a18 18 0 0 1-18 18M54 54l-4-14-12 6"/></svg>
+      <p>Bitte Gerät drehen</p>
+      <small>NULLPUNKT wird im Querformat gespielt.</small>
+    </div>
+  </div>
+
+  <noscript>
+    <div class="noscript">
+      <div class="boot-brand small">NULL<em>PUNKT</em></div>
+      <p>Für das Spiel wird JavaScript benötigt. Bitte aktiviere JavaScript in deinem Browser.</p>
+      <a class="np-btn" href="index.html">Zurück zur Website</a>
+    </div>
+  </noscript>
+
+  <script>
+    // Ältere Browser ohne Import-Maps oder Module: verständliche Meldung statt leerer Seite.
+    (function () {
+      var ok = 'noModule' in HTMLScriptElement.prototype && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap');
+      if (ok) return;
+      document.addEventListener('DOMContentLoaded', function () {
+        var f = document.getElementById('fatal');
+        var b = document.getElementById('boot');
+        if (b) b.hidden = true;
+        if (!f) return;
+        f.querySelector('[data-fatal-title]').textContent = 'Browser zu alt';
+        f.querySelector('[data-fatal-text]').textContent = 'Dieser Browser unterstützt keine modernen JavaScript-Module. Bitte nutze eine aktuelle Version von Chrome, Edge, Firefox oder Safari.';
+        f.querySelector('[data-fatal-reload]').hidden = true;
+        f.hidden = false;
+      });
+    })();
+  </script>
+  <script type="module" src="assets/js/game/main.js"></script>
+</body>
+</html>
