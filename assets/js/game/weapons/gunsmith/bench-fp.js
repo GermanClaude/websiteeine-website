@@ -159,7 +159,28 @@ export function createFpBench(renderer, params) {
       });
     },
 
+    // Außenansicht des Rigs (Fehlersuche): Orbit um die Waffe im Viewmodel-Raum
+    debugCam: null,
+    debugView(yawDeg = 90, pitchDeg = 10, dist = 0.7, target = [0.1, -0.15, -0.45]) {
+      if (yawDeg === null) { api.debugCam = null; return; }
+      const c = api.debugCam || (api.debugCam = new THREE.PerspectiveCamera(40, vmCamera.aspect, 0.01, 20));
+      const y = THREE.MathUtils.degToRad(yawDeg), p = THREE.MathUtils.degToRad(pitchDeg);
+      const t = new THREE.Vector3().fromArray(target);
+      c.position.set(t.x + Math.sin(y) * Math.cos(p) * dist, t.y + Math.sin(p) * dist, t.z + Math.cos(y) * Math.cos(p) * dist);
+      c.lookAt(t);
+      c.aspect = vmCamera.aspect; c.updateProjectionMatrix();
+    },
+
     render() {
+      if (api.debugCam) {
+        renderer.setClearColor(0x2a2d33, 1);
+        renderer.autoClear = true;
+        const bg = vmScene.background;
+        vmScene.background = new THREE.Color(0x2a2d33);
+        renderer.render(vmScene, api.debugCam);
+        vmScene.background = bg;
+        return;
+      }
       renderer.autoClear = true;
       renderer.render(scene, camera);
       renderer.autoClear = false;

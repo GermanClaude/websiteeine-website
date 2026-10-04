@@ -212,11 +212,12 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   if (G.renderer && G.renderer.renderer) {
     const pmrem = new THREE.PMREMGenerator(G.renderer.renderer);
     const room = new RoomEnvironment();
-    envTex = pmrem.fromScene(room, 0.04).texture;
+    const envTarget = pmrem.fromScene(room, 0.04);
+    envTex = envTarget.texture;
     room.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
     pmrem.dispose();
     lighting.envMap = envTex;
-    disposables.push(envTex);
+    disposables.push(envTarget);
   }
   scene.environment = envTex;
   scene.environmentIntensity = 0.35;

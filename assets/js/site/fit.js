@@ -69,12 +69,6 @@ function fixedFor(el) {
   return Number.isFinite(v) ? v : null;
 }
 
-function contentWidth(node) {
-  const r = document.createRange();
-  r.selectNodeContents(node);
-  return r.getBoundingClientRect().width;
-}
-
 function makeClone(unit, wdth, root) {
   const c = unit.cloneNode(true);
   c.removeAttribute('id');
@@ -171,18 +165,23 @@ function flush() {
     else u.unit.style.removeProperty('font-size');
   }
 
-  // 5) Lesen + Schreiben: eine Korrektur, falls die Abweichung > 0,5 %
-  const fixes = [];
-  for (const u of units) {
-    if (u.fixed !== null || u.wd >= 125 || u.wd <= 62) continue;
-    const actual = contentWidth(u.unit);
-    const err = (u.W - actual) / u.W;
-    if (Math.abs(err) > 0.005 && actual > 0) {
+  // 5) Korrektur über einen Klon im gelösten Schnitt (unabhängig von Eintritts-/Bewegungszuständen)
+  const check = units.filter((u) => u.fixed === null && u.wd < 125 && u.wd > 62);
+  for (const u of check) {
+    u.cx = makeClone(u.unit, u.wd, u.el);
+    if (Math.abs(u.fs - u.base) > 0.25) u.cx.style.fontSize = `${u.fs.toFixed(2)}px`;
+    u.unit.parentNode.appendChild(u.cx);
+  }
+  for (const u of check) u.actual = u.cx.getBoundingClientRect().width;
+  for (const u of check) {
+    u.cx.remove();
+    const err = (u.W - u.actual) / u.W;
+    if (Math.abs(err) > 0.005 && u.actual > 0) {
       const slope = Math.max(1e-3, (u.w125 - u.w62) * u.scale / 63);
-      fixes.push([u, Math.max(62, Math.min(125, u.wd + (u.W - actual) / slope))]);
+      u.wd = Math.max(62, Math.min(125, u.wd + (u.W - u.actual) / slope));
+      u.unit.style.setProperty('--wdth', u.wd.toFixed(2));
     }
   }
-  for (const [u, wd] of fixes) { u.wd = wd; u.unit.style.setProperty('--wdth', wd.toFixed(2)); }
 
   for (const u of units) {
     models.set(u.unit, { b: u.gb.map((b) => b * u.scale), wdth: u.wd, fs: u.fs, W: u.W });

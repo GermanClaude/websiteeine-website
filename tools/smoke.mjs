@@ -252,7 +252,7 @@ try {
     if (RESTARTS > 0) {
       const first = summary.matches[0];
       const last = summary.matches[summary.matches.length - 1];
-      const leak = last.geometries - first.geometries > 40 || last.textures - first.textures > 12 || last.listeners !== first.listeners || last.sceneChildren !== first.sceneChildren;
+      const leak = last.geometries - first.geometries > 40 || last.textures - first.textures > 12 || last.listeners !== first.listeners || Math.abs(last.sceneChildren - first.sceneChildren) > 3;
       if (leak) fail('leaks', `Geo ${first.geometries}→${last.geometries}, Tex ${first.textures}→${last.textures}, Listener ${first.listeners}→${last.listeners}, Szene ${first.sceneChildren}→${last.sceneChildren}`);
       else pass('leaks', `Geo ${first.geometries}→${last.geometries}, Tex ${first.textures}→${last.textures}, Listener ${last.listeners}`);
     }

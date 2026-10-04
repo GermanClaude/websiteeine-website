@@ -4,43 +4,45 @@
 // Die linke Hand ist gespiegelt gebaut (gleiche Semantik: Finger −Z, Handrücken +Y).
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { boxUV, chamferBoxGeometry } from './builder.js';
 import { camoMap, fabricNormal, watchFaceTexture, tapeMap } from './textures.js';
 
 const FINGERS = [
-  { x: -0.0262, y: 0.001, z: -0.081, len: [0.043, 0.027, 0.022], r: [0.0094, 0.0088, 0.0082], splay: 0.07 },
-  { x: -0.0085, y: 0.002, z: -0.085, len: [0.047, 0.03, 0.023], r: [0.0097, 0.0091, 0.0084], splay: 0.0 },
-  { x: 0.0092, y: 0.001, z: -0.082, len: [0.044, 0.028, 0.022], r: [0.0093, 0.0087, 0.008], splay: -0.06 },
-  { x: 0.0255, y: -0.002, z: -0.074, len: [0.034, 0.022, 0.019], r: [0.0084, 0.0078, 0.0073], splay: -0.14 },
+  { x: -0.0285, y: 0.001, z: -0.08, len: [0.043, 0.027, 0.022], r: [0.0094, 0.0088, 0.0082], splay: 0.07 },
+  { x: -0.0093, y: 0.002, z: -0.084, len: [0.047, 0.03, 0.023], r: [0.0097, 0.0091, 0.0084], splay: 0.0 },
+  { x: 0.0102, y: 0.001, z: -0.081, len: [0.044, 0.028, 0.022], r: [0.0093, 0.0087, 0.008], splay: -0.06 },
+  { x: 0.0285, y: -0.002, z: -0.073, len: [0.034, 0.022, 0.019], r: [0.0084, 0.0078, 0.0073], splay: -0.14 },
 ];
 const THUMB = { base: [-0.027, -0.011, -0.018], len: [0.042, 0.032, 0.026], r: [0.0128, 0.0112, 0.0101] };
 
 const GLOVE = new THREE.Color(0x2c2e30), PALM = new THREE.Color(0x5b554b), PAD = new THREE.Color(0x141516), CUFF = new THREE.Color(0x3a3c36);
 
-// Fingerposen: f = [beuge1, beuge2, beuge3, spreizung] je Finger (Zeige→kleiner Finger), t = [abd, rot, b1, b2, b3] Daumen
+// Fingerposen: f = [beuge1, beuge2, beuge3, spreizung] je Finger (Zeige→kleiner Finger),
+// t = [Opposition, Adduktion, Beugung1, Beugung2, Beugung3] Daumen
 export const POSES = {
-  relaxed: { f: [[0.25, 0.3, 0.2, 0], [0.3, 0.35, 0.2, 0], [0.35, 0.4, 0.25, 0], [0.4, 0.45, 0.3, 0]], t: [0.2, 0.1, 0.15, 0.2, 0.15] },
-  open: { f: [[0.05, 0.08, 0.05, 0.05], [0.05, 0.08, 0.05, 0], [0.05, 0.1, 0.05, -0.04], [0.08, 0.1, 0.06, -0.08]], t: [0.0, 0.0, 0.0, 0.05, 0.05] },
-  trigger: { f: [[0.32, 0.5, 0.3, 0.06], [1.28, 1.45, 0.75, 0], [1.32, 1.45, 0.75, -0.02], [1.35, 1.4, 0.7, -0.06]], t: [0.75, 0.55, 0.35, 0.5, 0.35] },
-  support: { f: [[0.85, 0.85, 0.45, 0.1], [0.95, 0.9, 0.5, 0.02], [1.0, 0.95, 0.5, -0.04], [1.05, 0.95, 0.5, -0.1]], t: [0.35, 0.3, 0.1, 0.2, 0.15] },
-  pump: { f: [[1.05, 1.05, 0.55, 0.05], [1.1, 1.05, 0.55, 0], [1.12, 1.05, 0.55, -0.03], [1.15, 1.05, 0.55, -0.08]], t: [0.45, 0.35, 0.15, 0.3, 0.2] },
-  flat: { f: [[0.45, 0.5, 0.3, 0.06], [0.5, 0.55, 0.3, 0], [0.55, 0.55, 0.3, -0.04], [0.6, 0.55, 0.3, -0.1]], t: [0.25, 0.2, 0.1, 0.2, 0.1] },
-  post: { f: [[1.15, 1.3, 0.7, 0.04], [1.2, 1.35, 0.7, 0], [1.25, 1.35, 0.7, -0.03], [1.3, 1.35, 0.7, -0.07]], t: [0.7, 0.5, 0.3, 0.4, 0.3] },
-  wrap: { f: [[1.0, 1.1, 0.6, 0.0], [1.05, 1.15, 0.6, 0], [1.1, 1.15, 0.6, -0.02], [1.15, 1.15, 0.6, -0.06]], t: [0.25, 0.1, 0.1, 0.2, 0.15] },
-  mag: { f: [[0.75, 0.85, 0.45, 0.05], [0.85, 0.9, 0.5, 0], [0.95, 0.95, 0.5, -0.03], [1.05, 1.0, 0.55, -0.08]], t: [0.5, 0.45, 0.15, 0.25, 0.15] },
-  pinch: { f: [[0.7, 0.85, 0.55, 0.0], [1.2, 1.35, 0.8, 0], [1.3, 1.4, 0.8, -0.03], [1.35, 1.4, 0.8, -0.07]], t: [0.65, 0.55, 0.3, 0.45, 0.35] },
-  fist: { f: [[1.45, 1.6, 0.9, 0.0], [1.5, 1.6, 0.9, 0], [1.5, 1.6, 0.9, -0.02], [1.5, 1.6, 0.9, -0.05]], t: [0.8, 0.6, 0.35, 0.5, 0.4] },
-  knife: { f: [[1.35, 1.45, 0.8, 0.02], [1.38, 1.5, 0.8, 0], [1.4, 1.5, 0.8, -0.02], [1.42, 1.5, 0.8, -0.05]], t: [0.85, 0.65, 0.3, 0.45, 0.3] },
-  ball: { f: [[0.75, 0.55, 0.35, 0.16], [0.8, 0.55, 0.35, 0.04], [0.85, 0.6, 0.35, -0.08], [0.9, 0.65, 0.4, -0.2]], t: [0.6, 0.5, 0.2, 0.25, 0.2] },
+  relaxed: { f: [[0.25, 0.3, 0.2, 0], [0.3, 0.35, 0.2, 0], [0.35, 0.4, 0.25, 0], [0.4, 0.45, 0.3, 0]], t: [0.2, 0.0, 0.1, 0.15, 0.1] },
+  open: { f: [[0.05, 0.08, 0.05, 0.05], [0.05, 0.08, 0.05, 0], [0.05, 0.1, 0.05, -0.04], [0.08, 0.1, 0.06, -0.08]], t: [0.0, -0.1, 0.0, 0.05, 0.05] },
+  trigger: { f: [[0.32, 0.5, 0.3, 0.06], [1.28, 1.45, 0.75, 0], [1.32, 1.45, 0.75, -0.02], [1.35, 1.4, 0.7, -0.06]], t: [0.95, 0.25, 0.3, 0.45, 0.3] },
+  support: { f: [[0.85, 0.85, 0.45, 0.1], [0.95, 0.9, 0.5, 0.02], [1.0, 0.95, 0.5, -0.04], [1.05, 0.95, 0.5, -0.1]], t: [0.3, 0.2, 0.1, 0.15, 0.1] },
+  pump: { f: [[1.05, 1.05, 0.55, 0.05], [1.1, 1.05, 0.55, 0], [1.12, 1.05, 0.55, -0.03], [1.15, 1.05, 0.55, -0.08]], t: [0.5, 0.2, 0.2, 0.3, 0.2] },
+  flat: { f: [[0.45, 0.5, 0.3, 0.06], [0.5, 0.55, 0.3, 0], [0.55, 0.55, 0.3, -0.04], [0.6, 0.55, 0.3, -0.1]], t: [0.2, 0.1, 0.05, 0.1, 0.1] },
+  post: { f: [[1.15, 1.3, 0.7, 0.04], [1.2, 1.35, 0.7, 0], [1.25, 1.35, 0.7, -0.03], [1.3, 1.35, 0.7, -0.07]], t: [0.95, 0.25, 0.3, 0.45, 0.3] },
+  wrap: { f: [[1.0, 1.1, 0.6, 0.0], [1.05, 1.15, 0.6, 0], [1.1, 1.15, 0.6, -0.02], [1.15, 1.15, 0.6, -0.06]], t: [0.3, 0.3, 0.1, 0.15, 0.1] },
+  mag: { f: [[0.75, 0.85, 0.45, 0.05], [0.85, 0.9, 0.5, 0], [0.95, 0.95, 0.5, -0.03], [1.05, 1.0, 0.55, -0.08]], t: [0.7, 0.2, 0.2, 0.3, 0.2] },
+  pinch: { f: [[0.7, 0.85, 0.55, 0.0], [1.2, 1.35, 0.8, 0], [1.3, 1.4, 0.8, -0.03], [1.35, 1.4, 0.8, -0.07]], t: [0.8, 0.5, 0.35, 0.5, 0.4] },
+  fist: { f: [[1.45, 1.6, 0.9, 0.0], [1.5, 1.6, 0.9, 0], [1.5, 1.6, 0.9, -0.02], [1.5, 1.6, 0.9, -0.05]], t: [1.1, 0.5, 0.4, 0.6, 0.5] },
+  knife: { f: [[1.35, 1.45, 0.8, 0.02], [1.38, 1.5, 0.8, 0], [1.4, 1.5, 0.8, -0.02], [1.42, 1.5, 0.8, -0.05]], t: [1.0, 0.4, 0.35, 0.5, 0.4] },
+  ball: { f: [[0.75, 0.55, 0.35, 0.16], [0.8, 0.55, 0.35, 0.04], [0.85, 0.6, 0.35, -0.08], [0.9, 0.65, 0.4, -0.2]], t: [0.8, 0.2, 0.2, 0.3, 0.25] },
 };
 
 // Griffarten: Fingerrichtung F und Handrückenrichtung B im Ankerraum, Kontaktpunkt p (Handraum)
 // (Werte für die rechte bzw. linke Hand gleichermaßen; die gespiegelte Hand kümmert sich um die Seite.)
-const GRIPS = {
-  pistolGrip: { F: rake => [0, -Math.sin(rake) - 0.05, -Math.cos(rake)], B: [1, 0.08, 0.0], p: [-0.002, -0.03, -0.056], pose: 'trigger' },
-  under: { F: () => [0.95, 0.25, -0.55], B: [-0.42, -1, -0.1], p: [0.004, -0.032, -0.052], pose: 'support' },
-  flat: { F: () => [0.95, 0.1, -0.45], B: [-0.25, -1, 0], p: [0.0, -0.022, -0.055], pose: 'flat' },
-  pump: { F: () => [0.9, 0.3, -0.5], B: [-0.45, -1, -0.1], p: [0.004, -0.034, -0.05], pose: 'pump' },
+export const GRIPS = {
+  pistolGrip: { F: rake => [0, -Math.sin(rake) - 0.05, -Math.cos(rake)], B: [1, 0.08, 0.0], p: [-0.016, -0.029, -0.054], pose: 'trigger' },
+  under: { F: () => [0.95, 0.25, -0.55], B: [-0.42, -1, -0.1], p: [0.0, -0.018, -0.058], pose: 'support' },
+  flat: { F: () => [0.95, 0.1, -0.45], B: [-0.25, -1, 0], p: [0.0, -0.017, -0.055], pose: 'flat' },
+  pump: { F: () => [0.9, 0.3, -0.5], B: [-0.45, -1, -0.1], p: [0.0, -0.018, -0.056], pose: 'pump' },
   post: { F: rake => [0.05, -Math.sin(rake), -Math.cos(rake)], B: [-1, 0.1, 0.1], p: [0.002, -0.03, -0.056], pose: 'post' },
   pistol: { F: () => [0.42, -0.62, -0.6], B: [-0.85, -0.3, 0.25], p: [0.006, -0.042, -0.05], pose: 'wrap' },
   mag: { F: () => [0.0, -0.25, -1], B: [-1, 0, 0], p: [0.0, -0.022, -0.05], pose: 'mag' },
@@ -52,7 +54,7 @@ const GRIPS = {
   rack: { F: () => [0.95, -0.1, -0.2], B: [0, 1, 0], p: [0.0, -0.03, -0.06], pose: 'wrap' },
 };
 
-const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion();
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
 
 function basisQuat(F, B, out = new THREE.Quaternion()) {
   const z = _v1.set(-F[0], -F[1], -F[2]).normalize();
@@ -67,8 +69,7 @@ function basisQuat(F, B, out = new THREE.Quaternion()) {
 export function gripTransform(style, data = {}, outPos = new THREE.Vector3(), outQuat = new THREE.Quaternion()) {
   const g = GRIPS[style] || GRIPS.under;
   basisQuat(g.F(data.rake ?? 0.3), g.B, outQuat);
-  const r = data.r ?? 0;
-  const p = _v1.set(g.p[0], g.p[1] - (style === 'under' || style === 'pump' || style === 'flat' ? r * 0.55 : 0), g.p[2]).applyQuaternion(outQuat);
+  const p = _v1.set(g.p[0], g.p[1], g.p[2]).applyQuaternion(outQuat);
   outPos.copy(p).negate();
   return { pos: outPos, quat: outQuat, pose: g.pose };
 }
@@ -98,7 +99,7 @@ const sideColor = (ny) => (ny < -0.35 ? PALM : GLOVE);
 function capsule(r0, r1, len, seg = 10) {
   // Leicht konisches Fingerglied mit runden Enden, entlang −Z ab Ursprung
   const pts = [];
-  const cap = 4;
+  const cap = 3;
   for (let i = 0; i <= cap; i++) { const a = -Math.PI / 2 + (i / cap) * Math.PI / 2; pts.push(new THREE.Vector2(Math.cos(a) * r0, Math.sin(a) * r0)); }
   for (let i = 0; i <= cap; i++) { const a = (i / cap) * Math.PI / 2; pts.push(new THREE.Vector2(Math.cos(a) * r1, len + Math.sin(a) * r1)); }
   const g = new THREE.LatheGeometry(pts, seg);
@@ -111,7 +112,7 @@ function capsule(r0, r1, len, seg = 10) {
 function buildHandGeometry(mirror) {
   const parts = [];
   // Handfläche: verjüngt zum Handgelenk
-  const palm = new THREE.BoxGeometry(0.078, 0.03, 0.09, 4, 2, 4);
+  const palm = new RoundedBoxGeometry(0.084, 0.032, 0.09, 3, 0.012);
   palm.translate(0, 0.0, -0.045);
   const pa = palm.attributes.position;
   for (let i = 0; i < pa.count; i++) {
@@ -124,6 +125,7 @@ function buildHandGeometry(mirror) {
   }
   palm.computeVertexNormals();
   const palmS = mergeVerticesSmooth(palm);
+
   parts.push(tag(palmS, 0, sideColor));
   // Daumenballen
   const thenar = new THREE.SphereGeometry(0.019, 10, 8);
@@ -152,7 +154,7 @@ function buildHandGeometry(mirror) {
   for (const f of FINGERS) {
     for (let s = 0; s < 3; s++) {
       const len = f.len[s], r0 = f.r[s], r1 = s < 2 ? f.r[s + 1] : f.r[s] * 0.88;
-      const g = capsule(r0, r1, len, 10);
+      const g = capsule(r0, r1, len, 12);
       // Ruheposition entlang −Z ab Knöchel
       let z = f.z;
       for (let k = 0; k < s; k++) z -= f.len[k];
@@ -171,7 +173,7 @@ function buildHandGeometry(mirror) {
   let tz = 0;
   for (let s = 0; s < 3; s++) {
     const len = THUMB.len[s], r0 = THUMB.r[s], r1 = s < 2 ? THUMB.r[s + 1] : THUMB.r[s] * 0.88;
-    const g = capsule(r0, r1, len, 10);
+    const g = capsule(r0, r1, len, 12);
     g.translate(0, 0, tz);
     g.applyQuaternion(tq);
     g.translate(...THUMB.base);
@@ -189,7 +191,7 @@ function buildHandGeometry(mirror) {
       for (let t = 0; t < a.count; t += 3) for (let k = 0; k < sz; k++) { const tmp = arr[(t + 1) * sz + k]; arr[(t + 1) * sz + k] = arr[(t + 2) * sz + k]; arr[(t + 2) * sz + k] = tmp; }
     }
   }
-  boxUV(geo, 0.06);
+  boxUV(geo, 0.03);
   geo.computeBoundingSphere();
   return geo;
 }
@@ -287,7 +289,7 @@ class Arm {
     this.group.add(this.mesh);
 
     // Ärmel (Unter- und Oberarm) + Ellbogen
-    this.upperLen = 0.3; this.foreLen = 0.285;
+    this.upperLen = 0.33; this.foreLen = 0.3;
     this.fore = new THREE.Mesh(sleeveGeometry(this.foreLen + 0.03, 0.047, 0.037, 3.2, side > 0 ? 1 : 2.4), mats.sleeve);
     this.upper = new THREE.Mesh(sleeveGeometry(this.upperLen, 0.056, 0.049, 2.2, side > 0 ? 3 : 4.1), mats.sleeve);
     this.elbow = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), mats.sleeve);
@@ -297,7 +299,7 @@ class Arm {
       const tape = new THREE.Mesh(new THREE.CylinderGeometry(0.0455, 0.0455, 0.032, 16, 1, true), mats.tape);
       tape.geometry.rotateX(Math.PI / 2);
       tape.scale.set(1.06, 0.94, 1);
-      tape.position.z = -0.1;
+      tape.position.z = -0.21;
       this.fore.add(tape);
     } else {
       const watch = new THREE.Group();
@@ -306,12 +308,11 @@ class Arm {
       face.rotation.x = -Math.PI / 2; face.position.y = 0.0062;
       face.rotation.z = Math.PI / 2;
       const band = new THREE.Mesh(new THREE.CylinderGeometry(0.0395, 0.0395, 0.022, 16, 1, true), mats.watchCase);
-      band.rotation.x = Math.PI / 2; band.scale.set(1.04, 0.9, 1); band.position.y = 0.034;
+      band.rotation.x = Math.PI / 2; band.scale.set(1.04, 0.9, 1); band.position.y = -0.034;
       watch.add(caseM, face, band);
       // Innenseite des Handgelenks (Handflächenseite), am Bündchen
       watch.position.set(0, -0.034, 0.04);
       watch.rotation.z = Math.PI;
-      watch.scale.x = -1;
       this.handBone.add(watch);
       this.watch = watch;
     }
@@ -330,12 +331,14 @@ class Arm {
       ch[1].rotation.set(-c[1], 0, 0);
       ch[2].rotation.set(-c[2], 0, 0);
     }
+    // Daumen: Opposition (vor die Handfläche) um die Handlängsachse, Adduktion zur Zeigefingerseite,
+    // danach Beugung der drei Glieder um die eigene Querachse
     const t = pose.t;
-    _q.setFromEuler(new THREE.Euler(-t[0] * 0.6, t[1] * side * 0.8, -t[0] * side * 0.5));
-    this.thumb[0].quaternion.copy(this.thumbRest).multiply(_q);
+    _e.set(0, -t[1] * side, t[0] * side, 'ZYX');
+    this.thumb[0].quaternion.setFromEuler(_e).multiply(this.thumbRest);
+    this.thumb[0].rotateX(-t[2]);
     this.thumb[1].rotation.set(-t[3], 0, 0);
     this.thumb[2].rotation.set(-t[4], 0, 0);
-    this.thumb[0].rotateX(-t[2]);
   }
 
   // Handgelenk setzen und Arm per Zwei-Knochen-IK anschließen (alles im Elternraum der Arme)
@@ -391,8 +394,8 @@ export class Arms {
   constructor() {
     const watchTex = watchFaceTexture();
     this.mats = {
-      glove: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.45, 0.45) }),
-      sleeve: new THREE.MeshStandardMaterial({ map: camoMap('arid'), roughness: 0.93, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.6, 0.6) }),
+      glove: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.22, 0.22) }),
+      sleeve: new THREE.MeshStandardMaterial({ map: camoMap('arid'), roughness: 0.92, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.3, 0.3) }),
       tape: new THREE.MeshStandardMaterial({ map: tapeMap(), roughness: 0.6, metalness: 0.0 }),
       watchCase: new THREE.MeshStandardMaterial({ color: 0x1b1c1d, roughness: 0.55, metalness: 0.2 }),
       watchFace: new THREE.MeshStandardMaterial({ map: watchTex, emissive: 0xffffff, emissiveMap: watchTex, emissiveIntensity: 0.55, roughness: 0.15, metalness: 0.0 }),

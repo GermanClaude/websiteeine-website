@@ -204,7 +204,7 @@ export class TriangleBVH {
 
   /**
    * Alle Treffer entlang eines senkrechten Strahls von yTop nach unten (für Nav-Abtastung).
-   * cb(y, normalY, data) für jeden Treffer (unsortiert).
+   * cb(y, normalY (vorzeichenbehaftet, Dreieckswindung), data) für jeden Treffer (unsortiert).
    */
   verticalHits(x, z, yTop, yBottom, cb) {
     if (!this.count) return;
@@ -233,7 +233,7 @@ export class TriangleBVH {
         const e1y = tri[o + 4], e2y = tri[o + 7];
         let nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
         const l = Math.hypot(nx, ny, nz) || 1;
-        cb(y, Math.abs(ny / l), this.data[i]);
+        cb(y, ny / l, this.data[i]);
       }
     }
   }

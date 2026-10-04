@@ -80,7 +80,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   const bvh = built.bulletBVH, cbvh = built.colliderBVH;
   const hit = { t: 0, tri: 0, nx: 0, ny: 0, nz: 0, data: 0 };
   const center = new THREE.Vector3((pb.minX + pb.maxX) / 2, 0, (pb.minZ + pb.maxZ) / 2);
-  const snap = (p, yHint = 30) => {
+  const snap = (p, yHint = 2) => {
     const v = new THREE.Vector3(p.x ?? p[0], 0, p.z ?? p[2] ?? p[1]);
     const y0 = (p.y ?? yHint) + 1.2;
     v.y = cbvh.raycast(v.x, y0, v.z, 0, -1, 0, y0 + 10, hit) ? y0 - hit.t : (p.y ?? 0);
@@ -89,12 +89,12 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   const spawns = { A: [], B: [], ffa: [] };
   for (const team of ['A', 'B', 'ffa']) {
     for (const s of res.spawns?.[team] || []) {
-      const position = snap(s, s.y ?? 30);
+      const position = snap(s, s.y ?? 2);
       const yaw = s.yaw ?? Math.atan2(-(center.x - position.x), -(center.z - position.z));
       spawns[team].push({ position, yaw });
     }
   }
-  const objectives = { dom: (res.objectives?.dom || []).map(o => ({ id: o.id, position: snap(o, o.y ?? 30), radius: o.radius ?? 5 })) };
+  const objectives = { dom: (res.objectives?.dom || []).map(o => ({ id: o.id, position: snap(o, o.y ?? 2), radius: o.radius ?? 5 })) };
 
   // Navigation
   progress(0.88, 'Navigation');

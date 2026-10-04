@@ -856,10 +856,11 @@ function wireGlobal() {
     victim.respawnAt = G.time.elapsed + delay;
   });
   G.events.on('ui:sound', ({ name } = {}) => { if (!audioAttached && name) safe('audio.ui', () => G.audio.ui(name)); });
-  G.events.on('input:lock', ({ locked }) => {
+  G.events.on('input:lock', ({ locked, error }) => {
     updateLockHint();
+    // Nur ein echter Verlust der Sperre pausiert (nicht eine abgelehnte Anfrage, z. B. Chrome-Wartezeit nach Esc)
     const st = G.match.state;
-    if (!locked && G.input.everLocked && G.input.mode === 'desktop' && (st === 'playing' || st === 'countdown')) pause();
+    if (!locked && !error && G.input.everLocked && G.input.mode === 'desktop' && (st === 'playing' || st === 'countdown')) pause();
   });
   G.events.on('input:mode', () => updateLockHint());
 

@@ -132,12 +132,13 @@ function wedgePrim(w, h, d) {
   const v = {
     a: [-hw, 0, -hd], b: [hw, 0, -hd], c: [hw, 0, hd], e: [-hw, 0, hd], f: [hw, h, hd], g: [-hw, h, hd],
   };
+  // Windung gegen den Uhrzeigersinn von außen → Normalen zeigen nach außen
   const tris = [
-    [v.a, v.c, v.b], [v.a, v.e, v.c],               // Boden
-    [v.a, v.b, v.f], [v.a, v.f, v.g],               // Schräge
-    [v.e, v.g, v.f], [v.e, v.f, v.c],               // Rückwand (+z)
-    [v.a, v.g, v.e],                                // links
-    [v.b, v.c, v.f],                                // rechts
+    [v.a, v.b, v.c], [v.a, v.c, v.e],               // Boden
+    [v.a, v.f, v.b], [v.a, v.g, v.f],               // Schräge
+    [v.e, v.f, v.g], [v.e, v.c, v.f],               // Rückwand (+z)
+    [v.a, v.e, v.g],                                // links
+    [v.b, v.f, v.c],                                // rechts
   ];
   const P = [], N = [];
   for (const [p0, p1, p2] of tris) {
@@ -472,6 +473,13 @@ export class MapBuilder {
   /** Zusätzlicher Navigationspunkt (Türdurchgänge, Treppenenden). */
   navPoint(x, y, z) { this.navPoints.push(new THREE.Vector3(x, y, z)); return this; }
 
+  /** Navigationspunkte entlang einer Linie (schmale Treppen, Stege, Brücken). */
+  navLine(x0, y0, z0, x1, y1, z1, step = 1.2) {
+    const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.round(L / step));
+    for (let i = 0; i <= n; i++) { const t = i / n; this.navPoint(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, z0 + (z1 - z0) * t); }
+    return this;
+  }
+
   /** Boden-/Wand-Decal aus dem Decal-Atlas. normal: [nx,ny,nz] (Standard nach oben). */
   decal(x, y, z, w, d, cell, o = {}) {
     this.decals.push({ x, y, z, w, d, cell: typeof cell === 'string' ? DECAL_CELLS[cell] : cell, ry: o.ry ?? this.rand() * Math.PI * 2, normal: o.normal || null, kind: o.kind || (cell === 'puddle' ? 'wet' : cell === 'arrow' || cell === 'hatch' || cell === 'line' || cell === 'stencil' ? 'paint' : 'grime'), tint: o.tint, opacity: o.opacity ?? 1 });
@@ -645,7 +653,7 @@ export class MapBuilder {
 
     // Lichter
     const lights = [];
-    for (const L of this.lights) {
+    for (const L of (quality === 'low' ? [] : this.lights)) {
       let light;
       if (L.type === 'spot') {
         light = new THREE.SpotLight(L.color || '#ffd7a0', L.intensity ?? 20, L.distance ?? 18, L.angle ?? 0.9, L.penumbra ?? 0.6, 2);

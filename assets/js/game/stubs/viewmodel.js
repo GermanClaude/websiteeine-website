@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import * as stubModels from './models.js';
 
-const HIP = new THREE.Vector3(0.16, -0.19, -0.42);
+const HIP = new THREE.Vector3(0.19, -0.2, -0.5);
 const damp = (k, dt) => 1 - Math.exp(-k * dt);
 
 export class ViewModel {
@@ -42,7 +42,7 @@ export class ViewModel {
     const rh = arm(0.065, 0.075, 0.09, glove); rh.position.set(0, -0.03, 0.03);
     this.rightArm.add(ra, rh);
     this.leftArm = new THREE.Group();
-    const la = arm(0.07, 0.07, 0.42, sleeve); la.position.set(-0.05, -0.06, 0.2); la.rotation.y = 0.35;
+    const la = arm(0.07, 0.07, 0.36, sleeve); la.position.set(-0.09, -0.07, 0.16); la.rotation.set(0.15, -0.45, 0);
     const lh = arm(0.065, 0.06, 0.09, glove);
     this.leftArm.add(la, lh);
     this.gunHolder.add(this.rightArm, this.leftArm);

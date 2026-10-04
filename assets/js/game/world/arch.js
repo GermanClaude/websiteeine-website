@@ -77,6 +77,10 @@ function openingDetails(b, o, op, g) {
       if (top - sill > 1.3) at(op.at, y + sill + (top - sill) * 0.55, op.w - fw * 2, 0.05, 0.08, fmat, { tint: ftint, collide: false });
     }
   }
+  if (op.closed) {
+    // geschlossene Fensterläden (massiv)
+    at(op.at, y + sill + 0.01, op.w - fw * 2 + 0.02, top - sill - fw - 0.01, Math.min(0.08, t * 0.5), 'wood_planks', { tint: op.closed === true ? (o.shutterTint || '#2f6f9a') : op.closed, collide: true });
+  }
   if (op.bars) {
     const n = Math.max(2, Math.round(op.w / 0.14));
     for (let i = 1; i < n; i++) b.cyl(x0 + ux * (a + (op.w * i) / n), y + sill, z0 + uz * (a + (op.w * i) / n), 0.012, top - sill - fw, 'metal_painted', { tint: '#2c2f33', collide: false, seg: 5, ao: false });
@@ -175,8 +179,10 @@ export function stairs(b, o) {
       railing(b, ax, az, bx, bz, y0, { y1, h: 1.0, posts: Math.max(2, Math.round(run / 1.2) + 1), tint: o.railTint, collider: o.railCollider ?? true });
     }
   }
-  const [bx0, bz0] = P(-0.6, 0), [tx, tz] = P(run + 0.7, 0);
+  const [bx0, bz0] = P(-0.7, 0), [tx, tz] = P(run + 0.7, 0);
   b.navPoint(bx0, y0 + 0.2, bz0);
+  const [sx0, sz0] = P(0.3, 0), [sx1, sz1] = P(run - 0.2, 0);
+  b.navLine(sx0, y0 + (rise * 0.3) / run + 0.25, sz0, sx1, y1 - (rise * 0.2) / run + 0.25, sz1, 1.1);
   b.navPoint(tx, y1 + 0.2, tz);
   return { top: P(run, 0), run };
 }
@@ -226,6 +232,7 @@ export function catwalk(b, x0, z0, x1, z1, y, o = {}) {
       }
     }
   }
+  b.navLine(x0 + ux * 0.4, y + 0.2, z0 + uz * 0.4, x1 - ux * 0.4, y + 0.2, z1 - uz * 0.4, 1.3);
   const rails = o.rails ?? ['l', 'r'];
   for (const side of rails) {
     const s = side === 'l' ? 1 : -1;

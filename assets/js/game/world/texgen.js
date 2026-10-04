@@ -209,7 +209,7 @@ G.concrete = (t, r, o) => {
     v *= 1 - s - st - cr * 0.35; v -= pits[i] * 0.22;
     const warm = (big[i] - 0.5) * 6;
     t.set(i, base[0] * v + warm, base[1] * v, base[2] * v - warm);
-    t.height[i] = fine[i] * 0.4 + mid[i] * 0.3 + big[i] * 0.15 - pits[i] * 0.7 - cr * 0.5;
+    t.height[i] = fine[i] * 0.14 + mid[i] * 0.22 + big[i] * 0.15 - pits[i] * 0.55 - cr * 0.5;
     t.rough[i] = 0.9 - s * 0.5 + (fine[i] - 0.5) * 0.08;
   }
   if (o.panels) { // Schalungsfugen + Ankerlöcher
@@ -232,7 +232,7 @@ G.concrete = (t, r, o) => {
 
 G.asphalt = (t, r, o) => {
   const { S, n } = t;
-  const base = hex(o.base || '#4a4b4d');
+  const base = hex(o.base || '#5a5b5c');
   const big = fbm(S, 3, 5, r), fine = fbm(S, 160, 2, r), agg = new Float32Array(n);
   addNoise(agg, S, S / 2, S / 2, 1, r); normalizeField(agg);
   const patch = fbm(S, 2, 4, r), cracks = fbm(S, 5, 5, r), cm = fbm(S, 2, 3, r);
@@ -243,9 +243,9 @@ G.asphalt = (t, r, o) => {
     const p = smooth(0.62, 0.66, patch[i]);
     const cr = (1 - smooth(0.0, 0.01, Math.abs(cracks[i] - 0.5))) * smooth(0.55, 0.7, cm[i]);
     v *= 1 - p * 0.22 - cr * 0.5 - tar[i] * 0.3;
-    const c = v + light * 0.45 - dark * 0.2;
+    const c = v + light * 0.28 - dark * 0.14;
     t.set(i, base[0] * c, base[1] * c, base[2] * c * 1.02);
-    t.height[i] = agg[i] * 0.55 + fine[i] * 0.3 - cr * 0.8 + p * 0.1;
+    t.height[i] = agg[i] * 0.22 + fine[i] * 0.1 - cr * 0.7 + p * 0.08;
     t.rough[i] = 0.92 - tar[i] * 0.35 - p * 0.05;
   }
 };
@@ -261,7 +261,7 @@ G.plaster = (t, r, o) => {
   for (let i = 0; i < n; i++) {
     let v = 0.94 + (big[i] - 0.5) * 0.12 + (mid[i] - 0.5) * 0.08 + (stucco[i] - 0.5) * 0.08;
     const d = smooth(0.6, 0.95, dirt[i]) * 0.14 + smooth(0.65, 0.95, streak[i]) * 0.1;
-    const peel = smooth(0.84, 0.86, dmg[i]);
+    const peel = smooth(0.9, 0.915, dmg[i]) * (o.peel ?? 1);
     const cr = (1 - smooth(0.0, 0.008, Math.abs(crack[i] - 0.5))) * smooth(0.7, 0.8, big[i]);
     v *= 1 - d - cr * 0.4;
     let c = [base[0] * v, base[1] * v, base[2] * v];
@@ -272,7 +272,7 @@ G.plaster = (t, r, o) => {
       c = mixC(c, sc, peel);
     }
     t.set(i, c[0], c[1], c[2]);
-    t.height[i] = stucco[i] * 0.55 + mid[i] * 0.2 - peel * 0.8 - cr * 0.4;
+    t.height[i] = stucco[i] * 0.35 + mid[i] * 0.2 - peel * 0.8 - cr * 0.4;
     t.rough[i] = 0.92 - d * 0.2;
   }
 };
@@ -528,7 +528,7 @@ G.corrugated = (t, r, o) => {
     const i = y * S + x, f = (x / S * ribs) % 1;
     let prof;
     if (trap) { // Trapezprofil (Container)
-      prof = f < 0.35 ? 1 : f < 0.5 ? 1 - (f - 0.35) / 0.15 : f < 0.85 ? 0 : (f - 0.85) / 0.15;
+      prof = f < 0.3 ? 1 : f < 0.5 ? 1 - smooth(0.3, 0.5, f) : f < 0.8 ? 0 : smooth(0.8, 1.0, f);
     } else prof = 0.5 + 0.5 * Math.cos(f * Math.PI * 2);
     const trough = 1 - prof;
     const rs = smooth(0.55, 0.85, streak[i] * 0.7 + rust[i] * 0.3) * (0.4 + trough * 0.6) * (o.rustAmt ?? 1);
@@ -908,12 +908,12 @@ G.waterNormal = (t, r) => {
 // ---------------------------------------------------------------------------
 // tex: Textur-Gruppe (gen + Parameter), tile: Meter pro Kachel, surface: Oberflächentyp für Treffer/Schritte
 export const TEX = {
-  concrete:       { gen: 'concrete', o: { base: '#a3a19a' }, normal: 2.2 },
-  concrete_dark:  { gen: 'concrete', o: { base: '#6f6e6a' }, normal: 2.2 },
-  concrete_panel: { gen: 'concrete', o: { base: '#a8a59e', panels: [2, 2] }, normal: 2.5 },
-  asphalt:        { gen: 'asphalt', o: {}, normal: 2.5 },
-  plaster_warm:   { gen: 'plaster', o: { base: '#dcc29a', stone: '#a08a6c' }, normal: 3 },
-  plaster_white:  { gen: 'plaster', o: { base: '#ece7dc', stone: '#a8957a' }, normal: 3 },
+  concrete:       { gen: 'concrete', o: { base: '#a3a19a' }, normal: 1.4 },
+  concrete_dark:  { gen: 'concrete', o: { base: '#6f6e6a' }, normal: 1.4 },
+  concrete_panel: { gen: 'concrete', o: { base: '#a8a59e', panels: [2, 2] }, normal: 1.8 },
+  asphalt:        { gen: 'asphalt', o: {}, normal: 1.3 },
+  plaster_warm:   { gen: 'plaster', o: { base: '#dcc29a', stone: '#a08a6c' }, normal: 2 },
+  plaster_white:  { gen: 'plaster', o: { base: '#ece7dc', stone: '#a8957a' }, normal: 2 },
   brick:          { gen: 'brick', o: {}, normal: 3.5 },
   brick_dark:     { gen: 'brick', o: { palette: ['#5e3a2e', '#6a4232', '#523428', '#74493a', '#4c2f25'], mortar: '#7d776e' }, normal: 3.5 },
   stone_wall:     { gen: 'stoneWall', o: {}, normal: 4 },
@@ -927,12 +927,12 @@ export const TEX = {
   cardboard:      { gen: 'cardboard', o: {}, normal: 1.5 },
   metal_painted:  { gen: 'paint', o: {}, normal: 1.5 },
   metal_rust:     { gen: 'rust', o: {}, normal: 3 },
-  metal_corrugated: { gen: 'corrugated', o: { ribs: 16, rustAmt: 1 }, normal: 6 },
+  metal_corrugated: { gen: 'corrugated', o: { ribs: 16, rustAmt: 1 }, normal: 4 },
   metal_galvanized: { gen: 'galvanized', o: {}, normal: 1 },
   metal_tread:    { gen: 'tread', o: {}, normal: 5 },
   metal_grate:    { gen: 'grate', o: {}, normal: 2 },
   hazard:         { gen: 'hazard', o: {}, normal: 1 },
-  container:      { gen: 'corrugated', o: { base: '#e6e6e2', ribs: 8, trapezoid: true, rustAmt: 0.8 }, normal: 7 },
+  container:      { gen: 'corrugated', o: { base: '#e6e6e2', ribs: 8, trapezoid: true, rustAmt: 0.8 }, normal: 3.6 },
   sand:           { gen: 'sand', o: {}, normal: 2 },
   dirt:           { gen: 'dirt', o: {}, normal: 3 },
   gravel:         { gen: 'gravel', o: { cells: 30, palette: ['#9a958c', '#8c877e', '#a7a197', '#7f7a72', '#a09789'] }, normal: 3 },

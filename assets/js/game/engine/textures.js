@@ -50,7 +50,7 @@ const MATS = {
   concrete:          { tex: 'concrete', tile: 3, surface: 'concrete' },
   concrete_dark:     { tex: 'concrete_dark', tile: 3, surface: 'concrete' },
   concrete_panel:    { tex: 'concrete_panel', tile: 4, surface: 'concrete' },
-  asphalt:           { tex: 'asphalt', tile: 4, surface: 'concrete' },
+  asphalt:           { tex: 'asphalt', tile: 5, surface: 'concrete' },
   plaster_warm:      { tex: 'plaster_warm', tile: 3, surface: 'concrete' },
   plaster_white:     { tex: 'plaster_white', tile: 3, surface: 'concrete' },
   brick:             { tex: 'brick', tile: 2, surface: 'concrete' },

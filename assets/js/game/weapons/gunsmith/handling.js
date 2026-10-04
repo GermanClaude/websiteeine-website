@@ -7,12 +7,12 @@ export const ID_TO_MODEL = {
 };
 
 const RIFLE = {
-  hip: [0.152, -0.168, -0.37], hipRot: [0.0, 0.03, 0.0],
+  hip: [0.13, -0.2, -0.42], hipRot: [0.05, 0.04, 0.0],
   sprintPos: [-0.05, -0.07, 0.04], sprintRot: [-0.42, 0.78, 0.48],
   crouchPos: [-0.012, -0.006, 0.012], crouchRot: [0.0, 0.0, 0.07],
   kick: { back: 0.026, up: 0.045, side: 0.01, roll: 0.045, kickRot: 0.02 },
   weight: 1.0, reload: 'mag', action: 'auto', leftGrip: 'under', shell: 'rifle', flash: 1.0, flashLen: 1.0,
-  shoulderR: [0.2, -0.3, 0.12], shoulderL: [-0.24, -0.3, 0.08], poleR: [0.6, -1, 0.1], poleL: [-0.75, -1, 0.0],
+  shoulderR: [0.19, -0.3, 0.06], shoulderL: [-0.2, -0.3, -0.04], poleR: [0.6, -1, 0.1], poleL: [-0.75, -1, 0.0],
   reloadTime: 2.2, emptyTime: 2.8, equipTime: 0.55, boltTime: 0.06, boltTravel: 0.035,
   inspect: 3.2,
 };

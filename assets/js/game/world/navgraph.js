@@ -313,18 +313,25 @@ export function buildNavGraph(src, { spacing = 1.5, debug = false } = {}) {
   const raw = []; // { x, y, z, i, j }
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
     const x = ox + i * spacing, z = oz + j * spacing;
-    const ys = [];
-    bvh.verticalHits(x, z, yTop, yBot, (y, ny) => { if (ny >= WALK_NY) ys.push(y); });
-    ys.sort((p, q) => q - p);
+    // Treffer von oben nach unten; Tiefenzähler: Oberseite (ny>0) = Eintritt in Festkörper,
+    // Unterseite (ny<0) = Austritt. Kandidat = Oberseite, über der Luft ist (Tiefe 0).
+    const hits = [];
+    bvh.verticalHits(x, z, yTop, yBot, (y, ny) => { if (Math.abs(ny) > 0.05) hits.push(y, ny); });
+    const order = [];
+    for (let k = 0; k < hits.length; k += 2) order.push(k);
+    order.sort((p, q) => (hits[q] - hits[p]) || (hits[q + 1] - hits[p + 1]));
     const list = [];
-    for (let k = 0; k < ys.length; k++) {
-      const y = ys[k];
-      if (k > 0 && ys[k - 1] - y < 0.12) continue; // doppelte Flächen
-      if (excl.length && excluded(x, y, z)) continue;
-      if (!T.nodeClear(x, y, z)) continue;
-      const node = { x, y, z, i, j, extra: false };
-      list.push(raw.length);
-      raw.push(node);
+    let depth = 0, lastY = Infinity;
+    for (const k of order) {
+      const y = hits[k], ny = hits[k + 1];
+      if (ny > 0) {
+        if (depth === 0 && ny >= WALK_NY && lastY - y >= 0.12 && !(excl.length && excluded(x, y, z)) && T.nodeClear(x, y, z)) {
+          list.push(raw.length);
+          raw.push({ x, y, z, i, j, extra: false });
+          lastY = y;
+        }
+        depth++;
+      } else depth = Math.max(0, depth - 1);
     }
     cols[j * nx + i] = list;
   }
@@ -460,7 +467,7 @@ export function validateNavGraph(nav, src, removed = nav.removed || []) {
     const isl = islands.find(s => Math.hypot(s.x - r.x, s.z - r.z) < 6 && Math.abs(s.y - r.y) < 1.5);
     if (isl) isl.n++; else islands.push({ x: r.x, y: r.y, z: r.z, n: 1 });
   }
-  for (const s of islands) if (s.n >= 6) problems.push(`Nicht erreichbare Fläche (${s.n} Punkte) bei (${s.x.toFixed(1)}, ${s.y.toFixed(1)}, ${s.z.toFixed(1)})`);
+  for (const s of islands) if (s.n >= 10) problems.push(`Nicht erreichbare Fläche (${s.n} Punkte) bei (${s.x.toFixed(1)}, ${s.y.toFixed(1)}, ${s.z.toFixed(1)})`);
   // Verbindungen nachprüfen
   let bad = 0;
   for (const n of nav.nodes) for (const k of n.links) {

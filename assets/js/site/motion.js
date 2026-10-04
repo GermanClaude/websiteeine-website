@@ -43,8 +43,13 @@ export function stepSpring(s, dt, { k, z }) {
   if (Math.abs(s.x) < 0.02 && Math.abs(s.v) < 0.05) { s.x = 0; s.v = 0; return false; }
   return true;
 }
-/** Anfangsgeschwindigkeit, mit der eine kritisch gedämpfte Feder ihr Maximum bei `peak` erreicht. */
-export function impulseFor(peak, { k }) { return peak * Math.sqrt(k) * Math.E; }
+/** Anfangsgeschwindigkeit, mit der eine Feder (aus der Ruhe) ihr erstes Maximum bei `peak` erreicht. */
+export function impulseFor(peak, { k, z }) {
+  const w = Math.sqrt(k);
+  if (z >= 0.999) return peak * w * Math.E;
+  const r = Math.sqrt(1 - z * z);
+  return (peak * w) / Math.exp((-z / r) * Math.atan(r / z));
+}
 
 export const ease = {
   out: (t) => 1 - Math.pow(1 - t, 3),

@@ -157,11 +157,12 @@ code { font-family: var(--font-mono); font-size: .92em; }
 .index { display: none; }
 @media (min-width: 1024px) {
   .js .index {
-    display: block; position: fixed; z-index: 30;
+    display: block; position: fixed; z-index: 30; visibility: hidden; opacity: 0; transition: opacity 240ms var(--ease-out), visibility 0s 240ms;
     left: var(--gl); bottom: 0; width: var(--rail-w);
     padding: 16px 0 32px; background: var(--np-black);
     box-shadow: inset 0 1px 0 var(--line);
   }
+  .js body.past-hero .index { visibility: visible; opacity: 1; transition: opacity 240ms var(--ease-out); }
   .index a {
     --p: 0; display: inline-block; text-decoration: none; font-size: 15px; line-height: 1.4;
     font-stretch: calc((75 + 40 * var(--p) * var(--p)) * 1%);
@@ -282,7 +283,7 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .wordmark {
   --wght: 800;
   position: relative; width: 100%;
-  font-size: clamp(64px, 17.5vw, 420px); font-weight: var(--wght); line-height: .8;
+  font-size: clamp(64px, 20vw, 420px); font-weight: var(--wght); line-height: .8;
   white-space: nowrap; letter-spacing: 0;
   user-select: none; -webkit-user-select: none;
   contain: layout style;
@@ -290,6 +291,7 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
   transition: transform 240ms var(--ease-out);
 }
 .wordmark.glide { transition: transform 640ms var(--ease-out); }
+.wordmark .vis { display: block; }
 .wordmark .fl { display: inline; }
 .wordmark .bull-g, .wordmark .g.bull-g { color: var(--np-signal); }
 .bull {
@@ -497,9 +499,9 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
   transition: opacity 240ms var(--ease-out);
 }
 .stage.dissolved .mask { opacity: 0; }
-.mask-name { --wght: 600; font-weight: var(--wght); line-height: .8; text-align: center; white-space: nowrap; width: 92%; contain: layout style; }
+.mask-name { --wght: 600; font-size: var(--mfs, 120px); font-weight: var(--wght); line-height: .8; text-align: center; white-space: nowrap; width: 92%; contain: layout style; }
+.mask-name .vis { display: block; will-change: transform; }
 .mask-name .fl { display: block; }
-.mask-name .vis { will-change: transform; }
 .stage .hud { position: absolute; inset: 0; z-index: 2; pointer-events: none; font-family: var(--font-hud); font-weight: 600; color: var(--np-ink); }
 .hud button, .hud .hud-hit { pointer-events: auto; }
 .hud-ammo { position: absolute; right: 16px; bottom: 12px; text-align: right; line-height: 1; }
@@ -535,6 +537,7 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .stat-word {
   display: inline-block; font-size: clamp(22px, 2.2vw, 28px); font-weight: 700; line-height: 1.15; white-space: nowrap;
   font-stretch: calc(var(--sw, 100) * 1%); position: relative; z-index: 1;
+  transition: font-stretch 240ms var(--ease-in-out);
 }
 .stat-track { position: absolute; left: 0; bottom: .28em; height: 1px; width: var(--track, 100%); background: var(--line); }
 .stat-val { font-family: var(--font-mono); font-size: var(--fs-data); color: var(--ink-2); font-variant-numeric: tabular-nums; }
@@ -774,6 +777,7 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
   white-space: nowrap; overflow: clip; contain: layout paint style; font-stretch: calc(var(--wdth) * 1%); padding-top: .04em;
 }
 .foot-mark .vis-static { display: inline-block; }
+.foot-mark .cold { color: var(--np-ink); }
 .foot-line { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-top: 24px; font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
 .foot-line a { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
 .foot-line a:hover { color: var(--np-ink); }
@@ -788,7 +792,7 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
     background: var(--np-black); box-shadow: inset 0 1px 0 var(--line);
     align-items: center; justify-content: space-between; gap: 16px;
   }
-  .js body.bar-on { --bar-h: calc(56px + env(safe-area-inset-bottom, 0px)); }
+  .js body { --bar-h: calc(56px + env(safe-area-inset-bottom, 0px)); }
 }
 .bar-sec { min-height: 44px; display: inline-flex; align-items: center; min-width: 0; }
 .bar-name { font-size: 22px; line-height: 1; font-weight: 800; font-stretch: 100%; white-space: nowrap; display: inline-block; transition: font-stretch 240ms var(--ease-out), font-weight 240ms var(--ease-out); }

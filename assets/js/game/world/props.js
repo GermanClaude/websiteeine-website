@@ -23,6 +23,7 @@ function cached(key, fn) { if (!geoCache.has(key)) geoCache.set(key, fn()); retu
 // ---------------------------------------------------------------------------
 // Container
 // ---------------------------------------------------------------------------
+export const CONTAINER_H = 2.59, CONTAINER_W = 2.44;
 export const CONTAINER_COLORS = ['#b8392c', '#2d5f94', '#3e7a4c', '#d9762a', '#8d9399', '#c9a227', '#6b3f7a', '#1f6f6a', '#9a3328', '#e3e1da'];
 
 /** ISO-Container. len 6.06 (20 ft) oder 12.19 (40 ft). (x,z) Mitte, y Unterkante. */
@@ -31,7 +32,8 @@ export function container(b, x, y, z, o = {}) {
   const f = frame(b, x, y, z, o.ry || 0);
   const dark = shade(color, 0.72);
   const ground = Math.abs(y) < 0.05;
-  f.box(0, 0, 0, len - 0.1, H - 0.06, W - 0.08, 'container', { tint: color, uv: 'local', minimap: o.minimap ?? 'container', aoFloor: ground ? y : undefined, grad: ground });
+  f.box(0, 0, 0, len - 0.1, H - 0.06, W - 0.08, 'container', { tint: color, uv: 'local', collide: false, aoFloor: ground ? y : undefined, grad: ground });
+  f.solid(0, 0, 0, len, H, W, { minimap: o.minimap ?? 'container' });
   // Eckpfosten
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.box(sx * (len / 2 - 0.09), 0, sz * (W / 2 - 0.09), 0.18, H, 0.18, 'container', { tint: dark, collide: false, minimap: false, grad: ground, uv: 'local' });
   // Ober-/Untergurte
@@ -309,7 +311,7 @@ export function truck(b, x, z, o = {}) {
   f.box(0, 1.05, tz, 2.5, 0.25, tl, 'metal_painted', { tint: '#3a3d40', collide: false, minimap: false, grad: false });
   for (const sx of [-1, 1]) for (const k of [0, 1, 2]) wheel(f, sx * 1.05, 0.52, tz - tl / 2 + 1.2 + k * 1.3, 0.52, 0.4);
   f.box(0, 0.2, tz + tl / 2 - 2.5, 0.12, 0.85, 0.12, 'metal_painted', { tint: '#26282b', collide: false, minimap: false });
-  if (tt === 'container') container(b, ...f.P(0, tz), y + 1.3, { len: 12.19, ry: (o.ry || 0) + Math.PI / 2, color: o.containerColor, logo: o.logo, minimap: 'vehicle' });
+  if (tt === 'container') { const [cx, cz] = f.P(0, tz); container(b, cx, y + 1.3, cz, { len: 12.19, ry: (o.ry || 0) + Math.PI / 2, color: o.containerColor, logo: o.logo, minimap: 'vehicle' }); }
   else if (tt === 'box') {
     f.box(0, 1.3, tz, 2.5, 2.7, tl, 'metal_corrugated', { tint: o.boxColor || '#d8d8d2', minimap: 'vehicle', grad: false, uv: 'local' });
     if (o.logo) { const [lx, lz] = f.P(1.26, tz); b.sign(lx, y + 2.0, lz, 7, 1.4, o.logo, { ry: (o.ry || 0) + Math.PI / 2, back: false, depth: 0 }); }

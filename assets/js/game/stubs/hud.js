@@ -44,6 +44,9 @@ const STYLE = `
 .sh-scope::after{left:0;top:50%;width:100%;height:1.5px;margin:-.75px 0 0}
 .sh-board{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);min-width:min(620px,92vw);background:rgba(10,11,13,.86);border:1px solid var(--np-line-strong);padding:14px 18px;font-size:16px}
 .sh-board[hidden]{display:none}
+body[data-input-mode="touch"] .sh-ammo{right:auto;left:50%;bottom:calc(3% + 54px);transform:translateX(-50%);text-align:center}
+body[data-input-mode="touch"] .sh-ammo b{font-size:30px}
+body[data-input-mode="touch"] .sh-hp{width:160px;bottom:12px}
 .sh-board table{width:100%;border-collapse:collapse}.sh-board td,.sh-board th{padding:3px 8px;text-align:right}
 .sh-board td:first-child,.sh-board th:first-child{text-align:left}
 .sh-board th{color:var(--np-ink-2);font-weight:600;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
