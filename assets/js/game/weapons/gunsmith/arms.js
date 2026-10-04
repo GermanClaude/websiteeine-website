@@ -288,7 +288,7 @@ export const GRIPS = {
   },
   // Kleinteile mit Zeigefinger + Daumen greifen (Spannhebel, Kammerstängel): Punktplatzierung
   pinchSide: { point: [-0.026, -0.045, -0.112], knob: 0.006, F: () => [0.15, 0.1, -1], B: () => [-0.2, 1, 0.1] },
-  pinchRight: { point: [-0.026, -0.045, -0.112], knob: 0.006, F: () => [-0.2, -0.1, -1], B: () => [0.6, 1, 0] },
+  pinchRight: { point: [-0.026, -0.045, -0.112], knob: 0.006, F: () => [-0.2, 0.25, -1], B: () => [0.8, -0.55, 0] },
   boltKnob: { point: [-0.026, -0.05, -0.105], knob: 0.011, F: () => [-0.1, 0.2, -1], B: () => [0.4, 1, 0] },
   slapTop: { point: [0, -0.0175, -0.06], pose: 'flat', F: () => [0.2, -0.3, -1], B: () => [0, 1, 0.2] },
   slapSide: { point: [0, -0.0175, -0.062], pose: 'flat', F: () => [0.15, 0.3, -1], B: () => [-1, 0.15, 0.25] },
@@ -674,7 +674,10 @@ class Arm {
     E.copy(S).addScaledVector(dir, a).addScaledVector(pole, h);
     // Unterarm folgt überwiegend der Handachse (gerades Handgelenk), Oberarm streckt sich zur Schulter
     const back = _upB.set(0, 0, 1).applyQuaternion(wristQuat);
-    const fd = _fd.subVectors(E, W).normalize().lerp(back, this.align).normalize();
+    const ik = _fd.subVectors(E, W).normalize();
+    // Je stärker Handachse und IK-Richtung auseinanderliegen, desto mehr gilt die reine IK (kein Arm durchs Bild)
+    const agree = THREE.MathUtils.smoothstep(ik.dot(back), -0.1, 0.55);
+    const fd = ik.lerp(back, this.align * agree).normalize();
     E.copy(W).addScaledVector(fd, Lf);
     const up = _upA.set(0, 1, 0).applyQuaternion(wristQuat);
     orient(this.fore, E, W, up, 0.03);

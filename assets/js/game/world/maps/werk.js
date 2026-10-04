@@ -384,25 +384,22 @@ function hallInterior(b) {
     // Geländer innen mit Lücken an Brücke und Treppenpodesten
     catwalk(b, x, -27, x, 27, CW, {
       w: 1.8, supports: true, supportSpacing: 6, supportBoth: false, interior: true, railTint: RAIL,
-      rails: [s < 0 ? 'r' : 'l'], railCut: s < 0 ? { r: [[0, 7.9], [9.3, 25.9], [28.1, 44.7], [46.1, 54]] } : { l: [[0, 7.9], [9.3, 25.9], [28.1, 44.7], [46.1, 54]] },
+      // innen offen an den Treppenaustritten (z ±21) und an der Querbrücke
+      rails: [s < 0 ? 'r' : 'l'], railCut: s < 0 ? { r: [[0, 5.3], [6.7, 25.9], [28.1, 47.3], [48.7, 54]] } : { l: [[0, 5.3], [6.7, 25.9], [28.1, 47.3], [48.7, 54]] },
     });
     for (const zz of [-27, 27]) railing(b, x - 0.9, zz, x + 0.9, zz, CW, { tint: RAIL, posts: 2 });
   }
   catwalk(b, -cwx + 0.9, 0, cwx - 0.9, 0, CW, { w: 2.2, supports: false, interior: true, railTint: RAIL });
   // Hänger der Querbrücke
   for (const xx of [-13, -6.5, 6.5, 13]) for (const zz of [-1.05, 1.05]) b.cyl(xx, CW, zz, 0.025, 12.2 - CW, 'metal_galvanized', { seg: 4, collide: false, minimap: false, ao: false });
-  // Treppen in allen vier Ecken (Aufstieg zur Hallenmitte), Podest seitlich am Laufsteg
+  // Treppen in allen vier Ecken: quer zur Wand, münden frontal auf den Laufsteg (z ±21)
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    const x = sx * (cwx - 1.6), run = (CW - 0.0) / 0.62;
-    const zb = sz * 27.4;                              // unterste Stufe
-    stairs(b, { x, z: zb, y0: 0, y1: CW, w: 1.3, dir: sz > 0 ? 'n' : 's', run, style: 'steel', rail: sx < 0 ? (sz > 0 ? 'right' : 'left') : (sz > 0 ? 'left' : 'right'), railTint: RAIL, railFrom: 1.0 });
-    const zt = zb - sz * run;
-    b.boxMM(x - 0.65, CW - 0.06, Math.min(zt, zt - sz * 1.4), x + 0.65, CW, Math.max(zt, zt - sz * 1.4), 'metal_grate', { minimap: 'catwalk', grad: false, ao: false, interior: true });
-    const xin = x + sx * -0.0 + (sx < 0 ? 0.65 : -0.65);
-    railing(b, xin, zt - sz * 1.4, xin, zt, CW, { tint: RAIL, posts: 2 });
-    railing(b, x - 0.65, zt - sz * 1.4, x + 0.65, zt - sz * 1.4, CW, { tint: RAIL, posts: 2 });
-    b.box(xin, 0, zt - sz * 0.7, 0.14, CW - 0.06, 0.14, 'metal_painted', { tint: STEEL, minimap: false });
+    const run = CW / 0.62, xTop = sx * (cwx - 0.9);   // Innenkante des Laufstegs
+    stairs(b, { x: xTop - sx * run, z: sz * 21, y0: 0, y1: CW, w: 1.3, dir: sx < 0 ? 'w' : 'e', run, style: 'steel', rail: true, railTint: RAIL, railFrom: 1.0 });
+    b.box(xTop - sx * (run - 1.0), 0, sz * 21, 0.12, CW * (1 - 1.0 / run) - 0.3, 0.12, 'metal_painted', { tint: STEEL, minimap: false, collide: false });
   }
+  // Wegpunkte im schmalen Gang zwischen Ofen und Stirnwand (liegt zwischen den Rasterpunkten)
+  for (const s of [-1, 1]) b.navLine(-20.6, 0.2, s * 28.5, -8.6, 0.2, s * 28.5, 1.2);
   // Rollgang in der Hallenachse mit Lücke in der Mitte, Walzgerüste
   for (const s of [-1, 1]) {
     rollerTable(b, 0, s * 6.5, s * 26.5);
@@ -425,7 +422,7 @@ function hallInterior(b) {
     barrelGroup(b, -18.2, s * 9.0, { n: 3, colors: ['#3a4a5a', '#5a3a2a', '#3a4a5a'] });
     gasBottles(b, 18.6, s * 3.5, { n: 4 });
     workbench(b, 19.0, s * 12.0, { ry: -Math.PI / 2 });
-    lockers(b, -19.9, s * 20.0, { n: 4, ry: Math.PI / 2 });
+    lockers(b, -19.9, s * 16.4, { n: 4, ry: Math.PI / 2 });
     tires(b, 4.6, s * 9.2, { n: 3 });
   }
   // Pfützen, Ölflecken, Schmutz, Schrott in der Halle
@@ -532,6 +529,10 @@ function boilerHouse(b) {
     stairs(b, { x: 33.6, z: zr, y0: 0.12, y1: fh, w: 1.2, dir: 'e', run: 8.0, style: 'steel', rail: true, railTint: RAIL, railFrom: 1.0 });
   }
   railing(b, hole.x1, -8.2, hole.x1, 8.2, fh, { tint: RAIL, posts: 9 });
+  // Galerie-Wegpunkte (2 m breite Gänge liegen zwischen den Rasterpunkten)
+  for (const s of [-1, 1]) b.navLine(31.4, fh + 0.2, s * 10.6, 42.6, fh + 0.2, s * 10.6, 1.2);
+  b.navLine(42.6, fh + 0.2, -10.6, 42.6, fh + 0.2, 10.6, 1.2);
+  b.navLine(31.4, fh + 0.2, -10.6, 31.4, fh + 0.2, 10.6, 1.2);
   // Kessel (liegend) auf Sockeln
   for (const s of [-1, 1]) {
     const zc = s * 4.2;

@@ -105,7 +105,10 @@ function showGrid() {
     setWire(h, state.wire);
   }
   state.target.set(0.05, 1.22, 0);
-  state.dist = 3.3;
+  // Abstand so, dass die ganze Übersicht ins Bild passt (auch im Hochformat)
+  const fit = Math.max(3.6 / gCam.aspect, 1.7) / (2 * Math.tan(THREE.MathUtils.degToRad(gCam.fov / 2)));
+  state.dist = fit * 1.12;
+  if (!params.has('yaw')) { state.yaw = 0; state.pitch = 0.06; state.spin = false; syncButtons(); }
 }
 
 function updateInfo() {

@@ -312,6 +312,8 @@ export const MEDALS = {
   demuetigung: { id: 'demuetigung', label: 'Demütigung', description: 'Im Waffenspiel einen Gegner per Messer zurückgestuft.', xp: 50, tier: 'silber' },
   praemie: { id: 'praemie', label: 'Prämienjäger', description: 'Abschuss mit einer Serienprämie.', xp: 50, tier: 'bronze' },
   unaufhaltsam: { id: 'unaufhaltsam', label: 'Unaufhaltsam', description: 'Match ohne einen einzigen Tod beendet (mindestens fünf Abschüsse).', xp: 300, tier: 'gold' },
+  mvp: { id: 'mvp', label: 'MVP', description: 'Die höchste Punktzahl des Matches.', xp: 150, tier: 'gold' },
+  abwehr: { id: 'abwehr', label: 'Abwehr', description: 'Ein gegnerisches Wachgeschütz zerstört.', xp: 50, tier: 'bronze' },
 };
 
 export const MEDAL_ORDER = Object.keys(MEDALS);
@@ -359,7 +361,27 @@ export const SCORE_RULES = {
   firstblood: 50,
   longshot: 25,
   revenge: 25,
+  neutralize: 50, // gegnerische Flagge neutralisiert (Herrschaft)
+  destroy: 50, // gegnerisches Wachgeschütz zerstört
 };
+
+/** Anzeigetexte der Punkte-Gründe (HUD-Einblendungen). */
+export const SCORE_LABELS = {
+  kill: 'Abschuss',
+  headshot: 'Kopftreffer',
+  assist: 'Unterstützung',
+  capture: 'Flagge erobert',
+  defend: 'Verteidigung',
+  streak: 'Serienprämie',
+  firstblood: 'Erstes Blut',
+  longshot: 'Weitschuss',
+  revenge: 'Rache',
+  neutralize: 'Flagge neutralisiert',
+  destroy: 'Geschütz zerstört',
+};
+
+/** Teamnamen aus Sicht des Spielers (Team A = eigene Seite). */
+export const TEAM_NAMES = { A: 'Nordkorps', B: 'Ostbund' };
 
 /**
  * XP-Regeln (Profil-Fortschritt), abgestimmt auf profile.js:

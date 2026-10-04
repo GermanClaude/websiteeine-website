@@ -6,6 +6,7 @@
 //   data-fit-max="420"     Obergrenze der Schriftgröße in px
 //   data-fit-wdth="125"    feste Breite, gelöst wird die Schriftgröße (auch auf .fl-Zeilen)
 //   data-fit-grow="0"      nie größer als die CSS-Schriftgröße (nur Breite anpassen, notfalls schrumpfen)
+//   fitOpts.weight = true  zusätzlich messen, wie stark jede Glyphe mit der Stärke wächst (für Breitenausgleich)
 //   .fl-Kinder mit display:block werden einzeln gesetzt (Zeilenmodus)
 
 const all = new Set();
@@ -126,6 +127,11 @@ function flush() {
     u.c125 = makeClone(u.unit, 125, u.el);
     host.appendChild(u.c62);
     host.appendChild(u.c125);
+    if (u.el.fitOpts?.weight) {
+      u.c900 = makeClone(u.unit, 62, u.el);
+      u.c900.style.setProperty('--wght', '900');
+      host.appendChild(u.c900);
+    }
   }
 
   // 3) Lesen: Breiten bei 62 und 125
@@ -137,8 +143,18 @@ function flush() {
     const g62 = u.c62.querySelectorAll('.g');
     const g125 = u.c125.querySelectorAll('.g');
     u.gb = [];
+    u.ga = [];
     for (let i = 0; i < g62.length; i++) {
-      u.gb.push((g125[i].getBoundingClientRect().width - g62[i].getBoundingClientRect().width) / 63);
+      const w62 = g62[i].getBoundingClientRect().width;
+      u.ga.push(w62);
+      u.gb.push((g125[i].getBoundingClientRect().width - w62) / 63);
+    }
+    u.gc = null;
+    if (u.c900) {
+      u.rw = parseFloat(getComputedStyle(u.unit).getPropertyValue('--wght')) || parseFloat(getComputedStyle(u.unit).fontWeight) || 400;
+      const g900 = u.c900.querySelectorAll('.g');
+      const span = Math.max(1, 900 - u.rw);
+      u.gc = u.ga.map((w, i) => Math.max(0, ((g900[i]?.getBoundingClientRect().width || w) - w) / span));
     }
   }
 
@@ -146,6 +162,7 @@ function flush() {
   for (const u of units) {
     u.c62.remove();
     u.c125.remove();
+    u.c900?.remove();
     const span = Math.max(1e-3, u.w125 - u.w62);
     let wd;
     let fs = u.base;
@@ -187,7 +204,10 @@ function flush() {
   }
 
   for (const u of units) {
-    models.set(u.unit, { b: u.gb.map((b) => b * u.scale), wdth: u.wd, fs: u.fs, W: u.W });
+    models.set(u.unit, {
+      b: u.gb.map((b) => b * u.scale), a: u.ga.map((a) => a * u.scale), c: u.gc ? u.gc.map((c) => c * u.scale) : null,
+      rw: u.rw ?? null, wdth: u.wd, fs: u.fs, W: u.W,
+    });
     u.unit.dataset.fitted = u.wd.toFixed(1);
   }
   const done = new Set(units.map((u) => u.el));

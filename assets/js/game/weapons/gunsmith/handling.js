@@ -8,7 +8,7 @@ export const ID_TO_MODEL = {
 
 const RIFLE = {
   hip: [0.13, -0.2, -0.42], hipRot: [0.05, 0.04, 0.0],
-  sprintPos: [-0.05, -0.07, 0.04], sprintRot: [-0.42, 0.78, 0.48],
+  sprintPos: [-0.01, -0.055, 0.05], sprintRot: [0.22, 0.55, 0.72],
   crouchPos: [-0.012, -0.006, 0.012], crouchRot: [0.0, 0.0, 0.07],
   kick: { back: 0.026, up: 0.045, side: 0.01, roll: 0.045, kickRot: 0.02 },
   weight: 1.0, reload: 'mag', action: 'auto', leftGrip: 'under', shell: 'rifle', flash: 1.0, flashLen: 1.0,
@@ -20,7 +20,7 @@ const RIFLE = {
 const PISTOL = {
   ...RIFLE,
   hip: [0.11, -0.13, -0.32], hipRot: [0.02, 0.06, 0.0],
-  sprintPos: [-0.03, -0.1, 0.06], sprintRot: [-1.0, 0.22, 0.12],
+  sprintPos: [-0.01, -0.035, 0.03], sprintRot: [-0.5, 0.32, 0.28],
   crouchPos: [-0.008, -0.004, 0.008], crouchRot: [0, 0, 0.05],
   kick: { back: 0.03, up: 0.09, side: 0.008, roll: 0.03, kickRot: 0.06 },
   weight: 0.65, reload: 'pistol', action: 'pistol', leftGrip: 'pistol', shell: 'pistol', flash: 0.7, flashLen: 0.6,

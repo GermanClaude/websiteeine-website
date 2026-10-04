@@ -218,7 +218,8 @@ export default {
     const spawns = { A: [], B: [], ffa: [] };
     for (let i = 0; i < 10; i++) spawns.A.push({ x: -9 + (i % 5) * 4.5, z: 47.5 + Math.floor(i / 5) * 7, yaw: 0 });
     for (let i = 0; i < 10; i++) spawns.B.push({ x: -20 + i * 4.4, z: -70 + (i % 2) * 2, yaw: Math.PI });
-    for (const [x, z] of [[-24, 20], [24, 18], [-10, 8], [10, -4], [-24, -14], [22, -24], [0, -32], [-12, -46], [14, -50], [-22, -64], [20, -62], [6, 12], [-6, -20], [-18, 50], [8, 47]]) spawns.ffa.push({ x, z });
+    // Trainingskarte: auch „Jeder gegen jeden“ startet sicher hinter der Feuerlinie (Bahnen bleiben frei)
+    for (let i = 0; i < 14; i++) spawns.ffa.push({ x: -19.5 + (i % 7) * 6.5, z: 44 + Math.floor(i / 7) * 9, yaw: 0 });
 
     // --- Ziele (instanziert, animiert) --------------------------------------
     const T = createTargets(targets);
@@ -228,7 +229,33 @@ export default {
       objectives: { dom: [{ id: 'A', x: 0, z: 49, radius: 5 }, { id: 'B', x: 0, z: 2, radius: 6 }, { id: 'C', x: 0, z: -56, radius: 6 }] },
       zones,
       targets: T.targets,
-      dispose: () => T.dispose(),
+      /** Treffer auf Klappziele: über das impact-Ereignis erkennen, Ziel klappt weg und nach 2,5 s wieder hoch. */
+      attach(world, G) {
+        world.targetsAuto = true;   // ohne Trainingsmodus: Ziel klappt bei Treffer weg (abschaltbar)
+        const v = new THREE.Vector3(), inv = new THREE.Matrix4();
+        const timers = new Map();
+        const onImpact = e => {
+          // Im Modus „training“ verwaltet der Modus Trefferpunkte/Klappen selbst (modes/training.js)
+          if (!e || !e.point || world.targetsAuto === false || G.mode?.id === 'training') return;
+          for (const t of T.targets) {
+            if (!t.hittable()) continue;
+            for (const hb of t.hitboxes) {
+              inv.copy(hb.object.matrixWorld).invert();
+              v.copy(e.point).applyMatrix4(inv);
+              if (v.x < hb.min.x - 0.06 || v.x > hb.max.x + 0.06 || v.y < hb.min.y - 0.06 || v.y > hb.max.y + 0.06 || v.z < hb.min.z - 0.12 || v.z > hb.max.z + 0.12) continue;
+              t.hit();
+              G.events?.emit?.('target:hit', { target: t, targetId: t.id, lane: t.lane, distance: t.distance, zone: hb.zone, point: e.point.clone ? e.point.clone() : e.point, shooter: e.shooter });
+              if (world.targetsAuto !== false) { t.drop(); timers.set(t, 2.5); }
+              return;
+            }
+          }
+        };
+        const off = G.events?.on?.('impact', onImpact);
+        this._tick = dt => { for (const [t, left] of timers) { const l = left - dt; if (l <= 0) { timers.delete(t); if (world.targetsAuto !== false) t.raise(); } else timers.set(t, l); } };
+        this._off = typeof off === 'function' ? off : () => G.events?.off?.('impact', onImpact);
+      },
+      update(dt) { this._tick?.(dt); },
+      dispose() { this._off?.(); T.dispose(); },
     };
   },
 };

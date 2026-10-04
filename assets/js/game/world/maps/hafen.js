@@ -235,7 +235,7 @@ export default {
     for (const [x, z] of [[-40, 20], [-38, -8], [-34, -40], [-20, -26], [-20, 26], [-10, 18], [-11, -18], [0, -1], [9, -30], [9, 30], [20, -10], [36, 8], [24, 14], [38, -14], [30, -40], [-26, -48]]) spawns.ffa.push({ x, z });
     return {
       spawns,
-      objectives: { dom: [{ id: 'A', x: -5, z: 30.6, radius: 5 }, { id: 'B', x: -11.6, z: -0.6, radius: 6 }, { id: 'C', x: -13.6, z: -30.6, radius: 5 }] },
+      objectives: { dom: [{ id: 'A', x: -5, z: 30.6, radius: 5 }, { id: 'B', x: -14.2, z: -0.8, radius: 6 }, { id: 'C', x: -13.6, z: -30.6, radius: 5 }] },
       zones,
       update: dt => crane.update(dt),
     };

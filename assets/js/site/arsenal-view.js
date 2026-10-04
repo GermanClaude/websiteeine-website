@@ -7,7 +7,7 @@ import { createFire } from './fire.js';
 import { makeBallistics } from './ballistics.js';
 import { ui } from './state.js';
 import { announce } from './live.js';
-import { reduced, calm, flip, ease, pointerCoarse } from './motion.js';
+import { reduced, calm, flip, ease, pointerCoarse, onReducedChange } from './motion.js';
 import { loop } from './loop.js';
 import { num, NNBSP, clamp } from './fmt.js';
 import { cutW, cutG } from './cuts.js';
@@ -18,6 +18,18 @@ const STATS = [['damage', 'SCHADEN', 'Schaden'], ['fireRate', 'KADENZ', 'Kadenz'
 export { cutW, cutG };
 const up = (s) => String(s).toLocaleUpperCase('de-DE');
 const dec = (v, d = 2) => num(v, d, Math.min(1, d));
+/** Ganze Zahlen ohne „,0“, sonst höchstens eine Nachkommastelle: 25 · 3,5 */
+const int1 = (v) => num(v, 1, 0);
+/** Weiche Trennstellen in langen Klassenwörtern (SCHARF­SCHÜTZEN­GEWEHR). */
+const SHY = '\u00AD';
+export function softHyphens(word) {
+  return String(word)
+    .replace(/(SCHARF)(SCHÜTZEN)/gi, `$1${SHY}$2`)
+    .replace(/(.{4,})(GEWEHR|FLINTE|PISTOLE|KAMPF)$/i, `$1${SHY}$2`);
+}
+/** Ein Wert aus Teilen „a · b“: jedes Teil bleibt zusammen, getrennt wird nur an den Punkten. */
+const parts = (...xs) => xs.filter(Boolean).flatMap((x, i) => [i ? ' · ' : null, h('span.nw', {}, x)]).filter((x) => x !== null);
+const yieldTask = () => (globalThis.scheduler?.yield ? globalThis.scheduler.yield() : new Promise((r) => setTimeout(r, 0)));
 
 export async function init(sec, D, ctx) {
   const root = $('#arsenal-root', sec);
@@ -47,11 +59,12 @@ export async function init(sec, D, ctx) {
   const btnById = {};
   for (const g of groups) {
     const box = h('div.w-group');
-    box.append(h('p.mono-s', { 'aria-hidden': 'true' }, up(g.name || '')));
+    box.append(h('p.mono-s.w-cls', { 'aria-hidden': 'true' }, softHyphens(up(g.name || ''))));
     for (const id of g.ids) {
       const def = W.WEAPONS[id];
+      const nm = h('span.nm', { 'data-fit': '', 'data-fit-grow': '0', 'data-fit-wdth': cutW(def).toFixed(1) }, def.name);
       const b = h('button.w-btn', { type: 'button', 'aria-pressed': 'false', 'data-id': id, style: { '--wdth': cutW(def).toFixed(1), '--wght': String(Math.round(cutG(def))) } },
-        h('span.nm', {}, def.name), h('span.lk', { hidden: true }), h('span.sr-only.cls', {}, `, ${g.name}`));
+        nm, h('span.lk', { hidden: true, 'aria-hidden': 'true' }), h('span.sr-only.lk-sr'), h('span.sr-only.cls', {}, `, ${g.name}`));
       b.addEventListener('click', () => { select(id, true); snd?.ui('click'); });
       box.append(b);
       btnById[id] = b;
@@ -60,13 +73,16 @@ export async function init(sec, D, ctx) {
   }
 
   /* ------------------------------------------------------------ Bühne */
+  // Bild (nur in den Buchstaben sichtbar) und darunter ein schwarzes HUD-Band: nichts liegt auf den Glyphen.
   const stage = h('div.stage', { tabindex: '0', role: 'group', 'aria-label': 'Waffenvitrine' });
   const pic = h('div.pic', { 'aria-hidden': 'true' });
   const maskName = h('p.mask-name', { 'data-fit': '' });
   const mask = h('div.mask', { 'aria-hidden': 'true' }, maskName);
-  const hud = h('div.hud');
+  const hitm = h('div.hitm', { 'aria-hidden': 'true', html: '<svg viewBox="0 0 28 28"><g stroke="currentColor" stroke-width="1.5"><line x1="5" y1="5" x2="10" y2="10"/><line x1="23" y1="5" x2="18" y2="10"/><line x1="5" y1="23" x2="10" y2="18"/><line x1="23" y1="23" x2="18" y2="18"/></g></svg>' });
+  const picBox = h('div.pic-box', {}, pic, mask, hitm);
   const load = h('span.hud-load', { 'aria-hidden': 'true', hidden: true }, 'LÄDT …');
-  const resetBtn = h('button.hud-reset', { type: 'button' }, 'Ansicht zurücksetzen');
+  const resetBtn = h('button.txt-btn.hud-reset', { type: 'button', hidden: true }, 'Ansicht zurücksetzen');
+  const load3d = h('button.txt-btn.hud-3d', { type: 'button', hidden: true }, '3D laden');
   const btnR = h('button.hud-btn.rl', { type: 'button', 'aria-label': 'Nachladen' }, 'R');
   const btnAds = h('button.hud-btn.ads', { type: 'button', 'aria-pressed': 'false' }, 'Zielen');
   const btnFire = h('button.hud-btn.fire', { type: 'button' }, 'Feuer');
@@ -75,12 +91,9 @@ export async function init(sec, D, ctx) {
   const reloadLine = h('span.reload-line');
   const ammo = h('div.hud-ammo', {}, ammoNum, ammoMode, reloadLine);
   const info = h('p.hud-info');
-  const hitm = h('div.hitm', { 'aria-hidden': 'true', html: '<svg viewBox="0 0 28 28"><g stroke="currentColor" stroke-width="1.5"><line x1="5" y1="5" x2="10" y2="10"/><line x1="23" y1="5" x2="18" y2="10"/><line x1="5" y1="23" x2="10" y2="18"/><line x1="23" y1="23" x2="18" y2="18"/></g></svg>' });
-  const load3d = h('button.txt-btn.hud-3d', { type: 'button', hidden: true }, '3D laden');
-  hud.append(load, resetBtn, h('div.hud-btns', {}, btnR, btnAds, btnFire), ammo, info, hitm);
-  info.after(load3d);
-  load3d.style.cssText = 'position:absolute;left:12px;top:8px';
-  stage.append(pic, mask, hud);
+  const infoBox = h('div.hud-text', {}, info, h('p.hud-tools', {}, load, resetBtn, load3d));
+  const band = h('div.hud-band', {}, infoBox, ammo, h('div.hud-btns', {}, btnR, btnAds, btnFire));
+  stage.append(picBox, band);
   const stageCol = h('div.stage-col');
   const srLive = h('p.sr-only.w-sel');
 
@@ -88,18 +101,19 @@ export async function init(sec, D, ctx) {
   const stats = h('div.stats');
   const statRows = {};
   for (const [k, word, label] of STATS) {
+    // Der Balken ist die Linie (gemeinsame Spur für alle sechs Zeilen); das Wort trägt den Wert zusätzlich als Breite.
     const sr = h('span.sr-only');
     const wd = h('span.stat-word', {}, word);
-    const track = h('span.stat-track');
+    const bar = h('span.stat-track', {}, h('i.stat-rule'), h('i.stat-tick'));
     const val = h('span.stat-val', { 'aria-hidden': 'true' });
-    const row = h('div.stat', {}, sr, h('div.stat-bar', { 'aria-hidden': 'true' }, wd, track), val);
-    statRows[k] = { sr, wd, track, val, label };
+    const row = h('div.stat', {}, sr, h('div.stat-bar', { 'aria-hidden': 'true' }, wd, bar), val);
+    statRows[k] = { sr, wd, bar, row, val, label };
     stats.append(row);
   }
   const facts = h('dl.facts');
   const desc = h('p.w-desc');
   const role = h('p.w-role');
-  stageCol.append(stage, stats, facts, h('div', {}, desc, role), srLive);
+  stageCol.append(stage, stats, h('div.facts-wrap', {}, facts), h('div', {}, desc, role), srLive);
 
   const main = h('div.span.ars-main');
   const mainR = h('div.r');
@@ -108,7 +122,7 @@ export async function init(sec, D, ctx) {
 
   /* ------------------------------------------------------------ Auf Distanz */
   const dist = h('div.span.ars-dist');
-  const distH = h('h3.sub-h', { id: 'auf-distanz', tabindex: '-1' }, 'AUF DISTANZ.');
+  const distH = h('h3.sub-h.rail-h', { id: 'auf-distanz', tabindex: '-1', 'data-fit': '', 'data-fit-grow': '0', 'data-fit-wdth': '100' }, 'AUF DISTANZ.');
   const distR = h('div.r', {}, distH,
     h('p.kicker', {}, 'Zieh den Messwert. Die Liste sortiert sich nach Duellzeit.'),
     h('p.legend-line', { style: { 'margin-top': '16px' } }, 'Duellzeit = Anschlag + Zeit bis Abschuss. 100 Lebenspunkte, jeder Schuss trifft.'));
@@ -126,11 +140,17 @@ export async function init(sec, D, ctx) {
     h('label.chk', {}, head, h('span', {}, 'Kopftreffer')));
   const rankList = h('ol.rank-list', { 'aria-label': 'Rangliste nach Duellzeit' });
   const duelGo = h('button.duel-go', { type: 'button', 'data-kill': '' }, 'Duell', h('span.o', {}, '.'));
-  const duelL = h('p.duel-name');
-  const duelR = h('p.duel-name.right');
+  // Jeder Name passt in seine Spalte (gemessen im Siegerschnitt 900); der Siegerpunkt steht außerhalb des beschnittenen Felds.
+  const duelL = h('p.duel-name', { 'data-fit': '', 'data-fit-grow': '0' });
+  const duelR = h('p.duel-name.right', { 'data-fit': '', 'data-fit-grow': '0' });
+  const dotL = h('span.duel-dot.o', {}, '.');
+  const dotR = h('span.duel-dot.o', {}, '.');
   const tagL = h('span.duel-tag');
   const tagR = h('span.duel-tag');
-  const arena = h('div.duel-arena', { 'aria-hidden': 'true' }, h('div.duel-side', {}, duelL, tagL), h('span.vs', {}, 'GEGEN'), h('div.duel-side.right', {}, duelR, tagR));
+  const arena = h('div.duel-arena', { 'aria-hidden': 'true', hidden: true },
+    h('div.duel-side', {}, h('div.duel-line', {}, duelL, dotL), tagL),
+    h('span.vs', {}, 'GEGEN'),
+    h('div.duel-side.right', {}, h('div.duel-line', {}, duelR, dotR), tagR));
   const duelRes = h('p.duel-result');
   const duel = h('div.duel', {}, duelGo, arena, duelRes);
   const distM = h('div.m', {}, ctl, rankList, duel);
@@ -148,7 +168,7 @@ export async function init(sec, D, ctx) {
       h('span', {}, h('span.gn', {}, e.name), h('br'), h('span.gf', {}, `Zünder ${dec(e.fuse, 1)}${NNBSP}s · Radius ${dec(e.radius, 1)}${NNBSP}m`)),
       h('span.gl', {}, `ab Stufe ${e.unlockLevel ?? 1}`)));
   }
-  gear.append(h('div.r', {}, h('h3.sub-h', {}, 'AUSRÜSTUNG.'), h('p.kicker', {}, 'Eine Granate pro Leben.')), h('div.m', {}, gearList));
+  gear.append(h('div.r', {}, h('h3.sub-h.rail-h', { 'data-fit': '', 'data-fit-grow': '0', 'data-fit-wdth': '100' }, 'AUSRÜSTUNG.'), h('p.kicker', {}, 'Eine Granate pro Leben.')), h('div.m', {}, gearList));
   if (!gearList.children.length) gear.hidden = true;
 
   // Einhängen: unter die Kopfzeile des Abschnitts (Raster-Unterzeilen)
@@ -157,21 +177,13 @@ export async function init(sec, D, ctx) {
 
   // Index: Randspalte ab 1024 px, sonst unter der Bühne
   const wide = window.matchMedia('(min-width: 1024px)');
-  const placeIndex = () => { if (wide.matches) mainR.append(index); else stage.after(index); };
+  const placeIndex = () => {
+    if (wide.matches) mainR.append(index); else stage.after(index);
+    for (const el of index.querySelectorAll('[data-fit]')) fit(el);
+  };
   placeIndex();
+  for (const el of sec.querySelectorAll('.rail-h')) fit(el);
   wide.addEventListener?.('change', placeIndex);
-
-  /* ------------------------------------------------------------ Typenbalken: Spurbreite = Wort bei 125 */
-  requestAnimationFrame(() => {
-    for (const [k] of STATS) {
-      const r = statRows[k];
-      const m = r.wd.cloneNode(true);
-      m.style.cssText = 'position:absolute;visibility:hidden;font-stretch:125%;transition:none';
-      r.wd.parentNode.append(m);
-      r.track.style.setProperty('--track', `${m.getBoundingClientRect().width.toFixed(1)}px`);
-      m.remove();
-    }
-  });
 
   /* ------------------------------------------------------------ Zustand */
   let def = W.WEAPONS[ui.get('weapon')];
@@ -194,11 +206,11 @@ export async function init(sec, D, ctx) {
   const restG = () => (adsOn ? 900 - cutG(def) : 0);
 
   function maskSize() {
-    const H = mask.clientHeight || stage.clientHeight || 300;
+    const H = mask.clientHeight || picBox.clientHeight || 300;
     const lines = maskName.querySelectorAll('.fl').length || 1;
     const fs = H * (lines > 1 ? 0.56 : 0.62);
     maskName.style.setProperty('--mfs', `${fs.toFixed(1)}px`);
-    maskName.fitOpts = { max: fs };
+    maskName.fitOpts = { max: fs, weight: true };
   }
 
   function setName(d, animate) {
@@ -209,7 +221,7 @@ export async function init(sec, D, ctx) {
       maskName.style.setProperty('--wght', String(Math.max(500, Math.round(cutG(d)))));
       maskSize();
       fit(maskName, { now: true });
-      if (!kin) kin = new Kinetic(maskName, { conserve: true }); else kin.refresh();
+      if (!kin) kin = new Kinetic(maskName, { conserve: true, limit: () => (mask.clientWidth || 300) * 0.97 }); else kin.refresh();
       maskName.querySelector('.vis').style.transform = '';
       recoil = { x: 0, y: 0 };
       if (animate && !calm()) {
@@ -239,9 +251,10 @@ export async function init(sec, D, ctx) {
     else if (picMode === 'failed') lines.push('Modell nicht verfügbar.');
     else if (picMode === 'savedata') lines.push('Datensparmodus: Strichzeichnung.');
     const melee = d.cls === 'melee';
+    const turn = picMode === '3d' || picMode === 'icon';
     lines.push(fineMq.matches
-      ? (melee ? 'Maus klicken: stechen. Ziehen: drehen.' : 'Maus halten: feuern. Ziehen: drehen. Rechts: zielen.')
-      : (melee ? 'STECHEN tippen. Wischen: drehen.' : 'FEUER halten. Wischen: drehen.'));
+      ? (melee ? `Maus klicken: stechen.${turn ? ' Ziehen: drehen.' : ''}` : `Maus halten: feuern.${turn ? ' Ziehen: drehen.' : ''} Rechts: zielen.`)
+      : (melee ? `STECHEN tippen.${turn ? ' Quer wischen: drehen.' : ''}` : `FEUER halten.${turn ? ' Quer wischen: drehen.' : ''}`));
     info.innerHTML = lines.join('<br>');
   }
 
@@ -263,8 +276,9 @@ export async function init(sec, D, ctx) {
   function setStats(d, prev) {
     for (const [k] of STATS) {
       const r = statRows[k];
-      const v = d.stats?.[k] ?? 50;
+      const v = clamp(Number(d.stats?.[k] ?? 50), 0, 100);
       r.wd.style.fontStretch = `${(62 + 0.63 * v).toFixed(1)}%`;
+      r.row.style.setProperty('--v', String(v));
       r.val.textContent = String(v);
       r.sr.textContent = `${r.label} ${v} von 100`;
     }
@@ -273,29 +287,33 @@ export async function init(sec, D, ctx) {
   function ttkText(d, m) {
     const t = B.ttk(d, m);
     if (!Number.isFinite(t)) return 'außer Reichweite';
-    return t === 0 ? '1 Treffer' : `${dec(t / 1000)}${NNBSP}s`;
+    return t === 0 ? '1 Treffer' : `${num(t / 1000, 2, 2)}${NNBSP}s`;
   }
 
   function setFacts(d) {
     const rows = [];
     const melee = d.cls === 'melee';
     const dm = d.damage;
+    const u = (v, unit) => `${v}${NNBSP}${unit}`;
     if (melee) {
-      rows.push(['Schaden', `${num(dm.max)} · ein Stoß`], ['Reichweite', `${dec(d.melee?.range ?? d.range, 1)}${NNBSP}m · Ausfallschritt ${dec(d.melee?.lungeRange ?? 4.5, 1)}${NNBSP}m`],
-        ['Tempo', `${num(d.rpm)} Stöße/min`], ['Visier', '—'], ['Feuerart', 'Nahkampf']);
+      rows.push(['Schaden', parts(`${num(dm.max)}`, 'ein Stoß')],
+        ['Reichweite', parts(u(int1(d.melee?.range ?? d.range), 'm'), `Ausfallschritt ${u(int1(d.melee?.lungeRange ?? 4.5), 'm')}`)],
+        ['Tempo', parts(`${num(d.rpm)} Stöße/min`)], ['Visier', parts('—')], ['Feuerart', parts('Nahkampf')]);
     } else {
-      const dmg = d.pellets > 1 ? `${d.pellets} × ${dec(dm.max, 1)}–${dec(dm.min, 1)}` : `${dec(dm.max, 1)}–${dec(dm.min, 1)}`;
-      rows.push(['Schaden', `${dmg} · Kopf ×${dec(d.headMult, 2)}`]);
-      rows.push(['Abfall', `${num(dm.rangeStart, 1)}–${num(dm.rangeEnd, 1)}${NNBSP}m · max. ${num(d.range)}${NNBSP}m`]);
-      rows.push(['Kadenz', `${num(d.rpm)} Schuss/min`]);
-      rows.push(['Magazin', `${d.mag} / ${d.reserve}`]);
-      rows.push(['Nachladen', d.perShellReload ? `je Patrone ${dec(d.reloadTime)}${NNBSP}s · leer ${dec(d.reloadEmptyTime)}${NNBSP}s` : `${dec(d.reloadTime)}${NNBSP}s · leer ${dec(d.reloadEmptyTime)}${NNBSP}s`]);
-      rows.push(['Anschlag', `${dec(d.adsTime)}${NNBSP}s`]);
-      rows.push(['TTK', `10${NNBSP}m: ${ttkText(d, 10)} · 50${NNBSP}m: ${ttkText(d, 50)}`]);
-      rows.push(['Visier', W.SIGHTS?.[d.sight]?.name || '—']);
-      rows.push(['Feuerart', W.FIRE_MODES?.[d.fireMode] || d.fireMode]);
+      const dmg = d.pellets > 1 ? `${d.pellets} × ${int1(dm.max)}–${int1(dm.min)}` : `${int1(dm.max)}–${int1(dm.min)}`;
+      rows.push(['Schaden', parts(dmg, `Kopf ×${num(d.headMult, 2, 0)}`)]);
+      rows.push(['Abfall', parts(u(`${int1(dm.rangeStart)}–${int1(dm.rangeEnd)}`, 'm'), `max. ${u(num(d.range), 'm')}`)]);
+      rows.push(['Kadenz', parts(`${num(d.rpm)} Schuss/min`)]);
+      rows.push(['Magazin', parts(`${d.mag} / ${d.reserve}`)]);
+      rows.push(['Nachladen', d.perShellReload
+        ? parts(`je Patrone ${u(dec(d.reloadTime), 's')}`, `leer ${u(dec(d.reloadEmptyTime), 's')}`)
+        : parts(u(dec(d.reloadTime), 's'), `leer ${u(dec(d.reloadEmptyTime), 's')}`)]);
+      rows.push(['Anschlag', parts(u(dec(d.adsTime), 's'))]);
+      rows.push(['Abschusszeit', parts(`10${NNBSP}m: ${ttkText(d, 10)}`, `50${NNBSP}m: ${ttkText(d, 50)}`)]);
+      rows.push(['Visier', parts(W.SIGHTS?.[d.sight]?.name || '—')]);
+      rows.push(['Feuerart', parts(W.FIRE_MODES?.[d.fireMode] || d.fireMode)]);
     }
-    rows.push(['Freischaltung', `ab Stufe ${unlockLevel(d.id)}`]);
+    rows.push(['Freischaltung', parts(`ab Stufe ${unlockLevel(d.id)}`)]);
     facts.replaceChildren(...rows.map(([k, v]) => h('div', {}, h('dt', {}, k), h('dd', {}, v))));
     desc.textContent = d.description || '';
     role.textContent = W.CLASS_INFO?.[d.cls]?.role || '';
@@ -309,6 +327,7 @@ export async function init(sec, D, ctx) {
       const lk = b.querySelector('.lk');
       lk.hidden = !locked;
       lk.textContent = locked ? `AB STUFE ${unlockLevel(id)}` : '';
+      b.querySelector('.lk-sr').textContent = locked ? `, ab Stufe ${unlockLevel(id)}` : '';
     }
     for (const li of gearList.children) {
       const locked = !unlocked(li.dataset.id);
@@ -359,7 +378,8 @@ export async function init(sec, D, ctx) {
     onShot(i) {
       const fs = parseFloat(getComputedStyle(maskName).fontSize) || 100;
       if (!calm()) {
-        kin.wave(18, 260, { stagger: 6 });
+        const k = Math.min(1, (60 / Math.max(1, def.rpm || 600)) / 0.18);
+        kin.wave(18 * k, 260 * k, { stagger: 6 });
         const [ph, pv] = patternAt(i);
         const v = (def.recoil?.vertical || 0) * pv * 900 * (i === 0 ? def.recoil?.firstShotMult || 1 : 1);
         const hz = (def.recoil?.horizontal || 0) * (ph + (Math.random() * 0.7 - 0.35)) * 900;
@@ -445,8 +465,11 @@ export async function init(sec, D, ctx) {
   let lastMove = null;
   const swell = () => kin.to('all', { w: (i) => 125 - lineWdth(i), g: 900 - cutG(def) }, 200, ease.out);
 
+  // „Ansicht zurücksetzen“ erscheint erst, wenn die Ansicht gedreht ist.
+  const rotated = (on) => { resetBtn.hidden = !(on && picMode === '3d'); };
   function startDrag() {
     clearTimeout(idleT);
+    rotated(true);
     if (!dissolved) {
       dissolved = true;
       if (!calm()) swell();
@@ -468,14 +491,14 @@ export async function init(sec, D, ctx) {
     kin.to('all', { w: restW, g: restG() }, 240, ease.out, 240);
   }
 
-  stage.addEventListener('contextmenu', (e) => e.preventDefault());
-  stage.addEventListener('pointerdown', (e) => {
+  picBox.addEventListener('contextmenu', (e) => e.preventDefault());
+  picBox.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button')) return;
     if (e.pointerType === 'mouse') {
       if (e.button === 2) { fireCtl.ads(true); wakeFire(); press = { ads: true, id: e.pointerId }; return; }
       if (e.button !== 0) return;
       press = { x: e.clientX, y: e.clientY, id: e.pointerId, mode: 'pending', mouse: true, t: performance.now() };
-      stage.setPointerCapture(e.pointerId);
+      picBox.setPointerCapture(e.pointerId);
       clearTimeout(pendingT);
       pendingT = setTimeout(() => {
         if (press?.mode === 'pending') { press.mode = 'fire'; fireCtl.press(); wakeFire(); }
@@ -485,17 +508,18 @@ export async function init(sec, D, ctx) {
     }
     lastMove = { x: e.clientX, y: e.clientY, t: performance.now(), vx: 0, vy: 0 };
   });
-  stage.addEventListener('pointermove', (e) => {
+  picBox.addEventListener('pointermove', (e) => {
     if (!press || press.ads || e.pointerId !== press.id) return;
     const dx = e.clientX - press.x;
     const dy = e.clientY - press.y;
     if (press.mode !== 'drag') {
       if (Math.hypot(dx, dy) <= 4) return;
+      if (picMode !== '3d') return; // Strichzeichnung: nichts zu drehen
       if (!press.mouse && Math.abs(dy) > Math.abs(dx)) { press = null; return; } // vertikal = scrollen
       clearTimeout(pendingT);
       if (press.mode === 'fire') fireCtl.release();
       press.mode = 'drag';
-      if (!press.mouse) { try { stage.setPointerCapture(e.pointerId); } catch { /* egal */ } }
+      if (!press.mouse) { try { picBox.setPointerCapture(e.pointerId); } catch { /* egal */ } }
       startDrag();
     }
     const now = performance.now();
@@ -517,16 +541,16 @@ export async function init(sec, D, ctx) {
     }
     press = null;
   };
-  stage.addEventListener('pointerup', up_);
-  stage.addEventListener('pointercancel', up_);
-  stage.addEventListener('lostpointercapture', (e) => { if (press && !press.ads && press.mode !== 'pending') up_(e); });
+  picBox.addEventListener('pointerup', up_);
+  picBox.addEventListener('pointercancel', up_);
+  picBox.addEventListener('lostpointercapture', (e) => { if (press && !press.ads && press.mode !== 'pending') up_(e); });
 
   stage.addEventListener('keydown', (e) => {
     if (e.target !== stage) return;
     const k = e.key;
-    if (k === 'ArrowLeft' || k === 'ArrowRight') { e.preventDefault(); stage3d?.rotate((k === 'ArrowLeft' ? -15 : 15) * DEG, 0); }
-    else if (k === 'ArrowUp' || k === 'ArrowDown') { e.preventDefault(); stage3d?.rotate(0, (k === 'ArrowUp' ? -10 : 10) * DEG); }
-    else if (k === 'Home') { e.preventDefault(); stage3d?.reset(); restore(); }
+    if (k === 'ArrowLeft' || k === 'ArrowRight') { e.preventDefault(); stage3d?.rotate((k === 'ArrowLeft' ? -15 : 15) * DEG, 0); rotated(true); }
+    else if (k === 'ArrowUp' || k === 'ArrowDown') { e.preventDefault(); stage3d?.rotate(0, (k === 'ArrowUp' ? -10 : 10) * DEG); rotated(true); }
+    else if (k === 'Home') { e.preventDefault(); stage3d?.reset(); restore(); rotated(false); }
     else if (k === 'r' || k === 'R') { e.preventDefault(); fireCtl.reload(); wakeFire(); }
   });
   stage.addEventListener('keydown', (e) => {
@@ -569,43 +593,89 @@ export async function init(sec, D, ctx) {
   });
   btnAds.addEventListener('click', () => { fireCtl.ads(!adsOn); wakeFire(); });
   btnR.addEventListener('click', () => { fireCtl.reload(); wakeFire(); });
-  resetBtn.addEventListener('click', () => { stage3d?.reset(); restore(); snd?.ui('back'); });
+  resetBtn.addEventListener('click', () => { stage3d?.reset(); restore(); rotated(false); stage.focus({ preventScroll: true }); snd?.ui('back'); });
 
   /* ------------------------------------------------------------ 3D laden */
+  // three.js und die Modelle werden eine Bildschirmhöhe vorher nur geholt (modulepreload). Gebaut wird erst,
+  // wenn die Bühne zu einem Viertel sichtbar ist und das Scrollen 150 ms ruht; zwischen den Schritten gibt
+  // der Aufbau den Hauptfaden frei, und die Shader werden vor dem ersten Bild vorbereitet.
   function fallback(mode) {
     picMode = mode;
     if (stage3d) { try { stage3d.dispose(); } catch { /* egal */ } stage3d = null; }
-    stage.querySelector('canvas')?.remove();
+    picBox.querySelector('canvas')?.remove();
     pic.hidden = false;
     load.hidden = true;
     resetBtn.hidden = true;
+    stage.classList.toggle('lines', mode !== '3d');
     setPic(def);
     setInfo(def);
   }
-  async function load3D() {
+  let loading = null;
+  function load3D() {
+    if (loading) return loading;
     load.hidden = false;
     load3d.hidden = true;
-    try {
-      const { createStage } = await import('./stage3d.js');
-      const canvas = h('canvas', { 'aria-hidden': 'true' });
-      stage.prepend(canvas);
-      stage3d = createStage(canvas, {
-        coarse: pointerCoarse(),
-        quality: () => D.settings.get('quality'),
-        onLost: () => fallback('failed'),
-      });
-      picMode = '3d';
-      pic.hidden = true;
-      resetBtn.hidden = false;
-      stage3d.show(def);
-      setInfo(def);
-    } catch (err) {
-      console.warn('[NULLPUNKT] 3D-Vitrine nicht verfügbar:', err?.message || err);
-      fallback(ctx.webgl ? 'failed' : 'nowebgl');
-    }
-    load.hidden = true;
+    loading = (async () => {
+      try {
+        const { createStage } = await import('./stage3d.js');
+        await yieldTask();
+        const canvas = h('canvas', { 'aria-hidden': 'true' });
+        const st = createStage(canvas, {
+          coarse: pointerCoarse(),
+          quality: () => D.settings.get('quality'),
+          onLost: () => fallback('failed'),
+        });
+        await yieldTask();
+        await st.prepare(def);
+        picBox.prepend(canvas);
+        stage3d = st;
+        picMode = '3d';
+        stage.classList.remove('lines');
+        pic.hidden = true;
+        stage3d.show(def);
+        stage3d.resize();
+        setInfo(def);
+      } catch (err) {
+        console.warn('[NULLPUNKT] 3D-Vitrine nicht verfügbar:', err?.message || err);
+        fallback(ctx.webgl ? 'failed' : 'nowebgl');
+      }
+      load.hidden = true;
+    })();
+    return loading;
   }
   load3d.addEventListener('click', () => load3D());
+
+  function prefetch3D() {
+    for (const href of ['../../vendor/three/three.module.min.js', './stage3d.js', '../game/weapons/models.js']) {
+      const url = new URL(href, import.meta.url).href;
+      if (document.querySelector(`link[rel=modulepreload][href="${url}"]`)) continue;
+      document.head.append(h('link', { rel: 'modulepreload', href: url }));
+    }
+  }
+  function gate3D() {
+    if (!('IntersectionObserver' in window)) { load3D(); return; }
+    const near = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { near.disconnect(); prefetch3D(); } }, { rootMargin: '100% 0px' });
+    near.observe(stage);
+    let visible = false;
+    let quietT = 0;
+    let lastScroll = 0;
+    const tryLoad = () => {
+      clearTimeout(quietT);
+      if (!visible || loading) return;
+      const wait = 150 - (performance.now() - lastScroll);
+      if (wait > 0) { quietT = setTimeout(tryLoad, wait + 10); return; }
+      cleanup();
+      load3D();
+    };
+    const onScroll = () => { lastScroll = performance.now(); if (visible) { clearTimeout(quietT); quietT = setTimeout(tryLoad, 160); } };
+    const seen = new IntersectionObserver((es) => {
+      for (const e of es) visible = e.isIntersecting && e.intersectionRatio >= 0.25;
+      if (visible) tryLoad(); else clearTimeout(quietT);
+    }, { threshold: [0, 0.25, 0.5] });
+    const cleanup = () => { seen.disconnect(); window.removeEventListener('scroll', onScroll); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    seen.observe(picBox);
+  }
 
   /* ------------------------------------------------------------ Auf Distanz */
   const rows = {};
@@ -647,8 +717,8 @@ export async function init(sec, D, ctx) {
       const wg = inf ? 100 : Math.round(900 - 600 * (fc > 1 ? i / (fc - 1) : 0));
       row.b.style.setProperty('--rw', String(wg));
       const shots = r.shots;
-      row.vl.textContent = inf ? 'außer Reichweite' : `${dec(r.ms / 1000)}${NNBSP}s · ${shots} Treffer`;
-      row.b.setAttribute('aria-label', `${String(i + 1).padStart(2, '0')}. ${r.def.name}: ${inf ? 'außer Reichweite' : `${dec(r.ms / 1000)} Sekunden, ${shots} Treffer`}`);
+      row.vl.textContent = inf ? 'außer Reichweite' : `${num(r.ms / 1000, 2, 2)}${NNBSP}s · ${shots} Treffer`;
+      row.b.setAttribute('aria-label', `${String(i + 1).padStart(2, '0')}. ${r.def.name}: ${inf ? 'außer Reichweite' : `${num(r.ms / 1000, 2, 2)} Sekunden, ${shots} Treffer`}`);
     });
     const order = ranking.map((r) => r.id).join();
     if (order !== lastOrder) {
@@ -675,11 +745,17 @@ export async function init(sec, D, ctx) {
   /* ------------------------------------------------------------ Duell */
   let duelKins = [];
   function duelSet(el, d) {
+    el.style.transition = 'none';
     el.style.setProperty('--wdth', cutW(d).toFixed(1));
-    el.style.setProperty('--wght', String(Math.round(cutG(d))));
+    el.dataset.fitWdth = cutW(d).toFixed(1);
     el.style.fontStretch = `${cutW(d).toFixed(1)}%`;
-    el.style.fontWeight = String(Math.round(cutG(d)));
     resplit(el, d.name);
+    // Im breitesten Endzustand (900) messen, dann zurück in den Ruheschnitt
+    el.style.setProperty('--wght', '900');
+    el.style.fontWeight = '900';
+    fit(el, { now: true });
+    el.style.setProperty('--wght', String(Math.round(cutG(d))));
+    el.style.fontWeight = String(Math.round(cutG(d)));
   }
   duelGo.addEventListener('click', () => {
     if (def.cls === 'melee') return;
@@ -690,13 +766,16 @@ export async function init(sec, D, ctx) {
     if (!opp) return;
     const a = { def, ms: B.duelTime(def, dd, zone), n: B.shotsToKill(def, dd, zone) };
     const b = { def: opp.def, ms: opp.ms, n: opp.shots };
+    arena.hidden = false;
+    dotL.classList.remove('on');
+    dotR.classList.remove('on');
     duelSet(duelL, a.def);
     duelSet(duelR, b.def);
     tagL.textContent = '';
     tagR.textContent = '';
     duelRes.textContent = '';
     for (const k of duelKins) k.destroy();
-    duelKins = [new Kinetic(duelL), new Kinetic(duelR)];
+    duelKins = [new Kinetic(duelL, { conserve: true, limit: () => duelL.clientWidth }), new Kinetic(duelR, { conserve: true, limit: () => duelR.clientWidth })];
     const aWins = a.ms <= b.ms;
     const tie = a.ms === b.ms;
     const winner = aWins ? a : b;
@@ -712,7 +791,7 @@ export async function init(sec, D, ctx) {
       if (!Number.isFinite(winner.ms)) { duelRes.textContent = `Auf ${dd}${NNBSP}m trifft keiner.`; announce(duelRes.textContent, { now: true }); return; }
       wEl.style.fontWeight = '900';
       wEl.style.setProperty('--wght', '900');
-      wEl.querySelector('.vis')?.append(h('span.g.o', {}, '.'));
+      (aWins ? dotL : dotR).classList.add('on');
       if (!tie) {
         lEl.style.transition = reduced() ? 'none' : '--wght 640ms var(--ease-out), font-weight 640ms var(--ease-out)';
         lEl.style.setProperty('--wght', '100');
@@ -746,7 +825,7 @@ export async function init(sec, D, ctx) {
     new ResizeObserver(() => {
       cancelAnimationFrame(rs);
       rs = requestAnimationFrame(() => { maskSize(); fit(maskName); stage3d?.resize(); });
-    }).observe(stage);
+    }).observe(picBox);
   }
   ui.set('distance', clamp(Math.round(ui.get('distance') ?? 20), 0, 100));
   if (ui.get('zone') === 'head') head.checked = true;
@@ -760,6 +839,6 @@ export async function init(sec, D, ctx) {
   fineMq.addEventListener?.('change', () => setInfo(def));
 
   if (!ctx.webgl) fallback('nowebgl');
-  else if (ctx.saveData) { picMode = 'savedata'; setInfo(def); load3d.hidden = false; }
-  else load3D();
+  else if (ctx.saveData) { picMode = 'savedata'; stage.classList.add('lines'); setInfo(def); load3d.hidden = false; }
+  else { stage.classList.add('lines'); gate3D(); }
 }

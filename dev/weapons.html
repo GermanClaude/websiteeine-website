@@ -30,6 +30,15 @@
   #cross { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255,255,255,.5); z-index: 3; display: none; }
   .hint { color: var(--np-dim); font-size: 11px; }
   @media (max-width: 760px) { aside { width: 150px; } #info { display: none; } }
+  /* Telefone (Querformat): kompakte Leisten, Blick auf die Waffe frei */
+  @media (max-height: 520px) {
+    header { padding: 6px 10px; } header h1 { font-size: 11px; } header nav button { padding: 4px 7px; }
+    button, select { font-size: 10px; padding: 4px 6px; }
+    aside { top: 34px; left: 8px; bottom: 8px; width: 118px; gap: 2px; }
+    aside .grp, .hint { display: none; }
+    #info { display: none; }
+    #controls { left: auto; right: 8px; transform: none; bottom: 8px; gap: 3px; max-width: 56%; justify-content: flex-end; }
+  }
 </style>
 <script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
 </head>

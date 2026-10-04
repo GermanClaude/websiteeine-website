@@ -80,10 +80,14 @@ export class Kinetic {
   /**
    * @param el       zerlegtes Element (split)
    * @param conserve Breitenausgleich je Zeile (.fl) bzw. für die ganze Zeile
+   * @param limit    () → Breite in px, die eine Zeile in Bewegung nie überschreiten darf
+   *                 (Standard: die gesetzte Zeilenbreite). Reicht der Ausgleich nicht, werden alle
+   *                 Ausschläge gemeinsam so weit gedämpft, dass die Zeile hineinpasst.
    */
-  constructor(el, { conserve = false } = {}) {
+  constructor(el, { conserve = false, limit = null } = {}) {
     this.el = el;
     this.conserve = conserve;
+    this.limit = limit;
     this.live = 0;
     this.started = 0;
     this.pending = [];
@@ -208,45 +212,78 @@ export class Kinetic {
 
   write(force = false) {
     const perLine = this.conserve && this.lines.length > 1 && this.lines[0] !== this.el && !!glyphModel(this.lines[0]);
-    const sums = this.conserve ? (perLine ? this.lines.map(() => 0) : [0]) : null;
-    for (let i = 0; i < this.n; i++) {
+    const n = this.n;
+    const dw = new Array(n);
+    const dg = new Array(n);
+    for (let i = 0; i < n; i++) { const s = this.s[i]; dw[i] = s.bw + s.sw.x; dg[i] = s.bg + s.sg.x; }
+    const dcOf = new Map(); // Zeile → Ausgleich (wdth-Einheiten)
+    if (this.conserve) {
+      const groups = perLine ? this.lines.map((l, li) => ({ unit: l, idx: [] })) : [{ unit: this.el, idx: [] }];
+      for (let i = 0; i < n; i++) groups[perLine ? this.lineOf[i] : 0].idx.push(i);
+      const B = typeof this.limit === 'function' ? this.limit() : null;
+      for (const g of groups) {
+        const m = glyphModel(g.unit) || glyphModel(this.el);
+        let dc = 0;
+        let scale = 1;
+        if (m) {
+          const off = (i) => (glyphModel(g.unit) ? this.off[i] : i);
+          const W0 = m.wdth;
+          const rw = m.rw ?? 0;
+          let sb = 0;
+          let push = 0;
+          const rest = (i) => (m.a?.[off(i)] ?? 0) + (m.b[off(i)] ?? 1) * (W0 - 62);
+          const cw = (i) => {
+            const c = m.c?.[off(i)];
+            if (!c) return 0;
+            const a62 = m.a?.[off(i)] || 1;
+            return c * (rest(i) / a62);
+          };
+          for (const i of g.idx) {
+            const b = m.b[off(i)] ?? 1;
+            sb += b;
+            push += b * this.s[i].sw.x + cw(i) * Math.max(0, this.s[i].sg.x);
+          }
+          dc = sb ? -push / sb : 0;
+          // Vorhersage: Breite der Zeile mit allen Ausschlägen (inkl. Achsengrenzen und Stärke)
+          if (m.a) {
+            const width = (k) => {
+              let w = 0;
+              for (const i of g.idx) {
+                const b = m.b[off(i)] ?? 1;
+                const e = Math.max(62, Math.min(125, W0 + k * (dw[i] + dc)));
+                const gg = Math.max(100, Math.min(900, rw + k * dg[i])) - rw;
+                w += (m.a[off(i)] ?? 0) + b * (e - 62) + (rw ? cw(i) * gg : 0);
+              }
+              return w;
+            };
+            const R = width(0);
+            const box = Math.max(R, B ?? m.W ?? R);
+            const P = width(1);
+            if (P > box + 0.5 && P - R > 1e-3) {
+              // gemeinsam dämpfen (zweimal nachgemessen, weil die Achsengrenzen nicht linear sind)
+              scale = Math.max(0, Math.min(1, (box - R) / (P - R)));
+              for (let it = 0; it < 2; it++) {
+                const Pk = width(scale);
+                if (Pk <= box + 0.5) break;
+                scale *= Math.max(0, (box - R) / Math.max(1e-3, Pk - R));
+              }
+            }
+          }
+        }
+        for (const i of g.idx) { dw[i] *= scale; dg[i] *= scale; }
+        dcOf.set(g.unit, dc * scale);
+      }
+    }
+    for (let i = 0; i < n; i++) {
       const s = this.s[i];
-      const dw = s.bw + s.sw.x;
-      const dg = s.bg + s.sg.x;
       const g = this.glyphs[i];
-      if (force || Math.abs(dw - s.lw) > 0.05) { g.style.setProperty('--dw', dw.toFixed(2)); s.lw = dw; }
-      if (force || Math.abs(dg - s.lg) > 0.5) { g.style.setProperty('--dg', dg.toFixed(1)); s.lg = dg; }
-      if (sums && s.sw.x) sums[perLine ? this.lineOf[i] : 0] += s.sw.x * this.model(i);
+      if (force || Math.abs(dw[i] - s.lw) > 0.05) { g.style.setProperty('--dw', dw[i].toFixed(2)); s.lw = dw[i]; }
+      if (force || Math.abs(dg[i] - s.lg) > 0.5) { g.style.setProperty('--dg', dg[i].toFixed(1)); s.lg = dg[i]; }
     }
-    if (!sums) return;
-    if (perLine) {
-      this.el.style.removeProperty('--dc');
-      this.lines.forEach((l, li) => {
-        const bs = this.lineB(li);
-        const dc = bs ? -sums[li] / bs : 0;
-        l.style.setProperty('--dc', Math.abs(dc) < 0.01 ? '0' : dc.toFixed(2));
-      });
-    } else {
-      const m = glyphModel(this.el);
-      const bs = m ? m.b.reduce((a, b) => a + b, 0) : this.n;
-      const dc = bs ? -sums[0] / bs : 0;
-      for (const l of this.lines) if (l !== this.el) l.style.removeProperty('--dc');
-      this.el.style.setProperty('--dc', Math.abs(dc) < 0.01 ? '0' : dc.toFixed(2));
-    }
-  }
-
-  model(i) {
-    const line = this.lines[this.lineOf[i]] || this.el;
-    const m = glyphModel(line) || glyphModel(this.el);
-    if (!m) return 1;
-    const off = glyphModel(line) ? this.off[i] : i;
-    return m.b[off] ?? 1;
-  }
-  lineB(li) {
-    const line = this.lines[li];
-    const m = glyphModel(line) || glyphModel(this.el);
-    if (!m) return this.glyphs.filter((_, i) => this.lineOf[i] === li).length;
-    return m.b.reduce((a, b) => a + b, 0);
+    if (!this.conserve) return;
+    for (const [unit, dc] of dcOf) unit.style.setProperty('--dc', Math.abs(dc) < 0.01 ? '0' : dc.toFixed(2));
+    if (perLine) this.el.style.removeProperty('--dc');
+    else for (const l of this.lines) if (l !== this.el) l.style.removeProperty('--dc');
   }
 
   step(dt, t) {

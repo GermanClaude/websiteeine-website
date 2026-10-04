@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { getMat, UV_SCALE } from './materials.js';
+import { getMat, UV_SCALE, lodInfo, LOD_SKIP } from './materials.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
 
@@ -132,6 +132,13 @@ export class Builder {
   _push(geo, mat, o, keepUV = false) {
     const part = this.parts.get(o.part || 'static');
     if (!part) throw new Error('Unbekanntes Teil ' + o.part);
+    if (!this.hi) {
+      // Bot-Detailstufe: Durchsicht/Leuchten/Hohlräume und Kleinteile < 9 mm weglassen
+      geo.computeBoundingBox();
+      const s = geo.boundingBox.getSize(_p);
+      const sc = Math.max(o.sx ?? 1, o.sy ?? 1, o.sz ?? 1);
+      if (LOD_SKIP.has(mat) || Math.max(s.x, s.y, s.z) * sc < 0.009) { geo.dispose(); return null; }
+    }
     _e.set(o.rx || 0, o.ry || 0, o.rz || 0, o.order || 'XYZ');
     _q.setFromEuler(_e);
     _s.set(o.sx ?? 1, o.sy ?? 1, o.sz ?? 1);
@@ -154,7 +161,7 @@ export class Builder {
 
   // Zylinder entlang u (Standard), v oder x. rF = Radius vorne/oben, rB = hinten/unten
   cyl(mat, rF, rB, l, x, v, u, o = {}) {
-    const seg = o.seg ?? this.seg(16);
+    const seg = this.hi ? (o.seg ?? 16) : Math.min(o.seg ?? 6, 6);
     const geo = new THREE.CylinderGeometry(rF, rB, l, seg, 1, !!o.open, o.t0 ?? 0, o.tl ?? Math.PI * 2);
     if (o.axis === 'v') { /* bereits entlang y */ }
     else if (o.axis === 'x') geo.rotateZ(-Math.PI / 2);
@@ -164,7 +171,8 @@ export class Builder {
 
   // Rotationskörper um die u-Achse. pts = [[du, r], …] (du vorwärts ab u)
   lathe(mat, pts, x, v, u, o = {}) {
-    const seg = o.seg ?? this.seg(16);
+    const seg = this.hi ? (o.seg ?? 16) : Math.min(o.seg ?? 5, 5);
+    if (!this.hi) pts = simplifyProfile(pts, 0.0032);
     const geo = new THREE.LatheGeometry(pts.map(([du, r]) => new THREE.Vector2(Math.max(0, r), du)), seg, o.t0 ?? 0, o.tl ?? Math.PI * 2);
     if (o.axis === 'v') geo.rotateY(0);
     else if (o.axis === 'x') geo.rotateZ(-Math.PI / 2);
@@ -182,7 +190,7 @@ export class Builder {
 
   // Seitenprofil [[u, v], …] quer extrudiert (Breite entlang x), zentriert bei x
   side(mat, pts, width, x = 0, o = {}) {
-    const shape = pts instanceof THREE.Shape ? pts : shapeFrom(pts, o.holes);
+    const shape = pts instanceof THREE.Shape ? pts : shapeFrom(pts, this.hi || o.keepHoles ? o.holes : []);
     const bev = o.bevel ?? 0.002;
     const geo = this._extrude(shape, width, bev, o);
     const realBev = this.hi && bev > 0 ? Math.min(bev, width * 0.45) : 0;
@@ -193,7 +201,7 @@ export class Builder {
 
   // Querschnitt [[x, v], …] entlang u extrudiert (von u bis u + l)
   front(mat, pts, l, u, o = {}) {
-    const shape = pts instanceof THREE.Shape ? pts : shapeFrom(pts, o.holes);
+    const shape = pts instanceof THREE.Shape ? pts : shapeFrom(pts, this.hi || o.keepHoles ? o.holes : []);
     const bev = o.bevel ?? 0;
     const geo = this._extrude(shape, l, bev, o);
     const realBev = this.hi && bev > 0 ? Math.min(bev, l * 0.45) : 0;
@@ -221,12 +229,12 @@ export class Builder {
 
   // Ring (Torus), Standard: Öffnung zeigt nach vorn (Ebene x/v)
   torus(mat, R, r, x, v, u, o = {}) {
-    const geo = new THREE.TorusGeometry(R, r, o.seg ?? this.seg(8, 4), o.tseg ?? this.seg(20, 8), o.arc ?? Math.PI * 2);
+    const geo = new THREE.TorusGeometry(R, r, this.hi ? (o.seg ?? 8) : 3, this.hi ? (o.tseg ?? 20) : Math.min(o.tseg ?? 6, 6), o.arc ?? Math.PI * 2);
     return this._push(geo, mat, { ...o, x, v, u });
   }
 
   sphere(mat, r, x, v, u, o = {}) {
-    const geo = new THREE.SphereGeometry(r, o.seg ?? this.seg(16, 7), o.hseg ?? this.seg(12, 5), 0, Math.PI * 2, o.p0 ?? 0, o.pl ?? Math.PI);
+    const geo = new THREE.SphereGeometry(r, this.hi ? (o.seg ?? 16) : Math.min(o.seg ?? 6, 6), this.hi ? (o.hseg ?? 12) : Math.min(o.hseg ?? 4, 4), 0, Math.PI * 2, o.p0 ?? 0, o.pl ?? Math.PI);
     return this._push(geo, mat, { ...o, x, v, u });
   }
 
@@ -272,6 +280,7 @@ export class Builder {
 
   // Zusammenbau: Teile → Gruppen, Material-Merge, Anker, Statistik
   build(key) {
+    if (!this.hi) return this._buildMerged(key);
     const root = new THREE.Group();
     root.name = `waffe:${key}:${this.lod}`;
     const objs = new Map();
@@ -327,6 +336,89 @@ export class Builder {
     root.userData.stats = { triangles: Math.round(tris), meshes };
     return root;
   }
+}
+
+Builder.prototype._buildMerged = function (key) {
+  // Bot-Detailstufe: alle Teile (außer Magazin-Baugruppe) in zwei Vertex-Farb-Meshes (Metall/Matt)
+  const root = new THREE.Group();
+  root.name = `waffe:${key}:${this.lod}`;
+  const objs = new Map();
+  const makeObj = (p) => {
+    if (objs.has(p.name)) return objs.get(p.name);
+    let obj;
+    if (p.name === 'static') obj = root;
+    else {
+      obj = new THREE.Group();
+      obj.name = p.name;
+      const parent = this.parts.get(p.parent);
+      makeObj(parent).add(obj);
+      obj.position.copy(p.pivot).sub(parent.name === 'static' ? new THREE.Vector3() : parent.pivot);
+    }
+    objs.set(p.name, obj);
+    return obj;
+  };
+  for (const p of this.parts.values()) makeObj(p);
+  root.updateMatrixWorld(true);
+  const inMag = (p) => { for (let q = p; q; q = q.parent ? this.parts.get(q.parent) : null) if (q.name === 'mag') return true; return false; };
+  const magObj = objs.get('mag');
+  const magInv = magObj ? magObj.matrixWorld.clone().invert() : null;
+  const buckets = { root: { metal: [], matte: [] }, mag: { metal: [], matte: [] } };
+  const m = new THREE.Matrix4();
+  for (const p of this.parts.values()) {
+    const obj = objs.get(p.name), mg = magObj && inMag(p);
+    m.copy(obj.matrixWorld);
+    if (mg) m.premultiply(magInv);
+    for (const it of p.items) {
+      const g = it.geo;
+      g.applyMatrix4(m);
+      const li = lodInfo(it.mat), n = g.attributes.position.count, col = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) li.color.toArray(col, i * 3);
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      buckets[mg ? 'mag' : 'root'][li.metal ? 'metal' : 'matte'].push(g);
+    }
+  }
+  let tris = 0, meshes = 0;
+  for (const [where, groups] of Object.entries(buckets)) {
+    for (const [kind, geos] of Object.entries(groups)) {
+      if (!geos.length) continue;
+      const geo = geos.length === 1 ? geos[0] : mergeGeometries(geos, false);
+      if (geos.length > 1) geos.forEach(g => g.dispose());
+      geo.computeBoundingSphere(); geo.computeBoundingBox();
+      const mesh = new THREE.Mesh(geo, getMat(kind === 'metal' ? 'lodMetal' : 'lodMatte'));
+      mesh.name = `${where}:${kind}`;
+      mesh.castShadow = true; mesh.receiveShadow = false;
+      (where === 'mag' ? magObj : root).add(mesh);
+      tris += geo.attributes.position.count / 3; meshes++;
+    }
+  }
+  for (const a of this.anchors) {
+    const o = new THREE.Object3D();
+    o.name = a.name;
+    o.position.copy(a.pos).sub(a.part === 'static' ? new THREE.Vector3() : this.parts.get(a.part).pivot);
+    o.rotation.copy(a.rot);
+    if (a.data) Object.assign(o.userData, a.data);
+    objs.get(a.part).add(o);
+  }
+  root.userData.stats = { triangles: Math.round(tris), meshes };
+  return root;
+};
+
+// Douglas-Peucker für Lathe-Profile [[du, r], …] (Endpunkte bleiben erhalten)
+function simplifyProfile(pts, tol) {
+  if (pts.length <= 3) return pts;
+  const keep = new Array(pts.length).fill(false);
+  keep[0] = keep[pts.length - 1] = true;
+  const rec = (a, b) => {
+    let best = -1, bd = tol;
+    const [ax, ay] = pts[a], [bx, by] = pts[b], dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1e-9;
+    for (let i = a + 1; i < b; i++) {
+      const d = Math.abs((pts[i][0] - ax) * dy - (pts[i][1] - ay) * dx) / L;
+      if (d > bd) { bd = d; best = i; }
+    }
+    if (best >= 0) { keep[best] = true; rec(a, best); rec(best, b); }
+  };
+  rec(0, pts.length - 1);
+  return pts.filter((_, i) => keep[i]);
 }
 
 function roundedBox(w, h, l, r, seg = 1) {

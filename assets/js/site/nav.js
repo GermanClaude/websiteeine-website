@@ -3,6 +3,7 @@
 import { loop } from './loop.js';
 import { reduced, calm } from './motion.js';
 import { split } from './kinetic.js';
+import { jumpTo } from './jump.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -161,16 +162,11 @@ function initDialog() {
     const a = e.target.closest?.('a[href^="#"]');
     if (a) {
       e.preventDefault();
+      e.stopPropagation();
       const id = a.getAttribute('href').slice(1);
       trigger = null;
       dlg.close();
-      const target = document.getElementById(id);
-      if (target) {
-        target.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
-        const h = target.querySelector('h1, h2');
-        if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
-        history.replaceState(null, '', `#${id}`);
-      }
+      jumpTo(id);
     }
   });
   $('[data-close]', dlg)?.addEventListener('click', () => dlg.close());

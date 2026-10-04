@@ -218,6 +218,16 @@ export function createStage(canvas, opts = {}) {
 
   const api = {
     renderer,
+    /** Modell bauen und Shader vorbereiten, ohne schon zu zeichnen (kein Ruck beim ersten Bild). */
+    async prepare(def) {
+      if (lost) return;
+      const m = getModel(def);
+      const had = m.parent === kick;
+      if (!had) kick.add(m);
+      apply();
+      try { if (renderer.compileAsync) await renderer.compileAsync(scene, camera); else renderer.compile(scene, camera); } catch { /* erstes Bild kompiliert dann */ }
+      if (!had && m !== current) kick.remove(m);
+    },
     /** Waffe zeigen (Pose zurücksetzen). */
     show(def) {
       if (lost) return;

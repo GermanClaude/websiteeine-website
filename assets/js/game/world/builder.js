@@ -646,7 +646,7 @@ export class MapBuilder {
         const sub = list.filter(b => b.cast === cast);
         if (!sub.length) continue;
         // erst ab vielen Dreiecken pro Chunk teilen (weniger Draw Calls; Karten sind kompakt)
-        if (tris < this.splitTris) makeMesh(sub, mat, matOpts, cast);
+        if (tris < (quality === 'low' ? Infinity : this.splitTris)) makeMesh(sub, mat, matOpts, cast);
         else for (const b of sub) makeMesh([b], mat, matOpts, cast);
       }
     }

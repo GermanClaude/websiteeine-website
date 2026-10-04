@@ -68,12 +68,20 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
 
   // Kollision (Octree für Kapseln)
   progress(0.84, 'Kollision');
-  const collider = new Octree().fromGraphNode(built.colliderMesh);
+  const tCol0 = performance.now();
+  // Tiefe begrenzen: Standardwerte (8 Dreiecke/Blatt, 16 Ebenen) unterteilen dichte Kleinteile extrem tief
+  const collider = new Octree();
+  collider.trianglesPerLeaf = 24;
+  collider.maxLevel = 7;
+  collider.fromGraphNode(built.colliderMesh);
+  const tCol = performance.now() - tCol0;
   built.colliderMesh.geometry.dispose();
 
   // Licht & Himmel
   progress(0.86, 'Licht');
+  const tLight0 = performance.now();
   const light = createLighting(G, def.lighting, group);
+  const tLight = performance.now() - tLight0;
   G.scene.add(group);
   // Kartenbelichtung (z. B. Dämmerung etwas heller) – nur wenn der Renderer das anbietet
   const prevExposure = G.renderer?.post?.exposure;
@@ -141,7 +149,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     minimap,
     ambience: def.ambience || meta.ambience,
     targets,
-    stats: { ...built.stats, buildMs: Math.round(tBuild), totalMs: 0, nav: nav.stats },
+    stats: { ...built.stats, buildMs: Math.round(tBuild), colliderMs: Math.round(tCol), lightMs: Math.round(tLight), totalMs: 0, nav: nav.stats },
     debugData: { colliderBVH: cbvh, bulletBVH: bvh, footprints: b.footprints, navPoints: b.navPoints, zones: res.zones || [] },
 
     /**

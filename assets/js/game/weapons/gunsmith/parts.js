@@ -23,7 +23,8 @@ export function holoSight(b, u0, railTop, o = {}) {
   const hoodL = 0.05, hu = u0 + L - hoodL - 0.004;
   const ow = W / 2 + 0.002, oh0 = railTop + baseH - 0.001, oh1 = axis + 0.022;
   const iw = W / 2 - 0.0035, ih0 = railTop + baseH + 0.002, ih1 = axis + 0.017;
-  b.front('alu', roundRect(-ow, oh0, ow, oh1, 0.006, b.hi ? 3 : 1), hoodL, hu, { holes: [roundRect(-iw, ih0, iw, ih1, 0.004, b.hi ? 2 : 1).reverse()], bevel: 0.0015 });
+  if (b.hi) b.front('alu', roundRect(-ow, oh0, ow, oh1, 0.006, 3), hoodL, hu, { holes: [roundRect(-iw, ih0, iw, ih1, 0.004, 2).reverse()], bevel: 0.0015 });
+  else b.box('alu', ow * 2, oh1 - oh0, hoodL, 0, (oh0 + oh1) / 2, hu + hoodL / 2, { c: 0 });
   if (b.hi) {
     // Schutzbügel-Kanten oben (Rippen)
     b.box('alu', 0.006, 0.003, hoodL - 0.006, -ow + 0.004, oh1 + 0.0012, hu + hoodL / 2, { c: 0.0008 });
@@ -193,11 +194,16 @@ export function triggerGuard(b, mat, u0, u1, vTop, depth, o = {}) {
   const vb = vTop - depth;
   const outer = [[u0 - t, vTop], [u0 - t, vb + 0.006], [u0 + 0.004, vb - t], [u1 - 0.004, vb - t], [u1 + t * 0.4, vb + 0.004], [u1 + t * 0.4, vTop]];
   const inner = [[u0, vTop], [u0, vb + 0.006], [u0 + 0.006, vb], [u1 - 0.006, vb], [u1 - t * 0.6, vb + 0.005], [u1 - t * 0.6, vTop]];
-  b.side(mat, [...outer, ...inner.reverse()], w, 0, { bevel: 0.0012 });
+  if (!b.hi) {
+    // Bot-Detailstufe: Bügel als flacher Bogen aus drei Quadern
+    b.box(mat, w, t, u1 - u0, 0, vb - t / 2, (u0 + u1) / 2, { c: 0 });
+    b.box(mat, w, depth, t, 0, vTop - depth / 2, u0 - t / 2, { c: 0 });
+  } else b.side(mat, [...outer, ...inner.reverse()], w, 0, { bevel: 0.0012 });
   // Abzug
   const tu = u0 + (u1 - u0) * (o.trigPos ?? 0.38);
-  b.side(o.trigMat || 'steel', [[tu + 0.003, vTop + 0.004], [tu + 0.0045, vTop - 0.01], [tu + 0.0005, vTop - depth * 0.78], [tu - 0.0035, vTop - depth * 0.72], [tu - 0.001, vTop - 0.01], [tu - 0.002, vTop + 0.004]], 0.006, 0, { bevel: 0.0008, part: o.part });
   b.anchor('trigger', 0, vTop - depth * 0.55, tu - 0.002);
+  if (!b.hi) return;
+  b.side(o.trigMat || 'steel', [[tu + 0.003, vTop + 0.004], [tu + 0.0045, vTop - 0.01], [tu + 0.0005, vTop - depth * 0.78], [tu - 0.0035, vTop - depth * 0.72], [tu - 0.001, vTop - 0.01], [tu - 0.002, vTop + 0.004]], 0.006, 0, { bevel: 0.0008, part: o.part });
 }
 
 // AR-Pistolengriff (Seitenprofil, geneigt), Mitte des Griffs = Ursprung

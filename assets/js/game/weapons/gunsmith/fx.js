@@ -39,10 +39,10 @@ export class MuzzleFlash {
     if (size <= 0) return;
     this.t = 0;
     this.dur = 0.035 + 0.02 * Math.random();
-    const s = (0.075 + Math.random() * 0.045) * size;
+    const s = (0.1 + Math.random() * 0.065) * size;
     this.star.scale.set(s, s, 1);
     this.star.rotation.z = Math.random() * Math.PI * 2;
-    const l = (0.07 + Math.random() * 0.06) * length * Math.sqrt(size);
+    const l = (0.1 + Math.random() * 0.08) * length * Math.sqrt(size);
     this.sides.scale.set(1, 1, 1);
     this.sides.scale.setScalar(l);
     this.sides.rotation.z = Math.random() * Math.PI;
@@ -140,6 +140,7 @@ export class ShellPool {
     this.matShot = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.35, roughness: 0.45 });
     this.pools = {};
     this.perType = perType;
+    this.limit = perType;            // aktiv genutzte Plätze (≤ perType), z. B. kleiner auf 'low'
     this.gravity = new THREE.Vector3(0, -7.5, 0);
   }
 
@@ -163,7 +164,7 @@ export class ShellPool {
   spawn(type, pos, vel, orient) {
     if (!type || type === 'none') return;
     const p = this._pool(type);
-    const it = p.items[p.next = (p.next + 1) % p.items.length];
+    const it = p.items[p.next = (p.next + 1) % Math.max(1, Math.min(this.limit, p.items.length))];
     it.alive = true;
     it.life = 0;
     it.pos.copy(pos);

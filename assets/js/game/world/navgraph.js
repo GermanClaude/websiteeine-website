@@ -6,8 +6,8 @@ import * as THREE from 'three';
 
 const AGENT_R = 0.36;      // Kapselradius (+ Reserve)
 const HEAD = 1.75;         // nötige Kopffreiheit
-const WALK_NY = 0.64;      // max. ~50° Neigung
-const KNEE = 0.62, CHEST = 1.25, TOP = 1.62;
+const WALK_NY = 0.7;       // max. ~45° Neigung (steilere Schrägen wie Schutzschilde nicht begehbar)
+const KNEE = 0.62, CHEST = 1.25, TOP = 1.62, STEP_RAY = 0.5;
 const DIRS8 = [[1, 0], [0.7071, 0.7071], [0, 1], [-0.7071, 0.7071], [-1, 0], [-0.7071, -0.7071], [0, -1], [0.7071, -0.7071]];
 
 // ---------------------------------------------------------------------------
@@ -69,7 +69,10 @@ function makeTests(bvh) {
     const len = Math.hypot(dx, dy, dz);
     const ux = dx / len, uy = dy / len, uz = dz / len;
     const px = -dz / hl * AGENT_R * 0.92, pz = dx / hl * AGENT_R * 0.92;
-    // Knie: Mitte + seitlich, Brust, Kopf
+    // knapp über Stufenhöhe (niedrige Hindernisse 0,45–0,62 m), Knie: Mitte + seitlich, Brust, Kopf
+    if (ray(a.x, a.y + STEP_RAY, a.z, ux, uy, uz, len)) return false;
+    if (ray(a.x + px, a.y + STEP_RAY, a.z + pz, ux, uy, uz, len)) return false;
+    if (ray(a.x - px, a.y + STEP_RAY, a.z - pz, ux, uy, uz, len)) return false;
     if (ray(a.x, a.y + KNEE, a.z, ux, uy, uz, len)) return false;
     if (ray(a.x + px, a.y + KNEE, a.z + pz, ux, uy, uz, len)) return false;
     if (ray(a.x - px, a.y + KNEE, a.z - pz, ux, uy, uz, len)) return false;
@@ -360,7 +363,8 @@ export function buildNavGraph(src, { spacing = 1.5, debug = false } = {}) {
     const A = raw[ai], B = raw[bi];
     const hd = Math.hypot(B.x - A.x, B.z - A.z), dy = Math.abs(B.y - A.y);
     if (dy > 0.5 + hd * 0.95) return;
-    if (T.segmentClear(v(A), v(B))) { links[ai].add(bi); links[bi].add(ai); }
+    // in beide Richtungen prüfen (Strahlen starten am jeweiligen Knoten)
+    if (T.segmentClear(v(A), v(B)) && T.segmentClear(v(B), v(A))) { links[ai].add(bi); links[bi].add(ai); }
   };
   const colAt = (i, j) => (i < 0 || j < 0 || i >= nx || j >= nz) ? null : cols[j * nx + i];
   for (let ai = 0; ai < raw.length; ai++) {

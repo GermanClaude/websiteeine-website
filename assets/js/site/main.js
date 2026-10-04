@@ -8,6 +8,7 @@ import { initDeploy } from './deploy.js';
 import { sound } from './sound.js';
 import { setSettingReduced } from './motion.js';
 import { signalLost } from './dom.js';
+import { initJumps, jumpTo, setEnsureUpTo } from './jump.js';
 
 const html = document.documentElement;
 html.classList.remove('no-js');
@@ -42,6 +43,8 @@ coarseMq.addEventListener?.('change', showTouch);
 initNav();
 setNavSound(sound);
 initZero({ sound });
+
+initJumps();
 
 const fontsP = (document.fonts?.ready || Promise.resolve()).then(() => {
   fontsReady();
@@ -124,14 +127,35 @@ async function boot() {
   };
   // Andere Abschnitte können einen Abschnitt vorzeitig aufbauen lassen (z. B. „Im Arsenal prüfen.“)
   ctx.ensure = (key) => start(document.querySelector(`section[data-view="${key}"]`));
+  const sections = [...document.querySelectorAll('section[data-view]')].filter((s) => VIEWS[s.dataset.view]);
+  /** Alle Abschnitte vom Anfang bis einschließlich des Abschnitts, der el enthält (oder vor el liegt). */
+  const ensureUpTo = (el) => Promise.all(sections
+    .filter((s) => s === el || s.contains(el) || (s.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING))
+    .map(start));
+  const ensureAll = () => Promise.all(sections.map(start));
+  ctx.ensureUpTo = ensureUpTo;
+  setEnsureUpTo(ensureUpTo);
   for (const fn of pendingEnsure.splice(0)) fn();
+  // Was in Sichtnähe kommt, sofort …
   const io = new IntersectionObserver((entries) => {
     for (const e of entries) if (e.isIntersecting) { io.unobserve(e.target); start(e.target); }
   }, { rootMargin: '100% 0px' });
-  for (const sec of document.querySelectorAll('section[data-view]')) if (VIEWS[sec.dataset.view]) io.observe(sec);
-  // Direktsprung per Anker: Zielabschnitt sofort aufbauen
-  const hashSec = location.hash && document.querySelector(`${CSS.escape ? `#${CSS.escape(location.hash.slice(1))}` : location.hash}`)?.closest('section[data-view]');
-  if (hashSec) start(hashSec);
+  for (const sec of sections) io.observe(sec);
+  // … alles Übrige der Reihe nach im Leerlauf (Ankersprünge, Tab-Reihenfolge und Seitenhöhe sind dann stabil).
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 120));
+  const queue = [...sections];
+  const next = () => {
+    const sec = queue.shift();
+    if (!sec) return;
+    start(sec).then(() => idle(next, { timeout: 1200 }));
+  };
+  idle(next, { timeout: 1200 });
+  // Tastatur: Beim ersten Tab sofort alles aufbauen, damit die Fokusreihenfolge vollständig ist.
+  const onTab = (e) => { if (e.key === 'Tab') { window.removeEventListener('keydown', onTab, true); ensureAll(); } };
+  window.addEventListener('keydown', onTab, true);
+  // Direktsprung per Anker (index.html#einstellungen): bis zum Ziel aufbauen, dann ohne Bewegung anfahren.
+  const hashId = location.hash ? decodeURIComponent(location.hash.slice(1)) : '';
+  if (hashId && document.getElementById(hashId)) jumpTo(hashId, { smooth: false, focus: false, hash: false });
 
   // Fahne (nach einem Match) – klein, wird im Leerlauf geladen
   if (D.profile) {

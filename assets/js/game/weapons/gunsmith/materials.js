@@ -66,7 +66,28 @@ const DEFS = {
   reticleHolo: () => new THREE.MeshBasicMaterial({ map: reticleMap('holo'), color: new THREE.Color(3.2, 0.55, 0.25), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
   reticleDot: () => new THREE.MeshBasicMaterial({ map: reticleMap('dot'), color: new THREE.Color(3.5, 0.3, 0.15), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
   reticleChevron: () => new THREE.MeshBasicMaterial({ map: reticleMap('chevron'), color: new THREE.Color(3.4, 0.7, 0.15), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+  // Bot-Detailstufe: zwei Sammelmaterialien mit Vertex-Farben (ein Draw Call je Gruppe)
+  lodMetal: () => std({ color: 0xffffff, vertexColors: true, metalness: 0.75, roughness: 0.45, roughnessMap: wearMap() }),
+  lodMatte: () => std({ color: 0xffffff, vertexColors: true, metalness: 0.0, roughness: 0.72, roughnessMap: wearMap() }),
 };
+
+// Ersatzfarben (sRGB) für texturierte Materialien in der Bot-Detailstufe
+const LOD_COLORS = { woodWarm: 0x6a3a22, woodWalnut: 0x4a2d1c };
+const _lodCol = new Map();
+/** Farbe (linear) + Metall-Gruppe eines Materials für die zusammengeführte Bot-Detailstufe. */
+export function lodInfo(key) {
+  let r = _lodCol.get(key);
+  if (!r) {
+    const m = getMat(key);
+    const color = LOD_COLORS[key] !== undefined ? new THREE.Color(LOD_COLORS[key]) : (m.color ? m.color.clone() : new THREE.Color(0x333333));
+    r = { color, metal: (m.metalness ?? 0) >= 0.5 };
+    _lodCol.set(key, r);
+  }
+  return r;
+}
+
+// Materialien, die in der Bot-Detailstufe entfallen (Durchsicht, Leuchten, Hohlräume)
+export const LOD_SKIP = new Set(['cavity', 'glass', 'lens', 'lensClear', 'smoke', 'reticleHolo', 'reticleDot', 'reticleChevron', 'glowRed', 'glowGreen', 'glowAmber']);
 
 export function getMat(key) {
   let m = mats.get(key);

@@ -19,6 +19,7 @@ import { Spring, Spring3, curve, windowW, clamp, damp, smooth, easeOut, easeInOu
 const V3 = () => new THREE.Vector3();
 const _v = V3(), _v2 = V3(), _v3 = V3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m = new THREE.Matrix4(), _e = new THREE.Euler();
 const _s1 = V3();
+const _a3 = [0, 0, 0], _b3 = [0, 0, 0], _c3 = [0, 0, 0];
 const ZERO3 = [0, 0, 0];
 
 // Hand-Ziel: Position + Ausrichtung (Kameraraum) + Fingerpose
@@ -85,6 +86,9 @@ export class ViewModel {
     this.root.add(this.shells.group);
     this._lighting = null;
     this._ownEnv = null;
+    // Qualitätsstufe: auf 'low' entfällt das Kantenlicht (ein Licht weniger je Pixel), Hülsen-Pool kleiner
+    this._applyQuality(G.renderer?.quality || 'high');
+    if (typeof G.renderer?.onQualityChange === 'function') this._offQuality = G.renderer.onQualityChange(q => this._applyQuality(q));
 
     // Requisiten in der Hand: Messer (für Nahkampf mit Schusswaffe), Granaten
     this.props = {
@@ -146,7 +150,24 @@ export class ViewModel {
     for (const [n, p] of Object.entries(ud.parts)) rest.set(n, { pos: p.position.clone(), quat: p.quaternion.clone(), vis: p.visible });
     entry = { id, key, model, ud, rest };
     this._models.set(id, entry);
+    this._prepareGrips(entry);
     return entry;
+  }
+
+  // Alle Griffe einer Waffe vorab lösen (je ~2 ms, gecacht) – kein Ruckeln mitten im Nachladen
+  _prepareGrips(entry) {
+    const ud = entry.ud, h = handlingFor(entry.key), A = ud.anchors;
+    const solve = (style, data, side) => { try { gripTransform(style, data || {}, side); } catch (err) { console.warn('[gunsmith] Griff', style, err); } };
+    solve(h.action === 'knife' ? 'knife' : 'pistolGrip', ud.rightHandGrip?.userData, 1);
+    if (h.leftGrip !== 'none' && ud.leftHandGrip) solve(ud.leftHandGrip.userData.style || h.leftGrip, ud.leftHandGrip.userData, -1);
+    if (A.magGrab) solve(h.reload === 'top' ? 'magTop' : 'mag', A.magGrab.userData, -1);
+    if (A.chargeGrab) {
+      const st = A.chargeGrab.userData.style;
+      if (st === 'release') solve('slapSide', null, -1);
+      else solve(st === 'right' ? 'pinchRight' : 'pinchSide', null, st === 'right' ? 1 : -1);
+    }
+    if (A.boltGrab) solve('boltKnob', null, 1);
+    if (h.reload === 'shell' || h.reload === 'belt') { solve('mag', null, -1); solve('pinchSide', null, -1); }
   }
 
   /** Waffe wechseln: Wegstecken der aktuellen, dann Ziehen der neuen. */
@@ -311,6 +332,12 @@ export class ViewModel {
     }
   }
 
+  _applyQuality(q) {
+    this.quality = q;
+    this.rim.visible = q !== 'low';
+    this.shells.limit = q === 'low' ? 6 : 14;
+  }
+
   _ensureOwnEnv() {
     if (this._lighting?.envMap) return;
     if (this._ownEnv) { this.scene.environment = this._ownEnv; return; }
@@ -438,7 +465,10 @@ export class ViewModel {
     // ---- Grundpose: Hüfte ↔ Anschlag
     const ads3 = this.cur.ud.adsOffset;
     const hip = h.hip, hr = h.hipRot;
-    const P = this._gunPos.set(hip[0] + (ads3.x - hip[0]) * a, hip[1] + (ads3.y - hip[1]) * a, hip[2] + (ads3.z - hip[2]) * a);
+    // Seitenverhältnis: auf breiten Telefonen etwas weiter nach außen, auf 4:3-Tablets weiter zur Mitte
+    const asp = clamp(((this.camera.aspect || 1.78) - 1.78) * 0.3, -0.15, 0.2);
+    const hx = hip[0] * (1 + asp);
+    const P = this._gunPos.set(hx + (ads3.x - hx) * a, hip[1] + (ads3.y - hip[1]) * a, hip[2] + (ads3.z - hip[2]) * a);
     const R = this._gunRot.set(hr[0] * (1 - a), hr[1] * (1 - a), hr[2] * (1 - a));
     const na = 1 - a;
     P.x += h.sprintPos[0] * sp * na + h.crouchPos[0] * this._crouch * na;
@@ -855,19 +885,21 @@ export class ViewModel {
   }
 
   _actMelee(A, out) {
-    // Schnelles Messer mit der linken Hand, Waffe kippt nach rechts unten weg
+    // Schneller Messerhieb mit der linken Hand quer durchs Bild; die Waffe weicht nach rechts unten aus
     const u = clamp(A.t / A.dur, 0, 1);
-    const gw = windowW(u, 0.0, 0.1, 0.55, 0.85);
-    out.p[0] = 0.07 * gw; out.p[1] = -0.2 * gw; out.p[2] = 0.06 * gw;
-    out.r[0] = -0.55 * gw; out.r[1] = -0.35 * gw; out.r[2] = -0.5 * gw;
+    const gw = windowW(u, 0.0, 0.12, 0.6, 0.9);
+    out.p[0] = 0.06 * gw; out.p[1] = -0.1 * gw; out.p[2] = 0.05 * gw;
+    out.r[0] = -0.3 * gw; out.r[1] = -0.35 * gw; out.r[2] = -0.35 * gw;
     const knife = this.props.knife;
-    const w = windowW(u, 0.0, 0.07, 0.5, 0.72);
-    const pos = curve(u, [[0.0, [-0.2, -0.3, -0.18]], [0.07, [-0.2, 0.03, -0.27]], [0.16, [-0.02, -0.06, -0.4]], [0.26, [0.15, -0.2, -0.36]], [0.45, [0.16, -0.26, -0.3]], [0.72, [-0.1, -0.42, -0.2]]]);
-    const F = curve(u, [[0.0, [0.2, 0.8, -0.5]], [0.07, [0.55, 0.65, -0.4]], [0.16, [0.75, -0.1, -0.65]], [0.26, [0.5, -0.6, -0.6]], [0.72, [0.3, -0.6, -0.6]]]);
-    req(out.left, w, { free: [pos, F, [0.0, 0.3, 0.9], 'knife'] });
+    const w = windowW(u, 0.0, 0.08, 0.52, 0.74);
+    // Schlüsselbilder: Ausholen links oben → Schnitt durch die Mitte → Durchschwung rechts unten → zurück
+    const pos = curve(u, [[0.0, [-0.24, -0.3, -0.2]], [0.08, [-0.2, -0.05, -0.3]], [0.2, [0.0, -0.06, -0.42]], [0.36, [0.15, -0.15, -0.36]], [0.52, [0.16, -0.22, -0.32]], [0.74, [-0.14, -0.4, -0.2]]], _a3);
+    const F = curve(u, [[0.0, [-0.6, 0.6, -0.3]], [0.08, [-0.76, 0.38, -0.24]], [0.2, [-0.62, 0.16, -0.8]], [0.36, [0.32, 0.17, -0.78]], [0.74, [0.3, 0.3, -0.8]]], _b3);
+    const B = curve(u, [[0.0, [-0.4, 0.2, 0.9]], [0.08, [-0.3, 0.0, 0.95]], [0.2, [0.0, 1.0, 0.2]], [0.36, [0.2, 1.0, 0.3]], [0.74, [0.2, 0.8, 0.5]]], _c3);
+    req(out.left, w, { free: [pos, F, B, 'knife'] });
     this._attachProp(knife, this.arms.left.handBone, 'knife', -1);
     knife.visible = u > 0.02 && u < 0.7;
-    if (u > 0.18 && !A.hit) { A.hit = true; this.onMeleeHit?.(); this._jolt.kick(0.6, 0.5, 0); }
+    if (u > 0.2 && !A.hit) { A.hit = true; this.onMeleeHit?.(); this._jolt.kick(0.7, 0.6, 0); }
     return u >= 1;
   }
 
@@ -892,7 +924,7 @@ export class ViewModel {
     out.r[0] = -0.85 * gw; out.r[1] = 0.2 * gw; out.r[2] = 0.35 * gw;
     // Rechte Hand: Granate halten, ausholen, werfen
     const rw = windowW(u, 0.05, 0.2, 0.8, 0.96);
-    const rp = curve(u, [[0.05, [0.2, -0.4, -0.2]], [0.2, [0.09, -0.12, -0.3]], [0.47, [0.07, -0.1, -0.29]], [0.58, [0.2, -0.02, -0.12]], [0.68, [0.03, 0.04, -0.48]], [0.8, [-0.06, -0.32, -0.36]], [0.96, [0.0, -0.45, -0.25]]]);
+    const rp = curve(u, [[0.05, [0.2, -0.4, -0.2]], [0.2, [0.09, -0.12, -0.3]], [0.47, [0.07, -0.1, -0.29]], [0.58, [0.22, -0.02, -0.2]], [0.68, [0.03, 0.04, -0.48]], [0.8, [-0.06, -0.32, -0.36]], [0.96, [0.0, -0.45, -0.25]]]);
     const rF = curve(u, [[0.05, [-0.4, 0.6, -0.6]], [0.2, [-0.45, 0.55, -0.55]], [0.47, [-0.45, 0.55, -0.55]], [0.58, [-0.1, 0.9, 0.2]], [0.68, [0.0, 0.3, -0.95]], [0.8, [-0.1, -0.6, -0.7]]]);
     req(out.right, rw, { free: [rp, rF, [0.75, 0.2, 0.45], 'ball'] });
     this._attachProp(g, this.arms.right.handBone, 'grenade', 1);
@@ -918,8 +950,13 @@ export class ViewModel {
 
   _actInspect(A, out) {
     const u = clamp(A.t / A.dur, 0, 1);
-    curve(u, [[0, ZERO3], [0.14, [-0.1, 0.045, 0.05]], [0.42, [-0.1, 0.05, 0.05]], [0.56, [-0.07, 0.03, 0.03]], [0.84, [-0.07, 0.035, 0.03]], [1, ZERO3]], out.p);
-    curve(u, [[0, ZERO3], [0.14, [0.18, -0.55, -0.5]], [0.42, [0.22, -0.6, -0.55]], [0.56, [-0.05, 0.7, 0.75]], [0.84, [-0.08, 0.75, 0.8]], [1, ZERO3]], out.r);
+    // Linke Seite (Waffe im Uhrzeigersinn gerollt), dann rechte Seite mit Auswurffenster
+    curve(u, [[0, ZERO3], [0.14, [-0.05, 0.035, 0.04]], [0.42, [-0.05, 0.04, 0.04]], [0.56, [-0.07, 0.03, 0.03]], [0.84, [-0.07, 0.035, 0.03]], [1, ZERO3]], out.p);
+    curve(u, [[0, ZERO3], [0.14, [0.2, -0.12, -0.62]], [0.42, [0.22, -0.15, -0.66]], [0.56, [-0.05, 0.7, 0.75]], [0.84, [-0.08, 0.75, 0.8]], [1, ZERO3]], out.r);
+    // Stützhand wechselt in der ersten Phase ans Magazin
+    const mg = this.cur.ud.anchors.magGrab;
+    const wm = windowW(u, 0.04, 0.16, 0.4, 0.54);
+    if (mg && wm > 0 && this.h.reload !== 'top' && this.h.reload !== 'belt') req(out.left, wm, { anchor: mg, style: 'mag' });
     return u >= 1;
   }
 
@@ -984,6 +1021,7 @@ export class ViewModel {
 
   dispose() {
     this._disposed = true;
+    this._offQuality?.();
     this.scene.remove(this.root);
     this.flash.group.removeFromParent();
     this.flash.dispose();
