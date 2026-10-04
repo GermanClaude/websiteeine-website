@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Klanglabor – NULLPUNKT</title>
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--np-black); color: var(--np-ink); font: 14px/1.4 var(--font-display); }
+  body { padding: 20px clamp(12px, 3vw, 36px) 60px; }
+  header { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 28px; border-bottom: 1px solid var(--np-line); padding-bottom: 14px; margin-bottom: 18px; }
+  h1 { margin: 0; font-size: clamp(28px, 4vw, 46px); font-weight: 800; font-stretch: 70%; letter-spacing: -.01em; line-height: .9; text-transform: uppercase; }
+  h1 em { font-style: normal; color: var(--np-signal); }
+  h2 { font: 600 11px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--np-dim); margin: 0 0 10px; }
+  .status { font: 12px/1.5 var(--font-mono); color: var(--np-ink-2); display: flex; gap: 6px 18px; flex-wrap: wrap; }
+  .status b { color: var(--np-ink); font-weight: 600; }
+  .status .ok { color: var(--np-ok); } .status .bad { color: var(--np-enemy); }
+  button, select, input { font: inherit; color: inherit; }
+  button { background: var(--np-black-3); border: 1px solid var(--np-line); border-radius: 3px; padding: 6px 10px; cursor: pointer; transition: background .15s, border-color .15s, transform .05s; }
+  button:hover { border-color: var(--np-line-strong); background: #20242a; }
+  button:active { transform: translateY(1px); }
+  button.on, button.primary { border-color: var(--np-signal); background: var(--np-signal-soft); color: #fff; }
+  button.primary { font-weight: 700; padding: 10px 18px; text-transform: uppercase; letter-spacing: .06em; }
+  button.flash { animation: flash .35s var(--ease-out); }
+  @keyframes flash { from { background: var(--np-signal); } }
+  select { background: var(--np-black-3); border: 1px solid var(--np-line); border-radius: 3px; padding: 5px 8px; }
+  .grid { display: grid; grid-template-columns: minmax(260px, 320px) minmax(300px, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--np-black-2); border: 1px solid var(--np-line); border-radius: 4px; padding: 14px; margin-bottom: 18px; }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+  label.sl { display: grid; grid-template-columns: 92px 1fr 38px; align-items: center; gap: 8px; font-size: 13px; margin: 6px 0; }
+  label.sl output { font: 12px var(--font-mono); color: var(--np-ink-2); text-align: right; }
+  input[type=range] { accent-color: var(--np-signal); width: 100%; }
+  .seg { display: inline-flex; border: 1px solid var(--np-line); border-radius: 3px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; border-right: 1px solid var(--np-line); }
+  .seg button:last-child { border-right: 0; }
+  #amb { display: flex; flex-wrap: wrap; width: 100%; }
+  #amb button { flex: 1 1 auto; }
+  canvas { display: block; width: 100%; border-radius: 3px; background: #07080a; }
+  #radar { width: min(100%, 440px); aspect-ratio: 1; height: auto; margin: 0 auto 6px; cursor: crosshair; }
+  #meter { height: 70px; margin-top: 8px; }
+  .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+  .board button { text-align: left; font-size: 13px; }
+  .guns { display: grid; grid-template-columns: 150px repeat(6, auto); gap: 6px; align-items: center; overflow-x: auto; }
+  .guns .name { font-weight: 700; font-stretch: 85%; }
+  .guns button { font-size: 12px; padding: 5px 8px; }
+  table { border-collapse: collapse; width: 100%; font: 12px/1.5 var(--font-mono); }
+  th, td { padding: 3px 8px; border-bottom: 1px solid var(--np-line); text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  td.bad { color: var(--np-enemy); } td.good { color: var(--np-ok); }
+  .bar { height: 6px; background: var(--np-signal); border-radius: 2px; min-width: 1px; }
+  .hint { color: var(--np-dim); font-size: 12px; margin: 6px 0 0; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Klang<em>labor</em></h1>
+  <div class="status" id="status">Audio ist noch gesperrt – bitte aktivieren.</div>
+  <button class="primary" id="unlock">Audio aktivieren</button>
+</header>
+
+<div class="grid">
+  <div>
+    <section class="panel">
+      <h2>Mischpult</h2>
+      <label class="sl">Gesamt <input type="range" min="0" max="1" step="0.01" value="0.8" data-vol="master"><output></output></label>
+      <label class="sl">Effekte <input type="range" min="0" max="1" step="0.01" value="1" data-vol="sfx"><output></output></label>
+      <label class="sl">Musik <input type="range" min="0" max="1" step="0.01" value="0.5" data-vol="music"><output></output></label>
+      <label class="sl">Oberfläche <input type="range" min="0" max="1" step="0.01" value="0.7" data-vol="ui"><output></output></label>
+      <label class="sl">Atmosphäre <input type="range" min="0" max="1" step="0.01" value="1" data-vol="ambience"><output></output></label>
+      <canvas id="meter" width="600" height="140" aria-label="Pegel und Spektrum"></canvas>
+    </section>
+    <section class="panel">
+      <h2>Musik &amp; Atmosphäre</h2>
+      <div class="row"><button id="music">Lobbymusik starten</button></div>
+      <div class="seg" id="amb">
+        <button data-amb="">Aus</button><button data-amb="harbor">Hafen</button><button data-amb="desert">Altstadt</button><button data-amb="industrial">Werk</button><button data-amb="range">Schießstand</button>
+      </div>
+      <p class="hint">Atmosphäre setzt auch Raumakustik (Hall innen, Slap-Back außen) der Karte.</p>
+    </section>
+    <section class="panel">
+      <h2>Umgebung &amp; Zustand</h2>
+      <div class="row">Raum <span class="seg" id="env"><button data-env="auto" class="on">Auto</button><button data-env="outdoor">Außen</button><button data-env="indoor">Innen</button></span></div>
+      <div class="row">Panning <span class="seg" id="q"><button data-q="high" class="on">HRTF</button><button data-q="low">Equal-Power</button></span></div>
+      <div class="row"><label class="chk"><input type="checkbox" id="occl"> Quelle verdeckt (lineOfSight = false)</label></div>
+      <div class="row"><label class="chk"><input type="checkbox" id="pause"> Pausenmenü (gedämpft)</label></div>
+      <label class="sl">Leben <input type="range" id="hp" min="1" max="100" step="1" value="100"><output></output></label>
+      <p class="hint">Unter 35 Leben: Herzschlag, schweres Atmen, gedämpfte Welt.</p>
+    </section>
+  </div>
+
+  <div>
+    <section class="panel">
+      <h2>3D-Hörfeld</h2>
+      <canvas id="radar" width="800" height="800" aria-label="Draufsicht: Hörer in der Mitte, Quelle kreist"></canvas>
+      <div class="row">
+        <select id="orbitSound" aria-label="Kreisende Quelle">
+          <option value="">Kreisende Quelle: aus</option>
+          <option value="loop_drone" selected>Drohnen-Summen (Schleife)</option>
+          <option value="steps">Schritte Metall (Sprint)</option>
+          <option value="ar">Feuerstöße M-17</option>
+          <option value="smg">Feuerstöße VP-9</option>
+          <option value="lmg">Feuerstöße HM-60</option>
+        </select>
+        <label class="sl" style="grid-template-columns:52px 1fr 44px;flex:1;min-width:200px">Radius <input type="range" id="radius" min="2" max="90" step="1" value="12"><output></output></label>
+        <label class="sl" style="grid-template-columns:52px 1fr 44px;flex:1;min-width:200px">Tempo <input type="range" id="speed" min="0" max="2" step="0.05" value="0.5"><output></output></label>
+      </div>
+      <div class="row">
+        Klick ins Feld spielt: <select id="clickSound" aria-label="Klang bei Klick">
+          <option value="ar_heavy">Schuss KV-47</option><option value="sniper">Schuss Brecher</option><option value="shotgun">Schuss Bulldog</option>
+          <option value="explosion">Explosion</option><option value="impact_metal">Einschlag Metall</option><option value="footstep">Schritt</option><option value="pain">Schmerzlaut</option><option value="grenade_bounce">Granate prallt</option>
+        </select>
+        <button id="whiz">Vorbeiflug (Gewehr)</button><button id="whiz2">Vorbeiflug (Pistole)</button>
+      </div>
+      <p class="hint">Pfeiltasten ← → drehen den Hörer. Entfernung steuert Nah/Fern-Überblendung, Luftdämpfung und Laufzeit.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Waffen</h2>
+      <div class="guns" id="guns"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Spielereignisse (über den EventBus)</h2>
+      <div class="board" id="events"></div>
+    </section>
+
+    <div id="boards"></div>
+
+    <section class="panel">
+      <h2>Messung (offline durch die komplette Kette inkl. Limiter)</h2>
+      <div class="row"><button id="measure">Pegel messen</button><button id="smoke">Alle Klänge anspielen</button></div>
+      <div id="report"></div>
+    </section>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { AudioEngine, renderOffline, SOUND_GROUPS, GUN_PROFILES, SOUND_NAMES } from '../assets/js/game/engine/audio.js';
+
+// ---------------------------------------------------------------- Umgebung (Mock-Spielkontext)
+async function busFactory() {
+  try { const m = await import('../assets/js/game/engine/events.js'); if (m.EventBus) return new m.EventBus(); } catch { /* Kern-Modul fehlt noch */ }
+  const map = new Map();
+  return {
+    on(n, fn) { if (!map.has(n)) map.set(n, new Set()); map.get(n).add(fn); return () => map.get(n)?.delete(fn); },
+    off(n, fn) { map.get(n)?.delete(fn); }, emit(n, p) { for (const fn of [...(map.get(n) || [])]) fn(p); }, clear() { map.clear(); },
+  };
+}
+const store = { masterVolume: 0.8, sfxVolume: 1, musicVolume: 0.5, uiVolume: 0.7, quality: 'high' }, listeners = new Set();
+const settings = { get: k => store[k], set(k, v) { store[k] = v; listeners.forEach(f => f(k, v)); }, onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); } };
+const camera = new THREE.PerspectiveCamera(80, 1, 0.05, 500); camera.position.set(0, 1.65, 0); camera.updateMatrixWorld();
+const flags = { occluded: false, indoor: false };
+const world = {
+  ambience: 'harbor',
+  lineOfSight: () => !flags.occluded,
+  raycast: (o, d, max) => (flags.indoor && d.y > 0.5 ? { distance: 3, point: o.clone().addScaledVector(d, 3), surface: 'concrete' } : null),
+};
+const player = { id: 'spieler', name: 'Operator', isPlayer: true, team: 'A', alive: true, health: 100, position: camera.position, weapon: { current: { mag: 30 } } };
+const mkBot = (id, team) => ({ id, name: id, isBot: true, team, alive: true, health: 100, position: new THREE.Vector3(6, 0, -10), getEyePosition(out) { return out.copy(this.position).add(new THREE.Vector3(0, 1.6, 0)); } });
+const enemy = mkBot('Gegner-1', 'B'), ally = mkBot('Kamerad-1', 'A');
+const events = await busFactory();
+const G = { THREE, camera, events, settings, world, player, actors: [player, enemy, ally], match: { state: 'playing', mapId: 'hafen' }, params: new URLSearchParams(location.search), debug: true };
+const audio = new AudioEngine(G, { autoMusic: false });
+G.audio = audio;
+audio.attach(G);
+window.__audioLab = { audio, G, events };
+
+// ---------------------------------------------------------------- Hilfen
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const LABELS = {
+  ar: 'Sturmgewehr (M-17)', ar_heavy: 'Sturmgewehr schwer (KV-47/SK-14)', smg: 'MP (VP-9/QX-90)', lmg: 'LMG (HM-60)', sniper: 'Scharfschütze (Brecher)', shotgun: 'Schrotflinte (Bulldog)', pistol: 'Pistole (P-9)', pistol_heavy: 'Pistole schwer (Adler)',
+  dryfire: 'Leerklick', reload_mag_out: 'Magazin raus', reload_mag_in: 'Magazin rein', reload_bolt: 'Durchladen', reload_shell: 'Patrone einlegen', pump: 'Pumpe', bolt: 'Kammerverschluss', equip: 'Waffe ziehen',
+  ads_in: 'Zielen an', ads_out: 'Zielen aus', melee_swing: 'Messer-Schwung', melee_hit: 'Messer-Treffer', grenade_pin: 'Splint ziehen', grenade_throw: 'Wurf', grenade_bounce: 'Granate prallt', low_ammo: 'Munition knapp',
+  explosion: 'Explosion nah', explosion_far: 'Explosion fern', bullet_whiz: 'Pfeifen (Unterschall)', bullet_crack: 'Knall (Überschall)',
+  gear: 'Ausrüstung klappert', jump: 'Sprung', land: 'Landung', hit_flesh: 'Körpertreffer', hit_helmet: 'Helm-Ping', pain: 'Schmerzlaut', death: 'Tod', heartbeat: 'Herzschlag', breath_in: 'Einatmen', breath_out: 'Ausatmen',
+  hitmarker: 'Treffermarker', hitmarker_kill: 'Kill-Marker', headshot: 'Kopfschuss-Ding', medal: 'Medaille', levelup: 'Stufenaufstieg', streak_ready: 'Serie bereit (Funk)', uav: 'Aufklärer', uav_end: 'Aufklärer endet', airstrike: 'Präzisionsschlag',
+  sentry: 'Wachgeschütz', capture: 'Flagge eingenommen', capture_lost: 'Flagge verloren', countdown: 'Countdown', go: 'Los!', win: 'Sieg', lose: 'Niederlage', draw: 'Unentschieden', spawn: 'Einstieg', tinnitus: 'Tinnitus',
+  hover: 'Hover', click: 'Klick', toggle: 'Umschalter', confirm: 'Bestätigen', back: 'Zurück', error: 'Fehler',
+  amb_gull: 'Möwen', amb_horn: 'Schiffshorn', amb_creak: 'Knarzen', amb_clank: 'Container-Schlag', amb_dog: 'Hunde', amb_chime: 'Windspiel', amb_flap: 'Markise', amb_moped: 'Moped', amb_drip: 'Tropfen', amb_steam: 'Dampf', amb_groan: 'Metallächzen', amb_arc: 'Funkenschlag', amb_bird: 'Singvogel', amb_crow: 'Krähe', amb_pa: 'Lautsprecher-Gong', loop_drone: 'Drohne (Schleife)',
+};
+const SURF_DE = { concrete: 'Beton', metal: 'Metall', wood: 'Holz', dirt: 'Erde', sand: 'Sand', grass: 'Gras', glass: 'Glas', water: 'Wasser', tile: 'Fliesen', fabric: 'Stoff' };
+const label = n => LABELS[n] || (n.startsWith('step_') ? `Schritt ${SURF_DE[n.slice(5)]}` : n.startsWith('impact_') ? `Einschlag ${SURF_DE[n.slice(7)]}` : n);
+const flash = b => { b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash'); };
+const ahead = (d, side = 0) => {
+  const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion), r = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  return camera.position.clone().addScaledVector(f, d).addScaledVector(r, side);
+};
+function btn(text, fn, parent) { const b = document.createElement('button'); b.textContent = text; b.onclick = () => { audio.unlock(); flash(b); fn(); }; parent.append(b); return b; }
+
+// ---------------------------------------------------------------- Waffen-Tabelle
+const guns = $('#guns');
+for (const p of Object.keys(GUN_PROFILES)) {
+  const n = document.createElement('div'); n.className = 'name'; n.textContent = LABELS[p]; guns.append(n);
+  btn('Spieler', () => audio.play(p, { player: true }), guns);
+  btn('Salve', () => { for (let i = 0; i < (p === 'sniper' || p === 'shotgun' ? 1 : 6); i++) audio.play(p, { player: true, delay: i * (p === 'lmg' ? 0.085 : p === 'smg' ? 0.07 : 0.1) }); }, guns);
+  btn('Gegner 10 m', () => audio.play(p, { position: ahead(10, 4) }), guns);
+  btn('40 m', () => audio.play(p, { position: ahead(40, -10) }), guns);
+  btn('120 m', () => audio.play(p, { position: ahead(120, 30) }), guns);
+  btn('Gedämpft', () => audio.play(p, { player: true, suppressed: true }), guns);
+}
+
+// ---------------------------------------------------------------- Klanggruppen
+const boards = $('#boards');
+for (const [group, names] of Object.entries(SOUND_GROUPS)) {
+  if (group === 'Waffen') continue;
+  const sec = document.createElement('section'); sec.className = 'panel';
+  sec.innerHTML = `<h2>${group}</h2><div class="board"></div>`;
+  const b = sec.querySelector('.board');
+  for (const n of names) {
+    const positional = /^(step_|impact_|amb_|explosion|grenade_bounce|death|pain|hit_)/.test(n);
+    btn(label(n), () => audio.play(n, positional && !n.startsWith('amb_') ? { position: ahead(n.startsWith('explosion') ? 25 : 5, 2) } : n.startsWith('amb_') ? { position: ahead(40, -20), bus: 'amb' } : {}), b);
+  }
+  if (group === 'Schritte') {
+    btn('Sprint-Folge (Kies)', () => { for (let i = 0; i < 6; i++) audio.play('footstep', { surface: 'dirt', sprint: true, position: ahead(4 + i * 0.8, -2), delay: i * 0.3 }); }, b);
+    btn('Ducken (Holz)', () => { for (let i = 0; i < 4; i++) audio.play('footstep', { surface: 'wood', crouch: true, position: ahead(3, 1), delay: i * 0.55 }); }, b);
+  }
+  boards.append(sec);
+}
+
+// ---------------------------------------------------------------- Ereignisse über den Bus
+const evb = $('#events');
+const emit = (n, p) => events.emit(n, p);
+const gp = () => enemy.getEyePosition(new THREE.Vector3());
+const E = [
+  ['Treffer', () => emit('actor:hit', { target: enemy, attacker: player, amount: 25, zone: 'body', point: gp(), weaponId: 'ar_m17', killed: false })],
+  ['Kopfschuss', () => emit('actor:hit', { target: enemy, attacker: player, amount: 60, zone: 'head', point: gp(), weaponId: 'ar_m17', killed: false })],
+  ['Kill', () => { emit('actor:hit', { target: enemy, attacker: player, amount: 40, zone: 'body', point: gp(), weaponId: 'ar_m17', killed: true }); emit('kill', { victim: enemy, killer: player, weaponId: 'ar_m17' }); }],
+  ['Kopfschuss-Kill', () => { emit('actor:hit', { target: enemy, attacker: player, amount: 90, zone: 'head', point: gp(), weaponId: 'sr_brecher', killed: true }); emit('kill', { victim: enemy, killer: player, weaponId: 'sr_brecher', headshot: true }); }],
+  ['Spieler getroffen', () => emit('player:damaged', { amount: 22, attacker: enemy })],
+  ['Spieler stirbt', () => emit('kill', { victim: player, killer: enemy, weaponId: 'ar_kv47' })],
+  ['Respawn', () => emit('actor:spawn', { actor: player })],
+  ['Gegner feuert (KV-47)', () => { const o = gp(); emit('weapon:fire', { actor: enemy, weaponId: 'ar_kv47', origin: o, dir: camera.position.clone().sub(o).normalize() }); }],
+  ['Nachladen M-17', () => emit('weapon:reload', { actor: player, weaponId: 'ar_m17', phase: 'start', empty: false })],
+  ['Nachladen leer', () => emit('weapon:reload', { actor: player, weaponId: 'ar_m17', phase: 'start', empty: true })],
+  ['Nachladen HM-60', () => emit('weapon:reload', { actor: player, weaponId: 'lmg_hm60', phase: 'start', empty: true })],
+  ['Schrot nachladen', () => { emit('weapon:reload', { actor: player, weaponId: 'sg_bulldog', phase: 'start', empty: true }); for (let i = 1; i <= 3; i++) setTimeout(() => emit('weapon:reload', { actor: player, weaponId: 'sg_bulldog', phase: 'insert' }), i * 450); setTimeout(() => emit('weapon:reload', { actor: player, weaponId: 'sg_bulldog', phase: 'end', empty: true }), 1700); }],
+  ['Waffenwechsel', () => emit('weapon:switch', { actor: player, weaponId: 'pi_adler' })],
+  ['Granate werfen', () => emit('grenade:throw', { actor: player, position: camera.position.clone(), velocity: new THREE.Vector3(0, 4, -12), type: 'frag' })],
+  ['Granate nah (6 m)', () => emit('explosion', { position: ahead(6, 1), radius: 6.5, attacker: enemy, type: 'frag' })],
+  ['Explosion 60 m', () => emit('explosion', { position: ahead(60, 20), radius: 6.5, attacker: enemy, type: 'frag' })],
+  ['Countdown 3-2-1-Los', () => [3, 2, 1, 0].forEach((v, i) => setTimeout(() => emit('match:countdown', { value: v }), i * 1000))],
+  ['Medaillen ×3', () => { for (let i = 0; i < 3; i++) emit('medal', { actor: player, id: 'x' + i, label: 'Medaille' }); }],
+  ['Serie bereit', () => emit('streak:ready', { actor: player, streakId: 'uav' })],
+  ['Aufklärer', () => emit('streak:activate', { actor: player, streakId: 'uav' })],
+  ['Feind-Aufklärer', () => emit('streak:activate', { actor: enemy, streakId: 'uav' })],
+  ['Präzisionsschlag', () => emit('streak:activate', { actor: player, streakId: 'strike' })],
+  ['Wachgeschütz', () => emit('streak:activate', { actor: player, streakId: 'sentry' })],
+  ['Flagge A eingenommen', () => { emit('objective:update', { objectives: [{ id: 'A', owner: null }] }); emit('objective:update', { objectives: [{ id: 'A', owner: 'A' }] }); }],
+  ['Flagge A verloren', () => { emit('objective:update', { objectives: [{ id: 'A', owner: 'A' }] }); emit('objective:update', { objectives: [{ id: 'A', owner: 'B' }] }); }],
+  ['Sieg', () => emit('match:end', { result: { playerWon: true } })],
+  ['Niederlage', () => emit('match:end', { result: { playerWon: false } })],
+  ['Stufenaufstieg', () => emit('ui:sound', { name: 'levelup' })],
+];
+for (const [t, fn] of E) btn(t, fn, evb);
+
+// ---------------------------------------------------------------- Bedienelemente
+$('#unlock').onclick = async () => { await audio.unlock(); $('#unlock').textContent = 'Audio aktiv'; $('#unlock').classList.add('on'); };
+for (const r of $$('input[data-vol]')) {
+  const out = r.nextElementSibling, upd = () => { out.textContent = Math.round(r.value * 100); audio.setVolumes({ [r.dataset.vol]: +r.value }); };
+  r.oninput = upd; upd();
+}
+for (const id of ['radius', 'speed', 'hp']) { const r = $('#' + id), out = r.nextElementSibling; const upd = () => { out.textContent = r.value; }; r.addEventListener('input', upd); upd(); }
+$('#hp').addEventListener('input', e => { player.health = +e.target.value; });
+$('#music').onclick = () => {
+  audio.unlock();
+  if (audio.musicPlaying || $('#music').classList.contains('on')) { audio.stopMusic(); $('#music').classList.remove('on'); $('#music').textContent = 'Lobbymusik starten'; }
+  else { audio.startMusic(); $('#music').classList.add('on'); $('#music').textContent = 'Lobbymusik stoppen'; }
+};
+for (const b of $$('#amb button')) b.onclick = () => {
+  audio.unlock(); $$('#amb button').forEach(x => x.classList.toggle('on', x === b));
+  if (b.dataset.amb) { world.ambience = b.dataset.amb; audio.startAmbience(b.dataset.amb); } else audio.stopAmbience();
+};
+for (const b of $$('#env button')) b.onclick = () => { $$('#env button').forEach(x => x.classList.toggle('on', x === b)); flags.indoor = b.dataset.env === 'indoor'; audio.setEnvironment(b.dataset.env); };
+for (const b of $$('#q button')) b.onclick = () => { $$('#q button').forEach(x => x.classList.toggle('on', x === b)); settings.set('quality', b.dataset.q); restartOrbit(); };
+$('#occl').onchange = e => { flags.occluded = e.target.checked; };
+$('#pause').onchange = e => { G.match.state = e.target.checked ? 'paused' : 'playing'; emit('match:state', { state: G.match.state }); };
+const pass = (wid) => { // Geschoss fliegt 1,2 m rechts am Hörer vorbei
+  const o = ahead(60, 8), target = ahead(-5, 1.2); emit('weapon:fire', { actor: enemy, weaponId: wid, origin: o, dir: target.sub(o).normalize() });
+};
+$('#whiz').onclick = () => { audio.unlock(); pass('ar_kv47'); };
+$('#whiz2').onclick = () => { audio.unlock(); pass('pi_p9'); };
+
+// ---------------------------------------------------------------- 3D-Feld
+const radar = $('#radar'), rc = radar.getContext('2d');
+let yaw = 0, orbitA = 0, orbitHandle = null, orbitTimer = 0, lastT = performance.now();
+const keys = new Set();
+addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { keys.add(e.key); e.preventDefault(); } });
+addEventListener('keyup', e => keys.delete(e.key));
+const orbitPos = () => { const r = +$('#radius').value; return new THREE.Vector3(Math.cos(orbitA) * r, 1.6, Math.sin(orbitA) * r); };
+function restartOrbit() {
+  orbitHandle?.stop(0.2); orbitHandle = null;
+  if ($('#orbitSound').value === 'loop_drone' && audio.unlocked) orbitHandle = audio.loop('loop_drone', { position: orbitPos(), volume: 0.5 });
+}
+$('#orbitSound').onchange = () => { audio.unlock(); restartOrbit(); };
+radar.onclick = e => {
+  audio.unlock();
+  const r = radar.getBoundingClientRect(), s = 90 / (r.width / 2);
+  const x = (e.clientX - r.left - r.width / 2) * s, z = (e.clientY - r.top - r.height / 2) * s;
+  const p = new THREE.Vector3(x, 1.6, z), n = $('#clickSound').value;
+  if (n === 'footstep') audio.play('footstep', { surface: 'metal', sprint: true, position: p.setY(0) });
+  else if (n === 'explosion') emit('explosion', { position: p, radius: 6.5, type: 'frag' });
+  else audio.play(n, { position: p });
+  clicks.push({ x, z, t: performance.now() });
+};
+const clicks = [];
+
+function drawRadar() {
+  const W = radar.width, H = radar.height, s = (W / 2) / 90; rc.clearRect(0, 0, W, H);
+  rc.strokeStyle = 'rgba(233,230,223,.08)'; rc.lineWidth = 1;
+  for (const r of [10, 25, 50, 90]) { rc.beginPath(); rc.arc(W / 2, H / 2, r * s, 0, Math.PI * 2); rc.stroke(); rc.fillStyle = 'rgba(233,230,223,.3)'; rc.font = '20px "JetBrains Mono NP", monospace'; rc.fillText(r + ' m', W / 2 + r * s * 0.71 + 4, H / 2 - r * s * 0.71); }
+  rc.save(); rc.translate(W / 2, H / 2); rc.rotate(-yaw);
+  rc.fillStyle = '#FF5B1F'; rc.beginPath(); rc.moveTo(0, -18); rc.lineTo(11, 12); rc.lineTo(-11, 12); rc.closePath(); rc.fill();
+  rc.strokeStyle = 'rgba(255,91,31,.25)'; rc.beginPath(); rc.moveTo(0, 0); rc.lineTo(-Math.tan(0.7) * 300, -300); rc.moveTo(0, 0); rc.lineTo(Math.tan(0.7) * 300, -300); rc.stroke();
+  rc.restore();
+  if ($('#orbitSound').value) { const p = orbitPos(); rc.fillStyle = flags.occluded ? '#77746D' : '#38B6FF'; rc.beginPath(); rc.arc(W / 2 + p.x * s, H / 2 + p.z * s, 10, 0, Math.PI * 2); rc.fill(); }
+  const now = performance.now();
+  for (const c of clicks) { const a = 1 - (now - c.t) / 1200; if (a <= 0) continue; rc.strokeStyle = `rgba(255,59,59,${a})`; rc.lineWidth = 3; rc.beginPath(); rc.arc(W / 2 + c.x * s, H / 2 + c.z * s, 10 + (1 - a) * 40, 0, Math.PI * 2); rc.stroke(); }
+  while (clicks.length && now - clicks[0].t > 1200) clicks.shift();
+}
+
+// ---------------------------------------------------------------- Pegel/Spektrum
+const meter = $('#meter'), mc = meter.getContext('2d');
+let peakHold = 0;
+function drawMeter() {
+  const an = audio.getAnalyser(); const W = meter.width, H = meter.height; mc.clearRect(0, 0, W, H);
+  if (!an) return;
+  const td = new Float32Array(an.fftSize); an.getFloatTimeDomainData(td);
+  let pk = 0, s = 0; for (const v of td) { pk = Math.max(pk, Math.abs(v)); s += v * v; }
+  const rms = Math.sqrt(s / td.length), db = x => Math.max(-60, 20 * Math.log10(x + 1e-9));
+  peakHold = Math.max(db(pk), peakHold - 0.6);
+  const fd = new Uint8Array(an.frequencyBinCount); an.getByteFrequencyData(fd);
+  mc.fillStyle = 'rgba(56,182,255,.35)';
+  for (let i = 0; i < 120; i++) { const bin = Math.floor(Math.pow(fd.length, i / 120)), v = fd[bin] / 255; mc.fillRect(i * W / 120, H - 26 - v * (H - 34), W / 120 - 1, v * (H - 34)); }
+  const x = v => (v + 60) / 60 * W;
+  mc.fillStyle = '#5FE08A'; mc.fillRect(0, H - 18, x(db(rms)), 7);
+  mc.fillStyle = pk >= 0.999 ? '#FF3B3B' : '#FFC23D'; mc.fillRect(0, H - 9, x(db(pk)), 7);
+  mc.fillStyle = '#E9E6DF'; mc.fillRect(x(peakHold) - 2, H - 18, 3, 16);
+  mc.font = '20px "JetBrains Mono NP", monospace'; mc.fillStyle = 'rgba(233,230,223,.7)';
+  mc.fillText(`Spitze ${peakHold.toFixed(1)} dBFS · RMS ${db(rms).toFixed(1)} dBFS`, 6, 22);
+}
+
+// ---------------------------------------------------------------- Schleife
+function frame(t) {
+  const dt = Math.min(0.1, (t - lastT) / 1000); lastT = t;
+  if (keys.has('ArrowLeft')) yaw += dt * 1.6; if (keys.has('ArrowRight')) yaw -= dt * 1.6;
+  camera.rotation.set(0, yaw, 0); camera.updateMatrixWorld();
+  orbitA += dt * +$('#speed').value;
+  const sel = $('#orbitSound').value;
+  if (orbitHandle) orbitHandle.setPosition(orbitPos());
+  else if (sel === 'loop_drone' && audio.unlocked) restartOrbit();
+  if (sel && sel !== 'loop_drone' && audio.unlocked) {
+    orbitTimer -= dt;
+    if (orbitTimer <= 0) {
+      const p = orbitPos();
+      if (sel === 'steps') { audio.play('footstep', { surface: 'metal', sprint: true, position: p.setY(0) }); orbitTimer = 0.32; }
+      else { const n = sel === 'lmg' ? 7 : 4; for (let i = 0; i < n; i++) audio.play(sel, { position: p, delay: i * (sel === 'smg' ? 0.07 : 0.09) }); orbitTimer = 1.6; }
+    }
+  }
+  if (!sel && orbitHandle) { orbitHandle.stop(); orbitHandle = null; }
+  audio.update(dt);
+  drawRadar(); drawMeter(); status();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+let lastStatus = 0;
+function status() {
+  const now = performance.now(); if (now - lastStatus < 250) return; lastStatus = now;
+  const i = audio.info();
+  $('#status').innerHTML = `<span>Kontext <b class="${i.state === 'running' ? 'ok' : 'bad'}">${i.state}</b></span><span>Rate <b>${i.sampleRate} Hz</b></span><span>Puffer <b>${i.buffers}</b> · Warteschlange <b>${i.queue}</b></span>`
+    + `<span>Stimmen <b>${i.voices}</b></span><span>Render <b>${Math.round(i.renderMs)} ms</b> (längster Block ${i.maxSliceMs.toFixed(1)} ms)</span><span>Raum <b>${i.space}</b> · innen ${i.indoor}</span><span>Dämpfung <b>${i.muffle} Hz</b></span>${i.errors ? `<span class="bad">Fehler ${i.errors}</span>` : ''}`;
+}
+
+// ---------------------------------------------------------------- Messung
+const camAt = () => { const c = new THREE.PerspectiveCamera(); c.position.set(0, 1.65, 0); c.updateMatrixWorld(); return c; };
+const P = (x, z, y = 1.6) => new THREE.Vector3(x, y, z);
+const MEASURES = [
+  ['Spieler: M-17 (ar)', e => e.play('ar', { player: true }), 1.5],
+  ['Spieler: KV-47 (ar_heavy)', e => e.play('ar_heavy', { player: true }), 1.5],
+  ['Spieler: HM-60 Salve ×10', e => { for (let i = 0; i < 10; i++) e.play('lmg', { player: true, delay: i * 0.08 }); }, 2.2],
+  ['Spieler: Brecher (sniper)', e => e.play('sniper', { player: true }), 2.5],
+  ['Spieler: Bulldog (shotgun)', e => e.play('shotgun', { player: true }), 2],
+  ['Spieler: P-9 (pistol)', e => e.play('pistol', { player: true }), 1.2],
+  ['Spieler: Adler (pistol_heavy)', e => e.play('pistol_heavy', { player: true }), 1.5],
+  ['Gegner 10 m: KV-47', e => e.play('ar_heavy', { position: P(4, -9) }), 1.8],
+  ['Gegner 40 m: KV-47', e => e.play('ar_heavy', { position: P(-10, -38) }), 2.5],
+  ['Gegner 100 m: Brecher', e => e.play('sniper', { position: P(30, -95) }), 3.5],
+  ['Explosion 15 m', e => e.play('explosion', { position: P(5, -14), concuss: false }), 4.5],
+  ['Explosion 80 m', e => e.play('explosion', { position: P(30, -75), concuss: false }), 5],
+  ['Schritt Metall 5 m (Sprint)', e => e.play('footstep', { surface: 'metal', sprint: true, position: P(2, -4, 0) }), 0.6],
+  ['Schritt Beton 12 m', e => e.play('footstep', { surface: 'concrete', position: P(4, -11, 0) }), 0.6],
+  ['Einschlag Metall 8 m', e => e.play('impact', { surface: 'metal', position: P(3, -7) }), 1],
+  ['Vorbeiflug (Überschall)', e => e.play('bullet_crack', { position: P(1.2, 0) }), 0.6],
+  ['Körpertreffer (Spieler)', e => e.play('hit_flesh', { priority: 3 }), 0.5],
+  ['Treffermarker', e => e.play('hitmarker'), 0.3],
+  ['Kill-Marker', e => e.play('hitmarker_kill'), 0.4],
+  ['Kopfschuss-Ding', e => e.play('headshot'), 1.2],
+  ['Medaille', e => e.play('medal'), 2],
+  ['Stufenaufstieg', e => e.ui('levelup'), 4.5],
+  ['Sieg', e => e.play('win'), 6],
+  ['Serie bereit', e => e.play('streak_ready'), 1],
+  ['Herzschlag', e => e.play('heartbeat'), 0.8],
+  ['UI: Hover', e => e.ui('hover'), 0.2],
+  ['UI: Klick', e => e.ui('click'), 0.2],
+  ['UI: Bestätigen', e => e.ui('confirm'), 0.6],
+  ['Atmo Hafen (6 s)', async e => { await e.prerender(['amb_bed_harbor']); e.startAmbience('harbor'); }, 6],
+  ['Atmo Werk (6 s)', async e => { await e.prerender(['amb_bed_industrial']); e.startAmbience('industrial'); }, 6],
+  ['Lobbymusik (8 s)', async e => { await e.prerender(['mus_drums', 'mus_bass', 'mus_pad', 'mus_arp', 'mus_bells', 'mus_drone', 'mus_riser']); e.startMusic(); }, 8],
+  ['Stresstest: alles gleichzeitig', e => {
+    e.play('explosion', { position: P(2, -5), concuss: false });
+    for (let i = 0; i < 12; i++) e.play('lmg', { player: true, delay: i * 0.075 });
+    for (let i = 0; i < 6; i++) e.play('ar_heavy', { position: P(-3, -8), delay: i * 0.1 });
+    e.play('hitmarker_kill', { delay: 0.2 }); e.play('headshot', { delay: 0.2 }); e.play('win', { delay: 0.3 });
+  }, 3],
+];
+
+async function measureAll(filter = null) {
+  const sr = audio.ctx?.sampleRate || 48000, rows = [];
+  for (const [name, fn, sec] of MEASURES) {
+    if (filter && !filter.test(name)) continue;
+    const r = await renderOffline(fn, { seconds: sec, sampleRate: sr, camera: camAt(), THREE, settings });
+    rows.push({ name, peakDb: +r.peakDb.toFixed(2), rmsDb: +r.rmsDb.toFixed(1), activeSec: +r.activeSec.toFixed(2), errors: r.stats.errors });
+  }
+  return rows;
+}
+
+async function smokeAll() {
+  await audio.unlock();
+  await audio.prerender();
+  const before = audio.stats.errors;
+  let n = 0;
+  for (const name of [...SOUND_NAMES, ...Object.keys(GUN_PROFILES)]) {
+    if (name.startsWith('mus_') || name.startsWith('amb_bed_')) continue;
+    audio.play(name, { volume: 0.2 }); audio.play(name, { position: ahead(8, 3), volume: 0.2 }); n += 2;
+    if (name === 'loop_drone') audio.stopAll(0.05);
+  }
+  for (const s of ['harbor', 'desert', 'industrial', 'range']) { audio.startAmbience(s); }
+  audio.startMusic();
+  return { triggered: n, errors: audio.stats.errors - before, info: audio.info() };
+}
+window.__audioLab.measureAll = measureAll;
+window.__audioLab.smokeAll = smokeAll;
+
+$('#measure').onclick = async () => {
+  $('#report').textContent = 'Rendere …';
+  const rows = await measureAll();
+  const max = Math.max(...rows.map(r => r.rmsDb).filter(Number.isFinite));
+  $('#report').innerHTML = `<table><thead><tr><th>Klang</th><th>Spitze dBFS</th><th>RMS dBFS</th><th>Dauer s</th><th style="width:30%"></th></tr></thead><tbody>${rows.map(r =>
+    `<tr><td>${r.name}</td><td class="${r.peakDb > -0.01 ? 'bad' : 'good'}">${r.peakDb}</td><td>${r.rmsDb}</td><td>${r.activeSec}</td><td><div class="bar" style="width:${Math.max(1, 100 - (max - r.rmsDb) * 2.5)}%"></div></td></tr>`).join('')}</tbody></table>`;
+};
+$('#smoke').onclick = async () => { const r = await smokeAll(); $('#report').textContent = `${r.triggered} Wiedergaben ausgelöst, Fehler: ${r.errors}, aktive Stimmen: ${r.info.voices}`; };
+</script>
+</body>
+</html>
