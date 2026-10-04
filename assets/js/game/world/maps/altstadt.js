@@ -6,12 +6,12 @@ import * as THREE from 'three';
 import { building, wall, stairs, railing, pitchedRoof } from '../arch.js';
 import {
   frame, crate, crateStack, barrel, barrelGroup, pallet, sandbags, car, van, lampPost, acUnit, cable,
-  bench, cafeTable, parasol, awning, marketStall, palm, tree, pot, laundry, electricBox, pipe, sphereGeom, dumpster, chair,
+  bench, cafeTable, parasol, awning, marketStall, palm, tree, pot, laundry, electricBox, pipe, sphereGeom, lowSphereGeom, dumpster, chair,
 } from '../props.js';
 
 const FH = 3.2;                       // Geschosshöhe
 const DIRV = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
-const PLASTER = ['#f2e9d8', '#efe2c8', '#ead3b0', '#f0dcc2', '#e7cba4', '#f4ede4', '#ecd3c4', '#e2e6df', '#e9c896', '#f1e4d0', '#dfc7a6'];
+const PLASTER = ['#f7efe2', '#f2dfbb', '#ecc98f', '#f0cfae', '#eab796', '#f5e7c6', '#e3e6dc', '#f0d9a6', '#e8c2a2', '#f6ecd8', '#e9d0b0'];
 const SHUTTERS = ['#2f6f9a', '#3c7a5a', '#2a5d7c', '#6f8f3a', '#9a4b2a', '#35626e', '#1f5f8a', '#4f7f6a'];
 const IRON = '#2b2d30';
 const STONE = '#e3d6bd';
@@ -27,10 +27,10 @@ export default {
   navSpacing: 1.5,
   groundNoise: 0.18,
   lighting: {
-    sun: { elevation: 63, azimuth: 208, color: '#fff1d8', intensity: 4.4 },
+    sun: { elevation: 61, azimuth: 212, color: '#ffeccc', intensity: 4.9 },
     sky: { turbidity: 2.6, rayleigh: 1.05, mieCoefficient: 0.0035, mieDirectionalG: 0.8, exposure: 0.6, clouds: { coverage: 0.1, density: 0.28, scale: 0.00024, elevation: 0.62 }, hazeHigh: 0.11, hazeAmount: 0.75 },
-    hemi: { sky: '#cfe0f4', ground: '#c9a97c', intensity: 0.78 },
-    env: { intensity: 0.7, ground: '#d6b88c', groundIntensity: 0.75, tint: '#fff8ee' },
+    hemi: { sky: '#d6e0ea', ground: '#e0bd8c', intensity: 0.6 },
+    env: { intensity: 0.58, ground: '#e0c090', groundIntensity: 0.9, tint: '#fff0dc' },
     fog: { color: '#d9e4ec', near: 90, far: 520 },
     shadow: { size: 40 },
   },
@@ -43,11 +43,12 @@ export default {
     // Boden: Kopfsteinpflaster in den Gassen, Steinplatten auf dem Brunnenplatz
     // -----------------------------------------------------------------------
     const PX0 = -16, PX1 = 15, PZ = 13;
-    b.groundTiled(PX0, -PZ, PX1, PZ, 'paving', { cell: 1 });
-    b.groundTiled(-46, -52, 46, -PZ, 'cobble', { cell: 1 });
-    b.groundTiled(-46, PZ, 46, 52, 'cobble', { cell: 1 });
-    b.groundTiled(-46, -PZ, PX0, PZ, 'cobble', { cell: 1 });
-    b.groundTiled(PX1, -PZ, 46, PZ, 'cobble', { cell: 1 });
+    const cob = { cell: 1, tint: '#e9d6b4' };
+    b.groundTiled(PX0, -PZ, PX1, PZ, 'paving', { cell: 1, tint: '#f0e0c4' });
+    b.groundTiled(-46, -52, 46, -PZ, 'cobble', cob);
+    b.groundTiled(-46, PZ, 46, 52, 'cobble', cob);
+    b.groundTiled(-46, -PZ, PX0, PZ, 'cobble', cob);
+    b.groundTiled(PX1, -PZ, 46, PZ, 'cobble', cob);
     // Kulissenboden
     b.groundTiled(-180, -190, 180, -52, 'sand', { cell: 6, collide: false, groundAO: false, chunk: 900 });
     b.groundTiled(-180, 52, 180, 190, 'sand', { cell: 6, collide: false, groundAO: false, chunk: 901 });
@@ -230,6 +231,7 @@ function house(b, M, o) {
     railing(b, cx, cz, ex, ez, st.y1, { tint: IRON, posts: 2 });
   }
   const res = { B, x0, x1, z0, z1, x, z, w, d, roofY, color, shutter, fh };
+  if (o.dress !== false) dressFacade(b, M, res, o);
   // Balkone, Klimageräte, Kletterpflanzen
   for (const bl of o.balconies || []) balcony(b, M, res, bl);
   for (const a of o.ac || []) {
@@ -242,6 +244,32 @@ function house(b, M, o) {
     pot(b, px, 0, pz, { r: 0.3, h: 0.45 });
   }
   return res;
+}
+
+/** Fassadendetails: Blumenkästen, Türlampen, Fallrohr, Hausnummern, Kabel. */
+function dressFacade(b, M, h, o) {
+  const flowers = ['#e0405a', '#f2f0ea', '#d0408a', '#f2b22a', '#c8302a'];
+  for (const op of o.open || []) {
+    const fl = op.floor ?? 0;
+    if (op.kind === 'window' && fl >= 1 && !op.closed && b.rand() < 0.45) {
+      const [px, pz, ry] = onWall(M, h, op.side, op.at, 0.14);
+      const y = fl * h.fh + (op.sill ?? 0.95) - 0.3;
+      const f = frame(b, px, y, pz, ry);
+      f.box(0, 0, 0, op.w + 0.1, 0.22, 0.24, 'tiles_terracotta', { tint: '#c47a52', collide: false, minimap: false, grad: false, ao: false });
+      const n = Math.max(2, Math.round(op.w / 0.32));
+      for (let i = 0; i < n; i++) { const [qx, qz] = f.P(-op.w / 2 + 0.1 + (i * (op.w - 0.2)) / (n - 1), 0); b.plant(b.rand() < 0.6 ? 'flowers' : 'bush', qx, y + 0.18, qz, { s: 0.32 + b.rand() * 0.12, tint: b.rand() < 0.6 ? b.pick(flowers) : undefined }); }
+    } else if (op.kind === 'door' && fl === 0 && !op.leaf && b.rand() < 0.55) {
+      const [px, pz, ry] = onWall(M, h, op.side, op.at + op.w / 2 + 0.35, 0.0);
+      wallLamp(b, px, 2.55, pz, ry);
+    }
+  }
+  // Fallrohr an einer Ecke (vom Dach bis zum Boden)
+  if (o.roof !== 'flat' && b.rand() < 0.8) {
+    const cx = b.rand() < 0.5 ? h.x0 + 0.12 : h.x1 - 0.12, cz = b.rand() < 0.5 ? h.z0 - 0.1 : h.z1 + 0.1;
+    const col = b.pick(['#8a8f94', '#b8694c', '#6f7a72']);
+    b.cyl(cx, 0, cz, 0.055, h.roofY - 0.1, 'metal_painted', { tint: col, seg: 6, collide: false, minimap: false, ao: false });
+    b.cyl(cx, h.roofY - 0.25, cz, 0.08, 0.25, 'metal_painted', { tint: col, seg: 6, collide: false, minimap: false, ao: false });
+  }
 }
 
 /** Punkt vor einer Hauswand (Südkoordinaten-Seite + Versatz) → [x, z, ry nach außen]. */
@@ -367,7 +395,7 @@ function handcart(b, x, z, ry, o = {}) {
   for (const sx of [-0.56, 0.56]) f.cyl(sx, 0.42, 0.2, 0.42, 0.06, 'wood_dark', { axis: 'x', collide: false, minimap: false, seg: 12 });
   for (const sx of [-0.35, 0.35]) f.box(sx, 0.5, -1.25, 0.05, 0.05, 1.1, 'wood_dark', { collide: false, minimap: false, grad: false, rx: -0.25 });
   const goods = o.goods || b.pick([['#e8862a', '#d43c2a'], ['#6aa53a', '#e6c53a'], ['#c8402f', '#8a3a7a']]);
-  for (let k = 0; k < 10; k++) f.geom(sphereGeom(), (b.rand() - 0.5) * 0.7, 0.72 + b.rand() * 0.12, (b.rand() - 0.5) * 1.2, 'white', { sx: 0.1, sy: 0.09, sz: 0.1, tint: goods[k % goods.length], collide: false, minimap: false, ao: false, bullet: false, cast: false });
+  for (let k = 0; k < 10; k++) f.geom(lowSphereGeom(), (b.rand() - 0.5) * 0.7, 0.72 + b.rand() * 0.12, (b.rand() - 0.5) * 1.2, 'white', { sx: 0.1, sy: 0.09, sz: 0.1, tint: goods[k % goods.length], collide: false, minimap: false, ao: false, bullet: false, cast: false });
   f.solid(0, 0, 0, 1.1, 0.95, 1.7, { minimap: 'cover' });
 }
 
@@ -501,7 +529,7 @@ function well(b, x, z, ctx) {
 function church(b) {
   const x0 = 19, x1 = 31, z0 = -8, z1 = 8, t = 0.6, H = 9.4, fy = 0.36;
   const mat = 'stone_wall', tint = '#eadfc8';
-  b.interior(x0 + 0.05, z0 + 0.05, x1 - 0.05, z1 - 0.05, -0.1, H, 0.5);
+  b.interior(x0 + 0.05, z0 + 0.05, x1 - 0.05, z1 - 0.05, -0.1, H, 0.62, [1, 0.92, 0.8]);
   // Boden (Schachbrett-Fliesen) + Sockel
   b.boxMM(x0 + t, 0, z0 + t, x1 - t, fy, z1 - t, 'tiles_pattern', { grad: false, minimap: false, tint: '#efe8da' });
   const wl = { h: H, t, mat, tint, frameMat: 'stone_wall', frameTint: '#d8c9ab', sillMat: 'stone_wall', minimap: 'wall', plinth: { h: 0.9, mat: 'stone_wall', tint: '#cdbf9f', over: 0.05 } };
@@ -570,8 +598,8 @@ function church(b) {
   b.box(29.62, fy + 0.6, 0, 1.05, 0.5, 2.0, 'tarp', { tint: '#9a2a2a', collide: false, minimap: false, grad: false, ao: false });
   for (const zz of [-0.9, 0.9]) { b.cyl(29.6, fy + 1.29, zz, 0.05, 0.4, 'white', { seg: 6, collide: false, minimap: false, ao: false }); b.cyl(29.6, fy + 1.69, zz, 0.03, 0.06, 'lamp_warm', { seg: 5, collide: false, minimap: false, ao: false, cast: false }); }
   // Altarbild (Rahmen + Fläche)
-  b.box(x1 - t - 0.05, 2.2, 0, 0.1, 3.6, 2.6, 'wood_dark', { tint: '#8a6a2a', collide: false, minimap: false, grad: false });
-  b.box(x1 - t - 0.11, 2.4, 0, 0.04, 3.2, 2.2, 'tarp', { tint: '#3a5a8a', collide: false, minimap: false, grad: false, ao: false });
+  b.box(x1 - t - 0.05, 2.0, 0, 0.1, 4.2, 4.4, 'metal_painted', { tint: '#b08a3a', collide: false, minimap: false, grad: false });
+  for (const [zz, w, h] of [[0, 1.8, 3.5], [-1.55, 1.1, 2.8], [1.55, 1.1, 2.8]]) b.box(x1 - t - 0.11, 2.3, zz, 0.04, h, w, 'tarp', { tint: zz ? '#7a3a2a' : '#2f4f7a', collide: false, minimap: false, grad: false, ao: false });
   // Kerzenständer
   for (const zz of [-3.4, 3.4]) {
     b.cyl(28.0, fy, zz, 0.18, 0.06, 'metal_painted', { tint: '#8a6a2a', seg: 8, collide: false, minimap: false });
@@ -595,9 +623,9 @@ function church(b) {
 
 function pew(b, x, z, y) {
   const f = frame(b, x, y, z, 0);
-  f.box(0, 0.42, 0, 0.42, 0.05, 3.3, 'wood_dark', { tint: '#6a4a32', collide: false, minimap: false, grad: false });
-  f.box(0.22, 0.42, 0, 0.06, 0.55, 3.3, 'wood_dark', { tint: '#5e4230', collide: false, minimap: false, grad: false });
-  for (const zz of [-1.6, 1.6]) f.box(0.05, 0, zz, 0.5, 0.95, 0.06, 'wood_dark', { tint: '#5e4230', collide: false, minimap: false });
+  f.box(0, 0.42, 0, 0.42, 0.05, 3.3, 'wood_planks', { tint: '#b08058', collide: false, minimap: false, grad: false });
+  f.box(0.22, 0.42, 0, 0.06, 0.55, 3.3, 'wood_planks', { tint: '#a07050', collide: false, minimap: false, grad: false });
+  for (const zz of [-1.6, 1.6]) f.box(0.05, 0, zz, 0.5, 0.95, 0.06, 'wood_planks', { tint: '#946848', collide: false, minimap: false });
   f.solid(0.05, 0, 0, 0.5, 0.95, 3.3, { minimap: 'cover' });
 }
 
@@ -774,7 +802,7 @@ function scooter(b, x, z, ry, color) {
 
 function waterTank(b, x, y, z) {
   for (const sx of [-0.5, 0.5]) b.box(x + sx, y, z, 0.12, 0.6, 1.4, 'metal_painted', { tint: IRON, collide: false, minimap: false });
-  b.cyl(x, y + 1.15, z, 0.55, 1.8, 'polymer', { axis: 'x', tint: '#e8e2d4', minimap: false });
+  b.cyl(x, y + 1.15, z, 0.55, 1.8, 'white', { axis: 'x', tint: '#e8e2d4', minimap: false });
   b.box(x - 0.5, y + 0.4, z + 1.0, 1.6, 0.04, 1.0, 'glass', { rx: -0.6, tint: '#2a3a5a', collide: false, minimap: false, ao: false });
 }
 
@@ -972,6 +1000,11 @@ function half(b, M) {
   });
   // Platz A / C (x −16..15, z 24..34): Deckung rund um die Flagge
   squareCover(b, M, south);
+  // Mittelstraße zwischen Café und Bäckerei bzw. zum Startbereich
+  for (const x of [-5.4, 5.4]) b.cyl(x, 0, Z(13.6), 0.16, 0.7, 'stone_wall', { r1: 0.12, tint: STONE, seg: 8, minimap: 'prop' });
+  if (south) { scooter(b, 4.4, Z(17.5), 0.3, '#2f6f9a'); handcart(b, -3.6, Z(38.6), 0.15, { goods: ['#e6c53a', '#e8862a'] }); barrelGroup(b, 4.6, Z(36.4), { n: 3, colors: ['#3a6f8a', '#3a6f8a', '#8a3a2a'] }); }
+  else { trike(b, 3.4, Z(19.0), Math.PI + 0.12, '#e8e4dc'); crateStack(b, -4.2, Z(37.6), { ry: 0.5 }); planter(b, 4.2, Z(38.2), 1.0, 2.4, { h: 0.75 }); }
+  pot(b, -5.6, 0, Z(21.0), { r: 0.32 }); pot(b, 5.6, 0, Z(15.4), { r: 0.28, plant: 'flowers' });
   // Laternen + Straßenschilder
   lampPost(b, -6.4, Z(33.2), { h: 4.6, arm: 0.9, ry: s > 0 ? -Math.PI / 2 : -Math.PI / 2, kind: 'warm', tint: IRON });
   lampPost(b, 14.4, Z(25.0), { h: 4.6, arm: 0.9, ry: Math.PI, kind: 'warm', tint: IRON });
@@ -1206,7 +1239,7 @@ function bakery(b, M, h, south) {
   b.box(10.0, 1.12, Z(16.6), 3.5, 0.05, 0.9, 'stone_wall', { tint: '#efe8da', collide: false, minimap: false, grad: false });
   // Regal + Brote / Medizinschrank
   b.box(10.4, 0.12, Z(22.4), 4.2, 2.1, 0.6, 'wood_dark', { tint: '#7a5a40', minimap: 'cover' });
-  for (let i = 0; i < 16; i++) b.geom(sphereGeom(), 8.6 + (i % 8) * 0.5, 0.75 + Math.floor(i / 8) * 0.6, Z(22.2), 'wood_crate', { sx: 0.2, sy: 0.12, sz: 0.14, tint: south ? '#c98a4a' : '#e8e4dc', collide: false, minimap: false, ao: false, bullet: false });
+  for (let i = 0; i < 16; i++) b.geom(lowSphereGeom(), 8.6 + (i % 8) * 0.5, 0.75 + Math.floor(i / 8) * 0.6, Z(22.2), 'wood_crate', { sx: 0.2, sy: 0.12, sz: 0.14, tint: south ? '#c98a4a' : '#e8e4dc', collide: false, minimap: false, ao: false, bullet: false });
   if (south) {
     // Ofen
     b.box(13.8, 0.12, Z(19.0), 1.6, 1.8, 2.2, 'brick', { tint: '#c8a080', minimap: 'cover' });
@@ -1314,13 +1347,20 @@ function backdrop(b) {
     const w = b.rnd(7, 11), d = b.rnd(7, 11), h = b.rnd(6.5, 13), q = 1000 + (x < 0 ? 0 : 1) + (z < 0 ? 0 : 2);
     b.box(x, 0, z, w, h, d, 'plaster_white', { tint: b.pick(PLASTER), collide: false, minimap: false, grad: false, ao: false, chunk: q, cast: false });
     if (b.rand() < 0.6) {
-      const ridgeX = w > d;
-      const span = ridgeX ? d : w, ang = Math.atan2(span * 0.42 / 2, span / 2), len = Math.hypot(span / 2, span * 0.21) + 0.3;
-      for (const sd of [-1, 1]) {
-        if (ridgeX) b.box(x, h + span * 0.105 - 0.1, z + sd * span / 4, w + 0.6, 0.15, len, 'roof_tiles', { rx: sd * ang, tint: b.pick(roofTints), collide: false, minimap: false, grad: false, ao: false, chunk: q, uv: 'local', cast: false });
-        else b.box(x + sd * span / 4, h + span * 0.105 - 0.1, z, len, 0.15, d + 0.6, 'roof_tiles', { rz: -sd * ang, tint: b.pick(roofTints), collide: false, minimap: false, grad: false, ao: false, chunk: q, uv: 'local', cast: false });
+      // Satteldach als Prisma aus zwei Keilen
+      const ridgeX = w > d, span = ridgeX ? d : w, len = (ridgeX ? w : d) + 0.6, rise = span * 0.21, tint = b.pick(roofTints);
+      const o = { tint, collide: false, minimap: false, ao: false, chunk: q, uv: 'local', cast: false };
+      if (ridgeX) {
+        b.wedge(x, h, z - span / 4 - 0.15, len, rise, span / 2 + 0.3, 'roof_tiles', o);
+        b.wedge(x, h, z + span / 4 + 0.15, len, rise, span / 2 + 0.3, 'roof_tiles', { ...o, ry: Math.PI });
+      } else {
+        b.wedge(x - span / 4 - 0.15, h, z, len, rise, span / 2 + 0.3, 'roof_tiles', { ...o, ry: Math.PI / 2 });
+        b.wedge(x + span / 4 + 0.15, h, z, len, rise, span / 2 + 0.3, 'roof_tiles', { ...o, ry: -Math.PI / 2 });
       }
-    } else b.box(x, h, z, w + 0.1, 0.5, d + 0.1, 'plaster_white', { tint: '#f2ece0', collide: false, minimap: false, grad: false, ao: false, chunk: q, cast: false });
+    } else {
+      b.box(x, h, z, w + 0.1, 0.5, d + 0.1, 'plaster_white', { tint: '#f2ece0', collide: false, minimap: false, grad: false, ao: false, chunk: q, cast: false });
+      if (b.rand() < 0.5) b.box(x + b.rnd(-2, 2), h + 0.5, z + b.rnd(-2, 2), 1.4, 1.1, 1.4, 'white', { tint: '#e8e2d4', collide: false, minimap: false, ao: false, chunk: q, cast: false });
+    }
   }
   // Kuppelkirche im Nordwesten + Minarett-artiger Turm im Südosten
   b.cyl(-78, 0, -92, 9, 14, 'stone_wall', { seg: 16, tint: '#e4d7bc', collide: false, minimap: false, chunk: 1000, cast: false });
@@ -1329,13 +1369,34 @@ function backdrop(b) {
   b.cyl(86, 0, 96, 2.2, 26, 'plaster_white', { seg: 10, tint: '#f2ece0', collide: false, minimap: false, chunk: 1003, cast: false });
   b.cyl(86, 26, 96, 2.6, 0.6, 'plaster_white', { seg: 10, tint: '#e2d6bd', collide: false, minimap: false, chunk: 1003, cast: false });
   b.cyl(86, 26.6, 96, 2.0, 3.5, 'roof_tiles', { r1: 0.1, seg: 10, tint: '#c27154', collide: false, minimap: false, chunk: 1003, cast: false });
-  // Hügel / Tafelberge am Horizont
-  for (const [x, z, w, d, h] of [[-150, -160, 120, 40, 34], [10, -175, 160, 30, 26], [150, -120, 40, 110, 30], [160, 80, 40, 120, 22], [-30, 170, 180, 30, 28], [-165, 60, 30, 140, 24]]) {
-    b.box(x, -1, z, w, h, d, 'sand', { tint: '#c8a87a', collide: false, minimap: false, grad: false, ao: false, chunk: 1010, cast: false, uv: 'world' });
-  }
+  // Hügelring am Horizont (trockene Hänge)
+  b.geom(hillsGeom(), 0, 0, 0, 'sand', { tint: '#d4b27f', collide: false, minimap: false, grad: false, ao: false, chunk: 1010, cast: false, uv: 'world', bullet: false });
   // Zypressen
   for (let i = 0; i < 34; i++) {
     const a = b.rand() * Math.PI * 2, r = b.rnd(72, 125), x = Math.cos(a) * r, z = Math.sin(a) * r, h = b.rnd(7, 11);
     b.cyl(x, 0, z, b.rnd(0.8, 1.1), h, 'grass', { r1: 0.12, seg: 7, tint: '#4a5e3a', collide: false, minimap: false, grad: false, ao: false, chunk: 1011, cast: false });
   }
+}
+
+/** Ringförmige Hügellandschaft um die Stadt (Radius 130–430 m). */
+function hillsGeom() {
+  const segA = 96, rings = [128, 142, 160, 182, 210, 245, 290, 345, 430];
+  const pos = [], idx = [];
+  const n1 = (a, k) => Math.sin(a * 3 + k) * 0.45 + Math.sin(a * 7 + k * 2.3) * 0.3 + Math.sin(a * 17 + k * 0.7) * 0.15 + Math.sin(a * 31 + k * 1.9) * 0.1;
+  for (const r of rings) for (let i = 0; i <= segA; i++) {
+    const a = (i / segA) * Math.PI * 2;
+    const t = Math.min(1, Math.max(0, (r - 140) / 170));
+    const h = -0.8 + t * t * (14 + 26 * (0.5 + 0.5 * n1(a, r * 0.013))) + Math.max(0, r - 300) * 0.05;
+    pos.push(Math.cos(a) * r, h, Math.sin(a) * r);
+  }
+  for (let j = 0; j < rings.length - 1; j++) for (let i = 0; i < segA; i++) {
+    const a = j * (segA + 1) + i, c = a + segA + 1;
+    idx.push(a, a + 1, c, a + 1, c + 1, c);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  if (g.attributes.normal.getY(segA + 3) < 0) { for (let i = 0; i < idx.length; i += 3) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; } g.setIndex(idx); g.computeVertexNormals(); }
+  return g;
 }

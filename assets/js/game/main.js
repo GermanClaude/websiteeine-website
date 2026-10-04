@@ -89,7 +89,7 @@ const G = {
   actors: [],
   match: {
     state: 'boot', modeId: null, mapId: null, difficulty: null, allies: 0, enemies: 0, loadout: null,
-    startedAt: null, countdown: 0, ffa: false, timeLimit: null, scoreLimit: null, pausedFrom: null, endedAt: null, result: null,
+    startedAt: null, startedReal: null, countdown: 0, ffa: false, timeLimit: null, scoreLimit: null, pausedFrom: null, endedAt: null, result: null,
   },
   time: { dt: 0, elapsed: 0, frame: 0, real: 0 },
   timeScale: 1,
@@ -416,7 +416,7 @@ async function startMatch(config) {
     Object.assign(G.match, {
       modeId: cfg.modeId, mapId: cfg.mapId, difficulty: cfg.difficulty, allies: cfg.allies, enemies: cfg.enemies,
       loadout: { ...cfg.loadout }, ffa: cfg.ffa, timeLimit: cfg.timeLimit, scoreLimit: cfg.scoreLimit,
-      startedAt: null, countdown: 0, pausedFrom: null, endedAt: null, result: null,
+      startedAt: null, startedReal: null, countdown: 0, pausedFrom: null, endedAt: null, result: null,
     });
     settings.patch({ lastMode: cfg.modeId, lastMap: cfg.mapId, difficulty: cfg.difficulty, lastLoadout: cfg.loadout });
     setState('loading');
@@ -505,6 +505,7 @@ async function warmUp() {
 }
 
 function beginCountdown() {
+  perf.lowSince = perf.highSince = null;
   G.match.countdown = 3;
   G._countShown = 3;
   setState('countdown');
@@ -521,6 +522,7 @@ function tickCountdown(dt) {
   if (G.match.countdown <= 0) {
     setState('playing');
     G.match.startedAt = G.time.elapsed;
+    G.match.startedReal = G.time.real;
     G.events.emit('match:start', { modeId: G.match.modeId, mapId: G.match.mapId });
   }
 }
@@ -711,13 +713,14 @@ function updateRespawns() {
 }
 
 /**
- * Leistungsregelung (§11a): < 40 FPS für 3 s → Pixelverhältnis um 15 % senken (bis 0,55);
- * ist das ausgereizt und Qualität = 'auto', eine Stufe tiefer. > 56 FPS für 8 s → Auflösung zurück.
+ * Leistungsregelung (§11a): < 40 FPS für 3 s → Pixelverhältnis um 15 % senken. Bei quality 'auto' wird
+ * zuerst bis 0,72 skaliert und dann eine Stufe tiefer geschaltet (Auflösung wieder 0,9) – erst auf der
+ * niedrigsten Stufe geht es bis 0,55. > 56 FPS für 8 s → Auflösung schrittweise zurück.
  * Abgeschaltet, wenn ?quality=… die Stufe für Tests festlegt.
  */
 const perf = { lowSince: null, highSince: null, lastChange: 0 };
 function adaptPerformance(now) {
-  if (QUALITY_OVERRIDE || G.match.startedAt == null || G.time.elapsed - G.match.startedAt < 3) return;
+  if (QUALITY_OVERRIDE || G.match.startedReal == null || G.time.real - G.match.startedReal < 3) return;
   const R = G.renderer;
   const fps = R.info().fps;
   if (!fps) return;
@@ -728,17 +731,17 @@ function adaptPerformance(now) {
   if (perf.lowSince != null && now - perf.lowSince > 3000) {
     perf.lastChange = now;
     perf.lowSince = now;
-    if (R.resolutionScale > 0.56) {
-      R.setResolutionScale(R.resolutionScale - 0.15);
-    } else if (settings.get('quality') === 'auto') {
-      const idx = QUALITY_LEVELS.indexOf(R.quality);
-      if (idx > 0) {
-        const next = QUALITY_LEVELS[idx - 1];
-        console.info(`[NULLPUNKT] Automatische Qualität: ${R.quality} → ${next} (${fps} FPS)`);
-        R.setQuality(next);
-        R.setResolutionScale(0.85);
-        applyQualityClasses();
-      }
+    const idx = QUALITY_LEVELS.indexOf(R.quality);
+    const canDrop = settings.get('quality') === 'auto' && idx > 0;
+    const floor = canDrop ? 0.72 : 0.55;
+    if (R.resolutionScale > floor + 0.01) {
+      R.setResolutionScale(Math.max(floor, R.resolutionScale - 0.15));
+    } else if (canDrop) {
+      const next = QUALITY_LEVELS[idx - 1];
+      console.info(`[NULLPUNKT] Automatische Qualität: ${R.quality} → ${next} (${fps} FPS)`);
+      R.setQuality(next);
+      R.setResolutionScale(0.9);
+      applyQualityClasses();
     }
   } else if (perf.highSince != null && now - perf.highSince > 8000 && R.resolutionScale < 1) {
     perf.lastChange = now;

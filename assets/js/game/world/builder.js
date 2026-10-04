@@ -161,9 +161,11 @@ function geomPrim(geometry) {
 // MapBuilder
 // ---------------------------------------------------------------------------
 export class MapBuilder {
-  constructor({ bounds, seed = 1, chunkSize = 30, groundNoise = 0.14 } = {}) {
+  constructor({ bounds, seed = 1, chunkSize = 30, groundNoise = 0.14, splitTris = 24000, interiorTint = [1, 0.95, 0.86] } = {}) {
     this.bounds = bounds; // { minX, maxX, minZ, maxZ }
     this.chunkSize = chunkSize;
+    this.splitTris = splitTris;
+    this.interiorTint = interiorTint;
     this.groundNoise = groundNoise;
     let s = seed >>> 0 || 1;
     this.rand = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -462,8 +464,8 @@ export class MapBuilder {
   }
 
   /** Innenraum-Volumen: Flächen innen werden abgedunkelt (gebackenes Innenraumlicht). */
-  interior(minX, minZ, maxX, maxZ, minY, maxY, factor = 0.62) {
-    this.interiors.push({ minX, minZ, maxX, maxZ, minY, maxY, factor });
+  interior(minX, minZ, maxX, maxZ, minY, maxY, factor = 0.62, tint = null) {
+    this.interiors.push({ minX, minZ, maxX, maxZ, minY, maxY, factor, tint: tint || this.interiorTint });
     return this;
   }
 
@@ -549,12 +551,13 @@ export class MapBuilder {
     return (g(i, j) * (1 - tx) + g(i + 1, j) * tx) * (1 - tz) + (g(i, j + 1) * (1 - tx) + g(i + 1, j + 1) * tx) * tz;
   }
 
-  _interiorFactor(x, y, z) {
-    let f = 1;
+  /** Gebackenes Innenraumlicht: dunkler und leicht warm (Himmelslicht dringt kaum ein). → Volumen oder null */
+  _interiorAt(x, y, z) {
+    let best = null;
     for (const v of this.interiors) {
-      if (x > v.minX && x < v.maxX && z > v.minZ && z < v.maxZ && y > v.minY && y < v.maxY) f = Math.min(f, v.factor);
+      if (x > v.minX && x < v.maxX && z > v.minZ && z < v.maxZ && y > v.minY && y < v.maxY && (!best || v.factor < best.factor)) best = v;
     }
-    return f;
+    return best;
   }
 
   /** Großflächiges Farb-Rauschen (Kachelwiederholung kaschieren) */
@@ -595,7 +598,10 @@ export class MapBuilder {
         if (!fl) continue;
         const x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
         let k = 1;
-        if (fl & F_INTERIOR && this.interiors.length) k *= this._interiorFactor(x + N[i * 3] * 0.06, y + N[i * 3 + 1] * 0.06, z + N[i * 3 + 2] * 0.06);
+        if (fl & F_INTERIOR && this.interiors.length) {
+          const v = this._interiorAt(x + N[i * 3] * 0.06, y + N[i * 3 + 1] * 0.06, z + N[i * 3 + 2] * 0.06);
+          if (v) { k *= v.factor; if (v.tint) { C[i * 3] *= v.tint[0]; C[i * 3 + 1] *= v.tint[1]; C[i * 3 + 2] *= v.tint[2]; } }
+        }
         if (fl & F_GROUND && y < 0.6) k *= 1 - this._sampleAO(x, z) * 0.62;
         if (fl & F_NOISE) k *= 1 - this.groundNoise * 0.5 + this._noise(x, z) * this.groundNoise;
         if (k !== 1) { C[i * 3] *= k; C[i * 3 + 1] *= k; C[i * 3 + 2] *= k; }
@@ -639,7 +645,8 @@ export class MapBuilder {
       for (const cast of [true, false]) {
         const sub = list.filter(b => b.cast === cast);
         if (!sub.length) continue;
-        if (tris < 6000) makeMesh(sub, mat, matOpts, cast);
+        // erst ab vielen Dreiecken pro Chunk teilen (weniger Draw Calls; Karten sind kompakt)
+        if (tris < this.splitTris) makeMesh(sub, mat, matOpts, cast);
         else for (const b of sub) makeMesh([b], mat, matOpts, cast);
       }
     }

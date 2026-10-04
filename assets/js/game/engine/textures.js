@@ -56,7 +56,7 @@ const MATS = {
   brick:             { tex: 'brick', tile: 2, surface: 'concrete' },
   brick_dark:        { tex: 'brick_dark', tile: 2, surface: 'concrete' },
   stone_wall:        { tex: 'stone_wall', tile: 2.5, surface: 'concrete' },
-  cobble:            { tex: 'cobble', tile: 2, surface: 'concrete' },
+  cobble:            { tex: 'cobble', tile: 1.5, surface: 'concrete' },
   paving:            { tex: 'paving', tile: 2.4, surface: 'concrete' },
   roof_tiles:        { tex: 'roof_tiles', tile: 1.6, surface: 'tile' },
   wood_planks:       { tex: 'wood_planks', tile: 2, surface: 'wood' },

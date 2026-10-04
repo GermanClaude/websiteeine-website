@@ -66,7 +66,7 @@ export function bulldog(b) {
   const axis = 0.06;
   // System (Stahl, brüniert) mit gerundeter Oberseite
   b.side('steelDark', [
-    [-0.07, 0.016], [0.152, 0.016], [0.152, 0.08], [0.14, 0.088], [-0.05, 0.09], [-0.07, 0.084],
+    [-0.07, 0.016], [0.152, 0.016], [0.152, 0.078], [0.14, 0.085], [-0.05, 0.086], [-0.07, 0.08],
   ], 0.036, 0, { bevel: 0.004, bevelSeg: 2 });
   ejectionPort(b, 0.0181, 0.058, 0.085, 0.07, 0.024, 'steelDark');
   if (b.hi) {
@@ -87,17 +87,26 @@ export function bulldog(b) {
   b.side('steel', [[0.024, 0.008], [0.027, -0.004], [0.022, -0.018], [0.018, -0.016], [0.021, -0.004], [0.02, 0.008]], 0.006, 0, { bevel: 0.0008 });
   // Walnuss-Schaft mit halbem Pistolengriff
   b.side('woodWalnut', [
-    [-0.066, 0.086], [-0.13, 0.081], [-0.26, 0.074], [-0.4, 0.068], [-0.404, 0.062], [-0.404, -0.078], [-0.39, -0.083],
+    [-0.066, 0.078], [-0.12, 0.066], [-0.26, 0.061], [-0.4, 0.058], [-0.404, 0.052], [-0.404, -0.078], [-0.39, -0.083],
     [-0.3, -0.06], [-0.18, -0.03], [-0.1, -0.014], [-0.065, -0.03], [-0.045, -0.046], [-0.024, -0.048], [-0.008, -0.026],
     [0.0, 0.0], [-0.008, 0.016], [-0.066, 0.018],
   ], 0.04, 0, { bevel: 0.009, bevelSeg: 2 });
-  b.side('rubber', [[-0.404, 0.066], [-0.424, 0.066], [-0.428, 0.05], [-0.428, -0.082], [-0.42, -0.094], [-0.404, -0.09]], 0.044, 0, { bevel: 0.004 });
+  b.side('rubber', [[-0.404, 0.058], [-0.424, 0.058], [-0.428, 0.044], [-0.428, -0.082], [-0.42, -0.094], [-0.404, -0.09]], 0.044, 0, { bevel: 0.004 });
   if (b.hi) b.box('polymer', 0.03, 0.006, 0.022, 0, -0.06, -0.035, { rx: 0.5, c: 0.002 });          // Griffkappe
   // Lauf mit Laufschiene + Perlkorn
   b.cyl('steelDark', 0.0118, 0.0118, 0.47, 0, axis, 0.387, { seg: b.seg(16, 6) });
   b.box('steelDark', 0.008, 0.003, 0.46, 0, axis + 0.026, 0.385, { c: 0.0008 });
   for (let i = 0; i < (b.hi ? 12 : 2); i++) b.box('steelDark', 0.004, 0.014, 0.005, 0, axis + 0.018, 0.17 + i * (b.hi ? 0.038 : 0.42), { c: 0 });
-  b.sphere('paintWhite', 0.0026, 0, axis + 0.0298, 0.61, { seg: 8, hseg: 6 });
+  // Taktische Visierung: Geisterring auf dem Gehäuse, Korn mit Schutzohren auf dem Lauf
+  const sl = 0.106;
+  b.box('steelDark', 0.03, 0.008, 0.034, 0, 0.09, -0.012, { c: 0.002 });
+  for (const s of [-1, 1]) b.side('steelDark', [[-0.026, 0.094], [0.002, 0.094], [0.0, 0.117], [-0.018, 0.117]], 0.004, s * 0.0118, { bevel: 0.0008 });
+  b.box('steelDark', 0.006, 0.012, 0.006, 0, 0.0975, -0.012, { c: 0.001 });
+  b.torus('steelDark', 0.0062, 0.0021, 0, sl, -0.012, { seg: b.seg(8, 4), tseg: b.seg(18, 8) });
+  b.box('steelDark', 0.016, 0.026, 0.02, 0, axis + 0.024, 0.58, { c: 0.002 });
+  for (const s of [-1, 1]) b.side('steelDark', [[0.572, axis + 0.034], [0.59, axis + 0.034], [0.588, sl + 0.006], [0.576, sl + 0.006]], 0.0028, s * 0.0075, { bevel: 0.0006 });
+  b.box('steelDark', 0.0032, sl - axis - 0.036, 0.004, 0, (sl + axis + 0.036) / 2, 0.582, { c: 0.0006 });
+  b.sphere('glowAmber', 0.0012, 0, sl - 0.0005, 0.5795, { seg: 8, hseg: 6 });
   b.circle('cavity', 0.0095, 0, axis, 0.6225);
   b.anchor('muzzle', 0, axis, 0.623);
   // Röhrenmagazin + Kappe + Laufschelle
@@ -119,7 +128,7 @@ export function bulldog(b) {
   b.cyl('brass', 0.0109, 0.0109, 0.013, 0, 0.012, 0.059, { part: 'shell', seg: b.seg(10, 5) });
   b.anchor('rightHandGrip', 0, -0.014, -0.03, { data: { rake: 0.5, gw: 0.02, gd: 0.022, gu: 0.0, ho: 0.03, tu: 0.04 } });
   b.anchor('trigger', 0, -0.008, 0.02);
-  b.anchor('sight', 0, 0.0915, -0.045, { data: { type: 'iron', eyeRelief: 0.22 } });
+  b.anchor('sight', 0, sl, -0.012, { data: { type: 'iron', eyeRelief: 0.15 } });
   b.anchor('leftHandGrip', 0, axis - 0.048, 0.3, { part: 'pump', data: { style: 'pump', w: 0.0216, h: 0.0254 } });
   b.meta = { sight: 'iron', axis, kind: 'shotgun', hidden: ['shell'] };
 }

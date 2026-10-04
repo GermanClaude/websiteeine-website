@@ -41,7 +41,7 @@ export const HANDLING = {
   p9: { ...PISTOL },
   adler: { ...PISTOL, kick: { back: 0.045, up: 0.15, side: 0.012, roll: 0.05, kickRot: 0.1 }, shell: 'big', flash: 1.0, flashLen: 0.8, weight: 0.85, reloadTime: 1.9, emptyTime: 2.35 },
   knife: {
-    ...PISTOL, hip: [0.13, -0.15, -0.28], hipRot: [0.25, 0.25, 0.6], sprintPos: [0.0, -0.06, 0.04], sprintRot: [-0.3, 0.2, 0.3],
+    ...PISTOL, hip: [0.15, -0.17, -0.34], hipRot: [1.12, 0.5, 0.78], sprintPos: [0.0, -0.05, 0.05], sprintRot: [-0.35, 0.15, 0.2],
     action: 'knife', leftGrip: 'none', reload: 'none', shell: 'none', flash: 0, weight: 0.5, equipTime: 0.25,
   },
 };

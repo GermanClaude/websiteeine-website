@@ -33,6 +33,8 @@ export function initZero({ sound } = {}) {
   if (!target || !h1) return null;
 
   split(h1, { sr: 'NULLPUNKT' });
+  // Obergrenze auch aus der Höhe: Im Querformat am Telefon bleibt der Aufruf zum Spielen im ersten Bildschirm.
+  h1.fitOpts = { max: () => Math.max(64, Math.min(420, window.innerHeight * (window.innerWidth > window.innerHeight * 1.6 ? 0.34 : 0.5))) };
   const kin = new Kinetic(h1, { conserve: true });
   let shots = [];
   let done = false;

@@ -1006,3 +1006,29 @@ Test with `node tools/shot.mjs` against the shared server at 360×740, 412×915 
 - [ ] Lighthouse mobile: Performance ≥ 90, Accessibility 100, CLS < 0.02, TBT < 150 ms. three.js is not requested before the Arsenal approaches the viewport.
 - [ ] At rest (no input for 3 s) the page has no rAF callbacks and the stage does not render.
 - [ ] Screen reader pass (VoiceOver iOS, NVDA): the headline words are read as whole words, the sentence controls are named, live messages are concise, and every visual-only encoding (cuts, glyph history, plan) has a text equivalent.
+
+---
+
+## 15. Implementierungsnotizen (site, 2026-10-04)
+
+Stand der Umsetzung und bewusste Abweichungen von diesem Entwurf. Alles Übrige ist wie oben beschrieben gebaut.
+
+**Dateien.** `index.html`, `assets/css/site.css`, `assets/js/site/*.js` (main, data, state, loop, motion, fmt, dom, live, config, fit, kinetic, cursor, nav, zero, deploy, sound, cuts, ballistics, fire, stage3d, arsenal-view, modes-view, plan, maps-view, profile-view, fahne, settings-view, controls-view, about-view), `assets/img/favicon.svg` (auch von `spielen.html` genutzt), `assets/img/og.png` (1200 × 630, aus der Seitenschrift gerendert).
+
+**Abweichungen und Ergänzungen**
+- *Favicon*: Datei `assets/img/favicon.svg` statt `data:`-URI, weil die Spielseite dasselbe Symbol verlinkt.
+- *Impressum*: gesteuert über `assets/js/site/config.js` (`IMPRESSUM.name`, `street`, `city`, `country`, `email`, `phone`, `responsible`). Leer = Block bleibt verborgen; es wird nie etwas erfunden. Der Platzhaltersatz aus §08 entfällt dadurch.
+- *Index (≥ 1024)*: Liegt Inhalt der Randspalte (Waffenindex, Kartenangaben, Einstellungsbeschriftungen, Fuß) hinter dem fixierten Index, faltet er sich auf den aktuellen Eintrag; Hover/Fokus klappt ihn wieder auf. Ohne das verdeckte der Index Teile des Arsenals.
+- *Bühne am Telefon (< 720)*: Bild und Name stehen im Quadrat, darunter ein schwarzer HUD-Streifen (Seitenverhältnis 1 : 1,34) für FEUER / ZIELEN / R, Munition und Hinweis. Ab 720 liegt das HUD über dem Bild; Texte dort nutzen `mix-blend-mode: difference`, damit sie auf hellen Buchstaben lesbar bleiben (bei `forced-colors` aus).
+- *Sichtlinien-Satz*: Wörter fester Deckung werden als Ganzes fett, sobald eine ihrer Kanten vom Operator aus sichtbar ist (`castVisibility` liefert `seen`); das Sichtpolygon endet an Wänden und würde Wörter im Blockinneren sonst nie erreichen. Weiche Flächen (Wasser, Bahnen …) bleiben zweilagig per `clipPath`. Gemessen wird im fetten Schnitt, damit beleuchtete Wörter in ihren Block passen.
+- *Kartendaten*: `maps.data.js` liefert derzeit leere `layout`-Listen. Dann zeigt §03 Name, Daten, Palette und „Hier spielen.“ und an Stelle des Plans „KEIN SIGNAL. Für diese Karte liegt noch kein vermessener Plan vor.“ Sobald `world` die Listen füllt (`[x, z, w, d, kind, rot?]`, Mittelpunkt, Meter), erscheint der Plan ohne Änderung an der Website. Optional gezeichnet: `flags` als Mono-Buchstaben.
+- *Touch-Belegung (§07)*: Ist das Telefonbild schmaler als 600 px, ist es nur Bild; bedient wird über eine Wortleiste darunter (keine überlappenden 44-px-Ziele). Zusätzlich das Wort „MESSER“, weil das Spiel einen eigenen Nahkampfknopf hat.
+- *Hero am Telefon*: unter „Sofort spielen.“ ein Hinweis mit Querformat-Symbol: „Quer halten. Links laufen, rechts zielen und feuern. Touch-Steuerung“. Die Wortmarke begrenzt sich zusätzlich über die Fensterhöhe, damit im Querformat der Aufruf im ersten Bildschirm bleibt.
+- *Ton*: UI-Klänge aus `game/engine/audio/ui-sounds.js` (`createUiSounds(settings, { gestures: false })`), Waffen/Nachladen/Aufstieg erst bei Bedarf aus `game/engine/audio.js` (`new AudioEngine({ settings, events: null }, { autoUnlock: false, autoMusic: false })`), sonst lokale Synthese.
+- *Vitrine*: Bei LRU-Verdrängung werden nur Geometrien freigegeben; Materialien und Texturen teilt `models.js` zwischen allen Waffen. Die Kadenz läuft nach echter Zeit (die Schleife kappt `dt` für Federn bei 0,1 s).
+- *Abschnitte vorzeitig aufbauen*: `ctx.ensure('arsenal' | 'settings' …)` (z. B. „Im Arsenal prüfen.“, „Namen ändern“).
+- *Daten löschen*: setzt Profil, Einstellungen und `nullpunkt:site` zurück und entfernt danach alle `nullpunkt:*`-Schlüssel; die Seite schreibt erst bei der nächsten Änderung wieder.
+
+**Geprüft** mit Playwright (SwiftShader): 360 × 740, 390 × 844 (mobil), 412 × 915, 915 × 412, 844 × 390, 768 × 1024, 1024 × 768, 1280 × 720, 1440 × 900, 1920 × 1080, 2560 × 1440; ohne WebGL, mit reduzierter Bewegung, ohne JavaScript; Tastaturreihenfolge; keine Konsolenfehler, kein waagerechter Überlauf, Touch-Ziele ≥ 44 px; in Ruhe 0 rAF-Aufrufe.
+
+**Budgets (gzip)**: `index.html` 5,5 KB, `site.css` 13 KB, kritische Site-Skripte ≈ 29,6 KB, alle Site-Skripte zusammen ≈ 72 KB (knapp über 70 KB; der Großteil ist `arsenal-view.js`, das erst in Sichtnähe des Arsenals lädt).

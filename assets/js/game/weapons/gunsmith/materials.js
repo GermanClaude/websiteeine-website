@@ -42,6 +42,8 @@ const DEFS = {
   knurl: () => std({ color: 0x2c2d31, metalness: 0.7, roughness: 0.5, normalMap: knurlNormal(), normalScale: new THREE.Vector2(1, 1) }),
   // Optik-Linse: dunkel, stark spiegelnd, bläulich vergütet
   lens: () => std({ color: 0x0c1b22, metalness: 1.0, roughness: 0.04, envMapIntensity: 1.6, emissive: 0x06141c, emissiveIntensity: 1 }),
+  // Durchsichtige Optiklinse (Rotpunkt/ACOG): leicht bläulich vergütet, spiegelt die Umgebung
+  lensClear: () => std({ color: 0x8fb8d8, metalness: 0.6, roughness: 0.04, transparent: true, opacity: 0.16, depthWrite: false, envMapIntensity: 1.8 }),
   // Holo-Fenster: leicht getöntes Glas
   glass: () => std({ color: 0x9fd8d0, metalness: 0.4, roughness: 0.05, transparent: true, opacity: 0.18, depthWrite: false, envMapIntensity: 1.4 }),
   // Transluzentes Magazin (QX-90)

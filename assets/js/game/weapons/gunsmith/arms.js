@@ -21,7 +21,7 @@ const FINGERS = [
 ];
 const THUMB = { base: [-0.027, -0.011, -0.018], len: [0.042, 0.032, 0.026], r: [0.0128, 0.0112, 0.0101] };
 
-const GLOVE = new THREE.Color(0x2c2e30), PALM = new THREE.Color(0x5b554b), PAD = new THREE.Color(0x141516), CUFF = new THREE.Color(0x3a3c36);
+const GLOVE = new THREE.Color(0x2e3032), PALM = new THREE.Color(0x5b554b), PAD = new THREE.Color(0x1d1e20), CUFF = new THREE.Color(0x3a3c36);
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const _v1 = V3(), _v2 = V3(), _v3 = V3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
@@ -179,7 +179,7 @@ function solveThumb(shape, target, free = [0.3, 0.25]) {
     }
     // Kuppe/Glieder nicht durch die Handfläche
     for (const p of [_tp[2], _tp[3]]) if (Math.abs(p.x) < 0.036 && p.y > -0.028 && p.y < 0.02 && p.z < -0.012 && p.z > -0.085) pen += 0.003;
-    const cost = _tp[3].distanceToSquared(target) + pen;
+    const cost = _tp[3].distanceToSquared(target) + pen + (shape ? k * k * 0.00012 : 0);
     if (cost < bestCost) { bestCost = cost; best = { al, be, k, q: q.clone(), flex: flex.slice() }; }
   };
   const ks = shape ? [0.08, 0.3, 0.55, 0.85] : [0];
@@ -246,7 +246,7 @@ export const GRIPS = {
   // Linke Hand unter dem Handschutz (Handfläche links unten, Finger um die rechte Seite, Daumen links vorn)
   under: {
     shape: d => barShape(d), F: () => [0.9, 0.3, -0.42], B: () => [-0.45, -1, -0.04], hOff: () => 0, pc: [0, -0.0175, -0.05],
-    thumb: (d, s) => s.c.clone().add(V3(-(s.a + 0.011), 0.008, -0.055)),
+    thumb: (d, s) => s.c.clone().add(V3(-(s.a + 0.01), -0.004, -0.068)),
   },
   // Linke Hand flach unter dem Vorderschaft (Repetierer)
   flat: {
@@ -256,7 +256,7 @@ export const GRIPS = {
   // Linke Hand am Pumpschaft
   pump: {
     shape: d => barShape(d), F: () => [0.88, 0.32, -0.38], B: () => [-0.5, -1, -0.03], hOff: () => 0, pc: [0, -0.0175, -0.05],
-    thumb: (d, s) => s.c.clone().add(V3(-(s.a + 0.011), 0.01, -0.05)),
+    thumb: (d, s) => s.c.clone().add(V3(-(s.a + 0.01), -0.004, -0.065)),
   },
   // Linke Hand am senkrechten Vordergriff (QX-90)
   post: {
@@ -291,6 +291,7 @@ export const GRIPS = {
   pinchRight: { point: [-0.026, -0.045, -0.112], knob: 0.006, F: () => [-0.2, -0.1, -1], B: () => [0.6, 1, 0] },
   boltKnob: { point: [-0.026, -0.05, -0.105], knob: 0.011, F: () => [-0.1, 0.2, -1], B: () => [0.4, 1, 0] },
   slapTop: { point: [0, -0.0175, -0.06], pose: 'flat', F: () => [0.2, -0.3, -1], B: () => [0, 1, 0.2] },
+  slapSide: { point: [0, -0.0175, -0.062], pose: 'flat', F: () => [0.15, 0.3, -1], B: () => [-1, 0.15, 0.25] },
   rack: { point: [0, -0.03, -0.06], pose: 'wrap', F: () => [0.95, -0.1, -0.2], B: () => [0, 1, 0] },
 };
 
@@ -420,20 +421,20 @@ function buildHandGeometry(mirror) {
   thenar.translate(-0.021, -0.009, -0.03);
   parts.push(tag(thenar, 0, sideColor));
   // Knöchelschutz (hart) + Polster auf dem Handrücken
-  const knuckle = new RoundedBoxGeometry(0.07, 0.011, 0.028, 2, 0.004);
-  knuckle.translate(0, 0.0185, -0.073);
+  const knuckle = bent(new RoundedBoxGeometry(0.068, 0.008, 0.024, 2, 0.0035), 5);
+  knuckle.translate(0, 0.0175, -0.074);
   parts.push(tag(knuckle, 0, PAD));
-  const backPad = new RoundedBoxGeometry(0.05, 0.006, 0.04, 2, 0.0025);
-  backPad.translate(0.002, 0.0172, -0.035);
+  const backPad = bent(new RoundedBoxGeometry(0.046, 0.004, 0.036, 2, 0.0018), 7);
+  backPad.translate(0.002, 0.0178, -0.036);
   parts.push(tag(backPad, 0, PAD));
   // Bündchen + Klettverschluss
-  const cuff = new THREE.CylinderGeometry(0.036, 0.033, 0.055, 14, 1, true);
+  const cuff = new THREE.CylinderGeometry(0.036, 0.033, 0.055, 14, 1, false);
   cuff.rotateX(Math.PI / 2);
   cuff.scale(1.05, 0.85, 1);
   cuff.translate(0, 0.0, 0.022);
   parts.push(tag(cuff, 0, CUFF));
-  const strap = chamferBoxGeometry(0.05, 0.008, 0.024, 0.002);
-  strap.translate(0.004, 0.031, 0.02);
+  const strap = bent(new RoundedBoxGeometry(0.046, 0.005, 0.022, 1, 0.002), 9);
+  strap.translate(0.003, 0.0305, 0.02);
   parts.push(tag(strap, 0, PAD));
 
   // Finger
@@ -449,8 +450,8 @@ function buildHandGeometry(mirror) {
       parts.push(tag(g, bone + s, sideColor));
       if (s < 2) {
         // Gepolsterte Glieder auf dem Fingerrücken
-        const pad = new RoundedBoxGeometry(r0 * 1.6, 0.0045, len * (s ? 0.5 : 0.55), 1, 0.0018);
-        pad.translate(f.x, f.y + r0 * 0.9, z - len * 0.5);
+        const pad = new RoundedBoxGeometry(r0 * 1.35, 0.003, len * (s ? 0.42 : 0.5), 1, 0.0012);
+        pad.translate(f.x, f.y + r0 * 0.86, z - len * 0.5);
         parts.push(tag(pad, bone + s, PAD));
       }
     }
@@ -463,8 +464,8 @@ function buildHandGeometry(mirror) {
     const len = THUMB.len[s], r0 = THUMB.r[s], r1 = s < 2 ? THUMB.r[s + 1] : THUMB.r[s] * 0.88;
     const g = capsule(r0, r1, len, 12);
     if (s === 2) {
-      const pad = new RoundedBoxGeometry(r0 * 1.5, 0.0045, len * 0.5, 1, 0.0018);
-      pad.translate(0, r0 * 0.88, -len * 0.45);
+      const pad = new RoundedBoxGeometry(r0 * 1.3, 0.003, len * 0.45, 1, 0.0012);
+      pad.translate(0, r0 * 0.86, -len * 0.45);
       g.deleteAttribute('uv');
       const merged = mergeGeometries([g.toNonIndexed(), tagPlain(pad)]);
       g.dispose();
@@ -494,6 +495,14 @@ function buildHandGeometry(mirror) {
   boxUV(geo, 0.03);
   geo.computeBoundingSphere();
   return geo;
+}
+
+// Platte entlang X zur Handrücken-Wölbung biegen (y −= k·x²)
+function bent(g, k) {
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) - k * p.getX(i) * p.getX(i));
+  g.computeVertexNormals();
+  return g;
 }
 
 function tagPlain(g) {
@@ -595,7 +604,7 @@ class Arm {
 
     // Ärmel (Unter- und Oberarm) + Ellbogen
     this.upperLen = 0.33; this.foreLen = 0.3;
-    this.fore = new THREE.Mesh(sleeveGeometry(this.foreLen + 0.03, 0.047, 0.037, 3.2, side > 0 ? 1 : 2.4), mats.sleeve);
+    this.fore = new THREE.Mesh(sleeveGeometry(this.foreLen + 0.008, 0.047, 0.039, 3.2, side > 0 ? 1 : 2.4), mats.sleeve);
     this.upper = new THREE.Mesh(sleeveGeometry(this.upperLen, 0.056, 0.049, 2.2, side > 0 ? 3 : 4.1), mats.sleeve);
     this.elbow = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), mats.sleeve);
     for (const m of [this.fore, this.upper, this.elbow]) { m.frustumCulled = false; this.group.add(m); }
@@ -609,20 +618,21 @@ class Arm {
     } else {
       // Uhrgruppe: Ursprung auf der Handgelenksachse, lokal +Y zeigt zur Handflächenseite
       const watch = new THREE.Group();
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.02, 18, 1, true), mats.watchCase);
-      band.rotation.x = Math.PI / 2; band.scale.set(1.1, 1, 0.9);
-      const caseM = new THREE.Mesh(chamferBoxGeometry(0.034, 0.011, 0.038, 0.004), mats.watchCase);
-      caseM.position.y = 0.0355;
-      const face = new THREE.Mesh(new THREE.CircleGeometry(0.0128, 20), mats.watchFace);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.018, 18, 1, true), mats.watchCase);
+      band.rotation.x = Math.PI / 2; band.scale.set(1.08, 0.9, 1);
+      const caseM = new THREE.Mesh(chamferBoxGeometry(0.032, 0.01, 0.036, 0.0035), mats.watchCase);
+      caseM.position.y = 0.0365;
+      const face = new THREE.Mesh(new THREE.CircleGeometry(0.0122, 20), mats.watchFace);
       // Zifferblatt: nach außen (+Y), Ziffern lesbar vom Handgelenk zu den Fingern
       face.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
-      face.position.y = 0.0412;
+      face.position.y = 0.0418;
       watch.add(band, caseM, face);
-      watch.position.set(0, -0.001, 0.04);
+      watch.position.set(0, -0.001, 0.013);
       watch.rotation.z = Math.PI;
       this.handBone.add(watch);
       this.watch = watch;
     }
+    this.align = 0.7;            // 0 = reine IK, 1 = Unterarm exakt in Handachse
     this.shoulder = new THREE.Vector3(side * 0.2, -0.3, 0.14);
     this.pole = new THREE.Vector3(side * 0.7, -1, 0.15);
   }
@@ -662,15 +672,20 @@ class Arm {
     pole.addScaledVector(dir, -pole.dot(dir)).normalize();
     const E = this._elbow || (this._elbow = new THREE.Vector3());
     E.copy(S).addScaledVector(dir, a).addScaledVector(pole, h);
-    // Unterarm: von Ellbogen zum Handgelenk, Verdrehung folgt dem Handrücken
+    // Unterarm folgt überwiegend der Handachse (gerades Handgelenk), Oberarm streckt sich zur Schulter
+    const back = _upB.set(0, 0, 1).applyQuaternion(wristQuat);
+    const fd = _fd.subVectors(E, W).normalize().lerp(back, this.align).normalize();
+    E.copy(W).addScaledVector(fd, Lf);
     const up = _upA.set(0, 1, 0).applyQuaternion(wristQuat);
-    orient(this.fore, E, W, up, 0.02);
-    orient(this.upper, S, E, _upB.set(0, 1, 0), 0.0);
+    orient(this.fore, E, W, up, 0.03);
+    const S0 = this.shoulder;
+    orient(this.upper, S0, E, _upB.set(0, 1, 0), 0.0);
+    this.upper.scale.z = THREE.MathUtils.clamp(S0.distanceTo(E) / Lu, 0.6, 1.6);
     this.elbow.position.copy(E);
     this.elbowPos = E;
   }
 }
-const _upA = V3(), _upB = V3(), _oz = V3(), _oy = V3(), _ox = V3();
+const _upA = V3(), _upB = V3(), _oz = V3(), _oy = V3(), _ox = V3(), _fd = V3();
 
 function orient(mesh, from, to, up, extend) {
   const z = _oz.subVectors(from, to).normalize();     // lokal +Z zeigt zurück zum Ursprung

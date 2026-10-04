@@ -335,7 +335,7 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
   display: flex; align-items: center; gap: 16px; font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: .04em;
   line-height: 1.5; color: var(--ink-2); max-width: 46ch;
 }
-.touch-play a { color: var(--np-ink); white-space: nowrap; display: inline-block; padding-block: 12px; margin-block: -12px; }
+.touch-play a { color: var(--np-ink); white-space: nowrap; display: inline-block; padding-block: 14px; margin-block: -14px; }
 .tp-phone { flex: none; position: relative; width: 40px; height: 20px; border: 1px solid var(--np-ink-2); border-radius: 5px; }
 .tp-phone::before, .tp-phone::after { content: ''; position: absolute; top: 50%; width: 6px; height: 6px; margin-top: -3px; border: 1px solid var(--np-ink-2); border-radius: 50%; }
 .tp-phone::before { left: 5px; }
@@ -790,7 +790,7 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
   font-family: var(--font-display); font-size: 24px; font-weight: 700; background: none; border: 0; border-bottom: 1px solid var(--np-line-strong);
   padding: 6px 0; width: min(100%, 16ch); color: var(--np-ink); border-radius: 0; min-height: 44px; text-transform: none;
 }
-.name-in:focus-visible { outline: none; border-bottom-color: var(--np-signal); box-shadow: 0 1px 0 var(--np-signal); }
+.name-in:focus-visible { outline: 2px solid var(--np-signal); outline-offset: 3px; border-bottom-color: var(--np-signal); }
 .fov-prev { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; flex-basis: 100%; }
 .fov-prev svg { width: 160px; height: 96px; overflow: visible; }
 .fov-prev line { stroke: var(--np-ink-2); stroke-width: 1; vector-effect: non-scaling-stroke; }
@@ -944,7 +944,7 @@ html.cursor-on select:not(.slot select) { cursor: auto; }
   .ars-dist, .ars-gear { margin-top: 104px; }
   .keymap th { width: 46%; }
   .tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
-  .tab { min-height: 56px; text-align: left; }
+  .tab { min-height: 56px; text-align: left; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
   .cta-fill { width: 100%; justify-content: center; }
   .hero-cta { gap: 8px 24px; }
   .cta-cfg { margin-top: -8px; }
@@ -963,8 +963,8 @@ html.cursor-on select:not(.slot select) { cursor: auto; }
 
 /* Landschaft am Telefon: Hero kompakter */
 @media (max-height: 520px) and (min-width: 720px) {
-  .hero { min-height: auto; padding-top: calc(var(--status-h) + 16px); }
-  .target { min-height: 34vw; }
+  .hero { padding-top: calc(var(--status-h) + 16px); padding-bottom: 24px; row-gap: 8px; }
+  .hero-body { gap: 16px; }
 }
 
 /* ───────────────────────────────────────────── Bewegung, Kontrast, erzwungene Farben */
@@ -1000,8 +1000,7 @@ html.static-type .hl { --sq: 0; }
 /* ───────────────────────────────────────────── Grobe Zeiger: Ziele ≥ 44 px */
 
 @media (pointer: coarse) {
-  .play-link, .duel-go, .hud-reset, .touch-play a, .foot-line a { min-height: 44px; display: inline-flex; align-items: center; }
-  .touch-play a { padding-block: 0; margin-block: 0; }
+  .play-link, .duel-go, .hud-reset, .foot-line a { min-height: 44px; display: inline-flex; align-items: center; }
   .plan-text summary { min-height: 44px; }
   .go { padding-block: 6px; margin-block: -6px; }
   .tab { min-height: 44px; }

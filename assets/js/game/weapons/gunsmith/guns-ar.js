@@ -40,7 +40,8 @@ function arLower(b, { lowerMat = 'alu', upperMat = 'alu', gripMat = 'grip', axis
   b.part('charge', 0, 0.108, -0.07);
   b.box(upperMat, 0.012, 0.007, 0.03, 0, 0.108, -0.072, { part: 'charge', c: 0.0015 });
   b.box(upperMat, 0.042, 0.008, 0.011, 0, 0.108, -0.083, { part: 'charge', c: 0.002 });
-  b.anchor('chargeGrab', -0.012, 0.108, -0.085, { part: 'charge', data: { travel: [0, 0, 0.065], style: 'pull' } });
+  b.anchor('chargeGrab', -0.012, 0.108, -0.085, { part: 'charge', data: { travel: [0, 0, 0.065], style: 'release' } });
+  b.anchor('boltCatch', -0.0145, 0.062, 0.06);
   // Pufferrohr + Schlossmutter
   b.cyl('alu', 0.0145, 0.0145, 0.2, 0, axis, -0.165, { seg: b.seg(16, 6) });
   b.cyl('steel', 0.0175, 0.0175, 0.008, 0, axis, -0.074, { seg: b.seg(12, 6) });
@@ -242,7 +243,7 @@ export function kv47(b) {
   b.anchor('magGrab', 0, -0.07, 0.147, { part: 'mag', data: { w: 0.013, d: 0.03 } });
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.38, gw: 0.015, gd: 0.017, gu: 0.009, ho: 0.028, tu: 0.04 } });
   b.anchor('magWell', 0, 0.02, 0.135);
-  b.anchor('sight', 0, 0.1195, 0.2, { data: { type: 'iron', eyeRelief: 0.24 } });
+  b.anchor('sight', 0, 0.1195, 0.2, { data: { type: 'iron', eyeRelief: 0.38 } });
   b.anchor('leftHandGrip', 0, axis - 0.03, 0.31, { data: { style: 'under', w: 0.018, h: 0.023 } });
   b.meta = { sight: 'iron', axis, kind: 'rifle' };
 }

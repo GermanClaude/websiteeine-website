@@ -48,8 +48,8 @@ export function redDot(b, u0, railTop, o = {}) {
     b.torus(o.mat || 'polymer', 0.0145, 0.0034, 0, axis, u0 + 0.034, { seg: b.seg(8, 4), tseg: b.seg(24, 10) });
     b.box(o.mat || 'polymer', 0.008, 0.016, 0.012, 0, railTop + 0.014, u0 + 0.034, { c: 0.002 });
     if (b.hi) {
-      b.circle('lens', 0.0125, 0, axis, u0 + 0.033);
-      b.plane('reticleDot', 0.009, 0.009, 0, axis, u0 + 0.031, { renderOrder: 3 });
+      b.circle('lensClear', 0.0125, 0, axis, u0 + 0.033, { renderOrder: 1 });
+      b.plane('reticleDot', 0.02, 0.02, 0, axis, u0 + 0.031, { renderOrder: 3 });
       b.cyl('knurl', 0.0055, 0.0055, 0.006, 0.019, axis, u0 + 0.034, { axis: 'x', seg: 12 });
     }
     b.anchor('sight', 0, axis, u0, { data: { type: 'reddot', eyeRelief: 0.2 } });
@@ -61,8 +61,8 @@ export function redDot(b, u0, railTop, o = {}) {
   if (b.hi) {
     b.cyl('knurl', 0.0062, 0.0062, 0.008, 0.019, axis, u0 + 0.024, { axis: 'x', seg: 12 });
     b.cyl('knurl', 0.0062, 0.0062, 0.008, 0, axis + 0.019, u0 + 0.024, { axis: 'v', seg: 12 });
-    b.circle('lens', 0.0136, 0, axis, u0 + 0.0455);
-    b.plane('reticleDot', 0.009, 0.009, 0, axis, u0 + 0.008, { renderOrder: 3 });
+    b.circle('lensClear', 0.0136, 0, axis, u0 + 0.0455, { renderOrder: 1 });
+    b.plane('reticleDot', 0.02, 0.02, 0, axis, u0 + 0.008, { renderOrder: 3 });
   }
   b.anchor('sight', 0, axis, u0, { data: { type: 'reddot', eyeRelief: 0.2 } });
   return axis;
@@ -78,11 +78,14 @@ export function acog(b, u0, railTop) {
   if (b.hi) b.cyl('knurl', 0.0065, 0.0065, 0.01, 0.02, railTop + 0.006, u0 + 0.04, { axis: 'x', seg: 12 });
   // Gehäuse: Okular hinten, Prismenkörper, konisches Objektiv vorn
   b.lathe('alu', [
-    [0, 0], [0, 0.0175], [0.004, 0.0185], [0.022, 0.0185], [0.026, 0.0165], [0.03, 0.0165],
-    [0.035, 0.017], [0.085, 0.017], [0.115, 0.0215], [0.142, 0.0222], [0.146, 0.0205], [0.15, 0.0205], [L, 0.017],
+    [0, 0.0152], [0, 0.0175], [0.004, 0.0185], [0.022, 0.0185], [0.026, 0.0165], [0.03, 0.0165],
+    [0.035, 0.017], [0.085, 0.017], [0.115, 0.0215], [0.142, 0.0222], [0.146, 0.0205], [0.15, 0.0205], [L, 0.019],
   ], 0, axis, u0, { seg: b.seg(20, 8) });
-  // Prismenblock (kantig) – typisch für das Profil
-  b.box('alu', 0.03, 0.03, 0.05, 0, axis - 0.002, u0 + 0.06, { c: 0.006 });
+  // Innenwand (nach innen gerichtet): Tunnelblick beim Zielen
+  b.lathe('cavity', [[L, 0.0185], [0.118, 0.0185], [0.085, 0.0152], [0.004, 0.0152]], 0, axis, u0, { seg: b.seg(20, 8) });
+  // Prismengehäuse (kantig, typisch für das Profil) – seitlich/unten, Strahlengang frei
+  for (const s of [-1, 1]) b.box('alu', 0.0065, 0.03, 0.05, s * 0.0188, axis - 0.003, u0 + 0.06, { c: 0.0022 });
+  b.box('alu', 0.03, 0.008, 0.05, 0, axis - 0.0195, u0 + 0.06, { c: 0.003 });
   // Glasfaser-Sammler oben (leuchtet leicht)
   b.box('alu', 0.012, 0.006, 0.07, 0, axis + 0.019, u0 + 0.075, { c: 0.002 });
   if (b.hi) {
@@ -90,14 +93,14 @@ export function acog(b, u0, railTop) {
     // Gummi-Augenschutz
     b.lathe('rubber', [[0, 0.0175], [-0.006, 0.019], [-0.012, 0.0195], [-0.012, 0.016]], 0, axis, u0, { seg: 16 });
     // Linsen
-    b.circle('lens', 0.0172, 0, axis, u0 + L - 0.002);
-    b.circle('lens', 0.0162, 0, axis, u0 - 0.008);
+    b.circle('lensClear', 0.0185, 0, axis, u0 + L - 0.002, { renderOrder: 1 });
+    b.circle('lensClear', 0.0152, 0, axis, u0 + 0.002, { renderOrder: 1 });
     // Chevron im Okular (sichtbar beim Zielen)
-    b.plane('reticleChevron', 0.012, 0.012, 0, axis, u0 - 0.006, { renderOrder: 3 });
+    b.plane('reticleChevron', 0.011, 0.011, 0, axis, u0 + 0.004, { renderOrder: 3 });
     // Seiten-Einstelltürme
     b.cyl('alu', 0.007, 0.007, 0.006, 0.021, axis, u0 + 0.06, { axis: 'x', seg: 12 });
   }
-  b.anchor('sight', 0, axis, u0 - 0.012, { data: { type: 'acog', eyeRelief: 0.11 } });
+  b.anchor('sight', 0, axis, u0 - 0.012, { data: { type: 'acog', eyeRelief: 0.085 } });
   return axis;
 }
 

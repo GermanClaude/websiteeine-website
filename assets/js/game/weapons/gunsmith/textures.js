@@ -262,8 +262,8 @@ export function reticleMap(type) {
         ctx.beginPath(); ctx.moveTo(m + Math.cos(a) * 40, m + Math.sin(a) * 40); ctx.lineTo(m + Math.cos(a) * 50, m + Math.sin(a) * 50); ctx.stroke();
       }
     } else if (type === 'dot') {
-      const g = ctx.createRadialGradient(m, m, 0, m, m, 14);
-      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,0.95)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      const g = ctx.createRadialGradient(m, m, 0, m, m, 30);
+      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.18, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.shadowBlur = 0; ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
     } else if (type === 'chevron') {
       ctx.lineWidth = 7; ctx.lineJoin = 'miter';

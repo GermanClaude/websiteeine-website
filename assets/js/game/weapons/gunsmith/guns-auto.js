@@ -34,8 +34,9 @@ export function vp9(b) {
   if (b.hi) b.box('cavity', 0.002, 0.004, 0.09, -0.0118, 0.088, 0.26, { c: 0 });               // Schlitz im Rohr
   // Kimme: Trommel-Diopter hinten
   b.box('steel', 0.03, 0.012, 0.03, 0, 0.098, -0.06, { c: 0.003 });
-  b.cyl('steel', 0.0115, 0.0115, 0.022, 0, 0.104, -0.06, { axis: 'x', seg: b.seg(14, 6) });
-  if (b.hi) b.circle('cavity', 0.0018, 0, 0.1145, -0.0485, { seg: 8 });
+  b.cyl('steel', 0.0085, 0.0085, 0.024, 0, 0.1, -0.06, { axis: 'x', seg: b.seg(14, 6) });
+  b.box('steel', 0.008, 0.012, 0.008, 0, 0.108, -0.06, { c: 0.001 });
+  b.torus('steel', 0.0068, 0.0024, 0, 0.1145, -0.06, { seg: b.seg(8, 4), tseg: b.seg(18, 8) });
   // Korn: geschlossener Ringtunnel vorn
   b.box('steel', 0.016, 0.014, 0.022, 0, 0.097, 0.392, { c: 0.002 });
   b.torus('steel', 0.0105, 0.0026, 0, 0.1125, 0.392, { rx: 0, seg: b.seg(8, 4), tseg: b.seg(20, 8) });
@@ -91,7 +92,7 @@ export function vp9(b) {
   b.box('steel', 0.046, 0.012, 0.01, 0, 0.0, -0.275, { c: 0.002 });
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.3, gw: 0.017, gd: 0.021, gu: 0.005, ho: 0.044, tu: 0.02 } });
   b.anchor('magWell', 0, 0.02, 0.105);
-  b.anchor('sight', 0, 0.1145, -0.06, { data: { type: 'iron', eyeRelief: 0.16 } });
+  b.anchor('sight', 0, 0.1145, -0.06, { data: { type: 'iron', eyeRelief: 0.13 } });
   b.anchor('leftHandGrip', 0, 0.03, 0.29, { data: { style: 'under', w: 0.02, h: 0.022 } });
   b.meta = { sight: 'iron', axis, kind: 'smg' };
 }

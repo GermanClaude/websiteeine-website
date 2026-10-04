@@ -50,7 +50,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   const tBuild0 = performance.now();
   const pb = def.bounds;
   const cb = def.visualBounds || { minX: pb.minX - 30, maxX: pb.maxX + 30, minZ: pb.minZ - 30, maxZ: pb.maxZ + 30 };
-  const b = new MapBuilder({ bounds: cb, seed: def.seed || 1, chunkSize: def.chunkSize || 32, groundNoise: def.groundNoise ?? 0.14 });
+  const b = new MapBuilder({ bounds: cb, seed: def.seed || 1, chunkSize: def.chunkSize || 32, groundNoise: def.groundNoise ?? 0.14, interiorTint: def.interiorTint });
   const waters = [];
   const ctx = {
     THREE, quality, debug, getMaterial,
@@ -75,12 +75,16 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   progress(0.86, 'Licht');
   const light = createLighting(G, def.lighting, group);
   G.scene.add(group);
+  // Kartenbelichtung (z. B. Dämmerung etwas heller) – nur wenn der Renderer das anbietet
+  const prevExposure = G.renderer?.post?.exposure;
+  if (def.lighting.exposure && typeof G.renderer?.setPost === 'function') G.renderer.setPost({ exposure: def.lighting.exposure });
 
   // Startpunkte am Boden einrasten
   const bvh = built.bulletBVH, cbvh = built.colliderBVH;
   const hit = { t: 0, tri: 0, nx: 0, ny: 0, nz: 0, data: 0 };
   const center = new THREE.Vector3((pb.minX + pb.maxX) / 2, 0, (pb.minZ + pb.maxZ) / 2);
-  const snap = (p, yHint = 2) => {
+  // Standard-Suchhöhe knapp über Kopfhöhe (unter jeder Zimmerdecke); Dachpunkte geben y an
+  const snap = (p, yHint = 0.4) => {
     const v = new THREE.Vector3(p.x ?? p[0], 0, p.z ?? p[2] ?? p[1]);
     const y0 = (p.y ?? yHint) + 1.2;
     v.y = cbvh.raycast(v.x, y0, v.z, 0, -1, 0, y0 + 10, hit) ? y0 - hit.t : (p.y ?? 0);
@@ -89,12 +93,12 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   const spawns = { A: [], B: [], ffa: [] };
   for (const team of ['A', 'B', 'ffa']) {
     for (const s of res.spawns?.[team] || []) {
-      const position = snap(s, s.y ?? 2);
+      const position = snap(s, s.y ?? 0.4);
       const yaw = s.yaw ?? Math.atan2(-(center.x - position.x), -(center.z - position.z));
       spawns[team].push({ position, yaw });
     }
   }
-  const objectives = { dom: (res.objectives?.dom || []).map(o => ({ id: o.id, position: snap(o, o.y ?? 2), radius: o.radius ?? 5 })) };
+  const objectives = { dom: (res.objectives?.dom || []).map(o => ({ id: o.id, position: snap(o, o.y ?? 0.4), radius: o.radius ?? 5 })) };
 
   // Navigation
   progress(0.88, 'Navigation');
@@ -222,6 +226,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
       for (const w of waters) w.dispose();
       for (const L of built.lights) L.dispose?.();
       light.dispose();
+      if (def.lighting.exposure && typeof G.renderer?.setPost === 'function') G.renderer.setPost({ exposure: prevExposure ?? 1 });
       res.dispose?.();
       collider.clear?.();
     },

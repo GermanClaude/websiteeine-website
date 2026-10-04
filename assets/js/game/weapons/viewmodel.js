@@ -179,6 +179,7 @@ export class ViewModel {
     this._equipT = 0;
     this._equipDur = def?.equipTime ?? this.h.equipTime;
     this._slideLocked = false;
+    this._boltLocked = false;
     this._boltT = 1;
     this.arms.right.shoulder.fromArray(this.h.shoulderR); this.arms.left.shoulder.fromArray(this.h.shoulderL);
     this.arms.right.pole.fromArray(this.h.poleR); this.arms.left.pole.fromArray(this.h.poleL);
@@ -263,6 +264,7 @@ export class ViewModel {
     this._boltT = 0;
     this._hammerT = 0;
     if (info.empty && h.action === 'pistol') this._slideLocked = true;
+    if (info.empty && (h.action === 'auto' || h.action === 'semi')) this._boltLocked = true;
     if (h.action === 'bolt') this._start('boltCycle', Math.max(0.6, Math.min(1.0, (this.def ? 60 / this.def.rpm : 1.3) - 0.35)), { delay: 0.12, ejected: false });
     else if (h.action === 'pump') this._start('pumpCycle', Math.max(0.42, Math.min(0.6, (this.def ? 60 / this.def.rpm : 0.8) - 0.25)), { delay: 0.1, ejected: false });
     else this._eject();
@@ -376,7 +378,9 @@ export class ViewModel {
       if (a && a.type === 'reload' && a.t / a.dur < 0.86) a.cancel = true;
       if (a && a.type === 'shells') a.stop = true;
     }
-    if (typeof s.mag === 'number' && h.action === 'pistol') this._slideLocked = s.mag === 0 && !(this.action && this.action.type === 'reload');
+    const inReload = this.action && this.action.type === 'reload';
+    if (typeof s.mag === 'number' && h.action === 'pistol') this._slideLocked = s.mag === 0 && !inReload;
+    if (typeof s.mag === 'number' && (h.action === 'auto' || h.action === 'semi') && !inReload) this._boltLocked = s.mag === 0;
 
     // ---- Zustände glätten
     const busy = this.action && ['reload', 'shells', 'melee', 'grenade', 'slash', 'inspect'].includes(this.action.type);
@@ -570,7 +574,7 @@ export class ViewModel {
       // Hahn fällt nach vorn und wird vom Schlitten wieder gespannt
       if (this._part('hammer')) this._setPartOffset('hammer', 0, 0, 0, -0.7 * (this._slideLocked ? 0 : pulse));
     } else if (this._part('bolt') && h.action !== 'bolt' && h.action !== 'pump') {
-      this._setPartOffset('bolt', 0, 0, h.boltTravel * pulse);
+      this._setPartOffset('bolt', 0, 0, h.boltTravel * (this._boltLocked ? 1 : pulse));
     }
     // Aktionsteile (Magazin, Ladehebel, Pumpe, Kammerstängel, Deckel …)
     if (act && act.parts) for (const [n, o] of Object.entries(act.parts)) {
@@ -637,8 +641,9 @@ export class ViewModel {
     const k = empty ? 0.74 : 1;     // Magazin-Teil wird bei Leer-Nachladen gestaucht
     const m = u / k;
     // Waffe kippen
-    curve(m, [[0, ZERO3], [0.13, [0.1, 0.26, 0.42]], [0.8, [0.12, 0.28, 0.46]], [0.95, ZERO3]], out.r);
-    curve(m, [[0, ZERO3], [0.13, [-0.03, 0.03, 0.02]], [0.8, [-0.03, 0.034, 0.02]], [0.95, ZERO3]], out.p);
+    // Waffe anheben, heranziehen und im Uhrzeigersinn rollen: Magazinschacht zur Stützhand
+    curve(m, [[0, ZERO3], [0.13, [0.16, 0.2, -0.46]], [0.8, [0.18, 0.22, -0.5]], [0.95, ZERO3]], out.r);
+    curve(m, [[0, ZERO3], [0.13, [-0.045, 0.045, 0.05]], [0.8, [-0.045, 0.05, 0.05]], [0.95, ZERO3]], out.p);
     // Magazin: raus nach unten, aus dem Bild, neues hinein
     const mag = curve(m, [[0.26, ZERO3], [0.36, [0, -0.07, 0.012]], [0.47, [-0.16, -0.5, 0.12]], [0.48, [-0.12, -0.45, 0.1]], [0.58, [0, -0.08, 0.014]], [0.65, [0, -0.01, 0.002]], [0.67, ZERO3]]);
     const magRot = curve(m, [[0.26, 0], [0.4, 0.25], [0.48, 0.25], [0.58, 0.12], [0.67, 0]]);
@@ -650,7 +655,14 @@ export class ViewModel {
     if (empty) {
       const c = (u - 0.74) / 0.26;   // 0..1 Durchladen
       const ch = anchors.chargeGrab;
-      if (ch && c > -0.05) {
+      if (ch && ch.userData.style === 'release' && anchors.boltCatch && c > -0.05) {
+        // Verschlussfang mit dem Handballen schlagen: Verschluss schnellt vor
+        const wC = windowW(c, 0.0, 0.32, 0.55, 0.85);
+        if (wC > 0) req(out.left, wC, { anchor: anchors.boltCatch, style: 'slapSide' });
+        if (c > 0.45 && !A.charged) { A.charged = true; this._boltLocked = false; this._boltT = 0.3; this._jolt.kick(0.9, 0.25, 0); }
+        const rc = windowW(c, 0.0, 0.25, 0.55, 0.95);
+        out.r[2] += 0.12 * rc; out.r[1] += 0.06 * rc;
+      } else if (ch && c > -0.05) {
         const st = ch.userData.style || 'pull';
         const travel = ch.userData.travel || [0, 0, 0.06];
         const pull = curve(c, [[0.2, 0], [0.42, 1], [0.52, 1], [0.56, 0]]);
@@ -658,11 +670,12 @@ export class ViewModel {
         const lift = st === 'hkslap' ? -0.6 * windowW(c, 0.3, 0.42, 0.5, 0.56) : 0;
         out.parts[partName] = [travel[0] * pull, travel[1] * pull, travel[2] * pull, 0, 0, lift];
         const wC = windowW(c, 0.0, 0.18, 0.6, 0.85);
-        if (wC > 0) req(out.left, wC, { anchor: ch, style: st === 'right' ? 'pinchRight' : 'pinchSide' });
-        // Waffe zum Durchladen leicht drehen
+        // Ladehebel rechts (KV-47): die Schusshand verlässt kurz den Griff; sonst greift die Stützhand
+        if (wC > 0) req(st === 'right' ? out.right : out.left, wC, { anchor: ch, style: st === 'right' ? 'pinchRight' : 'pinchSide' });
+        // Waffe zum Durchladen drehen (Hebelseite zur Kamera)
         const rc = windowW(c, 0.0, 0.2, 0.62, 0.95);
-        out.r[2] += (st === 'right' ? -0.28 : 0.18) * rc; out.r[0] += 0.08 * rc; out.r[1] += (st === 'right' ? -0.15 : 0.1) * rc;
-        out.p[0] += -0.02 * rc;
+        out.r[2] += (st === 'right' ? 0.38 : 0.18) * rc; out.r[0] += 0.08 * rc; out.r[1] += (st === 'right' ? 0.12 : 0.1) * rc;
+        out.p[0] += (st === 'right' ? -0.03 : -0.02) * rc; out.p[1] += (st === 'right' ? 0.02 : 0) * rc;
         if (c > 0.55 && c < 0.6 && !A.charged) { A.charged = true; this._jolt.kick(0.8, 0.3, 0); }
       }
       // Repetierer: Kammerstängel nach dem Magazinwechsel
@@ -761,10 +774,10 @@ export class ViewModel {
 
   _actReloadPistol(A, out, u) {
     const ud = this.cur.ud, empty = A.empty;
-    curve(u, [[0, ZERO3], [0.12, [0.16, 0.22, 0.32]], [0.8, [0.16, 0.24, 0.34]], [0.95, ZERO3]], out.r);
-    curve(u, [[0, ZERO3], [0.12, [-0.03, 0.035, 0.02]], [0.8, [-0.03, 0.035, 0.02]], [0.95, ZERO3]], out.p);
-    // Magazin fällt entlang der Griffachse heraus, neues kommt von unten
-    const mag = curve(u, [[0.12, ZERO3], [0.2, [0, -0.07, 0.025]], [0.3, [0.02, -0.5, 0.15]], [0.31, [-0.1, -0.4, 0.1]], [0.5, [0, -0.1, 0.035]], [0.6, [0, -0.012, 0.004]], [0.62, ZERO3]]);
+    curve(u, [[0, ZERO3], [0.12, [0.36, 0.22, -0.42]], [0.8, [0.38, 0.24, -0.45]], [0.95, ZERO3]], out.r);
+    curve(u, [[0, ZERO3], [0.12, [-0.035, 0.06, 0.04]], [0.8, [-0.035, 0.062, 0.04]], [0.95, ZERO3]], out.p);
+    // Magazin fällt entlang der Griffachse heraus, neues kommt von unten links
+    const mag = curve(u, [[0.12, ZERO3], [0.2, [0, -0.07, 0.025]], [0.3, [0.02, -0.5, 0.15]], [0.31, [-0.12, -0.3, 0.1]], [0.48, [-0.02, -0.075, 0.03]], [0.58, [0, -0.012, 0.004]], [0.62, ZERO3]]);
     out.parts.mag = [mag[0], mag[1], mag[2]];
     if (u > 0.6 && !A.slapped) { A.slapped = true; this._jolt.kick(1.4, 0, 0); this._recoilPos.kick(0, 0.5, 0); }
     // Linke Hand verlässt den Stützgriff, holt das neue Magazin, setzt es ein
@@ -785,8 +798,8 @@ export class ViewModel {
     // Magazin oben (QX-90): nach oben-hinten abziehen, neues von vorn auflegen und einrasten
     const ud = this.cur.ud, empty = A.empty;
     const k = empty ? 0.78 : 1, m = u / k;
-    curve(m, [[0, ZERO3], [0.14, [0.22, 0.2, 0.3]], [0.8, [0.22, 0.2, 0.32]], [0.95, ZERO3]], out.r);
-    curve(m, [[0, ZERO3], [0.14, [-0.035, 0.0, 0.035]], [0.8, [-0.035, 0.0, 0.035]], [0.95, ZERO3]], out.p);
+    curve(m, [[0, ZERO3], [0.14, [0.1, 0.24, 0.42]], [0.8, [0.1, 0.24, 0.44]], [0.95, ZERO3]], out.r);
+    curve(m, [[0, ZERO3], [0.14, [-0.01, -0.05, -0.03]], [0.8, [-0.01, -0.05, -0.03]], [0.95, ZERO3]], out.p);
     const mag = curve(m, [[0.25, ZERO3], [0.33, [0, 0.022, 0.03]], [0.45, [-0.2, -0.35, 0.15]], [0.46, [-0.2, -0.3, -0.05]], [0.58, [0, 0.03, -0.02]], [0.66, [0, 0.008, 0]], [0.69, ZERO3]]);
     const magRot = curve(m, [[0.25, 0], [0.33, -0.18], [0.46, -0.3], [0.58, -0.1], [0.69, 0]]);
     out.parts.mag = [mag[0], mag[1], mag[2], magRot, 0, 0];
@@ -811,8 +824,8 @@ export class ViewModel {
   _actReloadBelt(A, out, u) {
     // Gurtwechsel (HM-60): Deckel auf, Kasten raus, neuer Kasten + Gurt, Deckel zu, ggf. durchladen
     const ud = this.cur.ud, empty = A.empty;
-    curve(u, [[0, ZERO3], [0.08, [0.12, 0.22, 0.3]], [0.86, [0.12, 0.24, 0.32]], [0.97, ZERO3]], out.r);
-    curve(u, [[0, ZERO3], [0.08, [-0.04, 0.03, 0.03]], [0.86, [-0.04, 0.03, 0.03]], [0.97, ZERO3]], out.p);
+    curve(u, [[0, ZERO3], [0.08, [0.1, 0.3, 0.36]], [0.86, [0.1, 0.32, 0.38]], [0.97, ZERO3]], out.r);
+    curve(u, [[0, ZERO3], [0.08, [0.0, -0.035, -0.02]], [0.86, [0.0, -0.035, -0.02]], [0.97, ZERO3]], out.p);
     const cover = curve(u, [[0.1, 0], [0.18, -1.15], [0.66, -1.15], [0.74, 0]]);
     out.parts.cover = [0, 0, 0, cover, 0, 0];
     if (u > 0.735 && !A.slapped) { A.slapped = true; this._jolt.kick(1.5, 0, 0); }
@@ -822,7 +835,7 @@ export class ViewModel {
     out.parts.belt = [belt[0], belt[1], belt[2]];
     out.parts._vis = { belt: !(u > 0.3 && u < 0.6) };
     // Hand: Deckel öffnen → Kasten → Gurt einlegen → Deckel schließen
-    const coverReq = { part: 'cover', style: 'slapTop', offset: [0, 0.03, 0.2] };
+    const coverReq = { part: 'cover', style: 'pinchSide', offset: [-0.028, 0.02, 0.232] };
     if (u < 0.24) req(out.left, windowW(u, 0.06, 0.12, 0.2, 0.26), coverReq);
     else if (u < 0.62) { if (ud.anchors.magGrab) req(out.left, windowW(u, 0.2, 0.28, 0.58, 0.64), { anchor: ud.anchors.magGrab, style: 'mag' }); }
     else if (u < 0.8) req(out.left, windowW(u, 0.6, 0.66, 0.74, 0.82), coverReq);
@@ -833,9 +846,9 @@ export class ViewModel {
         const travel = ch.userData.travel || [0, 0, 0.1];
         out.parts.charge = [0, 0, travel[2] * curve(c, [[0.2, 0], [0.45, 1], [0.55, 1], [0.62, 0]])];
         const wC = windowW(c, 0.0, 0.2, 0.62, 0.9);
-        if (wC > 0) req(out.left, wC, { anchor: ch, style: 'pinchRight' });
+        if (wC > 0) req(out.right, wC, { anchor: ch, style: 'pinchRight' });
         const rc = windowW(c, 0.0, 0.2, 0.62, 0.95);
-        out.r[2] += -0.2 * rc; out.r[1] += -0.12 * rc;
+        out.r[2] += 0.2 * rc; out.r[1] += 0.08 * rc;
       }
     }
     return u >= 1;

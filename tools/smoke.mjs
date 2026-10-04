@@ -68,6 +68,8 @@ page.on('console', (m) => {
   else if (type === 'info' && text.startsWith('[NULLPUNKT]')) summary.infos.push(text);
 });
 page.on('pageerror', (e) => summary.errors.push(`[pageerror] ${e.message}`));
+page.on('crash', () => summary.errors.push('[crash] Renderer-Prozess abgestürzt'));
+browser.on('disconnected', () => summary.infos.push('[smoke] Browser getrennt'));
 page.on('requestfailed', (r) => {
   if (MODULE_RE.test(r.url())) { const u = r.url().replace(BASE, ''); if (!summary.missingModules.includes(u)) summary.missingModules.push(u); return; }
   summary.errors.push(`[requestfailed] ${r.url()} ${r.failure()?.errorText}`);
@@ -89,8 +91,13 @@ async function waitFor(fn, timeout, label) {
 let shotN = 0;
 async function shot(tag) {
   const file = `${OUT}-${String(++shotN).padStart(2, '0')}-${tag}.png`;
-  await page.screenshot({ path: file });
-  summary.screenshots.push(file);
+  try {
+    // SwiftShader + schwere Karten: ein Bild kann > 30 s dauern – kein Testabbruch deswegen
+    await page.screenshot({ path: file, timeout: 120000 });
+    summary.screenshots.push(file);
+  } catch (err) {
+    summary.infos.push(`[smoke] Screenshot ${tag} übersprungen: ${String(err.message).split('\n')[0]}`);
+  }
 }
 
 /* ---------------------------------------------------------- Touch über CDP */
@@ -194,6 +201,8 @@ try {
   pass('matchStarted');
   await waitFor(() => window.__game.match.state === 'playing', 60000, 'Countdown');
   pass('playing');
+  // Headless gewährt keinen Pointer-Lock: Maustasten auch ohne Sperre zulassen (wie autostart)
+  await page.evaluate(() => { window.__game.input.allowUnlockedMouse = true; });
   const profileBefore = await page.evaluate(() => window.__game.profile.get().matches);
   await shot('start');
 

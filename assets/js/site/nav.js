@@ -60,7 +60,7 @@ function spy() {
   if (nav && nav.getClientRects().length && getComputedStyle(nav).visibility !== 'hidden') {
     if (!nav.classList.contains('fold') || !navH) navH = nav.offsetHeight;
     const top = vh - navH;
-    for (const el of $$('.span > .r, .set-row > .r, .rail > :not(.rail-label)')) {
+    for (const el of $$('.span > .r, .set-row > .r, .rail > :not(.rail-label), .foot')) {
       const r = el.getBoundingClientRect();
       if (r.height > 0 && r.bottom > top + 8 && r.top < vh) { fold = true; break; }
     }

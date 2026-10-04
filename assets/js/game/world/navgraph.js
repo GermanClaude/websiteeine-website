@@ -89,7 +89,17 @@ function makeTests(bvh) {
     return Math.abs(b.y - prevY) <= 0.46;
   };
 
-  return { ray, groundAt, nodeClear, segmentClear, hit };
+  /** Standfläche: Boden auch ±0,35 m daneben (keine Knoten auf Brüstungen, Geländern, Fensterbänken). */
+  const support = (x, y, z) => {
+    let ok = 0;
+    for (const [dx, dz] of [[0.35, 0], [-0.35, 0], [0, 0.35], [0, -0.35]]) {
+      const gy = groundAt(x + dx, z + dz, y + 0.3, y - 0.35);
+      if (!Number.isNaN(gy)) ok++;
+    }
+    return ok >= 3;
+  };
+
+  return { ray, groundAt, nodeClear, segmentClear, support, hit };
 }
 
 // ---------------------------------------------------------------------------
@@ -316,7 +326,7 @@ export function buildNavGraph(src, { spacing = 1.5, debug = false } = {}) {
     // Treffer von oben nach unten; Tiefenzähler: Oberseite (ny>0) = Eintritt in Festkörper,
     // Unterseite (ny<0) = Austritt. Kandidat = Oberseite, über der Luft ist (Tiefe 0).
     const hits = [];
-    bvh.verticalHits(x, z, yTop, yBot, (y, ny) => { if (Math.abs(ny) > 0.05) hits.push(y, ny); });
+    bvh.verticalHits(x, z, yTop, yBot, (y, ny) => { if (Math.abs(ny) > 0.001) hits.push(y, ny); }); // auch steile Kegelflächen zählen (Ein-/Austritt)
     const order = [];
     for (let k = 0; k < hits.length; k += 2) order.push(k);
     order.sort((p, q) => (hits[q] - hits[p]) || (hits[q + 1] - hits[p + 1]));
@@ -325,7 +335,7 @@ export function buildNavGraph(src, { spacing = 1.5, debug = false } = {}) {
     for (const k of order) {
       const y = hits[k], ny = hits[k + 1];
       if (ny > 0) {
-        if (depth === 0 && ny >= WALK_NY && lastY - y >= 0.12 && !(excl.length && excluded(x, y, z)) && T.nodeClear(x, y, z)) {
+        if (depth === 0 && ny >= WALK_NY && lastY - y >= 0.12 && !(excl.length && excluded(x, y, z)) && T.nodeClear(x, y, z) && T.support(x, y, z)) {
           list.push(raw.length);
           raw.push({ x, y, z, i, j, extra: false });
           lastY = y;
@@ -385,7 +395,7 @@ export function buildNavGraph(src, { spacing = 1.5, debug = false } = {}) {
       for (const dist of [1, 2]) {
         const list = colAt(A.i + di * dist, A.j + dj * dist);
         if (!list) continue;
-        const bi = list.find(k => A.y - raw[k].y > 0.9 && A.y - raw[k].y < 3.6);
+        const bi = list.find(k => A.y - raw[k].y > 0.9 && A.y - raw[k].y < 3.6 && links[k].size >= 2);
         if (bi === undefined) continue;
         const B = raw[bi];
         // horizontale Strecke auf Höhe A bis über B frei, dann senkrecht runter frei

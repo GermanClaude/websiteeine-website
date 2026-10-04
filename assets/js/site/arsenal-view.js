@@ -327,8 +327,13 @@ export async function init(sec, D, ctx) {
   }
 
   let fireTaskOn = false;
+  let lastFireT = 0;
   function fireTask(dt) {
-    fireCtl.update(dt);
+    // Kadenz nach echter Zeit (die Schleife kappt dt für Federn bei 0,1 s)
+    const now = performance.now();
+    const real = lastFireT ? Math.min(0.5, (now - lastFireT) / 1000) : dt;
+    lastFireT = now;
+    fireCtl.update(real);
     const r = def.recoil?.recovery || 8;
     const f = Math.exp(-r * dt);
     if (recoil.x || recoil.y) {
@@ -345,7 +350,7 @@ export async function init(sec, D, ctx) {
       if (!reloading.in && p >= 0.7) { reloading.in = true; snd?.play('reload_mag_in'); }
     }
     const busy = fireCtl.busy || recoil.x || recoil.y || reloading;
-    if (!busy) { fireTaskOn = false; return false; }
+    if (!busy) { fireTaskOn = false; lastFireT = 0; return false; }
     return true;
   }
   function wakeFire() { if (!fireTaskOn) { fireTaskOn = true; loop.add(fireTask); } }
@@ -378,7 +383,7 @@ export async function init(sec, D, ctx) {
     },
     onReload(ms, empty) {
       reloading = { t0: performance.now(), ms, out: false, in: false };
-      ammoNum.textContent = calm() ? `NACHLADEN ${dec(ms / 1000)}${NNBSP}S` : 'NACHLADEN';
+      ammoNum.textContent = calm() ? `NACHLADEN ${dec(ms / 1000)}${NNBSP}s` : 'NACHLADEN';
       if (!calm()) {
         kin.to('all', { w: (i) => 62 - lineWdth(i), g: 100 - cutG(def) }, 120, ease.in);
         const n = kin.n;

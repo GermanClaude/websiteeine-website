@@ -151,7 +151,7 @@ export function palletStack(b, x, z, o = {}) {
 // ---------------------------------------------------------------------------
 export function sandbagGeom() {
   return cached('sandbag', () => {
-    const g = new THREE.BoxGeometry(0.56, 0.16, 0.32, 4, 2, 3);
+    const g = new THREE.BoxGeometry(0.56, 0.16, 0.32, 3, 2, 2);
     const p = g.attributes.position;
     for (let i = 0; i < p.count; i++) {
       const a = p.getX(i) / 0.28, bb = p.getY(i) / 0.08, c = p.getZ(i) / 0.16;
@@ -391,7 +391,9 @@ function flangeRot(dx, dy, dz) {
   return { axis: 'x', ry: Math.atan2(-dz, dx), rz: Math.atan2(dy, Math.hypot(dx, dz)) };
 }
 function sphereGeom() { return cached('sphere', () => new THREE.SphereGeometry(1, 10, 7).toNonIndexed()); }
-export { sphereGeom };
+/** Grobe Kugel (Waren, Obst, Kleinteile – spart Dreiecke). */
+function lowSphereGeom() { return cached('sphereLow', () => new THREE.SphereGeometry(1, 6, 4).toNonIndexed()); }
+export { sphereGeom, lowSphereGeom };
 
 /** Kabel als Kettenlinie zwischen zwei Punkten. */
 export function cable(b, a, c, o = {}) {
@@ -601,7 +603,7 @@ export function marketStall(b, x, z, o = {}) {
     const lx = -w / 2 + 0.35 + i * ((w - 0.7) / (n - 1));
     f.box(lx, 0.9, 0.25, 0.5, 0.18, 0.4, 'wood_crate', { uv: 'fit', collide: false, minimap: false, grad: false, rx: -0.15 });
     const col = goods[i % goods.length];
-    for (let k = 0; k < 6; k++) f.geom(sphereGeom(), lx - 0.15 + (k % 3) * 0.15, 1.08 + Math.floor(k / 3) * 0.04, 0.15 + Math.floor(k / 3) * 0.18, 'white', { sx: 0.075, sy: 0.07, sz: 0.075, tint: col, collide: false, minimap: false, ao: false, bullet: false, cast: false });
+    for (let k = 0; k < 6; k++) f.geom(lowSphereGeom(), lx - 0.15 + (k % 3) * 0.15, 1.08 + Math.floor(k / 3) * 0.04, 0.15 + Math.floor(k / 3) * 0.18, 'white', { sx: 0.075, sy: 0.07, sz: 0.075, tint: col, collide: false, minimap: false, ao: false, bullet: false, cast: false });
   }
   // Pfosten + Dach
   const ph = 2.3;

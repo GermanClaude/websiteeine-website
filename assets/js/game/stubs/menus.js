@@ -5,7 +5,7 @@
 const STYLE = `
 .sm-screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:rgba(10,11,13,.78);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:var(--np-ink);font-family:var(--font-display);pointer-events:auto;overflow:auto}
 .sm-screen.solid{background:radial-gradient(ellipse at 30% 20%,#1a1d22 0,var(--np-black) 70%)}
-.sm-panel{width:min(760px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.sm-panel{width:min(760px,100%);max-height:100%;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;display:flex;flex-direction:column;gap:14px}
 .sm-brand{font-weight:900;font-stretch:125%;letter-spacing:.02em;font-size:clamp(28px,5vw,46px);line-height:1}
 .sm-brand em{font-style:normal;color:var(--np-signal)}
 .sm-sub{color:var(--np-ink-2);font-size:14px;letter-spacing:.06em;text-transform:uppercase;font-family:var(--font-hud);font-weight:600}
@@ -66,7 +66,7 @@ export class Menus {
   }
 
   _screen(name, html, solid = false) {
-    this.root.innerHTML = `<div class="sm-screen${solid ? ' solid' : ''}" data-screen="${name}">${html}</div>`;
+    this.root.innerHTML = `<div class="sm-screen${solid ? ' solid' : ''}" data-screen="${name}" data-scrollable>${html}</div>`;
     this.current = name;
     const s = this.root.firstElementChild;
     s.addEventListener('click', (e) => {

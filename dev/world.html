@@ -105,6 +105,7 @@ async function load(mapId) {
   world = await loadWorld(G, mapId, { onProgress: (p, l) => { document.getElementById('ptext').textContent = `${Math.round(p * 100)} % · ${l}`; } });
   loadMs = performance.now() - t0;
   world.texMs = textureStats.ms - ms0;
+  renderer.toneMappingExposure = world.lighting.exposure || 1;
   document.getElementById('progress').style.display = 'none';
   document.getElementById('map').value = world.id;
   const cam = (params.get('cam') || '').split(',').map(Number);

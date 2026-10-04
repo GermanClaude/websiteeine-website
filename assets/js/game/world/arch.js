@@ -32,10 +32,17 @@ export function wall(b, o) {
     openingDetails(b, o, op, { x0, z0, ux, uz, ry, y, t, sill, top });
   }
   seg(s, L, y, h);
-  // Gesims/Abschluss oben
+  // Gesims/Abschluss oben (unterbrochen an Öffnungen bis zur Oberkante, z. B. Brüstungslücken)
   if (o.cap) {
     const ch = o.cap.h ?? 0.12, ov = o.cap.over ?? 0.06;
-    b.box(x0 + ux * L / 2, y + h, z0 + uz * L / 2, L + ov * 2, ch, t + ov * 2, o.cap.mat || mat, { ry, tint: o.cap.tint ?? o.tint, grad: false, minimap: false, collide: o.cap.collide ?? true });
+    const cuts = ops.filter(op => (op.sill ?? (op.kind === 'window' ? 0.95 : 0)) + op.h >= h - 0.005).map(op => [op.at - op.w / 2, op.at + op.w / 2]);
+    let c0 = -ov;
+    const capSeg = (a, e) => {
+      if (e - a < 0.02) return;
+      b.box(x0 + ux * (a + e) / 2, y + h, z0 + uz * (a + e) / 2, e - a, ch, t + ov * 2, o.cap.mat || mat, { ry, tint: o.cap.tint ?? o.tint, grad: false, minimap: false, collide: o.cap.collide ?? true });
+    };
+    for (const [a, e] of cuts) { capSeg(c0, a); c0 = e; }
+    capSeg(c0, L + ov);
   }
   // Sockel
   if (o.plinth) {

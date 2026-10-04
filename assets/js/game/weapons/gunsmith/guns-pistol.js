@@ -63,7 +63,7 @@ export function p9(b) {
   const grip = { rake: RAKE, gw: 0.0145, gd: 0.0265, gu: -0.0025, ho: 0.0, tu: 0.06 };
   b.anchor('rightHandGrip', 0, -0.015, -0.019, { data: grip });
   b.anchor('magWell', 0, -0.056, -0.026);
-  b.anchor('sight', 0, 0.0895, -0.031, { data: { type: 'iron', eyeRelief: 0.3 } });
+  b.anchor('sight', 0, 0.0895, -0.031, { data: { type: 'iron', eyeRelief: 0.36 } });
   b.anchor('leftHandGrip', 0, -0.015, -0.019, { data: { style: 'pistol', ...grip } });
   b.meta = { sight: 'iron', axis, kind: 'pistol' };
 }
@@ -126,7 +126,7 @@ export function adler(b) {
   const grip = { rake: RAKE, gw: 0.0185, gd: 0.0255, gu: 0.0, ho: 0.0105, tu: 0.065 };
   b.anchor('rightHandGrip', 0, -0.018, -0.02, { data: grip });
   b.anchor('magWell', 0, -0.086, -0.024);
-  b.anchor('sight', 0, 0.1035, -0.054, { data: { type: 'iron', eyeRelief: 0.3 } });
+  b.anchor('sight', 0, 0.1035, -0.054, { data: { type: 'iron', eyeRelief: 0.36 } });
   b.anchor('leftHandGrip', 0, -0.018, -0.02, { data: { style: 'pistol', ...grip } });
   b.meta = { sight: 'iron', axis, kind: 'pistol' };
 }
