@@ -166,9 +166,9 @@ export class Input {
     if (this.adsToggled) { this.adsToggled = false; this._release('ads', 'touch'); }
   }
 
-  /** Kurzes haptisches Feedback (nur Touch, gedrosselt). */
+  /** Kurzes haptisches Feedback (nur Touch, gedrosselt). ms = Dauer oder Muster [an, aus, an …]. */
   vibrate(ms = 10) {
-    if (this.mode !== 'touch' || typeof navigator.vibrate !== 'function') return;
+    if (this.mode !== 'touch' || typeof navigator.vibrate !== 'function' || !navigator.userActivation?.hasBeenActive) return;
     const now = performance.now();
     if (now - this._lastVibrate < 60) return;
     this._lastVibrate = now;
@@ -328,8 +328,13 @@ export class Input {
 
     // Abos (Haptik, Streak-Anzeige)
     this._subs = G.events.scope();
-    this._subs.on('weapon:fire', ({ actor }) => { if (actor && actor.isPlayer) this.vibrate(9); });
-    this._subs.on('player:damaged', () => this.vibrate(28));
+    // Haptik: Treffer/Abschüsse des Spielers und erlittener Schaden (nicht jeder Schuss – das ermüdet)
+    this._subs.on('actor:hit', ({ attacker, killed }) => { if (attacker && attacker.isPlayer) this.vibrate(killed ? [18, 40, 26] : 10); });
+    this._subs.on('player:damaged', () => this.vibrate(30));
+    this._subs.on('explosion', ({ position }) => {
+      const p = G.player;
+      if (p && p.alive && position && p.position.distanceTo(position) < 12) this.vibrate(45);
+    });
     this._subs.on('streak:ready', ({ actor, streakId }) => { if (actor && actor.isPlayer && this._touch) this._touch.setStreak(streakId, true); });
     this._subs.on('streak:activate', ({ actor, streakId }) => { if (actor && actor.isPlayer && this._touch) this._touch.setStreak(streakId, false); });
     this._subs.on('match:state', ({ state }) => { if (state === 'loading' && this._touch) this._touch.resetStreaks(); });

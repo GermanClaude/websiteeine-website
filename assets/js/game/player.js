@@ -31,6 +31,7 @@ const SLIDE_FRICTION = 1.25;
 const REGEN_DELAY = 3.5;
 const REGEN_RATE = 55;
 const PITCH_LIMIT = 1.48;
+const FALL_SAFE = 14; // m/s Aufprallgeschwindigkeit ohne Schaden (≈ 4 m)
 const RECOIL_KEEP = 0.3; // Anteil des Rückstoßes, der nicht zurückgeführt wird (Spray wandert)
 
 const _v = new THREE.Vector3();
@@ -331,7 +332,8 @@ export class Player {
       // leicht lenkbar, Tempo nimmt ab
       const steer = mx * 0.9 * dt;
       if (steer) this.slideDir.applyAxisAngle(THREE.Object3D.DEFAULT_UP, -steer).normalize();
-      const sp = Math.max(0, hSpeed * Math.exp(-SLIDE_FRICTION * dt) - 0.6 * dt);
+      const cur = Math.hypot(v.x, v.z); // nach _startSlide() bereits mit Schub
+      const sp = Math.max(0, cur * Math.exp(-SLIDE_FRICTION * dt) - 0.6 * dt);
       v.x = this.slideDir.x * sp;
       v.z = this.slideDir.z * sp;
       if (this.slideTime > SLIDE_TIME || sp < 3.4 || (!body.onGround && this.slideTime > 0.15)) this._endSlide();
@@ -377,6 +379,11 @@ export class Player {
       this._landVel -= clamp(-vyBefore * 0.02, 0.04, 0.3);
       if (vyBefore < -9) this.shake(clamp((-vyBefore - 9) * 0.04, 0, 0.35));
       G.events.emit('player:land', { velocity: vyBefore });
+      // Fallschaden ab ≈ 4 m Fallhöhe
+      if (-vyBefore > FALL_SAFE && G.combat && !frozen) {
+        G.combat.damage(this, { amount: (-vyBefore - FALL_SAFE) * 9, attacker: null, weaponId: 'fall', zone: 'body', dir: new THREE.Vector3(0, -1, 0) });
+        if (!this.alive) return;
+      }
     }
     if (body.outOfWorld && G.combat) {
       G.combat.damage(this, { amount: 9999, attacker: null, weaponId: 'world' });

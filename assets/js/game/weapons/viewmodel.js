@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import { createWeaponModel } from './models.js';
 import { WEAPONS } from '../../shared/weapons.data.js';
-import { Arms, gripTransform, POSES, mixPose, newPose } from './gunsmith/arms.js';
+import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
 import { ID_TO_MODEL, handlingFor } from './gunsmith/handling.js';
 import { MuzzleFlash, ShellPool, SmokeWisps } from './gunsmith/fx.js';
 import { Spring, Spring3, curve, windowW, clamp, damp, smooth, easeOut, easeInOut, easeOutBack } from './gunsmith/anim.js';
@@ -40,7 +40,6 @@ function req(list, w, o) {
   r.w = w; r.anchor = o.anchor || null; r.style = o.style || null; r.data = o.data || null;
   r.part = o.part || null; r.offset = o.offset || null; r.free = o.free || null; r.dy = o.dy || 0;
 }
-function copyPose(a, out) { for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) out.f[i][k] = a.f[i][k]; for (let k = 0; k < 5; k++) out.t[k] = a.t[k]; return out; }
 
 function basis(F, B, out) {
   const z = _v.set(-F[0], -F[1], -F[2]).normalize();
@@ -140,6 +139,9 @@ export class ViewModel {
     const model = createWeaponModel(key, { lod: 'first' });
     model.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; o.frustumCulled = false; } });
     const ud = model.userData;
+    model.updateMatrixWorld(true);
+    const rg = ud.rightHandGrip, trg = ud.anchors.trigger;
+    if (rg && trg && !rg.userData.trigger) rg.userData.trigger = rg.worldToLocal(trg.getWorldPosition(new THREE.Vector3())).add(new THREE.Vector3(0, 0, -0.0045)).toArray().map(v => Math.round(v * 1e4) / 1e4);   // Vorderseite des Abzugs
     const rest = new Map();
     for (const [n, p] of Object.entries(ud.parts)) rest.set(n, { pos: p.position.clone(), quat: p.quaternion.clone(), vis: p.visible });
     entry = { id, key, model, ud, rest };
@@ -493,20 +495,20 @@ export class ViewModel {
   }
 
   // Anker → Handziel im Kameraraum
-  _anchorTarget(anchor, style, data, out) {
+  _anchorTarget(anchor, style, data, out, side = 1) {
     _m.multiplyMatrices(this._rootInv, anchor.matrixWorld);
     _m.decompose(_v, _q, _s1);
-    const g = gripTransform(style, data || anchor.userData, _v2, _q2);
+    const g = gripTransform(style, data || anchor.userData, side, _v2, _q2);
     out.quat.copy(_q).multiply(g.quat);
     out.pos.copy(g.pos).applyQuaternion(_q).add(_v);
-    copyPose(POSES[g.pose] || POSES.relaxed, out.pose);
+    copyPose(g.pose, out.pose);
     return out;
   }
 
   _freeTarget(pos, F, B, poseName, out) {
     out.pos.fromArray(pos);
     basis(F, B, out.quat);
-    copyPose(POSES[poseName] || POSES.relaxed, out.pose);
+    copyPose(getPose(poseName), out.pose);
     return out;
   }
 
@@ -514,9 +516,8 @@ export class ViewModel {
     const ud = this.cur.ud, h = this.h;
     const R = this._hR, L = this._hL;
     // Rechte Hand: Pistolengriff (Messer: Faustgriff)
-    if (h.action === 'knife') { this._anchorTarget(ud.rightHandGrip, 'pistolGrip', { rake: 0.0 }, R); copyPose(POSES.knife, R.pose); }
-    else this._anchorTarget(ud.rightHandGrip, 'pistolGrip', ud.rightHandGrip.userData, R);
-    if (act) this._applyRequests(act.right, R);
+    this._anchorTarget(ud.rightHandGrip, h.action === 'knife' ? 'knife' : 'pistolGrip', ud.rightHandGrip.userData, R, 1);
+    if (act) this._applyRequests(act.right, R, 1);
     this.arms.right.applyPose(R.pose);
     this.arms.right.solve(R.pos, R.quat);
     // Requisiten in der rechten Hand (Granate) für den Splint-Griff aktualisieren
@@ -524,21 +525,21 @@ export class ViewModel {
     // Linke Hand: Stützgriff
     const lg = ud.leftHandGrip, style = lg.userData.style || h.leftGrip;
     if (h.leftGrip === 'none') this._freeTarget([-0.12, -0.34, -0.22], [0.3, 0.6, -0.8], [-0.6, 0.2, 0.3], 'relaxed', L);
-    else this._anchorTarget(lg, style, lg.userData, L);
-    if (act) this._applyRequests(act.left, L);
+    else this._anchorTarget(lg, style, lg.userData, L, -1);
+    if (act) this._applyRequests(act.left, L, -1);
     this.arms.left.applyPose(L.pose);
     this.arms.left.solve(L.pos, L.quat);
   }
 
   // Handanfragen einer Aktion der Reihe nach einmischen
-  _applyRequests(list, target) {
+  _applyRequests(list, target, side) {
     for (let i = 0; i < list.n; i++) {
       const r = list.items[i];
       if (r.w <= 0) continue;
       const t = this._tmpT;
       if (r.free) this._freeTarget(r.free[0], r.free[1], r.free[2], r.free[3], t);
-      else if (r.part) this._partTarget(r.part, r.style, t, r.offset);
-      else if (r.anchor) { r.anchor.updateWorldMatrix(true, false); this._anchorTarget(r.anchor, r.style, r.data || null, t); }
+      else if (r.part) this._partTarget(r.part, r.style, t, r.offset, side);
+      else if (r.anchor) { r.anchor.updateWorldMatrix(true, false); this._anchorTarget(r.anchor, r.style, r.data || null, t, side); }
       else continue;
       if (r.dy) t.pos.y += r.dy;
       target.lerp(t, r.w);
@@ -745,7 +746,7 @@ export class ViewModel {
   }
 
   // Zielhand an einem Teil (Patrone, Magazin) ausrichten
-  _partTarget(part, style, out, offset) {
+  _partTarget(part, style, out, offset, side = -1) {
     const p = this._part(part);
     if (!p) return out;
     p.updateWorldMatrix(true, false);
@@ -753,7 +754,7 @@ export class ViewModel {
     p.add(tmp);
     tmp.position.fromArray(offset || ZERO3);
     tmp.updateWorldMatrix(false, false);
-    this._anchorTarget(tmp, style, null, out);
+    this._anchorTarget(tmp, style, null, out, side);
     p.remove(tmp);
     return out;
   }
@@ -914,11 +915,13 @@ export class ViewModel {
     if (prop.parent !== bone) bone.add(prop);
     if (kind === 'knife') {
       // Klinge zeigt aus der Faust zur Daumenseite, Schneide zu den Fingern
-      prop.position.set(-0.004 * side, -0.026, -0.058);
+      const k = PROP_SHAPES.knife.pos;
+      prop.position.set(k[0] * side, k[1], k[2]);
       prop.quaternion.setFromEuler(_e.set(0, side * Math.PI / 2, side > 0 ? Math.PI : 0));
       prop.rotateZ(Math.PI);
     } else {
-      prop.position.set(0.004 * side, -0.045, -0.058);
+      const g = PROP_SHAPES.grenade.pos;
+      prop.position.set(g[0] * side, g[1], g[2]);
       prop.rotation.set(0.3, 0, 0);
     }
   }

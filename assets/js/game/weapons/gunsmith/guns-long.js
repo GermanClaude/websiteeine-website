@@ -40,7 +40,7 @@ export function brecher(b) {
   b.part('mag', 0, 0.0, 0.1);
   b.box('steel', 0.032, 0.07, 0.07, 0, 0.0, 0.1, { part: 'mag', c: 0.002 });
   b.box('polymer', 0.036, 0.01, 0.074, 0, -0.035, 0.1, { part: 'mag', c: 0.002 });
-  b.anchor('magGrab', 0, -0.025, 0.1, { part: 'mag' });
+  b.anchor('magGrab', 0, -0.0, 0.1, { part: 'mag', data: { w: 0.016, d: 0.035 } });
   // Abzug
   b.side('steel', [[0.048, -0.006], [0.05, -0.02], [0.044, -0.04], [0.04, -0.038], [0.044, -0.02], [0.043, -0.006]], 0.006, 0, { bevel: 0.0008 });
   // Kannelierter Lauf + große Mündungsbremse
@@ -55,9 +55,10 @@ export function brecher(b) {
     if (b.hi) b.box('rubber', 0.012, 0.012, 0.018, s * 0.011, -0.024, 0.16, { c: 0.002 });
   }
   sniperScope(b, -0.075, axis + 0.0274);
-  b.anchor('rightHandGrip', 0, -0.035, 0.0, { data: { rake: 0.36 } });
+  b.anchor('rightHandGrip', 0, -0.035, 0.0, { data: { rake: 0.36, gw: 0.026, gd: 0.027, gu: 0.0, ho: 0.041, tu: 0.06 } });
+  b.anchor('trigger', 0, -0.028, 0.043);
   b.anchor('magWell', 0, 0.0, 0.1);
-  b.anchor('leftHandGrip', 0, -0.009, 0.27, { data: { style: 'flat', r: 0.026 } });
+  b.anchor('leftHandGrip', 0, -0.009, 0.27, { data: { style: 'flat', w: 0.026, h: 0.0335 } });
   b.meta = { sight: 'sniper', axis, kind: 'sniper' };
 }
 
@@ -116,8 +117,9 @@ export function bulldog(b) {
   b.part('shell', 0, 0.012, 0.09);
   b.cyl('shellRed', 0.0105, 0.0105, 0.055, 0, 0.012, 0.09, { part: 'shell', seg: b.seg(10, 5) });
   b.cyl('brass', 0.0109, 0.0109, 0.013, 0, 0.012, 0.059, { part: 'shell', seg: b.seg(10, 5) });
-  b.anchor('rightHandGrip', 0, -0.014, -0.03, { data: { rake: 0.5 } });
+  b.anchor('rightHandGrip', 0, -0.014, -0.03, { data: { rake: 0.5, gw: 0.02, gd: 0.022, gu: 0.0, ho: 0.03, tu: 0.04 } });
+  b.anchor('trigger', 0, -0.008, 0.02);
   b.anchor('sight', 0, 0.0915, -0.045, { data: { type: 'iron', eyeRelief: 0.22 } });
-  b.anchor('leftHandGrip', 0, axis - 0.048, 0.3, { part: 'pump', data: { style: 'pump', r: 0.024 } });
+  b.anchor('leftHandGrip', 0, axis - 0.048, 0.3, { part: 'pump', data: { style: 'pump', w: 0.0216, h: 0.0254 } });
   b.meta = { sight: 'iron', axis, kind: 'shotgun', hidden: ['shell'] };
 }

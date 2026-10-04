@@ -51,18 +51,25 @@ function read() {
 }
 
 const siteStore = store(read());
+let silent = false;
 siteStore.onChange(() => {
-  if (!ls) return;
+  if (!ls || silent) return;
   try { ls.setItem(KEY, JSON.stringify(siteStore.get())); } catch { /* voll oder gesperrt */ }
 });
 
 /** Website-Speicher. `persistent` = localStorage nutzbar. */
 export const site = Object.assign(siteStore, {
   persistent: !!ls,
-  /** Setzt alles zurück und entfernt den Schlüssel. */
+  /**
+   * Setzt alles zurück und entfernt den Schlüssel, ohne ihn neu zu schreiben. Im Arbeitsspeicher gilt die
+   * Seite danach als „bekannt“ (initialised), damit der nächste Einsatz wieder eine Fahne bekommt.
+   */
   wipe() {
-    for (const [k, v] of Object.entries(DEFAULTS)) siteStore.set(k, v);
-    siteStore.set('initialised', false);
+    silent = true;
+    try {
+      for (const [k, v] of Object.entries(DEFAULTS)) siteStore.set(k, v);
+      siteStore.set('initialised', true);
+    } finally { silent = false; }
     if (ls) { try { ls.removeItem(KEY); } catch { /* egal */ } }
   },
 });

@@ -15,6 +15,7 @@ import { profile } from '../shared/profile.js';
 import { EventBus } from './engine/events.js';
 import { createRenderer, QUALITY_LEVELS } from './engine/renderer.js';
 import { Input } from './engine/input.js';
+import { separateActors } from './engine/physics.js';
 import { Player } from './player.js';
 import { Combat } from './combat.js';
 
@@ -407,6 +408,7 @@ async function startMatch(config) {
   // Wird direkt aus dem Klick-Handler aufgerufen → Nutzergeste für Audio + Pointer-Lock
   safe('audio.unlock', () => G.audio.unlock());
   if (G.input.mode === 'desktop' && !AUTOSTART) G.input.requestLock();
+  else if (G.input.mode === 'touch') requestFullscreen();
   try {
     if (G.world || G.mode) await teardownMatch();
     const cfg = normalizeConfig(config);
@@ -628,6 +630,18 @@ function resume() {
   safe('menus.hideAll', () => G.menus.hideAll());
   setState(G.match.pausedFrom || 'playing');
   if (G.input.mode === 'desktop' && !AUTOSTART) G.input.requestLock();
+  else if (G.input.mode === 'touch') requestFullscreen();
+}
+
+/** Vollbild + Querformat-Sperre (nur aus einer Nutzergeste heraus wirksam; Fehler werden ignoriert). */
+function requestFullscreen() {
+  const el = document.documentElement;
+  try {
+    if (document.fullscreenElement || !document.fullscreenEnabled || !el.requestFullscreen) return;
+    el.requestFullscreen({ navigationUI: 'hide' })
+      .then(() => (screen.orientation && screen.orientation.lock ? screen.orientation.lock('landscape').catch(() => {}) : null))
+      .catch(() => {});
+  } catch { /* nicht unterstützt (z. B. iOS-Safari auf dem iPhone) */ }
 }
 
 async function toLobby() {
@@ -663,6 +677,7 @@ function frame(now) {
     if (G.input.pressed('pause') && G.match.state !== 'paused') pause();
     step('player', () => G.player.update(dt));
     step('bots', () => G.bots.update(dt));
+    if (st === 'playing') step('separate', () => separateActors(G.actors));
     step('weapons', () => G.weapons.update(dt));
     step('mode', () => { if (G.mode) G.mode.update(dt); });
     if (G.match.state === 'playing') step('respawn', updateRespawns);

@@ -25,9 +25,20 @@ function detectWebGL() {
 const webgl = detectWebGL();
 html.classList.toggle('no-webgl', !webgl);
 const saveData = !!navigator.connection?.saveData;
-const ctx = { sound, webgl, saveData };
+const pendingEnsure = [];
+const ctx = {
+  sound, webgl, saveData,
+  // Bis die Abschnitte starten dürfen (Schriften), werden Anfragen gesammelt.
+  ensure: (key) => new Promise((resolve) => pendingEnsure.push(() => ctx.ensure(key).then(resolve))),
+};
 
 /* Chrom + Hero */
+// Telefone und Tablets: Hinweis unter „Sofort spielen.“ (quer halten, Touch-Belegung)
+const coarseMq = window.matchMedia('(pointer: coarse)');
+const touchPlay = document.getElementById('touch-play');
+const showTouch = () => { if (touchPlay) touchPlay.hidden = !coarseMq.matches; };
+showTouch();
+coarseMq.addEventListener?.('change', showTouch);
 initNav();
 setNavSound(sound);
 initZero({ sound });
@@ -94,19 +105,26 @@ async function boot() {
 
   // Abschnitte erst initialisieren, wenn sie innerhalb eines Bildschirms herankommen
   await fontsP;
-  const started = new Set();
-  const start = async (sec) => {
-    const key = sec.dataset.view;
-    if (started.has(key) || !VIEWS[key]) return;
-    started.add(key);
-    try {
-      const m = await VIEWS[key]();
-      await m.init(sec, D, ctx);
-    } catch (err) {
-      console.error(`[NULLPUNKT] Abschnitt ${key}:`, err);
-      signalLost(sec.querySelector('.content'), 'Dieser Abschnitt konnte nicht aufgebaut werden.');
-    }
+  const started = new Map();
+  const start = (sec) => {
+    const key = sec?.dataset.view;
+    if (!key || !VIEWS[key]) return Promise.resolve();
+    if (started.has(key)) return started.get(key);
+    const p = (async () => {
+      try {
+        const m = await VIEWS[key]();
+        await m.init(sec, D, ctx);
+      } catch (err) {
+        console.error(`[NULLPUNKT] Abschnitt ${key}:`, err);
+        signalLost(sec.querySelector('.content'), 'Dieser Abschnitt konnte nicht aufgebaut werden.');
+      }
+    })();
+    started.set(key, p);
+    return p;
   };
+  // Andere Abschnitte können einen Abschnitt vorzeitig aufbauen lassen (z. B. „Im Arsenal prüfen.“)
+  ctx.ensure = (key) => start(document.querySelector(`section[data-view="${key}"]`));
+  for (const fn of pendingEnsure.splice(0)) fn();
   const io = new IntersectionObserver((entries) => {
     for (const e of entries) if (e.isIntersecting) { io.unobserve(e.target); start(e.target); }
   }, { rootMargin: '100% 0px' });

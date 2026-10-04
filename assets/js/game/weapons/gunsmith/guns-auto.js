@@ -80,7 +80,7 @@ export function vp9(b) {
     b.cyl('brass', 0.0045, 0.0045, 0.018, 0, 0.032, 0.1, { part: 'mag', seg: 8 });
   }
   const [gu, gv] = at(0.45);
-  b.anchor('magGrab', 0, gv, gu, { part: 'mag' });
+  b.anchor('magGrab', 0, gv, gu, { part: 'mag', data: { w: 0.012, d: 0.017 } });
   // Einschiebe-Schulterstütze (A3): zwei Streben + Schaftkappe
   for (const s of [-1, 1]) {
     b.box('steel', 0.004, 0.012, 0.21, s * 0.0215, 0.075, -0.18, { c: 0.001 });
@@ -89,10 +89,10 @@ export function vp9(b) {
   b.side('rubber', [[-0.272, 0.095], [-0.28, 0.1], [-0.292, 0.096], [-0.296, 0.06], [-0.294, 0.0], [-0.288, -0.03], [-0.278, -0.034], [-0.272, -0.025]], 0.046, 0, { bevel: 0.006 });
   b.box('steel', 0.046, 0.016, 0.01, 0, 0.075, -0.27, { c: 0.002 });
   b.box('steel', 0.046, 0.012, 0.01, 0, 0.0, -0.275, { c: 0.002 });
-  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.3 } });
+  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.3, gw: 0.017, gd: 0.021, gu: 0.005, ho: 0.044, tu: 0.02 } });
   b.anchor('magWell', 0, 0.02, 0.105);
   b.anchor('sight', 0, 0.1145, -0.06, { data: { type: 'iron', eyeRelief: 0.16 } });
-  b.anchor('leftHandGrip', 0, 0.03, 0.29, { data: { style: 'under', r: 0.022 } });
+  b.anchor('leftHandGrip', 0, 0.03, 0.29, { data: { style: 'under', w: 0.02, h: 0.022 } });
   b.meta = { sight: 'iron', axis, kind: 'smg' };
 }
 
@@ -156,9 +156,10 @@ export function qx90(b) {
   // Hülsenauswurf nach unten durch den Griff
   b.anchor('ejection', 0, -0.094, -0.01, { rz: -Math.PI / 2 });
   b.part('bolt', 0, axis, 0.0);
-  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.22 } });
+  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.22, gw: 0.0275, gd: 0.034, gu: -0.0065, ho: 0.02, tu: 0.04 } });
+  b.anchor('trigger', 0, 0.006, 0.048);
   b.anchor('magWell', 0, 0.116, 0.0);
-  b.anchor('leftHandGrip', 0, -0.03, 0.215, { data: { style: 'post', rake: 0.25 } });
+  b.anchor('leftHandGrip', 0, -0.03, 0.215, { data: { style: 'post', rake: 0.25, gw: 0.0275, gd: 0.023, gu: 0, ho: 0.024 } });
   b.meta = { sight: 'reddot', axis, kind: 'smg', sightAxis: sAxis };
 }
 
@@ -206,7 +207,7 @@ export function hm60(b) {
       b.box('brass', 0.03, 0.06, 0.05, -0.06, 0.06, 0.095, { part: 'belt', rz: -0.5 });
     }
   }
-  b.anchor('magGrab', -0.105, -0.01, 0.1, { part: 'mag' });
+  b.anchor('magGrab', -0.065, -0.01, 0.1, { part: 'mag', data: { w: 0.0375, d: 0.065 } });
   // Pistolengriff + Abzugsbügel
   b.side('grip', [
     [0.03, 0.022], [0.026, 0.0], [0.018, -0.04], [0.01, -0.07], [0.0, -0.08], [-0.028, -0.08], [-0.032, -0.068],
@@ -249,7 +250,7 @@ export function hm60(b) {
   if (b.hi) for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; b.box('cavity', 0.003, 0.003, 0.045, Math.cos(a) * 0.0168, axis + Math.sin(a) * 0.0168, 0.915, { rz: a, c: 0 }); }
   b.circle('cavity', 0.012, 0, axis, 0.9455);
   b.anchor('muzzle', 0, axis, 0.946);
-  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.32 } });
+  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.32, gw: 0.016, gd: 0.02, gu: 0.006, ho: 0.039, tu: 0.03 } });
   b.anchor('magWell', -0.06, 0.0, 0.1);
   b.anchor('sight', 0, 0.1405, -0.08, { data: { type: 'iron', eyeRelief: 0.22 } });
   b.anchor('leftHandGrip', 0, axis - 0.035, 0.32, { data: { style: 'under', r: 0.031 } });

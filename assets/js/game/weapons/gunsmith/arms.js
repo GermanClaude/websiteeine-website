@@ -1,7 +1,12 @@
 // Ego-Arme: Handschuhhände als SkinnedMesh (je Hand 1 Draw Call, 16 Knochen mit Fingergliedern),
 // Unter-/Oberarm-Ärmel mit Tarnmuster, Zwei-Knochen-IK von der Schulter zum Handgelenk, Uhr + Klebeband.
 // Handkoordinaten (rechte Hand): Handgelenk im Ursprung, Finger −Z, Handrücken +Y, Daumen −X.
-// Die linke Hand ist gespiegelt gebaut (gleiche Semantik: Finger −Z, Handrücken +Y).
+// Die linke Hand ist gespiegelt gebaut (gleiche Semantik: Finger −Z, Handrücken +Y, Daumen +X).
+//
+// Griff-Löser: Jede Griffart beschreibt einen Kollisionskörper (elliptischer Zylinder / Kugel) im Ankerraum.
+// Die Hand wird so platziert, dass die Handfläche ihn berührt; die Fingerglieder beugen sich der Reihe nach,
+// bis sie anliegen; der Zeigefinger sucht den Abzug; die Daumenausrichtung wird gesucht, bis die Kuppe ihr
+// Ziel auf der Gegenseite erreicht. Ergebnisse werden je Griffart + Maßen gecacht.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -18,63 +23,347 @@ const THUMB = { base: [-0.027, -0.011, -0.018], len: [0.042, 0.032, 0.026], r: [
 
 const GLOVE = new THREE.Color(0x2c2e30), PALM = new THREE.Color(0x5b554b), PAD = new THREE.Color(0x141516), CUFF = new THREE.Color(0x3a3c36);
 
-// Fingerposen: f = [beuge1, beuge2, beuge3, spreizung] je Finger (Zeige→kleiner Finger),
-// t = [Opposition, Adduktion, Beugung1, Beugung2, Beugung3] Daumen
-export const POSES = {
-  relaxed: { f: [[0.25, 0.3, 0.2, 0], [0.3, 0.35, 0.2, 0], [0.35, 0.4, 0.25, 0], [0.4, 0.45, 0.3, 0]], t: [0.2, 0.0, 0.1, 0.15, 0.1] },
-  open: { f: [[0.05, 0.08, 0.05, 0.05], [0.05, 0.08, 0.05, 0], [0.05, 0.1, 0.05, -0.04], [0.08, 0.1, 0.06, -0.08]], t: [0.0, -0.1, 0.0, 0.05, 0.05] },
-  trigger: { f: [[0.32, 0.5, 0.3, 0.06], [1.28, 1.45, 0.75, 0], [1.32, 1.45, 0.75, -0.02], [1.35, 1.4, 0.7, -0.06]], t: [0.95, 0.25, 0.3, 0.45, 0.3] },
-  support: { f: [[0.85, 0.85, 0.45, 0.1], [0.95, 0.9, 0.5, 0.02], [1.0, 0.95, 0.5, -0.04], [1.05, 0.95, 0.5, -0.1]], t: [0.3, 0.2, 0.1, 0.15, 0.1] },
-  pump: { f: [[1.05, 1.05, 0.55, 0.05], [1.1, 1.05, 0.55, 0], [1.12, 1.05, 0.55, -0.03], [1.15, 1.05, 0.55, -0.08]], t: [0.5, 0.2, 0.2, 0.3, 0.2] },
-  flat: { f: [[0.45, 0.5, 0.3, 0.06], [0.5, 0.55, 0.3, 0], [0.55, 0.55, 0.3, -0.04], [0.6, 0.55, 0.3, -0.1]], t: [0.2, 0.1, 0.05, 0.1, 0.1] },
-  post: { f: [[1.15, 1.3, 0.7, 0.04], [1.2, 1.35, 0.7, 0], [1.25, 1.35, 0.7, -0.03], [1.3, 1.35, 0.7, -0.07]], t: [0.95, 0.25, 0.3, 0.45, 0.3] },
-  wrap: { f: [[1.0, 1.1, 0.6, 0.0], [1.05, 1.15, 0.6, 0], [1.1, 1.15, 0.6, -0.02], [1.15, 1.15, 0.6, -0.06]], t: [0.3, 0.3, 0.1, 0.15, 0.1] },
-  mag: { f: [[0.75, 0.85, 0.45, 0.05], [0.85, 0.9, 0.5, 0], [0.95, 0.95, 0.5, -0.03], [1.05, 1.0, 0.55, -0.08]], t: [0.7, 0.2, 0.2, 0.3, 0.2] },
-  pinch: { f: [[0.7, 0.85, 0.55, 0.0], [1.2, 1.35, 0.8, 0], [1.3, 1.4, 0.8, -0.03], [1.35, 1.4, 0.8, -0.07]], t: [0.8, 0.5, 0.35, 0.5, 0.4] },
-  fist: { f: [[1.45, 1.6, 0.9, 0.0], [1.5, 1.6, 0.9, 0], [1.5, 1.6, 0.9, -0.02], [1.5, 1.6, 0.9, -0.05]], t: [1.1, 0.5, 0.4, 0.6, 0.5] },
-  knife: { f: [[1.35, 1.45, 0.8, 0.02], [1.38, 1.5, 0.8, 0], [1.4, 1.5, 0.8, -0.02], [1.42, 1.5, 0.8, -0.05]], t: [1.0, 0.4, 0.35, 0.5, 0.4] },
-  ball: { f: [[0.75, 0.55, 0.35, 0.16], [0.8, 0.55, 0.35, 0.04], [0.85, 0.6, 0.35, -0.08], [0.9, 0.65, 0.4, -0.2]], t: [0.8, 0.2, 0.2, 0.3, 0.25] },
-};
-
-// Griffarten: Fingerrichtung F und Handrückenrichtung B im Ankerraum, Kontaktpunkt p (Handraum)
-// (Werte für die rechte bzw. linke Hand gleichermaßen; die gespiegelte Hand kümmert sich um die Seite.)
-export const GRIPS = {
-  pistolGrip: { F: rake => [0, -Math.sin(rake) - 0.05, -Math.cos(rake)], B: [1, 0.08, 0.0], p: [-0.016, -0.029, -0.054], pose: 'trigger' },
-  under: { F: () => [0.95, 0.25, -0.55], B: [-0.42, -1, -0.1], p: [0.0, -0.018, -0.058], pose: 'support' },
-  flat: { F: () => [0.95, 0.1, -0.45], B: [-0.25, -1, 0], p: [0.0, -0.017, -0.055], pose: 'flat' },
-  pump: { F: () => [0.9, 0.3, -0.5], B: [-0.45, -1, -0.1], p: [0.0, -0.018, -0.056], pose: 'pump' },
-  post: { F: rake => [0.05, -Math.sin(rake), -Math.cos(rake)], B: [-1, 0.1, 0.1], p: [0.002, -0.03, -0.056], pose: 'post' },
-  pistol: { F: () => [0.42, -0.62, -0.6], B: [-0.85, -0.3, 0.25], p: [0.006, -0.042, -0.05], pose: 'wrap' },
-  mag: { F: () => [0.0, -0.25, -1], B: [-1, 0, 0], p: [0.0, -0.022, -0.05], pose: 'mag' },
-  magTop: { F: () => [0.6, 0, -0.8], B: [0, 1, 0], p: [0.0, -0.03, -0.05], pose: 'mag' },
-  pinchSide: { F: () => [0.15, 0.1, -1], B: [-0.2, 1, 0.1], p: [-0.022, -0.018, -0.088], pose: 'pinch' },
-  pinchRight: { F: () => [-0.2, -0.1, -1], B: [0.6, 1, 0], p: [-0.024, -0.02, -0.088], pose: 'pinch' },
-  boltKnob: { F: () => [-0.1, 0.2, -1], B: [0.4, 1, 0], p: [-0.02, -0.022, -0.086], pose: 'pinch' },
-  slapTop: { F: () => [0.2, -0.3, -1], B: [0, 1, 0.2], p: [0.0, -0.022, -0.06], pose: 'flat' },
-  rack: { F: () => [0.95, -0.1, -0.2], B: [0, 1, 0], p: [0.0, -0.03, -0.06], pose: 'wrap' },
-};
-
-const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
+const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+const _v1 = V3(), _v2 = V3(), _v3 = V3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
+const _a = V3(), _b = V3(), _c = V3(), _d = V3(), _qa = new THREE.Quaternion();
+const AX = V3(1, 0, 0);
 
 function basisQuat(F, B, out = new THREE.Quaternion()) {
-  const z = _v1.set(-F[0], -F[1], -F[2]).normalize();
-  const y = _v2.set(B[0], B[1], B[2]);
+  const z = (F.isVector3 ? _v1.copy(F).negate() : _v1.set(-F[0], -F[1], -F[2])).normalize();
+  const y = B.isVector3 ? _v2.copy(B) : _v2.set(B[0], B[1], B[2]);
   y.addScaledVector(z, -y.dot(z)).normalize();
   const x = _v3.crossVectors(y, z).normalize();
   _m.makeBasis(x, y, z);
   return out.setFromRotationMatrix(_m);
 }
 
-/** Lokale Handtransformation (relativ zum Ankerrahmen) für eine Griffart. */
-export function gripTransform(style, data = {}, outPos = new THREE.Vector3(), outQuat = new THREE.Quaternion()) {
-  const g = GRIPS[style] || GRIPS.under;
-  basisQuat(g.F(data.rake ?? 0.3), g.B, outQuat);
-  const p = _v1.set(g.p[0], g.p[1], g.p[2]).applyQuaternion(outQuat);
-  outPos.copy(p).negate();
-  return { pos: outPos, quat: outQuat, pose: g.pose };
+// ---------------------------------------------------------------- Kollisionskörper
+
+function makeCyl(c, A, U, a, b, h0 = -1, h1 = 1) {
+  const An = A.clone().normalize();
+  const Un = U.clone().addScaledVector(An, -U.dot(An)).normalize();
+  return { type: 'cyl', c: c.clone(), A: An, U: Un, V: V3().crossVectors(An, Un), a, b, h0, h1 };
+}
+function makeSphere(c, r) { return { type: 'sphere', c: c.clone(), r }; }
+
+function inside(s, p, r) {
+  _d.subVectors(p, s.c);
+  if (s.type === 'sphere') return _d.lengthSq() <= (s.r + r) * (s.r + r);
+  const h = _d.dot(s.A);
+  if (h < s.h0 - r * 0.5 || h > s.h1 + r * 0.5) return false;
+  const u = _d.dot(s.U) / (s.a + r), v = _d.dot(s.V) / (s.b + r);
+  return u * u + v * v <= 1;
 }
 
-// ---------- Geometrie ----------
+// Nächster Punkt auf der Achse (Zylinder) bzw. Mittelpunkt (Kugel)
+function axisPoint(s, p, out) {
+  if (s.type === 'sphere') return out.copy(s.c);
+  const h = THREE.MathUtils.clamp(_d.subVectors(p, s.c).dot(s.A), s.h0, s.h1);
+  return out.copy(s.c).addScaledVector(s.A, h);
+}
+
+// Oberflächenpunkt, dessen Außennormale in Richtung n zeigt
+function surfacePoint(s, n, out) {
+  if (s.type === 'sphere') return out.copy(n).normalize().multiplyScalar(s.r).add(s.c);
+  const nu = n.dot(s.U), nv = n.dot(s.V);
+  const den = Math.sqrt(s.a * s.a * nu * nu + s.b * s.b * nv * nv) || 1;
+  return out.copy(s.c).addScaledVector(s.U, s.a * s.a * nu / den).addScaledVector(s.V, s.b * s.b * nv / den);
+}
+
+// Körper vom Ankerraum in den Handraum (Hand bei pos/quat im Ankerraum), optional gespiegelt (linke Hand)
+function toHand(s, pos, quat, mirror) {
+  const inv = quat.clone().invert();
+  const P = v => { const r = v.clone().sub(pos).applyQuaternion(inv); if (mirror) r.x = -r.x; return r; };
+  const D = v => { const r = v.clone().applyQuaternion(inv); if (mirror) r.x = -r.x; return r; };
+  if (s.type === 'sphere') return makeSphere(P(s.c), s.r);
+  return makeCyl(P(s.c), D(s.A), D(s.U), s.a, s.b, s.h0, s.h1);
+}
+
+// ---------------------------------------------------------------- Vorwärtskinematik (rechte Hand)
+
+const _fq = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
+const _fp = [V3(), V3(), V3(), V3()];
+function fingerFK(i, th, splay) {
+  const f = FINGERS[i];
+  _fp[0].set(f.x, f.y, f.z);
+  _fq[0].setFromEuler(_e.set(-th[0], splay, 0));
+  for (let s = 0; s < 3; s++) {
+    if (s > 0) _fq[s].copy(_fq[s - 1]).multiply(_qa.setFromAxisAngle(AX, -th[s]));
+    _fp[s + 1].set(0, 0, -f.len[s]).applyQuaternion(_fq[s]).add(_fp[s]);
+  }
+}
+
+const _tq = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
+const _tp = [V3(), V3(), V3(), V3()];
+function thumbFK(q, flex) {
+  _tp[0].fromArray(THUMB.base);
+  _tq[0].copy(q);
+  for (let s = 0; s < 3; s++) {
+    if (s > 0) _tq[s].copy(_tq[s - 1]).multiply(_qa.setFromAxisAngle(AX, -flex[s - 1]));
+    _tp[s + 1].set(0, 0, -THUMB.len[s]).applyQuaternion(_tq[s]).add(_tp[s]);
+  }
+}
+
+const FMAX = [1.55, 1.75, 1.3];
+const FREE = [1.2, 1.45, 0.95];
+const START = [0.06, 0.1, 0.06];
+
+// Finger der Reihe nach beugen, bis jedes Glied anliegt
+function curlFinger(i, shape, splay, free = FREE) {
+  const f = FINGERS[i], th = START.slice(), steps = 32;
+  for (let s = 0; s < 3; s++) {
+    let hit = false;
+    const lo = START[s], hi = FMAX[s];
+    for (let k = 0; k <= steps; k++) {
+      th[s] = lo + (hi - lo) * k / steps;
+      fingerFK(i, th, splay);
+      _a.lerpVectors(_fp[s], _fp[s + 1], 0.55);
+      if (inside(shape, _fp[s + 1], f.r[s] * 0.92) || inside(shape, _a, f.r[s] * 0.92)) {
+        hit = true;
+        th[s] = Math.max(lo, th[s] - (hi - lo) / steps * 0.5);
+        break;
+      }
+    }
+    if (!hit) th[s] = free[s];
+  }
+  return th;
+}
+
+// Zeigefinger mit der Kuppe an einen Punkt (Abzug) führen
+function reachFinger(i, target, splay, shape) {
+  let best = [0.3, 0.6, 0.3], bestCost = Infinity;
+  const f = FINGERS[i];
+  const evalAt = (t0, t1) => {
+    const th = [t0, t1, t1 * 0.6];
+    fingerFK(i, th, splay);
+    _a.lerpVectors(_fp[2], _fp[3], 0.6).add(_b.set(0, -f.r[2] * 0.9, 0).applyQuaternion(_fq[2]));
+    let cost = _a.distanceToSquared(target);
+    if (shape) for (let s = 0; s < 3; s++) { _c.lerpVectors(_fp[s], _fp[s + 1], 0.6); if (inside(shape, _c, f.r[s] * 0.7)) cost += 0.002; }
+    if (cost < bestCost) { bestCost = cost; best = th; }
+  };
+  for (let a = 0; a <= 14; a++) for (let b = 0; b <= 14; b++) evalAt(-0.15 + a / 14 * 1.45, b / 14 * 1.7);
+  const [c0, c1] = best;
+  for (let a = -4; a <= 4; a++) for (let b = -4; b <= 4; b++) evalAt(c0 + a * 0.026, Math.max(0, c1 + b * 0.03));
+  return best;
+}
+
+// Daumen: Richtung des Grundglieds (α zur Seite, β zur Handfläche), Kuppe zum Ziel, Glieder legen sich an
+const TF0 = V3(0, 0, -1), TS = V3(-1, 0, 0), TP = V3(0, -1, 0), CUP = V3(0.006, -0.038, -0.07);
+function thumbBase(alpha, beta, shape, out) {
+  const D = _a.copy(TF0).multiplyScalar(Math.cos(alpha)).addScaledVector(TS, Math.sin(alpha)).multiplyScalar(Math.cos(beta)).addScaledVector(TP, Math.sin(beta)).normalize();
+  const mid = _b.fromArray(THUMB.base).addScaledVector(D, 0.035);
+  const tgt = shape ? axisPoint(shape, mid, _c) : _c.copy(CUP);
+  const pad = tgt.sub(mid);
+  pad.addScaledVector(D, -pad.dot(D));
+  if (pad.lengthSq() < 1e-8) pad.copy(TP).addScaledVector(D, -TP.dot(D));
+  pad.normalize().negate();          // Nagel = Gegenrichtung der Kuppe
+  return basisQuat(D.clone(), pad.clone(), out);
+}
+
+function solveThumb(shape, target, free = [0.3, 0.25]) {
+  const q = new THREE.Quaternion();
+  let best = null, bestCost = Infinity;
+  const tryAt = (al, be) => {
+    thumbBase(al, be, shape, q);
+    const flex = [0.05, 0.05];
+    let pen = 0;
+    thumbFK(q, flex);
+    if (shape) {
+      _d.lerpVectors(_tp[0], _tp[1], 0.6);
+      if (inside(shape, _tp[1], THUMB.r[0] * 0.8) || inside(shape, _d, THUMB.r[0] * 0.8)) pen += 0.004;
+      for (let s = 1; s < 3; s++) {
+        let hit = false;
+        for (let k = 0; k <= 20; k++) {
+          flex[s - 1] = 0.05 + k / 20 * (s === 1 ? 0.95 : 1.05);
+          thumbFK(q, flex);
+          _d.lerpVectors(_tp[s], _tp[s + 1], 0.55);
+          if (inside(shape, _tp[s + 1], THUMB.r[s] * 0.9) || inside(shape, _d, THUMB.r[s] * 0.9)) { hit = true; flex[s - 1] = Math.max(0.05, flex[s - 1] - 0.025); break; }
+        }
+        if (!hit) flex[s - 1] = free[s - 1];
+      }
+      thumbFK(q, flex);
+    } else { flex[0] = free[0]; flex[1] = free[1]; thumbFK(q, flex); }
+    // Kuppe nicht durch die Handfläche
+    for (const p of [_tp[2], _tp[3]]) if (Math.abs(p.x) < 0.038 && p.y > -0.03 && p.y < 0.02 && p.z < -0.01 && p.z > -0.085) pen += 0.003;
+    const cost = _tp[3].distanceToSquared(target) + pen;
+    if (cost < bestCost) { bestCost = cost; best = { al, be, q: q.clone(), flex: flex.slice() }; }
+  };
+  for (let i = 0; i <= 9; i++) for (let j = 0; j <= 9; j++) tryAt(-0.35 + i * 0.2, -0.6 + j * 0.23);
+  const { al, be } = best;
+  for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) tryAt(al + i * 0.065, be + j * 0.075);
+  return best;
+}
+
+// ---------------------------------------------------------------- Posen
+
+function makePose(f, thumb) {
+  const t = [thumb.q.x, thumb.q.y, thumb.q.z, thumb.q.w, thumb.flex[0], thumb.flex[1]];
+  if (t[3] < 0) for (let k = 0; k < 4; k++) t[k] = -t[k];
+  return { f: f.map(a => [a[0], a[1], a[2], a[3] ?? 0]), t };
+}
+
+// Freie Posen (ohne Gegenstand) bzw. mit Gegenstand im Handraum (Messergriff, Granate)
+export const PROP_SHAPES = {
+  knife: { pos: [0.003, -0.029, -0.058], r: 0.0135 },
+  grenade: { pos: [0.004, -0.049, -0.061], r: 0.031 },
+};
+function freePose(fingers, thumbTarget, shape = null, thumbFree) {
+  const f = fingers.map((th, i) => (shape && !th ? curlFinger(i, shape, FINGERS[i].splay * 0.5).concat(0) : th));
+  return makePose(f, solveThumb(shape, V3(...thumbTarget), thumbFree));
+}
+
+export const POSES = {};
+function buildFreePoses() {
+  const knifeShape = makeCyl(V3(...PROP_SHAPES.knife.pos), V3(1, 0, 0), V3(0, 1, 0), PROP_SHAPES.knife.r, PROP_SHAPES.knife.r, -0.06, 0.06);
+  const ballShape = makeSphere(V3(...PROP_SHAPES.grenade.pos), PROP_SHAPES.grenade.r);
+  const pinShape = makeSphere(V3(-0.026, -0.045, -0.112), 0.004);
+  POSES.relaxed = freePose([[0.32, 0.38, 0.22, 0.02], [0.38, 0.42, 0.24, 0], [0.44, 0.48, 0.27, -0.02], [0.5, 0.52, 0.3, -0.05]], [-0.05, -0.028, -0.085], null, [0.25, 0.2]);
+  POSES.open = freePose([[0.06, 0.08, 0.05, 0.06], [0.06, 0.08, 0.05, 0], [0.07, 0.1, 0.05, -0.05], [0.1, 0.1, 0.06, -0.1]], [-0.075, -0.012, -0.06], null, [0.08, 0.06]);
+  POSES.fist = freePose([[1.45, 1.6, 0.95, 0], [1.5, 1.62, 0.95, 0], [1.5, 1.62, 0.95, 0], [1.5, 1.6, 0.95, 0]], [-0.006, -0.05, -0.07], null, [0.45, 0.4]);
+  POSES.flat = freePose([[0.12, 0.12, 0.08, 0.03], [0.12, 0.12, 0.08, 0], [0.14, 0.12, 0.08, -0.03], [0.16, 0.14, 0.1, -0.06]], [-0.06, -0.016, -0.08], null, [0.1, 0.08]);
+  POSES.knife = freePose([null, null, null, null], [-0.012, -0.052, -0.074], knifeShape, [0.5, 0.45]);
+  POSES.ball = freePose([null, null, null, null], [-0.032, -0.06, -0.09], ballShape, [0.3, 0.25]);
+  POSES.pinch = freePose([null, [1.25, 1.45, 0.85, 0], [1.3, 1.5, 0.85, 0], [1.35, 1.5, 0.85, 0]], [-0.026, -0.045, -0.112], pinShape, [0.3, 0.3]);
+  POSES.wrap = freePose([[1.0, 1.1, 0.6, 0], [1.05, 1.15, 0.6, 0], [1.1, 1.15, 0.6, 0], [1.15, 1.15, 0.6, -0.04]], [-0.02, -0.05, -0.07], null, [0.3, 0.25]);
+}
+
+// ---------------------------------------------------------------- Griffarten
+
+// Pistolengriff-Körper aus Anker-Daten: rake (Neigung), gw/gd (halbe Breite/Tiefe), gu (Mitte vor dem Anker), gl (Länge)
+function gripShape(d, grow = 0, forward = 0) {
+  const r = d.rake ?? 0.3;
+  const A = V3(0, -Math.cos(r), Math.sin(r)), U = V3(0, -Math.sin(r), -Math.cos(r));
+  return makeCyl(V3(0, 0, -(d.gu ?? 0)).addScaledVector(U, forward), A, U, (d.gd ?? 0.023) + grow, (d.gw ?? 0.015) + grow, -0.035, d.gl ?? 0.11);
+}
+function barShape(d, A = V3(0, 0, -1)) {
+  const w = d.w ?? d.r ?? 0.024, h = d.h ?? d.r ?? 0.024;
+  return makeCyl(V3(0, h, 0), A, V3(1, 0, 0), w, h, -0.12, 0.12);
+}
+const leftOf = (s, ext, up, fwd) => s.c.clone().addScaledVector(s.V, -(s.b + ext)).addScaledVector(s.A, -up).addScaledVector(s.U, fwd);
+
+export const GRIPS = {
+  // Rechte Hand am Pistolengriff, Zeigefinger am Abzug, Daumen links am Gehäuse
+  pistolGrip: {
+    shape: d => gripShape(d), F: (d, s) => s.U, B: () => [1, 0.05, 0], hOff: d => d.ho ?? 0.018, pc: [0, -0.0175, -0.048],
+    index: 'trigger', thumb: (d, s) => leftOf(s, 0.011, d.tu ?? 0.034, s.a * 0.35),
+  },
+  // Linke Hand unter dem Handschutz (Handfläche links unten, Finger um die rechte Seite, Daumen links vorn)
+  under: {
+    shape: d => barShape(d), F: () => [0.9, 0.3, -0.42], B: () => [-0.45, -1, -0.04], hOff: () => 0, pc: [0, -0.0175, -0.05],
+    thumb: (d, s) => s.c.clone().add(V3(-(s.a + 0.011), 0.008, -0.055)),
+  },
+  // Linke Hand flach unter dem Vorderschaft (Repetierer)
+  flat: {
+    shape: d => barShape(d), F: () => [0.95, 0.15, -0.35], B: () => [-0.32, -1, 0], hOff: () => 0, pc: [0, -0.0175, -0.05],
+    thumb: (d, s) => s.c.clone().add(V3(-(s.a + 0.011), 0.0, -0.06)),
+  },
+  // Linke Hand am Pumpschaft
+  pump: {
+    shape: d => barShape(d), F: () => [0.88, 0.32, -0.38], B: () => [-0.5, -1, -0.03], hOff: () => 0, pc: [0, -0.0175, -0.05],
+    thumb: (d, s) => s.c.clone().add(V3(-(s.a + 0.011), 0.01, -0.05)),
+  },
+  // Linke Hand am senkrechten Vordergriff (QX-90)
+  post: {
+    shape: d => gripShape({ gw: 0.0275, gd: 0.023, ...d }), F: (d, s) => s.U, B: () => [-1, 0.05, 0], hOff: d => d.ho ?? 0.024, pc: [0, -0.0175, -0.05],
+    thumb: (d, s) => leftOf(s, 0.011, 0.045, 0.0),
+  },
+  // Stützhand an der Pistole: umfasst die Schusshand, Daumen vorn am Rahmen
+  pistol: {
+    shape: d => gripShape(d, 0.019, 0.012), F: (d, s) => s.U, B: () => [-1, -0.12, 0.06], hOff: d => (d.ho ?? 0) + 0.03, pc: [0, -0.0175, -0.05],
+    thumb: (d, s) => leftOf(s, -0.007, 0.022, 0.012),
+  },
+  // Magazin seitlich greifen (linke Hand)
+  mag: {
+    shape: d => makeCyl(V3(), V3(0, -1, 0), V3(0, 0, -1), d.d ?? 0.03, d.w ?? 0.012, -0.06, 0.06),
+    F: () => [0.08, 0, -1], B: () => [-1, 0.05, 0.15], hOff: () => -0.012, pc: [0, -0.0175, -0.046],
+    thumb: (d, s) => s.c.clone().addScaledVector(s.V, -(s.b + 0.011)).addScaledVector(s.U, -s.a * 0.5).addScaledVector(s.A, -0.01),
+  },
+  // Magazin oben (QX-90): Handfläche auf dem Magazin
+  magTop: {
+    shape: d => makeCyl(V3(0, -(d.h ?? 0.015), 0), V3(0, 0, -1), V3(1, 0, 0), d.w ?? 0.025, d.h ?? 0.015, -0.17, 0.17),
+    F: () => [1, 0, -0.3], B: () => [0.12, 1, 0.1], hOff: () => 0, pc: [0, -0.0175, -0.05],
+    thumb: (d, s) => s.c.clone().add(V3(-(s.a + 0.011), 0.0, -0.03)),
+  },
+  // Messer (Hauptwaffe): Hammergriff, Klinge nach vorn
+  knife: {
+    shape: d => makeCyl(V3(), V3(0, 0, 1), V3(0, 1, 0), 0.0142, 0.0118, -0.055, 0.05),
+    F: () => [0, -1, -0.15], B: () => [1, 0.25, 0], hOff: () => -0.014, pc: [0, -0.0175, -0.045],
+    thumb: (d, s) => V3(-0.022, -0.012, -0.035),
+  },
+  // Kleinteile mit Zeigefinger + Daumen greifen (Spannhebel, Kammerstängel): Punktplatzierung
+  pinchSide: { point: [-0.026, -0.045, -0.112], knob: 0.006, F: () => [0.15, 0.1, -1], B: () => [-0.2, 1, 0.1] },
+  pinchRight: { point: [-0.026, -0.045, -0.112], knob: 0.006, F: () => [-0.2, -0.1, -1], B: () => [0.6, 1, 0] },
+  boltKnob: { point: [-0.026, -0.05, -0.105], knob: 0.011, F: () => [-0.1, 0.2, -1], B: () => [0.4, 1, 0] },
+  slapTop: { point: [0, -0.0175, -0.06], pose: 'flat', F: () => [0.2, -0.3, -1], B: () => [0, 1, 0.2] },
+  rack: { point: [0, -0.03, -0.06], pose: 'wrap', F: () => [0.95, -0.1, -0.2], B: () => [0, 1, 0] },
+};
+
+const gripCache = new Map();
+const KEYS = ['rake', 'gw', 'gd', 'gu', 'gl', 'ho', 'tu', 'r', 'w', 'h', 'd'];
+
+function solveGrip(style, d, side) {
+  const g = GRIPS[style] || GRIPS.under;
+  const mirror = side < 0;
+  const quat = new THREE.Quaternion(), pos = V3();
+  if (g.point) {
+    // Punktplatzierung: Griffpunkt der Hand liegt auf dem Anker
+    basisQuat(g.F(d), g.B(d), quat);
+    const pc = V3(...g.point);
+    if (mirror) pc.x = -pc.x;
+    pos.copy(pc).applyQuaternion(quat).negate();
+    if (!POSES.relaxed) buildFreePoses();
+    let pose;
+    if (g.knob) {
+      const s = toHand(makeSphere(V3(), g.knob), pos, quat, mirror);
+      const f = [curlFinger(0, s, FINGERS[0].splay * 0.5, [0.9, 1.1, 0.7]).concat(0), [1.2, 1.4, 0.85, 0], [1.25, 1.45, 0.85, 0], [1.3, 1.45, 0.85, 0]];
+      pose = makePose(f, solveThumb(s, s.c, [0.3, 0.3]));
+    } else pose = POSES[g.pose] || POSES.relaxed;
+    return { pos, quat, pose };
+  }
+  const sA = g.shape(d);
+  const F = g.F(d, sA), B = g.B(d, sA);
+  basisQuat(F.isVector3 ? F : V3(...F), B.isVector3 ? B : V3(...B), quat);
+  // Kontakt: Oberflächenpunkt, dessen Normale zum Handrücken zeigt
+  const n = V3(0, 1, 0).applyQuaternion(quat);
+  if (sA.type === 'cyl') n.addScaledVector(sA.A, -n.dot(sA.A)).normalize();
+  const S = surfacePoint(sA, n, V3());
+  if (sA.type === 'cyl') S.addScaledVector(sA.A, g.hOff(d));
+  const pc = V3(...g.pc);
+  if (mirror) pc.x = -pc.x;
+  pos.copy(S).sub(pc.applyQuaternion(quat));
+  // Finger + Daumen im Handraum lösen
+  const sH = toHand(sA, pos, quat, mirror);
+  const f = [];
+  for (let i = 0; i < 4; i++) {
+    const splay = FINGERS[i].splay * 0.5;
+    if (i === 0 && g.index === 'trigger' && d.trigger && !mirror) {
+      const T = V3(...d.trigger).sub(pos).applyQuaternion(quat.clone().invert());
+      f.push(reachFinger(0, T, splay, sH).concat(0));
+    } else f.push(curlFinger(i, sH, splay).concat(0));
+  }
+  const tA = g.thumb(d, sA);
+  const tH = tA.sub(pos).applyQuaternion(quat.clone().invert());
+  if (mirror) tH.x = -tH.x;
+  const pose = makePose(f, solveThumb(sH, tH));
+  return { pos, quat, pose };
+}
+
+/**
+ * Handtransformation relativ zum Ankerrahmen für eine Griffart + gelöste Fingerpose (gecacht).
+ * side: 1 = rechte Hand, −1 = linke Hand.
+ */
+export function gripTransform(style, data = {}, side = 1, outPos = V3(), outQuat = new THREE.Quaternion()) {
+  const d = data || {};
+  let key = style + '|' + side;
+  for (const k of KEYS) if (d[k] !== undefined) key += '|' + k + d[k];
+  if (d.trigger) key += '|t' + d.trigger.join(',');
+  let r = gripCache.get(key);
+  if (!r) { r = solveGrip(style, d, side); gripCache.set(key, r); }
+  outPos.copy(r.pos); outQuat.copy(r.quat);
+  return { pos: outPos, quat: outQuat, pose: r.pose };
+}
+
+// ---------------------------------------------------------------- Geometrie
 
 function tag(geo, bone, color) {
   const g = geo.index ? geo.toNonIndexed() : geo;
@@ -132,12 +421,12 @@ function buildHandGeometry(mirror) {
   thenar.scale(0.9, 0.75, 1.5);
   thenar.translate(-0.021, -0.009, -0.03);
   parts.push(tag(thenar, 0, sideColor));
-  // Knöchelschutz (hart) + Polster auf den Grundgliedern
-  const knuckle = chamferBoxGeometry(0.07, 0.012, 0.03, 0.004);
-  knuckle.translate(0, 0.019, -0.073);
+  // Knöchelschutz (hart) + Polster auf dem Handrücken
+  const knuckle = new RoundedBoxGeometry(0.07, 0.011, 0.028, 2, 0.004);
+  knuckle.translate(0, 0.0185, -0.073);
   parts.push(tag(knuckle, 0, PAD));
-  const backPad = chamferBoxGeometry(0.05, 0.006, 0.04, 0.0025);
-  backPad.translate(0.002, 0.0175, -0.035);
+  const backPad = new RoundedBoxGeometry(0.05, 0.006, 0.04, 2, 0.0025);
+  backPad.translate(0.002, 0.0172, -0.035);
   parts.push(tag(backPad, 0, PAD));
   // Bündchen + Klettverschluss
   const cuff = new THREE.CylinderGeometry(0.036, 0.033, 0.055, 14, 1, true);
@@ -160,10 +449,11 @@ function buildHandGeometry(mirror) {
       for (let k = 0; k < s; k++) z -= f.len[k];
       g.translate(f.x, f.y, z);
       parts.push(tag(g, bone + s, sideColor));
-      if (s === 0) {
-        const pad = chamferBoxGeometry(r0 * 1.7, 0.005, len * 0.55, 0.0018);
-        pad.translate(f.x, f.y + r0 * 0.95, z - len * 0.45);
-        parts.push(tag(pad, bone, PAD));
+      if (s < 2) {
+        // Gepolsterte Glieder auf dem Fingerrücken
+        const pad = new RoundedBoxGeometry(r0 * 1.6, 0.0045, len * (s ? 0.5 : 0.55), 1, 0.0018);
+        pad.translate(f.x, f.y + r0 * 0.9, z - len * 0.5);
+        parts.push(tag(pad, bone + s, PAD));
       }
     }
     bone += 3;
@@ -174,10 +464,22 @@ function buildHandGeometry(mirror) {
   for (let s = 0; s < 3; s++) {
     const len = THUMB.len[s], r0 = THUMB.r[s], r1 = s < 2 ? THUMB.r[s + 1] : THUMB.r[s] * 0.88;
     const g = capsule(r0, r1, len, 12);
-    g.translate(0, 0, tz);
-    g.applyQuaternion(tq);
-    g.translate(...THUMB.base);
-    parts.push(tag(g, 13 + s, sideColor));
+    if (s === 2) {
+      const pad = new RoundedBoxGeometry(r0 * 1.5, 0.0045, len * 0.5, 1, 0.0018);
+      pad.translate(0, r0 * 0.88, -len * 0.45);
+      g.deleteAttribute('uv');
+      const merged = mergeGeometries([g.toNonIndexed(), tagPlain(pad)]);
+      g.dispose();
+      merged.translate(0, 0, tz);
+      merged.applyQuaternion(tq);
+      merged.translate(...THUMB.base);
+      parts.push(tag(merged, 13 + s, sideColor));
+    } else {
+      g.translate(0, 0, tz);
+      g.applyQuaternion(tq);
+      g.translate(...THUMB.base);
+      parts.push(tag(g, 13 + s, sideColor));
+    }
     tz -= len;
   }
   let geo = mergeGeometries(parts, false);
@@ -196,11 +498,18 @@ function buildHandGeometry(mirror) {
   return geo;
 }
 
-// Glättet Normalen einer Box (für die Handfläche) ohne Indexverlust
+function tagPlain(g) {
+  const n = g.index ? g.toNonIndexed() : g;
+  if (n !== g) g.dispose();
+  for (const k of Object.keys(n.attributes)) if (k !== 'position' && k !== 'normal') n.deleteAttribute(k);
+  return n;
+}
+
+// Glättet Normalen einer Box (für die Handfläche)
 function mergeVerticesSmooth(geo) {
   geo.deleteAttribute('uv');
-  const g = geo.toNonIndexed();
-  geo.dispose();
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  if (g !== geo) geo.dispose();
   // Gleiche Positionen → gemittelte Normalen
   const p = g.attributes.position, n = g.attributes.normal, map = new Map();
   for (let i = 0; i < p.count; i++) {
@@ -218,8 +527,7 @@ function mergeVerticesSmooth(geo) {
 }
 
 function thumbRestQuat(mirror = false) {
-  const d = [-0.62, -0.42, -0.66];
-  const q = basisQuat(d, [-0.75, 0.6, -0.1]);
+  const q = basisQuat([-0.62, -0.42, -0.66], [-0.75, 0.6, -0.1]);
   if (mirror) { q.y = -q.y; q.z = -q.z; }
   return q.clone();
 }
@@ -245,7 +553,7 @@ function sleeveGeometry(len, rA, rB, folds, seed = 1, seg = 14) {
   return g;
 }
 
-// ---------- Arm-Rig ----------
+// ---------------------------------------------------------------- Arm-Rig
 
 class Arm {
   constructor(side, mats) {
@@ -278,7 +586,6 @@ class Arm {
       parent.add(b); bones.push(b); thumb.push(b); parent = b;
     }
     this.thumb = thumb;
-    this.thumbRest = tq;
     this.handBone = hand;
     this.mesh = new THREE.SkinnedMesh(geo, mats.glove);
     this.mesh.name = 'handschuh';
@@ -294,7 +601,7 @@ class Arm {
     this.upper = new THREE.Mesh(sleeveGeometry(this.upperLen, 0.056, 0.049, 2.2, side > 0 ? 3 : 4.1), mats.sleeve);
     this.elbow = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), mats.sleeve);
     for (const m of [this.fore, this.upper, this.elbow]) { m.frustumCulled = false; this.group.add(m); }
-    // Klebeband am rechten Unterarm, Uhr am linken Handgelenk (Innenseite)
+    // Klebeband am rechten Unterarm, Uhr an der Innenseite des linken Handgelenks
     if (side > 0) {
       const tape = new THREE.Mesh(new THREE.CylinderGeometry(0.0455, 0.0455, 0.032, 16, 1, true), mats.tape);
       tape.geometry.rotateX(Math.PI / 2);
@@ -302,43 +609,39 @@ class Arm {
       tape.position.z = -0.21;
       this.fore.add(tape);
     } else {
+      // Uhrgruppe: Ursprung auf der Handgelenksachse, lokal +Y zeigt zur Handflächenseite
       const watch = new THREE.Group();
-      const caseM = new THREE.Mesh(chamferBoxGeometry(0.036, 0.012, 0.04, 0.004), mats.watchCase);
-      const face = new THREE.Mesh(new THREE.CircleGeometry(0.0135, 20), mats.watchFace);
-      face.rotation.x = -Math.PI / 2; face.position.y = 0.0062;
-      face.rotation.z = Math.PI / 2;
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.0395, 0.0395, 0.022, 16, 1, true), mats.watchCase);
-      band.rotation.x = Math.PI / 2; band.scale.set(1.04, 0.9, 1); band.position.y = -0.034;
-      watch.add(caseM, face, band);
-      // Innenseite des Handgelenks (Handflächenseite), am Bündchen
-      watch.position.set(0, -0.034, 0.04);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.02, 18, 1, true), mats.watchCase);
+      band.rotation.x = Math.PI / 2; band.scale.set(1.1, 1, 0.9);
+      const caseM = new THREE.Mesh(chamferBoxGeometry(0.034, 0.011, 0.038, 0.004), mats.watchCase);
+      caseM.position.y = 0.0355;
+      const face = new THREE.Mesh(new THREE.CircleGeometry(0.0128, 20), mats.watchFace);
+      // Zifferblatt: nach außen (+Y), Ziffern lesbar vom Handgelenk zu den Fingern
+      face.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
+      face.position.y = 0.0412;
+      watch.add(band, caseM, face);
+      watch.position.set(0, -0.001, 0.04);
       watch.rotation.z = Math.PI;
       this.handBone.add(watch);
       this.watch = watch;
     }
     this.shoulder = new THREE.Vector3(side * 0.2, -0.3, 0.14);
     this.pole = new THREE.Vector3(side * 0.7, -1, 0.15);
-    this.curls = POSES.relaxed;
-    this._pose = clonePose(POSES.relaxed);
   }
 
-  // Finger in eine (gemischte) Pose bringen
+  // Finger + Daumen in eine (gemischte) Pose bringen
   applyPose(pose) {
     const side = this.side;
     for (let i = 0; i < 4; i++) {
       const c = pose.f[i], ch = this.fingers[i];
-      ch[0].rotation.set(-c[0], c[3] * side + FINGERS[i].splay * side * 0.5, 0);
+      ch[0].rotation.set(-c[0], (c[3] + FINGERS[i].splay * 0.5) * side, 0);
       ch[1].rotation.set(-c[1], 0, 0);
       ch[2].rotation.set(-c[2], 0, 0);
     }
-    // Daumen: Opposition (vor die Handfläche) um die Handlängsachse, Adduktion zur Zeigefingerseite,
-    // danach Beugung der drei Glieder um die eigene Querachse
     const t = pose.t;
-    _e.set(0, -t[1] * side, t[0] * side, 'ZYX');
-    this.thumb[0].quaternion.setFromEuler(_e).multiply(this.thumbRest);
-    this.thumb[0].rotateX(-t[2]);
-    this.thumb[1].rotation.set(-t[3], 0, 0);
-    this.thumb[2].rotation.set(-t[4], 0, 0);
+    this.thumb[0].quaternion.set(t[0], t[1] * side, t[2] * side, t[3]).normalize();
+    this.thumb[1].rotation.set(-t[4], 0, 0);
+    this.thumb[2].rotation.set(-t[5], 0, 0);
   }
 
   // Handgelenk setzen und Arm per Zwei-Knochen-IK anschließen (alles im Elternraum der Arme)
@@ -359,36 +662,53 @@ class Arm {
     const h = Math.sqrt(Math.max(0, Lu * Lu - a * a));
     const pole = _v3.copy(this.pole);
     pole.addScaledVector(dir, -pole.dot(dir)).normalize();
-    const E = new THREE.Vector3().copy(S).addScaledVector(dir, a).addScaledVector(pole, h);
+    const E = this._elbow || (this._elbow = new THREE.Vector3());
+    E.copy(S).addScaledVector(dir, a).addScaledVector(pole, h);
     // Unterarm: von Ellbogen zum Handgelenk, Verdrehung folgt dem Handrücken
-    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(wristQuat);
+    const up = _upA.set(0, 1, 0).applyQuaternion(wristQuat);
     orient(this.fore, E, W, up, 0.02);
-    orient(this.upper, S, E, new THREE.Vector3(0, 1, 0), 0.0);
+    orient(this.upper, S, E, _upB.set(0, 1, 0), 0.0);
     this.elbow.position.copy(E);
     this.elbowPos = E;
   }
 }
+const _upA = V3(), _upB = V3(), _oz = V3(), _oy = V3(), _ox = V3();
 
 function orient(mesh, from, to, up, extend) {
-  const z = new THREE.Vector3().subVectors(from, to).normalize();     // lokal +Z zeigt zurück zum Ursprung
-  const y = up.clone().addScaledVector(z, -up.dot(z));
+  const z = _oz.subVectors(from, to).normalize();     // lokal +Z zeigt zurück zum Ursprung
+  const y = _oy.copy(up).addScaledVector(z, -up.dot(z));
   if (y.lengthSq() < 1e-6) y.set(0, 1, 0).addScaledVector(z, -z.y);
   y.normalize();
-  const x = new THREE.Vector3().crossVectors(y, z);
+  const x = _ox.crossVectors(y, z);
   mesh.quaternion.setFromRotationMatrix(_m.makeBasis(x, y, z));
   mesh.position.copy(from).addScaledVector(z, extend);
 }
 
 function clonePose(p) { return { f: p.f.map(a => a.slice()), t: p.t.slice() }; }
 
-/** Mischt zwei Posen (a → b mit Gewicht w) in out. */
+/** Mischt zwei Posen (a → b mit Gewicht w) in out (Daumen-Quaternion normiert, gleiche Hemisphäre). */
 export function mixPose(a, b, w, out) {
   for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) out.f[i][k] = a.f[i][k] + (b.f[i][k] - a.f[i][k]) * w;
-  for (let k = 0; k < 5; k++) out.t[k] = a.t[k] + (b.t[k] - a.t[k]) * w;
+  const sgn = a.t[0] * b.t[0] + a.t[1] * b.t[1] + a.t[2] * b.t[2] + a.t[3] * b.t[3] < 0 ? -1 : 1;
+  for (let k = 0; k < 4; k++) out.t[k] = a.t[k] + (b.t[k] * sgn - a.t[k]) * w;
+  const l = Math.hypot(out.t[0], out.t[1], out.t[2], out.t[3]) || 1;
+  for (let k = 0; k < 4; k++) out.t[k] /= l;
+  for (let k = 4; k < 6; k++) out.t[k] = a.t[k] + (b.t[k] - a.t[k]) * w;
   return out;
 }
 
-export function newPose(name = 'relaxed') { return clonePose(POSES[name] || POSES.relaxed); }
+export function copyPose(a, out) {
+  for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) out.f[i][k] = a.f[i][k];
+  for (let k = 0; k < 6; k++) out.t[k] = a.t[k];
+  return out;
+}
+
+export function getPose(name) {
+  if (!POSES.relaxed) buildFreePoses();
+  return POSES[name] || POSES.relaxed;
+}
+
+export function newPose(name = 'relaxed') { return clonePose(getPose(name)); }
 
 export class Arms {
   constructor() {
@@ -400,6 +720,7 @@ export class Arms {
       watchCase: new THREE.MeshStandardMaterial({ color: 0x1b1c1d, roughness: 0.55, metalness: 0.2 }),
       watchFace: new THREE.MeshStandardMaterial({ map: watchTex, emissive: 0xffffff, emissiveMap: watchTex, emissiveIntensity: 0.55, roughness: 0.15, metalness: 0.0 }),
     };
+    getPose('relaxed');
     this.group = new THREE.Group();
     this.group.name = 'arme';
     this.right = new Arm(1, this.mats);
@@ -409,7 +730,7 @@ export class Arms {
   }
 
   update(dt) {
-    // Uhr minütlich neu zeichnen
+    // Uhr regelmäßig neu zeichnen (Minutenanzeige)
     if ((this._watchTimer += dt) > 20) {
       this._watchTimer = 0;
       const tex = this.mats.watchFace.map;
@@ -423,4 +744,17 @@ export class Arms {
     this.right.mesh.skeleton.dispose();
     this.left.mesh.skeleton.dispose();
   }
+}
+
+/** Fehlersuche (Waffenlabor): gelöste Griffdaten inkl. Daumen-/Fingerkuppen im Ankerraum. */
+export function gripDebug(style, data = {}, side = 1) {
+  const g = GRIPS[style];
+  const r = solveGrip(style, data, side);
+  const toA = p => { const v = p.clone(); if (side < 0) v.x = -v.x; return v.applyQuaternion(r.quat).add(r.pos).toArray().map(x => +x.toFixed(4)); };
+  const q = new THREE.Quaternion(r.pose.t[0], r.pose.t[1], r.pose.t[2], r.pose.t[3]);
+  thumbFK(q, [r.pose.t[4], r.pose.t[5]]);
+  const thumb = _tp.map(toA);
+  const fingers = r.pose.f.map((th, i) => { fingerFK(i, th, th[3] + FINGERS[i].splay * 0.5); return toA(_fp[3]); });
+  const sA = g.shape ? g.shape(data) : null;
+  return { pos: r.pos.toArray().map(x => +x.toFixed(4)), thumb, fingers, f: r.pose.f.map(a => a.map(x => +x.toFixed(2))), target: sA && g.thumb ? g.thumb(data, sA).toArray().map(x => +x.toFixed(4)) : null, shapeC: sA ? sA.c.toArray() : null };
 }

@@ -11,7 +11,7 @@ function gripMag(b, { u, v, w, len, depth, plate = 'polymer', body = 'steel', ra
   b.box(body, w, len, depth, 0, v + c * len / 2 + 0.004, u + s * len / 2, { part: 'mag', rx: -rake, c: 0.0015 });
   b.box(plate, w + 0.005, 0.009, depth + 0.008, 0, v, u + 0.002, { part: 'mag', rx: -rake, c: 0.0025 });
   if (b.hi) b.cyl('brass', 0.0045, 0.0045, 0.018, 0, v + c * len + 0.002, u + s * len + 0.004, { part: 'mag', seg: 8 });
-  b.anchor('magGrab', 0, v - 0.004, u + 0.004, { part: 'mag' });
+  b.anchor('magGrab', 0, v - 0.004, u + 0.004, { part: 'mag', data: { w: 0.011, d: 0.016 } });
 }
 
 export function p9(b) {
@@ -60,10 +60,11 @@ export function p9(b) {
   gripMag(b, { u: -0.026, v: -0.056, w: 0.021, len: 0.085, depth: 0.03 });
   b.anchor('ejection', 0.006, 0.084, 0.04, { rz: 0.5 });
   b.anchor('muzzle', 0, axis, 0.147);
-  b.anchor('rightHandGrip', 0, -0.015, -0.019, { data: { rake: RAKE } });
+  const grip = { rake: RAKE, gw: 0.0145, gd: 0.0265, gu: -0.0025, ho: 0.0, tu: 0.06 };
+  b.anchor('rightHandGrip', 0, -0.015, -0.019, { data: grip });
   b.anchor('magWell', 0, -0.056, -0.026);
   b.anchor('sight', 0, 0.0895, -0.031, { data: { type: 'iron', eyeRelief: 0.3 } });
-  b.anchor('leftHandGrip', -0.016, -0.025, -0.012, { data: { style: 'pistol' } });
+  b.anchor('leftHandGrip', 0, -0.015, -0.019, { data: { style: 'pistol', ...grip } });
   b.meta = { sight: 'iron', axis, kind: 'pistol' };
 }
 
@@ -122,10 +123,11 @@ export function adler(b) {
   if (b.hi) b.box('cavity', 0.009, 0.005, 0.005, 0, 0.084, -0.07, { part: 'hammer', rx: -0.7, c: 0 });
   gripMag(b, { u: -0.024, v: -0.086, w: 0.024, len: 0.11, depth: 0.036, plate: 'steel', body: 'steel' });
   b.anchor('ejection', 0.018, 0.084, 0.042, { rz: 0.35 });
-  b.anchor('rightHandGrip', 0, -0.018, -0.02, { data: { rake: RAKE } });
+  const grip = { rake: RAKE, gw: 0.0185, gd: 0.0255, gu: 0.0, ho: 0.0105, tu: 0.065 };
+  b.anchor('rightHandGrip', 0, -0.018, -0.02, { data: grip });
   b.anchor('magWell', 0, -0.086, -0.024);
   b.anchor('sight', 0, 0.1035, -0.054, { data: { type: 'iron', eyeRelief: 0.3 } });
-  b.anchor('leftHandGrip', -0.02, -0.03, -0.014, { data: { style: 'pistol' } });
+  b.anchor('leftHandGrip', 0, -0.018, -0.02, { data: { style: 'pistol', ...grip } });
   b.meta = { sight: 'iron', axis, kind: 'pistol' };
 }
 

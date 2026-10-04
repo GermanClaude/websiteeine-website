@@ -37,13 +37,15 @@ export function tabs(list, { onSelect, label } = {}) {
   const items = $$('[role=tab]', list);
   list.setAttribute('role', 'tablist');
   if (label) list.setAttribute('aria-label', label);
+  // Mehrere Reiter können sich ein Feld teilen (dann bleibt es sichtbar und wird neu befüllt).
+  const shared = new Set(items.map((t) => t.getAttribute('aria-controls'))).size === 1 && items.length > 1;
   const select = (tab, focus = false, user = true) => {
     for (const t of items) {
       const on = t === tab;
       t.setAttribute('aria-selected', String(on));
       t.tabIndex = on ? 0 : -1;
       const panel = document.getElementById(t.getAttribute('aria-controls'));
-      if (panel) panel.hidden = !on;
+      if (panel && !shared) panel.hidden = !on;
     }
     if (focus) tab.focus();
     onSelect?.(tab, user);

@@ -55,7 +55,7 @@ function arLower(b, { lowerMat = 'alu', upperMat = 'alu', gripMat = 'grip', axis
     b.box('steel', 0.004, 0.005, 0.018, -0.0125, 0.056, -0.012, { rx: 0.4, c: 0.001 });       // Sicherung
     for (const [u, v] of [[0.0, 0.05], [0.06, 0.06], [-0.045, 0.06], [0.108, 0.095]]) { b.screw('steel', 0.0118, v, u, 'x', 0.0026); b.screw('steel', -0.0118, v, u, 'x', 0.0026); }
   }
-  b.anchor('rightHandGrip', 0, 0.0, 0, { data: { rake: 0.32 } });
+  b.anchor('rightHandGrip', 0, 0.0, 0, { data: { rake: 0.32, gw: 0.015, gd: 0.023, gu: 0.0, ho: 0.018, tu: 0.034 } });
   b.anchor('magWell', 0, 0.0, 0.088);
 }
 
@@ -77,7 +77,7 @@ function arMag(b, mat, o = {}) {
     b.cyl('brass', 0.0046, 0.0046, 0.03, 0, 0.051, 0.092, { part: 'mag', seg: 8 });
     b.cyl('copper', 0.0016, 0.0046, 0.012, 0, 0.051, 0.113, { part: 'mag', seg: 8 });
   }
-  b.anchor('magGrab', 0, -0.07 * len, 0.1, { part: 'mag' });
+  b.anchor('magGrab', 0, -0.07 * len, 0.099, { part: 'mag', data: { w: 0.0113, d: 0.029 } });
 }
 
 export function m17(b) {
@@ -147,7 +147,7 @@ export function sk14(b) {
   b.side('steel', [[0.119, 0.045], [0.12, 0.0], [0.124, -0.09], [0.064, -0.096], [0.058, 0.0], [0.058, 0.045]], 0.024, 0, { part: 'mag', bevel: 0.0018 });
   b.box('steel', 0.028, 0.008, 0.066, 0, -0.096, 0.092, { part: 'mag', rx: -0.06, c: 0.002 });
   if (b.hi) for (const s of [-1, 1]) b.box('steel', 0.0015, 0.07, 0.008, s * 0.0122, -0.03, 0.105, { part: 'mag', c: 0 });
-  b.anchor('magGrab', 0, -0.05, 0.092, { part: 'mag' });
+  b.anchor('magGrab', 0, -0.05, 0.0915, { part: 'mag', data: { w: 0.012, d: 0.0305 } });
   // Zweibein-Adapter
   if (b.hi) b.box('alu', 0.02, 0.012, 0.03, 0, axis - 0.034, 0.385, { c: 0.002 });
   b.anchor('leftHandGrip', 0, axis - 0.026, 0.27, { data: { style: 'under', r: 0.026 } });
@@ -239,10 +239,10 @@ export function kv47(b) {
   }
   const aEnd = Math.PI + 0.62;
   b.box('steel', 0.03, 0.006, 0.07, 0, C[1] + Math.sin(aEnd) * 0.3325 - 0.003, C[0] + Math.cos(aEnd) * 0.3325, { part: 'mag', rx: 0.62, c: 0.0015 });
-  b.anchor('magGrab', 0, -0.07, 0.147, { part: 'mag' });
-  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.38 } });
+  b.anchor('magGrab', 0, -0.07, 0.147, { part: 'mag', data: { w: 0.013, d: 0.03 } });
+  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.38, gw: 0.015, gd: 0.017, gu: 0.009, ho: 0.028, tu: 0.04 } });
   b.anchor('magWell', 0, 0.02, 0.135);
   b.anchor('sight', 0, 0.1195, 0.2, { data: { type: 'iron', eyeRelief: 0.24 } });
-  b.anchor('leftHandGrip', 0, axis - 0.03, 0.31, { data: { style: 'under', r: 0.03 } });
+  b.anchor('leftHandGrip', 0, axis - 0.03, 0.31, { data: { style: 'under', w: 0.018, h: 0.023 } });
   b.meta = { sight: 'iron', axis, kind: 'rifle' };
 }

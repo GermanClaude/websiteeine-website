@@ -5,6 +5,7 @@
 // Optionen (data-Attribute oder el.fitOpts):
 //   data-fit-max="420"     Obergrenze der Schriftgröße in px
 //   data-fit-wdth="125"    feste Breite, gelöst wird die Schriftgröße (auch auf .fl-Zeilen)
+//   data-fit-grow="0"      nie größer als die CSS-Schriftgröße (nur Breite anpassen, notfalls schrumpfen)
 //   .fl-Kinder mit display:block werden einzeln gesetzt (Zeilenmodus)
 
 const all = new Set();
@@ -79,6 +80,7 @@ function makeClone(unit, wdth, root) {
   for (const n of c.querySelectorAll('[id]')) n.removeAttribute('id');
   c.setAttribute('aria-hidden', 'true');
   c.style.setProperty('--wdth', String(wdth));
+  c.style.fontStretch = `${wdth}%`; // der Klon verliert [data-fit] und damit die Achsenregel
   c.style.position = 'absolute';
   c.style.visibility = 'hidden';
   c.style.left = '0';
@@ -129,6 +131,7 @@ function flush() {
   // 3) Lesen: Breiten bei 62 und 125
   for (const u of units) {
     u.base = parseFloat(getComputedStyle(u.c62).fontSize) || 16;
+    if (u.el.dataset.fitGrow === '0') u.max = Math.min(u.max, u.base);
     u.w62 = u.c62.getBoundingClientRect().width;
     u.w125 = u.c125.getBoundingClientRect().width;
     const g62 = u.c62.querySelectorAll('.g');

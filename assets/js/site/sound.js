@@ -1,4 +1,5 @@
-// Ton (standardmäßig aus). Nutzt die Audio-Engine des Spiels, sonst eine winzige WebAudio-Synthese.
+// Ton (standardmäßig aus). UI-Klänge aus engine/audio/ui-sounds.js, Waffenklänge aus der Audio-Engine
+// des Spiels (erst bei Bedarf geladen), sonst eine winzige WebAudio-Synthese.
 // Spielt nie vor einem ausdrücklichen Einschalten; startet erst nach einer Nutzergeste.
 import { site } from './state.js';
 
@@ -6,8 +7,8 @@ let settings = null;
 let enabled = false;
 let uiSnd = null;
 let engine = null;
-let mod = null;
 let loading = null;
+let engineLoading = null;
 let synth = null;
 let lastHover = 0;
 const shotTimes = [];
@@ -31,7 +32,7 @@ function makeSynth() {
     f.frequency.setValueAtTime(f0, at);
     if (f1) f.frequency.exponentialRampToValueAtTime(f1, at + len);
     const g = ctx.createGain();
-    g.gain.setValueAtTime(gain, at);
+    g.gain.setValueAtTime(Math.max(0.0001, gain), at);
     g.gain.exponentialRampToValueAtTime(0.0001, at + len);
     src.connect(f).connect(g).connect(ctx.destination);
     src.start(at, 0, len + 0.01);
@@ -52,29 +53,40 @@ function makeSynth() {
   };
 }
 
-async function ensure() {
+/** Leichte UI-Klänge (eigener kleiner Kontext); bei Fehlern die Rückfall-Synthese. */
+function ensure() {
   if (loading) return loading;
   loading = (async () => {
     try {
-      mod = await import('../game/engine/audio.js');
-      if (typeof mod.createUiSounds === 'function') {
-        uiSnd = mod.createUiSounds(settings, { gestures: false });
+      const m = await import('../game/engine/audio/ui-sounds.js');
+      if (typeof m.createUiSounds === 'function') {
+        uiSnd = m.createUiSounds(settings, { gestures: false });
         uiSnd.unlock();
       }
-    } catch {
-      mod = null;
-    }
-    if (!uiSnd && !mod?.AudioEngine) synth = makeSynth();
+    } catch { uiSnd = null; }
+    if (!uiSnd && !synth) synth = makeSynth();
   })();
   return loading;
 }
 
+/** Die volle Spiel-Engine (Waffen, Nachladen, Aufstieg) erst beim ersten Bedarf. */
+function ensureEngine() {
+  if (engine || engineLoading) return engineLoading;
+  engineLoading = (async () => {
+    try {
+      const mod = await import('../game/engine/audio.js');
+      if (mod?.AudioEngine) {
+        engine = new mod.AudioEngine({ settings, events: null }, { autoUnlock: false, autoMusic: false });
+        await engine.unlock();
+      }
+    } catch { engine = null; }
+    if (!engine && !synth) synth = makeSynth();
+    return engine;
+  })();
+  return engineLoading;
+}
 function getEngine() {
-  if (engine || !mod?.AudioEngine) return engine;
-  try {
-    engine = new mod.AudioEngine({ settings, events: null }, { autoUnlock: false, autoMusic: false });
-    engine.unlock();
-  } catch { engine = null; }
+  if (!engine) ensureEngine();
   return engine;
 }
 
@@ -91,10 +103,14 @@ export const sound = {
   init(S) {
     settings = S;
     const b = document.getElementById('sound-toggle');
-    // Gespeichert „an“: erst die erste Geste schaltet tatsächlich ein.
+    // Gespeichert „an“: erst die erste Geste startet tatsächlich Audio.
     if (site.get('sound')) {
       enabled = true;
-      const arm = () => { ensure().then(() => { uiSnd?.unlock?.(); synth?.resume(); }); window.removeEventListener('pointerdown', arm, true); window.removeEventListener('keydown', arm, true); };
+      const arm = () => {
+        ensure().then(() => { uiSnd?.unlock?.(); synth?.resume(); });
+        window.removeEventListener('pointerdown', arm, true);
+        window.removeEventListener('keydown', arm, true);
+      };
       window.addEventListener('pointerdown', arm, true);
       window.addEventListener('keydown', arm, true);
     }
@@ -110,16 +126,16 @@ export const sound = {
         sound.ui('toggle');
       }
     });
-    site.onChange((k, v) => { if (k === 'sound' && v !== enabled) { enabled = v; setButton(); } });
+    site.onChange((k, v) => { if (k === 'sound' && v !== enabled) { enabled = !!v; setButton(); } });
   },
 
   ui(name) {
     if (!enabled || document.hidden) return;
     const now = performance.now();
     if (name === 'hover') { if (now - lastHover < 80) return; lastHover = now; }
-    if (name === 'levelup') { const e = getEngine(); if (e) { e.ui('levelup'); return; } }
+    if (name === 'levelup') { const e = getEngine(); if (e) { e.ui('levelup'); return; } name = 'confirm'; }
     if (uiSnd) { uiSnd.play(['hover', 'click', 'confirm', 'back', 'toggle'].includes(name) ? name : 'click'); return; }
-    if (mod?.AudioEngine) { getEngine()?.ui(name); return; }
+    if (!loading) ensure();
     synth?.ui(name);
   },
 
@@ -132,7 +148,6 @@ export const sound = {
     shotTimes.push(now);
     const profile = typeof p === 'string' ? p : p?.sound?.profile || 'ar';
     const pt = typeof p === 'object' ? p?.sound?.pitch || pitch : pitch;
-    if (!mod && !synth) { ensure(); return; }
     const e = getEngine();
     if (e) { e.play(profile, { pitch: pt, player: true }); return; }
     synth?.shot();

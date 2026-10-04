@@ -77,20 +77,42 @@
   </noscript>
 
   <script>
-    // Ältere Browser ohne Import-Maps oder Module: verständliche Meldung statt leerer Seite.
+    // Sicherheitsnetz vor dem Spielmodul: alte Browser, nicht ladbare Module, sehr langsame Verbindung.
     (function () {
-      var ok = 'noModule' in HTMLScriptElement.prototype && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap');
-      if (ok) return;
-      document.addEventListener('DOMContentLoaded', function () {
+      function fatal(title, text, detail, reload) {
         var f = document.getElementById('fatal');
         var b = document.getElementById('boot');
-        if (b) b.hidden = true;
         if (!f) return;
-        f.querySelector('[data-fatal-title]').textContent = 'Browser zu alt';
-        f.querySelector('[data-fatal-text]').textContent = 'Dieser Browser unterstützt keine modernen JavaScript-Module. Bitte nutze eine aktuelle Version von Chrome, Edge, Firefox oder Safari.';
-        f.querySelector('[data-fatal-reload]').hidden = true;
+        if (b) b.hidden = true;
+        f.querySelector('[data-fatal-title]').textContent = title;
+        f.querySelector('[data-fatal-text]').textContent = text;
+        var d = f.querySelector('[data-fatal-detail]');
+        d.textContent = detail || '';
+        d.hidden = !detail;
+        var r = f.querySelector('[data-fatal-reload]');
+        r.hidden = !reload;
+        r.onclick = function () { location.reload(); };
         f.hidden = false;
-      });
+      }
+      var ok = 'noModule' in HTMLScriptElement.prototype && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap');
+      if (!ok) {
+        document.addEventListener('DOMContentLoaded', function () {
+          fatal('Browser zu alt', 'Dieser Browser unterstützt keine modernen JavaScript-Module. Bitte nutze eine aktuelle Version von Chrome, Edge, Firefox oder Safari.', '', false);
+        });
+        return;
+      }
+      // Fehler, bevor main.js läuft (Modul nicht ladbar / Syntaxfehler) → Fehlerpanel statt ewigem Ladebildschirm
+      window.addEventListener('error', function (e) {
+        var t = e.target;
+        if (window.__game || (t && t !== window && t.tagName !== 'SCRIPT')) return; // Bilder/Stile/Schriften ignorieren
+        var detail = t && t.tagName === 'SCRIPT' ? 'Skript nicht ladbar: ' + (t.src || 'Inline-Modul') : (e.message || 'Unbekannter Fehler') + (e.filename ? '\n' + e.filename + ':' + e.lineno : '');
+        fatal('Beim Laden ist ein Fehler aufgetreten', 'Die Spielmodule konnten nicht geladen werden. Prüfe deine Verbindung und lade die Seite neu.', detail, true);
+      }, true);
+      setTimeout(function () {
+        if (window.__game) return;
+        var s = document.getElementById('boot-status');
+        if (s) s.textContent = 'Das Laden dauert ungewöhnlich lange – bitte Verbindung prüfen …';
+      }, 40000);
     })();
   </script>
   <script type="module" src="assets/js/game/main.js"></script>

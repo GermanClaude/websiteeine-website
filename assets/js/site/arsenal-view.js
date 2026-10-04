@@ -9,13 +9,13 @@ import { ui } from './state.js';
 import { announce } from './live.js';
 import { reduced, calm, flip, ease, pointerCoarse } from './motion.js';
 import { loop } from './loop.js';
-import { num, secs, NNBSP, clamp } from './fmt.js';
+import { num, NNBSP, clamp } from './fmt.js';
+import { cutW, cutG } from './cuts.js';
 
 const DEG = Math.PI / 180;
 const STATS = [['damage', 'SCHADEN', 'Schaden'], ['fireRate', 'KADENZ', 'Kadenz'], ['range', 'REICHWEITE', 'Reichweite'], ['accuracy', 'PRÄZISION', 'Präzision'], ['mobility', 'BEWEGLICHKEIT', 'Beweglichkeit'], ['control', 'KONTROLLE', 'Kontrolle']];
 
-export const cutW = (def) => clamp(62 + 0.63 * (def.stats?.range ?? 50), 62, 125);
-export const cutG = (def) => clamp(100 + 8 * (def.stats?.damage ?? 50), 100, 900);
+export { cutW, cutG };
 const up = (s) => String(s).toLocaleUpperCase('de-DE');
 const dec = (v, d = 2) => num(v, d, Math.min(1, d));
 
@@ -32,9 +32,9 @@ export async function init(sec, D, ctx) {
     : [{ cls: 'all', name: 'Waffen', ids }];
   for (const id of ids) if (!groups.some((g) => g.ids.includes(id))) groups.push({ cls: W.WEAPONS[id].cls, name: W.WEAPON_CLASSES?.[W.WEAPONS[id].cls] || '', ids: [id] });
 
+  // Vorauswahl: eine schon getroffene Wahl (z. B. aus dem Profil) gewinnt, sonst die letzte Primärwaffe, sonst der Falke.
   const fav = D.settings.get('lastLoadout')?.primary;
-  if (!ids.includes(ui.get('weapon'))) ui.set('weapon', ids.includes(fav) ? fav : (ids.includes('ar_m17') ? 'ar_m17' : ids[0]));
-  if (ids.includes(fav)) ui.set('weapon', fav);
+  if (!ui.get('weaponPicked') || !ids.includes(ui.get('weapon'))) ui.set('weapon', ids.includes(fav) ? fav : (ids.includes('ar_m17') ? 'ar_m17' : ids[0]));
 
   const unlocked = (id) => { try { return P ? P.isUnlocked(id) : true; } catch { return true; } };
   const unlockLevel = (id) => W.WEAPONS[id]?.unlockLevel ?? W.EQUIPMENT?.[id]?.unlockLevel ?? 1;

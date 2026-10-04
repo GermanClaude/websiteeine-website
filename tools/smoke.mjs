@@ -18,6 +18,7 @@
 //   --restarts N  danach N× „Revanche“ (onRestart) – Speicherwerte je Match für Leck-Prüfung
 //   --lobby    über die Lobby starten (klickt den Startknopf) statt autostart
 //   --warn-fail  auch Konsolen-Warnungen lassen den Test scheitern
+//   --natural  Matchende nicht erzwingen: auf Zeit-/Punktelimit warten (max. 3 × time-Parameter + 60 s), dann erst endMatch()
 import { chromium, devices } from '/opt/node-tools/node_modules/playwright/index.mjs';
 import { mkdirSync } from 'node:fs';
 
@@ -224,6 +225,13 @@ try {
   summary.checks.kills = s.kills > 0 ? s.kills : 'keine (bei kurzer Dauer möglich)';
 
   const runEnd = async (label) => {
+    if (opt.natural) {
+      const limit = (Number(qs.get("time")) || 120) * 3 + 60; // SwiftShader: dt-Klemme bremst die Simulationszeit
+      try {
+        await waitFor(() => window.__game.match.state === 'ended', limit * 1000, `${label}: natürliches Matchende`);
+        pass(`naturalEnd-${label}`, 'Limit erreicht');
+      } catch { fail(`naturalEnd-${label}`, `kein Ende nach ${limit} s`); }
+    }
     if (await page.evaluate(() => window.__game.match.state) !== 'ended') {
       await page.evaluate(() => window.__game.debugApi.endMatch());
     }

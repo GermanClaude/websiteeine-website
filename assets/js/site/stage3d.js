@@ -40,6 +40,11 @@ function disposeObject(o) {
   });
 }
 
+/** Nur Geometrien freigeben: Materialien und Texturen teilt models.js zwischen allen Waffen. */
+function disposeGeometry(o) {
+  o.traverse((n) => { if (n.isMesh) n.geometry?.dispose?.(); });
+}
+
 /**
  * @param canvas  <canvas> der Bühne
  * @param opts    { coarse, quality: () => string, onLost: () => void }
@@ -200,7 +205,7 @@ export function createStage(canvas, opts = {}) {
       if (old === current) { cache.delete(oldKey); cache.set(oldKey, old); break; }
       cache.delete(oldKey);
       kick.remove(old);
-      disposeObject(old);
+      disposeGeometry(old);
     }
     return m;
   }
