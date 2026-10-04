@@ -29,7 +29,7 @@ export async function init(sec, D, ctx = {}) {
   const cutBox = h('div.cut-box', {}, cut, h('p.cut-label', {}, cutLabel, rename));
 
   const rankIc = h('span.rank-ic-l', { 'aria-hidden': 'true' });
-  const rankName = h('p.rank-name');
+  const rankName = h('p.rank-name', { 'data-fit': '', 'data-fit-grow': '0', 'data-fit-wdth': '100' });
   const stufeWord = h('span.stufe-word', {}, 'STUFE', h('span.stufe-n'));
   const stufeTrack = h('span.stufe-track', { 'aria-hidden': 'true' }, h('i'));
   const xpLine = h('p.xp-line');
@@ -99,7 +99,7 @@ export async function init(sec, D, ctx = {}) {
     // Dienstgrad
     const r = st.rank || PM?.rankFor?.(p.level);
     try { rankIc.innerHTML = PM?.rankIcon ? PM.rankIcon(p.level, { size: 48, title: false }) : ''; } catch { rankIc.textContent = ''; }
-    rankName.textContent = r?.name || '';
+    if (rankName.textContent !== (r?.name || '')) { rankName.textContent = r?.name || ''; fit(rankName, { now: true }); }
     stufeWord.querySelector('.stufe-n').textContent = ` ${p.level}`;
     stufeWord.style.setProperty('--sw', (62 + 63 * clamp01(prog.progress)).toFixed(1));
     stufeTrack.style.setProperty('--p', clamp01(prog.progress).toFixed(3));
@@ -113,13 +113,14 @@ export async function init(sec, D, ctx = {}) {
     favBox.hidden = none;
     medBox.hidden = none;
     histBox.hidden = none;
+    tools.hidden = none;
     if (none) { emptyLink.setAttribute('href', buildPlayUrl()); return; }
 
     // Kennzahlen
     setFig('kd', st.kd, (v) => num(v, 2, 2));
     setFig('acc', st.accuracy, (v) => pct(v));
     setFig('hs', st.headshotRate, (v) => pct(v));
-    setFig('wins', p.wins, (v) => `${num(Math.round(v))} <small>· N ${num(p.losses)} · U ${num(p.draws)}</small>`);
+    setFig('wins', p.wins, (v) => `${num(Math.round(v))}<small><span class="sep">·</span>N${NNBSP}${num(p.losses)}<span class="sep">·</span>U${NNBSP}${num(p.draws)}</small>`);
     setFig('streak', p.bestStreak, (v) => num(Math.round(v)));
     setFig('far', p.longestKill, (v) => `${num(Math.round(v))}${NNBSP}m`);
     setFig('time', p.playtime, (v) => dur(v));
@@ -148,11 +149,12 @@ export async function init(sec, D, ctx = {}) {
 
     // Medaillen
     const MED = D.M?.MEDALS || {};
-    const meds = Object.entries(p.medals || {}).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    // Nur bekannte Medaillen (unbekannte Kennungen nie roh zeigen)
+    const meds = Object.entries(p.medals || {}).filter(([id, c]) => c > 0 && MED[id]).sort((a, b) => b[1] - a[1]).slice(0, 6);
     medals.replaceChildren(...meds.map(([id, c]) => {
       const m = MED[id];
       const tier = m?.tier || '';
-      return h('li', {}, h('span.mn', {}, `${m?.label || m?.name || id} ×${num(c)}`), tier ? h(`span.mt${tier === 'gold' ? '.gold' : ''}`, {}, up(tier)) : null);
+      return h('li', {}, h('span.mn', {}, `${m.label || m.name} ×${num(c)}`), tier ? h(`span.mt${tier === 'gold' ? '.gold' : ''}`, {}, up(tier)) : null);
     }));
     medBox.hidden = !meds.length;
 

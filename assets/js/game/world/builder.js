@@ -181,6 +181,7 @@ export class MapBuilder {
     this.signDefs = {};
     this.plants = [];
     this.lights = [];
+    this.glows = [];      // weiche Lichthöfe (ein Draw Call für alle)
     this.objects = [];    // dynamische/separate Objekte: { object, update }
     this.materials = new Set();
     this.floors = [];     // { minX, maxX, minZ, maxZ, y }
@@ -504,6 +505,9 @@ export class MapBuilder {
   /** Lichtquelle (Punkt/Spot). Wird beim Aufbau als echtes Licht erzeugt (begrenzte Anzahl). */
   light(type, x, y, z, o = {}) { this.lights.push({ type, x, y, z, ...o }); return this; }
 
+  /** Weicher Lichthof um eine Lampe (additiver Punkt-Sprite; alle Lichthöfe zusammen ein Draw Call). */
+  glow(x, y, z, o = {}) { this.glows.push({ x, y, z, size: o.size ?? 1.4, color: o.color || '#ffb060', intensity: o.intensity ?? 1 }); return this; }
+
   /** Separates Objekt (animiert, nicht verschmolzen). */
   object(obj, o = {}) { this.objects.push({ object: obj, update: o.update || null, bullet: o.bullet || false, surface: o.surface }); return this; }
 
@@ -674,6 +678,7 @@ export class MapBuilder {
       lights.push(light);
     }
     for (const ob of this.objects) group.add(ob.object);
+    this._buildGlows(group);
 
     await step(0.66, 'Kugel-BVH');
     // Kugel-BVH aus sichtbarer Geometrie (pro Dreieck: Oberfläche + Mesh-Index)
@@ -709,6 +714,41 @@ export class MapBuilder {
       group, meshes, decalMeshes, signMesh, foliage, lights, objects, bulletBVH, colliderBVH, colliderMesh,
       stats: { meshes: meshes.length, triangles: drawTris, bulletTris: triCount, colliderTris: colArr.length / 9, prims: this.stats.prims },
     };
+  }
+
+  _buildGlows(group) {
+    if (!this.glows.length) return null;
+    const n = this.glows.length, P = new Float32Array(n * 3), C = new Float32Array(n * 3), S = new Float32Array(n);
+    this.glows.forEach((g, i) => {
+      P.set([g.x, g.y, g.z], i * 3);
+      const c = linearTint(g.color);
+      C.set([c[0] * g.intensity, c[1] * g.intensity, c[2] * g.intensity], i * 3);
+      S[i] = g.size;
+    });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(P, 3));
+    geo.setAttribute('aColor', new THREE.BufferAttribute(C, 3));
+    geo.setAttribute('aSize', new THREE.BufferAttribute(S, 1));
+    geo.computeBoundingSphere();
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uScale: { value: 600 } },
+      vertexShader: `attribute float aSize; attribute vec3 aColor; uniform float uScale; varying vec3 vColor; varying float vFade;
+        void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; float d = -mv.z;
+          gl_PointSize = clamp(aSize * uScale / max(d, 0.5), 1.0, 160.0); vColor = aColor; vFade = clamp(1.0 - d / 240.0, 0.0, 1.0) * smoothstep(0.4, 2.5, d); }`,
+      fragmentShader: `varying vec3 vColor; varying float vFade;
+        void main() { float d = length(gl_PointCoord - 0.5) * 2.0; if (d > 1.0) discard; float a = pow(1.0 - d, 2.4) * vFade; gl_FragColor = vec4(vColor * a, a); }`,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    });
+    mat.userData.disposable = true;
+    const pts = new THREE.Points(geo, mat);
+    pts.name = 'glows'; pts.renderOrder = 5; pts.matrixAutoUpdate = false;
+    const v2 = new THREE.Vector2();
+    pts.onBeforeRender = (renderer, scene, camera) => {
+      renderer.getDrawingBufferSize(v2);
+      mat.uniforms.uScale.value = v2.y / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov || 60) / 2));
+    };
+    group.add(pts);
+    return pts;
   }
 
   _buildDecals(group) {

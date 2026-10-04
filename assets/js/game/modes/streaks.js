@@ -37,7 +37,7 @@ export class StreakManager {
     this._res = {};
     this._world = null;
     this._origRaycast = null;
-    this._lastEntityHit = null;
+    this._entityHits = [];
     this._botPlans = new Map();
     this._subs = null;
   }
@@ -350,7 +350,7 @@ export class StreakManager {
         const h = e.raycast(origin, dir, best ? best.distance : maxDist);
         if (h) best = h;
       }
-      if (best && best.entity) self._lastEntityHit = best;
+      if (best && best.entity) { self._entityHits.push(best); if (self._entityHits.length > 6) self._entityHits.shift(); }
       return best;
     };
   }
@@ -362,14 +362,14 @@ export class StreakManager {
     else delete w.raycast;
     this._origRaycast = null;
     this._world = null;
-    this._lastEntityHit = null;
+    this._entityHits.length = 0;
   }
 
   _onImpact(p) {
-    const h = this._lastEntityHit;
-    if (!h || !p || !p.point) return;
-    if (p.point !== h.point && p.point.distanceToSquared(h.point) > 0.0025) return;
-    this._lastEntityHit = null;
+    if (!p || !p.point || !this._entityHits.length) return;
+    const h = this._entityHits.find((x) => x.point === p.point) || this._entityHits.find((x) => x.point.distanceToSquared(p.point) < 0.0004);
+    this._entityHits.length = 0;
+    if (!h) return;
     const e = h.entity;
     const shooter = p.shooter;
     if (!e || !e.alive || !shooter || !e._hostile(shooter)) return;

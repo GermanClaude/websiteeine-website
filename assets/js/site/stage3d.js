@@ -187,7 +187,7 @@ export function createStage(canvas, opts = {}) {
 
   function request() {
     if (lost) return;
-    if (!running) { running = true; loop.add(tick); }
+    if (!running) { running = true; loop.add(tick, { heavy: true }); }
   }
 
   function getModel(def) {
@@ -225,7 +225,11 @@ export function createStage(canvas, opts = {}) {
       const had = m.parent === kick;
       if (!had) kick.add(m);
       apply();
-      try { if (renderer.compileAsync) await renderer.compileAsync(scene, camera); else renderer.compile(scene, camera); } catch { /* erstes Bild kompiliert dann */ }
+      try {
+        const parallel = renderer.extensions?.has?.('KHR_parallel_shader_compile');
+        if (parallel && renderer.compileAsync) await renderer.compileAsync(scene, camera);
+        else renderer.compile(scene, camera);
+      } catch { /* erstes Bild kompiliert dann */ }
       if (!had && m !== current) kick.remove(m);
     },
     /** Waffe zeigen (Pose zurücksetzen). */

@@ -33,6 +33,7 @@ export class HUD {
     this.feed = null;
     this.minimap = null;
     this.targeting = null;
+    this._dmgPool = [];
     this.reset();
   }
 
@@ -53,7 +54,6 @@ export class HUD {
     this._lastMinuteSaid = false;
     this._cook = null;
     this._post = { desat: 0 };
-    this._dmgPool = [];
     this._dmgIdx = 0;
     this._parcours = null;
     this._fov = 0;
@@ -156,6 +156,8 @@ export class HUD {
     this.topUi.hidden = true;
     this.topUi.innerHTML = '<button type="button" class="ht-prompt" hidden><kbd></kbd><span></span></button>';
     top.appendChild(this.topUi);
+    // Punktetabelle über der Touch-Steuerung
+    this.topUi.appendChild(this.el.board);
     this.promptBtn = this.topUi.querySelector('.ht-prompt');
     this.promptBtn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -385,6 +387,8 @@ export class HUD {
       };
       this._renderDeath();
       this.el.death.hidden = false;
+      this._popups.t = 0;
+      this.el.pop.classList.remove('is-on');
       if (this.targeting) this.targeting.close(true);
     }
   }
@@ -411,6 +415,7 @@ export class HUD {
 
   _scorePopup({ points, reason }) {
     const P = this._popups;
+    if (this.G.player && !this.G.player.alive) return;
     const L = this.G.data.SCORE_LABELS || {};
     const label = L[reason] || (reason === 'target' ? 'Ziel' : reason);
     if (P.t <= 0) { P.total = 0; P.lines = []; }
@@ -430,6 +435,14 @@ export class HUD {
   _medalToast({ id, label, tier }) {
     const M = this.G.data.MEDALS || {};
     const def = M[id] || {};
+    if (this.G.input && this.G.input.mode === 'touch') {
+      // Telefon: Medaillen als kompakte Zeile im Hinweis-Stapel (kein zweites Overlay)
+      const n = el('div', `h-notice h-notice-medal tier-${tier || def.tier || 'bronze'}`, `${medalBadge(label || def.label || id, tier || def.tier)}<span>${esc(label || def.label || id)}</span>`);
+      this.el.notices.appendChild(n);
+      this._notices.push({ n, t: 1.8 });
+      while (this._notices.length > 3) this._notices.shift().n.remove();
+      return;
+    }
     if (this._medals.length > 5) return;
     this._medals.push({ id, label: label || def.label || id, tier: tier || def.tier || 'bronze', desc: def.description || '' });
     if (this._medalT <= 0) this._nextMedal();
@@ -493,7 +506,7 @@ export class HUD {
     const ally = !own && p && G.mode && G.mode.teams && actor && actor.team === p.team;
     const name = this._streakName(streakId);
     if (own) {
-      this._notice(streakId === 'strike' ? 'Präzisionsschlag angefordert.' : streakId === 'sentry' ? 'Wachgeschütz aufgestellt.' : 'Aufklärer gestartet.', 'ally');
+      if (streakId !== 'uav') this._notice(streakId === 'strike' ? 'Präzisionsschlag angefordert.' : 'Wachgeschütz aufgestellt.', 'ally');
     } else if (ally) {
       this._notice(`${actor.name}: ${name}.`, 'ally');
     } else if (streakId === 'strike') {
@@ -594,9 +607,13 @@ export class HUD {
 
   /* ================================================================ Update */
 
-  update(dt) {
+  update(simDt) {
     if (!this.root || !this._visible) return;
     const G = this.G;
+    // UI-Zeitgeber laufen in Echtzeit (auch bei Zeitlupe/niedrigen FPS)
+    const real = G.time.real || 0;
+    const dt = this._realAt != null ? Math.min(0.5, Math.max(0, real - this._realAt)) : simDt;
+    this._realAt = real;
     const p = G.player;
     const w = p && p.weapon;
     const input = G.input;
@@ -870,10 +887,11 @@ export class HUD {
     } else if (id === 'gun' && mode.standing) {
       const s = mode.standing(p);
       setText(this.el.sAv, String(s.level));
-      setText(this.el.sBv, String(s.leaderLevel));
-      setText(this.el.sBs, s.leaderIsMe ? 'Du führst' : s.leaderName);
+      const oth = s.leaderIsMe ? s.bestOtherLevel : s.leaderLevel;
+      setText(this.el.sBv, String(oth));
+      setText(this.el.sBs, s.leaderIsMe ? s.bestOtherName || 'Zweiter' : s.leaderName);
       setStyle(this.el.sAbar, 'transform', `scaleX(${clamp(s.level / s.total, 0, 1).toFixed(3)})`);
-      setStyle(this.el.sBbar, 'transform', `scaleX(${clamp(s.leaderLevel / s.total, 0, 1).toFixed(3)})`);
+      setStyle(this.el.sBbar, 'transform', `scaleX(${clamp(oth / s.total, 0, 1).toFixed(3)})`);
       const lvl = s.level - 1;
       this.el.ladder.forEach((n, i) => { toggle(n, 'is-done', i < lvl); toggle(n, 'is-cur', i === lvl); });
       setHtml(this.el.next, s.nextId ? `Nächste Stufe: <b>${esc(weaponName(G, s.nextId))}</b>` : '<b>Letzte Stufe</b>');

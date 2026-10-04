@@ -46,12 +46,14 @@ initZero({ sound });
 
 initJumps();
 
+let fontsDone = false;
 const fontsP = (document.fonts?.ready || Promise.resolve()).then(() => {
+  fontsDone = true;
   fontsReady();
   fitAll(document, { now: true });
 });
-// Sicherheitsnetz, falls die Schriften hängen
-setTimeout(() => { fontsReady(); fitAll(document, { now: true }); }, 3000);
+// Sicherheitsnetz, falls die Schriften hängen (nur dann; sonst würde es laufende Zustände neu setzen)
+setTimeout(() => { if (!fontsDone) { fontsReady(); fitAll(document, { now: true }); } }, 3000);
 
 const VIEWS = {
   modes: () => import('./modes-view.js'),
@@ -74,7 +76,14 @@ function heroData(D) {
     const l = D.M.MODES[id].limits;
     if (l) bots = Math.max(bots, (l.allies?.[1] || 0) + (l.enemies?.[1] || 0));
   }
-  line.textContent = `${modes} MODI · ${maps} KARTEN · ${weapons} WAFFEN · BIS ZU ${bots} BOTS`;
+  // Jede Angabe bleibt zusammen; umbrochen wird nur an den Mittelpunkten.
+  const items = [`${modes} MODI`, `${maps} KARTEN`, `${weapons} WAFFEN`, `BIS ZU ${bots} BOTS`];
+  line.replaceChildren(...items.flatMap((t, i) => {
+    const sp = document.createElement('span');
+    sp.className = 'nw';
+    sp.textContent = t;
+    return i ? [document.createTextNode(' · '), sp] : [sp];
+  }));
 }
 
 function statusWho(D) {
@@ -87,7 +96,8 @@ function statusWho(D) {
     document.getElementById('st-callsign').textContent = name;
     document.getElementById('st-level').textContent = `STUFE ${p.level}`;
     const icon = document.getElementById('st-rank');
-    try { icon.innerHTML = D.profileMod.rankIcon(p.level, { size: 16 }); } catch { icon.textContent = ''; }
+    // Das Abzeichen ist nur Zierde (STUFE n steht daneben) und erscheint erst groß genug (≥ 1440 px, 20 px)
+    try { icon.innerHTML = D.profileMod.rankIcon(p.level, { size: 20, title: false }); icon.setAttribute('aria-hidden', 'true'); } catch { icon.textContent = ''; }
     who.hidden = false;
   };
   upd();

@@ -423,6 +423,7 @@ export function lampPost(b, x, z, o = {}) {
   f.box(arm, h - 0.23, 0, 0.5, 0.03, 0.24, lampMat, { collide: false, minimap: false, ao: false, cast: false });
   const [lx, lz] = f.P(arm, 0);
   if (o.light) b.light('point', lx, y + h - 0.45, lz, { color: o.kind === 'cool' ? '#dfe9ff' : o.kind === 'warm' ? '#ffd59a' : '#ffad55', intensity: o.intensity ?? 18, distance: o.distance ?? 16, priority: o.priority ?? 1 });
+  if (o.glow) b.glow(lx, y + h - 0.3, lz, { color: o.kind === 'cool' ? '#cfe0ff' : o.kind === 'warm' ? '#ffd090' : '#ffa040', size: o.glowSize ?? 2.4, intensity: o.glow === true ? 1 : o.glow });
   return [lx, lz];
 }
 
@@ -435,6 +436,7 @@ export function floodMast(b, x, z, o = {}) {
   for (const sx of [-0.7, 0, 0.7]) {
     f.box(sx, h + 0.1, 0.05, 0.5, 0.4, 0.25, 'metal_painted', { tint: '#2f3236', collide: false, minimap: false, grad: false, rx: -0.4 });
     f.box(sx, h + 0.16, 0.19, 0.42, 0.3, 0.02, o.kind === 'sodium' ? 'lamp_sodium' : 'lamp_cool', { collide: false, minimap: false, ao: false, rx: -0.4, cast: false });
+    if (o.glow) { const [gx, gz] = f.P(sx, 0.35); b.glow(gx, y + h + 0.3, gz, { color: o.kind === 'sodium' ? '#ffa040' : '#d8e6ff', size: o.glowSize ?? 2.6 }); }
   }
 }
 

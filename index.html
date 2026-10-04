@@ -40,6 +40,18 @@
 
 <header class="status" id="status">
   <a class="brand" href="#nullpunkt">NULLPUNKT.</a>
+  <nav class="index" aria-label="Abschnitte">
+    <ol>
+      <li><a href="#einsatz" data-t="Einsatz"><span>Einsatz</span></a></li>
+      <li><a href="#modi" data-t="Modi"><span>Modi</span></a></li>
+      <li><a href="#karten" data-t="Karten"><span>Karten</span></a></li>
+      <li><a href="#arsenal" data-t="Arsenal"><span>Arsenal</span></a></li>
+      <li><a href="#profil" data-t="Profil"><span>Profil</span></a></li>
+      <li><a href="#einstellungen" data-t="Einstellungen"><span>Einstellungen</span></a></li>
+      <li><a href="#steuerung" data-t="Steuerung"><span>Steuerung</span></a></li>
+      <li><a href="#ueber" data-t="Über"><span>Über</span></a></li>
+    </ol>
+  </nav>
   <p class="who" hidden><span class="callsign" id="st-callsign">OPERATOR</span><span class="lvl"><span id="st-level">STUFE 1</span><span class="rank-ic" id="st-rank"></span></span></p>
   <div class="st-actions">
     <button class="st-index js-only" type="button" aria-haspopup="dialog" data-open-index>Index</button>
@@ -48,48 +60,31 @@
   </div>
 </header>
 
-<nav class="index" aria-label="Abschnitte">
-  <ol>
-    <li><a href="#einsatz">Einsatz</a></li>
-    <li><a href="#modi">Modi</a></li>
-    <li><a href="#karten">Karten</a></li>
-    <li><a href="#arsenal">Arsenal</a></li>
-    <li><a href="#profil">Profil</a></li>
-    <li><a href="#einstellungen">Einstellungen</a></li>
-    <li><a href="#steuerung">Steuerung</a></li>
-    <li><a href="#ueber">Über</a></li>
-  </ol>
-</nav>
-
 <main id="main">
 
   <!-- §00 ─────────────────────────────────────────────── -->
   <section id="nullpunkt" class="sec hero" aria-labelledby="h-null">
     <div class="hero-top">
-      <div class="ht-rail">
-        <p class="rail-label"><span class="sec-no">§00</span> / NULLPUNKT / Einschießen</p>
-        <p class="zero-best" id="zero-best" hidden></p>
-      </div>
-      <div class="ht-main js-only">
-        <p class="zero-msg" id="zero-msg">Fünf Schuss auf den Punkt.</p>
-        <button class="txt-btn" type="button" id="zero-reset" hidden>Neu einschießen</button>
-      </div>
+      <p class="rail-label"><span class="sec-no">§00</span> / NULLPUNKT / Einschießen</p>
+      <p class="zero-best" id="zero-best" hidden></p>
     </div>
     <div class="target" id="target">
+      <p class="zero-cap js-only" id="zero-cap">Fünf Schuss auf den Punkt.<span class="arrow" aria-hidden="true"> ↓</span></p>
       <h1 class="wordmark" id="h-null" data-fit data-fit-max="420" data-kinetic>
         <span class="fl" data-fit-wdth="125">NULL</span><span class="fl" data-fit-wdth="100">PUNKT<span class="bull-g">.</span></span>
       </h1>
       <button class="bull js-only" type="button" aria-label="Auf den Nullpunkt schießen" id="bull"></button>
       <div class="holes" id="holes" aria-hidden="true"></div>
     </div>
-    <p class="data-line" id="data-line">5 MODI · 4 KARTEN · 10 WAFFEN · BIS ZU 15 BOTS</p>
+    <div class="zero-line js-only"><p class="zero-msg" id="zero-msg"></p><button class="txt-btn" type="button" id="zero-reset" hidden>Neu einschießen</button></div>
+    <p class="data-line" id="data-line"><span class="nw">5 MODI</span> · <span class="nw">4 KARTEN</span> · <span class="nw">10 WAFFEN</span> · <span class="nw">BIS ZU 15 BOTS</span></p>
     <div class="hero-body">
       <p class="lead">Ego-Shooter im Browser. Du gegen Bots. Kein Download, kein Konto.</p>
       <div class="hero-cta">
         <a class="cta-fill" href="spielen.html?mode=tdm&amp;map=hafen&amp;diff=regulaer&amp;allies=5&amp;enemies=6" data-play data-kill>Sofort spielen<span class="o">.</span></a>
-        <a class="cta-down" href="#einsatz">Einsatz zusammenstellen <span class="arrow" aria-hidden="true">↓</span></a>
+        <p class="cta-cfg" id="cta-cfg">TDM · IM HAFEN · REGULÄR</p>
+        <a class="cta-down" href="#einsatz">Einsatz zusammenstellen<span class="arrow" aria-hidden="true"> ↓</span></a>
       </div>
-      <p class="cta-cfg" id="cta-cfg">TDM · IM HAFEN · REGULÄR</p>
       <p class="touch-play js-only" id="touch-play" hidden><span class="tp-phone" aria-hidden="true"></span><span>Quer halten. Links laufen, rechts zielen und feuern. <a href="#steuerung" id="touch-play-link">Touch-Steuerung</a></span></p>
     </div>
   </section>

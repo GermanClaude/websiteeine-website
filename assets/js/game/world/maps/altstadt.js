@@ -33,6 +33,7 @@ export default {
     env: { intensity: 0.58, ground: '#e0c090', groundIntensity: 0.9, tint: '#fff0dc' },
     fog: { color: '#d9e4ec', near: 90, far: 520 },
     shadow: { size: 40 },
+    exposure: 0.94,
   },
 
   build(b, ctx) {
@@ -430,7 +431,7 @@ function trike(b, x, z, ry, color = '#3a7aa8') {
 function wallLamp(b, x, y, z, ry) {
   const f = frame(b, x, y, z, ry);
   f.box(0, 0.25, 0.25, 0.04, 0.04, 0.5, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
-  f.box(0, -0.15, 0.48, 0.22, 0.32, 0.22, 'glass', { collide: false, minimap: false, ao: false, tint: '#f6e2b8' });
+  f.box(0, -0.15, 0.48, 0.22, 0.32, 0.22, 'white', { collide: false, minimap: false, ao: false, tint: '#f3e8cf' });
   f.box(0, 0.17, 0.48, 0.28, 0.06, 0.28, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
 }
 
@@ -481,7 +482,7 @@ function ornateLamp(b, x, z) {
   for (const a of [0, Math.PI]) {
     const f = frame(b, x, 3.5, z, a);
     f.box(0.35, 0, 0, 0.7, 0.04, 0.04, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
-    f.box(0.68, -0.42, 0, 0.24, 0.34, 0.24, 'glass', { tint: '#f6e2b8', collide: false, minimap: false, ao: false });
+    f.box(0.68, -0.42, 0, 0.24, 0.34, 0.24, 'white', { tint: '#f3e8cf', collide: false, minimap: false, ao: false });
     f.box(0.68, -0.1, 0, 0.3, 0.06, 0.3, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
   }
   b.geom(sphereGeom(), x, 3.6, z, 'metal_painted', { sx: 0.09, sy: 0.09, sz: 0.09, tint: IRON, collide: false, minimap: false, ao: false });
@@ -579,6 +580,7 @@ function church(b) {
   // Dach
   pitchedRoof(b, { x: (x0 + x1) / 2, z: 0, w: x1 - x0, d: z1 - z0, y: H, ridge: 'x', pitch: rise / 8, over: 0.5, gableMat: mat, gableTint: tint, tint: '#c27154' });
   b.noNav(x0 - 1, z0 - 1, x1 + 1, z1 + 1, H - 1, 40);
+  b.footprints.push({ x: (x0 + x1) / 2, z: 0, hw: (x1 - x0) / 2, hd: (z1 - z0) / 2, ry: 0, y0: 0, y1: H, kind: 'building' });
   // Innen: Holzdecke mit Balken
   b.boxMM(x0 + t, H - 0.25, z0 + t, x1 - t, H, z1 - t, 'wood_dark', { tint: '#7a5a40', collide: false, minimap: false, grad: false });
   for (let xx = x0 + 1.6; xx < x1 - 0.5; xx += 2.2) b.box(xx, H - 0.55, 0, 0.3, 0.3, z1 - z0 - t * 2, 'wood_dark', { tint: '#5a4030', collide: false, minimap: false, grad: false });

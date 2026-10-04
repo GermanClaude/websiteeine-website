@@ -2,7 +2,7 @@
 // Dazu Typenbalken, Datenblatt, „Auf Distanz“ (Rangliste nach Duellzeit) mit Duell und Ausrüstung.
 import { h, $, signalLost } from './dom.js';
 import { fit, glyphModel } from './fit.js';
-import { resplit, Kinetic } from './kinetic.js';
+import { resplit, split, Kinetic } from './kinetic.js';
 import { createFire } from './fire.js';
 import { makeBallistics } from './ballistics.js';
 import { ui } from './state.js';
@@ -87,7 +87,7 @@ export async function init(sec, D, ctx) {
   const btnAds = h('button.hud-btn.ads', { type: 'button', 'aria-pressed': 'false' }, 'Zielen');
   const btnFire = h('button.hud-btn.fire', { type: 'button' }, 'Feuer');
   const ammoNum = h('span.num', { 'aria-hidden': 'true' });
-  const ammoMode = h('span.mode');
+  const ammoMode = h('span.fmode');
   const reloadLine = h('span.reload-line');
   const ammo = h('div.hud-ammo', {}, ammoNum, ammoMode, reloadLine);
   const info = h('p.hud-info');
@@ -143,14 +143,12 @@ export async function init(sec, D, ctx) {
   // Jeder Name passt in seine Spalte (gemessen im Siegerschnitt 900); der Siegerpunkt steht außerhalb des beschnittenen Felds.
   const duelL = h('p.duel-name', { 'data-fit': '', 'data-fit-grow': '0' });
   const duelR = h('p.duel-name.right', { 'data-fit': '', 'data-fit-grow': '0' });
-  const dotL = h('span.duel-dot.o', {}, '.');
-  const dotR = h('span.duel-dot.o', {}, '.');
   const tagL = h('span.duel-tag');
   const tagR = h('span.duel-tag');
   const arena = h('div.duel-arena', { 'aria-hidden': 'true', hidden: true },
-    h('div.duel-side', {}, h('div.duel-line', {}, duelL, dotL), tagL),
+    h('div.duel-side', {}, h('div.duel-line', {}, duelL), tagL),
     h('span.vs', {}, 'GEGEN'),
-    h('div.duel-side.right', {}, h('div.duel-line', {}, duelR, dotR), tagR));
+    h('div.duel-side.right', {}, h('div.duel-line', {}, duelR), tagR));
   const duelRes = h('p.duel-result');
   const duel = h('div.duel', {}, duelGo, arena, duelRes);
   const distM = h('div.m', {}, ctl, rankList, duel);
@@ -221,7 +219,7 @@ export async function init(sec, D, ctx) {
       maskName.style.setProperty('--wght', String(Math.max(500, Math.round(cutG(d)))));
       maskSize();
       fit(maskName, { now: true });
-      if (!kin) kin = new Kinetic(maskName, { conserve: true, limit: () => (mask.clientWidth || 300) * 0.97 }); else kin.refresh();
+      if (!kin) kin = new Kinetic(maskName, { conserve: true, limit: () => (mask.clientWidth || 300) * 0.93 }); else kin.refresh();
       maskName.querySelector('.vis').style.transform = '';
       recoil = { x: 0, y: 0 };
       if (animate && !calm()) {
@@ -379,13 +377,15 @@ export async function init(sec, D, ctx) {
       const fs = parseFloat(getComputedStyle(maskName).fontSize) || 100;
       if (!calm()) {
         const k = Math.min(1, (60 / Math.max(1, def.rpm || 600)) / 0.18);
-        kin.wave(18 * k, 260 * k, { stagger: 6 });
+        if (loop.level < 1) kin.wave(18 * k, 260 * k, { stagger: 6 }); // Wächter Stufe 1: nur die Wellen aus
         const [ph, pv] = patternAt(i);
         const v = (def.recoil?.vertical || 0) * pv * 900 * (i === 0 ? def.recoil?.firstShotMult || 1 : 1);
         const hz = (def.recoil?.horizontal || 0) * (ph + (Math.random() * 0.7 - 0.35)) * 900;
+        // Rückstoß bleibt im Spielraum, den der Name (88 % der Breite) in der Maske hat
         const lim = 0.12 * fs;
+        const limX = Math.min(lim, (mask.clientWidth || 300) * 0.045);
         recoil.y = clamp(recoil.y - v, -lim, lim);
-        recoil.x = clamp(recoil.x + hz, -lim, lim);
+        recoil.x = clamp(recoil.x + hz, -limX, limX);
       }
       stage3d?.shot(def);
       hitm.classList.remove('on');
@@ -749,7 +749,10 @@ export async function init(sec, D, ctx) {
     el.style.setProperty('--wdth', cutW(d).toFixed(1));
     el.dataset.fitWdth = cutW(d).toFixed(1);
     el.style.fontStretch = `${cutW(d).toFixed(1)}%`;
-    resplit(el, d.name);
+    el.classList.remove('won');
+    el.textContent = '';
+    el.append(d.name, h('span.ddot.o', {}, '.'));
+    split(el, { sr: d.name });
     // Im breitesten Endzustand (900) messen, dann zurück in den Ruheschnitt
     el.style.setProperty('--wght', '900');
     el.style.fontWeight = '900';
@@ -767,8 +770,6 @@ export async function init(sec, D, ctx) {
     const a = { def, ms: B.duelTime(def, dd, zone), n: B.shotsToKill(def, dd, zone) };
     const b = { def: opp.def, ms: opp.ms, n: opp.shots };
     arena.hidden = false;
-    dotL.classList.remove('on');
-    dotR.classList.remove('on');
     duelSet(duelL, a.def);
     duelSet(duelR, b.def);
     tagL.textContent = '';
@@ -791,7 +792,7 @@ export async function init(sec, D, ctx) {
       if (!Number.isFinite(winner.ms)) { duelRes.textContent = `Auf ${dd}${NNBSP}m trifft keiner.`; announce(duelRes.textContent, { now: true }); return; }
       wEl.style.fontWeight = '900';
       wEl.style.setProperty('--wght', '900');
-      (aWins ? dotL : dotR).classList.add('on');
+      wEl.classList.add('won');
       if (!tie) {
         lEl.style.transition = reduced() ? 'none' : '--wght 640ms var(--ease-out), font-weight 640ms var(--ease-out)';
         lEl.style.setProperty('--wght', '100');

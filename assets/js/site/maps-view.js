@@ -1,6 +1,9 @@
 // §03 Karten: Sichtlinien-Satz. Jede Karte ist ein maßstäblicher Plan aus Wörtern; der Zeiger
 // (oder Finger) ist ein Operator – was er sieht, steht fett, alles hinter Deckung fällt zur Haarlinie.
+// Darüber der „Durchblick“: ein Standbild aus dem Spiel, sichtbar nur durch die Buchstaben des Kartennamens.
+// Ohne vermessenen Plan zeichnet die Seite die Karte aus Maßen und Wegen (dimensions, lanes, features).
 import { h, $, signalLost, tabs } from './dom.js';
+import { fit } from './fit.js';
 import { buildPlayUrl } from './deploy.js';
 import { makeBallistics } from './ballistics.js';
 import { ui } from './state.js';
@@ -8,7 +11,8 @@ import { announce } from './live.js';
 import { loop } from './loop.js';
 import { reduced, pointerFine } from './motion.js';
 import { num, NNBSP } from './fmt.js';
-import { segmentsFrom, castVisibility, boundsOf, wordFor, corners, blocked, defaultPoint, planText, polyPath, isSoft } from './plan.js';
+import { jumpTo } from './jump.js';
+import { segmentsFrom, castVisibility, boundsOf, wordFor, corners, blocked, defaultPoint, planText, polyPath, isSoft, labelBlocks } from './plan.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const up = (s) => String(s ?? '').toLocaleUpperCase('de-DE');
@@ -18,6 +22,8 @@ const svg = (tag, attrs = {}) => {
   return el;
 };
 const idle = (fn) => (window.requestIdleCallback ? window.requestIdleCallback(fn, { timeout: 600 }) : setTimeout(fn, 60));
+const MIN_PX = 9; // kleiner gesetzt wird kein Wort
+const STILLS = new Set(['hafen', 'altstadt', 'werk', 'range']);
 let uid = 0;
 
 /** Baut den SVG-Plan einer Karte (einmal pro Karte, danach wiederverwendet). */
@@ -39,28 +45,29 @@ function buildPlan(map) {
   const fill = svg('path', { class: 'vis-fill', d: '' });
   const rects = svg('g', { class: 'rects' });
   // Feste Deckung: ein Wort pro Block, das fett wird, sobald eine Kante sichtbar ist.
-  // Weiche Flächen (Wasser, Bahnen …): zwei Ebenen, die fette per Sichtpolygon beschnitten.
+  // Weiche Flächen (Wasser, Bahnen, Stege …): zwei Ebenen, die fette per Sichtpolygon beschnitten.
   const solidG = svg('g', { class: 'words solid' });
   const dim = svg('g', { class: 'words dim' });
   const lit = svg('g', { class: 'words lit', 'clip-path': `url(#${id})` });
   const texts = [];
   const solidIdx = new Map(geo.solid.map((b, i) => [b, i]));
+  const labelled = labelBlocks(blocks);
   for (const b of blocks) {
     const c = corners(b);
     rects.append(svg('path', { class: `blk${isSoft(b.kind) ? ' soft' : ''}`, d: `M${c.map((p) => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join('L')}Z` }));
+    if (!labelled.has(b)) continue;
     const short = Math.min(b.w, b.d);
-    if (short < 1.2) continue;
     const along = b.d > 1.6 * b.w;
     const long = along ? b.d : b.w;
     const fs = 0.62 * short;
     const deg = ((b.rot || 0) * 180) / Math.PI + (along ? 90 : 0);
     const w = wordFor(b.kind);
-    const attrs = { x: b.x.toFixed(2), y: b.z.toFixed(2), 'font-size': fs.toFixed(2), transform: deg ? `rotate(${deg.toFixed(2)} ${b.x.toFixed(2)} ${b.z.toFixed(2)})` : null };
+    const attrs = { x: b.x.toFixed(2), y: b.z.toFixed(2), 'font-size': fs.toFixed(2), transform: deg ? `rotate(${deg.toFixed(2)} ${b.x.toFixed(2)} ${b.z.toFixed(2)})` : null, visibility: 'hidden' };
     if (solidIdx.has(b)) {
       const t = svg('text', { ...attrs, class: 'w' });
       t.textContent = w.word;
       solidG.append(t);
-      texts.push({ dim: t, lit: null, word: w.word, avail: long * 0.88, solid: solidIdx.get(b) });
+      texts.push({ dim: t, lit: null, word: w.word, avail: long * 0.88, fs, solid: solidIdx.get(b) });
       continue;
     }
     const tDim = svg('text', attrs);
@@ -69,7 +76,7 @@ function buildPlan(map) {
     tLit.textContent = w.word;
     dim.append(tDim);
     lit.append(tLit);
-    texts.push({ dim: tDim, lit: tLit, word: w.word, avail: long * 0.88 });
+    texts.push({ dim: tDim, lit: tLit, word: w.word, avail: long * 0.88, fs });
   }
   // Flaggen (Herrschaft), falls die Daten sie liefern
   const flags = svg('g', { class: 'flags' });
@@ -82,42 +89,102 @@ function buildPlan(map) {
     flags.append(t);
   }
   root.append(defs, frame, fill, rects, dim, lit, solidG, flags);
-  return { root, bounds, geo, clipPath, fill, texts, solidTexts: texts.filter((t) => t.solid !== undefined), words: [dim, lit, solidG], measured: false };
+  return { root, bounds, geo, clipPath, fill, texts, solidTexts: texts.filter((t) => t.solid !== undefined), measured: false, kind: 'plan' };
 }
 
-/** Schriftbreite jedes Worts aus zwei Messungen (62 und 125) lösen; im Leerlauf, gebündelt. */
+/**
+ * Schriftbreite jedes Worts aus zwei Messungen (62 und 125) lösen; passt es selbst bei 62 nicht,
+ * wird es kleiner gesetzt (keine Abkürzungen). Gemessen im fetten Schnitt, gebündelt, im Leerlauf.
+ */
 function measure(plan) {
   if (plan.measured || !plan.root.isConnected) return;
   plan.measured = true;
   const T = plan.texts;
-  // Gemessen wird im fetten Schnitt (breitester Fall), damit das Wort auch beleuchtet in seinen Block passt.
   plan.root.classList.add('measuring');
   for (const t of T) t.dim.style.fontStretch = '62%';
   const l62 = T.map((t) => { try { return t.dim.getComputedTextLength(); } catch { return 0; } });
   for (const t of T) t.dim.style.fontStretch = '125%';
   const l125 = T.map((t) => { try { return t.dim.getComputedTextLength(); } catch { return 0; } });
-  const abbr = [];
+  plan.root.classList.remove('measuring');
   T.forEach((t, i) => {
-    if (!l62[i]) { t.wd = 100; return; }
+    if (!l62[i]) { t.wd = 100; t.size = t.fs; return; }
     if (l62[i] <= t.avail) {
       const span = Math.max(1e-3, l125[i] - l62[i]);
       t.wd = Math.max(62, Math.min(125, 62 + (63 * (t.avail - l62[i])) / span));
+      t.size = t.fs;
     } else {
       t.wd = 62;
-      if (t.word.length > 4) { t.short = `${t.word.slice(0, 3)}.`; abbr.push(t); } else t.hide = true;
+      t.size = t.fs * (t.avail / l62[i]);
     }
-  });
-  for (const t of abbr) { t.dim.textContent = t.short; t.dim.style.fontStretch = '62%'; }
-  const la = abbr.map((t) => { try { return t.dim.getComputedTextLength(); } catch { return 0; } });
-  abbr.forEach((t, i) => { if (la[i] > t.avail) t.hide = true; });
-  plan.root.classList.remove('measuring');
-  for (const t of T) {
     for (const el of [t.dim, t.lit]) {
       if (!el) continue;
-      if (t.short) el.textContent = t.short;
       el.style.fontStretch = `${t.wd.toFixed(1)}%`;
-      if (t.hide) el.setAttribute('visibility', 'hidden');
+      el.setAttribute('font-size', t.size.toFixed(2));
     }
+  });
+  sizeWords(plan);
+}
+
+/** Wörter, die gerendert kleiner als 9 px wären, bleiben weg (Plan zu klein für sie). */
+function sizeWords(plan) {
+  if (!plan.measured || !plan.root.isConnected) return;
+  const r = plan.root.getBoundingClientRect();
+  const s = Math.min(r.width / plan.bounds.w, r.height / plan.bounds.h) || 0;
+  for (const t of plan.texts) {
+    const v = t.size * s >= MIN_PX ? 'visible' : 'hidden';
+    t.dim.setAttribute('visibility', v);
+    t.lit?.setAttribute('visibility', v);
+  }
+}
+
+/** Ersatzplan ohne vermessenes Layout: Rechteck in echten Maßen, drei Wege als Wörter, Maßstab. */
+function buildLanePlan(map) {
+  const dx = Number(map.dimensions?.x) || 100;
+  const dz = Number(map.dimensions?.z) || 100;
+  const bounds = { x0: -4, z0: -4, x1: dx + 4, z1: dz + 4, w: dx + 8, h: dz + 8 };
+  const root = svg('svg', {
+    class: 'plan lanes', viewBox: `${bounds.x0} ${bounds.z0} ${bounds.w} ${bounds.h}`,
+    role: 'img', 'aria-label': `Kartenskizze ${map.name}`, preserveAspectRatio: 'xMidYMid meet',
+  });
+  root.append(svg('rect', { class: 'bounds', x: 0, y: 0, width: dx, height: dz }));
+  const lanes = (Array.isArray(map.lanes) ? map.lanes : []).slice(0, 4).map((l) => {
+    const m = /^(.*?)\s*\((.*?)\)\s*$/.exec(String(l));
+    return m ? { name: m[1], side: m[2] } : { name: String(l), side: '' };
+  });
+  const n = Math.max(1, lanes.length);
+  const bw = dx / n;
+  const words = [];
+  lanes.forEach((ln, i) => {
+    if (i) root.append(svg('line', { class: 'blk soft', x1: i * bw, y1: 0, x2: i * bw, y2: dz }));
+    const cx = (i + 0.5) * bw;
+    const cz = dz / 2 + 2;
+    const fs = Math.min(bw * 0.42, 16);
+    const t = svg('text', { class: 'lane-w', x: cx.toFixed(2), y: cz.toFixed(2), 'font-size': fs.toFixed(2), transform: `rotate(-90 ${cx.toFixed(2)} ${cz.toFixed(2)})` });
+    t.textContent = up(ln.name);
+    root.append(t);
+    words.push({ el: t, avail: dz * 0.8, fs });
+    if (ln.side) {
+      const c = svg('text', { class: 'lane-side', x: cx.toFixed(2), y: 4.5, 'font-size': 2.6 });
+      c.textContent = up(ln.side);
+      root.append(c);
+    }
+  });
+  return { root, bounds, words, lanes, measured: false, kind: 'lanes' };
+}
+
+function measureLanes(plan) {
+  if (plan.measured || !plan.root.isConnected) return;
+  plan.measured = true;
+  for (const w of plan.words) {
+    w.el.style.fontStretch = '62%';
+    const a = w.el.getComputedTextLength();
+    w.el.style.fontStretch = '125%';
+    const b = w.el.getComputedTextLength();
+    let wd = 62 + (63 * (w.avail - a)) / Math.max(1e-3, b - a);
+    let size = w.fs;
+    if (wd < 62) { size = w.fs * (w.avail / a); wd = 62; }
+    w.el.style.fontStretch = `${Math.min(125, wd).toFixed(1)}%`;
+    w.el.setAttribute('font-size', size.toFixed(2));
   }
 }
 
@@ -155,15 +222,22 @@ export async function init(sec, D, ctx = {}) {
   const links = h('div.map-links', {}, playLink, checkBtn);
   const scaleBar = h('i');
   const scale = h('p.scale', { 'aria-hidden': 'true' }, scaleBar, h('span', {}, `10${NNBSP}m`));
-  const info = h('div.r.map-info', {}, h('div', {}, name, subtitle), readouts, links, desc, facts, palette, scale);
+  const info = h('div.r.map-info', {}, h('div', {}, name, subtitle), desc, facts, palette, readouts, scale, links);
+
+  // Durchblick: Standbild aus dem Spiel, nur in den Buchstaben des Namens
+  const still = h('img.durch-img', { alt: '', loading: 'lazy', decoding: 'async', width: '1600', height: '600', sizes: '(min-width: 1024px) 66vw, 100vw' });
+  const durchName = h('p.durch-name', { 'data-fit': '' });
+  const durch = h('figure.durch', { 'aria-hidden': 'true', hidden: true }, still, h('div.durch-mask', {}, durchName));
+  still.addEventListener('error', () => { durch.hidden = true; });
+  still.addEventListener('load', () => { durch.classList.add('ready'); });
 
   const planWrap = h('div.plan-wrap', { tabindex: '0', role: 'group' });
   const opHit = h('span.op-hit', { 'aria-hidden': 'true' }, h('i.op-dot'));
   const textId = `plan-text-${++uid}`;
   const textP = h('p', { id: textId });
   const details = h('details.plan-text', {}, h('summary', {}, 'Plan als Text'), textP);
-  const empty = h('div.plan-empty', { hidden: true });
-  const planCol = h('div.m.map-plan', {}, planWrap, empty, details);
+  const feats = h('ul.map-feats', { hidden: true });
+  const planCol = h('div.m.map-plan', {}, durch, planWrap, feats, details);
   const panel = h('div.span.maps-panel', { id: 'map-panel', role: 'tabpanel', 'aria-labelledby': `map-tab-${ids[0]}` }, info, planCol);
 
   root.replaceChildren(list);
@@ -176,6 +250,7 @@ export async function init(sec, D, ctx = {}) {
   let castQueued = false;
   let lastCast = null;
   let speak = false;
+  const live = () => cur?.plan?.kind === 'plan';
 
   const fmtInt = (v) => num(v);
   const toMap = (clientX, clientY) => {
@@ -196,7 +271,7 @@ export async function init(sec, D, ctx = {}) {
 
   function cast() {
     castQueued = false;
-    if (!cur?.plan) return false;
+    if (!live()) return false;
     const p = cur.plan;
     const res = castVisibility(p.geo, op, p.bounds);
     lastCast = res;
@@ -213,7 +288,6 @@ export async function init(sec, D, ctx = {}) {
     rTyp.textContent = `Typische Distanz: ${typ}${NNBSP}m.`;
     const best = B ? B.rankAt(typ, 'body', { slot: 'primary' }).find((r) => Number.isFinite(r.ms)) : null;
     rFirst.textContent = best ? `Erste Wahl dort: ${best.def.name}.` : '';
-    checkBtn.hidden = !B;
     if (speak) { speak = false; announce(`${rFree.textContent} ${rTyp.textContent} ${rFirst.textContent}`.trim()); }
     return false;
   }
@@ -224,7 +298,7 @@ export async function init(sec, D, ctx = {}) {
   }
 
   function moveTo(x, z, { say = false, snap = false } = {}) {
-    if (!cur?.plan) return false;
+    if (!live()) return false;
     const b = cur.plan.bounds;
     x = Math.max(b.x0 + 2.2, Math.min(b.x1 - 2.2, x));
     z = Math.max(b.z0 + 2.2, Math.min(b.z1 - 2.2, z));
@@ -249,6 +323,30 @@ export async function init(sec, D, ctx = {}) {
     return true;
   }
 
+  function factsFor(map) {
+    const parts = [];
+    if (map.timeOfDay) parts.push([`TAGESZEIT ${up(map.timeOfDay)}`]);
+    const dx = Number(map.dimensions?.x);
+    const dz = Number(map.dimensions?.z);
+    const dims = dx && dz ? `${num(dx)} × ${num(dz)}${NNBSP}m` : '';
+    if (map.size || dims) parts.push([map.size ? `GRÖSSE ${up(map.size)}` : 'GRÖSSE', dims]);
+    const modeShorts = (map.modes || []).map((m) => D.M.MODES[m]?.short || up(m)).join(', ');
+    if (modeShorts) parts.push([`MODI ${modeShorts}`]);
+    return parts.flatMap(([t, d], i) => [i ? ' · ' : null, h('span.nw', {}, t, d ? [h('span', {}, ', '), h('span.lc', {}, d)] : null)]).filter(Boolean);
+  }
+
+  function setDurch(id, map) {
+    if (!STILLS.has(id)) { durch.hidden = true; return; }
+    durch.hidden = false;
+    durch.classList.remove('ready');
+    still.srcset = `assets/img/maps/${id}-s.webp 800w, assets/img/maps/${id}.webp 1600w`;
+    still.src = `assets/img/maps/${id}.webp`;
+    if (still.complete && still.naturalWidth) durch.classList.add('ready');
+    durchName.textContent = up(map.name);
+    durchName.fitOpts = { max: () => (durch.clientHeight || 240) * 0.95 };
+    fit(durchName, { now: true });
+  }
+
   function showMap(id, user = false) {
     const map = MAPS[id];
     if (!map) return;
@@ -258,40 +356,44 @@ export async function init(sec, D, ctx = {}) {
     subtitle.textContent = map.subtitle || '';
     subtitle.hidden = !map.subtitle;
     desc.textContent = map.description || map.short || '';
-    const modeShorts = (map.modes || []).map((m) => D.M.MODES[m]?.short || up(m)).join(', ');
-    facts.textContent = [map.timeOfDay && `TAGESZEIT ${up(map.timeOfDay)}`, map.size && `GRÖSSE ${up(map.size)}`, modeShorts && `MODI ${modeShorts}`].filter(Boolean).join(' · ');
+    facts.replaceChildren(...factsFor(map));
     palette.replaceChildren(...(map.palette || []).map((c) => h('i', { style: { background: /^#[0-9a-f]{3,8}$/i.test(c) ? c : 'transparent' } })));
     panel.setAttribute('aria-labelledby', `map-tab-${id}`);
     refreshPlay(id);
+    setDurch(id, map);
 
     const hasPlan = Array.isArray(map.blocks) && map.blocks.length > 0;
-    let plan = null;
-    if (hasPlan) {
-      plan = plans.get(id);
-      if (!plan) { plan = buildPlan(map); plans.set(id, plan); }
-    }
+    let plan = plans.get(id);
+    if (!plan) { plan = hasPlan ? buildPlan(map) : buildLanePlan(map); plans.set(id, plan); }
     const swap = () => {
       cur = { id, map, plan };
-      planWrap.hidden = !plan;
-      details.hidden = !plan;
-      readouts.hidden = !plan;
-      checkBtn.hidden = !plan || !B;
-      scale.hidden = !plan;
-      empty.hidden = !!plan;
-      if (!plan) {
-        empty.replaceChildren(h('div.err-state', { html: '<strong>KEIN SIGNAL.</strong>Für diese Karte liegt noch kein vermessener Plan vor.' }));
-        return;
-      }
-      planWrap.replaceChildren(plan.root, opHit);
+      const isLive = plan.kind === 'plan';
+      readouts.hidden = !isLive;
+      checkBtn.hidden = !isLive || !B;
+      planWrap.classList.toggle('static', !isLive);
+      planWrap.tabIndex = isLive ? 0 : -1;
+      planWrap.replaceChildren(plan.root, ...(isLive ? [opHit] : []));
       planWrap.style.setProperty('--ar', (plan.bounds.w / plan.bounds.h).toFixed(4));
-      planWrap.setAttribute('aria-label', `Kartenplan ${map.name}. Pfeiltasten bewegen, Umschalt für 5 Meter.`);
+      if (isLive) {
+        planWrap.setAttribute('role', 'group');
+        planWrap.setAttribute('aria-label', `Kartenplan ${map.name}. Pfeiltasten bewegen, Umschalt für 5 Meter.`);
+      } else {
+        planWrap.removeAttribute('role');
+        planWrap.removeAttribute('aria-label');
+      }
       plan.root.setAttribute('aria-describedby', textId);
-      textP.textContent = planText(map.name, map.blocks, plan.bounds, fmtInt);
-      const start = defaultPoint(map.blocks, plan.geo.solid, plan.bounds);
-      op = start;
+      const lanesText = (map.lanes || []).length ? ` ${map.lanes.length === 3 ? 'Drei' : num(map.lanes.length)} Wege: ${map.lanes.join(', ')}.` : '';
+      textP.textContent = isLive
+        ? planText(map.name, map.blocks, plan.bounds, fmtInt) + lanesText
+        : `${map.name}, ${fmtInt(Math.round(plan.bounds.w - 8))} × ${fmtInt(Math.round(plan.bounds.h - 8))} m.${lanesText} Für diese Karte liegt noch kein vermessener Plan vor.`;
+      feats.hidden = isLive || !(map.features || []).length;
+      feats.replaceChildren(...(map.features || []).map((f) => h('li', {}, f)));
       placeScale();
-      queueCast(false);
-      if (!plan.measured) idle(() => measure(plan));
+      if (isLive) {
+        op = defaultPoint(map.blocks, plan.geo.solid, plan.bounds);
+        queueCast(false);
+        if (!plan.measured) idle(() => measure(plan)); else sizeWords(plan);
+      } else if (!plan.measured) idle(() => measureLanes(plan));
       if (user && !reduced()) {
         plan.root.classList.add('switching');
         requestAnimationFrame(() => requestAnimationFrame(() => plan.root.classList.remove('switching')));
@@ -309,6 +411,7 @@ export async function init(sec, D, ctx = {}) {
     const b = cur.plan.bounds;
     const s = Math.min(r.width / b.w, (r.height || r.width) / b.h) || r.width / b.w;
     scaleBar.style.width = `${(10 * s).toFixed(1)}px`;
+    if (live()) sizeWords(cur.plan);
   }
 
   function refreshPlay(id = cur?.id) {
@@ -325,19 +428,19 @@ export async function init(sec, D, ctx = {}) {
 
   /* ------------------------------------------------------------ Eingabe */
   planWrap.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse' || !cur?.plan || drag) return;
+    if (e.pointerType !== 'mouse' || !live() || drag) return;
     const p = toMap(e.clientX, e.clientY);
     moveTo(p.x, p.z);
   });
   planWrap.addEventListener('click', (e) => {
-    if (!cur?.plan || e.target.closest('.op-hit')) return;
+    if (!live() || e.target.closest('.op-hit')) return;
     if (e.pointerType === 'mouse' || (pointerFine() && e.detail > 0 && !e.pointerType)) return;
     const p = toMap(e.clientX, e.clientY);
     if (moveTo(p.x, p.z, { say: true, snap: true })) snd?.ui('click');
   });
   let drag = null;
   opHit.addEventListener('pointerdown', (e) => {
-    if (!cur?.plan) return;
+    if (!live()) return;
     drag = { id: e.pointerId };
     opHit.setPointerCapture?.(e.pointerId);
     opHit.classList.add('grab');
@@ -357,7 +460,7 @@ export async function init(sec, D, ctx = {}) {
   opHit.addEventListener('pointerup', endDrag);
   opHit.addEventListener('pointercancel', endDrag);
   planWrap.addEventListener('keydown', (e) => {
-    if (e.target !== planWrap || !cur?.plan) return;
+    if (e.target !== planWrap || !live()) return;
     const step = e.shiftKey ? 5 : 1;
     const dx = { ArrowLeft: -step, ArrowRight: step }[e.key] || 0;
     const dz = { ArrowUp: -step, ArrowDown: step }[e.key] || 0;
@@ -378,9 +481,7 @@ export async function init(sec, D, ctx = {}) {
     ui.set('distance', Math.max(0, Math.min(100, Math.round(lastCast.medianDist))));
     snd?.ui('click');
     await ctx.ensure?.('arsenal');
-    const target = document.getElementById('auf-distanz') || document.getElementById('arsenal');
-    target?.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
-    target?.focus?.({ preventScroll: true });
+    jumpTo(document.getElementById('auf-distanz') ? 'auf-distanz' : 'arsenal', { hash: false });
   });
   playLink.addEventListener('click', () => {
     const u = new URL(playLink.href, location.href).searchParams;

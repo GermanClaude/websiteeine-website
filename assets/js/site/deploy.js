@@ -53,7 +53,11 @@ export function refreshPlayLinks() {
       : `${m?.short || upper(st.mode)} · ${upper(mapPrep(st.map))} ${upper(mapName)} · ${upper(diff)}`;
   }
   const url = $('#play-url');
-  if (url) url.textContent = href;
+  if (url) {
+    // Umbruch nur vor „&“ und nach „?“, nie mitten in einem Wert
+    const parts = href.split(/(?=&)|(?<=\?)/);
+    url.replaceChildren(...parts.flatMap((t, i) => (i ? [document.createElement('wbr'), t] : [t])));
+  }
 }
 
 /* ---------------------------------------------------------------- Satzbau */
@@ -157,13 +161,16 @@ export function initDeploy(data, { snd, webgl } = {}) {
     while (slots.mode.label.nextSibling) slots.mode.label.nextSibling.remove();
     const sp = () => document.createTextNode(' ');
     const nb = () => document.createTextNode(NB);
+    // Zusammengehörige Wortgruppen brechen nie in sich („6 Bots“, „mit 5 Verbündeten“, „auf Regulär.“);
+    // umbrochen wird nur zwischen den Gruppen.
+    const grp = (...kids) => { const g = mk('grp', ''); g.append(...kids); return g; };
     const seq = [];
     if (kind === 'training') {
       seq.push(words.dot);
     } else {
-      seq.push(sp(), words.prep, nb(), slots.map.label);
-      if (kind === 'teams') seq.push(sp(), words.mit, nb(), slots.allies.label, nb(), words.verb);
-      seq.push(sp(), words.gegen, nb(), slots.enemies.label, nb(), words.bots, sp(), words.auf, nb(), slots.diff.label, words.dot);
+      seq.push(sp(), grp(words.prep, nb(), slots.map.label));
+      if (kind === 'teams') seq.push(sp(), grp(words.mit, nb(), slots.allies.label, nb(), words.verb));
+      seq.push(sp(), grp(words.gegen, nb(), slots.enemies.label, nb(), words.bots), sp(), grp(words.auf, nb(), slots.diff.label, words.dot));
     }
     seq.push(sp(), go);
     p.append(...seq);

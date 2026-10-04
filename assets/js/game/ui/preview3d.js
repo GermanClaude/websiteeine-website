@@ -79,7 +79,7 @@ export class WeaponPreview {
     if (!this._init()) return;
     if (id === this.modelId && this.model) return;
     const G = this.G;
-    const def = G.data.WEAPONS && G.data.WEAPONS[id];
+    const def = (G.data.WEAPONS && G.data.WEAPONS[id]) || (G.data.EQUIPMENT && G.data.EQUIPMENT[id]);
     const models = G.modules && G.modules.models;
     this._clearModel();
     this.modelId = id;
@@ -95,7 +95,7 @@ export class WeaponPreview {
     const wrap = new THREE.Group();
     m.position.sub(center);
     wrap.add(m);
-    wrap.scale.setScalar(s * (def.cls === 'pistol' ? 0.62 : def.cls === 'melee' ? 0.55 : 1));
+    wrap.scale.setScalar(s * (def.cls === 'pistol' ? 0.62 : def.cls === 'melee' ? 0.55 : !def.cls ? 0.36 : 1));
     // Lauf nach links (Seitenansicht)
     wrap.rotation.y = Math.PI / 2;
     this.pivot.add(wrap);

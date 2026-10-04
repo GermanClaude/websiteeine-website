@@ -2,7 +2,7 @@
 // Koordinaten in Metern; SVG-x = Karten-x, SVG-y = Karten-z (Norden = −z oben).
 
 /** Arten, die gezeichnet werden, aber keine Sicht verdecken. */
-const SOFT = ['water', 'lane', 'zone', 'spawn', 'road', 'plaza', 'flag', 'objective', 'marker', 'decal'];
+const SOFT = ['water', 'lane', 'zone', 'spawn', 'road', 'plaza', 'flag', 'objective', 'marker', 'decal', 'catwalk'];
 export const isSoft = (kind) => SOFT.some((k) => String(kind).toLowerCase().includes(k));
 
 /** Art → Wort (+ Mehrzahl für die Textfassung). Reihenfolge = Priorität beim Teilstring-Vergleich. */
@@ -12,7 +12,7 @@ const WORDS = [
   ['warehouse', 'HALLE', 'Halle', 'Hallen'],
   ['hall', 'HALLE', 'Halle', 'Hallen'],
   ['house', 'HAUS', 'Haus', 'Häuser'],
-  ['building', 'HAUS', 'Haus', 'Häuser'],
+  ['building', 'BAU', 'Gebäude', 'Gebäude'],
   ['wall', 'MAUER', 'Mauer', 'Mauern'],
   ['crate', 'KISTE', 'Kiste', 'Kisten'],
   ['box', 'KISTE', 'Kiste', 'Kisten'],
@@ -34,6 +34,8 @@ const WORDS = [
   ['water', 'WASSER', 'Wasserfläche', 'Wasserflächen'],
   ['vehicle', 'WAGEN', 'Wagen', 'Wagen'],
   ['car', 'WAGEN', 'Wagen', 'Wagen'],
+  ['tank', 'TANK', 'Tank', 'Tanks'],
+  ['cover', 'DECKUNG', 'Deckung', 'Deckungen'],
 ];
 const FALLBACK = ['', 'DECKUNG', 'Deckung', 'Deckungen'];
 /** { word, one, many } für eine Art. */
@@ -222,4 +224,43 @@ export function planText(name, blocks, bounds, fmtInt) {
   const size = `${fmtInt(Math.round(bounds.w - 8))} × ${fmtInt(Math.round(bounds.h - 8))} m`;
   const deck = `${solid.length} ${solid.length === 1 ? 'Deckung' : 'Deckungen'}`;
   return `${name}, ${size}. ${deck}${list.length ? `: ${list.join(', ')}` : ''}.`;
+}
+
+/** Achsparalleles Rechteck um einen (gedrehten) Block. */
+export function aabb(b) {
+  const c = corners(b);
+  const xs = c.map((p) => p[0]);
+  const zs = c.map((p) => p[1]);
+  return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
+}
+const overlap = (a, b) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0));
+
+/**
+ * Welche Blöcke bekommen ein Wort? Pro Gruppe gleichartiger, sich berührender Blöcke nur der größte,
+ * und kein Wort auf einem Block, der zu mehr als der Hälfte unter einem schon beschrifteten liegt.
+ */
+export function labelBlocks(blocks, minShort = 1.2) {
+  const cand = blocks.filter((b) => Math.min(b.w, b.d) >= minShort);
+  const box = new Map(cand.map((b) => [b, aabb(b)]));
+  const word = (b) => wordFor(b.kind).word;
+  const parent = new Map(cand.map((b) => [b, b]));
+  const find = (b) => { while (parent.get(b) !== b) { parent.set(b, parent.get(parent.get(b))); b = parent.get(b); } return b; };
+  const near = (a, b, pad = 0.6) => a.x0 - pad <= b.x1 && b.x0 - pad <= a.x1 && a.z0 - pad <= b.z1 && b.z0 - pad <= a.z1;
+  for (let i = 0; i < cand.length; i++) {
+    for (let j = i + 1; j < cand.length; j++) {
+      if (word(cand[i]) !== word(cand[j]) || !near(box.get(cand[i]), box.get(cand[j]))) continue;
+      parent.set(find(cand[i]), find(cand[j]));
+    }
+  }
+  const area = (b) => b.w * b.d;
+  const best = new Map();
+  for (const b of cand) { const r = find(b); if (!best.has(r) || area(b) > area(best.get(r))) best.set(r, b); }
+  const kept = [];
+  for (const b of [...best.values()].sort((p, q) => area(q) - area(p))) {
+    const a = box.get(b);
+    const aa = (a.x1 - a.x0) * (a.z1 - a.z0);
+    if (kept.some((k) => { const kb = box.get(k); return overlap(a, kb) > 0.5 * Math.min(aa, (kb.x1 - kb.x0) * (kb.z1 - kb.z0)); })) continue;
+    kept.push(b);
+  }
+  return new Set(kept);
 }

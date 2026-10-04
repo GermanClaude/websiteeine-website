@@ -1,7 +1,7 @@
 // NULLPUNKT — Welt laden (Owner: world)
 // loadWorld(G, mapId, { onProgress }) → World (siehe docs/ARCHITECTURE.md §6)
 import * as THREE from 'three';
-import { Octree } from 'three/addons/math/Octree.js';
+import { buildColliderOctree } from './collider.js';
 import { MAPS } from '../../shared/maps.data.js';
 import { configureTextures, getMaterial } from '../engine/textures.js';
 import { MapBuilder, SURFACES } from './builder.js';
@@ -69,11 +69,8 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   // Kollision (Octree für Kapseln)
   progress(0.84, 'Kollision');
   const tCol0 = performance.now();
-  // Tiefe begrenzen: Standardwerte (8 Dreiecke/Blatt, 16 Ebenen) unterteilen dichte Kleinteile extrem tief
-  const collider = new Octree();
-  collider.trianglesPerLeaf = 24;
-  collider.maxLevel = 7;
-  collider.fromGraphNode(built.colliderMesh);
+  // Octree mit begrenzter Tiefe auf allen Ebenen (Standardwerte unterteilen dichte Ecken extrem tief)
+  const collider = buildColliderOctree(built.colliderMesh.geometry.attributes.position.array);
   const tCol = performance.now() - tCol0;
   built.colliderMesh.geometry.dispose();
 
@@ -222,7 +219,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     dispose() {
       G.scene.remove(group);
       group.traverse(o => {
-        if (o.isMesh || o.isInstancedMesh) {
+        if (o.isMesh || o.isInstancedMesh || o.isPoints || o.isLine) {
           o.geometry?.dispose();
           const mats = Array.isArray(o.material) ? o.material : [o.material];
           for (const m of mats) if (m && m.userData?.disposable) m.dispose();

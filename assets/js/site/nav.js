@@ -20,7 +20,6 @@ let idleFrames = 0;
 const visibleH2 = new Set();
 let current = '';
 let sound = null;
-let navH = 0;
 
 export function setNavSound(s) { sound = s; }
 
@@ -55,17 +54,6 @@ function spy() {
     ps[id] = p;
     if (p > bestP) { bestP = p; best = id; }
   }
-  // Liegt Inhalt der Randspalte hinter dem (ausgeklappten) Index? Dann faltet er sich auf den aktuellen Eintrag.
-  const nav = $('.index');
-  let fold = false;
-  if (nav && nav.getClientRects().length && getComputedStyle(nav).visibility !== 'hidden') {
-    if (!nav.classList.contains('fold') || !navH) navH = nav.offsetHeight;
-    const top = vh - navH;
-    for (const el of $$('.span > .r, .set-row > .r, .rail > :not(.rail-label), .foot')) {
-      const r = el.getBoundingClientRect();
-      if (r.height > 0 && r.bottom > top + 8 && r.top < vh) { fold = true; break; }
-    }
-  }
   for (const a of links) {
     const id = a.getAttribute('href').slice(1);
     const p = ps[id] ?? 0;
@@ -73,7 +61,6 @@ function spy() {
     if (id === best) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
     a.parentElement?.classList.toggle('cur', id === best);
   }
-  nav?.classList.toggle('fold', fold);
   for (const a of $$('.dlg-list a')) {
     if (a.getAttribute('href').slice(1) === best) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
   }
@@ -181,7 +168,7 @@ export function initNav() {
   $('#status')?.classList.toggle('scrolled', window.scrollY > 8);
   window.addEventListener('scroll', onScroll, { passive: true });
   let rs = 0;
-  window.addEventListener('resize', () => { cancelAnimationFrame(rs); navH = 0; rs = requestAnimationFrame(() => { axis(); spy(); }); });
+  window.addEventListener('resize', () => { cancelAnimationFrame(rs); rs = requestAnimationFrame(() => { axis(); spy(); }); });
   if ('ResizeObserver' in window) {
     const ro = new ResizeObserver(() => { cancelAnimationFrame(rs); rs = requestAnimationFrame(() => { axis(); spy(); }); });
     ro.observe(document.body);

@@ -33,8 +33,31 @@ export function initZero({ sound } = {}) {
   if (!target || !h1) return null;
 
   split(h1, { sr: 'NULLPUNKT' });
-  // Obergrenze auch aus der Höhe: Im Querformat am Telefon bleibt der Aufruf zum Spielen im ersten Bildschirm.
-  h1.fitOpts = { max: () => Math.max(64, Math.min(420, window.innerHeight * (window.innerWidth > window.innerHeight * 1.6 ? 0.34 : 0.5))) };
+  const hero = h1.closest('.hero') || document.body;
+  // Obergrenze auch aus der Höhe: Was nach der Wortmarke kommt (Satz, Aufruf), bleibt im ersten Bildschirm.
+  const others = ['.hero-top', '#zero-cap', '.zero-line', '.data-line', '.hero-body'];
+  h1.fitOpts = {
+    weight: true,
+    max: () => {
+      const twoLines = getComputedStyle(h1.querySelector('.fl') || h1).display === 'block';
+      const cs = getComputedStyle(hero);
+      let used = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+      let rows = 0;
+      // Hochkant gewinnt die Breite (die Seite scrollt ohnehin); quer darf der Aufruf nicht aus dem Bild fallen.
+      if (window.innerWidth <= window.innerHeight) return 420;
+      for (const sel of others) {
+        const el = hero.querySelector(sel);
+        if (!el || !el.getClientRects().length) continue;
+        // Die Ergebniszeile zählt mit ihrer reservierten Höhe, nicht mit ihrem wechselnden Inhalt
+        used += sel === '.zero-line' ? (parseFloat(getComputedStyle(el).minHeight) || 0) : el.getBoundingClientRect().height;
+        if (sel !== '#zero-cap') rows++;
+      }
+      used += rows * (parseFloat(cs.rowGap) || 0);
+      const avail = window.innerHeight - used;
+      const fs = avail / ((twoLines ? 1.6 : 0.8) + 0.08);
+      return Math.max(56, Math.min(420, fs));
+    },
+  };
   const kin = new Kinetic(h1, { conserve: true });
   let shots = [];
   let done = false;
@@ -56,15 +79,17 @@ export function initZero({ sound } = {}) {
   showBest();
   site.onChange((k) => { if (k === 'bestGroupMm') showBest(); });
 
+  // Koordinaten: x ab linker Kante, y ab UNTERER Kante des Zielfelds (negativ nach oben). Die Wortmarke steht
+  // unten im Feld; ändert sich die Höhe darüber, bleiben Löcher und Punkt deckungsgleich mit den Buchstaben.
   /** Mittelpunkt des orangefarbenen Punkts relativ zum Zielfeld (ohne Gleitversatz). */
   function bullCenter() {
-    if (!bullG) return { x: 0, y: 0 };
+    if (!bullG) return { x: 0, y: 0, r: 0 };
     const t = target.getBoundingClientRect();
     const g = bullG.getBoundingClientRect();
     const b = bl.getBoundingClientRect();
     const fs = parseFloat(getComputedStyle(bullG).fontSize) || 100;
     base.fs = fs;
-    return { x: g.left + g.width / 2 - t.left - glide.x, y: b.top - (dotRatio * fs) / 2 - t.top - glide.y };
+    return { x: g.left + g.width / 2 - t.left - glide.x, y: b.top - (dotRatio * fs) / 2 - t.bottom - glide.y, r: t.right - (g.right - glide.x) };
   }
 
   function placeBull() {
@@ -73,26 +98,31 @@ export function initZero({ sound } = {}) {
     base.y = c.y;
     bull.style.setProperty('--bx', `${(c.x + glide.x).toFixed(1)}px`);
     bull.style.setProperty('--by', `${(c.y + glide.y).toFixed(1)}px`);
+    // Hinweis darüber und Ergebniszeile darunter stehen bündig mit dem Punkt
+    hero.style.setProperty('--bull-r', `${Math.max(0, c.r).toFixed(1)}px`);
     const hd = Math.max(5, Math.min(10, 0.035 * base.fs));
     holesEl.style.setProperty('--hd', `${hd.toFixed(1)}px`);
   }
   h1.addEventListener('fitted', () => requestAnimationFrame(placeBull));
   window.addEventListener('resize', () => requestAnimationFrame(placeBull));
+  // Höhe des Hero ändert sich (Ergebniszeile, Schriften): neu ausmessen
+  if ('ResizeObserver' in window) new ResizeObserver(() => requestAnimationFrame(placeBull)).observe(target);
 
   function setMsg(l1, l2 = '') {
     msg.innerHTML = '';
+    if (!l1) return;
     const a = document.createElement('span');
     a.className = 'l1';
     a.textContent = l1;
     msg.appendChild(a);
-    if (l2) msg.appendChild(document.createTextNode(l2));
+    if (l2) { const b = document.createElement('span'); b.className = 'l2'; b.textContent = l2.trim(); msg.appendChild(b); }
   }
 
   function kick(ix, iy) {
     if (reduced()) return;
     const t = target.getBoundingClientRect();
     const px = ix + t.left;
-    const py = iy + t.top;
+    const py = iy + t.bottom;
     const fs = base.fs;
     let best = -1;
     let bestD = Infinity;
@@ -125,7 +155,7 @@ export function initZero({ sound } = {}) {
     shots = [];
     done = false;
     glide = { x: 0, y: 0 };
-    h1.classList.remove('glide');
+    h1.classList.remove('glide', 'durchblick');
     h1.style.transform = '';
     placeBull();
     resetBtn.hidden = true;
@@ -142,12 +172,13 @@ export function initZero({ sound } = {}) {
     const hole = document.createElement('i');
     hole.className = 'hole';
     hole.style.left = `${ix.toFixed(1)}px`;
-    hole.style.top = `${iy.toFixed(1)}px`;
+    hole.style.top = `calc(100% + ${iy.toFixed(1)}px)`;
     holesEl.appendChild(hole);
     kick(ix, iy);
     sound?.shot?.('pistol');
     if (shots.length < MAX_SHOTS) {
       setMsg(`Schuss ${shots.length} von ${MAX_SHOTS}.`);
+      if (shots.length === MAX_SHOTS - 1 && !reduced()) { const img = new Image(); img.src = 'assets/img/maps/hafen.webp'; }
       return;
     }
     result();
@@ -185,6 +216,10 @@ export function initZero({ sound } = {}) {
         if (prev) line2 += ' Bester Streukreis bisher.';
       }
       if (!reduced()) {
+        // Kurz durchsehen: der Hafen in den Buchstaben, dann wieder Papier
+        h1.classList.add('durchblick');
+        clearTimeout(h1._durchT);
+        h1._durchT = setTimeout(() => h1.classList.remove('durchblick'), 1800);
         glide = { x: dx, y: dy };
         h1.classList.add('glide');
         h1.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
@@ -212,11 +247,11 @@ export function initZero({ sound } = {}) {
     if (moved > 6) return;
     const t = target.getBoundingClientRect();
     hit('hit', e.clientX, e.clientY);
-    fire(e.clientX - t.left, e.clientY - t.top, type === 'touch' ? 6 : 2);
+    fire(e.clientX - t.left, e.clientY - t.bottom, type === 'touch' ? 6 : 2);
   });
   resetBtn.addEventListener('click', () => {
     clear(true);
-    setMsg('Fünf Schuss auf den Punkt.');
+    setMsg('');
     sound?.ui('back');
     bull.focus({ preventScroll: true });
   });

@@ -1024,6 +1024,8 @@ export class ViewModel {
     this._offQuality?.();
     this.scene.remove(this.root);
     this.flash.group.removeFromParent();
+    // Requisiten teilen Geometrien mit dem Modell-Cache: vor dem Entsorgen der Arme abhängen
+    for (const p of Object.values(this.props)) p.removeFromParent();
     this.flash.dispose();
     this.smoke.dispose();
     this.shells.dispose();

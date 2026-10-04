@@ -108,7 +108,9 @@ export class GunMode extends BaseMode {
     const lvl = this.levelOf(actor);
     const board = this.scoreboard();
     const lead = board[0];
+    const other = board.find((r) => r.actor !== actor);
     return {
+      bestOtherLevel: other && other.extra ? other.extra.value : 0, bestOtherName: other ? other.name : '',
       level: Math.min(this.steps.length, lvl + 1), total: this.steps.length, weaponId: this.weaponFor(lvl),
       nextId: lvl + 1 < this.steps.length ? this.weaponFor(lvl + 1) : null, place: board.findIndex((r) => r.actor === actor) + 1,
       leaderName: lead ? lead.name : '', leaderLevel: lead && lead.extra ? lead.extra.value : 0, leaderIsMe: lead ? lead.actor === actor : false,

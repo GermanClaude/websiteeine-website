@@ -5,9 +5,9 @@
 import * as THREE from 'three';
 import { building, wall, stairs, railing, catwalk } from '../arch.js';
 import {
-  frame, container, crate, crateStack, barrel, barrelGroup, pallet, palletStack, sandbags, jersey, cone,
-  forklift, truck, van, car, lampPost, floodMast, fence, tires, cableReel, gasBottles, electricBox, pipe, cable,
-  workbench, lockers, dumpster, tank, roofVent, lowSphereGeom,
+  frame, container, crateStack, barrel, barrelGroup, palletStack, sandbags, jersey, cone,
+  forklift, truck, van, car, lampPost, floodMast, fence, tires, cableReel, gasBottles, electricBox, pipe,
+  workbench, lockers, dumpster, tank, roofVent,
 } from '../props.js';
 
 const HX = 22, HZ = 30;           // Halle: x −22..22, z −30..30
@@ -195,6 +195,7 @@ function fireBarrel(b, x, z, o = {}) {
     mat.opacity = 0.7 + Math.sin(t * 11) * 0.12;
   });
   if (o.light !== false) b.light('point', x, 1.6, z, { color: '#ff9a40', intensity: o.intensity ?? 9, distance: o.distance ?? 9, priority: 2 });
+  b.glow(x, 1.25, z, { color: '#ff8a30', size: 2.6, intensity: 0.9 });
 }
 
 /** Rollgang (Rollentisch) entlang z von z0 bis z1 bei x. */
@@ -242,13 +243,24 @@ function furnace(b, x0, z0, x1, z1, s) {
   const face = s > 0 ? z0 - 0.01 : z1 + 0.01;
   for (const ox of [-w / 4, w / 4]) {
     b.box(x + ox, 0.6, face, 2.2, 1.6, 0.04, 'black', { collide: false, minimap: false, ao: false });
-    b.box(x + ox, 0.62, face - s * 0.005, 2.0, 0.25, 0.04, 'lamp_sodium', { collide: false, minimap: false, ao: false, cast: false, tint: '#ff7a30' });
+    b.box(x + ox, 0.62, face - s * 0.005, 2.0, 0.25, 0.04, 'lamp_sodium', { collide: false, minimap: false, ao: false, cast: false, matOpts: { emissive: '#ff5a1a', emissiveIntensity: 1.6 } });
+    b.glow(x + ox, 0.8, face - s * 0.3, { color: '#ff6a20', size: 2.2, intensity: 0.7 });
     b.box(x + ox, 2.3, face - s * 0.08, 2.6, 0.18, 0.16, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false });
   }
   // Abzugshaube + Rohr zum Dach
   b.box(x, 4.9, z, w * 0.5, 1.2, d * 0.6, 'metal_rust', { collide: false, minimap: false, grad: false });
   b.cyl(x, 6.1, z, 0.7, 6.0, 'metal_rust', { collide: false, minimap: false, seg: 12 });
   b.noNav(x0 - 0.3, z0 - 0.3, x1 + 0.3, z1 + 0.3, 3, 30);
+}
+
+/** Wandleuchte (Natriumdampf) mit Lichthof; ry = Blickrichtung nach außen. */
+function wallLight(b, x, y, z, ry, o = {}) {
+  const f = frame(b, x, y, z, ry);
+  f.box(0, 0.12, 0.18, 0.06, 0.06, 0.36, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
+  f.box(0, -0.05, 0.4, 0.42, 0.16, 0.3, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
+  f.box(0, -0.07, 0.4, 0.36, 0.03, 0.24, o.cool ? 'lamp_cool' : 'lamp_sodium', { collide: false, minimap: false, ao: false, cast: false });
+  const [gx, gz] = f.P(0, 0.42);
+  b.glow(gx, y - 0.15, gz, { color: o.cool ? '#d8e6ff' : '#ffa850', size: o.size ?? 2.2 });
 }
 
 /** Hallentor-Rolltor halb offen (Unterkante y0). */
@@ -336,6 +348,7 @@ function hall(b) {
     b.cyl(xx, H - 1.6, zz, 0.02, 1.3, 'metal_galvanized', { collide: false, seg: 4, ao: false, minimap: false });
     b.cyl(xx, H - 2.1, zz, 0.6, 0.5, 'metal_painted', { r1: 0.18, tint: '#2b2d30', collide: false, seg: 12, ao: false, minimap: false });
     b.cyl(xx, H - 2.12, zz, 0.55, 0.02, 'lamp_sodium', { collide: false, seg: 12, ao: false, cast: false, minimap: false });
+    b.glow(xx, H - 2.35, zz, { color: '#ffa850', size: 3.2, intensity: 0.9 });
   }
   b.light('point', -9, 8.6, 7, { color: '#ffae5a', intensity: 40, distance: 24, priority: 1 });
   b.light('point', 9, 8.6, -7, { color: '#ffae5a', intensity: 40, distance: 24, priority: 1 });
@@ -343,6 +356,11 @@ function hall(b) {
   for (const [x, z] of [[-11, -9], [11, 9], [11, -15], [-11, 15]]) dustShaft(b, x, z);
   // Beschriftung außen
   for (const [k, z] of [[1, 12], [2, 0], [3, -12]]) b.sign(-HX - 0.03, 5.4, z, 1.0, 1.0, 'bay' + k, { ry: -Math.PI / 2, depth: 0.02 });
+  // Wandleuchten über Ladetoren, Türen und Toren
+  for (const z of [-12, 0, 12]) wallLight(b, -HX, 5.05, z + 2.6, -Math.PI / 2);
+  for (const z of [-12, 12]) wallLight(b, HX, 2.9, z + 1.2, Math.PI / 2);
+  wallLight(b, HX, 4.75, 3.0, Math.PI / 2);
+  for (const s of [-1, 1]) { wallLight(b, -5.2, 5.0, s * HZ, s > 0 ? 0 : Math.PI); wallLight(b, 5.2, 5.0, s * HZ, s > 0 ? 0 : Math.PI); }
   b.sign(HX + 0.03, 3.2, -14.6, 1.6, 1.0, 'helmet', { ry: Math.PI / 2, depth: 0.02 });
   b.sign(HX + 0.03, 3.2, 14.6, 1.8, 0.9, 'closed', { ry: Math.PI / 2, depth: 0.02 });
   b.sign(-HX - 0.03, 3.0, 22, 4.6, 1.2, 'graffiti2', { ry: -Math.PI / 2, back: false, depth: 0 });
@@ -356,7 +374,7 @@ function dustShaft(b, x, z) {
   geo.translate(0, 6.75, 0);
   if (!shaftMat || shaftMat.userData.disposed) {
     shaftMat = new THREE.ShaderMaterial({
-      uniforms: { uColor: { value: new THREE.Color('#a9bcd2') }, uOpacity: { value: 0.16 } },
+      uniforms: { uColor: { value: new THREE.Color('#a9bcd2') }, uOpacity: { value: 0.11 } },
       vertexShader: `varying vec3 vN; varying vec3 vV; varying float vY;
         void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = -mv.xyz; vY = position.y / 13.5; gl_Position = projectionMatrix * mv; }`,
       fragmentShader: `uniform vec3 uColor; uniform float uOpacity; varying vec3 vN; varying vec3 vV; varying float vY;
@@ -425,6 +443,8 @@ function hallInterior(b) {
     lockers(b, -19.9, s * 16.4, { n: 4, ry: Math.PI / 2 });
     tires(b, 4.6, s * 9.2, { n: 3 });
   }
+  // heruntergestürzte Dachbleche unter den Dachlöchern (niedrige Deckung)
+  for (const [x, z, ry] of [[-9.5, -11.5, 0.4], [9.8, 7.2, -0.7], [12.0, -13.2, 1.2], [-10.0, 14.0, -0.2]]) fallenSheets(b, x, z, ry);
   // Pfützen, Ölflecken, Schmutz, Schrott in der Halle
   for (let i = 0; i < 34; i++) {
     const x = b.rnd(-20, 20), z = b.rnd(-28, 28), k = b.rand();
@@ -436,6 +456,17 @@ function hallInterior(b) {
   }
   for (const xx of [-4.2, 4.2]) b.decal(xx, 0.013, 0, 0.18, 52, 'line', { ry: 0, tint: '#d9a72a', kind: 'paint', opacity: 0.8 });
   b.decal(0, 0.014, 0, 5.5, 5.5, 'hatch', { ry: 0, tint: '#d9a72a', opacity: 0.55 });
+}
+
+/** Haufen heruntergefallener Wellblechtafeln mit Schutt. */
+function fallenSheets(b, x, z, ry) {
+  const f = frame(b, x, 0, z, ry);
+  f.box(0.2, 0, 0.1, 1.6, 0.35, 1.1, 'concrete', { tint: '#7a7670', collide: false, minimap: false });
+  f.box(0, 0.32, 0, 2.6, 0.05, 1.8, 'metal_corrugated', { rx: 0.22, rz: 0.06, tint: '#7d868c', collide: false, minimap: false, grad: false, uv: 'local' });
+  f.box(-0.3, 0.05, 0.4, 2.4, 0.05, 1.7, 'metal_corrugated', { rx: -0.08, rz: 0.3, ry: 0.5, tint: '#6d767c', collide: false, minimap: false, grad: false, uv: 'local' });
+  for (let i = 0; i < 6; i++) { const [px, pz] = f.P((b.rand() - 0.5) * 2.6, (b.rand() - 0.5) * 2.2); b.box(px, 0, pz, 0.2 + b.rand() * 0.25, 0.1 + b.rand() * 0.15, 0.2 + b.rand() * 0.2, 'concrete', { ry: b.rand() * 3, tint: '#8a8680', collide: false, minimap: false, ao: false }); }
+  f.solid(0, 0, 0.05, 2.4, 0.62, 1.6, { minimap: 'cover' });
+  b.decal(x, 0.013, z, 3.6, 3.2, 'soot', { opacity: 0.5 });
 }
 
 /** Leitstand: kleine Kabine mit Fensterband (begehbar, Deckung). */
@@ -554,6 +585,8 @@ function boilerHouse(b) {
   b.light('point', 37, 4.2, 0, { color: '#ffb468', intensity: 16, distance: 14 });
   b.box(37, fh - 0.3, 0, 3, 0.05, 0.3, 'lamp_sodium', { collide: false, minimap: false, ao: false, cast: false });
   b.sign(x0 - 0.03, 8.6, 0, 6.0, 1.2, 'kessel', { ry: -Math.PI / 2, back: false, depth: 0 });
+  for (const zz of [-6, 6]) wallLight(b, x0, 3.0, zz + 1.3, -Math.PI / 2);
+  for (const s of [-1, 1]) wallLight(b, 38.6, 3.4, s * 12, s > 0 ? 0 : Math.PI);
   b.sign(x0 - 0.03, 2.6, -8.6, 1.6, 0.9, 'gas', { ry: -Math.PI / 2, depth: 0.02 });
   for (const xx of [33, 41]) roofVent(b, xx, B.roofY, -6, {});
   b.noNav(x0 - 0.5, z0 - 0.5, x1 + 0.5, z1 + 0.5, B.roofY - 0.5, 40);
@@ -596,7 +629,10 @@ function chimney(b, x, z) {
   b.cyl(x, 41.6, z, 1.9, 0.6, 'brick', { tint: '#7a4a3a', seg: 18, collide: false, minimap: false });
   for (let y = 3.5; y < 41; y += 0.6) b.box(x - 2.75 + (y - 3) / 39 * 1.0, y, z, 0.3, 0.04, 0.5, 'metal_galvanized', { collide: false, minimap: false, ao: false });
   // rote Flugwarnlichter
-  for (const a of [0, 2.1, 4.2]) b.box(x + Math.cos(a) * 1.85, 40.6, z + Math.sin(a) * 1.85, 0.25, 0.25, 0.25, 'lamp_red', { collide: false, minimap: false, ao: false, cast: false });
+  for (const a of [0, 2.1, 4.2]) {
+    b.box(x + Math.cos(a) * 1.85, 40.6, z + Math.sin(a) * 1.85, 0.25, 0.25, 0.25, 'lamp_red', { collide: false, minimap: false, ao: false, cast: false });
+    b.glow(x + Math.cos(a) * 2.0, 40.75, z + Math.sin(a) * 2.0, { color: '#ff2a1a', size: 3.0 });
+  }
   b.noNav(x - 3.2, z - 3.2, x + 3.2, z + 3.2, 2, 60);
 }
 
@@ -638,8 +674,8 @@ function half(b, M, ctx) {
   jersey(b, -34.5, Z(28.6), { len: 3, ry: 0.15 * s });
   jersey(b, -42.0, Z(31.0), { len: 3, ry: Math.PI / 2 - 0.1 * s });
   sandbags(b, -38.0, Z(23.6), -35.6, Z(23.2), { rows: 5 });
-  lampPost(b, -28.6, Z(26.5), { h: 7, arm: 1.5, ry: Math.PI, kind: 'sodium', light: south, intensity: 22, distance: 18 });
-  lampPost(b, -51.0, Z(14.0), { h: 7, arm: 1.5, ry: 0, kind: 'sodium', light: !south, intensity: 22, distance: 18 });
+  lampPost(b, -28.6, Z(26.5), { h: 7, arm: 1.5, ry: Math.PI, kind: 'sodium', light: south, intensity: 22, distance: 18, glow: true });
+  lampPost(b, -51.0, Z(14.0), { h: 7, arm: 1.5, ry: 0, kind: 'sodium', light: !south, intensity: 22, distance: 18, glow: true });
   // Westgrenze: Ziegelmauer mit Stacheldraht
   b.boxMM(-52.6, 0, Math.min(0, Z(48)), -52.0, 3.6, Math.max(0, Z(48)), 'brick', { tint: '#8a5a4a', minimap: 'wall' });
   b.boxMM(-52.7, 3.6, Math.min(0, Z(48)), -51.9, 3.75, Math.max(0, Z(48)), 'concrete', { tint: '#8a8680', collide: false, minimap: false, grad: false });
@@ -656,7 +692,7 @@ function half(b, M, ctx) {
   jersey(b, 3.0, Z(37.5), { len: 3, ry: 0.1 * s, stripes: true });
   for (const xx of [-6, 6]) b.cyl(xx, 0, Z(31.0), 0.13, 1.0, 'metal_painted', { tint: YEL, seg: 8, minimap: 'prop' });
   cone(b, -2.4, Z(32.6)); cone(b, -1.6, Z(33.1));
-  floodMast(b, 18.0, Z(33.5), { h: 12, ry: M.ry(Math.PI), kind: 'sodium' });
+  floodMast(b, 18.0, Z(33.5), { h: 12, ry: M.ry(Math.PI), kind: 'sodium', glow: true });
 
   // ===== Ostgasse + Kesselhof ===============================================
   // Tanks mit Auffangwanne
@@ -676,7 +712,7 @@ function half(b, M, ctx) {
   pipe(b, [[44.3, 0.6, Z(6)], [44.3, 0.6, Z(20)], [44.3, 3.5, Z(20)]], { r: 0.14, tint: '#8a8f94', collide: true });
   // Ostgrenze
   b.boxMM(52.0, 0, Math.min(0, Z(48)), 52.6, 3.6, Math.max(0, Z(48)), 'brick', { tint: '#8a5a4a', minimap: 'wall' });
-  lampPost(b, 51.2, Z(32.0), { h: 6.5, arm: 1.3, ry: Math.PI, kind: 'sodium' });
+  lampPost(b, 51.2, Z(32.0), { h: 6.5, arm: 1.3, ry: Math.PI, kind: 'sodium', glow: true });
   for (let i = 0; i < 8; i++) {
     const x = b.rnd(23, 51), z = Z(b.rnd(2, 45)), k = b.rand();
     b.decal(x, 0.012, z, b.rnd(1.5, 3), b.rnd(1.5, 3), k < 0.4 ? 'oil' : k < 0.75 ? 'puddle' : 'stain', { opacity: 0.7 });

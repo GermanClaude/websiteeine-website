@@ -41,7 +41,7 @@ export class TrainingMode extends BaseMode {
     this.lastHit = null;
     this._world = null;
     this._orig = null;
-    this._lastTargetHit = null;
+    this._targetHits = [];
     this._shotSerial = 0;
     this._hitSerial = -1;
   }
@@ -86,7 +86,8 @@ export class TrainingMode extends BaseMode {
     const self = this;
     w.raycast = function raycastTargets(o, d, m) {
       const h = orig.call(w, o, d, m);
-      if (h && h.targetId != null) self._lastTargetHit = h;
+      // Liste statt Einzelwert: der Durchschuss-Test von combat strahlt rückwärts erneut aufs Ziel
+      if (h && h.targetId != null) { self._targetHits.push(h); if (self._targetHits.length > 6) self._targetHits.shift(); }
       return h;
     };
   }
@@ -102,10 +103,10 @@ export class TrainingMode extends BaseMode {
   /* ------------------------------------------------------------ Treffer */
 
   _onImpact(p) {
-    const h = this._lastTargetHit;
-    if (!h || !p || !p.point || p.shooter !== this.G.player) return;
-    if (p.point !== h.point && p.point.distanceToSquared(h.point) > 0.0025) return;
-    this._lastTargetHit = null;
+    if (!p || !p.point || !this._targetHits.length) return;
+    const h = this._targetHits.find((x) => x.point === p.point) || this._targetHits.find((x) => x.point.distanceToSquared(p.point) < 0.0004);
+    this._targetHits.length = 0;
+    if (!h || p.shooter !== this.G.player) return;
     const target = this.targets.find((t) => t.id === h.targetId);
     if (!target) return;
     const G = this.G;
