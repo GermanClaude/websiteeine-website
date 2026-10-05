@@ -95,6 +95,10 @@ const LOAD_TIMEOUT = { low: 25, medium: 30, high: 35, ultra: 40 };
 
 const SKY_TIER = { low: 512, medium: 1024, high: 1024, ultra: 1024 };
 
+/** low (Handy, erstes Match ≤ 12 MB): Requisiten, deren glb in der gewählten Stufe größer ist, bleiben bei ihrer
+ * prozeduralen Ersatzform (bzw. entfallen als reine Ausstattung) – z. B. Klimagerät 557 KB, Mülltonne 383 KB. */
+const MODEL_MAX_BYTES = { low: 256 * 1024 };
+
 let hdrLoader = null;
 /** Von der Welt geladene Bibliotheks-IDs (Sätze, Modelle, HDRIs) – nur diese gibt releaseOthers() frei (andere
  * Module wie Waffen oder Figuren dürfen denselben Loader nutzen). */
@@ -117,7 +121,7 @@ export function createWorldAssets(G, def, quality) {
   const t0 = performance.now();
   const stats = {
     tier: { texture: tierFor(q, 'texture'), model: tierFor(q, 'model'), hdri: tierFor(q, 'hdri') },
-    download: 0, gpu: { desktop: 0, mobile: 0 }, sets: 0, models: 0, hdri: null, ms: 0, failed: [], formats: [],
+    download: 0, gpu: { desktop: 0, mobile: 0 }, sets: 0, models: 0, modelsSkipped: [], hdri: null, ms: 0, failed: [], formats: [],
     available: false, reason: '',
   };
   const sets = new Map();     // libId → Promise<TextureSet|null>
@@ -219,7 +223,16 @@ export function createWorldAssets(G, def, quality) {
       if (!spec) continue;
       jobs.push(ktxOk.then(ok => (ok ? loadSet(spec.id, spec.tier) : null)).then(v => { got.set('tex:' + n, v); }));
     }
-    for (const id of modelIds) jobs.push(ktxOk.then(ok => (ok ? loadModel(id) : null)).then(v => { got.set('model:' + id, v); }));
+    const maxBytes = MODEL_MAX_BYTES[q] || Infinity;
+    const heavy = (id) => {
+      const e = assets.manifest.models[id];
+      return !!e && (e.tiers[pickTier(e.tiers, stats.tier.model)]?.bytes || 0) > maxBytes;
+    };
+    stats.modelsSkipped = modelIds.filter(heavy);
+    for (const id of modelIds) {
+      if (heavy(id)) { got.set('model:' + id, null); continue; }
+      jobs.push(ktxOk.then(ok => (ok ? loadModel(id) : null)).then(v => { got.set('model:' + id, v); }));
+    }
     let done = 0;
     const total = jobs.length || 1;
     for (const p of jobs) p.then(() => { done++; try { onProgress?.(done / total, `Fotoscans ${done}/${total}`); } catch { /* UI */ } });

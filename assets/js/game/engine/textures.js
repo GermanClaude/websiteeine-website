@@ -88,6 +88,7 @@ const MATS = {
   roof_tiles:        { tex: 'roof_tiles', tile: 1.6, surface: 'tile' },
   wood_planks:       { tex: 'wood_planks', tile: 2, surface: 'wood' },
   wood_dark:         { tex: 'wood_dark', tile: 2, surface: 'wood' },
+  wood_painted:      { tex: 'wood_paint', tile: 2, surface: 'wood' }, // Fensterläden/Türen mit Tönung (immer prozedural)
   wood_crate:        { tex: 'wood_crate', tile: 1, surface: 'wood' },
   wood_stock:        { tex: 'wood_stock', tile: 0.4, surface: 'wood', params: { roughness: 1 } },
   bark:              { tex: 'bark', tile: 1.2, surface: 'wood' },

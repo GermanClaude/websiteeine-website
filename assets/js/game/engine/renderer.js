@@ -351,6 +351,7 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
         pipeline.render(scene, camera, vmScene && vmCamera && vmScene.visible !== false ? vmScene : null, vmCamera, effPost);
       } else {
         pipeline.lens.camera = camera;
+        pipeline.lens.configure({ amount: 0 }); // direktes Bild ist unverzerrt → HUD-Abbildung = Identität
         renderer.setRenderTarget(null);
         renderer.autoClear = true;
         renderer.render(scene, camera);

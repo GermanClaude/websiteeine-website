@@ -981,6 +981,7 @@ export const TEX = {
   roof_tiles:     { gen: 'roofTiles', o: {}, normal: 5 },
   wood_planks:    { gen: 'planks', o: {}, normal: 3 },
   wood_dark:      { gen: 'planks', o: { palette: ['#5a4634', '#4e3c2c', '#62503c', '#45362a'], rows: 10 }, normal: 3 },
+  wood_paint:     { gen: 'planks', o: { palette: ['#dcd9d2', '#d2cfc8', '#e4e1da', '#cbc7bf'], rows: 12 }, normal: 3 }, // hell: Tönung = Lackfarbe
   wood_crate:     { gen: 'crate', o: {}, normal: 3 },
   wood_stock:     { gen: 'woodStock', o: {}, normal: 1.5 },
   bark:           { gen: 'bark', o: { base: '#857c6f', dark: '#433b32', light: '#a8a092', lines: 3 }, normal: 4 },

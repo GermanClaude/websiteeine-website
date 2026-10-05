@@ -86,7 +86,7 @@ function openingDetails(b, o, op, g) {
   }
   if (op.closed) {
     // geschlossene Fensterläden (massiv)
-    at(op.at, y + sill + 0.01, op.w - fw * 2 + 0.02, top - sill - fw - 0.01, Math.min(0.08, t * 0.5), 'wood_planks', { tint: op.closed === true ? (o.shutterTint || '#2f6f9a') : op.closed, collide: true });
+    at(op.at, y + sill + 0.01, op.w - fw * 2 + 0.02, top - sill - fw - 0.01, Math.min(0.08, t * 0.5), 'wood_painted', { tint: op.closed === true ? (o.shutterTint || '#2f6f9a') : op.closed, collide: true });
   }
   if (op.bars) {
     const n = Math.max(2, Math.round(op.w / 0.14));
@@ -99,7 +99,7 @@ function openingDetails(b, o, op, g) {
     const ox = uz * sg, oz = -ux * sg; // Außennormale (links der Laufrichtung)
     const off = t / 2 + 0.04;
     for (const sx of [a - sw / 2 - 0.02, e + sw / 2 + 0.02]) {
-      b.box(x0 + ux * sx + ox * off, y + sill, z0 + uz * sx + oz * off, sw, top - sill, 0.04, 'wood_planks', { ry, tint: op.shutters, collide: false, minimap: false, grad: false });
+      b.box(x0 + ux * sx + ox * off, y + sill, z0 + uz * sx + oz * off, sw, top - sill, 0.04, 'wood_painted', { ry, tint: op.shutters === true ? (o.shutterTint || '#2f6f9a') : op.shutters, collide: false, minimap: false, grad: false });
     }
   }
   if (kind === 'door' && op.leaf) {
@@ -107,13 +107,13 @@ function openingDetails(b, o, op, g) {
     const ox = uz * sg, oz = -ux * sg;
     const lw = op.w - fw * 2;
     if (op.leaf === 'closed') {
-      at(op.at, y + 0.01, lw, top - fw - 0.01, 0.06, op.leafMat || 'wood_planks', { tint: op.leafTint, collide: true });
+      at(op.at, y + 0.01, lw, top - fw - 0.01, 0.06, op.leafMat || (op.leafTint ? 'wood_painted' : 'wood_planks'), { tint: op.leafTint, collide: true });
     } else {
       // offen: Türblatt steht ~90° nach innen an der Laibung
       const hs = op.leafSide === 'right' ? e - fw : a + fw;
       const hx = x0 + ux * hs - ox * (t / 2), hz = z0 + uz * hs - oz * (t / 2);
       const toward = op.leafSide === 'right' ? -1 : 1;
-      b.box(hx - ox * lw / 2 + ux * toward * 0.03, y + 0.01, hz - oz * lw / 2 + uz * toward * 0.03, 0.05, top - fw - 0.02, lw, op.leafMat || 'wood_planks', { ry, tint: op.leafTint, collide: true, minimap: false, grad: false });
+      b.box(hx - ox * lw / 2 + ux * toward * 0.03, y + 0.01, hz - oz * lw / 2 + uz * toward * 0.03, 0.05, top - fw - 0.02, lw, op.leafMat || (op.leafTint ? 'wood_painted' : 'wood_planks'), { ry, tint: op.leafTint, collide: true, minimap: false, grad: false });
     }
   }
   if (kind === 'door' || kind === 'gap') {

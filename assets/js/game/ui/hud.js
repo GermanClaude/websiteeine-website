@@ -1107,7 +1107,7 @@ export class HUD {
 
   _setPostDesat(v) {
     const R = this.G.renderer;
-    if (!R || typeof R.setPost !== 'function' || !R.preset || !R.preset.grade) { this._post.desat = 0; return; }
+    if (!R || typeof R.setPost !== 'function' || !R.preset || !(R.graded ?? R.preset.grade)) { this._post.desat = 0; return; } // graded: auch low mit Bildkette (core-render)
     if (Math.abs(v - this._post.desat) < 0.03 && !(v === 0 && this._post.desat !== 0)) return;
     this._post.desat = v;
     R.setPost({ desaturate: v });
