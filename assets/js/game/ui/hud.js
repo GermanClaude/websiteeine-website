@@ -41,7 +41,10 @@ const ANIM = {
     o: { duration: 900 },
   },
 };
+// Medienabfrage einmal auswerten und per 'change' nachführen (matches() erzwingt in iframes ein Layout des Elterndokuments)
 const RM = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+let rmReduce = !!(RM && RM.matches);
+if (RM && typeof RM.addEventListener === 'function') RM.addEventListener('change', (e) => { rmReduce = e.matches; });
 
 export class HUD {
   constructor(G) {
@@ -316,6 +319,8 @@ export class HUD {
     add(this.el.notices, 'h-notice is-gold', 'Aufklärer bereit.<kbd>3</kbd>');
     add(this.el.medal, 'h-medal-in tier-gold', `${medalBadge('Doppel', 'gold')}<div><b>Doppel</b><small>Zwei Abschüsse</small></div>`);
     add(this.el.pop.parentNode, 'h-pop is-on', '<b>+100</b><div class="lines"><div>Abschuss <span>+100</span></div></div>');
+    // Web Animations einmal anstoßen (Keyframe-Auswertung der ersten Animation fällt sonst in _hitmarker)
+    if (nodes[0]) for (const k of Object.keys(ANIM)) replay(nodes[0], ANIM[k].k, { duration: 1 });
     const done = () => {
       if (this._warm !== nodes) return;
       this._warm = undefined; // bis zum nächsten attach() nicht wiederholen
@@ -466,7 +471,7 @@ export class HUD {
   /** Einmal-Animation (ANIM[name]); bei reduzierter Bewegung die ruhige Variante bzw. keine. Erzwingt kein Layout. */
   _play(node, name) {
     const a = ANIM[name];
-    const calm = !!(RM && RM.matches) || !!this.G.settings.get('reducedMotion');
+    const calm = rmReduce || !!this.G.settings.get('reducedMotion');
     const k = calm ? a.calm : a.k;
     if (k) replay(node, k, a.o);
   }
