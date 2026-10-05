@@ -776,24 +776,34 @@ export class Player {
     else this.exertion = Math.max(0, this.exertion - dt * (hs > 0.6 ? 0.06 : 0.11));
 
     this._updateLean(dt, frozen, input);
+    this._updateStance(dt);
+    this._updateArmor(now, frozen, input);
+    this._updateGadget(dt, now, frozen, input);
 
-    // Regeneration (COD)
-    if (this.health < this.maxHealth && now - this.lastDamageTime > REGEN_DELAY) {
+    // Regeneration (COD): Spielstil (Realistisch langsamer) × Klasse (Sanitäter schneller)
+    const fl = G.match && G.match.styleFlags;
+    const pk = (this.classDef && this.classDef.perks) || {};
+    const regenDelay = ((fl && fl.regenDelay) || REGEN_DELAY) * (pk.regenDelayMult || 1);
+    const regenRate = ((fl && fl.regenRate) || REGEN_RATE) * (pk.regenRateMult || 1);
+    if (this.health < this.maxHealth && now - this.lastDamageTime > regenDelay) {
       if (!this._regenning) { this._regenning = true; G.events.emit('player:regen', { health: this.health, phase: 'start' }); }
-      this.health = Math.min(this.maxHealth, this.health + REGEN_RATE * dt);
+      this.health = Math.min(this.maxHealth, this.health + regenRate * dt);
       if (this.health >= this.maxHealth) { this._regenning = false; G.events.emit('player:regen', { health: this.health, phase: 'end' }); }
-    } else if (this._regenning && now - this.lastDamageTime <= REGEN_DELAY) {
+    } else if (this._regenning && now - this.lastDamageTime <= regenDelay) {
       this._regenning = false;
     }
 
     // Waffe
     if (w) {
       const it = this._intent;
-      const blocked = frozen || this.mantling;
+      // Waffe gesenkt: Hinlegen/Aufstehen, Platte einsetzen, Spritze/Verbandskasten/Reparatur; Realistisch: kein Schuss beim Kriechen
+      const busy = this._busy(now);
+      const crawlBlock = this.crawling && !!(fl && fl.id === 'realistisch');
+      const blocked = frozen || this.mantling || !!busy || crawlBlock;
       it.fire = !blocked && input.down('fire');
       it.firePressed = !blocked && input.pressed('fire');
-      it.ads = adsHeld && !this.sprinting && !this.mantling;
-      it.reload = !frozen && input.pressed('reload');
+      it.ads = adsHeld && !this.sprinting && !this.mantling && !busy && !crawlBlock;
+      it.reload = !frozen && !busy && input.pressed('reload');
       it.swap = !blocked && input.pressed('swap');
       it.slot = blocked ? null : input.pressed('slot1') ? 1 : input.pressed('slot2') ? 2 : null;
       it.grenade = !blocked && input.pressed('grenade');
@@ -807,7 +817,13 @@ export class Player {
       it.moving = this.mantling || hs > 0.5;
       it.airborne = !body.onGround && !this.mantling;
       it.onGround = body.onGround || this.mantling;
-      it.crouching = this.crouching || this.sliding;
+      it.crouching = this.crouching || this.sliding || this.prone;
+      it.prone = this.prone;
+      it.stance = this.stance;
+      it.crawling = this.crawling;
+      it.plating = this.plating;
+      it.busy = busy;
+      it.inspect = !blocked && input.mode !== 'touch' && input.pressed('inspect');
       it.sliding = this.sliding;
       it.speed = this.mantling ? 2.5 : hs;
       it.lookDX = input.look.dx;
@@ -819,6 +835,12 @@ export class Player {
       it.aimOffsetY = this.aimOffset.y;
       it.exertion = this.exertion;
       w.update(dt, it);
+      // Inspizieren (nur PC): Controller kann es selbst übernehmen (handlesInspect), sonst spielt das Viewmodel die Animation
+      if (it.inspect && !w.handlesInspect && (w.adsProgress || 0) < 0.05 && !it.fire) {
+        const vm = G.viewmodel && G.viewmodel.rig;
+        if (vm && typeof vm.playInspect === 'function') vm.playInspect();
+        G.events.emit('player:inspect', { actor: this, weaponId: w.currentDef ? w.currentDef.id : null });
+      }
     }
 
     this._updateCamera(dt);
@@ -871,7 +893,7 @@ export class Player {
       want = L && R ? this._leanLast : L ? -1 : R ? 1 : 0;
     }
     // Sprint, Rutschen und Klettern beenden das Lehnen (eingerastetes Lehnen wird gelöst)
-    if (want && (this.sprinting || this.sliding || this.mantling)) {
+    if (want && (this.sprinting || this.sliding || this.mantling || this._stanceBusy())) {
       want = 0;
       if (input.setActive) { input.setActive('lean_left', false); input.setActive('lean_right', false); }
     }
@@ -879,14 +901,14 @@ export class Player {
     this._leanWant = want;
 
     // Kollision: Kopf und Schulter dürfen nicht in die Wand – Strahlen zur Seite begrenzen die Auslenkung
-    const side = this.crouching ? LEAN_SIDE_CROUCH : LEAN_SIDE;
+    const side = this.prone ? PRONE_LEAN_SIDE : this.crouching ? LEAN_SIDE_CROUCH : LEAN_SIDE;
     let limit = 1;
     const dir = want || Math.sign(this.lean);
     if (dir && G.world && Math.abs(want || this.lean) > 0.01) {
       const p = this.body.position;
       _dir.set(Math.cos(this.yaw) * dir, 0, -Math.sin(this.yaw) * dir);
       let free = side;
-      for (const h of [this._eye - 0.02, this._eye - 0.32]) {
+      for (const h of this.prone ? [this._eye - 0.02, this._eye - 0.14] : [this._eye - 0.02, this._eye - 0.32]) {
         _o.set(p.x, p.y + h, p.z);
         const r = collisionRay(G.world, _o, _dir, side + HEAD_R, _hit);
         if (r) free = Math.min(free, Math.max(0, r.distance - HEAD_R));
@@ -906,14 +928,363 @@ export class Player {
 
     const l = this.lean;
     this.leanOffset.set(Math.cos(this.yaw) * side * l, -LEAN_DROP * Math.abs(l), -Math.sin(this.yaw) * side * l);
-    this.leanRoll = -l * LEAN_ANGLE;
+    this.leanRoll = -l * LEAN_ANGLE * (this.prone ? 0.57 : 1); // liegend: auf die Seite rollen (≈ 8°)
+  }
+
+  /* ------------------------------------------------------------ Haltung / Hinlegen */
+
+  /** Läuft gerade ein Übergang ins oder aus dem Liegen (Waffe gesenkt)? */
+  _stanceBusy() {
+    return this.stanceT < 1 && (this.stance === 'prone' || this.stanceFrom === 'prone');
+  }
+
+  _updateStanceInput(dt, frozen, input, world, hSpeed) {
+    const body = this.body;
+    const crouchHold = input.behavior('crouch') === 'hold';
+    if (frozen) { this._crouchHeld = 0; return; }
+    const busy = this._stanceBusy();
+    // Hinlegen-Taste: liegen ↔ stehen (ohne Kopffreiheit: hocken); aus dem Sprint = Hechtsprung
+    if (input.pressed('prone') && !busy) {
+      if (this.prone) this._leaveProne('stand');
+      else this._enterProne();
+    }
+    if (input.pressed('crouch')) {
+      this._crouchHeld = 0;
+      this._proneHoldUsed = false;
+      if (this.prone) { if (!busy) this._leaveProne('crouch'); this._proneHoldUsed = true; } // aus dem Liegen in die Hocke
+      else if (busy) { /* Übergang läuft */ }
+      else if (this.sprinting && body.onGround && this.slideCooldown <= 0 && hSpeed > 5) this._startSlide();
+      else if (this.sliding) this._endSlide();
+      else if (crouchHold) this.crouching = true;
+      else if (this.crouching) { if (body.canStand(world)) this.crouching = false; }
+      else this.crouching = true;
+    }
+    // Controller/Touch: Ducken halten → Hinlegen (Konsole/CoD Mobile), nur im Umschalt-Modus
+    const longOk = !crouchHold && (input.mode === 'touch' || input.lastDevice === 'gamepad');
+    if (longOk && input.down('crouch') && !this.prone && !this.sliding && !this._proneHoldUsed && !busy) {
+      this._crouchHeld += dt;
+      if (this._crouchHeld >= PRONE_HOLD) { this._proneHoldUsed = true; this._enterProne(); }
+    } else if (!input.down('crouch')) this._crouchHeld = 0;
+    if (crouchHold && !this.sliding && !this.prone && this.crouching && !input.down('crouch') && body.canStand(world)) this.crouching = false;
+  }
+
+  /**
+   * Platzbedarf liegend bei Blickrichtung yaw: nötiger Schub nach vorn (m, ≥ 0), damit die Beine (PRONE.length nach hinten)
+   * nicht in einer Wand stecken – oder −1, wenn auch vorn kein Platz ist. Bodentreffer (Hang) zählen nicht als Wand.
+   */
+  _proneNeed(world, yaw, len = PRONE.length) {
+    const p = this.body.position;
+    const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+    let back = len;
+    _dir.set(-fx, 0, -fz);
+    for (const side of [-0.16, 0, 0.16]) {
+      _o.set(p.x - fz * side, p.y + 0.22, p.z + fx * side);
+      const r = collisionRay(world, _o, _dir, len, _hit);
+      if (r && Math.abs(r.ny) < 0.6) back = Math.min(back, r.distance);
+    }
+    const need = len - back;
+    if (need <= 0.002) return 0;
+    _o.set(p.x, p.y + 0.22, p.z);
+    _dir.set(fx, 0, fz);
+    const reach = this.body.radius + need + 0.05;
+    const f = collisionRay(world, _o, _dir, reach, _hit);
+    const free = f && Math.abs(f.ny) < 0.6 ? f.distance - this.body.radius - 0.03 : reach;
+    return free >= need ? need : -1;
+  }
+
+  /** Kann der Spieler sich hier hinlegen (Boden, Hang, Platz für den Körper)? */
+  canProne() {
+    const body = this.body;
+    const world = this.G.world;
+    if (!this.alive || this.mantling || this.vehicle || !body.onGround) return false;
+    if (body.groundNormal && body.groundNormal.y < 0.7) return false; // zu steil
+    return !world || this._proneNeed(world, this.yaw) >= 0;
+  }
+
+  /** Haltung setzen (UI/Tests/Bots-Fernsteuerung): 'stand'|'crouch'|'prone'. → true bei Erfolg. */
+  setStance(stance) {
+    if (stance === 'prone') return this.prone || this._enterProne();
+    if (this.prone) return this._leaveProne(stance === 'crouch' ? 'crouch' : 'stand');
+    if (stance === 'crouch') { this.crouching = true; return true; }
+    if (this.crouching && !this.body.canStand(this.G.world)) return false;
+    this.crouching = false;
+    return true;
+  }
+
+  _enterProne() {
+    const body = this.body;
+    if (this.prone || this._stanceBusy()) return false;
+    if (!this.canProne()) {
+      this.G.events.emit('player:stance', { actor: this, stance: this.stance, prev: this.stance, duration: 0, denied: 'eng' });
+      return false;
+    }
+    const dive = this.sprinting && Math.hypot(body.velocity.x, body.velocity.z) > 5.5;
+    if (this.sliding) this._endSlide(true);
+    const prev = this.stance;
+    this.prone = true;
+    this.crouching = false;
+    this.sprinting = false;
+    this._sprintLatch = false;
+    if (this.G.combat && this.armor && this.armor.inserting) this.G.combat.cancelPlate(this);
+    this._proneYaw = this.yaw;
+    this._beginStance(prev, 'prone', dive ? STANCE_TIME.dive : prev === 'crouch' ? STANCE_TIME.crouchProne : STANCE_TIME.standProne, dive);
+    if (dive) {
+      body.velocity.y = 2.4;
+      body.onGround = false;
+      this.exertion = Math.min(1, this.exertion + 0.06);
+    }
+    return true;
+  }
+
+  _leaveProne(to = 'stand') {
+    if (!this.prone) return false;
+    const world = this.G.world;
+    const body = this.body;
+    if (!body.canStand(world, CROUCH_H)) {
+      this.G.events.emit('player:stance', { actor: this, stance: 'prone', prev: 'prone', duration: 0, denied: 'decke' });
+      return false;
+    }
+    if (to === 'stand' && !body.canStand(world, STAND_H)) to = 'crouch';
+    if (this.G.combat && this.armor && this.armor.inserting) this.G.combat.cancelPlate(this);
+    this.prone = false;
+    this.crouching = to === 'crouch';
+    this._beginStance('prone', to, to === 'stand' ? STANCE_TIME.proneStand : STANCE_TIME.proneCrouch, false);
+    return true;
+  }
+
+  _beginStance(prev, next, dur, dive) {
+    this.stanceFrom = prev;
+    this.stance = next;
+    this.stanceT = 0;
+    this._stanceDur = dur;
+    this._dive = !!dive;
+    this._stanceEye0 = this._eye;
+    this._stanceSide = Math.random() < 0.5 ? -1 : 1;
+    const c = this._cam;
+    if (next === 'prone') { c.p.v -= 0.3; c.y.v -= 0.25; c.r.v += this._stanceSide * 0.2; } else { c.p.v += 0.2; c.y.v += 0.1; }
+    if (this.G.input) this.G.input.cancelAds();
+    this.G.events.emit('player:stance', { actor: this, stance: next, prev, duration: dur, dive: !!dive });
+  }
+
+  /** Haltungszustand je Bild: Ducken/Aufstehen melden, Übergang fortschreiben, proneBlend für Trefferzonen. */
+  _updateStance(dt) {
+    const st = this.prone ? 'prone' : this.crouching || this.sliding ? 'crouch' : 'stand';
+    if (st !== this.stance) {
+      const prev = this.stance;
+      this.stanceFrom = prev;
+      this.stance = st;
+      this.stanceT = 1;
+      this._stanceDur = 0;
+      this.G.events.emit('player:stance', { actor: this, stance: st, prev, duration: 0.22 });
+    }
+    if (this.stanceT < 1) this.stanceT = Math.min(1, this.stanceT + dt / Math.max(0.05, this._stanceDur));
+    if (this.stanceT >= 1) this._dive = false;
+    const involved = this.stance === 'prone' || this.stanceFrom === 'prone';
+    this.proneBlend = !involved || this.stanceT >= 1 ? (this.prone ? 1 : 0) : this.prone ? ease(this.stanceT) : 1 - ease(this.stanceT);
+  }
+
+  /** Liegend: Wand hinter den Beinen schiebt nach vorn; ohne Platz bleibt die alte Blickrichtung (Drehen gesperrt). */
+  _proneConstraint(world, dt) {
+    if (!this.prone || !world || !this.alive) { this._proneYaw = this.yaw; return; }
+    const len = PRONE.length * Math.max(0.35, this.proneBlend);
+    let need = this._proneNeed(world, this.yaw, len);
+    if (need < 0) {
+      this.yaw = this._proneYaw;
+      need = Math.max(0, this._proneNeed(world, this.yaw, len));
+    }
+    this._proneYaw = this.yaw;
+    if (need > 0.004) {
+      const push = Math.min(need, 3 * dt + 0.01);
+      const b = this.body;
+      b.position.x += -Math.sin(this.yaw) * push;
+      b.position.z += -Math.cos(this.yaw) * push;
+      b._sync();
+    }
+  }
+
+  /* ------------------------------------------------------------ Panzerung / Klassen-Ausrüstung */
+
+  /** Waffe gesenkt? → 'plate' | 'gadget' | 'stance' | null */
+  _busy(now) {
+    if (this.plating) return 'plate';
+    if (now < this._busyUntil) return 'gadget';
+    if (this._stanceBusy()) return 'stance';
+    return null;
+  }
+
+  _streakReady(i) {
+    const st = this.G.mode && this.G.mode.streaks;
+    const id = st && st.order && st.order[i];
+    return !!(id && typeof st.isReady === 'function' && st.isReady(this, id));
+  }
+
+  /** Platte einsetzen beginnen (UI/Touch/Tests). → true, wenn begonnen. */
+  startPlate() {
+    const C = this.G.combat;
+    if (!C || !this.alive || this.mantling || this._stanceBusy()) return false;
+    const ok = C.insertPlate(this, { chain: false });
+    if (ok) {
+      this.sprinting = false;
+      this._sprintLatch = false;
+      if (this.G.input) this.G.input.cancelAds();
+    }
+    this.plating = !!(this.armor && this.armor.inserting);
+    return ok;
+  }
+
+  cancelPlate() {
+    return !!(this.G.combat && this.G.combat.cancelPlate(this));
+  }
+
+  /** Platten: Taste 4 (teilt sich mit Serie 2) bzw. ▼ (teilt sich mit der Lampe); halten = alle; Feuern/Zielen/Sprint/… brechen ab. */
+  _updateArmor(now, frozen, input) {
+    const s = this.armor;
+    const C = this.G.combat;
+    if (!s || !C) { this.plating = false; return; }
+    const ins = s.inserting;
+    if (ins) {
+      ins.chain = !!input.down('plate');
+      if (!frozen && (input.pressed('fire') || input.pressed('ads') || this.sprinting || this.mantling || this.sliding ||
+        input.pressed('melee') || input.pressed('grenade') || input.pressed('swap') || input.pressed('slot1') || input.pressed('slot2'))) C.cancelPlate(this);
+    } else if (!frozen && input.pressed('plate')) {
+      const streak = input.pressed('streak2') && this._streakReady(1);
+      if (!streak && canInsertPlate(s) && !this.mantling && !this._stanceBusy()) {
+        if (C.insertPlate(this, { chain: !!input.down('plate') })) {
+          input.consume('streak2');
+          input.consume('light');
+          this.sprinting = false;
+          this._sprintLatch = false;
+          input.cancelAds();
+        }
+      } else if (!streak && !input.pressed('streak2') && !input.pressed('light')) {
+        this.G.events.emit('armor:plate', { actor: this, phase: 'denied', reason: s.slots <= 0 ? 'keine' : s.carry <= 0 ? 'leer' : 'voll', duration: 0, plates: plateCount(s), carry: s.carry, hp: s.hp });
+      }
+    }
+    this.plating = !!s.inserting;
+  }
+
+  /** Klassen-Ausrüstung benutzen (UI/Touch/Tests). */
+  useGadget() {
+    const input = this.G.input;
+    if (!input) return false;
+    const before = this.gadget ? this.gadget.charges : 0;
+    this._gadgetPress = true;
+    this._updateGadget(0, this.G.time.elapsed, false, input);
+    return !!this.gadget && (this.gadget.charges < before || this._lastGadgetOk === this.G.time.elapsed);
+  }
+
+  _updateGadget(dt, now, frozen, input) {
+    const G = this.G;
+    this.repairTarget = null;
+    // Verbandskasten heilt über 1,6 s
+    if (this._heal > 0 && dt > 0) {
+      const h = Math.min(this._heal, (GADGETS.medkit.heal / GADGETS.medkit.healTime) * dt);
+      this._heal -= h;
+      this.health = Math.min(this.maxHealth, this.health + h);
+    }
+    const g = this.gadget;
+    const press = this._gadgetPress || input.pressed('gadget');
+    this._gadgetPress = false;
+    if (!g || frozen || this.mantling) { this._repairing = false; return; }
+    const def = GADGETS[g.id];
+    if (!def) return;
+    if (def.hold) { // Reparaturwerkzeug: halten
+      const v = (input.down('gadget') || press) && !this.sprinting ? this._repairCandidate(def) : null;
+      if (v) {
+        this.repairTarget = v;
+        v.repair(def.rate * (((this.classDef && this.classDef.perks) || {}).repairMult || 1) * Math.max(dt, 1 / 60), this);
+        this._busyUntil = Math.max(this._busyUntil, now + 0.15);
+        if (!this._repairing) { this._repairing = true; G.events.emit('gadget:use', { actor: this, id: g.id, charges: g.charges, target: v }); }
+        this._lastGadgetOk = now;
+      } else this._repairing = false;
+      return;
+    }
+    if (!press || now < g.cooldownUntil) return;
+    if (g.id === 'spot') { this._spot(def, now); return; }
+    if (g.charges <= 0) { G.events.emit('gadget:denied', { actor: this, id: g.id, reason: 'leer' }); return; }
+    if (g.id === 'adrenalin') {
+      this.health = Math.min(this.maxHealth, this.health + def.heal);
+      this.boostUntil = now + def.duration;
+      this._boostMult = def.speedMult;
+      this.exertion = 0;
+    } else if (g.id === 'medkit') {
+      let healed = 0;
+      for (const a of G.actors || []) {
+        if (a === this || !a.alive || !G.combat || G.combat.isHostile(this, a) || !(a.health < a.maxHealth)) continue;
+        if (a.position.distanceTo(this.position) > def.radius) continue;
+        const amount = Math.min(def.healOthers, a.maxHealth - a.health);
+        a.health += amount;
+        healed += 1;
+        G.events.emit('gadget:heal', { actor: this, target: a, amount });
+      }
+      if (this.health >= this.maxHealth && !healed) { G.events.emit('gadget:denied', { actor: this, id: g.id, reason: 'voll' }); return; }
+      this._heal += Math.max(0, Math.min(def.heal, this.maxHealth - this.health));
+      if (this._heal > 0) G.events.emit('gadget:heal', { actor: this, target: this, amount: this._heal });
+    }
+    g.charges -= 1;
+    g.cooldownUntil = now + (def.useTime || 0.5);
+    this._busyUntil = now + (def.useTime || 0.5);
+    this._lastGadgetOk = now;
+    if (this.G.input) this.G.input.cancelAds();
+    G.events.emit('gadget:use', { actor: this, id: g.id, charges: g.charges });
+  }
+
+  /** Nächstes beschädigtes eigenes/neutrales Fahrzeug in Reichweite des Reparaturwerkzeugs. */
+  _repairCandidate(def) {
+    const V = this.G.vehicles;
+    const list = V && (V.list || V.vehicles);
+    if (!list || this.vehicle) return null;
+    let best = null;
+    let bd = def.range;
+    for (const v of list) {
+      if (!v || !v.alive || typeof v.repair !== 'function' || !(v.health < v.maxHealth)) continue;
+      if (v.team != null && this.team != null && v.team !== this.team) continue;
+      const d = typeof V._boxDistance === 'function' && v.def && v.def.hullBox ? V._boxDistance(v, this.position, 1) : (v.position ? this.position.distanceTo(v.position) - 3 : Infinity);
+      if (d < bd) { bd = d; best = v; }
+    }
+    return best;
+  }
+
+  /** Aufklärer: Gegner im Visier (≤ 350 m, freie Sicht) für das Team markieren. */
+  _spot(def, now) {
+    const G = this.G;
+    const g = this.gadget;
+    g.cooldownUntil = now + def.cooldown;
+    const fl = G.match && G.match.styleFlags;
+    if (fl && fl.spotting === false) return;
+    this.getEyePosition(_eye);
+    this.getAimDirection(_dir);
+    let best = null;
+    let bestA = def.cone;
+    for (const a of G.actors || []) {
+      if (!a.alive || a === this || !G.combat || !G.combat.isHostile(this, a)) continue;
+      _v.copy(a.position);
+      _v.y += a.body ? a.body.height * 0.6 : 1.1;
+      _v.sub(_eye);
+      const d = _v.length();
+      if (d > def.range || d < 0.5) continue;
+      const ang = Math.acos(clamp(_v.dot(_dir) / d, -1, 1)) - Math.atan(0.4 / d);
+      if (ang >= bestA) continue;
+      _o.copy(_v).add(_eye);
+      if (G.world && G.world.lineOfSight && !G.world.lineOfSight(_eye, _o)) continue;
+      best = a;
+      bestA = ang;
+    }
+    this.spotTarget = best;
+    this._lastGadgetOk = now;
+    if (!best) { G.events.emit('gadget:use', { actor: this, id: g.id, charges: g.charges, target: null }); return; }
+    const until = now + (((this.classDef && this.classDef.perks) || {}).spotDuration || def.duration);
+    best.spottedUntil = until;
+    best.spottedBy = this.team;
+    G.events.emit('spot', { actor: this, target: best, until, team: this.team });
+    G.events.emit('gadget:use', { actor: this, id: g.id, charges: g.charges, target: best });
   }
 
   /* -------------------------------------------------------- Überklettern */
 
   _tryMantle(world, mx, my) {
     const body = this.body;
-    if (!world || this.sliding || this.mantling) return false;
+    if (!world || this.sliding || this.mantling || this.prone || this._stanceBusy()) return false;
     // Richtung: Laufwunsch, sonst Blickrichtung (nur wenn vorwärts gedrückt oder in der Luft auf ein Hindernis zu)
     let dx = _fwd.x * my + _right.x * mx;
     let dz = _fwd.z * my + _right.z * mx;

@@ -15,8 +15,10 @@ import { FULLSCREEN_VERT, GLSL_COMMON } from './common.js';
 // der die Automatik nichts ändert (an typischen Außenansichten der Karte gemessen), strength = Anteil der vollen
 // Anpassung (0..1), evMin/evMax = Grenzen in Blendenstufen relativ zur Kartenbelichtung, up/down = Tempo (1/s)
 // heller (in dunkle Bereiche) bzw. dunkler (ins Helle: kurzes Ausbrennen wie bei Körperkameras).
-// Gemessene Referenzen (Mittel aus Spawn A, Spawn B, Flaggenblick; tools/out/core-render/measure.mjs):
-// Hafen 0,121 · Altstadt 0,100 · Werk 0,130 · Schießstand 0,184.
+// Gemessene Referenzen (geometrisches Mittel aus Spawn A, Spawn B, Flaggenblick; tools/out/core-render/measure.mjs,
+// Stand mit KTX2-Materialien + HDRI-Himmel): Hafen 0,118 · Altstadt 0,161 · Werk 0,027 · Schießstand 0,180 ·
+// Grenzland 0,108. Ändert world den Licht-Look einer Karte, die Referenz neu messen (dev/post.html zeigt L̄) oder per
+// world.grade = { exposure: { ref } } überschreiben. Totzone `dead` (± Blenden): typische Ansichten bleiben unverändert.
 // bloom: threshold (größter Kanal nach Belichtung), strength, dirt (Linsenschmutz im Bodycam-Stil).
 const BASE_EXPOSURE = Object.freeze({ ref: 0.13, strength: 0.72, dead: 0.5, evMin: -1.6, evMax: 1.8, up: 2.6, down: 1.25 });
 
@@ -40,7 +42,7 @@ export const MOODS = Object.freeze({
     label: 'Altstadt – Mittag',
     lut: { temperature: 0.06, contrast: 1.17, pivot: 0.43, saturation: 0.88, shadowSat: 0.85, highSat: 0.8,
       shadowTint: [0.98, 1.0, 1.03], highTint: [1.03, 1.0, 0.96], greenShift: 0.35, blackLevel: 0.01, whiteLevel: 0.98 },
-    exposure: { ...BASE_EXPOSURE, ref: 0.1 },
+    exposure: { ...BASE_EXPOSURE, ref: 0.16 },
     bloom: { threshold: 2.6, strength: 0.28, dirt: 0.5 },
     shafts: 0.22,
   },
@@ -48,7 +50,7 @@ export const MOODS = Object.freeze({
     label: 'Werk – Dämmerung',
     lut: { temperature: -0.12, tint: -0.05, contrast: 1.1, pivot: 0.38, saturation: 0.84, shadowSat: 0.8, highSat: 0.95,
       keepWarm: 0.7, shadowTint: [0.95, 1.01, 1.04], highTint: [1.03, 1.0, 0.97], greenShift: 0.4, blackLevel: 0.018, whiteLevel: 0.985 },
-    exposure: { ...BASE_EXPOSURE, ref: 0.13, evMax: 2.0 },
+    exposure: { ...BASE_EXPOSURE, ref: 0.03, evMax: 2.0 },
     bloom: { threshold: 1.9, strength: 0.36, dirt: 0.7 },
     shafts: 0.45,
   },
@@ -64,7 +66,7 @@ export const MOODS = Object.freeze({
     label: 'Grenzland – Vormittag',
     lut: { temperature: 0.05, contrast: 1.12, pivot: 0.42, saturation: 0.92, shadowSat: 0.88, highSat: 0.86,
       shadowTint: [0.97, 1.0, 1.035], highTint: [1.03, 1.0, 0.95], greenShift: 0.45, blackLevel: 0.012, whiteLevel: 0.985 },
-    exposure: { ...BASE_EXPOSURE, ref: 0.14 },
+    exposure: { ...BASE_EXPOSURE, ref: 0.11 },
     bloom: { threshold: 2.5, strength: 0.28, dirt: 0.5 },
     shafts: 0.35,
   },
