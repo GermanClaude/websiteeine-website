@@ -10,6 +10,7 @@ import { MapBuilder, SURFACES } from './builder.js';
 import { createLighting, sunVector } from './lighting.js';
 import { applyWorldShading, initShading, resetShading, WS } from './shading.js';
 import { createProbeQuery, PROBE_TIERS, PROBE_BOUNCE_SCALE } from './probes.js';
+import { createAtmosphere } from './atmos.js';
 import { createWater } from './water.js';
 import { navFromData, validateNavGraph } from './navgraph.js';
 import { createMinimap } from './minimap.js';
@@ -280,7 +281,11 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   const light = createLighting(G, def.lighting, group, {
     hdri,
     // Fernkaskade über Spielfeld + Rand; bewegte Objekte (Kran, Ziele …) bleiben draußen
-    far: { bounds: { ...probeBounds, minY: Math.min(probeBounds.minY, -1) }, exclude: () => [...b.objects.filter(o => o.update).map(o => o.object), ...(res.dynamic || [])] },
+    far: {
+      bounds: { ...probeBounds, minY: Math.min(probeBounds.minY, -1) },
+      exclude: () => [...b.objects.filter(o => o.update).map(o => o.object), ...(res.dynamic || [])],
+      prepare: () => built.props?.showAll(),
+    },
   });
   const tLight = performance.now() - tLight0;
   G.scene.add(group);
@@ -351,6 +356,14 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     for (const o of objectives.dom) probe(o.position, `Flagge ${o.id}`);
     for (const p of blocked) console.warn('[world] blockiert: ' + p);
   }
+
+  // Atmosphäre: Sonnenstrahlen durch Öffnungen in dunkle Innenräume + schwebender Staub (je Kartenstimmung)
+  let atmos = null;
+  try {
+    atmos = createAtmosphere(G, { quality, def: def.lighting, sunDir, openings: b.openings, bvh, probes: probes?.query || null, sun: light.lighting.sun });
+    group.add(atmos.group);
+  } catch (err) { console.warn('[world] Atmosphäre:', err); }
+  b.openings = [];
 
   // Minikarte
   progress(0.95, 'Minikarte');
@@ -453,6 +466,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
 
     update(dt, camera) {
       light.update(dt, camera);
+      atmos?.update(dt, camera);
       foliageUniforms.uTime.value += dt;
       for (const w of waters) w.update(dt);
       props?.update(camera);
@@ -483,6 +497,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
       light.dispose();
       hdri?.dispose();
       resetShading();
+      atmos?.dispose();
       probes?.texA.dispose(); probes?.texB.dispose();
       offQuality?.();
       if (typeof G.renderer?.setPost === 'function') G.renderer.setPost(postRestore);
@@ -504,6 +519,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   props?.showAll();
   // Welt-Shading: alle Weltmaterialien bekommen den gemeinsamen Haken; Sonden + Fernkaskade aktivieren
   world.stats.lighting = activateLighting(G, def, world, group, light, probes, quality, debug);
+  if (atmos) world.stats.lighting.atmos = atmos.stats;
   // Texturen schon jetzt in Zeitscheiben hochladen – sonst landet alles (inkl. Mipmaps) im ersten Bild
   progress(0.97, 'Texturen hochladen');
   world.stats.uploadMs = await uploadTextures(renderer, group);

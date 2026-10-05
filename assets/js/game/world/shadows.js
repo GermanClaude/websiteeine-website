@@ -2,11 +2,11 @@
 //
 // Nahkaskade = die bisherige Sonne (DirectionalLight, kamerafolgend, texelstabil; jedes Bild bzw. auf low jedes
 // 4. Bild) mit kleinerem Ausschnitt ab medium → schärfere Schatten in der Nähe. Fernkaskade = eine einmal beim
-// Laden (bzw. nach Qualitätswechsel/Kontextverlust) gerenderte Schattenkarte der ganzen Karte aus statischer
-// Geometrie: three.js' eigener Schattenpass (Alpha-Test, Instanzen) über renderer.shadowMap.render([fernLicht]) –
-// das Fernlicht selbst bleibt unsichtbar (kein zusätzliches Licht in den Shadern, keine Kosten für andere Module).
-// Die Welt-Materialien (world/shading.js) blenden am Rand der Nahkaskade auf die Fernkarte über.
-// low: keine Fernkarte – dort übernimmt die Sonnensicht des Sonden-Gitters (world/probes.js) die Ferne.
+// Laden (bzw. nach Qualitätswechsel/Kontextverlust) gerenderte Tiefenkarte der ganzen Karte aus statischer
+// Geometrie (eigener Tiefenpass wie three.js' Schattenpass: Rückseiten, Alpha-Test, Instanzen; ohne Licht in der
+// Szene → keine Shader-Varianten, keine Kosten für andere Module). Die Welt-Materialien (world/shading.js) blenden
+// am Rand der Nahkaskade auf die Fernkarte über. low: keine Fernkarte – dort übernimmt die Sonnensicht des
+// Sonden-Gitters (world/probes.js) die Ferne.
 import * as THREE from 'three';
 import { WS, initShading, dropShadingContext, resetFarMap } from './shading.js';
 
@@ -22,33 +22,34 @@ export function farShadowBudget(preset) {
 
 const _up = new THREE.Vector3(0, 1, 0);
 const _v = new THREE.Vector3();
+const BIAS = new THREE.Matrix4().set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1);
+const SHADOW_SIDE = { [THREE.FrontSide]: THREE.BackSide, [THREE.BackSide]: THREE.FrontSide, [THREE.DoubleSide]: THREE.DoubleSide };
 
 /**
- * Fernkaskade anlegen. opts: { sunDir (zur Sonne), bounds {minX,maxX,minY,maxY,minZ,maxZ} (Empfänger), group (Elterngruppe
- * für das unsichtbare Fernlicht – damit memoryEstimate die Karte zählt), exclude (() => Object3D[]: bewegte Objekte,
- * die nicht in die statische Karte gehören) }.
+ * Fernkaskade anlegen. opts: { sunDir (zur Sonne), bounds {minX,maxX,minY,maxY,minZ,maxZ} (Empfänger), group (Weltgruppe:
+ * Schattenwerfer + Halter der Karte für memoryEstimate), exclude (() => Object3D[]: bewegte Objekte, die nicht in die
+ * statische Karte gehören) }.
  */
-export function createFarShadow(G, { sunDir, bounds, group, exclude = () => [] }) {
+export function createFarShadow(G, { sunDir, bounds, group, exclude = () => [], prepare = null }) {
   const R = G.renderer;
   const renderer = R?.renderer;
-  const light = new THREE.DirectionalLight(0xffffff, 0);
-  light.name = 'sun-far';
-  light.visible = false;
-  light.castShadow = true;
-  light.userData.npFarShadow = true;
-  light.shadow.autoUpdate = false;
-  group.add(light); group.add(light.target);
+  // Unsichtbarer Halter: memoryEstimate zählt Schattenkarten über Lichter in der Szene
+  const holder = new THREE.DirectionalLight(0xffffff, 0);
+  holder.name = 'sun-far';
+  holder.visible = false;
+  holder.castShadow = false;
+  holder.userData.npFarShadow = true;
+  group.add(holder);
 
   const dir = sunDir.clone().normalize();
   const b = bounds;
   const center = new THREE.Vector3((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, (b.minZ + b.maxZ) / 2);
   const reach = Math.hypot(b.maxX - b.minX, b.maxY - b.minY, b.maxZ - b.minZ) / 2;
-  light.position.copy(center).addScaledVector(dir, reach + 80);
-  light.target.position.copy(center);
-  light.updateMatrixWorld(); light.target.updateMatrixWorld();
-  // Ausschnitt in Lichtraum-Koordinaten aus den Ecken des Empfangsbereichs
-  const cam = light.shadow.camera;
-  cam.position.copy(light.position); cam.up.copy(_up); cam.lookAt(center); cam.updateMatrixWorld();
+  const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 10);
+  cam.position.copy(center).addScaledVector(dir, reach + 80);
+  cam.up.copy(_up);
+  cam.lookAt(center);
+  cam.updateMatrixWorld();
   const inv = cam.matrixWorldInverse;
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity;
   for (const x of [b.minX, b.maxX]) for (const y of [b.minY, b.maxY]) for (const z of [b.minZ, b.maxZ]) {
@@ -59,23 +60,51 @@ export function createFarShadow(G, { sunDir, bounds, group, exclude = () => [] }
   cam.near = 1; cam.far = -z0 + 20; // alles zwischen Sonne und Empfängern wirft Schatten
   cam.updateProjectionMatrix();
   const spanX = cam.right - cam.left, spanY = cam.top - cam.bottom;
+  const matrix = new THREE.Matrix4().multiplyMatrices(BIAS, cam.projectionMatrix).multiply(cam.matrixWorldInverse);
 
-  let size = [0, 0], texel = 0.1, baked = false, disposed = false;
-  const stats = { bakes: 0, ms: 0, size, texel: 0, bytes: 0 };
+  let rt = null, size = [0, 0], texel = 0.1, baked = false, disposed = false;
+  const stats = { bakes: 0, ms: 0, size: [0, 0], texel: 0, bytes: 0, casters: 0 };
+  const depthBase = new THREE.MeshDepthMaterial();
+  depthBase.colorWrite = false;
+  depthBase.name = 'np:far-depth';
+  const variants = new Map(); // Material → Tiefenmaterial (Alpha-Test/Seiten)
+
+  function depthFor(m) {
+    const alpha = (m.map || m.alphaMap) && m.alphaTest > 0;
+    const side = m.shadowSide ?? SHADOW_SIDE[m.side] ?? THREE.BackSide;
+    const key = alpha ? m : side;
+    let d = variants.get(key);
+    if (!d) {
+      d = depthBase.clone();
+      d.colorWrite = false;
+      d.side = side;
+      if (alpha) { d.map = m.map; d.alphaMap = m.alphaMap; d.alphaTest = m.alphaTest; }
+      variants.set(key, d);
+    }
+    return d;
+  }
 
   function configure(preset) {
     const budget = farShadowBudget(preset);
-    if (!budget) { size = [0, 0]; return false; }
+    if (!budget) return false;
     // gleiche Texeldichte in beiden Achsen, Fläche ≈ budget²
     const aspect = spanX / spanY;
+    const maxT = Math.min(4096, renderer?.capabilities?.maxTextureSize || 4096);
     let w = Math.round(budget * Math.sqrt(aspect) / 16) * 16, h = Math.round(budget / Math.sqrt(aspect) / 16) * 16;
-    const maxT = renderer?.capabilities?.maxTextureSize || 4096;
-    w = Math.max(256, Math.min(maxT, 4096, w)); h = Math.max(256, Math.min(maxT, 4096, h));
-    size = [w, h];
+    w = Math.max(256, Math.min(maxT, w)); h = Math.max(256, Math.min(maxT, h));
     texel = Math.max(spanX / w, spanY / h);
-    if (light.shadow.mapSize.x !== w || light.shadow.mapSize.y !== h) {
-      light.shadow.mapSize.set(w, h);
-      if (light.shadow.map) { light.shadow.map.dispose(); light.shadow.map = null; }
+    if (!rt || rt.width !== w || rt.height !== h || holder.shadow.map !== rt) {
+      rt?.dispose();
+      const dt = new THREE.DepthTexture(w, h, THREE.UnsignedIntType);
+      dt.format = THREE.DepthFormat;
+      dt.compareFunction = THREE.LessEqualCompare;
+      dt.minFilter = dt.magFilter = THREE.LinearFilter;
+      dt.name = 'np:fernschatten';
+      rt = new THREE.WebGLRenderTarget(w, h, { depthBuffer: true, depthTexture: dt, generateMipmaps: false });
+      rt.texture.name = 'np:fernschatten-farbe';
+      size = [w, h];
+      holder.shadow.mapSize.set(w, h);
+      holder.shadow.map = rt;
     }
     return true;
   }
@@ -84,55 +113,73 @@ export function createFarShadow(G, { sunDir, bounds, group, exclude = () => [] }
   function bake(preset = R?.preset) {
     if (disposed || !renderer || R.lost) return false;
     initShading(renderer);
-    const sm = renderer.shadowMap;
-    if (!configure(preset) || !sm.enabled) { WS.npFar.value.x = WS.npFar.value.x === 1 ? 0 : WS.npFar.value.x; baked = false; return false; }
+    if (!configure(preset)) { baked = false; return false; }
     const t0 = performance.now();
-    const hidden = [];
-    for (const root of exclude()) root?.traverse?.((o) => { if (o.castShadow) { o.castShadow = false; hidden.push(o); } });
-    const pa = sm.autoUpdate, pn = sm.needsUpdate;
-    sm.needsUpdate = true;
-    light.shadow.needsUpdate = true;
+    prepare?.(); // z. B. alle Requisiten-Instanzen sichtbar (CPU-Culling)
+    const skip = new Set();
+    for (const root of exclude()) root?.traverse?.((o) => skip.add(o));
+    const swaps = [], hidden = [];
+    let casters = 0;
+    group.traverse((o) => {
+      if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite)) return;
+      const mat = o.material;
+      const cast = o.isMesh && o.castShadow && o.visible && !skip.has(o) && !Array.isArray(mat) && mat?.visible !== false && !mat?.transparent;
+      if (cast) { swaps.push([o, mat]); o.material = depthFor(mat); casters++; }
+      else if (o.visible) { o.visible = false; hidden.push(o); }
+    });
+    const sm = renderer.shadowMap;
+    const pa = sm.autoUpdate, pn = sm.needsUpdate, prevRT = renderer.getRenderTarget(), prevClear = renderer.autoClear;
     try {
-      sm.render([light], G.scene, G.camera || cam);
+      // Schattenpass der Szene hier nicht auslösen (die Nahkaskade bleibt, wie sie ist)
+      sm.autoUpdate = false; sm.needsUpdate = false;
+      renderer.setRenderTarget(rt);
+      renderer.autoClear = true;
+      renderer.clear(true, true, false);
+      renderer.render(group, cam);
     } finally {
+      renderer.setRenderTarget(prevRT);
+      renderer.autoClear = prevClear;
       sm.autoUpdate = pa; sm.needsUpdate = pn;
-      for (const o of hidden) o.castShadow = true;
+      for (const [o, m] of swaps) o.material = m;
+      for (const o of hidden) o.visible = true;
     }
-    if (!light.shadow.map?.depthTexture) { baked = false; return false; }
     const depthRange = cam.far - cam.near;
-    // Tiefen-Bias ≈ 1,5 Texel Gefälle, Normalenversatz ≈ 1,2 Texel
-    WS.npFarMap.value = light.shadow.map.depthTexture;
-    WS.npFarMatrix.value.copy(light.shadow.matrix);
+    WS.npFarMap.value = rt.depthTexture;
+    WS.npFarMatrix.value.copy(matrix);
+    // Tiefen-Bias ≈ 1,5 Texel Gefälle, Normalenversatz ≈ 1,2 Texel, PCF-Radius 1,4 Texel
     WS.npFarParams.value.set(-(texel * 1.5) / depthRange, 1.4, 1 / size[0], 1 / size[1]);
-    WS.npFar.value.x = 1;
     WS.npFar.value.w = texel * 1.2;
     baked = true;
     stats.bakes++;
     stats.ms = Math.round(performance.now() - t0);
     stats.size = size.slice();
     stats.texel = +texel.toFixed(3);
-    stats.bytes = size[0] * size[1] * 4;
+    stats.bytes = size[0] * size[1] * 8; // Tiefe 4 B + (ungenutzte) Farbe 4 B
+    stats.casters = casters;
     return true;
   }
 
   const offCtx = typeof R?.onContextChange === 'function' ? R.onContextChange((state) => {
-    if (state === 'lost') { baked = false; WS.npFar.value.x = WS.npFar.value.x === 1 ? 0 : WS.npFar.value.x; dropShadingContext(); }
+    if (state === 'lost') { baked = false; rt = null; holder.shadow.map = null; dropShadingContext(); }
     else if (state === 'restored') { initShading(renderer); bake(); }
   }) : null;
 
   return {
-    light,
     stats,
+    camera: cam,
     get active() { return baked; },
     get texel() { return texel; },
     bake,
     dispose() {
       disposed = true;
       offCtx?.();
-      if (baked || WS.npFar.value.x === 1) resetFarMap();
-      light.shadow.dispose?.();
-      light.shadow.map = null;
-      group.remove(light); group.remove(light.target);
+      resetFarMap();
+      rt?.dispose(); rt = null;
+      holder.shadow.map = null;
+      group.remove(holder);
+      for (const d of variants.values()) d.dispose();
+      variants.clear();
+      depthBase.dispose();
     },
   };
 }

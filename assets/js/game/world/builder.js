@@ -215,6 +215,7 @@ export class MapBuilder {
     this.objects = [];    // dynamische/separate Objekte: { object, update }
     this.materials = new Set();
     this.floors = [];     // { minX, maxX, minZ, maxZ, y }
+    this.openings = [];   // Fenster/Tore aus arch.wall(): { x, y, z (Mitte), ux, uz (Wandrichtung), w, h, t, kind, glass } – Lichtstrahlen
     this.models = [];     // Bibliotheks-Requisiten: { id, x, y, z, o } (model())
     this.interiorScale = null; // 0..1: Anteil des gebackenen Innenraumlichts (null = voll; mit Sonden-Gitter gesetzt)
     this.lib = null;      // Set verfügbarer Modell-IDs (Bibliothek nutzbar) oder null (nur prozedural)

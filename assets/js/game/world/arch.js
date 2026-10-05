@@ -116,6 +116,12 @@ function openingDetails(b, o, op, g) {
       b.box(hx - ox * lw / 2 + ux * toward * 0.03, y + 0.01, hz - oz * lw / 2 + uz * toward * 0.03, 0.05, top - fw - 0.02, lw, op.leafMat || (op.leafTint ? 'wood_painted' : 'wood_planks'), { ry, tint: op.leafTint, collide: true, minimap: false, grad: false });
     }
   }
+  // Lichtöffnung merken (Sonnenstrahlen durch Fenster/Tore, world/atmos.js) – nicht bei geschlossenen Läden/Türen
+  if (b.openings && !op.closed && op.leaf !== 'closed') {
+    const framed = op.frame !== false && kind !== 'gap';
+    const iw = framed ? op.w - fw * 2 : op.w, ih = (top - sill) - (framed ? fw : 0);
+    if (iw > 0.2 && ih > 0.2) b.openings.push({ x: x0 + ux * op.at, y: y + sill + ih / 2, z: z0 + uz * op.at, ux, uz, w: iw, h: ih, t, kind, glass: !!op.glass, bars: !!op.bars });
+  }
   if (kind === 'door' || kind === 'gap') {
     // Navigationspunkte vor/hinter der Tür
     const nx = -uz, nz = ux;
