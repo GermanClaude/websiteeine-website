@@ -171,8 +171,10 @@ function makeHdriSky(hdri, sd, fogColor, intensity) {
  *   rebuildEnv }) – Umgebungslicht (PMREM) und, wo sichtbar, Himmel; sonst prozeduraler Preetham-Himmel.
  *   Kartenoptionen: env.hdriIntensity (Stärke des HDRI-Umgebungslichts), sky.hdri (false = Preetham-Himmel
  *   behalten), sky.hdriIntensity, sky.exposureScale, sky.hdriTint, sky.hdriMax, hemi.hdriIntensity.
+ * opts.far: { bounds, exclude, prepare } → zwischengespeicherte Fernkaskade (world/shadows.js), Nahkaskade dann kleiner.
+ * opts.heightFog: Höhennebel der Welt-Materialien aus def.fog { density, falloff, baseY, start, max, sun, sunExp }.
  */
-export function createLighting(G, def, group, { hdri = null, far = null } = {}) {
+export function createLighting(G, def, group, { hdri = null, far = null, heightFog = false } = {}) {
   const renderer = G.renderer?.renderer || G.renderer;
   const preset = G.renderer?.preset || {};
   const scene = G.scene;
@@ -267,8 +269,10 @@ export function createLighting(G, def, group, { hdri = null, far = null } = {}) 
   // Ohne Kartenwerte aus near/far abgeleitet (auf Augenhöhe ≈ wie der lineare Nebel der übrigen Materialien).
   const fd = def.fog;
   const fogSpan = Math.max(20, fd.far - fd.near);
-  WS.npFog.value.set(WS.npFog.value.x, fd.falloff ?? 0.04, fd.baseY ?? 0, fd.start ?? fd.near * 0.5);
-  setShadingMode({ fog: fd.height === false ? 0 : fd.density ?? 1.3 / fogSpan });
+  if (heightFog) {
+    WS.npFog.value.set(WS.npFog.value.x, fd.falloff ?? 0.04, fd.baseY ?? 0, fd.start ?? fd.near * 0.5);
+    setShadingMode({ fog: fd.height === false ? 0 : fd.density ?? 1.3 / fogSpan });
+  }
   WS.npFogMax.value = fd.max ?? 0.92;
   const sunHue = new THREE.Color(def.sun.color);
   const hueMax = Math.max(sunHue.r, sunHue.g, sunHue.b, 1e-3);
@@ -353,7 +357,7 @@ export function createLighting(G, def, group, { hdri = null, far = null } = {}) 
       disposed = true;
       offContext?.();
       farShadow?.dispose();
-      setShadingMode({ far: 0, fog: 0 });
+      if (heightFog || farShadow) setShadingMode({ far: 0, fog: 0 });
       sky.geometry.dispose(); sky.material.dispose();
       if (skyTop) { skyTop.geometry.dispose(); skyTop.material.dispose(); }
       sun.shadow.map?.dispose();

@@ -23,7 +23,7 @@ export const PROBE_TIERS = Object.freeze({
 /** Schallabsorption je Oberfläche (Index wie builder.SURFACES). */
 const ABSORB = [0.05, 0.04, 0.18, 0.35, 0.4, 0.5, 0.03, 0.02, 0.03, 0.6, 0.5];
 const GLASS = 6;
-const MAX_D = 48;          // Strahlenreichweite (m) – darüber „frei“
+const MAX_D = 40;          // Strahlenreichweite (m) – darüber „frei“ (Akustik: spätere Reflexionen zählen kaum)
 const B_SCALE = 0.5;       // Rückprall-Codierung: gespeichert sqrt(B / B_SCALE), B in Anteilen der Sonnenbestrahlung
 export const PROBE_BOUNCE_SCALE = B_SCALE;
 export const PROBE_MAX_D = MAX_D;
@@ -167,6 +167,8 @@ export function bakeProbes(bvh, opts) {
     }
     colTop3[k * nx + i] = m;
   }
+  let globalTop = -1e9;
+  for (let c = 0; c < nx * nz; c++) if (colTop[c] > globalTop) globalTop = colTop[c];
   const tCol = now();
 
   // Sonnenraster (Rückprall + Sonnensicht)
@@ -193,6 +195,9 @@ export function bakeProbes(bvh, opts) {
   // Treffer inkl. Glas-Durchgang; Rückgabe: Abstand (Infinity = frei); setzt last* für Rückprall/Akustik
   let lastBack = false, lastTri = -1, lastSurf = 0, lastNx = 0, lastNy = 0, lastNz = 0;
   const trace = (x, y, z, dx, dy, dz, maxD) => {
+    // aufwärts: über der höchsten Geometrie ist der Strahl frei (kurze Strahlen statt Durchlauf der ganzen BVH)
+    if (dy > 0.05) maxD = Math.min(maxD, (globalTop + 0.2 - y) / dy);
+    if (maxD <= 0) return Infinity;
     let travelled = 0;
     for (let g = 0; g < 4; g++) {
       rays++;
@@ -384,7 +389,7 @@ export function bakeProbes(bvh, opts) {
       rays++;
       // wie three.js (physikalisch, Abklingen 2): I / d² · Fenster
       const win = Math.pow(clamp01(1 - Math.pow(d / range, 4)), 2);
-      G[g][c] += lum * Lt.intensity * win / Math.max(d * d, 0.8);
+      G[g][c] += (Lt.w ?? 1) * lum * Lt.intensity * win / Math.max(d * d, 0.8);
     }
   }
   const groups = [0, 1, 2].map((g) => {

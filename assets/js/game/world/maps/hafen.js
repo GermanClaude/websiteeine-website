@@ -37,7 +37,7 @@ export default {
     shadow: { size: 42 },
     // Sonden-Gitter (Innenräume, Rückprall), Atmosphäre (Strahlen durch die Hallentore, Staub)
     probes: { bounce: 1.1 },
-    atmos: { beams: 0.022, beamG: 0.5, dust: 1 },
+    atmos: { beams: 0.03, beamG: 0.4, dust: 1 },
   },
 
   build(b, ctx) {

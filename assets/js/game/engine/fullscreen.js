@@ -196,7 +196,11 @@ export class FullscreenManager {
     this._userReq = !!user;
     try {
       if (kind === 'std') ret = fn.call(this.el, this._noOpts ? undefined : { navigationUI: 'hide', keyboardLock: 'browser' });
-      else if (kind === 'webkit') ret = fn.call(this.el, typeof Element !== 'undefined' && Element.ALLOW_KEYBOARD_INPUT ? Element.ALLOW_KEYBOARD_INPUT : undefined);
+      else if (kind === 'webkit') {
+        // Altes Safari (Mac) braucht ALLOW_KEYBOARD_INPUT für Tasten; iPadOS lehnt das Flag ab → dort ohne
+        const flag = !this.platform.ios && typeof Element !== 'undefined' ? Element.ALLOW_KEYBOARD_INPUT : 0;
+        ret = flag ? fn.call(this.el, flag) : fn.call(this.el);
+      }
       else ret = fn.call(this.el);
     } catch (err) {
       this._pending = false;
@@ -207,7 +211,7 @@ export class FullscreenManager {
       ret.then(() => { this._pending = false; this._fails = 0; this._sync(); }, (err) => {
         this._pending = false;
         // Unbekannter Optionswert (künftige Browser): ohne Optionen erneut, solange die Geste noch gilt
-        if (err && err.name === 'TypeError' && !this._noOpts) { this._noOpts = true; if (this.request()) return; }
+        if (err && err.name === 'TypeError' && !this._noOpts) { this._noOpts = true; if (this.request({ user: this._userReq })) return; }
         this._failed(err);
         this._sync();
       });
@@ -333,7 +337,7 @@ export class FullscreenManager {
     // Im Match nur Touch (z. B. nach der Android-Zurück-Geste); am Desktop betreten Start/Fortsetzen erneut,
     // damit ein bewusst verlassenes Vollbild (F11, Esc halten) nicht beim nächsten Tastendruck zurückkommt.
     if (MATCH.has(st)) { if (e.type === 'pointerup' || this._touch()) this.auto({ throttle: 4000 }); }
-    else if (!this._firstDone) this.auto();
+    else if (!this._firstDone && e.type !== 'pointerup') this.auto(); // Menüs: erst „click“ (Ziel steht fest)
   }
 
   /** Alt+Enter (fest) und Aktion „fullscreen“ (umbelegbar, Standard F11). */
@@ -382,7 +386,7 @@ export class FullscreenManager {
     const on = this.active;
     if (on === this._active) return;
     this._active = on;
-    if (on) { this._firstDone = true; this._fails = 0; this._afterEnter(); } else {
+    if (on) { this._pending = false; this._firstDone = true; this._fails = 0; this._afterEnter(); } else {
       const kb = this._kbLocked;
       this._releaseKeyboard();
       // Vom Browser beendet, ohne dass wir es wollten: bewusst verlassen (Esc halten bei Tastatursperre, F11, oder

@@ -40,7 +40,7 @@ export default {
     exposure: 1.55,
     // Halle: Abendsonne flach durch die Westfenster, viel Staub; Feuertonnen (Lichtgruppe 2) flackern
     probes: { bounce: 1.0, flicker: [{ group: 2, amount: 0.35, speed: 11 }] },
-    atmos: { beams: 0.03, beamG: 0.55, dust: 1.5 },
+    atmos: { beams: 0.028, beamG: 0.4, dust: 1.5 },
   },
 
   build(b, ctx) {
@@ -400,6 +400,11 @@ function hall(b) {
   }
   b.light('point', -9, 8.6, 7, { color: '#ffae5a', intensity: 40, distance: 24, priority: 1 });
   b.light('point', 9, 8.6, -7, { color: '#ffae5a', intensity: 40, distance: 24, priority: 1 });
+  // übrige Leuchten nur gebacken (Sonden-Gitter): Lichtinseln unter jeder Lampe ohne Laufzeitkosten
+  for (const zz of [-21, -7, 7, 21]) for (const xx of [-9, 9]) {
+    if ((xx === -9 && zz === 7) || (xx === 9 && zz === -7)) continue;
+    b.light('point', xx, 8.6, zz, { color: '#ffae5a', intensity: 32, distance: 20, realtime: false });
+  }
   // Kaltes Abendlicht durch die Dachlöcher (Lichtkegel als Staubschleier)
   for (const [x, z] of [[-11, -9], [11, 9], [11, -15], [-11, 15]]) dustShaft(b, x, z);
   // Beschriftung außen

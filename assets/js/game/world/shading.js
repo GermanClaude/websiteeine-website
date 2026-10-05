@@ -105,7 +105,7 @@ export const WS = {
   npFogSun: { value: new THREE.Vector4(0, 1, 0, 8) },      // Richtung zur Sonne, Exponent der Vorwärtsstreuung
   npFogSunCol: { value: new THREE.Color(0, 0, 0) },
   npFogMax: { value: 1 },
-  npSpecAA: { value: 1 },
+  npSpecAA: { value: 0 }, // die Welt schaltet es ein (Kartenwert lighting.specAA, Standard 1)
 };
 
 let dummyDepth = null;
@@ -139,7 +139,7 @@ export function dropShadingContext() { dummyDepth = null; WS.npFarMap.value = nu
 
 /** Alles neutral (keine Welt aktiv). */
 export function resetShading() {
-  setShadingMode({ probe: 0, far: 0, fog: 0, specAA: 1 });
+  setShadingMode({ probe: 0, far: 0, fog: 0, specAA: 0 });
   WS.npProbe.value.w = 0;
   WS.npProbeA.value = NEUTRAL_A; WS.npProbeB.value = NEUTRAL_B;
   WS.npBounce.value.setRGB(0, 0, 0);
@@ -298,12 +298,17 @@ function worldShadingPatch(shader) {
     fs = fs.replace(find, repl);
     return true;
   };
-  rep('#include <common>', `#include <common>\n${PARS}`);
-  rep('#include <shadowmap_pars_fragment>', `#include <shadowmap_pars_fragment>\n${FUNCS}`);
+  // Nur wenn die Standard-Bausteine vorhanden sind (ein fremder Haken könnte sie ersetzt haben) – sonst bleibt der
+  // jeweilige Teil weg, nie ein halber Einbau mit undeklarierten Bezeichnern
+  if (!rep('#include <common>', `#include <common>\n${PARS}`)) return;
+  const lit = fs.includes('#include <shadowmap_pars_fragment>') && fs.includes('#include <lights_fragment_begin>') && fs.includes('#include <lights_fragment_maps>');
+  if (lit) {
+    rep('#include <shadowmap_pars_fragment>', `#include <shadowmap_pars_fragment>\n${FUNCS}`);
+    rep('#include <lights_fragment_begin>', lightsBegin());
+    rep('#include <lights_fragment_maps>', `#include <lights_fragment_maps>\n${INDIRECT}`);
+  }
   rep('#include <lights_physical_fragment>', `#include <lights_physical_fragment>\n${SPEC_AA}`);
-  rep('#include <lights_fragment_begin>', lightsBegin());
-  rep('#include <lights_fragment_maps>', `#include <lights_fragment_maps>\n${INDIRECT}`);
-  rep('#include <fog_fragment>', FOG);
+  if (fs.includes('vViewPosition')) rep('#include <fog_fragment>', FOG);
   shader.fragmentShader = fs;
 }
 
@@ -311,7 +316,7 @@ function worldShadingPatch(shader) {
 // Nur während die Weltszene rendert aktiv: Materialien, die auch in anderen Szenen vorkommen (Viewmodel teilt
 // z. B. Waffenmaterialien), bleiben dort unverändert (neutral: keine Sonden, kein Fernschatten, kein Höhennebel).
 // ---------------------------------------------------------------------------
-const live = { probe: 0, far: 0, fog: 0, specAA: 1 };
+const live = { probe: 0, far: 0, fog: 0, specAA: 0 };
 let liveStored = false;
 function neutralize() {
   if (liveStored) return;

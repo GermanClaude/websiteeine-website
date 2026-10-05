@@ -29,7 +29,7 @@ export default {
     fog: { color: '#cfdae3', near: 110, far: 620, density: 0.0018, falloff: 0.03, start: 40, sun: 0.3, sunExp: 6 },
     shadow: { size: 40 },
     probes: { bounce: 1.15 },
-    atmos: { beams: 0.018, beamG: 0.5, dust: 0.6 },
+    atmos: { beams: 0.025, beamG: 0.4, dust: 0.6 },
   },
 
   build(b) {

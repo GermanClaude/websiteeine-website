@@ -67,8 +67,10 @@ void main() {
   float along = smoothstep( 0.0, 0.6, mid.z ) * ( 1.0 - 0.55 * smoothstep( 0.0, vK.y, mid.z ) );
   // Staubschlieren (langsam ziehend)
   float n = 0.75 + 0.25 * sin( mid.x * 7.0 + uTime * 0.31 + mid.z * 0.9 ) * sin( mid.y * 5.3 - uTime * 0.23 + mid.z * 1.7 );
-  float ph = npHG( dot( Rd, uSunDir ), uG ) * 12.566;
-  float a = vK.x * min( len, 6.0 ) * edge * along * n * ph;
+  // Phase: Vorwärtsstreuung (zur Sonne hin heller) + isotroper Anteil; Blick längs des Strahls begrenzt
+  float ph = 0.35 + 0.65 * npHG( dot( Rd, uSunDir ), uG ) * 12.566;
+  float a = vK.x * min( len, 4.0 ) * edge * along * n * ph;
+  a = a / ( 1.0 + a ); // weiche Sättigung (kein Ausbrennen beim Blick in die Sonne)
   gl_FragColor = vec4( uColor * a, 1.0 );
 }`;
 
@@ -180,9 +182,10 @@ export function createAtmosphere(G, { quality, def, sunDir, openings = [], bvh, 
       const ix = op.x + inX * 1.6 - L.x * 0.8, iy = op.y - L.y * 0.8, iz = op.z + inZ * 1.6 - L.z * 0.8;
       if (probes) { if (probes.light(ix, iy, iz).sky > 0.55) continue; }
       else if (!occluded(ix, iy, iz, 0, 1, 0, 14)) continue;
-      // Länge bis zum Boden/zur Wand (Mitte + Ecken), Endebene aus dem Mitteltreffer
+      // Länge bis zum Boden/zur Wand: Endebene aus dem Mitteltreffer; trifft eine Ecke vorher etwas anderes (Zwischen-
+      // wand, Regal), endet der Körper dort (sonst ragte er in den Nachbarraum)
       const ox = op.x + inX * half, oy = op.y, oz = op.z + inZ * half;
-      let maxLen = 0, endN = null, endD = 0;
+      let maxLen = 0, minHit = Infinity, blocked = false, endN = null, endD = 0;
       for (const [a, c] of [[0, 0], [-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]]) {
         const px = ox + op.ux * a * op.w / 2, py = oy + c * op.h / 2, pz = oz + op.uz * a * op.w / 2;
         const ok = occluded(px, py, pz, -L.x, -L.y, -L.z, 30);
@@ -192,10 +195,18 @@ export function createAtmosphere(G, { quality, def, sunDir, openings = [], bvh, 
           endN = [hit.nx, hit.ny, hit.nz];
           const hx = px - L.x * hit.t, hy = py - L.y * hit.t, hz = pz - L.z * hit.t;
           endD = endN[0] * hx + endN[1] * hy + endN[2] * hz - 0.02;
+        } else {
+          // erwarteter Abstand bis zur Endebene: n·(p − t·L) = d → t = (n·p − d) / (n·L)
+          const nl = endN[0] * L.x + endN[1] * L.y + endN[2] * L.z;
+          const tPlane = Math.abs(nl) > 1e-3 ? (endN[0] * px + endN[1] * py + endN[2] * pz - endD) / nl : 30;
+          if (len < tPlane - 0.35) blocked = true;
         }
         maxLen = Math.max(maxLen, len);
+        minHit = Math.min(minHit, len);
       }
       if (maxLen <= 0 || !endN) continue;
+      if (blocked) maxLen = minHit;
+      if (maxLen < 0.6) continue;
       const area = op.w * op.h;
       cand.push({ op, s, ox, oy, oz, len: Math.min(maxLen + 0.5, 30), endN, endD, k: lit / 5, score: area * Math.min(maxLen, 10) * (lit / 5) });
     }
@@ -247,7 +258,7 @@ export function createAtmosphere(G, { quality, def, sunDir, openings = [], bvh, 
         name: 'np:sonnenstrahlen',
         uniforms: {
           uColor: { value: sunCol.clone().multiplyScalar(def.sun.intensity) },
-          uSunDir: { value: L.clone() }, uTime: { value: 0 }, uG: { value: A.beamG ?? 0.55 },
+          uSunDir: { value: L.clone() }, uTime: { value: 0 }, uG: { value: A.beamG ?? 0.4 },
         },
         vertexShader: BEAM_VERT, fragmentShader: BEAM_FRAG,
         transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,

@@ -579,7 +579,11 @@ export class MapBuilder {
     return this;
   }
 
-  /** Lichtquelle (Punkt/Spot). Wird beim Aufbau als echtes Licht erzeugt (begrenzte Anzahl). */
+  /**
+   * Lichtquelle (Punkt/Spot). Wird beim Aufbau als echtes Licht erzeugt (begrenzte Anzahl; nicht auf low) und ins
+   * Sonden-Gitter gebacken. o.realtime: false = nur gebacken (kostet zur Laufzeit nichts), o.bake: false = nicht
+   * backen, o.group 0..2 = Lichtgruppe (sonst nach Farbe: warm/kalt/rot).
+   */
   light(type, x, y, z, o = {}) { this.lights.push({ type, x, y, z, ...o }); return this; }
 
   /** Weicher Lichthof um eine Lampe (additiver Punkt-Sprite; alle Lichthöfe zusammen ein Draw Call). */
@@ -786,6 +790,7 @@ export class MapBuilder {
     const lights = [];
     const lightDefs = this.lights.map(L => ({ ...L }));
     for (const L of (quality === 'low' ? [] : this.lights)) {
+      if (L.realtime === false) continue; // nur gebacken (Sonden-Gitter)
       let light;
       if (L.type === 'spot') {
         light = new THREE.SpotLight(L.color || '#ffd7a0', L.intensity ?? 20, L.distance ?? 18, L.angle ?? 0.9, L.penumbra ?? 0.6, 2);

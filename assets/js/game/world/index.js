@@ -133,8 +133,8 @@ function activateLighting(G, def, world, group, light, probes, quality, debug) {
     // Rückprall: Sonnenbestrahlung × Verstärkung × Codierfaktor (Shader quadriert den gespeicherten Wert)
     const sun = new THREE.Color(L.sun.color).multiplyScalar(L.sun.intensity * (pc.bounce ?? 1) * PROBE_BOUNCE_SCALE);
     WS.npBounce.value.copy(sun);
-    // Lichtgruppen: auf low ersetzen sie die Lampen (keine Echtzeit-Lichter), sonst nur weiche Aufhellung
-    const gGain = quality === 'low' ? (pc.groupsLow ?? 0.55) : (pc.groups ?? 0.18);
+    // Lichtgruppen (Gewichte je Lampe stecken schon im Gitter: gebacken bzw. nur Rückprall)
+    const gGain = pc.groupGain ?? 1;
     let anyGroup = false;
     P.groups.forEach((g, i) => {
       WS.npGroups.value[i].set(g.color[0], g.color[1], g.color[2]).multiplyScalar(g.max * gGain);
@@ -272,7 +272,12 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     probes: probesOn ? {
       bounds: probeBounds, tier: probeTier, spacing: probeCfg.spacing?.[probeTier], scatter: probeCfg.scatter,
       sunDir: [sunDir.x, sunDir.y, sunDir.z], albedo: built.bulletAlbedo,
-      lights: (built.lightDefs || []).filter(L => L.bake !== false).map(L => ({ x: L.x, y: L.y, z: L.z, color: linColor(L.color), intensity: L.intensity ?? 10, distance: L.distance ?? 12, group: groupOf(L) })),
+      // Gewicht: ohne Echtzeit-Licht (low bzw. realtime: false) trägt das Gitter das Lampenlicht (gerichtet gemittelt),
+      // mit Echtzeit-Licht nur die weiche Aufhellung durch Rückprall
+      lights: (built.lightDefs || []).filter(L => L.bake !== false).map(L => ({
+        x: L.x, y: L.y, z: L.z, color: linColor(L.color), intensity: L.intensity ?? 10, distance: L.distance ?? 12, group: groupOf(L),
+        w: quality === 'low' || L.realtime === false ? (probeCfg.groupsBaked ?? 0.55) : (probeCfg.groupsBounce ?? 0.2),
+      })),
     } : null,
   }, stage => progress(stageP[stage] ?? 0.88, stage));
   const jobPromise = Promise.all([jobCol, jobBullet]).then(([a, c]) => ({ ...a, ...c, ms: { ...a.ms, ...c.ms } }));
@@ -288,7 +293,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   const tLight0 = performance.now();
   initShading(renderer);
   const light = createLighting(G, def.lighting, group, {
-    hdri,
+    hdri, heightFog: true,
     // Fernkaskade über Spielfeld + Rand; bewegte Objekte (Kran, Ziele …) bleiben draußen
     far: {
       bounds: { ...probeBounds, minY: Math.min(probeBounds.minY, -1) },
@@ -564,6 +569,8 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   // Welt-Shading: alle Weltmaterialien bekommen den gemeinsamen Haken; Sonden + Fernkaskade aktivieren
   world.stats.lighting = activateLighting(G, def, world, group, light, probes, quality, debug);
   if (atmos) world.stats.lighting.atmos = atmos.stats;
+  // Prüfparameter ?lightfx=0: alle Licht-Bausteine aus (Vergleichsmessungen; zusammen mit probes=0 ≈ bisheriger Look)
+  if (G.params?.get?.('lightfx') === '0') world.lightfx.set({ probes: false, far: false, fog: false, beams: false, dust: false, specAA: false });
   // Texturen schon jetzt in Zeitscheiben hochladen – sonst landet alles (inkl. Mipmaps) im ersten Bild
   progress(0.97, 'Texturen hochladen');
   world.stats.uploadMs = await uploadTextures(renderer, group);
