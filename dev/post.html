@@ -78,7 +78,9 @@ const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('view');
 const quality = params.get('quality') || 'high';
 document.getElementById('quality').value = quality;
-const R = createRenderer(canvas, { quality });
+// Mini-Einstellungsspeicher aus URL-Parametern (Stil beim Start bestimmt u. a., ob der Kontext MSAA bekommt)
+const settingsShim = { get: (k) => (k === 'lensStyle' ? params.get('style') || undefined : undefined), onChange: () => () => {} };
+const R = createRenderer(canvas, { quality, settings: settingsShim });
 R.exposure.track = true;
 const scene = new THREE.Scene();
 // vertikales Äquivalent von 80° (4:3) wie im Spiel
