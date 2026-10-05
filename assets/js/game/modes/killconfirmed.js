@@ -163,8 +163,7 @@ export class KillConfirmedMode extends BaseMode {
   }
 
   extraRow(a) {
-    const c = this.counters.get(a);
-    return { label: 'Marken', value: a.isPlayer && c ? c.confirms || 0 : a.stats ? a.stats.kcConfirms || 0 : 0 };
+    return { label: 'Marken', value: a.stats ? a.stats.kcConfirms || 0 : 0 };
   }
 
   award(actor, reason, points) {

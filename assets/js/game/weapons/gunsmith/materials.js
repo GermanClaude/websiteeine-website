@@ -56,6 +56,8 @@ const DEFS = {
   putty: () => std({ color: 0x6f6448, metalness: 0.0, roughness: 0.95, normalMap: stippleNormal(), normalScale: new THREE.Vector2(0.6, 0.6) }),
   blade: () => std({ color: 0x9a9ea3, metalness: 1.0, roughness: 0.22, roughnessMap: brushedMap() }),
   bladeCoat: () => std({ color: 0x2a2b2d, metalness: 0.55, roughness: 0.5, roughnessMap: wearMap() }),
+  // Stoffhülle (Schutzplatte, Taschen): Oliv, grob
+  canvasOD: () => std({ color: 0x4a4f36, metalness: 0.0, roughness: 0.95, normalMap: stippleNormal(), normalScale: new THREE.Vector2(0.5, 0.5) }),
   cord: () => std({ color: 0x3b3f2e, metalness: 0.0, roughness: 0.95, normalMap: knurlNormal(), normalScale: new THREE.Vector2(0.8, 0.8) }),
   // Leere/Innenraum (Auswurföffnung, Laufbohrung)
   cavity: () => new THREE.MeshBasicMaterial({ color: 0x050505 }),

@@ -12,7 +12,8 @@
 
 import * as THREE from 'three';
 import { CapsuleBody, collisionRay, probeLedge } from './engine/physics.js';
-import { raycastHumanoid } from './combat.js';
+import { raycastHumanoid, PRONE } from './combat.js';
+import { canInsertPlate, plateCount, classDef, gadgetDef, GADGETS } from '../shared/classes.data.js';
 
 const STAND_H = 1.8;
 const CROUCH_H = 1.15;
@@ -23,6 +24,16 @@ const SLIDE_EYE = 0.82;
 const SPEED_WALK = 5.4;
 const SPEED_SPRINT = 8.2;
 const SPEED_CROUCH = 2.6;
+// Hinlegen (core-mechanics): Kapsel/Auge, Kriechtempo, Übergangszeiten (Waffe gesenkt), Blickgrenzen
+const PRONE_H = 0.75;
+const PRONE_EYE = 0.38;
+const SPEED_PRONE = 1.05;
+const ACCEL_PRONE = 6;
+const STANCE_TIME = { standProne: 0.75, crouchProne: 0.6, proneCrouch: 0.6, proneStand: 0.85, dive: 0.5 };
+const PRONE_PITCH_MIN = -0.52; // −30°
+const PRONE_PITCH_MAX = 0.96; // +55°
+const PRONE_LEAN_SIDE = 0.18;
+const PRONE_HOLD = 0.4; // s Ducken halten (Controller/Touch) → Hinlegen
 const GRAVITY = 24;
 const JUMP_V = Math.sqrt(2 * GRAVITY * 1.1);
 // Beschleunigung (1/s, exponentielle Annäherung an die Wunschgeschwindigkeit): Gehen ~0,18 s auf 90 %,
@@ -176,6 +187,34 @@ export class Player {
     /** 0…1: Anstrengung nach dem Sprint (Atmung, Waffenschwanken). */
     this.exertion = 0;
 
+    // Haltung (core-mechanics): stance 'stand'|'crouch'|'prone', Übergang stanceT 0…1, proneBlend für Trefferzonen/Animation
+    this.prone = false;
+    this.stance = 'stand';
+    this.stanceFrom = 'stand';
+    this.stanceT = 1;
+    this.proneBlend = 0;
+    this.crawling = false;
+    this._stanceDur = 0;
+    this._stanceEye0 = STAND_EYE;
+    this._stanceSide = 1;
+    this._crouchHeld = 0;
+    this._proneHoldUsed = false;
+    this._proneYaw = 0;
+    this._dive = false;
+    // Klasse, Panzerung (combat.equipArmor setzt this.armor am Spawn), Klassen-Ausrüstung
+    this.cls = null;
+    this.classDef = null;
+    this.armor = null;
+    this.plating = false;
+    this.gadget = null;
+    this.boostUntil = 0;
+    this._boostMult = 1;
+    this._heal = 0;
+    this._busyUntil = 0;
+    this._repairing = false;
+    this.repairTarget = null;
+    this.spotTarget = null;
+
     // Lehnen (F5)
     /** −1 … 1 (geglättet), − = links. */
     this.lean = 0;
@@ -233,7 +272,27 @@ export class Player {
     };
     this._updateBaseFov();
     // Unterdrückung: nahe Vorbeiflüge rucken die Körperkamera kurz (× Komfortregler bei der Ausgabe)
-    if (G.events && typeof G.events.on === 'function') G.events.on('bullet:whiz', (e) => this._onWhiz(e));
+    if (G.events && typeof G.events.on === 'function') {
+      G.events.on('bullet:whiz', (e) => this._onWhiz(e));
+      G.events.on('kill', (e) => this._onKill(e));
+    }
+  }
+
+  /** Sturm: nach einem Abschuss kurz schneller. */
+  _onKill(e) {
+    if (!e || e.killer !== this || e.victim === this || !this.alive) return;
+    const pk = (this.classDef && this.classDef.perks) || {};
+    if (!pk.sprintAfterKill) return;
+    const now = this.G.time ? this.G.time.elapsed : 0;
+    if (now >= this.boostUntil || this._boostMult <= pk.sprintAfterKill) { this._boostMult = pk.sprintAfterKill; this.boostUntil = Math.max(this.boostUntil, now + (pk.sprintAfterKillTime || 5)); }
+  }
+
+  /** Klasse übernehmen (Spawn bzw. sofortiger Ausrüstungswechsel): Gadget mit vollen Ladungen. */
+  applyClass() {
+    this.classDef = classDef(this.cls || (this.loadout && this.loadout.cls));
+    if (!this.cls) this.cls = this.classDef.id;
+    const g = gadgetDef(this.classDef.gadget);
+    this.gadget = g ? { id: g.id, charges: g.charges, max: g.charges, cooldownUntil: 0, active: false } : null;
   }
 
   _onWhiz(e) {
@@ -275,6 +334,9 @@ export class Player {
     this.weapon = null;
     this.alive = false;
     this.sprinting = this.sliding = this.crouching = false;
+    this._resetStance();
+    this.armor = null;
+    this.plating = false;
     this._deathCam = null;
     this._endMantle(false);
     this._resetPose();
@@ -291,6 +353,15 @@ export class Player {
     this.alive = true;
     this.crouching = this.sliding = this.sprinting = false;
     this._sprintLatch = false;
+    this._resetStance();
+    this.plating = false;
+    this.boostUntil = 0;
+    this._boostMult = 1;
+    this._heal = 0;
+    this._busyUntil = 0;
+    this._repairing = false;
+    this.repairTarget = this.spotTarget = null;
+    this.applyClass();
     this._eye = STAND_EYE;
     this._stepSmooth = this._landDip = this._landVel = this._landSlow = this._stairSlow = 0;
     this.recoilPitch = this.recoilYaw = this._recoilTP = this._recoilTY = 0;
@@ -314,6 +385,18 @@ export class Player {
       if (input.setActive) { input.setActive('lean_left', false); input.setActive('lean_right', false); }
     }
     this._updateCamera(0);
+  }
+
+  /** Haltung auf Stehen zurücksetzen (Spawn, Matchende). */
+  _resetStance() {
+    this.prone = false;
+    this.stance = this.stanceFrom = 'stand';
+    this.stanceT = 1;
+    this.proneBlend = 0;
+    this.crawling = false;
+    this._crouchHeld = 0;
+    this._proneHoldUsed = false;
+    this._dive = false;
   }
 
   /** Lehnen, freies Zielen und Kamerafedern zurücksetzen. */
@@ -384,6 +467,10 @@ export class Player {
    * 70 % werden federnd zurückgeführt, 30 % verbleiben (Dauerfeuer wandert).
    */
   addRecoil(pitch = 0, yaw = 0, recovery) {
+    // Liegend (Zweibein-artig auf dem Boden abgestützt): 40 % weniger Rückstoß
+    const steady = 1 - 0.4 * this.proneBlend;
+    pitch *= steady;
+    yaw *= steady;
     this.pitch = clamp(this.pitch + pitch * RECOIL_KEEP, -PITCH_LIMIT, PITCH_LIMIT);
     this.yaw -= yaw * RECOIL_KEEP;
     this._recoilTP += pitch * (1 - RECOIL_KEEP);
@@ -423,6 +510,10 @@ export class Player {
     this.alive = false;
     this.killer = info && info.killer ? info.killer : null;
     this.sprinting = this.sliding = false;
+    this.plating = false;
+    this.crawling = false;
+    this._heal = 0;
+    this.repairTarget = null;
     this._sprintLatch = false;
     this._endMantle(false);
     this._deathCam = {

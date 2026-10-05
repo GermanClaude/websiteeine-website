@@ -4,6 +4,9 @@
 export const ID_TO_MODEL = {
   ar_kv47: 'kv47', ar_m17: 'm17', smg_vp9: 'vp9', smg_qx90: 'qx90', lmg_hm60: 'hm60', mr_sk14: 'sk14',
   sr_brecher: 'brecher', sg_bulldog: 'bulldog', pi_p9: 'p9', pi_adler: 'adler', knife: 'knife',
+  ar_k36: 'k36', ar_bx20: 'bx20', ar_g7: 'g7', smg_wespe: 'wespe', smg_keiler: 'keiler', lmg_lm8: 'lm8',
+  sr_titan: 'titan', sg_hagel: 'hagel', pi_kobra: 'kobra', at_donner: 'donner',
+  karambit: 'karambit', machete: 'machete', tomahawk: 'tomahawk',
 };
 
 // Hüfte (wie CoD Mobile): Waffe etwas höher und mittiger, rechte Hand mit Daumen und Fingern am Pistolengriff
@@ -52,7 +55,65 @@ export const HANDLING = {
   // Handschuhbund und Ärmel als „Dose“ von vorn – deshalb nicht die Klinge senkrecht stellen.
   knife: {
     ...PISTOL, hip: [0.13, -0.12, -0.34], hipRot: [0.29, 0.37, -2.87], sprintPos: [0.0, -0.05, 0.05], sprintRot: [-0.35, 0.15, 0.2],
-    action: 'knife', leftGrip: 'none', reload: 'none', shell: 'none', flash: 0, weight: 0.5, equipTime: 0.25,
+    action: 'knife', leftGrip: 'none', reload: 'none', shell: 'none', flash: 0, weight: 0.5, equipTime: 0.25, inspectStyle: 'knife',
+  },
+  // ---------------------------------------------------------------- Welle 2 (Arsenal)
+  // inspectStyle: rifle (Rollen links/rechts) | magcheck (Magazin anheben, prüfen, einrasten) | pistol (Schlitten-Kontrolle) |
+  // bolt (Kammer öffnen) | pump (Pumpe anziehen) | belt (Deckel lüften) | revolver (Trommel ausschwenken, drehen, einklappen) |
+  // launcher (Rohr schultern, Gefechtskopf prüfen) | knife (Klinge drehen)
+  k36: { ...RIFLE, hip: [0.112, -0.17, -0.42], reloadTime: 1.95, emptyTime: 2.5, equipTime: 0.48, inspectStyle: 'magcheck', inspect: 3.0 },
+  bx20: { ...RIFLE, hip: [0.12, -0.15, -0.36], leftGrip: 'post', reload: 'bullpup', weight: 1.05, reloadTime: 2.6, emptyTime: 3.2, inspectStyle: 'rifle' },
+  g7: { ...RIFLE, hip: [0.13, -0.14, -0.4], kick: { back: 0.034, up: 0.06, side: 0.014, roll: 0.06, kickRot: 0.03 }, flash: 1.25, flashLen: 1.2, weight: 1.2, reloadTime: 2.5, emptyTime: 3.1, equipTime: 0.7, inspectStyle: 'magcheck' },
+  wespe: { ...RIFLE, hip: [0.12, -0.125, -0.32], hipRot: [0.1, 0.04, 0.1], kick: { back: 0.015, up: 0.026, side: 0.012, roll: 0.03, kickRot: 0.012 }, leftGrip: 'post', reload: 'gripmag', shell: 'pistol', weight: 0.65, flash: 0.7, flashLen: 0.7, reloadTime: 1.8, emptyTime: 2.3, equipTime: 0.38, inspectStyle: 'magcheck', inspect: 2.8 },
+  keiler: { ...RIFLE, hip: [0.125, -0.13, -0.36], kick: { back: 0.02, up: 0.036, side: 0.011, roll: 0.035, kickRot: 0.016 }, shell: 'pistol', weight: 0.85, flash: 0.75, flashLen: 0.75, reloadTime: 2.1, emptyTime: 2.6, inspectStyle: 'magcheck' },
+  lm8: { ...RIFLE, hip: [0.135, -0.15, -0.4], kick: { back: 0.026, up: 0.04, side: 0.013, roll: 0.045, kickRot: 0.02 }, reload: 'drum', weight: 1.4, flash: 1.2, flashLen: 1.2, reloadTime: 4.4, emptyTime: 5.2, equipTime: 0.8, inspectStyle: 'rifle', inspect: 3.6 },
+  titan: { ...RIFLE, hip: [0.14, -0.15, -0.44], kick: { back: 0.07, up: 0.12, side: 0.012, roll: 0.05, kickRot: 0.09 }, action: 'semi', leftGrip: 'flat', shell: 'big', weight: 1.9, flash: 2.0, flashLen: 1.6, reloadTime: 3.6, emptyTime: 4.4, equipTime: 1.0, heat: 0.1, inspectStyle: 'rifle', inspect: 3.8 },
+  hagel: { ...RIFLE, hip: [0.13, -0.135, -0.39], kick: { back: 0.055, up: 0.085, side: 0.012, roll: 0.055, kickRot: 0.07 }, action: 'semi', shell: 'shotgun', weight: 1.2, flash: 1.8, flashLen: 1.0, reloadTime: 2.4, emptyTime: 3.0, equipTime: 0.62, inspectStyle: 'magcheck' },
+  kobra: { ...PISTOL, kick: { back: 0.05, up: 0.16, side: 0.012, roll: 0.05, kickRot: 0.11 }, action: 'revolver', reload: 'revolver', shell: 'none', weight: 0.8, flash: 1.1, flashLen: 0.8, reloadTime: 2.6, emptyTime: 2.4, equipTime: 0.45, heat: 0.03, inspectStyle: 'revolver', inspect: 3.0 },
+  donner: {
+    ...RIFLE, hip: [0.1, -0.125, -0.36], hipRot: [0.06, 0.03, 0.05], sprintPos: [0.02, -0.12, 0.1], sprintRot: [0.4, 0.5, 0.35],
+    kick: { back: 0.05, up: 0.05, side: 0.01, roll: 0.03, kickRot: 0.03 }, action: 'launcher', reload: 'rocket', leftGrip: 'post', shell: 'none',
+    weight: 1.7, flash: 1.2, flashLen: 0.7, reloadTime: 3.4, emptyTime: 3.4, equipTime: 0.9, heat: 0.15, inspectStyle: 'launcher', inspect: 3.2,
+    shoulderR: [0.19, -0.3, 0.1], shoulderL: [-0.2, -0.38, -0.06],
+  },
+};
+// Nahkampfwaffen (Hauptwaffe in der Hand): wie das Messer, eigene Haltung je Klinge
+HANDLING.karambit = { ...HANDLING.knife, hip: [0.13, -0.13, -0.33], hipRot: [0.35, 0.3, -2.75], inspect: 2.4 };
+HANDLING.machete = { ...HANDLING.knife, hip: [0.15, -0.16, -0.36], hipRot: [0.55, 0.42, -2.95], weight: 0.7, inspect: 2.8 };
+HANDLING.tomahawk = { ...HANDLING.knife, hip: [0.14, -0.15, -0.36], hipRot: [0.62, 0.3, -2.9], weight: 0.8, inspect: 2.8 };
+for (const k of ['m17', 'kv47', 'vp9', 'qx90']) HANDLING[k].inspectStyle = k === 'vp9' ? 'magcheck' : 'rifle';
+HANDLING.sk14.inspectStyle = 'magcheck';
+HANDLING.hm60.inspectStyle = 'belt';
+HANDLING.brecher.inspectStyle = 'bolt';
+HANDLING.bulldog.inspectStyle = 'pump';
+HANDLING.p9.inspectStyle = 'pistol';
+HANDLING.adler.inspectStyle = 'pistol';
+
+/**
+ * Nahkampf-Schlüsselbilder (linke Hand, Schusswaffe in der rechten) je Stil – Format wie KNIFE_MELEE.
+ * hook: Karambit-Haken von außen nach innen; chop: schräger Hieb von oben links (Machete);
+ * overhead: Beil senkrecht von oben; stab: Rückenstich (Stoß nach vorn, zurückziehen).
+ */
+export const MELEE_STYLES = {
+  hook: {
+    pos: [[0.0, [-0.26, -0.3, -0.2]], [0.1, [-0.32, -0.08, -0.3]], [0.22, [-0.06, -0.12, -0.44]], [0.36, [0.12, -0.14, -0.38]], [0.52, [0.1, -0.24, -0.32]], [0.74, [-0.16, -0.42, -0.2]]],
+    F: [[0.0, [0.1, 0.9, -0.4]], [0.1, [-0.5, 0.75, -0.3]], [0.22, [0.25, 0.6, -0.75]], [0.36, [0.7, 0.45, -0.5]], [0.52, [0.5, 0.7, -0.4]], [0.74, [0.2, 0.9, -0.4]]],
+    B: [[0.0, [0.3, 0.2, 0.93]], [0.1, [0.5, 0.3, 0.8]], [0.22, [0.3, 0.6, 0.75]], [0.36, [0.1, 0.7, 0.7]], [0.52, [0.2, 0.4, 0.9]], [0.74, [0.3, 0.3, 0.9]]],
+  },
+  chop: {
+    pos: [[0.0, [-0.24, -0.34, -0.22]], [0.14, [-0.22, 0.06, -0.24]], [0.26, [-0.02, -0.04, -0.42]], [0.4, [0.16, -0.22, -0.38]], [0.56, [0.14, -0.3, -0.32]], [0.78, [-0.14, -0.42, -0.2]]],
+    F: [[0.0, [0.1, 0.9, -0.4]], [0.14, [-0.3, 0.9, 0.3]], [0.26, [0.35, 0.55, -0.75]], [0.4, [0.75, -0.2, -0.6]], [0.56, [0.6, 0.1, -0.7]], [0.78, [0.2, 0.9, -0.4]]],
+    B: [[0.0, [0.3, 0.2, 0.93]], [0.14, [0.6, 0.0, 0.8]], [0.26, [0.6, -0.1, 0.8]], [0.4, [0.2, 0.3, 0.93]], [0.56, [0.2, 0.3, 0.93]], [0.78, [0.3, 0.3, 0.9]]],
+  },
+  overhead: {
+    pos: [[0.0, [-0.22, -0.34, -0.22]], [0.16, [-0.1, 0.1, -0.2]], [0.28, [-0.04, 0.02, -0.4]], [0.42, [0.0, -0.24, -0.42]], [0.58, [0.02, -0.32, -0.34]], [0.8, [-0.14, -0.42, -0.2]]],
+    F: [[0.0, [0.1, 0.9, -0.4]], [0.16, [0.05, 0.6, 0.8]], [0.28, [0.05, 0.85, -0.5]], [0.42, [0.05, -0.2, -0.98]], [0.58, [0.05, 0.1, -0.99]], [0.8, [0.2, 0.9, -0.4]]],
+    B: [[0.0, [0.3, 0.2, 0.93]], [0.16, [0.95, 0.0, 0.2]], [0.28, [0.95, 0.1, 0.2]], [0.42, [0.9, 0.3, 0.1]], [0.58, [0.9, 0.3, 0.2]], [0.8, [0.3, 0.3, 0.9]]],
+  },
+  stab: {
+    pos: [[0.0, [-0.2, -0.36, -0.2]], [0.16, [-0.1, -0.2, -0.22]], [0.3, [-0.02, -0.12, -0.52]], [0.44, [-0.02, -0.13, -0.5]], [0.6, [-0.06, -0.2, -0.34]], [0.8, [-0.14, -0.42, -0.2]]],
+    F: [[0.0, [0.1, 0.9, -0.4]], [0.16, [0.1, 0.5, -0.85]], [0.3, [0.05, 0.25, -0.97]], [0.44, [0.05, 0.3, -0.95]], [0.6, [0.1, 0.6, -0.8]], [0.8, [0.2, 0.9, -0.4]]],
+    B: [[0.0, [0.3, 0.2, 0.93]], [0.16, [0.95, 0.2, 0.2]], [0.3, [0.98, 0.1, 0.1]], [0.44, [0.98, 0.1, 0.1]], [0.6, [0.8, 0.2, 0.5]], [0.8, [0.3, 0.3, 0.9]]],
   },
 };
 
