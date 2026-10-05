@@ -9,6 +9,7 @@ import { falloff } from '../combat.js';
 const STORE = 'nullpunkt:training';
 const TARGET_HP = 100;
 const RAISE_DELAY = 2.4;
+const BENCH_BACK = 2; // m hinter der Feuerlinie (hinter dem Schießtisch, Bahnschild noch über dem Blickfeld)
 const PARCOURS = { count: 12, mix: { 10: 3, 25: 3, 50: 3, 75: 2, 100: 1 }, missPenalty: 0.25, countdown: 3, gap: 0.3 };
 
 function loadStore() {
@@ -336,6 +337,48 @@ export class TrainingMode extends BaseMode {
 
   canRespawn() {
     return true;
+  }
+
+  /**
+   * Schütze startet (und respawnt) an der Feuerlinie einer mittleren Bahn, Blick die Bahn hinunter –
+   * nicht an einem der allgemeinen Kartenstartpunkte hinter der Rückwand. Eine Karte kann den Platz
+   * über `world.spawns.training` vorgeben; sonst wird er aus den Klappzielen abgeleitet
+   * (Ziel steht `distance` Meter vor der Feuerlinie).
+   */
+  chooseSpawn(actor) {
+    const w = this.G.world;
+    const own = w && w.spawns && w.spawns.training;
+    if (Array.isArray(own) && own.length && own[0].position) {
+      const s = own[0];
+      return { position: s.position.clone(), yaw: Number.isFinite(s.yaw) ? s.yaw : 0, source: 'training' };
+    }
+    const spot = this._benchSpot();
+    return spot || super.chooseSpawn(actor);
+  }
+
+  _benchSpot() {
+    const w = this.G.world;
+    const list = w && Array.isArray(w.targets) ? w.targets : [];
+    if (!list.length) return null;
+    // Bahnmitte = mittleres x der Ziele einer Bahn; Feuerlinie = Ziel-z + Entfernung (Ziele liegen in −Z, Gierwinkel 0)
+    const lanes = new Map();
+    let line = -Infinity;
+    for (const t of list) {
+      if (!t.position || !Number.isFinite(t.distance)) continue;
+      const l = lanes.get(t.lane) || { lane: t.lane, sx: 0, n: 0 };
+      l.sx += t.position.x;
+      l.n += 1;
+      lanes.set(t.lane, l);
+      line = Math.max(line, t.position.z + t.distance);
+    }
+    if (!lanes.size) return null;
+    const centers = [...lanes.values()].sort((a, b) => a.lane - b.lane).map((l) => l.sx / l.n);
+    const midX = centers.reduce((m, c) => m + c, 0) / centers.length;
+    let x = centers[0];
+    for (const c of centers) if (Math.abs(c - midX) < Math.abs(x - midX) - 0.01) x = c;
+    const z = line + BENCH_BACK;
+    const y = typeof w.groundHeight === 'function' ? w.groundHeight(x, z, 3) : 0;
+    return { position: new this.G.THREE.Vector3(x, Number.isFinite(y) ? y : 0, z), yaw: 0, source: 'training' };
   }
 
   resultExtra() {

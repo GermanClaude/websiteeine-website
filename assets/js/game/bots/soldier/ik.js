@@ -62,10 +62,38 @@ export function twoBone(S, T, a, b, pole, outE, outT) {
   return dist / (a + b);
 }
 
-/** Gedämpfte Feder (skalar): state = { x, v }. */
+/**
+ * Gedämpfte Feder (skalar): state = { x, v }, x'' = −k·(x − target) − c·x'.
+ * Exakte (analytische) Lösung über den Schritt dt → für jedes dt stabil (auch bei gedrosselter
+ * Animationsrate mit großen, aufgelaufenen Schritten); Energie nimmt nie zu.
+ */
 export function spring(s, target, k, c, dt) {
-  const a = -k * (s.x - target) - c * s.v;
-  s.v += a * dt;
-  s.x += s.v * dt;
+  if (!(dt > 0)) return s.x;
+  const y0 = s.x - target, v0 = s.v;
+  const a = 0.5 * c;
+  const disc = k - a * a;
+  let y, v;
+  if (disc > 1e-9) {
+    // unterdämpft
+    const w = Math.sqrt(disc);
+    const e = Math.exp(-a * dt), cw = Math.cos(w * dt), sw = Math.sin(w * dt);
+    y = e * (y0 * cw + ((v0 + a * y0) / w) * sw);
+    v = e * (v0 * cw - ((a * v0 + k * y0) / w) * sw);
+  } else if (disc < -1e-9) {
+    // überdämpft
+    const b = Math.sqrt(-disc);
+    const r1 = -a + b, r2 = -a - b;
+    const c1 = (v0 - r2 * y0) / (r1 - r2), c2 = y0 - c1;
+    const e1 = Math.exp(r1 * dt), e2 = Math.exp(r2 * dt);
+    y = c1 * e1 + c2 * e2;
+    v = r1 * c1 * e1 + r2 * c2 * e2;
+  } else {
+    // kritisch gedämpft
+    const e = Math.exp(-a * dt), B = v0 + a * y0;
+    y = (y0 + B * dt) * e;
+    v = (v0 - a * B * dt) * e;
+  }
+  s.x = y + target;
+  s.v = v;
   return s.x;
 }

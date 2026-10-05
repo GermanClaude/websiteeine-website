@@ -800,7 +800,10 @@ export class WeaponController {
       _to.copy(a.position).sub(target.position);
       _to.y = 0;
       const backstab = _to.lengthSq() > 1e-4 && _fwd.dot(_to.normalize()) < -0.45;
-      const dmg = ((m.def && m.def.damage && m.def.damage.max) || 135) * (backstab ? 2 : 1);
+      // Schwierigkeit (Bots): gleicher Faktor wie bei Kugeln und Granaten → auf „Rekrut“ braucht das
+      // Messer zwei Treffer, der Rückenstich tötet weiterhin sofort.
+      const scale = Number.isFinite(a.damageScale) ? a.damageScale : 1;
+      const dmg = ((m.def && m.def.damage && m.def.damage.max) || 135) * (backstab ? 2 : 1) * scale;
       const point = new THREE.Vector3().copy(target.position);
       point.y += (target.body ? target.body.height : 1.8) * 0.62;
       const dir = point.clone().sub(_eye).normalize();
@@ -853,15 +856,18 @@ export class WeaponController {
     this.cooking = tr.cookable && tr.pinned && !tr.thrown;
     this.cookTime = tr.cookable ? tr.cook : 0;
     this.fuseLeft = tr.cookable && !tr.thrown ? Math.max(0, fuse - tr.cook) : Infinity;
-    // Zu lange gekocht: Explosion in der Hand
+    // Zu lange gekocht: Explosion in der Hand. Die Granate ist damit verbraucht – Zustand VOR der
+    // Explosion abräumen: tötet sie den Werfer, ruft der kill-Handler onDeath() auf, und eine noch
+    // „gezogene“ Granate würde dort fallen gelassen und sofort ein zweites Mal explodieren.
     if (tr.cookable && !tr.thrown && tr.cook >= fuse) {
-      lethal.count = Math.max(0, lethal.count - 1);
-      this.system.explodeInHand(this.actor, tr.type);
+      tr.thrown = true;
       this._throw = null;
       this.cooking = false;
       this.cookTime = 0;
       this.fuseLeft = Infinity;
+      lethal.count = Math.max(0, lethal.count - 1);
       this._vm('cancelAction');
+      this.system.explodeInHand(this.actor, tr.type);
       return;
     }
     if (!tr.thrown && tr.released && tr.t >= GRENADE.release) {

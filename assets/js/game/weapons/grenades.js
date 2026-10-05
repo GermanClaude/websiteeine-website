@@ -379,8 +379,11 @@ export class GrenadeSystem {
   _boom(p, eq, actor) {
     const G = this.G;
     if (!G.combat) return;
+    // Schwierigkeit (Bots): derselbe Schadensfaktor wie bei Kugeln und Messer
+    const scale = actor && Number.isFinite(actor.damageScale) ? actor.damageScale : 1;
     G.combat.explode({
-      position: p, radius: eq.radius || 6.5, maxDamage: eq.maxDamage || 150, innerRadius: eq.innerRadius, minDamage: eq.minDamage,
+      position: p, radius: eq.radius || 6.5, maxDamage: (eq.maxDamage || 150) * scale, innerRadius: eq.innerRadius,
+      minDamage: Number.isFinite(eq.minDamage) ? eq.minDamage * scale : eq.minDamage,
       attacker: actor || null, weaponId: eq.id, type: eq.id,
     });
   }

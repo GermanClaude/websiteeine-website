@@ -523,7 +523,26 @@ export class BotManager {
 
   stats() {
     const states = {};
-    for (const b of this.bots) if (b.alive) states[b.goal.kind] = (states[b.goal.kind] || 0) + 1;
-    return { bots: this.bots.length, alive: this.bots.filter((b) => b.alive).length, states, ms: +this.debug.ms.toFixed(2), losPerFrame: this.debug.losUsed, pathQueue: this._paths.size };
+    let broken = 0;
+    for (const b of this.bots) {
+      if (!b.alive) continue;
+      states[b.goal.kind] = (states[b.goal.kind] || 0) + 1;
+      if (!this._soldierSane(b)) broken++;
+    }
+    return { bots: this.bots.length, alive: this.bots.filter((b) => b.alive).length, states, ms: +this.debug.ms.toFixed(2), losPerFrame: this.debug.losUsed, pathQueue: this._paths.size, broken };
+  }
+
+  /** Diagnose: Pose/Trefferzonen eines lebenden Bots endlich und am Körper (≤ 3 m von den Füßen)? */
+  _soldierSane(bot) {
+    const s = bot.soldier;
+    if (!s || s.state !== 'alive') return true;
+    const p = bot.position;
+    for (const hb of s.hitboxes) {
+      for (const v of hb.b ? [hb.a, hb.b] : [hb.a]) {
+        if (!Number.isFinite(v.x + v.y + v.z)) return false;
+        if (Math.abs(v.x - p.x) + Math.abs(v.y - p.y) + Math.abs(v.z - p.z) > 3) return false;
+      }
+    }
+    return Number.isFinite(s.getMuzzlePosition(_v).x) && _v.distanceTo(p) < 3;
   }
 }

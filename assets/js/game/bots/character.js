@@ -179,10 +179,11 @@ export class Soldier {
     return lod;
   }
 
-  /** Wurzel setzen (Füße, Körper-Gierung). */
+  /** Wurzel setzen (Füße, Körper-Gierung). Trefferzonen folgen (werden bei Bedarf neu berechnet). */
   place(position, yaw) {
     this.root.position.copy(position);
     this.root.rotation.set(0, yaw, 0);
+    this._hitStamp = -1;
   }
 
   /* ================================================================ Animation */
@@ -223,7 +224,12 @@ export class Soldier {
     p.meleeing = !!params.meleeing;
     p.idleLook = !!params.idleLook;
     if (params.firing) a.shot(params.shotStrength || 1);
-    const bodyYaw = a.update(dt, p);
+    let bodyYaw = a.update(dt, p);
+    // Schutz: kaputte Pose (nicht endliche Werte aus Eingaben) → Ruhepose statt unsichtbarem/untreffbarem Soldaten
+    if (!Number.isFinite(bodyYaw + a.hipsPos.x + a.hipsPos.y + a.gunPos.x + a.gunPos.y + a.gunPos.z + a.headCenter.y)) {
+      a.reset(Number.isFinite(yaw) ? yaw : 0);
+      bodyYaw = a.bodyYaw;
+    }
     if (params.position) this.place(params.position, bodyYaw);
     else this.root.rotation.y = bodyYaw;
     if (this.props.grenade) this.props.grenade.visible = !!a.grenadeVisible;

@@ -18,6 +18,7 @@ const GRAVITY = 24;
 const JUMP_V = Math.sqrt(2 * GRAVITY * 1.1);
 const ACCEL = 15, DECEL = 11;
 const FALL_SAFE = 14;
+const ANIM_MAX_STEP = 0.25; // s je Animationsschritt (6 übersprungene Bilder bei 24 fps)
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
@@ -522,7 +523,8 @@ export class Bot {
       s.place(this.body.position, s.anim.bodyYaw);
       return;
     }
-    const adt = this._animAcc;
+    // aufgelaufene Zeit (gedrosselte Rate); begrenzt, damit Schrittzyklus/Gesten nicht springen
+    const adt = Math.min(this._animAcc, ANIM_MAX_STEP);
     this._animAcc = 0;
     const w = this.weapon;
     const def = w ? w.currentDef : null;

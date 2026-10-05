@@ -100,6 +100,7 @@ export class Animator {
     this.flinchP = { x: 0, v: 0 };
     this.flinchR = { x: 0, v: 0 };
     this.flinchH = { x: 0, v: 0 };
+    this._springs = [this.land, this.recoil, this.recoilP, this.flinchP, this.flinchR, this.flinchH];
     this.lean = 0;
     this.stepping = 0; // Nachsetzschritt im Stand
     this.stepYaw = yaw;
@@ -185,6 +186,15 @@ export class Animator {
     if (this.fireMode === 'bolt' || this.fireMode === 'pump') this.boltT = 0;
   }
 
+  /** Schutz: nicht endliche oder unplausible Federzustände (z. B. aus NaN-Eingaben) auf Ruhe setzen. */
+  _saneSprings() {
+    const list = this._springs;
+    for (let i = 0; i < list.length; i++) {
+      const s = list[i];
+      if (!(Math.abs(s.x) < 10) || !(Math.abs(s.v) < 500)) { s.x = 0; s.v = 0; }
+    }
+  }
+
   /** Treffer-Zucken: dir = Flugrichtung der Kugel im Modellraum. */
   hit(dir, zone, amount = 25) {
     const s = clamp(amount / 35, 0.4, 1.6);
@@ -258,17 +268,14 @@ export class Animator {
     }
     this.hipYaw += (hipTarget - this.hipYaw) * damp(7, dt);
 
-    // Federn (Unterschritte für Stabilität)
-    const n = dt > 1 / 45 ? 2 : 1;
-    const h = dt / n;
-    for (let i = 0; i < n; i++) {
-      spring(this.recoil, 0, 320, 30, h);
-      spring(this.recoilP, 0, 260, 28, h);
-      spring(this.flinchP, 0, 150, 16, h);
-      spring(this.flinchR, 0, 150, 16, h);
-      spring(this.flinchH, 0, 180, 18, h);
-      spring(this.land, 0, 140, 15, h);
-    }
+    // Federn: exakter Schritt (stabil für jedes dt, auch bei gedrosselter Animationsrate)
+    spring(this.recoil, 0, 320, 30, dt);
+    spring(this.recoilP, 0, 260, 28, dt);
+    spring(this.flinchP, 0, 150, 16, dt);
+    spring(this.flinchR, 0, 150, 16, dt);
+    spring(this.flinchH, 0, 180, 18, dt);
+    spring(this.land, 0, 140, 15, dt);
+    this._saneSprings();
 
     // Gesten-Zeitgeber
     if (p.throwing) {
