@@ -514,7 +514,7 @@ export class HUD {
     const stamp = !!S.get('bodycamStamp');
     this.el.stamp.hidden = !stamp;
     toggle(this.root, 'has-stamp', stamp);
-    if (stamp) { this._stampAt = -1; setText(this.el.stampId, deviceId(S.get('playerName'))); }
+    if (stamp) { this._stampAt = -1; setHtml(this.el.stampId, `<i>NP-K2 · </i>${deviceId(S.get('playerName'))}`); }
     if (changed && this.minimap) this.minimap.resize();
     if (st === 'aus') { this.el.hit.classList.remove('is-on'); this._hitT = 0; }
   }
@@ -1455,11 +1455,11 @@ export class HUD {
   }
 }
 
-/** Erfundene Geräte-ID der Körperkamera („NP-K2 · X7A3F02“), stabil je Spielername. */
+/** Erfundene Seriennummer der Körperkamera („X7A3F02“, Modell „NP-K2“ steht davor), stabil je Spielername. */
 function deviceId(name) {
   let h = 2166136261;
   for (const c of String(name || 'Operator')) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
-  return `NP-K2 · X${(h >>> 4).toString(16).toUpperCase().padStart(7, '0').slice(0, 7)}`;
+  return `X${(h >>> 4).toString(16).toUpperCase().padStart(7, '0').slice(0, 7)}`;
 }
 
 /**

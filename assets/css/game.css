@@ -2008,8 +2008,7 @@ body[data-input-mode="touch"] .m-btn kbd { display: none; }
 .bd-key.is-empty { border-style: dashed; color: var(--np-dim); }
 .bd-key.is-conflict { border-color: var(--np-enemy); box-shadow: inset 0 0 0 1px rgba(255, 59, 59, .4); }
 .bd-key.is-fixed { cursor: default; opacity: .7; }
-.bd-key.is-capturing { border-color: var(--np-signal); background: var(--np-signal-soft); animation: bd-pulse 1s ease-in-out infinite; }
-@keyframes bd-pulse { 50% { box-shadow: 0 0 0 3px rgba(255, 91, 31, .25); } }
+.bd-key.is-capturing { border-color: var(--np-signal); background: var(--np-signal-soft); box-shadow: 0 0 0 3px rgba(255, 91, 31, .25); }
 .bd-key kbd, .ch-table kbd.kb-pad {
   display: inline-grid;
   place-items: center;
@@ -2063,9 +2062,7 @@ kbd.kb-pad[data-pad="3"][data-ps="1"] { color: #4fe0b0; }
 .bd-cap-k { font: 600 12px var(--font-mono); letter-spacing: .2em; text-transform: uppercase; color: var(--np-signal); }
 .bd-cap-a { font: 900 clamp(22px, 3.4vw, 30px)/1.1 var(--font-display); font-stretch: 115%; text-transform: uppercase; }
 .bd-cap-h { font: 500 13px/1.4 var(--font-hud); color: var(--np-ink-2); }
-.bd-cap-t { width: 100%; height: 3px; margin-top: 6px; background: rgba(233, 230, 223, .14); }
-.bd-cap-t u { display: block; height: 100%; background: var(--np-signal); transform-origin: left; animation: bd-timer 8s linear forwards; }
-@keyframes bd-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.bd-cap-t { margin-top: 4px; font: 600 11px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--np-dim); }
 /* Touch-Vorlagen */
 .tp-edit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 0 4px; }
 .tp-edit p { flex: 1 1 260px; margin: 0; font: 500 13.5px/1.4 var(--font-hud); color: var(--np-ink-2); }
@@ -2280,7 +2277,7 @@ body[data-touch-edit="1"] .te-overlap { box-shadow: 0 0 0 2px var(--np-enemy), 0
   .pc { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .bd-key.is-capturing, .sp-toast { animation: none; }
+  .sp-toast { animation: none; }
   .gm-bar i { transition: none; }
 }
 /* Niedrige Telefone quer (≤ 430 px, z. B. 667 × 375): Kopf, Reiter und Fußzeile der Einstellungen verdichten,
@@ -2366,9 +2363,15 @@ body[data-touch-edit="1"] .te-overlap { box-shadow: 0 0 0 2px var(--np-enemy), 0
 .h-stamp i, .h-stamp em { font-style: normal; }
 .h-root.has-stamp:not([data-input="touch"]) .h-feed { top: calc(var(--pad-t) + 40px); }
 .h-root[data-input="touch"] .h-stamp { right: calc(2.2% + var(--tc-u) * 52 + max(44px, var(--tc-u) * 42) + 12px + env(safe-area-inset-right)); font-size: 10.5px; }
-.h-root[data-input="touch"] .h-stamp i { display: none; }
+.h-root[data-input="touch"] .h-stamp i { display: none; } /* nur Seriennummer + Uhrzeit: passt zwischen Punktestand und Knöpfe */
 /* Steuerungsübersicht aus der aktuellen Belegung */
 .ch-table tr.ch-grp td { padding: 14px 4px 4px; border-bottom: 0; font: 600 11px var(--font-mono); letter-spacing: .18em; text-transform: uppercase; color: var(--np-dim); text-align: left; }
 .ch-table td:last-child kbd { margin-left: 2px; }
 .ch-more { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 12px 0 6px; }
 .ch-more small { font: 500 13px var(--font-hud); color: var(--np-dim); }
+/* Punktetabelle auf Touch: schmalere Zahlenspalten, damit Namen auch mit Zusatzspalte (Eroberungen) Platz haben */
+body[data-input-mode="touch"] .sb-table th { width: 38px; }
+body[data-input-mode="touch"] .sb-table th.sb-name { width: auto; }
+body[data-input-mode="touch"] .sb-table th.sb-extra { width: 64px; overflow: hidden; text-overflow: ellipsis; }
+body[data-input-mode="touch"] .sb-table th { letter-spacing: .06em; }
+body[data-input-mode="touch"] .sb-table th:nth-child(3) { width: 52px; }

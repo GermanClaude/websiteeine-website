@@ -3,7 +3,7 @@
 // (Einfachmodell bis zur Nebelkante); Instanzen werden nach Kamerabewegung kompakt umsortiert (wenige Draw Calls).
 // Stämme und Felsen liefern Kollisions-/Kugel-Dreiecke; Laub blockiert keine Kugeln.
 import * as THREE from 'three';
-import { createFoliage } from '../atlas.js';
+import { createFoliage, foliageUniforms } from '../atlas.js';
 import { rng, hash2, createSimplex, smoothstep } from './noise.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
@@ -41,6 +41,45 @@ function spruceGeometry() {
   g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
   g.computeBoundingSphere();
   return g;
+}
+
+/** Grasbüschel aus 7 schmalen Halmen (Vertexfarbe: dunkler Fuß → helle Spitze), ohne Textur/Alpha-Test. */
+function grassGeometry() {
+  const P = [], C = [], N = [], r = rng(5);
+  for (let k = 0; k < 7; k++) {
+    const a = r() * Math.PI * 2, d = Math.sqrt(r()) * 0.22, x = Math.cos(a) * d, z = Math.sin(a) * d;
+    const h = 0.32 + r() * 0.34, w = 0.035 + r() * 0.02, lean = (r() - 0.5) * 0.35, ang = r() * Math.PI;
+    const cx = Math.cos(ang) * w, cz = Math.sin(ang) * w, lx = Math.cos(a) * lean * h, lz = Math.sin(a) * lean * h;
+    P.push(x - cx, 0, z - cz, x + cx, 0, z + cz, x + lx, h, z + lz);
+    C.push(0.42, 0.45, 0.32, 0.42, 0.45, 0.32, 1, 1, 0.92);
+    N.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+  g.computeBoundingSphere();
+  return g;
+}
+
+/** Material der Grashalme: Vertexfarbe × Instanzfarbe, beidseitig, Wind wie das Laub (foliageUniforms). */
+function grassMaterial() {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
+  m.name = 'vegetation-gras'; m.userData.disposable = true; m.userData.surface = 'grass';
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uTime = foliageUniforms.uTime;
+    sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      #ifdef USE_INSTANCING
+        vec3 ip = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+      #else
+        vec3 ip = vec3(0.0);
+      #endif
+      float sw = max(0.0, position.y) * 0.22;
+      transformed.x += sin(uTime * 1.9 + ip.x * 0.35 + ip.z * 0.21) * sw;
+      transformed.z += cos(uTime * 1.5 + ip.z * 0.33) * sw * 0.6;`);
+  };
+  m.customProgramCacheKey = () => 'np-gras-v1';
+  return m;
 }
 
 function merge(geoms) {
@@ -314,9 +353,11 @@ export class Vegetation {
         this.group.add(m);
       }
     }
-    // Grasring
+    // Grasring (eigene Halme statt Laub-Atlas: liest sich auf Wiesen besser und braucht keinen Alpha-Test)
     if (t.grass > 0) {
-      this.grass = make(gp.geometry, foliageMatN, t.grassCap, 'veg-gras', false);
+      const gg = grassGeometry(), gm = grassMaterial();
+      this._geoms.push(gg); this._own.push(gm);
+      this.grass = make(gg, gm, t.grassCap, 'veg-gras', false);
     }
     return this.group;
   }
@@ -386,7 +427,7 @@ export class Vegetation {
       if (L[0] < 0.55 || hf.maskAt(x, z)) continue;
       const y = hf.heightAt(x, z);
       if (y < hf.waterY + 0.1) continue;
-      const s = (0.55 + 0.6 * hash2(i, j, 3)) * smoothstep(R, R * 0.7, d) * (0.6 + L[0] * 0.5);
+      const s = (0.75 + 0.6 * hash2(i, j, 3)) * smoothstep(R, R * 0.72, d) * (0.6 + L[0] * 0.5);
       if (s < 0.08) continue;
       _q.setFromAxisAngle(_up, hash2(i, j, 4) * 6.283); _s.set(s, s * (0.8 + hash2(i, j, 5) * 0.5), s); _p.set(x, y - 0.03, z);
       _m.compose(_p, _q, _s); _m.toArray(arr, k * 16);
@@ -413,5 +454,5 @@ const TINTS = {
   busch: ['#87a06a', '#9fb27a', '#7c955f'],
   schilf: ['#c2bc88', '#aab07a', '#b8b880'],
 };
-const GRASS_TINT = ['#b9c08e', '#a9b77f', '#c7c9a0', '#9fb075'];
+const GRASS_TINT = ['#8fa25a', '#9aab62', '#a7b26c', '#86994f', '#b3b878'];
 const TRUNK_COL = { fichte: new Float32Array([0.62, 0.55, 0.5]), laub: new Float32Array([0.85, 0.8, 0.72]) };

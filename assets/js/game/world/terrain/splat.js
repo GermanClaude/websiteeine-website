@@ -46,7 +46,9 @@ export async function createTerrainMaterial(o) {
         const set = r.sets.get('gelaende:' + l.key);
         if (!set) return;
         maps[k] = set.map; normals[k] = set.normalMap;
-        if (set.sizeM) sizes[k] = Math.max(1.5, Math.min(6, set.sizeM));
+        // sizeM ist [Breite, Höhe] in m; Gelände etwas gröber kacheln (weniger Wiederholung aus Augenhöhe)
+        const sm = Array.isArray(set.sizeM) ? set.sizeM[0] : set.sizeM;
+        if (Number.isFinite(sm) && sm > 0) sizes[k] = Math.max(2.2, Math.min(6, sm * 1.6));
         libIds.push(`${set.id}@${set.tier}`);
       });
       if (libIds.length) source = libIds.length === TERRAIN_LAYERS.length ? 'bibliothek' : 'gemischt';

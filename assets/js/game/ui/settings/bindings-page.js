@@ -138,7 +138,7 @@ export function bindingsPage(P) {
         ${tools}
         ${dev === 'touch' ? touchHtml() : listHtml(dev)}
       </div>
-      <div class="bd-cap" hidden role="status" aria-live="assertive"><div class="bd-cap-in"><span class="bd-cap-k"></span><b class="bd-cap-a"></b><small class="bd-cap-h"></small><i class="bd-cap-t"><u></u></i><button type="button" class="m-btn bd-cap-x" hidden>${ICON.close}<span>Abbrechen</span></button></div></div>`;
+      <div class="bd-cap" hidden role="status" aria-live="assertive"><div class="bd-cap-in"><span class="bd-cap-k"></span><b class="bd-cap-a"></b><small class="bd-cap-h"></small><small class="bd-cap-t"></small><button type="button" class="m-btn bd-cap-x" hidden>${ICON.close}<span>Abbrechen</span></button></div></div>`;
     if (scroller && top) scroller.scrollTop = top;
   }
 
@@ -176,15 +176,18 @@ export function bindingsPage(P) {
     host.querySelector('.bd-cap-x').hidden = !startedByTouch;
     cap.hidden = false;
     btn.classList.add('is-capturing');
-    const t = host.querySelector('.bd-cap-t u');
-    t.style.animation = 'none';
-    void t.offsetWidth; // Zeitbalken neu starten (einmalig je Erfassung, kein Bild-für-Bild-Layout)
-    t.style.animation = '';
+    // Restzeit einmal je Sekunde (keine Dauer-Animation: über dem unscharfen Menühintergrund kostet jedes Bild viel)
+    const t = host.querySelector('.bd-cap-t');
+    const t0 = performance.now();
+    const tick = () => { const left = Math.max(0, Math.ceil(8 - (performance.now() - t0) / 1000)); t.textContent = `Bricht in ${left} s ab`; };
+    tick();
+    const timer = setInterval(tick, 1000);
     // Touch: Antippen bricht ab (vor dem kompatiblen mousedown, der sonst als Maustaste erfasst würde)
     const onDown = (e) => { if (e.pointerType && e.pointerType !== 'mouse') { e.preventDefault(); e.stopPropagation(); input.cancelCapture(); } };
     window.addEventListener('pointerdown', onDown, true);
     P.sound('click');
     const code = await input.capture({ device: dev, timeout: 8000 });
+    clearInterval(timer);
     window.removeEventListener('pointerdown', onDown, true);
     capturing = null;
     if (!host) return;

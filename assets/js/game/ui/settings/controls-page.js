@@ -215,6 +215,9 @@ export function controlsPage(P) {
     refreshGyro();
   }
 
+  /** Attribut nur bei Änderung schreiben (jede Schreibung kostet über dem unscharfen Menühintergrund ein ganzes Bild). */
+  const setA = (n, k, v) => { if (n && n.getAttribute(k) !== v) n.setAttribute(k, v); };
+
   /** Live-Anzeigen (nur solange die Seite offen ist): Controller-Sticks + Kurvenpunkt, Gyro-Achsen, Kalibrierung. */
   function frame() {
     raf = requestAnimationFrame(frame);
@@ -233,14 +236,15 @@ export function controlsPage(P) {
       const look = swap ? L : R;
       [L, R].forEach((v, i) => {
         const d = sticks[i].querySelector('.pc-raw');
-        d.setAttribute('cx', (v[0] * 48).toFixed(1));
-        d.setAttribute('cy', (v[1] * 48).toFixed(1));
+        setA(d, 'cx', (v[0] * 48).toFixed(1));
+        setA(d, 'cy', (v[1] * 48).toFixed(1));
         sticks[i].classList.toggle('is-look', v === look);
       });
       const m = Math.min(1, Math.hypot(look[0], look[1]));
       const y = padResponse(m, { curve: S.get('padCurve'), dz: S.get('padDeadzone'), outer: S.get('padOuterDeadzone') });
       const dot = host.querySelector('.pc-dot');
-      if (dot) { dot.setAttribute('cx', (m * 100).toFixed(1)); dot.setAttribute('cy', (100 - y * 100).toFixed(1)); }
+      setA(dot, 'cx', (m * 100).toFixed(1));
+      setA(dot, 'cy', (100 - y * 100).toFixed(1));
     }
     for (const s of sticks) s.classList.toggle('is-idle', !pad);
     // Gyro
@@ -251,7 +255,8 @@ export function controlsPage(P) {
         const v = fresh ? live.rate[i] - bias[i] : 0;
         const u = n.querySelector('u');
         const k = Math.max(-1, Math.min(1, v / 90));
-        u.style.transform = `translateX(${k < 0 ? (k * 50).toFixed(1) : 0}%) scaleX(${Math.abs(k).toFixed(3)})`;
+        const tr = `translateX(${k < 0 ? (k * 50).toFixed(1) : 0}%) scaleX(${Math.abs(k).toFixed(2)})`;
+        if (u.__tr !== tr) { u.__tr = tr; u.style.transform = tr; }
         const o = n.querySelector('output');
         const t = num(v, 1);
         if (o.textContent !== t) o.textContent = t;
