@@ -100,6 +100,7 @@ export class BaseMode {
     if (this.streaks) objs.push(...this.streaks.warmObjects());
     const gs = G.weapons && G.weapons.grenadeSystem;
     if (this.def.lethals !== false && gs && typeof gs.warmObjects === 'function') objs.push(...gs.warmObjects());
+    objs.push(...this.warmObjects());
     if (!objs.length) return;
     const g = new THREE.Group();
     g.name = 'aufwaermen:modus';
@@ -270,6 +271,8 @@ export class BaseMode {
   onMatchStart() {}
   onSpawn() {}
   onVehicleScored() {}
+  /** Zusätzliche Objekte für den Aufwärm-Kompilierdurchgang (z. B. Erkennungsmarken). */
+  warmObjects() { return []; }
   tick() {}
   /** Abschuss mit Punktwirkung (credit = Schütze oder Besitzer der Serienprämie). */
   onKillScored() {}

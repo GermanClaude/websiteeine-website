@@ -78,9 +78,9 @@ export class CapsuleBody {
     c.end.set(p.x, Math.max(p.y + this.height - r, sy + 0.001), p.z);
   }
 
-  /** Kapselhöhe setzen (Ducken: Kopf senkt sich, Füße bleiben). */
+  /** Kapselhöhe setzen (Ducken: Kopf senkt sich, Füße bleiben; Liegen bis 2r + 0,02 m). */
   setHeight(h) {
-    this.height = Math.min(this.standHeight, Math.max(this.radius * 2 + 0.1, h));
+    this.height = Math.min(this.standHeight, Math.max(this.radius * 2 + 0.02, h));
     this._sync();
   }
 
