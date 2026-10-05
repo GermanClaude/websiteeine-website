@@ -1031,7 +1031,11 @@ export class HUD {
     /* ---------- Punktetabelle */
     const showBoard = !!(input && input.down('scoreboard')) && G.mode;
     const tablet = this.style === 'aus' && !!showBoard;
-    if (tablet !== this._tablet) { this._tablet = tablet; toggle(this.root, 'is-tablet', tablet); if (tablet && this.minimap) this.minimap.resize(); }
+    if (tablet !== this._tablet) {
+      this._tablet = tablet;
+      toggle(this.root, 'is-tablet', tablet);
+      if (tablet && this.minimap) { this.minimap.resize(); this.minimap.update(0, true); } // sofort zeichnen, nicht erst im nächsten Bild
+    }
     if (showBoard) {
       if (this.el.board.hidden) { this.el.board.hidden = false; this._boardT = 0; }
       this._boardT -= dt;

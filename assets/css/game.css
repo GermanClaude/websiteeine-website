@@ -2367,3 +2367,8 @@ body[data-touch-edit="1"] .te-overlap { box-shadow: 0 0 0 2px var(--np-enemy), 0
 .h-root.has-stamp:not([data-input="touch"]) .h-feed { top: calc(var(--pad-t) + 40px); }
 .h-root[data-input="touch"] .h-stamp { right: calc(2.2% + var(--tc-u) * 52 + max(44px, var(--tc-u) * 42) + 12px + env(safe-area-inset-right)); font-size: 10.5px; }
 .h-root[data-input="touch"] .h-stamp i { display: none; }
+/* Steuerungsübersicht aus der aktuellen Belegung */
+.ch-table tr.ch-grp td { padding: 14px 4px 4px; border-bottom: 0; font: 600 11px var(--font-mono); letter-spacing: .18em; text-transform: uppercase; color: var(--np-dim); text-align: left; }
+.ch-table td:last-child kbd { margin-left: 2px; }
+.ch-more { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 12px 0 6px; }
+.ch-more small { font: 500 13px var(--font-hud); color: var(--np-dim); }

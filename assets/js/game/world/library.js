@@ -50,7 +50,8 @@ export const LIB_MATERIALS = {
   wood_floor: { id: 'wood_floor_old', color: 1.2 },
   osb: { id: 'osb', color: 0.9 },
   bark_palm: { id: 'bark_palm', color: 0.8, macro: false },
-  cardboard: { id: 'cardboard', color: 0.75, repeat: 1, macro: false },
+  // cardboard: bleibt prozedural – der Fotoscan ist nackte Wellpappe; Klebeband/Aufdruck des prozeduralen Kartons lesen
+  // sich auf Kistenflächen besser (Kartenzuordnung assets.materials.cardboard = 'cardboard' schaltet ihn wieder zu)
   metal_painted: { id: 'metal_painted', color: 1.35, macro: [0.1, 0.08, 0.1] },
   metal_rust: { id: 'metal_rust_painted', color: 0.75 },
   metal_corrugated: { id: 'metal_corrugated', color: 3.0 },

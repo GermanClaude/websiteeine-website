@@ -313,10 +313,17 @@ export class Menus {
     const s = this._screen('controls', 'm-sub', `
       <div class="sub sub-wide">
         <header class="sub-head"><button type="button" class="m-icon" data-act="back" aria-label="Zurück">${ICON.back}</button><div><div class="m-kicker">${back === 'lobby' ? 'Lobby' : 'Pause'}</div><h1 class="m-title">Steuerung<em>.</em></h1></div></header>
-        ${controlsHtml(touch ? 'touch' : pad ? 'pad' : 'keys')}
+        ${controlsHtml(touch ? 'touch' : pad ? 'pad' : 'keys', this.G)}
       </div>`);
     this.parent = back;
-    bindControls(s);
+    bindControls(s, (dev) => {
+      // „Belegung ändern“: Einstellungen → Belegung mit diesem Gerät; Touch direkt in den Layout-Editor
+      if (dev === 'touch') { this.showTouchEditor(); return; }
+      this.settingsPanel.group = 'belegung';
+      this.settingsPanel._state.belegung = { device: dev };
+      this.sound('click');
+      this.showSettings(back);
+    });
     s.querySelector('[data-act="back"]').addEventListener('click', () => this._back());
     this._focusFirst(s, '.m-tab[aria-selected="true"]');
   }

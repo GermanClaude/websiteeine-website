@@ -1,6 +1,6 @@
 // NULLPUNKT — Einstellungen wie in einem PC-Spiel: Reiter Steuerung · Belegung · Grafik · Erweitert · Audio · HUD ·
 // Profil · Spiel. Jede Änderung wirkt sofort (settings.set), synchron mit anderen Tabs/der Website. Die Seiten liegen
-// in ui/settings/*; dieses Modul baut Reiter, Fußzeile („Standard für …“, Hinweise mit „Rückgängig“) und reicht
+// in ui/settings/ (je Reiter ein Modul); dieses Modul baut Reiter, Fußzeile („Standard für …“, Hinweise mit „Rückgängig“) und reicht
 // Änderungen an die offene Seite weiter. Bedienbar per Touch (667 × 375), Maus, Tastatur und Gamepad (menus.js:
 // LB/RB = Reiter, Steuerkreuz = Fokus, links/rechts = Werte).
 

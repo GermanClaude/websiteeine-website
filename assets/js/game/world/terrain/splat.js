@@ -120,7 +120,7 @@ export async function createTerrainMaterial(o) {
         aG *= mix(vec3(1.06, 1.02, 0.86), vec3(0.86, 0.98, 0.9), macro); // grün ↔ gelblich
         vec3 aD = tSample(tMap1, vTW.xz * tScale[1], anti);
         vec3 aK = texture2D(tMap2, vTW.xz * tScale[2]).rgb;
-        vec3 aF = tSample(tMap3, vTW.xz * tScale[3], anti);
+        vec3 aF = tSample(tMap3, vTW.xz * tScale[3], anti) * vec3(0.62, 0.6, 0.56); // Fels/Geröll dunkler (kein Schnee-Eindruck)
         vec3 aM = texture2D(tMap4, vTW.xz * tScale[4]).rgb;
         float sum = wG + wv.x + wv.y + wv.z + wv.w + 1e-4;
         vec3 alb = (aG * wG + aD * wv.x + aK * wv.y + aF * wv.z + aM * wv.w) / sum;

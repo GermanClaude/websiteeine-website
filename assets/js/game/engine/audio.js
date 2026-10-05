@@ -479,15 +479,16 @@ export class AudioEngine {
     if (lo) for (const id of [lo.primary, lo.secondary]) this._weaponSamples(id, own);
     const mapId = this.G.match?.mapId || this.G.world?.id || (() => { try { return this.settings?.get?.('lastMap'); } catch { return null; } })();
     const amb = MAP_AMBIENCE[mapId] || (AMBIENCES[mapId] ? mapId : null);
+    // Kern (angeheftet): alle Waffenstimmen nah/fern – Bots tragen jede Waffe –, Explosion, Treffer, häufigste Flächen
     const core = [
-      ...Object.keys(GUN_PROFILES).map(p => `gunfar_${p}`), 'explosion', 'explosion_far', 'hit_flesh', 'step_concrete', 'impact_concrete',
-      'bullet_whiz', 'bodyfall', 'shell_concrete', 'grenade_bounce',
+      ...Object.keys(GUN_PROFILES).map(p => `gun_${p}`), ...Object.keys(GUN_PROFILES).map(p => `gunfar_${p}`), 'explosion', 'explosion_far',
+      'hit_flesh', 'step_concrete', 'impact_concrete', 'bullet_whiz', 'shell_concrete', 'grenade_bounce',
     ];
     if (amb) core.unshift(`amb_bed_${amb}`);
     // Fahnen fremder Waffen nur ab „medium“ (Handy: nur die eigene Fahne, Stimmenbudget)
     const tails = this._quality() === 'low' ? [] : Object.keys(GUN_PROFILES).map(p => `guntail_${p}`);
     const rest = [
-      ...Object.keys(GUN_PROFILES).map(p => `gun_${p}`), ...tails,
+      'bodyfall', ...tails,
       ...['wood', 'dirt', 'metal', 'grass', 'gravel'].map(s => `step_${s}`), ...['wood', 'dirt', 'glass'].map(s => `impact_${s}`),
       'melee_swing', 'melee_hit', 'shell_hard', 'shell_shotgun', 'reload_bolt', 'bolt', 'pump', 'slide_release', 'mech_rifle', 'mech_pistol',
     ];

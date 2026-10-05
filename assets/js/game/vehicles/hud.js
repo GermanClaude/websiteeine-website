@@ -45,8 +45,8 @@ const CSS = `
 .vh-scope{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 34%,rgba(0,0,0,.55) 46%,rgba(0,0,0,.92) 60%)}
 .vh-scope[hidden]{display:none}
 body[data-vehicle] .h-cross,body[data-vehicle] .h-weapon,body[data-vehicle] .h-equip,body[data-vehicle] .h-streaks,body[data-vehicle] .h-scope,body[data-vehicle] .h-cook,body[data-vehicle] .h-gunlead{display:none!important}
-body[data-input-mode="touch"] .vh-panel{width:236px;padding:7px 9px;right:auto;left:calc(50% - 118px);bottom:auto;top:calc(10px + env(safe-area-inset-top))}
-body[data-input-mode="touch"] .vh-hint,body[data-input-mode="touch"] .vh-prompt kbd{display:none}
+body[data-input-mode="touch"] .vh-panel{width:224px;padding:6px 9px;right:auto;left:calc(50% - 112px);bottom:calc(3% + max(44px, calc(var(--tc-u,1px) * 44)) + 8px + env(safe-area-inset-bottom))}
+body[data-input-mode="touch"] .vh-hint,body[data-input-mode="touch"] .vh-prompt kbd,body[data-input-mode="touch"] .vh-zones,body[data-input-mode="touch"] .vh-wep:not(.is-sel){display:none}
 body[data-input-mode="touch"] .vh-name{font-size:14px}body[data-input-mode="touch"] .vh-speed{font-size:17px}
 body[data-input-mode="touch"] .vh-wep{font-size:12px;padding:2px 5px}body[data-input-mode="touch"] .vh-seats{display:none}
 .vc-btn{display:none;font:700 calc(var(--tc-u,1px)*13) var(--font-hud,system-ui);letter-spacing:.04em;text-transform:uppercase;text-align:center;line-height:1.05}

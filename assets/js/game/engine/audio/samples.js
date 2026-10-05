@@ -16,7 +16,7 @@ export const LIB_URL = new URL('../../../../lib/audio/', import.meta.url);
 export const SAMPLE_TIERS = {
   high: { label: 'Hoch', maxVar: { near: 4, far: 2, tail: 2, oneshot: 4, mech: 1, bed: 1 }, group: {}, rate: {}, ch: {}, capMB: 40, concurrency: 3 },
   medium: { label: 'Mittel', maxVar: { near: 3, far: 2, tail: 1, oneshot: 3, mech: 1, bed: 1 }, group: { step: 4 }, rate: { near: 32000, oneshot: 32000, tail: 24000, bed: 22050 }, ch: { tail: 1 }, capMB: 24, concurrency: 2 },
-  low: { label: 'Niedrig', maxVar: { near: 2, far: 1, tail: 1, oneshot: 2, mech: 0, bed: 1 }, group: { step: 3, impact: 2 }, rate: { near: 32000, far: 22050, tail: 22050, oneshot: 32000, mech: 32000, bed: 16000 }, ch: { near: 1, far: 1, tail: 1, oneshot: 1, mech: 1, bed: 1 }, capMB: 12, concurrency: 1 },
+  low: { label: 'Niedrig', maxVar: { near: 2, far: 1, tail: 1, oneshot: 2, mech: 0, bed: 1 }, group: { step: 3, impact: 2 }, name: { explosion: 1, explosion_far: 1, bodyfall: 1 }, rate: { near: 32000, far: 22050, tail: 22050, oneshot: 32000, mech: 32000, bed: 16000 }, ch: { near: 1, far: 1, tail: 1, oneshot: 1, mech: 1, bed: 1 }, capMB: 11.5, concurrency: 1 },
 };
 /** Hörbare Länge je Lage (s): die Außen-Fahne blendet die Engine nach ≤ 1,5 s aus (Plan §10 A3) → Rest nicht speichern. */
 export const MAX_DUR = { tail: 1.6 };
@@ -27,7 +27,7 @@ const OAC = typeof window !== 'undefined' ? (window.OfflineAudioContext || windo
 const HAS_CTOR = (() => { try { return typeof AudioBuffer === 'function' && new AudioBuffer({ length: 1, sampleRate: 16000 }).length === 1; } catch { return false; } })();
 const yieldTask = () => new Promise((r) => setTimeout(r, 0));
 const LEAD_MAX = 0.05;        // s: höchstens so viel führende Stille abschneiden (Decoder-Polster)
-const MIX_CHUNK = 131072;     // Samples je Häppchen beim Abmischen auf Mono
+const MIX_CHUNK = 32768;      // Samples je Häppchen beim Abmischen/Kürzen (≈ 0,1–0,4 ms je Häppchen auf Handys)
 
 /** decodeAudioData in Promise- und Callback-Form (ältere Safari kennen nur Callbacks). */
 function decodeWith(ctx, ab) {
@@ -95,8 +95,8 @@ class SampleLibrary {
 
   _maxVar(s) {
     const t = this.tier || SAMPLE_TIERS.high;
-    const g = t.group[s.group], l = t.maxVar[s.layer];
-    return Math.min(s.variants.length, g ?? l ?? 4);
+    const n = t.name?.[s.catalog], g = t.group[s.group], l = t.maxVar[s.layer];
+    return Math.min(s.variants.length, n ?? g ?? l ?? 4);
   }
   _rate(s) { const t = this.tier || SAMPLE_TIERS.high; return Math.min(s.rate, t.rate[s.layer] ?? s.rate); }
   _ch(s) { const t = this.tier || SAMPLE_TIERS.high; return Math.min(s.ch, t.ch[s.layer] ?? s.ch); }
@@ -253,10 +253,15 @@ class SampleLibrary {
     }
   }
 
-  /** Platz schaffen: LRU-Freigabe nicht angehefteter, seit ≥ 20 s ungenutzter Klänge. */
+  /**
+   * Platz schaffen: nur für angeheftete Klänge (Ausrüstung, Karte, Kern) werden nicht angeheftete, seit ≥ 20 s
+   * ungenutzte Klänge freigegeben (LRU). Nicht angeheftete Aufträge verdrängen nichts – sonst würden sich
+   * Bot-Waffen und Flächen gegenseitig hinauswerfen und wieder laden.
+   */
   _room(need, j) {
     const cap = this.capBytes;
     if (this.stats.bytes + need <= cap) return true;
+    if (!this.pins.has(j.name)) return false;
     const now = clock();
     const cand = [...this.buffers.keys()].filter((n) => !this.pins.has(n) && n !== j.name && now - (this.used.get(n) || 0) > 20000)
       .sort((a, b) => (this.used.get(a) || 0) - (this.used.get(b) || 0));

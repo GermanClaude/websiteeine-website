@@ -491,8 +491,8 @@ function tierCost(t) {
   for (const [name, s] of Object.entries(S)) {
     if (s.group === 'gun') { const p = name.replace(/^(gun|gunfar|guntail|gunsup)_/, ''); if (s.layer !== 'mech' && !CORE.includes(p)) continue; }
     if (s.layer === 'bed' && name !== 'amb_bed_harbor') continue;
-    if (name === 'impact_metal') continue;
-    const n = Math.min(s.variants.length, t.group[s.group] ?? t.maxVar[s.layer] ?? 4);
+    if (name === 'impact_metal' || (t === SAMPLE_TIERS.low && s.layer === 'tail' && name !== 'guntail_ar')) continue; // Handy: nur die eigene Fahne
+    const n = Math.min(s.variants.length, t.name?.[name] ?? t.group[s.group] ?? t.maxVar[s.layer] ?? 4);
     const rate = Math.min(s.rate, t.rate[s.layer] ?? s.rate), ch = Math.min(s.ch, t.ch[s.layer] ?? s.ch), md = MAX_DUR[s.layer] || Infinity;
     for (const v of s.variants.slice(0, n)) { dl += v.bytes; ram += Math.min(v.dur, md) * rate * ch * 4; files++; }
   }
