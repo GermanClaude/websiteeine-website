@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aufnahmelabor – NULLPUNKT</title>
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--np-black); color: var(--np-ink); font: 14px/1.45 var(--font-display); }
+  body { padding: 18px clamp(12px, 3vw, 36px) 64px; }
+  header { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 24px; border-bottom: 1px solid var(--np-line); padding-bottom: 14px; margin-bottom: 14px; }
+  h1 { margin: 0; font-size: clamp(28px, 4vw, 46px); font-weight: 800; font-stretch: 70%; line-height: .9; text-transform: uppercase; }
+  h1 em { font-style: normal; color: var(--np-signal); }
+  h2 { font: 600 11px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--np-dim); margin: 0 0 10px; }
+  h3 { font-size: 17px; font-weight: 700; font-stretch: 85%; margin: 18px 0 6px; }
+  p { margin: 6px 0; max-width: 80ch; }
+  a { color: var(--np-ally); }
+  .status { font: 12px/1.5 var(--font-mono); color: var(--np-ink-2); display: flex; gap: 4px 16px; flex-wrap: wrap; flex: 1 1 300px; }
+  .status b { color: var(--np-ink); font-weight: 600; }
+  button, select, input { font: inherit; color: inherit; }
+  button { background: var(--np-black-3); border: 1px solid var(--np-line); border-radius: 3px; padding: 6px 10px; cursor: pointer; transition: background .15s, border-color .15s; min-height: 32px; }
+  button:hover { border-color: var(--np-line-strong); background: #20242a; }
+  button:active { transform: translateY(1px); }
+  button.on, button.primary { border-color: var(--np-signal); background: var(--np-signal-soft); color: #fff; }
+  button.primary { font-weight: 700; padding: 10px 18px; text-transform: uppercase; letter-spacing: .06em; }
+  button.rec { border-color: rgba(56,182,255,.45); }
+  select { background: var(--np-black-3); color: var(--np-ink); border: 1px solid var(--np-line); border-radius: 3px; padding: 6px 8px; min-height: 32px; }
+  button.flash { animation: flash .35s var(--ease-out); }
+  @keyframes flash { from { background: var(--np-signal); } }
+  nav.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 16px; }
+  nav.tabs button { text-transform: uppercase; letter-spacing: .08em; font-size: 12px; font-weight: 700; }
+  .panel { background: var(--np-black-2); border: 1px solid var(--np-line); border-radius: 4px; padding: 14px; margin-bottom: 16px; }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--np-line); border-radius: 3px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; border-right: 1px solid var(--np-line); }
+  .seg button:last-child { border-right: 0; }
+  .lbl { font: 600 11px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--np-dim); min-width: 92px; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+  input[type=range] { accent-color: var(--np-signal); }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 420px); gap: 16px; align-items: start; }
+  .sticky { position: sticky; top: 12px; }
+  @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } .sticky { position: static; } }
+  .ab { width: 100%; border-collapse: collapse; }
+  .ab td { padding: 5px 6px; border-bottom: 1px solid var(--np-line); vertical-align: middle; }
+  .ab td.n { font-weight: 700; font-stretch: 85%; min-width: 150px; }
+  .ab td.m { font: 11px/1.4 var(--font-mono); color: var(--np-dim); }
+  .ab td.b { white-space: nowrap; }
+  .ab td.b button { font-size: 12px; padding: 4px 9px; min-height: 30px; }
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  @media (max-width: 680px) {
+    .ab, .ab tbody { display: block; }
+    .ab tr { display: grid; grid-template-columns: 1fr; gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--np-line); }
+    .ab td { border: 0; padding: 0 2px; }
+    .ab td.b { white-space: normal; display: flex; flex-wrap: wrap; gap: 6px; }
+    .lbl { min-width: 0; width: 100%; }
+  }
+  canvas { display: block; width: 100%; border-radius: 3px; background: #07080a; }
+  .specbox h2 { margin-top: 10px; }
+  .metrics { font: 11px/1.5 var(--font-mono); color: var(--np-ink-2); margin: 4px 0 0; min-height: 3em; }
+  table.t { border-collapse: collapse; width: 100%; font: 12px/1.45 var(--font-mono); }
+  table.t th, table.t td { padding: 4px 8px; border-bottom: 1px solid var(--np-line); text-align: right; white-space: nowrap; }
+  table.t th:first-child, table.t td:first-child { text-align: left; }
+  table.t th { color: var(--np-dim); font-weight: 600; }
+  table.d { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.d th, table.d td { padding: 6px 8px; border-bottom: 1px solid var(--np-line); text-align: left; vertical-align: top; }
+  table.d th { font: 600 11px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--np-dim); }
+  .tag { display: inline-block; font: 700 10px/1 var(--font-mono); letter-spacing: .08em; padding: 3px 6px; border-radius: 2px; text-transform: uppercase; }
+  .tag.s { background: rgba(56,182,255,.18); color: var(--np-ally); }
+  .tag.p { background: rgba(255,91,31,.16); color: var(--np-signal); }
+  .tag.h { background: rgba(95,224,138,.16); color: var(--np-ok); }
+  .good { color: var(--np-ok); } .bad { color: var(--np-enemy); } .dim { color: var(--np-dim); }
+  .hint { color: var(--np-dim); font-size: 12px; margin: 6px 0 0; }
+  .blind { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 10px 0; }
+  .blind button { min-height: 56px; font-size: 18px; font-weight: 800; }
+  [hidden] { display: none !important; }
+  ul.v { margin: 6px 0 6px 18px; padding: 0; max-width: 90ch; } ul.v li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Aufnahme<em>labor</em></h1>
+  <div class="status" id="status">Audio ist noch gesperrt – bitte aktivieren.</div>
+  <button class="primary" id="unlock">Audio aktivieren</button>
+</header>
+<p class="hint">A/B-Vergleich der neuen <b>aufgenommenen</b> Klänge (<code>assets/lib/audio/</code>, CC0 – Herkunft in <a href="../docs/AUDIO_SOURCES.md">docs/AUDIO_SOURCES.md</a>) mit den bisherigen <b>prozeduralen</b> Klängen der Engine. Beide laufen durch dieselbe Engine-Kette (Busse, Hall/Echo der Karte, Glue-Kompressor, Limiter). Kopfhörer empfohlen. Vergleich mit dem Prozedural-Prüfstand: <a href="audio.html">Klanglabor</a>.</p>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="ab" class="on">A/B-Vergleich</button>
+  <button data-tab="blind">Blindtest</button>
+  <button data-tab="measure">Messung</button>
+  <button data-tab="hybrid">Hybrid-Vorschlag</button>
+  <button data-tab="verdict">Einschätzung</button>
+</nav>
+
+<section data-pane="ab">
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <h2>Abhörsituation</h2>
+        <div class="row"><span class="lbl">Perspektive</span><span class="seg" id="persp"><button data-v="player" class="on">Spieler</button><button data-v="10">10 m</button><button data-v="40">40 m</button><button data-v="120">120 m</button></span></div>
+        <div class="row"><span class="lbl">Raum</span><span class="seg" id="room"><button data-v="outdoor" class="on">Außen</button><button data-v="indoor">Innen</button></span><select id="space" aria-label="Karte (Raumakustik)"><option value="harbor">Hafen</option><option value="desert">Altstadt</option><option value="industrial">Werk</option><option value="range">Schießstand</option></select></div>
+        <div class="row"><span class="lbl">Nachhall</span><span class="seg" id="tailmode"><button data-v="rec" class="on">Aufnahme-Fahne</button><button data-v="engine">Engine-Hall</button><button data-v="both">Beides</button></span>
+          <label class="chk" style="min-width:220px">Anteil <input type="range" id="tailmix" min="0" max="1" step="0.05" value="0.45"> <output id="tailmixOut">0,45</output></label></div>
+        <div class="row"><span class="lbl">Optionen</span>
+          <label class="chk"><input type="checkbox" id="match" checked> Lautheit angleichen</label>
+          <label class="chk"><input type="checkbox" id="rand" checked> Zufallsvariation (Variante, Tonhöhe, EQ)</label>
+          <label class="chk"><input type="checkbox" id="mech"> Mechanik-Schicht</label>
+        </div>
+        <p class="hint">„Spieler“ = eigener Schuss (2D, Stereo). Entfernungen = Gegner vor dir (positional, HRTF, Luftdämpfung, Schalllaufzeit, Nah/Fern-Überblendung 16–60 m wie in der Engine). Innen: beide Seiten bekommen den Faltungshall der Engine, die Aufnahme-Fahne entfällt (nur Freigelände-Aufnahmen vorhanden).</p>
+      </div>
+      <div id="groups"></div>
+    </div>
+    <div class="sticky">
+      <div class="panel specbox">
+        <h2>Zuletzt gespielt – prozedural</h2>
+        <canvas id="specP" width="760" height="230" aria-label="Spektrogramm prozedural"></canvas>
+        <div class="metrics" id="metP">–</div>
+        <h2>Zuletzt gespielt – Aufnahme</h2>
+        <canvas id="specR" width="760" height="230" aria-label="Spektrogramm Aufnahme"></canvas>
+        <div class="metrics" id="metR">–</div>
+        <p class="hint">Spektrogramm 30 Hz – 20 kHz (log), 70 dB Dynamik, oben Hüllkurve. Werte: Dauer · Spitze · lauteste 400 ms (RMS) · Crest (Spitze − RMS der ersten 100 ms) · Abklingen auf −40 dB · Schwerpunkt der Attacke · Bandbreite (−60 dB).</p>
+      </div>
+      <div class="panel">
+        <h2>Ausgang</h2>
+        <canvas id="meter" width="760" height="120" aria-label="Pegel"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section data-pane="blind" hidden>
+  <div class="panel">
+    <h2>Blindtest</h2>
+    <p>Zufälliges Paar, zufällig auf A und B verteilt, Lautheit angeglichen, gleiche Position. Erst hören, dann abstimmen – danach wird aufgelöst. Ergebnisse bleiben nur in diesem Browser.</p>
+    <div class="row"><span class="lbl">Kategorie</span><select id="blindGroup"></select><button id="blindNew">Neues Paar</button></div>
+    <div class="blind"><button id="blindA">▶ A</button><button id="blindB">▶ B</button></div>
+    <div class="row"><button id="voteA">A klingt echter</button><button id="voteB">B klingt echter</button><button id="voteS">Kein Unterschied</button></div>
+    <p id="blindMsg" class="hint">Noch kein Paar gewählt.</p>
+    <div class="scroll"><table class="t" id="blindTable"></table></div>
+    <div class="row"><button id="blindReset">Ergebnisse löschen</button></div>
+  </div>
+</section>
+
+<section data-pane="measure" hidden>
+  <div class="panel">
+    <h2>Objektive Messung (je Paar Variante 1, ohne Raum)</h2>
+    <div class="row"><button id="measureAll">Alle Paare messen</button><span class="hint" id="measureMsg"></span></div>
+    <div class="scroll"><table class="t" id="measureTable"></table></div>
+    <p class="hint">Gemessen am Rohpuffer (prozedural: Klangbank der Engine, Aufnahme: dekodierte MP3). „Laut“ = lauteste 400 ms (RMS, dBFS, Mono-Summe). Hohe Crest-Werte = knackige, unkomprimierte Transienten; hohe Bandbreite = keine dumpfe/telefonartige Quelle.</p>
+  </div>
+  <div class="panel">
+    <h2>Größe und Speicher der Aufnahmen</h2>
+    <div class="scroll"><table class="t" id="sizeTable"></table></div>
+    <p class="hint">Download = MP3-Dateien; RAM = dekodierte Float32-Puffer bei der genannten Dekodier-Rate (OfflineAudioContext mit eigener Rate, wie die Klangbank der Engine). Nur die 8 Schussprofile des Katalogs und die Atmo einer Karte. Zum Vergleich: die prozedurale Klangbank belegt im Match low ≈ 27–28 MB, high ≈ 38–40 MB (Changelog F54).</p>
+  </div>
+</section>
+
+<section data-pane="hybrid" hidden>
+  <div class="panel">
+    <h2>Hybrid-Vorschlag</h2>
+    <p>Aufnahmen dort, wo sie hörbar echter sind (Schüsse, Mechanik, Schritte, Einschläge, Explosionen, Atmo-Betten); prozedural, wo Physik/Variation wichtiger ist oder keine gute Aufnahme existiert. Die vorhandene Engine bleibt das Rückgrat: Busse, Stimmen-Budget, Verdeckung, Innen/Außen, Faltungshall, Nah/Fern-Überblendung, Schalllaufzeit, Klangbank mit Prioritäten.</p>
+    <div class="scroll"><table class="d" id="hybridTable"></table></div>
+    <h3>Randomisierung je Wiedergabe</h3>
+    <ul class="v">
+      <li><b>Variante</b> ohne direkte Wiederholung (wie heute), bei Schüssen zusätzlich <b>Nah- und Fahnen-Variante unabhängig</b> kombiniert → 4 × 2 = 8 hörbare Kombinationen je Waffe.</li>
+      <li><b>Tonhöhe</b> ±3 % (Schritte ±5 %) über <code>playbackRate</code>, multipliziert mit <code>WEAPONS[id].sound.pitch</code> (z. B. QX-90 1,12, SK-14 1,1) – so klingen Waffen derselben Klasse verschieden.</li>
+      <li><b>EQ</b>: ein Peaking-Filter 1,5–4 kHz ±1,5 dB und ±1 dB Low-Shelf 120 Hz zufällig je Schuss (ein BiquadFilter mehr pro Stimme), Pegel ±1 dB.</li>
+      <li><b>Schichten</b>: Nahschuss + Aufnahme-Fahne (außen) bzw. Faltungshall (innen) + optional Mechanik (−14 dB) + prozeduraler Sub-Stoß (nur hohe Qualität, 50–90 Hz, −12 dB; die Mikrofone standen vor dem Schützen, die Ich-Perspektive braucht mehr Körper).</li>
+      <li><b>Entfernung</b>: bestehende Kette – Nah/Fern-Überblendung 16–60 m (Aufnahme „Mittel-Distanz“ enthält echte Bodenreflexion und Echos), Luftdämpfung, Laufzeit, Verdeckung; jenseits 150 m zusätzlich Tiefpass + prozedurales Grollen.</li>
+    </ul>
+    <h3>Laden und Speicher</h3>
+    <ul class="v">
+      <li>Neues Katalogfeld <code>sample: { files: [...], layer }</code> (Daten aus <code>assets/lib/audio/manifest.json</code>); ein Eintrag mit <code>sample</code> wird nicht synthetisiert, sondern per <code>fetch</code> + <code>decodeAudioData</code> in einem <code>OfflineAudioContext</code> mit Ziel-Abtastrate dekodiert (Puffer landen in derselben <code>bank</code>, gleiche Schlüssel <code>name#v@rate</code>).</li>
+      <li>Fehlt eine Datei oder schlägt das Dekodieren fehl, bleibt der prozedurale Klang aktiv (Feld <code>alt</code> wie heute) – das Spiel wird nie stumm.</li>
+      <li>Laden ab Lobby in Prioritätsreihenfolge (eigene Ausrüstung → häufige Klänge → Rest); Dekodieren ist asynchron und blockiert den Hauptthread kaum. Qualität „niedrig“: Mono, 32 kHz, 2 Varianten, Fahne Mono 22 kHz.</li>
+      <li>MP3 (CBR mit LAME-Tag): Chromium liefert die Länge auf ±1 ms genau ohne führende Stille (geprüft mit <code>tools/audio/browser-decode.mjs</code>, alle Dateien). Sicherheitsnetz für andere Decoder: führende Stille unter −60 dB beim Laden abschneiden (≤ 50 ms). Atmo-Schleifen sind auf ±0 Samples gleich lang und nahtlos (Gleichleistungs-Überblendung, <code>tools/audio/loopcheck.mjs</code>).</li>
+    </ul>
+  </div>
+</section>
+
+<section data-pane="verdict" hidden>
+  <div class="panel" id="verdictPanel">
+    <h2>Ehrliche Einschätzung</h2>
+    <h3>Deutlich besser mit Aufnahmen</h3>
+    <ul class="v">
+      <li><b>Schüsse</b>: echte Mündungsknalle mit 17–22 dB Crest-Faktor, natürlicher Lücke zwischen Knall und Bodenreflexion und echten Freigelände-Echos (Mittel-Distanz-Aufnahmen). Der prozedurale Schuss ist ein gefiltertes Rauschen mit Hüllkurve – im direkten Vergleich hört man das „Synthetische“ vor allem in der Fahne und im Körper.</li>
+      <li><b>Nachladen/Repetieren</b>: echte Metallmechanik (AR-15, Mauser 98k, Pumpflinten, Pistolenschlitten) mit Raumanteil; modal synthetisierte Klicks wirken daneben dünn.</li>
+      <li><b>Schritte</b> (Beton, Holz, Erde, Kies, Metall, Gras), <b>Hülsen auf Beton</b>, <b>Explosionen</b> und <b>Atmo-Betten</b>: Aufnahmen tragen die Textur, die Synthese nur andeutet.</li>
+    </ul>
+    <h3>Gleichwertig oder schlechter</h3>
+    <ul class="v">
+      <li><b>Metall-Einschlag</b>: es gibt keine gute freie Aufnahme (Topf/Pfanne, Kenney bandbegrenzt) – prozedurale Modalsynthese bleibt besser oder als Klangschicht darunter.</li>
+      <li><b>Überschallknall/Pfeifen</b>: keine sauber lizenzierte echte Aufnahme (der einzige Kandidat stammt aus einem NATO-Video, Rechtekette unklar → verworfen); nur ein Peitschen-Whoosh für Unterschall. Das physikalisch modellierte N-Wellen-Knallen der Engine bleibt.</li>
+      <li><b>Körpertreffer</b>: die freien Quellen sind gestaltete Effekte, nicht echt; ähnlich gut wie prozedural, mit mehr „Fleisch“.</li>
+      <li><b>Schallgedämpft</b>: echte Aufnahmen nur für Pistolen (1911, eine davon mit Handy-Mikrofon); für Gewehre bleibt die prozedurale Dämpfung.</li>
+    </ul>
+    <h3>Was fehlt (frei und sauber lizenziert nicht gefunden)</h3>
+    <ul class="v">
+      <li>Echtes <b>Maschinengewehr</b> (Gurtzuführung) – LMG nutzt die 7,62×54R-Mosin (dieselbe Patrone wie PKM); Dauerfeuer entsteht aus Einzelschüssen, ein echter Feuerstoß-Rhythmus der Mechanik fehlt.</li>
+      <li><b>Innenraum-Schüsse</b> mit echten Raumreflexionen (FFSL ist nur Freigelände) → innen weiter Faltungshall der Engine.</li>
+      <li><b>Sehr ferne Schüsse</b> (&gt; 200 m), echte <b>Granaten-Splinte</b>, <b>Patronen einzeln laden</b> (Schrot), <b>Ausrüstung/Kleidung</b> (Zielen, Waffe ziehen), Schritte auf <b>Sand, Wasser, Fliesen, Stoff, Glas</b>, <b>Helm-/Plattentreffer</b>, <b>Stimmen</b> (Schmerz/Tod) – bleiben prozedural.</li>
+      <li>Nur 2–4 Varianten je Waffe (FFSL hat je Waffe 2–5 Einzelschüsse); Variation entsteht deshalb zusätzlich über Tonhöhe/EQ/Schichten.</li>
+      <li>Perspektive: die FFSL-Mikrofone stehen vor dem Schützen, nicht an seiner Schulter. Für eine „Bodycam“-Ich-Perspektive fehlt etwas Körper (Sub) und Mechanik am Ohr → Hybrid-Schichten.</li>
+    </ul>
+    <h3>Grenzen dieser Bewertung</h3>
+    <p>Ohne Abhören bewertet sind nur messbare Eigenschaften (Crest-Faktor, Rauschboden, Übersteuerung, Bandbreite, Abklingzeit, Spektrogramme). Ob die Mischung im Spiel „wie Bodycam“ klingt, entscheidet erst der Hörtest – dafür der Blindtest-Reiter.</p>
+  </div>
+</section>
+
+<script type="module">
+import * as THREE from 'three';
+import { AudioEngine, GUN_PROFILES } from '../assets/js/game/engine/audio.js';
+import { CATALOG } from '../assets/js/game/engine/audio/catalog.js';
+
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const LIB = '../assets/lib/audio/';
+const fmt = (x, d = 1) => (Number.isFinite(x) ? x.toFixed(d).replace('.', ',') : '–');
+const db = x => 20 * Math.log10(Math.max(1e-9, x));
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+
+// ---------------------------------------------------------------- Mock-Spielkontext (wie dev/audio.html)
+async function busFactory() {
+  try { const m = await import('../assets/js/game/engine/events.js'); if (m.EventBus) return new m.EventBus(); } catch { /* optional */ }
+  const map = new Map();
+  return { on(n, fn) { if (!map.has(n)) map.set(n, new Set()); map.get(n).add(fn); return () => map.get(n)?.delete(fn); }, off(n, fn) { map.get(n)?.delete(fn); }, emit(n, p) { for (const fn of [...(map.get(n) || [])]) fn(p); }, clear() { map.clear(); } };
+}
+const store = { masterVolume: 0.8, sfxVolume: 1, musicVolume: 0, uiVolume: 0.7, quality: 'high' }, listeners = new Set();
+const settings = { get: k => store[k], set(k, v) { store[k] = v; listeners.forEach(f => f(k, v)); }, onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); } };
+const camera = new THREE.PerspectiveCamera(80, 1, 0.05, 500); camera.position.set(0, 1.65, 0); camera.updateMatrixWorld();
+const flags = { indoor: false };
+const world = { ambience: 'harbor', lineOfSight: () => true, raycast: (o, d) => (flags.indoor && d.y > 0.5 ? { distance: 3, point: o.clone().addScaledVector(d, 3), surface: 'concrete' } : null) };
+const player = { id: 'spieler', name: 'Operator', isPlayer: true, team: 'A', alive: true, health: 100, position: camera.position };
+const events = await busFactory();
+const G = { THREE, camera, events, settings, world, player, actors: [player], match: { state: 'playing', mapId: 'hafen' }, params: new URLSearchParams(location.search) };
+const audio = new AudioEngine(G, { autoMusic: false });
+audio.attach(G);
+window.__audioLab2 = { audio, G };
+
+// ---------------------------------------------------------------- Manifest + Aufnahme-Bank
+let manifest = null;
+try { manifest = await (await fetch(LIB + 'manifest.json', { cache: 'no-cache' })).json(); }
+catch (e) { $('#status').textContent = `manifest.json fehlt: ${e}`; }
+const S = manifest?.sounds || {};
+
+class SampleBank {
+  constructor() { this.buffers = new Map(); this.pending = new Map(); this.bytes = 0; this.ram = 0; this.errors = 0; this.lastError = null; }
+  /** Alle Varianten eines Namens laden; Dekodieren mit eigener Abtastrate (OfflineAudioContext) wie die Engine-Klangbank. */
+  load(name) {
+    if (this.buffers.has(name)) return Promise.resolve(this.buffers.get(name));
+    if (this.pending.has(name)) return this.pending.get(name);
+    const s = S[name]; if (!s) return Promise.resolve([]);
+    const p = Promise.all(s.variants.map(async v => {
+      const ab = await (await fetch(LIB + v.file)).arrayBuffer();
+      this.bytes += ab.byteLength;
+      let buf;
+      try { buf = await decoder(s.ch, s.rate).decodeAudioData(ab); }
+      catch { buf = await audio.ctx.decodeAudioData(ab); }
+      this.ram += buf.length * buf.numberOfChannels * 4;
+      return trimLead(buf);
+    })).then(list => { this.buffers.set(name, list); this.pending.delete(name); return list; })
+      .catch(err => { this.errors++; this.lastError = String(err); this.pending.delete(name); return []; });
+    this.pending.set(name, p);
+    return p;
+  }
+}
+const decoders = new Map();
+/** Ein OfflineAudioContext je (Kanäle, Rate) nur zum Dekodieren: Puffer behalten die Dateirate (spart RAM wie die Engine-Klangbank). */
+function decoder(ch, rate) { const k = ch + '@' + rate; if (!decoders.has(k)) decoders.set(k, new OfflineAudioContext(ch, 1, rate)); return decoders.get(k); }
+/** Sicherheitsnetz für Decoder ohne LAME-Lückenlos-Info: führende Stille < −60 dB (max. 50 ms) entfernen. */
+function trimLead(buf) {
+  const x = buf.getChannelData(0); let pk = 0; for (let i = 0; i < x.length; i++) pk = Math.max(pk, Math.abs(x[i]));
+  const thr = pk * 0.001, max = Math.floor(buf.sampleRate * 0.05); let i0 = 0;
+  while (i0 < max && i0 < x.length && Math.abs(x[i0]) < thr) i0++;
+  if (i0 < 8) return buf;
+  const out = new AudioBuffer({ length: buf.length - i0, numberOfChannels: buf.numberOfChannels, sampleRate: buf.sampleRate });
+  for (let c = 0; c < buf.numberOfChannels; c++) out.copyToChannel(buf.getChannelData(c).subarray(i0), c);
+  return out;
+}
+const samples = new SampleBank();
+
+// ---------------------------------------------------------------- Prozedurale Puffer (Klangbank der Engine)
+async function procBuffer(name, v = 0) {
+  const e = CATALOG[name]; if (!e) return null;
+  await audio.prerender([name]);
+  return audio.bank.get(`${name}#${v}@${e.rate}`) || null;
+}
+
+// ---------------------------------------------------------------- Messen
+function mono(buf) {
+  const n = buf.length, m = new Float32Array(n);
+  for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) m[i] += d[i] / buf.numberOfChannels; }
+  return m;
+}
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) { let bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) { let cr = 1, ci = 0; for (let k = 0; k < len / 2; k++) { const a = i + k, b = a + len / 2, tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr; re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti; const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t; } }
+  }
+}
+/** Lautheit ≈ lauteste 400 ms (RMS nach 150-Hz-Hochpass 1. Ordnung, Sub zählt weniger). */
+function loudness(buf) {
+  const x = mono(buf), sr = buf.sampleRate, a = Math.exp(-2 * Math.PI * 150 / sr);
+  let y1 = 0, x1 = 0; const h = new Float32Array(x.length);
+  for (let i = 0; i < x.length; i++) { y1 = a * (y1 + x[i] - x1); x1 = x[i]; h[i] = y1; }
+  const W = Math.max(1, Math.round(sr * 0.4)), hop = Math.round(sr * 0.02); let best = 0;
+  for (let s = 0; s < Math.max(1, h.length - W + 1); s += hop) { let e = 0; const end = Math.min(h.length, s + W); for (let i = s; i < end; i++) e += h[i] * h[i]; best = Math.max(best, e / W); }
+  return Math.sqrt(best);
+}
+function measure(buf) {
+  if (!buf) return null;
+  const x = mono(buf), sr = buf.sampleRate, n = x.length;
+  let pk = 0; for (let i = 0; i < n; i++) pk = Math.max(pk, Math.abs(x[i]));
+  let on = 0; for (let i = 0; i < n; i++) if (Math.abs(x[i]) > pk * 0.03) { on = i; break; }
+  const a1 = Math.min(n, on + Math.round(sr * 0.1)); let ae = 0; for (let i = on; i < a1; i++) ae += x[i] * x[i];
+  const W = Math.round(sr * 0.01), env = []; for (let s = 0; s + W <= n; s += W) { let e = 0; for (let i = s; i < s + W; i++) e += x[i] * x[i]; env.push(db(Math.sqrt(e / W))); }
+  const mi = env.indexOf(Math.max(...env)); let d40 = null; for (let i = mi; i < env.length; i++) if (env[i] < env[mi] - 40) { d40 = (i - mi) * 0.01; break; }
+  const N = 2048, re = new Float64Array(N), im = new Float64Array(N);
+  for (let i = 0; i < N && on + i < n; i++) re[i] = x[on + i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1)));
+  fft(re, im); let s1 = 0, s0 = 0;
+  for (let k = 1; k < N / 2; k++) { const p = re[k] * re[k] + im[k] * im[k]; s1 += p * k * sr / N; s0 += p; }
+  // Bandbreite über die ganze Datei (gemittelte Spektren)
+  const P = new Float64Array(N / 2); for (let s = 0; s + N <= Math.max(n, N); s += N) { const r2 = new Float64Array(N), i2 = new Float64Array(N); for (let i = 0; i < N && s + i < n; i++) r2[i] = x[s + i]; fft(r2, i2); for (let k = 0; k < N / 2; k++) P[k] += r2[k] * r2[k] + i2[k] * i2[k]; }
+  let mx = 0; for (let k = 1; k < P.length; k++) mx = Math.max(mx, P[k]); let hi = 0; for (let k = 4; k < P.length - 4; k++) { let m = 0; for (let j = -3; j <= 3; j++) m += P[k + j]; if (m / 7 >= mx * 1e-6) hi = k; }
+  return { dur: n / sr, peak: db(pk), loud: db(loudness(buf)), crest: db(pk) - db(Math.sqrt(ae / Math.max(1, a1 - on))), d40, centroid: s0 ? s1 / s0 : 0, bw: hi * sr / N, sr, ch: buf.numberOfChannels };
+}
+const metText = m => (m ? `${fmt(m.dur, 2)} s · Spitze ${fmt(m.peak)} dBFS · laut ${fmt(m.loud)} dBFS · Crest ${fmt(m.crest)} dB · −40 dB nach ${m.d40 == null ? '–' : fmt(m.d40, 2) + ' s'} · Schwerpunkt ${Math.round(m.centroid)} Hz · Bandbreite ${fmt(m.bw / 1000)} kHz · ${m.ch} Kanal ${Math.round(m.sr / 100) / 10} kHz` : '–');
+
+// ---------------------------------------------------------------- Spektrogramm
+function drawSpec(canvas, buf, label) {
+  const c = canvas.getContext('2d'), W = canvas.width, H = canvas.height;
+  c.fillStyle = '#07080a'; c.fillRect(0, 0, W, H);
+  if (!buf) return;
+  const x = mono(buf), sr = buf.sampleRate, n = Math.min(x.length, Math.round(sr * 3.2));
+  const N = 1024, cols = W, hop = Math.max(1, Math.floor((n - N) / cols)), rows = H - 30, fmin = 30, fmax = Math.min(20000, sr / 2);
+  const img = c.createImageData(W, rows), re = new Float64Array(N), im = new Float64Array(N);
+  let gmax = 1e-12; const frames = [];
+  for (let col = 0; col < cols; col++) {
+    const s = col * hop; re.fill(0); im.fill(0);
+    for (let i = 0; i < N && s + i < n; i++) re[i] = x[s + i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1)));
+    fft(re, im); const mag = new Float32Array(N / 2);
+    for (let k = 0; k < N / 2; k++) { mag[k] = re[k] * re[k] + im[k] * im[k]; if (mag[k] > gmax) gmax = mag[k]; }
+    frames.push(mag);
+  }
+  for (let col = 0; col < cols; col++) {
+    const mag = frames[col];
+    for (let r = 0; r < rows; r++) {
+      const f = fmin * Math.pow(fmax / fmin, 1 - r / (rows - 1)), k = Math.min(N / 2 - 1, Math.round(f * N / sr));
+      const v = clamp((10 * Math.log10(mag[k] / gmax + 1e-14) + 70) / 70);
+      const o = (r * W + col) * 4;
+      img.data[o] = 255 * Math.min(1, v * 1.6); img.data[o + 1] = 255 * clamp(v * 1.4 - 0.45) * 0.9 + 91 * v * (1 - v); img.data[o + 2] = 255 * clamp(v - 0.75) * 3 + 40 * (1 - v) * v; img.data[o + 3] = 255;
+    }
+  }
+  c.putImageData(img, 0, 30);
+  // Hüllkurve
+  c.strokeStyle = '#38B6FF'; c.lineWidth = 1.5; c.beginPath();
+  for (let col = 0; col < cols; col++) { let m = 0; const s = col * hop, e = Math.min(n, s + Math.max(hop, 1)); for (let i = s; i < e; i++) m = Math.max(m, Math.abs(x[i])); const y = 28 - clamp((db(m) + 60) / 60) * 26; col ? c.lineTo(col, y) : c.moveTo(col, y); }
+  c.stroke();
+  c.fillStyle = 'rgba(233,230,223,.75)'; c.font = '20px "JetBrains Mono NP", monospace';
+  c.fillText(label, 8, H - 8);
+  c.fillText(`${(n / sr).toFixed(2)} s`, W - 90, H - 8);
+}
+function showLast(kind, name, buf) {
+  if (kind === 'p') { drawSpec($('#specP'), buf, name); $('#metP').textContent = metText(measure(buf)); }
+  else { drawSpec($('#specR'), buf, name); $('#metR').textContent = metText(measure(buf)); }
+}
+
+// ---------------------------------------------------------------- Wiedergabe der Aufnahmen über die Engine-Kette
+const opt = { persp: 'player', room: 'outdoor', tail: 'rec', tailMix: 0.45, match: true, rand: true, mech: false };
+const rnd = (a, b) => a + Math.random() * (b - a);
+const lastVar = new Map();
+function pick(name) {
+  const list = samples.buffers.get(name) || []; if (!list.length) return null;
+  let v = opt.rand ? Math.floor(Math.random() * list.length) : 0;
+  if (opt.rand && list.length > 1 && v === lastVar.get(name)) v = (v + 1) % list.length;
+  lastVar.set(name, v); return { buf: list[v], v };
+}
+const ahead = (d, side = 0) => {
+  const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion), r = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  return camera.position.clone().addScaledVector(f, d).addScaledVector(r, side);
+};
+/** Eine Stimme: Quelle → [EQ] → [Tiefpass] → Gain → [Panner] → Bus, plus Raum-Sends wie AudioEngine._spawn. */
+function voice(buf, o = {}) {
+  const ctx = audio.ctx; if (!ctx || !buf) return null;
+  const nodes = [], src = ctx.createBufferSource(); src.buffer = buf; nodes.push(src);
+  src.playbackRate.value = (o.rate || 1) * (opt.rand && o.jit !== 0 ? 1 + rnd(-1, 1) * (o.jit ?? 0.03) : 1);
+  let head = src;
+  if (opt.rand && o.eq !== false) {
+    const pk = ctx.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = rnd(1500, 4000); pk.Q.value = 0.9; pk.gain.value = rnd(-1.5, 1.5);
+    const ls = ctx.createBiquadFilter(); ls.type = 'lowshelf'; ls.frequency.value = 120; ls.gain.value = rnd(-1, 1);
+    head.connect(pk).connect(ls); head = ls; nodes.push(pk, ls);
+  }
+  const pos = o.position || null, dist = pos ? pos.distanceTo(camera.position) : 0;
+  let lp = o.lowpass || 0; if (pos) lp = Math.min(lp || 22000, Math.max(2200, 20000 * Math.exp(-dist / 85)));
+  if (lp && lp < 19000) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; f.Q.value = 0.5; head.connect(f); head = f; nodes.push(f); }
+  const g = ctx.createGain(); g.gain.value = (o.gain ?? 1) * (opt.rand ? 10 ** (rnd(-1, 1) / 20) : 1); head.connect(g); nodes.push(g);
+  let out = g;
+  if (pos) {
+    const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = o.ref || 3; p.rolloffFactor = 1; p.maxDistance = 10000;
+    if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+    g.connect(p); out = p; nodes.push(p);
+  }
+  out.connect(audio.bus[o.bus || 'sfx']);
+  const env = o.env ?? 0;
+  if (env > 0.001 && (o.bus || 'sfx') === 'sfx') {
+    const ref = o.ref || 3, wetDist = pos ? (0.35 + 0.65 * Math.min(1, dist / 35)) * (ref / (ref + 0.3 * Math.max(0, dist - ref))) : 0.45;
+    const wet = env * wetDist * (o.gain ?? 1), ind = opt.room === 'indoor' ? 1 : 0;
+    if (ind) { const s = ctx.createGain(); s.gain.value = wet * 1.9; head.connect(s).connect(audio.revIn); nodes.push(s); }
+    else { const s = ctx.createGain(); s.gain.value = wet * 0.62; head.connect(s).connect(audio.echoIn); nodes.push(s); }
+  }
+  const t = ctx.currentTime + Math.max(0, o.delay || 0);
+  src.start(t); src.onended = () => nodes.forEach(nd => { try { nd.disconnect(); } catch { /* */ } });
+  return src;
+}
+
+// Lautheitsangleich: Faktor Aufnahme → Prozedural (je Paar einmal berechnet)
+const matchCache = new Map();
+async function matchGain(recName, procName) {
+  if (!opt.match || !procName) return 1;
+  const key = recName + '|' + procName; if (matchCache.has(key)) return matchCache.get(key);
+  const pb = await procBuffer(procName), rl = samples.buffers.get(recName);
+  let g = 1;
+  if (pb && rl?.length) { const lr = rl.reduce((s, b) => s + loudness(b), 0) / rl.length; g = clamp(loudness(pb) / Math.max(1e-6, lr), 0.05, 20); }
+  matchCache.set(key, g); return g;
+}
+const catGain = n => CATALOG[n]?.gain ?? 1;
+
+// ---------------------------------------------------------------- Paare (prozedural ↔ Aufnahme)
+const PROF = Object.keys(GUN_PROFILES);
+const LABEL = { ar: 'Sturmgewehr (M-17)', ar_heavy: 'Sturmgewehr schwer (KV-47/SK-14)', smg: 'MP (VP-9/QX-90)', lmg: 'LMG (HM-60)', sniper: 'Scharfschütze (Brecher)', shotgun: 'Schrotflinte (Bulldog)', pistol: 'Pistole (P-9)', pistol_heavy: 'Pistole schwer (Adler)' };
+const RPM = { ar: 780, ar_heavy: 650, smg: 900, lmg: 700, pistol: 0, pistol_heavy: 0, sniper: 0, shotgun: 0 };
+const persp = () => (opt.persp === 'player' ? null : +opt.persp);
+
+async function playProcShot(p, i = 0) {
+  const d = persp();
+  if (d == null) audio.play(p, { player: true, delay: i ? i * 60 / RPM[p] : 0 });
+  else audio.play(p, { position: ahead(d, d * 0.25), delay: i ? i * 60 / RPM[p] : 0 });
+}
+async function playRecShot(p, i = 0, o = {}) {
+  const near = `gun_${o.near || p}`, far = `gunfar_${o.near || p}`, tail = `guntail_${o.near || p}`;
+  await Promise.all([samples.load(near), samples.load(far), samples.load(tail), samples.load('mech_rifle'), samples.load('mech_pistol')]);
+  const mg = await matchGain(near, o.proc === false ? null : `gun_${p}`), mgFar = await matchGain(far, o.proc === false ? null : `gunfar_${p}`);
+  const d = persp(), delay0 = i ? i * 60 / (RPM[p] || 600) : 0, gain = catGain(`gun_${p}`) * (o.gain ?? 1);
+  const pitch = o.pitch ?? 1, nb = pick(near);
+  if (d == null) {
+    const engineEnv = opt.room === 'indoor' || opt.tail !== 'rec' ? 0.55 * 0.4 : 0;
+    voice(nb?.buf, { gain: gain * mg, rate: pitch, env: engineEnv, delay: delay0 });
+    if (opt.room === 'outdoor' && opt.tail !== 'engine') { const tb = pick(tail); voice(tb?.buf, { gain: gain * mg * opt.tailMix * 2.2, rate: pitch, delay: delay0 + 0.012, eq: false }); }
+    if (opt.mech) { const m = pick(/pistol/.test(p) ? 'mech_pistol' : 'mech_rifle'); voice(m?.buf, { gain: gain * mg * 0.2, delay: delay0 + 0.004 }); }
+    if (!i) showLast('r', `${near}_${(nb?.v ?? 0) + 1}`, nb?.buf);
+  } else {
+    const pos = ahead(d, d * 0.25), x = smooth(16, 60, d), nv = Math.cos(x * Math.PI / 2), fv = Math.sin(x * Math.PI / 2), delay = delay0 + Math.min(0.3, d / 343);
+    if (nv > 0.05) voice(nb?.buf, { position: pos, ref: 7, gain: gain * mg * nv, rate: pitch, env: 0.55, delay });
+    const fb = pick(far); if (fv > 0.05) voice(fb?.buf, { position: pos, ref: 7, gain: gain * mgFar * fv * 1.15, rate: pitch, env: 0.7, delay });
+    if (!i) showLast('r', nv >= fv ? `${near}_${(nb?.v ?? 0) + 1}` : `${far}_${(fb?.v ?? 0) + 1}`, nv >= fv ? nb?.buf : fb?.buf);
+  }
+}
+async function showProc(name) { showLast('p', name, await procBuffer(name)); }
+
+// Einzelklänge: [Aufnahme, Prozedural, Optionen]
+const ONE = {
+  Handhabung: [['reload_mag_out', 'reload_mag_out'], ['reload_mag_in', 'reload_mag_in'], ['reload_bolt', 'reload_bolt'], ['bolt', 'bolt'], ['pump', 'pump'], ['dryfire', 'dryfire'],
+    ['slide_release', 'reload_bolt', { label: 'Pistolenschlitten (↔ reload_bolt)' }], ['reload_pistol', 'reload_mag_in', { label: 'Pistole nachladen (↔ reload_mag_in)' }], ['melee_swing', 'melee_swing'], ['melee_hit', 'melee_hit']],
+  Schritte: [['step_concrete', 'step_concrete'], ['step_wood', 'step_wood'], ['step_dirt', 'step_dirt'], ['step_gravel', 'step_dirt', { label: 'Kies (↔ step_dirt)' }], ['step_metal', 'step_metal'], ['step_grass', 'step_grass'], ['land', 'land']],
+  'Einschläge & Geschosse': [['impact_concrete', 'impact_concrete'], ['impact_wood', 'impact_wood'], ['impact_dirt', 'impact_dirt'], ['impact_metal', 'impact_metal'], ['impact_glass', 'impact_glass'], ['hit_flesh', 'hit_flesh'], ['bullet_whiz', 'bullet_whiz', { dist: 1.5 }]],
+  'Explosion & Granate': [['explosion', 'explosion', { dist: 25, ref: 14 }], ['explosion_far', 'explosion_far', { dist: 140, ref: 14 }], ['grenade_bounce', 'grenade_bounce'], ['grenade_spoon', 'grenade_pin', { label: 'Granatenbügel (↔ grenade_pin)' }]],
+  'Körper & Hülsen': [['bodyfall', 'death', { label: 'Körper fällt (↔ death)' }], ['shell_concrete', null, { label: 'Hülsen auf Beton', dist: 1.2 }], ['shell_hard', null, { label: 'Hülse auf Tisch', dist: 1.2 }], ['shell_shotgun', null, { label: 'Schrothülse', dist: 1.2 }]],
+};
+const TWO_D = new Set(['reload_mag_out', 'reload_mag_in', 'reload_bolt', 'bolt', 'pump', 'dryfire', 'slide_release', 'reload_pistol', 'melee_swing', 'grenade_spoon', 'gunsup_pistol']);
+async function playProcOne(proc, rec, o = {}) {
+  if (!proc) return;
+  const twoD = TWO_D.has(rec) && opt.persp === 'player';
+  const pos = twoD ? null : ahead(o.dist ?? (opt.persp === 'player' ? 5 : +opt.persp), 1.5);
+  if (proc === 'explosion' || proc === 'explosion_far') audio.play('explosion', { position: ahead(o.dist, o.dist * 0.2), concuss: false });
+  else audio.play(proc, pos ? { position: pos } : {});
+  showProc(proc);
+}
+async function playRecOne(rec, proc, o = {}) {
+  await samples.load(rec);
+  const twoD = TWO_D.has(rec) && opt.persp === 'player';
+  const e = CATALOG[proc] || {}, g = (proc ? catGain(proc) : 0.6) * await matchGain(rec, proc);
+  const s = pick(rec); if (!s) return;
+  if (rec === 'explosion' || rec === 'explosion_far') {
+    // wie AudioEngine._explosion: Nah/Fern-Überblendung 22–85 m
+    const d = o.dist, x = smooth(22, 85, d), nv = Math.cos(x * Math.PI / 2), fv = Math.sin(x * Math.PI / 2), pos = ahead(d, d * 0.2), delay = Math.min(0.35, d / 343);
+    await samples.load('explosion_far'); await samples.load('explosion');
+    const near = pick('explosion'), far = pick('explosion_far');
+    const gn = catGain('explosion') * await matchGain('explosion', 'explosion'), gf = catGain('explosion_far') * await matchGain('explosion_far', 'explosion_far');
+    if (nv > 0.05) voice(near.buf, { position: pos, ref: 14, gain: gn * nv, env: 0.7, delay, jit: 0.05 });
+    if (fv > 0.05) voice(far.buf, { position: pos, ref: 14, gain: gf * fv * 1.2, env: 0.8, delay, jit: 0.05 });
+    showLast('r', nv >= fv ? 'explosion' : 'explosion_far', nv >= fv ? near.buf : far.buf);
+    return;
+  }
+  const pos = twoD ? null : ahead(o.dist ?? (opt.persp === 'player' ? 5 : +opt.persp), 1.5);
+  voice(s.buf, { position: pos, ref: o.ref || e.ref || 3, gain: g, env: e.env ?? 0.2, jit: rec.startsWith('step_') ? 0.05 : 0.03 });
+  showLast('r', `${rec}_${s.v + 1}`, s.buf);
+}
+
+// ---------------------------------------------------------------- Oberfläche: A/B-Tabellen
+function btn(text, fn, cls = '') {
+  const b = document.createElement('button'); b.textContent = text; if (cls) b.className = cls;
+  b.onclick = async () => { await ensure(); b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash'); try { await fn(); } catch (e) { console.error(e); } };
+  return b;
+}
+const kb = name => (S[name]?.variants || []).reduce((s, v) => s + v.bytes, 0) / 1024;
+const srcLine = name => { const s = S[name]; if (!s) return 'keine Aufnahme'; return `${s.variants.length} Var. · ${fmt(kb(name), 0)} KB · ${s.note || ''}`; };
+function section(title, rows) {
+  const p = document.createElement('div'); p.className = 'panel';
+  p.innerHTML = `<h2>${title}</h2><div class="scroll"><table class="ab"><tbody></tbody></table></div>`;
+  const tb = p.querySelector('tbody');
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    const n = document.createElement('td'); n.className = 'n'; n.textContent = r.label; tr.append(n);
+    const b = document.createElement('td'); b.className = 'b';
+    if (r.proc) b.append(btn('▶ Prozedural', r.proc)); else b.append(Object.assign(document.createElement('span'), { className: 'dim', textContent: '— ' }));
+    b.append(' ', btn('▶ Aufnahme', r.rec, 'rec'));
+    if (r.burstP) b.append(' ', btn('Salve P', r.burstP), ' ', btn('Salve A', r.burstR, 'rec'));
+    tr.append(b);
+    const m = document.createElement('td'); m.className = 'm'; m.textContent = r.meta; tr.append(m);
+    tb.append(tr);
+  }
+  $('#groups').append(p);
+}
+// Waffen
+section('Waffen (Katalog-Profile)', PROF.map(p => ({
+  label: LABEL[p] || p,
+  proc: async () => { await audio.prerender([`gun_${p}`, `gunfar_${p}`]); playProcShot(p); showProc(opt.persp === 'player' || +opt.persp < 38 ? `gun_${p}` : `gunfar_${p}`); },
+  rec: () => playRecShot(p),
+  burstP: RPM[p] ? async () => { await audio.prerender([`gun_${p}`, `gunfar_${p}`]); for (let i = 0; i < 8; i++) playProcShot(p, i); } : null,
+  burstR: RPM[p] ? async () => { for (let i = 0; i < 8; i++) await playRecShot(p, i); } : null,
+  meta: `${srcLine(`gun_${p}`)} · Fern/Fahne: ${S[`gunfar_${p}`]?.variants.length || 0} Var.`,
+})));
+section('Zusätzlich für neue Waffen & Schalldämpfer (nur Aufnahme)', [
+  { label: 'Präzisionsgewehr (SKS)', proc: async () => { await audio.prerender(['gun_ar_heavy']); playProcShot('ar_heavy'); showProc('gun_ar_heavy'); }, rec: () => playRecShot('ar_heavy', 0, { near: 'dmr' }), meta: `↔ ar_heavy · ${srcLine('gun_dmr')}` },
+  { label: 'Unterhebel (Marlin 336)', proc: async () => { await audio.prerender(['gun_sniper']); playProcShot('sniper'); showProc('gun_sniper'); }, rec: () => playRecShot('sniper', 0, { near: 'lever' }), meta: `↔ sniper · ${srcLine('gun_lever')}` },
+  { label: 'Anti-Material (.50 BMG)', proc: async () => { await audio.prerender(['gun_sniper']); playProcShot('sniper'); showProc('gun_sniper'); }, rec: async () => { await samples.load('gun_sniper_heavy'); const s = pick('gun_sniper_heavy'); await samples.load('guntail_sniper'); const g = catGain('gun_sniper') * await matchGain('gun_sniper_heavy', 'gun_sniper'); voice(s.buf, { gain: g, env: opt.room === 'indoor' ? 0.22 : 0 }); if (opt.room === 'outdoor') voice(pick('guntail_sniper')?.buf, { gain: g * opt.tailMix * 2.2, delay: 0.012, eq: false }); showLast('r', 'gun_sniper_heavy_1', s.buf); }, meta: srcLine('gun_sniper_heavy') },
+  { label: 'Pistole schallgedämpft', proc: async () => { await audio.prerender(['gun_pistol']); audio.play('pistol', opt.persp === 'player' ? { player: true, suppressed: true } : { position: ahead(+opt.persp, 2), suppressed: true }); showProc('gun_pistol'); }, rec: () => playRecOne('gunsup_pistol', 'gun_pistol', { dist: opt.persp === 'player' ? 0.01 : +opt.persp }), meta: `↔ prozedural „suppressed“ (Tiefpass 2,4 kHz) · ${srcLine('gunsup_pistol')}` },
+]);
+for (const [title, rows] of Object.entries(ONE)) {
+  section(title, rows.map(([rec, proc, o = {}]) => ({
+    label: o.label || rec, proc: proc ? () => playProcOne(proc, rec, o) : null, rec: () => playRecOne(rec, proc, o), meta: srcLine(rec),
+  })));
+}
+// Atmosphäre
+const ambRows = ['harbor', 'desert', 'industrial', 'range'].map(id => ({ id, label: { harbor: 'Hafen', desert: 'Altstadt', industrial: 'Werk', range: 'Schießstand' }[id] }));
+let recBed = null;
+function stopBeds() { audio.stopAmbience(0.4); if (recBed) { const r = recBed; recBed = null; const t = audio.ctx.currentTime; r.g.gain.setTargetAtTime(0, t, 0.15); setTimeout(() => { try { r.src.stop(); r.src.disconnect(); r.g.disconnect(); } catch { /* */ } }, 800); } }
+section('Atmosphäre (Schleifen)', ambRows.map(({ id, label }) => ({
+  label,
+  proc: async () => { stopBeds(); audio.startAmbience(id); showProc(`amb_bed_${id}`); },
+  rec: async () => {
+    stopBeds(); audio.setSpace(id);
+    const name = `amb_bed_${id}`; await samples.load(name); const b = samples.buffers.get(name)?.[0]; if (!b) return;
+    const g = audio.ctx.createGain(), src = audio.ctx.createBufferSource(); src.buffer = b; src.loop = true;
+    g.gain.value = 0; src.connect(g).connect(audio.bus.amb); src.start();
+    g.gain.setTargetAtTime(await matchGain(name, name), audio.ctx.currentTime, 0.4);
+    recBed = { src, g }; showLast('r', name, b);
+  },
+  meta: `${srcLine(`amb_bed_${id}`)} · ${fmt(S[`amb_bed_${id}`]?.variants[0]?.dur, 0)} s nahtlos`,
+})));
+{ const p = $('#groups').lastElementChild; const r = document.createElement('div'); r.className = 'row'; r.append(btn('Atmo stoppen', stopBeds)); p.append(r); }
+
+// ---------------------------------------------------------------- Bedienelemente
+async function ensure() {
+  await audio.unlock();
+  if ($('#unlock').textContent !== 'Audio aktiv') { $('#unlock').textContent = 'Audio aktiv'; $('#unlock').classList.add('on'); }
+}
+$('#unlock').onclick = ensure;
+const seg = (id, key, after) => $$(`#${id} button`).forEach(b => b.onclick = () => { $$(`#${id} button`).forEach(x => x.classList.toggle('on', x === b)); opt[key] = b.dataset.v; after?.(b.dataset.v); });
+seg('persp', 'persp');
+seg('room', 'room', v => { flags.indoor = v === 'indoor'; audio.setEnvironment(v); });
+seg('tailmode', 'tail');
+$('#space').onchange = e => { world.ambience = e.target.value; audio.setSpace(e.target.value); };
+$('#tailmix').oninput = e => { opt.tailMix = +e.target.value; $('#tailmixOut').textContent = fmt(opt.tailMix, 2); };
+$('#match').onchange = e => { opt.match = e.target.checked; };
+$('#rand').onchange = e => { opt.rand = e.target.checked; };
+$('#mech').onchange = e => { opt.mech = e.target.checked; };
+for (const b of $$('#tabs button')) b.onclick = () => { $$('#tabs button').forEach(x => x.classList.toggle('on', x === b)); $$('[data-pane]').forEach(p => { p.hidden = p.dataset.pane !== b.dataset.tab; }); };
+audio.prerender();
+
+// ---------------------------------------------------------------- Blindtest
+const BLIND = {
+  'Waffen': PROF.map(p => ({ id: `gun_${p}`, label: LABEL[p], P: () => { audio.play(p, { player: true }); }, R: () => playRecShot(p), pre: [`gun_${p}`] })),
+  'Handhabung': ONE.Handhabung.map(([r, p]) => ({ id: r, label: r, P: () => playProcOne(p, r), R: () => playRecOne(r, p), pre: [p] })),
+  'Schritte': ONE.Schritte.map(([r, p]) => ({ id: r, label: r, P: () => playProcOne(p, r), R: () => playRecOne(r, p), pre: [p] })),
+  'Einschläge': ONE['Einschläge & Geschosse'].map(([r, p, o]) => ({ id: r, label: r, P: () => playProcOne(p, r, o), R: () => playRecOne(r, p, o), pre: [p] })),
+  'Explosion': ONE['Explosion & Granate'].map(([r, p, o]) => ({ id: r, label: r, P: () => playProcOne(p, r, o), R: () => playRecOne(r, p, o), pre: [p] })),
+};
+$('#blindGroup').innerHTML = ['Alle', ...Object.keys(BLIND)].map(k => `<option>${k}</option>`).join('');
+const BKEY = 'nullpunkt:audio-lab-blind';
+const loadVotes = () => { try { return JSON.parse(localStorage.getItem(BKEY)) || {}; } catch { return {}; } };
+const saveVotes = v => { try { localStorage.setItem(BKEY, JSON.stringify(v)); } catch { /* privat */ } };
+let cur = null;
+function renderVotes() {
+  const v = loadVotes(), rows = Object.entries(v);
+  const tot = rows.reduce((a, [, x]) => ({ rec: a.rec + x.rec, proc: a.proc + x.proc, same: a.same + x.same }), { rec: 0, proc: 0, same: 0 });
+  $('#blindTable').innerHTML = `<thead><tr><th>Klang</th><th>Aufnahme echter</th><th>Prozedural echter</th><th>gleich</th></tr></thead><tbody>${rows.map(([k, x]) => `<tr><td>${k}</td><td>${x.rec}</td><td>${x.proc}</td><td>${x.same}</td></tr>`).join('')}<tr><td><b>Summe</b></td><td><b>${tot.rec}</b></td><td><b>${tot.proc}</b></td><td><b>${tot.same}</b></td></tr></tbody>`;
+}
+renderVotes();
+$('#blindNew').onclick = async () => {
+  await ensure();
+  const g = $('#blindGroup').value, pool = g === 'Alle' ? Object.values(BLIND).flat() : BLIND[g];
+  const item = pool[Math.floor(Math.random() * pool.length)], aIsRec = Math.random() < 0.5;
+  cur = { item, aIsRec, voted: false };
+  await audio.prerender(item.pre.filter(Boolean));
+  $('#blindMsg').textContent = `Paar bereit (${g}). A und B anhören, dann abstimmen.`;
+};
+const playSide = side => { if (!cur) return; const rec = side === 'A' ? cur.aIsRec : !cur.aIsRec; const keep = opt.rand; opt.rand = true; (rec ? cur.item.R : cur.item.P)(); opt.rand = keep; };
+$('#blindA').onclick = async () => { await ensure(); playSide('A'); };
+$('#blindB').onclick = async () => { await ensure(); playSide('B'); };
+function vote(which) {
+  if (!cur || cur.voted) return;
+  const v = loadVotes(), x = v[cur.item.id] ||= { rec: 0, proc: 0, same: 0 };
+  if (which === 'S') x.same++; else if ((which === 'A') === cur.aIsRec) x.rec++; else x.proc++;
+  saveVotes(v); cur.voted = true; renderVotes();
+  $('#blindMsg').innerHTML = `Auflösung „${cur.item.label}“: A = <b>${cur.aIsRec ? 'Aufnahme' : 'prozedural'}</b>, B = <b>${cur.aIsRec ? 'prozedural' : 'Aufnahme'}</b>.`;
+}
+$('#voteA').onclick = () => vote('A'); $('#voteB').onclick = () => vote('B'); $('#voteS').onclick = () => vote('S');
+$('#blindReset').onclick = () => { saveVotes({}); renderVotes(); };
+
+// ---------------------------------------------------------------- Messung
+const PAIRS = [...PROF.flatMap(p => [[`gun_${p}`, `gun_${p}`], [`gunfar_${p}`, `gunfar_${p}`]]), ...Object.values(ONE).flat().filter(([, p]) => p).map(([r, p]) => [r, p]), ...ambRows.map(({ id }) => [`amb_bed_${id}`, `amb_bed_${id}`])];
+async function measureAll() {
+  const rows = [];
+  for (const [rec, proc] of PAIRS) {
+    $('#measureMsg').textContent = `messe ${rec} …`;
+    const [rl, pb] = await Promise.all([samples.load(rec), procBuffer(proc)]);
+    rows.push({ rec, proc, r: measure(rl[0]), p: measure(pb) });
+  }
+  $('#measureMsg').textContent = `${rows.length} Paare gemessen.`;
+  const c = (a, b, better) => (a == null || b == null ? '' : better(a, b) ? 'good' : '');
+  $('#measureTable').innerHTML = `<thead><tr><th>Aufnahme ↔ prozedural</th><th>Dauer A/P s</th><th>Crest A/P dB</th><th>−40 dB A/P s</th><th>Bandbr. A/P kHz</th><th>Schwerp. A/P Hz</th><th>Laut A/P dBFS</th></tr></thead><tbody>${rows.map(({ rec, proc, r, p }) => `<tr><td>${rec}${rec !== proc ? ` ↔ ${proc}` : ''}</td><td>${fmt(r?.dur, 2)} / ${fmt(p?.dur, 2)}</td><td class="${c(r?.crest, p?.crest, (a, b) => a > b + 3)}">${fmt(r?.crest)} / ${fmt(p?.crest)}</td><td>${r?.d40 == null ? '–' : fmt(r.d40, 2)} / ${p?.d40 == null ? '–' : fmt(p.d40, 2)}</td><td>${fmt(r?.bw / 1000)} / ${fmt(p?.bw / 1000)}</td><td>${Math.round(r?.centroid || 0)} / ${Math.round(p?.centroid || 0)}</td><td>${fmt(r?.loud)} / ${fmt(p?.loud)}</td></tr>`).join('')}</tbody>`;
+  window.__audioLab2.measured = rows;
+  return rows;
+}
+$('#measureAll').onclick = async () => { await ensure(); await measureAll(); };
+window.__audioLab2.measureAll = measureAll;
+
+// Größe/Speicher je Qualitätsstufe (gleiche Annahmen wie tools/audio/tiers.mjs)
+const CORE = new Set(PROF);
+const TIERS = {
+  high: { label: 'Hoch (Desktop)', maxVar: { near: 4, far: 2, tail: 2, oneshot: 4, mech: 1, bed: 1 }, rate: {}, ch: {} },
+  medium: { label: 'Mittel', maxVar: { near: 3, far: 2, tail: 1, oneshot: 3, mech: 1, bed: 1 }, rate: { near: 32000, oneshot: 32000, bed: 22050 }, ch: { tail: 1 } },
+  low: { label: 'Niedrig (Handy)', maxVar: { near: 2, far: 1, tail: 1, oneshot: 2, mech: 0, bed: 1 }, rate: { near: 32000, far: 22050, tail: 22050, oneshot: 32000, bed: 16000 }, ch: { near: 1, tail: 1, bed: 1 } },
+};
+function tierCost(t, map = 'harbor') {
+  let dl = 0, ram = 0, files = 0;
+  for (const [name, s] of Object.entries(S)) {
+    if (s.group === 'gun' && s.layer !== 'mech' && !CORE.has(name.replace(/^(gun|gunfar|guntail)_/, ''))) continue;
+    if (s.layer === 'bed' && name !== `amb_bed_${map}`) continue;
+    const n = Math.min(s.variants.length, t.maxVar[s.layer] ?? 4), rate = Math.min(s.rate, t.rate[s.layer] ?? s.rate), ch = Math.min(s.ch, t.ch[s.layer] ?? s.ch);
+    for (const v of s.variants.slice(0, n)) { dl += v.bytes; ram += v.dur * rate * ch * 4; files++; }
+  }
+  return { files, dl: dl / 1024, ram: ram / 1048576 };
+}
+if (manifest) {
+  const T = manifest.totals;
+  $('#sizeTable').innerHTML = `<thead><tr><th>Stufe</th><th>Dateien</th><th>Download</th><th>RAM dekodiert</th><th>Annahmen</th></tr></thead><tbody>`
+    + Object.values(TIERS).map(t => { const c = tierCost(t); return `<tr><td>${t.label}</td><td>${c.files}</td><td>${fmt(c.dl / 1024, 2)} MB</td><td>${fmt(c.ram)} MB</td><td>${t === TIERS.high ? 'alle Varianten, Dateirate' : t === TIERS.medium ? '3 Nah-Var., 32 kHz, Fahne mono' : '2 Nah-Var. mono 32 kHz, Fern 22 kHz, Atmo 16 kHz mono'}</td></tr>`; }).join('')
+    + `<tr><td>Repo gesamt</td><td>${T.files}</td><td>${fmt(T.MB, 2)} MB</td><td>${fmt(T.decodedMB)} MB</td><td>inkl. Zusatzwaffen, alle Atmo-Betten</td></tr></tbody>`;
+  const G2 = Object.entries(T.byGroup).map(([g, v]) => `${g} ${v.files}×/${fmt(v.bytes / 1024, 0)} KB`).join(' · ');
+  $('#sizeTable').insertAdjacentHTML('afterend', `<p class="hint">Gruppen: ${G2}</p>`);
+}
+
+// Hybrid-Tabelle
+const H = [
+  ['Schüsse nah (Spieler + Gegner < 16 m)', 's', 'gun_* (8 Profile × 2–4)', 'FFSL-Nahaufnahme; Variante/Tonhöhe/EQ zufällig; außen + Aufnahme-Fahne, innen Faltungshall; optional Mechanik + prozeduraler Sub (hoch)'],
+  ['Schüsse fern (16–600 m)', 's', 'gunfar_* (2 je Profil)', 'Mittel-Distanz-Aufnahme mit echten Echos; Engine: Überblendung, Luftdämpfung, Laufzeit, Verdeckung; > 150 m zusätzlich Tiefpass'],
+  ['Nachhall des eigenen Schusses', 'h', 'guntail_* + Engine', 'außen Aufnahme-Fahne (Pegel physikalisch an gunfar gekoppelt), innen bisherige Faltung; Kartenakustik (Slapback) bleibt als leiser Zusatz'],
+  ['Schallgedämpft', 'h', 'gunsup_pistol', 'Pistolen: Aufnahme; Gewehre: prozedurale Dämpfung + Mechanik-Aufnahme'],
+  ['Nachladen, Repetieren, Leerklick', 's', 'reload_*, bolt, pump, slide_release, dryfire', 'bestehende Nachlade-Choreografie der Engine, nur die Puffer wechseln; Pistolen → slide_release statt reload_bolt'],
+  ['Patronen einzeln laden, Waffe ziehen, Zielen', 'p', '—', 'keine guten freien Aufnahmen gefunden'],
+  ['Hülsen', 's', 'shell_* (neu)', '0,4–0,7 s nach dem Schuss, Fläche nach world.raycast; bisher in den Schuss eingebaut'],
+  ['Schritte Beton/Holz/Erde/Kies/Metall/Gras', 's', 'step_*', '±5 % Tonhöhe, ±2 dB; Sprint/Ducken wie heute; Ausrüstungsklappern bleibt prozedural'],
+  ['Schritte Sand/Wasser/Fliesen/Stoff/Glas', 'p', '—', 'keine Aufnahme; prozedural'],
+  ['Einschläge Beton/Holz/Erde/Glas, Körper', 's', 'impact_*, hit_flesh', '+ prozeduraler Staub/Splitter-Schicht für Variation'],
+  ['Einschlag Metall, Querschläger, Helm', 'h', 'impact_metal (Transiente)', 'Aufnahme-Transiente + prozedurale Modal-Resonanz (oder rein prozedural)'],
+  ['Überschallknall / Pfeifen', 'p', 'bullet_whiz (Unterschall-Variante)', 'N-Welle der Engine bleibt; Peitschen-Whoosh höchstens als zusätzliche Unterschall-Variante'],
+  ['Explosion nah/fern, Granatensprung, Bügel', 's', 'explosion*, grenade_bounce, grenade_spoon', '+ prozeduraler Sub-Stoß/Trümmer; Erschütterungs-Tiefpass bleibt'],
+  ['Körper fällt', 's', 'bodyfall (neu)', 'zum Ragdoll-Aufprall, getrennt vom Todeslaut'],
+  ['Atmo-Betten', 's', 'amb_bed_* (4 Karten)', 'Aufnahme als Schleife, prozedurale Einzelereignisse (Möwen, Ketten, Hunde …) wie heute darüber'],
+  ['UI, Feedback, Medaillen, Musik, Stimmen', 'p', '—', 'unverändert prozedural (klein, stilisiert, kein Realismusziel)'],
+];
+$('#hybridTable').innerHTML = `<thead><tr><th>Bereich</th><th>Quelle</th><th>Dateien</th><th>Umsetzung</th></tr></thead><tbody>${H.map(([a, k, f, d]) => `<tr><td>${a}</td><td><span class="tag ${k}">${k === 's' ? 'Aufnahme' : k === 'p' ? 'prozedural' : 'hybrid'}</span></td><td><code>${f}</code></td><td>${d}</td></tr>`).join('')}</tbody>`;
+
+// ---------------------------------------------------------------- Status & Pegel
+const meter = $('#meter'), mc = meter.getContext('2d');
+let peakHold = -60, lastT = performance.now();
+function frame(t) {
+  const dt = Math.min(0.1, (t - lastT) / 1000); lastT = t;
+  audio.update(dt);
+  const an = audio.getAnalyser();
+  const W = meter.width, Hh = meter.height; mc.clearRect(0, 0, W, Hh);
+  if (an) {
+    const td = new Float32Array(an.fftSize); an.getFloatTimeDomainData(td);
+    let pk = 0, s = 0; for (const v of td) { pk = Math.max(pk, Math.abs(v)); s += v * v; }
+    const rms = Math.sqrt(s / td.length), d = x => Math.max(-60, db(x));
+    peakHold = Math.max(d(pk), peakHold - 0.6);
+    const X = v => (v + 60) / 60 * W;
+    mc.fillStyle = '#5FE08A'; mc.fillRect(0, Hh - 44, X(d(rms)), 16);
+    mc.fillStyle = pk >= 0.999 ? '#FF3B3B' : '#FFC23D'; mc.fillRect(0, Hh - 24, X(d(pk)), 16);
+    mc.fillStyle = '#E9E6DF'; mc.fillRect(X(peakHold) - 2, Hh - 44, 3, 36);
+    mc.font = '20px "JetBrains Mono NP", monospace'; mc.fillStyle = 'rgba(233,230,223,.7)'; mc.fillText(`Spitze ${peakHold.toFixed(1)} dBFS · RMS ${d(rms).toFixed(1)} dBFS`, 6, 26);
+  }
+  status();
+  requestAnimationFrame(frame);
+}
+let lastS = 0;
+function status() {
+  const now = performance.now(); if (now - lastS < 300) return; lastS = now;
+  const i = audio.info();
+  $('#status').innerHTML = `<span>Kontext <b>${i.state}</b> ${i.sampleRate ? i.sampleRate + ' Hz' : ''}</span><span>Aufnahmen geladen <b>${samples.buffers.size}</b> · ${fmt(samples.bytes / 1024, 0)} KB · RAM ${fmt(samples.ram / 1048576)} MB${samples.errors ? ` · <b class="bad">${samples.errors} Fehler</b>` : ''}</span><span>Prozedural <b>${i.buffers}</b> Puffer (${i.bankMB} MB)</span><span>Stimmen <b>${i.voices}</b></span><span>Repo: <b>${manifest ? manifest.totals.files + ' Dateien, ' + fmt(manifest.totals.MB, 2) + ' MB' : '–'}</b></span>`;
+}
+requestAnimationFrame(frame);
+window.__audioLab2.samples = samples;
+window.__audioLab2.play = { playRecShot, playProcShot, playRecOne, playProcOne };
+</script>
+</body>
+</html>

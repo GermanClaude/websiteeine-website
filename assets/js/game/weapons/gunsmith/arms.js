@@ -244,19 +244,21 @@ export const GRIPS = {
     shape: d => gripShape(d), F: (d, s) => s.U, B: () => [1, 0.05, 0.3], hOff: d => d.ho ?? 0.018, pc: [0, -0.0175, -0.066],
     index: 'trigger', thumb: (d, s) => leftOf(s, 0.011, d.tu ?? 0.034, s.a * 0.35),
   },
-  // Linke Hand unter dem Handschutz (Handfläche links unten, Finger um die rechte Seite, Daumen links vorn)
+  // Linke Hand unter dem Handschutz (Handfläche links unten, Finger um die rechte Seite, Daumen links vorn).
+  // Finger schräg nach vorn oben → das Handgelenk liegt hinten unten, der Unterarm kommt kurz und steil von
+  // unten (CoD-Mobile-Hüfte) statt als langer Schlauch von links.
   under: {
-    shape: d => barShape(d), F: () => [0.9, 0.3, -0.42], B: () => [-0.45, -1, -0.04], hOff: () => 0, pc: [0, -0.0175, -0.05],
+    shape: d => barShape(d), F: () => [0.62, 0.45, -0.64], B: () => [-0.55, -1, -0.12], hOff: () => 0, pc: [0, -0.0175, -0.05],
     thumb: (d, s) => s.c.clone().add(V3(-(s.a + 0.01), -0.004, -0.068)),
   },
   // Linke Hand flach unter dem Vorderschaft (Repetierer)
   flat: {
-    shape: d => barShape(d), F: () => [0.95, 0.15, -0.35], B: () => [-0.32, -1, 0], hOff: () => 0, pc: [0, -0.0175, -0.05],
+    shape: d => barShape(d), F: () => [0.7, 0.3, -0.65], B: () => [-0.42, -1, -0.06], hOff: () => 0, pc: [0, -0.0175, -0.05],
     thumb: (d, s) => s.c.clone().add(V3(-(s.a + 0.011), 0.0, -0.06)),
   },
   // Linke Hand am Pumpschaft
   pump: {
-    shape: d => barShape(d), F: () => [0.88, 0.32, -0.38], B: () => [-0.5, -1, -0.03], hOff: () => 0, pc: [0, -0.0175, -0.05],
+    shape: d => barShape(d), F: () => [0.62, 0.46, -0.64], B: () => [-0.58, -1, -0.1], hOff: () => 0, pc: [0, -0.0175, -0.05],
     thumb: (d, s) => s.c.clone().add(V3(-(s.a + 0.01), -0.004, -0.065)),
   },
   // Linke Hand am senkrechten Vordergriff (QX-90)
@@ -540,24 +542,62 @@ function thumbRestQuat(mirror = false) {
   return q.clone();
 }
 
-// Ärmel: konisches Rohr mit Falten entlang −Z (0 → −len)
-function sleeveGeometry(len, rA, rB, folds, seed = 1, seg = 14) {
-  const pts = [];
-  const n = 14;
-  for (let i = 0; i <= n; i++) {
-    const t = i / n;
-    let r = rA + (rB - rA) * t;
-    r += Math.sin(t * Math.PI * folds + seed) * 0.0025 + Math.sin(t * Math.PI * folds * 2.3 + seed * 2) * 0.0012;
-    pts.push(new THREE.Vector2(r, t * len));
+// Ärmel: Stoffrohr entlang −Z (0 = Ellbogen/Schulter → −len = Handgelenk/Ellbogen) mit Muskelform,
+// verjüngt zum Ende, schräg verlaufenden Stauchfalten (an den Enden dichter: Bündchen, Ellbogenbeuge) und
+// Vertex-Farben als Stoffschattierung (Faltentäler dunkler, Rücken heller, Säume abgedunkelt).
+// opts: bulge (m, Muskelbauch), bulgeAt (0..1), seg (Umfangssegmente)
+function sleeveGeometry(len, rA, rB, folds, seed = 1, { bulge = 0, bulgeAt = 0.3, seg = 16 } = {}) {
+  const N = 22;
+  // Profil: [t, Radius, Faltenanteil, Helligkeit]; t < 0 / > 1 = Saum (nach innen umgeschlagen)
+  const prof = [[-0.012, rA * 0.72, 0, 0.55]];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const taper = 1 - THREE.MathUtils.smoothstep(t, 0.06, 1);
+    let r = rB + (rA - rB) * taper + bulge * Math.exp(-(((t - bulgeAt) / 0.2) ** 2));
+    // Falten an den Enden kräftiger (Stoff staut sich über dem Bündchen und in der Beuge)
+    const fw = 0.7 + 0.8 * Math.exp(-t / 0.14) + 1.1 * Math.exp(-(1 - t) / 0.12);
+    // Säume etwas dunkler (Überlappung, Schatten der Nachbarteile)
+    const shade = 1 - 0.16 * Math.exp(-t / 0.05) - 0.2 * Math.exp(-(1 - t) / 0.06);
+    prof.push([t, r, fw, shade]);
   }
-  pts.unshift(new THREE.Vector2(rA * 0.7, -0.004));
-  pts.push(new THREE.Vector2(rB * 1.04, len + 0.002), new THREE.Vector2(rB * 0.8, len + 0.006));
-  const g = new THREE.LatheGeometry(pts, seg);
-  g.rotateX(-Math.PI / 2);
-  g.scale(1.06, 0.94, 1);
-  // UVs: Umfang/Länge auf ca. 0.22 m Kachelgröße skalieren
-  const uv = g.attributes.uv;
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * (2 * Math.PI * rA / 0.22), uv.getY(i) * (len / 0.22));
+  prof.push([1 + 0.002 / len, rB * 1.05, 0.6, 0.76], [1 + 0.007 / len, rB * 0.8, 0, 0.5]);
+  const rows = prof.length, cols = seg + 1;
+  const pos = new Float32Array(rows * cols * 3), uv = new Float32Array(rows * cols * 2), col = new Float32Array(rows * cols * 3);
+  const uS = 2 * Math.PI * rA / 0.22, vS = len / 0.22;
+  for (let i = 0; i < rows; i++) {
+    const [t, r0, fw, shade] = prof[i];
+    for (let j = 0; j < cols; j++) {
+      const th = (j / seg) * Math.PI * 2;
+      // schräge, unregelmäßige Faltenringe: Phase wandert mit dem Umfang
+      const ph = t * Math.PI * folds * 1.7 + seed + 0.9 * Math.sin(th * 2 + seed) + 0.45 * Math.sin(th * 3 - seed * 1.7);
+      const f = Math.sin(ph) * 0.62 + Math.sin(ph * 2.3 + seed * 2 + th) * 0.38;
+      const r = r0 + f * 0.003 * fw;
+      const k = (i * cols + j);
+      pos[k * 3] = Math.sin(th) * r * 1.06; pos[k * 3 + 1] = Math.cos(th) * r * 0.94; pos[k * 3 + 2] = -t * len;
+      uv[k * 2] = (j / seg) * uS; uv[k * 2 + 1] = t * vS;
+      // Faltentäler dunkler, Rücken heller (nur wo Falten sind)
+      const c = shade * (0.9 + 0.13 * f * Math.min(1, fw));
+      col[k * 3] = col[k * 3 + 1] = col[k * 3 + 2] = c;
+    }
+  }
+  const idx = [];
+  for (let i = 0; i < rows - 1; i++) for (let j = 0; j < seg; j++) {
+    const a = i * cols + j, b = a + cols, c = b + 1, d = a + 1;
+    idx.push(a, d, b, d, c, b);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  // Naht schließen: erste und letzte Spalte teilen die Position → gleiche Normale
+  const n = g.attributes.normal;
+  for (let i = 0; i < rows; i++) {
+    const a = i * cols, b = a + seg;
+    const x = n.getX(a) + n.getX(b), y = n.getY(a) + n.getY(b), z = n.getZ(a) + n.getZ(b), l = Math.hypot(x, y, z) || 1;
+    n.setXYZ(a, x / l, y / l, z / l); n.setXYZ(b, x / l, y / l, z / l);
+  }
   return g;
 }
 
@@ -605,13 +645,17 @@ class Arm {
 
     // Ärmel (Unter- und Oberarm) + Ellbogen
     this.upperLen = 0.33; this.foreLen = 0.3;
-    this.fore = new THREE.Mesh(sleeveGeometry(this.foreLen + 0.008, 0.047, 0.039, 3.2, side > 0 ? 1 : 2.4), mats.sleeve);
-    this.upper = new THREE.Mesh(sleeveGeometry(this.upperLen, 0.056, 0.049, 2.2, side > 0 ? 3 : 4.1), mats.sleeve);
-    this.elbow = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), mats.sleeve);
+    // Unterarm: kräftig am Ellbogen (Muskelbauch), schlank zum Bündchen; Oberarm kaum verjüngt
+    this.fore = new THREE.Mesh(sleeveGeometry(this.foreLen + 0.008, 0.049, 0.036, 3.2, side > 0 ? 1 : 2.4, { bulge: 0.004, bulgeAt: 0.22 }), mats.sleeve);
+    this.upper = new THREE.Mesh(sleeveGeometry(this.upperLen, 0.056, 0.05, 2.2, side > 0 ? 3 : 4.1, { bulge: 0.002, bulgeAt: 0.55 }), mats.sleeve);
+    const elbowGeo = new THREE.SphereGeometry(0.05, 12, 8);
+    elbowGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(elbowGeo.attributes.position.count * 3).fill(0.86), 3));
+    this.elbow = new THREE.Mesh(elbowGeo, mats.sleeve);
     for (const m of [this.fore, this.upper, this.elbow]) { m.frustumCulled = false; this.group.add(m); }
     // Klebeband am rechten Unterarm, Uhr an der Innenseite des linken Handgelenks
     if (side > 0) {
-      const tape = new THREE.Mesh(new THREE.CylinderGeometry(0.0455, 0.0455, 0.032, 16, 1, true), mats.tape);
+      // Radius = Ärmelprofil an dieser Stelle (+ Faltenhöhe), damit das Band anliegt
+      const tape = new THREE.Mesh(new THREE.CylinderGeometry(0.0412, 0.0412, 0.032, 16, 1, true), mats.tape);
       tape.geometry.rotateX(Math.PI / 2);
       tape.scale.set(1.06, 0.94, 1);
       tape.position.z = -0.21;
@@ -732,7 +776,7 @@ function makeArmMaterials() {
   const watchTex = watchFaceTexture();
   const set = {
     glove: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.22, 0.22) }),
-    sleeve: new THREE.MeshStandardMaterial({ map: camoMap('arid'), roughness: 0.92, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.3, 0.3) }),
+    sleeve: new THREE.MeshStandardMaterial({ map: camoMap('arid'), vertexColors: true, roughness: 0.92, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.3, 0.3) }),
     tape: new THREE.MeshStandardMaterial({ map: tapeMap(), roughness: 0.6, metalness: 0.0 }),
     watchCase: new THREE.MeshStandardMaterial({ color: 0x1b1c1d, roughness: 0.55, metalness: 0.2 }),
     watchFace: new THREE.MeshStandardMaterial({ map: watchTex, emissive: 0xffffff, emissiveMap: watchTex, emissiveIntensity: 0.55, roughness: 0.15, metalness: 0.0 }),

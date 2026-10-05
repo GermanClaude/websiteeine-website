@@ -1,0 +1,111 @@
+{
+  "id": "rubber",
+  "recipe": "5673db51becd",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/rubber/rubber_512_albedo.ktx2",
+          "bytes": 53169,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/rubber/rubber_512_normal.ktx2",
+          "bytes": 77305,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/rubber/rubber_512_orm.ktx2",
+          "bytes": 26850,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 157324,
+      "gpu": {
+        "desktop": 1048575,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/rubber/rubber_1024_albedo.ktx2",
+          "bytes": 175784,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/rubber/rubber_1024_normal.ktx2",
+          "bytes": 235303,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/rubber/rubber_1024_orm.ktx2",
+          "bytes": 95874,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 506961,
+      "gpu": {
+        "desktop": 4194303,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#2a2c32",
+    "avgRoughness": 0.591,
+    "avgMetalness": 0,
+    "avgAO": 1,
+    "coverage": 1
+  }
+}

@@ -38,7 +38,7 @@ function readTeams(t) {
   const out = {};
   if (!t || typeof t !== 'object' || Array.isArray(t)) return out;
   for (const [id, v] of Object.entries(t)) {
-    if (!/^[a-z0-9_-]{1,24}$/.test(id) || !v || typeof v !== 'object') continue;
+    if (!/^[a-z][a-z0-9_-]{0,23}$/.test(id) || !v || typeof v !== 'object') continue;
     const a = Number(v.allies);
     const e = Number(v.enemies);
     if (Number.isInteger(a) && a >= 0 && a <= 64 && Number.isInteger(e) && e >= 0 && e <= 64) out[id] = { allies: a, enemies: e };
@@ -103,6 +103,8 @@ if (ls) {
     const cur = siteStore.get();
     // Objektwerte (teams) nur bei echtem Unterschied übernehmen – sonst meldet jedes Ereignis eine „Änderung“
     for (const k of Object.keys(next)) if (typeof next[k] === 'object' && next[k] && JSON.stringify(next[k]) === JSON.stringify(cur[k])) delete next[k];
-    siteStore.patch(next);
+    // Stammt aus dem Speicher → nicht zurückschreiben (sonst legte ein zweiter Tab den eben gelöschten Schlüssel neu an)
+    silent = true;
+    try { siteStore.patch(next); } finally { silent = false; }
   });
 }

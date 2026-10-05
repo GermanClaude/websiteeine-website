@@ -154,8 +154,10 @@ export class StrikeTargeting {
     this.open = false;
     while (this._listeners.length) this._listeners.pop()();
     if (this.root) this.root.remove();
-    this.root = null;
-    if (!silent && this.opts && this.opts.onCancel) this.opts.onCancel();
+    this.root = this.canvas = this.ctx = this.cursorEl = this.confirmBtn = this.mapBox = null;
+    const opts = this.opts;
+    this.opts = null; // Rückrufe halten Serienprämien/Modus des Matches
+    if (!silent && opts && opts.onCancel) opts.onCancel();
   }
 
   update(dt) {

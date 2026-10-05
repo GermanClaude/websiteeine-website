@@ -1,0 +1,160 @@
+{
+  "id": "gunmetal_worn",
+  "recipe": "95256ef40d11",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/gunmetal_worn/gunmetal_worn_512_albedo.ktx2",
+          "bytes": 52404,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/gunmetal_worn/gunmetal_worn_512_normal.ktx2",
+          "bytes": 16930,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/gunmetal_worn/gunmetal_worn_512_orm.ktx2",
+          "bytes": 35188,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 104522,
+      "gpu": {
+        "desktop": 1048575,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/gunmetal_worn/gunmetal_worn_1024_albedo.ktx2",
+          "bytes": 170405,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/gunmetal_worn/gunmetal_worn_1024_normal.ktx2",
+          "bytes": 124191,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/gunmetal_worn/gunmetal_worn_1024_orm.ktx2",
+          "bytes": 132862,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 427458,
+      "gpu": {
+        "desktop": 4194303,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    },
+    "2048": {
+      "files": {
+        "albedo": {
+          "path": "textures/gunmetal_worn/gunmetal_worn_2048_albedo.ktx2",
+          "bytes": 681670,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        "normal": {
+          "path": "textures/gunmetal_worn/gunmetal_worn_2048_normal.ktx2",
+          "bytes": 549954,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        "orm": {
+          "path": "textures/gunmetal_worn/gunmetal_worn_2048_orm.ktx2",
+          "bytes": 553315,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        }
+      },
+      "bytes": 1784939,
+      "gpu": {
+        "desktop": 16777215,
+        "mobile": 8388609,
+        "rgba8": 67108863
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#3f3f40",
+    "avgRoughness": 0.354,
+    "avgMetalness": 0.826,
+    "avgAO": 1,
+    "coverage": 1
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "id": "polymer_black",
+  "recipe": "42403079e234",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/polymer_black/polymer_black_512_albedo.ktx2",
+          "bytes": 41289,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/polymer_black/polymer_black_512_normal.ktx2",
+          "bytes": 966,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/polymer_black/polymer_black_512_orm.ktx2",
+          "bytes": 26408,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 68663,
+      "gpu": {
+        "desktop": 1048575,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/polymer_black/polymer_black_1024_albedo.ktx2",
+          "bytes": 151417,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/polymer_black/polymer_black_1024_normal.ktx2",
+          "bytes": 3452,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/polymer_black/polymer_black_1024_orm.ktx2",
+          "bytes": 91836,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 246705,
+      "gpu": {
+        "desktop": 4194303,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    },
+    "2048": {
+      "files": {
+        "albedo": {
+          "path": "textures/polymer_black/polymer_black_2048_albedo.ktx2",
+          "bytes": 645185,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        "normal": {
+          "path": "textures/polymer_black/polymer_black_2048_normal.ktx2",
+          "bytes": 177999,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        "orm": {
+          "path": "textures/polymer_black/polymer_black_2048_orm.ktx2",
+          "bytes": 346282,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        }
+      },
+      "bytes": 1169466,
+      "gpu": {
+        "desktop": 16777215,
+        "mobile": 8388609,
+        "rgba8": 67108863
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#07080a",
+    "avgRoughness": 0.249,
+    "avgMetalness": 0,
+    "avgAO": 1,
+    "coverage": 1
+  }
+}

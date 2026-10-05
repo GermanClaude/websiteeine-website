@@ -100,6 +100,11 @@ export class GrenadeSystem {
     return this._ledMat;
   }
 
+  /** Objekte für die Shader-Vorbereitung beim Matchstart (Aufwärmgruppe des Modus): die Haft-LED (Sprite). */
+  warmObjects() {
+    return [new THREE.Sprite(this._led())];
+  }
+
   /* ------------------------------------------------------------ Wurf */
 
   /**

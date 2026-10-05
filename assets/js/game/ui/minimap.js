@@ -30,10 +30,12 @@ export class Minimap {
     this.font = '700 11px "Rajdhani NP", sans-serif';
   }
 
+  /** Welt des Matches; `null` beim Verlassen (HUD.detach) – sonst hielte die Minikarte die alte Welt samt BVH/Navigation am Leben. */
   setWorld(world) {
     this.world = world || null;
     this.mapImg = world && world.minimap && world.minimap.canvas ? world.minimap.canvas : null;
-    this.resize();
+    if (this.world) this.resize();
+    else this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
   resize() {

@@ -10,8 +10,8 @@ import * as THREE from 'three';
 import { STREAKS, STREAK_ORDER } from '../../shared/modes.data.js';
 import { WEAPONS, EQUIPMENT } from '../../shared/weapons.data.js';
 import { falloff } from '../combat.js';
-import { Sentry, createSentryResources } from './sentry.js';
-import { Strike, createStrikeResources, groundAt } from './strike.js';
+import { Sentry, sentryResources } from './sentry.js';
+import { Strike, strikeResources, groundAt } from './strike.js';
 
 const _v = new THREE.Vector3();
 const _d = new THREE.Vector3();
@@ -28,7 +28,6 @@ export class StreakManager {
     this.entities = []; // Wachgeschütze
     this.strikes = [];
     this.targeting = null;
-    this._res = {};
     this._world = null;
     this._origRaycast = null;
     this._entityHits = [];
@@ -426,9 +425,23 @@ export class StreakManager {
 
   /* ------------------------------------------------------------ Ressourcen */
 
+  /** Geteilte Geometrien/Materialien (sentry.js/strike.js); werden nicht mit dem Match entsorgt. */
   resources(kind = 'sentry') {
-    if (!this._res[kind]) this._res[kind] = kind === 'strike' ? createStrikeResources() : createSentryResources();
-    return this._res[kind];
+    return kind === 'strike' ? strikeResources() : sentryResources();
+  }
+
+  /**
+   * Je Material ein Objekt für die Aufwärmgruppe des Modus (BaseMode): main.warmUp() kompiliert sie mit Licht,
+   * Nebel und Umgebung des Matches – sonst linkt das erste Geschütz bzw. der erste Luftschlag mitten im Gefecht.
+   */
+  warmObjects() {
+    const out = [];
+    for (const kind of ['sentry', 'strike']) {
+      const R = this.resources(kind);
+      const geo = kind === 'strike' ? R.missile : R.hub;
+      for (const mat of Object.values(R.mats)) out.push(new THREE.Mesh(geo, mat));
+    }
+    return out;
   }
 
   /** Matchende: alles anhalten (Objekte bleiben bis dispose sichtbar). */
@@ -443,8 +456,6 @@ export class StreakManager {
     this.entities = [];
     this.strikes = [];
     this._uninstallRaycast();
-    for (const r of Object.values(this._res)) r.dispose();
-    this._res = {};
     this.uav.clear();
     this.state.clear();
     this._botPlans.clear();

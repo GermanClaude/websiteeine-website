@@ -1,0 +1,272 @@
+{
+  "id": "stick_grenade",
+  "recipe": "6126bb8a21d8",
+  "size": [
+    0.082,
+    0.379,
+    0.082
+  ],
+  "radius": 0.198,
+  "lodDistances": [
+    0,
+    6,
+    16
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/stick_grenade/stick_grenade_512.glb",
+      "bytes": 212608,
+      "srcTris": 4612,
+      "lods": [
+        {
+          "tris": 4612
+        },
+        {
+          "tris": 1844
+        },
+        {
+          "tris": 643
+        }
+      ],
+      "parts": [
+        "stick_grenade"
+      ],
+      "bounds": {
+        "min": [
+          -0.043,
+          -0.16,
+          -0.043
+        ],
+        "max": [
+          0.039,
+          0.219,
+          0.039
+        ]
+      },
+      "textures": [
+        {
+          "name": "stick_grenade_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 65906,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "stick_grenade_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 56746,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "stick_grenade_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 31844,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 147358,
+      "gpu": {
+        "desktop": 1195933,
+        "mobile": 671647,
+        "rgba8": 4341661
+      },
+      "materials": [
+        {
+          "name": "stick_grenade",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ]
+    },
+    "1024": {
+      "path": "models/stick_grenade/stick_grenade_1024.glb",
+      "bytes": 546436,
+      "srcTris": 4612,
+      "lods": [
+        {
+          "tris": 4612
+        },
+        {
+          "tris": 1844
+        },
+        {
+          "tris": 643
+        }
+      ],
+      "parts": [
+        "stick_grenade"
+      ],
+      "bounds": {
+        "min": [
+          -0.043,
+          -0.16,
+          -0.043
+        ],
+        "max": [
+          0.039,
+          0.219,
+          0.039
+        ]
+      },
+      "textures": [
+        {
+          "name": "stick_grenade_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 216398,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "stick_grenade_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 176992,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "stick_grenade_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 94944,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 147358,
+      "gpu": {
+        "desktop": 4341661,
+        "mobile": 2244511,
+        "rgba8": 16924573
+      },
+      "materials": [
+        {
+          "name": "stick_grenade",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ]
+    },
+    "2048": {
+      "path": "models/stick_grenade/stick_grenade_2048.glb",
+      "bytes": 1845808,
+      "srcTris": 4612,
+      "lods": [
+        {
+          "tris": 4612
+        },
+        {
+          "tris": 1844
+        },
+        {
+          "tris": 643
+        }
+      ],
+      "parts": [
+        "stick_grenade"
+      ],
+      "bounds": {
+        "min": [
+          -0.043,
+          -0.16,
+          -0.043
+        ],
+        "max": [
+          0.039,
+          0.219,
+          0.039
+        ]
+      },
+      "textures": [
+        {
+          "name": "stick_grenade_nor_gl_2k.ktx2",
+          "role": "normal",
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "bytes": 791950,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        {
+          "name": "stick_grenade_diff_2k.ktx2",
+          "role": "albedo",
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "bytes": 667354,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        {
+          "name": "stick_grenade_arm_2k.ktx2",
+          "role": "orm",
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "bytes": 328384,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        }
+      ],
+      "geometryBytes": 147358,
+      "gpu": {
+        "desktop": 16924573,
+        "mobile": 8535967,
+        "rgba8": 67256221
+      },
+      "materials": [
+        {
+          "name": "stick_grenade",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ]
+    }
+  }
+}

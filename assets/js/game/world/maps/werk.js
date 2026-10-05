@@ -307,7 +307,10 @@ function hall(b) {
   }
   // Traufgesims
   for (const s of [-1, 1]) b.box(s * (HX + 0.05), H, 0, 0.7, 0.35, 2 * HZ + 0.7, 'concrete', { tint: '#8a8680', collide: false, minimap: false, grad: false });
-  // Dach: Wellblech in Feldern, einige eingestürzt (Lichtschächte), Oberlichter
+  // Dach: Wellblech in Feldern, einige eingestürzt (Lichtschächte), Oberlichter. Sicken laufen in Gefällerichtung
+  // (u/v getauscht) mit Bauhallen-Teilung ≈ 0,31 m statt 0,125 m – die feine Teilung flimmerte unter flachem Blickwinkel
+  // als Moiré-Ringe über die ganze Dachunterseite.
+  const ROOF_UV = { uv: 'local', uvSwap: true, uvScale: 2.5 };
   const half = HX + 0.4, ang = Math.atan2(ridge, HX), slope = Math.hypot(half, ridge * half / HX);
   const broken = new Set(['w3', 'e6', 'e2', 'w7']);
   for (let i = 0; i < 10; i++) {
@@ -317,11 +320,11 @@ function hall(b) {
       const cx = s * half / 2, yy = H + ridge / 2 - 0.12;
       if (broken.has(key)) {
         // Loch: nur Reststreifen + verbogene Bleche
-        b.box(cx + s * half * 0.32, yy - s * 0 - ridge * 0.32, zc - 2.2, slope * 0.36, 0.08, 1.6, 'metal_corrugated', { rz: -ang * s, tint: '#7d868c', collide: false, minimap: false, grad: false, uv: 'local' });
-        b.box(cx - s * half * 0.3, yy + ridge * 0.3, zc + 2.3, slope * 0.4, 0.08, 1.4, 'metal_corrugated', { rz: -ang * s + s * 0.25, tint: '#7d868c', collide: false, minimap: false, grad: false, uv: 'local' });
+        b.box(cx + s * half * 0.32, yy - s * 0 - ridge * 0.32, zc - 2.2, slope * 0.36, 0.08, 1.6, 'metal_corrugated', { rz: -ang * s, tint: '#7d868c', collide: false, minimap: false, grad: false, ...ROOF_UV });
+        b.box(cx - s * half * 0.3, yy + ridge * 0.3, zc + 2.3, slope * 0.4, 0.08, 1.4, 'metal_corrugated', { rz: -ang * s + s * 0.25, tint: '#7d868c', collide: false, minimap: false, grad: false, ...ROOF_UV });
         continue;
       }
-      b.box(cx, yy, zc, slope, 0.12, 6.02, 'metal_corrugated', { rz: -ang * s, tint: '#7d868c', collide: false, minimap: false, grad: false, uv: 'local' });
+      b.box(cx, yy, zc, slope, 0.12, 6.02, 'metal_corrugated', { rz: -ang * s, tint: '#7d868c', collide: false, minimap: false, grad: false, ...ROOF_UV });
       if (i % 3 === 1) b.box(cx, yy + 0.07, zc, slope * 0.5, 0.06, 2.0, 'glass', { rz: -ang * s, tint: '#b8c8d0', collide: false, minimap: false, grad: false, ao: false });
     }
   }

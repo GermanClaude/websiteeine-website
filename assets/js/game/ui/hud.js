@@ -171,6 +171,17 @@ export class HUD {
     warmNumbers();
     setHtml(this.el.killico, ICON.skull);
     this.root = r;
+    // Höhe des Punktestands (je Modus anders: Flaggenzeile, Waffenstufen …) als --top-h: Hinweise, Einnahmebalken
+    // und der Touch-Killfeed richten sich danach (game.css). ResizeObserver meldet nur Änderungen, ohne Layout zu erzwingen.
+    if (typeof ResizeObserver === 'function') {
+      this._topRo = new ResizeObserver((entries) => {
+        const e = entries[entries.length - 1];
+        const box = e.borderBoxSize && e.borderBoxSize[0];
+        const h = box ? box.blockSize : e.contentRect.height;
+        if (h > 0) setStyle(r, '--top-h', `${Math.round(h)}px`);
+      });
+      this._topRo.observe(this.el.top);
+    }
     this.minimap = new Minimap(this.G, this.el.mm);
     this.feed = new Killfeed(this.G, this.el.feed, { max: 6 });
 
@@ -224,6 +235,7 @@ export class HUD {
     this.el.banner.classList.remove('is-on');
     setHtml(this.el.count, '');
     this.el.notices.innerHTML = '';
+    toggle(this.root, 'has-notice', false);
     this.el.medal.innerHTML = '';
     this.el.pop.classList.remove('is-on');
 
@@ -281,7 +293,11 @@ export class HUD {
     delete document.body.dataset.streaks;
     delete document.body.dataset.lethals;
     this._setDead(false);
-    this._resetZones();
+    // Nichts aus dem Match über das Match hinaus halten: Welt (Minikarte → world.raycast-Abschluss → BVH,
+    // Navigation, Baupuffer, ~75 MB), Schütze/Angreifer (Todesbild, Trefferrichtungen), Modus-Rückrufe (Prompt).
+    if (this.minimap) this.minimap.setWorld(null);
+    this._prompt = null;
+    this.reset();
     this._clearWarm();
     this._attached = false;
   }
@@ -558,7 +574,7 @@ export class HUD {
       const n = el('div', `h-notice h-notice-medal tier-${tier || def.tier || 'bronze'}`, `${medalBadge(label || def.label || id, tier || def.tier)}<span>${esc(label || def.label || id)}</span>`);
       this.el.notices.appendChild(n);
       this._notices.push({ n, t: 1.8 });
-      while (this._notices.length > 2) this._notices.shift().n.remove();
+      this._trimNotices();
       return;
     }
     if (this._medals.length > 5) return;
@@ -578,13 +594,24 @@ export class HUD {
     const n = el('div', `h-notice ${tone ? `is-${tone}` : ''}`, `${esc(text)}${key ? `<kbd>${esc(key)}</kbd>` : ''}`);
     this.el.notices.appendChild(n);
     this._notices.push({ n, t: life, id });
-    const max = this.G.input && this.G.input.mode === 'touch' ? 2 : 3;
+    this._trimNotices();
+  }
+
+  /**
+   * Höchstzahl gleichzeitiger Hinweise: Touch hat in der Mitte unter dem Punktestand nur Platz für 2 Zeilen
+   * (niedrige Telefone ≤ 430 px: 1), darunter beginnt der Killfeed (game.css --feed-t). Desktop: 3.
+   */
+  _trimNotices() {
+    const touch = this.G.input && this.G.input.mode === 'touch';
+    const max = !touch ? 3 : (this._vh || window.innerHeight) <= 430 ? 1 : 2;
     while (this._notices.length > max) this._notices.shift().n.remove();
+    toggle(this.root, 'has-notice', this._notices.length > 0);
   }
 
   /** Hinweis mit Kennung entfernen (z. B. „… bereit.“, sobald die Prämie eingesetzt ist). */
   _dropNotice(id) {
     for (let i = this._notices.length - 1; i >= 0; i--) if (this._notices[i].id === id) { this._notices[i].n.remove(); this._notices.splice(i, 1); }
+    toggle(this.root, 'has-notice', this._notices.length > 0);
   }
 
   _damageDir({ amount, dir, attacker }) {
@@ -919,7 +946,7 @@ export class HUD {
       const n = this._notices[i];
       n.t -= dt;
       if (n.t < 0.4) n.n.classList.add('is-out');
-      if (n.t <= 0) { n.n.remove(); this._notices.splice(i, 1); }
+      if (n.t <= 0) { n.n.remove(); this._notices.splice(i, 1); toggle(this.root, 'has-notice', this._notices.length > 0); }
     }
 
     /* ---------- Countdown / Startbanner */
@@ -1173,6 +1200,7 @@ export class HUD {
     cam.updateMatrixWorld();
     const byId = new Map(objs.map((f) => [f.id, f]));
     const margin = 46;
+    const dpr = window.devicePixelRatio || 1;
     const zones = this.G.input && this.G.input.mode === 'touch' ? this._controlZones() : null;
     let inside = null;
     for (const m of this.el.mks || []) {
@@ -1189,17 +1217,28 @@ export class HUD {
       let off = behind || x < margin || x > vw - margin || y < margin + 40 || y > vh - margin;
       x = clamp(x, margin, vw - margin);
       y = clamp(y, margin + 40, vh - margin);
-      // Touch: nicht unter Knöpfen, Stick oder Munitionsanzeige verstecken (verschobene Marker wirken wie Randmarker)
+      // Touch: nicht unter Knöpfen, Stick oder Munitionsanzeige verstecken (verschobene Marker wirken wie Randmarker).
+      // Die Ausweichstelle bleibt, solange sie frei ist und nahe am Ziel liegt – sonst springt der Marker bei
+      // kleinsten Kamerabewegungen zwischen zwei Kandidaten hin und her (sah auf Telefonen wie doppelt aus).
       if (zones && zones.length) {
         const nx = x;
         const ny = y;
-        [x, y] = avoidZones(x, y, zones, { l: margin, t: margin + 40, r: vw - margin, b: vh - margin });
-        if (x !== nx || y !== ny) off = true;
-      }
+        [x, y] = avoidZones(x, y, zones, { l: margin, t: margin + 40, r: vw - margin, b: vh - margin }, m.dodge);
+        const moved = x !== nx || y !== ny;
+        // d = Abstand bei der Neuberechnung; beim Wiederverwenden nicht nachführen (sonst zieht ein langsam
+        // wanderndes Ziel die alte Stelle beliebig weit mit)
+        const kept = moved && m.dodge && x === m.dodge.x && y === m.dodge.y;
+        m.dodge = !moved ? null : kept ? m.dodge : { x, y, d: Math.hypot(x - nx, y - ny) };
+        if (moved) off = true;
+      } else m.dodge = null;
       const dist = p.position.distanceTo(f.position);
       const inRange = dist <= f.radius && Math.abs(p.position.y - f.position.y) < 2.6 && p.alive;
       if (inRange) inside = f;
-      setStyle(m.n, 'transform', `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`);
+      // Auf Gerätepixel runden, Zittern unter einem halben Pixel ignorieren (Text wird nicht je Bild neu gerastert)
+      x = Math.round(x * dpr) / dpr;
+      y = Math.round(y * dpr) / dpr;
+      if (m.x == null || Math.abs(x - m.x) >= 0.5 || Math.abs(y - m.y) >= 0.5) { m.x = x; m.y = y; }
+      setStyle(m.n, 'transform', `translate(${m.x}px, ${m.y}px)`);
       toggle(m.n, 'is-edge', off);
       toggle(m.n, 'is-in', inRange);
       const side = f.owner == null ? 'n' : f.owner === p.team ? 'a' : 'e';
@@ -1208,7 +1247,9 @@ export class HUD {
       if (m.n.dataset.cap !== cap) m.n.dataset.cap = cap;
       setStyle(m.n, '--p', cap ? f.progress.toFixed(3) : '0');
       toggle(m.n, 'is-contested', f.contested);
-      setText(m.d, inRange ? '' : meters(dist));
+      // Entfernung mit Hysterese: an der Rundungsgrenze (48,5 m) sonst je Bild 48/49 im Wechsel
+      if (m.dist == null || Math.abs(dist - m.dist) >= 0.75) m.dist = Math.round(dist);
+      setText(m.d, inRange ? '' : meters(m.dist));
     }
     // Einnahmebalken
     const cb = this.el.capture;
@@ -1298,13 +1339,15 @@ export class HUD {
  * Sucht für einen Marker (Raute + Entfernung darunter) die nächste Position außerhalb aller Zonen:
  * Ringe um den Ausgangspunkt, beginnend in Richtung Bildmitte. b = erlaubter Bereich { l, t, r, b }.
  */
-function avoidZones(x, y, zones, b) {
+function avoidZones(x, y, zones, b, prev = null) {
   const HX = 22;
   const HT = 22;
   const HB = 38;
   const free = (px, py) => px >= b.l && px <= b.r && py >= b.t && py <= b.b
     && !zones.some((z) => px + HX > z.l && px - HX < z.r && py + HB > z.t && py - HT < z.b);
   if (free(x, y)) return [x, y];
+  // Bisherige Ausweichstelle behalten, solange sie frei ist und höchstens 12 px weiter vom Ziel liegt als bei ihrer Berechnung
+  if (prev && free(prev.x, prev.y) && Math.hypot(prev.x - x, prev.y - y) <= prev.d + 12) return [prev.x, prev.y];
   const a0 = Math.atan2((b.t + b.b) / 2 - y, (b.l + b.r) / 2 - x);
   for (let r = 12; r <= 260; r += 12) {
     const n = Math.max(8, Math.round(r / 5));

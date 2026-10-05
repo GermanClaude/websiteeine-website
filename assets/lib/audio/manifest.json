@@ -1,0 +1,2934 @@
+{
+ "sounds": {
+  "gun_ar": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_ar",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gun_ar_1.mp3",
+     "src": "ffsl:AR-15/D_32P.wav",
+     "at": 0.702,
+     "dur": 1.1,
+     "bytes": 23510,
+     "peakDb": -1.8,
+     "lufsM": -21.6,
+     "onsetMs": 2,
+     "gainDb": -0.8
+    },
+    {
+     "v": 2,
+     "file": "gun/gun_ar_2.mp3",
+     "src": "ffsl:AR-15/D_32P.wav",
+     "at": 5.645,
+     "dur": 1.1,
+     "bytes": 23510,
+     "peakDb": -1.6,
+     "lufsM": -22,
+     "onsetMs": 1,
+     "gainDb": -0.9
+    },
+    {
+     "v": 3,
+     "file": "gun/gun_ar_3.mp3",
+     "src": "ffsl:Savage 10 .300 Blackout/T_27P.wav",
+     "at": 0.948,
+     "dur": 1.1,
+     "bytes": 23510,
+     "peakDb": -1.6,
+     "lufsM": -22.3,
+     "onsetMs": 3,
+     "gainDb": -1.2
+    },
+    {
+     "v": 4,
+     "file": "gun/gun_ar_4.mp3",
+     "src": "ffsl:Savage 10 .300 Blackout/T_27P.wav",
+     "at": 4.966,
+     "dur": 1.1,
+     "bytes": 23510,
+     "peakDb": -1.9,
+     "lufsM": -22.6,
+     "onsetMs": 1,
+     "gainDb": -1.1
+    }
+   ],
+   "mix": null,
+   "note": "Nah/Spieler: AR-15 (5,56) + Savage 10 (.300 BLK)"
+  },
+  "gunfar_ar": {
+   "group": "gun",
+   "layer": "far",
+   "catalog": "gunfar_ar",
+   "rate": 32000,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gunfar_ar_1.mp3",
+     "src": "ffsl:AR-15/D_24P.wav",
+     "at": 0.547,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -1.6,
+     "lufsM": -24.2,
+     "onsetMs": 2,
+     "gainDb": -1.7
+    },
+    {
+     "v": 2,
+     "file": "gun/gunfar_ar_2.mp3",
+     "src": "ffsl:AR-15/D_24P.wav",
+     "at": 3.908,
+     "dur": 2.577,
+     "bytes": 21312,
+     "peakDb": -1.9,
+     "lufsM": -24.2,
+     "onsetMs": 2,
+     "gainDb": -1.7
+    }
+   ],
+   "mix": null,
+   "note": "Mittel-Distanz mit echtem Freigelände-Echo: AR-15 (5,56) + Savage 10 (.300 BLK)"
+  },
+  "guntail_ar": {
+   "group": "gun",
+   "layer": "tail",
+   "catalog": "guntail_ar",
+   "rate": 32000,
+   "ch": 2,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/guntail_ar_1.mp3",
+     "src": "ffsl:AR-15/D_24P.wav",
+     "at": 0.547,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -3.1,
+     "lufsM": -22.7,
+     "onsetMs": 6,
+     "gainDb": -1.7
+    },
+    {
+     "v": 2,
+     "file": "gun/guntail_ar_2.mp3",
+     "src": "ffsl:AR-15/D_24P.wav",
+     "at": 3.908,
+     "dur": 2.535,
+     "bytes": 26280,
+     "peakDb": -2.8,
+     "lufsM": -22.6,
+     "onsetMs": 66,
+     "gainDb": -1.7
+    }
+   ],
+   "mix": null,
+   "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: AR-15 (5,56) + Savage 10 (.300 BLK)"
+  },
+  "gun_ar_heavy": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_ar_heavy",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gun_ar_heavy_1.mp3",
+     "src": "ffsl:AK-47/C_28P.wav",
+     "at": 0.609,
+     "dur": 1.2,
+     "bytes": 25077,
+     "peakDb": -1.6,
+     "lufsM": -20.9,
+     "onsetMs": 1,
+     "gainDb": -0.8
+    },
+    {
+     "v": 2,
+     "file": "gun/gun_ar_heavy_2.mp3",
+     "src": "ffsl:AK-47/C_28P.wav",
+     "at": 3.255,
+     "dur": 1.2,
+     "bytes": 25077,
+     "peakDb": -1.7,
+     "lufsM": -21.5,
+     "onsetMs": 3,
+     "gainDb": -1
+    },
+    {
+     "v": 3,
+     "file": "gun/gun_ar_heavy_3.mp3",
+     "src": "ffsl:AK-47/C_28P.wav",
+     "at": 6.019,
+     "dur": 1.2,
+     "bytes": 25077,
+     "peakDb": -2.2,
+     "lufsM": -21.9,
+     "onsetMs": 1,
+     "gainDb": -1.1
+    },
+    {
+     "v": 4,
+     "file": "gun/gun_ar_heavy_4.mp3",
+     "src": "ffsl:AK-47/C_28P.wav",
+     "at": 9.154,
+     "dur": 1.2,
+     "bytes": 25077,
+     "peakDb": -2.2,
+     "lufsM": -21.7,
+     "onsetMs": 2,
+     "gainDb": -1.1
+    }
+   ],
+   "mix": null,
+   "note": "Nah/Spieler: AK-47 (7,62×39)"
+  },
+  "gunfar_ar_heavy": {
+   "group": "gun",
+   "layer": "far",
+   "catalog": "gunfar_ar_heavy",
+   "rate": 32000,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gunfar_ar_heavy_1.mp3",
+     "src": "ffsl:AK-47/C_31P.wav",
+     "at": 0.336,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -2,
+     "lufsM": -26.6,
+     "onsetMs": 3,
+     "gainDb": -1.6
+    },
+    {
+     "v": 2,
+     "file": "gun/gunfar_ar_heavy_2.mp3",
+     "src": "ffsl:AK-47/C_31P.wav",
+     "at": 4.399,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -1.8,
+     "lufsM": -27.7,
+     "onsetMs": 4,
+     "gainDb": -1.6
+    }
+   ],
+   "mix": null,
+   "note": "Mittel-Distanz mit echtem Freigelände-Echo: AK-47 (7,62×39)"
+  },
+  "guntail_ar_heavy": {
+   "group": "gun",
+   "layer": "tail",
+   "catalog": "guntail_ar_heavy",
+   "rate": 32000,
+   "ch": 2,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/guntail_ar_heavy_1.mp3",
+     "src": "ffsl:AK-47/C_31P.wav",
+     "at": 0.336,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -9.1,
+     "lufsM": -26.1,
+     "onsetMs": 58,
+     "gainDb": -1.6
+    },
+    {
+     "v": 2,
+     "file": "gun/guntail_ar_heavy_2.mp3",
+     "src": "ffsl:AK-47/C_31P.wav",
+     "at": 4.399,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -6.3,
+     "lufsM": -25.9,
+     "onsetMs": 58,
+     "gainDb": -1.6
+    }
+   ],
+   "mix": null,
+   "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: AK-47 (7,62×39)"
+  },
+  "gun_smg": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_smg",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gun_smg_1.mp3",
+     "src": "ffsl:Carl Gustav M45/G_31P.wav",
+     "at": 0.308,
+     "dur": 0.95,
+     "bytes": 20375,
+     "peakDb": -1.9,
+     "lufsM": -22.4,
+     "onsetMs": 0,
+     "gainDb": -1.1
+    },
+    {
+     "v": 2,
+     "file": "gun/gun_smg_2.mp3",
+     "src": "ffsl:Carl Gustav M45/G_31P.wav",
+     "at": 3.499,
+     "dur": 0.95,
+     "bytes": 20375,
+     "peakDb": -1.4,
+     "lufsM": -22.6,
+     "onsetMs": 0,
+     "gainDb": -1.1
+    },
+    {
+     "v": 3,
+     "file": "gun/gun_smg_3.mp3",
+     "src": "ffsl:PPSh/P_30P.wav",
+     "at": 0.967,
+     "dur": 0.95,
+     "bytes": 20375,
+     "peakDb": -2.1,
+     "lufsM": -22.7,
+     "onsetMs": 0,
+     "gainDb": -1.1
+    },
+    {
+     "v": 4,
+     "file": "gun/gun_smg_4.mp3",
+     "src": "ffsl:PPSh/P_30P.wav",
+     "at": 4.385,
+     "dur": 0.95,
+     "bytes": 20375,
+     "peakDb": -2.2,
+     "lufsM": -22.5,
+     "onsetMs": 1,
+     "gainDb": -1.1
+    }
+   ],
+   "mix": null,
+   "note": "Nah/Spieler: Carl Gustav M45 (9 mm) + PPSh (7,62×25)"
+  },
+  "gunfar_smg": {
+   "group": "gun",
+   "layer": "far",
+   "catalog": "gunfar_smg",
+   "rate": 32000,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gunfar_smg_1.mp3",
+     "src": "ffsl:Carl Gustav M45/G_20P.wav",
+     "at": 2.257,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -1.7,
+     "lufsM": -26.8,
+     "onsetMs": 0,
+     "gainDb": -1.3
+    },
+    {
+     "v": 2,
+     "file": "gun/gunfar_smg_2.mp3",
+     "src": "ffsl:PPSh/P_16P.wav",
+     "at": 5.249,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -1.2,
+     "lufsM": -22.8,
+     "onsetMs": 0,
+     "gainDb": -0.9
+    }
+   ],
+   "mix": null,
+   "note": "Mittel-Distanz mit echtem Freigelände-Echo: Carl Gustav M45 (9 mm) + PPSh (7,62×25)"
+  },
+  "guntail_smg": {
+   "group": "gun",
+   "layer": "tail",
+   "catalog": "guntail_smg",
+   "rate": 32000,
+   "ch": 2,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/guntail_smg_1.mp3",
+     "src": "ffsl:Carl Gustav M45/G_20P.wav",
+     "at": 2.257,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -2.5,
+     "lufsM": -28.3,
+     "onsetMs": 49,
+     "gainDb": -1.3
+    },
+    {
+     "v": 2,
+     "file": "gun/guntail_smg_2.mp3",
+     "src": "ffsl:PPSh/P_16P.wav",
+     "at": 5.249,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -1.8,
+     "lufsM": -21.2,
+     "onsetMs": 20,
+     "gainDb": -2
+    }
+   ],
+   "mix": null,
+   "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Carl Gustav M45 (9 mm) + PPSh (7,62×25)"
+  },
+  "gun_lmg": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_lmg",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gun_lmg_1.mp3",
+     "src": "ffsl:Mosin Nagant/M_21P.wav",
+     "at": 1.032,
+     "dur": 1.25,
+     "bytes": 26122,
+     "peakDb": -1.1,
+     "lufsM": -23,
+     "onsetMs": 1,
+     "gainDb": -0.7
+    },
+    {
+     "v": 2,
+     "file": "gun/gun_lmg_2.mp3",
+     "src": "ffsl:Mosin Nagant/M_21P.wav",
+     "at": 5.018,
+     "dur": 1.25,
+     "bytes": 26122,
+     "peakDb": -1.7,
+     "lufsM": -23.4,
+     "onsetMs": 1,
+     "gainDb": -0.7
+    },
+    {
+     "v": 3,
+     "file": "gun/gun_lmg_3.mp3",
+     "src": "ffsl:Mosin Nagant/M_21P.wav",
+     "at": 9.154,
+     "dur": 1.25,
+     "bytes": 26122,
+     "peakDb": -1.7,
+     "lufsM": -23.4,
+     "onsetMs": 1,
+     "gainDb": -1
+    }
+   ],
+   "mix": null,
+   "note": "Nah/Spieler: Mosin-Nagant (7,62×54R – Patrone des PKM)"
+  },
+  "gunfar_lmg": {
+   "group": "gun",
+   "layer": "far",
+   "catalog": "gunfar_lmg",
+   "rate": 32000,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gunfar_lmg_1.mp3",
+     "src": "ffsl:Mosin Nagant/M_26P.wav",
+     "at": 1.136,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -1.7,
+     "lufsM": -23,
+     "onsetMs": 0,
+     "gainDb": -1.7
+    },
+    {
+     "v": 2,
+     "file": "gun/gunfar_lmg_2.mp3",
+     "src": "ffsl:Mosin Nagant/M_26P.wav",
+     "at": 6.103,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -2,
+     "lufsM": -23.3,
+     "onsetMs": 0,
+     "gainDb": -1.6
+    }
+   ],
+   "mix": null,
+   "note": "Mittel-Distanz mit echtem Freigelände-Echo: Mosin-Nagant (7,62×54R – Patrone des PKM)"
+  },
+  "guntail_lmg": {
+   "group": "gun",
+   "layer": "tail",
+   "catalog": "guntail_lmg",
+   "rate": 32000,
+   "ch": 2,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/guntail_lmg_1.mp3",
+     "src": "ffsl:Mosin Nagant/M_26P.wav",
+     "at": 1.136,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -2.4,
+     "lufsM": -21.7,
+     "onsetMs": 67,
+     "gainDb": -1.7
+    },
+    {
+     "v": 2,
+     "file": "gun/guntail_lmg_2.mp3",
+     "src": "ffsl:Mosin Nagant/M_26P.wav",
+     "at": 6.103,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -4.8,
+     "lufsM": -23.6,
+     "onsetMs": 67,
+     "gainDb": -1.6
+    }
+   ],
+   "mix": null,
+   "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Mosin-Nagant (7,62×54R – Patrone des PKM)"
+  },
+  "gun_sniper": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_sniper",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gun_sniper_1.mp3",
+     "src": "ffsl:Tikka/W_29P.wav",
+     "at": 0.575,
+     "dur": 1.6,
+     "bytes": 33436,
+     "peakDb": -2,
+     "lufsM": -22.9,
+     "onsetMs": 2,
+     "gainDb": -1.2
+    },
+    {
+     "v": 2,
+     "file": "gun/gun_sniper_2.mp3",
+     "src": "ffsl:Tikka/W_29P.wav",
+     "at": 5.663,
+     "dur": 1.6,
+     "bytes": 33436,
+     "peakDb": -1.6,
+     "lufsM": -23,
+     "onsetMs": 3,
+     "gainDb": -1.3
+    },
+    {
+     "v": 3,
+     "file": "gun/gun_sniper_3.mp3",
+     "src": "ffsl:1917/B_24P.wav",
+     "at": 1.306,
+     "dur": 1.6,
+     "bytes": 33436,
+     "peakDb": -1.6,
+     "lufsM": -22.9,
+     "onsetMs": 1,
+     "gainDb": -1.1
+    },
+    {
+     "v": 4,
+     "file": "gun/gun_sniper_4.mp3",
+     "src": "ffsl:1917/B_24P.wav",
+     "at": 6.729,
+     "dur": 1.6,
+     "bytes": 33436,
+     "peakDb": -2,
+     "lufsM": -22.6,
+     "onsetMs": 3,
+     "gainDb": -1.2
+    }
+   ],
+   "mix": null,
+   "note": "Nah/Spieler: Tikka T3 + Springfield 1917 (.30-06)"
+  },
+  "gunfar_sniper": {
+   "group": "gun",
+   "layer": "far",
+   "catalog": "gunfar_sniper",
+   "rate": 32000,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gunfar_sniper_1.mp3",
+     "src": "ffsl:Tikka/W_24P.wav",
+     "at": 0.752,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -2.4,
+     "lufsM": -22.5,
+     "onsetMs": 3,
+     "gainDb": -1.5
+    },
+    {
+     "v": 2,
+     "file": "gun/gunfar_sniper_2.mp3",
+     "src": "ffsl:Tikka/W_24P.wav",
+     "at": 5.375,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -1.8,
+     "lufsM": -22.6,
+     "onsetMs": 4,
+     "gainDb": -1.5
+    }
+   ],
+   "mix": null,
+   "note": "Mittel-Distanz mit echtem Freigelände-Echo: Tikka T3 + Springfield 1917 (.30-06)"
+  },
+  "guntail_sniper": {
+   "group": "gun",
+   "layer": "tail",
+   "catalog": "guntail_sniper",
+   "rate": 32000,
+   "ch": 2,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/guntail_sniper_1.mp3",
+     "src": "ffsl:Tikka/W_24P.wav",
+     "at": 0.752,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -2,
+     "lufsM": -19.9,
+     "onsetMs": 10,
+     "gainDb": -1.7
+    },
+    {
+     "v": 2,
+     "file": "gun/guntail_sniper_2.mp3",
+     "src": "ffsl:Tikka/W_24P.wav",
+     "at": 5.375,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -1.8,
+     "lufsM": -19.9,
+     "onsetMs": 13,
+     "gainDb": -1.7
+    }
+   ],
+   "mix": null,
+   "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Tikka T3 + Springfield 1917 (.30-06)"
+  },
+  "gun_shotgun": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_shotgun",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gun_shotgun_1.mp3",
+     "src": "ffsl:Nova/O_21P.wav",
+     "at": 0.429,
+     "dur": 1.4,
+     "bytes": 29257,
+     "peakDb": -1.7,
+     "lufsM": -21.3,
+     "onsetMs": 0,
+     "gainDb": -1.2
+    },
+    {
+     "v": 2,
+     "file": "gun/gun_shotgun_2.mp3",
+     "src": "ffsl:Nova/O_21P.wav",
+     "at": 3.463,
+     "dur": 1.4,
+     "bytes": 29257,
+     "peakDb": -1.8,
+     "lufsM": -21.7,
+     "onsetMs": 0,
+     "gainDb": -1.1
+    },
+    {
+     "v": 3,
+     "file": "gun/gun_shotgun_3.mp3",
+     "src": "ffsl:Model 12/K_22P.wav",
+     "at": 0.84,
+     "dur": 1.4,
+     "bytes": 29257,
+     "peakDb": -2.2,
+     "lufsM": -20.5,
+     "onsetMs": 2,
+     "gainDb": -1.2
+    },
+    {
+     "v": 4,
+     "file": "gun/gun_shotgun_4.mp3",
+     "src": "ffsl:Model 12/K_22P.wav",
+     "at": 7.443,
+     "dur": 1.4,
+     "bytes": 29257,
+     "peakDb": -2.1,
+     "lufsM": -21.3,
+     "onsetMs": 1,
+     "gainDb": -1.6
+    }
+   ],
+   "mix": null,
+   "note": "Nah/Spieler: Benelli Nova + Winchester Model 12 (12 ga)"
+  },
+  "gunfar_shotgun": {
+   "group": "gun",
+   "layer": "far",
+   "catalog": "gunfar_shotgun",
+   "rate": 32000,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gunfar_shotgun_1.mp3",
+     "src": "ffsl:Nova/O_17P.wav",
+     "at": 0.692,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -1.5,
+     "lufsM": -23.4,
+     "onsetMs": 0,
+     "gainDb": -2
+    },
+    {
+     "v": 2,
+     "file": "gun/gunfar_shotgun_2.mp3",
+     "src": "ffsl:Model 12/K_17P.wav",
+     "at": 0.905,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -1.5,
+     "lufsM": -24.1,
+     "onsetMs": 0,
+     "gainDb": -1.7
+    }
+   ],
+   "mix": null,
+   "note": "Mittel-Distanz mit echtem Freigelände-Echo: Benelli Nova + Winchester Model 12 (12 ga)"
+  },
+  "guntail_shotgun": {
+   "group": "gun",
+   "layer": "tail",
+   "catalog": "guntail_shotgun",
+   "rate": 32000,
+   "ch": 2,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/guntail_shotgun_1.mp3",
+     "src": "ffsl:Nova/O_17P.wav",
+     "at": 0.692,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -2.4,
+     "lufsM": -23.6,
+     "onsetMs": 55,
+     "gainDb": -2
+    },
+    {
+     "v": 2,
+     "file": "gun/guntail_shotgun_2.mp3",
+     "src": "ffsl:Model 12/K_17P.wav",
+     "at": 0.905,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -0.8,
+     "lufsM": -22.5,
+     "onsetMs": 49,
+     "gainDb": -1.7
+    }
+   ],
+   "mix": null,
+   "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Benelli Nova + Winchester Model 12 (12 ga)"
+  },
+  "gun_pistol": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_pistol",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gun_pistol_1.mp3",
+     "src": "ffsl:Walther PPQ/X_39P.wav",
+     "at": 1.405,
+     "dur": 0.9,
+     "bytes": 19330,
+     "peakDb": -1.9,
+     "lufsM": -23.2,
+     "onsetMs": 1,
+     "gainDb": -1
+    },
+    {
+     "v": 2,
+     "file": "gun/gun_pistol_2.mp3",
+     "src": "ffsl:Walther PPQ/X_39P.wav",
+     "at": 6.442,
+     "dur": 0.9,
+     "bytes": 19330,
+     "peakDb": -1.7,
+     "lufsM": -22.8,
+     "onsetMs": 1,
+     "gainDb": -0.9
+    },
+    {
+     "v": 3,
+     "file": "gun/gun_pistol_3.mp3",
+     "src": "ffsl:Walther PPQ/X_39P.wav",
+     "at": 10.658,
+     "dur": 0.9,
+     "bytes": 19330,
+     "peakDb": -1,
+     "lufsM": -22.6,
+     "onsetMs": 1,
+     "gainDb": -0.7
+    },
+    {
+     "v": 4,
+     "file": "gun/gun_pistol_4.mp3",
+     "src": "ffsl:Bersa/F_47P.wav",
+     "at": 0.332,
+     "dur": 0.9,
+     "bytes": 19330,
+     "peakDb": -1.8,
+     "lufsM": -19.5,
+     "onsetMs": 3,
+     "gainDb": -0.9
+    }
+   ],
+   "mix": null,
+   "note": "Nah/Spieler: Walther PPQ (9 mm) + Bersa (.380)"
+  },
+  "gunfar_pistol": {
+   "group": "gun",
+   "layer": "far",
+   "catalog": "gunfar_pistol",
+   "rate": 32000,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gunfar_pistol_1.mp3",
+     "src": "ffsl:Walther PPQ/X_31P.wav",
+     "at": 1.083,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -1.9,
+     "lufsM": -26.2,
+     "onsetMs": 0,
+     "gainDb": -1.6
+    },
+    {
+     "v": 2,
+     "file": "gun/gunfar_pistol_2.mp3",
+     "src": "ffsl:Walther PPQ/X_31P.wav",
+     "at": 5.24,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -1.5,
+     "lufsM": -26.2,
+     "onsetMs": 0,
+     "gainDb": -1.6
+    }
+   ],
+   "mix": null,
+   "note": "Mittel-Distanz mit echtem Freigelände-Echo: Walther PPQ (9 mm) + Bersa (.380)"
+  },
+  "guntail_pistol": {
+   "group": "gun",
+   "layer": "tail",
+   "catalog": "guntail_pistol",
+   "rate": 32000,
+   "ch": 2,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/guntail_pistol_1.mp3",
+     "src": "ffsl:Walther PPQ/X_31P.wav",
+     "at": 1.083,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -7.6,
+     "lufsM": -34.1,
+     "onsetMs": 56,
+     "gainDb": -1.6
+    },
+    {
+     "v": 2,
+     "file": "gun/guntail_pistol_2.mp3",
+     "src": "ffsl:Walther PPQ/X_31P.wav",
+     "at": 5.24,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -9.5,
+     "lufsM": -34.7,
+     "onsetMs": 57,
+     "gainDb": -1.6
+    }
+   ],
+   "mix": null,
+   "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Walther PPQ (9 mm) + Bersa (.380)"
+  },
+  "gun_pistol_heavy": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_pistol_heavy",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gun_pistol_heavy_1.mp3",
+     "src": "ffsl:1911/A_42P.wav",
+     "at": 0.939,
+     "dur": 1.1,
+     "bytes": 23510,
+     "peakDb": -1.4,
+     "lufsM": -20,
+     "onsetMs": 1,
+     "gainDb": -0.9
+    },
+    {
+     "v": 2,
+     "file": "gun/gun_pistol_heavy_2.mp3",
+     "src": "ffsl:1911/A_42P.wav",
+     "at": 5,
+     "dur": 1.1,
+     "bytes": 23510,
+     "peakDb": -1.9,
+     "lufsM": -20.7,
+     "onsetMs": 1,
+     "gainDb": -1.1
+    },
+    {
+     "v": 3,
+     "file": "gun/gun_pistol_heavy_3.mp3",
+     "src": "ffsl:Smith & Wesson 642/V_27P.wav",
+     "at": 0.803,
+     "dur": 1.1,
+     "bytes": 23510,
+     "peakDb": -1.9,
+     "lufsM": -24.5,
+     "onsetMs": 3,
+     "gainDb": -1
+    },
+    {
+     "v": 4,
+     "file": "gun/gun_pistol_heavy_4.mp3",
+     "src": "ffsl:Smith & Wesson 642/V_27P.wav",
+     "at": 6.217,
+     "dur": 1.1,
+     "bytes": 23510,
+     "peakDb": -2.1,
+     "lufsM": -24.5,
+     "onsetMs": 4,
+     "gainDb": -1
+    }
+   ],
+   "mix": null,
+   "note": "Nah/Spieler: 1911 (.45 ACP) + S&W 642 (.38 Special)"
+  },
+  "gunfar_pistol_heavy": {
+   "group": "gun",
+   "layer": "far",
+   "catalog": "gunfar_pistol_heavy",
+   "rate": 32000,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gunfar_pistol_heavy_1.mp3",
+     "src": "ffsl:1911/A_34P.wav",
+     "at": 1.54,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -1.2,
+     "lufsM": -20.1,
+     "onsetMs": 0,
+     "gainDb": -1.6
+    },
+    {
+     "v": 2,
+     "file": "gun/gunfar_pistol_heavy_2.mp3",
+     "src": "ffsl:Smith & Wesson 642/V_22P.wav",
+     "at": 0.67,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -1.8,
+     "lufsM": -21.9,
+     "onsetMs": 0,
+     "gainDb": -1.6
+    }
+   ],
+   "mix": null,
+   "note": "Mittel-Distanz mit echtem Freigelände-Echo: 1911 (.45 ACP) + S&W 642 (.38 Special)"
+  },
+  "guntail_pistol_heavy": {
+   "group": "gun",
+   "layer": "tail",
+   "catalog": "guntail_pistol_heavy",
+   "rate": 32000,
+   "ch": 2,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/guntail_pistol_heavy_1.mp3",
+     "src": "ffsl:1911/A_34P.wav",
+     "at": 1.54,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -1.4,
+     "lufsM": -16,
+     "onsetMs": 40,
+     "gainDb": -1.9
+    },
+    {
+     "v": 2,
+     "file": "gun/guntail_pistol_heavy_2.mp3",
+     "src": "ffsl:Smith & Wesson 642/V_22P.wav",
+     "at": 0.67,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -1.7,
+     "lufsM": -17.8,
+     "onsetMs": 40,
+     "gainDb": -1.7
+    }
+   ],
+   "mix": null,
+   "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: 1911 (.45 ACP) + S&W 642 (.38 Special)"
+  },
+  "gun_dmr": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_dmr",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gun_dmr_1.mp3",
+     "src": "ffsl:SKS/U_14P.wav",
+     "at": 3.575,
+     "dur": 1.2,
+     "bytes": 25077,
+     "peakDb": -1.5,
+     "lufsM": -22.8,
+     "onsetMs": 3,
+     "gainDb": -1
+    },
+    {
+     "v": 2,
+     "file": "gun/gun_dmr_2.mp3",
+     "src": "ffsl:SKS/U_14P.wav",
+     "at": 6.753,
+     "dur": 1.2,
+     "bytes": 25077,
+     "peakDb": -1.8,
+     "lufsM": -22.9,
+     "onsetMs": 2,
+     "gainDb": -0.9
+    },
+    {
+     "v": 3,
+     "file": "gun/gun_dmr_3.mp3",
+     "src": "ffsl:SKS/U_14P.wav",
+     "at": 10.208,
+     "dur": 1.2,
+     "bytes": 25077,
+     "peakDb": -1.8,
+     "lufsM": -22.8,
+     "onsetMs": 5,
+     "gainDb": -1
+    }
+   ],
+   "mix": null,
+   "note": "Nah/Spieler: Norinco SKS (7,62×39) – Präzisionsgewehr/Halbautomat"
+  },
+  "gunfar_dmr": {
+   "group": "gun",
+   "layer": "far",
+   "catalog": "gunfar_dmr",
+   "rate": 32000,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gunfar_dmr_1.mp3",
+     "src": "ffsl:SKS/U_19P.wav",
+     "at": 2.612,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -2.1,
+     "lufsM": -24.5,
+     "onsetMs": 0,
+     "gainDb": -1.6
+    },
+    {
+     "v": 2,
+     "file": "gun/gunfar_dmr_2.mp3",
+     "src": "ffsl:SKS/U_19P.wav",
+     "at": 8.014,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -2.1,
+     "lufsM": -24,
+     "onsetMs": 0,
+     "gainDb": -1.6
+    }
+   ],
+   "mix": null,
+   "note": "Mittel-Distanz mit echtem Freigelände-Echo: Norinco SKS (7,62×39) – Präzisionsgewehr/Halbautomat"
+  },
+  "guntail_dmr": {
+   "group": "gun",
+   "layer": "tail",
+   "catalog": "guntail_dmr",
+   "rate": 32000,
+   "ch": 2,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/guntail_dmr_1.mp3",
+     "src": "ffsl:SKS/U_19P.wav",
+     "at": 2.612,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -5.4,
+     "lufsM": -25.7,
+     "onsetMs": 67,
+     "gainDb": -1.6
+    },
+    {
+     "v": 2,
+     "file": "gun/guntail_dmr_2.mp3",
+     "src": "ffsl:SKS/U_19P.wav",
+     "at": 8.014,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -6.8,
+     "lufsM": -25.8,
+     "onsetMs": 29,
+     "gainDb": -1.6
+    }
+   ],
+   "mix": null,
+   "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Norinco SKS (7,62×39) – Präzisionsgewehr/Halbautomat"
+  },
+  "gun_lever": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_lever",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gun_lever_1.mp3",
+     "src": "ffsl:Marlin 336/I_22P.wav",
+     "at": 0.738,
+     "dur": 1.2,
+     "bytes": 25077,
+     "peakDb": -1.6,
+     "lufsM": -22.3,
+     "onsetMs": 0,
+     "gainDb": -0.7
+    },
+    {
+     "v": 2,
+     "file": "gun/gun_lever_2.mp3",
+     "src": "ffsl:Marlin 336/I_22P.wav",
+     "at": 7.002,
+     "dur": 1.2,
+     "bytes": 25077,
+     "peakDb": -1.8,
+     "lufsM": -22.8,
+     "onsetMs": 1,
+     "gainDb": -0.9
+    }
+   ],
+   "mix": null,
+   "note": "Nah/Spieler: Marlin 336 (.30-30) – Unterhebel"
+  },
+  "gunfar_lever": {
+   "group": "gun",
+   "layer": "far",
+   "catalog": "gunfar_lever",
+   "rate": 32000,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gunfar_lever_1.mp3",
+     "src": "ffsl:Marlin 336/I_17P.wav",
+     "at": 0.603,
+     "dur": 2.8,
+     "bytes": 23040,
+     "peakDb": -1.9,
+     "lufsM": -24.3,
+     "onsetMs": 1,
+     "gainDb": -1.5
+    }
+   ],
+   "mix": null,
+   "note": "Mittel-Distanz mit echtem Freigelände-Echo: Marlin 336 (.30-30) – Unterhebel"
+  },
+  "guntail_lever": {
+   "group": "gun",
+   "layer": "tail",
+   "catalog": "guntail_lever",
+   "rate": 32000,
+   "ch": 2,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/guntail_lever_1.mp3",
+     "src": "ffsl:Marlin 336/I_17P.wav",
+     "at": 0.603,
+     "dur": 2.6,
+     "bytes": 27000,
+     "peakDb": -2.3,
+     "lufsM": -22.2,
+     "onsetMs": 54,
+     "gainDb": -1.7
+    }
+   ],
+   "mix": null,
+   "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Marlin 336 (.30-30) – Unterhebel"
+  },
+  "gun_sniper_heavy": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_sniper_heavy",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gun_sniper_heavy_1.mp3",
+     "src": "fs:668071",
+     "at": 0.015,
+     "dur": 1.5,
+     "bytes": 31347,
+     "peakDb": -0.3,
+     "lufsM": -11.6,
+     "onsetMs": 3,
+     "gainDb": -1.4
+    }
+   ],
+   "mix": null,
+   "note": ".50 BMG am Schießstand (inkl. Hülse am Boden), für ein künftiges Anti-Material-Gewehr"
+  },
+  "gunsup_pistol": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gunsup_pistol",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 112,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/gunsup_pistol_1.mp3",
+     "src": "fs:827945",
+     "at": 0.021,
+     "dur": 0.6,
+     "bytes": 9142,
+     "peakDb": -1.5,
+     "lufsM": -20.9,
+     "onsetMs": 3,
+     "gainDb": -1.2
+    },
+    {
+     "v": 2,
+     "file": "gun/gunsup_pistol_2.mp3",
+     "src": "fs:627087",
+     "at": 0,
+     "dur": 1.3,
+     "bytes": 19016,
+     "peakDb": -3.6,
+     "lufsM": -19.5,
+     "onsetMs": 0,
+     "gainDb": -4.8
+    }
+   ],
+   "mix": null,
+   "note": "Schallgedämpfte Pistole (1911) – echte Aufnahmen"
+  },
+  "mech_rifle": {
+   "group": "gun",
+   "layer": "mech",
+   "catalog": "mech_rifle",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/mech_rifle_1.mp3",
+     "src": "fs:263513",
+     "at": 4.25,
+     "dur": 0.45,
+     "bytes": 5225,
+     "peakDb": -2.4,
+     "lufsM": -21.5,
+     "onsetMs": 17,
+     "gainDb": -5.4
+    }
+   ],
+   "mix": null,
+   "note": "AR-15 Verschlussfang/Verschluss schnellt vor – unter Gewehrschüsse mischen (≈ −14 dB)"
+  },
+  "mech_pistol": {
+   "group": "gun",
+   "layer": "mech",
+   "catalog": "mech_pistol",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "gun/mech_pistol_1.mp3",
+     "src": "fs:151067",
+     "at": 0.085,
+     "dur": 0.172,
+     "bytes": 2351,
+     "peakDb": -1.8,
+     "lufsM": -20,
+     "onsetMs": 8,
+     "gainDb": 11.4
+    }
+   ],
+   "mix": null,
+   "note": "Beretta M9 Schlitten schnellt vor – unter Pistolenschüsse mischen (≈ −16 dB)"
+  },
+  "reload_mag_out": {
+   "group": "handling",
+   "layer": "oneshot",
+   "catalog": "reload_mag_out",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "handling/reload_mag_out_1.mp3",
+     "src": "fs:263513",
+     "at": 0,
+     "dur": 0.95,
+     "bytes": 10188,
+     "peakDb": -0.5,
+     "lufsM": -21.8,
+     "onsetMs": 26,
+     "gainDb": -2.6
+    },
+    {
+     "v": 2,
+     "file": "handling/reload_mag_out_2.mp3",
+     "src": "fs:263513",
+     "at": 2.22,
+     "dur": 0.61,
+     "bytes": 6792,
+     "peakDb": -1.1,
+     "lufsM": -19,
+     "onsetMs": 45,
+     "gainDb": -2.1
+    }
+   ],
+   "mix": null,
+   "note": "AR-15 Magazin heraus (Blue Snowball)"
+  },
+  "reload_mag_in": {
+   "group": "handling",
+   "layer": "oneshot",
+   "catalog": "reload_mag_in",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "handling/reload_mag_in_1.mp3",
+     "src": "fs:263513",
+     "at": 1,
+     "dur": 0.95,
+     "bytes": 10188,
+     "peakDb": 1.1,
+     "lufsM": -18.4,
+     "onsetMs": 41,
+     "gainDb": -4.4
+    },
+    {
+     "v": 2,
+     "file": "handling/reload_mag_in_2.mp3",
+     "src": "fs:263513",
+     "at": 2.82,
+     "dur": 0.597,
+     "bytes": 6531,
+     "peakDb": -0.5,
+     "lufsM": -17,
+     "onsetMs": 50,
+     "gainDb": -4.4
+    },
+    {
+     "v": 3,
+     "file": "handling/reload_mag_in_3.mp3",
+     "src": "fs:588734",
+     "at": 1.3,
+     "dur": 0.608,
+     "bytes": 6792,
+     "peakDb": -1.6,
+     "lufsM": -22.3,
+     "onsetMs": 41,
+     "gainDb": 4.4
+    }
+   ],
+   "mix": null,
+   "note": "AR-15 Magazin einsetzen (antippen + einrasten)"
+  },
+  "reload_bolt": {
+   "group": "handling",
+   "layer": "oneshot",
+   "catalog": "reload_bolt",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "handling/reload_bolt_1.mp3",
+     "src": "fs:263513",
+     "at": 3.4,
+     "dur": 0.818,
+     "bytes": 8882,
+     "peakDb": -2.2,
+     "lufsM": -16.3,
+     "onsetMs": 51,
+     "gainDb": -5.3
+    },
+    {
+     "v": 2,
+     "file": "handling/reload_bolt_2.mp3",
+     "src": "fs:171632",
+     "at": 0.17,
+     "dur": 0.708,
+     "bytes": 7837,
+     "peakDb": -2.5,
+     "lufsM": -18.8,
+     "onsetMs": 26,
+     "gainDb": -3.2
+    }
+   ],
+   "mix": null,
+   "note": "Ladehebel zurück + vorschnellen (AR-15, AK/RPK)"
+  },
+  "bolt": {
+   "group": "handling",
+   "layer": "oneshot",
+   "catalog": "bolt",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "handling/bolt_1.mp3",
+     "src": "fs:802673",
+     "at": 0.07,
+     "dur": 0.75,
+     "bytes": 8098,
+     "peakDb": -0.6,
+     "lufsM": -19.1,
+     "onsetMs": 35,
+     "gainDb": -1.5
+    },
+    {
+     "v": 2,
+     "file": "handling/bolt_2.mp3",
+     "src": "fs:802673",
+     "at": 0.98,
+     "dur": 0.75,
+     "bytes": 8098,
+     "peakDb": -1.5,
+     "lufsM": -21.3,
+     "onsetMs": 50,
+     "gainDb": -1.4
+    },
+    {
+     "v": 3,
+     "file": "handling/bolt_3.mp3",
+     "src": "fs:706404",
+     "at": 0.03,
+     "dur": 1,
+     "bytes": 10710,
+     "peakDb": -0.7,
+     "lufsM": -21.9,
+     "onsetMs": 6,
+     "gainDb": 4.7
+    }
+   ],
+   "mix": null,
+   "note": "Kammerverschluss repetieren (Mauser 98k ORTF, .22 TLM103)"
+  },
+  "pump": {
+   "group": "handling",
+   "layer": "oneshot",
+   "catalog": "pump",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "handling/pump_1.mp3",
+     "src": "fs:613801",
+     "at": 0.03,
+     "dur": 0.805,
+     "bytes": 8620,
+     "peakDb": 0.1,
+     "lufsM": -16,
+     "onsetMs": 21,
+     "gainDb": 2
+    },
+    {
+     "v": 2,
+     "file": "handling/pump_2.mp3",
+     "src": "fs:449614",
+     "at": 0,
+     "dur": 0.48,
+     "bytes": 5486,
+     "peakDb": -0.8,
+     "lufsM": -19.7,
+     "onsetMs": 0,
+     "gainDb": 8
+    }
+   ],
+   "mix": null,
+   "note": "Vorderschaft repetieren (echte Pumpflinten)"
+  },
+  "slide_release": {
+   "group": "handling",
+   "layer": "oneshot",
+   "catalog": "slide_release",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "handling/slide_release_1.mp3",
+     "src": "fs:151067",
+     "at": 0.085,
+     "dur": 0.172,
+     "bytes": 2351,
+     "peakDb": -1.6,
+     "lufsM": -18.4,
+     "onsetMs": 5,
+     "gainDb": 13
+    },
+    {
+     "v": 2,
+     "file": "handling/slide_release_2.mp3",
+     "src": "fs:151070",
+     "at": 0.06,
+     "dur": 0.226,
+     "bytes": 2874,
+     "peakDb": -3.3,
+     "lufsM": -16.3,
+     "onsetMs": 11,
+     "gainDb": 12.6
+    },
+    {
+     "v": 3,
+     "file": "handling/slide_release_3.mp3",
+     "src": "fs:854486",
+     "at": 0.18,
+     "dur": 0.456,
+     "bytes": 5225,
+     "peakDb": -1,
+     "lufsM": -18.1,
+     "onsetMs": 27,
+     "gainDb": 2
+    }
+   ],
+   "mix": null,
+   "note": "Pistolenschlitten schnellt vor (Nachladen Pistole, statt reload_bolt)"
+  },
+  "reload_pistol": {
+   "group": "handling",
+   "layer": "oneshot",
+   "catalog": "reload_pistol",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "handling/reload_pistol_1.mp3",
+     "src": "fs:396331",
+     "at": 0,
+     "dur": 1,
+     "bytes": 10710,
+     "peakDb": -0.2,
+     "lufsM": -16,
+     "onsetMs": 14,
+     "gainDb": -5.5
+    }
+   ],
+   "mix": null,
+   "note": "1911: Magazin einsetzen + Schlitten (Zoom H4n, innen)"
+  },
+  "dryfire": {
+   "group": "handling",
+   "layer": "oneshot",
+   "catalog": "dryfire",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 80,
+   "variants": [
+    {
+     "v": 1,
+     "file": "handling/dryfire_1.mp3",
+     "src": "fs:588733",
+     "at": 0.055,
+     "dur": 0.307,
+     "bytes": 3657,
+     "peakDb": -3.1,
+     "lufsM": -27.3,
+     "onsetMs": 15,
+     "gainDb": 2.9
+    },
+    {
+     "v": 2,
+     "file": "handling/dryfire_2.mp3",
+     "src": "fs:725402",
+     "at": 0.03,
+     "dur": 0.406,
+     "bytes": 4702,
+     "peakDb": -3.5,
+     "lufsM": -20.3,
+     "onsetMs": 15,
+     "gainDb": -2.1
+    },
+    {
+     "v": 3,
+     "file": "handling/dryfire_3.mp3",
+     "src": "fs:842748",
+     "at": 0,
+     "dur": 0.245,
+     "bytes": 3135,
+     "peakDb": -0.9,
+     "lufsM": -23.2,
+     "onsetMs": 0,
+     "gainDb": 3.6
+    }
+   ],
+   "mix": null,
+   "note": "Abzug ohne Patrone (S&W 9 mm, Ruger 10/22, Glock 17)"
+  },
+  "shell_concrete": {
+   "group": "foley",
+   "layer": "oneshot",
+   "catalog": "shell_concrete",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "foley/shell_concrete_1.mp3",
+     "src": "fs:337235",
+     "at": 0.017,
+     "dur": 0.622,
+     "bytes": 5432,
+     "peakDb": -3.6,
+     "lufsM": -24.7,
+     "onsetMs": 0,
+     "gainDb": 11.2
+    },
+    {
+     "v": 2,
+     "file": "foley/shell_concrete_2.mp3",
+     "src": "fs:337235",
+     "at": 0.685,
+     "dur": 0.703,
+     "bytes": 6059,
+     "peakDb": -3.4,
+     "lufsM": -35.3,
+     "onsetMs": 3,
+     "gainDb": 7.8
+    },
+    {
+     "v": 3,
+     "file": "foley/shell_concrete_3.mp3",
+     "src": "fs:337235",
+     "at": 1.403,
+     "dur": 0.755,
+     "bytes": 6477,
+     "peakDb": -4.2,
+     "lufsM": -22.8,
+     "onsetMs": 4,
+     "gainDb": 10.6
+    },
+    {
+     "v": 4,
+     "file": "foley/shell_concrete_4.mp3",
+     "src": "fs:337235",
+     "at": 2.183,
+     "dur": 0.7,
+     "bytes": 6059,
+     "peakDb": -3.3,
+     "lufsM": -29.4,
+     "onsetMs": 0,
+     "gainDb": 7.3
+    }
+   ],
+   "mix": null,
+   "note": "Messinghülsen auf Beton (25 cm, Tascam DR-40)"
+  },
+  "shell_hard": {
+   "group": "foley",
+   "layer": "oneshot",
+   "catalog": "shell_hard",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "foley/shell_hard_1.mp3",
+     "src": "fs:370805",
+     "at": 0.12,
+     "dur": 0.41,
+     "bytes": 3760,
+     "peakDb": -4.7,
+     "lufsM": -22.2,
+     "onsetMs": 14,
+     "gainDb": 3.3
+    },
+    {
+     "v": 2,
+     "file": "foley/shell_hard_2.mp3",
+     "src": "fs:778028",
+     "at": 0,
+     "dur": 0.297,
+     "bytes": 2924,
+     "peakDb": -4.7,
+     "lufsM": -27.5,
+     "onsetMs": 0,
+     "gainDb": 8.7
+    }
+   ],
+   "mix": null,
+   "note": "Einzelne Hülse auf Tisch/harter Fläche"
+  },
+  "shell_shotgun": {
+   "group": "foley",
+   "layer": "oneshot",
+   "catalog": "shell_shotgun",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "foley/shell_shotgun_1.mp3",
+     "src": "fs:773860",
+     "at": 0,
+     "dur": 0.95,
+     "bytes": 8149,
+     "peakDb": -4.9,
+     "lufsM": -27.8,
+     "onsetMs": 7,
+     "gainDb": 0.9
+    },
+    {
+     "v": 2,
+     "file": "foley/shell_shotgun_2.mp3",
+     "src": "fs:620929",
+     "at": 0.07,
+     "dur": 0.95,
+     "bytes": 8149,
+     "peakDb": -3,
+     "lufsM": -22.3,
+     "onsetMs": 1,
+     "gainDb": -4
+    }
+   ],
+   "mix": null,
+   "note": "Schrotpatronenhülsen fallen (Holzboden / draußen)"
+  },
+  "step_concrete": {
+   "group": "step",
+   "layer": "oneshot",
+   "catalog": "step_concrete",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "step/step_concrete_1.mp3",
+     "src": "fs:521590",
+     "at": 0.098,
+     "dur": 0.401,
+     "bytes": 3760,
+     "peakDb": -3.5,
+     "lufsM": -27.2,
+     "onsetMs": 6,
+     "gainDb": 8.7
+    },
+    {
+     "v": 2,
+     "file": "step/step_concrete_2.mp3",
+     "src": "fs:521590",
+     "at": 0.696,
+     "dur": 0.409,
+     "bytes": 3760,
+     "peakDb": -3.5,
+     "lufsM": -28,
+     "onsetMs": 12,
+     "gainDb": 8.5
+    },
+    {
+     "v": 3,
+     "file": "step/step_concrete_3.mp3",
+     "src": "fs:521590",
+     "at": 1.259,
+     "dur": 0.406,
+     "bytes": 3760,
+     "peakDb": -3.3,
+     "lufsM": -27.6,
+     "onsetMs": 10,
+     "gainDb": 8.1
+    },
+    {
+     "v": 4,
+     "file": "step/step_concrete_4.mp3",
+     "src": "fs:521590",
+     "at": 1.81,
+     "dur": 0.409,
+     "bytes": 3760,
+     "peakDb": -3.3,
+     "lufsM": -29.5,
+     "onsetMs": 14,
+     "gainDb": 8
+    }
+   ],
+   "mix": null,
+   "note": "Wanderstiefel auf Stein"
+  },
+  "step_wood": {
+   "group": "step",
+   "layer": "oneshot",
+   "catalog": "step_wood",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "step/step_wood_1.mp3",
+     "src": "fs:521589",
+     "at": 0.102,
+     "dur": 0.36,
+     "bytes": 3342,
+     "peakDb": -3.4,
+     "lufsM": -25.1,
+     "onsetMs": 4,
+     "gainDb": 8.4
+    },
+    {
+     "v": 2,
+     "file": "step/step_wood_2.mp3",
+     "src": "fs:521589",
+     "at": 0.538,
+     "dur": 0.361,
+     "bytes": 3342,
+     "peakDb": -3.6,
+     "lufsM": -30.2,
+     "onsetMs": 5,
+     "gainDb": 8.3
+    },
+    {
+     "v": 3,
+     "file": "step/step_wood_3.mp3",
+     "src": "fs:521589",
+     "at": 0.937,
+     "dur": 0.362,
+     "bytes": 3342,
+     "peakDb": -3.5,
+     "lufsM": -26.2,
+     "onsetMs": 6,
+     "gainDb": 7.8
+    },
+    {
+     "v": 4,
+     "file": "step/step_wood_4.mp3",
+     "src": "fs:521589",
+     "at": 1.402,
+     "dur": 0.361,
+     "bytes": 3342,
+     "peakDb": -3.5,
+     "lufsM": -28.1,
+     "onsetMs": 5,
+     "gainDb": 8.6
+    }
+   ],
+   "mix": null,
+   "note": "Wanderstiefel auf Holzbohle"
+  },
+  "step_dirt": {
+   "group": "step",
+   "layer": "oneshot",
+   "catalog": "step_dirt",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "step/step_dirt_1.mp3",
+     "src": "fs:682127",
+     "at": 0.126,
+     "dur": 0.42,
+     "bytes": 3969,
+     "peakDb": -4.7,
+     "lufsM": -24.2,
+     "onsetMs": 2,
+     "gainDb": 10
+    },
+    {
+     "v": 2,
+     "file": "step/step_dirt_2.mp3",
+     "src": "fs:682127",
+     "at": 0.674,
+     "dur": 0.415,
+     "bytes": 3760,
+     "peakDb": -8.4,
+     "lufsM": -24.1,
+     "onsetMs": 3,
+     "gainDb": 8.8
+    },
+    {
+     "v": 3,
+     "file": "step/step_dirt_3.mp3",
+     "src": "fs:682127",
+     "at": 1.09,
+     "dur": 0.429,
+     "bytes": 3969,
+     "peakDb": -6.3,
+     "lufsM": -24.3,
+     "onsetMs": 5,
+     "gainDb": 7.7
+    },
+    {
+     "v": 4,
+     "file": "step/step_dirt_4.mp3",
+     "src": "fs:682127",
+     "at": 1.613,
+     "dur": 0.429,
+     "bytes": 3969,
+     "peakDb": -8.7,
+     "lufsM": -24.3,
+     "onsetMs": 10,
+     "gainDb": 9.9
+    }
+   ],
+   "mix": null,
+   "note": "Feldweg (Ferse + Abrollen)"
+  },
+  "step_gravel": {
+   "group": "step",
+   "layer": "oneshot",
+   "catalog": "step_gravel",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "step/step_gravel_1.mp3",
+     "src": "fs:521588",
+     "at": 0.101,
+     "dur": 0.5,
+     "bytes": 4596,
+     "peakDb": -3.5,
+     "lufsM": -24.7,
+     "onsetMs": 4,
+     "gainDb": 6.9
+    },
+    {
+     "v": 2,
+     "file": "step/step_gravel_2.mp3",
+     "src": "fs:521588",
+     "at": 0.859,
+     "dur": 0.503,
+     "bytes": 4596,
+     "peakDb": -3.1,
+     "lufsM": -28.3,
+     "onsetMs": 7,
+     "gainDb": 6.1
+    },
+    {
+     "v": 3,
+     "file": "step/step_gravel_3.mp3",
+     "src": "fs:521588",
+     "at": 1.564,
+     "dur": 0.502,
+     "bytes": 4596,
+     "peakDb": -3.7,
+     "lufsM": -25.6,
+     "onsetMs": 6,
+     "gainDb": 6.8
+    },
+    {
+     "v": 4,
+     "file": "step/step_gravel_4.mp3",
+     "src": "fs:521588",
+     "at": 2.234,
+     "dur": 0.5,
+     "bytes": 4596,
+     "peakDb": -4.5,
+     "lufsM": -24.5,
+     "onsetMs": 3,
+     "gainDb": 8.1
+    }
+   ],
+   "mix": null,
+   "note": "Wanderstiefel auf Kies (Engine: Alias gravel→dirt; als eigene Fläche nutzbar)"
+  },
+  "step_metal": {
+   "group": "step",
+   "layer": "oneshot",
+   "catalog": "step_metal",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "step/step_metal_1.mp3",
+     "src": "fs:834029",
+     "at": 0.611,
+     "dur": 0.48,
+     "bytes": 4387,
+     "peakDb": -3.9,
+     "lufsM": -24.5,
+     "onsetMs": 1,
+     "gainDb": 28.5
+    },
+    {
+     "v": 2,
+     "file": "step/step_metal_2.mp3",
+     "src": "fs:834029",
+     "at": 1.119,
+     "dur": 0.482,
+     "bytes": 4387,
+     "peakDb": -3.5,
+     "lufsM": -26.1,
+     "onsetMs": 4,
+     "gainDb": 23.8
+    },
+    {
+     "v": 3,
+     "file": "step/step_metal_3.mp3",
+     "src": "fs:834029",
+     "at": 1.621,
+     "dur": 0.489,
+     "bytes": 4387,
+     "peakDb": -3.5,
+     "lufsM": -27.5,
+     "onsetMs": 12,
+     "gainDb": 23.3
+    },
+    {
+     "v": 4,
+     "file": "step/step_metal_4.mp3",
+     "src": "fs:834029",
+     "at": 3.278,
+     "dur": 0.481,
+     "bytes": 4387,
+     "peakDb": -3.7,
+     "lufsM": -27.6,
+     "onsetMs": 12,
+     "gainDb": 27.5
+    }
+   ],
+   "mix": null,
+   "note": "Metallsteg (für Spiele geschnitten)"
+  },
+  "step_grass": {
+   "group": "step",
+   "layer": "oneshot",
+   "catalog": "step_grass",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "step/step_grass_1.mp3",
+     "src": "kenney:footstep_grass_000.ogg",
+     "at": 0,
+     "dur": 0.597,
+     "bytes": 5223,
+     "peakDb": -3.5,
+     "lufsM": -28.1,
+     "onsetMs": 0,
+     "gainDb": 3.2
+    },
+    {
+     "v": 2,
+     "file": "step/step_grass_2.mp3",
+     "src": "kenney:footstep_grass_001.ogg",
+     "at": 0,
+     "dur": 0.597,
+     "bytes": 5223,
+     "peakDb": -3.4,
+     "lufsM": -25.9,
+     "onsetMs": 0,
+     "gainDb": 3.8
+    },
+    {
+     "v": 3,
+     "file": "step/step_grass_3.mp3",
+     "src": "kenney:footstep_grass_002.ogg",
+     "at": 0,
+     "dur": 0.597,
+     "bytes": 5223,
+     "peakDb": -3.5,
+     "lufsM": -26.7,
+     "onsetMs": 0,
+     "gainDb": 3.5
+    },
+    {
+     "v": 4,
+     "file": "step/step_grass_4.mp3",
+     "src": "kenney:footstep_grass_003.ogg",
+     "at": 0,
+     "dur": 0.597,
+     "bytes": 5223,
+     "peakDb": -3.5,
+     "lufsM": -28.1,
+     "onsetMs": 0,
+     "gainDb": 3.6
+    }
+   ],
+   "mix": null,
+   "note": "Kenney Impact Sounds (Gras)"
+  },
+  "land": {
+   "group": "step",
+   "layer": "oneshot",
+   "catalog": "land",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "step/land_1.mp3",
+     "src": "fs:422754",
+     "at": 0.035,
+     "dur": 0.203,
+     "bytes": 2088,
+     "peakDb": -3.5,
+     "lufsM": -27.2,
+     "onsetMs": 7,
+     "gainDb": 3.6
+    }
+   ],
+   "mix": null,
+   "note": "Landung auf Stein (Zoom H2n)"
+  },
+  "bodyfall": {
+   "group": "foley",
+   "layer": "oneshot",
+   "catalog": "bodyfall",
+   "rate": 32000,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "foley/bodyfall_1.mp3",
+     "src": "fs:504626",
+     "at": 0.131,
+     "dur": 1.45,
+     "bytes": 12384,
+     "peakDb": -2.1,
+     "lufsM": -21.8,
+     "onsetMs": 1,
+     "gainDb": 4.2
+    },
+    {
+     "v": 2,
+     "file": "foley/bodyfall_2.mp3",
+     "src": "fs:454418",
+     "at": 0.2,
+     "dur": 1,
+     "bytes": 8640,
+     "peakDb": -2,
+     "lufsM": -17.1,
+     "onsetMs": 0,
+     "gainDb": 8.1
+    },
+    {
+     "v": 3,
+     "file": "foley/bodyfall_3.mp3",
+     "src": "fs:675924",
+     "at": 0.032,
+     "dur": 1.6,
+     "bytes": 13536,
+     "peakDb": -3.6,
+     "lufsM": -16.4,
+     "onsetMs": 1,
+     "gainDb": 12
+    }
+   ],
+   "mix": null,
+   "note": "Körper fällt (zu death/Ragdoll)"
+  },
+  "impact_concrete": {
+   "group": "impact",
+   "layer": "oneshot",
+   "catalog": "impact_concrete",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "impact/impact_concrete_1.mp3",
+     "src": "fs:569510",
+     "at": 0,
+     "dur": 0.95,
+     "bytes": 8149,
+     "peakDb": -1.4,
+     "lufsM": -23.5,
+     "onsetMs": 0,
+     "gainDb": 4.5
+    },
+    {
+     "v": 2,
+     "file": "impact/impact_concrete_2.mp3",
+     "src": "fs:321478",
+     "at": 0.456,
+     "dur": 0.386,
+     "bytes": 3551,
+     "peakDb": -1.9,
+     "lufsM": -23.7,
+     "onsetMs": 8,
+     "gainDb": 11.3
+    },
+    {
+     "v": 3,
+     "file": "impact/impact_concrete_3.mp3",
+     "src": "kenney:impactMining_000.ogg",
+     "at": 0,
+     "dur": 0.8,
+     "bytes": 6895,
+     "peakDb": -2,
+     "lufsM": -21.9,
+     "onsetMs": 0,
+     "gainDb": 5.7
+    }
+   ],
+   "mix": null,
+   "note": "Stein/Ziegel-Treffer mit Splittern (MKH416; Axt auf Ziegel; Kenney Spitzhacke)"
+  },
+  "impact_wood": {
+   "group": "impact",
+   "layer": "oneshot",
+   "catalog": "impact_wood",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "impact/impact_wood_1.mp3",
+     "src": "fs:319226",
+     "at": 0.173,
+     "dur": 0.2,
+     "bytes": 2088,
+     "peakDb": -2,
+     "lufsM": -26.7,
+     "onsetMs": 0,
+     "gainDb": 8.1
+    },
+    {
+     "v": 2,
+     "file": "impact/impact_wood_2.mp3",
+     "src": "fs:319228",
+     "at": 0.094,
+     "dur": 0.175,
+     "bytes": 1879,
+     "peakDb": -2,
+     "lufsM": -28.7,
+     "onsetMs": 6,
+     "gainDb": 6.8
+    },
+    {
+     "v": 3,
+     "file": "impact/impact_wood_3.mp3",
+     "src": "fs:319227",
+     "at": 0.069,
+     "dur": 0.409,
+     "bytes": 3760,
+     "peakDb": -2,
+     "lufsM": -28.6,
+     "onsetMs": 11,
+     "gainDb": 8.2
+    }
+   ],
+   "mix": null,
+   "note": "Steine auf Holz (als Kugeleinschlag aufgenommen)"
+  },
+  "impact_dirt": {
+   "group": "impact",
+   "layer": "oneshot",
+   "catalog": "impact_dirt",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "impact/impact_dirt_1.mp3",
+     "src": "fs:319229",
+     "at": 0.333,
+     "dur": 0.602,
+     "bytes": 5432,
+     "peakDb": -1.7,
+     "lufsM": -24.3,
+     "onsetMs": 1,
+     "gainDb": 18.9
+    },
+    {
+     "v": 2,
+     "file": "impact/impact_dirt_2.mp3",
+     "src": "fs:319222",
+     "at": 0.285,
+     "dur": 0.606,
+     "bytes": 5432,
+     "peakDb": -1.8,
+     "lufsM": -23.6,
+     "onsetMs": 8,
+     "gainDb": 16.9
+    },
+    {
+     "v": 3,
+     "file": "impact/impact_dirt_3.mp3",
+     "src": "fs:789388",
+     "at": 0.011,
+     "dur": 0.6,
+     "bytes": 5223,
+     "peakDb": -2.3,
+     "lufsM": -18.8,
+     "onsetMs": 2,
+     "gainDb": -3.2
+    }
+   ],
+   "mix": null,
+   "note": "Stein in Erde; Peitsche auf Boden (hell)"
+  },
+  "impact_metal": {
+   "group": "impact",
+   "layer": "oneshot",
+   "catalog": "impact_metal",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "impact/impact_metal_1.mp3",
+     "src": "fs:351371",
+     "at": 0.037,
+     "dur": 0.381,
+     "bytes": 3551,
+     "peakDb": -3,
+     "lufsM": -16.3,
+     "onsetMs": 4,
+     "gainDb": -0.6
+    },
+    {
+     "v": 2,
+     "file": "impact/impact_metal_2.mp3",
+     "src": "kenney:impactMetal_medium_000.ogg",
+     "at": 0,
+     "dur": 0.267,
+     "bytes": 2715,
+     "peakDb": -2,
+     "lufsM": -20.2,
+     "onsetMs": 0,
+     "gainDb": 3.8
+    },
+    {
+     "v": 3,
+     "file": "impact/impact_metal_3.mp3",
+     "src": "kenney:impactPlate_light_000.ogg",
+     "at": 0,
+     "dur": 0.4,
+     "bytes": 3760,
+     "peakDb": -2.3,
+     "lufsM": -25.2,
+     "onsetMs": 0,
+     "gainDb": 0.6
+    }
+   ],
+   "mix": null,
+   "note": "Topf/Pfanne „Ping“; Kenney Metall (bandbegrenzt)"
+  },
+  "impact_glass": {
+   "group": "impact",
+   "layer": "oneshot",
+   "catalog": "impact_glass",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "impact/impact_glass_1.mp3",
+     "src": "fs:565182",
+     "at": 0.031,
+     "dur": 1,
+     "bytes": 8567,
+     "peakDb": -2.2,
+     "lufsM": -16.2,
+     "onsetMs": 1,
+     "gainDb": -1.5
+    },
+    {
+     "v": 2,
+     "file": "impact/impact_glass_2.mp3",
+     "src": "kenney:impactGlass_heavy_000.ogg",
+     "at": 0,
+     "dur": 0.236,
+     "bytes": 2506,
+     "peakDb": -1.9,
+     "lufsM": -24.4,
+     "onsetMs": 0,
+     "gainDb": 4.6
+    }
+   ],
+   "mix": null,
+   "note": "Glasbruch (fern, innen); Kenney Glas"
+  },
+  "hit_flesh": {
+   "group": "impact",
+   "layer": "oneshot",
+   "catalog": "hit_flesh",
+   "rate": 32000,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "impact/hit_flesh_1.mp3",
+     "src": "fs:423301",
+     "at": 0.168,
+     "dur": 0.15,
+     "bytes": 2016,
+     "peakDb": -1.8,
+     "lufsM": -18.8,
+     "onsetMs": 0,
+     "gainDb": -2
+    },
+    {
+     "v": 2,
+     "file": "impact/hit_flesh_2.mp3",
+     "src": "fs:423301",
+     "at": 0.468,
+     "dur": 0.2,
+     "bytes": 2304,
+     "peakDb": -1.8,
+     "lufsM": -18.8,
+     "onsetMs": 0,
+     "gainDb": -2.3
+    },
+    {
+     "v": 3,
+     "file": "impact/hit_flesh_3.mp3",
+     "src": "fs:423301",
+     "at": 0.818,
+     "dur": 0.15,
+     "bytes": 2016,
+     "peakDb": -0.5,
+     "lufsM": -18.9,
+     "onsetMs": 0,
+     "gainDb": -1.9
+    },
+    {
+     "v": 4,
+     "file": "impact/hit_flesh_4.mp3",
+     "src": "fs:423301",
+     "at": 1.565,
+     "dur": 0.2,
+     "bytes": 2304,
+     "peakDb": -0.8,
+     "lufsM": -19.2,
+     "onsetMs": 0,
+     "gainDb": -2
+    }
+   ],
+   "mix": null,
+   "note": "„Visceral Bullet Impacts“ – nur der Körpertreffer, ohne Pfeifen"
+  },
+  "bullet_whiz": {
+   "group": "impact",
+   "layer": "oneshot",
+   "catalog": "bullet_whiz",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "impact/bullet_whiz_1.mp3",
+     "src": "fs:789222",
+     "at": 0.023,
+     "dur": 0.6,
+     "bytes": 5223,
+     "peakDb": -1.8,
+     "lufsM": -17.4,
+     "onsetMs": 4,
+     "gainDb": 0
+    }
+   ],
+   "mix": null,
+   "note": "Vorbeiflug (Peitsche, Unterschall)"
+  },
+  "explosion": {
+   "group": "fx",
+   "layer": "oneshot",
+   "catalog": "explosion",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 112,
+   "variants": [
+    {
+     "v": 1,
+     "file": "fx/explosion_1.mp3",
+     "src": "fs:516914",
+     "at": 0.3,
+     "dur": 4.5,
+     "bytes": 63999,
+     "peakDb": -1.1,
+     "lufsM": -12.3,
+     "onsetMs": 9,
+     "gainDb": -3.4
+    },
+    {
+     "v": 2,
+     "file": "fx/explosion_2.mp3",
+     "src": "fs:182429",
+     "at": 0,
+     "dur": 2.998,
+     "bytes": 42788,
+     "peakDb": -2,
+     "lufsM": -12.8,
+     "onsetMs": 1,
+     "gainDb": -4.3
+    }
+   ],
+   "mix": null,
+   "note": "Granate/Sprengung mittlere Distanz (Kinoton); Sprengung aus US-Regierungsvideo (gemeinfrei)"
+  },
+  "explosion_far": {
+   "group": "fx",
+   "layer": "oneshot",
+   "catalog": "explosion_far",
+   "rate": 32000,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "fx/explosion_far_1.mp3",
+     "src": "fs:324277",
+     "at": 0.079,
+     "dur": 5,
+     "bytes": 40608,
+     "peakDb": -1.9,
+     "lufsM": -13,
+     "onsetMs": 2,
+     "gainDb": 13
+    },
+    {
+     "v": 2,
+     "file": "fx/explosion_far_2.mp3",
+     "src": "fs:162363",
+     "at": 0.008,
+     "dur": 0.59,
+     "bytes": 5472,
+     "peakDb": -1.9,
+     "lufsM": -21.3,
+     "onsetMs": 3,
+     "gainDb": 5.9
+    }
+   ],
+   "mix": null,
+   "note": "Ferne Explosion (metallisch, Kostrava); Granate auf Truppenübungsplatz (qubodup, Ende abrupt → ausgeblendet)"
+  },
+  "grenade_bounce": {
+   "group": "fx",
+   "layer": "oneshot",
+   "catalog": "grenade_bounce",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "fx/grenade_bounce_1.mp3",
+     "src": "fs:92622",
+     "at": 0.508,
+     "dur": 0.3,
+     "bytes": 2924,
+     "peakDb": -6.2,
+     "lufsM": -16.5,
+     "onsetMs": 2,
+     "gainDb": -6.8
+    },
+    {
+     "v": 2,
+     "file": "fx/grenade_bounce_2.mp3",
+     "src": "fs:92622",
+     "at": 0.949,
+     "dur": 0.279,
+     "bytes": 2715,
+     "peakDb": -2.9,
+     "lufsM": -16.4,
+     "onsetMs": 0,
+     "gainDb": -3.3
+    },
+    {
+     "v": 3,
+     "file": "fx/grenade_bounce_3.mp3",
+     "src": "fs:92622",
+     "at": 1.25,
+     "dur": 0.602,
+     "bytes": 5432,
+     "peakDb": -2,
+     "lufsM": -17.4,
+     "onsetMs": 1,
+     "gainDb": -1.7
+    }
+   ],
+   "mix": null,
+   "note": "Blechdose springt auf Beton"
+  },
+  "grenade_spoon": {
+   "group": "fx",
+   "layer": "oneshot",
+   "catalog": "grenade_spoon",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "fx/grenade_spoon_1.mp3",
+     "src": "fs:259553",
+     "at": 0.158,
+     "dur": 1.2,
+     "bytes": 10030,
+     "peakDb": -1.6,
+     "lufsM": -22.5,
+     "onsetMs": 2,
+     "gainDb": -2
+    }
+   ],
+   "mix": null,
+   "note": "Granatenbügel fällt zu Boden (nach grenade_pin)"
+  },
+  "melee_swing": {
+   "group": "fx",
+   "layer": "oneshot",
+   "catalog": "melee_swing",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "fx/melee_swing_1.mp3",
+     "src": "fs:60013",
+     "at": 0.016,
+     "dur": 0.41,
+     "bytes": 3760,
+     "peakDb": -4.9,
+     "lufsM": -20.5,
+     "onsetMs": 2,
+     "gainDb": 1.4
+    },
+    {
+     "v": 2,
+     "file": "fx/melee_swing_2.mp3",
+     "src": "fs:352719",
+     "at": 0.1,
+     "dur": 0.45,
+     "bytes": 4178,
+     "peakDb": -4.2,
+     "lufsM": -20.5,
+     "onsetMs": 1,
+     "gainDb": 9.1
+    }
+   ],
+   "mix": null,
+   "note": "Bambus-/Stockschwung"
+  },
+  "melee_hit": {
+   "group": "fx",
+   "layer": "oneshot",
+   "catalog": "melee_hit",
+   "rate": 44100,
+   "ch": 1,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "fx/melee_hit_1.mp3",
+     "src": "fs:411743",
+     "at": 0.472,
+     "dur": 0.255,
+     "bytes": 2506,
+     "peakDb": -2.2,
+     "lufsM": -28.1,
+     "onsetMs": 16,
+     "gainDb": 7
+    },
+    {
+     "v": 2,
+     "file": "fx/melee_hit_2.mp3",
+     "src": "fs:411743",
+     "at": 0.955,
+     "dur": 0.307,
+     "bytes": 2924,
+     "peakDb": -2.7,
+     "lufsM": -24.6,
+     "onsetMs": 9,
+     "gainDb": 11.5
+    },
+    {
+     "v": 3,
+     "file": "fx/melee_hit_3.mp3",
+     "src": "fs:179222",
+     "at": 0.155,
+     "dur": 0.4,
+     "bytes": 3760,
+     "peakDb": -1.1,
+     "lufsM": -19.9,
+     "onsetMs": 2,
+     "gainDb": 6.9
+    }
+   ],
+   "mix": null,
+   "note": "Messerstich (Melone/Kohl)"
+  },
+  "amb_bed_harbor": {
+   "group": "amb",
+   "layer": "bed",
+   "catalog": "amb_bed_harbor",
+   "rate": 24000,
+   "ch": 1,
+   "kbps": 48,
+   "variants": [
+    {
+     "v": 1,
+     "file": "amb/amb_bed_harbor_1.mp3",
+     "src": "fs:254130",
+     "at": 0.8,
+     "dur": 24,
+     "bytes": 144480,
+     "peakDb": -7,
+     "lufsM": -26.4,
+     "onsetMs": 0,
+     "gainDb": 16.7
+    }
+   ],
+   "mix": null,
+   "note": "Hafen: Boote am Steg, Wellen, Fahnen (Sennheiser 416)"
+  },
+  "amb_bed_desert": {
+   "group": "amb",
+   "layer": "bed",
+   "catalog": "amb_bed_desert",
+   "rate": 24000,
+   "ch": 2,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "amb/amb_bed_desert_1.mp3",
+     "src": "fs:457556",
+     "at": 0.4,
+     "dur": 24,
+     "bytes": 192576,
+     "peakDb": -14.1,
+     "lufsM": -26.4,
+     "onsetMs": 0,
+     "gainDb": 17.3
+    }
+   ],
+   "mix": null,
+   "note": "Altstadt: ferne Stadt (Dubai)"
+  },
+  "amb_bed_industrial": {
+   "group": "amb",
+   "layer": "bed",
+   "catalog": "amb_bed_industrial",
+   "rate": 24000,
+   "ch": 2,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "amb/amb_bed_industrial_1.mp3",
+     "src": "fs:278987",
+     "at": 0.4,
+     "dur": 20,
+     "bytes": 160704,
+     "peakDb": -14.7,
+     "lufsM": -26.4,
+     "onsetMs": 0,
+     "gainDb": -2.4
+    }
+   ],
+   "mix": null,
+   "note": "Werk: große Lagerhalle/Fabrik"
+  },
+  "amb_bed_range": {
+   "group": "amb",
+   "layer": "bed",
+   "catalog": "amb_bed_range",
+   "rate": 24000,
+   "ch": 2,
+   "kbps": 64,
+   "variants": [
+    {
+     "v": 1,
+     "file": "amb/amb_bed_range_1.mp3",
+     "src": "fs:458113",
+     "at": 4,
+     "dur": 28,
+     "bytes": 224640,
+     "peakDb": -18,
+     "lufsM": -26.4,
+     "onsetMs": 0,
+     "gainDb": 16.6
+    }
+   ],
+   "mix": null,
+   "note": "Schießstand: Land im Morgengrauen (Zikaden, Vögel)"
+  }
+ },
+ "version": 1,
+ "generated": "2026-10-05",
+ "format": {
+  "codec": "mp3",
+  "note": "CBR, LAME/Xing-Tag (Encoder-Delay), ohne ID3. Einsatz (onsetMs) mit ffmpeg gemessen; Browser-Decoder können wenige ms abweichen → beim Laden führende Stille kürzen."
+ },
+ "totals": {
+  "files": 170,
+  "bytes": 3223423,
+  "MB": 3.07,
+  "seconds": 303.3,
+  "decodedMB": 60.1,
+  "byGroup": {
+   "gun": {
+    "files": 79,
+    "bytes": 1917124,
+    "secs": 149.08399999999995
+   },
+   "handling": {
+    "files": 19,
+    "bytes": 130876,
+    "secs": 11.838000000000001
+   },
+   "foley": {
+    "files": 11,
+    "bytes": 81569,
+    "secs": 9.437000000000001
+   },
+   "step": {
+    "files": 25,
+    "bytes": 102987,
+    "secs": 11.289999999999997
+   },
+   "impact": {
+    "files": 19,
+    "bytes": 77371,
+    "secs": 8.312000000000001
+   },
+   "fx": {
+    "files": 13,
+    "bytes": 191096,
+    "secs": 17.290999999999997
+   },
+   "amb": {
+    "files": 4,
+    "bytes": 722400,
+    "secs": 96
+   }
+  }
+ }
+}

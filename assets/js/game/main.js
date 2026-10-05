@@ -506,6 +506,12 @@ function matchAssetJobs(cfg, world) {
   // Ego: Ausrüstung (gun/training: alle Waffen, siehe WeaponController.warmup) + Requisiten des Viewmodels
   const own = allWeapons ? Object.keys(W) : [cfg.loadout.primary, cfg.loadout.secondary];
   for (const id of [...own, 'knife', 'frag', 'semtex']) addModel(modelOf(id), 'first');
+  // Ego: einmalige Viewmodel-Texturen (Ärmel-Tarnmuster des Teams, Stoff, Mündungsfeuer …), weapons/viewmodel.js
+  const vm = G.modules.viewmodel;
+  if (vm && typeof vm.viewModelWarmupSteps === 'function') {
+    const team = cfg.ffa ? null : 'A';
+    vm.viewModelWarmupSteps({ team, world }).forEach((fn, i) => add(`v:${team || 'ffa'}:${i}`, fn));
+  }
   // Bots: Drittperson-Modelle ihrer Ausrüstungen (gun: alle Stufen) + Requisiten (Granate, Messer)
   const bots = (cfg.allies | 0) + (cfg.enemies | 0);
   if (bots > 0) {

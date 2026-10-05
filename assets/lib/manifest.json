@@ -1,0 +1,1969 @@
+{
+ "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
+ "version": 1,
+ "pipeline": 3,
+ "generated": "2026-10-05T14:39:14.114Z",
+ "qualityTiers": {
+  "low": 512,
+  "medium": 1024,
+  "high": 1024,
+  "ultra": 2048
+ },
+ "hdriTiers": {
+  "low": 512,
+  "medium": 1024,
+  "high": 1024,
+  "ultra": 1024
+ },
+ "gpuNote": "gpu.desktop: BC7/ASTC-Schätzung (1 B/px, ETC1S auf Desktop ohne BPTC sogar nur 0,5 B/px), gpu.mobile: ETC1/ETC2/ASTC (ETC1S RGB 0,5 B/px), gpu.rgba8: Rückfall ohne Kompressionsformat (4 B/px). Jeweils inkl. Mipmaps; Modelle inkl. Geometrie; HDRIs = PMREM-Ziel + Hintergrund.",
+ "textures": {
+  "concrete_floor_worn": {
+   "type": "texture",
+   "name": "Concrete Floor Worn 001",
+   "category": "concrete",
+   "surface": "concrete",
+   "replaces": [
+    "concrete"
+   ],
+   "sizeM": [
+    3,
+    3
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": true,
+   "stats": {
+    "avgColor": "#565754",
+    "avgRoughness": 0.541,
+    "avgMetalness": 0.005,
+    "avgAO": 0.957,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/concrete_floor_worn/concrete_floor_worn_512_albedo.ktx2",
+     "normal": "textures/concrete_floor_worn/concrete_floor_worn_512_normal.ktx2",
+     "orm": "textures/concrete_floor_worn/concrete_floor_worn_512_orm.ktx2",
+     "sizes": {
+      "albedo": 46335,
+      "normal": 14541,
+      "orm": 32928
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 349525,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 349525,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 349525,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 93804,
+     "gpu": {
+      "desktop": 1048575,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/concrete_floor_worn/concrete_floor_worn_1024_albedo.ktx2",
+     "normal": "textures/concrete_floor_worn/concrete_floor_worn_1024_normal.ktx2",
+     "orm": "textures/concrete_floor_worn/concrete_floor_worn_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 158985,
+      "normal": 154781,
+      "orm": 128968
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 1398101,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 1398101,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 1398101,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 442734,
+     "gpu": {
+      "desktop": 4194303,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "2048": {
+     "albedo": "textures/concrete_floor_worn/concrete_floor_worn_2048_albedo.ktx2",
+     "normal": "textures/concrete_floor_worn/concrete_floor_worn_2048_normal.ktx2",
+     "orm": "textures/concrete_floor_worn/concrete_floor_worn_2048_orm.ktx2",
+     "sizes": {
+      "albedo": 605971,
+      "normal": 699394,
+      "orm": 563030
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 5592405,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "normal": {
+       "desktop": 5592405,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "orm": {
+       "desktop": 5592405,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      }
+     },
+     "bytes": 1868395,
+     "gpu": {
+      "desktop": 16777215,
+      "mobile": 8388609,
+      "rgba8": 67108863
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "concrete_floor_worn_001",
+   "url": "https://polyhaven.com/a/concrete_floor_worn_001",
+   "author": "Dimitrios Savva, Rico Cilliers"
+  },
+  "sandstone_blocks": {
+   "type": "texture",
+   "name": "Sandstone Blocks 05",
+   "category": "masonry",
+   "surface": "concrete",
+   "replaces": [
+    "stone_wall"
+   ],
+   "sizeM": [
+    3,
+    3
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": true,
+   "stats": {
+    "avgColor": "#b39f88",
+    "avgRoughness": 0.833,
+    "avgMetalness": 0.004,
+    "avgAO": 0.861,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/sandstone_blocks/sandstone_blocks_512_albedo.ktx2",
+     "normal": "textures/sandstone_blocks/sandstone_blocks_512_normal.ktx2",
+     "orm": "textures/sandstone_blocks/sandstone_blocks_512_orm.ktx2",
+     "sizes": {
+      "albedo": 65474,
+      "normal": 105813,
+      "orm": 34211
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 349525,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 349525,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 349525,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 205498,
+     "gpu": {
+      "desktop": 1048575,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/sandstone_blocks/sandstone_blocks_1024_albedo.ktx2",
+     "normal": "textures/sandstone_blocks/sandstone_blocks_1024_normal.ktx2",
+     "orm": "textures/sandstone_blocks/sandstone_blocks_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 217514,
+      "normal": 303916,
+      "orm": 124301
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 1398101,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 1398101,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 1398101,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 645731,
+     "gpu": {
+      "desktop": 4194303,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "2048": {
+     "albedo": "textures/sandstone_blocks/sandstone_blocks_2048_albedo.ktx2",
+     "normal": "textures/sandstone_blocks/sandstone_blocks_2048_normal.ktx2",
+     "orm": "textures/sandstone_blocks/sandstone_blocks_2048_orm.ktx2",
+     "sizes": {
+      "albedo": 864821,
+      "normal": 1080044,
+      "orm": 492561
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 5592405,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "normal": {
+       "desktop": 5592405,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "orm": {
+       "desktop": 5592405,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      }
+     },
+     "bytes": 2437426,
+     "gpu": {
+      "desktop": 16777215,
+      "mobile": 8388609,
+      "rgba8": 67108863
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "sandstone_blocks_05",
+   "url": "https://polyhaven.com/a/sandstone_blocks_05",
+   "author": "Rob Tuytel"
+  },
+  "container": {
+   "type": "texture",
+   "name": "Container Side",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [
+    "container",
+    "container_red",
+    "container_blue",
+    "container_green",
+    "container_orange",
+    "container_gray"
+   ],
+   "sizeM": [
+    1.94,
+    1.94
+   ],
+   "tintable": true,
+   "alpha": false,
+   "hero": true,
+   "stats": {
+    "avgColor": "#aaaaaa",
+    "avgRoughness": 0.666,
+    "avgMetalness": 0.001,
+    "avgAO": 0.824,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/container/container_512_albedo.ktx2",
+     "normal": "textures/container/container_512_normal.ktx2",
+     "orm": "textures/container/container_512_orm.ktx2",
+     "sizes": {
+      "albedo": 26987,
+      "normal": 23465,
+      "orm": 18612
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 349525,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 349525,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 349525,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 69064,
+     "gpu": {
+      "desktop": 1048575,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/container/container_1024_albedo.ktx2",
+     "normal": "textures/container/container_1024_normal.ktx2",
+     "orm": "textures/container/container_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 91565,
+      "normal": 128816,
+      "orm": 60117
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 1398101,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 1398101,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 1398101,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 280498,
+     "gpu": {
+      "desktop": 4194303,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "2048": {
+     "albedo": "textures/container/container_2048_albedo.ktx2",
+     "normal": "textures/container/container_2048_normal.ktx2",
+     "orm": "textures/container/container_2048_orm.ktx2",
+     "sizes": {
+      "albedo": 363051,
+      "normal": 2212644,
+      "orm": 291635
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 5592405,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "normal": {
+       "desktop": 5592405,
+       "mobile": 5592405,
+       "rgba8": 22369621
+      },
+      "orm": {
+       "desktop": 5592405,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      }
+     },
+     "bytes": 2867330,
+     "gpu": {
+      "desktop": 16777215,
+      "mobile": 11184811,
+      "rgba8": 67108863
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "container_side",
+   "url": "https://polyhaven.com/a/container_side",
+   "author": "Dimitrios Savva"
+  },
+  "rubber": {
+   "type": "texture",
+   "name": "Rubber 004",
+   "category": "weapon",
+   "surface": "fabric",
+   "replaces": [
+    "rubber"
+   ],
+   "sizeM": [
+    0.75,
+    0.75
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#2a2c32",
+    "avgRoughness": 0.591,
+    "avgMetalness": 0,
+    "avgAO": 1,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/rubber/rubber_512_albedo.ktx2",
+     "normal": "textures/rubber/rubber_512_normal.ktx2",
+     "orm": "textures/rubber/rubber_512_orm.ktx2",
+     "sizes": {
+      "albedo": 53169,
+      "normal": 77305,
+      "orm": 26850
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 349525,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 349525,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 349525,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 157324,
+     "gpu": {
+      "desktop": 1048575,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/rubber/rubber_1024_albedo.ktx2",
+     "normal": "textures/rubber/rubber_1024_normal.ktx2",
+     "orm": "textures/rubber/rubber_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 175784,
+      "normal": 235303,
+      "orm": 95874
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 1398101,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 1398101,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 1398101,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 506961,
+     "gpu": {
+      "desktop": 4194303,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "ambientcg",
+   "sourceId": "Rubber004",
+   "url": "https://ambientcg.com/view?id=Rubber004",
+   "author": "Lennart Demes (ambientCG)"
+  }
+ },
+ "hdris": {
+  "freight_station": {
+   "type": "hdri",
+   "name": "Freight Station",
+   "kind": "outdoor",
+   "mood": "golden hour, industrial yard (Hafen)",
+   "maps": [
+    "hafen"
+   ],
+   "sun": {
+    "dir": [
+     0.8002,
+     0.1589,
+     0.5784
+    ],
+    "elevationDeg": 9.1,
+    "azimuthDeg": 125.9,
+    "peak": 643.27,
+    "dominance": 712.5
+   },
+   "luminance": {
+    "avg": 0.5044,
+    "sky": 0.9028,
+    "skyGeo": 0.6564
+   },
+   "backgroundExposure": 0.5332,
+   "tiers": {
+    "512": {
+     "hdr": "hdri/freight_station/freight_station_512.hdr",
+     "background": "hdri/freight_station/freight_station_bg_1024.ktx2",
+     "sizes": {
+      "hdr": 411999,
+      "background": 71928
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 524288,
+       "mobile": 262144,
+       "rgba8": 2097152
+      }
+     },
+     "bytes": 483927,
+     "gpu": {
+      "desktop": 6815744,
+      "mobile": 6553600,
+      "rgba8": 8388608
+     },
+     "size": [
+      512,
+      256
+     ],
+     "backgroundSize": [
+      1024,
+      512
+     ]
+    },
+    "1024": {
+     "hdr": "hdri/freight_station/freight_station_1024.hdr",
+     "background": "hdri/freight_station/freight_station_bg_2048.ktx2",
+     "sizes": {
+      "hdr": 1629412,
+      "background": 234015
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 2097152,
+       "mobile": 1048576,
+       "rgba8": 8388608
+      }
+     },
+     "bytes": 1863427,
+     "gpu": {
+      "desktop": 8388608,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     },
+     "size": [
+      1024,
+      512
+     ],
+     "backgroundSize": [
+      2048,
+      1024
+     ]
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "freight_station",
+   "url": "https://polyhaven.com/a/freight_station",
+   "author": "Sergej Majboroda"
+  },
+  "old_outdoor_theater": {
+   "type": "hdri",
+   "name": "Old Outdoor Theater",
+   "kind": "outdoor",
+   "mood": "bright midday, high sun, sandy walls (Altstadt)",
+   "maps": [
+    "altstadt"
+   ],
+   "sun": {
+    "dir": [
+     0.3908,
+     0.8761,
+     0.2825
+    ],
+    "elevationDeg": 61.2,
+    "azimuthDeg": 125.9,
+    "peak": 9439.53,
+    "dominance": 10541.6
+   },
+   "luminance": {
+    "avg": 0.5356,
+    "sky": 0.8955,
+    "skyGeo": 0.2579
+   },
+   "backgroundExposure": 1.3571,
+   "tiers": {
+    "512": {
+     "hdr": "hdri/old_outdoor_theater/old_outdoor_theater_512.hdr",
+     "background": "hdri/old_outdoor_theater/old_outdoor_theater_bg_1024.ktx2",
+     "sizes": {
+      "hdr": 399997,
+      "background": 74672
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 524288,
+       "mobile": 262144,
+       "rgba8": 2097152
+      }
+     },
+     "bytes": 474669,
+     "gpu": {
+      "desktop": 6815744,
+      "mobile": 6553600,
+      "rgba8": 8388608
+     },
+     "size": [
+      512,
+      256
+     ],
+     "backgroundSize": [
+      1024,
+      512
+     ]
+    },
+    "1024": {
+     "hdr": "hdri/old_outdoor_theater/old_outdoor_theater_1024.hdr",
+     "background": "hdri/old_outdoor_theater/old_outdoor_theater_bg_2048.ktx2",
+     "sizes": {
+      "hdr": 1563952,
+      "background": 238466
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 2097152,
+       "mobile": 1048576,
+       "rgba8": 8388608
+      }
+     },
+     "bytes": 1802418,
+     "gpu": {
+      "desktop": 8388608,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     },
+     "size": [
+      1024,
+      512
+     ],
+     "backgroundSize": [
+      2048,
+      1024
+     ]
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "old_outdoor_theater",
+   "url": "https://polyhaven.com/a/old_outdoor_theater",
+   "author": "Sergej Majboroda"
+  },
+  "abandoned_slipway": {
+   "type": "hdri",
+   "name": "Abandoned Slipway",
+   "kind": "outdoor",
+   "mood": "overcast industrial dusk (Werk)",
+   "maps": [
+    "werk"
+   ],
+   "sun": {
+    "dir": [
+     0.7486,
+     0.2071,
+     -0.6299
+    ],
+    "elevationDeg": 12,
+    "azimuthDeg": 49.9,
+    "peak": 3.85,
+    "dominance": 4.4
+   },
+   "luminance": {
+    "avg": 0.4959,
+    "sky": 0.867,
+    "skyGeo": 0.5941
+   },
+   "backgroundExposure": 0.5891,
+   "tiers": {
+    "512": {
+     "hdr": "hdri/abandoned_slipway/abandoned_slipway_512.hdr",
+     "background": "hdri/abandoned_slipway/abandoned_slipway_bg_1024.ktx2",
+     "sizes": {
+      "hdr": 417670,
+      "background": 68312
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 524288,
+       "mobile": 262144,
+       "rgba8": 2097152
+      }
+     },
+     "bytes": 485982,
+     "gpu": {
+      "desktop": 6815744,
+      "mobile": 6553600,
+      "rgba8": 8388608
+     },
+     "size": [
+      512,
+      256
+     ],
+     "backgroundSize": [
+      1024,
+      512
+     ]
+    },
+    "1024": {
+     "hdr": "hdri/abandoned_slipway/abandoned_slipway_1024.hdr",
+     "background": "hdri/abandoned_slipway/abandoned_slipway_bg_2048.ktx2",
+     "sizes": {
+      "hdr": 1656490,
+      "background": 215211
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 2097152,
+       "mobile": 1048576,
+       "rgba8": 8388608
+      }
+     },
+     "bytes": 1871701,
+     "gpu": {
+      "desktop": 8388608,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     },
+     "size": [
+      1024,
+      512
+     ],
+     "backgroundSize": [
+      2048,
+      1024
+     ]
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "abandoned_slipway",
+   "url": "https://polyhaven.com/a/abandoned_slipway",
+   "author": "Philip Modin"
+  },
+  "zwartkops_straight_morning": {
+   "type": "hdri",
+   "name": "Zwartkops Straight Morning",
+   "kind": "outdoor",
+   "mood": "clear morning (Schießstand)",
+   "maps": [
+    "range"
+   ],
+   "sun": {
+    "dir": [
+     0.7449,
+     0.394,
+     0.5384
+    ],
+    "elevationDeg": 23.2,
+    "azimuthDeg": 125.9,
+    "peak": 14706.63,
+    "dominance": 8624.9
+   },
+   "luminance": {
+    "avg": 0.9435,
+    "sky": 1.7051,
+    "skyGeo": 0.2814
+   },
+   "backgroundExposure": 1.2438,
+   "tiers": {
+    "512": {
+     "hdr": "hdri/zwartkops_straight_morning/zwartkops_straight_morning_512.hdr",
+     "background": "hdri/zwartkops_straight_morning/zwartkops_straight_morning_bg_1024.ktx2",
+     "sizes": {
+      "hdr": 370404,
+      "background": 66936
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 524288,
+       "mobile": 262144,
+       "rgba8": 2097152
+      }
+     },
+     "bytes": 437340,
+     "gpu": {
+      "desktop": 6815744,
+      "mobile": 6553600,
+      "rgba8": 8388608
+     },
+     "size": [
+      512,
+      256
+     ],
+     "backgroundSize": [
+      1024,
+      512
+     ]
+    },
+    "1024": {
+     "hdr": "hdri/zwartkops_straight_morning/zwartkops_straight_morning_1024.hdr",
+     "background": "hdri/zwartkops_straight_morning/zwartkops_straight_morning_bg_2048.ktx2",
+     "sizes": {
+      "hdr": 1524167,
+      "background": 212870
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 2097152,
+       "mobile": 1048576,
+       "rgba8": 8388608
+      }
+     },
+     "bytes": 1737037,
+     "gpu": {
+      "desktop": 8388608,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     },
+     "size": [
+      1024,
+      512
+     ],
+     "backgroundSize": [
+      2048,
+      1024
+     ]
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "zwartkops_straight_morning",
+   "url": "https://polyhaven.com/a/zwartkops_straight_morning",
+   "author": "Dimitrios Savva, Jarod Guest"
+  },
+  "cobblestone_street_night": {
+   "type": "hdri",
+   "name": "Cobblestone Street Night",
+   "kind": "night",
+   "mood": "sodium-lit street at night",
+   "maps": [],
+   "sun": {
+    "dir": [
+     0.8051,
+     0.2785,
+     -0.5237
+    ],
+    "elevationDeg": 16.2,
+    "azimuthDeg": 57,
+    "peak": 3912.51,
+    "dominance": 2857.2
+   },
+   "luminance": {
+    "avg": 0.781,
+    "sky": 1.3693,
+    "skyGeo": 0.0275
+   },
+   "backgroundExposure": 8,
+   "tiers": {
+    "512": {
+     "hdr": "hdri/cobblestone_street_night/cobblestone_street_night_512.hdr",
+     "background": "hdri/cobblestone_street_night/cobblestone_street_night_bg_1024.ktx2",
+     "sizes": {
+      "hdr": 441263,
+      "background": 86924
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 524288,
+       "mobile": 262144,
+       "rgba8": 2097152
+      }
+     },
+     "bytes": 528187,
+     "gpu": {
+      "desktop": 6815744,
+      "mobile": 6553600,
+      "rgba8": 8388608
+     },
+     "size": [
+      512,
+      256
+     ],
+     "backgroundSize": [
+      1024,
+      512
+     ]
+    },
+    "1024": {
+     "hdr": "hdri/cobblestone_street_night/cobblestone_street_night_1024.hdr",
+     "background": "hdri/cobblestone_street_night/cobblestone_street_night_bg_2048.ktx2",
+     "sizes": {
+      "hdr": 1755484,
+      "background": 294609
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 2097152,
+       "mobile": 1048576,
+       "rgba8": 8388608
+      }
+     },
+     "bytes": 2050093,
+     "gpu": {
+      "desktop": 8388608,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     },
+     "size": [
+      1024,
+      512
+     ],
+     "backgroundSize": [
+      2048,
+      1024
+     ]
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "cobblestone_street_night",
+   "url": "https://polyhaven.com/a/cobblestone_street_night",
+   "author": "Greg Zaal, Jenelle van Heerden"
+  },
+  "burnt_warehouse": {
+   "type": "hdri",
+   "name": "Burnt Warehouse",
+   "kind": "interior",
+   "mood": "dark burnt-out warehouse interior",
+   "maps": [],
+   "sun": {
+    "dir": [
+     0.7646,
+     -0.0368,
+     0.6434
+    ],
+    "elevationDeg": -2.1,
+    "azimuthDeg": 130.1,
+    "peak": 209.5,
+    "dominance": 200.9
+   },
+   "luminance": {
+    "avg": 0.9628,
+    "sky": 1.0426,
+    "skyGeo": 0.0793
+   },
+   "backgroundExposure": 4.4136,
+   "tiers": {
+    "512": {
+     "hdr": "hdri/burnt_warehouse/burnt_warehouse_512.hdr",
+     "background": "hdri/burnt_warehouse/burnt_warehouse_bg_1024.ktx2",
+     "sizes": {
+      "hdr": 462339,
+      "background": 93886
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 524288,
+       "mobile": 262144,
+       "rgba8": 2097152
+      }
+     },
+     "bytes": 556225,
+     "gpu": {
+      "desktop": 6815744,
+      "mobile": 6553600,
+      "rgba8": 8388608
+     },
+     "size": [
+      512,
+      256
+     ],
+     "backgroundSize": [
+      1024,
+      512
+     ]
+    },
+    "1024": {
+     "hdr": "hdri/burnt_warehouse/burnt_warehouse_1024.hdr",
+     "background": "hdri/burnt_warehouse/burnt_warehouse_bg_2048.ktx2",
+     "sizes": {
+      "hdr": 1822335,
+      "background": 324048
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 2097152,
+       "mobile": 1048576,
+       "rgba8": 8388608
+      }
+     },
+     "bytes": 2146383,
+     "gpu": {
+      "desktop": 8388608,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     },
+     "size": [
+      1024,
+      512
+     ],
+     "backgroundSize": [
+      2048,
+      1024
+     ]
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "burnt_warehouse",
+   "url": "https://polyhaven.com/a/burnt_warehouse",
+   "author": "Sergej Majboroda"
+  },
+  "industrial_pipe_and_valve_01": {
+   "type": "hdri",
+   "name": "Industrial Pipe & Valve 01",
+   "kind": "interior",
+   "mood": "dim industrial hall interior",
+   "maps": [],
+   "sun": {
+    "dir": [
+     0.5344,
+     0.7157,
+     0.4496
+    ],
+    "elevationDeg": 45.7,
+    "azimuthDeg": 130.1,
+    "peak": 3162.01,
+    "dominance": 3101.7
+   },
+   "luminance": {
+    "avg": 0.5731,
+    "sky": 1.0195,
+    "skyGeo": 0.0325
+   },
+   "backgroundExposure": 8,
+   "tiers": {
+    "512": {
+     "hdr": "hdri/industrial_pipe_and_valve_01/industrial_pipe_and_valve_01_512.hdr",
+     "background": "hdri/industrial_pipe_and_valve_01/industrial_pipe_and_valve_01_bg_1024.ktx2",
+     "sizes": {
+      "hdr": 432298,
+      "background": 82563
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 524288,
+       "mobile": 262144,
+       "rgba8": 2097152
+      }
+     },
+     "bytes": 514861,
+     "gpu": {
+      "desktop": 6815744,
+      "mobile": 6553600,
+      "rgba8": 8388608
+     },
+     "size": [
+      512,
+      256
+     ],
+     "backgroundSize": [
+      1024,
+      512
+     ]
+    },
+    "1024": {
+     "hdr": "hdri/industrial_pipe_and_valve_01/industrial_pipe_and_valve_01_1024.hdr",
+     "background": "hdri/industrial_pipe_and_valve_01/industrial_pipe_and_valve_01_bg_2048.ktx2",
+     "sizes": {
+      "hdr": 1700787,
+      "background": 271553
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 2097152,
+       "mobile": 1048576,
+       "rgba8": 8388608
+      }
+     },
+     "bytes": 1972340,
+     "gpu": {
+      "desktop": 8388608,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     },
+     "size": [
+      1024,
+      512
+     ],
+     "backgroundSize": [
+      2048,
+      1024
+     ]
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "industrial_pipe_and_valve_01",
+   "url": "https://polyhaven.com/a/industrial_pipe_and_valve_01",
+   "author": "Philip Modin"
+  },
+  "debris_basement_corridor": {
+   "type": "hdri",
+   "name": "Debris Basement Corridor",
+   "kind": "interior",
+   "mood": "fluorescent-lit basement corridor",
+   "maps": [],
+   "sun": {
+    "dir": [
+     0.6683,
+     0.5858,
+     0.4585
+    ],
+    "elevationDeg": 35.9,
+    "azimuthDeg": 124.5,
+    "peak": 253.14,
+    "dominance": 206
+   },
+   "luminance": {
+    "avg": 0.7425,
+    "sky": 1.2288,
+    "skyGeo": 0.3852
+   },
+   "backgroundExposure": 0.9086,
+   "tiers": {
+    "512": {
+     "hdr": "hdri/debris_basement_corridor/debris_basement_corridor_512.hdr",
+     "background": "hdri/debris_basement_corridor/debris_basement_corridor_bg_1024.ktx2",
+     "sizes": {
+      "hdr": 408063,
+      "background": 68210
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 524288,
+       "mobile": 262144,
+       "rgba8": 2097152
+      }
+     },
+     "bytes": 476273,
+     "gpu": {
+      "desktop": 6815744,
+      "mobile": 6553600,
+      "rgba8": 8388608
+     },
+     "size": [
+      512,
+      256
+     ],
+     "backgroundSize": [
+      1024,
+      512
+     ]
+    },
+    "1024": {
+     "hdr": "hdri/debris_basement_corridor/debris_basement_corridor_1024.hdr",
+     "background": "hdri/debris_basement_corridor/debris_basement_corridor_bg_2048.ktx2",
+     "sizes": {
+      "hdr": 1602350,
+      "background": 215130
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 2097152,
+       "mobile": 1048576,
+       "rgba8": 8388608
+      }
+     },
+     "bytes": 1817480,
+     "gpu": {
+      "desktop": 8388608,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     },
+     "size": [
+      1024,
+      512
+     ],
+     "backgroundSize": [
+      2048,
+      1024
+     ]
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "debris_basement_corridor",
+   "url": "https://polyhaven.com/a/debris_basement_corridor",
+   "author": "Elvis Posa"
+  }
+ },
+ "models": {
+  "barrel_01": {
+   "type": "model",
+   "name": "Barrel_01",
+   "category": "containers",
+   "kit": false,
+   "weapon": false,
+   "size": [
+    0.564,
+    0.88,
+    0.564
+   ],
+   "radius": 0.594,
+   "lodDistances": [
+    0,
+    8.3,
+    23.8
+   ],
+   "parts": [
+    "Barrel_01"
+   ],
+   "sourceTris": 2682,
+   "materials": [
+    {
+     "name": "Barrel_01",
+     "alphaMode": "OPAQUE",
+     "doubleSided": true
+    }
+   ],
+   "tiers": {
+    "512": {
+     "glb": "models/barrel_01/barrel_01_512.glb",
+     "bytes": 207192,
+     "gpu": {
+      "desktop": 1151789,
+      "mobile": 627503,
+      "rgba8": 4297517
+     },
+     "tris": [
+      2682,
+      1071,
+      374
+     ],
+     "textures": 3
+    },
+    "1024": {
+     "glb": "models/barrel_01/barrel_01_1024.glb",
+     "bytes": 587212,
+     "gpu": {
+      "desktop": 4297517,
+      "mobile": 2200367,
+      "rgba8": 16880429
+     },
+     "tris": [
+      2682,
+      1071,
+      374
+     ],
+     "textures": 3
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "Barrel_01",
+   "url": "https://polyhaven.com/a/Barrel_01",
+   "author": "Jorge Camacho"
+  }
+ },
+ "maps": {
+  "hafen": {
+   "hdri": "freight_station",
+   "textures": [
+    "concrete_floor_worn",
+    "asphalt_cracked",
+    "concrete_wall_dark",
+    "concrete_panels",
+    "plaster_white",
+    "metal_painted",
+    "metal_corrugated",
+    "metal_corrugated_rusty",
+    "metal_galvanized",
+    "metal_tread",
+    "metal_grate",
+    "hazard_stripes",
+    "container",
+    "wood_planks",
+    "wood_crate",
+    "rubber",
+    "grass",
+    "gravel",
+    "concrete_epoxy",
+    "tiles_worn"
+   ],
+   "models": [
+    "barrel_01",
+    "barrel_02",
+    "barrel_03",
+    "old_tyre",
+    "wooden_military_crate",
+    "old_military_crate",
+    "metal_jerrycan",
+    "concrete_road_barrier",
+    "street_lamp_01",
+    "hand_truck",
+    "metal_trash_can",
+    "modular_chainlink_fence",
+    "modular_electricity_poles",
+    "rollershutter_door",
+    "exterior_aircon_unit",
+    "power_box_01",
+    "utility_box_01",
+    "covered_car",
+    "cardboard_box_01",
+    "propane_tank"
+   ],
+   "budget": {
+    "low": {
+     "bytes": 1011311,
+     "gpu": {
+      "desktop": 11113258,
+      "mobile": 8753970,
+      "rgba8": 25269034
+     }
+    },
+    "medium": {
+     "bytes": 3680832,
+     "gpu": {
+      "desktop": 25269034,
+      "mobile": 15831858,
+      "rgba8": 81892138
+     }
+    },
+    "high": {
+     "bytes": 3680832,
+     "gpu": {
+      "desktop": 25269034,
+      "mobile": 15831858,
+      "rgba8": 81892138
+     }
+    },
+    "ultra": {
+     "bytes": 7693325,
+     "gpu": {
+      "desktop": 50434858,
+      "mobile": 31210972,
+      "rgba8": 182555434
+     }
+    }
+   }
+  },
+  "altstadt": {
+   "hdri": "old_outdoor_theater",
+   "textures": [
+    "sandstone_blocks",
+    "plaster_white",
+    "plaster_white_peeling",
+    "plaster_beige",
+    "plaster_blue_weathered",
+    "cobblestone",
+    "paving_flagstone",
+    "roof_clay_tiles",
+    "tiles_terracotta",
+    "tiles_checker",
+    "wood_planks",
+    "wood_planks_dark",
+    "wood_peeling_paint",
+    "metal_painted",
+    "metal_galvanized",
+    "canvas",
+    "awning_stripes",
+    "sand",
+    "dirt",
+    "grass",
+    "bark_palm",
+    "rubber",
+    "cardboard"
+   ],
+   "models": [
+    "planter_pot_clay",
+    "potted_plant_02",
+    "plastic_monobloc_chair_01",
+    "cement_bag",
+    "metal_jerrycan_green",
+    "wooden_military_crate",
+    "cardboard_box_01",
+    "trashbag",
+    "exterior_aircon_unit",
+    "metal_trash_can",
+    "water_manhole_cover",
+    "weed_plant_02",
+    "shrub_04",
+    "rock_07",
+    "modular_metal_gutter",
+    "covered_car",
+    "sofa_01",
+    "television_01"
+   ],
+   "budget": {
+    "low": {
+     "bytes": 837491,
+     "gpu": {
+      "desktop": 8912894,
+      "mobile": 7602178,
+      "rgba8": 16777214
+     }
+    },
+    "medium": {
+     "bytes": 2955110,
+     "gpu": {
+      "desktop": 16777214,
+      "mobile": 11534338,
+      "rgba8": 48234494
+     }
+    },
+    "high": {
+     "bytes": 2955110,
+     "gpu": {
+      "desktop": 16777214,
+      "mobile": 11534338,
+      "rgba8": 48234494
+     }
+    },
+    "ultra": {
+     "bytes": 4746805,
+     "gpu": {
+      "desktop": 29360126,
+      "mobile": 17825794,
+      "rgba8": 98566142
+     }
+    }
+   }
+  },
+  "werk": {
+   "hdri": "abandoned_slipway",
+   "textures": [
+    "brick_factory",
+    "brick_dark",
+    "concrete_floor_worn",
+    "concrete_dirty",
+    "concrete_painted_peeling",
+    "concrete_wall_dark",
+    "metal_painted",
+    "metal_rust_painted",
+    "metal_corrugated",
+    "metal_corrugated_rusty",
+    "metal_cladding_green",
+    "metal_galvanized",
+    "metal_tread",
+    "metal_grate",
+    "hazard_stripes",
+    "gravel",
+    "asphalt_cracked",
+    "wood_planks",
+    "rubber_floor",
+    "tiles_white_wall",
+    "rubble",
+    "osb",
+    "plaster_damaged_brick"
+   ],
+   "models": [
+    "modular_industrial_pipes_01",
+    "modular_airduct_rectangular_01",
+    "modular_airduct_circular_01",
+    "mounted_fluorescent_lights",
+    "hanging_industrial_lamp",
+    "industrial_wall_lamp",
+    "metal_tool_chest",
+    "tool_cart",
+    "portable_generator",
+    "hand_truck",
+    "barrel_01",
+    "barrel_03",
+    "industrial_pastic_container",
+    "steel_frame_shelves_01",
+    "worn_metal_rack",
+    "metal_office_desk",
+    "schoolchair_01",
+    "modular_fire_escape",
+    "modular_metal_gutter",
+    "old_tyre",
+    "security_camera_01",
+    "power_box_01",
+    "wetfloorsign_01"
+   ],
+   "budget": {
+    "low": {
+     "bytes": 786978,
+     "gpu": {
+      "desktop": 9016108,
+      "mobile": 7705392,
+      "rgba8": 16880428
+     }
+    },
+    "medium": {
+     "bytes": 2901647,
+     "gpu": {
+      "desktop": 16880428,
+      "mobile": 11637552,
+      "rgba8": 48337708
+     }
+    },
+    "high": {
+     "bytes": 2901647,
+     "gpu": {
+      "desktop": 16880428,
+      "mobile": 11637552,
+      "rgba8": 48337708
+     }
+    },
+    "ultra": {
+     "bytes": 4327308,
+     "gpu": {
+      "desktop": 29463340,
+      "mobile": 17929008,
+      "rgba8": 98669356
+     }
+    }
+   }
+  },
+  "range": {
+   "hdri": "zwartkops_straight_morning",
+   "textures": [
+    "concrete_floor_worn",
+    "concrete_panels",
+    "gravel",
+    "grass",
+    "dirt",
+    "sand",
+    "wood_planks",
+    "wood_planks_dark",
+    "metal_painted",
+    "metal_galvanized",
+    "metal_tread",
+    "felt_panel",
+    "concrete_epoxy",
+    "burlap",
+    "rubber_floor"
+   ],
+   "models": [
+    "ammo_box",
+    "wooden_military_crate",
+    "old_military_crate",
+    "metal_jerrycan_green",
+    "concrete_road_barrier",
+    "old_tyre",
+    "hanging_industrial_lamp",
+    "bolt_action_rifle_7_62",
+    "service_pistol"
+   ],
+   "budget": {
+    "low": {
+     "bytes": 531144,
+     "gpu": {
+      "desktop": 7864319,
+      "mobile": 7077889,
+      "rgba8": 12582911
+     }
+    },
+    "medium": {
+     "bytes": 2179771,
+     "gpu": {
+      "desktop": 12582911,
+      "mobile": 9437185,
+      "rgba8": 31457279
+     }
+    },
+    "high": {
+     "bytes": 2179771,
+     "gpu": {
+      "desktop": 12582911,
+      "mobile": 9437185,
+      "rgba8": 31457279
+     }
+    },
+    "ultra": {
+     "bytes": 3605432,
+     "gpu": {
+      "desktop": 25165823,
+      "mobile": 15728641,
+      "rgba8": 81788927
+     }
+    }
+   }
+  },
+  "innenraum": {
+   "planned": true,
+   "hdri": "burnt_warehouse",
+   "textures": [
+    "concrete_dirty",
+    "concrete_painted_peeling",
+    "plaster_damaged_brick",
+    "plaster_worn_patched",
+    "plaster_painted",
+    "wallpaper_stained",
+    "tiles_worn",
+    "tiles_white_wall",
+    "tiles_checker",
+    "linoleum",
+    "carpet_dirty",
+    "ceiling_office",
+    "wood_floor_old",
+    "wood_peeling_paint",
+    "osb",
+    "metal_shutter",
+    "brick_dark",
+    "rubble",
+    "metal_rust_painted"
+   ],
+   "models": [
+    "metal_office_desk",
+    "schoolchair_01",
+    "steel_frame_shelves_01",
+    "sofa_01",
+    "television_01",
+    "wooden_bookshelf_worn",
+    "old_bed_frame",
+    "wetfloorsign_01",
+    "mounted_fluorescent_lights",
+    "hanging_industrial_lamp",
+    "cardboard_box_01",
+    "trashbag",
+    "plastic_monobloc_chair_01",
+    "old_military_crate"
+   ],
+   "budget": {
+    "low": {
+     "bytes": 556225,
+     "gpu": {
+      "desktop": 6815744,
+      "mobile": 6553600,
+      "rgba8": 8388608
+     }
+    },
+    "medium": {
+     "bytes": 2146383,
+     "gpu": {
+      "desktop": 8388608,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     }
+    },
+    "high": {
+     "bytes": 2146383,
+     "gpu": {
+      "desktop": 8388608,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     }
+    },
+    "ultra": {
+     "bytes": 2146383,
+     "gpu": {
+      "desktop": 8388608,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     }
+    }
+   }
+  },
+  "ausruestung": {
+   "shared": true,
+   "textures": [
+    "gunmetal_worn",
+    "polymer_black",
+    "wood_stock",
+    "rubber",
+    "fabric_uniform",
+    "camo_woodland",
+    "camo_desert",
+    "camo_urban"
+   ],
+   "models": [],
+   "budget": {
+    "low": {
+     "bytes": 157324,
+     "gpu": {
+      "desktop": 1048575,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "medium": {
+     "bytes": 506961,
+     "gpu": {
+      "desktop": 4194303,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "high": {
+     "bytes": 506961,
+     "gpu": {
+      "desktop": 4194303,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "ultra": {
+     "bytes": 506961,
+     "gpu": {
+      "desktop": 4194303,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    }
+   }
+  }
+ },
+ "totals": {
+  "textures": {
+   "files": 47,
+   "bytes": 12980125
+  },
+  "hdri": {
+   "files": 32,
+   "bytes": 19218343
+  },
+  "models": {
+   "files": 4,
+   "bytes": 2965752
+  },
+  "all": {
+   "files": 83,
+   "bytes": 35164220
+  },
+  "counts": {
+   "textures": 4,
+   "hdris": 8,
+   "models": 1
+  }
+ },
+ "missing": [
+  "texture:concrete_wall_dark",
+  "texture:concrete_panels",
+  "texture:concrete_dirty",
+  "texture:concrete_painted_peeling",
+  "texture:concrete_epoxy",
+  "texture:rubble",
+  "texture:plaster_beige",
+  "texture:plaster_white",
+  "texture:plaster_white_peeling",
+  "texture:plaster_damaged_brick",
+  "texture:plaster_worn_patched",
+  "texture:plaster_blue_weathered",
+  "texture:plaster_painted",
+  "texture:wallpaper_stained",
+  "texture:brick_factory",
+  "texture:brick_dark",
+  "texture:cobblestone",
+  "texture:paving_flagstone",
+  "texture:roof_clay_tiles",
+  "texture:tiles_terracotta",
+  "texture:tiles_worn",
+  "texture:tiles_checker",
+  "texture:tiles_white_wall",
+  "texture:linoleum",
+  "texture:carpet_dirty",
+  "texture:ceiling_office",
+  "texture:rubber_floor",
+  "texture:asphalt_cracked",
+  "texture:gravel",
+  "texture:sand",
+  "texture:dirt",
+  "texture:mud",
+  "texture:ground_dry_cracked",
+  "texture:grass",
+  "texture:grass_overgrown",
+  "texture:wood_planks",
+  "texture:wood_planks_weathered",
+  "texture:wood_planks_dark",
+  "texture:wood_crate",
+  "texture:osb",
+  "texture:wood_floor_old",
+  "texture:wood_peeling_paint",
+  "texture:bark",
+  "texture:bark_palm",
+  "texture:cardboard",
+  "texture:metal_painted",
+  "texture:metal_rust_painted",
+  "texture:metal_corrugated",
+  "texture:metal_corrugated_rusty",
+  "texture:metal_cladding_green",
+  "texture:metal_shutter",
+  "texture:metal_galvanized",
+  "texture:metal_tread",
+  "texture:metal_grate",
+  "texture:chainlink",
+  "texture:hazard_stripes",
+  "texture:burlap",
+  "texture:canvas",
+  "texture:awning_stripes",
+  "texture:felt_panel",
+  "texture:fabric_uniform",
+  "texture:camo_woodland",
+  "texture:camo_desert",
+  "texture:camo_urban",
+  "texture:gunmetal_worn",
+  "texture:polymer_black",
+  "texture:wood_stock",
+  "model:bolt_action_rifle_7_62",
+  "model:service_pistol",
+  "model:stick_grenade",
+  "model:ammo_box",
+  "model:old_military_crate",
+  "model:wooden_military_crate",
+  "model:metal_jerrycan",
+  "model:metal_jerrycan_green",
+  "model:barrel_02",
+  "model:barrel_03",
+  "model:old_tyre",
+  "model:cardboard_box_01",
+  "model:cement_bag",
+  "model:metal_trash_can",
+  "model:trashbag",
+  "model:industrial_pastic_container",
+  "model:propane_tank",
+  "model:exterior_aircon_unit",
+  "model:fire_hydrant",
+  "model:concrete_road_barrier",
+  "model:utility_box_01",
+  "model:power_box_01",
+  "model:street_lamp_01",
+  "model:rollershutter_door",
+  "model:water_manhole_cover",
+  "model:covered_car",
+  "model:security_camera_01",
+  "model:modular_chainlink_fence",
+  "model:modular_electricity_poles",
+  "model:modular_fire_escape",
+  "model:modular_metal_gutter",
+  "model:modular_airduct_circular_01",
+  "model:modular_airduct_rectangular_01",
+  "model:modular_industrial_pipes_01",
+  "model:mounted_fluorescent_lights",
+  "model:hanging_industrial_lamp",
+  "model:industrial_wall_lamp",
+  "model:hand_truck",
+  "model:metal_tool_chest",
+  "model:portable_generator",
+  "model:tool_cart",
+  "model:metal_office_desk",
+  "model:schoolchair_01",
+  "model:steel_frame_shelves_01",
+  "model:worn_metal_rack",
+  "model:sofa_01",
+  "model:television_01",
+  "model:wooden_bookshelf_worn",
+  "model:plastic_monobloc_chair_01",
+  "model:old_bed_frame",
+  "model:wetfloorsign_01",
+  "model:dead_tree_trunk_02",
+  "model:boulder_01",
+  "model:rock_07",
+  "model:planter_pot_clay",
+  "model:potted_plant_02",
+  "model:shrub_04",
+  "model:weed_plant_02"
+ ]
+}

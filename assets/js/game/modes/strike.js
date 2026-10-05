@@ -23,6 +23,14 @@ export function groundAt(world, x, z, yFrom = 40) {
   return 0;
 }
 
+let shared = null;
+
+/** Geteilte Ressourcen des Präzisionsschlags (wie sentryResources: vorkompiliert, über Matches hinweg). */
+export function strikeResources() {
+  return shared || (shared = createStrikeResources());
+}
+
+/** Neuer, eigener Satz (Dev-Seiten); im Spiel strikeResources(). */
 export function createStrikeResources() {
   const shape = new THREE.Shape();
   shape.moveTo(0, -1.2);

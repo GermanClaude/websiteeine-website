@@ -1,0 +1,302 @@
+{
+  "id": "service_pistol",
+  "recipe": "aa52aab0d458",
+  "size": [
+    0.302,
+    0.281,
+    0.032
+  ],
+  "radius": 0.207,
+  "lodDistances": [
+    0,
+    6,
+    16
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/service_pistol/service_pistol_512.glb",
+      "bytes": 681700,
+      "srcTris": 25064,
+      "lods": [
+        {
+          "tris": 25064
+        },
+        {
+          "tris": 11620
+        },
+        {
+          "tris": 7176
+        }
+      ],
+      "parts": [
+        "service_pistol_pistol_a",
+        "service_pistol_slide_a",
+        "service_pistol_magazine_loaded",
+        "service_pistol_magazine_empty",
+        "service_pistol_bullet",
+        "service_pistol_hammer_a",
+        "service_pistol_trigger_a",
+        "service_pistol_pistol_b",
+        "service_pistol_slide_b",
+        "service_pistol_hammer_b",
+        "service_pistol_trigger_b"
+      ],
+      "bounds": {
+        "min": [
+          -0.128,
+          -0.052,
+          -0.016
+        ],
+        "max": [
+          0.174,
+          0.229,
+          0.016
+        ]
+      },
+      "textures": [
+        {
+          "name": "service_pistol_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 57178,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "service_pistol_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 60091,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "service_pistol_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 40614,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 1332130,
+      "gpu": {
+        "desktop": 2380705,
+        "mobile": 1856419,
+        "rgba8": 5526433
+      },
+      "materials": [
+        {
+          "name": "service_pistol",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ]
+    },
+    "1024": {
+      "path": "models/service_pistol/service_pistol_1024.glb",
+      "bytes": 1029008,
+      "srcTris": 25064,
+      "lods": [
+        {
+          "tris": 25064
+        },
+        {
+          "tris": 11620
+        },
+        {
+          "tris": 7176
+        }
+      ],
+      "parts": [
+        "service_pistol_pistol_a",
+        "service_pistol_slide_a",
+        "service_pistol_magazine_loaded",
+        "service_pistol_magazine_empty",
+        "service_pistol_bullet",
+        "service_pistol_hammer_a",
+        "service_pistol_trigger_a",
+        "service_pistol_pistol_b",
+        "service_pistol_slide_b",
+        "service_pistol_hammer_b",
+        "service_pistol_trigger_b"
+      ],
+      "bounds": {
+        "min": [
+          -0.128,
+          -0.052,
+          -0.016
+        ],
+        "max": [
+          0.174,
+          0.229,
+          0.016
+        ]
+      },
+      "textures": [
+        {
+          "name": "service_pistol_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 170475,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "service_pistol_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 193356,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "service_pistol_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 141360,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 1332130,
+      "gpu": {
+        "desktop": 5526433,
+        "mobile": 3429283,
+        "rgba8": 18109345
+      },
+      "materials": [
+        {
+          "name": "service_pistol",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ]
+    },
+    "2048": {
+      "path": "models/service_pistol/service_pistol_2048.glb",
+      "bytes": 2314604,
+      "srcTris": 25064,
+      "lods": [
+        {
+          "tris": 25064
+        },
+        {
+          "tris": 11620
+        },
+        {
+          "tris": 7176
+        }
+      ],
+      "parts": [
+        "service_pistol_pistol_a",
+        "service_pistol_slide_a",
+        "service_pistol_magazine_loaded",
+        "service_pistol_magazine_empty",
+        "service_pistol_bullet",
+        "service_pistol_hammer_a",
+        "service_pistol_trigger_a",
+        "service_pistol_pistol_b",
+        "service_pistol_slide_b",
+        "service_pistol_hammer_b",
+        "service_pistol_trigger_b"
+      ],
+      "bounds": {
+        "min": [
+          -0.128,
+          -0.052,
+          -0.016
+        ],
+        "max": [
+          0.174,
+          0.229,
+          0.016
+        ]
+      },
+      "textures": [
+        {
+          "name": "service_pistol_nor_gl_2k.ktx2",
+          "role": "normal",
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "bytes": 483786,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        {
+          "name": "service_pistol_diff_2k.ktx2",
+          "role": "albedo",
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "bytes": 752202,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        {
+          "name": "service_pistol_arm_2k.ktx2",
+          "role": "orm",
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "bytes": 554712,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        }
+      ],
+      "geometryBytes": 1332130,
+      "gpu": {
+        "desktop": 18109345,
+        "mobile": 9720739,
+        "rgba8": 68440993
+      },
+      "materials": [
+        {
+          "name": "service_pistol",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ]
+    }
+  }
+}

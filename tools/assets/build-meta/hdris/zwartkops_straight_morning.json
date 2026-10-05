@@ -1,0 +1,85 @@
+{
+  "id": "zwartkops_straight_morning",
+  "recipe": "2a4eaaa5c349",
+  "tiers": {
+    "512": {
+      "hdr": {
+        "path": "hdri/zwartkops_straight_morning/zwartkops_straight_morning_512.hdr",
+        "bytes": 370404,
+        "width": 512,
+        "height": 256,
+        "gpu": {
+          "desktop": 1048576,
+          "mobile": 1048576,
+          "rgba8": 1048576
+        }
+      },
+      "background": {
+        "path": "hdri/zwartkops_straight_morning/zwartkops_straight_morning_bg_1024.ktx2",
+        "bytes": 66936,
+        "width": 1024,
+        "height": 512,
+        "codec": "etc1s",
+        "gpu": {
+          "desktop": 524288,
+          "mobile": 262144,
+          "rgba8": 2097152
+        }
+      },
+      "bytes": 437340,
+      "gpu": {
+        "desktop": 6815744,
+        "mobile": 6553600,
+        "rgba8": 8388608
+      }
+    },
+    "1024": {
+      "hdr": {
+        "path": "hdri/zwartkops_straight_morning/zwartkops_straight_morning_1024.hdr",
+        "bytes": 1524167,
+        "width": 1024,
+        "height": 512,
+        "gpu": {
+          "desktop": 4194304,
+          "mobile": 4194304,
+          "rgba8": 4194304
+        }
+      },
+      "background": {
+        "path": "hdri/zwartkops_straight_morning/zwartkops_straight_morning_bg_2048.ktx2",
+        "bytes": 212870,
+        "width": 2048,
+        "height": 1024,
+        "codec": "etc1s",
+        "gpu": {
+          "desktop": 2097152,
+          "mobile": 1048576,
+          "rgba8": 8388608
+        }
+      },
+      "bytes": 1737037,
+      "gpu": {
+        "desktop": 8388608,
+        "mobile": 7340032,
+        "rgba8": 14680064
+      }
+    }
+  },
+  "stats": {
+    "sun": {
+      "dir": [
+        0.7449,
+        0.394,
+        0.5384
+      ],
+      "elevationDeg": 23.2,
+      "azimuthDeg": 125.9,
+      "peak": 14706.63,
+      "dominance": 8624.9
+    },
+    "avgLuminance": 0.9435,
+    "skyLuminance": 1.7051,
+    "skyGeoLuminance": 0.2814,
+    "backgroundExposure": 1.2438
+  }
+}

@@ -203,8 +203,9 @@ function flush() {
     else u.unit.style.removeProperty('font-size');
   }
 
-  // 5) Korrektur über einen Klon im gelösten Schnitt (unabhängig von Eintritts-/Bewegungszuständen)
-  const check = units.filter((u) => u.fixed === null && u.wd < 125 && u.wd > 62);
+  // 5) Korrektur über einen Klon im gelösten Schnitt (unabhängig von Eintritts-/Bewegungszuständen);
+  //    Einheiten mit festen Glyphenboxen korrigiert Schritt 6 mit seinen eigenen Messungen
+  const check = units.filter((u) => u.fixed === null && u.wd < 125 && u.wd > 62 && u.el.dataset.fitSlots === undefined);
   for (const u of check) {
     u.cx = makeClone(u.unit, u.wd, u.el);
     if (Math.abs(u.fs - u.base) > 0.25) u.cx.style.fontSize = `${u.fs.toFixed(2)}px`;
@@ -253,9 +254,12 @@ const LU = 64; // Layout-Einheiten je px (Chrome)
  */
 function measureSlots(list) {
   let todo = list;
+  // Ruhestärke vorab lesen (ein Stilabgleich, nicht einer je Einheit zwischen den Klonen)
+  for (const u of list) {
+    if (u.rw == null) { const cs = getComputedStyle(u.unit); u.rw = parseFloat(cs.getPropertyValue('--wght')) || parseFloat(cs.fontWeight) || 400; }
+  }
   for (let it = 0; it < 4 && todo.length; it++) {
     for (const u of todo) {
-      u.rw = u.rw ?? (parseFloat(getComputedStyle(u.unit).getPropertyValue('--wght')) || parseFloat(getComputedStyle(u.unit).fontWeight) || 400);
       const mk = (wd, wght) => {
         const c = makeClone(u.unit, wd, u.el);
         if (Math.abs(u.fs - u.base) > 0.25) c.style.fontSize = `${u.fs.toFixed(2)}px`;
@@ -274,7 +278,9 @@ function measureSlots(list) {
       const n = u.mr.length;
       const total = u.mr.reduce((a, b) => a + b, 0);
       const over = total - u.W;
-      if (it < 2 && u.fixed === null && (over > 0 ? u.wd > 62 : u.wd < 125 && over < -1)) {
+      const absorb = 0.4 * Math.max(1, n - 1); // so viel Überstand nehmen die Boxen unmerklich auf
+      const short = over < -(1 + 0.002 * u.W); // sichtbare Lücke am Zeilenende
+      if (it < 2 && u.fixed === null && (over > absorb ? u.wd > 62 : short && u.wd < 125)) {
         // Breitenachse nachstellen (Sekante zum jeweiligen Achsenende)
         const t62 = u.w62 * u.scale;
         const t125 = u.m125.reduce((a, b) => a + b, 0);
@@ -284,7 +290,7 @@ function measureSlots(list) {
         next.push(u);
         continue;
       }
-      if (it < 3 && over > 0.4 * Math.max(1, n - 1)) {
+      if (it < 3 && over > absorb) {
         // Achse am Ende (oder fest) und deutlich zu breit: Schriftgröße – Vorschübe skalieren mit ihr
         u.fs = Math.max(8, u.fs * (u.W - 0.25) / total);
         u.scale = u.fs / u.base;

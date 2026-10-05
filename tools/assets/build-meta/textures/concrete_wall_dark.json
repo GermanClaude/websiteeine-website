@@ -1,0 +1,111 @@
+{
+  "id": "concrete_wall_dark",
+  "recipe": "9730bd9e94df",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/concrete_wall_dark/concrete_wall_dark_512_albedo.ktx2",
+          "bytes": 55675,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/concrete_wall_dark/concrete_wall_dark_512_normal.ktx2",
+          "bytes": 88779,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/concrete_wall_dark/concrete_wall_dark_512_orm.ktx2",
+          "bytes": 30931,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 175385,
+      "gpu": {
+        "desktop": 1048575,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/concrete_wall_dark/concrete_wall_dark_1024_albedo.ktx2",
+          "bytes": 183886,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/concrete_wall_dark/concrete_wall_dark_1024_normal.ktx2",
+          "bytes": 255339,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/concrete_wall_dark/concrete_wall_dark_1024_orm.ktx2",
+          "bytes": 116640,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 555865,
+      "gpu": {
+        "desktop": 4194303,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#5c5146",
+    "avgRoughness": 0.771,
+    "avgMetalness": 0.003,
+    "avgAO": 0.711,
+    "coverage": 1
+  }
+}

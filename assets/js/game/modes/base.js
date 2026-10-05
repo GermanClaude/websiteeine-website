@@ -2,6 +2,7 @@
 // Medaillen, Serienprämien, sichere Spawns, Respawn-Ausgleich ungleicher Teams, Punktetabelle, Ergebnis.
 // Unterklassen überschreiben die Haken onKillScored / onSuicide / tick / decide / extraRow.
 
+import * as THREE from 'three';
 import { MODES, SCORE_RULES, MEDAL_RULES, isLongshot } from '../../shared/modes.data.js';
 import { WEAPONS } from '../../shared/weapons.data.js';
 import { chooseSpawn } from './spawns.js';
@@ -42,6 +43,7 @@ export class BaseMode {
     this.medals = new MedalTracker(this);
     this.streaks = this.def.streaks ? new StreakManager(G, this) : null;
     this._subs = null;
+    this._warmup = null;
     this._life = new Map(); // actor → { kills, all, deathsInRow }
     this._recentSpawns = new Map();
     this._lastKill = null;
@@ -61,14 +63,51 @@ export class BaseMode {
     s.on('actor:spawn', ({ actor }) => this.onSpawn(actor));
     s.on('match:start', () => this.onMatchStart());
     if (this.streaks) this.streaks.attach(s);
+    this._addWarmup(G);
     this.onAttach(s);
   }
 
   detach() {
     if (this._subs) this._subs.dispose();
     this._subs = null;
+    this._removeWarmup();
     if (this.streaks) this.streaks.dispose();
     this.onDetach();
+  }
+
+  /**
+   * Aufwärmgruppe: je ein Objekt mit den Materialien, die erst mitten im Match auftauchen (Wachgeschütz,
+   * Präzisionsschlag, Haft-LED der Semtex). attach() läuft vor main.warmUp(): dessen Kompilierdurchgang und das
+   * Aufwärmbild linken genau die späteren Programme (Licht, Nebel, Umgebung, Renderziel des Matches). Die Objekte
+   * werden nicht weggeschnitten, liegen aber weit unter der Karte (kein Pixel); beim ersten update() (Countdown)
+   * verschwindet die Gruppe wieder.
+   */
+  _addWarmup(G) {
+    this._removeWarmup();
+    if (!G.scene) return;
+    const objs = [];
+    if (this.streaks) objs.push(...this.streaks.warmObjects());
+    const gs = G.weapons && G.weapons.grenadeSystem;
+    if (this.def.lethals !== false && gs && typeof gs.warmObjects === 'function') objs.push(...gs.warmObjects());
+    if (!objs.length) return;
+    const g = new THREE.Group();
+    g.name = 'aufwaermen:modus';
+    for (const o of objs) {
+      o.position.set(0, -500, 0);
+      o.scale.setScalar(0.001);
+      o.frustumCulled = false;
+      o.castShadow = false;
+      o.receiveShadow = false;
+      g.add(o);
+    }
+    G.scene.add(g);
+    this._warmup = g;
+  }
+
+  _removeWarmup() {
+    if (!this._warmup) return;
+    this._warmup.removeFromParent();
+    this._warmup = null;
   }
 
   /** Vor dem Countdown (Spieler + Bots sind gespawnt). */
@@ -87,6 +126,7 @@ export class BaseMode {
   }
 
   update(dt) {
+    if (this._warmup) this._removeWarmup();
     if (this.isOver || !this.started) return;
     const G = this.G;
     const playing = G.match.state === 'playing';

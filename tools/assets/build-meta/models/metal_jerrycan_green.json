@@ -1,0 +1,203 @@
+{
+  "id": "metal_jerrycan_green",
+  "recipe": "6312484015dc",
+  "size": [
+    0.36,
+    0.5,
+    0.17
+  ],
+  "radius": 0.32,
+  "lodDistances": [
+    0,
+    6,
+    16
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/metal_jerrycan_green/metal_jerrycan_green_512.glb",
+      "bytes": 226516,
+      "srcTris": 9636,
+      "lods": [
+        {
+          "tris": 2064
+        },
+        {
+          "tris": 727
+        }
+      ],
+      "parts": [
+        "metal_jerrycan_green_pin",
+        "metal_jerrycan_green_cap",
+        "metal_jerrycan_green_body",
+        "metal_jerrycan_green_latch",
+        "metal_jerrycan_green_fastener"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.188,
+          0,
+          -0.085
+        ],
+        "max": [
+          0.172,
+          0.5,
+          0.085
+        ]
+      },
+      "textures": [
+        {
+          "name": "metal_jerrycan_green_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 68087,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "metal_jerrycan_green_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 55099,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "metal_jerrycan_green_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 50709,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 80722,
+      "gpu": {
+        "desktop": 1129297,
+        "mobile": 605011,
+        "rgba8": 4275025
+      },
+      "materials": [
+        {
+          "name": "metal_jerrycan_green",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        16
+      ]
+    },
+    "1024": {
+      "path": "models/metal_jerrycan_green/metal_jerrycan_green_1024.glb",
+      "bytes": 673836,
+      "srcTris": 9636,
+      "lods": [
+        {
+          "tris": 5118
+        },
+        {
+          "tris": 2064
+        },
+        {
+          "tris": 727
+        }
+      ],
+      "parts": [
+        "metal_jerrycan_green_pin",
+        "metal_jerrycan_green_cap",
+        "metal_jerrycan_green_body",
+        "metal_jerrycan_green_latch",
+        "metal_jerrycan_green_fastener"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.188,
+          0,
+          -0.085
+        ],
+        "max": [
+          0.172,
+          0.5,
+          0.085
+        ]
+      },
+      "textures": [
+        {
+          "name": "metal_jerrycan_green_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 216817,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "metal_jerrycan_green_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 176352,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "metal_jerrycan_green_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 172884,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 201960,
+      "gpu": {
+        "desktop": 4396263,
+        "mobile": 2299113,
+        "rgba8": 16979175
+      },
+      "materials": [
+        {
+          "name": "metal_jerrycan_green",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        6,
+        16
+      ]
+    }
+  }
+}

@@ -255,7 +255,7 @@ export class MapBuilder {
 
   /**
    * Schreibt ein lokales Primitiv mit Matrix m in den Material-Bucket.
-   * o: { tint, uv: 'world'|'local'|'fit'|'keep', uvScale, uvOffset:[u,v], cast, bullet, interior, ground, noise,
+   * o: { tint, uv: 'world'|'local'|'fit'|'keep', uvScale, uvOffset:[u,v], uvSwap (u/v tauschen), cast, bullet, interior, ground, noise,
    *      aoFloor, aoMin, aoH, ao(false), chunkAt:[x,z] }
    */
   _emit(prim, m, mat, o, center) {
@@ -270,7 +270,7 @@ export class MapBuilder {
     const P = bk.pos.a, N = bk.nor.a, UV = bk.uv.a, C = bk.col.a, FL = bk.flg.a;
     let pi = bk.pos.n, ui = bk.uv.n, fi = bk.flg.n;
     const tint = linearTint(o.tint);
-    const uvMode = o.uv || 'world', uvs = 1 / (o.uvScale || 1), uo = o.uvOffset || [0, 0];
+    const uvMode = o.uv || 'world', uvs = 1 / (o.uvScale || 1), uo = o.uvOffset || [0, 0], uvSwap = !!o.uvSwap;
     const ao = o.ao !== false;
     const floorY = o.aoFloor ?? center[1];
     const aoMin = o.aoMin ?? 0.5, aoH = o.aoH ?? 1.1;
@@ -299,6 +299,7 @@ export class MapBuilder {
         else { u = qz > 0 ? px : -px; v = py; }
         u *= uvs; v *= uvs;
       }
+      if (uvSwap) { const s = u; u = v; v = s; }
       UV[ui] = u + uo[0]; UV[ui + 1] = v + uo[1];
       // AO
       let k = 1;

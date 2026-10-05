@@ -1,0 +1,191 @@
+{
+  "id": "wooden_military_crate",
+  "recipe": "081069c6b976",
+  "size": [
+    1.242,
+    0.465,
+    0.52
+  ],
+  "radius": 0.712,
+  "lodDistances": [
+    0,
+    10,
+    28.5
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/wooden_military_crate/wooden_military_crate_512.glb",
+      "bytes": 314696,
+      "srcTris": 22986,
+      "lods": [
+        {
+          "tris": 7996
+        },
+        {
+          "tris": 3196
+        },
+        {
+          "tris": 1616
+        }
+      ],
+      "parts": [
+        "wooden_military_crate",
+        "wooden_military_crate_lid",
+        "wooden_military_crate_latch"
+      ],
+      "bounds": {
+        "min": [
+          -0.621,
+          0,
+          -0.26
+        ],
+        "max": [
+          0.621,
+          0.465,
+          0.26
+        ]
+      },
+      "textures": [
+        {
+          "name": "wooden_military_crate_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 57092,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "wooden_military_crate_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 62815,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "wooden_military_crate_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 39164,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 387290,
+      "gpu": {
+        "desktop": 1435865,
+        "mobile": 911579,
+        "rgba8": 4581593
+      },
+      "materials": [
+        {
+          "name": "wooden_military_crate",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ]
+    },
+    "1024": {
+      "path": "models/wooden_military_crate/wooden_military_crate_1024.glb",
+      "bytes": 689612,
+      "srcTris": 22986,
+      "lods": [
+        {
+          "tris": 7996
+        },
+        {
+          "tris": 3196
+        },
+        {
+          "tris": 1616
+        }
+      ],
+      "parts": [
+        "wooden_military_crate",
+        "wooden_military_crate_lid",
+        "wooden_military_crate_latch"
+      ],
+      "bounds": {
+        "min": [
+          -0.621,
+          0,
+          -0.26
+        ],
+        "max": [
+          0.621,
+          0.465,
+          0.26
+        ]
+      },
+      "textures": [
+        {
+          "name": "wooden_military_crate_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 200204,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "wooden_military_crate_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 203750,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "wooden_military_crate_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 130025,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 387290,
+      "gpu": {
+        "desktop": 4581593,
+        "mobile": 2484443,
+        "rgba8": 17164505
+      },
+      "materials": [
+        {
+          "name": "wooden_military_crate",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ]
+    }
+  }
+}

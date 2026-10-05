@@ -1,0 +1,85 @@
+{
+  "id": "old_outdoor_theater",
+  "recipe": "a3f5628eb616",
+  "tiers": {
+    "512": {
+      "hdr": {
+        "path": "hdri/old_outdoor_theater/old_outdoor_theater_512.hdr",
+        "bytes": 399997,
+        "width": 512,
+        "height": 256,
+        "gpu": {
+          "desktop": 1048576,
+          "mobile": 1048576,
+          "rgba8": 1048576
+        }
+      },
+      "background": {
+        "path": "hdri/old_outdoor_theater/old_outdoor_theater_bg_1024.ktx2",
+        "bytes": 74672,
+        "width": 1024,
+        "height": 512,
+        "codec": "etc1s",
+        "gpu": {
+          "desktop": 524288,
+          "mobile": 262144,
+          "rgba8": 2097152
+        }
+      },
+      "bytes": 474669,
+      "gpu": {
+        "desktop": 6815744,
+        "mobile": 6553600,
+        "rgba8": 8388608
+      }
+    },
+    "1024": {
+      "hdr": {
+        "path": "hdri/old_outdoor_theater/old_outdoor_theater_1024.hdr",
+        "bytes": 1563952,
+        "width": 1024,
+        "height": 512,
+        "gpu": {
+          "desktop": 4194304,
+          "mobile": 4194304,
+          "rgba8": 4194304
+        }
+      },
+      "background": {
+        "path": "hdri/old_outdoor_theater/old_outdoor_theater_bg_2048.ktx2",
+        "bytes": 238466,
+        "width": 2048,
+        "height": 1024,
+        "codec": "etc1s",
+        "gpu": {
+          "desktop": 2097152,
+          "mobile": 1048576,
+          "rgba8": 8388608
+        }
+      },
+      "bytes": 1802418,
+      "gpu": {
+        "desktop": 8388608,
+        "mobile": 7340032,
+        "rgba8": 14680064
+      }
+    }
+  },
+  "stats": {
+    "sun": {
+      "dir": [
+        0.3908,
+        0.8761,
+        0.2825
+      ],
+      "elevationDeg": 61.2,
+      "azimuthDeg": 125.9,
+      "peak": 9439.53,
+      "dominance": 10541.6
+    },
+    "avgLuminance": 0.5356,
+    "skyLuminance": 0.8955,
+    "skyGeoLuminance": 0.2579,
+    "backgroundExposure": 1.3571
+  }
+}

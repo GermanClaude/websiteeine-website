@@ -198,9 +198,11 @@ The match setup is **one sentence**. Templates (prepositions are part of the sen
 - **Data rules** (`deploy.js`):
   - Mode options come from `MODE_ORDER` → `MODES[id].name`.
   - Map options are maps whose `MAPS[id].modes` includes the mode. Fall back to `MODES[mode].recommendedMaps`, then to all non-`range` maps. `range` appears only for `training`.
-  - Ally and enemy options run over `MODES[mode].limits.allies` / `.enemies` [min…max]. When the mode changes, reset both to `defaultAllies` / `defaultEnemies`.
+  - Ally and enemy options run over `MODES[mode].limits.allies` / `.enemies` [min…max]. When the mode changes, both take that mode's last chosen sizes (`nullpunkt:site.teams[mode]`, clamped to the limits), else `defaultAllies` / `defaultEnemies` (`teamsFor(mode)`).
   - Difficulty options come from `DIFFICULTY_ORDER` → `DIFFICULTIES[id].name`.
-  - Every change calls `settings.patch({ lastMode, lastMap, difficulty })`. Counts live only in page state.
+  - Every change calls `settings.patch({ lastMode, lastMap, difficulty })` and remembers the sizes of the current mode in `nullpunkt:site.teams` (`{ [modeId]: { allies, enemies } }`), so the sentence survives the trip to the game and back (Back button, reload, „Zur Website“).
+  - Every play link on the page (`[data-play]`, „Hier spielen.“ in §03, „Modus spielen.“ in §02) calls `rememberLaunch(href)` on click: it stores the link's sizes for its mode first, then `lastMode`/`lastMap` – the sentence then shows exactly the launched match. A link for another mode carries that mode's remembered sizes (`buildPlayUrl`), and every link that follows the sentence refreshes on `mode`, `map`, `diff`, `allies` and `enemies`.
+  - The page state store (`ui.patch`) sets all keys before it notifies, so no listener ever sees a new mode with the old mode's sizes.
 - **Change animation**: the old word compresses to 62/100 (120 ms ease-in), the text swaps, and the new word unfolds 62/100 → 100/800 (240 ms ease-out). Prepositions do the same.
 - **„Los.“** is a plain `<a class="go">` in Archivo 900 / wdth 125 with an orange period. `href = buildPlayUrl()`. Hover or focus gives a small kick (+10 wdth spring). A click flashes the kill hitmarker (§9) and plays `ui('confirm')` if sound is on.
 - **URL line** (mono, ink-2, selectable): `spielen.html?mode=tdm&map=hafen&diff=regulaer&allies=5&enemies=6`. Training: `spielen.html?mode=training&map=range`. Next to it a text button „Link kopieren“ → „Kopiert.“ (2 s, live region).
@@ -572,7 +574,7 @@ Rail: „§08 / ÜBER / Impressum & Datenschutz“
 - List (mono key, then body description):
   - `nullpunkt:settings`: „Einstellungen“
   - `nullpunkt:profile`: „Stufe, Statistik, Verlauf“
-  - `nullpunkt:site`: „Website: Streukreis, zuletzt gesehener Einsatz, Ton“
+  - `nullpunkt:site`: „Website: Streukreis, Mannschaftsstärken je Modus, zuletzt gesehener Einsatz, Ton“
 - Button „Lokale Daten löschen“ opens a `<dialog>`:
   - Text: „Alle NULLPUNKT-Daten in diesem Browser löschen? Stufe, Statistik und Einstellungen gehen verloren.“
   - Buttons: [„Abbrechen“] [„Löschen.“] (orange period).
@@ -818,16 +820,16 @@ Static, native ES modules, no build step, relative URLs only. `index.html` decla
 |---|---|---|
 | `main.js` | Boot: remove `no-js`; feature detection (WebGL via a throwaway `canvas.getContext('webgl2') \|\| 'webgl'`, no three import), reduced-motion state, `saveData`; init chrome and hero immediately; lazy-init sections via one IntersectionObserver (`rootMargin: 100% 0px`) | n/a |
 | `data.js` | Defensive loader: dynamic `import()` of each shared module in try/catch, in parallel; normalisers (`normBlock`, mode/map fallbacks); roster check against contract §7 ids (unknown ids render, missing ids are skipped; logs only with `?debug=1`); static fallback names for maps/modes | `loadData() → { W, M, P, S, profile, settings, ok:{weapons,modes,maps,profile,settings} }` |
-| `state.js` | Page state store (`mode, map, diff, allies, enemies, weapon, distance, zone, mapTab`) and the `nullpunkt:site` store (`{ v:1, sound:false, bestGroupMm:null, lastSeenMatchAt:0, lastSeenLevel:1 }`; try/catch, in-memory fallback) | `ui`, `site` (`get/set/onChange`) |
+| `state.js` | Page state store (`mode, map, diff, allies, enemies, weapon, distance, zone, mapTab`) and the `nullpunkt:site` store (`{ v:1, sound:false, bestGroupMm:null, lastSeenMatchAt:0, lastSeenLevel:1, teams:{} }`; try/catch, in-memory fallback; changes from another tab are applied without writing back). `patch()` sets every key first and notifies afterwards (one call per changed key, listeners see the final state) | `ui`, `site` (`get/set/patch/onChange`) |
 | `loop.js` | Single shared rAF scheduler: `add(fn) → remove`; `fn(dt,t)` returns `false` to stop; sleeps when empty or `document.hidden`. **Watchdog**: if the 1 s mean frame time is > 24 ms while kinetic tasks run, set `html.static-type` for the session | `loop` |
 | `motion.js` | `reduced()` (media query OR `settings.reducedMotion` OR watchdog); spring helpers; `flip(container)` (WAAPI); IO helpers | n/a |
 | `fmt.js` | de-DE formatters: `num`, `sec(ms)`, `m(v)`, `pct(f)`, `dur(s)`, `date(ts)` | n/a |
-| `fit.js` | Breitenblocksatz (§5) | `fitAll(root)`, `fit(el, opts)` |
-| `kinetic.js` | Glyph split, width model, per-glyph springs, waves, conservation, glyph cap | `kinetic(el, opts)` |
+| `fit.js` | Breitenblocksatz (§5). `data-fit-slots`: glyph boxes from measured advances at the solved cut (never the linear model), corrected over the width axis (then font size) until their sum fits the line; rounding leftovers go into the boxes before the last glyph. The glyph model then carries `slots: { s, up, wc, room }` | `fitAll(root)`, `fit(el, opts)`, `glyphModel(unit)` |
+| `kinetic.js` | Glyph split, width model, per-glyph springs, waves, conservation, glyph cap; in slot lines every moving drawing is capped (weight first, then width) to the measured room up to the line end, so a kinetic act never reaches the clip edge | `kinetic(el, opts)` |
 | `cursor.js` | Crosshair, spread, target detection, hitmarkers (pointer and touch) | `hit(kind)` |
 | `nav.js` | Status line, index proximity, Index dialog, bottom bar, CTA-visibility switching, scroll squeeze (`--sv`), Visierlinie x | n/a |
 | `zero.js` | §00 zeroing | n/a |
-| `deploy.js` | §01 sentence builder | `buildPlayUrl(cfg)`, `mapPrep(id)` |
+| `deploy.js` | §01 sentence builder | `buildPlayUrl(cfg)`, `mapPrep(id)`, `teamsFor(mode)`, `rememberLaunch(href)` |
 | `modes-view.js` | §02 rows, acts, Serien | n/a |
 | `plan.js` | Pure geometry (`segmentsFrom(blocks)`, `castVisibility(segs, o, bounds) → {poly, maxDist, medianDist}`) + SVG plan builder | n/a |
 | `maps-view.js` | §03 tabs, panel, readouts | n/a |

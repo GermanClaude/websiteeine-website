@@ -825,7 +825,8 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 }
 .h-mk-d b { transform: rotate(-45deg); font-size: 16px; line-height: 1; }
 .h-mk-d i { position: absolute; inset: -2px; border-radius: 3px; background: conic-gradient(from -45deg, var(--cap, transparent) calc(var(--p) * 360deg), transparent 0); opacity: .55; }
-.h-mk span { position: absolute; top: 20px; left: 0; transform: translateX(-50%); font-size: 13px; white-space: nowrap; color: var(--np-ink); }
+/* Entfernung in fester, ganzzahlig platzierter Box zentriert (kein translateX(-50%) → keine halben Pixel je Bild) */
+.h-mk span { position: absolute; top: 20px; left: -40px; width: 80px; text-align: center; font-size: 13px; line-height: 16px; white-space: nowrap; color: var(--np-ink); }
 .h-mk[data-side="a"] .h-mk-d { border-color: var(--np-ally); background: rgba(56, 182, 255, .3); }
 .h-mk[data-side="e"] .h-mk-d { border-color: var(--np-enemy); background: rgba(255, 59, 59, .3); }
 .h-mk[data-cap="a"] { --cap: var(--np-ally); }
@@ -1049,14 +1050,24 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
   --fl-r: calc(4% + var(--tc-u) * 62 + env(safe-area-inset-left));
   /* Unterkante der Pause-/Tabellen-Knöpfe oben rechts (.tc-pause/.tc-score: top 3 %, 42 u, mind. 44 px) */
   --tr-b: calc(3% + max(44px, var(--tc-u) * 42) + env(safe-area-inset-top));
+  /* Mitte oben: Plätze für Hinweise bzw. Einnahmebalken direkt unter dem Punktestand (--top-h misst hud.js per
+     ResizeObserver, Touch-Skalierung .9). Niedrige Telefone (≤ 430 px) haben einen Platz, sonst zwei (hud.js
+     _trimNotices). Der Killfeed beginnt erst darunter – sonst liegen lange Meldungen unter den Hinweisen. */
+  --nt: calc(var(--pad-t) + var(--top-h, 63px) * .9 + 4px);
+  --nslot: 26px;
+  --nslots: 2;
+  --feed-t: max(var(--col-t), calc(var(--nt) + var(--nslot) * var(--nslots)));
+}
+@media (max-height: 430px) {
+  .h-root[data-input="touch"] { --nslots: 1; }
 }
 .h-root[data-input="touch"] .h-compass, .h-root[data-input="touch"] .h-mtag, .h-root[data-input="touch"] .h-streaks { display: none; }
 /* Abschussmeldungen wie bei COD Mobile links unter der Minikarte, rechts neben dem linken Feuerknopf;
-   Breite endet vor der Bildmitte (Fadenkreuz) und reicht nie an den Punktestand oben. */
+   Breite endet vor der Bildmitte (Fadenkreuz), oben beginnt er unter den Hinweis-Plätzen (--feed-t). */
 .h-root[data-input="touch"] .h-feed {
   left: calc(var(--fl-r) + 10px);
   right: auto;
-  top: var(--col-t);
+  top: var(--feed-t);
   width: min(270px, calc(50% - 56px - var(--fl-r) - 10px));
   align-items: flex-start;
 }
@@ -1066,9 +1077,9 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-root[data-input="touch"] .kf-name { max-width: 96px; }
 .h-root[data-input="touch"] .h-top { top: var(--pad-t); transform: translateX(-50%) scale(.9); transform-origin: 50% 0; }
 .h-root[data-input="touch"] .h-s small, .h-root[data-input="touch"] .h-time small { font-size: 12.5px; }
-.h-root[data-input="touch"] .h-notices { top: calc(var(--pad-t) + 74px); }
-.h-root[data-input="touch"][data-mode="dom"] .h-notices, .h-root[data-input="touch"][data-mode="gun"] .h-notices, .h-root[data-input="touch"][data-mode="ffa"] .h-notices, .h-root[data-input="touch"][data-mode="training"] .h-notices { top: calc(var(--pad-t) + 98px); }
-.h-root[data-input="touch"] .h-notice { font-size: 13px; padding: 3px 10px; }
+.h-root[data-input="touch"] .h-notices { top: var(--nt); gap: 4px; }
+.h-root[data-input="touch"] .h-notice { font-size: 13px; line-height: 16px; padding: 3px 10px; }
+.h-root[data-input="touch"] .h-notice-medal .medal-badge { width: 15px; height: 16px; }
 .h-root[data-input="touch"] .h-weapon {
   right: auto;
   left: 50%;
@@ -1102,11 +1113,17 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-root[data-input="touch"] .h-death .k { font-size: 26px; }
 .h-root[data-input="touch"] .h-death .by { font-size: 16px; }
 /* eigener Grund: liegt in der Bildmitte über den Enden langer Abschussmeldungen */
-.h-root[data-input="touch"] .h-capture { bottom: auto; top: calc(var(--pad-t) + 90px); width: min(260px, 40vw); gap: 3px; padding: 4px 9px 6px; background: var(--hud-bg); border-radius: 2px; }
+.h-root[data-input="touch"] .h-capture { bottom: auto; top: var(--nt); width: min(260px, 40vw); gap: 3px; padding: 4px 9px 6px; background: var(--hud-bg); border-radius: 2px; }
 .h-root[data-input="touch"] .h-capture-l { font-size: 12px; }
 .h-root[data-input="touch"] .h-capture-l b { font-size: 14px; }
-.h-root[data-input="touch"][data-mode="dom"] .h-notices { top: calc(var(--pad-t) + 92px); }
-.h-root[data-input="touch"].is-capturing .h-notices { top: calc(var(--pad-t) + 130px); }
+/* Einnahme: Balken im ersten Platz, ein Hinweis darunter; auf niedrigen Telefonen (ein Platz) verdeckt der
+   Hinweis den Balken für seine Dauer (Fortschritt zeigen weiter Flaggenmarker und Punktestand). */
+.h-root[data-input="touch"].is-capturing .h-notices { top: calc(var(--nt) + var(--nslot)); }
+.h-root[data-input="touch"].is-capturing .h-notice:not(:last-child) { display: none; }
+@media (max-height: 430px) {
+  .h-root[data-input="touch"].is-capturing .h-notices { top: var(--nt); }
+  .h-root[data-input="touch"].is-capturing.has-notice .h-capture { visibility: hidden; }
+}
 .h-root[data-input="touch"] .h-center { top: 18%; }
 .h-root[data-input="touch"] .h-banner .t { font-size: clamp(24px, 4.6vw, 40px); }
 .h-root[data-input="touch"] .h-banner .s { font-size: 14px; }

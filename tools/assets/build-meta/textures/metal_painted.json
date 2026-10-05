@@ -1,0 +1,160 @@
+{
+  "id": "metal_painted",
+  "recipe": "2b798f8b5a43",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/metal_painted/metal_painted_512_albedo.ktx2",
+          "bytes": 49139,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/metal_painted/metal_painted_512_normal.ktx2",
+          "bytes": 5403,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/metal_painted/metal_painted_512_orm.ktx2",
+          "bytes": 29204,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 83746,
+      "gpu": {
+        "desktop": 1048575,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/metal_painted/metal_painted_1024_albedo.ktx2",
+          "bytes": 160198,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/metal_painted/metal_painted_1024_normal.ktx2",
+          "bytes": 18283,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/metal_painted/metal_painted_1024_orm.ktx2",
+          "bytes": 115215,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 293696,
+      "gpu": {
+        "desktop": 4194303,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    },
+    "2048": {
+      "files": {
+        "albedo": {
+          "path": "textures/metal_painted/metal_painted_2048_albedo.ktx2",
+          "bytes": 612806,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        "normal": {
+          "path": "textures/metal_painted/metal_painted_2048_normal.ktx2",
+          "bytes": 65878,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        "orm": {
+          "path": "textures/metal_painted/metal_painted_2048_orm.ktx2",
+          "bytes": 478990,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        }
+      },
+      "bytes": 1157674,
+      "gpu": {
+        "desktop": 16777215,
+        "mobile": 8388609,
+        "rgba8": 67108863
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#a0a09f",
+    "avgRoughness": 0.504,
+    "avgMetalness": 0.003,
+    "avgAO": 0.876,
+    "coverage": 1
+  }
+}

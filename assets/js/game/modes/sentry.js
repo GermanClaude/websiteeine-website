@@ -31,8 +31,17 @@ export function sentryWeaponDef(params = {}) {
 }
 
 let serial = 0;
+let shared = null;
 
-/** Gemeinsame Geometrien/Materialien (vom StreakManager entsorgt). */
+/**
+ * Geometrien/Materialien aller Wachgeschütze, über Matches hinweg geteilt: die Shader werden beim Matchstart
+ * vorkompiliert (BaseMode-Aufwärmgruppe) und bleiben verknüpft – auch bei „Revanche“ ohne erneutes Linken.
+ */
+export function sentryResources() {
+  return shared || (shared = createSentryResources());
+}
+
+/** Neuer, eigener Satz (Dev-Seiten); im Spiel sentryResources(). */
 export function createSentryResources() {
   const res = {
     leg: new THREE.CylinderGeometry(0.022, 0.03, 0.8, 6),
