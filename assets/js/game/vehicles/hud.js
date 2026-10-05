@@ -50,6 +50,7 @@ body[data-input-mode="touch"] .vh-hint,body[data-input-mode="touch"] .vh-prompt 
 body[data-input-mode="touch"] .vh-name{font-size:14px}body[data-input-mode="touch"] .vh-speed{font-size:17px}
 body[data-input-mode="touch"] .vh-wep{font-size:12px;padding:2px 5px}body[data-input-mode="touch"] .vh-seats{display:none}
 @media (max-height:560px),(max-width:820px){body:not([data-input-mode="touch"]) .vh-panel{width:224px;padding:7px 9px;right:calc(10px + env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom))}body:not([data-input-mode="touch"]) .vh-seats,body:not([data-input-mode="touch"]) .vh-hint{display:none}.vh-name{font-size:14px}.vh-speed{font-size:17px}.vh-wep{font-size:12px;padding:2px 5px}.vh-zone{font-size:10px}.vh-ret svg{transform:scale(.75)}}
+body[data-vehicle] .tc-swap .tc-swap-name{display:none}body[data-vehicle] .tc-swap::after{content:attr(data-veh-weapon);font:700 calc(var(--tc-u,1px)*15) var(--font-hud,system-ui);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
 .vc-btn{display:none;font:700 calc(var(--tc-u,1px)*13) var(--font-hud,system-ui);letter-spacing:.04em;text-transform:uppercase;text-align:center;line-height:1.05}
 body[data-vehicle] .vc-btn.vc-in{display:grid}
 body[data-vehicle-near]:not([data-vehicle]) .vc-enter{display:grid}
@@ -251,6 +252,10 @@ export class VehicleHUD {
     // Strichplatte
     const w = seat.weapons[seat.weaponIndex];
     const mount = !!seat.def.mount && !!w;
+    // Touch-Waffenknopf zeigt die Fahrzeugwaffe statt der Infanteriewaffe
+    if (!this._swapEl) this._swapEl = document.querySelector('#touch-ui .tc-swap');
+    const swapLabel = w ? (w.def.kind === 'mg' ? w.def.short : w.def.name.replace(/^\d+ mm /, '')) : '';
+    if (this._swapEl && this._c.swapL !== swapLabel) { this._c.swapL = swapLabel; this._swapEl.dataset.vehWeapon = swapLabel; }
     const ret = !mount ? '' : s.sight ? (w.def.kind === 'shell' ? TANK_RET : MG_RET) : TP_RET;
     this._set('ret', el.ret, 'html', ret);
     this._set('retH', el.ret, 'hidden', !ret);
