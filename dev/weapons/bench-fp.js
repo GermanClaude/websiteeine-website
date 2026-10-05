@@ -94,6 +94,10 @@ export function createFpBench(renderer, params) {
     sim.mag = WEAPONS[id].mag;
     sim.cooldown = 0.2;
   }
+  // Arsenal: ?camo=<id> (Tarnmuster für alle Waffen), ?look=<klasse> (Klassen-Arme), ?melee=<id> (Nahkampfwaffe)
+  if (params.get('camo')) for (const id of WEAPON_IDS) vm.setCamo(id, params.get('camo'));
+  if (params.get('look')) vm.setLook(params.get('look'));
+  if (params.get('melee')) vm.setMelee(params.get('melee'));
   equip(sim.id);
 
   function shoot() {
@@ -120,6 +124,7 @@ export function createFpBench(renderer, params) {
     melee() { if (!vm.isBusy || vm.actionName === 'inspect') vm.playMelee(); },
     grenade(type) { if (!vm.isBusy || vm.actionName === 'inspect') vm.playGrenade(type || sim.lethal); },
     inspect() { vm.playInspect(); },
+    plate(d = 1.2) { vm.playPlate(d); },
     jump() { if (sim.onGround) { sim.vy = 5.2; sim.onGround = false; } },
     look(dx, dy) { sim.pendingLook[0] += dx; sim.pendingLook[1] += dy; },
     setFiring(on) { sim.firing = on; if (on) sim.firePressed = true; },

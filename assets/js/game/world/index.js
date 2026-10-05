@@ -7,7 +7,9 @@ import { MAPS } from '../../shared/maps.data.js';
 import { configureTextures, getMaterial, beginTextureEpoch, releaseUnusedTextures, deferTextureGeneration, planLibraryMaterials, resolveLibraryMaterials, libraryInUse, libraryStats } from '../engine/textures.js';
 import { createWorldAssets } from './library.js';
 import { MapBuilder, SURFACES } from './builder.js';
-import { createLighting } from './lighting.js';
+import { createLighting, sunVector } from './lighting.js';
+import { applyWorldShading, initShading, resetShading, WS } from './shading.js';
+import { createProbeQuery, PROBE_TIERS, PROBE_BOUNCE_SCALE } from './probes.js';
 import { createWater } from './water.js';
 import { navFromData, validateNavGraph } from './navgraph.js';
 import { createMinimap } from './minimap.js';
@@ -108,6 +110,47 @@ async function fontsReady() {
 }
 
 /**
+ * Welt-Shading einschalten (nach dem Aufbau, vor dem ersten Bild): Haken an alle Materialien der Weltgruppe, Sonden-
+ * Texturen + Gewichte, Fernkaskade rendern (statische Geometrie, alle Requisiten sichtbar). → Statistik
+ */
+function activateLighting(G, def, world, group, light, probes, quality, debug) {
+  const t0 = performance.now();
+  const L = def.lighting, pc = L.probes || {};
+  const materials = applyWorldShading(group);
+  const out = { materials, probes: null, far: null, ms: 0 };
+  if (probes) {
+    const P = probes.data, s = P.spacing;
+    WS.npProbeA.value = probes.texA; WS.npProbeB.value = probes.texB;
+    WS.npProbeMin.value.set(P.min[0], P.min[1], P.min[2]);
+    WS.npProbeSize.value.set(P.dims[0] * s, P.dims[1] * s, P.dims[2] * s);
+    WS.npProbeRes.value.set(P.dims[0], P.dims[1], P.dims[2]);
+    WS.npProbeCell.value = s;
+    // Rückprall: Sonnenbestrahlung × Verstärkung × Codierfaktor (Shader quadriert den gespeicherten Wert)
+    const sun = new THREE.Color(L.sun.color).multiplyScalar(L.sun.intensity * (pc.bounce ?? 1) * PROBE_BOUNCE_SCALE);
+    WS.npBounce.value.copy(sun);
+    // Lichtgruppen: auf low ersetzen sie die Lampen (keine Echtzeit-Lichter), sonst nur weiche Aufhellung
+    const gGain = quality === 'low' ? (pc.groupsLow ?? 0.55) : (pc.groups ?? 0.18);
+    let anyGroup = false;
+    P.groups.forEach((g, i) => {
+      WS.npGroups.value[i].set(g.color[0], g.color[1], g.color[2]).multiplyScalar(g.max * gGain);
+      if (g.max > 0) anyGroup = true;
+    });
+    WS.npProbe.value.set(1, pc.skyMin ?? 0.035, pc.specOcc ?? 0.9, anyGroup && gGain > 0 ? 1 : 0);
+    light.setProbeSun(true);
+    out.probes = { dims: P.dims, spacing: s, bytes: probes.bytes, ...P.stats };
+  } else {
+    WS.npProbe.value.x = 0;
+    light.setProbeSun(false);
+  }
+  WS.npSpecAA.value = L.specAA ?? 1;
+  const farOk = light.bakeFar();
+  if (light.farShadow) out.far = { active: farOk, ...light.farShadow.stats };
+  out.ms = Math.round(performance.now() - t0);
+  if (debug) console.info(`[world] ${world.id}: Welt-Shading ${materials} Materialien, Fernkaskade ${farOk ? light.farShadow.stats.size.join('×') + ' (' + light.farShadow.stats.ms + ' ms)' : 'aus'}`);
+  return out;
+}
+
+/**
  * Lädt eine Karte, fügt world.group zu G.scene hinzu und liefert das World-Objekt.
  * @param {object} G Spielkontext (benötigt scene, renderer; camera optional)
  * @param {string} mapId 'hafen' | 'altstadt' | 'werk' | 'range'
@@ -141,6 +184,11 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   const pb = def.bounds;
   const cb = def.visualBounds || { minX: pb.minX - 30, maxX: pb.maxX + 30, minZ: pb.minZ - 30, maxZ: pb.maxZ + 30 };
   const b = new MapBuilder({ bounds: cb, seed: def.seed || 1, chunkSize: def.chunkSize || 32, groundNoise: def.groundNoise ?? 0.14, interiorTint: def.interiorTint });
+  // Sonden-Gitter (R5): Innenräume werden über das gebackene Himmels-/Rückprall-Licht dunkel – das alte gebackene
+  // Innenraumlicht (Vertexfarbe, dunkelt auch das Sonnenlicht durch Fenster) bleibt nur noch als leichte Tönung
+  const probeCfg = def.lighting?.probes || {};
+  const probesOn = G.params?.get?.('probes') !== '0' && probeCfg.enabled !== false;
+  if (probesOn) b.interiorScale = probeCfg.interior ?? 0.3;
   if (libOk) {
     b.lib = lib.modelIds();
     b.library = async (req, onProg) => {
@@ -182,9 +230,25 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   const pt = (p, yHint) => ({ x: p.x ?? p[0], z: p.z ?? p[2] ?? p[1], y: p.y ?? yHint, fallbackY: p.y ?? 0 });
   const points = [...spawnSrc.map(({ s }) => pt(s, 0.4)), ...domSrc.map(o => pt(o, 0.4))];
   const tJob0 = performance.now();
-  const stageP = { Kollision: 0.86, 'Kugel-BVH': 0.89, Navigation: 0.92 };
-  const jobPromise = runWorldJob({
-    colTris: built.colTris, bulletTris: built.bulletTris, bulletData: built.bulletData, points,
+  const stageP = { Kollision: 0.86, 'Kugel-BVH': 0.88, Navigation: 0.9, Licht: 0.92 };
+  // Zwei Worker parallel: Kollision → Startpunkte → Navigation | Kugel-BVH → Sonden-Gitter (Licht + Akustik)
+  const sunDir = sunVector(def.lighting.sun.elevation, def.lighting.sun.azimuth);
+  const probeTier = PROBE_TIERS[quality] ? quality : 'high';
+  const probeBounds = {
+    minX: pb.minX - (probeCfg.margin ?? 8), maxX: pb.maxX + (probeCfg.margin ?? 8),
+    minZ: pb.minZ - (probeCfg.margin ?? 8), maxZ: pb.maxZ + (probeCfg.margin ?? 8),
+    minY: Math.max(pb.minY ?? -3, -3), maxY: (pb.maxY ?? 24) + 2,
+  };
+  const linColor = (c) => { const k = new THREE.Color(c || '#ffd7a0'); return [k.r, k.g, k.b]; };
+  // Lichtgruppen: 0 warm (Glühlampe/Natrium), 1 kalt (Leuchtstoff), 2 farbig (Notlicht, Feuer) – oder L.group
+  const groupOf = (L) => {
+    if (Number.isInteger(L.group)) return Math.max(0, Math.min(2, L.group));
+    const [r, g, bl] = linColor(L.color);
+    if (r > g * 2.2 && r > bl * 2.2) return 2;
+    return bl >= r * 0.85 ? 1 : 0;
+  };
+  const jobCol = runWorldJob({
+    parts: ['col'], colTris: built.colTris, points,
     nav: {
       bounds: { ...pb, minY: pb.minY ?? -3, maxY: pb.maxY ?? 30 },
       points: b.navPoints.map(p => ({ x: p.x, y: p.y, z: p.z })),
@@ -193,6 +257,15 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
       seeds: spawnSrc.map((e, i) => (e.team === 'ffa' ? -1 : i)).filter(i => i >= 0),
     },
   }, stage => progress(stageP[stage] ?? 0.86, stage));
+  const jobBullet = runWorldJob({
+    parts: ['bullet'], bulletTris: built.bulletTris, bulletData: built.bulletData,
+    probes: probesOn ? {
+      bounds: probeBounds, tier: probeTier, spacing: probeCfg.spacing?.[probeTier], scatter: probeCfg.scatter,
+      sunDir: [sunDir.x, sunDir.y, sunDir.z], albedo: built.bulletAlbedo,
+      lights: (built.lightDefs || []).filter(L => L.bake !== false).map(L => ({ x: L.x, y: L.y, z: L.z, color: linColor(L.color), intensity: L.intensity ?? 10, distance: L.distance ?? 12, group: groupOf(L) })),
+    } : null,
+  }, stage => progress(stageP[stage] ?? 0.88, stage));
+  const jobPromise = Promise.all([jobCol, jobBullet]).then(([a, c]) => ({ ...a, ...c, ms: { ...a.ms, ...c.ms } }));
   progress(0.82, 'Kollision');
 
   // Kollision (Octree für Kapseln) – begrenzte Tiefe, Zeitscheiben
@@ -203,7 +276,12 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   // Licht & Himmel (HDRI der Karte, falls geladen – sonst prozeduraler Himmel)
   const hdri = await hdriPromise;
   const tLight0 = performance.now();
-  const light = createLighting(G, def.lighting, group, { hdri });
+  initShading(renderer);
+  const light = createLighting(G, def.lighting, group, {
+    hdri,
+    // Fernkaskade über Spielfeld + Rand; bewegte Objekte (Kran, Ziele …) bleiben draußen
+    far: { bounds: { ...probeBounds, minY: Math.min(probeBounds.minY, -1) }, exclude: () => [...b.objects.filter(o => o.update).map(o => o.object), ...(res.dynamic || [])] },
+  });
   const tLight = performance.now() - tLight0;
   G.scene.add(group);
   // Kartenbelichtung (z. B. Dämmerung etwas heller) + Bloom-Schwelle/-Stärke – nur wenn der Renderer das anbietet
@@ -235,8 +313,26 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   // Bau-Zwischendaten lösen: Die Methoden von `world` (unten) sind Closures dieser Funktion und halten deren
   // Variablen (b, built, job …) so lange wie die Welt. Dreieckslisten für Worker/Octree und die rohen Nav-Daten
   // werden nicht mehr gebraucht (die BVHs haben eigene, umsortierte Kopien); MapBuilder.build() räumt selbst auf.
-  built.bulletTris = built.bulletData = built.colTris = null;
+  built.bulletTris = built.bulletData = built.colTris = built.bulletAlbedo = null;
   job.nav = null;
+
+  // Sonden-Gitter → 3D-Texturen (RGBA8) für die Welt-Materialien + Abfragen (Akustik für audio, Licht für CPU-Nutzer)
+  let probes = null;
+  if (job.probes) {
+    const P = job.probes;
+    const mk = (data) => {
+      const t = new THREE.Data3DTexture(data, P.dims[0], P.dims[1], P.dims[2]);
+      t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType;
+      t.minFilter = t.magFilter = THREE.LinearFilter; t.wrapS = t.wrapT = t.wrapR = THREE.ClampToEdgeWrapping;
+      t.unpackAlignment = 1; t.generateMipmaps = false; t.needsUpdate = true;
+      return t;
+    };
+    const texA = mk(P.a), texB = mk(P.b);
+    texA.name = 'np:sonden-licht'; texB.name = 'np:sonden-sonne';
+    const query = createProbeQuery(P);
+    probes = { data: P, texA, texB, query, stats: P.stats, bytes: P.a.length + P.b.length };
+    if (debug) console.info(`[world] ${id}: Sonden-Gitter ${P.dims.join('×')} (${P.spacing} m), ${P.stats.traced} Zellen verfolgt, ${P.stats.rays} Strahlen, ${P.stats.invalid} in Geometrie, ${job.ms.probes} ms`, P.stats.ms);
+  } else if (job.probesError) console.warn('[world] Sonden-Gitter: ' + job.probesError);
   if (debug) {
     const rep = validateNavGraph(nav, { spawns, objectives }, nav.removed);
     nav.report = rep;
@@ -280,7 +376,17 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     minimap,
     ambience: def.ambience || meta.ambience,
     targets,
-    stats: { ...built.stats, buildMs: Math.round(tBuild), colliderMs: Math.round(tCol), lightMs: Math.round(tLight), jobMs: Math.round(tJob), worker: job.ms, totalMs: 0, nav: nav.stats, assets: lib.stats },
+    stats: { ...built.stats, buildMs: Math.round(tBuild), colliderMs: Math.round(tCol), lightMs: Math.round(tLight), jobMs: Math.round(tJob), worker: job.ms, totalMs: 0, nav: nav.stats, assets: lib.stats, lighting: null },
+    /** Sonden-Gitter (R5): { dims, spacing, min, light(x, y, z) → { sky, sun, bounce[3] }, sample(…) } oder null. */
+    probes: probes ? probes.query : null,
+    /**
+     * Akustik je Ort (A2, für audio): sample(x, y, z, out?) → { indoor 0..1, ceiling m|Infinity, meanFree m,
+     * openness 0..1, walls number[8] (m; 0 = +X, gegen den Uhrzeigersinn um +Y in 45°-Schritten; Infinity = frei),
+     * absorb 0..1 }. null ohne Gitter (dann misst audio selbst per world.raycast).
+     */
+    acoustics: probes ? { sample: probes.query.sample, dims: probes.query.dims, spacing: probes.query.spacing } : null,
+    /** Welt-Shading (Sonden, Fernschatten, Höhennebel, spekulares AA) auf weitere Materialien anwenden (bots, effects …). */
+    shading: { apply: applyWorldShading, uniforms: WS },
     debugData: { colliderBVH: cbvh, bulletBVH: bvh, footprints: b.footprints, navPoints: b.navPoints, zones: res.zones || [] },
 
     /**
@@ -376,6 +482,8 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
       for (const L of built.lights) L.dispose?.();
       light.dispose();
       hdri?.dispose();
+      resetShading();
+      probes?.texA.dispose(); probes?.texB.dispose();
       offQuality?.();
       if (typeof G.renderer?.setPost === 'function') G.renderer.setPost(postRestore);
       res.dispose?.();
@@ -394,6 +502,8 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   world.stats.assets.fallbackMaterials = libraryStats.fallback;
   // Requisiten einmal vollständig sichtbar (Shader-Vorwärmen im Ladebildschirm), ab dem ersten update() je Abstand
   props?.showAll();
+  // Welt-Shading: alle Weltmaterialien bekommen den gemeinsamen Haken; Sonden + Fernkaskade aktivieren
+  world.stats.lighting = activateLighting(G, def, world, group, light, probes, quality, debug);
   // Texturen schon jetzt in Zeitscheiben hochladen – sonst landet alles (inkl. Mipmaps) im ersten Bild
   progress(0.97, 'Texturen hochladen');
   world.stats.uploadMs = await uploadTextures(renderer, group);

@@ -21,7 +21,12 @@ const NAMES = {
   kv47: 'KV-47', m17: 'M-17 Falke', vp9: 'VP-9 Viper', qx90: 'QX-90', hm60: 'HM-60 Hammer', sk14: 'SK-14',
   brecher: 'Brecher .338', bulldog: 'Bulldog 12', p9: 'P-9 Kompakt', adler: 'Adler .50', knife: 'Kampfmesser',
   frag: 'Splittergranate', semtex: 'Haftgranate',
+  k36: 'K-36 Kurzer', bx20: 'BX-20 Stier', g7: 'G-7 Wächter', wespe: 'KM-7 Wespe', keiler: 'SM-45 Keiler', lm8: 'LM-8 Bär',
+  titan: 'Titan .50', hagel: 'HF-12 Hagel', kobra: 'R-6 Kobra', donner: 'RW-90 Donnerkeil', karambit: 'Karambit', machete: 'Machete',
+  tomahawk: 'Kampfbeil', impact: 'Aufschlaggranate', molotov: 'Brandsatz', flash: 'Blendgranate', smoke: 'Rauchgranate', plate: 'Schutzplatte', rocket: 'Rakete',
 };
+// ?camo=<id> legt ein Tarnmuster auf Galerie/Übersicht/Ego-Prüfung (Arsenal); ?set=2 zeigt die Waffen der Welle 2
+const CAMO = params.get('camo') || null;
 
 // ---------- Galerie-Szene ----------
 const gScene = new THREE.Scene();
@@ -67,7 +72,7 @@ function wireMat(m) {
 
 function showModel() {
   if (current) { gScene.remove(current); current = null; }
-  current = createWeaponModel(state.model, { lod: state.lod });
+  current = createWeaponModel(state.model, { lod: state.lod, camo: CAMO });
   const info = current.userData.info;
   const size = state.lod === 'showcase' ? 1 : Math.max(...info.size);
   if (state.lod === 'showcase') current.position.y = 0.0;
@@ -87,14 +92,20 @@ function showModel() {
 function showGrid() {
   gridGroup.clear();
   // Echte Größenverhältnisse: Langwaffen links/rechts, Pistolen & Ausrüstung unten
-  const layout = [
+  const layout = params.get('set') === '2' ? [
+    ['k36', -0.95, 1.75], ['bx20', 0.0, 1.75], ['g7', 1.05, 1.75],
+    ['lm8', -0.95, 1.38], ['titan', 0.15, 1.38], ['keiler', 1.1, 1.38],
+    ['hagel', -0.95, 1.0], ['donner', 0.15, 1.0], ['wespe', 1.0, 1.0],
+    ['kobra', -1.05, 0.66], ['karambit', -0.6, 0.66], ['machete', -0.15, 0.66], ['tomahawk', 0.35, 0.66],
+    ['impact', 0.62, 0.66], ['molotov', 0.78, 0.66], ['flash', 0.94, 0.66], ['smoke', 1.1, 0.66],
+  ] : [
     ['kv47', -0.95, 1.75], ['m17', 0.0, 1.75], ['hm60', 1.05, 1.75],
     ['sk14', -0.95, 1.38], ['brecher', 0.05, 1.38], ['vp9', 1.0, 1.38],
     ['bulldog', -0.95, 1.0], ['qx90', 0.0, 1.0], ['p9', 0.62, 1.0], ['adler', 0.95, 1.0],
     ['knife', -0.5, 0.7], ['frag', 0.05, 0.7], ['semtex', 0.4, 0.7],
   ];
   for (const [k, x, y] of layout) {
-    const m = createWeaponModel(k, { lod: state.lod === 'third' ? 'third' : 'first' });
+    const m = createWeaponModel(k, { lod: state.lod === 'third' ? 'third' : 'first', camo: CAMO });
     const inf = m.userData.info;
     m.position.set(-inf.center[0], -inf.center[1], -inf.center[2]);
     const h = new THREE.Group();

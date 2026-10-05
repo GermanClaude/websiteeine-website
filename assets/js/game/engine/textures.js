@@ -8,6 +8,7 @@
 // Generatoren: ../world/texgen.js (ohne three, auch im Worker lauffähig)
 import * as THREE from 'three';
 import { generateTexture } from '../world/texgen.js';
+import { addShaderPatch, ensureWorldVaryings } from '../world/shading.js';
 
 // ---------------------------------------------------------------------------
 // Konfiguration
@@ -194,13 +195,14 @@ function makeTexGroup(texName, data) {
       ph[k].needsUpdate = true;
     }
     ph.pending = false;
+    ph.avg = averageAlbedo(data.albedo);
     pendingGroups.delete(texName);
     textureStats.generated++;
     return ph;
   }
   const grp = {
     map: prep(data.albedo, 'albedo', true), normalMap: prep(data.normal, 'normal'), roughnessMap: prep(data.rm, 'rm'),
-    hasMetal: data.hasMetal, hasAlpha: data.hasAlpha, epoch, pending: false,
+    hasMetal: data.hasMetal, hasAlpha: data.hasAlpha, epoch, pending: false, avg: averageAlbedo(data.albedo),
   };
   textureStats.generated++;
   texCache.set(texName, grp);
@@ -538,24 +540,21 @@ function macroTexture() {
 function applyMacroVariation(mat, amp) {
   const u = { npMacroTex: { value: macroTexture() }, npMacro: { value: new THREE.Vector3(amp[0], amp[1], amp[2]) } };
   mat.userData.npMacro = u.npMacro.value;
-  mat.customProgramCacheKey = () => 'np-macro-1';
-  mat.onBeforeCompile = (shader) => {
+  // über den Haken-Verteiler (world/shading.js): verträgt sich mit dem Welt-Shading und wird bei erneutem Füllen
+  // nur ausgetauscht, nicht doppelt angehängt
+  addShaderPatch(mat, 'macro', macroPatch(u));
+}
+
+const _macroPatches = new WeakMap();
+function macroPatch(u) {
+  // je Uniform-Satz eine Funktion (gleiche Funktion = kein erneutes Kompilieren)
+  let fn = _macroPatches.get(u);
+  if (fn) return fn;
+  fn = (shader) => {
     Object.assign(shader.uniforms, u);
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vNpWorld;\nvarying vec3 vNpNormal;')
-      .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
-        vec4 npW = vec4( transformed, 1.0 );
-        #ifdef USE_BATCHING
-          npW = batchingMatrix * npW;
-        #endif
-        #ifdef USE_INSTANCING
-          npW = instanceMatrix * npW;
-        #endif
-        npW = modelMatrix * npW;
-        vNpWorld = npW.xyz;
-        vNpNormal = mat3( modelMatrix ) * objectNormal;`);
+    ensureWorldVaryings(shader);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vNpWorld;\nvarying vec3 vNpNormal;\nuniform sampler2D npMacroTex;\nuniform vec3 npMacro;')
+      .replace('#include <common>', '#include <common>\nuniform sampler2D npMacroTex;\nuniform vec3 npMacro;')
       .replace('#include <map_fragment>', `#include <map_fragment>
         vec3 npN = abs( normalize( vNpNormal ) );
         vec2 npP = npN.y > 0.6 ? vNpWorld.xz : ( npN.x > npN.z ? vNpWorld.zy : vNpWorld.xy );
@@ -565,6 +564,40 @@ function applyMacroVariation(mat, amp) {
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
         roughnessFactor = clamp( roughnessFactor + ( npB.b - 0.5 ) * 2.0 * npMacro.z, 0.04, 1.0 );`);
   };
+  _macroPatches.set(u, fn);
+  return fn;
+}
+
+// ---------------------------------------------------------------------------
+// Albedo-Schätzung je Material (Sonden-Gitter: Farbe des Sonnen-Rückpralls)
+// ---------------------------------------------------------------------------
+const _albCache = new WeakMap();
+const _ac = new THREE.Color();
+/** Mittlere lineare Grundfarbe [r, g, b] eines Materials (Farbe × mittlere Textur); gecacht je Material + Satz. */
+export function materialAlbedo(mat) {
+  if (!mat) return [0.4, 0.4, 0.4];
+  const key = (mat.userData?.libSet || mat.userData?.texGroup || '') + '|' + mat.color?.getHexString?.();
+  const hit = _albCache.get(mat);
+  if (hit && hit.key === key) return hit.v;
+  let t = [0.5, 0.5, 0.5];
+  const name = mat.userData?.materialName;
+  const set = name ? libSets.get(name) : null;
+  if (set && set.meta?.stats?.avgColor) { _ac.set(set.meta.stats.avgColor); t = [_ac.r, _ac.g, _ac.b]; }
+  else if (mat.userData?.texGroup) { const g = texCache.get(mat.userData.texGroup); if (g?.avg) t = g.avg; }
+  else if (!mat.map) t = [1, 1, 1];
+  const c = mat.color || _ac.setRGB(1, 1, 1);
+  const v = [Math.min(1, c.r * t[0]), Math.min(1, c.g * t[1]), Math.min(1, c.b * t[2])];
+  _albCache.set(mat, { key, v });
+  return v;
+}
+
+/** Mittelwert einer sRGB-RGBA-Albedo (Stichprobe) → linear. */
+function averageAlbedo(arr) {
+  const toLin = (x) => { x /= 255; return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+  let r = 0, g = 0, b = 0, n = 0;
+  const step = Math.max(4, Math.floor(arr.length / 4 / 4096) * 4);
+  for (let i = 0; i + 3 < arr.length; i += step) { r += toLin(arr[i]); g += toLin(arr[i + 1]); b += toLin(arr[i + 2]); n++; }
+  return n ? [r / n, g / n, b / n] : [0.5, 0.5, 0.5];
 }
 
 /**

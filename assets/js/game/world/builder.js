@@ -1,12 +1,14 @@
 // NULLPUNKT — MapBuilder: sammelt statische Geometrie, verschmilzt sie pro Material/Chunk,
 // backt Ambient Occlusion in Vertexfarben, erzeugt Kollisions- und Kugel-Geometrie (Owner: world)
 import * as THREE from 'three';
-import { getMaterial, surfaceOf, preloadMaterials, proceduralNames, libraryPendingNames } from '../engine/textures.js';
+import { getMaterial, surfaceOf, preloadMaterials, proceduralNames, libraryPendingNames, materialAlbedo } from '../engine/textures.js';
 import { createDecalMaterials, createSignAtlas, createFoliage, DECAL_CELLS, DECAL_ROWS, DEFAULT_SIGNS } from './atlas.js';
 import { PropInstances, placementMatrix, forEachBulletTri, MODEL_SURFACE } from './libprops.js';
 
 export const SURFACES = ['concrete', 'metal', 'wood', 'dirt', 'sand', 'grass', 'glass', 'water', 'tile', 'fabric', 'flesh'];
 const SURF_INDEX = Object.fromEntries(SURFACES.map((s, i) => [s, i]));
+/** Mittlere Albedo der Bibliotheks-Requisiten je Oberfläche (Sonden-Rückprall). */
+const PROP_ALBEDO = { concrete: 0.4, metal: 0.3, wood: 0.32, dirt: 0.3, sand: 0.45, grass: 0.25, glass: 0.2, water: 0.1, tile: 0.4, fabric: 0.3, flesh: 0.35 };
 
 // ---------------------------------------------------------------------------
 // Wachsende Typed Arrays
@@ -214,6 +216,7 @@ export class MapBuilder {
     this.materials = new Set();
     this.floors = [];     // { minX, maxX, minZ, maxZ, y }
     this.models = [];     // Bibliotheks-Requisiten: { id, x, y, z, o } (model())
+    this.interiorScale = null; // 0..1: Anteil des gebackenen Innenraumlichts (null = voll; mit Sonden-Gitter gesetzt)
     this.lib = null;      // Set verfügbarer Modell-IDs (Bibliothek nutzbar) oder null (nur prozedural)
     this.library = null;  // async ({ names, models }, onProgress) → { models: Map id → Vorlage|null } (loadWorld)
     this.stats = { prims: 0 };
@@ -501,7 +504,15 @@ export class MapBuilder {
 
   /** Innenraum-Volumen: Flächen innen werden abgedunkelt (gebackenes Innenraumlicht). */
   interior(minX, minZ, maxX, maxZ, minY, maxY, factor = 0.62, tint = null) {
-    this.interiors.push({ minX, minZ, maxX, maxZ, minY, maxY, factor, tint: tint || this.interiorTint });
+    let t = tint || this.interiorTint;
+    // Mit Sonden-Gitter (loadWorld setzt interiorScale) liefert das Gitter die Innenraum-Dunkelheit fürs indirekte
+    // Licht; hier bleibt nur ein Rest (sonst wäre auch das Sonnenlicht durchs Fenster abgedunkelt)
+    if (this.interiorScale != null) {
+      const k = this.interiorScale;
+      factor = 1 - (1 - factor) * k;
+      t = t ? t.map(c => 1 - (1 - c) * Math.min(1, k * 1.6)) : t;
+    }
+    this.interiors.push({ minX, minZ, maxX, maxZ, minY, maxY, factor, tint: t });
     this._interiorGrid = null;
     return this;
   }
@@ -770,8 +781,9 @@ export class MapBuilder {
     const foliage = createFoliage(this.plants, quality);
     for (const f of foliage.meshes) group.add(f);
 
-    // Lichter
+    // Lichter (Definitionen bleiben für die Lichtgruppen des Sonden-Gitters erhalten – auf low nur gebacken)
     const lights = [];
+    const lightDefs = this.lights.map(L => ({ ...L }));
     for (const L of (quality === 'low' ? [] : this.lights)) {
       let light;
       if (L.type === 'spot') {
@@ -797,14 +809,23 @@ export class MapBuilder {
     let triCount = 0;
     for (const m of meshes) { const b = m.userData.bullet; for (let i = 0; i < b.length; i++) triCount += b[i]; }
     let btris = new Float32Array(triCount * 9), bdata = new Uint32Array(triCount);
+    // Albedo je Kugel-Dreieck (linear·255): Materialfarbe × mittlere Textur × Vertexfarbe – Farbe des Sonnen-Rückpralls
+    // im Sonden-Gitter (world/probes.js)
+    let balb = new Uint8Array(triCount * 3);
     let bi = 0;
     meshes.forEach(m => {
       const objIndex = objects.push(m) - 1;
       const pos = m.geometry.attributes.position.array, bl = m.userData.bullet;
+      const col = m.geometry.attributes.color?.array || null;
+      const alb = materialAlbedo(m.material);
       const sid = SURF_INDEX[m.userData.surface] ?? 0;
       for (let t = 0; t < bl.length; t++) {
         if (!bl[t]) continue;
         btris.set(pos.subarray(t * 9, t * 9 + 9), bi * 9);
+        for (let ch = 0; ch < 3; ch++) {
+          const vc = col ? (col[t * 9 + ch] + col[t * 9 + 3 + ch] + col[t * 9 + 6 + ch]) / 3 : 1;
+          balb[bi * 3 + ch] = Math.min(255, Math.round(alb[ch] * vc * 255));
+        }
         bdata[bi++] = sid | (objIndex << 8);
       }
       delete m.userData.bullet;
@@ -812,8 +833,8 @@ export class MapBuilder {
     // Kugeltreffer auf Bibliotheks-Requisiten (gröbste LOD-Stufe je Instanz)
     if (this._propBullet && this._propBullet.tris.n) {
       const pb = this._propBullet, n = pb.tris.n / 9;
-      const t2 = new Float32Array((bi + n) * 9), d2 = new Uint32Array(bi + n);
-      t2.set(btris.subarray(0, bi * 9)); d2.set(bdata.subarray(0, bi));
+      const t2 = new Float32Array((bi + n) * 9), d2 = new Uint32Array(bi + n), a2 = new Uint8Array((bi + n) * 3);
+      t2.set(btris.subarray(0, bi * 9)); d2.set(bdata.subarray(0, bi)); a2.set(balb.subarray(0, bi * 3));
       t2.set(pb.tris.view(), bi * 9);
       const objIdx = new Map();
       for (let i = 0; i < n; i++) {
@@ -821,8 +842,10 @@ export class MapBuilder {
         let k = objIdx.get(g);
         if (k === undefined) { k = objects.push(this._props.hitObject(g) || group) - 1; objIdx.set(g, k); }
         d2[bi + i] = pb.surf[i] | (k << 8);
+        const a = PROP_ALBEDO[SURFACES[pb.surf[i]]] ?? 0.35;
+        a2[(bi + i) * 3] = a2[(bi + i) * 3 + 1] = a2[(bi + i) * 3 + 2] = Math.round(a * 255);
       }
-      btris = t2; bdata = d2; bi += n; triCount += n;
+      btris = t2; bdata = d2; balb = a2; bi += n; triCount += n;
     }
 
     // Kollisionsgeometrie (Weltkoordinaten, 9 Floats je Dreieck)
@@ -836,7 +859,7 @@ export class MapBuilder {
     this._props = null; this._propBullet = null;
     return {
       group, meshes, decalMeshes, signMesh, foliage, lights, objects, props: propsOut,
-      bulletTris: btris, bulletData: bdata, colTris: colArr,
+      bulletTris: btris, bulletData: bdata, bulletAlbedo: balb, colTris: colArr, lightDefs,
       stats,
     };
   }

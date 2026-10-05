@@ -107,8 +107,8 @@ export class DeployScreen {
     if (typeof m.holdRespawn === 'function') m.holdRespawn(p, true, { pause: kind === 'equip' });
     if (kind === 'deploy' && !this.sel) this.sel = (m.deployChoice && { ...m.deployChoice }) || { kind: 'hq', id: 'hq' };
     this._unlockPointer();
+    this.root.hidden = false; // vor dem Aufbau sichtbar: die Karte misst ihre Größe
     this._render();
-    this.root.hidden = false;
     document.body.dataset.deploy = kind;
     G.events.emit('ui:sound', { name: 'open' });
     requestAnimationFrame(() => this._focus());
@@ -457,7 +457,11 @@ export class DeployScreen {
     if (!dead) { if (p.alive) this.close(false); return; }
     this._pollPad();
     this._mkT -= dt;
-    if (this.kind === 'deploy' && this.tab === 'map' && this._mkT <= 0) { this._mkT = 0.5; this._renderPoints(); }
+    if (this.kind === 'deploy' && this.tab === 'map' && this._mkT <= 0) {
+      this._mkT = 0.5;
+      if (!this._map) this._drawMap();
+      this._renderPoints();
+    }
     this._updateFoot();
     if (this.kind === 'deploy') {
       const left = typeof m.respawnLeft === 'function' ? m.respawnLeft(p) : 0;

@@ -1,7 +1,10 @@
 // NULLPUNKT — Licht & Himmel: Preetham-Himmel mit Horizont-Dunst, PMREM-Umgebung aus dem Himmel,
-// Sonne mit kamerafolgendem (texelstabilem) Schatten, Hemisphärenlicht, Nebel (Owner: world)
+// Sonne mit kamerafolgendem (texelstabilem) Schatten als Nahkaskade + zwischengespeicherte Fernkaskade
+// (world/shadows.js), Hemisphärenlicht, Höhennebel mit Sonnen-Einstreuung (world/shading.js) (Owner: world)
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
+import { WS } from './shading.js';
+import { createFarShadow, farShadowBudget, NEAR_CAP } from './shadows.js';
 
 const deg = THREE.MathUtils.degToRad;
 
@@ -169,7 +172,7 @@ function makeHdriSky(hdri, sd, fogColor, intensity) {
  *   Kartenoptionen: env.hdriIntensity (Stärke des HDRI-Umgebungslichts), sky.hdri (false = Preetham-Himmel
  *   behalten), sky.hdriIntensity, sky.exposureScale, sky.hdriTint, sky.hdriMax, hemi.hdriIntensity.
  */
-export function createLighting(G, def, group, { hdri = null } = {}) {
+export function createLighting(G, def, group, { hdri = null, far = null } = {}) {
   const renderer = G.renderer?.renderer || G.renderer;
   const preset = G.renderer?.preset || {};
   const scene = G.scene;
@@ -224,7 +227,8 @@ export function createLighting(G, def, group, { hdri = null } = {}) {
   sun.castShadow = shadowsOn;
   // Kaskadengröße: Kartenwert, auf schwachen Stufen gedeckelt (preset.shadowExtent, z. B. 24 m auf low)
   const mapHalf = def.shadow?.size ?? 38;
-  const extentFor = (p) => Math.min(mapHalf, p?.shadowExtent || Infinity);
+  // Mit Fernkaskade (medium+) übernimmt die Nahkaskade nur noch die Nähe → kleinerer Ausschnitt, schärfere Schatten
+  const extentFor = (p) => Math.min(mapHalf, p?.shadowExtent || Infinity, far && farShadowBudget(p) ? (def.shadow?.near ?? NEAR_CAP[p.id] ?? 20) : Infinity);
   const half = extentFor(preset);
   const mapSize = preset.shadowMapSize || 2048;
   sun.shadow.mapSize.set(mapSize, mapSize);
@@ -235,6 +239,12 @@ export function createLighting(G, def, group, { hdri = null } = {}) {
   sun.shadow.normalBias = def.shadow?.normalBias ?? 0.035;
   sun.shadow.radius = 2;
   group.add(sun); group.add(sun.target);
+  // Fernkaskade (einmal gerendert; bake() ruft loadWorld nach dem Aufbau, wenn alle Requisiten stehen)
+  const farShadow = far ? createFarShadow(G, { sunDir, bounds: far.bounds, group, exclude: far.exclude }) : null;
+  let probeSun = false; // Sonnensicht des Sonden-Gitters verfügbar (Ferne auf low / ohne Schattenkarten)
+  const applyFarMode = () => {
+    WS.npFar.value.x = farShadow?.active ? 1 : probeSun ? 2 : 0;
+  };
 
   // Gedrosselte Schattenkarte (low): die neue Sonne hat noch keine Karte → im nächsten Bild zeichnen lassen.
   // Ohne Karte bindet three.js eine nie hochgeladene Ersatz-Tiefentextur an den Schatten-Sampler
@@ -253,6 +263,16 @@ export function createLighting(G, def, group, { hdri = null } = {}) {
   scene.environmentIntensity = envIntensity;
   scene.fog = new THREE.Fog(fogColor, def.fog.near, def.fog.far);
   scene.background = fogColor.clone();
+  // Höhennebel (Welt-Materialien): Dichte am Boden, Abfall mit der Höhe, Startabstand, Sonnen-Einstreuung.
+  // Ohne Kartenwerte aus near/far abgeleitet (auf Augenhöhe ≈ wie der lineare Nebel der übrigen Materialien).
+  const fd = def.fog;
+  const fogSpan = Math.max(20, fd.far - fd.near);
+  WS.npFog.value.set(fd.density ?? 2.0 / fogSpan, fd.falloff ?? 0.05, fd.baseY ?? 0, fd.start ?? fd.near * 0.55);
+  WS.npFogMax.value = fd.max ?? 0.92;
+  const sunHue = new THREE.Color(def.sun.color);
+  const hueMax = Math.max(sunHue.r, sunHue.g, sunHue.b, 1e-3);
+  WS.npFogSun.value.set(sunDir.x, sunDir.y, sunDir.z, fd.sunExp ?? 6);
+  WS.npFogSunCol.value.copy(sunHue).multiplyScalar((fd.sun ?? 0.35) / hueMax);
 
   // Texelstabile Schattenkamera
   const lightRot = new THREE.Matrix4().lookAt(new THREE.Vector3(0, 0, 0), sunDir.clone().negate(), new THREE.Vector3(0, 1, 0));
@@ -277,8 +297,14 @@ export function createLighting(G, def, group, { hdri = null } = {}) {
     sun, hemi, sky,
   };
 
+  let baked = false;
   const controller = {
     lighting,
+    farShadow,
+    /** Fernkaskade rendern (nach dem Aufbau; Qualitätswechsel ruft es selbst). → true, wenn aktiv */
+    bakeFar() { baked = true; const ok = farShadow ? farShadow.bake() : false; applyFarMode(); return ok; },
+    /** Sonden-Gitter mit Sonnensicht verfügbar? (low: Fernschatten aus den Sonden) */
+    setProbeSun(on) { probeSun = !!on; applyFarMode(); },
     /** Schatten folgt der Kamera, Wolken ziehen. */
     update(dt, camera) {
       time += dt;
@@ -310,6 +336,7 @@ export function createLighting(G, def, group, { hdri = null } = {}) {
     /** Schattenqualität nach Qualitätswechsel: { shadows, mapSize, size } oder ein Renderer-Preset. */
     setShadowQuality({ shadows, mapSize, size, preset: p } = {}) {
       if (p) { shadows = p.shadows; mapSize = p.shadowMapSize; size = extentFor(p); }
+      if (p && farShadow && baked) { farShadow.bake(p); applyFarMode(); }
       let dirty = false;
       if (shadows !== undefined && shadows !== sun.castShadow) { sun.castShadow = shadows; dirty = true; }
       // Neue Kartengröße: three.js passt die bestehende Karte beim nächsten Schattenpass an (setSize) –
@@ -324,6 +351,9 @@ export function createLighting(G, def, group, { hdri = null } = {}) {
     dispose() {
       disposed = true;
       offContext?.();
+      farShadow?.dispose();
+      WS.npFar.value.x = 0;
+      WS.npFog.value.x = 0;
       sky.geometry.dispose(); sky.material.dispose();
       if (skyTop) { skyTop.geometry.dispose(); skyTop.material.dispose(); }
       sun.shadow.map?.dispose();

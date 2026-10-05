@@ -934,6 +934,7 @@ export class AudioEngine {
       if (path.length) {
         let len = 0, prev = from; for (const q of path) { len += prev.distanceTo(q); prev = q; }
         const straight = from.distanceTo(to);
+        len = Math.max(straight, len + prev.distanceTo(to)); // Pfad endet evtl. am nächsten Knoten: Reststrecke zur Quelle
         if (len < straight * 2.2 + 25) {
           let first = path[0]; if (first.distanceTo(from) < 1.2 && path.length > 1) first = path[1];
           const dx = first.x - from.x, dz = first.z - from.z, dl = Math.hypot(dx, dz) || 1, corners = Math.max(1, path.length - 1);

@@ -167,11 +167,11 @@ export class BaseMode {
   }
 
   /** Einsatz-/Ausrüstungsbildschirm: Wiedereinstieg anhalten bzw. freigeben (ui/deploy.js). */
-  holdRespawn(actor, on) {
+  holdRespawn(actor, on, { pause = true } = {}) {
     if (!actor) return;
     if (on) this.respawnHolds.add(actor); else this.respawnHolds.delete(actor);
-    // core-mechanics: G.holdRespawn(on) pausiert die Respawn-Zeit (respawn:hold)
-    if (actor.isPlayer && typeof this.G.holdRespawn === 'function') { try { this.G.holdRespawn(!!on); } catch (err) { console.error('[NULLPUNKT] holdRespawn:', err); } }
+    // core-mechanics: G.holdRespawn(on, {pause}) – pause: Restzeit steht still (Ausrüsten), sonst läuft sie weiter (Einsatzkarte)
+    if (actor.isPlayer && typeof this.G.holdRespawn === 'function') { try { this.G.holdRespawn(!!on, { pause }); } catch (err) { console.error('[NULLPUNKT] holdRespawn:', err); } }
   }
 
   /** „Einsatz“: Halt aufheben und – sobald die Wartezeit um ist – sofort einsetzen. */
