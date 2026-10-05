@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ballistiklabor – NULLPUNKT</title>
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--np-black); color: var(--np-ink); font: 13px/1.4 var(--font-mono); overflow: hidden; }
+  #stage { position: fixed; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+  header { position: fixed; top: 0; left: 0; right: 0; display: flex; gap: 14px; align-items: center; padding: 10px 16px; z-index: 5; pointer-events: none; }
+  header h1 { margin: 0; font: 800 15px/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase; font-stretch: 125%; }
+  header h1 b { color: var(--np-signal); }
+  header nav { display: flex; gap: 6px; pointer-events: auto; }
+  button, select { font: inherit; color: var(--np-ink); background: rgba(17,19,22,.82); border: 1px solid var(--np-line-strong); padding: 6px 10px; cursor: pointer; border-radius: 0; min-height: 32px; }
+  button:hover, button:focus-visible { border-color: var(--np-signal); outline: none; }
+  button.on { background: var(--np-signal); color: #111; border-color: var(--np-signal); }
+  #controls { position: fixed; left: 16px; right: 16px; bottom: 14px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; z-index: 4; }
+  #info { position: fixed; right: 16px; top: 48px; width: 240px; z-index: 4; background: rgba(17,19,22,.82); border: 1px solid var(--np-line); padding: 10px 12px; white-space: pre-wrap; }
+  #ttk { position: fixed; inset: 48px 16px 64px; z-index: 6; overflow: auto; background: rgba(12,13,15,.94); border: 1px solid var(--np-line); padding: 12px; display: none; }
+  #ttk table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  #ttk th, #ttk td { border-bottom: 1px solid var(--np-line); padding: 4px 8px; text-align: right; white-space: nowrap; }
+  #ttk th:first-child, #ttk td:first-child { text-align: left; }
+  #ttk td.k { color: var(--np-signal); }
+  .hint { position: fixed; left: 16px; top: 48px; z-index: 4; color: var(--np-dim); font-size: 11px; max-width: 300px; }
+  @media (max-height: 520px), (max-width: 700px) {
+    header { padding: 6px 10px; } header h1 { font-size: 11px; }
+    button, select { font-size: 10px; padding: 4px 6px; min-height: 28px; }
+    #info, .hint { display: none; }
+    #controls { bottom: 8px; gap: 3px; }
+  }
+</style>
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<header>
+  <h1>NULL<b>PUNKT</b> · Ballistiklabor</h1>
+  <nav>
+    <button id="btn-ttk" type="button">TTK-Tabelle</button>
+    <select id="quality" aria-label="Qualität"><option value="low">niedrig</option><option value="medium">mittel</option><option value="high" selected>hoch</option></select>
+  </nav>
+</header>
+<p class="hint">Tippen/Klicken auf eine Fläche = Einschlag dieser Oberfläche. Ziehen dreht die Kamera, Mausrad/Zwei-Finger zoomt.</p>
+<div id="info"></div>
+<div id="controls"></div>
+<div id="ttk"></div>
+<script type="module" src="../assets/js/game/weapons/ballistics/lab.js"></script>
+</body>
+</html>

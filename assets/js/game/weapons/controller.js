@@ -10,7 +10,7 @@
 // Für den Spieler treibt er den Gunsmith-ViewModel (Waffe, Animationen, Anschlag, Overlay).
 
 import * as THREE from 'three';
-import { WEAPONS as DATA_WEAPONS, EQUIPMENT as DATA_EQUIPMENT } from '../../shared/weapons.data.js';
+import { WEAPONS as DATA_WEAPONS, EQUIPMENT as DATA_EQUIPMENT, effectiveRange } from '../../shared/weapons.data.js';
 import { clamp, damp, smooth01, easeInOut, wrapAngle, samplePellet, sampleCone, patternAt } from './ballistics/math.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -80,6 +80,8 @@ export class WeaponController {
     this.breath = 1;
     this.autoFireRange = 48;
     this.autoFireReady = true;
+    this.idealRange = 20;
+    this.maxRange = 100;
     this.viewModel = null;
 
     // Intern
@@ -231,6 +233,9 @@ export class WeaponController {
     const def = this.currentDef;
     if (!def) return;
     this.autoFireRange = def.autoFireRange || AUTO_RANGE[def.cls] || 45;
+    // Für Bots: Entfernung, bis zu der die Nahbereichs-Schusszahl hält, und maximale Trefferdistanz
+    this.idealRange = def.cls === 'melee' ? 2.4 : Math.max(4, Math.min(def.range || 100, effectiveRange(def) || 20));
+    this.maxRange = def.range || 100;
     this.spread = this.fireSpread = def.hipSpread || 0.04;
   }
 
@@ -488,7 +493,7 @@ export class WeaponController {
     const adsS = def.adsSpread || 0.003;
     const auto = !semi;
     this._bloomHip = Math.min(hip * 0.85, this._bloomHip + hip * (auto ? 0.14 : 0.3));
-    this._bloomAds = Math.min(adsS * 2.5 + 0.0025, this._bloomAds + (adsS * 0.45 + 0.0004) * (auto ? 1 : 1.4));
+    this._bloomAds = Math.min(adsS * 1.2 + 0.0012, this._bloomAds + (adsS * 0.3 + 0.0002) * (auto ? 1 : 1.4));
     this.spread = Math.max(this.spread, this.fireSpread + this._bloomHip * (1 - a));
 
     // Viewmodel

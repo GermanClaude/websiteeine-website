@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { EQUIPMENT as DATA_EQUIPMENT } from '../../shared/weapons.data.js';
 import { clamp } from './ballistics/math.js';
 
-export const GRENADE_GRAVITY = 22; // m/s² (etwas weniger als Spieler – schönere Bögen)
+export const GRENADE_GRAVITY = 16; // m/s² (weniger als Spieler – weite, gut lesbare Bögen wie in COD)
 const RADIUS = 0.06;
 const AIR_DRAG = 0.06; // 1/s
 const MAX_STEP = 1 / 120;
@@ -241,6 +241,16 @@ export class GrenadeSystem {
     if (!hit) { p.add(_move); return; }
     _n.copy(hit.normal);
     if (_n.dot(_dir) > 0) _n.negate();
+    if (hit.surface === 'water') {
+      // Wasser: platscht hinein und sinkt (Explosion knapp unter der Oberfläche)
+      p.copy(hit.point);
+      p.y -= 0.25;
+      g.rest = true;
+      g.inWater = true;
+      v.set(0, 0, 0);
+      G.events.emit('grenade:bounce', { position: hit.point.clone(), speed: Math.max(3, len / h), surface: 'water', type: g.type });
+      return;
+    }
     p.copy(hit.point).addScaledVector(_n, RADIUS * 1.02);
     if (g.sticky) {
       g.stuckTo = 'world';

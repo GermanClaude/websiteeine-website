@@ -72,6 +72,10 @@ export class Lobby {
       if (Number.isFinite(e)) base.enemies = e;
       for (const k of ['primary', 'secondary']) if (d.W[prm.get(k)]) base[k] = prm.get(k);
       if (d.EQ[prm.get('lethal')]) base.lethal = prm.get('lethal');
+      // Zeit-/Punktelimit aus der URL gelten nur für den Modus, mit dem die Seite geöffnet wurde
+      const tl = parseFloat(prm.get('time'));
+      const sl = parseFloat(prm.get('score'));
+      if (Number.isFinite(tl) || Number.isFinite(sl)) base.limits = { modeId: base.modeId, timeLimit: Number.isFinite(tl) ? tl : null, scoreLimit: Number.isFinite(sl) ? sl : null };
     }
     // Ausrüstung validieren (Slot + Freischaltung)
     const okW = (id, slot) => id && d.W[id] && d.W[id].slot === slot && this.unlocked(id);
@@ -115,6 +119,7 @@ export class Lobby {
     return {
       modeId: c.modeId, mapId: c.mapId, difficulty: c.difficulty, allies: c.allies, enemies: c.enemies,
       loadout: { primary: c.primary, secondary: c.secondary, lethal: c.lethal },
+      ...(c.limits && c.limits.modeId === c.modeId ? { timeLimit: c.limits.timeLimit, scoreLimit: c.limits.scoreLimit } : {}),
     };
   }
 

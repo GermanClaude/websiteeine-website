@@ -56,7 +56,7 @@ function makeNoise(period, seed) {
   const g = new Float32Array(period * period);
   let s = seed >>> 0 || 1;
   for (let i = 0; i < g.length; i++) { s = (s * 1664525 + 1013904223) >>> 0; g[i] = s / 4294967296; }
-  return (x, y) => {
+  const fn = (x, y) => {
     const xi = Math.floor(x), yi = Math.floor(y);
     const fx = x - xi, fy = y - yi;
     const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
@@ -65,16 +65,18 @@ function makeNoise(period, seed) {
     const a = g[y0 * period + x0], b = g[y0 * period + x1], c = g[y1 * period + x0], d = g[y1 * period + x1];
     return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
   };
+  fn.period = period;
+  return fn;
 }
 
-/** Kachelbares fBm im Bereich [0,1) × [0,1). */
-function fbm(noises, u, v, base) {
+/** Kachelbares fBm im Bereich [0,1) × [0,1): jede Oktave wird über genau ihre Periode abgetastet. */
+function fbm(noises, u, v) {
   let sum = 0, amp = 0.5, norm = 0;
   for (let o = 0; o < noises.length; o++) {
-    const f = base << o;
-    sum += noises[o](u * f, v * f) * amp;
+    const n = noises[o];
+    sum += n(u * n.period, v * n.period) * amp;
     norm += amp;
-    amp *= 0.5;
+    amp *= 0.55;
   }
   return sum / norm;
 }
@@ -107,9 +109,9 @@ export function camoTexture(schemeId) {
   const img = ctx.createImageData(N, N);
   const d = img.data;
   const seed = [...schemeId].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7);
-  const L1 = [makeNoise(4, seed + 1), makeNoise(8, seed + 2), makeNoise(16, seed + 3), makeNoise(32, seed + 4)];
-  const L2 = [makeNoise(6, seed + 11), makeNoise(12, seed + 12), makeNoise(24, seed + 13)];
-  const L3 = [makeNoise(5, seed + 21), makeNoise(10, seed + 22), makeNoise(20, seed + 23), makeNoise(40, seed + 24)];
+  const L1 = [makeNoise(5, seed + 1), makeNoise(10, seed + 2), makeNoise(20, seed + 3), makeNoise(40, seed + 4)];
+  const L2 = [makeNoise(6, seed + 11), makeNoise(12, seed + 12), makeNoise(24, seed + 13), makeNoise(48, seed + 14)];
+  const L3 = [makeNoise(7, seed + 21), makeNoise(14, seed + 22), makeNoise(28, seed + 23), makeNoise(56, seed + 24)];
   const grain = makeNoise(128, seed + 31);
   const cols = sc.camo.map(srgbBytes);
   const pattern = sc.pattern;
@@ -122,9 +124,9 @@ export function camoTexture(schemeId) {
         const q = 1 / 48;
         u = Math.floor(u / q) * q; v = Math.floor(v / q) * q;
       }
-      const a = fbm(L1, u, v, 1);
-      const b = fbm(L2, u + 0.37, v + 0.11, 1);
-      const e = fbm(L3, u + 0.71, v + 0.53, 1);
+      const a = fbm(L1, u, v);
+      const b = fbm(L2, u + 0.375, v + 0.125);
+      const e = fbm(L3, u + 0.75, v + 0.5);
       if (pattern === 'woodland') {
         if (a > 0.56) k = 1;
         if (b > 0.6) k = 2;
@@ -177,7 +179,7 @@ export function weaveNormal() {
     // Ripstop-Gitter + Köper + Knitter
     const grid = (x % 16 === 0 || y % 16 === 0) ? 0.22 : 0;
     const twill = ((x + y) % 4 < 2) ? 0.18 : 0;
-    h[y * N + x] = grid + twill + n1(x / N * 16, y / N * 16) * 0.9 + n2(x / 2, y / 2) * 0.25;
+    h[y * N + x] = grid + twill + n1(x / N * 16, y / N * 16) * 0.9 + n2(x / N * 64, y / N * 64) * 0.25;
   }
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const l = h[y * N + ((x - 1 + N) % N)], r = h[y * N + ((x + 1) % N)];
@@ -254,7 +256,7 @@ export function soldierMaterial(schemeId, { dissolve = false, quality = 'high' }
     fs = fs.replace('#include <map_fragment>', `
 	#ifdef USE_MAP
 		vec3 npCamo = texture2D( map, vMapUv ).rgb;
-		diffuseColor.rgb *= mix( vec3( 1.0 ), npCamo * 1.18, vNp.x );
+		diffuseColor.rgb *= mix( vec3( 1.0 ), npCamo, vNp.x );
 	#endif`);
     fs = fs.replace('#include <roughnessmap_fragment>', `
 	float npShine = vNp.w;

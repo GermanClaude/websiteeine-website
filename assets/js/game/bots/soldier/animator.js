@@ -161,10 +161,11 @@ export class Animator {
       this.poses.ready.p.z = z;
       this.poses.ads.p.z = z - 0.01;
       this.poses.reload.p.z = z + 0.02;
-      this.poses.ads.p.y = 0.075 - clamp(A.sight.y, 0.03, 0.12);
+      this.poses.ads.p.y = 0.15 - clamp(A.sight.y, 0.03, 0.12);
+      this.poses.ads.p.x = 0.05;
       if (this.cls === 'lmg') { this.poses.ready.p.y -= 0.03; this.poses.ready.p.x += 0.01; }
     } else if (this.kind === 'pistol') {
-      this.poses.ads.p.y = 0.085 - clamp(A.sight.y, 0.02, 0.06);
+      this.poses.ads.p.y = 0.15 - clamp(A.sight.y, 0.02, 0.06);
     }
     this.poleR = V().fromArray(base.pole.r).normalize();
     this.poleL = V().fromArray(base.pole.l).normalize();

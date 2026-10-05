@@ -78,7 +78,7 @@ export class Effects {
     this.add = new ParticleLayer({ capacity: ADD_CAP, additive: true, texture: atlas, name: 'fx-add' });
     this.fire = new ParticleLayer({ capacity: 96, additive: false, lit: false, texture: atlas, name: 'fx-fire' });
     this.fire.mesh.renderOrder = 11;
-    this.glints = new ParticleLayer({ capacity: 8, additive: true, texture: atlas, name: 'fx-glint' });
+    this.glints = new ParticleLayer({ capacity: 24, additive: true, texture: atlas, name: 'fx-glint' });
     this.glints.mesh.renderOrder = 14;
     this.tracers = new TracerLayer(TRACER_CAP);
     this.decals = new DecalLayer(getDecalAtlas(), DECAL_CAP);
@@ -738,11 +738,21 @@ export class Effects {
       if (!c.v) continue;
       const k = clamp((dot - 0.975) / 0.022, 0, 1) * clamp((w.adsProgress - 0.35) / 0.5, 0, 1);
       const pulse = 0.75 + 0.25 * Math.sin(now * 9 + (typeof a.id === 'number' ? a.id : String(a.id).length));
-      const size = (0.12 + dist * 0.022) * (0.6 + 0.4 * k);
+      const size = (0.2 + dist * 0.032) * (0.65 + 0.35 * k);
       const x = _t2.x + _w.x * 0.32, y = _t2.y + _w.y * 0.32 + 0.03, z = _t2.z + _w.z * 0.32;
-      const I = 3.2 * k * pulse;
-      this.glints.spawn(x, y, z, 0, 0, 0, 1, size, size, C.glint[0] * I, C.glint[1] * I, C.glint[2] * I, 1, CELL.STAR);
-      this.glints.spawn(x, y, z, 0, 0, 0, 1, size * 1.8, size * 1.8, 0.5 * I, 0.6 * I, 0.7 * I, 0.6, CELL.SOFT);
+      const I = 6 * k * pulse;
+      const L = this.glints;
+      L.spawn(x, y, z, 0, 0, 0, 1, size * 1.3, size * 1.3, C.glint[0] * I, C.glint[1] * I, C.glint[2] * I, 1, CELL.STAR);
+      L.spawn(x, y, z, 0, 0, 0, 1, size * 0.5, size * 0.5, 3 * I, 3 * I, 3 * I, 1, CELL.SOFT);
+      L.spawn(x, y, z, 0, 0, 0, 1, size * 1.9, size * 1.9, 0.5 * I, 0.6 * I, 0.75 * I, 0.6, CELL.SOFT);
+      // waagerechter Lichtstreif (anamorph)
+      _v.crossVectors(_dir, UP);
+      if (_v.lengthSq() > 1e-6) {
+        _v.normalize();
+        const len = size * 2.2;
+        const j = L.spawn(x + _v.x * len * 0.5, y, z + _v.z * len * 0.5, _v.x, 0, _v.z, 1, size * 0.16, size * 0.16, 0.7 * I, 0.8 * I, I, 0.8, CELL.SOFT);
+        L.stretch[j] = len;
+      }
     }
     if (this._glintLos.size > 48) this._glintLos.clear();
   }

@@ -518,8 +518,10 @@ export class Input {
       }
     }
 
-    // Auto-Feuer (Touch, „einfacher Modus“)
-    if (this.mode === 'touch' && G.settings.get('autoFire') && best && bestAng < Math.max(0.012, Math.atan(0.3 / bestDist))) {
+    // Auto-Feuer (Touch, „einfacher Modus“) – nur in Waffenreichweite und wenn die Waffe bereit ist (ballistics)
+    const wpn = player.weapon;
+    const wpnOk = !wpn || (wpn.autoFireReady !== false && bestDist <= (wpn.autoFireRange || 60));
+    if (this.mode === 'touch' && G.settings.get('autoFire') && best && wpnOk && bestAng < Math.max(0.012, Math.atan(0.3 / bestDist))) {
       const def = player.weapon && player.weapon.currentDef;
       const auto = def && def.fireMode === 'auto';
       if (auto) this._press('fire', 'auto');
