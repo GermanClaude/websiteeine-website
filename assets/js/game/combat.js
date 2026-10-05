@@ -88,15 +88,18 @@ export function raycastHumanoid(actor, ray, maxDist = Infinity) {
   let best = -1;
   let zone = null;
   const center = _v3;
+  // Lehnen (F5): Kopf um den vollen Versatz, Torso oben 70 %, unten 10 %, Beine nicht (Körper kippt in der Hüfte)
+  const lo = actor.leanOffset;
+  const lx = lo ? lo.x : 0, lz = lo ? lo.z : 0, ly = lo ? Math.min(0, lo.y || 0) : 0;
 
   // Kopf
-  _v2.set(p.x, p.y + h - HUMANOID.headFromTop, p.z);
+  _v2.set(p.x + lx, p.y + h - HUMANOID.headFromTop + ly, p.z + lz);
   let t = raySphere(ro, rd, _v2, HUMANOID.headRadius);
   if (t >= 0 && t <= maxDist) { best = t; zone = 'head'; center.copy(_v2); }
 
   // Torso
-  _pa.set(p.x, p.y + HUMANOID.torsoBottom * k, p.z);
-  _pb.set(p.x, p.y + Math.min(HUMANOID.torsoTop * k, h - HUMANOID.headFromTop - 0.1), p.z);
+  _pa.set(p.x + lx * 0.1, p.y + HUMANOID.torsoBottom * k, p.z + lz * 0.1);
+  _pb.set(p.x + lx * 0.7, p.y + Math.min(HUMANOID.torsoTop * k, h - HUMANOID.headFromTop - 0.1) + ly * 0.7, p.z + lz * 0.7);
   t = rayCapsule(ro, rd, _pa, _pb, HUMANOID.torsoRadius);
   if (t >= 0 && t <= maxDist && (best < 0 || t < best)) { best = t; zone = 'body'; closestOnSegment(ro, rd, t, _pa, _pb, center); }
 

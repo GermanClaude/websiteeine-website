@@ -9,8 +9,11 @@
 //  - Unterschritte gegen Tunneln, eine Octree-Abfrage pro Unterschritt.
 //  - stepOffset: vertikaler Versatz durch Stufen/Haftung im letzten step() (Kamera-Glättung).
 // position = Füße. `capsule` = volle Körperkapsel (für andere Systeme), `collisionCapsule` = schwebend.
+//
+// Zusätzlich (Realismus-Plan F5/F6): collisionRay() – Strahl gegen die Kollisionsgeometrie (Lehnen, Kanten),
+// probeLedge() – Kantensuche fürs Überklettern (0,5–1,3 m, auch dünne Hindernisse überspringen), canOccupy().
 
-import { Vector3 } from 'three';
+import { Vector3, Ray } from 'three';
 import { Capsule } from 'three/addons/math/Capsule.js';
 
 const _tris = [];
@@ -361,3 +364,128 @@ export function separateActors(actors, maxPush = 0.12) {
     }
   }
 }
+
+/* ===================================================================== Strahlen & Kanten */
+
+const _rayHit = { t: 0, tri: -1, nx: 0, ny: 0, nz: 0, data: 0 };
+const _ray3 = new Ray();
+const _o = new Vector3();
+const _d = new Vector3();
+const _occCap = new Capsule(new Vector3(), new Vector3(), 0.3);
+
+/**
+ * Strahl gegen die Kollisionsgeometrie der Welt (BVH der Kollision, sonst Octree, sonst Kugel-Raycast).
+ * dir normiert. → out = { distance, nx, ny, nz } oder null.
+ */
+export function collisionRay(world, origin, dir, maxDist, out = {}) {
+  if (!world) return null;
+  const cb = world.collisionBVH || (world.debugData && world.debugData.colliderBVH);
+  if (cb && typeof cb.raycast === 'function') {
+    if (!cb.raycast(origin.x, origin.y, origin.z, dir.x, dir.y, dir.z, maxDist, _rayHit)) return null;
+    out.distance = _rayHit.t; out.nx = _rayHit.nx; out.ny = _rayHit.ny; out.nz = _rayHit.nz;
+    return out;
+  }
+  const oc = world.collider;
+  if (oc && typeof oc.rayIntersect === 'function') {
+    _ray3.origin.copy(origin); _ray3.direction.copy(dir);
+    const r = oc.rayIntersect(_ray3);
+    if (!r || r.distance > maxDist) return null;
+    const n = r.triangle.getNormal(_d);
+    if (n.dot(dir) > 0) n.negate();
+    out.distance = r.distance; out.nx = n.x; out.ny = n.y; out.nz = n.z;
+    return out;
+  }
+  if (typeof world.raycast === 'function') {
+    const r = world.raycast(origin, dir, maxDist);
+    if (!r) return null;
+    out.distance = r.distance; out.nx = r.normal.x; out.ny = r.normal.y; out.nz = r.normal.z;
+    return out;
+  }
+  return null;
+}
+
+/** Passt eine Kapsel (Radius r, Höhe h, Füße bei pos) frei in die Welt? */
+export function canOccupy(world, pos, height, radius = 0.32) {
+  const collider = world && world.collider;
+  if (!collider || typeof collider.capsuleIntersect !== 'function') return true;
+  _occCap.radius = radius;
+  _occCap.start.set(pos.x, pos.y + radius + 0.04, pos.z);
+  _occCap.end.set(pos.x, pos.y + Math.max(height - radius, radius + 0.06), pos.z);
+  const hit = collider.capsuleIntersect(_occCap);
+  return !hit || hit.depth < 0.012;
+}
+
+const _hitA = {};
+const _hitB = {};
+
+/**
+ * Kantensuche fürs Überklettern (F6): Wand in Laufrichtung (dirX, dirZ normiert, waagerecht) in Hüfthöhe, Oberkante
+ * per Abwärtsstrahl, Platz für den geduckten Körper oben und freie Bahn über die Kante. Dünne Hindernisse bis
+ * vaultMax Höhe werden übersprungen (vault), sonst wird auf die Oberkante geklettert.
+ * opts: { reach = 0.7, minH = 0.5, maxH = 1.3, vaultMax = 1.1, crouchH = 1.15 }
+ * → { height, topY, wallDist, nx, nz, end: Vector3 (Füße am Ende), vault: bool, depth } | null
+ */
+export function probeLedge(world, body, dirX, dirZ, opts = {}) {
+  const { reach = 0.7, minH = 0.5, maxH = 1.3, vaultMax = 1.1, crouchH = 1.15 } = opts;
+  if (!world) return null;
+  const p = body.position;
+  const r = body.radius;
+  _d.set(dirX, 0, dirZ);
+  if (_d.lengthSq() < 1e-6) return null;
+  _d.normalize();
+  // 1) Wand vor dem Körper (zwei Höhen: Knie und Hüfte)
+  let wall = null;
+  for (const hy of [minH - 0.12, Math.min(maxH - 0.15, 0.85)]) {
+    _o.set(p.x, p.y + hy, p.z);
+    const h = collisionRay(world, _o, _d, r + reach, _hitA);
+    if (h && Math.abs(h.ny) < 0.6 && (!wall || h.distance < wall.distance)) wall = { distance: h.distance, nx: h.nx, nz: h.nz };
+  }
+  if (!wall) return null;
+  // nur frontal genug (nicht an einer Wand entlangschrammen)
+  const facing = -(wall.nx * _d.x + wall.nz * _d.z) / Math.max(1e-3, Math.hypot(wall.nx, wall.nz));
+  if (facing < 0.45) return null;
+  // 2) Oberkante: Abwärtsstrahl knapp hinter der Wandfläche
+  const probe = wall.distance + 0.2;
+  const topStart = p.y + maxH + 0.65;
+  _o.set(p.x + _d.x * probe, topStart, p.z + _d.z * probe);
+  const down = collisionRay(world, _o, _v3down, maxH + 0.65 - minH + 0.25, _hitB);
+  if (!down || down.ny < 0.7) return null;
+  const topY = topStart - down.distance;
+  const height = topY - p.y;
+  if (height < minH - 0.06 || height > maxH + 0.04) return null;
+  // Über dem Startpunkt des Abwärtsstrahls darf nichts hängen (sonst steckt der Kopf in der Decke)
+  _o.set(p.x + _d.x * probe, topY + 0.05, p.z + _d.z * probe);
+  if (collisionRay(world, _o, _v3up, crouchH + 0.05, _hitA)) return null;
+  // 3) freie Bahn über die Kante (in Hüft- und Kopfhöhe des geduckten Körpers über der Oberkante)
+  for (const hy of [0.3, crouchH - 0.2]) {
+    _o.set(p.x, topY + hy, p.z);
+    if (collisionRay(world, _o, _d, wall.distance + r + 0.45, _hitA)) return null;
+  }
+  // 4) dünn? → überspringen (Boden dahinter deutlich tiefer als die Oberkante)
+  let vault = false;
+  let depth = Infinity;
+  if (height <= vaultMax) {
+    for (const k of [0.3, 0.5, 0.7, 0.9]) {
+      _o.set(p.x + _d.x * (wall.distance + k), topY + 0.25, p.z + _d.z * (wall.distance + k));
+      const g = collisionRay(world, _o, _v3down, 0.6, _hitA);
+      if (!g) { depth = k - 0.05; break; }
+    }
+    if (depth <= 0.9) vault = true;
+  }
+  const end = new Vector3();
+  if (vault) {
+    // Landeplatz hinter dem Hindernis (Füße in Oberkantenhöhe; danach fällt der Körper normal)
+    const d = wall.distance + depth + r + 0.12;
+    end.set(p.x + _d.x * d, topY + 0.06, p.z + _d.z * d);
+    if (!canOccupy(world, end, crouchH, r * 0.92)) vault = false;
+  }
+  if (!vault) {
+    const d = wall.distance + r + 0.1;
+    end.set(p.x + _d.x * d, topY + 0.02, p.z + _d.z * d);
+    if (!canOccupy(world, end, crouchH, r * 0.92)) return null;
+  }
+  return { height, topY, wallDist: wall.distance, nx: wall.nx, nz: wall.nz, end, vault, depth: Number.isFinite(depth) ? depth : null };
+}
+
+const _v3down = new Vector3(0, -1, 0);
+const _v3up = new Vector3(0, 1, 0);

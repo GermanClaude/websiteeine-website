@@ -234,7 +234,7 @@ class SampleLibrary {
       this.stats.decodeMs += clock() - t0;
       if (wantCh === 1 && buf.numberOfChannels > 1) buf = await this._mono(buf, dec);
       const t1 = clock();
-      const offset = this._lead(buf, meta.peakDb);
+      const offset = s.layer === 'bed' ? 0 : this._lead(buf, meta.peakDb); // Schleifen nahtlos lassen
       const bytes = buf.length * buf.numberOfChannels * 4;
       const list = this.buffers.get(j.name) || [];
       if (!list.some((x) => x.v === j.v)) {

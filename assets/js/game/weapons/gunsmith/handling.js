@@ -79,22 +79,39 @@ const absSprint = (std, hip, hipRot) => ({
   sprintRot: std.sprintRot.map((v, i) => +(std.hipRot[i] + v - hipRot[i]).toFixed(4)),
 });
 const bcRifle = (key, hip, hipRot, extra = {}) => ({ hip, hipRot, ...absSprint(HANDLING[key], hip, hipRot), crouchPos: [-0.008, -0.004, 0.01], crouchRot: [0, 0, 0.05], ...extra });
+// Gewehre einheitlich (Griffpunkt-Ursprung macht die Modelle vergleichbar): tiefer und näher an der Brust, Mündung
+// zur Bildmitte, leicht gekantet; Pistolen beidhändig vor der Brust, Mündung gerade nach vorn.
+const BC_RIFLE_HIP = [0.075, -0.23, -0.41], BC_RIFLE_ROT = [0.035, 0.05, 0.1];
+const BC_PISTOL = { crouchPos: [-0.006, -0.003, 0.006], crouchRot: [0, 0, 0.04] };
 export const BODYCAM = {
-  m17: bcRifle('m17', [0.07, -0.2, -0.45], [0.05, 0.06, 0.05]),
-  kv47: bcRifle('kv47', [0.08, -0.17, -0.41], [0.05, 0.06, 0.05]),
-  sk14: bcRifle('sk14', [0.07, -0.2, -0.45], [0.05, 0.06, 0.05]),
-  vp9: bcRifle('vp9', [0.08, -0.155, -0.38], [0.05, 0.06, 0.05]),
-  qx90: bcRifle('qx90', [0.075, -0.16, -0.39], [0.05, 0.06, 0.05]),
-  hm60: bcRifle('hm60', [0.085, -0.185, -0.42], [0.04, 0.06, 0.05]),
-  brecher: bcRifle('brecher', [0.08, -0.165, -0.4], [0.04, 0.06, 0.05]),
-  bulldog: bcRifle('bulldog', [0.08, -0.16, -0.4], [0.04, 0.06, 0.05]),
-  p9: bcRifle('p9', [0.06, -0.15, -0.34], [0.0, 0.03, 0.0], { crouchPos: [-0.006, -0.003, 0.006], crouchRot: [0, 0, 0.04] }),
-  adler: bcRifle('adler', [0.06, -0.15, -0.34], [0.0, 0.03, 0.0], { crouchPos: [-0.006, -0.003, 0.006], crouchRot: [0, 0, 0.04] }),
+  m17: bcRifle('m17', BC_RIFLE_HIP, BC_RIFLE_ROT),
+  kv47: bcRifle('kv47', BC_RIFLE_HIP, BC_RIFLE_ROT),
+  sk14: bcRifle('sk14', BC_RIFLE_HIP, BC_RIFLE_ROT),
+  vp9: bcRifle('vp9', BC_RIFLE_HIP, BC_RIFLE_ROT),
+  qx90: bcRifle('qx90', BC_RIFLE_HIP, BC_RIFLE_ROT),
+  hm60: bcRifle('hm60', BC_RIFLE_HIP, BC_RIFLE_ROT),
+  brecher: bcRifle('brecher', BC_RIFLE_HIP, BC_RIFLE_ROT),
+  bulldog: bcRifle('bulldog', BC_RIFLE_HIP, BC_RIFLE_ROT),
+  p9: bcRifle('p9', [0.06, -0.15, -0.34], [0.0, 0.03, 0.0], BC_PISTOL),
+  adler: bcRifle('adler', [0.06, -0.15, -0.34], [0.0, 0.03, 0.0], BC_PISTOL),
 };
 
-/** Haltungsdaten (hip, hipRot, sprintPos, sprintRot, crouchPos, crouchRot) für 'standard' | 'bodycam'. */
+
+/**
+ * Haltungsdaten (hip, hipRot, sprintPos, sprintRot, crouchPos, crouchRot) für 'standard' | 'bodycam'.
+ * Modelle ohne eigenen Eintrag (neue Waffen) nutzen in der Körperkamera-Haltung die Gewehr- bzw. Pistolenwerte.
+ */
+const _bcCache = new Map();
 export function poseFor(modelKey, pose = 'standard') {
   const h = handlingFor(modelKey);
-  const bc = pose === 'bodycam' ? BODYCAM[modelKey] : null;
-  return bc || h;
+  if (pose !== 'bodycam' || h.action === 'knife') return h;
+  if (BODYCAM[modelKey]) return BODYCAM[modelKey];
+  let bc = _bcCache.get(h);
+  if (!bc) {
+    const pistol = h.action === 'pistol';
+    const hip = pistol ? [0.06, -0.15, -0.34] : BC_RIFLE_HIP, rot = pistol ? [0.0, 0.03, 0.0] : BC_RIFLE_ROT;
+    bc = { hip, hipRot: rot, ...absSprint(h, hip, rot), crouchPos: pistol ? BC_PISTOL.crouchPos : [-0.008, -0.004, 0.01], crouchRot: pistol ? BC_PISTOL.crouchRot : [0, 0, 0.05] };
+    _bcCache.set(h, bc);
+  }
+  return bc;
 }
