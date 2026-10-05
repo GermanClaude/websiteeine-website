@@ -292,7 +292,7 @@ export const HANDLING = {
     const beep = buf(sr, 0.06);
     sine(beep, sr, 0, 0.06, () => 3150, ahr(0.002, 0.03, 0.008));
     drive(beep, 2.5);
-    mixAt(d, sr, beep, 0.17, 0.32); mixAt(d, sr, beep, 0.29, 0.32);
+    mixAt(d, sr, beep, 0.17, 0.2); mixAt(d, sr, beep, 0.29, 0.2);
     return normalize(d, 0.85);
   },
   low_ammo: (sr, R) => {

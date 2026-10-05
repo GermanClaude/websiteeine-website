@@ -698,6 +698,8 @@ function releaseLostContext() {
       }
       if (o.isInstancedMesh && typeof o.dispose === 'function') o.dispose();
       if (o.isSkinnedMesh && o.skeleton && once(o.skeleton)) o.skeleton.dispose();
+      // Schattenkarten sind reine GPU-Ziele (Inhalt ohnehin verloren): freigeben, three.js legt sie neu an
+      if (o.isLight && o.shadow && o.shadow.map) { o.shadow.map.dispose(); o.shadow.map = null; }
     });
     const bg = scene.background;
     if (bg && bg.isTexture && !bg.isRenderTargetTexture && once(bg)) bg.dispose();
@@ -792,12 +794,14 @@ function applyQuality(q) {
   return G.renderer.quality;
 }
 
-/** Wird bei jedem Wechsel vom Renderer gerufen (auch für fremde Aufrufer von renderer.setQuality). */
+/**
+ * Wird bei jedem Wechsel vom Renderer gerufen (auch für fremde Aufrufer von renderer.setQuality).
+ * Die Welt abonniert onQualityChange selbst (world/index.js → world.setQuality: Sonnenschatten an/aus, Größe);
+ * Viewmodel und Effekte ebenso.
+ */
 function onQualityChanged() {
   applyQualityClasses();
-  // Sonnenschatten der Welt folgen der Stufe (Shadow-Map an/aus, Größe)
-  if (G.world && typeof G.world.setQuality === 'function') safe('world.setQuality', () => G.world.setQuality(G.renderer.preset));
-  prewarmShaders();
+  setTimeout(prewarmShaders, 0); // nach den übrigen Abonnenten (Schattenzustand der Welt)
 }
 
 let prewarming = false;

@@ -2,7 +2,7 @@
 // Gewebe-Normalmap und ein MeshStandardMaterial mit kleinem Shader-Zusatz:
 //   Attribut aNp = (Tarnmuster-Anteil, Gewebe-Detail, Leuchtanteil, Glanz/Metall 0..1)
 //   uDissolve   = Auflösen der Leiche (Rasterrauschen, ohne Transparenz-Sortierung)
-//   uRim/uRimColor/uRimTint = Randlicht-Saum (Gegner kräftiger und zur Teamfarbe getönt)
+//   uRim/uRimPow/uRimColor/uRimTint = Randlicht-Saum (Gegner kräftiger, breiter, zur Teamfarbe getönt)
 // Alle Schemata teilen ein Shaderprogramm; nur Tarntextur und Uniform-Werte unterscheiden sich.
 // Gegnerschemata werden je Karte nach Helligkeit gewählt (schemeForTeam/ffaSchemes), damit sich
 // Gegner von Wänden und Boden abheben (Ziel: Leuchtdichte-Kontrast ≥ 1,8 : 1).
@@ -250,6 +250,7 @@ varying vec3 vNpPos;
 uniform float uDissolve;
 uniform vec3 uDissolveColor;
 uniform float uRim;
+uniform float uRimPow;
 uniform float uRimTint;
 uniform vec3 uRimColor;
 `;
@@ -278,7 +279,8 @@ export function soldierMaterial(schemeId, { dissolve = false, quality = 'high' }
   m.userData.uDissolve = { value: 0 };
   m.userData.uDissolveColor = { value: new THREE.Color(0x0b0b0b) };
   // Randlicht: Verbündete dezent, Gegner kräftiger und zur Teamfarbe getönt (Silhouette auch im Schatten)
-  m.userData.uRim = { value: sc.hostile ? 0.8 : 0.45 };
+  m.userData.uRim = { value: sc.hostile ? 0.95 : 0.45 };
+  m.userData.uRimPow = { value: sc.hostile ? 2.2 : 3 }; // breiterer Saum bei Gegnern (Umriss auch im Schatten)
   m.userData.uRimTint = { value: sc.hostile ? 0.35 : 0 };
   m.userData.uRimColor = { value: new THREE.Color(sc.accent) };
   m.userData.soldier = true;
@@ -286,6 +288,7 @@ export function soldierMaterial(schemeId, { dissolve = false, quality = 'high' }
     shader.uniforms.uDissolve = m.userData.uDissolve;
     shader.uniforms.uDissolveColor = m.userData.uDissolveColor;
     shader.uniforms.uRim = m.userData.uRim;
+    shader.uniforms.uRimPow = m.userData.uRimPow;
     shader.uniforms.uRimTint = m.userData.uRimTint;
     shader.uniforms.uRimColor = m.userData.uRimColor;
     shader.vertexShader = VERT_HEAD + shader.vertexShader
@@ -314,7 +317,7 @@ export function soldierMaterial(schemeId, { dissolve = false, quality = 'high' }
 	// Randlicht-Saum (Silhouette lesbar vor dunklem/unruhigem Hintergrund; Gegner zur Teamfarbe getönt)
 	float npRim = 1.0 - clamp( dot( normal, normalize( vViewPosition ) ), 0.0, 1.0 );
 	vec3 npRimCol = mix( diffuseColor.rgb * 0.6 + vec3( 0.05, 0.055, 0.06 ), uRimColor * 0.5, uRimTint );
-	totalEmissiveRadiance += npRimCol * pow( npRim, 3.0 ) * uRim;
+	totalEmissiveRadiance += npRimCol * pow( npRim, uRimPow ) * uRim;
 	if (uDissolve > 0.0 && npDis < uDissolve + 0.035) totalEmissiveRadiance += vec3(1.0, 0.36, 0.08) * 0.6;`);
     shader.fragmentShader = fs;
   };

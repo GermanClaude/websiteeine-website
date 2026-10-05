@@ -140,6 +140,29 @@ export function grainNormal() {
   });
 }
 
+// Polymer-Albedo (sRGB, grau → mit material.color multipliziert): wolkige Spritzguss-Fleckung, feine
+// dunkle Sprenkel und hellere Abriebstellen, damit helle Kunststoffteile (FDE) nicht als flache Farbfläche wirken.
+export function polymerMap() {
+  return cached('polymerAlb', () => {
+    const S = 256, c = canvas(S, S), ctx = c.getContext('2d');
+    const cloud = fbm(S, S, { seed: 23, period: 4, octaves: 4, gain: 0.55 });
+    const fine = fbm(S, S, { seed: 27, period: 48, octaves: 2, gain: 0.5 });
+    const wear = fbm(S, S, { seed: 29, period: 10, octaves: 3, gain: 0.5 });
+    const r = rng(31);
+    const img = ctx.createImageData(S, S), d = img.data;
+    for (let i = 0; i < S * S; i++) {
+      let v = 0.8 + cloud[i] * 0.2 + (fine[i] - 0.5) * 0.08;
+      const w = wear[i];
+      if (w > 0.66) v += (w - 0.66) * 0.55;            // abgegriffene, hellere Stellen
+      if (r() < 0.012) v *= 0.72 + r() * 0.16;          // Sprenkel
+      const g = Math.max(0, Math.min(255, Math.round(v * 236)));
+      d[i * 4] = g; d[i * 4 + 1] = g; d[i * 4 + 2] = g; d[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    return toTexture(c, { srgb: true });
+  });
+}
+
 // Stippling für Griffflächen
 export function stippleNormal() {
   return cached('stippleN', () => {
@@ -204,13 +227,18 @@ export function woodMap(scheme = 'warm') {
   });
 }
 
-// Tarnmuster (eigenes Muster „NP-Flecktarn“, Albedo sRGB)
+// Tarnpaletten der Ärmel: [Grund, Fleck 1, Fleck 2, Fleck 3 (dunkel), hell]
+export const CAMO_PALETTES = {
+  arid: ['#9a8a68', '#6f6448', '#4d5236', '#3a3226', '#b9ab88'],
+  wood: ['#5d6146', '#3f4530', '#2c2f22', '#6f6650', '#7f7a5c'],
+  neutral: ['#585b54', '#41443e', '#4f5650', '#2c2f2c', '#6e7168'],   // Jeder gegen jeden: keine Teamfarbe
+};
+
+// Tarnmuster (eigenes Muster „NP-Flecktarn“, Albedo sRGB). scheme: Palettenname oder Array aus 5 Hex-Farben.
 export function camoMap(scheme = 'arid') {
-  return cached('camo:' + scheme, () => {
+  const P = Array.isArray(scheme) ? scheme : CAMO_PALETTES[scheme] || CAMO_PALETTES.arid;
+  return cached('camo:' + P.join(','), () => {
     const S = 512, c = canvas(S, S), ctx = c.getContext('2d');
-    const P = scheme === 'arid'
-      ? ['#9a8a68', '#6f6448', '#4d5236', '#3a3226', '#b9ab88']
-      : ['#5d6146', '#3f4530', '#2c2f22', '#6f6650', '#7f7a5c'];
     const img = ctx.createImageData(S, S), d = img.data;
     const n1 = fbm(S, S, { seed: 41, period: 5, octaves: 4 });
     const n2 = fbm(S, S, { seed: 42, period: 7, octaves: 4 });

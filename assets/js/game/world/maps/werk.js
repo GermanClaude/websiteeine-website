@@ -28,11 +28,11 @@ export default {
   lighting: {
     sun: { elevation: 8, azimuth: 252, color: '#ffae70', intensity: 2.6 },
     sky: { turbidity: 9, rayleigh: 2.2, mieCoefficient: 0.012, mieDirectionalG: 0.82, exposure: 0.42, tint: '#c8ccd8', clouds: { coverage: 0.82, density: 0.62, scale: 0.00016, elevation: 0.45, speed: 0.00002 }, hazeHigh: 0.2, hazeAmount: 0.95 },
-    hemi: { sky: '#a6b2c6', ground: '#6a5e50', intensity: 1.55 },
-    env: { intensity: 0.8, ground: '#5c554c', groundIntensity: 0.6, tint: '#c4ccdc' },
+    hemi: { sky: '#a6b2c6', ground: '#7d7064', intensity: 1.55 },
+    env: { intensity: 1.0, ground: '#5c554c', groundIntensity: 0.6, tint: '#c4ccdc' },
     fog: { color: '#7c8596', near: 45, far: 280 },
     shadow: { size: 40, bias: -0.0005 },
-    exposure: 1.22,
+    exposure: 1.45,
   },
 
   build(b, ctx) {
@@ -43,9 +43,9 @@ export default {
     // -----------------------------------------------------------------------
     // Boden
     // -----------------------------------------------------------------------
-    b.groundTiled(-52, -48, -HX, 48, 'asphalt', { cell: 1, tint: '#d6d2c6' });
-    b.groundTiled(-HX, -48, HX, -HZ, 'asphalt', { cell: 1, tint: '#d6d2c6' });
-    b.groundTiled(-HX, HZ, HX, 48, 'asphalt', { cell: 1, tint: '#d6d2c6' });
+    b.groundTiled(-52, -48, -HX, 48, 'asphalt', { cell: 1, tint: '#e2ddd2' });
+    b.groundTiled(-HX, -48, HX, -HZ, 'asphalt', { cell: 1, tint: '#e2ddd2' });
+    b.groundTiled(-HX, HZ, HX, 48, 'asphalt', { cell: 1, tint: '#e2ddd2' });
     b.groundTiled(-HX, -HZ, HX, HZ, 'concrete', { cell: 1, tint: '#a8a49c' });
     b.groundTiled(HX, -48, 52, 48, 'concrete', { cell: 1, tint: '#b8b2a6' });
     // Kulisse
@@ -95,7 +95,7 @@ export default {
     for (const [x, z] of sB) spawns.B.push({ x, z, yaw: Math.PI });
     for (const [x, z] of [
       [-46, 24], [-44, -12], [-31, 30], [-30, -33], [-24.5, 5], [-14, 17], [-12, -16], [-8, 5], [9, -6], [13, 15], [12, -24],
-      [26, 18], [26, -14], [36, 16], [37, -5], [48, 12], [47.5, -30], [24, -38],
+      [26, 18], [26, -14], [36, 16], [35, 0], [48, 12], [47.5, -30], [24, -38],
     ]) spawns.ffa.push({ x, z });
     return {
       spawns,

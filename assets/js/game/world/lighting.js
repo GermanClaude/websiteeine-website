@@ -127,7 +127,8 @@ export function createLighting(G, def, group) {
   let envMap = null, pmremRT = null;
   if (renderer && renderer.isWebGLRenderer) {
     const pmrem = new THREE.PMREMGenerator(renderer);
-    pmremRT = pmrem.fromScene(envScene, 0.02, 0.1, 2000);
+    // weicher Himmel braucht keine hohe Auflösung: low 128² je Würfelseite (¼ der Rechenzeit), sonst 256²
+    pmremRT = pmrem.fromScene(envScene, 0.02, 0.1, 2000, { size: preset.id === 'low' ? 128 : 256 });
     envMap = pmremRT.texture;
     pmrem.dispose();
   }

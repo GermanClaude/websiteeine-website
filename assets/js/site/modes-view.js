@@ -211,7 +211,9 @@ export async function init(sec, D, ctx = {}) {
   }
   list.replaceWith(ol);
   ol.id = 'modes-list';
-  for (const r of rows) { fit(r.name, { now: true }); r.kin = new Kinetic(r.name); }
+  // Alle Namen in einem Durchgang setzen (ein Lese-/Schreibzyklus statt fünf erzwungener Layouts)
+  rows.forEach((r, i) => fit(r.name, { now: i === rows.length - 1 }));
+  for (const r of rows) r.kin = new Kinetic(r.name);
 
   const linkFor = (r) => {
     if (r.id === 'training') return buildPlayUrl({ mode: 'training' });

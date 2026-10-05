@@ -57,7 +57,11 @@ export function restoreAtlases() { for (const a of liveAtlases) a.redraw(); }
 export const DECAL_CELLS = {
   oil: 0, stain: 1, cracks: 2, puddle: 3, manhole: 4, drain: 5, arrow: 6, hatch: 7,
   leaves: 8, tire: 9, drip: 10, soot: 11, paper: 12, sanddrift: 13, moss: 14, line: 15,
+  // Putzschäden für Wände (werden vom MapBuilder weltweit verstreut statt in die Kacheltextur gebacken)
+  chip_stone: 16, chip_brick: 17, plaster_patch: 18, damp: 19,
 };
+/** Zeilen des Decal-Atlas (je 4 Zellen à 256 px in 1024er-Koordinaten). */
+export const DECAL_ROWS = 5;
 
 let decalAtlas = null, decalMats = null, decalSize = 0;
 
@@ -173,6 +177,64 @@ function drawDecalAtlas(ctx, S) {
   cell(14, () => { blob(ctx, r, 128, 128, 110, '70,88,40', 0.55, 16); });
   // 15 Markierungslinie
   cell(15, () => { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 96, 256, 64); wear(ctx, r, 0, 96, 256, 64, 300); });
+
+  // Ausgebrochene Putzstelle: unregelmäßiger Umriss, darin Mauerwerk, oben Schattenkante, ringsum heller Putzrand
+  const chip = (masonry) => {
+    const pts = [];
+    const n = 22;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2, rr = 78 + (r() - 0.5) * 46 + Math.sin(a * 3 + r()) * 12;
+      pts.push([128 + Math.cos(a) * rr * 1.18, 128 + Math.sin(a) * rr * 0.82]);
+    }
+    const path = () => { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); };
+    // Putzkante (heller Rand, etwas größer)
+    ctx.save(); ctx.translate(128, 128); ctx.scale(1.08, 1.1); ctx.translate(-128, -128); path(); ctx.fillStyle = 'rgba(236,230,218,0.95)'; ctx.fill(); ctx.restore();
+    ctx.save(); path(); ctx.clip();
+    masonry();
+    // Schatten der oberen Putzkante + leichte Verschmutzung
+    const g = ctx.createLinearGradient(0, 20, 0, 120);
+    g.addColorStop(0, 'rgba(20,16,12,0.55)'); g.addColorStop(1, 'rgba(20,16,12,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256);
+    blob(ctx, r, 128, 150, 90, '60,52,42', 0.18, 6);
+    ctx.restore();
+  };
+  cell(16, () => chip(() => {
+    ctx.fillStyle = '#6f675c'; ctx.fillRect(0, 0, 256, 256); // Mörtel
+    for (let y = 18; y < 256; y += 30 + r() * 10) {
+      for (let x = -20 + r() * 30; x < 256; x += 34 + r() * 22) {
+        const w = 26 + r() * 22, h = 20 + r() * 9, v = 120 + r() * 60;
+        ctx.fillStyle = `rgb(${v + 18},${v + 8},${v - 12})`;
+        ctx.beginPath(); ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, (r() - 0.5) * 0.3, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }));
+  cell(17, () => chip(() => {
+    ctx.fillStyle = '#8a8070'; ctx.fillRect(0, 0, 256, 256);
+    for (let row = 0, y = 4; y < 256; row++, y += 26) {
+      for (let x = (row % 2) * -28; x < 256; x += 56) {
+        const v = r();
+        ctx.fillStyle = `rgb(${150 + v * 40},${78 + v * 25},${56 + v * 18})`;
+        ctx.fillRect(x + 2, y + 2, 52, 22);
+      }
+    }
+  }));
+  // Ausgebesserte Stelle (Farbe kommt vom Wandton)
+  cell(18, () => {
+    ctx.fillStyle = 'rgba(214,208,198,0.55)';
+    ctx.beginPath();
+    for (let i = 0; i < 18; i++) { const a = (i / 18) * Math.PI * 2, rr = 92 + (r() - 0.5) * 30; ctx[i ? 'lineTo' : 'moveTo'](128 + Math.cos(a) * rr * 1.1, 128 + Math.sin(a) * rr * 0.85); }
+    ctx.closePath(); ctx.fill();
+    blob(ctx, r, 128, 128, 70, '120,112,100', 0.12, 6);
+  });
+  // Aufsteigende Feuchte (Unterkante dunkel, nach oben ausfransend)
+  cell(19, () => {
+    for (let i = 0; i < 26; i++) {
+      const x = 10 + r() * 236, top = 70 + r() * 110, w = 20 + r() * 50;
+      const g = ctx.createLinearGradient(0, 256, 0, top);
+      g.addColorStop(0, 'rgba(58,48,36,0.42)'); g.addColorStop(1, 'rgba(58,48,36,0)');
+      ctx.fillStyle = g; ctx.fillRect(x - w / 2, top, w, 256 - top);
+    }
+  });
 }
 
 /** Materialien für Decals (gemeinsamer Atlas; 1024² bzw. 512² auf low – Größenwechsel tauscht nur die Textur). */
@@ -180,7 +242,7 @@ export function createDecalMaterials(quality = 'high') {
   const S = Math.round(1024 * atlasScale(quality));
   if (decalMats && decalSize === S) return decalMats;
   const old = decalAtlas;
-  decalAtlas = atlasTexture(S, S, (ctx, w) => drawDecalAtlas(ctx, w), { anisotropy: 4, name: 'decals' });
+  decalAtlas = atlasTexture(S, Math.round(S * DECAL_ROWS / 4), (ctx, w) => drawDecalAtlas(ctx, w), { anisotropy: 4, name: 'decals' });
   decalSize = S;
   if (decalMats) {
     for (const m of Object.values(decalMats)) m.map = decalAtlas;

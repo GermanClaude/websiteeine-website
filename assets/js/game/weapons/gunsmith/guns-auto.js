@@ -20,8 +20,12 @@ export function vp9(b) {
     for (const s of [-1, 1]) b.box('steel', 0.002, 0.006, 0.2, s * 0.0188, 0.05, 0.05, { c: 0.0008 });
     for (const [u, v] of [[-0.05, 0.045], [0.12, 0.045], [-0.07, 0.07]]) { b.screw('steelBright', 0.019, v, u, 'x', 0.003); b.screw('steelBright', -0.019, v, u, 'x', 0.003); }
   }
-  // Endkappe hinten + Schulterstützen-Führung
+  // Endkappe hinten + Schulterstützen-Führung (Rückseite im Anschlag sichtbar: Aufnahme + Haltebolzen)
   b.box('steel', 0.042, 0.06, 0.012, 0, 0.064, -0.086, { c: 0.003 });
+  if (b.hi) {
+    b.box('steelDark', 0.022, 0.034, 0.0016, 0, 0.06, -0.0928, { c: 0.002 });
+    for (const s of [-1, 1]) b.cyl('steelBright', 0.0025, 0.0025, 0.0016, s * 0.0148, 0.085, -0.0925, { seg: 10 });
+  }
   // Spannhebel-Rohr oben vorn
   b.cyl('steel', 0.0118, 0.0118, 0.2, 0, 0.084, 0.3, { seg: b.seg(14, 6) });
   b.cyl('steel', 0.0118, 0.0105, 0.012, 0, 0.084, 0.406, { seg: b.seg(14, 6) });
@@ -32,11 +36,16 @@ export function vp9(b) {
   b.cyl('polymer', 0.005, 0.005, 0.012, -0.034, 0.1, 0.31, { part: 'charge', axis: 'x', rz: 0.5, seg: b.seg(10, 5) });
   b.anchor('chargeGrab', -0.036, 0.1, 0.31, { part: 'charge', data: { travel: [0, 0, 0.075], style: 'hkslap' } });
   if (b.hi) b.box('cavity', 0.002, 0.004, 0.09, -0.0118, 0.088, 0.26, { c: 0 });               // Schlitz im Rohr
-  // Kimme: Trommel-Diopter hinten
-  b.box('steel', 0.03, 0.012, 0.03, 0, 0.098, -0.06, { c: 0.003 });
-  b.cyl('steel', 0.0085, 0.0085, 0.024, 0, 0.1, -0.06, { axis: 'x', seg: b.seg(14, 6) });
-  b.box('steel', 0.008, 0.012, 0.008, 0, 0.108, -0.06, { c: 0.001 });
-  b.torus('steel', 0.0068, 0.0024, 0, 0.1145, -0.06, { seg: b.seg(8, 4), tseg: b.seg(18, 8) });
+  // Kimme: Trommel-Diopter hinten. Im Anschlag blickt das Auge durch die Lochblende (Ø 8,4 mm) einer
+  // Trommelscheibe – der dunkle Ring rahmt Korn und Kornschutz (wie beim Vorbild), statt eines Blocks.
+  const sv = 0.1145;
+  b.box('steel', 0.028, 0.01, 0.026, 0, 0.096, -0.06, { c: 0.002 });                           // Sockel
+  b.cyl('steel', 0.0072, 0.0072, 0.026, 0, 0.1025, -0.06, { axis: 'x', seg: b.seg(14, 6) });    // Trommelachse
+  b.front('steel', ellipsePts(0, sv, 0.0122, 0.0122, b.seg(24, 8)), 0.009, -0.0645, { holes: [ellipsePts(0, sv, 0.0042, 0.0042, b.seg(16, 6))], bevel: 0.0012, curveSeg: 6 });
+  if (b.hi) {
+    // Schutzohren seitlich der Trommel
+    for (const s of [-1, 1]) b.side('steel', [[-0.074, 0.098], [-0.046, 0.098], [-0.048, 0.121], [-0.056, 0.127], [-0.068, 0.127], [-0.074, 0.12]], 0.0035, s * 0.0158, { bevel: 0.0008 });
+  }
   // Korn: geschlossener Ringtunnel vorn
   b.box('steel', 0.016, 0.014, 0.022, 0, 0.097, 0.392, { c: 0.002 });
   b.torus('steel', 0.0105, 0.0026, 0, 0.1125, 0.392, { rx: 0, seg: b.seg(8, 4), tseg: b.seg(20, 8) });

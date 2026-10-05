@@ -32,9 +32,9 @@ function lin(hex) { const c = new THREE.Color(hex); return [c.r, c.g, c.b]; }
 
 // Oberflächen: Staubfarbe, Splitterfarbe, Einschuss-Zellen, Lochgröße (m), Art
 const SURF = {
-  concrete: { dust: lin('#aaa499'), chip: lin('#5d5952'), decal: [DECAL.CONCRETE, DECAL.CONCRETE_B], size: 0.16, kind: 'hard' },
-  tile: { dust: lin('#d4ccbe'), chip: lin('#9c907f'), decal: [DECAL.PLASTER], size: 0.14, kind: 'hard' },
-  plaster: { dust: lin('#e8decd'), chip: lin('#c9bca6'), decal: [DECAL.PLASTER], size: 0.16, kind: 'hard' },
+  concrete: { dust: lin('#aaa499'), chip: lin('#5d5952'), decal: [DECAL.CONCRETE, DECAL.CONCRETE_B], size: 0.2, kind: 'hard' },
+  tile: { dust: lin('#d4ccbe'), chip: lin('#9c907f'), decal: [DECAL.PLASTER], size: 0.18, kind: 'hard' },
+  plaster: { dust: lin('#e8decd'), chip: lin('#c9bca6'), decal: [DECAL.PLASTER], size: 0.2, kind: 'hard' },
   metal: { dust: lin('#8b8b88'), chip: lin('#55585d'), decal: [DECAL.METAL], size: 0.12, kind: 'metal' },
   wood: { dust: lin('#b39672'), chip: lin('#6c4d30'), decal: [DECAL.WOOD], size: 0.15, kind: 'wood' },
   dirt: { dust: lin('#86705a'), chip: lin('#46372a'), decal: [DECAL.SOFT], size: 0.24, kind: 'soft' },
@@ -287,14 +287,17 @@ export class Effects {
   }
 
   _impactHard(x, y, z, nx, ny, nz, S, lod, g) {
-    this._flash(x, y, z, 0.32 * g, 0.06, C.flash, 2.0);
-    // schneller heller Stoß + stehende Staubwolke
-    this._puff(x, y, z, nx * 2.6, ny * 2.6 + 0.2, nz * 2.6, 0.38, 0.1 * g, 0.62 * g, S.dust, 0.9, 6, 0, CELL.SMOKE_A);
-    const puffs = Math.max(1, this._count(2.4, lod));
+    // Aufschlag-Blitz: kurzer weißheißer Stern (≈ 1–2 Bilder) + weicher Schein
+    this._flash(x, y, z, 0.2 * g, 0.035, C.sparkHot, 3.2, CELL.STAR);
+    this._flash(x, y, z, 0.34 * g, 0.06, C.flash, 2.0);
+    // schneller heller Stoß + dunklerer Kern (auf hellem Putz sichtbar) + stehende Staubwolke
+    this._puff(x, y, z, nx * 2.6, ny * 2.6 + 0.2, nz * 2.6, 0.38, 0.13 * g, 0.8 * g, S.dust, 0.9, 6, 0, CELL.SMOKE_A);
+    this._puff(x, y, z, nx * 1.6, ny * 1.6 + 0.1, nz * 1.6, 0.5, 0.08 * g, 0.42 * g, S.dustDark, 0.6, 5, 0, CELL.SMOKE_B);
+    const puffs = Math.max(1, this._count(3.6, lod));
     for (let i = 0; i < puffs; i++) {
       this._scatter(nx, ny, nz, 0.5, _v);
       const sp = rnd(0.7, 1.8);
-      this._puff(x, y, z, _v.x * sp, _v.y * sp + 0.15, _v.z * sp, rnd(0.9, 1.4), 0.12 * g, rnd(0.7, 1.0) * g, S.dust, 0.68, 2.5, 0.15);
+      this._puff(x, y, z, _v.x * sp, _v.y * sp + 0.15, _v.z * sp, rnd(0.9, 1.4), 0.16 * g, rnd(0.9, 1.3) * g, S.dust, 0.68, 2.5, 0.15);
     }
     const chips = this._count(6, lod);
     for (let i = 0; i < chips; i++) {

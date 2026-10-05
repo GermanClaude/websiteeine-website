@@ -912,8 +912,9 @@ export const TEX = {
   concrete_dark:  { gen: 'concrete', o: { base: '#6f6e6a' }, normal: 1.4 },
   concrete_panel: { gen: 'concrete', o: { base: '#a8a59e', panels: [2, 2] }, normal: 1.8 },
   asphalt:        { gen: 'asphalt', o: {}, normal: 1.3 },
-  plaster_warm:   { gen: 'plaster', o: { base: '#dcc29a', stone: '#a08a6c' }, normal: 2 },
-  plaster_white:  { gen: 'plaster', o: { base: '#ece7dc', stone: '#a8957a' }, normal: 2 },
+  // peel 0: keine großen Ausbrüche in der Kachel (wiederholten sich alle 3 m) – MapBuilder verstreut sie als Decals
+  plaster_warm:   { gen: 'plaster', o: { base: '#dcc29a', stone: '#a08a6c', peel: 0 }, normal: 2 },
+  plaster_white:  { gen: 'plaster', o: { base: '#ece7dc', stone: '#a8957a', peel: 0 }, normal: 2 },
   brick:          { gen: 'brick', o: {}, normal: 3.5 },
   brick_dark:     { gen: 'brick', o: { palette: ['#5e3a2e', '#6a4232', '#523428', '#74493a', '#4c2f25'], mortar: '#7d776e' }, normal: 3.5 },
   stone_wall:     { gen: 'stoneWall', o: {}, normal: 4 },

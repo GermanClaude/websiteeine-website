@@ -47,15 +47,15 @@ KV-47 und M-17 Falke (Sturmgewehre), VP-9 Viper und QX-90 (MPs), HM-60 Hammer (L
 | Zielen (über Kimme und Korn) | rechte Maustaste | linker Trigger |
 | Nachladen | R | X / □ |
 | Springen | Leertaste | A / ✕ |
-| Ducken, im Sprint: Rutschen | C oder Strg | B / ○ |
+| Ducken, im Sprint: Rutschen | C | B / ○ |
 | Sprinten | Umschalt | linker Stick drücken |
-| Messer | V oder Maustaste 4 | RB / R1 |
+| Messer | V oder Maustaste 4 | RB / R1 oder rechten Stick drücken |
 | Granate (halten zum Kochen) | G oder Q | LB / L1 |
 | Waffe wechseln | 1 / 2, Mausrad oder Maustaste 5 | Y / △ |
-| Abschussserien | 3 / 4 / 5 | Steuerkreuz |
+| Abschussserien | 3 / 4 / 5 | Steuerkreuz ▲ ◀ ▶ |
 | Atem anhalten (Zielfernrohr) | Umschalt beim Zielen | linker Stick drücken |
 | Punktetabelle | Tab | Ansicht / Share |
-| Pause | Esc | Start / Options |
+| Pause | Esc | Menü / Options |
 
 **Touch (Handy, Tablet):** Gespielt wird im Querformat. Links liegt ein schwebender Joystick; wer ihn bis an den Rand schiebt, sprintet dauerhaft. Rechts wischen zum Umsehen. Der große Feuerknopf rechts erlaubt gleichzeitig Wischen zum Zielen, links gibt es einen zweiten Feuerknopf. Dazu kommen Knöpfe für Zielen, Nachladen, Springen, Ducken, Granate, Messer, Waffenwechsel, Abschussserien und Pause. In den Einstellungen lassen sich Zielhilfe und Automatisches Feuern einschalten (Feuer, sobald ein Gegner im Fadenkreuz ist).
 
@@ -69,6 +69,7 @@ Die Grafikqualität wählt sich auf „Automatisch“ selbst: niedrig auf Handys
 
 1. Im Repository unter *Settings → Pages* bei *Build and deployment* als Quelle „Deploy from a branch“ wählen, den Branch (z. B. `main`) und den Ordner `/ (root)` einstellen, *Save*.
 2. Nach ein bis zwei Minuten ist die Seite unter `https://<benutzername>.github.io/<repository>/` erreichbar.
+3. Link-Vorschauen (Messenger, soziale Netze) brauchen absolute Adressen: In `index.html` stehen `canonical`, `og:url`, `og:image` und `twitter:image` auf `https://germanclaude.github.io/websiteeine-website/`. Bei anderem Konto, Repository oder eigener Domain diese vier Adressen anpassen.
 
 Alle Pfade sind relativ, die Seite funktioniert also auch in einem Unterordner. Weil das Spiel ES-Module nutzt, genügt lokal kein Doppelklick auf `index.html`. Nötig ist ein kleiner Webserver, zum Beispiel:
 

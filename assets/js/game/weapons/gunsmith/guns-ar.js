@@ -168,6 +168,9 @@ export function kv47(b) {
   b.front('steel', [...ellipsePts(0, 0.088, 0.0175, 0.016, b.hi ? 14 : 6, 0, Math.PI), [-0.0175, 0.086], [0.0175, 0.086]].slice(0, -1), 0.26, -0.09, { bevel: 0.0015 });
   if (b.hi) {
     for (let i = 0; i < 3; i++) b.box('steel', 0.03, 0.002, 0.004, 0, 0.104, -0.07 + i * 0.012, { c: 0 });
+    // Knopf der Schließfederführung ragt hinten aus dem Deckel (bricht im Anschlag die glatte Deckelrückseite)
+    b.box('steelBright', 0.011, 0.008, 0.009, 0, 0.093, -0.093, { c: 0.0015 });
+    b.box('steelDark', 0.03, 0.003, 0.0012, 0, 0.0885, -0.0905, { c: 0 });
     // Nieten
     for (const [u, v] of [[-0.06, 0.07], [-0.03, 0.06], [0.03, 0.04], [0.12, 0.04], [0.18, 0.062], [0.19, 0.04], [-0.085, 0.06]]) { b.screw('steelBright', 0.0172, v, u, 'x', 0.0022); b.screw('steelBright', -0.0172, v, u, 'x', 0.0022); }
   }

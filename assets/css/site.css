@@ -1098,7 +1098,7 @@ html.cursor-on select:not(.slot select) { cursor: auto; }
 }
 @media (pointer: coarse) and (max-height: 500px) {
   /* Überschriften auch nach der Höhe begrenzen (main.js setzt dieselbe Obergrenze für das Einpassen) */
-  :root { --fs-h2: clamp(56px, min(16vw, 27svh), 280px); }
+  :root { --fs-h2: clamp(56px, min(16vw, 27svh), 280px); --pad: clamp(48px, 14svh, 72px); }
   .hero { padding-block: calc(var(--status-h) + env(safe-area-inset-top, 0px) + 12px) 12px; row-gap: 8px; min-height: 100svh; }
   .hero-top, .data-line { display: none; }
   .zero-line { min-height: 0; }

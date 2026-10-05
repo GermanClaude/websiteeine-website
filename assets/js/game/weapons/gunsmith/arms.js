@@ -727,11 +727,13 @@ export function getPose(name) {
 export function newPose(name = 'relaxed') { return clonePose(getPose(name)); }
 
 export class Arms {
-  constructor() {
+  /** camo: Palettenname ('arid' | 'wood' | 'neutral') oder 5 Hex-Farben (siehe textures.js CAMO_PALETTES). */
+  constructor({ camo = 'arid' } = {}) {
     const watchTex = watchFaceTexture();
+    this.camo = camo;
     this.mats = {
       glove: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.22, 0.22) }),
-      sleeve: new THREE.MeshStandardMaterial({ map: camoMap('arid'), roughness: 0.92, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.3, 0.3) }),
+      sleeve: new THREE.MeshStandardMaterial({ map: camoMap(camo), roughness: 0.92, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.3, 0.3) }),
       tape: new THREE.MeshStandardMaterial({ map: tapeMap(), roughness: 0.6, metalness: 0.0 }),
       watchCase: new THREE.MeshStandardMaterial({ color: 0x1b1c1d, roughness: 0.55, metalness: 0.2 }),
       watchFace: new THREE.MeshStandardMaterial({ map: watchTex, emissive: 0xffffff, emissiveMap: watchTex, emissiveIntensity: 0.55, roughness: 0.15, metalness: 0.0 }),
@@ -743,6 +745,16 @@ export class Arms {
     this.left = new Arm(-1, this.mats);
     this.group.add(this.right.group, this.left.group);
     this._watchTimer = 0;
+  }
+
+  /** Ärmel-Tarnmuster wechseln (Team des Spielers); Texturen sind gecacht, kein Neuaufbau der Geometrie. */
+  setCamo(camo) {
+    const key = Array.isArray(camo) ? camo.join(',') : camo;
+    const cur = Array.isArray(this.camo) ? this.camo.join(',') : this.camo;
+    if (key === cur) return;
+    this.camo = camo;
+    this.mats.sleeve.map = camoMap(camo);
+    this.mats.sleeve.needsUpdate = true;
   }
 
   update(dt) {

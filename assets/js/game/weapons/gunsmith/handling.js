@@ -38,7 +38,7 @@ export const HANDLING = {
   sk14: { ...RIFLE, kick: { back: 0.034, up: 0.07, side: 0.01, roll: 0.04, kickRot: 0.035 }, action: 'semi', flash: 1.2, flashLen: 1.2, weight: 1.15 },
   vp9: { ...RIFLE, hip: [0.148, -0.152, -0.34], kick: { back: 0.018, up: 0.032, side: 0.01, roll: 0.035, kickRot: 0.015 }, shell: 'pistol', weight: 0.8, flash: 0.8, flashLen: 0.8, reloadTime: 1.95, emptyTime: 2.5 },
   qx90: { ...RIFLE, hip: [0.14, -0.15, -0.34], kick: { back: 0.016, up: 0.028, side: 0.01, roll: 0.03, kickRot: 0.012 }, leftGrip: 'post', reload: 'top', shell: 'pistol', weight: 0.8, flash: 0.8, flashLen: 0.8, reloadTime: 2.75, emptyTime: 3.35 },
-  hm60: { ...RIFLE, hip: [0.155, -0.182, -0.38], kick: { back: 0.028, up: 0.04, side: 0.014, roll: 0.05, kickRot: 0.02 }, reload: 'belt', weight: 1.6, flash: 1.3, flashLen: 1.3, reloadTime: 6.2, emptyTime: 7.4, equipTime: 0.95, shoulderL: [-0.26, -0.3, 0.06] },
+  hm60: { ...RIFLE, hip: [0.155, -0.182, -0.38], kick: { back: 0.028, up: 0.04, side: 0.014, roll: 0.05, kickRot: 0.02 }, reload: 'belt', weight: 1.6, flash: 1.3, flashLen: 1.3, reloadTime: 6.2, emptyTime: 7.4, equipTime: 0.95 },
   brecher: { ...RIFLE, hip: [0.15, -0.17, -0.36], kick: { back: 0.06, up: 0.11, side: 0.01, roll: 0.05, kickRot: 0.08 }, action: 'bolt', leftGrip: 'flat', shell: 'big', weight: 1.4, flash: 1.6, flashLen: 1.6, reloadTime: 3.0, emptyTime: 3.9, equipTime: 0.85 },
   bulldog: { ...RIFLE, hip: [0.15, -0.16, -0.36], kick: { back: 0.065, up: 0.1, side: 0.012, roll: 0.06, kickRot: 0.08 }, action: 'pump', reload: 'shell', leftGrip: 'pump', shell: 'shotgun', weight: 1.2, flash: 1.9, flashLen: 1.1, reloadTime: 1.2, emptyTime: 3.6 },
   p9: { ...PISTOL },

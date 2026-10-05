@@ -114,6 +114,9 @@ const GradeShader = {
       col = exp2(lc) * 0.18;
       float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
       col = mix(vec3(l), col, uSaturation * (1.0 - uDesaturate));
+      // Spitzlichter leicht entsättigen: gesättigte helle Flächen (gelber Lack, Putz in der Sonne) laufen
+      // nicht in einzelnen Kanälen aus, sondern rollen wie Film ins Weiß
+      col = mix(col, vec3(l), smoothstep(1.5, 4.0, l) * 0.3);
       // Split-Toning: kühle Schatten, warme Lichter
       float t = clamp(l / (l + 0.35), 0.0, 1.0);
       col *= mix(uShadowTint, uHighTint, t);

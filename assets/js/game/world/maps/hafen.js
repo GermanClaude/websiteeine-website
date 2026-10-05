@@ -24,8 +24,9 @@ export default {
   lighting: {
     sun: { elevation: 15, azimuth: 247, color: '#ffbf80', intensity: 3.5 },
     sky: { turbidity: 7, rayleigh: 2.4, mieCoefficient: 0.009, mieDirectionalG: 0.86, exposure: 0.5, clouds: { coverage: 0.38, density: 0.42, scale: 0.00018, elevation: 0.55 }, hazeHigh: 0.13, hazeAmount: 0.9 },
-    hemi: { sky: '#d6c2ad', ground: '#6e5a45', intensity: 0.55 },
-    env: { intensity: 0.65, ground: '#7a6650', groundIntensity: 0.55, tint: '#ffe6cc' },
+    // Umgebung ohne Mie-Hotspot (lighting.js begrenzt die Env-Map) → Füllicht etwas angehoben
+    hemi: { sky: '#d6c2ad', ground: '#6e5a45', intensity: 0.75 },
+    env: { intensity: 1.15, ground: '#7a6650', groundIntensity: 0.55, tint: '#ffe6cc' },
     fog: { color: '#dcb28a', near: 70, far: 420 },
     shadow: { size: 42 },
   },

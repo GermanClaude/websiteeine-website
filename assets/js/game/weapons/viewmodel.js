@@ -14,6 +14,7 @@ import { WEAPONS } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
 import { ID_TO_MODEL, handlingFor, KNIFE_MELEE } from './gunsmith/handling.js';
 import { MuzzleFlash, ShellPool, SmokeWisps } from './gunsmith/fx.js';
+import { SCHEMES } from '../bots/soldier/materials.js';
 import { Spring, Spring3, curve, windowW, clamp, damp, smooth, easeOut, easeInOut, easeOutBack } from './gunsmith/anim.js';
 
 const V3 = () => new THREE.Vector3();
@@ -53,6 +54,15 @@ function req(list, w, o) {
   r.part = o.part || null; r.offset = o.offset || null; r.free = o.free || null; r.dy = o.dy || 0;
 }
 
+/** Ärmel-Palette (5 Farben, siehe gunsmith/textures.js) aus dem Soldaten-Farbschema des Teams. */
+function sleeveCamo(team) {
+  const sc = team ? SCHEMES[team] : null;
+  if (!sc || !Array.isArray(sc.camo) || sc.camo.length < 4) return 'neutral';
+  const [base, dark, light, accent] = sc.camo;
+  const deep = '#' + [1, 3, 5].map(i => Math.round(parseInt(dark.slice(i, i + 2), 16) * 0.72).toString(16).padStart(2, '0')).join('');
+  return [base, dark, accent, deep, light];
+}
+
 function basis(F, B, out) {
   const z = _v.set(-F[0], -F[1], -F[2]).normalize();
   const y = _v2.set(B[0], B[1], B[2]);
@@ -79,7 +89,9 @@ export class ViewModel {
     this.gun = new THREE.Group();
     this.gun.name = 'waffe';
     this.root.add(this.gun);
-    this.arms = new Arms();
+    // Ärmel im Tarnmuster des eigenen Teams (wie die Mitspieler-Bots); Jeder gegen jeden: neutral
+    this._team = G.player ? G.player.team ?? null : 'A';
+    this.arms = new Arms({ camo: sleeveCamo(this._team) });
     this.root.add(this.arms.group);
 
     // Licht (folgt der Weltbeleuchtung relativ zur Blickrichtung)
@@ -454,6 +466,8 @@ export class ViewModel {
   // ---------------------------------------------------------------- Hauptschleife
 
   update(dt, s = {}) {
+    const player = this.G?.player;
+    if (player && (player.team ?? null) !== this._team) { this._team = player.team ?? null; this.arms.setCamo(sleeveCamo(this._team)); }
     if (!this.G?.world?.lighting && !this._lighting) this._ensureOwnEnv();
     else if (this.G?.world?.lighting && this.G.world.lighting !== this._lighting) this.setLighting(this.G.world.lighting);
     dt = Math.min(Math.max(dt || 0, 0), 0.05);

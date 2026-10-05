@@ -84,7 +84,9 @@ function makeClone(unit, wdth, root) {
   c.setAttribute('aria-hidden', 'true');
   c.style.setProperty('--wdth', String(wdth));
   c.style.fontStretch = `${wdth}%`; // der Klon verliert [data-fit] und damit die Achsenregel
-  c.style.position = 'absolute';
+  // fixed statt absolute: Messabzüge (bis 125 % Breite) dürfen die Seite nicht verbreitern – sonst vergrößern
+  // mobile Browser für dieses Bild das Layout-Fenster (innerWidth/innerHeight springen, Messungen werden falsch).
+  c.style.position = 'fixed';
   c.style.visibility = 'hidden';
   c.style.left = '0';
   c.style.top = '0';

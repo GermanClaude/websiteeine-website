@@ -435,7 +435,7 @@ Data comes from `profile.get()`, `profile.stats()` and `levelProgress`, re-rende
 
 **Rank**:
 - `rankIcon(level,{size:48})`, the rank name (display-s), and the word `STUFE 12` where `STUFE` is set at `wdth = 62 + 63 × progress` over a 1 px track.
-- Mono: „1.240 / 3.050 EP bis Stufe 13“. At max level: „Höchststufe erreicht.“
+- Mono: „1.240 / 3.050 XP bis Stufe 13“. At max level: „Höchststufe erreicht.“
 
 **Figures** (`<dl>`, mono labels, Archivo 700 tabular numerals, 32–56 px):
 
@@ -461,19 +461,19 @@ Numbers roll to new values over 600 ms ease-out when they change.
 - `wght = 100 + 800 × clamp(kills / 30)`; `wdth = 62 + 63 × clamp((kills / max(1, deaths)) / 3)`.
 - Colour: win ink, loss `--np-ink-2`, draw outline, training `--np-dim`.
 - Each button's accessible name: „Sieg, Team-Deathmatch im Hafen, 24 Abschüsse, 11 Tode, 4. Oktober, 21:14“.
-- Selecting one shows a mono detail line below: „S · TDM · HAFEN · 24/11/4 · 2.340 PUNKTE · +1.840 EP · 9:58 MIN · 4.10.2026“.
+- Selecting one shows a mono detail line below: „S · TDM · HAFEN · 24/11/4 · 2.340 PUNKTE · +1.840 XP · 9:58 MIN · 4.10.2026“.
 
 **Empty state** (0 matches): callsign at 400/100; „Noch kein Einsatz. Dein Schnitt ist ungeschrieben.“ and the link „Ersten Einsatz starten.“ (`buildPlayUrl()`). Figures, weapons, medals and history are hidden.
 
 **Reset**: the text button „Profil zurücksetzen“. The first press turns it orange: „Wirklich? Alles weg.“ (4 s window). The second press runs `profile.reset()` → live „Profil gelöscht.“
 
 **Fahne** (after-action galley proof, `fahne.js`):
-- **Trigger**: on boot, or on `profile.onChange` (a game tab writing localStorage), when `history[0].at > site.lastSeenMatchAt`. On first ever visit, initialise `lastSeenMatchAt` to the newest `at` without showing a Fahne.
-- **Surface**: `aside.fahne`, fixed under the status line, right-aligned, width `min(560px, 100vw − 2g)`; on phones full width minus gutters. `--np-black-2` with a perforated bottom edge (`mask: radial-gradient(circle 4px at 8px 100%, transparent 98%, #000) 0 0 / 16px 100%`) and a 1 px `--np-line` border.
+- **Trigger**: on boot, on `profile.onChange` (a game tab writing localStorage) and on a back-forward-cache return (`pageshow` with `persisted`), when `history[0].at > site.lastSeenMatchAt`. On the first ever visit, only matches older than 30 minutes count as seen (a friend who opens a shared game link, plays and taps „Zur Website“ still gets the Fahne).
+- **Surface**: `aside.fahne`, its own row of the hero above the target (desktop: right-aligned under the section line, width `min(560px, 100%)`; phones and landscape phones: full width in place of the section line). It never covers the wordmark and scrolls away with the hero; see §17. `--np-black-2` with a perforated bottom edge (`mask: radial-gradient(circle 4px at 8px 100%, transparent 98%, #000) 0 0 / 16px 100%`) and a 1 px `--np-line` border.
 - **Content**:
   - Mono header: „FAHNE · EINSATZBERICHT · 4.10.2026, 21:14“.
   - The result word fitted to the strip: „SIEG.“ (900/125), „NIEDERLAGE.“ (300/62), „UNENTSCHIEDEN.“ (600/100), „TRAINING.“ (400/100).
-  - Mono: „TDM · HAFEN · 24 ABSCHÜSSE · 11 TODE · 4 ASSISTS · 2.340 PUNKTE“, then „+1.840 EP“.
+  - Mono: „TDM · HAFEN · 24 ABSCHÜSSE · 11 TODE · 4 UNTERSTÜTZUNGEN · 2.340 PUNKTE“, then „+1.840 XP“ (Zählwörter im richtigen Numerus: „1 ABSCHUSS · 1 TOD“).
   - If the level rose since `site.lastSeenLevel`: „Stufe 13 erreicht.“ plus, if the rank changed, „Neuer Dienstgrad: Stabsgefreiter.“ Plays `ui('levelup')` if sound is on.
 - **Enter**: `clip-path: inset(0 0 100% 0)` → `inset(0)` in `steps(12)` over 480 ms (printer).
 - **Dismiss**: the button „Abreißen“, Esc while focus is inside it or on the page body, or a vertical drag > 48 px. Exit is translateY −100 % + fade (240 ms ease-in). Then set `lastSeenMatchAt` and `lastSeenLevel`.
@@ -506,7 +506,7 @@ Each row: the mono label (`schema.label`) in the rail, the control in the conten
 | string (playerName) | text input, Archivo 24 px, underline only, `maxlength=16`, commit on change/blur via `profile.setName` (falls back to `settings.set`) | none |
 
 **Previews and live retuning:**
-- **`fov`**: an SVG wedge, two 1 px lines at the real angle, with `SICHTFELD` set between them (`wdth` from the value). Mono: „80° vertikal · 113° horizontal bei 16:9“ (`h = 2·atan(tan(v/2)·16/9)`).
+- **`fov`**: `settings.fov` is the horizontal FOV of a 4:3 image (as in the game, `player.js` `hfovToVfov`). An SVG wedge, two 1 px lines at the angle a 16:9 screen shows, with `SICHTFELD` set between them (`wdth` from the value). Mono: „80° horizontal (4:3) · 96° bei 16:9 · 64° vertikal“ (`v = 2·atan(tan(h/2)·3/4)`, `h169 = 2·atan(tan(v/2)·16/9)`); help: „Waagerecht gemessen, bezogen auf ein 4:3-Bild. Breitere Bildschirme sehen seitlich mehr.“
 - **`crosshairStyle` / `crosshairColor`**: the site cursor *is* the preview, plus a 64 × 64 inline preview for touch users.
 - **Volumes**: on input, if sound is on, play `ui('click')` at the new level (throttle 120 ms).
 - **`reducedMotion`**: applies to the site immediately (§12).
@@ -535,17 +535,19 @@ Tabs (same pattern as §03): „Touch“ · „Tastatur & Maus“ · „Gamepad�
 - **Touch** (text-only HUD diagram):
   - A landscape phone outline (hairline, aspect 19.5 : 9, 28 px radius; the only rounded shape on the site, because it depicts a device).
   - Words in Rajdhani 600 sit where the game places its buttons:
-    - Left: joystick circle „BEWEGEN“, small „FEUER“.
-    - Right half: „UMSEHEN“ (drag area), large „FEUER“, „ZIELEN“, „NACHLADEN“, „SPRINGEN“, „DUCKEN“, „GRANATE“, „WAFFE“, „SERIE“.
-    - Top: „PAUSE“, „PUNKTE“, minimap „KARTE“.
+    - Positions are the measured centres of the real touch buttons (landscape 915 × 412, `controls-view.js` `TOUCH`, see §17).
+    - Left: joystick circle „BEWEGEN“, small „FEUER“, minimap „KARTE“.
+    - Right half: „UMSEHEN“ (drag area), large „FEUER“, „ZIELEN“, „NACHLADEN“, „SPRINGEN“, „DUCKEN“, „GRANATE“, „MESSER“, „WAFFE“ and the three streak buttons „4“ „6“ „8“.
+    - Top right: „PUNKTE“, „PAUSE“.
   - Each word is a `<button>`; tapping one shows the mono explanation below, e.g. „FEUER · Halten feuert. Links und rechts erreichbar.“ and „BEWEGEN · Joystick bis zum Rand schieben: Dauersprint.“
   - Below: the current states of „Zielhilfe“ and „Automatisch feuern“ (from settings) with a link to §06.
 - **Tastatur & Maus** (typeset key map; table semantics, two columns of key words in mono 18–24 px and actions in Archivo):
+  - Exactly the bindings of `engine/input.js` (`KEY_ACTIONS`, `MOVE_KEYS`, `MOUSE_ACTIONS`), checked with `tools/out/fix-site/bindings.mjs`:
   - W A S D „Bewegen“ · Maus „Umsehen“
-  - LMT „Feuer“ · RMT „Zielen (halten)“ · R „Nachladen“
-  - Leertaste „Springen“ · C / Strg „Ducken, im Sprint rutschen“ · Umschalt „Sprinten“
-  - V / Maus 4 „Nahkampf“ · G / Q „Granate“ · 1 / 2 / Mausrad „Waffe wechseln“
-  - 3 / 4 / 5 „Serienprämien“ · Tab „Punktestand“ · Esc „Pause“
+  - LMT „Feuern“ · RMT „Zielen (halten)“ · R „Nachladen“
+  - Leertaste „Springen“ · C „Ducken, im Sprint rutschen“ · Umschalt „Sprinten, im Zielfernrohr Atem anhalten“
+  - V / Maus 4 „Messer“ · G / Q „Granate (halten: vorkochen)“ · 1 / 2 / Mausrad / Maus 5 „Waffe wechseln“
+  - 3 / 4 / 5 „Serienprämien“ · F / E „Interagieren (Parcours im Schießstand)“ · Tab „Punktetabelle“ · Esc „Pause“
 
   **Tastenprobe** (key test):
   - The button „Tasten testen“ focuses the key-map widget (`tabindex=0`). The echo is active **only while that widget has focus**.
@@ -553,10 +555,10 @@ Tabs (same pattern as §03): „Touch“ · „Tastatur & Maus“ · „Gamepad�
   - Inside the widget, Space and the arrow keys have their default prevented. Tab and Esc are never captured (Esc blurs). Left/right mouse buttons echo FEUER / ZIELEN (context menu prevented inside the widget).
   - Hint: „Esc beendet den Test.“
 - **Gamepad** (standard mapping, typeset):
-  - RT „Feuer“ · LT „Zielen“ · A „Springen“ · B „Ducken“ · X „Nachladen“ · Y „Waffe wechseln“
-  - LB „Granate“ · RB „Nahkampf“ · L-Stick „Bewegen (drücken: Sprint)“ · R-Stick „Umsehen“
-  - Steuerkreuz „Serienprämien“ · Start „Pause“ · Ansicht „Punktestand“
-  - If `input.js` exports a binding table (e.g. `GAMEPAD_BINDINGS`), render that instead. This table is the fallback and must be confirmed with core.
+  - RT „Feuern“ · LT „Zielen“ · A „Springen“ · B „Ducken, im Sprint rutschen“ · X „Nachladen“ · Y „Waffe wechseln“
+  - LB „Granate (halten: vorkochen)“ · RB „Messer“ · L-Stick „Bewegen · drücken: Sprinten, im Zielfernrohr Atem anhalten“ · R-Stick „Umsehen · drücken: Messer“
+  - Steuerkreuz ▲ ◀ ▶ „Serienprämien“ (▼ ist im Spiel frei) · Ansicht „Punktetabelle“ · Menü „Pause“
+  - Mirrors `PAD_ACTIONS` in `engine/input.js` (checked by `tools/out/fix-site/bindings.mjs`).
   - **Live**: after `gamepadconnected`, poll in the shared loop only while the tab panel is visible and the document is visible. Pressed buttons light up.
   - Status: „Kein Gamepad erkannt. Drück eine Taste am Controller.“ / „Verbunden: {id, truncated to 40 chars}“.
 
@@ -1049,7 +1051,7 @@ Ergänzt §15; wo sich etwas widerspricht, gilt dieser Abschnitt.
 - Nach gelungenem Einschießen 1,8 s „Durchblick“: der Hafen aus dem Spiel in den Buchstaben von NULLPUNKT (`background-clip: text`), nicht bei reduzierter Bewegung.
 - Telefon quer (`(pointer: coarse) and (max-height: 500px)`): einspaltiges Telefonlayout mit unterer Leiste; Hero ohne Abschnittszeile und Datenzeile, Satz einzeilig, Aufruf in einer Reihe. „Quer halten …“ erscheint nur hochkant und nur im Hero (aus §01 und §07 entfernt).
 
-**Fahne**: Kopfzeile mit „Abreißen“ rechts (immer erreichbar), `touch-action: pan-y`; Abreißen per Wisch nur nach oben und nur von der Abrisskante (unterste 28 px). Rechner: fest unter der Statuszeile, nach dem Hero auf eine Zeile gefaltet („FAHNE · SIEG. · +1.840 EP“, antippen öffnet). Telefon und quer: liegt oben im Hero und scrollt mit ihm weg, Ergebniswort höchstens 40 px, EP und Aufstieg in einer Mono-Zeile. Lochung als Seitenschwarz (keine Durchsicht).
+**Fahne**: Kopfzeile mit „Abreißen“ rechts (immer erreichbar), `touch-action: pan-y`; Abreißen per Wisch nur nach oben und nur von der Abrisskante (unterste 28 px). Lage und Falten: siehe §17 (ersetzt die frühere feste Fahne am Rechner). Telefon und quer: Ergebniswort höchstens 40 px, XP und Aufstieg in einer Mono-Zeile. Lochung als Seitenschwarz (keine Durchsicht).
 
 **Arsenal**
 - *Bühne*: Bild (`.pic-box`, 16 : 9, Telefon hochkant 1 : 1) und darunter ein schwarzes HUD-Band (Hinweis, Munition, Feuerart, R / ZIELEN / FEUER) – nichts liegt mehr auf den Glyphen, kein `mix-blend-mode` im HUD. Telefon quer: Bild und Band nebeneinander. „Ansicht zurücksetzen“ erscheint erst, wenn gedreht wurde. Eine „aufhellen“-Ebene in Seitenschwarz macht alles außerhalb der Buchstaben exakt zur Seitenfarbe.
@@ -1058,7 +1060,7 @@ Ergänzt §15; wo sich etwas widerspricht, gilt dieser Abschnitt.
 - *Typenbalken*: Der Wert ist eine 2-px-Linie mit Marke auf einer gemeinsamen Spur aller sechs Zeilen; die Breite des Worts trägt ihn zusätzlich.
 - *Tablet 720–1023*: Arsenal über die volle Breite (deckend schwarz über der Visierlinie), Waffenindex in drei Spalten, Namen einzeilig und bei Bedarf kleiner gesetzt, weiche Trennstellen in Klassenwörtern (SCHARF­SCHÜTZEN­GEWEHR). Datenblatt erst ab 760 px Containerbreite zweispaltig; Werte brechen nur an „·“.
 - Überschriften der Randspalte (AUF DISTANZ., AUSRÜSTUNG.) und der Dienstgrad im Profil werden nur verkleinert, nie breiter als die Spalte.
-- Formate: Schaden/Abfall ganzzahlig („25–19“, „3,5“ bleibt), Rangliste fest zwei Nachkommastellen, „Abschusszeit“ statt TTK.
+- Formate: Schaden/Abfall ganzzahlig („25–19“, „3,5“ bleibt), Rangliste fest zwei Nachkommastellen, „Zeit bis Abschuss“ statt TTK (wie die Lobby).
 - *3D erst bei Bedarf*: eine Bildschirmhöhe vorher nur `modulepreload` (three.js, `stage3d.js`, `models.js`); gebaut wird, wenn die Bühne zu 25 % sichtbar ist und das Scrollen 150 ms ruht. Zwischen Import, Renderer und Modell gibt der Aufbau den Hauptfaden frei; Shader werden vor dem ersten Bild kompiliert (`compileAsync` nur mit `KHR_parallel_shader_compile`, sonst `compile`).
 - Ohne WebGL: Strichzeichnung mit 3-px-Linien, kein Ziehen, kein „Ziehen: drehen“ im Hinweis.
 
@@ -1073,7 +1075,7 @@ Ergänzt §15; wo sich etwas widerspricht, gilt dieser Abschnitt.
 - *SERIEN.*: Zählzeile „4 — Aufklärer. / 6 — Präzisionsschlag. / 8 — Wachgeschütz.“; die Mono-Ziffern werden stärker, sobald die Zeile in die Bildmitte kommt (Zeiger: sofort); darunter die Beschreibungen als Legende.
 - *Satzbau*: Wortgruppen („6 Bots“, „mit 5 Verbündeten“, „auf Regulär.“) brechen nie in sich; Spielaufruf-Zeile bricht nur vor „&“; auswählbare Wörter haben mindestens 44 × 44 px Trefferfläche. Schlitzname „Schwierigkeit“.
 - *Profil*: Siege „5 · N 5 · U 2“, „Profil zurücksetzen“ erst ab dem ersten Match, unbekannte Medaillen-IDs werden nicht gezeigt.
-- *Einstellungen*: Regler-Marke in Tinte, Orange nur bei Fokus/Ziehen; Sichtfeld-Keil mit Spitze unten (≈ 60 % der Spalte), SICHTFELD zwischen den Schenkeln eingepasst; „Bildrate anzeigen“ statt „FPS anzeigen“.
+- *Einstellungen*: Regler-Marke in Tinte, Orange nur bei Fokus/Ziehen; Sichtfeld-Keil mit Spitze unten (≈ 60 % der Spalte), SICHTFELD zwischen den Schenkeln eingepasst; Beschriftungen kommen unverändert aus `SETTINGS_SCHEMA` (wie im Spiel).
 - *Steuerung*: Tastentabelle volle Breite, Wörter der Touch-Skizze werden in den Telefonrahmen gerückt, Erklärungen ohne Wiederholung des Worts. Leitsatz „Drück eine Taste. Sie verrät, was sie tut.“
 - *Über*: „Kein Spielserver.“
 - Mono-Beschriftungen ab 1440 px 13 px, sonst 12 px (keine 11-px-Texte mehr in HUD, Sperrhinweisen, Skalen).
@@ -1085,3 +1087,38 @@ Ergänzt §15; wo sich etwas widerspricht, gilt dieser Abschnitt.
 **Budgets (gzip, nach dieser Runde)**: `index.html` 5,8 KB, `site.css` 15,9 KB, Site-Skripte im kritischen Pfad ≈ 34 KB, alle Site-Skripte ≈ 83 KB (der Zuwachs steckt in Arsenal, Karten und `jump.js`; die Kartenbilder sind lazy und zählen nicht zum ersten Laden).
 
 **Geprüft** (Playwright, SwiftShader): 360 × 740, 390 × 844 (iPhone 13), 750 × 342 (Telefon quer), 768 × 1024 (Touch), 1024 × 768, 1024 × 1366, 1440 × 900, 1920 × 1080, 2560 × 1440; reduzierte Bewegung, ohne WebGL, ohne JavaScript; Ankersprünge (Index, Dialog, Hero-Link, Direktlink) landen auf ±0 px; schnelles Tabben (120 ms) durchläuft alle Abschnitte; Dauerfeuer ohne Überlauf des Namens; keine Konsolenfehler, kein waagerechter Überlauf, Touch-Ziele ≥ 44 px; CLS beim Laden 0, beim schnellen Durchscrollen < 0,001.
+
+## 17. Überarbeitung nach der zweiten Prüfung (site, 2026-10-05)
+
+Ergänzt §15/§16; wo sich etwas widerspricht, gilt dieser Abschnitt.
+
+**Fahne (verdeckt nichts mehr)**
+- Eigene Zeile des Hero über dem Zielfeld (`.hero.has-fahne` mit Zeile `[fahne]`): Rechner rechtsbündig unter der Abschnittszeile (`min(560px, 100%)`), Telefon und quer über volle Breite an Stelle der Abschnittszeile. Sie scrollt mit dem Hero weg; nichts Späteres wird überdeckt.
+- Erscheint gefaltet (Kopfzeile „FAHNE · SIEG. · +2.900 XP · STUFE 5“ + „Abreißen“, 55 px) und klappt nur dann von selbst auf, wenn der Zuwachs in den freien Raum über „Fünf Schuss …“ passt – die Wortmarke bewegt sich beim Erscheinen nicht. Antippen klappt auf/zu; aufgeklappt schiebt sie (der Nutzer hat sie geöffnet).
+- Quer bemisst sich die Wortmarke mit der gefalteten Fahne (`zero.js` zählt `data-rest-h`), damit der Aufruf im ersten Bildschirm bleibt.
+- Ist der Hero nicht im Bild, steht in der Statuszeile „FAHNE.“ (Knopf in `.who`; unter 400 px an Stelle der Stufe): Antippen springt zum Hero und öffnet den Bericht.
+- Rückkehr über den Zwischenspeicher des Browsers (Zurück aus dem Spiel): `main.js` schickt bei `pageshow` mit `persisted` ein synthetisches `storage`-Ereignis (`key: null`) – Profil, Einstellungen und Website-Speicher lesen neu, Fahne, Profil, Status und Satzbau folgen.
+- Erster Besuch: Einsätze der letzten 30 Minuten gelten als neu (Stufe vor diesen Einsätzen aus ihren XP).
+
+**Begriffe wie im Spiel** (`fmt.js` `TERMS`, `count()`): XP statt EP, Unterstützungen statt Assists, „Kopfschuss-Abschüsse“ (Anteil der Abschüsse), Mobilität, Feuermodus, „Zeit bis Abschuss“, Punktetabelle, Messer, Ansicht/Menü, Einstellungs-Beschriftungen aus dem Schema. Zählwörter im richtigen Numerus („1 Abschuss“, „1 Tod“).
+
+**Sichtfeld**: siehe §06 (4:3-horizontal, Keil im 16:9-Winkel, drei Zahlen).
+
+**Arsenal-Bühne**
+- In Ruhe sitzt das Modell auf der Glyphenfläche der Maske (`arsenal-view.js` meldet sie aus dem Satzmodell, `stage3d.frame()`): Mitte auf ihrer Mitte, Länge 115 % ihrer Breite (Lauf- und Schaftenden dürfen in den Randbuchstaben angeschnitten sein), mindestens 95 % ihrer Höhe gedeckt, höchstens 2,4-fach über die volle Länge hinaus vergrößert.
+- Beim Ziehen (aufgelöst) zoomt die Kamera auf einen Ausschnitt, in den das Modell in jeder erlaubten Drehung samt Perspektive ganz passt; Klarfarbe `--np-black-3` statt Seitenschwarz, Himmels- und Kantenlicht heller (schwarzes Polymer bleibt lesbar).
+- Waffenwechsel dreht die Pose weich in die Grundstellung zurück (reduzierte Bewegung: sofort) und blendet „Ansicht zurücksetzen“ aus.
+
+**Duellzeit mit Trefferquote** (`ballistics.js`): nicht jeder Schuss trifft – Zielgröße (Oberkörper 0,28 m, Kopf 0,11 m) gegen Streuung im Anschlag + Zielfehler (0,0025 rad / Vergrößerung, wie `computeStats`) und den nach dem Gegenlenken verbleibenden Rückstoß (Dauerfeuer 40 %, Einzelfeuer 20 %, Repetierer 0 %, Erholung zwischen den Schüssen). Schrot: Anteil der Kugeln im Ziel. Die Rangliste zeigt „6 Treffer aus 8 Schuss“. „Erste Wahl dort“ (§03) mittelt die Duellzeit über alle 360 Sichtlinien des Standorts (Gegner bei ¼, ½, ¾ der freien Sicht) statt nur über die typische Distanz.
+
+**Hero**
+- Die Ergebniszeile reserviert die Höhe ihres längsten Inhalts bei der aktuellen Breite (unsichtbarer Abzug, `zero.js`); schmal und quer läuft „Neu einschießen“ am Ende des Absatzes mit, quer entfällt der Zusatzsatz (die Live-Region sagt ihn an). Gemessene Verschiebung beim Einschießen: 0 px (360 × 740 bis 1280 × 720, quer).
+- Der Punkt bleibt im Zielfeld, auch bevor die Wortmarke eingepasst ist (sonst vergrößerten mobile Browser für ein Bild das Layout-Fenster).
+
+**Telefon quer**: Abschnittsüberschriften auch nach der Höhe begrenzt (27 svh, Einpassen und `--fs-h2`), Abschnittsabstand `clamp(48px, 14svh, 72px)`.
+
+**Steuerung**: Tasten-, Maus- und Gamepad-Tabelle spiegeln `engine/input.js` (Prüfung `tools/out/fix-site/bindings.mjs`; Strg duckt nicht mehr, Ziffernblock und Steuerkreuz ▼ sind frei). Die Touch-Skizze nutzt die gemessene Lage der echten Knöpfe (`tools/out/fix-site/touchmeasure.mjs`, Querformat 915 × 412) samt drei Serienknöpfen „4“ „6“ „8“ (Wortleiste: „SERIEN“); Wörter, die sich berühren würden, rücken auseinander.
+
+**Laden auf Telefonen**: Abschnitte, die nicht in Sichtnähe sind, baut die Seite auf Telefonen und schwachen Geräten erst nach 10 s und nur in echten Leerlaufphasen (≥ 30 ms frei) auf, nicht schon beim ersten Tippen; Modusnamen werden in einem Durchgang eingepasst (Modi-Aufbau 371 → 144 ms bei 4-facher CPU-Drosselung).
+
+**Veröffentlichen**: absolute Vorschau-Adressen (`og:url`, `og:image`, `twitter:image`, `canonical` → `https://germanclaude.github.io/websiteeine-website/`; bei anderem Repository anpassen), PNG-Favicon (32 px), `apple-touch-icon` (180 px), `manifest.webmanifest` (Start `spielen.html`, Vollbild, quer; Symbole 192/512, maskierbar) und `404.html` („DANEBEN.“, in sich geschlossen, Rückweg aus der Adresse bestimmt). Symbole: Signalpunkt auf Seitenschwarz, gerendert mit `tools/out/fix-site/icons.mjs`.

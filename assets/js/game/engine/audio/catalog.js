@@ -87,7 +87,9 @@ const FB_RATE = {
   capture: 22050, capture_lost: 22050, win: 22050, uav_end: 16000, lose: 16000, draw: 16000, tinnitus: 16000,
 };
 const FB_ALT = { hitmarker_kill: ['hitmarker'], headshot: ['hitmarker_kill', 'hitmarker'] };
-const END_ONLY = new Set(['win', 'lose', 'draw', 'levelup']); // nur auf dem Endbildschirm → bei Bedarf rendern, im Match freigeben
+// Nur auf dem Endbildschirm (nach der XP-Animation) → bei Bedarf rendern, im Match freigeben.
+// Sieg/Niederlage bleiben in der Match-Bank: sie müssen im Moment des Matchendes sofort kommen.
+const END_ONLY = new Set(['levelup']);
 for (const [name, fn] of Object.entries(FEEDBACK)) {
   const marker = name.startsWith('hit') || name === 'headshot';
   def(name, fn, {

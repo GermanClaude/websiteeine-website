@@ -2,7 +2,7 @@
 // backt Ambient Occlusion in Vertexfarben, erzeugt Kollisions- und Kugel-Geometrie (Owner: world)
 import * as THREE from 'three';
 import { getMaterial, surfaceOf, preloadMaterials } from '../engine/textures.js';
-import { createDecalMaterials, createSignAtlas, createFoliage, DECAL_CELLS, DEFAULT_SIGNS } from './atlas.js';
+import { createDecalMaterials, createSignAtlas, createFoliage, DECAL_CELLS, DECAL_ROWS, DEFAULT_SIGNS } from './atlas.js';
 
 export const SURFACES = ['concrete', 'metal', 'wood', 'dirt', 'sand', 'grass', 'glass', 'water', 'tile', 'fabric', 'flesh'];
 const SURF_INDEX = Object.fromEntries(SURFACES.map((s, i) => [s, i]));
@@ -101,24 +101,30 @@ function collBox(w, h, d) {
 
 /** Zylinder entlang y von 0..h, Radius unten r0 / oben r1. */
 function cylPrim(r0, r1, h, seg, caps, rows, arc = Math.PI * 2) {
-  const P = [], N = [], U = [];
-  const full = Math.abs(arc - Math.PI * 2) < 1e-6;
   const slope = (r0 - r1) / h;
   const ys = [0]; if (rows) for (const s of rows) if (s > 0.02 && s < h - 0.02) ys.push(s); ys.push(h);
   const circ = (r0 + r1) / 2;
+  const nRows = ys.length - 1;
+  const capCount = caps ? (r1 > 0 ? 1 : 0) + (r0 > 0 ? 1 : 0) : 0;
+  const nV = seg * nRows * 6 + capCount * seg * 3;
+  const P = new Float32Array(nV * 3), N = new Float32Array(nV * 3), U = new Float32Array(nV * 2);
+  let pi = 0, ui = 0;
+  const put = (x, y, z, nx, ny, nz, u, v) => {
+    P[pi] = x; P[pi + 1] = y; P[pi + 2] = z; N[pi] = nx; N[pi + 1] = ny; N[pi + 2] = nz; pi += 3;
+    U[ui++] = u; U[ui++] = v;
+  };
   for (let i = 0; i < seg; i++) {
     const a0 = (i / seg) * arc, a1 = ((i + 1) / seg) * arc;
     const c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
-    for (let r = 0; r < ys.length - 1; r++) {
+    const l0 = 1 / Math.hypot(c0, slope, s0), l1 = 1 / Math.hypot(c1, slope, s1);
+    for (let r = 0; r < nRows; r++) {
       const y0 = ys[r], y1 = ys[r + 1];
       const ra = r0 + (r1 - r0) * (y0 / h), rb = r0 + (r1 - r0) * (y1 / h);
-      const q = [[c0 * ra, y0, s0 * ra, c0, s0, a0], [c1 * ra, y0, s1 * ra, c1, s1, a1], [c1 * rb, y1, s1 * rb, c1, s1, a1], [c0 * rb, y1, s0 * rb, c0, s0, a0]];
-      for (const k of [0, 2, 1, 0, 3, 2]) {
-        const [x, y, z, nx, nz, a] = q[k];
-        P.push(x, y, z);
-        const l = Math.hypot(nx, slope, nz);
-        N.push(nx / l, slope / l, nz / l);
-        U.push(a * circ, y);
+      // Ecken 0 (a0,y0) 1 (a1,y0) 2 (a1,y1) 3 (a0,y1) in Reihenfolge 0,2,1,0,3,2
+      for (let k = 0; k < 6; k++) {
+        const c = CYL_IDX[k], second = c === 1 || c === 2, top = c >= 2;
+        const cc = second ? c1 : c0, ss = second ? s1 : s0, rr = top ? rb : ra, l = second ? l1 : l0;
+        put(cc * rr, top ? y1 : y0, ss * rr, cc * l, slope * l, ss * l, (second ? a1 : a0) * circ, top ? y1 : y0);
       }
     }
   }
@@ -128,14 +134,23 @@ function cylPrim(r0, r1, h, seg, caps, rows, arc = Math.PI * 2) {
       if (rr <= 0) continue;
       for (let i = 0; i < seg; i++) {
         const a0 = (i / seg) * arc, a1 = ((i + 1) / seg) * arc;
-        const tri = top ? [[0, 0], [Math.cos(a1) * rr, Math.sin(a1) * rr], [Math.cos(a0) * rr, Math.sin(a0) * rr]]
-          : [[0, 0], [Math.cos(a0) * rr, Math.sin(a0) * rr], [Math.cos(a1) * rr, Math.sin(a1) * rr]];
-        for (const [x, z] of tri) { P.push(x, y, z); N.push(0, ny, 0); U.push(x, z); }
+        const xa = Math.cos(a0) * rr, za = Math.sin(a0) * rr, xb = Math.cos(a1) * rr, zb = Math.sin(a1) * rr;
+        put(0, y, 0, 0, ny, 0, 0, 0);
+        if (top) { put(xb, y, zb, 0, ny, 0, xb, zb); put(xa, y, za, 0, ny, 0, xa, za); }
+        else { put(xa, y, za, 0, ny, 0, xa, za); put(xb, y, zb, 0, ny, 0, xb, zb); }
       }
-      if (!full) { /* offene Bögen: keine Deckel-Ergänzung nötig */ }
     }
   }
-  return { p: new Float32Array(P), n: new Float32Array(N), uv: new Float32Array(U) };
+  return { p: P, n: N, uv: U };
+}
+const CYL_IDX = [0, 2, 1, 0, 3, 2];
+
+// Unveränderliche Primitive werden je Maß wiederverwendet (Container, Räder, Riegel … wiederholen sich oft)
+const _primCache = new Map();
+function cachedPrim(key, make) {
+  let p = _primCache.get(key);
+  if (!p) { if (_primCache.size > 8192) _primCache.clear(); p = make(); _primCache.set(key, p); }
+  return p;
 }
 
 /** Keil: Grundfläche w×d, steigt entlang +z von 0 auf h (Rampe). */
@@ -346,9 +361,11 @@ export class MapBuilder {
     const rotated = !!(o.rx || o.rz);
     if (o.visual !== false) {
       const uvMode = o.uv || (((o.ry || 0) % (Math.PI / 2) !== 0 || rotated) ? 'local' : 'world');
-      const prim = boxPrim(w, h, d, uvMode === 'fit' ? null : this._rows(h, o, y), o.skip, uvMode === 'fit');
+      const rows = uvMode === 'fit' ? null : this._rows(h, o, y), fit = uvMode === 'fit';
+      const prim = cachedPrim(`b${w},${h},${d},${rows},${o.skip},${fit}`, () => boxPrim(w, h, d, rows, o.skip, fit));
       const oo = uvMode === 'local' && !o.uvOffset ? { ...o, uv: 'local', uvOffset: [x * 0.37 % 1, z * 0.53 % 1] } : { ...o, uv: uvMode };
       this._emit(prim, m, mat, oo, [x, y, z]);
+      if (mat.startsWith('plaster') && o.damage !== false && !rotated && h >= 1.8 && w >= 1.2 && d <= 0.6) this._plasterDamage(x, y, z, w, h, d, o);
     }
     if (o.collide !== false) {
       this._collTris(collBox(w, h, d), m);
@@ -366,7 +383,8 @@ export class MapBuilder {
   /** Zylinder (Achse y; o.axis 'x'|'z' legt ihn hin – dann ist (x,y,z) die Mitte). */
   cyl(x, y, z, r, h, mat, o = {}) {
     const seg = o.seg || (r > 0.6 ? 20 : r > 0.25 ? 14 : 8);
-    const prim = cylPrim(r, o.r1 ?? r, h, seg, o.caps !== false, o.axis ? null : this._rows(h, o, y), o.arc);
+    const rows = o.axis ? null : this._rows(h, o, y), r1 = o.r1 ?? r, caps = o.caps !== false;
+    const prim = cachedPrim(`c${r},${r1},${h},${seg},${caps},${rows},${o.arc}`, () => cylPrim(r, r1, h, seg, caps, rows, o.arc));
     let oo = o;
     if (o.axis === 'x' || o.axis === 'z') {
       // liegend: Mitte bei (x,y,z)
@@ -389,7 +407,7 @@ export class MapBuilder {
     const m = this._matrix(x, y, z, o);
     if (o.visual !== false) this._emit(prim, m, mat, { ...o, uv: 'keep' }, [x, y, z]);
     if (o.collide !== false) {
-      const cp = r >= 0.3 ? cylPrim(r, o.r1 ?? r, h, 8, true, null) : collBox(r * 2, h, r * 2);
+      const cp = r >= 0.3 ? cachedPrim(`c${r},${r1},${h},8,true,null,undefined`, () => cylPrim(r, r1, h, 8, true, null)) : collBox(r * 2, h, r * 2);
       this._collTris(cp, m);
       this._footprint(x, z, r * 2, r * 2, 0, y, y + h, o.minimap ?? (h > 2.6 ? 'pillar' : 'auto'));
     }
@@ -497,9 +515,38 @@ export class MapBuilder {
   }
 
   /** Boden-/Wand-Decal aus dem Decal-Atlas. normal: [nx,ny,nz] (Standard nach oben). */
+  /** o.tangent: [x,y,z] Richtung der Decal-Breite (w) – für Wände, deren Muster waagerecht liegen muss. */
   decal(x, y, z, w, d, cell, o = {}) {
-    this.decals.push({ x, y, z, w, d, cell: typeof cell === 'string' ? DECAL_CELLS[cell] : cell, ry: o.ry ?? this.rand() * Math.PI * 2, normal: o.normal || null, kind: o.kind || (cell === 'puddle' ? 'wet' : cell === 'arrow' || cell === 'hatch' || cell === 'line' || cell === 'stencil' ? 'paint' : 'grime'), tint: o.tint, opacity: o.opacity ?? 1 });
+    this.decals.push({ x, y, z, w, d, cell: typeof cell === 'string' ? DECAL_CELLS[cell] : cell, ry: o.ry ?? (o.tangent ? 0 : this.rand() * Math.PI * 2), normal: o.normal || null, tangent: o.tangent || null, kind: o.kind || (cell === 'puddle' ? 'wet' : cell === 'arrow' || cell === 'hatch' || cell === 'line' || cell === 'stencil' ? 'paint' : 'grime'), tint: o.tint, opacity: o.opacity ?? 1 });
     return this;
+  }
+
+  /**
+   * Putzschäden an Putzwänden (F41: statt identischer Flecken alle 3 m in der Kacheltextur): je Wandseite
+   * 0–2 Stellen pro 4 m, weltweit zufällig (eigener, positionsabhängiger Zufall – der Karten-Zufall bleibt
+   * unberührt): ausgebrochener Putz mit Bruchstein/Ziegel, ausgebesserte Stellen, aufsteigende Feuchte.
+   */
+  _plasterDamage(x, y, z, w, h, d, o) {
+    let seed = (Math.imul(Math.round(x * 100), 73856093) ^ Math.imul(Math.round(z * 100), 19349663) ^ Math.imul(Math.round(y * 100) + 7, 83492791)) >>> 0;
+    const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const ry = o.ry || 0, c = Math.cos(ry), sn = Math.sin(ry);
+    const tx = c, tz = -sn, nzx = sn, nzz = c; // lokale +x (Wandlänge) und +z (Wandnormale) in Welt
+    for (const side of [1, -1]) {
+      const n = Math.min(Math.floor(rnd() * 3 * (w / 4) + rnd() * 0.7), Math.ceil(w / 4) * 2);
+      for (let i = 0; i < n; i++) {
+        const k = rnd();
+        const cell = k < 0.42 ? 'chip_stone' : k < 0.6 ? 'chip_brick' : k < 0.85 ? 'plaster_patch' : 'damp';
+        const sw = cell === 'damp' ? 1.2 + rnd() * 1.6 : 0.45 + rnd() * 0.85, sh = cell === 'damp' ? 0.6 + rnd() * 0.5 : sw * (0.55 + rnd() * 0.35);
+        if (sw > w - 0.3 || sh > h - 0.5) continue;
+        const u = (rnd() - 0.5) * (w - sw - 0.2);
+        const v = cell === 'damp' ? sh / 2 + 0.02 : 0.3 + sh / 2 + rnd() * Math.max(0, h - 0.6 - sh);
+        const off = side * (d / 2);
+        this.decal(x + tx * u + nzx * off, y + v, z + tz * u + nzz * off, sw, sh, cell, {
+          normal: [nzx * side, 0, nzz * side], tangent: [tx * side, 0, tz * side],
+          tint: cell === 'plaster_patch' ? o.tint : undefined, opacity: cell === 'damp' ? 0.8 : 1,
+        });
+      }
+    }
   }
 
   /** Schild mit Canvas-Text. def: { text, sub, bg, fg, style } registriert unter key. */
@@ -796,20 +843,31 @@ export class MapBuilder {
       if (!list.length) continue;
       const P = [], N = [], U = [], C = [];
       for (const d of list) {
-        const cell = d.cell, cu = (cell % 4) / 4, cv = 1 - (Math.floor(cell / 4) + 1) / 4;
+        const cell = d.cell, cu = (cell % 4) / 4, cv = 1 - (Math.floor(cell / 4) + 1) / DECAL_ROWS;
         nrm.set(...(d.normal || [0, 1, 0])).normalize();
-        q.setFromUnitVectors(up, nrm);
-        q2.setFromAxisAngle(up, d.ry);
-        q.multiply(q2);
-        const tint = linearTint(d.tint);
+        let ax = null, bx = null;
+        if (d.tangent) {
+          // feste Ausrichtung: w entlang tangent, d entlang nrm × tangent (bei Wänden: nach oben)
+          ax = new THREE.Vector3(...d.tangent).normalize();
+          bx = new THREE.Vector3().crossVectors(nrm, ax);
+        } else {
+          q.setFromUnitVectors(up, nrm);
+          q2.setFromAxisAngle(up, d.ry);
+          q.multiply(q2);
+        }
+        const tint = linearTint(d.tint).slice();
+        // gebackenes Innenraumlicht wie bei der Wand dahinter
+        const iv = this.interiors.length ? this._interiorAt(d.x + nrm.x * 0.06, d.y + nrm.y * 0.06, d.z + nrm.z * 0.06) : null;
+        if (iv) for (let c = 0; c < 3; c++) tint[c] *= iv.factor * (iv.tint ? iv.tint[c] : 1);
         const corners = [[-d.w / 2, -d.d / 2, 0, 0], [d.w / 2, -d.d / 2, 1, 0], [d.w / 2, d.d / 2, 1, 1], [-d.w / 2, d.d / 2, 0, 1]];
         const lift = 0.012;
         for (const k of [0, 2, 1, 0, 3, 2]) {
           const [a, b, u, w] = corners[k];
-          v.set(a, 0, b).applyQuaternion(q);
+          if (ax) v.set(ax.x * a + bx.x * b, ax.y * a + bx.y * b, ax.z * a + bx.z * b);
+          else v.set(a, 0, b).applyQuaternion(q);
           P.push(d.x + v.x + nrm.x * lift, d.y + v.y + nrm.y * lift, d.z + v.z + nrm.z * lift);
           N.push(nrm.x, nrm.y, nrm.z);
-          U.push(cu + (u * 0.98 + 0.01) / 4, cv + (w * 0.98 + 0.01) / 4);
+          U.push(cu + (u * 0.98 + 0.01) / 4, cv + (w * 0.98 + 0.01) / DECAL_ROWS);
           C.push(tint[0], tint[1], tint[2], d.opacity);
         }
       }

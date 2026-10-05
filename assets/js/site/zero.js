@@ -110,7 +110,10 @@ export function initZero({ sound } = {}) {
     const c = bullCenter();
     base.x = c.x;
     base.y = c.y;
-    bull.style.setProperty('--bx', `${(c.x + glide.x).toFixed(1)}px`);
+    // Im Zielfeld halten: Solange die Wortmarke noch nicht eingepasst ist, läge der Punkt sonst rechts außerhalb –
+    // mobile Browser vergrößern dann für ein Bild das Layout-Fenster (innerWidth/innerHeight springen).
+    const tw = target.clientWidth || 0;
+    bull.style.setProperty('--bx', `${Math.max(22, Math.min(tw - 22, c.x + glide.x)).toFixed(1)}px`);
     bull.style.setProperty('--by', `${(c.y + glide.y).toFixed(1)}px`);
     // Hinweis darüber und Ergebniszeile darunter stehen bündig mit dem Punkt
     hero.style.setProperty('--bull-r', `${Math.max(0, c.r).toFixed(1)}px`);

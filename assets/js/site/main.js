@@ -172,24 +172,34 @@ async function boot() {
   }, { rootMargin: '100% 0px' });
   for (const sec of sections) io.observe(sec);
   // … alles Übrige der Reihe nach im Leerlauf (Ankersprünge, Tab-Reihenfolge und Seitenhöhe sind dann stabil).
-  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 120));
+  // Telefone und schwache Geräte: nur in echten Leerlaufphasen (≥ 30 ms frei), später und nicht schon beim ersten
+  // Tippen oder Scrollen – sonst blockiert der Aufbau genau die ersten Eingaben. Was in Sichtnähe kommt, baut der
+  // Beobachter oben ohnehin auf, Sprünge und Tab sofort.
+  const lowEnd = coarseMq.matches || (navigator.hardwareConcurrency || 8) <= 4 || saveData;
+  const ric = window.requestIdleCallback;
+  const idle = (fn) => {
+    if (!ric) { setTimeout(fn, lowEnd ? 400 : 120); return; }
+    const wait = (dl) => (dl.didTimeout || dl.timeRemaining() >= (lowEnd ? 30 : 8) ? fn() : ric(wait, { timeout: lowEnd ? 4000 : 1200 }));
+    ric(wait, { timeout: lowEnd ? 4000 : 1200 });
+  };
   const queue = [...sections];
   const next = () => {
     const sec = queue.shift();
     if (!sec) return;
-    start(sec).then(() => idle(next, { timeout: 1200 }));
+    start(sec).then(() => idle(next));
   };
-  // Erst wenn die Seite ein paar Sekunden steht: Der erste Bildschirm bleibt flüssig, Ankersprünge und Tab
-  // bauen bei Bedarf ohnehin sofort auf. Eine erste Bewegung (Scrollen, Tippen) zieht den Aufbau vor.
+  // Erst wenn die Seite ein paar Sekunden steht: Der erste Bildschirm bleibt flüssig. Auf dem Rechner zieht eine
+  // erste Bewegung (Scrollen, Tippen) den Aufbau vor.
   let queued = false;
+  const kickOn = lowEnd ? ['keydown'] : ['scroll', 'pointerdown', 'keydown'];
   const kick = () => {
     if (queued) return;
     queued = true;
-    for (const t of ['scroll', 'pointerdown', 'keydown']) window.removeEventListener(t, kick, true);
-    idle(next, { timeout: 1500 });
+    for (const t of kickOn) window.removeEventListener(t, kick, true);
+    idle(next);
   };
-  for (const t of ['scroll', 'pointerdown', 'keydown']) window.addEventListener(t, kick, { capture: true, passive: true });
-  setTimeout(kick, 4000);
+  for (const t of kickOn) window.addEventListener(t, kick, { capture: true, passive: true });
+  setTimeout(kick, lowEnd ? 10000 : 4000);
   // Tastatur: Beim ersten Tab sofort alles aufbauen, damit die Fokusreihenfolge vollständig ist.
   const onTab = (e) => { if (e.key === 'Tab') { window.removeEventListener('keydown', onTab, true); ensureAll(); } };
   window.addEventListener('keydown', onTab, true);

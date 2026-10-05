@@ -21,11 +21,11 @@ export const TOUCH = [
   ['grenade', 71.5, 84.8, 'GRANATE', 'Halten kocht vor, loslassen wirft in Blickrichtung.'],
   ['melee', 79.1, 89.5, 'MESSER', 'Nahkampf mit dem Kampfmesser.'],
   ['swap', 50, 91.7, 'WAFFE', 'Wechselt zwischen Primär- und Zweitwaffe; zeigt die andere Waffe.'],
-  ['streak1', 84.2, 21.2, '4', 'Aufklärer nach 4 Abschüssen ohne Tod. Leuchtet golden, sobald bereit; antippen setzt ihn ein.', 'sm', 'streak'],
-  ['streak2', 89.8, 21.2, '6', 'Präzisionsschlag nach 6 Abschüssen ohne Tod. Antippen öffnet die Zielkarte.', 'sm', 'streak'],
-  ['streak3', 95.4, 21.2, '8', 'Wachgeschütz nach 8 Abschüssen ohne Tod. Leuchtet golden, sobald bereit.', 'sm', 'streak'],
-  ['score', 89.9, 8, 'PUNKTE', 'Punktetabelle ein- und ausblenden.', 'sm'],
-  ['pause', 95.5, 8, 'PAUSE', 'Pause, Einstellungen und Match verlassen.', 'sm'],
+  ['streak1', 84.1, 21.3, '4', 'Aufklärer nach 4 Abschüssen ohne Tod. Leuchtet golden, sobald bereit; antippen setzt ihn ein.', 'sm', 'streak'],
+  ['streak2', 89.7, 21.3, '6', 'Präzisionsschlag nach 6 Abschüssen ohne Tod. Antippen öffnet die Zielkarte.', 'sm', 'streak'],
+  ['streak3', 95.4, 21.3, '8', 'Wachgeschütz nach 8 Abschüssen ohne Tod. Leuchtet golden, sobald bereit.', 'sm', 'streak'],
+  ['score', 89.8, 8.3, 'PUNKTE', 'Punktetabelle ein- und ausblenden.', 'sm'],
+  ['pause', 95.4, 8.3, 'PAUSE', 'Pause, Einstellungen und Match verlassen.', 'sm'],
   ['map', 6.7, 14.4, 'KARTE', 'Minikarte: Verbündete, Ziele, feuernde Gegner.'],
 ];
 /** Wortleiste unter schmalen Telefonbildern: ein Eintrag je Gruppe. */

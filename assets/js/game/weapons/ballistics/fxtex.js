@@ -182,21 +182,32 @@ export function getDecalAtlas() {
   const at = (cell) => [(cell % GX) * S, Math.floor(cell / GX) * S];
   const n1 = makeNoise(13), n2 = makeNoise(57), n3 = makeNoise(211);
 
-  // Beton/Putz: dunkles Loch, abgeplatzter Krater, Staubhof
-  const crater = (nz, off, ring, rim) => (u, v, o) => {
+  // Beton/Putz: dunkles Loch, schattige Kraterwand, heller frisch abgeplatzter Rand mit dunkler Bruchkante,
+  // grauer Staubhof. Hell UND dunkel im selben Fleck → liest sich auf weißem Putz wie auf dunklem Beton
+  // (vorher nur ein dunkler Punkt von wenigen Pixeln).
+  const crater = (nz, off, fresh, dustC) => (u, v, o) => {
     const d = Math.hypot(u, v);
     const ang = Math.atan2(v, u);
     const n = nz(Math.cos(ang) * 2 + off, Math.sin(ang) * 2 + off, 4);
-    const hole = 1 - sstep(0.15, 0.21, d);
-    const chip = 1 - sstep(0.32 + n * 0.22, 0.38 + n * 0.24, d);
-    const dust = (1 - sstep(0.35, 0.92, d + (n - 0.5) * 0.3)) * 0.4;
-    const a = Math.max(hole, chip * 0.92, dust);
-    const c = hole > 0.5 ? 0.04 : chip > 0.5 ? ring - n * 0.12 : rim;
-    o[0] = o[1] = o[2] = c; o[3] = a;
+    const grain = nz(u * 9 + off, v * 9 - off, 3);
+    const rOut = 0.44 + n * 0.22;                                  // ausgefranster Kraterrand
+    const hole = 1 - sstep(0.1, 0.15, d);
+    const wall = 1 - sstep(0.24, 0.3, d);                           // Kraterwand im Schatten
+    const chip = 1 - sstep(rOut - 0.03, rOut + 0.02, d);
+    const edge = chip * sstep(rOut - 0.09, rOut - 0.03, d);         // dunkle Bruchkante außen
+    const dust = (1 - sstep(0.42, 0.98, d + (n - 0.5) * 0.3)) * 0.34;
+    let c;
+    if (hole > 0.5) c = 0.03;
+    else if (wall > 0.5) c = 0.16 + sstep(0.13, 0.3, d) * 0.3 + (grain - 0.5) * 0.08;
+    else if (edge > 0.5) c = 0.3 + (grain - 0.5) * 0.08;
+    else if (chip > 0.5) c = fresh + (grain - 0.5) * 0.14;
+    else c = dustC;
+    o[0] = o[1] = o[2] = c;
+    o[3] = Math.max(hole, wall, chip * 0.94, dust);
   };
-  paintCell(ctx, ...at(DECAL.CONCRETE), S, crater(n1, 1.3, 0.3, 0.42));
-  paintCell(ctx, ...at(DECAL.CONCRETE_B), S, crater(n2, 7.1, 0.27, 0.38));
-  paintCell(ctx, ...at(DECAL.PLASTER), S, crater(n3, 3.3, 0.86, 0.74));
+  paintCell(ctx, ...at(DECAL.CONCRETE), S, crater(n1, 1.3, 0.78, 0.4));
+  paintCell(ctx, ...at(DECAL.CONCRETE_B), S, crater(n2, 7.1, 0.72, 0.36));
+  paintCell(ctx, ...at(DECAL.PLASTER), S, crater(n3, 3.3, 0.9, 0.5));
   // Metall: kleines Loch mit hellem, aufgeworfenem Rand
   paintCell(ctx, ...at(DECAL.METAL), S, (u, v, o) => {
     const d = Math.hypot(u, v);
