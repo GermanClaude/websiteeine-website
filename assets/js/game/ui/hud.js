@@ -93,6 +93,7 @@ export class HUD {
     this._aimY = null;
     this._tablet = false;
     this._stampAt = -1;
+    if (this.root) toggle(this.root, 'is-tablet', false);
     this._resetZones();
   }
 

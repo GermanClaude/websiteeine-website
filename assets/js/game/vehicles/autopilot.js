@@ -41,14 +41,15 @@ export function updateAutopilot(vehicle, intent, dt, world) {
   const distFinal = Math.hypot(final.x - pos.x, final.z - pos.z);
   const v = b.speed;
   const vmax = Math.min(intent.maxSpeed || def.engine.maxSpeed, def.engine.maxSpeed);
-  intent.arrived = distFinal < (intent.arriveRadius || 4);
+  const ahead = clamp(4 + Math.abs(v) * 0.8, 5, 18);
+  pursuitTarget(intent, pos, ahead, _t); // führt den Wegpunktindex nach
+  // Ankunft erst am letzten Wegpunkt (Rundkurse enden am Start)
+  intent.arrived = intent._wp >= path.length - 1 && distFinal < (intent.arriveRadius || 4);
   if (intent.arrived) {
     intent.throttle = 0; intent.steer = 0; intent.brake = 1;
     intent._stuckT = 0;
     return true;
   }
-  const ahead = clamp(4 + Math.abs(v) * 0.8, 5, 18);
-  pursuitTarget(intent, pos, ahead, _t);
   b.toLocal(_t, _l);
   // Lokal: −Z vorn, +X rechts
   const ang = Math.atan2(_l.x, -_l.z);

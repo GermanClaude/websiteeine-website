@@ -30,7 +30,7 @@ export function sampleSpline(pts, step = 2) {
   return out;
 }
 
-/** Abstandsfeld zu einer Polylinie (nur Zellen bis radius): dist (∞ sonst), along (m ab Start), seg. */
+/** Abstandsfeld zu einer Polylinie (nur Zellen bis radius): dist (∞ sonst), along = Abtastindex (k + t, gebrochen). */
 function polyField(hf, line, radius, dist, along) {
   const n = hf.n, r = hf.res;
   dist.fill(Infinity);
@@ -46,7 +46,7 @@ function polyField(hf, line, radius, dist, along) {
       t = t < 0 ? 0 : t > 1 ? 1 : t;
       const d = Math.hypot(x - (ax + ex * t), z - (az + ez * t));
       const o = j * n + i;
-      if (d < dist[o]) { dist[o] = d; along[o] = acc + t * L; }
+      if (d < dist[o]) { dist[o] = d; along[o] = k + t; }
     }
     acc += L;
   }
@@ -212,7 +212,7 @@ export async function generateTerrain(spec, { onProgress } = {}) {
     for (let o = 0; o < N; o++) {
       const d = dist[o];
       if (d === Infinity) continue;
-      const k = Math.min(L - 1, Math.max(0, Math.round(along[o] / 2)));
+      const k = Math.min(L - 1, Math.max(0, Math.round(along[o])));
       if (k > bridgeA && k < bridgeB) continue; // unter der Brücke bleibt der Fluss
       const i = o % n, j = (o / n) | 0, x = minX + i * res, z = minZ + j * res;
       const ty = prof[k] - (rd.kind === 'asphalt' ? 0.04 : 0.06);

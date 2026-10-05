@@ -250,10 +250,11 @@ function bruecke(b) {
   for (const t of [-0.22, 0.22]) b.box(cx + ux * L * t, -4.5, cz + uz * L * t, 7.0, 4.5, 1.6, 'concrete', { ry, tint: '#a8a296', minimap: false });
   for (const t of [-0.5, 0.5]) b.box(cx + ux * L * t, -3, cz + uz * L * t, 9, 3.0, 2.5, 'concrete', { ry, tint: '#a8a296', minimap: false });
   // Brückenköpfe: Sandsäcke, Wrack, Kisten
-  sandbags(b, 30, -8, 35, -10, { rows: 4 }); sandbags(b, 45, -10, 49, -7, { rows: 4 });
-  sandbags(b, 37, -52, 41, -54, { rows: 4 }); sandbags(b, 49, -50, 53, -47, { rows: 4 });
-  car(b, 41.5, -24, { ry: ry + 0.35, color: '#5a5f63', y: 0.6, model: false });
-  crateStack(b, 28, -12, { ry: 0.5 });
+  const Y = 0.6; // Brückenköpfe sind auf Deckhöhe eingeebnet (Plateaus in terrain.pads)
+  sandbags(b, 28, -4, 33, -6, { rows: 4, y: Y }); sandbags(b, 41, -5, 45, -2, { rows: 4, y: Y });
+  sandbags(b, 39, -54, 43, -56, { rows: 4, y: Y }); sandbags(b, 51, -52, 55, -49, { rows: 4, y: Y });
+  car(b, 41.5, -24, { ry: ry + 0.35, color: '#5a5f63', y: Y, model: false });
+  crateStack(b, 26, 1, { ry: 0.5, y: Y });
   b.noNav(-1e4, -1e4, 1e4, 1e4, -20, -1.85);
   return {};
 }
@@ -364,6 +365,8 @@ export default {
       { x: -150, z: 109, w: 76, d: 62, y: 0, blend: 16 },         // Gehöft
       { x: 152, z: -112, w: 78, d: 80, y: 0, blend: 16 },         // Kieswerk
       { x: -62, z: 15, w: 30, d: 22, y: 0, blend: 8 },            // Mühle
+      { x: 34, z: -1, w: 24, d: 10, y: 0.6, blend: 8 },          // Brückenkopf Süd
+      { x: 48, z: -53, w: 24, d: 10, y: 0.6, blend: 8 },         // Brückenkopf Nord
       { x: -120, z: -140, w: 34, d: 34, y: H_Y, blend: 10 },      // Funkhügel
       { x: 60, z: 219, w: 72, d: 46, y: 0, blend: 16 },           // HQ A
       { x: -20, z: -222, w: 72, d: 48, y: 0, blend: 16 },         // HQ B
