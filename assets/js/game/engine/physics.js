@@ -374,11 +374,20 @@ const _d = new Vector3();
 const _occCap = new Capsule(new Vector3(), new Vector3(), 0.3);
 
 /**
- * Strahl gegen die Kollisionsgeometrie der Welt (BVH der Kollision, sonst Octree, sonst Kugel-Raycast).
+ * Strahl gegen die Kollisionsgeometrie der Welt: world.collisionRaycast(origin, dir, maxDist) → {distance, normal} falls
+ * vorhanden, sonst world.collisionBVH bzw. debugData.colliderBVH, sonst Octree, sonst Kugel-Raycast.
  * dir normiert. → out = { distance, nx, ny, nz } oder null.
  */
 export function collisionRay(world, origin, dir, maxDist, out = {}) {
   if (!world) return null;
+  // Zusammengesetzte Welten (z. B. Gelände + Gebäude) können einen eigenen Kollisionsstrahl anbieten
+  if (typeof world.collisionRaycast === 'function') {
+    const r = world.collisionRaycast(origin, dir, maxDist);
+    if (!r) return null;
+    const n = r.normal || { x: 0, y: 1, z: 0 };
+    out.distance = r.distance; out.nx = n.x; out.ny = n.y; out.nz = n.z;
+    return out;
+  }
   const cb = world.collisionBVH || (world.debugData && world.debugData.colliderBVH);
   if (cb && typeof cb.raycast === 'function') {
     if (!cb.raycast(origin.x, origin.y, origin.z, dir.x, dir.y, dir.z, maxDist, _rayHit)) return null;

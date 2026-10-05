@@ -247,7 +247,7 @@ export function createWorldAssets(G, def, quality) {
         const skyTier = pickTier(e.tiers, SKY_TIER[q] || 1024);
         const wantSky = def.lighting?.sky?.hdri !== false;
         const [envRT, bg] = await Promise.all([
-          buildEnvironment(renderer, e, tier, rotation, def.lighting?.env?.hdriMax),
+          buildEnvironment(renderer, e, tier, rotation, def.lighting?.env?.hdriMax, def.lighting?.env?.hdriTint),
           wantSky ? assets.loadHDRI(cfg.hdri, renderer, { pmrem: false, tier: skyTier, skyTier }) : Promise.resolve(null),
         ]);
         const f = e.tiers[tier], fb = e.tiers[skyTier];
@@ -259,7 +259,7 @@ export function createWorldAssets(G, def, quality) {
         return {
           id: cfg.hdri, meta: e, envRT, background: bg?.background || null, backgroundExposure: e.backgroundExposure || 1, rotation,
           /** Nach Kontextverlust neu aufbauen (Datei kommt aus dem HTTP-Cache). */
-          rebuildEnv: () => buildEnvironment(renderer, e, tier, rotation, def.lighting?.env?.hdriMax),
+          rebuildEnv: () => buildEnvironment(renderer, e, tier, rotation, def.lighting?.env?.hdriMax, def.lighting?.env?.hdriTint),
           dispose() { envRT.dispose(); bg?.dispose?.(); },
         };
       } catch (err) {
@@ -299,7 +299,8 @@ export function createWorldAssets(G, def, quality) {
  * im Umgebungslicht wäre sie doppelt und ein Hotspot auf Metallen) und verschiebt die Spalten um die Drehung.
  * → WebGLRenderTarget (PMREM, cubeUV)
  */
-async function buildEnvironment(renderer, entry, tier, rotation, maxLum) {
+async function buildEnvironment(renderer, entry, tier, rotation, maxLum, tintHex) {
+  const tint = new THREE.Color(tintHex || '#ffffff');
   const f = entry.tiers[tier];
   const url = new URL(f.hdr, assets.baseUrl).href;
   const tex = await hdr().loadAsync(url);
@@ -315,6 +316,7 @@ async function buildEnvironment(renderer, entry, tier, rotation, maxLum) {
       let r = fh(src[i]), g = fh(src[i + 1]), b = fh(src[i + 2]);
       const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       if (l > cap) { const k = cap / l; r *= k; g *= k; b *= k; }
+      r *= tint.r; g *= tint.g; b *= tint.b;
       // Spalte x' = x − shift: Drehung um +rotation um die y-Achse (Azimut nimmt um rotation ab)
       const o = (y * W + ((x - shift + W) % W)) * 4;
       out[o] = th(r); out[o + 1] = th(g); out[o + 2] = th(b); out[o + 3] = 15360; // 1.0
