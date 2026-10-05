@@ -28,11 +28,12 @@ export default {
   lighting: {
     sun: { elevation: 8, azimuth: 252, color: '#ffae70', intensity: 2.6 },
     sky: { turbidity: 9, rayleigh: 2.2, mieCoefficient: 0.012, mieDirectionalG: 0.82, exposure: 0.42, tint: '#c8ccd8', clouds: { coverage: 0.82, density: 0.62, scale: 0.00016, elevation: 0.45, speed: 0.00002 }, hazeHigh: 0.2, hazeAmount: 0.95 },
-    hemi: { sky: '#a6b2c6', ground: '#7d7064', intensity: 1.55 },
-    env: { intensity: 1.0, ground: '#5c554c', groundIntensity: 0.6, tint: '#c4ccdc' },
+    // Himmels-/Umgebungslicht trägt die Dämmerung (Env-Map ohne Mie-Hotspot, s. lighting.js) → kräftiger
+    hemi: { sky: '#a6b2c6', ground: '#7d7064', intensity: 2.1 },
+    env: { intensity: 2.2, ground: '#5c554c', groundIntensity: 0.6, tint: '#c4ccdc' },
     fog: { color: '#7c8596', near: 45, far: 280 },
     shadow: { size: 40, bias: -0.0005 },
-    exposure: 1.45,
+    exposure: 1.55,
   },
 
   build(b, ctx) {
