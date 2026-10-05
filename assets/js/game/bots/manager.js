@@ -525,6 +525,7 @@ export class BotManager {
     const viewH = R && R.height > 1 ? R.height : 720;
     const viewW = R && R.width > 1 ? R.width : 1280;
     const aimT = G.input && G.input.aimTarget;
+    const lens = R && R.lens && typeof R.lens.toScreen === 'function' ? R.lens : null;
     const now = G.time.real || G.time.elapsed;
     const playerAlive = G.player && G.player.alive;
     cam.getWorldPosition(_cam); // Sichtstrahlen von der Kamera aus (das Schild wird aus ihrer Sicht gezeichnet)
@@ -561,12 +562,19 @@ export class BotManager {
       p._target = target;
       p._fade = fade;
       p._d = d;
-      if (target > 0) {
-        // Bildschirmposition für die Entflechtung
+      p._size = 1;
+      if (target > 0 || p.alpha > 0.02) {
+        // Bildschirmposition für die Entflechtung – durch die Objektiv-Abbildung (Bodycam-Fischauge, R2): die Schilder
+        // sind 3D-Sprites und werden mitverzerrt, ihre tatsächliche Lage ist lens.toScreen(camera.project(…)).
         _v.copy(pos).project(cam);
+        if (lens && lens.active) {
+          // örtlichen Maßstab ausgleichen (am Rand < 1), damit Schilder überall gleich groß und lesbar bleiben
+          p._size = 1 / Math.max(0.5, lens.scaleAt(_v.x, _v.y));
+          lens.toScreen(_v);
+        }
         p._sx = _v.x * viewW * 0.5;
         p._sy = _v.y * viewH * 0.5;
-        list.push(p);
+        if (target > 0) list.push(p);
       }
     }
     // Überlappende Schilder: das nähere gewinnt (Ziel unter dem Fadenkreuz immer)
@@ -590,7 +598,7 @@ export class BotManager {
     }
     for (let i = 0; i < bots.length; i++) {
       const p = this._plates.get(bots[i]);
-      if (p) p.update(p._pos, cam, viewH, p._target || 0, dt, p._fade || 6);
+      if (p) p.update(p._pos, cam, viewH, p._target || 0, dt, p._fade || 6, p._size || 1);
     }
   }
 

@@ -402,6 +402,8 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     objectives,
     nav,
     lighting: light.lighting,
+    /** Farbstimmung/Belichtung für core-render (`renderer.setMood(world.grade || mapId)`): Karten-`grade` über der Stimmung der Karte. */
+    grade: def.grade ? { mood: id, ...def.grade } : undefined,
     minimap,
     ambience: def.ambience || meta.ambience,
     targets,

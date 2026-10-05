@@ -932,10 +932,13 @@ export class ViewModel {
     this._lean = damp(this._lean, clamp(s.lean || 0, -1, 1), 9, dt);
     P.x += this._lean * 0.012 * na;
     R.z -= this._lean * 0.07 * na;
-    // Wandkollision (F3): erst anziehen, dann in die tiefe Bereitschaft (Pistole: zur Brust)
+    // Wandkollision (F3; walls): mit gemessener Wandtiefe (s.wallDist, Controller) passt wallFit() die Lage an die echte
+    // Länge des Modells an – kein sichtbarer Punkt der Waffe liegt tiefer als die Wand. Sonst wie bisher über `obstruct`.
     this._obstruct = damp(this._obstruct, clamp(s.obstruct || 0, 0, 1), s.obstruct > this._obstruct ? 14 : 7, dt);
     const ob = smooth(this._obstruct);
-    if (ob > 1e-3) {
+    if (typeof s.wallDist === 'number' && this.cur && h.action !== 'knife') {
+      wallFit(this, P, R, s.wallDist, a, h.action === 'pistol', dt);
+    } else if (ob > 1e-3) {
       const o1 = clamp(ob / 0.5, 0, 1) * na, o2 = smooth(clamp((ob - 0.4) / 0.6, 0, 1)) * na;
       if (h.action === 'pistol') {
         P.z += 0.1 * o1; P.y -= 0.025 * o1; P.x -= 0.03 * o2;
@@ -1583,6 +1586,102 @@ export class ViewModel {
 
 /** Empfohlenes vertikales Sichtfeld der Viewmodel-Kamera (Positionen sind darauf abgestimmt). */
 ViewModel.FOV = 54;
+
+/* ---------------------------------------------------------------- Wandkollision nach Modelllänge (walls) */
+
+const WALL_MARGIN = 0.04;   // m Abstand der vordersten sichtbaren Waffenpunkte zur Wandfläche
+const WALL_BACK = 0.12;     // m Anziehen (Pistole 0,10; im Anschlag höchstens 0,08)
+const WALL_TILT = 1.3;      // rad größtes Absenken (Gewehr) bzw. Anheben (Pistole)
+const _wq = new THREE.Quaternion(), _we = new THREE.Euler(), _wv = new THREE.Vector3();
+
+/** Stützpunkte des Modells (Modellraum): Kolbenmitte → vordere Ecken der Hüllbox, ohne Effekte. Einmal je Modell. */
+function wallPoints(vm, entry) {
+  if (entry._wallPts) return entry._wallPts;
+  const model = entry.model;
+  const skip = new Set();
+  for (const fx of [vm.flash && vm.flash.group]) if (fx) fx.traverse((o) => skip.add(o));
+  model.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(model.matrixWorld).invert();
+  const box = new THREE.Box3(), bb = new THREE.Box3();
+  model.traverse((o) => {
+    if (!o.isMesh || !o.geometry || skip.has(o)) return;
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    box.union(bb.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld).applyMatrix4(inv));
+  });
+  const pts = [];
+  if (!box.isEmpty()) {
+    const { min, max } = box;
+    const cx = (min.x + max.x) / 2, cy = (min.y + max.y) / 2;
+    const back = new THREE.Vector3(cx, cy, max.z);
+    const corners = [];
+    for (const x of [min.x, max.x]) for (const y of [min.y, max.y]) corners.push(new THREE.Vector3(x, y, min.z));
+    const fc = new THREE.Vector3(cx, cy, min.z);
+    for (const c of corners) { pts.push(c); pts.push(back.clone().lerp(c, 0.6)); }
+    pts.push(fc, back.clone().lerp(fc, 0.35), back.clone().lerp(fc, 0.7));
+    pts.push(new THREE.Vector3(cx, max.y, (min.z + max.z) / 2));
+  }
+  entry._wallPts = pts;
+  return pts;
+}
+
+/** Tiefste sichtbare Tiefe (m vor dem Auge) der Waffe in der Lage P/R + Anziehen dz + Kippen th (Wurzelraum = Kamera). */
+function wallDepth(vm, pts, P, R, dz, th, pistol, tanV, tanH) {
+  const t = pistol ? th : -th;
+  _we.set(R.x + t, R.y + th * (pistol ? 0.35 : 0.58), R.z + th * (pistol ? 0.2 : 0.47), 'YXZ');
+  _wq.setFromEuler(_we);
+  const m = vm.cur.model;
+  let worst = 0;
+  for (let i = 0; i < pts.length; i++) {
+    _wv.copy(pts[i]).applyMatrix4(m.matrix).applyQuaternion(_wq);
+    const x = _wv.x + P.x, y = _wv.y + P.y - (pistol ? 0 : 0.05 * th), z = _wv.z + P.z + dz;
+    const depth = -z;
+    if (depth < 0.02 || Math.abs(x) > depth * tanH || Math.abs(y) > depth * tanV) continue; // nicht im Bild
+    if (depth > worst) worst = depth;
+  }
+  return worst;
+}
+
+/**
+ * Waffe vor der Wand halten: Wandtiefe d (m, entlang der Blickachse, Controller-Messung inkl. Vorhalt). Erst
+ * anziehen, dann (an der Hüfte) absenken und eindrehen – so weit, bis alle sichtbaren Punkte vor der Wand liegen.
+ * Lange Waffen kippen dadurch früher und weiter als kurze; im Anschlag nur Anziehen (der Controller beendet das
+ * Zielen, bevor mehr nötig wäre). Ergebnis geglättet (schnell hinein, langsamer zurück).
+ */
+function wallFit(vm, P, R, d, a, pistol, dt) {
+  const pts = wallPoints(vm, vm.cur);
+  let wantBack = 0, wantTh = 0;
+  if (pts.length && d < 4) {
+    const cam = vm.camera;
+    const tanV = Math.tan(((cam.fov || 54) * Math.PI) / 360) * 1.04;
+    const tanH = tanV * (cam.aspect || 1.78);
+    const target = Math.max(0.05, d - WALL_MARGIN);
+    const f0 = wallDepth(vm, pts, P, R, 0, 0, pistol, tanV, tanH);
+    if (f0 > target) {
+      const maxBack = (pistol ? 0.1 : WALL_BACK) * (1 - a) + 0.08 * a;
+      wantBack = Math.min(maxBack, f0 - target);
+      const na = 1 - a;
+      if (na > 0.02 && wallDepth(vm, pts, P, R, wantBack, 0, pistol, tanV, tanH) > target) {
+        let lo = 0, hi = WALL_TILT;
+        if (wallDepth(vm, pts, P, R, wantBack, hi, pistol, tanV, tanH) > target) lo = hi;
+        else for (let i = 0; i < 9; i++) { const mid = (lo + hi) / 2; if (wallDepth(vm, pts, P, R, wantBack, mid, pistol, tanV, tanH) > target) lo = mid; else hi = mid; }
+        wantTh = hi * na;
+      }
+    }
+  }
+  const st = vm._wallFit || (vm._wallFit = { back: 0, th: 0 });
+  st.back = damp(st.back, wantBack, wantBack > st.back ? 45 : 8, dt);
+  st.th = damp(st.th, wantTh, wantTh > st.th ? 40 : 7, dt);
+  if (st.back < 1e-4 && st.th < 1e-4) return;
+  const th = st.th;
+  P.z += st.back;
+  if (pistol) {
+    P.x -= 0.03 * (th / WALL_TILT); P.y -= 0.02 * Math.min(1, st.back / 0.1);
+    R.x += th; R.y += th * 0.35; R.z += th * 0.2;
+  } else {
+    P.y -= 0.05 * th; P.x -= 0.02 * (th / WALL_TILT);
+    R.x -= th; R.y += th * 0.58; R.z += th * 0.47;
+  }
+}
 
 // Welle 2 (Arsenal): zusätzliche Choreografien (Nachladen je Mechanik, Inspizieren je Klasse, Platte, Klingenhiebe)
 Object.assign(ViewModel.prototype, EXTRA_ACTIONS);

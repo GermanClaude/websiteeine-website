@@ -131,11 +131,13 @@ export function torus(r, tube, rs = 6, ts = 12, opts = {}, arc = Math.PI * 2) {
 const hash01 = (n) => { let h = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
 
 /**
- * Umgebungsverdeckung je Vertex backen (Bindepose). Belegungsgitter (Zellmaß cell) aus allen Dreiecksflächen, je
- * Vertex `dirs` kosinusgewichtete Strahlen in die Halbkugel um die Normale, je Strahl wenige Schritte bis `reach`.
- * Ein naher Treffer verdeckt stärker als ein ferner. → Uint8Array (255 = frei). Kosten: LOD0 ≈ 5–15 ms einmalig.
+ * Umgebungsverdeckung je Vertex backen (Bindepose): Belegungsgitter (Zellmaß cell) aus allen Dreiecksflächen, je Vertex
+ * `dirs` kosinusgewichtete Strahlen in die Halbkugel über der Fläche, je Strahl wenige Schritte bis `steps[n-1]` (m).
+ * Ein naher Treffer verdeckt stärker als ein ferner. Richtungsabhängig (wichtig: Ausrüstung liegt in Schichten auf dem
+ * Körper – eine Westenfront ist nicht verdeckt, die Lücke darunter schon). Gleiche Positionen/Normalen (Nähte) werden
+ * einmal gerechnet. → Uint8Array (255 = frei). Kosten LOD0 ≈ 10–25 ms einmalig je Variante.
  */
-export function bakeVertexAO(pos, nor, idx, nIdx, { cell = 0.022, dirs = 10, reach = 0.2, strength = 0.85 } = {}) {
+export function bakeVertexAO(pos, nor, idx, nIdx, { cell = 0.02, dirs = 8, steps = [0.03, 0.06, 0.1, 0.16], strength = 0.82 } = {}) {
   const nv = pos.length / 3;
   let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
   for (let i = 0; i < nv; i++) {
@@ -143,63 +145,64 @@ export function bakeVertexAO(pos, nor, idx, nIdx, { cell = 0.022, dirs = 10, rea
     if (x < x0) x0 = x; if (y < y0) y0 = y; if (z < z0) z0 = z;
     if (x > x1) x1 = x; if (y > y1) y1 = y; if (z > z1) z1 = z;
   }
+  const reach = steps[steps.length - 1];
   const pad = reach + cell * 2;
   x0 -= pad; y0 -= pad; z0 -= pad; x1 += pad; y1 += pad; z1 += pad;
   const inv = 1 / cell;
   const gx = Math.ceil((x1 - x0) * inv) + 1, gy = Math.ceil((y1 - y0) * inv) + 1, gz = Math.ceil((z1 - z0) * inv) + 1;
-  const grid = new Uint8Array(gx * gy * gz);
-  const mark = (x, y, z) => {
-    const i = ((x - x0) * inv) | 0, j = ((y - y0) * inv) | 0, k = ((z - z0) * inv) | 0;
-    grid[(k * gy + j) * gx + i] = 1;
-  };
-  // Flächen rastern (baryzentrisch, Schrittweite ≤ halbe Zelle)
+  const sxy = gx * gy;
+  const grid = new Uint8Array(sxy * gz);
+  // Flächen rastern (baryzentrisch in Gitterkoordinaten, Schrittweite ≤ halbe Zelle)
   for (let t = 0; t < nIdx; t += 3) {
     const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
-    const ax = pos[a], ay = pos[a + 1], az = pos[a + 2];
-    const bx = pos[b] - ax, by = pos[b + 1] - ay, bz = pos[b + 2] - az;
-    const cx = pos[c] - ax, cy = pos[c + 1] - ay, cz = pos[c + 2] - az;
+    const ax = (pos[a] - x0) * inv, ay = (pos[a + 1] - y0) * inv, az = (pos[a + 2] - z0) * inv;
+    const bx = (pos[b] - x0) * inv - ax, by = (pos[b + 1] - y0) * inv - ay, bz = (pos[b + 2] - z0) * inv - az;
+    const cx = (pos[c] - x0) * inv - ax, cy = (pos[c + 1] - y0) * inv - ay, cz = (pos[c + 2] - z0) * inv - az;
     const len = Math.max(Math.hypot(bx, by, bz), Math.hypot(cx, cy, cz), Math.hypot(cx - bx, cy - by, cz - bz));
-    const n = Math.min(40, Math.max(1, Math.ceil(len * inv * 2)));
+    const n = Math.min(48, Math.max(1, Math.ceil(len * 2)));
     for (let i = 0; i <= n; i++) for (let j = 0; j <= n - i; j++) {
       const u = i / n, v = j / n;
-      mark(ax + bx * u + cx * v, ay + by * u + cy * v, az + bz * u + cz * v);
+      grid[(((az + bz * u + cz * v) | 0) * gy + ((ay + by * u + cy * v) | 0)) * gx + ((ax + bx * u + cx * v) | 0)] = 1;
     }
   }
-  // Richtungen (kosinusgewichtet um +Z, Fibonacci), je Vertex in die Normalenbasis gedreht
+  // Richtungen (kosinusgewichtet um +Z, Fibonacci-Spirale)
   const D = new Float32Array(dirs * 3);
   for (let i = 0; i < dirs; i++) {
     const r = Math.sqrt((i + 0.5) / dirs), phi = i * 2.399963;
     D[i * 3] = r * Math.cos(phi); D[i * 3 + 1] = r * Math.sin(phi); D[i * 3 + 2] = Math.sqrt(Math.max(0, 1 - r * r));
   }
-  const STEPS = [0.035, 0.06, 0.09, 0.13, 0.17, reach].filter((s) => s <= reach + 1e-6);
-  const occ = (x, y, z) => {
-    const i = ((x - x0) * inv) | 0, j = ((y - y0) * inv) | 0, k = ((z - z0) * inv) | 0;
-    if (i < 0 || j < 0 || k < 0 || i >= gx || j >= gy || k >= gz) return 0;
-    return grid[(k * gy + j) * gx + i];
-  };
+  const S = steps.map((x) => x * inv); // Schritte in Zellen
+  const ns = S.length;
   const out = new Uint8Array(nv);
+  const seen = new Map(); // Position (mm) + Normale (Int8) → Wert
   for (let v = 0; v < nv; v++) {
     const px = pos[v * 3], py = pos[v * 3 + 1], pz = pos[v * 3 + 2];
-    let nx = nor[v * 3] / 127, ny = nor[v * 3 + 1] / 127, nz = nor[v * 3 + 2] / 127;
+    const qn = nor[v * 3], qy = nor[v * 3 + 1], qz = nor[v * 3 + 2];
+    const key = ((Math.round(px * 1000) * 73856093) ^ (Math.round(py * 1000) * 19349663) ^ (Math.round(pz * 1000) * 83492791) ^ (qn * 131 + qy * 17 + qz)) | 0;
+    const hit = seen.get(key);
+    if (hit !== undefined) { out[v] = hit; continue; }
+    let nx = qn / 127, ny = qy / 127, nz = qz / 127;
     const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
     // Tangentenbasis: u = normalize(cross(a, n)) mit a = X (bzw. Y, wenn n fast parallel zu X)
     const tx = Math.abs(nx) < 0.9 ? 1 : 0, ty = 1 - tx;
     let ux = ty * nz, uy = -tx * nz, uz = tx * ny - ty * nx;
     const ul = Math.hypot(ux, uy, uz) || 1; ux /= ul; uy /= ul; uz /= ul;
     const wx = ny * uz - nz * uy, wy = nz * ux - nx * uz, wz = nx * uy - ny * ux;
-    // Start knapp außerhalb der eigenen Fläche (eigene Zelle nicht treffen)
-    const ox = px + nx * cell * 1.1, oy = py + ny * cell * 1.1, oz = pz + nz * cell * 1.1;
+    // Start knapp außerhalb der eigenen Fläche (eigene Zelle nicht treffen), in Gitterkoordinaten
+    const ox = (px - x0) * inv + nx * 1.1, oy = (py - y0) * inv + ny * 1.1, oz = (pz - z0) * inv + nz * 1.1;
     let blocked = 0;
     for (let d = 0; d < dirs; d++) {
       const a = D[d * 3], b = D[d * 3 + 1], c = D[d * 3 + 2];
       const dx = ux * a + wx * b + nx * c, dy = uy * a + wy * b + ny * c, dz = uz * a + wz * b + nz * c;
-      for (let s = 0; s < STEPS.length; s++) {
-        const L = STEPS[s];
-        if (occ(ox + dx * L, oy + dy * L, oz + dz * L)) { blocked += 1 - (s / STEPS.length) * 0.6; break; }
+      for (let s = 0; s < ns; s++) {
+        const L = S[s];
+        const i = (ox + dx * L) | 0, j = (oy + dy * L) | 0, k = (oz + dz * L) | 0;
+        if (grid[(k * gy + j) * gx + i]) { blocked += 1 - (s / ns) * 0.6; break; }
       }
     }
-    const a = 1 - strength * (blocked / dirs);
-    out[v] = Math.max(0, Math.min(255, Math.round(a * 255)));
+    const val = Math.max(0, Math.min(255, Math.round((1 - strength * (blocked / dirs)) * 255)));
+    seen.set(key, val);
+    out[v] = val;
   }
   return out;
 }
@@ -312,9 +315,11 @@ export class SkinBuilder {
       g.dispose();
     }
     // Umgebungsverdeckung je Vertex (Kontaktschatten unter Taschen, zwischen den Beinen, unter Helm/Kragen …)
-    const ao = this.ao ? bakeVertexAO(pos, nor, idx, io, this.ao) : null;
+    const tAo = performance.now();
+    const ao = this.ao ? bakeVertexAO(pos, nor, idx, io, this.ao) : new Uint8Array(nv).fill(255);
+    const aoMs = performance.now() - tAo;
     const out = new THREE.BufferGeometry();
-    if (ao) out.setAttribute('aNo', new THREE.BufferAttribute(ao, 1, true));
+    out.setAttribute('aNo', new THREE.BufferAttribute(ao, 1, true));
     out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     out.setAttribute('normal', new THREE.BufferAttribute(nor, 3, true));
     out.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
@@ -327,7 +332,8 @@ export class SkinBuilder {
     out.computeBoundingSphere();
     out.computeBoundingBox();
     out.userData.triangles = io / 3;
-    out.userData.bytes = pos.byteLength + nor.byteLength + uv.byteLength + col.byteLength + np.byteLength + nq.byteLength + si.byteLength + sw.byteLength + idx.byteLength + (ao ? ao.byteLength : 0);
+    out.userData.aoMs = +aoMs.toFixed(1);
+    out.userData.bytes = pos.byteLength + nor.byteLength + uv.byteLength + col.byteLength + np.byteLength + nq.byteLength + si.byteLength + sw.byteLength + idx.byteLength + ao.byteLength;
     this.triangles = io / 3;
     this.parts = [];
     return out;

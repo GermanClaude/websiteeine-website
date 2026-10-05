@@ -38,7 +38,8 @@
  *                  inertia   Nachlauf der Waffe hinter der Kameradrehung (1 = Sturmgewehr)
  *                  swayScale Ausschlag von Wippen/Schwanken (1 = Sturmgewehr)
  *                  aimDrift  Zielwandern im Anschlag im Stand (rad, Rauschen; × Atemnot nach dem Sprint)
- *                  reach     Abstand Auge → Mündung in Metern (Wandkollision: Waffe wird angezogen)
+ *                  reach     Tiefe der vordersten Waffenkante vor dem Auge in Metern (Hüfte/Anschlag, gemessen am
+ *                            Modell; Wandkollision: ab dieser Wandtiefe wird die Waffe angezogen bzw. abgesenkt)
  *  sound         { profile, pitch } – profile ist ein Audio-Profil aus §7.
  *  stats         0–100-Balken für Website/Lobby, abgeleitet per computeStats() (Formel unten).
  *  icon          SVG-Strichzeichnung (viewBox 0 0 96 32, stroke=currentColor) – Fallback ohne WebGL,
@@ -282,13 +283,13 @@ export function killProfile(def, distances = [5, 15, 30, 50]) {
  * Felder siehe Kopfkommentar.
  */
 export const HANDLING_BY_CLASS = {
-  ar: { mass: 3.5, inertia: 1.0, swayScale: 1.0, aimDrift: 0.0005, reach: 0.72 },
-  smg: { mass: 2.8, inertia: 0.8, swayScale: 0.9, aimDrift: 0.0004, reach: 0.6 },
-  lmg: { mass: 8.0, inertia: 1.55, swayScale: 1.2, aimDrift: 0.0009, reach: 0.86 },
-  marksman: { mass: 4.5, inertia: 1.2, swayScale: 1.1, aimDrift: 0.0005, reach: 0.82 },
-  sniper: { mass: 6.2, inertia: 1.4, swayScale: 1.15, aimDrift: 0.0005, reach: 0.95 },
-  shotgun: { mass: 3.6, inertia: 1.1, swayScale: 1.05, aimDrift: 0.0005, reach: 0.8 },
-  pistol: { mass: 1.0, inertia: 0.6, swayScale: 0.85, aimDrift: 0.0006, reach: 0.52 },
+  ar: { mass: 3.5, inertia: 1.0, swayScale: 1.0, aimDrift: 0.0005, reach: 1.0 },
+  smg: { mass: 2.8, inertia: 0.8, swayScale: 0.9, aimDrift: 0.0004, reach: 0.8 },
+  lmg: { mass: 8.0, inertia: 1.55, swayScale: 1.2, aimDrift: 0.0009, reach: 1.25 },
+  marksman: { mass: 4.5, inertia: 1.2, swayScale: 1.1, aimDrift: 0.0005, reach: 1.1 },
+  sniper: { mass: 6.2, inertia: 1.4, swayScale: 1.15, aimDrift: 0.0005, reach: 1.35 },
+  shotgun: { mass: 3.6, inertia: 1.1, swayScale: 1.05, aimDrift: 0.0005, reach: 1.1 },
+  pistol: { mass: 1.0, inertia: 0.6, swayScale: 0.85, aimDrift: 0.0006, reach: 0.62 },
   melee: { mass: 0.3, inertia: 0.4, swayScale: 0.7, aimDrift: 0, reach: 0 },
 };
 
@@ -380,27 +381,27 @@ const PATTERN = {
 // Waffengefühl je Waffe (siehe Kopfkommentar „handling“; Massen etwa realer Vorbilder mit Optik und Magazin)
 // und Charakter des Rückstoßes (recoil.visual: sichtbarer Stoß relativ zum Zielrückstoß, recoil.firstShotSpread).
 const FEEL = {
-  ar_kv47: { handling: { mass: 3.9, inertia: 1.05, swayScale: 1.05, aimDrift: 0.00055, reach: 0.74 }, recoil: { visual: 1.15, firstShotSpread: 0.8 } },
-  ar_m17: { handling: { mass: 3.3, inertia: 0.95, swayScale: 1.0, aimDrift: 0.00045, reach: 0.72 }, recoil: { visual: 0.95, firstShotSpread: 0.7 } },
-  smg_vp9: { handling: { mass: 2.9, inertia: 0.82, swayScale: 0.9, aimDrift: 0.0004, reach: 0.62 }, recoil: { visual: 0.9, firstShotSpread: 0.8 } },
-  smg_qx90: { handling: { mass: 2.8, inertia: 0.75, swayScale: 0.9, aimDrift: 0.0004, reach: 0.55 }, recoil: { visual: 0.85, firstShotSpread: 0.85 } },
-  lmg_hm60: { handling: { mass: 8.6, inertia: 1.6, swayScale: 1.25, aimDrift: 0.0009, reach: 0.86 }, recoil: { visual: 1.1, firstShotSpread: 0.85 } },
-  mr_sk14: { handling: { mass: 4.6, inertia: 1.2, swayScale: 1.1, aimDrift: 0, reach: 0.82 }, recoil: { visual: 1.0, firstShotSpread: 0.6 } },
-  sr_brecher: { handling: { mass: 6.4, inertia: 1.4, swayScale: 1.15, aimDrift: 0, reach: 0.95 }, recoil: { visual: 1.0, firstShotSpread: 1 } },
-  sg_bulldog: { handling: { mass: 3.6, inertia: 1.1, swayScale: 1.05, aimDrift: 0.0005, reach: 0.8 }, recoil: { visual: 1.1, firstShotSpread: 1 } },
-  pi_p9: { handling: { mass: 0.75, inertia: 0.55, swayScale: 0.8, aimDrift: 0.0006, reach: 0.52 }, recoil: { visual: 1.0, firstShotSpread: 0.75 } },
-  pi_adler: { handling: { mass: 2.0, inertia: 0.7, swayScale: 0.9, aimDrift: 0.0007, reach: 0.55 }, recoil: { visual: 1.2, firstShotSpread: 0.75 } },
+  ar_kv47: { handling: { mass: 3.9, inertia: 1.05, swayScale: 1.05, aimDrift: 0.00055, reach: 1.14 }, recoil: { visual: 1.15, firstShotSpread: 0.8 } },
+  ar_m17: { handling: { mass: 3.3, inertia: 0.95, swayScale: 1.0, aimDrift: 0.00045, reach: 0.95 }, recoil: { visual: 0.95, firstShotSpread: 0.7 } },
+  smg_vp9: { handling: { mass: 2.9, inertia: 0.82, swayScale: 0.9, aimDrift: 0.0004, reach: 0.88 }, recoil: { visual: 0.9, firstShotSpread: 0.8 } },
+  smg_qx90: { handling: { mass: 2.8, inertia: 0.75, swayScale: 0.9, aimDrift: 0.0004, reach: 0.75 }, recoil: { visual: 0.85, firstShotSpread: 0.85 } },
+  lmg_hm60: { handling: { mass: 8.6, inertia: 1.6, swayScale: 1.25, aimDrift: 0.0009, reach: 1.39 }, recoil: { visual: 1.1, firstShotSpread: 0.85 } },
+  mr_sk14: { handling: { mass: 4.6, inertia: 1.2, swayScale: 1.1, aimDrift: 0, reach: 1.08 }, recoil: { visual: 1.0, firstShotSpread: 0.6 } },
+  sr_brecher: { handling: { mass: 6.4, inertia: 1.4, swayScale: 1.15, aimDrift: 0, reach: 1.34 }, recoil: { visual: 1.0, firstShotSpread: 1 } },
+  sg_bulldog: { handling: { mass: 3.6, inertia: 1.1, swayScale: 1.05, aimDrift: 0.0005, reach: 1.06 }, recoil: { visual: 1.1, firstShotSpread: 1 } },
+  pi_p9: { handling: { mass: 0.75, inertia: 0.55, swayScale: 0.8, aimDrift: 0.0006, reach: 0.56 }, recoil: { visual: 1.0, firstShotSpread: 0.75 } },
+  pi_adler: { handling: { mass: 2.0, inertia: 0.7, swayScale: 0.9, aimDrift: 0.0007, reach: 0.66 }, recoil: { visual: 1.2, firstShotSpread: 0.75 } },
   knife: { handling: { mass: 0.3, inertia: 0.4, swayScale: 0.7, aimDrift: 0, reach: 0 } },
-  ar_k36: { handling: { mass: 2.9, inertia: 0.88, swayScale: 0.95, aimDrift: 0.00045, reach: 0.62 }, recoil: { visual: 0.95, firstShotSpread: 0.75 } },
-  ar_bx20: { handling: { mass: 3.7, inertia: 0.92, swayScale: 0.95, aimDrift: 0.0004, reach: 0.6 }, recoil: { visual: 0.9, firstShotSpread: 0.7 } },
-  ar_g7: { handling: { mass: 4.6, inertia: 1.15, swayScale: 1.1, aimDrift: 0.0006, reach: 0.82 }, recoil: { visual: 1.25, firstShotSpread: 0.75 } },
-  smg_wespe: { handling: { mass: 2.1, inertia: 0.65, swayScale: 0.85, aimDrift: 0.00045, reach: 0.48 }, recoil: { visual: 0.8, firstShotSpread: 0.9 } },
-  smg_keiler: { handling: { mass: 3.0, inertia: 0.85, swayScale: 0.92, aimDrift: 0.0004, reach: 0.6 }, recoil: { visual: 1.0, firstShotSpread: 0.8 } },
-  lmg_lm8: { handling: { mass: 6.2, inertia: 1.35, swayScale: 1.15, aimDrift: 0.0008, reach: 0.84 }, recoil: { visual: 1.05, firstShotSpread: 0.85 } },
-  sr_titan: { handling: { mass: 12.5, inertia: 1.75, swayScale: 1.3, aimDrift: 0, reach: 1.12 }, recoil: { visual: 1.0, firstShotSpread: 1 } },
-  sg_hagel: { handling: { mass: 3.9, inertia: 1.1, swayScale: 1.05, aimDrift: 0.0005, reach: 0.78 }, recoil: { visual: 1.05, firstShotSpread: 1 } },
-  pi_kobra: { handling: { mass: 1.3, inertia: 0.65, swayScale: 0.88, aimDrift: 0.0007, reach: 0.55 }, recoil: { visual: 1.25, firstShotSpread: 0.75 } },
-  at_donner: { handling: { mass: 7.0, inertia: 1.45, swayScale: 1.2, aimDrift: 0.0008, reach: 0.7 }, recoil: { visual: 1.0, firstShotSpread: 1 } },
+  ar_k36: { handling: { mass: 2.9, inertia: 0.88, swayScale: 0.95, aimDrift: 0.00045, reach: 0.84 }, recoil: { visual: 0.95, firstShotSpread: 0.75 } },
+  ar_bx20: { handling: { mass: 3.7, inertia: 0.92, swayScale: 0.95, aimDrift: 0.0004, reach: 0.92 }, recoil: { visual: 0.9, firstShotSpread: 0.7 } },
+  ar_g7: { handling: { mass: 4.6, inertia: 1.15, swayScale: 1.1, aimDrift: 0.0006, reach: 1.1 }, recoil: { visual: 1.25, firstShotSpread: 0.75 } },
+  smg_wespe: { handling: { mass: 2.1, inertia: 0.65, swayScale: 0.85, aimDrift: 0.00045, reach: 0.65 }, recoil: { visual: 0.8, firstShotSpread: 0.9 } },
+  smg_keiler: { handling: { mass: 3.0, inertia: 0.85, swayScale: 0.92, aimDrift: 0.0004, reach: 0.81 }, recoil: { visual: 1.0, firstShotSpread: 0.8 } },
+  lmg_lm8: { handling: { mass: 6.2, inertia: 1.35, swayScale: 1.15, aimDrift: 0.0008, reach: 1.09 }, recoil: { visual: 1.05, firstShotSpread: 0.85 } },
+  sr_titan: { handling: { mass: 12.5, inertia: 1.75, swayScale: 1.3, aimDrift: 0, reach: 1.35 }, recoil: { visual: 1.0, firstShotSpread: 1 } },
+  sg_hagel: { handling: { mass: 3.9, inertia: 1.1, swayScale: 1.05, aimDrift: 0.0005, reach: 1.17 }, recoil: { visual: 1.05, firstShotSpread: 1 } },
+  pi_kobra: { handling: { mass: 1.3, inertia: 0.65, swayScale: 0.88, aimDrift: 0.0007, reach: 0.64 }, recoil: { visual: 1.25, firstShotSpread: 0.75 } },
+  at_donner: { handling: { mass: 7.0, inertia: 1.45, swayScale: 1.2, aimDrift: 0.0008, reach: 1.26 }, recoil: { visual: 1.0, firstShotSpread: 1 } },
   karambit: { handling: { mass: 0.2, inertia: 0.35, swayScale: 0.65, aimDrift: 0, reach: 0 } },
   machete: { handling: { mass: 0.6, inertia: 0.5, swayScale: 0.75, aimDrift: 0, reach: 0 } },
   tomahawk: { handling: { mass: 0.7, inertia: 0.55, swayScale: 0.78, aimDrift: 0, reach: 0 } },

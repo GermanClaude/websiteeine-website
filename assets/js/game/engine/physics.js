@@ -12,6 +12,7 @@
 //
 // Zusätzlich (Realismus-Plan F5/F6): collisionRay() – Strahl gegen die Kollisionsgeometrie (Lehnen, Kanten),
 // probeLedge() – Kantensuche fürs Überklettern (0,5–1,3 m, auch dünne Hindernisse überspringen), canOccupy().
+// walls: keepClear() – Mindestabstand eines Punktes (Kamera) zur Geometrie; Unterschritte bis 32 je step().
 
 import { Vector3, Ray } from 'three';
 import { Capsule } from 'three/addons/math/Capsule.js';
@@ -140,7 +141,8 @@ export class CapsuleBody {
 
     const hTravel = Math.hypot(v.x, v.z) * dt;
     const vTravel = Math.abs(v.y) * dt;
-    const steps = Math.min(8, Math.max(1, Math.ceil(Math.max(hTravel / (this.radius * 0.5), vTravel / 0.6))));
+    // walls: Unterschritte ≤ halber Radius auch bei großem dt (Zeitlupe/Zeitraffer bis ×4, 10-FPS-Geräte, Hechtsprung)
+    const steps = Math.min(32, Math.max(1, Math.ceil(Math.max(hTravel / (this.radius * 0.5), vTravel / 0.4))));
     const sdt = dt / steps;
 
     for (let i = 0; i < steps; i++) {
@@ -426,6 +428,68 @@ export function canOccupy(world, pos, height, radius = 0.32) {
 
 const _hitA = {};
 const _hitB = {};
+
+/* ===================================================================== Punktabstand (Kamera) */
+
+const _ptTris = [];
+const _ptCap = new Capsule(new Vector3(), new Vector3(), 0.1);
+const _cp = new Vector3();
+const _ab = new Vector3(), _ac = new Vector3(), _ap = new Vector3();
+
+/** Nächster Punkt auf dem Dreieck (a, b, c) zu p → out (Ericson, Real-Time Collision Detection 5.1.5). */
+function closestOnTri(p, a, b, c, out) {
+  _ab.subVectors(b, a); _ac.subVectors(c, a); _ap.subVectors(p, a);
+  const d1 = _ab.dot(_ap), d2 = _ac.dot(_ap);
+  if (d1 <= 0 && d2 <= 0) return out.copy(a);
+  _ap.subVectors(p, b);
+  const d3 = _ab.dot(_ap), d4 = _ac.dot(_ap);
+  if (d3 >= 0 && d4 <= d3) return out.copy(b);
+  const vc = d1 * d4 - d3 * d2;
+  if (vc <= 0 && d1 >= 0 && d3 <= 0) return out.copy(a).addScaledVector(_ab, d1 / (d1 - d3));
+  _ap.subVectors(p, c);
+  const d5 = _ab.dot(_ap), d6 = _ac.dot(_ap);
+  if (d6 >= 0 && d5 <= d6) return out.copy(c);
+  const vb = d5 * d2 - d1 * d6;
+  if (vb <= 0 && d2 >= 0 && d6 <= 0) return out.copy(a).addScaledVector(_ac, d2 / (d2 - d6));
+  const va = d3 * d6 - d5 * d4;
+  if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) return out.copy(b).addScaledVector(_ap.subVectors(c, b), (d4 - d3) / (d4 - d3 + (d5 - d6)));
+  const den = 1 / (va + vb + vc);
+  return out.copy(a).addScaledVector(_ab, vb * den).addScaledVector(_ac, vc * den);
+}
+
+/**
+ * Hält einen Punkt (z. B. die Kamera) mindestens `radius` von der Kollisionsgeometrie fern: schiebt ihn entlang der
+ * Abstandsrichtung heraus (wenige Iterationen, Ecken). Der Punkt muss auf der freien Seite liegen (vorher per
+ * collisionRay vom sicheren Anker begrenzen). → kleinster gefundener Abstand vor dem Schieben (m; Infinity = frei).
+ */
+export function keepClear(world, point, radius) {
+  const collider = world && world.collider;
+  if (!collider || typeof collider.getCapsuleTriangles !== 'function') return Infinity;
+  _ptCap.radius = radius;
+  _ptCap.start.copy(point);
+  _ptCap.end.copy(point);
+  _ptCap.end.y += 1e-3;
+  _ptTris.length = 0;
+  collider.getCapsuleTriangles(_ptCap, _ptTris);
+  let first = Infinity;
+  for (let iter = 0; iter < 3; iter++) {
+    let moved = false;
+    for (let i = 0; i < _ptTris.length; i++) {
+      const t = _ptTris[i];
+      closestOnTri(point, t.a, t.b, t.c, _cp);
+      _n.subVectors(point, _cp);
+      const d = _n.length();
+      if (iter === 0 && d < first) first = d;
+      if (d >= radius) continue;
+      if (d < 1e-5) { t.getNormal(_n); } else _n.multiplyScalar(1 / d);
+      point.addScaledVector(_n, radius - d + 1e-4);
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  _ptTris.length = 0;
+  return first;
+}
 
 /**
  * Kantensuche fürs Überklettern (F6): Wand in Laufrichtung (dirX, dirZ normiert, waagerecht) in Hüfthöhe, Oberkante

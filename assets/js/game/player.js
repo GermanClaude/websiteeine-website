@@ -11,7 +11,7 @@
 // freies Zielen; getAimScreenPoint() liefert den Laufpunkt auf dem Bildschirm (Fadenkreuz).
 
 import * as THREE from 'three';
-import { CapsuleBody, collisionRay, probeLedge } from './engine/physics.js';
+import { CapsuleBody, collisionRay, probeLedge, keepClear, canOccupy } from './engine/physics.js';
 import { raycastHumanoid, PRONE } from './combat.js';
 import { canInsertPlate, plateCount, classDef, gadgetDef, GADGETS } from '../shared/classes.data.js';
 
@@ -60,6 +60,7 @@ const LEAN_SIDE_CROUCH = 0.3;
 const LEAN_DROP = 0.06;
 const LEAN_OMEGA = 26; // ≈ 0,18 s bis zur vollen Neigung
 const HEAD_R = 0.17;
+const CAM_PAD = 0.025; // m Abstand der Nahebene (Ecken) zur Geometrie (walls)
 // Freies Zielen (F4): Totzonen-Radius je Einstellung (rad)
 const FREE_AIM = { off: 0, light: (2 * Math.PI) / 180, strong: (5 * Math.PI) / 180 };
 
@@ -915,10 +916,13 @@ export class Player {
       const p = this.body.position;
       _dir.set(Math.cos(this.yaw) * dir, 0, -Math.sin(this.yaw) * dir);
       let free = side;
-      for (const h of this.prone ? [this._eye - 0.02, this._eye - 0.14] : [this._eye - 0.02, this._eye - 0.32]) {
-        _o.set(p.x, p.y + h, p.z);
+      // walls: Kopf als Kugel (Mitte + vorn/hinten versetzt) und Schulter – auch Ecken und Kanten begrenzen
+      const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
+      const rays = this.prone ? [[this._eye - 0.02, 0], [this._eye - 0.02, 0.12], [this._eye - 0.14, 0]] : [[this._eye - 0.02, 0], [this._eye - 0.02, 0.12], [this._eye - 0.02, -0.12], [this._eye - 0.32, 0]];
+      for (const [h, f] of rays) {
+        _o.set(p.x + fx * f, p.y + h, p.z + fz * f);
         const r = collisionRay(G.world, _o, _dir, side + HEAD_R, _hit);
-        if (r) free = Math.min(free, Math.max(0, r.distance - HEAD_R));
+        if (r) free = Math.min(free, Math.max(0, r.distance - HEAD_R * (f ? 0.8 : 1)));
       }
       limit = clamp(free / side, 0, 1);
     }
@@ -1094,11 +1098,23 @@ export class Player {
   _proneConstraint(world, dt) {
     if (!this.prone || !world || !this.alive) { this._proneYaw = this.yaw; return; }
     const len = PRONE.length * Math.max(0.35, this.proneBlend);
+    const maxPush = 3 * dt + 0.01;
     let need = this._proneNeed(world, this.yaw, len);
-    if (need < 0) {
-      this.yaw = this._proneYaw;
-      need = Math.max(0, this._proneNeed(world, this.yaw, len));
+    // walls: nur so weit drehen, wie der Körper in diesem Bild nach vorn ausweichen kann – die Beine schwenken nie in
+    // eine Wand (vorher: Sprung des Bedarfs an Kanten → Beine bis zu 1 m in der Wand, kein Platz vorn → zurück)
+    const dy = wrap(this.yaw - this._proneYaw);
+    if ((need < 0 || need > maxPush) && Math.abs(dy) > 1e-4) {
+      const y0 = this._proneYaw;
+      let lo = 0, hi = 1;
+      for (let i = 0; i < 6; i++) {
+        const mid = (lo + hi) / 2;
+        const n = this._proneNeed(world, y0 + dy * mid, len);
+        if (n >= 0 && n <= maxPush) lo = mid; else hi = mid;
+      }
+      this.yaw = y0 + dy * lo;
+      need = this._proneNeed(world, this.yaw, len);
     }
+    if (need < 0) need = 0;
     this._proneYaw = this.yaw;
     if (need > 0.004) {
       const push = Math.min(need, 3 * dt + 0.01);
@@ -1305,6 +1321,7 @@ export class Player {
     const ledge = probeLedge(world, body, dx, dz, { crouchH: CROUCH_H });
     if (!ledge) return false;
     if (!body.onGround && ledge.topY < body.position.y + 0.25) return false; // in der Luft schon fast oben: Physik fängt
+    if (!this._mantlePathFree(world, ledge, dx, dz)) return false; // walls: Bahn streift Überhang/Seitenwand
     this._startMantle(ledge, dx, dz);
     return true;
   }
@@ -1332,6 +1349,32 @@ export class Player {
     this._cam.y.v -= 0.25;
     this.exertion = Math.min(1, this.exertion + 0.05);
     G.events.emit('player:mantle', { phase: 'start', height: Math.round(h * 100) / 100, vault: ledge.vault, position: start.clone() });
+  }
+
+  /** Lage auf der Kletterbahn bei t ∈ [0, 1] (wie _updateMantle) → out (Füße). */
+  _mantlePos(m, t, out) {
+    const s = m.start, e = m.end;
+    const lift = m.topY + (m.vault ? 0.22 : 0.1);
+    const near = Math.max(0, m.wall - this.body.radius - 0.02);
+    if (t < 0.55) {
+      const u = easeOut(t / 0.55), f = near * u * 0.8;
+      return out.set(s.x + m.dx * f, s.y + (lift - s.y) * u, s.z + m.dz * f);
+    }
+    const u = ease((t - 0.55) / 0.45);
+    const f0 = near * 0.8;
+    const ax = s.x + m.dx * f0, az = s.z + m.dz * f0;
+    return out.set(ax + (e.x - ax) * u, lift + (e.y - lift) * u, az + (e.z - az) * u);
+  }
+
+  /** walls: geduckter Körper passt an jeder Stelle der Kletterbahn (keine Überhänge, Seitenwände, Decken). */
+  _mantlePathFree(world, ledge, dx, dz) {
+    const m = { start: this.body.position, end: ledge.end, topY: ledge.topY, vault: ledge.vault, dx, dz, wall: ledge.wallDist };
+    const r = this.body.radius * 0.92;
+    for (let i = 2; i <= 10; i++) {
+      this._mantlePos(m, i / 10, _v);
+      if (!canOccupy(world, _v, CROUCH_H, r)) return false;
+    }
+    return true;
   }
 
   _updateMantle(dt) {
@@ -1507,6 +1550,30 @@ export class Player {
     c.x.v += side * kX * sp;
   }
 
+  /**
+   * walls: Kamera nie in der Geometrie. Kopfbewegungen (Lehnen, Wippen, Schwanken, Wackeln, Stufenglättung) gehen
+   * von einem sicheren Anker auf der Körperachse aus (innerhalb der Kollisionskapsel) – ein Strahl begrenzt den Weg,
+   * danach hält keepClear() die ganze Nahebene (Halbdiagonale + CAM_PAD) frei. Querformat bis 2,2:1 berücksichtigt.
+   */
+  _keepCameraClear(cam) {
+    const world = this.G.world;
+    if (!world || !world.collider) return;
+    const b = this.body;
+    const pos = cam.position;
+    const hh = cam.near * Math.tan((cam.fov * Math.PI) / 360);
+    const rad = cam.near * Math.sqrt(1 + (hh / cam.near) ** 2 * (1 + Math.max(cam.aspect || 1.78, 2.2) ** 2)) + CAM_PAD;
+    const lo = b.position.y + Math.min(0.3, b.height * 0.4), hi = b.position.y + Math.max(lo - b.position.y, b.height - 0.1);
+    _o.set(b.position.x, clamp(pos.y, lo, hi), b.position.z);
+    _dir.subVectors(pos, _o);
+    const len = _dir.length();
+    if (len > 1e-4) {
+      _dir.multiplyScalar(1 / len);
+      const r = collisionRay(world, _o, _dir, len + rad, _hit);
+      if (r && r.distance < len + rad) pos.copy(_o).addScaledVector(_dir, Math.max(0, r.distance - rad));
+    }
+    keepClear(world, pos, rad);
+  }
+
   _updateCamera(dt) {
     const G = this.G;
     const cam = this.camera;
@@ -1646,6 +1713,8 @@ export class Player {
       p.y + eye + camY + n2 * sh * 0.04,
       p.z + lo.z - sy * camX - cy * -camZ + n3 * sh * 0.05,
     );
+
+    this._keepCameraClear(cam);
 
     const leanRollK = 0.4 + 0.6 * clamp(M / 0.6, 0, 1);
     let roll = this._tilt + this.leanRoll * leanRollK + camR + n3 * sh * 0.06;

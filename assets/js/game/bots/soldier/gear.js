@@ -37,7 +37,7 @@ const HELMET_TILT = new THREE.Matrix4().makeTranslation(0, 1.692, 0.008)
   .multiply(new THREE.Matrix4().makeTranslation(0, -1.692, -0.008));
 const tiltHelmet = (g) => g.applyMatrix4(HELMET_TILT);
 // Umgebungsverdeckung je Detailstufe (Strahlen, Zellmaß)
-const AO = [{ dirs: 12, cell: 0.02 }, { dirs: 10, cell: 0.024 }, { dirs: 6, cell: 0.03 }];
+const AO = [{ cell: 0.02, dirs: 8 }, { cell: 0.022, dirs: 8 }, { cell: 0.03, dirs: 6, steps: [0.04, 0.09, 0.16] }];
 
 /**
  * Geometrie (gecacht) für Variante × Detailstufe. `schemeId` wird ignoriert (Farben aus dem Material) und bleibt
@@ -74,7 +74,7 @@ export function disposeSoldierGeometries() {
 
 function buildSoldier(V, lod) {
   const q = Q[lod];
-  const B = new SkinBuilder({ ao: { ...AO[lod], reach: 0.2, strength: 0.85 } });
+  const B = new SkinBuilder({ ao: globalThis.__npNoAO ? null : AO[lod] });
   const L0 = lod === 0, L01 = lod <= 1, FAR = lod === 2;
   const skin = SKIN_TONES[V.skin % SKIN_TONES.length];
 
@@ -111,7 +111,7 @@ function buildSoldier(V, lod) {
     brow: { color: shade(V.hair, 0.9), detail: 0.6, shine: 0.05, cls: 'cloth' },
     patch: { pal: 'gear', shade: 0.72, detail: 1, cls: 'gear' },
     knit: { color: '#2a2b2c', detail: 1, shine: 0, cls: 'cloth' },
-    sand: { color: '#6f6550', detail: 1, cls: 'cloth' }, // Shemagh (Oliv-Braun – heller Sand las sich als Haut)
+    sand: { color: '#4b4c3c', detail: 1, cls: 'cloth' }, // Shemagh (dunkles Oliv – heller Sand las sich als Haut)
   };
   const covered = V.face === 'balaclava';
   const lowerCovered = covered || V.face === 'gaiter' || V.face === 'shemagh' || V.face === 'gasmask';
@@ -266,7 +266,7 @@ function buildSoldier(V, lod) {
   if (!FAR) add(E(0.058, 0.038, 0.05, { p: [0, 1.592, -0.052] }, undefined, q.sw / 2 + 2, q.sh / 2 + 1), 'head', lowerMat);
   // Stoff über der Nase: kleiner Wulst + Saum (Halstuch hochgezogen)
   if (lowerCovered && V.face !== 'gasmask' && !covered && L01) {
-    add(E(0.03, 0.022, 0.026, { p: [0, 1.664, -0.104] }, undefined, 8, 6), 'head', lowerMat);
+    add(E(0.022, 0.016, 0.018, { p: [0, 1.666, -0.1] }, undefined, 8, 6), 'head', lowerMat);
     if (L0) add(torus(0.084, 0.006, 3, 16, { p: [0, 1.673, -0.03], r: [Math.PI / 2 + 0.22, 0, 0], s: [1, 1.0, 1] }, Math.PI), 'head', { ...lowerMat, shade: (lowerMat.shade || 1) * 0.85 });
   }
   if (covered && !FAR) add(R(0.112, 0.036, 0.03, 0.013, { p: [0, 1.69, -0.088] }), 'head', C.skin); // Augenschlitz

@@ -6,10 +6,14 @@
 //   Lafetten-Sitze (gun/cmg/mg): yaw/pitch = gewünschte Zielrichtung in Welt (Turm folgt mit Richtgeschwindigkeit)
 //   freie Sitze (Fahrer Geländewagen, Mitfahrer): relYaw/relPitch relativ zur Wanne
 import * as THREE from 'three';
-import { collisionRay } from '../engine/physics.js';
+import { collisionRay, keepClear } from '../engine/physics.js';
 
 const _p = new THREE.Vector3(), _d = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const _piv = new THREE.Vector3(), _t = new THREE.Vector3(), _hit = {};
+const _r = new THREE.Vector3(), _u = new THREE.Vector3(), _o = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+// walls: Federarm – Strahlenbündel (Mitte + 4 Versätze ≈ Kamerakugel), Polster zur Wand, Mindestabstand der Nahebene
+const ARM_RAYS = [[0, 0], [0.32, 0], [-0.32, 0], [0, 0.24], [0, -0.24]];
+const ARM_PAD = 0.35, CAM_CLEAR = 0.2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 export function dirFromYawPitch(yaw, pitch, out) {
@@ -27,7 +31,7 @@ export class VehicleCamera {
     this.dir = new THREE.Vector3(0, 0, -1); // Blickrichtung der Kamera (Welt)
   }
 
-  reset() { this.ready = false; this.zoom = 1; }
+  reset() { this.ready = false; this.zoom = 1; this.arm = 0; }
 
   /** Weltrichtung des Blicks eines Sitzes. */
   lookDir(vehicle, seat, out) {
@@ -66,20 +70,40 @@ export class VehicleCamera {
       const dist = tp.dist;
       _p.copy(_piv).addScaledVector(d, -dist);
       _p.y += tp.height - tp.pivot;
-      // Kollision: vom Drehpunkt zur Wunschlage
+      // Kollision (walls): Federarm vom Drehpunkt – kürzer sofort, länger mit Feder; nach dem Nachführen nochmals
+      // begrenzen (der geglättete Weg darf nicht durch eine Ecke schneiden), danach Mindestabstand zur Geometrie
       _t.copy(_p).sub(_piv);
       const len = _t.length();
+      let arm = len;
       if (len > 1e-3 && world) {
         _t.multiplyScalar(1 / len);
-        const h = collisionRay(world, _piv, _t, len + 0.3, _hit);
-        if (h) _p.copy(_piv).addScaledVector(_t, Math.max(0.6, h.distance - 0.35));
+        _r.crossVectors(_t, UP);
+        if (_r.lengthSq() < 1e-6) _r.set(1, 0, 0); else _r.normalize();
+        _u.crossVectors(_r, _t);
+        for (const [ox, oy] of ARM_RAYS) {
+          _o.copy(_piv).addScaledVector(_r, ox).addScaledVector(_u, oy);
+          const h = collisionRay(world, _o, _t, len + ARM_PAD, _hit);
+          if (h) arm = Math.min(arm, Math.max(0.25, h.distance - ARM_PAD));
+        }
       }
+      this.arm = !this.ready || !(this.arm > 0) || arm < this.arm ? arm : this.arm + (arm - this.arm) * (1 - Math.exp(-dt * 3));
+      if (len > 1e-3) _p.copy(_piv).addScaledVector(_t, Math.min(this.arm, len));
       if (!this.ready) { this.pos.copy(_p); this.ready = true; }
       else this.pos.lerp(_p, k);
       // Nie unter den Boden
       if (world && typeof world.groundHeight === 'function') {
         const g = world.groundHeight(this.pos.x, this.pos.z, this.pos.y + 1.5);
         if (g != null && this.pos.y < g + 0.4) this.pos.y = g + 0.4;
+      }
+      if (world) {
+        _t.copy(this.pos).sub(_piv);
+        const l2 = _t.length();
+        if (l2 > 1e-3) {
+          _t.multiplyScalar(1 / l2);
+          const h = collisionRay(world, _piv, _t, l2 + CAM_CLEAR, _hit);
+          if (h && h.distance < l2 + CAM_CLEAR) this.pos.copy(_piv).addScaledVector(_t, Math.max(0.2, h.distance - CAM_CLEAR));
+        }
+        keepClear(world, this.pos, CAM_CLEAR);
       }
     }
     camera.position.copy(this.pos);

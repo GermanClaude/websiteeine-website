@@ -34,7 +34,11 @@ const BREATH_RECOVER = 2.8; // s bis voll erholt
 const EXHAUST = 1.6; // s außer Atem
 // Wandkollision (F3): ab diesem Anteil (0..1, wie weit die Waffe angezogen ist) kein Anschlag bzw. kein Schuss –
 // mit Hysterese, damit es an der Grenze nicht flackert
-const OBSTRUCT_ADS = [0.45, 0.3];
+const OBSTRUCT_ADS = [0.3, 0.2]; // walls: Reichweite = echte Vorderkante → Anschlag endet, bevor die Visierlinie anstößt
+const OBSTRUCT_NEAR = 0.3;        // m Wandtiefe, ab der die Waffe ganz angezogen ist (Auge an der Wand ≈ 0,33 m)
+const _wdir = new THREE.Vector3();
+const _wup = new THREE.Vector3();
+const _wlast = new THREE.Vector3();
 const OBSTRUCT_FIRE = [0.72, 0.55];
 // Rückstoß 2.0: kurzer Kamera-Ruck schwerer Waffen (Trauma für player.shake, nur Optik, Komfort über core)
 const SHOT_SHAKE = { sniper: 0.22, shotgun: 0.2, marksman: 0.1, lmg: 0.025 };
@@ -130,7 +134,8 @@ export class WeaponController {
     this._swayX = 0;
     this._swayY = 0;
     this._shotSerial = 0;
-    this._obsSample = [Infinity, Infinity];
+    this._obsSample = [Infinity, Infinity, Infinity];
+    this.wallDist = Infinity; // m Wandtiefe vor dem Auge (Messung + Vorhalt, walls) → Viewmodel s.wallDist
     this._obsK = 0;
     this._obsAds = false;
     this._obsFire = false;
@@ -295,7 +300,8 @@ export class WeaponController {
     this._swayX = this._swayY = this._swayAmp = 0;
     this.holdingBreath = false;
     this.obstructed = 0;
-    this._obsSample[0] = this._obsSample[1] = Infinity;
+    this._obsSample.fill(Infinity);
+    this.wallDist = Infinity;
     this._obsAds = this._obsFire = false;
     this.winded = 0;
     this._sprintT = 0;
@@ -485,6 +491,7 @@ export class WeaponController {
         v.x = bv.x * cy - bv.z * sy; v.y = bv.y; v.z = -bv.x * sy - bv.z * cy;
       } else { v.x = 0; v.y = 0; v.z = it.speed || 0; }
       s.obstruct = this.obstructed;
+      s.wallDist = this.wallDist;
       s.winded = this.winded;
       s.exhausted = this._exhausted > 0;
       s.holdingBreath = this.holdingBreath;
@@ -1093,35 +1100,60 @@ export class WeaponController {
     const w = G.world;
     const reach = def.cls === 'melee' ? 0 : weaponHandling(def).reach || 0;
     let raw = 0;
+    let wall = Infinity;
     if (reach > 0 && w && typeof w.raycast === 'function' && actor.alive !== false) {
-      const k = (this._obsK = (this._obsK + 1) % 2);
+      // walls: drei Strahlen im Wechsel – Auge entlang der Laufrichtung, Waffenseite, Auge → Vorderkante an der Hüfte
+      // (Sichtraum ≈ (0,15; −0,14; −1)); alle als Tiefe entlang der Blickachse
       actor.getEyePosition(_eye);
       actor.getAimDirection(_aim);
-      _org.copy(_eye);
-      let len = reach + 0.06;
-      if (k === 1) {
-        // Waffenseite: etwas rechts und unterhalb des Auges (im Anschlag liegt die Waffe auf der Visierlinie)
-        const a = smooth01(this.adsProgress);
-        _side.crossVectors(_aim, UP);
-        if (_side.lengthSq() < 1e-6) _side.set(1, 0, 0); else _side.normalize();
-        _org.addScaledVector(_side, 0.1 * (1 - a)).addScaledVector(UP, -0.08 * (1 - a));
-        len -= 0.06 * (1 - a);
+      // schnelle Drehung (> 4° seit der letzten Messung): alle drei Strahlen sofort neu, alte Werte gelten nicht mehr
+      const all = _wlast.dot(_aim) < 0.9976;
+      _wlast.copy(_aim);
+      const a = smooth01(this.adsProgress);
+      _side.crossVectors(_aim, UP);
+      if (_side.lengthSq() < 1e-6) _side.set(1, 0, 0); else _side.normalize();
+      _wup.crossVectors(_side, _aim).normalize();
+      for (let n = all ? 3 : 1; n > 0; n--) {
+        const k = (this._obsK = (this._obsK + 1) % 3);
+        _org.copy(_eye);
+        let dir = _aim, scale = 1;
+        if (k === 1) {
+          // Waffenseite: etwas rechts und unterhalb des Auges (im Anschlag liegt die Waffe auf der Visierlinie)
+          _org.addScaledVector(_side, 0.1 * (1 - a)).addScaledVector(UP, -0.08 * (1 - a));
+        } else if (k === 2) {
+          _wdir.copy(_aim).addScaledVector(_side, 0.15 * (1 - a)).addScaledVector(_wup, -0.14 * (1 - a));
+          scale = 1 / _wdir.length();
+          _wdir.multiplyScalar(scale);
+          dir = _wdir;
+        }
+        let d = Infinity;
+        try {
+          const hit = w.raycast(_org, dir, (reach + 0.15) / scale);
+          if (hit && Number.isFinite(hit.distance) && hit.targetId === undefined) d = hit.distance * scale;
+        } catch { /* Welt im Abbau */ }
+        this._obsSample[k] = d;
       }
-      let d = Infinity;
-      try {
-        const hit = w.raycast(_org, _aim, len);
-        if (hit && Number.isFinite(hit.distance) && hit.targetId === undefined) d = hit.distance;
-      } catch { /* Welt im Abbau */ }
-      this._obsSample[k] = d;
-      const dmin = Math.min(this._obsSample[0], this._obsSample[1]);
-      raw = Number.isFinite(dmin) ? clamp((reach - dmin) / (reach * 0.55), 0, 1) : 0;
+      let dmin = Math.min(this._obsSample[0], this._obsSample[1], this._obsSample[2]);
+      // Vorhalt: Annäherung an die Wand (Messungen bis zu drei Bilder alt, Glättung im Viewmodel)
+      const bv = actor.body && actor.body.velocity;
+      if (bv && Number.isFinite(dmin)) dmin -= Math.max(0, bv.x * _aim.x + bv.y * _aim.y + bv.z * _aim.z) * (3 * dt + 0.04);
+      wall = dmin;
+      raw = Number.isFinite(dmin) ? clamp((reach - dmin) / Math.max(0.15, reach - OBSTRUCT_NEAR), 0, 1) : 0;
+      // Anschlag früher beenden: Annäherung während der Zielzeit vorhalten (sonst ragt die Visierlinie in die Wand)
+      if (bv && Number.isFinite(dmin)) {
+        const dAds = dmin - Math.max(0, bv.x * _aim.x + bv.z * _aim.z) * (def.adsTime || 0.25);
+        this._obsAdsRaw = clamp((reach - dAds) / Math.max(0.15, reach - OBSTRUCT_NEAR), 0, 1);
+      } else this._obsAdsRaw = raw;
     } else {
-      this._obsSample[0] = this._obsSample[1] = Infinity;
+      this._obsSample.fill(Infinity);
+      this._obsAdsRaw = 0;
     }
-    this.obstructed += (raw - this.obstructed) * damp(raw > this.obstructed ? 16 : 8, dt);
+    this.wallDist = wall;
+    this.obstructed += (raw - this.obstructed) * damp(raw > this.obstructed ? 40 : 8, dt);
     if (this.obstructed < 1e-3) this.obstructed = 0;
     const o = this.obstructed;
-    this._obsAds = this._obsAds ? o > OBSTRUCT_ADS[1] : o > OBSTRUCT_ADS[0];
+    const oa = Math.max(o, this._obsAdsRaw || 0);
+    this._obsAds = this._obsAds ? oa > OBSTRUCT_ADS[1] : oa > OBSTRUCT_ADS[0];
     this._obsFire = this._obsFire ? o > OBSTRUCT_FIRE[1] : o > OBSTRUCT_FIRE[0];
   }
 

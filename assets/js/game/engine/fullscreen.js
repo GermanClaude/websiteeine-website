@@ -395,7 +395,7 @@ export class FullscreenManager {
       if (!this._exiting && !this._touch()) {
         setTimeout(() => {
           const st = this.G.match && this.G.match.state;
-          const hidden = (D && D.hidden) || performance.now() - this._hiddenAt < 1500;
+          const hidden = (D && D.hidden) || performance.now() - this._hiddenAt < 3000;
           if (!this.active && !hidden && (kb || MATCH.has(st))) this._optOut = true;
         }, 400);
       }

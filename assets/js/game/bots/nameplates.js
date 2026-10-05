@@ -110,9 +110,11 @@ export class Nameplate {
 
   /**
    * Position (Welt, über dem Kopf), Kamera, Bildhöhe in px, Ziel-Deckkraft, dt,
-   * Ausblendrate in 1/s (Standard 6 = sanft; verdeckt oder tot schneller, damit das Schild nicht über der Wand stehen bleibt).
+   * Ausblendrate in 1/s (Standard 6 = sanft; verdeckt oder tot schneller, damit das Schild nicht über der Wand stehen bleibt),
+   * sizeMul: Größenfaktor (BotManager gleicht damit den örtlichen Maßstab des Bodycam-Objektivs aus → am Bildrand
+   * gleich groß wie in der Mitte).
    */
-  update(pos, camera, viewH, targetAlpha, dt, fadeOut = 6) {
+  update(pos, camera, viewH, targetAlpha, dt, fadeOut = 6, sizeMul = 1) {
     const k = 1 - Math.exp(-(targetAlpha > this.alpha ? 14 : fadeOut) * dt);
     this.alpha += (targetAlpha - this.alpha) * k;
     if (this.alpha < 0.02) { this.sprite.visible = false; return; }
@@ -122,7 +124,7 @@ export class Nameplate {
     // konstante Bildschirmgröße: 26 px Schrifthöhe
     const fov = camera && camera.isPerspectiveCamera ? camera.fov : 60;
     const px = viewH < 500 ? 24 : 32;
-    const h = (px / Math.max(200, viewH)) * 2 * Math.tan((fov * Math.PI) / 360);
+    const h = (px / Math.max(200, viewH)) * 2 * Math.tan((fov * Math.PI) / 360) * (sizeMul > 0 && sizeMul < 4 ? sizeMul : 1);
     this.sprite.scale.set(h * (256 / 80), h, 1);
   }
 

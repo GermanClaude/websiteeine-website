@@ -101,7 +101,19 @@ export class Animator {
     this.flinchP = { x: 0, v: 0 };
     this.flinchR = { x: 0, v: 0 };
     this.flinchH = { x: 0, v: 0 };
-    this._springs = [this.land, this.recoil, this.recoilP, this.flinchP, this.flinchR, this.flinchH];
+    // Treffer-Reaktionen (C2): Rumpfdrehung aus dem Drehmoment des Einschlags, Hüftversatz (Stolpern), Einknicken je
+    // Bein, Waffe aus dem Anschlag geschlagen (Nicken/Gieren), Schutzhaltung bei Blendung, Lehnen (C6)
+    this.twist = { x: 0, v: 0 };
+    this.shoveX = { x: 0, v: 0 };
+    this.shoveZ = { x: 0, v: 0 };
+    this.buckleL = { x: 0, v: 0 };
+    this.buckleR = { x: 0, v: 0 };
+    this.jerkP = { x: 0, v: 0 };
+    this.jerkY = { x: 0, v: 0 };
+    this.cower = 0; // 0..1 Blendung/Explosion: Arm vors Gesicht, Kopf weg, Waffe gesenkt
+    this.cowerT = 0;
+    this.leanX = 0; // −1…1 (− = links), geglättet vom Bot
+    this._springs = [this.land, this.recoil, this.recoilP, this.flinchP, this.flinchR, this.flinchH, this.twist, this.shoveX, this.shoveZ, this.buckleL, this.buckleR, this.jerkP, this.jerkY];
     this.lean = 0;
     this.stepping = 0; // Nachsetzschritt im Stand
     this.stepYaw = yaw;
@@ -196,12 +208,64 @@ export class Animator {
     }
   }
 
-  /** Treffer-Zucken: dir = Flugrichtung der Kugel im Modellraum. */
-  hit(dir, zone, amount = 25) {
-    const s = clamp(amount / 35, 0.4, 1.6);
-    this.flinchP.v += dir.z * 3.2 * s;
-    this.flinchR.v += -dir.x * 3.0 * s;
+  /**
+   * Treffer-Reaktion (C2): dir = Flugrichtung der Kugel im Modellraum, point = Einschlag im Modellraum (optional),
+   * zone 'head'|'body'|'limb', amount = Schaden. Impuls je Trefferzone und Richtung in die Federn: Kopf schnappt,
+   * Rumpf nickt/rollt/dreht sich um die Einschlagstelle, Becken wird versetzt, getroffenes Bein knickt ein, Arm-Treffer
+   * schlagen die Waffe aus dem Anschlag. Starke Treffer (Schrot, Scharfschütze) ≈ doppelt.
+   */
+  hit(dir, zone, amount = 25, point = null) {
+    const s = clamp(amount / 35, 0.4, 1.8);
+    // Höhe/Seite des Einschlags (ohne Punkt: aus der Zone geschätzt)
+    const py = point ? point.y : zone === 'head' ? 1.7 : zone === 'limb' ? 0.6 : 1.25;
+    const px = point ? point.x : 0, pz = point ? point.z : 0;
+    const leg = zone === 'limb' && py < 0.95;
+    const arm = zone === 'limb' && !leg;
+    this.flinchP.v += dir.z * (leg ? 1.2 : 3.2) * s;
+    this.flinchR.v += -dir.x * (leg ? 1.4 : 3.0) * s;
     if (zone === 'head') this.flinchH.v += (dir.z * 5 - Math.abs(dir.x) * 2) * s;
+    // Drehmoment um die Hochachse (r × F).y = rz·Fx − rx·Fz → Rumpfdrehung, Schulter weicht zurück
+    const tq = (pz * dir.x - px * dir.z) * (zone === 'head' ? 0.6 : 1);
+    this.twist.v += clamp(tq * 22, -4, 4) * s;
+    // Becken: Stoß in Schussrichtung (Rumpf stärker als Arme), bei Beinen wenig
+    const shove = (leg ? 0.25 : arm ? 0.35 : 0.7) * s;
+    this.shoveX.v += dir.x * shove;
+    this.shoveZ.v += dir.z * shove;
+    if (leg) {
+      // getroffenes Bein knickt ein (Seite aus dem Einschlag, sonst zufällig)
+      const left = point ? px < 0 : Math.random() < 0.5;
+      (left ? this.buckleL : this.buckleR).v += 5.5 * s;
+    }
+    if (arm || zone === 'body') {
+      // Waffe wird aus dem Anschlag geschlagen (Arm: stark, Rumpf: leicht)
+      const k = arm ? 1 : 0.35;
+      this.jerkP.v += (Math.random() * 0.6 - 0.9) * 3.2 * k * s;
+      this.jerkY.v += (px >= 0 ? 1 : -1) * 2.6 * k * s;
+    }
+  }
+
+  /**
+   * Taumeln (Explosion, Stoß): dir = Richtung vom Auslöser weg (Modellraum), strength 0..1.5. Becken weit versetzt,
+   * Knie geben nach, Rumpf dreht weg, Waffe hoch/weg, kurze Schutzhaltung.
+   */
+  stagger(dir, strength = 1) {
+    const s = clamp(strength, 0, 1.6);
+    this.shoveX.v += dir.x * 1.6 * s;
+    this.shoveZ.v += dir.z * 1.6 * s;
+    this.flinchP.v += dir.z * 4.5 * s;
+    this.flinchR.v += -dir.x * 4.2 * s;
+    this.buckleL.v += 3.5 * s;
+    this.buckleR.v += 3.5 * s;
+    this.land.v -= 1.2 * s;
+    this.twist.v += (Math.random() < 0.5 ? -1 : 1) * 2.5 * s;
+    this.jerkP.v += 2.4 * s;
+    this.cowerT = Math.max(this.cowerT, 0.35 + 0.45 * s);
+  }
+
+  /** Blendung: Schutzhaltung für `duration` s (Arm vor die Augen, Kopf abgewandt, Waffe gesenkt). */
+  flash(duration = 2, strength = 1) {
+    this.cowerT = Math.max(this.cowerT, clamp(duration, 0.3, 6) * clamp(strength, 0.3, 1));
+    this.flinchH.v += 4 * strength;
   }
 
   /* ================================================================ Hauptschleife */
@@ -276,7 +340,20 @@ export class Animator {
     spring(this.flinchR, 0, 150, 16, dt);
     spring(this.flinchH, 0, 180, 18, dt);
     spring(this.land, 0, 140, 15, dt);
+    spring(this.twist, 0, 90, 11, dt);
+    spring(this.shoveX, 0, 60, 11, dt);
+    spring(this.shoveZ, 0, 60, 11, dt);
+    spring(this.buckleL, 0, 70, 10, dt);
+    spring(this.buckleR, 0, 70, 10, dt);
+    spring(this.jerkP, 0, 120, 14, dt);
+    spring(this.jerkY, 0, 120, 14, dt);
     this._saneSprings();
+    // Schutzhaltung (Blendung/Explosion) ein- und ausblenden
+    this.cowerT = Math.max(0, this.cowerT - dt);
+    this.cower += ((this.cowerT > 0 ? 1 : 0) - this.cower) * damp(this.cowerT > 0 ? 12 : 4, dt);
+    // Lehnen (C6): Ziel vom Bot (p.lean), weich nachgeführt
+    const leanT = clamp(p.lean || 0, -1, 1);
+    this.leanX += (leanT - this.leanX) * damp(11, dt);
 
     // Gesten-Zeitgeber
     if (p.throwing) {
@@ -297,7 +374,7 @@ export class Animator {
     if (reloading && this.perShell) this.shellT += dt; else this.shellT = 0;
     const throwing = this.throwT >= 0;
     const meleeOff = this.meleeT >= 0 && this.kind !== 'knife';
-    this.lowered += (((throwing || meleeOff) ? 1 : 0) - this.lowered) * damp(14, dt);
+    this.lowered += ((throwing || meleeOff ? 1 : this.cower * 0.85) - this.lowered) * damp(14, dt);
 
     // Blick umherschweifen lassen (nur im Leerlauf)
     const g = this.glance;

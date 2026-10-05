@@ -16,7 +16,7 @@ import { VehicleAudio } from './audio.js';
 import { upgradeVehicleMaterials, vehicleMaterials } from './materials.js';
 import { prepareVehicleModels } from './models.js';
 import { groundRay } from './sim.js';
-import { collisionRay } from '../engine/physics.js';
+import { collisionRay, canOccupy } from '../engine/physics.js';
 import { falloff } from '../combat.js';
 
 export { VEHICLES, VEHICLE_WEAPONS, VEHICLE_IDS, Vehicle };
@@ -389,6 +389,8 @@ export class VehicleSystem {
       const len = _d.length();
       if (len > 1e-3 && collisionRay(w, _c, _d.multiplyScalar(1 / len), len, _hit)) continue;
       if (collisionRay(w, _b, _n.set(0, 1, 0), 0.7, _hit)) continue;
+      // walls: Körper ab Stufenhöhe frei (keine Wand/Kante im Ausstiegspunkt; Hänge und Bordsteine zählen nicht)
+      if (!canOccupy(w, new THREE.Vector3(pos.x, pos.y + 0.42, pos.z), 1.38, 0.34)) continue;
       if (this.list.some((o) => o !== v && o.raycast(_b.clone().add(_n.set(0, 3, 0)), DOWN, 3.2))) continue;
       return pos;
     }
