@@ -551,6 +551,12 @@ export class Player {
 
     // Blick (auch im Countdown) – beim freien Zielen bewegt sich zuerst die Waffe, die Sicht folgt am Rand der Totzone
     this._applyLook(input.look.dx, input.look.dy, dt, touch, w);
+    // Liegen: Blickgrenzen, Körper reicht nach hinten (Wand schiebt nach vorn, sonst kein Drehen)
+    if (this.proneBlend > 0) {
+      const b = this.proneBlend;
+      this.pitch = clamp(this.pitch, -PITCH_LIMIT + (PITCH_LIMIT + PRONE_PITCH_MIN) * b, PITCH_LIMIT + (PRONE_PITCH_MAX - PITCH_LIMIT) * b);
+    }
+    this._proneConstraint(world, dt);
 
     const mx = frozen || this.mantling ? 0 : input.move.x;
     const my = frozen || this.mantling ? 0 : input.move.y;
@@ -569,20 +575,17 @@ export class Player {
       return;
     }
 
-    // Ducken / Rutschen (Halten oder Umschalten; Touch: Antippen)
+    // Haltung: Ducken / Rutschen / Hinlegen (Halten oder Umschalten; Touch: Antippen, langes Drücken = Hinlegen)
     this.slideCooldown = Math.max(0, this.slideCooldown - dt);
-    const crouchHold = input.behavior('crouch') === 'hold';
-    if (!frozen && input.pressed('crouch')) {
-      if (this.sprinting && body.onGround && this.slideCooldown <= 0 && hSpeed > 5) this._startSlide();
-      else if (this.sliding) this._endSlide();
-      else if (crouchHold) this.crouching = true;
-      else if (this.crouching) { if (body.canStand(world)) this.crouching = false; }
-      else this.crouching = true;
-    }
-    if (crouchHold && !frozen && !this.sliding && this.crouching && !input.down('crouch') && body.canStand(world)) this.crouching = false;
+    this._updateStanceInput(dt, frozen, input, world, hSpeed);
+    const stanceBusy = this._stanceBusy();
 
     // Sprung bzw. Überklettern (Leertaste vor einem Hindernis von 0,5–1,3 m; im Sprung kurz gepuffert)
     this._jumpBuffer = Math.max(0, this._jumpBuffer - dt);
+    if (!frozen && input.pressed('jump') && (this.prone || stanceBusy)) {
+      if (this.prone && !stanceBusy) this._leaveProne('stand'); // Springen aus dem Liegen = aufstehen
+      input.consume('jump');
+    }
     if (!frozen && input.pressed('jump')) this._jumpBuffer = 0.3;
     if (!frozen && this._jumpBuffer > 0 && this._tryMantle(world, mx, my)) {
       this._jumpBuffer = 0;
@@ -611,12 +614,14 @@ export class Player {
       input.cancelAds();
       adsHeld = false;
     }
+    // Sprint aus dem Liegen: erst aufstehen (Battlefield), der Sprint folgt nach dem Übergang
+    if (!frozen && this.prone && !stanceBusy && my > 0.35 && (input.pressed('sprint') || lockEdge)) this._leaveProne('stand');
     if (sprintHold) this._sprintLatch = !frozen && input.down('sprint') && my > 0.35;
     else {
       if (!frozen && input.pressed('sprint')) this._sprintLatch = true;
       if (!frozen && input.down('sprint') && my > 0.35) this._sprintLatch = true;
     }
-    const blockSprint = frozen || my < 0.35 || adsHeld || fireHeld || this.sliding || (w && w.canSprint === false);
+    const blockSprint = frozen || my < 0.35 || adsHeld || fireHeld || this.sliding || this.prone || stanceBusy || this.plating || (w && w.canSprint === false);
     if (blockSprint) this._sprintLatch = false;
     let sprint = this._sprintLatch && (body.onGround || this.sprinting);
     if (sprint && this.crouching) {
@@ -629,7 +634,7 @@ export class Player {
     const ads = w ? w.adsProgress || 0 : 0;
     const wMult = def && def.moveSpeedMult ? def.moveSpeedMult : 1;
     const speedMult = wMult * (1 + ((def && def.adsMoveMult ? def.adsMoveMult : 0.6) - 1) * ads);
-    const base = this.crouching ? SPEED_CROUCH : this.sprinting ? SPEED_SPRINT : SPEED_WALK;
+    const base = this.prone ? SPEED_PRONE : this.crouching ? SPEED_CROUCH : this.sprinting ? SPEED_SPRINT : SPEED_WALK;
     _wish.set(0, 0, 0).addScaledVector(_fwd, my).addScaledVector(_right, mx);
     if (_wish.lengthSq() > 1) _wish.normalize();
     // Richtungsabhängiges Tempo (COD): vorwärts 100 %, seitwärts 90 %, rückwärts 75 % – Rückzug ist
@@ -638,7 +643,14 @@ export class Player {
     if (!this.sprinting && moveMag > 0.01) {
       const f = my / Math.hypot(mx, my); // −1 (rückwärts) … 1 (vorwärts)
       dirMult = f >= 0 ? 0.9 + 0.1 * f : 0.9 + 0.15 * f;
+      if (this.prone) dirMult = f >= 0 ? 0.6 + 0.4 * f : 0.6 + 0.1 * f; // kriechen: seitwärts 60 %, rückwärts 50 %
     }
+    // Panzerung (Gewicht), Adrenalin/Sturm-Schub, Übergänge (Hinlegen/Aufstehen), Platte einsetzen
+    const ar = this.armor;
+    let gear = ar ? (this.sprinting ? ar.sprintMult : ar.speedMult) : 1;
+    if (now < this.boostUntil) gear *= this._boostMult;
+    if (stanceBusy && !this._dive) gear *= 0.25;
+    if (this.plating) gear *= 0.8;
     // Gelände: bergauf langsamer (bis −30 %), bergab etwas schneller; nach Stufen und harten Landungen kurz gebremst
     let terrain = 1;
     if (body.onGround && _wish.lengthSq() > 0.01 && body.groundNormal.y < 0.995 && body.groundNormal.y > 0.3) {
@@ -648,7 +660,7 @@ export class Player {
       terrain = grade > 0 ? 1 - Math.min(0.3, grade * 0.32) : 1 + Math.min(0.06, -grade * 0.08);
     }
     terrain *= (1 - this._landSlow) * (1 - this._stairSlow);
-    _wish.multiplyScalar(base * speedMult * dirMult * terrain);
+    _wish.multiplyScalar(base * speedMult * dirMult * terrain * gear);
 
     if (this.sliding) {
       this.slideTime += dt;
@@ -664,9 +676,10 @@ export class Player {
       // Gewicht: Sprint baut Schwung langsam auf und ab, Umkehren bremst kräftig, schwere Waffen etwas träger
       const wishSq = _wish.lengthSq();
       let k;
-      if (wishSq < 0.01) k = this.sprinting || hSpeed > SPEED_WALK + 0.5 ? BRAKE_SPRINT : BRAKE_WALK;
+      if (this._dive && stanceBusy) k = 2.2; // Hechtsprung: auf dem Bauch ausrutschen
+      else if (wishSq < 0.01) k = this.prone ? 9 : this.sprinting || hSpeed > SPEED_WALK + 0.5 ? BRAKE_SPRINT : BRAKE_WALK;
       else if ((_wish.x * v.x + _wish.z * v.z) < -0.2 * Math.sqrt(wishSq) * hSpeed) k = BRAKE_REVERSE;
-      else k = this.sprinting ? ACCEL_SPRINT : this.crouching ? ACCEL_CROUCH : ACCEL_WALK;
+      else k = this.prone ? ACCEL_PRONE : this.sprinting ? ACCEL_SPRINT : this.crouching ? ACCEL_CROUCH : ACCEL_WALK;
       k *= 0.82 + 0.18 * clamp((wMult - 0.82) / 0.18, 0, 1);
       const a = damp(k, dt);
       v.x += (_wish.x - v.x) * a;
@@ -689,11 +702,11 @@ export class Player {
     }
 
     // Kapselhöhe (Aufstehen nur mit Kopffreiheit)
-    const targetH = this.sliding ? SLIDE_H : this.crouching ? CROUCH_H : STAND_H;
+    const targetH = this.sliding ? SLIDE_H : this.prone ? PRONE_H : this.crouching ? CROUCH_H : STAND_H;
     if (targetH > body.height + 1e-3) {
       const next = Math.min(targetH, body.height + (targetH - body.height) * damp(16, dt) + 0.01);
       if (body.canStand(world, next)) body.setHeight(next);
-      else if (!this.sliding) this.crouching = true;
+      else if (!this.sliding && !this.prone) this.crouching = true;
     } else if (targetH < body.height - 1e-3) {
       body.setHeight(body.height + (targetH - body.height) * damp(18, dt));
     }
@@ -715,9 +728,10 @@ export class Player {
       if (vyBefore < -9) this.shake(clamp((-vyBefore - 9) * 0.04, 0, 0.35));
       // Körperkamera: Stauchung, Nicken nach vorn, kurzes Rollen; harte Landungen bremsen kurz
       const k = clamp((-vyBefore - 2.5) / 10, 0, 1);
-      this._cam.p.v -= 0.15 + 0.85 * k;
-      this._cam.r.v += (Math.random() - 0.5) * (0.2 + 0.6 * k);
-      this._cam.y.v -= 0.2 + 0.6 * k;
+      this._cam.p.v -= 0.2 + 1.0 * k;
+      this._cam.r.v += (Math.random() - 0.5) * (0.25 + 0.7 * k);
+      this._cam.y.v -= 0.25 + 0.75 * k;
+      this._cam.x.v += (Math.random() - 0.5) * 0.2 * k; // Gewicht verlagert sich beim Aufkommen
       if (vyBefore < -7) this._landSlow = Math.max(this._landSlow, clamp((-vyBefore - 7) * 0.07, 0, 0.45));
       G.events.emit('player:land', { velocity: vyBefore });
       // Fallschaden ab ≈ 4 m Fallhöhe
@@ -734,15 +748,17 @@ export class Player {
 
     // Schritte → Geräusch + Fersenaufsatz in der Körperkamera
     const hs = Math.hypot(v.x, v.z);
-    if (body.onGround && !this.sliding && hs > 0.6) {
-      const stride = this.sprinting ? 2.7 : this.crouching ? 1.5 : 2.1;
+    this.crawling = this.prone && !stanceBusy && body.onGround && hs > 0.25;
+    if (body.onGround && !this.sliding && (hs > 0.6 || this.crawling)) {
+      const stride = this.prone ? 0.7 : this.sprinting ? 2.7 : this.crouching ? 1.5 : 2.1;
       this._bobPhase += ((hs * dt) / stride) * Math.PI;
       this._stepDist += hs * dt;
       if (this._stepDist >= stride) {
         this._stepDist -= stride;
         this._footImpulse(hs);
         const surface = world && world.surfaceAt ? world.surfaceAt(body.position) : 'concrete';
-        G.events.emit('footstep', { actor: this, surface, sprint: this.sprinting, crouch: this.crouching, position: body.position.clone() });
+        const quiet = ((this.classDef && this.classDef.perks) || {}).footstepVolume || 1;
+        G.events.emit('footstep', { actor: this, surface, sprint: this.sprinting, crouch: this.crouching || this.prone, prone: this.prone, volume: this.prone ? 0.5 * quiet : quiet, position: body.position.clone() });
       }
     }
 

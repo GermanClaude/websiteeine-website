@@ -1,7 +1,7 @@
 // NULLPUNKT – prozedurale Waffenmodelle (Ego-Ansicht, Bots, Arsenal-Vitrine der Website).
 // Eigenständig nutzbar mit reinem three.js (keine Abhängigkeit von G oder der Spiel-Laufzeit).
 //
-// createWeaponModel(key, { lod: 'first' | 'third' | 'showcase' }) → THREE.Group
+// createWeaponModel(key, { lod: 'first' | 'third' | 'showcase', camo }) → THREE.Group (camo = Muster-Id aus CAMOS)
 //   Koordinaten: Meter, +Y oben, Lauf zeigt nach −Z, Ursprung = Mitte des Pistolengriffs (rechte Hand).
 //   'showcase': zentriert im Ursprung, längste Kante = 1 Einheit (für Drehteller).
 //   group.userData = {
@@ -18,17 +18,31 @@ import { vp9, qx90, hm60 } from './gunsmith/guns-auto.js';
 import { brecher, bulldog } from './gunsmith/guns-long.js';
 import { p9, adler } from './gunsmith/guns-pistol.js';
 import { knife, frag, semtex } from './gunsmith/gear.js';
+import { k36, bx20, g7, wespe, keiler, lm8 } from './gunsmith/guns-wave2.js';
+import { titan, hagel, kobra, donner, rocket } from './gunsmith/guns-heavy.js';
+import { karambit, machete, tomahawk, flash, smoke, impact, molotov, plate } from './gunsmith/gear2.js';
+import { applyCamo, disposeCamos } from './gunsmith/camos.js';
 import { disposeMaterials } from './gunsmith/materials.js';
 import { disposeTextures } from './gunsmith/textures.js';
 
-const BUILDERS = { kv47, m17, vp9, qx90, hm60, sk14, brecher, bulldog, p9, adler, knife, frag, semtex };
+const BUILDERS = {
+  kv47, m17, vp9, qx90, hm60, sk14, brecher, bulldog, p9, adler, knife, frag, semtex,
+  k36, bx20, g7, wespe, keiler, lm8, titan, hagel, kobra, donner,
+  karambit, machete, tomahawk, flash, smoke, impact, molotov, plate, rocket,
+};
 
 export const MODEL_KEYS = Object.keys(BUILDERS);
-export const GUN_KEYS = ['kv47', 'm17', 'vp9', 'qx90', 'hm60', 'sk14', 'brecher', 'bulldog', 'p9', 'adler'];
+export const GUN_KEYS = ['kv47', 'm17', 'vp9', 'qx90', 'hm60', 'sk14', 'brecher', 'bulldog', 'p9', 'adler',
+  'k36', 'bx20', 'g7', 'wespe', 'keiler', 'lm8', 'titan', 'hagel', 'kobra', 'donner'];
+export const MELEE_KEYS = ['knife', 'karambit', 'machete', 'tomahawk'];
+export const THROWABLE_KEYS = ['frag', 'semtex', 'impact', 'molotov', 'flash', 'smoke'];
+export { applyCamo };
 
 const REF_NAMES = ['muzzle', 'ejection', 'sight', 'leftHandGrip', 'rightHandGrip'];
-const ANCHOR_NAMES = ['chargeGrab', 'magGrab', 'magWell', 'trigger', 'pumpGrab', 'boltGrab', 'pinGrab', 'shellPort', 'slideGrab', 'boltCatch'];
-const PART_NAMES = ['mag', 'bolt', 'charge', 'pump', 'slide', 'boltHandle', 'hammer', 'cover', 'belt', 'pin', 'spoon', 'blade', 'shell', 'led'];
+const ANCHOR_NAMES = ['chargeGrab', 'magGrab', 'magWell', 'trigger', 'pumpGrab', 'boltGrab', 'pinGrab', 'shellPort', 'slideGrab', 'boltCatch',
+  'loaderGrab', 'cylGrab', 'ejectorGrab', 'rocketGrab'];
+const PART_NAMES = ['mag', 'bolt', 'charge', 'pump', 'slide', 'boltHandle', 'hammer', 'cover', 'belt', 'pin', 'spoon', 'blade', 'shell', 'led',
+  'crane', 'cylinder', 'ejector', 'loader', 'rocket'];
 
 const cache = new Map();
 
@@ -96,7 +110,8 @@ function getTemplate(key, lod) {
  * Erzeugt ein Waffenmodell. Gebaute Modelle werden pro Schlüssel + LOD gecacht;
  * Rückgabe ist ein günstiger Klon (geteilte Geometrien und Materialien).
  */
-export function createWeaponModel(key, { lod = 'first' } = {}) {
+export function createWeaponModel(key, { lod = 'first', camo = null } = {}) {
+  if (camo && camo !== 'werk') return applyCamo(createWeaponModel(key, { lod }), camo);
   if (lod === 'showcase') {
     const inner = cloneTemplate(getTemplate(key, 'first'));
     const info = inner.userData.info;
@@ -128,6 +143,7 @@ export function preloadWeaponModels(keys = MODEL_KEYS, lods = ['first', 'third']
 export function disposeWeaponModels() {
   for (const t of cache.values()) t.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
   cache.clear();
+  disposeCamos();
   disposeMaterials();
   disposeTextures();
 }

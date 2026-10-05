@@ -169,7 +169,7 @@ export function poseFor(modelKey, pose = 'standard') {
   if (BODYCAM[modelKey]) return BODYCAM[modelKey];
   let bc = _bcCache.get(h);
   if (!bc) {
-    const pistol = h.action === 'pistol';
+    const pistol = h.action === 'pistol' || h.action === 'revolver';
     const hip = pistol ? [0.06, -0.15, -0.34] : BC_RIFLE_HIP, rot = pistol ? [0.0, 0.03, 0.0] : BC_RIFLE_ROT;
     bc = { hip, hipRot: rot, ...absSprint(h, hip, rot), crouchPos: pistol ? BC_PISTOL.crouchPos : [-0.008, -0.004, 0.01], crouchRot: pistol ? BC_PISTOL.crouchRot : [0, 0, 0.05] };
     _bcCache.set(h, bc);
