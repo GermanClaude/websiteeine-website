@@ -15,6 +15,42 @@ function canvas(w, h) {
   return c;
 }
 
+/** Atlasgröße je Qualitätsstufe: low halbiert (¼ Speicher), sonst volle Auflösung. */
+export function atlasScale(quality) { return quality === 'low' ? 0.5 : 1; }
+
+// Lebende Canvas-Atlanten: Nach dem GPU-Upload wird die Canvas freigegeben (sonst hält die CanvasTexture
+// ihren Pixelspeicher dauerhaft); bei WebGL-Kontextverlust zeichnet restoreAtlases() sie neu.
+const liveAtlases = new Set();
+
+/**
+ * CanvasTexture, deren Canvas nach dem Hochladen freigegeben wird.
+ * draw(ctx, w, h) zeichnet den Inhalt (auch erneut nach Kontextverlust).
+ */
+function atlasTexture(w, h, draw, { anisotropy = 4, name = 'atlas' } = {}) {
+  const tex = new THREE.CanvasTexture(canvas(1, 1));
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = anisotropy;
+  tex.name = name;
+  const entry = {
+    tex,
+    redraw() {
+      const cv = canvas(w, h);
+      draw(cv.getContext('2d'), w, h);
+      tex.image = cv;
+      tex.needsUpdate = true;
+    },
+  };
+  tex.onUpdate = () => { const cv = tex.image; if (cv && cv.width > 1) { cv.width = 1; cv.height = 1; } };
+  const dispose = tex.dispose.bind(tex);
+  tex.dispose = () => { liveAtlases.delete(entry); dispose(); };
+  liveAtlases.add(entry);
+  entry.redraw();
+  return tex;
+}
+
+/** Nach WebGL-Kontextwiederherstellung: alle lebenden Atlanten neu zeichnen und hochladen. */
+export function restoreAtlases() { for (const a of liveAtlases) a.redraw(); }
+
 // ---------------------------------------------------------------------------
 // Decals
 // ---------------------------------------------------------------------------
@@ -23,7 +59,7 @@ export const DECAL_CELLS = {
   leaves: 8, tire: 9, drip: 10, soot: 11, paper: 12, sanddrift: 13, moss: 14, line: 15,
 };
 
-let decalAtlas = null, decalMats = null;
+let decalAtlas = null, decalMats = null, decalSize = 0;
 
 function blob(ctx, r, cx, cy, rad, color, alpha, n = 7) {
   for (let i = 0; i < n; i++) {
@@ -45,8 +81,9 @@ function wear(ctx, r, x, y, w, h, count) { // ausgeblichene Stellen in Farbe rad
   ctx.restore();
 }
 
-function buildDecalAtlas() {
-  const S = 1024, C = 256, cv = canvas(S, S), ctx = cv.getContext('2d');
+function drawDecalAtlas(ctx, S) {
+  ctx.scale(S / 1024, S / 1024); // gezeichnet wird in 1024er-Koordinaten
+  const C = 256;
   const r = rng(1337);
   const cell = (i, fn) => { ctx.save(); ctx.translate((i % 4) * C, Math.floor(i / 4) * C); ctx.beginPath(); ctx.rect(0, 0, C, C); ctx.clip(); fn(); ctx.restore(); };
   // 0 Ölfleck
@@ -136,17 +173,20 @@ function buildDecalAtlas() {
   cell(14, () => { blob(ctx, r, 128, 128, 110, '70,88,40', 0.55, 16); });
   // 15 Markierungslinie
   cell(15, () => { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 96, 256, 64); wear(ctx, r, 0, 96, 256, 64, 300); });
-
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  return tex;
 }
 
-/** Materialien für Decals (gemeinsamer Atlas). */
-export function createDecalMaterials() {
-  if (decalMats) return decalMats;
-  decalAtlas = buildDecalAtlas();
+/** Materialien für Decals (gemeinsamer Atlas; 1024² bzw. 512² auf low – Größenwechsel tauscht nur die Textur). */
+export function createDecalMaterials(quality = 'high') {
+  const S = Math.round(1024 * atlasScale(quality));
+  if (decalMats && decalSize === S) return decalMats;
+  const old = decalAtlas;
+  decalAtlas = atlasTexture(S, S, (ctx, w) => drawDecalAtlas(ctx, w), { anisotropy: 4, name: 'decals' });
+  decalSize = S;
+  if (decalMats) {
+    for (const m of Object.values(decalMats)) m.map = decalAtlas;
+    old?.dispose();
+    return decalMats;
+  }
   const base = { map: decalAtlas, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, vertexColors: true };
   decalMats = {
     grime: new THREE.MeshStandardMaterial({ ...base, roughness: 0.92, metalness: 0 }),
@@ -171,37 +211,48 @@ export const DEFAULT_SIGNS = {
 };
 /**
  * entries: [{ key, text, sub, bg, fg, style: 'plate'|'stencil'|'warning'|'logo'|'number'|'neon'|'arrow', aspect, accent }]
- * → { material, litMaterial, rects: { key: {u0,v0,u1,v1} } }
+ * opts: { quality ('low' → halbe Auflösung), anisotropy }
+ * → { material, litMaterial, rects: { key: {u0,v0,u1,v1} }, texture, width, height }
+ *
+ * Regalpackung: Schilder nach Höhe sortiert, jedes Regal so hoch wie sein höchstes Schild, Atlas genau so hoch
+ * wie belegt (WebGL2: NPOT mit Mipmaps). Gezeichnet wird in Basiseinheiten (Zeile 160 px) und skaliert.
  */
-export function createSignAtlas(entries) {
-  const W = 2048, rowH = 160;
-  const r = rng(99);
-  // Regalpacken
-  let x = 0, y = 0;
-  const slots = [];
-  for (const e of entries) {
+export function createSignAtlas(entries, { quality = 'high', anisotropy = 8 } = {}) {
+  const k = atlasScale(quality);
+  const BW = 2048, rowH = 160, gap = 4;
+  // Größe je Schild in Basiseinheiten
+  const items = entries.map(e => {
     const aspect = Math.max(0.5, Math.min(8, e.aspect || 4));
     const h = e.style === 'number' || aspect < 1.6 ? rowH * 2 : rowH;
-    const w = Math.min(W, Math.round(h * aspect));
-    if (x + w > W) { x = 0; y += rowH * 2; }
-    slots.push({ e, x, y, w, h });
-    x += w + 4;
+    return { e, h, w: Math.min(BW, Math.round(h * aspect)) };
+  });
+  items.sort((a, b) => b.h - a.h || b.w - a.w);
+  let x = 0, y = 0, shelfH = 0;
+  const slots = [];
+  for (const it of items) {
+    if (x > 0 && x + it.w > BW) { x = 0; y += shelfH + gap; shelfH = 0; }
+    slots.push({ e: it.e, x, y, w: it.w, h: it.h });
+    x += it.w + gap;
+    shelfH = Math.max(shelfH, it.h);
   }
-  const H = Math.min(4096, Math.pow(2, Math.ceil(Math.log2(y + rowH * 2 + 4))));
-  const cv = canvas(W, H), ctx = cv.getContext('2d');
+  const BH = Math.max(rowH, y + shelfH);
+  const fit = Math.min(1, 4096 / (BH * k)); // nur bei Überlänge senkrecht stauchen
+  const W = Math.round(BW * k), H = Math.ceil((BH * k * fit) / 4) * 4;
+  const ky = k * fit;
   const rects = {};
   for (const s of slots) {
-    drawSign(ctx, s, r);
-    rects[s.e.key] = { u0: s.x / W, u1: (s.x + s.w) / W, v0: 1 - (s.y + s.h) / H, v1: 1 - s.y / H };
+    rects[s.e.key] = { u0: s.x / BW, u1: (s.x + s.w) / BW, v0: 1 - ((s.y + s.h) * ky) / H, v1: 1 - (s.y * ky) / H };
   }
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
+  const tex = atlasTexture(W, H, (ctx) => {
+    const r = rng(99);
+    ctx.scale(k, ky);
+    for (const s of slots) drawSign(ctx, s, r);
+  }, { anisotropy, name: 'signs' });
   const material = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, metalness: 0, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
   material.name = 'signs'; material.userData.surface = 'metal';
   const litMaterial = material.clone();
   litMaterial.emissive.set('#ffffff'); litMaterial.emissiveMap = tex; litMaterial.emissiveIntensity = 1.4; litMaterial.name = 'signs_lit';
-  return { material, litMaterial, rects, texture: tex };
+  return { material, litMaterial, rects, texture: tex, width: W, height: H };
 }
 
 function roundRect(ctx, x, y, w, h, rad) {
@@ -209,10 +260,16 @@ function roundRect(ctx, x, y, w, h, rad) {
   ctx.arcTo(x, y + h, x, y, rad); ctx.arcTo(x, y, x + w, y, rad); ctx.closePath();
 }
 
+/** Größte Schriftgröße (size, size−2, …, ≥ 8), bei der text in maxW passt. Breite skaliert linear → Schätzung + Prüfung. */
 function fitText(ctx, text, maxW, size, weight = 800, font = FONT, stretch = '') {
-  let s = size;
-  do { ctx.font = `${stretch}${weight} ${s}px ${font}`; s -= 2; } while (ctx.measureText(text).width > maxW && s > 8);
-  return s + 2;
+  const set = (px) => { ctx.font = `${stretch}${weight} ${px}px ${font}`; return ctx.measureText(text).width; };
+  const w = set(size);
+  if (w <= maxW || size <= 10) return size;
+  let s = size - 2 * Math.max(1, Math.ceil((size - (size * maxW) / w) / 2));
+  while (s > 10 && set(s) > maxW) s -= 2;
+  s = Math.max(s, size - 2 * Math.floor((size - 9) / 2)); // kleinster Wert der Folge size, size−2, … über 8
+  set(s);
+  return s;
 }
 
 function grime(ctx, r, x, y, w, h, amount = 1) {
@@ -320,12 +377,13 @@ function drawSign(ctx, s, r) {
 // ---------------------------------------------------------------------------
 // Foliage
 // ---------------------------------------------------------------------------
-let foliageTex = null;
+let foliageTex = null, foliageSize = 0;
 const foliageMats = new Map();
 export const foliageUniforms = { uTime: { value: 0 } };
 
-function buildFoliageAtlas() {
-  const S = 1024, C = 512, cv = canvas(S, S), ctx = cv.getContext('2d');
+function drawFoliageAtlas(ctx, S) {
+  ctx.scale(S / 1024, S / 1024); // gezeichnet wird in 1024er-Koordinaten
+  const C = 512;
   const r = rng(4242);
   const leaf = (x, y, a, len, wid, col) => {
     ctx.save(); ctx.translate(x, y); ctx.rotate(a);
@@ -377,16 +435,22 @@ function buildFoliageAtlas() {
     ctx.beginPath(); ctx.arc(x, y, 3 + r() * 5, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  return tex;
+}
+
+/** Foliage-Atlas in der Größe der Qualitätsstufe (1024² bzw. 512² auf low); Wechsel tauscht nur die Textur. */
+function ensureFoliageAtlas(quality) {
+  const S = Math.round(1024 * atlasScale(quality));
+  if (foliageTex && foliageSize === S) return;
+  const old = foliageTex;
+  foliageTex = atlasTexture(S, S, (ctx, w) => drawFoliageAtlas(ctx, w), { anisotropy: 4, name: 'foliage' });
+  foliageSize = S;
+  for (const m of foliageMats.values()) m.map = foliageTex;
+  old?.dispose();
 }
 
 function foliageMaterial(cast) {
   const key = cast ? 'c' : 'n';
   if (foliageMats.has(key)) return foliageMats.get(key);
-  if (!foliageTex) foliageTex = buildFoliageAtlas();
   const m = new THREE.MeshStandardMaterial({ map: foliageTex, alphaTest: 0.45, roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
   m.name = 'foliage';
   m.userData.surface = 'grass';
@@ -511,6 +575,7 @@ const KINDS = {
  * @returns {{ meshes: THREE.InstancedMesh[] }}
  */
 export function createFoliage(plants, quality = 'high') {
+  if (plants.length) ensureFoliageAtlas(quality);
   const byKind = new Map();
   for (const p of plants) {
     if (!KINDS[p.kind]) continue;

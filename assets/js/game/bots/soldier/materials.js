@@ -2,52 +2,86 @@
 // Gewebe-Normalmap und ein MeshStandardMaterial mit kleinem Shader-Zusatz:
 //   Attribut aNp = (Tarnmuster-Anteil, Gewebe-Detail, Leuchtanteil, Glanz/Metall 0..1)
 //   uDissolve   = Auflösen der Leiche (Rasterrauschen, ohne Transparenz-Sortierung)
-// Alle Schemata teilen ein Shaderprogramm; nur die Tarntextur unterscheidet sich.
+//   uRim/uRimColor/uRimTint = Randlicht-Saum (Gegner kräftiger und zur Teamfarbe getönt)
+// Alle Schemata teilen ein Shaderprogramm; nur Tarntextur und Uniform-Werte unterscheiden sich.
+// Gegnerschemata werden je Karte nach Helligkeit gewählt (schemeForTeam/ffaSchemes), damit sich
+// Gegner von Wänden und Boden abheben (Ziel: Leuchtdichte-Kontrast ≥ 1,8 : 1).
 import * as THREE from 'three';
 
 /* ------------------------------------------------------------------ Farbschemata */
 
 // camo: [Grund, dunkel, hell, Akzentfleck]; gear/gear2: Weste/Taschen; accent: Teamfarbe (leuchtet dezent)
+// hostile: aus Spielersicht Gegner (A = eigenes Team) → kräftigerer, getönter Randlicht-Saum
 export const SCHEMES = {
   A: {
     id: 'A', name: 'Nordwind', camo: ['#5d6a62', '#434e48', '#77836f', '#4e5a5f'], pattern: 'multi',
     gear: '#4a5447', gear2: '#3d4439', strap: '#30362f', helmet: '#525c55', glove: '#262928', boot: '#2b2926',
-    pants: '#5d6a62', accent: '#38b6ff', metal: '#3a3d40',
+    pants: '#5d6a62', accent: '#38b6ff', metal: '#3a3d40', hostile: false,
   },
   B: {
     id: 'B', name: 'Wüstenfuchs', camo: ['#a28d69', '#806a4b', '#bba882', '#8b5d43'], pattern: 'multi',
     gear: '#8c7451', gear2: '#6d5a3f', strap: '#5a4a35', helmet: '#9b8762', glove: '#4e4232', boot: '#4a3b2c',
-    pants: '#9a8664', accent: '#ff3b3b', metal: '#3d3a36',
+    pants: '#9a8664', accent: '#ff3b3b', metal: '#3d3a36', hostile: true,
+  },
+  // Wüstenfuchs für helle Karten (Mittagssonne, heller Stein): gleiche Farbfamilie, deutlich dunkler
+  Bd: {
+    id: 'Bd', name: 'Wüstenfuchs', camo: ['#6f5b40', '#4d3d2a', '#86704f', '#7a3c2a'], pattern: 'multi',
+    gear: '#5a4a35', gear2: '#46392a', strap: '#382d21', helmet: '#6b5a40', glove: '#2f281f', boot: '#2e251c',
+    pants: '#6e5a44', accent: '#ff3b3b', metal: '#34312d', hostile: true,
   },
   urban: {
     id: 'urban', name: 'Beton', camo: ['#7a7f84', '#4a4f55', '#a3a8ad', '#2f3338'], pattern: 'digital',
     gear: '#3b3f44', gear2: '#2c2f33', strap: '#24272a', helmet: '#4c5157', glove: '#1e2022', boot: '#1f2022',
-    pants: '#6b7075', accent: '#ff5b1f', metal: '#34373a',
+    pants: '#6b7075', accent: '#ff5b1f', metal: '#34373a', hostile: true,
   },
   wald: {
     id: 'wald', name: 'Forst', camo: ['#5b6142', '#3a3d27', '#7d7b52', '#5a4430'], pattern: 'woodland',
     gear: '#4f5236', gear2: '#3d3f2a', strap: '#33352a', helmet: '#555a3c', glove: '#2e2b22', boot: '#33291f',
-    pants: '#5f6446', accent: '#ffb020', metal: '#36382f',
+    pants: '#5f6446', accent: '#ffb020', metal: '#36382f', hostile: true,
   },
   nacht: {
     id: 'nacht', name: 'Nachtschicht', camo: ['#30333a', '#1d1f24', '#454952', '#2a2f3d'], pattern: 'multi',
     gear: '#25272b', gear2: '#1b1c1f', strap: '#18191b', helmet: '#2b2d31', glove: '#141516', boot: '#161618',
-    pants: '#34373e', accent: '#c46bff', metal: '#2a2c2f',
+    pants: '#34373e', accent: '#c46bff', metal: '#2a2c2f', hostile: true,
   },
   schnee: {
     id: 'schnee', name: 'Firn', camo: ['#c9ced2', '#9aa2a8', '#e4e7e9', '#7d878f'], pattern: 'digital',
     gear: '#8e969c', gear2: '#6f777d', strap: '#5c6368', helmet: '#b9c0c5', glove: '#3a3e41', boot: '#3f4245',
-    pants: '#bcc2c6', accent: '#2ee6c4', metal: '#4a4e52',
+    pants: '#bcc2c6', accent: '#2ee6c4', metal: '#4a4e52', hostile: true,
   },
   sand: {
     id: 'sand', name: 'Düne', camo: ['#b59a6c', '#8d7350', '#d2bb8e', '#6d5a40'], pattern: 'woodland',
     gear: '#7a6a4c', gear2: '#5e5139', strap: '#4b412f', helmet: '#a88f63', glove: '#5b4c36', boot: '#55442f',
-    pants: '#b09766', accent: '#ff7a3d', metal: '#3c3933',
+    pants: '#b09766', accent: '#ff7a3d', metal: '#3c3933', hostile: true,
   },
 };
 export const FFA_SCHEMES = ['urban', 'wald', 'nacht', 'schnee', 'sand'];
+// FFA auf hellen Karten: nur Schemata, die sich von hellem Stein/Sand abheben
+const FFA_SCHEMES_BRIGHT = ['urban', 'wald', 'nacht', 'Bd'];
 
-export const SKIN_TONES = ['#c39477', '#a8775a', '#8a5b40', '#6c4430', '#4f3223', '#d0a387'];
+// Hauttöne (leicht entsättigt, damit das Gesicht unter warmem Licht nicht orange wirkt)
+export const SKIN_TONES = ['#bf9a80', '#a37d63', '#86614a', '#694a39', '#4d3528', '#caa58f'];
+
+/** Helle Karte? (Nebelfarbe als Maß der Umgebungshelligkeit: Mittagssonne/heller Stein) */
+export function isBrightWorld(world) {
+  const fog = world && world.lighting && world.lighting.fogColor;
+  if (!fog) return false;
+  const c = fog.isColor ? fog : new THREE.Color(fog);
+  // c ist linear (three.js-Farbverwaltung) → relative Leuchtdichte
+  return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b > 0.55;
+}
+
+/** Farbschema eines Teams auf dieser Karte ('A' | 'B' | 'Bd'); FFA → null (siehe ffaSchemes). */
+export function schemeForTeam(team, world) {
+  if (team === 'A') return 'A';
+  if (team === 'B') return isBrightWorld(world) ? 'Bd' : 'B';
+  return null;
+}
+
+/** FFA-Schemata für diese Karte. */
+export function ffaSchemes(world) {
+  return isBrightWorld(world) ? FFA_SCHEMES_BRIGHT : FFA_SCHEMES;
+}
 
 /* ------------------------------------------------------------------ Rauschen */
 
@@ -215,6 +249,9 @@ varying vec4 vNp;
 varying vec3 vNpPos;
 uniform float uDissolve;
 uniform vec3 uDissolveColor;
+uniform float uRim;
+uniform float uRimTint;
+uniform vec3 uRimColor;
 `;
 
 const materialCache = new Map();
@@ -237,12 +274,20 @@ export function soldierMaterial(schemeId, { dissolve = false, quality = 'high' }
     envMapIntensity: 0.75,
   });
   m.name = 'soldier:' + schemeId + (dissolve ? ':dissolve' : '');
+  const sc = SCHEMES[schemeId] || SCHEMES.A;
   m.userData.uDissolve = { value: 0 };
   m.userData.uDissolveColor = { value: new THREE.Color(0x0b0b0b) };
+  // Randlicht: Verbündete dezent, Gegner kräftiger und zur Teamfarbe getönt (Silhouette auch im Schatten)
+  m.userData.uRim = { value: sc.hostile ? 0.8 : 0.45 };
+  m.userData.uRimTint = { value: sc.hostile ? 0.35 : 0 };
+  m.userData.uRimColor = { value: new THREE.Color(sc.accent) };
   m.userData.soldier = true;
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uDissolve = m.userData.uDissolve;
     shader.uniforms.uDissolveColor = m.userData.uDissolveColor;
+    shader.uniforms.uRim = m.userData.uRim;
+    shader.uniforms.uRimTint = m.userData.uRimTint;
+    shader.uniforms.uRimColor = m.userData.uRimColor;
     shader.vertexShader = VERT_HEAD + shader.vertexShader
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvNp = aNp;\n\tvNpPos = position;');
     let fs = FRAG_HEAD + shader.fragmentShader;
@@ -266,13 +311,14 @@ export function soldierMaterial(schemeId, { dissolve = false, quality = 'high' }
     fs = fs.replace('mapN.xy *= normalScale;', 'mapN.xy *= normalScale * vNp.y;');
     fs = fs.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
 	totalEmissiveRadiance += diffuseColor.rgb * vNp.z * 2.2;
-	// dezenter Randlicht-Saum (Silhouette lesbar vor dunklem/unruhigem Hintergrund)
+	// Randlicht-Saum (Silhouette lesbar vor dunklem/unruhigem Hintergrund; Gegner zur Teamfarbe getönt)
 	float npRim = 1.0 - clamp( dot( normal, normalize( vViewPosition ) ), 0.0, 1.0 );
-	totalEmissiveRadiance += ( diffuseColor.rgb * 0.6 + vec3( 0.05, 0.055, 0.06 ) ) * pow( npRim, 3.0 ) * 0.45;
+	vec3 npRimCol = mix( diffuseColor.rgb * 0.6 + vec3( 0.05, 0.055, 0.06 ), uRimColor * 0.5, uRimTint );
+	totalEmissiveRadiance += npRimCol * pow( npRim, 3.0 ) * uRim;
 	if (uDissolve > 0.0 && npDis < uDissolve + 0.035) totalEmissiveRadiance += vec3(1.0, 0.36, 0.08) * 0.6;`);
     shader.fragmentShader = fs;
   };
-  m.customProgramCacheKey = () => 'np-soldier-3' + (low ? 'l' : 'h');
+  m.customProgramCacheKey = () => 'np-soldier-4' + (low ? 'l' : 'h');
   if (!dissolve) materialCache.set(key, m);
   return m;
 }

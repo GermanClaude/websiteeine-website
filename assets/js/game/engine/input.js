@@ -18,8 +18,9 @@ export const ACTIONS = Object.freeze([
   'streak1', 'streak2', 'streak3', 'scoreboard', 'pause', 'interact',
 ]);
 
+// Kein Strg für Ducken: Strg+W/T/N sind Browser-Kürzel, die eine Seite nicht abfangen kann (Tab zu!).
 const KEY_ACTIONS = {
-  Space: 'jump', KeyC: 'crouch', ControlLeft: 'crouch', ShiftLeft: 'sprint', ShiftRight: 'sprint',
+  Space: 'jump', KeyC: 'crouch', ShiftLeft: 'sprint', ShiftRight: 'sprint',
   KeyR: 'reload', KeyV: 'melee', KeyG: 'grenade', KeyQ: 'grenade', Digit1: 'slot1', Digit2: 'slot2',
   Digit3: 'streak1', Digit4: 'streak2', Digit5: 'streak3', Tab: 'scoreboard', Escape: 'pause',
   KeyF: 'interact', KeyE: 'interact',
@@ -43,8 +44,31 @@ const SOURCES = ['key', 'mouse', 'pad', 'touch', 'auto', 'sim'];
 const _eye = new THREE.Vector3();
 const _aim = new THREE.Vector3();
 const _to = new THREE.Vector3();
+const _pt = new THREE.Vector3();
+const _best = new THREE.Vector3();
+const _hit = new THREE.Vector3();
+const _ray = new THREE.Ray();
+const ASSIST_RANGE = 60; // m: Zielhilfe/aimTarget
+const CHEST = 0.62; // Anteil der Körperhöhe: Bezugspunkt für Bewegungsverfolgung
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+
+/**
+ * Punkt auf der Körperachse eines Akteurs (Füße+0,3 m … Scheitel−0,12 m), der der Visierlinie am nächsten
+ * liegt: Höhe der Visierlinie dort, wo sie die Achse horizontal passiert. Zielt man auf den Kopf, ist
+ * das der Kopf – nicht ein fester Brustpunkt.
+ */
+function axisPoint(actor, eye, dir, out) {
+  const p = actor.position;
+  const h = actor.body ? actor.body.height : 1.8;
+  let y = p.y + h * CHEST;
+  const hh = dir.x * dir.x + dir.z * dir.z;
+  if (hh > 1e-6) {
+    const t = ((p.x - eye.x) * dir.x + (p.z - eye.z) * dir.z) / hh;
+    if (t > 0) y = eye.y + dir.y * t;
+  }
+  return out.set(p.x, clamp(y, p.y + Math.min(0.3, h * 0.2), p.y + h - 0.12), p.z);
+}
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
@@ -105,6 +129,7 @@ export class Input {
     this._autoPulse = 0;
     this._lastVibrate = 0;
     this._fsTriedAt = -1e9;
+    this._track = null; // Rotationshilfe: letzte Peilung des Ziels
     this._uiRefreshAt = 0;
     this._touch = null; // Touch-Oberfläche (DOM + Zeiger-Zuordnung)
 
@@ -463,7 +488,7 @@ export class Input {
     const player = G.player;
     const assistDevice = this.mode === 'touch' || this.lastDevice === 'gamepad';
     this.aimTarget = null;
-    if (!player || !player.alive || !this.enabled || !G.actors || !G.combat) { this._releaseSource('auto'); return; }
+    if (!player || !player.alive || !this.enabled || !G.actors || !G.combat) { this._releaseSource('auto'); this._track = null; return; }
 
     player.getEyePosition(_eye);
     player.getAimDirection(_aim);
@@ -471,58 +496,78 @@ export class Input {
     let best = null;
     let bestScore = 1;
     let bestDist = 0;
-    let bestAng = 0;
     for (const a of G.actors) {
       if (!a.alive || a === player || !G.combat.isHostile(player, a)) continue;
-      const h = a.body ? a.body.height : 1.8;
-      _to.copy(a.position);
-      _to.y += h * 0.62;
-      _to.sub(_eye);
+      axisPoint(a, _eye, _aim, _pt);
+      _to.subVectors(_pt, _eye);
       const dist = _to.length();
-      if (dist < 0.6 || dist > 60) continue;
+      if (dist < 0.6 || dist > ASSIST_RANGE) continue;
       const ang = Math.acos(clamp(_to.dot(_aim) / dist, -1, 1));
       const cone = clamp(Math.atan(0.95 / dist), 0.035, 0.13);
       if (ang > cone) continue;
       const score = ang / cone;
       if (score >= bestScore) continue;
-      if (!this._visible(a, now)) continue;
+      if (!this._visible(a, now, _pt)) continue;
       best = a;
       bestScore = score;
       bestDist = dist;
-      bestAng = ang;
+      _best.copy(_pt);
     }
     this.aimTarget = best;
 
     if (best && assistDevice && G.settings.get('aimAssist')) {
       const closeness = 1 - bestScore;
-      // Verlangsamung über dem Ziel
-      const friction = 1 - 0.45 * closeness;
+      const ads = player.weapon ? player.weapon.adsProgress || 0 : 0;
+      const ux = this.look.dx; // Daumen/Stick dieses Bildes (vor der Hilfe)
+      const uy = this.look.dy;
+      // 1) Verlangsamung über dem Ziel (feinere Korrekturen möglich, nie Stillstand)
+      const friction = 1 - 0.4 * closeness;
       this.look.dx *= friction;
       this.look.dy *= friction;
-      // Magnetismus: nur wenn der Spieler aktiv ist (bewegt, zielt, schießt)
-      const active = Math.hypot(this.move.x, this.move.y) > 0.2 || this.down('fire') || this.down('ads') || Math.abs(this.look.dx) + Math.abs(this.look.dy) > 1e-4;
-      if (active) {
-        const h = best.body ? best.body.height : 1.8;
-        _to.copy(best.position);
-        _to.y += h * 0.62;
-        _to.sub(_eye);
+
+      // 2) Rotationshilfe (COD): Winkelbewegung des Ziels relativ zum Spieler teilweise mitführen –
+      //    gleicht eigenes Seitwärtslaufen und laufende Gegner aus, zieht aber nie gegen den Daumen.
+      const h = best.body ? best.body.height : 1.8;
+      const bx = best.position.x - _eye.x;
+      const by = best.position.y + h * CHEST - _eye.y;
+      const bz = best.position.z - _eye.z;
+      const bearYaw = Math.atan2(-bx, -bz);
+      const bearPitch = Math.atan2(by, Math.hypot(bx, bz));
+      const tr = this._track;
+      if (tr && tr.actor === best && dt > 0) {
+        const k = (0.45 + 0.35 * ads) * closeness;
+        this.look.dx -= wrapAngle(bearYaw - tr.yaw) * k;
+        this.look.dy -= (bearPitch - tr.pitch) * k * 0.5;
+      }
+      this._track = { actor: best, yaw: bearYaw, pitch: bearPitch };
+
+      // 3) Leichter Zug zur Körperachse – nur in Aktion (laufen, feuern, zielen), und je Achse nur,
+      //    wenn der Spieler nicht gerade vom Ziel weg zieht. Innerhalb der Körperhöhe zieht nichts nach
+      //    unten zur Brust (Kopfschüsse bleiben möglich).
+      const moving = Math.hypot(this.move.x, this.move.y) > 0.2;
+      if (moving || this.down('fire') || ads > 0.5) {
+        _to.subVectors(_best, _eye);
         const wantYaw = Math.atan2(-_to.x, -_to.z);
         const wantPitch = Math.asin(clamp(_to.y / bestDist, -1, 1));
         const yaw = player.yaw + (player.recoilYaw || 0);
         const pitch = player.pitch + (player.recoilPitch || 0);
-        const ey = wrapAngle(wantYaw - yaw);
-        const ep = wantPitch - pitch;
-        const rate = (0.9 + 1.6 * (player.weapon ? player.weapon.adsProgress || 0 : 0)) * closeness * dt;
-        this.look.dx -= clamp(ey, -rate, rate);
-        this.look.dy -= clamp(ep, -rate, rate) * 0.6;
+        const rate = (0.9 + 1.6 * ads) * closeness * dt;
+        const px = -clamp(wrapAngle(wantYaw - yaw), -rate, rate); // Beitrag zu look.dx
+        const py = -clamp(wantPitch - pitch, -rate, rate) * 0.6;
+        if (ux * px >= 0) this.look.dx += px;
+        if (uy * py >= 0) this.look.dy += py;
       }
+    } else {
+      this._track = null;
     }
 
-    // Auto-Feuer (Touch, „einfacher Modus“) – nur in Waffenreichweite und wenn die Waffe bereit ist (ballistics)
+    // Auto-Feuer (Touch, „einfacher Modus“): feuert, solange die Visierlinie eine echte Trefferzone eines
+    // sichtbaren Gegners schneidet (Kopf, Körper, Glieder) – in Waffenreichweite und wenn die Waffe bereit ist.
     const wpn = player.weapon;
-    const wpnOk = !wpn || (wpn.autoFireReady !== false && bestDist <= (wpn.autoFireRange || 60));
-    if (this.mode === 'touch' && G.settings.get('autoFire') && best && wpnOk && bestAng < Math.max(0.012, Math.atan(0.3 / bestDist))) {
-      const def = player.weapon && player.weapon.currentDef;
+    const autoOn = this.mode === 'touch' && G.settings.get('autoFire') && (!wpn || wpn.autoFireReady !== false);
+    const target = autoOn ? this._autoFireTarget(player, wpn) : null;
+    if (target) {
+      const def = wpn && wpn.currentDef;
       const auto = def && def.fireMode === 'auto';
       if (auto) this._press('fire', 'auto');
       else {
@@ -534,14 +579,41 @@ export class Input {
     }
   }
 
-  _visible(actor, now) {
+  /** Gegner, dessen Trefferzonen die Visierlinie schneidet (freie Sicht, ≤ autoFireRange) – sonst null. */
+  _autoFireTarget(player, wpn) {
+    const G = this.G;
+    const range = (wpn && wpn.autoFireRange) || ASSIST_RANGE;
+    _ray.origin.copy(_eye);
+    _ray.direction.copy(_aim);
+    let best = null;
+    let bestD = range;
+    for (const a of G.actors) {
+      if (!a.alive || a === player || typeof a.raycastHitboxes !== 'function' || !G.combat.isHostile(player, a)) continue;
+      // Grobfilter: Abstand der Körpermitte zur Visierlinie > 1,2 m → kann nicht treffen
+      const h = a.body ? a.body.height : 1.8;
+      _to.copy(a.position);
+      _to.y += h * 0.5;
+      _to.sub(_eye);
+      const along = _to.dot(_aim);
+      if (along <= 0 || along > bestD + 1.5 || _to.lengthSq() - along * along > 1.44) continue;
+      const hit = a.raycastHitboxes(_ray, bestD);
+      if (hit && hit.distance < bestD) {
+        best = a;
+        bestD = hit.distance;
+        _hit.copy(hit.point);
+      }
+    }
+    if (!best) return null;
+    const w = G.world;
+    return !w || !w.lineOfSight || w.lineOfSight(_eye, _hit) ? best : null;
+  }
+
+  _visible(actor, now, point) {
     const w = this.G.world;
     if (!w || !w.lineOfSight) return true;
     const c = this._los.get(actor);
     if (c && now - c.t < 0.12) return c.v;
-    _to.copy(actor.position);
-    _to.y += (actor.body ? actor.body.height : 1.8) * 0.62;
-    const v = w.lineOfSight(_eye, _to);
+    const v = w.lineOfSight(_eye, point);
     this._los.set(actor, { t: now, v });
     if (this._los.size > 64) this._los.clear();
     return v;
@@ -549,14 +621,20 @@ export class Input {
 
   /* ------------------------------------------------- Vollbild (Touch) */
 
+  /**
+   * Vollbild nach Verlassen (Android: Zurück-Geste) wiederherstellen. Nur aus pointerup/touchend aufrufen –
+   * bei Touch ist pointerdown keine Nutzeraktivierung, der Browser würde mit Konsolenwarnung ablehnen.
+   */
   _maybeFullscreen() {
-    const now = performance.now();
-    if (now - this._fsTriedAt < 4000) return;
-    this._fsTriedAt = now;
     const el = document.documentElement;
     if (document.fullscreenElement || !document.fullscreenEnabled || !el.requestFullscreen) return;
     const st = this.G.match && this.G.match.state;
     if (st !== 'playing' && st !== 'countdown') return;
+    const ua = navigator.userActivation;
+    if (ua && !ua.isActive) return;
+    const now = performance.now();
+    if (now - this._fsTriedAt < 4000) return;
+    this._fsTriedAt = now;
     el.requestFullscreen({ navigationUI: 'hide' })
       .then(() => screen.orientation && screen.orientation.lock ? screen.orientation.lock('landscape').catch(() => {}) : null)
       .catch(() => {});
@@ -692,7 +770,6 @@ class TouchUI {
     if (!input.enabled) return;
     e.preventDefault();
     input._setMode('touch', 'touch');
-    input._maybeFullscreen();
     const btn = e.target.closest && e.target.closest('.tc-btn');
     const now = performance.now();
     if (btn) {
@@ -763,6 +840,7 @@ class TouchUI {
     const p = this.pointers.get(e.pointerId);
     if (!p) return;
     this.pointers.delete(e.pointerId);
+    if (e.type === 'pointerup' && e.pointerType !== 'mouse') this.input._maybeFullscreen(); // Nutzeraktivierung
     if (p.kind === 'stick') this._stickRelease(false);
     else if (p.kind === 'button') this._btnUp(p);
   }

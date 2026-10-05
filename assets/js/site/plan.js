@@ -108,7 +108,8 @@ const BINS = 360;
 /**
  * Sichtpolygon vom Punkt o aus. 360 Strahlen (1°) plus je zwei Strahlen (±0,0005 rad) zu jedem Eckpunkt.
  * Segmente werden in Winkelfächer einsortiert, damit jeder Strahl nur seine Kandidaten prüft.
- * → { poly: [[x, z], …], maxDist, medianDist, seen: Set(Index in geo.solid) } – seen = Blöcke mit sichtbarer Kante
+ * → { poly: [[x, z], …], maxDist, medianDist, dists, seen: Set(Index in geo.solid) } – seen = Blöcke mit sichtbarer Kante,
+ *   dists = freie Sichtweite der 360 gleichmäßig verteilten Strahlen, aufsteigend sortiert (m)
  */
 export function castVisibility(geo, o, bounds) {
   const { segs, pts } = geo;
@@ -181,10 +182,10 @@ export function castVisibility(geo, o, bounds) {
   }
   rays.sort((p, q) => p[0] - q[0]);
   const poly = rays.map(([a, d]) => [ox + Math.cos(a) * d, oz + Math.sin(a) * d]);
-  const sorted = [...uniform].sort((p, q) => p - q);
+  const sorted = uniform.sort();
   const medianDist = (sorted[179] + sorted[180]) / 2;
   const maxDist = sorted[359];
-  return { poly, maxDist, medianDist, seen };
+  return { poly, maxDist, medianDist, dists: sorted, seen };
 }
 
 /** Pfad-String eines Polygons. */

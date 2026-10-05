@@ -1124,7 +1124,7 @@ export class HUD {
       if (zones && zones.length) {
         const nx = x;
         const ny = y;
-        [x, y] = avoidZones(x, y, zones, vw, vh, margin);
+        [x, y] = avoidZones(x, y, zones, { l: margin, t: margin + 40, r: vw - margin, b: vh - margin });
         if (x !== nx || y !== ny) off = true;
       }
       const dist = p.position.distanceTo(f.position);
@@ -1197,29 +1197,26 @@ export class HUD {
   }
 }
 
-/** Schiebt einen Marker (Raute + Entfernung darunter) auf kürzestem Weg aus allen Zonen, innerhalb der Bildränder. */
-function avoidZones(x, y, zones, vw, vh, m) {
+/**
+ * Sucht für einen Marker (Raute + Entfernung darunter) die nächste Position außerhalb aller Zonen:
+ * Ringe um den Ausgangspunkt, beginnend in Richtung Bildmitte. b = erlaubter Bereich { l, t, r, b }.
+ */
+function avoidZones(x, y, zones, b) {
   const HX = 22;
   const HT = 22;
   const HB = 38;
-  for (let pass = 0; pass < 3; pass++) {
-    let moved = false;
-    for (const z of zones) {
-      if (x + HX <= z.l || x - HX >= z.r || y + HB <= z.t || y - HT >= z.b) continue;
-      let best = null;
-      for (const [dx, dy] of [[z.l - HX - x, 0], [z.r + HX - x, 0], [0, z.t - HB - y], [0, z.b + HT - y]]) {
-        const tx = x + dx;
-        const ty = y + dy;
-        if (tx < m || tx > vw - m || ty < m || ty > vh - m) continue;
-        const cost = Math.abs(dx) + Math.abs(dy);
-        if (!best || cost < best.cost) best = { tx, ty, cost };
-      }
-      if (!best) continue;
-      x = best.tx;
-      y = best.ty;
-      moved = true;
+  const free = (px, py) => px >= b.l && px <= b.r && py >= b.t && py <= b.b
+    && !zones.some((z) => px + HX > z.l && px - HX < z.r && py + HB > z.t && py - HT < z.b);
+  if (free(x, y)) return [x, y];
+  const a0 = Math.atan2((b.t + b.b) / 2 - y, (b.l + b.r) / 2 - x);
+  for (let r = 12; r <= 260; r += 12) {
+    const n = Math.max(8, Math.round(r / 5));
+    for (let k = 0; k < n; k++) {
+      const a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * ((Math.PI * 2) / n);
+      const px = x + Math.cos(a) * r;
+      const py = y + Math.sin(a) * r;
+      if (free(px, py)) return [px, py];
     }
-    if (!moved) break;
   }
   return [x, y];
 }

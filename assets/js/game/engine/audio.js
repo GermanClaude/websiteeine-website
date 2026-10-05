@@ -931,7 +931,7 @@ export class AudioEngine {
     };
     on('grenade:pin', p => pin(p.actor));
     on('grenade:throw', p => {
-      const a = p.actor, pl = this._isPlayer(a), pinned = a && now() - (this._pinAt.get(a) ?? -99) < 6;
+      const a = p.actor, pl = this._isPlayer(a), pinned = a && now() - (this._pinAt.get(a) ?? -99) < 30; // Haftgranate darf lange gehalten werden
       if (a) this._pinAt.delete(a);
       if (!pinned) pin(a, p.position); // Werfer ohne grenade:pin (ältere Emitter)
       if (p.dropped) return;           // fallen gelassen (Tod beim Kochen): kein Wurfgeräusch
@@ -1087,6 +1087,7 @@ export class AudioEngine {
     const amb = this._amb = { id, playing: true, gain: this.ctx.createGain(), src: null, next: [] };
     amb.gain.gain.value = 0; amb.gain.connect(this.bus.amb);
     amb.next = cfg.events.map(ev => now + this._rand.range(...(ev.first || ev.every)));
+    // Unter Ausrüstung/Feedback einsortiert: die Schleife blendet ohnehin erst ein, wenn sie fertig ist
     this._require(cfg.events.map(e => e.name), () => {}, PRIO.amb);
     this._require([`amb_bed_${id}`], ok => {
       if (!ok || this._amb !== amb || !amb.playing || !this.ctx) return;
@@ -1094,7 +1095,7 @@ export class AudioEngine {
       const s = this.ctx.createBufferSource(); s.buffer = b; s.loop = true; s.connect(amb.gain); s.start();
       amb.src = s;
       const t = this.ctx.currentTime; amb.gain.gain.setValueAtTime(0, t); amb.gain.gain.linearRampToValueAtTime(1, t + 2.5);
-    });
+    }, PRIO.amb + 5);
     amb.timer = setInterval(() => this._ambTick(amb, cfg), 250);
   }
 

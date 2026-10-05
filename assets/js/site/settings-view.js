@@ -21,8 +21,6 @@ const HELP = {
   reducedMotion: 'Stoppt Federn, Wellen und Übergänge auf der Website, im Spiel Kamerawackeln.',
 };
 
-/** Website-eigene Beschriftungen, wo das Schema englischen Fachjargon nutzt. */
-const LABELS = { showFps: 'Bildrate anzeigen' };
 const DEG = 180 / Math.PI;
 /**
  * settings.fov ist wie bei COD das horizontale Sichtfeld eines 4:3-Bilds (game/player.js hfovToVfov):
@@ -78,7 +76,7 @@ export async function init(sec, D, ctx = {}) {
     const fs = h('fieldset.set-grp');
     fs.append(h('legend.set-legend', {}, legend));
     for (const k of keys) {
-      const row = buildRow(k, { ...schema[k], label: LABELS[k] || schema[k].label });
+      const row = buildRow(k, schema[k]); // Beschriftungen wie im Spiel: aus SETTINGS_SCHEMA
       if (row) fs.append(row);
     }
     form.append(fs);

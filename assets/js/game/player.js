@@ -325,7 +325,14 @@ export class Player {
     _right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     _wish.set(0, 0, 0).addScaledVector(_fwd, my).addScaledVector(_right, mx);
     if (_wish.lengthSq() > 1) _wish.normalize();
-    _wish.multiplyScalar(base * speedMult);
+    // Richtungsabhängiges Tempo (COD): vorwärts 100 %, seitwärts 90 %, rückwärts 75 % – Rückzug ist
+    // langsamer als Angriff. Sprint (nur vorwärts) und Rutschen bleiben unberührt.
+    let dirMult = 1;
+    if (!this.sprinting && moveMag > 0.01) {
+      const f = my / Math.hypot(mx, my); // −1 (rückwärts) … 1 (vorwärts)
+      dirMult = f >= 0 ? 0.9 + 0.1 * f : 0.9 + 0.15 * f;
+    }
+    _wish.multiplyScalar(base * speedMult * dirMult);
 
     if (this.sliding) {
       this.slideTime += dt;

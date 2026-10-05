@@ -56,6 +56,14 @@ initZero({ sound });
 
 initJumps();
 
+// Telefon quer: Abschnittsüberschriften auch nach der Höhe begrenzen (sonst füllt EINSATZ. den ganzen ersten Blick).
+// Die Breite gleicht über die Breitenachse aus; zu kurze Wörter stehen dann linksbündig.
+const shortLandscape = window.matchMedia('(pointer: coarse) and (max-height: 500px)');
+for (const hl of document.querySelectorAll('h2.hl[data-fit]')) {
+  hl.fitOpts = { ...(hl.fitOpts || {}), max: () => (shortLandscape.matches ? Math.max(56, Math.round(window.innerHeight * 0.27)) : 320) };
+}
+shortLandscape.addEventListener?.('change', () => fitAll(document));
+
 let fontsDone = false;
 const fontsP = (document.fonts?.ready || Promise.resolve()).then(() => {
   fontsDone = true;

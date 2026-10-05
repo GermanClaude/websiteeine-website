@@ -13,10 +13,10 @@ import { BONES, BONE, BONE_COUNT, BIND, DIM } from './soldier/rig.js';
 import { Animator } from './soldier/animator.js';
 import { Ragdoll } from './soldier/ragdoll.js';
 import { soldierGeometry, VARIANTS, VARIANT_IDS } from './soldier/gear.js';
-import { soldierMaterial, SCHEMES, FFA_SCHEMES } from './soldier/materials.js';
+import { soldierMaterial, SCHEMES, FFA_SCHEMES, schemeForTeam, ffaSchemes } from './soldier/materials.js';
 import { raySphere, rayCapsule } from '../combat.js';
 
-export { VARIANTS, VARIANT_IDS, SCHEMES, FFA_SCHEMES };
+export { VARIANTS, VARIANT_IDS, SCHEMES, FFA_SCHEMES, schemeForTeam, ffaSchemes };
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();

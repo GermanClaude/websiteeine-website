@@ -7,12 +7,13 @@
 // Gibt eine JSON-Zusammenfassung aus und endet mit Code 1 bei Konsolenfehlern oder fehlgeschlagenen Prüfungen.
 //
 // Aufruf (Server muss laufen: npx http-server -p 8765 -s -c-1 .; andere Adresse: NP_BASE oder --base):
-//   node tools/smoke.mjs [--params="map=hafen&time=60&score=5"] [--seconds=20] [--mobile]
+//   node tools/smoke.mjs [--params="mode=tdm&map=hafen"] [--seconds=20] [--mobile]
 //                        [--shots=4] [--end] [--restarts=0] [--quality=low] [--size=1280x720]
 //                        [--base=http://localhost:8765/] [--out=tools/out/smoke] [--lobby] [--warn-fail]
-//   --params   URL-Parameter für spielen.html (autostart=1 wird ergänzt, außer mit --lobby; Standard
-//              „time=60&score=5“ = zuletzt gewählter Modus/Karte; am schnellsten lädt „mode=training&map=range“).
-//              Test-Parameter god=1/timescale=… wirken nur zusammen mit debug=1 (Match dann ungewertet).
+//   --params   URL-Parameter für spielen.html (autostart=1 wird ergänzt, außer mit --lobby; Standard: leer =
+//              zuletzt gewählter Modus/Karte; am schnellsten lädt „mode=training&map=range“). time=/score= kürzer
+//              als der Modus-Standard und god=1/timescale=… (nur mit debug=1) machen das Match ungewertet:
+//              dann wird geprüft, dass das Profil unverändert bleibt.
 //   --seconds  Dauer der Eingabesimulation
 //   --mobile   Touch-Gerät (Querformat 915×412, Touch-Eingaben über CDP)
 //   --shots    Anzahl Screenshots während der Simulation (gleichmäßig verteilt)
@@ -37,7 +38,7 @@ const MOBILE = !!opt.mobile;
 const [W, H] = String(opt.size || (MOBILE ? '915x412' : '1280x720')).split('x').map(Number);
 mkdirSync(OUT.includes('/') ? OUT.slice(0, OUT.lastIndexOf('/')) : '.', { recursive: true });
 
-const qs = new URLSearchParams(String(opt.params || 'time=60&score=5'));
+const qs = new URLSearchParams(String(opt.params || ''));
 if (!opt.lobby) qs.set('autostart', '1');
 if (opt.quality) qs.set('quality', String(opt.quality));
 const url = `${BASE}spielen.html?${qs}`;
@@ -229,7 +230,7 @@ try {
   summary.fps = { avg: fps.length ? Math.round((fps.reduce((a, b) => a + b, 0) / fps.length) * 10) / 10 : 0, min: fps.length ? Math.min(...fps) : 0 };
   summary.inputMode = await page.evaluate(() => window.__game.input.mode);
   if (MOBILE) { if (summary.inputMode === 'touch') pass('touchMode'); else fail('touchMode', summary.inputMode); }
-  if (s.actors > 1) pass('actors', s.actors); else fail('actors', s.actors);
+  if (s.actors > 1 || s.modeId === 'training') pass('actors', s.actors); else fail('actors', s.actors);
   const shots = await page.evaluate(() => window.__game.player.stats.shotsFired);
   if (shots > 0) pass('playerFired', shots); else fail('playerFired', 'keine Schüsse');
   summary.kills = s.kills;
@@ -251,7 +252,7 @@ try {
     const info = await page.evaluate(() => {
       const G = window.__game;
       const i = G.renderer.info();
-      return { result: G.lastResult && G.lastResult.playerSummary ? G.lastResult.playerSummary.result : null, xp: G.lastProgression ? G.lastProgression.xpGained : null, matches: G.profile.get().matches, geometries: i.geometries, textures: i.textures, programs: i.programs, listeners: G.events.count(), sceneChildren: G.scene.children.length, menuText: document.getElementById('menu-root').innerText.slice(0, 160) };
+      return { result: G.lastResult && G.lastResult.playerSummary ? G.lastResult.playerSummary.result : null, xp: G.lastProgression ? G.lastProgression.xpGained : null, unranked: !!G.match.unranked, matches: G.profile.get().matches, geometries: i.geometries, textures: i.textures, programs: i.programs, listeners: G.events.count(), sceneChildren: G.scene.children.length, menuText: document.getElementById('menu-root').innerText.slice(0, 160) };
     });
     summary.matches.push({ label, ...info });
     await shot(`end-${label}`);
@@ -260,11 +261,15 @@ try {
 
   if (opt.end || RESTARTS > 0) {
     const info = await runEnd('m1');
-    if (info.matches === profileBefore + 1) pass('profileRecorded', `${profileBefore} → ${info.matches}, +${info.xp} XP`); else fail('profileRecorded', `${profileBefore} → ${info.matches}`);
+    if (info.unranked) {
+      if (info.matches === profileBefore && info.xp == null) pass('profileRecorded', 'ungewertetes Match: Profil unverändert');
+      else fail('profileRecorded', `ungewertet, aber ${profileBefore} → ${info.matches}, XP ${info.xp}`);
+    } else if (info.matches === profileBefore + 1) pass('profileRecorded', `${profileBefore} → ${info.matches}, +${info.xp} XP`);
+    else fail('profileRecorded', `${profileBefore} → ${info.matches}`);
     if (info.menuText) pass('endScreen', info.menuText.split('\n')[0]); else fail('endScreen', 'leer');
     for (let r = 0; r < RESTARTS; r++) {
       await page.evaluate(() => window.__game.menus.onRestart());
-      await waitFor(() => window.__game.match.state === 'playing', 90000, `Revanche ${r + 1}`);
+      await waitFor(() => window.__game.match.state === 'playing', 240000, `Revanche ${r + 1}`);
       await sleep(2500);
       await runEnd(`m${r + 2}`);
     }

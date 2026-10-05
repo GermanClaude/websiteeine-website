@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import { createWeaponModel } from './models.js';
 import { WEAPONS } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
-import { ID_TO_MODEL, handlingFor } from './gunsmith/handling.js';
+import { ID_TO_MODEL, handlingFor, KNIFE_MELEE } from './gunsmith/handling.js';
 import { MuzzleFlash, ShellPool, SmokeWisps } from './gunsmith/fx.js';
 import { Spring, Spring3, curve, windowW, clamp, damp, smooth, easeOut, easeInOut, easeOutBack } from './gunsmith/anim.js';
 
@@ -974,9 +974,9 @@ export class ViewModel {
     const knife = this.props.knife;
     const w = windowW(u, 0.0, 0.08, 0.52, 0.74);
     // Schlüsselbilder: Ausholen links oben → Schnitt durch die Mitte → Durchschwung rechts unten → zurück
-    const pos = curve(u, [[0.0, [-0.24, -0.3, -0.2]], [0.08, [-0.2, -0.05, -0.3]], [0.2, [0.0, -0.06, -0.42]], [0.36, [0.15, -0.15, -0.36]], [0.52, [0.16, -0.22, -0.32]], [0.74, [-0.14, -0.4, -0.2]]], _a3);
-    const F = curve(u, [[0.0, [-0.6, 0.6, -0.3]], [0.08, [-0.76, 0.38, -0.24]], [0.2, [-0.62, 0.16, -0.8]], [0.36, [0.32, 0.17, -0.78]], [0.74, [0.3, 0.3, -0.8]]], _b3);
-    const B = curve(u, [[0.0, [-0.4, 0.2, 0.9]], [0.08, [-0.3, 0.0, 0.95]], [0.2, [0.0, 1.0, 0.2]], [0.36, [0.2, 1.0, 0.3]], [0.74, [0.2, 0.8, 0.5]]], _c3);
+    const pos = curve(u, KNIFE_MELEE.pos, _a3);
+    const F = curve(u, KNIFE_MELEE.F, _b3);
+    const B = curve(u, KNIFE_MELEE.B, _c3);
     req(out.left, w, { free: [pos, F, B, 'knife'] });
     this._attachProp(knife, this.arms.left.handBone, 'knife', -1);
     knife.visible = u > 0.02 && u < 0.7;
@@ -1045,11 +1045,13 @@ export class ViewModel {
   _attachProp(prop, bone, kind, side) {
     if (prop.parent !== bone) bone.add(prop);
     if (kind === 'knife') {
-      // Klinge zeigt aus der Faust zur Daumenseite, Schneide zu den Fingern
+      // Hammergriff wie beim Messer als Hauptwaffe (GRIPS.knife): Klinge aus der Faust zur Daumenseite,
+      // Schneide in Fingerrichtung (−Z der Hand), Klingenfläche zum Handrücken – zeigt der Handrücken
+      // zur Kamera, ist auch die Klinge flächig zu sehen. Basis-Spalten = Messerachsen X, Y, Z im Handraum.
       const k = PROP_SHAPES.knife.pos;
       prop.position.set(k[0] * side, k[1], k[2]);
-      prop.quaternion.setFromEuler(_e.set(0, side * Math.PI / 2, side > 0 ? Math.PI : 0));
-      prop.rotateZ(Math.PI);
+      _m.makeBasis(_v.set(0, side, 0), _v2.set(0, 0, 1), _v3.set(side, 0, 0));
+      prop.quaternion.setFromRotationMatrix(_m);
     } else {
       const g = PROP_SHAPES.grenade.pos;
       prop.position.set(g[0] * side, g[1], g[2]);

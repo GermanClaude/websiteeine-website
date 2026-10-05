@@ -1,7 +1,7 @@
 // §00 Einschießen: Fünf Schuss auf den orangefarbenen Punkt. Löcher im Papier, Glyphen-Kick,
 // Streukreis in mm, Treffpunktlage in Klick – danach gleitet der Nullpunkt unter die Gruppe.
 import { Kinetic, split } from './kinetic.js';
-import { glyphModel } from './fit.js';
+import { glyphModel, fit } from './fit.js';
 import { spread, hit } from './cursor.js';
 import { site } from './state.js';
 import { announce } from './live.js';
@@ -116,6 +116,43 @@ export function initZero({ sound } = {}) {
     hero.style.setProperty('--bull-r', `${Math.max(0, c.r).toFixed(1)}px`);
     const hd = Math.max(5, Math.min(10, 0.035 * base.fs));
     holesEl.style.setProperty('--hd', `${hd.toFixed(1)}px`);
+    reserveLine();
+  }
+
+  // Die Ergebniszeile reserviert die Höhe ihres längsten Inhalts bei der aktuellen Breite (gemessen an einem
+  // unsichtbaren Abzug): Fortschritt und Ergebnis erscheinen, ohne dass Wortmarke oder Aufruf springen.
+  const zline = hero.querySelector('.zero-line');
+  const WORST = [
+    ['Streukreis Ø 40,0 mm. Treffpunkt 8 Klick rechts, 8 tief.', 'Korrigiert. Nullpunkt gesetzt. Bester Streukreis bisher.'],
+    ['Streukreis Ø 88,8 mm. Ruhig atmen, neu einschießen.', ''],
+  ];
+  let reservedFor = '';
+  function reserveLine() {
+    if (!zline || !zline.getClientRects().length) return;
+    const w = zline.getBoundingClientRect().width;
+    const key = `${w.toFixed(1)}|${getComputedStyle(zline).paddingRight}|${window.matchMedia('(pointer: coarse) and (max-height: 500px)').matches}`;
+    if (!w || key === reservedFor) return;
+    reservedFor = key;
+    let need = 0;
+    for (const [a, b] of WORST) {
+      const probe = zline.cloneNode(true);
+      for (const n of [probe, ...probe.querySelectorAll('[id]')]) n.removeAttribute('id');
+      probe.setAttribute('aria-hidden', 'true');
+      Object.assign(probe.style, { position: 'absolute', visibility: 'hidden', left: '0', top: '0', width: `${w}px`, minHeight: '0', margin: '0', pointerEvents: 'none' });
+      const m = probe.querySelector('.zero-msg');
+      m.replaceChildren();
+      for (const [cls, t] of [['l1', a], ['l2', b]]) { if (!t) continue; const sp = document.createElement('span'); sp.className = cls; sp.textContent = t; m.append(sp); }
+      const btn = probe.querySelector('.txt-btn');
+      if (btn) btn.hidden = false;
+      hero.append(probe);
+      need = Math.max(need, probe.getBoundingClientRect().height);
+      probe.remove();
+    }
+    const px = `${Math.ceil(need)}px`;
+    if (zline.style.minHeight !== px) {
+      zline.style.minHeight = px;
+      fit(h1); // quer bemisst sich die Wortmarke auch an dieser Höhe
+    }
   }
   h1.addEventListener('fitted', () => requestAnimationFrame(placeBull));
   window.addEventListener('resize', () => requestAnimationFrame(placeBull));

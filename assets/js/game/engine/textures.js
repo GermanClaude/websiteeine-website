@@ -14,18 +14,44 @@ import { generateTexture } from '../world/texgen.js';
 // ---------------------------------------------------------------------------
 let texSize = 512;
 let anisotropy = 4;
-const texCache = new Map();   // Texturgruppe → { map, normalMap, roughnessMap, metalnessMap, alpha }
-const matCache = new Map();   // Material-Schlüssel → Material
-export const textureStats = { generated: 0, ms: 0 };
+const texCache = new Map();   // Texturgruppe → { map, normalMap, roughnessMap, hasMetal, hasAlpha, epoch }
+const matCache = new Map();   // Material-Schlüssel → Material (userData.texGroup = Gruppenname)
+export const textureStats = { generated: 0, ms: 0, released: 0 };
+
+// Nutzungsepochen: loadWorld beginnt je Karte eine Epoche; nach dem Aufbau gibt releaseUnusedTextures()
+// alle Gruppen frei, die die neue Karte nicht angefasst hat (sonst sammeln sich Texturen aller besuchten Karten).
+let epoch = 0;
+const touch = (grp) => { if (grp) grp.epoch = epoch; return grp; };
+
+/** Neue Nutzungsepoche (vor dem Aufbau einer Karte). */
+export function beginTextureEpoch() { return ++epoch; }
+
+/** Gibt Texturgruppen (+ ihre Materialien) frei, die seit beginTextureEpoch() nicht benutzt wurden. → Anzahl */
+export function releaseUnusedTextures() {
+  let n = 0;
+  for (const [name, grp] of texCache) {
+    if (grp.epoch === epoch) continue;
+    for (const [key, m] of matCache) if (m.userData.texGroup === name) { disposeMaterial(m); matCache.delete(key); }
+    disposeTexGroup(grp);
+    texCache.delete(name);
+    pendingGroups.delete(name);
+    n++;
+  }
+  textureStats.released += n;
+  return n;
+}
+
+/** Material + seine (geklonten, quellteilenden) Texturen freigeben. */
+function disposeMaterial(m) {
+  for (const k of ['map', 'normalMap', 'roughnessMap']) m[k]?.dispose();
+  m.dispose();
+}
 
 /** Texturauflösung / Anisotropie festlegen (z. B. 256 auf Low/Mobile). Bereits erzeugte Texturen bleiben gültig. */
 export function configureTextures({ size, anisotropy: an } = {}) {
   if (size && size !== texSize) {
     texSize = size;
-    for (const m of matCache.values()) m.dispose();
-    for (const t of texCache.values()) disposeTexGroup(t);
-    matCache.clear();
-    texCache.clear();
+    disposeMaterials();
   }
   if (an) {
     anisotropy = an;
@@ -37,12 +63,13 @@ function disposeTexGroup(t) {
   for (const k of ['map', 'normalMap', 'roughnessMap']) t[k]?.dispose();
 }
 
-/** Alle Materialien und Texturen freigeben (nur bei komplettem Abbau nötig – Cache bleibt sonst über Matches erhalten). */
+/** Alle Materialien und Texturen freigeben (z. B. bei Wechsel der Texturauflösung). */
 export function disposeMaterials() {
-  for (const m of matCache.values()) m.dispose();
+  for (const m of matCache.values()) disposeMaterial(m);
   for (const t of texCache.values()) disposeTexGroup(t);
   matCache.clear();
   texCache.clear();
+  pendingGroups.clear();
 }
 
 // name → { tex, tile, surface, params }
@@ -132,16 +159,61 @@ function makeTexGroup(texName, data) {
     tex.needsUpdate = true;
     return tex;
   };
+  // Platzhalter vorhanden (aufgeschobene Erzeugung): Daten in die bestehenden Texturen füllen – Klone teilen die Source
+  const ph = texCache.get(texName);
+  if (ph && ph.pending) {
+    for (const [k, arr] of [['map', data.albedo], ['normalMap', data.normal], ['roughnessMap', data.rm]]) {
+      ph[k].image = { data: arr, width: S, height: S };
+      ph[k].needsUpdate = true;
+    }
+    ph.pending = false;
+    pendingGroups.delete(texName);
+    textureStats.generated++;
+    return ph;
+  }
   const grp = {
     map: prep(data.albedo, 'albedo', true), normalMap: prep(data.normal, 'normal'), roughnessMap: prep(data.rm, 'rm'),
-    hasMetal: data.hasMetal, hasAlpha: data.hasAlpha,
+    hasMetal: data.hasMetal, hasAlpha: data.hasAlpha, epoch, pending: false,
   };
   textureStats.generated++;
   texCache.set(texName, grp);
   return grp;
 }
 
+// --- Aufgeschobene Erzeugung (während loadWorld): getMaterial/getWaterNormalMap liefern sofort Materialien mit
+// Platzhalter-Texturen (1×1); preloadMaterials erzeugt die Daten danach gesammelt im Worker-Pool und füllt sie ein.
+// So rechnen Requisiten, die getMaterial direkt aufrufen (Kran, Wasser …), nicht im Hauptthread.
+let deferring = false;
+const pendingGroups = new Set();
+
+/** Aufschieben an/aus (loadWorld). Beim Ausschalten werden noch offene Gruppen synchron erzeugt. */
+export function deferTextureGeneration(on) {
+  deferring = !!on;
+  if (!deferring) for (const name of [...pendingGroups]) buildTexGroupNow(name);
+}
+
+function placeholderGroup(texName) {
+  const flags = generateTexture(texName, 8); // winzige Probe: nur Metall-/Alpha-Kanal des Generators
+  const tex = (name, srgb) => {
+    const t = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1, THREE.RGBAFormat);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true; t.anisotropy = anisotropy; t.name = texName + ':' + name;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  };
+  const grp = { map: tex('albedo', true), normalMap: tex('normal'), roughnessMap: tex('rm'), hasMetal: flags.hasMetal, hasAlpha: flags.hasAlpha, epoch, pending: true };
+  texCache.set(texName, grp);
+  pendingGroups.add(texName);
+  return grp;
+}
+
 function buildTexGroup(texName) {
+  if (deferring && !texCache.has(texName)) return placeholderGroup(texName);
+  return buildTexGroupNow(texName);
+}
+
+function buildTexGroupNow(texName) {
   const t0 = performance.now();
   const data = generateTexture(texName, sizeFor(texName));
   textureStats.ms += performance.now() - t0;
@@ -149,8 +221,17 @@ function buildTexGroup(texName) {
 }
 
 // --- Worker-Pool: Texturen parallel erzeugen (Fallback: Hauptthread) -------------------
-let pool = null, poolFailed = false;
+// Nach dem Laden wird der Pool nach kurzer Leerlaufzeit beendet (Speicher der Worker-Heaps); die nächste
+// Karte startet ihn neu (Modul-Worker, ≈ 50 ms).
+const POOL_IDLE_MS = 8000;
+let pool = null, poolFailed = false, poolIdleTimer = 0;
+function terminatePool() {
+  clearTimeout(poolIdleTimer); poolIdleTimer = 0;
+  if (pool) for (const w of pool) w.terminate();
+  pool = null;
+}
 function getPool() {
+  clearTimeout(poolIdleTimer); poolIdleTimer = 0;
   if (pool || poolFailed) return pool;
   try {
     if (typeof Worker === 'undefined') throw new Error('no workers');
@@ -181,10 +262,13 @@ function runInWorker(w, texName, S) {
   });
 }
 
-function texGroup(texName) { return texCache.get(texName) || buildTexGroup(texName); }
+function texGroup(texName) { return touch(texCache.get(texName)) || buildTexGroup(texName); }
 
 /** Wurde die Texturgruppe dieses Materials schon erzeugt? */
-export function isMaterialReady(name) { const d = MATS[name]; return !d || !d.tex || texCache.has(d.tex); }
+export function isMaterialReady(name) { const d = MATS[name]; return !d || !d.tex || (texCache.has(d.tex) && !texCache.get(d.tex).pending); }
+
+/** Anzahl gecachter Texturgruppen/Materialien (Prüfseiten, Lecktests). */
+export function textureCacheInfo() { return { groups: texCache.size, materials: matCache.size, workers: pool ? pool.length : 0 }; }
 
 function withRepeat(tex, rx, ry) {
   if (tex.repeat.x === rx && tex.repeat.y === ry) return tex;
@@ -208,7 +292,7 @@ export function getMaterial(name, opts = {}) {
   }
   const key = name + '|' + JSON.stringify(opts, Object.keys(opts).sort());
   const cached = matCache.get(key);
-  if (cached) return cached;
+  if (cached) { if (def.tex) touch(texCache.get(def.tex)); return cached; }
 
   const p = { ...(def.params || {}), ...opts };
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
@@ -239,6 +323,7 @@ export function getMaterial(name, opts = {}) {
   if (p.polygonOffset) { mat.polygonOffset = true; mat.polygonOffsetFactor = -1; mat.polygonOffsetUnits = -2; }
   mat.userData.surface = def.surface;
   mat.userData.materialName = name;
+  mat.userData.texGroup = def.tex || null;
   matCache.set(key, mat);
   return mat;
 }
@@ -248,7 +333,9 @@ export function getMaterial(name, opts = {}) {
  * sonst im Hauptthread mit kurzen Pausen. onProgress(anteil 0..1, gruppenname).
  */
 export async function preloadMaterials(names, onProgress) {
-  const groups = [...new Set(names.map(n => MATS[n]?.tex).filter(Boolean))].filter(t => !texCache.has(t));
+  const all = [...new Set([...names.map(n => MATS[n]?.tex).filter(Boolean), ...pendingGroups])];
+  for (const t of all) touch(texCache.get(t));
+  const groups = all.filter(t => !texCache.has(t) || texCache.get(t).pending);
   if (!groups.length) { onProgress?.(1, ''); return; }
   const t0 = performance.now();
   let done = 0;
@@ -259,25 +346,27 @@ export async function preloadMaterials(names, onProgress) {
       await Promise.all(workers.map(async w => {
         while (queue.length) {
           const name = queue.shift();
-          if (texCache.has(name)) { done++; continue; }
+          const ready = () => texCache.has(name) && !texCache.get(name).pending;
+          if (ready()) { done++; continue; }
           const data = await runInWorker(w, name, sizeFor(name));
-          if (!texCache.has(name)) makeTexGroup(name, data);
+          if (!ready()) makeTexGroup(name, data);
           done++;
           onProgress?.(done / groups.length, name);
         }
       }));
       textureStats.ms += performance.now() - t0;
       onProgress?.(1, '');
+      clearTimeout(poolIdleTimer);
+      poolIdleTimer = setTimeout(terminatePool, POOL_IDLE_MS);
       return;
     } catch (e) {
       // Worker nicht nutzbar (z. B. file://, CSP) → Hauptthread
       poolFailed = true;
-      for (const w of workers) w.terminate();
-      pool = null;
+      terminatePool();
     }
   }
   for (const name of groups) {
-    if (!texCache.has(name)) buildTexGroup(name);
+    if (!texCache.has(name) || texCache.get(name).pending) buildTexGroupNow(name);
     done++;
     onProgress?.(done / groups.length, name);
     await new Promise(r => setTimeout(r, 0));

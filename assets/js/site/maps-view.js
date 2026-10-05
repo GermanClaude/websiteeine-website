@@ -287,7 +287,8 @@ export async function init(sec, D, ctx = {}) {
     const typ = Math.round(res.medianDist);
     rFree.textContent = `Freie Sicht bis ${free}${NNBSP}m.`;
     rTyp.textContent = `Typische Distanz: ${typ}${NNBSP}m.`;
-    const best = B ? B.rankAt(typ, 'body', { slot: 'primary' }).find((r) => Number.isFinite(r.ms)) : null;
+    // Erste Wahl über alle Sichtlinien des Standorts (nicht nur die typische Distanz): lange Achsen zählen mit
+    const best = B && res.dists ? B.rankForSightlines(res.dists)[0] : null;
     rFirst.textContent = best ? `Erste Wahl dort: ${best.def.name}.` : '';
     if (speak) { speak = false; announce(`${rFree.textContent} ${rTyp.textContent} ${rFirst.textContent}`.trim()); }
     return false;

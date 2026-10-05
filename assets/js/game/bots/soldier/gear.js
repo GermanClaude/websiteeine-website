@@ -70,11 +70,17 @@ function buildSoldier(V, S, lod) {
     plastic: { color: '#1e2022', detail: 0.25, shine: 0.42 },
     lens: { color: '#0e1419', detail: 0, shine: 1 },
     accent: { color: S.accent, detail: 0, emis: 0.55, shine: 0.3 },
+    // Teamfarben-Bänder (Arm, Helm): großflächig, daher schwächer leuchtend (≈ 0,6 Eigenleuchten)
+    band: { color: S.accent, detail: 0, emis: 0.27, shine: 0.25 },
+    // Schutzbrille/Maskengläser: hellgrau spiegelnd mit kleinem Glanzlicht → Blickrichtung lesbar
+    visor: { color: '#8ea4b0', detail: 0, shine: 1, emis: 0.1 },
     mag: { color: '#2a2b2c', detail: 0.2, shine: 0.55 },
     knee: { color: shade(S.gear2, 0.85), detail: 0.6, shine: 0.2 },
     eye: { color: '#17120e', detail: 0, shine: 0.9 },
     eyeWhite: { color: '#c9c0b4', detail: 0, shine: 0.6 },
     lip: { color: shade(skin, 0.78), detail: 0, shine: 0.25 },
+    socket: { color: shade(skin, 0.66), detail: 0, shine: 0.12 }, // Augenpartie (Schatten unter der Stirn)
+    brow: { color: shade(V.hair, 0.9), detail: 0.6, shine: 0.05 },
   };
   const knit = { color: '#2a2b2c', detail: 1, shine: 0 };
   const covered = V.face === 'balaclava';
@@ -208,15 +214,18 @@ function buildSoldier(V, S, lod) {
       add(E(0.05, 0.012, 0.02, { p: [0, 1.71, -0.084] }, undefined, q.sw / 2 + 2, q.sh / 2), 'head', C.skin);
       add(E(0.012, 0.026, 0.018, { p: [0, 1.668, -0.103], r: [-0.3, 0, 0] }, undefined, 6, 5), 'head', C.skin);
     }
+    // Augenpartie: dunklere Mulde unter der Stirn (liest sich auch auf Distanz als Gesicht)
+    if (!covered) add(E(0.058, 0.017, 0.011, { p: [0, 1.696, -0.091] }, undefined, q.sw / 2 + 2, q.sh / 2 + 1), 'head', C.socket);
     if (L0) {
-      pair(E(0.012, 0.0055, 0.005, { p: [-0.032, 1.693, -0.091] }, undefined, 6, 4), 'head', 'head', C.eyeWhite);
-      pair(E(0.0048, 0.0048, 0.003, { p: [-0.032, 1.693, -0.0955] }, undefined, 5, 4), 'head', 'head', C.eye);
+      pair(E(0.0135, 0.0062, 0.005, { p: [-0.032, 1.694, -0.0985] }, undefined, 6, 4), 'head', 'head', C.eyeWhite);
+      pair(E(0.0052, 0.0052, 0.003, { p: [-0.032, 1.694, -0.1025] }, undefined, 5, 4), 'head', 'head', C.eye);
       if (!covered) {
-        pair(rbox(0.032, 0.008, 0.012, 0, 0, { p: [-0.034, 1.712, -0.095], r: [0, 0, -0.1] }), 'head', 'head', C.hair);
+        pair(rbox(0.034, 0.009, 0.012, 0, 0, { p: [-0.034, 1.716, -0.098], r: [0, 0, -0.1] }), 'head', 'head', C.brow);
         add(rbox(0.036, 0.007, 0.01, 0, 0, { p: [0, 1.616, -0.098] }), 'head', C.lip);
       }
     } else {
-      add(rbox(0.078, 0.012, 0.01, 0, 0, { p: [0, 1.692, -0.094] }), 'head', C.eye);
+      add(rbox(0.07, 0.011, 0.01, 0, 0, { p: [0, 1.694, -0.1] }), 'head', C.eye);
+      if (!covered) add(rbox(0.08, 0.009, 0.01, 0, 0, { p: [0, 1.717, -0.099] }), 'head', C.brow);
     }
     if (!covered && V.head !== 'helmet' && !V.ears) pair(E(0.012, 0.028, 0.02, { p: [-0.094, 1.67, 0.01] }, undefined, 5, 4), 'head', 'head', C.skin);
   }
@@ -245,21 +254,25 @@ function buildSoldier(V, S, lod) {
       if (L01) pair(cyl(0.013, 0.013, 0.006, q.cs, { p: [-0.024, 1.812, -0.168], r: [-0.95 + Math.PI / 2, 0, 0] }), 'head', 'head', C.lens);
     }
     add(R(0.026, 0.02, 0.03, 0.006, { p: [0, 1.805, 0.065], r: [0.55, 0, 0] }), 'head', C.accent);
+    // Teamband um die Helmschale (auf jeder Stufe – Erkennung auf Distanz)
+    add(torus(0.121, 0.011, 3, q.cs + 4, { p: [0, 1.724, 0.008], r: [Math.PI / 2, 0, 0], s: [1, 1.09, 1] }), 'head', C.band);
   } else if (V.head === 'cap') {
     const back = V.capBack ? -1 : 1;
     add(E(0.104, 0.08, 0.115, { p: [0, 1.718, 0.012] }, { thetaLength: Math.PI * 0.5 }), 'head', { color: shade(S.gear, 1.08), detail: 1 });
     add(R(0.145, 0.012, 0.1, 0.005, { p: [0, 1.726, -0.128 * back + 0.006], r: [-0.14 * back, 0, 0] }), 'head', { color: shade(S.gear, 0.92), detail: 1 });
     add(rbox(0.04, 0.03, 0.006, 0, 0, { p: [0, 1.76, back > 0 ? -0.102 : 0.116], r: [back > 0 ? -0.45 : 0.45, 0, 0] }), 'head', C.accent);
+    add(torus(0.103, 0.008, 3, q.cs + 2, { p: [0, 1.727, 0.012], r: [Math.PI / 2, 0, 0], s: [1, 1.1, 1] }), 'head', C.band);
   } else if (V.head === 'boonie') {
     add(cyl(0.098, 0.11, 0.08, q.cs, { p: [0, 1.772, 0.012], s: [1, 1, 1.08] }), 'head', C.top);
     add(E(0.098, 0.022, 0.106, { p: [0, 1.812, 0.012] }, { thetaLength: Math.PI * 0.5 }), 'head', C.top);
     add(cyl(0.185, 0.195, 0.014, q.cs + 3, { p: [0, 1.735, 0.012], r: [0.04, 0, 0], s: [1, 1, 1.05] }), 'head', C.top);
-    add(cyl(0.112, 0.112, 0.022, q.cs, { p: [0, 1.752, 0.012], s: [1, 1, 1.08] }), 'head', C.strap);
+    add(cyl(0.112, 0.112, 0.022, q.cs, { p: [0, 1.752, 0.012], s: [1, 1, 1.08] }), 'head', C.band); // Hutband in Teamfarbe
     add(rbox(0.035, 0.022, 0.006, 0, 0, { p: [0.0, 1.752, -0.11] }), 'head', C.accent);
   } else if (V.head === 'beanie') {
     add(E(0.103, 0.104, 0.114, { p: [0, 1.703, 0.012] }, { thetaLength: Math.PI * 0.55 }), 'head', knit);
     add(cyl(0.106, 0.108, 0.04, q.cs + 2, { p: [0, 1.718, 0.012], s: [1, 1, 1.07] }), 'head', { ...knit, color: '#323334' });
     add(rbox(0.03, 0.02, 0.006, 0, 0, { p: [0.045, 1.72, -0.106] }), 'head', C.accent);
+    add(torus(0.107, 0.008, 3, q.cs + 2, { p: [0, 1.742, 0.012], r: [Math.PI / 2, 0, 0], s: [1, 1.07, 1] }), 'head', C.band);
   }
   // Headset
   if (V.ears) {
@@ -269,23 +282,30 @@ function buildSoldier(V, S, lod) {
   }
   // Brillen / Maske
   if (V.goggles) {
-    add(R(0.13, 0.046, 0.034, 0.016, { p: [0, 1.697, -0.093] }), 'head', C.lens);
+    add(R(0.13, 0.046, 0.034, 0.016, { p: [0, 1.697, -0.093] }), 'head', { color: '#25282a', detail: 0.3, shine: 0.3 });
+    if (!FAR) pair(R(0.05, 0.032, 0.008, 0.01, { p: [-0.031, 1.697, -0.111] }), 'head', 'head', C.visor);
+    else add(R(0.11, 0.032, 0.008, 0.01, { p: [0, 1.697, -0.111] }), 'head', C.visor);
     if (!FAR) add(torus(0.112, 0.008, 3, q.cs, { p: [0, 1.697, 0.012], r: [Math.PI / 2, 0, 0], s: [1, 1.13, 1] }), 'head', C.strap);
   } else if (V.face === 'shades') {
     add(rbox(0.112, 0.027, 0.014, 0.005, L0 ? 1 : 0, { p: [0, 1.692, -0.099] }), 'head', C.lens);
     if (L01) pair(rbox(0.006, 0.008, 0.1, 0, 0, { p: [-0.092, 1.695, -0.05] }), 'head', 'head', C.plastic);
   }
   if (V.face === 'gasmask') {
-    add(E(0.07, 0.074, 0.06, { p: [0, 1.64, -0.065] }), 'head', { color: '#1f2123', detail: 0.4, shine: 0.32 });
-    pair(cyl(0.024, 0.024, 0.012, q.cs, { p: [-0.035, 1.69, -0.102], r: [Math.PI / 2 - 0.15, 0, 0] }), 'head', 'head', C.lens);
-    add(cyl(0.034, 0.034, 0.05, q.cs, { p: [0.035, 1.59, -0.115], r: [1.1, 0.4, 0] }), 'head', { color: shade(S.gear2, 0.9), detail: 0.6 });
+    add(E(0.07, 0.074, 0.06, { p: [0, 1.64, -0.065] }), 'head', { color: '#2a2d2f', detail: 0.4, shine: 0.32 });
+    // Sichtgläser deutlich vor der Maske, hell mit Glanzlicht (Blickrichtung erkennbar), dunkle Fassung
+    pair(cyl(0.031, 0.031, 0.012, q.cs, { p: [-0.036, 1.69, -0.108], r: [Math.PI / 2 - 0.15, 0, 0] }), 'head', 'head', { color: '#151617', detail: 0, shine: 0.4 });
+    pair(cyl(0.025, 0.025, 0.006, q.cs, { p: [-0.036, 1.69, -0.116], r: [Math.PI / 2 - 0.15, 0, 0] }), 'head', 'head', C.visor);
+    // Filter dunkel (nicht in Hautfarbe – wirkte sonst wie ein Haarknoten)
+    add(cyl(0.032, 0.032, 0.048, q.cs, { p: [0.035, 1.59, -0.115], r: [1.1, 0.4, 0] }), 'head', { color: '#1c1e1f', detail: 0.4, shine: 0.25 });
+    if (!FAR) add(cyl(0.018, 0.018, 0.012, q.cs, { p: [0.044, 1.578, -0.136], r: [1.1, 0.4, 0] }), 'head', C.metal);
     add(E(0.1, 0.11, 0.106, { p: [0, 1.692, 0.018] }, { thetaLength: Math.PI * 0.62 }), 'head', C.top);
   }
 
   /* ------------------------------------------------------------ Arme */
   pair(E(0.068, 0.072, 0.07, { p: [-0.198, 1.418, 0.0] }, undefined, q.sw / 2 + 2, q.sh / 2 + 1), 'upperArmL', 'upperArmR', C.top);
   pair(lathe([[0.046, 1.13], [0.05, 1.18], [0.057, 1.26], [0.06, 1.33], [0.062, 1.4]], q.seg, { p: [-0.19, 0, 0.0], s: [0.96, 1, 1.04] }), 'upperArmL', 'upperArmR', C.top);
-  pair(rbox(0.006, 0.05, 0.055, 0, 0, { p: [-0.252, 1.355, 0.0] }), 'upperArmL', 'upperArmR', C.accent);
+  // Armbinde in Teamfarbe rund um den Oberarm (auch aus der Ferne und von hinten sichtbar)
+  pair(cyl(0.066, 0.064, 0.06, q.cs, { p: [-0.19, 1.275, 0.0], s: [0.97, 1, 1.05] }, true), 'upperArmL', 'upperArmR', C.band);
   if (V.pauldrons) pair(E(0.08, 0.06, 0.086, { p: [-0.21, 1.41, 0.0] }, { thetaLength: Math.PI * 0.5 }), 'upperArmL', 'upperArmR', C.gear);
   const rolled = V.sleeves === 'rolled';
   if (L01) pair(E(0.047, 0.045, 0.048, { p: [-0.19, 1.155, 0.004] }, undefined, q.sw / 2 + 1, q.sh / 2), 'foreArmL', 'foreArmR', rolled ? C.skin : C.top);

@@ -10,7 +10,7 @@ import { Bot } from './bot.js';
 import { difficultyProfile } from './difficulty.js';
 import { pickNames } from './names.js';
 import { Nameplate } from './nameplates.js';
-import { VARIANTS, FFA_SCHEMES } from './character.js';
+import { VARIANTS, schemeForTeam, ffaSchemes } from './character.js';
 import { analyze } from './ai/tactics.js';
 
 const _m = new THREE.Matrix4();
@@ -137,15 +137,17 @@ export class BotManager {
       const n = allies + enemies;
       const los = loadoutPool(n);
       const vars = shuffle(VARIANTS.map((_, i) => i));
-      const off = (Math.random() * FFA_SCHEMES.length) | 0;
-      for (let i = 0; i < n; i++) make(null, i, los[i], vars[i % vars.length], FFA_SCHEMES[(i + off) % FFA_SCHEMES.length], (Math.random() * 3) | 0);
+      const schemes = ffaSchemes(G.world); // je Karte gut sichtbare Tarnschemata
+      const off = (Math.random() * schemes.length) | 0;
+      for (let i = 0; i < n; i++) make(null, i, los[i], vars[i % vars.length], schemes[(i + off) % schemes.length], (Math.random() * 3) | 0);
     } else {
       for (const [team, n] of [['A', allies], ['B', enemies]]) {
         if (n <= 0) continue;
         const los = loadoutPool(n);
         const vars = shuffle(VARIANTS.map((_, i) => i));
         const lanes = shuffle([0, 1, 2]);
-        for (let i = 0; i < n; i++) make(team, i, los[i], vars[i % vars.length], null, lanes[i % 3]);
+        const scheme = schemeForTeam(team, G.world); // Gegner auf hellen Karten dunkler (Kontrast)
+        for (let i = 0; i < n; i++) make(team, i, los[i], vars[i % vars.length], scheme, lanes[i % 3]);
       }
     }
     // Analyse der Karte vorab (Spuren/Machtpositionen)

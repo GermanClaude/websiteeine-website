@@ -7,6 +7,7 @@
 // Punkte (stats.score) und captures zählt der Modus.
 
 import * as THREE from 'three';
+import { isLongshot } from '../shared/modes.data.js';
 
 const _ray = new THREE.Ray();
 const _v1 = new THREE.Vector3();
@@ -352,9 +353,9 @@ export class Combat {
         if (headshot) w.headshots += 1;
       }
       if (!this.firstBloodTaken) { this.firstBloodTaken = true; firstBlood = true; }
+      // Weitschuss nach denselben Klassen-Schwellen wie Punkte/Medaille (modes.data.js MEDAL_RULES.longshotByClass)
       const def = G.data && G.data.WEAPONS ? G.data.WEAPONS[info.weaponId] : null;
-      const longDist = def && def.cls === 'sniper' ? 60 : def && def.cls === 'shotgun' ? 18 : 40;
-      longshot = !info.explosive && distance >= longDist;
+      longshot = !info.explosive && !!def && isLongshot(def.cls, distance);
       revenge = killer._lastKilledBy === victim;
       if (revenge) killer._lastKilledBy = null;
       victim._lastKilledBy = killer;

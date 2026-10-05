@@ -49,16 +49,35 @@ export function analyze(world) {
   // Machtpositionen: erhöht mit Deckung, oder viele Deckungsrichtungen
   const ground = nodes.length ? Math.min(...nodes.slice(0, 400).map((n) => n.position.y)) : 0;
   const hot = nodes.filter((n) => (n.position.y - ground > HIGH_Y && n.cover) || (n.cover && n.coverDirs && n.coverDirs.length >= 3 && n.coverDirs.length <= 5));
-  // Erhöhte Posten: über Bodenniveau mit Deckung (Brüstung/Kisten), sonst alle erhöhten Knoten
+  // Erhöhte Posten: über Bodenniveau, unter freiem Himmel mit Ausblick (keine Obergeschoss-Innenräume),
+  // bevorzugt mit Deckung (Brüstung/Kisten)
   const high = nodes.filter((n) => n.position.y - ground > HIGH_Y);
-  const covered = high.filter((n) => n.cover);
-  const perch = covered.length >= 8 ? covered : high;
+  const open = high.filter((n) => overlooks(world, n.position));
+  const covered = open.filter((n) => n.cover);
+  const perch = covered.length >= 8 ? covered : open;
   A = { nav, nodes, sa, sb, axis, perp, center, length, lanes, along, hot, high, perch, perchSet: new Set(perch), ground, idOf: new Map(nodes.map((n, i) => [n, i])) };
   cache.set(world, A);
   return A;
 }
 
 const rnd = (a, b) => a + Math.random() * (b - a);
+
+const LOOK_DIRS = Array.from({ length: 8 }, (_, i) => [Math.sin((i * Math.PI) / 4), Math.cos((i * Math.PI) / 4)]);
+
+/** Aussichtspunkt? Freier Himmel über dem Knoten und auf Augenhöhe in ≥ 2 von 8 Richtungen 10 m frei. */
+function overlooks(world, p) {
+  if (!world || typeof world.lineOfSight !== 'function') return true;
+  _e.set(p.x, p.y + 0.6, p.z);
+  _t.set(p.x, p.y + 5, p.z);
+  if (!world.lineOfSight(_e, _t)) return false;
+  _e.y = p.y + 1.55;
+  let free = 0;
+  for (let i = 0; i < LOOK_DIRS.length && free < 2; i++) {
+    _t.set(p.x + LOOK_DIRS[i][0] * 10, p.y + 1.3, p.z + LOOK_DIRS[i][1] * 10);
+    if (world.lineOfSight(_e, _t)) free++;
+  }
+  return free >= 2;
+}
 
 /**
  * Ziel zum Umherziehen: Teams spuren- und frontbasiert (Richtung Gegnerseite), FFA belebte Zonen in
@@ -112,10 +131,10 @@ export function isPerch(A, node) {
 }
 
 /**
- * Erhöhter Posten im Umkreis von center mit Sicht auf center (Augenhöhe → Brusthöhe am Ort).
+ * Erhöhter Posten im Umkreis von center mit Sicht auf center (Augenhöhe → Oberkörper am Ort).
  * Prüft höchstens `tests` zufällige Kandidaten (je ein Sichtstrahl). → Knoten | null
  */
-export function perchNear(bot, A, center, radius, { tests = 3, minDist = 4, maxFromBot = 60 } = {}) {
+export function perchNear(bot, A, center, radius, { tests = 4, minDist = 4, maxFromBot = 60 } = {}) {
   if (!A || !A.perch.length) return null;
   const world = bot.G.world;
   const r2 = radius * radius, m2 = minDist * minDist, b2 = maxFromBot * maxFromBot;
@@ -130,7 +149,7 @@ export function perchNear(bot, A, center, radius, { tests = 3, minDist = 4, maxF
     list[i] = list[list.length - 1];
     list.pop();
     _e.copy(n.position).setY(n.position.y + 1.55);
-    _t.copy(center).setY(center.y + 1.1);
+    _t.copy(center).setY(center.y + 1.4); // Oberkörper/Kopf eines Stehenden am Ort
     if (!world || !world.lineOfSight || world.lineOfSight(_e, _t)) return n;
   }
   return null;

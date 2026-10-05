@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { analyze, pickRoamGoal, flankPoint, findCover, retreatPoint, isPerch, perchNear } from './tactics.js';
 
 const _v = new THREE.Vector3();
+const _v2 = new THREE.Vector3();
 const rnd = (a, b) => a + Math.random() * (b - a);
 const CHASE_PERCH = 0.4; // Anteil vorsichtiger Verfolgungen über einen erhöhten Posten
 
@@ -94,11 +95,8 @@ export function think(bot, now) {
     if (c) bot.coverNode = c;
     return;
   }
-  // Erhöhten Posten halten: bleiben und beobachten (zu Hinweisen schauen), außer der Gegner ist nah
-  if (holdingPerch(bot, now) && !(fresh && fresh.pos.distanceTo(bot.position) < 12)) {
-    overwatch(bot, now, A, fresh ? fresh.pos : null);
-    return;
-  }
+  // Erhöhter Posten (aus Umherziehen/Verfolgen/Jagen/Verteidigen): hingehen, dann eine Weile halten
+  if (perchStep(bot, now, A, fresh)) return;
   // Herrschaft: Flaggen haben Vorrang vor weitem Verfolgen
   if (objective && fresh && !objective.inside) {
     const near = fresh.pos.distanceTo(bot.position) < 14 && now - fresh.time < 3;
@@ -118,17 +116,12 @@ export function think(bot, now) {
     if (goal.kind === 'flank' && now < goal.until && !bot.nav.arrived && !bot.nav.failed) return;
     const cautious = age > 2 || fresh.source === 'sound';
     // vorsichtig verfolgen: gelegentlich über einen erhöhten Posten mit Sicht auf die letzte Position
-    const pd = goal.kind === 'chase' ? goal.data : null;
-    if (pd && pd.perch && pd.actor === fresh.actor && !bot.nav.failed && fresh.pos.distanceTo(bot.position) >= 12) {
-      if (!bot.nav.arrived) { goal.lookAt.copy(fresh.pos); return; } // unterwegs zum Posten
-      if (!pd.holdUntil) { pd.watch = fresh.pos.clone(); startHold(bot, now, A, pd, rnd(4, 8)); }
-      if (now < pd.holdUntil) { overwatch(bot, now, A, fresh.pos); return; }
-    } else if (cautious && !(pd && pd.perch) && now > (bot._perchTryAt || 0) && fresh.pos.distanceTo(bot.position) > 10) {
+    if (cautious && now > (bot._perchTryAt || 0) && fresh.pos.distanceTo(bot.position) > 10) {
       bot._perchTryAt = now + rnd(3, 6);
-      const n = Math.random() < CHASE_PERCH ? perchNear(bot, A, fresh.pos, 18, { minDist: 6, maxFromBot: 35 }) : null;
+      const n = Math.random() < CHASE_PERCH ? perchNear(bot, A, fresh.pos, 22, { tests: 10, minDist: 6, maxFromBot: fresh.pos.distanceTo(bot.position) + 6 }) : null;
       if (n) {
         set(goal, 'chase', now, { move: n.position, speed: 'run', look: 'point', lookAt: fresh.pos, tolerance: 0.8 });
-        goal.data = { perch: true, actor: fresh.actor, node: n, watch: null, holdUntil: 0, baseYaw: 0, lookAt: 0 };
+        goal.data = perchData(n, fresh.actor, fresh.pos, rnd(5, 9));
         return;
       }
     }
@@ -164,39 +157,57 @@ export function think(bot, now) {
       const act = bot.manager.activityFor(bot, now, ffa ? 20 : 12, ffa ? 95 : 55);
       if (act) {
         // gelegentlich über einen erhöhten Posten mit Sicht auf den Gefechtsort anrücken
-        const perch = Math.random() < 0.35 ? perchNear(bot, A, act.pos, 16) : null;
-        const p = perch ? perch.position.clone() : act.pos.clone().add(new THREE.Vector3(rnd(-5, 5), 0, rnd(-5, 5)));
-        set(goal, 'hunt', now, { move: p, speed: 'sprint', look: 'move', tolerance: perch ? 1 : 4 });
-        goal.data = act.actor;
+        const perch = Math.random() < 0.35 ? perchNear(bot, A, act.pos, 18) : null;
+        const p = perch ? perch.position : _v.copy(act.pos).add(_v2.set(rnd(-5, 5), 0, rnd(-5, 5)));
+        set(goal, 'hunt', now, { move: p, speed: 'sprint', look: 'move', tolerance: perch ? 0.8 : 4 });
+        goal.data = perch ? perchData(perch, act.actor, act.pos, rnd(6, 12)) : act.actor;
         return;
       }
     }
   }
-  // --- Umherziehen (erhöhte Posten werden eine Weile gehalten)
-  if (goal.kind === 'roam' && goal.data && goal.data.perch && bot.nav.arrived && !bot.nav.failed) {
-    if (!goal.data.holdUntil) startHold(bot, now, A, goal.data, rnd(7, 15));
-    if (now < goal.data.holdUntil) { overwatch(bot, now, A, null); return; }
-  }
+  // --- Umherziehen (erhöhte Posten werden über perchStep eine Weile gehalten)
   if (goal.kind !== 'roam' || bot.nav.arrived || bot.nav.failed || now - goal.since > 35) {
     const node = pickRoamGoal(bot, A, bot.manager.roamClaims(bot));
     if (node) {
       bot.lastGoal = node.position.clone();
       const perch = isPerch(A, node);
       set(goal, 'roam', now, { move: node.position, speed: 'sprint', look: 'move', tolerance: perch ? 0.8 : 2 });
-      goal.data = perch ? { perch: true, node, holdUntil: 0, baseYaw: 0, lookAt: 0 } : null;
+      goal.data = perch ? perchData(node, null, null, rnd(7, 15)) : null;
     } else set(goal, 'idle', now, {});
   }
 }
 
 /* -------------------------------------------------------------------- Erhöhte Posten */
 
-/** Hält der Bot gerade einen erhöhten Posten (angekommen, Haltezeit läuft)? */
-function holdingPerch(bot, now) {
-  const d = bot.goal.data;
-  return !!(d && d.perch && d.holdUntil && now < d.holdUntil && bot.nav.arrived && !bot.nav.failed);
+const PERCH_TRAVEL = 25; // s: länger unterwegs → Posten aufgeben
+
+/** Zieldaten für einen erhöhten Posten (goal.data). watch: Ort, den der Posten überblicken soll. */
+function perchData(node, actor, watch, holdFor) {
+  return { perch: true, node, actor, watch: watch ? watch.clone() : null, holdFor, holdUntil: 0, baseYaw: 0, lookAt: 0 };
 }
 
-/** Haltezeit beginnen; Grundblickrichtung: Flagge, sonst Gegnerseite (FFA: Kartenmitte). */
+/**
+ * Erhöhten Posten anlaufen und halten (gilt für jedes Ziel mit goal.data.perch). → true, solange der
+ * Posten das Verhalten bestimmt. Aufgegeben bei Fehlschlag der Wegfolge, zu langer Anreise, nahem
+ * Gegner (< 12 m) oder nach Ablauf der Haltezeit. Sichtbare Gegner (Gefecht) beenden ihn ohnehin.
+ */
+function perchStep(bot, now, A, fresh) {
+  const goal = bot.goal, d = goal.data;
+  if (!d || !d.perch) return false;
+  const drop = () => { goal.data = null; bot._perchTryAt = now + rnd(4, 8); return false; };
+  if (bot.nav.failed) return drop();
+  if (fresh && fresh.pos.distanceTo(bot.position) < 12) return drop();
+  if (!bot.nav.arrived) {
+    if (now - goal.since > PERCH_TRAVEL) return drop();
+    if (fresh && goal.look === 'point') goal.lookAt.copy(fresh.pos);
+    return true; // unterwegs
+  }
+  if (!d.holdUntil) startHold(bot, now, A, d, d.holdFor);
+  if (now < d.holdUntil) { overwatch(bot, now, A, fresh ? fresh.pos : null); return true; }
+  return drop();
+}
+
+/** Haltezeit beginnen; Grundblickrichtung: überwachter Ort, sonst Gegnerseite (FFA: Kartenmitte). */
 function startHold(bot, now, A, d, duration) {
   d.holdUntil = now + duration;
   const p = bot.position;
@@ -220,24 +231,13 @@ function overwatch(bot, now, A, threat) {
 
 /** Herrschaft (Verteidigen): gelegentlich von einem erhöhten Posten mit Sicht auf die Flagge sichern. */
 function defendFromPerch(bot, now, A, o) {
-  const goal = bot.goal;
-  const d = goal.data;
-  if (goal.kind === 'objective' && d && d.perch && d.flag === o.id) {
-    if (bot.nav.failed || (now - goal.since > 25 && !d.holdUntil)) { goal.data = null; bot._perchAt = now + rnd(8, 14); return false; }
-    if (!bot.nav.arrived) return true; // unterwegs
-    if (!d.holdUntil) startHold(bot, now, A, d, rnd(12, 20));
-    if (now < d.holdUntil) { overwatch(bot, now, A, null); return true; }
-    goal.data = null;
-    bot._perchAt = now + rnd(6, 12);
-    return false;
-  }
   if (now < (bot._perchAt || 0)) return false;
   bot._perchAt = now + rnd(5, 9);
   if (Math.random() > 0.5) return false;
   const n = perchNear(bot, A, o.center, o.radius + 14, { minDist: 3 });
   if (!n) return false;
-  set(goal, 'objective', now, { move: n.position, speed: 'run', look: 'move', tolerance: 0.8 });
-  goal.data = { perch: true, flag: o.id, node: n, watch: o.center.clone(), holdUntil: 0, baseYaw: 0, lookAt: 0 };
+  set(bot.goal, 'objective', now, { move: n.position, speed: 'run', look: 'move', tolerance: 0.8 });
+  bot.goal.data = perchData(n, null, o.center, rnd(12, 20));
   return true;
 }
 

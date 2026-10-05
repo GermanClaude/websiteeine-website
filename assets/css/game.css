@@ -258,8 +258,11 @@ input, textarea, select { user-select: text; -webkit-user-select: text; touch-ac
 #rotate-overlay svg { width: 76px; height: 76px; fill: none; stroke: var(--np-signal); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; animation: rotate-hint 2.4s var(--ease-in-out) infinite; }
 #rotate-overlay p { margin: 6px 0 0; font-weight: 800; font-stretch: 115%; font-size: 26px; }
 #rotate-overlay small { color: var(--np-ink-2); font: 500 15px var(--font-hud); letter-spacing: .04em; }
+#rotate-overlay .rotate-actions { display: flex; flex-direction: column; align-items: stretch; gap: 12px; width: min(100%, 300px); margin-top: 18px; }
+#rotate-overlay .rotate-actions small { font-size: 14px; line-height: 1.4; }
 @keyframes rotate-hint { 0%, 25% { transform: rotate(0); } 55%, 100% { transform: rotate(-90deg); } }
-@media (orientation: portrait) and (pointer: coarse) {
+/* Nur Telefone hochkant (Tablets spielen auch im Hochformat); gleiche Abfrage wie main.js PORTRAIT_QUERY */
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 599px) {
   #rotate-overlay { display: flex; }
 }
 
@@ -279,8 +282,9 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .tc-btn {
   --s: 56;
   position: absolute;
-  width: calc(var(--tc-u) * var(--s));
-  height: calc(var(--tc-u) * var(--s));
+  /* nie unter 44 px Trefferfläche (kleine Telefone: --tc-u ≈ 0,9 px) */
+  width: max(44px, calc(var(--tc-u) * var(--s)));
+  height: max(44px, calc(var(--tc-u) * var(--s)));
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -341,7 +345,7 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
   width: auto;
   min-width: calc(var(--tc-u) * 132);
   padding: 0 calc(var(--tc-u) * 14);
-  border-radius: calc(var(--tc-u) * 22);
+  border-radius: 999px;
   display: flex;
   gap: calc(var(--tc-u) * 8);
   align-items: center;
@@ -1076,7 +1080,7 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-root[data-input="touch"] .h-wname, .h-root[data-input="touch"] .h-equip { display: none; }
 .h-root[data-input="touch"] .h-ammo b { font-size: 30px; }
 .h-root[data-input="touch"] .h-ammo span { font-size: 15px; }
-.h-root[data-input="touch"] .h-next { font-size: 10px; }
+.h-root[data-input="touch"] .h-next { font-size: 11px; }
 .h-root[data-input="touch"] .h-health {
   left: var(--pad-l);
   top: var(--col-t);
@@ -1091,13 +1095,14 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-root[data-input="touch"] .h-health i { height: 5px; }
 .h-root[data-input="touch"] .h-popups { top: calc(50% + 30px); }
 .h-root[data-input="touch"] .h-pop b { font-size: 20px; }
-.h-root[data-input="touch"] .h-pop .lines { font-size: 10.5px; }
+.h-root[data-input="touch"] .h-pop .lines { font-size: 11.5px; }
 .h-root[data-input="touch"] .h-pop .lines div:nth-child(n+3) { display: none; }
 .h-root[data-input="touch"] .h-medal { top: 25%; }
 .h-root[data-input="touch"] .h-death { top: 36%; }
 .h-root[data-input="touch"] .h-death .k { font-size: 26px; }
 .h-root[data-input="touch"] .h-death .by { font-size: 16px; }
-.h-root[data-input="touch"] .h-capture { bottom: auto; top: calc(var(--pad-t) + 90px); width: min(260px, 40vw); gap: 3px; }
+/* eigener Grund: liegt in der Bildmitte über den Enden langer Abschussmeldungen */
+.h-root[data-input="touch"] .h-capture { bottom: auto; top: calc(var(--pad-t) + 90px); width: min(260px, 40vw); gap: 3px; padding: 4px 9px 6px; background: var(--hud-bg); border-radius: 2px; }
 .h-root[data-input="touch"] .h-capture-l { font-size: 12px; }
 .h-root[data-input="touch"] .h-capture-l b { font-size: 14px; }
 .h-root[data-input="touch"][data-mode="dom"] .h-notices { top: calc(var(--pad-t) + 92px); }
@@ -1126,7 +1131,7 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
   .h-root[data-input="touch"] .h-train [data-k="head"], .h-root[data-input="touch"] .h-train [data-k="best"] { display: none; }
 }
 /* Spieler tot (HUD setzt body[data-player-dead]): Touch-Steuerung bis auf Pause/Tabelle ausblenden, die Todesinfo bleibt frei */
-body[data-player-dead="1"] #touch-ui > :not(.tc-pause):not(.tc-score) { opacity: 0; visibility: hidden; transition: opacity .2s, visibility 0s .2s; }
+body[data-player-dead="1"] #touch-ui > :not(.tc-pause):not(.tc-score) { opacity: 0; visibility: hidden; }
 /* Punktetabelle auf Touch: reine Anzeige, Berührungen gehen an die Touch-Steuerung darunter (Feuer, Stick und Blick bleiben bedienbar) */
 body[data-input-mode="touch"] .h-board { top: calc(50% + 18px); width: min(860px, 94vw); max-height: calc(100% - 64px); padding: 8px 12px; }
 body[data-input-mode="touch"] #hud-top .h-board { pointer-events: none; }

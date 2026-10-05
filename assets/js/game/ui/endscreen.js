@@ -44,25 +44,25 @@ export class EndScreen {
       line = `<div class="e-sub">${win}${r.players ? ` · ${r.players} Spieler` : ''}${r.modeId === 'ffa' ? ' · Platz 1–3 zählt als Sieg' : ''}</div>`;
     }
 
-    // persönliche Werte
+    // persönliche Werte (weiche Trennstriche \u00ad: lange Komposita brechen in schmalen Zellen sauber um)
     const acc = ps.shotsFired ? ps.shotsHit / ps.shotsFired : 0;
     let cells;
     if (training && r.extra && r.extra.training) {
       const t = r.extra.training;
       const parc = r.extra.parcours;
       cells = [
-        ['Treffer', `${t.hits}`, `${t.shots} Schuss`], ['Genauigkeit', t.shots ? pct(t.accuracy) : '–'], ['Kopftreffer', t.hits ? pct(t.headRate) : '–'],
+        ['Treffer', `${t.hits}`, `${t.shots} Schuss`], ['Genauigkeit', t.shots ? pct(t.accuracy) : '–'], ['Kopf\u00adtreffer', t.hits ? pct(t.headRate) : '–'],
         ['Ziele unten', String(t.down)], ['Ø Zeit bis Ziel', t.avgTtk != null ? secs(t.avgTtk, 2) : '–'], ['Weitester Treffer', t.longest ? meters(t.longest, 1) : '–'],
         ['Schaden', num(t.damage || 0)], ['Parcours', parc ? secs(parc.time, 2) : '–', parc && parc.newBest ? 'Neue Bestzeit' : ''], ['Bestzeit', r.extra.best != null ? secs(r.extra.best, 2) : '–'],
       ];
     } else {
       cells = [
         ['Abschüsse', String(ps.kills ?? 0)], ['Tode', String(ps.deaths ?? 0)], ['K/D', kd(ps.kills || 0, ps.deaths || 0)],
-        ['Unterstützung', String(ps.assists ?? 0)], ['Genauigkeit', ps.shotsFired ? pct(acc) : '–', ps.shotsFired ? `${ps.shotsHit}/${ps.shotsFired}` : ''],
-        ['Kopftreffer', String(ps.headshots ?? 0)], ['Beste Serie', String(ps.bestStreak ?? 0)], ['Weitester Abschuss', ps.longestKill ? meters(ps.longestKill, 1) : '–'],
+        ['Unter\u00adstützung', String(ps.assists ?? 0)], ['Genauigkeit', ps.shotsFired ? pct(acc) : '–', ps.shotsFired ? `${ps.shotsHit}/${ps.shotsFired}` : ''],
+        ['Kopf\u00adtreffer', String(ps.headshots ?? 0)], ['Beste Serie', String(ps.bestStreak ?? 0)], ['Weitester Abschuss', ps.longestKill ? meters(ps.longestKill, 1) : '–'],
         ['Schaden', num(ps.damage || 0)],
       ];
-      if (r.modeId === 'dom') cells[8] = ['Eroberungen', String(ps.captures ?? 0)];
+      if (r.modeId === 'dom') cells[8] = ['Erobe\u00adrungen', String(ps.captures ?? 0)];
     }
     const stats = `<div class="e-stats">${cells.map(([l, v, s]) => `<div class="e-cell"><small>${esc(l)}</small><b>${v}</b>${s ? `<span>${esc(s)}</span>` : ''}</div>`).join('')}</div>`;
 

@@ -10,9 +10,26 @@ export class TriangleBVH {
    * @param {Uint32Array} [data] beliebige Nutzdaten pro Dreieck (z. B. surface | object << 8)
    */
   constructor(tris, data) {
+    this._stack = new Int32Array(128);
+    if (tris === null) return; // fromData
     this.count = (tris.length / 9) | 0;
     this._build(tris, data || new Uint32Array(this.count));
-    this._stack = new Int32Array(128);
+  }
+
+  /** Flache Daten (übertragbar, z. B. aus dem Welt-Worker). */
+  toData() {
+    const { count, nodeCount, tri, data, orig, nMin, nMax, nLeft, nStart, nCount } = this;
+    return { count, nodeCount, tri, data, orig, nMin, nMax, nLeft, nStart, nCount };
+  }
+
+  /** Puffer für postMessage-Transfer. */
+  static transferables(d) { return [d.tri, d.data, d.orig, d.nMin, d.nMax, d.nLeft, d.nStart, d.nCount].map(a => a.buffer); }
+
+  /** BVH aus toData()-Daten (ohne Neuaufbau). */
+  static fromData(d) {
+    const b = new TriangleBVH(null);
+    Object.assign(b, { count: d.count, nodeCount: d.nodeCount, tri: d.tri, data: d.data, orig: d.orig, nMin: d.nMin, nMax: d.nMax, nLeft: d.nLeft, nStart: d.nStart, nCount: d.nCount });
+    return b;
   }
 
   _build(src, srcData) {

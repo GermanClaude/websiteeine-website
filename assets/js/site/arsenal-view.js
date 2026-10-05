@@ -13,7 +13,7 @@ import { num, NNBSP, clamp } from './fmt.js';
 import { cutW, cutG } from './cuts.js';
 
 const DEG = Math.PI / 180;
-const STATS = [['damage', 'SCHADEN', 'Schaden'], ['fireRate', 'KADENZ', 'Kadenz'], ['range', 'REICHWEITE', 'Reichweite'], ['accuracy', 'PRÄZISION', 'Präzision'], ['mobility', 'BEWEGLICHKEIT', 'Beweglichkeit'], ['control', 'KONTROLLE', 'Kontrolle']];
+const STATS = [['damage', 'SCHADEN', 'Schaden'], ['fireRate', 'KADENZ', 'Kadenz'], ['range', 'REICHWEITE', 'Reichweite'], ['accuracy', 'PRÄZISION', 'Präzision'], ['mobility', 'MOBILITÄT', 'Mobilität'], ['control', 'KONTROLLE', 'Kontrolle']];
 
 export { cutW, cutG };
 const up = (s) => String(s).toLocaleUpperCase('de-DE');
@@ -125,7 +125,7 @@ export async function init(sec, D, ctx) {
   const distH = h('h3.sub-h.rail-h', { id: 'auf-distanz', tabindex: '-1', 'data-fit': '', 'data-fit-grow': '0', 'data-fit-wdth': '100' }, 'AUF DISTANZ.');
   const distR = h('div.r', {}, distH,
     h('p.kicker', {}, 'Zieh den Messwert. Die Liste sortiert sich nach Duellzeit.'),
-    h('p.legend-line', { style: { 'margin-top': '16px' } }, 'Duellzeit = Anschlag + Zeit bis Abschuss. 100 Lebenspunkte, jeder Schuss trifft.'));
+    h('p.legend-line', { style: { 'margin-top': '16px' } }, 'Duellzeit = Anschlag + Zeit bis Abschuss. 100 Lebenspunkte; wie viele Schüsse treffen, folgt aus Streuung, Rückstoß und Entfernung.'));
   const readout = h('p.dist-read', { 'aria-hidden': 'true' });
   const range = h('input', { type: 'range', min: '0', max: '100', step: '1', id: 'dist-range' });
   const rangeBox = h('div.range');
@@ -324,7 +324,7 @@ export async function init(sec, D, ctx) {
     if (melee) {
       rows.push(['Schaden', parts(`${num(dm.max)}`, 'ein Stoß')],
         ['Reichweite', parts(u(int1(d.melee?.range ?? d.range), 'm'), `Ausfallschritt ${u(int1(d.melee?.lungeRange ?? 4.5), 'm')}`)],
-        ['Tempo', parts(`${num(d.rpm)} Stöße/min`)], ['Visier', parts('—')], ['Feuerart', parts('Nahkampf')]);
+        ['Tempo', parts(`${num(d.rpm)} Stöße/min`)], ['Visier', parts('—')], ['Feuermodus', parts('Nahkampf')]);
     } else {
       const dmg = d.pellets > 1 ? `${d.pellets} × ${int1(dm.max)}–${int1(dm.min)}` : `${int1(dm.max)}–${int1(dm.min)}`;
       rows.push(['Schaden', parts(dmg, `Kopf ×${num(d.headMult, 2, 0)}`)]);
@@ -335,9 +335,9 @@ export async function init(sec, D, ctx) {
         ? parts(`je Patrone ${u(dec(d.reloadTime), 's')}`, `leer ${u(dec(d.reloadEmptyTime), 's')}`)
         : parts(u(dec(d.reloadTime), 's'), `leer ${u(dec(d.reloadEmptyTime), 's')}`)]);
       rows.push(['Anschlag', parts(u(dec(d.adsTime), 's'))]);
-      rows.push(['Abschusszeit', parts(`10${NNBSP}m: ${ttkText(d, 10)}`, `50${NNBSP}m: ${ttkText(d, 50)}`)]);
+      rows.push(['Zeit bis Abschuss', parts(`10${NNBSP}m: ${ttkText(d, 10)}`, `50${NNBSP}m: ${ttkText(d, 50)}`)]);
       rows.push(['Visier', parts(W.SIGHTS?.[d.sight]?.name || '—')]);
-      rows.push(['Feuerart', parts(W.FIRE_MODES?.[d.fireMode] || d.fireMode)]);
+      rows.push(['Feuermodus', parts(W.FIRE_MODES?.[d.fireMode] || d.fireMode)]);
     }
     rows.push(['Freischaltung', parts(`ab Stufe ${unlockLevel(d.id)}`)]);
     facts.replaceChildren(...rows.map(([k, v]) => h('div', {}, h('dt', {}, k), h('dd', {}, v))));
@@ -747,9 +747,10 @@ export async function init(sec, D, ctx) {
       row.rk.textContent = String(i + 1).padStart(2, '0');
       const wg = inf ? 100 : Math.round(900 - 600 * (fc > 1 ? i / (fc - 1) : 0));
       row.b.style.setProperty('--rw', String(wg));
-      const shots = r.shots;
-      row.vl.textContent = inf ? 'außer Reichweite' : `${num(r.ms / 1000, 2, 2)}${NNBSP}s · ${shots} Treffer`;
-      row.b.setAttribute('aria-label', `${String(i + 1).padStart(2, '0')}. ${r.def.name}: ${inf ? 'außer Reichweite' : `${num(r.ms / 1000, 2, 2)} Sekunden, ${shots} Treffer`}`);
+      // Nötige Treffer, dazu die erwartete Schusszahl, wenn nicht jeder Schuss sitzt
+      const hits = `${r.shots} Treffer${r.fired > r.shots ? ` aus ${r.fired} Schuss` : ''}`;
+      row.vl.textContent = inf ? 'außer Reichweite' : `${num(r.ms / 1000, 2, 2)}${NNBSP}s · ${hits}`;
+      row.b.setAttribute('aria-label', `${String(i + 1).padStart(2, '0')}. ${r.def.name}: ${inf ? 'außer Reichweite' : `${num(r.ms / 1000, 2, 2)} Sekunden, ${hits}`}`);
     });
     const order = ranking.map((r) => r.id).join();
     if (order !== lastOrder) {
@@ -800,8 +801,8 @@ export async function init(sec, D, ctx) {
     const list = B.rankAt(dd, zone);
     const opp = list[0]?.id === def.id ? list[1] : list[0];
     if (!opp) return;
-    const a = { def, ms: B.duelTime(def, dd, zone), n: B.shotsToKill(def, dd, zone) };
-    const b = { def: opp.def, ms: opp.ms, n: opp.shots };
+    const a = { def, ms: B.duelTime(def, dd, zone), n: B.shotsNeeded(def, dd, zone).shots };
+    const b = { def: opp.def, ms: opp.ms, n: opp.fired };
     arena.hidden = false;
     duelSet(duelL, a.def);
     duelSet(duelR, b.def);

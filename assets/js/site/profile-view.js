@@ -8,7 +8,7 @@ import { cutW, cutG } from './cuts.js';
 import { ui } from './state.js';
 import { announce } from './live.js';
 import { reduced, tween, ease } from './motion.js';
-import { num, pct, dur, clock, day, dateLong, clamp, clamp01, NNBSP } from './fmt.js';
+import { num, pct, dur, clock, day, dateLong, clamp, clamp01, NNBSP, count, TERMS } from './fmt.js';
 
 const up = (s) => String(s ?? '').toLocaleUpperCase('de-DE');
 const RESULT = { win: ['S', 'Sieg', 'win'], loss: ['N', 'Niederlage', 'loss'], draw: ['U', 'Unentschieden', 'draw'] };
@@ -37,7 +37,7 @@ export async function init(sec, D, ctx = {}) {
   const rank = h('div.rank-block', {}, rankIc, rankName, h('div.stufe', {}, stufeSr, h('span', { 'aria-hidden': 'true' }, stufeWord), stufeTrack), xpLine);
 
   const FIG = [
-    ['kd', 'K/D'], ['acc', 'Genauigkeit'], ['hs', 'Kopfschüsse'], ['wins', 'Siege'],
+    ['kd', 'K/D'], ['acc', 'Genauigkeit'], ['hs', 'Kopfschuss-Abschüsse'], ['wins', 'Siege'],
     ['streak', 'Beste Serie'], ['far', 'Weitester Abschuss'], ['time', 'Spielzeit'], ['matches', 'Matches'],
   ];
   const figEls = {};
@@ -107,7 +107,7 @@ export async function init(sec, D, ctx = {}) {
     stufeWord.style.setProperty('--sw', (62 + 63 * clamp01(prog.progress)).toFixed(1));
     stufeTrack.style.setProperty('--p', clamp01(prog.progress).toFixed(3));
     stufeSr.textContent = `Stufe ${p.level}, ${Math.round(clamp01(prog.progress) * 100)} Prozent bis zur nächsten.`;
-    xpLine.textContent = prog.isMax ? 'Höchststufe erreicht.' : `${num(prog.xpIntoLevel)} / ${num(prog.xpForNext)} EP bis Stufe ${p.level + 1}`;
+    xpLine.textContent = prog.isMax ? 'Höchststufe erreicht.' : `${num(prog.xpIntoLevel)} / ${num(prog.xpForNext)} ${TERMS.xp} bis Stufe ${p.level + 1}`;
 
     // Leerzustand
     const none = n === 0;
@@ -136,7 +136,7 @@ export async function init(sec, D, ctx = {}) {
       const def = W[id];
       const a = h('a', { href: '#arsenal', 'data-weapon': id },
         h('span.nm', { style: { '--wdth': cutW(def).toFixed(1), '--wght': String(Math.round(cutG(def))) } }, def.name),
-        h('span.nf', {}, `${num(s.kills)} Abschüsse · ${pct(s.shots ? s.hits / s.shots : 0)} Treffer`));
+        h('span.nf', {}, `${count(s.kills, 'kills')} · ${pct(s.shots ? s.hits / s.shots : 0)} Treffer`));
       a.addEventListener('click', (e) => {
         e.preventDefault();
         ui.patch({ weapon: id, weaponPicked: true });
@@ -177,14 +177,14 @@ export async function init(sec, D, ctx = {}) {
         const wd = Math.round(62 + 63 * clamp01(kills / Math.max(1, deaths) / 3));
         const mode = D.M?.MODES?.[m.modeId]?.name || m.modeId;
         const mapName = D.P?.MAPS?.[m.mapId]?.name || m.mapId;
-        const label = `${word}, ${mode} ${mapPrep(m.mapId)} ${mapName}, ${kills} Abschüsse, ${deaths} Tode, ${dateLong(m.at)}`;
+        const label = `${word}, ${mode} ${mapPrep(m.mapId)} ${mapName}, ${count(kills, 'kills')}, ${count(deaths, 'deaths')}, ${dateLong(m.at)}`;
         const b = h(`button.hist-g.${cls}`, { type: 'button', 'aria-pressed': 'false', 'aria-label': label, style: { '--wdth': String(wd), '--wght': String(wg) } }, L);
         b.addEventListener('click', () => {
           selHist = selHist === i ? -1 : i;
           for (const [j, el] of [...hist.querySelectorAll('.hist-g')].entries()) el.setAttribute('aria-pressed', String(j === selHist));
           if (selHist < 0) { histDetail.textContent = ''; return; }
           const short = D.M?.MODES?.[m.modeId]?.short || up(m.modeId);
-          histDetail.textContent = `${L} · ${short} · ${up(mapName)} · ${kills}/${deaths}/${m.assists || 0} · ${num(m.score || 0)} PUNKTE · +${num(m.xp || 0)} EP · ${clock(m.duration)} MIN · ${day(m.at)}`;
+          histDetail.textContent = `${L} · ${short} · ${up(mapName)} · ${kills}/${deaths}/${m.assists || 0} · ${num(m.score || 0)} PUNKTE · +${num(m.xp || 0)} ${TERMS.xp} · ${clock(m.duration)} MIN · ${day(m.at)}`;
           snd?.ui('click');
         });
         return h('li', {}, b);

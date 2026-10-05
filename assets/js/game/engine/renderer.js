@@ -214,6 +214,18 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
     bloomThreshold: BLOOM_DEFAULTS.threshold, bloomStrength: BLOOM_DEFAULTS.strength,
   };
 
+  // CSS-Größe der Leinwand per ResizeObserver zwischenspeichern: resize() läuft jedes Bild und würde mit
+  // clientWidth/clientHeight sonst nach den DOM-Schreibzugriffen des HUD eine synchrone Layoutberechnung erzwingen.
+  // R.width/R.height (CSS-Pixel) dürfen andere Module statt des DOM lesen.
+  const css = { w: 0, h: 0, valid: false };
+  const measure = () => { css.w = canvas.clientWidth || window.innerWidth; css.h = canvas.clientHeight || window.innerHeight; };
+  const sizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver((entries) => {
+    const r = entries[entries.length - 1].contentRect;
+    css.valid = r.width > 0 && r.height > 0;
+    if (css.valid) { css.w = r.width; css.h = r.height; }
+  }) : null;
+  if (sizeObserver) sizeObserver.observe(canvas);
+
   const R = {
     renderer,
     quality: initial,
@@ -303,8 +315,9 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
     invalidateShadows() { this._shadowDirty = true; },
 
     resize(force = false) {
-      const w = Math.max(1, Math.floor(canvas.clientWidth || window.innerWidth));
-      const h = Math.max(1, Math.floor(canvas.clientHeight || window.innerHeight));
+      if (force || !css.valid) measure(); // ohne ResizeObserver bzw. vor der ersten Meldung wie bisher
+      const w = Math.max(1, Math.floor(css.w));
+      const h = Math.max(1, Math.floor(css.h));
       const pr = Math.max(0.5, Math.min(window.devicePixelRatio || 1, this.preset.pixelRatio) * this.resolutionScale);
       if (!force && w === this.width && h === this.height && pr === this.pixelRatio) return;
       this.width = w;
@@ -406,6 +419,7 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
     dispose() {
       canvas.removeEventListener('webglcontextlost', onLost);
       canvas.removeEventListener('webglcontextrestored', onRestored);
+      if (sizeObserver) sizeObserver.disconnect();
       if (this.composer) disposeComposer(this.composer);
       this.composer = null;
       renderer.dispose();

@@ -367,6 +367,18 @@ function normalizeConfig(cfg = {}) {
   };
 }
 
+/**
+ * Ungewertet (keine EP/Statistik): verkürzte Limits gegenüber dem Modus-Standard (URL time/score – sonst ließe
+ * sich mit ?autostart=1&score=1 EP „farmen“) und gesperrte Waffen (nur mit debug=1 erlaubt). Gottmodus,
+ * Zeitraffer und Debug-Hilfen setzen G.match.unranked zusätzlich während des Matches.
+ */
+function isUnranked(cfg) {
+  const def = (G.data.MODES && G.data.MODES[cfg.modeId]) || {};
+  const shorter = (v, std) => v != null && Number.isFinite(std) && std > 0 && v < std;
+  if (cfg.modeId !== 'training' && (shorter(cfg.scoreLimit, def.scoreLimit) || shorter(cfg.timeLimit, def.timeLimit))) return true;
+  return !!cfg.loadout && ['primary', 'secondary', 'lethal'].some((k) => cfg.loadout[k] && !profile.isUnlocked(cfg.loadout[k]));
+}
+
 function configFromParams() {
   return {
     modeId: params.get('mode'), mapId: params.get('map'), difficulty: params.get('diff'),
@@ -448,7 +460,7 @@ async function runStart(config, gen) {
       modeId: cfg.modeId, mapId: cfg.mapId, difficulty: cfg.difficulty, allies: cfg.allies, enemies: cfg.enemies,
       loadout: { ...cfg.loadout }, ffa: cfg.ffa, timeLimit: cfg.timeLimit, scoreLimit: cfg.scoreLimit,
       startedAt: null, startedReal: null, countdown: 0, pausedFrom: null, endedAt: null, result: null,
-      unranked: DEBUG && cfg.loadout && ['primary', 'secondary', 'lethal'].some((k) => !profile.isUnlocked(cfg.loadout[k])),
+      unranked: isUnranked(cfg),
     });
     settings.patch({ lastMode: cfg.modeId, lastMap: cfg.mapId, difficulty: cfg.difficulty, lastLoadout: cfg.loadout });
     setState('loading');
@@ -749,6 +761,8 @@ function enterLandscape() {
   try {
     if (document.fullscreenElement) { lock(); return; }
     if (!document.fullscreenEnabled || !el.requestFullscreen) return;
+    // Ohne Nutzeraktivierung (z. B. autostart) lehnt der Browser mit Konsolenwarnung ab → gar nicht erst versuchen
+    if (navigator.userActivation && !navigator.userActivation.isActive) return;
     el.requestFullscreen({ navigationUI: 'hide' }).then(lock).catch(() => {});
   } catch { /* nicht unterstützt (z. B. iOS-Safari auf dem iPhone) */ }
 }

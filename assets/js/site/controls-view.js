@@ -4,54 +4,69 @@ import { h, $, tabs } from './dom.js';
 import { loop } from './loop.js';
 import { pointerCoarse, reduced } from './motion.js';
 
-/* Touch-Belegung: Position im Querformat (Prozent, Mitte), Wort, Erklärung. Nach game.css (.tc-*). */
-const TOUCH = [
-  ['move', 20, 74, 'BEWEGEN', 'Joystick bis zum Rand schieben: Dauersprint. Er erscheint, wo dein linker Daumen landet.', 'ring'],
-  ['fireL', 8, 40, 'FEUER', 'Halten feuert. Links und rechts erreichbar; links bleibt der rechte Daumen frei zum Zielen.'],
+/*
+ * Touch-Belegung wie im Spiel: Mitte jedes Knopfs in Prozent der Bildfläche im Querformat (915 × 412), gemessen an
+ * der echten Oberfläche (input.js + game.css .tc-*, Werkzeug tools/out/fix-site/touchmeasure.mjs). Ändert sich die
+ * Touch-Oberfläche, hier nachziehen. [id, x, y, Wort, Erklärung, Form, Gruppe]
+ */
+export const TOUCH = [
+  ['move', 21.7, 63, 'BEWEGEN', 'Joystick. Er erscheint, wo dein linker Daumen landet; ganz nach oben geschoben sperrt er den Sprint.', 'ring'],
+  ['fireL', 7.3, 39.4, 'FEUER', 'Halten feuert. Links bleibt der rechte Daumen frei zum Zielen.'],
   ['look', 60, 30, 'UMSEHEN', 'Wische irgendwo auf der rechten Hälfte, um dich umzusehen.', 'area'],
-  ['fire', 87, 70, 'FEUER', 'Halten feuert. Links und rechts erreichbar; rechts dreht Ziehen dabei die Sicht.', 'big'],
-  ['ads', 72, 64, 'ZIELEN', 'Tippen legt an, erneutes Tippen nimmt die Waffe herunter.'],
-  ['reload', 72, 44, 'NACHLADEN', 'Lädt nach. Leuchtet, wenn das Magazin fast leer ist.'],
-  ['jump', 91, 48, 'SPRINGEN', 'Über niedrige Deckung und Kanten.'],
-  ['crouch', 92, 90, 'DUCKEN', 'Kleiner werden. Im Sprint: rutschen.'],
-  ['grenade', 58, 87, 'GRANATE', 'Wirft die Granate in Blickrichtung.'],
-  ['melee', 73, 92, 'MESSER', 'Nahkampf mit dem Kampfmesser.'],
-  ['swap', 44, 95, 'WAFFE', 'Wechselt zwischen Primär- und Zweitwaffe; zeigt die aktive Waffe.'],
-  ['streak', 86, 24, 'SERIE', 'Serienprämien. Leuchten golden, sobald sie bereit sind.'],
-  ['score', 82, 9, 'PUNKTE', 'Punktestand ein- und ausblenden.'],
-  ['pause', 93, 9, 'PAUSE', 'Pause, Einstellungen und Match verlassen.'],
-  ['map', 9, 14, 'KARTE', 'Minikarte: Verbündete, Ziele, feuernde Gegner.'],
+  ['fire', 88.4, 67.7, 'FEUER', 'Halten feuert. Ziehen dreht dabei die Sicht.', 'big'],
+  ['ads', 78.9, 63.6, 'ZIELEN', 'Tippen legt an, erneutes Tippen nimmt die Waffe herunter.'],
+  ['reload', 78.8, 41.8, 'NACHLADEN', 'Lädt nach. Leuchtet, wenn das Magazin fast leer ist.'],
+  ['jump', 94.6, 46.8, 'SPRINGEN', 'Über niedrige Deckung und Kanten.'],
+  ['crouch', 94.6, 88.8, 'DUCKEN', 'Kleiner werden. Im Sprint: rutschen.'],
+  ['grenade', 71.5, 84.8, 'GRANATE', 'Halten kocht vor, loslassen wirft in Blickrichtung.'],
+  ['melee', 79.1, 89.5, 'MESSER', 'Nahkampf mit dem Kampfmesser.'],
+  ['swap', 50, 91.7, 'WAFFE', 'Wechselt zwischen Primär- und Zweitwaffe; zeigt die andere Waffe.'],
+  ['streak1', 84.2, 21.2, '4', 'Aufklärer nach 4 Abschüssen ohne Tod. Leuchtet golden, sobald bereit; antippen setzt ihn ein.', 'sm', 'streak'],
+  ['streak2', 89.8, 21.2, '6', 'Präzisionsschlag nach 6 Abschüssen ohne Tod. Antippen öffnet die Zielkarte.', 'sm', 'streak'],
+  ['streak3', 95.4, 21.2, '8', 'Wachgeschütz nach 8 Abschüssen ohne Tod. Leuchtet golden, sobald bereit.', 'sm', 'streak'],
+  ['score', 89.9, 8, 'PUNKTE', 'Punktetabelle ein- und ausblenden.', 'sm'],
+  ['pause', 95.5, 8, 'PAUSE', 'Pause, Einstellungen und Match verlassen.', 'sm'],
+  ['map', 6.7, 14.4, 'KARTE', 'Minikarte: Verbündete, Ziele, feuernde Gegner.'],
 ];
+/** Wortleiste unter schmalen Telefonbildern: ein Eintrag je Gruppe. */
+const GROUP_WORD = { streak: 'SERIEN' };
+const GROUP_TEXT = { streak: 'Serienprämien: Aufklärer nach 4, Präzisionsschlag nach 6, Wachgeschütz nach 8 Abschüssen ohne Tod. Leuchten golden, sobald bereit.' };
 
-/* Tastatur & Maus: Zeilen in Tabellenreihenfolge, mit Codes (KeyboardEvent.code) und Maustasten. */
-const KEYS = [
+/*
+ * Tastatur & Maus wie engine/input.js (KEY_ACTIONS, MOVE_KEYS, MOUSE_ACTIONS; Mausrad = Waffe wechseln) und die
+ * Spielhilfe (ui/controls-help.js). [Taste, Aktion, Echo, KeyboardEvent.code[], Maustasten[]]
+ * Geprüft mit tools/out/fix-site/bindings.mjs.
+ */
+export const KEYS = [
   ['W A S D', 'Bewegen', 'BEWEGEN', ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']],
   ['Maus', 'Umsehen', 'UMSEHEN', []],
-  ['LMT', 'Feuer', 'FEUER', [], [0]],
+  ['LMT', 'Feuern', 'FEUERN', [], [0]],
   ['RMT', 'Zielen (halten)', 'ZIELEN', [], [2]],
   ['R', 'Nachladen', 'NACHLADEN', ['KeyR']],
   ['Leertaste', 'Springen', 'SPRINGEN', ['Space']],
-  ['C / Strg', 'Ducken, im Sprint rutschen', 'DUCKEN', ['KeyC', 'ControlLeft', 'ControlRight']],
-  ['Umschalt', 'Sprinten', 'SPRINTEN', ['ShiftLeft', 'ShiftRight']],
-  ['V / Maus 4', 'Nahkampf', 'NAHKAMPF', ['KeyV'], [3]],
-  ['G / Q', 'Granate', 'GRANATE', ['KeyG', 'KeyQ']],
-  ['1 / 2 / Mausrad', 'Waffe wechseln', 'WAFFE WECHSELN', ['Digit1', 'Digit2', 'Numpad1', 'Numpad2'], [4]],
-  ['3 / 4 / 5', 'Serienprämien', 'SERIENPRÄMIEN', ['Digit3', 'Digit4', 'Digit5', 'Numpad3', 'Numpad4', 'Numpad5']],
-  ['Tab', 'Punktestand', 'PUNKTESTAND', []],
-  ['Esc', 'Pause', 'PAUSE', []],
+  ['C', 'Ducken, im Sprint rutschen', 'DUCKEN', ['KeyC']],
+  ['Umschalt', 'Sprinten, im Zielfernrohr Atem anhalten', 'SPRINTEN', ['ShiftLeft', 'ShiftRight']],
+  ['V / Maus 4', 'Messer', 'MESSER', ['KeyV'], [3]],
+  ['G / Q', 'Granate (halten: vorkochen)', 'GRANATE', ['KeyG', 'KeyQ']],
+  ['1 / 2 / Mausrad / Maus 5', 'Waffe wechseln', 'WAFFE WECHSELN', ['Digit1', 'Digit2'], [4]],
+  ['3 / 4 / 5', 'Serienprämien', 'SERIENPRÄMIEN', ['Digit3', 'Digit4', 'Digit5']],
+  ['F / E', 'Interagieren (Parcours im Schießstand)', 'INTERAGIEREN', ['KeyF', 'KeyE']],
+  ['Tab', 'Punktetabelle', 'PUNKTETABELLE', ['Tab']],
+  ['Esc', 'Pause', 'PAUSE', ['Escape']],
 ];
 const KEY_NAMES = {
   Space: 'LEERTASTE', ShiftLeft: 'UMSCHALT', ShiftRight: 'UMSCHALT', ControlLeft: 'STRG', ControlRight: 'STRG',
   AltLeft: 'ALT', AltRight: 'ALT GR', ArrowUp: 'PFEIL HOCH', ArrowDown: 'PFEIL RUNTER', ArrowLeft: 'PFEIL LINKS', ArrowRight: 'PFEIL RECHTS',
-  Enter: 'EINGABE', Backspace: 'RÜCKTASTE', CapsLock: 'FESTSTELLTASTE', MetaLeft: 'SYSTEMTASTE', MetaRight: 'SYSTEMTASTE', ContextMenu: 'MENÜTASTE',
+  Enter: 'EINGABE', NumpadEnter: 'EINGABE', Backspace: 'RÜCKTASTE', CapsLock: 'FESTSTELLTASTE', MetaLeft: 'SYSTEMTASTE', MetaRight: 'SYSTEMTASTE', ContextMenu: 'MENÜTASTE',
 };
 const MOUSE_NAMES = ['LMT', 'MITTELTASTE', 'RMT', 'MAUS 4', 'MAUS 5'];
 
-/* Gamepad (Standard-Mapping): Index → [Taste, Aktion]. Bestätigt mit engine/input.js. */
-const PAD = [
-  [7, 'RT', 'Feuer'], [6, 'LT', 'Zielen'], [0, 'A', 'Springen'], [1, 'B', 'Ducken'], [2, 'X', 'Nachladen'], [3, 'Y', 'Waffe wechseln'],
-  [4, 'LB', 'Granate'], [5, 'RB', 'Nahkampf'], [10, 'L-Stick', 'Bewegen (drücken: Sprint)'], [11, 'R-Stick', 'Umsehen'],
-  [[12, 13, 14, 15], 'Steuerkreuz', 'Serienprämien'], [9, 'Start', 'Pause'], [8, 'Ansicht', 'Punktestand'],
+/* Gamepad (Standard-Mapping) wie engine/input.js PAD_ACTIONS (+ Trigger und Sticks): [Index, Taste, Aktion]. */
+export const PAD = [
+  [7, 'RT', 'Feuern'], [6, 'LT', 'Zielen'], [0, 'A', 'Springen'], [1, 'B', 'Ducken, im Sprint rutschen'], [2, 'X', 'Nachladen'],
+  [3, 'Y', 'Waffe wechseln'], [4, 'LB', 'Granate (halten: vorkochen)'], [5, 'RB', 'Messer'],
+  [10, 'L-Stick', 'Bewegen · drücken: Sprinten, im Zielfernrohr Atem anhalten'], [11, 'R-Stick', 'Umsehen · drücken: Messer'],
+  [[12, 14, 15], 'Steuerkreuz ▲ ◀ ▶', 'Serienprämien'], [8, 'Ansicht', 'Punktetabelle'], [9, 'Menü', 'Pause'],
 ];
 
 export async function init(sec, D, ctx = {}) {
@@ -75,23 +90,29 @@ export async function init(sec, D, ctx = {}) {
   const phone = h('div.phone', { role: 'group', 'aria-label': 'Touch-Belegung im Querformat' });
   const legend = h('div.touch-legend', { role: 'group', 'aria-label': 'Touch-Belegung' });
   const btns = [];
-  const choose = (item) => {
-    for (const b of btns) b.el.setAttribute('aria-pressed', String(b.item === item));
-    explain.textContent = `${item[0] === 'fireL' ? 'FEUER LINKS' : item[0] === 'fire' ? 'FEUER RECHTS' : item[3]} · ${item[4]}`;
+  const NAME = { fireL: 'FEUER LINKS', fire: 'FEUER RECHTS', streak1: '4 · AUFKLÄRER', streak2: '6 · PRÄZISIONSSCHLAG', streak3: '8 · WACHGESCHÜTZ' };
+  // Ein Eintrag (Telefon) oder eine ganze Gruppe (Wortleiste, z. B. alle drei Serienprämien) auswählen
+  const choose = (item, group) => {
+    for (const b of btns) b.el.setAttribute('aria-pressed', String(group ? b.item[6] === group : b.item === item));
+    explain.textContent = group ? `${GROUP_WORD[group]} · ${GROUP_TEXT[group]}` : `${NAME[item[0]] || item[3]} · ${item[4]}`;
     snd?.ui('click');
   };
+  const listed = new Set();
   for (const item of TOUCH) {
-    const [id, x, y, word, , shape] = item;
+    const [id, x, y, word, , shape, group] = item;
     if (shape === 'ring') phone.append(h('span.ring', { style: { left: `${x}%`, top: `${y}%`, width: '17%', 'aspect-ratio': '1' }, 'aria-hidden': 'true' }));
     if (shape === 'area') phone.append(h('span.area', { style: { left: '50%', top: '4%', right: '3%', bottom: '4%' }, 'aria-hidden': 'true' }));
-    const inPhone = h(`button.tp${shape === 'big' ? '.big' : ''}`, { type: 'button', 'aria-pressed': 'false', 'data-id': id, style: { left: `${x}%`, top: `${y}%` } }, word);
-    const listWord = id === 'fireL' ? 'FEUER LINKS' : id === 'fire' ? 'FEUER RECHTS' : word;
-    const inList = h('button.tl', { type: 'button', 'aria-pressed': 'false', 'data-id': id }, listWord);
+    const cls = shape === 'big' || shape === 'sm' ? `.${shape}` : '';
+    const inPhone = h(`button.tp${cls}`, { type: 'button', 'aria-pressed': 'false', 'data-id': id, 'data-group': group || null, 'aria-label': NAME[id] || null, style: { left: `${x}%`, top: `${y}%` } }, word);
     inPhone.addEventListener('click', () => choose(item));
-    inList.addEventListener('click', () => choose(item));
-    btns.push({ el: inPhone, item }, { el: inList, item });
+    btns.push({ el: inPhone, item });
     phone.append(inPhone);
+    if (group && listed.has(group)) continue;
+    const inList = h('button.tl', { type: 'button', 'aria-pressed': 'false', 'data-id': group || id }, group ? GROUP_WORD[group] : (NAME[id] || word));
+    inList.addEventListener('click', () => choose(item, group));
+    btns.push({ el: inList, item });
     legend.append(inList);
+    if (group) listed.add(group);
   }
   const states = h('p.touch-states');
   const toSettings = h('a', { href: '#einstellungen' }, 'Ändern');
@@ -116,20 +137,60 @@ export async function init(sec, D, ctx = {}) {
     const sm = w < 600;
     for (const b of btns) if (b.el.classList.contains('tp')) { b.el.tabIndex = sm ? -1 : 0; if (sm) b.el.setAttribute('aria-hidden', 'true'); else b.el.removeAttribute('aria-hidden'); }
   };
-  // Wörter am Rand nach innen rücken, damit keines über den Telefonrahmen ragt
+  // Wörter am Rand nach innen rücken, damit keines über den Telefonrahmen ragt, und sich berührende Wörter
+  // auseinanderschieben (die Knöpfe im Spiel sind Symbole und liegen enger als ihre Wörter).
   const clampLabels = () => {
     const P = phone.getBoundingClientRect();
     if (!P.width) return;
     const pad = Math.max(8, P.height * 0.06);
+    const items = [];
+    const range = document.createRange();
     for (const el of phone.querySelectorAll('.tp')) {
       el.style.removeProperty('--dx');
       el.style.removeProperty('--dy');
       if (!el.getClientRects().length) continue;
-      const r = el.getBoundingClientRect();
-      const dx = Math.min(0, P.right - pad - r.right) + Math.max(0, P.left + pad - r.left);
-      const dy = Math.min(0, P.bottom - pad - r.bottom) + Math.max(0, P.top + pad - r.top);
-      if (dx) el.style.setProperty('--dx', `${dx.toFixed(1)}px`);
-      if (dy) el.style.setProperty('--dy', `${dy.toFixed(1)}px`);
+      // Gemessen wird das Wort selbst, nicht die (größere) Trefferfläche
+      range.selectNodeContents(el);
+      const r = range.getBoundingClientRect();
+      items.push({ el, l: r.left, r: r.right, t: r.top, b: r.bottom, dx: 0, dy: 0 });
+    }
+    const inside = (it) => {
+      const dx = Math.min(0, P.right - pad - (it.r + it.dx)) + Math.max(0, P.left + pad - (it.l + it.dx));
+      const dy = Math.min(0, P.bottom - pad - (it.b + it.dy)) + Math.max(0, P.top + pad - (it.t + it.dy));
+      it.dx += dx;
+      it.dy += dy;
+    };
+    items.forEach(inside);
+    // Paarweise trennen (halb und halb; der Rahmen hat Vorrang)
+    const gap = Math.max(12, 1.2 * (parseFloat(getComputedStyle(phone.querySelector('.tp') || phone).fontSize) || 14));
+    for (let pass = 0; pass < 6; pass++) {
+      let moved = false;
+      for (let i = 0; i < items.length; i++) {
+        for (let j = i + 1; j < items.length; j++) {
+          const a = items[i]; const c = items[j];
+          const ox = Math.min(a.r + a.dx, c.r + c.dx) - Math.max(a.l + a.dx, c.l + c.dx) + gap;
+          const oy = Math.min(a.b + a.dy, c.b + c.dy) - Math.max(a.t + a.dy, c.t + c.dy) + gap;
+          if (ox <= gap || oy <= gap) continue;
+          // Nebeneinander liegende Wörter waagerecht trennen, übereinander liegende senkrecht
+          const sideBySide = Math.abs((a.l + a.r) / 2 + a.dx - (c.l + c.r) / 2 - c.dx) / (a.r - a.l + c.r - c.l)
+            >= Math.abs((a.t + a.b) / 2 + a.dy - (c.t + c.b) / 2 - c.dy) / (a.b - a.t + c.b - c.t);
+          if (!sideBySide) {
+            const [hi, lo] = (a.t + a.dy) <= (c.t + c.dy) ? [a, c] : [c, a];
+            hi.dy -= oy / 2; lo.dy += oy / 2;
+            inside(hi); inside(lo);
+          } else {
+            const [lf, rt] = (a.l + a.dx) <= (c.l + c.dx) ? [a, c] : [c, a];
+            lf.dx -= ox / 2; rt.dx += ox / 2;
+            inside(lf); inside(rt);
+          }
+          moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+    for (const it of items) {
+      if (it.dx) it.el.style.setProperty('--dx', `${it.dx.toFixed(1)}px`);
+      if (it.dy) it.el.style.setProperty('--dy', `${it.dy.toFixed(1)}px`);
     }
   };
   if ('ResizeObserver' in window) new ResizeObserver(([e]) => { small(e.contentRect.width); requestAnimationFrame(clampLabels); }).observe(touchmap);

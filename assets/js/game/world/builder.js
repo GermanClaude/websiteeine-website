@@ -2,7 +2,6 @@
 // backt Ambient Occlusion in Vertexfarben, erzeugt Kollisions- und Kugel-Geometrie (Owner: world)
 import * as THREE from 'three';
 import { getMaterial, surfaceOf, preloadMaterials } from '../engine/textures.js';
-import { TriangleBVH } from './bvh.js';
 import { createDecalMaterials, createSignAtlas, createFoliage, DECAL_CELLS, DEFAULT_SIGNS } from './atlas.js';
 
 export const SURFACES = ['concrete', 'metal', 'wood', 'dirt', 'sand', 'grass', 'glass', 'water', 'tile', 'fabric', 'flesh'];
@@ -58,33 +57,46 @@ const FACES = [
 
 /** Box [-w/2,w/2]×[0,h]×[-d/2,d/2]; Seitenflächen optional in Höhenreihen geteilt (für AO-Verlauf). */
 function boxPrim(w, h, d, rows, skip, fit) {
-  const hw = w / 2, hd = d / 2;
-  const P = [], N = [], U = [];
+  const hw = w / 2, hd = d / 2, hh = h / 2;
+  // Zeilengrenzen der Seitenflächen (v läuft von −h/2 bis h/2)
+  const ys = [-hh];
+  if (rows) for (const r of rows) { const yy = r - hh; if (yy > -hh + 0.02 && yy < hh - 0.02) ys.push(yy); }
+  ys.push(hh);
+  let quads = 0;
+  for (let f = 0; f < 6; f++) if (!(skip && skip[f])) quads += f < 4 ? ys.length - 1 : 1;
+  const P = new Float32Array(quads * 18), N = new Float32Array(quads * 18), U = fit ? new Float32Array(quads * 12) : null;
+  let pi = 0, ui = 0;
   for (let f = 0; f < 6; f++) {
     if (skip && skip[f]) continue;
     const [n, u, v] = FACES[f];
+    const eu = Math.abs(u[0]) * hw + Math.abs(u[1]) * hh + Math.abs(u[2]) * hd;
+    const ev = Math.abs(v[0]) * hw + Math.abs(v[1]) * hh + Math.abs(v[2]) * hd;
+    const cx = n[0] * hw, cy = hh + n[1] * hh, cz = n[2] * hd;
     const side = f < 4;
-    // Ausdehnung entlang u/v
-    const ext = a => Math.abs(a[0]) * hw + Math.abs(a[1]) * (h / 2) + Math.abs(a[2]) * hd;
-    const eu = ext(u), ev = ext(v);
-    const cx = n[0] * hw, cy = h / 2 + n[1] * h / 2, cz = n[2] * hd;
-    const splits = side && rows ? rows : null;
-    const ys = [-ev];
-    if (splits) for (const s of splits) { const yy = s - h / 2; if (yy > -ev + 0.02 && yy < ev - 0.02) ys.push(yy); }
-    ys.push(ev);
-    for (let r = 0; r < ys.length - 1; r++) {
-      const v0 = ys[r], v1 = ys[r + 1];
-      const corners = [[-eu, v0], [eu, v0], [eu, v1], [-eu, v1]];
-      const idx = [0, 1, 2, 0, 2, 3];
-      for (const k of idx) {
-        const [a, bb] = corners[k];
-        P.push(cx + u[0] * a + v[0] * bb, cy + u[1] * a + v[1] * bb, cz + u[2] * a + v[2] * bb);
-        N.push(n[0], n[1], n[2]);
-        if (fit) U.push((a + eu) / (2 * eu), (bb + ev) / (2 * ev));
+    const nr = side ? ys.length - 1 : 1;
+    for (let r = 0; r < nr; r++) {
+      const v0 = side ? ys[r] : -ev, v1 = side ? ys[r + 1] : ev;
+      for (let k = 0; k < 6; k++) {
+        const c = QUAD_IDX[k];
+        const a = c === 1 || c === 2 ? eu : -eu, bb = c >= 2 ? v1 : v0;
+        P[pi] = cx + u[0] * a + v[0] * bb; P[pi + 1] = cy + u[1] * a + v[1] * bb; P[pi + 2] = cz + u[2] * a + v[2] * bb;
+        N[pi] = n[0]; N[pi + 1] = n[1]; N[pi + 2] = n[2];
+        pi += 3;
+        if (U) { U[ui++] = (a + eu) / (2 * eu); U[ui++] = (bb + ev) / (2 * ev); }
       }
     }
   }
-  return { p: new Float32Array(P), n: new Float32Array(N), uv: fit ? new Float32Array(U) : null };
+  return { p: P, n: N, uv: U };
+}
+const QUAD_IDX = [0, 1, 2, 0, 2, 3]; // Ecken: 0 (−u,v0) 1 (+u,v0) 2 (+u,v1) 3 (−u,v1)
+
+/** Nur Kollisionsdreiecke einer Box (36 Ecken, ohne Normalen/UV) – gecacht je Maß. */
+const _collBoxCache = new Map();
+function collBox(w, h, d) {
+  const key = w + ',' + h + ',' + d;
+  let p = _collBoxCache.get(key);
+  if (!p) { p = boxPrim(w, h, d, null, null, false); if (_collBoxCache.size > 4096) _collBoxCache.clear(); _collBoxCache.set(key, p); }
+  return p;
 }
 
 /** Zylinder entlang y von 0..h, Radius unten r0 / oben r1. */
@@ -339,7 +351,7 @@ export class MapBuilder {
       this._emit(prim, m, mat, oo, [x, y, z]);
     }
     if (o.collide !== false) {
-      this._collTris(boxPrim(w, h, d, null, null, false), m);
+      this._collTris(collBox(w, h, d), m);
       if (!rotated) this._footprint(x, z, w, d, o.ry, y, y + h, o.minimap);
       else this._footprint(x, z, w, d, o.ry, y, y + h * Math.cos(o.rx || 0) + d * Math.abs(Math.sin(o.rx || 0)), o.minimap);
     }
@@ -369,7 +381,7 @@ export class MapBuilder {
         const dir = o.axis === 'x' ? 'x' : 'z';
         const ry = o.ry || 0;
         // Kollision als Quader
-        this._collTris(boxPrim(dir === 'x' ? L : R * 2, R * 2, dir === 'x' ? R * 2 : L, null, null, false), this._matrix(x, y - R, z, { ry }));
+        this._collTris(collBox(dir === 'x' ? L : R * 2, R * 2, dir === 'x' ? R * 2 : L), this._matrix(x, y - R, z, { ry }));
         this._footprint(x, z, dir === 'x' ? L : R * 2, dir === 'x' ? R * 2 : L, ry, y - R, y + R, o.minimap);
       }
       return this;
@@ -377,7 +389,7 @@ export class MapBuilder {
     const m = this._matrix(x, y, z, o);
     if (o.visual !== false) this._emit(prim, m, mat, { ...o, uv: 'keep' }, [x, y, z]);
     if (o.collide !== false) {
-      const cp = r >= 0.3 ? cylPrim(r, o.r1 ?? r, h, 8, true, null) : boxPrim(r * 2, h, r * 2, null, null, false);
+      const cp = r >= 0.3 ? cylPrim(r, o.r1 ?? r, h, 8, true, null) : collBox(r * 2, h, r * 2);
       this._collTris(cp, m);
       this._footprint(x, z, r * 2, r * 2, 0, y, y + h, o.minimap ?? (h > 2.6 ? 'pillar' : 'auto'));
     }
@@ -408,7 +420,7 @@ export class MapBuilder {
       else {
         const w = (bb.max.x - bb.min.x) * (o.sx || 1), h = (bb.max.y - bb.min.y) * (o.sy || 1), d = (bb.max.z - bb.min.z) * (o.sz || 1);
         const c = new THREE.Vector3((bb.max.x + bb.min.x) / 2, bb.min.y, (bb.max.z + bb.min.z) / 2).applyMatrix4(m);
-        this._collTris(boxPrim(w, h, d, null, null, false), this._matrix(c.x, c.y, c.z, { ry: o.ry }));
+        this._collTris(collBox(w, h, d), this._matrix(c.x, c.y, c.z, { ry: o.ry }));
         this._footprint(c.x, c.z, w, d, o.ry, c.y, c.y + h, o.minimap);
       }
     }
@@ -417,7 +429,7 @@ export class MapBuilder {
 
   /** Unsichtbarer Kollisionsquader (Kartengrenzen, Wasser-Kante). Kugeln fliegen hindurch. */
   collider(x, y, z, w, h, d, o = {}) {
-    this._collTris(boxPrim(w, h, d, null, null, false), this._matrix(x, y, z, o));
+    this._collTris(collBox(w, h, d), this._matrix(x, y, z, o));
     if (o.minimap) this._footprint(x, z, w, d, o.ry, y, y + h, o.minimap);
     if (o.navBlock !== false) this.navBlockers.push({ x, z, hw: w / 2 + 0.2, hd: d / 2 + 0.2, ry: o.ry || 0 });
     return this;
@@ -448,7 +460,7 @@ export class MapBuilder {
     this._emit(prim, m, mat, { ...o, uv: 'world', ground: o.groundAO !== false, noise: true, cast: false, grad: false, chunk: o.chunk ?? this._chunk((x0 + x1) / 2, (z0 + z1) / 2) }, [(x0 + x1) / 2, y, (z0 + z1) / 2]);
     if (o.collide !== false) {
       const t = o.thickness ?? 0.5;
-      this._collTris(boxPrim(x1 - x0, t, z1 - z0, null, null, false), this._matrix((x0 + x1) / 2, y - t, (z0 + z1) / 2, {}));
+      this._collTris(collBox(x1 - x0, t, z1 - z0), this._matrix((x0 + x1) / 2, y - t, (z0 + z1) / 2, {}));
     }
     if (o.floor !== false) this.floors.push({ minX: Math.min(x0, x1), maxX: Math.max(x0, x1), minZ: Math.min(z0, z1), maxZ: Math.max(z0, z1), y });
     if (o.minimap) this._footprint((x0 + x1) / 2, (z0 + z1) / 2, Math.abs(x1 - x0), Math.abs(z1 - z0), 0, y - 0.01, y, o.minimap);
@@ -467,6 +479,7 @@ export class MapBuilder {
   /** Innenraum-Volumen: Flächen innen werden abgedunkelt (gebackenes Innenraumlicht). */
   interior(minX, minZ, maxX, maxZ, minY, maxY, factor = 0.62, tint = null) {
     this.interiors.push({ minX, minZ, maxX, maxZ, minY, maxY, factor, tint: tint || this.interiorTint });
+    this._interiorGrid = null;
     return this;
   }
 
@@ -557,11 +570,28 @@ export class MapBuilder {
 
   /** Gebackenes Innenraumlicht: dunkler und leicht warm (Himmelslicht dringt kaum ein). → Volumen oder null */
   _interiorAt(x, y, z) {
+    const g = this._interiorGrid || this._buildInteriorGrid();
+    const list = g.cells.get(Math.floor(x / g.cs) * 8192 + Math.floor(z / g.cs));
+    if (!list) return null;
     let best = null;
-    for (const v of this.interiors) {
+    for (const v of list) {
       if (x > v.minX && x < v.maxX && z > v.minZ && z < v.maxZ && y > v.minY && y < v.maxY && (!best || v.factor < best.factor)) best = v;
     }
     return best;
+  }
+
+  /** Raster (4 m) über die Innenraum-Volumen: jede Ecke prüft nur die Volumen ihrer Zelle. */
+  _buildInteriorGrid() {
+    const cs = 4, cells = new Map();
+    for (const v of this.interiors) {
+      for (let i = Math.floor(v.minX / cs); i <= Math.floor(v.maxX / cs); i++) for (let j = Math.floor(v.minZ / cs); j <= Math.floor(v.maxZ / cs); j++) {
+        const k = i * 8192 + j;
+        if (!cells.has(k)) cells.set(k, []);
+        cells.get(k).push(v);
+      }
+    }
+    this._interiorGrid = { cs, cells };
+    return this._interiorGrid;
   }
 
   /** Großflächiges Farb-Rauschen (Kachelwiederholung kaschieren) */
@@ -577,10 +607,15 @@ export class MapBuilder {
 
   /**
    * Baut Meshes, BVHs und Collider. onProgress(0..1, label).
-   * @returns {Promise<object>} Ergebnis mit group, bulletBVH, colliderBVH, colliderMesh, meshes, surfaces …
+   * @returns {Promise<object>} Ergebnis mit group, meshes, objects, bulletTris/bulletData (Kugel-Dreiecke), colTris (Kollision) …
    */
-  async build({ onProgress, quality = 'high' } = {}) {
+  async build({ onProgress, quality = 'high', anisotropy = 4 } = {}) {
+    this._quality = quality;
+    this._anisotropy = anisotropy;
     const step = async (p, label) => { onProgress?.(p, label); await new Promise(r => setTimeout(r, 0)); };
+    // Hauptthread in Zeitscheiben freigeben (Ladebalken, Eingaben), ohne bei jedem Schritt zu warten
+    let slice = performance.now();
+    const breathe = async () => { if (performance.now() - slice > 12) { await new Promise(r => setTimeout(r, 0)); slice = performance.now(); } };
     const group = new THREE.Group();
     group.name = 'world-static';
 
@@ -594,6 +629,7 @@ export class MapBuilder {
     // Buckets → finale Vertexfarben
     const perMat = new Map();
     for (const bk of this.buckets.values()) {
+      await breathe();
       const n = bk.pos.n / 3;
       if (!n) continue;
       const P = bk.pos.a, N = bk.nor.a, C = bk.col.a, F = bk.flg.a;
@@ -653,6 +689,7 @@ export class MapBuilder {
         if (tris < (quality === 'low' ? Infinity : this.splitTris)) makeMesh(sub, mat, matOpts, cast);
         else for (const b of sub) makeMesh([b], mat, matOpts, cast);
       }
+      await breathe();
     }
     await step(0.62, 'Details');
 
@@ -680,8 +717,9 @@ export class MapBuilder {
     for (const ob of this.objects) group.add(ob.object);
     this._buildGlows(group);
 
-    await step(0.66, 'Kugel-BVH');
-    // Kugel-BVH aus sichtbarer Geometrie (pro Dreieck: Oberfläche + Mesh-Index)
+    await step(0.66, 'Kugel-Geometrie');
+    // Dreiecke für die Kugel-BVH aus sichtbarer Geometrie (pro Dreieck: Oberfläche + Mesh-Index);
+    // die BVHs selbst baut loadWorld im Welt-Worker (worldgen.js)
     const objects = [];
     let triCount = 0;
     for (const m of meshes) { const b = m.userData.bullet; for (let i = 0; i < b.length; i++) triCount += b[i]; }
@@ -698,21 +736,16 @@ export class MapBuilder {
       }
       delete m.userData.bullet;
     });
-    const bulletBVH = new TriangleBVH(btris, bdata);
-    await step(0.72, 'Kollision');
 
-    // Kollisionsgeometrie
+    // Kollisionsgeometrie (Weltkoordinaten, 9 Floats je Dreieck)
     const colArr = this.colTris.view().slice();
-    const colliderBVH = new TriangleBVH(colArr);
-    const cg = new THREE.BufferGeometry();
-    cg.setAttribute('position', new THREE.BufferAttribute(colArr, 3));
-    const colliderMesh = new THREE.Mesh(cg);
-    colliderMesh.name = 'collider';
+    this.colTris = new FBuf(16);
 
     let drawTris = 0; for (const m of meshes) drawTris += m.geometry.attributes.position.count / 3;
     return {
-      group, meshes, decalMeshes, signMesh, foliage, lights, objects, bulletBVH, colliderBVH, colliderMesh,
-      stats: { meshes: meshes.length, triangles: drawTris, bulletTris: triCount, colliderTris: colArr.length / 9, prims: this.stats.prims },
+      group, meshes, decalMeshes, signMesh, foliage, lights, objects,
+      bulletTris: btris, bulletData: bdata, colTris: colArr,
+      stats: { meshes: meshes.length, triangles: drawTris, bulletTris: triCount, colliderTris: colArr.length / 9, prims: this.stats.prims, signAtlas: this.signAtlasSize || null },
     };
   }
 
@@ -753,7 +786,7 @@ export class MapBuilder {
 
   _buildDecals(group) {
     if (!this.decals.length) return [];
-    const mats = createDecalMaterials();
+    const mats = createDecalMaterials(this._quality);
     const byKind = { grime: [], wet: [], paint: [] };
     for (const d of this.decals) byKind[d.kind]?.push(d);
     const out = [];
@@ -799,7 +832,9 @@ export class MapBuilder {
     if (!this.signs.length) return null;
     const keys = [...new Set(this.signs.map(s => s.key))];
     const aspectOf = k => { const s = this.signs.find(q => q.key === k); return s.w / s.h; };
-    const atlas = createSignAtlas(keys.map(k => ({ key: k, aspect: aspectOf(k), ...(this.signDefs[k] || DEFAULT_SIGNS[k] || { text: k }) })));
+    const atlas = createSignAtlas(keys.map(k => ({ key: k, aspect: aspectOf(k), ...(this.signDefs[k] || DEFAULT_SIGNS[k] || { text: k }) })),
+      { quality: this._quality, anisotropy: this._anisotropy });
+    this.signAtlasSize = [atlas.width, atlas.height];
     const buf = { lit: { P: [], N: [], U: [] }, std: { P: [], N: [], U: [] } };
     const v = new THREE.Vector3(), e = new THREE.Euler(), q = new THREE.Quaternion();
     for (const s of this.signs) {
