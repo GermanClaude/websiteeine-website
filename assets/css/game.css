@@ -2655,6 +2655,9 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 .m-icon.np-fs-btn[aria-pressed="true"] { border-color: var(--np-signal); color: var(--np-signal); }
 .m-icon.np-fs-btn:focus-visible { outline: 2px solid var(--np-signal); outline-offset: 2px; }
 .np-fs-rot { width: 100%; }
+/* Schmale Touch-Kopfzeile: der Umschalter entfällt in der Lobby (erstes Tippen geht ohnehin ins Vollbild, Pausenmenü
+   behält ihn); die Anleitung (iPhone) bleibt. */
+@media (max-width: 860px) and (pointer: coarse) { .lb-tools .np-fs-btn[data-fs="toggle"] { display: none; } }
 .np-fsg {
   position: fixed;
   inset: 0;

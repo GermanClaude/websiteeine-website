@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createSoldier, VARIANTS, SCHEMES } from '../assets/js/game/bots/character.js';
+import { upgradeSoldierMaterials, soldierDetailInfo } from '../assets/js/game/bots/soldier/materials.js';
 import { createWeaponModel, preloadWeaponModels } from '../assets/js/game/weapons/models.js';
 import { WEAPONS } from '../assets/js/shared/weapons.data.js';
 
@@ -94,7 +95,9 @@ resize();
 
 /* ================================================================ Galerie */
 
-const gal = { scene: null, soldiers: [], weaponId: params.get('weapon') || 'ar_m17', scheme: params.get('scheme') || 'A', anim: params.get('anim') || 'idle', lod: params.get('lod') ?? 'auto', t: 0, cam: params.get('cam') || 'row', focus: Number(params.get('focus') || 0) };
+const gal = { scene: null, soldiers: [], weaponId: params.get('weapon') || 'ar_m17', scheme: params.get('scheme') || 'A', anim: params.get('anim') || 'idle', lod: params.get('lod') ?? 'auto', t: 0, cam: params.get('cam') || 'row', focus: Number(params.get('focus') || 0), quality: params.get('quality') || 'high' };
+// Fotoscan-Stoff (CC0-Bibliothek) laden, außer ?mat=proc (Vergleich mit dem prozeduralen Ersatz)
+const matReady = params.get('mat') === 'proc' ? Promise.resolve(false) : upgradeSoldierMaterials(renderer, gal.quality);
 const ANIMS = {
   idle: 'Stehen', ads: 'Anschlag', fire: 'Feuern', walk: 'Gehen', run: 'Laufen', sprint: 'Sprint', strafeR: 'Seitwärts rechts',
   strafeL: 'Seitwärts links', back: 'Rückwärts', diag: 'Diagonal', crouch: 'Hocke', crouchwalk: 'Schleichen', air: 'Sprung',
@@ -138,7 +141,7 @@ function respawnGallery() {
   gal.soldiers = [];
   const n = VARIANTS.length;
   for (let i = 0; i < n; i++) {
-    const s = createSoldier({ team: gal.scheme === 'A' ? 'A' : gal.scheme === 'B' ? 'B' : null, camo: gal.scheme, variant: i, quality: 'high', models: { createWeaponModel }, name: VARIANTS[i].name });
+    const s = createSoldier({ team: gal.scheme === 'A' ? 'A' : gal.scheme === 'B' ? 'B' : null, camo: gal.scheme, variant: i, quality: gal.quality, models: { createWeaponModel }, name: VARIANTS[i].name });
     s.setShadows(true);
     const def = WEAPONS[gal.weaponId] || WEAPONS.ar_m17;
     s.setWeaponModel(createWeaponModel(def.model, { lod: 'third' }), def);
@@ -225,7 +228,7 @@ function updateGallery(dt) {
       if (s.state === 'hidden') continue;
     }
     s.animate(dt, galleryParams(s, i, gal.t, dt));
-    if (gal.lod === 'auto') s.updateLod(camera.position.distanceTo(s.root.position) * (camera.fov / 40), 'high');
+    if (gal.lod === 'auto') s.updateLod(camera.position.distanceTo(s.root.position) * (camera.fov / 40), gal.quality);
     else { s.lod = -1; s.updateLod(0); for (let k = 0; k < 3; k++) s.meshes[k].visible = k === Number(gal.lod); s.lod = Number(gal.lod); }
   }
 }
@@ -294,7 +297,8 @@ function frame(now) {
     const tri = renderer.info.render.triangles;
     const s0 = gal.soldiers[0];
     $('stats').textContent = `${fps} FPS · ${renderer.info.render.calls} Draw Calls · ${(tri / 1000).toFixed(1)}k Dreiecke\n` +
-      `LOD-Dreiecke: ${s0 ? s0.meshes.map((m) => m.geometry.userData.triangles).join(' / ') : '–'}\nVariante: ${VARIANTS[Math.min(VARIANTS.length - 1, gal.focus)].name}`;
+      `LOD-Dreiecke: ${s0 ? s0.meshes.map((m) => m.geometry.userData.triangles).join(' / ') : '–'}\nVariante: ${VARIANTS[Math.min(VARIANTS.length - 1, gal.focus)].name}\n` +
+      `Stoff: ${(() => { const d = soldierDetailInfo(); return d.kind === 'fotoscan' ? `Fotoscan ${d.tier}` : d.loading ? 'lädt …' : 'prozedural'; })()}`;
   } else if (state.view === 'sandbox' && sandbox) {
     applyOrbit();
     camera.updateMatrixWorld();
@@ -329,5 +333,5 @@ async function main() {
   requestAnimationFrame(frame);
 }
 
-window.__bots = { step: (dt) => updateGallery(dt), gal, state, renderer, camera, orbit, setView, respawnGallery, setGalleryCamera, get sandbox() { return sandbox; } };
+window.__bots = { step: (dt) => updateGallery(dt), gal, state, renderer, camera, orbit, setView, respawnGallery, setGalleryCamera, matReady, soldierDetailInfo, get sandbox() { return sandbox; } };
 main().catch((err) => { console.error(err); setProgress('Fehler: ' + err.message); });

@@ -105,6 +105,7 @@ export const WS = {
   npFogSun: { value: new THREE.Vector4(0, 1, 0, 8) },      // Richtung zur Sonne, Exponent der Vorwärtsstreuung
   npFogSunCol: { value: new THREE.Color(0, 0, 0) },
   npFogMax: { value: 1 },
+  npFogCam: { value: 1 },   // Himmelssicht an der Kamera (Sonden, geglättet): Einstreuung drinnen gedämpft
   npSpecAA: { value: 0 }, // die Welt schaltet es ein (Kartenwert lighting.specAA, Standard 1)
 };
 
@@ -143,6 +144,7 @@ export function resetShading() {
   WS.npProbe.value.w = 0;
   WS.npProbeA.value = NEUTRAL_A; WS.npProbeB.value = NEUTRAL_B;
   WS.npBounce.value.setRGB(0, 0, 0);
+  WS.npFogCam.value = 1;
   if (dummyDepth) WS.npFarMap.value = dummyDepth.tex;
 }
 
@@ -167,6 +169,7 @@ uniform vec4 npFog;
 uniform vec4 npFogSun;
 uniform vec3 npFogSunCol;
 uniform float npFogMax;
+uniform float npFogCam;
 uniform float npSpecAA;
 `;
 
@@ -243,7 +246,9 @@ const FOG = /* glsl */ `
 		float npOD = npFog.x * exp( - npFog.y * ( cameraPosition.y - npFog.z ) ) * max( npL - npFog.w, 0.0 ) * npI;
 		float npF = min( 1.0 - exp( - npOD ), npFogMax );
 		float npSc = pow( max( dot( npRay / max( npL, 1e-4 ), npFogSun.xyz ), 0.0 ), npFogSun.w );
-		gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor + npFogSunCol * npSc, npF );
+		// Streulicht hängt an der Beleuchtung entlang des Strahls: drinnen (Kamera und Ziel ohne Himmel) kaum
+		float npFV = max( npFogCam, NP_FOG_VIS );
+		gl_FragColor.rgb = mix( gl_FragColor.rgb, ( fogColor + npFogSunCol * npSc ) * mix( 0.12, 1.0, npFV ), npF );
 	} else {
 		float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
 		gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
@@ -308,7 +313,8 @@ function worldShadingPatch(shader) {
     rep('#include <lights_fragment_maps>', `#include <lights_fragment_maps>\n${INDIRECT}`);
   }
   rep('#include <lights_physical_fragment>', `#include <lights_physical_fragment>\n${SPEC_AA}`);
-  if (fs.includes('vViewPosition')) rep('#include <fog_fragment>', FOG);
+  // Himmelssicht am Fragment nur, wo die Sonden im Shader stehen (npPA aus SETUP), sonst nur die Kamera
+  if (fs.includes('vViewPosition')) rep('#include <fog_fragment>', FOG.replace('NP_FOG_VIS', lit ? 'npPA.a' : '0.0'));
   shader.fragmentShader = fs;
 }
 

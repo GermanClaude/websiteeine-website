@@ -40,7 +40,7 @@ export default {
     exposure: 0.94,
     // Gassen: heller Putz und Sand werfen viel Licht zurück (warme Schattenseiten), staubige Luft
     probes: { bounce: 1.25 },
-    atmos: { beams: 0.025, beamG: 0.35, dust: 1.3 },
+    atmos: { beams: 0.017, beamG: 0.35, dust: 1.3 },
   },
 
   build(b, ctx) {

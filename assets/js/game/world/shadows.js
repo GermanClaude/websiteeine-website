@@ -95,7 +95,7 @@ export function createFarShadow(G, { sunDir, bounds, group, exclude = () => [], 
     texel = Math.max(spanX / w, spanY / h);
     if (!rt || rt.width !== w || rt.height !== h || holder.shadow.map !== rt) {
       rt?.dispose();
-      const dt = new THREE.DepthTexture(w, h, THREE.UnsignedIntType);
+      const dt = new THREE.DepthTexture(w, h, THREE.UnsignedShortType); // 16 bit: Tiefenbereich ≲ 300 m → ≤ 5 mm Stufen, weit unter dem Bias
       dt.format = THREE.DepthFormat;
       dt.compareFunction = THREE.LessEqualCompare;
       dt.minFilter = dt.magFilter = THREE.LinearFilter;
@@ -155,7 +155,7 @@ export function createFarShadow(G, { sunDir, bounds, group, exclude = () => [], 
     stats.ms = Math.round(performance.now() - t0);
     stats.size = size.slice();
     stats.texel = +texel.toFixed(3);
-    stats.bytes = size[0] * size[1] * 5; // Tiefe 4 B + (ungenutzter) Farbanhang 1 B
+    stats.bytes = size[0] * size[1] * 3; // Tiefe 2 B + (ungenutzter) Farbanhang 1 B
     stats.casters = casters;
     return true;
   }

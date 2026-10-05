@@ -392,6 +392,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   const props = built.props;
 
   let sweepT = 0;
+  const camPos = new THREE.Vector3(), camLast = new THREE.Vector3(1e9, 0, 0), camLight = { sky: 1, sun: 1, bounce: [0, 0, 0] };
   const world = {
     id, name: meta.name, meta,
     group,
@@ -507,6 +508,15 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     update(dt, camera) {
       light.update(dt, camera);
       atmos?.update(dt, camera);
+      // Höhennebel: Streulicht an der Kamera nach Himmelssicht der Sonden (drinnen kein heller Außendunst)
+      if (probes && camera) {
+        const c = camera.getWorldPosition ? camera.getWorldPosition(camPos) : camera.position;
+        const sky = Math.min(1, probes.query.light(c.x, c.y, c.z, camLight).sky * 1.6);
+        // Sprung (Teleport, Respawn) sofort übernehmen, sonst weich nachführen
+        const jump = camLast.distanceToSquared(c) > 4;
+        camLast.copy(c);
+        WS.npFogCam.value = jump ? sky : WS.npFogCam.value + (sky - WS.npFogCam.value) * Math.min(1, dt * 2.5);
+      }
       for (const f of world._flicker || []) {
         f.t += dt * (f.speed || 8);
         const n = 0.55 * Math.sin(f.t) + 0.3 * Math.sin(f.t * 2.31 + 1.7) + 0.15 * Math.sin(f.t * 5.17 + 0.4);

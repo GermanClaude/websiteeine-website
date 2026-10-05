@@ -131,7 +131,7 @@ export class Bot {
 
   _soldier(i) {
     if (!this.soldiers[i]) {
-      const s = new Soldier({ team: this.team, variant: this.variant, camo: this.scheme, quality: this.manager.quality, models: this.manager.models, name: this.name });
+      const s = new Soldier({ team: this.team, variant: this.variant, camo: this.scheme, quality: this.manager.tier || this.manager.quality, models: this.manager.models, name: this.name });
       s.guns = new Map();
       this.manager.scene.add(s.root);
       this.soldiers[i] = s;

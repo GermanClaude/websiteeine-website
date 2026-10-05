@@ -40,7 +40,7 @@ export default {
     exposure: 1.55,
     // Halle: Abendsonne flach durch die Westfenster, viel Staub; Feuertonnen (Lichtgruppe 2) flackern
     probes: { bounce: 1.0, flicker: [{ group: 2, amount: 0.35, speed: 11 }] },
-    atmos: { beams: 0.028, beamG: 0.4, dust: 1.5 },
+    atmos: { beams: 0.02, beamG: 0.4, dust: 1.5 },
   },
 
   build(b, ctx) {

@@ -13,7 +13,7 @@ import { BONES, BONE, BONE_COUNT, BIND, DIM } from './soldier/rig.js';
 import { Animator } from './soldier/animator.js';
 import { Ragdoll } from './soldier/ragdoll.js';
 import { soldierGeometry, VARIANTS, VARIANT_IDS } from './soldier/gear.js';
-import { soldierMaterial, SCHEMES, FFA_SCHEMES, schemeForTeam, ffaSchemes } from './soldier/materials.js';
+import { soldierMaterial, releaseSoldierMaterial, SCHEMES, FFA_SCHEMES, schemeForTeam, ffaSchemes } from './soldier/materials.js';
 import { raySphere, rayCapsule } from '../combat.js';
 
 export { VARIANTS, VARIANT_IDS, SCHEMES, FFA_SCHEMES, schemeForTeam, ffaSchemes };
@@ -46,7 +46,8 @@ export const HITBOXES = [
   ['unterschenkelR', 'limb', BONE.shinR, BONE.footR, 0.068],
 ];
 
-const LOD_DIST = { high: [13, 36], low: [8, 24] };
+// Detailstufen-Schwellen (m, × FOV/60) je Qualitätsstufe: Telefone früh vereinfachen, Ultra lange voll
+const LOD_DIST = { low: [4.5, 22], medium: [10, 30], high: [13, 36], ultra: [18, 46] };
 
 let serial = 0;
 
@@ -58,6 +59,7 @@ export class Soldier {
     const vi = typeof variant === 'number' ? variant : Math.max(0, VARIANT_IDS.indexOf(variant));
     this.variant = VARIANTS[((vi % VARIANTS.length) + VARIANTS.length) % VARIANTS.length].id;
     this.quality = quality === 'low' ? 'low' : 'high';
+    this.tier = LOD_DIST[quality] ? quality : this.quality;
     this.models = models;
     this.name = name;
 
@@ -75,7 +77,7 @@ export class Soldier {
       if (p >= 0) this.bones[p].add(this.bones[i]); else root.add(this.bones[i]);
     }
     this.skeleton = new THREE.Skeleton(this.bones, BONE_INVERSES);
-    // Detailstufen
+    // Detailstufen (eigenes Material je Soldat aus dem Pool: gleiches Programm, eigene Uniforms für das Auflösen)
     const mat = soldierMaterial(this.scheme, { quality: this.quality });
     this.material = mat;
     this.meshes = [0, 1, 2].map((lod) => {
@@ -104,7 +106,6 @@ export class Soldier {
     this.state = 'alive'; // alive | dead | hidden
     this.deadT = 0;
     this.dissolve = 0;
-    this._dissolveMat = null;
     this._drop = null;
     this._hitStamp = -1;
     this._hb = HITBOXES.map(() => ({ a: new THREE.Vector3(), b: new THREE.Vector3() }));
@@ -165,8 +166,8 @@ export class Soldier {
   }
 
   /** Detailstufe aus Kameraabstand (mit Hysterese). */
-  updateLod(dist, quality = this.quality) {
-    const [d0, d1] = LOD_DIST[quality === 'low' ? 'low' : 'high'];
+  updateLod(dist, quality = this.tier) {
+    const [d0, d1] = LOD_DIST[quality] || LOD_DIST.high;
     let lod = this.lod;
     if (lod === 0 && dist > d0 + 1.5) lod = 1;
     if (lod === 1 && dist < d0 - 1) lod = 0;
@@ -446,14 +447,11 @@ export class Soldier {
       this._writePose();
     }
     this._updateDrop(dt, world);
-    // Auflösen nach ~4,5 s
+    // Auflösen nach ~4,5 s (Uniform des eigenen Materials – kein Materialwechsel, kein neues Programm)
     if (this.deadT > 4.5) {
-      if (!this._dissolveMat) this._dissolveMat = soldierMaterial(this.scheme, { dissolve: true, quality: this.quality });
-      if (this.meshes[0].material !== this._dissolveMat) {
-        for (const m of this.meshes) { m.material = this._dissolveMat; m.castShadow = false; }
-      }
+      if (this.dissolve === 0) for (const m of this.meshes) m.castShadow = false;
       this.dissolve = Math.min(1, (this.deadT - 4.5) / 1.1);
-      this._dissolveMat.userData.uDissolve.value = this.dissolve;
+      this.material.userData.uDissolve.value = Math.max(1e-3, this.dissolve);
       if (this._drop && this.dissolve > 0.6) this._drop.gun.visible = false;
       if (this.dissolve >= 1) { this.hide(); return false; }
     }
@@ -482,7 +480,8 @@ export class Soldier {
   /** Lebendig zurücksetzen (Respawn). */
   reset(position, yaw = 0) {
     this._restoreGun();
-    for (const m of this.meshes) { m.material = this.material; m.castShadow = this.castShadow; }
+    for (const m of this.meshes) m.castShadow = this.castShadow;
+    this.material.userData.uDissolve.value = 0;
     this.state = 'alive';
     this.deadT = 0;
     this.dissolve = 0;
@@ -498,9 +497,9 @@ export class Soldier {
     this._restoreGun();
     if (this.gun) this.gun.removeFromParent();
     this.root.removeFromParent();
-    if (this._dissolveMat) { this._dissolveMat.dispose(); this._dissolveMat = null; }
+    releaseSoldierMaterial(this.material);
     this.skeleton.dispose();
-    // Geometrien/Materialien sind geteilt (Cache) und bleiben bestehen
+    // Geometrien sind geteilt (Cache), das Material geht zurück in den Pool (Programm bleibt gebunden)
   }
 }
 

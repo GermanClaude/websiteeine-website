@@ -11,6 +11,7 @@ import { difficultyProfile } from './difficulty.js';
 import { pickNames } from './names.js';
 import { Nameplate } from './nameplates.js';
 import { VARIANTS, schemeForTeam, ffaSchemes } from './character.js';
+import { upgradeSoldierMaterials } from './soldier/materials.js';
 import { analyze } from './ai/tactics.js';
 
 const _m = new THREE.Matrix4();
@@ -39,7 +40,8 @@ export class BotManager {
     this.handlesStreaks = true;
     this.scene = G.scene;
     this.models = null;
-    this.quality = 'high';
+    this.quality = 'high'; // Material-/Budgetstufe der Soldaten: 'low' | 'high'
+    this.tier = 'high'; // Qualitätsstufe des Renderers (Detailstufen-Schwellen): low | medium | high | ultra
     this._subs = null;
     this._plates = new Map();
     this._paths = new Map();
@@ -63,7 +65,11 @@ export class BotManager {
     if (this._subs) this._subs.dispose();
     this.scene = G.scene;
     this.models = (G.modules && G.modules.models && G.modules.models.createWeaponModel) ? G.modules.models : null;
-    this.quality = G.renderer && G.renderer.quality === 'low' ? 'low' : 'high';
+    const R = G.renderer;
+    this.tier = R && typeof R.quality === 'string' && R.quality !== 'auto' ? R.quality : 'high';
+    this.quality = this.tier === 'low' ? 'low' : 'high';
+    // Fotoscan-Stoff der Soldaten im Hintergrund nachladen (einmalig; ohne Transcoder bleibt der prozedurale Stoff)
+    if (R && R.renderer) upgradeSoldierMaterials(R.renderer, this.tier);
     this._intel.clear();
     this._paths.clear();
     this._pathQ.length = 0;
@@ -239,14 +245,14 @@ export class BotManager {
       b.animEvery = !inView ? 6 : d < (low ? 16 : 26) ? 1 : d < (low ? 40 : 60) ? 2 : 3;
       if (s && b.alive && s.state === 'alive') {
         s.root.visible = inView;
-        s.updateLod(d * (cam ? cam.fov / 60 : 1), this.quality);
+        s.updateLod(d * (cam ? cam.fov / 60 : 1), this.tier);
       }
       for (let k = 0; k < b.soldiers.length; k++) {
         const o = b.soldiers[k];
         if (o && o.state === 'dead') {
           _sphere.center.copy(o.root.position); _sphere.center.y += 0.5; _sphere.radius = 3;
           o.root.visible = !cam || this._frustum.intersectsSphere(_sphere);
-          o.updateLod(o.root.position.distanceTo(_cam) * (cam ? cam.fov / 60 : 1), this.quality);
+          o.updateLod(o.root.position.distanceTo(_cam) * (cam ? cam.fov / 60 : 1), this.tier);
         }
       }
     }

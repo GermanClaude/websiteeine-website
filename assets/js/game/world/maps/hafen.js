@@ -37,7 +37,7 @@ export default {
     shadow: { size: 42 },
     // Sonden-Gitter (Innenräume, Rückprall), Atmosphäre (Strahlen durch die Hallentore, Staub)
     probes: { bounce: 1.1 },
-    atmos: { beams: 0.03, beamG: 0.4, dust: 1 },
+    atmos: { beams: 0.018, beamG: 0.4, dust: 1 },
   },
 
   build(b, ctx) {
@@ -558,6 +558,8 @@ function warehouse(b) {
   // Dach (leicht geneigt angedeutet) + Oberlichter
   b.boxMM(x0 - 0.3, H8, z0 - 0.3, x1 + 0.3, H8 + 0.35, z1 + 0.3, 'metal_corrugated', { tint: '#8d969c', minimap: 'roof', grad: false, uv: 'world' });
   for (const zz of [-12, 0, 12]) b.box(28, H8 - 0.02, zz, 20, 0.04, 1.4, 'lamp_cool', { collide: false, minimap: false, ao: false, cast: false });
+  // Lichtbänder: nur in die Sonden gebacken (indirektes Hallenlicht, kein Echtzeitlicht)
+  for (const zz of [-12, 0, 12]) for (const xx of [20.5, 28, 35.5]) b.light('point', xx, H8 - 0.5, zz, { color: '#e6f0ff', intensity: 26, distance: 22, realtime: false });
   b.box(28, H8 + 0.35, -20.31, 28.6, 0.6, 0.1, 'metal_painted', { tint: '#14304a', collide: false, minimap: false, grad: false });
   b.noNav(x0 - 1, z0 - 1, x1 + 1, z1 + 1, H8 - 0.5, 20);
   // Binder (Stahlträger unter dem Dach)
@@ -579,6 +581,11 @@ function warehouse(b) {
   // Obergeschoss-Wände (Glasfront zur Halle)
   wall(b, { x0: ox0, z0: oz1, x1: ox1, z1: oz1, y: fy, h: 3.0, t: 0.2, mat: 'plaster_white', tint: '#dcd8cf', frameMat: 'metal_painted', frameTint: '#2a2e33', openings: [{ at: 2.2, w: 1.0, h: 2.1, kind: 'door' }, { at: 6.8, w: 4.4, h: 1.4, kind: 'window', sill: 0.9, glass: false }] });
   slab(b, x0 + t, oz0, ox1, oz1, fy - 0.2, 0.2, 'concrete', [], {});
+  // Deckenleuchten im Erdgeschoss-Büro (gebacken)
+  for (const xx of [33.5, 38.5]) {
+    b.box(xx, fy - 0.235, -15.4, 1.2, 0.03, 0.6, 'lamp_cool', { collide: false, minimap: false, ao: false, cast: false });
+    b.light('point', xx, fy - 0.5, -15.4, { color: '#eef3ff', intensity: 12, distance: 9, realtime: false });
+  }
   b.boxMM(x0 + t, fy, oz0, ox1, fy + 0.02, oz1, 'metal_tread', { grad: false, minimap: 'catwalk', collide: false });
   b.footprints.push({ x: (ox0 + ox1) / 2, z: (oz0 + oz1) / 2, hw: (ox1 - ox0) / 2, hd: (oz1 - oz0) / 2, ry: 0, y0: 0, y1: 6.6, kind: 'building' });
   // Empore (Westteil, offen zur Halle) mit Geländer

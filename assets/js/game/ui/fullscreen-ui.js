@@ -96,7 +96,7 @@ export class FullscreenUI {
       b.type = 'button';
       b.className = 'm-icon np-fs-btn';
       b.dataset.fsv = 'icon';
-      tools.insertBefore(b, tools.firstChild);
+      tools.insertBefore(b, tools.querySelector('[data-act="exit"]') || null); // vor „Zur Website“: Einstellungen bleiben vorn
       this._render(b);
     }
     const menu = document.querySelector('#menu-root .ps-menu');
