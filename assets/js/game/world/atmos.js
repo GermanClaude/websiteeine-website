@@ -103,7 +103,9 @@ float shadowAt( highp sampler2DShadow m, mat4 M, vec3 p, out float inside ) {
   return inside > 0.5 ? texture( m, vec3( c.xy, c.z - 0.0015 ) ) : 1.0;
 }
 void main() {
-  vec3 drift = vec3( sin( uTime * 0.11 + aSeed.w * 6.28 ), sin( uTime * 0.07 + aSeed.w * 3.1 ) - 0.6, cos( uTime * 0.09 + aSeed.w * 4.7 ) ) * 0.04 * uTime / uBox;
+  // begrenztes Schweben (± 0,3 m, Perioden ≈ 60–90 s) + langsames Absinken (1,5 cm/s, umlaufend)
+  vec3 drift = ( vec3( sin( uTime * 0.11 + aSeed.w * 6.28 ), sin( uTime * 0.07 + aSeed.w * 3.1 ), cos( uTime * 0.09 + aSeed.w * 4.7 ) ) * 0.3
+    - vec3( 0.0, 0.015 * uTime, 0.0 ) ) / uBox;
   vec3 b = ( aSeed.xyz + drift ) * uBox;
   vec3 p = b + uBox * floor( ( cameraPosition - b ) / uBox + 0.5 );
   vec3 rel = p - cameraPosition;

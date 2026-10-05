@@ -405,13 +405,20 @@ export class Animator {
     /* ---------- Hüfte */
     const bob = this.speed > 0.3 && air < 0.5 ? -Math.cos(ph * 2) * lerp(0.012, 0.035, run) * (1 - crouch * 0.5) : 0;
     const breathe = Math.sin(t * 1.7) * 0.004;
+    // Treffer/Taumeln (C2): eingeknickte Beine senken das Becken (einseitig → Becken kippt zur getroffenen Seite)
+    const bL = Math.max(0, this.buckleL.x), bR = Math.max(0, this.buckleR.x);
+    const cower = this.cower;
     let hipY = lerp(DIM.standHip, DIM.crouchHip, crouch) - run * 0.035 - sprint * 0.02 + bob + breathe + this.land.x * 0.12 - air * 0.06;
+    hipY -= Math.min(0.18, (bL + bR) * 0.11) + cower * 0.07;
     if (this.feetLift) hipY -= this.feetLift;
     const sway = Math.sin(ph) * lerp(0.01, 0.018, run) * (s > 0.3 ? 1 : 0);
-    this.hipsPos.set(sway * 0.5, hipY, crouch * 0.04);
+    // Lehnen (C6): Gewicht aufs äußere Bein (Becken seitlich), Oberkörper rollt zur Seite → Kopf ≈ 0,34 m versetzt
+    const leanX = this.leanX;
+    const leanRoll = -leanX * 0.38;
+    this.hipsPos.set(sway * 0.5 + leanX * 0.13 + clamp(this.shoveX.x, -0.3, 0.3) * 0.6, hipY, crouch * 0.04 + clamp(this.shoveZ.x, -0.3, 0.3) * 0.6);
     const twist = s > 0.3 ? Math.sin(ph) * lerp(0.08, 0.16, run) * (1 - crouch * 0.5) : 0;
     const pelvisPitch = -crouch * 0.18 - sprint * 0.12;
-    _e.set(pelvisPitch, this.hipYaw + twist, sway * 1.4, 'YXZ');
+    _e.set(pelvisPitch, this.hipYaw + twist, sway * 1.4 + (bL - bR) * 0.26 + leanRoll * 0.15, 'YXZ');
     wq[0].setFromEuler(_e);
     lq[0].copy(wq[0]);
     wp[0].copy(this.hipsPos);
@@ -423,13 +430,16 @@ export class Animator {
     const yawRest = aimRel - (this.hipYaw + twist); // durch Rumpf auszugleichen
     const lean = 0.04 + run * 0.06 + sprint * 0.22 + crouch * 0.12;
     const fP = this.flinchP.x, fR = this.flinchR.x;
+    const tw = clamp(this.twist.x, -0.7, 0.7);
     const breatheP = Math.sin(t * 1.7 + 0.6) * 0.012;
+    // Schutzhaltung: Kopf weg- und nach unten gedreht, Rumpf leicht eingerollt
+    const cwY = cower * 0.55, cwP = cower * 0.3;
     // Wirbelsäule, Brust, Hals, Kopf: (Gierung, Neigung, Rollen)
     const gl = this.glance;
-    this._rotFk(1, yawRest * 0.35, pitch * 0.18 - lean * 0.5 - pelvisPitch * 0.4 + fP * 0.5, -sway * 1.2 + fR * 0.5);
-    this._rotFk(2, yawRest * 0.4, pitch * 0.32 - lean * 0.45 - pelvisPitch * 0.6 + breatheP + fP * 0.5 + this.recoilP.x * 0.04, fR * 0.4);
-    this._rotFk(3, yawRest * 0.12 + gl.yaw * 0.4, pitch * 0.2 + lean * 0.4 - ads * 0.22 + gl.pitch * 0.4, -ads * 0.06);
-    this._rotFk(4, yawRest * 0.13 + gl.yaw * 0.6, pitch * 0.3 + lean * 0.55 + ads * 0.12 + this.flinchH.x * 0.3 + gl.pitch * 0.6, -ads * 0.2 - fR * 0.2);
+    this._rotFk(1, yawRest * 0.35 + tw * 0.5, pitch * 0.18 - lean * 0.5 - pelvisPitch * 0.4 + fP * 0.5 + cower * 0.12, -sway * 1.2 + fR * 0.5 + leanRoll * 0.4);
+    this._rotFk(2, yawRest * 0.4 + tw * 0.35, pitch * 0.32 - lean * 0.45 - pelvisPitch * 0.6 + breatheP + fP * 0.5 + this.recoilP.x * 0.04 + cower * 0.1, fR * 0.4 + leanRoll * 0.4);
+    this._rotFk(3, yawRest * 0.12 + gl.yaw * 0.4 - tw * 0.3 + cwY * 0.4, pitch * 0.2 + lean * 0.4 - ads * 0.22 + gl.pitch * 0.4 + cwP * 0.4, -ads * 0.06 + leanRoll * 0.08);
+    this._rotFk(4, yawRest * 0.13 + gl.yaw * 0.6 - tw * 0.2 + cwY * 0.6, pitch * 0.3 + lean * 0.55 + ads * 0.12 + this.flinchH.x * 0.3 + gl.pitch * 0.6 + cwP * 0.6, -ads * 0.2 - fR * 0.2 - leanRoll * 0.1);
 
     /* ---------- Anschlagrahmen + Waffe */
     const chest = BONE.chest;
@@ -516,6 +526,11 @@ export class Animator {
     pos.z -= this.recoil.x * 0.06;
     pos.y += this.recoilP.x * 0.01;
     rx += this.recoilP.x * 0.05;
+    // Treffer schlägt die Waffe aus dem Anschlag (C2); beim Lehnen wird die Waffe mitgekantet (C6)
+    rx += clamp(this.jerkP.x, -0.6, 0.6) * 0.7;
+    ry += clamp(this.jerkY.x, -0.6, 0.6) * 0.7;
+    pos.x += clamp(this.jerkY.x, -0.6, 0.6) * 0.03;
+    rz += -this.leanX * 0.38 * 0.6;
     // Repetieren (Waffe kippt leicht)
     if (this.boltT < 0.75 && this.kind === 'rifle') {
       const b = Math.sin(Math.PI * ramp(this.boltT, 0.12, 0.7));
@@ -605,6 +620,13 @@ export class Animator {
     if (this.reloadW > 0.01) {
       const tgt = this._reloadLeft(S_T);
       if (tgt) { lTarget.lerp(tgt, this.reloadW); lFree = Math.max(lFree, this.reloadW * 0.6); }
+    }
+    // Schutzhaltung (Blendung/Explosion): linke Hand vor die Augen
+    if (this.cower > 0.01) {
+      const hq = this.wq[BONE.head];
+      const face = qrot(_v3.set(0.03, 0.09, -0.17), hq).add(this.wp[BONE.head]);
+      lTarget.lerp(face, this.cower);
+      lFree = Math.max(lFree, this.cower);
     }
     // Pumpe nach dem Schuss
     if (this.boltT < 0.6 && this.fireMode === 'pump' && A.pump) {

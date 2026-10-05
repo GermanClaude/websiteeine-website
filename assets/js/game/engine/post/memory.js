@@ -119,7 +119,7 @@ export function estimateMemory({ scenes = [], targets = [], backbuffer = 0 } = {
   const addTex = (t, owner) => {
     if (!t || texSeen.has(t)) return;
     texSeen.add(t);
-    if (t.isRenderTargetTexture) return; // über ihr Ziel gezählt
+    if (t.isRenderTargetTexture || t.isDepthTexture) return; // über ihr Ziel gezählt (Tiefentexturen sind Anhänge: Schatten-/Nachbearbeitungsziele)
     const b = textureBytes(t);
     textures += b;
     if (b > 2 * 1024 * 1024) top.push({ name: t.name || owner || 'Textur', bytes: b });

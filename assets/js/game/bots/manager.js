@@ -83,6 +83,7 @@ export class BotManager {
     s.on('impact', (e) => this._onImpact(e));
     s.on('actor:hit', (e) => this._onHit(e));
     s.on('kill', (e) => this._onKill(e));
+    s.on('actor:flashed', (e) => this._onFlashed(e));
   }
 
   detach() {
@@ -456,13 +457,28 @@ export class BotManager {
     this._hear(actor, sprint ? 20 : crouch ? 3 : 10, 1, this.G.time.elapsed, 'sound', false);
   }
 
-  _onExplosion({ position, attacker } = {}) {
+  _onExplosion({ position, attacker, radius, type, nonLethal } = {}) {
     const now = this.G.time.elapsed;
     if (attacker && attacker.position && attacker.alive) this._hear(attacker, 45, 5, now);
+    if (!position) return;
+    // Taumeln (C2): Druckwelle schiebt nahe Bots weg (Stärke nach Abstand; Rauch: keiner, Blend: schwach)
+    const R = Math.max(4, (Number(radius) || 6) * 1.5);
+    const k = type === 'smoke' ? 0 : type === 'flash' || nonLethal ? 0.35 : 1;
+    if (!k) return;
     for (const b of this.bots) {
-      if (!b.alive || !position) continue;
-      if (b.position.distanceTo(position) < 9 && b.soldier) b.soldier.playHit(_v.subVectors(b.position, position).setY(0.2).normalize(), 'body', 25);
+      if (!b.alive) continue;
+      const d = b.position.distanceTo(position);
+      if (d >= R) continue;
+      const strength = Math.min(1.5, (1 - d / R) * 1.6) * k;
+      if (strength < 0.08) continue;
+      _v.subVectors(b.position, position).setY(0);
+      if (_v.lengthSq() < 1e-4) _v.set(Math.random() - 0.5, 0, Math.random() - 0.5);
+      b.onBlast(_v.normalize(), strength);
     }
+  }
+
+  _onFlashed({ actor, strength = 1, duration = 2 } = {}) {
+    if (actor && actor.isBot && this.bots.includes(actor)) actor.onFlashed(strength, duration);
   }
 
   _onImpact({ point, shooter } = {}) {

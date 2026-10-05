@@ -47,6 +47,7 @@ export class Gunner {
     this.strafe = 1;
     this.peekUntil = 0;
     this.hidden = false;
+    this.peekLean = null; // Spähen an hoher Deckung: 0 = in Deckung bleiben, 1 = hinauslehnen (Bot wählt die Seite), null = frei
     this.recoilP = 0;
     this.recoilY = 0;
     this.lastSeenAim = new THREE.Vector3();
@@ -280,7 +281,11 @@ export class Gunner {
     if (!world || typeof world.lineOfSight !== 'function') return true;
     targetPoints(a, _p, _h);
     bot.getEyePosition(_eye);
-    return world.lineOfSight(_eye, this.aimHead || (this.rec && this.rec.partial) ? _h : _p);
+    const pt = this.aimHead || (this.rec && this.rec.partial) ? _h : _p;
+    if (!world.lineOfSight(_eye, pt)) return false;
+    // durch dichten Rauch wird nicht gezielt geschossen (Arsenal: Rauch-Register)
+    const W = bot.G.weapons;
+    return !(W && W.smokes && W.smokes.length && typeof W.smokeVisibility === 'function' && W.smokeVisibility(_eye, pt) < 0.3);
   }
 
   /* ---------------------------------------------------------------- Bewegung im Gefecht */
@@ -293,6 +298,7 @@ export class Gunner {
     const rec = this.rec;
     const D = bot.diff;
     out.x = 0; out.z = 0; out.crouch = false; out.jump = false; out.nav = null; out.sprint = false;
+    this.peekLean = null;
     if (!rec) return out;
     const def = bot.weapon && bot.weapon.currentDef;
     const cls = def ? def.cls : 'ar';
@@ -335,14 +341,19 @@ export class Gunner {
         out.crouch = true;
         break;
       case 'peek': {
-        // hinter Deckung: ducken ↔ auftauchen
+        // hinter Deckung: ducken ↔ auftauchen (niedrige Deckung) bzw. verdeckt ↔ hinauslehnen (hohe Deckung, C6)
         if (now > this.peekUntil) {
           this.hidden = !this.hidden;
           this.peekUntil = now + (this.hidden ? rnd(0.5, 1.1) : rnd(1.1, 2.2));
         }
         const low = bot.coverNode && !bot.coverNode.coverHigh;
         if (low) out.crouch = this.hidden;
-        else if (this.hidden) { out.x = lx * 0.6; out.z = lz * 0.6; }
+        else if (this.hidden) this.peekLean = 0;
+        else {
+          this.peekLean = 1;
+          // keine Seite mit Sicht → wie bisher ein Seitschritt aus der Deckung
+          if (bot.leanSide !== -1 && bot.leanSide !== 1) { out.x = lx * 0.6; out.z = lz * 0.6; }
+        }
         break;
       }
       default: break;

@@ -209,7 +209,10 @@ export async function createSandbox({ renderer, camera, orbit, params, $, setPro
         }
         const w = b.weapon && b.weapon.currentDef ? b.weapon.currentDef.name : '';
         const perch = b.goal.data && b.goal.data.perch ? (b.goal.data.holdUntil ? ' ▲ hält' : ' ▲') : ''; // erhöhter Posten
-        const key = `${b.alive}|${b.goal.kind}|${perch}|${Math.round(b.health / 10)}|${w}|${b.gunner.rec && b.gunner.rec.visible ? b.gunner.rec.actor.name : ''}`;
+        // Realismus (C2/C6): lehnt (◀/▶), taumelt (≈), hinkt (⌇), geblendet (✶)
+        const now = G.time.elapsed;
+        const real = (Math.abs(b.lean) > 0.4 ? (b.lean < 0 ? ' ◀' : ' ▶') : '') + (now < b.staggerUntil ? ' ≈' : '') + (now < b.limpUntil ? ' ⌇' : '') + (b.flashedUntil > now ? ' ✶' : '');
+        const key = `${b.alive}|${b.goal.kind}|${perch}${real}|${Math.round(b.health / 10)}|${w}|${b.gunner.rec && b.gunner.rec.visible ? b.gunner.rec.actor.name : ''}`;
         if (key !== l.key) {
           l.key = key;
           const ctx = l.cv.getContext('2d');
@@ -218,7 +221,7 @@ export async function createSandbox({ renderer, camera, orbit, params, $, setPro
           ctx.textAlign = 'center';
           ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(10, 4, 236, 56);
           ctx.fillStyle = b.alive ? GOAL_COL[b.goal.kind] || '#fff' : '#666';
-          ctx.fillText(b.alive ? `${GOAL_LABELS[b.goal.kind] || b.goal.kind}${perch} · ${Math.round(b.health)}` : 'tot', 128, 28);
+          ctx.fillText(b.alive ? `${GOAL_LABELS[b.goal.kind] || b.goal.kind}${perch}${real} · ${Math.round(b.health)}` : 'tot', 128, 28);
           ctx.fillStyle = '#c9d1d9'; ctx.font = '500 16px "JetBrains Mono NP", monospace';
           ctx.fillText(`${b.name} · ${w}${b.gunner.rec && b.gunner.rec.visible ? ' → ' + b.gunner.rec.actor.name : ''}`.slice(0, 30), 128, 52);
           l.tex.needsUpdate = true;

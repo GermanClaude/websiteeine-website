@@ -42,6 +42,8 @@ export default {
     probes: { bounce: 1.25 },
     atmos: { beams: 0.017, beamG: 0.35, dust: 1.3 },
   },
+  // Belichtung: draußen unverändert (L̄ 0,156 ≈ Referenz 0,16); Kirche/Häuser (L̄ ≈ 0,016) stießen an evMax 1,8 → 2,2
+  grade: { exposure: { evMax: 2.2 } },
 
   build(b, ctx) {
     const zones = [];

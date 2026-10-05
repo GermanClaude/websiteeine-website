@@ -192,7 +192,7 @@ export class Soldier {
   /**
    * params: { velocity (Welt, Vector3) | speed + strafe, aimYaw (Welt), aimPitch, crouch, sprint, ads,
    *           airborne | onGround, firing (Schuss in diesem Bild), shotStrength, reloading, reloadProgress,
-   *           reloadEmpty, perShell, throwing, cooking, meleeing, idleLook, position (Füße, Welt) }
+   *           reloadEmpty, perShell, throwing, cooking, meleeing, idleLook, lean (−1…1, − = links), position (Füße, Welt) }
    * Gibt die Körper-Gierung zurück.
    */
   animate(dt, params = {}) {
@@ -224,6 +224,7 @@ export class Soldier {
     p.cooking = !!params.cooking;
     p.meleeing = !!params.meleeing;
     p.idleLook = !!params.idleLook;
+    p.lean = params.lean || 0;
     if (params.firing) a.shot(params.shotStrength || 1);
     let bodyYaw = a.update(dt, p);
     // Schutz: kaputte Pose (nicht endliche Werte aus Eingaben) → Ruhepose statt unsichtbarem/untreffbarem Soldaten
@@ -258,12 +259,34 @@ export class Soldier {
     a.feetLift = Math.max(0, -Math.min(l, r)) * 0.9;
   }
 
-  playHit(dirWorld, zone = 'body', amount = 25) {
+  /**
+   * Treffer-Reaktion (C2). dirWorld: Flugrichtung der Kugel (Welt); pointWorld (optional): Einschlagpunkt (Welt) →
+   * Seite/Höhe bestimmen Drehung, Einknicken und Waffenschlag.
+   */
+  playHit(dirWorld, zone = 'body', amount = 25, pointWorld = null) {
     if (this.state !== 'alive' || !dirWorld) return;
     const yaw = this.anim.bodyYaw;
     const c = Math.cos(-yaw), s = Math.sin(-yaw);
     _v.set(dirWorld.x * c + dirWorld.z * s, dirWorld.y, -dirWorld.x * s + dirWorld.z * c);
-    this.anim.hit(_v, zone, amount);
+    let pt = null;
+    if (pointWorld && Number.isFinite(pointWorld.x)) pt = this.toModel(_v2.copy(pointWorld));
+    this.anim.hit(_v, zone, amount, pt);
+  }
+
+  /** Taumeln (Explosion/Stoß): dirWorld = weg vom Auslöser, strength 0..1,5. */
+  playStagger(dirWorld, strength = 1) {
+    if (this.state !== 'alive' || !dirWorld) return;
+    const yaw = this.anim.bodyYaw;
+    const c = Math.cos(-yaw), s = Math.sin(-yaw);
+    _v.set(dirWorld.x * c + dirWorld.z * s, 0, -dirWorld.x * s + dirWorld.z * c);
+    if (_v.lengthSq() < 1e-6) _v.set(0, 0, 1); else _v.normalize();
+    this.anim.stagger(_v, strength);
+  }
+
+  /** Blendung: Schutzhaltung (Arm vor die Augen, Kopf weg, Waffe gesenkt) für duration s. */
+  playFlash(duration = 2, strength = 1) {
+    if (this.state !== 'alive') return;
+    this.anim.flash(duration, strength);
   }
 
   /* ================================================================ Gelenke (Welt) */

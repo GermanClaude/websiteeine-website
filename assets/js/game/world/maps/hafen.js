@@ -39,6 +39,9 @@ export default {
     probes: { bounce: 1.1 },
     atmos: { beams: 0.018, beamG: 0.4, dust: 1 },
   },
+  // Belichtung (core-render, post/exposure): mit Sonden gemessenes L̄ draußen 0,104 (vorher 0,118) → Referenz neu,
+  // etwas kräftigere Anpassung, damit Halle/Büros (L̄ ≈ 0,032) wie bisher ≈ 1 Blende aufgehellt werden
+  grade: { exposure: { ref: 0.105, strength: 0.78 } },
 
   build(b, ctx) {
     const zones = [];

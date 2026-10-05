@@ -613,6 +613,7 @@ function syncDetail(m) {
 }
 
 let upgrading = null;
+let upgradingTier = 0;
 
 /**
  * Fotoscan-Aufwertung (Hintergrund; Fehler still → prozedurale Ersatztexturen bleiben): lädt `fabric_uniform`
@@ -620,14 +621,16 @@ let upgrading = null;
  * Kosten: low ≈ 0,09 MB Download / 0,35 MB GPU, sonst ≈ 0,33 MB / 1,4 MB. → Promise<bool>
  */
 export function upgradeSoldierMaterials(renderer, quality = 'high') {
-  if (upgrading) return upgrading;
+  const tier = Math.min(1024, tierFor(quality, 'texture'));
+  // einmal je Stufe; eine höhere Stufe (z. B. low → high im Einstellungsmenü) lädt nach, eine niedrigere nicht
+  if (upgrading && upgradingTier >= tier) return upgrading;
+  upgradingTier = tier;
   upgrading = (async () => {
     try {
       if (!assets.renderer && renderer) assets.setRenderer(renderer);
       if (!assets.renderer) return false;
       await assets.ready();
       if (!(await assets.transcoderReady())) return false;
-      const tier = Math.min(1024, tierFor(quality, 'texture'));
       const set = await assets.loadTextureSet('fabric_uniform', tier);
       // eigene Klone (teilen die GPU-Daten), Wiederholung 1 – der Shader skaliert selbst je Materialklasse
       const normal = set.normalMap.clone();
@@ -661,4 +664,5 @@ export function disposeSoldierMaterials() {
   DETAIL.normal = DETAIL.orm = null;
   DETAIL.kind = 'prozedural';
   upgrading = null;
+  upgradingTier = 0;
 }

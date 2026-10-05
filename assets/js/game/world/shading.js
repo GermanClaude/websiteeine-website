@@ -414,7 +414,11 @@ export function watchScene(scene) {
   }
   watch(scene);
   return {
-    sweep() { watch(scene); },
+    sweep() {
+      // tote Verweise (entfernte Hülsen, Effekte …) ausdünnen, damit die Liste über ein langes Match nicht wächst
+      if (nodes.length > 512) { let j = 0; for (const r of nodes) if (r.deref()) nodes[j++] = r; nodes.length = j; }
+      watch(scene);
+    },
     stop() {
       for (const r of nodes) r.deref()?.removeEventListener('childadded', onAdd);
       nodes.length = 0;

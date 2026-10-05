@@ -11,6 +11,7 @@ import { sense } from './ai/perception.js';
 import { Navigator } from './ai/navigator.js';
 import { Gunner } from './ai/combat.js';
 import { think, newGoal, useStreaks } from './ai/brain.js';
+import { targetPoints } from './ai/perception.js';
 
 const STAND_H = 1.8, CROUCH_H = 1.15;
 const SPEED = { walk: 3.1, run: 5.4, sprint: 8.2, crouch: 2.6 };
@@ -27,6 +28,14 @@ const GO_ENGAGE = { tolerance: 2.5, repath: 3 };
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
 const _eye = new THREE.Vector3();
+const _lp = new THREE.Vector3();
+const _lh = new THREE.Vector3();
+const _ld = new THREE.Vector3();
+const _le = new THREE.Vector3();
+// Lehnen (C6): seitlicher Kopfversatz wie beim Spieler (core-input F5: 0,38 m, Kopf 6 cm tiefer); die Soldaten-Pose
+// erreicht ≈ 0,34 m (Becken 0,1 m + Rumpfrollen 0,33 rad)
+const LEAN_SIDE = 0.34, LEAN_DROP = 0.05;
+const LEAN_RATE = 12; // 1/s (≈ 90 % in 0,19 s)
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -76,6 +85,21 @@ export class Bot {
     this.respawnAt = null;
     this.crouching = false;
     this.sprinting = false;
+    // Lehnen (C6, gleiche Felder wie der Spieler): lean −1…1 (− = links), leanOffset (Welt, Kopfversatz), leanRoll (rad)
+    this.lean = 0;
+    this.leanOffset = new THREE.Vector3();
+    this.leanRoll = 0;
+    this.leanSide = 0; // letzte Prüfung: Seite mit Sicht auf das Ziel (−1/1), 0 = ohne Lehnen frei, null = keine
+    this._leanWant = 0;
+    this._leanCheckAt = 0;
+    this._leanLimit = [1, 1];
+    // Treffer-Reaktionen (C2): kurzes Taumeln (Bewegung/Abzug gedämpft), Hinken nach Beintreffer
+    this.staggerUntil = 0;
+    this.limpUntil = 0;
+    this._staggerCd = 0;
+    // Blendgranate (arsenal): gesetzt von grenades.js
+    this.flashedUntil = 0;
+    this.flashStrength = 0;
 
     // KI
     this.memory = new Memory();
@@ -159,9 +183,10 @@ export class Bot {
 
   /* ================================================================ Actor-API */
 
+  /** Augenhöhe inkl. Lehn-Versatz (Sicht und Schüsse aus dem gelehnten Kopf, wie beim Spieler). */
   getEyePosition(out = new THREE.Vector3()) {
-    const p = this.body.position;
-    return out.set(p.x, p.y + this.body.height - 0.15, p.z);
+    const p = this.body.position, o = this.leanOffset;
+    return out.set(p.x + o.x, p.y + this.body.height - 0.15 + o.y, p.z + o.z);
   }
 
   getAimDirection(out = new THREE.Vector3()) {
@@ -208,11 +233,57 @@ export class Bot {
       if (a.alive !== false) this.memory.damaged(a, now);
       this.alert(a.position, now);
     }
-    // Trefferwirkung: Zielfehler + Zucken
+    // Trefferwirkung: Zielfehler + Reaktion des Körpers (C2)
     this.gunner.errX += (Math.random() - 0.5) * 0.06;
     this.gunner.errY += (Math.random() - 0.5) * 0.04;
+    const amt = info.amount || 20;
     const s = this.soldier;
-    if (s && info.dir) s.playHit(info.dir, info.zone, info.amount || 20);
+    if (s && info.dir) s.playHit(info.dir, info.zone, amt, info.point || null);
+    if (info.dir && !info.explosive && this.alive) {
+      // Taumeln: starke Treffer stoßen den Körper ein Stück in Schussrichtung, Abzug/Bewegung kurz gedämpft
+      const k = clamp((amt - 14) / 40, 0, 1);
+      if (k > 0 && now >= this._staggerCd) {
+        const v = this.body.velocity, d = info.dir;
+        const h = Math.hypot(d.x, d.z) || 1;
+        v.x += (d.x / h) * 1.7 * k;
+        v.z += (d.z / h) * 1.7 * k;
+        this.staggerUntil = Math.max(this.staggerUntil, now + 0.1 + 0.32 * k * (1.15 - this.diff.tracking * 0.06));
+        this._staggerCd = now + 0.55;
+        this.gunner.errX += (Math.random() - 0.5) * 0.1 * k;
+        this.gunner.errY += 0.05 * k;
+      }
+      // Beintreffer: kurz hinken (langsamer, kein Sprint)
+      const py = info.point ? info.point.y - this.position.y : 1;
+      if (info.zone === 'limb' && py < 0.95) this.limpUntil = now + 1.1 + Math.min(1, amt / 40);
+    }
+  }
+
+  /** Blendgranate (Ereignis actor:flashed): Schutzhaltung, Ziel verloren, kurz orientierungslos. */
+  onFlashed(strength = 1, duration = 2) {
+    if (!this.alive) return;
+    const s = this.soldier;
+    if (s) s.playFlash(duration, strength);
+    // gesehene Gegner sind nicht mehr sichtbar (Wahrnehmung setzt aus, solange flashedUntil läuft – perception.js)
+    const list = this.memory.list;
+    for (let i = 0; i < list.length; i++) { const r = list[i]; if (r.visible) { r.visible = false; r.spot = Math.min(r.spot, 0.6 * (1 - strength)); } }
+    this.gunner.errX += (Math.random() - 0.5) * 0.4 * strength;
+    this.gunner.errY += (Math.random() - 0.5) * 0.25 * strength;
+    this._leanWant = 0;
+  }
+
+  /** Explosion in der Nähe (manager): Taumeln weg vom Zentrum, Stoß, Zielfehler. strength 0..1,5 */
+  onBlast(dir, strength = 1) {
+    if (!this.alive || !dir) return;
+    const s = this.soldier;
+    if (s) s.playStagger(dir, strength);
+    const now = this.G.time.elapsed;
+    const v = this.body.velocity;
+    v.x += dir.x * 2.6 * strength;
+    v.z += dir.z * 2.6 * strength;
+    this.staggerUntil = Math.max(this.staggerUntil, now + 0.25 + 0.5 * Math.min(1, strength));
+    this.gunner.errX += (Math.random() - 0.5) * 0.25 * strength;
+    this.gunner.errY += (Math.random() - 0.5) * 0.18 * strength;
+    this._leanWant = 0;
   }
 
   onDeath(info = {}) {
@@ -257,6 +328,9 @@ export class Bot {
     this.spawnTime = this.G.time.elapsed;
     this.respawnAt = null;
     this.crouching = this.sprinting = false;
+    this.lean = 0; this.leanRoll = 0; this.leanOffset.set(0, 0, 0); this._leanWant = 0; this.leanSide = 0;
+    this.staggerUntil = this.limpUntil = this._staggerCd = 0;
+    this.flashedUntil = 0; this.flashStrength = 0;
     this.memory.clear();
     this.gunner.reset();
     this.nav.reset();
@@ -358,13 +432,23 @@ export class Bot {
       if (l > 1) { mx /= l; mz /= l; }
     }
 
+    // Taumeln/Blendung (C2/C6): Eigenbewegung gedämpft, geblendet kaum (orientierungslos)
+    const staggered = now < this.staggerUntil;
+    const blinded = this.flashedUntil > now;
+    if (staggered) { mx *= 0.25; mz *= 0.25; wantJump = false; }
+    if (blinded) { mx *= 0.3; mz *= 0.3; wantJump = false; if (this.flashStrength > 0.6) wantCrouch = true; }
+    // Lehnen: im Stand an Deckungskanten statt Seitschritt (Wunsch aus dem Gefecht bzw. Sichtprüfung)
+    if (!frozen) this._updateLean(dt, now, rec, Math.hypot(mx, mz));
+    if (Math.abs(this.lean) > 0.25) { mx *= 0.15; mz *= 0.15; }
+
     // Tempo
     const def = w ? w.currentDef : null;
     const ads = w ? w.adsProgress || 0 : 0;
     const moveLen = Math.hypot(mx, mz);
     const fwdX = -Math.sin(this.yaw), fwdZ = -Math.cos(this.yaw);
     const facing = moveLen > 0.1 ? (mx * fwdX + mz * fwdZ) / moveLen : 0;
-    let sprint = speedKind === 'sprint' && facing > 0.8 && ads < 0.1 && (!w || w.canSprint !== false) && body.onGround && !wantCrouch && now - (w ? w.lastShotTime : 0) > 0.4;
+    const limping = now < this.limpUntil;
+    let sprint = speedKind === 'sprint' && facing > 0.8 && ads < 0.1 && (!w || w.canSprint !== false) && body.onGround && !wantCrouch && now - (w ? w.lastShotTime : 0) > 0.4 && !limping && !staggered && Math.abs(this.lean) < 0.1;
     if (sprint && rec && rec.visible) sprint = false;
     this.sprinting = sprint && moveLen > 0.3;
     if (wantCrouch !== this.crouching) {
@@ -372,7 +456,7 @@ export class Bot {
       else if (body.canStand(world)) this.crouching = false;
     }
     const base = this.crouching ? SPEED.crouch : this.sprinting ? SPEED.sprint : SPEED[speedKind === 'sprint' ? 'run' : speedKind] || SPEED.run;
-    const mult = (def && def.moveSpeedMult ? def.moveSpeedMult : 1) * (1 + ((def && def.adsMoveMult ? def.adsMoveMult : 0.6) - 1) * ads);
+    const mult = (def && def.moveSpeedMult ? def.moveSpeedMult : 1) * (1 + ((def && def.adsMoveMult ? def.adsMoveMult : 0.6) - 1) * ads) * (limping ? 0.62 : 1);
     const tx = mx * base * mult, tz = mz * base * mult;
 
     // Physik
@@ -425,7 +509,7 @@ export class Bot {
     it.sprinting = this.sprinting;
     if (!frozen && w) {
       if (tp) this._throw(now, it);
-      else if (rec) gunner.trigger(dt, now, angErr, it);
+      else if (rec && !staggered && !blinded) gunner.trigger(dt, now, angErr, it);
       if (!rec || !rec.visible) {
         if (this.wantReload) { it.reload = true; this.wantReload = false; }
         // zurück zur Hauptwaffe
@@ -443,6 +527,86 @@ export class Bot {
 
     // --- Darstellung
     this._animate(dt, now);
+  }
+
+  /* ================================================================ Lehnen (C6) */
+
+  /**
+   * Lehnen statt Seitschritt an Deckungskanten: Ist das Ziel (bzw. seine letzte Position) aus dem Kopf nicht zu sehen,
+   * aus einem um ±0,34 m versetzten Kopf aber schon, lehnt sich der Bot zu dieser Seite (gedrosselt geprüft, aus dem
+   * Strahlenbudget). Gefechtsmodus „Spähen“ an hoher Deckung setzt den Wunsch über gunner.peekLean (0 = verdeckt
+   * bleiben). Wände begrenzen die Auslenkung (Kopf bleibt außerhalb). Ergebnis: lean, leanOffset, leanRoll.
+   */
+  _updateLean(dt, now, rec, moveLen) {
+    const w = this.weapon;
+    const body = this.body;
+    const busy = !w || w.isReloading || w.isThrowing || w.isMeleeing || w.isSwitching;
+    const can = body.onGround && !this.sprinting && moveLen < 0.6 && !busy && this.flashedUntil <= now && now >= this.staggerUntil &&
+      !!rec && rec.actor.alive && now - (rec.seenAt || -1e9) < 3.5 && Math.hypot(body.velocity.x, body.velocity.z) < 2.2;
+    let want = 0;
+    if (can) {
+      if (now >= this._leanCheckAt) {
+        this._leanCheckAt = now + 0.28 + Math.random() * 0.14;
+        this.leanSide = this._leanProbe(rec);
+      }
+      const peek = this.gunner.peekLean;
+      if (peek === 0) want = 0; // Spähen: gerade in Deckung
+      else if (this.leanSide === -1 || this.leanSide === 1) want = this.leanSide;
+    } else if (busy && Math.abs(this.lean) > 0.05) {
+      want = 0; // zum Nachladen/Werfen zurück in Deckung
+    }
+    // Wandbegrenzung je Seite (aus der letzten Prüfung)
+    if (want < 0) want = -Math.min(1, this._leanLimit[0]);
+    else if (want > 0) want = Math.min(1, this._leanLimit[1]);
+    this._leanWant = want;
+    this.lean += (want - this.lean) * (1 - Math.exp(-LEAN_RATE * dt));
+    if (Math.abs(this.lean) < 1e-3) this.lean = 0;
+    // Kopfversatz (Welt) im Körperrahmen der Figur (Hüftgierung folgt dem Ziel mit Totzone): rechts = (cos, 0, −sin)
+    const yaw = this._leanYaw();
+    const rx = Math.cos(yaw), rz = -Math.sin(yaw);
+    const a = this.lean * LEAN_SIDE;
+    this.leanOffset.set(rx * a, -Math.abs(this.lean) * LEAN_DROP, rz * a);
+    this.leanRoll = -this.lean * 0.38;
+  }
+
+  /** Gierung, um die die Figur lehnt (Körper der sichtbaren Figur, sonst Blick). */
+  _leanYaw() {
+    const s = this.soldier;
+    return s && s.state === 'alive' && Number.isFinite(s.anim.bodyYaw) ? s.anim.bodyYaw : this.yaw;
+  }
+
+  /** Sichtprüfung für das Lehnen → 0 (ohne Lehnen frei), −1/1 (diese Seite frei), null (keine). Max. 3 + 2 Strahlen. */
+  _leanProbe(rec) {
+    const W = this.G.world;
+    const mgr = this.manager;
+    if (!W || !W.lineOfSight) return null;
+    const p = this.body.position;
+    const eye = _le.set(p.x, p.y + this.body.height - 0.15, p.z);
+    const a = rec.actor;
+    if (rec.visible && a.alive) targetPoints(a, _lp, _lh);
+    else _lp.copy(rec.pos).setY(rec.pos.y + 1.2);
+    if (!mgr.takeLos()) return this.leanSide;
+    if (W.lineOfSight(eye, _lp)) return 0;
+    // Seite zuerst, die zum Ziel zeigt (Ziel rechts vom Blick → rechts lehnen)
+    const yaw = this._leanYaw();
+    const rx = Math.cos(yaw), rz = -Math.sin(yaw);
+    const side0 = ((_lp.x - p.x) * rx + (_lp.z - p.z) * rz) >= 0 ? 1 : -1;
+    for (let k = 0; k < 2; k++) {
+      const side = k === 0 ? side0 : -side0;
+      // Wand neben dem Kopf? Auslenkung begrenzen (Kopf 8 cm vor der Wand)
+      let lim = 1;
+      if (typeof W.raycast === 'function') {
+        _ld.set(rx * side, 0, rz * side);
+        const hit = W.raycast(eye, _ld, LEAN_SIDE + 0.12);
+        if (hit && hit.distance < LEAN_SIDE + 0.12) lim = Math.max(0, (hit.distance - 0.08) / LEAN_SIDE);
+      }
+      this._leanLimit[side < 0 ? 0 : 1] = lim;
+      if (lim < 0.55) continue;
+      if (!mgr.takeLos()) return this.leanSide;
+      const e2 = _ld.set(eye.x + rx * side * LEAN_SIDE * lim, eye.y - LEAN_DROP, eye.z + rz * side * LEAN_SIDE * lim);
+      if (W.lineOfSight(e2, _lp)) return side;
+    }
+    return null;
   }
 
   _throw(now, it) {
@@ -555,6 +719,7 @@ export class Bot {
     p.cooking = w ? w.cooking : false;
     p.meleeing = w ? w.isMeleeing : false;
     p.idleLook = !this.gunner.rec && Math.hypot(this.body.velocity.x, this.body.velocity.z) < 0.4;
+    p.lean = this.lean;
     p.position = this.body.position;
     s.animate(adt, p);
     // Schritte (synchron zum Aufsetzen der Füße)

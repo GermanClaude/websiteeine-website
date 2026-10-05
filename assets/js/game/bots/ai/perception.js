@@ -43,6 +43,16 @@ export function sense(bot, now, dt) {
   const n = list.length;
   const st = bot._sense || (bot._sense = { next: 0, remain: 0, carry: 0 });
   if (!n) { st.remain = 0; return; }
+  // Geblendet (Blendgranate): sieht nichts – bekannte Ziele verblassen, Hören läuft weiter (manager)
+  if (bot.flashedUntil > now) {
+    const L = mem.list;
+    for (let i = 0; i < L.length; i++) { const r = L[i]; if (r.visible) r.visible = false; r.spot = Math.max(0, r.spot - dt * 0.6); }
+    st.remain = 0;
+    return;
+  }
+  // Rauch (Arsenal: G.weapons.smokes/smokeVisibility): dichte Wolken verdecken, dünne erschweren das Entdecken
+  const WS = G.weapons;
+  const smoke = WS && WS.smokes && WS.smokes.length && typeof WS.smokeVisibility === 'function' ? WS : null;
   // unterbrochener Durchgang → dort fortsetzen (Zeit seit der letzten Prüfung dieser Einträge mitzählen)
   const start = st.next % n;
   const count = st.remain > 0 ? Math.min(n, st.remain) : n;
@@ -79,6 +89,11 @@ export function sense(bot, now, dt) {
     let vis = !world || !world.lineOfSight || world.lineOfSight(_eye, _p);
     let partial = false;
     if (!vis && mgr.takeLos()) { vis = world.lineOfSight(_eye, _h); partial = vis; }
+    let haze = 1;
+    if (vis && smoke) {
+      haze = smoke.smokeVisibility(_eye, partial ? _h : _p);
+      if (haze < 0.3) vis = false;
+    }
     if (!vis) {
       if (rec && rec.visible) rec.visible = false;
       if (rec) rec.spot = Math.max(0, rec.spot - dt * 0.35);
@@ -99,6 +114,7 @@ export function sense(bot, now, dt) {
       if (hurt) rate *= 2.5;
       if (d < 6) rate *= 4;
       if (a.isStreakEntity) rate *= 1.5;
+      rate *= haze; // Dunst/Rauchrand
       rec.spot = Math.min(1, rec.spot + rate * dt);
       if (rec.spot >= 1) {
         rec.acquiredAt = now;

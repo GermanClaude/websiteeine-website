@@ -102,7 +102,8 @@ const ANIMS = {
   idle: 'Stehen', ads: 'Anschlag', fire: 'Feuern', walk: 'Gehen', run: 'Laufen', sprint: 'Sprint', strafeR: 'Seitwärts rechts',
   strafeL: 'Seitwärts links', back: 'Rückwärts', diag: 'Diagonal', crouch: 'Hocke', crouchwalk: 'Schleichen', air: 'Sprung',
   turn: 'Drehen im Stand', aimUp: 'Ziel hoch', aimDown: 'Ziel tief', reload: 'Nachladen', reloadEmpty: 'Nachladen (leer)',
-  throw: 'Granatwurf', melee: 'Nahkampf', hit: 'Treffer', death: 'Tod (Ragdoll)',
+  throw: 'Granatwurf', melee: 'Nahkampf', hit: 'Treffer', hitLeg: 'Treffer Bein', hitArm: 'Treffer Arm', stagger: 'Taumeln (Explosion)',
+  flash: 'Geblendet', leanL: 'Lehnen links', leanR: 'Lehnen rechts', death: 'Tod (Ragdoll)',
 };
 const flatWorld = { groundHeight: () => 0, raycast: () => null };
 
@@ -209,7 +210,18 @@ function galleryParams(s, i, t, dt) {
     }
     case 'throw': { const c = t % 1.8; p.throwing = c < 0.96; break; }
     case 'melee': { const c = t % 1.4; p.meleeing = c < 0.75; break; }
-    case 'hit': if (Math.floor(t / 0.9) !== Math.floor((t - dt) / 0.9)) s.playHit(new THREE.Vector3(Math.sin(t * 3 + i), 0, Math.cos(t * 3 + i)), i % 3 === 0 ? 'head' : 'body', 30); break;
+    case 'hit': if (Math.floor(t / 0.9) !== Math.floor((t - dt) / 0.9)) {
+      // Rumpf- bzw. Kopftreffer von vorn, wechselnd links/rechts der Mitte (Drehung um die Einschlagstelle)
+      const side = Math.floor(t / 0.9) % 2 ? 1 : -1;
+      const pt = new THREE.Vector3(s.home.x + side * 0.12, i % 3 === 0 ? 1.7 : 1.3, -0.12);
+      s.playHit(new THREE.Vector3(Math.sin(t * 3 + i) * 0.3, 0, 1).normalize(), i % 3 === 0 ? 'head' : 'body', 30, pt);
+    } break;
+    case 'hitLeg': if (Math.floor(t / 1.2) !== Math.floor((t - dt) / 1.2)) s.playHit(new THREE.Vector3(0, 0, 1), 'limb', 30, new THREE.Vector3(s.home.x + (i % 2 ? 0.1 : -0.1), 0.6, -0.05)); break;
+    case 'hitArm': if (Math.floor(t / 1.0) !== Math.floor((t - dt) / 1.0)) { p.ads = 1; s.playHit(new THREE.Vector3(0.3, 0, 1).normalize(), 'limb', 28, new THREE.Vector3(s.home.x + 0.22, 1.3, -0.1)); } else p.ads = 1; break;
+    case 'stagger': if (Math.floor(t / 1.8) !== Math.floor((t - dt) / 1.8)) s.playStagger(new THREE.Vector3(Math.sin(i), 0, 1).normalize(), 1); break;
+    case 'flash': if (Math.floor(t / 3.2) !== Math.floor((t - dt) / 3.2)) s.playFlash(2.2, 1); break;
+    case 'leanL': p.ads = 1; p.lean = -1; break;
+    case 'leanR': p.ads = 1; p.lean = 1; break;
     default: break;
   }
   p.position = s.home;
