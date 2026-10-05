@@ -59,7 +59,7 @@ const TAIL_DB = -8, MECH_DB = -14;
 const REC_TRIM = {
   step_concrete: 3, step_wood: 4, step_dirt: 4.5, step_gravel: 4, step_metal: 3, step_grass: -6.5,
   impact_concrete: 2.5, impact_wood: 5.5, impact_dirt: -3.5, impact_glass: -6, hit_flesh: 4.5,
-  melee_hit: 5, land: 2.5, explosion: -1.5, explosion_far: 4,
+  melee_hit: 4, land: 2.5, explosion: -1.5, explosion_far: 2,
 };
 /** Eigener Schuss: Aufnahme mit echtem Crest-Faktor läuft in den Limiter → etwas mehr Pegel für gleiche Lautheit. */
 const PLAYER_NEAR_DB = 2.5, FAR_DB = 2;
@@ -701,7 +701,7 @@ export class AudioEngine {
     const rn = o.proc ? null : this._recName(e.name);
     if (rn) {
       const s = this._pickRec(rn, o.variant);
-      if (s) { buffer = s.buffer; offset = s.offset; recGain = this._recGain(rn); recorded = true; }
+      if (s) { buffer = s.buffer; offset = s.offset; recGain = this._recGain(rn) * (s.gain ?? 1); recorded = true; }
     }
     if (!buffer) {
       if (e.sampleOnly) { this.stats.missed++; this.stats.lastMissed = e.name; this._recName(e.name); return null; }

@@ -42,7 +42,7 @@ export const LIB_MATERIALS = {
   cobble: { id: 'cobblestone', color: 0.85 },
   paving: { id: 'paving_flagstone', color: [1.45, 1.6, 1.75] }, // Weißabgleich Richtung Kalkstein
   roof_tiles: { id: 'roof_clay_tiles', color: 0.95 },
-  wood_planks: { id: 'wood_planks', color: 1.35 },
+  wood_planks: { id: 'wood_planks', color: [1.2, 1.32, 1.5] }, // etwas entsättigt (Fotoscan sehr orange)
   wood_dark: { id: 'wood_planks_dark', color: 0.8 },
   wood_crate: { id: 'wood_crate', color: 0.95, repeat: 1, macro: false },
   wood_weathered: { id: 'wood_planks_weathered', color: 1.2 },
@@ -95,9 +95,11 @@ const LOAD_TIMEOUT = { low: 25, medium: 30, high: 35, ultra: 40 };
 
 const SKY_TIER = { low: 512, medium: 1024, high: 1024, ultra: 1024 };
 
-/** low (Handy, erstes Match ≤ 12 MB): Requisiten, deren glb in der gewählten Stufe größer ist, bleiben bei ihrer
- * prozeduralen Ersatzform (bzw. entfallen als reine Ausstattung) – z. B. Klimagerät 557 KB, Mülltonne 383 KB. */
+/** low (Handy, erstes Match ≤ 12 MB samt Code und Klang): Requisiten über MODEL_MAX_BYTES (glb der gewählten Stufe,
+ * z. B. Klimagerät 557 KB) und – die kleinsten zuerst – alles jenseits von MODEL_BUDGET_BYTES je Karte bleiben bei ihrer
+ * prozeduralen Ersatzform bzw. entfallen als reine Ausstattung. */
 const MODEL_MAX_BYTES = { low: 256 * 1024 };
+const MODEL_BUDGET_BYTES = { low: 1.6 * 1048576 };
 
 let hdrLoader = null;
 /** Von der Welt geladene Bibliotheks-IDs (Sätze, Modelle, HDRIs) – nur diese gibt releaseOthers() frei (andere
@@ -223,14 +225,17 @@ export function createWorldAssets(G, def, quality) {
       if (!spec) continue;
       jobs.push(ktxOk.then(ok => (ok ? loadSet(spec.id, spec.tier) : null)).then(v => { got.set('tex:' + n, v); }));
     }
-    const maxBytes = MODEL_MAX_BYTES[q] || Infinity;
-    const heavy = (id) => {
-      const e = assets.manifest.models[id];
-      return !!e && (e.tiers[pickTier(e.tiers, stats.tier.model)]?.bytes || 0) > maxBytes;
-    };
-    stats.modelsSkipped = modelIds.filter(heavy);
+    const maxBytes = MODEL_MAX_BYTES[q] || Infinity, budget = MODEL_BUDGET_BYTES[q] || Infinity;
+    const bytesOf = (id) => { const e = assets.manifest.models[id]; return e ? e.tiers[pickTier(e.tiers, stats.tier.model)]?.bytes || 0 : 0; };
+    const skip = new Set();
+    let used = 0;
+    for (const id of [...modelIds].sort((a, b) => bytesOf(a) - bytesOf(b))) {
+      const by = bytesOf(id);
+      if (by > maxBytes || used + by > budget) skip.add(id); else used += by;
+    }
+    stats.modelsSkipped = modelIds.filter(id => skip.has(id));
     for (const id of modelIds) {
-      if (heavy(id)) { got.set('model:' + id, null); continue; }
+      if (skip.has(id)) { got.set('model:' + id, null); continue; }
       jobs.push(ktxOk.then(ok => (ok ? loadModel(id) : null)).then(v => { got.set('model:' + id, v); }));
     }
     let done = 0;

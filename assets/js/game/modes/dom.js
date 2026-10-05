@@ -48,10 +48,7 @@ export class DomMode extends BaseMode {
       f.counts.B = 0;
       f.present.length = 0;
       for (const a of this.G.actors) {
-        if (!a.alive || (a.team !== 'A' && a.team !== 'B')) continue;
-        const dx = a.position.x - f.position.x;
-        const dz = a.position.z - f.position.z;
-        if (dx * dx + dz * dz > f.radius * f.radius || Math.abs(a.position.y - f.position.y) > VERT) continue;
+        if (!a.alive || (a.team !== 'A' && a.team !== 'B') || !this._inZone(a, f)) continue;
         f.counts[a.team] += 1;
         f.present.push(a);
       }
@@ -113,6 +110,21 @@ export class DomMode extends BaseMode {
     if (changed || now - this._emitAt > 1) this._emit(changed);
   }
 
+  /** Steht `a` im Flaggenkreis? (Eroberung: Höhenband je Flagge) */
+  _inZone(a, f) {
+    const dx = a.position.x - f.position.x;
+    const dz = a.position.z - f.position.z;
+    if (dx * dx + dz * dz > f.radius * f.radius) return false;
+    const dy = a.position.y - f.position.y;
+    return f.band ? dy >= f.band[0] && dy <= f.band[1] : Math.abs(dy) <= VERT;
+  }
+
+  /** Punkte je Grund (Modus-Daten objective.points, sonst SCORE_RULES). */
+  pointsFor(reason) {
+    const p = this.def.objective && this.def.objective.points;
+    return p && Number.isFinite(p[reason]) ? p[reason] : undefined;
+  }
+
   /** Bis zum nächsten Punkt-Takt (s) – fürs HUD. */
   get tickIn() {
     return Math.max(0, this.cfg.tickInterval - this._tickT);
@@ -133,7 +145,7 @@ export class DomMode extends BaseMode {
     f.lastOwner = prev;
     f.owner = null;
     this._dominating = null;
-    for (const a of f.present) if (a.team === team) this.award(a, 'neutralize');
+    for (const a of f.present) if (a.team === team) this.award(a, 'neutralize', this.pointsFor('neutralize'));
     this.G.events.emit('objective:neutral', { objective: this._public(f), by: team, prev });
   }
 
@@ -143,8 +155,9 @@ export class DomMode extends BaseMode {
     f.capturingTeam = null;
     for (const a of f.present) {
       if (a.team !== team) continue;
-      this.award(a, 'capture');
+      this.award(a, 'capture', this.pointsFor('capture'));
       a.stats.captures = (a.stats.captures || 0) + 1;
+      this.onCaptured(a, f);
       this.medals.award(a, 'eroberer');
     }
     this.G.events.emit('objective:captured', { objective: this._public(f), team, prev });
@@ -162,7 +175,7 @@ export class DomMode extends BaseMode {
       if (f.owner !== killer.team) continue;
       const near = (a) => a && a.position && a.position.distanceTo(f.position) <= Math.max(R, f.radius + 2);
       if (near(victim) || near(killer)) {
-        this.award(killer, 'defend');
+        this.award(killer, 'defend', this.pointsFor('defend'));
         this.medals.award(killer, 'verteidiger');
         break;
       }
@@ -211,6 +224,8 @@ export class DomMode extends BaseMode {
     }
     return out;
   }
+
+  onCaptured() {}
 
   extraRow(a) {
     return { label: 'Eroberungen', value: a.stats ? a.stats.captures || 0 : 0 };

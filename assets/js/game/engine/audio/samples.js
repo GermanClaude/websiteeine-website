@@ -240,7 +240,7 @@ class SampleLibrary {
       const bytes = buf.length * buf.numberOfChannels * 4;
       const list = this.buffers.get(j.name) || [];
       if (!list.some((x) => x.v === j.v)) {
-        list.push({ buffer: buf, offset, v: j.v, bytes, idx: j.idx });
+        list.push({ buffer: buf, offset, v: j.v, bytes, idx: j.idx, gain: this._level(s, meta) });
         list.sort((a, b) => a.idx - b.idx);
         this.buffers.set(j.name, list);
         this.stats.bytes += bytes;
@@ -272,6 +272,19 @@ class SampleLibrary {
     if (this.stats.bytes + need <= cap) return true;
     // Erste Variante angehefteter Klänge immer (sonst wäre der Klang ganz weg), weitere nur mit Platz
     return this.pins.has(j.name) && j.idx === 0;
+  }
+
+  /**
+   * Varianten angleichen: manche Sätze stammen aus verschiedenen Aufnahmen (z. B. ferne Explosion −13 / −21 LUFS).
+   * 75 % des Abstands zum Leistungsmittel aller Varianten (Manifest lufsM), höchstens ±6 dB → Mittel des Satzes
+   * bleibt, natürliche Streuung bleibt, Ausreißer verschwinden. → linearer Faktor
+   */
+  _level(s, meta) {
+    const L = s.variants.map((v) => v.lufsM).filter(Number.isFinite);
+    if (L.length < 2 || !Number.isFinite(meta.lufsM)) return 1;
+    const mean = 10 * Math.log10(L.reduce((a, x) => a + 10 ** (x / 10), 0) / L.length);
+    const db = Math.max(-6, Math.min(6, 0.75 * (mean - meta.lufsM)));
+    return Math.pow(10, db / 20);
   }
 
   /** Führende Stille unter −60 dB (relativ zur Spitze laut Manifest), höchstens 50 ms → Startversatz (s). */

@@ -26,6 +26,7 @@ export const ACTION_DEFS = Object.freeze([
   { id: 'sprint', label: 'Sprinten (im Zielfernrohr: Atem anhalten)', short: 'Sprinten', group: 'bewegung', modeKey: 'sprintMode' },
   { id: 'jump', label: 'Springen / Überklettern', group: 'bewegung' },
   { id: 'crouch', label: 'Ducken (im Sprint: rutschen)', short: 'Ducken', group: 'bewegung', modeKey: 'crouchMode' },
+  { id: 'prone', label: 'Hinlegen (Controller: Ducken halten)', short: 'Hinlegen', group: 'bewegung' },
   { id: 'lean_left', label: 'Nach links lehnen', short: 'Links lehnen', group: 'bewegung', modeKey: 'leanMode' },
   { id: 'lean_right', label: 'Nach rechts lehnen', short: 'Rechts lehnen', group: 'bewegung', modeKey: 'leanMode' },
   { id: 'fire', label: 'Feuern', group: 'kampf' },
@@ -38,10 +39,14 @@ export const ACTION_DEFS = Object.freeze([
   { id: 'slot1', label: 'Primärwaffe', group: 'kampf' },
   { id: 'slot2', label: 'Zweitwaffe', group: 'kampf' },
   { id: 'light', label: 'Lampe / Laser', short: 'Lampe', group: 'kampf' },
+  { id: 'plate', label: 'Panzerplatte einsetzen (halten: alle)', short: 'Platte', group: 'kampf' },
+  { id: 'gadget', label: 'Klassen-Ausrüstung (Spritze, Verbandskasten, Reparatur, Markieren)', short: 'Ausrüstung', group: 'kampf' },
   { id: 'streak1', label: 'Serienprämie 1 (Aufklärer)', short: 'Serie 1', group: 'serien' },
   { id: 'streak2', label: 'Serienprämie 2 (Präzisionsschlag)', short: 'Serie 2', group: 'serien' },
   { id: 'streak3', label: 'Serienprämie 3 (Wachgeschütz)', short: 'Serie 3', group: 'serien' },
   { id: 'interact', label: 'Interagieren', group: 'sonstiges' },
+  { id: 'inspect', label: 'Waffe inspizieren (nur PC)', short: 'Inspizieren', group: 'sonstiges' },
+  { id: 'loadout', label: 'Ausrüsten (nach dem Tod / im Pausemenü)', short: 'Ausrüsten', group: 'sonstiges' },
   { id: 'scoreboard', label: 'Punktetabelle', group: 'sonstiges' },
   { id: 'pause', label: 'Pause', group: 'sonstiges', fixed: true },
 ]);
@@ -61,6 +66,7 @@ export const DEFAULT_BINDINGS = deepFreeze({
     fire: ['Mouse0'], ads: ['Mouse2'], reload: ['KeyR'], melee: ['KeyV', 'Mouse3'], grenade: ['KeyG'], tactical: ['KeyX'],
     swap: ['Mouse4', 'Wheel'], slot1: ['Digit1'], slot2: ['Digit2'], light: ['KeyT'],
     streak1: ['Digit3'], streak2: ['Digit4'], streak3: ['Digit5'], interact: ['KeyF'], scoreboard: ['Tab'], pause: ['Escape'],
+    prone: ['KeyZ'], plate: ['Digit4'], gadget: ['KeyB'], inspect: ['KeyI'], loadout: ['KeyL'],
   },
   pad: {
     move_forward: [], move_back: [], move_left: [], move_right: [],
@@ -68,11 +74,14 @@ export const DEFAULT_BINDINGS = deepFreeze({
     fire: ['Pad7'], ads: ['Pad6'], reload: ['Pad2'], melee: ['Pad11'], grenade: ['Pad4'], tactical: ['Pad5'],
     swap: ['Pad3'], slot1: [], slot2: [], light: ['Pad13'],
     streak1: ['Pad12'], streak2: ['Pad14'], streak3: ['Pad15'], interact: ['Pad2'], scoreboard: ['Pad8'], pause: ['Pad9'],
+    prone: [], plate: ['Pad13'], gadget: ['Pad6+Pad3'], inspect: [], loadout: ['Pad3'],
   },
 });
 
 /** Aktionspaare, die sich eine Taste teilen dürfen (kein Konflikt): X = Nachladen + Interagieren wie in CoD. */
-export const ALLOWED_SHARES = Object.freeze([['reload', 'interact']]);
+// Platte teilt sich 4 mit Serie 2 bzw. ▼ mit der Lampe: player.js entscheidet (Serie bereit → Serie; Platte nötig → Platte).
+// Ausrüsten teilt Y mit dem Waffenwechsel (nur nach dem Tod/in Menüs wirksam).
+export const ALLOWED_SHARES = Object.freeze([['reload', 'interact'], ['plate', 'streak2'], ['plate', 'light'], ['loadout', 'swap']]);
 const shareOk = (a, b) => ALLOWED_SHARES.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
 
 /** Nicht belegbar: Esc (verlässt den Pointer-Lock), Browser-/Systemtasten, Home-Taste des Gamepads. */
@@ -339,6 +348,9 @@ export const TOUCH_BUTTONS = Object.freeze([
   { id: 'leanL', sel: '.tc-lean-l', label: 'Links lehnen', optional: true, def: { x: 4.8, y: 56, s: 46 } },
   { id: 'leanR', sel: '.tc-lean-r', label: 'Rechts lehnen', optional: true, def: { x: 11, y: 56, s: 46 } },
   { id: 'light', sel: '.tc-light', label: 'Lampe', auto: 'light', def: { x: 63, y: 42, s: 46 } },
+  { id: 'prone', sel: '.tc-prone', label: 'Hinlegen', def: { x: 94.2, y: 70, s: 46 } },
+  { id: 'plate', sel: '.tc-plate', label: 'Panzerplatte', auto: 'armor', def: { x: 54, y: 89, s: 46 } },
+  { id: 'gadget', sel: '.tc-gadget', label: 'Klassen-Ausrüstung', auto: 'gadget', def: { x: 54, y: 75, s: 46 } },
   { id: 'streaks', sel: '.tc-streaks', label: 'Serienprämien', kind: 'group' },
   { id: 'score', sel: '.tc-score', label: 'Punktetabelle' },
   { id: 'pause', sel: '.tc-pause', label: 'Pause' },

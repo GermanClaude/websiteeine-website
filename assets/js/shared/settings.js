@@ -32,6 +32,9 @@ export const DEFAULTS = Object.freeze({
   gfxPost: 'auto', gfxShadows: 'auto', gfxAA: 'auto', gfxAO: 'auto', gfxBloom: 'auto', gfxEffects: 'auto', gfxPixelRatio: 'auto',
   renderScale: 'auto', fpsLimit: '0',
   gyroBiasX: 0, gyroBiasY: 0, gyroBiasZ: 0, padIcons: 'auto',
+  // Kernmechanik (core-mechanics): Spielstil, Klassen, stufenlose Zielhilfe und Auto-Feuer
+  gameStyle: 'arcade', realisticCrosshair: false, lastClass: 'sturm', classLoadouts: Object.freeze({}),
+  aimAssistLevel: 0.4, aimAssistDevices: 'touch_pad', autoFireLevel: 0.5, autoFireDevices: 'touch',
 });
 
 const HOLD_TOGGLE = Object.freeze({ options: ['hold', 'toggle'], labels: { hold: 'Halten', toggle: 'Umschalten' } });
@@ -62,8 +65,8 @@ export const SETTINGS_SCHEMA = Object.freeze({
   },
   crosshairColor: { type: 'color', label: 'Fadenkreuzfarbe', group: 'hud' },
   showFps: { type: 'boolean', label: 'FPS anzeigen', group: 'hud' },
-  aimAssist: { type: 'boolean', label: 'Zielhilfe (Touch & Controller)', group: 'steuerung' },
-  autoFire: { type: 'boolean', label: 'Automatisch feuern (Touch)', group: 'steuerung' },
+  aimAssist: { type: 'boolean', label: 'Zielhilfe', group: 'steuerung' },
+  autoFire: { type: 'boolean', label: 'Automatisch feuern', group: 'steuerung' },
   difficulty: {
     type: 'enum', label: 'Bot-Schwierigkeit', group: 'spiel',
     options: ['rekrut', 'regulaer', 'veteran', 'elite'],
@@ -99,7 +102,8 @@ export const SETTINGS_SCHEMA = Object.freeze({
   },
   padVibration: { type: 'boolean', label: 'Vibration (Controller)', group: 'steuerung' },
   padSwapSticks: { type: 'boolean', label: 'Sticks tauschen (Linkshänder)', group: 'steuerung' },
-  aimAssistStrength: { type: 'number', min: 0.2, max: 1.5, step: 0.05, label: 'Stärke der Zielhilfe', group: 'steuerung' },
+  // Älterer Controller-Faktor (wirkt weiter multiplikativ); die sichtbare Stärke ist jetzt aimAssistLevel
+  aimAssistStrength: { type: 'number', min: 0.2, max: 1.5, step: 0.05, label: 'Zielhilfe-Faktor (Controller)', group: 'intern' },
   gyroMode: {
     type: 'enum', label: 'Gyro-Zielen (Handy)', group: 'steuerung',
     options: ['off', 'ads', 'always'], labels: { off: 'Aus', ads: 'Beim Zielen', always: 'Immer' },
@@ -190,11 +194,77 @@ export const SETTINGS_SCHEMA = Object.freeze({
     type: 'enum', label: 'Controller-Symbole', group: 'belegung',
     options: ['auto', 'xbox', 'ps'], labels: { auto: 'Automatisch', xbox: 'Xbox', ps: 'PlayStation' },
   },
+  gameStyle: {
+    type: 'enum', label: 'Spielstil', group: 'spiel',
+    options: ['arcade', 'realistisch'], labels: { arcade: 'Arcade', realistisch: 'Realistisch' },
+  },
+  realisticCrosshair: { type: 'boolean', label: 'Fadenkreuz im Spielstil „Realistisch“', group: 'hud' },
+  lastClass: { type: 'id', label: 'Letzte Klasse', group: 'intern' },
+  classLoadouts: { type: 'classLoadouts', label: 'Ausrüstung je Klasse', group: 'intern' },
+  aimAssistLevel: {
+    type: 'number', min: 0, max: 1, step: 0.05, label: 'Stärke der Zielhilfe (Bremsen → Ziehen → Einrasten)', group: 'steuerung',
+  },
+  aimAssistDevices: {
+    type: 'enum', label: 'Zielhilfe für', group: 'steuerung',
+    options: ['touch', 'touch_pad', 'alle'], labels: { touch: 'Nur Touch', touch_pad: 'Touch & Controller', alle: 'Alle Geräte (auch Maus)' },
+  },
+  autoFireLevel: {
+    type: 'number', min: 0, max: 1, step: 0.05, label: 'Stärke des Auto-Feuers (Verzögerung, Reichweite, Toleranz)', group: 'steuerung',
+  },
+  autoFireDevices: {
+    type: 'enum', label: 'Auto-Feuer für', group: 'steuerung',
+    options: ['touch', 'alle'], labels: { touch: 'Nur Touch', alle: 'Alle Geräte (auch Maus & Controller)' },
+  },
 });
+
+/**
+ * Obergrenzen der Hilfen für späteres Online-Spiel (G.match.assistCap): offline keine, Koop moderat,
+ * Spieler gegen Spieler nur leichte Zielhilfe und kein Auto-Feuer. Geräte-Stufen: touch < touch_pad < alle.
+ */
+export const ASSIST_CAPS = Object.freeze({
+  coop: Object.freeze({ aimAssistLevel: 0.6, autoFireLevel: 0.5, aimAssistDevices: 'touch_pad', autoFireDevices: 'touch' }),
+  pvp: Object.freeze({ aimAssistLevel: 0.3, autoFireLevel: 0, aimAssistDevices: 'touch_pad', autoFireDevices: 'touch' }),
+});
+const DEVICE_RANK = { touch: 0, touch_pad: 1, alle: 2 };
+
+/**
+ * Wirksame Hilfe-Stufen aus den Einstellungen, gedeckelt durch `cap` (ASSIST_CAPS-Eintrag oder null).
+ * get = (key) → Wert (z. B. settings.get). → { aim, aimDevices, fire, fireDevices } (aim/fire 0…1, 0 = aus)
+ */
+export function assistLevels(get, cap = null) {
+  const num = (k, d) => { const v = Number(get(k)); return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : d; };
+  const dev = (k, d, c) => { const v = DEVICE_RANK[get(k)] != null ? get(k) : d; return c && DEVICE_RANK[c] < DEVICE_RANK[v] ? c : v; };
+  let aim = get('aimAssist') === false ? 0 : num('aimAssistLevel', 0.4);
+  let fire = get('autoFire') ? num('autoFireLevel', 0.5) : 0;
+  if (cap) { aim = Math.min(aim, cap.aimAssistLevel ?? 1); fire = Math.min(fire, cap.autoFireLevel ?? 1); }
+  return {
+    aim, aimDevices: dev('aimAssistDevices', 'touch_pad', cap && cap.aimAssistDevices),
+    fire, fireDevices: dev('autoFireDevices', 'touch', cap && cap.autoFireDevices),
+  };
+}
+
+/** Gilt eine Hilfe mit Geräte-Stufe `devices` für das Eingabegerät `device` ('touch'|'gamepad'|'keyboard'|'mouse')? */
+export function assistAppliesTo(devices, device) {
+  if (device === 'touch') return true;
+  if (device === 'gamepad') return devices === 'touch_pad' || devices === 'alle';
+  return devices === 'alle';
+}
 
 /* ------------------------------------------------------------ Validierung */
 
 const ID_RE = /^[a-z0-9_-]{1,32}$/;
+// Ausrüstungsfelder (additiv: cls/armor/helmet/tactical für Klassen und Panzerung, core-mechanics)
+const LOADOUT_FIELDS = ['id', 'primary', 'secondary', 'lethal', 'tactical', 'cls', 'armor', 'helmet'];
+function validateLoadout(value) {
+  if (!value || typeof value !== 'object') return undefined;
+  const out = {};
+  for (const f of LOADOUT_FIELDS) {
+    if (value[f] == null) continue;
+    if (typeof value[f] !== 'string' || !ID_RE.test(value[f])) return undefined;
+    out[f] = value[f];
+  }
+  return out.primary || out.secondary ? out : undefined;
+}
 const COLOR_RE = /^#[0-9a-f]{6}$/i;
 
 function sanitizeName(v) {
@@ -229,16 +299,17 @@ function validate(key, value) {
       return key === 'playerName' ? sanitizeName(value) : (typeof value === 'string' ? value.slice(0, s.maxLength || 64) : undefined);
     case 'id':
       return typeof value === 'string' && ID_RE.test(value) ? value : undefined;
-    case 'loadout': {
-      if (value === null) return null;
-      if (!value || typeof value !== 'object') return undefined;
+    case 'loadout':
+      return value === null ? null : validateLoadout(value);
+    case 'classLoadouts': {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
       const out = {};
-      for (const f of ['id', 'primary', 'secondary', 'lethal']) {
-        if (value[f] == null) continue;
-        if (typeof value[f] !== 'string' || !ID_RE.test(value[f])) return undefined;
-        out[f] = value[f];
+      for (const [k, v] of Object.entries(value).slice(0, 16)) {
+        if (!ID_RE.test(k)) continue;
+        const lo = validateLoadout(v);
+        if (lo) out[k] = lo;
       }
-      return out.primary || out.secondary ? out : undefined;
+      return out;
     }
     case 'bindings':
       return sanitizeBindings(value);

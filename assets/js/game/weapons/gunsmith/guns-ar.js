@@ -2,7 +2,7 @@
 import { holoSight, acog, birdcage, akBrake, brake, ejectionPort, triggerGuard, arGrip, slots, roundRect, ellipsePts } from './parts.js';
 
 // Achteckiger Querschnitt um (0, axis)
-function octagon(r, axis) {
+export function octagon(r, axis) {
   const pts = [];
   for (let i = 0; i < 8; i++) {
     const a = Math.PI / 8 + i * Math.PI / 4;
@@ -12,7 +12,7 @@ function octagon(r, axis) {
 }
 
 // Gemeinsamer AR-Unterbau (Lower, Upper, Puffer, Griff, Abzug) – Grundlage für M-17 und SK-14
-function arLower(b, { lowerMat = 'alu', upperMat = 'alu', gripMat = 'grip', axis = 0.093, upperFront = 0.118 } = {}) {
+export function arLower(b, { lowerMat = 'alu', upperMat = 'alu', gripMat = 'grip', axis = 0.093, upperFront = 0.118 } = {}) {
   // Unteres Gehäuse (Seitenprofil)
   b.side(lowerMat, [
     [-0.066, 0.071], [0.122, 0.071], [0.124, 0.03], [0.119, 0.004], [0.052, 0.002], [0.05, 0.034], [-0.028, 0.034], [-0.05, 0.04], [-0.066, 0.056],
@@ -61,7 +61,7 @@ function arLower(b, { lowerMat = 'alu', upperMat = 'alu', gripMat = 'grip', axis
 }
 
 // PMAG-artiges Polymermagazin, Teil 'mag' mit Drehpunkt im Schacht
-function arMag(b, mat, o = {}) {
+export function arMag(b, mat, o = {}) {
   const len = o.len ?? 1;
   b.part('mag', 0, 0.0, 0.088);
   const pts = [

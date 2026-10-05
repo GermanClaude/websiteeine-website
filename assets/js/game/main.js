@@ -378,6 +378,13 @@ function normalizeConfig(cfg = {}) {
   const mapId = [cfg.mapId, settings.get('lastMap'), ...rec, maps[0]].find((id) => id && maps.includes(id)) || 'hafen';
   const difficulty = DIFFS.includes(cfg.difficulty) ? cfg.difficulty : DIFFS.includes(settings.get('difficulty')) ? settings.get('difficulty') : 'regulaer';
   const counts = modeCounts(modeId);
+  // modes-ui: Teamgrößen je Karte und Gerät (limitsFor, GROSSKAMPF §3.2: Arena 12 v 12, Großkarte 32 v 32)
+  if (typeof G.data.limitsFor === 'function') {
+    const L = safe('limitsFor', () => G.data.limitsFor(modeId, (G.data.MAPS || {})[mapId] || mapId, {
+      tier: (G.renderer && G.renderer.quality) || 'high', touch: !!(G.input && G.input.mode === 'touch'), deviceMemory: navigator.deviceMemory ?? null,
+    }));
+    if (L) Object.assign(counts, { alliesRange: L.allies, enemiesRange: L.enemies, allies: L.recommended.allies, enemies: L.recommended.enemies });
+  }
   const ffa = isFfaMode(modeId);
   const allies = ffa ? 0 : intParam(cfg.allies, counts.allies, counts.alliesRange[0], Math.max(counts.alliesRange[1], 0));
   const enemies = intParam(cfg.enemies, counts.enemies, counts.enemiesRange[0], Math.max(counts.enemiesRange[1], 0));
@@ -393,8 +400,18 @@ function normalizeConfig(cfg = {}) {
     secondary: [lo.secondary, last.secondary].find((id) => okW(id, 'secondary')) || def.secondary,
     lethal: [lo.lethal, last.lethal].find(okEq) || def.lethal,
   };
+  // modes-ui: Klasse, Tarnungen, Outfit, Spielstil, Matchlänge, Tageszeit (Lobby bzw. URL style=/cls=)
+  const CL = G.data.CLASSES || {};
+  if (lo.cls && CL[lo.cls]) loadout.cls = lo.cls;
+  if (lo.camo && typeof lo.camo === 'object') loadout.camo = { ...lo.camo };
+  if (typeof lo.skin === 'string') loadout.skin = lo.skin;
+  const STY = G.data.GAME_STYLES || {};
+  const style = STY[cfg.style] ? cfg.style : 'arcade';
   return {
     modeId, mapId, difficulty, allies, enemies, loadout, ffa,
+    style, crosshair: typeof cfg.crosshair === 'boolean' ? cfg.crosshair : null,
+    matchLength: ['kurz', 'standard', 'lang'].includes(cfg.matchLength) ? cfg.matchLength : 'standard',
+    timeOfDay: typeof cfg.timeOfDay === 'string' ? cfg.timeOfDay : null,
     timeLimit: numParam(cfg.timeLimit), scoreLimit: numParam(cfg.scoreLimit),
   };
 }
@@ -415,8 +432,8 @@ function configFromParams() {
   return {
     modeId: params.get('mode'), mapId: params.get('map'), difficulty: params.get('diff'),
     allies: params.get('allies'), enemies: params.get('enemies'),
-    loadout: { primary: params.get('primary'), secondary: params.get('secondary'), lethal: params.get('lethal') },
-    timeLimit: params.get('time'), scoreLimit: params.get('score'),
+    loadout: { primary: params.get('primary'), secondary: params.get('secondary'), lethal: params.get('lethal'), cls: params.get('cls') },
+    timeLimit: params.get('time'), scoreLimit: params.get('score'), style: params.get('style'),
   };
 }
 
@@ -650,6 +667,7 @@ async function runStart(config, gen) {
       loadout: { ...cfg.loadout }, ffa: cfg.ffa, timeLimit: cfg.timeLimit, scoreLimit: cfg.scoreLimit,
       startedAt: null, startedReal: null, countdown: 0, pausedFrom: null, endedAt: null, result: null,
       unranked: isUnranked(cfg),
+      style: cfg.style, crosshair: cfg.crosshair, matchLength: cfg.matchLength, timeOfDay: cfg.timeOfDay, cls: cfg.loadout.cls || null, // modes-ui
     });
     settings.patch({ lastMode: cfg.modeId, lastMap: cfg.mapId, difficulty: cfg.difficulty, lastLoadout: cfg.loadout });
     setState('loading');

@@ -8,6 +8,7 @@
 
 import * as THREE from 'three';
 import { isLongshot } from '../shared/modes.data.js';
+import { createArmorState, absorbDamage, canInsertPlate, insertPlate, plateCount, classDef } from '../shared/classes.data.js';
 
 const _ray = new THREE.Ray();
 const _v1 = new THREE.Vector3();
@@ -75,6 +76,7 @@ export function rayCapsule(ro, rd, pa, pb, r) {
  * → { distance, point, normal, zone } | null
  */
 export function raycastHumanoid(actor, ray, maxDist = Infinity) {
+  if (actor.proneBlend > 0.5) return raycastProne(actor, ray, maxDist);
   const p = actor.position;
   const h = actor.body ? actor.body.height : HUMANOID.standHeight;
   const k = h / HUMANOID.standHeight;
@@ -110,6 +112,46 @@ export function raycastHumanoid(actor, ray, maxDist = Infinity) {
   t = rayCapsule(ro, rd, _pa, _pb, HUMANOID.legRadius);
   if (t >= 0 && t <= maxDist && (best < 0 || t < best)) { best = t; zone = 'limb'; closestOnSegment(ro, rd, t, _pa, _pb, center); }
 
+  if (best < 0) return null;
+  const point = new THREE.Vector3().copy(rd).multiplyScalar(best).add(ro);
+  const normal = new THREE.Vector3().subVectors(point, center);
+  if (normal.lengthSq() < 1e-8) normal.copy(rd).negate(); else normal.normalize();
+  return { distance: best, point, normal, zone };
+}
+
+/** Liegende Maße relativ zu den Füßen/Kapselmitte (m, entlang der Blickrichtung; − = hinten). */
+export const PRONE = Object.freeze({
+  head: { fwd: 0.12, y: 0.3, r: 0.15 },
+  torso: { a: -0.12, b: -0.78, y: 0.2, r: 0.2 },
+  legs: { a: -0.82, b: -1.55, y: 0.12, r: 0.13 },
+  length: 1.62, // Abstand Kapselmitte → Fußspitzen (Platzbedarf hinten)
+});
+
+/** Liegende Trefferzonen (Kopf vorn, Rumpf und Beine waagerecht nach hinten entlang actor.yaw; Lehnen rollt seitlich). */
+function raycastProne(actor, ray, maxDist) {
+  const p = actor.position;
+  const fx = -Math.sin(actor.yaw || 0), fz = -Math.cos(actor.yaw || 0);
+  const ro = ray.origin;
+  const rd = ray.direction;
+  _v1.set(p.x - fx * 0.7, p.y + 0.25, p.z - fz * 0.7);
+  if (raySphere(ro, rd, _v1, 1.05) < 0) return null;
+  const lo = actor.leanOffset;
+  const lx = lo ? lo.x : 0, lz = lo ? lo.z : 0;
+  let best = -1;
+  let zone = null;
+  const center = _v3;
+  const P = PRONE;
+  _v2.set(p.x + fx * P.head.fwd + lx, p.y + P.head.y, p.z + fz * P.head.fwd + lz);
+  let t = raySphere(ro, rd, _v2, P.head.r);
+  if (t >= 0 && t <= maxDist) { best = t; zone = 'head'; center.copy(_v2); }
+  _pa.set(p.x + fx * P.torso.a + lx * 0.6, p.y + P.torso.y, p.z + fz * P.torso.a + lz * 0.6);
+  _pb.set(p.x + fx * P.torso.b + lx * 0.2, p.y + P.torso.y - 0.02, p.z + fz * P.torso.b + lz * 0.2);
+  t = rayCapsule(ro, rd, _pa, _pb, P.torso.r);
+  if (t >= 0 && t <= maxDist && (best < 0 || t < best)) { best = t; zone = 'body'; closestOnSegment(ro, rd, t, _pa, _pb, center); }
+  _pa.set(p.x + fx * P.legs.a, p.y + P.legs.y, p.z + fz * P.legs.a);
+  _pb.set(p.x + fx * P.legs.b, p.y + P.legs.y, p.z + fz * P.legs.b);
+  t = rayCapsule(ro, rd, _pa, _pb, P.legs.r);
+  if (t >= 0 && t <= maxDist && (best < 0 || t < best)) { best = t; zone = 'limb'; closestOnSegment(ro, rd, t, _pa, _pb, center); }
   if (best < 0) return null;
   const point = new THREE.Vector3().copy(rd).multiplyScalar(best).add(ro);
   const normal = new THREE.Vector3().subVectors(point, center);
@@ -242,8 +284,9 @@ export class Combat {
     for (let i = 0; i < actors.length; i++) {
       const a = actors[i];
       if (!a.alive || a === shooter || !this.isHostile(shooter, a) || typeof a.raycastHitboxes !== 'function') continue;
-      // Schneller Ausschluss: Abstand Strahl ↔ Körpermitte
-      _v1.copy(a.position); _v1.y += 0.9;
+      // Schneller Ausschluss: Abstand Strahl ↔ Körpermitte (liegend: Mitte des Körpers hinter der Kapsel)
+      _v1.copy(a.position);
+      if (a.proneBlend > 0.5) { _v1.x += Math.sin(a.yaw || 0) * 0.7; _v1.z += Math.cos(a.yaw || 0) * 0.7; _v1.y += 0.25; } else _v1.y += 0.9;
       const o = ray.origin, d = ray.direction;
       const along = (_v1.x - o.x) * d.x + (_v1.y - o.y) * d.y + (_v1.z - o.z) * d.z;
       if (along < -1 || along > maxDist + 1.5) continue;
@@ -294,6 +337,21 @@ export class Combat {
     let amount = Number(info.amount) || 0;
     if (amount <= 0) return 0;
     const now = G.time.elapsed;
+    const env = info.weaponId === 'fall' || info.weaponId === 'world';
+    // Spielstil (Realistisch: mehr Schaden) und Klasseneigenschaft (Pionier: −20 % Explosionen)
+    const flags = G.match && G.match.styleFlags;
+    if (!env && flags) amount *= info.explosive ? flags.explosiveMult || 1 : flags.bulletMult || 1;
+    if (info.explosive && target.cls) amount *= 1 - ((classDef(target.cls).perks || {}).explosiveResist || 0);
+    // Panzerung: Weste/Helm nehmen ihren Anteil vorweg (Sturz/Welt umgeht sie)
+    const zone = info.zone || 'body';
+    let armorRes = null;
+    const st = target.armor;
+    if (!env && st && (st.hp > 0 || (zone === 'head' && st.helmetHp > 0))) {
+      const def = G.data && G.data.WEAPONS ? G.data.WEAPONS[info.weaponId] : null;
+      armorRes = absorbDamage(st, amount, { zone, explosive: !!info.explosive, weaponCls: def ? def.cls : null, distance: info.distance, perShot: amount });
+      amount = armorRes.health;
+    }
+    const absorbed = armorRes ? armorRes.plates + armorRes.helmet : 0;
     const before = target.health;
     target.health = Math.max(0, target.health - amount);
     target.lastDamageTime = now;
@@ -301,17 +359,23 @@ export class Combat {
     const killed = target.health <= 0;
 
     if (attacker && attacker !== target) {
-      if (attacker.stats) attacker.stats.damage = (attacker.stats.damage || 0) + dealt;
+      if (attacker.stats) attacker.stats.damage = (attacker.stats.damage || 0) + dealt + absorbed;
       const log = target._damageLog || (target._damageLog = []);
-      log.push({ attacker, amount: dealt, time: now });
+      log.push({ attacker, amount: dealt + absorbed, time: now });
       if (log.length > 24) log.splice(0, log.length - 24);
     }
 
     const dir = info.dir ? info.dir.clone ? info.dir.clone() : info.dir : null;
     const payload = {
-      target, attacker, amount: dealt, zone: info.zone || 'body', dir, point: info.point || null,
+      target, attacker, amount: dealt, zone, dir, point: info.point || null,
       weaponId: info.weaponId || null, explosive: !!info.explosive, killed,
+      armor: armorRes ? { absorbed, plates: plateCount(st), hp: st.hp, maxHp: st.maxHp, helmet: armorRes.helmet, broken: armorRes.broken, pierced: armorRes.pierced } : null,
     };
+    if (armorRes && (absorbed > 0 || armorRes.pierced)) {
+      G.events.emit('armor:hit', { target, attacker, absorbed, plates: plateCount(st), hp: st.hp, maxHp: st.maxHp, helmet: armorRes.helmet, helmetHp: st.helmetHp, zone, pierced: armorRes.pierced });
+      if (armorRes.platesBroken > 0) G.events.emit('armor:broken', { target, attacker, kind: armorRes.broken ? 'vest' : 'plate', plates: plateCount(st) });
+      if (armorRes.helmetBroken) G.events.emit('armor:broken', { target, attacker, kind: 'helmet', plates: plateCount(st) });
+    }
     G.events.emit('actor:hit', payload);
     if (target.isPlayer) G.events.emit('player:damaged', { amount: dealt, dir, attacker });
     if (typeof target.onDamaged === 'function') target.onDamaged(payload);
@@ -379,6 +443,13 @@ export class Combat {
     }
     victim._damageLog = [];
     this.killCount += 1;
+    if (victim.armor) this.cancelPlate(victim);
+    // Abschuss: eine Platte des Gegners aufnehmen (Reserve), sofern Platz
+    const ka = !suicide && killer.armor;
+    if (ka && ka.slots > 0 && ka.carry < ka.carryMax) {
+      ka.carry += 1;
+      G.events.emit('armor:pickup', { actor: killer, carry: ka.carry });
+    }
 
     const deathInfo = {
       killer: suicide ? null : killer, weaponId: info.weaponId || null, headshot, explosive: !!info.explosive,
@@ -424,6 +495,57 @@ export class Combat {
       this.damage(h.a, { amount: h.dmg, attacker, weaponId, zone: 'body', dir: h.dir, point: pos, explosive: true, distance: h.d });
     }
     return hits.length;
+  }
+
+  /* ---------------------------------------------------------- Panzerung */
+
+  /** Weste/Helm ausgeben (am Spawn; voll aufgefüllt). tier/helmet = ARMOR_TIERS-/HELMETS-ID. */
+  equipArmor(actor, tier = 'keine', helmet = 'keine') {
+    if (!actor) return null;
+    actor.armor = createArmorState(tier, helmet);
+    return actor.armor;
+  }
+
+  /** Platte einsetzen beginnen (Dauer = Stufe). chain = danach weitermachen, solange nötig. → true, wenn begonnen. */
+  insertPlate(actor, { chain = false } = {}) {
+    const s = actor && actor.armor;
+    if (!s || !actor.alive || s.inserting || !canInsertPlate(s)) return false;
+    s.inserting = { start: this.G.time.elapsed, dur: s.plateTime, chain };
+    this.G.events.emit('armor:plate', { actor, phase: 'start', duration: s.plateTime, plates: plateCount(s), carry: s.carry, hp: s.hp });
+    return true;
+  }
+
+  /** Einsetzen abbrechen (Platte bleibt in der Reserve). */
+  cancelPlate(actor) {
+    const s = actor && actor.armor;
+    if (!s || !s.inserting) return false;
+    s.inserting = null;
+    this.G.events.emit('armor:plate', { actor, phase: 'cancel', duration: 0, plates: plateCount(s), carry: s.carry, hp: s.hp });
+    return true;
+  }
+
+  /**
+   * Je Bild (main): laufende Einsetzungen abschließen; Bots setzen nach 3 s ohne Schaden und ohne eigenen Schuss
+   * selbst Platten ein (außer actor.manualPlates), ein eigener Schuss bricht bei Bots ab.
+   */
+  tickArmor(actors) {
+    const G = this.G;
+    const now = G.time.elapsed;
+    for (const a of actors) {
+      const s = a.armor;
+      if (!s || s.slots <= 0) continue;
+      const ins = s.inserting;
+      if (ins) {
+        if (!a.alive || (a.isBot && (a.lastFiredTime || -1e9) > ins.start)) { this.cancelPlate(a); continue; }
+        if (now - ins.start < ins.dur) continue;
+        s.inserting = null;
+        insertPlate(s);
+        G.events.emit('armor:plate', { actor: a, phase: 'end', duration: ins.dur, plates: plateCount(s), carry: s.carry, hp: s.hp });
+        if (ins.chain && canInsertPlate(s)) this.insertPlate(a, { chain: true });
+      } else if (a.isBot && a.alive && !a.manualPlates && canInsertPlate(s) && now - (a.lastDamageTime || -1e9) > 3 && now - (a.lastFiredTime || -1e9) > 2) {
+        this.insertPlate(a, { chain: true });
+      }
+    }
   }
 
   _exposed(from, actor) {

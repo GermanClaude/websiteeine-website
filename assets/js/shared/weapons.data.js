@@ -57,10 +57,11 @@ export const WEAPON_CLASSES = {
   shotgun: 'Schrotflinte',
   pistol: 'Pistole',
   melee: 'Nahkampf',
+  launcher: 'Raketenwerfer',
 };
 
 /** Anzeige-Reihenfolge der Klassen (Lobby, Website). */
-export const CLASS_ORDER = ['ar', 'smg', 'lmg', 'marksman', 'sniper', 'shotgun', 'pistol', 'melee'];
+export const CLASS_ORDER = ['ar', 'smg', 'lmg', 'marksman', 'sniper', 'shotgun', 'pistol', 'launcher', 'melee'];
 
 /** Kurzbeschreibung pro Klasse (Website/Lobby-Tooltips). */
 export const CLASS_INFO = {
@@ -72,6 +73,7 @@ export const CLASS_INFO = {
   shotgun: { short: 'SF', role: 'Endgültig auf Armlänge, nutzlos über die Straße.' },
   pistol: { short: 'P', role: 'Zweitwaffe für Notfälle: blitzschnell gezogen, leicht geführt.' },
   melee: { short: 'NK', role: 'Lautlos, immer dabei, ein Treffer genügt.' },
+  launcher: { short: 'RW', role: 'Panzerabwehr für Pioniere: knackt Fahrzeuge, räumt Stellungen – langsam nachgeladen.' },
 };
 
 export const FIRE_MODES = {
@@ -80,6 +82,7 @@ export const FIRE_MODES = {
   burst: 'Feuerstoß',
   bolt: 'Repetierer',
   pump: 'Vorderschaftrepetierer',
+  single: 'Einzellader',
 };
 
 export const SIGHTS = {
@@ -141,6 +144,54 @@ const ICONS = {
   semtex: smallIcon(
     '<rect x="4.5" y="8.5" width="15" height="8.5" rx="2"/><path d="M8 8.5V6.5H16V8.5 M7.5 19.5V21 M12 19.5V21 M16.5 19.5V21"/>' +
     '<circle cx="12" cy="12.75" r="1.5"/>'),
+  k36: gunIcon(
+    'M8 12H18V18H11L8 16Z M18 13H24 M24 10H48V17H24Z M26 8H58 M33 8V4.5H41V8 M30 17L28 24H32L34 17 ' +
+    'M37 17L36 25H42L43 17 M48 10.5H62V16.5H48Z M62 13.5H74 M74 12V15'),
+  bx20: gunIcon(
+    'M6 12H12V20H6Z M12 11H56V19H12Z M20 19L19 27H26L27 19 M40 19L38 26H42L44 19 M34 19Q34 23 38 23 ' +
+    'M22 11V6H46V11 M28 6V4H40V6 M56 12.5H76V17H56Z M76 14.5H88 M88 13V16'),
+  g7: gunIcon(
+    'M4 12L20 11V18L6 21Z M20 10H52V17H20Z M24 10V7.5 M28 17L26 24H30L32 17 M36 17V25H44V17 ' +
+    'M52 10.5H72V16H52Z M72 13H90 M90 11.5V14.5 M62 10.5V7 M24 7.5H28'),
+  wespe: gunIcon(
+    'M14 11H20V14H14 M20 9H54V16H20Z M30 16L28 28H36L38 16 M30 21H37 M42 16Q43 21 48 21V16 ' +
+    'M54 10.5H66V14.5H54Z M66 12.5H72 M24 9V6.5H34V9 M8 12H14'),
+  keiler: gunIcon(
+    'M6 11H18V18H8L6 16Z M18 12H22 M22 9H58V18H22Z M30 18L28 25H33L35 18 M42 18L41 28H48L49 18 ' +
+    'M58 10H72V17H58Z M72 13.5H80 M80 12V15 M30 9V5.5H42V9'),
+  lm8: gunIcon(
+    'M4 13L20 11V18L6 21Z M20 10H54V17H20Z M28 17L26 24H30L32 17 M38 21A6 6 0 1 0 50 21A6 6 0 1 0 38 21 ' +
+    'M54 11H74V16H54Z M74 13.5H90 M90 12V15 M78 14L74 26 M78 14L83 26 M24 10V7.5'),
+  titan: gunIcon(
+    'M4 13H24V19H16L12 25H6L4 21Z M24 11H58V18H24Z M28 8H56 M28 5H56V8H28Z M56 4.5L62 3.5V9.5L56 8.5 ' +
+    'M34 18V23H42V18 M44 18V24H52V18 M58 12H86V16H58Z M86 11H94V17H86Z M66 16L62 27 M66 16L71 27'),
+  hagel: gunIcon(
+    'M4 13L22 11V17L6 21Z M22 10H50V17H22Z M28 17L26 24H30L32 17 M36 17V27H46V17 M50 11H80V15H50 ' +
+    'M50 16H74V17.5 M80 10.5V9 M30 10V8H42V10'),
+  kobra: gunIcon(
+    'M24 15L20 28H30L33 18 M30 18Q31 22 36 22Q39 22 40 18 M30 10H40V18H30Z M32 11.5H38 M32 16.5H38 ' +
+    'M40 11H76V15H40Z M40 15H64V17H40 M74 11V9 M26 12L22 10 M30 10L28 7'),
+  donner: gunIcon(
+    'M4 13H70V18H4Z M70 11.5L80 9V22L70 19.5 M80 10L92 15.5L80 21 M26 18L24 27H30L32 18 M46 18L45 26H50L51 18 ' +
+    'M34 13V8H42V13 M12 12V19'),
+  karambit: gunIcon(
+    'M30 13H52Q55 13 55 16V18Q55 20 52 20H30Q27 20 27 17Q27 13 30 13Z M25 16.5A3.5 3.5 0 1 0 25 16.6 ' +
+    'M55 12V21 M55 15Q70 12 76 20Q71 18 62 19Q58 19 55 18'),
+  machete: gunIcon(
+    'M8 14H30Q32 14 32 16V18Q32 20 30 20H8Q6 20 6 17Q6 14 8 14Z M32 12V22 M32 14H80Q90 14 92 18Q86 21 78 21H32'),
+  tomahawk: gunIcon(
+    'M8 16H66V19H8Z M8 15V20 M66 10Q70 6 74 6V29Q70 29 66 25Z M62 11L66 13 M62 24L66 22 M66 15H58V20H66'),
+  impact: smallIcon(
+    '<rect x="7" y="9" width="10" height="12" rx="2"/><path d="M9 9V6H15V9 M7 13H17 M7 17H17 M12 21V23 M9 23H15"/>'),
+  molotov: smallIcon(
+    '<path d="M9 22H15Q17 22 17 20V13Q17 11 14.5 10V7H9.5V10Q7 11 7 13V20Q7 22 9 22Z M10 7Q9 4 12 2Q11 5 14 5"/>' +
+    '<path d="M7 15H17" opacity=".6"/>'),
+  flash: smallIcon(
+    '<rect x="7.5" y="8" width="9" height="13" rx="1.5"/><path d="M9.5 8V5.5H14.5V8 M7.5 11H16.5 M7.5 18H16.5 M10 13.5V15.5 M14 13.5V15.5 ' +
+    'M3 6L5 7.5 M21 6L19 7.5 M2 13H4.5 M22 13H19.5"/>'),
+  smoke: smallIcon(
+    '<rect x="7.5" y="9" width="9" height="13" rx="1.5"/><path d="M9.5 9V6.5H14.5V9 M7.5 12H16.5 M7.5 19H16.5"/>' +
+    '<path d="M14 5Q17 2 20 4Q23 3 22 7Q20 9 17 7" opacity=".7"/>'),
 };
 
 /* ------------------------------------------------------------ Hilfsfunktionen */
@@ -318,6 +369,12 @@ const PATTERN = {
   vp9: [[0, 1], [-0.1, 1], [-0.2, 0.95], [0, 0.9], [0.2, 0.9], [0.25, 0.85], [0, 0.85], [-0.2, 0.85]],
   qx90: [[0, 1], [0.4, 0.9], [-0.3, 0.9], [0.5, 0.85], [-0.5, 0.85], [0.3, 0.8], [-0.2, 0.8], [0.4, 0.8]],
   hm60: [[0, 1.4], [0.1, 1.3], [0.3, 1.1], [0.5, 1], [0.3, 0.9], [-0.1, 0.8], [-0.4, 0.75], [-0.2, 0.7], [0.2, 0.7], [0.3, 0.7]],
+  k36: [[0, 1], [0.15, 1], [0.3, 0.95], [0.1, 0.95], [-0.2, 0.9], [-0.35, 0.9], [-0.1, 0.85], [0.2, 0.85]],
+  bx20: [[0, 1], [0.05, 1], [-0.1, 0.95], [-0.2, 0.95], [-0.05, 0.9], [0.15, 0.9], [0.25, 0.85], [0.05, 0.85]],
+  g7: [[0, 1.1], [0.25, 1.1], [0.5, 1.05], [0.35, 1], [0, 1], [-0.4, 0.95], [-0.55, 0.95], [-0.2, 0.9], [0.3, 0.9]],
+  wespe: [[0, 1], [0.5, 0.9], [-0.4, 0.9], [0.6, 0.85], [-0.6, 0.85], [0.4, 0.8], [-0.3, 0.8], [0.5, 0.8]],
+  keiler: [[0, 1.1], [-0.2, 1.05], [-0.35, 1], [-0.1, 0.95], [0.25, 0.9], [0.35, 0.9], [0.1, 0.85], [-0.2, 0.85]],
+  lm8: [[0, 1.3], [0.2, 1.2], [0.4, 1.05], [0.3, 0.95], [-0.1, 0.85], [-0.35, 0.8], [-0.15, 0.75], [0.25, 0.75]],
 };
 
 // Waffengefühl je Waffe (siehe Kopfkommentar „handling“; Massen etwa realer Vorbilder mit Optik und Magazin)
@@ -334,6 +391,19 @@ const FEEL = {
   pi_p9: { handling: { mass: 0.75, inertia: 0.55, swayScale: 0.8, aimDrift: 0.0006, reach: 0.52 }, recoil: { visual: 1.0, firstShotSpread: 0.75 } },
   pi_adler: { handling: { mass: 2.0, inertia: 0.7, swayScale: 0.9, aimDrift: 0.0007, reach: 0.55 }, recoil: { visual: 1.2, firstShotSpread: 0.75 } },
   knife: { handling: { mass: 0.3, inertia: 0.4, swayScale: 0.7, aimDrift: 0, reach: 0 } },
+  ar_k36: { handling: { mass: 2.9, inertia: 0.88, swayScale: 0.95, aimDrift: 0.00045, reach: 0.62 }, recoil: { visual: 0.95, firstShotSpread: 0.75 } },
+  ar_bx20: { handling: { mass: 3.7, inertia: 0.92, swayScale: 0.95, aimDrift: 0.0004, reach: 0.6 }, recoil: { visual: 0.9, firstShotSpread: 0.7 } },
+  ar_g7: { handling: { mass: 4.6, inertia: 1.15, swayScale: 1.1, aimDrift: 0.0006, reach: 0.82 }, recoil: { visual: 1.25, firstShotSpread: 0.75 } },
+  smg_wespe: { handling: { mass: 2.1, inertia: 0.65, swayScale: 0.85, aimDrift: 0.00045, reach: 0.48 }, recoil: { visual: 0.8, firstShotSpread: 0.9 } },
+  smg_keiler: { handling: { mass: 3.0, inertia: 0.85, swayScale: 0.92, aimDrift: 0.0004, reach: 0.6 }, recoil: { visual: 1.0, firstShotSpread: 0.8 } },
+  lmg_lm8: { handling: { mass: 6.2, inertia: 1.35, swayScale: 1.15, aimDrift: 0.0008, reach: 0.84 }, recoil: { visual: 1.05, firstShotSpread: 0.85 } },
+  sr_titan: { handling: { mass: 12.5, inertia: 1.75, swayScale: 1.3, aimDrift: 0, reach: 1.12 }, recoil: { visual: 1.0, firstShotSpread: 1 } },
+  sg_hagel: { handling: { mass: 3.9, inertia: 1.1, swayScale: 1.05, aimDrift: 0.0005, reach: 0.78 }, recoil: { visual: 1.05, firstShotSpread: 1 } },
+  pi_kobra: { handling: { mass: 1.3, inertia: 0.65, swayScale: 0.88, aimDrift: 0.0007, reach: 0.55 }, recoil: { visual: 1.25, firstShotSpread: 0.75 } },
+  at_donner: { handling: { mass: 7.0, inertia: 1.45, swayScale: 1.2, aimDrift: 0.0008, reach: 0.7 }, recoil: { visual: 1.0, firstShotSpread: 1 } },
+  karambit: { handling: { mass: 0.2, inertia: 0.35, swayScale: 0.65, aimDrift: 0, reach: 0 } },
+  machete: { handling: { mass: 0.6, inertia: 0.5, swayScale: 0.75, aimDrift: 0, reach: 0 } },
+  tomahawk: { handling: { mass: 0.7, inertia: 0.55, swayScale: 0.78, aimDrift: 0, reach: 0 } },
 };
 
 const RAW = {
@@ -457,13 +527,177 @@ const RAW = {
     moveSpeedMult: 1.07, adsMoveMult: 1, hipSpread: 0, adsSpread: 0, moveSpreadMult: 1, jumpSpreadMult: 1,
     recoil: { vertical: 0, horizontal: 0, recovery: 10, firstShotMult: 1 },
     // Nahkampf: Treffer im Kegel `arc` (rad) bis `range`; Ausfallschritt bis `lungeRange` mit `lungeSpeed` m/s.
-    melee: { range: 2.4, lungeRange: 4.5, lungeSpeed: 10, arc: 0.6, swingTime: 0.75, hitDelay: 0.14 },
+    melee: { range: 2.4, lungeRange: 4.5, lungeSpeed: 10, arc: 0.6, swingTime: 0.75, hitDelay: 0.14, style: 'slash' },
     range: 2.4, penetration: 0, suppressed: true, sound: { profile: 'melee_swing', pitch: 1.0 }, model: 'knife',
+  },
+  // ------------------------------------------------------------ Welle 2 (Arsenal)
+  ar_k36: {
+    id: 'ar_k36', name: 'K-36 Kurzer', cls: 'ar', slot: 'primary', unlockLevel: 6,
+    description: 'Karabiner mit kurzem Lauf und Rotpunkt: schneller im Anschlag als jedes Sturmgewehr, ruhig im Dauerfeuer – auf lange Achsen verliert er dafür früher an Wucht.',
+    damage: { max: 24, min: 17, rangeStart: 18, rangeEnd: 38 }, headMult: 1.35, limbMult: 0.9, pellets: 1,
+    rpm: 780, fireMode: 'auto', burstCount: 1, mag: 30, reserve: 120,
+    reloadTime: 1.95, reloadEmptyTime: 2.5, perShellReload: false,
+    equipTime: 0.48, adsTime: 0.19, adsZoom: 1.3, sight: 'reddot', scope: { zoom: 1.3, overlay: 'reddot' }, sprintToFire: 0.15,
+    moveSpeedMult: 0.98, adsMoveMult: 0.68, hipSpread: 0.04, adsSpread: 0.0028, moveSpreadMult: 1.35, jumpSpreadMult: 2.3,
+    recoil: { vertical: 0.0058, horizontal: 0.0032, recovery: 11, firstShotMult: 1.05, pattern: PATTERN.k36 },
+    range: 95, penetration: 0.5, suppressed: false, sound: { profile: 'ar', pitch: 1.07 }, model: 'k36',
+  },
+  ar_bx20: {
+    id: 'ar_bx20', name: 'BX-20 Stier', cls: 'ar', slot: 'primary', unlockLevel: 14,
+    description: 'Bullpup mit integrierter 1,6-fach-Optik: voller Gewehrlauf in kompaktem Gehäuse, präzise bis weit über die Platzmitte. Das Magazin sitzt hinter dem Griff – der Wechsel dauert.',
+    damage: { max: 28, min: 21, rangeStart: 26, rangeEnd: 52 }, headMult: 1.35, limbMult: 0.9, pellets: 1,
+    rpm: 650, fireMode: 'auto', burstCount: 1, mag: 30, reserve: 120,
+    reloadTime: 2.6, reloadEmptyTime: 3.2, perShellReload: false,
+    equipTime: 0.6, adsTime: 0.25, adsZoom: 1.6, sight: 'acog', scope: { zoom: 1.6, overlay: 'acog' }, sprintToFire: 0.19,
+    moveSpeedMult: 0.95, adsMoveMult: 0.6, hipSpread: 0.045, adsSpread: 0.0024, moveSpreadMult: 1.45, jumpSpreadMult: 2.5,
+    recoil: { vertical: 0.0066, horizontal: 0.0028, recovery: 10, firstShotMult: 1.1, pattern: PATTERN.bx20 },
+    range: 115, penetration: 0.6, suppressed: false, sound: { profile: 'ar', pitch: 0.95 }, model: 'bx20',
+  },
+  ar_g7: {
+    id: 'ar_g7', name: 'G-7 Wächter', cls: 'ar', slot: 'primary', unlockLevel: 18,
+    description: 'Kampfgewehr im großen Kaliber: vier Treffer auf jede Distanz, durchschlägt Deckung, die andere aufhält. Zwanzig Schuss und ein Rückstoß, der Respekt verlangt.',
+    damage: { max: 40, min: 32, rangeStart: 30, rangeEnd: 60 }, headMult: 1.45, limbMult: 0.9, pellets: 1,
+    rpm: 450, fireMode: 'auto', burstCount: 1, mag: 20, reserve: 100,
+    reloadTime: 2.5, reloadEmptyTime: 3.1, perShellReload: false,
+    equipTime: 0.7, adsTime: 0.3, adsZoom: 1.3, sight: 'iron', scope: null, sprintToFire: 0.24,
+    moveSpeedMult: 0.93, adsMoveMult: 0.55, hipSpread: 0.06, adsSpread: 0.003, moveSpreadMult: 1.6, jumpSpreadMult: 2.8,
+    recoil: { vertical: 0.0125, horizontal: 0.0055, recovery: 7, firstShotMult: 1.3, pattern: PATTERN.g7 },
+    range: 140, penetration: 0.85, suppressed: false, sound: { profile: 'ar_heavy', pitch: 0.88 }, model: 'g7',
+  },
+  smg_wespe: {
+    id: 'smg_wespe', name: 'KM-7 Wespe', cls: 'smg', slot: 'primary', unlockLevel: 8,
+    description: 'Winzige Maschinenpistole mit Magazin im Griff und über tausend Schuss pro Minute. Auf Türrahmen-Distanz ein Sturm – auf der Straße nur noch ein Summen.',
+    damage: { max: 22, min: 13, rangeStart: 9, rangeEnd: 20 }, headMult: 1.25, limbMult: 0.9, pellets: 1,
+    rpm: 1050, fireMode: 'auto', burstCount: 1, mag: 32, reserve: 160,
+    reloadTime: 1.8, reloadEmptyTime: 2.3, perShellReload: false,
+    equipTime: 0.38, adsTime: 0.15, adsZoom: 1.15, sight: 'iron', scope: null, sprintToFire: 0.1,
+    moveSpeedMult: 1.03, adsMoveMult: 0.8, hipSpread: 0.034, adsSpread: 0.005, moveSpreadMult: 1.15, jumpSpreadMult: 1.9,
+    recoil: { vertical: 0.0042, horizontal: 0.0046, recovery: 13, firstShotMult: 1.0, pattern: PATTERN.wespe },
+    range: 70, penetration: 0.3, suppressed: false, sound: { profile: 'smg', pitch: 1.2 }, model: 'wespe',
+  },
+  smg_keiler: {
+    id: 'smg_keiler', name: 'SM-45 Keiler', cls: 'smg', slot: 'primary', unlockLevel: 16,
+    description: 'Schwere Maschinenpistole im Kaliber .45: langsamer Takt, dicke Treffer, kaum Mündungsfeuer. Vier Kugeln genügen bis in die Hofmitte.',
+    damage: { max: 34, min: 22, rangeStart: 12, rangeEnd: 26 }, headMult: 1.3, limbMult: 0.9, pellets: 1,
+    rpm: 560, fireMode: 'auto', burstCount: 1, mag: 25, reserve: 125,
+    reloadTime: 2.1, reloadEmptyTime: 2.6, perShellReload: false,
+    equipTime: 0.5, adsTime: 0.2, adsZoom: 1.25, sight: 'reddot', scope: { zoom: 1.25, overlay: 'reddot' }, sprintToFire: 0.13,
+    moveSpeedMult: 0.99, adsMoveMult: 0.72, hipSpread: 0.036, adsSpread: 0.0035, moveSpreadMult: 1.25, jumpSpreadMult: 2.0,
+    recoil: { vertical: 0.0068, horizontal: 0.0036, recovery: 11, firstShotMult: 1.15, pattern: PATTERN.keiler },
+    range: 85, penetration: 0.4, suppressed: false, sound: { profile: 'smg', pitch: 0.84 }, model: 'keiler',
+  },
+  lmg_lm8: {
+    id: 'lmg_lm8', name: 'LM-8 Bär', cls: 'lmg', slot: 'primary', unlockLevel: 24,
+    description: 'Leichtes MG mit 75-Schuss-Trommel und schwerem Lauf: schneller angelegt als der Hammer, schneller nachgeladen – und trotzdem genug Atem für einen ganzen Korridor.',
+    damage: { max: 30, min: 23, rangeStart: 28, rangeEnd: 58 }, headMult: 1.35, limbMult: 0.9, pellets: 1,
+    rpm: 650, fireMode: 'auto', burstCount: 1, mag: 75, reserve: 225,
+    reloadTime: 4.4, reloadEmptyTime: 5.2, perShellReload: false,
+    equipTime: 0.8, adsTime: 0.36, adsZoom: 1.3, sight: 'iron', scope: null, sprintToFire: 0.3,
+    moveSpeedMult: 0.89, adsMoveMult: 0.5, hipSpread: 0.065, adsSpread: 0.0032, moveSpreadMult: 1.6, jumpSpreadMult: 2.8,
+    recoil: { vertical: 0.0078, horizontal: 0.0044, recovery: 7.5, firstShotMult: 1.35, pattern: PATTERN.lm8 },
+    range: 120, penetration: 0.75, suppressed: false, sound: { profile: 'lmg', pitch: 1.08 }, model: 'lm8',
+  },
+  sr_titan: {
+    id: 'sr_titan', name: 'Titan .50', cls: 'sniper', slot: 'primary', unlockLevel: 32,
+    description: 'Halbautomatisches Anti-Material-Gewehr: zerreißt Deckung, Westen und leichte Fahrzeuge auf jede Entfernung. Dreizehn Kilo, ein Schlag wie ein Vorschlaghammer.',
+    damage: { max: 160, min: 140, rangeStart: 60, rangeEnd: 150 }, headMult: 1.5, limbMult: 0.85, pellets: 1,
+    rpm: 75, fireMode: 'semi', burstCount: 1, mag: 5, reserve: 20,
+    reloadTime: 3.6, reloadEmptyTime: 4.4, perShellReload: false,
+    equipTime: 1.0, adsTime: 0.55, adsZoom: 6, sight: 'sniper', scope: { zoom: 6, overlay: 'sniper' }, sprintToFire: 0.38,
+    moveSpeedMult: 0.84, adsMoveMult: 0.35, hipSpread: 0.14, adsSpread: 0.00025, moveSpreadMult: 2.6, jumpSpreadMult: 3.8,
+    recoil: { vertical: 0.07, horizontal: 0.012, recovery: 4.5, firstShotMult: 1.0 }, scopeSway: 0.008,
+    // antiMateriel: Fahrzeuge nehmen Kugelschaden auch durch Panzerung (vehicles: ≥ 0,15 × Schaden)
+    range: 200, penetration: 1.0, antiMateriel: true, suppressed: false, sound: { profile: 'sniper', pitch: 0.78 }, model: 'titan',
+  },
+  sg_hagel: {
+    id: 'sg_hagel', name: 'HF-12 Hagel', cls: 'shotgun', slot: 'primary', unlockLevel: 11,
+    description: 'Selbstladeflinte mit Kastenmagazin: so schnell, wie der Finger zieht. Weniger Wucht pro Schuss als die Bulldog – dafür folgt der zweite sofort.',
+    damage: { max: 12, min: 3, rangeStart: 3, rangeEnd: 14 }, headMult: 1.1, limbMult: 0.9, pellets: 8,
+    rpm: 220, fireMode: 'semi', burstCount: 1, mag: 8, reserve: 32,
+    reloadTime: 2.4, reloadEmptyTime: 3.0, perShellReload: false,
+    equipTime: 0.62, adsTime: 0.26, adsZoom: 1.15, sight: 'iron', scope: null, sprintToFire: 0.17,
+    moveSpeedMult: 0.95, adsMoveMult: 0.68, hipSpread: 0.06, adsSpread: 0.045, moveSpreadMult: 1.1, jumpSpreadMult: 1.6,
+    recoil: { vertical: 0.032, horizontal: 0.012, recovery: 7, firstShotMult: 1.0 },
+    range: 30, penetration: 0.15, suppressed: false, sound: { profile: 'shotgun', pitch: 1.1 }, model: 'hagel',
+  },
+  pi_kobra: {
+    id: 'pi_kobra', name: 'R-6 Kobra', cls: 'pistol', slot: 'secondary', unlockLevel: 13,
+    description: 'Sechsschüssiger Revolver mit Schnelllader: zwei Treffer auf kurze Distanz, ein Kopftreffer genügt fast immer. Nachladen ist Handarbeit – Trommel raus, Hülsen raus, Lader rein.',
+    damage: { max: 55, min: 36, rangeStart: 12, rangeEnd: 32 }, headMult: 1.6, limbMult: 0.9, pellets: 1,
+    rpm: 150, fireMode: 'semi', burstCount: 1, mag: 6, reserve: 30,
+    reloadTime: 2.6, reloadEmptyTime: 2.4, perShellReload: false,
+    equipTime: 0.45, adsTime: 0.18, adsZoom: 1.2, sight: 'iron', scope: null, sprintToFire: 0.12,
+    moveSpeedMult: 1.04, adsMoveMult: 0.78, hipSpread: 0.036, adsSpread: 0.0032, moveSpreadMult: 1.25, jumpSpreadMult: 2.0,
+    recoil: { vertical: 0.038, horizontal: 0.008, recovery: 7, firstShotMult: 1.0 },
+    range: 85, penetration: 0.6, suppressed: false, sound: { profile: 'pistol_heavy', pitch: 1.08 }, model: 'kobra',
+  },
+  at_donner: {
+    id: 'at_donner', name: 'RW-90 Donnerkeil', cls: 'launcher', slot: 'secondary', unlockLevel: 10,
+    description: 'Panzerabwehr-Rohr der Pioniere: Raketengranate mit Hohlladung. Knackt Geländewagen mit einem, Kampfpanzer von hinten mit drei Treffern – und räumt jede Stellung.',
+    // damage = Volltreffer auf Infanterie (für Werte/Website); Wirkung: projectile.* (Rakete, kein Treffer per Strahl)
+    damage: { max: 160, min: 160, rangeStart: 0, rangeEnd: 220 }, headMult: 1, limbMult: 1, pellets: 1,
+    rpm: 30, fireMode: 'single', burstCount: 1, mag: 1, reserve: 3,
+    reloadTime: 3.4, reloadEmptyTime: 3.4, perShellReload: false,
+    equipTime: 0.9, adsTime: 0.42, adsZoom: 1.6, sight: 'iron', scope: null, sprintToFire: 0.4,
+    moveSpeedMult: 0.9, adsMoveMult: 0.45, hipSpread: 0.05, adsSpread: 0.004, moveSpreadMult: 1.6, jumpSpreadMult: 3.0,
+    recoil: { vertical: 0.03, horizontal: 0.008, recovery: 4, firstShotMult: 1.0 },
+    // Rakete: Startgeschwindigkeit → Marschfahrt (m/s), Schwerkraft (m/s²), Lebensdauer (s), Fahrzeugschaden (× Trefferseite),
+    // Volltreffer Akteur, Splitterwirkung (wie Granaten), Rückstrahl hinter dem Schützen (Schaden für Verbündete aus, Feinde ja)
+    projectile: {
+      kind: 'rocket', speed: 70, cruise: 150, boost: 0.45, gravity: 4.5, life: 4.5, armDistance: 6,
+      vehicleDamage: 340, actorDamage: 160, splash: { radius: 4.5, innerRadius: 1.2, maxDamage: 130, minDamage: 20 },
+      backblast: { length: 4, damage: 35 },
+    },
+    range: 300, penetration: 0, suppressed: false, sound: { profile: 'sniper', pitch: 0.55, alt: 'launcher' }, model: 'donner',
+  },
+  karambit: {
+    id: 'karambit', name: 'Karambit Kralle', cls: 'melee', slot: 'melee', unlockLevel: 9,
+    description: 'Gebogene Klinge mit Fingerring: der schnellste Hieb im Arsenal, ein Haken von außen nach innen. Wer nah genug ist, ist zu nah.',
+    damage: { max: 135, min: 135, rangeStart: 0, rangeEnd: 2.2 }, headMult: 1, limbMult: 1, pellets: 1,
+    rpm: 110, fireMode: 'semi', burstCount: 1, mag: 0, reserve: 0,
+    reloadTime: 0, reloadEmptyTime: 0, perShellReload: false,
+    equipTime: 0.2, adsTime: 0, adsZoom: 1, sight: 'none', scope: null, sprintToFire: 0.04,
+    moveSpeedMult: 1.08, adsMoveMult: 1, hipSpread: 0, adsSpread: 0, moveSpreadMult: 1, jumpSpreadMult: 1,
+    recoil: { vertical: 0, horizontal: 0, recovery: 10, firstShotMult: 1 },
+    melee: { range: 2.2, lungeRange: 4.2, lungeSpeed: 11, arc: 0.55, swingTime: 0.55, hitDelay: 0.11, style: 'hook' },
+    range: 2.2, penetration: 0, suppressed: true, sound: { profile: 'melee_swing', pitch: 1.12 }, model: 'karambit',
+  },
+  machete: {
+    id: 'machete', name: 'Machete Schnitter', cls: 'melee', slot: 'melee', unlockLevel: 21,
+    description: 'Lange Klinge, weiter Bogen: trifft auch, wer knapp daneben steht. Der Hieb kommt schräg von oben – langsamer, aber mit Reichweite.',
+    damage: { max: 140, min: 140, rangeStart: 0, rangeEnd: 2.8 }, headMult: 1, limbMult: 1, pellets: 1,
+    rpm: 66, fireMode: 'semi', burstCount: 1, mag: 0, reserve: 0,
+    reloadTime: 0, reloadEmptyTime: 0, perShellReload: false,
+    equipTime: 0.3, adsTime: 0, adsZoom: 1, sight: 'none', scope: null, sprintToFire: 0.06,
+    moveSpeedMult: 1.05, adsMoveMult: 1, hipSpread: 0, adsSpread: 0, moveSpreadMult: 1, jumpSpreadMult: 1,
+    recoil: { vertical: 0, horizontal: 0, recovery: 10, firstShotMult: 1 },
+    melee: { range: 2.8, lungeRange: 4.8, lungeSpeed: 9.5, arc: 0.8, swingTime: 0.9, hitDelay: 0.2, style: 'chop' },
+    range: 2.8, penetration: 0, suppressed: true, sound: { profile: 'melee_swing', pitch: 0.86 }, model: 'machete',
+  },
+  tomahawk: {
+    id: 'tomahawk', name: 'Kampfbeil Grauwolf', cls: 'melee', slot: 'melee', unlockLevel: 36,
+    description: 'Taktisches Beil mit Dornrücken: ein Schlag von oben, der jede Weste vergisst. Schwer in der Hand, endgültig im Ergebnis.',
+    damage: { max: 150, min: 150, rangeStart: 0, rangeEnd: 2.5 }, headMult: 1, limbMult: 1, pellets: 1,
+    rpm: 70, fireMode: 'semi', burstCount: 1, mag: 0, reserve: 0,
+    reloadTime: 0, reloadEmptyTime: 0, perShellReload: false,
+    equipTime: 0.3, adsTime: 0, adsZoom: 1, sight: 'none', scope: null, sprintToFire: 0.06,
+    moveSpeedMult: 1.05, adsMoveMult: 1, hipSpread: 0, adsSpread: 0, moveSpreadMult: 1, jumpSpreadMult: 1,
+    recoil: { vertical: 0, horizontal: 0, recovery: 10, firstShotMult: 1 },
+    melee: { range: 2.5, lungeRange: 4.5, lungeSpeed: 10, arc: 0.6, swingTime: 0.85, hitDelay: 0.22, style: 'overhead' },
+    range: 2.5, penetration: 0, suppressed: true, sound: { profile: 'melee_swing', pitch: 0.78 }, model: 'tomahawk',
   },
 };
 
 /** Reihenfolge = Roster-Tabelle des Vertrags. */
-export const WEAPON_IDS = ['ar_kv47', 'ar_m17', 'smg_vp9', 'smg_qx90', 'lmg_hm60', 'mr_sk14', 'sr_brecher', 'sg_bulldog', 'pi_p9', 'pi_adler', 'knife'];
+export const WEAPON_IDS = [
+  'ar_kv47', 'ar_m17', 'smg_vp9', 'smg_qx90', 'lmg_hm60', 'mr_sk14', 'sr_brecher', 'sg_bulldog', 'pi_p9', 'pi_adler', 'knife',
+  // Welle 2 (Arsenal): Karabiner, Bullpup, Kampfgewehr, Kompakt-/Schwere MP, Trommel-LMG, Anti-Material, Selbstlade-Flinte,
+  // Revolver, Panzerabwehr (Pionier) + Nahkampfwaffen
+  'ar_k36', 'ar_bx20', 'ar_g7', 'smg_wespe', 'smg_keiler', 'lmg_lm8', 'sr_titan', 'sg_hagel', 'pi_kobra', 'at_donner',
+  'karambit', 'machete', 'tomahawk',
+];
+/** Nahkampfwaffen (Slot „melee“, Ausrüstung `loadout.melee`; 'knife' ist der Standard). */
+export const MELEE_IDS = ['knife', 'karambit', 'machete', 'tomahawk'];
 
 export const WEAPONS = {};
 for (const id of WEAPON_IDS) {
@@ -502,9 +736,46 @@ export const EQUIPMENT = {
     throwSpeed: 18.5, throwPitch: 0.15, bounciness: 0, friction: 1, sticky: true,
     model: 'semtex', sound: 'explosion', icon: ICONS.semtex,
   },
+  impact: {
+    id: 'impact', name: 'Aufschlaggranate', short: 'Aufschlag', kind: 'lethal', unlockLevel: 15,
+    description: 'Zündet beim ersten Aufprall – kein Abprallen, kein Warten. Kleinerer Radius, dafür genau dort, wo sie landet.',
+    count: 1, fuse: 6, cookable: false, impact: true, armTime: 0.1, radius: 5, innerRadius: 1.2, maxDamage: 130, minDamage: 20,
+    throwSpeed: 21, throwPitch: 0.14, bounciness: 0, friction: 1, sticky: false,
+    model: 'impact', sound: 'explosion', icon: ICONS.impact,
+  },
+  molotov: {
+    id: 'molotov', name: 'Brandsatz', short: 'Brand', kind: 'lethal', unlockLevel: 19,
+    description: 'Glasflasche mit Brandmasse: zerbricht beim Aufprall und setzt den Boden für sieben Sekunden in Flammen. Sperrt Türen, Treppen und Fahrzeugdecks.',
+    // fire: brennende Fläche (Radius m, Dauer s, Schaden pro Sekunde für Akteure darin; Fahrzeuge × vehicleMult)
+    count: 1, fuse: 6, cookable: false, impact: true, armTime: 0.05, radius: 3.2, innerRadius: 0, maxDamage: 0, minDamage: 0,
+    fire: { radius: 3.2, duration: 7, dps: 34, vehicleMult: 0.35 },
+    throwSpeed: 17, throwPitch: 0.2, bounciness: 0, friction: 1, sticky: false,
+    model: 'molotov', sound: 'fire', icon: ICONS.molotov,
+  },
+  flash: {
+    id: 'flash', name: 'Blendgranate', short: 'Blend', kind: 'tactical', unlockLevel: 4,
+    description: 'Greller Blitz und ohrenbetäubender Knall: Wer hinsieht, ist für Sekunden blind und hört nur noch Pfeifen. Schadet niemandem – außer dem Plan des Gegners.',
+    // flash: Wirkradius (m) und maximale Blenddauer (s); abgewandt/verdeckt deutlich schwächer
+    count: 2, fuse: 1.6, cookable: true, radius: 0.6, innerRadius: 0, maxDamage: 0, minDamage: 0, nonLethal: true,
+    flash: { radius: 16, duration: 4.5, minDuration: 0.6 },
+    throwSpeed: 19, throwPitch: 0.17, bounciness: 0.42, friction: 0.5, sticky: false,
+    model: 'flash', sound: 'flashbang', icon: ICONS.flash,
+  },
+  smoke: {
+    id: 'smoke', name: 'Rauchgranate', short: 'Rauch', kind: 'tactical', unlockLevel: 1,
+    description: 'Dichte Nebelwand für sechzehn Sekunden: Deckung zum Überqueren, Vorrücken, Bergen. Bots sehen nicht hindurch – du auch nicht.',
+    // smoke: Endradius der Wolke (m), Dauer (s), Aufbauzeit (s); Sichtdämpfung je Meter Rauch (1/m)
+    count: 1, fuse: 1.4, cookable: false, radius: 0.6, innerRadius: 0, maxDamage: 0, minDamage: 0, nonLethal: true,
+    smoke: { radius: 5.5, duration: 16, grow: 2.6, density: 0.9 },
+    throwSpeed: 18, throwPitch: 0.17, bounciness: 0.3, friction: 0.7, sticky: false,
+    model: 'smoke', sound: 'smoke_hiss', icon: ICONS.smoke,
+  },
 };
 
-export const EQUIPMENT_IDS = ['frag', 'semtex'];
+export const EQUIPMENT_IDS = ['frag', 'semtex', 'impact', 'molotov', 'flash', 'smoke'];
+/** Tödliche Wurfmittel (Taste Granate) und taktische (Taste Taktisch, `loadout.tactical`). */
+export const LETHAL_IDS = EQUIPMENT_IDS.filter((id) => EQUIPMENT[id].kind === 'lethal');
+export const TACTICAL_IDS = EQUIPMENT_IDS.filter((id) => EQUIPMENT[id].kind === 'tactical');
 
 /** Explosionsschaden auf `distance` Meter (ohne Deckungsprüfung). */
 export function explosionDamageAt(eq, distance) {
@@ -540,9 +811,16 @@ export const DEFAULT_LOADOUTS = [
     description: 'Hundert Schuss Sperrfeuer, um dem Team den Weg freizuhalten.' },
   { id: 'praezision', name: 'Präzision', primary: 'sr_brecher', secondary: 'pi_p9', lethal: 'semtex',
     description: 'Ein Schuss, ein Abschuss. Für Geduldige mit ruhiger Hand.' },
+  { id: 'pionier', name: 'Pionier', primary: 'smg_keiler', secondary: 'at_donner', lethal: 'impact', tactical: 'smoke',
+    description: 'Panzerabwehr und Nahbereich: Rauch legen, Rohr anlegen, Fahrzeug knacken.' },
+  { id: 'sturmtrupp', name: 'Sturmtrupp', primary: 'ar_k36', secondary: 'pi_kobra', lethal: 'frag', tactical: 'flash', melee: 'karambit',
+    description: 'Blenden, eindringen, räumen – Raum für Raum.' },
 ];
 for (const l of DEFAULT_LOADOUTS) {
-  l.unlockLevel = Math.max(RAW[l.primary].unlockLevel, RAW[l.secondary].unlockLevel, EQUIPMENT[l.lethal].unlockLevel);
+  if (!l.tactical) l.tactical = 'smoke';
+  if (!l.melee) l.melee = 'knife';
+  l.unlockLevel = Math.max(RAW[l.primary].unlockLevel, RAW[l.secondary].unlockLevel, EQUIPMENT[l.lethal].unlockLevel,
+    EQUIPMENT[l.tactical].unlockLevel, RAW[l.melee].unlockLevel);
 }
 
 /** Gun-Game-Stufen (§7 des Vertrags): 18 Stufen, letzte = Messer. */
@@ -595,3 +873,107 @@ export function isUnlocked(id, level) {
   const def = WEAPONS[id] || EQUIPMENT[id];
   return !!def && def.unlockLevel <= level;
 }
+
+/* ------------------------------------------------------------ Tarnmuster (Waffen-Skins) */
+
+/**
+ * Waffen-Tarnmuster: Materialvarianten für 1.- und 3.-Person-Modelle (gunsmith/camos.js erzeugt die Texturen).
+ *  pattern  Generator: solid | blobs | flecks | digital | tiger | splinter | stripes | hex | carbon | damask |
+ *           brushed | rust | aurora | marble
+ *  colors   Farben (sRGB-Hex), Reihenfolge = Grund → Akzent; scale = Mustergröße (1 = Standard, größer = gröber)
+ *  finish   { metalness, roughness } überschreiben die Oberfläche (Gold/Damast glänzen, Stoffmuster matt)
+ *  rarity   'standard' | 'selten' | 'episch' | 'legendaer' (Anzeige: RARITY_NAMES)
+ *  unlock   { type: 'default' } | { type: 'level', level } | { type: 'kills', count } (Abschüsse mit DIESER Waffe) |
+ *           { type: 'headshots', count } (Kopftreffer-Abschüsse mit dieser Waffe) |
+ *           { type: 'mastery', camos: [...] } (alle genannten Muster mit dieser Waffe freigeschaltet)
+ * Profil/UI: isCamoUnlocked(camoId, { level, kills, headshots, unlocked }) – kills/headshots = Werte der Waffe,
+ * unlocked = Menge bereits freier Muster dieser Waffe (für 'mastery').
+ */
+export const RARITY_NAMES = { standard: 'Standard', selten: 'Selten', episch: 'Episch', legendaer: 'Legendär' };
+
+export const CAMOS = {
+  werk: { id: 'werk', name: 'Werkszustand', pattern: 'solid', colors: [], rarity: 'standard', unlock: { type: 'default' } },
+  oliv: { id: 'oliv', name: 'Oliv matt', pattern: 'solid', colors: ['#4b5134', '#3c412a'], finish: { roughness: 0.78 }, rarity: 'standard', unlock: { type: 'level', level: 3 } },
+  sand: { id: 'sand', name: 'Sandfarben', pattern: 'solid', colors: ['#9a8562', '#857152'], finish: { roughness: 0.74 }, rarity: 'standard', unlock: { type: 'level', level: 5 } },
+  wald: { id: 'wald', name: 'Waldtarn', pattern: 'blobs', colors: ['#4c5236', '#2f3524', '#6b5a3c', '#1d1f18'], rarity: 'standard', unlock: { type: 'level', level: 2 } },
+  wueste: { id: 'wueste', name: 'Wüste', pattern: 'blobs', colors: ['#b49f78', '#8c7550', '#c9b893', '#6e5a3e'], scale: 1.3, rarity: 'standard', unlock: { type: 'level', level: 4 } },
+  flecktarn: { id: 'flecktarn', name: 'Flecktarn', pattern: 'flecks', colors: ['#59613f', '#3a4129', '#6c5b3d', '#1e2117', '#7d8a55'], rarity: 'standard', unlock: { type: 'level', level: 6 } },
+  schnee: { id: 'schnee', name: 'Schnee', pattern: 'blobs', colors: ['#d7dadb', '#a9afb2', '#ebedee', '#7d8488'], scale: 1.4, rarity: 'standard', unlock: { type: 'level', level: 8 } },
+  urban: { id: 'urban', name: 'Urban', pattern: 'splinter', colors: ['#6d7073', '#45484b', '#909396', '#2a2c2e'], rarity: 'standard', unlock: { type: 'level', level: 10 } },
+  digital: { id: 'digital', name: 'Digital', pattern: 'digital', colors: ['#56604a', '#3b4433', '#7a7a5c', '#262b21'], rarity: 'standard', unlock: { type: 'level', level: 12 } },
+  digital_wueste: { id: 'digital_wueste', name: 'Digital Wüste', pattern: 'digital', colors: ['#a8946c', '#8a7450', '#c4b48f', '#6a5940'], rarity: 'standard', unlock: { type: 'level', level: 14 } },
+  splitter: { id: 'splitter', name: 'Splittertarn', pattern: 'splinter', colors: ['#7d8461', '#4f5a3a', '#8c7651', '#3b4a33'], rarity: 'standard', unlock: { type: 'level', level: 16 } },
+  nacht: { id: 'nacht', name: 'Nacht', pattern: 'digital', colors: ['#1f2633', '#141a24', '#2f394a', '#0b0e14'], finish: { roughness: 0.72 }, rarity: 'standard', unlock: { type: 'level', level: 18 } },
+  mehrzweck: { id: 'mehrzweck', name: 'Mehrzweck', pattern: 'blobs', colors: ['#8a7d5c', '#5f6544', '#a89a74', '#4a3d2b', '#c1b38e'], scale: 0.8, rarity: 'standard', unlock: { type: 'level', level: 20 } },
+  waben: { id: 'waben', name: 'Waben', pattern: 'hex', colors: ['#2b2e31', '#3d4246', '#55606a'], finish: { roughness: 0.55 }, rarity: 'selten', unlock: { type: 'level', level: 24 } },
+  tiger: { id: 'tiger', name: 'Tiger', pattern: 'tiger', colors: ['#5d6a3e', '#1a1d14', '#7c7b4f'], rarity: 'selten', unlock: { type: 'kills', count: 50 } },
+  kohle: { id: 'kohle', name: 'Kohlefaser', pattern: 'carbon', colors: ['#141517', '#2c2f33'], finish: { roughness: 0.32, metalness: 0.15 }, rarity: 'selten', unlock: { type: 'kills', count: 100 } },
+  zebra: { id: 'zebra', name: 'Zebra', pattern: 'stripes', colors: ['#e6e3dc', '#16171a'], rarity: 'selten', unlock: { type: 'headshots', count: 25 } },
+  rost: { id: 'rost', name: 'Rost', pattern: 'rust', colors: ['#5a3a24', '#8a4f2a', '#3a2a20', '#a8683a'], finish: { roughness: 0.9, metalness: 0.25 }, rarity: 'selten', unlock: { type: 'kills', count: 150 } },
+  kirsche: { id: 'kirsche', name: 'Kirschblüte', pattern: 'blobs', colors: ['#e7c6cf', '#c4728a', '#f3e3e6', '#7d2f45'], scale: 0.7, rarity: 'episch', unlock: { type: 'headshots', count: 50 } },
+  roter_tiger: { id: 'roter_tiger', name: 'Roter Tiger', pattern: 'tiger', colors: ['#8e2018', '#140c0b', '#c2462c'], rarity: 'episch', unlock: { type: 'kills', count: 250 } },
+  marmor: { id: 'marmor', name: 'Marmor', pattern: 'marble', colors: ['#e9e6e0', '#9a958d', '#4b4843'], finish: { roughness: 0.22, metalness: 0.05 }, rarity: 'episch', unlock: { type: 'level', level: 40 } },
+  obsidian: { id: 'obsidian', name: 'Obsidian', pattern: 'marble', colors: ['#0d0d10', '#2a2433', '#5a4a6e'], finish: { roughness: 0.12, metalness: 0.35 }, rarity: 'episch', unlock: { type: 'level', level: 50 } },
+  damast: { id: 'damast', name: 'Damast', pattern: 'damask', colors: ['#8e9399', '#3f4348', '#c4c8cc'], finish: { roughness: 0.28, metalness: 1 }, rarity: 'legendaer', unlock: { type: 'headshots', count: 100 } },
+  polarlicht: { id: 'polarlicht', name: 'Polarlicht', pattern: 'aurora', colors: ['#0b1a2a', '#1fbf8f', '#7a4dd8', '#2fd1e6'], finish: { roughness: 0.25, metalness: 0.6 }, rarity: 'legendaer', unlock: { type: 'level', level: 55 } },
+  gold: { id: 'gold', name: 'Gold', pattern: 'brushed', colors: ['#e0b453', '#b8862f', '#f6d98a'], finish: { roughness: 0.24, metalness: 1 }, rarity: 'legendaer',
+    unlock: { type: 'mastery', camos: ['tiger', 'kohle', 'zebra', 'rost', 'kirsche', 'roter_tiger', 'damast'] } },
+};
+export const CAMO_IDS = Object.keys(CAMOS);
+
+/** Beschreibung der Freischaltbedingung (deutsch, für Lobby/Profil). */
+export function camoUnlockText(id) {
+  const c = CAMOS[id];
+  if (!c) return '';
+  const u = c.unlock || { type: 'default' };
+  if (u.type === 'level') return `Stufe ${u.level}`;
+  if (u.type === 'kills') return `${u.count} Abschüsse mit dieser Waffe`;
+  if (u.type === 'headshots') return `${u.count} Kopftreffer-Abschüsse mit dieser Waffe`;
+  if (u.type === 'mastery') return `Alle seltenen Muster dieser Waffe: ${u.camos.map((k) => CAMOS[k] ? CAMOS[k].name : k).join(', ')}`;
+  return 'Immer verfügbar';
+}
+
+/**
+ * Ist ein Muster für eine Waffe frei? ctx = { level, kills, headshots, unlocked (Set/Array freier Muster-Ids) }.
+ * Ohne Angaben gilt nur 'default'. Pure Funktion – Fortschritt speichert das Profil (ui/core).
+ */
+export function isCamoUnlocked(id, ctx = {}) {
+  const c = CAMOS[id];
+  if (!c) return false;
+  const u = c.unlock || { type: 'default' };
+  if (u.type === 'default') return true;
+  if (u.type === 'level') return (ctx.level || 0) >= u.level;
+  if (u.type === 'kills') return (ctx.kills || 0) >= u.count;
+  if (u.type === 'headshots') return (ctx.headshots || 0) >= u.count;
+  if (u.type === 'mastery') {
+    const have = ctx.unlocked instanceof Set ? ctx.unlocked : new Set(ctx.unlocked || []);
+    return u.camos.every((k) => have.has(k) || isCamoUnlocked(k, { ...ctx, unlocked: [] }));
+  }
+  return false;
+}
+
+/* ------------------------------------------------------------ Klassen-Aussehen (Ego-Arme) */
+
+/**
+ * Handschuhe/Ärmel der Ego-Arme je Klasse (Look-Ids wie die Klassen in classes/modes-Daten; Aliasse englisch).
+ *  glove     Handschuhfarbe (sRGB, multipliziert die Handschuh-Schattierung)
+ *  sleeve    Ärmeltönung (multipliziert das Team-Tarnmuster; '#ffffff' = unverändert)
+ *  sleeveCamo optional eigenes Ärmelmuster ('arid' | 'wood' | 'neutral'), sonst Team-Muster
+ *  accessory 'none' | 'armband' (Sanitäter: Rotkreuz-Binde) | 'cuffs' (Pionier: Lederstulpen) |
+ *            'wraps' (Aufklärer: Tarnwickel) | 'pads' (Sturm: Knöchelschutz-Band)
+ */
+export const CLASS_LOOKS = {
+  standard: { id: 'standard', name: 'Standard', glove: '#ffffff', sleeve: '#ffffff', accessory: 'none' },
+  sturm: { id: 'sturm', name: 'Sturm', glove: '#5b5f63', sleeve: '#d8d8d8', accessory: 'pads' },
+  sanitaeter: { id: 'sanitaeter', name: 'Sanitäter', glove: '#c9b48d', sleeve: '#ffffff', accessory: 'armband' },
+  pionier: { id: 'pionier', name: 'Pionier', glove: '#7a5a3c', sleeve: '#c9c2b0', sleeveCamo: 'neutral', accessory: 'cuffs' },
+  aufklaerer: { id: 'aufklaerer', name: 'Aufklärer', glove: '#59614a', sleeve: '#b9c4a6', sleeveCamo: 'wood', accessory: 'wraps' },
+  unterstuetzung: { id: 'unterstuetzung', name: 'Unterstützung', glove: '#3f4434', sleeve: '#e0dccd', accessory: 'pads' },
+};
+const LOOK_ALIASES = { assault: 'sturm', medic: 'sanitaeter', sani: 'sanitaeter', engineer: 'pionier', recon: 'aufklaerer', sniper: 'aufklaerer', support: 'unterstuetzung' };
+/** Look-Id normalisieren (Klassen-Id, Alias oder unbekannt → 'standard'). */
+export function classLookId(id) {
+  const k = String(id || '').toLowerCase();
+  return CLASS_LOOKS[k] ? k : LOOK_ALIASES[k] || 'standard';
+}
+
