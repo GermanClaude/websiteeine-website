@@ -20,7 +20,7 @@ const _sphere = new THREE.Sphere();
 const _cam = new THREE.Vector3();
 
 const LOS_BASE = 48, LOS_BASE_LOW = 26; // Sichtstrahlen pro Bild (Grundbudget)
-const LOS_PER_SENSE = 8; // geschätzte Strahlen je Wahrnehmungsschritt eines Bots
+const LOS_PER_SENSE = 10; // geschätzte Strahlen je Wahrnehmungsschritt eines Bots (≈ 6 Gegner im Blick, teils Kopfstrahl)
 
 const SNIPER_LOADOUT = { id: 'praezision', primary: 'sr_brecher', secondary: 'pi_p9', lethal: 'frag' };
 
@@ -558,7 +558,13 @@ export class BotManager {
       }
     }
     // Überlappende Schilder: das nähere gewinnt (Ziel unter dem Fadenkreuz immer)
-    if (list.length > 1) list.sort(plateOrder);
+    // Einfügesortierung an Ort und Stelle (wenige Schilder, keine Allokation)
+    for (let i = 1; i < list.length; i++) {
+      const p = list[i];
+      let k = i - 1;
+      while (k >= 0 && plateOrder(list[k], p) > 0) { list[k + 1] = list[k]; k--; }
+      list[k + 1] = p;
+    }
     const placed = this._placed;
     placed.length = 0;
     const aimPlate = aimT ? this._plates.get(aimT) : null;

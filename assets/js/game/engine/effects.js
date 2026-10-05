@@ -792,7 +792,8 @@ export class Effects {
     this.glints.update(0);
     // Leuchtspur-Mindestbreite: ~1,3 px in Kameradistanz
     const cam = this.G.camera;
-    const h = (this.G.canvas && this.G.canvas.clientHeight) || window.innerHeight || 720;
+    // Größe aus dem Renderer-Cache (ResizeObserver) – clientHeight je Bild erzwänge ein Layout nach den HUD-Schreibzugriffen
+    const h = (this.G.renderer && this.G.renderer.height > 1 && this.G.renderer.height) || window.innerHeight || 720;
     const px = cam ? (2 * Math.tan((cam.fov * Math.PI) / 360)) / h * 1.3 : 0.002;
     this.tracers.update(dt, px);
     this.decals.update(dt, this._time);

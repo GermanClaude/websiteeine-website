@@ -534,10 +534,13 @@ export class Input {
       const bearYaw = Math.atan2(-bx, -bz);
       const bearPitch = Math.atan2(by, Math.hypot(bx, bz));
       const tr = this._track;
-      if (tr && tr.actor === best && dt > 0) {
+      const dYaw = tr ? wrapAngle(bearYaw - tr.yaw) : 0;
+      const dPitch = tr ? bearPitch - tr.pitch : 0;
+      // Sprünge (Respawn, Teleport) nicht mitführen
+      if (tr && tr.actor === best && dt > 0 && Math.abs(dYaw) < 0.2 && Math.abs(dPitch) < 0.2) {
         const k = (0.45 + 0.35 * ads) * closeness;
-        this.look.dx -= wrapAngle(bearYaw - tr.yaw) * k;
-        this.look.dy -= (bearPitch - tr.pitch) * k * 0.5;
+        this.look.dx -= dYaw * k;
+        this.look.dy -= dPitch * k * 0.5;
       }
       this._track = { actor: best, yaw: bearYaw, pitch: bearPitch };
 

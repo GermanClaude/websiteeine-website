@@ -131,19 +131,25 @@ export function isPerch(A, node) {
 }
 
 /**
- * Erhöhter Posten im Umkreis von center mit Sicht auf center (Augenhöhe → Oberkörper am Ort).
- * Prüft höchstens `tests` zufällige Kandidaten (je ein Sichtstrahl). → Knoten | null
+ * Erhöhter Posten im Umkreis von center mit Sicht auf center (Augenhöhe → Oberkörper am Ort). Zuerst
+ * Aussichtspunkte unter freiem Himmel (A.perch), dann übrige erhöhte Knoten (z. B. Fenster im
+ * Obergeschoss). Prüft höchstens `tests` zufällige Kandidaten (je ein Sichtstrahl). → Knoten | null
  */
 export function perchNear(bot, A, center, radius, { tests = 4, minDist = 4, maxFromBot = 60 } = {}) {
-  if (!A || !A.perch.length) return null;
+  if (!A || !A.high.length) return null;
   const world = bot.G.world;
   const r2 = radius * radius, m2 = minDist * minDist, b2 = maxFromBot * maxFromBot;
-  const list = [];
-  for (const n of A.perch) {
+  const first = _perchA, rest = _perchB;
+  first.length = rest.length = 0;
+  for (let i = 0; i < A.high.length; i++) {
+    const n = A.high[i];
     const d2 = n.position.distanceToSquared(center);
-    if (d2 <= r2 && d2 >= m2 && n.position.distanceToSquared(bot.position) <= b2) list.push(n);
+    if (d2 > r2 || d2 < m2 || n.position.distanceToSquared(bot.position) > b2) continue;
+    (A.perchSet.has(n) ? first : rest).push(n);
   }
-  for (let k = 0; k < tests && list.length; k++) {
+  for (let k = 0; k < tests; k++) {
+    const list = first.length ? first : rest;
+    if (!list.length) break;
     const i = (Math.random() * list.length) | 0;
     const n = list[i];
     list[i] = list[list.length - 1];
@@ -154,6 +160,7 @@ export function perchNear(bot, A, center, radius, { tests = 4, minDist = 4, maxF
   }
   return null;
 }
+const _perchA = [], _perchB = [];
 
 /** Flankenpunkt: seitlich versetzt zum Ziel, auf dem NavGraph, nicht im direkten Anlauf. */
 export function flankPoint(bot, A, targetPos) {

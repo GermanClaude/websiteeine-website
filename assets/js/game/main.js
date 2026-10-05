@@ -479,7 +479,8 @@ async function runStart(config, gen) {
       G.world = world;
       if (world.group && !world.group.parent) G.scene.add(world.group);
       if (dynres) { dynres.reset(); G.renderer.setResolutionScale(1); }
-      if (!live()) { await teardownMatch(); return; }
+      // Abgebrochen (neuer Start/Lobby): Welt stehen lassen – der Nachfolger entscheidet (gleiche Karte → wiederverwenden)
+      if (!live()) { await teardownMatch({ keepWorld: true }); return; }
     }
 
     G.combat.attach(G);
@@ -513,7 +514,7 @@ async function runStart(config, gen) {
     G.mode.start();
     G.menus.showLoading(0.9);
     await warmUp();
-    if (!live()) { await teardownMatch(); return; }
+    if (!live()) { await teardownMatch({ keepWorld: true }); return; }
     G.menus.showLoading(1);
     G.matchCount += 1;
     G.menus.hideAll();
@@ -840,6 +841,7 @@ function applyAutoTier() {
 
 function updatePerf(now, workMs, rawMs) {
   if (!dynres || QUALITY_OVERRIDE || G.match.startedReal == null || G.time.real - G.match.startedReal < 3) return;
+  dynres.touch = G.input.mode === 'touch'; // Ziel 30 FPS auf Touch, 60 auf Desktop
   dynres.frame(now, rawMs, workMs);
   const R = G.renderer;
   const auto = settings.get('quality') === 'auto';

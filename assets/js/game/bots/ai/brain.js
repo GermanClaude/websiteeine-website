@@ -100,7 +100,12 @@ export function think(bot, now) {
   // Herrschaft: Flaggen haben Vorrang vor weitem Verfolgen
   if (objective && fresh && !objective.inside) {
     const near = fresh.pos.distanceTo(bot.position) < 14 && now - fresh.time < 3;
-    if (!near) { set(goal, 'objective', now, { move: objective.position, speed: 'sprint', look: 'move', tolerance: Math.min(2, objective.radius * 0.4) }); return; }
+    if (!near) {
+      // eigene Flagge: gelegentlich von einem erhöhten Posten mit Sicht darauf sichern
+      if (objective.kind === 'defend' && defendFromPerch(bot, now, A, objective)) return;
+      set(goal, 'objective', now, { move: objective.position, speed: 'sprint', look: 'move', tolerance: Math.min(2, objective.radius * 0.4) });
+      return;
+    }
   }
   if (fresh) {
     const age = now - fresh.time;
