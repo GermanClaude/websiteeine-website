@@ -970,6 +970,8 @@ export class HUD {
       this._updateStreakPanel();
       this._updatePrompt(touch);
       this._updateStamp();
+      // Linkshänder-Layout (gespiegelte Touch-Knöpfe): HUD-Ecken mitspiegeln (Minikarte rechts, Knöpfe links)
+      toggle(this.root, 'is-mirror', !!(touch && input.touchLayout && input.touchLayout.mirror));
       if (G.mode && G.mode.id === 'training') this._updateTraining();
       const uav = G.mode && G.mode.streaks && p ? G.mode.streaks.uavInfo(p) : null;
       const show = !!(uav && (uav.own || uav.enemy));

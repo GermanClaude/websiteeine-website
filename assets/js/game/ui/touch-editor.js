@@ -158,6 +158,9 @@ export class TouchEditor {
     }
     this._markOverlaps();
     this._syncPanel();
+    // HUD-Schema folgt dem Linkshänder-Layout (Minikarte rechts)
+    const R = resolveTouchLayout(this.layout, this.aspect);
+    if (this.back) this.back.classList.toggle('is-mirror', !!R.mirror);
   }
 
   _schedule() {

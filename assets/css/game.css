@@ -2378,3 +2378,16 @@ body[data-input-mode="touch"] .sb-table th.sb-name { width: auto; }
 body[data-input-mode="touch"] .sb-table th.sb-extra { width: 64px; overflow: hidden; text-overflow: ellipsis; }
 body[data-input-mode="touch"] .sb-table th { letter-spacing: .06em; }
 body[data-input-mode="touch"] .sb-table th:nth-child(3) { width: 52px; }
+/* Reiter in rollbaren Leisten: Fokusrahmen nach innen (außen schneidet der Rollbereich ihn ab), Randverlauf zeigt weitere Reiter */
+.sp-tabs .m-tab:focus-visible, .sp-jump .sp-chip:focus-visible { outline-offset: -3px; }
+@media (max-width: 900px) {
+  .sp-tabs:not(.is-end) { -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent); mask-image: linear-gradient(90deg, #000 90%, transparent); }
+}
+/* Linkshänder-Layout (gespiegelte Touch-Knöpfe, hud.js .is-mirror): Minikarte, Leben und Abschussmeldungen nach rechts */
+.h-root[data-input="touch"].is-mirror .h-tl { left: auto; right: var(--pad-r); }
+.h-root[data-input="touch"].is-mirror .h-uav { left: auto; right: calc(100% + 8px); }
+.h-root[data-input="touch"].is-mirror .h-health { left: auto; right: var(--pad-r); flex-direction: row-reverse; }
+.h-root[data-input="touch"].is-mirror .h-feed { left: auto; right: calc(var(--fl-r) + 10px); align-items: flex-end; }
+.h-root[data-input="touch"].is-mirror .h-train { right: auto; left: var(--pad-l); border-right: 0; border-left: 2px solid var(--np-signal); }
+.h-root[data-input="touch"].is-mirror .h-stamp { right: auto; left: calc(2.2% + var(--tc-u) * 52 + max(44px, var(--tc-u) * 42) + 12px + env(safe-area-inset-left)); align-items: flex-start; }
+.te-back.is-mirror .te-h-mm { left: auto; right: max(10px, env(safe-area-inset-right)); }

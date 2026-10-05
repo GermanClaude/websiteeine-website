@@ -62,6 +62,11 @@ export class SettingsPanel {
       const b = e.target.closest('[data-g]');
       if (b && b.dataset.g !== this.group) this.openTab(b.dataset.g);
     });
+    // Randverlauf der Reiterleiste nur, solange rechts noch Reiter verborgen sind
+    const tabs = root.querySelector('.sp-tabs');
+    const edge = () => tabs.classList.toggle('is-end', tabs.scrollLeft + tabs.clientWidth >= tabs.scrollWidth - 2);
+    tabs.addEventListener('scroll', edge, { passive: true });
+    requestAnimationFrame(edge);
     root.querySelector('.sp-reset').addEventListener('click', () => this._reset());
     root.querySelector('.sp-undo').addEventListener('click', () => {
       const u = this._undo;

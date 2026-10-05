@@ -102,9 +102,12 @@ export function graphicsPage(P) {
     if (inMatch) {
       ({ textures, geometry, environment, shadows } = est);
       measured = true;
-      const c = readCache();
-      c[q] = { textures, geometry, environment, at: Date.now() };
-      writeCache(c);
+      // Nur echte Karten merken (Prüfseiten mit Testszene würden die Lobby-Schätzung verfälschen)
+      if (G.world.id && textures > MB) {
+        const c = readCache();
+        c[q] = { textures, geometry, environment, at: Date.now() };
+        writeCache(c);
+      }
     } else {
       const c = readCache()[q];
       if (c && c.textures > 0) ({ textures, geometry, environment } = c);
