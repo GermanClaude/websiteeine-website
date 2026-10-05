@@ -30,8 +30,10 @@ export default {
   groundNoise: 0.18,
   lighting: {
     sun: { elevation: 61, azimuth: 212, color: '#ffeccc', intensity: 4.9 },
-    sky: { turbidity: 2.6, rayleigh: 1.05, mieCoefficient: 0.0035, mieDirectionalG: 0.8, exposure: 0.6, clouds: { coverage: 0.1, density: 0.28, scale: 0.00024, elevation: 0.62 }, hazeHigh: 0.11, hazeAmount: 0.75 },
-    hemi: { sky: '#d6e0ea', ground: '#e0bd8c', intensity: 0.6 },
+    // HDRI old_outdoor_theater: Umgebungslicht + Foto-Wolken ab ≈ 25° Höhe (darunter Bäume/Mauer des Fotos, die über
+    // der Stadt riesig wirkten) – unten bleibt der Preetham-Himmel mit Dunst
+    sky: { turbidity: 2.6, rayleigh: 1.05, mieCoefficient: 0.0035, mieDirectionalG: 0.8, exposure: 0.6, clouds: { coverage: 0.1, density: 0.28, scale: 0.00024, elevation: 0.62 }, hazeHigh: 0.11, hazeAmount: 0.75, hdriBlend: [0.42, 0.75] },
+    hemi: { sky: '#d6e0ea', ground: '#e0bd8c', intensity: 0.6, hdriIntensity: 0.45 },
     env: { intensity: 0.58, ground: '#e0c090', groundIntensity: 0.9, tint: '#fff0dc' },
     fog: { color: '#d9e4ec', near: 90, far: 520 },
     shadow: { size: 40 },

@@ -179,6 +179,16 @@ export class AutoExposure {
       .finally(() => { this._reading = false; });
   }
 
+  /** Blockierendes Zurücklesen (nur Prüfseiten/Tests – hält die GPU an). */
+  readNow(renderer) {
+    try {
+      renderer.readRenderTargetPixels(this.adapt[this.idx], 0, 0, 1, 1, this._readBuf);
+      const f = THREE.DataUtils.fromHalfFloat, b = this._readBuf;
+      this.last = { factor: f(b[0]), ev: f(b[1]), avgLog: f(b[2]), at: performance.now() };
+    } catch { /* ignorieren */ }
+    return this.last;
+  }
+
   materials() { return [this.lumMat, this.reduceMat, this.adaptMat]; }
 
   /** Speicher der Ziele in Bytes. */

@@ -28,6 +28,20 @@ export function hash01(x, z, k = 0) {
 const geoCache = new Map();
 function cached(key, fn) { if (!geoCache.has(key)) geoCache.set(key, fn()); return geoCache.get(key); }
 
+/**
+ * Ausstattung aus der Asset-Bibliothek (Kleinteile, Möbel, Technik): Liste [id, x, y, z, ry?, opts?]
+ * (Positionen = Unterkante-Mitte). Standard ohne Bewegungskollision (Kugeln treffen trotzdem); opts.collide für
+ * Möbel/Geräte, die wie Deckung wirken. Ohne Bibliothek (KTX2/Transcoder fehlt) entfällt die Ausstattung – die
+ * Karte ist ohne sie vollständig.
+ */
+export function dress(b, list) {
+  if (!b.lib) return;
+  for (const [id, x, y, z, ry, o] of list) {
+    if (!b.lib.has(id)) continue;
+    b.model(id, x, y, z, { ry: ry ?? hash01(x, z, 9) * Math.PI * 2, collide: false, ...(o || {}) });
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Container
 // ---------------------------------------------------------------------------

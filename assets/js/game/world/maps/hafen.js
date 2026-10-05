@@ -7,7 +7,7 @@ import { building, wall, stairs, railing, catwalk, slab } from '../arch.js';
 import {
   container, CONTAINER_H, crate, crateStack, barrel, barrelGroup, pallet, palletStack, sandbags, jersey, bollard, cone,
   forklift, truck, van, car, lampPost, floodMast, fence, tires, cableReel, gasBottles, electricBox, acUnit, pipe, cable,
-  rack, workbench, lockers, dumpster, frame, roofVent,
+  rack, workbench, lockers, dumpster, frame, roofVent, dress,
 } from '../props.js';
 
 const H = CONTAINER_H;
@@ -230,6 +230,7 @@ export default {
     backdrop(b);
     for (const z of [-95, -150]) gantryCrane(b, z, { backdrop: true });
     ship(b);
+    dressing(b);
 
     // -----------------------------------------------------------------------
     // Startpunkte & Flaggen
@@ -246,6 +247,39 @@ export default {
     };
   },
 };
+
+// ---------------------------------------------------------------------------
+// Ausstattung aus der Asset-Bibliothek (Fotoscan-Kleinteile; ohne Bibliothek entfällt sie)
+// ---------------------------------------------------------------------------
+function dressing(b) {
+  const Q = Math.PI / 2, wf = 0.12; // Hallenboden
+  dress(b, [
+    // Kaikante: Kanister, Kunststoffkisten, Zementsäcke, Gasflaschen, Hydranten
+    ['industrial_pastic_container', -40.5, 0, 13.3, 0.3], ['industrial_pastic_container', -39.8, 0, 12.6, 1.25],
+    ['metal_jerrycan', -37.5, 0, 24.5, 0.4], ['metal_jerrycan', -37.0, 0, 24.85, 1.9], ['metal_jerrycan', -34.3, 0, -28.3, 2.6],
+    ['cement_bag', -33.1, 0, 30.7, 0.1], ['cement_bag', -32.7, 0, 31.4, 0.2], ['cement_bag', -32.9, 0.18, 31.0, 1.6],
+    ['propane_tank', -21.9, 0, -30.3], ['propane_tank', -22.4, 0, -31.0],
+    ['fire_hydrant', -28.6, 0, -16.4, Q, { part: 'fire_hydrant', collide: true }],
+    ['fire_hydrant', 48.5, 0, 21.0, -Q, { part: 'fire_hydrant_aged', collide: true }],
+    // Containergassen: Kartons, Müllsäcke
+    ['cardboard_box_01', -22.6, 0, -6.8, 0.2], ['cardboard_box_01', -22.25, 0, -7.45, 0.9], ['cardboard_box_01', -22.45, 0.34, -7.1, 0.35],
+    ['trashbag', -20.3, 0, 33.4], ['trashbag', -19.7, 0, 33.0], ['trashbag', -21.0, 0, 33.6],
+    ['metal_trash_can', 1.9, 0, 33.4, 0.3, { part: 'metal_trash_can_rust' }],
+    // Lagerhalle 3: Werkzeug, Generator, Kartons, Warnschild
+    ['metal_tool_chest', 41.35, wf, -1.7, -Q, { collide: true }],
+    ['tool_cart', 38.7, wf, -11.6, 0.35, { collide: true }],
+    ['portable_generator', 39.5, wf, 13.4, 1.1, { collide: true }],
+    ['hand_truck', 33.9, wf, 15.7, 2.6],
+    ['cardboard_box_01', 16.9, wf, -18.4, 0.1], ['cardboard_box_01', 17.45, wf, -18.65, 1.4], ['cardboard_box_01', 17.1, wf + 0.34, -18.5, 0.3],
+    ['industrial_pastic_container', 23.4, wf, -15.6, 0.2],
+    ['wetfloorsign_01', 31.2, wf, 2.3, 0.6],
+    ['metal_trash_can', 29.6, wf, -10.35, 0.2, { part: 'metal_trash_can_handle_left' }],
+    // Terminalbüro und Pforte
+    ['metal_trash_can', 18.3, 0, -40.6, 0.5, { part: 'metal_trash_can_rust' }], ['trashbag', 18.9, 0, -40.1],
+    ['utility_box_01', 18.65, 0, -44.6, -Q, { collide: true }],
+    ['metal_trash_can', 29.55, 0, 46.7, 1.2, { part: 'metal_trash_can_handle_left' }],
+  ]);
+}
 
 // ---------------------------------------------------------------------------
 // Schilder

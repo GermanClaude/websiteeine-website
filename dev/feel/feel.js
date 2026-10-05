@@ -218,7 +218,7 @@ document.getElementById('spray').addEventListener('click', () => { held.add('fir
 document.getElementById('clear').addEventListener('click', () => effects.clear());
 mark('pose', values.weaponPose); mark('q', quality); mark('fa', 0);
 
-function setWeapon(id) { ctrl.setLoadout({ primary: id, secondary: id === 'pi_p9' ? 'pi_adler' : 'pi_p9', lethal: null }); sel.value = id; }
+function setWeapon(id) { ctrl.setLoadout({ primary: id, secondary: null, lethal: null }); sel.value = id; }
 function setPose(p) { values.weaponPose = p; mark('pose', p); }
 function setQuality(q) { quality = G.renderer.quality = q; for (const fn of qListeners) fn(q); effects.detach(); effects.attach(G); mark('q', q); }
 function toWall() { actor.position.set(0, 0, -8.45); actor.yaw = 0; actor.pitch = 0; }
@@ -301,7 +301,7 @@ function step(dt) {
   pressed.clear();
   // Graph: Zielrückstoß (Kamera-Pitch-Anteil) und sichtbarer Waffenstoß (Viewmodel-Feder)
   const r = vm();
-  samples.push({ aim: actor.recoilP, vis: r ? (r._recoilRot.value.x * 0.01 + r._climb) : 0 });
+  samples.push({ aim: actor.recoilP, vis: r ? (r._recoilRot.value.x + r._climb) : 0 });
   if (samples.length > 180) samples.shift();
 }
 

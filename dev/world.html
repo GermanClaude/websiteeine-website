@@ -38,9 +38,11 @@
     </select>
     <select id="quality">
       <option value="high">Hoch</option>
+      <option value="medium">Mittel</option>
       <option value="low">Niedrig</option>
       <option value="ultra">Ultra</option>
     </select>
+    <button id="lib" title="Fotoscan-Bibliothek (KTX2-Materialien, HDRI, Requisiten) an/aus">Fotoscans</button>
   </div>
   <div class="row">
     <button data-t="collider">Kollision</button>
@@ -75,7 +77,7 @@ const camera = new THREE.PerspectiveCamera(Number(params.get('fov') || 75), 1, 0
 const debugGroup = new THREE.Group(); scene.add(debugGroup);
 const quality = params.get('quality') || 'high';
 document.getElementById('quality').value = quality;
-const preset = quality === 'low' ? { shadows: false, shadowMapSize: 1024 } : quality === 'ultra' ? { shadows: true, shadowMapSize: 4096 } : { shadows: true, shadowMapSize: 2048 };
+const preset = quality === 'low' ? { id: 'low', shadows: false, shadowMapSize: 1024 } : quality === 'ultra' ? { id: 'ultra', shadows: true, shadowMapSize: 4096 } : { id: quality, shadows: true, shadowMapSize: 2048 };
 renderer.shadowMap.enabled = preset.shadows;
 const G = { THREE, scene, camera, renderer: { renderer, quality, preset }, params, debug: params.get('debug') !== '0' };
 
@@ -196,6 +198,9 @@ function rebuildDebug() {
 for (const btn of document.querySelectorAll('[data-t]')) btn.addEventListener('click', () => { const t = btn.dataset.t; toggles.has(t) ? toggles.delete(t) : toggles.add(t); rebuildDebug(); });
 document.getElementById('map').addEventListener('change', e => { const u = new URL(location.href); u.searchParams.set('map', e.target.value); u.searchParams.delete('cam'); history.replaceState(null, '', u); params.delete('cam'); load(e.target.value); });
 document.getElementById('quality').addEventListener('change', e => { const u = new URL(location.href); u.searchParams.set('quality', e.target.value); location.href = u.href; });
+const libBtn = document.getElementById('lib');
+libBtn.classList.toggle('on', params.get('lib') !== '0');
+libBtn.addEventListener('click', () => { const u = new URL(location.href); if (params.get('lib') === '0') u.searchParams.delete('lib'); else u.searchParams.set('lib', '0'); location.href = u.href; });
 
 // Steuerung
 let dragging = false, lx = 0, ly = 0;
@@ -243,14 +248,21 @@ function frame() {
 
 function updateStats() {
   if (!world) return;
-  const i = renderer.info.render, s = world.stats, n = world.nav.stats;
+  const i = renderer.info.render, s = world.stats, n = world.nav.stats, a = s.assets || {};
   const p = camera.position;
+  const mb = (v) => (v / 1048576).toFixed(1);
+  const libLine = a.available
+    ? `Fotoscans ${a.sets} Sätze (${a.tier?.texture}) · ${a.models} Modelle · HDRI ${a.hdri?.id || '–'}
+Download ${mb(a.download)} MB · GPU ≈ ${mb(a.gpu?.desktop || 0)} MB · ${a.ms} ms${a.failed?.length ? ' · Fehler ' + a.failed.length : ''}
+Requisiten ${s.propInstances || 0} Instanzen / ${s.propMeshes || 0} Meshes (${s.propFallbacks || 0} Ersatz)`
+    : `Fotoscans aus (${a.reason || '–'}) – prozedural`;
   document.getElementById('stats').textContent =
 `FPS ${fps.toFixed(0)}  Draw ${i.calls}  Dreiecke ${(i.triangles / 1000).toFixed(0)}k
 Laden ${loadMs.toFixed(0)} ms · Texturen ${world.texMs.toFixed(0)} ms
 Statisch: ${s.meshes} Meshes, ${(s.triangles / 1000).toFixed(0)}k Dreiecke
 Kugel-BVH ${(s.bulletTris / 1000).toFixed(0)}k · Kollision ${(s.colliderTris / 1000).toFixed(1)}k
 Nav ${n.nodes} Knoten · ${n.links} Links · ${n.cover} Deckung · ${n.ms} ms
+${libLine}
 Kamera ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)} · ${(yaw * 180 / Math.PI).toFixed(0)}°/${(pitch * 180 / Math.PI).toFixed(0)}°`;
 }
 

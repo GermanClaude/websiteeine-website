@@ -274,6 +274,8 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
     exposure: {
       reset() { if (pipeline.exposure) pipeline.exposure.reset(); },
       get value() { return pipeline.exposure && pipeline.exposure.last ? pipeline.exposure.last.factor : null; },
+      /** Sofort zurücklesen (blockiert die GPU – nur Prüfseiten/Tests). → { factor, ev, avgLog } | null */
+      readNow() { return pipeline.exposure ? pipeline.exposure.readNow(renderer) : null; },
       get measured() { return pipeline.exposure && pipeline.exposure.last ? Math.pow(2, pipeline.exposure.last.avgLog) : null; },
       get track() { return !!(pipeline.exposure && pipeline.exposure.track); },
       set track(v) { R._trackExposure = !!v; if (pipeline.exposure) pipeline.exposure.track = !!v; },

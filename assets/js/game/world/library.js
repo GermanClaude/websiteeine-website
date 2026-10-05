@@ -24,14 +24,14 @@ import { assets, tierFor, pickTier } from '../../../lib/loader.js';
 // Farbe kommt aus Materialparameter bzw. Vertexfarbe. repeat: fester Wert für „fit“-UVs (0..1 je Fläche).
 // macro: [Albedo groß, Albedo mittel, Rauheit] der Weltraum-Variation (false = aus).
 export const LIB_MATERIALS = {
-  concrete: { id: 'concrete_floor_worn', color: 2.2 },
+  concrete: { id: 'concrete_floor_worn', color: 1.7 },
   concrete_dark: { id: 'concrete_wall_dark', color: 1.35 },
   concrete_panel: { id: 'concrete_panels', color: 1.5 },
   concrete_dirty: { id: 'concrete_dirty', color: 1.0 },
   concrete_painted: { id: 'concrete_painted_peeling', color: 1.0 },
   asphalt: { id: 'asphalt_cracked', color: 0.85, macro: [0.18, 0.1, 0.14] },
   plaster_warm: { id: 'plaster_beige', color: 2.1 },
-  plaster_white: { id: 'plaster_white', color: 1.45 },
+  plaster_white: { id: 'plaster_white', color: 1.7 },
   plaster_peeling: { id: 'plaster_white_peeling', color: 1.15 },
   plaster_blue: { id: 'plaster_blue_weathered', color: 1.05 },
   plaster_damaged: { id: 'plaster_damaged_brick', color: 1.1 },
@@ -40,7 +40,7 @@ export const LIB_MATERIALS = {
   brick_dark: { id: 'brick_dark', color: 2.0 },
   stone_wall: { id: 'sandstone_blocks', color: 1.0 },
   cobble: { id: 'cobblestone', color: 0.85 },
-  paving: { id: 'paving_flagstone', color: 1.6 },
+  paving: { id: 'paving_flagstone', color: [1.45, 1.6, 1.75] }, // Weißabgleich Richtung Kalkstein
   roof_tiles: { id: 'roof_clay_tiles', color: 0.95 },
   wood_planks: { id: 'wood_planks', color: 1.35 },
   wood_dark: { id: 'wood_planks_dark', color: 0.8 },
@@ -53,7 +53,7 @@ export const LIB_MATERIALS = {
   cardboard: { id: 'cardboard', color: 0.75, repeat: 1, macro: false },
   metal_painted: { id: 'metal_painted', color: 1.35, macro: [0.1, 0.08, 0.1] },
   metal_rust: { id: 'metal_rust_painted', color: 0.75 },
-  metal_corrugated: { id: 'metal_corrugated', color: 2.2 },
+  metal_corrugated: { id: 'metal_corrugated', color: 3.0 },
   metal_corrugated_rust: { id: 'metal_corrugated_rusty', color: 1.6 },
   metal_cladding: { id: 'metal_cladding_green', color: 1.0 },
   metal_shutter: { id: 'metal_shutter', color: 1.0 },
@@ -161,7 +161,9 @@ export function createWorldAssets(G, def, quality) {
       if (!e) continue;
       const tier = pickTier(e.tiers, stats.tier.texture);
       const calib = JSON.stringify([spec.color, spec.roughness, spec.metalness, spec.normalScale, spec.repeat, spec.macro, spec.aoMapIntensity, spec.envMapIntensity]);
-      plan.set(name, { ...spec, tier, sizeM: e.sizeM?.[0], key: `${spec.id}@${tier}:${calib}` });
+      // low (Handy): keine Weltraum-Variation im Shader (2 Texturabfragen je Pixel gespart)
+      if (q === 'low') spec = { ...spec, macro: false };
+      plan.set(name, { ...spec, tier, sizeM: e.sizeM?.[0], key: `${spec.id}@${tier}:${calib}${q === 'low' ? ':lo' : ''}` });
     }
     return plan;
   }

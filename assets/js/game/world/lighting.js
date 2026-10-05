@@ -118,6 +118,9 @@ function makeHdriSky(hdri, sd, fogColor, intensity) {
       uHazeAmt: { value: sd.hazeAmount ?? 0.85 },
       uTint: { value: new THREE.Color(sd.hdriTint || '#ffffff') },
       uMax: { value: sd.hdriMax ?? 24 },
+      // hdriBlend [y0, y1]: nur oberhalb sichtbar (weich ab y0 bis y1, Richtungs-y) – darunter der Preetham-Himmel
+      // (Fotos mit nahen Bäumen/Mauern am Horizont, die über der Karte riesig wirken würden)
+      uBlend: { value: new THREE.Vector2(sd.hdriBlend?.[0] ?? -2, sd.hdriBlend?.[1] ?? -1) },
     },
     vertexShader: `varying vec3 vDir;
       void main() {
@@ -126,7 +129,7 @@ function makeHdriSky(hdri, sd, fogColor, intensity) {
         gl_Position.z = gl_Position.w; // ganz hinten
       }`,
     fragmentShader: `uniform sampler2D tSky; uniform mat3 uInvOut; uniform mat3 uInvIn; uniform float uScale; uniform vec2 uRot;
-      uniform vec3 uFog; uniform vec2 uHaze; uniform float uHazeAmt; uniform vec3 uTint; uniform float uMax;
+      uniform vec3 uFog; uniform vec2 uHaze; uniform float uHazeAmt; uniform vec3 uTint; uniform float uMax; uniform vec2 uBlend;
       varying vec3 vDir;
       vec3 npRrtInv( vec3 x ) {
         x = clamp( x, 0.0, 0.985 );
@@ -141,14 +144,15 @@ function makeHdriSky(hdri, sd, fogColor, intensity) {
         L = min( L, vec3( uMax ) );
         float hz = 1.0 - smoothstep( uHaze.x, uHaze.y, d.y );
         L = mix( L, uFog, clamp( hz * uHazeAmt + ( d.y < 0.0 ? 1.0 : 0.0 ), 0.0, 1.0 ) );
-        gl_FragColor = vec4( L, 1.0 );
+        gl_FragColor = vec4( L, smoothstep( uBlend.x, uBlend.y, d.y ) );
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
     side: THREE.BackSide, depthWrite: false, fog: false,
+    transparent: !!sd.hdriBlend,
   });
   const sky = new THREE.Mesh(geo, mat);
-  sky.scale.setScalar(900);
+  sky.scale.setScalar(sd.hdriBlend ? 880 : 900);
   sky.frustumCulled = false;
   sky.renderOrder = -10;
   sky.name = 'sky';
@@ -176,9 +180,13 @@ export function createLighting(G, def, group, { hdri = null } = {}) {
   // Himmel: HDRI-Kuppel (sofern geladen und gewünscht) oder Preetham
   const envIntensity = hdri ? (def.env?.hdriIntensity ?? def.env?.intensity ?? 0.8) : (def.env?.intensity ?? 0.8);
   const useHdriSky = !!hdri?.background && def.sky?.hdri !== false;
-  const sky = useHdriSky ? makeHdriSky(hdri, def.sky || {}, fogColor, def.sky?.hdriIntensity ?? envIntensity) : makeSky(def.sky || {}, fogColor);
-  if (!useHdriSky) sky.material.uniforms.sunPosition.value.copy(sunDir).multiplyScalar(450000);
+  const blendSky = useHdriSky && !!def.sky?.hdriBlend;
+  const sky = useHdriSky && !blendSky ? makeHdriSky(hdri, def.sky || {}, fogColor, def.sky?.hdriIntensity ?? envIntensity) : makeSky(def.sky || {}, fogColor);
+  if (!(useHdriSky && !blendSky)) sky.material.uniforms.sunPosition.value.copy(sunDir).multiplyScalar(450000);
   group.add(sky);
+  // Mischform: Preetham-Himmel unten (klarer Horizont), Foto-Wolken des HDRIs darüber eingeblendet
+  const skyTop = blendSky ? makeHdriSky(hdri, { ...def.sky, hazeAmount: 0 }, fogColor, def.sky?.hdriIntensity ?? envIntensity) : null;
+  if (skyTop) { skyTop.renderOrder = -9; skyTop.name = 'sky-hdri'; group.add(skyTop); }
 
   // Umgebung (PMREM) aus Himmel + Bodenhalbkugel. Nach einem WebGL-Kontextverlust ist das Ziel leer und gehört
   // zum alten Kontext → bei 'lost' freigeben (still), bei 'restored' neu rendern (siehe unten).
@@ -277,6 +285,7 @@ export function createLighting(G, def, group, { hdri = null } = {}) {
       if (sky.material.uniforms.time) sky.material.uniforms.time.value = time;
       if (!camera) return;
       sky.position.copy(camera.position);
+      if (skyTop) skyTop.position.copy(camera.position);
       camera.getWorldDirection(fwd); fwd.y = 0;
       if (fwd.lengthSq() > 1e-6) fwd.normalize();
       // Zentrum etwas vor die Kamera legen → mehr Schatten im Blickfeld
@@ -316,6 +325,7 @@ export function createLighting(G, def, group, { hdri = null } = {}) {
       disposed = true;
       offContext?.();
       sky.geometry.dispose(); sky.material.dispose();
+      if (skyTop) { skyTop.geometry.dispose(); skyTop.material.dispose(); }
       sun.shadow.map?.dispose();
       pmremRT?.dispose(); pmremRT = null;
       if (scene.environment === envMap) scene.environment = prev.environment;

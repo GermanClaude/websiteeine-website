@@ -239,6 +239,17 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     const s = nav.stats;
     console.info(`[world] ${id}: Navigationsgraph ${s.nodes} Knoten, ${s.links} Verbindungen (${s.drops} Absprünge), ${s.cover} Deckungspunkte, ${s.removed} unerreichbare Punkte entfernt, ${s.ms} ms`);
     for (const p of rep.problems) console.warn('[world] Navigation: ' + p);
+    // Startpunkte/Flaggen frei? (Kapsel 0,35 m: waagerechte Strahlen in 0,6 und 1,4 m Höhe gegen die Kollision)
+    const blocked = [];
+    const probe = (p, label) => {
+      for (const hy of [0.6, 1.4]) for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        if (cbvh.raycast(p.x, p.y + hy, p.z, Math.cos(a), 0, Math.sin(a), 0.33, hit)) { blocked.push(`${label} (${p.x.toFixed(1)}, ${p.z.toFixed(1)})`); return; }
+      }
+    };
+    for (const t of ['A', 'B', 'ffa']) spawns[t].forEach((s, i) => probe(s.position, `Start ${t}${i}`));
+    for (const o of objectives.dom) probe(o.position, `Flagge ${o.id}`);
+    for (const p of blocked) console.warn('[world] blockiert: ' + p);
   }
 
   // Minikarte

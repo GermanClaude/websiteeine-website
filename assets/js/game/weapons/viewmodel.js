@@ -349,9 +349,18 @@ export class ViewModel {
     const rnd = (Math.random() - 0.5) * 2;
     // Seitlicher Stoß in Richtung des Zielrückstoßes (sonst zufällig); kleiner Zufallsanteil bleibt
     const side = Number.isFinite(info.yaw) && Math.abs(info.yaw) > 1e-6 ? Math.sign(info.yaw) * (0.55 + 0.45 * Math.random()) : rnd;
-    this._recoilPos.kick(side * k.side * 6 * adsMul * s, k.up * 1.4 * s * (1 - 0.5 * ads), k.back * 22 * s);
-    this._recoilRot.kick(k.up * 22 * s * (1 - 0.35 * ads) + k.kickRot * 10 * s, -side * k.side * 14 * adsMul * s, rnd * k.roll * 20 * adsMul * s);
-    this._climb = Math.min(0.09, this._climb + k.up * 0.32 * s * (0.4 + 0.6 * Math.max(0.5, this._motionScale())));
+    // Gewünschte Ausschläge (m, rad) → Anfangsgeschwindigkeit der Federn (Spitze ≈ 0,478·v₀/ω bei ζ ≈ 0,65).
+    // Schwerere Waffen bewegen sich weniger und langsamer (ω sinkt mit der Masse, siehe update()).
+    const massK = Math.sqrt(clamp(this._handlingData().mass, 0.3, 12) / 3.3);
+    const mk = Math.pow(1 / massK, 0.35);
+    const wP = 14.5 / Math.sqrt(massK), wR = 13 / Math.sqrt(massK);
+    const toV = (peak, w) => (peak * w) / 0.478;
+    const back = k.back * 0.4 * s * mk;                         // z. B. M-17 ≈ 10 mm, Bulldog ≈ 26 mm
+    const lift = k.up * 0.08 * s * mk * (1 - 0.5 * ads);
+    const up = (k.up + k.kickRot) * 0.43 * s * mk * (1 - 0.65 * ads);   // Mündung kippt: M-17 ≈ 1,6°, Adler ≈ 6°
+    this._recoilPos.kick(toV(side * k.side * 0.25 * s * mk * adsMul, wP), toV(lift, wP), toV(back, wP));
+    this._recoilRot.kick(toV(up, wR), toV(-side * k.side * 0.6 * s * mk * (1 - 0.6 * ads), wR), toV(rnd * k.roll * 0.3 * s * mk * (1 - 0.6 * ads), wR));
+    this._climb = Math.min(0.09, this._climb + k.up * 0.22 * s * (0.4 + 0.6 * Math.max(0.5, this._motionScale())));
     this._heat = Math.min(1, this._heat + (h.heat ?? HEAT_PER_SHOT[h.action] ?? 0.02));
     this._shotCount++;
     const suppressed = info.suppressed ?? this.def?.suppressed;
@@ -825,8 +834,8 @@ export class ViewModel {
     R.y += bobRY + lagY * lagL + driftX - vx * 0.004 * swayK * na;
     R.z += bobRZ - lagY * 0.55 * lagL + this._strafeRoll;
     // Rückstoß: Federstoß + Hochklettern im Dauerfeuer
-    P.x += rp.x * 0.01; P.y += rp.y * 0.01 + this._climb * 0.04 * na; P.z += rp.z * 0.01 + this._climb * 0.06;
-    R.x += rr.x * 0.01 + this._climb * (0.12 + 0.88 * na); R.y += rr.y * 0.01; R.z += rr.z * 0.01;
+    P.x += rp.x; P.y += rp.y + this._climb * 0.04 * na; P.z += rp.z + this._climb * 0.06;
+    R.x += rr.x + this._climb * (0.12 + 0.88 * na); R.y += rr.y; R.z += rr.z;
     // Lehnen: Waffe folgt mit leichtem Verzug zur Seite und kantet etwas mehr (nur an der Hüfte)
     this._lean = damp(this._lean, clamp(s.lean || 0, -1, 1), 9, dt);
     P.x += this._lean * 0.012 * na;
@@ -1073,7 +1082,7 @@ export class ViewModel {
     const magRot = curve(m, [[0.26, 0], [0.4, 0.25], [0.48, 0.25], [0.58, 0.12], [0.67, 0]]);
     out.parts.mag = [mag[0], mag[1], mag[2], magRot, 0, 0];
     this._magWindow(A, out, m, 0.3, 0.475);
-    if (m > 0.66 && m < 0.7 && !A.slapped) { A.slapped = true; this._jolt.kick(1.2, 0, 0); this._recoilPos.kick(0, 0.4, 0); }
+    if (m > 0.66 && m < 0.7 && !A.slapped) { A.slapped = true; this._jolt.kick(1.2, 0, 0); this._recoilPos.kick(0, 0.004, 0); }
     // Linke Hand: zum Magazin, mit ihm hinaus und zurück
     const wMag = windowW(m, 0.14, 0.25, 0.68, 0.8);
     if (wMag > 0 && ud.anchors.magGrab) req(out.left, wMag, { anchor: ud.anchors.magGrab, style: 'mag' });
@@ -1211,7 +1220,7 @@ export class ViewModel {
     const mag = curve(u, [[0.12, ZERO3], [0.2, [0, -0.07, 0.025]], [0.3, [0.02, -0.5, 0.15]], [0.31, [-0.12, -0.3, 0.1]], [0.48, [-0.02, -0.075, 0.03]], [0.58, [0, -0.012, 0.004]], [0.62, ZERO3]]);
     out.parts.mag = [mag[0], mag[1], mag[2]];
     this._magWindow(A, out, u, 0.17, 0.305);
-    if (u > 0.6 && !A.slapped) { A.slapped = true; this._jolt.kick(1.4, 0, 0); this._recoilPos.kick(0, 0.5, 0); }
+    if (u > 0.6 && !A.slapped) { A.slapped = true; this._jolt.kick(1.4, 0, 0); this._recoilPos.kick(0, 0.005, 0); }
     // Linke Hand verlässt den Stützgriff, holt das neue Magazin, setzt es ein
     const wAway = windowW(u, 0.1, 0.22, 0.66, 0.82);
     if (wAway > 0) {
