@@ -1,0 +1,195 @@
+{
+  "id": "old_bed_frame",
+  "recipe": "31c84258c7b6",
+  "size": [
+    0.905,
+    1.201,
+    2.001
+  ],
+  "radius": 1.252,
+  "lodDistances": [
+    0,
+    17.5,
+    50.1
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/old_bed_frame/old_bed_frame_512.glb",
+      "bytes": 225772,
+      "srcTris": 49990,
+      "lods": [
+        {
+          "tris": 3568
+        },
+        {
+          "tris": 1229
+        }
+      ],
+      "parts": [
+        "old_bed_frame"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.448,
+          0,
+          -0.998
+        ],
+        "max": [
+          0.457,
+          1.201,
+          1.003
+        ]
+      },
+      "textures": [
+        {
+          "name": "old_bed_frame_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 48570,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "old_bed_frame_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 60874,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "old_bed_frame_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 46235,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 198770,
+      "gpu": {
+        "desktop": 723059,
+        "mobile": 723059,
+        "rgba8": 4393073
+      },
+      "materials": [
+        {
+          "name": "old_bed_frame",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        50.1
+      ]
+    },
+    "1024": {
+      "path": "models/old_bed_frame/old_bed_frame_1024.glb",
+      "bytes": 681240,
+      "srcTris": 49990,
+      "lods": [
+        {
+          "tris": 8921
+        },
+        {
+          "tris": 3568
+        },
+        {
+          "tris": 1229
+        }
+      ],
+      "parts": [
+        "old_bed_frame"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.448,
+          0,
+          -0.998
+        ],
+        "max": [
+          0.457,
+          1.201,
+          1.003
+        ]
+      },
+      "textures": [
+        {
+          "name": "old_bed_frame_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 172459,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "old_bed_frame_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 193177,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "old_bed_frame_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 154286,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 485568,
+      "gpu": {
+        "desktop": 2582721,
+        "mobile": 2582721,
+        "rgba8": 17262783
+      },
+      "materials": [
+        {
+          "name": "old_bed_frame",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        17.5,
+        50.1
+      ]
+    }
+  }
+}

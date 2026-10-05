@@ -1,0 +1,111 @@
+{
+  "id": "metal_rust_painted",
+  "recipe": "d678bbc3051f",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/metal_rust_painted/metal_rust_painted_512_albedo.ktx2",
+          "bytes": 65160,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/metal_rust_painted/metal_rust_painted_512_normal.ktx2",
+          "bytes": 65147,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/metal_rust_painted/metal_rust_painted_512_orm.ktx2",
+          "bytes": 36480,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 166787,
+      "gpu": {
+        "desktop": 524289,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/metal_rust_painted/metal_rust_painted_1024_albedo.ktx2",
+          "bytes": 213984,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/metal_rust_painted/metal_rust_painted_1024_normal.ktx2",
+          "bytes": 191511,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/metal_rust_painted/metal_rust_painted_1024_orm.ktx2",
+          "bytes": 136790,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 542285,
+      "gpu": {
+        "desktop": 2097153,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#ac9267",
+    "avgRoughness": 0.423,
+    "avgMetalness": 0.005,
+    "avgAO": 0.767,
+    "coverage": 1
+  }
+}

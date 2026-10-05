@@ -1,0 +1,297 @@
+{
+  "id": "modular_airduct_rectangular_01",
+  "recipe": "c56b3ced083e",
+  "size": [
+    7.663,
+    1.256,
+    2.587
+  ],
+  "radius": 4.092,
+  "lodDistances": null,
+  "tiers": {
+    "512": {
+      "path": "models/modular_airduct_rectangular_01/modular_airduct_rectangular_01_512.glb",
+      "bytes": 576160,
+      "srcTris": 45090,
+      "lods": [
+        {
+          "tris": 25428
+        }
+      ],
+      "parts": [
+        "modular_airduct_rectangular_01_single_01",
+        "modular_airduct_rectangular_01_double_01",
+        "modular_airduct_rectangular_01_tripple_01",
+        "modular_airduct_rectangular_01_corner_01",
+        "modular_airduct_rectangular_01_corner_02",
+        "modular_airduct_rectangular_01_bend_02",
+        "modular_airduct_rectangular_01_bend_01",
+        "modular_airduct_rectangular_01_transition_double_01",
+        "modular_airduct_rectangular_01_transition_double_02",
+        "modular_airduct_rectangular_01_splitter_01",
+        "modular_airduct_rectangular_01_half_01",
+        "modular_airduct_rectangular_01_connector_01",
+        "modular_airduct_rectangular_01_vent_01",
+        "modular_airduct_rectangular_01_vent_02",
+        "modular_airduct_rectangular_01_vent_closed_01",
+        "modular_airduct_rectangular_01_brace_01",
+        "modular_airduct_rectangular_01_brace_wire_01",
+        "modular_airduct_rectangular_01_fastener_01.025"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -3.332,
+          -0.706,
+          -1.05
+        ],
+        "max": [
+          4.331,
+          0.55,
+          1.537
+        ]
+      },
+      "textures": [
+        {
+          "name": "modular_airduct_rectangular_01_parts02_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 34100,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_airduct_rectangular_01_parts02_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 56091,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_airduct_rectangular_01_parts02_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 36924,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_airduct_rectangular_01_parts01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 25334,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_airduct_rectangular_01_parts01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 59601,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_airduct_rectangular_01_parts01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 37009,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 820884,
+      "gpu": {
+        "desktop": 1869462,
+        "mobile": 1869462,
+        "rgba8": 9209490
+      },
+      "materials": [
+        {
+          "name": "modular_airduct_rectangular_01_parts02",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "modular_airduct_rectangular_01_parts01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": null
+    },
+    "1024": {
+      "path": "models/modular_airduct_rectangular_01/modular_airduct_rectangular_01_1024.glb",
+      "bytes": 1127188,
+      "srcTris": 45090,
+      "lods": [
+        {
+          "tris": 25428
+        }
+      ],
+      "parts": [
+        "modular_airduct_rectangular_01_single_01",
+        "modular_airduct_rectangular_01_double_01",
+        "modular_airduct_rectangular_01_tripple_01",
+        "modular_airduct_rectangular_01_corner_01",
+        "modular_airduct_rectangular_01_corner_02",
+        "modular_airduct_rectangular_01_bend_02",
+        "modular_airduct_rectangular_01_bend_01",
+        "modular_airduct_rectangular_01_transition_double_01",
+        "modular_airduct_rectangular_01_transition_double_02",
+        "modular_airduct_rectangular_01_splitter_01",
+        "modular_airduct_rectangular_01_half_01",
+        "modular_airduct_rectangular_01_connector_01",
+        "modular_airduct_rectangular_01_vent_01",
+        "modular_airduct_rectangular_01_vent_02",
+        "modular_airduct_rectangular_01_vent_closed_01",
+        "modular_airduct_rectangular_01_brace_01",
+        "modular_airduct_rectangular_01_brace_wire_01",
+        "modular_airduct_rectangular_01_fastener_01.025"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -3.332,
+          -0.706,
+          -1.05
+        ],
+        "max": [
+          4.331,
+          0.55,
+          1.537
+        ]
+      },
+      "textures": [
+        {
+          "name": "modular_airduct_rectangular_01_parts02_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 101866,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_airduct_rectangular_01_parts02_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 179893,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_airduct_rectangular_01_parts02_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 122507,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_airduct_rectangular_01_parts01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 75810,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_airduct_rectangular_01_parts01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 191130,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_airduct_rectangular_01_parts01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 128851,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 820884,
+      "gpu": {
+        "desktop": 5015190,
+        "mobile": 5015190,
+        "rgba8": 34375314
+      },
+      "materials": [
+        {
+          "name": "modular_airduct_rectangular_01_parts02",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "modular_airduct_rectangular_01_parts01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": null
+    }
+  }
+}

@@ -1,0 +1,195 @@
+{
+  "id": "rock_07",
+  "recipe": "e7ac3c950417",
+  "size": [
+    0.168,
+    0.144,
+    0.32
+  ],
+  "radius": 0.195,
+  "lodDistances": [
+    0,
+    6,
+    16
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/rock_07/rock_07_512.glb",
+      "bytes": 198788,
+      "srcTris": 14844,
+      "lods": [
+        {
+          "tris": 1198
+        },
+        {
+          "tris": 420
+        }
+      ],
+      "parts": [
+        "rock_07"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.087,
+          -0.002,
+          -0.178
+        ],
+        "max": [
+          0.081,
+          0.142,
+          0.142
+        ]
+      },
+      "textures": [
+        {
+          "name": "rock_07_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 86563,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "rock_07_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 60072,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "rock_07_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 29017,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 38230,
+      "gpu": {
+        "desktop": 562519,
+        "mobile": 562519,
+        "rgba8": 4232533
+      },
+      "materials": [
+        {
+          "name": "rock_07",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        16
+      ]
+    },
+    "1024": {
+      "path": "models/rock_07/rock_07_1024.glb",
+      "bytes": 546092,
+      "srcTris": 14844,
+      "lods": [
+        {
+          "tris": 3000
+        },
+        {
+          "tris": 1198
+        },
+        {
+          "tris": 420
+        }
+      ],
+      "parts": [
+        "rock_07"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.087,
+          -0.002,
+          -0.178
+        ],
+        "max": [
+          0.081,
+          0.142,
+          0.142
+        ]
+      },
+      "textures": [
+        {
+          "name": "rock_07_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 227171,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "rock_07_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 181121,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "rock_07_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 85373,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 102432,
+      "gpu": {
+        "desktop": 2199585,
+        "mobile": 2199585,
+        "rgba8": 16879647
+      },
+      "materials": [
+        {
+          "name": "rock_07",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        6,
+        16
+      ]
+    }
+  }
+}

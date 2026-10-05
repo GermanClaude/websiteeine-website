@@ -4,7 +4,7 @@
 // → Meshopt (Umsortieren, Quantisierung KHR_mesh_quantization, EXT_meshopt_compression) → GLB.
 // Baukästen (kit: true) behalten ihre benannten Teile ohne LOD-Kette.
 // Aufruf: node tools/assets/models.mjs [ids…] [--force]
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Logger, NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, KHRTextureBasisu } from '@gltf-transform/extensions';
@@ -21,7 +21,9 @@ const byId = Object.fromEntries(src.models.map((t) => [t.id, t]));
 const ids = args._.length ? args._ : src.models.map((t) => t.id);
 // Handy-Stufe (512) ohne die volle Geometrie: LOD1/LOD2 rücken auf (gilt nicht für Waffen und Baukästen)
 const shiftLow = (e) => !e.kit && !e.weapon;
-const recipe = (e) => hash({ v: PIPELINE_VERSION, e: { id: e.id, s: e.sourceId, tiers: e.tiers, b: e.lod0Tris, kit: e.kit, ...(shiftLow(e) ? { low: 1 } : {}) }, k: 'm3' });
+const recipe = (e, matfix) => hash({ v: PIPELINE_VERSION, e: { id: e.id, s: e.sourceId, tiers: e.tiers, b: e.lod0Tris, kit: e.kit, ...(shiftLow(e) ? { low: 1 } : {}), ...(matfix ? { matfix: 1 } : {}) }, k: 'm3' });
+// Materialien, die three.js sonst als teures MeshPhysicalMaterial (+ Transmissions-Durchgang) anlegt
+const MATFIX_RE = /KHR_materials_(transmission|ior|specular|volume)|"BLEND"/;
 
 await MeshoptEncoder.ready;
 await MeshoptSimplifier.ready;
@@ -115,6 +117,17 @@ async function processTier(e, tier) {
     for (const c of children) parts.push(c.getName());
   }
 
+  // Spieltaugliche Materialien: Glas ohne Transmission (einfach transparent), keine IOR/Specular-Erweiterungen
+  // (→ MeshStandardMaterial statt MeshPhysicalMaterial); BLEND ohne echte Transparenz (JPG ohne Alpha) → OPAQUE
+  for (const m of root.listMaterials()) {
+    const glass = !!m.getExtension('KHR_materials_transmission');
+    for (const ext of ['KHR_materials_transmission', 'KHR_materials_ior', 'KHR_materials_specular', 'KHR_materials_volume']) m.setExtension(ext, null);
+    const f = m.getBaseColorFactor();
+    if (glass) { m.setAlphaMode('BLEND'); m.setBaseColorFactor([f[0], f[1], f[2], Math.min(f[3], 0.3)]); m.setRoughnessFactor(Math.min(m.getRoughnessFactor(), 0.15)); }
+    else if (m.getAlphaMode() === 'BLEND' && f[3] >= 0.99) m.setAlphaMode('OPAQUE');
+  }
+  for (const ext of root.listExtensionsUsed()) if (/^KHR_materials_(transmission|ior|specular|volume)$/.test(ext.extensionName)) ext.dispose();
+
   // AO: Poly Haven packt ARM (AO/Rauheit/Metall) in eine Textur, verweist aber nur als metallicRoughness darauf
   for (const m of root.listMaterials()) {
     const mr = m.getMetallicRoughnessTexture();
@@ -164,7 +177,8 @@ async function processTier(e, tier) {
 
 async function build(e) {
   const metaFile = join(META, 'models', `${e.id}.json`);
-  const r = recipe(e);
+  const matfix = MATFIX_RE.test(readFileSync(await fetchModel(e, '1k'), 'utf8'));
+  const r = recipe(e, matfix);
   const old = readJSON(metaFile, null);
   if (!args.force && old?.recipe === r && Object.values(old.tiers).every((t) => existsSync(join(OUT, t.path)))) { log('✓', e.id, '(aktuell)'); return; }
   const t0 = Date.now();

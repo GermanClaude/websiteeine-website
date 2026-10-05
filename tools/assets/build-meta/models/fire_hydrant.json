@@ -59,7 +59,7 @@
           "codec": "etc1s",
           "bytes": 57131,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -72,7 +72,7 @@
           "codec": "etc1s",
           "bytes": 58689,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -85,7 +85,7 @@
           "codec": "etc1s",
           "bytes": 44529,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -98,7 +98,7 @@
           "codec": "etc1s",
           "bytes": 61794,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -111,7 +111,7 @@
           "codec": "etc1s",
           "bytes": 65695,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -124,7 +124,7 @@
           "codec": "etc1s",
           "bytes": 45956,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -132,7 +132,7 @@
       ],
       "geometryBytes": 82576,
       "gpu": {
-        "desktop": 2179726,
+        "desktop": 1131154,
         "mobile": 1131154,
         "rgba8": 8471182
       },
@@ -202,7 +202,7 @@
           "codec": "etc1s",
           "bytes": 167905,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -215,7 +215,7 @@
           "codec": "etc1s",
           "bytes": 179795,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -228,7 +228,7 @@
           "codec": "etc1s",
           "bytes": 150053,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -241,7 +241,7 @@
           "codec": "etc1s",
           "bytes": 180488,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -254,7 +254,7 @@
           "codec": "etc1s",
           "bytes": 203073,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -267,7 +267,7 @@
           "codec": "etc1s",
           "bytes": 153717,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -275,7 +275,7 @@
       ],
       "geometryBytes": 153050,
       "gpu": {
-        "desktop": 8541656,
+        "desktop": 4347356,
         "mobile": 4347356,
         "rgba8": 33707480
       },

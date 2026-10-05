@@ -1,6 +1,6 @@
 {
   "id": "industrial_pipe_and_valve_01",
-  "recipe": "2a59009099ce",
+  "recipe": "ca7856c0827e",
   "tiers": {
     "512": {
       "hdr": {
@@ -16,19 +16,19 @@
       },
       "background": {
         "path": "hdri/industrial_pipe_and_valve_01/industrial_pipe_and_valve_01_bg_1024.ktx2",
-        "bytes": 82563,
+        "bytes": 84508,
         "width": 1024,
         "height": 512,
         "codec": "etc1s",
         "gpu": {
-          "desktop": 524288,
+          "desktop": 262144,
           "mobile": 262144,
           "rgba8": 2097152
         }
       },
-      "bytes": 514861,
+      "bytes": 516806,
       "gpu": {
-        "desktop": 6815744,
+        "desktop": 6553600,
         "mobile": 6553600,
         "rgba8": 8388608
       }
@@ -47,19 +47,19 @@
       },
       "background": {
         "path": "hdri/industrial_pipe_and_valve_01/industrial_pipe_and_valve_01_bg_2048.ktx2",
-        "bytes": 271553,
+        "bytes": 278170,
         "width": 2048,
         "height": 1024,
         "codec": "etc1s",
         "gpu": {
-          "desktop": 2097152,
+          "desktop": 1048576,
           "mobile": 1048576,
           "rgba8": 8388608
         }
       },
-      "bytes": 1972340,
+      "bytes": 1978957,
       "gpu": {
-        "desktop": 8388608,
+        "desktop": 7340032,
         "mobile": 7340032,
         "rgba8": 14680064
       }
@@ -80,6 +80,7 @@
     "avgLuminance": 0.5731,
     "skyLuminance": 1.0195,
     "skyGeoLuminance": 0.0325,
-    "backgroundExposure": 8
+    "geoLuminance": 0.0568,
+    "backgroundExposure": 2.1127
   }
 }

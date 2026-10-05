@@ -1,0 +1,287 @@
+{
+  "id": "potted_plant_02",
+  "recipe": "010a22af5757",
+  "size": [
+    0.7,
+    0.839,
+    0.655
+  ],
+  "radius": 0.637,
+  "lodDistances": [
+    0,
+    8.9,
+    25.5
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/potted_plant_02/potted_plant_02_512.glb",
+      "bytes": 408508,
+      "srcTris": 69806,
+      "lods": [
+        {
+          "tris": 6977
+        },
+        {
+          "tris": 1913
+        }
+      ],
+      "parts": [
+        "potted_plant_02_pot",
+        "potted_plant_02_leaves",
+        "potted_plant_02_dirt"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.396,
+          0.001,
+          -0.419
+        ],
+        "max": [
+          0.304,
+          0.84,
+          0.236
+        ]
+      },
+      "textures": [
+        {
+          "name": "potted_plant_02_pot_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 29750,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "potted_plant_02_pot_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 55322,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "potted_plant_02_pot_rough_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 31842,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "potted_plant_02_leaves_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 69527,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "potted_plant_02_leaves_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 56076,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "potted_plant_02_leaves_rough_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 30946,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 271492,
+      "gpu": {
+        "desktop": 1320070,
+        "mobile": 1320070,
+        "rgba8": 8660098
+      },
+      "materials": [
+        {
+          "name": "potted_plant_02_pot",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "potted_plant_02_leaves",
+          "alphaMode": "MASK",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        25.5
+      ]
+    },
+    "1024": {
+      "path": "models/potted_plant_02/potted_plant_02_1024.glb",
+      "bytes": 1140396,
+      "srcTris": 69806,
+      "lods": [
+        {
+          "tris": 12040
+        },
+        {
+          "tris": 6977
+        },
+        {
+          "tris": 1913
+        }
+      ],
+      "parts": [
+        "potted_plant_02_pot",
+        "potted_plant_02_leaves",
+        "potted_plant_02_dirt"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.396,
+          0.001,
+          -0.42
+        ],
+        "max": [
+          0.304,
+          0.84,
+          0.236
+        ]
+      },
+      "textures": [
+        {
+          "name": "potted_plant_02_pot_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 119538,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "potted_plant_02_pot_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 176111,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "potted_plant_02_pot_rough_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 102259,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "potted_plant_02_leaves_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 201967,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "potted_plant_02_leaves_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 170686,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "potted_plant_02_leaves_rough_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 101446,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 578230,
+      "gpu": {
+        "desktop": 4772536,
+        "mobile": 4772536,
+        "rgba8": 34132660
+      },
+      "materials": [
+        {
+          "name": "potted_plant_02_pot",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "potted_plant_02_leaves",
+          "alphaMode": "MASK",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        8.9,
+        25.5
+      ]
+    }
+  }
+}

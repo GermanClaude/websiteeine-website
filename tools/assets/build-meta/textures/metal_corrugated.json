@@ -1,0 +1,111 @@
+{
+  "id": "metal_corrugated",
+  "recipe": "dff498fe66e9",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/metal_corrugated/metal_corrugated_512_albedo.ktx2",
+          "bytes": 47253,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/metal_corrugated/metal_corrugated_512_normal.ktx2",
+          "bytes": 21983,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/metal_corrugated/metal_corrugated_512_orm.ktx2",
+          "bytes": 23767,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 93003,
+      "gpu": {
+        "desktop": 524289,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/metal_corrugated/metal_corrugated_1024_albedo.ktx2",
+          "bytes": 165108,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/metal_corrugated/metal_corrugated_1024_normal.ktx2",
+          "bytes": 85504,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/metal_corrugated/metal_corrugated_1024_orm.ktx2",
+          "bytes": 112805,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 363417,
+      "gpu": {
+        "desktop": 2097153,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#595851",
+    "avgRoughness": 0.521,
+    "avgMetalness": 0.199,
+    "avgAO": 0.864,
+    "coverage": 1
+  }
+}

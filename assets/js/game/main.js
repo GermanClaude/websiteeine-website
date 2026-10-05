@@ -38,7 +38,9 @@ const MODULES = {
   weapons: ['./weapons/index.js', ['WeaponSystem']],
   effects: ['./engine/effects.js', ['Effects']],
   bots: ['./bots/manager.js', ['BotManager']],
-  soldiers: ['./bots/character.js', ['createSoldier', 'VARIANTS', 'schemeForTeam', 'ffaSchemes']],
+  // nur für die Vorarbeit im Ladebildschirm/Leerlauf (matchAssetJobs) – fehlende Exporte: Schritt entfällt
+  soldiers: ['./bots/character.js', []],
+  fxtex: ['./weapons/ballistics/fxtex.js', []],
   modes: ['./modes/index.js', ['createMode']],
   hud: ['./ui/hud.js', ['HUD']],
   menus: ['./ui/menus.js', ['Menus']],
@@ -524,8 +526,14 @@ function matchAssetJobs(cfg, world) {
     }
     for (const id of ids) addModel(modelOf(id), 'third');
   }
+  // Effekte: Partikel- und Einschuss-Atlas (erstes Effects.attach)
+  const fx = G.modules.fxtex;
+  if (fx && typeof fx.getParticleAtlas === 'function') add('fx:particles', () => fx.getParticleAtlas());
+  if (fx && typeof fx.getDecalAtlas === 'function') add('fx:decals', () => fx.getDecalAtlas());
   // Soldaten je Schema × Variante (alle Varianten: welche ein Team bekommt, entscheidet BotManager zufällig)
-  if (bots > 0 && soldiers) {
+  const soldierApi = soldiers && typeof soldiers.createSoldier === 'function' && Array.isArray(soldiers.VARIANTS) &&
+    typeof soldiers.schemeForTeam === 'function' && typeof soldiers.ffaSchemes === 'function';
+  if (bots > 0 && soldierApi) {
     let map = mapSchemes.get(cfg.mapId);
     if (world) mapSchemes.set(cfg.mapId, (map = { B: soldiers.schemeForTeam('B', world), ffa: soldiers.ffaSchemes(world) }));
     const schemes = [];
@@ -717,42 +725,45 @@ async function runStart(config, gen) {
   }
 }
 
-/** Teilbäume ohne Lichtquelle (three.js zählt die Lichter eines kompilierten Teilbaums sonst doppelt zu denen der Zielszene). */
-function lightFreeParts(root, out) {
+const isRenderable = (o) => !!(o.isMesh || o.isSprite || o.isPoints || o.isLine);
+
+/**
+ * Teilbäume zum einzelnen Kompilieren: ohne Lichtquelle (three.js zählt die Lichter eines kompilierten Teilbaums
+ * sonst doppelt zu denen der Zielszene) und mit höchstens `max` Zeichenobjekten (feinere Zeitscheiben); größere
+ * Gruppen werden in ihre Kinder zerlegt. Ein Zeichenobjekt mit Licht darunter bleibt für den Gesamtdurchlauf.
+ */
+function compileParts(root, out, max = 32) {
   for (const child of root.children) {
     let lit = false;
-    child.traverse((o) => { if (o.isLight) lit = true; });
-    if (!lit) out.push(child);
-    else if (!child.isLight || child.children.length) lightFreeParts(child, out);
+    let n = 0;
+    child.traverse((o) => { if (o.isLight) lit = true; else if (isRenderable(o)) n++; });
+    if (!n) continue;
+    if (!lit && (n <= max || isRenderable(child) || !child.children.length)) out.push(child);
+    else compileParts(child, out, max);
   }
   return out;
 }
 
 /**
  * Shader vorkompilieren, damit der erste Schuss nicht ruckelt – in Zeitscheiben: Teilbäume der Szene und des
- * Viewmodels einzeln (Lichter aus der jeweiligen Zielszene), dazwischen Bildpausen. Je Teilbaum werden auch
- * seine Texturen hochgeladen (`initTexture`, ohne Wirkung bei schon hochgeladenen) und – ohne
- * KHR_parallel_shader_compile – die neuen Programme fertig gelinkt (`getUniforms()` wartet wie das erste
- * Zeichnen auf den Linker), damit diese Wartezeiten nicht gesammelt im ersten Bild anfallen. Danach ein
- * Durchgang über die ganzen Szenen (nur noch Treffer im Programmcache; fängt Objekte unter einem Licht ab)
- * und ein Bild, das die Geometrien hochlädt.
+ * Viewmodels einzeln (Lichter aus der jeweiligen Zielszene), dazwischen Bildpausen. Ohne
+ * KHR_parallel_shader_compile werden die neuen Programme je Teilbaum fertig gelinkt (`getUniforms()` wartet
+ * wie das erste Zeichnen auf den Linker), damit diese Wartezeiten nicht gesammelt im ersten Bild anfallen.
+ * Danach ein Durchgang über die ganzen Szenen (nur noch Treffer im Programmcache; fängt Objekte unter einem
+ * Licht ab) und ein Bild, das sichtbare Geometrien/Texturen hochlädt (Texturen nicht vorab: Atlanten der Welt
+ * werden erst beim Hochladen gezeichnet – das bleibt bei dem Bild, das sie braucht).
  */
 async function warmUp(live = () => true) {
   const r = G.renderer.renderer;
   const parallel = typeof r.compileAsync === 'function' && !!r.extensions && r.extensions.has('KHR_parallel_shader_compile');
   const settled = new Set();
   const settle = (materials) => {
+    if (parallel) return;
     for (const m of materials) {
       if (settled.has(m)) continue;
       settled.add(m);
-      for (const k in m) {
-        const v = m[k];
-        if (v && v.isTexture && !v.isRenderTargetTexture) r.initTexture(v);
-      }
-      if (!parallel) {
-        const program = r.properties.get(m).currentProgram;
-        if (program && typeof program.getUniforms === 'function') program.getUniforms();
-      }
+      const program = r.properties.get(m).currentProgram;
+      if (program && typeof program.getUniforms === 'function') program.getUniforms();
     }
   };
   try {
@@ -760,7 +771,7 @@ async function warmUp(live = () => true) {
     const passes = [[G.scene, G.camera], [G.viewmodel.scene, G.viewmodel.camera]];
     let t = performance.now();
     for (const [scene, camera] of passes) {
-      for (const part of lightFreeParts(scene, [])) {
+      for (const part of compileParts(scene, [])) {
         settle(r.compile(part, camera, scene));
         if (performance.now() - t > 12) {
           await nextFrame();

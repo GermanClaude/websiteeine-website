@@ -314,7 +314,11 @@
     512,
     1024
    ],
-   "name": "Wallpaper 002 C"
+   "name": "Wallpaper 002 C",
+   "sizeM": [
+    1,
+    1
+   ]
   },
   {
    "id": "sandstone_blocks",
@@ -999,7 +1003,11 @@
     512,
     1024
    ],
-   "name": "Cardboard 004"
+   "name": "Cardboard 004",
+   "sizeM": [
+    0.5,
+    0.5
+   ]
   },
   {
    "id": "metal_painted",
@@ -1153,7 +1161,11 @@
     512,
     1024
    ],
-   "name": "Metal 009"
+   "name": "Metal 009",
+   "sizeM": [
+    1,
+    1
+   ]
   },
   {
    "id": "metal_tread",
@@ -1194,7 +1206,11 @@
     1024
    ],
    "alpha": true,
-   "name": "Metal Walkway 010"
+   "name": "Metal Walkway 010",
+   "sizeM": [
+    1,
+    1
+   ]
   },
   {
    "id": "chainlink",
@@ -1233,7 +1249,11 @@
     512,
     1024
    ],
-   "name": "Painted Metal 016"
+   "name": "Painted Metal 016",
+   "sizeM": [
+    1,
+    1
+   ]
   },
   {
    "id": "container",
@@ -1340,7 +1360,11 @@
     512,
     1024
    ],
-   "name": "Fabric 006"
+   "name": "Fabric 006",
+   "sizeM": [
+    1,
+    1
+   ]
   },
   {
    "id": "felt_panel",
@@ -1358,7 +1382,11 @@
     512,
     1024
    ],
-   "name": "Fabric 034"
+   "name": "Fabric 034",
+   "sizeM": [
+    0.5,
+    0.5
+   ]
   },
   {
    "id": "fabric_uniform",
@@ -1382,7 +1410,11 @@
     ],
     "target": 0.6
    },
-   "name": "Fabric 036"
+   "name": "Fabric 036",
+   "sizeM": [
+    0.1,
+    0.1
+   ]
   },
   {
    "id": "camo_woodland",
@@ -1469,7 +1501,11 @@
     2048
    ],
    "hero": true,
-   "name": "Metal 046 B"
+   "name": "Metal 046 B",
+   "sizeM": [
+    0.5,
+    0.5
+   ]
   },
   {
    "id": "polymer_black",
@@ -1489,7 +1525,11 @@
     2048
    ],
    "hero": true,
-   "name": "Plastic 006"
+   "name": "Plastic 006",
+   "sizeM": [
+    0.5,
+    0.5
+   ]
   },
   {
    "id": "wood_stock",

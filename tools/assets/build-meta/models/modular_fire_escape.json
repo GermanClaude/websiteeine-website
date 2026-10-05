@@ -1,0 +1,275 @@
+{
+  "id": "modular_fire_escape",
+  "recipe": "8e82c7acbf78",
+  "size": [
+    6.661,
+    9.757,
+    1.421
+  ],
+  "radius": 5.95,
+  "lodDistances": null,
+  "tiers": {
+    "512": {
+      "path": "models/modular_fire_escape/modular_fire_escape_512.glb",
+      "bytes": 440204,
+      "srcTris": 11322,
+      "lods": [
+        {
+          "tris": 11322
+        }
+      ],
+      "parts": [
+        "modular_fire_escape_railing_middle",
+        "modular_fire_escape_platform_railing",
+        "modular_fire_escape_platform_middle",
+        "modular_fire_escape_stairs",
+        "modular_fire_escape_ladder_bottom",
+        "modular_fire_escape_railing_bottom",
+        "modular_fire_escape_platform_bottom"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -2.401,
+          -3.649,
+          -0.785
+        ],
+        "max": [
+          4.26,
+          6.108,
+          0.636
+        ]
+      },
+      "textures": [
+        {
+          "name": "modular_fire_escape_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 55333,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_fire_escape_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 54658,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_fire_escape_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 34382,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_fire_escape_02_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 75024,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_fire_escape_02_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 54707,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_fire_escape_02_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 33981,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 375536,
+      "gpu": {
+        "desktop": 1424114,
+        "mobile": 1424114,
+        "rgba8": 8764142
+      },
+      "materials": [
+        {
+          "name": "modular_fire_escape_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "modular_fire_escape_02",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": null
+    },
+    "1024": {
+      "path": "models/modular_fire_escape/modular_fire_escape_1024.glb",
+      "bytes": 1145928,
+      "srcTris": 11322,
+      "lods": [
+        {
+          "tris": 11322
+        }
+      ],
+      "parts": [
+        "modular_fire_escape_railing_middle",
+        "modular_fire_escape_platform_railing",
+        "modular_fire_escape_platform_middle",
+        "modular_fire_escape_stairs",
+        "modular_fire_escape_ladder_bottom",
+        "modular_fire_escape_railing_bottom",
+        "modular_fire_escape_platform_bottom"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -2.401,
+          -3.649,
+          -0.785
+        ],
+        "max": [
+          4.26,
+          6.108,
+          0.636
+        ]
+      },
+      "textures": [
+        {
+          "name": "modular_fire_escape_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 174409,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_fire_escape_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 176147,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_fire_escape_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 129744,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_fire_escape_02_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 225552,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_fire_escape_02_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 178866,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_fire_escape_02_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 129064,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 375536,
+      "gpu": {
+        "desktop": 4569842,
+        "mobile": 4569842,
+        "rgba8": 33929966
+      },
+      "materials": [
+        {
+          "name": "modular_fire_escape_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "modular_fire_escape_02",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": null
+    }
+  }
+}

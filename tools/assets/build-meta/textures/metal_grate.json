@@ -1,0 +1,111 @@
+{
+  "id": "metal_grate",
+  "recipe": "4e27f3e491e1",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/metal_grate/metal_grate_512_albedo.ktx2",
+          "bytes": 66140,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": true,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 349525,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/metal_grate/metal_grate_512_normal.ktx2",
+          "bytes": 25505,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/metal_grate/metal_grate_512_orm.ktx2",
+          "bytes": 24157,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 115802,
+      "gpu": {
+        "desktop": 699051,
+        "mobile": 699051,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/metal_grate/metal_grate_1024_albedo.ktx2",
+          "bytes": 204337,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": true,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 1398101,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/metal_grate/metal_grate_1024_normal.ktx2",
+          "bytes": 113705,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/metal_grate/metal_grate_1024_orm.ktx2",
+          "bytes": 93255,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 411297,
+      "gpu": {
+        "desktop": 2796203,
+        "mobile": 2796203,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#313038",
+    "avgRoughness": 0.474,
+    "avgMetalness": 0.011,
+    "avgAO": 1,
+    "coverage": 0.657
+  }
+}

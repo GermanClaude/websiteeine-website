@@ -1,6 +1,6 @@
 {
   "id": "tiles_checker",
-  "recipe": "c3b5a5ff3fbe",
+  "recipe": "76b68baa244e",
   "tiers": {
     "512": {
       "files": {
@@ -12,7 +12,7 @@
           "codec": "etc1s",
           "alpha": false,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -25,7 +25,7 @@
           "codec": "etc1s",
           "alpha": false,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -38,7 +38,7 @@
           "codec": "etc1s",
           "alpha": false,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -46,7 +46,7 @@
       },
       "bytes": 82852,
       "gpu": {
-        "desktop": 1048575,
+        "desktop": 524289,
         "mobile": 524289,
         "rgba8": 4194303
       }
@@ -61,7 +61,7 @@
           "codec": "etc1s",
           "alpha": false,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -74,7 +74,7 @@
           "codec": "etc1s",
           "alpha": false,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -87,7 +87,7 @@
           "codec": "etc1s",
           "alpha": false,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -95,7 +95,7 @@
       },
       "bytes": 324205,
       "gpu": {
-        "desktop": 4194303,
+        "desktop": 2097153,
         "mobile": 2097153,
         "rgba8": 16777215
       }

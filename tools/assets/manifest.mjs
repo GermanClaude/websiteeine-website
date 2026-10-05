@@ -47,7 +47,7 @@ for (const e of src.hdris) {
   if (!m) { missing.push('hdri:' + e.id); continue; }
   const tiers = {};
   for (const [tier, t] of Object.entries(m.tiers)) tiers[tier] = { hdr: t.hdr.path, background: t.background.path, sizes: { hdr: t.hdr.bytes, background: t.background.bytes }, gpuParts: { pmrem: { desktop: t.gpu.desktop - t.background.gpu.desktop, mobile: t.gpu.mobile - t.background.gpu.mobile, rgba8: t.gpu.rgba8 - t.background.gpu.rgba8 }, background: t.background.gpu }, bytes: t.bytes, gpu: t.gpu, size: [t.hdr.width, t.hdr.height], backgroundSize: [t.background.width, t.background.height] };
-  manifest.hdris[e.id] = { type: 'hdri', name: e.name || e.id, kind: e.kind, mood: e.mood, maps: e.maps || [], sun: m.stats.sun, luminance: { avg: m.stats.avgLuminance, sky: m.stats.skyLuminance, skyGeo: m.stats.skyGeoLuminance }, backgroundExposure: m.stats.backgroundExposure, tiers, ...licenseInfo(e) };
+  manifest.hdris[e.id] = { type: 'hdri', name: e.name || e.id, kind: e.kind, mood: e.mood, maps: e.maps || [], sun: m.stats.sun, luminance: { avg: m.stats.avgLuminance, sky: m.stats.skyLuminance, skyGeo: m.stats.skyGeoLuminance }, backgroundExposure: m.stats.backgroundExposure, exposure: m.stats.backgroundExposure, tiers, ...licenseInfo(e) };
 }
 
 for (const e of src.models) {

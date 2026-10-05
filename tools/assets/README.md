@@ -49,7 +49,7 @@ Rohdaten und API-Antworten liegen im Cache `tools/out/assets-cache/` (gitignored
 | 2048 | ultra | 2048² nur „Helden“-Materialien (`hero`) | Waffen (`weapon`) | 1024×512 | 2048×1024 |
 
 * **KTX2 / Basis Universal ETC1S** für Albedo, Normalen, ORM und Himmel. Der Browser transkodiert passend zur
-  GPU (Desktop BC7/BC1, Android ETC1/ETC2, iOS ASTC/PVRTC). Gemessen (`lib/decode.mjs`, 1024²): Albedo q160
+  GPU (Desktop BC1/BC3, Android ETC1/ETC2, iOS ETC2/ASTC/PVRTC). Gemessen (`lib/decode.mjs`, 1024²): Albedo q160
   ≈ 40 dB PSNR; Normalen q255 ≈ 1,4° mittlerer Winkelfehler — so gut wie UASTC+RDO λ1 (1,1°) bei einem
   Drittel der Größe und halbem Handy-Speicher (ETC1 0,5 B/px). UASTC wurde für 2048er-Normalen verworfen
   (3–4 MB je Karte).
@@ -67,9 +67,10 @@ Rohdaten und API-Antworten liegen im Cache `tools/out/assets-cache/` (gitignored
   `createSky()` (Kuppel, ~2,7 MB GPU) statt `scene.background` (three würde in eine unkomprimierte
   Würfelkarte ≈ 25 MB umrechnen). `sun.dir` ist die Richtung zur Sonne in three.js-Koordinaten.
 
-GPU-Schätzungen im Manifest (`gpu.desktop` / `gpu.mobile` / `gpu.rgba8`) gelten inkl. Mipmaps:
-Desktop 1 B/px (BC7), Handy 0,5 B/px (ETC1S → ETC1/ETC2 RGB) bzw. 1 B/px mit Alpha, Rückfall ohne
-Kompressionsformat 4 B/px. HDRIs: PMREM-Ziel (≈ 6 MB, RGBA16F) + Himmel.
+GPU-Schätzungen im Manifest (`gpu.desktop` / `gpu.mobile` / `gpu.rgba8`) gelten inkl. Mipmaps: ETC1S ohne
+Alpha 0,5 B/px (Desktop BC1 — `loader.js` schaltet BC7 für die Bibliothek ab, ETC1S gewönne dadurch keine
+Qualität —, Handy ETC1/ETC2), mit Alpha 1 B/px (BC3/ETC2-RGBA/ASTC); Rückfall ohne Kompressionsformat 4 B/px.
+HDRIs: PMREM-Ziel (≈ 6 MB, RGBA16F) + Himmel. Modelle: Texturen + dekodierte (quantisierte) Geometrie.
 
 ## Laufzeit (`assets/lib/loader.js`)
 

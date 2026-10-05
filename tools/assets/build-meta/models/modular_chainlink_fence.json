@@ -1,0 +1,301 @@
+{
+  "id": "modular_chainlink_fence",
+  "recipe": "f1cdf1463904",
+  "size": [
+    8.115,
+    2.523,
+    2.149
+  ],
+  "radius": 4.383,
+  "lodDistances": null,
+  "tiers": {
+    "512": {
+      "path": "models/modular_chainlink_fence/modular_chainlink_fence_512.glb",
+      "bytes": 1034164,
+      "srcTris": 89232,
+      "lods": [
+        {
+          "tris": 89232
+        }
+      ],
+      "parts": [
+        "modular_chainlink_fence_door_latch",
+        "modular_chainlink_fence_door_gate",
+        "modular_chainlink_fence_corner_outer",
+        "modular_chainlink_fence_start_01_corner_01",
+        "modular_chainlink_post_middle",
+        "modular_chainlink_fence_end_01",
+        "modular_chainlink_fence_end_02",
+        "modular_chainlink_fence_door_frame",
+        "modular_chainlink_fence_bar_bracket_01",
+        "modular_chainlink_fence_post_bracket_02",
+        "modular_chainlink_fence_bar_bracket_02",
+        "modular_chainlink_fence_post_bracket_01",
+        "modular_chainlink_fence_double",
+        "modular_chainlink_fence",
+        "modular_chainlink_fence_post_bracket_03",
+        "modular_chainlink_fence_bar_bracket_03",
+        "modular_chainlink_fence_post",
+        "modular_chainlink_fence_corner_support",
+        "modular_chainlink_fence_corner_inner",
+        "modular_chainlink_fence_start_01_corner_02"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -6.04,
+          0,
+          -2.075
+        ],
+        "max": [
+          2.075,
+          2.523,
+          0.074
+        ]
+      },
+      "textures": [
+        {
+          "name": "modular_chainlink_fence_posts_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 46990,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_chainlink_fence_posts_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 61079,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_chainlink_fence_posts_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 40819,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_chainlink_fence_wire_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 46819,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_chainlink_fence_wire_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 49365,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_chainlink_fence_wire_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 37872,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 2345246,
+      "gpu": {
+        "desktop": 3393824,
+        "mobile": 3393824,
+        "rgba8": 10733852
+      },
+      "materials": [
+        {
+          "name": "modular_chainlink_fence_posts",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "modular_chainlink_fence_wire",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": null
+    },
+    "1024": {
+      "path": "models/modular_chainlink_fence/modular_chainlink_fence_1024.glb",
+      "bytes": 1656864,
+      "srcTris": 89232,
+      "lods": [
+        {
+          "tris": 89232
+        }
+      ],
+      "parts": [
+        "modular_chainlink_fence_door_latch",
+        "modular_chainlink_fence_door_gate",
+        "modular_chainlink_fence_corner_outer",
+        "modular_chainlink_fence_start_01_corner_01",
+        "modular_chainlink_post_middle",
+        "modular_chainlink_fence_end_01",
+        "modular_chainlink_fence_end_02",
+        "modular_chainlink_fence_door_frame",
+        "modular_chainlink_fence_bar_bracket_01",
+        "modular_chainlink_fence_post_bracket_02",
+        "modular_chainlink_fence_bar_bracket_02",
+        "modular_chainlink_fence_post_bracket_01",
+        "modular_chainlink_fence_double",
+        "modular_chainlink_fence",
+        "modular_chainlink_fence_post_bracket_03",
+        "modular_chainlink_fence_bar_bracket_03",
+        "modular_chainlink_fence_post",
+        "modular_chainlink_fence_corner_support",
+        "modular_chainlink_fence_corner_inner",
+        "modular_chainlink_fence_start_01_corner_02"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -6.04,
+          0,
+          -2.075
+        ],
+        "max": [
+          2.075,
+          2.523,
+          0.074
+        ]
+      },
+      "textures": [
+        {
+          "name": "modular_chainlink_fence_posts_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 158007,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_chainlink_fence_posts_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 198950,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_chainlink_fence_posts_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 145206,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_chainlink_fence_wire_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 149813,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_chainlink_fence_wire_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 124353,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_chainlink_fence_wire_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 129226,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 2345246,
+      "gpu": {
+        "desktop": 6539552,
+        "mobile": 6539552,
+        "rgba8": 35899676
+      },
+      "materials": [
+        {
+          "name": "modular_chainlink_fence_posts",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "modular_chainlink_fence_wire",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": null
+    }
+  }
+}

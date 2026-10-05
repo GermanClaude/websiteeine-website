@@ -118,6 +118,9 @@ export class AssetLibrary {
     if (!this._ktx2) {
       const hc = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
       this._ktx2 = new KTX2Loader().setTranscoderPath(TRANSCODER_URL).setWorkerLimit(Math.max(1, Math.min(4, hc - 1))).detectSupport(this.renderer);
+      // Alle Bibliotheks-Texturen sind ETC1S: BC7 brächte keine Qualität, aber doppelten Speicher → BC1/BC3 (Desktop).
+      // Muss vor dem ersten Laden gesetzt sein (die Worker erhalten die Konfiguration beim Start).
+      if (this._ktx2.workerConfig?.dxtSupported) this._ktx2.workerConfig.bptcSupported = false;
     }
     return this._ktx2;
   }

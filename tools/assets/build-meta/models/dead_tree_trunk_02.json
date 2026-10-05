@@ -1,0 +1,195 @@
+{
+  "id": "dead_tree_trunk_02",
+  "recipe": "c29bd96b4f87",
+  "size": [
+    4.038,
+    1.053,
+    1.04
+  ],
+  "radius": 2.15,
+  "lodDistances": [
+    0,
+    30.1,
+    86
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/dead_tree_trunk_02/dead_tree_trunk_02_512.glb",
+      "bytes": 250144,
+      "srcTris": 83128,
+      "lods": [
+        {
+          "tris": 2388
+        },
+        {
+          "tris": 836
+        }
+      ],
+      "parts": [
+        "dead_tree_trunk_02"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -1.923,
+          -0.327,
+          -0.486
+        ],
+        "max": [
+          2.115,
+          0.726,
+          0.554
+        ]
+      },
+      "textures": [
+        {
+          "name": "dead_tree_trunk_02_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 101958,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "dead_tree_trunk_02_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 67891,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "dead_tree_trunk_02_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 40774,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 83870,
+      "gpu": {
+        "desktop": 608159,
+        "mobile": 608159,
+        "rgba8": 4278173
+      },
+      "materials": [
+        {
+          "name": "dead_tree_trunk_02",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        86
+      ]
+    },
+    "1024": {
+      "path": "models/dead_tree_trunk_02/dead_tree_trunk_02_1024.glb",
+      "bytes": 753080,
+      "srcTris": 83128,
+      "lods": [
+        {
+          "tris": 5988
+        },
+        {
+          "tris": 2388
+        },
+        {
+          "tris": 836
+        }
+      ],
+      "parts": [
+        "dead_tree_trunk_02"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -1.923,
+          -0.327,
+          -0.499
+        ],
+        "max": [
+          2.125,
+          0.726,
+          0.554
+        ]
+      },
+      "textures": [
+        {
+          "name": "dead_tree_trunk_02_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 293774,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "dead_tree_trunk_02_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 222233,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "dead_tree_trunk_02_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 146286,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 214948,
+      "gpu": {
+        "desktop": 2312101,
+        "mobile": 2312101,
+        "rgba8": 16992163
+      },
+      "materials": [
+        {
+          "name": "dead_tree_trunk_02",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        30.1,
+        86
+      ]
+    }
+  }
+}

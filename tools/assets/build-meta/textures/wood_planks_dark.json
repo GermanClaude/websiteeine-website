@@ -1,0 +1,111 @@
+{
+  "id": "wood_planks_dark",
+  "recipe": "32e747a959f1",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/wood_planks_dark/wood_planks_dark_512_albedo.ktx2",
+          "bytes": 53790,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/wood_planks_dark/wood_planks_dark_512_normal.ktx2",
+          "bytes": 41980,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/wood_planks_dark/wood_planks_dark_512_orm.ktx2",
+          "bytes": 28180,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 123950,
+      "gpu": {
+        "desktop": 524289,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/wood_planks_dark/wood_planks_dark_1024_albedo.ktx2",
+          "bytes": 178182,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/wood_planks_dark/wood_planks_dark_1024_normal.ktx2",
+          "bytes": 176627,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/wood_planks_dark/wood_planks_dark_1024_orm.ktx2",
+          "bytes": 113950,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 468759,
+      "gpu": {
+        "desktop": 2097153,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#544a3f",
+    "avgRoughness": 0.661,
+    "avgMetalness": 0.002,
+    "avgAO": 0.973,
+    "coverage": 1
+  }
+}

@@ -1,0 +1,203 @@
+{
+  "id": "covered_car",
+  "recipe": "641c6f1bcd92",
+  "size": [
+    1.788,
+    1.405,
+    4.344
+  ],
+  "radius": 2.452,
+  "lodDistances": [
+    0,
+    34.3,
+    98.1
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/covered_car/covered_car_512.glb",
+      "bytes": 249624,
+      "srcTris": 12592,
+      "lods": [
+        {
+          "tris": 4371
+        },
+        {
+          "tris": 2009
+        }
+      ],
+      "parts": [
+        "covered_car_wheel_01",
+        "covered_car_wheel_02",
+        "covered_car_wheel_03",
+        "covered_car_wheel_04",
+        "covered_car"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.847,
+          0.006,
+          -2.148
+        ],
+        "max": [
+          0.941,
+          1.411,
+          2.196
+        ]
+      },
+      "textures": [
+        {
+          "name": "covered_car_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 55879,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "covered_car_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 55241,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "covered_car_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 40084,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 199408,
+      "gpu": {
+        "desktop": 723697,
+        "mobile": 723697,
+        "rgba8": 4393711
+      },
+      "materials": [
+        {
+          "name": "covered_car",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        98.1
+      ]
+    },
+    "1024": {
+      "path": "models/covered_car/covered_car_1024.glb",
+      "bytes": 696504,
+      "srcTris": 12592,
+      "lods": [
+        {
+          "tris": 9995
+        },
+        {
+          "tris": 4371
+        },
+        {
+          "tris": 2009
+        }
+      ],
+      "parts": [
+        "covered_car_wheel_01",
+        "covered_car_wheel_02",
+        "covered_car_wheel_03",
+        "covered_car_wheel_04",
+        "covered_car"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.847,
+          0,
+          -2.166
+        ],
+        "max": [
+          0.942,
+          1.411,
+          2.214
+        ]
+      },
+      "textures": [
+        {
+          "name": "covered_car_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 194919,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "covered_car_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 170744,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "covered_car_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 125095,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 458962,
+      "gpu": {
+        "desktop": 2556115,
+        "mobile": 2556115,
+        "rgba8": 17236177
+      },
+      "materials": [
+        {
+          "name": "covered_car",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        34.3,
+        98.1
+      ]
+    }
+  }
+}

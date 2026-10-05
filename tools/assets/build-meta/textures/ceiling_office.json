@@ -1,0 +1,111 @@
+{
+  "id": "ceiling_office",
+  "recipe": "6debade3e503",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/ceiling_office/ceiling_office_512_albedo.ktx2",
+          "bytes": 18446,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/ceiling_office/ceiling_office_512_normal.ktx2",
+          "bytes": 76239,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/ceiling_office/ceiling_office_512_orm.ktx2",
+          "bytes": 31157,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 125842,
+      "gpu": {
+        "desktop": 524289,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/ceiling_office/ceiling_office_1024_albedo.ktx2",
+          "bytes": 49741,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/ceiling_office/ceiling_office_1024_normal.ktx2",
+          "bytes": 224770,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/ceiling_office/ceiling_office_1024_orm.ktx2",
+          "bytes": 111989,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 386500,
+      "gpu": {
+        "desktop": 2097153,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#f5f5f5",
+    "avgRoughness": 0.692,
+    "avgMetalness": 0,
+    "avgAO": 0.923,
+    "coverage": 1
+  }
+}

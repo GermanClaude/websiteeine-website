@@ -1,0 +1,116 @@
+{
+  "id": "camo_urban",
+  "recipe": "daea0c26447a",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/camo_urban/camo_urban_512_albedo.ktx2",
+          "bytes": 37557,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/fabric_uniform/fabric_uniform_512_normal.ktx2",
+          "bytes": 65628,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          },
+          "shared": "fabric_uniform"
+        },
+        "orm": {
+          "path": "textures/fabric_uniform/fabric_uniform_512_orm.ktx2",
+          "bytes": 21103,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          },
+          "shared": "fabric_uniform"
+        }
+      },
+      "bytes": 37557,
+      "gpu": {
+        "desktop": 524289,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/camo_urban/camo_urban_1024_albedo.ktx2",
+          "bytes": 142173,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/fabric_uniform/fabric_uniform_1024_normal.ktx2",
+          "bytes": 240552,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          },
+          "shared": "fabric_uniform"
+        },
+        "orm": {
+          "path": "textures/fabric_uniform/fabric_uniform_1024_orm.ktx2",
+          "bytes": 86856,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          },
+          "shared": "fabric_uniform"
+        }
+      },
+      "bytes": 142173,
+      "gpu": {
+        "desktop": 2097153,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#818588",
+    "avgRoughness": 0.829,
+    "avgMetalness": 0,
+    "avgAO": 0.704,
+    "coverage": 1
+  },
+  "detailRepeat": 8
+}

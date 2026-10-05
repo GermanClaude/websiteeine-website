@@ -1,0 +1,309 @@
+{
+  "id": "industrial_wall_lamp",
+  "recipe": "50f31a12a48e",
+  "size": [
+    0.274,
+    0.428,
+    0.139
+  ],
+  "radius": 0.263,
+  "lodDistances": [
+    0,
+    6,
+    16
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/industrial_wall_lamp/industrial_wall_lamp_512.glb",
+      "bytes": 331268,
+      "srcTris": 4446,
+      "lods": [
+        {
+          "tris": 1776
+        },
+        {
+          "tris": 610
+        }
+      ],
+      "parts": [
+        "industrial_wall_lamp"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.137,
+          -0.213,
+          0
+        ],
+        "max": [
+          0.137,
+          0.215,
+          0.139
+        ]
+      },
+      "textures": [
+        {
+          "name": "industrial_wall_lamp_emissive_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 9276,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "industrial_wall_lamp_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 49297,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "industrial_wall_lamp_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 57195,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "industrial_wall_lamp_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 42036,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "industrial_wall_lamp_glass_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 56858,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "industrial_wall_lamp_glass_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 43977,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "industrial_wall_lamp_glass_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 34428,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 72220,
+      "gpu": {
+        "desktop": 1295561,
+        "mobile": 1295561,
+        "rgba8": 9858927
+      },
+      "materials": [
+        {
+          "name": "industrial_wall_lamp",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "industrial_wall_lamp_glass",
+          "alphaMode": "BLEND",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        16
+      ]
+    },
+    "1024": {
+      "path": "models/industrial_wall_lamp/industrial_wall_lamp_1024.glb",
+      "bytes": 1053548,
+      "srcTris": 4446,
+      "lods": [
+        {
+          "tris": 4446
+        },
+        {
+          "tris": 1776
+        },
+        {
+          "tris": 610
+        }
+      ],
+      "parts": [
+        "industrial_wall_lamp"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.137,
+          -0.215,
+          0
+        ],
+        "max": [
+          0.137,
+          0.215,
+          0.14
+        ]
+      },
+      "textures": [
+        {
+          "name": "industrial_wall_lamp_emissive_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 27379,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "industrial_wall_lamp_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 187279,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "industrial_wall_lamp_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 184759,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "industrial_wall_lamp_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 145054,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "industrial_wall_lamp_glass_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 191530,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "industrial_wall_lamp_glass_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 126718,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "industrial_wall_lamp_glass_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 110777,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 177832,
+      "gpu": {
+        "desktop": 5071189,
+        "mobile": 5071189,
+        "rgba8": 39324667
+      },
+      "materials": [
+        {
+          "name": "industrial_wall_lamp",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "industrial_wall_lamp_glass",
+          "alphaMode": "BLEND",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        6,
+        16
+      ]
+    }
+  }
+}

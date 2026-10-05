@@ -1,6 +1,6 @@
 {
   "id": "zwartkops_straight_morning",
-  "recipe": "2a4eaaa5c349",
+  "recipe": "956c7fc6fd59",
   "tiers": {
     "512": {
       "hdr": {
@@ -16,19 +16,19 @@
       },
       "background": {
         "path": "hdri/zwartkops_straight_morning/zwartkops_straight_morning_bg_1024.ktx2",
-        "bytes": 66936,
+        "bytes": 67236,
         "width": 1024,
         "height": 512,
         "codec": "etc1s",
         "gpu": {
-          "desktop": 524288,
+          "desktop": 262144,
           "mobile": 262144,
           "rgba8": 2097152
         }
       },
-      "bytes": 437340,
+      "bytes": 437640,
       "gpu": {
-        "desktop": 6815744,
+        "desktop": 6553600,
         "mobile": 6553600,
         "rgba8": 8388608
       }
@@ -47,19 +47,19 @@
       },
       "background": {
         "path": "hdri/zwartkops_straight_morning/zwartkops_straight_morning_bg_2048.ktx2",
-        "bytes": 212870,
+        "bytes": 214382,
         "width": 2048,
         "height": 1024,
         "codec": "etc1s",
         "gpu": {
-          "desktop": 2097152,
+          "desktop": 1048576,
           "mobile": 1048576,
           "rgba8": 8388608
         }
       },
-      "bytes": 1737037,
+      "bytes": 1738549,
       "gpu": {
-        "desktop": 8388608,
+        "desktop": 7340032,
         "mobile": 7340032,
         "rgba8": 14680064
       }
@@ -80,6 +80,7 @@
     "avgLuminance": 0.9435,
     "skyLuminance": 1.7051,
     "skyGeoLuminance": 0.2814,
-    "backgroundExposure": 1.2438
+    "geoLuminance": 0.1905,
+    "backgroundExposure": 0.9449
   }
 }

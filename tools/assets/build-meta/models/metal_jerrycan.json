@@ -1,12 +1,12 @@
 {
   "id": "metal_jerrycan",
-  "recipe": "c1bae916aeb8",
+  "recipe": "4131ca7cdabf",
   "size": [
-    0.35,
+    0.349,
     0.455,
     0.172
   ],
-  "radius": 0.3,
+  "radius": 0.299,
   "lodDistances": [
     0,
     6,
@@ -15,12 +15,9 @@
   "tiers": {
     "512": {
       "path": "models/metal_jerrycan/metal_jerrycan_512.glb",
-      "bytes": 257264,
+      "bytes": 218216,
       "srcTris": 20022,
       "lods": [
-        {
-          "tris": 5000
-        },
         {
           "tris": 2000
         },
@@ -31,9 +28,10 @@
       "parts": [
         "metal_jerrycan"
       ],
+      "lodShift": true,
       "bounds": {
         "min": [
-          -0.17,
+          -0.169,
           0,
           -0.089
         ],
@@ -52,7 +50,7 @@
           "codec": "etc1s",
           "bytes": 84594,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -65,7 +63,7 @@
           "codec": "etc1s",
           "bytes": 57942,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -78,17 +76,17 @@
           "codec": "etc1s",
           "bytes": 45879,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 162506,
+      "geometryBytes": 61490,
       "gpu": {
-        "desktop": 1211081,
-        "mobile": 686795,
-        "rgba8": 4356809
+        "desktop": 585779,
+        "mobile": 585779,
+        "rgba8": 4255793
       },
       "materials": [
         {
@@ -96,6 +94,10 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
+      ],
+      "lodDistances": [
+        0,
+        16
       ]
     },
     "1024": {
@@ -116,6 +118,7 @@
       "parts": [
         "metal_jerrycan"
       ],
+      "lodShift": false,
       "bounds": {
         "min": [
           -0.17,
@@ -137,7 +140,7 @@
           "codec": "etc1s",
           "bytes": 249840,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -150,7 +153,7 @@
           "codec": "etc1s",
           "bytes": 189569,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -163,7 +166,7 @@
           "codec": "etc1s",
           "bytes": 161243,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -171,7 +174,7 @@
       ],
       "geometryBytes": 162506,
       "gpu": {
-        "desktop": 4356809,
+        "desktop": 2259659,
         "mobile": 2259659,
         "rgba8": 16939721
       },
@@ -181,6 +184,11 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
+      ],
+      "lodDistances": [
+        0,
+        6,
+        16
       ]
     }
   }

@@ -1,0 +1,237 @@
+{
+  "id": "portable_generator",
+  "recipe": "194c4aaaf602",
+  "size": [
+    0.817,
+    0.575,
+    0.562
+  ],
+  "radius": 0.573,
+  "lodDistances": [
+    0,
+    8,
+    22.9
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/portable_generator/portable_generator_512.glb",
+      "bytes": 345416,
+      "srcTris": 26419,
+      "lods": [
+        {
+          "tris": 5688
+        },
+        {
+          "tris": 4098
+        }
+      ],
+      "parts": [
+        "portable_generator",
+        "portable_generator_dial",
+        "portable_generator_switch",
+        "portable_generator_toggle"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.415,
+          0.002,
+          -0.28
+        ],
+        "max": [
+          0.402,
+          0.577,
+          0.282
+        ]
+      },
+      "textures": [
+        {
+          "name": "portable_generator_spec_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 3130,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "portable_generator_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 71939,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "portable_generator_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 64892,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "portable_generator_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 42930,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 380212,
+      "gpu": {
+        "desktop": 1079264,
+        "mobile": 1079264,
+        "rgba8": 5972616
+      },
+      "materials": [
+        {
+          "name": "portable_generator",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "portable_generator_glass",
+          "alphaMode": "BLEND",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        22.9
+      ]
+    },
+    "1024": {
+      "path": "models/portable_generator/portable_generator_1024.glb",
+      "bytes": 845720,
+      "srcTris": 26419,
+      "lods": [
+        {
+          "tris": 8063
+        },
+        {
+          "tris": 5688
+        },
+        {
+          "tris": 4098
+        }
+      ],
+      "parts": [
+        "portable_generator",
+        "portable_generator_dial",
+        "portable_generator_switch",
+        "portable_generator_toggle"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.415,
+          0.002,
+          -0.282
+        ],
+        "max": [
+          0.402,
+          0.577,
+          0.282
+        ]
+      },
+      "textures": [
+        {
+          "name": "portable_generator_spec_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 5802,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "portable_generator_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 216123,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "portable_generator_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 207572,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "portable_generator_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 148489,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 653402,
+      "gpu": {
+        "desktop": 3449606,
+        "mobile": 3449606,
+        "rgba8": 23023022
+      },
+      "materials": [
+        {
+          "name": "portable_generator",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "portable_generator_glass",
+          "alphaMode": "BLEND",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        8,
+        22.9
+      ]
+    }
+  }
+}

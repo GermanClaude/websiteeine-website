@@ -1,0 +1,195 @@
+{
+  "id": "steel_frame_shelves_01",
+  "recipe": "3ddb340feec2",
+  "size": [
+    10.973,
+    21.405,
+    5.021
+  ],
+  "radius": 12.286,
+  "lodDistances": [
+    0,
+    172,
+    491.4
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/steel_frame_shelves_01/steel_frame_shelves_01_512.glb",
+      "bytes": 128040,
+      "srcTris": 4348,
+      "lods": [
+        {
+          "tris": 1738
+        },
+        {
+          "tris": 607
+        }
+      ],
+      "parts": [
+        "steel_frame_shelves_01"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -5.486,
+          -0.011,
+          -2.511
+        ],
+        "max": [
+          5.487,
+          21.394,
+          2.51
+        ]
+      },
+      "textures": [
+        {
+          "name": "steel_frame_shelves_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 10898,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "steel_frame_shelves_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 50785,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "steel_frame_shelves_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 32994,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 77958,
+      "gpu": {
+        "desktop": 602247,
+        "mobile": 602247,
+        "rgba8": 4272261
+      },
+      "materials": [
+        {
+          "name": "steel_frame_shelves_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        491.4
+      ]
+    },
+    "1024": {
+      "path": "models/steel_frame_shelves_01/steel_frame_shelves_01_1024.glb",
+      "bytes": 399612,
+      "srcTris": 4348,
+      "lods": [
+        {
+          "tris": 4348
+        },
+        {
+          "tris": 1738
+        },
+        {
+          "tris": 607
+        }
+      ],
+      "parts": [
+        "steel_frame_shelves_01"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -5.486,
+          -0.011,
+          -2.511
+        ],
+        "max": [
+          5.487,
+          21.394,
+          2.51
+        ]
+      },
+      "textures": [
+        {
+          "name": "steel_frame_shelves_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 56029,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "steel_frame_shelves_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 155053,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "steel_frame_shelves_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 117904,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 183950,
+      "gpu": {
+        "desktop": 2281103,
+        "mobile": 2281103,
+        "rgba8": 16961165
+      },
+      "materials": [
+        {
+          "name": "steel_frame_shelves_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        172,
+        491.4
+      ]
+    }
+  }
+}

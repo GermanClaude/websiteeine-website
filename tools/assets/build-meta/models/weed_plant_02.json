@@ -1,0 +1,203 @@
+{
+  "id": "weed_plant_02",
+  "recipe": "7b930968a0c8",
+  "size": [
+    2.126,
+    0.075,
+    0.291
+  ],
+  "radius": 1.074,
+  "lodDistances": [
+    0,
+    15,
+    42.9
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/weed_plant_02/weed_plant_02_512.glb",
+      "bytes": 226708,
+      "srcTris": 11116,
+      "lods": [
+        {
+          "tris": 2394
+        },
+        {
+          "tris": 931
+        }
+      ],
+      "parts": [
+        "weed_plant_02_a_LOD0",
+        "weed_plant_02_b_LOD0",
+        "weed_plant_02_c_LOD0",
+        "weed_plant_02_d_LOD0",
+        "weed_plant_02_e_LOD0"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.086,
+          -0.009,
+          -0.111
+        ],
+        "max": [
+          2.04,
+          0.066,
+          0.18
+        ]
+      },
+      "textures": [
+        {
+          "name": "weed_plant_02_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 83954,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "weed_plant_02_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 49106,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "weed_plant_02_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 37206,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 86636,
+      "gpu": {
+        "desktop": 610925,
+        "mobile": 610925,
+        "rgba8": 4280939
+      },
+      "materials": [
+        {
+          "name": "weed_plant_02",
+          "alphaMode": "MASK",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        42.9
+      ]
+    },
+    "1024": {
+      "path": "models/weed_plant_02/weed_plant_02_1024.glb",
+      "bytes": 615660,
+      "srcTris": 11116,
+      "lods": [
+        {
+          "tris": 5995
+        },
+        {
+          "tris": 2394
+        },
+        {
+          "tris": 931
+        }
+      ],
+      "parts": [
+        "weed_plant_02_a_LOD0",
+        "weed_plant_02_b_LOD0",
+        "weed_plant_02_c_LOD0",
+        "weed_plant_02_d_LOD0",
+        "weed_plant_02_e_LOD0"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.086,
+          -0.009,
+          -0.111
+        ],
+        "max": [
+          2.04,
+          0.067,
+          0.18
+        ]
+      },
+      "textures": [
+        {
+          "name": "weed_plant_02_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 227710,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "weed_plant_02_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 140519,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "weed_plant_02_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 124715,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 230580,
+      "gpu": {
+        "desktop": 2327733,
+        "mobile": 2327733,
+        "rgba8": 17007795
+      },
+      "materials": [
+        {
+          "name": "weed_plant_02",
+          "alphaMode": "MASK",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        15,
+        42.9
+      ]
+    }
+  }
+}

@@ -108,18 +108,15 @@ export const fmtBytes = (b) => b >= 1048576 ? (b / 1048576).toFixed(2) + ' MB' :
 
 /**
  * GPU-Speicher einer KTX2-Textur schätzen (inkl. Mip-Kette ×4/3).
- * compressed: Desktop transkodiert ETC1S/UASTC nach BC7 (1 B/px) bzw. BC1 (0,5 B/px), Mobil nach ETC2/ASTC
- * (ETC1S → ETC1/ETC2 RGB 0,5 B/px, UASTC/Alpha → 1 B/px). Wir rechnen konservativ mit 1 B/px
- * (BC7/ASTC/ETC2-RGBA), mobil ETC1S ohne Alpha 0,5 B/px. rgba8: Rückfall ohne Kompressionsformat (4 B/px).
+ * loader.js transkodiert ETC1S auf dem Desktop nach BC1 (0,5 B/px; BC7 ist abgeschaltet, ETC1S gewinnt dadurch keine
+ * Qualität) bzw. mit Alpha nach BC3 (1 B/px); mobil nach ETC1/ETC2 (0,5 B/px) bzw. ETC2-RGBA/ASTC (1 B/px).
+ * UASTC → BC7/ASTC/ETC2-RGBA (1 B/px). rgba8: Rückfall ohne Kompressionsformat (4 B/px).
  */
 export function gpuBytes(w, h, { codec = 'etc1s', alpha = false, mips = true } = {}) {
   const m = mips ? 4 / 3 : 1;
   const px = w * h * m;
-  return {
-    desktop: Math.round(px * 1),
-    mobile: Math.round(px * (codec === 'etc1s' && !alpha ? 0.5 : 1)),
-    rgba8: Math.round(px * 4),
-  };
+  const bpp = codec === 'etc1s' && !alpha ? 0.5 : 1;
+  return { desktop: Math.round(px * bpp), mobile: Math.round(px * bpp), rgba8: Math.round(px * 4) };
 }
 export function addGpu(a, b) { return { desktop: a.desktop + b.desktop, mobile: a.mobile + b.mobile, rgba8: a.rgba8 + b.rgba8 }; }
 export const GPU0 = () => ({ desktop: 0, mobile: 0, rgba8: 0 });

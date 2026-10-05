@@ -1,0 +1,197 @@
+{
+  "id": "water_manhole_cover",
+  "recipe": "2f857853e1d6",
+  "size": [
+    0.69,
+    0.068,
+    0.69
+  ],
+  "radius": 0.489,
+  "lodDistances": [
+    0,
+    6.8,
+    19.6
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/water_manhole_cover/water_manhole_cover_512.glb",
+      "bytes": 236160,
+      "srcTris": 6301,
+      "lods": [
+        {
+          "tris": 1129
+        },
+        {
+          "tris": 831
+        }
+      ],
+      "parts": [
+        "water_manhole_cover_frame",
+        "water_manhole_cover"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.345,
+          -0.029,
+          -0.345
+        ],
+        "max": [
+          0.345,
+          0.039,
+          0.345
+        ]
+      },
+      "textures": [
+        {
+          "name": "water_manhole_cover_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 101158,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "water_manhole_cover_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 52010,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "water_manhole_cover_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 42416,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 76132,
+      "gpu": {
+        "desktop": 600421,
+        "mobile": 600421,
+        "rgba8": 4270435
+      },
+      "materials": [
+        {
+          "name": "water_manhole_cover",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        19.6
+      ]
+    },
+    "1024": {
+      "path": "models/water_manhole_cover/water_manhole_cover_1024.glb",
+      "bytes": 662180,
+      "srcTris": 6301,
+      "lods": [
+        {
+          "tris": 2120
+        },
+        {
+          "tris": 1129
+        },
+        {
+          "tris": 831
+        }
+      ],
+      "parts": [
+        "water_manhole_cover_frame",
+        "water_manhole_cover"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.345,
+          -0.029,
+          -0.345
+        ],
+        "max": [
+          0.345,
+          0.039,
+          0.345
+        ]
+      },
+      "textures": [
+        {
+          "name": "water_manhole_cover_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 287770,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "water_manhole_cover_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 162009,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "water_manhole_cover_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 141606,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 143698,
+      "gpu": {
+        "desktop": 2240851,
+        "mobile": 2240851,
+        "rgba8": 16920913
+      },
+      "materials": [
+        {
+          "name": "water_manhole_cover",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        6.8,
+        19.6
+      ]
+    }
+  }
+}

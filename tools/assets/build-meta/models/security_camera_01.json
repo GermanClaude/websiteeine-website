@@ -1,0 +1,205 @@
+{
+  "id": "security_camera_01",
+  "recipe": "105529eaa41e",
+  "size": [
+    0.17,
+    0.286,
+    0.553
+  ],
+  "radius": 0.323,
+  "lodDistances": [
+    0,
+    6,
+    16
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/security_camera_01/security_camera_01_512.glb",
+      "bytes": 161520,
+      "srcTris": 13571,
+      "lods": [
+        {
+          "tris": 1600
+        },
+        {
+          "tris": 671
+        }
+      ],
+      "parts": [
+        "security_camera_01"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.085,
+          -0.025,
+          -0.303
+        ],
+        "max": [
+          0.085,
+          0.261,
+          0.25
+        ]
+      },
+      "textures": [
+        {
+          "name": "security_camera_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 36753,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "security_camera_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 52547,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "security_camera_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 35509,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 73652,
+      "gpu": {
+        "desktop": 597941,
+        "mobile": 597941,
+        "rgba8": 4267955
+      },
+      "materials": [
+        {
+          "name": "security_camera_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "security_camera_01_glass",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        16
+      ]
+    },
+    "1024": {
+      "path": "models/security_camera_01/security_camera_01_1024.glb",
+      "bytes": 454464,
+      "srcTris": 13571,
+      "lods": [
+        {
+          "tris": 4001
+        },
+        {
+          "tris": 1600
+        },
+        {
+          "tris": 671
+        }
+      ],
+      "parts": [
+        "security_camera_01"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.085,
+          -0.025,
+          -0.303
+        ],
+        "max": [
+          0.085,
+          0.261,
+          0.25
+        ]
+      },
+      "textures": [
+        {
+          "name": "security_camera_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 103727,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "security_camera_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 158837,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "security_camera_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 112822,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 182634,
+      "gpu": {
+        "desktop": 2279787,
+        "mobile": 2279787,
+        "rgba8": 16959849
+      },
+      "materials": [
+        {
+          "name": "security_camera_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "security_camera_01_glass",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        6,
+        16
+      ]
+    }
+  }
+}

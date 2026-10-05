@@ -13,7 +13,9 @@ const src = loadSources();
 const byId = Object.fromEntries(src.textures.map((t) => [t.id, t]));
 const ids = args._.length ? args._ : src.textures.map((t) => t.id);
 
-const recipe = (e) => hash({ v: PIPELINE_VERSION, e: { ...e, url: undefined, author: undefined, name: undefined }, profiles: 'k5' });
+
+// Rezept = nur verarbeitungsrelevante Felder (Metadaten wie sizeM/replaces ändern keine Dateien)
+const recipe = (e) => hash({ v: PIPELINE_VERSION, s: e.source, sid: e.sourceId, tiers: e.tiers, recolor: e.recolor || null, alpha: !!e.alpha, base: e.base || null, profiles: 'k5' });
 
 // ---------------------------------------------------------------------------------------------
 // Prozedurale Tarnmuster (kachelbar): periodisches Value-Noise mit Domain-Warping

@@ -1,6 +1,6 @@
 {
   "id": "freight_station",
-  "recipe": "3c857a232136",
+  "recipe": "3b5b240afcd1",
   "tiers": {
     "512": {
       "hdr": {
@@ -16,19 +16,19 @@
       },
       "background": {
         "path": "hdri/freight_station/freight_station_bg_1024.ktx2",
-        "bytes": 71928,
+        "bytes": 72015,
         "width": 1024,
         "height": 512,
         "codec": "etc1s",
         "gpu": {
-          "desktop": 524288,
+          "desktop": 262144,
           "mobile": 262144,
           "rgba8": 2097152
         }
       },
-      "bytes": 483927,
+      "bytes": 484014,
       "gpu": {
-        "desktop": 6815744,
+        "desktop": 6553600,
         "mobile": 6553600,
         "rgba8": 8388608
       }
@@ -47,19 +47,19 @@
       },
       "background": {
         "path": "hdri/freight_station/freight_station_bg_2048.ktx2",
-        "bytes": 234015,
+        "bytes": 230452,
         "width": 2048,
         "height": 1024,
         "codec": "etc1s",
         "gpu": {
-          "desktop": 2097152,
+          "desktop": 1048576,
           "mobile": 1048576,
           "rgba8": 8388608
         }
       },
-      "bytes": 1863427,
+      "bytes": 1859864,
       "gpu": {
-        "desktop": 8388608,
+        "desktop": 7340032,
         "mobile": 7340032,
         "rgba8": 14680064
       }
@@ -80,6 +80,7 @@
     "avgLuminance": 0.5044,
     "skyLuminance": 0.9028,
     "skyGeoLuminance": 0.6564,
-    "backgroundExposure": 0.5332
+    "geoLuminance": 0.2609,
+    "backgroundExposure": 0.6899
   }
 }

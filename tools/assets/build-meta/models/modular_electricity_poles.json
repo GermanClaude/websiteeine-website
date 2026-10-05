@@ -1,0 +1,467 @@
+{
+  "id": "modular_electricity_poles",
+  "recipe": "1a09a0d70700",
+  "size": [
+    13.119,
+    7,
+    1.957
+  ],
+  "radius": 7.499,
+  "lodDistances": null,
+  "tiers": {
+    "512": {
+      "path": "models/modular_electricity_poles/modular_electricity_poles_512.glb",
+      "bytes": 1025460,
+      "srcTris": 106430,
+      "lods": [
+        {
+          "tris": 43746
+        }
+      ],
+      "parts": [
+        "bolt_large",
+        "bolt_small",
+        "cap",
+        "connection_large_01",
+        "connection_large_02",
+        "connection_large_offset_01",
+        "connection_large_offset_02",
+        "connection_single_01",
+        "connection_single_02",
+        "connection_single_03",
+        "connection_small_01",
+        "connection_small_02",
+        "fastener",
+        "fastener_bolt",
+        "fastener_connection",
+        "fastener_loop",
+        "fastener_nut",
+        "fuse_01",
+        "fuse_02",
+        "insulator_01",
+        "insulator_02",
+        "insulator_03",
+        "insulator_cable_01",
+        "insulator_cable_02",
+        "insulator_cable_03",
+        "insulators_large",
+        "insulators_small",
+        "nail",
+        "nail_bent",
+        "nut",
+        "pole",
+        "pole_large",
+        "pole_small",
+        "ring_large",
+        "ring_small",
+        "support_large_01",
+        "support_large_02",
+        "support_large_offset_01",
+        "support_large_offset_02",
+        "support_small_01",
+        "support_small_02",
+        "transformer_01",
+        "transformer_02",
+        "preset_03_bolt_small_01",
+        "preset_03_bolt_small_02",
+        "preset_03_bolt_small_03",
+        "preset_03_bolt_small_04",
+        "preset_03_bolt_small_05",
+        "preset_03_bolt_small_06",
+        "preset_03_cap",
+        "preset_03_connection_large_offset_01",
+        "preset_03_connection_single_01",
+        "preset_03_connection_small_01_02",
+        "preset_03_fuse_01",
+        "preset_03_nail_bent",
+        "preset_03_pole",
+        "preset_03_ring_large_01",
+        "preset_03_ring_large_02",
+        "preset_03_ring_small_01",
+        "preset_03_ring_small_02",
+        "preset_03_ring_small_03",
+        "preset_03_ring_small_04",
+        "preset_03_transformer_01",
+        "preset_02_cap",
+        "preset_02_connection_large_01",
+        "preset_02_connection_single_01",
+        "preset_02_connection_single_01_02",
+        "preset_02_connection_small_01",
+        "preset_02_pole",
+        "preset_02_ring_large",
+        "preset_02_ring_large_02",
+        "preset_02_ring_small_01",
+        "preset_02_ring_small_02",
+        "preset_02_ring_small_03",
+        "preset_02_ring_small_04",
+        "preset_02_ring_small_05",
+        "preset_01_bolt_small_01",
+        "preset_01_bolt_small_02",
+        "preset_01_bolt_small_03",
+        "preset_01_bolt_small_04",
+        "preset_01_bolt_small_05",
+        "preset_01_bolt_small_06",
+        "preset_01_bolt_small_07",
+        "preset_01_bolt_small_08",
+        "preset_01_bolt_small_09",
+        "preset_01_cap",
+        "preset_01_connection_large_02",
+        "preset_01_connection_single_01",
+        "preset_01_connection_small_02",
+        "preset_01_fastener",
+        "preset_01_fastener_connection",
+        "preset_01_fastener_loop",
+        "preset_01_fuse_01",
+        "preset_01_fuse_02",
+        "preset_01_nail_bent",
+        "preset_01_pole",
+        "preset_01_ring_large",
+        "preset_01_ring_small",
+        "preset_01_ring_small_01",
+        "preset_01_ring_small_02",
+        "preset_01_ring_small_03",
+        "preset_01_transformer_01",
+        "preset_01_transformer_02"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -7.35,
+          0,
+          -1.531
+        ],
+        "max": [
+          5.769,
+          7,
+          0.426
+        ]
+      },
+      "textures": [
+        {
+          "name": "modular_electricity_poles_pieces_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 86086,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_electricity_poles_pieces_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 64878,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_electricity_poles_pieces_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 47128,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_electricity_poles_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 83887,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_electricity_poles_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 54535,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_electricity_poles_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 35216,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 1533708,
+      "gpu": {
+        "desktop": 2582286,
+        "mobile": 2582286,
+        "rgba8": 9922314
+      },
+      "materials": [
+        {
+          "name": "modular_electricity_poles_pieces",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "modular_electricity_poles",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": null
+    },
+    "1024": {
+      "path": "models/modular_electricity_poles/modular_electricity_poles_1024.glb",
+      "bytes": 1819368,
+      "srcTris": 106430,
+      "lods": [
+        {
+          "tris": 43746
+        }
+      ],
+      "parts": [
+        "bolt_large",
+        "bolt_small",
+        "cap",
+        "connection_large_01",
+        "connection_large_02",
+        "connection_large_offset_01",
+        "connection_large_offset_02",
+        "connection_single_01",
+        "connection_single_02",
+        "connection_single_03",
+        "connection_small_01",
+        "connection_small_02",
+        "fastener",
+        "fastener_bolt",
+        "fastener_connection",
+        "fastener_loop",
+        "fastener_nut",
+        "fuse_01",
+        "fuse_02",
+        "insulator_01",
+        "insulator_02",
+        "insulator_03",
+        "insulator_cable_01",
+        "insulator_cable_02",
+        "insulator_cable_03",
+        "insulators_large",
+        "insulators_small",
+        "nail",
+        "nail_bent",
+        "nut",
+        "pole",
+        "pole_large",
+        "pole_small",
+        "ring_large",
+        "ring_small",
+        "support_large_01",
+        "support_large_02",
+        "support_large_offset_01",
+        "support_large_offset_02",
+        "support_small_01",
+        "support_small_02",
+        "transformer_01",
+        "transformer_02",
+        "preset_03_bolt_small_01",
+        "preset_03_bolt_small_02",
+        "preset_03_bolt_small_03",
+        "preset_03_bolt_small_04",
+        "preset_03_bolt_small_05",
+        "preset_03_bolt_small_06",
+        "preset_03_cap",
+        "preset_03_connection_large_offset_01",
+        "preset_03_connection_single_01",
+        "preset_03_connection_small_01_02",
+        "preset_03_fuse_01",
+        "preset_03_nail_bent",
+        "preset_03_pole",
+        "preset_03_ring_large_01",
+        "preset_03_ring_large_02",
+        "preset_03_ring_small_01",
+        "preset_03_ring_small_02",
+        "preset_03_ring_small_03",
+        "preset_03_ring_small_04",
+        "preset_03_transformer_01",
+        "preset_02_cap",
+        "preset_02_connection_large_01",
+        "preset_02_connection_single_01",
+        "preset_02_connection_single_01_02",
+        "preset_02_connection_small_01",
+        "preset_02_pole",
+        "preset_02_ring_large",
+        "preset_02_ring_large_02",
+        "preset_02_ring_small_01",
+        "preset_02_ring_small_02",
+        "preset_02_ring_small_03",
+        "preset_02_ring_small_04",
+        "preset_02_ring_small_05",
+        "preset_01_bolt_small_01",
+        "preset_01_bolt_small_02",
+        "preset_01_bolt_small_03",
+        "preset_01_bolt_small_04",
+        "preset_01_bolt_small_05",
+        "preset_01_bolt_small_06",
+        "preset_01_bolt_small_07",
+        "preset_01_bolt_small_08",
+        "preset_01_bolt_small_09",
+        "preset_01_cap",
+        "preset_01_connection_large_02",
+        "preset_01_connection_single_01",
+        "preset_01_connection_small_02",
+        "preset_01_fastener",
+        "preset_01_fastener_connection",
+        "preset_01_fastener_loop",
+        "preset_01_fuse_01",
+        "preset_01_fuse_02",
+        "preset_01_nail_bent",
+        "preset_01_pole",
+        "preset_01_ring_large",
+        "preset_01_ring_small",
+        "preset_01_ring_small_01",
+        "preset_01_ring_small_02",
+        "preset_01_ring_small_03",
+        "preset_01_transformer_01",
+        "preset_01_transformer_02"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -7.35,
+          0,
+          -1.531
+        ],
+        "max": [
+          5.769,
+          7,
+          0.426
+        ]
+      },
+      "textures": [
+        {
+          "name": "modular_electricity_poles_pieces_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 248117,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_electricity_poles_pieces_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 210397,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_electricity_poles_pieces_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 162833,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_electricity_poles_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 237025,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_electricity_poles_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 180205,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_electricity_poles_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 126900,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 1533708,
+      "gpu": {
+        "desktop": 5728014,
+        "mobile": 5728014,
+        "rgba8": 35088138
+      },
+      "materials": [
+        {
+          "name": "modular_electricity_poles_pieces",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "modular_electricity_poles",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": null
+    }
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "id": "chainlink",
+  "recipe": "f33dfed4ad75",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/chainlink/chainlink_512_albedo.ktx2",
+          "bytes": 84055,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": true,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 349525,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/chainlink/chainlink_512_normal.ktx2",
+          "bytes": 37836,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/chainlink/chainlink_512_orm.ktx2",
+          "bytes": 43083,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 164974,
+      "gpu": {
+        "desktop": 699051,
+        "mobile": 699051,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/chainlink/chainlink_1024_albedo.ktx2",
+          "bytes": 256926,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": true,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 1398101,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/chainlink/chainlink_1024_normal.ktx2",
+          "bytes": 136763,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/chainlink/chainlink_1024_orm.ktx2",
+          "bytes": 159489,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 553178,
+      "gpu": {
+        "desktop": 2796203,
+        "mobile": 2796203,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#9ea0a3",
+    "avgRoughness": 0.477,
+    "avgMetalness": 1,
+    "avgAO": 1,
+    "coverage": 0.365
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "id": "wood_crate",
+  "recipe": "05ca1d380864",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/wood_crate/wood_crate_512_albedo.ktx2",
+          "bytes": 56483,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/wood_crate/wood_crate_512_normal.ktx2",
+          "bytes": 42175,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/wood_crate/wood_crate_512_orm.ktx2",
+          "bytes": 25086,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 123744,
+      "gpu": {
+        "desktop": 524289,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/wood_crate/wood_crate_1024_albedo.ktx2",
+          "bytes": 183443,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/wood_crate/wood_crate_1024_normal.ktx2",
+          "bytes": 185012,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/wood_crate/wood_crate_1024_orm.ktx2",
+          "bytes": 93359,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 461814,
+      "gpu": {
+        "desktop": 2097153,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#a78358",
+    "avgRoughness": 0.717,
+    "avgMetalness": 0.002,
+    "avgAO": 0.891,
+    "coverage": 1
+  }
+}

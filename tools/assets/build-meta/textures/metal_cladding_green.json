@@ -1,0 +1,111 @@
+{
+  "id": "metal_cladding_green",
+  "recipe": "2d2cb98d656f",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/metal_cladding_green/metal_cladding_green_512_albedo.ktx2",
+          "bytes": 52300,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/metal_cladding_green/metal_cladding_green_512_normal.ktx2",
+          "bytes": 19580,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/metal_cladding_green/metal_cladding_green_512_orm.ktx2",
+          "bytes": 33916,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 105796,
+      "gpu": {
+        "desktop": 524289,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/metal_cladding_green/metal_cladding_green_1024_albedo.ktx2",
+          "bytes": 168308,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/metal_cladding_green/metal_cladding_green_1024_normal.ktx2",
+          "bytes": 66105,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/metal_cladding_green/metal_cladding_green_1024_orm.ktx2",
+          "bytes": 128478,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 362891,
+      "gpu": {
+        "desktop": 2097153,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#63774d",
+    "avgRoughness": 0.95,
+    "avgMetalness": 0.005,
+    "avgAO": 0.548,
+    "coverage": 1
+  }
+}

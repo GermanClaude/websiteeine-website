@@ -1,6 +1,6 @@
 {
   "id": "bolt_action_rifle_7_62",
-  "recipe": "821e0caef91c",
+  "recipe": "1af1d60bfd52",
   "size": [
     1.231,
     0.205,
@@ -15,7 +15,7 @@
   "tiers": {
     "512": {
       "path": "models/bolt_action_rifle_7_62/bolt_action_rifle_7_62_512.glb",
-      "bytes": 700132,
+      "bytes": 700112,
       "srcTris": 19985,
       "lods": [
         {
@@ -37,6 +37,7 @@
         "bolt_action_rifle_7_62_bullet_54mm",
         "bolt_action_rifle_7_62_trigger"
       ],
+      "lodShift": false,
       "bounds": {
         "min": [
           -0.635,
@@ -58,7 +59,7 @@
           "codec": "etc1s",
           "bytes": 81961,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -71,7 +72,7 @@
           "codec": "etc1s",
           "bytes": 62196,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -84,7 +85,7 @@
           "codec": "etc1s",
           "bytes": 43134,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -97,7 +98,7 @@
           "codec": "etc1s",
           "bytes": 48482,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -110,7 +111,7 @@
           "codec": "etc1s",
           "bytes": 64678,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -123,7 +124,7 @@
           "codec": "etc1s",
           "bytes": 41906,
           "gpu": {
-            "desktop": 349525,
+            "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
@@ -131,7 +132,7 @@
       ],
       "geometryBytes": 925492,
       "gpu": {
-        "desktop": 3022642,
+        "desktop": 1974070,
         "mobile": 1974070,
         "rgba8": 9314098
       },
@@ -143,7 +144,7 @@
         },
         {
           "name": "bolt_action_rifle_7_62_accesories_glass",
-          "alphaMode": "BLEND",
+          "alphaMode": "OPAQUE",
           "doubleSided": true
         },
         {
@@ -151,11 +152,16 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
+      ],
+      "lodDistances": [
+        0,
+        8.7,
+        25
       ]
     },
     "1024": {
       "path": "models/bolt_action_rifle_7_62/bolt_action_rifle_7_62_1024.glb",
-      "bytes": 1471216,
+      "bytes": 1471196,
       "srcTris": 19985,
       "lods": [
         {
@@ -177,6 +183,7 @@
         "bolt_action_rifle_7_62_bullet_54mm",
         "bolt_action_rifle_7_62_trigger"
       ],
+      "lodShift": false,
       "bounds": {
         "min": [
           -0.635,
@@ -198,7 +205,7 @@
           "codec": "etc1s",
           "bytes": 235352,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -211,7 +218,7 @@
           "codec": "etc1s",
           "bytes": 198650,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -224,7 +231,7 @@
           "codec": "etc1s",
           "bytes": 151289,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -237,7 +244,7 @@
           "codec": "etc1s",
           "bytes": 174740,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -250,7 +257,7 @@
           "codec": "etc1s",
           "bytes": 212001,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -263,7 +270,7 @@
           "codec": "etc1s",
           "bytes": 141324,
           "gpu": {
-            "desktop": 1398101,
+            "desktop": 699051,
             "mobile": 699051,
             "rgba8": 5592405
           }
@@ -271,7 +278,7 @@
       ],
       "geometryBytes": 925492,
       "gpu": {
-        "desktop": 9314098,
+        "desktop": 5119798,
         "mobile": 5119798,
         "rgba8": 34479922
       },
@@ -283,7 +290,7 @@
         },
         {
           "name": "bolt_action_rifle_7_62_accesories_glass",
-          "alphaMode": "BLEND",
+          "alphaMode": "OPAQUE",
           "doubleSided": true
         },
         {
@@ -291,11 +298,16 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
+      ],
+      "lodDistances": [
+        0,
+        8.7,
+        25
       ]
     },
     "2048": {
       "path": "models/bolt_action_rifle_7_62/bolt_action_rifle_7_62_2048.glb",
-      "bytes": 4609724,
+      "bytes": 4609704,
       "srcTris": 19985,
       "lods": [
         {
@@ -317,6 +329,7 @@
         "bolt_action_rifle_7_62_bullet_54mm",
         "bolt_action_rifle_7_62_trigger"
       ],
+      "lodShift": false,
       "bounds": {
         "min": [
           -0.635,
@@ -338,7 +351,7 @@
           "codec": "etc1s",
           "bytes": 841479,
           "gpu": {
-            "desktop": 5592405,
+            "desktop": 2796203,
             "mobile": 2796203,
             "rgba8": 22369621
           }
@@ -351,7 +364,7 @@
           "codec": "etc1s",
           "bytes": 790196,
           "gpu": {
-            "desktop": 5592405,
+            "desktop": 2796203,
             "mobile": 2796203,
             "rgba8": 22369621
           }
@@ -364,7 +377,7 @@
           "codec": "etc1s",
           "bytes": 611488,
           "gpu": {
-            "desktop": 5592405,
+            "desktop": 2796203,
             "mobile": 2796203,
             "rgba8": 22369621
           }
@@ -377,7 +390,7 @@
           "codec": "etc1s",
           "bytes": 621271,
           "gpu": {
-            "desktop": 5592405,
+            "desktop": 2796203,
             "mobile": 2796203,
             "rgba8": 22369621
           }
@@ -390,7 +403,7 @@
           "codec": "etc1s",
           "bytes": 830802,
           "gpu": {
-            "desktop": 5592405,
+            "desktop": 2796203,
             "mobile": 2796203,
             "rgba8": 22369621
           }
@@ -403,7 +416,7 @@
           "codec": "etc1s",
           "bytes": 556637,
           "gpu": {
-            "desktop": 5592405,
+            "desktop": 2796203,
             "mobile": 2796203,
             "rgba8": 22369621
           }
@@ -411,7 +424,7 @@
       ],
       "geometryBytes": 925492,
       "gpu": {
-        "desktop": 34479922,
+        "desktop": 17702710,
         "mobile": 17702710,
         "rgba8": 135143218
       },
@@ -423,7 +436,7 @@
         },
         {
           "name": "bolt_action_rifle_7_62_accesories_glass",
-          "alphaMode": "BLEND",
+          "alphaMode": "OPAQUE",
           "doubleSided": true
         },
         {
@@ -431,6 +444,11 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
+      ],
+      "lodDistances": [
+        0,
+        8.7,
+        25
       ]
     }
   }

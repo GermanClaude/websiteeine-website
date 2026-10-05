@@ -1,0 +1,195 @@
+{
+  "id": "tool_cart",
+  "recipe": "cbfd2e6db859",
+  "size": [
+    1.267,
+    0.962,
+    0.752
+  ],
+  "radius": 0.88,
+  "lodDistances": [
+    0,
+    12.3,
+    35.2
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/tool_cart/tool_cart_512.glb",
+      "bytes": 262268,
+      "srcTris": 29394,
+      "lods": [
+        {
+          "tris": 3738
+        },
+        {
+          "tris": 3260
+        }
+      ],
+      "parts": [
+        "tool_cart"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.655,
+          -0.001,
+          -0.385
+        ],
+        "max": [
+          0.612,
+          0.961,
+          0.367
+        ]
+      },
+      "textures": [
+        {
+          "name": "tool_cart_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 67290,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "tool_cart_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 62822,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "tool_cart_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 39716,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 243464,
+      "gpu": {
+        "desktop": 767753,
+        "mobile": 767753,
+        "rgba8": 4437767
+      },
+      "materials": [
+        {
+          "name": "tool_cart",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        35.2
+      ]
+    },
+    "1024": {
+      "path": "models/tool_cart/tool_cart_1024.glb",
+      "bytes": 727684,
+      "srcTris": 29394,
+      "lods": [
+        {
+          "tris": 7999
+        },
+        {
+          "tris": 3738
+        },
+        {
+          "tris": 3260
+        }
+      ],
+      "parts": [
+        "tool_cart"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.658,
+          -0.004,
+          -0.385
+        ],
+        "max": [
+          0.616,
+          0.961,
+          0.368
+        ]
+      },
+      "textures": [
+        {
+          "name": "tool_cart_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 217073,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "tool_cart_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 198689,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "tool_cart_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 135793,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 473618,
+      "gpu": {
+        "desktop": 2570771,
+        "mobile": 2570771,
+        "rgba8": 17250833
+      },
+      "materials": [
+        {
+          "name": "tool_cart",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        12.3,
+        35.2
+      ]
+    }
+  }
+}

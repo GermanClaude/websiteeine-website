@@ -1,0 +1,223 @@
+{
+  "id": "mounted_fluorescent_lights",
+  "recipe": "332ced9c19da",
+  "size": [
+    0.912,
+    0.035,
+    0.645
+  ],
+  "radius": 0.559,
+  "lodDistances": null,
+  "tiers": {
+    "512": {
+      "path": "models/mounted_fluorescent_lights/mounted_fluorescent_lights_512.glb",
+      "bytes": 210312,
+      "srcTris": 17820,
+      "lods": [
+        {
+          "tris": 5990
+        }
+      ],
+      "parts": [
+        "mounted_fluorescent_lights_a",
+        "mounted_fluorescent_lights_f",
+        "mounted_fluorescent_lights_d",
+        "mounted_fluorescent_lights_b",
+        "mounted_fluorescent_lights_g",
+        "mounted_fluorescent_lights_e",
+        "mounted_fluorescent_lights_c"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.456,
+          -0.035,
+          -0.325
+        ],
+        "max": [
+          0.456,
+          0,
+          0.32
+        ]
+      },
+      "textures": [
+        {
+          "name": "mounted_fluorescent_lights_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 33450,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "mounted_fluorescent_lights_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 38554,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "mounted_fluorescent_lights_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 34993,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "mounted_fluorescent_lights_emission_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 16170,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 184660,
+      "gpu": {
+        "desktop": 883712,
+        "mobile": 883712,
+        "rgba8": 5777064
+      },
+      "materials": [
+        {
+          "name": "mounted_fluorescent_lights",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "mounted_fluorescent_lights_glass",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": null
+    },
+    "1024": {
+      "path": "models/mounted_fluorescent_lights/mounted_fluorescent_lights_1024.glb",
+      "bytes": 434256,
+      "srcTris": 17820,
+      "lods": [
+        {
+          "tris": 5990
+        }
+      ],
+      "parts": [
+        "mounted_fluorescent_lights_a",
+        "mounted_fluorescent_lights_f",
+        "mounted_fluorescent_lights_d",
+        "mounted_fluorescent_lights_b",
+        "mounted_fluorescent_lights_g",
+        "mounted_fluorescent_lights_e",
+        "mounted_fluorescent_lights_c"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.456,
+          -0.035,
+          -0.325
+        ],
+        "max": [
+          0.456,
+          0,
+          0.32
+        ]
+      },
+      "textures": [
+        {
+          "name": "mounted_fluorescent_lights_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 96781,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "mounted_fluorescent_lights_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 100537,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "mounted_fluorescent_lights_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 113685,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "mounted_fluorescent_lights_emission_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 36120,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 184660,
+      "gpu": {
+        "desktop": 2980864,
+        "mobile": 2980864,
+        "rgba8": 22554280
+      },
+      "materials": [
+        {
+          "name": "mounted_fluorescent_lights",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "mounted_fluorescent_lights_glass",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": null
+    }
+  }
+}

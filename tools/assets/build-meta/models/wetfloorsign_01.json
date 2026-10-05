@@ -1,0 +1,195 @@
+{
+  "id": "wetfloorsign_01",
+  "recipe": "b44564f561f6",
+  "size": [
+    0.3,
+    0.63,
+    0.358
+  ],
+  "radius": 0.392,
+  "lodDistances": [
+    0,
+    6,
+    16
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/wetfloorsign_01/wetfloorsign_01_512.glb",
+      "bytes": 79056,
+      "srcTris": 228,
+      "lods": [
+        {
+          "tris": 138
+        },
+        {
+          "tris": 96
+        }
+      ],
+      "parts": [
+        "WetFloorSign_01"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.15,
+          0.002,
+          -0.193
+        ],
+        "max": [
+          0.15,
+          0.632,
+          0.165
+        ]
+      },
+      "textures": [
+        {
+          "name": "WetFloorSign_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 31973,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "WetFloorSign_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 6776,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "WetFloorSign_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 32031,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 7916,
+      "gpu": {
+        "desktop": 532205,
+        "mobile": 532205,
+        "rgba8": 4202219
+      },
+      "materials": [
+        {
+          "name": "WetFloorSign_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        16
+      ]
+    },
+    "1024": {
+      "path": "models/wetfloorsign_01/wetfloorsign_01_1024.glb",
+      "bytes": 223516,
+      "srcTris": 228,
+      "lods": [
+        {
+          "tris": 228
+        },
+        {
+          "tris": 138
+        },
+        {
+          "tris": 96
+        }
+      ],
+      "parts": [
+        "WetFloorSign_01"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.15,
+          0.002,
+          -0.193
+        ],
+        "max": [
+          0.15,
+          0.632,
+          0.165
+        ]
+      },
+      "textures": [
+        {
+          "name": "WetFloorSign_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 89292,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "WetFloorSign_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 20998,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "WetFloorSign_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 100479,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 14872,
+      "gpu": {
+        "desktop": 2112025,
+        "mobile": 2112025,
+        "rgba8": 16792087
+      },
+      "materials": [
+        {
+          "name": "WetFloorSign_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        6,
+        16
+      ]
+    }
+  }
+}

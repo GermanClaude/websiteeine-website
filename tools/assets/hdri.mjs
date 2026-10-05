@@ -14,7 +14,7 @@ const args = parseArgs();
 const src = loadSources();
 const byId = Object.fromEntries(src.hdris.map((t) => [t.id, t]));
 const ids = args._.length ? args._ : src.hdris.map((t) => t.id);
-const recipe = (e) => hash({ v: PIPELINE_VERSION, id: e.id, s: e.sourceId, tiers: e.tiers, k: 'h3' });
+const recipe = (e) => hash({ v: PIPELINE_VERSION, id: e.id, s: e.sourceId, tiers: e.tiers, k: 'h4' });
 
 // PMREM (CubeUV, 256er Würfel, RGBA16F): ~768×1024 Texel × 8 B — gilt für beide Stufen
 const PMREM_BYTES = 768 * 1024 * 8;
@@ -30,8 +30,11 @@ async function build(e) {
   const img1k = readHDR(readFileSync(s['1k']));
   const img2k = readHDR(readFileSync(s['2k']));
   const stats = analyze(img2k);
-  // Belichtung für den Himmel: geometrisches Mittel der oberen Halbkugel → ~0,35 (vor ACES)
-  const exposure = +Math.min(8, Math.max(0.02, 0.35 / Math.max(1e-4, stats.skyGeoLuminance))).toFixed(4);
+  // Belichtung wie eine Auto-Belichtung: logarithmisches Mittel der ganzen Kugel → Schlüsselwert (Mittelgrau 0,18
+  // draußen, dunkler für Innenräume/Nacht, damit die Stimmung bleibt). Gilt für den gebackenen Himmel und als
+  // Vorschlag für renderer.toneMappingExposure (Manifest: exposure).
+  const KEY = { outdoor: 0.18, interior: 0.12, night: 0.07 };
+  const exposure = +Math.min(8, Math.max(0.05, (KEY[e.kind] || 0.18) / Math.max(1e-4, stats.geoLuminance))).toFixed(4);
 
   const writeHdr = (img, name) => {
     const buf = writeHDR(img);

@@ -1,0 +1,195 @@
+{
+  "id": "hand_truck",
+  "recipe": "e7bf6abb6dea",
+  "size": [
+    0.594,
+    1.402,
+    0.69
+  ],
+  "radius": 0.836,
+  "lodDistances": [
+    0,
+    11.7,
+    33.4
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/hand_truck/hand_truck_512.glb",
+      "bytes": 348280,
+      "srcTris": 13220,
+      "lods": [
+        {
+          "tris": 5490
+        },
+        {
+          "tris": 5254
+        }
+      ],
+      "parts": [
+        "hand_truck"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.297,
+          0,
+          -0.095
+        ],
+        "max": [
+          0.297,
+          1.402,
+          0.595
+        ]
+      },
+      "textures": [
+        {
+          "name": "hand_truck_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 76354,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "hand_truck_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 62410,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "hand_truck_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 40011,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 450212,
+      "gpu": {
+        "desktop": 974501,
+        "mobile": 974501,
+        "rgba8": 4644515
+      },
+      "materials": [
+        {
+          "name": "hand_truck",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        33.4
+      ]
+    },
+    "1024": {
+      "path": "models/hand_truck/hand_truck_1024.glb",
+      "bytes": 833036,
+      "srcTris": 13220,
+      "lods": [
+        {
+          "tris": 6166
+        },
+        {
+          "tris": 5490
+        },
+        {
+          "tris": 5254
+        }
+      ],
+      "parts": [
+        "hand_truck"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.297,
+          0,
+          -0.095
+        ],
+        "max": [
+          0.297,
+          1.402,
+          0.597
+        ]
+      },
+      "textures": [
+        {
+          "name": "hand_truck_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 235880,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "hand_truck_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 197568,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "hand_truck_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 139037,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 695746,
+      "gpu": {
+        "desktop": 2792899,
+        "mobile": 2792899,
+        "rgba8": 17472961
+      },
+      "materials": [
+        {
+          "name": "hand_truck",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        11.7,
+        33.4
+      ]
+    }
+  }
+}

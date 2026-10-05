@@ -1,0 +1,195 @@
+{
+  "id": "sofa_01",
+  "recipe": "f36bcd9f38ae",
+  "size": [
+    1.57,
+    0.795,
+    0.658
+  ],
+  "radius": 0.939,
+  "lodDistances": [
+    0,
+    13.2,
+    37.6
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/sofa_01/sofa_01_512.glb",
+      "bytes": 176212,
+      "srcTris": 4101,
+      "lods": [
+        {
+          "tris": 1639
+        },
+        {
+          "tris": 574
+        }
+      ],
+      "parts": [
+        "Sofa_01"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.777,
+          0.001,
+          -0.361
+        ],
+        "max": [
+          0.793,
+          0.796,
+          0.297
+        ]
+      },
+      "textures": [
+        {
+          "name": "Sofa_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 64249,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "Sofa_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 50513,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "Sofa_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 30482,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 59116,
+      "gpu": {
+        "desktop": 583405,
+        "mobile": 583405,
+        "rgba8": 4253419
+      },
+      "materials": [
+        {
+          "name": "Sofa_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        37.6
+      ]
+    },
+    "1024": {
+      "path": "models/sofa_01/sofa_01_1024.glb",
+      "bytes": 534384,
+      "srcTris": 4101,
+      "lods": [
+        {
+          "tris": 4101
+        },
+        {
+          "tris": 1639
+        },
+        {
+          "tris": 574
+        }
+      ],
+      "parts": [
+        "Sofa_01"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.778,
+          -0.001,
+          -0.361
+        ],
+        "max": [
+          0.793,
+          0.796,
+          0.297
+        ]
+      },
+      "textures": [
+        {
+          "name": "Sofa_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 205071,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "Sofa_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 161320,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "Sofa_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 96913,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 154130,
+      "gpu": {
+        "desktop": 2251283,
+        "mobile": 2251283,
+        "rgba8": 16931345
+      },
+      "materials": [
+        {
+          "name": "Sofa_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        13.2,
+        37.6
+      ]
+    }
+  }
+}

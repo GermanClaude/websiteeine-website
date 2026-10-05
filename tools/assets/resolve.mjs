@@ -32,6 +32,7 @@ for (const e of all) {
       e.author = 'Lennart Demes (ambientCG)';
       e.license = 'CC0-1.0';
       e.name = a.displayName;
+      // ambientCG nennt die Größe nur teilweise — sonst bleibt ein von Hand gesetztes sizeM stehen
       if (a.dimensionX && a.dimensionY) e.sizeM = [+(a.dimensionX / 100).toFixed(2), +(a.dimensionY / 100).toFixed(2)];
     } else if (e.source === 'derived') {
       const base = src.textures.find((t) => t.id === e.base);
@@ -39,7 +40,7 @@ for (const e of all) {
       e.author = `NULLPUNKT (prozedurales Tarnmuster, CC0) auf Basis von „${base?.name || e.base}“ von ${base?.author || '?'}`;
       e.license = 'CC0-1.0';
       e.name = e.id;
-      if (base?.sizeM) e.sizeM = base.sizeM;
+      if (base?.sizeM) e.sizeM = base.sizeM; // Manifest: × detailRepeat
     }
     changed++;
   } catch (err) {

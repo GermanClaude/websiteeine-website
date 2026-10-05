@@ -1,6 +1,6 @@
 {
   "id": "old_outdoor_theater",
-  "recipe": "a3f5628eb616",
+  "recipe": "3da556b03b26",
   "tiers": {
     "512": {
       "hdr": {
@@ -16,19 +16,19 @@
       },
       "background": {
         "path": "hdri/old_outdoor_theater/old_outdoor_theater_bg_1024.ktx2",
-        "bytes": 74672,
+        "bytes": 75830,
         "width": 1024,
         "height": 512,
         "codec": "etc1s",
         "gpu": {
-          "desktop": 524288,
+          "desktop": 262144,
           "mobile": 262144,
           "rgba8": 2097152
         }
       },
-      "bytes": 474669,
+      "bytes": 475827,
       "gpu": {
-        "desktop": 6815744,
+        "desktop": 6553600,
         "mobile": 6553600,
         "rgba8": 8388608
       }
@@ -47,19 +47,19 @@
       },
       "background": {
         "path": "hdri/old_outdoor_theater/old_outdoor_theater_bg_2048.ktx2",
-        "bytes": 238466,
+        "bytes": 243124,
         "width": 2048,
         "height": 1024,
         "codec": "etc1s",
         "gpu": {
-          "desktop": 2097152,
+          "desktop": 1048576,
           "mobile": 1048576,
           "rgba8": 8388608
         }
       },
-      "bytes": 1802418,
+      "bytes": 1807076,
       "gpu": {
-        "desktop": 8388608,
+        "desktop": 7340032,
         "mobile": 7340032,
         "rgba8": 14680064
       }
@@ -80,6 +80,7 @@
     "avgLuminance": 0.5356,
     "skyLuminance": 0.8955,
     "skyGeoLuminance": 0.2579,
-    "backgroundExposure": 1.3571
+    "geoLuminance": 0.2087,
+    "backgroundExposure": 0.8625
   }
 }

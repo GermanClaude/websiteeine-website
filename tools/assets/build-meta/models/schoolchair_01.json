@@ -1,0 +1,195 @@
+{
+  "id": "schoolchair_01",
+  "recipe": "19ef2e126954",
+  "size": [
+    0.566,
+    1.004,
+    0.674
+  ],
+  "radius": 0.668,
+  "lodDistances": [
+    0,
+    9.3,
+    26.7
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/schoolchair_01/schoolchair_01_512.glb",
+      "bytes": 166032,
+      "srcTris": 5072,
+      "lods": [
+        {
+          "tris": 2028
+        },
+        {
+          "tris": 710
+        }
+      ],
+      "parts": [
+        "SchoolChair_01"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.283,
+          -0.002,
+          -0.338
+        ],
+        "max": [
+          0.283,
+          1.002,
+          0.336
+        ]
+      },
+      "textures": [
+        {
+          "name": "SchoolChair_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 73112,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "SchoolChair_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 29864,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "SchoolChair_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 32460,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 65312,
+      "gpu": {
+        "desktop": 589601,
+        "mobile": 589601,
+        "rgba8": 4259615
+      },
+      "materials": [
+        {
+          "name": "SchoolChair_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        26.7
+      ]
+    },
+    "1024": {
+      "path": "models/schoolchair_01/schoolchair_01_1024.glb",
+      "bytes": 457064,
+      "srcTris": 5072,
+      "lods": [
+        {
+          "tris": 5072
+        },
+        {
+          "tris": 2028
+        },
+        {
+          "tris": 710
+        }
+      ],
+      "parts": [
+        "SchoolChair_01"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.283,
+          -0.002,
+          -0.338
+        ],
+        "max": [
+          0.283,
+          1.004,
+          0.338
+        ]
+      },
+      "textures": [
+        {
+          "name": "SchoolChair_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 218510,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "SchoolChair_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 70802,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "SchoolChair_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 98213,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 167574,
+      "gpu": {
+        "desktop": 2264727,
+        "mobile": 2264727,
+        "rgba8": 16944789
+      },
+      "materials": [
+        {
+          "name": "SchoolChair_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        9.3,
+        26.7
+      ]
+    }
+  }
+}

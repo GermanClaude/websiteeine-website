@@ -1,0 +1,195 @@
+{
+  "id": "wooden_bookshelf_worn",
+  "recipe": "bda58024fbca",
+  "size": [
+    1.374,
+    2.063,
+    0.582
+  ],
+  "radius": 1.273,
+  "lodDistances": [
+    0,
+    17.8,
+    50.9
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/wooden_bookshelf_worn/wooden_bookshelf_worn_512.glb",
+      "bytes": 217656,
+      "srcTris": 10106,
+      "lods": [
+        {
+          "tris": 2400
+        },
+        {
+          "tris": 840
+        }
+      ],
+      "parts": [
+        "wooden_bookshelf_worn"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.687,
+          0,
+          -0.291
+        ],
+        "max": [
+          0.687,
+          2.063,
+          0.291
+        ]
+      },
+      "textures": [
+        {
+          "name": "wooden_bookshelf_worn_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 82162,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "wooden_bookshelf_worn_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 62537,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "wooden_bookshelf_worn_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 37641,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 88982,
+      "gpu": {
+        "desktop": 613271,
+        "mobile": 613271,
+        "rgba8": 4283285
+      },
+      "materials": [
+        {
+          "name": "wooden_bookshelf_worn",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        50.9
+      ]
+    },
+    "1024": {
+      "path": "models/wooden_bookshelf_worn/wooden_bookshelf_worn_1024.glb",
+      "bytes": 665456,
+      "srcTris": 10106,
+      "lods": [
+        {
+          "tris": 6000
+        },
+        {
+          "tris": 2400
+        },
+        {
+          "tris": 840
+        }
+      ],
+      "parts": [
+        "wooden_bookshelf_worn"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.687,
+          0,
+          -0.291
+        ],
+        "max": [
+          0.687,
+          2.063,
+          0.291
+        ]
+      },
+      "textures": [
+        {
+          "name": "wooden_bookshelf_worn_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 241672,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "wooden_bookshelf_worn_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 205381,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "wooden_bookshelf_worn_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 139632,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 218680,
+      "gpu": {
+        "desktop": 2315833,
+        "mobile": 2315833,
+        "rgba8": 16995895
+      },
+      "materials": [
+        {
+          "name": "wooden_bookshelf_worn",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        17.8,
+        50.9
+      ]
+    }
+  }
+}

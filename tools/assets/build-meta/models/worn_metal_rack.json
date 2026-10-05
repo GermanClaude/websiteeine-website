@@ -1,0 +1,195 @@
+{
+  "id": "worn_metal_rack",
+  "recipe": "552b8441d235",
+  "size": [
+    0.915,
+    1.9,
+    0.6
+  ],
+  "radius": 1.096,
+  "lodDistances": [
+    0,
+    15.3,
+    43.9
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/worn_metal_rack/worn_metal_rack_512.glb",
+      "bytes": 213176,
+      "srcTris": 6372,
+      "lods": [
+        {
+          "tris": 3052
+        },
+        {
+          "tris": 3050
+        }
+      ],
+      "parts": [
+        "worn_metal_rack"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.46,
+          0,
+          -0.3
+        ],
+        "max": [
+          0.455,
+          1.9,
+          0.3
+        ]
+      },
+      "textures": [
+        {
+          "name": "worn_metal_rack_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 28271,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "worn_metal_rack_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 57533,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "worn_metal_rack_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 43039,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 251420,
+      "gpu": {
+        "desktop": 775709,
+        "mobile": 775709,
+        "rgba8": 4445723
+      },
+      "materials": [
+        {
+          "name": "worn_metal_rack",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        43.9
+      ]
+    },
+    "1024": {
+      "path": "models/worn_metal_rack/worn_metal_rack_1024.glb",
+      "bytes": 588356,
+      "srcTris": 6372,
+      "lods": [
+        {
+          "tris": 6372
+        },
+        {
+          "tris": 3052
+        },
+        {
+          "tris": 3050
+        }
+      ],
+      "parts": [
+        "worn_metal_rack"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.46,
+          0,
+          -0.3
+        ],
+        "max": [
+          0.455,
+          1.9,
+          0.3
+        ]
+      },
+      "textures": [
+        {
+          "name": "worn_metal_rack_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 113207,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "worn_metal_rack_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 185271,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "worn_metal_rack_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 146019,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 448580,
+      "gpu": {
+        "desktop": 2545733,
+        "mobile": 2545733,
+        "rgba8": 17225795
+      },
+      "materials": [
+        {
+          "name": "worn_metal_rack",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        15.3,
+        43.9
+      ]
+    }
+  }
+}

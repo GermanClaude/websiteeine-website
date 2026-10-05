@@ -41,6 +41,7 @@
   #labels div { position: absolute; transform: translate(-50%, 0); font-size: 10.5px; background: rgba(0,0,0,.6); padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
   #status { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); background: rgba(0,0,0,.65); padding: 6px 12px; border-radius: 8px; font-size: 12px; }
   #status:empty { display: none; }
+  body.noui #panel, body.noui #info { display: none; }
   @media (max-height: 520px) and (min-width: 761px) {
     #panel { width: 230px; font-size: 10.5px; padding: 8px; }
     #info { width: 250px; font-size: 10px; padding: 8px; }
@@ -91,6 +92,7 @@ import { AssetLibrary, pickTier, QUALITY_TIER } from '../assets/lib/loader.js';
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
+if (params.get('ui') === '0') document.body.classList.add('noui');
 const fmt = (b) => b >= 1048576 ? (b / 1048576).toFixed(2) + ' MB' : (b / 1024).toFixed(0) + ' KB';
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -153,8 +155,8 @@ async function setEnv(id) {
   renderInfo();
 }
 function applyExposure() {
-  // Grundbelichtung wie der vorab getonemappte Himmel (×1,6 zur Materialbeurteilung), Regler in Blendenstufen
-  const base = env ? Math.min(6, Math.max(0.15, env.backgroundExposure * 1.6)) : 1;
+  // Grundbelichtung wie der vorab getonemappte Himmel (Auto-Belichtung aus dem Manifest), Regler in Blendenstufen
+  const base = env ? env.backgroundExposure : 1;
   renderer.toneMappingExposure = base * Math.pow(2, state.exposure);
 }
 
@@ -183,7 +185,7 @@ function sphereUV(sizeM) {
 
 async function showTexture(id) {
   const e = manifest.textures[id];
-  const mat = await lib.createMaterial(id, { tier: state.tier, color: e.tintable ? tintFor(e) : undefined });
+  const mat = await lib.createMaterial(id, { tier: state.tier, color: e.tintable ? tintFor(id) : undefined });
   const ball = new THREE.Mesh(sphereUV(e.sizeM), mat);
   ball.position.set(-0.65, 0.5, 0);
   const tile = new THREE.Mesh(tileGeo(e.sizeM), mat);
@@ -194,7 +196,9 @@ async function showTexture(id) {
   orbit.target.set(0, 0.4, 0); orbit.dist = 3.1;
   current = { type: 'texture', id, obj: ball };
 }
-function tintFor(e) { return e.replaces?.includes('container_red') ? '#b8392c' : e.replaces?.includes('metal_painted') ? '#4f6a55' : e.id === 'canvas' ? '#3b5c86' : e.id === 'concrete_epoxy' ? '#9aa1a6' : '#c8c8c8'; }
+// Beispiel-Tönungen für einfärbbare Sätze (im Spiel bestimmt getMaterial() die Farbe)
+const TINT = { container: '#b8392c', metal_painted: '#4f6a55', canvas: '#3b5c86', concrete_epoxy: '#8e979c', fabric_uniform: '#55603f', linoleum: '#8a7a62', plaster_painted: '#b9b4a8' };
+function tintFor(id) { return TINT[id] || '#c8c8c8'; }
 
 async function showModel(id) {
   const e = manifest.models[id];
@@ -243,7 +247,7 @@ async function showGrid() {
     let obj;
     if (state.tab === 'textures') {
       const e = manifest.textures[id];
-      obj = new THREE.Mesh(sphereUV(e.sizeM), await lib.createMaterial(id, { tier: state.tier, color: e.tintable ? tintFor(e) : undefined }));
+      obj = new THREE.Mesh(sphereUV(e.sizeM), await lib.createMaterial(id, { tier: state.tier, color: e.tintable ? tintFor(id) : undefined }));
       obj.scale.setScalar(0.9);
     } else {
       obj = await lib.loadModel(id, state.tier, { lod: false });

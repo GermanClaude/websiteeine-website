@@ -1,0 +1,211 @@
+{
+  "id": "metal_office_desk",
+  "recipe": "6a94f726fc75",
+  "size": [
+    2,
+    0.787,
+    0.947
+  ],
+  "radius": 1.174,
+  "lodDistances": [
+    0,
+    16.4,
+    47
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/metal_office_desk/metal_office_desk_512.glb",
+      "bytes": 184608,
+      "srcTris": 6898,
+      "lods": [
+        {
+          "tris": 2750
+        },
+        {
+          "tris": 1112
+        }
+      ],
+      "parts": [
+        "metal_office_desk_drawer_06",
+        "metal_office_desk_tray_01",
+        "metal_office_desk",
+        "metal_office_desk_drawer_04",
+        "metal_office_desk_drawer_03",
+        "metal_office_desk_drawer_05",
+        "metal_office_desk_drawer_02",
+        "metal_office_desk_drawer_01",
+        "metal_office_desk_tray_02"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -1,
+          0,
+          -0.469
+        ],
+        "max": [
+          1,
+          0.787,
+          0.478
+        ]
+      },
+      "textures": [
+        {
+          "name": "metal_office_desk_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 19559,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "metal_office_desk_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 51482,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "metal_office_desk_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 38756,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 126748,
+      "gpu": {
+        "desktop": 651037,
+        "mobile": 651037,
+        "rgba8": 4321051
+      },
+      "materials": [
+        {
+          "name": "metal_office_desk",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        47
+      ]
+    },
+    "1024": {
+      "path": "models/metal_office_desk/metal_office_desk_1024.glb",
+      "bytes": 475516,
+      "srcTris": 6898,
+      "lods": [
+        {
+          "tris": 6898
+        },
+        {
+          "tris": 2750
+        },
+        {
+          "tris": 1112
+        }
+      ],
+      "parts": [
+        "metal_office_desk_drawer_06",
+        "metal_office_desk_tray_01",
+        "metal_office_desk",
+        "metal_office_desk_drawer_04",
+        "metal_office_desk_drawer_03",
+        "metal_office_desk_drawer_05",
+        "metal_office_desk_drawer_02",
+        "metal_office_desk_drawer_01",
+        "metal_office_desk_tray_02"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -1,
+          0,
+          -0.469
+        ],
+        "max": [
+          1,
+          0.787,
+          0.478
+        ]
+      },
+      "textures": [
+        {
+          "name": "metal_office_desk_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 51011,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "metal_office_desk_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 161861,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "metal_office_desk_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 128778,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 286580,
+      "gpu": {
+        "desktop": 2383733,
+        "mobile": 2383733,
+        "rgba8": 17063795
+      },
+      "materials": [
+        {
+          "name": "metal_office_desk",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        16.4,
+        47
+      ]
+    }
+  }
+}

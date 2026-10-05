@@ -1,0 +1,257 @@
+{
+  "id": "hanging_industrial_lamp",
+  "recipe": "91ecfc05c008",
+  "size": [
+    0.55,
+    1.355,
+    0.55
+  ],
+  "radius": 0.781,
+  "lodDistances": [
+    0,
+    10.9,
+    31.2
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/hanging_industrial_lamp/hanging_industrial_lamp_512.glb",
+      "bytes": 270372,
+      "srcTris": 9530,
+      "lods": [
+        {
+          "tris": 2509
+        },
+        {
+          "tris": 1240
+        }
+      ],
+      "parts": [
+        "hanging_industrial_lamp"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.275,
+          -1.34,
+          -0.275
+        ],
+        "max": [
+          0.275,
+          0.015,
+          0.275
+        ]
+      },
+      "textures": [
+        {
+          "name": "hanging_industrial_lamp_emissive_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 4978,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "hanging_industrial_lamp_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 69181,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "hanging_industrial_lamp_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 57945,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "hanging_industrial_lamp_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 42896,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "hanging_industrial_lamp_glass_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 33338,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 131658,
+      "gpu": {
+        "desktop": 1005473,
+        "mobile": 1005473,
+        "rgba8": 7122163
+      },
+      "materials": [
+        {
+          "name": "hanging_industrial_lamp",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "hanging_industrial_lamp_glass",
+          "alphaMode": "BLEND",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        31.2
+      ]
+    },
+    "1024": {
+      "path": "models/hanging_industrial_lamp/hanging_industrial_lamp_1024.glb",
+      "bytes": 820988,
+      "srcTris": 9530,
+      "lods": [
+        {
+          "tris": 5340
+        },
+        {
+          "tris": 2509
+        },
+        {
+          "tris": 1240
+        }
+      ],
+      "parts": [
+        "hanging_industrial_lamp"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.275,
+          -1.34,
+          -0.275
+        ],
+        "max": [
+          0.275,
+          0.015,
+          0.275
+        ]
+      },
+      "textures": [
+        {
+          "name": "hanging_industrial_lamp_emissive_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 9988,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "hanging_industrial_lamp_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 204191,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "hanging_industrial_lamp_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 185836,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "hanging_industrial_lamp_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 145592,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "hanging_industrial_lamp_glass_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 153839,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 282718,
+      "gpu": {
+        "desktop": 3777973,
+        "mobile": 3777973,
+        "rgba8": 28244743
+      },
+      "materials": [
+        {
+          "name": "hanging_industrial_lamp",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "hanging_industrial_lamp_glass",
+          "alphaMode": "BLEND",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        10.9,
+        31.2
+      ]
+    }
+  }
+}

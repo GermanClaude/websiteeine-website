@@ -1,0 +1,207 @@
+{
+  "id": "metal_tool_chest",
+  "recipe": "eb15e14b6c5d",
+  "size": [
+    0.684,
+    0.652,
+    0.407
+  ],
+  "radius": 0.514,
+  "lodDistances": [
+    0,
+    7.2,
+    20.6
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/metal_tool_chest/metal_tool_chest_512.glb",
+      "bytes": 232540,
+      "srcTris": 13360,
+      "lods": [
+        {
+          "tris": 3272
+        },
+        {
+          "tris": 2426
+        }
+      ],
+      "parts": [
+        "metal_tool_chest_chest",
+        "metal_tool_chest_hinge_chest",
+        "metal_tool_chest_lid",
+        "metal_tool_chest_handle_left",
+        "metal_tool_chest_lock",
+        "metal_tool_chest_hinge_lid",
+        "metal_tool_chest_handle_right"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.369,
+          0.001,
+          -0.197
+        ],
+        "max": [
+          0.315,
+          0.653,
+          0.21
+        ]
+      },
+      "textures": [
+        {
+          "name": "metal_tool_chest_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 46213,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "metal_tool_chest_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 50729,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "metal_tool_chest_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 37463,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 205656,
+      "gpu": {
+        "desktop": 729945,
+        "mobile": 729945,
+        "rgba8": 4399959
+      },
+      "materials": [
+        {
+          "name": "metal_tool_chest",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        20.6
+      ]
+    },
+    "1024": {
+      "path": "models/metal_tool_chest/metal_tool_chest_1024.glb",
+      "bytes": 609580,
+      "srcTris": 13360,
+      "lods": [
+        {
+          "tris": 6144
+        },
+        {
+          "tris": 3272
+        },
+        {
+          "tris": 2426
+        }
+      ],
+      "parts": [
+        "metal_tool_chest_chest",
+        "metal_tool_chest_hinge_chest",
+        "metal_tool_chest_lid",
+        "metal_tool_chest_handle_left",
+        "metal_tool_chest_lock",
+        "metal_tool_chest_hinge_lid",
+        "metal_tool_chest_handle_right"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.369,
+          0.001,
+          -0.197
+        ],
+        "max": [
+          0.316,
+          0.653,
+          0.21
+        ]
+      },
+      "textures": [
+        {
+          "name": "metal_tool_chest_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 160829,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "metal_tool_chest_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 152819,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "metal_tool_chest_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 123952,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 388380,
+      "gpu": {
+        "desktop": 2485533,
+        "mobile": 2485533,
+        "rgba8": 17165595
+      },
+      "materials": [
+        {
+          "name": "metal_tool_chest",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        7.2,
+        20.6
+      ]
+    }
+  }
+}

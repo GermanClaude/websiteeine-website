@@ -1,0 +1,195 @@
+{
+  "id": "shrub_04",
+  "recipe": "4ec88470fbf7",
+  "size": [
+    0.583,
+    0.219,
+    0.146
+  ],
+  "radius": 0.32,
+  "lodDistances": [
+    0,
+    6,
+    16
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/shrub_04/shrub_04_512.glb",
+      "bytes": 240896,
+      "srcTris": 27327,
+      "lods": [
+        {
+          "tris": 4713
+        },
+        {
+          "tris": 1623
+        }
+      ],
+      "parts": [
+        "shrub_04"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.024,
+          -0.006,
+          -0.075
+        ],
+        "max": [
+          0.559,
+          0.213,
+          0.071
+        ]
+      },
+      "textures": [
+        {
+          "name": "shrub_04_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 66133,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "shrub_04_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 52854,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "shrub_04_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 29441,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 202356,
+      "gpu": {
+        "desktop": 726645,
+        "mobile": 726645,
+        "rgba8": 4396659
+      },
+      "materials": [
+        {
+          "name": "shrub_04",
+          "alphaMode": "MASK",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        16
+      ]
+    },
+    "1024": {
+      "path": "models/shrub_04/shrub_04_1024.glb",
+      "bytes": 616580,
+      "srcTris": 27327,
+      "lods": [
+        {
+          "tris": 11968
+        },
+        {
+          "tris": 4713
+        },
+        {
+          "tris": 1623
+        }
+      ],
+      "parts": [
+        "shrub_04"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.024,
+          -0.006,
+          -0.075
+        ],
+        "max": [
+          0.559,
+          0.213,
+          0.071
+        ]
+      },
+      "textures": [
+        {
+          "name": "shrub_04_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 184862,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "shrub_04_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 143816,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "shrub_04_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 80553,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 487982,
+      "gpu": {
+        "desktop": 2585135,
+        "mobile": 2585135,
+        "rgba8": 17265197
+      },
+      "materials": [
+        {
+          "name": "shrub_04",
+          "alphaMode": "MASK",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        6,
+        16
+      ]
+    }
+  }
+}

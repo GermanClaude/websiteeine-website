@@ -104,11 +104,12 @@ export function pixelToDir(x, y, w, h) {
 /** Kennzahlen: Sonne (hellster Bereich), mittlere Leuchtdichte (gesamt / obere Halbkugel). */
 export function analyze(img) {
   const s = downsample(img, 256, 128);
-  let best = -1, bx = 0, by = 0, sum = 0, sumUp = 0, logUp = 0, nUp = 0;
+  let best = -1, bx = 0, by = 0, sum = 0, sumUp = 0, logUp = 0, nUp = 0, logAll = 0, nAll = 0;
   for (let y = 0; y < s.height; y++) for (let x = 0; x < s.width; x++) {
     const o = (y * s.width + x) * 3, L = lum(s.data[o], s.data[o + 1], s.data[o + 2]);
     const wgt = Math.cos(((y + 0.5) / s.height - 0.5) * Math.PI); // Raumwinkel
     sum += L * wgt;
+    logAll += Math.log(1e-4 + L) * wgt; nAll += wgt;
     if (y < s.height / 2) { sumUp += L * wgt; logUp += Math.log(1e-4 + L) * wgt; nUp += wgt; }
     if (L > best) { best = L; bx = x; by = y; }
   }
@@ -120,7 +121,7 @@ export function analyze(img) {
   const azimuth = Math.atan2(dir[0], -dir[2]) * 180 / Math.PI; // 0° = −Z (Blickrichtung Yaw 0), positiv nach +X
   return {
     sun: { dir: dir.map((v) => +v.toFixed(4)), elevationDeg: +elevation.toFixed(1), azimuthDeg: +azimuth.toFixed(1), peak: +best.toFixed(2), dominance: +(best / Math.max(1e-6, avgUp)).toFixed(1) },
-    avgLuminance: +avg.toFixed(4), skyLuminance: +avgUp.toFixed(4), skyGeoLuminance: +geoUp.toFixed(4),
+    avgLuminance: +avg.toFixed(4), skyLuminance: +avgUp.toFixed(4), skyGeoLuminance: +geoUp.toFixed(4), geoLuminance: +Math.exp(logAll / nAll).toFixed(4),
   };
 }
 

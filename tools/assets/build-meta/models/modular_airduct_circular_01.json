@@ -1,0 +1,205 @@
+{
+  "id": "modular_airduct_circular_01",
+  "recipe": "65650a97ff09",
+  "size": [
+    4.171,
+    1.325,
+    1.463
+  ],
+  "radius": 2.307,
+  "lodDistances": null,
+  "tiers": {
+    "512": {
+      "path": "models/modular_airduct_circular_01/modular_airduct_circular_01_512.glb",
+      "bytes": 268192,
+      "srcTris": 14280,
+      "lods": [
+        {
+          "tris": 14280
+        }
+      ],
+      "parts": [
+        "modular_airduct_rectangular_vent_fan",
+        "modular_airduct_rectangular_converter",
+        "modular_airduct_circular_single",
+        "modular_airduct_circular_smooth_single",
+        "modular_airduct_circular_smooth_bend_half",
+        "modular_airduct_circular_smooth_bend_quater",
+        "modular_airduct_circular_fan",
+        "modular_airduct_circular_brace_extention_wires",
+        "modular_airduct_circular_brace",
+        "modular_airduct_circular_brace_extention",
+        "modular_airduct_circular_triple",
+        "modular_airduct_circular_double",
+        "modular_airduct_circular_smooth_double",
+        "modular_airduct_circular_smooth_triple",
+        "modular_airduct_circular_bend_half",
+        "modular_airduct_circular_bend_quater"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -2.086,
+          -0.272,
+          -0.041
+        ],
+        "max": [
+          2.085,
+          1.053,
+          1.422
+        ]
+      },
+      "textures": [
+        {
+          "name": "modular_airduct_circular_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 24868,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_airduct_circular_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 54624,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_airduct_circular_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 32737,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 357454,
+      "gpu": {
+        "desktop": 881743,
+        "mobile": 881743,
+        "rgba8": 4551757
+      },
+      "materials": [
+        {
+          "name": "modular_airduct_circular_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": null
+    },
+    "1024": {
+      "path": "models/modular_airduct_circular_01/modular_airduct_circular_01_1024.glb",
+      "bytes": 521700,
+      "srcTris": 14280,
+      "lods": [
+        {
+          "tris": 14280
+        }
+      ],
+      "parts": [
+        "modular_airduct_rectangular_vent_fan",
+        "modular_airduct_rectangular_converter",
+        "modular_airduct_circular_single",
+        "modular_airduct_circular_smooth_single",
+        "modular_airduct_circular_smooth_bend_half",
+        "modular_airduct_circular_smooth_bend_quater",
+        "modular_airduct_circular_fan",
+        "modular_airduct_circular_brace_extention_wires",
+        "modular_airduct_circular_brace",
+        "modular_airduct_circular_brace_extention",
+        "modular_airduct_circular_triple",
+        "modular_airduct_circular_double",
+        "modular_airduct_circular_smooth_double",
+        "modular_airduct_circular_smooth_triple",
+        "modular_airduct_circular_bend_half",
+        "modular_airduct_circular_bend_quater"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -2.086,
+          -0.272,
+          -0.041
+        ],
+        "max": [
+          2.085,
+          1.053,
+          1.422
+        ]
+      },
+      "textures": [
+        {
+          "name": "modular_airduct_circular_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 84822,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_airduct_circular_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 170315,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "modular_airduct_circular_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 110597,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 357454,
+      "gpu": {
+        "desktop": 2454607,
+        "mobile": 2454607,
+        "rgba8": 17134669
+      },
+      "materials": [
+        {
+          "name": "modular_airduct_circular_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": null
+    }
+  }
+}

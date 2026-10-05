@@ -1,0 +1,111 @@
+{
+  "id": "felt_panel",
+  "recipe": "afbebbb1510b",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/felt_panel/felt_panel_512_albedo.ktx2",
+          "bytes": 58276,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/felt_panel/felt_panel_512_normal.ktx2",
+          "bytes": 82617,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/felt_panel/felt_panel_512_orm.ktx2",
+          "bytes": 32786,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 173679,
+      "gpu": {
+        "desktop": 524289,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/felt_panel/felt_panel_1024_albedo.ktx2",
+          "bytes": 190043,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/felt_panel/felt_panel_1024_normal.ktx2",
+          "bytes": 250666,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/felt_panel/felt_panel_1024_orm.ktx2",
+          "bytes": 113989,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 554698,
+      "gpu": {
+        "desktop": 2097153,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#a2a0a6",
+    "avgRoughness": 0.818,
+    "avgMetalness": 0,
+    "avgAO": 1,
+    "coverage": 1
+  }
+}
