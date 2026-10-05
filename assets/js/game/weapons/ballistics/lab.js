@@ -219,7 +219,7 @@ document.getElementById('btn-ttk').addEventListener('click', (e) => {
     const head = killProfile(w, [15])[0].headShots;
     html += `<tr><td>${w.name}</td><td>${w.fireMode}</td><td>${w.rpm}</td>${kp.map((k) => `<td>${Number.isFinite(k.shots) ? `${k.shots}× · ${k.ttk} ms` : '–'}</td>`).join('')}<td class="k">${head}×</td><td>${Math.round(effectiveRange(w))} m</td></tr>`;
   }
-  html += `</tbody></table><p>Messer: ${WEAPONS.knife.damage.max} Schaden (1 Treffer), Ausfallschritt bis ${WEAPONS.knife.melee.lungeRange} m. Splittergranate: sicherer Abschuss bis ${explosionKillRadius(EQUIPMENT.frag).toFixed(1).replace('.', ',')} m, Haftgranate bis ${explosionKillRadius(EQUIPMENT.semtex).toFixed(1).replace('.', ',')} m.</p>`;
+  html += `</tbody></table><p>Messer: ${WEAPONS.knife.damage.max} Schaden (1 Treffer), Ausfallschritt bis ${String(WEAPONS.knife.melee.lungeRange).replace('.', ',')} m. Splittergranate: sicherer Abschuss bis ${explosionKillRadius(EQUIPMENT.frag).toFixed(1).replace('.', ',')} m, Haftgranate bis ${explosionKillRadius(EQUIPMENT.semtex).toFixed(1).replace('.', ',')} m.</p>`;
   ttkEl.innerHTML = html;
 });
 
