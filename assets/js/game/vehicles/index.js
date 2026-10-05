@@ -57,6 +57,7 @@ export class VehicleSystem {
     this._offs = [];
     this._near = null;
     this._enterT = -1e9;
+    this._exitT = -1e9;
     this._seatT = 0;
     this._gunScr = { x: 0, y: 0, on: false, ready: false };
     this._stats = { steps: 0, ms: 0 };
@@ -423,6 +424,7 @@ export class VehicleSystem {
     }
     this.camera.reset();
     if (this.spot) this.spot.intensity = 0;
+    this._exitT = G.time.elapsed;
     void v;
   }
 
@@ -563,7 +565,8 @@ export class VehicleSystem {
         const idx = v.seats.findIndex((s) => !s.actor);
         state.near = { vehicle: v, seatLabel: v.seats[idx].def.label };
         const input = G.input;
-        if (this.live && input && (input.pressed('interact') || input.pressed('v_enter'))) this.enter(p, v);
+        // nicht im selben Tastendruck wieder einsteigen, mit dem gerade ausgestiegen wurde
+        if (this.live && input && G.time.elapsed - this._exitT > 0.4 && (input.pressed('interact') || input.pressed('v_enter'))) this.enter(p, v);
       }
     }
     if (this._msg && G.time.elapsed > this._msg.until) this._msg = null;

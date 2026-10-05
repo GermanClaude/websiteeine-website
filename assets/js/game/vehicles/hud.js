@@ -49,6 +49,7 @@ body[data-input-mode="touch"] .vh-panel{width:224px;padding:6px 9px;right:auto;l
 body[data-input-mode="touch"] .vh-hint,body[data-input-mode="touch"] .vh-prompt kbd,body[data-input-mode="touch"] .vh-zones,body[data-input-mode="touch"] .vh-wep:not(.is-sel){display:none}
 body[data-input-mode="touch"] .vh-name{font-size:14px}body[data-input-mode="touch"] .vh-speed{font-size:17px}
 body[data-input-mode="touch"] .vh-wep{font-size:12px;padding:2px 5px}body[data-input-mode="touch"] .vh-seats{display:none}
+@media (max-height:560px),(max-width:820px){body:not([data-input-mode="touch"]) .vh-panel{width:224px;padding:7px 9px;right:calc(10px + env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom))}body:not([data-input-mode="touch"]) .vh-seats,body:not([data-input-mode="touch"]) .vh-hint{display:none}.vh-name{font-size:14px}.vh-speed{font-size:17px}.vh-wep{font-size:12px;padding:2px 5px}.vh-zone{font-size:10px}.vh-ret svg{transform:scale(.75)}}
 .vc-btn{display:none;font:700 calc(var(--tc-u,1px)*13) var(--font-hud,system-ui);letter-spacing:.04em;text-transform:uppercase;text-align:center;line-height:1.05}
 body[data-vehicle] .vc-btn.vc-in{display:grid}
 body[data-vehicle-near]:not([data-vehicle]) .vc-enter{display:grid}
