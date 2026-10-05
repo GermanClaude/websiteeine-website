@@ -18,7 +18,7 @@ import { FULLSCREEN_VERT, GLSL_COMMON } from './common.js';
 // Gemessene Referenzen (Mittel aus Spawn A, Spawn B, Flaggenblick; tools/out/core-render/measure.mjs):
 // Hafen 0,121 · Altstadt 0,100 · Werk 0,130 · Schießstand 0,184.
 // bloom: threshold (größter Kanal nach Belichtung), strength, dirt (Linsenschmutz im Bodycam-Stil).
-const BASE_EXPOSURE = Object.freeze({ ref: 0.13, strength: 0.72, evMin: -1.6, evMax: 1.8, up: 2.6, down: 1.25 });
+const BASE_EXPOSURE = Object.freeze({ ref: 0.13, strength: 0.72, dead: 0.5, evMin: -1.6, evMax: 1.8, up: 2.6, down: 1.25 });
 
 export const MOODS = Object.freeze({
   neutral: {
@@ -286,8 +286,7 @@ export const GRADE_GLSL = /* glsl */ `
     color = npAgxContrast(color);
     // Look: etwas mehr Biss und Sättigung als AgX „Base“ (Körperkameras liefern harte Mitten)
     float l = dot(color, vec3(0.2126, 0.7152, 0.0722));
-    color = pow(max(color, 0.0), vec3(1.12));
-    color = l + 1.12 * (color - l);
+    color = l + 1.1 * (color - l);
     color = Outset * color;
     color = pow(max(vec3(0.0), color), vec3(2.2));
     color = B2020_TO_SRGB * color;

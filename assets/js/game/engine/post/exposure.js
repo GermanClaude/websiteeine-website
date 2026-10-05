@@ -4,7 +4,7 @@
 // Ergebnis: 1×1-Textur, R = Belichtungsfaktor relativ zur Kartenbelichtung, G = log2 davon (für die
 // Anpassung), B = gemessene mittlere log2-Leuchtdichte (Diagnose). Grade/Bloom lesen R direkt.
 //
-// Faktor-Ziel: log2 A = strength · (log2 ref − log2 L̄), begrenzt auf [evMin, evMax]. ref ist die mittlere
+// Faktor-Ziel: log2 A = strength · totzone(log2 ref − log2 L̄, dead), begrenzt auf [evMin, evMax]. ref ist die mittlere
 // Leuchtdichte typischer Ansichten der Karte (dort bleibt der abgestimmte Look unverändert); dunkle Innenräume
 // werden heller, Blicke in den Himmel dunkler. Heller wird schnell (up), dunkler langsam (down) → beim Schritt
 // aus dem dunklen Flur ins Freie brennt das Bild kurz aus (Bodycam-Moment, plan §5.4).
@@ -67,6 +67,7 @@ const ADAPT_FRAG = /* glsl */ `
   uniform vec2 uRange;      // evMin, evMax
   uniform vec2 uSpeed;      // heller, dunkler (1/s)
   uniform float uBias;      // zusätzliche Blendenstufen (z. B. Blendung)
+  uniform float uDead;      // Totzone (Blenden)
   void main() {
     vec2 acc = vec2(0.0);
     for (int y = 0; y < 8; y++) {
@@ -77,7 +78,11 @@ const ADAPT_FRAG = /* glsl */ `
       }
     }
     float avgLog = acc.x / max(acc.y, 1e-4);
-    float target = clamp(uStrength * (uRef - avgLog), uRange.x, uRange.y) + uBias;
+    // Totzone: typische Ansichten der Karte (± uDead Blenden um die Referenz) behalten die abgestimmte Belichtung,
+    // erst dunkle Innenräume bzw. Blicke in den Himmel werden ausgeglichen
+    float dEv = uRef - avgLog;
+    dEv = sign(dEv) * max(abs(dEv) - uDead, 0.0);
+    float target = clamp(uStrength * dEv, uRange.x, uRange.y) + uBias;
     vec4 prev = texelFetch(tPrev, ivec2(0), 0);
     float ev = prev.g;
     if (uReset > 0.5 || prev.a < 0.5 || !(ev == ev)) ev = target; // erstes Bild / Sprung / NaN-Schutz
@@ -100,7 +105,7 @@ export class AutoExposure {
     this.adapt = [smallFloatTarget(1, 1), smallFloatTarget(1, 1)];
     this.idx = 0;
     this.resetPending = true;
-    this.params = { ref: 0.13, strength: 0.72, evMin: -1.6, evMax: 1.8, up: 2.6, down: 1.25 };
+    this.params = { ref: 0.13, strength: 0.72, dead: 0.5, evMin: -1.6, evMax: 1.8, up: 2.6, down: 1.25 };
     this.bias = 0;
     /** Letzter zurückgelesener Wert (nur wenn `track`): { factor, ev, avgLog, at } */
     this.last = null;
@@ -124,7 +129,7 @@ export class AutoExposure {
       uniforms: {
         tSum: { value: this.sumRT.texture }, tPrev: { value: null }, uSize: { value: this.sumSize },
         uDt: { value: 0 }, uReset: { value: 1 }, uRef: { value: Math.log2(0.13) }, uStrength: { value: 0.72 },
-        uRange: { value: new THREE.Vector2(-1.6, 1.8) }, uSpeed: { value: new THREE.Vector2(2.6, 1.25) }, uBias: { value: 0 },
+        uRange: { value: new THREE.Vector2(-1.6, 1.8) }, uSpeed: { value: new THREE.Vector2(2.6, 1.25) }, uBias: { value: 0 }, uDead: { value: 0.5 },
       },
       vertexShader: FULLSCREEN_VERT, fragmentShader: ADAPT_FRAG, depthTest: false, depthWrite: false, toneMapped: false,
     });
@@ -141,6 +146,7 @@ export class AutoExposure {
     u.uStrength.value = Math.max(0, Math.min(1, this.params.strength));
     u.uRange.value.set(this.params.evMin, this.params.evMax);
     u.uSpeed.value.set(this.params.up, this.params.down);
+    u.uDead.value = Math.max(0, this.params.dead ?? 0.5);
   }
 
   /** Nächste Messung springt direkt auf den Zielwert (Kartenwechsel, Respawn, Teleport). */
