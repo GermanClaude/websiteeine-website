@@ -35,7 +35,7 @@ function tiersFor(e) {
 // ORM (AO/Rauheit/Metall) ist niederfrequent → halbe Kantenlänge (¼ Speicher), außer bei Waffen (Nahansicht)
 const ormSize = (e, tier) => (e.weapon ? tier : tier / 2);
 
-const recipe = (e, matfix) => hash({ v: PIPELINE_VERSION, e: { id: e.id, s: e.sourceId, tiers: tiersFor(e), b: e.lod0Tris, kit: e.kit, w: e.weapon, sc: e.scale, kp: e.keepParts, ...(matfix ? { matfix: 4 } : {}) }, k: 'm5' });
+const recipe = (e, matfix, vcol) => hash({ v: PIPELINE_VERSION, e: { id: e.id, s: e.sourceId, tiers: tiersFor(e), b: e.lod0Tris, kit: e.kit, w: e.weapon, sc: e.scale, kp: e.keepParts, ...(matfix ? { matfix: 4 } : {}), ...(vcol ? { vcol: 1 } : {}) }, k: 'm5' });
 // Materialien, die three.js sonst als teures MeshPhysicalMaterial (+ Transmissions-Durchgang) anlegt, bzw. mit Alpha
 const MATFIX_RE = /KHR_materials_(transmission|ior|specular|volume)|"BLEND"|"MASK"/;
 
@@ -212,6 +212,12 @@ async function processTier(e, tier) {
   const doc = await io.read(gltfPath);
   const root = doc.getRoot();
   const scene = root.getDefaultScene() || root.listScenes()[0];
+  // Scan-/Export-Reste: Vertexfarben (rock_07, weed_plant_02, television_01, old_bed_frame) würden die Grundfarbe
+  // abdunkeln (three schaltet vertexColors ein) — bei texturierten Materialien entfernen. Spart zudem Speicher.
+  for (const m of root.listMeshes()) for (const p of m.listPrimitives()) {
+    if (!p.getMaterial()?.getBaseColorTexture()) continue;
+    for (const sem of p.listSemantics()) if (/^COLOR_\d+$/.test(sem)) p.setAttribute(sem, null);
+  }
   await doc.transform(dedup(), prune(), weld());
   // Maßstabsfehler der Quelle (z. B. steel_frame_shelves_01: ×10) — als Knotentransformation
   if (e.scale && e.scale !== 1) for (const n of scene.listChildren()) n.setScale(n.getScale().map((s) => s * e.scale)).setTranslation(n.getTranslation().map((t) => t * e.scale));
@@ -341,8 +347,8 @@ async function processTier(e, tier) {
 
 async function build(e) {
   const metaFile = pjoin(META, 'models', `${e.id}.json`);
-  const matfix = MATFIX_RE.test(readFileSync(await fetchModel(e, '1k'), 'utf8'));
-  const r = recipe(e, matfix);
+  const gltfText = readFileSync(await fetchModel(e, '1k'), 'utf8');
+  const r = recipe(e, MATFIX_RE.test(gltfText), /"COLOR_0"/.test(gltfText));
   const old = readJSON(metaFile, null);
   if (!args.force && old?.recipe === r && Object.values(old.tiers).every((t) => existsSync(pjoin(OUT, t.path)))) { log('✓', e.id, '(aktuell)'); return; }
   const t0 = Date.now();

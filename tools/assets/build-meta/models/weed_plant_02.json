@@ -1,6 +1,6 @@
 {
   "id": "weed_plant_02",
-  "recipe": "cf7994d6f21d",
+  "recipe": "2e8a7a3af514",
   "size": [
     2.126,
     0.075,
@@ -15,7 +15,7 @@
   "tiers": {
     "512": {
       "path": "models/weed_plant_02/weed_plant_02_512.glb",
-      "bytes": 185884,
+      "bytes": 181196,
       "srcTris": 11116,
       "lods": [
         {
@@ -23,13 +23,12 @@
           "level": 1
         },
         {
-          "tris": 839,
+          "tris": 840,
           "level": 2
         }
       ],
       "parts": [
-        "weed_plant_02_a_LOD0",
-        "weed_plant_02_c_LOD0"
+        "weed_plant_02_a_LOD0"
       ],
       "lodShift": true,
       "lodDistances": [
@@ -89,11 +88,11 @@
           }
         }
       ],
-      "geometryBytes": 84046,
+      "geometryBytes": 82398,
       "gpu": {
-        "desktop": 477263,
-        "mobile": 477263,
-        "rgba8": 3229773
+        "desktop": 475615,
+        "mobile": 475615,
+        "rgba8": 3228125
       },
       "materials": [
         {
@@ -105,11 +104,11 @@
     },
     "1024": {
       "path": "models/weed_plant_02/weed_plant_02_1024.glb",
-      "bytes": 504020,
+      "bytes": 496508,
       "srcTris": 11116,
       "lods": [
         {
-          "tris": 5999,
+          "tris": 6000,
           "level": 0
         },
         {
@@ -117,13 +116,12 @@
           "level": 1
         },
         {
-          "tris": 839,
+          "tris": 840,
           "level": 2
         }
       ],
       "parts": [
-        "weed_plant_02_a_LOD0",
-        "weed_plant_02_c_LOD0"
+        "weed_plant_02_a_LOD0"
       ],
       "lodShift": false,
       "lodDistances": [
@@ -184,11 +182,11 @@
           }
         }
       ],
-      "geometryBytes": 226958,
+      "geometryBytes": 222700,
       "gpu": {
-        "desktop": 1799823,
-        "mobile": 1799823,
-        "rgba8": 12809869
+        "desktop": 1795565,
+        "mobile": 1795565,
+        "rgba8": 12805611
       },
       "materials": [
         {

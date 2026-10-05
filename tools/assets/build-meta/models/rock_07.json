@@ -1,6 +1,6 @@
 {
   "id": "rock_07",
-  "recipe": "27d49859c554",
+  "recipe": "e2b331227d88",
   "size": [
     0.168,
     0.144,
@@ -15,7 +15,7 @@
   "tiers": {
     "512": {
       "path": "models/rock_07/rock_07_512.glb",
-      "bytes": 178788,
+      "bytes": 174756,
       "srcTris": 14844,
       "lods": [
         {
@@ -88,11 +88,11 @@
           }
         }
       ],
-      "geometryBytes": 38230,
+      "geometryBytes": 33842,
       "gpu": {
-        "desktop": 431447,
-        "mobile": 431447,
-        "rgba8": 3183957
+        "desktop": 427059,
+        "mobile": 427059,
+        "rgba8": 3179569
       },
       "materials": [
         {

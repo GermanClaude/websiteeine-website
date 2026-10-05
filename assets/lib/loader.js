@@ -202,25 +202,28 @@ export class AssetLibrary {
   }
 
   /**
-   * Material aus einem Satz. opts: tier, color (Tönung; sinnvoll bei tintable), roughness/metalness (Multiplikatoren,
-   * Standard 1 bzw. 1 — die ORM-Karte bestimmt die Werte), envMapIntensity, normalScale, aoMapIntensity, side,
-   * alphaTest (Standard 0.5 bei alpha-Sätzen), transparent.
+   * Material aus einem Satz. opts: tier, color (Tönung; sinnvoll bei tintable), roughness/metalness (Multiplikatoren auf
+   * die ORM-Karte; Standard aus dem Manifest roughnessScale/metalnessScale, sonst 1), envMapIntensity, normalScale, aoMapIntensity, side,
+   * alphaTest, transparent, depthWrite. Alpha-Sätze: dichte Gitter (Deckung ≥ 45 %) mit alphaTest 0,5; dünner
+   * Maschendraht (chainlink) geblendet — mit alphaTest verschwände er in den kleinen Mip-Stufen.
    * Setzt material.userData = { assetId, surface, sizeM } (surface wie getMaterial() im Spiel).
    */
   async createMaterial(id, opts = {}) {
     const set = typeof id === 'object' ? id : await this.loadTextureSet(id, opts.tier);
     const e = set.meta;
+    const thin = !!e.alpha && (e.stats?.coverage ?? 1) < 0.45;
     const m = new THREE.MeshStandardMaterial({
       name: `lib:${set.id}`,
       map: set.map, normalMap: set.normalMap,
       aoMap: set.ormMap, roughnessMap: set.ormMap, metalnessMap: set.ormMap,
-      roughness: opts.roughness ?? 1, metalness: opts.metalness ?? 1,
+      roughness: opts.roughness ?? e.roughnessScale ?? 1, metalness: opts.metalness ?? e.metalnessScale ?? 1,
       color: opts.color != null ? new THREE.Color(opts.color) : 0xffffff,
       envMapIntensity: opts.envMapIntensity ?? 1,
       aoMapIntensity: opts.aoMapIntensity ?? 1,
       side: opts.side ?? (e.alpha ? THREE.DoubleSide : THREE.FrontSide),
-      alphaTest: opts.alphaTest ?? (e.alpha ? 0.5 : 0),
-      transparent: !!opts.transparent,
+      alphaTest: opts.alphaTest ?? (e.alpha && !thin ? 0.5 : 0),
+      transparent: opts.transparent ?? thin,
+      depthWrite: opts.depthWrite ?? !thin,
     });
     if (opts.normalScale != null) m.normalScale.setScalar(opts.normalScale);
     m.userData = { assetId: set.id, surface: e.surface, sizeM: e.sizeM, tier: set.tier };

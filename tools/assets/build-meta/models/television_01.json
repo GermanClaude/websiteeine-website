@@ -1,6 +1,6 @@
 {
   "id": "television_01",
-  "recipe": "a0dda29ec424",
+  "recipe": "c3de7bf49995",
   "size": [
     0.6,
     0.457,
@@ -15,7 +15,7 @@
   "tiers": {
     "512": {
       "path": "models/television_01/television_01_512.glb",
-      "bytes": 124824,
+      "bytes": 124004,
       "srcTris": 1918,
       "lods": [
         {
@@ -88,11 +88,11 @@
           }
         }
       ],
-      "geometryBytes": 44400,
+      "geometryBytes": 38568,
       "gpu": {
-        "desktop": 437617,
-        "mobile": 437617,
-        "rgba8": 3190127
+        "desktop": 431785,
+        "mobile": 431785,
+        "rgba8": 3184295
       },
       "materials": [
         {
@@ -104,7 +104,7 @@
     },
     "1024": {
       "path": "models/television_01/television_01_1024.glb",
-      "bytes": 355828,
+      "bytes": 354512,
       "srcTris": 1918,
       "lods": [
         {
@@ -182,11 +182,11 @@
           }
         }
       ],
-      "geometryBytes": 107284,
+      "geometryBytes": 93548,
       "gpu": {
-        "desktop": 1680149,
-        "mobile": 1680149,
-        "rgba8": 12690195
+        "desktop": 1666413,
+        "mobile": 1666413,
+        "rgba8": 12676459
       },
       "materials": [
         {

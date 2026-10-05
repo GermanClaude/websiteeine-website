@@ -1,6 +1,6 @@
 {
   "id": "old_bed_frame",
-  "recipe": "09397f8a21b2",
+  "recipe": "4495cfa322de",
   "size": [
     0.905,
     1.201,
@@ -15,7 +15,7 @@
   "tiers": {
     "512": {
       "path": "models/old_bed_frame/old_bed_frame_512.glb",
-      "bytes": 193720,
+      "bytes": 192572,
       "srcTris": 49990,
       "lods": [
         {
@@ -88,11 +88,11 @@
           }
         }
       ],
-      "geometryBytes": 197912,
+      "geometryBytes": 171892,
       "gpu": {
-        "desktop": 591129,
-        "mobile": 591129,
-        "rgba8": 3343639
+        "desktop": 565109,
+        "mobile": 565109,
+        "rgba8": 3317619
       },
       "materials": [
         {
@@ -104,7 +104,7 @@
     },
     "1024": {
       "path": "models/old_bed_frame/old_bed_frame_1024.glb",
-      "bytes": 573056,
+      "bytes": 570972,
       "srcTris": 49990,
       "lods": [
         {
@@ -182,11 +182,11 @@
           }
         }
       ],
-      "geometryBytes": 484710,
+      "geometryBytes": 422802,
       "gpu": {
-        "desktop": 2057575,
-        "mobile": 2057575,
-        "rgba8": 13067621
+        "desktop": 1995667,
+        "mobile": 1995667,
+        "rgba8": 13005713
       },
       "materials": [
         {
