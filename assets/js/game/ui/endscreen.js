@@ -62,7 +62,11 @@ export class EndScreen {
         ['Kopf\u00adtreffer', String(ps.headshots ?? 0)], ['Beste Serie', String(ps.bestStreak ?? 0)], ['Weitester Abschuss', ps.longestKill ? meters(ps.longestKill, 1) : '–'],
         ['Schaden', num(ps.damage || 0)],
       ];
-      if (r.modeId === 'dom') cells[8] = ['Erobe\u00adrungen', String(ps.captures ?? 0)];
+      const ct = ps.counters || {};
+      if (r.modeId === 'dom' || r.modeId === 'cq') cells[8] = ['Erobe\u00adrungen', String(ps.captures ?? 0)];
+      if (r.modeId === 'cq' && ct.vehicles) cells[7] = ['Fahrzeuge zerstört', String(ct.vehicles)];
+      if (r.modeId === 'kc') cells[8] = ['Marken', String(ct.confirms ?? 0), ct.denies ? `${ct.denies} verweigert` : ''];
+      if (r.modeId === 'inf') cells[8] = ['Infiziert', String(ct.infects ?? 0), ct.survivals ? 'Überlebt' : ''];
     }
     const stats = `<div class="e-stats">${cells.map(([l, v, s]) => `<div class="e-cell"><small>${esc(l)}</small><b>${v}</b>${s ? `<span>${esc(s)}</span>` : ''}</div>`).join('')}</div>`;
 
@@ -95,6 +99,7 @@ export class EndScreen {
           <ul class="e-break">${(pr.breakdown || []).map((b, i) => `<li style="--i:${i}"><span>${esc(b.label)}</span><b>${b.xp >= 0 ? '+' : ''}${num(b.xp)}</b></li>`).join('')}</ul>
           ${pr.levelUp ? `<div class="e-up" data-xp-up hidden><b>Aufgestiegen<em>.</em></b> Stufe ${pr.levelAfter}${pr.rankUp ? ` · Neuer Dienstgrad: ${esc(pr.rankAfter.name)}` : ''}</div>` : ''}
           ${unlocks ? `<div class="e-unlocks"><small>Neu freigeschaltet</small>${unlocks}</div>` : ''}
+          ${(pr.challenges || []).length ? `<div class="e-unlocks e-chall"><small>Herausforderungen erfüllt</small>${pr.challenges.map((c) => `<div class="e-unlock"><span class="ico">${ICON.trophy}</span><span>${esc(c.text)} <b>+${num(c.xp)} EP</b></span></div>`).join('')}</div>` : ''}
         </div>`;
     } else if (G.match && G.match.unranked) {
       // Ungewertet (verkürzte Limits per URL, Gottmodus, Zeitraffer, Debug-Hilfen, gesperrte Ausrüstung): kein EP-Block

@@ -633,7 +633,7 @@ const RAW = {
   },
   at_donner: {
     id: 'at_donner', name: 'RW-90 Donnerkeil', cls: 'launcher', slot: 'secondary', unlockLevel: 10,
-    description: 'Panzerabwehr-Rohr der Pioniere: Raketengranate mit Hohlladung. Knackt Geländewagen mit einem, Kampfpanzer von hinten mit drei Treffern – und räumt jede Stellung.',
+    description: 'Panzerabwehr-Rohr der Pioniere: Raketengranate mit Hohlladung. Knackt Geländewagen mit einem Treffer in die Flanke, Kampfpanzer mit zweien ins Heck – und räumt jede Stellung.',
     // damage = Volltreffer auf Infanterie (für Werte/Website); Wirkung: projectile.* (Rakete, kein Treffer per Strahl)
     damage: { max: 160, min: 160, rangeStart: 0, rangeEnd: 220 }, headMult: 1, limbMult: 1, pellets: 1,
     rpm: 30, fireMode: 'single', burstCount: 1, mag: 1, reserve: 3,
@@ -645,7 +645,7 @@ const RAW = {
     // Volltreffer Akteur, Splitterwirkung (wie Granaten), Rückstrahl hinter dem Schützen (Schaden für Verbündete aus, Feinde ja)
     projectile: {
       kind: 'rocket', speed: 70, cruise: 150, boost: 0.45, gravity: 4.5, life: 4.5, armDistance: 6,
-      vehicleDamage: 340, actorDamage: 160, splash: { radius: 4.5, innerRadius: 1.2, maxDamage: 130, minDamage: 20 },
+      vehicleDamage: 300, actorDamage: 160, splash: { radius: 4.5, innerRadius: 1.2, maxDamage: 130, minDamage: 20 },
       backblast: { length: 4, damage: 35 },
     },
     range: 300, penetration: 0, suppressed: false, sound: { profile: 'sniper', pitch: 0.55, alt: 'launcher' }, model: 'donner',
