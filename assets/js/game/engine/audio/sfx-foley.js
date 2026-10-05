@@ -286,3 +286,13 @@ export function breathOut(sr, R) {
   env(d, sr, bell(T, 0.22));
   return normalize(d, 0.6);
 }
+
+/** Kleidung/Ausrüstung beim schnellen Umsehen (Plan §10 A7): kurzes Stoffrascheln, etwas Riemen-Klirren. */
+export function rustle(sr, R) {
+  const T = R.range(0.16, 0.26), d = buf(sr, T + 0.08);
+  cloth(d, sr, 0, R, T, 0.55, R.range(900, 1500));
+  burst(d, sr, 0, { dur: T, type: 'bandpass', freqAt: expGlide(R.range(2200, 3000), R.range(1100, 1500), T), q: 0.7, envFn: bell(T, 0.35), R, amp: 0.18 });
+  if (R.chance(0.6)) modal(d, sr, R.range(0.02, T * 0.7), metalModes(R.range(2600, 3600), R, { count: 3, decay: 0.018 }), 0.06, R);
+  dcBlock(d, sr, 120);
+  return trim(normalize(d, 0.7), sr);
+}

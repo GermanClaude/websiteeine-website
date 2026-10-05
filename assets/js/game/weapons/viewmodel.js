@@ -23,6 +23,8 @@ const _v = V3(), _v2 = V3(), _v3 = V3(), _q = new THREE.Quaternion(), _q2 = new 
 const _s1 = V3();
 const _a3 = [0, 0, 0], _b3 = [0, 0, 0], _c3 = [0, 0, 0];
 const ZERO3 = [0, 0, 0];
+// Erwärmung des Laufs je Schuss (0..1; Rauchfahne/Hitzeflimmern nach Feuerstößen), abklingend ≈ 0,12/s
+const HEAT_PER_SHOT = { auto: 0.022, semi: 0.03, bolt: 0.08, pump: 0.07, pistol: 0.02 };
 
 // Umgebungssonde fürs Viewmodel-Licht: Sonnen-Startpunkte im Kameraraum (Kopf, Waffe, Stützhand) und
 // Himmelsrichtungen [x, y, z, Gewicht] (Zenit + Kranz in ~50° Höhe); Reihenfolge der Strahlen je Bild.
@@ -158,6 +160,7 @@ export class ViewModel {
     this._strafeRoll = 0;
     this._lean = 0;
     this._obstruct = 0;
+    this._mantle = 0;
     this._breathPh = Math.random() * 6;
     this._stepIdx = 0;
     this._climb = 0;
@@ -324,15 +327,27 @@ export class ViewModel {
   get isBusy() { return !!this.action || this._equipT < 1 || this._lowering; }
   get actionName() { return this.action ? this.action.type : null; }
 
-  /** Schuss: Rückstoß, Mündungsfeuer, Verschluss/Schlitten, Hülse, ggf. Repetieren. */
+  /**
+   * Schuss: Rückstoß, Mündungsfeuer, Verschluss/Schlitten, Hülse, ggf. Repetieren.
+   * info: { empty, suppressed, visual (Stärke des sichtbaren Stoßes, def.recoil.visual × Aufsätze),
+   *         yaw (tatsächlicher seitlicher Zielrückstoß dieses Schusses, rad – der Stoß folgt seiner Richtung) }
+   * Rückstoß 2.0 (F7): schneller Federstoß (Rückwärts, Hochschlag, Mündung kippt, Rollen) mit Federn je Masse,
+   * dazu ein langsames Hochklettern im Dauerfeuer, das sich nach dem Feuerstoß setzt. Im Anschlag bleibt
+   * vor allem der Rückwärtsstoß (Visierbild springt und kehrt zurück), Kippen und Klettern sind gedämpft.
+   */
   onShot(strength = 1, info = {}) {
     if (!this.cur) return;
     const h = this.h, k = h.kick, ads = this._ads;
     if (h.action === 'knife') { this.playMelee(); return; }
-    const adsMul = 1 - 0.45 * ads, s = strength;
+    const vis = Number.isFinite(info.visual) ? clamp(info.visual, 0, 3) : 1;
+    const adsMul = 1 - 0.45 * ads, s = strength * vis;
     const rnd = (Math.random() - 0.5) * 2;
-    this._recoilPos.kick(rnd * k.side * 6 * adsMul * s, k.up * 1.4 * s * (1 - 0.5 * ads), k.back * 22 * s);
-    this._recoilRot.kick(k.up * 22 * s * (1 - 0.35 * ads) + k.kickRot * 10 * s, rnd * k.side * 14 * adsMul * s, rnd * k.roll * 20 * adsMul * s);
+    // Seitlicher Stoß in Richtung des Zielrückstoßes (sonst zufällig); kleiner Zufallsanteil bleibt
+    const side = Number.isFinite(info.yaw) && Math.abs(info.yaw) > 1e-6 ? Math.sign(info.yaw) * (0.55 + 0.45 * Math.random()) : rnd;
+    this._recoilPos.kick(side * k.side * 6 * adsMul * s, k.up * 1.4 * s * (1 - 0.5 * ads), k.back * 22 * s);
+    this._recoilRot.kick(k.up * 22 * s * (1 - 0.35 * ads) + k.kickRot * 10 * s, -side * k.side * 14 * adsMul * s, rnd * k.roll * 20 * adsMul * s);
+    this._climb = Math.min(0.09, this._climb + k.up * 0.32 * s * (0.4 + 0.6 * Math.max(0.5, this._motionScale())));
+    this._heat = Math.min(1, this._heat + (h.heat ?? HEAT_PER_SHOT[h.action] ?? 0.02));
     this._shotCount++;
     const suppressed = info.suppressed ?? this.def?.suppressed;
     if (!suppressed && !this.showScopeOverlay) this.flash.fire(h.flash, h.flashLen);
@@ -509,6 +524,61 @@ export class ViewModel {
     }
   }
 
+  // ---------------------------------------------------------------- Haltung, Handhabung, Komfort
+
+  /** Waffengefühl der aktuellen Waffe (Masse, Trägheit, Ausschlag; weapons.data.js), je Definition gecacht. */
+  _handlingData() {
+    const d = this.def;
+    if (this._hdDef !== d || !this._hd) { this._hdDef = d; this._hd = weaponHandling(d || { cls: this.h?.action === 'pistol' ? 'pistol' : 'ar' }); }
+    return this._hd;
+  }
+
+  /** Bewegungsfaktor 0..1: Einstellung „Waffenträgheit“ (weaponSway), bei „Bewegung reduzieren“ höchstens 0,35. */
+  _motionScale() {
+    const st = this.G?.settings;
+    let k = st && typeof st.get === 'function' ? st.get('weaponSway') : undefined;
+    k = Number.isFinite(k) ? clamp(k, 0, 1) : 1;
+    let reduced = !!(st && typeof st.get === 'function' && st.get('reducedMotion'));
+    if (!reduced && typeof matchMedia === 'function') {
+      if (!this._rmq) { try { this._rmq = matchMedia('(prefers-reduced-motion: reduce)'); } catch { this._rmq = { matches: false }; } }
+      reduced = !!this._rmq.matches;
+    }
+    return reduced ? Math.min(k, 0.35) : k;
+  }
+
+  /**
+   * Gewünschte Haltung aus der Einstellung „Waffenhaltung“ (weaponPose): 'standard' | 'bodycam' | 'auto'
+   * (auto: Körperkamera mit Maus/Controller, CoD-Mobile-Hüfte auf Touch). setPose() überschreibt (Waffenlabor).
+   */
+  _wantPose() {
+    if (this._forcedPose) return this._forcedPose;
+    const st = this.G?.settings;
+    const v = st && typeof st.get === 'function' ? st.get('weaponPose') : undefined;
+    if (v === 'standard' || v === 'bodycam') return v;
+    if (v === 'auto') return this.G?.input?.mode === 'touch' ? 'standard' : 'bodycam';
+    return 'standard';
+  }
+
+  /** Haltung erzwingen ('standard' | 'bodycam' | null = Einstellung). instant = ohne Überblendung. */
+  setPose(pose, instant = true) {
+    this._forcedPose = pose === 'standard' || pose === 'bodycam' ? pose : null;
+    this.pose = this._wantPose();
+    if (instant) this._poseW = this.pose === 'bodycam' ? 1 : 0;
+  }
+
+  /** Haltungsdaten der aktuellen Waffe, zwischen Standard und Körperkamera nach _poseW überblendet. */
+  _blendPose() {
+    const key = this.cur.key;
+    const std = poseFor(key, 'standard');
+    const w = this.h.action === 'knife' ? 0 : this._poseW;
+    if (w <= 1e-3) return std;
+    const bc = poseFor(key, 'bodycam');
+    if (w >= 0.999) return bc;
+    const o = this._poseMix || (this._poseMix = { hip: [0, 0, 0], hipRot: [0, 0, 0], sprintPos: [0, 0, 0], sprintRot: [0, 0, 0], crouchPos: [0, 0, 0], crouchRot: [0, 0, 0] });
+    for (const f in o) for (let i = 0; i < 3; i++) o[f][i] = std[f][i] + (bc[f][i] - std[f][i]) * w;
+    return o;
+  }
+
   // ---------------------------------------------------------------- Hauptschleife
 
   update(dt, s = {}) {
@@ -560,73 +630,155 @@ export class ViewModel {
       this._ads = easeInOut(this._adsRaw);
     }
     const a = this._ads;
+    const na = 1 - a;
     const sprintWant = s.sprinting && a < 0.2 && !(this.action && ['reload', 'shells', 'grenade', 'melee', 'slash'].includes(this.action.type)) ? 1 : 0;
     this._sprint = damp(this._sprint, sprintWant, sprintWant ? 7 : 10, dt);
     this._crouch = damp(this._crouch, s.crouching ? 1 : 0, 8, dt);
     const onGround = s.onGround !== false;
-    const speedN = clamp((s.speed ?? (s.moving ? 5.4 : 0)) / 5.4, 0, 1.7);
+    const speed = s.speed ?? (s.moving ? 5.4 : 0);
+    const speedN = clamp(speed / 5.4, 0, 1.7);
     this._move = damp(this._move, onGround ? speedN : 0, 10, dt);
     this._air = damp(this._air, onGround ? 0 : 1, 8, dt);
+    const sp = this._sprint;
+
+    // ---- Handhabung: Masse/Trägheit der Waffe (Daten) × Komfort (Einstellung „Waffenträgheit“, Bewegung reduzieren)
+    const hd = this._handlingData();
+    const massK = Math.sqrt(clamp(hd.mass, 0.3, 12) / 3.3);   // 1 = Sturmgewehr; Pistole ≈ 0,5, LMG ≈ 1,6
+    const comfort = this._motionScale();
+    const swayK = hd.swayScale * comfort;
+    const winded = clamp(s.winded || 0, 0, 1);
+    const exh = s.exhausted ? 1 : 0;
 
     // ---- Sprung / Landung
     if (!onGround) this._airTime += dt;
-    if (this._wasGround && !onGround) { this._land.kick(0.55); this._jolt.kick(0, 0, 0); }
+    if (this._wasGround && !onGround) { this._land.kick(0.55 * comfort); this._jolt.kick(0, 0, 0); }
     if (!this._wasGround && onGround) {
-      const k = clamp(this._airTime / 0.6, 0.3, 1.4);
+      const k = clamp(this._airTime / 0.6, 0.3, 1.4) * (0.6 + 0.4 * massK) * comfort;
       this._land.kick(-1.6 * k);
       this._jolt.kick(-0.6 * k, 0, 0);
       this._airTime = 0;
     }
     this._wasGround = onGround;
 
-    // ---- Wippen (Achterfigur), Atmen, Blick-Nachlauf
-    const weight = h.weight;
-    const freq = (1.75 + 0.55 * this._sprint) * (0.75 + 0.25 * Math.min(1, speedN)) / Math.sqrt(weight);
-    this._phase += dt * Math.PI * 2 * freq * (this._move > 0.02 ? 1 : 0);
-    const bobAmp = this._move * (1 - 0.88 * a) * Math.sqrt(weight);
-    const sp = this._sprint;
+    // ---- Schritte (Takt wie die Kamera des Spielers: ein Schritt je Schrittlänge) + Fersenstoß
+    const stride = sp > 0.5 ? 2.7 : this._crouch > 0.5 ? 1.5 : 2.1;
+    if (onGround && speed > 0.6) this._phase += (speed * dt / stride) * Math.PI;
+    const stepIdx = Math.floor(this._phase / Math.PI);
+    if (stepIdx !== this._stepIdx) {
+      this._stepIdx = stepIdx;
+      if (onGround && speed > 0.6) {
+        const hit = (0.035 + 0.05 * sp) * Math.sqrt(massK) * swayK * (1 - 0.8 * a);
+        this._moveLag.kick(0, -hit, 0);
+        this._jolt.kick(-0.35 * hit / 0.05, 0, 0);
+      }
+    }
     const ph = this._phase;
+    const bobAmp = this._move * (1 - 0.88 * a) * swayK;
+    const rotK = Math.pow(massK, 0.35);
     const bobX = Math.sin(ph) * (0.0065 + 0.013 * sp) * bobAmp;
     const bobY = (Math.sin(ph * 2) * (0.0045 + 0.007 * sp) - 0.002 * sp) * bobAmp;
-    const bobRZ = Math.sin(ph) * (0.012 + 0.05 * sp) * bobAmp;
-    const bobRX = Math.sin(ph * 2) * (0.008 + 0.02 * sp) * bobAmp;
-    const bobRY = Math.cos(ph) * (0.006 + 0.03 * sp) * bobAmp;
-    const breath = Math.sin(this._time * 1.35) * (1 - 0.75 * a) * (1 - this._move * 0.5);
-    const lx = s.lookDX || 0, ly = s.lookDY || 0;
-    const wx = clamp(-lx / Math.max(dt, 1 / 240) * 0.012, -0.055, 0.055) * (1 - 0.65 * a);
-    const wy = clamp(-ly / Math.max(dt, 1 / 240) * 0.01, -0.045, 0.045) * (1 - 0.65 * a);
-    const sw = this._sway.update(dt / Math.sqrt(weight), wx, wy, 0);
+    const bobRZ = Math.sin(ph) * (0.012 + 0.05 * sp) * bobAmp * rotK;
+    const bobRX = Math.sin(ph * 2) * (0.008 + 0.02 * sp) * bobAmp * rotK;
+    const bobRY = Math.cos(ph) * (0.006 + 0.03 * sp) * bobAmp * rotK;
 
-    // ---- Rückstoß, Landung, Stöße
+    // ---- Atmung: ruhig ≈ 16/min, nach dem Sprint (winded) schneller und tiefer, nach dem Atemanhalten außer Atem
+    const bRate = 0.27 + 0.45 * winded + 0.3 * exh;
+    this._breathPh += dt * Math.PI * 2 * bRate;
+    const bAmp = (1 + 1.6 * winded + 1.0 * exh) * (1 - 0.75 * a) * (1 - this._move * 0.5) * Math.min(1, comfort * 1.5);
+    const breath = Math.sin(this._breathPh) * bAmp;
+    const breath2 = Math.sin(this._breathPh * 0.5 + 1.3) * bAmp;
+
+    // ---- Nachlauf hinter der Kameradrehung: die Waffe bleibt kurz in der Welt stehen und federt nach
+    //      (Federfrequenz sinkt mit der Masse: Pistole ≈ 27 rad/s, Sturmgewehr 13, LMG 8; leicht unterdämpft)
+    const lagW = 13 / massK, lagZ = 0.62;
+    for (const sp1 of [this._lagYaw, this._lagPitch]) { sp1.k = lagW * lagW; sp1.c = 2 * lagZ * lagW; }
+    const lagGain = 0.35 * hd.inertia * comfort * (1 - 0.8 * a);
+    const lagMax = (0.085 - 0.07 * a) * comfort;
+    this._lagYaw.x = clamp(this._lagYaw.x + (s.lookDX || 0) * lagGain, -lagMax, lagMax);
+    this._lagPitch.x = clamp(this._lagPitch.x + (s.lookDY || 0) * lagGain, -lagMax, lagMax);
+    const lagY = this._lagYaw.update(dt, 0);
+    const lagP = this._lagPitch.update(dt, 0);
+
+    // ---- Bewegungsnachlauf (Kameraraum: x rechts, y oben, z vorwärts) + Kanten beim Seitwärtslaufen
+    const vel = s.vel;
+    const vx = vel ? vel.x || 0 : 0, vy = vel ? vel.y || 0 : 0, vz = vel ? vel.z || 0 : speed;
+    const mW = 9 / massK, mZ = 0.75;
+    for (const sp1 of this._moveLag.s) { sp1.k = mW * mW; sp1.c = 2 * mZ * mW; }
+    const mk = swayK * (1 - 0.85 * a);
+    const mv = this._moveLag.update(dt, -vx * 0.0032 * mk, -clamp(vy, -12, 12) * 0.0022 * mk, vz * 0.0035 * mk);
+    this._strafeRoll = damp(this._strafeRoll, -vx * 0.008 * swayK * (1 - 0.7 * a), 6 / massK, dt);
+
+    // ---- Ruhiges Zielwandern an der Hüfte (Rauschen aus inkommensurablen Sinus); im Anschlag wandert
+    //      stattdessen der Blick selbst (Controller, aimDrift) – das Visier bleibt exakt mittig.
+    const t = this._time;
+    const dn = (0.0035 + hd.aimDrift * 2) * swayK * (1 + 1.5 * winded + exh) * na;
+    const driftX = (Math.sin(t * 0.37 + 1.1) * 0.6 + Math.sin(t * 0.83 + 0.4) * 0.3 + Math.sin(t * 1.91) * 0.1) * dn;
+    const driftY = (Math.sin(t * 0.29 + 2.3) * 0.6 + Math.sin(t * 0.71 + 1.7) * 0.3 + Math.sin(t * 1.63 + 0.5) * 0.1) * dn;
+
+    // ---- Rückstoß, Landung, Stöße (Federn je Masse: leichte Waffen schnappen, schwere setzen sich langsamer)
+    const rW = 14.5 / Math.sqrt(massK), rWr = 13 / Math.sqrt(massK);
+    for (const sp1 of this._recoilPos.s) { sp1.k = rW * rW; sp1.c = 2 * 0.68 * rW; }
+    for (const sp1 of this._recoilRot.s) { sp1.k = rWr * rWr; sp1.c = 2 * 0.64 * rWr; }
     const rp = this._recoilPos.update(dt, 0, 0, 0);
     const rr = this._recoilRot.update(dt, 0, 0, 0);
+    this._climb *= Math.exp(-(s.firing ? 2.2 : 6.5) * dt);
+    this._heat = Math.max(0, this._heat - dt * (s.firing ? 0.04 : 0.12));
     const land = this._land.update(dt, 0);
     const jolt = this._jolt.update(dt, 0, 0, 0);
 
-    // ---- Grundpose: Hüfte ↔ Anschlag
+    // ---- Grundpose: Hüfte ↔ Anschlag (Haltung Standard ↔ Körperkamera weich überblendet)
+    const want = this._wantPose();
+    if (want !== this.pose) this.pose = want;
+    this._poseW = damp(this._poseW, this.pose === 'bodycam' ? 1 : 0, 5, dt);
+    const ps = this._blendPose();
     const ads3 = this.cur.ud.adsOffset;
-    const hip = h.hip, hr = h.hipRot;
+    const hip = ps.hip, hr = ps.hipRot;
     // Seitenverhältnis: auf breiten Telefonen etwas weiter nach außen, auf 4:3-Tablets weiter zur Mitte
     const asp = clamp(((this.camera.aspect || 1.78) - 1.78) * 0.3, -0.15, 0.2);
     const hx = hip[0] * (1 + asp);
     const P = this._gunPos.set(hx + (ads3.x - hx) * a, hip[1] + (ads3.y - hip[1]) * a, hip[2] + (ads3.z - hip[2]) * a);
-    const R = this._gunRot.set(hr[0] * (1 - a), hr[1] * (1 - a), hr[2] * (1 - a));
-    const na = 1 - a;
-    P.x += h.sprintPos[0] * sp * na + h.crouchPos[0] * this._crouch * na;
-    P.y += h.sprintPos[1] * sp * na + h.crouchPos[1] * this._crouch * na;
-    P.z += h.sprintPos[2] * sp * na + h.crouchPos[2] * this._crouch * na;
-    R.x += h.sprintRot[0] * sp * na + h.crouchRot[0] * this._crouch * na;
-    R.y += h.sprintRot[1] * sp * na + h.crouchRot[1] * this._crouch * na;
-    R.z += h.sprintRot[2] * sp * na + h.crouchRot[2] * this._crouch * na;
-    // Wippen + Atmen + Nachlauf
-    P.x += bobX + sw.x * 0.16;
-    P.y += bobY + breath * 0.0011 + sw.y * 0.12 + land * 0.035 - this._air * 0.012 * na;
-    R.x += bobRX + breath * 0.004 + sw.y * 0.9 + land * 0.05 + jolt.x * 0.05 + this._air * 0.03 * na;
-    R.y += bobRY + sw.x * 1.1;
-    R.z += bobRZ + sw.x * 0.7;
-    // Rückstoß
-    P.x += rp.x * 0.01; P.y += rp.y * 0.01; P.z += rp.z * 0.01;
-    R.x += rr.x * 0.01; R.y += rr.y * 0.01; R.z += rr.z * 0.01;
+    const R = this._gunRot.set(hr[0] * na, hr[1] * na, hr[2] * na);
+    P.x += ps.sprintPos[0] * sp * na + ps.crouchPos[0] * this._crouch * na;
+    P.y += ps.sprintPos[1] * sp * na + ps.crouchPos[1] * this._crouch * na;
+    P.z += ps.sprintPos[2] * sp * na + ps.crouchPos[2] * this._crouch * na;
+    R.x += ps.sprintRot[0] * sp * na + ps.crouchRot[0] * this._crouch * na;
+    R.y += ps.sprintRot[1] * sp * na + ps.crouchRot[1] * this._crouch * na;
+    R.z += ps.sprintRot[2] * sp * na + ps.crouchRot[2] * this._crouch * na;
+    // Wippen + Atmen + Nachlauf + Zielwandern
+    const lagL = na;   // an der Hüfte dreht die Waffe um den Griff, im Anschlag um das Auge (s. u.)
+    P.x += bobX + mv.x + lagY * 0.1 * lagL;
+    P.y += bobY + mv.y + breath * 0.0011 + land * 0.035 * comfort - this._air * 0.012 * na - lagP * 0.06 * lagL;
+    P.z += mv.z * na + breath2 * 0.0006;
+    R.x += bobRX + breath * 0.004 + land * 0.05 * comfort + jolt.x * 0.05 + this._air * 0.03 * na + lagP * lagL + driftY;
+    R.y += bobRY + lagY * lagL + driftX - vx * 0.004 * swayK * na;
+    R.z += bobRZ - lagY * 0.55 * lagL + this._strafeRoll;
+    // Rückstoß: Federstoß + Hochklettern im Dauerfeuer
+    P.x += rp.x * 0.01; P.y += rp.y * 0.01 + this._climb * 0.04 * na; P.z += rp.z * 0.01 + this._climb * 0.06;
+    R.x += rr.x * 0.01 + this._climb * (0.12 + 0.88 * na); R.y += rr.y * 0.01; R.z += rr.z * 0.01;
+    // Lehnen: Waffe folgt mit leichtem Verzug zur Seite und kantet etwas mehr (nur an der Hüfte)
+    this._lean = damp(this._lean, clamp(s.lean || 0, -1, 1), 9, dt);
+    P.x += this._lean * 0.012 * na;
+    R.z -= this._lean * 0.07 * na;
+    // Wandkollision (F3): erst anziehen, dann in die tiefe Bereitschaft (Pistole: zur Brust)
+    this._obstruct = damp(this._obstruct, clamp(s.obstruct || 0, 0, 1), s.obstruct > this._obstruct ? 14 : 7, dt);
+    const ob = smooth(this._obstruct);
+    if (ob > 1e-3) {
+      const o1 = clamp(ob / 0.5, 0, 1) * na, o2 = smooth(clamp((ob - 0.4) / 0.6, 0, 1)) * na;
+      if (h.action === 'pistol') {
+        P.z += 0.1 * o1; P.y -= 0.025 * o1; P.x -= 0.03 * o2;
+        R.x += 0.35 * o2; R.y += 0.2 * o2; R.z += 0.1 * o2;
+      } else if (h.action !== 'knife') {
+        P.z += 0.12 * o1; P.y -= 0.04 * o2; P.x -= 0.02 * o2;
+        R.x -= 0.55 * o2; R.y += 0.32 * o2; R.z += 0.26 * o2;
+      }
+    }
+    // Überklettern (core, F6): Waffe kurz gesenkt und zur Seite gekippt, die Hand ist am Hindernis
+    this._mantle = damp(this._mantle, s.mantling ? 1 : 0, s.mantling ? 12 : 7, dt);
+    if (this._mantle > 1e-3) {
+      const m = smooth(this._mantle);
+      P.x += 0.03 * m; P.y -= 0.13 * m; P.z += 0.04 * m;
+      R.x -= 0.55 * m; R.y += 0.15 * m; R.z += 0.35 * m;
+    }
     // Ziehen / Wegstecken
     const eq = this._lowering ? 1 - smooth(1 - this._lowerT) : 1 - easeOut(this._equipT);
     if (eq > 0) {
@@ -643,6 +795,15 @@ export class ViewModel {
 
     this.gun.position.copy(P);
     this.gun.rotation.set(R.x, R.y, R.z, 'YXZ');
+    // Drehung um das Auge: freies Zielen (Waffe zeigt in die Laufrichtung, Visierlinie bleibt am Auge) und der
+    // Nachlauf im Anschlag – so wandert das ganze Visierbild, statt dass Kimme und Korn auseinanderlaufen.
+    const fa = s.freeAim;
+    const eyeYaw = (fa ? -(fa.x || 0) : 0) + lagY * a, eyePitch = (fa ? fa.y || 0 : 0) + lagP * a;
+    if (eyeYaw || eyePitch) {
+      this._eyeQ.setFromEuler(_e.set(eyePitch, eyeYaw, 0, 'YXZ'));
+      this.gun.position.applyQuaternion(this._eyeQ);
+      this.gun.quaternion.premultiply(this._eyeQ);
+    }
 
     // ---- Bewegliche Teile: Verschluss/Schlitten/Hahn
     this._animParts(dt, act);

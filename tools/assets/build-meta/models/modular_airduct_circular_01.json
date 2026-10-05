@@ -1,6 +1,6 @@
 {
   "id": "modular_airduct_circular_01",
-  "recipe": "3d207706725b",
+  "recipe": "af87739fa7ab",
   "size": [
     4.171,
     1.325,
@@ -11,7 +11,7 @@
   "tiers": {
     "512": {
       "path": "models/modular_airduct_circular_01/modular_airduct_circular_01_512.glb",
-      "bytes": 244752,
+      "bytes": 244628,
       "srcTris": 14280,
       "lods": [
         {
@@ -108,7 +108,7 @@
     },
     "1024": {
       "path": "models/modular_airduct_circular_01/modular_airduct_circular_01_1024.glb",
-      "bytes": 443844,
+      "bytes": 443720,
       "srcTris": 14280,
       "lods": [
         {

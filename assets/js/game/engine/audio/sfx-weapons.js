@@ -373,3 +373,92 @@ export function bulletCrack(sr, R) {
   mixAt(d, sr, e, R.range(0.022, 0.04), 0.22);
   return normalize(d, 0.85);
 }
+
+// ---------------------------------------------------------------- Hybrid-Schichten (zu den Aufnahmen)
+
+/**
+ * Ich-Perspektive (Plan §10 A1): Die Mikrofone der Aufnahmen standen vor dem Schützen – am eigenen Ohr fehlen
+ * Körper (Druckstoß auf den Brustkorb, Kopfhörer) und Verschlussmechanik. Mono, ohne Hülse (die kommt separat).
+ */
+export function gunFP(P) {
+  return (sr, R) => {
+    const d = buf(sr, 0.36);
+    const th = buf(sr, 0.32), tf = expGlide(R.jit(P.t0 * 0.85, 0.06), R.jit(P.t1 * 0.9, 0.06), P.tTau * 0.9);
+    sine(th, sr, 0, 0.32, tf, ad(0.0015, P.tTau * 1.15));
+    sine(th, sr, 0, 0.12, t => tf(t) * 2.01, t => ad(0.001, P.tTau * 0.4)(t) * 0.22);
+    mix(d, th, 0, P.tAmp);
+    burst(d, sr, 0, { dur: 0.1, type: 'bandpass', freq: R.jit(P.mid, 0.08), q: 1.2, envFn: ad(0.001, P.bTau * 0.6), R, amp: 0.4 });
+    if (P.mech) {
+      metalClick(d, sr, P.mechAt + 0.004, R, R.jit(P.mech, 0.05), P.mechAmp * 2.4, 0.012);
+      if (P.mechAt > 0.005) metalClick(d, sr, P.mechAt + R.jit(0.03, 0.15), R, R.jit(P.mech * 1.25, 0.05), P.mechAmp * 1.4, 0.008);
+      if (P.belt) grains(d, sr, 0.03, { dur: 0.08, count: 10, grainDur: [0.001, 0.003], freq: [2600, 6200], q: 4, amp: 0.2, R });
+    }
+    drive(d, 1.4); dcBlock(d, sr, 24);
+    return trim(normalize(d, 0.9), sr);
+  };
+}
+
+/** Explosion: Sub-Druckstoß + Grollen unter der Aufnahme (Erschütterung, Kopfhörer). */
+export function boomSub(sr, R) {
+  const d = buf(sr, 2.2);
+  sine(d, sr, 0, 2.2, expGlide(R.range(60, 72), 26, 0.5), ad(0.004, 0.42));
+  sine(d, sr, 0, 0.8, expGlide(R.range(120, 140), 52, 0.22), t => ad(0.002, 0.14)(t) * 0.45);
+  const rum = brown(len(sr, 2.0), R); filt(rum, sr, 'lowpass', 140, 0.7, 2); env(rum, sr, ad(0.06, 0.75));
+  mix(d, rum, 0, 0.7);
+  drive(d, 1.5); dcBlock(d, sr, 18);
+  return trim(normalize(d, 0.95), sr);
+}
+
+/** Nachrieselnde Trümmer/Steinchen nach einer nahen Explosion (abnehmende Dichte). */
+export function debrisFall(sr, R) {
+  const d = buf(sr, 3.2);
+  grains(d, sr, 0.1, { dur: 2.8, count: 110, grainDur: [0.0008, 0.004], freq: [1500, 6500], q: 2, amp: 0.32, R, density: u => u * u });
+  grains(d, sr, 0.05, { dur: 1.6, count: 22, grainDur: [0.004, 0.014], freq: [300, 900], q: 1.3, amp: 0.5, R, density: u => u * u });
+  for (let k = 0; k < 5; k++) thud(d, sr, R.range(0.15, 1.4), R.range(90, 160), 0.012, R.range(0.15, 0.35));
+  env(d, sr, t => Math.exp(-t / 1.1));
+  dcBlock(d, sr, 60);
+  return trim(normalize(d, 0.85), sr);
+}
+
+/** Blendgranate: extrem scharfer Knall mit metallischem Nachklingen des Gehäuses (Stereo). */
+export function flashBang(sr, R) {
+  const N = len(sr, 1.6), L = new Float32Array(N), Rt = new Float32Array(N);
+  const crack = buf(sr, 0.12);
+  click(crack, sr, 0, { dur: 0.008, tau: 0.0009, hp: 900, amp: 1.2, R });
+  burst(crack, sr, 0, { dur: 0.12, type: 'highpass', freq: 1800, envFn: ad(0.0003, 0.012), R, amp: 1 });
+  const body = buf(sr, 0.6);
+  burst(body, sr, 0, { dur: 0.6, type: 'lowpass', freqAt: expGlide(7000, 500, 0.12), q: 0.7, envFn: ad(0.0008, 0.07), R, amp: 1 });
+  sine(body, sr, 0, 0.5, expGlide(110, 40, 0.15), ad(0.002, 0.09));
+  const ring = buf(sr, 1.5);
+  modal(ring, sr, 0.004, metalModes(R.range(2300, 2700), R, { count: 6, decay: 0.35 }), 0.12, R);
+  for (const [ch, k] of [[L, 0], [Rt, 1]]) {
+    mix(ch, crack, k ? 2 : 0, 1); mix(ch, body, 0, 0.9); mix(ch, ring, k ? 7 : 0, 1);
+    drive(ch, 3.2); dcBlock(ch, sr, 25);
+  }
+  normalize([L, Rt], 0.97);
+  return trim([L, Rt], sr);
+}
+
+/** Rauchgranate: Zünder-Plopp, dann zischendes Ausströmen (≈ 3 s, wird geschleift). */
+export function smokeHiss(sr, R) {
+  const T = 3.0, d = buf(sr, T);
+  thud(d, sr, 0, R.range(160, 200), 0.015, 0.5);
+  burst(d, sr, 0, { dur: 0.05, type: 'bandpass', freq: 1200, q: 1, envFn: ad(0.001, 0.01), R, amp: 0.4 });
+  const n = len(sr, T - 0.08), h = white(n, R);
+  filt(h, sr, 'bandpass', R.range(3400, 4200), 0.6); filt(h, sr, 'highpass', 900, 0.7);
+  let g = 0, tgt = 1;
+  for (let i = 0; i < n; i++) { if (i % 400 === 0) tgt = 0.75 + R() * 0.25; g += (tgt - g) * 0.004; h[i] *= g; }
+  env(h, sr, t => Math.min(1, t / 0.25));
+  mix(d, h, len(sr, 0.08), 0.55);
+  return normalize(d, 0.75);
+}
+
+/** Querschläger: abprallendes Geschoss mit fallendem Pfeifen (Metall/Stein). */
+export function ricochet(sr, R) {
+  const T = R.range(0.28, 0.45), d = buf(sr, T + 0.05);
+  const f0 = R.range(2600, 4200), f1 = f0 * R.range(0.45, 0.65);
+  sine(d, sr, 0.004, T, t => f0 * Math.pow(f1 / f0, clamp(t / T)) * (1 + 0.012 * Math.sin(t * 190)), t => bell(T, 0.12)(t) * 0.5);
+  burst(d, sr, 0.004, { dur: T, type: 'bandpass', freqAt: t => f0 * Math.pow(f1 / f0, clamp(t / T)), q: 6, envFn: bell(T, 0.15), R, amp: 0.5 });
+  click(d, sr, 0, { dur: 0.004, tau: 0.0006, hp: 2500, amp: 0.6, R });
+  return normalize(d, 0.75);
+}

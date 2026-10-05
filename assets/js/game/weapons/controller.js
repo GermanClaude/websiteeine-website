@@ -10,7 +10,7 @@
 // Für den Spieler treibt er den Gunsmith-ViewModel (Waffe, Animationen, Anschlag, Overlay).
 
 import * as THREE from 'three';
-import { WEAPONS as DATA_WEAPONS, EQUIPMENT as DATA_EQUIPMENT, effectiveRange } from '../../shared/weapons.data.js';
+import { WEAPONS as DATA_WEAPONS, EQUIPMENT as DATA_EQUIPMENT, effectiveRange, weaponHandling } from '../../shared/weapons.data.js';
 import { clamp, damp, smooth01, easeInOut, wrapAngle, samplePellet, sampleCone, patternAt } from './ballistics/math.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -21,6 +21,7 @@ const _muz = new THREE.Vector3();
 const _to = new THREE.Vector3();
 const _side = new THREE.Vector3();
 const _fwd = new THREE.Vector3();
+const _org = new THREE.Vector3();
 
 const MOVE_REF = 5.4; // Gehtempo (m/s) – Bezug für Laufstreuung
 const SWITCH_LOWER = 0.2; // Wegstecken (passend zum ViewModel)
@@ -31,6 +32,12 @@ const AUTO_RANGE = { shotgun: 13, smg: 30, pistol: 28, ar: 48, lmg: 52, marksman
 const BREATH_HOLD = 4.5; // s Atem anhalten
 const BREATH_RECOVER = 2.8; // s bis voll erholt
 const EXHAUST = 1.6; // s außer Atem
+// Wandkollision (F3): ab diesem Anteil (0..1, wie weit die Waffe angezogen ist) kein Anschlag bzw. kein Schuss –
+// mit Hysterese, damit es an der Grenze nicht flackert
+const OBSTRUCT_ADS = [0.45, 0.3];
+const OBSTRUCT_FIRE = [0.72, 0.55];
+// Rückstoß 2.0: kurzer Kamera-Ruck schwerer Waffen (Trauma für player.shake, nur Optik, Komfort über core)
+const SHOT_SHAKE = { sniper: 0.22, shotgun: 0.2, marksman: 0.1, lmg: 0.025 };
 
 const FALLBACK = {
   id: 'ar_m17', name: 'M-17 Falke', cls: 'ar', slot: 'primary', model: 'm17', damage: { max: 25, min: 19, rangeStart: 22, rangeEnd: 45 },
@@ -40,6 +47,17 @@ const FALLBACK = {
   range: 110, penetration: 0.55, sound: { profile: 'ar', pitch: 1 },
 };
 const KNIFE_FALLBACK = { range: 2.4, lungeRange: 4.5, lungeSpeed: 10, arc: 0.6, swingTime: 0.75, hitDelay: 0.14 };
+
+/** Lehnen des Akteurs (core: player.lean −1…1, − = links), sonst 0. */
+function actorLean(actor) {
+  const l = actor && actor.lean;
+  return Number.isFinite(l) ? l : 0;
+}
+/** Freies Zielen (core: player.aimOffset {x, y} rad, Lauf relativ zur Sicht, x > 0 rechts, y > 0 oben) oder null. */
+function actorFreeAim(actor) {
+  const o = actor && actor.aimOffset;
+  return o && (o.x || o.y) ? o : null;
+}
 
 export class WeaponController {
   /**
@@ -83,6 +101,8 @@ export class WeaponController {
     this.idealRange = 20;
     this.maxRange = 100;
     this.viewModel = null;
+    this.obstructed = 0;  // Wandkollision 0..1 (Spieler; 1 = Waffe ganz angezogen)
+    this.winded = 0;      // Atemnot nach dem Sprint 0..1 (Spieler; mehr Schwanken, schnellerer Atem)
 
     // Intern
     this._cooldown = 0;
@@ -105,6 +125,12 @@ export class WeaponController {
     this._swayX = 0;
     this._swayY = 0;
     this._shotSerial = 0;
+    this._obsSample = [Infinity, Infinity];
+    this._obsK = 0;
+    this._obsAds = false;
+    this._obsFire = false;
+    this._sprintT = 0;
+    this._driftT = Math.random() * 20;
     this._disposed = false;
 
     if (actor && actor.isPlayer) this._createViewModel();
@@ -223,6 +249,11 @@ export class WeaponController {
     this._steady = 1;
     this._swayX = this._swayY = this._swayAmp = 0;
     this.holdingBreath = false;
+    this.obstructed = 0;
+    this._obsSample[0] = this._obsSample[1] = Infinity;
+    this._obsAds = this._obsFire = false;
+    this.winded = 0;
+    this._sprintT = 0;
     this._autoReloadAt = Infinity;
     this.lastShotTime = -1e9;
     if (this.index !== 0) {
@@ -295,8 +326,14 @@ export class WeaponController {
     const def = this.currentDef; // kann sich durch Wechsel geändert haben
     const cur = this.current;
 
+    // ---- Wandkollision + Atemnot (nur Spieler)
+    if (actor.isPlayer) {
+      this._updateObstruct(dt, def);
+      this._updateWinded(dt, it);
+    }
+
     // ---- Anschlag
-    const blocked = it.frozen || it.sprinting || !!this._switch || !!this._melee || !!this._throw || !!this._reload || def.cls === 'melee';
+    const blocked = it.frozen || it.sprinting || !!this._switch || !!this._melee || !!this._throw || !!this._reload || def.cls === 'melee' || this._obsAds || !!it.mantling;
     const wantAds = !!it.ads && !blocked;
     if (wantAds !== this._adsOn) {
       this._adsOn = wantAds;
@@ -323,7 +360,7 @@ export class WeaponController {
     this.isThrowing = !!this._throw;
     this.isFiring = now - this.lastShotTime < 0.12;
     this.canSprint = !this._reload && !this._melee && !this._throw;
-    this.autoFireReady = !this._reload && !this._switch && !this._melee && !this._throw && (def.cls === 'melee' || cur.mag > 0) &&
+    this.autoFireReady = !this._reload && !this._switch && !this._melee && !this._throw && !this._obsFire && (def.cls === 'melee' || cur.mag > 0) &&
       (def.cls !== 'sniper' || this.adsProgress > 0.85);
     if (this._switch) {
       const s = this._switch;
@@ -349,6 +386,21 @@ export class WeaponController {
       s.firing = this.isFiring;
       s.timeSinceShot = now - this.lastShotTime;
       s.mag = def.cls === 'melee' ? 1 : cur.mag;
+      // Waffengefühl: Geschwindigkeit im Blickraum (x rechts, y oben, z vorwärts), Wandkollision, Atemnot,
+      // Lehnen und freies Zielen (core, sobald vorhanden)
+      const v = s.vel || (s.vel = { x: 0, y: 0, z: 0 });
+      const bv = actor.body && actor.body.velocity;
+      if (bv && Number.isFinite(actor.yaw)) {
+        const cy = Math.cos(actor.yaw), sy = Math.sin(actor.yaw);
+        v.x = bv.x * cy - bv.z * sy; v.y = bv.y; v.z = -bv.x * sy - bv.z * cy;
+      } else { v.x = 0; v.y = 0; v.z = it.speed || 0; }
+      s.obstruct = this.obstructed;
+      s.winded = this.winded;
+      s.exhausted = this._exhausted > 0;
+      s.holdingBreath = this.holdingBreath;
+      s.lean = actorLean(actor);
+      s.freeAim = actorFreeAim(actor);
+      s.mantling = !!(it.mantling || actor.mantling);
       try { vm.update(dt, s); } catch (err) { this._vmError('update', err); }
       this.scoped = !!vm.showScopeOverlay;
     } else {
@@ -393,6 +445,8 @@ export class WeaponController {
       return;
     }
     if (this._switch || this._throw || this._melee || it.sprinting || this._sprintRecover > 0) return;
+    // Waffe an der Wand angezogen: kein Schuss (Eingabepuffer verfällt von selbst)
+    if (this._obsFire || it.mantling) return;
     if (this._reload) {
       // Schrot: Schießen unterbricht das Nachladen, sobald eine Patrone drin ist
       if (this._reload.shells && st.mag > 0) this._finishReload(true);
@@ -460,7 +514,9 @@ export class WeaponController {
 
     // Kugeln
     const combat = G.combat;
-    const spread = this.fireSpread;
+    const r = def.recoil || FALLBACK.recoil;
+    // Erster Schuss aus der Ruhe: eigener Streufaktor (Rückstoß 2.0, Daten recoil.firstShotSpread)
+    const spread = this.fireSpread * (this.shotIndex === 0 && Number.isFinite(r.firstShotSpread) ? r.firstShotSpread : 1);
     const rot = Math.random() * Math.PI * 2;
     const scale = Number.isFinite(actor.damageScale) ? actor.damageScale : 1;
     const range = def.range || 100;
@@ -480,7 +536,6 @@ export class WeaponController {
     }
 
     // Rückstoß
-    const r = def.recoil || FALLBACK.recoil;
     const e = patternAt(r.pattern, this.shotIndex);
     const first = this.shotIndex === 0 ? (r.firstShotMult || 1) : 1;
     const a = smooth01(this.adsProgress);
@@ -500,8 +555,16 @@ export class WeaponController {
     this._bloomAds = Math.min(adsS * 1.2 + 0.0012, this._bloomAds + (adsS * 0.3 + 0.0002) * (auto ? 1 : 1.4));
     this.spread = Math.max(this.spread, this.fireSpread + this._bloomHip * (1 - a));
 
-    // Viewmodel
-    if (this.viewModel) this._vm('onShot', SHOT_STRENGTH[def.cls] || (def.id === 'pi_adler' ? 1.6 : 1), { empty: st.mag === 0, suppressed: !!def.suppressed });
+    // Sichtbarer Stoß (Rückstoß 2.0): Charakter je Waffe (recoil.visual) × Verhältnis zum Grundrückstoß der Waffe
+    // (Aufsätze, die den Rückstoß ändern, ändern auch den sichtbaren Stoß); seitlich in Richtung des Zielrückstoßes
+    if (actor.isPlayer) {
+      const base = DATA_WEAPONS[def.baseId || def.id];
+      const ratio = base && base.recoil && base.recoil.vertical > 0 ? clamp(r.vertical / base.recoil.vertical, 0.5, 1.6) : 1;
+      const visual = (Number.isFinite(r.visual) ? r.visual : 1) * ratio;
+      if (this.viewModel) this._vm('onShot', SHOT_STRENGTH[def.cls] || (def.id === 'pi_adler' ? 1.6 : 1), { empty: st.mag === 0, suppressed: !!def.suppressed, visual, yaw, pitch });
+      const sh = (SHOT_SHAKE[def.cls] || (def.sound && def.sound.profile === 'pistol_heavy' ? 0.1 : 0)) * visual * (1 - 0.3 * a);
+      if (sh > 0 && typeof actor.shake === 'function') actor.shake(sh);
+    }
 
     // Munition: Bots/Training nie leer
     if (infinite && st.reserve < (def.mag || 1)) st.reserve = def.reserve || (def.mag || 1) * 4;
@@ -893,6 +956,68 @@ export class WeaponController {
     try { this.system.throwGrenade(this.actor, tr.type, { cook: tr.cook || 0, drop: true }); } catch { /* Welt evtl. schon weg */ }
   }
 
+  /* ================================================================ Wandkollision + Atemnot */
+
+  /**
+   * Wandkollision (F3, nur Spieler): je Bild EIN Strahl gegen die Kugel-Geometrie, abwechselnd entlang der
+   * Laufrichtung ab dem Auge und ab der Waffenseite (rechts unten, nur an der Hüfte). Liegt die Wand näher als
+   * die Reichweite der Waffe (`handling.reach`, Auge → Mündung), wird sie angezogen: `obstructed` 0..1.
+   * Ab OBSTRUCT_ADS kein Anschlag, ab OBSTRUCT_FIRE kein Schuss (mit Hysterese).
+   */
+  _updateObstruct(dt, def) {
+    const G = this.G;
+    const actor = this.actor;
+    const w = G.world;
+    const reach = def.cls === 'melee' ? 0 : weaponHandling(def).reach || 0;
+    let raw = 0;
+    if (reach > 0 && w && typeof w.raycast === 'function' && actor.alive !== false) {
+      const k = (this._obsK = (this._obsK + 1) % 2);
+      actor.getEyePosition(_eye);
+      actor.getAimDirection(_aim);
+      _org.copy(_eye);
+      let len = reach + 0.06;
+      if (k === 1) {
+        // Waffenseite: etwas rechts und unterhalb des Auges (im Anschlag liegt die Waffe auf der Visierlinie)
+        const a = smooth01(this.adsProgress);
+        _side.crossVectors(_aim, UP);
+        if (_side.lengthSq() < 1e-6) _side.set(1, 0, 0); else _side.normalize();
+        _org.addScaledVector(_side, 0.1 * (1 - a)).addScaledVector(UP, -0.08 * (1 - a));
+        len -= 0.06 * (1 - a);
+      }
+      let d = Infinity;
+      try {
+        const hit = w.raycast(_org, _aim, len);
+        if (hit && Number.isFinite(hit.distance) && hit.targetId === undefined) d = hit.distance;
+      } catch { /* Welt im Abbau */ }
+      this._obsSample[k] = d;
+      const dmin = Math.min(this._obsSample[0], this._obsSample[1]);
+      raw = Number.isFinite(dmin) ? clamp((reach - dmin) / (reach * 0.55), 0, 1) : 0;
+    } else {
+      this._obsSample[0] = this._obsSample[1] = Infinity;
+    }
+    this.obstructed += (raw - this.obstructed) * damp(raw > this.obstructed ? 16 : 8, dt);
+    if (this.obstructed < 1e-3) this.obstructed = 0;
+    const o = this.obstructed;
+    this._obsAds = this._obsAds ? o > OBSTRUCT_ADS[1] : o > OBSTRUCT_ADS[0];
+    this._obsFire = this._obsFire ? o > OBSTRUCT_FIRE[1] : o > OBSTRUCT_FIRE[0];
+  }
+
+  /**
+   * Atemnot nach dem Sprint (nur Spieler): steigt nach ~1,5 s Sprint binnen ~5 s auf 1, fällt danach in
+   * ~4,5 s (geduckt schneller). Nutzt `exertion` des Spielers (core), sobald vorhanden.
+   */
+  _updateWinded(dt, it) {
+    const ex = Number.isFinite(it.exertion) ? it.exertion : this.actor.exertion;
+    if (Number.isFinite(ex)) { this.winded = clamp(ex, 0, 1); return; }
+    if (it.sprinting) this._sprintT += dt; else this._sprintT = Math.max(0, this._sprintT - dt * 2);
+    if (it.sprinting) {
+      const target = clamp((this._sprintT - 1.5) / 5, 0, 1);
+      if (target > this.winded) this.winded = Math.min(target, this.winded + dt / 5);
+    } else {
+      this.winded = Math.max(0, this.winded - dt / (it.crouching ? 3 : 4.5));
+    }
+  }
+
   /* ================================================================ Zielfernrohr */
 
   _updateSway(dt, it, def, a) {
@@ -931,8 +1056,25 @@ export class WeaponController {
     const t = this._swayT;
     const w = (Math.PI * 2) / 3.3;
     const A = this._swayAmp;
-    const x = (Math.sin(w * t) + 0.18 * Math.sin(2.7 * t + 0.4)) * A;
-    const y = (0.55 * Math.sin(2 * w * t + 0.6) + 0.12 * Math.sin(1.9 * t + 1.1)) * A;
+    let x = (Math.sin(w * t) + 0.18 * Math.sin(2.7 * t + 0.4)) * A;
+    let y = (0.55 * Math.sin(2 * w * t + 0.6) + 0.12 * Math.sin(1.9 * t + 1.1)) * A;
+    // Zielwandern im Anschlag (F2, handling.aimDrift): ruhiges Rauschen statt Achterfigur, nach dem Sprint
+    // (Atemnot) und außer Atem deutlich stärker, geduckt ruhiger; Atem anhalten beruhigt es ebenfalls.
+    // Touch: nur ein Drittel (verträgt sich sonst schlecht mit der Zielhilfe).
+    const drift0 = weaponHandling(def).aimDrift || 0;
+    let dAmp = 0;
+    if (drift0 > 0 && !amp0 && a > 0.3 && !it.frozen && actor.alive !== false) {
+      const sp = clamp((it.speed || 0) / MOVE_REF, 0, 1);
+      dAmp = drift0 * smooth01((a - 0.3) / 0.7) * (1 + 2 * this.winded + (this._exhausted > 0 ? 1.5 : 0)) *
+        (it.crouching ? 0.6 : 1) * (1 + 0.6 * sp) * (input && input.mode === 'touch' ? 0.35 : 1);
+    }
+    this._driftAmp = (this._driftAmp || 0) + (dAmp - (this._driftAmp || 0)) * damp(3, dt);
+    if (this._driftAmp > 1e-7) {
+      this._driftT += dt * (1 + 0.8 * this.winded);
+      const u = this._driftT;
+      x += (Math.sin(u * 0.53 + 0.3) * 0.55 + Math.sin(u * 1.27 + 2.1) * 0.3 + Math.sin(u * 2.9 + 0.7) * 0.15) * this._driftAmp;
+      y += (Math.sin(u * 0.41 + 1.7) * 0.55 + Math.sin(u * 1.13 + 0.2) * 0.3 + Math.sin(u * 2.3 + 2.6) * 0.15) * this._driftAmp;
+    }
     if (Number.isFinite(actor.yaw)) actor.yaw -= x - this._swayX;
     if (Number.isFinite(actor.pitch)) actor.pitch += y - this._swayY;
     this._swayX = x;

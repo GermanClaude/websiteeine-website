@@ -1,6 +1,6 @@
 {
   "id": "modular_fire_escape",
-  "recipe": "ab4ddc3a6cd0",
+  "recipe": "77d08f3f4343",
   "size": [
     6.661,
     9.757,
@@ -11,7 +11,7 @@
   "tiers": {
     "512": {
       "path": "models/modular_fire_escape/modular_fire_escape_512.glb",
-      "bytes": 390408,
+      "bytes": 390192,
       "srcTris": 11322,
       "lods": [
         {
@@ -143,7 +143,7 @@
     },
     "1024": {
       "path": "models/modular_fire_escape/modular_fire_escape_1024.glb",
-      "bytes": 955464,
+      "bytes": 955248,
       "srcTris": 11322,
       "lods": [
         {

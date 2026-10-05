@@ -20,6 +20,8 @@ export const DEFAULTS = Object.freeze({
   padSensitivity: 1.0, padDeadzone: 0.13, padOuterDeadzone: 0.97, padCurve: 'classic', padVibration: true, padSwapSticks: false,
   aimAssistStrength: 1.0, gyroMode: 'off', gyroSensitivityX: 1.0, gyroSensitivityY: 1.0,
   touchOpacity: 1.0, touchButtonScale: 1.0, bindings: Object.freeze({}), touchLayout: DEFAULT_TOUCH_LAYOUT,
+  // Waffengefühl (Realismus-Plan F2/F9; weapons-feel)
+  weaponPose: 'auto', weaponSway: 1.0,
 });
 
 const HOLD_TOGGLE = Object.freeze({ options: ['hold', 'toggle'], labels: { hold: 'Halten', toggle: 'Umschalten' } });
@@ -61,6 +63,49 @@ export const SETTINGS_SCHEMA = Object.freeze({
   lastMap: { type: 'id', label: 'Letzte Karte', group: 'intern' },
   lastLoadout: { type: 'loadout', label: 'Letzte Ausrüstung', group: 'intern' },
   reducedMotion: { type: 'boolean', label: 'Bewegung reduzieren', group: 'grafik' },
+  // Steuerung & Komfort (core-input; Bedeutung im Changelog „core-input“)
+  cameraMotion: { type: 'number', min: 0, max: 1, step: 0.05, label: 'Kamerabewegung (Bodycam)', group: 'grafik' },
+  sensitivityY: { type: 'number', min: 0.3, max: 2, step: 0.05, label: 'Vertikale Empfindlichkeit (Faktor)', group: 'steuerung' },
+  adsSensitivityMid: { type: 'number', min: 0.2, max: 2, step: 0.05, label: 'Empfindlichkeit im Anschlag (2–4×)', group: 'steuerung' },
+  adsSensitivityHigh: { type: 'number', min: 0.2, max: 2, step: 0.05, label: 'Empfindlichkeit im Anschlag (ab 6×)', group: 'steuerung' },
+  zoomSensitivityCoef: {
+    type: 'enum', label: 'Zoom-Umrechnung (Monitorabstand)', group: 'steuerung',
+    options: ['0', '0.75', '1'], labels: { 0: '0 % · Mitte', 0.75: '75 %', 1: '100 % · Rand' },
+  },
+  adsMode: { type: 'enum', label: 'Zielen', group: 'steuerung', ...HOLD_TOGGLE },
+  sprintMode: { type: 'enum', label: 'Sprinten', group: 'steuerung', ...HOLD_TOGGLE },
+  crouchMode: { type: 'enum', label: 'Ducken', group: 'steuerung', ...HOLD_TOGGLE },
+  leanMode: { type: 'enum', label: 'Lehnen', group: 'steuerung', ...HOLD_TOGGLE },
+  freeAim: {
+    type: 'enum', label: 'Freies Zielen (Maus & Controller)', group: 'steuerung',
+    options: ['off', 'light', 'strong'], labels: { off: 'Aus', light: 'Leicht (2°)', strong: 'Stark (5°)' },
+  },
+  padSensitivity: { type: 'number', min: 0.2, max: 3, step: 0.05, label: 'Controller-Empfindlichkeit', group: 'steuerung' },
+  padDeadzone: { type: 'number', min: 0, max: 0.35, step: 0.01, label: 'Innere Totzone (Controller)', group: 'steuerung' },
+  padOuterDeadzone: { type: 'number', min: 0.7, max: 1, step: 0.01, label: 'Äußere Totzone (Controller)', group: 'steuerung' },
+  padCurve: {
+    type: 'enum', label: 'Reaktionskurve (Controller)', group: 'steuerung',
+    options: ['linear', 'classic', 'dynamic'], labels: { linear: 'Linear', classic: 'Klassisch', dynamic: 'Dynamisch' },
+  },
+  padVibration: { type: 'boolean', label: 'Vibration (Controller)', group: 'steuerung' },
+  padSwapSticks: { type: 'boolean', label: 'Sticks tauschen (Linkshänder)', group: 'steuerung' },
+  aimAssistStrength: { type: 'number', min: 0.2, max: 1.5, step: 0.05, label: 'Stärke der Zielhilfe', group: 'steuerung' },
+  gyroMode: {
+    type: 'enum', label: 'Gyro-Zielen (Handy)', group: 'steuerung',
+    options: ['off', 'ads', 'always'], labels: { off: 'Aus', ads: 'Beim Zielen', always: 'Immer' },
+  },
+  gyroSensitivityX: { type: 'number', min: 0.1, max: 4, step: 0.05, label: 'Gyro-Empfindlichkeit waagerecht', group: 'steuerung' },
+  gyroSensitivityY: { type: 'number', min: 0.1, max: 4, step: 0.05, label: 'Gyro-Empfindlichkeit senkrecht', group: 'steuerung' },
+  touchOpacity: { type: 'number', min: 0.2, max: 1, step: 0.05, label: 'Deckkraft der Touch-Knöpfe', group: 'steuerung' },
+  touchButtonScale: { type: 'number', min: 0.8, max: 1.3, step: 0.05, label: 'Größe der Touch-Knöpfe', group: 'steuerung' },
+  bindings: { type: 'bindings', label: 'Tastenbelegung', group: 'belegung' },
+  touchLayout: { type: 'touchLayout', label: 'Touch-Layout', group: 'belegung' },
+  // Waffengefühl (weapons-feel; Bedeutung im Changelog „weapons-feel“)
+  weaponPose: {
+    type: 'enum', label: 'Waffenhaltung', group: 'grafik',
+    options: ['auto', 'standard', 'bodycam'], labels: { auto: 'Automatisch', standard: 'Standard (Hüfte)', bodycam: 'Körperkamera (tief, mittig)' },
+  },
+  weaponSway: { type: 'number', min: 0, max: 1, step: 0.05, label: 'Waffenträgheit und -schwanken', group: 'grafik' },
 });
 
 /* ------------------------------------------------------------ Validierung */
@@ -111,6 +156,10 @@ function validate(key, value) {
       }
       return out.primary || out.secondary ? out : undefined;
     }
+    case 'bindings':
+      return sanitizeBindings(value);
+    case 'touchLayout':
+      return sanitizeTouchLayout(value);
     default:
       return undefined;
   }
@@ -166,6 +215,11 @@ function notify(key, value) {
   }
 }
 
+/** Tiefe Kopie einfacher Daten (Objekt-Einstellungen wie bindings/touchLayout dürfen nicht geteilt werden). */
+function clone(v) {
+  return JSON.parse(JSON.stringify(v));
+}
+
 function sameValue(a, b) {
   if (a === b) return true;
   if (a && b && typeof a === 'object' && typeof b === 'object') return JSON.stringify(a) === JSON.stringify(b);
@@ -182,7 +236,7 @@ export const settings = {
 
   get(key) {
     const v = values[key];
-    return v && typeof v === 'object' ? { ...v } : v;
+    return v && typeof v === 'object' ? clone(v) : v;
   },
 
   /** Setzt einen Wert (validiert/begrenzt). Gibt den gespeicherten Wert zurück (oder den alten bei ungültiger Eingabe). */
@@ -219,7 +273,7 @@ export const settings = {
 
   all() {
     const out = { ...values };
-    if (out.lastLoadout) out.lastLoadout = { ...out.lastLoadout };
+    for (const k of Object.keys(out)) if (out[k] && typeof out[k] === 'object') out[k] = clone(out[k]);
     return out;
   },
 

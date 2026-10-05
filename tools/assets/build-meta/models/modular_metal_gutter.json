@@ -1,6 +1,6 @@
 {
   "id": "modular_metal_gutter",
-  "recipe": "fae6b4748c61",
+  "recipe": "feea56ef4965",
   "size": [
     2.269,
     1.842,
@@ -11,7 +11,7 @@
   "tiers": {
     "512": {
       "path": "models/modular_metal_gutter/modular_metal_gutter_512.glb",
-      "bytes": 281392,
+      "bytes": 281268,
       "srcTris": 16490,
       "lods": [
         {
@@ -104,7 +104,7 @@
     },
     "1024": {
       "path": "models/modular_metal_gutter/modular_metal_gutter_1024.glb",
-      "bytes": 555408,
+      "bytes": 555284,
       "srcTris": 16490,
       "lods": [
         {
