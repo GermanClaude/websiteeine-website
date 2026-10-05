@@ -1,0 +1,205 @@
+{
+  "id": "street_lamp_01",
+  "recipe": "1188a7af29e1",
+  "size": [
+    0.704,
+    3.871,
+    0.386
+  ],
+  "radius": 1.977,
+  "lodDistances": [
+    0,
+    27.7,
+    79.1
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/street_lamp_01/street_lamp_01_512.glb",
+      "bytes": 154488,
+      "srcTris": 30610,
+      "lods": [
+        {
+          "tris": 2604
+        },
+        {
+          "tris": 911
+        }
+      ],
+      "parts": [
+        "street_lamp_01"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.352,
+          0,
+          -0.193
+        ],
+        "max": [
+          0.352,
+          3.871,
+          0.193
+        ]
+      },
+      "textures": [
+        {
+          "name": "street_lamp_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 29726,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "street_lamp_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 40520,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "street_lamp_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 40600,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 87134,
+      "gpu": {
+        "desktop": 1135709,
+        "mobile": 611423,
+        "rgba8": 4281437
+      },
+      "materials": [
+        {
+          "name": "street_lamp_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "street_lamp_01_glass",
+          "alphaMode": "BLEND",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        79.1
+      ]
+    },
+    "1024": {
+      "path": "models/street_lamp_01/street_lamp_01_1024.glb",
+      "bytes": 454180,
+      "srcTris": 30610,
+      "lods": [
+        {
+          "tris": 6178
+        },
+        {
+          "tris": 2604
+        },
+        {
+          "tris": 911
+        }
+      ],
+      "parts": [
+        "street_lamp_01"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.352,
+          0,
+          -0.193
+        ],
+        "max": [
+          0.352,
+          3.871,
+          0.193
+        ]
+      },
+      "textures": [
+        {
+          "name": "street_lamp_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 126314,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "street_lamp_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 105722,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "street_lamp_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 131198,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 213344,
+      "gpu": {
+        "desktop": 4407647,
+        "mobile": 2310497,
+        "rgba8": 16990559
+      },
+      "materials": [
+        {
+          "name": "street_lamp_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        },
+        {
+          "name": "street_lamp_01_glass",
+          "alphaMode": "BLEND",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        27.7,
+        79.1
+      ]
+    }
+  }
+}
