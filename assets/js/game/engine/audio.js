@@ -638,7 +638,8 @@ export class AudioEngine {
   /**
    * Spielt einen Klang. name: Katalogname, Aufnahme-Name (REC_ONLY), Waffenprofil (ar, sniper …), 'footstep', 'impact',
    * 'explosion'. opts: { position, volume, pitch, actor, player, surface, sprint, crouch, suppressed, delay, priority, bus,
-   * pan, lowpass, highpass, env, echo, er, indoor, distance, variant, loop, ref, proc (nur Synthese), eq, fadeAt, fadeLen, voice }
+   * pan, lowpass, highpass, env, echo, er, indoor, distance, variant, loop, ref, proc (nur Synthese), eq, fadeAt, fadeLen, voice,
+   * drive (Körperkamera-Sättigung), loud (HDR-Pegel), quiet (HDR-gedämpft) }
    */
   play(name, opts = {}) {
     if (!this.ctx || !this.unlocked || this._disposed) return null;
