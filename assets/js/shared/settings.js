@@ -3,6 +3,8 @@
 // (dann nur im Arbeitsspeicher), validiert und begrenzt jeden Wert, synchronisiert sich
 // zwischen Tabs über das 'storage'-Ereignis.
 
+import { sanitizeBindings, sanitizeTouchLayout, DEFAULT_TOUCH_LAYOUT } from './bindings.data.js';
+
 const STORAGE_KEY = 'nullpunkt:settings';
 
 export const DEFAULTS = Object.freeze({
@@ -12,7 +14,15 @@ export const DEFAULTS = Object.freeze({
   crosshairStyle: 'cross' /* cross|dot|circle */, crosshairColor: '#ffffff',
   showFps: false, aimAssist: true /* nur Touch */, autoFire: false /* Touch: „einfacher Modus“ */,
   difficulty: 'regulaer', lastMode: 'tdm', lastMap: 'hafen', lastLoadout: null, reducedMotion: false,
+  // Steuerung & Komfort (Realismus-Plan F1/F4/F5, S1–S7; core-input)
+  cameraMotion: 0.6, sensitivityY: 1.0, adsSensitivityMid: 0.85, adsSensitivityHigh: 0.85, zoomSensitivityCoef: '0',
+  adsMode: 'hold', sprintMode: 'toggle', crouchMode: 'toggle', leanMode: 'hold', freeAim: 'off',
+  padSensitivity: 1.0, padDeadzone: 0.13, padOuterDeadzone: 0.97, padCurve: 'classic', padVibration: true, padSwapSticks: false,
+  aimAssistStrength: 1.0, gyroMode: 'off', gyroSensitivityX: 1.0, gyroSensitivityY: 1.0,
+  touchOpacity: 1.0, touchButtonScale: 1.0, bindings: Object.freeze({}), touchLayout: DEFAULT_TOUCH_LAYOUT,
 });
+
+const HOLD_TOGGLE = Object.freeze({ options: ['hold', 'toggle'], labels: { hold: 'Halten', toggle: 'Umschalten' } });
 
 /**
  * Beschreibung jedes Werts für Einstellungsoberflächen (Website + Spielmenü):
@@ -21,7 +31,7 @@ export const DEFAULTS = Object.freeze({
 export const SETTINGS_SCHEMA = Object.freeze({
   playerName: { type: 'string', maxLength: 16, label: 'Spielername', group: 'profil' },
   sensitivity: { type: 'number', min: 0.1, max: 5, step: 0.05, label: 'Mausempfindlichkeit', group: 'steuerung' },
-  adsSensitivity: { type: 'number', min: 0.2, max: 2, step: 0.05, label: 'Empfindlichkeit im Anschlag', group: 'steuerung' },
+  adsSensitivity: { type: 'number', min: 0.2, max: 2, step: 0.05, label: 'Empfindlichkeit im Anschlag (1×)', group: 'steuerung' },
   touchSensitivity: { type: 'number', min: 0.2, max: 3, step: 0.05, label: 'Touch-Empfindlichkeit', group: 'steuerung' },
   invertY: { type: 'boolean', label: 'Y-Achse umkehren', group: 'steuerung' },
   fov: { type: 'number', min: 60, max: 110, step: 1, integer: true, unit: '°', label: 'Sichtfeld', group: 'grafik' },
