@@ -41,6 +41,8 @@ export const SHOTS = [
   ['lod-plant', 'tab=models&id=potted_plant_02&tier=1024&cmp=1&hdri=old_outdoor_theater'],
   ['lod-generator', 'tab=models&id=portable_generator&tier=512&cmp=1&hdri=abandoned_slipway'],
   ['mdl-fence', 'tab=models&id=modular_chainlink_fence&tier=1024&hdri=freight_station'],
+  ['mdl-aircon', 'tab=models&id=exterior_aircon_unit&tier=1024&hdri=old_outdoor_theater'],
+  ['mdl-camera', 'tab=models&id=security_camera_01&tier=1024&hdri=industrial_pipe_and_valve_01'],
   ['hdri-freight', 'tab=hdris&id=freight_station&tier=1024&hdri=freight_station'],
   ['hdri-night', 'tab=hdris&id=cobblestone_street_night&tier=1024'],
   ['hdri-basement', 'tab=hdris&id=debris_basement_corridor&tier=1024'],

@@ -2,7 +2,7 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-05T16:09:50.391Z",
+ "generated": "2026-10-05T16:15:54.350Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
@@ -58,9 +58,9 @@
      "normal": "textures/concrete_floor_worn/concrete_floor_worn_512_normal.ktx2",
      "orm": "textures/concrete_floor_worn/concrete_floor_worn_512_orm.ktx2",
      "sizes": {
-      "albedo": 46335,
-      "normal": 14541,
-      "orm": 32928
+      "albedo": 46225,
+      "normal": 14551,
+      "orm": 32767
      },
      "gpuFiles": {
       "albedo": {
@@ -79,7 +79,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 93804,
+     "bytes": 93543,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -91,9 +91,9 @@
      "normal": "textures/concrete_floor_worn/concrete_floor_worn_1024_normal.ktx2",
      "orm": "textures/concrete_floor_worn/concrete_floor_worn_1024_orm.ktx2",
      "sizes": {
-      "albedo": 158985,
-      "normal": 154781,
-      "orm": 128968
+      "albedo": 158799,
+      "normal": 154786,
+      "orm": 129145
      },
      "gpuFiles": {
       "albedo": {
@@ -112,7 +112,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 442734,
+     "bytes": 442730,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -124,9 +124,9 @@
      "normal": "textures/concrete_floor_worn/concrete_floor_worn_2048_normal.ktx2",
      "orm": "textures/concrete_floor_worn/concrete_floor_worn_2048_orm.ktx2",
      "sizes": {
-      "albedo": 605971,
-      "normal": 699394,
-      "orm": 563030
+      "albedo": 605733,
+      "normal": 698870,
+      "orm": 562404
      },
      "gpuFiles": {
       "albedo": {
@@ -145,7 +145,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 1868395,
+     "bytes": 1867007,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -192,9 +192,9 @@
      "normal": "textures/concrete_wall_dark/concrete_wall_dark_512_normal.ktx2",
      "orm": "textures/concrete_wall_dark/concrete_wall_dark_512_orm.ktx2",
      "sizes": {
-      "albedo": 55675,
-      "normal": 88779,
-      "orm": 30931
+      "albedo": 55710,
+      "normal": 88854,
+      "orm": 31077
      },
      "gpuFiles": {
       "albedo": {
@@ -213,7 +213,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 175385,
+     "bytes": 175641,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -225,9 +225,9 @@
      "normal": "textures/concrete_wall_dark/concrete_wall_dark_1024_normal.ktx2",
      "orm": "textures/concrete_wall_dark/concrete_wall_dark_1024_orm.ktx2",
      "sizes": {
-      "albedo": 183886,
-      "normal": 255339,
-      "orm": 116640
+      "albedo": 183997,
+      "normal": 255450,
+      "orm": 116831
      },
      "gpuFiles": {
       "albedo": {
@@ -246,7 +246,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 555865,
+     "bytes": 556278,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -292,9 +292,9 @@
      "normal": "textures/concrete_panels/concrete_panels_512_normal.ktx2",
      "orm": "textures/concrete_panels/concrete_panels_512_orm.ktx2",
      "sizes": {
-      "albedo": 44812,
-      "normal": 76751,
-      "orm": 29528
+      "albedo": 44796,
+      "normal": 76723,
+      "orm": 29546
      },
      "gpuFiles": {
       "albedo": {
@@ -313,7 +313,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 151091,
+     "bytes": 151065,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -325,9 +325,9 @@
      "normal": "textures/concrete_panels/concrete_panels_1024_normal.ktx2",
      "orm": "textures/concrete_panels/concrete_panels_1024_orm.ktx2",
      "sizes": {
-      "albedo": 157832,
-      "normal": 231008,
-      "orm": 112281
+      "albedo": 158036,
+      "normal": 231174,
+      "orm": 112396
      },
      "gpuFiles": {
       "albedo": {
@@ -346,7 +346,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 501121,
+     "bytes": 501606,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -390,9 +390,9 @@
      "normal": "textures/concrete_dirty/concrete_dirty_512_normal.ktx2",
      "orm": "textures/concrete_dirty/concrete_dirty_512_orm.ktx2",
      "sizes": {
-      "albedo": 60566,
-      "normal": 89497,
-      "orm": 27785
+      "albedo": 60543,
+      "normal": 89611,
+      "orm": 27684
      },
      "gpuFiles": {
       "albedo": {
@@ -411,7 +411,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 177848,
+     "bytes": 177838,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -423,9 +423,9 @@
      "normal": "textures/concrete_dirty/concrete_dirty_1024_normal.ktx2",
      "orm": "textures/concrete_dirty/concrete_dirty_1024_orm.ktx2",
      "sizes": {
-      "albedo": 203358,
-      "normal": 258338,
-      "orm": 116178
+      "albedo": 202865,
+      "normal": 258230,
+      "orm": 115864
      },
      "gpuFiles": {
       "albedo": {
@@ -444,7 +444,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 577874,
+     "bytes": 576959,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -488,9 +488,9 @@
      "normal": "textures/concrete_painted_peeling/concrete_painted_peeling_512_normal.ktx2",
      "orm": "textures/concrete_painted_peeling/concrete_painted_peeling_512_orm.ktx2",
      "sizes": {
-      "albedo": 64830,
-      "normal": 11990,
-      "orm": 35591
+      "albedo": 64797,
+      "normal": 12075,
+      "orm": 35737
      },
      "gpuFiles": {
       "albedo": {
@@ -509,7 +509,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 112411,
+     "bytes": 112609,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -521,9 +521,9 @@
      "normal": "textures/concrete_painted_peeling/concrete_painted_peeling_1024_normal.ktx2",
      "orm": "textures/concrete_painted_peeling/concrete_painted_peeling_1024_orm.ktx2",
      "sizes": {
-      "albedo": 210583,
-      "normal": 122342,
-      "orm": 124599
+      "albedo": 210621,
+      "normal": 122542,
+      "orm": 124413
      },
      "gpuFiles": {
       "albedo": {
@@ -542,7 +542,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 457524,
+     "bytes": 457576,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -589,9 +589,9 @@
      "normal": "textures/concrete_epoxy/concrete_epoxy_512_normal.ktx2",
      "orm": "textures/concrete_epoxy/concrete_epoxy_512_orm.ktx2",
      "sizes": {
-      "albedo": 31003,
-      "normal": 41980,
-      "orm": 24944
+      "albedo": 30786,
+      "normal": 41929,
+      "orm": 24817
      },
      "gpuFiles": {
       "albedo": {
@@ -610,7 +610,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 97927,
+     "bytes": 97532,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -622,9 +622,9 @@
      "normal": "textures/concrete_epoxy/concrete_epoxy_1024_normal.ktx2",
      "orm": "textures/concrete_epoxy/concrete_epoxy_1024_orm.ktx2",
      "sizes": {
-      "albedo": 137374,
-      "normal": 178213,
-      "orm": 102059
+      "albedo": 137740,
+      "normal": 178117,
+      "orm": 101576
      },
      "gpuFiles": {
       "albedo": {
@@ -643,7 +643,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 417646,
+     "bytes": 417433,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -687,9 +687,9 @@
      "normal": "textures/rubble/rubble_512_normal.ktx2",
      "orm": "textures/rubble/rubble_512_orm.ktx2",
      "sizes": {
-      "albedo": 61235,
-      "normal": 100306,
-      "orm": 33936
+      "albedo": 61352,
+      "normal": 100297,
+      "orm": 33898
      },
      "gpuFiles": {
       "albedo": {
@@ -708,7 +708,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 195477,
+     "bytes": 195547,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -720,9 +720,9 @@
      "normal": "textures/rubble/rubble_1024_normal.ktx2",
      "orm": "textures/rubble/rubble_1024_orm.ktx2",
      "sizes": {
-      "albedo": 199694,
-      "normal": 280719,
-      "orm": 119116
+      "albedo": 199880,
+      "normal": 280585,
+      "orm": 118741
      },
      "gpuFiles": {
       "albedo": {
@@ -741,7 +741,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 599529,
+     "bytes": 599206,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -787,9 +787,9 @@
      "normal": "textures/plaster_beige/plaster_beige_512_normal.ktx2",
      "orm": "textures/plaster_beige/plaster_beige_512_orm.ktx2",
      "sizes": {
-      "albedo": 49877,
-      "normal": 86075,
-      "orm": 29583
+      "albedo": 49895,
+      "normal": 86088,
+      "orm": 29548
      },
      "gpuFiles": {
       "albedo": {
@@ -808,7 +808,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 165535,
+     "bytes": 165531,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -820,9 +820,9 @@
      "normal": "textures/plaster_beige/plaster_beige_1024_normal.ktx2",
      "orm": "textures/plaster_beige/plaster_beige_1024_orm.ktx2",
      "sizes": {
-      "albedo": 165566,
-      "normal": 241056,
-      "orm": 106228
+      "albedo": 165453,
+      "normal": 241161,
+      "orm": 106284
      },
      "gpuFiles": {
       "albedo": {
@@ -841,7 +841,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 512850,
+     "bytes": 512898,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -887,9 +887,9 @@
      "normal": "textures/plaster_white/plaster_white_512_normal.ktx2",
      "orm": "textures/plaster_white/plaster_white_512_orm.ktx2",
      "sizes": {
-      "albedo": 54275,
-      "normal": 96549,
-      "orm": 33522
+      "albedo": 54371,
+      "normal": 96684,
+      "orm": 33268
      },
      "gpuFiles": {
       "albedo": {
@@ -908,7 +908,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 184346,
+     "bytes": 184323,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -920,9 +920,9 @@
      "normal": "textures/plaster_white/plaster_white_1024_normal.ktx2",
      "orm": "textures/plaster_white/plaster_white_1024_orm.ktx2",
      "sizes": {
-      "albedo": 180466,
-      "normal": 279285,
-      "orm": 132093
+      "albedo": 180456,
+      "normal": 279334,
+      "orm": 132121
      },
      "gpuFiles": {
       "albedo": {
@@ -941,7 +941,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 591844,
+     "bytes": 591911,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -985,9 +985,9 @@
      "normal": "textures/plaster_white_peeling/plaster_white_peeling_512_normal.ktx2",
      "orm": "textures/plaster_white_peeling/plaster_white_peeling_512_orm.ktx2",
      "sizes": {
-      "albedo": 64128,
-      "normal": 91617,
-      "orm": 36748
+      "albedo": 64120,
+      "normal": 91644,
+      "orm": 36736
      },
      "gpuFiles": {
       "albedo": {
@@ -1006,7 +1006,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 192493,
+     "bytes": 192500,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -1018,9 +1018,9 @@
      "normal": "textures/plaster_white_peeling/plaster_white_peeling_1024_normal.ktx2",
      "orm": "textures/plaster_white_peeling/plaster_white_peeling_1024_orm.ktx2",
      "sizes": {
-      "albedo": 212500,
-      "normal": 257701,
-      "orm": 137344
+      "albedo": 213041,
+      "normal": 257660,
+      "orm": 137156
      },
      "gpuFiles": {
       "albedo": {
@@ -1039,7 +1039,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 607545,
+     "bytes": 607857,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -1570,9 +1570,9 @@
      "normal": "textures/sandstone_blocks/sandstone_blocks_512_normal.ktx2",
      "orm": "textures/sandstone_blocks/sandstone_blocks_512_orm.ktx2",
      "sizes": {
-      "albedo": 65474,
-      "normal": 105813,
-      "orm": 34211
+      "albedo": 65133,
+      "normal": 105780,
+      "orm": 34149
      },
      "gpuFiles": {
       "albedo": {
@@ -1591,7 +1591,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 205498,
+     "bytes": 205062,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -1603,9 +1603,9 @@
      "normal": "textures/sandstone_blocks/sandstone_blocks_1024_normal.ktx2",
      "orm": "textures/sandstone_blocks/sandstone_blocks_1024_orm.ktx2",
      "sizes": {
-      "albedo": 217514,
-      "normal": 303916,
-      "orm": 124301
+      "albedo": 217479,
+      "normal": 303736,
+      "orm": 124120
      },
      "gpuFiles": {
       "albedo": {
@@ -1624,7 +1624,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 645731,
+     "bytes": 645335,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -1636,9 +1636,9 @@
      "normal": "textures/sandstone_blocks/sandstone_blocks_2048_normal.ktx2",
      "orm": "textures/sandstone_blocks/sandstone_blocks_2048_orm.ktx2",
      "sizes": {
-      "albedo": 864821,
-      "normal": 1080044,
-      "orm": 492561
+      "albedo": 861561,
+      "normal": 1081726,
+      "orm": 492475
      },
      "gpuFiles": {
       "albedo": {
@@ -1657,7 +1657,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 2437426,
+     "bytes": 2435762,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -1702,9 +1702,9 @@
      "normal": "textures/brick_factory/brick_factory_512_normal.ktx2",
      "orm": "textures/brick_factory/brick_factory_512_orm.ktx2",
      "sizes": {
-      "albedo": 64562,
-      "normal": 91579,
-      "orm": 36811
+      "albedo": 64472,
+      "normal": 91494,
+      "orm": 36839
      },
      "gpuFiles": {
       "albedo": {
@@ -1723,7 +1723,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 192952,
+     "bytes": 192805,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -1735,9 +1735,9 @@
      "normal": "textures/brick_factory/brick_factory_1024_normal.ktx2",
      "orm": "textures/brick_factory/brick_factory_1024_orm.ktx2",
      "sizes": {
-      "albedo": 218049,
-      "normal": 263359,
-      "orm": 138921
+      "albedo": 218150,
+      "normal": 262827,
+      "orm": 139566
      },
      "gpuFiles": {
       "albedo": {
@@ -1756,7 +1756,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 620329,
+     "bytes": 620543,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -1768,9 +1768,9 @@
      "normal": "textures/brick_factory/brick_factory_2048_normal.ktx2",
      "orm": "textures/brick_factory/brick_factory_2048_orm.ktx2",
      "sizes": {
-      "albedo": 870231,
-      "normal": 973250,
-      "orm": 616920
+      "albedo": 869846,
+      "normal": 971767,
+      "orm": 618549
      },
      "gpuFiles": {
       "albedo": {
@@ -1789,7 +1789,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 2460401,
+     "bytes": 2460162,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -3019,9 +3019,9 @@
      "normal": "textures/asphalt_cracked/asphalt_cracked_512_normal.ktx2",
      "orm": "textures/asphalt_cracked/asphalt_cracked_512_orm.ktx2",
      "sizes": {
-      "albedo": 59403,
-      "normal": 82467,
-      "orm": 31155
+      "albedo": 59698,
+      "normal": 82397,
+      "orm": 31162
      },
      "gpuFiles": {
       "albedo": {
@@ -3040,7 +3040,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 173025,
+     "bytes": 173257,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -3052,9 +3052,9 @@
      "normal": "textures/asphalt_cracked/asphalt_cracked_1024_normal.ktx2",
      "orm": "textures/asphalt_cracked/asphalt_cracked_1024_orm.ktx2",
      "sizes": {
-      "albedo": 199896,
-      "normal": 247420,
-      "orm": 128257
+      "albedo": 200233,
+      "normal": 247544,
+      "orm": 128476
      },
      "gpuFiles": {
       "albedo": {
@@ -3073,7 +3073,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 575573,
+     "bytes": 576253,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -3085,9 +3085,9 @@
      "normal": "textures/asphalt_cracked/asphalt_cracked_2048_normal.ktx2",
      "orm": "textures/asphalt_cracked/asphalt_cracked_2048_orm.ktx2",
      "sizes": {
-      "albedo": 817419,
-      "normal": 959739,
-      "orm": 653411
+      "albedo": 818069,
+      "normal": 959610,
+      "orm": 652907
      },
      "gpuFiles": {
       "albedo": {
@@ -3106,7 +3106,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 2430569,
+     "bytes": 2430586,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -4637,9 +4637,9 @@
      "normal": "textures/metal_painted/metal_painted_512_normal.ktx2",
      "orm": "textures/metal_painted/metal_painted_512_orm.ktx2",
      "sizes": {
-      "albedo": 49139,
-      "normal": 5403,
-      "orm": 29204
+      "albedo": 48975,
+      "normal": 5422,
+      "orm": 29282
      },
      "gpuFiles": {
       "albedo": {
@@ -4658,7 +4658,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 83746,
+     "bytes": 83679,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -4670,9 +4670,9 @@
      "normal": "textures/metal_painted/metal_painted_1024_normal.ktx2",
      "orm": "textures/metal_painted/metal_painted_1024_orm.ktx2",
      "sizes": {
-      "albedo": 160198,
-      "normal": 18283,
-      "orm": 115215
+      "albedo": 160442,
+      "normal": 18433,
+      "orm": 115363
      },
      "gpuFiles": {
       "albedo": {
@@ -4691,7 +4691,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 293696,
+     "bytes": 294238,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -4703,9 +4703,9 @@
      "normal": "textures/metal_painted/metal_painted_2048_normal.ktx2",
      "orm": "textures/metal_painted/metal_painted_2048_orm.ktx2",
      "sizes": {
-      "albedo": 612806,
-      "normal": 65878,
-      "orm": 478990
+      "albedo": 613457,
+      "normal": 66680,
+      "orm": 478599
      },
      "gpuFiles": {
       "albedo": {
@@ -4724,7 +4724,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 1157674,
+     "bytes": 1158736,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -5770,9 +5770,9 @@
      "normal": "textures/container/container_512_normal.ktx2",
      "orm": "textures/container/container_512_orm.ktx2",
      "sizes": {
-      "albedo": 26987,
-      "normal": 23465,
-      "orm": 18612
+      "albedo": 26995,
+      "normal": 23502,
+      "orm": 18594
      },
      "gpuFiles": {
       "albedo": {
@@ -5791,7 +5791,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 69064,
+     "bytes": 69091,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -5803,9 +5803,9 @@
      "normal": "textures/container/container_1024_normal.ktx2",
      "orm": "textures/container/container_1024_orm.ktx2",
      "sizes": {
-      "albedo": 91565,
-      "normal": 128816,
-      "orm": 60117
+      "albedo": 91481,
+      "normal": 128868,
+      "orm": 60329
      },
      "gpuFiles": {
       "albedo": {
@@ -5824,7 +5824,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 280498,
+     "bytes": 280678,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -5836,9 +5836,9 @@
      "normal": "textures/container/container_2048_normal.ktx2",
      "orm": "textures/container/container_2048_orm.ktx2",
      "sizes": {
-      "albedo": 363051,
-      "normal": 603700,
-      "orm": 291635
+      "albedo": 362823,
+      "normal": 603168,
+      "orm": 291837
      },
      "gpuFiles": {
       "albedo": {
@@ -5857,7 +5857,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 1258386,
+     "bytes": 1257828,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -6717,9 +6717,9 @@
      "normal": "textures/gunmetal_worn/gunmetal_worn_512_normal.ktx2",
      "orm": "textures/gunmetal_worn/gunmetal_worn_512_orm.ktx2",
      "sizes": {
-      "albedo": 52404,
-      "normal": 16930,
-      "orm": 35188
+      "albedo": 52412,
+      "normal": 16937,
+      "orm": 35150
      },
      "gpuFiles": {
       "albedo": {
@@ -6738,7 +6738,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 104522,
+     "bytes": 104499,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -6750,9 +6750,9 @@
      "normal": "textures/gunmetal_worn/gunmetal_worn_1024_normal.ktx2",
      "orm": "textures/gunmetal_worn/gunmetal_worn_1024_orm.ktx2",
      "sizes": {
-      "albedo": 170405,
-      "normal": 124191,
-      "orm": 132862
+      "albedo": 170409,
+      "normal": 124346,
+      "orm": 132501
      },
      "gpuFiles": {
       "albedo": {
@@ -6771,7 +6771,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 427458,
+     "bytes": 427256,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -6783,9 +6783,9 @@
      "normal": "textures/gunmetal_worn/gunmetal_worn_2048_normal.ktx2",
      "orm": "textures/gunmetal_worn/gunmetal_worn_2048_orm.ktx2",
      "sizes": {
-      "albedo": 681670,
-      "normal": 549954,
-      "orm": 553315
+      "albedo": 681621,
+      "normal": 550659,
+      "orm": 554736
      },
      "gpuFiles": {
       "albedo": {
@@ -6804,7 +6804,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 1784939,
+     "bytes": 1787016,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -6849,9 +6849,9 @@
      "normal": "textures/polymer_black/polymer_black_512_normal.ktx2",
      "orm": "textures/polymer_black/polymer_black_512_orm.ktx2",
      "sizes": {
-      "albedo": 41289,
+      "albedo": 41180,
       "normal": 966,
-      "orm": 26408
+      "orm": 26549
      },
      "gpuFiles": {
       "albedo": {
@@ -6870,7 +6870,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 68663,
+     "bytes": 68695,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -6882,9 +6882,9 @@
      "normal": "textures/polymer_black/polymer_black_1024_normal.ktx2",
      "orm": "textures/polymer_black/polymer_black_1024_orm.ktx2",
      "sizes": {
-      "albedo": 151417,
-      "normal": 3452,
-      "orm": 91836
+      "albedo": 151225,
+      "normal": 3474,
+      "orm": 92426
      },
      "gpuFiles": {
       "albedo": {
@@ -6903,7 +6903,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 246705,
+     "bytes": 247125,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -6915,9 +6915,9 @@
      "normal": "textures/polymer_black/polymer_black_2048_normal.ktx2",
      "orm": "textures/polymer_black/polymer_black_2048_orm.ktx2",
      "sizes": {
-      "albedo": 645185,
-      "normal": 177999,
-      "orm": 346282
+      "albedo": 640064,
+      "normal": 179396,
+      "orm": 345780
      },
      "gpuFiles": {
       "albedo": {
@@ -6936,7 +6936,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 1169466,
+     "bytes": 1165240,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -6981,9 +6981,9 @@
      "normal": "textures/wood_stock/wood_stock_512_normal.ktx2",
      "orm": "textures/wood_stock/wood_stock_512_orm.ktx2",
      "sizes": {
-      "albedo": 48254,
+      "albedo": 48241,
       "normal": 966,
-      "orm": 24070
+      "orm": 23950
      },
      "gpuFiles": {
       "albedo": {
@@ -7002,7 +7002,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 73290,
+     "bytes": 73157,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -7014,9 +7014,9 @@
      "normal": "textures/wood_stock/wood_stock_1024_normal.ktx2",
      "orm": "textures/wood_stock/wood_stock_1024_orm.ktx2",
      "sizes": {
-      "albedo": 166461,
+      "albedo": 166474,
       "normal": 1270,
-      "orm": 103654
+      "orm": 103728
      },
      "gpuFiles": {
       "albedo": {
@@ -7035,7 +7035,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 271385,
+     "bytes": 271472,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -7047,9 +7047,9 @@
      "normal": "textures/wood_stock/wood_stock_2048_normal.ktx2",
      "orm": "textures/wood_stock/wood_stock_2048_orm.ktx2",
      "sizes": {
-      "albedo": 678960,
+      "albedo": 679479,
       "normal": 1843,
-      "orm": 495082
+      "orm": 494565
      },
      "gpuFiles": {
       "albedo": {
@@ -7068,7 +7068,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 1175885,
+     "bytes": 1175887,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -9401,7 +9401,7 @@
     },
     {
      "name": "exterior_aircon_unit_02",
-     "alphaMode": "OPAQUE",
+     "alphaMode": "MASK",
      "doubleSided": true
     },
     {
@@ -9411,24 +9411,24 @@
     },
     {
      "name": "exterior_aircon_unit_rusted_02",
-     "alphaMode": "OPAQUE",
+     "alphaMode": "MASK",
      "doubleSided": true
     }
    ],
    "tiers": {
     "512": {
      "glb": "models/exterior_aircon_unit/exterior_aircon_unit_512.glb",
-     "bytes": 471220,
+     "bytes": 571044,
      "gpu": {
-      "desktop": 1639588,
-      "mobile": 1639588,
-      "rgba8": 12649628
+      "desktop": 2338638,
+      "mobile": 2338638,
+      "rgba8": 15445830
      },
      "tris": [
       3168,
       1120
      ],
-     "textures": 12,
+     "textures": 14,
      "lodDistances": [
       0,
       41.2
@@ -9437,18 +9437,18 @@
     },
     "1024": {
      "glb": "models/exterior_aircon_unit/exterior_aircon_unit_1024.glb",
-     "bytes": 1437176,
+     "bytes": 1714976,
      "gpu": {
-      "desktop": 6458670,
-      "mobile": 6458670,
-      "rgba8": 50498854
+      "desktop": 9254872,
+      "mobile": 9254872,
+      "rgba8": 61683664
      },
      "tris": [
       8006,
       3168,
       1120
      ],
-     "textures": 12,
+     "textures": 14,
      "lodDistances": [
       0,
       14.4,
@@ -10238,37 +10238,37 @@
     },
     {
      "name": "modular_chainlink_fence_wire",
-     "alphaMode": "OPAQUE",
+     "alphaMode": "MASK",
      "doubleSided": true
     }
    ],
    "tiers": {
     "512": {
      "glb": "models/modular_chainlink_fence/modular_chainlink_fence_512.glb",
-     "bytes": 654244,
+     "bytes": 702828,
      "gpu": {
-      "desktop": 1938370,
-      "mobile": 1938370,
-      "rgba8": 7443390
+      "desktop": 2287895,
+      "mobile": 2287895,
+      "rgba8": 8841491
      },
      "tris": [
       36211
      ],
-     "textures": 6,
+     "textures": 7,
      "lodDistances": null
     },
     "1024": {
      "glb": "models/modular_chainlink_fence/modular_chainlink_fence_1024.glb",
-     "bytes": 1139612,
+     "bytes": 1239520,
      "gpu": {
-      "desktop": 4297666,
-      "mobile": 4297666,
-      "rgba8": 26317758
+      "desktop": 5695767,
+      "mobile": 5695767,
+      "rgba8": 31910163
      },
      "tris": [
       36211
      ],
-     "textures": 6,
+     "textures": 7,
      "lodDistances": null
     }
    },
@@ -12399,17 +12399,17 @@
    "tiers": {
     "512": {
      "glb": "models/potted_plant_02/potted_plant_02_512.glb",
-     "bytes": 334836,
+     "bytes": 350652,
      "gpu": {
-      "desktop": 997532,
-      "mobile": 997532,
-      "rgba8": 6502552
+      "desktop": 1347057,
+      "mobile": 1347057,
+      "rgba8": 7900653
      },
      "tris": [
       4776,
       1730
      ],
-     "textures": 6,
+     "textures": 7,
      "lodDistances": [
       0,
       25.5
@@ -12418,18 +12418,18 @@
     },
     "1024": {
      "glb": "models/potted_plant_02/potted_plant_02_1024.glb",
-     "bytes": 967652,
+     "bytes": 1003692,
      "gpu": {
-      "desktop": 3662406,
-      "mobile": 3662406,
-      "rgba8": 25682498
+      "desktop": 5060507,
+      "mobile": 5060507,
+      "rgba8": 31274903
      },
      "tris": [
       11986,
       4776,
       1730
      ],
-     "textures": 6,
+     "textures": 7,
      "lodDistances": [
       0,
       8.9,
@@ -12656,35 +12656,35 @@
    ],
    "budget": {
     "low": {
-     "bytes": 8488100,
+     "bytes": 8636251,
      "gpu": {
-      "desktop": 32804713,
-      "mobile": 32804713,
-      "rgba8": 193324123
+      "desktop": 33853288,
+      "mobile": 33853288,
+      "rgba8": 197518426
      }
     },
     "medium": {
-     "bytes": 16147736,
+     "bytes": 16298294,
      "gpu": {
-      "desktop": 69242729,
-      "mobile": 69242729,
-      "rgba8": 476439643
+      "desktop": 70291304,
+      "mobile": 70291304,
+      "rgba8": 480633946
      }
     },
     "high": {
-     "bytes": 25676229,
+     "bytes": 26056087,
      "gpu": {
-      "desktop": 103706609,
-      "mobile": 103706609,
-      "rgba8": 737527011
+      "desktop": 107900912,
+      "mobile": 107900912,
+      "rgba8": 754304226
      }
     },
     "ultra": {
-     "bytes": 30798752,
+     "bytes": 31176345,
      "gpu": {
-      "desktop": 128872433,
-      "mobile": 128872433,
-      "rgba8": 938853603
+      "desktop": 133066736,
+      "mobile": 133066736,
+      "rgba8": 955630818
      }
     }
    }
@@ -12739,35 +12739,35 @@
    ],
    "budget": {
     "low": {
-     "bytes": 7988238,
+     "bytes": 8103355,
      "gpu": {
-      "desktop": 30263818,
-      "mobile": 30263818,
-      "rgba8": 185321898
+      "desktop": 31312393,
+      "mobile": 31312393,
+      "rgba8": 189516201
      }
     },
     "medium": {
-     "bytes": 16333474,
+     "bytes": 16449687,
      "gpu": {
-      "desktop": 67226122,
-      "mobile": 67226122,
-      "rgba8": 481020330
+      "desktop": 68274697,
+      "mobile": 68274697,
+      "rgba8": 485214633
      }
     },
     "high": {
-     "bytes": 24511473,
+     "bytes": 24825886,
      "gpu": {
-      "desktop": 96435514,
-      "mobile": 96435514,
-      "rgba8": 700153050
+      "desktop": 100629817,
+      "mobile": 100629817,
+      "rgba8": 716930265
      }
     },
     "ultra": {
-     "bytes": 27167146,
+     "bytes": 27480811,
      "gpu": {
-      "desktop": 109018426,
-      "mobile": 109018426,
-      "rgba8": 800816346
+      "desktop": 113212729,
+      "mobile": 113212729,
+      "rgba8": 817593561
      }
     }
    }
@@ -12826,7 +12826,7 @@
    ],
    "budget": {
     "low": {
-     "bytes": 8519601,
+     "bytes": 8519872,
      "gpu": {
       "desktop": 34242485,
       "mobile": 34242485,
@@ -12834,7 +12834,7 @@
      }
     },
     "medium": {
-     "bytes": 16679354,
+     "bytes": 16680013,
      "gpu": {
       "desktop": 71729077,
       "mobile": 71729077,
@@ -12842,7 +12842,7 @@
      }
     },
     "high": {
-     "bytes": 24916618,
+     "bytes": 24917277,
      "gpu": {
       "desktop": 105679379,
       "mobile": 105679379,
@@ -12850,7 +12850,7 @@
      }
     },
     "ultra": {
-     "bytes": 30901325,
+     "bytes": 30900004,
      "gpu": {
       "desktop": 130845203,
       "mobile": 130845203,
@@ -12897,35 +12897,35 @@
    ],
    "budget": {
     "low": {
-     "bytes": 6736507,
+     "bytes": 6784342,
      "gpu": {
-      "desktop": 26342152,
-      "mobile": 26342152,
-      "rgba8": 137796978
+      "desktop": 26691677,
+      "mobile": 26691677,
+      "rgba8": 139195079
      }
     },
     "medium": {
-     "bytes": 13484903,
+     "bytes": 13534297,
      "gpu": {
-      "desktop": 55964424,
-      "mobile": 55964424,
-      "rgba8": 370580850
+      "desktop": 56313949,
+      "mobile": 56313949,
+      "rgba8": 371978951
      }
     },
     "high": {
-     "bytes": 18917514,
+     "bytes": 19018232,
      "gpu": {
-      "desktop": 73259824,
-      "mobile": 73259824,
-      "rgba8": 502564250
+      "desktop": 74657925,
+      "mobile": 74657925,
+      "rgba8": 508156655
      }
     },
     "ultra": {
-     "bytes": 25631257,
+     "bytes": 25731111,
      "gpu": {
-      "desktop": 104717104,
-      "mobile": 104717104,
-      "rgba8": 754222490
+      "desktop": 106115205,
+      "mobile": 106115205,
+      "rgba8": 759814895
      }
     }
    }
@@ -12972,7 +12972,7 @@
    ],
    "budget": {
     "low": {
-     "bytes": 5356806,
+     "bytes": 5357064,
      "gpu": {
       "desktop": 23735236,
       "mobile": 23735236,
@@ -12980,7 +12980,7 @@
      }
     },
     "medium": {
-     "bytes": 12072649,
+     "bytes": 12071463,
      "gpu": {
       "desktop": 54406084,
       "mobile": 54406084,
@@ -12988,7 +12988,7 @@
      }
     },
     "high": {
-     "bytes": 17428885,
+     "bytes": 17427699,
      "gpu": {
       "desktop": 73969692,
       "mobile": 73969692,
@@ -12996,7 +12996,7 @@
      }
     },
     "ultra": {
-     "bytes": 17428885,
+     "bytes": 17427699,
      "gpu": {
       "desktop": 73969692,
       "mobile": 73969692,
@@ -13020,7 +13020,7 @@
    "models": [],
    "budget": {
     "low": {
-     "bytes": 644244,
+     "bytes": 644120,
      "gpu": {
       "desktop": 3145734,
       "mobile": 3145734,
@@ -13028,7 +13028,7 @@
      }
     },
     "medium": {
-     "bytes": 2348923,
+     "bytes": 2349228,
      "gpu": {
       "desktop": 12582918,
       "mobile": 12582918,
@@ -13036,7 +13036,7 @@
      }
     },
     "high": {
-     "bytes": 2348923,
+     "bytes": 2349228,
      "gpu": {
       "desktop": 12582918,
       "mobile": 12582918,
@@ -13044,7 +13044,7 @@
      }
     },
     "ultra": {
-     "bytes": 5533665,
+     "bytes": 5531518,
      "gpu": {
       "desktop": 31457286,
       "mobile": 31457286,
@@ -13057,7 +13057,7 @@
  "totals": {
   "textures": {
    "files": 429,
-   "bytes": 58033839
+   "bytes": 58029586
   },
   "hdri": {
    "files": 32,
@@ -13065,16 +13065,16 @@
   },
   "models": {
    "files": 111,
-   "bytes": 51576572
+   "bytes": 52154544
   },
   "all": {
    "files": 572,
-   "bytes": 128820114
+   "bytes": 129393833
   },
   "byTier": {
-   "512": 26571887,
-   "1024": 79644994,
-   "2048": 22603233
+   "512": 26735408,
+   "1024": 80060189,
+   "2048": 22598316
   },
   "counts": {
    "textures": 69,
