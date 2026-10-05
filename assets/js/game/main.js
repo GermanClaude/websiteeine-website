@@ -405,11 +405,11 @@ function normalizeConfig(cfg = {}) {
     lethal: [lo.lethal, last.lethal].find(okEq) || def.lethal,
   };
   // modes-ui: Klasse, Tarnungen, Outfit, Spielstil, Matchlänge, Tageszeit (Lobby bzw. URL style=/cls=)
-  const CL = G.data.CLASSES || {};
+  const CL = classesData.CLASSES; // core-mechanics: Klassen/Spielstile aus shared/classes.data.js
   if (lo.cls && CL[lo.cls]) loadout.cls = lo.cls;
   if (lo.camo && typeof lo.camo === 'object') loadout.camo = { ...lo.camo };
   if (typeof lo.skin === 'string') loadout.skin = lo.skin;
-  const STY = G.data.GAME_STYLES || {};
+  const STY = classesData.GAME_STYLES;
   const style = STY[cfg.style] ? cfg.style : STY[settings.get('gameStyle')] ? settings.get('gameStyle') : 'arcade'; // core-mechanics: Einstellung als Rückfall
   // core-mechanics: Klasse/Weste/Helm vervollständigen; eine Klasse ohne Waffenwahl (URL cls=) bringt ihre Standardwaffen mit
   const extra = {};

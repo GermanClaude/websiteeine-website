@@ -46,6 +46,8 @@ const AC = typeof window !== 'undefined' ? (window.AudioContext || window.webkit
 // ---------------------------------------------------------------- Hybrid-Regeln (Recherche docs/AUDIO_SOURCES.md, dev/audio-lab.html)
 /** Aufnahme klingt schlechter als die Synthese → nie verwenden. */
 const PREFER_PROC = new Set(['impact_metal']);
+/** Synthese bleibt als leise Schicht unter der Aufnahme (ab „medium“) → nicht freigeben. */
+const PROC_LAYER = new Set(['impact_concrete', 'impact_wood', 'impact_dirt', 'impact_glass']);
 /** Aufnahme und Synthese abwechselnd (Anteil Aufnahme) → mehr hörbare Varianten. */
 const MIXED_REC = { hit_flesh: 0.6, bullet_whiz: 0.35, land: 0.5 };
 /** Mechanik-Schicht (Aufnahme) unter dem eigenen Schuss. Repetierer/Pumpen haben ihre eigenen Klänge. */
@@ -404,7 +406,10 @@ export class AudioEngine {
   }
 
   /** Synthese-Klang wird von einer Aufnahme ersetzt (nicht gemischt, nicht „Synthese besser“). */
-  _replaced(name) { return this._recOn() && !PREFER_PROC.has(name) && MIXED_REC[name] == null && library.known(name); }
+  _replaced(name) {
+    if (PROC_LAYER.has(name) && this._quality() !== 'low') return false;
+    return this._recOn() && !PREFER_PROC.has(name) && MIXED_REC[name] == null && library.known(name);
+  }
 
   /**
    * Match-Bank im Worker vorrendern – im Spiel schon ab der Lobby (kein AudioContext nötig).
@@ -1493,7 +1498,7 @@ export class AudioEngine {
       const name = s === 'flesh' ? 'hit_flesh' : `impact_${s}`, vol = pl ? 1 : 0.8, pos = xyz(p.point);
       const v = this.play(name, { position: pos, volume: vol, priority: pl ? 2 : undefined });
       // Hybrid: leise Synthese-Schicht unter der Aufnahme (Staub/Splitter → mehr Variation), nicht auf dem Handy
-      if (v?.recorded && this._quality() !== 'low' && this._dist(pos) < 25) this.play(name, { position: pos, volume: vol * 0.32, proc: true, priority: 0, delay: 0.002 });
+      if (v?.recorded && this._quality() !== 'low' && PROC_LAYER.has(name) && this._dist(pos) < 25) this.play(name, { position: pos, volume: vol * 0.32, proc: true, priority: 0, delay: 0.002, _deferred: true });
       // Querschläger an Metall und Stein
       if ((s === 'metal' && this._rand() < 0.14) || (s === 'concrete' && this._rand() < 0.05)) this.play('ricochet', { position: pos, volume: 0.7, delay: 0.008 });
     });

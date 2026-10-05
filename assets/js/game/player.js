@@ -836,9 +836,9 @@ export class Player {
       it.exertion = this.exertion;
       w.update(dt, it);
       // Inspizieren (nur PC): Controller kann es selbst übernehmen (handlesInspect), sonst spielt das Viewmodel die Animation
-      if (it.inspect && !w.handlesInspect && (w.adsProgress || 0) < 0.05 && !it.fire) {
+      if (it.inspect && (w.adsProgress || 0) < 0.05 && !it.fire) {
         const vm = G.viewmodel && G.viewmodel.rig;
-        if (vm && typeof vm.playInspect === 'function') vm.playInspect();
+        if (!w.handlesInspect && vm && typeof vm.playInspect === 'function') vm.playInspect();
         G.events.emit('player:inspect', { actor: this, weaponId: w.currentDef ? w.currentDef.id : null });
       }
     }
