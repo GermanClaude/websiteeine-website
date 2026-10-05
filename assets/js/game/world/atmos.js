@@ -47,7 +47,7 @@ void main() {
   vec3 o = vec3( dot( vR0, C - vO ), dot( vR1, C - vO ), dot( vR2, C - vO ) );
   vec3 d = vec3( dot( vR0, Rd ), dot( vR1, Rd ), dot( vR2, Rd ) );
   vec3 lo = vec3( -1.0, -1.0, 0.0 ), hi = vec3( 1.0, 1.0, vK.y );
-  vec3 inv = 1.0 / ( abs( d ) < vec3( 1e-5 ) ? vec3( 1e-5 ) * sign( d + 1e-12 ) : d );
+  vec3 inv = 1.0 / mix( d, vec3( 1e-5 ), lessThan( abs( d ), vec3( 1e-5 ) ) );
   vec3 t0 = ( lo - o ) * inv, t1 = ( hi - o ) * inv;
   vec3 tn = min( t0, t1 ), tf = max( t0, t1 );
   float tin = max( max( tn.x, tn.y ), max( tn.z, 0.0 ) );
