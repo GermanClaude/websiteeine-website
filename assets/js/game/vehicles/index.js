@@ -405,6 +405,8 @@ export class VehicleSystem {
     }
     player.sprinting = player.sliding = false;
     player.crouching = false;
+    // Infanteriewaffe ruht: kein hängender Zielzustand (Empfindlichkeit/HUD lesen adsProgress)
+    try { if (player.weapon && 'adsProgress' in player.weapon) player.weapon.adsProgress = 0; } catch { /* nur Getter */ }
     this.camera.reset();
     this.camera.mode = this.camMode;
     this._enterT = G.time.elapsed;

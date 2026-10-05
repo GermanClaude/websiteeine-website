@@ -83,12 +83,12 @@ export const VEHICLES = {
       {
         id: 'driver', label: 'Fahrer/Richtschütze', drive: true, weapons: ['mbt_ap', 'mbt_he', 'mbt_coax'], mount: 'gun',
         exposed: false, pos: [0.0, 1.0, -1.6], exit: [[-2.7, 0, -0.6], [2.7, 0, -0.6], [0, 0, -4.6], [0, 0, 4.6]],
-        fp: { space: 'turret', pos: [0.48, 0.66, -1.3], zoom: [1, 3.5, 7] }, tp: { dist: 10.5, height: 3.6, pivot: 2.6 },
+        fp: { space: 'turret', pos: [0.48, 0.66, -1.3], zoom: [1, 3.5, 7] }, tp: { dist: 11, height: 4.7, pivot: 2.6 },
       },
       {
         id: 'commander', label: 'Kommandant (MG)', weapons: ['mbt_cmg'], mount: 'cmg',
         exposed: false, pos: [-0.6, 1.4, 0.5], exit: [[2.7, 0, 0.6], [-2.7, 0, 0.6], [0, 0, 4.6]],
-        fp: { space: 'cmg', pos: [0, 0.32, 0.55], zoom: [1, 2.5] }, tp: { dist: 9.5, height: 3.8, pivot: 2.8 },
+        fp: { space: 'cmg', pos: [0, 0.32, 0.55], zoom: [1, 2.5] }, tp: { dist: 10, height: 4.8, pivot: 2.8 },
       },
     ],
     lights: [[-1.25, 1.32, -3.62], [1.25, 1.32, -3.62]],
@@ -119,22 +119,22 @@ export const VEHICLES = {
       {
         id: 'driver', label: 'Fahrer', drive: true, weapons: [], exposed: true, pos: [-0.46, 0.62, -0.1],
         exit: [[-2.0, 0, -0.1], [2.0, 0, -0.1], [0, 0, -3.4], [0, 0, 3.4]],
-        fp: { space: 'hull', pos: [-0.46, 1.62, -0.05], free: true }, tp: { dist: 7.5, height: 2.6, pivot: 1.6 },
+        fp: { space: 'hull', pos: [-0.46, 1.62, -0.05], free: true }, tp: { dist: 8, height: 3.3, pivot: 1.6 },
       },
       {
         id: 'gunner', label: 'MG-Schütze', weapons: ['jeep_mg'], mount: 'mg', exposed: true, pos: [0, 0.98, 0.95],
         exit: [[2.0, 0, 0.9], [-2.0, 0, 0.9], [0, 0, 3.4]],
-        fp: { space: 'mg', pos: [0, 0.34, 0.62], zoom: [1, 2] }, tp: { dist: 7.0, height: 2.9, pivot: 2.0 },
+        fp: { space: 'mg', pos: [0, 0.34, 0.62], zoom: [1, 2] }, tp: { dist: 7.5, height: 3.6, pivot: 2.0 },
       },
       {
         id: 'passenger', label: 'Beifahrer', weapons: [], exposed: true, pos: [0.46, 0.62, -0.1],
         exit: [[2.0, 0, -0.1], [-2.0, 0, -0.1], [0, 0, -3.4]],
-        fp: { space: 'hull', pos: [0.46, 1.62, -0.05], free: true }, tp: { dist: 7.5, height: 2.6, pivot: 1.6 },
+        fp: { space: 'hull', pos: [0.46, 1.62, -0.05], free: true }, tp: { dist: 8, height: 3.3, pivot: 1.6 },
       },
       {
         id: 'rear', label: 'Rücksitz', weapons: [], exposed: true, pos: [0.52, 0.72, 1.5],
         exit: [[2.0, 0, 1.4], [-2.0, 0, 1.4], [0, 0, 3.4]],
-        fp: { space: 'hull', pos: [0.52, 1.7, 1.55], free: true }, tp: { dist: 7.5, height: 2.6, pivot: 1.6 },
+        fp: { space: 'hull', pos: [0.52, 1.7, 1.55], free: true }, tp: { dist: 8, height: 3.3, pivot: 1.6 },
       },
     ],
     lights: [[-0.66, 1.08, -2.3], [0.66, 1.08, -2.3]],

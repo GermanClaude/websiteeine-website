@@ -246,7 +246,7 @@ class SampleLibrary {
         this.stats.bytes += bytes;
         if (!this.used.has(j.name)) this.used.set(j.name, clock());
       }
-      this._main(clock() - t1);
+      this._main(clock() - t1, 'store ' + j.name);
       if (list.length === 1) for (const fn of this.listeners) { try { fn(j.name); } catch (err) { this._error(err); } }
     } catch (err) {
       this.failed.add(key); this._error(err);
@@ -287,12 +287,33 @@ class SampleLibrary {
   }
 
   /**
-   * Stereo → Mono (Mittelwert) und/oder auf die hörbare Länge kürzen (mit 30 ms Ausblendung), in Häppchen über
-   * mehrere Aufgaben (lange Atmo-Betten blockieren den Hauptthread nie am Stück).
+   * Stereo → Mono und/oder auf die hörbare Länge kürzen (30 ms Ausblendung). Bevorzugt in einem OfflineAudioContext
+   * (Abmischen ½(L+R) und Kürzen rechnet der Audio-Thread, der Hauptthread baut nur 3 Knoten); Rückfall: Häppchen
+   * im Hauptthread über mehrere Aufgaben.
    */
   async _reshape(buf, dec, wantCh, maxDur) {
     const sr = buf.sampleRate, n = maxDur ? Math.min(buf.length, Math.round(maxDur * sr)) : buf.length;
-    const outCh = wantCh === 1 ? 1 : buf.numberOfChannels;
+    const outCh = wantCh === 1 ? 1 : buf.numberOfChannels, fade = n < buf.length ? Math.min(n / sr, 0.03) : 0;
+    try {
+      const t = clock();
+      const oc = new OAC(outCh, n, sr), src = oc.createBufferSource(), g = oc.createGain();
+      src.buffer = buf; src.connect(g).connect(oc.destination);
+      if (fade) { g.gain.setValueAtTime(1, (n / sr) - fade); g.gain.linearRampToValueAtTime(0, n / sr); }
+      src.start(0);
+      const done = new Promise((resolve, reject) => {
+        oc.oncomplete = (e) => resolve(e.renderedBuffer);
+        const p = oc.startRendering();
+        if (p && typeof p.then === 'function') p.then(resolve, reject);
+      });
+      this._main(clock() - t, 'reshape-graph');
+      const out = await done;
+      if (out && out.length === n && out.numberOfChannels === outCh) return out;
+    } catch { /* Rückfall unten */ }
+    return this._reshapeJs(buf, dec, outCh, n);
+  }
+
+  async _reshapeJs(buf, dec, outCh, n) {
+    const sr = buf.sampleRate;
     const out = HAS_CTOR ? new AudioBuffer({ length: n, numberOfChannels: outCh, sampleRate: sr }) : dec.createBuffer(outCh, n, sr);
     const fadeN = n < buf.length ? Math.min(n, Math.round(0.03 * sr)) : 0;
     for (let c = 0; c < outCh; c++) {
@@ -300,16 +321,17 @@ class SampleLibrary {
       for (let i0 = 0; i0 < n; i0 += MIX_CHUNK) {
         const t = clock(), i1 = Math.min(n, i0 + MIX_CHUNK);
         if (srcs.length === 2) { const L = srcs[0], R = srcs[1]; for (let i = i0; i < i1; i++) m[i] = (L[i] + R[i]) * 0.5; } else m.set(srcs[0].subarray(i0, i1), i0);
-        this._main(clock() - t);
+        this._main(clock() - t, 'reshape');
         if (i1 < n) await yieldTask();
       }
       for (let k = 0; k < fadeN; k++) m[n - 1 - k] *= k / fadeN;
       if (out.copyToChannel) out.copyToChannel(m, c); else out.getChannelData(c).set(m);
     }
+    this.stats.reshapeJs = (this.stats.reshapeJs || 0) + 1;
     return out;
   }
 
-  _main(ms) { this.stats.mainMs += ms; if (ms > this.stats.maxMainMs) this.stats.maxMainMs = ms; }
+  _main(ms, what = '') { this.stats.mainMs += ms; if (ms > this.stats.maxMainMs) { this.stats.maxMainMs = ms; this.stats.maxMainAt = what; } }
   _error(err) { this.stats.errors++; this.stats.lastError = String(err?.message || err); }
 
   info() {
