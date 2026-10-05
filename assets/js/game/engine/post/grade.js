@@ -24,6 +24,7 @@ export const MOODS = Object.freeze({
     lut: { contrast: 1.08, saturation: 1.0, blackLevel: 0.012 },
     exposure: { ...BASE_EXPOSURE },
     bloom: { threshold: 2.4, strength: 0.3, dirt: 0.55 },
+    shafts: 0.3,
   },
   hafen: { // Goldene Stunde: warme Lichter, leicht petrolfarbene Schatten
     label: 'Hafen – Abendsonne',
@@ -31,6 +32,7 @@ export const MOODS = Object.freeze({
       shadowTint: [0.965, 1.0, 1.045], highTint: [1.045, 1.0, 0.94], greenShift: 0.25, blackLevel: 0.014, whiteLevel: 0.985 },
     exposure: { ...BASE_EXPOSURE, ref: 0.42 },
     bloom: { threshold: 2.2, strength: 0.32, dirt: 0.6 },
+    shafts: 0.55,
   },
   altstadt: { // Mittag in der Wüstenstadt: harter Kontrast, leicht ausgebleicht
     label: 'Altstadt – Mittag',
@@ -38,6 +40,7 @@ export const MOODS = Object.freeze({
       shadowTint: [0.98, 1.0, 1.03], highTint: [1.03, 1.0, 0.96], greenShift: 0.35, blackLevel: 0.01, whiteLevel: 0.98 },
     exposure: { ...BASE_EXPOSURE, ref: 0.62 },
     bloom: { threshold: 2.6, strength: 0.28, dirt: 0.5 },
+    shafts: 0.22,
   },
   werk: { // Bedeckte Dämmerung im Industriegebiet: kühl, entsättigt, Natriumlicht bleibt warm
     label: 'Werk – Dämmerung',
@@ -45,6 +48,7 @@ export const MOODS = Object.freeze({
       keepWarm: 0.7, shadowTint: [0.95, 1.01, 1.04], highTint: [1.03, 1.0, 0.97], greenShift: 0.4, blackLevel: 0.018, whiteLevel: 0.985 },
     exposure: { ...BASE_EXPOSURE, ref: 0.16, evMax: 2.0 },
     bloom: { threshold: 1.9, strength: 0.36, dirt: 0.7 },
+    shafts: 0.45,
   },
   range: { // Schießstand bei Tageslicht: neutral, sauber
     label: 'Schießstand – Tag',
@@ -52,6 +56,7 @@ export const MOODS = Object.freeze({
       greenShift: 0.25, blackLevel: 0.012, whiteLevel: 0.985 },
     exposure: { ...BASE_EXPOSURE, ref: 0.5 },
     bloom: { threshold: 2.5, strength: 0.28, dirt: 0.5 },
+    shafts: 0.3,
   },
   nacht: { // Nacht/Innenräume mit Leuchtstoffröhren: grünstichig, angehobene Videoschwärzen
     label: 'Nacht – Leuchtstoff',
@@ -59,6 +64,7 @@ export const MOODS = Object.freeze({
       keepWarm: 0.5, shadowTint: [0.95, 1.02, 1.03], highTint: [1.0, 1.02, 0.97], greenShift: 0.2, blackLevel: 0.026, whiteLevel: 0.98 },
     exposure: { ...BASE_EXPOSURE, ref: 0.05, evMin: -1.2, evMax: 2.6, up: 2.2, down: 1.0 },
     bloom: { threshold: 1.5, strength: 0.42, dirt: 0.85 },
+    shafts: 0,
   },
 });
 
@@ -81,6 +87,7 @@ export function resolveMood(spec) {
     lutTexture: over && over.lut instanceof THREE.Data3DTexture ? over.lut : null,
     exposure: { ...base.exposure, ...(over && over.exposure) },
     bloom: { ...base.bloom, ...(over && over.bloom) },
+    shafts: over && Number.isFinite(over.shafts) ? over.shafts : base.shafts ?? 0,
   };
 }
 
@@ -350,8 +357,10 @@ export class GradePass {
         tScene: { value: null },
         tBloom: { value: null },
         tDirt: { value: null },
+        tShafts: { value: null },
         uBloom: { value: 0 },
         uDirt: { value: 0 },
+        uShafts: { value: 0 },
       },
       vertexShader: FULLSCREEN_VERT,
       fragmentShader: /* glsl */ `
@@ -360,8 +369,10 @@ export class GradePass {
         uniform sampler2D tScene;
         uniform sampler2D tBloom;
         uniform sampler2D tDirt;
+        uniform sampler2D tShafts;
         uniform float uBloom;
         uniform float uDirt;
+        uniform float uShafts;
         varying vec2 vUv;
         void main() {
           float E = npExposure();
@@ -371,6 +382,7 @@ export class GradePass {
             c += bl * uBloom;
             if (uDirt > 0.0) c += bl * texture2D(tDirt, vUv).rgb * uDirt;
           }
+          if (uShafts > 0.0) c += texture2D(tShafts, vUv).rgb * uShafts;
           gl_FragColor = vec4(npGrade(c), 1.0);
         }
       `,

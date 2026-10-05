@@ -671,6 +671,7 @@ async function runStart(config, gen) {
       const world = await G.modules.world.loadWorld(G, cfg.mapId, { onProgress });
       if (!world) throw new Error(`loadWorld(${cfg.mapId}) lieferte keine Welt`);
       G.world = world;
+      safe('renderer.setMood', () => { G.renderer.setMood?.(world.grade || cfg.mapId); G.renderer.setSun?.(world.lighting); }); // core-render: LUT/Belichtung/Lichtstrahlen je Karte
       if (world.group && !world.group.parent) G.scene.add(world.group);
       if (dynres) { dynres.reset(); G.renderer.setResolutionScale(1); }
       await early;
@@ -794,6 +795,7 @@ async function warmUp(live = () => true) {
     await nextFrame();
     if (!live()) return;
     G.menus.showLoading(0.97);
+    G.renderer.compilePost?.(); // core-render: Objektiv/Grade/Belichtung (auch EASU für spätere Skalen < 1)
     G.renderer.render(G.scene, G.camera, G.viewmodel.scene, G.viewmodel.camera);
   } catch (err) {
     console.warn('[NULLPUNKT] Shader-Vorbereitung:', err);
@@ -1186,13 +1188,14 @@ function updateStats(now) {
     text += `\n${i.drawCalls} Draw Calls · ${(i.triangles / 1000).toFixed(1).replace('.', ',')}k Dreiecke\n${i.quality} · ${i.width}×${i.height} @${i.pixelRatio} · Skala ${String(i.resolutionScale).replace('.', ',')}\n` +
       `${G.match.state} · ${G.actors.length} Akteure · Geo ${i.geometries} · Tex ${i.textures}` +
       (p && p.interval ? `\nArbeit ${String(p.work).replace('.', ',')} ms / ${String(p.interval).replace('.', ',')} ms${dynres.plateau ? ` · Plateau ${Math.round(dynres.plateau)}` : ''}` : '') +
+      (i.post && i.post.mode !== 'direct' ? `\nBild ${i.post.style} · ${i.post.mode} · ${i.post.internal}→${i.post.output} (${i.post.upscaler}) · Pässe ${i.post.passes}${i.post.exposure != null ? ` · Bel. ×${String(i.post.exposure).replace('.', ',')}` : ''}` : '') +
       (missing.length ? `\nFehlt: ${missing.join(', ')}` : '');
   }
   statsEl.textContent = text;
 }
 
 function applyQualityClasses() {
-  document.body.classList.toggle('np-css-vignette', !G.renderer.preset.grade);
+  document.body.classList.toggle('np-css-vignette', G.renderer.cssVignette ?? !G.renderer.preset.grade);
   document.body.dataset.quality = G.renderer.quality;
 }
 
@@ -1296,6 +1299,14 @@ function wireGlobal() {
     victim.respawnAt = G.time.elapsed + delay;
   });
   G.events.on('ui:sound', ({ name } = {}) => { if (!audioAttached && name) safe('audio.ui', () => G.audio.ui(name)); });
+  // core-render (R18): Kugeln am Kopf vorbei / Treffer → Unterdrückung; nahe Explosion → kurzes Ausbrennen
+  G.events.on('bullet:whiz', ({ distance } = {}) => G.renderer.suppress?.(0.18 + 0.22 * Math.max(0, 1 - (Number(distance) || 1) / 2.2)));
+  G.events.on('player:damaged', ({ amount } = {}) => G.renderer.suppress?.(Math.min(0.5, 0.12 + (Number(amount) || 0) / 120)));
+  G.events.on('explosion', ({ position, radius } = {}) => {
+    if (!position || !G.camera || !G.renderer.flash) return;
+    const d = G.camera.position.distanceTo(position), r = (Number(radius) || 6) * 1.6;
+    if (d < r) G.renderer.flash(0.35 * (1 - d / r) ** 2);
+  });
   G.events.on('input:lock', ({ locked, error }) => {
     updateLockHint();
     const st = G.match.state;
@@ -1377,9 +1388,11 @@ async function bootstrap() {
   let phase = 'error';
   try {
     setBoot(0.02, 'Prüfe Grafik …');
-    G.renderer = createRendererOrNull({ quality: QUALITY_OVERRIDE || settings.get('quality') });
+    G.renderer = createRendererOrNull({ quality: QUALITY_OVERRIDE || settings.get('quality'), settings });
     if (!G.renderer) { showFatal('webgl'); return; }
     G.renderer.onQualityChange(onQualityChanged);
+    if (G.renderer.onStyleChange) G.renderer.onStyleChange(applyQualityClasses); // Bildstil (core-render)
+    if (DEBUG && G.renderer.exposure) G.renderer.exposure.track = true;
     applyQualityClasses();
     G.perf = dynres = new DynamicResolution({ touch: window.matchMedia ? window.matchMedia('(pointer: coarse)').matches : false });
 

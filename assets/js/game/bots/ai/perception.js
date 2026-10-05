@@ -21,6 +21,9 @@ export function targetPoints(a, chest, head) {
   const h = a.body ? a.body.height : 1.8;
   chest.set(a.position.x, a.position.y + h * 0.62, a.position.z);
   head.set(a.position.x, a.position.y + h - 0.16, a.position.z);
+  // Lehnen (core-input, F5): Kopf und Oberkörper wandern mit (wie combat.raycastHumanoid)
+  const lo = a.leanOffset;
+  if (lo && (lo.x || lo.z)) { chest.x += lo.x * 0.55; chest.z += lo.z * 0.55; head.x += lo.x; head.z += lo.z; head.y += Math.min(0, lo.y || 0); }
 }
 
 /**

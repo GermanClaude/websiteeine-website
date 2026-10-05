@@ -31,7 +31,7 @@ for (const [id, P] of Object.entries(GUN_PROFILES)) {
   def(`gun_${id}`, gunNear(P), { variants: 4, variantsLow: 3, gain: P.gain, ref: 7, roll: 1, maxDist: 600, group: 'gun', cap: 16, prio: 2, env: 0.55, pitchJit: 0.035, gainJit: 0.1, tier: 1, alt: GUN_ALT[id].map(p => `gun_${p}`), er: 1, loud: 0 });
   def(`gunfar_${id}`, gunFar(P), { variants: 2, gain: P.gain, ref: 7, roll: 1, maxDist: 900, group: 'gun', cap: 16, prio: 1, env: 0.7, pitchJit: 0.04, tier: 1, rate: 22050, rateLow: 16000, alt: GUN_ALT[id].map(p => `gunfar_${p}`), er: 0.35, loud: -4 });
   // Ich-Perspektive zur Aufnahme: Druckstoß + Verschluss am Ohr (nur Spieler, 2D)
-  def(`gunfp_${id}`, gunFP(P), { variants: 3, variantsLow: 2, gain: 0.5, ref: 2, maxDist: 10, group: 'gunfp', cap: 6, prio: 3, env: 0, pitchJit: 0.03, gainJit: 0.08, tier: 1, rate: 22050, rateLow: 22050 });
+  def(`gunfp_${id}`, gunFP(P), { variants: 3, variantsLow: 2, gain: 0.65, ref: 2, maxDist: 10, group: 'gunfp', cap: 6, prio: 3, env: 0, pitchJit: 0.03, gainJit: 0.08, tier: 1, rate: 22050, rateLow: 22050 });
 }
 
 // Handling & Nachladen
@@ -58,7 +58,7 @@ H('low_ammo', { gain: 0.3, tier: 2 });
 def('explosion', explosionNear, { variants: 2, ref: 14, roll: 1, maxDist: 800, group: 'boom', cap: 4, prio: 2, env: 0.7, pitchJit: 0.05, tier: 1, alt: ['explosion_far'], er: 0.9, loud: 6 });
 def('explosion_far', explosionFar, { variants: 2, ref: 14, roll: 1, maxDist: 1200, group: 'boom', cap: 4, prio: 2, env: 0.8, pitchJit: 0.05, tier: 1, rate: 16000, alt: ['explosion'], er: 0.3, loud: 0 });
 // Hybrid-Schichten zur Explosions-Aufnahme: Sub-Druck (Erschütterung) und nachrieselnde Trümmer
-def('boom_sub', boomSub, { variants: 2, variantsLow: 1, gain: 0.7, ref: 14, roll: 1, maxDist: 300, group: 'boom', cap: 4, prio: 2, env: 0, pitchJit: 0.06, tier: 1, rate: 16000, rateLow: 16000 });
+def('boom_sub', boomSub, { variants: 2, variantsLow: 1, gain: 0.5, ref: 14, roll: 1, maxDist: 300, group: 'boom', cap: 4, prio: 2, env: 0, pitchJit: 0.06, tier: 1, rate: 16000, rateLow: 16000 });
 def('debris', debrisFall, { variants: 2, variantsLow: 1, gain: 0.5, ref: 6, roll: 1.2, maxDist: 60, group: 'impact', cap: 12, prio: 1, env: 0.2, pitchJit: 0.06, tier: 2, rate: 32000, rateLow: 24000, quiet: true });
 // Taktische Granaten (Plan §11.2): Blendgranate, Rauchgranate (Zischen, Schleife)
 def('flashbang', flashBang, { variants: 2, variantsLow: 1, gain: 1, ref: 10, roll: 1, maxDist: 600, group: 'boom', cap: 4, prio: 3, env: 0.75, pitchJit: 0.04, tier: 2, rate: 32000, rateLow: 24000, er: 1, loud: 5 });
@@ -156,7 +156,7 @@ rec('reload_pistol', 'reload_mag_in', {});
 for (const s of ['concrete', 'hard', 'shotgun']) rec(`shell_${s}`, null, { gain: 0.42, ref: 1.2, roll: 1.3, maxDist: 14, group: 'shell', cap: 6, prio: 0, env: 0.06, pitchJit: 0.08, gainJit: 0.2, quiet: true, er: 0.1 });
 rec('step_gravel', 'step_dirt', { alt: ['step_dirt'] });
 rec('bodyfall', null, { gain: 0.55, ref: 3, roll: 1.2, maxDist: 35, group: 'body', cap: 4, prio: 1, env: 0.2, pitchJit: 0.05, quiet: true, er: 0.15 });
-rec('grenade_spoon', 'grenade_pin', { gain: 0.45 });
+rec('grenade_spoon', 'grenade_pin', { gain: 0.18 });
 /** Katalog- oder Aufnahme-Eintrag. */
 export const entryOf = (name) => CATALOG[name] || REC_ONLY[name] || null;
 

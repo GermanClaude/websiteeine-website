@@ -66,6 +66,7 @@ function paintCell(ctx, cx, cy, size, fn) {
 
 let particleTex = null;
 let decalTex = null;
+let decalNormalTex = null;
 
 export function getParticleAtlas() {
   if (particleTex) return particleTex;
@@ -267,8 +268,90 @@ export function getDecalAtlas() {
   return decalTex;
 }
 
+/* ------------------------------------------------------------ Einschuss-Normalen (Decals 2.0) */
+
+/**
+ * Normalen-Atlas passend zum Einschuss-Atlas (gleiche Zellen): Höhenfelder je Art – Loch tief, Kraterwand
+ * ansteigend, abgeplatzte Zone leicht vertieft, aufgeworfener Metallrand, Holzsplitter, weiche Mulde – per
+ * Differenzen zu Tangentenraum-Normalen. So fangen Kraterränder Sonne und Umgebungslicht (medium+).
+ */
+export function getDecalNormalAtlas() {
+  if (decalNormalTex) return decalNormalTex;
+  const S = 128;
+  const [GX, GY] = DECAL_GRID;
+  const W = S * GX, H = S * GY;
+  const h = new Float32Array(W * H);
+  const n1 = makeNoise(13), n2 = makeNoise(57), n3 = makeNoise(211);
+  const fill = (cell, fn) => {
+    const cx = (cell % GX) * S, cy = Math.floor(cell / GX) * S;
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const u = ((x + 0.5) / S) * 2 - 1, v = ((y + 0.5) / S) * 2 - 1;
+      h[(cy + y) * W + cx + x] = fn(u, v);
+    }
+  };
+  const crater = (nz, off) => (u, v) => {
+    const d = Math.hypot(u, v), ang = Math.atan2(v, u);
+    const n = nz(Math.cos(ang) * 2 + off, Math.sin(ang) * 2 + off, 4);
+    const grain = nz(u * 9 + off, v * 9 - off, 3) - 0.5;
+    const rOut = 0.54 + n * 0.26;
+    if (d < 0.15) return -1;
+    if (d < 0.34) return -1 + sstep(0.15, 0.34, d) * 0.8 + grain * 0.08;
+    if (d < rOut) return -0.2 + sstep(rOut - 0.1, rOut, d) * 0.2 + grain * 0.1;
+    return grain * 0.02 * (1 - sstep(rOut, 1, d));
+  };
+  fill(DECAL.CONCRETE, crater(n1, 1.3));
+  fill(DECAL.CONCRETE_B, crater(n2, 7.1));
+  fill(DECAL.PLASTER, crater(n3, 3.3));
+  fill(DECAL.METAL, (u, v) => {
+    const d = Math.hypot(u, v);
+    if (d < 0.17) return -1;
+    return 0.55 * (1 - sstep(0.17, 0.3, d)) - 0.25 * (1 - sstep(0.3, 0.6, d)) * sstep(0.2, 0.3, d);
+  });
+  fill(DECAL.WOOD, (u, v) => {
+    const d = Math.hypot(u, v), ang = Math.atan2(v, u);
+    const spikes = Math.pow(Math.abs(Math.sin(ang * 3.5 + n2(ang, 0.5, 2) * 4)), 6);
+    if (d < 0.17) return -1;
+    return (1 - sstep(0.22, 0.26 + spikes * 0.5, d)) * (0.25 + spikes * 0.35) - 0.2 * (1 - sstep(0.17, 0.25, d));
+  });
+  fill(DECAL.SOFT, (u, v) => {
+    const d = Math.hypot(u, v);
+    return -0.45 * (1 - sstep(0.1, 0.6, d)) + (n1(u * 5 + 5, v * 5 + 2, 3) - 0.5) * 0.25 * (1 - sstep(0.5, 0.9, d));
+  });
+  fill(DECAL.GLASS, (u, v) => -0.6 * (1 - sstep(0.05, 0.1, Math.hypot(u, v))));
+  fill(DECAL.SCORCH, (u, v) => (n2(u * 4 + 9, v * 4 + 4, 4) - 0.5) * 0.12 * (1 - sstep(0.3, 1, Math.hypot(u, v))));
+  // Normalen je Zelle (Differenzen an Zellgrenzen geklemmt)
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(W, H);
+  const d = img.data;
+  const K = 2.6;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const cx0 = x - (x % S), cy0 = y - (y % S);
+    const xl = Math.max(cx0, x - 1), xr = Math.min(cx0 + S - 1, x + 1);
+    const yu = Math.max(cy0, y - 1), yd = Math.min(cy0 + S - 1, y + 1);
+    const dx = (h[y * W + xr] - h[y * W + xl]) / Math.max(1, xr - xl);
+    const dy = (h[yd * W + x] - h[yu * W + x]) / Math.max(1, yd - yu);
+    // Leinwand-y zeigt nach unten (Textur-v nach oben) → Vorzeichen von dy umkehren
+    let nx = -dx * K, ny = dy * K, nz = 1;
+    const l = Math.hypot(nx, ny, nz);
+    nx /= l; ny /= l; nz /= l;
+    const i = (y * W + x) * 4;
+    d[i] = (nx * 0.5 + 0.5) * 255; d[i + 1] = (ny * 0.5 + 0.5) * 255; d[i + 2] = (nz * 0.5 + 0.5) * 255; d[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  decalNormalTex = new THREE.CanvasTexture(canvas);
+  decalNormalTex.colorSpace = THREE.NoColorSpace;
+  decalNormalTex.generateMipmaps = true;
+  decalNormalTex.minFilter = THREE.LinearMipmapLinearFilter;
+  decalNormalTex.anisotropy = 4;
+  decalNormalTex.name = 'fx-decals-normal';
+  return decalNormalTex;
+}
+
 /** Texturen freigeben (z. B. dev-Seite); im Spiel bleiben sie über Matches erhalten. */
 export function disposeFxTextures() {
   if (particleTex) { particleTex.dispose(); particleTex = null; }
   if (decalTex) { decalTex.dispose(); decalTex = null; }
+  if (decalNormalTex) { decalNormalTex.dispose(); decalNormalTex = null; }
 }

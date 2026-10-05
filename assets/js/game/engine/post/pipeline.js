@@ -23,6 +23,7 @@ import { LensModel, LensPass } from './lens.js';
 import { GradePass, setGradeUniforms, resolveMood, buildLut } from './grade.js';
 import { AutoExposure } from './exposure.js';
 import { Bloom, lensDirtTexture } from './bloom.js';
+import { LightShafts } from './shafts.js';
 
 export const LENS_STYLES = Object.freeze(['bodycam', 'klassisch', 'aus']);
 
@@ -34,7 +35,7 @@ export const LENS_DEFAULTS = Object.freeze({
 
 // Werte je Stil; Regler (strength, grain, artifacts, sharpness) skalieren sie.
 const STYLE = {
-  bodycam: { distortion: 0.78, ca: 0.0042, vignette: 0.5, vigClassic: 0, grain: 1, artifacts: 1, sharpen: 1, classic: false, bloomDirt: true },
+  bodycam: { distortion: 0.75, ca: 0.003, vignette: 0.5, vigClassic: 0, grain: 1, artifacts: 1, sharpen: 1, classic: false, bloomDirt: true },
   aus: { distortion: 0, ca: 0, vignette: 0, vigClassic: 0.12, grain: 0, artifacts: 0, sharpen: 0.5, classic: false, bloomDirt: false },
   klassisch: { distortion: 0, ca: 0, vignette: 0, vigClassic: 1, grain: 0, artifacts: 0, sharpen: 0, classic: true, bloomDirt: false },
 };
@@ -63,6 +64,9 @@ export class PostPipeline {
     this.bloom = null;
     this.aa = null; // FXAAPass | SMAAPass
     this.gtao = null;
+    this.shafts = null;
+    /** Sonne für Lichtstrahlen: Richtung zur Sonne (Welt) – setSun(). */
+    this.sunDir = null;
     this.moodSpec = 'neutral';
     this.mood = resolveMood('neutral');
     this.lut = null;
@@ -108,12 +112,14 @@ export class PostPipeline {
     this.mode = mode;
     if (mode === 'direct') return prevMode !== mode;
     const r = this.renderer;
-    this.hdr = hdrTarget(r, this.inner.w, this.inner.h, { depth: true, fmt: this.fmt });
+    // medium+: lesbare Tiefe für Lichtstrahlen; low: Tiefenpuffer (nicht lesbar, billiger auf Kachel-GPUs)
+    this.hdr = hdrTarget(r, this.inner.w, this.inner.h, { depth: true, depthTexture: mode === 'full', fmt: this.fmt });
     this.hdr.texture.name = 'np:szene';
     this.exposure = new AutoExposure({ size: mode === 'lite' ? 32 : 64 });
     this.exposure.setParams(this.mood.exposure);
     if (mode === 'full') {
       this.ldr = [ldrTarget(this.inner.w, this.inner.h), null];
+      this.shafts = new LightShafts();
       if (preset.bloom) this.bloom = new Bloom({ levels: preset.id === 'medium' ? 4 : preset.id === 'ultra' ? 6 : 5 });
       if (preset.smaa) { this.aa = new SMAAPass(); this.ldr[1] = ldrTarget(this.inner.w, this.inner.h); }
       else if (preset.fxaa) { this.aa = new FXAAPass(); this.ldr[1] = ldrTarget(this.inner.w, this.inner.h); }
@@ -148,6 +154,12 @@ export class PostPipeline {
     if (this.exposure) { this.exposure.setParams(this.mood.exposure); this.exposure.reset(); }
   }
 
+  /** Sonne für Lichtstrahlen: { sunDirection } (world.lighting) oder Vector3 (Richtung zur Sonne); null = keine. */
+  setSun(sun) {
+    const d = sun && (sun.isVector3 ? sun : sun.sunDirection);
+    this.sunDir = d && d.isVector3 ? d.clone().normalize() : null;
+  }
+
   /** Größen: Ausgabe (Zeichenpuffer), interne Skala (dynamische Auflösung), CSS-Größe (Lens-API in px). */
   setSize(outW, outH, scale, cssW = outW, cssH = outH) {
     this.out.w = Math.max(1, outW | 0);
@@ -171,6 +183,7 @@ export class PostPipeline {
     if (this.bloom) this.bloom.setSize(this.renderer, w, h);
     if (this.aa) this.aa.setSize(w, h);
     if (this.gtao) this.gtao.setSize(w, h);
+    if (this.shafts) this.shafts.setSize(this.renderer, w, h);
   }
 
   /** Kamera-Drehgeschwindigkeit → Bewegung (Kompression) und Gehäuse-Wackeln; Sprünge → Belichtung zurücksetzen. */
@@ -251,6 +264,7 @@ export class PostPipeline {
     const fov0 = camera.fov, vfov0 = vmCamera ? vmCamera.fov : 0;
     const hasVm = !!(vmScene && vmCamera && vmScene.visible !== false);
     const autoClear0 = r.autoClear;
+    let shaftsOn = false;
     try {
       if (F > 1.0001) { widen(camera, F); if (hasVm) widen(vmCamera, F); }
       r.setRenderTarget(this.hdr);
@@ -267,6 +281,16 @@ export class PostPipeline {
         r.autoClear = false;
         this.fs.draw(r, bm, this.hdr);
         this.stats.sceneRenders++;
+      }
+      // Lichtstrahlen: Himmelsmaske braucht die Tiefe der Welt (vor dem Viewmodel), Sonne im überscannten Bild
+      shaftsOn = false;
+      const sStrength = style.classic ? 0 : this.mood.shafts || 0;
+      if (this.shafts && sStrength > 0 && this.shafts.locate(camera, this.sunDir) > 0.01) {
+        const gs = this._gradeState(post, false);
+        if (gs.auto) gs.exposureTex = this.exposure.texture;
+        r.autoClear = false;
+        this.shafts.render(r, this.fs, this.hdr.texture, this.hdr.depthTexture, this.inner.w / this.inner.h, gs);
+        shaftsOn = true;
       }
       if (hasVm) {
         r.setRenderTarget(this.hdr);
@@ -328,12 +352,21 @@ export class PostPipeline {
       const dirt = bloomOn && this._bloomDirt > 0 ? lensDirtTexture() : null;
       gm.uniforms.tDirt.value = dirt;
       gm.uniforms.uDirt.value = dirt ? gain * this._bloomDirt * 2.5 : 0;
+      gm.uniforms.tShafts.value = shaftsOn ? this.shafts.texture : null;
+      gm.uniforms.uShafts.value = shaftsOn ? (this.mood.shafts || 0) * this.shafts.visible : 0;
       this.fs.draw(r, gm, this.ldr[0]);
       src = this.ldr[0];
       // Kantenglättung im Bildraum
       if (this.aa) {
         this.aa.renderToScreen = false;
+        // SMAA verwirft Pixel ohne Kante → Zwischenziele müssen gelöscht werden (wie im EffectComposer)
+        r.getClearColor(_clear);
+        const ca = r.getClearAlpha();
+        r.setClearColor(0x000000, 0);
+        r.autoClear = true;
         this.aa.render(r, this.ldr[1], this.ldr[0]);
+        r.autoClear = false;
+        r.setClearColor(_clear, ca);
         this.stats.passes += this.aa instanceof SMAAPass ? 3 : 1;
         src = this.ldr[1];
       }
@@ -385,6 +418,7 @@ export class PostPipeline {
       this.fs.compile(r, this.lensPass.material({ resample: 1 }));
       this.fs.compile(r, this.lensPass.material({ resample: 2 }));
       if (this.bloom) for (const m of this.bloom.materials()) this.fs.compile(r, m);
+      if (this.shafts) for (const m of this.shafts.materials()) this.fs.compile(r, m);
     }
     if (this.exposure) for (const m of this.exposure.materials()) this.fs.compile(r, m);
   }
@@ -392,11 +426,12 @@ export class PostPipeline {
   /** Render-Ziele der Kette (für memoryEstimate). */
   targetInfo() {
     const out = [];
-    const bytes = (rt) => (rt ? rt.width * rt.height * (rt.userData.bpp || 4) : 0);
+    const bytes = (rt) => (rt ? rt.width * rt.height * (rt.npBpp || 4) : 0);
     if (this.hdr) out.push({ name: `Szene ${this.fmt ? this.fmt.name : ''} + Tiefe`, bytes: bytes(this.hdr) });
     const ldr = this.ldr.reduce((s, t) => s + bytes(t), 0);
     if (ldr) out.push({ name: 'Bildpuffer 8 Bit', bytes: ldr });
     if (this.bloom) out.push({ name: 'Bloom', bytes: this.bloom.bytes() });
+    if (this.shafts) out.push({ name: 'Lichtstrahlen', bytes: this.shafts.bytes() });
     if (this.aa instanceof SMAAPass) out.push({ name: 'SMAA', bytes: this.inner.w * this.inner.h * 8 + 160 * 560 + 64 * 16 });
     if (this.gtao) out.push({ name: 'GTAO', bytes: this.inner.w * this.inner.h * (8 + 4 + 4 + 4) });
     if (this.exposure) out.push({ name: 'Belichtung', bytes: this.exposure.bytes() });
@@ -428,6 +463,8 @@ export class PostPipeline {
     this.aa = null;
     if (this.gtao) this.gtao.dispose();
     this.gtao = null;
+    if (this.shafts) this.shafts.dispose();
+    this.shafts = null;
   }
 
   dispose() {
@@ -438,5 +475,6 @@ export class PostPipeline {
   }
 }
 
+const _clear = new THREE.Color();
 const _f0 = new THREE.Vector3();
 const _f1 = new THREE.Vector3();

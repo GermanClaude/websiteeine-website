@@ -17,6 +17,8 @@ export default {
   visualBounds: { minX: -70, maxX: 70, minZ: -110, maxZ: 100 },
   chunkSize: 34,
   ambience: 'range',
+  // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
+  assets: { hdri: 'zwartkops_straight_morning' },
   defaultSurface: 'dirt',
   navSpacing: 1.6,
   lighting: {

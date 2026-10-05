@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Objektiv &amp; Belichtung – NULLPUNKT</title>
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0d10; color: #e8ecef; font-family: "JetBrains Mono NP", ui-monospace, monospace; overflow: hidden; }
+  canvas#view { display: block; position: fixed; inset: 0; width: 100vw; height: 100vh; touch-action: none; cursor: grab; }
+  #panel { position: fixed; top: 10px; left: 10px; width: 300px; max-height: calc(100vh - 20px); overflow: auto; background: rgba(12,14,17,.86); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 12px; font-size: 12px; line-height: 1.4; backdrop-filter: blur(6px); }
+  #panel.min > :not(h1) { display: none; }
+  #panel h1 { font: 800 15px/1 "Archivo NP", sans-serif; letter-spacing: .04em; margin: 0 0 10px; cursor: pointer; }
+  #panel h1 span { color: #ff5b1f; }
+  #panel select, #panel button { font: inherit; color: inherit; background: #1b1f24; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; padding: 4px 8px; }
+  #panel button.on { background: #ff5b1f; color: #111; border-color: #ff5b1f; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+  .sl { display: grid; grid-template-columns: 112px 1fr 38px; gap: 6px; align-items: center; margin: 3px 0; }
+  .sl input { width: 100%; accent-color: #ff5b1f; }
+  .sl output { text-align: right; color: #b9c2ca; }
+  #stats { white-space: pre; color: #b9c2ca; margin-top: 8px; font-size: 11px; }
+  #help { color: #7d8790; margin-top: 8px; }
+  #marks { position: fixed; inset: 0; pointer-events: none; }
+  .mk { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border: 2px solid #ffd23d; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+  .mk b { position: absolute; left: 30px; top: 3px; font: 700 12px "Rajdhani NP", sans-serif; color: #ffd23d; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+  .xh { position: fixed; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px; pointer-events: none; }
+  .xh::before, .xh::after { content: ""; position: absolute; background: #fff; }
+  .xh::before { left: 6px; top: 0; width: 2px; height: 14px; } .xh::after { top: 6px; left: 0; height: 2px; width: 14px; }
+  #progress { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font: 700 14px "Archivo NP", sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+  #progress div { background: rgba(0,0,0,.6); padding: 14px 20px; border-radius: 10px; }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="marks"></div>
+<div class="xh" aria-hidden="true"></div>
+<div id="panel">
+  <h1 title="Ein-/ausklappen">OBJEKTIV<span>·</span>BELICHTUNG</h1>
+  <div class="row">
+    <select id="map" aria-label="Karte">
+      <option value="hafen">Hafen</option><option value="altstadt">Altstadt</option><option value="werk">Werk</option><option value="range">Schießstand</option>
+    </select>
+    <select id="quality" aria-label="Qualität">
+      <option value="low">Niedrig</option><option value="medium">Mittel</option><option value="high">Hoch</option><option value="ultra">Ultra</option>
+    </select>
+  </div>
+  <div class="row" id="styles"></div>
+  <div id="sliders"></div>
+  <div class="row">
+    <button id="b-border">Gehäuse</button>
+    <button id="b-auto" class="on">Auto-Belichtung</button>
+    <button id="b-fsr" class="on">FSR 1.0</button>
+    <button id="b-rm">Bewegung reduz.</button>
+  </div>
+  <div class="row">
+    <button id="b-supp">Beschuss</button>
+    <button id="b-flash">Blendung</button>
+    <button id="b-marks" class="on">Marker</button>
+    <button id="b-vm" class="on">Waffe</button>
+    <button id="b-mem">Speicher</button>
+  </div>
+  <div class="row">
+    <select id="mood" aria-label="Stimmung"></select>
+  </div>
+  <div id="stats">–</div>
+  <div id="help">WASD bewegen · Q/E runter/hoch · Umschalt schnell · ziehen schauen · R Belichtung zurücksetzen · Marker: Gelbe Ringe (DOM über lens.project) müssen die gelben Kugeln (3D) umschließen.</div>
+</div>
+<div id="progress"><div id="ptext">Lade …</div></div>
+<script type="module">
+import * as THREE from 'three';
+import { createRenderer, LENS_DEFAULTS, MOODS } from '../assets/js/game/engine/renderer.js';
+import { loadWorld } from '../assets/js/game/world/index.js';
+import { createWeaponModel } from '../assets/js/game/weapons/models.js';
+
+const params = new URLSearchParams(location.search);
+const canvas = document.getElementById('view');
+const quality = params.get('quality') || 'high';
+document.getElementById('quality').value = quality;
+const R = createRenderer(canvas, { quality });
+R.exposure.track = true;
+const scene = new THREE.Scene();
+// vertikales Äquivalent von 80° (4:3) wie im Spiel
+const camera = new THREE.PerspectiveCamera(Number(params.get('fov') || 64.4), 1, 0.05, 1200);
+camera.rotation.order = 'YXZ';
+const vmScene = new THREE.Scene();
+const vmCamera = new THREE.PerspectiveCamera(54, 1, 0.01, 10);
+vmScene.add(new THREE.HemisphereLight(0xdfe6ee, 0x3a332c, 1.6));
+const vmSun = new THREE.DirectionalLight(0xffffff, 2.2); vmSun.position.set(1, 2, 1); vmScene.add(vmSun);
+const G = { THREE, scene, camera, renderer: R, params, debug: false, viewmodel: { scene: vmScene, camera: vmCamera } };
+
+let cfg = { ...LENS_DEFAULTS, ...R.lensSettings };
+for (const k of ['strength', 'grain', 'artifacts', 'sharpness']) if (params.has(k)) cfg[k] = Number(params.get(k));
+if (params.has('style')) cfg.style = params.get('style');
+if (params.has('border')) cfg.border = params.get('border') === '1';
+R.setLens(cfg);
+let scale = Number(params.get('scale') || 1);
+R.setResolutionScale(scale);
+
+// Waffe im Viewmodel (Verzeichnung am Bildrand sichtbar)
+try {
+  const gun = createWeaponModel(params.get('gun') || 'm17', { lod: 'first' });
+  gun.position.set(0.13, -0.17, -0.42);
+  gun.rotation.set(0.02, 0.04, 0);
+  vmScene.add(gun);
+} catch (err) { console.warn('Waffe:', err); }
+
+/* -------------------------------------------------- Bedienfeld */
+const $ = (id) => document.getElementById(id);
+$('panel').querySelector('h1').addEventListener('click', () => $('panel').classList.toggle('min'));
+const STYLE_LABELS = { bodycam: 'Bodycam', klassisch: 'Klassisch', aus: 'Aus' };
+for (const s of Object.keys(STYLE_LABELS)) {
+  const b = document.createElement('button');
+  b.textContent = STYLE_LABELS[s]; b.dataset.s = s;
+  b.addEventListener('click', () => { cfg.style = s; apply(); });
+  $('styles').appendChild(b);
+}
+const SLIDERS = [
+  ['strength', 'Verzeichnung', 0, 1, 0.05], ['grain', 'Körnung', 0, 1, 0.05], ['artifacts', 'Kompression', 0, 1, 0.05],
+  ['sharpness', 'Schärfe', 0, 1, 0.05],
+];
+const post = { exposure: 1, damage: 0, desaturate: 0 };
+const EXTRA = [['scale', 'Auflösung', 0.5, 1, 0.05], ['exposure', 'Kartenbelichtung', 0.3, 3, 0.05], ['damage', 'Schaden', 0, 1, 0.05], ['desaturate', 'Entsättigung', 0, 1, 0.05]];
+function slider([k, label, min, max, step], get, set) {
+  const row = document.createElement('label'); row.className = 'sl';
+  row.innerHTML = `<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}"><output></output>`;
+  const inp = row.querySelector('input'), out = row.querySelector('output');
+  inp.value = get(); out.textContent = Number(get()).toFixed(2);
+  inp.addEventListener('input', () => { set(Number(inp.value)); out.textContent = Number(inp.value).toFixed(2); });
+  $('sliders').appendChild(row);
+}
+for (const s of SLIDERS) slider(s, () => cfg[s[0]], (v) => { cfg[s[0]] = v; apply(); });
+for (const s of EXTRA) slider(s, () => (s[0] === 'scale' ? scale : post[s[0]]), (v) => {
+  if (s[0] === 'scale') { scale = v; R.setResolutionScale(v); } else { post[s[0]] = v; R.setPost(post); }
+});
+const toggle = (id, key) => $(id).addEventListener('click', () => { cfg[key] = !cfg[key]; apply(); });
+toggle('b-border', 'border'); toggle('b-auto', 'autoExposure'); toggle('b-rm', 'reducedMotion');
+$('b-fsr').addEventListener('click', () => { cfg.upscaler = cfg.upscaler === 'bilinear' ? 'fsr' : 'bilinear'; apply(); });
+$('b-supp').addEventListener('click', () => R.suppress(0.6));
+$('b-flash').addEventListener('click', () => R.flash(1));
+let showMarks = true, showVm = true;
+$('b-marks').addEventListener('click', () => { showMarks = !showMarks; $('b-marks').classList.toggle('on', showMarks); markGroup.visible = showMarks; $('marks').hidden = !showMarks; });
+$('b-vm').addEventListener('click', () => { showVm = !showVm; $('b-vm').classList.toggle('on', showVm); vmScene.visible = showVm; });
+let memText = '';
+$('b-mem').addEventListener('click', () => {
+  const m = R.memoryEstimate();
+  memText = `\nGPU ≈ ${m.mb.total} MB (Tex ${m.mb.textures}, Geo ${m.mb.geometry}, Ziele ${m.mb.targets}, Schatten ${m.mb.shadows}, Env ${m.mb.environment}, Bild ${m.mb.backbuffer})`;
+});
+for (const [id, m] of Object.entries(MOODS)) { const o = document.createElement('option'); o.value = id; o.textContent = m.label; $('mood').appendChild(o); }
+$('mood').addEventListener('change', (e) => R.setMood(e.target.value));
+function apply() {
+  R.setLens(cfg);
+  for (const b of $('styles').children) b.classList.toggle('on', b.dataset.s === cfg.style);
+  $('b-border').classList.toggle('on', !!cfg.border);
+  $('b-auto').classList.toggle('on', cfg.autoExposure !== false);
+  $('b-fsr').classList.toggle('on', cfg.upscaler !== 'bilinear');
+  $('b-rm').classList.toggle('on', !!cfg.reducedMotion);
+}
+apply();
+$('quality').addEventListener('change', (e) => { R.setQuality(e.target.value); const u = new URL(location.href); u.searchParams.set('quality', e.target.value); history.replaceState(null, '', u); });
+$('map').addEventListener('change', (e) => { const u = new URL(location.href); u.searchParams.set('map', e.target.value); u.searchParams.delete('cam'); history.replaceState(null, '', u); load(e.target.value); });
+
+/* -------------------------------------------------- Welt + Marker */
+let world = null, yaw = 0, pitch = 0;
+const markGroup = new THREE.Group();
+scene.add(markGroup);
+const marks = [];
+function setCam(x, y, z, yw = yaw, pt = pitch) { camera.position.set(x, y, z); yaw = yw; pitch = pt; camera.rotation.set(pitch, yaw, 0); }
+async function load(mapId) {
+  $('progress').style.display = 'grid';
+  if (world) { world.dispose(); world = null; }
+  for (const m of marks) { m.el.remove(); markGroup.remove(m.mesh); }
+  marks.length = 0;
+  world = await loadWorld(G, mapId, { onProgress: (p, l) => { $('ptext').textContent = `${Math.round(p * 100)} % · ${l}`; } });
+  R.setMood(mapId);
+  R.setSun(world.lighting);
+  $('mood').value = Object.keys(MOODS).includes(mapId) ? mapId : 'neutral';
+  post.exposure = R.post.exposure;
+  $('map').value = world.id;
+  const pts = [...world.objectives.dom.map((o) => ({ p: o.position, n: `Flagge ${o.id}` })), ...world.spawns.A.slice(0, 4).map((s, i) => ({ p: s.position, n: `A${i}` })), ...world.spawns.B.slice(0, 4).map((s, i) => ({ p: s.position, n: `B${i}` }))];
+  const geo = new THREE.SphereGeometry(0.22, 12, 8), mat = new THREE.MeshBasicMaterial({ color: 0xffd23d });
+  for (const { p, n } of pts) {
+    const mesh = new THREE.Mesh(geo, mat); mesh.position.copy(p).y += 1.4; markGroup.add(mesh);
+    const el = document.createElement('div'); el.className = 'mk'; el.innerHTML = `<b>${n}</b>`; $('marks').appendChild(el);
+    marks.push({ mesh, el });
+  }
+  const cam = (params.get('cam') || '').split(',').map(Number);
+  if (cam.length >= 3 && cam.every((v) => !Number.isNaN(v))) setCam(cam[0], cam[1], cam[2], (cam[3] || 0) * Math.PI / 180, (cam[4] || 0) * Math.PI / 180);
+  else { const s = world.spawns.A[0]; setCam(s.position.x, s.position.y + 1.65, s.position.z, s.yaw, -0.03); }
+  R.compilePost();
+  $('progress').style.display = 'none';
+  window.__dev.ready = true;
+  return world;
+}
+
+/* -------------------------------------------------- Steuerung */
+const keys = new Set();
+addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'KeyR') R.exposure.reset(); });
+addEventListener('keyup', (e) => keys.delete(e.code));
+let drag = null;
+canvas.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  yaw -= (e.clientX - drag.x) * 0.004; pitch = Math.max(-1.45, Math.min(1.45, pitch - (e.clientY - drag.y) * 0.004));
+  drag = { x: e.clientX, y: e.clientY };
+});
+canvas.addEventListener('pointerup', () => { drag = null; });
+
+const _p = {};
+let last = performance.now(), statAt = 0;
+window.__dev = {
+  ready: false, R, camera, setCam, paused: false,
+  set(c) { cfg = { ...cfg, ...c }; apply(); return R.lensSettings; },
+  setQuality(q) { R.setQuality(q); }, setScale(s) { scale = s; R.setResolutionScale(s); },
+  setMood(m) { return R.setMood(m); }, setPost(p) { Object.assign(post, p); R.setPost(post); },
+  render() { frame(performance.now(), true); },
+  probe() { return { info: R.info(), exposure: R.exposure.value, measured: R.exposure.measured, lens: { active: R.lens.active, kappa: R.lens.kappa, F: R.lens.F } }; },
+  /** Feste Ansichten wie tools/out/core-render/shots.mjs: Spawn A0, Spawn B0, Flagge B → Flagge A (Augenhöhe). */
+  views() {
+    const s = world.spawns, out = [];
+    const pick = (sp) => sp && [sp.position.x, sp.position.y + 1.65, sp.position.z, sp.yaw, -0.04];
+    if (s.A && s.A[0]) out.push(pick(s.A[0]));
+    if (s.B && s.B[0]) out.push(pick(s.B[0]));
+    const dom = world.objectives && world.objectives.dom;
+    if (dom && dom.length >= 2) { const a = dom[1].position, b = dom[0].position; out.push([a.x, a.y + 1.65, a.z, Math.atan2(-(b.x - a.x), -(b.z - a.z)), 0.02]); }
+    else if (s.ffa && s.ffa[2]) out.push(pick(s.ffa[2]));
+    return out;
+  },
+  setView(i) { const v = this.views()[i]; if (v) setCam(...v); return v; },
+  /** Abgleich DOM-Marker ↔ 3D-Kugel: projiziert die Kugelmitte über lens.project → Bildschirm-px. */
+  markers() { return marks.map((m) => { const o = R.lens.project(m.mesh.position, {}); return { x: o.x, y: o.y, behind: o.behind }; }); },
+};
+function frame(now, once = false) {
+  if (!once) requestAnimationFrame(frame);
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (!world || (window.__dev.paused && !once)) return;
+  const sp = (keys.has('ShiftLeft') ? 18 : 6) * dt;
+  const f = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)), rgt = new THREE.Vector3(-f.z, 0, f.x);
+  if (keys.has('KeyW')) camera.position.addScaledVector(f, sp);
+  if (keys.has('KeyS')) camera.position.addScaledVector(f, -sp);
+  if (keys.has('KeyA')) camera.position.addScaledVector(rgt, -sp);
+  if (keys.has('KeyD')) camera.position.addScaledVector(rgt, sp);
+  if (keys.has('KeyQ')) camera.position.y -= sp;
+  if (keys.has('KeyE')) camera.position.y += sp;
+  camera.rotation.set(pitch, yaw, 0);
+  camera.updateMatrixWorld();
+  world.update(dt, camera);
+  R.render(scene, camera, vmScene, vmCamera);
+  // DOM-Marker nach dem Rendern (gleiche Abbildung wie das Bild)
+  for (const m of marks) {
+    R.lens.project(m.mesh.position, _p, camera);
+    const vis = showMarks && !_p.behind && _p.x > -50 && _p.x < R.width + 50 && _p.y > -50 && _p.y < R.height + 50;
+    m.el.style.display = vis ? '' : 'none';
+    if (vis) m.el.style.transform = `translate(${_p.x.toFixed(1)}px, ${_p.y.toFixed(1)}px)`;
+  }
+  if (now - statAt > 400) {
+    statAt = now;
+    const i = R.info(), p = i.post || {};
+    $('stats').textContent = `${i.fps} FPS · ${i.drawCalls} Draw Calls · ${i.programs} Programme\n${i.quality} · ${p.mode} · ${p.style} · HDR ${p.hdr || '–'}\nintern ${p.internal || '–'} → ${p.output || '–'} (${p.upscaler || '–'})\nPässe ${p.passes ?? '–'} + Szene ×${p.sceneRenders ?? '–'} · Stimmung ${p.mood || '–'}\n` +
+      `Objektiv ${p.lens ? `κ ${p.lens.kappa} · Überscan ${p.lens.overscan}` : 'aus'}\nBelichtung ×${R.exposure.value != null ? R.exposure.value.toFixed(2) : '–'} · Szene L̄ ${R.exposure.measured != null ? R.exposure.measured.toFixed(3) : '–'}${memText}`;
+  }
+}
+for (const m of marks) m.el.style.left = m.el.style.top = '0';
+const style = document.createElement('style'); style.textContent = '.mk { left: 0; top: 0; }'; document.head.appendChild(style);
+await load(params.get('map') || 'hafen');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -92,12 +92,80 @@ function makeSky(def, fogColor, limits = SKY_LIMITS.view) {
   return sky;
 }
 
+// ACES-Matrizen wie im three-Shader (Spalten) → Inverse für die Rückrechnung des vorbelichteten HDRI-Himmels
+const ACES_IN_INV = new THREE.Matrix3().set(0.59719, 0.35458, 0.04823, 0.07600, 0.90834, 0.01566, 0.02840, 0.13383, 0.83777).invert();
+const ACES_OUT_INV = new THREE.Matrix3().set(1.60475, -0.53108, -0.07367, -0.10208, 1.10813, -0.00605, -0.00327, -0.07276, 1.07602).invert();
+
+/**
+ * Himmelskuppel aus dem HDRI der Karte (assets/lib, KTX2). Die Textur ist mit ACES und backgroundExposure
+ * vorbelichtet; der Shader rechnet sie in Szenen-Leuchtdichte zurück (inverse ACES-Kurve, begrenzt), damit sie wie
+ * alles andere durch Belichtung, Tonemapping (AgX/ACES), Bloom und LUT läuft. Gedreht wie die Umgebungs-Map
+ * (Sonnenazimut der Karte); unter dem Horizontband geht sie in die Nebelfarbe über (keine Foto-Bodenfläche hinter
+ * der Karte).
+ */
+function makeHdriSky(hdri, sd, fogColor, intensity) {
+  const geo = new THREE.SphereGeometry(1, 48, 24);
+  const c = Math.cos(hdri.rotation), sn = Math.sin(hdri.rotation);
+  const mat = new THREE.ShaderMaterial({
+    name: 'np:hdri-sky',
+    uniforms: {
+      tSky: { value: hdri.background },
+      uInvOut: { value: ACES_OUT_INV }, uInvIn: { value: ACES_IN_INV },
+      uScale: { value: (0.6 / (hdri.backgroundExposure || 1)) * intensity * (sd.exposureScale ?? 1) },
+      uRot: { value: new THREE.Vector2(c, sn) },
+      uFog: { value: fogColor.clone() },
+      uHaze: { value: new THREE.Vector2(sd.hazeLow ?? -0.02, sd.hazeHigh ?? 0.12) },
+      uHazeAmt: { value: sd.hazeAmount ?? 0.85 },
+      uTint: { value: new THREE.Color(sd.hdriTint || '#ffffff') },
+      uMax: { value: sd.hdriMax ?? 24 },
+    },
+    vertexShader: `varying vec3 vDir;
+      void main() {
+        vDir = ( modelMatrix * vec4( position, 0.0 ) ).xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+        gl_Position.z = gl_Position.w; // ganz hinten
+      }`,
+    fragmentShader: `uniform sampler2D tSky; uniform mat3 uInvOut; uniform mat3 uInvIn; uniform float uScale; uniform vec2 uRot;
+      uniform vec3 uFog; uniform vec2 uHaze; uniform float uHazeAmt; uniform vec3 uTint; uniform float uMax;
+      varying vec3 vDir;
+      vec3 npRrtInv( vec3 x ) {
+        x = clamp( x, 0.0, 0.985 );
+        vec3 A = 1.0 - 0.983729 * x, B = 0.0245786 - 0.4329510 * x, C = -( 0.000090537 + 0.238081 * x );
+        return ( -B + sqrt( max( B * B - 4.0 * A * C, 0.0 ) ) ) / ( 2.0 * A );
+      }
+      void main() {
+        vec3 d = normalize( vDir );
+        vec3 r = vec3( uRot.x * d.x - uRot.y * d.z, d.y, uRot.y * d.x + uRot.x * d.z );
+        vec2 uv = vec2( atan( r.z, r.x ) * 0.15915494 + 0.5, asin( clamp( r.y, -1.0, 1.0 ) ) * 0.31830989 + 0.5 );
+        vec3 L = max( uInvIn * npRrtInv( uInvOut * texture2D( tSky, uv ).rgb ), 0.0 ) * uScale * uTint;
+        L = min( L, vec3( uMax ) );
+        float hz = 1.0 - smoothstep( uHaze.x, uHaze.y, d.y );
+        L = mix( L, uFog, clamp( hz * uHazeAmt + ( d.y < 0.0 ? 1.0 : 0.0 ), 0.0, 1.0 ) );
+        gl_FragColor = vec4( L, 1.0 );
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+    side: THREE.BackSide, depthWrite: false, fog: false,
+  });
+  const sky = new THREE.Mesh(geo, mat);
+  sky.scale.setScalar(900);
+  sky.frustumCulled = false;
+  sky.renderOrder = -10;
+  sky.name = 'sky';
+  sky.userData.hdri = true;
+  return sky;
+}
+
 /**
  * Erzeugt Himmel, Licht, Umgebung und Nebel.
  * def: { sun: {elevation, azimuth, color, intensity}, sky: {...}, hemi: {sky, ground, intensity},
  *        env: {intensity, ground}, fog: {color, near, far}, shadow: {size, bias, normalBias}, exposure }
+ * opts.hdri: Umgebung aus dem Karten-HDRI (world/library.js: { envRT, background, rotation, backgroundExposure,
+ *   rebuildEnv }) – Umgebungslicht (PMREM) und, wo sichtbar, Himmel; sonst prozeduraler Preetham-Himmel.
+ *   Kartenoptionen: env.hdriIntensity (Stärke des HDRI-Umgebungslichts), sky.hdri (false = Preetham-Himmel
+ *   behalten), sky.hdriIntensity, sky.exposureScale, sky.hdriTint, sky.hdriMax, hemi.hdriIntensity.
  */
-export function createLighting(G, def, group) {
+export function createLighting(G, def, group, { hdri = null } = {}) {
   const renderer = G.renderer?.renderer || G.renderer;
   const preset = G.renderer?.preset || {};
   const scene = G.scene;
@@ -105,9 +173,11 @@ export function createLighting(G, def, group) {
   const sunDir = sunVector(def.sun.elevation, def.sun.azimuth);
   const fogColor = new THREE.Color(def.fog.color);
 
-  // Himmel
-  const sky = makeSky(def.sky || {}, fogColor);
-  sky.material.uniforms.sunPosition.value.copy(sunDir).multiplyScalar(450000);
+  // Himmel: HDRI-Kuppel (sofern geladen und gewünscht) oder Preetham
+  const envIntensity = hdri ? (def.env?.hdriIntensity ?? def.env?.intensity ?? 0.8) : (def.env?.intensity ?? 0.8);
+  const useHdriSky = !!hdri?.background && def.sky?.hdri !== false;
+  const sky = useHdriSky ? makeHdriSky(hdri, def.sky || {}, fogColor, def.sky?.hdriIntensity ?? envIntensity) : makeSky(def.sky || {}, fogColor);
+  if (!useHdriSky) sky.material.uniforms.sunPosition.value.copy(sunDir).multiplyScalar(450000);
   group.add(sky);
 
   // Umgebung (PMREM) aus Himmel + Bodenhalbkugel. Nach einem WebGL-Kontextverlust ist das Ziel leer und gehört
@@ -136,7 +206,7 @@ export function createLighting(G, def, group) {
     envSky.geometry.dispose(); envSky.material.dispose();
     return rt;
   };
-  let pmremRT = renderEnv();
+  let pmremRT = hdri?.envRT || renderEnv();
   let envMap = pmremRT ? pmremRT.texture : null;
 
   // Sonne
@@ -164,14 +234,15 @@ export function createLighting(G, def, group) {
   G.renderer?.invalidateShadows?.();
 
   // Himmel-/Bodenlicht
-  const hemi = new THREE.HemisphereLight(def.hemi.sky, def.hemi.ground, def.hemi.intensity);
+  const hemiIntensity = hdri ? (def.hemi.hdriIntensity ?? def.hemi.intensity) : def.hemi.intensity;
+  const hemi = new THREE.HemisphereLight(def.hemi.sky, def.hemi.ground, hemiIntensity);
   hemi.name = 'hemi';
   group.add(hemi);
 
   // Szene: Umgebung + Nebel
   const prev = { environment: scene.environment, fog: scene.fog, background: scene.background, environmentIntensity: scene.environmentIntensity };
   scene.environment = envMap;
-  scene.environmentIntensity = def.env?.intensity ?? 0.8;
+  scene.environmentIntensity = envIntensity;
   scene.fog = new THREE.Fog(fogColor, def.fog.near, def.fog.far);
   scene.background = fogColor.clone();
 
@@ -189,9 +260,10 @@ export function createLighting(G, def, group) {
     sunIntensity: def.sun.intensity,
     hemiSky: new THREE.Color(def.hemi.sky),
     hemiGround: new THREE.Color(def.hemi.ground),
-    hemiIntensity: def.hemi.intensity,
+    hemiIntensity,
     envMap,
-    envIntensity: def.env?.intensity ?? 0.8,
+    envIntensity,
+    hdri: hdri ? hdri.id : null,
     fogColor: fogColor.clone(),
     exposure: def.exposure ?? 1,
     sun, hemi, sky,
@@ -202,7 +274,7 @@ export function createLighting(G, def, group) {
     /** Schatten folgt der Kamera, Wolken ziehen. */
     update(dt, camera) {
       time += dt;
-      sky.material.uniforms.time.value = time;
+      if (sky.material.uniforms.time) sky.material.uniforms.time.value = time;
       if (!camera) return;
       sky.position.copy(camera.position);
       camera.getWorldDirection(fwd); fwd.y = 0;
@@ -241,6 +313,7 @@ export function createLighting(G, def, group) {
       if (dirty) G.renderer?.invalidateShadows?.();
     },
     dispose() {
+      disposed = true;
       offContext?.();
       sky.geometry.dispose(); sky.material.dispose();
       sun.shadow.map?.dispose();
@@ -255,6 +328,7 @@ export function createLighting(G, def, group) {
   // WebGL-Kontextverlust: das PMREM-Ziel gehört zum verlorenen Kontext. Jetzt freigeben (auf dem verlorenen
   // Kontext still – später gäbe es „object does not belong to this context“), nach der Wiederherstellung neu
   // rendern und überall einsetzen, wo die alte Map hing (Weltszene, Viewmodel-Szene, lighting.envMap).
+  let disposed = false;
   const swapEnv = (next) => {
     const old = envMap;
     envMap = next;
@@ -265,8 +339,19 @@ export function createLighting(G, def, group) {
     if (state === 'lost') {
       pmremRT?.dispose(); pmremRT = null;
     } else if (state === 'restored' && !pmremRT) {
-      pmremRT = renderEnv();
-      if (pmremRT) swapEnv(pmremRT.texture);
+      if (hdri?.rebuildEnv) {
+        // HDRI neu laden (HTTP-Cache) und PMREM neu rendern; bis dahin prozedural
+        pmremRT = renderEnv();
+        if (pmremRT) swapEnv(pmremRT.texture);
+        const tmp = pmremRT;
+        hdri.rebuildEnv().then((rt) => {
+          if (disposed) { rt.dispose(); return; }
+          pmremRT = rt; swapEnv(rt.texture); tmp?.dispose();
+        }, () => { /* prozedural bleibt */ });
+      } else {
+        pmremRT = renderEnv();
+        if (pmremRT) swapEnv(pmremRT.texture);
+      }
     }
   }) : null;
 

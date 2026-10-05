@@ -401,6 +401,10 @@ export class WeaponController {
       s.lean = actorLean(actor);
       s.freeAim = actorFreeAim(actor);
       s.mantling = !!(it.mantling || actor.mantling);
+      // Körperkamera (core): Schritt- und Atemphase der Kamera, damit Waffe und Kamera im selben Takt schwingen
+      s.stepPhase = Number.isFinite(actor.stepPhase) ? actor.stepPhase : Number.isFinite(actor._bobPhase) ? actor._bobPhase : undefined;
+      s.breathPhase = Number.isFinite(actor.breathPhase) ? actor.breathPhase : Number.isFinite(actor._breathPh) ? actor._breathPh : undefined;
+      s.cameraMotion = Number.isFinite(actor.cameraMotion) ? actor.cameraMotion : undefined;
       try { vm.update(dt, s); } catch (err) { this._vmError('update', err); }
       this.scoped = !!vm.showScopeOverlay;
     } else {
@@ -545,7 +549,18 @@ export class WeaponController {
     if (actor.isPlayer && G.input && G.input.mode === 'touch') k *= 0.72; // Touch: wie COD Mobile deutlich ruhiger
     const pitch = r.vertical * e[1] * first * k * (0.94 + Math.random() * 0.12);
     const yaw = r.horizontal * (e[0] + (Math.random() * 0.7 - 0.35)) * k;
-    if (typeof actor.addRecoil === 'function') actor.addRecoil(pitch, yaw, r.recovery);
+    // Freies Zielen (core, nur an der Hüfte): ein Teil des Stoßes bewegt den Lauf innerhalb der Totzone statt der
+    // Sicht – die Waffe springt im Bild, die Kamera folgt erst am Rand (Überlauf übernimmt player._applyLook)
+    let camP = pitch, camY = yaw;
+    const fa = actor.isPlayer ? actor.aimOffset : null;
+    if (fa && actor.freeAimRadius > 1e-4) {
+      const kf = 0.45 * (1 - a);
+      fa.y += pitch * kf;
+      fa.x += yaw * kf;
+      camP *= 1 - kf;
+      camY *= 1 - kf;
+    }
+    if (typeof actor.addRecoil === 'function') actor.addRecoil(camP, camY, r.recovery);
 
     // Aufblühen
     const hip = def.hipSpread || 0.04;

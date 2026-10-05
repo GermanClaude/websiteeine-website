@@ -113,7 +113,7 @@ const input = new Input(G);
 G.input = input;
 input.attach(G);
 input.setEnabled(true);
-const SPOTS = { start: [0, 14, 0], parcours: [2, -3.2, 0], wall: [11.2, 0, Math.PI / 2], stairs: [-14, 0.5, 0], ramp: [-20, 0.5, 0] };
+const SPOTS = { start: [0, 14, 0], parcours: [4, -3.8, 0], wall: [11.2, 0, Math.PI / 2], stairs: [-14, 0.5, 0], ramp: [-20, 0.5, 0] };
 const go = (k) => { const [x, z, yaw] = SPOTS[k]; player.respawn({ position: new THREE.Vector3(x, 0.05, z), yaw }); };
 player.alive = false;
 go(params.get('spot') || 'start');

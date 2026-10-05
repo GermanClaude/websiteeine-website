@@ -22,6 +22,11 @@ export const DEFAULTS = Object.freeze({
   touchOpacity: 1.0, touchButtonScale: 1.0, bindings: Object.freeze({}), touchLayout: DEFAULT_TOUCH_LAYOUT,
   // Waffengefühl (Realismus-Plan F2/F9; weapons-feel)
   weaponPose: 'auto', weaponSway: 1.0,
+  // Bild: Objektiv, Farbe, Belichtung, Hochskalierung (Realismus-Plan R2/R3/R4/R12; core-render)
+  lensStyle: 'bodycam', lensStrength: 0.7, grain: 0.6, lensArtifacts: 0.35, lensBorder: false,
+  autoExposure: true, sharpness: 0.5, upscaler: 'fsr',
+  // Klang (Realismus-Plan A1/A6/A8; audio)
+  audioMix: 'auto', hearingProtection: false, audioRecordings: true,
 });
 
 const HOLD_TOGGLE = Object.freeze({ options: ['hold', 'toggle'], labels: { hold: 'Halten', toggle: 'Umschalten' } });
@@ -106,6 +111,28 @@ export const SETTINGS_SCHEMA = Object.freeze({
     options: ['auto', 'standard', 'bodycam'], labels: { auto: 'Automatisch', standard: 'Standard (Hüfte)', bodycam: 'Körperkamera (tief, mittig)' },
   },
   weaponSway: { type: 'number', min: 0, max: 1, step: 0.05, label: 'Waffenträgheit und -schwanken', group: 'grafik' },
+  // Bild (core-render; Bedeutung im Changelog „core-render“)
+  lensStyle: {
+    type: 'enum', label: 'Bildstil', group: 'grafik',
+    options: ['bodycam', 'klassisch', 'aus'], labels: { bodycam: 'Bodycam', klassisch: 'Klassisch', aus: 'Aus (klares Bild)' },
+  },
+  lensStrength: { type: 'number', min: 0, max: 1, step: 0.05, label: 'Objektivverzeichnung (Fischauge)', group: 'grafik' },
+  grain: { type: 'number', min: 0, max: 1, step: 0.05, label: 'Bildrauschen', group: 'grafik' },
+  lensArtifacts: { type: 'number', min: 0, max: 1, step: 0.05, label: 'Kompressionsspuren', group: 'grafik' },
+  lensBorder: { type: 'boolean', label: 'Kameragehäuse (schwarzer Rand)', group: 'grafik' },
+  autoExposure: { type: 'boolean', label: 'Automatische Belichtung', group: 'grafik' },
+  sharpness: { type: 'number', min: 0, max: 1, step: 0.05, label: 'Bildschärfe', group: 'grafik' },
+  upscaler: {
+    type: 'enum', label: 'Hochskalierung', group: 'grafik',
+    options: ['fsr', 'bilinear'], labels: { fsr: 'FSR 1.0', bilinear: 'Bilinear' },
+  },
+  // Klang (audio; Bedeutung im Changelog „audio-hybrid“)
+  audioMix: {
+    type: 'enum', label: 'Wiedergabe über', group: 'audio',
+    options: ['auto', 'kopfhoerer', 'lautsprecher', 'handy'], labels: { auto: 'Automatisch', kopfhoerer: 'Kopfhörer', lautsprecher: 'Lautsprecher', handy: 'Handy' },
+  },
+  hearingProtection: { type: 'boolean', label: 'Gehörschutz (mildert Knalltrauma und Ohrenklingeln)', group: 'audio' },
+  audioRecordings: { type: 'boolean', label: 'Echte Tonaufnahmen (aus: nur Klangsynthese, kein Download)', group: 'audio' },
 });
 
 /* ------------------------------------------------------------ Validierung */

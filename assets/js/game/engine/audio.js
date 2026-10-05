@@ -51,6 +51,18 @@ const MIXED_REC = { hit_flesh: 0.6, bullet_whiz: 0.35, land: 0.5 };
 /** Mechanik-Schicht (Aufnahme) unter dem eigenen Schuss. Repetierer/Pumpen haben ihre eigenen Klänge. */
 const MECH_OF = { ar: 'mech_rifle', ar_heavy: 'mech_rifle', smg: 'mech_rifle', lmg: 'mech_rifle', pistol: 'mech_pistol', pistol_heavy: 'mech_pistol', dmr: 'mech_rifle' };
 const TAIL_DB = -8, MECH_DB = -14;
+/**
+ * Pegelabgleich der Aufnahmen durch die komplette Kette (tools/out/audio-hybrid/loudness*.mjs: lauteste 400 ms am Ausgang,
+ * Mittel über alle Varianten, gegen den bisherigen Synthese-Klang) – zusätzlich zu Manifest mix.matchDb (Rohpuffer).
+ * Beton-Schritte bewusst +3 dB über der Synthese (häufigster Boden, Schritte müssen hörbar sein).
+ */
+const REC_TRIM = {
+  step_concrete: 3, step_wood: 4, step_dirt: 4.5, step_gravel: 4, step_metal: 3, step_grass: -6.5,
+  impact_concrete: 2.5, impact_wood: 5.5, impact_dirt: -3.5, impact_glass: -6, hit_flesh: 4.5,
+  melee_hit: 3, land: 2.5, explosion_far: 2,
+};
+/** Eigener Schuss: Aufnahme mit echtem Crest-Faktor läuft in den Limiter → etwas mehr Pegel für gleiche Lautheit. */
+const PLAYER_NEAR_DB = 2.5, FAR_DB = 2;
 /** Hülsen je Untergrund (weiche Böden: fast lautlos → aus). */
 const SHELL_SURF = { concrete: 'shell_concrete', tile: 'shell_concrete', metal: 'shell_hard', wood: 'shell_hard', glass: 'shell_hard', dirt: 'soft' };
 const FLASH_TYPES = new Set(['flash', 'flashbang', 'blend', 'blendgranate', 'stun', 'tactical_flash']);
@@ -88,6 +100,8 @@ export class AudioEngine {
     this.voices = [];
     this.vol = { master: 0.8, sfx: 1, music: 0.5, ui: 0.7, ambience: 1 };
     this.recordings = true; this.mixSetting = 'auto'; this.protection = false;
+    /** Schichten des Hybrid-Klangs (Prüfstand/A-B): Mechanik, Ich-Perspektive, Nachhall-Fahne, frühe Reflexionen, Zufalls-EQ, Sub/Trümmer */
+    this.layers = { mech: true, fp: true, tail: true, er: true, eq: true, sub: true };
     // rendered/queued/renderMs/maxSliceMs kommen aus der gemeinsamen Bank (renderMs = Hauptthread-Anteil)
     const B = bank.stats;
     this.stats = {
@@ -592,7 +606,7 @@ export class AudioEngine {
   /** Pegelkorrektur der Aufnahme (Manifest mix.matchDb: so laut wie der bisherige Synthese-Klang). */
   _recGain(name) {
     const m = library.entry(name)?.mix;
-    return m?.matchDb != null ? dbg(m.matchDb) : 1;
+    return (m?.matchDb != null ? dbg(m.matchDb) : 1) * dbg(REC_TRIM[name] || 0);
   }
 
   _pickRec(name, variant) {
@@ -754,7 +768,7 @@ export class AudioEngine {
     }
     // Frühe Reflexionen der Umgebung des Hörers (laute, nahe Ereignisse)
     const erAmt = (o.er ?? e.er) * (pos ? 1 / (1 + dist / 10) : 1);
-    if (erAmt > 0.02 && this.er && busName === 'sfx' && !occluded) {
+    if (erAmt > 0.02 && this.er && this.layers.er && busName === 'sfx' && !occluded) {
       const s = ctx.createGain(); s.gain.value = erAmt * baseGain; head.connect(s).connect(this.er.input); nodes.push(s);
     }
     // HDR-Fenster: geschätzter Pegel am Hörer
@@ -1092,18 +1106,18 @@ export class AudioEngine {
     if (isPlayer) {
       const room = this._roomOf(null, o), ind = room.ind;
       const v = this._spawn(nearE, {
-        ...o, position: null, player: true, priority: 3, pitch, eq: !low, volume: vol * (supRifle ? 0.3 : 1),
+        ...o, position: null, player: true, priority: 3, pitch, eq: !low && this.layers.eq, volume: vol * dbg(PLAYER_NEAR_DB) * (supRifle ? 0.22 : 1),
         lowpass: supRifle ? 3400 : 0, highpass: supRifle ? 220 : 0, env: (o.env ?? 1) * 0.4, echo: 0.5,
         er: supRifle || supName ? 0.45 : 1, loud: sup ? -14 : -3,
       });
       // Mechanik am Ohr (Aufnahme, unter dem Schuss; mit Schalldämpfer hört man sie deutlich)
       const mech = MECH_OF[voice] || MECH_OF[profile];
-      if (mech && !low) this.play(mech, { player: true, priority: 3, volume: vol * nearGain * dbg(MECH_DB) * (sup ? 2.2 : 1), pitch: pitch * this._rand.range(0.97, 1.03), env: 0 });
+      if (mech && !low && this.layers.mech) this.play(mech, { player: true, priority: 3, volume: vol * nearGain * dbg(MECH_DB) * (sup ? 1.8 : 1), pitch: pitch * this._rand.range(0.97, 1.03), env: 0 });
       // Ich-Perspektive (Synthese): Druckstoß auf den Brustkorb + Verschluss – je Wiedergabeprofil (Handy kaum Bass)
       const fp = CATALOG[`gunfp_${profile}`];
-      if (fp && P.sub > 0.05) this._spawn(fp, { player: true, priority: 3, volume: vol * P.sub * (sup ? 0.55 : 1) * (low ? 0.8 : 1), pitch });
+      if (fp && P.sub > 0.05 && this.layers.fp) this._spawn(fp, { player: true, priority: 3, volume: vol * P.sub * (sup ? 0.55 : 1) * (low ? 0.8 : 1), pitch });
       // Außen-Nachhall (Aufnahme), Pegel an den Nahschuss gekoppelt; innen übernimmt die Faltung
-      if (tailName && ind < 0.95) this._tail(tailName, o.actor || 'player', nearGain * vol * dbg(TAIL_DB) * (1 - ind) * (sup ? 0.3 : 1), 0.004, pitch);
+      if (tailName && ind < 0.95 && this.layers.tail) this._tail(tailName, o.actor || 'player', nearGain * vol * dbg(TAIL_DB) * (1 - ind) * (sup ? 0.3 : 1), 0.004, pitch);
       // Gehör: Schüsse in engen Räumen (Plan §10 A6)
       const small = clamp((10 - room.size) / 7);
       this.hearing.expose((SHOT_DOSE[profile] || 0.03) * (sup ? 0.15 : 1) * (0.06 + 0.94 * ind * small));
@@ -1116,14 +1130,14 @@ export class AudioEngine {
     const lpFar = dist > 150 ? Math.max(900, 4200 - (dist - 150) * 9) : 0;
     const base = { ...o, position: pos, delay, pitch, lowpass: supRifle ? 2600 : lpFar };
     let v = null;
-    if (near > 0.05) v = this._spawn(nearE, { ...base, volume: vol * near * (supRifle ? 0.35 : 1), eq: dist < 25 && !low, highpass: supRifle ? 200 : 0, echo: 0.6 });
+    if (near > 0.05) v = this._spawn(nearE, { ...base, volume: vol * near * (supRifle ? 0.35 : 1), eq: dist < 25 && !low && this.layers.eq, highpass: supRifle ? 200 : 0, echo: 0.6 });
     if (far > 0.05) {
       const farName = this._recName(`gunfar_${voice}`) || this._recName(`gunfar_${profile}`);
       const fe = farName ? entryOf(farName) : CATALOG[`gunfar_${profile}`];
-      v = this._spawn(fe, { ...base, proc: !farName, volume: vol * far * 1.15 * (sup ? 0.4 : 1), echo: 0.5 }) || v;
+      v = this._spawn(fe, { ...base, proc: !farName, volume: vol * far * 1.15 * (farName ? dbg(FAR_DB) : 1) * (sup ? 0.4 : 1), echo: 0.5 }) || v;
     }
     // Nahe Gegner draußen: diffuse Aufnahme-Fahne (2D, verzögert wie der Direktschall)
-    if (tailName && near > 0.3 && !sup && dist < 40) {
+    if (tailName && near > 0.3 && !sup && dist < 40 && this.layers.tail && !low) { // Handy: Stimmenbudget → nur eigene Fahne
       const room = this._roomOf(pos, o);
       if (room.ind < 0.7) {
         const wd = 7 / (7 + 0.3 * Math.max(0, dist - 7));
@@ -1203,7 +1217,7 @@ export class AudioEngine {
     if (near > 0.05) v = this._spawn(CATALOG.explosion, { position: pos, volume: vol * near, delay, priority: 3, occlusion: dist > 8 });
     if (far > 0.05) v = this._spawn(CATALOG.explosion_far, { position: pos, volume: vol * far * 1.2, delay, priority: 2 }) || v;
     // Hybrid: Sub-Druck unter der Aufnahme (Erschütterung), nachrieselnde Trümmer in der Nähe
-    if (v?.recorded) {
+    if (v?.recorded && this.layers.sub) {
       if (dist < 140 && P.sub > 0.05) this._spawn(CATALOG.boom_sub, { position: pos, volume: vol * P.sub * (0.5 + 0.5 * near), delay, priority: 2 });
       if (dist < 35) this._spawn(CATALOG.debris, { position: pos, volume: vol * (1 - dist / 35), delay: delay + this._rand.range(0.2, 0.35) });
     }
@@ -1249,6 +1263,7 @@ export class AudioEngine {
    */
   _queuePass(shooter, pass) {
     const k = shooter || pass;
+    pass.rec = this.recordings; // A/B im Prüfstand: Zustand zum Schusszeitpunkt
     const cur = this._pass.get(k);
     if (!cur || pass.miss < cur.miss) this._pass.set(k, pass);
     this._flushSoon();
@@ -1289,13 +1304,19 @@ export class AudioEngine {
     const profile = shot?.profile || this.profileFor(s?.weapon?.currentDef?.id || s?.weapon?.current?.id);
     const o = shot?.origin || this._eye(s) || pos;
     let dx = pos.x - o.x, dz = pos.z - o.z; const t = Math.hypot(dx, pos.y - o.y, dz) || 1; dx /= t; dz /= t;
-    const w = { profile, miss: +e.distance || 1, t, cx: pos.x, cy: pos.y, cz: pos.z, dx, dz };
+    const w = { profile, miss: +e.distance || 1, t, cx: pos.x, cy: pos.y, cz: pos.z, dx, dz, rec: this.recordings };
     const cur = this._whiz.get(s || w);
     if (!cur || w.miss < cur.miss) this._whiz.set(s || w, w);
     this._flushSoon();
   }
 
-  _playPass({ profile, miss, t, cx, cy, cz, dx, dz }) {
+  _playPass(p) {
+    const prev = this.recordings;
+    if (p.rec != null) this.recordings = p.rec;
+    try { this._playPass1(p); } finally { this.recordings = prev; }
+  }
+
+  _playPass1({ profile, miss, t, cx, cy, cz, dx, dz }) {
     const crack = !!SUPERSONIC[profile], v = BULLET_SPEED[profile] || 700;
     const at = t / v; // Ankunft des Geschosses; der Mündungsknall folgt mit t / 343
     if (crack) {

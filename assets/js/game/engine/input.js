@@ -707,7 +707,6 @@ export class Input {
     this._assist(dt);
     if (this._touch) {
       const now = performance.now();
-      if (this._touch.layoutDirty) this.applyTouchLayout();
       if (now - this._uiRefreshAt > 100) { this._uiRefreshAt = now; this._touch.refresh(); }
     }
   }

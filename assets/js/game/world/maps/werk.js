@@ -21,6 +21,8 @@ export default {
   visualBounds: { minX: -170, maxX: 170, minZ: -170, maxZ: 170 },
   chunkSize: 36,
   ambience: 'industrial',
+  // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
+  assets: { hdri: 'abandoned_slipway' },
   defaultSurface: 'concrete',
   navSpacing: 1.5,
   groundNoise: 0.22,

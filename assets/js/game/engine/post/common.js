@@ -90,14 +90,21 @@ function probeTarget(renderer, format, type) {
 }
 
 /** Ziel im HDR-Format (bilinear, ohne Mipmaps). */
-export function hdrTarget(renderer, w, h, { depth = false, fmt = null } = {}) {
+export function hdrTarget(renderer, w, h, { depth = false, depthTexture = false, fmt = null } = {}) {
   const f = fmt || hdrFormat(renderer);
-  const rt = new THREE.WebGLRenderTarget(Math.max(1, w), Math.max(1, h), {
-    format: f.format, type: f.type, depthBuffer: depth, stencilBuffer: false,
+  const opts = {
+    format: f.format, type: f.type, depthBuffer: depth || depthTexture, stencilBuffer: false,
     magFilter: THREE.LinearFilter, minFilter: THREE.LinearFilter, generateMipmaps: false,
-  });
+  };
+  if (depthTexture) {
+    // lesbare Tiefe (Lichtstrahlen, später AO/Bewegungsunschärfe); 24 Bit
+    opts.depthTexture = new THREE.DepthTexture(Math.max(1, w), Math.max(1, h));
+    opts.depthTexture.type = THREE.UnsignedIntType;
+    opts.depthTexture.name = 'np:tiefe';
+  }
+  const rt = new THREE.WebGLRenderTarget(Math.max(1, w), Math.max(1, h), opts);
   rt.texture.name = 'np:hdr';
-  rt.userData.bpp = f.bpp + (depth ? 4 : 0);
+  rt.npBpp = f.bpp + (depth || depthTexture ? 4 : 0);
   return rt;
 }
 
@@ -108,7 +115,7 @@ export function ldrTarget(w, h) {
     magFilter: THREE.LinearFilter, minFilter: THREE.LinearFilter, generateMipmaps: false,
   });
   rt.texture.name = 'np:ldr';
-  rt.userData.bpp = 4;
+  rt.npBpp = 4;
   return rt;
 }
 
@@ -119,7 +126,7 @@ export function smallFloatTarget(w, h) {
     magFilter: THREE.NearestFilter, minFilter: THREE.NearestFilter, generateMipmaps: false,
   });
   rt.texture.name = 'np:lum';
-  rt.userData.bpp = 8;
+  rt.npBpp = 8;
   return rt;
 }
 

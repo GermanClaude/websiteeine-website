@@ -88,6 +88,9 @@
       <div class="row">Panning <span class="seg" id="q"><button data-q="high" class="on">HRTF</button><button data-q="low">Equal-Power</button></span></div>
       <div class="row"><label class="chk"><input type="checkbox" id="occl"> Quelle verdeckt (lineOfSight = false)</label></div>
       <div class="row"><label class="chk"><input type="checkbox" id="pause"> Pausenmenü (gedämpft)</label></div>
+      <div class="row"><label class="chk"><input type="checkbox" id="recs"> Echte Aufnahmen (Hybrid, <a href="audio-lab.html">A/B im Klanglabor</a>)</label></div>
+      <div class="row">Wiedergabe <span class="seg" id="mix"><button data-mix="auto" class="on">Auto</button><button data-mix="kopfhoerer">Kopfhörer</button><button data-mix="lautsprecher">Lautsprecher</button><button data-mix="handy">Handy</button></span></div>
+      <div class="row"><label class="chk"><input type="checkbox" id="prot"> Gehörschutz</label></div>
       <label class="sl">Leben <input type="range" id="hp" min="1" max="100" step="1" value="100"><output></output></label>
       <p class="hint">Unter 35 Leben: Herzschlag, schweres Atmen, gedämpfte Welt.</p>
     </section>
@@ -152,7 +155,8 @@ async function busFactory() {
     off(n, fn) { map.get(n)?.delete(fn); }, emit(n, p) { for (const fn of [...(map.get(n) || [])]) fn(p); }, clear() { map.clear(); },
   };
 }
-const store = { masterVolume: 0.8, sfxVolume: 1, musicVolume: 0.5, uiVolume: 0.7, quality: 'high' }, listeners = new Set();
+// Prozedural-Prüfstand: Aufnahmen standardmäßig aus (Schalter „Echte Aufnahmen“; A/B im Klanglabor dev/audio-lab.html)
+const store = { masterVolume: 0.8, sfxVolume: 1, musicVolume: 0.5, uiVolume: 0.7, quality: 'high', audioRecordings: false, audioMix: 'auto', hearingProtection: false }, listeners = new Set();
 const settings = { get: k => store[k], set(k, v) { store[k] = v; listeners.forEach(f => f(k, v)); }, onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); } };
 const camera = new THREE.PerspectiveCamera(80, 1, 0.05, 500); camera.position.set(0, 1.65, 0); camera.updateMatrixWorld();
 const flags = { occluded: false, indoor: false };
@@ -292,6 +296,9 @@ for (const b of $$('#env button')) b.onclick = () => { $$('#env button').forEach
 for (const b of $$('#q button')) b.onclick = () => { $$('#q button').forEach(x => x.classList.toggle('on', x === b)); settings.set('quality', b.dataset.q); restartOrbit(); };
 $('#occl').onchange = e => { flags.occluded = e.target.checked; };
 $('#pause').onchange = e => { G.match.state = e.target.checked ? 'paused' : 'playing'; emit('match:state', { state: G.match.state }); };
+$('#recs').onchange = e => settings.set('audioRecordings', e.target.checked);
+$('#prot').onchange = e => settings.set('hearingProtection', e.target.checked);
+$$('#mix button').forEach(b => b.onclick = () => { $$('#mix button').forEach(x => x.classList.toggle('on', x === b)); settings.set('audioMix', b.dataset.mix); });
 const pass = (wid) => { // Geschoss fliegt 1,2 m rechts am Hörer vorbei
   const o = ahead(60, 8), target = ahead(-5, 1.2); emit('weapon:fire', { actor: enemy, weaponId: wid, origin: o, dir: target.sub(o).normalize() });
 };
@@ -386,7 +393,7 @@ function status() {
   const now = performance.now(); if (now - lastStatus < 250) return; lastStatus = now;
   const i = audio.info();
   $('#status').innerHTML = `<span>Kontext <b class="${i.state === 'running' ? 'ok' : 'bad'}">${i.state}</b></span><span>Rate <b>${i.sampleRate} Hz</b></span><span>Puffer <b>${i.buffers}</b> (${i.bankMB} MB) · Warteschlange <b>${i.queue}</b> · Synthese <b>${i.synth === 'worker' ? `${i.workers} Worker` : 'Hauptthread'}</b></span>`
-    + `<span>Stimmen <b>${i.voices}</b></span><span>Worker <b>${Math.round(i.workerMs)} ms</b> · Hauptthread <b>${Math.round(i.renderMs)} ms</b> (längster Block ${i.maxSliceMs.toFixed(1)} ms)</span><span>Raum <b>${i.space}</b> · innen ${i.indoor}</span><span>Dämpfung <b>${i.muffle} Hz</b></span>${i.errors ? `<span class="bad">Fehler ${i.errors}</span>` : ''}`;
+    + `<span>Stimmen <b>${i.voices}</b></span><span>Worker <b>${Math.round(i.workerMs)} ms</b> · Hauptthread <b>${Math.round(i.renderMs)} ms</b> (längster Block ${i.maxSliceMs.toFixed(1)} ms)</span><span>Raum <b>${i.space}</b> · innen ${i.indoor}</span><span>Dämpfung <b>${i.muffle} Hz</b></span><span>Aufnahmen <b>${i.recordings ? `${i.samples} (${i.samplesMB} MB)` : 'aus'}</b> · Profil <b>${i.mix}</b> · Gehör ${i.hearing.dose}</span>${i.errors ? `<span class="bad">Fehler ${i.errors}</span>` : ''}`;
 }
 
 // ---------------------------------------------------------------- Messung

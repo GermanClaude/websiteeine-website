@@ -381,7 +381,9 @@ const _n = new THREE.Vector3();
 const Z = new THREE.Vector3(0, 0, 1);
 
 export class DecalLayer {
-  constructor(texture, capacity = 120) {
+  /** opts.normalMap: Normalen-Atlas oder Funktion, die ihn erst bei Bedarf baut (Decals 2.0) – mit setDetail(true)
+   *  beleuchtetes PBR-Material statt Lambert. */
+  constructor(texture, capacity = 120, opts = {}) {
     this.cap = capacity;
     this.limit = capacity;
     this.cursor = 0;
@@ -407,6 +409,9 @@ export class DecalLayer {
     };
     mat.customProgramCacheKey = () => 'fx-decal-v1';
     this.material = mat;
+    this._lambert = mat;
+    this._normalMap = opts.normalMap || null;
+    this._pbr = null;
     this.mesh = new THREE.InstancedMesh(geo, mat, capacity);
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.count = 0;
@@ -419,6 +424,34 @@ export class DecalLayer {
   }
 
   setLimit(n) { this.limit = Math.max(8, Math.min(this.cap, n | 0)); if (this.cursor >= this.limit) this.cursor = 0; }
+
+  /**
+   * Detailstufe: true = MeshStandardMaterial mit Normalen-Atlas (Kraterränder fangen Licht, Umgebungslicht),
+   * false = Lambert (low). Nur zwischen Matches umschalten (neues Shaderprogramm).
+   */
+  setDetail(on) {
+    if (on && this._normalMap && !this._pbr) {
+      const [GX, GY] = DECAL_GRID;
+      const m = new THREE.MeshStandardMaterial({
+        map: this._lambert.map, normalMap: typeof this._normalMap === 'function' ? this._normalMap() : this._normalMap, normalScale: new THREE.Vector2(1.15, 1.15), roughness: 0.93, metalness: 0,
+        transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
+      });
+      m.name = 'fx-decal-pbr';
+      const sx = (1 / GX).toFixed(6), sy = (1 / GY).toFixed(6);
+      m.onBeforeCompile = (sh) => {
+        sh.vertexShader = sh.vertexShader
+          .replace('#include <common>', '#include <common>\nattribute vec4 aDecal;\nvarying float vDecalA;')
+          .replace('#include <uv_vertex>', `#include <uv_vertex>\n#ifdef USE_MAP\nvMapUv = vMapUv * vec2(${sx}, ${sy}) + aDecal.xy;\n#endif\n#ifdef USE_NORMALMAP\nvNormalMapUv = vNormalMapUv * vec2(${sx}, ${sy}) + aDecal.xy;\n#endif\nvDecalA = aDecal.z;`);
+        sh.fragmentShader = sh.fragmentShader
+          .replace('#include <common>', '#include <common>\nvarying float vDecalA;')
+          .replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.a *= vDecalA;\nif (diffuseColor.a < 0.01) discard;');
+      };
+      m.customProgramCacheKey = () => 'fx-decal-pbr-v1';
+      this._pbr = m;
+    }
+    const want = on && this._pbr ? this._pbr : this._lambert;
+    if (this.mesh.material !== want) { this.mesh.material = want; this.material = want; }
+  }
 
   /** Einschuss: Zelle (0..7), Punkt, Normale, Größe (m), Lebensdauer (s). */
   add(cell, point, normal, size, life, now, alpha = 1) {
@@ -472,7 +505,8 @@ export class DecalLayer {
 
   dispose() {
     this.geometry.dispose();
-    this.material.dispose();
+    this._lambert.dispose();
+    if (this._pbr) this._pbr.dispose();
     this.mesh.dispose();
   }
 }

@@ -17,6 +17,14 @@ export function frame(b, x, y, z, ry = 0) {
 }
 
 const shade = (hex, k) => { const c = new THREE.Color(hex); c.multiplyScalar(k); return '#' + c.getHexString(); };
+
+/** Positionsabhängiger Zufall 0..1 (Varianten/Drehungen der Bibliotheksmodelle, ohne den Kartenzufall zu verbrauchen). */
+export function hash01(x, z, k = 0) {
+  let n = Math.imul(Math.round(x * 97) | 0, 374761393) + Math.imul(Math.round(z * 89) | 0, 668265263) + Math.imul(k + 1, 2246822519);
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+}
+
 const geoCache = new Map();
 function cached(key, fn) { if (!geoCache.has(key)) geoCache.set(key, fn()); return geoCache.get(key); }
 
@@ -87,6 +95,20 @@ export function crateStack(b, x, z, o = {}) {
 
 export function barrel(b, x, y, z, o = {}) {
   const color = o.color || b.pick(['#2d5f94', '#b8392c', '#3e7a4c', '#c9a227', '#3a3d40']);
+  if (b.hasModel('barrel_01')) {
+    // Fotoscan-Fässer: Rot (Stahl, Gefahrzeichen), Blau (Stahl), Blau (Kunststoff) – nach gewünschter Farbe/Ort
+    const c = new THREE.Color(color), h = hash01(x, z, 3);
+    const id = c.r > c.b * 1.4 ? 'barrel_01' : c.b > c.r * 1.3 ? (h < 0.6 ? 'barrel_03' : 'barrel_02') : (h < 0.5 ? 'barrel_01' : 'barrel_03');
+    const fb = (bb) => barrelProc(bb, x, y, z, { ...o, color });
+    if (o.tipped) b.model(id, x, y + 0.3, z, { pivot: 'center', rz: Math.PI / 2, ry: o.ry || 0, minimap: 'cover', fallback: fb });
+    else b.model(id, x, y, z, { ry: hash01(x, z, 4) * Math.PI * 2, minimap: 'cover', fallback: fb });
+    return;
+  }
+  barrelProc(b, x, y, z, { ...o, color });
+}
+
+function barrelProc(b, x, y, z, o) {
+  const color = o.color;
   if (o.tipped) {
     b.cyl(x, y + 0.3, z, 0.3, 0.88, 'metal_painted', { axis: 'x', ry: o.ry || 0, tint: color, minimap: 'cover' });
     return;
@@ -210,6 +232,17 @@ function jerseyGeom(len) {
 
 export function jersey(b, x, z, o = {}) {
   const len = o.len ?? 3, ry = o.ry || 0;
+  if (b.hasModel('concrete_road_barrier')) {
+    // Fotoscan-Leitwand (1,54 m je Element), Elemente aneinandergereiht; Kollision unten wie bisher
+    const n = Math.max(1, Math.round(len / 1.54)), seg = len / n, c = Math.cos(ry), sn = Math.sin(ry);
+    for (let i = 0; i < n; i++) {
+      const lx = -len / 2 + seg * (i + 0.5);
+      b.model('concrete_road_barrier', x + lx * c, o.y ?? 0, z - lx * sn, { ry: ry + (hash01(x, z, i) - 0.5) * 0.04 + (hash01(z, x, i) < 0.5 ? Math.PI : 0), sx: seg / 1.54, collide: false,
+        fallback: (bb) => bb.geom(jerseyGeom(seg), x + lx * c, o.y ?? 0, z - lx * sn, 'concrete', { ry, tint: o.tint || '#d6d2c8', uv: 'local', collide: false, aoFloor: o.y ?? 0 }) });
+    }
+    b.box(x, o.y ?? 0, z, len, 0.81, 0.6, 'black', { ry, visual: false, minimap: 'cover' });
+    return;
+  }
   b.geom(jerseyGeom(len), x, o.y ?? 0, z, 'concrete', { ry, tint: o.tint || '#d6d2c8', uv: 'local', collide: false, aoFloor: o.y ?? 0 });
   b.box(x, o.y ?? 0, z, len, 0.81, 0.6, 'black', { ry, visual: false, minimap: 'cover' });
   if (o.stripes) {
@@ -247,6 +280,13 @@ function wheel(f, lx, ly, lz, r, w) {
 /** PKW (lokal z = Länge). style: 'sedan'|'hatch'|'wreck' */
 export function car(b, x, z, o = {}) {
   const f = frame(b, x, o.y ?? 0, z, o.ry || 0), col = o.color || b.pick(['#8c2b24', '#2f4f6e', '#c7c7c2', '#3b3d40', '#6b7a52', '#b98b3a']);
+  if (b.hasModel('covered_car') && o.model !== false) {
+    // abgedecktes Auto (Fotoscan, Plane über der Karosserie) – Maße wie das prozedurale (1,8 × 1,42 × 4,3 m)
+    b.model('covered_car', x, o.y ?? 0, z, { ry: o.ry || 0, collide: false, fallback: (bb) => car(bb, x, z, { ...o, color: col, model: false }) });
+    f.solid(0, 0, 0, 1.8, 1.42, 4.3, { minimap: 'vehicle' });
+    b.decal(x, (o.y ?? 0) + 0.01, z, 2.6, 4.6, 'oil', { ry: o.ry || 0, opacity: 0.5 });
+    return;
+  }
   const L = 4.3, W = 1.8, hatch = o.style === 'hatch';
   const wreck = o.style === 'wreck';
   const pm = 'metal_painted';
@@ -349,6 +389,12 @@ export function forklift(b, x, z, o = {}) {
 // ---------------------------------------------------------------------------
 /** Klimagerät an Wand (Normale ry zeigt nach außen) oder auf Dach. */
 export function acUnit(b, x, y, z, o = {}) {
+  if (b.hasModel('exterior_aircon_unit') && o.model !== false) {
+    // Fotoscan-Klimagerät (zwei Varianten: neu/verrostet); Halterung und Kondensatleitung sind im Modell
+    const part = hash01(x, z, 7) < 0.55 ? 'exterior_aircon_unit_rusted' : 'exterior_aircon_unit';
+    b.model('exterior_aircon_unit', x, y - (o.bracket === false ? 0 : 0.1), z, { part, ry: o.ry || 0, s: o.s ?? 0.95, collide: o.collide ?? false, minimap: false, fallback: (bb) => acUnit(bb, x, y, z, { ...o, model: false }) });
+    return;
+  }
   const f = frame(b, x, y, z, o.ry || 0);
   f.box(0, 0, 0, 0.95, 0.65, 0.38, 'metal_painted', { tint: o.tint || '#d8d9d4', collide: o.collide ?? false, minimap: false, grad: false });
   f.cyl(0.18, 0.33, 0.2, 0.22, 0.02, 'black', { axis: 'z', collide: false, minimap: false, seg: 14 });
@@ -452,7 +498,10 @@ export function fence(b, x0, z0, x1, z1, o = {}) {
   b.cyl((x0 + x1) / 2, y + h, (z0 + z1) / 2, 0.03, L, 'metal_galvanized', { axis: 'x', ry, seg: 6, collide: false, minimap: false, ao: false });
   const style = o.style || 'chain';
   if (style === 'chain' || style === 'mesh') {
-    b.box((x0 + x1) / 2, y + 0.05, (z0 + z1) / 2, L, h - 0.08, 0.02, 'metal_grate', { ry, collide: false, minimap: false, bullet: false, grad: false, uvScale: style === 'chain' ? 0.35 : 0.8, ao: false, matOpts: null });
+    // Maschendraht: Fotoscan-Satz „chainlink“ (dünn → geblendet, bleibt auch in kleinen Mip-Stufen durchsichtig);
+    // Gitterzaun („mesh“): dichtes Gitter mit Alphatest
+    const chain = style === 'chain';
+    b.box((x0 + x1) / 2, y + 0.05, (z0 + z1) / 2, L, h - 0.08, 0.02, chain ? 'chainlink' : 'metal_grate', { ry, collide: false, minimap: false, bullet: false, grad: false, uvScale: chain ? 1 : 0.8, ao: false, matOpts: null, cast: !chain });
     if (o.barbed) b.cyl((x0 + x1) / 2, y + h + 0.25, (z0 + z1) / 2, 0.012, L, 'metal_galvanized', { axis: 'x', ry, seg: 4, collide: false, minimap: false, ao: false });
   } else {
     const m = Math.round(L / 0.12);
@@ -476,6 +525,16 @@ export function dumpster(b, x, z, o = {}) {
 /** Reifenstapel */
 export function tires(b, x, z, o = {}) {
   const n = o.n ?? 4, y = o.y ?? 0;
+  if (b.hasModel('old_tyre')) {
+    // gestapelte Altreifen (liegend), Kollision als ein Zylinder wie bisher
+    for (let i = 0; i < n; i++) {
+      const ox = (b.rand() - 0.5) * 0.08, oz = (b.rand() - 0.5) * 0.08;
+      b.model('old_tyre', x + ox, y + i * 0.2 + 0.1, z + oz, { pivot: 'center', rx: Math.PI / 2, ry: hash01(x, z, i) * 6.28, s: 1.18, collide: false,
+        fallback: (bb) => { bb.cyl(x + ox, y + i * 0.24, z + oz, 0.36, 0.24, 'rubber', { seg: 14, collide: false, minimap: false, grad: i === 0 }); } });
+    }
+    b.cyl(x, y, z, 0.37, n * 0.2, 'black', { visual: false, minimap: 'cover' });
+    return;
+  }
   for (let i = 0; i < n; i++) {
     const ox = (b.rand() - 0.5) * 0.08, oz = (b.rand() - 0.5) * 0.08;
     b.cyl(x + ox, y + i * 0.24, z + oz, 0.36, 0.24, 'rubber', { seg: 14, collide: false, minimap: false, grad: i === 0 });

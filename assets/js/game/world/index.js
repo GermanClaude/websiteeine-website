@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { buildColliderOctreeAsync } from './collider.js';
 import { TriangleBVH } from './bvh.js';
 import { MAPS } from '../../shared/maps.data.js';
-import { configureTextures, getMaterial, beginTextureEpoch, releaseUnusedTextures, deferTextureGeneration } from '../engine/textures.js';
+import { configureTextures, getMaterial, beginTextureEpoch, releaseUnusedTextures, deferTextureGeneration, planLibraryMaterials, resolveLibraryMaterials, libraryInUse, libraryStats } from '../engine/textures.js';
+import { createWorldAssets } from './library.js';
 import { MapBuilder, SURFACES } from './builder.js';
 import { createLighting } from './lighting.js';
 import { createWater } from './water.js';
@@ -87,7 +88,7 @@ async function uploadTextures(renderer, root) {
   const seen = new Set();
   root.traverse(o => {
     const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
-    for (const m of mats) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'alphaMap']) if (m[k]?.isTexture) seen.add(m[k]);
+    for (const m of mats) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap']) if (m[k]?.isTexture) seen.add(m[k]);
   });
   let slice = performance.now();
   for (const tex of seen) {
@@ -125,13 +126,28 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   beginTextureEpoch(); // Texturen, die diese Karte nicht nutzt, werden am Ende freigegeben
 
   const [{ default: def }] = await Promise.all([MAP_MODULES[id](), fontsReady()]);
+  // Fotoscan-Bibliothek (assets/lib): Verfügbarkeit prüfen (Manifest, Transcoder, Kompressionsformat), HDRI sofort
+  // laden; Texturensätze und Requisiten lädt MapBuilder.build() parallel zur prozeduralen Arbeit (b.library)
+  const lib = createWorldAssets(G, def, quality);
+  const libOk = await lib.check();
+  const hdriPromise = lib.loadHdri(def.lighting?.sun);
+  const libPlan = libOk ? lib.planMaterials() : null;
+  planLibraryMaterials(libPlan);
   const tBuild0 = performance.now();
   const pb = def.bounds;
   const cb = def.visualBounds || { minX: pb.minX - 30, maxX: pb.maxX + 30, minZ: pb.minZ - 30, maxZ: pb.maxZ + 30 };
   const b = new MapBuilder({ bounds: cb, seed: def.seed || 1, chunkSize: def.chunkSize || 32, groundNoise: def.groundNoise ?? 0.14, interiorTint: def.interiorTint });
+  if (libOk) {
+    b.lib = lib.modelIds();
+    b.library = async (req, onProg) => {
+      const r = await lib.load({ ...req, plan: libPlan }, onProg);
+      resolveLibraryMaterials(r.sets);
+      return r;
+    };
+  }
   const waters = [];
   const ctx = {
-    THREE, quality, debug, getMaterial,
+    THREE, quality, debug, getMaterial, lib: libOk,
     water: o => { const w = createWater(o); waters.push(w); return w; },
   };
   // Texturen, die Requisiten direkt anfordern (Kran, Wasser …), nicht sofort im Hauptthread erzeugen:
@@ -143,6 +159,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     progress(0.05, 'Geometrie');
     built = await b.build({ quality, anisotropy: Math.min(G.renderer?.preset?.anisotropy || 4, maxAniso), onProgress: (p, l) => progress(p * 0.8, l) });
   } finally {
+    if (!b.library) resolveLibraryMaterials(new Map());
     deferTextureGeneration(false);
   }
   const tBuild = performance.now() - tBuild0;
@@ -179,9 +196,10 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   const collider = await buildColliderOctreeAsync(built.colTris);
   const tCol = performance.now() - tCol0;
 
-  // Licht & Himmel
+  // Licht & Himmel (HDRI der Karte, falls geladen – sonst prozeduraler Himmel)
+  const hdri = await hdriPromise;
   const tLight0 = performance.now();
-  const light = createLighting(G, def.lighting, group);
+  const light = createLighting(G, def.lighting, group, { hdri });
   const tLight = performance.now() - tLight0;
   G.scene.add(group);
   // Kartenbelichtung (z. B. Dämmerung etwas heller) + Bloom-Schwelle/-Stärke – nur wenn der Renderer das anbietet
@@ -233,6 +251,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
 
   const bounds = new THREE.Box3(new THREE.Vector3(pb.minX, pb.minY ?? -3, pb.minZ), new THREE.Vector3(pb.maxX, pb.maxY ?? 30, pb.maxZ));
   const objects = built.objects;
+  const props = built.props;
 
   const world = {
     id, name: meta.name, meta,
@@ -246,7 +265,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     minimap,
     ambience: def.ambience || meta.ambience,
     targets,
-    stats: { ...built.stats, buildMs: Math.round(tBuild), colliderMs: Math.round(tCol), lightMs: Math.round(tLight), jobMs: Math.round(tJob), worker: job.ms, totalMs: 0, nav: nav.stats },
+    stats: { ...built.stats, buildMs: Math.round(tBuild), colliderMs: Math.round(tCol), lightMs: Math.round(tLight), jobMs: Math.round(tJob), worker: job.ms, totalMs: 0, nav: nav.stats, assets: lib.stats },
     debugData: { colliderBVH: cbvh, bulletBVH: bvh, footprints: b.footprints, navPoints: b.navPoints, zones: res.zones || [] },
 
     /**
@@ -308,6 +327,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
       light.update(dt, camera);
       foliageUniforms.uTime.value += dt;
       for (const w of waters) w.update(dt);
+      props?.update(camera);
       for (const ob of b.objects) ob.update?.(dt, camera);
       for (const t of targets) t.update?.(dt);
       res.update?.(dt, camera);
@@ -318,8 +338,10 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
 
     dispose() {
       G.scene.remove(group);
+      props?.dispose();
       group.traverse(o => {
         if (o.isMesh || o.isInstancedMesh || o.isPoints || o.isLine) {
+          if (o.userData.shared) return; // Bibliotheks-Requisiten: Geometrie/Material gehören dem Loader-Cache
           o.geometry?.dispose();
           const mats = Array.isArray(o.material) ? o.material : [o.material];
           for (const m of mats) if (m && m.userData?.disposable) m.dispose();
@@ -331,6 +353,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
       for (const w of waters) w.dispose();
       for (const L of built.lights) L.dispose?.();
       light.dispose();
+      hdri?.dispose();
       offQuality?.();
       if (typeof G.renderer?.setPost === 'function') G.renderer.setPost(postRestore);
       res.dispose?.();
@@ -341,8 +364,14 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   const offQuality = typeof G.renderer?.onQualityChange === 'function' ? G.renderer.onQualityChange((q, preset) => world.setQuality(preset)) : null;
   // Kartenspezifische Aktionen (z. B. Ziele) mit Weltzugriff verdrahten
   res.attach?.(world, G);
-  // Texturen vorheriger Karten, die hier nicht vorkommen, freigeben (GPU + Daten)
+  // Texturen vorheriger Karten, die hier nicht vorkommen, freigeben (GPU + Daten); danach Bibliotheks-Assets
+  // (Sätze, Modelle, HDRIs) anderer Karten
   world.stats.texturesReleased = releaseUnusedTextures();
+  world.stats.assets.released = await lib.releaseOthers(libraryInUse(), new Set(b.modelIdsUsed || []));
+  world.stats.assets.libMaterials = libraryStats.materials;
+  world.stats.assets.fallbackMaterials = libraryStats.fallback;
+  // Requisiten einmal vollständig sichtbar (Shader-Vorwärmen im Ladebildschirm), ab dem ersten update() je Abstand
+  props?.showAll();
   // Texturen schon jetzt in Zeitscheiben hochladen – sonst landet alles (inkl. Mipmaps) im ersten Bild
   progress(0.97, 'Texturen hochladen');
   world.stats.uploadMs = await uploadTextures(renderer, group);

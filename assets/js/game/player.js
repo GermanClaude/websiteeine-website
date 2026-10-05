@@ -232,6 +232,19 @@ export class Player {
       leaning: 0, mantling: false, aimOffsetX: 0, aimOffsetY: 0, exertion: 0,
     };
     this._updateBaseFov();
+    // Unterdrückung: nahe Vorbeiflüge rucken die Körperkamera kurz (× Komfortregler bei der Ausgabe)
+    if (G.events && typeof G.events.on === 'function') G.events.on('bullet:whiz', (e) => this._onWhiz(e));
+  }
+
+  _onWhiz(e) {
+    if (!this.alive || !e) return;
+    const k = clamp(1 - (e.distance || 1.5) / 2.2, 0.15, 1);
+    const c = this._cam;
+    const side = e.position ? Math.sign((e.position.x - this.position.x) * Math.cos(this.yaw) - (e.position.z - this.position.z) * Math.sin(this.yaw)) || 1 : 1;
+    c.r.v += side * 0.22 * k;
+    c.w.v -= side * 0.12 * k;
+    c.p.v += 0.08 * k;
+    this.trauma = Math.min(1, this.trauma + 0.035 * k);
   }
 
   /* ------------------------------------------------------------ Match */

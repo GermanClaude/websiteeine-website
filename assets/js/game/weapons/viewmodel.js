@@ -13,7 +13,7 @@ import { createWeaponModel } from './models.js';
 import { WEAPONS, weaponHandling } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
 import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE } from './gunsmith/handling.js';
-import { MuzzleFlash, ShellPool, SmokeWisps } from './gunsmith/fx.js';
+import { MuzzleFlash, ShellPool, SmokeWisps, HeatHaze } from './gunsmith/fx.js';
 import { SCHEMES, schemeForTeam } from '../bots/soldier/materials.js';
 import { Spring, Spring3, curve, windowW, clamp, damp, smooth, easeOut, easeInOut, easeOutBack } from './gunsmith/anim.js';
 import { camoMap, fabricNormal, tapeMap, watchFaceTexture, flashMap, smokeMap } from './gunsmith/textures.js';
@@ -131,6 +131,8 @@ export class ViewModel {
     this.root.add(this.smoke.group);
     this.shells = new ShellPool(14);
     this.root.add(this.shells.group);
+    this.haze = new HeatHaze();
+    this.root.add(this.haze.mesh);
     // Hülsen fliegen kurz im Viewmodel (vor der Waffe sichtbar) und landen dann als Welt-Hülsen auf dem Boden
     this.shells.onHandover = (type, pos, vel, q) => this._casingToWorld(type, pos, vel, q);
     this._lighting = null;
@@ -353,7 +355,7 @@ export class ViewModel {
     this._heat = Math.min(1, this._heat + (h.heat ?? HEAT_PER_SHOT[h.action] ?? 0.02));
     this._shotCount++;
     const suppressed = info.suppressed ?? this.def?.suppressed;
-    if (!suppressed && !this.showScopeOverlay) this.flash.fire(h.flash, h.flashLen);
+    if (!this.showScopeOverlay) this.flash.fire(h.flash, h.flashLen, { suppressed });
     if (!suppressed) {
       this.cur.ud.muzzle.getWorldPosition(_v);
       this.root.worldToLocal(_v);
@@ -548,6 +550,8 @@ export class ViewModel {
     this.quality = q;
     this.rim.visible = q !== 'low';
     this.shells.limit = q === 'low' ? 6 : 14;
+    // Hitzeflimmern nur auf high/ultra (Bildkopie + ein Billboard)
+    if (this.haze) this.haze.enabled = q === 'high' || q === 'ultra';
   }
 
   _ensureOwnEnv() {
@@ -721,9 +725,15 @@ export class ViewModel {
     }
     this._wasGround = onGround;
 
+    // Körperkamera (core): bewegt sich die Kamera schon selbst (Atmung, Schritte), bleibt der Waffe nur die
+    // Bewegung der Arme relativ zur Brust – eigene Wipp-/Atemanteile entsprechend kleiner, Takt von der Kamera
+    const camM = Number.isFinite(s.cameraMotion) ? clamp(s.cameraMotion / 0.6, 0, 1) : 0;
+    const relK = 1 - 0.45 * camM;
+
     // ---- Schritte (Takt wie die Kamera des Spielers: ein Schritt je Schrittlänge) + Fersenstoß
     const stride = sp > 0.5 ? 2.7 : this._crouch > 0.5 ? 1.5 : 2.1;
-    if (onGround && speed > 0.6) this._phase += (speed * dt / stride) * Math.PI;
+    if (Number.isFinite(s.stepPhase)) this._phase = s.stepPhase;
+    else if (onGround && speed > 0.6) this._phase += (speed * dt / stride) * Math.PI;
     const stepIdx = Math.floor(this._phase / Math.PI);
     if (stepIdx !== this._stepIdx) {
       this._stepIdx = stepIdx;
@@ -734,7 +744,7 @@ export class ViewModel {
       }
     }
     const ph = this._phase;
-    const bobAmp = this._move * (1 - 0.88 * a) * swayK;
+    const bobAmp = this._move * (1 - 0.88 * a) * swayK * relK;
     const rotK = Math.pow(massK, 0.35);
     const bobX = Math.sin(ph) * (0.0065 + 0.013 * sp) * bobAmp;
     const bobY = (Math.sin(ph * 2) * (0.0045 + 0.007 * sp) - 0.002 * sp) * bobAmp;
@@ -743,9 +753,10 @@ export class ViewModel {
     const bobRY = Math.cos(ph) * (0.006 + 0.03 * sp) * bobAmp * rotK;
 
     // ---- Atmung: ruhig ≈ 16/min, nach dem Sprint (winded) schneller und tiefer, nach dem Atemanhalten außer Atem
-    const bRate = 0.27 + 0.45 * winded + 0.3 * exh;
-    this._breathPh += dt * Math.PI * 2 * bRate;
-    const bAmp = (1 + 1.6 * winded + 1.0 * exh) * (1 - 0.75 * a) * (1 - this._move * 0.5) * Math.min(1, comfort * 1.5);
+    const bRate = 0.25 + 0.33 * winded + 0.3 * exh;
+    if (Number.isFinite(s.breathPhase)) this._breathPh = s.breathPhase + 0.9;   // Arme folgen der Brust leicht verzögert
+    else this._breathPh += dt * Math.PI * 2 * bRate;
+    const bAmp = (1 + 1.6 * winded + 1.0 * exh) * (1 - 0.75 * a) * (1 - this._move * 0.5) * Math.min(1, comfort * 1.5) * relK;
     const breath = Math.sin(this._breathPh) * bAmp;
     const breath2 = Math.sin(this._breathPh * 0.5 + 1.3) * bAmp;
 
@@ -885,6 +896,26 @@ export class ViewModel {
     this.flash.light.position.copy(this.root.worldToLocal(_v));
     this.flash.update(dt);
     this.smoke.update(dt);
+    // Hitzeflimmern über dem Lauf (high/ultra): ab ~⅓ Erwärmung, im Anschlag halb so stark
+    {
+      const hz = smooth(clamp((this._heat - 0.3) / 0.6, 0, 1)) * (1 - 0.5 * a);
+      if (hz > 0.01 && this.haze.enabled && !this.showScopeOverlay && this._visible) {
+        const mz = this.cur.ud.muzzle;
+        mz.getWorldPosition(_s1);
+        this.root.worldToLocal(_s1);
+        _v2.set(0, 0, 1).applyQuaternion(this.gun.quaternion);   // zum Schützen hin (entlang des Laufs)
+        _s1.addScaledVector(_v2, h.action === 'pistol' ? 0.05 : 0.13).add(_v3.set(0, h.action === 'pistol' ? 0.04 : 0.065, 0));
+        this.haze.update(dt, _s1, h.action === 'pistol' ? 0.1 : 0.17, h.action === 'pistol' ? 0.12 : 0.2, hz);
+      } else this.haze.update(dt, _s1, 0, 0, 0);
+    }
+    // Heißer Lauf nach Feuerstößen: dünne Rauchfäden steigen aus der Mündung (in der Welt – bleiben beim Drehen stehen)
+    if (this._heat > 0.18 && (s.timeSinceShot ?? 9) > 0.15 && h.flash > 0 && !this.showScopeOverlay && this._visible && this._worldFx() && typeof this.G.effects.wisp === 'function') {
+      this._wispT = (this._wispT ?? 0) - dt;
+      if (this._wispT <= 0) {
+        this._wispT = 0.06 + 0.18 * (1 - this._heat);
+        try { this.G.effects.wisp(this.getMuzzleWorldPosition(_pv2), { strength: this._heat }); } catch { /* Welt im Abbau */ }
+      }
+    }
     this.shells.setGravity(_v.set(0, -7.5, 0).applyQuaternion(_q.copy(this._mainQuat).invert()));
     this.shells.update(dt);
     this.arms.update(dt);
@@ -1391,10 +1422,13 @@ export class ViewModel {
     }
     this.shells.prepare(shells);
     if (!this.flash.group.parent) holder.add(this.flash.group);   // noch keine Waffe gezogen
+    const hazeVis = this.haze.mesh.visible;
+    this.haze.mesh.visible = this.haze.enabled;                    // Shader des Hitzeflimmerns mit übersetzen
     this.root.add(holder);
     for (const p of Object.values(this.props)) p.visible = true;
     try { renderer?.compile?.(this.scene, this.camera); } catch { /* optional */ }
     for (const p of Object.values(this.props)) p.visible = false;
+    this.haze.mesh.visible = hazeVis;
     for (const c of [...holder.children]) holder.remove(c);
     this.root.remove(holder);
   }
@@ -1409,6 +1443,7 @@ export class ViewModel {
     this.flash.dispose();
     this.smoke.dispose();
     this.shells.dispose();
+    this.haze.dispose();
     this.arms.dispose();
     this.sun.dispose(); this.hemi.dispose(); this.rim.dispose();
     if (this._ownEnv) { if (this.scene.environment === this._ownEnv) this.scene.environment = null; this._ownEnv.dispose(); }

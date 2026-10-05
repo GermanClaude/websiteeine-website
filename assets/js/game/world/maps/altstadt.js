@@ -23,6 +23,8 @@ export default {
   visualBounds: { minX: -180, maxX: 180, minZ: -190, maxZ: 190 },
   chunkSize: 32,
   ambience: 'desert',
+  // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
+  assets: { hdri: 'old_outdoor_theater' },
   defaultSurface: 'concrete',
   navSpacing: 1.5,
   groundNoise: 0.18,

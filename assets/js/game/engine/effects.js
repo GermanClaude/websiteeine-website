@@ -8,7 +8,7 @@
 
 import * as THREE from 'three';
 import { ParticleLayer, TracerLayer, DecalLayer, PF } from '../weapons/ballistics/fxlayers.js';
-import { getParticleAtlas, getDecalAtlas, CELL, DECAL } from '../weapons/ballistics/fxtex.js';
+import { getParticleAtlas, getDecalAtlas, getDecalNormalAtlas, CELL, DECAL } from '../weapons/ballistics/fxtex.js';
 import { Debris } from '../weapons/ballistics/debris.js';
 import { handlingFor } from '../weapons/gunsmith/handling.js';
 
@@ -68,6 +68,8 @@ export class Effects {
     this._glintLos = new Map();
     this._lightLife = 0;
     this._lightPeak = 0;
+    this._lightDur = 0.32;
+    this._lightPrio = 0;
     this._light = null;
     this._delayed = [];
     this.stats = { impacts: 0, decals: 0, explosions: 0, tracers: 0, blood: 0, muzzle: 0 };
@@ -84,7 +86,7 @@ export class Effects {
     this.glints = new ParticleLayer({ capacity: 24, additive: true, texture: atlas, name: 'fx-glint' });
     this.glints.mesh.renderOrder = 14;
     this.tracers = new TracerLayer(TRACER_CAP);
-    this.decals = new DecalLayer(getDecalAtlas(), DECAL_CAP);
+    this.decals = new DecalLayer(getDecalAtlas(), DECAL_CAP, { normalMap: getDecalNormalAtlas });
     // Hülsen + Magazine in der Welt (Physik-lite gegen die Kugel-BVH, P4)
     this.debris = new Debris({ events: this.G && this.G.events });
   }
@@ -103,6 +105,8 @@ export class Effects {
     this.debris.events = G.events;
     this.debris.showForCompile();
     this.debris.setQuality(this.preset.id || G.renderer?.quality || 'high');
+    // Decals 2.0: ab medium beleuchtete Einschusslöcher mit Normalen (zwischen Matches, Shader im Ladebildschirm)
+    this.decals.setDetail((this.preset.id || G.renderer?.quality) !== 'low');
     this.decals.setLimit(this.preset.decals || 120);
     // Punktlicht nur ab „high“ (konstante Lichterzahl → kein Shader-Neukompilieren im Match)
     const id = this.preset.id || G.renderer?.quality;
@@ -301,10 +305,18 @@ export class Effects {
     }
   }
 
+  /** Bodenhöhe unter einem Einschlag (Splitter prallen dort ab statt durch den Boden zu fallen) oder null. */
+  _floorY(x, y, z, ny) {
+    if (ny > 0.7) return y - 0.02;
+    const w = this.G.world;
+    if (!w || typeof w.groundHeight !== 'function') return null;
+    try { const g = w.groundHeight(x, z, y + 0.05); return g === null || g === undefined || y - g > 6 ? null : g + 0.02; } catch { return null; }
+  }
+
   _impactHard(x, y, z, nx, ny, nz, S, lod, g) {
-    // Aufschlag-Blitz: kurzer weißheißer Stern (≈ 1–2 Bilder) + weicher Schein
-    this._flash(x, y, z, 0.2 * g, 0.035, C.sparkHot, 3.2, CELL.STAR);
-    this._flash(x, y, z, 0.34 * g, 0.06, C.flash, 2.0);
+    // Aufschlag-Blitz: kurzer Funke (≈ 1–2 Bilder, Kugeln auf Beton glühen kaum) + schwacher Schein
+    this._flash(x, y, z, 0.13 * g, 0.035, C.sparkHot, 2.4, CELL.STAR);
+    this._flash(x, y, z, 0.26 * g, 0.05, C.flash, 1.3);
     // schneller heller Stoß + dunklerer Kern (auf hellem Putz sichtbar) + stehende Staubwolke
     this._puff(x, y, z, nx * 2.6, ny * 2.6 + 0.2, nz * 2.6, 0.38, 0.13 * g, 0.8 * g, S.dust, 0.9, 6, 0, CELL.SMOKE_A);
     this._puff(x, y, z, nx * 1.6, ny * 1.6 + 0.1, nz * 1.6, 0.5, 0.08 * g, 0.42 * g, S.dustDark, 0.6, 5, 0, CELL.SMOKE_B);
@@ -314,11 +326,23 @@ export class Effects {
       const sp = rnd(0.7, 1.8);
       this._puff(x, y, z, _v.x * sp, _v.y * sp + 0.15, _v.z * sp, rnd(0.9, 1.4), 0.16 * g, rnd(0.9, 1.3) * g, S.dust, 0.68, 2.5, 0.15);
     }
+    // Feiner Staub, der noch einige Sekunden in der Luft steht (realistisch: Beton- und Putzmehl)
+    if (lod > 0.5) {
+      const j = this._puff(x + nx * 0.1, y + ny * 0.1, z + nz * 0.1, nx * 0.35, 0.06, nz * 0.35, rnd(2.2, 3.2), 0.2 * g, rnd(1.1, 1.5) * g, S.dust, 0.2, 1.4, 0.04, CELL.SMOKE_B);
+      this.alpha.fadeIn[j] = 0.12;
+      this.alpha.fadePow[j] = 1.1;
+    }
     const chips = this._count(6, lod);
+    const floor = chips ? this._floorY(x, y, z, ny) : null;
     for (let i = 0; i < chips; i++) {
       this._scatter(nx, ny, nz, 0.85, _v);
       const sp = rnd(3, 6.5);
-      this._chip(x, y, z, _v.x * sp, _v.y * sp + 1, _v.z * sp, rnd(0.5, 0.9), rnd(0.028, 0.05) * Math.min(g, 1.5), S.chip);
+      this._chip(x, y, z, _v.x * sp, _v.y * sp + 1, _v.z * sp, rnd(0.6, 1.1), rnd(0.024, 0.045) * Math.min(g, 1.5), S.chip, 14, floor);
+    }
+    // gelegentlich ein Funke (Stahlkern/Kies)
+    if (Math.random() < 0.15 * lod) {
+      this._scatter(nx, ny, nz, 0.9, _v);
+      this._spark(x, y, z, _v.x * 7, _v.y * 7 + 1, _v.z * 7, rnd(0.12, 0.25), 0.02, C.sparkHot, 3, 9, 0.02);
     }
   }
 
@@ -338,10 +362,11 @@ export class Effects {
   _impactWood(x, y, z, nx, ny, nz, S, lod, g) {
     this._flash(x, y, z, 0.22 * g, 0.05, C.flash, 1.0);
     const n = this._count(7, lod);
+    const floor = n ? this._floorY(x, y, z, ny) : null;
     for (let i = 0; i < n; i++) {
       this._scatter(nx, ny, nz, 0.8, _v);
       const sp = rnd(3, 6.5);
-      const j = this._chip(x, y, z, _v.x * sp, _v.y * sp + 1, _v.z * sp, rnd(0.55, 0.9), rnd(0.016, 0.026) * Math.min(g, 1.5), S.chip, 12);
+      const j = this._chip(x, y, z, _v.x * sp, _v.y * sp + 1, _v.z * sp, rnd(0.7, 1.2), rnd(0.016, 0.026) * Math.min(g, 1.5), S.chip, 12, floor);
       this.alpha.stretch[j] = 0.035; // Splitter: länglich
     }
     this._puff(x, y, z, nx * 2.2, ny * 2.2 + 0.2, nz * 2.2, 0.35, 0.08 * g, 0.5 * g, S.dust, 0.8, 6, 0, CELL.SMOKE_A);
@@ -390,10 +415,11 @@ export class Effects {
   _impactGlass(x, y, z, nx, ny, nz, S, lod, g) {
     this._flash(x, y, z, 0.3 * g, 0.05, C.glint, 1.6, CELL.STAR);
     const n = this._count(9, lod);
+    const floor = n ? this._floorY(x, y, z, ny) : null;
     for (let i = 0; i < n; i++) {
       this._scatter(nx, ny, nz, 0.95, _v);
       const sp = rnd(1.5, 5);
-      const j = this._chip(x, y, z, _v.x * sp, _v.y * sp + 0.5, _v.z * sp, rnd(0.55, 1.0), rnd(0.018, 0.034) * Math.min(g, 1.5), S.chip, 13);
+      const j = this._chip(x, y, z, _v.x * sp, _v.y * sp + 0.5, _v.z * sp, rnd(0.8, 1.3), rnd(0.018, 0.034) * Math.min(g, 1.5), S.chip, 13, floor);
       this.alpha.a[j] = 0.85;
     }
     for (let i = 0; i < 4; i++) {
@@ -548,14 +574,72 @@ export class Effects {
   }
 
   _onFire(e) {
-    if (!e || !e.actor || e.actor.isPlayer || e.suppressed) return;
+    if (!e || !e.actor || e.suppressed) return;
     const W = this.G.data && this.G.data.WEAPONS;
     const def = W && e.weaponId ? W[e.weaponId] : null;
     if (def && def.cls === 'melee') return;
+    if (e.actor.isPlayer) { this._playerShot(e, def); return; }
     let pos = e.muzzle;
     if (!pos && e.origin && e.dir) pos = _t2.copy(e.origin).addScaledVector(e.dir, 0.65);
     if (!pos || !e.dir) return;
     this.muzzleFlash(pos, e.dir, { cls: def ? def.cls : 'ar', actor: e.actor, def });
+  }
+
+  /**
+   * Eigener Schuss (Mündungsfeuer selbst zeichnet das Viewmodel): kurzes Mündungslicht in der Welt (high/ultra,
+   * gleiches Punktlicht wie Explosionen → konstante Lichterzahl), Pulvergas als kleine Wolke vor der Mündung,
+   * bei schweren Waffen größer und länger stehend.
+   */
+  _playerShot(e, def) {
+    const pos = e.muzzle;
+    if (!pos || !e.dir || !this._built) return;
+    const cls = def ? def.cls : 'ar';
+    const big = cls === 'shotgun' ? 1.9 : cls === 'sniper' ? 1.6 : cls === 'lmg' ? 1.3 : cls === 'marksman' ? 1.2 : cls === 'pistol' ? 0.7 : cls === 'smg' ? 0.8 : 1;
+    this.muzzleLight(pos, 13 * big, 2, 0.045, 7);
+    const d = e.dir;
+    const sc = this.scale;
+    // Gasstoß nach vorn (schnell, dicht) + stehender Rest
+    const k = this._puff(pos.x + d.x * 0.08, pos.y + d.y * 0.08, pos.z + d.z * 0.08, d.x * 2.2, d.y * 2.2 + 0.05, d.z * 2.2, 0.35 + 0.15 * big, 0.04 * big, 0.32 * big, C.smokeLight, 0.12 + 0.05 * big, 5.5, 0.05, CELL.SMOKE_A);
+    this.alpha.fadeIn[k] = 0.02;
+    if (big >= 1.2 && sc > 0.3) {
+      const n = Math.max(1, Math.round((big - 0.6) * 2 * sc));
+      for (let i = 0; i < n; i++) {
+        const sp = rnd(0.4, 1.4);
+        this._puff(pos.x + d.x * 0.2, pos.y + d.y * 0.2, pos.z + d.z * 0.2, d.x * sp + rnd(-0.2, 0.2), d.y * sp + rnd(0.05, 0.25), d.z * sp + rnd(-0.2, 0.2),
+          rnd(1.1, 1.9), 0.08 * big, rnd(0.5, 0.8) * big, C.smokeLight, 0.1 + 0.03 * big, 1.6, 0.2);
+      }
+    }
+  }
+
+  /**
+   * Kurzes Licht an einer Mündung (nur mit Punktlicht, d. h. high/ultra). prio: Explosion 3 > Spieler 2 > Bot 1.
+   */
+  muzzleLight(pos, peak = 13, prio = 1, dur = 0.045, distance = 7) {
+    const L = this._light;
+    if (!L || !pos) return;
+    if (this._lightLife > 0 && prio < this._lightPrio) return;
+    L.position.set(pos.x, pos.y, pos.z);
+    L.color.setHex(0xffb066);
+    L.distance = distance;
+    this._lightLife = this._lightDur = dur;
+    this._lightPeak = peak;
+    this._lightPrio = prio;
+    L.intensity = peak;
+  }
+
+  /**
+   * Rauchfaden aus dem heißen Lauf (Viewmodel meldet ihn nach Feuerstößen): dünn, langsam steigend, lange stehend.
+   * opts: { strength 0..1 }
+   */
+  wisp(pos, opts = {}) {
+    if (!this._built || !this._subs || !pos) return;
+    const st = clamp(opts.strength ?? 0.5, 0, 1);
+    if (Math.random() > Math.max(0.35, this.scale)) return;
+    const j = this._puff(pos.x + rnd(-0.01, 0.01), pos.y + 0.01, pos.z + rnd(-0.01, 0.01), rnd(-0.04, 0.04), 0.0, rnd(-0.04, 0.04),
+      rnd(1.4, 2.4), 0.012, rnd(0.09, 0.16) * (0.7 + 0.5 * st), C.smokeLight, 0.06 + 0.12 * st, 0.8, rnd(0.25, 0.4), CELL.SMOKE_B);
+    this.alpha.fadeIn[j] = 0.15;
+    this.alpha.fadePow[j] = 1.1;
+    this.alpha.rv[j] = rnd(-0.8, 0.8);
   }
 
   /** Mündungsfeuer (dritte Person). opts: { cls, actor, scale } */
@@ -572,6 +656,7 @@ export class Effects {
     // Ferne Mündungsfeuer etwas größer (Lesbarkeit wie COD)
     const far = 1 + Math.min(1.6, d / 45);
     const s = 0.22 * big * far;
+    if (d < 30) this.muzzleLight(pos, 10 * big, 1, 0.04, 6);
     const j = this._flash(pos.x, pos.y, pos.z, s, 0.05, C.muzzle, 2.6, CELL.STAR);
     this.add.s1[j] = s * 0.7;
     // Flammenzunge nach vorn
@@ -679,8 +764,11 @@ export class Effects {
     }
     if (this._light) {
       this._light.position.set(x, y + 0.8, z);
-      this._lightLife = 0.32;
+      this._light.color.setHex(0xffa456);
+      this._light.distance = 16;
+      this._lightLife = this._lightDur = 0.32;
       this._lightPeak = 70 * R;
+      this._lightPrio = 3;
       this._light.intensity = this._lightPeak;
     }
 
@@ -866,9 +954,10 @@ export class Effects {
     this.debris.update(dt, this.G.world);
     if (this._light && this._lightLife > 0) {
       this._lightLife -= dt;
-      const k = Math.max(0, this._lightLife / 0.32);
+      const k = Math.max(0, this._lightLife / this._lightDur);
       this._light.intensity = this._lightPeak * k * k;
-    } else if (this._light) this._light.intensity = 0;
+      if (this._lightLife <= 0) this._lightPrio = 0;
+    } else if (this._light) { this._light.intensity = 0; this._lightPrio = 0; }
   }
 
   dispose() {

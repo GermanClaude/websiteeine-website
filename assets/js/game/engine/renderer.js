@@ -1,31 +1,32 @@
-// NULLPUNKT — Renderer: Qualitätsstufen, Post-Processing, Viewmodel-Pass (§5).
+// NULLPUNKT — Renderer: Qualitätsstufen, Nachbearbeitung („Bodycam“-Objektiv, AgX/LUT, automatische Belichtung,
+// FSR 1.0), Viewmodel-Pass (§5, plan §5).
 //
-// Kette (medium+): RenderPass(Welt) → [GTAO (ultra)] → RenderPass(Viewmodel, nur Tiefe löschen)
-//                  → Bloom (weiches Knie, nur Emissives/echte Spitzlichter) → [SMAA] → Farblook + Vignette
-//                  → OutputPass (ACES + sRGB) → [FXAA, im sRGB-Raum]
-// low: direktes Rendern ohne Composer mit MSAA des Kontexts (Tonemapping im Material-Shader), Vignette per CSS
-//      (main setzt dafür body.np-css-vignette, wenn preset.grade false ist). Hat der Kontext kein MSAA
-//      (Start auf medium+, dann Wechsel auf low), läuft low über einen Mini-Composer mit FXAA.
-//      Sonnenschatten auch auf low (1024², kleinere Kaskade, Schattenkarte nur alle preset.shadowInterval
-//      Bilder bzw. nach invalidateShadows() neu).
+// Die Kette selbst steckt in engine/post/pipeline.js (Aufbau je Stufe dort beschrieben):
+//   low     „lite“: Welt + Viewmodel → HDR → EIN Pass (Objektiv, FXAA-Konsole, Belichtung, AgX, LUT, Körnung …)
+//   medium+ Welt → HDR [+ GTAO ultra] → Viewmodel → Belichtung → Bloom → Grade (8 Bit) → [FXAA | SMAA]
+//           → Objektiv (Verzeichnung, Farbsaum, RCAS bzw. FSR-EASU, Körnung, Kompression, Gehäuse) → Bild
+//   direct  low im Stil „Klassisch“ mit MSAA-Kontext: bisheriges direktes Rendern (ACES im Material,
+//           Vignette per CSS über body.np-css-vignette – main fragt `cssVignette`).
+// Bildstile (Einstellung lensStyle): „bodycam“ (Standard), „klassisch“ (bisheriger Look: ACES, kräftiger
+// Farblook, feste Belichtung), „aus“ (klares Bild, aber AgX/LUT/automatische Belichtung).
 //
-// Der Farblook ist der „Mobile-Shooter“-Look: kräftig, kontrastreich, leicht warm, kühle Schatten.
+// Objektiv-Abbildung für HUD/Namensschilder: `R.lens.toScreen(ndc)` / `fromScreen(ndc)` / `project(world)`
+// (siehe post/lens.js). Ohne aktives Objektiv sind das Identitäten.
 
 import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
-import { FXAAPass } from 'three/addons/postprocessing/FXAAPass.js';
-import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { PostPipeline, LENS_DEFAULTS, LENS_STYLES } from './post/pipeline.js';
+import { estimateMemory } from './post/memory.js';
+import { MOODS, MOOD_FOR_MAP } from './post/grade.js';
+import { resetFormatCache } from './post/common.js';
+
+export { LENS_DEFAULTS, LENS_STYLES, MOODS, MOOD_FOR_MAP };
 
 export const QUALITY_LEVELS = ['low', 'medium', 'high', 'ultra'];
 
 // shadowExtent: Obergrenze der halben Kantenlänge der Sonnen-Schattenkaskade (m, null = Kartenwert);
 // shadowInterval: Schattenkarte höchstens jedes n-te Bild neu (1 = jedes Bild; Welt meldet Kamerasprünge
 // über invalidateShadows()). Telefone (auto → low) bekommen so Sonnenschatten bei ~⅓ der Kosten.
+// post: volle Nachbearbeitungskette (false = low: ein kombinierter Pass bzw. direktes Rendern).
 export const QUALITY_PRESETS = Object.freeze({
   low: Object.freeze({
     id: 'low', pixelRatio: 1.5, shadows: true, shadowMapSize: 1024, shadowExtent: 24, shadowInterval: 4,
@@ -49,7 +50,7 @@ export const QUALITY_PRESETS = Object.freeze({
   }),
 });
 
-/** Standardwerte des Bloom (Schwelle in Bildwerten nach Belichtung, d. h. vor ACES). */
+/** Standardwerte des Bloom (Schwelle in Bildwerten nach Belichtung, d. h. vor dem Tonemapping). */
 export const BLOOM_DEFAULTS = Object.freeze({ threshold: 3.0, strength: 0.24, radius: 0.4, maxBright: 8 });
 
 /** Erkennt Touch-/Schwachgeräte für 'auto'. */
@@ -79,124 +80,46 @@ export function resolveQuality(q) {
   return 'high';
 }
 
-/* ------------------------------------------------------------ Farblook */
-
-const GradeShader = {
-  name: 'NullpunktGradeShader',
-  uniforms: {
-    tDiffuse: { value: null },
-    uExposure: { value: 1.0 },
-    uContrast: { value: 1.12 },
-    uSaturation: { value: 1.16 },
-    uTint: { value: new THREE.Vector3(1.03, 1.0, 0.95) },
-    uShadowTint: { value: new THREE.Vector3(0.93, 0.99, 1.07) },
-    uHighTint: { value: new THREE.Vector3(1.05, 1.0, 0.93) },
-    uVignette: { value: 0.32 },
-    uAspect: { value: 16 / 9 },
-    uDamage: { value: 0 },
-    uDesaturate: { value: 0 },
-  },
-  vertexShader: /* glsl */ `
-    varying vec2 vUv;
-    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
-  `,
-  fragmentShader: /* glsl */ `
-    uniform sampler2D tDiffuse;
-    uniform float uExposure, uContrast, uSaturation, uVignette, uAspect, uDamage, uDesaturate;
-    uniform vec3 uTint, uShadowTint, uHighTint;
-    varying vec2 vUv;
-    void main() {
-      vec4 src = texture2D(tDiffuse, vUv);
-      // Eingang begrenzen: ACES sättigt weit darunter; verhindert Halbfloat-Überlauf (Inf → NaN → schwarze Pixel)
-      vec3 col = clamp(src.rgb * uExposure, 0.0, 64.0) * uTint;
-      // Kontrast im Log-Raum um Mittelgrau (linear, HDR-tauglich); Exponent begrenzt → Ergebnis ≤ ~92
-      vec3 lc = min(log2(max(col, vec3(1e-5)) / 0.18) * uContrast, vec3(9.0));
-      col = exp2(lc) * 0.18;
-      float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
-      col = mix(vec3(l), col, uSaturation * (1.0 - uDesaturate));
-      // Spitzlichter leicht entsättigen: gesättigte helle Flächen (gelber Lack, Putz in der Sonne) laufen
-      // nicht in einzelnen Kanälen aus, sondern rollen wie Film ins Weiß
-      col = mix(col, vec3(l), smoothstep(1.5, 4.0, l) * 0.3);
-      // Split-Toning: kühle Schatten, warme Lichter
-      float t = clamp(l / (l + 0.35), 0.0, 1.0);
-      col *= mix(uShadowTint, uHighTint, t);
-      // Vignette (+ rote Ränder bei Schaden)
-      vec2 p = (vUv - 0.5) * vec2(uAspect, 1.0);
-      float r = length(p) / length(vec2(uAspect, 1.0) * 0.5);
-      float vig = 1.0 - uVignette * smoothstep(0.35, 1.05, r);
-      col *= vig;
-      float edge = smoothstep(0.45, 1.0, r) * uDamage;
-      col = mix(col, vec3(0.55, 0.02, 0.0) * (0.4 + l), edge * 0.75);
-      gl_FragColor = vec4(min(col, vec3(256.0)), src.a);
-    }
-  `,
+// Einstellungsschlüssel (shared/settings.js) → Objektiv-Konfiguration
+const SETTING_KEYS = {
+  lensStyle: 'style', lensStrength: 'strength', grain: 'grain', lensArtifacts: 'artifacts', lensBorder: 'border',
+  autoExposure: 'autoExposure', upscaler: 'upscaler', sharpness: 'sharpness', reducedMotion: 'reducedMotion',
 };
 
-/* ------------------------------------------------------------ Bloom */
-
-// Hochpass mit weichem Knie auf dem größten Farbkanal (gesättigte Emissives wie Natriumlampen zählen voll),
-// Schwelle wird abgezogen (statt das ganze Pixel durchzulassen) und das Ergebnis begrenzt: keine einzelne
-// Quelle (Sonne, Explosion) kann das Bild fluten; sonnenbeschienener Putz/Lack (≈ 1–2,5) bleibt unberührt.
-const BLOOM_HIGHPASS_FRAG = /* glsl */ `
-  uniform sampler2D tDiffuse;
-  uniform float luminosityThreshold;
-  uniform float smoothWidth;
-  uniform float maxBright;
-  varying vec2 vUv;
-  void main() {
-    vec3 c = clamp(texture2D(tDiffuse, vUv).rgb, 0.0, 65000.0);
-    float br = max(c.r, max(c.g, c.b));
-    float soft = clamp(br - luminosityThreshold + smoothWidth, 0.0, 2.0 * smoothWidth);
-    soft = soft * soft / (4.0 * smoothWidth + 1e-4);
-    vec3 o = c * (max(soft, br - luminosityThreshold) / max(br, 1e-4));
-    float m = max(o.r, max(o.g, o.b));
-    o *= min(1.0, maxBright / max(m, 1e-4));
-    gl_FragColor = vec4(o, 1.0);
+function lensConfigFrom(settings, prefersReduced) {
+  const cfg = { ...LENS_DEFAULTS };
+  if (settings && typeof settings.get === 'function') {
+    for (const [k, f] of Object.entries(SETTING_KEYS)) {
+      const v = settings.get(k);
+      if (v !== undefined && v !== null) cfg[f] = v;
+    }
   }
-`;
-
-class SoftBloomPass extends UnrealBloomPass {
-  constructor(resolution, { strength, radius, threshold, maxBright }) {
-    super(resolution, strength, radius, threshold);
-    this.highPassUniforms.maxBright = { value: maxBright };
-    this.highPassUniforms.smoothWidth.value = threshold * 0.5;
-    const stock = this.materialHighPassFilter;
-    this.materialHighPassFilter = new THREE.ShaderMaterial({
-      name: 'NullpunktBloomHighPass',
-      uniforms: this.highPassUniforms,
-      vertexShader: stock.vertexShader,
-      fragmentShader: BLOOM_HIGHPASS_FRAG,
-    });
-    stock.dispose();
-  }
-
-  /** Schwelle (vor Belichtung) + weiches Knie setzen. */
-  setThreshold(t) {
-    this.threshold = t;
-    this.highPassUniforms.smoothWidth.value = t * 0.5;
-  }
-
-  dispose() {
-    super.dispose();
-    this.materialHighPassFilter.dispose(); // UnrealBloomPass gibt den Hochpass selbst nicht frei
-  }
+  if (!LENS_STYLES.includes(cfg.style)) cfg.style = LENS_DEFAULTS.style;
+  cfg.reducedMotion = !!cfg.reducedMotion || !!prefersReduced;
+  return cfg;
 }
 
-/* ------------------------------------------------------------ Renderer */
+const _db = new THREE.Vector2();
 
 /**
- * createRenderer(canvas, { quality }) → {
- *   renderer, quality, preset, composer|null, msaa,
+ * createRenderer(canvas, { quality, settings }) → {
+ *   renderer, quality, preset, msaa, lens, pipeline,
  *   setQuality(q), resize(), render(scene, camera, vmScene, vmCamera), info(), dispose(),
- *   setPost({ exposure, contrast, saturation, vignette, damage, desaturate, bloomThreshold, bloomStrength }),
- *   onQualityChange(fn), onContextChange(fn), invalidateShadows()
+ *   setPost({ exposure, contrast, saturation, vignette, damage, desaturate, bloomThreshold, bloomStrength, suppression, flash }),
+ *   setLens(cfg), setMood(id | obj), setSun(lighting), suppress(amount), flash(amount), exposure { reset(), value, track },
+ *   memoryEstimate(), compilePost(), onQualityChange(fn), onContextChange(fn), onStyleChange(fn), invalidateShadows()
  * }
+ * settings (optional): Einstellungsspeicher (shared/settings.js); der Renderer liest die Objektiv-Schlüssel
+ * selbst und folgt Änderungen. Ohne settings gelten LENS_DEFAULTS (Prüfseiten setzen per setLens()).
  */
-export function createRenderer(canvas, { quality = 'auto' } = {}) {
+export function createRenderer(canvas, { quality = 'auto', settings = null } = {}) {
   const initial = resolveQuality(quality);
+  const reduceMQ = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  let lensCfg = lensConfigFrom(settings, reduceMQ && reduceMQ.matches);
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: initial === 'low', // MSAA nur ohne Composer (low), sonst SMAA/FXAA
+    // MSAA nur für das direkte Rendern (low im Stil „Klassisch“); die Kette rendert in eigene Ziele
+    antialias: initial === 'low' && lensCfg.style === 'klassisch',
     powerPreference: 'high-performance',
     stencil: false,
     depth: true,
@@ -215,10 +138,15 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
 
   const qualityListeners = new Set();
   const contextListeners = new Set();
+  const styleListeners = new Set();
   const postState = {
     exposure: 1, contrast: 1.12, saturation: 1.16, vignette: 0.32, damage: 0, desaturate: 0,
     bloomThreshold: BLOOM_DEFAULTS.threshold, bloomStrength: BLOOM_DEFAULTS.strength,
+    suppression: 0, flash: 0,
   };
+  const effPost = { ...postState };
+  const impulse = { supp: 0, flash: 0 };
+  const pipeline = new PostPipeline(renderer);
 
   // CSS-Größe der Leinwand per ResizeObserver zwischenspeichern: resize() läuft jedes Bild und würde mit
   // clientWidth/clientHeight sonst nach den DOM-Schreibzugriffen des HUD eine synchrone Layoutberechnung erzwingen.
@@ -237,28 +165,46 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
     quality: initial,
     requested: quality,
     preset: QUALITY_PRESETS[initial],
+    /** Entfällt seit der eigenen Kette (bleibt null; Kompatibilität). */
     composer: null,
-    /** Hat der Standard-Framebuffer MSAA? (nur wenn mit low gestartet; sonst FXAA-Ersatz auf low) */
+    /** Nachbearbeitungskette (engine/post/pipeline.js). */
+    pipeline,
+    /** Objektiv-Abbildung (toScreen/fromScreen/project/scaleAt, active, version). */
+    lens: pipeline.lens,
+    /** Hat der Standard-Framebuffer MSAA? (nur low im Stil „Klassisch“ beim Start) */
     msaa: !!renderer.getContextAttributes()?.antialias,
     lost: false,
     width: 1,
     height: 1,
+    /** Pixelverhältnis der Szene (inkl. dynamischer Auflösung). */
     pixelRatio: 1,
+    /** Pixelverhältnis der Leinwand (mit Kette: ohne dynamische Auflösung – der Objektiv-Pass skaliert hoch). */
+    outputPixelRatio: 1,
     /** Dynamische Auflösung: Faktor auf das Pixelverhältnis der Stufe (0,5…1). */
     resolutionScale: 1,
-    _passes: null,
     _frames: [],
     _last: 0,
     _fps: 0,
     _frameMs: 0,
     _lastScene: null,
+    _lastVmScene: null,
     _shadowDirty: true,
     _shadowFrame: 0,
+    _cssVignette: null,
+
+    /** Bild wird ohne Shader-Vignette gezeichnet → main blendet die CSS-Vignette ein. */
+    get cssVignette() { return !pipeline.active; },
+    /** Läuft ein Farbstufen-Shader (setPost desaturate/contrast/saturation wirken)? */
+    get graded() { return pipeline.active || !!this.preset.grade; },
+    /** Aktuelle Objektiv-/Bildeinstellungen. */
+    get lensSettings() { return { ...lensCfg }; },
+    /** ID der aktiven Stimmung (LUT/Belichtung/Bloom). */
+    get mood() { return pipeline.mood.id; },
 
     setQuality(q) {
       const next = resolveQuality(q);
       this.requested = q;
-      if (next === this.quality && this.composer !== undefined && this._built) return;
+      if (next === this.quality && this._built) return;
       const prevShadows = this.preset.shadows;
       this.quality = next;
       this.preset = QUALITY_PRESETS[next];
@@ -275,47 +221,66 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
 
     _build() {
       this._built = true;
-      if (this.composer) disposeComposer(this.composer);
-      this.composer = null;
-      this._passes = null;
-      const p = this.preset;
-      // low ohne MSAA im Kontext (zur Laufzeit von medium+ gewechselt): Mini-Composer nur für FXAA
-      const fxaaFallback = !p.post && !this.msaa;
-      if (!p.post && !fxaaFallback) { applyPost(this); return; }
-      const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-      const composer = new EffectComposer(renderer);
-      const world = new RenderPass(null, null);
-      composer.addPass(world);
-      let gtao = null;
-      if (p.ssao) {
-        gtao = new GTAOPass(null, new THREE.PerspectiveCamera(70, 1, 0.05, 600), Math.max(1, size.x), Math.max(1, size.y));
-        gtao.blendIntensity = 0.85;
-        gtao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.5, thickness: 1.0, scale: 1.0, samples: 12 });
-        composer.addPass(gtao);
-      }
-      const vm = new RenderPass(null, null);
-      vm.clear = false;
-      vm.clearDepth = true;
-      composer.addPass(vm);
-      let bloom = null;
-      if (p.bloom) {
-        bloom = new SoftBloomPass(new THREE.Vector2(Math.max(1, size.x >> 1), Math.max(1, size.y >> 1)), BLOOM_DEFAULTS);
-        composer.addPass(bloom);
-      }
-      let aa = null;
-      if (p.smaa) { aa = new SMAAPass(); composer.addPass(aa); }
-      let grade = null;
-      if (p.grade) {
-        grade = new ShaderPass(GradeShader);
-        composer.addPass(grade);
-      }
-      composer.addPass(new OutputPass());
-      // FXAA arbeitet auf tonegemappten sRGB-Werten (wofür es ausgelegt ist) und schreibt direkt aufs Bild
-      if (!aa && (p.fxaa || fxaaFallback)) { aa = new FXAAPass(); composer.addPass(aa); }
-      this.composer = composer;
-      this._passes = { world, gtao, vm, bloom, aa, grade };
+      pipeline.build(this.preset, lensCfg, { msaa: this.msaa });
       applyPost(this);
+      this._notifyStyle();
     },
+
+    _notifyStyle() {
+      const v = this.cssVignette;
+      if (v === this._cssVignette) return;
+      this._cssVignette = v;
+      for (const fn of [...styleListeners]) { try { fn(this); } catch (err) { console.error(err); } }
+    },
+
+    /**
+     * Objektiv-/Bildeinstellungen ändern ({ style, strength, grain, artifacts, border, autoExposure, upscaler,
+     * sharpness, reducedMotion }). Ein Stilwechsel kann die Kette neu aufbauen (Shader beim nächsten Bild).
+     */
+    setLens(cfg = {}) {
+      const next = { ...lensCfg, ...cfg };
+      if (!LENS_STYLES.includes(next.style)) next.style = LENS_DEFAULTS.style;
+      if (reduceMQ && reduceMQ.matches) next.reducedMotion = true;
+      lensCfg = next;
+      if (pipeline.configure(next, { msaa: this.msaa })) {
+        this._build();
+        this.resize(true);
+      }
+      applyPost(this);
+      this._notifyStyle();
+      return { ...lensCfg };
+    },
+
+    /** Stimmung je Karte (LUT, Belichtungsgrenzen, Bloom): Karten-ID, Stimmungs-ID oder { mood, lut, exposure, bloom }. */
+    setMood(spec) {
+      pipeline.setMood(spec);
+      return pipeline.mood.id;
+    },
+
+    /** Sonne für Lichtstrahlen (R7): world.lighting ({ sunDirection }) oder Richtung zur Sonne; null = keine. */
+    setSun(sun) { pipeline.setSun(sun); },
+
+    /** Unterdrückung (Beschuss, R18) anstoßen: addiert, klingt von selbst ab (≈ 1 s). */
+    suppress(amount = 0.35) {
+      impulse.supp = Math.min(1, impulse.supp + Math.max(0, Number(amount) || 0));
+    },
+
+    /** Blendung (Blendgranate, nahe Explosion): 0..1, klingt über ≈ 2–3 s ab. */
+    flash(amount = 1) {
+      impulse.flash = Math.min(1.5, Math.max(impulse.flash, Number(amount) || 0));
+    },
+
+    /** Automatische Belichtung: reset() springt sofort auf das Ziel; value = zuletzt gelesener Faktor (nur mit track). */
+    exposure: {
+      reset() { if (pipeline.exposure) pipeline.exposure.reset(); },
+      get value() { return pipeline.exposure && pipeline.exposure.last ? pipeline.exposure.last.factor : null; },
+      get measured() { return pipeline.exposure && pipeline.exposure.last ? Math.pow(2, pipeline.exposure.last.avgLog) : null; },
+      get track() { return !!(pipeline.exposure && pipeline.exposure.track); },
+      set track(v) { R._trackExposure = !!v; if (pipeline.exposure) pipeline.exposure.track = !!v; },
+    },
+
+    /** Shader der Kette vorab kompilieren (Ladebildschirm; auch die EASU-Variante für spätere Skalen < 1). */
+    compilePost() { try { pipeline.compile(); } catch (err) { console.warn('[NULLPUNKT] Nachbearbeitung vorkompilieren:', err); } },
 
     /** Schattenkarte beim nächsten Bild neu zeichnen (z. B. nach Verschieben der Schattenkaskade). */
     invalidateShadows() { this._shadowDirty = true; },
@@ -324,26 +289,27 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
       if (force || !css.valid) measure(); // ohne ResizeObserver bzw. vor der ersten Meldung wie bisher
       const w = Math.max(1, Math.floor(css.w));
       const h = Math.max(1, Math.floor(css.h));
-      const pr = Math.max(0.5, Math.min(window.devicePixelRatio || 1, this.preset.pixelRatio) * this.resolutionScale);
-      if (!force && w === this.width && h === this.height && pr === this.pixelRatio) return;
+      const base = Math.min(window.devicePixelRatio || 1, this.preset.pixelRatio);
+      // Mit Kette bleibt die Leinwand bei voller Stufenauflösung; nur die Szene wird verkleinert gerendert
+      const pr = Math.max(0.5, pipeline.active ? base : base * this.resolutionScale);
+      if (!force && w === this.width && h === this.height && pr === this.outputPixelRatio && pipeline.scale === (pipeline.active ? this.resolutionScale : 1)) return;
       this.width = w;
       this.height = h;
-      this.pixelRatio = pr;
+      this.outputPixelRatio = pr;
+      this.pixelRatio = pipeline.active ? Math.max(0.3, base * this.resolutionScale) : pr;
       renderer.setPixelRatio(pr);
       renderer.setSize(w, h, false);
-      if (this.composer) {
-        this.composer.setPixelRatio(pr);
-        this.composer.setSize(w, h);
-        const ps = this._passes;
-        if (ps.grade) ps.grade.uniforms.uAspect.value = w / h;
-      }
+      renderer.getDrawingBufferSize(_db);
+      pipeline.setSize(_db.x, _db.y, this.resolutionScale, w, h);
     },
 
-    /** Rendert Welt + Viewmodel (Viewmodel mit gelöschter Tiefe, nie in Wänden). */
+    /** Rendert Welt + Viewmodel (Viewmodel mit gelöschter Tiefe, nie in Wänden) samt Nachbearbeitung. */
     render(scene, camera, vmScene, vmCamera) {
       const now = performance.now();
+      let dt = 0;
       if (this._last) {
         const ms = now - this._last;
+        dt = Math.min(0.25, ms / 1000);
         this._frameMs += (ms - this._frameMs) * 0.1;
         this._frames.push(now);
       }
@@ -354,6 +320,7 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
       if (this.lost || !scene || !camera) return;
       this.resize();
       this._lastScene = scene;
+      this._lastVmScene = vmScene || null;
       const aspect = this.width / this.height;
       fitCamera(camera, aspect);
       if (vmCamera) fitCamera(vmCamera, aspect);
@@ -365,16 +332,21 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
         if (this._shadowDirty || ++this._shadowFrame >= every) { sm.needsUpdate = true; this._shadowDirty = false; this._shadowFrame = 0; }
       } else sm.autoUpdate = true;
 
-      if (this.composer) {
-        const ps = this._passes;
-        ps.world.scene = scene;
-        ps.world.camera = camera;
-        if (ps.gtao) { ps.gtao.scene = scene; ps.gtao.camera = camera; }
-        const hasVm = !!(vmScene && vmCamera && vmScene.visible !== false);
-        ps.vm.enabled = hasVm;
-        if (hasVm) { ps.vm.scene = vmScene; ps.vm.camera = vmCamera; }
-        this.composer.render();
+      // Abklingende Anstöße (Unterdrückung ≈ 1 s, Blendung ≈ 2,5 s)
+      impulse.supp = Math.max(0, impulse.supp - dt * 1.1);
+      impulse.flash = Math.max(0, impulse.flash * Math.exp(-dt * 1.6) - dt * 0.05);
+
+      if (pipeline.active) {
+        Object.assign(effPost, postState);
+        effPost.suppression = Math.min(1, postState.suppression + impulse.supp);
+        effPost.flash = Math.min(1.5, postState.flash + impulse.flash);
+        pipeline.lens.width = this.width;
+        pipeline.lens.height = this.height;
+        if (this._trackExposure && pipeline.exposure && !pipeline.exposure.track) pipeline.exposure.track = true;
+        pipeline.render(scene, camera, vmScene && vmCamera && vmScene.visible !== false ? vmScene : null, vmCamera, effPost);
       } else {
+        pipeline.lens.camera = camera;
+        renderer.setRenderTarget(null);
         renderer.autoClear = true;
         renderer.render(scene, camera);
         if (vmScene && vmCamera && vmScene.visible !== false) {
@@ -404,13 +376,32 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
         geometries: i.memory.geometries, textures: i.memory.textures,
         programs: i.programs ? i.programs.length : 0,
         quality: this.quality, pixelRatio: Math.round(this.pixelRatio * 100) / 100, resolutionScale: this.resolutionScale,
+        outputPixelRatio: Math.round(this.outputPixelRatio * 100) / 100,
         width: this.width, height: this.height,
+        post: pipeline.active ? pipeline.describe() : { mode: 'direct', style: lensCfg.style },
       };
     },
 
     /**
-     * Farblook/Vignette/Schadensrand/Bloom anpassen (HUD/Welt dürfen das nutzen).
-     * bloomThreshold gilt nach der Belichtung (größter Farbkanal), bloomStrength 0..1.
+     * Grafikspeicher schätzen (Texturen, Geometrien, Render-Ziele, Schatten, Bildpuffer) – auf Abruf, nicht je Bild.
+     * extraScenes: weitere Szenen (z. B. Vorschau). → { total, mb: {…}, breakdown, top, … } (Bytes bzw. MB)
+     */
+    memoryEstimate(extraScenes = []) {
+      renderer.getDrawingBufferSize(_db);
+      const samples = this.msaa ? 4 : 0;
+      const backbuffer = _db.x * _db.y * (4 + 4) * (samples ? samples + 1 : 1);
+      return estimateMemory({
+        scenes: [this._lastScene, this._lastVmScene, ...extraScenes].filter(Boolean),
+        targets: pipeline.targetInfo(),
+        backbuffer,
+      });
+    },
+
+    /**
+     * Farblook/Vignette/Schadensrand/Bloom/Unterdrückung/Blendung anpassen (HUD/Welt dürfen das nutzen).
+     * exposure = Kartenbelichtung (Belichtungskorrektur; die Automatik wirkt relativ dazu), bloomThreshold gilt
+     * nach der Belichtung (größter Farbkanal), bloomStrength 0..1, suppression/flash 0..1 (Aufrufer steuert;
+     * für kurze Anstöße suppress()/flash()).
      */
     setPost(values = {}) {
       for (const k of Object.keys(postState)) if (Number.isFinite(values[k])) postState[k] = values[k];
@@ -421,37 +412,31 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
     onQualityChange(fn) { qualityListeners.add(fn); return () => qualityListeners.delete(fn); },
     /** fn('lost' | 'restored') bei WebGL-Kontextverlust/-wiederherstellung. */
     onContextChange(fn) { contextListeners.add(fn); return () => contextListeners.delete(fn); },
+    /** fn(R), wenn sich die Art der Darstellung ändert (z. B. cssVignette nach Stil-/Stufenwechsel). */
+    onStyleChange(fn) { styleListeners.add(fn); return () => styleListeners.delete(fn); },
 
     dispose() {
       canvas.removeEventListener('webglcontextlost', onLost);
       canvas.removeEventListener('webglcontextrestored', onRestored);
       if (sizeObserver) sizeObserver.disconnect();
-      if (this.composer) disposeComposer(this.composer);
-      this.composer = null;
+      if (offSettings) offSettings();
+      if (reduceMQ && reduceMQ.removeEventListener) reduceMQ.removeEventListener('change', onReduceMQ);
+      pipeline.dispose();
       renderer.dispose();
     },
   };
 
   function applyPost(r) {
-    const g = r._passes && r._passes.grade;
-    if (g) {
-      const u = g.uniforms;
-      u.uExposure.value = postState.exposure;
-      u.uContrast.value = postState.contrast;
-      u.uSaturation.value = postState.saturation;
-      u.uVignette.value = postState.vignette;
-      u.uDamage.value = postState.damage;
-      u.uDesaturate.value = postState.desaturate;
-    }
-    const b = r._passes && r._passes.bloom;
-    if (b) {
-      // Bloom läuft vor dem Farblook (vor der Belichtung) → Schwelle umrechnen
-      b.setThreshold(Math.max(0.05, postState.bloomThreshold) / Math.max(0.1, postState.exposure));
-      b.strength = Math.max(0, postState.bloomStrength);
-    }
-    // Ohne Grade-Pass (low) wirkt nur die Belichtung.
-    renderer.toneMappingExposure = r.preset.grade ? 1.0 : postState.exposure * 1.05;
+    // Ohne Kette (direktes Rendern) wirkt nur die Belichtung im Material-Tonemapping.
+    renderer.toneMappingExposure = pipeline.active ? 1.0 : postState.exposure * 1.05;
   }
+
+  // Einstellungen folgen (nur Objektiv-Schlüssel)
+  const offSettings = settings && typeof settings.onChange === 'function'
+    ? settings.onChange((key) => { if (key in SETTING_KEYS) R.setLens(lensConfigFrom(settings, reduceMQ && reduceMQ.matches)); })
+    : null;
+  const onReduceMQ = () => R.setLens({ reducedMotion: lensConfigFrom(settings, reduceMQ.matches).reducedMotion });
+  if (reduceMQ && reduceMQ.addEventListener) reduceMQ.addEventListener('change', onReduceMQ);
 
   function onLost(e) {
     e.preventDefault();
@@ -461,8 +446,9 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
   function onRestored() {
     R.lost = false;
     R._shadowDirty = true;
-    // three.js stellt seinen Zustand selbst wieder her (neue capabilities); Composer-Ziele neu aufbauen.
+    // three.js stellt seinen Zustand selbst wieder her (neue capabilities); Ketten-Ziele neu aufbauen.
     renderer.capabilities.getMaxAnisotropy();
+    resetFormatCache(renderer);
     R._build();
     R.resize(true);
     if (R._lastScene) refreshScene(R._lastScene, R.preset, true);
@@ -472,6 +458,7 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
   canvas.addEventListener('webglcontextrestored', onRestored, false);
 
   renderer.shadowMap.enabled = R.preset.shadows;
+  pipeline.setMood('neutral');
   R._build();
   R.resize(true);
   return R;
@@ -482,12 +469,6 @@ function fitCamera(cam, aspect) {
     cam.aspect = aspect;
     cam.updateProjectionMatrix();
   }
-}
-
-function disposeComposer(composer) {
-  for (const pass of composer.passes) if (typeof pass.dispose === 'function') pass.dispose();
-  composer.renderTarget1.dispose();
-  composer.renderTarget2.dispose();
 }
 
 /** Nach Qualitätswechsel: Shadow-Maps an neue Größe anpassen, Materialien neu kompilieren. */

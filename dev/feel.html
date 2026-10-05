@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Waffengefühl – NULLPUNKT</title>
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--np-black); color: var(--np-ink); font: 13px/1.4 var(--font-mono); overflow: hidden; }
+  #stage { position: fixed; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+  header { position: fixed; top: 0; left: 0; right: 0; display: flex; gap: 14px; align-items: center; padding: 10px 16px; z-index: 5; pointer-events: none; }
+  header h1 { margin: 0; font: 800 15px/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase; font-stretch: 125%; }
+  header h1 b { color: var(--np-signal); }
+  button, select, input[type=range] { font: inherit; color: var(--np-ink); background: rgba(17,19,22,.82); border: 1px solid var(--np-line-strong); padding: 6px 10px; cursor: pointer; border-radius: 0; min-height: 32px; }
+  button:hover, button:focus-visible, select:focus-visible { border-color: var(--np-signal); outline: none; }
+  button.on { background: var(--np-signal); color: #111; border-color: var(--np-signal); }
+  #panel { position: fixed; left: 16px; top: 48px; width: 250px; z-index: 4; background: rgba(17,19,22,.84); border: 1px solid var(--np-line); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; max-height: calc(100% - 64px); overflow: auto; }
+  #panel label { display: flex; flex-direction: column; gap: 2px; color: var(--np-dim); font-size: 11px; letter-spacing: .06em; }
+  #panel .row { display: flex; gap: 4px; flex-wrap: wrap; }
+  #info { position: fixed; right: 16px; top: 48px; width: 260px; z-index: 4; background: rgba(17,19,22,.84); border: 1px solid var(--np-line); padding: 10px 12px; white-space: pre-wrap; font-size: 12px; }
+  #graph { position: fixed; right: 16px; bottom: 16px; z-index: 4; width: 260px; height: 110px; background: rgba(17,19,22,.84); border: 1px solid var(--np-line); }
+  #cross { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255,255,255,.6); z-index: 3; pointer-events: none; }
+  #touch { position: fixed; right: 16px; bottom: 140px; z-index: 4; display: none; gap: 6px; flex-direction: column; }
+  #touch button { min-width: 64px; min-height: 48px; }
+  .hint { color: var(--np-dim); font-size: 11px; }
+  @media (max-height: 520px), (max-width: 760px) {
+    header { padding: 6px 10px; } header h1 { font-size: 11px; }
+    #panel { top: 34px; left: 8px; width: 170px; padding: 6px 8px; gap: 3px; font-size: 11px; }
+    button, select { font-size: 10px; padding: 4px 6px; min-height: 28px; }
+    #info { top: 34px; right: 8px; width: 170px; font-size: 10px; padding: 6px 8px; }
+    #graph { display: none; }
+    #touch { display: flex; bottom: 8px; right: 8px; }
+    .hint { display: none; }
+  }
+</style>
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<header><h1>NULL<b>PUNKT</b> · Waffengefühl</h1></header>
+<div id="panel">
+  <label>Waffe<select id="weapon"></select></label>
+  <label>Waffenhaltung<span class="row"><button data-pose="standard">Standard</button><button data-pose="bodycam">Körperkamera</button></span></label>
+  <label>Qualitätsstufe<span class="row"><button data-q="low">Niedrig</button><button data-q="medium">Mittel</button><button data-q="high">Hoch</button><button data-q="ultra">Ultra</button></span></label>
+  <label>Waffenträgheit <span id="swayV">100 %</span><input id="sway" type="range" min="0" max="1" step="0.05" value="1"></label>
+  <label>Lehnen <span id="leanV">0</span><input id="lean" type="range" min="-1" max="1" step="0.05" value="0"></label>
+  <label>Freies Zielen<span class="row"><button data-fa="0">Aus</button><button data-fa="0.035">Leicht</button><button data-fa="0.087">Stark</button></span></label>
+  <span class="row"><button id="toWall">Zur Wand</button><button id="spray">Feuerstoß 1,5 s</button><button id="clear">Aufräumen</button></span>
+  <span class="hint">Klick = Maus fangen · WASD laufen · Umschalt sprinten · C ducken · Leertaste springen · LMT feuern · RMT zielen · R nachladen · Q/E lehnen</span>
+</div>
+<div id="info"></div>
+<canvas id="graph" width="520" height="220" aria-label="Rückstoß: Zielrückstoß (orange) und sichtbarer Stoß (weiß)"></canvas>
+<div id="cross"></div>
+<div id="touch"><button data-t="fire">Feuer</button><button data-t="ads">Zielen</button><button data-t="reload">Laden</button></div>
+<script type="module" src="./feel/feel.js"></script>
+</body>
+</html>

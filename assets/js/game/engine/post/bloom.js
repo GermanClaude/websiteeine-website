@@ -164,7 +164,7 @@ export class Bloom {
 
   bytes() {
     let b = 0;
-    for (const rt of this.targets) b += rt.width * rt.height * (rt.userData.bpp || 8);
+    for (const rt of this.targets) b += rt.width * rt.height * (rt.npBpp || 8);
     return b;
   }
 

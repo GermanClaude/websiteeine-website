@@ -20,6 +20,8 @@ export default {
   visualBounds: { minX: -140, maxX: 120, minZ: -200, maxZ: 130 },
   chunkSize: 32,
   ambience: 'harbor',
+  // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
+  assets: { hdri: 'freight_station' },
   defaultSurface: 'concrete',
   lighting: {
     sun: { elevation: 15, azimuth: 247, color: '#ffbf80', intensity: 3.5 },

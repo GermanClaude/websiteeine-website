@@ -48,19 +48,26 @@ export class MuzzleFlash {
     this.t = 1; this.dur = 0.05; this.peak = 0;
   }
 
-  fire(size = 1, length = 1) {
+  /**
+   * Mündungsfeuer: jedes Mal anders (Größe, Seitenverhältnis, Drehung, Flammenzungen nicht immer), sehr kurz
+   * (1–2 Bilder wie auf einer Kameraaufnahme). opts.suppressed: kaum Feuer, schwaches Licht (Schalldämpfer).
+   */
+  fire(size = 1, length = 1, opts = {}) {
     if (size <= 0) return;
+    const sup = !!opts.suppressed;
     this.t = 0;
-    this.dur = 0.035 + 0.02 * Math.random();
-    const s = (0.1 + Math.random() * 0.065) * size;
-    this.star.scale.set(s, s, 1);
+    this.dur = (sup ? 0.022 : 0.026) + 0.018 * Math.random();
+    const s = (0.1 + Math.random() * 0.065) * size * (sup ? 0.32 : 1);
+    const asp = 0.8 + Math.random() * 0.4;
+    this.star.scale.set(s * asp, s / asp, 1);
     this.star.rotation.z = Math.random() * Math.PI * 2;
-    const l = (0.1 + Math.random() * 0.08) * length * Math.sqrt(size);
-    this.sides.scale.set(1, 1, 1);
+    const l = (0.08 + Math.random() * 0.1) * length * Math.sqrt(size);
     this.sides.scale.setScalar(l);
+    this.sides.scale.x *= 0.7 + Math.random() * 0.6;
     this.sides.rotation.z = Math.random() * Math.PI;
+    this.sides.visible = !sup && Math.random() < 0.8;
     this.group.visible = true;
-    this.peak = 7 * size;
+    this.peak = 7 * size * (sup ? 0.15 : 0.8 + Math.random() * 0.4);
     this.light.intensity = this.peak;
   }
 
@@ -246,5 +253,129 @@ export class ShellPool {
   dispose() {
     for (const type in this.pools) { this.pools[type].mesh.geometry.dispose(); this.pools[type].mesh.dispose(); }
     parkMaterials('shells', this._mats);
+  }
+}
+
+/* ------------------------------------------------------------ Hitzeflimmern */
+
+const HAZE_VERT = /* glsl */ `
+varying vec2 vUv;
+void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const HAZE_FRAG = /* glsl */ `
+uniform sampler2D tCopy;
+uniform vec4 uRect;      // kopierter Bereich: x, y, Breite, Höhe (Pixel des Ziels)
+uniform vec2 uTexSize;   // Größe der Kopie-Textur
+uniform float uTime;
+uniform float uStrength; // Pixel-Auslenkung
+varying vec2 vUv;
+void main() {
+  // weiche Maske: über dem Lauf am stärksten, nach oben auslaufend
+  float m = smoothstep(0.5, 0.12, abs(vUv.x - 0.5)) * smoothstep(0.0, 0.18, vUv.y) * smoothstep(1.0, 0.4, vUv.y);
+  float t = uTime;
+  float n1 = sin(vUv.y * 26.0 - t * 9.0 + sin(vUv.x * 11.0 + t * 1.7) * 1.6);
+  float n2 = sin(vUv.y * 43.0 - t * 14.0 + vUv.x * 7.0 + 1.3);
+  vec2 off = vec2(n1 * 0.65 + n2 * 0.35, (n2 - n1) * 0.3) * uStrength * m;
+  vec2 uv = (gl_FragCoord.xy - uRect.xy + off) / uTexSize;
+  vec2 lim = uRect.zw / uTexSize;
+  vec3 col = texture2D(tCopy, clamp(uv, vec2(0.5) / uTexSize, lim - vec2(0.5) / uTexSize)).rgb;
+  gl_FragColor = vec4(col, m);
+}`;
+
+/**
+ * Hitzeflimmern über dem heißen Lauf (nur high/ultra): Ein kleines Billboard im Viewmodel kopiert vor dem Zeichnen
+ * den bereits gerenderten Bildausschnitt (copyFramebufferToTexture, gleiches Format wie das HDR-Ziel der
+ * Nachbearbeitung) und zeichnet ihn wellig versetzt wieder hin – echte Brechung ohne zusätzlichen Szenenpass.
+ * Nur auf nicht-multisample Render-Zielen; schlägt die erste Kopie fehl (GL-Fehler), schaltet es sich ab.
+ */
+export class HeatHaze {
+  constructor() {
+    this.enabled = true;       // Qualitätsstufe (high/ultra)
+    this.failed = false;       // Kopie auf diesem Gerät nicht möglich → dauerhaft aus
+    this.strength = 0;
+    this._tex = new Map();     // Texturtyp → FramebufferTexture
+    this._checked = false;
+    this.uniforms = {
+      tCopy: { value: null }, uRect: { value: new THREE.Vector4() }, uTexSize: { value: new THREE.Vector2(1, 1) },
+      uTime: { value: 0 }, uStrength: { value: 0 },
+    };
+    this.material = new THREE.ShaderMaterial({
+      name: 'vm:haze', uniforms: this.uniforms, vertexShader: HAZE_VERT, fragmentShader: HAZE_FRAG,
+      transparent: true, depthWrite: false, depthTest: true, toneMapped: false, fog: false,
+    });
+    this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), this.material);
+    this.mesh.name = 'hitzeflimmern';
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = 20;
+    this.mesh.visible = false;
+    this._corners = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    this.mesh.onBeforeRender = (renderer, scene, camera) => this._grab(renderer, camera);
+  }
+
+  /** pos (Elternraum), Breite/Höhe (m), Stärke 0..1; Billboard zur Kamera (Elternraum = Kameraraum). */
+  update(dt, pos, width, height, strength) {
+    this.uniforms.uTime.value += dt;
+    this.strength = strength;
+    const on = this.enabled && !this.failed && strength > 0.01;
+    this.mesh.visible = on;
+    if (!on) return;
+    this.mesh.position.copy(pos);
+    this.mesh.scale.set(width, height, 1);
+    this.mesh.quaternion.identity();
+  }
+
+  _grab(renderer, camera) {
+    const u = this.uniforms;
+    const rt = renderer.getRenderTarget();
+    // Nur in ein einfaches (nicht multisample) Ziel – direkt auf den Bildschirm geht es nicht
+    if (!rt || rt.samples > 0 || !rt.texture || rt.isWebGLCubeRenderTarget) { u.uStrength.value = 0; u.tCopy.value = null; this.mesh.material.visible = false; return; }
+    this.mesh.material.visible = true;
+    const W = rt.width, H = rt.height;
+    // Bildschirmrechteck des Billboards
+    this.mesh.updateMatrixWorld();
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    const c = this._corners;
+    c[0].set(-0.5, -0.5, 0); c[1].set(0.5, -0.5, 0); c[2].set(0.5, 0.5, 0); c[3].set(-0.5, 0.5, 0);
+    for (const p of c) {
+      p.applyMatrix4(this.mesh.matrixWorld).project(camera);
+      const px = (p.x * 0.5 + 0.5) * W, py = (p.y * 0.5 + 0.5) * H;
+      x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+    }
+    const S = 256;
+    if (W < S || H < S || x1 - x0 < 4 || y1 - y0 < 4) { u.uStrength.value = 0; return; }
+    // Kopierfenster S × S um die Mitte des Billboards, ganz im Ziel
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const rx = Math.max(0, Math.min(W - S, Math.round(cx - S / 2))), ry = Math.max(0, Math.min(H - S, Math.round(cy - S / 2)));
+    const key = rt.texture.type + ':' + rt.texture.format;
+    let tex = this._tex.get(key);
+    if (!tex) {
+      tex = new THREE.FramebufferTexture(S, S);
+      tex.type = rt.texture.type;
+      tex.format = rt.texture.format;
+      tex.minFilter = tex.magFilter = THREE.LinearFilter;
+      tex.generateMipmaps = false;
+      this._tex.set(key, tex);
+    }
+    this._pos = this._pos || new THREE.Vector2();
+    this._pos.set(rx, ry);
+    const gl = renderer.getContext();
+    if (!this._checked) gl.getError();   // alten Fehlerstand verwerfen
+    // Nur den belegten Teil kopieren: Bildgröße der Kopie-Textur ist fest, copyTexSubImage2D nimmt w × h
+    try { renderer.copyFramebufferToTexture(tex, this._pos); } catch { this.failed = true; }
+    if (!this._checked) {
+      this._checked = true;
+      if (gl.getError() !== gl.NO_ERROR) this.failed = true;
+    }
+    if (this.failed) { this.mesh.visible = false; this.mesh.material.visible = false; u.uStrength.value = 0; return; }
+    u.tCopy.value = tex;
+    u.uRect.value.set(rx, ry, S, S);
+    u.uTexSize.value.set(S, S);
+    u.uStrength.value = this.strength * 3.2 * (H / 1080 + 0.35);
+  }
+
+  dispose() {
+    for (const t of this._tex.values()) t.dispose();
+    this._tex.clear();
+    this.mesh.geometry.dispose();
+    this.material.dispose();
   }
 }
