@@ -38,7 +38,7 @@ const GROUP_TEXT = { streak: 'Serienprämien: Aufklärer nach 4, Präzisionsschl
  * Geprüft mit tools/out/fix-site/bindings.mjs.
  */
 export const KEYS = [
-  ['W A S D', 'Bewegen', 'BEWEGEN', ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']],
+  ['W\u00a0A\u00a0S\u00a0D', 'Bewegen', 'BEWEGEN', ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']],
   ['Maus', 'Umsehen', 'UMSEHEN', []],
   ['LMT', 'Feuern', 'FEUERN', [], [0]],
   ['RMT', 'Zielen (halten)', 'ZIELEN', [], [2]],
@@ -46,9 +46,9 @@ export const KEYS = [
   ['Leertaste', 'Springen', 'SPRINGEN', ['Space']],
   ['C', 'Ducken, im Sprint rutschen', 'DUCKEN', ['KeyC']],
   ['Umschalt', 'Sprinten, im Zielfernrohr Atem anhalten', 'SPRINTEN', ['ShiftLeft', 'ShiftRight']],
-  ['V / Maus 4', 'Messer', 'MESSER', ['KeyV'], [3]],
+  ['V / Maus\u00a04', 'Messer', 'MESSER', ['KeyV'], [3]],
   ['G / Q', 'Granate (halten: vorkochen)', 'GRANATE', ['KeyG', 'KeyQ']],
-  ['1 / 2 / Mausrad / Maus 5', 'Waffe wechseln', 'WAFFE WECHSELN', ['Digit1', 'Digit2'], [4]],
+  ['1 / 2 / Mausrad / Maus\u00a05', 'Waffe wechseln', 'WAFFE WECHSELN', ['Digit1', 'Digit2'], [4]],
   ['3 / 4 / 5', 'Serienprämien', 'SERIENPRÄMIEN', ['Digit3', 'Digit4', 'Digit5']],
   ['F / E', 'Interagieren (Parcours im Schießstand)', 'INTERAGIEREN', ['KeyF', 'KeyE']],
   ['Tab', 'Punktetabelle', 'PUNKTETABELLE', ['Tab']],
@@ -66,7 +66,7 @@ export const PAD = [
   [7, 'RT', 'Feuern'], [6, 'LT', 'Zielen'], [0, 'A', 'Springen'], [1, 'B', 'Ducken, im Sprint rutschen'], [2, 'X', 'Nachladen'],
   [3, 'Y', 'Waffe wechseln'], [4, 'LB', 'Granate (halten: vorkochen)'], [5, 'RB', 'Messer'],
   [10, 'L-Stick', 'Bewegen · drücken: Sprinten, im Zielfernrohr Atem anhalten'], [11, 'R-Stick', 'Umsehen · drücken: Messer'],
-  [[12, 14, 15], 'Steuerkreuz ▲ ◀ ▶', 'Serienprämien'], [8, 'Ansicht', 'Punktetabelle'], [9, 'Menü', 'Pause'],
+  [[12, 14, 15], 'Steuerkreuz ▲\u00a0◀\u00a0▶', 'Serienprämien'], [8, 'Ansicht', 'Punktetabelle'], [9, 'Menü', 'Pause'],
 ];
 
 export async function init(sec, D, ctx = {}) {

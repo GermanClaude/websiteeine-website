@@ -10,7 +10,7 @@ const KEYS = [
   ['Zielen (Anlegen)', ['Rechte Maustaste']],
   ['Sprinten', ['Umschalt']],
   ['Springen', ['Leertaste']],
-  ['Ducken · im Sprint Rutschen', ['C', 'Strg']],
+  ['Ducken · im Sprint Rutschen', ['C']],
   ['Nachladen', ['R']],
   ['Waffe wechseln', ['1', '2', 'Mausrad']],
   ['Messer', ['V', 'Maustaste 4']],

@@ -43,7 +43,7 @@ scorestreaks, ADS, killfeed, minimap, mobile touch controls) — playable agains
 | `assets/js/shared/weapons.data.js` | ballistics (first version: data agent) | Weapon/equipment definitions (pure data) |
 | `assets/js/shared/maps.data.js` | world | Map meta (pure data) |
 | `assets/js/shared/modes.data.js` | ui (first version: data agent) | Game-mode + scorestreak meta (pure data) |
-| `assets/js/game/stubs/**` | core | Temporary stubs (see §10a), removed at integration |
+| `assets/js/game/engine/dynres.js` | core | Dynamic resolution controller (frame cost based, §11a) |
 | `assets/js/game/main.js` | core | Bootstrap, game loop, match lifecycle wiring |
 | `assets/js/game/engine/events.js` | core | EventBus |
 | `assets/js/game/engine/renderer.js` | core | Renderer, quality presets, post-processing, viewmodel pass |
@@ -86,7 +86,11 @@ Never `git commit`/`push` — the coordinator does that.
 URL params of `spielen.html`: `mode` (tdm|ffa|dom|gun|training), `map` (hafen|altstadt|werk|range),
 `diff` (rekrut|regulaer|veteran|elite), `allies`, `enemies` (bot counts),
 `autostart=1` (skip lobby; used by tests; pointer lock optional), `debug=1` (stats overlay),
-`quality` (low|medium|high|ultra) overrides setting for this session.
+`quality` (low|medium|high|ultra) overrides setting for this session (and disables dynamic resolution).
+Test hooks: `time`/`score` (limits; shorter than the mode default → match is *unranked*: no XP/stats),
+`primary`/`secondary`/`lethal` (validated like the lobby: slot + unlock level), and — only together with
+`debug=1` — `god=1`, `timescale=0.05…4` (both make the match unranked). `mode`/`map` are validated
+against `MAPS[map].modes` (invalid map → the mode's recommended map).
 
 ### 2.1 The game context `G`
 
@@ -242,7 +246,7 @@ export class Input {
 }
 ```
 Desktop: WASD, mouse look (pointer lock), LMB fire, RMB ADS (hold), R reload,
-Space jump, C/Ctrl crouch (tap) / slide when sprinting, Shift sprint (toggle-on-hold), V/Mouse4 melee,
+Space jump, C crouch (tap) / slide when sprinting (no Ctrl: Ctrl+W closes the tab), Shift sprint (toggle-on-hold), V/Mouse4 melee,
 G/Q grenade, 1/2/mouse-wheel weapon swap, 3/4/5 scorestreaks, Tab scoreboard, Esc pause.
 Gamepad (standard mapping) supported.
 Touch (COD-Mobile style): floating left joystick (push to top edge → auto-sprint lock),
@@ -530,14 +534,18 @@ Modi, Karten, Arsenal, Profil/Statistiken (from profile), Einstellungen (shared 
 Steuerung (desktop/touch/gamepad), Über/Impressum-hint. Responsive (360 px → 4K), keyboard
 accessible, `prefers-reduced-motion` respected, works without WebGL (graceful fallback).
 
-## 10a. Stubs during parallel development
+## 10a. Module loading (stubs removed at integration)
 
-Modules are written concurrently. `main.js` imports every non-core module through
-`importOr(realPath, stubPath)`: it tries the real module and falls back to a minimal stub in
-`assets/js/game/stubs/` (owned by core). URL param `stubs=all` or `stubs=world,audio,...`
-forces stubs (keys: `world, audio, textures, models, viewmodel, weapons, effects, bots, modes, hud, menus`).
-Core never writes at another owner's path. The integration step removes `stubs/` and
-`importOr` once every real module exists.
+During parallel development `main.js` fell back to stubs; since integration `assets/js/game/stubs/`,
+`importOr` and the `stubs` URL param are gone. `main.js` imports core modules and the pure data
+modules statically and loads the subsystems (`MODULES` table: textures, models, viewmodel, world,
+audio, weapons, effects, bots, modes, hud, menus) in parallel with `import()` (boot progress bar; one
+retry with a cache-busting query on network errors). A missing/broken required module shows the German
+fatal panel („Spieldaten konnten nicht geladen werden“, „Neu laden“, „Zurück zur Website“); only the
+audio module is optional (silent no-op `G.audio`). `spielen.html` preloads the whole module graph with
+`<link rel="modulepreload">` (block between `modulepreload:start/end` markers) — **after adding, moving
+or deleting game modules run `node tools/preload.mjs`** (`--check` reports a stale list; a preload of a
+deleted file would 404).
 
 Every module owner provides an isolated dev harness page under `dev/` (e.g. `dev/world.html`
 free-fly camera through each map, `dev/weapons.html` model + viewmodel animation viewer,
@@ -547,7 +555,8 @@ full game. Harness pages use the same import map.
 ## 11. Quality bar
 
 - No console errors or warnings in normal use. Test with `node tools/shot.mjs <url> <png> …`
-  against `http://localhost:8765/` (start: `npx http-server -p 8765 -s -c-1 /home/user/websiteeine-website &`).
+  against `http://localhost:8765/` (start in the repository root: `npx http-server -p 8765 -s -c-1 .`;
+  other address: env `NP_BASE`; Playwright path: env `NP_PLAYWRIGHT`, see `tools/pw.mjs`).
 - Performance targets: desktop high ≥ 60 fps; mobile low ≥ 30 fps. Static map geometry merged
   per material (BufferGeometryUtils.mergeGeometries) or instanced; draw calls < 400 on high.
 - Dispose GPU resources on match restart; no leaks across 5 consecutive matches.
@@ -563,9 +572,11 @@ on phones and tablets (iOS Safari + Android Chrome), not only desktop:
   touch drag, no horizontal scroll, fast on mid-range phones.
 - Game: touch controls are the primary input on touch devices (COD-Mobile layout, §5), HUD
   scaled and positioned for thumbs and safe areas (`env(safe-area-inset-*)`, notches),
-  landscape play (portrait shows a rotate hint), fullscreen where possible, `quality: auto`
-  picks `low`/`medium` on phones, dynamic resolution if fps drops (< 40 for 3 s → lower
-  pixel ratio), lobby/menus/end screen fully operable by touch (big targets, no keyboard
+  landscape play (portrait on phones shows a rotate hint with „Im Querformat spielen“ /
+  „Zurück zur Website“; tablets may play portrait), fullscreen where possible, `quality: auto`
+  picks `low`/`medium` on phones, dynamic resolution by frame cost (`engine/dynres.js`: touch target
+  30 fps, desktop 60; a 30 Hz power-saving cap does not trigger downscaling; quality tiers only
+  change between matches), lobby/menus/end screen fully operable by touch (big targets, no keyboard
   needed, no Esc-only actions), text readable at phone size, iOS audio unlock on first touch,
   no 300 ms delays, no accidental text selection / callouts / zoom.
 - Test every feature with Playwright mobile emulation (`hasTouch`, `isMobile`, landscape
@@ -616,3 +627,7 @@ on phones and tablets (iOS Safari + Android Chrome), not only desktop:
 - 2026-10-05 — site — Neue Dateien im Wurzelordner: `manifest.webmanifest` (Start `spielen.html`, `display: fullscreen`, `orientation: landscape`, Symbole 192/512 inkl. maskierbar) und `404.html` (in sich geschlossen); Symbole `assets/img/{apple-touch-icon,favicon-32,icon-192,icon-512}.png`. **Kreuz-Änderungen:** `spielen.html` (core) bekommt im `<head>` drei Zeilen (`rel=manifest`, `rel=apple-touch-icon`, PNG-Favicon); `README.md`: Steuerungstabelle wie `input.js` (nur C duckt, Steuerkreuz ▲ ◀ ▶, R3 = Messer, Menü = Pause) und Hinweis auf die absoluten Vorschau-Adressen (`canonical`/`og:url`/`og:image` in `index.html`).
 - 2026-10-05 — site — Steuerung der Website spiegelt `engine/input.js`: `controls-view.js` exportiert `KEYS`, `PAD`, `TOUCH` (gemessene Touch-Knopflagen); `node tools/out/fix-site/bindings.mjs` vergleicht sie in beide Richtungen mit `KEY_ACTIONS`/`MOVE_KEYS`/`MOUSE_ACTIONS`/`PAD_ACTIONS` (Bitte an core: nach Belegungsänderungen ausführen; ein kleines reines Datenmodul mit den Tabellen könnte die Website direkt importieren – `input.js` selbst zieht three.js nach).
 - 2026-10-05 — site — Website-interne Ergänzungen: `stage3d.frame({x0,x1,y0,y1})` + Getter `view`; `ballistics.js` `shotsNeeded(def,d,zone)`, `hitTtk`, `rankForSightlines(dists)`, `rankAt()`-Zeilen mit `fired` (Duellzeit mit erwarteter Trefferquote aus `adsSpread`, Zielfehler 0,0025/`adsZoom` und verbleibendem Rückstoß); `plan.castVisibility()` liefert zusätzlich `dists` (360 Sichtweiten, sortiert); `fmt.js` `TERMS` + `count(n, key)` (Begriffe/Numerus wie im Spiel: XP, Unterstützungen …); `fit.js`-Messabzüge `position: fixed`.
+- 2026-10-05 — audio — **F48 Synthese nie mehr im Hauptthread (Spiel):** neue Module `engine/audio/bank.js` (gemeinsame Klangbank `bank`: Prioritäts-Warteschlange, 1–2 Modul-Worker `engine/audio/synth.worker.js` mit übertragbaren Puffern, große Ergebnisse werden in 32k-Sample-Schritten (≤ 2 ms je Takt) in AudioBuffer kopiert, Worker enden nach 4 s Leerlauf; ohne Modul-Worker Rückfall auf Leerlauf-Häppchen im Hauptthread) und `engine/audio/render.js` (`renderEntry(name, v, sr)`, `renderSteps`). Die Match-Bank wird schon ab `match:state` lobby/loading ohne AudioContext gerendert (Reihenfolge: Menü → eigene Ausrüstung aus `G.match.loadout`/`lastLoadout` → Countdown/Treffer/Tod/Explosion → Rest; Variante 0 aller Klänge vor weiteren Varianten). `play()` rendert während countdown/playing nie synchron: andere fertige Variante oder Ersatzklang (Katalogfeld `alt`, z. B. anderes Gewehrprofil), sonst auslassen und vorgezogen anfordern; außerhalb des Spiels (Lobby, Endbildschirm, Website) startet ein fehlender Klang, sobald der Worker fertig ist (≤ 1,5 s, je Klang höchstens eine wartende Wiedergabe). Synchron nur noch in `renderOffline` (Messung) und für winzige Menüklänge außerhalb des Spiels.
+- 2026-10-05 — audio — **API (additiv):** Getter `audio.bank` (Diagnose: `info()`, `buffers`, `queued`, `idle`, `release(pred)`); `info()` zusätzlich `bankMB`, `workers`, `synth` ('worker'|'main'), `synthErrors`; `stats` zusätzlich `substituted`, `missed`, `deferred`, `workerMs` (`renderMs`/`maxSliceMs` messen nur noch den Hauptthread-Anteil). `prerender()` ohne Namen = Match-Bank (Stufe 0–2), `ready` = entsperrt und Bank leer. Katalogeinträge haben `rate`/`rateLow` (feste Abtastrate statt Kontextrate), `variantsLow`, `cheap`, `alt`, `transient` (ersetzt `sr`). Website-Engine (ohne Ereignisbus) rendert nur Menü-, Schuss- und Nachladeklänge vor. `createUiSounds` unverändert.
+- 2026-10-05 — audio — **F54 Speicher:** Abtastrate je Klang nach gemessener Bandbreite (Anteil oberhalb 0,45 · Rate ≤ ca. −40 dB): ferne Schüsse 22,05 kHz (low 16 kHz), Explosion fern/Herzschlag/Ausatmen 16 kHz, Körpertreffer/Schmerz 24 kHz, Stinger 16–32 kHz, Atmo-Schleifen 16–22,05 kHz, Musik-Stems 16–32 kHz; bei Qualität low alle SFX ≤ 32 kHz und 3 statt 4 Nahschuss-Varianten. Nur die Atmo der aktuellen Karte wird gerendert, andere werden freigegeben; Musik-Stems (16 MB) nur bei hörbarer Musik (`musicVolume` > 0) und wie `levelup` (Stufe 4, Endbildschirm) ab `loading` freigegeben und bei Bedarf im Worker neu gerendert (Sieg/Niederlage bleiben resident, damit sie sofort kommen). Klangbank im Match: low ≈ 27–28 MB, high ≈ 38–40 MB je nach Karte (vorher ≈ 77 MB: 54 MB SFX inkl. Atmo aller Karten + Schleife + 20 MB Musik).
+- 2026-10-05 — audio — **F73 Ereignisse ohne Abnehmer:** `grenade:pin` → Splint beim Ziehen (Spieler 2D, Bots positional = hörbare Warnung), `grenade:throw` nur noch Wurf-Luftzug (ohne vorheriges pin wird der Splint nachgeholt; `dropped` still), `grenade:stick` → neuer Klang `grenade_stick` (Aufschlag, Haftmasse, zwei Piepser; am eigenen Körper laut 2D), `grenade:bounce` mit `stick: true` wird übergangen, `player:slide` → neuer Klang `slide` (start; Abbruch per end blendet in 0,12 s aus). `uav:state`: eigener Aufklärer über `G.mode.teams ? player.team : player.id` (bzw. `owner`) → `uav_end` auch im FFA.
