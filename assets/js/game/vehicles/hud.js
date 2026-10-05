@@ -44,7 +44,7 @@ const CSS = `
 .vh-dmg.is-on{box-shadow:inset 0 0 90px rgba(226,73,47,.55);transition:none}
 .vh-scope{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 34%,rgba(0,0,0,.55) 46%,rgba(0,0,0,.92) 60%)}
 .vh-scope[hidden]{display:none}
-body[data-vehicle] .h-cross,body[data-vehicle] .h-weapon,body[data-vehicle] .h-equip,body[data-vehicle] .h-streaks,body[data-vehicle] .h-scope,body[data-vehicle] .h-cook,body[data-vehicle] .h-gunlead{display:none!important}
+body[data-vehicle] .h-cross,body[data-vehicle] .h-weapon,body[data-vehicle] .h-equip,body[data-vehicle] .h-streaks,body[data-vehicle] .h-scope,body[data-vehicle] .h-cook,body[data-vehicle] .h-gunlead,body[data-vehicle] .h-aim,body[data-vehicle] .h-acog,body[data-vehicle] .h-breath,body[data-vehicle] .h-magbar,body[data-vehicle] .h-ammo-hint{display:none!important}
 body[data-input-mode="touch"] .vh-panel{width:224px;padding:6px 9px;right:auto;left:calc(50% - 112px);bottom:calc(3% + max(44px, calc(var(--tc-u,1px) * 44)) + 8px + env(safe-area-inset-bottom))}
 body[data-input-mode="touch"] .vh-hint,body[data-input-mode="touch"] .vh-prompt kbd,body[data-input-mode="touch"] .vh-zones,body[data-input-mode="touch"] .vh-wep:not(.is-sel){display:none}
 body[data-input-mode="touch"] .vh-name{font-size:14px}body[data-input-mode="touch"] .vh-speed{font-size:17px}

@@ -2239,7 +2239,6 @@ body[data-touch-edit="1"] .te-overlap { box-shadow: 0 0 0 2px var(--np-enemy), 0
 .tc-lean { --s: 46; border-radius: 40%; }
 .tc-lean svg { width: 52%; height: 52%; }
 .tc-lean.is-active { background: var(--np-ink); color: var(--np-black); border-color: var(--np-ink); }
-.tc-lean-l svg { transform: scaleX(-1); }
 .tc-adsfire { --s: 56; border-color: rgba(255, 91, 31, .7); background: rgba(255, 91, 31, .12); }
 .tc-adsfire.is-down { background: rgba(255, 91, 31, .4); }
 .tc-light.is-active { background: rgba(255, 230, 160, .9); color: var(--np-black); border-color: #ffe6a0; }

@@ -1681,7 +1681,9 @@ export class AudioEngine {
 
   _onState({ state: s }) {
     this._muffle.pause = s === 'paused';
-    if (s === 'lobby' || s === 'boot') { this._muffle.dead = false; this.hearing.reset(); this._muffle.hearing = NO_MUFFLE; }
+    if (s === 'lobby' || s === 'boot') this._muffle.dead = false;
+    // Ohrenklingeln nicht in Pausenmenü/Endbildschirm stehen lassen (dort läuft kein update())
+    if (s === 'lobby' || s === 'boot' || s === 'paused' || s === 'ended') { this.hearing.reset(); this._muffle.hearing = NO_MUFFLE; }
     if (this.muffle) this._applyMuffle(true);
     library.inPlay = s === 'loading' || IN_PLAY.has(s); // Kartenaufbau/Spiel: nur ein Ladeauftrag gleichzeitig
     // Klangbank ab der Lobby füllen (Worker, ohne AudioContext); Ausrüstung aus der letzten Wahl zuerst;

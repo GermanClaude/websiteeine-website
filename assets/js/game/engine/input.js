@@ -24,6 +24,8 @@ export const ACTIONS = ACTION_IDS;
 
 const MOUSE_RAD_PER_PX = 0.0022;
 const TOUCH_RAD_PER_PX = 0.0054;
+// Touch-Knöpfe, die beim Spiegeln (Linkshänder) die Plätze tauschen
+const MIRROR_PAIR = { leanL: 'leanR', leanR: 'leanL' };
 const PAD_YAW_RATE = 3.4; // rad/s bei Vollausschlag
 const PAD_PITCH_RATE = 2.3;
 const SOURCES = ['key', 'mouse', 'pad', 'touch', 'auto', 'sim'];
@@ -1529,9 +1531,11 @@ class TouchUI {
       let w = r.width, h = r.height, cx = r.left + w / 2, cy = r.top + h / 2;
       if (b.kind === 'stick') { const base = this.el.base.getBoundingClientRect(); w = base.width; h = base.height; cx = r.left; cy = r.top; }
       const visible = getComputedStyle(el).display !== 'none';
-      const def = defaults && b.def && !visible ? b.def : null;
+      // Knöpfe mit def haben in game.css keine Lage – ohne Inline-Werte stünden sichtbare (Editor-Geist, Lampe)
+      // in der Ecke und würden beim Spiegeln dorthin übernommen
+      const def = defaults && b.def ? b.def : null;
       out.buttons[b.id] = def
-        ? { x: def.x, y: def.y, w: 0, h: 0, visible }
+        ? { x: def.x, y: def.y, w: visible ? (w / rr.width) * 100 : 0, h: visible ? (h / rr.height) * 100 : 0, visible }
         : { x: ((cx - rr.left) / rr.width) * 100, y: ((cy - rr.top) / rr.height) * 100, w: (w / rr.width) * 100, h: (h / rr.height) * 100, visible };
     }
     if (defaults && restore && this.layout) this.applyLayout(this.layout, this._globals);
@@ -1563,9 +1567,15 @@ class TouchUI {
       if (!el) continue;
       const e = L.buttons[b.id] || {};
       let x = e.x, y = e.y;
-      const d = defs && defs.buttons[b.id];
+      // Gespiegelt tauscht das Lehnen-Paar die Plätze: „links lehnen“ bleibt links von „rechts lehnen“
+      const pid = L.mirror && MIRROR_PAIR[b.id] ? MIRROR_PAIR[b.id] : b.id;
+      const d = defs && defs.buttons[pid];
       if (L.mirror && d) { if (x == null) x = 100 - d.x; if (y == null) y = d.y; }
-      if (b.def) { if (x == null) x = L.mirror ? 100 - b.def.x : b.def.x; if (y == null) y = b.def.y; }
+      if (b.def) {
+        const bd = (pid !== b.id && TOUCH_BUTTONS.find((t) => t.id === pid).def) || b.def;
+        if (x == null) x = L.mirror ? 100 - bd.x : bd.x;
+        if (y == null) y = bd.y;
+      }
       const s = (e.s ?? 1) * gScale;
       if (b.kind === 'stick') {
         this._rest = x != null && y != null ? { x, y } : null;

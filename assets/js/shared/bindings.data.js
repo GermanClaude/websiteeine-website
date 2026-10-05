@@ -333,7 +333,7 @@ export const TOUCH_BUTTONS = Object.freeze([
   { id: 'jump', sel: '.tc-jump', label: 'Springen / Überklettern' },
   { id: 'crouch', sel: '.tc-crouch', label: 'Ducken' },
   { id: 'grenade', sel: '.tc-grenade', label: 'Granate' },
-  { id: 'tactical', sel: '.tc-tactical', label: 'Taktische Granate', auto: 'tactical', def: { x: 57.5, y: 76, s: 48 } },
+  { id: 'tactical', sel: '.tc-tactical', label: 'Taktische Granate', auto: 'tactical', def: { x: 60.5, y: 76, s: 48 } },
   { id: 'melee', sel: '.tc-melee', label: 'Messer' },
   { id: 'swap', sel: '.tc-swap', label: 'Waffe wechseln' },
   { id: 'leanL', sel: '.tc-lean-l', label: 'Links lehnen', optional: true, def: { x: 4.8, y: 56, s: 46 } },

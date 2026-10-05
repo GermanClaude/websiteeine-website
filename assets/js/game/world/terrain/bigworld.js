@@ -35,7 +35,7 @@ export const BIG_MAP_IDS = Object.keys(BIG_MAPS);
 
 /** Budgets je Qualitätsstufe (GROSSKAMPF_PLAN §3.4; Handy = low). */
 export const BIG_TIERS = {
-  low: { view: 340, steps: [2, 4, 8, 16], dists: [56, 150, 260], treeNear: 55, treeFar: 330, grass: 12, grassStep: 1.7, grassCap: 220, treeShadow: false, density: 0.55, far: 700, mapPx: 512, siteCull: 260, shadow: 24 },
+  low: { view: 340, steps: [2, 4, 8, 16], dists: [56, 150, 260], treeNear: 55, treeFar: 330, grass: 12, grassStep: 1.7, grassCap: 220, treeShadow: false, density: 0.55, far: 700, mapPx: 512, siteCull: 210, shadow: 24 },
   medium: { view: 600, steps: [1, 2, 4, 8], dists: [48, 150, 330], treeNear: 90, treeFar: 580, grass: 25, grassStep: 1.4, grassCap: 1400, treeShadow: false, density: 0.8, far: 900, mapPx: 1024, siteCull: 520, shadow: 40 },
   high: { view: 850, steps: [1, 2, 4, 8], dists: [70, 200, 380], treeNear: 150, treeFar: 820, grass: 40, grassStep: 1.3, grassCap: 3200, treeShadow: true, density: 1, far: 1000, mapPx: 1024, siteCull: 760, shadow: 60 },
   ultra: { view: 850, steps: [1, 2, 4, 8], dists: [90, 240, 420], treeNear: 190, treeFar: 840, grass: 55, grassStep: 1.25, grassCap: 5600, treeShadow: true, density: 1, far: 1000, mapPx: 1024, siteCull: 800, shadow: 70 },

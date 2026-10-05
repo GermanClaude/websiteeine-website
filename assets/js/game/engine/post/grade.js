@@ -60,6 +60,14 @@ export const MOODS = Object.freeze({
     bloom: { threshold: 2.5, strength: 0.28, dirt: 0.5 },
     shafts: 0.3,
   },
+  grenzland: { // Flusstal am späten Vormittag: leichter Dunst, Grün Richtung Oliv (wie Videokameras), weiche Wärme
+    label: 'Grenzland – Vormittag',
+    lut: { temperature: 0.05, contrast: 1.12, pivot: 0.42, saturation: 0.92, shadowSat: 0.88, highSat: 0.86,
+      shadowTint: [0.97, 1.0, 1.035], highTint: [1.03, 1.0, 0.95], greenShift: 0.45, blackLevel: 0.012, whiteLevel: 0.985 },
+    exposure: { ...BASE_EXPOSURE, ref: 0.14 },
+    bloom: { threshold: 2.5, strength: 0.28, dirt: 0.5 },
+    shafts: 0.35,
+  },
   nacht: { // Nacht/Innenräume mit Leuchtstoffröhren: grünstichig, angehobene Videoschwärzen
     label: 'Nacht – Leuchtstoff',
     lut: { temperature: -0.08, tint: -0.14, contrast: 1.16, pivot: 0.33, saturation: 0.74, shadowSat: 0.6, highSat: 0.9,
@@ -71,7 +79,7 @@ export const MOODS = Object.freeze({
 });
 
 /** Karten-ID → Stimmung (Karten ohne eigenen Eintrag nehmen `neutral`; „nachtschicht“/„innenraum“ → `nacht`). */
-export const MOOD_FOR_MAP = Object.freeze({ hafen: 'hafen', altstadt: 'altstadt', werk: 'werk', range: 'range', nachtschicht: 'nacht', innenraum: 'nacht' });
+export const MOOD_FOR_MAP = Object.freeze({ hafen: 'hafen', altstadt: 'altstadt', werk: 'werk', range: 'range', grenzland: 'grenzland', nachtschicht: 'nacht', innenraum: 'nacht' });
 
 /** Stimmung auflösen: id | { mood, lut, exposure, bloom } → vollständiges Objekt (Kopie). */
 export function resolveMood(spec) {
@@ -114,17 +122,23 @@ function sCurve(x, c, pv) {
  * blackLevel/whiteLevel (Videopegel: angehobenes Schwarz, abgerundetes Weiß).
  */
 export function applyMood(r, g, b, p) {
+  const k = channelCurves(p);
+  return applyMoodRest(k[0](r), k[1](g), k[2](b), p);
+}
+
+/** Kanalweise Schritte (Weißabgleich im linearen Licht, S-Kurve) als drei Funktionen. */
+function channelCurves(p) {
   const t = p.temperature || 0, m = p.tint || 0;
   // Weißabgleich im linearen Licht, Helligkeit erhalten
   let wr = 1 + 0.1 * t + 0.03 * m, wg = 1 - 0.06 * m, wb = 1 - 0.12 * t + 0.03 * m;
   const wl = 0.2126 * wr + 0.7152 * wg + 0.0722 * wb;
   wr /= wl; wg /= wl; wb /= wl;
-  r = toSrgb(clamp01(toLin(r) * wr));
-  g = toSrgb(clamp01(toLin(g) * wg));
-  b = toSrgb(clamp01(toLin(b) * wb));
   // Kontrast (je Kanal: wie Film, hebt die Sättigung in den Mitten leicht)
   const c = p.contrast ?? 1, pv = p.pivot ?? 0.42;
-  r = sCurve(r, c, pv); g = sCurve(g, c, pv); b = sCurve(b, c, pv);
+  return [wr, wg, wb].map((w) => (x) => sCurve(toSrgb(clamp01(toLin(x) * w)), c, pv));
+}
+
+function applyMoodRest(r, g, b, p) {
   // Sättigung nach Helligkeitszone + Farbton-Ausnahmen
   const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   let sat = (p.saturation ?? 1) * ((p.shadowSat ?? 1) + ((p.highSat ?? 1) - (p.shadowSat ?? 1)) * smooth(0.12, 0.8, l));
@@ -164,11 +178,14 @@ export function buildLut(params, size = LUT_SIZE) {
   if (hit) return hit;
   const data = new Uint8Array(size * size * size * 4);
   const s = 1 / (size - 1);
+  // kanalweise Schritte einmal je Gitterwert (statt je LUT-Eintrag): ≈ 10× schneller
+  const fn = channelCurves(params);
+  const tab = fn.map((f) => Float32Array.from({ length: size }, (_, i) => f(i * s)));
   let i = 0;
   for (let bz = 0; bz < size; bz++) {
     for (let gy = 0; gy < size; gy++) {
       for (let rx = 0; rx < size; rx++) {
-        const o = applyMood(rx * s, gy * s, bz * s, params);
+        const o = applyMoodRest(tab[0][rx], tab[1][gy], tab[2][bz], params);
         data[i++] = Math.round(clamp01(o[0]) * 255);
         data[i++] = Math.round(clamp01(o[1]) * 255);
         data[i++] = Math.round(clamp01(o[2]) * 255);
