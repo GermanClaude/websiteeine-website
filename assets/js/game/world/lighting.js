@@ -3,7 +3,7 @@
 // (world/shadows.js), Hemisphärenlicht, Höhennebel mit Sonnen-Einstreuung (world/shading.js) (Owner: world)
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
-import { WS } from './shading.js';
+import { WS, setShadingMode } from './shading.js';
 import { createFarShadow, farShadowBudget, NEAR_CAP } from './shadows.js';
 
 const deg = THREE.MathUtils.degToRad;
@@ -243,7 +243,7 @@ export function createLighting(G, def, group, { hdri = null, far = null } = {}) 
   const farShadow = far ? createFarShadow(G, { sunDir, bounds: far.bounds, group, exclude: far.exclude }) : null;
   let probeSun = false; // Sonnensicht des Sonden-Gitters verfügbar (Ferne auf low / ohne Schattenkarten)
   const applyFarMode = () => {
-    WS.npFar.value.x = farShadow?.active ? 1 : probeSun ? 2 : 0;
+    setShadingMode({ far: farShadow?.active ? 1 : probeSun ? 2 : 0 });
   };
 
   // Gedrosselte Schattenkarte (low): die neue Sonne hat noch keine Karte → im nächsten Bild zeichnen lassen.
@@ -267,7 +267,8 @@ export function createLighting(G, def, group, { hdri = null, far = null } = {}) 
   // Ohne Kartenwerte aus near/far abgeleitet (auf Augenhöhe ≈ wie der lineare Nebel der übrigen Materialien).
   const fd = def.fog;
   const fogSpan = Math.max(20, fd.far - fd.near);
-  WS.npFog.value.set(fd.density ?? 2.0 / fogSpan, fd.falloff ?? 0.05, fd.baseY ?? 0, fd.start ?? fd.near * 0.55);
+  WS.npFog.value.set(WS.npFog.value.x, fd.falloff ?? 0.04, fd.baseY ?? 0, fd.start ?? fd.near * 0.5);
+  setShadingMode({ fog: fd.height === false ? 0 : fd.density ?? 1.3 / fogSpan });
   WS.npFogMax.value = fd.max ?? 0.92;
   const sunHue = new THREE.Color(def.sun.color);
   const hueMax = Math.max(sunHue.r, sunHue.g, sunHue.b, 1e-3);
@@ -352,8 +353,7 @@ export function createLighting(G, def, group, { hdri = null, far = null } = {}) 
       disposed = true;
       offContext?.();
       farShadow?.dispose();
-      WS.npFar.value.x = 0;
-      WS.npFog.value.x = 0;
+      setShadingMode({ far: 0, fog: 0 });
       sky.geometry.dispose(); sky.material.dispose();
       if (skyTop) { skyTop.geometry.dispose(); skyTop.material.dispose(); }
       sun.shadow.map?.dispose();

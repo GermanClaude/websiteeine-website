@@ -32,8 +32,12 @@ export default {
     // Umgebung ohne Mie-Hotspot (lighting.js begrenzt die Env-Map) → Füllicht etwas angehoben
     hemi: { sky: '#d6c2ad', ground: '#6e5a45', intensity: 0.75, hdriIntensity: 0.35 },
     env: { intensity: 1.15, ground: '#7a6650', groundIntensity: 0.55, tint: '#ffe6cc', hdriIntensity: 0.55 },
-    fog: { color: '#dcb28a', near: 70, far: 420 },
+    // Höhennebel: warmer Hafendunst über dem Wasser, dichter am Boden (Skalenhöhe ≈ 30 m), Gegenlicht der tiefen Sonne
+    fog: { color: '#dcb28a', near: 70, far: 420, density: 0.0045, falloff: 0.033, start: 25, sun: 0.6, sunExp: 4 },
     shadow: { size: 42 },
+    // Sonden-Gitter (Innenräume, Rückprall), Atmosphäre (Strahlen durch die Hallentore, Staub)
+    probes: { bounce: 1.1 },
+    atmos: { beams: 0.022, beamG: 0.5, dust: 1 },
   },
 
   build(b, ctx) {

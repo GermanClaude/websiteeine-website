@@ -35,9 +35,12 @@ export default {
     // Himmels-/Umgebungslicht trägt die Dämmerung (Env-Map ohne Mie-Hotspot, s. lighting.js) → kräftiger
     hemi: { sky: '#a6b2c6', ground: '#7d7064', intensity: 2.1, hdriIntensity: 1.2 },
     env: { intensity: 2.2, ground: '#5c554c', groundIntensity: 0.6, tint: '#c4ccdc', hdriIntensity: 1.1, hdriTint: '#8e9ab4' },
-    fog: { color: '#7c8596', near: 45, far: 280 },
+    fog: { color: '#7c8596', near: 45, far: 280, density: 0.0075, falloff: 0.05, start: 15, sun: 0.5, sunExp: 4 },
     shadow: { size: 40, bias: -0.0005 },
     exposure: 1.55,
+    // Halle: Abendsonne flach durch die Westfenster, viel Staub; Feuertonnen (Lichtgruppe 2) flackern
+    probes: { bounce: 1.0, flicker: [{ group: 2, amount: 0.35, speed: 11 }] },
+    atmos: { beams: 0.03, beamG: 0.55, dust: 1.5 },
   },
 
   build(b, ctx) {
@@ -229,7 +232,7 @@ function fireBarrel(b, x, z, o = {}) {
       mat.opacity = 0.7 + Math.sin(t * 11) * 0.12;
     },
   });
-  if (o.light !== false) b.light('point', x, 1.6, z, { color: '#ff9a40', intensity: o.intensity ?? 9, distance: o.distance ?? 9, priority: 2 });
+  if (o.light !== false) b.light('point', x, 1.6, z, { color: '#ff9a40', intensity: o.intensity ?? 9, distance: o.distance ?? 9, priority: 2, group: 2 });
   b.glow(x, 1.25, z, { color: '#ff8a30', size: 2.6, intensity: 0.9 });
 }
 

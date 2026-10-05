@@ -26,8 +26,10 @@ export default {
     sky: { turbidity: 3.2, rayleigh: 1.25, mieCoefficient: 0.004, mieDirectionalG: 0.8, exposure: 0.62, clouds: { coverage: 0.22, density: 0.35, scale: 0.00022 }, hazeHigh: 0.14 },
     hemi: { sky: '#d3dbe2', ground: '#ab9775', intensity: 0.55, hdriIntensity: 0.4 },
     env: { intensity: 0.6, ground: '#9a8d74', groundIntensity: 0.6, tint: '#f2ebe0' },
-    fog: { color: '#cfdae3', near: 110, far: 620 },
+    fog: { color: '#cfdae3', near: 110, far: 620, density: 0.0018, falloff: 0.03, start: 40, sun: 0.3, sunExp: 6 },
     shadow: { size: 40 },
+    probes: { bounce: 1.15 },
+    atmos: { beams: 0.018, beamG: 0.5, dust: 0.6 },
   },
 
   build(b) {

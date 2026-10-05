@@ -123,6 +123,8 @@ export class FullscreenManager {
     this._wakeLock = null;
     this._wakePending = false;
     this._noOpts = false;
+    this._exiting = false;
+    this._hiddenAt = -1e9;
     this._keys = [];
     this._off = [];
     this._reloadKeys();
@@ -234,7 +236,8 @@ export class FullscreenManager {
     if (!this.active) return false;
     const fn = exitFn();
     if (!fn) return false;
-    try { swallow(fn.call(D)); } catch { return false; }
+    this._exiting = true;
+    try { swallow(fn.call(D)); } catch { this._exiting = false; return false; }
     return true;
   }
 
@@ -291,7 +294,7 @@ export class FullscreenManager {
     // Tasten: Capture, vor deploy.js/strike-target.js (Enter ohne Alt-Prüfung)
     this._on(window, 'keydown', (e) => this._key(e), { capture: true });
     this._on(D, 'dragstart', (e) => { const t = e.target; if (!(t && t.closest && t.closest('input, textarea'))) e.preventDefault(); });
-    this._on(D, 'visibilitychange', () => this._wake());
+    this._on(D, 'visibilitychange', () => { if (D.hidden) this._hiddenAt = performance.now(); this._wake(); });
     const ev = this.G.events;
     if (ev && typeof ev.on === 'function') {
       const onState = () => this._wake();
@@ -327,7 +330,9 @@ export class FullscreenManager {
       if (t && t.closest && t.closest('input, textarea, select, [contenteditable="true"]')) return;
     }
     const st = this.G.match && this.G.match.state;
-    if (MATCH.has(st)) this.auto({ throttle: 4000 });
+    // Im Match nur Touch (z. B. nach der Android-Zurück-Geste); am Desktop betreten Start/Fortsetzen erneut,
+    // damit ein bewusst verlassenes Vollbild (F11, Esc halten) nicht beim nächsten Tastendruck zurückkommt.
+    if (MATCH.has(st)) { if (e.type === 'pointerup' || this._touch()) this.auto({ throttle: 4000 }); }
     else if (!this._firstDone) this.auto();
   }
 
@@ -377,7 +382,21 @@ export class FullscreenManager {
     const on = this.active;
     if (on === this._active) return;
     this._active = on;
-    if (on) { this._firstDone = true; this._fails = 0; this._afterEnter(); } else this._releaseKeyboard();
+    if (on) { this._firstDone = true; this._fails = 0; this._afterEnter(); } else {
+      const kb = this._kbLocked;
+      this._releaseKeyboard();
+      // Vom Browser beendet, ohne dass wir es wollten: bewusst verlassen (Esc halten bei Tastatursperre, F11, oder
+      // am Desktop wird ohne Pause weitergespielt) → Automatik ruht bis zum nächsten ausdrücklichen Betreten.
+      // Nicht bewusst: Esc ohne Tastatursperre (Firefox/Safari: Pointer-Lock weg → Pause), Tab-/App-Wechsel.
+      if (!this._exiting && !this._touch()) {
+        setTimeout(() => {
+          const st = this.G.match && this.G.match.state;
+          const hidden = (D && D.hidden) || performance.now() - this._hiddenAt < 1500;
+          if (!this.active && !hidden && (kb || MATCH.has(st))) this._optOut = true;
+        }, 400);
+      }
+    }
+    this._exiting = false;
     this._applyBody();
     this._emit();
   }

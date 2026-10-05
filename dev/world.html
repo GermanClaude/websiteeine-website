@@ -53,6 +53,15 @@
     <button data-t="minimap">Minikarte</button>
     <button data-t="walk">Laufen</button>
   </div>
+  <div class="row" title="Licht-Bausteine (Realismus-Plan A-4/A-5/A-7) einzeln schalten">
+    <button data-l="probes" class="on">Sonden</button>
+    <button data-l="far" class="on">Fernschatten</button>
+    <button data-l="fog" class="on">Höhennebel</button>
+    <button data-l="beams" class="on">Strahlen</button>
+    <button data-l="dust" class="on">Staub</button>
+    <button data-l="specAA" class="on">Spec-AA</button>
+    <button data-t="probeviz" title="Sonden als Punkte: Farbe = Himmelssicht (blau) / Rückprall (gelb), Größe = Sonnensicht">Sonden zeigen</button>
+  </div>
   <div id="stats">–</div>
   <div id="help">WASD bewegen · Q/E runter/hoch · Umschalt schnell · Maus ziehen schauen · G Laufen · T Ziele hoch/runter (Schießstand)</div>
 </div>
@@ -115,6 +124,7 @@ async function load(mapId) {
   if (cam.length >= 3 && cam.every(v => !Number.isNaN(v))) setCam(cam[0], cam[1], cam[2], (cam[3] || 0) * Math.PI / 180, (cam[4] || 0) * Math.PI / 180);
   else { const s = world.spawns.A[0]; setCam(s.position.x, s.position.y + 1.65, s.position.z, s.yaw, -0.05); }
   rebuildDebug();
+  syncLightButtons();
   const mctx = mini.getContext('2d'); mctx.clearRect(0, 0, 512, 512); mctx.drawImage(world.minimap.canvas, 0, 0, 512, 512);
   drawMiniMarkers();
   window.__dev.ready = true;
@@ -192,11 +202,36 @@ function rebuildDebug() {
       marker(o.position, 0xff5b1f, 4);
     }
   }
+  if (toggles.has('probeviz') && world.probes) {
+    // Sonden-Gitter: eine Punktwolke je Zelle (Himmelssicht blau, Rückprall gelb, besonnte Zellen größer)
+    const q = world.probes, [nx, ny, nz] = q.dims, s = q.spacing, pp = [], pc = [], lp = {};
+    for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const x = q.min[0] + (i + 0.5) * s, y = q.min[1] + (j + 0.5) * s, z = q.min[2] + (k + 0.5) * s;
+      if (y < -1 || y > 14) continue;
+      const l = q.light(x, y, z, lp);
+      if (l.sky > 0.97 && l.sun > 0.97) continue; // offener Himmel: nicht zeichnen
+      const b = Math.min(1, (l.bounce[0] + l.bounce[1] + l.bounce[2]) * 6);
+      pp.push(x, y, z); pc.push(0.15 + b * 0.85, 0.15 + b * 0.75 + l.sky * 0.3, 0.25 + l.sky * 0.75);
+    }
+    const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(pp, 3)); pg.setAttribute('color', new THREE.Float32BufferAttribute(pc, 3));
+    debugGroup.add(new THREE.Points(pg, new THREE.PointsMaterial({ size: 5, sizeAttenuation: false, vertexColors: true })));
+  }
   mini.style.display = toggles.has('minimap') ? 'block' : 'none';
   for (const btn of document.querySelectorAll('[data-t]')) btn.classList.toggle('on', toggles.has(btn.dataset.t));
 }
 
 for (const btn of document.querySelectorAll('[data-t]')) btn.addEventListener('click', () => { const t = btn.dataset.t; toggles.has(t) ? toggles.delete(t) : toggles.add(t); rebuildDebug(); });
+for (const btn of document.querySelectorAll('[data-l]')) btn.addEventListener('click', () => {
+  if (!world?.lightfx) return;
+  const k = btn.dataset.l, st = world.lightfx.state(), cur = k === 'far' ? st.far > 0 : st[k];
+  world.lightfx.set({ [k]: !cur });
+  syncLightButtons();
+});
+function syncLightButtons() {
+  const st = world?.lightfx?.state();
+  if (!st) return;
+  for (const btn of document.querySelectorAll('[data-l]')) btn.classList.toggle('on', btn.dataset.l === 'far' ? st.far > 0 : !!st[btn.dataset.l]);
+}
 document.getElementById('map').addEventListener('change', e => { const u = new URL(location.href); u.searchParams.set('map', e.target.value); u.searchParams.delete('cam'); history.replaceState(null, '', u); params.delete('cam'); load(e.target.value); });
 document.getElementById('quality').addEventListener('change', e => { const u = new URL(location.href); u.searchParams.set('quality', e.target.value); location.href = u.href; });
 const libBtn = document.getElementById('lib');
@@ -264,7 +299,25 @@ Statisch: ${s.meshes} Meshes, ${(s.triangles / 1000).toFixed(0)}k Dreiecke
 Kugel-BVH ${(s.bulletTris / 1000).toFixed(0)}k · Kollision ${(s.colliderTris / 1000).toFixed(1)}k
 Nav ${n.nodes} Knoten · ${n.links} Links · ${n.cover} Deckung · ${n.ms} ms
 ${libLine}
-Kamera ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)} · ${(yaw * 180 / Math.PI).toFixed(0)}°/${(pitch * 180 / Math.PI).toFixed(0)}°`;
+${lightLine(s.lighting)}
+Kamera ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)} · ${(yaw * 180 / Math.PI).toFixed(0)}°/${(pitch * 180 / Math.PI).toFixed(0)}°${probeAt(p)}`;
+}
+
+function lightLine(L) {
+  if (!L) return 'Licht: –';
+  const pr = L.probes, far = L.far, at = L.atmos;
+  return `Sonden ${pr ? `${pr.dims.join('×')} à ${pr.spacing} m · ${(pr.bytes / 1024).toFixed(0)} KB · ${pr.ms.total} ms (${pr.rays} Strahlen)` : 'aus'}
+Fernschatten ${far?.active ? `${far.size.join('×')} · ${far.texel} m/Texel · ${(far.bytes / 1048576).toFixed(1)} MB · ${far.ms} ms` : 'aus'}
+Strahlen ${at?.beams ?? 0}/${at?.beamCandidates ?? 0} · Staub ${at?.dust ?? 0} · Weltmaterialien ${L.materials}`;
+}
+
+const _pl = {}, _ac = {};
+function probeAt(p) {
+  if (!world?.probes) return '';
+  const l = world.probes.light(p.x, p.y - 1, p.z, _pl), a = world.acoustics.sample(p.x, p.y - 1, p.z, _ac);
+  const f = (v) => (Number.isFinite(v) ? v.toFixed(1) : '∞');
+  return `\nSonde: Himmel ${l.sky.toFixed(2)} · Sonne ${l.sun.toFixed(2)} · Rückprall ${(l.bounce[0] + l.bounce[1] + l.bounce[2]).toFixed(3)}
+Akustik: innen ${a.indoor.toFixed(2)} · Decke ${f(a.ceiling)} m · frei ${f(a.meanFree)} m · offen ${a.openness.toFixed(2)}`;
 }
 
 window.__dev = {

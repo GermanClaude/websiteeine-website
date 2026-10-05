@@ -35,9 +35,12 @@ export default {
     sky: { turbidity: 2.6, rayleigh: 1.05, mieCoefficient: 0.0035, mieDirectionalG: 0.8, exposure: 0.6, clouds: { coverage: 0.1, density: 0.28, scale: 0.00024, elevation: 0.62 }, hazeHigh: 0.11, hazeAmount: 0.75, hdriBlend: [0.42, 0.75] },
     hemi: { sky: '#d6e0ea', ground: '#e0bd8c', intensity: 0.6, hdriIntensity: 0.45 },
     env: { intensity: 0.58, ground: '#e0c090', groundIntensity: 0.9, tint: '#fff0dc' },
-    fog: { color: '#d9e4ec', near: 90, far: 520 },
+    fog: { color: '#d9e4ec', near: 90, far: 520, density: 0.0026, falloff: 0.03, start: 35, sun: 0.25, sunExp: 6 },
     shadow: { size: 40 },
     exposure: 0.94,
+    // Gassen: heller Putz und Sand werfen viel Licht zurück (warme Schattenseiten), staubige Luft
+    probes: { bounce: 1.25 },
+    atmos: { beams: 0.016, beamG: 0.45, dust: 1.3 },
   },
 
   build(b, ctx) {

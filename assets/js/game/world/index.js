@@ -8,7 +8,7 @@ import { configureTextures, getMaterial, beginTextureEpoch, releaseUnusedTexture
 import { createWorldAssets } from './library.js';
 import { MapBuilder, SURFACES } from './builder.js';
 import { createLighting, sunVector } from './lighting.js';
-import { applyWorldShading, initShading, resetShading, WS } from './shading.js';
+import { applyWorldShading, initShading, resetShading, setShadingMode, shadingMode, bindShadingScene, watchScene, WS } from './shading.js';
 import { createProbeQuery, PROBE_TIERS, PROBE_BOUNCE_SCALE } from './probes.js';
 import { createAtmosphere } from './atmos.js';
 import { createWater } from './water.js';
@@ -118,6 +118,10 @@ function activateLighting(G, def, world, group, light, probes, quality, debug) {
   const t0 = performance.now();
   const L = def.lighting, pc = L.probes || {};
   const materials = applyWorldShading(group);
+  // nur während die Weltszene rendert aktiv (Viewmodel-Szene bleibt neutral); weitere Objekte der Szene (Figuren,
+  // Fahrzeuge …) bekommen den Haken beim Hinzufügen
+  world._unbindShading = bindShadingScene(G.scene);
+  world._sceneWatch = watchScene(G.scene);
   const out = { materials, probes: null, far: null, ms: 0 };
   if (probes) {
     const P = probes.data, s = P.spacing;
@@ -136,14 +140,17 @@ function activateLighting(G, def, world, group, light, probes, quality, debug) {
       WS.npGroups.value[i].set(g.color[0], g.color[1], g.color[2]).multiplyScalar(g.max * gGain);
       if (g.max > 0) anyGroup = true;
     });
-    WS.npProbe.value.set(1, pc.skyMin ?? 0.035, pc.specOcc ?? 0.9, anyGroup && gGain > 0 ? 1 : 0);
+    WS.npProbe.value.set(WS.npProbe.value.x, pc.skyMin ?? 0.035, pc.specOcc ?? 0.9, anyGroup && gGain > 0 ? 1 : 0);
+    setShadingMode({ probe: 1 });
     light.setProbeSun(true);
     out.probes = { dims: P.dims, spacing: s, bytes: probes.bytes, ...P.stats };
   } else {
-    WS.npProbe.value.x = 0;
+    setShadingMode({ probe: 0 });
     light.setProbeSun(false);
   }
-  WS.npSpecAA.value = L.specAA ?? 1;
+  setShadingMode({ specAA: L.specAA ?? 1 });
+  // Flackernde Lichtgruppen (Feuer, defekte Röhren): Grundwerte merken, world.update moduliert
+  world._flicker = probes ? (pc.flicker || []).filter(f => f.group >= 0 && f.group < 3).map(f => ({ ...f, base: WS.npGroups.value[f.group].clone(), t: Math.random() * 10 })) : [];
   const farOk = light.bakeFar();
   if (light.farShadow) out.far = { active: farOk, ...light.farShadow.stats };
   out.ms = Math.round(performance.now() - t0);
@@ -244,9 +251,11 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   // Lichtgruppen: 0 warm (Glühlampe/Natrium), 1 kalt (Leuchtstoff), 2 farbig (Notlicht, Feuer) – oder L.group
   const groupOf = (L) => {
     if (Number.isInteger(L.group)) return Math.max(0, Math.min(2, L.group));
-    const [r, g, bl] = linColor(L.color);
-    if (r > g * 2.2 && r > bl * 2.2) return 2;
-    return bl >= r * 0.85 ? 1 : 0;
+    const hsl = new THREE.Color(L.color || '#ffd7a0').getHSL({ h: 0, s: 0, l: 0 });
+    const hue = hsl.h * 360;
+    if (hsl.s > 0.35 && (hue < 14 || hue > 300)) return 2;   // Rot (Notlicht) / Magenta
+    if (hsl.s < 0.2 || (hue > 150 && hue < 260)) return 1;   // kaltweiß / bläulich (Leuchtstoff)
+    return 0;                                                 // warm (Glühlampe, Natrium)
   };
   const jobCol = runWorldJob({
     parts: ['col'], colTris: built.colTris, points,
@@ -377,6 +386,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   const objects = built.objects;
   const props = built.props;
 
+  let sweepT = 0;
   const world = {
     id, name: meta.name, meta,
     group,
@@ -400,6 +410,31 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     acoustics: probes ? { sample: probes.query.sample, dims: probes.query.dims, spacing: probes.query.spacing } : null,
     /** Welt-Shading (Sonden, Fernschatten, Höhennebel, spekulares AA) auf weitere Materialien anwenden (bots, effects …). */
     shading: { apply: applyWorldShading, uniforms: WS },
+    /**
+     * Licht-Bausteine einzeln schalten (Prüfseiten, Kostenmessung): set({ probes, far, fog, specAA, beams, dust } als
+     * bool) → state(). Aus = Verhalten wie ohne diese Arbeit (z. B. far: aus → außerhalb der Nahkaskade besonnt).
+     */
+    lightfx: {
+      _on: null,
+      set(o = {}) {
+        const on = this._on || (this._on = { probe: shadingMode('probe'), far: shadingMode('far'), fog: shadingMode('fog'), specAA: shadingMode('specAA') });
+        const m = {};
+        if (o.probes !== undefined) m.probe = o.probes ? on.probe : 0;
+        if (o.far !== undefined) m.far = o.far ? on.far : 0;
+        if (o.fog !== undefined) m.fog = o.fog ? on.fog : 0;
+        if (o.specAA !== undefined) m.specAA = o.specAA ? on.specAA : 0;
+        setShadingMode(m);
+        if (atmos) for (const c of atmos.group.children) {
+          if (c.name === 'sonnenstrahlen' && o.beams !== undefined) c.visible = !!o.beams;
+          if (c.name === 'staub' && o.dust !== undefined) c.visible = !!o.dust;
+        }
+        return this.state();
+      },
+      state() {
+        const beams = atmos?.group.children.find(c => c.name === 'sonnenstrahlen'), dust = atmos?.group.children.find(c => c.name === 'staub');
+        return { probes: shadingMode('probe') > 0, far: shadingMode('far'), fog: shadingMode('fog') > 0, specAA: shadingMode('specAA') > 0, beams: !!beams?.visible, dust: !!dust?.visible };
+      },
+    },
     debugData: { colliderBVH: cbvh, bulletBVH: bvh, footprints: b.footprints, navPoints: b.navPoints, zones: res.zones || [] },
 
     /**
@@ -467,6 +502,13 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     update(dt, camera) {
       light.update(dt, camera);
       atmos?.update(dt, camera);
+      for (const f of world._flicker || []) {
+        f.t += dt * (f.speed || 8);
+        const n = 0.55 * Math.sin(f.t) + 0.3 * Math.sin(f.t * 2.31 + 1.7) + 0.15 * Math.sin(f.t * 5.17 + 0.4);
+        WS.npGroups.value[f.group].copy(f.base).multiplyScalar(Math.max(0, 1 - (f.amount ?? 0.3) * (0.5 + 0.5 * n)));
+      }
+      // Sicherheitsnetz für tief eingehängte neue Materialien (z. B. Waffenwechsel an der Hand einer Figur)
+      if ((sweepT += dt) > 2) { sweepT = 0; world._sceneWatch?.sweep(); }
       foliageUniforms.uTime.value += dt;
       for (const w of waters) w.update(dt);
       props?.update(camera);
@@ -496,6 +538,8 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
       for (const L of built.lights) L.dispose?.();
       light.dispose();
       hdri?.dispose();
+      world._sceneWatch?.stop();
+      world._unbindShading?.();
       resetShading();
       atmos?.dispose();
       probes?.texA.dispose(); probes?.texB.dispose();

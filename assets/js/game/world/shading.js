@@ -130,7 +130,7 @@ export function initShading(renderer) {
 
 /** Fernkarte lösen (Platzhalter wieder einsetzen). */
 export function resetFarMap() {
-  WS.npFar.value.x = WS.npFar.value.x === 1 ? 0 : WS.npFar.value.x;
+  if (shadingMode('far') === 1) setShadingMode({ far: 0 });
   if (dummyDepth) WS.npFarMap.value = dummyDepth.tex;
 }
 
@@ -139,10 +139,9 @@ export function dropShadingContext() { dummyDepth = null; WS.npFarMap.value = nu
 
 /** Alles neutral (keine Welt aktiv). */
 export function resetShading() {
-  WS.npProbe.value.x = 0; WS.npProbe.value.w = 0;
+  setShadingMode({ probe: 0, far: 0, fog: 0, specAA: 1 });
+  WS.npProbe.value.w = 0;
   WS.npProbeA.value = NEUTRAL_A; WS.npProbeB.value = NEUTRAL_B;
-  WS.npFar.value.x = 0;
-  WS.npFog.value.x = 0;
   WS.npBounce.value.setRGB(0, 0, 0);
   if (dummyDepth) WS.npFarMap.value = dummyDepth.tex;
 }
@@ -308,12 +307,62 @@ function worldShadingPatch(shader) {
   shader.fragmentShader = fs;
 }
 
+// ---------------------------------------------------------------------------
+// Nur während die Weltszene rendert aktiv: Materialien, die auch in anderen Szenen vorkommen (Viewmodel teilt
+// z. B. Waffenmaterialien), bleiben dort unverändert (neutral: keine Sonden, kein Fernschatten, kein Höhennebel).
+// ---------------------------------------------------------------------------
+const live = { probe: 0, far: 0, fog: 0, specAA: 1 };
+let liveStored = false;
+function neutralize() {
+  if (liveStored) return;
+  live.probe = WS.npProbe.value.x; live.far = WS.npFar.value.x; live.fog = WS.npFog.value.x; live.specAA = WS.npSpecAA.value;
+  WS.npProbe.value.x = 0; WS.npFar.value.x = 0; WS.npFog.value.x = 0; WS.npSpecAA.value = 0;
+  liveStored = true;
+}
+function activate() {
+  if (!liveStored) return;
+  WS.npProbe.value.x = live.probe; WS.npFar.value.x = live.far; WS.npFog.value.x = live.fog; WS.npSpecAA.value = live.specAA;
+  liveStored = false;
+}
+
+/**
+ * Welt-Shading an eine Szene binden: aktiv nur während renderer.render(scene) – davor/danach neutral.
+ * Setzt scene.onBeforeRender/onAfterRender (vorhandene Haken laufen weiter). → Lösen-Funktion
+ */
+export function bindShadingScene(scene) {
+  if (!scene) return () => {};
+  const prevB = scene.onBeforeRender, prevA = scene.onAfterRender;
+  scene.onBeforeRender = function (...args) { activate(); return prevB.apply(this, args); };
+  scene.onAfterRender = function (...args) { const r = prevA.apply(this, args); neutralize(); return r; };
+  neutralize(); // bis zum nächsten Bild der Weltszene neutral
+  return () => {
+    activate();
+    if (scene.onBeforeRender !== prevB) scene.onBeforeRender = prevB;
+    if (scene.onAfterRender !== prevA) scene.onAfterRender = prevA;
+  };
+}
+
+/** Werte setzen, egal ob gerade neutralisiert (die Welt ruft das statt direkter Zuweisungen an x-Komponenten). */
+export function setShadingMode({ probe, far, fog, specAA } = {}) {
+  const tgt = liveStored ? live : null;
+  if (probe !== undefined) { if (tgt) tgt.probe = probe; else WS.npProbe.value.x = probe; }
+  if (far !== undefined) { if (tgt) tgt.far = far; else WS.npFar.value.x = far; }
+  if (fog !== undefined) { if (tgt) tgt.fog = fog; else WS.npFog.value.x = fog; }
+  if (specAA !== undefined) { if (tgt) tgt.specAA = specAA; else WS.npSpecAA.value = specAA; }
+}
+
+/** Aktueller (wirksamer) Wert eines Schalters: 'probe' | 'far' | 'fog' | 'specAA'. */
+export function shadingMode(key) {
+  if (liveStored) return live[key];
+  return key === 'probe' ? WS.npProbe.value.x : key === 'far' ? WS.npFar.value.x : key === 'fog' ? WS.npFog.value.x : WS.npSpecAA.value;
+}
+
 const _applied = new WeakSet();
 
 /** Welt-Shading auf ein Material anwenden (nur MeshStandardMaterial/MeshPhysicalMaterial; sonst ohne Wirkung). */
 export function applyWorldShadingTo(material) {
   if (!material || _applied.has(material)) return false;
-  if (!material.isMeshStandardMaterial || material.userData?.noWorldShading) return false;
+  if (!material.isMeshStandardMaterial || material.userData?.noWorldShading || material.userData?.viewmodelOnly) return false;
   _applied.add(material);
   addShaderPatch(material, 'ws1', worldShadingPatch);
   return true;
@@ -333,4 +382,31 @@ export function applyWorldShading(target) {
     for (const m of mats) if (applyWorldShadingTo(m)) n++;
   });
   return n;
+}
+
+/**
+ * Alle beleuchteten Materialien einer Szene (auch später hinzugefügte: Figuren, Fahrzeuge …) mit dem Welt-Shading
+ * versorgen – Figuren sind dann in Innenräumen ebenso dunkel wie die Wände ringsum, liegen im Fernschatten und im
+ * Höhennebel. Ausnahme: material.userData.noWorldShading. → { sweep() (Sicherheitsnetz), stop() }
+ */
+export function watchScene(scene) {
+  if (!scene) return { sweep() {}, stop() {} };
+  const watched = new WeakSet();
+  const nodes = [];
+  const onAdd = (e) => watch(e.child);
+  function watch(root) {
+    root?.traverse?.((o) => {
+      if (!watched.has(o)) { watched.add(o); nodes.push(new WeakRef(o)); o.addEventListener('childadded', onAdd); }
+      const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : null;
+      if (mats) for (const m of mats) applyWorldShadingTo(m);
+    });
+  }
+  watch(scene);
+  return {
+    sweep() { watch(scene); },
+    stop() {
+      for (const r of nodes) r.deref()?.removeEventListener('childadded', onAdd);
+      nodes.length = 0;
+    },
+  };
 }
