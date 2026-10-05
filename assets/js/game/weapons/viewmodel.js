@@ -1592,7 +1592,8 @@ ViewModel.FOV = 54;
 const WALL_MARGIN = 0.04;   // m Abstand der vordersten sichtbaren Waffenpunkte zur Wandfläche
 const WALL_BACK = 0.12;     // m Anziehen (Pistole 0,10; im Anschlag höchstens 0,08)
 const WALL_TILT = 1.3;      // rad größtes Absenken (Gewehr) bzw. Anheben (Pistole)
-const _wq = new THREE.Quaternion(), _we = new THREE.Euler(), _wv = new THREE.Vector3();
+const _wq = new THREE.Quaternion(), _wq0 = new THREE.Quaternion(), _we = new THREE.Euler(), _wv = new THREE.Vector3();
+const _wb = new THREE.Vector3(), _wpiv = new THREE.Vector3();
 
 /** Stützpunkte des Modells (Modellraum): Kolbenmitte → vordere Ecken der Hüllbox, ohne Effekte. Einmal je Modell. */
 function wallPoints(vm, entry) {
@@ -1619,21 +1620,35 @@ function wallPoints(vm, entry) {
     for (const c of corners) { pts.push(c); pts.push(back.clone().lerp(c, 0.6)); }
     pts.push(fc, back.clone().lerp(fc, 0.35), back.clone().lerp(fc, 0.7));
     pts.push(new THREE.Vector3(cx, max.y, (min.z + max.z) / 2));
+    entry._wallBack = back.clone();
   }
   entry._wallPts = pts;
   return pts;
 }
 
 /** Tiefste sichtbare Tiefe (m vor dem Auge) der Waffe in der Lage P/R + Anziehen dz + Kippen th (Wurzelraum = Kamera). */
-function wallDepth(vm, pts, P, R, dz, th, pistol, tanV, tanH) {
+function wallTilt(vm, R, th, pistol) {
   const t = pistol ? th : -th;
   _we.set(R.x + t, R.y + th * (pistol ? 0.35 : 0.58), R.z + th * (pistol ? 0.2 : 0.47), 'YXZ');
   _wq.setFromEuler(_we);
+  // Gewehre kippen um die Kolbenkappe (Schulter/Hüfte) statt um den Griff – der Kolben schwenkt nicht ins Gesicht
+  _wpiv.set(0, 0, 0);
+  if (!pistol && th > 0 && vm.cur._wallBack) {
+    _wb.copy(vm.cur._wallBack).applyMatrix4(vm.cur.model.matrix);
+    _wq0.setFromEuler(_we.set(R.x, R.y, R.z, 'YXZ'));
+    _wpiv.copy(_wb).applyQuaternion(_wq0);
+    _wpiv.sub(_wb.applyQuaternion(_wq));
+  }
+  return _wq;
+}
+
+function wallDepth(vm, pts, P, R, dz, th, pistol, tanV, tanH) {
+  wallTilt(vm, R, th, pistol);
   const m = vm.cur.model;
   let worst = 0;
   for (let i = 0; i < pts.length; i++) {
     _wv.copy(pts[i]).applyMatrix4(m.matrix).applyQuaternion(_wq);
-    const x = _wv.x + P.x, y = _wv.y + P.y - (pistol ? 0 : 0.05 * th), z = _wv.z + P.z + dz;
+    const x = _wv.x + P.x + _wpiv.x, y = _wv.y + P.y + _wpiv.y - (pistol ? 0 : 0.05 * th), z = _wv.z + P.z + _wpiv.z + dz;
     const depth = -z;
     if (depth < 0.02 || Math.abs(x) > depth * tanH || Math.abs(y) > depth * tanV) continue; // nicht im Bild
     if (depth > worst) worst = depth;
@@ -1674,6 +1689,8 @@ function wallFit(vm, P, R, d, a, pistol, dt) {
   if (st.back < 1e-4 && st.th < 1e-4) return;
   const th = st.th;
   P.z += st.back;
+  wallTilt(vm, R, th, pistol);
+  P.add(_wpiv);
   if (pistol) {
     P.x -= 0.03 * (th / WALL_TILT); P.y -= 0.02 * Math.min(1, st.back / 0.1);
     R.x += th; R.y += th * 0.35; R.z += th * 0.2;

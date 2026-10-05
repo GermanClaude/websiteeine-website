@@ -11,7 +11,7 @@ import { difficultyProfile } from './difficulty.js';
 import { pickNames } from './names.js';
 import { Nameplate } from './nameplates.js';
 import { VARIANTS, schemeForTeam, ffaSchemes } from './character.js';
-import { upgradeSoldierMaterials } from './soldier/materials.js';
+import { upgradeSoldierMaterials, soldierDetailInfo } from './soldier/materials.js';
 import { analyze } from './ai/tactics.js';
 
 const _m = new THREE.Matrix4();
@@ -634,13 +634,16 @@ export class BotManager {
 
   stats() {
     const states = {};
-    let broken = 0;
+    let broken = 0, leaning = 0, staggered = 0;
+    const now = this.G.time ? this.G.time.elapsed : 0;
     for (const b of this.bots) {
       if (!b.alive) continue;
       states[b.goal.kind] = (states[b.goal.kind] || 0) + 1;
       if (!this._soldierSane(b)) broken++;
+      if (Math.abs(b.lean) > 0.5) leaning++;
+      if (now < b.staggerUntil) staggered++;
     }
-    return { bots: this.bots.length, alive: this.bots.filter((b) => b.alive).length, states, ms: +this.debug.ms.toFixed(2), losPerFrame: this.debug.losUsed, pathQueue: this._paths.size, broken };
+    return { bots: this.bots.length, alive: this.bots.filter((b) => b.alive).length, states, ms: +this.debug.ms.toFixed(2), losPerFrame: this.debug.losUsed, pathQueue: this._paths.size, broken, leaning, staggered, fabric: soldierDetailInfo().kind };
   }
 
   /** Diagnose: Pose/Trefferzonen eines lebenden Bots endlich und am Körper (≤ 3 m von den Füßen)? */

@@ -80,8 +80,10 @@ export class Soldier {
     // Detailstufen (eigenes Material je Soldat aus dem Pool: gleiches Programm, eigene Uniforms für das Auflösen)
     const mat = soldierMaterial(this.scheme, { quality: this.quality });
     this.material = mat;
+    // Telefone (low): keine volle Stufe – LOD1 (≈ 3 k Dreiecke) auch aus der Nähe; spart ≈ 0,95 MB je Variante
+    const minLod = this.tier === 'low' ? 1 : 0;
     this.meshes = [0, 1, 2].map((lod) => {
-      const m = new THREE.SkinnedMesh(soldierGeometry(this.variant, this.scheme, lod), mat);
+      const m = new THREE.SkinnedMesh(soldierGeometry(this.variant, this.scheme, Math.max(minLod, lod)), mat);
       m.name = `soldat-lod${lod}`;
       m.frustumCulled = false;
       m.castShadow = false;

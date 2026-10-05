@@ -353,7 +353,7 @@ export class Animator {
     this.cower += ((this.cowerT > 0 ? 1 : 0) - this.cower) * damp(this.cowerT > 0 ? 12 : 4, dt);
     // Lehnen (C6): Ziel vom Bot (p.lean), weich nachgeführt
     const leanT = clamp(p.lean || 0, -1, 1);
-    this.leanX += (leanT - this.leanX) * damp(11, dt);
+    this.leanX += (leanT - this.leanX) * damp(30, dt); // Bot glättet selbst (LEAN_RATE) – hier nur gegen Sprünge
 
     // Gesten-Zeitgeber
     if (p.throwing) {
