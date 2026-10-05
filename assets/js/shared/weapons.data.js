@@ -906,15 +906,15 @@ export const CAMOS = {
   nacht: { id: 'nacht', name: 'Nacht', pattern: 'digital', colors: ['#1f2633', '#141a24', '#2f394a', '#0b0e14'], finish: { roughness: 0.72 }, rarity: 'standard', unlock: { type: 'level', level: 18 } },
   mehrzweck: { id: 'mehrzweck', name: 'Mehrzweck', pattern: 'blobs', colors: ['#8a7d5c', '#5f6544', '#a89a74', '#4a3d2b', '#c1b38e'], scale: 0.8, rarity: 'standard', unlock: { type: 'level', level: 20 } },
   waben: { id: 'waben', name: 'Waben', pattern: 'hex', colors: ['#2b2e31', '#3d4246', '#55606a'], finish: { roughness: 0.55 }, rarity: 'selten', unlock: { type: 'level', level: 24 } },
-  tiger: { id: 'tiger', name: 'Tiger', pattern: 'tiger', colors: ['#5d6a3e', '#1a1d14', '#7c7b4f'], rarity: 'selten', unlock: { type: 'kills', count: 50 } },
-  kohle: { id: 'kohle', name: 'Kohlefaser', pattern: 'carbon', colors: ['#141517', '#2c2f33'], finish: { roughness: 0.32, metalness: 0.15 }, rarity: 'selten', unlock: { type: 'kills', count: 100 } },
-  zebra: { id: 'zebra', name: 'Zebra', pattern: 'stripes', colors: ['#e6e3dc', '#16171a'], rarity: 'selten', unlock: { type: 'headshots', count: 25 } },
-  rost: { id: 'rost', name: 'Rost', pattern: 'rust', colors: ['#5a3a24', '#8a4f2a', '#3a2a20', '#a8683a'], finish: { roughness: 0.9, metalness: 0.25 }, rarity: 'selten', unlock: { type: 'kills', count: 150 } },
-  kirsche: { id: 'kirsche', name: 'Kirschblüte', pattern: 'blobs', colors: ['#e7c6cf', '#c4728a', '#f3e3e6', '#7d2f45'], scale: 0.7, rarity: 'episch', unlock: { type: 'headshots', count: 50 } },
-  roter_tiger: { id: 'roter_tiger', name: 'Roter Tiger', pattern: 'tiger', colors: ['#8e2018', '#140c0b', '#c2462c'], rarity: 'episch', unlock: { type: 'kills', count: 250 } },
+  tiger: { id: 'tiger', name: 'Tiger', pattern: 'tiger', colors: ['#5d6a3e', '#1a1d14', '#7c7b4f'], rarity: 'selten', unlock: { type: 'kills', count: 50, kills: 50 } },
+  kohle: { id: 'kohle', name: 'Kohlefaser', pattern: 'carbon', colors: ['#141517', '#2c2f33'], finish: { roughness: 0.32, metalness: 0.15 }, rarity: 'selten', unlock: { type: 'kills', count: 100, kills: 100 } },
+  zebra: { id: 'zebra', name: 'Zebra', pattern: 'stripes', colors: ['#e6e3dc', '#16171a'], rarity: 'selten', unlock: { type: 'headshots', count: 25, headshots: 25 } },
+  rost: { id: 'rost', name: 'Rost', pattern: 'rust', colors: ['#5a3a24', '#8a4f2a', '#3a2a20', '#a8683a'], finish: { roughness: 0.9, metalness: 0.25 }, rarity: 'selten', unlock: { type: 'kills', count: 150, kills: 150 } },
+  kirsche: { id: 'kirsche', name: 'Kirschblüte', pattern: 'blobs', colors: ['#e7c6cf', '#c4728a', '#f3e3e6', '#7d2f45'], scale: 0.7, rarity: 'episch', unlock: { type: 'headshots', count: 50, headshots: 50 } },
+  roter_tiger: { id: 'roter_tiger', name: 'Roter Tiger', pattern: 'tiger', colors: ['#8e2018', '#140c0b', '#c2462c'], rarity: 'episch', unlock: { type: 'kills', count: 250, kills: 250 } },
   marmor: { id: 'marmor', name: 'Marmor', pattern: 'marble', colors: ['#e9e6e0', '#9a958d', '#4b4843'], finish: { roughness: 0.22, metalness: 0.05 }, rarity: 'episch', unlock: { type: 'level', level: 40 } },
   obsidian: { id: 'obsidian', name: 'Obsidian', pattern: 'marble', colors: ['#0d0d10', '#2a2433', '#5a4a6e'], finish: { roughness: 0.12, metalness: 0.35 }, rarity: 'episch', unlock: { type: 'level', level: 50 } },
-  damast: { id: 'damast', name: 'Damast', pattern: 'damask', colors: ['#8e9399', '#3f4348', '#c4c8cc'], finish: { roughness: 0.28, metalness: 1 }, rarity: 'legendaer', unlock: { type: 'headshots', count: 100 } },
+  damast: { id: 'damast', name: 'Damast', pattern: 'damask', colors: ['#8e9399', '#3f4348', '#c4c8cc'], finish: { roughness: 0.28, metalness: 1 }, rarity: 'legendaer', unlock: { type: 'headshots', count: 100, headshots: 100 } },
   polarlicht: { id: 'polarlicht', name: 'Polarlicht', pattern: 'aurora', colors: ['#0b1a2a', '#1fbf8f', '#7a4dd8', '#2fd1e6'], finish: { roughness: 0.25, metalness: 0.6 }, rarity: 'legendaer', unlock: { type: 'level', level: 55 } },
   gold: { id: 'gold', name: 'Gold', pattern: 'brushed', colors: ['#e0b453', '#b8862f', '#f6d98a'], finish: { roughness: 0.24, metalness: 1 }, rarity: 'legendaer',
     unlock: { type: 'mastery', camos: ['tiger', 'kohle', 'zebra', 'rost', 'kirsche', 'roter_tiger', 'damast'] } },
@@ -970,6 +970,22 @@ export const CLASS_LOOKS = {
   aufklaerer: { id: 'aufklaerer', name: 'Aufklärer', glove: '#59614a', sleeve: '#b9c4a6', sleeveCamo: 'wood', accessory: 'wraps' },
   unterstuetzung: { id: 'unterstuetzung', name: 'Unterstützung', glove: '#3f4434', sleeve: '#e0dccd', accessory: 'pads' },
 };
+/**
+ * Outfit-Ausführungen (loadout.skin = `${klasse}:${stufe}`, Stufen wie modes.data.js OPERATOR_TIERS) – Darstellung der
+ * Ego-Arme: glove/sleeve überschreiben die Klassenwerte, extra = zusätzliches Zubehör ('wrap' Lederwickel, 'gold' Goldrand).
+ */
+export const SKIN_TIERS = {
+  standard: { id: 'standard', name: 'Standard' },
+  veteran: { id: 'veteran', name: 'Veteran', sleeve: '#d6ccb4', extra: 'wrap' },
+  elite: { id: 'elite', name: 'Elite', glove: '#242424', sleeve: '#8c8c8c', extra: 'gold' },
+};
+/** Kosmetik-Übersicht für UI/Profil: Tarnmuster, Klassen-Arme, Outfit-Stufen. */
+export const SKINS = { camos: CAMOS, looks: CLASS_LOOKS, tiers: SKIN_TIERS };
+/** loadout.skin ('pionier:elite') bzw. Klassen-Id → { look, tier }. */
+export function parseSkin(skin, cls = null) {
+  const [a, b] = String(skin || '').split(':');
+  return { look: classLookId(a || cls), tier: SKIN_TIERS[b] ? b : 'standard' };
+}
 const LOOK_ALIASES = { assault: 'sturm', medic: 'sanitaeter', sani: 'sanitaeter', engineer: 'pionier', recon: 'aufklaerer', sniper: 'aufklaerer', support: 'unterstuetzung' };
 /** Look-Id normalisieren (Klassen-Id, Alias oder unbekannt → 'standard'). */
 export function classLookId(id) {

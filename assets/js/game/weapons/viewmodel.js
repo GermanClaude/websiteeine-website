@@ -19,7 +19,7 @@ import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES }
 import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE, MELEE_STYLES } from './gunsmith/handling.js';
 import { EXTRA_ACTIONS } from './gunsmith/actions2.js';
 import { applyCamo } from './gunsmith/camos.js';
-import { CLASS_LOOKS, classLookId } from '../../shared/weapons.data.js';
+import { CLASS_LOOKS, SKIN_TIERS, classLookId } from '../../shared/weapons.data.js';
 import { MuzzleFlash, ShellPool, SmokeWisps, HeatHaze } from './gunsmith/fx.js';
 import { SCHEMES, schemeForTeam } from '../bots/soldier/materials.js';
 import { Spring, Spring3, curve, windowW, clamp, damp, smooth, easeOut, easeInOut, easeOutBack } from './gunsmith/anim.js';
@@ -359,16 +359,20 @@ export class ViewModel {
 
   /**
    * Klassen-Aussehen der Arme (CLASS_LOOKS: Handschuhfarbe, Ärmeltönung/-muster, Zubehör wie Rotkreuz-Binde).
-   * id = Klassen-/Look-Id (sturm, sanitaeter, pionier, aufklaerer, unterstuetzung; Aliasse englisch) oder 'standard'.
+   * id = Klassen-/Look-Id (sturm, sanitaeter, pionier, aufklaerer, unterstuetzung; Aliasse englisch) oder 'standard';
+   * tier = Outfit-Stufe (SKIN_TIERS: standard | veteran | elite, aus loadout.skin 'klasse:stufe').
    */
-  setLook(id) {
+  setLook(id, tier = 'standard') {
     const lookId = classLookId(id);
     const look = CLASS_LOOKS[lookId] || CLASS_LOOKS.standard;
+    const T = SKIN_TIERS[tier] || SKIN_TIERS.standard;
     const m = this.arms.mats;
-    m.glove.color.set(look.glove || '#ffffff');
-    m.sleeve.color.set(look.sleeve || '#ffffff');
+    m.glove.color.set(T.glove || look.glove || '#ffffff');
+    m.sleeve.color.set(T.sleeve || look.sleeve || '#ffffff');
     this.arms.setCamo(look.sleeveCamo || sleeveCamo(this._scheme));
-    if (lookId === this._lookId) return;
+    const key = lookId + ':' + (T.id || 'standard');
+    if (key === this._lookKey) return;
+    this._lookKey = key;
     this._lookId = lookId;
     for (const a of this._accessories) { a.removeFromParent(); a.geometry.dispose(); }
     this._accessories.length = 0;
@@ -386,6 +390,8 @@ export class ViewModel {
     else if (look.accessory === 'cuffs') { ring(this.arms.left, 'fore', -0.255, 0.0405, 0.05, M.leather); ring(this.arms.right, 'fore', -0.255, 0.0405, 0.05, M.leather); }
     else if (look.accessory === 'wraps') { for (const z of [-0.1, -0.16]) ring(this.arms.left, 'fore', z, 0.046, 0.022, M.wrap); ring(this.arms.right, 'fore', -0.12, 0.046, 0.026, M.wrap); }
     else if (look.accessory === 'pads') ring(this.arms.left, 'fore', -0.27, 0.039, 0.03, M.band);
+    if (T.extra === 'wrap') ring(this.arms.right, 'fore', -0.2, 0.0425, 0.034, M.leather);
+    else if (T.extra === 'gold') { ring(this.arms.right, 'fore', -0.285, 0.0372, 0.008, M.gold); ring(this.arms.left, 'fore', -0.285, 0.0372, 0.008, M.gold); }
   }
 
   /** Granatwurf. type: 'frag' | 'semtex'. opts.hold = true hält nach dem Abziehen (Vorkochen) bis releaseGrenade(). */
@@ -1598,6 +1604,7 @@ function accessoryMats() {
     leather: new THREE.MeshStandardMaterial({ color: 0x5a3e28, roughness: 0.62, metalness: 0, side: THREE.DoubleSide, name: 'vm:leather' }),
     wrap: new THREE.MeshStandardMaterial({ color: 0x4d5a3a, roughness: 0.95, metalness: 0, side: THREE.DoubleSide, name: 'vm:wrap' }),
     band: new THREE.MeshStandardMaterial({ color: 0x1c1d1f, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, name: 'vm:band' }),
+    gold: new THREE.MeshStandardMaterial({ color: 0xd9a94a, roughness: 0.3, metalness: 1, side: THREE.DoubleSide, name: 'vm:gold' }),
   };
   return _accMats;
 }

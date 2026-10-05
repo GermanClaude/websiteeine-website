@@ -395,12 +395,32 @@ export function bakeProbes(bvh, opts) {
   });
   const tLights = now();
 
+  // Akustik der Zellen in Geometrie vom nächsten gültigen Nachbarn übernehmen (oben/unten zuerst)
+  for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const c = idx(i, j, k);
+    if (valid[c]) continue;
+    const order = [[0, 1, 0], [0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]];
+    for (const [di, dj, dk] of order) {
+      const ii = i + di, jj = j + dj, kk = k + dk;
+      if (ii < 0 || jj < 0 || kk < 0 || ii >= nx || jj >= ny || kk >= nz) continue;
+      const q = idx(ii, jj, kk);
+      if (!valid[q]) continue;
+      walls.copyWithin(c * 8, q * 8, q * 8 + 8);
+      ceil[c] = ceil[q]; free[c] = free[q]; open[c] = open[q]; absorb[c] = absorb[q];
+      break;
+    }
+  }
+
   // Codieren (RGBA8): a = [sqrt-Rückprall rgb, Himmelssicht inkl. Streuung], b = [Sonnensicht, Gruppen 0..2 (sqrt)]
+  // Mehrfach-Reflexion (geschlossene Form): Licht, das in teiloffene Räume fällt, wird von Wänden/Boden (ρ) weiter
+  // verteilt → E / (1 − ρ·(1 − V)). Offen (V = 1) unverändert, Halbschatten-Räume heller, tiefe Innenräume kaum.
+  const rho = opts.interreflect ?? 0.45;
   const A = new Uint8Array(n * 4), Bt = new Uint8Array(n * 4), indoor = new Uint8Array(n);
   for (let c = 0; c < n; c++) {
-    const v = S[c];
+    const multi = 1 / (1 - rho * (1 - S[c]));
+    const v = S[c] * multi;
     // Rückprall nur, wo der Himmel ihn nicht schon über das Halbkugellicht (Bodenfarbe) liefert
-    const k = 1 - V[c];
+    const k = (1 - V[c]) * multi;
     A[c * 4] = Math.round(Math.sqrt(clamp01((BR2[c * 3] * k) / B_SCALE)) * 255);
     A[c * 4 + 1] = Math.round(Math.sqrt(clamp01((BR2[c * 3 + 1] * k) / B_SCALE)) * 255);
     A[c * 4 + 2] = Math.round(Math.sqrt(clamp01((BR2[c * 3 + 2] * k) / B_SCALE)) * 255);

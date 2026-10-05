@@ -100,7 +100,8 @@ export function createFarShadow(G, { sunDir, bounds, group, exclude = () => [], 
       dt.compareFunction = THREE.LessEqualCompare;
       dt.minFilter = dt.magFilter = THREE.LinearFilter;
       dt.name = 'np:fernschatten';
-      rt = new THREE.WebGLRenderTarget(w, h, { depthBuffer: true, depthTexture: dt, generateMipmaps: false });
+      // Farbanhang ist Pflicht (three.js), aber ungenutzt → 1 Byte je Texel
+      rt = new THREE.WebGLRenderTarget(w, h, { depthBuffer: true, depthTexture: dt, generateMipmaps: false, format: THREE.RedFormat, type: THREE.UnsignedByteType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
       rt.texture.name = 'np:fernschatten-farbe';
       size = [w, h];
       holder.shadow.mapSize.set(w, h);
@@ -154,7 +155,7 @@ export function createFarShadow(G, { sunDir, bounds, group, exclude = () => [], 
     stats.ms = Math.round(performance.now() - t0);
     stats.size = size.slice();
     stats.texel = +texel.toFixed(3);
-    stats.bytes = size[0] * size[1] * 8; // Tiefe 4 B + (ungenutzte) Farbe 4 B
+    stats.bytes = size[0] * size[1] * 5; // Tiefe 4 B + (ungenutzter) Farbanhang 1 B
     stats.casters = casters;
     return true;
   }

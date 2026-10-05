@@ -264,8 +264,10 @@ export class WeaponController {
     for (const s of this.slots) this._vm('setCamo', s.id, camoFor(s.id));
     this._vm('setCamo', this.meleeId, camoFor(this.meleeId));
     this._vm('setMelee', this.meleeId);
-    const look = loadout.look || loadout.classId || loadout.cls || loadout.class || (this.actor && (this.actor.cls || this.actor.classLook));
-    if (look || !this._lookSet) { this._lookSet = true; this._vm('setLook', look || 'standard'); }
+    // Klassen-Arme: loadout.skin ('klasse:stufe', modes-ui) > look/classId/cls > Akteur-Klasse
+    const [skCls, skTier] = typeof loadout.skin === 'string' ? loadout.skin.split(':') : [];
+    const look = skCls || loadout.look || loadout.classId || loadout.cls || loadout.class || (this.actor && (this.actor.cls || this.actor.classLook));
+    if (look || !this._lookSet) { this._lookSet = true; this._vm('setLook', look || 'standard', skTier || 'standard'); }
     void vm;
   }
 
