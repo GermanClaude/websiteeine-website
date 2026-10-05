@@ -1,12 +1,12 @@
 {
   "id": "fabric_uniform",
-  "recipe": "f0c0bae9588d",
+  "recipe": "24c8082f0811",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/fabric_uniform/fabric_uniform_512_albedo.ktx2",
-          "bytes": 50634,
+          "bytes": 50529,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/fabric_uniform/fabric_uniform_512_normal.ktx2",
-          "bytes": 65628,
+          "bytes": 65674,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/fabric_uniform/fabric_uniform_512_orm.ktx2",
-          "bytes": 21103,
+          "bytes": 20791,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 137365,
+      "bytes": 136994,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/fabric_uniform/fabric_uniform_1024_albedo.ktx2",
-          "bytes": 167058,
+          "bytes": 167017,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/fabric_uniform/fabric_uniform_1024_normal.ktx2",
-          "bytes": 240552,
+          "bytes": 240430,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/fabric_uniform/fabric_uniform_1024_orm.ktx2",
-          "bytes": 86856,
+          "bytes": 88056,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 494466,
+      "bytes": 495503,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

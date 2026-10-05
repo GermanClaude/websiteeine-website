@@ -1,12 +1,12 @@
 {
   "id": "tiles_terracotta",
-  "recipe": "16506e79b036",
+  "recipe": "2609abb33d03",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/tiles_terracotta/tiles_terracotta_512_albedo.ktx2",
-          "bytes": 48909,
+          "bytes": 48841,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/tiles_terracotta/tiles_terracotta_512_normal.ktx2",
-          "bytes": 23776,
+          "bytes": 23812,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/tiles_terracotta/tiles_terracotta_512_orm.ktx2",
-          "bytes": 27687,
+          "bytes": 27693,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 100372,
+      "bytes": 100346,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/tiles_terracotta/tiles_terracotta_1024_albedo.ktx2",
-          "bytes": 169870,
+          "bytes": 169779,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/tiles_terracotta/tiles_terracotta_1024_normal.ktx2",
-          "bytes": 147148,
+          "bytes": 146958,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/tiles_terracotta/tiles_terracotta_1024_orm.ktx2",
-          "bytes": 113813,
+          "bytes": 114128,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 430831,
+      "bytes": 430865,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

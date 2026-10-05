@@ -1,6 +1,6 @@
 {
   "id": "security_camera_01",
-  "recipe": "430b66677c9c",
+  "recipe": "1bde5ace1788",
   "size": [
     0.17,
     0.286,
@@ -15,7 +15,7 @@
   "tiers": {
     "512": {
       "path": "models/security_camera_01/security_camera_01_512.glb",
-      "bytes": 133704,
+      "bytes": 188788,
       "srcTris": 13571,
       "lods": [
         {
@@ -86,13 +86,26 @@
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "security_camera_01_diff_1k_rgba.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 54869,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 349525,
+            "rgba8": 1398101
+          }
         }
       ],
       "geometryBytes": 65378,
       "gpu": {
-        "desktop": 458595,
-        "mobile": 458595,
-        "rgba8": 3211105
+        "desktop": 808120,
+        "mobile": 808120,
+        "rgba8": 4609206
       },
       "materials": [
         {
@@ -102,14 +115,14 @@
         },
         {
           "name": "security_camera_01_glass",
-          "alphaMode": "OPAQUE",
+          "alphaMode": "BLEND",
           "doubleSided": true
         }
       ]
     },
     "1024": {
       "path": "models/security_camera_01/security_camera_01_1024.glb",
-      "bytes": 373884,
+      "bytes": 537832,
       "srcTris": 13571,
       "lods": [
         {
@@ -185,13 +198,26 @@
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "security_camera_01_diff_1k_rgba.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 163730,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 1398101,
+            "rgba8": 5592405
+          }
         }
       ],
       "geometryBytes": 174360,
       "gpu": {
-        "desktop": 1747225,
-        "mobile": 1747225,
-        "rgba8": 12757271
+        "desktop": 3145326,
+        "mobile": 3145326,
+        "rgba8": 18349676
       },
       "materials": [
         {
@@ -201,7 +227,7 @@
         },
         {
           "name": "security_camera_01_glass",
-          "alphaMode": "OPAQUE",
+          "alphaMode": "BLEND",
           "doubleSided": true
         }
       ]

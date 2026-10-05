@@ -1,12 +1,12 @@
 {
   "id": "metal_tread",
-  "recipe": "24ab974e5bc7",
+  "recipe": "e5b5185c15ec",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/metal_tread/metal_tread_512_albedo.ktx2",
-          "bytes": 59231,
+          "bytes": 59010,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/metal_tread/metal_tread_512_normal.ktx2",
-          "bytes": 78353,
+          "bytes": 78242,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/metal_tread/metal_tread_512_orm.ktx2",
-          "bytes": 45720,
+          "bytes": 45597,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 183304,
+      "bytes": 182849,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/metal_tread/metal_tread_1024_albedo.ktx2",
-          "bytes": 195624,
+          "bytes": 195472,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/metal_tread/metal_tread_1024_normal.ktx2",
-          "bytes": 229692,
+          "bytes": 229569,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/metal_tread/metal_tread_1024_orm.ktx2",
-          "bytes": 168902,
+          "bytes": 168263,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 594218,
+      "bytes": 593304,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

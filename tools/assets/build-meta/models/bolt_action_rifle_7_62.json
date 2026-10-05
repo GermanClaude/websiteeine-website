@@ -1,6 +1,6 @@
 {
   "id": "bolt_action_rifle_7_62",
-  "recipe": "e25533805cd8",
+  "recipe": "1eb3b149f1c0",
   "size": [
     1.231,
     0.205,
@@ -15,7 +15,7 @@
   "tiers": {
     "512": {
       "path": "models/bolt_action_rifle_7_62/bolt_action_rifle_7_62_512.glb",
-      "bytes": 687016,
+      "bytes": 750796,
       "srcTris": 19985,
       "lods": [
         {
@@ -136,13 +136,26 @@
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "bolt_action_rifle_7_62_accesories_diff_1k_rgba.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 63550,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 349525,
+            "rgba8": 1398101
+          }
         }
       ],
       "geometryBytes": 893192,
       "gpu": {
-        "desktop": 1941770,
-        "mobile": 1941770,
-        "rgba8": 9281798
+        "desktop": 2291295,
+        "mobile": 2291295,
+        "rgba8": 10679899
       },
       "materials": [
         {
@@ -152,7 +165,7 @@
         },
         {
           "name": "bolt_action_rifle_7_62_accesories_glass",
-          "alphaMode": "OPAQUE",
+          "alphaMode": "BLEND",
           "doubleSided": true
         },
         {
@@ -164,7 +177,7 @@
     },
     "1024": {
       "path": "models/bolt_action_rifle_7_62/bolt_action_rifle_7_62_1024.glb",
-      "bytes": 1458096,
+      "bytes": 1660612,
       "srcTris": 19985,
       "lods": [
         {
@@ -285,13 +298,26 @@
             "mobile": 699051,
             "rgba8": 5592405
           }
+        },
+        {
+          "name": "bolt_action_rifle_7_62_accesories_diff_1k_rgba.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 202287,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 1398101,
+            "rgba8": 5592405
+          }
         }
       ],
       "geometryBytes": 893192,
       "gpu": {
-        "desktop": 5087498,
-        "mobile": 5087498,
-        "rgba8": 34447622
+        "desktop": 6485599,
+        "mobile": 6485599,
+        "rgba8": 40040027
       },
       "materials": [
         {
@@ -301,7 +327,7 @@
         },
         {
           "name": "bolt_action_rifle_7_62_accesories_glass",
-          "alphaMode": "OPAQUE",
+          "alphaMode": "BLEND",
           "doubleSided": true
         },
         {
@@ -313,7 +339,7 @@
     },
     "2048": {
       "path": "models/bolt_action_rifle_7_62/bolt_action_rifle_7_62_2048.glb",
-      "bytes": 4596604,
+      "bytes": 5394960,
       "srcTris": 19985,
       "lods": [
         {
@@ -434,13 +460,26 @@
             "mobile": 2796203,
             "rgba8": 22369621
           }
+        },
+        {
+          "name": "bolt_action_rifle_7_62_accesories_diff_2k_rgba.ktx2",
+          "role": "albedo",
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "bytes": 798123,
+          "gpu": {
+            "desktop": 5592405,
+            "mobile": 5592405,
+            "rgba8": 22369621
+          }
         }
       ],
       "geometryBytes": 893192,
       "gpu": {
-        "desktop": 17670410,
-        "mobile": 17670410,
-        "rgba8": 135110918
+        "desktop": 23262815,
+        "mobile": 23262815,
+        "rgba8": 157480539
       },
       "materials": [
         {
@@ -450,7 +489,7 @@
         },
         {
           "name": "bolt_action_rifle_7_62_accesories_glass",
-          "alphaMode": "OPAQUE",
+          "alphaMode": "BLEND",
           "doubleSided": true
         },
         {

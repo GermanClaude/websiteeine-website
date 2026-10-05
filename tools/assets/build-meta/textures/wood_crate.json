@@ -1,12 +1,12 @@
 {
   "id": "wood_crate",
-  "recipe": "05ca1d380864",
+  "recipe": "80b134169329",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/wood_crate/wood_crate_512_albedo.ktx2",
-          "bytes": 56483,
+          "bytes": 56646,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/wood_crate/wood_crate_512_normal.ktx2",
-          "bytes": 42175,
+          "bytes": 42234,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/wood_crate/wood_crate_512_orm.ktx2",
-          "bytes": 25086,
+          "bytes": 24981,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 123744,
+      "bytes": 123861,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/wood_crate/wood_crate_1024_albedo.ktx2",
-          "bytes": 183443,
+          "bytes": 183706,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/wood_crate/wood_crate_1024_normal.ktx2",
-          "bytes": 185012,
+          "bytes": 184850,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/wood_crate/wood_crate_1024_orm.ktx2",
-          "bytes": 93359,
+          "bytes": 93375,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 461814,
+      "bytes": 461931,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

@@ -1,12 +1,12 @@
 {
   "id": "chainlink",
-  "recipe": "f33dfed4ad75",
+  "recipe": "49ca3d5ebac7",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/chainlink/chainlink_512_albedo.ktx2",
-          "bytes": 84055,
+          "bytes": 83940,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/chainlink/chainlink_512_normal.ktx2",
-          "bytes": 37836,
+          "bytes": 37843,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/chainlink/chainlink_512_orm.ktx2",
-          "bytes": 43083,
+          "bytes": 43108,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 164974,
+      "bytes": 164891,
       "gpu": {
         "desktop": 699051,
         "mobile": 699051,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/chainlink/chainlink_1024_albedo.ktx2",
-          "bytes": 256926,
+          "bytes": 256673,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/chainlink/chainlink_1024_normal.ktx2",
-          "bytes": 136763,
+          "bytes": 136866,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/chainlink/chainlink_1024_orm.ktx2",
-          "bytes": 159489,
+          "bytes": 159397,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 553178,
+      "bytes": 552936,
       "gpu": {
         "desktop": 2796203,
         "mobile": 2796203,

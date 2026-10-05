@@ -1,12 +1,12 @@
 {
   "id": "tiles_worn",
-  "recipe": "09dc9dd555ef",
+  "recipe": "6e43153d1600",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/tiles_worn/tiles_worn_512_albedo.ktx2",
-          "bytes": 60507,
+          "bytes": 60411,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/tiles_worn/tiles_worn_512_normal.ktx2",
-          "bytes": 22325,
+          "bytes": 22348,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/tiles_worn/tiles_worn_512_orm.ktx2",
-          "bytes": 34955,
+          "bytes": 34852,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 117787,
+      "bytes": 117611,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/tiles_worn/tiles_worn_1024_albedo.ktx2",
-          "bytes": 199598,
+          "bytes": 199498,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/tiles_worn/tiles_worn_1024_normal.ktx2",
-          "bytes": 129079,
+          "bytes": 129360,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/tiles_worn/tiles_worn_1024_orm.ktx2",
-          "bytes": 134246,
+          "bytes": 134220,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 462923,
+      "bytes": 463078,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

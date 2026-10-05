@@ -1,12 +1,12 @@
 {
   "id": "ceiling_office",
-  "recipe": "6debade3e503",
+  "recipe": "c1c7a7bd0cf1",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/ceiling_office/ceiling_office_512_albedo.ktx2",
-          "bytes": 18446,
+          "bytes": 18401,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/ceiling_office/ceiling_office_512_normal.ktx2",
-          "bytes": 76239,
+          "bytes": 76348,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/ceiling_office/ceiling_office_512_orm.ktx2",
-          "bytes": 31157,
+          "bytes": 31141,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 125842,
+      "bytes": 125890,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/ceiling_office/ceiling_office_1024_albedo.ktx2",
-          "bytes": 49741,
+          "bytes": 49886,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/ceiling_office/ceiling_office_1024_normal.ktx2",
-          "bytes": 224770,
+          "bytes": 224375,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/ceiling_office/ceiling_office_1024_orm.ktx2",
-          "bytes": 111989,
+          "bytes": 112272,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 386500,
+      "bytes": 386533,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

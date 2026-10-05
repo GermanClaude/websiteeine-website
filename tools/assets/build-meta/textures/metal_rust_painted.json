@@ -1,12 +1,12 @@
 {
   "id": "metal_rust_painted",
-  "recipe": "d678bbc3051f",
+  "recipe": "bdad6db4092d",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/metal_rust_painted/metal_rust_painted_512_albedo.ktx2",
-          "bytes": 65160,
+          "bytes": 65227,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/metal_rust_painted/metal_rust_painted_512_normal.ktx2",
-          "bytes": 65147,
+          "bytes": 65139,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/metal_rust_painted/metal_rust_painted_512_orm.ktx2",
-          "bytes": 36480,
+          "bytes": 36543,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 166787,
+      "bytes": 166909,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/metal_rust_painted/metal_rust_painted_1024_albedo.ktx2",
-          "bytes": 213984,
+          "bytes": 214225,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/metal_rust_painted/metal_rust_painted_1024_normal.ktx2",
-          "bytes": 191511,
+          "bytes": 191131,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/metal_rust_painted/metal_rust_painted_1024_orm.ktx2",
-          "bytes": 136790,
+          "bytes": 137205,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 542285,
+      "bytes": 542561,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

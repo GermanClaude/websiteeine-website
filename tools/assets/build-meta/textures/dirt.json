@@ -1,12 +1,12 @@
 {
   "id": "dirt",
-  "recipe": "892a6599e29c",
+  "recipe": "0608c8977d1f",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/dirt/dirt_512_albedo.ktx2",
-          "bytes": 53252,
+          "bytes": 53075,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/dirt/dirt_512_normal.ktx2",
-          "bytes": 93890,
+          "bytes": 93859,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/dirt/dirt_512_orm.ktx2",
-          "bytes": 33603,
+          "bytes": 33683,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 180745,
+      "bytes": 180617,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/dirt/dirt_1024_albedo.ktx2",
-          "bytes": 179331,
+          "bytes": 179177,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/dirt/dirt_1024_normal.ktx2",
-          "bytes": 271355,
+          "bytes": 271410,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/dirt/dirt_1024_orm.ktx2",
-          "bytes": 120801,
+          "bytes": 121031,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 571487,
+      "bytes": 571618,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

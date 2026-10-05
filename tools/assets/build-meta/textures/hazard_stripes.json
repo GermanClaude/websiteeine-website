@@ -1,12 +1,12 @@
 {
   "id": "hazard_stripes",
-  "recipe": "e9fea1d3bc46",
+  "recipe": "66a83eb3eb4b",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/hazard_stripes/hazard_stripes_512_albedo.ktx2",
-          "bytes": 68251,
+          "bytes": 68664,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/hazard_stripes/hazard_stripes_512_normal.ktx2",
-          "bytes": 86875,
+          "bytes": 86915,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/hazard_stripes/hazard_stripes_512_orm.ktx2",
-          "bytes": 40728,
+          "bytes": 40564,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 195854,
+      "bytes": 196143,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/hazard_stripes/hazard_stripes_1024_albedo.ktx2",
-          "bytes": 221090,
+          "bytes": 222409,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/hazard_stripes/hazard_stripes_1024_normal.ktx2",
-          "bytes": 254668,
+          "bytes": 254437,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/hazard_stripes/hazard_stripes_1024_orm.ktx2",
-          "bytes": 140974,
+          "bytes": 140690,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 616732,
+      "bytes": 617536,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

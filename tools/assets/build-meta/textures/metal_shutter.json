@@ -1,12 +1,12 @@
 {
   "id": "metal_shutter",
-  "recipe": "97e8443326ca",
+  "recipe": "e8b97b9517fc",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/metal_shutter/metal_shutter_512_albedo.ktx2",
-          "bytes": 47321,
+          "bytes": 47381,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/metal_shutter/metal_shutter_512_normal.ktx2",
-          "bytes": 24485,
+          "bytes": 24551,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/metal_shutter/metal_shutter_512_orm.ktx2",
-          "bytes": 10971,
+          "bytes": 10890,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 82777,
+      "bytes": 82822,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/metal_shutter/metal_shutter_1024_albedo.ktx2",
-          "bytes": 166708,
+          "bytes": 166600,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/metal_shutter/metal_shutter_1024_normal.ktx2",
-          "bytes": 158397,
+          "bytes": 158234,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/metal_shutter/metal_shutter_1024_orm.ktx2",
-          "bytes": 56921,
+          "bytes": 56429,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 382026,
+      "bytes": 381263,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

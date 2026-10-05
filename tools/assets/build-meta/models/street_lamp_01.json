@@ -1,6 +1,6 @@
 {
   "id": "street_lamp_01",
-  "recipe": "15cafd92bbcb",
+  "recipe": "c05f6be2462a",
   "size": [
     0.704,
     3.871,
@@ -15,7 +15,7 @@
   "tiers": {
     "512": {
       "path": "models/street_lamp_01/street_lamp_01_512.glb",
-      "bytes": 120764,
+      "bytes": 173824,
       "srcTris": 30610,
       "lods": [
         {
@@ -86,13 +86,26 @@
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "street_lamp_01_diff_1k_rgba.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 52842,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 349525,
+            "rgba8": 1398101
+          }
         }
       ],
       "geometryBytes": 80680,
       "gpu": {
-        "desktop": 473897,
-        "mobile": 473897,
-        "rgba8": 3226407
+        "desktop": 823422,
+        "mobile": 823422,
+        "rgba8": 4624508
       },
       "materials": [
         {
@@ -102,14 +115,14 @@
         },
         {
           "name": "street_lamp_01_glass",
-          "alphaMode": "OPAQUE",
+          "alphaMode": "BLEND",
           "doubleSided": true
         }
       ]
     },
     "1024": {
       "path": "models/street_lamp_01/street_lamp_01_1024.glb",
-      "bytes": 357520,
+      "bytes": 499636,
       "srcTris": 30610,
       "lods": [
         {
@@ -185,13 +198,26 @@
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "street_lamp_01_diff_1k_rgba.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 141908,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 1398101,
+            "rgba8": 5592405
+          }
         }
       ],
       "geometryBytes": 207962,
       "gpu": {
-        "desktop": 1780827,
-        "mobile": 1780827,
-        "rgba8": 12790873
+        "desktop": 3178928,
+        "mobile": 3178928,
+        "rgba8": 18383278
       },
       "materials": [
         {
@@ -201,7 +227,7 @@
         },
         {
           "name": "street_lamp_01_glass",
-          "alphaMode": "OPAQUE",
+          "alphaMode": "BLEND",
           "doubleSided": true
         }
       ]

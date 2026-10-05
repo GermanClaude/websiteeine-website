@@ -1,12 +1,12 @@
 {
   "id": "wood_planks_dark",
-  "recipe": "32e747a959f1",
+  "recipe": "1f39fc3340bb",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/wood_planks_dark/wood_planks_dark_512_albedo.ktx2",
-          "bytes": 53790,
+          "bytes": 53871,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/wood_planks_dark/wood_planks_dark_512_normal.ktx2",
-          "bytes": 41980,
+          "bytes": 42006,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/wood_planks_dark/wood_planks_dark_512_orm.ktx2",
-          "bytes": 28180,
+          "bytes": 28140,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 123950,
+      "bytes": 124017,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/wood_planks_dark/wood_planks_dark_1024_albedo.ktx2",
-          "bytes": 178182,
+          "bytes": 178235,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/wood_planks_dark/wood_planks_dark_1024_normal.ktx2",
-          "bytes": 176627,
+          "bytes": 176286,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/wood_planks_dark/wood_planks_dark_1024_orm.ktx2",
-          "bytes": 113950,
+          "bytes": 114050,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 468759,
+      "bytes": 468571,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

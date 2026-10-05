@@ -1,12 +1,12 @@
 {
   "id": "awning_stripes",
-  "recipe": "e320c29748c8",
+  "recipe": "8074f1905e11",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/awning_stripes/awning_stripes_512_albedo.ktx2",
-          "bytes": 52150,
+          "bytes": 52623,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/awning_stripes/awning_stripes_512_normal.ktx2",
-          "bytes": 53879,
+          "bytes": 54297,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/awning_stripes/awning_stripes_512_orm.ktx2",
-          "bytes": 18898,
+          "bytes": 20714,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 124927,
+      "bytes": 127634,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/awning_stripes/awning_stripes_1024_albedo.ktx2",
-          "bytes": 209679,
+          "bytes": 214123,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/awning_stripes/awning_stripes_1024_normal.ktx2",
-          "bytes": 242981,
+          "bytes": 243883,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/awning_stripes/awning_stripes_1024_orm.ktx2",
-          "bytes": 89709,
+          "bytes": 100576,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 542369,
+      "bytes": 558582,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

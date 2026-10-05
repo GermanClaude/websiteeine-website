@@ -1,12 +1,12 @@
 {
   "id": "metal_corrugated",
-  "recipe": "dff498fe66e9",
+  "recipe": "d5d14387d90d",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/metal_corrugated/metal_corrugated_512_albedo.ktx2",
-          "bytes": 47253,
+          "bytes": 47321,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/metal_corrugated/metal_corrugated_512_normal.ktx2",
-          "bytes": 21983,
+          "bytes": 21950,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/metal_corrugated/metal_corrugated_512_orm.ktx2",
-          "bytes": 23767,
+          "bytes": 23854,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 93003,
+      "bytes": 93125,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/metal_corrugated/metal_corrugated_1024_albedo.ktx2",
-          "bytes": 165108,
+          "bytes": 164933,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/metal_corrugated/metal_corrugated_1024_normal.ktx2",
-          "bytes": 85504,
+          "bytes": 85335,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/metal_corrugated/metal_corrugated_1024_orm.ktx2",
-          "bytes": 112805,
+          "bytes": 112918,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 363417,
+      "bytes": 363186,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

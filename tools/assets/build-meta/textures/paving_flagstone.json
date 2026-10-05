@@ -1,12 +1,12 @@
 {
   "id": "paving_flagstone",
-  "recipe": "4f58fea94b7b",
+  "recipe": "a40c9ba3022b",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/paving_flagstone/paving_flagstone_512_albedo.ktx2",
-          "bytes": 63301,
+          "bytes": 63262,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/paving_flagstone/paving_flagstone_512_normal.ktx2",
-          "bytes": 56582,
+          "bytes": 56585,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/paving_flagstone/paving_flagstone_512_orm.ktx2",
-          "bytes": 28683,
+          "bytes": 28872,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 148566,
+      "bytes": 148719,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/paving_flagstone/paving_flagstone_1024_albedo.ktx2",
-          "bytes": 209126,
+          "bytes": 209415,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/paving_flagstone/paving_flagstone_1024_normal.ktx2",
-          "bytes": 196180,
+          "bytes": 196035,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/paving_flagstone/paving_flagstone_1024_orm.ktx2",
-          "bytes": 106231,
+          "bytes": 106274,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 511537,
+      "bytes": 511724,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

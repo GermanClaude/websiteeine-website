@@ -1,12 +1,12 @@
 {
   "id": "canvas",
-  "recipe": "3b4e589254f4",
+  "recipe": "102879fe4180",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/canvas/canvas_512_albedo.ktx2",
-          "bytes": 44531,
+          "bytes": 44454,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/canvas/canvas_512_normal.ktx2",
-          "bytes": 62048,
+          "bytes": 62086,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/canvas/canvas_512_orm.ktx2",
-          "bytes": 31628,
+          "bytes": 31601,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 138207,
+      "bytes": 138141,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/canvas/canvas_1024_albedo.ktx2",
-          "bytes": 162831,
+          "bytes": 162572,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/canvas/canvas_1024_normal.ktx2",
-          "bytes": 200222,
+          "bytes": 200555,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/canvas/canvas_1024_orm.ktx2",
-          "bytes": 110602,
+          "bytes": 110854,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 473655,
+      "bytes": 473981,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

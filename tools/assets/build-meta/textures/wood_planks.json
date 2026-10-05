@@ -1,12 +1,12 @@
 {
   "id": "wood_planks",
-  "recipe": "97267b9e4bcc",
+  "recipe": "af452ec8e4a7",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/wood_planks/wood_planks_512_albedo.ktx2",
-          "bytes": 52596,
+          "bytes": 52698,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/wood_planks/wood_planks_512_normal.ktx2",
-          "bytes": 29613,
+          "bytes": 29590,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/wood_planks/wood_planks_512_orm.ktx2",
-          "bytes": 13427,
+          "bytes": 13582,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 95636,
+      "bytes": 95870,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/wood_planks/wood_planks_1024_albedo.ktx2",
-          "bytes": 175145,
+          "bytes": 175011,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/wood_planks/wood_planks_1024_normal.ktx2",
-          "bytes": 166164,
+          "bytes": 165963,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/wood_planks/wood_planks_1024_orm.ktx2",
-          "bytes": 46666,
+          "bytes": 46665,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 387975,
+      "bytes": 387639,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

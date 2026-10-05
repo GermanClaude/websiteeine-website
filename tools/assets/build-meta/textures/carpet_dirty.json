@@ -1,12 +1,12 @@
 {
   "id": "carpet_dirty",
-  "recipe": "b12ff3434b74",
+  "recipe": "d73b0747424e",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/carpet_dirty/carpet_dirty_512_albedo.ktx2",
-          "bytes": 60139,
+          "bytes": 60280,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/carpet_dirty/carpet_dirty_512_normal.ktx2",
-          "bytes": 90382,
+          "bytes": 90411,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/carpet_dirty/carpet_dirty_512_orm.ktx2",
-          "bytes": 30449,
+          "bytes": 30713,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 180970,
+      "bytes": 181404,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/carpet_dirty/carpet_dirty_1024_albedo.ktx2",
-          "bytes": 200157,
+          "bytes": 200317,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/carpet_dirty/carpet_dirty_1024_normal.ktx2",
-          "bytes": 273985,
+          "bytes": 273982,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/carpet_dirty/carpet_dirty_1024_orm.ktx2",
-          "bytes": 115389,
+          "bytes": 116013,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 589531,
+      "bytes": 590312,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

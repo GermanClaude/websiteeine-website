@@ -1,12 +1,12 @@
 {
   "id": "mud",
-  "recipe": "767cb28f851b",
+  "recipe": "634ebd2b7f43",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/mud/mud_512_albedo.ktx2",
-          "bytes": 59555,
+          "bytes": 59641,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/mud/mud_512_normal.ktx2",
-          "bytes": 111348,
+          "bytes": 111442,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/mud/mud_512_orm.ktx2",
-          "bytes": 43216,
+          "bytes": 42989,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 214119,
+      "bytes": 214072,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/mud/mud_1024_albedo.ktx2",
-          "bytes": 196876,
+          "bytes": 197165,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/mud/mud_1024_normal.ktx2",
-          "bytes": 323806,
+          "bytes": 323772,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/mud/mud_1024_orm.ktx2",
-          "bytes": 160333,
+          "bytes": 160716,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 681015,
+      "bytes": 681653,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

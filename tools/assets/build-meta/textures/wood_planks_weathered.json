@@ -1,12 +1,12 @@
 {
   "id": "wood_planks_weathered",
-  "recipe": "d98d8385b45c",
+  "recipe": "8328254b4006",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/wood_planks_weathered/wood_planks_weathered_512_albedo.ktx2",
-          "bytes": 53709,
+          "bytes": 53739,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/wood_planks_weathered/wood_planks_weathered_512_normal.ktx2",
-          "bytes": 37167,
+          "bytes": 37178,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/wood_planks_weathered/wood_planks_weathered_512_orm.ktx2",
-          "bytes": 25113,
+          "bytes": 25179,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 115989,
+      "bytes": 116096,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/wood_planks_weathered/wood_planks_weathered_1024_albedo.ktx2",
-          "bytes": 177328,
+          "bytes": 177486,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/wood_planks_weathered/wood_planks_weathered_1024_normal.ktx2",
-          "bytes": 181862,
+          "bytes": 181787,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/wood_planks_weathered/wood_planks_weathered_1024_orm.ktx2",
-          "bytes": 89854,
+          "bytes": 89830,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 449044,
+      "bytes": 449103,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

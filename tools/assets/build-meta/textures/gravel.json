@@ -1,12 +1,12 @@
 {
   "id": "gravel",
-  "recipe": "0bf9c920e3b7",
+  "recipe": "78441c80b775",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/gravel/gravel_512_albedo.ktx2",
-          "bytes": 61843,
+          "bytes": 61795,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/gravel/gravel_512_normal.ktx2",
-          "bytes": 105610,
+          "bytes": 105914,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/gravel/gravel_512_orm.ktx2",
-          "bytes": 27517,
+          "bytes": 27696,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 194970,
+      "bytes": 195405,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/gravel/gravel_1024_albedo.ktx2",
-          "bytes": 210153,
+          "bytes": 210360,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/gravel/gravel_1024_normal.ktx2",
-          "bytes": 313890,
+          "bytes": 313949,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/gravel/gravel_1024_orm.ktx2",
-          "bytes": 111086,
+          "bytes": 110731,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 635129,
+      "bytes": 635040,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

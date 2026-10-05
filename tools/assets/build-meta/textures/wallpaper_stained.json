@@ -1,12 +1,12 @@
 {
   "id": "wallpaper_stained",
-  "recipe": "aa1d08aa59f7",
+  "recipe": "54753f929df2",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/wallpaper_stained/wallpaper_stained_512_albedo.ktx2",
-          "bytes": 60062,
+          "bytes": 60066,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/wallpaper_stained/wallpaper_stained_512_normal.ktx2",
-          "bytes": 70784,
+          "bytes": 70743,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/wallpaper_stained/wallpaper_stained_512_orm.ktx2",
-          "bytes": 24021,
+          "bytes": 23558,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 154867,
+      "bytes": 154367,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/wallpaper_stained/wallpaper_stained_1024_albedo.ktx2",
-          "bytes": 193719,
+          "bytes": 193533,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/wallpaper_stained/wallpaper_stained_1024_normal.ktx2",
-          "bytes": 209710,
+          "bytes": 209602,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/wallpaper_stained/wallpaper_stained_1024_orm.ktx2",
-          "bytes": 81385,
+          "bytes": 80782,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 484814,
+      "bytes": 483917,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

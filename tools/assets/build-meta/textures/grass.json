@@ -1,12 +1,12 @@
 {
   "id": "grass",
-  "recipe": "4895fc1a16b4",
+  "recipe": "bc44364a0741",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/grass/grass_512_albedo.ktx2",
-          "bytes": 65598,
+          "bytes": 65620,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/grass/grass_512_normal.ktx2",
-          "bytes": 99752,
+          "bytes": 99848,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/grass/grass_512_orm.ktx2",
-          "bytes": 36756,
+          "bytes": 36738,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 202106,
+      "bytes": 202206,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/grass/grass_1024_albedo.ktx2",
-          "bytes": 234041,
+          "bytes": 234024,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/grass/grass_1024_normal.ktx2",
-          "bytes": 291371,
+          "bytes": 291474,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/grass/grass_1024_orm.ktx2",
-          "bytes": 143766,
+          "bytes": 143775,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 669178,
+      "bytes": 669273,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

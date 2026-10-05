@@ -1,12 +1,12 @@
 {
   "id": "metal_grate",
-  "recipe": "4e27f3e491e1",
+  "recipe": "3f3a25f3978e",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/metal_grate/metal_grate_512_albedo.ktx2",
-          "bytes": 66140,
+          "bytes": 66122,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/metal_grate/metal_grate_512_normal.ktx2",
-          "bytes": 25505,
+          "bytes": 25856,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/metal_grate/metal_grate_512_orm.ktx2",
-          "bytes": 24157,
+          "bytes": 23976,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 115802,
+      "bytes": 115954,
       "gpu": {
         "desktop": 699051,
         "mobile": 699051,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/metal_grate/metal_grate_1024_albedo.ktx2",
-          "bytes": 204337,
+          "bytes": 204252,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/metal_grate/metal_grate_1024_normal.ktx2",
-          "bytes": 113705,
+          "bytes": 114126,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/metal_grate/metal_grate_1024_orm.ktx2",
-          "bytes": 93255,
+          "bytes": 92814,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 411297,
+      "bytes": 411192,
       "gpu": {
         "desktop": 2796203,
         "mobile": 2796203,

@@ -1,12 +1,12 @@
 {
   "id": "tiles_white_wall",
-  "recipe": "9c3f143801d4",
+  "recipe": "84a0f9c6758d",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/tiles_white_wall/tiles_white_wall_512_albedo.ktx2",
-          "bytes": 49482,
+          "bytes": 49502,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/tiles_white_wall/tiles_white_wall_512_normal.ktx2",
-          "bytes": 46788,
+          "bytes": 46754,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/tiles_white_wall/tiles_white_wall_512_orm.ktx2",
-          "bytes": 22010,
+          "bytes": 21948,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 118280,
+      "bytes": 118204,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/tiles_white_wall/tiles_white_wall_1024_normal.ktx2",
-          "bytes": 158076,
+          "bytes": 158237,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/tiles_white_wall/tiles_white_wall_1024_orm.ktx2",
-          "bytes": 83155,
+          "bytes": 84098,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 403476,
+      "bytes": 404580,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

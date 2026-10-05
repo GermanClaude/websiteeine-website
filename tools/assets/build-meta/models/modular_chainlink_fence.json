@@ -1,6 +1,6 @@
 {
   "id": "modular_chainlink_fence",
-  "recipe": "6f9cffca79a0",
+  "recipe": "e37513b60957",
   "size": [
     8.114,
     2.522,
@@ -11,7 +11,7 @@
   "tiers": {
     "512": {
       "path": "models/modular_chainlink_fence/modular_chainlink_fence_512.glb",
-      "bytes": 702828,
+      "bytes": 702808,
       "srcTris": 89232,
       "lods": [
         {
@@ -162,14 +162,14 @@
         },
         {
           "name": "modular_chainlink_fence_wire",
-          "alphaMode": "MASK",
+          "alphaMode": "BLEND",
           "doubleSided": true
         }
       ]
     },
     "1024": {
       "path": "models/modular_chainlink_fence/modular_chainlink_fence_1024.glb",
-      "bytes": 1239520,
+      "bytes": 1239504,
       "srcTris": 89232,
       "lods": [
         {
@@ -320,7 +320,7 @@
         },
         {
           "name": "modular_chainlink_fence_wire",
-          "alphaMode": "MASK",
+          "alphaMode": "BLEND",
           "doubleSided": true
         }
       ]

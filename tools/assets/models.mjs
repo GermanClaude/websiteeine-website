@@ -35,7 +35,7 @@ function tiersFor(e) {
 // ORM (AO/Rauheit/Metall) ist niederfrequent → halbe Kantenlänge (¼ Speicher), außer bei Waffen (Nahansicht)
 const ormSize = (e, tier) => (e.weapon ? tier : tier / 2);
 
-const recipe = (e, matfix) => hash({ v: PIPELINE_VERSION, e: { id: e.id, s: e.sourceId, tiers: tiersFor(e), b: e.lod0Tris, kit: e.kit, w: e.weapon, sc: e.scale, kp: e.keepParts, ...(matfix ? { matfix: 2 } : {}) }, k: 'm4' });
+const recipe = (e, matfix) => hash({ v: PIPELINE_VERSION, e: { id: e.id, s: e.sourceId, tiers: tiersFor(e), b: e.lod0Tris, kit: e.kit, w: e.weapon, sc: e.scale, kp: e.keepParts, ...(matfix ? { matfix: 4 } : {}) }, k: 'm4' });
 // Materialien, die three.js sonst als teures MeshPhysicalMaterial (+ Transmissions-Durchgang) anlegt, bzw. mit Alpha
 const MATFIX_RE = /KHR_materials_(transmission|ior|specular|volume)|"BLEND"|"MASK"/;
 
@@ -155,7 +155,7 @@ function textureRoles(doc) {
  * Alpha nachrüsten: Poly Havens glTF-Export (JPG) verliert Deckkraftkarten — Maschendraht, Lüftergitter, Glas und
  * Blätter kämen sonst als schwarze/undurchsichtige Flächen an. Die Karte <präfix>_alpha|_opacity aus der Dateiliste
  * wird als Alphakanal in die Grundfarbe gepackt (PNG → später KTX2 mit Alpha). Gitter/Blätter → MASK (alphaTest 0,5,
- * keine Sortierung), Glas → BLEND. Fehlerfall des Exports „Deckkraft als Grundfarbe“ (exterior_aircon_unit):
+ * keine Sortierung), Glas und dünner Maschendraht (Deckung < 35 %) → BLEND. Fehlerfall des Exports „Deckkraft als Grundfarbe“ (exterior_aircon_unit):
  * Farbe aus <Materialname>_diff, Alpha aus dem bisherigen Bild. → Set der korrigierten Materialien
  */
 async function applyAlphaMaps(doc, e, res) {
@@ -192,9 +192,13 @@ async function applyAlphaMaps(doc, e, res) {
     // eigene Textur (das Farbbild kann von undurchsichtigen Materialien mitbenutzt werden)
     const t2 = doc.createTexture(tex.getName()).setImage(png).setMimeType('image/png').setURI(uri.replace(/\.(jpe?g|png)$/i, '_rgba.png'));
     m.setBaseColorTexture(t2);
-    const glass = /glass/i.test(m.getName());
-    m.setAlphaMode(glass ? 'BLEND' : 'MASK');
-    if (!glass) m.setAlphaCutoff(0.5);
+    // Dünne Strukturen (Maschendraht: wenig Deckung) verschwänden mit MASK in den kleineren Mip-Stufen (gemittelte
+    // Deckkraft < Schwelle) — dort BLEND, das in der Ferne korrekt als feiner Schleier erscheint.
+    let cover = 0; for (let i = 0; i < a.length; i++) cover += a[i];
+    cover /= a.length * 255;
+    const blend = /glass/i.test(m.getName()) || cover < 0.35;
+    m.setAlphaMode(blend ? 'BLEND' : 'MASK');
+    if (!blend) m.setAlphaCutoff(0.5);
     fixed.add(m);
   }
   return fixed;
@@ -276,8 +280,11 @@ async function processTier(e, tier) {
     const glass = !!m.getExtension('KHR_materials_transmission');
     for (const ext of ['KHR_materials_transmission', 'KHR_materials_ior', 'KHR_materials_specular', 'KHR_materials_volume']) m.setExtension(ext, null);
     const f = m.getBaseColorFactor();
+    const bt = m.getBaseColorTexture();
+    const texAlpha = !!bt && !!(await sharp(bt.getImage()).metadata()).hasAlpha;
     if (glass) { m.setAlphaMode('BLEND'); m.setBaseColorFactor([f[0], f[1], f[2], Math.min(f[3], 0.3)]); m.setRoughnessFactor(Math.min(m.getRoughnessFactor(), 0.15)); }
-    else if (m.getAlphaMode() === 'BLEND' && f[3] >= 0.99) m.setAlphaMode('OPAQUE');
+    // BLEND/MASK ohne echte Transparenz (JPG ohne Alpha, Faktor 1) → OPAQUE: kein Sortieren, kein discard (früher Z-Test)
+    else if (m.getAlphaMode() !== 'OPAQUE' && f[3] >= 0.99 && !texAlpha) m.setAlphaMode('OPAQUE');
   }
   for (const ext of root.listExtensionsUsed()) if (/^KHR_materials_(transmission|ior|specular|volume)$/.test(ext.extensionName)) ext.dispose();
 

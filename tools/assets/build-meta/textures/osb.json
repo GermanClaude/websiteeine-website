@@ -1,12 +1,12 @@
 {
   "id": "osb",
-  "recipe": "84aa2581b256",
+  "recipe": "f4cd42fe0633",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/osb/osb_512_albedo.ktx2",
-          "bytes": 64451,
+          "bytes": 64450,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/osb/osb_512_normal.ktx2",
-          "bytes": 22777,
+          "bytes": 22788,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/osb/osb_512_orm.ktx2",
-          "bytes": 38242,
+          "bytes": 38271,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 125470,
+      "bytes": 125509,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/osb/osb_1024_albedo.ktx2",
-          "bytes": 218625,
+          "bytes": 218448,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/osb/osb_1024_normal.ktx2",
-          "bytes": 163416,
+          "bytes": 163485,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/osb/osb_1024_orm.ktx2",
-          "bytes": 152798,
+          "bytes": 152288,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 534839,
+      "bytes": 534221,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

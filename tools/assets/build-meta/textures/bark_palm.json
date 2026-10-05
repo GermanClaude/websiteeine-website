@@ -1,12 +1,12 @@
 {
   "id": "bark_palm",
-  "recipe": "b8a33ff6935e",
+  "recipe": "9523c1d457c6",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/bark_palm/bark_palm_512_albedo.ktx2",
-          "bytes": 65123,
+          "bytes": 65220,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/bark_palm/bark_palm_512_normal.ktx2",
-          "bytes": 64160,
+          "bytes": 64168,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/bark_palm/bark_palm_512_orm.ktx2",
-          "bytes": 33326,
+          "bytes": 33189,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 162609,
+      "bytes": 162577,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/bark_palm/bark_palm_1024_albedo.ktx2",
-          "bytes": 215981,
+          "bytes": 215962,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/bark_palm/bark_palm_1024_normal.ktx2",
-          "bytes": 205165,
+          "bytes": 205120,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/bark_palm/bark_palm_1024_orm.ktx2",
-          "bytes": 127340,
+          "bytes": 127210,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 548486,
+      "bytes": 548292,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

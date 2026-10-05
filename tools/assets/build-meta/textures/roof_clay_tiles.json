@@ -1,12 +1,12 @@
 {
   "id": "roof_clay_tiles",
-  "recipe": "ea95040bfd5d",
+  "recipe": "308460f280cd",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/roof_clay_tiles/roof_clay_tiles_512_albedo.ktx2",
-          "bytes": 67913,
+          "bytes": 67993,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/roof_clay_tiles/roof_clay_tiles_512_normal.ktx2",
-          "bytes": 94324,
+          "bytes": 94372,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/roof_clay_tiles/roof_clay_tiles_512_orm.ktx2",
-          "bytes": 33050,
+          "bytes": 32851,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 195287,
+      "bytes": 195216,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/roof_clay_tiles/roof_clay_tiles_1024_albedo.ktx2",
-          "bytes": 226317,
+          "bytes": 226741,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/roof_clay_tiles/roof_clay_tiles_1024_normal.ktx2",
-          "bytes": 291474,
+          "bytes": 291054,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/roof_clay_tiles/roof_clay_tiles_1024_orm.ktx2",
-          "bytes": 118916,
+          "bytes": 118387,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 636707,
+      "bytes": 636182,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

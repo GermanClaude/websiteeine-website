@@ -1,12 +1,12 @@
 {
   "id": "wood_peeling_paint",
-  "recipe": "b33c89eb3f0e",
+  "recipe": "d04ae736bbf9",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/wood_peeling_paint/wood_peeling_paint_512_albedo.ktx2",
-          "bytes": 60323,
+          "bytes": 60229,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/wood_peeling_paint/wood_peeling_paint_512_normal.ktx2",
-          "bytes": 70072,
+          "bytes": 70058,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/wood_peeling_paint/wood_peeling_paint_512_orm.ktx2",
-          "bytes": 21209,
+          "bytes": 21381,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 151604,
+      "bytes": 151668,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/wood_peeling_paint/wood_peeling_paint_1024_albedo.ktx2",
-          "bytes": 200072,
+          "bytes": 200159,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/wood_peeling_paint/wood_peeling_paint_1024_normal.ktx2",
-          "bytes": 215940,
+          "bytes": 215807,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/wood_peeling_paint/wood_peeling_paint_1024_orm.ktx2",
-          "bytes": 68443,
+          "bytes": 68447,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 484455,
+      "bytes": 484413,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
