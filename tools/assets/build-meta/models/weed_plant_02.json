@@ -1,6 +1,6 @@
 {
   "id": "weed_plant_02",
-  "recipe": "99ac00776434",
+  "recipe": "ef11d7bdcc5f",
   "size": [
     2.126,
     0.075,
@@ -15,7 +15,7 @@
   "tiers": {
     "512": {
       "path": "models/weed_plant_02/weed_plant_02_512.glb",
-      "bytes": 185920,
+      "bytes": 185884,
       "srcTris": 11116,
       "lods": [
         {
@@ -98,14 +98,14 @@
       "materials": [
         {
           "name": "weed_plant_02",
-          "alphaMode": "MASK",
+          "alphaMode": "OPAQUE",
           "doubleSided": true
         }
       ]
     },
     "1024": {
       "path": "models/weed_plant_02/weed_plant_02_1024.glb",
-      "bytes": 504056,
+      "bytes": 504020,
       "srcTris": 11116,
       "lods": [
         {
@@ -193,7 +193,7 @@
       "materials": [
         {
           "name": "weed_plant_02",
-          "alphaMode": "MASK",
+          "alphaMode": "OPAQUE",
           "doubleSided": true
         }
       ]

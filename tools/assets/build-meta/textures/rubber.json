@@ -1,12 +1,12 @@
 {
   "id": "rubber",
-  "recipe": "c55d66057171",
+  "recipe": "a6652971aaad",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/rubber/rubber_512_albedo.ktx2",
-          "bytes": 53169,
+          "bytes": 53277,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/rubber/rubber_512_normal.ktx2",
-          "bytes": 77305,
+          "bytes": 77220,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/rubber/rubber_512_orm.ktx2",
-          "bytes": 26850,
+          "bytes": 27243,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 157324,
+      "bytes": 157740,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/rubber/rubber_1024_albedo.ktx2",
-          "bytes": 175784,
+          "bytes": 175890,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/rubber/rubber_1024_normal.ktx2",
-          "bytes": 235303,
+          "bytes": 235198,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/rubber/rubber_1024_orm.ktx2",
-          "bytes": 95874,
+          "bytes": 95593,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 506961,
+      "bytes": 506681,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

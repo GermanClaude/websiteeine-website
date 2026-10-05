@@ -1,6 +1,6 @@
 {
   "id": "shrub_04",
-  "recipe": "c70047d29838",
+  "recipe": "c6b7f983939c",
   "size": [
     0.583,
     0.219,
@@ -15,7 +15,7 @@
   "tiers": {
     "512": {
       "path": "models/shrub_04/shrub_04_512.glb",
-      "bytes": 221416,
+      "bytes": 221380,
       "srcTris": 27327,
       "lods": [
         {
@@ -97,14 +97,14 @@
       "materials": [
         {
           "name": "shrub_04",
-          "alphaMode": "MASK",
+          "alphaMode": "OPAQUE",
           "doubleSided": true
         }
       ]
     },
     "1024": {
       "path": "models/shrub_04/shrub_04_1024.glb",
-      "bytes": 565468,
+      "bytes": 565432,
       "srcTris": 27327,
       "lods": [
         {
@@ -191,7 +191,7 @@
       "materials": [
         {
           "name": "shrub_04",
-          "alphaMode": "MASK",
+          "alphaMode": "OPAQUE",
           "doubleSided": true
         }
       ]
