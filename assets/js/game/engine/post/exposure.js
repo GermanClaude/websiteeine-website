@@ -100,7 +100,7 @@ export class AutoExposure {
     this.adapt = [smallFloatTarget(1, 1), smallFloatTarget(1, 1)];
     this.idx = 0;
     this.resetPending = true;
-    this.params = { ref: 0.3, strength: 0.72, evMin: -1.6, evMax: 1.8, up: 2.6, down: 1.25 };
+    this.params = { ref: 0.13, strength: 0.72, evMin: -1.6, evMax: 1.8, up: 2.6, down: 1.25 };
     this.bias = 0;
     /** Letzter zurückgelesener Wert (nur wenn `track`): { factor, ev, avgLog, at } */
     this.last = null;
@@ -123,7 +123,7 @@ export class AutoExposure {
       name: 'NullpunktExposureAdapt',
       uniforms: {
         tSum: { value: this.sumRT.texture }, tPrev: { value: null }, uSize: { value: this.sumSize },
-        uDt: { value: 0 }, uReset: { value: 1 }, uRef: { value: Math.log2(0.3) }, uStrength: { value: 0.72 },
+        uDt: { value: 0 }, uReset: { value: 1 }, uRef: { value: Math.log2(0.13) }, uStrength: { value: 0.72 },
         uRange: { value: new THREE.Vector2(-1.6, 1.8) }, uSpeed: { value: new THREE.Vector2(2.6, 1.25) }, uBias: { value: 0 },
       },
       vertexShader: FULLSCREEN_VERT, fragmentShader: ADAPT_FRAG, depthTest: false, depthWrite: false, toneMapped: false,

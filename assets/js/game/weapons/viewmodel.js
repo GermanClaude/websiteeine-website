@@ -2,6 +2,10 @@
 // Hüfte/Anschlag (Visier exakt in Bildmitte), Atmen, Blick-Nachlauf, Achter-Wippen beim Gehen/Sprinten,
 // Ducken, Sprung/Landung, federgedämpfter Rückstoß, Mündungsfeuer + Licht, Hülsen, Nachladen (taktisch/leer,
 // Patrone für Patrone, Gurt, Magazin oben), Repetieren, Ziehen/Wegstecken, Messer, Granatwurf, Inspizieren.
+// Realismus (weapons-feel): Masse und Trägheit je Waffe (Nachlauf hinter der Kameradrehung, Bewegungsnachlauf,
+// Fersenstoß, Atemnot), Haltung Standard ↔ Körperkamera, Wandkollision (anziehen → tiefe Bereitschaft),
+// Rückstoß 2.0 (sichtbarer Stoß je Waffe + Hochklettern), Lehnen/freies Zielen/Überklettern (core), Hülsen und
+// Magazine fallen in die Welt, Rauchfäden und Hitzeflimmern über heißen Läufen.
 //
 // API (Vertrag §7, Erweiterungen siehe docs/ARCHITECTURE.md Changelog):
 //   new ViewModel(G)          G.viewmodel.{scene,camera} (werden angelegt, falls nicht vorhanden)
@@ -880,7 +884,15 @@ export class ViewModel {
     // Drehung um das Auge: freies Zielen (Waffe zeigt in die Laufrichtung, Visierlinie bleibt am Auge) und der
     // Nachlauf im Anschlag – so wandert das ganze Visierbild, statt dass Kimme und Korn auseinanderlaufen.
     const fa = s.freeAim;
-    const eyeYaw = (fa ? -(fa.x || 0) : 0) + lagY * a, eyePitch = (fa ? fa.y || 0 : 0) + lagP * a;
+    let faX = 0, faY = 0;
+    if (fa && (fa.x || fa.y)) {
+      // gleicher Bildpunkt wie das Fadenkreuz (projizierter Laufpunkt der Hauptkamera): Winkel ins Viewmodel-FOV umrechnen
+      const main = this.G?.camera;
+      const kf = main && main.fov ? Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2) / Math.tan(THREE.MathUtils.degToRad(main.fov) / 2) : 1;
+      faX = Math.atan(Math.tan(fa.x || 0) * kf);
+      faY = Math.atan(Math.tan(fa.y || 0) * kf);
+    }
+    const eyeYaw = -faX + lagY * a, eyePitch = faY + lagP * a;
     if (eyeYaw || eyePitch) {
       this._eyeQ.setFromEuler(_e.set(eyePitch, eyeYaw, 0, 'YXZ'));
       this.gun.position.applyQuaternion(this._eyeQ);

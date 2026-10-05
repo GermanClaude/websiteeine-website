@@ -7,7 +7,7 @@ import { building, wall, stairs, railing, catwalk } from '../arch.js';
 import {
   frame, container, crateStack, barrel, barrelGroup, palletStack, sandbags, jersey, cone,
   forklift, truck, van, car, lampPost, floodMast, fence, tires, cableReel, gasBottles, electricBox, pipe,
-  workbench, lockers, dumpster, tank, roofVent,
+  workbench, lockers, dumpster, tank, roofVent, dress,
 } from '../props.js';
 
 const HX = 22, HZ = 30;           // Halle: x −22..22, z −30..30
@@ -88,6 +88,7 @@ export default {
     for (const s of [1, -1]) half(b, mirror(s), ctx);
 
     backdrop(b);
+    dressing(b);
 
     // -----------------------------------------------------------------------
     // Startpunkte & Flaggen
@@ -108,6 +109,38 @@ export default {
     };
   },
 };
+
+// ---------------------------------------------------------------------------
+// Ausstattung aus der Asset-Bibliothek (Fotoscan-Requisiten; ohne Bibliothek entfällt sie)
+// ---------------------------------------------------------------------------
+function dressing(b) {
+  const Q = Math.PI / 2;
+  const list = [];
+  for (const s of [1, -1]) {
+    // Hallenlampen an den Bindern (z = Binderlinien), deutlich über Laufsteg und Kranbahn
+    for (const x of [-8, 8]) list.push(['hanging_industrial_lamp', x, 10.4, s * 12, 0, { s: 1.35, castShadow: false, maxDist: 90 }]);
+    list.push(['hanging_industrial_lamp', 0, 10.4, s * 24, 0, { s: 1.35, castShadow: false, maxDist: 90 }]);
+    // Regale an der Westwand (zwischen Ladetor und Fenster), Werkzeug an der Ostseite
+    list.push(['steel_frame_shelves_01', -21.2, 0, s * 6.0, Q, { collide: true }]);
+    list.push(['worn_metal_rack', 21.15, 0, s * 6.6, -Q, { collide: true }]);
+    list.push(['metal_tool_chest', 20.95, 0, s * 13.65, -Q, { collide: true }]);
+    list.push(['tool_cart', 16.6, 0, s * 7.2, 0.3 * s, { collide: true }]);
+    list.push(['portable_generator', -3.2, 0, s * 22.4, 0.7 * s, { collide: true }]);
+    list.push(['industrial_pastic_container', 14.2, 0, s * 18.9, 0.25], ['industrial_pastic_container', 14.0, 0, s * 19.6, 1.4]);
+    list.push(['cardboard_box_01', -18.95, 0, s * 14.55, 0.2], ['cardboard_box_01', -18.45, 0, s * 15.1, 1.1], ['cardboard_box_01', -18.75, 0.34, s * 14.8, 0.5]);
+    list.push(['wetfloorsign_01', 2.6, 0, s * 18.2, 0.4 * s]);
+    // Leitstand: Stuhl am Pult
+    list.push(['schoolchair_01', 13.4, 0.12, s * 24.0, s > 0 ? 0.25 : Math.PI + 0.25]);
+    // Laderampe: Sackkarre, Kartons; Hofrand: Kunststoffkisten, Müll am Container
+    list.push(['hand_truck', -23.0, 1.26, s * 8.0, 2.2]);
+    list.push(['cardboard_box_01', -23.3, 1.26, s * 3.0, 0.1], ['cardboard_box_01', -22.9, 1.26, s * 2.5, 0.9]);
+    list.push(['industrial_pastic_container', -49.8, 0, s * 11.4, 0.3]);
+    list.push(['trashbag', 48.6, 0, s * 25.1], ['trashbag', 49.3, 0, s * 25.4]);
+    // Schaltkästen an der Hallen-Westwand (außen)
+    list.push(['power_box_01', -22.22, 1.35, s * 24.0, -Q, { castShadow: false }]);
+  }
+  dress(b, list);
+}
 
 function defineSigns(b) {
   b.defineSign('title', { style: 'logo', text: 'WALZWERK 7', sub: 'Hütte Nordstahl · seit 1923', bg: '#1f2a33', fg: '#e8e4dc', accent: '#ff8a2a' });

@@ -608,11 +608,16 @@ export function cafeTable(b, x, z, o = {}) {
   const n = o.chairs ?? 2;
   for (let i = 0; i < n; i++) {
     const a = (o.ry || 0) + (i / n) * Math.PI * 2 + 0.3;
-    chair(b, x + Math.cos(a) * 0.7, z + Math.sin(a) * 0.7, { ry: -a - Math.PI / 2, y, tint: o.chairTint });
+    chair(b, x + Math.cos(a) * 0.7, z + Math.sin(a) * 0.7, { ry: -a - Math.PI / 2, y, tint: o.chairTint, model: o.chairModel });
   }
 }
 
 export function chair(b, x, z, o = {}) {
+  if (o.model === true && b.hasModel('plastic_monobloc_chair_01')) {
+    // Monobloc-Gartenstuhl (Fotoscan) – auf Wunsch (Terrassen, Dächer); sonst bleibt der prozedurale Stuhl
+    b.model('plastic_monobloc_chair_01', x, o.y ?? 0, z, { ry: (o.ry || 0) + Math.PI, s: 0.95, collide: false, fallback: (bb) => chair(bb, x, z, { ...o, model: false }) });
+    return;
+  }
   const f = frame(b, x, o.y ?? 0, z, o.ry || 0), t = o.tint || '#2f6f9a';
   for (const sx of [-0.18, 0.18]) for (const sz of [-0.18, 0.18]) f.box(sx, 0, sz, 0.035, 0.45, 0.035, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false });
   f.box(0, 0.45, 0, 0.42, 0.04, 0.42, 'wood_planks', { tint: t, collide: false, minimap: false, grad: false });
@@ -721,6 +726,15 @@ export function tree(b, x, z, o = {}) {
 /** Blumentopf (Terrakotta) mit Busch. */
 export function pot(b, x, y, z, o = {}) {
   const r = o.r ?? 0.28, h = o.h ?? 0.45;
+  if (b.hasModel('planter_pot_clay') && o.model !== false) {
+    // Fotoscan-Terrakottatopf (0,27 × 0,22 m) auf Topfmaß skaliert; Erde + Pflanze wie bisher
+    const k = (2 * r) / 0.27;
+    b.model('planter_pot_clay', x, y, z, { sx: k, sz: k, sy: h / 0.22, ry: hash01(x, z, 5) * 6.28, collide: o.collide ?? true, minimap: 'prop',
+      fallback: (bb) => bb.cyl(x, y, z, r * 0.8, h, 'tiles_terracotta', { r1: r, seg: 12, tint: '#c47a52', minimap: 'prop', collide: o.collide ?? true, uv: 'keep' }) });
+    b.cyl(x, y + h - 0.07, z, r * 0.86, 0.04, 'dirt', { seg: 12, collide: false, minimap: false, ao: false });
+    b.plant(o.plant || 'bush', x, y + h - 0.15, z, { s: o.s ?? (r * 1.4) });
+    return;
+  }
   b.cyl(x, y, z, r * 0.8, h, 'tiles_terracotta', { r1: r, seg: 12, tint: '#c47a52', minimap: 'prop', collide: o.collide ?? true, uv: 'keep' });
   b.cyl(x, y + h - 0.05, z, r * 0.92, 0.04, 'dirt', { seg: 12, collide: false, minimap: false, ao: false });
   b.plant(o.plant || 'bush', x, y + h - 0.15, z, { s: o.s ?? (r * 1.4) });

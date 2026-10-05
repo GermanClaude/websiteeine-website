@@ -893,7 +893,9 @@ export class Input {
     const t = (e.timeStamp || performance.now()) / 1000;
     const dt = this._gyroT < 0 ? 0 : clamp(t - this._gyroT, 0, 0.1);
     this._gyroT = t;
-    const wx = (rr.beta || 0) * D2R, wy = (rr.gamma || 0) * D2R, wz = (rr.alpha || 0) * D2R;
+    // Nullpunkt aus der Gyro-Kalibrierung (Einstellungen gyroBiasX/Y/Z in °/s, ui-controls) abziehen
+    const cal = this.G.settings;
+    const wx = ((rr.beta || 0) - (cal.get('gyroBiasX') || 0)) * D2R, wy = ((rr.gamma || 0) - (cal.get('gyroBiasY') || 0)) * D2R, wz = ((rr.alpha || 0) - (cal.get('gyroBiasZ') || 0)) * D2R;
     // Bildschirmachsen im Gerätesystem je Ausrichtung
     const ang = screenAngle();
     let rx = 1, ry = 0, ux = 0, uy = 1;

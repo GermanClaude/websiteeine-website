@@ -27,6 +27,11 @@ export const DEFAULTS = Object.freeze({
   autoExposure: true, sharpness: 0.5, upscaler: 'fsr',
   // Klang (Realismus-Plan A1/A6/A8; audio)
   audioMix: 'auto', hearingProtection: false, audioRecordings: true,
+  // HUD-Stil, erweiterte Grafik, Gyro-Kalibrierung, Controller-Symbole (Realismus-Plan S6–S9, §5.3; ui-controls)
+  hudStyle: 'voll', bodycamStamp: false,
+  gfxPost: 'auto', gfxShadows: 'auto', gfxAA: 'auto', gfxAO: 'auto', gfxBloom: 'auto', gfxEffects: 'auto', gfxPixelRatio: 'auto',
+  renderScale: 'auto', fpsLimit: '0',
+  gyroBiasX: 0, gyroBiasY: 0, gyroBiasZ: 0, padIcons: 'auto',
 });
 
 const HOLD_TOGGLE = Object.freeze({ options: ['hold', 'toggle'], labels: { hold: 'Halten', toggle: 'Umschalten' } });
@@ -133,6 +138,58 @@ export const SETTINGS_SCHEMA = Object.freeze({
   },
   hearingProtection: { type: 'boolean', label: 'Gehörschutz (mildert Knalltrauma und Ohrenklingeln)', group: 'audio' },
   audioRecordings: { type: 'boolean', label: 'Echte Tonaufnahmen (aus: nur Klangsynthese, kein Download)', group: 'audio' },
+  // HUD, erweiterte Grafik (Gruppe 'erweitert': 'auto' = Wert der Qualitätsstufe, siehe shared/graphics.data.js),
+  // Gyro-Kalibrierung (°/s, wird von rotationRate abgezogen), Controller-Symbole (ui-controls)
+  hudStyle: {
+    type: 'enum', label: 'HUD-Stil', group: 'hud',
+    options: ['voll', 'reduziert', 'aus'], labels: { voll: 'Voll', reduziert: 'Reduziert', aus: 'Realismus' },
+  },
+  bodycamStamp: { type: 'boolean', label: 'Bodycam-Einblendung (Uhrzeit, Geräte-ID)', group: 'hud' },
+  gfxPost: {
+    type: 'enum', label: 'Nachbearbeitung', group: 'erweitert',
+    options: ['auto', 'einfach', 'voll'], labels: { auto: 'Automatisch', einfach: 'Einfach (1 Pass)', voll: 'Voll' },
+  },
+  gfxShadows: {
+    type: 'enum', label: 'Schatten', group: 'erweitert',
+    options: ['auto', 'aus', 'niedrig', 'mittel', 'hoch', 'ultra'],
+    labels: { auto: 'Automatisch', aus: 'Aus', niedrig: 'Niedrig', mittel: 'Mittel', hoch: 'Hoch', ultra: 'Ultra' },
+  },
+  gfxAA: {
+    type: 'enum', label: 'Kantenglättung', group: 'erweitert',
+    options: ['auto', 'aus', 'fxaa', 'smaa'], labels: { auto: 'Automatisch', aus: 'Aus', fxaa: 'FXAA', smaa: 'SMAA' },
+  },
+  gfxAO: {
+    type: 'enum', label: 'Umgebungsverdeckung (GTAO)', group: 'erweitert',
+    options: ['auto', 'aus', 'an'], labels: { auto: 'Automatisch', aus: 'Aus', an: 'An' },
+  },
+  gfxBloom: {
+    type: 'enum', label: 'Leuchten (Bloom)', group: 'erweitert',
+    options: ['auto', 'aus', 'an'], labels: { auto: 'Automatisch', aus: 'Aus', an: 'An' },
+  },
+  gfxEffects: {
+    type: 'enum', label: 'Effekte (Partikel, Einschusslöcher)', group: 'erweitert',
+    options: ['auto', 'niedrig', 'mittel', 'hoch', 'ultra'],
+    labels: { auto: 'Automatisch', niedrig: 'Niedrig', mittel: 'Mittel', hoch: 'Hoch', ultra: 'Ultra' },
+  },
+  gfxPixelRatio: {
+    type: 'enum', label: 'Pixeldichte (höchstens)', group: 'erweitert',
+    options: ['auto', '1', '1.25', '1.5', '2', '3'], labels: { auto: 'Automatisch', 1: '1×', 1.25: '1,25×', 1.5: '1,5×', 2: '2×', 3: '3×' },
+  },
+  renderScale: {
+    type: 'enum', label: 'Auflösungsskala', group: 'erweitert',
+    options: ['auto', '100', '85', '75', '67', '50'], labels: { auto: 'Dynamisch', 100: '100 %', 85: '85 %', 75: '75 %', 67: '67 %', 50: '50 %' },
+  },
+  fpsLimit: {
+    type: 'enum', label: 'Bildratenbegrenzung', group: 'erweitert',
+    options: ['0', '30', '60', '120'], labels: { 0: 'Frei', 30: '30', 60: '60', 120: '120' },
+  },
+  gyroBiasX: { type: 'number', min: -5, max: 5, step: 0.001, label: 'Gyro-Nullpunkt X (°/s)', group: 'intern' },
+  gyroBiasY: { type: 'number', min: -5, max: 5, step: 0.001, label: 'Gyro-Nullpunkt Y (°/s)', group: 'intern' },
+  gyroBiasZ: { type: 'number', min: -5, max: 5, step: 0.001, label: 'Gyro-Nullpunkt Z (°/s)', group: 'intern' },
+  padIcons: {
+    type: 'enum', label: 'Controller-Symbole', group: 'belegung',
+    options: ['auto', 'xbox', 'ps'], labels: { auto: 'Automatisch', xbox: 'Xbox', ps: 'PlayStation' },
+  },
 });
 
 /* ------------------------------------------------------------ Validierung */

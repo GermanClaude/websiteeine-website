@@ -84,8 +84,8 @@ export const LIB_MATERIALS = {
   tarp: { id: 'canvas', color: 1.0, macro: false },
   rubber: { id: 'rubber', color: 0.6, macro: false },
   rubber_floor: { id: 'rubber_floor', color: 1.6 },
-  epoxy: { id: 'concrete_epoxy', color: [2.07, 2.52, 2.29] },
-  epoxy_blue: { id: 'concrete_epoxy', color: [1.2, 1.78, 2.38] },
+  epoxy: { id: 'concrete_epoxy', color: [2.07, 2.52, 2.29], macro: [0.06, 0.04, 0.08] },
+  epoxy_blue: { id: 'concrete_epoxy', color: [1.2, 1.78, 2.38], macro: [0.06, 0.04, 0.08] },
   panel_wall: { id: 'felt_panel', color: 1.15, macro: false },
 };
 

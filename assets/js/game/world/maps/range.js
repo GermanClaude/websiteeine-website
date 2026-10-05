@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { getMaterial } from '../../engine/textures.js';
 import { building, wall, stairs, railing } from '../arch.js';
-import { crate, crateStack, barrel, sandbags, jersey, lockers, workbench, bench, floodMast, electricBox, pallet, cone, tree, rack } from '../props.js';
+import { crate, crateStack, barrel, sandbags, jersey, lockers, workbench, bench, floodMast, electricBox, pallet, cone, tree, rack, dress, hash01 } from '../props.js';
 
 const LANES = 8, LANE_W = 5.5, FIRE_Z = 34;
 const laneX = i => -((LANES - 1) / 2) * LANE_W + i * LANE_W;
@@ -216,6 +216,8 @@ export default {
     pallet(b, -20, 0, 59.6, { load: 'boxes', ry: 0.1 });
     for (const [x, z] of [[-26.5, 53], [-17, 47.5]]) cone(b, x, z);
 
+    dressing(b);
+
     // --- Startpunkte ----------------------------------------------------------
     const spawns = { A: [], B: [], ffa: [] };
     for (let i = 0; i < 10; i++) spawns.A.push({ x: -9 + (i % 5) * 4.5, z: 47.5 + Math.floor(i / 5) * 7, yaw: 0 });
@@ -261,6 +263,27 @@ export default {
     };
   },
 };
+
+// ---------------------------------------------------------------------------
+// Ausstattung aus der Asset-Bibliothek (Fotoscan-Kleinteile; ohne Bibliothek entfällt sie)
+// ---------------------------------------------------------------------------
+function dressing(b) {
+  const list = [];
+  const z0 = FIRE_Z - 0.3;
+  // Munitionsdosen auf den Schießtischen
+  for (let k = 0; k < LANES; k++) list.push(['ammo_box', laneX(k) + 0.35, 1.05, z0 + 0.62, hash01(k, 3) * 0.6 - 0.3]);
+  // Waffenkammer: Munition auf den Werkbänken, Kisten, Kanister
+  list.push(['ammo_box', 16.6, 0.92, 48.4, 0.1], ['ammo_box', 17.15, 0.92, 48.6, 0.5], ['ammo_box', 23.2, 0.92, 48.5, -0.2]);
+  list.push(['wooden_military_crate', 25.6, 0.12, 50.4, Math.PI / 2 + 0.06, { collide: true }]);
+  list.push(['old_military_crate', 14.0, 0.12, 49.6, Math.PI / 2, { collide: true }]);
+  list.push(['metal_jerrycan_green', 26.6, 0.12, 47.2, 0.3], ['metal_jerrycan_green', 26.95, 0.12, 47.55, 1.2]);
+  // Steine und ein Totholzstamm im Randstreifen neben den Bahnen
+  for (const [x, z, sc] of [[-24.6, -60, 3.2], [25.2, -46, 2.6], [-26.0, -28, 3.6], [24.4, -8, 2.8], [-23.8, 12, 2.4], [26.6, 20, 3.0], [-27.2, -66, 3.8], [27.0, -18, 3.4]]) {
+    list.push(['rock_07', x, 0, z, hash01(x, z) * 6.28, { s: sc, castShadow: true }]);
+  }
+  list.push(['dead_tree_trunk_02', -26.6, 0, -40, 1.45, { s: 1.0 }]);
+  dress(b, list);
+}
 
 // ---------------------------------------------------------------------------
 // Klappziele

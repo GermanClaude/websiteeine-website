@@ -23,6 +23,7 @@ import { createRenderer, QUALITY_LEVELS, resolveQuality } from './engine/rendere
 import { Input } from './engine/input.js';
 import { separateActors } from './engine/physics.js';
 import { DynamicResolution } from './engine/dynres.js';
+import { renderScaleValue, fpsLimitValue } from '../shared/graphics.data.js'; // Erweitert-Grafik (S9, ui-controls)
 import { Player } from './player.js';
 import { Combat } from './combat.js';
 
@@ -673,7 +674,7 @@ async function runStart(config, gen) {
       G.world = world;
       safe('renderer.setMood', () => { G.renderer.setMood?.(world.grade || cfg.mapId); G.renderer.setSun?.(world.lighting); }); // core-render: LUT/Belichtung/Lichtstrahlen je Karte
       if (world.group && !world.group.parent) G.scene.add(world.group);
-      if (dynres) { dynres.reset(); G.renderer.setResolutionScale(1); }
+      if (dynres) { dynres.reset(); G.renderer.setResolutionScale(renderScaleValue(settings.get('renderScale')) || 1); }
       await early;
       // Abgebrochen (neuer Start/Lobby): Welt stehen lassen – der Nachfolger entscheidet (gleiche Karte → wiederverwenden)
       if (!live()) { await teardownMatch({ keepWorld: true }); return; }
@@ -1097,8 +1098,12 @@ function applyAutoTier() {
 }
 
 function updatePerf(now, workMs, rawMs) {
+  // Feste Auflösungsskala (Einstellung renderScale) statt dynamischer Auflösung
+  const fixed = renderScaleValue(settings.get('renderScale'));
+  if (fixed) { if (Math.abs(G.renderer.resolutionScale - fixed) > 1e-3) G.renderer.setResolutionScale(fixed); return; }
   if (!dynres || QUALITY_OVERRIDE || G.match.startedReal == null || G.time.real - G.match.startedReal < 3) return;
-  dynres.touch = G.input.mode === 'touch'; // Ziel 30 FPS auf Touch, 60 auf Desktop
+  const cap = fpsLimitValue(settings.get('fpsLimit'));
+  dynres.touch = G.input.mode === 'touch' || (cap > 0 && cap <= 30); // Ziel 30 FPS auf Touch (bzw. bei 30er-Begrenzung), 60 auf Desktop
   dynres.frame(now, rawMs, workMs);
   const R = G.renderer;
   const auto = settings.get('quality') === 'auto';
@@ -1112,8 +1117,16 @@ function updatePerf(now, workMs, rawMs) {
 let lastNow = 0;
 let idleRenderAt = 0;
 
+let capAt = 0;
 function frame(now) {
   requestAnimationFrame(frame);
+  // Bildratenbegrenzung (Einstellung fpsLimit): Bilder auslassen; die Zeit läuft im nächsten Bild weiter
+  const cap = fpsLimitValue(settings.get('fpsLimit'));
+  if (cap) {
+    if (now < capAt - 1.5) return;
+    capAt += 1000 / cap; // Takt halten (bei 144 Hz und 60er-Grenze im Mittel 60 Bilder)
+    if (capAt < now) capAt = now + 1000 / cap; // zurückgefallen (Pause, Hintergrund): neu ansetzen
+  }
   const t0 = performance.now();
   const raw = lastNow ? Math.max(0, (now - lastNow) / 1000) : 0;
   lastNow = now;
@@ -1340,6 +1353,10 @@ function wireGlobal() {
       applyQuality(value);
     }
     if (key === 'playerName' && G.player) G.player.name = value;
+    if (key === 'renderScale' && G.renderer) { // Erweitert-Grafik: sofort (auch in der Pause), „Dynamisch“ übernimmt ab hier
+      const f = renderScaleValue(value);
+      if (f) G.renderer.setResolutionScale(f); else if (dynres) dynres.clearSamples();
+    }
   });
 
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });

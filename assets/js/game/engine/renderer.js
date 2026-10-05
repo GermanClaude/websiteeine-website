@@ -18,6 +18,7 @@ import { PostPipeline, LENS_DEFAULTS, LENS_STYLES } from './post/pipeline.js';
 import { estimateMemory } from './post/memory.js';
 import { MOODS, MOOD_FOR_MAP } from './post/grade.js';
 import { resetFormatCache } from './post/common.js';
+import { applyGraphics, samePreset, GFX_KEYS } from '../../shared/graphics.data.js'; // Erweitert-Grafik (S9, ui-controls)
 
 export { LENS_DEFAULTS, LENS_STYLES, MOODS, MOOD_FOR_MAP };
 
@@ -164,7 +165,7 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
     renderer,
     quality: initial,
     requested: quality,
-    preset: QUALITY_PRESETS[initial],
+    preset: applyGraphics(QUALITY_PRESETS[initial], settings),
     /** Entfällt seit der eigenen Kette (bleibt null; Kompatibilität). */
     composer: null,
     /** Nachbearbeitungskette (engine/post/pipeline.js). */
@@ -204,10 +205,12 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
     setQuality(q) {
       const next = resolveQuality(q);
       this.requested = q;
-      if (next === this.quality && this._built) return;
+      // Stufe + erweiterte Grafikoptionen (settings gfx*, shared/graphics.data.js) = wirksame Vorgabe
+      const preset = applyGraphics(QUALITY_PRESETS[next], settings);
+      if (next === this.quality && this._built && samePreset(preset, this.preset)) return;
       const prevShadows = this.preset.shadows;
       this.quality = next;
-      this.preset = QUALITY_PRESETS[next];
+      this.preset = preset;
       renderer.shadowMap.enabled = this.preset.shadows;
       this._shadowDirty = true;
       this._build();
@@ -435,7 +438,10 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
 
   // Einstellungen folgen (nur Objektiv-Schlüssel)
   const offSettings = settings && typeof settings.onChange === 'function'
-    ? settings.onChange((key) => { if (key in SETTING_KEYS) R.setLens(lensConfigFrom(settings, reduceMQ && reduceMQ.matches)); })
+    ? settings.onChange((key) => {
+      if (key in SETTING_KEYS) R.setLens(lensConfigFrom(settings, reduceMQ && reduceMQ.matches));
+      else if (GFX_KEYS.includes(key)) R.setQuality(R.requested); // Erweitert-Grafik: gleiche Stufe, neue Vorgabe
+    })
     : null;
   const onReduceMQ = () => R.setLens({ reducedMotion: lensConfigFrom(settings, reduceMQ.matches).reducedMotion });
   if (reduceMQ && reduceMQ.addEventListener) reduceMQ.addEventListener('change', onReduceMQ);

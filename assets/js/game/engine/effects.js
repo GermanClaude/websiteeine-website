@@ -5,6 +5,10 @@
 // Rauchsäule, Staubring, Brandfleck, kurzes Punktlicht, Kamerawackeln nach Distanz), Mündungsfeuer + Hülsen
 // der Bots, Zielfernrohr-Glanz gegnerischer Scharfschützen. Respektiert preset.particleScale/decals.
 // Drei Draw Calls für alle Partikel, einer für Leuchtspuren, einer für Einschusslöcher.
+// Realismus (weapons-feel): Hülsen und Magazine als Physik-lite in der Welt (weapons/ballistics/debris.js, alle
+// Stufen, Klang über `shell:land`), Einschusslöcher ab medium mit Normalen-Atlas (Kraterränder fangen Licht),
+// Splitter prallen am Boden ab, feiner Staub bleibt stehen, Mündungslicht in der Welt (high/ultra, dasselbe
+// Punktlicht wie Explosionen → konstante Lichterzahl), Pulvergas eigener Schüsse, Rauchfäden aus heißen Läufen.
 
 import * as THREE from 'three';
 import { ParticleLayer, TracerLayer, DecalLayer, PF } from '../weapons/ballistics/fxlayers.js';
@@ -655,16 +659,32 @@ export class Effects {
     const big = (cls === 'shotgun' || cls === 'sniper' || cls === 'lmg' ? 1.35 : cls === 'smg' || cls === 'pistol' ? 0.8 : 1) * (opts.scale || 1);
     // Ferne Mündungsfeuer etwas größer (Lesbarkeit wie COD)
     const far = 1 + Math.min(1.6, d / 45);
-    const s = 0.22 * big * far;
-    if (d < 30) this.muzzleLight(pos, 10 * big, 1, 0.04, 6);
-    const j = this._flash(pos.x, pos.y, pos.z, s, 0.05, C.muzzle, 2.6, CELL.STAR);
+    // Jedes Mündungsfeuer anders (Größe, Länge der Zunge, manchmal Seitenstrahlen) – sehr kurz, wie auf Video
+    const vary = rnd(0.75, 1.25);
+    const s = 0.22 * big * far * vary;
+    if (d < 30) this.muzzleLight(pos, 10 * big * vary, 1, 0.04, 6);
+    const j = this._flash(pos.x, pos.y, pos.z, s, rnd(0.03, 0.05), C.muzzle, 2.6, CELL.STAR);
     this.add.s1[j] = s * 0.7;
     // Flammenzunge nach vorn
     const L = this.add;
+    const tongue = rnd(0.6, 1.3);
     const k = L.spawn(pos.x + dir.x * 0.05, pos.y + dir.y * 0.05, pos.z + dir.z * 0.05, dir.x, dir.y, dir.z, 0.045,
-      0.09 * big * Math.min(far, 1.6), 0.07 * big, C.muzzle[0] * 2.4, C.muzzle[1] * 2.4, C.muzzle[2] * 2.4, 1, CELL.FLAME);
-    L.stretch[k] = 0.32 * big;
+      0.09 * big * Math.min(far, 1.6) * tongue, 0.07 * big, C.muzzle[0] * 2.4, C.muzzle[1] * 2.4, C.muzzle[2] * 2.4, 1, CELL.FLAME);
+    L.stretch[k] = 0.32 * big * tongue;
     L.fadePow[k] = 1.2;
+    // Seitenstrahlen (Mündungsbremse/Feuerdämpfer-Schlitze) nicht bei jedem Schuss
+    if (d < 60 && Math.random() < 0.55) {
+      _v.crossVectors(dir, UP);
+      if (_v.lengthSq() > 1e-6) {
+        _v.normalize();
+        for (const sg of [-1, 1]) {
+          const q = L.spawn(pos.x, pos.y, pos.z, _v.x * sg, rnd(-0.2, 0.2), _v.z * sg, 0.03, 0.05 * big * Math.min(far, 1.6), 0.03 * big,
+            C.muzzle[0] * 1.8, C.muzzle[1] * 1.8, C.muzzle[2] * 1.8, 1, CELL.FLAME);
+          L.stretch[q] = 0.12 * big * rnd(0.6, 1.2);
+          L.fadePow[q] = 1.4;
+        }
+      }
+    }
     if (d < 40 && this.scale > 0.4) {
       this._puff(pos.x, pos.y, pos.z, dir.x * 0.8, dir.y * 0.8 + 0.2, dir.z * 0.8, rnd(0.5, 0.8), 0.04, 0.3 * big, C.smokeLight, 0.18, 2.5, 0.25);
     }

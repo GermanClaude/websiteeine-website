@@ -329,6 +329,13 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
       return def.defaultSurface || 'concrete';
     },
 
+    /** Strahl gegen die Kollisionsgeometrie (Kapseln): { distance, normal } | null (physics.collisionRay, Überklettern). */
+    collisionRaycast(origin, dir, maxDist = 100) {
+      if (!cbvh.raycast(origin.x, origin.y, origin.z, dir.x, dir.y, dir.z, maxDist, hit)) return null;
+      return { distance: hit.t, normal: new THREE.Vector3(hit.nx, hit.ny, hit.nz) };
+    },
+    collisionBVH: cbvh,
+
     /** Bodenhöhe unter (x, z) ab yFrom abwärts (Kollisionsgeometrie) oder null. */
     groundHeight(x, z, yFrom = 30) {
       return cbvh.raycast(x, yFrom, z, 0, -1, 0, yFrom + 20, hit) ? yFrom - hit.t : null;

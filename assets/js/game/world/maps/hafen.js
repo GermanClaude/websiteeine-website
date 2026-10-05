@@ -21,7 +21,8 @@ export default {
   chunkSize: 32,
   ambience: 'harbor',
   // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
-  assets: { hdri: 'freight_station' },
+  // Büro-/Pförtnerwände: glatt gestrichener Putz statt Außenputz
+  assets: { hdri: 'freight_station', materials: { plaster_white: { id: 'plaster_painted', color: 1.6 } } },
   defaultSurface: 'concrete',
   lighting: {
     sun: { elevation: 15, azimuth: 247, color: '#ffbf80', intensity: 3.5 },
