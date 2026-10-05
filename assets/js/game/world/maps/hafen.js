@@ -25,10 +25,12 @@ export default {
   defaultSurface: 'concrete',
   lighting: {
     sun: { elevation: 15, azimuth: 247, color: '#ffbf80', intensity: 3.5 },
-    sky: { turbidity: 7, rayleigh: 2.4, mieCoefficient: 0.009, mieDirectionalG: 0.86, exposure: 0.5, clouds: { coverage: 0.38, density: 0.42, scale: 0.00018, elevation: 0.55 }, hazeHigh: 0.13, hazeAmount: 0.9 },
+    // hdri*: Werte mit HDRI-Umgebung (freight_station, Sonne gedeckelt) – das Foto-Umgebungslicht ist voller als der
+    // prozedurale Himmel, deshalb weniger Füllicht (die Sonne zeichnet harte Schatten wie in Fotos)
+    sky: { turbidity: 7, rayleigh: 2.4, mieCoefficient: 0.009, mieDirectionalG: 0.86, exposure: 0.5, clouds: { coverage: 0.38, density: 0.42, scale: 0.00018, elevation: 0.55 }, hazeHigh: 0.13, hazeAmount: 0.9, hdriIntensity: 0.5 },
     // Umgebung ohne Mie-Hotspot (lighting.js begrenzt die Env-Map) → Füllicht etwas angehoben
-    hemi: { sky: '#d6c2ad', ground: '#6e5a45', intensity: 0.75 },
-    env: { intensity: 1.15, ground: '#7a6650', groundIntensity: 0.55, tint: '#ffe6cc' },
+    hemi: { sky: '#d6c2ad', ground: '#6e5a45', intensity: 0.75, hdriIntensity: 0.35 },
+    env: { intensity: 1.15, ground: '#7a6650', groundIntensity: 0.55, tint: '#ffe6cc', hdriIntensity: 0.55 },
     fog: { color: '#dcb28a', near: 70, far: 420 },
     shadow: { size: 42 },
   },

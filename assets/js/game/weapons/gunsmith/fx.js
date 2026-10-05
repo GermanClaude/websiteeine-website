@@ -369,7 +369,7 @@ export class HeatHaze {
     u.tCopy.value = tex;
     u.uRect.value.set(rx, ry, S, S);
     u.uTexSize.value.set(S, S);
-    u.uStrength.value = this.strength * 3.2 * (H / 1080 + 0.35);
+    u.uStrength.value = this.strength * 5 * (H / 1080 + 0.35);
   }
 
   dispose() {

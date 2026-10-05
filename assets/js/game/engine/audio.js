@@ -101,11 +101,12 @@ export class AudioEngine {
     this.vol = { master: 0.8, sfx: 1, music: 0.5, ui: 0.7, ambience: 1 };
     this.recordings = true; this.mixSetting = 'auto'; this.protection = false;
     /** Schichten des Hybrid-Klangs (Prüfstand/A-B): Mechanik, Ich-Perspektive, Nachhall-Fahne, frühe Reflexionen, Zufalls-EQ, Sub/Trümmer */
-    this.layers = { mech: true, fp: true, tail: true, er: true, eq: true, sub: true };
+    this.layers = { mech: true, fp: true, tail: true, er: true, eq: true, sub: true, diffract: true };
     // rendered/queued/renderMs/maxSliceMs kommen aus der gemeinsamen Bank (renderMs = Hauptthread-Anteil)
     const B = bank.stats;
     this.stats = {
       played: 0, recorded: 0, dropped: 0, stolen: 0, substituted: 0, missed: 0, lastMissed: null, deferred: 0, errors: 0, lastError: null,
+      diffractions: 0, diffractMs: 0, diffractMaxMs: 0,
       get rendered() { return B.rendered; }, get queued() { return bank.queued; }, get renderMs() { return B.mainMs; },
       get maxSliceMs() { return B.maxMainMs; }, get workerMs() { return B.workerMs; },
     };
@@ -120,7 +121,7 @@ export class AudioEngine {
     this._lastVar = new Map(); this._objOwners = new Map(); this._actorPain = new WeakMap();
     this._tails = new Map(); this._shellAt = new WeakMap(); this._surf = new WeakMap(); this._shots = new WeakMap();
     this._pass = new Map(); this._whiz = new Map(); this._passQueued = false; this._combatWhiz = false; this._casingEvents = false;
-    this._wanted = new Set(); this._taps = []; this._erT = 0; this._hdrDb = 0;
+    this._wanted = new Set(); this._taps = []; this._erT = 0; this._hdrDb = 0; this._dif = new Map(); this._difT = -9;
     this._foley = { yaw: null, rustleT: 0, sprintT: 0, breaths: 0, breathT: 0, breathIn: true };
     this._indoor = 0; this._indoorT = 0;
     this._hb = 0; this._br = 0; this._brIn = true;
@@ -723,9 +724,12 @@ export class AudioEngine {
     }
     // Distanz-/Verdeckungsfilter
     const occluded = pos && !o.player && o.occlusion !== false && e.bus !== 'amb' ? this._occluded(pos, o.actor, o.footstep) : false;
+    // Beugung (Plan §10 A4): verdeckte laute Quellen kommen „um die Ecke“ – Richtung des ersten Wegpunkts im
+    // Navigationsnetz, Umweg als Verzögerung und Abstand, je Ecke weniger Höhen (statt dumpf durch die Wand)
+    const dif = occluded && (o.loud ?? e.loud) != null && this.layers.diffract !== false ? this._diffract(pos, o.actor) : null;
     let lp = o.lowpass || 0;
     if (pos && e.bus !== 'amb') lp = Math.min(lp || NO_MUFFLE, Math.max(2200, 20000 * Math.exp(-dist / 85)));
-    if (occluded) lp = clamp(Math.min(lp || NO_MUFFLE, 6000) * 0.12, 420, 1300);
+    if (occluded) lp = dif ? Math.min(lp || NO_MUFFLE, dif.lp) : clamp(Math.min(lp || NO_MUFFLE, 6000) * 0.12, 420, 1300);
     let filter = null;
     if ((lp && lp < 19000) || o.loop) {
       filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = lp || NO_MUFFLE; filter.Q.value = 0.5;
@@ -734,7 +738,7 @@ export class AudioEngine {
     const g = ctx.createGain();
     const entryGain = e.gain * recGain * (1 + this._rand.bi() * e.gainJit);
     const baseGain = entryGain * (o.volume ?? 1);
-    g.gain.value = baseGain * (occluded ? 0.55 : 1);
+    g.gain.value = baseGain * (occluded ? (dif ? dif.gain : 0.55) : 1);
     head.connect(g); nodes.push(g);
     let out = g, panner = null;
     if (pos) {
@@ -744,7 +748,7 @@ export class AudioEngine {
       panner.refDistance = o.ref || e.ref; panner.rolloffFactor = e.roll; panner.maxDistance = 10000;
       // Punktquelle: Stereo-Aufnahmen vor dem Panner auf Mono (sonst panoramiert der Panner die Kanäle einzeln)
       if (buffer.numberOfChannels > 1) { try { panner.channelCount = 1; panner.channelCountMode = 'explicit'; } catch { /* älterer Browser */ } }
-      this._setPannerPos(panner, pos);
+      this._setPannerPos(panner, dif ? dif.pos : pos);
       g.connect(panner); out = panner; nodes.push(panner);
     } else if (o.pan && ctx.createStereoPanner) {
       const sp = ctx.createStereoPanner(); sp.pan.value = clamp(o.pan, -1, 1); g.connect(sp); out = sp; nodes.push(sp);
@@ -778,7 +782,7 @@ export class AudioEngine {
       this.hdr.push(loud + 20 * Math.log10(Math.max(1e-4, (o.volume ?? 1) * att * (occluded ? 0.55 : 1))));
       this._applyHdr(true);
     }
-    const when = now + Math.max(0, o.delay || 0);
+    const when = now + Math.max(0, o.delay || 0) + (dif ? dif.extra : 0);
     src.start(when, offset);
     let end = o.loop ? Infinity : when + (buffer.duration - offset) / rate;
     if (o.fadeAt != null && !o.loop) {
@@ -889,6 +893,41 @@ export class AudioEngine {
     if (!r) return { ind: this._indoor, size: lsize };
     return { ind: 0.55 * r.indoor + 0.45 * this._indoor, size: r.size };
   }
+  /**
+   * Umweg um Hindernisse über world.nav.findPath (A*), gecacht je Quell-/Hörerzelle (1,5 s), höchstens alle
+   * 0,15 s (Handy 0,35 s) eine neue Suche. → { pos (scheinbare Position), extra (s), lp (Hz), gain } | null
+   */
+  _diffract(pos, actor) {
+    const nav = this.G.world?.nav, L = this.listener, T = this.G.THREE;
+    if (!nav?.findPath || !L.valid || !T) return null;
+    const key = `${Math.round(pos.x / 4)}|${Math.round(pos.z / 4)}|${Math.round(pos.y / 3)}>${Math.round(L.x / 4)}|${Math.round(L.z / 4)}|${Math.round(L.y / 3)}`;
+    const now = this.ctx.currentTime, c = this._dif.get(key);
+    if (c && now - c.t < 1.5) return c.r;
+    if (now - this._difT < (this._quality() === 'low' ? 0.35 : 0.15)) return c ? c.r : null;
+    this._difT = now;
+    const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
+    let r = null;
+    try {
+      const feet = this._feet(actor);
+      const from = new T.Vector3(L.x, L.y - 1.55, L.z), to = feet ? new T.Vector3(feet.x, feet.y, feet.z) : new T.Vector3(pos.x, pos.y, pos.z);
+      const path = nav.findPath(from, to);
+      if (path.length) {
+        let len = 0, prev = from; for (const q of path) { len += prev.distanceTo(q); prev = q; }
+        const straight = from.distanceTo(to);
+        if (len < straight * 2.2 + 25) {
+          let first = path[0]; if (first.distanceTo(from) < 1.2 && path.length > 1) first = path[1];
+          const dx = first.x - from.x, dz = first.z - from.z, dl = Math.hypot(dx, dz) || 1, corners = Math.max(1, path.length - 1);
+          r = { pos: { x: L.x + dx / dl * len, y: L.y, z: L.z + dz / dl * len }, extra: Math.max(0, (len - straight) / 343), lp: clamp(9000 / (1 + 0.9 * corners), 1500, 7000), gain: clamp(0.85 - 0.08 * corners, 0.5, 0.8), corners, len };
+        }
+      }
+    } catch { r = null; }
+    const ms = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
+    this.stats.diffractions++; this.stats.diffractMs += ms; if (ms > this.stats.diffractMaxMs) this.stats.diffractMaxMs = ms;
+    this._dif.set(key, { t: now, r });
+    if (this._dif.size > 128) this._dif.delete(this._dif.keys().next().value);
+    return r;
+  }
+
   /** Rückwärtskompatibel: nur der Innenanteil. */
   _indoorMix(pos, o) { return this._roomOf(pos, o).ind; }
 
@@ -1636,7 +1675,7 @@ export class AudioEngine {
     for (const t of this._timers || []) clearTimeout(t);
     this._timers?.clear();
     for (const a of this._reloads.keys()) this._cancelReload(a);
-    this._occl.clear(); this.acoustics.clear(); this._tails.clear(); this._pass.clear(); this._whiz.clear();
+    this._occl.clear(); this.acoustics.clear(); this._tails.clear(); this._pass.clear(); this._whiz.clear(); this._dif.clear();
     if (this.ctx && this.unlocked) {
       for (const v of this.voices.slice()) if (v.group === 'vital' || v.group === 'loop' && v.name === 'smoke_hiss') this._kill(v, 0.2);
       this._muffle.dead = false; this._muffle.pause = false; this._muffle.health = NO_MUFFLE;
