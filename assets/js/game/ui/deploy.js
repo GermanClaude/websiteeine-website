@@ -376,7 +376,7 @@ export class DeployScreen {
     }
     const dir = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }[e.code];
     if (dir) { e.preventDefault(); e.stopPropagation(); this._move(dir); return; }
-    if (e.code === 'KeyL' || (G.input && typeof G.input.label === 'function' && false)) {
+    if (e.code === 'KeyL') { // Ausrüsten-Taste (Standardbelegung): Karte ↔ Ausrüstung
       e.preventDefault();
       if (this.kind === 'deploy') this._setTab(this.tab === 'map' ? 'loadout' : 'map');
     }

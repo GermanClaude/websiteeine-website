@@ -2699,5 +2699,11 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
   .np-fsg-actions { margin-top: 12px; }
   .np-fsg-actions .m-btn { min-height: 40px; }
 }
+/* Telefon quer: zwei Spalten (Erklärung | Schritte + Knöpfe), damit alles ohne Scrollen passt */
+@media (max-height: 440px) and (min-width: 640px) {
+  .np-fsg-card { width: min(100%, 820px); display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); column-gap: 22px; align-items: start; }
+  .np-fsg-steps { margin-top: 2px; }
+  .np-fsg-url { margin-top: 10px; min-height: 36px; }
+}
 @media (prefers-reduced-motion: reduce) { .np-fsg-card { animation: none; } }
 /* Ende Vollbild */

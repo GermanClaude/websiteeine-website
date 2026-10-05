@@ -276,13 +276,17 @@ export class FullscreenUI {
     actions.push(`<button type="button" class="m-btn${actions.some((a) => a.includes('m-primary')) ? '' : ' m-primary'}" data-fsg="close">${IC.check}<span>Verstanden</span></button>`);
     const hasCopy = actions.some((a) => a.includes('data-fsg="copy"'));
     card.innerHTML = `
-      <div class="m-kicker">${esc(kicker)}</div>
-      <h2 class="np-fsg-title" id="np-fsg-title">${esc(title)}<em>.</em></h2>
-      <p class="np-fsg-lead">${esc(lead)}</p>
-      ${steps.length ? `<ol class="np-fsg-steps">${steps.map((s) => `<li><span>${s}</span></li>`).join('')}</ol>` : ''}
-      ${note ? `<p class="np-fsg-note">${esc(note)}</p>` : ''}
-      ${hasCopy ? `<input class="m-input np-fsg-url" type="text" readonly value="${esc(url)}" aria-label="Adresse des Spiels">` : ''}
-      <div class="np-fsg-actions">${actions.join('')}</div>`;
+      <div class="np-fsg-a">
+        <div class="m-kicker">${esc(kicker)}</div>
+        <h2 class="np-fsg-title" id="np-fsg-title">${esc(title)}<em>.</em></h2>
+        <p class="np-fsg-lead">${esc(lead)}</p>
+        ${note ? `<p class="np-fsg-note">${esc(note)}</p>` : ''}
+      </div>
+      <div class="np-fsg-b">
+        ${steps.length ? `<ol class="np-fsg-steps">${steps.map((s) => `<li><span>${s}</span></li>`).join('')}</ol>` : ''}
+        ${hasCopy ? `<input class="m-input np-fsg-url" type="text" readonly value="${esc(url)}" aria-label="Adresse des Spiels">` : ''}
+        <div class="np-fsg-actions">${actions.join('')}</div>
+      </div>`;
   }
 
   _guideClick(e) {
