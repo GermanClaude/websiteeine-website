@@ -177,6 +177,7 @@ export class DeployScreen {
         <header class="dp-head">
           <div class="dp-title"><small>${esc(m && m.def ? m.def.name : '')}${sq ? ` · Trupp ${esc(sq.name)}` : ''}</small><b>${deploy ? 'Einsatz' : 'Ausrüsten'}<em>.</em></b></div>
           ${tabs}
+          <button type="button" class="m-icon dp-pause" data-dact="pause" aria-label="Pause" title="Pause">${ICON.pause}</button>
         </header>
         <div class="dp-body">
           ${deploy ? `<div class="dp-map" data-pane="map"${this.tab === 'map' ? '' : ' hidden'}><canvas class="dp-canvas"></canvas><div class="dp-marks"></div></div>
@@ -321,6 +322,7 @@ export class DeployScreen {
     if (ds.dtab) { this._setTab(ds.dtab); return; }
     if (ds.dact === 'go') { this._go(true); return; }
     if (ds.dact === 'back') { G.events.emit('ui:sound', { name: 'back' }); this.close(false, true); return; }
+    if (ds.dact === 'pause') { if (G.debugApi && typeof G.debugApi.pause === 'function') G.debugApi.pause(); return; } // Touch: Pause/Match verlassen bleibt erreichbar
     if (ds.pt) {
       const [kind, ...rest] = ds.pt.split(':');
       const id = rest.join(':');

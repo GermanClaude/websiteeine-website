@@ -2453,6 +2453,8 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 .dp-title b { font: 800 30px/1 var(--font-display, var(--font-hud)); letter-spacing: -.01em; }
 .dp-title em { color: var(--np-signal); font-style: normal; }
 .dp-tabs { margin-left: auto; }
+.dp-pause { flex: none; }
+.dp[data-kind="equip"] .dp-pause { margin-left: auto; }
 .dp-body { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: 12px; }
 .dp[data-kind="equip"] .dp-body, .dp[data-tab="loadout"] .dp-body { grid-template-columns: 1fr; }
 .dp-map { position: relative; min-height: 0; border: 1px solid var(--np-line-strong); background: #0d0f11; overflow: hidden; }
