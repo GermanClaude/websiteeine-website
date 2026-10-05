@@ -1,0 +1,111 @@
+{
+  "id": "tiles_checker",
+  "recipe": "c3b5a5ff3fbe",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/tiles_checker/tiles_checker_512_albedo.ktx2",
+          "bytes": 56906,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/tiles_checker/tiles_checker_512_normal.ktx2",
+          "bytes": 7220,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/tiles_checker/tiles_checker_512_orm.ktx2",
+          "bytes": 18726,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 82852,
+      "gpu": {
+        "desktop": 1048575,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/tiles_checker/tiles_checker_1024_albedo.ktx2",
+          "bytes": 185034,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/tiles_checker/tiles_checker_1024_normal.ktx2",
+          "bytes": 77088,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/tiles_checker/tiles_checker_1024_orm.ktx2",
+          "bytes": 62083,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 324205,
+      "gpu": {
+        "desktop": 4194303,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#7d726e",
+    "avgRoughness": 0.507,
+    "avgMetalness": 0.002,
+    "avgAO": 0.943,
+    "coverage": 1
+  }
+}

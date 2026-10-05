@@ -1,0 +1,195 @@
+{
+  "id": "cardboard_box_01",
+  "recipe": "7019eb1e2079",
+  "size": [
+    0.386,
+    0.342,
+    0.516
+  ],
+  "radius": 0.365,
+  "lodDistances": [
+    0,
+    6,
+    16
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/cardboard_box_01/cardboard_box_01_512.glb",
+      "bytes": 186568,
+      "srcTris": 16952,
+      "lods": [
+        {
+          "tris": 1200
+        },
+        {
+          "tris": 420
+        }
+      ],
+      "parts": [
+        "cardboard_box_01"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.192,
+          -0.007,
+          -0.225
+        ],
+        "max": [
+          0.194,
+          0.335,
+          0.291
+        ]
+      },
+      "textures": [
+        {
+          "name": "cardboard_box_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 84106,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "cardboard_box_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 55894,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "cardboard_box_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 28888,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 31060,
+      "gpu": {
+        "desktop": 1079635,
+        "mobile": 555349,
+        "rgba8": 4225363
+      },
+      "materials": [
+        {
+          "name": "cardboard_box_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        16
+      ]
+    },
+    "1024": {
+      "path": "models/cardboard_box_01/cardboard_box_01_1024.glb",
+      "bytes": 538700,
+      "srcTris": 16952,
+      "lods": [
+        {
+          "tris": 3000
+        },
+        {
+          "tris": 1200
+        },
+        {
+          "tris": 420
+        }
+      ],
+      "parts": [
+        "cardboard_box_01"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.192,
+          -0.007,
+          -0.225
+        ],
+        "max": [
+          0.194,
+          0.335,
+          0.291
+        ]
+      },
+      "textures": [
+        {
+          "name": "cardboard_box_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 240071,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "cardboard_box_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 172182,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "cardboard_box_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 86319,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 85492,
+      "gpu": {
+        "desktop": 4279795,
+        "mobile": 2182645,
+        "rgba8": 16862707
+      },
+      "materials": [
+        {
+          "name": "cardboard_box_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        6,
+        16
+      ]
+    }
+  }
+}

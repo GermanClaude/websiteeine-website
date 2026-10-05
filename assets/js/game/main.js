@@ -301,6 +301,7 @@ function setState(state) {
   if (dynres) dynres.clearSamples();
   G.events.emit('match:state', { state, prev });
   updateLockHint();
+  if (state === 'lobby') scheduleLobbyPrewarm();
 }
 
 const errorKeys = new Set();
@@ -559,6 +560,37 @@ async function runJobs(jobs, live) {
   }
 }
 
+// Lobby: dieselben Vorarbeiten im Leerlauf – für die wahrscheinliche Konfiguration (URL-Parameter bzw.
+// letzte Wahl, damit ist die Lobby vorbelegt), je Leerlauf-Rückruf ein Schritt und nur, solange seit 1,5 s
+// keine Eingabe kam (ein Schritt kann ein Bild verzögern). Was übrig bleibt, erledigt der Ladebildschirm.
+let lastInputAt = 0;
+for (const type of ['pointerdown', 'keydown', 'wheel', 'touchstart']) {
+  window.addEventListener(type, () => { lastInputAt = performance.now(); }, { passive: true, capture: true });
+}
+const onIdle = typeof requestIdleCallback === 'function'
+  ? (fn) => requestIdleCallback(fn)
+  : (fn) => setTimeout(() => fn({ timeRemaining: () => 10 }), 250);
+let lobbyWarm = null; // { jobs } solange die Lobby-Vorarbeit läuft
+
+function scheduleLobbyPrewarm() {
+  if (lobbyWarm) return;
+  const run = (lobbyWarm = { jobs: null });
+  const tick = (deadline) => {
+    if (lobbyWarm !== run) return;
+    if (G.match.state !== 'lobby') { lobbyWarm = null; return; }
+    if (document.hidden || performance.now() - lastInputAt < 1500 || deadline.timeRemaining() < 10) {
+      setTimeout(() => onIdle(tick), 300);
+      return;
+    }
+    if (!run.jobs) run.jobs = safe('lobbyPrewarm', () => matchAssetJobs(normalizeConfig(configFromParams()), null)) || [];
+    const job = run.jobs.shift();
+    if (!job) { lobbyWarm = null; return; }
+    safe('prepareMatchAssets', job);
+    onIdle(tick);
+  };
+  setTimeout(() => onIdle(tick), 1500);
+}
+
 /**
  * Startet ein Match (Lobby „Einsatz starten“, Revanche, autostart). Läuft bereits ein Start, wird dieser
  * abgebrochen und danach mit der neuen Konfiguration begonnen (nichts geht verloren, nichts startet doppelt).
@@ -639,7 +671,8 @@ async function runStart(config, gen) {
 
     G.combat.attach(G);
     G.weapons.attach(G);
-    G.effects.attach(G);
+    G.effects.attach(G); // erstes Match: Partikel-/Decal-Schichten und ihre Texturen
+    if (!(await nextStep(0.865))) { await teardownMatch({ keepWorld: true }); return; }
     G.audio.attach(G);
     audioAttached = true;
 
@@ -697,19 +730,38 @@ function lightFreeParts(root, out) {
 
 /**
  * Shader vorkompilieren, damit der erste Schuss nicht ruckelt – in Zeitscheiben: Teilbäume der Szene und des
- * Viewmodels einzeln (Lichter aus der jeweiligen Zielszene), dazwischen Bildpausen. Danach ein Durchgang über
- * die ganzen Szenen (nur noch Treffer im Programmcache; fängt Objekte unter einem Licht ab) und ein Bild,
- * das Geometrien/Texturen hochlädt.
+ * Viewmodels einzeln (Lichter aus der jeweiligen Zielszene), dazwischen Bildpausen. Je Teilbaum werden auch
+ * seine Texturen hochgeladen (`initTexture`, ohne Wirkung bei schon hochgeladenen) und – ohne
+ * KHR_parallel_shader_compile – die neuen Programme fertig gelinkt (`getUniforms()` wartet wie das erste
+ * Zeichnen auf den Linker), damit diese Wartezeiten nicht gesammelt im ersten Bild anfallen. Danach ein
+ * Durchgang über die ganzen Szenen (nur noch Treffer im Programmcache; fängt Objekte unter einem Licht ab)
+ * und ein Bild, das die Geometrien hochlädt.
  */
 async function warmUp(live = () => true) {
   const r = G.renderer.renderer;
+  const parallel = typeof r.compileAsync === 'function' && !!r.extensions && r.extensions.has('KHR_parallel_shader_compile');
+  const settled = new Set();
+  const settle = (materials) => {
+    for (const m of materials) {
+      if (settled.has(m)) continue;
+      settled.add(m);
+      for (const k in m) {
+        const v = m[k];
+        if (v && v.isTexture && !v.isRenderTargetTexture) r.initTexture(v);
+      }
+      if (!parallel) {
+        const program = r.properties.get(m).currentProgram;
+        if (program && typeof program.getUniforms === 'function') program.getUniforms();
+      }
+    }
+  };
   try {
     G.player._updateCamera(0);
     const passes = [[G.scene, G.camera], [G.viewmodel.scene, G.viewmodel.camera]];
     let t = performance.now();
     for (const [scene, camera] of passes) {
       for (const part of lightFreeParts(scene, [])) {
-        r.compile(part, camera, scene);
+        settle(r.compile(part, camera, scene));
         if (performance.now() - t > 12) {
           await nextFrame();
           if (!live()) return;
@@ -718,11 +770,11 @@ async function warmUp(live = () => true) {
       }
     }
     // compileAsync nur mit KHR_parallel_shader_compile (sonst warnt three.js) – sonst synchron
-    if (typeof r.compileAsync === 'function' && r.extensions && r.extensions.has('KHR_parallel_shader_compile')) {
+    if (parallel) {
       const jobs = passes.map(([scene, camera]) => r.compileAsync(scene, camera));
       await Promise.race([Promise.all(jobs), new Promise((res) => setTimeout(res, 4000))]);
     } else {
-      for (const [scene, camera] of passes) r.compile(scene, camera);
+      for (const [scene, camera] of passes) settle(r.compile(scene, camera));
     }
     await nextFrame();
     if (!live()) return;

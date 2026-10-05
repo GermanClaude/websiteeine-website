@@ -1,0 +1,111 @@
+{
+  "id": "wallpaper_stained",
+  "recipe": "402e8f1ae0e7",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/wallpaper_stained/wallpaper_stained_512_albedo.ktx2",
+          "bytes": 60062,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/wallpaper_stained/wallpaper_stained_512_normal.ktx2",
+          "bytes": 70784,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/wallpaper_stained/wallpaper_stained_512_orm.ktx2",
+          "bytes": 24021,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 154867,
+      "gpu": {
+        "desktop": 1048575,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/wallpaper_stained/wallpaper_stained_1024_albedo.ktx2",
+          "bytes": 193719,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/wallpaper_stained/wallpaper_stained_1024_normal.ktx2",
+          "bytes": 209710,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/wallpaper_stained/wallpaper_stained_1024_orm.ktx2",
+          "bytes": 81385,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 484814,
+      "gpu": {
+        "desktop": 4194303,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#b5b4ab",
+    "avgRoughness": 0.621,
+    "avgMetalness": 0,
+    "avgAO": 1,
+    "coverage": 1
+  }
+}

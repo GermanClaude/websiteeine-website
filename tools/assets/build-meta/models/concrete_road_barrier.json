@@ -1,0 +1,195 @@
+{
+  "id": "concrete_road_barrier",
+  "recipe": "ee3678bea12b",
+  "size": [
+    1.544,
+    0.828,
+    0.639
+  ],
+  "radius": 0.932,
+  "lodDistances": [
+    0,
+    13.1,
+    37.3
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/concrete_road_barrier/concrete_road_barrier_512.glb",
+      "bytes": 197712,
+      "srcTris": 60928,
+      "lods": [
+        {
+          "tris": 1594
+        },
+        {
+          "tris": 552
+        }
+      ],
+      "parts": [
+        "concrete_road_barrier"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.774,
+          -0.008,
+          -0.295
+        ],
+        "max": [
+          0.77,
+          0.82,
+          0.344
+        ]
+      },
+      "textures": [
+        {
+          "name": "concrete_road_barrier_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 81885,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "concrete_road_barrier_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 61012,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "concrete_road_barrier_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 31950,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 44534,
+      "gpu": {
+        "desktop": 1093109,
+        "mobile": 568823,
+        "rgba8": 4238837
+      },
+      "materials": [
+        {
+          "name": "concrete_road_barrier",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        37.3
+      ]
+    },
+    "1024": {
+      "path": "models/concrete_road_barrier/concrete_road_barrier_1024.glb",
+      "bytes": 609268,
+      "srcTris": 60928,
+      "lods": [
+        {
+          "tris": 3994
+        },
+        {
+          "tris": 1594
+        },
+        {
+          "tris": 552
+        }
+      ],
+      "parts": [
+        "concrete_road_barrier"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.774,
+          -0.008,
+          -0.295
+        ],
+        "max": [
+          0.77,
+          0.822,
+          0.344
+        ]
+      },
+      "textures": [
+        {
+          "name": "concrete_road_barrier_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 238908,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "concrete_road_barrier_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 198724,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "concrete_road_barrier_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 118702,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 120858,
+      "gpu": {
+        "desktop": 4315161,
+        "mobile": 2218011,
+        "rgba8": 16898073
+      },
+      "materials": [
+        {
+          "name": "concrete_road_barrier",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        13.1,
+        37.3
+      ]
+    }
+  }
+}

@@ -1,0 +1,195 @@
+{
+  "id": "cement_bag",
+  "recipe": "70d88aade6ae",
+  "size": [
+    0.463,
+    0.178,
+    0.699
+  ],
+  "radius": 0.429,
+  "lodDistances": [
+    0,
+    6,
+    17.1
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/cement_bag/cement_bag_512.glb",
+      "bytes": 124900,
+      "srcTris": 844,
+      "lods": [
+        {
+          "tris": 336
+        },
+        {
+          "tris": 118
+        }
+      ],
+      "parts": [
+        "cement_bag"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.229,
+          0.002,
+          -0.348
+        ],
+        "max": [
+          0.234,
+          0.18,
+          0.351
+        ]
+      },
+      "textures": [
+        {
+          "name": "cement_bag_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 43392,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "cement_bag_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 54425,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "cement_bag_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 17823,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 10182,
+      "gpu": {
+        "desktop": 1058757,
+        "mobile": 534471,
+        "rgba8": 4204485
+      },
+      "materials": [
+        {
+          "name": "cement_bag",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        17.1
+      ]
+    },
+    "1024": {
+      "path": "models/cement_bag/cement_bag_1024.glb",
+      "bytes": 397512,
+      "srcTris": 844,
+      "lods": [
+        {
+          "tris": 844
+        },
+        {
+          "tris": 336
+        },
+        {
+          "tris": 118
+        }
+      ],
+      "parts": [
+        "cement_bag"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.229,
+          0.001,
+          -0.348
+        ],
+        "max": [
+          0.234,
+          0.181,
+          0.351
+        ]
+      },
+      "textures": [
+        {
+          "name": "cement_bag_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 135568,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "cement_bag_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 171113,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "cement_bag_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 73142,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 27082,
+      "gpu": {
+        "desktop": 4221385,
+        "mobile": 2124235,
+        "rgba8": 16804297
+      },
+      "materials": [
+        {
+          "name": "cement_bag",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        6,
+        17.1
+      ]
+    }
+  }
+}

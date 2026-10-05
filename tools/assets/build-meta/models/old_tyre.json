@@ -1,0 +1,195 @@
+{
+  "id": "old_tyre",
+  "recipe": "9fa5cac106e4",
+  "size": [
+    0.6,
+    0.6,
+    0.165
+  ],
+  "radius": 0.432,
+  "lodDistances": [
+    0,
+    6.1,
+    17.3
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/old_tyre/old_tyre_512.glb",
+      "bytes": 166692,
+      "srcTris": 2880,
+      "lods": [
+        {
+          "tris": 1152
+        },
+        {
+          "tris": 402
+        }
+      ],
+      "parts": [
+        "old_tyre"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.3,
+          -0.3,
+          -0.083
+        ],
+        "max": [
+          0.3,
+          0.3,
+          0.082
+        ]
+      },
+      "textures": [
+        {
+          "name": "old_tyre_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 57070,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "old_tyre_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 57460,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "old_tyre_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 31323,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 37594,
+      "gpu": {
+        "desktop": 1086169,
+        "mobile": 561883,
+        "rgba8": 4231897
+      },
+      "materials": [
+        {
+          "name": "old_tyre",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        17.3
+      ]
+    },
+    "1024": {
+      "path": "models/old_tyre/old_tyre_1024.glb",
+      "bytes": 541044,
+      "srcTris": 2880,
+      "lods": [
+        {
+          "tris": 2880
+        },
+        {
+          "tris": 1152
+        },
+        {
+          "tris": 402
+        }
+      ],
+      "parts": [
+        "old_tyre"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.3,
+          -0.3,
+          -0.083
+        ],
+        "max": [
+          0.3,
+          0.3,
+          0.082
+        ]
+      },
+      "textures": [
+        {
+          "name": "old_tyre_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 191144,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "old_tyre_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 185185,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "old_tyre_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 118438,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 100854,
+      "gpu": {
+        "desktop": 4295157,
+        "mobile": 2198007,
+        "rgba8": 16878069
+      },
+      "materials": [
+        {
+          "name": "old_tyre",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        6.1,
+        17.3
+      ]
+    }
+  }
+}

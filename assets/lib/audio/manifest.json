@@ -57,7 +57,9 @@
      "gainDb": -1.1
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 7.5
+   },
    "note": "Nah/Spieler: AR-15 (5,56) + Savage 10 (.300 BLK)"
   },
   "gunfar_ar": {
@@ -93,7 +95,9 @@
      "gainDb": -1.7
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 7
+   },
    "note": "Mittel-Distanz mit echtem Freigelände-Echo: AR-15 (5,56) + Savage 10 (.300 BLK)"
   },
   "guntail_ar": {
@@ -129,7 +133,9 @@
      "gainDb": -1.7
     }
    ],
-   "mix": null,
+   "mix": {
+    "relNearDb": -8
+   },
    "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: AR-15 (5,56) + Savage 10 (.300 BLK)"
   },
   "gun_ar_heavy": {
@@ -189,7 +195,9 @@
      "gainDb": -1.1
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 7.5
+   },
    "note": "Nah/Spieler: AK-47 (7,62×39)"
   },
   "gunfar_ar_heavy": {
@@ -225,7 +233,9 @@
      "gainDb": -1.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 10.5
+   },
    "note": "Mittel-Distanz mit echtem Freigelände-Echo: AK-47 (7,62×39)"
   },
   "guntail_ar_heavy": {
@@ -261,7 +271,9 @@
      "gainDb": -1.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "relNearDb": -8
+   },
    "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: AK-47 (7,62×39)"
   },
   "gun_smg": {
@@ -321,7 +333,9 @@
      "gainDb": -1.1
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 9
+   },
    "note": "Nah/Spieler: Carl Gustav M45 (9 mm) + PPSh (7,62×25)"
   },
   "gunfar_smg": {
@@ -357,7 +371,9 @@
      "gainDb": -0.9
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 10
+   },
    "note": "Mittel-Distanz mit echtem Freigelände-Echo: Carl Gustav M45 (9 mm) + PPSh (7,62×25)"
   },
   "guntail_smg": {
@@ -393,7 +409,9 @@
      "gainDb": -2
     }
    ],
-   "mix": null,
+   "mix": {
+    "relNearDb": -8
+   },
    "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Carl Gustav M45 (9 mm) + PPSh (7,62×25)"
   },
   "gun_lmg": {
@@ -441,7 +459,9 @@
      "gainDb": -1
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 9.5
+   },
    "note": "Nah/Spieler: Mosin-Nagant (7,62×54R – Patrone des PKM)"
   },
   "gunfar_lmg": {
@@ -477,7 +497,9 @@
      "gainDb": -1.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 6.5
+   },
    "note": "Mittel-Distanz mit echtem Freigelände-Echo: Mosin-Nagant (7,62×54R – Patrone des PKM)"
   },
   "guntail_lmg": {
@@ -513,7 +535,9 @@
      "gainDb": -1.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "relNearDb": -8
+   },
    "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Mosin-Nagant (7,62×54R – Patrone des PKM)"
   },
   "gun_sniper": {
@@ -573,7 +597,9 @@
      "gainDb": -1.2
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 10
+   },
    "note": "Nah/Spieler: Tikka T3 + Springfield 1917 (.30-06)"
   },
   "gunfar_sniper": {
@@ -609,7 +635,9 @@
      "gainDb": -1.5
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 5.5
+   },
    "note": "Mittel-Distanz mit echtem Freigelände-Echo: Tikka T3 + Springfield 1917 (.30-06)"
   },
   "guntail_sniper": {
@@ -645,7 +673,9 @@
      "gainDb": -1.7
     }
    ],
-   "mix": null,
+   "mix": {
+    "relNearDb": -8
+   },
    "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Tikka T3 + Springfield 1917 (.30-06)"
   },
   "gun_shotgun": {
@@ -705,7 +735,9 @@
      "gainDb": -1.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 8.5
+   },
    "note": "Nah/Spieler: Benelli Nova + Winchester Model 12 (12 ga)"
   },
   "gunfar_shotgun": {
@@ -741,7 +773,9 @@
      "gainDb": -1.7
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 7
+   },
    "note": "Mittel-Distanz mit echtem Freigelände-Echo: Benelli Nova + Winchester Model 12 (12 ga)"
   },
   "guntail_shotgun": {
@@ -777,7 +811,9 @@
      "gainDb": -1.7
     }
    ],
-   "mix": null,
+   "mix": {
+    "relNearDb": -8
+   },
    "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Benelli Nova + Winchester Model 12 (12 ga)"
   },
   "gun_pistol": {
@@ -837,7 +873,9 @@
      "gainDb": -0.9
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 9.5
+   },
    "note": "Nah/Spieler: Walther PPQ (9 mm) + Bersa (.380)"
   },
   "gunfar_pistol": {
@@ -873,7 +911,9 @@
      "gainDb": -1.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 8
+   },
    "note": "Mittel-Distanz mit echtem Freigelände-Echo: Walther PPQ (9 mm) + Bersa (.380)"
   },
   "guntail_pistol": {
@@ -909,7 +949,9 @@
      "gainDb": -1.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "relNearDb": -8
+   },
    "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Walther PPQ (9 mm) + Bersa (.380)"
   },
   "gun_pistol_heavy": {
@@ -969,7 +1011,9 @@
      "gainDb": -1
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 7
+   },
    "note": "Nah/Spieler: 1911 (.45 ACP) + S&W 642 (.38 Special)"
   },
   "gunfar_pistol_heavy": {
@@ -1005,7 +1049,9 @@
      "gainDb": -1.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 3.5
+   },
    "note": "Mittel-Distanz mit echtem Freigelände-Echo: 1911 (.45 ACP) + S&W 642 (.38 Special)"
   },
   "guntail_pistol_heavy": {
@@ -1041,7 +1087,9 @@
      "gainDb": -1.7
     }
    ],
-   "mix": null,
+   "mix": {
+    "relNearDb": -8
+   },
    "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: 1911 (.45 ACP) + S&W 642 (.38 Special)"
   },
   "gun_dmr": {
@@ -1161,7 +1209,9 @@
      "gainDb": -1.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "relNearDb": -8
+   },
    "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Norinco SKS (7,62×39) – Präzisionsgewehr/Halbautomat"
   },
   "gun_lever": {
@@ -1245,7 +1295,9 @@
      "gainDb": -1.7
     }
    ],
-   "mix": null,
+   "mix": {
+    "relNearDb": -8
+   },
    "note": "Außen-Nachhall (ohne Direktschall) zum Unterlegen des eigenen Schusses: Marlin 336 (.30-30) – Unterhebel"
   },
   "gun_sniper_heavy": {
@@ -1329,7 +1381,9 @@
      "gainDb": -5.4
     }
    ],
-   "mix": null,
+   "mix": {
+    "relNearDb": -14
+   },
    "note": "AR-15 Verschlussfang/Verschluss schnellt vor – unter Gewehrschüsse mischen (≈ −14 dB)"
   },
   "mech_pistol": {
@@ -1353,7 +1407,9 @@
      "gainDb": 11.4
     }
    ],
-   "mix": null,
+   "mix": {
+    "relNearDb": -14
+   },
    "note": "Beretta M9 Schlitten schnellt vor – unter Pistolenschüsse mischen (≈ −16 dB)"
   },
   "reload_mag_out": {
@@ -1389,7 +1445,9 @@
      "gainDb": -2.1
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": -4
+   },
    "note": "AR-15 Magazin heraus (Blue Snowball)"
   },
   "reload_mag_in": {
@@ -1437,7 +1495,9 @@
      "gainDb": 4.4
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": -0.5
+   },
    "note": "AR-15 Magazin einsetzen (antippen + einrasten)"
   },
   "reload_bolt": {
@@ -1473,7 +1533,9 @@
      "gainDb": -3.2
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": -4
+   },
    "note": "Ladehebel zurück + vorschnellen (AR-15, AK/RPK)"
   },
   "bolt": {
@@ -1521,7 +1583,9 @@
      "gainDb": 4.7
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": -1
+   },
    "note": "Kammerverschluss repetieren (Mauser 98k ORTF, .22 TLM103)"
   },
   "pump": {
@@ -1557,7 +1621,9 @@
      "gainDb": 8
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": -1
+   },
    "note": "Vorderschaft repetieren (echte Pumpflinten)"
   },
   "slide_release": {
@@ -1605,7 +1671,9 @@
      "gainDb": 2
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": -1.5
+   },
    "note": "Pistolenschlitten schnellt vor (Nachladen Pistole, statt reload_bolt)"
   },
   "reload_pistol": {
@@ -1629,7 +1697,9 @@
      "gainDb": -5.5
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": -2.5
+   },
    "note": "1911: Magazin einsetzen + Schlitten (Zoom H4n, innen)"
   },
   "dryfire": {
@@ -1677,7 +1747,9 @@
      "gainDb": 3.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 1
+   },
    "note": "Abzug ohne Patrone (S&W 9 mm, Ruger 10/22, Glock 17)"
   },
   "shell_concrete": {
@@ -1737,7 +1809,12 @@
      "gainDb": 7.3
     }
    ],
-   "mix": null,
+   "mix": {
+    "delay": [
+     0.35,
+     0.7
+    ]
+   },
    "note": "Messinghülsen auf Beton (25 cm, Tascam DR-40)"
   },
   "shell_hard": {
@@ -1773,7 +1850,12 @@
      "gainDb": 8.7
     }
    ],
-   "mix": null,
+   "mix": {
+    "delay": [
+     0.35,
+     0.7
+    ]
+   },
    "note": "Einzelne Hülse auf Tisch/harter Fläche"
   },
   "shell_shotgun": {
@@ -1809,7 +1891,12 @@
      "gainDb": -4
     }
    ],
-   "mix": null,
+   "mix": {
+    "delay": [
+     0.35,
+     0.7
+    ]
+   },
    "note": "Schrotpatronenhülsen fallen (Holzboden / draußen)"
   },
   "step_concrete": {
@@ -1869,7 +1956,9 @@
      "gainDb": 8
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": -2.5
+   },
    "note": "Wanderstiefel auf Stein"
   },
   "step_wood": {
@@ -1929,7 +2018,9 @@
      "gainDb": 8.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 1
+   },
    "note": "Wanderstiefel auf Holzbohle"
   },
   "step_dirt": {
@@ -1989,7 +2080,9 @@
      "gainDb": 9.9
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 2
+   },
    "note": "Feldweg (Ferse + Abrollen)"
   },
   "step_gravel": {
@@ -2049,7 +2142,9 @@
      "gainDb": 8.1
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 1
+   },
    "note": "Wanderstiefel auf Kies (Engine: Alias gravel→dirt; als eigene Fläche nutzbar)"
   },
   "step_metal": {
@@ -2109,7 +2204,9 @@
      "gainDb": 27.5
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 1
+   },
    "note": "Metallsteg (für Spiele geschnitten)"
   },
   "step_grass": {
@@ -2169,7 +2266,9 @@
      "gainDb": 3.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 10
+   },
    "note": "Kenney Impact Sounds (Gras)"
   },
   "land": {
@@ -2193,7 +2292,9 @@
      "gainDb": 3.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 8
+   },
    "note": "Landung auf Stein (Zoom H2n)"
   },
   "bodyfall": {
@@ -2241,7 +2342,9 @@
      "gainDb": 12
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 4.5
+   },
    "note": "Körper fällt (zu death/Ragdoll)"
   },
   "impact_concrete": {
@@ -2289,7 +2392,9 @@
      "gainDb": 5.7
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": -3
+   },
    "note": "Stein/Ziegel-Treffer mit Splittern (MKH416; Axt auf Ziegel; Kenney Spitzhacke)"
   },
   "impact_wood": {
@@ -2337,7 +2442,9 @@
      "gainDb": 8.2
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 6.5
+   },
    "note": "Steine auf Holz (als Kugeleinschlag aufgenommen)"
   },
   "impact_dirt": {
@@ -2385,7 +2492,9 @@
      "gainDb": -3.2
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 0.5
+   },
    "note": "Stein in Erde; Peitsche auf Boden (hell)"
   },
   "impact_metal": {
@@ -2433,7 +2542,9 @@
      "gainDb": 0.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": -0.5
+   },
    "note": "Topf/Pfanne „Ping“; Kenney Metall (bandbegrenzt)"
   },
   "impact_glass": {
@@ -2469,7 +2580,9 @@
      "gainDb": 4.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 1.5
+   },
    "note": "Glasbruch (fern, innen); Kenney Glas"
   },
   "hit_flesh": {
@@ -2529,7 +2642,9 @@
      "gainDb": -2
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 0
+   },
    "note": "„Visceral Bullet Impacts“ – nur der Körpertreffer, ohne Pfeifen"
   },
   "bullet_whiz": {
@@ -2553,7 +2668,9 @@
      "gainDb": 0
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 1.5
+   },
    "note": "Vorbeiflug (Peitsche, Unterschall)"
   },
   "explosion": {
@@ -2589,7 +2706,9 @@
      "gainDb": -4.3
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 1.5
+   },
    "note": "Granate/Sprengung mittlere Distanz (Kinoton); Sprengung aus US-Regierungsvideo (gemeinfrei)"
   },
   "explosion_far": {
@@ -2625,7 +2744,9 @@
      "gainDb": 5.9
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 0.5
+   },
    "note": "Ferne Explosion (metallisch, Kostrava); Granate auf Truppenübungsplatz (qubodup, Ende abrupt → ausgeblendet)"
   },
   "grenade_bounce": {
@@ -2673,7 +2794,9 @@
      "gainDb": -1.7
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": -5.5
+   },
    "note": "Blechdose springt auf Beton"
   },
   "grenade_spoon": {
@@ -2697,7 +2820,9 @@
      "gainDb": -2
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 9
+   },
    "note": "Granatenbügel fällt zu Boden (nach grenade_pin)"
   },
   "melee_swing": {
@@ -2733,7 +2858,9 @@
      "gainDb": 9.1
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 0
+   },
    "note": "Bambus-/Stockschwung"
   },
   "melee_hit": {
@@ -2781,7 +2908,9 @@
      "gainDb": 6.9
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 10.5
+   },
    "note": "Messerstich (Melone/Kohl)"
   },
   "amb_bed_harbor": {
@@ -2805,7 +2934,9 @@
      "gainDb": 16.7
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 1.5
+   },
    "note": "Hafen: Boote am Steg, Wellen, Fahnen (Sennheiser 416)"
   },
   "amb_bed_desert": {
@@ -2829,7 +2960,9 @@
      "gainDb": 17.3
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 9
+   },
    "note": "Altstadt: ferne Stadt (Dubai)"
   },
   "amb_bed_industrial": {
@@ -2853,7 +2986,9 @@
      "gainDb": -2.4
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 13.5
+   },
    "note": "Werk: große Lagerhalle/Fabrik"
   },
   "amb_bed_range": {
@@ -2877,7 +3012,9 @@
      "gainDb": 16.6
     }
    ],
-   "mix": null,
+   "mix": {
+    "matchDb": 10.5
+   },
    "note": "Schießstand: Land im Morgengrauen (Zikaden, Vögel)"
   }
  },

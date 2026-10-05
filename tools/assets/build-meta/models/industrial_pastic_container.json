@@ -1,0 +1,199 @@
+{
+  "id": "industrial_pastic_container",
+  "recipe": "2134b2f178ad",
+  "size": [
+    0.458,
+    0.419,
+    0.631
+  ],
+  "radius": 0.443,
+  "lodDistances": [
+    0,
+    6.2,
+    17.7
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/industrial_pastic_container/industrial_pastic_container_512.glb",
+      "bytes": 213536,
+      "srcTris": 7118,
+      "lods": [
+        {
+          "tris": 4278
+        },
+        {
+          "tris": 4182
+        }
+      ],
+      "parts": [
+        "industrial_pastic_container",
+        "industrial_pastic_container_lid_a",
+        "industrial_pastic_container_lid_b"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.226,
+          0,
+          -0.316
+        ],
+        "max": [
+          0.232,
+          0.419,
+          0.315
+        ]
+      },
+      "textures": [
+        {
+          "name": "industrial_pastic_container_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 12754,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "industrial_pastic_container_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 23578,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "industrial_pastic_container_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 42256,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 395126,
+      "gpu": {
+        "desktop": 1443701,
+        "mobile": 919415,
+        "rgba8": 4589429
+      },
+      "materials": [
+        {
+          "name": "industrial_pastic_container",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        17.7
+      ]
+    },
+    "1024": {
+      "path": "models/industrial_pastic_container/industrial_pastic_container_1024.glb",
+      "bytes": 454448,
+      "srcTris": 7118,
+      "lods": [
+        {
+          "tris": 5141
+        },
+        {
+          "tris": 4278
+        },
+        {
+          "tris": 4182
+        }
+      ],
+      "parts": [
+        "industrial_pastic_container",
+        "industrial_pastic_container_lid_a",
+        "industrial_pastic_container_lid_b"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.226,
+          0,
+          -0.316
+        ],
+        "max": [
+          0.232,
+          0.419,
+          0.315
+        ]
+      },
+      "textures": [
+        {
+          "name": "industrial_pastic_container_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 35756,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "industrial_pastic_container_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 54923,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "industrial_pastic_container_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 154181,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 617020,
+      "gpu": {
+        "desktop": 4811323,
+        "mobile": 2714173,
+        "rgba8": 17394235
+      },
+      "materials": [
+        {
+          "name": "industrial_pastic_container",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        6.2,
+        17.7
+      ]
+    }
+  }
+}

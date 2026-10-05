@@ -1,0 +1,111 @@
+{
+  "id": "plaster_white_peeling",
+  "recipe": "a71d8fa248f6",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/plaster_white_peeling/plaster_white_peeling_512_albedo.ktx2",
+          "bytes": 64128,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/plaster_white_peeling/plaster_white_peeling_512_normal.ktx2",
+          "bytes": 91617,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/plaster_white_peeling/plaster_white_peeling_512_orm.ktx2",
+          "bytes": 36748,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 192493,
+      "gpu": {
+        "desktop": 1048575,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/plaster_white_peeling/plaster_white_peeling_1024_albedo.ktx2",
+          "bytes": 212500,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/plaster_white_peeling/plaster_white_peeling_1024_normal.ktx2",
+          "bytes": 257701,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/plaster_white_peeling/plaster_white_peeling_1024_orm.ktx2",
+          "bytes": 137344,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 607545,
+      "gpu": {
+        "desktop": 4194303,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#bab9b3",
+    "avgRoughness": 0.52,
+    "avgMetalness": 0.005,
+    "avgAO": 0.814,
+    "coverage": 1
+  }
+}

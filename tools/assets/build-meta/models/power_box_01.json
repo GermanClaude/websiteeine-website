@@ -1,0 +1,197 @@
+{
+  "id": "power_box_01",
+  "recipe": "2bb5b6bb8619",
+  "size": [
+    0.461,
+    0.504,
+    0.399
+  ],
+  "radius": 0.396,
+  "lodDistances": [
+    0,
+    6,
+    16
+  ],
+  "tiers": {
+    "512": {
+      "path": "models/power_box_01/power_box_01_512.glb",
+      "bytes": 258100,
+      "srcTris": 21272,
+      "lods": [
+        {
+          "tris": 3875
+        },
+        {
+          "tris": 3833
+        }
+      ],
+      "parts": [
+        "power_box_01_door",
+        "power_box_01_box"
+      ],
+      "lodShift": true,
+      "bounds": {
+        "min": [
+          -0.286,
+          -0.252,
+          -0.047
+        ],
+        "max": [
+          0.175,
+          0.252,
+          0.352
+        ]
+      },
+      "textures": [
+        {
+          "name": "power_box_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 39978,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "power_box_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 49091,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "power_box_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 42300,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      ],
+      "geometryBytes": 312382,
+      "gpu": {
+        "desktop": 1360957,
+        "mobile": 836671,
+        "rgba8": 4506685
+      },
+      "materials": [
+        {
+          "name": "power_box_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        16
+      ]
+    },
+    "1024": {
+      "path": "models/power_box_01/power_box_01_1024.glb",
+      "bytes": 672748,
+      "srcTris": 21272,
+      "lods": [
+        {
+          "tris": 5998
+        },
+        {
+          "tris": 3875
+        },
+        {
+          "tris": 3833
+        }
+      ],
+      "parts": [
+        "power_box_01_door",
+        "power_box_01_box"
+      ],
+      "lodShift": false,
+      "bounds": {
+        "min": [
+          -0.286,
+          -0.252,
+          -0.047
+        ],
+        "max": [
+          0.175,
+          0.252,
+          0.352
+        ]
+      },
+      "textures": [
+        {
+          "name": "power_box_01_nor_gl_1k.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 163734,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "power_box_01_diff_1k.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 155716,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "power_box_01_arm_1k.ktx2",
+          "role": "orm",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 142931,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 529584,
+      "gpu": {
+        "desktop": 4723887,
+        "mobile": 2626737,
+        "rgba8": 17306799
+      },
+      "materials": [
+        {
+          "name": "power_box_01",
+          "alphaMode": "OPAQUE",
+          "doubleSided": true
+        }
+      ],
+      "lodDistances": [
+        0,
+        6,
+        16
+      ]
+    }
+  }
+}

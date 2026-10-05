@@ -1,0 +1,111 @@
+{
+  "id": "plaster_painted",
+  "recipe": "6d1537130bce",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/plaster_painted/plaster_painted_512_albedo.ktx2",
+          "bytes": 49844,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/plaster_painted/plaster_painted_512_normal.ktx2",
+          "bytes": 61703,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/plaster_painted/plaster_painted_512_orm.ktx2",
+          "bytes": 21610,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 133157,
+      "gpu": {
+        "desktop": 1048575,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/plaster_painted/plaster_painted_1024_albedo.ktx2",
+          "bytes": 170228,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/plaster_painted/plaster_painted_1024_normal.ktx2",
+          "bytes": 209350,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/plaster_painted/plaster_painted_1024_orm.ktx2",
+          "bytes": 93875,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 473453,
+      "gpu": {
+        "desktop": 4194303,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#aba3a0",
+    "avgRoughness": 0.919,
+    "avgMetalness": 0.001,
+    "avgAO": 0.957,
+    "coverage": 1
+  }
+}

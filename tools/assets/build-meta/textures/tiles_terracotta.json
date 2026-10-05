@@ -1,0 +1,111 @@
+{
+  "id": "tiles_terracotta",
+  "recipe": "925d756dabd5",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/tiles_terracotta/tiles_terracotta_512_albedo.ktx2",
+          "bytes": 48909,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/tiles_terracotta/tiles_terracotta_512_normal.ktx2",
+          "bytes": 23776,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/tiles_terracotta/tiles_terracotta_512_orm.ktx2",
+          "bytes": 27687,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 100372,
+      "gpu": {
+        "desktop": 1048575,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/tiles_terracotta/tiles_terracotta_1024_albedo.ktx2",
+          "bytes": 169870,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/tiles_terracotta/tiles_terracotta_1024_normal.ktx2",
+          "bytes": 147148,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/tiles_terracotta/tiles_terracotta_1024_orm.ktx2",
+          "bytes": 113813,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 430831,
+      "gpu": {
+        "desktop": 4194303,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#4e271a",
+    "avgRoughness": 0.751,
+    "avgMetalness": 0.002,
+    "avgAO": 0.935,
+    "coverage": 1
+  }
+}

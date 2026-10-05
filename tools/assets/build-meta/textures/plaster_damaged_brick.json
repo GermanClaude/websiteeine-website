@@ -1,0 +1,111 @@
+{
+  "id": "plaster_damaged_brick",
+  "recipe": "eaf37d5a0d7e",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/plaster_damaged_brick/plaster_damaged_brick_512_albedo.ktx2",
+          "bytes": 64017,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/plaster_damaged_brick/plaster_damaged_brick_512_normal.ktx2",
+          "bytes": 94046,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/plaster_damaged_brick/plaster_damaged_brick_512_orm.ktx2",
+          "bytes": 29714,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 187777,
+      "gpu": {
+        "desktop": 1048575,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/plaster_damaged_brick/plaster_damaged_brick_1024_albedo.ktx2",
+          "bytes": 210248,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/plaster_damaged_brick/plaster_damaged_brick_1024_normal.ktx2",
+          "bytes": 264248,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/plaster_damaged_brick/plaster_damaged_brick_1024_orm.ktx2",
+          "bytes": 100029,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 574525,
+      "gpu": {
+        "desktop": 4194303,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#958474",
+    "avgRoughness": 0.907,
+    "avgMetalness": 0.001,
+    "avgAO": 0.954,
+    "coverage": 1
+  }
+}

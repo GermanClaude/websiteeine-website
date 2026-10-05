@@ -118,4 +118,18 @@ add({ ...AMB, name: 'amb_bed_desert', v: 1, catalog: 'amb_bed_desert', src: 'fs:
 add({ ...AMB, name: 'amb_bed_industrial', v: 1, catalog: 'amb_bed_industrial', src: 'fs:278987', at: 0.4, len: 20, loop: 1.8, ch: 2, kbps: 64, note: 'Werk: große Lagerhalle/Fabrik' });
 add({ ...AMB, name: 'amb_bed_range', v: 1, catalog: 'amb_bed_range', src: 'fs:458113', at: 4, len: 28, loop: 2, ch: 2, kbps: 64, note: 'Schießstand: Land im Morgengrauen (Zikaden, Vögel)' });
 
+// Mischhinweise für die Integration (Manifest-Feld „mix“):
+// matchDb = Pegelkorrektur in dB auf den Katalog-gain, damit die Aufnahme so laut sitzt wie der heutige prozedurale Klang
+// (lauteste 400 ms, Variante 1 gegen Variante 0; dev/audio-lab.html → Messung). Schüsse: +7…+10 dB → die Transiente
+// läuft dann in den Master-Limiter (gewollt: „Punch“). relNearDb = Pegel der Schicht relativ zum Nahschuss des Spielers.
+const MATCH = {"gun_ar":7.5,"gunfar_ar":7,"gun_ar_heavy":7.5,"gunfar_ar_heavy":10.5,"gun_smg":9,"gunfar_smg":10,"gun_lmg":9.5,"gunfar_lmg":6.5,"gun_sniper":10,"gunfar_sniper":5.5,"gun_shotgun":8.5,"gunfar_shotgun":7,"gun_pistol":9.5,"gunfar_pistol":8,"gun_pistol_heavy":7,"gunfar_pistol_heavy":3.5,"reload_mag_out":-4,"reload_mag_in":-0.5,"reload_bolt":-4,"bolt":-1,"pump":-1,"dryfire":1,"slide_release":-1.5,"reload_pistol":-2.5,"melee_swing":0,"melee_hit":10.5,"step_concrete":-2.5,"step_wood":1,"step_dirt":2,"step_gravel":1,"step_metal":1,"step_grass":10,"land":8,"impact_concrete":-3,"impact_wood":6.5,"impact_dirt":0.5,"impact_metal":-0.5,"impact_glass":1.5,"hit_flesh":0,"bullet_whiz":1.5,"explosion":1.5,"explosion_far":0.5,"grenade_bounce":-5.5,"grenade_spoon":9,"bodyfall":4.5,"amb_bed_harbor":1.5,"amb_bed_desert":9,"amb_bed_industrial":13.5,"amb_bed_range":10.5};
+for (const r of R) {
+  const m = {};
+  if (MATCH[r.name] != null) m.matchDb = MATCH[r.name];
+  if (r.layer === 'tail') m.relNearDb = -8;
+  if (r.layer === 'mech') m.relNearDb = -14;
+  if (r.name.startsWith('shell_')) m.delay = [0.35, 0.7];
+  if (Object.keys(m).length) r.mix = m;
+}
+
 export const RECIPES = R;

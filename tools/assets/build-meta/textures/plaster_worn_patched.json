@@ -1,0 +1,111 @@
+{
+  "id": "plaster_worn_patched",
+  "recipe": "2d191c127bb2",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/plaster_worn_patched/plaster_worn_patched_512_albedo.ktx2",
+          "bytes": 58050,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/plaster_worn_patched/plaster_worn_patched_512_normal.ktx2",
+          "bytes": 48782,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/plaster_worn_patched/plaster_worn_patched_512_orm.ktx2",
+          "bytes": 19985,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 126817,
+      "gpu": {
+        "desktop": 1048575,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/plaster_worn_patched/plaster_worn_patched_1024_albedo.ktx2",
+          "bytes": 190073,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/plaster_worn_patched/plaster_worn_patched_1024_normal.ktx2",
+          "bytes": 188872,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/plaster_worn_patched/plaster_worn_patched_1024_orm.ktx2",
+          "bytes": 65917,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 444862,
+      "gpu": {
+        "desktop": 4194303,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#776e5e",
+    "avgRoughness": 0.971,
+    "avgMetalness": 0.001,
+    "avgAO": 0.965,
+    "coverage": 1
+  }
+}
