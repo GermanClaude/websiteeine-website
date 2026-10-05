@@ -345,7 +345,8 @@ export class ViewModel {
     const h = this.h, k = h.kick, ads = this._ads;
     if (h.action === 'knife') { this.playMelee(); return; }
     const vis = Number.isFinite(info.visual) ? clamp(info.visual, 0, 3) : 1;
-    const adsMul = 1 - 0.45 * ads, s = strength * vis;
+    // Stärke je Klasse (Controller: Scharfschütze 2,2, Schrot 2,0 …) gedämpft, sonst überschlagen schwere Waffen
+    const adsMul = 1 - 0.45 * ads, s = Math.pow(Math.max(0, strength), 0.6) * vis;
     const rnd = (Math.random() - 0.5) * 2;
     // Seitlicher Stoß in Richtung des Zielrückstoßes (sonst zufällig); kleiner Zufallsanteil bleibt
     const side = Number.isFinite(info.yaw) && Math.abs(info.yaw) > 1e-6 ? Math.sign(info.yaw) * (0.55 + 0.45 * Math.random()) : rnd;
