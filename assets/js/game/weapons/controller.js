@@ -118,6 +118,8 @@ export class WeaponController {
   /** { mag, reserve, magSize } der aktuellen Waffe (HUD-Komfort). */
   get ammo() { const s = this.current; return s ? { mag: s.mag, reserve: s.reserve, magSize: s.def.mag || 0 } : null; }
   get infiniteAmmo() { const m = this.G.mode; return !!(this.actor.isBot || (m && m.def && m.def.infiniteAmmo)); }
+  /** Außer Atem nach dem Atemanhalten im Zielfernrohr (HUD-Anzeige). */
+  get exhausted() { return this._exhausted > 0; }
 
   _weapons() { return (this.G.data && this.G.data.WEAPONS) || DATA_WEAPONS; }
   _equipmentDefs() { return (this.G.data && this.G.data.EQUIPMENT) || DATA_EQUIPMENT; }

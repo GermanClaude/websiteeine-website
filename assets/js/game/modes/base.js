@@ -2,11 +2,12 @@
 // Medaillen, Serienprämien, sichere Spawns, Respawn-Ausgleich ungleicher Teams, Punktetabelle, Ergebnis.
 // Unterklassen überschreiben die Haken onKillScored / onSuicide / tick / decide / extraRow.
 
+import { MODES, SCORE_RULES, MEDAL_RULES, isLongshot } from '../../shared/modes.data.js';
+import { WEAPONS } from '../../shared/weapons.data.js';
 import { chooseSpawn } from './spawns.js';
 import { MedalTracker } from './medals.js';
 import { StreakManager } from './streaks.js';
 
-const DEFAULT_SCORE = { kill: 100, headshot: 25, assist: 50, capture: 150, defend: 75, streak: 50, firstblood: 50, longshot: 25, revenge: 25, neutralize: 50, destroy: 50 };
 const STREAK_WEAPONS = new Set(['strike', 'sentry', 'uav']);
 export const OVERTIME_SECONDS = 60;
 
@@ -23,10 +24,9 @@ export class BaseMode {
     this.G = G;
     this.id = modeId;
     this.opts = opts;
-    const D = G.data || {};
-    this.def = (D.MODES && D.MODES[modeId]) || { id: modeId, name: modeId, teams: true };
+    this.def = MODES[modeId] || { id: modeId, name: modeId, teams: true };
     this.teams = this.def.teams !== false;
-    this.rules = { ...DEFAULT_SCORE, ...(D.SCORE_RULES || {}) };
+    this.rules = SCORE_RULES;
     this.scoreLimit = num(opts.scoreLimit, opts.score, this.def.scoreLimit);
     this.timeLimit = num(opts.timeLimit, opts.time, this.def.timeLimit);
     this.respawnDelay = Number.isFinite(this.def.respawnDelay) ? this.def.respawnDelay : 3;
@@ -57,6 +57,7 @@ export class BaseMode {
     s.on('kill', (e) => { if (!this.isOver) this._onKill(e); });
     s.on('actor:hit', (e) => this.medals.onHit(e));
     s.on('impact', (e) => this.medals.onImpact(e));
+    s.on('weapon:fire', (e) => this.medals.onFire(e));
     s.on('actor:spawn', ({ actor }) => this.onSpawn(actor));
     s.on('match:start', () => this.onMatchStart());
     if (this.streaks) this.streaks.attach(s);
@@ -223,9 +224,8 @@ export class BaseMode {
     if (e.headshot) this.award(killer, 'headshot');
     if (e.firstBlood) this.award(killer, 'firstblood');
     if (e.revenge) this.award(killer, 'revenge');
-    const W = (G.data && G.data.WEAPONS) || {};
-    const def = W[weaponId];
-    const isLong = def && typeof G.data.isLongshot === 'function' ? G.data.isLongshot(def.cls, e.distance || 0) : !!e.longshot;
+    const def = WEAPONS[weaponId];
+    const isLong = def ? isLongshot(def.cls, e.distance || 0) : !!e.longshot;
     if (isLong && !e.explosive) this.award(killer, 'longshot');
     for (const a of e.assisters || []) if (a && a !== killer && !a.isStreakEntity) this.award(a, 'assist');
 
@@ -301,7 +301,7 @@ export class BaseMode {
       this.medals.award(this._lastKill.actor, 'siegtreffer');
     }
     const p = G.player;
-    if (p && p.stats.deaths === 0 && p.stats.kills >= ((G.data.MEDAL_RULES && G.data.MEDAL_RULES.flawlessMinKills) || 5) && reason !== 'forced') {
+    if (p && p.stats.deaths === 0 && p.stats.kills >= MEDAL_RULES.flawlessMinKills && reason !== 'forced') {
       this.medals.award(p, 'unaufhaltsam');
     }
     if (this.streaks) this.streaks.endAll();
@@ -319,7 +319,7 @@ export class BaseMode {
       rows.push({
         actor: a, id: a.id, name: a.name, team: a.team, score: s.score || 0, kills: s.kills || 0, deaths: s.deaths || 0,
         assists: s.assists || 0, captures: s.captures || 0, isPlayer: !!a.isPlayer, isBot: !!a.isBot,
-        ping: a.isBot ? 18 + (hash(a.id) % 46) : 0, extra: this.extraRow(a), alive: !!a.alive,
+        extra: this.extraRow(a), alive: !!a.alive,
       });
     }
     rows.sort((x, y) => this.compareRows(x, y));
@@ -343,15 +343,16 @@ export class BaseMode {
     const G = this.G;
     const board = this.scoreboard();
     const { winner } = this.decide(board);
-    const draw = winner === 'draw';
     const player = G.player;
+    let draw = winner === 'draw';
     let playerWon = false;
-    let placement = player ? this.placementOf(player, board) : 0;
-    if (this.teams) playerWon = !draw && player && winner === player.team;
+    const placement = player ? this.placementOf(player, board) : 0;
+    if (this.teams) playerWon = !draw && !!player && winner === player.team;
     else if (player) {
-      const places = this.def.winPlaces || 1;
-      playerWon = !draw ? placement <= places : false;
-      if (draw && placement === 1) playerWon = false;
+      // Jeder für sich: Unentschieden nur für die punktgleichen Führenden, sonst zählt die eigene Platzierung
+      const mine = board.find((r) => r.actor === player);
+      draw = draw && !!mine && board.length > 0 && this.rankKey(mine) === this.rankKey(board[0]);
+      playerWon = !draw && placement <= (this.def.winPlaces || 1);
     }
     // MVP: höchste Punktzahl (bei Gleichstand mehr Abschüsse)
     const byScore = [...board].sort((a, b) => b.score - a.score || b.kills - a.kills || a.deaths - b.deaths);
@@ -363,9 +364,8 @@ export class BaseMode {
     const ps = player ? player.stats : null;
     const medals = player ? this.medals.medalsOf(player) : {};
     const resultKey = draw ? 'draw' : playerWon ? 'win' : 'loss';
-    const W = (G.data && G.data.WEAPONS) || {};
     const weaponStats = {};
-    if (player) for (const [id, w] of Object.entries(player.weaponStats || {})) if (W[id]) weaponStats[id] = { kills: w.kills | 0, shots: w.shots | 0, hits: w.hits | 0, headshots: w.headshots | 0 };
+    if (player) for (const [id, w] of Object.entries(player.weaponStats || {})) if (WEAPONS[id]) weaponStats[id] = { kills: w.kills | 0, shots: w.shots | 0, hits: w.hits | 0, headshots: w.headshots | 0 };
     const duration = Math.round(this.elapsed * 10) / 10;
     const playerSummary = player ? {
       modeId: this.id, mapId: G.match.mapId, result: resultKey,
@@ -374,7 +374,7 @@ export class BaseMode {
       longestKill: Math.round((ps.longestKill || 0) * 10) / 10, damage: Math.round(ps.damage || 0), captures: ps.captures | 0,
       medals, weaponStats, duration, placement, players: board.length,
     } : null;
-    const winnerRow = !draw && !this.teams ? board.find((r) => r.id === winner) : null;
+    const winnerRow = winner !== 'draw' && !this.teams ? board.find((r) => r.id === winner) : null;
     return {
       modeId: this.id, mapId: G.match.mapId, modeName: this.def.name, mapName: G.world ? G.world.name : G.match.mapId,
       teams: this.teams, winner, winnerName: winnerRow ? winnerRow.name : null, playerWon: !!playerWon, draw, reason,
@@ -405,8 +405,3 @@ export class BaseMode {
   spawnAttract() { return null; }
 }
 
-function hash(s) {
-  let h = 0;
-  for (let i = 0; i < String(s).length; i++) h = (h * 31 + String(s).charCodeAt(i)) | 0;
-  return Math.abs(h);
-}

@@ -798,12 +798,14 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .prof-empty p { font-size: var(--fs-lead); line-height: 1.3; font-weight: 380; max-width: 34ch; }
 .prof-tools { display: flex; gap: 24px; flex-wrap: wrap; align-items: center; }
 
-/* Fahne (Fahnenabzug) */
+/* Fahne (Fahnenabzug): eine eigene Zeile des Hero über dem Zielfeld – verdeckt nichts, scrollt mit dem Hero weg.
+   Rechner: rechtsbündig unter der Abschnittszeile; Telefon und quer: an Stelle der Abschnittszeile (siehe unten). */
+.hero.has-fahne { grid-template-rows: [top] auto [fahne] auto [target] minmax(0, 1fr) [zline] auto [bottom] auto; }
 .fahne {
-  position: fixed; z-index: 35; top: calc(var(--status-h) + env(safe-area-inset-top, 0px)); right: var(--gr);
-  width: min(560px, 100vw - var(--gl) - var(--gr));
-  max-height: calc(100dvh - var(--status-h) - env(safe-area-inset-top, 0px) - var(--bar-h) - 16px); overflow: auto; overscroll-behavior: contain;
-  background: var(--np-black-2); border: 1px solid var(--line); border-top: 0; border-bottom: 0;
+  position: relative; z-index: 5;
+  grid-column: rail-start / main-end; grid-row: fahne; justify-self: end;
+  width: min(560px, 100%); min-width: 0;
+  background: var(--np-black-2); border: 1px solid var(--line); border-bottom: 0;
   padding: 0 clamp(16px, 2.4vw, 24px);
   clip-path: inset(0);
   animation: fahne-in 480ms steps(12) both;
@@ -814,12 +816,15 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 @keyframes fahne-out { to { transform: translateY(-100%); opacity: 0; } }
 .fahne-headrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; padding-top: 4px; }
 .fahne-sum {
-  min-height: 44px; min-width: 0; display: inline-flex; align-items: center;
+  min-height: 44px; min-width: 0; display: inline-flex; align-items: center; padding-block: 4px;
   font-family: var(--font-mono); font-size: var(--fs-label); font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2);
+  line-height: 1.4;
 }
 .fahne-sum:hover { color: var(--np-ink); }
 .fahne-sum .fs-min, .fahne.min .fahne-sum .fs-open { display: none; }
-.fahne.min .fahne-sum .fs-min { display: inline; color: var(--np-ink); }
+.fahne.min .fahne-sum .fs-min { display: inline; }
+.fahne-sum .nw { white-space: nowrap; }
+.fahne-sum .fs-word { font-weight: 700; color: var(--np-ink); white-space: nowrap; }
 .fahne-tear { flex: none; min-height: 44px; }
 .fahne-body { padding-bottom: 4px; }
 .fahne.min .fahne-body { display: none; }
@@ -836,8 +841,15 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
   background: radial-gradient(circle 4px at 8px 100%, var(--np-black) 98%, transparent 100%) 0 100% / 16px 8px repeat-x;
 }
 .fahne-edge::before { content: ''; position: absolute; left: 0; right: 0; bottom: 6px; border-top: 1px dashed var(--line); }
-.fahne.min .fahne-edge { height: 12px; margin-top: 0; }
+.fahne.min .fahne-headrow { padding-top: 0; }
+.fahne.min .fahne-edge { height: 10px; margin-top: 0; }
 .fahne.min .fahne-edge::before { display: none; }
+/* Statuszeile: Verweis auf die Fahne, solange der Hero nicht im Bild ist */
+.st-fahne {
+  min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--np-ink);
+}
+.st-fahne:hover { text-decoration: underline 1px var(--np-line-strong); text-underline-offset: .3em; }
 
 /* ───────────────────────────────────────────── §06 Einstellungen (Setzkasten) */
 
@@ -1093,19 +1105,19 @@ html.cursor-on select:not(.slot select) { cursor: auto; }
   .hero-body { gap: 16px; }
 }
 
-/* Telefon und Telefon quer: Die Fahne liegt oben im Hero und scrollt mit ihm weg. */
+/* Telefon und Telefon quer: Die Fahne steht an Stelle der Abschnittszeile über voller Breite. */
 @media (max-width: 719px), (pointer: coarse) and (max-height: 500px) {
-  .fahne {
-    position: absolute; z-index: 5; top: calc(var(--status-h) + env(safe-area-inset-top, 0px) + 8px);
-    left: var(--gl); right: var(--gr); width: auto; max-height: none; overflow: visible; border-top: 1px solid var(--line);
-  }
-  .fahne.min .fahne-body { display: block; }
-  .fahne.min .fahne-sum .fs-open { display: inline; }
-  .fahne.min .fahne-sum .fs-min { display: none; }
+  .hero.has-fahne { grid-template-rows: [top] auto [target] minmax(0, 1fr) [zline] auto [data] auto [bottom] auto; }
+  .hero.has-fahne .hero-top { display: none; }
+  .fahne { grid-row: top; justify-self: stretch; width: auto; }
   .fahne-word { margin-bottom: 8px; }
   .fahne-xp { font-size: var(--fs-label); letter-spacing: .06em; }
   .fahne-xp .fx-up { display: inline; }
   .fahne-up { display: none; }
+}
+@media (max-width: 399px) {
+  /* Schmal: In der Statuszeile ersetzt „FAHNE.“ die Stufe (sie steht im Bericht). */
+  .who.has-fahne .lvl { display: none; }
 }
 
 /* ───────────────────────────────────────────── Bewegung, Kontrast, erzwungene Farben */

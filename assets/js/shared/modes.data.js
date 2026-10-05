@@ -24,6 +24,7 @@ export const MODES = {
     tagline: 'Sechs gegen sechs. Wer zuerst 40 erreicht, gewinnt.',
     description:
       'Zwei Teams, eine Rechnung: Jeder Abschuss zählt, jeder Tod kostet. Schnelle Wiedereinstiege halten das Tempo hoch – Flanken, Deckung und Serienprämien entscheiden das Match.',
+    sizeRule: '{team} gegen {enemies} – {mates}',
     rules: [
       '6 gegen 6 – du und fünf Verbündete',
       'Erstes Team mit 40 Abschüssen gewinnt',
@@ -53,6 +54,7 @@ export const MODES = {
     tagline: 'Acht Spieler. Keine Freunde. 25 Abschüsse.',
     description:
       'Kein Team, kein Rückhalt – jedes Gesicht auf der Karte ist ein Ziel. Wer zuerst 25 Gegner ausschaltet, gewinnt; wer unter die besten drei kommt, verlässt das Feld als Sieger.',
+    sizeRule: '{players} Spieler, jeder für sich',
     rules: [
       '8 Spieler, jeder für sich',
       'Erster mit 25 Abschüssen gewinnt',
@@ -83,6 +85,7 @@ export const MODES = {
     tagline: 'Drei Flaggen. Halte zwei, und die Uhr arbeitet für dich.',
     description:
       'Erobere die Flaggen A, B und C und halte sie gegen den Druck des Gegners. Jede gehaltene Flagge bringt Punkte – wer zuerst 150 erreicht, gewinnt. Abschüsse sind Mittel zum Zweck.',
+    sizeRule: '{team} gegen {enemies} um drei Flaggen',
     rules: [
       '6 gegen 6 um drei Flaggen',
       'Flagge einnehmen: im Kreis bleiben, bis der Balken voll ist',
@@ -123,6 +126,7 @@ export const MODES = {
     tagline: '18 Stufen, ein Messer. Jeder Abschuss lädt nach.',
     description:
       'Jeder Abschuss befördert dich zur nächsten Waffe – von der MP über das Scharfschützengewehr bis zum Kampfmesser. Wer mit der letzten Stufe trifft, gewinnt. Ein Messerabschuss wirft das Opfer eine Stufe zurück.',
+    sizeRule: '{players} Spieler, jeder für sich',
     rules: [
       '8 Spieler, jeder für sich',
       '18 Waffenstufen – jeder Abschuss = nächste Stufe',
@@ -433,6 +437,25 @@ export function getDifficulty(id) {
 
 export function getStreak(id) {
   return STREAKS[id] || null;
+}
+
+const COUNT_WORDS = ['keine', 'ein', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht'];
+
+/**
+ * Regelliste für eine konkrete Besetzung (Lobby): Die erste Zeile (`rules[0]`, Besetzung) folgt dann
+ * `sizeRule` – {team} eigene Seite inkl. Spieler, {enemies} Gegner, {players} alle, {mates} „du und fünf Verbündete“.
+ * Ohne Angaben gelten defaultAllies/defaultEnemies (ergibt die statische Zeile).
+ */
+export function rulesFor(modeId, { allies, enemies } = {}) {
+  const m = MODES[modeId];
+  if (!m) return [];
+  const rules = (m.rules || []).slice();
+  if (!m.sizeRule || !rules.length) return rules;
+  const a = m.teams === false ? 0 : Math.max(0, Number.isFinite(allies) ? allies : m.defaultAllies ?? 0);
+  const e = Math.max(0, Number.isFinite(enemies) ? enemies : m.defaultEnemies ?? 0);
+  const mates = a === 0 ? 'du allein' : a === 1 ? 'du und ein Verbündeter' : `du und ${COUNT_WORDS[a] || a} Verbündete`;
+  rules[0] = m.sizeRule.replace('{team}', String(a + 1)).replace('{enemies}', String(e)).replace('{players}', String(a + e + 1)).replace('{mates}', mates);
+  return rules;
 }
 
 /** Liste der Modi in Anzeige-Reihenfolge. */

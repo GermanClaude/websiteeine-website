@@ -2,10 +2,10 @@
 // Einschusslöcher, Leuchtspuren, Mündungsfeuer, Treffernebel, Explosionen an Land/Wasser, Zielfernrohr-Glanz)
 // und die Waffenbalance als TTK-Tabelle. Läuft ohne Spiel mit einem minimalen G.
 import * as THREE from 'three';
-import { Effects } from '../../engine/effects.js';
-import { EventBus } from '../../engine/events.js';
-import { QUALITY_PRESETS } from '../../engine/renderer.js';
-import { WEAPONS, WEAPON_IDS, killProfile, effectiveRange, EQUIPMENT, explosionKillRadius } from '../../../shared/weapons.data.js';
+import { Effects } from '../../assets/js/game/engine/effects.js';
+import { EventBus } from '../../assets/js/game/engine/events.js';
+import { QUALITY_PRESETS } from '../../assets/js/game/engine/renderer.js';
+import { WEAPONS, WEAPON_IDS, killProfile, effectiveRange, EQUIPMENT, explosionKillRadius } from '../../assets/js/shared/weapons.data.js';
 
 const canvas = document.getElementById('stage');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });

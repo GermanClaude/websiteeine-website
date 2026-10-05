@@ -19,7 +19,13 @@ const _w = new THREE.Vector3();
 const _sphere = new THREE.Sphere();
 const _cam = new THREE.Vector3();
 
+const LOS_BASE = 48, LOS_BASE_LOW = 26; // Sichtstrahlen pro Bild (Grundbudget)
+const LOS_PER_SENSE = 8; // geschätzte Strahlen je Wahrnehmungsschritt eines Bots
+
 const SNIPER_LOADOUT = { id: 'praezision', primary: 'sr_brecher', secondary: 'pi_p9', lethal: 'frag' };
+
+/** Reihenfolge der Namensschilder: höheres Ziel zuerst, dann näher. */
+function plateOrder(a, b) { return (b._target - a._target) || (a._d - b._d); }
 
 function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; }
@@ -39,7 +45,10 @@ export class BotManager {
     this._paths = new Map();
     this._intel = new Map();
     this._targetCount = new Map();
-    this._hostileCache = new Map();
+    this._hostileCache = new Map(); // Team bzw. Bot (FFA) → wiederverwendete Liste
+    this._hostileFrame = new Map(); // … und Bildnummer, für die sie gilt
+    this._pathQ = []; // Reihenfolge der Pfadanfragen (Ziele in _paths)
+    this._placed = [];
     this._frame = 0;
     this._losLeft = 0;
     this._frustum = new THREE.Frustum();
@@ -57,6 +66,9 @@ export class BotManager {
     this.quality = G.renderer && G.renderer.quality === 'low' ? 'low' : 'high';
     this._intel.clear();
     this._paths.clear();
+    this._pathQ.length = 0;
+    this._hostileCache.clear();
+    this._hostileFrame.clear();
     this.activity.length = 0;
     const s = (this._subs = G.events.scope());
     s.on('weapon:fire', (e) => this._onFire(e));
@@ -73,6 +85,9 @@ export class BotManager {
     this._subs = null;
     this._intel.clear();
     this._paths.clear();
+    this._pathQ.length = 0;
+    this._hostileCache.clear();
+    this._hostileFrame.clear();
   }
 
   /* ================================================================ Erzeugen */
@@ -147,8 +162,10 @@ export class BotManager {
     }
     for (const p of this._plates.values()) p.dispose();
     this._plates.clear();
+    this._plateLos.clear();
     this.bots = [];
     this._paths.clear();
+    this._pathQ.length = 0;
   }
 
   /** Drittpersonen-Waffenmodell (Klon) für eine Waffe. */
@@ -168,22 +185,30 @@ export class BotManager {
     const t0 = performance.now();
     this._frame++;
     const low = this.quality === 'low';
-    this._losLeft = low ? 26 : 48;
+    // Sichtstrahlen-Budget: Grundmenge je Qualität, mit dem Bedarf (Bots × Wahrnehmungsrate × dt)
+    // wachsend – bei niedriger Bildrate fallen pro Bild mehr Wahrnehmungsschritte an
+    const base = low ? LOS_BASE_LOW : LOS_BASE;
+    let demand = 0;
+    for (let i = 0; i < this.bots.length; i++) { const b = this.bots[i]; if (b.alive) demand += b.diff.senseHz; }
+    this._losLeft = Math.min(base * 3, Math.max(base, Math.ceil(demand * dt * LOS_PER_SENSE)));
     const losStart = this._losLeft;
-    this._hostileCache.clear();
+    const bots = this.bots;
     // Wer zielt worauf (für Zielverteilung) – Stand des letzten Bildes
     this._targetCount.clear();
-    for (const b of this.bots) {
+    for (let i = 0; i < bots.length; i++) {
+      const b = bots[i];
       const r = b.alive && b.gunner.rec;
       if (r && r.visible) this._targetCount.set(r.actor, (this._targetCount.get(r.actor) || 0) + 1);
     }
-    // Pfadsuchen (Budget)
+    // Pfadsuchen (Budget, in Anfragereihenfolge)
     let pathsLeft = low ? 2 : 3;
     const nav = G.world && G.world.nav;
-    for (const [bot, dest] of this._paths) {
-      if (pathsLeft <= 0) break;
+    const q = this._pathQ;
+    while (pathsLeft > 0 && q.length) {
+      const bot = q.shift();
+      const dest = this._paths.get(bot);
       this._paths.delete(bot);
-      if (!bot.alive) continue;
+      if (!dest || !bot.alive) continue;
       let path = [];
       try { path = nav ? nav.findPath(bot.position, dest) : [dest.clone()]; } catch { path = []; }
       bot.nav.onPath(path);
@@ -196,7 +221,8 @@ export class BotManager {
       this._frustum.setFromProjectionMatrix(_m);
       cam.getWorldPosition(_cam);
     }
-    for (const b of this.bots) {
+    for (let i = 0; i < bots.length; i++) {
+      const b = bots[i];
       const s = b.soldier;
       const d = b.position.distanceTo(_cam);
       b.camDist = d;
@@ -209,7 +235,8 @@ export class BotManager {
         s.root.visible = inView;
         s.updateLod(d * (cam ? cam.fov / 60 : 1), this.quality);
       }
-      for (const o of b.soldiers) {
+      for (let k = 0; k < b.soldiers.length; k++) {
+        const o = b.soldiers[k];
         if (o && o.state === 'dead') {
           _sphere.center.copy(o.root.position); _sphere.center.y += 0.5; _sphere.radius = 3;
           o.root.visible = !cam || this._frustum.intersectsSphere(_sphere);
@@ -218,7 +245,8 @@ export class BotManager {
       }
     }
     // Bots
-    for (const b of this.bots) {
+    for (let i = 0; i < bots.length; i++) {
+      const b = bots[i];
       b.update(dt);
       if (b.alive) b.updateCorpsesOnly(dt);
     }
@@ -252,24 +280,31 @@ export class BotManager {
   hostilesOf(bot) {
     const key = bot.team || bot;
     let list = this._hostileCache.get(key);
-    if (list) return list;
+    if (list && this._hostileFrame.get(key) === this._frame) return list;
+    if (!list) { list = []; this._hostileCache.set(key, list); }
+    this._hostileFrame.set(key, this._frame);
+    list.length = 0;
     const G = this.G;
-    list = [];
-    for (const a of G.actors) if (a !== bot && a.alive && G.combat.isHostile(bot, a)) list.push(a);
+    const actors = G.actors;
+    for (let i = 0; i < actors.length; i++) {
+      const a = actors[i];
+      if (a !== bot && a.alive && G.combat.isHostile(bot, a)) list.push(a);
+    }
     const st = G.mode && G.mode.streaks;
     const ents = st && st.entities;
-    if (ents) for (const e of ents) if (e.alive && e.owner !== bot && G.combat.isHostile(bot, e)) list.push(e);
-    if (!bot.team) list = list.filter((a) => a !== bot);
-    this._hostileCache.set(key, list);
+    if (ents) for (let i = 0; i < ents.length; i++) { const e = ents[i]; if (e.alive && e.owner !== bot && G.combat.isHostile(bot, e)) list.push(e); }
     return list;
   }
 
   requestPath(bot, dest) {
     let d = this._paths.get(bot);
-    if (!d) { d = new THREE.Vector3(); }
+    if (!d) { d = new THREE.Vector3(); this._paths.set(bot, d); }
     d.copy(dest);
-    this._paths.delete(bot);
-    this._paths.set(bot, d);
+    // ans Ende der Warteschlange
+    const q = this._pathQ;
+    const i = q.indexOf(bot);
+    if (i >= 0) q.splice(i, 1);
+    q.push(bot);
     this.debug.paths++;
   }
 
@@ -327,7 +362,9 @@ export class BotManager {
     const len = dir.length();
     if (len < 0.5) return true;
     dir.multiplyScalar(1 / len);
-    for (const a of this.G.actors) {
+    const actors = this.G.actors;
+    for (let i = 0; i < actors.length; i++) {
+      const a = actors[i];
       if (a === bot || !a.alive || a.team !== bot.team) continue;
       const p = a.position;
       const h = a.body ? a.body.height : 1.8;
@@ -362,7 +399,9 @@ export class BotManager {
 
   _hear(actor, range, err, now, source = 'sound', alert = true) {
     const G = this.G;
-    for (const b of this.bots) {
+    const bots = this.bots;
+    for (let i = 0; i < bots.length; i++) {
+      const b = bots[i];
       if (!b.alive || b === actor || !G.combat.isHostile(b, actor)) continue;
       const d = b.position.distanceTo(actor.position);
       const r = range * b.diff.hearing;
@@ -417,7 +456,9 @@ export class BotManager {
   _onImpact({ point, shooter } = {}) {
     if (!point || !shooter || !shooter.position || shooter.isStreakEntity) return;
     const now = this.G.time.elapsed;
-    for (const b of this.bots) {
+    const bots = this.bots;
+    for (let i = 0; i < bots.length; i++) {
+      const b = bots[i];
       if (!b.alive || b === shooter || !this.G.combat.isHostile(b, shooter)) continue;
       if (b.position.distanceToSquared(point) > 6.25) continue;
       b.memory.hear(shooter, shooter.position, now, 3, 'sound');
@@ -428,7 +469,9 @@ export class BotManager {
   _onHit({ target, attacker } = {}) {
     if (!target || !attacker || !attacker.position || !target.team || attacker === target) return;
     const now = this.G.time.elapsed;
-    for (const b of this.bots) {
+    const bots = this.bots;
+    for (let i = 0; i < bots.length; i++) {
+      const b = bots[i];
       if (!b.alive || b === target || b.team !== target.team || b.position.distanceTo(target.position) > 30) continue;
       if (!this.G.combat.isHostile(b, attacker)) continue;
       b.memory.hear(attacker, attacker.position, now, 5, 'team');
@@ -465,15 +508,20 @@ export class BotManager {
     const G = this.G;
     const cam = G.camera;
     if (!cam) return;
-    const el = G.renderer && G.renderer.renderer ? G.renderer.renderer.domElement : null;
-    const viewH = el ? el.clientHeight || 720 : 720;
-    const viewW = el ? el.clientWidth || 1280 : 1280;
+    // Zeichenflächengröße aus dem Renderer (gecacht, CSS-Pixel) – kein Layout-Lesen pro Bild
+    const R = G.renderer;
+    const viewH = R && R.height > 1 ? R.height : 720;
+    const viewW = R && R.width > 1 ? R.width : 1280;
     const aimT = G.input && G.input.aimTarget;
     const now = G.time.real || G.time.elapsed;
     const playerAlive = G.player && G.player.alive;
     const list = this._plateList || (this._plateList = []);
     list.length = 0;
-    for (const [bot, p] of this._plates) {
+    const bots = this.bots;
+    for (let i = 0; i < bots.length; i++) {
+      const bot = bots[i];
+      const p = this._plates.get(bot);
+      if (!p) continue;
       if (p.sprite.parent !== this.scene) this.scene.add(p.sprite);
       p.setKind(this._plateKind(bot));
       let target = 0;
@@ -486,8 +534,9 @@ export class BotManager {
           if (!c || now - c.t > 0.3) {
             const eye = G.player.getEyePosition(_v);
             const h = _w.set(bot.position.x, bot.position.y + bot.body.height - 0.1, bot.position.z);
-            c = { t: now, v: !G.world || !G.world.lineOfSight || G.world.lineOfSight(eye, h) };
-            this._plateLos.set(bot, c);
+            if (!c) { c = { t: 0, v: false }; this._plateLos.set(bot, c); }
+            c.t = now;
+            c.v = !G.world || !G.world.lineOfSight || G.world.lineOfSight(eye, h);
           }
           target = c.v ? 1 : 0;
         }
@@ -507,16 +556,22 @@ export class BotManager {
       }
     }
     // Überlappende Schilder: das nähere gewinnt (Ziel unter dem Fadenkreuz immer)
-    list.sort((a, b) => (b._target - a._target) || (a._d - b._d));
-    const placed = [];
+    if (list.length > 1) list.sort(plateOrder);
+    const placed = this._placed;
+    placed.length = 0;
+    const aimPlate = aimT ? this._plates.get(aimT) : null;
     const wPx = viewH < 500 ? 70 : 84, hPx = viewH < 500 ? 22 : 26;
-    for (const p of list) {
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
       let hide = false;
-      for (const q of placed) if (Math.abs(q._sx - p._sx) < wPx && Math.abs(q._sy - p._sy) < hPx) { hide = true; break; }
-      if (hide && p._target < 1.01 && !(aimT && this._plates.get(aimT) === p)) p._target = 0;
+      for (let k = 0; k < placed.length; k++) { const q = placed[k]; if (Math.abs(q._sx - p._sx) < wPx && Math.abs(q._sy - p._sy) < hPx) { hide = true; break; } }
+      if (hide && p._target < 1.01 && aimPlate !== p) p._target = 0;
       else placed.push(p);
     }
-    for (const p of this._plates.values()) p.update(p._pos, cam, viewH, p._target || 0, dt);
+    for (let i = 0; i < bots.length; i++) {
+      const p = this._plates.get(bots[i]);
+      if (p) p.update(p._pos, cam, viewH, p._target || 0, dt);
+    }
   }
 
   /* ================================================================ Diagnose */

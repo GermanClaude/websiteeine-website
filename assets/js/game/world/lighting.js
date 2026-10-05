@@ -11,7 +11,27 @@ export function sunVector(elevation, azimuth, out = new THREE.Vector3()) {
   return out.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).normalize();
 }
 
-function makeSky(def, fogColor) {
+/** Ersetzt genau eine Stelle im (vendorten, festen) Sky-Shader – fehlt sie, ist das ein Programmierfehler. */
+function patch(src, find, repl) {
+  if (!src.includes(find)) throw new Error(`[lighting] Sky-Shader: Stelle nicht gefunden: ${find.slice(0, 48)}`);
+  return src.replace(find, repl);
+}
+
+/** Standardgrenzen der Himmelshelligkeit (linear, nach Belichtung; größter Farbkanal). */
+const SKY_LIMITS = Object.freeze({
+  // sichtbarer Himmel: Mie-Hof um eine tiefe Sonne (bis > 300) weich auf ≤ 4 begrenzen; Sonnenscheibe extra
+  view: { knee: 1.2, max: 4, sunDisc: 20 },
+  // Umgebungs-Map (PMREM): flacher, kein Hotspot, den Metalle 1:1 spiegeln würden
+  env: { knee: 0.6, max: 2, sunDisc: 0 },
+});
+
+/**
+ * Preetham-Himmel mit Belichtung, Tönung, Horizontdunst und begrenzter Helligkeit.
+ * Der Mie-Hof einer tiefen Sonne erreicht linear mehrere Hundert (Halbfloat-Überlauf in Farblook/Bloom,
+ * Bloom-Schleier über halbem Bild); er wird deshalb weich komprimiert (knee → max, farbtonerhaltend).
+ * Die Sonnenscheibe wird danach mit fester Helligkeit (limits.sunDisc) und Farbe aus der Extinktion addiert.
+ */
+function makeSky(def, fogColor, limits = SKY_LIMITS.view) {
   const sky = new Sky();
   const u = sky.material.uniforms;
   u.turbidity.value = def.turbidity ?? 6;
@@ -29,15 +49,37 @@ function makeSky(def, fogColor) {
   u.hazeBand = { value: new THREE.Vector2(def.hazeLow ?? -0.02, def.hazeHigh ?? 0.16) };
   u.hazeAmount = { value: def.hazeAmount ?? 0.85 };
   u.skyTint = { value: new THREE.Color(def.tint || '#ffffff') };
+  // Helligkeitsgrenzen (Karten dürfen sky.limit = { knee, max, sunDisc } überschreiben)
+  u.skyKnee = { value: def.limit?.knee ?? limits.knee };
+  u.skyMax = { value: def.limit?.max ?? limits.max };
+  u.sunDiscIntensity = { value: def.limit?.sunDisc ?? limits.sunDisc };
   let fs = sky.material.fragmentShader;
-  fs = fs.replace('uniform float time;', `uniform float time;
+  fs = patch(fs, 'uniform float time;', `uniform float time;
     uniform float skyExposure;
     uniform vec3 hazeColor;
     uniform vec2 hazeBand;
     uniform float hazeAmount;
-    uniform vec3 skyTint;`);
-  fs = fs.replace('gl_FragColor = vec4( texColor, 1.0 );', `
-      texColor *= skyExposure * skyTint;
+    uniform vec3 skyTint;
+    uniform float skyKnee;
+    uniform float skyMax;
+    uniform float sunDiscIntensity;
+    // weiche Schulter auf dem größten Kanal: unterhalb knee unverändert, darüber asymptotisch → skyMax
+    vec3 npCompressSky( vec3 c ) {
+      float m = max( c.r, max( c.g, c.b ) );
+      if ( m <= skyKnee ) return c;
+      float r = max( skyMax - skyKnee, 1e-3 );
+      return c * ( ( skyKnee + r * ( 1.0 - exp( -( m - skyKnee ) / r ) ) ) / m );
+    }`);
+  // Sonnenscheibe nicht mehr mit ~60 000 in den Himmel mischen, sondern nach der Begrenzung addieren
+  fs = patch(fs, 'vec3 sundiscColor = ( 760.0 * sundisc ) * min( vSunE * Fex, 80.0 );', `vec3 sunHue = vSunE * Fex;
+      vec3 sundiscColor = sundisc * sunHue / max( max( sunHue.r, max( sunHue.g, sunHue.b ) ), 1e-6 );
+      float npCloud = 0.0;`);
+  fs = patch(fs, 'vec3 texColor = ( Lin + L0 ) * 0.04 + sundiscColor + vec3( 0.0, 0.0003, 0.00075 );',
+    'vec3 texColor = ( Lin + L0 ) * 0.04 + vec3( 0.0, 0.0003, 0.00075 );');
+  fs = patch(fs, 'texColor = mix( texColor, cloudAerial, alpha );', 'texColor = mix( texColor, cloudAerial, alpha );\n\t\t\t\tnpCloud = alpha;');
+  fs = patch(fs, 'gl_FragColor = vec4( texColor, 1.0 );', `
+      texColor = npCompressSky( max( texColor, vec3( 0.0 ) ) * skyExposure * skyTint );
+      texColor += sundiscColor * sunDiscIntensity * skyTint * ( 1.0 - npCloud );
       float hz = 1.0 - smoothstep( hazeBand.x, hazeBand.y, direction.y );
       texColor = mix( texColor, hazeColor, clamp( hz * hazeAmount + ( direction.y < 0.0 ? 1.0 : 0.0 ), 0.0, 1.0 ) );
       gl_FragColor = vec4( texColor, 1.0 );`);
@@ -70,9 +112,12 @@ export function createLighting(G, def, group) {
 
   // Umgebung (PMREM) aus Himmel + Bodenhalbkugel
   const envScene = new THREE.Scene();
-  const envSky = makeSky(def.sky || {}, fogColor);
+  // Eigene Grenzen + breitere Mie-Keule: weicher Richtungsverlauf statt Hotspot (Metalle spiegeln die Map 1:1;
+  // die Sonnenenergie selbst liefert das gerichtete Licht)
+  const envSky = makeSky({ ...(def.sky || {}), limit: def.env?.limit }, fogColor, SKY_LIMITS.env);
   envSky.material.uniforms.sunPosition.value.copy(sunDir).multiplyScalar(450000);
   envSky.material.uniforms.showSunDisc.value = 0;
+  envSky.material.uniforms.mieDirectionalG.value = Math.min(envSky.material.uniforms.mieDirectionalG.value, def.env?.mieDirectionalG ?? 0.72);
   envSky.material.uniforms.cloudCoverage.value *= 0.8;
   if (def.env?.tint) envSky.material.uniforms.skyTint.value.set(def.env.tint);
   envScene.add(envSky);
@@ -94,7 +139,10 @@ export function createLighting(G, def, group) {
   sun.name = 'sun';
   const shadowsOn = preset.shadows !== false;
   sun.castShadow = shadowsOn;
-  const half = def.shadow?.size ?? 38;
+  // Kaskadengröße: Kartenwert, auf schwachen Stufen gedeckelt (preset.shadowExtent, z. B. 24 m auf low)
+  const mapHalf = def.shadow?.size ?? 38;
+  const extentFor = (p) => Math.min(mapHalf, p?.shadowExtent || Infinity);
+  const half = extentFor(preset);
   const mapSize = preset.shadowMapSize || 2048;
   sun.shadow.mapSize.set(mapSize, mapSize);
   const cam = sun.shadow.camera;
@@ -120,9 +168,10 @@ export function createLighting(G, def, group) {
   // Texelstabile Schattenkamera
   const lightRot = new THREE.Matrix4().lookAt(new THREE.Vector3(0, 0, 0), sunDir.clone().negate(), new THREE.Vector3(0, 1, 0));
   const lightRotInv = lightRot.clone().invert();
-  const tmp = new THREE.Vector3(), fwd = new THREE.Vector3();
+  const tmp = new THREE.Vector3(), fwd = new THREE.Vector3(), center = new THREE.Vector3();
   let time = 0;
   let shadowSize = half;
+  let centered = false;
 
   const lighting = {
     sunDirection: sunDir.clone(),
@@ -157,17 +206,28 @@ export function createLighting(G, def, group) {
       tmp.x = Math.round(tmp.x / texel) * texel;
       tmp.y = Math.round(tmp.y / texel) * texel;
       tmp.applyMatrix4(lightRot);
+      // Gedrosselte Schatten (low): Kaskade nur versetzen, wenn das Zentrum > 8 % der Kantenlänge wandert
+      // (Vorhalt nach vorn deckt die Bewegung ab) – dann sofort neu zeichnen lassen; sonst bleibt die Karte gültig.
+      const throttled = (G.renderer?.preset?.shadowInterval || 1) > 1;
+      if (throttled && centered && tmp.distanceToSquared(center) < (shadowSize * 0.08) ** 2) return;
+      center.copy(tmp); centered = true;
       sun.target.position.copy(tmp);
       sun.position.copy(tmp).addScaledVector(sunDir, 200);
       sun.target.updateMatrixWorld();
+      if (throttled) G.renderer.invalidateShadows?.();
     },
-    setShadowQuality({ shadows, mapSize, size } = {}) {
+    /** Schattenqualität nach Qualitätswechsel: { shadows, mapSize, size } oder ein Renderer-Preset. */
+    setShadowQuality({ shadows, mapSize, size, preset: p } = {}) {
+      if (p) { shadows = p.shadows; mapSize = p.shadowMapSize; size = extentFor(p); }
       if (shadows !== undefined) sun.castShadow = shadows;
       if (mapSize && mapSize !== sun.shadow.mapSize.x) {
         sun.shadow.mapSize.set(mapSize, mapSize);
         sun.shadow.map?.dispose(); sun.shadow.map = null;
       }
-      if (size) { shadowSize = size; cam.left = -size; cam.right = size; cam.top = size; cam.bottom = -size; cam.updateProjectionMatrix(); }
+      if (size && size !== shadowSize) {
+        shadowSize = size; cam.left = -size; cam.right = size; cam.top = size; cam.bottom = -size; cam.updateProjectionMatrix();
+        centered = false;
+      }
     },
     dispose() {
       sky.geometry.dispose(); sky.material.dispose();

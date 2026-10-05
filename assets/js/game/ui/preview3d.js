@@ -33,14 +33,17 @@ export class WeaponPreview {
     scene.name = 'lobby-preview';
     const cam = new THREE.PerspectiveCamera(26, 16 / 9, 0.05, 50);
     cam.position.set(0, 0.05, 3);
-    const hemi = new THREE.HemisphereLight(0xdfe8f0, 0x2a2420, 0.7);
+    const hemi = new THREE.HemisphereLight(0xdfe8f0, 0x2a2420, 0.9);
     const key = new THREE.DirectionalLight(0xfff1de, 3.2);
     key.position.set(2.2, 2.8, 2.4);
     const fill = new THREE.DirectionalLight(0x9fc4ff, 0.7);
     fill.position.set(-2.5, 0.6, 1.5);
     const rim = new THREE.DirectionalLight(0xff8a4a, 2.2);
     rim.position.set(-1.2, 1.4, -2.6);
-    scene.add(hemi, key, fill, rim);
+    // kühles Gegenlicht von hinten oben: zeichnet die Kanten schwarzer Gehäuse vor dem dunklen Grund nach
+    const back = new THREE.DirectionalLight(0xc8dcff, 1.6);
+    back.position.set(1.6, 2.4, -2.2);
+    scene.add(hemi, key, fill, rim, back);
     try {
       const pm = new THREE.PMREMGenerator(R);
       const env = new RoomEnvironment();
@@ -67,6 +70,23 @@ export class WeaponPreview {
     const spot = new THREE.Mesh(this._spotGeo, this._spotMat);
     spot.position.y = -0.32;
     scene.add(spot);
+    // Lichthof hinter dem Modell (#2e343c → Hintergrund #0a0b0d), steht fest zur Kamera, Größe folgt dem Bühnenbereich
+    const bc = document.createElement('canvas');
+    bc.width = bc.height = 256;
+    const bg = bc.getContext('2d');
+    const bgrd = bg.createRadialGradient(128, 128, 0, 128, 128, 128);
+    bgrd.addColorStop(0, 'rgba(46,52,60,1)');
+    bgrd.addColorStop(0.5, 'rgba(30,34,39,.85)');
+    bgrd.addColorStop(1, 'rgba(10,11,13,0)');
+    bg.fillStyle = bgrd;
+    bg.fillRect(0, 0, 256, 256);
+    this._backTex = new THREE.CanvasTexture(bc);
+    this._backTex.colorSpace = THREE.SRGBColorSpace;
+    this._backMat = new THREE.MeshBasicMaterial({ map: this._backTex, transparent: true, depthWrite: false, toneMapped: false });
+    this._backGeo = new THREE.PlaneGeometry(1, 1);
+    this.backdrop = new THREE.Mesh(this._backGeo, this._backMat);
+    this.backdrop.renderOrder = -1;
+    scene.add(this.backdrop);
     this.pivot = new THREE.Group();
     scene.add(this.pivot);
     this.scene = scene;
@@ -201,12 +221,17 @@ export class WeaponPreview {
     const cx = r.left + r.width / 2;
     const cy = r.top + r.height / 2;
     cam.setViewOffset(W, H, W / 2 - cx, H / 2 - cy, W, H);
-    const target = Math.min(r.width * 0.86, r.height * 1.7);
+    const target = Math.min(r.width * 0.9, r.height * 1.7);
     const vh = 2 * Math.tan((cam.fov * Math.PI) / 360);
     const dist = Math.max(1.1, Math.min(7, H / (vh * Math.max(60, target))));
     cam.position.set(0, 0.06 * dist, dist);
     cam.lookAt(0, 0, 0);
     cam.updateProjectionMatrix();
+    // Lichthof: 1,6 m hinter dem Drehteller, deckt den Bühnenbereich (Welt-Einheiten je Pixel in dieser Tiefe)
+    const BACK = 1.6;
+    const wpp = (vh * (dist + BACK)) / H;
+    this.backdrop.position.set(0, 0, -BACK);
+    this.backdrop.scale.set(r.width * 1.1 * wpp, r.height * 1.1 * wpp, 1);
     const p = this._pop != null ? easeOutBack(this._pop) : 1;
     this.pivot.rotation.set(this.pitch, this.yaw, 0);
     this.pivot.scale.setScalar(0.7 + 0.3 * p);
@@ -233,6 +258,9 @@ export class WeaponPreview {
     if (this._spotTex) this._spotTex.dispose();
     if (this._spotMat) this._spotMat.dispose();
     if (this._spotGeo) this._spotGeo.dispose();
+    if (this._backTex) this._backTex.dispose();
+    if (this._backMat) this._backMat.dispose();
+    if (this._backGeo) this._backGeo.dispose();
     this.scene = null;
   }
 }

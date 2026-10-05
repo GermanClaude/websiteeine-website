@@ -2,6 +2,7 @@
 // und Ausrüstung (Primär/Sekundär/Granate mit Werte-Balken aus computeStats, Vergleich, Stufen-Sperren,
 // Vorlagen, 3D-Vorschau). Vorbelegung aus URL-Parametern (erster Aufruf) und den letzten Einstellungen.
 
+import { rulesFor } from '../../shared/modes.data.js';
 import { esc, num, secs, meters } from './dom.js';
 import { ICON } from './icons.js';
 import { drawMapArt } from './mapart.js';
@@ -20,6 +21,7 @@ export class Lobby {
     this.view = null; // aktuell betrachtete Waffe (Ausrüstung)
     this.el = null;
     this._paramsUsed = false;
+    this._offs = [];
   }
 
   /* ------------------------------------------------------------ Daten */
@@ -72,9 +74,10 @@ export class Lobby {
       if (Number.isFinite(e)) base.enemies = e;
       for (const k of ['primary', 'secondary']) if (d.W[prm.get(k)]) base[k] = prm.get(k);
       if (d.EQ[prm.get('lethal')]) base.lethal = prm.get('lethal');
-      // Zeit-/Punktelimit aus der URL gelten nur für den Modus, mit dem die Seite geöffnet wurde
-      const tl = parseFloat(prm.get('time'));
-      const sl = parseFloat(prm.get('score'));
+      // Zeit-/Punktelimit aus der URL sind Testparameter: nur mit debug=1 (Match dann ungewertet) und nur
+      // für den Modus, mit dem die Seite geöffnet wurde
+      const tl = G.debug ? parseFloat(prm.get('time')) : NaN;
+      const sl = G.debug ? parseFloat(prm.get('score')) : NaN;
       if (Number.isFinite(tl) || Number.isFinite(sl)) base.limits = { modeId: base.modeId, timeLimit: Number.isFinite(tl) ? tl : null, scoreLimit: Number.isFinite(sl) ? sl : null };
     }
     // Ausrüstung validieren (Slot + Freischaltung)
@@ -128,10 +131,6 @@ export class Lobby {
   mount(screen) {
     this._initCfg();
     const G = this.G;
-    const prof = G.profile.get();
-    const P = G.profile;
-    const rank = P.rankFor ? P.rankFor(prof.level) : { name: '' };
-    const prog = P.levelProgress ? P.levelProgress(prof.xp) : { progress: 0, xpIntoLevel: 0, xpForNext: 0, isMax: false };
     screen.innerHTML = `
       <div class="lb">
         <header class="lb-head">
@@ -140,10 +139,7 @@ export class Lobby {
             <button type="button" class="m-tab" role="tab" data-tab="deploy" aria-selected="${this.tab === 'deploy'}">${ICON.map}<span>Einsatz</span></button>
             <button type="button" class="m-tab" role="tab" data-tab="loadout" aria-selected="${this.tab === 'loadout'}">${ICON.target}<span>Ausrüstung</span></button>
           </div>
-          <button type="button" class="lb-profile" data-act="profile" title="Rufzeichen ändern" aria-label="Profil: ${esc(prof.name)}, Stufe ${prof.level}. Rufzeichen ändern">
-            <span class="lb-rank">${P.rankIcon ? P.rankIcon(prof.level, { size: 30 }) : ''}</span>
-            <span class="lb-pinfo"><b>${esc(prof.name)}</b><small>Stufe ${prof.level} · ${esc(rank.name)}</small><i class="lb-xp"><u style="transform:scaleX(${(prog.progress || 0).toFixed(3)})"></u></i></span>
-          </button>
+          <button type="button" class="lb-profile" data-act="profile" title="Rufzeichen ändern"></button>
           <div class="lb-tools">
             <button type="button" class="m-icon" data-act="settings" aria-label="Einstellungen" title="Einstellungen">${ICON.gear}</button>
             <button type="button" class="m-icon" data-act="controls" aria-label="Steuerung" title="Steuerung">${ICON.pad}</button>
@@ -166,14 +162,32 @@ export class Lobby {
     this.el = {
       screen, deploy: screen.querySelector('[data-pane="deploy"]'), loadout: screen.querySelector('[data-pane="loadout"]'),
       stage: screen.querySelector('.lb-stage'), stageName: screen.querySelector('.lb-stage-name'), kit: screen.querySelector('.lb-kit'),
-      summary: screen.querySelector('.lb-summary'), side: screen.querySelector('.lb-side'),
+      summary: screen.querySelector('.lb-summary'), side: screen.querySelector('.lb-side'), profile: screen.querySelector('.lb-profile'),
     };
     screen.addEventListener('click', (e) => this._click(e));
+    this._renderProfile();
+    // Rufzeichen/Stufe live (Einstellungen hier, auf der Website oder in einem anderen Tab)
+    this._offs.push(
+      G.settings.onChange((key) => { if (key === 'playerName') this._renderProfile(); }),
+      G.profile.onChange(() => this._renderProfile()),
+    );
     this._renderDeploy();
     this._renderLoadout();
     this._renderKit();
     this._renderSummary();
     this._syncTab();
+  }
+
+  _renderProfile() {
+    if (!this.el || !this.el.profile) return;
+    const P = this.G.profile;
+    const prof = P.get();
+    const rank = P.rankFor ? P.rankFor(prof.level) : { name: '' };
+    const prog = P.levelProgress ? P.levelProgress(prof.xp) : { progress: 0 };
+    const b = this.el.profile;
+    b.setAttribute('aria-label', `Profil: ${prof.name}, Stufe ${prof.level}. Rufzeichen ändern`);
+    b.innerHTML = `<span class="lb-rank">${P.rankIcon ? P.rankIcon(prof.level, { size: 30 }) : ''}</span>
+      <span class="lb-pinfo"><b>${esc(prof.name)}</b><small>Stufe ${prof.level} · ${esc(rank.name)}</small><i class="lb-xp"><u style="transform:scaleX(${(prog.progress || 0).toFixed(3)})"></u></i></span>`;
   }
 
   _click(e) {
@@ -240,11 +254,10 @@ export class Lobby {
         <span class="lb-map-txt"><b>${esc(x.name)}</b><small>${esc(x.timeOfDay || x.subtitle || '')}</small></span></button>`;
     }).join('');
     const diffs = DIFF_ORDER.filter((id) => d.DIFF[id] || true).map((id) => `<button type="button" role="radio" data-diff="${id}" aria-checked="${id === c.difficulty}">${esc((d.DIFF[id] && d.DIFF[id].name) || id)}</button>`).join('');
-    const xpm = diff.xpMult && diff.xpMult !== 1 ? `XP ×${num(diff.xpMult, 2).replace(/,?0+$/, '')}` : 'XP ×1';
-    const rules = (m.rules || []).slice(0, 5).map((r) => `<li>${esc(r)}</li>`).join('');
+    const xpm = diff.xpMult && diff.xpMult !== 1 ? `EP ×${num(diff.xpMult, 2).replace(/,?0+$/, '')}` : 'EP ×1';
     this.el.deploy.innerHTML = `
       <section class="lb-sec"><h2 class="m-h2">Modus</h2><div class="lb-modes" role="group" aria-label="Modus">${modes}</div>
-        <div class="lb-modeinfo"><p>${esc(m.description || '')}</p>${rules ? `<ul class="lb-rules">${rules}</ul>` : ''}</div></section>
+        <div class="lb-modeinfo"><p>${esc(m.description || '')}</p><ul class="lb-rules"></ul></div></section>
       <section class="lb-sec"><h2 class="m-h2">Karte</h2><div class="lb-maps" role="group" aria-label="Karte">${mapCards}</div></section>
       <section class="lb-sec lb-row2">
         <div><h2 class="m-h2">Gegnerstärke</h2><div class="m-seg lb-diff" role="radiogroup" aria-label="Gegnerstärke">${diffs}</div>
@@ -255,12 +268,23 @@ export class Lobby {
     requestAnimationFrame(() => this._drawMaps());
   }
 
+  /** Regeln des Modus; die Besetzungszeile folgt den gewählten Teamgrößen. */
+  _renderRules() {
+    const ul = this.el.deploy.querySelector('.lb-rules');
+    if (!ul) return;
+    const c = this.cfg;
+    const rules = rulesFor(c.modeId, c).slice(0, 5);
+    ul.hidden = !rules.length;
+    ul.innerHTML = rules.map((r) => `<li>${esc(r)}</li>`).join('');
+  }
+
   _renderTeams() {
     const d = this._data();
     const c = this.cfg;
     const m = d.MODES[c.modeId] || {};
     const host = this.el.deploy.querySelector('.lb-teams');
     if (!host) return;
+    this._renderRules();
     const teams = m.teams !== false;
     const lim = m.limits || { allies: [0, 7], enemies: [1, 8] };
     if (c.modeId === 'training' || (lim.enemies[1] === 0)) {
@@ -448,6 +472,8 @@ export class Lobby {
   }
 
   unmount() {
+    for (const off of this._offs) off();
+    this._offs = [];
     this.el = null;
   }
 }

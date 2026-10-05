@@ -1,13 +1,14 @@
 // Screenshot + Konsolenfehler einer Seite (Headless-Chromium mit WebGL über SwiftShader).
 // Aufruf: node tools/shot.mjs <url> <out.png> [--wait=ms] [--mobile] [--size=1280x720] [--eval="js"] [--click=selector]
-// Server vorher starten:  npx http-server -p 8765 -s -c-1 .
-import { chromium, devices } from '/opt/node-tools/node_modules/playwright/index.mjs';
+// Server vorher starten:  npx http-server -p 8765 -s -c-1 .   (relative URLs werden an NP_BASE angehängt)
+import { chromium, devices, BASE, GL_ARGS } from './pw.mjs';
 
-const [url, out = 'tools/out/shot.png', ...rest] = process.argv.slice(2);
+const [rawUrl, out = 'tools/out/shot.png', ...rest] = process.argv.slice(2);
+const url = /^https?:/.test(rawUrl || '') ? rawUrl : BASE + String(rawUrl || 'index.html').replace(/^\//, '');
 const opt = Object.fromEntries(rest.map(a => { const [k, ...v] = a.replace(/^--/, '').split('='); return [k, v.length ? v.join('=') : true]; }));
 const [w, h] = String(opt.size || '1280x720').split('x').map(Number);
 
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const browser = await chromium.launch({ args: GL_ARGS });
 const ctx = opt.mobile
   ? await browser.newContext({ ...devices['Pixel 7'], viewport: { width: 915, height: 412 }, isMobile: true, hasTouch: true })
   : await browser.newContext({ viewport: { width: w, height: h } });

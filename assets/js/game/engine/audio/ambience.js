@@ -5,8 +5,12 @@ import {
   sine, modal, metalModes, click, burst, grains, glottal, formant, reverb, reverbSteps, echoes, panMix, wrapLoop, Saw, clamp, lerp,
 } from './dsp.js';
 
-export const AMBIENCE_SR = 24000;
-export const EVENT_SR = 32000;
+// Abtastraten nach gemessener Bandbreite (Anteil oberhalb 0,45 · Rate ≤ ca. −40 dB)
+export const BED_RATE = { harbor: 16000, desert: 22050, industrial: 16000, range: 22050 };
+export const EVENT_RATE = {
+  amb_gull: 22050, amb_horn: 16000, amb_creak: 16000, amb_clank: 16000, amb_dog: 16000, amb_chime: 24000, amb_flap: 22050, amb_moped: 16000,
+  amb_drip: 16000, amb_steam: 32000, amb_groan: 16000, amb_arc: 32000, amb_bird: 22050, amb_crow: 16000, amb_pa: 16000, loop_drone: 24000,
+};
 export const MAP_AMBIENCE = { hafen: 'harbor', altstadt: 'desert', werk: 'industrial', range: 'range' };
 
 /** Weich interpolierte Zufallskurve (Kosinus) mit Stützstellen alle step Sekunden. */

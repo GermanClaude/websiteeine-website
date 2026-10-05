@@ -176,9 +176,9 @@ const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAl
 const LABELS = {
   ar: 'Sturmgewehr (M-17)', ar_heavy: 'Sturmgewehr schwer (KV-47/SK-14)', smg: 'MP (VP-9/QX-90)', lmg: 'LMG (HM-60)', sniper: 'Scharfschütze (Brecher)', shotgun: 'Schrotflinte (Bulldog)', pistol: 'Pistole (P-9)', pistol_heavy: 'Pistole schwer (Adler)',
   dryfire: 'Leerklick', reload_mag_out: 'Magazin raus', reload_mag_in: 'Magazin rein', reload_bolt: 'Durchladen', reload_shell: 'Patrone einlegen', pump: 'Pumpe', bolt: 'Kammerverschluss', equip: 'Waffe ziehen',
-  ads_in: 'Zielen an', ads_out: 'Zielen aus', melee_swing: 'Messer-Schwung', melee_hit: 'Messer-Treffer', grenade_pin: 'Splint ziehen', grenade_throw: 'Wurf', grenade_bounce: 'Granate prallt', low_ammo: 'Munition knapp',
+  ads_in: 'Zielen an', ads_out: 'Zielen aus', melee_swing: 'Messer-Schwung', melee_hit: 'Messer-Treffer', grenade_pin: 'Splint ziehen', grenade_throw: 'Wurf', grenade_bounce: 'Granate prallt', grenade_stick: 'Haftgranate klebt', low_ammo: 'Munition knapp',
   explosion: 'Explosion nah', explosion_far: 'Explosion fern', bullet_whiz: 'Pfeifen (Unterschall)', bullet_crack: 'Knall (Überschall)',
-  gear: 'Ausrüstung klappert', jump: 'Sprung', land: 'Landung', hit_flesh: 'Körpertreffer', hit_helmet: 'Helm-Ping', pain: 'Schmerzlaut', death: 'Tod', heartbeat: 'Herzschlag', breath_in: 'Einatmen', breath_out: 'Ausatmen',
+  gear: 'Ausrüstung klappert', jump: 'Sprung', land: 'Landung', slide: 'Rutschen', hit_flesh: 'Körpertreffer', hit_helmet: 'Helm-Ping', pain: 'Schmerzlaut', death: 'Tod', heartbeat: 'Herzschlag', breath_in: 'Einatmen', breath_out: 'Ausatmen',
   hitmarker: 'Treffermarker', hitmarker_kill: 'Kill-Marker', headshot: 'Kopfschuss-Ding', medal: 'Medaille', levelup: 'Stufenaufstieg', streak_ready: 'Serie bereit (Funk)', uav: 'Aufklärer', uav_end: 'Aufklärer endet', airstrike: 'Präzisionsschlag',
   sentry: 'Wachgeschütz', capture: 'Flagge eingenommen', capture_lost: 'Flagge verloren', countdown: 'Countdown', go: 'Los!', win: 'Sieg', lose: 'Niederlage', draw: 'Unentschieden', spawn: 'Einstieg', tinnitus: 'Tinnitus',
   hover: 'Hover', click: 'Klick', toggle: 'Umschalter', confirm: 'Bestätigen', back: 'Zurück', error: 'Fehler',
@@ -191,18 +191,24 @@ const ahead = (d, side = 0) => {
   const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion), r = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
   return camera.position.clone().addScaledVector(f, d).addScaledVector(r, side);
 };
-function btn(text, fn, parent) { const b = document.createElement('button'); b.textContent = text; b.onclick = () => { audio.unlock(); flash(b); fn(); }; parent.append(b); return b; }
+function btn(text, fn, parent, needs = null) {
+  const b = document.createElement('button'); b.textContent = text;
+  // Klänge entstehen im Worker; der Prüfstand simuliert ein laufendes Match (dort wird nie synchron nachgerendert)
+  b.onclick = async () => { audio.unlock(); flash(b); if (needs) await audio.prerender(needs); fn(); };
+  parent.append(b); return b;
+}
 
 // ---------------------------------------------------------------- Waffen-Tabelle
 const guns = $('#guns');
 for (const p of Object.keys(GUN_PROFILES)) {
   const n = document.createElement('div'); n.className = 'name'; n.textContent = LABELS[p]; guns.append(n);
-  btn('Spieler', () => audio.play(p, { player: true }), guns);
-  btn('Salve', () => { for (let i = 0; i < (p === 'sniper' || p === 'shotgun' ? 1 : 6); i++) audio.play(p, { player: true, delay: i * (p === 'lmg' ? 0.085 : p === 'smg' ? 0.07 : 0.1) }); }, guns);
-  btn('Gegner 10 m', () => audio.play(p, { position: ahead(10, 4) }), guns);
-  btn('40 m', () => audio.play(p, { position: ahead(40, -10) }), guns);
-  btn('120 m', () => audio.play(p, { position: ahead(120, 30) }), guns);
-  btn('Gedämpft', () => audio.play(p, { player: true, suppressed: true }), guns);
+  const need = [`gun_${p}`, `gunfar_${p}`];
+  btn('Spieler', () => audio.play(p, { player: true }), guns, need);
+  btn('Salve', () => { for (let i = 0; i < (p === 'sniper' || p === 'shotgun' ? 1 : 6); i++) audio.play(p, { player: true, delay: i * (p === 'lmg' ? 0.085 : p === 'smg' ? 0.07 : 0.1) }); }, guns, need);
+  btn('Gegner 10 m', () => audio.play(p, { position: ahead(10, 4) }), guns, need);
+  btn('40 m', () => audio.play(p, { position: ahead(40, -10) }), guns, need);
+  btn('120 m', () => audio.play(p, { position: ahead(120, 30) }), guns, need);
+  btn('Gedämpft', () => audio.play(p, { player: true, suppressed: true }), guns, need);
 }
 
 // ---------------------------------------------------------------- Klanggruppen
@@ -214,7 +220,7 @@ for (const [group, names] of Object.entries(SOUND_GROUPS)) {
   const b = sec.querySelector('.board');
   for (const n of names) {
     const positional = /^(step_|impact_|amb_|explosion|grenade_bounce|death|pain|hit_)/.test(n);
-    btn(label(n), () => audio.play(n, positional && !n.startsWith('amb_') ? { position: ahead(n.startsWith('explosion') ? 25 : 5, 2) } : n.startsWith('amb_') ? { position: ahead(40, -20), bus: 'amb' } : {}), b);
+    btn(label(n), () => audio.play(n, positional && !n.startsWith('amb_') ? { position: ahead(n.startsWith('explosion') ? 25 : 5, 2) } : n.startsWith('amb_') ? { position: ahead(40, -20), bus: 'amb' } : {}), b, [n]);
   }
   if (group === 'Schritte') {
     btn('Sprint-Folge (Kies)', () => { for (let i = 0; i < 6; i++) audio.play('footstep', { surface: 'dirt', sprint: true, position: ahead(4 + i * 0.8, -2), delay: i * 0.3 }); }, b);
@@ -253,6 +259,10 @@ const E = [
   ['Wachgeschütz', () => emit('streak:activate', { actor: player, streakId: 'sentry' })],
   ['Flagge A eingenommen', () => { emit('objective:update', { objectives: [{ id: 'A', owner: null }] }); emit('objective:update', { objectives: [{ id: 'A', owner: 'A' }] }); }],
   ['Flagge A verloren', () => { emit('objective:update', { objectives: [{ id: 'A', owner: 'A' }] }); emit('objective:update', { objectives: [{ id: 'A', owner: 'B' }] }); }],
+  ['Granate: Splint, Wurf', () => { emit('grenade:pin', { actor: player, type: 'frag' }); setTimeout(() => emit('grenade:throw', { actor: player, position: camera.position.clone(), velocity: new THREE.Vector3(0, 4, -12), type: 'frag' }), 900); }],
+  ['Haftgranate klebt (8 m)', () => emit('grenade:stick', { actor: enemy, type: 'semtex', position: ahead(8, 2), target: null, surface: 'concrete' })],
+  ['Haftgranate am Spieler', () => emit('grenade:stick', { actor: enemy, type: 'semtex', position: camera.position.clone(), target: player, surface: 'flesh' })],
+  ['Rutschen', () => { emit('player:slide', { velocity: 10.2, phase: 'start' }); setTimeout(() => emit('player:slide', { velocity: 4, phase: 'end' }), 700); }],
   ['Sieg', () => emit('match:end', { result: { playerWon: true } })],
   ['Niederlage', () => emit('match:end', { result: { playerWon: false } })],
   ['Stufenaufstieg', () => emit('ui:sound', { name: 'levelup' })],
@@ -261,6 +271,8 @@ for (const [t, fn] of E) btn(t, fn, evb);
 
 // ---------------------------------------------------------------- Bedienelemente
 $('#unlock').onclick = async () => { await audio.unlock(); $('#unlock').textContent = 'Audio aktiv'; $('#unlock').classList.add('on'); };
+// Match-Bank sofort im Worker vorrendern (braucht noch keinen AudioContext)
+audio.prerender();
 for (const r of $$('input[data-vol]')) {
   const out = r.nextElementSibling, upd = () => { out.textContent = Math.round(r.value * 100); audio.setVolumes({ [r.dataset.vol]: +r.value }); };
   r.oninput = upd; upd();
@@ -373,8 +385,8 @@ let lastStatus = 0;
 function status() {
   const now = performance.now(); if (now - lastStatus < 250) return; lastStatus = now;
   const i = audio.info();
-  $('#status').innerHTML = `<span>Kontext <b class="${i.state === 'running' ? 'ok' : 'bad'}">${i.state}</b></span><span>Rate <b>${i.sampleRate} Hz</b></span><span>Puffer <b>${i.buffers}</b> · Warteschlange <b>${i.queue}</b></span>`
-    + `<span>Stimmen <b>${i.voices}</b></span><span>Render <b>${Math.round(i.renderMs)} ms</b> (längster Block ${i.maxSliceMs.toFixed(1)} ms)</span><span>Raum <b>${i.space}</b> · innen ${i.indoor}</span><span>Dämpfung <b>${i.muffle} Hz</b></span>${i.errors ? `<span class="bad">Fehler ${i.errors}</span>` : ''}`;
+  $('#status').innerHTML = `<span>Kontext <b class="${i.state === 'running' ? 'ok' : 'bad'}">${i.state}</b></span><span>Rate <b>${i.sampleRate} Hz</b></span><span>Puffer <b>${i.buffers}</b> (${i.bankMB} MB) · Warteschlange <b>${i.queue}</b> · Synthese <b>${i.synth === 'worker' ? `${i.workers} Worker` : 'Hauptthread'}</b></span>`
+    + `<span>Stimmen <b>${i.voices}</b></span><span>Worker <b>${Math.round(i.workerMs)} ms</b> · Hauptthread <b>${Math.round(i.renderMs)} ms</b> (längster Block ${i.maxSliceMs.toFixed(1)} ms)</span><span>Raum <b>${i.space}</b> · innen ${i.indoor}</span><span>Dämpfung <b>${i.muffle} Hz</b></span>${i.errors ? `<span class="bad">Fehler ${i.errors}</span>` : ''}`;
 }
 
 // ---------------------------------------------------------------- Messung
@@ -432,7 +444,7 @@ async function measureAll(filter = null) {
 
 async function smokeAll() {
   await audio.unlock();
-  await audio.prerender();
+  await audio.prerender(SOUND_NAMES.filter(n => !n.startsWith('mus_') && !n.startsWith('amb_bed_')));
   const before = audio.stats.errors;
   let n = 0;
   for (const name of [...SOUND_NAMES, ...Object.keys(GUN_PROFILES)]) {

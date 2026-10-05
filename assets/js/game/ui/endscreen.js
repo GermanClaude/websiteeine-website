@@ -1,6 +1,6 @@
 // NULLPUNKT — Endbildschirm: Ergebnis (Sieg/Niederlage/Unentschieden bzw. Platz), Teamstand, vollständige
 // Punktetabelle mit MVP, persönliche Werte (K/D, Genauigkeit, Kopftreffer, beste Serie …), Medaillen,
-// animierter XP-Balken mit Stufen-/Dienstgrad-Aufstieg (rankIcon), neue Freischaltungen.
+// animierter EP-Balken mit Stufen-/Dienstgrad-Aufstieg (rankIcon), neue Freischaltungen.
 // Knöpfe: Revanche · Lobby · Zur Website.
 
 import { esc, num, pct, kd, clock, meters, secs } from './dom.js';
@@ -33,7 +33,7 @@ export class EndScreen {
     let outcome = r.draw ? 'draw' : r.playerWon ? 'win' : 'loss';
     let title = { win: 'Sieg', loss: 'Niederlage', draw: 'Unentschieden' }[outcome];
     if (training) { outcome = 'train'; title = 'Training beendet'; }
-    else if (!r.teams && r.placement) title = r.draw && r.placement === 1 ? 'Gleichstand' : `Platz ${r.placement}`;
+    else if (!r.teams && r.placement) title = r.draw ? 'Gleichstand' : `Platz ${r.placement}`; // draw: Spieler unter den punktgleichen Führenden
     const kicker = [r.modeName, r.mapName, r.duration ? clock(r.duration) : null, REASON[r.reason] || null].filter(Boolean).map(esc).join(' · ');
     let line = '';
     if (r.teams && r.teamScores) {
@@ -73,7 +73,7 @@ export class EndScreen {
       ? `<div class="e-medals">${medals.map(([id, n]) => `<div class="e-medal tier-${M[id].tier}" title="${esc(M[id].description)}">${medalBadge(M[id].label, M[id].tier)}<span>${esc(M[id].label)}</span>${n > 1 ? `<b>×${n}</b>` : ''}</div>`).join('')}</div>`
       : '<div class="e-medals is-empty">Keine Medaillen in diesem Match.</div>';
 
-    // XP / Stufe
+    // Erfahrungspunkte (EP) / Stufe
     let xp = '';
     const pr = progression;
     if (pr) {
@@ -88,10 +88,10 @@ export class EndScreen {
           <div class="e-xp-head">
             <div class="e-rank">${rankIcon}</div>
             <div class="e-lvl"><small>${esc(pr.rankAfter ? pr.rankAfter.name : '')}</small><b>Stufe <span data-xp-level>${pr.levelBefore}</span></b></div>
-            <div class="e-gain">+<span data-xp-count>0</span> XP</div>
+            <div class="e-gain"><span class="e-gain-v" data-xp-count data-shown="+${num(0)} EP">+${num(pr.xpGained || 0)} EP</span></div>
           </div>
           <div class="e-xpbar"><i data-xp-fill></i></div>
-          <div class="e-xp-note" data-xp-note>${pr.progressAfter && pr.progressAfter.isMax ? 'Höchststufe erreicht.' : pr.progressAfter ? `${num(pr.progressAfter.xpIntoLevel)} / ${num(pr.progressAfter.xpForNext)} XP bis Stufe ${pr.levelAfter + 1}` : ''}</div>
+          <div class="e-xp-note" data-xp-note>${pr.progressAfter && pr.progressAfter.isMax ? 'Höchststufe erreicht.' : pr.progressAfter ? `${num(pr.progressAfter.xpIntoLevel)} / ${num(pr.progressAfter.xpForNext)} EP bis Stufe ${pr.levelAfter + 1}` : ''}</div>
           <ul class="e-break">${(pr.breakdown || []).map((b, i) => `<li style="--i:${i}"><span>${esc(b.label)}</span><b>${b.xp >= 0 ? '+' : ''}${num(b.xp)}</b></li>`).join('')}</ul>
           ${pr.levelUp ? `<div class="e-up" data-xp-up hidden><b>Aufgestiegen<em>.</em></b> Stufe ${pr.levelAfter}${pr.rankUp ? ` · Neuer Dienstgrad: ${esc(pr.rankAfter.name)}` : ''}</div>` : ''}
           ${unlocks ? `<div class="e-unlocks"><small>Neu freigeschaltet</small>${unlocks}</div>` : ''}
@@ -99,7 +99,7 @@ export class EndScreen {
     }
 
     const board = (r.scoreboard || []).length
-      ? scoreboardHtml(r.scoreboard, { teams: r.teams, playerTeam: mine, teamNames: names, teamScores: r.teamScores, showPing: false })
+      ? scoreboardHtml(r.scoreboard, { teams: r.teams, playerTeam: mine, teamNames: names, teamScores: r.teamScores })
       : '';
     return `
       <div class="e-wrap m-scroll" data-scrollable>
@@ -120,7 +120,10 @@ export class EndScreen {
       </div>`;
   }
 
-  /** XP-Balken animieren (über Stufenaufstiege hinweg). */
+  /**
+   * EP-Balken animieren (über Stufenaufstiege hinweg). Der Endwert steht von Anfang an im DOM (Textinhalt,
+   * Screenreader, Tests); das Hochzählen ist nur eine optische Ebene (CSS ::after aus data-shown).
+   */
   animate(root, progression) {
     cancelAnimationFrame(this._raf);
     const pr = progression;
@@ -129,7 +132,7 @@ export class EndScreen {
     const lvlEl = root.querySelector('[data-xp-level]');
     const up = root.querySelector('[data-xp-up]');
     if (!pr || !fill) return;
-    const reduced = this.G.settings.get('reducedMotion') || matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced = this.G.settings.get('reducedMotion') || matchMedia('(prefers-reduced-motion: reduce)').matches || document.hidden;
     const p0 = pr.progressBefore ? pr.progressBefore.progress : 0;
     const p1 = pr.progressAfter ? pr.progressAfter.progress : 0;
     const levels = Math.max(0, (pr.levelAfter || 0) - (pr.levelBefore || 0));
@@ -146,7 +149,7 @@ export class EndScreen {
       const lvl = pr.levelBefore + whole;
       const width = t >= 1 ? p1 : pos - whole;
       fill.style.transform = `scaleX(${Math.max(0, Math.min(1, width)).toFixed(4)})`;
-      count.textContent = num(Math.round((pr.xpGained || 0) * e));
+      if (count) count.dataset.shown = `+${num(Math.round((pr.xpGained || 0) * e))} EP`;
       if (lvl !== shownLevel) {
         shownLevel = lvl;
         lvlEl.textContent = String(lvl);
@@ -158,10 +161,12 @@ export class EndScreen {
       if (t < 1) this._raf = requestAnimationFrame(step);
       else {
         lvlEl.textContent = String(pr.levelAfter);
+        if (count) count.classList.remove('is-counting');
         if (up) { up.hidden = false; }
       }
     };
     fill.style.transform = `scaleX(${p0})`;
+    if (count && dur > 0) count.classList.add('is-counting');
     this._raf = requestAnimationFrame(step);
   }
 

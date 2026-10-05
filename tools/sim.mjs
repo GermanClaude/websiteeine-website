@@ -1,7 +1,8 @@
 // Schnelle Match-Simulation ohne Rendern (Systeme direkt takten), danach Aufnahmen.
 // Ergebnisse: tools/out/sim-<name>.json und Aufnahmen tools/out/sim-<name>-<i>.png
-// node tools/sim.mjs --map=hafen --mode=tdm --seconds=120 [--dt=0.0333] [--diff=regulaer] [--shots=3] [--mobile] [--name=x] [--extra="allies=5&enemies=6"] [--player=passive|god]
-import { chromium, devices } from '/opt/node-tools/node_modules/playwright/index.mjs';
+// node tools/sim.mjs --map=hafen --mode=tdm --seconds=120 [--dt=0.0333] [--diff=regulaer] [--shots=3] [--mobile] [--name=x] [--extra="allies=5&enemies=6"] [--player=god|mortal|center]
+// Der Spieler ist standardmäßig unverwundbar (debugApi.godMode → Match ungewertet, keine EP). Server: NP_BASE (Standard :8765).
+import { chromium, devices, BASE, GL_ARGS } from './pw.mjs';
 import { writeFileSync, mkdirSync } from 'node:fs';
 mkdirSync('tools/out', { recursive: true });
 
@@ -9,9 +10,8 @@ const opt = Object.fromEntries(process.argv.slice(2).map((a) => { const [k, ...v
 const map = opt.map || 'hafen', mode = opt.mode || 'tdm';
 const name = opt.name || `${map}-${mode}${opt.mobile ? '-m' : ''}`;
 const q = new URLSearchParams({ autostart: '1', map, mode, diff: opt.diff || 'regulaer', time: String(opt.time || 900), score: String(opt.score || 999), quality: opt.quality || 'low' });
-if (opt.player !== 'mortal') q.set('god', '1');
 if (opt.extra) for (const [k, v] of new URLSearchParams(opt.extra)) q.set(k, v);
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const browser = await chromium.launch({ args: GL_ARGS });
 const ctx = opt.mobile
   ? await browser.newContext({ ...devices['Pixel 7'], viewport: { width: 915, height: 412 }, screen: { width: 915, height: 412 }, isMobile: true, hasTouch: true })
   : await browser.newContext({ viewport: { width: Number(opt.w || 1100), height: Number(opt.h || 620) } });
@@ -19,11 +19,12 @@ const page = await ctx.newPage();
 const logs = [];
 page.on('console', (m) => { if (['error', 'warning'].includes(m.type())) logs.push(`[${m.type()}] ${m.text()}`); });
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}\n${e.stack}`));
-await page.goto(`http://localhost:8765/spielen.html?${q}`, { waitUntil: 'load' });
+await page.goto(`${BASE}spielen.html?${q}`, { waitUntil: 'load' });
 await page.waitForFunction(() => window.__game && (window.__game.match.state === 'countdown' || window.__game.match.state === 'playing'), null, { timeout: 150000 });
 // Countdown überspringen + Simulator installieren
-await page.evaluate(async () => {
+await page.evaluate(async (god) => {
   const G = window.__game;
+  if (god) G.debugApi.godMode(true);
   G.match.countdown = 0.001;
   G.events.on('actor:hit', (e) => { if (e.target === G.player) { window.__sim.pdmg += e.amount; window.__sim.phits++; } });
   G.events.on('kill', (e) => {
@@ -98,7 +99,7 @@ await page.evaluate(async () => {
       return { stuckWhere: (this.stuckWhere || []).slice(-12), deathsBy: this.deathsBy, envDeaths: this.envDeaths || [], stuckEvents: this.stuckEvents || 0, pdmg: Math.round(this.pdmg), phits: this.phits, pdeaths: this.pdeaths, t: +G.time.elapsed.toFixed(1), state: G.match.state, kills: G.combat.killCount, scores: G.mode && G.mode.scores, cells: this.visits.size, inWall: this.inWall, errors: this.errors.slice(0, 3), stats: G.bots.stats(), player: { k: G.player.stats.kills, d: G.player.stats.deaths }, bots };
     },
   };
-});
+}, opt.player !== 'mortal');
 if (opt.player === 'center') await page.evaluate(async () => {
   const G = window.__game;
   const T = await import('./assets/js/game/bots/ai/tactics.js');

@@ -2,6 +2,7 @@
 // tdm Team-Deathmatch · ffa Jeder gegen jeden · dom Herrschaft · gun Waffenspiel · training Schießstand.
 // Gemeinsame API siehe base.js; Bot-Schnittstelle (objectives, objectiveFor, streaks) im Changelog.
 
+import { MODES } from '../../shared/modes.data.js';
 import { BaseMode } from './base.js';
 import { TdmMode } from './tdm.js';
 import { FfaMode } from './ffa.js';
@@ -15,7 +16,7 @@ export function createMode(G, modeId, opts = {}) {
   const Cls = MODE_CLASSES[modeId];
   if (Cls) return new Cls(G, modeId, opts);
   // Unbekannter Modus: nach Datenlage Team- oder Einzelwertung
-  const def = G.data && G.data.MODES ? G.data.MODES[modeId] : null;
+  const def = MODES[modeId];
   return def && def.teams === false ? new FfaMode(G, modeId, opts) : new TdmMode(G, modeId, opts);
 }
 

@@ -22,6 +22,17 @@ const _s1 = V3();
 const _a3 = [0, 0, 0], _b3 = [0, 0, 0], _c3 = [0, 0, 0];
 const ZERO3 = [0, 0, 0];
 
+// Umgebungssonde fürs Viewmodel-Licht: Sonnen-Startpunkte im Kameraraum (Kopf, Waffe, Stützhand) und
+// Himmelsrichtungen [x, y, z, Gewicht] (Zenit + Kranz in ~50° Höhe); Reihenfolge der Strahlen je Bild.
+const PROBE_SUN_OFF = [[0, 0, 0], [0.2, -0.2, -0.2], [-0.16, -0.24, -0.2]];
+const PROBE_SKY = [[0, 1, 0, 2], ...[0, 1, 2, 3, 4].map(i => {
+  const a = i * Math.PI * 2 / 5 + 0.3, c = Math.cos(0.87), s = Math.sin(0.87);
+  return [Math.cos(a) * c, s, Math.sin(a) * c, 1];
+})];
+const PROBE_SKY_W = PROBE_SKY.reduce((n, d) => n + d[3], 0);
+const PROBE_SEQ = [0, 3, 1, 4, 2, 5, 6, 7, 8];
+const _pv = new THREE.Vector3(), _pv2 = new THREE.Vector3();
+
 // Hand-Ziel: Position + Ausrichtung (Kameraraum) + Fingerpose
 class HandTarget {
   constructor() { this.pos = V3(); this.quat = new THREE.Quaternion(); this.pose = newPose(); }
@@ -86,6 +97,8 @@ export class ViewModel {
     this.root.add(this.shells.group);
     this._lighting = null;
     this._ownEnv = null;
+    // Sonne sichtbar / Himmel offen (0..1), siehe _updateProbe
+    this._probe = { sun: 1, sky: 1, k: 0, reset: true, eye: V3(), last: V3(), sunHits: [1, 1, 1], skyHits: PROBE_SKY.map(() => 1) };
     // Qualitätsstufe: auf 'low' entfällt das Kantenlicht (ein Licht weniger je Pixel), Hülsen-Pool kleiner
     this._applyQuality(G.renderer?.quality || 'high');
     if (typeof G.renderer?.onQualityChange === 'function') this._offQuality = G.renderer.onQualityChange(q => this._applyQuality(q));
@@ -315,20 +328,85 @@ export class ViewModel {
     const L = lighting;
     if (L) {
       this.sun.color.copy(L.sunColor ?? new THREE.Color(0xfff1dc));
-      this.sun.intensity = (L.sunIntensity ?? 2.5) * 0.85;
       this.hemi.color.copy(L.hemiSky ?? new THREE.Color(0xc8d6ea));
       this.hemi.groundColor.copy(L.hemiGround ?? new THREE.Color(0x4a4036));
-      this.hemi.intensity = (L.hemiIntensity ?? 0.9) * 1.1;
       this.scene.environment = L.envMap || this._ownEnv || null;
-      this.scene.environmentIntensity = (L.envIntensity ?? 0.8) * 1.05;
       this._sunDir = (L.sunDirection ? L.sunDirection.clone() : new THREE.Vector3(0.4, 0.8, 0.3)).normalize();
       if (this._sunDir.y < 0) this._sunDir.negate();
     } else {
-      this.sun.color.set(0xfff1dc); this.sun.intensity = 2.3;
-      this.hemi.color.set(0xc8d6ea); this.hemi.groundColor.set(0x4a4036); this.hemi.intensity = 1.0;
+      this.sun.color.set(0xfff1dc);
+      this.hemi.color.set(0xc8d6ea); this.hemi.groundColor.set(0x4a4036);
       this._sunDir = new THREE.Vector3(0.5, 0.75, 0.35).normalize();
-      this.scene.environmentIntensity = 0.9;
       this._ensureOwnEnv();
+    }
+    // Neue Karte/Beleuchtung: Sonde beim nächsten Bild sofort vollständig messen
+    this._probe.reset = true;
+    this._applyIntensities();
+  }
+
+  /**
+   * Intensitäten aus der Weltbeleuchtung × Umgebungssonde. Grundwerte werden jedes Bild aus
+   * world.lighting gelesen, damit Anpassungen der Kartenbeleuchtung sofort ankommen.
+   */
+  _applyIntensities() {
+    const L = this._lighting, pr = this._probe;
+    const sunBase = L ? (L.sunIntensity ?? 2.5) * 0.85 : 2.3;
+    const hemiBase = L ? (L.hemiIntensity ?? 0.9) * 1.1 : 1.0;
+    const envBase = L ? (L.envIntensity ?? 0.8) * 1.05 : 0.9;
+    // Im Schatten bleibt nur ein Rest Streulicht der Sonne; drinnen (Himmel verdeckt) wird das
+    // Himmels-/Umgebungslicht ähnlich stark gedämpft wie das gebackene Innenraumlicht der Karte.
+    this.sun.intensity = sunBase * (0.07 + 0.93 * pr.sun);
+    this.hemi.intensity = hemiBase * (0.5 + 0.5 * pr.sky);
+    this.scene.environmentIntensity = envBase * (0.42 + 0.58 * pr.sky);
+    this.rim.intensity = 0.6 * (0.45 + 0.55 * pr.sky);
+  }
+
+  /**
+   * Umgebungssonde: Sonne sichtbar? Himmel offen? Je Bild höchstens ein Strahl gegen die Kugel-BVH
+   * (world.lineOfSight), reihum über 3 Sonnen- und 6 Himmelsrichtungen; Ergebnis weich geglättet.
+   * Bei Sprüngen der Kamera (Respawn, Teleport) wird sofort vollständig gemessen.
+   */
+  _updateProbe(dt, cam) {
+    const pr = this._probe;
+    const W = this.G?.world;
+    if (!this._lighting || !W || typeof W.lineOfSight !== 'function' || !cam) {
+      pr.sun = pr.sky = 1;
+      pr.reset = true;
+      return;
+    }
+    cam.getWorldPosition(pr.eye);
+    const jump = pr.reset || pr.eye.distanceToSquared(pr.last) > 4;
+    pr.last.copy(pr.eye);
+    const n = PROBE_SEQ.length;
+    if (jump) {
+      for (let i = 0; i < n; i++) this._probeSample(W, PROBE_SEQ[i]);
+      pr.reset = false;
+    } else {
+      this._probeSample(W, PROBE_SEQ[pr.k]);
+      pr.k = (pr.k + 1) % n;
+    }
+    let sun = 0, sky = 0;
+    for (let i = 0; i < 3; i++) sun += pr.sunHits[i];
+    for (let i = 0; i < PROBE_SKY.length; i++) sky += pr.skyHits[i] * PROBE_SKY[i][3];
+    sun /= 3;
+    sky /= PROBE_SKY_W;
+    if (jump) { pr.sun = sun; pr.sky = sky; return; }
+    pr.sun += (sun - pr.sun) * (1 - Math.exp(-6 * dt));
+    pr.sky += (sky - pr.sky) * (1 - Math.exp(-3 * dt));
+  }
+
+  _probeSample(W, idx) {
+    const pr = this._probe;
+    const o = _pv.copy(pr.eye);
+    if (idx < 3) {
+      // Sonnenstrahlen von Kopf, Waffe (rechts unten) und Stützhand (links unten): weicher Halbschatten
+      o.add(_pv2.fromArray(PROBE_SUN_OFF[idx]).applyQuaternion(this._mainQuat));
+      _pv2.copy(o).addScaledVector(this._sunDir, 150);
+      pr.sunHits[idx] = W.lineOfSight(o, _pv2) ? 1 : 0;
+    } else {
+      const d = PROBE_SKY[idx - 3];
+      _pv2.set(o.x + d[0] * 24, o.y + d[1] * 24, o.z + d[2] * 24);
+      pr.skyHits[idx - 3] = W.lineOfSight(o, _pv2) ? 1 : 0;
     }
   }
 
@@ -355,11 +433,14 @@ export class ViewModel {
     }).catch(() => {});
   }
 
-  _updateLights() {
+  _updateLights(dt) {
     // Hauptkamera-Drehung → Licht-/Umgebungsrichtung im Kameraraum
     const cam = this.G?.camera;
     const q = this._mainQuat;
     if (cam) cam.getWorldQuaternion(q); else q.identity();
+    // Schatten/Innenraum: Licht der Umgebung folgen (sonst wirken Arme und Waffe wie aufgeklebt)
+    this._updateProbe(dt, cam);
+    this._applyIntensities();
     const inv = _q.copy(q).invert();
     _v.copy(this._sunDir).applyQuaternion(inv);
     this.sun.position.copy(_v).multiplyScalar(5);
@@ -525,7 +606,7 @@ export class ViewModel {
     this.shells.setGravity(_v.set(0, -7.5, 0).applyQuaternion(_q.copy(this._mainQuat).invert()));
     this.shells.update(dt);
     this.arms.update(dt);
-    this._updateLights();
+    this._updateLights(dt);
   }
 
   // Anker → Handziel im Kameraraum

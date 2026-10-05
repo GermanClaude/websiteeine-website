@@ -204,6 +204,33 @@ export async function init(sec, D, ctx) {
   const restW = (i) => (adsOn ? 62 - lineWdth(i) : 0);
   const restG = () => (adsOn ? 900 - cutG(def) : 0);
 
+  /**
+   * Glyphenfläche der Maske in Anteilen der Bildfläche (0 = links/oben): Die 3D-Bühne setzt das Modell darauf,
+   * statt auf die Bühnenmitte (bei zweizeiligen Namen läge die im Zeilenzwischenraum).
+   */
+  function glyphRegion() {
+    const P = picBox.getBoundingClientRect();
+    const vis = maskName.querySelector('.vis');
+    if (!P.width || !P.height || !vis) return null;
+    const lines = [...vis.querySelectorAll(':scope > .fl')];
+    let x0 = Infinity; let x1 = -Infinity; let y0 = Infinity; let y1 = -Infinity;
+    for (const u of lines.length ? lines : [vis]) {
+      const r = u.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      // Zeilenbreite in Ruhe aus dem Satzmodell (unabhängig von laufenden Schnitt-Animationen); gesetzt wird zentriert.
+      const m = glyphModel(u) || glyphModel(maskName);
+      let w = r.width;
+      if (m?.a?.length) w = Math.min(w, m.a.reduce((sum, a, i) => sum + a + (m.b[i] || 0) * (m.wdth - 62), 0));
+      const cx = r.left + r.width / 2;
+      x0 = Math.min(x0, cx - w / 2); x1 = Math.max(x1, cx + w / 2);
+      y0 = Math.min(y0, r.top); y1 = Math.max(y1, r.bottom);
+    }
+    if (!(x1 > x0 && y1 > y0)) return null;
+    return { x0: (x0 - P.left) / P.width, x1: (x1 - P.left) / P.width, y0: (y0 - P.top) / P.height, y1: (y1 - P.top) / P.height };
+  }
+  const frame3d = () => { const r = stage3d && glyphRegion(); if (r) stage3d.frame(r); };
+  maskName.addEventListener('fitted', () => requestAnimationFrame(frame3d));
+
   function maskSize() {
     const H = mask.clientHeight || picBox.clientHeight || 300;
     const lines = maskName.querySelectorAll('.fl').length || 1;
@@ -452,7 +479,8 @@ export async function init(sec, D, ctx) {
     setInfo(nd);
     setStats(nd, prev);
     setFacts(nd);
-    stage3d?.show(nd);
+    stage3d?.show(nd); // dreht die Pose in die Grundstellung zurück
+    if (changed) rotated(false);
     markRank();
     if (user) {
       announce(`${nd.name} ausgewählt.`, { now: true });
@@ -635,6 +663,7 @@ export async function init(sec, D, ctx) {
         pic.hidden = true;
         stage3d.show(def);
         stage3d.resize();
+        frame3d();
         setInfo(def);
       } catch (err) {
         console.warn('[NULLPUNKT] 3D-Vitrine nicht verfügbar:', err?.message || err);

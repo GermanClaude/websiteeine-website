@@ -29,6 +29,9 @@ const _q = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
 const _mid = new THREE.Vector3();
 const _mid2 = new THREE.Vector3();
+const _q3 = new THREE.Quaternion();
+const _ax = new THREE.Vector3(1, 0, 0);
+const _qFoot = new THREE.Quaternion().setFromAxisAngle(_ax, -0.55); // Fußspitzen gestreckt
 
 export class Ragdoll {
   constructor() {
@@ -93,7 +96,8 @@ export class Ragdoll {
       // Bedingungen
       for (let it = 0; it < 5; it++) {
         for (let k = 0; k < LINKS.length; k++) {
-          const [a, b, mn, mx] = LINKS[k];
+          const L = LINKS[k];
+          const a = L[0], b = L[1], mn = L[2], mx = L[3];
           const pa = this.p[a], pb = this.p[b];
           _d.subVectors(pb, pa);
           const len = _d.length() || 1e-6;
@@ -177,39 +181,38 @@ export class Ragdoll {
     const neckPos = _w.copy(anim.off[BONE.neck]).applyQuaternion(wq[BONE.chest]).add(wp[BONE.chest]);
     _y.subVectors(m[P.head], neckPos);
     _z.set(0, 0, 1).applyQuaternion(_q2);
-    quatFromYZ(_q, _y, _z);
-    const headQ = _q.clone();
-    _q.copy(_q2).slerp(headQ, 0.5);
+    quatFromYZ(_q3, _y, _z); // Kopf
+    _q.copy(_q2).slerp(_q3, 0.5);
     anim._setWorld(BONE.neck, _q);
-    anim._setWorld(BONE.head, headQ);
+    anim._setWorld(BONE.head, _q3);
     // Gliedmaßen
-    const limb = (bone, a, b, c, knee) => {
-      // bone: oberer Knochen; a = oberes Gelenk, b = mittleres, c = unteres
-      _mid.addVectors(m[a], m[c]).multiplyScalar(0.5);
-      _d.subVectors(m[b], _mid); // Beugerichtung (zum Mittelgelenk)
-      if (_d.lengthSq() < 1e-5) _d.set(0, 0, knee ? -1 : 1).applyQuaternion(wq[0]);
-      if (knee) _d.negate(); // Kniescheibe (−Z) zeigt in Beugerichtung; Ellbogenspitze (+Z)
-      _y.subVectors(m[a], m[b]);
-      quatFromYZ(_q, _y, _d);
-      anim._setWorld(bone, _q);
-      _y.subVectors(m[b], m[c]);
-      quatFromYZ(_q, _y, _d);
-      anim._setWorld(bone + 1, _q);
-    };
-    limb(BONE.upperArmL, P.shL, P.elbowL, P.wristL, false);
+    limb(anim, m, BONE.upperArmL, P.shL, P.elbowL, P.wristL, false);
     anim._setWorld(BONE.handL, wq[BONE.foreArmL]);
-    limb(BONE.upperArmR, P.shR, P.elbowR, P.wristR, false);
+    limb(anim, m, BONE.upperArmR, P.shR, P.elbowR, P.wristR, false);
     anim._setWorld(BONE.handR, wq[BONE.foreArmR]);
-    limb(BONE.thighL, P.hipL, P.kneeL, P.ankleL, true);
-    limb(BONE.thighR, P.hipR, P.kneeR, P.ankleR, true);
-    for (const ft of [BONE.footL, BONE.footR]) {
-      _q.setFromAxisAngle(_x.set(1, 0, 0), -0.55);
-      _q2.multiplyQuaternions(wq[ft - 1], _q);
-      anim._setWorld(ft, _q2);
-    }
+    limb(anim, m, BONE.thighL, P.hipL, P.kneeL, P.ankleL, true);
+    limb(anim, m, BONE.thighR, P.hipR, P.kneeR, P.ankleR, true);
+    _q2.multiplyQuaternions(wq[BONE.footL - 1], _qFoot);
+    anim._setWorld(BONE.footL, _q2);
+    _q2.multiplyQuaternions(wq[BONE.footR - 1], _qFoot);
+    anim._setWorld(BONE.footR, _q2);
     anim.headCenter.fromArray(DIM.headCenter).applyQuaternion(wq[BONE.head]).add(wp[BONE.head]);
     void clamp;
   }
+}
+
+/** Gliedmaße aus drei Partikeln: bone = oberer Knochen; a = oberes, b = mittleres, c = unteres Gelenk. */
+function limb(anim, m, bone, a, b, c, knee) {
+  _mid.addVectors(m[a], m[c]).multiplyScalar(0.5);
+  _d.subVectors(m[b], _mid); // Beugerichtung (zum Mittelgelenk)
+  if (_d.lengthSq() < 1e-5) _d.set(0, 0, knee ? -1 : 1).applyQuaternion(anim.wq[0]);
+  if (knee) _d.negate(); // Kniescheibe (−Z) zeigt in Beugerichtung; Ellbogenspitze (+Z)
+  _y.subVectors(m[a], m[b]);
+  quatFromYZ(_q, _y, _d);
+  anim._setWorld(bone, _q);
+  _y.subVectors(m[b], m[c]);
+  quatFromYZ(_q, _y, _d);
+  anim._setWorld(bone + 1, _q);
 }
 
 export const RAGDOLL_JOINT_BONES = [

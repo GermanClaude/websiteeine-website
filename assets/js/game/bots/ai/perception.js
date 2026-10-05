@@ -1,6 +1,9 @@
 // NULLPUNKT — Wahrnehmung: Sichtkegel + Sichtweite (je Schwierigkeit), Sichtlinie über world.lineOfSight
 // (Brust, dann Kopf – mit globalem Strahlenbudget pro Bild), Entdeckungsgrad abhängig von Abstand,
 // Blickzentrum, Bewegung, Mündungsfeuer und Haltung. Keine Sicht durch Wände, kein Allwissen.
+// Reicht das Strahlenbudget nicht, wird der Durchgang im nächsten Bild an derselben Stelle fortgesetzt
+// (Startpunkt rotiert, niemand wird bevorzugt) und noch sichtbare Einträge gelten bis dahin als
+// unbestätigt (kein Feuer auf möglicherweise verdeckte Ziele).
 import * as THREE from 'three';
 
 const _eye = new THREE.Vector3();
@@ -34,7 +37,16 @@ export function sense(bot, now, dt) {
   const cosHalf = Math.cos(D.fov / 2);
   const cosWide = Math.cos(Math.min(Math.PI * 0.95, D.fov / 2 + 0.6));
   const list = mgr.hostilesOf(bot);
-  for (let i = 0; i < list.length; i++) {
+  const n = list.length;
+  const st = bot._sense || (bot._sense = { next: 0, remain: 0, carry: 0 });
+  if (!n) { st.remain = 0; return; }
+  // unterbrochener Durchgang → dort fortsetzen (Zeit seit der letzten Prüfung dieser Einträge mitzählen)
+  const start = st.next % n;
+  const count = st.remain > 0 ? Math.min(n, st.remain) : n;
+  if (st.remain > 0) dt += st.carry;
+  st.remain = 0;
+  for (let k = 0; k < count; k++) {
+    const i = (start + k) % n;
     const a = list[i];
     if (!a.alive) continue;
     targetPoints(a, _p, _h);
@@ -49,8 +61,18 @@ export function sense(bot, now, dt) {
     const hurt = rec && now - rec.hurtMe < 1.6;
     const inCone = cos > cosHalf || d < 3.2 || (tracked && cos > cosWide) || (hurt && cos > -0.3);
     if (!inCone) { if (rec) { rec.visible = false; rec.spot = Math.max(0, rec.spot - dt * 0.4); } continue; }
-    // Sichtlinie (Budget)
-    if (!mgr.takeLos()) continue; // kein Budget: Zustand bleibt bis zum nächsten Schritt
+    // Sichtlinie (Budget): erschöpft → im nächsten Bild hier weitermachen, bis dahin unbestätigt
+    if (!mgr.takeLos()) {
+      st.next = i;
+      st.remain = count - k;
+      st.carry = dt;
+      bot._senseT = 0;
+      for (let j = k; j < count; j++) {
+        const r = mem.get(list[(start + j) % n]);
+        if (r && r.visible) r.unverified = true;
+      }
+      return;
+    }
     let vis = !world || !world.lineOfSight || world.lineOfSight(_eye, _p);
     let partial = false;
     if (!vis && mgr.takeLos()) { vis = world.lineOfSight(_eye, _h); partial = vis; }
@@ -81,4 +103,5 @@ export function sense(bot, now, dt) {
       }
     }
   }
+  st.next = (start + 1) % n; // nächster Durchgang beginnt beim nächsten Gegner (reihum)
 }

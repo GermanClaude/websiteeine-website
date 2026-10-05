@@ -1,7 +1,7 @@
 // Standbilder der Karten für die Website („Durchblick“, §03): rendert jede Karte in dev/world.html
 // aus einer festen Kamera und speichert WebP (≈ 60 KB) unter assets/img/maps/<id>.webp (+ <id>-s.webp, halbe Breite).
 // Aufruf (Server auf :8765):  node tools/stills.mjs [hafen,altstadt,…] [--try]   (--try: nur PNG-Vorschau in tools/out/)
-import { chromium } from '/opt/node-tools/node_modules/playwright/index.mjs';
+import { chromium, BASE } from './pw.mjs';
 import { writeFileSync, mkdirSync } from 'node:fs';
 
 // Kamera je Karte: [x, y, z, Gierwinkel °, Neigung °, senkrechtes Sichtfeld °] (Gierwinkel 0 = Blick nach −z)
@@ -24,7 +24,7 @@ for (const id of only) {
   const page = await (await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1 })).newPage();
   page.on('pageerror', (e) => console.error(id, e.message));
   const cam = camArg ? camArg.slice(6).split(',').map(Number) : CAMS[id];
-  await page.goto(`http://localhost:8765/dev/world.html?map=${id}&quality=high&debug=0&fov=${cam[5] || 40}`, { waitUntil: 'load' });
+  await page.goto(`${BASE}dev/world.html?map=${id}&quality=high&debug=0&fov=${cam[5] || 40}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__dev?.ready, null, { timeout: 240000 });
   await page.addStyleTag({ content: '#panel, #mini, #progress { display: none !important; }' });
   await page.evaluate(([x, y, z, yaw, pitch]) => {

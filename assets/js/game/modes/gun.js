@@ -2,22 +2,15 @@
 // Messerabschuss stuft das Opfer zurück (Medaille „Demütigung“), Selbsttötung ebenfalls. Gewinner: wer mit der
 // letzten Stufe trifft; bei Zeitende höchste Stufe (dann Abschüsse), Gleichstand → Verlängerung.
 
+import { WEAPONS, GUN_GAME_STEPS } from '../../shared/weapons.data.js';
 import { BaseMode } from './base.js';
-
-const FALLBACK_STEPS = [
-  'smg_vp9', 'smg_qx90', 'ar_m17', 'ar_kv47', 'lmg_hm60', 'mr_sk14', 'sg_bulldog', 'sr_brecher', 'pi_adler', 'pi_p9',
-  'smg_vp9', 'ar_m17', 'ar_kv47', 'sg_bulldog', 'mr_sk14', 'sr_brecher', 'pi_adler', 'knife',
-];
 
 export class GunMode extends BaseMode {
   constructor(G, modeId, opts) {
     super(G, modeId, opts);
     this.teams = false;
     this.scores = {};
-    const W = (G.data && G.data.WEAPONS) || {};
-    const steps = (G.data && G.data.GUN_GAME_STEPS) || FALLBACK_STEPS;
-    this.steps = steps.filter((id) => W[id] || id === 'knife');
-    if (!this.steps.length) this.steps = FALLBACK_STEPS.slice();
+    this.steps = GUN_GAME_STEPS.filter((id) => WEAPONS[id]);
     this.scoreLimit = this.steps.length;
     this.level = new Map();
     this._pending = new Set();
@@ -72,7 +65,7 @@ export class GunMode extends BaseMode {
   }
 
   onKillScored(killer, victim, e) {
-    const melee = e.weaponId === 'knife' || (this.G.data.WEAPONS && this.G.data.WEAPONS[e.weaponId] && this.G.data.WEAPONS[e.weaponId].cls === 'melee');
+    const melee = !!WEAPONS[e.weaponId] && WEAPONS[e.weaponId].cls === 'melee';
     if (melee && this.def.demoteOnMelee !== false && this.levelOf(victim) > 0) {
       this._setLevel(victim, this.levelOf(victim) - 1);
       this.medals.award(killer, 'demuetigung');

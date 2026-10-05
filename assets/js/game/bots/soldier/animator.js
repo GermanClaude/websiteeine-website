@@ -13,7 +13,7 @@
 //    Waffentransformation.
 import * as THREE from 'three';
 import { BONES, BONE, BONE_COUNT, DIM } from './rig.js';
-import { quatFromYZ, quatFromXY, twoBone, clamp, lerp, smooth, damp, wrap, ramp, spring } from './ik.js';
+import { quatFromYZ, quatFromXY, twoBone, clamp, lerp, smooth, damp, wrap, ramp, spring, qrot } from './ik.js';
 
 const V = () => new THREE.Vector3();
 const Qn = () => new THREE.Quaternion();
@@ -25,6 +25,7 @@ const _v = V(), _v2 = V(), _v3 = V(), _v4 = V(), _a = V(), _b = V(), _c = V(), _
 const S_R = V(), S_BP = V(), S_G = V(), S_L = V(), S_T = V(), S_M = V();
 const S_GRIP = V(), S_WELL = V(), S_WD = V(), S_PORT = V(), S_END = V();
 const S_LQ = Qn();
+const PARENT = BONES.map((b) => b[1]); // Elternknochen je Index
 
 /** Haltungen je Waffenart (Position des Griffs im Anschlagrahmen, Drehung Pitch/Yaw/Roll). */
 const POSES = {
@@ -346,23 +347,16 @@ export class Animator {
     const lean = 0.04 + run * 0.06 + sprint * 0.22 + crouch * 0.12;
     const fP = this.flinchP.x, fR = this.flinchR.x;
     const breatheP = Math.sin(t * 1.7 + 0.6) * 0.012;
-    const rel = [
-      // spine, chest, neck, head: [yaw, pitch, roll]
-      [yawRest * 0.35, pitch * 0.18 - lean * 0.5 - pelvisPitch * 0.4 + fP * 0.5, -sway * 1.2 + fR * 0.5],
-      [yawRest * 0.4, pitch * 0.32 - lean * 0.45 - pelvisPitch * 0.6 + breatheP + fP * 0.5 + this.recoilP.x * 0.04, fR * 0.4],
-      [yawRest * 0.12 + this.glance.yaw * 0.4, pitch * 0.2 + lean * 0.4 - ads * 0.22 + this.glance.pitch * 0.4, -ads * 0.06],
-      [yawRest * 0.13 + this.glance.yaw * 0.6, pitch * 0.3 + lean * 0.55 + ads * 0.12 + this.flinchH.x * 0.3 + this.glance.pitch * 0.6, -ads * 0.2 - fR * 0.2],
-    ];
-    for (let i = 1; i <= 4; i++) {
-      const [y, x, z] = rel[i - 1];
-      _e.set(x, y, z, 'YXZ');
-      lq[i].setFromEuler(_e);
-      this._fk(i);
-    }
+    // Wirbelsäule, Brust, Hals, Kopf: (Gierung, Neigung, Rollen)
+    const gl = this.glance;
+    this._rotFk(1, yawRest * 0.35, pitch * 0.18 - lean * 0.5 - pelvisPitch * 0.4 + fP * 0.5, -sway * 1.2 + fR * 0.5);
+    this._rotFk(2, yawRest * 0.4, pitch * 0.32 - lean * 0.45 - pelvisPitch * 0.6 + breatheP + fP * 0.5 + this.recoilP.x * 0.04, fR * 0.4);
+    this._rotFk(3, yawRest * 0.12 + gl.yaw * 0.4, pitch * 0.2 + lean * 0.4 - ads * 0.22 + gl.pitch * 0.4, -ads * 0.06);
+    this._rotFk(4, yawRest * 0.13 + gl.yaw * 0.6, pitch * 0.3 + lean * 0.55 + ads * 0.12 + this.flinchH.x * 0.3 + gl.pitch * 0.6, -ads * 0.2 - fR * 0.2);
 
     /* ---------- Anschlagrahmen + Waffe */
     const chest = BONE.chest;
-    this.aimPivot.set(0, 0.15, -0.01).applyQuaternion(wq[chest]).add(wp[chest]);
+    qrot(this.aimPivot.set(0, 0.15, -0.01), wq[chest]).add(wp[chest]);
     _e.set(pitch, aimRel, 0, 'YXZ');
     this.aimQuat.setFromEuler(_e);
     const P = this.poses || null;
@@ -375,23 +369,30 @@ export class Animator {
     this._legs(p);
 
     /* ---------- Kopfmitte (Trefferzone) */
-    this.headCenter.fromArray(DIM.headCenter).applyQuaternion(wq[BONE.head]).add(wp[BONE.head]);
+    qrot(this.headCenter.fromArray(DIM.headCenter), wq[BONE.head]).add(wp[BONE.head]);
     void init;
   }
 
   _fk(i) {
-    const parent = BONES[i][1];
+    const parent = PARENT[i];
     this.wq[i].multiplyQuaternions(this.wq[parent], this.lq[i]);
-    this.wp[i].copy(this.off[i]).applyQuaternion(this.wq[parent]).add(this.wp[parent]);
+    qrot(this.wp[i].copy(this.off[i]), this.wq[parent]).add(this.wp[parent]);
+  }
+
+  /** Lokale Drehung (Gierung y, Neigung x, Rollen z; Reihenfolge YXZ) setzen + Vorwärtskinematik. */
+  _rotFk(i, y, x, z) {
+    _e.set(x, y, z, 'YXZ');
+    this.lq[i].setFromEuler(_e);
+    this._fk(i);
   }
 
   /** Weltrotation eines Knochens setzen → lokale Rotation (Elternteil muss aktuell sein). */
   _setWorld(i, q) {
-    const parent = BONES[i][1];
+    const parent = PARENT[i];
     this.wq[i].copy(q);
     _qi.copy(this.wq[parent]).invert();
     this.lq[i].multiplyQuaternions(_qi, q);
-    this.wp[i].copy(this.off[i]).applyQuaternion(this.wq[parent]).add(this.wp[parent]);
+    qrot(this.wp[i].copy(this.off[i]), this.wq[parent]).add(this.wp[parent]);
   }
 
   /* ---------------------------------------------------------------- Waffe */
@@ -445,7 +446,7 @@ export class Animator {
       pos.y -= b * 0.01;
     }
     // Rahmen → Modellraum
-    this.gunPos.copy(pos).applyQuaternion(this.aimQuat).add(this.aimPivot);
+    qrot(this.gunPos.copy(pos), this.aimQuat).add(this.aimPivot);
     _e.set(rx, ry, rz, 'YXZ');
     _q.setFromEuler(_e);
     this.gunQuat.multiplyQuaternions(this.aimQuat, _q);
@@ -453,7 +454,7 @@ export class Animator {
 
   /** Waffenraum → Modellraum. */
   _gunToModel(local, out) {
-    return out.copy(local).applyQuaternion(this.gunQuat).add(this.gunPos);
+    return qrot(out.copy(local), this.gunQuat).add(this.gunPos);
   }
 
   /* ---------------------------------------------------------------- Arme */
@@ -551,13 +552,13 @@ export class Animator {
     let lq = lQuat;
     if (lFree > 0.01) lq = lQuat.slerp(this._freeHandQuat(_q, 'L', lTarget), lFree);
     this._armIK('L', lTarget, lq, this._poleWorld(this.poleL, lFree > 0.6 ? _v.set(-0.4, -0.5, 0.6) : null));
-    this.handRGrip.copy(GRIP_R).applyQuaternion(this.wq[BONE.handR]).add(this.wp[BONE.handR]);
-    this.handLGrip.copy(GRIP_L).applyQuaternion(this.wq[BONE.handL]).add(this.wp[BONE.handL]);
+    qrot(this.handRGrip.copy(GRIP_R), this.wq[BONE.handR]).add(this.wp[BONE.handR]);
+    qrot(this.handLGrip.copy(GRIP_L), this.wq[BONE.handL]).add(this.wp[BONE.handL]);
   }
 
   /** Pol im Anschlagrahmen → Modellraum. */
   _poleWorld(pole, override) {
-    return _pole.copy(override || pole).applyQuaternion(this.aimQuat);
+    return qrot(_pole.copy(override || pole), this.aimQuat);
   }
 
   /** Hand-Orientierung auf einem Griff (Modellraum). */
@@ -566,8 +567,8 @@ export class Animator {
     if (side === 'R') {
       // Handrücken nach außen (+X der Waffe), Finger entlang des Griffs (nach hinten geneigt)
       const kind = this.kind;
-      const x = _a.set(1, 0, 0).applyQuaternion(gq);
-      const y = kind === 'knife' ? _b.set(0, 0.2, 1).normalize().applyQuaternion(gq) : _b.set(0, 0.94, -0.34).applyQuaternion(gq);
+      const x = qrot(_a.set(1, 0, 0), gq);
+      const y = qrot(kind === 'knife' ? _b.set(0, 0.2, 1).normalize() : _b.set(0, 0.94, -0.34), gq);
       return quatFromXY(out, x, y);
     }
     const st = this.anchors.style;
@@ -576,8 +577,8 @@ export class Animator {
     else if (st === 'post') { x = _a.set(1, 0, 0.1); y = _b.set(0, 1, -0.25); }
     else if (st === 'pistol') { x = _a.set(0.8, 0.3, -0.2); y = _b.set(0.2, 0.75, 0.5); }
     else { x = _a.set(0.25, 1, 0); y = _b.set(-1, 0.25, -0.15); } // under / pump
-    x.normalize().applyQuaternion(gq);
-    y.normalize().applyQuaternion(gq);
+    qrot(x.normalize(), gq);
+    qrot(y.normalize(), gq);
     return quatFromXY(out, x, y);
   }
 
@@ -596,9 +597,9 @@ export class Animator {
     const fa = ua + 1, hd = ua + 2;
     const chest = BONE.chest;
     // Schulter (aus Brust-FK)
-    const S = _a.copy(this.off[ua]).applyQuaternion(this.wq[chest]).add(this.wp[chest]);
+    const S = qrot(_a.copy(this.off[ua]), this.wq[chest]).add(this.wp[chest]);
     // Handgelenk = Griffpunkt − Hand·Griffversatz
-    const W = _b.copy(side === 'R' ? GRIP_R : GRIP_L).applyQuaternion(handQ).negate().add(gripTarget);
+    const W = qrot(_b.copy(side === 'R' ? GRIP_R : GRIP_L), handQ).negate().add(gripTarget);
     const E = _c;
     const T = _v4;
     twoBone(S, W, DIM.upperArm, DIM.foreArm, pole, E, T);
@@ -715,7 +716,7 @@ export class Animator {
       const side = f === 0 ? -1 : 1;
       const th = f === 0 ? BONE.thighL : BONE.thighR;
       const sh = th + 1, ft = th + 2;
-      const H = _a.copy(this.off[th]).applyQuaternion(wq[0]).add(wp[0]);
+      const H = qrot(_a.copy(this.off[th]), wq[0]).add(wp[0]);
       const foot = feet[f];
       const ankle = _b.set(foot.x, foot.y + DIM.ankle, foot.z + 0.0);
       // Knie zeigt nach vorn (Hüftausrichtung) und leicht nach außen

@@ -7,26 +7,20 @@
 // Treffer auf Geschütze: world.raycast wird solange um die Geschütze erweitert; 'impact' → Schaden.
 
 import * as THREE from 'three';
+import { STREAKS, STREAK_ORDER } from '../../shared/modes.data.js';
+import { WEAPONS, EQUIPMENT } from '../../shared/weapons.data.js';
 import { falloff } from '../combat.js';
 import { Sentry, createSentryResources } from './sentry.js';
 import { Strike, createStrikeResources, groundAt } from './strike.js';
 
 const _v = new THREE.Vector3();
 const _d = new THREE.Vector3();
-const FALLBACK = {
-  uav: { id: 'uav', name: 'Aufklärer', kills: 4, duration: 30, params: { sweepInterval: 2 } },
-  strike: { id: 'strike', name: 'Präzisionsschlag', kills: 6, duration: 0, params: {} },
-  sentry: { id: 'sentry', name: 'Wachgeschütz', kills: 8, duration: 45, params: {} },
-};
 
 export class StreakManager {
   constructor(G, mode) {
     this.G = G;
     this.mode = mode;
-    const D = G.data || {};
-    const S = D.STREAKS || FALLBACK;
-    const order = D.STREAK_ORDER || Object.keys(S);
-    this.defs = order.map((id) => S[id]).filter(Boolean).sort((a, b) => a.kills - b.kills);
+    this.defs = STREAK_ORDER.map((id) => STREAKS[id]).filter(Boolean).sort((a, b) => a.kills - b.kills);
     this.order = this.defs.map((d) => d.id);
     this.byId = Object.fromEntries(this.defs.map((d) => [d.id, d]));
     this.state = new Map(); // actor → { kills, earned:Set, ready:[] }
@@ -381,8 +375,7 @@ export class StreakManager {
     const e = h.entity;
     const shooter = p.shooter;
     if (!e || !e.alive || !shooter || !e._hostile(shooter)) return;
-    const W = (this.G.data && this.G.data.WEAPONS) || {};
-    const def = W[p.weaponId] || (shooter.def && shooter.def.id === p.weaponId ? shooter.def : null);
+    const def = WEAPONS[p.weaponId] || (shooter.def && shooter.def.id === p.weaponId ? shooter.def : null);
     if (!def) return;
     let dist = 10;
     if (shooter.getEyePosition) dist = shooter.getEyePosition(_v).distanceTo(p.point);
@@ -394,8 +387,7 @@ export class StreakManager {
     if (!p || !p.position || !this.entities.length) return;
     const G = this.G;
     const attacker = p.attacker || null;
-    const EQ = (G.data && G.data.EQUIPMENT) || {};
-    const eq = EQ[p.type] || EQ[p.weaponId];
+    const eq = EQUIPMENT[p.type] || EQUIPMENT[p.weaponId];
     const strike = this.byId.strike && this.byId.strike.params;
     const max = eq ? eq.maxDamage : p.weaponId === 'strike' || p.type === 'airstrike' ? (strike && strike.maxDamage) || 200 : 120;
     const radius = p.radius || 5;

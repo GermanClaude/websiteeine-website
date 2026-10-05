@@ -25,11 +25,10 @@
 <body>
 <aside>
   <h1>UI<em>.</em></h1>
-  <p>Spiel im Rahmen (Stubs für Welt/Bots wählbar). Knöpfe steuern <code>__game</code> im Rahmen.</p>
+  <p>Spiel im Rahmen. Knöpfe steuern <code>__game</code> im Rahmen.</p>
   <h2>Rahmen</h2>
   <select id="size"><option value="1280x720">Desktop 1280×720</option><option value="915x412">Telefon quer 915×412</option><option value="740x360">Kleines Telefon 740×360</option><option value="1024x768">Tablet 1024×768</option></select>
   <select id="mode"><option>tdm</option><option>dom</option><option>ffa</option><option>gun</option><option>training</option></select>
-  <select id="stubs"><option value="world,bots,audio">Testgelände + Stub-Bots</option><option value="bots">Echte Karte + Stub-Bots</option><option value="">Alles echt</option></select>
   <div class="row"><button data-x="lobby">Lobby laden</button><button data-x="auto">Direkt starten</button></div>
   <h2>Ereignisse</h2>
   <button data-x="kills">Alle Gegner ausschalten</button>
@@ -55,7 +54,6 @@
     const [w, h] = $('size').value.split('x');
     f.width = w; f.height = h;
     const p = new URLSearchParams({ mode: $('mode').value, time: '300' });
-    if ($('stubs').value) p.set('stubs', $('stubs').value);
     if ($('mode').value === 'training') p.set('map', 'range');
     if (auto) p.set('autostart', '1');
     f.src = `../spielen.html?${p}`;

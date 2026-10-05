@@ -1,9 +1,13 @@
 // NULLPUNKT — Renderer: Qualitätsstufen, Post-Processing, Viewmodel-Pass (§5).
 //
 // Kette (medium+): RenderPass(Welt) → [GTAO (ultra)] → RenderPass(Viewmodel, nur Tiefe löschen)
-//                  → UnrealBloom → SMAA/FXAA → Farblook + Vignette → OutputPass (ACES + sRGB)
-// low: direktes Rendern ohne Composer (Tonemapping im Material-Shader), Vignette per CSS
-//      (main setzt dafür body.np-css-vignette, wenn preset.grade false ist).
+//                  → Bloom (weiches Knie, nur Emissives/echte Spitzlichter) → [SMAA] → Farblook + Vignette
+//                  → OutputPass (ACES + sRGB) → [FXAA, im sRGB-Raum]
+// low: direktes Rendern ohne Composer mit MSAA des Kontexts (Tonemapping im Material-Shader), Vignette per CSS
+//      (main setzt dafür body.np-css-vignette, wenn preset.grade false ist). Hat der Kontext kein MSAA
+//      (Start auf medium+, dann Wechsel auf low), läuft low über einen Mini-Composer mit FXAA.
+//      Sonnenschatten auch auf low (1024², kleinere Kaskade, Schattenkarte nur alle preset.shadowInterval
+//      Bilder bzw. nach invalidateShadows() neu).
 //
 // Der Farblook ist der „Mobile-Shooter“-Look: kräftig, kontrastreich, leicht warm, kühle Schatten.
 
@@ -19,24 +23,34 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 export const QUALITY_LEVELS = ['low', 'medium', 'high', 'ultra'];
 
+// shadowExtent: Obergrenze der halben Kantenlänge der Sonnen-Schattenkaskade (m, null = Kartenwert);
+// shadowInterval: Schattenkarte höchstens jedes n-te Bild neu (1 = jedes Bild; Welt meldet Kamerasprünge
+// über invalidateShadows()). Telefone (auto → low) bekommen so Sonnenschatten bei ~⅓ der Kosten.
 export const QUALITY_PRESETS = Object.freeze({
   low: Object.freeze({
-    id: 'low', pixelRatio: 1, shadows: false, shadowMapSize: 1024, bloom: false, smaa: false, fxaa: false,
-    ssao: false, grade: false, post: false, maxBotsVisibleShadows: 0, particleScale: 0.45, decals: 40, anisotropy: 1,
+    id: 'low', pixelRatio: 1.5, shadows: true, shadowMapSize: 1024, shadowExtent: 24, shadowInterval: 4,
+    bloom: false, smaa: false, fxaa: false,
+    ssao: false, grade: false, post: false, maxBotsVisibleShadows: 0, particleScale: 0.45, decals: 40, anisotropy: 2,
   }),
   medium: Object.freeze({
-    id: 'medium', pixelRatio: 1.25, shadows: true, shadowMapSize: 2048, bloom: true, smaa: false, fxaa: true,
+    id: 'medium', pixelRatio: 1.25, shadows: true, shadowMapSize: 2048, shadowExtent: null, shadowInterval: 1,
+    bloom: true, smaa: false, fxaa: true,
     ssao: false, grade: true, post: true, maxBotsVisibleShadows: 4, particleScale: 0.7, decals: 80, anisotropy: 4,
   }),
   high: Object.freeze({
-    id: 'high', pixelRatio: 1.5, shadows: true, shadowMapSize: 2048, bloom: true, smaa: true, fxaa: false,
+    id: 'high', pixelRatio: 1.5, shadows: true, shadowMapSize: 2048, shadowExtent: null, shadowInterval: 1,
+    bloom: true, smaa: true, fxaa: false,
     ssao: false, grade: true, post: true, maxBotsVisibleShadows: 8, particleScale: 1, decals: 120, anisotropy: 8,
   }),
   ultra: Object.freeze({
-    id: 'ultra', pixelRatio: 2, shadows: true, shadowMapSize: 4096, bloom: true, smaa: true, fxaa: false,
+    id: 'ultra', pixelRatio: 2, shadows: true, shadowMapSize: 4096, shadowExtent: null, shadowInterval: 1,
+    bloom: true, smaa: true, fxaa: false,
     ssao: true, grade: true, post: true, maxBotsVisibleShadows: 16, particleScale: 1.25, decals: 120, anisotropy: 16,
   }),
 });
+
+/** Standardwerte des Bloom (Schwelle in Bildwerten nach Belichtung, d. h. vor ACES). */
+export const BLOOM_DEFAULTS = Object.freeze({ threshold: 3.0, strength: 0.24, radius: 0.4, maxBright: 8 });
 
 /** Erkennt Touch-/Schwachgeräte für 'auto'. */
 export function isLowEndDevice() {
@@ -93,9 +107,10 @@ const GradeShader = {
     varying vec2 vUv;
     void main() {
       vec4 src = texture2D(tDiffuse, vUv);
-      vec3 col = max(src.rgb, vec3(0.0)) * uExposure * uTint;
-      // Kontrast im Log-Raum um Mittelgrau (linear, HDR-tauglich)
-      vec3 lc = log2(max(col, vec3(1e-5)) / 0.18) * uContrast;
+      // Eingang begrenzen: ACES sättigt weit darunter; verhindert Halbfloat-Überlauf (Inf → NaN → schwarze Pixel)
+      vec3 col = clamp(src.rgb * uExposure, 0.0, 64.0) * uTint;
+      // Kontrast im Log-Raum um Mittelgrau (linear, HDR-tauglich); Exponent begrenzt → Ergebnis ≤ ~92
+      vec3 lc = min(log2(max(col, vec3(1e-5)) / 0.18) * uContrast, vec3(9.0));
       col = exp2(lc) * 0.18;
       float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
       col = mix(vec3(l), col, uSaturation * (1.0 - uDesaturate));
@@ -109,18 +124,69 @@ const GradeShader = {
       col *= vig;
       float edge = smoothstep(0.45, 1.0, r) * uDamage;
       col = mix(col, vec3(0.55, 0.02, 0.0) * (0.4 + l), edge * 0.75);
-      gl_FragColor = vec4(col, src.a);
+      gl_FragColor = vec4(min(col, vec3(256.0)), src.a);
     }
   `,
 };
+
+/* ------------------------------------------------------------ Bloom */
+
+// Hochpass mit weichem Knie auf dem größten Farbkanal (gesättigte Emissives wie Natriumlampen zählen voll),
+// Schwelle wird abgezogen (statt das ganze Pixel durchzulassen) und das Ergebnis begrenzt: keine einzelne
+// Quelle (Sonne, Explosion) kann das Bild fluten; sonnenbeschienener Putz/Lack (≈ 1–2,5) bleibt unberührt.
+const BLOOM_HIGHPASS_FRAG = /* glsl */ `
+  uniform sampler2D tDiffuse;
+  uniform float luminosityThreshold;
+  uniform float smoothWidth;
+  uniform float maxBright;
+  varying vec2 vUv;
+  void main() {
+    vec3 c = clamp(texture2D(tDiffuse, vUv).rgb, 0.0, 65000.0);
+    float br = max(c.r, max(c.g, c.b));
+    float soft = clamp(br - luminosityThreshold + smoothWidth, 0.0, 2.0 * smoothWidth);
+    soft = soft * soft / (4.0 * smoothWidth + 1e-4);
+    vec3 o = c * (max(soft, br - luminosityThreshold) / max(br, 1e-4));
+    float m = max(o.r, max(o.g, o.b));
+    o *= min(1.0, maxBright / max(m, 1e-4));
+    gl_FragColor = vec4(o, 1.0);
+  }
+`;
+
+class SoftBloomPass extends UnrealBloomPass {
+  constructor(resolution, { strength, radius, threshold, maxBright }) {
+    super(resolution, strength, radius, threshold);
+    this.highPassUniforms.maxBright = { value: maxBright };
+    this.highPassUniforms.smoothWidth.value = threshold * 0.5;
+    const stock = this.materialHighPassFilter;
+    this.materialHighPassFilter = new THREE.ShaderMaterial({
+      name: 'NullpunktBloomHighPass',
+      uniforms: this.highPassUniforms,
+      vertexShader: stock.vertexShader,
+      fragmentShader: BLOOM_HIGHPASS_FRAG,
+    });
+    stock.dispose();
+  }
+
+  /** Schwelle (vor Belichtung) + weiches Knie setzen. */
+  setThreshold(t) {
+    this.threshold = t;
+    this.highPassUniforms.smoothWidth.value = t * 0.5;
+  }
+
+  dispose() {
+    super.dispose();
+    this.materialHighPassFilter.dispose(); // UnrealBloomPass gibt den Hochpass selbst nicht frei
+  }
+}
 
 /* ------------------------------------------------------------ Renderer */
 
 /**
  * createRenderer(canvas, { quality }) → {
- *   renderer, quality, preset, composer|null,
+ *   renderer, quality, preset, composer|null, msaa,
  *   setQuality(q), resize(), render(scene, camera, vmScene, vmCamera), info(), dispose(),
- *   setPost({ exposure, contrast, saturation, vignette, damage, desaturate }), onQualityChange(fn), onContextChange(fn)
+ *   setPost({ exposure, contrast, saturation, vignette, damage, desaturate, bloomThreshold, bloomStrength }),
+ *   onQualityChange(fn), onContextChange(fn), invalidateShadows()
  * }
  */
 export function createRenderer(canvas, { quality = 'auto' } = {}) {
@@ -143,7 +209,10 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
 
   const qualityListeners = new Set();
   const contextListeners = new Set();
-  const postState = { exposure: 1, contrast: 1.12, saturation: 1.16, vignette: 0.32, damage: 0, desaturate: 0 };
+  const postState = {
+    exposure: 1, contrast: 1.12, saturation: 1.16, vignette: 0.32, damage: 0, desaturate: 0,
+    bloomThreshold: BLOOM_DEFAULTS.threshold, bloomStrength: BLOOM_DEFAULTS.strength,
+  };
 
   const R = {
     renderer,
@@ -151,6 +220,8 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
     requested: quality,
     preset: QUALITY_PRESETS[initial],
     composer: null,
+    /** Hat der Standard-Framebuffer MSAA? (nur wenn mit low gestartet; sonst FXAA-Ersatz auf low) */
+    msaa: !!renderer.getContextAttributes()?.antialias,
     lost: false,
     width: 1,
     height: 1,
@@ -163,6 +234,8 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
     _fps: 0,
     _frameMs: 0,
     _lastScene: null,
+    _shadowDirty: true,
+    _shadowFrame: 0,
 
     setQuality(q) {
       const next = resolveQuality(q);
@@ -172,6 +245,7 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
       this.quality = next;
       this.preset = QUALITY_PRESETS[next];
       renderer.shadowMap.enabled = this.preset.shadows;
+      this._shadowDirty = true;
       this._build();
       this.resize(true);
       // Schatten an/aus und Kartengröße erfordern Shader-Neukompilierung bzw. neue Shadow-Maps.
@@ -187,7 +261,9 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
       this.composer = null;
       this._passes = null;
       const p = this.preset;
-      if (!p.post) return;
+      // low ohne MSAA im Kontext (zur Laufzeit von medium+ gewechselt): Mini-Composer nur für FXAA
+      const fxaaFallback = !p.post && !this.msaa;
+      if (!p.post && !fxaaFallback) { applyPost(this); return; }
       const size = renderer.getDrawingBufferSize(new THREE.Vector2());
       const composer = new EffectComposer(renderer);
       const world = new RenderPass(null, null);
@@ -205,21 +281,26 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
       composer.addPass(vm);
       let bloom = null;
       if (p.bloom) {
-        bloom = new UnrealBloomPass(new THREE.Vector2(Math.max(1, size.x >> 1), Math.max(1, size.y >> 1)), 0.32, 0.45, 0.92);
+        bloom = new SoftBloomPass(new THREE.Vector2(Math.max(1, size.x >> 1), Math.max(1, size.y >> 1)), BLOOM_DEFAULTS);
         composer.addPass(bloom);
       }
       let aa = null;
-      if (p.smaa) { aa = new SMAAPass(); composer.addPass(aa); } else if (p.fxaa) { aa = new FXAAPass(); composer.addPass(aa); }
+      if (p.smaa) { aa = new SMAAPass(); composer.addPass(aa); }
       let grade = null;
       if (p.grade) {
         grade = new ShaderPass(GradeShader);
         composer.addPass(grade);
       }
       composer.addPass(new OutputPass());
+      // FXAA arbeitet auf tonegemappten sRGB-Werten (wofür es ausgelegt ist) und schreibt direkt aufs Bild
+      if (!aa && (p.fxaa || fxaaFallback)) { aa = new FXAAPass(); composer.addPass(aa); }
       this.composer = composer;
       this._passes = { world, gtao, vm, bloom, aa, grade };
       applyPost(this);
     },
+
+    /** Schattenkarte beim nächsten Bild neu zeichnen (z. B. nach Verschieben der Schattenkaskade). */
+    invalidateShadows() { this._shadowDirty = true; },
 
     resize(force = false) {
       const w = Math.max(1, Math.floor(canvas.clientWidth || window.innerWidth));
@@ -258,6 +339,12 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
       fitCamera(camera, aspect);
       if (vmCamera) fitCamera(vmCamera, aspect);
       renderer.info.reset();
+      // Gedrosselte Schatten (low): statische Welt + gleiche Kaskade → Karte nur jedes n-te Bild oder nach invalidateShadows()
+      const sm = renderer.shadowMap, every = this.preset.shadowInterval || 1;
+      if (sm.enabled && every > 1) {
+        sm.autoUpdate = false;
+        if (this._shadowDirty || ++this._shadowFrame >= every) { sm.needsUpdate = true; this._shadowDirty = false; this._shadowFrame = 0; }
+      } else sm.autoUpdate = true;
 
       if (this.composer) {
         const ps = this._passes;
@@ -302,7 +389,10 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
       };
     },
 
-    /** Farblook/Vignette/Schadensrand anpassen (HUD/Welt dürfen das nutzen). */
+    /**
+     * Farblook/Vignette/Schadensrand/Bloom anpassen (HUD/Welt dürfen das nutzen).
+     * bloomThreshold gilt nach der Belichtung (größter Farbkanal), bloomStrength 0..1.
+     */
     setPost(values = {}) {
       for (const k of Object.keys(postState)) if (Number.isFinite(values[k])) postState[k] = values[k];
       applyPost(this);
@@ -333,6 +423,12 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
       u.uDamage.value = postState.damage;
       u.uDesaturate.value = postState.desaturate;
     }
+    const b = r._passes && r._passes.bloom;
+    if (b) {
+      // Bloom läuft vor dem Farblook (vor der Belichtung) → Schwelle umrechnen
+      b.setThreshold(Math.max(0.05, postState.bloomThreshold) / Math.max(0.1, postState.exposure));
+      b.strength = Math.max(0, postState.bloomStrength);
+    }
     // Ohne Grade-Pass (low) wirkt nur die Belichtung.
     renderer.toneMappingExposure = r.preset.grade ? 1.0 : postState.exposure * 1.05;
   }
@@ -344,6 +440,7 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
   }
   function onRestored() {
     R.lost = false;
+    R._shadowDirty = true;
     // three.js stellt seinen Zustand selbst wieder her; Composer-Ziele neu aufbauen.
     R._build();
     R.resize(true);

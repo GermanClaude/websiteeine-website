@@ -1,10 +1,16 @@
 // NULLPUNKT — Kartenanalyse für Bots (einmal pro Welt): Spielachse (Spawn A → B), drei Spuren
-// (links/Mitte/rechts nach seitlichem Abstand), Machtpositionen (erhöht, viel Deckung), sowie
-// Zielwahl fürs Umherziehen, Flankenpunkte und Deckungssuche.
+// (links/Mitte/rechts nach seitlichem Abstand), Machtpositionen (erhöht, viel Deckung), erhöhte
+// Posten (Dächer/Laufstege mit Deckung), sowie Zielwahl fürs Umherziehen, Flankenpunkte, Posten mit
+// Sicht auf einen Ort und Deckungssuche.
 import * as THREE from 'three';
 
 const cache = new WeakMap();
 const _v = new THREE.Vector3();
+const _e = new THREE.Vector3();
+const _t = new THREE.Vector3();
+
+/** Höhe über dem Kartenboden, ab der ein Knoten als erhöht gilt (Dach, Laufsteg, Obergeschoss). */
+export const HIGH_Y = 2.2;
 
 function centroid(list) {
   const c = new THREE.Vector3();
@@ -42,8 +48,12 @@ export function analyze(world) {
   }
   // Machtpositionen: erhöht mit Deckung, oder viele Deckungsrichtungen
   const ground = nodes.length ? Math.min(...nodes.slice(0, 400).map((n) => n.position.y)) : 0;
-  const hot = nodes.filter((n) => (n.position.y - ground > 2.2 && n.cover) || (n.cover && n.coverDirs && n.coverDirs.length >= 3 && n.coverDirs.length <= 5));
-  A = { nav, nodes, sa, sb, axis, perp, center, length, lanes, along, hot, ground, idOf: new Map(nodes.map((n, i) => [n, i])) };
+  const hot = nodes.filter((n) => (n.position.y - ground > HIGH_Y && n.cover) || (n.cover && n.coverDirs && n.coverDirs.length >= 3 && n.coverDirs.length <= 5));
+  // Erhöhte Posten: über Bodenniveau mit Deckung (Brüstung/Kisten), sonst alle erhöhten Knoten
+  const high = nodes.filter((n) => n.position.y - ground > HIGH_Y);
+  const covered = high.filter((n) => n.cover);
+  const perch = covered.length >= 8 ? covered : high;
+  A = { nav, nodes, sa, sb, axis, perp, center, length, lanes, along, hot, high, perch, perchSet: new Set(perch), ground, idOf: new Map(nodes.map((n, i) => [n, i])) };
   cache.set(world, A);
   return A;
 }
@@ -52,7 +62,8 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 
 /**
  * Ziel zum Umherziehen: Teams spuren- und frontbasiert (Richtung Gegnerseite), FFA belebte Zonen in
- * mittlerer Entfernung. Abstand zu den Zielen der Teamkameraden (Verteilung über die Karte).
+ * mittlerer Entfernung, erhöhte Posten bevorzugt (Vertikalität). Abstand zu den Zielen der
+ * Teamkameraden (Verteilung über die Karte). → NavGraph-Knoten | null
  */
 export function pickRoamGoal(bot, A, taken = []) {
   if (!A || !A.nodes.length) return null;
@@ -65,7 +76,8 @@ export function pickRoamGoal(bot, A, taken = []) {
   const push = Math.min(0.85, 0.42 + (bot.G.time.elapsed - (bot.spawnTime || 0)) * 0.006 + Math.random() * 0.25);
   for (let k = 0; k < tries; k++) {
     let n;
-    if (team && Math.random() < 0.72) {
+    if (A.perch.length && Math.random() < PERCH_TRY) n = A.perch[(Math.random() * A.perch.length) | 0];
+    else if (team && Math.random() < 0.72) {
       const L = A.lanes[Math.random() < 0.8 ? lane : (Math.random() * 3) | 0];
       n = L[(Math.random() * L.length) | 0];
     } else if (A.hot.length && Math.random() < 0.35) n = A.hot[(Math.random() * A.hot.length) | 0];
@@ -82,12 +94,46 @@ export function pickRoamGoal(bot, A, taken = []) {
     }
     if (d < 8) s -= 3;
     if (n.cover) s += 0.6;
+    if (A.perchSet.has(n)) s += PERCH_BONUS;
     for (const t of taken) if (t && t.distanceToSquared(n.position) < 100) s -= 2.5;
     if (bot.lastGoal && bot.lastGoal.distanceToSquared(n.position) < 64) s -= 2;
     s += Math.random() * 1.2;
     if (s > bestScore) { bestScore = s; best = n; }
   }
-  return best ? best.position.clone() : null;
+  return best;
+}
+
+const PERCH_TRY = 0.22; // Anteil der Kandidaten aus den erhöhten Posten
+const PERCH_BONUS = 1.3; // Bewertungsbonus erhöhter Posten
+
+/** Ist der Knoten ein erhöhter Posten? */
+export function isPerch(A, node) {
+  return !!(A && node && A.perchSet.has(node));
+}
+
+/**
+ * Erhöhter Posten im Umkreis von center mit Sicht auf center (Augenhöhe → Brusthöhe am Ort).
+ * Prüft höchstens `tests` zufällige Kandidaten (je ein Sichtstrahl). → Knoten | null
+ */
+export function perchNear(bot, A, center, radius, { tests = 3, minDist = 4, maxFromBot = 60 } = {}) {
+  if (!A || !A.perch.length) return null;
+  const world = bot.G.world;
+  const r2 = radius * radius, m2 = minDist * minDist, b2 = maxFromBot * maxFromBot;
+  const list = [];
+  for (const n of A.perch) {
+    const d2 = n.position.distanceToSquared(center);
+    if (d2 <= r2 && d2 >= m2 && n.position.distanceToSquared(bot.position) <= b2) list.push(n);
+  }
+  for (let k = 0; k < tests && list.length; k++) {
+    const i = (Math.random() * list.length) | 0;
+    const n = list[i];
+    list[i] = list[list.length - 1];
+    list.pop();
+    _e.copy(n.position).setY(n.position.y + 1.55);
+    _t.copy(center).setY(center.y + 1.1);
+    if (!world || !world.lineOfSight || world.lineOfSight(_e, _t)) return n;
+  }
+  return null;
 }
 
 /** Flankenpunkt: seitlich versetzt zum Ziel, auf dem NavGraph, nicht im direkten Anlauf. */
@@ -98,6 +144,11 @@ export function flankPoint(bot, A, targetPos) {
   if (d < 8) return null;
   _v.multiplyScalar(1 / d);
   const side = Math.random() < 0.5 ? -1 : 1;
+  // erhöhte Flanke (Dach/Laufsteg mit Sicht aufs Ziel) bevorzugt
+  if (Math.random() < 0.5) {
+    const n = perchNear(bot, A, targetPos, 18, { tests: 2, minDist: 7 });
+    if (n) return n.position.clone();
+  }
   for (const s of [side, -side]) {
     const p = targetPos.clone().addScaledVector(new THREE.Vector3(-_v.z, 0, _v.x), s * rnd(9, 15)).addScaledVector(_v, -rnd(2, 6));
     const n = A.nav.nearest(p);

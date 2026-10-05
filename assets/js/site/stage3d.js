@@ -1,14 +1,64 @@
 // Arsenal-Bühne (lazy): ein WebGLRenderer, Rendern nur bei Bedarf, ≤ 3 Modelle im Cache (LRU),
-// eigene Orbit-Steuerung mit Trägheit, Mündungsblitz, Anschlag (FOV), Auflösen (Klarfarbe Papier → Schwarz).
+// eigene Orbit-Steuerung mit Trägheit, Mündungsblitz, Anschlag (FOV), Auflösen (Klarfarbe Papier → Dunkelgrau).
+// Ausschnitt: in Ruhe auf die Glyphenfläche der Maske gesetzt, beim Ziehen ganz im Bild (jede Drehung).
 import * as THREE from 'three';
 import { createWeaponModel } from '../game/weapons/models.js';
 import { loop } from './loop.js';
+import { reduced } from './motion.js';
 
 const INK = new THREE.Color('#E9E6DF');
-const BLACK = new THREE.Color('#0A0B0D');
+// Aufgelöst (Ziehen): dunkles Grau statt Seitenschwarz, damit schwarzes Polymer sich abhebt (--np-black-3)
+const DARK = new THREE.Color('#191C20');
 const BASE_YAW = -0.42;
 const BASE_PITCH = 0.1;
+const PITCH_MAX = 0.44;
 const FOV = 24;
+const TAN_V = Math.tan((FOV * Math.PI) / 360);
+/** In den Buchstaben höchstens so weit über die volle Länge hinaus vergrößern (Enden dürfen angeschnitten werden). */
+const ZOOM_MAX = 2.4;
+/** Anteil der Glyphenhöhe, den das Modell in Ruhe mindestens überdecken soll. */
+const FILL_H = 0.95;
+/** Länge des Modells in Ruhe relativ zur Breite der Glyphenfläche (> 1: Lauf- und Schaftenden in den Randbuchstaben angeschnitten). */
+const FILL_W = 1.15;
+
+/**
+ * Ausdehnung der Modellbox in Kamerarichtungen (Bildschirm rechts = −Z, oben = +Y, Tiefe = X) für eine Pose.
+ * @returns {{ w: number, h: number, d: number }}
+ */
+const _c = new THREE.Vector3();
+const _e = new THREE.Euler();
+function extents(box, yaw, pitch) {
+  _e.set(pitch, yaw, 0, 'YXZ');
+  let w0 = Infinity; let w1 = -Infinity; let h0 = Infinity; let h1 = -Infinity; let d0 = Infinity; let d1 = -Infinity;
+  for (let i = 0; i < 8; i++) {
+    _c.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).applyEuler(_e);
+    w0 = Math.min(w0, _c.z); w1 = Math.max(w1, _c.z);
+    h0 = Math.min(h0, _c.y); h1 = Math.max(h1, _c.y);
+    d0 = Math.min(d0, _c.x); d1 = Math.max(d1, _c.x);
+  }
+  return { w: w1 - w0, h: h1 - h0, d: d1 - d0 };
+}
+
+/** Maße eines Modells, einmal je Modell: Ruhepose und die größte Ausdehnung über alle erlaubten Drehungen. */
+const frames = new WeakMap();
+function measure(m) {
+  let f = frames.get(m);
+  if (f) return f;
+  // Im eigenen Raum messen (frisch erzeugt, noch ohne Eltern): sonst zählten Drehung und Rückstoß mit
+  const parent = m.parent;
+  parent?.remove(m);
+  m.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(m);
+  parent?.add(m);
+  const rest = extents(box, BASE_YAW, BASE_PITCH);
+  const poses = [];
+  for (let yi = 0; yi < 24; yi++) {
+    for (const pitch of [-PITCH_MAX, -PITCH_MAX / 2, 0, PITCH_MAX / 2, PITCH_MAX]) poses.push(extents(box, (yi / 24) * Math.PI * 2, pitch));
+  }
+  f = { rest, poses };
+  frames.set(m, f);
+  return f;
+}
 
 function muzzleTexture() {
   const c = document.createElement('canvas');
@@ -58,7 +108,8 @@ export function createStage(canvas, opts = {}) {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(FOV, 16 / 9, 0.02, 20);
-  scene.add(new THREE.HemisphereLight(0xf4efe6, 0x2a2622, 1.25));
+  const hemi = new THREE.HemisphereLight(0xf4efe6, 0x2a2622, 1.25);
+  scene.add(hemi);
   const key = new THREE.DirectionalLight(0xffffff, 2.6);
   key.position.set(1.4, 2.2, 1.6);
   scene.add(key);
@@ -88,20 +139,51 @@ export function createStage(canvas, opts = {}) {
     ads: 0, adsTarget: 0, adsZoom: 1.25, adsMs: 220,
     dissolve: 0, dissolveTarget: 0,
     flashUntil: 0, dragging: false, dist: 1.6, aspect: 16 / 9,
+    homing: false,
   };
+  // Glyphenfläche der Maske in Anteilen der Bühne (arsenal-view.js meldet sie nach jedem Setzen des Namens)
+  let region = { x0: 0.06, x1: 0.94, y0: 0.25, y1: 0.75 };
   let running = false;
   let lost = false;
   const tmp = new THREE.Vector3();
   const look = new THREE.Vector3();
   const clear = new THREE.Color();
 
-  function frameDistance() {
-    const vfov = (FOV * Math.PI) / 180;
-    const tanV = Math.tan(vfov / 2);
-    const tanH = tanV * st.aspect;
-    const halfW = 0.56; // Modell: längste Kante = 1
-    const halfH = 0.36;
-    st.dist = Math.max(halfW / tanH, halfH / tanV);
+  /**
+   * Bildausschnitt: In Ruhe (Maske) füllt das Modell die Glyphenfläche – Mitte auf ihrer Mitte, die volle Länge
+   * über ihre Breite, und so groß, dass es mindestens FILL_H ihrer Höhe deckt (Enden dürfen in den Buchstaben
+   * angeschnitten sein). Aufgelöst (Ziehen) passt es in jeder erlaubten Drehung ganz ins Bild.
+   * Liefert sichtbare Höhe V (Welt, in der Modellebene) und den Schwenk (Ursprung → Bildpunkt).
+   */
+  const pan = new THREE.Vector3();
+  function framing() {
+    const f = current ? measure(current) : { rest: { w: 1, h: 0.4, d: 0.1 }, poses: [{ w: 1, h: 0.8, d: 1 }] };
+    const a = st.aspect;
+    const fx = Math.max(0.2, region.x1 - region.x0);
+    const fy = Math.max(0.15, region.y1 - region.y0);
+    const vLen = f.rest.w / (fx * a * FILL_W);
+    const vH = f.rest.h / (fy * FILL_H);
+    const vMask = Math.max(vLen / ZOOM_MAX, Math.min(vLen, vH));
+    const t = st.dissolve;
+    let v = vMask;
+    if (t > 0) {
+      // Ganz im Bild (86 %): größte Ausdehnung über alle erlaubten Drehungen samt Perspektive – das nahe Ende
+      // einer zur Kamera gedrehten Waffe wirkt größer. Zwei Durchgänge genügen (der Abstand hängt von V ab).
+      let vFit = 0;
+      for (const p of f.poses) vFit = Math.max(vFit, p.h, p.w / a);
+      for (let it = 0; it < 2; it++) {
+        const dist = vFit / 0.86 / (2 * TAN_V);
+        let need = 0;
+        for (const p of f.poses) need = Math.max(need, Math.max(p.h, p.w / a) * dist / Math.max(0.1, dist - p.d / 2));
+        vFit = need;
+      }
+      v += (vFit / 0.86 - vMask) * t;
+    }
+    st.dist = v / (2 * TAN_V);
+    // Ursprung auf die Mitte der Glyphenfläche (Bildschirm rechts = −Z → z = nx · halbe sichtbare Breite)
+    const nx = (region.x0 + region.x1) - 1;
+    const ny = 1 - (region.y0 + region.y1);
+    pan.set(0, -ny * (v / 2) * (1 - t), nx * (v / 2) * a * (1 - t));
   }
 
   function resize() {
@@ -115,7 +197,6 @@ export function createStage(canvas, opts = {}) {
     renderer.setSize(w, h, false);
     st.aspect = w / h;
     camera.aspect = st.aspect;
-    frameDistance();
     request();
   }
 
@@ -123,28 +204,40 @@ export function createStage(canvas, opts = {}) {
     pivot.rotation.set(st.pitch, st.yaw, 0, 'YXZ');
     kick.position.set(0, 0, st.kz);
     kick.rotation.set(st.kp, 0, 0);
+    framing();
     // Anschlag: Blick wandert zum Visier, FOV wird enger
     const a = st.ads;
     const zoom = 1 + (Math.min(st.adsZoom, 1.6) - 1) * a;
     camera.fov = FOV / zoom;
-    look.set(0, 0, 0);
+    look.copy(pan);
     const sight = current?.userData?.sight;
     if (sight && a > 0) {
       sight.getWorldPosition(tmp);
       look.lerp(tmp, a * 0.85);
     }
+    // Schwenk als Parallelverschiebung (keine Verzerrung durch Drehen der Kamera)
     camera.position.set(st.dist, 0.02 + look.y, look.z);
-    camera.lookAt(look);
+    camera.lookAt(st.dist - 1, 0.02 + look.y, look.z);
     camera.updateProjectionMatrix();
-    renderer.setClearColor(clear.copy(INK).lerp(BLACK, st.dissolve), 1);
+    renderer.setClearColor(clear.copy(INK).lerp(DARK, st.dissolve), 1);
+    // Aufgelöst: mehr Himmels- und Kantenlicht, damit dunkle Teile auf Grau lesbar bleiben
+    hemi.intensity = 1.25 + 0.75 * st.dissolve;
+    rim.intensity = 1.6 + 1.4 * st.dissolve;
   }
 
   function tick(dt, t) {
     if (lost) { running = false; return false; }
     let active = false;
-    if (!st.dragging && (Math.abs(st.vy) > 1e-4 || Math.abs(st.vp) > 1e-4)) {
+    if (st.homing && !st.dragging) {
+      // Neue Waffe: Drehung weich in die Grundpose zurück (kürzester Weg)
+      const f = 1 - Math.exp(-10 * dt);
+      st.yaw += (BASE_YAW - st.yaw) * f;
+      st.pitch += (BASE_PITCH - st.pitch) * f;
+      if (Math.abs(BASE_YAW - st.yaw) < 1e-3 && Math.abs(BASE_PITCH - st.pitch) < 1e-3) { st.yaw = BASE_YAW; st.pitch = BASE_PITCH; st.homing = false; }
+      active = true;
+    } else if (!st.dragging && (Math.abs(st.vy) > 1e-4 || Math.abs(st.vp) > 1e-4)) {
       st.yaw += st.vy * dt;
-      st.pitch = Math.max(-0.44, Math.min(0.44, st.pitch + st.vp * dt));
+      st.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, st.pitch + st.vp * dt));
       const f = Math.exp(-4 * dt);
       st.vy *= f;
       st.vp *= f;
@@ -199,6 +292,7 @@ export function createStage(canvas, opts = {}) {
       return m;
     }
     const m = createWeaponModel(k, { lod: 'showcase' });
+    measure(m);
     cache.set(k, m);
     while (cache.size > 3) {
       const [oldKey, old] = cache.entries().next().value;
@@ -208,6 +302,14 @@ export function createStage(canvas, opts = {}) {
       disposeGeometry(old);
     }
     return m;
+  }
+
+  function poseHome(instant) {
+    st.vy = 0;
+    st.vp = 0;
+    // Auf den nächstgelegenen Vollkreis der Grundpose, damit nicht mehrfach herumgedreht wird
+    st.yaw = BASE_YAW + Math.atan2(Math.sin(st.yaw - BASE_YAW), Math.cos(st.yaw - BASE_YAW));
+    if (instant) { st.yaw = BASE_YAW; st.pitch = BASE_PITCH; st.homing = false; } else st.homing = st.yaw !== BASE_YAW || st.pitch !== BASE_PITCH;
   }
 
   canvas.addEventListener('webglcontextlost', (e) => {
@@ -245,6 +347,8 @@ export function createStage(canvas, opts = {}) {
       st.adsMs = (def.adsTime || 0.22) * 1000;
       st.kz = 0;
       st.kp = 0;
+      // Pose zurücksetzen: Drehung der vorigen Waffe nicht übernehmen (bei reduzierter Bewegung sofort)
+      poseHome(reduced());
       request();
     },
     /** Schuss: Rückstoß und Mündungsblitz. strength ~ vertical-Rückstoß. */
@@ -266,10 +370,18 @@ export function createStage(canvas, opts = {}) {
     },
     ads(on, ms) { st.adsTarget = on ? 1 : 0; st.adsMs = ms || st.adsMs; request(); },
     dissolve(on) { st.dissolveTarget = on ? 1 : 0; request(); },
-    rotate(dx, dy) { st.yaw += dx; st.pitch = Math.max(-0.44, Math.min(0.44, st.pitch + dy)); request(); },
-    drag(on) { st.dragging = on; if (on) { st.vy = 0; st.vp = 0; } request(); },
+    rotate(dx, dy) { st.homing = false; st.yaw += dx; st.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, st.pitch + dy)); request(); },
+    drag(on) { st.dragging = on; if (on) { st.vy = 0; st.vp = 0; st.homing = false; } request(); },
     fling(vy, vp) { st.vy = vy; st.vp = vp; request(); },
-    reset() { st.yaw = BASE_YAW; st.pitch = BASE_PITCH; st.vy = 0; st.vp = 0; request(); },
+    reset() { poseHome(true); request(); },
+    /** Glyphenfläche der Maske in Anteilen der Bühne { x0, x1, y0, y1 } (0 = links/oben). */
+    frame(r) {
+      if (!r || !(r.x1 > r.x0) || !(r.y1 > r.y0)) return;
+      region = { x0: r.x0, x1: r.x1, y0: r.y0, y1: r.y1 };
+      request();
+    },
+    /** Für Prüfungen: aktueller Ausschnitt (sichtbare Höhe, Abstand, Schwenk) und die Pose. */
+    get view() { return { dist: st.dist, v: st.dist * 2 * TAN_V, pan: pan.toArray(), yaw: st.yaw, pitch: st.pitch, dissolve: st.dissolve, region: { ...region } }; },
     resize,
     request,
     get lost() { return lost; },

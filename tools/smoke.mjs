@@ -6,11 +6,13 @@
 // über debugApi und prüft Endbildschirm + Profil, wiederholt optional Revanchen (Leck-Prüfung).
 // Gibt eine JSON-Zusammenfassung aus und endet mit Code 1 bei Konsolenfehlern oder fehlgeschlagenen Prüfungen.
 //
-// Aufruf (Server muss laufen: npx http-server -p 8765 -s -c-1 .):
-//   node tools/smoke.mjs [--params="autostart=1&stubs=all&time=60&score=5"] [--seconds=20] [--mobile]
+// Aufruf (Server muss laufen: npx http-server -p 8765 -s -c-1 .; andere Adresse: NP_BASE oder --base):
+//   node tools/smoke.mjs [--params="map=hafen&time=60&score=5"] [--seconds=20] [--mobile]
 //                        [--shots=4] [--end] [--restarts=0] [--quality=low] [--size=1280x720]
 //                        [--base=http://localhost:8765/] [--out=tools/out/smoke] [--lobby] [--warn-fail]
-//   --params   URL-Parameter für spielen.html (autostart=1 wird ergänzt, außer mit --lobby)
+//   --params   URL-Parameter für spielen.html (autostart=1 wird ergänzt, außer mit --lobby; Standard
+//              „time=60&score=5“ = zuletzt gewählter Modus/Karte; am schnellsten lädt „mode=training&map=range“).
+//              Test-Parameter god=1/timescale=… wirken nur zusammen mit debug=1 (Match dann ungewertet).
 //   --seconds  Dauer der Eingabesimulation
 //   --mobile   Touch-Gerät (Querformat 915×412, Touch-Eingaben über CDP)
 //   --shots    Anzahl Screenshots während der Simulation (gleichmäßig verteilt)
@@ -19,14 +21,14 @@
 //   --lobby    über die Lobby starten (klickt den Startknopf) statt autostart
 //   --warn-fail  auch Konsolen-Warnungen lassen den Test scheitern
 //   --natural  Matchende nicht erzwingen: auf Zeit-/Punktelimit warten (max. 3 × time-Parameter + 60 s), dann erst endMatch()
-import { chromium, devices } from '/opt/node-tools/node_modules/playwright/index.mjs';
+import { chromium, devices, BASE as DEFAULT_BASE, GL_ARGS } from './pw.mjs';
 import { mkdirSync } from 'node:fs';
 
 const opt = Object.fromEntries(process.argv.slice(2).map((a) => {
   const [k, ...v] = a.replace(/^--/, '').split('=');
   return [k, v.length ? v.join('=') : true];
 }));
-const BASE = String(opt.base || 'http://localhost:8765/');
+const BASE = String(opt.base || DEFAULT_BASE);
 const SECONDS = Number(opt.seconds || 20);
 const SHOTS = Number(opt.shots ?? 4);
 const RESTARTS = Number(opt.restarts || 0);
@@ -35,7 +37,7 @@ const MOBILE = !!opt.mobile;
 const [W, H] = String(opt.size || (MOBILE ? '915x412' : '1280x720')).split('x').map(Number);
 mkdirSync(OUT.includes('/') ? OUT.slice(0, OUT.lastIndexOf('/')) : '.', { recursive: true });
 
-const qs = new URLSearchParams(String(opt.params || 'stubs=all&time=60&score=5'));
+const qs = new URLSearchParams(String(opt.params || 'time=60&score=5'));
 if (!opt.lobby) qs.set('autostart', '1');
 if (opt.quality) qs.set('quality', String(opt.quality));
 const url = `${BASE}spielen.html?${qs}`;
@@ -48,7 +50,7 @@ const fail = (name, detail) => { summary.ok = false; summary.checks[name] = `FEH
 const pass = (name, detail = 'ok') => { summary.checks[name] = detail; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const browser = await chromium.launch({ args: GL_ARGS });
 const ctx = MOBILE
   ? await browser.newContext({ ...devices['Pixel 7'], viewport: { width: W, height: H }, screen: { width: W, height: H }, isMobile: true, hasTouch: true })
   : await browser.newContext({ viewport: { width: W, height: H } });
@@ -280,6 +282,7 @@ try {
 }
 
 if (summary.errors.length) fail('konsole', `${summary.errors.length} Fehler`);
+if (summary.missingModules.length) fail('module', `nicht ladbar: ${summary.missingModules.join(', ')}`);
 if (opt['warn-fail'] && summary.warnings.length) fail('warnungen', `${summary.warnings.length} Warnungen`);
 summary.samples = summary.samples.slice(-40);
 console.log(JSON.stringify(summary, null, 2));

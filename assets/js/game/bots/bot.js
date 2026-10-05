@@ -19,6 +19,10 @@ const JUMP_V = Math.sqrt(2 * GRAVITY * 1.1);
 const ACCEL = 15, DECEL = 11;
 const FALL_SAFE = 14;
 const ANIM_MAX_STEP = 0.25; // s je Animationsschritt (6 übersprungene Bilder bei 24 fps)
+// feste Optionsobjekte (keine Allokation pro Bild)
+const STEP_OPTS = { gravity: GRAVITY, stepHeight: 0.45 };
+const GO_COVER = { tolerance: 0.5, repath: 1 };
+const GO_ENGAGE = { tolerance: 2.5, repath: 3 };
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
@@ -94,6 +98,7 @@ export class Bot {
     this._thinkT = Math.random() * 0.3;
     this._streakT = 2 + Math.random() * 2;
     this._em = { x: 0, z: 0, crouch: false, jump: false, nav: null, sprint: false };
+    this._goOpts = { tolerance: 1, repath: 1.5 };
     this._scan = { base: 0, t: 0 };
     this._intent = {
       fire: false, firePressed: false, ads: false, reload: false, swap: false, slot: null, grenade: false, grenadeHeld: false,
@@ -324,11 +329,11 @@ export class Bot {
         const em = gunner.engageMove(dt, now, this._em);
         const toCover = this.coverNode && goal.hasMove && this.position.distanceTo(goal.move) > 0.7 && rec.pos.distanceTo(this.position) > 8;
         if (toCover) {
-          this.nav.goTo(goal.move, { tolerance: 0.5, repath: 1 });
+          this.nav.goTo(goal.move, GO_COVER);
           const d = this.nav.update(dt, now, true);
           mx = d.x; mz = d.z; speedKind = 'run';
         } else if (em.nav) {
-          this.nav.goTo(em.nav, { tolerance: 2.5, repath: 3 });
+          this.nav.goTo(em.nav, GO_ENGAGE);
           const d = this.nav.update(dt, now, true);
           mx = d.x; mz = d.z; speedKind = em.sprint ? 'sprint' : 'run';
         } else {
@@ -338,7 +343,8 @@ export class Bot {
         wantCrouch = em.crouch;
         wantJump = em.jump;
       } else if (goal.hasMove) {
-        this.nav.goTo(goal.move, { tolerance: goal.tolerance });
+        this._goOpts.tolerance = goal.tolerance;
+        this.nav.goTo(goal.move, this._goOpts);
         const d = this.nav.update(dt, now, !this.nav.arrived);
         if (!this.nav.arrived) { mx = d.x; mz = d.z; }
         wantCrouch = goal.crouch && this.nav.arrived;
@@ -392,7 +398,7 @@ export class Bot {
     } else if (targetH < body.height - 1e-3) body.setHeight(body.height + (targetH - body.height) * (1 - Math.exp(-18 * dt)));
     const wasGround = body.onGround;
     const vyBefore = v.y;
-    body.step(dt, world, { gravity: GRAVITY, stepHeight: 0.45 });
+    body.step(dt, world, STEP_OPTS);
     if (!wasGround && body.onGround && -vyBefore > FALL_SAFE && G.combat && !frozen) {
       G.combat.damage(this, { amount: (-vyBefore - FALL_SAFE) * 9, attacker: null, weaponId: 'fall', zone: 'body', dir: new THREE.Vector3(0, -1, 0) });
       if (!this.alive) return;
@@ -489,7 +495,9 @@ export class Bot {
   _separation(out) {
     out.set(0, 0, 0);
     const p = this.position;
-    for (const a of this.G.actors) {
+    const actors = this.G.actors;
+    for (let i = 0; i < actors.length; i++) {
+      const a = actors[i];
       if (a === this || !a.alive || !a.position) continue;
       const dx = p.x - a.position.x, dz = p.z - a.position.z;
       const d2 = dx * dx + dz * dz;
@@ -555,7 +563,7 @@ export class Bot {
 
   _updateCorpses(dt) {
     const world = this.G.world;
-    for (const s of this.soldiers) if (s && s.state === 'dead') s.updateDead(dt, world);
+    for (let i = 0; i < this.soldiers.length; i++) { const s = this.soldiers[i]; if (s && s.state === 'dead') s.updateDead(dt, world); }
   }
 
   /** Leichen weiterführen, auch wenn der Bot schon wieder lebt. */

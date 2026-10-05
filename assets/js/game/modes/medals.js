@@ -1,30 +1,26 @@
 // NULLPUNKT — Medaillen nach MEDAL_RULES (modes.data.js). Wird vom Modus gefüttert (onKill/onHit/onImpact)
 // und sendet 'medal' { actor, id, label, tier }. Zählt Medaillen pro Akteur (Endbildschirm, playerSummary).
 
-const FALLBACK_RULES = {
-  multiKillWindow: 4, headhunterCount: 3, streaks: { 5: 'serie5', 10: 'serie10', 15: 'serie15' }, comebackDeaths: 3,
-  closeCallHealth: 15, saviorWindow: 3, buzzkillStreak: 5, flawlessMinKills: 5, defendRadius: 9,
-  longshotByClass: { ar: 40, smg: 25, lmg: 45, marksman: 50, sniper: 60, shotgun: 15, pistol: 25, melee: Infinity },
-};
+import { MEDALS, MEDAL_RULES, multiKillMedal, isLongshot } from '../../shared/modes.data.js';
+import { WEAPONS } from '../../shared/weapons.data.js';
 
 export class MedalTracker {
   constructor(mode) {
     this.mode = mode;
     this.G = mode.G;
-    const D = this.G.data || {};
-    this.defs = D.MEDALS || {};
-    this.rules = D.MEDAL_RULES || FALLBACK_RULES;
-    this.multi = typeof D.multiKillMedal === 'function' ? D.multiKillMedal : (n) => (n >= 5 ? 'kahlschlag' : ({ 2: 'doppelkill', 3: 'dreifachkill', 4: 'vierfachkill' })[n] || null);
+    this.defs = MEDALS;
+    this.rules = MEDAL_RULES;
     this.counts = new Map(); // actor → { id: n }
     this.chain = new Map(); // actor → { last, n }
     this.lastHit = new Map(); // attacker → { time, target }
     this.penetrations = new Map(); // shooter → time
     this.killSerial = new Map(); // actor → { serial, weaponId }
     this.headLife = new Map(); // actor → Kopfschuss-Abschüsse in diesem Leben
+    this.shots = new Map(); // actor → laufende Schussnummer (weapon:fire), für „Kollateral“
   }
 
   reset() {
-    for (const m of [this.counts, this.chain, this.lastHit, this.penetrations, this.killSerial, this.headLife]) m.clear();
+    for (const m of [this.counts, this.chain, this.lastHit, this.penetrations, this.killSerial, this.headLife, this.shots]) m.clear();
   }
 
   /** Vergibt eine Medaille (unbekannte Ids werden ignoriert). */
@@ -47,6 +43,11 @@ export class MedalTracker {
     this.lastHit.set(attacker, { time: this.G.time.elapsed, target });
   }
 
+  /** weapon:fire – kommt vor den Treffern/Abschüssen desselben Schusses. */
+  onFire({ actor }) {
+    if (actor) this.shots.set(actor, (this.shots.get(actor) || 0) + 1);
+  }
+
   onImpact({ shooter, penetrated }) {
     if (shooter && penetrated) this.penetrations.set(shooter, this.G.time.elapsed);
   }
@@ -65,15 +66,14 @@ export class MedalTracker {
     const G = this.G;
     const R = this.rules;
     const now = G.time.elapsed;
-    const W = (G.data && G.data.WEAPONS) || {};
-    const def = W[e.weaponId] || null;
+    const def = WEAPONS[e.weaponId] || null;
     const gun = !!def && def.cls !== 'melee' && !e.explosive;
 
     // Mehrfachabschüsse
     const ch = this.chain.get(credit);
     const n = ch && now - ch.last <= R.multiKillWindow ? ch.n + 1 : 1;
     this.chain.set(credit, { last: now, n });
-    if (n >= 2) this.award(credit, this.multi(n));
+    if (n >= 2) this.award(credit, multiKillMedal(n));
 
     if (e.firstBlood) this.award(credit, 'erstesblut');
     if (e.headshot) {
@@ -86,11 +86,8 @@ export class MedalTracker {
     if (e.weaponId === 'knife' || (def && def.cls === 'melee')) this.award(credit, 'nahkampf');
     if (e.explosive && (e.weaponId === 'frag' || e.weaponId === 'semtex')) this.award(credit, 'granate');
     if (streakKill) this.award(credit, 'praemie');
-    if (def && gun && Number.isFinite(e.distance)) {
-      const min = R.longshotByClass ? R.longshotByClass[def.cls] : undefined;
-      if (min !== undefined && e.distance >= min) this.award(credit, 'weitschuss');
-    }
-    const streakId = R.streaks && R.streaks[credit.stats ? credit.stats.streak : 0];
+    if (def && gun && Number.isFinite(e.distance) && isLongshot(def.cls, e.distance)) this.award(credit, 'weitschuss');
+    const streakId = R.streaks[credit.stats ? credit.stats.streak : 0];
     if (streakId) this.award(credit, streakId);
     if (victimStreak >= R.buzzkillStreak) this.award(credit, 'serienbrecher');
     if (deathsInRow >= R.comebackDeaths) this.award(credit, 'rueckkehrer');
@@ -104,10 +101,11 @@ export class MedalTracker {
       if (lh && lh.target !== credit && lh.target.team === credit.team && now - lh.time <= R.saviorWindow) this.award(credit, 'retter');
     }
     // Kollateral: zwei Abschüsse mit derselben Kugel
-    if (gun && credit._shotSerial != null) {
+    const serial = this.shots.get(credit);
+    if (gun && serial != null) {
       const prev = this.killSerial.get(credit);
-      if (prev && prev.serial === credit._shotSerial && prev.weaponId === e.weaponId && def.pellets <= 1) this.award(credit, 'kollateral');
-      this.killSerial.set(credit, { serial: credit._shotSerial, weaponId: e.weaponId });
+      if (prev && prev.serial === serial && prev.weaponId === e.weaponId && def.pellets <= 1) this.award(credit, 'kollateral');
+      this.killSerial.set(credit, { serial, weaponId: e.weaponId });
     }
     this.onDeath(victim);
   }

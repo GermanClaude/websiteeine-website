@@ -57,6 +57,9 @@ export class HUD {
     this._dmgIdx = 0;
     this._parcours = null;
     this._fov = 0;
+    this._dead = false;
+    this._zones = null;
+    this._zonesAt = 0;
   }
 
   /* ================================================================ Aufbau */
@@ -158,7 +161,7 @@ export class HUD {
     this.topUi.hidden = true;
     this.topUi.innerHTML = '<button type="button" class="ht-prompt" hidden><kbd></kbd><span></span></button>';
     top.appendChild(this.topUi);
-    // Punktetabelle über der Touch-Steuerung
+    // Punktetabelle über der Touch-Steuerung lesbar; auf Touch lässt sie Berührungen durch (game.css), Feuer/Stick/Blick bleiben bedienbar
     this.topUi.appendChild(this.el.board);
     this.promptBtn = this.topUi.querySelector('.ht-prompt');
     this.promptBtn.addEventListener('click', (e) => {
@@ -177,7 +180,6 @@ export class HUD {
     this._build();
     this.reset();
     this.feed.clear();
-    this.feed.max = G.input && G.input.mode === 'touch' ? 4 : 6;
     const mode = G.mode;
     const modeId = mode ? mode.id : G.match.modeId;
     this.root.dataset.mode = modeId || '';
@@ -228,7 +230,13 @@ export class HUD {
     s.on('training:parcours', (e) => this._onParcours(e));
     s.on('training:weapon', () => { this._slowT = 0; });
     s.on('objective:update', () => this._syncObjectives());
-    this._onResize = () => { if (this.minimap) this.minimap.resize(); this._vw = window.innerWidth; this._vh = window.innerHeight; };
+    this._onResize = () => {
+      if (this.minimap) this.minimap.resize();
+      this._vw = window.innerWidth;
+      this._vh = window.innerHeight;
+      this._zones = null;
+      this._syncFeedMax();
+    };
     window.addEventListener('resize', this._onResize);
     this._onResize();
     this._attached = true;
@@ -245,6 +253,7 @@ export class HUD {
     if (this.topUi) this.topUi.hidden = true;
     delete document.body.dataset.streaks;
     delete document.body.dataset.lethals;
+    this._setDead(false);
     this._attached = false;
   }
 
@@ -261,7 +270,23 @@ export class HUD {
     if (this.topUi) this.topUi.hidden = true;
     if (this.el) this.el.board.hidden = true;
     this._visible = false;
+    this._setDead(false);
     if (this.targeting) this.targeting.close(true);
+  }
+
+  /** body[data-player-dead]: game.css blendet damit die Touch-Steuerung über dem Todesbildschirm aus. */
+  _setDead(dead) {
+    if (this._dead === dead) return;
+    this._dead = dead;
+    if (dead) document.body.dataset.playerDead = '1';
+    else delete document.body.dataset.playerDead;
+  }
+
+  /** Abschussmeldungen: Desktop 6, Touch 4, kurze Telefone 3 Zeilen. */
+  _syncFeedMax() {
+    if (!this.feed) return;
+    const touch = this.G.input && this.G.input.mode === 'touch';
+    this.feed.max = !touch ? 6 : (this._vh || window.innerHeight) <= 430 ? 3 : 4;
   }
 
   /** Vom StreakManager: Zielkarte für den Präzisionsschlag. */
@@ -310,13 +335,13 @@ export class HUD {
       this.el.train.innerHTML = `
         <div class="ht-title">Schießstand<em>.</em></div>
         <dl>
-          <dt>Treffer</dt><dd data-k="hits">0</dd>
-          <dt>Genauigkeit</dt><dd data-k="acc">–</dd>
-          <dt>Kopftreffer</dt><dd data-k="head">–</dd>
-          <dt>Ziele unten</dt><dd data-k="down">0</dd>
-          <dt>Ø Zeit bis Ziel</dt><dd data-k="ttk">–</dd>
-          <dt>Letzter Treffer</dt><dd data-k="last">–</dd>
-          <dt>Parcours-Bestzeit</dt><dd data-k="best">–</dd>
+          <dt data-k="hits">Treffer</dt><dd data-k="hits">0</dd>
+          <dt data-k="acc">Genauigkeit</dt><dd data-k="acc">–</dd>
+          <dt data-k="head">Kopftreffer</dt><dd data-k="head">–</dd>
+          <dt data-k="down">Ziele unten</dt><dd data-k="down">0</dd>
+          <dt data-k="ttk">Ø Zeit bis Ziel</dt><dd data-k="ttk">–</dd>
+          <dt data-k="last">Letzter Treffer</dt><dd data-k="last">–</dd>
+          <dt data-k="best">Parcours-Bestzeit</dt><dd data-k="best">–</dd>
         </dl>
         <p class="ht-hint"></p>`;
       this.el.trainDD = Object.fromEntries([...this.el.train.querySelectorAll('dd')].map((d) => [d.dataset.k, d]));
@@ -506,6 +531,7 @@ export class HUD {
       const map = G.world ? G.world.name : '';
       setText(this.el.bannerK, `${map}${G.mode && G.mode.timeLimit ? ` · ${Math.round(G.mode.timeLimit / 60)} min` : ''}`);
       setHtml(this.el.bannerT, `${esc(def.name || '')}<em>.</em>`);
+      this.el.bannerT.hidden = !!(G.mode && G.mode.id === 'training');
       setText(this.el.bannerS, def.hudObjective || '');
       this.el.banner.classList.add('is-on');
       this._bannerT = 4.2;
@@ -647,7 +673,8 @@ export class HUD {
     const vh = this._vh || window.innerHeight;
     if (this.root.dataset.input !== (touch ? 'touch' : 'desktop')) {
       this.root.dataset.input = touch ? 'touch' : 'desktop';
-      this.feed.max = touch ? 4 : 6;
+      this._syncFeedMax();
+      this._zones = null;
       this._buildStreaks();
       if (this.minimap) this.minimap.resize();
     }
@@ -661,6 +688,7 @@ export class HUD {
     const style = G.settings.get('crosshairStyle');
     const alive = !!(p && p.alive);
     toggle(this.root, 'is-dead', !!p && !alive);
+    this._setDead(!!p && !alive);
     const melee = def && def.cls === 'melee';
     const hide = !alive || scoped || ads > 0.55 || (p && p.sprinting) || (this.targeting && this.targeting.open);
     const cross = this.el.cross;
@@ -688,7 +716,7 @@ export class HUD {
     const sway = scoped && alive && !!(def && def.scopeSway > 0) && w.breath != null;
     toggle(this.el.breath, 'is-on', sway);
     if (sway) {
-      const ex = (w._exhausted || 0) > 0;
+      const ex = !!w.exhausted;
       const hold = !ex && !!w.holdingBreath;
       setStyle(this.el.breathBar, 'transform', `scaleX(${clamp(w.breath, 0, 1).toFixed(3)})`);
       toggle(this.el.breath, 'is-hold', hold);
@@ -709,6 +737,7 @@ export class HUD {
       setStyle(this.el.hpLag, 'transform', `scaleX(${this._lag.toFixed(3)})`);
       toggle(this.el.health, 'is-low', alive && hpR < 0.35);
       toggle(this.el.health, 'is-regen', alive && hpR < 1 && now - (p.lastDamageTime || -1e9) > 3.5);
+      toggle(this.el.health, 'is-full', hpR >= 0.999);
       const low = alive ? clamp((0.55 - hpR) / 0.55, 0, 1) : 0;
       this._flashT = Math.max(0, (this._flashT || 0) - dt);
       setStyle(this.el.lowhp, 'opacity', (low * 0.95).toFixed(2));
@@ -763,7 +792,13 @@ export class HUD {
       let cls = '';
       if (alive && !melee) {
         if (w.isReloading) { hint = 'Nachladen'; cls = 'is-reload'; }
-        else if (def.mag > 0 && st.mag === 0 && st.reserve <= 0 && !infinite) { hint = 'Keine Munition'; key = this._keyFor('swap'); cls = 'is-empty'; }
+        else if (def.mag > 0 && st.mag === 0 && st.reserve <= 0 && !infinite) {
+          const other = (w.slots || []).find((s) => s && s !== st && s.def);
+          const usable = other && (other.def.cls === 'melee' || other.mag > 0 || other.reserve > 0);
+          hint = usable ? 'Keine Munition' : 'Keine Munition · Messer';
+          key = this._keyFor(usable ? 'swap' : 'melee');
+          cls = 'is-empty';
+        }
         else if (def.mag > 0 && st.mag === 0) { hint = 'Nachladen'; key = this._keyFor('reload'); cls = 'is-empty'; }
         else if (lowMag && def.mag > 5) { hint = 'Munition niedrig'; key = this._keyFor('reload'); cls = 'is-low'; }
       }
@@ -1069,6 +1104,7 @@ export class HUD {
     cam.updateMatrixWorld();
     const byId = new Map(objs.map((f) => [f.id, f]));
     const margin = 46;
+    const zones = this.G.input && this.G.input.mode === 'touch' ? this._controlZones() : null;
     let inside = null;
     for (const m of this.el.mks || []) {
       const f = byId.get(m.id);
@@ -1081,9 +1117,16 @@ export class HUD {
       let x = (_v.x * 0.5 + 0.5) * vw;
       let y = (-_v.y * 0.5 + 0.5) * vh;
       if (behind) { x = vw - x; y = vh - margin; }
-      const off = behind || x < margin || x > vw - margin || y < margin + 40 || y > vh - margin;
+      let off = behind || x < margin || x > vw - margin || y < margin + 40 || y > vh - margin;
       x = clamp(x, margin, vw - margin);
       y = clamp(y, margin + 40, vh - margin);
+      // Touch: nicht unter Knöpfen, Stick oder Munitionsanzeige verstecken (verschobene Marker wirken wie Randmarker)
+      if (zones && zones.length) {
+        const nx = x;
+        const ny = y;
+        [x, y] = avoidZones(x, y, zones, vw, vh, margin);
+        if (x !== nx || y !== ny) off = true;
+      }
       const dist = p.position.distanceTo(f.position);
       const inRange = dist <= f.radius && Math.abs(p.position.y - f.position.y) < 2.6 && p.alive;
       if (inRange) inside = f;
@@ -1120,6 +1163,26 @@ export class HUD {
     setStyle(this.el.captureBar, 'transform', `scaleX(${clamp((myCtl + 1) / 2, 0, 1).toFixed(3)})`);
   }
 
+  /** Touch: Rechtecke der Bedienelemente, die Flaggenmarker freihalten müssen (alle 2 s bzw. nach Größen-/Moduswechsel neu). */
+  _controlZones() {
+    const now = this.G.time.real || 0;
+    if (this._zones && now - this._zonesAt < 2) return this._zones;
+    this._zonesAt = now;
+    const z = [];
+    const add = (n) => {
+      const r = n && n.getBoundingClientRect();
+      if (r && r.width > 0 && r.height > 0) z.push({ l: r.left, t: r.top, r: r.right, b: r.bottom });
+    };
+    const ui = document.getElementById('touch-ui');
+    if (ui) {
+      ui.querySelectorAll('.tc-btn').forEach(add);
+      add(ui.querySelector('.tc-stick[data-idle="1"] .tc-stick-base'));
+    }
+    add(this.el.weapon);
+    this._zones = z;
+    return z;
+  }
+
   _renderBoard() {
     const G = this.G;
     const mode = G.mode;
@@ -1129,7 +1192,34 @@ export class HUD {
     const names = G.data.TEAM_NAMES || { A: 'Team A', B: 'Team B' };
     const head = `<div class="hb-head"><div><div class="hb-k">${esc(G.world ? G.world.name : '')}</div><div class="hb-t">${esc(mode.def.name || '')}<em>.</em></div></div><div class="hb-time">${Number.isFinite(mode.timeLeft) ? clock(mode.timeLeft) : '∞'}</div></div>`;
     setHtml(this.el.board, head + scoreboardHtml(rows, {
-      teams: mode.teams, playerTeam: p ? p.team : 'A', teamNames: names, teamScores: mode.teams ? mode.scores : null, showPing: true, live: true,
+      teams: mode.teams, playerTeam: p ? p.team : 'A', teamNames: names, teamScores: mode.teams ? mode.scores : null, live: true,
     }));
   }
+}
+
+/** Schiebt einen Marker (Raute + Entfernung darunter) auf kürzestem Weg aus allen Zonen, innerhalb der Bildränder. */
+function avoidZones(x, y, zones, vw, vh, m) {
+  const HX = 22;
+  const HT = 22;
+  const HB = 38;
+  for (let pass = 0; pass < 3; pass++) {
+    let moved = false;
+    for (const z of zones) {
+      if (x + HX <= z.l || x - HX >= z.r || y + HB <= z.t || y - HT >= z.b) continue;
+      let best = null;
+      for (const [dx, dy] of [[z.l - HX - x, 0], [z.r + HX - x, 0], [0, z.t - HB - y], [0, z.b + HT - y]]) {
+        const tx = x + dx;
+        const ty = y + dy;
+        if (tx < m || tx > vw - m || ty < m || ty > vh - m) continue;
+        const cost = Math.abs(dx) + Math.abs(dy);
+        if (!best || cost < best.cost) best = { tx, ty, cost };
+      }
+      if (!best) continue;
+      x = best.tx;
+      y = best.ty;
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  return [x, y];
 }

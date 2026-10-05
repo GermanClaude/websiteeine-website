@@ -36,12 +36,13 @@ export function initZero({ sound } = {}) {
   const hero = h1.closest('.hero') || document.body;
   // Obergrenze auch aus der Höhe: Was nach der Wortmarke kommt (Satz, Aufruf), bleibt im ersten Bildschirm.
   const others = ['.hero-top', '#zero-cap', '.zero-line', '.data-line', '.hero-body'];
+  const px = (v) => parseFloat(v) || 0;
   h1.fitOpts = {
     weight: true,
     max: () => {
       const twoLines = getComputedStyle(h1.querySelector('.fl') || h1).display === 'block';
       const cs = getComputedStyle(hero);
-      let used = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+      let used = px(cs.paddingTop) + px(cs.paddingBottom);
       let rows = 0;
       // Hochkant gewinnt die Breite (die Seite scrollt ohnehin); quer darf der Aufruf nicht aus dem Bild fallen.
       if (window.innerWidth <= window.innerHeight) return 420;
@@ -49,10 +50,23 @@ export function initZero({ sound } = {}) {
         const el = hero.querySelector(sel);
         if (!el || !el.getClientRects().length) continue;
         // Die Ergebniszeile zählt mit ihrer reservierten Höhe, nicht mit ihrem wechselnden Inhalt
-        used += sel === '.zero-line' ? (parseFloat(getComputedStyle(el).minHeight) || 0) : el.getBoundingClientRect().height;
+        used += sel === '.zero-line' ? px(getComputedStyle(el).minHeight) : el.getBoundingClientRect().height;
         if (sel !== '#zero-cap') rows++;
       }
-      used += rows * (parseFloat(cs.rowGap) || 0);
+      used += rows * px(cs.rowGap);
+      // Fahne (fahne.js): eigene Hero-Zeile über dem Zielfeld. Gemessen wird exakt (alles außer der Wortmarke) mit ihrer
+      // gefalteten Höhe; die Schätzung oben bleibt die Untergrenze, damit die Wortmarke ohne Fahne genau wie bisher steht.
+      // Aufgeklappt schiebt sie den Hero (der Nutzer hat sie geöffnet), statt die Wortmarke weiter zu verkleinern.
+      const fahne = hero.querySelector('.fahne');
+      if (fahne && fahne.getClientRects().length) {
+        const zl = hero.querySelector('.zero-line');
+        const zlExtra = zl ? Math.max(0, zl.getBoundingClientRect().height - px(getComputedStyle(zl).minHeight)) : 0;
+        const fixed = hero.getBoundingClientRect().height - target.getBoundingClientRect().height - zlExtra
+          - fahne.getBoundingClientRect().height + (Number(fahne.dataset.restH) || fahne.getBoundingClientRect().height);
+        const cap = document.getElementById('zero-cap');
+        const capH = cap && cap.getClientRects().length ? cap.getBoundingClientRect().height + px(getComputedStyle(cap).marginBottom) : 0;
+        used = Math.max(used, fixed + capH);
+      }
       const avail = window.innerHeight - used;
       const fs = avail / ((twoLines ? 1.6 : 0.8) + 0.08);
       return Math.max(56, Math.min(420, fs));

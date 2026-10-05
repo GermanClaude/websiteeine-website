@@ -1,12 +1,14 @@
 // NULLPUNKT — Entscheidungen eines Bots (gestaffelt, mehrmals pro Sekunde). Bewertet die Lage und setzt
 // ein Ziel (bot.goal): ausweichen (Granate) › kämpfen › Deckung/Rückzug (verletzt, Nachladen) ›
 // verfolgen/flankieren/Granate (Ziel verloren) › Herrschaftsflaggen › Hinweisen nachgehen (Team, Geräusche,
-// Aufklärer) › Gebiet absuchen (Spuren, Machtpositionen). Setzt außerdem Serienprämien ein.
+// Aufklärer) › Gebiet absuchen (Spuren, Machtpositionen, erhöhte Posten halten). Setzt außerdem
+// Serienprämien ein.
 import * as THREE from 'three';
-import { analyze, pickRoamGoal, flankPoint, findCover, retreatPoint } from './tactics.js';
+import { analyze, pickRoamGoal, flankPoint, findCover, retreatPoint, isPerch, perchNear } from './tactics.js';
 
 const _v = new THREE.Vector3();
 const rnd = (a, b) => a + Math.random() * (b - a);
+const CHASE_PERCH = 0.4; // Anteil vorsichtiger Verfolgungen über einen erhöhten Posten
 
 export const GOALS = ['roam', 'engage', 'cover', 'retreat', 'chase', 'hunt', 'flank', 'objective', 'evade', 'heal', 'grenade'];
 
@@ -33,8 +35,8 @@ export function think(bot, now) {
   intelFromStreaks(bot, now);
 
   // --- Granate in der Nähe → weg da
-  const danger = G.weapons && G.weapons.dangerAt ? G.weapons.dangerAt(bot.position, 1.2) : null;
-  if (danger && danger.grenade && !(danger.grenade.actor === bot && danger.distance > 4)) {
+  const danger = grenadeThreat(bot);
+  if (danger) {
     const g = danger.grenade;
     _v.subVectors(bot.position, g.position).setY(0);
     if (_v.lengthSq() < 1e-3) _v.set(Math.random() - 0.5, 0, Math.random() - 0.5);
@@ -92,6 +94,11 @@ export function think(bot, now) {
     if (c) bot.coverNode = c;
     return;
   }
+  // Erhöhten Posten halten: bleiben und beobachten (zu Hinweisen schauen), außer der Gegner ist nah
+  if (holdingPerch(bot, now) && !(fresh && fresh.pos.distanceTo(bot.position) < 12)) {
+    overwatch(bot, now, A, fresh ? fresh.pos : null);
+    return;
+  }
   // Herrschaft: Flaggen haben Vorrang vor weitem Verfolgen
   if (objective && fresh && !objective.inside) {
     const near = fresh.pos.distanceTo(bot.position) < 14 && now - fresh.time < 3;
@@ -108,15 +115,32 @@ export function think(bot, now) {
       const f = flankPoint(bot, A, fresh.pos);
       if (f) { set(goal, 'flank', now, { move: f, speed: 'run', look: 'point', lookAt: fresh.pos, tolerance: 1.5 }); goal.until = now + 9; return; }
     }
-    if (goal.kind === 'flank' && now < goal.until && !bot.nav.arrived) return;
+    if (goal.kind === 'flank' && now < goal.until && !bot.nav.arrived && !bot.nav.failed) return;
     const cautious = age > 2 || fresh.source === 'sound';
+    // vorsichtig verfolgen: gelegentlich über einen erhöhten Posten mit Sicht auf die letzte Position
+    const pd = goal.kind === 'chase' ? goal.data : null;
+    if (pd && pd.perch && pd.actor === fresh.actor && !bot.nav.failed && fresh.pos.distanceTo(bot.position) >= 12) {
+      if (!bot.nav.arrived) { goal.lookAt.copy(fresh.pos); return; } // unterwegs zum Posten
+      if (!pd.holdUntil) { pd.watch = fresh.pos.clone(); startHold(bot, now, A, pd, rnd(4, 8)); }
+      if (now < pd.holdUntil) { overwatch(bot, now, A, fresh.pos); return; }
+    } else if (cautious && !(pd && pd.perch) && now > (bot._perchTryAt || 0) && fresh.pos.distanceTo(bot.position) > 10) {
+      bot._perchTryAt = now + rnd(3, 6);
+      const n = Math.random() < CHASE_PERCH ? perchNear(bot, A, fresh.pos, 18, { minDist: 6, maxFromBot: 35 }) : null;
+      if (n) {
+        set(goal, 'chase', now, { move: n.position, speed: 'run', look: 'point', lookAt: fresh.pos, tolerance: 0.8 });
+        goal.data = { perch: true, actor: fresh.actor, node: n, watch: null, holdUntil: 0, baseYaw: 0, lookAt: 0 };
+        return;
+      }
+    }
     set(goal, 'chase', now, { move: predicted(fresh, age), speed: cautious ? 'walk' : 'run', look: 'point', lookAt: fresh.pos, tolerance: 1.5 });
+    goal.data = null;
     if (bot.nav.arrived && goal.since < now - 1) { mem.remove(fresh.actor); }
     return;
   }
 
   // --- Herrschaft
   if (objective) {
+    if (objective.kind === 'defend' && defendFromPerch(bot, now, A, objective)) return;
     if (objective.inside) holdObjective(bot, now, objective, null);
     else set(goal, 'objective', now, { move: objective.position, speed: 'sprint', look: 'move', tolerance: Math.min(2, objective.radius * 0.4) });
     return;
@@ -131,7 +155,7 @@ export function think(bot, now) {
       return;
     }
   }
-  if (goal.kind === 'hunt' && !bot.nav.arrived && now - goal.since < 20) return;
+  if (goal.kind === 'hunt' && !bot.nav.arrived && !bot.nav.failed && now - goal.since < 20) return;
 
   // --- Gefechtslärm in der Ferne (FFA/Waffenspiel häufig, Teams gelegentlich)
   if (goal.kind !== 'hunt' || bot.nav.arrived || bot.nav.failed) {
@@ -139,21 +163,119 @@ export function think(bot, now) {
     if (Math.random() < (ffa ? 0.55 : 0.2)) {
       const act = bot.manager.activityFor(bot, now, ffa ? 20 : 12, ffa ? 95 : 55);
       if (act) {
-        const p = act.pos.clone().add(new THREE.Vector3(rnd(-5, 5), 0, rnd(-5, 5)));
-        set(goal, 'hunt', now, { move: p, speed: 'sprint', look: 'move', tolerance: 4 });
+        // gelegentlich über einen erhöhten Posten mit Sicht auf den Gefechtsort anrücken
+        const perch = Math.random() < 0.35 ? perchNear(bot, A, act.pos, 16) : null;
+        const p = perch ? perch.position.clone() : act.pos.clone().add(new THREE.Vector3(rnd(-5, 5), 0, rnd(-5, 5)));
+        set(goal, 'hunt', now, { move: p, speed: 'sprint', look: 'move', tolerance: perch ? 1 : 4 });
         goal.data = act.actor;
         return;
       }
     }
   }
-  // --- Umherziehen
+  // --- Umherziehen (erhöhte Posten werden eine Weile gehalten)
+  if (goal.kind === 'roam' && goal.data && goal.data.perch && bot.nav.arrived && !bot.nav.failed) {
+    if (!goal.data.holdUntil) startHold(bot, now, A, goal.data, rnd(7, 15));
+    if (now < goal.data.holdUntil) { overwatch(bot, now, A, null); return; }
+  }
   if (goal.kind !== 'roam' || bot.nav.arrived || bot.nav.failed || now - goal.since > 35) {
-    const target = pickRoamGoal(bot, A, bot.manager.roamClaims(bot));
-    if (target) {
-      bot.lastGoal = target.clone();
-      set(goal, 'roam', now, { move: target, speed: 'sprint', look: 'move', tolerance: 2 });
+    const node = pickRoamGoal(bot, A, bot.manager.roamClaims(bot));
+    if (node) {
+      bot.lastGoal = node.position.clone();
+      const perch = isPerch(A, node);
+      set(goal, 'roam', now, { move: node.position, speed: 'sprint', look: 'move', tolerance: perch ? 0.8 : 2 });
+      goal.data = perch ? { perch: true, node, holdUntil: 0, baseYaw: 0, lookAt: 0 } : null;
     } else set(goal, 'idle', now, {});
   }
+}
+
+/* -------------------------------------------------------------------- Erhöhte Posten */
+
+/** Hält der Bot gerade einen erhöhten Posten (angekommen, Haltezeit läuft)? */
+function holdingPerch(bot, now) {
+  const d = bot.goal.data;
+  return !!(d && d.perch && d.holdUntil && now < d.holdUntil && bot.nav.arrived && !bot.nav.failed);
+}
+
+/** Haltezeit beginnen; Grundblickrichtung: Flagge, sonst Gegnerseite (FFA: Kartenmitte). */
+function startHold(bot, now, A, d, duration) {
+  d.holdUntil = now + duration;
+  const p = bot.position;
+  const to = d.watch || (bot.team === 'A' ? A.sb : bot.team === 'B' ? A.sa : A.center);
+  d.baseYaw = Math.atan2(-(to.x - p.x), -(to.z - p.z));
+  d.lookAt = 0;
+}
+
+/** Vom Posten aus beobachten: Blick schwenkt um die Grundrichtung oder folgt einem Hinweis. */
+function overwatch(bot, now, A, threat) {
+  const goal = bot.goal, d = goal.data;
+  goal.look = 'point';
+  goal.hasLook = true;
+  if (threat) { goal.lookAt.copy(threat); goal.lookAt.y += 1.2; return; }
+  if (now < d.lookAt) return;
+  d.lookAt = now + rnd(1.8, 3.6);
+  const yaw = d.baseYaw + rnd(-0.7, 0.7);
+  const p = bot.position;
+  goal.lookAt.set(p.x - Math.sin(yaw) * 20, (d.watch ? d.watch.y : A.ground) + 1.2, p.z - Math.cos(yaw) * 20);
+}
+
+/** Herrschaft (Verteidigen): gelegentlich von einem erhöhten Posten mit Sicht auf die Flagge sichern. */
+function defendFromPerch(bot, now, A, o) {
+  const goal = bot.goal;
+  const d = goal.data;
+  if (goal.kind === 'objective' && d && d.perch && d.flag === o.id) {
+    if (bot.nav.failed || (now - goal.since > 25 && !d.holdUntil)) { goal.data = null; bot._perchAt = now + rnd(8, 14); return false; }
+    if (!bot.nav.arrived) return true; // unterwegs
+    if (!d.holdUntil) startHold(bot, now, A, d, rnd(12, 20));
+    if (now < d.holdUntil) { overwatch(bot, now, A, null); return true; }
+    goal.data = null;
+    bot._perchAt = now + rnd(6, 12);
+    return false;
+  }
+  if (now < (bot._perchAt || 0)) return false;
+  bot._perchAt = now + rnd(5, 9);
+  if (Math.random() > 0.5) return false;
+  const n = perchNear(bot, A, o.center, o.radius + 14, { minDist: 3 });
+  if (!n) return false;
+  set(goal, 'objective', now, { move: n.position, speed: 'run', look: 'move', tolerance: 0.8 });
+  goal.data = { perch: true, flag: o.id, node: n, watch: o.center.clone(), holdUntil: 0, baseYaw: 0, lookAt: 0 };
+  return true;
+}
+
+/**
+ * Gefährlichste Granate im Wirkbereich (+1,2 m) → { grenade, distance } | null. Granaten von
+ * Verbündeten zählen nicht (kein Teambeschuss); die eigene erst, wenn sie liegt/älter als 0,5 s ist
+ * oder auf den Bot zurückkommt (nicht direkt nach dem Wurf weglaufen).
+ */
+function grenadeThreat(bot) {
+  const G = bot.G;
+  const W = G.weapons;
+  const list = W && W.grenades;
+  if (!Array.isArray(list)) {
+    const d = W && W.dangerAt ? W.dangerAt(bot.position, 1.2) : null;
+    return d && d.grenade && !(d.grenade.actor === bot && d.distance > 4) ? d : null;
+  }
+  const combat = G.combat;
+  const p = bot.position;
+  let best = null, bd = Infinity;
+  for (let i = 0; i < list.length; i++) {
+    const g = list[i];
+    const a = g.actor;
+    if (a && a !== bot && combat && !combat.isHostile(bot, a)) continue;
+    const d = g.position.distanceTo(p);
+    if (d >= (g.radius || 6.5) + 1.2 || d >= bd) continue;
+    if (a === bot && !(g.age > 0.5) && !g.rest) {
+      const v = g.velocity;
+      const toward = v ? v.x * (p.x - g.position.x) + v.y * (p.y - g.position.y) + v.z * (p.z - g.position.z) > 0 : false;
+      if (!toward) continue;
+    }
+    bd = d;
+    best = g;
+  }
+  if (!best) return null;
+  const out = bot._danger || (bot._danger = { grenade: null, distance: 0 });
+  out.grenade = best;
+  out.distance = bd;
+  return out;
 }
 
 function set(goal, kind, now, o) {
@@ -241,7 +363,7 @@ function maybeGrenade(bot, now, rec, visible) {
   let chance = D.grenadeChance;
   // Gruppe: weitere Gegner nahe beim Ziel
   let cluster = 0;
-  for (const r of bot.memory.map.values()) if (r !== rec && r.actor.alive && now - r.time < 4 && r.pos.distanceTo(rec.pos) < 5) cluster++;
+  for (const r of bot.memory.list) if (r !== rec && r.actor.alive && now - r.time < 4 && r.pos.distanceTo(rec.pos) < 5) cluster++;
   if (cluster > 0) chance *= 2.5;
   if (!visible) chance *= 2.2; // hinter Deckung
   bot.nextGrenadeAt = now + rnd(2.5, 5);

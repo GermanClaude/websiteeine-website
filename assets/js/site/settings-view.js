@@ -15,6 +15,7 @@ const QUALITY_HELP = {
   ultra: 'Ultra: Umgebungsverdeckung, 4K-Schatten.',
 };
 const HELP = {
+  fov: 'Waagerecht gemessen, bezogen auf ein 4:3-Bild. Breitere Bildschirme sehen seitlich mehr.',
   aimAssist: 'Zieht das Fadenkreuz leicht zu nahen Gegnern. Nur Touch und Controller.',
   autoFire: 'Feuert von selbst, sobald das Fadenkreuz auf einem Gegner liegt. Nur Touch.',
   reducedMotion: 'Stoppt Federn, Wellen und Übergänge auf der Website, im Spiel Kamerawackeln.',
@@ -22,6 +23,16 @@ const HELP = {
 
 /** Website-eigene Beschriftungen, wo das Schema englischen Fachjargon nutzt. */
 const LABELS = { showFps: 'Bildrate anzeigen' };
+const DEG = 180 / Math.PI;
+/**
+ * settings.fov ist wie bei COD das horizontale Sichtfeld eines 4:3-Bilds (game/player.js hfovToVfov):
+ * Die Kamera nutzt das vertikale Äquivalent, breitere Bildschirme sehen seitlich mehr (Hor+).
+ * @returns {{ v: number, h169: number }} vertikal und horizontal bei 16:9, in Radiant
+ */
+function fovAngles(h43) {
+  const v = 2 * Math.atan(Math.tan((h43 / DEG) / 2) * 0.75);
+  return { v, h169: 2 * Math.atan(Math.tan(v / 2) * (16 / 9)) };
+}
 const isVolume = (k) => /Volume$/.test(k);
 function fmtValue(k, s, v) {
   if (isVolume(k)) return `${num(v * 100)}${NNBSP}%`;
@@ -32,6 +43,7 @@ function fmtValue(k, s, v) {
 }
 function speakValue(k, s, v) {
   if (isVolume(k)) return `${Math.round(v * 100)} Prozent`;
+  if (k === 'fov') return `${Math.round(v)} Grad horizontal bei 4:3, ${Math.round(fovAngles(v).h169 * DEG)} Grad bei 16:9`;
   if (s.unit === '°') return `${Math.round(v)} Grad`;
   return String(Math.round(v * 100) / 100).replace('.', ',');
 }
@@ -106,14 +118,15 @@ export async function init(sec, D, ctx = {}) {
         const svgEl = h('span.fov-svg', { 'aria-hidden': 'true' });
         const txt = h('span.mono-s');
         ctl.append(h('div.fov-prev', {}, svgEl, txt));
-        // Keil mit Spitze unten (das Auge), Schenkel im echten Winkel; SICHTFELD steht zwischen den Schenkeln
-        // und füllt deren Abstand auf seiner Höhe – breiter Winkel, breiter Schnitt.
+        // Keil mit Spitze unten (das Auge), Schenkel im echten Winkel, den ein 16:9-Bildschirm im Spiel zeigt;
+        // SICHTFELD steht zwischen den Schenkeln und füllt deren Abstand auf seiner Höhe – breiter Winkel, breiter Schnitt.
+        const W = 2 * Math.sin(fovAngles(s.max).h169 / 2) * 100; // Rahmen für den größten Winkel
         fov = (v) => {
-          const half = (v / 2) * (Math.PI / 180);
+          const a = fovAngles(v);
+          const half = a.h169 / 2;
           const L = 100;
           const x = Math.sin(half) * L;
           const y = Math.cos(half) * L;
-          const hz = Math.round((2 * Math.atan(Math.tan(half) * 16 / 9) * 180) / Math.PI);
           const f = clamp01((v - s.min) / (s.max - s.min));
           const wd = (62 + 63 * f).toFixed(1);
           const ty = y * 0.62; // Höhe der Schrift über der Spitze
@@ -121,9 +134,8 @@ export async function init(sec, D, ctx = {}) {
           const per = 9 * (0.45 + 0.35 * f);
           let fsz = ty * 0.4;
           for (let it = 0; it < 3; it++) fsz = Math.min(ty * 0.4, (2 * Math.tan(half) * (ty - 0.38 * fsz) * 0.84) / per);
-          const W = 2 * Math.sin(55 * Math.PI / 180) * L; // Rahmen für den größten Winkel (110°)
           svgEl.innerHTML = `<svg viewBox="${(-W / 2).toFixed(1)} ${(-L - 2).toFixed(1)} ${W.toFixed(1)} ${(L + 6).toFixed(1)}"><line x1="0" y1="0" x2="${(-x).toFixed(1)}" y2="${(-y).toFixed(1)}"/><line x1="0" y1="0" x2="${x.toFixed(1)}" y2="${(-y).toFixed(1)}"/><circle cx="0" cy="0" r="2"/><text x="0" y="${(-ty).toFixed(1)}" font-size="${fsz.toFixed(2)}" dominant-baseline="central" text-anchor="middle" style="font-stretch:${wd}%">SICHTFELD</text></svg>`;
-          txt.textContent = `${num(v)}° vertikal · ${num(hz)}° horizontal bei 16:9`;
+          txt.textContent = `${num(v)}° horizontal (4:3) · ${num(Math.round(a.h169 * DEG))}° bei 16:9 · ${num(Math.round(a.v * DEG))}° vertikal`;
         };
       }
       updaters[k] = (v) => { input.value = String(v); paint(Number(v)); };

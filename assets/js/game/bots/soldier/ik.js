@@ -18,6 +18,20 @@ export const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 /** Glatter Übergang a→b im Intervall [t0, t1]. */
 export const ramp = (t, t0, t1) => smooth((t - t0) / Math.max(1e-6, t1 - t0));
 
+/**
+ * v ← q · v (wie Vector3.applyQuaternion, liest aber die Felder _x/_y/_z/_w direkt – keine
+ * Getter-Aufrufe in heißen Schleifen). Gibt v zurück.
+ */
+export function qrot(v, q) {
+  const vx = v.x, vy = v.y, vz = v.z;
+  const qx = q._x, qy = q._y, qz = q._z, qw = q._w;
+  const tx = 2 * (qy * vz - qz * vy), ty = 2 * (qz * vx - qx * vz), tz = 2 * (qx * vy - qy * vx);
+  v.x = vx + qw * tx + qy * tz - qz * ty;
+  v.y = vy + qw * ty + qz * tx - qx * tz;
+  v.z = vz + qw * tz + qx * ty - qy * tx;
+  return v;
+}
+
 /** Orientierung, deren +Y-Achse entlang y zeigt und deren +Z möglichst zHint folgt. */
 export function quatFromYZ(out, y, zHint) {
   _y.copy(y).normalize();

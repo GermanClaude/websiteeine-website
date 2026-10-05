@@ -2,7 +2,9 @@
 // layout: vereinfachte Draufsicht in Metern [x, z, breite, tiefe, art, rot?] (Mittelpunkt; Norden = −z oben;
 //   rot = Drehung im Kartenbild in Radiant, im Uhrzeigersinn). Aus den echten Karten exportiert (dev/world.html).
 // Arten: 'house'/'building' (Gebäude), 'wall', 'cover', 'container', 'truck', 'car', 'market', 'stairs', 'catwalk',
-//   'water'/'lane' (weich, verdecken keine Sicht) sowie benannte Wahrzeichen ('kirche', 'turm', 'well', 'kesselhaus' …).
+//   'water'/'lane' (weich, verdecken keine Sicht) sowie benannte Wahrzeichen ('kirche', 'turm', 'well', 'kesselhaus',
+//   'warehouse' (Lagerhalle) …). Endung '-zone' = weiche Grundfläche eines Wahrzeichens, unter dem man hindurchsieht
+//   (z. B. 'crane-zone' = Portalkran „Grete“ über der Kaikante).
 // bounds: Spielfläche · flags: Domination-Flaggen A/B/C (x, z) · spawns: Mittelpunkt der Team-Startbereiche (x, z).
 
 export const MAPS = {
@@ -23,7 +25,7 @@ export const MAPS = {
     ambience: 'harbor',
     bounds: { minX: -46, maxX: 50, minZ: -52, maxZ: 52 },
     layout: [
-      [-48,0,8,116,"water"], [-42,-8,1.5,5,"cover"], [-42,-8,1,1,"cover"], [-42,8,1.5,5,"cover"], [-42,8,1,1,"cover"],
+      [-48,0,8,116,"water"], [-36.5,0,12.8,21.2,"crane-zone"], [-42,-8,1.5,5,"cover"], [-42,-8,1,1,"cover"], [-42,8,1.5,5,"cover"], [-42,8,1,1,"cover"],
       [-31,-8,1.5,5,"cover"], [-31,-8,1,1,"cover"], [-31,8,1.5,5,"cover"], [-31,8,1,1,"cover"], [-37,39,2.5,6,"container"],
       [-37,-39,2.5,6,"container"], [-38,24.5,1,1,"cover",-4.24], [-33.5,27.5,1,1,"cover",-0.12],
       [-40.5,30,1,1,"cover",-0.3], [-32.5,-24,1,1,"cover",0.2], [-34,15.5,1,1,"cover",-0.25], [-33,15,1,1,"cover",-0.28],
@@ -51,7 +53,7 @@ export const MAPS = {
       [0.5,31,1.5,0.5,"cover"], [14,16,0.5,8,"wall"], [14,5,0.5,6,"wall"], [14,-5,0.5,6,"wall"], [14,-16,0.5,8,"wall"],
       [39.5,20,5.5,0.5,"wall"], [27,20,9,0.5,"wall"], [17.5,20,7.5,0.5,"wall"], [15.5,-20,3,0.5,"wall"],
       [18,-20,2.5,0.5,"wall"], [20.5,-20,2,0.5,"wall"], [23.5,-20,2,0.5,"wall"], [26,-20,2.5,0.5,"wall"],
-      [42,0.5,0.5,15.5,"wall"], [42,16,0.5,8,"wall"], [36,-15.5,11.5,8.5,"building"], [29,-8,1.5,5.5,"stairs"],
+      [42,0.5,0.5,15.5,"wall"], [42,16,0.5,8,"wall"], [36,-15.5,11.5,8.5,"warehouse"], [29,-8,1.5,5.5,"stairs"],
       [21,9.5,1,1,"cover"], [21,8,1,1,"cover"], [21,6.5,1,1,"cover"], [21,5.5,1,1,"cover"], [21,4,1,1,"cover"],
       [21,2.5,1,1,"cover"], [21,6,1,8.5,"cover"], [27,9.5,1,1,"cover"], [27,8,1,1,"cover"], [27,6.5,1,1,"cover"],
       [27,5.5,1,1,"cover"], [27,4,1,1,"cover"], [27,2.5,1,1,"cover"], [27,6,1,8.5,"cover"], [35.5,12.5,1,1,"cover"],

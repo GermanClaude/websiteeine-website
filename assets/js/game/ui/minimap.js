@@ -24,6 +24,7 @@ export class Minimap {
     this.mapImg = null;
     this._acc = 0;
     this._t = 0;
+    this._fontSet = null;
   }
 
   setWorld(world) {
@@ -38,7 +39,7 @@ export class Minimap {
     this.dpr = Math.min(2, window.devicePixelRatio || 1);
     this.size = css;
     const px = Math.max(16, Math.round(css * this.dpr));
-    if (this.canvas.width !== px) { this.canvas.width = px; this.canvas.height = px; }
+    if (this.canvas.width !== px) { this.canvas.width = px; this.canvas.height = px; this._fontSet = null; } // Größenänderung setzt den Kontextzustand zurück
     this.range = css < 130 ? 36 : 42;
   }
 
@@ -64,6 +65,7 @@ export class Minimap {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, W);
     if (!p || !mm) return;
+    this._font(ctx);
     const yaw = p.yaw || 0;
     const cos = Math.cos(yaw);
     const sin = Math.sin(yaw);
@@ -232,10 +234,17 @@ export class Minimap {
     ctx.arc(nx, ny, 7 * d, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = COL.signal;
-    ctx.font = `700 ${Math.round(10 * d)}px "Rajdhani NP", sans-serif`;
+    ctx.fillText('N', nx, ny + 0.5 * d);
+  }
+
+  /** Schrift nur bei Änderung setzen (außerhalb von save/restore): jede Zuweisung an ctx.font erzwingt eine Stilberechnung. */
+  _font(ctx) {
+    const f = `700 ${Math.round(11 * this.dpr)}px "Rajdhani NP", sans-serif`;
+    if (this._fontSet === f) return;
+    ctx.font = f;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('N', nx, ny + 0.5 * d);
+    this._fontSet = f;
   }
 }
 
@@ -287,8 +296,5 @@ function flag(ctx, x, y, f, myTeam, d) {
     ctx.stroke();
   }
   ctx.fillStyle = f.contested ? COL.gold : col;
-  ctx.font = `700 ${Math.round(11 * d)}px "Rajdhani NP", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
   ctx.fillText(f.id, x, y + 0.5 * d);
 }

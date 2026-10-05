@@ -80,9 +80,12 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   const light = createLighting(G, def.lighting, group);
   const tLight = performance.now() - tLight0;
   G.scene.add(group);
-  // Kartenbelichtung (z. B. Dämmerung etwas heller) – nur wenn der Renderer das anbietet
-  const prevExposure = G.renderer?.post?.exposure;
-  if (def.lighting.exposure && typeof G.renderer?.setPost === 'function') G.renderer.setPost({ exposure: def.lighting.exposure });
+  // Kartenbelichtung (z. B. Dämmerung etwas heller) + Bloom-Schwelle/-Stärke – nur wenn der Renderer das anbietet
+  const postKeys = { exposure: def.lighting.exposure, bloomThreshold: def.lighting.bloom?.threshold, bloomStrength: def.lighting.bloom?.strength };
+  const postSet = Object.fromEntries(Object.entries(postKeys).filter(([, v]) => Number.isFinite(v)));
+  const prevPost = G.renderer?.post || {};
+  const postRestore = Object.fromEntries(Object.keys(postSet).map(k => [k, prevPost[k]]).filter(([, v]) => Number.isFinite(v)));
+  if (typeof G.renderer?.setPost === 'function') G.renderer.setPost(postSet);
 
   // Startpunkte am Boden einrasten
   const bvh = built.bulletBVH, cbvh = built.colliderBVH;
@@ -213,8 +216,8 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
       res.update?.(dt, camera);
     },
 
-    /** Schattenqualität anpassen (z. B. nach Qualitätswechsel). */
-    setQuality(preset = {}) { light.setShadowQuality({ shadows: preset.shadows, mapSize: preset.shadowMapSize }); },
+    /** Schattenqualität an ein Renderer-Preset anpassen (folgt Qualitätswechseln automatisch). */
+    setQuality(preset = {}) { light.setShadowQuality({ preset }); },
 
     dispose() {
       G.scene.remove(group);
@@ -231,11 +234,14 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
       for (const w of waters) w.dispose();
       for (const L of built.lights) L.dispose?.();
       light.dispose();
-      if (def.lighting.exposure && typeof G.renderer?.setPost === 'function') G.renderer.setPost({ exposure: prevExposure ?? 1 });
+      offQuality?.();
+      if (typeof G.renderer?.setPost === 'function') G.renderer.setPost(postRestore);
       res.dispose?.();
       collider.clear?.();
     },
   };
+  // Qualitätswechsel zur Laufzeit: Schattenkarte/-kaskade mitziehen
+  const offQuality = typeof G.renderer?.onQualityChange === 'function' ? G.renderer.onQualityChange((q, preset) => world.setQuality(preset)) : null;
   // Kartenspezifische Aktionen (z. B. Ziele) mit Weltzugriff verdrahten
   res.attach?.(world, G);
   world.stats.totalMs = Math.round(performance.now() - t0);

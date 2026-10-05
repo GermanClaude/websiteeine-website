@@ -27,6 +27,8 @@ body {
 button { font: inherit; }
 
 #game-root {
+  /* Touch-Grundeinheit: hier statt an #touch-ui, damit auch #hud (Geschwister-Ebene) sie erbt */
+  --tc-u: clamp(.82px, .24vmin, 1.45px);
   position: fixed;
   inset: 0;
   overflow: hidden;
@@ -268,7 +270,6 @@ input, textarea, select { user-select: text; -webkit-user-select: text; touch-ac
   z-index: 20;
   display: none;
   touch-action: none;
-  --tc-u: clamp(.82px, .24vmin, 1.45px);
   --tc-line: rgba(233, 230, 223, .42);
   --tc-bg: rgba(12, 14, 17, .34);
 }
@@ -377,7 +378,7 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
   --ky: 0px;
   transition: opacity .2s;
 }
-.tc-stick[data-idle="1"] { opacity: .5; transition: left .25s var(--ease-out), top .25s var(--ease-out), opacity .2s; }
+.tc-stick[data-idle="1"] { opacity: .3; transition: left .25s var(--ease-out), top .25s var(--ease-out), opacity .2s; }
 .tc-stick-base, .tc-stick-knob {
   position: absolute;
   left: 0;
@@ -838,14 +839,16 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 
 /* --------------------------------------------- Tod / Wiedereinstieg */
 .h-root.is-dead .h-weapon, .h-root.is-dead .h-health, .h-root.is-dead .h-ammo-hint, .h-root.is-dead .h-cook, .h-root.is-dead .h-streaks { opacity: 0; }
-.h-death { position: absolute; left: 50%; top: 55%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; animation: h-death-in .4s var(--ease-out); }
-@keyframes h-death-in { from { opacity: 0; transform: translate(-50%, 10px); } }
+/* Zentriert ohne left:50 % + translate, sonst schrumpft die Breite auf die halbe Bildschirmbreite und die Infozeile bricht mitten in den Angaben um */
+.h-death { position: absolute; left: 0; right: 0; top: 55%; width: max-content; max-width: 92%; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; animation: h-death-in .4s var(--ease-out); }
+@keyframes h-death-in { from { opacity: 0; transform: translateY(10px); } }
 .h-death .k { font-family: var(--font-display); font-weight: 900; font-stretch: 120%; font-size: clamp(28px, 4vw, 44px); text-transform: uppercase; line-height: 1; }
 .h-death .k em { color: var(--np-enemy); }
 .h-death .by { font-size: 20px; letter-spacing: .04em; }
 .h-death .by b { color: var(--np-enemy); }
 .h-death .by small { color: var(--np-ink-2); font-size: 14px; }
-.h-death .info { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--np-ink-2); text-transform: uppercase; letter-spacing: .08em; }
+.h-death .info { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 8px; font-size: 15px; color: var(--np-ink-2); text-transform: uppercase; letter-spacing: .08em; }
+.h-death .info > span { white-space: nowrap; }
 .h-death .info:empty { display: none; }
 .h-death .info i { font-style: normal; opacity: .5; }
 .h-death .info .gun svg { width: 54px; height: 18px; display: block; }
@@ -1002,7 +1005,7 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .sb-dead { color: var(--np-dim); }
 .sb-mvp svg, .sb-dead svg { width: 100%; height: 100%; }
 .sb-score { color: var(--np-ink); }
-.sb-kd, .sb-ping { color: var(--np-ink-2); }
+.sb-kd { color: var(--np-ink-2); }
 
 /* --------------------------------------------- Zielkarte Präzisionsschlag */
 .st-overlay {
@@ -1037,27 +1040,35 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
   --pad-t: max(8px, env(safe-area-inset-top));
   --pad-b: max(8px, env(safe-area-inset-bottom));
   --mm: clamp(92px, 25vmin, 132px);
+  /* Linke Spalte unter der Minikarte. --fl-r = rechte Kante des linken Feuerknopfs (input.js .tc-fire-l: left 4 %, 62 u) */
+  --col-t: calc(var(--pad-t) + var(--mm) + 6px);
+  --fl-r: calc(4% + var(--tc-u) * 62 + env(safe-area-inset-left));
+  /* Unterkante der Pause-/Tabellen-Knöpfe oben rechts (.tc-pause/.tc-score: top 3 %, 42 u, mind. 44 px) */
+  --tr-b: calc(3% + max(44px, var(--tc-u) * 42) + env(safe-area-inset-top));
 }
 .h-root[data-input="touch"] .h-compass, .h-root[data-input="touch"] .h-mtag, .h-root[data-input="touch"] .h-streaks { display: none; }
+/* Abschussmeldungen wie bei COD Mobile links unter der Minikarte, rechts neben dem linken Feuerknopf;
+   Breite endet vor der Bildmitte (Fadenkreuz) und reicht nie an den Punktestand oben. */
 .h-root[data-input="touch"] .h-feed {
-  left: calc(var(--pad-l) + var(--mm) + 12px);
+  left: calc(var(--fl-r) + 10px);
   right: auto;
-  top: var(--pad-t);
-  width: min(330px, 34vw);
+  top: var(--col-t);
+  width: min(270px, calc(50% - 56px - var(--fl-r) - 10px));
   align-items: flex-start;
 }
 .h-root[data-input="touch"] .kf-row { font-size: 12.5px; line-height: 16px; padding: 2px 7px; gap: 5px; }
 .h-root[data-input="touch"] .kf-gun svg { width: 38px; height: 13px; }
 .h-root[data-input="touch"] .kf-ico svg, .h-root[data-input="touch"] .kf-flag svg { width: 14px; height: 14px; }
 .h-root[data-input="touch"] .kf-name { max-width: 96px; }
-.h-root[data-input="touch"] .h-top { top: var(--pad-t); transform: translateX(-50%) scale(.82); transform-origin: 50% 0; }
+.h-root[data-input="touch"] .h-top { top: var(--pad-t); transform: translateX(-50%) scale(.9); transform-origin: 50% 0; }
+.h-root[data-input="touch"] .h-s small, .h-root[data-input="touch"] .h-time small { font-size: 12.5px; }
 .h-root[data-input="touch"] .h-notices { top: calc(var(--pad-t) + 74px); }
 .h-root[data-input="touch"][data-mode="dom"] .h-notices, .h-root[data-input="touch"][data-mode="gun"] .h-notices, .h-root[data-input="touch"][data-mode="ffa"] .h-notices, .h-root[data-input="touch"][data-mode="training"] .h-notices { top: calc(var(--pad-t) + 98px); }
 .h-root[data-input="touch"] .h-notice { font-size: 13px; padding: 3px 10px; }
 .h-root[data-input="touch"] .h-weapon {
   right: auto;
   left: 50%;
-  bottom: calc(3% + var(--tc-u, 1px) * 44 + 10px + env(safe-area-inset-bottom));
+  bottom: calc(3% + max(44px, var(--tc-u) * 44) + 8px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   align-items: center;
   text-align: center;
@@ -1067,13 +1078,16 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-root[data-input="touch"] .h-ammo span { font-size: 15px; }
 .h-root[data-input="touch"] .h-next { font-size: 10px; }
 .h-root[data-input="touch"] .h-health {
-  left: 50%;
-  bottom: calc(3% + var(--tc-u, 1px) * 44 + 50px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  width: min(210px, 26vw);
-  gap: 6px;
+  left: var(--pad-l);
+  top: var(--col-t);
+  bottom: auto;
+  width: min(var(--mm), calc(var(--fl-r) + 2px - var(--pad-l)));
+  gap: 5px;
+  transition: opacity .35s;
 }
-.h-root[data-input="touch"] .h-health b { font-size: 15px; min-width: 26px; }
+/* Leben nur unter vollem Wert zeigen (COD-Stil); der Rotrand übernimmt den Rest */
+.h-root[data-input="touch"] .h-health.is-full { opacity: 0; }
+.h-root[data-input="touch"] .h-health b { font-size: 14px; min-width: 24px; }
 .h-root[data-input="touch"] .h-health i { height: 5px; }
 .h-root[data-input="touch"] .h-popups { top: calc(50% + 30px); }
 .h-root[data-input="touch"] .h-pop b { font-size: 20px; }
@@ -1092,20 +1106,33 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-root[data-input="touch"] .h-banner .t { font-size: clamp(24px, 4.6vw, 40px); }
 .h-root[data-input="touch"] .h-banner .s { font-size: 14px; }
 .h-root[data-input="touch"] .h-count { font-size: clamp(44px, 8vw, 78px); }
+/* Schießstand-Panel rechts unter Pause/Tabelle (dort gibt es im Training keine Serienknöpfe), über dem Nachladeknopf */
 .h-root[data-input="touch"] .h-train {
-  top: var(--pad-t);
-  left: calc(var(--pad-l) + var(--mm) + 12px);
-  width: min(240px, 30vw);
-  padding: 6px 9px;
+  top: calc(var(--tr-b) + 8px);
+  left: auto;
+  right: var(--pad-r);
+  width: min(200px, 30vw);
+  padding: 5px 9px;
+  border-left: 0;
+  border-right: 2px solid var(--np-signal);
 }
-.h-root[data-input="touch"] .h-train dl { font-size: 11.5px; gap: 0 8px; }
+.h-root[data-input="touch"] .h-train dl { font-size: 12px; gap: 0 8px; }
+/* Treffer % und Ziele stehen schon im Punktestand oben */
+.h-root[data-input="touch"] .h-train [data-k="acc"], .h-root[data-input="touch"] .h-train [data-k="down"] { display: none; }
 .h-root[data-input="touch"] .ht-title { font-size: 13px; margin-bottom: 2px; }
 .h-root[data-input="touch"] .ht-hint { display: none; }
-.h-root[data-input="touch"] .h-uav { margin-left: 0; font-size: 11px; }
+.h-root[data-input="touch"] .h-uav { position: absolute; left: calc(100% + 8px); bottom: 2px; margin: 0; font-size: 12px; white-space: nowrap; }
+@media (max-height: 430px) {
+  .h-root[data-input="touch"] .h-train [data-k="head"], .h-root[data-input="touch"] .h-train [data-k="best"] { display: none; }
+}
+/* Spieler tot (HUD setzt body[data-player-dead]): Touch-Steuerung bis auf Pause/Tabelle ausblenden, die Todesinfo bleibt frei */
+body[data-player-dead="1"] #touch-ui > :not(.tc-pause):not(.tc-score) { opacity: 0; visibility: hidden; transition: opacity .2s, visibility 0s .2s; }
+/* Punktetabelle auf Touch: reine Anzeige, Berührungen gehen an die Touch-Steuerung darunter (Feuer, Stick und Blick bleiben bedienbar) */
 body[data-input-mode="touch"] .h-board { top: calc(50% + 18px); width: min(860px, 94vw); max-height: calc(100% - 64px); padding: 8px 12px; }
+body[data-input-mode="touch"] #hud-top .h-board { pointer-events: none; }
 body[data-input-mode="touch"] .sb-table { font-size: 13px; }
 body[data-input-mode="touch"] .sb-table td, body[data-input-mode="touch"] .sb-table th { padding: 3px 5px; }
-body[data-input-mode="touch"] .sb-kd, body[data-input-mode="touch"] .sb-ping, body[data-input-mode="touch"] .sb-rank { display: none; }
+body[data-input-mode="touch"] .sb-kd, body[data-input-mode="touch"] .sb-rank { display: none; }
 body[data-input-mode="touch"] .hb-t { font-size: 18px; }
 body[data-input-mode="touch"] .hb-head { margin-bottom: 6px; }
 body[data-input-mode="touch"] .sb-tname { font-size: 14px; }
@@ -1202,6 +1229,7 @@ body[data-streaks="0"] .tc-streaks, body[data-lethals="0"] .tc-grenade { display
 .m-btn svg { width: 18px; height: 18px; }
 .m-btn > span { flex: 1; }
 .m-btn kbd { margin-left: auto; padding: 2px 6px; border: 1px solid var(--np-line-strong); border-radius: 2px; font: 600 11px var(--font-mono); color: var(--np-ink-2); letter-spacing: 0; }
+body[data-input-mode="touch"] .m-btn kbd { display: none; }
 .m-btn:hover { border-color: var(--np-ink); background: rgba(233, 230, 223, .08); }
 .m-btn:active { transform: scale(.98); }
 .m-btn:focus-visible, .m-icon:focus-visible, .m-tab:focus-visible, .m-seg button:focus-visible, .lb-mode:focus-visible, .lb-map:focus-visible, .lo-item:focus-visible, .lo-preset:focus-visible, .ar-item:focus-visible, .m-switch:focus-visible, .sp-sw:focus-visible, .lb-bal:focus-visible, .ht-prompt:focus-visible {
@@ -1286,13 +1314,13 @@ body[data-streaks="0"] .tc-streaks, body[data-lethals="0"] .tc-grenade { display
     radial-gradient(ellipse at 78% 42%, rgba(255, 91, 31, .07), transparent 50%),
     linear-gradient(90deg, rgba(10, 11, 13, .98) 0%, rgba(10, 11, 13, .96) 58%, rgba(10, 11, 13, .55) 72%, rgba(10, 11, 13, .2) 100%);
 }
-.lb { flex: 1; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding: var(--mp-t) var(--mp-r) var(--mp-b) var(--mp-l); }
-.lb-head { display: flex; align-items: center; gap: 22px; padding-bottom: 10px; border-bottom: 1px solid var(--np-line); }
-.lb-brand { font-weight: 900; font-stretch: 125%; font-size: 24px; letter-spacing: -.01em; line-height: 1; white-space: nowrap; }
+.lb { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; padding: var(--mp-t) var(--mp-r) var(--mp-b) var(--mp-l); }
+.lb-head { min-width: 0; display: flex; align-items: center; gap: 22px; padding-bottom: 10px; border-bottom: 1px solid var(--np-line); }
+.lb-brand { flex: none; font-weight: 900; font-stretch: 125%; font-size: 24px; letter-spacing: -.01em; line-height: 1; white-space: nowrap; }
 .lb-brand em { font-style: normal; }
 .lb-brand i { font-style: normal; color: var(--np-signal); }
-.lb-tabs { margin-right: auto; }
-.lb-profile { appearance: none; display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 44px; padding: 2px 8px; border: 1px solid transparent; border-radius: 2px; background: none; color: var(--np-ink); text-align: left; cursor: pointer; touch-action: manipulation; }
+.lb-tabs { min-width: 0; margin-right: auto; }
+.lb-profile { appearance: none; flex: 0 1 auto; display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 44px; padding: 2px 8px; border: 1px solid transparent; border-radius: 2px; background: none; color: var(--np-ink); text-align: left; cursor: pointer; touch-action: manipulation; }
 .lb-profile:hover { border-color: var(--np-line-strong); }
 .lb-profile:focus-visible { outline: 2px solid var(--np-signal); outline-offset: 2px; }
 .lb-rank { color: var(--np-gold); display: grid; place-items: center; }
@@ -1302,7 +1330,7 @@ body[data-streaks="0"] .tc-streaks, body[data-lethals="0"] .tc-grenade { display
 .lb-pinfo small { font-size: 12px; color: var(--np-ink-2); letter-spacing: .06em; white-space: nowrap; }
 .lb-xp { display: block; width: 140px; height: 3px; margin-top: 4px; background: var(--np-line); }
 .lb-xp u { display: block; height: 100%; background: var(--np-gold); transform-origin: left; }
-.lb-tools { display: flex; gap: 6px; }
+.lb-tools { flex: none; display: flex; gap: 6px; }
 .lb-main { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 34vw, 500px); gap: 24px; }
 .lb-pane { min-height: 0; padding: 16px 6px 20px 0; }
 .lb-pane-loadout { padding-right: 0; }
@@ -1519,6 +1547,7 @@ body[data-streaks="0"] .tc-streaks, body[data-lethals="0"] .tc-grenade { display
 .sp-body { flex: 1; min-height: 0; padding: 4px 6px 4px 0; }
 .sp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 380px); align-items: center; gap: 18px; padding: 10px 0; border-bottom: 1px solid var(--np-line); }
 .sp-lab { display: flex; flex-direction: column; gap: 2px; font: 600 16px var(--font-hud); letter-spacing: .04em; }
+.sp-sub { margin: 18px 0 2px; }
 .sp-lab small { font-weight: 500; font-size: 13px; color: var(--np-dim); letter-spacing: 0; }
 .sp-ctl { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
 .sp-range input { flex: 1; }
@@ -1614,6 +1643,10 @@ body[data-streaks="0"] .tc-streaks, body[data-lethals="0"] .tc-grenade { display
 .e-lvl small { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--np-ink-2); }
 .e-lvl b { font-size: 22px; letter-spacing: .04em; text-transform: uppercase; }
 .e-gain { font: 700 22px var(--font-hud); color: var(--np-gold); }
+/* Endwert steht im DOM; während des Hochzählens zeigt nur die optische Ebene den Zwischenwert (für Hilfsmittel leer) */
+.e-gain-v { position: relative; display: inline-block; white-space: nowrap; }
+.e-gain-v.is-counting { color: transparent; }
+.e-gain-v.is-counting::after { content: attr(data-shown); content: attr(data-shown) / ""; position: absolute; right: 0; top: 0; color: var(--np-gold); }
 .e-xpbar { position: relative; height: 6px; margin: 12px 0 6px; background: var(--np-line); overflow: hidden; }
 .e-xpbar i { position: absolute; inset: 0; background: var(--np-gold); transform-origin: left; transform: scaleX(0); box-shadow: 0 0 10px rgba(255, 194, 61, .6); }
 .e-xpbar.flash { animation: e-flash .5s ease-out; }
@@ -1720,6 +1753,24 @@ body[data-streaks="0"] .tc-streaks, body[data-lethals="0"] .tc-grenade { display
   .e-actions .m-btn { min-width: 0; flex: 1; }
   .sb-table { font-size: 13px; }
   .sb-table td, .sb-table th { padding: 3px 4px; }
+}
+/* Niedrige Telefone (375–430 px Höhe): Vorlagen neben die Slot-Reiter, damit die Waffenliste ≈ 180 px bekommt */
+@media (max-height: 430px) {
+  .lb-pane-loadout { padding-top: 4px; padding-bottom: 6px; }
+  .lo { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); column-gap: 10px; }
+  .lo-slots { grid-column: 1; grid-row: 1; }
+  .lo-presets { grid-column: 2; grid-row: 1; align-self: stretch; align-content: end; min-width: 0; border-bottom: 1px solid var(--np-line); }
+  .lo-body { grid-column: 1 / -1; grid-row: 2; }
+}
+/* Schmale Querformat-Telefone (iPhone SE/8: 667 px, 640 px): Kopfzeile passt immer, Werkzeuge bleiben sichtbar */
+@media (max-width: 760px) {
+  .lb-pinfo { display: none; }
+  .lb-profile { padding: 2px 6px; }
+}
+@media (max-width: 700px) {
+  .lb-head { gap: 10px; }
+  .lb-brand { font-size: 15px; }
+  .m-tab { padding: 0 8px; }
 }
 @media (max-width: 600px) {
   .lb-row2, .e-grid, .ps { grid-template-columns: 1fr; }

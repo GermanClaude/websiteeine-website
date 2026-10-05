@@ -1,7 +1,7 @@
 // Waffen-Klangrezepte: Schüsse (nah/stereo + fern/mono), Nachladen, Handling, Granaten, Explosionen, Geschosse.
 // Jedes Rezept: (sampleRate, rng, variante) → Float32Array | [L, R]
 import {
-  len, buf, white, brown, filt, sweep, expGlide, env, ad, bell, mix, mixAt, drive, normalize,
+  len, buf, white, brown, filt, sweep, expGlide, env, ad, ahr, bell, mix, mixAt, drive, normalize,
   sine, modal, metalModes, click, burst, grains, echoes, decorrelate, fadeOut, dcBlock, trim, clamp,
 } from './dsp.js';
 
@@ -281,6 +281,19 @@ export const HANDLING = {
     modal(d, sr, 0, [[R.range(650, 750), 1, 0.06], [R.range(1250, 1400), 0.7, 0.045], [R.range(2000, 2300), 0.5, 0.03], [3400, 0.25, 0.02]], 0.5, R);
     burst(d, sr, 0, { dur: 0.04, type: 'lowpass', freq: 1500, envFn: ad(0.0005, 0.012), R, amp: 0.5 });
     return normalize(d, 0.8);
+  },
+  grenade_stick: (sr, R) => {
+    // Haftgranate klebt: dumpfer Aufschlag, schmatzende Haftmasse, Zünder piept zweimal (scharf)
+    const d = buf(sr, 0.5);
+    thud(d, sr, 0, R.range(120, 150), 0.018, 0.65);
+    burst(d, sr, 0, { dur: 0.07, type: 'lowpass', freq: 1300, envFn: ad(0.0008, 0.014), R, amp: 0.8 });
+    burst(d, sr, 0.003, { dur: 0.12, type: 'bandpass', freqAt: expGlide(R.range(2500, 3000), 900, 0.09), q: 1.8, envFn: ad(0.002, 0.03), R, amp: 0.4 });
+    metalClick(d, sr, 0.004, R, R.range(1900, 2300), 0.35, 0.01);
+    const beep = buf(sr, 0.06);
+    sine(beep, sr, 0, 0.06, () => 3150, ahr(0.002, 0.03, 0.008));
+    drive(beep, 2.5);
+    mixAt(d, sr, beep, 0.17, 0.32); mixAt(d, sr, beep, 0.29, 0.32);
+    return normalize(d, 0.85);
   },
   low_ammo: (sr, R) => {
     const d = buf(sr, 0.1);

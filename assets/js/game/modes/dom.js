@@ -4,6 +4,7 @@
 // pointsPerTick alle tickInterval Sekunden. Bots: G.mode.objectives / objectiveFor(bot).
 
 import * as THREE from 'three';
+import { MEDAL_RULES } from '../../shared/modes.data.js';
 import { BaseMode } from './base.js';
 
 const VERT = 2.6; // m Höhentoleranz im Flaggenkreis
@@ -156,7 +157,7 @@ export class DomMode extends BaseMode {
 
   onKillScored(killer, victim) {
     // Verteidigung: Gegner an/auf eigener Flagge ausgeschaltet
-    const R = (this.G.data.MEDAL_RULES && this.G.data.MEDAL_RULES.defendRadius) || 9;
+    const R = MEDAL_RULES.defendRadius;
     for (const f of this.objectives) {
       if (f.owner !== killer.team) continue;
       const near = (a) => a && a.position && a.position.distanceTo(f.position) <= Math.max(R, f.radius + 2);

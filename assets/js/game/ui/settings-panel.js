@@ -12,6 +12,11 @@ const GROUPS = [
   ['profil', 'Profil', ICON.user],
   ['spiel', 'Spiel', ICON.bot],
 ];
+// Reihenfolge im Reiter „Steuerung“ nach Eingabeart; '|…' = Zwischenüberschrift für die Geräte, die gerade nicht benutzt werden
+const CONTROL_ORDER = {
+  touch: ['touchSensitivity', 'aimAssist', 'autoFire', 'invertY', '|Maus', 'sensitivity', 'adsSensitivity'],
+  desktop: ['sensitivity', 'adsSensitivity', 'invertY', 'aimAssist', '|Touch', 'touchSensitivity', 'autoFire'],
+};
 const COLORS = ['#ffffff', '#ff5b1f', '#5fe08a', '#38b6ff', '#ffc23d', '#ff4fd8'];
 const HINTS = {
   touchSensitivity: 'Nur auf Touchgeräten.',
@@ -86,7 +91,15 @@ export class SettingsPanel {
     const label = (GROUPS.find(([g]) => g === this.group) || [])[1] || '';
     this.root.querySelector('.sp-reset b').textContent = label;
     const rows = Object.entries(schema).filter(([, d]) => d.group === this.group);
-    this.body.innerHTML = rows.map(([k, d]) => this._row(k, d, S.get(k))).join('') + (this.group === 'hud' ? '<div class="sp-xpreview" aria-hidden="true"><div class="sp-xh"><i class="l"></i><i class="r"></i><i class="t"></i><i class="b"></i><i class="c"></i><i class="o"></i></div><span>Vorschau</span></div>' : '');
+    let items = rows.map(([k]) => k);
+    if (this.group === 'steuerung') {
+      const order = CONTROL_ORDER[this.G.input && this.G.input.mode === 'touch' ? 'touch' : 'desktop'];
+      const rest = items.filter((k) => !order.includes(k));
+      items = order.filter((k) => k[0] === '|' || items.includes(k)).flatMap((k) => (k[0] === '|' ? [...rest.splice(0), k] : [k]));
+      items.push(...rest);
+    }
+    const html = items.map((k) => (k[0] === '|' ? `<h3 class="m-h2 sp-sub">${esc(k.slice(1))}</h3>` : this._row(k, schema[k], S.get(k)))).join('');
+    this.body.innerHTML = html + (this.group === 'hud' ? '<div class="sp-xpreview" aria-hidden="true"><div class="sp-xh"><i class="l"></i><i class="r"></i><i class="t"></i><i class="b"></i><i class="c"></i><i class="o"></i></div><span>Vorschau</span></div>' : '');
     this._bind();
     this._preview();
   }

@@ -4,7 +4,8 @@ import * as THREE from 'three';
 
 export class Memory {
   constructor() {
-    this.map = new Map();
+    this.map = new Map(); // Akteur → Eintrag
+    this.list = []; // dieselben Einträge als Liste (Schleifen ohne Iterator-Objekte)
   }
 
   _rec(actor) {
@@ -13,8 +14,10 @@ export class Memory {
       r = {
         actor, pos: new THREE.Vector3().copy(actor.position), vel: new THREE.Vector3(), time: -1e9, seenAt: -1e9,
         visible: false, visibleSince: -1e9, spot: 0, acquiredAt: -1e9, source: 'none', accuracy: 99, hurtMe: -1e9, partial: false,
+        unverified: false, // Sicht wegen Strahlenbudget gerade nicht bestätigt (kein Feuer)
       };
       this.map.set(actor, r);
+      this.list.push(r);
     }
     return r;
   }
@@ -37,6 +40,7 @@ export class Memory {
     r.time = now;
     r.seenAt = now;
     r.visible = true;
+    r.unverified = false;
     r.source = 'sight';
     r.accuracy = 0;
     return r;
@@ -44,7 +48,7 @@ export class Memory {
 
   lost(actor) {
     const r = this.map.get(actor);
-    if (r) r.visible = false;
+    if (r) { r.visible = false; r.unverified = false; }
   }
 
   /** Geräusch/Funk: ungefähre Position mit Fehler (m). */
@@ -71,18 +75,32 @@ export class Memory {
   }
 
   forget(now, horizon = 14) {
-    for (const [a, r] of this.map) {
-      if (!a.alive || now - r.time > horizon) this.map.delete(a);
+    const list = this.list;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const r = list[i];
+      if (r.actor.alive && now - r.time <= horizon) continue;
+      this.map.delete(r.actor);
+      list[i] = list[list.length - 1];
+      list.pop();
     }
   }
 
-  remove(actor) { this.map.delete(actor); }
-  clear() { this.map.clear(); }
+  remove(actor) {
+    const r = this.map.get(actor);
+    if (!r) return;
+    this.map.delete(actor);
+    const i = this.list.indexOf(r);
+    if (i >= 0) { this.list[i] = this.list[this.list.length - 1]; this.list.pop(); }
+  }
+
+  clear() { this.map.clear(); this.list.length = 0; }
 
   /** Frischester nicht sichtbarer Eintrag (für Verfolgen/Jagen). */
   freshestUnseen(now, maxAge = 10) {
     let best = null;
-    for (const r of this.map.values()) {
+    const list = this.list;
+    for (let i = 0; i < list.length; i++) {
+      const r = list[i];
       if (r.visible || !r.actor.alive || now - r.time > maxAge) continue;
       if (!best || r.time > best.time) best = r;
     }

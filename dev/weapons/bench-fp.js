@@ -2,8 +2,8 @@
 // einfacher Waffen-Controller (Kadenz, Magazin, Nachladen) zum Testen aller Animationen.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { ViewModel } from '../viewmodel.js';
-import { WEAPONS, WEAPON_IDS } from '../../../shared/weapons.data.js';
+import { ViewModel } from '../../assets/js/game/weapons/viewmodel.js';
+import { WEAPONS, WEAPON_IDS } from '../../assets/js/shared/weapons.data.js';
 
 function gridTexture() {
   const c = document.createElement('canvas');

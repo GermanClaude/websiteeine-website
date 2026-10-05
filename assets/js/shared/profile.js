@@ -1,9 +1,11 @@
 // NULLPUNKT — Spielerprofil: XP, Level (1–55), Dienstgrade, Statistiken, Match-Verlauf (§4).
 // localStorage 'nullpunkt:profile'. Robust gegen fehlenden/gesperrten Speicher, validiert
 // alles beim Laden, synchronisiert sich zwischen Tabs. Freischaltungen über
-// WEAPONS[id].unlockLevel aus weapons.data.js (wird defensiv/lazy geladen).
+// WEAPONS[id].unlockLevel aus weapons.data.js, XP-Regeln aus modes.data.js (beide statisch importiert).
 
 import { settings } from './settings.js';
+import { WEAPONS, EQUIPMENT } from './weapons.data.js';
+import { matchBonusXp, medalXp, DIFFICULTIES, XP_RULES } from './modes.data.js';
 
 const STORAGE_KEY = 'nullpunkt:profile';
 const VERSION = 1;
@@ -151,39 +153,15 @@ export function rankIcon(level, { size = 32, title = true } = {}) {
 
 /* ---------------------------------------------------------- Freischaltungen */
 
-// Rückfall, falls weapons.data.js (noch) nicht geladen werden kann – gleiche Werte wie dort.
-const FALLBACK_UNLOCKS = {
-  ar_m17: 1, smg_vp9: 1, pi_p9: 1, knife: 1, frag: 1, ar_kv47: 2, sg_bulldog: 3, smg_qx90: 4,
-  mr_sk14: 5, pi_adler: 7, semtex: 9, lmg_hm60: 12, sr_brecher: 20,
-};
-let unlockTable = { ...FALLBACK_UNLOCKS };
-let unlockNames = {};
-
-const ready = import('./weapons.data.js')
-  .then((m) => {
-    const table = {};
-    for (const src of [m.WEAPONS, m.EQUIPMENT]) {
-      if (!src) continue;
-      for (const [id, def] of Object.entries(src)) {
-        if (def && Number.isFinite(def.unlockLevel)) table[id] = def.unlockLevel;
-        if (def && def.name) unlockNames[id] = def.name;
-      }
-    }
-    if (Object.keys(table).length) unlockTable = table;
-    return true;
-  })
-  .catch(() => false);
-
-// XP-Regeln aus modes.data.js (matchBonusXp, medalXp, DIFFICULTIES[].xpMult) – mit gleichwertigem Rückfall.
-let xpRules = null;
-const rulesReady = import('./modes.data.js')
-  .then((m) => {
-    if (typeof m.matchBonusXp === 'function' && typeof m.medalXp === 'function') {
-      xpRules = { matchBonusXp: m.matchBonusXp, medalXp: m.medalXp, DIFFICULTIES: m.DIFFICULTIES || {}, XP_RULES: m.XP_RULES || {} };
-    }
-    return true;
-  })
-  .catch(() => false);
+// Freischaltlevel und Anzeigenamen aus weapons.data.js (WEAPONS[id].unlockLevel, EQUIPMENT[id].unlockLevel)
+const unlockTable = {};
+const unlockNames = {};
+for (const src of [WEAPONS, EQUIPMENT]) {
+  for (const [id, def] of Object.entries(src || {})) {
+    if (def && Number.isFinite(def.unlockLevel)) unlockTable[id] = def.unlockLevel;
+    if (def && def.name) unlockNames[id] = def.name;
+  }
+}
 
 function unlockedBetween(before, after) {
   return Object.entries(unlockTable)
@@ -290,7 +268,6 @@ function notify() {
 
 /* ------------------------------------------------------------ XP-Vergabe */
 
-const RESULT_BONUS = { win: 1200, draw: 800, loss: 500 };
 const RESULT_LABEL = { win: 'Matchbonus (Sieg)', draw: 'Matchbonus (Unentschieden)', loss: 'Matchbonus (Niederlage)' };
 
 function sanitizeSummary(s) {
@@ -314,8 +291,8 @@ function sanitizeSummary(s) {
 
 export const profile = {
   maxLevel: MAX_LEVEL,
-  /** Promise: true, sobald Freischaltungen (weapons.data.js) und XP-Regeln (modes.data.js) geladen sind. */
-  ready: Promise.all([ready, rulesReady]).then(([a, b]) => a && b),
+  /** Kompatibilität: Daten sind statisch importiert und damit sofort bereit. */
+  ready: Promise.resolve(true),
   persistent: !!storage,
 
   /** Tiefe Kopie des Profils. */
@@ -336,7 +313,7 @@ export const profile = {
     const training = s.modeId === 'training';
 
     const breakdown = [];
-    const R = xpRules ? xpRules.XP_RULES : {};
+    const R = XP_RULES;
     if (training) {
       const f = Number.isFinite(R.trainingFactor) ? R.trainingFactor : 0.25;
       const max = Number.isFinite(R.trainingMax) ? R.trainingMax : 500;
@@ -344,14 +321,12 @@ export const profile = {
     } else {
       breakdown.push({ id: 'score', label: 'Punktzahl', xp: s.score });
       // Kurze (Test-)Matches geben anteilig weniger Matchbonus.
-      let bonus;
-      if (xpRules) bonus = xpRules.matchBonusXp(s.result, s.duration);
-      else bonus = Math.round((RESULT_BONUS[s.result] * Math.min(1, Math.max(0.3, s.duration / 300))) / 10) * 10;
+      const bonus = matchBonusXp(s.result, s.duration);
       breakdown.push({ id: 'result', label: RESULT_LABEL[s.result], xp: bonus });
       const medalCount = Object.values(s.medals).reduce((a, b) => a + b, 0);
-      if (medalCount) breakdown.push({ id: 'medals', label: 'Medaillen', xp: xpRules ? xpRules.medalXp(s.medals) : medalCount * 50 });
+      if (medalCount) breakdown.push({ id: 'medals', label: 'Medaillen', xp: medalXp(s.medals) });
       // Schwierigkeitsgrad (DIFFICULTIES[].xpMult)
-      const diff = xpRules && s.difficulty ? xpRules.DIFFICULTIES[s.difficulty] : null;
+      const diff = s.difficulty ? DIFFICULTIES[s.difficulty] : null;
       const mult = diff && Number.isFinite(diff.xpMult) ? diff.xpMult : 1;
       if (mult !== 1) {
         const sub = breakdown.reduce((a, b) => a + b.xp, 0);

@@ -24,6 +24,15 @@ function detectWebGL() {
     return true;
   } catch { return false; }
 }
+// Zurück aus dem Spiel über den Zwischenspeicher des Browsers (bfcache): Der eingefrorene Tab hat die 'storage'-
+// Ereignisse des Spiels verpasst. Ein synthetisches 'storage'-Ereignis (key null = „alles neu lesen“) nimmt denselben
+// Weg wie die Tab-Synchronisation: Profil, Einstellungen und Website-Speicher lesen neu und melden Änderungen weiter
+// (Fahne, Profil, Status, Satzbau, Einstellungen).
+window.addEventListener('pageshow', (e) => {
+  if (!e.persisted) return;
+  try { window.dispatchEvent(new StorageEvent('storage', { key: null, storageArea: window.localStorage })); } catch { /* kein Speicher */ }
+});
+
 const webgl = detectWebGL();
 html.classList.toggle('no-webgl', !webgl);
 const saveData = !!navigator.connection?.saveData;

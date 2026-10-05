@@ -2,8 +2,8 @@
 // und Ego-Prüfung des Viewmodels (Feuer, Anschlag, Nachladen, Wechsel, Sprint, Sprung, Messer, Granate, Inspizieren).
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createWeaponModel, MODEL_KEYS, getWeaponModelInfo } from '../models.js';
-import { WEAPONS, WEAPON_IDS } from '../../../shared/weapons.data.js';
+import { createWeaponModel, MODEL_KEYS, getWeaponModelInfo } from '../../assets/js/game/weapons/models.js';
+import { WEAPONS, WEAPON_IDS } from '../../assets/js/shared/weapons.data.js';
 import { createFpBench } from './bench-fp.js';
 
 const params = new URLSearchParams(location.search);

@@ -112,6 +112,25 @@ export function land(sr, R) {
   return normalize(d, 0.9);
 }
 
+/** Rutschen (Spieler): Aufsetzen, Reiben über den Boden mit fallender Tonhöhe, Stoff und Ausrüstung. */
+export function slide(sr, R) {
+  const T = R.range(0.6, 0.75), d = buf(sr, T + 0.1);
+  thud(d, sr, 0, R.range(62, 74), 0.035, 0.55);
+  burst(d, sr, 0, { dur: 0.1, type: 'lowpass', freq: 600, envFn: ad(0.002, 0.03), R, amp: 0.5 });
+  const n = len(sr, T), fr = white(n, R), step = Math.max(1, Math.round(sr * 0.005));
+  sweep(fr, sr, 'bandpass', expGlide(R.range(1700, 2100), R.range(520, 650), T), 0.7);
+  filt(fr, sr, 'highpass', 180, 0.7);
+  let g = 0, tgt = 1; // raue, unregelmäßige Reibung
+  for (let i = 0; i < n; i++) { if (i % step === 0) tgt = 0.55 + R() * 0.45; g += (tgt - g) * 0.02; fr[i] *= g; }
+  env(fr, sr, t => Math.min(1, t / 0.025) * (t < T * 0.35 ? 1 : Math.exp(-(t - T * 0.35) / (T * 0.28))));
+  mix(d, fr, len(sr, 0.01), 0.9);
+  grains(d, sr, 0.02, { dur: T * 0.7, count: Math.round(T * 50), grainDur: [0.001, 0.003], freq: [1800, 5200], q: 1.4, amp: 0.18, R, density: u => Math.pow(u, 1.4) });
+  cloth(d, sr, 0, R, 0.3, 0.35, 1300);
+  modal(d, sr, R.range(0.02, 0.06), metalModes(R.range(2600, 3400), R, { count: 3, decay: 0.02 }), 0.08, R);
+  dcBlock(d, sr, 30);
+  return trim(normalize(d, 0.8), sr);
+}
+
 // ---------------------------------------------------------------- Einschläge (Kugel trifft Welt)
 
 const IMPACT = {

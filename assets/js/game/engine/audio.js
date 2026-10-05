@@ -1,11 +1,13 @@
 // NULLPUNKT – prozedurale Audio-Engine (WebAudio, keine Audiodateien).
-// Alle Klänge werden beim unlock() in Häppchen vorgerendert (Leerlauf-Callbacks) und als AudioBuffer
-// zwischen Kontexten geteilt. Signalfluss:
+// Alle Klänge entstehen in Synthese-Workern (audio/bank.js, ab Lobby priorisiert: Menü → Ausrüstung →
+// häufiges Feedback → Rest); der Hauptthread rendert im Spiel nie synchron (Ersatzklang oder auslassen).
+// Puffer werden zwischen Kontexten geteilt. Signalfluss:
 //   Stimme → [Tiefpass Distanz/Verdeckung] → Gain → Panner(HRTF|equalpower) → Bus
 //                                         ↘ Sends → Innenhall (Faltung) / Außen-Slapback + Weite
 //   sfx/amb → world → muffle(Tiefpass: Pause, Tod, Explosion, wenig Leben) ┐
 //   fb/ui/music ─────────────────────────────────────────────────────────── master → Glue → Limiter → Softclip → Ausgang
 import { CATALOG, SOUND_GROUPS, GUN_PROFILES, SURFACES, AMBIENCES, STEM_IDS } from './audio/catalog.js';
+import { bank, PRIO, makeBuffer } from './audio/bank.js';
 import { makeRng, hashString, clamp, lerp } from './audio/dsp.js';
 import { MusicPlayer } from './audio/music.js';
 import { MAP_AMBIENCE } from './audio/ambience.js';
@@ -32,30 +34,20 @@ const GESTURES = ['pointerdown', 'keydown', 'touchend', 'mousedown'];
 const NO_MUFFLE = 22000;
 const AC = typeof window !== 'undefined' ? (window.AudioContext || window.webkitAudioContext) : null;
 
-// Gemeinsame Pufferbank: `${name}#${variante}@${sampleRate}` → AudioBuffer
-const BANK = new Map();
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const xyz = p => (p ? { x: +p.x || 0, y: +p.y || 0, z: +p.z || 0 } : null);
-const idle = typeof window !== 'undefined' && window.requestIdleCallback
-  ? fn => window.requestIdleCallback(fn, { timeout: 60 })
-  : fn => setTimeout(() => fn({ timeRemaining: () => 8, didTimeout: true }), 4);
-
-function makeBuffer(chs, sr, ctx) {
-  const list = Array.isArray(chs) ? chs : [chs];
-  let b;
-  try { b = new AudioBuffer({ length: list[0].length, numberOfChannels: list.length, sampleRate: sr }); }
-  catch { b = ctx.createBuffer(list.length, list[0].length, sr); }
-  list.forEach((d, i) => b.copyToChannel ? b.copyToChannel(d, i) : b.getChannelData(i).set(d));
-  return b;
-}
-
-/** Rendert ein Rezept (Funktion oder Generator) als Iterator, damit es in Häppchen laufen kann. */
-function* renderSteps(e, v, sr) {
-  const R = makeRng(hashString(e.name) + v * 7919 + 13);
-  let res = e.render(sr, R, v);
-  if (res && typeof res.next === 'function') { let r = res.next(); while (!r.done) { yield; r = res.next(); } res = r.value; }
-  return res;
-}
+const IN_PLAY = new Set(['countdown', 'playing']);
+const IN_MATCH = new Set(['loading', 'countdown', 'playing', 'paused']);
+// Was im Match zuerst gebraucht wird (neben der eigenen Ausrüstung): Countdown, Treffer, Tod, Explosion …
+const CORE_SET = new Set([
+  'countdown', 'go', 'spawn', 'hitmarker', 'hitmarker_kill', 'headshot', 'hit_flesh', 'death', 'medal', 'explosion', 'explosion_far',
+  'impact_concrete', 'step_concrete', 'bullet_crack', 'bullet_whiz', 'grenade_pin', 'grenade_throw', 'equip', 'ads_in', 'ads_out',
+  'reload_mag_out', 'reload_mag_in', 'dryfire',
+]);
+// Website (Engine ohne Ereignisbus): nur, was sie abspielt
+const SITE_SET = new Set(['reload_mag_out', 'reload_mag_in', 'reload_bolt', 'bolt', 'pump', 'equip', 'dryfire']);
+const DEFER_MS = 1500;      // außerhalb des Spiels: fehlender Klang startet, sobald gerendert (höchstens so spät)
+const transientName = n => !!CATALOG[n]?.transient;
 
 export class AudioEngine {
   /**
@@ -72,11 +64,17 @@ export class AudioEngine {
     this.autoMusic = opts.autoMusic !== false;
     this.voices = [];
     this.vol = { master: 0.8, sfx: 1, music: 0.5, ui: 0.7, ambience: 1 };
-    this.stats = { rendered: 0, queued: 0, renderMs: 0, maxSliceMs: 0, played: 0, dropped: 0, stolen: 0, errors: 0, lastError: null };
+    // rendered/queued/renderMs/maxSliceMs kommen aus der gemeinsamen Bank (renderMs = Hauptthread-Anteil)
+    const B = bank.stats;
+    this.stats = {
+      played: 0, dropped: 0, stolen: 0, substituted: 0, missed: 0, deferred: 0, errors: 0, lastError: null,
+      get rendered() { return B.rendered; }, get queued() { return bank.queued; }, get renderMs() { return B.mainMs; },
+      get maxSliceMs() { return B.maxMainMs; }, get workerMs() { return B.workerMs; },
+    };
     this.envMode = 'auto';            // 'auto' | 'indoor' | 'outdoor'
     this.listener = { x: 0, y: 0, z: 0, fx: 0, fy: 0, fz: -1, valid: false };
     this._unsubs = [];
-    this._queue = []; this._queuedKeys = new Set(); this._waiters = [];
+    this._warm = false; this._bankLow = null; this._pinAt = new WeakMap(); this._slideVoice = null;
     this._occl = new Map(); this._indoorSrc = new Map(); this._lastFire = new WeakMap(); this._reloads = new Map();
     this._lastVar = new Map(); this._objOwners = new Map(); this._actorPain = new WeakMap();
     this._indoor = 0; this._indoorT = 0; this._indoorTimer = 0;
@@ -178,7 +176,7 @@ export class AudioEngine {
 
   // ================================================================ Freischalten & Lebenszyklus
 
-  /** Aus einer Nutzergeste aufrufen; mehrfach aufrufbar. Startet das Vorrendern. */
+  /** Aus einer Nutzergeste aufrufen; mehrfach aufrufbar. Startet das Vorrendern (falls noch nicht in der Lobby geschehen). */
   unlock() {
     if (this._disposed) return Promise.resolve(false);
     if (!this.ctx) {
@@ -186,6 +184,7 @@ export class AudioEngine {
       try { this.ctx = new AC({ latencyHint: 'interactive' }); } catch { try { this.ctx = new AC(); } catch { return Promise.resolve(false); } }
       this._build();
     }
+    bank.setContext(this.ctx);
     if (!this.offline && !this._primed) { // iOS: stummer Puffer entsperrt die Ausgabe
       const s = this.ctx.createBufferSource(); s.buffer = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
       s.connect(this.ctx.destination); s.start(0); this._primed = true;
@@ -193,7 +192,7 @@ export class AudioEngine {
     const first = !this.unlocked;
     this.unlocked = true;
     if (typeof window !== 'undefined' && this._onGesture) for (const t of GESTURES) window.removeEventListener(t, this._onGesture, true);
-    if (first && !this.offline) this._prerenderAll();
+    if (first && !this.offline) this._warmBank();
     const resume = !this.offline && this.ctx.state !== 'running' && this.ctx.state !== 'closed' && !(typeof document !== 'undefined' && document.hidden) ? this.ctx.resume() : Promise.resolve();
     return resume.then(() => {
       if (first) {
@@ -210,7 +209,11 @@ export class AudioEngine {
     else if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') this.ctx.resume().catch(() => {}); // auch iOS 'interrupted'
   }
 
-  get ready() { return this.unlocked && this._queue.length === 0; }
+  /** Entsperrt und keine Klänge mehr in Arbeit. */
+  get ready() { return this.unlocked && bank.idle; }
+
+  /** Gemeinsame Klangbank (Diagnose/Tests): info(), buffers, queued … */
+  get bank() { return bank; }
 
   // ================================================================ Einstellungen
 
@@ -241,6 +244,8 @@ export class AudioEngine {
     set(this.bus.fb.gain, this.vol.sfx * 0.9);
     set(this.bus.ui.gain, this.vol.ui * 0.75);
     set(this.bus.music.gain, this.vol.music * 0.55);
+    // Musik wurde stumm angefordert und ist jetzt hörbar → jetzt erst rendern (nicht während eines Matchs)
+    if (this._wantMusic && !this._music?.playing && !this._musicPending && this.unlocked && !IN_MATCH.has(this.G.match?.state)) this.startMusic();
   }
 
   _quality() {
@@ -252,96 +257,123 @@ export class AudioEngine {
   _hrtf() { const q = this._quality(); return q === 'high' || q === 'ultra'; }
   get maxVoices() { return this.opts.maxVoices || (this._quality() === 'low' ? 28 : 48); }
 
-  // ================================================================ Vorrendern
+  // ================================================================ Vorrendern (Klangbank)
 
-  _key(e, v) { return `${e.name}#${v}@${e.sr || this.ctx.sampleRate}`; }
+  /** Niedrige Qualität → kleinere Abtastraten/weniger Varianten. Einmal je Engine festgelegt (gleiche Schlüssel). */
+  _lowBank() { if (this._bankLow == null) this._bankLow = this._quality() === 'low'; return this._bankLow; }
+  _rate(e) { return this._lowBank() ? Math.min(e.rate, e.rateLow) : e.rate; }
+  _variants(e) { return this._lowBank() && e.variantsLow ? Math.min(e.variants, e.variantsLow) : e.variants; }
+  _key(e, v) { return bank.key(e.name, v, this._rate(e)); }
+  _request(e, prio) { const n = this._variants(e), keys = []; for (let v = 0; v < n; v++) keys.push(bank.request(e.name, v, this._rate(e), prio)); return keys; }
+  _anyReady(e) { for (let v = 0, n = this._variants(e); v < n; v++) if (bank.has(this._key(e, v))) return true; return false; }
+  _inPlay() { return IN_PLAY.has(this.G.match?.state); }
 
-  _prerenderAll() {
-    const list = Object.values(CATALOG).filter(e => e.tier < 4).sort((a, b) => a.tier - b.tier);
-    for (const e of list) for (let v = 0; v < e.variants; v++) this._enqueue(e, v);
+  _prioOf(e) {
+    if (e.bus === 'ui' && e.tier === 0) return PRIO.ui;
+    if (CORE_SET.has(e.name)) return PRIO.core;
+    return e.tier <= 1 ? PRIO.t1 : PRIO.t2;
   }
 
-  _enqueue(e, v, front = false) {
-    const key = this._key(e, v);
-    if (BANK.has(key) || this._queuedKeys.has(key)) {
-      if (front && !BANK.has(key)) { // nach vorne holen
-        const i = this._queue.findIndex(j => j.key === key);
-        if (i > 0) this._queue.unshift(this._queue.splice(i, 1)[0]);
-      }
-      return;
+  /**
+   * Match-Bank im Worker vorrendern – im Spiel schon ab der Lobby (kein AudioContext nötig).
+   * Ohne Ereignisbus (Website) nur Menü-, Waffen- und Nachladeklänge.
+   */
+  _warmBank() {
+    if (this._warm || this._disposed || this.offline) return;
+    this._warm = true;
+    const game = !!this.G.events?.on;
+    for (const e of Object.values(CATALOG)) {
+      if (e.tier > 2) continue;
+      if (!game && !(e.tier === 0 && e.bus === 'ui') && !e.name.startsWith('gun_') && !SITE_SET.has(e.name)) continue;
+      this._request(e, this._prioOf(e));
     }
-    const job = { key, e, v, sr: e.sr || this.ctx.sampleRate, it: null };
-    this._queuedKeys.add(key);
-    if (front) this._queue.unshift(job); else this._queue.push(job);
-    this.stats.queued = this._queue.length;
-    this._pump();
+    if (game) this._prioritizeLoadout();
   }
 
-  _pump() {
-    if (this._pumping) return;
-    this._pumping = true;
-    idle(deadline => this._slice(deadline));
-  }
-
-  _slice(deadline) {
-    const t0 = performance.now(), budget = clamp((deadline?.timeRemaining?.() ?? 8), 4, 12);
-    try {
-      while (this._queue.length && performance.now() - t0 < budget) {
-        const job = this._queue[0];
-        if (BANK.has(job.key)) { this._queue.shift(); this._queuedKeys.delete(job.key); continue; }
-        if (!job.it) job.it = renderSteps(job.e, job.v, job.sr);
-        const r = job.it.next();
-        if (r.done) {
-          this._queue.shift(); this._queuedKeys.delete(job.key);
-          BANK.set(job.key, makeBuffer(r.value, job.sr, this.ctx)); this.stats.rendered++;
-        }
-      }
-    } catch (err) {
-      const job = this._queue.shift(); if (job) this._queuedKeys.delete(job.key);
-      this._error(err);
+  /** Eigene Ausrüstung zuerst: Schuss nah/fern, Repetier- und Nachladegeräusche. */
+  _prioritizeLoadout(lo = this.G.match?.loadout) {
+    if (!lo) { try { lo = this.settings?.get?.('lastLoadout'); } catch { lo = null; } }
+    if (!lo || typeof lo !== 'object') return;
+    for (const id of [lo.primary, lo.secondary]) {
+      if (!id) continue;
+      const def = this.weaponDef(id), prof = this.profileFor(id, def), names = [`gun_${prof}`, `gunfar_${prof}`];
+      const fm = def?.fireMode || (prof === 'shotgun' ? 'pump' : prof === 'sniper' ? 'bolt' : null);
+      if (fm === 'pump' || fm === 'bolt') names.push(fm);
+      if (def?.perShellReload || prof === 'shotgun') names.push('reload_shell');
+      if (prof === 'lmg') names.push('reload_bolt');
+      for (const n of names) if (CATALOG[n]) this._request(CATALOG[n], PRIO.loadout);
     }
-    const dt = performance.now() - t0;
-    this.stats.renderMs += dt; this.stats.maxSliceMs = Math.max(this.stats.maxSliceMs, dt); this.stats.queued = this._queue.length;
-    this._pumping = false;
-    this._resolveWaiters();
-    if (this._queue.length && !this._disposed) this._pump();
   }
 
-  _resolveWaiters() {
-    this._waiters = this._waiters.filter(w => {
-      if (w.keys.every(k => BANK.has(k) || !this._queuedKeys.has(k))) { w.fn(); return false; }
-      return true;
-    });
-  }
-
-  /** Sorgt dafür, dass die Puffer existieren (vorgezogen), ruft fn wenn alle bereit sind. */
-  _require(names, fn) {
+  /** Puffer anfordern (vorgezogen) und fn(ok) aufrufen, wenn alle fertig sind. */
+  _require(names, fn, prio = PRIO.urgent) {
     const keys = [];
-    for (const n of names) {
-      const e = CATALOG[n]; if (!e) continue;
-      for (let v = 0; v < e.variants; v++) { this._enqueue(e, v, true); keys.push(this._key(e, v)); }
-    }
-    if (keys.every(k => BANK.has(k))) fn(); else this._waiters.push({ keys, fn });
+    for (const n of names) { const e = CATALOG[n]; if (e) keys.push(...this._request(e, prio)); }
+    bank.whenReady(keys, fn);
   }
 
-  /** Rendert die genannten (oder alle) Klänge; Promise löst nach Fertigstellung auf. */
+  /** Rendert die genannten (oder alle Match-)Klänge im Worker; Promise löst nach Fertigstellung auf. */
   prerender(names = null) {
-    if (!this.ctx) return Promise.resolve();
-    if (!names) { this._prerenderAll(); return new Promise(res => { const chk = () => (this._queue.length ? setTimeout(chk, 50) : res()); chk(); }); }
-    return new Promise(res => this._require(names, res));
+    const list = names || Object.values(CATALOG).filter(e => e.tier <= 2).map(e => e.name);
+    return new Promise(res => this._require(list, () => res(), names ? PRIO.urgent : PRIO.t1));
   }
 
+  /** Nicht mehr benötigte Klänge freigeben (Speicher). pred(name) */
+  _releaseSounds(pred) { bank.release(name => !!CATALOG[name] && pred(name, CATALOG[name])); }
+
+  /**
+   * Fertiger Puffer der Variante v – oder eine andere fertige Variante desselben Klangs.
+   * Fehlt alles, wird der Klang vorgezogen angefordert. Synchron gerendert wird nur offline (Messung)
+   * und für winzige Menüklänge außerhalb des Spiels.
+   */
   _buffer(e, v) {
-    const key = this._key(e, v);
-    let b = BANK.get(key);
+    let b = bank.get(this._key(e, v));
     if (b) return b;
-    if (e.tier >= 4) return null; // lange Schleifen nie synchron
-    // Synchron nachrendern (kurze Klänge, wenige ms)
-    const t0 = performance.now(), it = renderSteps(e, v, e.sr || this.ctx.sampleRate);
-    let r = it.next(); while (!r.done) r = it.next();
-    b = makeBuffer(r.value, e.sr || this.ctx.sampleRate, this.ctx);
-    BANK.set(key, b); this.stats.rendered++; this.stats.renderMs += performance.now() - t0;
-    return b;
+    if (this.offline || (e.cheap && !this._inPlay())) return bank.renderNow(e.name, v, this._rate(e));
+    bank.request(e.name, v, this._rate(e), PRIO.urgent);
+    const n = this._variants(e);
+    for (let k = 1; k < n; k++) { b = bank.get(this._key(e, (v + k) % n)); if (b) { this.stats.substituted++; return b; } }
+    return null;
+  }
+
+  /** Ähnlicher Ersatzklang (z. B. anderes Gewehrprofil), solange der gewünschte noch rendert. */
+  _altBuffer(e) {
+    for (const name of e.alt || []) {
+      const a = CATALOG[name]; if (!a) continue;
+      for (let v = 0, n = this._variants(a); v < n; v++) { const b = bank.get(this._key(a, v)); if (b) { this.stats.substituted++; return b; } }
+    }
+    return null;
+  }
+
+  /**
+   * Außerhalb des Spiels (Menü, Endbildschirm, Website): abspielen, sobald der Worker fertig ist.
+   * Je Klang höchstens eine wartende Wiedergabe (die jüngste), damit sich nichts aufstaut.
+   */
+  _defer(e, v, o) {
+    const t0 = this.ctx.currentTime, pend = this._pendingPlay || (this._pendingPlay = new Map());
+    const entry = { v, o: { ...o, variant: v, position: xyz(o.position), _deferred: true }, t0 };
+    this.stats.deferred++;
+    if (pend.has(e.name)) { pend.set(e.name, entry); return; }
+    pend.set(e.name, entry);
+    const key = bank.request(e.name, v, this._rate(e), PRIO.urgent);
+    bank.whenReady([key], ok => {
+      const p = pend.get(e.name); pend.delete(e.name);
+      if (!ok || !p || this._disposed || !this.ctx) return;
+      const late = this.ctx.currentTime - p.t0;
+      if (late * 1000 > DEFER_MS) return;
+      this._spawn(e, { ...p.o, variant: bank.has(this._key(e, p.v)) ? p.v : v, delay: Math.max(0, (p.o.delay || 0) - late) });
+    }, DEFER_MS);
+  }
+
+  /** Sofort abspielen oder – falls noch im Worker – sobald fertig, auch mitten im Spiel (Stinger bei Bedarf). */
+  _playSoon(name, opts = {}, maxMs = DEFER_MS) {
+    const e = CATALOG[name]; if (!e || !this.ctx || !this.unlocked) return null;
+    if (this._anyReady(e) || this.offline) return this.play(name, opts);
+    const keys = this._request(e, PRIO.urgent), t0 = this.ctx.currentTime;
+    bank.whenReady(keys.slice(0, 1), ok => {
+      if (ok && !this._disposed && this.ctx && (this.ctx.currentTime - t0) * 1000 < maxMs) this.play(name, { ...opts, variant: 0 });
+    }, maxMs);
+    return null;
   }
 
   // ================================================================ Abspielen
@@ -406,13 +438,20 @@ export class AudioEngine {
     if (pos && !L.valid && o.distance == null) pos = null;     // ohne Hörer: 2D
     const dist = o.distance ?? (pos ? this._dist(pos) : 0);
     if (pos && dist > e.maxDist) { this.stats.dropped++; return null; }
+    const n = this._variants(e);
+    let v = o.variant != null ? Math.abs(Math.floor(o.variant)) % n : Math.floor(this._rand() * n);
+    if (o.variant == null && n > 1 && v === this._lastVar.get(e.name)) v = (v + 1 + Math.floor(this._rand() * (n - 1))) % n;
+    // Nie synchron nachrendern: im Spiel Ersatzklang oder auslassen, sonst nachholen, sobald fertig
+    let buffer = this._buffer(e, v);
+    if (!buffer && this._inPlay()) buffer = this._altBuffer(e);
+    if (!buffer) {
+      this.stats.missed++;
+      if (!this._inPlay() && !o._deferred && !o.loop) this._defer(e, v, o); else this.stats.dropped++;
+      return null;
+    }
+    this._lastVar.set(e.name, v);
     const prio = o.priority ?? (o.player || !pos ? Math.max(e.prio, 2) : dist < 15 ? e.prio + 1 : e.prio);
     if (!this._admit(e, prio)) { this.stats.dropped++; return null; }
-    const n = e.variants; let v = o.variant ?? Math.floor(this._rand() * n);
-    if (o.variant == null && n > 1 && v === this._lastVar.get(e.name)) v = (v + 1 + Math.floor(this._rand() * (n - 1))) % n;
-    this._lastVar.set(e.name, v);
-    const buffer = this._buffer(e, v % n);
-    if (!buffer) { this.stats.dropped++; return null; }
 
     const src = ctx.createBufferSource(); src.buffer = buffer;
     if (o.loop) src.loop = true;
@@ -884,12 +923,40 @@ export class AudioEngine {
       if (this._isPlayer(killer) && now() - this._t.kill > 0.08) { this._t.kill = now(); this.play('hitmarker_kill'); }
     });
     on('explosion', p => this._explosion(p));
+    // Splint beim Ziehen (Kochen hörbar, Warnung bei Bots), Wurf nur als Luftzug
+    const pin = (a, explicit) => {
+      const pl = this._isPlayer(a);
+      if (a) this._pinAt.set(a, now());
+      this.play('grenade_pin', pl ? { player: true, volume: 0.8 } : { position: xyz(explicit) || this._eye(a), actor: a, volume: 1 });
+    };
+    on('grenade:pin', p => pin(p.actor));
     on('grenade:throw', p => {
-      const pl = this._isPlayer(p.actor);
-      if (pl) { this.play('grenade_pin', { player: true, volume: 0.8 }); this.play('grenade_throw', { player: true, delay: 0.05 }); }
-      else this.play('grenade_pin', { position: xyz(p.position) || this._eye(p.actor), actor: p.actor, volume: 1 });
+      const a = p.actor, pl = this._isPlayer(a), pinned = a && now() - (this._pinAt.get(a) ?? -99) < 6;
+      if (a) this._pinAt.delete(a);
+      if (!pinned) pin(a, p.position); // Werfer ohne grenade:pin (ältere Emitter)
+      if (p.dropped) return;           // fallen gelassen (Tod beim Kochen): kein Wurfgeräusch
+      if (pl) this.play('grenade_throw', { player: true, delay: pinned ? 0 : 0.05 });
+      else this.play('grenade_throw', { position: xyz(p.position) || this._eye(a), actor: a, volume: 0.7 });
+    });
+    on('grenade:stick', p => {
+      const victim = this._isPlayer(p.target);
+      // Am eigenen Körper: laut und nah (Warnung); sonst positional am Haftpunkt
+      if (victim) this.play('grenade_stick', { volume: 1, priority: 3, env: 0.2 });
+      else this.play('grenade_stick', { position: xyz(p.position), volume: p.target ? 0.9 : 1 });
+    });
+    on('player:slide', p => {
+      if (p.phase === 'start') {
+        if (this._slideVoice && !this._slideVoice.stopped) this._kill(this._slideVoice, 0.05);
+        const v = clamp(+p.velocity || 9, 6, 13);
+        this._slideVoice = this.play('slide', { player: true, volume: clamp(0.55 + (v - 8) * 0.06, 0.5, 0.85), pitch: clamp(0.94 + (v - 8) * 0.015, 0.92, 1.06) });
+      } else if (p.phase === 'end') {
+        // Abbruch (Sprung, Wand): Reiben schnell ausblenden
+        const sv = this._slideVoice; this._slideVoice = null;
+        if (sv && !sv.stopped && this.ctx.currentTime < sv.end - 0.12) this._kill(sv, 0.12);
+      }
     });
     on('grenade:bounce', p => {
+      if (p.stick) return;             // Haftgranate: eigener Klang über grenade:stick
       const s = +p.speed || 3; if (s < 0.6) return;
       this.play('grenade_bounce', { position: p.position, volume: clamp(s / 8, 0.15, 1), pitch: clamp(0.9 + s / 40, 0.9, 1.15) });
     });
@@ -917,7 +984,9 @@ export class AudioEngine {
       this.play(name, { volume: hostile ? 0.7 : 1, pitch: hostile ? 0.88 : 1 });
     });
     on('uav:state', p => {
-      const mine = p.team != null && p.team === this.G.player?.team;
+      const P = this.G.player, M = this.G.mode;
+      const myKey = P ? (M ? (M.teams ? P.team : P.id) : (P.team ?? P.id)) : undefined;
+      const mine = (p.team != null && p.team === myKey) || (!!P && p.owner === P);
       if (p.active) { if (now() - this._t.streak > 1.2) this.play('uav', { volume: mine ? 0.9 : 0.65, pitch: mine ? 1 : 0.88 }); }
       else if (mine) this.play('uav_end');
     });
@@ -946,8 +1015,8 @@ export class AudioEngine {
     });
     on('match:end', p => {
       const r = p.result || {};
-      const name = r.draw || r.winner === 'draw' ? 'draw' : r.playerWon ? 'win' : 'lose';
-      this.play(name, { priority: 3 });
+      const name = r.draw ? 'draw' : r.playerWon ? 'win' : 'lose'; // draw gilt je Spieler (FFA: nur punktgleiche Führende)
+      this._playSoon(name, { priority: 3 });
       this.fadeAmbience(0.35, 2);
       if (this.autoMusic) { clearTimeout(this._musicT); this._musicT = setTimeout(() => { if (this.G.match?.state !== 'playing') this.startMusic(); }, 4200); }
     });
@@ -974,6 +1043,10 @@ export class AudioEngine {
     this._muffle.pause = s === 'paused';
     if (s === 'lobby' || s === 'boot') this._muffle.dead = false;
     if (this.muffle) this._applyMuffle(true);
+    // Klangbank ab der Lobby füllen (Worker, ohne AudioContext); Ausrüstung aus der letzten Wahl zuerst
+    if (s === 'lobby' || s === 'loading') { this._warmBank(); this._prioritizeLoadout(); }
+    // Menü-Klänge (Musik, Endbildschirm-Stinger) während des Matchs nicht im Speicher halten
+    if (s === 'loading' || s === 'countdown' || s === 'playing') this._releaseSounds(transientName);
     if (s === 'lobby') { this.stopAmbience(1.2); if (this.autoMusic) this.startMusic(); }
     else if (s === 'countdown' || s === 'playing') {
       clearTimeout(this._musicT);
@@ -981,6 +1054,7 @@ export class AudioEngine {
       if (!this._amb && this._attached && this.G.world?.ambience) this.startAmbience(this.G.world.ambience);
       else if (this._amb) this.fadeAmbience(1, 1);
     } else if (s === 'paused') this.fadeAmbience(0.6, 0.5);
+    else if (s === 'ended' && CATALOG.levelup) this._request(CATALOG.levelup, PRIO.urgent); // Endbildschirm spielt ihn evtl. gleich
   }
 
   detach() {
@@ -1007,12 +1081,16 @@ export class AudioEngine {
     this.stopAmbience(1);
     this.setSpace(AMBIENCES[id].space);
     const cfg = AMBIENCES[id], now = this.ctx.currentTime;
+    // Schleife und Ereignisse anderer Karten freigeben
+    const keep = new Set([`amb_bed_${id}`, ...cfg.events.map(e => e.name)]);
+    this._releaseSounds((name, e) => e.bus === 'amb' && !keep.has(name));
     const amb = this._amb = { id, playing: true, gain: this.ctx.createGain(), src: null, next: [] };
     amb.gain.gain.value = 0; amb.gain.connect(this.bus.amb);
     amb.next = cfg.events.map(ev => now + this._rand.range(...(ev.first || ev.every)));
-    this._require([`amb_bed_${id}`, ...cfg.events.map(e => e.name)], () => {
-      if (this._amb !== amb || !amb.playing) return;
-      const b = this._buffer(CATALOG[`amb_bed_${id}`], 0); if (!b) return;
+    this._require(cfg.events.map(e => e.name), () => {}, PRIO.amb);
+    this._require([`amb_bed_${id}`], ok => {
+      if (!ok || this._amb !== amb || !amb.playing || !this.ctx) return;
+      const b = bank.get(this._key(CATALOG[`amb_bed_${id}`], 0)); if (!b) return;
       const s = this.ctx.createBufferSource(); s.buffer = b; s.loop = true; s.connect(amb.gain); s.start();
       amb.src = s;
       const t = this.ctx.currentTime; amb.gain.gain.setValueAtTime(0, t); amb.gain.gain.linearRampToValueAtTime(1, t + 2.5);
@@ -1026,7 +1104,7 @@ export class AudioEngine {
     cfg.events.forEach((ev, i) => {
       if (now < amb.next[i]) return;
       amb.next[i] = now + this._rand.range(...ev.every);
-      if (!BANK.has(this._key(CATALOG[ev.name], 0))) return;
+      if (!this._anyReady(CATALOG[ev.name])) return;
       const vol = this._rand.range(...ev.vol), dist = this._rand.range(...ev.dist), a = this._rand() * Math.PI * 2;
       const shots = ev.burst ? Math.floor(this._rand.range(ev.burst[0], ev.burst[1] + 1)) : 1;
       const rate = this._rand.range(0.1, 0.16);
@@ -1062,23 +1140,25 @@ export class AudioEngine {
 
   /** Lobby-/Menümusik (synthetisch, 100 BPM). Vor unlock() vorgemerkt. */
   startMusic() {
-    if (!this.ctx || !this.unlocked) { this._wantMusic = true; return; }
     this._wantMusic = true;
+    if (!this.ctx || !this.unlocked || this._disposed) return;
     if (this._music?.playing || this._musicPending) return;
+    if (!(this.vol.music > 0 && this.vol.master > 0)) return; // stumm: nichts rendern (setVolumes startet nach)
     this._musicPending = true;
-    this._require(STEM_IDS.map(i => `mus_${i}`), () => {
+    this._require(STEM_IDS.map(i => `mus_${i}`), ok => {
       this._musicPending = false;
-      if (!this._wantMusic || this._disposed) return;
+      if (!ok || !this._wantMusic || this._disposed || !this.ctx) return;
       const buffers = {};
-      for (const id of STEM_IDS) buffers[id] = this._buffer(CATALOG[`mus_${id}`], 0);
+      for (const id of STEM_IDS) buffers[id] = bank.get(this._key(CATALOG[`mus_${id}`], 0));
       this._music = this._music || new MusicPlayer(this.ctx, this.bus.music);
       this._music.start(buffers);
-    });
+    }, PRIO.music);
   }
 
   stopMusic(fade = 1.2) {
     this._wantMusic = false;
     this._music?.stop(fade);
+    if (this._musicPending) bank.cancel(name => name.startsWith('mus_')); // noch nicht fertig → Worker frei für Spielklänge
   }
 
   get musicPlaying() { return !!this._music?.playing; }
@@ -1095,8 +1175,8 @@ export class AudioEngine {
   info() {
     return {
       state: this.ctx?.state || 'none', sampleRate: this.ctx?.sampleRate || 0, unlocked: this.unlocked, voices: this.voices.length,
-      buffers: BANK.size, queue: this._queue.length, space: this._space, indoor: +this._indoor.toFixed(2), ambience: this.ambienceId,
-      music: this.musicPlaying, hrtf: this._hrtf(), muffle: Math.round(this.muffle?.frequency.value || 0), ...this.stats,
+      buffers: bank.buffers.size, queue: bank.queued, bankMB: +(bank.bytes / 1048576).toFixed(2), workers: bank.stats.workers, synth: bank.stats.mode, space: this._space, indoor: +this._indoor.toFixed(2), ambience: this.ambienceId,
+      music: this.musicPlaying, hrtf: this._hrtf(), synthErrors: bank.stats.errors, muffle: Math.round(this.muffle?.frequency.value || 0), ...this.stats,
     };
   }
 

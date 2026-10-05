@@ -56,6 +56,23 @@ export function dateLong(ts) {
   if (Number.isNaN(d.getTime())) return '';
   return `${d.getDate()}. ${MONTHS[d.getMonth()]}, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
+/**
+ * Begriffe wie im Spiel (Endbildschirm, Lobby, Steuerungshilfe): eine Quelle für alle Website-Ansichten.
+ * Zählwörter als [Einzahl, Mehrzahl].
+ */
+export const TERMS = {
+  xp: 'XP',
+  kills: ['Abschuss', 'Abschüsse'],
+  deaths: ['Tod', 'Tode'],
+  assists: ['Unterstützung', 'Unterstützungen'],
+  points: ['Punkt', 'Punkte'],
+};
+/** Anzahl mit Zählwort im richtigen Numerus: count(1, 'kills') → „1 Abschuss“, count(2, 'kills') → „2 Abschüsse“. */
+export function count(n, key, { upper = false } = {}) {
+  const [one, many] = TERMS[key] || [key, key];
+  const s = `${num(n || 0)} ${n === 1 ? one : many}`;
+  return upper ? s.toLocaleUpperCase('de-DE') : s;
+}
 export const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export const clamp01 = (v) => clamp(v, 0, 1);
 export const lerp = (a, b, t) => a + (b - a) * t;

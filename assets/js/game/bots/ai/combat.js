@@ -15,6 +15,8 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
+const LOS_RECHECK = 0.15; // s zwischen zwei Sichtlinien-Nachprüfungen beim Feuern
+
 export const IDEAL_RANGE = { shotgun: 6, smg: 11, pistol: 12, ar: 20, lmg: 24, marksman: 32, sniper: 42, melee: 1 };
 
 export class Gunner {
@@ -37,6 +39,8 @@ export class Gunner {
     this.lastShot = -1e9;
     this.lofOk = true;
     this.lofAt = 0;
+    this.losOk = true; // Sichtlinien-Nachprüfung vor dem Feuern (gedrosselt)
+    this.losAt = 0;
     this.onTargetSince = 0;
     this.moveMode = 'hold';
     this.moveUntil = 0;
@@ -55,7 +59,9 @@ export class Gunner {
     const bot = this.bot;
     const mgr = bot.manager;
     let best = null, bs = Infinity;
-    for (const rec of bot.memory.map.values()) {
+    const list = bot.memory.list;
+    for (let i = 0; i < list.length; i++) {
+      const rec = list[i];
       const a = rec.actor;
       if (!a.alive || !rec.visible || rec.spot < 1) continue;
       const d = rec.pos.distanceTo(bot.position);
@@ -89,6 +95,7 @@ export class Gunner {
     if (d < 5) r *= 0.75;
     this.reactAt = now + r;
     this.engagedAt = now;
+    this.losAt = 0;
     this.aimHead = Math.random() < D.headshotChance;
     this.burstLeft = 0;
     this.pauseUntil = now + r * 0.3;
@@ -228,9 +235,17 @@ export class Gunner {
     // Reichweite
     const maxR = cls === 'shotgun' ? Math.min(18, (def.damage && def.damage.rangeEnd) || 16) : (def.range || 100) * 0.92;
     if (d > maxR) return;
+    // Sicht nur aus dem Budget bestätigt? Dann (kurz) nicht feuern
+    if (rec.unverified) return;
     // Freund im Schussfeld?
     if (now > this.lofAt) { this.lofAt = now + 0.15; this.lofOk = bot.manager.lineOfFireClear(bot, this.lastSeenAim); }
     if (!this.lofOk) return;
+    // Sichtlinie zum Zielpunkt nachprüfen (zwischen zwei Wahrnehmungsschritten in Deckung gegangen?)
+    if (now > this.losAt && bot.manager.takeLos()) {
+      this.losAt = now + LOS_RECHECK;
+      this.losOk = this._aimVisible(rec.actor);
+    }
+    if (!this.losOk) return;
     const tol = Math.max(0.025, Math.atan(0.42 / Math.max(1, d))) * (cls === 'shotgun' ? 2 : 1);
     if (angErr > tol * 1.6) { this.onTargetSince = now; return; }
     const mode = def.fireMode || 'auto';
@@ -256,6 +271,16 @@ export class Gunner {
         this.nextTapAt = now + Math.max(base, rnd(D.tapInterval[0], D.tapInterval[1])) + d * 0.003 + (mode === 'burst' ? 0.25 : 0);
       }
     }
+  }
+
+  /** Ist der Zielpunkt (Kopf bzw. Brust, ohne Vorhalt) vom Auge aus frei? (1 Strahl) */
+  _aimVisible(a) {
+    const bot = this.bot;
+    const world = bot.G.world;
+    if (!world || typeof world.lineOfSight !== 'function') return true;
+    targetPoints(a, _p, _h);
+    bot.getEyePosition(_eye);
+    return world.lineOfSight(_eye, this.aimHead || (this.rec && this.rec.partial) ? _h : _p);
   }
 
   /* ---------------------------------------------------------------- Bewegung im Gefecht */

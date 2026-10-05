@@ -3,6 +3,7 @@
 // (12 Ziele nacheinander, Strafzeit pro Fehlschuss, Bestzeit je Waffe in localStorage 'nullpunkt:training').
 // Trefferzuordnung: world.raycast wird für die Matchdauer umhüllt und merkt sich Zieltreffer; 'impact' bestätigt.
 
+import { WEAPONS } from '../../shared/weapons.data.js';
 import { BaseMode } from './base.js';
 import { falloff } from '../combat.js';
 
@@ -111,8 +112,7 @@ export class TrainingMode extends BaseMode {
     const target = this.targets.find((t) => t.id === h.targetId);
     if (!target) return;
     const G = this.G;
-    const W = (G.data && G.data.WEAPONS) || {};
-    const def = W[p.weaponId];
+    const def = WEAPONS[p.weaponId];
     if (!def) return;
     const eye = G.player.getEyePosition(new G.THREE.Vector3());
     const dist = eye.distanceTo(h.point);
@@ -341,19 +341,11 @@ export class TrainingMode extends BaseMode {
 
   /**
    * Schütze startet (und respawnt) an der Feuerlinie einer mittleren Bahn, Blick die Bahn hinunter –
-   * nicht an einem der allgemeinen Kartenstartpunkte hinter der Rückwand. Eine Karte kann den Platz
-   * über `world.spawns.training` vorgeben; sonst wird er aus den Klappzielen abgeleitet
-   * (Ziel steht `distance` Meter vor der Feuerlinie).
+   * nicht an einem der allgemeinen Kartenstartpunkte hinter der Rückwand. Der Platz wird aus den
+   * Klappzielen abgeleitet (Ziel steht `distance` Meter vor der Feuerlinie); ohne Ziele wie üblich.
    */
   chooseSpawn(actor) {
-    const w = this.G.world;
-    const own = w && w.spawns && w.spawns.training;
-    if (Array.isArray(own) && own.length && own[0].position) {
-      const s = own[0];
-      return { position: s.position.clone(), yaw: Number.isFinite(s.yaw) ? s.yaw : 0, source: 'training' };
-    }
-    const spot = this._benchSpot();
-    return spot || super.chooseSpawn(actor);
+    return this._benchSpot() || super.chooseSpawn(actor);
   }
 
   _benchSpot() {

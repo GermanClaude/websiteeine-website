@@ -169,8 +169,8 @@ export const STEMS = {
 };
 
 export const STEM_IDS = Object.keys(STEMS);
-/** Abtastrate je Stem (dunkle Flächen brauchen weniger Bandbreite → schneller, kleiner). */
-export const STEM_SR = { drums: 32000, bass: 24000, pad: 16000, arp: 32000, bells: 32000, drone: 16000, riser: 32000 };
+/** Abtastrate je Stem nach gemessener Bandbreite (dunkle Flächen brauchen weniger → schneller, kleiner). */
+export const STEM_SR = { drums: 32000, bass: 16000, pad: 16000, arp: 22050, bells: 24000, drone: 16000, riser: 32000 };
 export const STEM_GAIN = { drums: 0.62, bass: 0.55, pad: 0.42, arp: 0.24, bells: 0.3, drone: 0.4, riser: 0.22 };
 
 /** Abschnitte à 8 Takte; nach dem letzten geht es ab LOOP_FROM weiter. */

@@ -1,46 +1,58 @@
-// NULLPUNKT — Spielstart, Spielschleife und Match-Lebenszyklus (§2, §10a).
+// NULLPUNKT — Spielstart, Spielschleife und Match-Lebenszyklus (§2).
 //
 // Lebenszyklus (ohne Neuladen der Seite, ohne Lecks):
 //   boot → lobby → loading → countdown → playing ⇄ paused → ended → (Revanche → loading …) | (Lobby → lobby)
 // Einmal beim Start konstruiert: Renderer, Input, Player, Combat, AudioEngine, WeaponSystem, Effects,
-//   BotManager, HUD, Menus. Pro Match: attach(G) … detach() (in umgekehrter Reihenfolge), Welt laden/entsorgen,
-//   Modus neu erzeugen. Alles, was nach detach() noch in G.scene hängt und im Match hinzukam, wird entfernt
-//   und entsorgt.
+//   BotManager, HUD, Menus. Pro Match: attach(G) … detach() (in umgekehrter Reihenfolge), Modus neu erzeugen.
+//   Die Welt bleibt bei einer Revanche auf derselben Karte erhalten (nur dynamischer Zustand wird
+//   zurückgesetzt), sonst wird sie entsorgt. Alles, was nach detach() noch in G.scene hängt und im Match
+//   hinzukam, wird entfernt und entsorgt.
 //
-// Nicht-Kernmodule werden über importOr(echt, Stub) geladen; ?stubs=all oder ?stubs=world,audio erzwingt Stubs.
+// Die Subsysteme werden parallel dynamisch geladen (Fortschrittsbalken); spielen.html lädt den ganzen
+// Modulgraphen per <link rel="modulepreload"> vor (Liste: node tools/preload.mjs). Fehlt ein Pflichtmodul,
+// erscheint das Fehlerpanel („Neu laden“, „Zurück zur Website“); fehlt nur das Audiomodul, läuft das Spiel stumm.
 
 import * as THREE from 'three';
 import { settings } from '../shared/settings.js';
 import { profile } from '../shared/profile.js';
+import * as weaponsData from '../shared/weapons.data.js';
+import * as modesData from '../shared/modes.data.js';
+import * as mapsData from '../shared/maps.data.js';
 import { EventBus } from './engine/events.js';
-import { createRenderer, QUALITY_LEVELS } from './engine/renderer.js';
+import { createRenderer, QUALITY_LEVELS, resolveQuality } from './engine/renderer.js';
 import { Input } from './engine/input.js';
 import { separateActors } from './engine/physics.js';
+import { DynamicResolution } from './engine/dynres.js';
 import { Player } from './player.js';
 import { Combat } from './combat.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
-// key: [echter Pfad, Stub-Pfad, Pflichtexporte]
+// key: [Pfad relativ zu main.js, Pflichtexporte]
 const MODULES = {
-  textures: ['./engine/textures.js', './stubs/textures.js', ['getMaterial', 'boxUV']],
-  models: ['./weapons/models.js', './stubs/models.js', ['createWeaponModel']],
-  viewmodel: ['./weapons/viewmodel.js', './stubs/viewmodel.js', ['ViewModel']],
-  world: ['./world/index.js', './stubs/world.js', ['loadWorld']],
-  audio: ['./engine/audio.js', './stubs/audio.js', ['AudioEngine']],
-  weapons: ['./weapons/index.js', './stubs/weapons.js', ['WeaponSystem']],
-  effects: ['./engine/effects.js', './stubs/effects.js', ['Effects']],
-  bots: ['./bots/manager.js', './stubs/bots.js', ['BotManager']],
-  modes: ['./modes/index.js', './stubs/modes.js', ['createMode']],
-  hud: ['./ui/hud.js', './stubs/hud.js', ['HUD']],
-  menus: ['./ui/menus.js', './stubs/menus.js', ['Menus']],
+  textures: ['./engine/textures.js', ['getMaterial', 'boxUV']],
+  models: ['./weapons/models.js', ['createWeaponModel']],
+  viewmodel: ['./weapons/viewmodel.js', ['ViewModel']],
+  world: ['./world/index.js', ['loadWorld']],
+  audio: ['./engine/audio.js', ['AudioEngine']],
+  weapons: ['./weapons/index.js', ['WeaponSystem']],
+  effects: ['./engine/effects.js', ['Effects']],
+  bots: ['./bots/manager.js', ['BotManager']],
+  modes: ['./modes/index.js', ['createMode']],
+  hud: ['./ui/hud.js', ['HUD']],
+  menus: ['./ui/menus.js', ['Menus']],
 };
-// Reine Datenmodule: echte Exporte überschreiben die Ersatzdaten aus stubs/data.js.
-const DATA_MODULES = {
-  weaponsData: '../shared/weapons.data.js',
-  modesData: '../shared/modes.data.js',
-  mapsData: '../shared/maps.data.js',
-};
+/** Ohne diese Module bleibt das Spiel spielbar (stummer Ersatz). */
+const OPTIONAL = new Set(['audio']);
+
+/** Stummer Ersatz für die AudioEngine, falls das Audiomodul nicht lädt oder nicht startet. */
+const SILENT_AUDIO = Object.freeze({
+  silent: true,
+  unlock: () => Promise.resolve(false),
+  attach() {}, detach() {}, update() {}, ui() {}, setVolumes() {},
+  play: () => null,
+  startAmbience() {}, stopAmbience() {},
+});
 
 const TIPS = [
   'Sprinte und drücke Ducken, um zu rutschen – ideal, um um Ecken zu kommen.',
@@ -51,13 +63,19 @@ const TIPS = [
   'Halte die Granatentaste nicht zu lange – Splittergranaten zünden nach 2,8 Sekunden.',
   'Auf dem Touchscreen: Joystick ganz nach oben schieben sperrt den Sprint.',
   'Schüsse verraten deine Position auf der Minikarte der Gegner.',
+  'Rückwärts läufst du langsamer als vorwärts – Angriff ist schneller als Rückzug.',
 ];
 
 const params = new URLSearchParams(location.search);
-const STUBS = parseStubParam(params.get('stubs'));
 const DEBUG = params.get('debug') === '1';
 const AUTOSTART = params.get('autostart') === '1';
 const QUALITY_OVERRIDE = QUALITY_LEVELS.includes(params.get('quality')) ? params.get('quality') : null;
+const clampTimeScale = (v) => Math.min(4, Math.max(0.05, Number(v) || 1));
+// Test-/Entwicklerparameter wirken nur zusammen mit debug=1 (und machen das Match „ungewertet“)
+const DEV_GOD = DEBUG && params.get('god') === '1';
+const DEV_TIMESCALE = DEBUG && params.has('timescale') ? clampTimeScale(params.get('timescale')) : null;
+// Hochformat-Sperre wie in game.css (#rotate-overlay): nur Telefone, Tablets spielen auch hochkant
+const PORTRAIT_QUERY = '(orientation: portrait) and (pointer: coarse) and (max-width: 599px)';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('game-canvas');
@@ -90,12 +108,14 @@ const G = {
   match: {
     state: 'boot', modeId: null, mapId: null, difficulty: null, allies: 0, enemies: 0, loadout: null,
     startedAt: null, startedReal: null, countdown: 0, ffa: false, timeLimit: null, scoreLimit: null, pausedFrom: null, endedAt: null, result: null,
+    unranked: false, awaitingLock: false,
   },
   time: { dt: 0, elapsed: 0, frame: 0, real: 0 },
   timeScale: 1,
   params,
   debug: DEBUG,
-  data: {},
+  // Reine Daten (weapons/modes/maps.data.js) – statisch importiert, keine Ersatzkopien
+  data: { ...weaponsData, ...modesData, ...mapsData },
   modules: {},
   moduleStatus: {},
   lastConfig: null,
@@ -104,10 +124,13 @@ const G = {
   matchCount: 0,
   debugApi: null,
   spawnActor: null,
+  perf: null,
 };
 G.scene.name = 'main';
 G.viewmodel.scene.name = 'viewmodel';
 window.__game = G;
+
+const portraitMQ = window.matchMedia ? window.matchMedia(PORTRAIT_QUERY) : { matches: false };
 
 /* ===================================================== Boot-Bildschirm */
 
@@ -141,7 +164,7 @@ function hideBoot() {
   }
 }
 
-/** Deutsches Fehlerpanel mit „Neu laden“ (kind: 'webgl' | 'error' | 'match'). */
+/** Deutsches Fehlerpanel mit „Neu laden“ und „Zurück zur Website“ (kind: 'webgl' | 'module' | 'error' | 'match'). */
 function showFatal(kind, err) {
   const panel = $('fatal');
   if (!panel) return;
@@ -157,8 +180,13 @@ function showFatal(kind, err) {
     detail.hidden = true;
     reload.hidden = true;
   } else {
-    title.textContent = kind === 'match' ? 'Das Match konnte nicht gestartet werden' : 'Beim Laden ist ein Fehler aufgetreten';
-    text.textContent = 'Lade die Seite neu. Tritt der Fehler erneut auf, hilft die Meldung unten bei der Fehlersuche.';
+    if (kind === 'module') {
+      title.textContent = 'Spieldaten konnten nicht geladen werden';
+      text.textContent = 'Ein Teil des Spiels ließ sich nicht laden – meist wegen einer kurz unterbrochenen Verbindung. Lade die Seite neu.';
+    } else {
+      title.textContent = kind === 'match' ? 'Das Match konnte nicht gestartet werden' : 'Beim Laden ist ein Fehler aufgetreten';
+      text.textContent = 'Lade die Seite neu. Tritt der Fehler erneut auf, hilft die Meldung unten bei der Fehlersuche.';
+    }
     const msg = err ? `${err.name || 'Fehler'}: ${err.message || String(err)}${err.stack ? `\n\n${String(err.stack).split('\n').slice(0, 6).join('\n')}` : ''}` : 'Unbekannter Fehler';
     detail.textContent = msg;
     detail.hidden = false;
@@ -181,101 +209,56 @@ function webglAvailable() {
 
 /* ===================================================== Module laden */
 
-function parseStubParam(v) {
-  if (!v) return new Set();
-  if (v === 'all' || v === '1') return 'all';
-  return new Set(v.split(',').map((s) => s.trim()).filter(Boolean));
-}
+const isFetchError = (err) => err instanceof TypeError && /fetch|load|import/i.test(String(err.message));
 
-const fallbacks = [];
-
-/**
- * Lädt das echte Modul oder fällt auf den Stub zurück (§10a).
- * → { mod, real, reason }
- */
-export async function importOr(key, realPath, stubPath, required = []) {
-  const forced = STUBS === 'all' || (STUBS instanceof Set && STUBS.has(key));
-  if (!forced && realPath) {
-    try {
-      const mod = await import(new URL(realPath, import.meta.url).href);
-      const missing = required.filter((n) => !(n in mod));
-      if (!missing.length) return { mod, real: true, reason: null };
-      const reason = `Exporte fehlen: ${missing.join(', ')}`;
-      fallbacks.push({ key, reason, level: 'warn' });
-    } catch (err) {
-      const notFound = err instanceof TypeError && /fetch|import|Failed|load/i.test(err.message);
-      fallbacks.push({ key, reason: notFound ? 'nicht vorhanden' : `Fehler beim Laden – ${err.message}`, level: notFound ? 'info' : 'warn', error: notFound ? null : err });
-    }
-  } else if (forced) {
-    fallbacks.push({ key, reason: 'per URL erzwungen', level: 'info' });
+/** Dynamischer Import mit einer Wiederholung (Cache umgehen) bei Netzfehlern; prüft Pflichtexporte. */
+async function importModule(path, required) {
+  const url = new URL(path, import.meta.url).href;
+  let mod;
+  try {
+    mod = await import(url);
+  } catch (err) {
+    if (!isFetchError(err)) throw err;
+    mod = await import(`${url}?retry=${Date.now()}`);
   }
-  if (!stubPath) return { mod: null, real: false, reason: 'kein Stub' };
-  const mod = await import(new URL(stubPath, import.meta.url).href);
-  return { mod, real: false, reason: fallbacks.length ? fallbacks[fallbacks.length - 1].reason : null };
+  const missing = required.filter((n) => typeof mod[n] === 'undefined');
+  if (missing.length) throw new Error(`${path}: Exporte fehlen (${missing.join(', ')})`);
+  return mod;
 }
 
 async function loadModules(onProgress) {
   const keys = Object.keys(MODULES);
-  const dataKeys = Object.keys(DATA_MODULES);
-  const total = keys.length + dataKeys.length + 1;
   let done = 0;
-  const tick = () => onProgress(++done / total);
-
-  const stubData = await import('./stubs/data.js');
-  tick();
-  const data = { ...stubData };
-  const dataStatus = {};
-  await Promise.all(dataKeys.map(async (k) => {
-    const forced = STUBS === 'all' || (STUBS instanceof Set && STUBS.has('data'));
-    if (!forced) {
-      try {
-        const mod = await import(new URL(DATA_MODULES[k], import.meta.url).href);
-        for (const [name, value] of Object.entries(mod)) if (value != null) data[name] = value;
-        dataStatus[k] = 'real';
-      } catch (err) {
-        dataStatus[k] = 'stub';
-        const notFound = err instanceof TypeError;
-        fallbacks.push({ key: k, reason: notFound ? 'nicht vorhanden' : `Fehler – ${err.message}`, level: notFound ? 'info' : 'warn', error: notFound ? null : err });
+  await Promise.all(keys.map(async (key) => {
+    const [path, required] = MODULES[key];
+    try {
+      G.modules[key] = await importModule(path, required);
+      G.moduleStatus[key] = 'real';
+    } catch (err) {
+      if (!OPTIONAL.has(key)) {
+        const e = new Error(`Modul „${path.replace('./', 'assets/js/game/')}“ nicht ladbar – ${err && err.message ? err.message : err}`);
+        e.cause = err;
+        e.moduleKey = key;
+        throw e;
       }
-    } else dataStatus[k] = 'stub';
-    tick();
-  }));
-  G.data = data;
-
-  await Promise.all(keys.map(async (k) => {
-    const [real, stub, req] = MODULES[k];
-    const res = await importOr(k, real, stub, req);
-    G.modules[k] = res.mod;
-    G.moduleStatus[k] = res.real ? 'real' : 'stub';
-    tick();
-  }));
-  Object.assign(G.moduleStatus, dataStatus);
-
-  // Einmal gesammelt melden (Konsole bleibt im Normalbetrieb ruhig)
-  if (fallbacks.length) {
-    const warn = fallbacks.filter((f) => f.level === 'warn');
-    const list = fallbacks.map((f) => `${f.key} (${f.reason})`).join(', ');
-    if (warn.length) {
-      console.warn(`[NULLPUNKT] Stubs aktiv: ${list}`);
-      for (const f of warn) if (f.error) console.warn(`[NULLPUNKT] ${f.key}:`, f.error);
-    } else {
-      console.info(`[NULLPUNKT] Stubs aktiv: ${list}`);
+      G.modules[key] = null;
+      G.moduleStatus[key] = 'missing';
+      console.warn(`[NULLPUNKT] ${key}: Modul nicht ladbar – Spiel läuft ohne Ton.`, err);
+    } finally {
+      onProgress(++done / keys.length);
     }
-  }
+  }));
 }
 
-/** Baut eine Subsystem-Instanz; scheitert das echte Modul, wird der Stub verwendet. */
-async function construct(key, exportName, ...args) {
-  const mod = G.modules[key];
+function createAudio() {
+  const mod = G.modules.audio;
+  if (!mod) return SILENT_AUDIO;
   try {
-    return new mod[exportName](...args);
+    return new mod.AudioEngine(G);
   } catch (err) {
-    if (G.moduleStatus[key] !== 'real') throw err;
-    console.error(`[NULLPUNKT] ${key}: Konstruktor fehlgeschlagen – Stub wird verwendet.`, err);
-    const stub = await import(new URL(MODULES[key][1], import.meta.url).href);
-    G.modules[key] = stub;
-    G.moduleStatus[key] = 'stub';
-    return new stub[exportName](...args);
+    G.moduleStatus.audio = 'missing';
+    console.warn('[NULLPUNKT] Audio konnte nicht gestartet werden – Spiel läuft ohne Ton.', err);
+    return SILENT_AUDIO;
   }
 }
 
@@ -286,7 +269,9 @@ function setState(state) {
   if (prev === state) return;
   G.match.state = state;
   document.body.dataset.matchState = state;
+  if (state !== 'paused') setAwaitingLock(false);
   if (G.input) G.input.setEnabled(state === 'playing' || state === 'countdown');
+  if (dynres) dynres.clearSamples();
   G.events.emit('match:state', { state, prev });
   updateLockHint();
 }
@@ -341,16 +326,25 @@ function modeCounts(modeId) {
   };
 }
 
-/** Vervollständigt/validiert eine Match-Konfiguration (Lobby oder URL). */
+/** Karten, auf denen ein Modus spielbar ist (wie Lobby.mapsFor: maps.data.js `modes`). */
+function mapsForMode(modeId) {
+  const MAPS = G.data.MAPS || {};
+  const ids = (G.data.MAP_ORDER || Object.keys(MAPS)).filter((id) => MAPS[id]);
+  const list = ids.filter((id) => Array.isArray(MAPS[id].modes) && MAPS[id].modes.includes(modeId));
+  if (list.length) return list;
+  return modeId === 'training' ? ids.filter((id) => id === 'range') : ids.filter((id) => id !== 'range');
+}
+
+/** Vervollständigt/validiert eine Match-Konfiguration (Lobby oder URL): Modus↔Karte, Freischaltungen, Teamgrößen. */
 function normalizeConfig(cfg = {}) {
   const MODES = G.data.MODES || {};
-  const MAPS = G.data.MAPS || {};
   const W = G.data.WEAPONS || {};
   const EQ = G.data.EQUIPMENT || {};
   const modeId = MODES[cfg.modeId] ? cfg.modeId : MODES[settings.get('lastMode')] ? settings.get('lastMode') : 'tdm';
-  let mapId = MAPS[cfg.mapId] ? cfg.mapId : null;
-  if (!mapId) mapId = modeId === 'training' && MAPS.range ? 'range' : MAPS[settings.get('lastMap')] ? settings.get('lastMap') : Object.keys(MAPS)[0] || 'hafen';
-  const difficulty = DIFFS.includes(cfg.difficulty) ? cfg.difficulty : settings.get('difficulty');
+  const maps = mapsForMode(modeId);
+  const rec = (MODES[modeId] && MODES[modeId].recommendedMaps) || [];
+  const mapId = [cfg.mapId, settings.get('lastMap'), ...rec, maps[0]].find((id) => id && maps.includes(id)) || 'hafen';
+  const difficulty = DIFFS.includes(cfg.difficulty) ? cfg.difficulty : DIFFS.includes(settings.get('difficulty')) ? settings.get('difficulty') : 'regulaer';
   const counts = modeCounts(modeId);
   const ffa = isFfaMode(modeId);
   const allies = ffa ? 0 : intParam(cfg.allies, counts.allies, counts.alliesRange[0], Math.max(counts.alliesRange[1], 0));
@@ -358,11 +352,14 @@ function normalizeConfig(cfg = {}) {
   const def = (G.data.DEFAULT_LOADOUTS && G.data.DEFAULT_LOADOUTS[0]) || { primary: 'ar_m17', secondary: 'pi_p9', lethal: 'frag' };
   const lo = cfg.loadout || {};
   const last = settings.get('lastLoadout') || {};
-  const pick = (id, fallbackId, table) => (table[id] ? id : table[fallbackId] ? fallbackId : null);
+  // Freischaltungen gelten auch für URL-Starts; nur mit debug=1 ist alles erlaubt (Match dann ungewertet)
+  const unlocked = (id) => DEBUG || profile.isUnlocked(id);
+  const okW = (id, slot) => !!(id && W[id] && W[id].slot === slot && unlocked(id));
+  const okEq = (id) => !!(id && EQ[id] && unlocked(id));
   const loadout = {
-    primary: pick(lo.primary, last.primary, W) || def.primary,
-    secondary: pick(lo.secondary, last.secondary, W) || def.secondary,
-    lethal: pick(lo.lethal, last.lethal, EQ) || def.lethal,
+    primary: [lo.primary, last.primary].find((id) => okW(id, 'primary')) || def.primary,
+    secondary: [lo.secondary, last.secondary].find((id) => okW(id, 'secondary')) || def.secondary,
+    lethal: [lo.lethal, last.lethal].find(okEq) || def.lethal,
   };
   return {
     modeId, mapId, difficulty, allies, enemies, loadout, ffa,
@@ -381,9 +378,14 @@ function configFromParams() {
 
 /* ===================================================== Match */
 
-let sceneKeep = null;
-let vmKeep = null;
+let sceneBase = null; // Szeneninhalt ohne Welt/Match (vor dem Kartenaufbau erfasst)
+let vmBase = null;
 let audioAttached = false;
+let matchGen = 0; // jeder Start/Abbruch erhöht; laufende Starts prüfen nach jedem await
+let startTask = null; // Promise des laufenden Starts
+let queuedConfig = null; // Start, der während eines laufenden Starts angefordert wurde
+let startingKey = null; // normalisierte Konfiguration des laufenden Starts
+const configKey = (cfg) => { try { return JSON.stringify(normalizeConfig(cfg)); } catch { return String(Math.random()); } };
 
 function spawnActor(actor) {
   const mode = G.mode;
@@ -402,45 +404,71 @@ function spawnActor(actor) {
 }
 G.spawnActor = spawnActor;
 
-async function startMatch(config) {
-  if (G._starting) return;
-  G._starting = true;
-  // Wird direkt aus dem Klick-Handler aufgerufen → Nutzergeste für Audio + Pointer-Lock
+/**
+ * Startet ein Match (Lobby „Einsatz starten“, Revanche, autostart). Läuft bereits ein Start, wird dieser
+ * abgebrochen und danach mit der neuen Konfiguration begonnen (nichts geht verloren, nichts startet doppelt).
+ */
+function startMatch(config) {
+  // Direkt aus dem Klick-Handler → Nutzergeste für Audio, Pointer-Lock bzw. Vollbild
   safe('audio.unlock', () => { const p = G.audio.unlock(); if (p && typeof p.catch === 'function') p.catch(() => {}); });
-  if (G.input.mode === 'desktop' && !AUTOSTART) G.input.requestLock();
-  else if (G.input.mode === 'touch') requestFullscreen();
+  if (G.input.mode === 'desktop' && !G.input.allowUnlockedMouse) G.input.requestLock();
+  else if (G.input.mode === 'touch') enterLandscape();
+  const key = configKey(config);
+  if (startTask) {
+    if (key === startingKey && !queuedConfig) return startTask; // derselbe Start läuft schon (Doppelklick)
+    matchGen += 1;
+    queuedConfig = config;
+    return startTask;
+  }
+  matchGen += 1;
+  startingKey = key;
+  const gen = matchGen;
+  startTask = runStart(config, gen).finally(() => {
+    startTask = null;
+    startingKey = null;
+    if (queuedConfig) {
+      const next = queuedConfig;
+      queuedConfig = null;
+      startMatch(next);
+    }
+  });
+  return startTask;
+}
+
+async function runStart(config, gen) {
+  const live = () => gen === matchGen;
   try {
-    if (G.world || G.mode) await teardownMatch();
     const cfg = normalizeConfig(config);
+    const reuse = !!(G.world && G.world.id === cfg.mapId);
+    await teardownMatch({ keepWorld: reuse });
+    if (!live()) return;
+    applyAutoTier();
     G.lastConfig = cfg;
     Object.assign(G.match, {
       modeId: cfg.modeId, mapId: cfg.mapId, difficulty: cfg.difficulty, allies: cfg.allies, enemies: cfg.enemies,
       loadout: { ...cfg.loadout }, ffa: cfg.ffa, timeLimit: cfg.timeLimit, scoreLimit: cfg.scoreLimit,
       startedAt: null, startedReal: null, countdown: 0, pausedFrom: null, endedAt: null, result: null,
+      unranked: DEBUG && cfg.loadout && ['primary', 'secondary', 'lethal'].some((k) => !profile.isUnlocked(cfg.loadout[k])),
     });
     settings.patch({ lastMode: cfg.modeId, lastMap: cfg.mapId, difficulty: cfg.difficulty, lastLoadout: cfg.loadout });
     setState('loading');
     G.menus.showLoading(0);
     safe('hud.hide', () => G.hud.hide());
 
-    sceneKeep = new Set(G.scene.children);
-    vmKeep = new Set(G.viewmodel.scene.children);
-
-    const onProgress = (p) => safe('menus', () => G.menus.showLoading(Math.min(0.85, p * 0.85)));
-    let world = null;
-    try {
-      world = await G.modules.world.loadWorld(G, cfg.mapId, { onProgress });
+    vmBase = new Set(G.viewmodel.scene.children);
+    const onProgress = (p) => { if (live()) safe('menus', () => G.menus.showLoading(Math.min(0.85, p * 0.85))); };
+    if (reuse) {
+      onProgress(1);
+      if (dynres) dynres.reset();
+    } else {
+      sceneBase = new Set(G.scene.children);
+      const world = await G.modules.world.loadWorld(G, cfg.mapId, { onProgress });
       if (!world) throw new Error(`loadWorld(${cfg.mapId}) lieferte keine Welt`);
-    } catch (err) {
-      // Während der parallelen Entwicklung: echte Welt defekt → Testgelände (§10a)
-      if (G.moduleStatus.world !== 'real') throw err;
-      console.error(`[NULLPUNKT] Karte „${cfg.mapId}“ konnte nicht geladen werden – Testgelände wird verwendet.`, err);
-      sweep(G.scene, sceneKeep);
-      const stub = await import(new URL(MODULES.world[1], import.meta.url).href);
-      world = await stub.loadWorld(G, cfg.mapId, { onProgress });
+      G.world = world;
+      if (world.group && !world.group.parent) G.scene.add(world.group);
+      if (dynres) { dynres.reset(); G.renderer.setResolutionScale(1); }
+      if (!live()) { await teardownMatch(); return; }
     }
-    G.world = world;
-    if (world.group && !world.group.parent) G.scene.add(world.group);
 
     G.combat.attach(G);
     G.weapons.attach(G);
@@ -457,8 +485,8 @@ async function startMatch(config) {
     G.mode.attach(G);
 
     G.player.resetForMatch({ team: cfg.ffa ? null : 'A', loadout: cfg.loadout, name: settings.get('playerName') });
-    G.player.godMode = params.get('god') === '1';
-    if (params.has('timescale')) G.timeScale = Math.min(4, Math.max(0.05, Number(params.get('timescale')) || 1));
+    G.player.godMode = DEV_GOD;
+    if (DEV_TIMESCALE) G.timeScale = DEV_TIMESCALE;
     G.camera = G.player.camera;
     G.actors.length = 0;
     G.actors.push(G.player);
@@ -469,19 +497,19 @@ async function startMatch(config) {
     for (const a of G.actors) spawnActor(a);
 
     G.hud.attach(G);
-    safe('audio.startAmbience', () => G.audio.startAmbience(world.ambience));
+    safe('audio.startAmbience', () => G.audio.startAmbience(G.world.ambience));
     G.mode.start();
     G.menus.showLoading(0.9);
     await warmUp();
+    if (!live()) { await teardownMatch(); return; }
     G.menus.showLoading(1);
     G.matchCount += 1;
     G.menus.hideAll();
     G.hud.show();
     beginCountdown();
   } catch (err) {
-    showFatal('match', err);
-  } finally {
-    G._starting = false;
+    if (live()) showFatal(err && (err.moduleKey || isFetchError(err)) ? 'module' : 'match', err);
+    else console.error('[NULLPUNKT] Abgebrochener Matchstart:', err);
   }
 }
 
@@ -504,12 +532,16 @@ async function warmUp() {
   }
 }
 
+/** Gerät hochkant (Telefon) oder Tab verborgen → Match darf nicht ungesehen weiterlaufen. */
+const mustHold = () => document.hidden || portraitMQ.matches;
+
 function beginCountdown() {
-  perf.lowSince = perf.highSince = null;
   G.match.countdown = 3;
   G._countShown = 3;
   setState('countdown');
   G.events.emit('match:countdown', { value: 3 });
+  // Während des Ladens gedreht/versteckt: sofort pausieren (sonst läuft das Match hinter dem Hinweis)
+  if (mustHold()) pause();
 }
 
 function tickCountdown(dt) {
@@ -533,13 +565,17 @@ function endMatch(result) {
   const res = result || G.mode.result || null;
   G.match.result = res;
   G.match.endedAt = G.time.elapsed;
+  if (G.player && G.player.godMode) G.match.unranked = true;
   setState('ended');
   G.input.exitLock();
   let progression = null;
-  try {
-    if (res && res.playerSummary) progression = profile.recordMatch({ difficulty: G.match.difficulty, ...res.playerSummary });
-  } catch (err) {
-    console.error('[NULLPUNKT] profile.recordMatch:', err);
+  // Ungewertete Matches (Gottmodus, Zeitraffer, Debug-Hilfen) geben keine EP
+  if (res && res.playerSummary && !G.match.unranked) {
+    try {
+      progression = profile.recordMatch({ difficulty: G.match.difficulty, ...res.playerSummary });
+    } catch (err) {
+      console.error('[NULLPUNKT] profile.recordMatch:', err);
+    }
   }
   G.lastResult = res;
   G.lastProgression = progression;
@@ -562,7 +598,11 @@ function showEndScreen() {
   safe('menus.showEnd', () => G.menus.showEnd(G.lastResult, G.lastProgression));
 }
 
-async function teardownMatch() {
+/**
+ * Match abbauen. keepWorld: Welt (Geometrie, Kollision, Navigation, Licht) bleibt für eine Revanche auf
+ * derselben Karte stehen – alles Match-Bezogene (Bots, Effekte, Modus, Granaten …) wird trotzdem entfernt.
+ */
+async function teardownMatch({ keepWorld = false } = {}) {
   G._endScreenAt = null;
   const banner = $('match-banner');
   if (banner) banner.hidden = true;
@@ -577,19 +617,27 @@ async function teardownMatch() {
   safe('effects', () => G.effects.detach());
   safe('weapons', () => G.weapons.detach());
   safe('combat', () => G.combat.detach());
-  safe('world', () => {
-    if (!G.world) return;
-    const grp = G.world.group;
-    G.world.dispose();
-    if (grp && grp.parent) grp.parent.remove(grp);
-  });
-  G.world = null;
+  if (G.world && !keepWorld) {
+    const world = G.world;
+    safe('world', () => {
+      const grp = world.group;
+      world.dispose();
+      if (grp && grp.parent) grp.parent.remove(grp);
+    });
+    G.world = null;
+  }
   G.actors.length = 0;
-  if (sceneKeep) sweep(G.scene, sceneKeep);
-  if (vmKeep) sweep(G.viewmodel.scene, vmKeep);
-  G.scene.environment = null;
-  G.scene.background = null;
-  G.scene.fog = null;
+  if (sceneBase) {
+    const keep = new Set(sceneBase);
+    if (G.world && G.world.group) keep.add(G.world.group);
+    sweep(G.scene, keep);
+  }
+  if (vmBase) sweep(G.viewmodel.scene, vmBase);
+  if (!G.world) {
+    G.scene.environment = null;
+    G.scene.background = null;
+    G.scene.fog = null;
+  }
   G.viewmodel.scene.environment = null;
   G.viewmodel.scene.visible = true;
   G.viewmodel.rig = null;
@@ -614,8 +662,35 @@ function disposeTree(root) {
       m.dispose();
     }
     if (o.isLight && typeof o.dispose === 'function') o.dispose();
-    if (o.isInstancedMesh || o.isSkinnedMesh) safe('dispose', () => o.dispose());
+    if ((o.isInstancedMesh || o.isSkinnedMesh) && typeof o.dispose === 'function') safe('dispose', () => o.dispose());
   });
+}
+
+/**
+ * WebGL-Kontextverlust: alle GPU-Ressourcen der Szenen jetzt freigeben. Auf einem verlorenen Kontext sind die
+ * delete-Aufrufe stumme No-ops und lösen die three.js-Dispose-Listener vom alten Kontext; nach der
+ * Wiederherstellung lädt three.js alles aus den CPU-Daten neu hoch. Ohne das würde ein späteres dispose()
+ * (Matchende) hunderte „object does not belong to this context“-Warnungen erzeugen.
+ */
+function releaseLostContext() {
+  const seen = new Set();
+  const once = (x) => { if (!x || seen.has(x)) return false; seen.add(x); return true; };
+  for (const scene of [G.scene, G.viewmodel.scene]) {
+    scene.traverse((o) => {
+      if (once(o.geometry) && typeof o.geometry.dispose === 'function') o.geometry.dispose();
+      const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+      for (const m of mats) {
+        if (!once(m)) continue;
+        for (const v of Object.values(m)) if (v && v.isTexture && !v.isRenderTargetTexture && once(v)) v.dispose();
+        m.dispose();
+      }
+      if (o.isInstancedMesh && typeof o.dispose === 'function') o.dispose();
+      if (o.isSkinnedMesh && o.skeleton && once(o.skeleton)) o.skeleton.dispose();
+    });
+    const bg = scene.background;
+    if (bg && bg.isTexture && !bg.isRenderTargetTexture && once(bg)) bg.dispose();
+  }
+  safe('renderLists', () => G.renderer.renderer.renderLists.dispose());
 }
 
 function pause() {
@@ -627,26 +702,61 @@ function pause() {
   safe('menus.showPause', () => G.menus.showPause());
 }
 
+/** Desktop braucht den Pointer-Lock zum Zielen: erst mit Sperre wird weitergespielt. */
+const lockRequired = () => G.input.mode === 'desktop' && !G.input.allowUnlockedMouse && typeof G.canvas.requestPointerLock === 'function';
+
+/**
+ * Fortsetzen (Menü-Knopf, Esc im Pausenmenü, Gamepad). Auf dem Desktop bleibt das Match pausiert, bis der
+ * Pointer-Lock wirklich sitzt: Chrome lehnt eine erneute Sperre kurz nach Esc bzw. ohne Nutzergeste ab.
+ * Dann erscheint „Klicken, um weiterzuspielen“ – ein Klick holt die Sperre und setzt fort, Esc öffnet
+ * wieder das Pausenmenü.
+ */
 function resume() {
+  if (G.match.state !== 'paused' || portraitMQ.matches) return;
+  if (G.input.mode === 'touch') enterLandscape();
+  if (lockRequired() && !G.input.locked) {
+    safe('menus.hideAll', () => G.menus.hideAll());
+    setAwaitingLock(true);
+    G.input.requestLock().then((locked) => { if (locked) finishResume(); });
+    return;
+  }
+  finishResume();
+}
+
+function finishResume() {
   if (G.match.state !== 'paused') return;
+  setAwaitingLock(false);
   safe('menus.hideAll', () => G.menus.hideAll());
   setState(G.match.pausedFrom || 'playing');
-  if (G.input.mode === 'desktop' && !AUTOSTART) G.input.requestLock();
-  else if (G.input.mode === 'touch') requestFullscreen();
+}
+
+function setAwaitingLock(on) {
+  on = !!on;
+  if (G.match.awaitingLock === on) return;
+  G.match.awaitingLock = on;
+  document.body.classList.toggle('np-await-lock', on);
+  updateLockHint();
 }
 
 /** Vollbild + Querformat-Sperre (nur aus einer Nutzergeste heraus wirksam; Fehler werden ignoriert). */
-function requestFullscreen() {
+function enterLandscape() {
   const el = document.documentElement;
+  const lock = () => {
+    const o = screen.orientation;
+    if (o && typeof o.lock === 'function') return o.lock('landscape').catch(() => {});
+    return undefined;
+  };
   try {
-    if (document.fullscreenElement || !document.fullscreenEnabled || !el.requestFullscreen) return;
-    el.requestFullscreen({ navigationUI: 'hide' })
-      .then(() => (screen.orientation && screen.orientation.lock ? screen.orientation.lock('landscape').catch(() => {}) : null))
-      .catch(() => {});
+    if (document.fullscreenElement) { lock(); return; }
+    if (!document.fullscreenEnabled || !el.requestFullscreen) return;
+    el.requestFullscreen({ navigationUI: 'hide' }).then(lock).catch(() => {});
   } catch { /* nicht unterstützt (z. B. iOS-Safari auf dem iPhone) */ }
 }
 
 async function toLobby() {
+  matchGen += 1; // laufenden Start abbrechen
+  queuedConfig = null;
+  if (startTask) await startTask;
   await teardownMatch();
   setState('lobby');
   safe('menus.showLobby', () => G.menus.showLobby());
@@ -654,7 +764,70 @@ async function toLobby() {
 
 function restart() {
   const cfg = G.lastConfig;
-  startMatch(cfg ? { ...cfg, loadout: { ...cfg.loadout } } : configFromParams());
+  return startMatch(cfg ? { ...cfg, loadout: { ...cfg.loadout } } : configFromParams());
+}
+
+/* ===================================================== Qualität + dynamische Auflösung */
+
+let dynres = null;
+const stepUps = new Set(); // Stufen, auf die 'auto' in dieser Sitzung schon einmal zurückgekehrt ist
+
+/** Qualitätswechsel (Einstellungen, Debug-API, automatisch zwischen Matches) – alle Wege enden hier. */
+function applyQuality(q) {
+  G.renderer.setQuality(q);
+  return G.renderer.quality;
+}
+
+/** Wird bei jedem Wechsel vom Renderer gerufen (auch für fremde Aufrufer von renderer.setQuality). */
+function onQualityChanged() {
+  applyQualityClasses();
+  // Sonnenschatten der Welt folgen der Stufe (Shadow-Map an/aus, Größe)
+  if (G.world && typeof G.world.setQuality === 'function') safe('world.setQuality', () => G.world.setQuality(G.renderer.preset));
+  prewarmShaders();
+}
+
+let prewarming = false;
+/** Neue Shader im Hintergrund kompilieren (nur mit KHR_parallel_shader_compile; sonst beim nächsten Bild). */
+function prewarmShaders() {
+  const r = G.renderer.renderer;
+  if (prewarming || !G.world || !G.camera || typeof r.compileAsync !== 'function' || !r.extensions || !r.extensions.has('KHR_parallel_shader_compile')) return;
+  prewarming = true;
+  Promise.all([r.compileAsync(G.scene, G.camera), r.compileAsync(G.viewmodel.scene, G.viewmodel.camera)])
+    .catch(() => {})
+    .finally(() => { prewarming = false; });
+}
+
+/**
+ * quality 'auto': Stufenwechsel nur zwischen Matches (beim Laden kompilieren die Shader ohnehin).
+ * Runter, wenn im letzten Match selbst die Mindestauflösung nicht reichte; einmal je Stufe wieder hoch,
+ * wenn das letzte Match durchgehend Reserve hatte.
+ */
+function applyAutoTier() {
+  if (!dynres) return;
+  const R = G.renderer;
+  if (QUALITY_OVERRIDE || settings.get('quality') !== 'auto') { dynres.wantTierDrop = false; return; }
+  const idx = QUALITY_LEVELS.indexOf(R.quality);
+  let next = null;
+  if (dynres.wantTierDrop && idx > 0) next = QUALITY_LEVELS[idx - 1];
+  else if (G.matchCount > 0 && idx < QUALITY_LEVELS.indexOf(resolveQuality('auto')) && dynres.stepUpOk() && !stepUps.has(QUALITY_LEVELS[idx + 1])) {
+    next = QUALITY_LEVELS[idx + 1];
+    stepUps.add(next);
+  }
+  dynres.wantTierDrop = false;
+  if (!next) return;
+  if (DEBUG) console.info(`[NULLPUNKT] Automatische Qualität: ${R.quality} → ${next}`);
+  applyQuality(next);
+  R.setResolutionScale(1);
+}
+
+function updatePerf(now, workMs, rawMs) {
+  if (!dynres || QUALITY_OVERRIDE || G.match.startedReal == null || G.time.real - G.match.startedReal < 3) return;
+  dynres.frame(now, rawMs, workMs);
+  const R = G.renderer;
+  const auto = settings.get('quality') === 'auto';
+  const idx = QUALITY_LEVELS.indexOf(R.quality);
+  const canDropTier = auto && idx > 0;
+  dynres.update(now, R, { floor: canDropTier ? 0.7 : 0.55, canDropTier });
 }
 
 /* ===================================================== Schleife */
@@ -664,6 +837,7 @@ let idleRenderAt = 0;
 
 function frame(now) {
   requestAnimationFrame(frame);
+  const t0 = performance.now();
   const raw = lastNow ? Math.max(0, (now - lastNow) / 1000) : 0;
   lastNow = now;
   G.time.real += raw;
@@ -675,6 +849,7 @@ function frame(now) {
 
   if (sim) {
     G.time.elapsed += dt;
+    if (G.timeScale !== 1 || (G.player && G.player.godMode)) G.match.unranked = true;
     if (st === 'countdown') tickCountdown(Math.min(raw, 0.25) * G.timeScale); // Echtzeit, nicht Simulationszeit
     step('input', () => G.input.update(dt));
     if (G.input.pressed('pause') && G.match.state !== 'paused') pause();
@@ -699,7 +874,7 @@ function frame(now) {
   }
   if (sim) G.input.endFrame();
   updateStats(now);
-  if (st === 'playing') adaptPerformance(now);
+  if (st === 'playing' && G.match.state === 'playing') updatePerf(G.time.real, performance.now() - t0, raw * 1000);
 }
 
 function updateRespawns() {
@@ -709,44 +884,6 @@ function updateRespawns() {
     if (a.alive || a.respawnAt == null || now < a.respawnAt) continue;
     if (mode && typeof mode.canRespawn === 'function' && mode.canRespawn(a) === false) continue;
     spawnActor(a);
-  }
-}
-
-/**
- * Leistungsregelung (§11a): < 40 FPS für 3 s → Pixelverhältnis um 15 % senken. Bei quality 'auto' wird
- * zuerst bis 0,72 skaliert und dann eine Stufe tiefer geschaltet (Auflösung wieder 0,9) – erst auf der
- * niedrigsten Stufe geht es bis 0,55. > 56 FPS für 8 s → Auflösung schrittweise zurück.
- * Abgeschaltet, wenn ?quality=… die Stufe für Tests festlegt.
- */
-const perf = { lowSince: null, highSince: null, lastChange: 0 };
-function adaptPerformance(now) {
-  if (QUALITY_OVERRIDE || G.match.startedReal == null || G.time.real - G.match.startedReal < 3) return;
-  const R = G.renderer;
-  const fps = R.info().fps;
-  if (!fps) return;
-  if (fps < 40) { perf.highSince = null; if (perf.lowSince == null) perf.lowSince = now; }
-  else if (fps > 56) { perf.lowSince = null; if (perf.highSince == null) perf.highSince = now; }
-  else { perf.lowSince = null; perf.highSince = null; }
-  if (now - perf.lastChange < 2500) return;
-  if (perf.lowSince != null && now - perf.lowSince > 3000) {
-    perf.lastChange = now;
-    perf.lowSince = now;
-    const idx = QUALITY_LEVELS.indexOf(R.quality);
-    const canDrop = settings.get('quality') === 'auto' && idx > 0;
-    const floor = canDrop ? 0.72 : 0.55;
-    if (R.resolutionScale > floor + 0.01) {
-      R.setResolutionScale(Math.max(floor, R.resolutionScale - 0.15));
-    } else if (canDrop) {
-      const next = QUALITY_LEVELS[idx - 1];
-      console.info(`[NULLPUNKT] Automatische Qualität: ${R.quality} → ${next} (${fps} FPS)`);
-      R.setQuality(next);
-      R.setResolutionScale(0.9);
-      applyQualityClasses();
-    }
-  } else if (perf.highSince != null && now - perf.highSince > 8000 && R.resolutionScale < 1) {
-    perf.lastChange = now;
-    perf.highSince = now;
-    R.setResolutionScale(R.resolutionScale + 0.1);
   }
 }
 
@@ -769,10 +906,12 @@ function updateStats(now) {
   const i = G.renderer.info();
   let text = `${i.fps} FPS · ${String(i.frameMs).replace('.', ',')} ms`;
   if (DEBUG) {
-    const stubs = Object.entries(G.moduleStatus).filter(([, v]) => v !== 'real').map(([k]) => k);
-    text += `\n${i.drawCalls} Draw Calls · ${(i.triangles / 1000).toFixed(1).replace('.', ',')}k Dreiecke\n${i.quality} · ${i.width}×${i.height} @${i.pixelRatio}\n` +
+    const missing = Object.entries(G.moduleStatus).filter(([, v]) => v !== 'real').map(([k]) => k);
+    const p = dynres ? dynres.stats : null;
+    text += `\n${i.drawCalls} Draw Calls · ${(i.triangles / 1000).toFixed(1).replace('.', ',')}k Dreiecke\n${i.quality} · ${i.width}×${i.height} @${i.pixelRatio} · Skala ${String(i.resolutionScale).replace('.', ',')}\n` +
       `${G.match.state} · ${G.actors.length} Akteure · Geo ${i.geometries} · Tex ${i.textures}` +
-      (stubs.length ? `\nStubs: ${stubs.join(', ')}` : '');
+      (p && p.interval ? `\nArbeit ${String(p.work).replace('.', ',')} ms / ${String(p.interval).replace('.', ',')} ms${dynres.plateau ? ` · Plateau ${Math.round(dynres.plateau)}` : ''}` : '') +
+      (missing.length ? `\nFehlt: ${missing.join(', ')}` : '');
   }
   statsEl.textContent = text;
 }
@@ -786,15 +925,15 @@ function updateLockHint() {
   const el = $('lock-hint');
   if (!el || !G.input) return;
   const st = G.match.state;
-  const need = G.input.mode === 'desktop' && (st === 'playing' || st === 'countdown') && !G.input.locked && G.input.everLocked && !AUTOSTART;
-  el.hidden = !need;
+  const lost = G.input.mode === 'desktop' && (st === 'playing' || st === 'countdown') && !G.input.locked && G.input.everLocked && !G.input.allowUnlockedMouse;
+  el.hidden = !(lost || (G.match.awaitingLock && st === 'paused'));
 }
 
 /* ===================================================== Debug-API */
 
 G.debugApi = {
   teleport(x, y, z) { G.player.body.teleport(new THREE.Vector3(x, y, z)); },
-  godMode(on = true) { G.player.godMode = !!on; return G.player.godMode; },
+  godMode(on = true) { G.player.godMode = !!on; if (on) G.match.unranked = true; return G.player.godMode; },
   giveWeapon(id) {
     const def = G.data.WEAPONS && G.data.WEAPONS[id];
     const w = G.player.weapon;
@@ -803,6 +942,7 @@ G.debugApi = {
     if (def.slot === 'secondary') lo.secondary = id; else lo.primary = id;
     G.player.loadout = lo;
     w.setLoadout(lo);
+    G.match.unranked = true;
     return true;
   },
   killAllEnemies() {
@@ -813,9 +953,10 @@ G.debugApi = {
         n++;
       }
     }
+    if (n) G.match.unranked = true;
     return n;
   },
-  setTimeScale(s) { G.timeScale = Math.min(4, Math.max(0.05, Number(s) || 1)); return G.timeScale; },
+  setTimeScale(s) { G.timeScale = clampTimeScale(s); return G.timeScale; },
   endMatch() {
     const m = G.mode;
     if (!m) return false;
@@ -828,6 +969,7 @@ G.debugApi = {
   spawnBots(n = 1) {
     const bots = G.bots.spawnBots({ allies: 0, enemies: Math.max(1, n | 0), ffa: G.match.ffa, difficulty: G.match.difficulty, modeId: G.match.modeId }) || [];
     for (const b of bots) { if (!G.actors.includes(b)) G.actors.push(b); spawnActor(b); }
+    if (bots.length) G.match.unranked = true;
     return bots.length;
   },
   lookAt(x, y, z) {
@@ -843,17 +985,19 @@ G.debugApi = {
   pause,
   resume,
   toLobby,
-  setQuality(q) { G.renderer.setQuality(q); applyQualityClasses(); return G.renderer.quality; },
+  setQuality(q) { return applyQuality(q); },
   state() {
     const p = G.player;
     const i = G.renderer ? G.renderer.info() : {};
     return {
       state: G.match.state, modeId: G.match.modeId, mapId: G.match.mapId, matchCount: G.matchCount,
       fps: i.fps, drawCalls: i.drawCalls, geometries: i.geometries, textures: i.textures, quality: i.quality,
+      resolutionScale: i.resolutionScale, perf: dynres ? { ...dynres.stats, plateau: dynres.plateau, probing: !!dynres.probe, wantTierDrop: dynres.wantTierDrop } : null,
       actors: G.actors.length, alive: G.actors.filter((a) => a.alive).length,
       kills: G.combat ? G.combat.killCount : 0,
       player: p ? { alive: p.alive, health: Math.round(p.health), kills: p.stats.kills, deaths: p.stats.deaths, score: p.stats.score, weapon: p.weapon && p.weapon.currentDef ? p.weapon.currentDef.id : null, mag: p.weapon && p.weapon.current ? p.weapon.current.mag : null } : null,
       scores: G.mode ? G.mode.scores : null, timeLeft: G.mode ? G.mode.timeLeft : null,
+      unranked: G.match.unranked, awaitingLock: G.match.awaitingLock,
       modules: { ...G.moduleStatus }, listeners: G.events.count(),
     };
   },
@@ -879,32 +1023,70 @@ function wireGlobal() {
   G.events.on('ui:sound', ({ name } = {}) => { if (!audioAttached && name) safe('audio.ui', () => G.audio.ui(name)); });
   G.events.on('input:lock', ({ locked, error }) => {
     updateLockHint();
-    // Nur ein echter Verlust der Sperre pausiert (nicht eine abgelehnte Anfrage, z. B. Chrome-Wartezeit nach Esc)
     const st = G.match.state;
+    if (locked && G.match.awaitingLock && st === 'paused') { finishResume(); return; }
+    // Nur ein echter Verlust der Sperre pausiert (nicht eine abgelehnte Anfrage, z. B. Chrome-Wartezeit nach Esc)
     if (!locked && !error && G.input.everLocked && G.input.mode === 'desktop' && (st === 'playing' || st === 'countdown')) pause();
   });
-  G.events.on('input:mode', () => updateLockHint());
+  G.events.on('input:mode', () => {
+    updateLockHint();
+    // Wechsel zu Touch/Gamepad während „Klicken, um weiterzuspielen“: keine Sperre mehr nötig
+    if (G.match.awaitingLock && !lockRequired()) finishResume();
+  });
+  // „Klicken, um weiterzuspielen“: jeder Klick holt die Sperre (Nutzergeste), Esc zurück ins Pausenmenü
+  document.addEventListener('mousedown', (e) => {
+    if (!G.match.awaitingLock || G.match.state !== 'paused' || e.button !== 0) return;
+    e.preventDefault();
+    G.input.requestLock();
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Escape' || e.defaultPrevented || !G.match.awaitingLock || G.match.state !== 'paused') return;
+    e.preventDefault();
+    setAwaitingLock(false);
+    safe('menus.showPause', () => G.menus.showPause());
+  });
 
   settings.onChange((key, value) => {
     G.events.emit('settings:change', { key, value });
-    if (key === 'quality' && !QUALITY_OVERRIDE) { G.renderer.setQuality(value); applyQualityClasses(); }
+    if (key === 'quality' && !QUALITY_OVERRIDE) {
+      if (dynres) dynres.wantTierDrop = false;
+      stepUps.clear();
+      applyQuality(value);
+    }
     if (key === 'playerName' && G.player) G.player.name = value;
   });
 
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
-  const portrait = window.matchMedia('(orientation: portrait) and (pointer: coarse)');
-  const onPortrait = () => { if (portrait.matches) pause(); };
-  if (portrait.addEventListener) portrait.addEventListener('change', onPortrait);
+  const onPortrait = () => { if (portraitMQ.matches) pause(); };
+  if (portraitMQ.addEventListener) portraitMQ.addEventListener('change', onPortrait);
+  wireRotateOverlay();
   window.addEventListener('beforeunload', (e) => {
     const st = G.match.state;
     if (st === 'playing' || st === 'paused' || st === 'countdown') { e.preventDefault(); e.returnValue = ''; }
   });
   G.renderer.onContextChange((kind) => {
     const el = $('context-lost');
-    if (kind === 'lost') { pause(); if (el) el.hidden = false; } else if (el) el.hidden = true;
+    if (kind === 'lost') {
+      safe('context', releaseLostContext);
+      pause();
+      if (el) el.hidden = false;
+    } else if (el) el.hidden = true;
   });
   const fatalReload = document.querySelector('[data-fatal-reload]');
   if (fatalReload) fatalReload.addEventListener('click', () => location.reload());
+}
+
+/** Hochformat-Hinweis: „Im Querformat spielen“ (Vollbild + Ausrichtungssperre), wo der Browser das kann. */
+function wireRotateOverlay() {
+  const btn = $('rotate-play');
+  const hint = $('rotate-hint');
+  const o = window.screen && screen.orientation;
+  const canLock = !!(document.fullscreenEnabled && document.documentElement.requestFullscreen && o && typeof o.lock === 'function');
+  if (btn) {
+    btn.hidden = !canLock;
+    btn.addEventListener('click', () => enterLandscape());
+  }
+  if (hint) hint.hidden = canLock;
 }
 
 /* ===================================================== Start */
@@ -917,14 +1099,19 @@ async function bootstrap() {
   window.addEventListener('error', onBootError);
   window.addEventListener('unhandledrejection', onBootError);
   startTips();
+  let phase = 'error';
   try {
     setBoot(0.02, 'Prüfe Grafik …');
     if (!webglAvailable()) { showFatal('webgl'); return; }
     G.renderer = createRenderer(canvas, { quality: QUALITY_OVERRIDE || settings.get('quality') });
+    G.renderer.onQualityChange(onQualityChanged);
     applyQualityClasses();
+    G.perf = dynres = new DynamicResolution({ touch: window.matchMedia ? window.matchMedia('(pointer: coarse)').matches : false });
 
     setBoot(0.06, 'Lade Module …');
+    phase = 'module';
     await loadModules((p) => setBoot(0.06 + p * 0.66, 'Lade Module …'));
+    phase = 'error';
 
     setBoot(0.75, 'Starte Systeme …');
     G.player = new Player(G);
@@ -933,12 +1120,12 @@ async function bootstrap() {
     G.input.allowUnlockedMouse = AUTOSTART;
     G.input.attach(G);
     G.combat = new Combat(G);
-    G.audio = await construct('audio', 'AudioEngine', G);
-    G.weapons = await construct('weapons', 'WeaponSystem', G);
-    G.effects = await construct('effects', 'Effects', G);
-    G.bots = await construct('bots', 'BotManager', G);
-    G.hud = await construct('hud', 'HUD', G);
-    G.menus = await construct('menus', 'Menus', G);
+    G.audio = createAudio();
+    G.weapons = new G.modules.weapons.WeaponSystem(G);
+    G.effects = new G.modules.effects.Effects(G);
+    G.bots = new G.modules.bots.BotManager(G);
+    G.hud = new G.modules.hud.HUD(G);
+    G.menus = new G.modules.menus.Menus(G);
     wireGlobal();
 
     setBoot(0.92, 'Bereite Grafik vor …');
@@ -952,7 +1139,7 @@ async function bootstrap() {
     if (AUTOSTART) startMatch(configFromParams());
     else G.menus.showLobby();
   } catch (err) {
-    showFatal('error', err);
+    showFatal(phase, err);
   }
 }
 
