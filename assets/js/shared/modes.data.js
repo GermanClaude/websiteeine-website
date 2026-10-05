@@ -607,77 +607,17 @@ export function formatTimeLimit(seconds) {
 /* ===================================================================== Großkampf, Spielstil, Klassen (modes-ui)
  * Alles rein: Lobby, Spiel und Website nutzen dieselben Tabellen. Siehe docs/ARCHITECTURE.md (Changelog modes-ui). */
 
-/** Spielstil (Lobby + Website, URL `style=`): `rules` lesen HUD/Minikarte (ui), Namensschilder (bots), Schaden/Regeneration (core). */
-export const GAME_STYLE_ORDER = ['arcade', 'realistisch'];
-export const GAME_STYLES = {
-  arcade: {
-    id: 'arcade', name: 'Arcade', short: 'Arcade',
-    description: 'Das bekannte Spiel: Fadenkreuz, Minikarte mit Gegnern beim Feuern, Namensschilder, Treffermarker und Serienprämien.',
-    rules: {
-      damageMult: 1, headshotLethal: false, regenDelayMult: 1, crosshair: true, hitmarkers: true, enemyNameplates: true,
-      enemyMinimap: true, enemyMarkers: true, killfeedWeapons: true, streaks: true, respawnDelay: null, hudStyle: null,
-    },
-  },
-  realistisch: {
-    id: 'realistisch', name: 'Realistisch', short: 'Real',
-    description: 'Wie bei Bodycam: Gegner werden nicht angezeigt – keine Namensschilder, keine Minikarten-Punkte, keine Markierungen. Minimales HUD, mehr Schaden, Kopftreffer tödlich, langsamere Heilung, kein Fadenkreuz (abschaltbar).',
-    rules: {
-      damageMult: 2, headshotLethal: true, regenDelayMult: 2.2, crosshair: false, hitmarkers: false, enemyNameplates: false,
-      enemyMinimap: false, enemyMarkers: false, killfeedWeapons: false, streaks: false, respawnDelay: 6, hudStyle: 'reduziert',
-    },
-  },
-};
-export function styleRules(style, { crosshair } = {}) {
-  const st = GAME_STYLES[style] || GAME_STYLES.arcade;
-  const r = { ...st.rules, style: st.id };
-  if (crosshair === true || crosshair === false) r.crosshair = crosshair;
-  return r;
-}
-
-/** Rüstungsstufen (Anzeige; Werte und Wirkung: core-mechanics). */
-export const ARMOR_TIERS = {
-  leicht: { id: 'leicht', name: 'Leicht', plates: 2, speed: 1 },
-  mittel: { id: 'mittel', name: 'Mittel', plates: 3, speed: 0.96 },
-  schwer: { id: 'schwer', name: 'Schwer', plates: 4, speed: 0.9 },
-};
-
 /**
- * Klassen (alle Waffen stehen allen Klassen offen; die Klasse liefert Standardausrüstung, Rüstung und Aussehen).
- * `primary` = Vorzugsliste (erste freigeschaltete gilt), `variant` = Soldatenvariante für bots/gunsmith (Aussehen).
+ * Spielstil und Klassen stehen in `shared/classes.data.js` (core-mechanics: GAME_STYLES, styleFlags, CLASSES …).
+ * `styleRules()` liefert nur die Lobby-Abweichungen (Fadenkreuz-Schalter, Wiedereinstieg), die
+ * `styleFlags(style, { rules })` über die Stil-Flags legt.
  */
-export const CLASS_ORDER = ['sturm', 'sanitaeter', 'pionier', 'aufklaerer'];
-export const CLASSES = {
-  sturm: {
-    id: 'sturm', name: 'Sturm', role: 'Vorne an der Flagge',
-    description: 'Sturmgewehr, Splittergranate und mittlere Weste mit drei Platten. Für den Kampf um Flaggen und Häuser.',
-    primary: ['ar_m17', 'ar_kv47'], secondary: 'pi_p9', lethal: 'frag', armor: 'mittel', signature: ['ar', 'carbine'], variant: 'sturm',
-    icon: icon('<path d="M3 14h11l2-2h5v3h-4l-2 2H9l-1 3H5l1-3H3z"/><path d="M8 11V9h4"/>'),
-  },
-  sanitaeter: {
-    id: 'sanitaeter', name: 'Sanitäter', role: 'Hält den Trupp im Gefecht',
-    description: 'Wendige Maschinenpistole, leichte Weste mit zwei Platten. Schnell bei verletzten Kameraden und am Truppspawn.',
-    primary: ['smg_vp9', 'smg_qx90', 'ar_m17'], secondary: 'pi_p9', lethal: 'frag', armor: 'leicht', signature: ['smg'], variant: 'funker',
-    icon: icon('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/>'),
-  },
-  pionier: {
-    id: 'pionier', name: 'Pionier', role: 'Gegen Fahrzeuge und Stellungen',
-    description: 'Schweres MG oder Schrotflinte, Haftgranate gegen Fahrzeuge und schwere Weste mit vier Platten – dafür etwas langsamer.',
-    primary: ['lmg_hm60', 'sg_bulldog', 'ar_kv47', 'ar_m17'], secondary: 'pi_adler', lethal: 'semtex', armor: 'schwer', signature: ['lmg', 'shotgun'], variant: 'pionier',
-    icon: icon('<path d="M14.5 5.5l4 4-9 9h-4v-4z"/><path d="M12.5 7.5l4 4"/>'),
-  },
-  aufklaerer: {
-    id: 'aufklaerer', name: 'Aufklärer', role: 'Sieht zuerst, trifft auf Distanz',
-    description: 'Präzisions- oder Scharfschützengewehr, leichte Weste. Hält Abstand, deckt Flanken und Zugänge.',
-    primary: ['sr_brecher', 'mr_sk14', 'ar_kv47', 'ar_m17'], secondary: 'pi_p9', lethal: 'frag', armor: 'leicht', signature: ['sniper', 'marksman'], variant: 'kundschafter',
-    icon: icon('<circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/><circle cx="12" cy="12" r="1"/>'),
-  },
-};
-
-/** Standardausrüstung einer Klasse; `isUnlocked(id)` filtert gesperrte Waffen. */
-export function classLoadout(clsId, isUnlocked = () => true) {
-  const c = CLASSES[clsId] || CLASSES.sturm;
-  const primary = (c.primary || []).find((id) => isUnlocked(id)) || 'ar_m17';
-  return { primary, secondary: isUnlocked(c.secondary) ? c.secondary : 'pi_p9', lethal: isUnlocked(c.lethal) ? c.lethal : 'frag', cls: c.id, armor: c.armor };
+export const STYLE_RESPAWN = { arcade: null, realistisch: 6 };
+export function styleRules(style, { crosshair } = {}) {
+  const r = {};
+  if (crosshair === true || crosshair === false) r.crosshair = crosshair;
+  if (STYLE_RESPAWN[style]) r.respawnDelay = STYLE_RESPAWN[style];
+  return r;
 }
 
 /** Trupp-Rufnamen (Eroberung): 4 Mitglieder je Trupp. */

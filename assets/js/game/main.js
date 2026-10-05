@@ -18,6 +18,7 @@ import { profile } from '../shared/profile.js';
 import * as weaponsData from '../shared/weapons.data.js';
 import * as modesData from '../shared/modes.data.js';
 import * as mapsData from '../shared/maps.data.js';
+import * as classesData from '../shared/classes.data.js'; // core-mechanics: Klassen, Panzerung, Spielstile
 import { EventBus } from './engine/events.js';
 import { createRenderer, QUALITY_LEVELS, resolveQuality } from './engine/renderer.js';
 import { Input } from './engine/input.js';
@@ -115,13 +116,16 @@ const G = {
     state: 'boot', modeId: null, mapId: null, difficulty: null, allies: 0, enemies: 0, loadout: null,
     startedAt: null, startedReal: null, countdown: 0, ffa: false, timeLimit: null, scoreLimit: null, pausedFrom: null, endedAt: null, result: null,
     unranked: false, awaitingLock: false,
+    // core-mechanics: Spielstil-Flags, Panzerung an/aus, Online-Deckel der Hilfen, Respawn-Halt, Ausrüstung ab nächstem Spawn
+    style: 'arcade', styleFlags: classesData.styleFlags('arcade'), armor: false, assistCap: null, respawnHold: false, pendingLoadout: null,
   },
   time: { dt: 0, elapsed: 0, frame: 0, real: 0 },
   timeScale: 1,
   params,
   debug: DEBUG,
   // Reine Daten (weapons/modes/maps.data.js) – statisch importiert, keine Ersatzkopien
-  data: { ...weaponsData, ...modesData, ...mapsData },
+  // weapons.data zuletzt: G.data.CLASS_ORDER bleibt die Waffenklassen-Reihenfolge (modes.data exportiert gleichnamig die Soldatenklassen)
+  data: { ...modesData, ...mapsData, ...weaponsData, SOLDIER_CLASS_ORDER: classesData.SOLDIER_CLASS_ORDER },
   modules: {},
   moduleStatus: {},
   lastConfig: null,
@@ -406,9 +410,17 @@ function normalizeConfig(cfg = {}) {
   if (lo.camo && typeof lo.camo === 'object') loadout.camo = { ...lo.camo };
   if (typeof lo.skin === 'string') loadout.skin = lo.skin;
   const STY = G.data.GAME_STYLES || {};
-  const style = STY[cfg.style] ? cfg.style : 'arcade';
+  const style = STY[cfg.style] ? cfg.style : STY[settings.get('gameStyle')] ? settings.get('gameStyle') : 'arcade'; // core-mechanics: Einstellung als Rückfall
+  // core-mechanics: Klasse/Weste/Helm vervollständigen; eine Klasse ohne Waffenwahl (URL cls=) bringt ihre Standardwaffen mit
+  const extra = {};
+  if (loadout.camo) extra.camo = loadout.camo;
+  if (loadout.skin) extra.skin = loadout.skin;
+  const src = loadout.cls && !lo.primary && !lo.secondary ? { cls: loadout.cls } : { ...loadout, cls: loadout.cls || settings.get('lastClass') };
+  const full = cleanLoadout({ ...src, armor: lo.armor, helmet: lo.helmet });
+  for (const k of Object.keys(loadout)) delete loadout[k];
+  Object.assign(loadout, full, extra);
   return {
-    modeId, mapId, difficulty, allies, enemies, loadout, ffa,
+    modeId, mapId, difficulty, allies, enemies, loadout, ffa, armor: armorFor(cfg, mapId, modeId),
     style, crosshair: typeof cfg.crosshair === 'boolean' ? cfg.crosshair : null,
     matchLength: ['kurz', 'standard', 'lang'].includes(cfg.matchLength) ? cfg.matchLength : 'standard',
     timeOfDay: typeof cfg.timeOfDay === 'string' ? cfg.timeOfDay : null,
@@ -432,8 +444,8 @@ function configFromParams() {
   return {
     modeId: params.get('mode'), mapId: params.get('map'), difficulty: params.get('diff'),
     allies: params.get('allies'), enemies: params.get('enemies'),
-    loadout: { primary: params.get('primary'), secondary: params.get('secondary'), lethal: params.get('lethal'), cls: params.get('cls') },
-    timeLimit: params.get('time'), scoreLimit: params.get('score'), style: params.get('style'),
+    loadout: { primary: params.get('primary'), secondary: params.get('secondary'), lethal: params.get('lethal'), cls: params.get('cls'), armor: params.get('vest'), helmet: params.get('helmet') },
+    timeLimit: params.get('time'), scoreLimit: params.get('score'), style: params.get('style'), armor: params.get('armor'),
   };
 }
 
@@ -458,12 +470,140 @@ function spawnActor(actor) {
     if (s) spawn = { position: s.position.clone(), yaw: s.yaw || 0 };
   }
   if (!spawn) spawn = { position: new THREE.Vector3(), yaw: 0 };
+  // core-mechanics: vorgemerkte Ausrüstung (Pausemenü/Todesbildschirm) gilt ab diesem Spawn; Klasse + Panzerung ausgeben
+  if (actor === G.player && G.match.pendingLoadout) {
+    const lo = G.match.pendingLoadout;
+    G.match.pendingLoadout = null;
+    actor.loadout = { ...lo };
+    if (actor.weapon && typeof actor.weapon.setLoadout === 'function') safe('weapon.setLoadout', () => actor.weapon.setLoadout(actor.loadout));
+  }
+  if (actor === G.player) G.match.respawnHold = false;
+  safe('equipActor', () => equipActor(actor));
   actor.respawn(spawn);
   actor.respawnAt = null;
   actor.diedAt = null;
   G.events.emit('actor:spawn', { actor });
 }
 G.spawnActor = spawnActor;
+
+/* ===================================================== Klassen, Panzerung, Ausrüstung im Match (core-mechanics) */
+
+const SPAWN_GRACE = 5; // s nach dem Spawn, in denen eine neue Ausrüstung sofort gilt (solange noch nicht geschossen)
+
+/** Spielstil + Panzerung des Matches aus der normalisierten Konfiguration. */
+function applyStyle(cfg) {
+  const style = cfg.style === 'realistisch' ? 'realistisch' : 'arcade';
+  const rules = typeof G.data.styleRules === 'function' ? safe('styleRules', () => G.data.styleRules(style, { crosshair: cfg.crosshair })) : null;
+  G.match.style = style;
+  G.match.styleFlags = classesData.styleFlags(style, { realisticCrosshair: settings.get('realisticCrosshair'), rules });
+  G.match.armor = cfg.armor;
+  G.match.respawnHold = false;
+  G.match.pendingLoadout = null;
+}
+
+/** Panzerung an? URL/Lobby `armor` (1/0, an/aus, true/false) > Modus (`MODES[id].armor`) > Großkarte bzw. Eroberung. */
+function armorFor(cfg, mapId, modeId) {
+  const v = cfg.armor;
+  if (v === true || v === 1 || v === '1' || v === 'an' || v === 'true') return true;
+  if (v === false || v === 0 || v === '0' || v === 'aus' || v === 'false') return false;
+  const mode = (G.data.MODES || {})[modeId];
+  if (mode && typeof mode.armor === 'boolean') return mode.armor;
+  const map = (G.data.MAPS || {})[mapId];
+  return !!(map && map.scale === 'gross') || modeId === 'cq';
+}
+
+/** Ausrüstung bereinigen: Klasse, Waffen (freigeschaltet), Weste/Helm; fehlende Waffen aus der Klassen-Standardausrüstung. */
+function cleanLoadout(lo = {}, fallback = {}) {
+  const W = G.data.WEAPONS || {};
+  const EQ = G.data.EQUIPMENT || {};
+  const unlocked = (id) => DEBUG || profile.isUnlocked(id);
+  const cls = classesData.CLASSES[lo.cls] ? lo.cls : classesData.CLASSES[fallback.cls] ? fallback.cls : classesData.DEFAULT_CLASS;
+  const base = { ...fallback, ...Object.fromEntries(Object.entries(lo).filter(([, v]) => v != null)) };
+  const r = classesData.resolveClassLoadout(cls, { weapons: W, equipment: EQ, isUnlocked: unlocked, base });
+  const out = { ...base, cls, primary: r.primary, secondary: r.secondary, lethal: r.lethal, armor: r.armor, helmet: r.helmet };
+  if (r.launcher) out.launcher = r.launcher;
+  for (const k of Object.keys(out)) if (out[k] == null) delete out[k];
+  return out;
+}
+
+/** Klasse, Weste und Helm eines Akteurs am Spawn (Bots ohne Klasse bekommen eine gewichtete Zufallsklasse). */
+function equipActor(actor) {
+  actor.cls = (actor.loadout && classesData.CLASSES[actor.loadout.cls] && actor.loadout.cls) || (classesData.CLASSES[actor.cls] && actor.cls) ||
+    (actor.isPlayer ? classesData.DEFAULT_CLASS : classesData.pickBotClass());
+  const c = classesData.classDef(actor.cls);
+  actor.classDef = c;
+  const lo = actor.loadout || {};
+  if (G.match.armor) G.combat.equipArmor(actor, classesData.ARMOR_TIERS[lo.armor] ? lo.armor : c.armor, classesData.HELMETS[lo.helmet] ? lo.helmet : c.helmet);
+  else actor.armor = null;
+}
+
+/**
+ * Ausrüstung im Match wechseln (Pausemenü „Ausrüstung“, Todesbildschirm „Ausrüsten“).
+ * Gilt sofort, wenn der Spieler tot ist (nächster Spawn) bzw. ≤ 5 s nach dem Spawn noch nicht geschossen hat; sonst ab dem nächsten Spawn.
+ * → { ok, when: 'now'|'next', loadout, reason? }
+ */
+function requestLoadout(loadout) {
+  const p = G.player;
+  if (!p || !loadout || typeof loadout !== 'object') return { ok: false, reason: 'ungueltig' };
+  const st = G.match.state;
+  if (st !== 'playing' && st !== 'countdown' && st !== 'paused') return { ok: false, reason: 'kein-match' };
+  const lo = cleanLoadout(loadout, p.loadout || G.match.loadout || {});
+  if (!lo.primary && !lo.secondary) return { ok: false, reason: 'ungueltig' };
+  const now = G.time.elapsed;
+  const fresh = p.alive && (st === 'countdown' || (now - (p.spawnTime || 0) <= SPAWN_GRACE && (p.lastFiredTime || -1e9) < (p.spawnTime || 0)));
+  if (fresh) {
+    applyLoadoutNow(p, lo);
+    G.match.pendingLoadout = null;
+  } else G.match.pendingLoadout = lo;
+  G.match.loadout = { ...lo };
+  settings.patch({ lastLoadout: lo, lastClass: lo.cls });
+  const when = fresh ? 'now' : 'next';
+  G.events.emit('loadout:change', { actor: p, loadout: { ...lo }, when });
+  return { ok: true, when, loadout: { ...lo } };
+}
+
+function applyLoadoutNow(p, lo) {
+  p.loadout = { ...lo };
+  p.cls = lo.cls;
+  if (p.weapon && typeof p.weapon.setLoadout === 'function') safe('weapon.setLoadout', () => p.weapon.setLoadout(p.loadout));
+  else if (G.weapons) p.weapon = G.weapons.createController(p, p.loadout);
+  equipActor(p);
+  safe('player.applyClass', () => p.applyClass && p.applyClass());
+}
+
+/** Respawn-Zeit anhalten (Ausrüsten-Menü offen) bzw. weiterlaufen lassen. */
+function holdRespawn(on = true) {
+  on = !!on;
+  if (G.match.respawnHold === on) return on;
+  G.match.respawnHold = on;
+  G.events.emit('respawn:hold', { on, remaining: respawnRemaining() });
+  return on;
+}
+
+/** Restzeit bis zum Respawn des Spielers (s; 0 = jetzt möglich, null = lebt). */
+function respawnRemaining() {
+  const p = G.player;
+  if (!p || p.alive || p.respawnAt == null) return null;
+  return Math.max(0, p.respawnAt - G.time.elapsed);
+}
+
+/** „Einsatz“: Halten beenden und sofort spawnen (wenn der Modus es erlaubt), sonst läuft die Restzeit weiter. */
+function deploy() {
+  const p = G.player;
+  holdRespawn(false);
+  if (!p || p.alive || G.match.state !== 'playing' || p.respawnAt == null) return false;
+  const mode = G.mode;
+  if (mode && typeof mode.canRespawn === 'function' && mode.canRespawn(p) === false) return false;
+  // Mindestwartezeit des Modus bleibt (kein Überspringen des Timers durch Menü-Klicks): nur nach Ablauf sofort
+  if (G.time.elapsed < p.respawnAt) return false;
+  spawnActor(p);
+  return true;
+}
+
+G.requestLoadout = requestLoadout;
+G.holdRespawn = holdRespawn;
+G.deploy = deploy;
+G.respawnRemaining = respawnRemaining;
 
 /* ===================================================== Matchstart in Schritten (G18) */
 
@@ -669,7 +809,8 @@ async function runStart(config, gen) {
       unranked: isUnranked(cfg),
       style: cfg.style, crosshair: cfg.crosshair, matchLength: cfg.matchLength, timeOfDay: cfg.timeOfDay, cls: cfg.loadout.cls || null, // modes-ui
     });
-    settings.patch({ lastMode: cfg.modeId, lastMap: cfg.mapId, difficulty: cfg.difficulty, lastLoadout: cfg.loadout });
+    settings.patch({ lastMode: cfg.modeId, lastMap: cfg.mapId, difficulty: cfg.difficulty, lastLoadout: cfg.loadout, lastClass: cfg.loadout.cls || 'sturm' });
+    applyStyle(cfg); // core-mechanics: G.match.style/styleFlags/armor
     setState('loading');
     G.menus.showLoading(0);
     safe('hud.hide', () => G.hud.hide());
@@ -1168,6 +1309,7 @@ function frame(now) {
     step('bots', () => G.bots.update(dt));
     if (st === 'playing') step('separate', () => separateActors(G.actors));
     step('vehicles', () => G.vehicles.update(dt));
+    step('armor', () => G.combat.tickArmor(G.actors)); // core-mechanics: Platten fertig einsetzen, Bots setzen selbst ein
     step('weapons', () => G.weapons.update(dt));
     step('mode', () => { if (G.mode) G.mode.update(dt); });
     if (G.match.state === 'playing') step('respawn', updateRespawns);
@@ -1192,8 +1334,12 @@ function frame(now) {
 function updateRespawns() {
   const mode = G.mode;
   const now = G.time.elapsed;
+  // Respawn-Halt (Ausrüsten im Todesbildschirm): Restzeit des Spielers steht still
+  const p = G.player;
+  if (G.match.respawnHold && p && !p.alive && p.respawnAt != null) p.respawnAt += G.time.dt;
   for (const a of G.actors) {
     if (a.alive || a.respawnAt == null || now < a.respawnAt) continue;
+    if (a === p && G.match.respawnHold) continue;
     if (mode && typeof mode.canRespawn === 'function' && mode.canRespawn(a) === false) continue;
     spawnActor(a);
   }

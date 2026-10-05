@@ -3,7 +3,7 @@
 // Unterklassen überschreiben die Haken onKillScored / onSuicide / tick / decide / extraRow.
 
 import * as THREE from 'three';
-import { MODES, SCORE_RULES, MEDAL_RULES, VEHICLE_POINTS, isLongshot, styleRules } from '../../shared/modes.data.js';
+import { MODES, SCORE_RULES, MEDAL_RULES, VEHICLE_POINTS, STYLE_RESPAWN, isLongshot } from '../../shared/modes.data.js';
 import { WEAPONS } from '../../shared/weapons.data.js';
 import { chooseSpawn } from './spawns.js';
 import { MedalTracker } from './medals.js';
@@ -31,18 +31,12 @@ export class BaseMode {
     this.scoreLimit = num(opts.scoreLimit, opts.score, this.def.scoreLimit);
     this.timeLimit = num(opts.timeLimit, opts.time, this.def.timeLimit);
     this.respawnDelay = Number.isFinite(this.def.respawnDelay) ? this.def.respawnDelay : 3;
-    // Spielstil (Arcade/Realistisch) und Klasse – Quelle: Match-Konfiguration (main), sonst URL
+    // Spielstil (Arcade/Realistisch): main setzt G.match.style + G.match.styleFlags (core-mechanics, classes.data.js)
     const m = G.match || {};
-    const prm = G.params && typeof G.params.get === 'function' ? G.params : null;
-    const style = m.style || (prm && prm.get('style')) || 'arcade';
-    this.style = style === 'realistisch' && this.id !== 'training' ? 'realistisch' : 'arcade';
-    this.styleRules = styleRules(this.style, { crosshair: m.crosshair });
-    if (G.match) {
-      G.match.style = this.style;
-      G.match.rules = this.styleRules;
-      G.match.cls = m.cls || (m.loadout && m.loadout.cls) || null;
-    }
-    if (Number.isFinite(this.styleRules.respawnDelay)) this.respawnDelay = Math.max(this.respawnDelay, this.styleRules.respawnDelay);
+    this.style = m.style === 'realistisch' && this.id !== 'training' ? 'realistisch' : 'arcade';
+    this.flags = m.styleFlags || {};
+    if (G.match && !G.match.cls) G.match.cls = (m.loadout && m.loadout.cls) || null;
+    if (Number.isFinite(STYLE_RESPAWN[this.style])) this.respawnDelay = Math.max(this.respawnDelay, STYLE_RESPAWN[this.style]);
     this.respawnHolds = new Set();
     this.pendingLoadout = null;
     this.counters = new Map(); // actor → { vehicles, confirms, … } (playerSummary.counters)
@@ -56,7 +50,7 @@ export class BaseMode {
     this.overtime = false;
     this.endReason = null;
     this.medals = new MedalTracker(this);
-    this.streaks = this.def.streaks && this.styleRules.streaks !== false ? new StreakManager(G, this) : null;
+    this.streaks = this.def.streaks ? new StreakManager(G, this) : null;
     this._subs = null;
     this._warmup = null;
     this._life = new Map(); // actor → { kills, all, deathsInRow }
@@ -175,8 +169,25 @@ export class BaseMode {
   holdRespawn(actor, on) {
     if (!actor) return;
     if (on) this.respawnHolds.add(actor); else this.respawnHolds.delete(actor);
-    const hold = this.G.match && this.G.match.respawnHold;
-    if (typeof hold === 'function' && actor.isPlayer) { try { hold.call(this.G.match, !!on); } catch { /* core-API optional */ } }
+    // core-mechanics: G.holdRespawn(on) pausiert die Respawn-Zeit (respawn:hold)
+    if (actor.isPlayer && typeof this.G.holdRespawn === 'function') { try { this.G.holdRespawn(!!on); } catch (err) { console.error('[NULLPUNKT] holdRespawn:', err); } }
+  }
+
+  /** „Einsatz“: Halt aufheben und – sobald die Wartezeit um ist – sofort einsetzen. */
+  deployNow(actor) {
+    const G = this.G;
+    if (!actor) return;
+    this.holdRespawn(actor, false);
+    if (typeof G.deploy === 'function') { try { G.deploy(); return; } catch (err) { console.error('[NULLPUNKT] deploy:', err); } }
+    if (!actor.alive && actor.respawnAt != null) actor.respawnAt = Math.min(actor.respawnAt, G.time.elapsed);
+  }
+
+  /** Verbleibende Wartezeit bis zum Wiedereinstieg (s). */
+  respawnLeft(actor) {
+    const G = this.G;
+    if (!actor || actor.alive) return 0;
+    if (actor.isPlayer && typeof G.respawnRemaining === 'function') { try { const r = G.respawnRemaining(); if (Number.isFinite(r)) return Math.max(0, r); } catch { /* */ } }
+    return actor.respawnAt != null ? Math.max(0, actor.respawnAt - G.time.elapsed) : 0;
   }
 
   /**
@@ -187,6 +198,13 @@ export class BaseMode {
     const G = this.G;
     const p = G.player;
     if (!lo || !p) return 'next';
+    // core-mechanics: G.requestLoadout tauscht auch Weste/Helm/Gadget (sofort ≤ 5 s nach dem Spawn, sonst beim nächsten)
+    if (typeof G.requestLoadout === 'function') {
+      try {
+        const r = G.requestLoadout({ ...lo });
+        if (r && r.ok !== false) { if (G.match) G.match.cls = lo.cls || G.match.cls; return r.when === 'now' ? 'now' : 'next'; }
+      } catch (err) { console.error('[NULLPUNKT] requestLoadout:', err); }
+    }
     const fresh = p.alive && p._spawnAt != null && G.time.elapsed - p._spawnAt < 6 && !p._firedSinceSpawn
       && (!p._spawnPos || p.position.distanceTo(p._spawnPos) < 6);
     this.pendingLoadout = { ...lo };
