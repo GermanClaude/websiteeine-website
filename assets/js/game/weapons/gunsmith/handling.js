@@ -68,3 +68,33 @@ export const KNIFE_MELEE = {
 export function handlingFor(modelKey) {
   return HANDLING[modelKey] || HANDLING.m17;
 }
+
+// Körperkamera-Haltung (F9, Einstellung „Waffenhaltung“): Die Kamera sitzt wie bei einer Bodycam vor der Brust –
+// die Waffe liegt tiefer und mittiger im Bild, die Mündung zeigt flach nach vorn (kaum angehoben, kaum gekantet),
+// sie verdeckt nicht das halbe Bild. Nur hip/hipRot/sprint*/crouch* werden ersetzt; der Anschlag (adsOffset)
+// bleibt exakt gleich. sprintPos/-Rot sind wie bei der Standardhaltung relativ zur Hüftpose; sie sind so gewählt,
+// dass die absolute Sprintpose der Standardhaltung entspricht (gleiche Waffe im Lauf, nur die Ruhelage ändert sich).
+const absSprint = (std, hip, hipRot) => ({
+  sprintPos: std.sprintPos.map((v, i) => +(std.hip[i] + v - hip[i]).toFixed(4)),
+  sprintRot: std.sprintRot.map((v, i) => +(std.hipRot[i] + v - hipRot[i]).toFixed(4)),
+});
+const bcRifle = (key, hip, hipRot, extra = {}) => ({ hip, hipRot, ...absSprint(HANDLING[key], hip, hipRot), crouchPos: [-0.008, -0.004, 0.01], crouchRot: [0, 0, 0.05], ...extra });
+export const BODYCAM = {
+  m17: bcRifle('m17', [0.07, -0.2, -0.45], [0.05, 0.06, 0.05]),
+  kv47: bcRifle('kv47', [0.08, -0.17, -0.41], [0.05, 0.06, 0.05]),
+  sk14: bcRifle('sk14', [0.07, -0.2, -0.45], [0.05, 0.06, 0.05]),
+  vp9: bcRifle('vp9', [0.08, -0.155, -0.38], [0.05, 0.06, 0.05]),
+  qx90: bcRifle('qx90', [0.075, -0.16, -0.39], [0.05, 0.06, 0.05]),
+  hm60: bcRifle('hm60', [0.085, -0.185, -0.42], [0.04, 0.06, 0.05]),
+  brecher: bcRifle('brecher', [0.08, -0.165, -0.4], [0.04, 0.06, 0.05]),
+  bulldog: bcRifle('bulldog', [0.08, -0.16, -0.4], [0.04, 0.06, 0.05]),
+  p9: bcRifle('p9', [0.06, -0.15, -0.34], [0.0, 0.03, 0.0], { crouchPos: [-0.006, -0.003, 0.006], crouchRot: [0, 0, 0.04] }),
+  adler: bcRifle('adler', [0.06, -0.15, -0.34], [0.0, 0.03, 0.0], { crouchPos: [-0.006, -0.003, 0.006], crouchRot: [0, 0, 0.04] }),
+};
+
+/** Haltungsdaten (hip, hipRot, sprintPos, sprintRot, crouchPos, crouchRot) für 'standard' | 'bodycam'. */
+export function poseFor(modelKey, pose = 'standard') {
+  const h = handlingFor(modelKey);
+  const bc = pose === 'bodycam' ? BODYCAM[modelKey] : null;
+  return bc || h;
+}

@@ -35,7 +35,7 @@ function tiersFor(e) {
 // ORM (AO/Rauheit/Metall) ist niederfrequent → halbe Kantenlänge (¼ Speicher), außer bei Waffen (Nahansicht)
 const ormSize = (e, tier) => (e.weapon ? tier : tier / 2);
 
-const recipe = (e, matfix) => hash({ v: PIPELINE_VERSION, e: { id: e.id, s: e.sourceId, tiers: tiersFor(e), b: e.lod0Tris, kit: e.kit, w: e.weapon, sc: e.scale, kp: e.keepParts, ...(matfix ? { matfix: 4 } : {}) }, k: 'm4' });
+const recipe = (e, matfix) => hash({ v: PIPELINE_VERSION, e: { id: e.id, s: e.sourceId, tiers: tiersFor(e), b: e.lod0Tris, kit: e.kit, w: e.weapon, sc: e.scale, kp: e.keepParts, ...(matfix ? { matfix: 4 } : {}) }, k: 'm5' });
 // Materialien, die three.js sonst als teures MeshPhysicalMaterial (+ Transmissions-Durchgang) anlegt, bzw. mit Alpha
 const MATFIX_RE = /KHR_materials_(transmission|ior|specular|volume)|"BLEND"|"MASK"/;
 
@@ -288,10 +288,12 @@ async function processTier(e, tier) {
   }
   for (const ext of root.listExtensionsUsed()) if (/^KHR_materials_(transmission|ior|specular|volume)$/.test(ext.extensionName)) ext.dispose();
 
-  // AO: Poly Haven packt ARM (AO/Rauheit/Metall) in eine Textur, verweist aber nur als metallicRoughness darauf
+  // AO: Poly Haven packt ARM (AO/Rauheit/Metall) in eine Textur, verweist aber nur als metallicRoughness darauf.
+  // Manche Modelle haben keine gebackene AO (R ≈ 0: Rinne, Lüftungsrohr, Feuerleiter, Mülltonne) — dort keine aoMap,
+  // sonst wäre das Modell im reinen Umgebungslicht schwarz.
   for (const m of root.listMaterials()) {
     const mr = m.getMetallicRoughnessTexture();
-    if (mr && !m.getOcclusionTexture() && /_arm(_|\.)/.test(mr.getURI() || mr.getName() || '')) {
+    if (mr && !m.getOcclusionTexture() && /_arm(_|\.)/.test(mr.getURI() || mr.getName() || '') && (await sharp(mr.getImage()).stats()).channels[0].mean >= 25) {
       m.setOcclusionTexture(mr);
       m.getOcclusionTextureInfo().setTexCoord(m.getMetallicRoughnessTextureInfo().getTexCoord());
     }

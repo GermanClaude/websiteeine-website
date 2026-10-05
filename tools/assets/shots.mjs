@@ -15,7 +15,7 @@ export const SHOTS = [
   ['tex-container', 'tab=textures&id=container&tier=1024&hdri=freight_station'],
   // Normalen-Orientierung (Licht von oben): Fugen oben dunkel/unten hell, Erhebungen oben hell/unten dunkel
   ['chk-normal-brick', 'tab=textures&id=brick_factory&tier=1024&check=normal&ui=0'],
-  ['chk-normal-tread', 'tab=textures&id=metal_tread&tier=1024&check=normal&ui=0'],
+  ['chk-normal-roof', 'tab=textures&id=roof_clay_tiles&tier=1024&check=normal&ui=0'],
   ['tex-grid-metal', 'tab=textures&grid=1&ui=0&cat=metal&tier=512&hdri=abandoned_slipway'],
   ['tex-grid-masonry', 'tab=textures&grid=1&ui=0&cat=masonry&tier=512&hdri=old_outdoor_theater'],
   ['tex-grid-interior', 'tab=textures&grid=1&ui=0&cat=interior&tier=512&hdri=burnt_warehouse'],
@@ -41,6 +41,8 @@ export const SHOTS = [
   ['lod-plant', 'tab=models&id=potted_plant_02&tier=1024&cmp=1&hdri=old_outdoor_theater'],
   ['lod-generator', 'tab=models&id=portable_generator&tier=512&cmp=1&hdri=abandoned_slipway'],
   ['mdl-fence', 'tab=models&id=modular_chainlink_fence&tier=1024&hdri=freight_station'],
+  ['mdl-gutter', 'tab=models&id=modular_metal_gutter&tier=1024&hdri=abandoned_slipway'],
+  ['mdl-duct', 'tab=models&id=modular_airduct_circular_01&tier=1024&hdri=abandoned_slipway'],
   ['mdl-aircon', 'tab=models&id=exterior_aircon_unit&tier=1024&hdri=old_outdoor_theater'],
   ['mdl-camera', 'tab=models&id=security_camera_01&tier=1024&hdri=industrial_pipe_and_valve_01'],
   ['hdri-freight', 'tab=hdris&id=freight_station&tier=1024&hdri=freight_station'],

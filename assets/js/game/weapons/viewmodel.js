@@ -10,9 +10,9 @@
 //   setVisible(bool) setLighting(lighting) showScopeOverlay warmup(renderer) dispose()
 import * as THREE from 'three';
 import { createWeaponModel } from './models.js';
-import { WEAPONS } from '../../shared/weapons.data.js';
+import { WEAPONS, weaponHandling } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
-import { ID_TO_MODEL, handlingFor, KNIFE_MELEE } from './gunsmith/handling.js';
+import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE } from './gunsmith/handling.js';
 import { MuzzleFlash, ShellPool, SmokeWisps } from './gunsmith/fx.js';
 import { SCHEMES, schemeForTeam } from '../bots/soldier/materials.js';
 import { Spring, Spring3, curve, windowW, clamp, damp, smooth, easeOut, easeInOut, easeOutBack } from './gunsmith/anim.js';
@@ -151,7 +151,21 @@ export class ViewModel {
     this.action = null;
     this._ads = 0; this._adsRaw = 0; this._sprint = 0; this._crouch = 0; this._move = 0; this._air = 0;
     this._phase = 0; this._time = 0; this._wasGround = true; this._airTime = 0;
-    this._sway = new Spring3(110, 13);
+    // Trägheit (F2): Nachlauf hinter der Kameradrehung (Gier/Nicken, rad), Bewegungsnachlauf (m), Federn je Masse
+    this._lagYaw = new Spring(170, 16);
+    this._lagPitch = new Spring(170, 16);
+    this._moveLag = new Spring3(81, 13);
+    this._strafeRoll = 0;
+    this._lean = 0;
+    this._obstruct = 0;
+    this._breathPh = Math.random() * 6;
+    this._stepIdx = 0;
+    this._climb = 0;
+    this._heat = 0;
+    this._eyeQ = new THREE.Quaternion();
+    // Haltung (F9): 0 = Standard (CoD-Mobile-Hüfte), 1 = Körperkamera; weich überblendet
+    this.pose = this._wantPose();
+    this._poseW = this.pose === 'bodycam' ? 1 : 0;
     this._recoilPos = new Spring3(210, 20);
     this._recoilRot = new Spring3(170, 17);
     this._land = new Spring(90, 11);

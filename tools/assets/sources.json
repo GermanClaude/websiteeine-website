@@ -775,7 +775,8 @@
    "sizeM": [
     1.4,
     1.4
-   ]
+   ],
+   "roughnessScale": 2.8
   },
   {
    "id": "wood_planks",
@@ -1270,7 +1271,8 @@
    "sizeM": [
     0.27,
     0.27
-   ]
+   ],
+   "metalnessScale": 0
   },
   {
    "id": "canvas",
@@ -1487,7 +1489,8 @@
    "sizeM": [
     0.5,
     0.5
-   ]
+   ],
+   "roughnessScale": 2.0
   },
   {
    "id": "wood_stock",

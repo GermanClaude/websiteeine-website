@@ -1,6 +1,6 @@
 {
   "id": "metal_trash_can",
-  "recipe": "2d9fc68fd624",
+  "recipe": "b639c8048fdc",
   "size": [
     1.777,
     0.906,
@@ -15,7 +15,7 @@
   "tiers": {
     "512": {
       "path": "models/metal_trash_can/metal_trash_can_512.glb",
-      "bytes": 392244,
+      "bytes": 392028,
       "srcTris": 13960,
       "lods": [
         {
@@ -149,7 +149,7 @@
     },
     "1024": {
       "path": "models/metal_trash_can/metal_trash_can_1024.glb",
-      "bytes": 1149340,
+      "bytes": 1149124,
       "srcTris": 13960,
       "lods": [
         {

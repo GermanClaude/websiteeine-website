@@ -45,6 +45,8 @@ for (const e of src.textures) {
   manifest.textures[e.id] = {
     type: 'texture', name: e.name || e.id, category: e.category, surface: e.surface, replaces: e.replaces || [],
     sizeM, tintable: !!e.tintable, alpha: !!e.alpha, hero: !!e.hero, ...(m.detailRepeat ? { detailRepeat: m.detailRepeat } : {}),
+    // Korrektur unplausibler Quellwerte (Gras/Kunststoff zu glänzend, Jute mit Metallanteil) — Faktor auf die ORM-Karte
+    ...(e.roughnessScale != null ? { roughnessScale: e.roughnessScale } : {}), ...(e.metalnessScale != null ? { metalnessScale: e.metalnessScale } : {}),
     stats: m.stats, tiers, ...licenseInfo(e),
   };
 }

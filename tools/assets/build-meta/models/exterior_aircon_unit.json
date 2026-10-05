@@ -1,6 +1,6 @@
 {
   "id": "exterior_aircon_unit",
-  "recipe": "b8004e02af99",
+  "recipe": "100921b399e8",
   "size": [
     1.784,
     0.928,
@@ -15,7 +15,7 @@
   "tiers": {
     "512": {
       "path": "models/exterior_aircon_unit/exterior_aircon_unit_512.glb",
-      "bytes": 571044,
+      "bytes": 570856,
       "srcTris": 18986,
       "lods": [
         {
@@ -263,7 +263,7 @@
     },
     "1024": {
       "path": "models/exterior_aircon_unit/exterior_aircon_unit_1024.glb",
-      "bytes": 1714976,
+      "bytes": 1714788,
       "srcTris": 18986,
       "lods": [
         {

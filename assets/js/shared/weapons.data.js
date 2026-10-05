@@ -29,6 +29,16 @@
  *  penetration   0–1: Anteil des Schadens, der dünne Deckung (Holz, Blech, Glas) durchschlägt.
  *  scopeSway     optional: Schwanken des Zielfernrohrs im Anschlag (rad, Achterfigur); Atem anhalten
  *                (Shift / Touch automatisch) beruhigt es für einige Sekunden.
+ *                Optional (Rückstoß 2.0): visual – Stärke des sichtbaren Waffen-/Kamerastoßes relativ zum
+ *                Zielrückstoß (Standard 1); firstShotSpread – Faktor auf den Streukegel des ersten Schusses
+ *                (aus der Ruhe, Standard 1 = wie jeder andere Schuss).
+ *  handling      Waffengefühl (Ego-Ansicht, Wandkollision, Zielwandern) – fehlt es (neue Waffe, abgeleitete
+ *                Definition), liefert weaponHandling(def) Klassenwerte:
+ *                  mass      Masse in kg (Trägheit, Nachlauf und Federfrequenz der Waffe)
+ *                  inertia   Nachlauf der Waffe hinter der Kameradrehung (1 = Sturmgewehr)
+ *                  swayScale Ausschlag von Wippen/Schwanken (1 = Sturmgewehr)
+ *                  aimDrift  Zielwandern im Anschlag im Stand (rad, Rauschen; × Atemnot nach dem Sprint)
+ *                  reach     Abstand Auge → Mündung in Metern (Wandkollision: Waffe wird angezogen)
  *  sound         { profile, pitch } – profile ist ein Audio-Profil aus §7.
  *  stats         0–100-Balken für Website/Lobby, abgeleitet per computeStats() (Formel unten).
  *  icon          SVG-Strichzeichnung (viewBox 0 0 96 32, stroke=currentColor) – Fallback ohne WebGL,
@@ -216,6 +226,28 @@ export function killProfile(def, distances = [5, 15, 30, 50]) {
   }));
 }
 
+/**
+ * Waffengefühl je Klasse (Rückfall für Waffen ohne eigenes `handling`, z. B. neue oder abgeleitete Definitionen).
+ * Felder siehe Kopfkommentar.
+ */
+export const HANDLING_BY_CLASS = {
+  ar: { mass: 3.5, inertia: 1.0, swayScale: 1.0, aimDrift: 0.0005, reach: 0.72 },
+  smg: { mass: 2.8, inertia: 0.8, swayScale: 0.9, aimDrift: 0.0004, reach: 0.6 },
+  lmg: { mass: 8.0, inertia: 1.55, swayScale: 1.2, aimDrift: 0.0009, reach: 0.86 },
+  marksman: { mass: 4.5, inertia: 1.2, swayScale: 1.1, aimDrift: 0.0005, reach: 0.82 },
+  sniper: { mass: 6.2, inertia: 1.4, swayScale: 1.15, aimDrift: 0.0005, reach: 0.95 },
+  shotgun: { mass: 3.6, inertia: 1.1, swayScale: 1.05, aimDrift: 0.0005, reach: 0.8 },
+  pistol: { mass: 1.0, inertia: 0.6, swayScale: 0.85, aimDrift: 0.0006, reach: 0.52 },
+  melee: { mass: 0.3, inertia: 0.4, swayScale: 0.7, aimDrift: 0, reach: 0 },
+};
+
+/** Waffengefühl einer Definition: eigenes `handling`, sonst Klassenwerte (immer vollständig). */
+export function weaponHandling(def) {
+  const base = HANDLING_BY_CLASS[def && def.cls] || HANDLING_BY_CLASS.ar;
+  const h = def && def.handling;
+  return h ? { ...base, ...h } : base;
+}
+
 /** Entfernung (m), bis zu der die Nahbereichs-Schusszahl hält (Reichweite der „besten“ TTK). */
 export function effectiveRange(def) {
   const base = shotsToKill(def, 0);
@@ -286,6 +318,22 @@ const PATTERN = {
   vp9: [[0, 1], [-0.1, 1], [-0.2, 0.95], [0, 0.9], [0.2, 0.9], [0.25, 0.85], [0, 0.85], [-0.2, 0.85]],
   qx90: [[0, 1], [0.4, 0.9], [-0.3, 0.9], [0.5, 0.85], [-0.5, 0.85], [0.3, 0.8], [-0.2, 0.8], [0.4, 0.8]],
   hm60: [[0, 1.4], [0.1, 1.3], [0.3, 1.1], [0.5, 1], [0.3, 0.9], [-0.1, 0.8], [-0.4, 0.75], [-0.2, 0.7], [0.2, 0.7], [0.3, 0.7]],
+};
+
+// Waffengefühl je Waffe (siehe Kopfkommentar „handling“; Massen etwa realer Vorbilder mit Optik und Magazin)
+// und Charakter des Rückstoßes (recoil.visual: sichtbarer Stoß relativ zum Zielrückstoß, recoil.firstShotSpread).
+const FEEL = {
+  ar_kv47: { handling: { mass: 3.9, inertia: 1.05, swayScale: 1.05, aimDrift: 0.00055, reach: 0.74 }, recoil: { visual: 1.15, firstShotSpread: 0.8 } },
+  ar_m17: { handling: { mass: 3.3, inertia: 0.95, swayScale: 1.0, aimDrift: 0.00045, reach: 0.72 }, recoil: { visual: 0.95, firstShotSpread: 0.7 } },
+  smg_vp9: { handling: { mass: 2.9, inertia: 0.82, swayScale: 0.9, aimDrift: 0.0004, reach: 0.62 }, recoil: { visual: 0.9, firstShotSpread: 0.8 } },
+  smg_qx90: { handling: { mass: 2.8, inertia: 0.75, swayScale: 0.9, aimDrift: 0.0004, reach: 0.55 }, recoil: { visual: 0.85, firstShotSpread: 0.85 } },
+  lmg_hm60: { handling: { mass: 8.6, inertia: 1.6, swayScale: 1.25, aimDrift: 0.0009, reach: 0.86 }, recoil: { visual: 1.1, firstShotSpread: 0.85 } },
+  mr_sk14: { handling: { mass: 4.6, inertia: 1.2, swayScale: 1.1, aimDrift: 0, reach: 0.82 }, recoil: { visual: 1.0, firstShotSpread: 0.6 } },
+  sr_brecher: { handling: { mass: 6.4, inertia: 1.4, swayScale: 1.15, aimDrift: 0, reach: 0.95 }, recoil: { visual: 1.0, firstShotSpread: 1 } },
+  sg_bulldog: { handling: { mass: 3.6, inertia: 1.1, swayScale: 1.05, aimDrift: 0.0005, reach: 0.8 }, recoil: { visual: 1.1, firstShotSpread: 1 } },
+  pi_p9: { handling: { mass: 0.75, inertia: 0.55, swayScale: 0.8, aimDrift: 0.0006, reach: 0.52 }, recoil: { visual: 1.0, firstShotSpread: 0.75 } },
+  pi_adler: { handling: { mass: 2.0, inertia: 0.7, swayScale: 0.9, aimDrift: 0.0007, reach: 0.55 }, recoil: { visual: 1.2, firstShotSpread: 0.75 } },
+  knife: { handling: { mass: 0.3, inertia: 0.4, swayScale: 0.7, aimDrift: 0, reach: 0 } },
 };
 
 const RAW = {
@@ -420,6 +468,11 @@ export const WEAPON_IDS = ['ar_kv47', 'ar_m17', 'smg_vp9', 'smg_qx90', 'lmg_hm60
 export const WEAPONS = {};
 for (const id of WEAPON_IDS) {
   const def = RAW[id];
+  const feel = FEEL[id];
+  if (feel) {
+    if (feel.handling && !def.handling) def.handling = { ...HANDLING_BY_CLASS[def.cls], ...feel.handling };
+    if (feel.recoil) def.recoil = { ...feel.recoil, ...def.recoil };
+  }
   def.adsFov = round(adsFovFor(def), 1);
   def.icon = ICONS[def.model];
   def.stats = computeStats(def);
