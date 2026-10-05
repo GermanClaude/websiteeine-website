@@ -71,7 +71,12 @@ export class WeaponController {
     this.actor = actor;
     this.slots = [];
     this.index = 0;
-    this.equipment = { lethal: { id: null, count: 0 } };
+    this.equipment = { lethal: { id: null, count: 0 }, tactical: { id: null, count: 0 } };
+    this.meleeId = 'knife';      // Nahkampfwaffe (loadout.melee)
+    this.isPlating = false;      // Schutzplatte wird eingesetzt (plateInsert)
+    this.isInspecting = false;   // Inspizieren läuft (nur Spieler, PC)
+    this.handlesInspect = true;  // player.js: Controller wertet it.inspect selbst aus (kein doppeltes playInspect)
+    this._plate = null;
 
     // Öffentlicher Zustand (HUD, Bots, Spieler, Audio lesen ihn)
     this.adsProgress = 0;
@@ -150,7 +155,12 @@ export class WeaponController {
   _weapons() { return (this.G.data && this.G.data.WEAPONS) || DATA_WEAPONS; }
   _equipmentDefs() { return (this.G.data && this.G.data.EQUIPMENT) || DATA_EQUIPMENT; }
   _def(id) { const W = this._weapons(); return (id && W[id]) || null; }
-  _knife() { const k = this._def('knife'); return { def: k, spec: (k && k.melee) || KNIFE_FALLBACK }; }
+  _knife() {
+    const cur = this.currentDef;
+    // Nahkampfwaffe als Hauptwaffe (Gun Game, Messer in der Hand): diese; sonst die ausgerüstete Nahkampfwaffe
+    const k = (cur && cur.cls === 'melee' ? cur : this._def(this.meleeId)) || this._def('knife');
+    return { def: k, spec: (k && k.melee) || KNIFE_FALLBACK };
+  }
 
   /* ================================================================ Viewmodel */
 
@@ -210,6 +220,15 @@ export class WeaponController {
     const lethal = loadout.lethal === null ? null : loadout.lethal === undefined ? (this.equipment.lethal.id || 'frag') : loadout.lethal;
     if (!lethal || !EQ[lethal]) this.equipment.lethal = { id: null, count: 0 };
     else if (this.equipment.lethal.id !== lethal) this.equipment.lethal = { id: lethal, count: EQ[lethal].count || 1 };
+    // Taktisch (Blend/Rauch; Taste „Taktisch“) – Standard Rauch
+    const tac = loadout.tactical === null ? null : loadout.tactical === undefined ? (this.equipment.tactical.id || 'smoke') : loadout.tactical;
+    if (!tac || !EQ[tac]) this.equipment.tactical = { id: null, count: 0 };
+    else if (this.equipment.tactical.id !== tac) this.equipment.tactical = { id: tac, count: EQ[tac].count || 1 };
+    // Nahkampfwaffe
+    const md = loadout.melee ? this._def(loadout.melee) : null;
+    if (md && md.cls === 'melee') this.meleeId = md.id;
+    // Aussehen (nur Spieler-Viewmodel): Tarnmuster je Waffe, Klassen-Arme
+    if (this.viewModel) this._applyCosmetics(loadout);
     // Aktive Aktionen beenden (gezogene Granate fällt vor die Füße)
     this._abortActions(false, true);
     // Gleiche Waffe behalten; sonst denselben Slot (z. B. neue Pistole, während die alte in der Hand war)
@@ -230,11 +249,35 @@ export class WeaponController {
     void W;
   }
 
+  /**
+   * Tarnmuster/Klassen-Aussehen aus dem Loadout (Spieler): camo { [weaponId]: camoId } bzw. camos, oder camo als Id für alle,
+   * Rückfall Einstellung `weaponCamos` (falls vorhanden); look/classId/class → Klassen-Arme.
+   */
+  _applyCosmetics(loadout = {}) {
+    const vm = this.viewModel;
+    let stored = null;
+    try { stored = this.G.settings && typeof this.G.settings.get === 'function' ? this.G.settings.get('weaponCamos') : null; } catch { stored = null; }
+    // loadout.camo: { [weaponId]: camoId } (Lobby/modes-ui) oder eine Id für alle; loadout.camos wie die Objektform
+    const map = loadout.camos || (loadout.camo && typeof loadout.camo === 'object' ? loadout.camo : null);
+    const all = typeof loadout.camo === 'string' ? loadout.camo : null;
+    const camoFor = (id) => (map && map[id]) || all || (stored && typeof stored === 'object' ? stored[id] : null) || null;
+    for (const s of this.slots) this._vm('setCamo', s.id, camoFor(s.id));
+    this._vm('setCamo', this.meleeId, camoFor(this.meleeId));
+    this._vm('setMelee', this.meleeId);
+    const look = loadout.look || loadout.classId || loadout.cls || loadout.class || (this.actor && (this.actor.cls || this.actor.classLook));
+    if (look || !this._lookSet) { this._lookSet = true; this._vm('setLook', look || 'standard'); }
+    void vm;
+  }
+
   /** Volle Munition + Granaten (Respawn). */
   refill() {
     for (const s of this.slots) { s.mag = s.def.mag || 0; s.reserve = s.def.reserve || 0; }
     const eq = this.equipment.lethal;
     if (eq.id) { const d = this._equipmentDefs()[eq.id]; eq.count = d ? d.count || 1 : 1; }
+    const tq = this.equipment.tactical;
+    if (tq && tq.id) { const d = this._equipmentDefs()[tq.id]; tq.count = d ? d.count || 1 : 1; }
+    this._plate = null;
+    this.isPlating = false;
     this._abortActions(false);
     this.adsProgress = 0;
     this.ads = this._adsOn = false;
@@ -283,12 +326,46 @@ export class WeaponController {
     this._switch = null;
     this._melee = null;
     this._throw = null;
+    this._plate = null;
     this.cooking = false;
     this.cookTime = 0;
     this.fuseLeft = Infinity;
-    this.isReloading = this.isSwitching = this.isMeleeing = this.isThrowing = false;
+    this.isReloading = this.isSwitching = this.isMeleeing = this.isThrowing = this.isPlating = false;
     this.reloadProgress = 0;
     this.switchProgress = 1;
+  }
+
+  /* ================================================================ Schutzplatte + Inspizieren */
+
+  /**
+   * Schutzplatte einsetzen (Rüstung, core-mechanics): sperrt Feuern/Anschlag/Nachladen für `duration` s und spielt
+   * die Ego-Animation. Laufendes Nachladen wird abgebrochen. → bool
+   */
+  plateInsert(duration = 1.6) {
+    if (this._plate || this._throw || this._melee || this.actor.alive === false) return false;
+    if (this._reload) this._finishReload(true);
+    this._burstLeft = 0;
+    this._fireBuffer = 0;
+    this._plate = { t: 0, dur: Math.max(0.3, duration) };
+    this.isPlating = true;
+    this._vm('playPlate', this._plate.dur);
+    return true;
+  }
+
+  /** Platteneinsatz abbrechen (z. B. Sprint, Treffer – Entscheidung bei core-mechanics). */
+  cancelPlate() {
+    if (!this._plate) return;
+    this._plate = null;
+    this.isPlating = false;
+    if (this.viewModel && this.viewModel.actionName === 'plate') this._vm('cancelAction');
+  }
+
+  /** Waffe inspizieren (nur Spieler; die Taste wertet update() am PC aus). → bool */
+  inspect() {
+    if (!this.viewModel || this._reload || this._switch || this._melee || this._throw || this._plate || this.ads) return false;
+    if (this.viewModel.isBusy) return false;
+    this._vm('playInspect');
+    return true;
   }
 
   /* ================================================================ Hauptschleife */
@@ -316,6 +393,17 @@ export class WeaponController {
       this._bloomAds *= k;
     }
 
+    if (this._plate) {
+      this._plate.t += dt;
+      if (this._plate.t >= this._plate.dur) { this._plate = null; this.isPlating = false; }
+    }
+    // Inspizieren (PC, Taste „inspect“; Touch nicht) – jede Kampfeingabe bricht es ab
+    if (actor.isPlayer && this.viewModel) {
+      const insp = this.viewModel.actionName === 'inspect';
+      if (insp && (it.fire || it.firePressed || it.ads || it.reload || it.sprinting || it.grenade || it.tactical || it.melee || it.swap)) this._vm('cancelAction');
+      else if (!it.frozen && !insp && (it.inspect || (G.input && G.input.mode !== 'touch' && typeof G.input.pressed === 'function' && G.input.pressed('inspect')))) this.inspect();
+      this.isInspecting = this.viewModel.actionName === 'inspect';
+    }
     if (!it.frozen) {
       this._inputMelee(it);
       this._updateThrow(dt, it);
@@ -333,7 +421,7 @@ export class WeaponController {
     }
 
     // ---- Anschlag
-    const blocked = it.frozen || it.sprinting || !!this._switch || !!this._melee || !!this._throw || !!this._reload || def.cls === 'melee' || this._obsAds || !!it.mantling;
+    const blocked = it.frozen || it.sprinting || !!this._switch || !!this._melee || !!this._throw || !!this._reload || !!this._plate || def.cls === 'melee' || this._obsAds || !!it.mantling;
     const wantAds = !!it.ads && !blocked;
     if (wantAds !== this._adsOn) {
       this._adsOn = wantAds;
@@ -348,7 +436,7 @@ export class WeaponController {
     this._updateSpread(dt, it, def, a);
 
     // ---- Feuern
-    if (!it.frozen) this._updateFire(it, def, cur);
+    if (!it.frozen && !this._plate) this._updateFire(it, def, cur);
 
     // ---- Zielfernrohr-Schwanken + Atem (nur Spieler)
     if (actor.isPlayer) this._updateSway(dt, it, def, a);
@@ -359,7 +447,7 @@ export class WeaponController {
     this.isMeleeing = !!this._melee;
     this.isThrowing = !!this._throw;
     this.isFiring = now - this.lastShotTime < 0.12;
-    this.canSprint = !this._reload && !this._melee && !this._throw;
+    this.canSprint = !this._reload && !this._melee && !this._throw && !this._plate;
     this.autoFireReady = !this._reload && !this._switch && !this._melee && !this._throw && !this._obsFire && (def.cls === 'melee' || cur.mag > 0) &&
       (def.cls !== 'sniper' || this.adsProgress > 0.85);
     if (this._switch) {
@@ -526,7 +614,12 @@ export class WeaponController {
     const range = def.range || 100;
     const semi = mode !== 'auto' && mode !== 'burst';
     let from = null;
-    for (let i = 0; i < pellets; i++) {
+    if (def.projectile) {
+      // Rakete (Panzerabwehr): Projektil statt Strahl – Flug, Fahrzeug-/Akteurtreffer, Splitter (ballistics/rockets.js)
+      sampleCone(_aim, spread, _dir);
+      if (this.system && typeof this.system.fireProjectile === 'function') this.system.fireProjectile(actor, def, _muz, _dir, scale);
+    }
+    for (let i = 0; i < (def.projectile ? 0 : pellets); i++) {
       if (pellets > 1) samplePellet(_aim, spread, i, pellets, rot, _dir);
       else sampleCone(_aim, spread, _dir);
       const res = combat ? combat.fireHitscan({ shooter: actor, origin: _eye, dir: _dir, range, weapon: def, pelletIndex: i, damageScale: scale }) : null;
@@ -607,7 +700,7 @@ export class WeaponController {
   /** Nachladen starten (falls sinnvoll). → bool */
   reload() {
     const st = this.current;
-    if (!st || this._reload || this._switch || this._melee || this._throw) return false;
+    if (!st || this._reload || this._switch || this._melee || this._throw || this._plate) return false;
     const def = st.def;
     if (def.cls === 'melee' || !def.mag || st.mag >= def.mag) return false;
     if (st.reserve <= 0 && !this.infiniteAmmo) return false;
@@ -783,7 +876,8 @@ export class WeaponController {
       animAt: lunge ? Math.max(0, arrive - (spec.swingTime || 0.75) * 0.2) : 0, anim: false,
       end: arrive + (spec.swingTime || 0.75), spec, def: kdef,
     };
-    if (this._melee.animAt <= 0) { this._melee.anim = true; this._vm('playMelee'); }
+    this._melee.backstab = !!(target && this._isBehind(target));
+    if (this._melee.animAt <= 0) { this._melee.anim = true; this._vm('playMelee', { backstab: this._melee.backstab, duration: spec.swingTime }); }
     G.events.emit('weapon:melee', { actor, phase: 'swing', lunge, target: target || null });
     return true;
   }
@@ -828,7 +922,7 @@ export class WeaponController {
     const G = this.G;
     const a = this.actor;
     m.t += dt;
-    if (!m.anim && m.t >= m.animAt) { m.anim = true; this._vm('playMelee'); }
+    if (!m.anim && m.t >= m.animAt) { m.anim = true; this._vm('playMelee', { backstab: m.backstab, duration: spec.swingTime }); }
     const spec = m.spec;
     const range = spec.range || 2.4;
     // Ausfallschritt: auf das Ziel zu, Blick rastet ein
@@ -856,7 +950,7 @@ export class WeaponController {
     }
     if (!m.hit && m.t >= m.hitAt) {
       m.hit = true;
-      if (!m.anim) { m.anim = true; this._vm('playMelee'); }
+      if (!m.anim) { m.anim = true; this._vm('playMelee', { backstab: m.backstab, duration: spec.swingTime }); }
       if (m.lunge && a.body) { a.body.velocity.x *= 0.25; a.body.velocity.z *= 0.25; }
       this._resolveMelee(m);
     }
@@ -875,11 +969,7 @@ export class WeaponController {
     a.getAimDirection(_aim);
     if (target) {
       // Rückenstich: Angreifer hinter dem Ziel (Blickrichtung des Ziels zeigt weg)
-      const ty = Number.isFinite(target.yaw) ? target.yaw : 0;
-      _fwd.set(-Math.sin(ty), 0, -Math.cos(ty));
-      _to.copy(a.position).sub(target.position);
-      _to.y = 0;
-      const backstab = _to.lengthSq() > 1e-4 && _fwd.dot(_to.normalize()) < -0.45;
+      const backstab = this._isBehind(target);
       // Schwierigkeit (Bots): gleicher Faktor wie bei Kugeln und Granaten → auf „Rekrut“ braucht das
       // Messer zwei Treffer, der Rückenstich tötet weiterhin sofort.
       const scale = Number.isFinite(a.damageScale) ? a.damageScale : 1;
@@ -887,40 +977,56 @@ export class WeaponController {
       const point = new THREE.Vector3().copy(target.position);
       point.y += (target.body ? target.body.height : 1.8) * 0.62;
       const dir = point.clone().sub(_eye).normalize();
-      const dealt = G.combat.damage(target, { amount: dmg, attacker: a, weaponId: 'knife', zone: 'body', dir, point, distance: point.distanceTo(_eye) });
-      G.events.emit('weapon:meleeHit', { actor: a, target, backstab, killed: !target.alive, damage: dealt });
+      const wid = (m.def && m.def.id) || 'knife';
+      const dealt = G.combat.damage(target, { amount: dmg, attacker: a, weaponId: wid, zone: 'body', dir, point, distance: point.distanceTo(_eye) });
+      G.events.emit('weapon:meleeHit', { actor: a, target, backstab, killed: !target.alive, damage: dealt, weaponId: wid });
       return;
     }
     // Daneben: Einschlag an Wand/Ziel (Funken/Staub, Schießstand-Klappziele)
     const w = G.world;
     if (w && typeof w.raycast === 'function') {
       const hit = w.raycast(_eye, _aim, Math.min(2.0, range));
-      if (hit) G.events.emit('impact', { point: hit.point, normal: hit.normal, surface: hit.surface || 'concrete', shooter: a, weaponId: 'knife', melee: true });
+      if (hit) G.events.emit('impact', { point: hit.point, normal: hit.normal, surface: hit.surface || 'concrete', shooter: a, weaponId: (m.def && m.def.id) || 'knife', melee: true });
     }
+  }
+
+  /** Steht der Akteur hinter dem Ziel (Blickrichtung des Ziels zeigt weg)? */
+  _isBehind(target) {
+    const ty = Number.isFinite(target.yaw) ? target.yaw : 0;
+    _fwd.set(-Math.sin(ty), 0, -Math.cos(ty));
+    _to.copy(this.actor.position).sub(target.position);
+    _to.y = 0;
+    return _to.lengthSq() > 1e-4 && _fwd.dot(_to.normalize()) < -0.45;
   }
 
   /* ================================================================ Granaten */
 
   _updateThrow(dt, it) {
-    const lethal = this.equipment.lethal;
     const G = this.G;
-    if (!this._throw && it.grenade && lethal.id && lethal.count > 0 && !this._melee && !(this._switch && !this._switch.swapped)) {
-      const eq = this._equipmentDefs()[lethal.id];
-      if (this._reload) this._finishReload(true);
-      this._burstLeft = 0;
-      this._fireBuffer = 0;
-      this._throw = { t: 0, type: lethal.id, eq, cookable: !!(eq && eq.cookable), pinned: false, released: false, thrown: false, cook: 0 };
-      this._vm('playGrenade', lethal.id, { hold: true });
+    if (!this._throw && !this._melee && !this._plate && !(this._switch && !this._switch.swapped)) {
+      // Tödlich (Taste Granate) hat Vorrang vor taktisch (Taste Taktisch)
+      const slot = it.grenade ? 'lethal' : it.tactical ? 'tactical' : null;
+      const eqs = slot ? this.equipment[slot] : null;
+      if (eqs && eqs.id && eqs.count > 0) {
+        const eq = this._equipmentDefs()[eqs.id];
+        if (this._reload) this._finishReload(true);
+        this._burstLeft = 0;
+        this._fireBuffer = 0;
+        this._throw = { t: 0, type: eqs.id, slot, eq, cookable: !!(eq && eq.cookable), pinned: false, released: false, thrown: false, cook: 0 };
+        this._vm('playGrenade', eqs.id, { hold: true });
+      }
     }
     const tr = this._throw;
     if (!tr) { this.cooking = false; this.cookTime = 0; this.fuseLeft = Infinity; return; }
+    const lethal = this.equipment[tr.slot || 'lethal'] || this.equipment.lethal;
     tr.t += dt;
     if (!tr.pinned && tr.t >= GRENADE.pin) {
       tr.pinned = true;
       G.events.emit('grenade:pin', { actor: this.actor, type: tr.type });
     }
     // Halten (Spieler: Taste gedrückt; Bots: grenadeCook Sekunden)
-    const held = this.actor.isPlayer ? !!it.grenadeHeld : (it.grenadeHeld || (it.grenadeCook || tr.botCook || 0) > tr.cook);
+    const heldKey = tr.slot === 'tactical' ? 'tacticalHeld' : 'grenadeHeld';
+    const held = this.actor.isPlayer ? !!it[heldKey] : (it[heldKey] || (it.grenadeCook || tr.botCook || 0) > tr.cook);
     if (it.grenadeCook && !tr.botCook) tr.botCook = it.grenadeCook;
     if (!tr.released) {
       if (held && tr.t >= GRENADE.hold) {
@@ -966,7 +1072,7 @@ export class WeaponController {
     const tr = this._throw;
     if (!tr || tr.thrown) return;
     tr.thrown = true;
-    const lethal = this.equipment.lethal;
+    const lethal = this.equipment[tr.slot || 'lethal'] || this.equipment.lethal;
     lethal.count = Math.max(0, lethal.count - 1);
     try { this.system.throwGrenade(this.actor, tr.type, { cook: tr.cook || 0, drop: true }); } catch { /* Welt evtl. schon weg */ }
   }
@@ -1103,6 +1209,8 @@ export class WeaponController {
     if (this._throw && this._throw.pinned && !this._throw.thrown) this._dropCookedGrenade();
     this._throw = null;
     this._melee = null;
+    this._plate = null;
+    this.isPlating = false;
     if (this._reload) this._finishReload(true);
     this._switch = null;
     this.cooking = false;

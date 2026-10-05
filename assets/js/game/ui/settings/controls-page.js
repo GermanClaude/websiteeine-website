@@ -8,7 +8,9 @@ import { rowHtml, headHtml, bindRows, syncRows, setRowDisabled } from './rows.js
 import { HINTS } from './schema-page.js';
 
 const SECTIONS = {
-  touch: { label: 'Touch', keys: ['touchSensitivity', 'aimAssist', 'aimAssistStrength', 'autoFire', 'touchOpacity', 'touchButtonScale'] },
+  touch: { label: 'Touch', keys: ['touchSensitivity', 'touchOpacity', 'touchButtonScale'] },
+  // Zielhilfe + Auto-Feuer stufenlos (core-mechanics: aimAssistLevel 0 = leichtes Bremsen … 1 = Einrasten; autoFireLevel)
+  zielhilfe: { label: 'Zielhilfe', keys: ['aimAssist', 'aimAssistLevel', 'aimAssistDevices', 'autoFire', 'autoFireLevel', 'autoFireDevices'] },
   gyro: { label: 'Gyro', keys: ['gyroMode', 'gyroSensitivityX', 'gyroSensitivityY'] },
   maus: { label: 'Maus', keys: ['sensitivity'] },
   zielen: {
@@ -18,13 +20,13 @@ const SECTIONS = {
   modus: { label: 'Halten / Umschalten', keys: ['adsMode', 'sprintMode', 'crouchMode', 'leanMode'] },
   pad: {
     label: 'Controller',
-    keys: ['padSensitivity', 'padCurve', 'padDeadzone', 'padOuterDeadzone', 'aimAssist', 'aimAssistStrength', 'padSwapSticks', 'padVibration'],
+    keys: ['padSensitivity', 'padCurve', 'padDeadzone', 'padOuterDeadzone', 'padSwapSticks', 'padVibration'],
   },
 };
 const ORDER = {
-  touch: ['touch', 'gyro', 'zielen', 'modus', 'pad', 'maus'],
-  pad: ['pad', 'zielen', 'modus', 'maus', 'touch', 'gyro'],
-  desktop: ['maus', 'zielen', 'modus', 'pad', 'touch', 'gyro'],
+  touch: ['touch', 'zielhilfe', 'gyro', 'zielen', 'modus', 'pad', 'maus'],
+  pad: ['pad', 'zielhilfe', 'zielen', 'modus', 'maus', 'touch', 'gyro'],
+  desktop: ['maus', 'zielen', 'modus', 'zielhilfe', 'pad', 'touch', 'gyro'],
 };
 const LABELS = { adsSensitivity: 'Im Anschlag · 1×', adsSensitivityMid: 'Im Anschlag · 2–4×', adsSensitivityHigh: 'Im Anschlag · ab 6×' };
 

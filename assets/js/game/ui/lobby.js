@@ -2,14 +2,18 @@
 // und Ausrüstung (Primär/Sekundär/Granate mit Werte-Balken aus computeStats, Vergleich, Stufen-Sperren,
 // Vorlagen, 3D-Vorschau). Vorbelegung aus URL-Parametern (erster Aufruf) und den letzten Einstellungen.
 
-import { rulesFor } from '../../shared/modes.data.js';
+import { rulesFor, limitsFor, teamWarning } from '../../shared/modes.data.js';
+import { CLASSES, SOLDIER_CLASS_ORDER, GAME_STYLES, STYLE_ORDER, resolveClassLoadout, classAllows, classProfile } from '../../shared/classes.data.js';
 import { esc, num, secs, meters } from './dom.js';
 import { ICON } from './icons.js';
 import { drawMapArt } from './mapart.js';
+import { camoRowHtml, equippedCamo } from './loadout-panel.js';
+import { ProgressView } from './progress.js';
 
 const DIFF_ORDER = ['rekrut', 'regulaer', 'veteran', 'elite'];
 const STAT_LABELS = [['damage', 'Schaden'], ['fireRate', 'Kadenz'], ['range', 'Reichweite'], ['accuracy', 'Präzision'], ['mobility', 'Mobilität'], ['control', 'Kontrolle']];
-const MAP_PREP = { hafen: 'im', altstadt: 'in der', werk: 'im', range: 'am' };
+const MAP_PREP = { hafen: 'im', altstadt: 'in der', werk: 'im', range: 'am', grenzland: 'im' };
+const LENGTHS = [['kurz', 'Kurz'], ['standard', 'Standard'], ['lang', 'Lang']];
 
 export class Lobby {
   constructor(menus) {
@@ -22,6 +26,7 @@ export class Lobby {
     this.el = null;
     this._paramsUsed = false;
     this._offs = [];
+    this.progress = new ProgressView(this.G);
   }
 
   /* ------------------------------------------------------------ Daten */
@@ -63,6 +68,8 @@ export class Lobby {
       difficulty: DIFF_ORDER.includes(S.get('difficulty')) ? S.get('difficulty') : 'regulaer',
       allies: null, enemies: null, balance: true,
       primary: last.primary, secondary: last.secondary, lethal: last.lethal,
+      style: GAME_STYLES[S.get('gameStyle')] ? S.get('gameStyle') : 'arcade', cls: CLASSES[S.get('lastClass')] ? S.get('lastClass') : 'sturm',
+      matchLength: 'standard', timeOfDay: null,
     };
     if (prm) {
       if (d.MODES[prm.get('mode')]) base.modeId = prm.get('mode');
@@ -74,6 +81,8 @@ export class Lobby {
       if (Number.isFinite(e)) base.enemies = e;
       for (const k of ['primary', 'secondary']) if (d.W[prm.get(k)]) base[k] = prm.get(k);
       if (d.EQ[prm.get('lethal')]) base.lethal = prm.get('lethal');
+      if (GAME_STYLES[prm.get('style')]) base.style = prm.get('style');
+      if (CLASSES[prm.get('cls')]) base.cls = prm.get('cls');
       // Zeit-/Punktelimit aus der URL sind Testparameter: nur mit debug=1 (Match dann ungewertet) und nur
       // für den Modus, mit dem die Seite geöffnet wurde
       const tl = G.debug ? parseFloat(prm.get('time')) : NaN;
@@ -90,19 +99,34 @@ export class Lobby {
     this._fixMode();
   }
 
+  /** Teamgrenzen für Modus + Karte + Gerät (limitsFor, GROSSKAMPF §3.2). */
+  _lim() {
+    const d = this._data();
+    const c = this.cfg;
+    const G = this.G;
+    return limitsFor(c.modeId, d.MAPS[c.mapId] || c.mapId, {
+      tier: (G.renderer && G.renderer.quality) || 'high', touch: !!(G.input && G.input.mode === 'touch'), deviceMemory: navigator.deviceMemory ?? null,
+    });
+  }
+
   _fixMode() {
     const d = this._data();
     const c = this.cfg;
     const m = d.MODES[c.modeId] || {};
     const maps = this.mapsFor(c.modeId);
     if (!maps.includes(c.mapId)) c.mapId = (m.recommendedMaps || []).find((x) => maps.includes(x)) || maps[0] || c.mapId;
-    const lim = m.limits || { allies: [0, 7], enemies: [1, 8] };
+    const L = this._lim();
+    const lim = { allies: L.allies, enemies: L.enemies };
     const teams = m.teams !== false;
-    if (!Number.isFinite(c.enemies) || c.enemies == null) c.enemies = m.defaultEnemies ?? (teams ? 6 : 7);
+    // Neuer Modus/Kartenmaßstab: Empfehlung für dieses Gerät übernehmen
+    const key = `${c.modeId}:${L.scale}`;
+    if (this._limKey && this._limKey !== key) { c.enemies = null; c.allies = null; c.balance = true; }
+    this._limKey = key;
+    if (!Number.isFinite(c.enemies) || c.enemies == null) c.enemies = L.recommended.enemies ?? m.defaultEnemies ?? (teams ? 6 : 7);
     c.enemies = clampInt(c.enemies, lim.enemies[0], lim.enemies[1]);
     if (!teams) c.allies = 0;
     else {
-      if (c.balance || !Number.isFinite(c.allies) || c.allies == null) c.allies = c.balance ? c.enemies - 1 : m.defaultAllies ?? 5;
+      if (c.modeId === 'inf') { if (!Number.isFinite(c.allies) || c.allies == null) c.allies = L.recommended.allies ?? 10; } else if (c.balance || !Number.isFinite(c.allies) || c.allies == null) c.allies = c.balance ? c.enemies - 1 : m.defaultAllies ?? 5;
       c.allies = clampInt(c.allies, lim.allies[0], lim.allies[1]);
     }
   }
@@ -119,9 +143,15 @@ export class Lobby {
   /** Startkonfiguration für main (onStart). */
   config() {
     const c = this.cfg;
+    const camo = {};
+    for (const k of ['primary', 'secondary']) { const v = equippedCamo(this.G, c[k]); if (v) camo[c[k]] = v; }
+    let skin = null;
+    try { skin = this.G.profile.get().cosmetics.equipped.operator[c.cls] || null; } catch { /* */ }
     return {
       modeId: c.modeId, mapId: c.mapId, difficulty: c.difficulty, allies: c.allies, enemies: c.enemies,
-      loadout: { primary: c.primary, secondary: c.secondary, lethal: c.lethal },
+      style: c.style, crosshair: c.style === 'realistisch' ? !!this.G.settings.get('realisticCrosshair') : null,
+      matchLength: c.matchLength, timeOfDay: c.timeOfDay,
+      loadout: { primary: c.primary, secondary: c.secondary, lethal: c.lethal, cls: c.cls, camo, ...(skin ? { skin } : {}) },
       ...(c.limits && c.limits.modeId === c.modeId ? { timeLimit: c.limits.timeLimit, scoreLimit: c.limits.scoreLimit } : {}),
     };
   }
@@ -138,6 +168,7 @@ export class Lobby {
           <div class="lb-tabs m-tabs" role="tablist">
             <button type="button" class="m-tab" role="tab" data-tab="deploy" aria-selected="${this.tab === 'deploy'}">${ICON.map}<span>Einsatz</span></button>
             <button type="button" class="m-tab" role="tab" data-tab="loadout" aria-selected="${this.tab === 'loadout'}">${ICON.target}<span>Ausrüstung</span></button>
+            <button type="button" class="m-tab" role="tab" data-tab="progress" aria-selected="${this.tab === 'progress'}">${ICON.trophy}<span>Fortschritt</span></button>
           </div>
           <div class="lb-me"><button type="button" class="lb-profile" data-act="profile" title="Rufzeichen ändern"></button></div>
           <div class="lb-tools">
@@ -149,6 +180,7 @@ export class Lobby {
         <div class="lb-main">
           <div class="lb-pane m-scroll" data-scrollable data-pane="deploy"${this.tab === 'deploy' ? '' : ' hidden'}></div>
           <div class="lb-pane lb-pane-loadout" data-pane="loadout"${this.tab === 'loadout' ? '' : ' hidden'}></div>
+          <div class="lb-pane m-scroll" data-scrollable data-pane="progress"${this.tab === 'progress' ? '' : ' hidden'}></div>
           <aside class="lb-side">
             <div class="lb-stage" aria-label="Waffenvorschau – ziehen zum Drehen"><div class="lb-stage-name"></div><div class="lb-stage-hint">Ziehen zum Drehen</div></div>
             <div class="lb-kit"></div>
@@ -160,7 +192,7 @@ export class Lobby {
         </footer>
       </div>`;
     this.el = {
-      screen, deploy: screen.querySelector('[data-pane="deploy"]'), loadout: screen.querySelector('[data-pane="loadout"]'),
+      screen, deploy: screen.querySelector('[data-pane="deploy"]'), loadout: screen.querySelector('[data-pane="loadout"]'), progress: screen.querySelector('[data-pane="progress"]'),
       stage: screen.querySelector('.lb-stage'), stageName: screen.querySelector('.lb-stage-name'), kit: screen.querySelector('.lb-kit'),
       summary: screen.querySelector('.lb-summary'), side: screen.querySelector('.lb-side'), profile: screen.querySelector('.lb-profile'),
     };
@@ -197,7 +229,17 @@ export class Lobby {
     const ds = b.dataset;
     if (ds.tab) { this.tab = ds.tab; this._syncTab(); return; }
     if (ds.mode) { c.modeId = ds.mode; this._fixMode(); this._renderDeploy(); this._renderSummary(); this._renderKit(); this.menus.sound('click'); return; }
-    if (ds.map) { c.mapId = ds.map; this._renderDeploy(); this._renderSummary(); this.menus.sound('click'); return; }
+    if (ds.map) { c.mapId = ds.map; this._fixMode(); this._renderDeploy(); this._renderSummary(); this.menus.sound('click'); return; }
+    if (ds.style) {
+      c.style = GAME_STYLES[ds.style] ? ds.style : 'arcade';
+      try { this.G.settings.set('gameStyle', c.style); } catch { /* */ }
+      this._renderDeploy(); this._renderSummary(); this.menus.sound('click'); return;
+    }
+    if (ds.xhair != null) { try { this.G.settings.set('realisticCrosshair', !this.G.settings.get('realisticCrosshair')); } catch { /* */ } this._renderDeploy(); this.menus.sound('toggle'); return; }
+    if (ds.len) { c.matchLength = ds.len; this._renderDeploy(); this.menus.sound('click'); return; }
+    if (ds.tod != null) { c.timeOfDay = ds.tod || null; this._renderDeploy(); this.menus.sound('click'); return; }
+    if (ds.cls) { this._setClass(ds.cls); return; }
+    if (ds.camo) { this._setCamo(ds.camo, b); return; }
     if (ds.diff) { c.difficulty = ds.diff; this._renderDeploy(); this._renderSummary(); this.menus.sound('click'); return; }
     if (ds.step) { this._step(ds.step, Number(ds.d)); return; }
     if (ds.balance != null) { c.balance = !c.balance; this._fixMode(); this._renderDeploy(); this._renderSummary(); this.menus.sound('toggle'); return; }
@@ -211,6 +253,8 @@ export class Lobby {
     s.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === this.tab)));
     this.el.deploy.hidden = this.tab !== 'deploy';
     this.el.loadout.hidden = this.tab !== 'loadout';
+    this.el.progress.hidden = this.tab !== 'progress';
+    if (this.tab === 'progress') this.progress.mount(this.el.progress); else this.progress.unmount();
     s.querySelector('.lb').dataset.tab = this.tab;
     if (this.tab === 'loadout') { this.view = this.view || this.cfg[this.slot]; this._showView(); }
     else this._showView(this.cfg.primary);
@@ -220,10 +264,11 @@ export class Lobby {
   _step(which, d) {
     const c = this.cfg;
     const m = this._data().MODES[c.modeId] || {};
-    const lim = m.limits || { allies: [0, 7], enemies: [1, 8] };
+    const L = this._lim();
+    const lim = { allies: L.allies, enemies: L.enemies };
     if (which === 'enemies') {
       c.enemies = clampInt(c.enemies + d, lim.enemies[0], lim.enemies[1]);
-      if (c.balance && m.teams !== false) c.allies = clampInt(c.enemies - 1, lim.allies[0], lim.allies[1]);
+      if (c.balance && m.teams !== false && c.modeId !== 'inf') c.allies = clampInt(c.enemies - 1, lim.allies[0], lim.allies[1]);
     } else {
       c.allies = clampInt(c.allies + d, lim.allies[0], lim.allies[1]);
       c.balance = c.allies === c.enemies - 1;
@@ -251,10 +296,17 @@ export class Lobby {
       const x = d.MAPS[id];
       return `<button type="button" class="lb-map" data-map="${id}" aria-pressed="${id === c.mapId}">
         <canvas class="lb-map-art" data-art="${id}"></canvas>
-        <span class="lb-map-txt"><b>${esc(x.name)}</b><small>${esc(x.timeOfDay || x.subtitle || '')}</small></span></button>`;
+        <span class="lb-map-txt"><b>${esc(x.name)}</b><small>${x.scale === 'gross' ? 'Großkarte · ' : ''}${esc(x.timeOfDay || x.subtitle || '')}</small></span></button>`;
     }).join('');
     const diffs = DIFF_ORDER.filter((id) => d.DIFF[id] || true).map((id) => `<button type="button" role="radio" data-diff="${id}" aria-checked="${id === c.difficulty}">${esc((d.DIFF[id] && d.DIFF[id].name) || id)}</button>`).join('');
     const xpm = diff.xpMult && diff.xpMult !== 1 ? `EP ×${num(diff.xpMult, 2).replace(/,?0+$/, '')}` : 'EP ×1';
+    const st = GAME_STYLES[c.style] || GAME_STYLES.arcade;
+    const styles = STYLE_ORDER.map((id) => `<button type="button" role="radio" data-style="${id}" aria-checked="${id === c.style}">${esc(GAME_STYLES[id].label)}</button>`).join('');
+    const xh = !!this.G.settings.get('realisticCrosshair');
+    const map = d.MAPS[c.mapId] || {};
+    const times = Array.isArray(map.times) ? map.times : [];
+    const extra = `${m.matchLengths ? `<div><h2 class="m-h2">Matchlänge</h2><div class="m-seg" role="radiogroup" aria-label="Matchlänge">${LENGTHS.map(([id, l]) => `<button type="button" role="radio" data-len="${id}" aria-checked="${id === c.matchLength}">${l}</button>`).join('')}</div></div>` : ''}
+      ${times.length ? `<div><h2 class="m-h2">Tageszeit</h2><div class="m-seg" role="radiogroup" aria-label="Tageszeit"><button type="button" role="radio" data-tod="" aria-checked="${!c.timeOfDay}">${esc(map.timeOfDay || 'Standard')}</button>${times.map((t) => `<button type="button" role="radio" data-tod="${esc(t.id)}" aria-checked="${t.id === c.timeOfDay}">${esc(t.name || t.label || t.id)}</button>`).join('')}</div></div>` : ''}`;
     this.el.deploy.innerHTML = `
       <section class="lb-sec"><h2 class="m-h2">Modus</h2><div class="lb-modes" role="group" aria-label="Modus">${modes}</div>
         <div class="lb-modeinfo"><p>${esc(m.description || '')}</p><ul class="lb-rules"></ul></div></section>
@@ -263,7 +315,13 @@ export class Lobby {
         <div><h2 class="m-h2">Gegnerstärke</h2><div class="m-seg lb-diff" role="radiogroup" aria-label="Gegnerstärke">${diffs}</div>
           <p class="lb-note">${esc(diff.description || '')} <b>${xpm}</b></p></div>
         <div class="lb-teams"></div>
-      </section>`;
+      </section>
+      ${c.modeId === 'training' ? '' : `<section class="lb-sec lb-row2">
+        <div><h2 class="m-h2">Spielstil</h2><div class="m-seg lb-style" role="radiogroup" aria-label="Spielstil">${styles}</div>
+          <p class="lb-note">${esc(st.desc || '')}</p>
+          ${c.style === 'realistisch' ? `<button type="button" class="lb-bal" data-xhair aria-pressed="${xh}"><i class="m-check">${ICON.check}</i>Fadenkreuz anzeigen</button>` : ''}</div>
+        ${extra.trim() ? `<div class="lb-extra">${extra}</div>` : ''}
+      </section>`}`;
     this._renderTeams();
     requestAnimationFrame(() => this._drawMaps());
   }
@@ -286,7 +344,8 @@ export class Lobby {
     if (!host) return;
     this._renderRules();
     const teams = m.teams !== false;
-    const lim = m.limits || { allies: [0, 7], enemies: [1, 8] };
+    const L = this._lim();
+    const lim = { allies: L.allies, enemies: L.enemies };
     if (c.modeId === 'training' || (lim.enemies[1] === 0)) {
       host.innerHTML = `<h2 class="m-h2">Bahnen</h2><p class="lb-note">Allein am Stand. Unbegrenzte Munition, jede Waffe frei wählbar, Bestzeiten im Parcours.</p>`;
       return;
@@ -299,8 +358,9 @@ export class Lobby {
     host.innerHTML = `<h2 class="m-h2">${teams ? 'Teams' : 'Spieler'}</h2>
       ${teams ? stepper('allies', 'Verbündete', c.allies, lim.allies[0], lim.allies[1]) : ''}
       ${stepper('enemies', teams ? 'Gegner' : 'Gegner (Bots)', c.enemies, lim.enemies[0], lim.enemies[1])}
-      ${teams ? `<button type="button" class="lb-bal" data-balance aria-pressed="${!!c.balance}"><i class="m-check">${ICON.check}</i>Teams ausgleichen</button>` : ''}
-      <p class="lb-note">${teams ? `${c.allies + 1} gegen ${c.enemies}${c.allies + 1 !== c.enemies ? ' – das kleinere Team kommt schneller zurück.' : '.'}` : `${c.enemies + 1} Spieler, jeder für sich.`}</p>`;
+      ${teams && c.modeId !== 'inf' ? `<button type="button" class="lb-bal" data-balance aria-pressed="${!!c.balance}"><i class="m-check">${ICON.check}</i>Teams ausgleichen</button>` : ''}
+      <p class="lb-note">${c.modeId === 'inf' ? `${c.allies + 1} Überlebende gegen ${c.enemies} Infizierte${c.enemies === 1 ? 'n' : ''}.` : teams ? `${c.allies + 1} gegen ${c.enemies}${c.allies + 1 !== c.enemies ? ' – das kleinere Team kommt schneller zurück.' : '.'}` : `${c.enemies + 1} Spieler, jeder für sich.`}</p>
+      ${(() => { const w = teamWarning(L, c.allies, c.enemies, teams && c.modeId !== 'inf'); return w.level ? `<p class="lb-warn is-${w.level}">${ICON.warn}<span>${esc(w.text)}</span></p>` : ''; })()}`;
   }
 
   _drawMaps() {
@@ -322,7 +382,9 @@ export class Lobby {
     if (c.modeId === 'training') who = 'Allein am Stand';
     else if (m.teams !== false) who = `${c.allies + 1} gegen ${c.enemies}`;
     else who = `${c.enemies + 1} Spieler`;
-    this.el.summary.innerHTML = `<small>${esc(m.short || '')} · ${esc(prep)} ${esc(map.name || c.mapId)}</small><b>${esc(m.name || c.modeId)}</b><span>${esc(who)}${c.modeId === 'training' ? '' : ` · ${esc(diff.name || c.difficulty)}`}</span>`;
+    const sty = c.style === 'realistisch' && c.modeId !== 'training' ? ' · Realistisch' : '';
+    const cl = CLASSES[c.cls] ? ` · ${CLASSES[c.cls].name}` : '';
+    this.el.summary.innerHTML = `<small>${esc(m.short || '')} · ${esc(prep)} ${esc(map.name || c.mapId)}</small><b>${esc(m.name || c.modeId)}</b><span>${esc(who)}${c.modeId === 'training' ? '' : ` · ${esc(diff.name || c.difficulty)}${esc(sty)}`}${esc(cl)}</span>`;
   }
 
   /* ------------------------------------------------------------ Ausrüstung */
@@ -334,14 +396,14 @@ export class Lobby {
     const slots = [['primary', 'Primär', d.W[c.primary]], ['secondary', 'Sekundär', d.W[c.secondary]], ['lethal', 'Granate', d.EQ[c.lethal]]];
     let list = '';
     if (this.slot === 'lethal') {
-      list = Object.values(d.EQ).map((x) => this._item(x, x.id === c.lethal, lvl, 'Ausrüstung')).join('');
+      list = Object.values(d.EQ).filter((x) => !x.kind || x.kind === 'lethal').map((x) => this._item(x, x.id === c.lethal, lvl, 'Ausrüstung')).join('');
     } else {
       const ws = Object.values(d.W).filter((w) => w.slot === this.slot);
       const order = d.CLASS_ORDER.length ? d.CLASS_ORDER : [...new Set(ws.map((w) => w.cls))];
       for (const cls of order) {
         const g = ws.filter((w) => w.cls === cls);
         if (!g.length) continue;
-        list += `<div class="lo-cls">${esc(d.CLASSES[cls] || cls)}</div>${g.map((w) => this._item(w, w.id === c[this.slot], lvl, d.CLASSES[w.cls])).join('')}`;
+        list += `<div class="lo-cls">${esc(d.CLASSES[cls] || cls)}</div>${g.map((w) => this._item(w, w.id === c[this.slot], lvl, classAllows(c.cls, w.cls) ? d.CLASSES[w.cls] : null)).join('')}`;
       }
     }
     const presets = d.LOADOUTS.map((l) => {
@@ -349,8 +411,17 @@ export class Lobby {
       const active = l.primary === c.primary && l.secondary === c.secondary && l.lethal === c.lethal;
       return `<button type="button" class="lo-preset" data-preset="${esc(l.id)}" aria-pressed="${active}"${locked ? ' disabled' : ''} title="${esc(l.description || '')}">${locked ? ICON.lock : ''}${esc(l.name)}${locked ? `<small>Stufe ${l.unlockLevel}</small>` : ''}</button>`;
     }).join('');
+    const prof = classProfile(c.cls);
+    const classes = SOLDIER_CLASS_ORDER.map((id) => {
+      const k = CLASSES[id];
+      const pr = classProfile(id);
+      return `<button type="button" class="lo-clsbtn" data-cls="${id}" aria-pressed="${id === c.cls}" title="${esc(k.role)}"><i>${ICON[id] || ICON.user}</i><b>${esc(k.name)}</b>
+        <span class="lo-bars"><u style="--v:${pr.tempo}" title="Tempo"></u><u style="--v:${pr.schutz}" title="Schutz"></u><u style="--v:${pr.reichweite}" title="Reichweite"></u></span></button>`;
+    }).join('');
     this.el.loadout.innerHTML = `
       <div class="lo">
+        <div class="lo-classes" role="group" aria-label="Klasse">${classes}</div>
+        <p class="lo-role">${esc(CLASSES[c.cls].role)} <span>${ICON.plate}${esc(prof.armorLabel || '')} · ${prof.plates || 0} Platten · Helm ${esc(prof.helmetLabel || '')}</span></p>
         <div class="lo-slots m-tabs" role="tablist">${slots.map(([k, l, def]) => `<button type="button" class="m-tab lo-slot" role="tab" data-slot="${k}" aria-selected="${k === this.slot}"><small>${l}</small><span>${esc(def ? def.name : '—')}</span></button>`).join('')}</div>
         <div class="lo-body">
           <div class="lo-list m-scroll" data-scrollable role="listbox" aria-label="Waffen">${list}</div>
@@ -363,6 +434,11 @@ export class Lobby {
 
   _item(def, equipped, lvl, cls) {
     const locked = !this.unlocked(def.id);
+    if (!locked && cls === null) {
+      const k = CLASSES[this.cfg.cls];
+      return `<button type="button" class="lo-item is-locked" data-weapon="${esc(def.id)}" role="option" aria-selected="false" aria-disabled="true">
+      <span class="lo-ico">${def.icon || ''}</span><span class="lo-name"><b>${esc(def.name)}</b><small>Nicht für ${esc(k ? k.name : '')}</small></span></button>`;
+    }
     const viewing = def.id === this.view;
     return `<button type="button" class="lo-item${equipped ? ' is-eq' : ''}${viewing ? ' is-view' : ''}${locked ? ' is-locked' : ''}" data-weapon="${esc(def.id)}" role="option" aria-selected="${equipped}">
       <span class="lo-ico">${def.icon || ''}</span><span class="lo-name"><b>${esc(def.name)}</b><small>${locked ? `Ab Stufe ${def.unlockLevel}` : esc(cls || '')}</small></span>
@@ -415,7 +491,8 @@ export class Lobby {
       <div class="lo-dhead"><small>${esc(isEq ? 'Granate' : (d.CLASSES[def.cls] || def.cls))}</small><h3>${esc(def.name)}<em>.</em></h3></div>
       <p class="lo-desc">${esc(def.description || '')}</p>
       ${locked ? `<div class="lo-locked">${ICON.lock}<span>Freischaltung ab <b>Stufe ${def.unlockLevel}</b>. Du bist Stufe ${this.level()}.</span></div>` : equipped ? `<div class="lo-on">${ICON.check}<span>Ausgerüstet</span></div>` : ''}
-      ${body}`;
+      ${body}
+      ${!isEq && !locked ? camoRowHtml(this.G, id, equippedCamo(this.G, id)) : ''}`;
   }
 
   _choose(id) {
@@ -424,6 +501,7 @@ export class Lobby {
     const def = d.W[id] || d.EQ[id];
     if (!def) return;
     this.view = id;
+    if (d.W[id] && !classAllows(c.cls, d.W[id].cls)) { this.menus.sound('error'); this._renderLoadout(); this._showView(); return; }
     if (this.unlocked(id)) {
       const slot = d.EQ[id] ? 'lethal' : def.slot;
       if (slot === 'primary' || slot === 'secondary' || slot === 'lethal') c[slot] = id;
@@ -432,6 +510,47 @@ export class Lobby {
     this._renderLoadout();
     this._renderKit();
     this._showView();
+  }
+
+  /** Klasse wählen: gespeicherte Klassenausrüstung bzw. Standard der Klasse (classes.data.js). */
+  _setClass(id) {
+    const d = this._data();
+    const c = this.cfg;
+    if (!CLASSES[id]) return;
+    const saved = (this.G.settings.get('classLoadouts') || {})[id] || null;
+    const r = resolveClassLoadout(id, { weapons: d.W, equipment: d.EQ, isUnlocked: (x) => this.unlocked(x), base: saved });
+    c.cls = id;
+    for (const k of ['primary', 'secondary', 'lethal']) if (r[k] && this.unlocked(r[k])) c[k] = r[k];
+    try { this.G.settings.set('lastClass', id); } catch { /* */ }
+    this.view = c[this.slot];
+    this._renderLoadout();
+    this._renderKit();
+    this._renderSummary();
+    this._showView();
+    this.menus.sound('confirm');
+  }
+
+  /** Tarnung der angezeigten Waffe ausrüsten (Profil-Kosmetik). */
+  _setCamo(camoId, btn) {
+    const D = this.G.data || {};
+    const wid = this.view || this.cfg[this.slot];
+    if (btn && btn.getAttribute('aria-disabled') === 'true') { this.menus.sound('error'); return; }
+    const cm = D.CAMOS && D.CAMOS[camoId];
+    try { this.G.profile.equipCosmetic('weapon', wid, cm && cm.unlock && cm.unlock.type === 'default' ? null : camoId); } catch { /* */ }
+    this.menus.sound('confirm');
+    this._renderDetail();
+    const pv = this.menus.preview;
+    if (pv && typeof pv.setCamo === 'function') pv.setCamo(camoId);
+  }
+
+  /** Klassenausrüstung beim Start merken (settings.classLoadouts, core-mechanics). */
+  saveClassLoadout() {
+    const c = this.cfg;
+    try {
+      const all = { ...(this.G.settings.get('classLoadouts') || {}) };
+      all[c.cls] = { primary: c.primary, secondary: c.secondary, lethal: c.lethal, cls: c.cls };
+      this.G.settings.set('classLoadouts', all);
+    } catch { /* */ }
   }
 
   _preset(pid) {
@@ -472,6 +591,7 @@ export class Lobby {
   }
 
   unmount() {
+    this.progress.unmount();
     for (const off of this._offs) off();
     this._offs = [];
     this.el = null;

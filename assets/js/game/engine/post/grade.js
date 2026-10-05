@@ -74,7 +74,7 @@ export const MOODS = Object.freeze({
     label: 'Nacht – Leuchtstoff',
     lut: { temperature: -0.08, tint: -0.14, contrast: 1.16, pivot: 0.33, saturation: 0.74, shadowSat: 0.6, highSat: 0.9,
       keepWarm: 0.5, shadowTint: [0.95, 1.02, 1.03], highTint: [1.0, 1.02, 0.97], greenShift: 0.2, blackLevel: 0.026, whiteLevel: 0.98 },
-    exposure: { ...BASE_EXPOSURE, ref: 0.03, evMin: -1.2, evMax: 2.6, up: 2.2, down: 1.0 },
+    exposure: { ...BASE_EXPOSURE, ref: 0.012, evMin: -1.2, evMax: 2.6, up: 2.2, down: 1.0 },
     bloom: { threshold: 1.5, strength: 0.42, dirt: 0.85 },
     shafts: 0,
   },

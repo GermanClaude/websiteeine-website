@@ -9,7 +9,7 @@ export const COLORS = ['#ffffff', '#ff5b1f', '#5fe08a', '#38b6ff', '#ffc23d', '#
 
 /** Regler 0–1 bzw. Faktoren, die als Prozent lesbarer sind. */
 const PCT = new Set(['cameraMotion', 'weaponSway', 'lensStrength', 'grain', 'lensArtifacts', 'sharpness', 'touchOpacity',
-  'touchButtonScale', 'aimAssistStrength', 'padDeadzone', 'padOuterDeadzone', 'masterVolume', 'sfxVolume', 'musicVolume', 'uiVolume']);
+  'touchButtonScale', 'aimAssistStrength', 'aimAssistLevel', 'autoFireLevel', 'padDeadzone', 'padOuterDeadzone', 'masterVolume', 'sfxVolume', 'musicVolume', 'uiVolume']);
 /** Faktoren mit „ד. */
 const MULT = new Set(['sensitivityY', 'adsSensitivity', 'adsSensitivityMid', 'adsSensitivityHigh', 'gyroSensitivityX', 'gyroSensitivityY',
   'padSensitivity', 'touchSensitivity']);

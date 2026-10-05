@@ -11,11 +11,13 @@ import { ICON } from './icons.js';
 export function scoreboardHtml(rows, opts = {}) {
   const extraLabel = (rows.find((r) => r.extra) || {}).extra?.label || null;
   const head = `<tr><th class="sb-rank">#</th><th class="sb-name">Name</th><th>Punkte</th><th title="Abschüsse">A</th><th title="Tode">T</th><th title="Unterstützungen">U</th><th class="sb-kd">K/D</th>${extraLabel ? `<th class="sb-extra">${esc(extraLabel)}</th>` : ''}</tr>`;
+  const mySq = opts.squads ? (rows.find((r) => r.isPlayer) || {}).squad : null;
   const row = (r, i) => {
-    const cls = ['sb-row', r.isPlayer ? 'is-me' : '', r.alive === false ? 'is-dead' : '', r.mvp ? 'is-mvp' : ''].join(' ');
+    const cls = ['sb-row', r.isPlayer ? 'is-me' : '', r.alive === false ? 'is-dead' : '', r.mvp ? 'is-mvp' : '', mySq && r.squad === mySq ? 'is-mysq' : ''].join(' ');
+    const sq = opts.squads && r.squad ? `<span class="sb-sq">${esc(r.squad)}</span>` : '';
     const badge = r.mvp ? `<span class="sb-mvp" title="MVP">${ICON.crown}</span>` : r.teamMvp ? `<span class="sb-mvp sb-tmvp" title="Bester im Team">${ICON.star}</span>` : '';
     const dead = r.alive === false && opts.live ? `<span class="sb-dead">${ICON.skull}</span>` : '';
-    return `<tr class="${cls}"><td class="sb-rank">${i + 1}</td><td class="sb-name"><span class="sb-n">${esc(r.name)}</span>${r.isPlayer ? '<span class="sb-you">Du</span>' : ''}${badge}${dead}</td>` +
+    return `<tr class="${cls}"><td class="sb-rank">${i + 1}</td><td class="sb-name">${sq}<span class="sb-n">${esc(r.name)}</span>${r.isPlayer ? '<span class="sb-you">Du</span>' : ''}${badge}${dead}</td>` +
       `<td class="sb-score">${r.score}</td><td>${r.kills}</td><td>${r.deaths}</td><td>${r.assists}</td><td class="sb-kd">${kd(r.kills, r.deaths)}</td>` +
       `${extraLabel ? `<td class="sb-extra">${r.extra ? r.extra.value : '–'}</td>` : ''}</tr>`;
   };
@@ -27,7 +29,14 @@ export function scoreboardHtml(rows, opts = {}) {
   const names = opts.teamNames || { A: 'Team A', B: 'Team B' };
   const sc = opts.teamScores || {};
   const block = (team, side) => {
-    const list = rows.filter((r) => r.team === team);
+    let list = rows.filter((r) => r.team === team);
+    // Eroberung: nach Trupps gruppiert (eigener Trupp zuerst), innerhalb nach Punkten
+    if (opts.squads) {
+      const best = new Map();
+      for (const r of list) if (r.squad) best.set(r.squad, Math.max(best.get(r.squad) ?? -1, r.score));
+      list = [...list].sort((a, b) => (b.squad === mySq) - (a.squad === mySq) || (best.get(b.squad) ?? -1) - (best.get(a.squad) ?? -1)
+        || String(a.squad).localeCompare(String(b.squad)) || b.score - a.score);
+    }
     return `<div class="sb-team sb-${side}"><div class="sb-thead"><span class="sb-tname">${esc(names[team] || team)}</span><span class="sb-tside">${side === 'ally' ? 'Dein Team' : 'Gegner'}</span><b class="sb-tscore">${sc[team] ?? ''}</b></div>` +
       `<table class="sb-table">${head}${list.map(row).join('')}</table></div>`;
   };

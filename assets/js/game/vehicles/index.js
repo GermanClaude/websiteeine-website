@@ -832,7 +832,7 @@ export class VehicleSystem {
   }
 
   _onExplosion(e) {
-    if (this._own > 0 || !e || !e.position || !this.list.length) return;
+    if (this._own > 0 || !e || !e.position || !this.list.length || e.nonLethal) return;   // Blend/Rauch (arsenal): kein Schaden
     const EQ = (this.G.data && this.G.data.EQUIPMENT) || {};
     const eq = EQ[e.type] || EQ[e.weaponId];
     const max = eq && eq.maxDamage ? eq.maxDamage : (e.weaponId === 'strike' || e.type === 'airstrike') ? 240 : 120;

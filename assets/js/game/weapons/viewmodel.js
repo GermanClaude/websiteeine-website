@@ -16,7 +16,10 @@ import * as THREE from 'three';
 import { createWeaponModel } from './models.js';
 import { WEAPONS, weaponHandling } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
-import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE } from './gunsmith/handling.js';
+import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE, MELEE_STYLES } from './gunsmith/handling.js';
+import { EXTRA_ACTIONS } from './gunsmith/actions2.js';
+import { applyCamo } from './gunsmith/camos.js';
+import { CLASS_LOOKS, classLookId } from '../../shared/weapons.data.js';
 import { MuzzleFlash, ShellPool, SmokeWisps, HeatHaze } from './gunsmith/fx.js';
 import { SCHEMES, schemeForTeam } from '../bots/soldier/materials.js';
 import { Spring, Spring3, curve, windowW, clamp, damp, smooth, easeOut, easeInOut, easeOutBack } from './gunsmith/anim.js';
@@ -152,7 +155,18 @@ export class ViewModel {
       knife: this._prop(createWeaponModel('knife', { lod: 'first' })),
       frag: this._prop(createWeaponModel('frag', { lod: 'first' })),
       semtex: this._prop(createWeaponModel('semtex', { lod: 'first' })),
+      impact: this._prop(createWeaponModel('impact', { lod: 'first' })),
+      molotov: this._prop(createWeaponModel('molotov', { lod: 'first' })),
+      flash: this._prop(createWeaponModel('flash', { lod: 'first' })),
+      smoke: this._prop(createWeaponModel('smoke', { lod: 'first' })),
+      plate: this._prop(createWeaponModel('plate', { lod: 'first' })),
     };
+    this._meleeKey = 'knife';
+    this._meleeId = 'knife';
+    this._camos = new Map();      // weaponId → Tarnmuster-Id
+    this._accessories = [];
+    this._lookId = null;
+    this.setLook('standard');
 
     // Animationszustand
     this._models = new Map();
@@ -214,6 +228,7 @@ export class ViewModel {
     if (entry) return entry;
     const model = createWeaponModel(key, { lod: 'first' });
     model.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; o.frustumCulled = false; } });
+    if (this._camos.get(id)) applyCamo(model, this._camos.get(id));
     const ud = model.userData;
     model.updateMatrixWorld(true);
     const rg = ud.rightHandGrip, trg = ud.anchors.trigger;
@@ -309,10 +324,68 @@ export class ViewModel {
     this._start('reload', dur, { empty, style: this.h.reload });
   }
 
-  playMelee() {
+  /** Nahkampf. opts: { style ('slash'|'hook'|'chop'|'overhead'|'stab'), backstab, duration } – Standard aus der Nahkampfwaffe. */
+  playMelee(opts = {}) {
     if (!this.cur) return;
-    const dur = WEAPONS.knife?.melee?.swingTime ?? 0.75;
-    this._start(this.h.action === 'knife' ? 'slash' : 'melee', dur, { hit: false });
+    const md = this.h.action === 'knife' ? this.def : this._defFor(this._meleeId);
+    const spec = md?.melee || WEAPONS.knife?.melee || {};
+    const style = opts.backstab ? 'stab' : opts.style || spec.style || 'slash';
+    const dur = opts.duration ?? spec.swingTime ?? 0.75;
+    this._start(this.h.action === 'knife' ? 'slash' : 'melee', dur, { hit: false, style });
+  }
+
+  /** Nahkampfwaffe für Hiebe mit Schusswaffe in der Hand (Requisit der linken Hand). */
+  setMelee(weaponId) {
+    const d = this._defFor(weaponId);
+    if (!d || d.cls !== 'melee') return;
+    this._meleeId = weaponId;
+    const key = d.model || ID_TO_MODEL[weaponId] || 'knife';
+    if (key === this._meleeKey) return;
+    const old = this.props.knife;
+    old.removeFromParent();
+    this.props.knife = this._prop(createWeaponModel(key, { lod: 'first' }));
+    if (this._camos.get(weaponId)) applyCamo(this.props.knife, this._camos.get(weaponId));
+    this._meleeKey = key;
+  }
+
+  /** Tarnmuster einer Waffe setzen (gilt für vorhandene und spätere Modelle; null/'werk' = Werkszustand). */
+  setCamo(weaponId, camoId) {
+    if (!weaponId) return;
+    this._camos.set(weaponId, camoId || null);
+    const e = this._models.get(weaponId);
+    if (e) applyCamo(e.model, camoId || null);
+    if (weaponId === this._meleeId) applyCamo(this.props.knife, camoId || null);
+  }
+
+  /**
+   * Klassen-Aussehen der Arme (CLASS_LOOKS: Handschuhfarbe, Ärmeltönung/-muster, Zubehör wie Rotkreuz-Binde).
+   * id = Klassen-/Look-Id (sturm, sanitaeter, pionier, aufklaerer, unterstuetzung; Aliasse englisch) oder 'standard'.
+   */
+  setLook(id) {
+    const lookId = classLookId(id);
+    const look = CLASS_LOOKS[lookId] || CLASS_LOOKS.standard;
+    const m = this.arms.mats;
+    m.glove.color.set(look.glove || '#ffffff');
+    m.sleeve.color.set(look.sleeve || '#ffffff');
+    this.arms.setCamo(look.sleeveCamo || sleeveCamo(this._scheme));
+    if (lookId === this._lookId) return;
+    this._lookId = lookId;
+    for (const a of this._accessories) { a.removeFromParent(); a.geometry.dispose(); }
+    this._accessories.length = 0;
+    const ring = (arm, part, z, r, len, mat) => {
+      const g = new THREE.CylinderGeometry(r, r, len, 18, 1, true);
+      g.rotateX(Math.PI / 2);
+      const mesh = new THREE.Mesh(g, mat);
+      mesh.position.z = z;
+      mesh.frustumCulled = false;
+      arm[part].add(mesh);
+      this._accessories.push(mesh);
+    };
+    const M = accessoryMats();
+    if (look.accessory === 'armband') ring(this.arms.left, 'upper', -0.16, 0.0585, 0.06, M.armband);
+    else if (look.accessory === 'cuffs') { ring(this.arms.left, 'fore', -0.255, 0.0405, 0.05, M.leather); ring(this.arms.right, 'fore', -0.255, 0.0405, 0.05, M.leather); }
+    else if (look.accessory === 'wraps') { for (const z of [-0.1, -0.16]) ring(this.arms.left, 'fore', z, 0.046, 0.022, M.wrap); ring(this.arms.right, 'fore', -0.12, 0.046, 0.026, M.wrap); }
+    else if (look.accessory === 'pads') ring(this.arms.left, 'fore', -0.27, 0.039, 0.03, M.band);
   }
 
   /** Granatwurf. type: 'frag' | 'semtex'. opts.hold = true hält nach dem Abziehen (Vorkochen) bis releaseGrenade(). */
@@ -325,7 +398,13 @@ export class ViewModel {
 
   playInspect() {
     if (!this.cur || this.action) return;
-    this._start('inspect', this.h.inspect);
+    this._start('inspect', this.h.inspect, { style: this.h.inspectStyle || 'rifle' });
+  }
+
+  /** Schutzplatte einsetzen (Rüstung): Dauer in s (Standard 1,6). Bricht laufende Aktionen ab. */
+  playPlate(duration = 1.6) {
+    if (!this.cur) return;
+    this._start('plate', duration, { seated: false });
   }
 
   /** Laufende Aktion weich abbrechen (z. B. Nachladen beim Waffenwechsel). */
@@ -379,6 +458,7 @@ export class ViewModel {
     this._boltT = 0;
     this._hammerT = 0;
     if (info.empty && h.action === 'pistol') this._slideLocked = true;
+    if (h.action === 'revolver') this._cylTarget = (this._cylTarget || 0) + Math.PI / 3;
     if (info.empty && (h.action === 'auto' || h.action === 'semi')) this._boltLocked = true;
     if (h.action === 'bolt') this._start('boltCycle', Math.max(0.6, Math.min(1.0, (this.def ? 60 / this.def.rpm : 1.3) - 0.35)), { delay: 0.12, ejected: false });
     else if (h.action === 'pump') this._start('pumpCycle', Math.max(0.42, Math.min(0.6, (this.def ? 60 / this.def.rpm : 0.8) - 0.25)), { delay: 0.1, ejected: false });
@@ -491,7 +571,7 @@ export class ViewModel {
     const scheme = schemeForTeam(this._team, this.G?.world) || null;
     if (scheme === this._scheme) return;
     this._scheme = scheme;
-    this.arms.setCamo(sleeveCamo(scheme));
+    this.arms.setCamo(CLASS_LOOKS[this._lookId]?.sleeveCamo || sleeveCamo(scheme));
   }
 
   /**
@@ -661,6 +741,7 @@ export class ViewModel {
   // ---------------------------------------------------------------- Hauptschleife
 
   update(dt, s = {}) {
+    this._magNow = s.mag ?? 1;
     const player = this.G?.player;
     if (player && (player.team ?? null) !== this._team) this._syncCamo();
     if (!this.G?.world?.lighting && !this._lighting) this._ensureOwnEnv();
@@ -1019,6 +1100,14 @@ export class ViewModel {
       this._setPartOffset('slide', 0, 0, travel * back);
       // Hahn fällt nach vorn und wird vom Schlitten wieder gespannt
       if (this._part('hammer')) this._setPartOffset('hammer', 0, 0, 0, -0.7 * (this._slideLocked ? 0 : pulse));
+    } else if (h.action === 'revolver') {
+      // Double-Action: Hahn spannt und fällt, Trommel dreht um eine Kammer weiter
+      this._cylAngle = (this._cylAngle || 0) + ((this._cylTarget || 0) - (this._cylAngle || 0)) * Math.min(1, dt * 30);
+      this._setPartOffset('cylinder', 0, 0, 0, 0, 0, this._cylAngle);
+      if (this._part('hammer')) this._setPartOffset('hammer', 0, 0, 0, -0.55 * pulse);
+    } else if (h.action === 'launcher') {
+      const r = this._part('rocket');
+      if (r) r.visible = (this._magNow ?? 1) > 0;
     } else if (this._part('bolt') && h.action !== 'bolt' && h.action !== 'pump') {
       this._setPartOffset('bolt', 0, 0, h.boltTravel * (this._boltLocked ? 1 : pulse));
     }
@@ -1058,7 +1147,8 @@ export class ViewModel {
       case 'melee': done = this._actMelee(A, out); break;
       case 'slash': done = this._actSlash(A, out); break;
       case 'grenade': done = this._actGrenade(A, out); break;
-      case 'inspect': done = this._actInspect(A, out); break;
+      case 'inspect': done = A.style && A.style !== 'rifle' ? this._actInspectStyle(A, out, A.style) : this._actInspect(A, out); break;
+      case 'plate': done = this._actPlate(A, out); break;
       default: done = true;
     }
     const f = A.cancel ? Math.max(0, A.fade) : 1;
@@ -1081,6 +1171,11 @@ export class ViewModel {
     const ud = this.cur.ud, style = A.style, empty = A.empty;
     const anchors = ud.anchors;
     if (style === 'pistol') return this._actReloadPistol(A, out, u);
+    if (style === 'gripmag') return this._actReloadGripMag(A, out, u);
+    if (style === 'bullpup') return this._actReloadBullpup(A, out, u);
+    if (style === 'drum') return this._actReloadDrum(A, out, u);
+    if (style === 'revolver') return this._actReloadRevolver(A, out, u);
+    if (style === 'rocket') return this._actReloadRocket(A, out, u);
     if (style === 'belt') return this._actReloadBelt(A, out, u);
     if (style === 'top') return this._actReloadTop(A, out, u);
     // Standard-Magazinwechsel (optional mit Durchladen am Ende)
@@ -1319,9 +1414,10 @@ export class ViewModel {
     const knife = this.props.knife;
     const w = windowW(u, 0.0, 0.08, 0.52, 0.74);
     // Schlüsselbilder: Ausholen links oben → Schnitt durch die Mitte → Durchschwung rechts unten → zurück
-    const pos = curve(u, KNIFE_MELEE.pos, _a3);
-    const F = curve(u, KNIFE_MELEE.F, _b3);
-    const B = curve(u, KNIFE_MELEE.B, _c3);
+    const K = (A.style && MELEE_STYLES[A.style]) || KNIFE_MELEE;
+    const pos = curve(u, K.pos, _a3);
+    const F = curve(u, K.F, _b3);
+    const B = curve(u, K.B, _c3);
     req(out.left, w, { free: [pos, F, B, 'knife'] });
     this._attachProp(knife, this.arms.left.handBone, 'knife', -1);
     knife.visible = u > 0.02 && u < 0.7;
@@ -1330,6 +1426,7 @@ export class ViewModel {
   }
 
   _actSlash(A, out) {
+    if (A.style && A.style !== 'slash') { const r = this._actSlashStyle(A, out, A.style); if (r !== null) return r; }
     // Messer als Hauptwaffe: Hieb mit der rechten Hand von rechts oben nach links unten
     const u = clamp(A.t / A.dur, 0, 1);
     curve(u, [[0, ZERO3], [0.08, [0.05, 0.07, 0.05]], [0.24, [-0.24, -0.08, -0.1]], [0.4, [-0.2, -0.12, -0.04]], [0.85, ZERO3]], out.p);
@@ -1397,6 +1494,10 @@ export class ViewModel {
       prop.position.set(k[0] * side, k[1], k[2]);
       _m.makeBasis(_v.set(0, side, 0), _v2.set(0, 0, 1), _v3.set(side, 0, 0));
       prop.quaternion.setFromRotationMatrix(_m);
+    } else if (kind === 'plate') {
+      // Platte an der Oberkante gegriffen: hängt unter den Fingern, Fläche zur Kamera
+      prop.position.set(0.0, -0.035, -0.12);
+      prop.rotation.set(-0.15, 0, 0);
     } else {
       const g = PROP_SHAPES.grenade.pos;
       prop.position.set(g[0] * side, g[1], g[2]);
@@ -1476,3 +1577,27 @@ export class ViewModel {
 
 /** Empfohlenes vertikales Sichtfeld der Viewmodel-Kamera (Positionen sind darauf abgestimmt). */
 ViewModel.FOV = 54;
+
+// Welle 2 (Arsenal): zusätzliche Choreografien (Nachladen je Mechanik, Inspizieren je Klasse, Platte, Klingenhiebe)
+Object.assign(ViewModel.prototype, EXTRA_ACTIONS);
+
+// Zubehör der Klassen-Arme (Binde, Stulpen, Wickel, Band) – Materialien modulweit, überdauern Matches
+let _accMats = null;
+function accessoryMats() {
+  if (_accMats) return _accMats;
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 32;
+  const g = c.getContext('2d');
+  g.fillStyle = '#e8e6e0'; g.fillRect(0, 0, 128, 32);
+  g.fillStyle = '#c62424';
+  for (const x of [16, 80]) { g.fillRect(x + 8, 6, 8, 20); g.fillRect(x + 2, 12, 20, 8); }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  _accMats = {
+    armband: new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85, metalness: 0, side: THREE.DoubleSide, name: 'vm:armband' }),
+    leather: new THREE.MeshStandardMaterial({ color: 0x5a3e28, roughness: 0.62, metalness: 0, side: THREE.DoubleSide, name: 'vm:leather' }),
+    wrap: new THREE.MeshStandardMaterial({ color: 0x4d5a3a, roughness: 0.95, metalness: 0, side: THREE.DoubleSide, name: 'vm:wrap' }),
+    band: new THREE.MeshStandardMaterial({ color: 0x1c1d1f, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, name: 'vm:band' }),
+  };
+  return _accMats;
+}

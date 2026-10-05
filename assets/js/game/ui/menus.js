@@ -12,6 +12,7 @@ import { SettingsPanel } from './settings-panel.js';
 import { TouchEditor } from './touch-editor.js';
 import { controlsHtml, bindControls } from './controls-help.js';
 import { EndScreen } from './endscreen.js';
+import { LoadoutPanel } from './loadout-panel.js';
 import { drawMapArt, rememberMinimap } from './mapart.js';
 
 const TIPS = [
@@ -140,6 +141,7 @@ export class Menus {
     setTimeout(() => { this._busy = false; }, 1500);
     btn.classList.add('is-go');
     this.sound('confirm');
+    this.lobby.saveClassLoadout();
     this.onStart(this.lobby.config());
   }
 
@@ -212,6 +214,7 @@ export class Menus {
         <nav class="ps-menu" aria-label="Pausenmenü">
           <button type="button" class="m-btn m-primary" data-act="resume">${ICON.play}<span>Fortsetzen</span><kbd>Esc</kbd></button>
           ${training ? `<button type="button" class="m-btn" data-act="armory">${ICON.target}<span>Waffenkammer</span></button>` : ''}
+          ${!training && mode && !mode.lockLoadout ? `<button type="button" class="m-btn" data-act="equip">${ICON.target}<span>Ausrüstung</span></button>` : ''}
           <button type="button" class="m-btn" data-act="settings">${ICON.gear}<span>Einstellungen</span></button>
           <button type="button" class="m-btn" data-act="controls">${ICON.pad}<span>Steuerung</span></button>
           ${training ? `<button type="button" class="m-btn" data-act="finish">${ICON.check}<span>Training beenden</span></button>` : `<button type="button" class="m-btn" data-act="restart">${ICON.restart}<span>Neu starten</span></button>`}
@@ -230,6 +233,7 @@ export class Menus {
       else if (act === 'settings') this.showSettings('pause');
       else if (act === 'controls') this.showControls('pause');
       else if (act === 'armory') this.showArmory();
+      else if (act === 'equip') this.showEquip();
       else if (act === 'restart') { this.sound('confirm'); if (this.onRestart) this.onRestart(); }
       else if (act === 'finish') this._finishTraining();
       else if (act === 'quit') {
@@ -289,6 +293,40 @@ export class Menus {
     });
     this.parent = 'pause';
     this._focusFirst(s, '.ar-item.is-on');
+  }
+
+  /* ================================================================ Ausrüstung im Match (Pausemenü) */
+
+  /** Klasse/Waffen/Tarnung wechseln: sofort, wenn gerade gespawnt, sonst ab dem nächsten Einsatz. */
+  showEquip() {
+    const G = this.G;
+    const s = this._screen('equip', 'm-sub', `
+      <div class="sub sub-wide">
+        <header class="sub-head"><button type="button" class="m-icon" data-act="back" aria-label="Zurück">${ICON.back}</button><div><div class="m-kicker">Pause</div><h1 class="m-title">Ausrüstung<em>.</em></h1></div></header>
+        <p class="sub-lead">Gilt sofort, wenn du gerade erst eingesetzt wurdest – sonst ab dem nächsten Einsatz.</p>
+        <div class="sub-body m-scroll eq-host" data-scrollable></div>
+        <div class="m-actions eq-actions"><button type="button" class="m-btn m-primary" data-act="apply">${ICON.check}<span>Übernehmen</span></button><button type="button" class="m-btn" data-act="back">${ICON.back}<span>Abbrechen</span></button></div>
+      </div>`);
+    const panel = (this._equipPanel = this._equipPanel || new LoadoutPanel(G));
+    panel.mount(s.querySelector('.eq-host'));
+    s.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-act]');
+      if (!b) return;
+      if (b.dataset.act === 'back') { panel.unmount(); this._back(); return; }
+      if (b.dataset.act === 'apply') {
+        const lo = panel.value();
+        panel.save();
+        const when = G.mode && typeof G.mode.setLoadout === 'function' ? G.mode.setLoadout(lo) : 'next';
+        G.events.emit('loadout:change', { actor: G.player, loadout: lo, when });
+        this.sound('confirm');
+        panel.unmount();
+        this.showPause();
+        const n = this.root.querySelector('.ps-info');
+        if (n) n.insertAdjacentHTML('beforeend', `<p class="ps-note">${when === 'now' ? 'Ausrüstung übernommen.' : 'Ausrüstung gilt ab dem nächsten Einsatz.'}</p>`);
+      }
+    });
+    this.parent = 'pause';
+    this._focusFirst(s, '.lp-cls[aria-pressed="true"]');
   }
 
   /* ================================================================ Einstellungen / Steuerung */
@@ -407,7 +445,7 @@ export class Menus {
         if (c && !c.hidden) { c.hidden = true; e.preventDefault(); return; }
         e.preventDefault();
         this._resume();
-      } else if (['settings', 'controls', 'armory'].includes(this.current)) { e.preventDefault(); this._back(); }
+      } else if (['settings', 'controls', 'armory', 'equip'].includes(this.current)) { e.preventDefault(); if (this._equipPanel) this._equipPanel.unmount(); this._back(); }
       return;
     }
     if (typing) return;
@@ -479,7 +517,7 @@ export class Menus {
     }
     if (released(1)) {
       if (this.current === 'pause') this._resume();
-      else if (['settings', 'controls', 'armory'].includes(this.current)) this._back();
+      else if (['settings', 'controls', 'armory', 'equip'].includes(this.current)) { if (this._equipPanel) this._equipPanel.unmount(); this._back(); }
     }
     if (released(9) && this.current === 'pause') this._resume();
     if (released(4) || released(5)) this._cycleTabs(released(5) ? 1 : -1);

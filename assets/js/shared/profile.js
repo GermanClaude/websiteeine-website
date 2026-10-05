@@ -5,7 +5,7 @@
 
 import { settings } from './settings.js';
 import { WEAPONS, EQUIPMENT } from './weapons.data.js';
-import { matchBonusXp, medalXp, DIFFICULTIES, XP_RULES } from './modes.data.js';
+import { matchBonusXp, medalXp, DIFFICULTIES, XP_RULES, applyChallenges, blankChallenges } from './modes.data.js';
 
 const STORAGE_KEY = 'nullpunkt:profile';
 const VERSION = 1;
@@ -198,7 +198,34 @@ function blank() {
     matches: 0, wins: 0, losses: 0, draws: 0, kills: 0, deaths: 0, assists: 0, headshots: 0,
     shotsFired: 0, shotsHit: 0, playtime: 0, bestStreak: 0, longestKill: 0,
     weaponStats: {}, modeStats: {}, medals: {}, history: [], createdAt: Date.now(), updatedAt: Date.now(),
+    // modes-ui (additiv): Kosmetik, Herausforderungen, Geheimnisse, Zähler (Fahrzeuge, Marken, Infektionen …)
+    cosmetics: { equipped: { weapon: {}, operator: {} } }, challenges: blankChallenges(), secrets: {}, counters: {},
   };
+}
+
+/** modes-ui: Kosmetik/Herausforderungen/Geheimnisse bereinigen (Ids, Größen begrenzt). */
+function cleanExtras(p, data) {
+  const idMap = (src, max = 200) => {
+    const out = {};
+    if (!src || typeof src !== 'object') return out;
+    for (const [k, v] of Object.entries(src).slice(0, max)) if (ID_RE.test(k) && typeof v === 'string' && /^[a-z0-9_:-]{1,40}$/.test(v)) out[k] = v;
+    return out;
+  };
+  const eq = data.cosmetics && data.cosmetics.equipped;
+  p.cosmetics = { equipped: { weapon: idMap(eq && eq.weapon), operator: idMap(eq && eq.operator, 16) } };
+  const ch = data.challenges && typeof data.challenges === 'object' ? data.challenges : null;
+  if (ch) {
+    const slot = (x) => (x && typeof x === 'object' && typeof x.key === 'string' && x.key.length < 16
+      ? { key: x.key, prog: cleanCounts(x.prog), done: Array.isArray(x.done) ? x.done.filter((d) => ID_RE.test(d)).slice(0, 16) : [] }
+      : { key: '', prog: {}, done: [] });
+    p.challenges = { daily: slot(ch.daily), weekly: slot(ch.weekly), totals: cleanCounts(ch.totals), claimed: cleanCounts(ch.claimed) };
+  }
+  if (data.secrets && typeof data.secrets === 'object') {
+    for (const [k, v] of Object.entries(data.secrets).slice(0, 64)) {
+      if (ID_RE.test(k) && v && typeof v === 'object') p.secrets[k] = { name: String(v.name || k).slice(0, 48), map: ID_RE.test(v.map || '') ? v.map : '', at: int(v.at, 0, 1e15) };
+    }
+  }
+  p.counters = cleanCounts(data.counters);
 }
 
 function cleanWeaponStats(src) {
@@ -235,6 +262,7 @@ function sanitize(data) {
     }
   }
   if (Array.isArray(data.history)) p.history = data.history.filter((h) => h && typeof h === 'object').slice(0, HISTORY_MAX);
+  cleanExtras(p, data);
   p.createdAt = int(data.createdAt, 0, 1e15) || Date.now();
   p.updatedAt = int(data.updatedAt, 0, 1e15) || Date.now();
   return p;
@@ -284,6 +312,7 @@ function sanitizeSummary(s) {
     medals: cleanCounts(s.medals), weaponStats: cleanWeaponStats(s.weaponStats),
     duration: num(s.duration, 0, 24 * 3600),
     difficulty: typeof s.difficulty === 'string' && ID_RE.test(s.difficulty) ? s.difficulty : null,
+    counters: cleanCounts(s.counters), style: s.style === 'realistisch' ? 'realistisch' : 'arcade',
   };
 }
 
@@ -333,6 +362,17 @@ export const profile = {
         breakdown.push({ id: 'difficulty', label: `Schwierigkeit ${diff.name || s.difficulty} ×${String(mult).replace('.', ',')}`, xp: Math.round(sub * (mult - 1)) });
       }
     }
+    // modes-ui: Herausforderungen (täglich/wöchentlich) und Meilensteine
+    let challenges = [];
+    if (!training) {
+      const base = { kills: data.kills + s.kills, headshots: data.headshots + s.headshots, wins: data.wins + (s.result === 'win' ? 1 : 0),
+        medals: Object.values(data.medals).reduce((a, b) => a + b, 0) + Object.values(s.medals).reduce((a, b) => a + b, 0) };
+      const res = applyChallenges(data.challenges || (data.challenges = blankChallenges()), s, { base });
+      challenges = res.completed;
+      const chXp = challenges.reduce((a, c) => a + (c.xp | 0), 0);
+      if (chXp) breakdown.push({ id: 'challenges', label: challenges.length === 1 ? 'Herausforderung' : `Herausforderungen (${challenges.length})`, xp: chXp });
+      for (const [k, n] of Object.entries(s.counters)) data.counters[k] = (data.counters[k] || 0) + n;
+    }
     const xpGained = Math.max(0, breakdown.reduce((a, b) => a + b.xp, 0));
 
     data.xp = Math.min(xpBefore + xpGained, xpForLevel(MAX_LEVEL) * 4);
@@ -373,7 +413,33 @@ export const profile = {
       breakdown, rankBefore, rankAfter,
       levelUp: data.level > levelBefore, rankUp: rankAfter.index > rankBefore.index,
       progressBefore: levelProgress(xpBefore), progressAfter: levelProgress(data.xp),
+      challenges,
     };
+  },
+
+  /** modes-ui: Geheimnis gefunden (true = neu). */
+  markSecret(id, name = '', map = '') {
+    if (typeof id !== 'string' || !ID_RE.test(id)) return false;
+    if (data.secrets[id]) return false;
+    data.secrets[id] = { name: String(name || id).slice(0, 48), map: ID_RE.test(map || '') ? map : '', at: Date.now() };
+    const t = data.challenges && data.challenges.totals;
+    if (t) t.secrets = Object.keys(data.secrets).length;
+    save();
+    notify();
+    return true;
+  },
+
+  /** modes-ui: Tarnung/Outfit ausrüsten. kind 'weapon' (key = Waffen-Id) | 'operator' (key = Klasse); value null = Standard. */
+  equipCosmetic(kind, key, value) {
+    const eq = data.cosmetics.equipped;
+    const tab = kind === 'operator' ? eq.operator : kind === 'weapon' ? eq.weapon : null;
+    if (!tab || !ID_RE.test(key || '')) return false;
+    if (value == null || value === '') delete tab[key];
+    else if (typeof value === 'string' && /^[a-z0-9_:-]{1,40}$/.test(value)) tab[key] = value;
+    else return false;
+    save();
+    notify();
+    return true;
   },
 
   levelFor,

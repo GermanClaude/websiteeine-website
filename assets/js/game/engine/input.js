@@ -18,6 +18,7 @@ import {
   ACTION_IDS, ACTION_BY_ID, resolveBindings, codeMap, findConflicts, codeLabel, isBindable,
   TOUCH_BUTTONS, aspectBucket, resolveTouchLayout, loadKeyboardLayout,
 } from '../../shared/bindings.data.js';
+import { assistLevels, assistAppliesTo } from '../../shared/settings.js';
 
 /** Alle Aktionen (Reihenfolge wie ACTION_DEFS; die ursprünglichen 17 sind enthalten). */
 export const ACTIONS = ACTION_IDS;
@@ -117,6 +118,9 @@ const ICONS = {
   streak: I('<path d="M24 8l5 10 11 2-8 8 2 11-10-5-10 5 2-11-8-8 11-2z"/>'),
   lock: I('<rect x="15" y="22" width="18" height="14" rx="2"/><path d="M19 22v-5a5 5 0 0 1 10 0v5"/>'),
   sprint: I('<path d="M14 30l10-10 10 10"/><path d="M14 20l10-10 10 10"/>'),
+  prone: I('<circle cx="35" cy="22" r="4"/><path d="M8 31h20l5-4M14 31l-3-5M26 31l3 4"/><path d="M6 38h36" opacity=".45"/>'),
+  plate: I('<path d="M24 7l14 5v11c0 9-6 15-14 18-8-3-14-9-14-18V12z"/><path d="M24 17v14M17 24h14"/>'),
+  gadget: I('<rect x="10" y="16" width="28" height="22" rx="3"/><path d="M19 16v-5h10v5M24 21v12M18 27h12"/>'),
 };
 
 export class Input {
@@ -175,6 +179,8 @@ export class Input {
     this._offSettings = null;
     this._los = new Map();
     this._autoPulse = 0;
+    this._afTarget = null; // Auto-Feuer: aktuelles Ziel und seit wann (Verzögerung je Stufe)
+    this._afSince = 0;
     this._lastVibrate = 0;
     this._fsTriedAt = -1e9;
     this._track = null; // Rotationshilfe: letzte Peilung des Ziels
@@ -214,6 +220,8 @@ export class Input {
   }
   pressed(action) { return this._pressed.has(action); }
   released(action) { return this._released.has(action); }
+  /** Drücken dieses Bildes verbrauchen (geteilte Tasten: z. B. 4 = Platte statt Serie 2). */
+  consume(action) { return this._pressed.delete(action); }
 
   /** 'hold' | 'toggle' für Aktionen mit wählbarem Verhalten (Touch: immer Umschalten). */
   behavior(action) {
@@ -936,13 +944,21 @@ export class Input {
   _assist(dt) {
     const G = this.G;
     const player = G.player;
-    const assistDevice = this.mode === 'touch' || this.lastDevice === 'gamepad';
     this.aimTarget = null;
-    if (!player || !player.alive || !this.enabled || !G.actors || !G.combat) { this._releaseSource('auto'); this._track = null; return; }
+    if (!player || !player.alive || !this.enabled || !G.actors || !G.combat) { this._releaseSource('auto'); this._track = null; this._afTarget = null; return; }
+
+    // Stufen aus den Einstellungen (0 = aus), gedeckelt für Online (G.match.assistCap); Geräte: Touch / Controller / Maus
+    const lv = assistLevels((k) => G.settings.get(k), G.match && G.match.assistCap);
+    const device = this.mode === 'touch' ? 'touch' : this.lastDevice === 'gamepad' ? 'gamepad' : 'mouse';
+    const L = assistAppliesTo(lv.aimDevices, device) ? lv.aim : 0;
+    const F = assistAppliesTo(lv.fireDevices, device) ? lv.fire : 0;
+    const padK = device === 'gamepad' ? clamp(G.settings.get('aimAssistStrength') ?? 1, 0, 1.5) : 1;
 
     player.getEyePosition(_eye);
     player.getAimDirection(_aim);
     const now = G.time ? G.time.elapsed : 0;
+    // Fangkegel wächst mit der Stufe (1,0: bis ≈ 19° auf kurze Distanz = Einrasten)
+    const coneK = L > 0 ? 0.8 + 2 * L * L : 1;
     let best = null;
     let bestScore = 1;
     let bestDist = 0;
@@ -953,7 +969,7 @@ export class Input {
       const dist = _to.length();
       if (dist < 0.6 || dist > ASSIST_RANGE) continue;
       const ang = Math.acos(clamp(_to.dot(_aim) / dist, -1, 1));
-      const cone = clamp(Math.atan(0.95 / dist), 0.035, 0.13);
+      const cone = clamp(Math.atan(0.95 / dist), 0.035, 0.13) * coneK;
       if (ang > cone) continue;
       const score = ang / cone;
       if (score >= bestScore) continue;
@@ -965,19 +981,18 @@ export class Input {
     }
     this.aimTarget = best;
 
-    if (best && assistDevice && G.settings.get('aimAssist')) {
-      const strength = clamp(G.settings.get('aimAssistStrength') ?? 1, 0, 1.5);
+    if (best && L > 0) {
+      const sm = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
       const closeness = 1 - bestScore;
       const ads = player.weapon ? player.weapon.adsProgress || 0 : 0;
-      const ux = this.look.dx; // Daumen/Stick dieses Bildes (vor der Hilfe)
+      const ux = this.look.dx; // Daumen/Stick/Maus dieses Bildes (vor der Hilfe)
       const uy = this.look.dy;
-      // 1) Verlangsamung über dem Ziel (feinere Korrekturen möglich, nie Stillstand)
-      const friction = 1 - Math.min(0.55, 0.4 * closeness * strength);
+      // 1) Bremsen über dem Ziel (ab der kleinsten Stufe; nie Stillstand)
+      const friction = 1 - Math.min(0.6, 0.55 * closeness * sm(0, 0.4, L) * padK);
       this.look.dx *= friction;
       this.look.dy *= friction;
 
-      // 2) Rotationshilfe (COD): Winkelbewegung des Ziels relativ zum Spieler teilweise mitführen –
-      //    gleicht eigenes Seitwärtslaufen und laufende Gegner aus, zieht aber nie gegen den Daumen.
+      // 2) Mitführen (COD-Rotationshilfe): Winkelbewegung des Ziels relativ zum Spieler teilweise übernehmen
       const h = best.body ? best.body.height : 1.8;
       const bx = best.position.x - _eye.x;
       const by = best.position.y + h * CHEST - _eye.y;
@@ -987,74 +1002,97 @@ export class Input {
       const tr = this._track;
       const dYaw = tr ? wrapAngle(bearYaw - tr.yaw) : 0;
       const dPitch = tr ? bearPitch - tr.pitch : 0;
-      // Sprünge (Respawn, Teleport) nicht mitführen
-      if (tr && tr.actor === best && dt > 0 && Math.abs(dYaw) < 0.2 && Math.abs(dPitch) < 0.2) {
-        const k = Math.min(0.95, (0.45 + 0.35 * ads) * closeness * strength);
+      const follow = sm(0.15, 0.6, L);
+      if (follow > 0 && tr && tr.actor === best && dt > 0 && Math.abs(dYaw) < 0.2 && Math.abs(dPitch) < 0.2) {
+        const k = Math.min(0.97, (0.45 + 0.35 * ads + 0.2 * L) * closeness * follow * padK);
         this.look.dx -= dYaw * k;
         this.look.dy -= dPitch * k * 0.5;
       }
       this._track = { actor: best, yaw: bearYaw, pitch: bearPitch };
 
-      // 3) Leichter Zug zur Körperachse – nur in Aktion (laufen, feuern, zielen), und je Achse nur,
-      //    wenn der Spieler nicht gerade vom Ziel weg zieht. Innerhalb der Körperhöhe zieht nichts nach
-      //    unten zur Brust (Kopfschüsse bleiben möglich). Bezug ist die Laufrichtung (auch beim freien Zielen).
+      // 3) Ziehen zur Körperachse (Magnetismus): bis 0,6 nur in Aktion und nie gegen den Daumen, darüber immer
+      _to.subVectors(_best, _eye);
+      const wantYaw = Math.atan2(-_to.x, -_to.z);
+      const wantPitch = Math.asin(clamp(_to.y / bestDist, -1, 1));
+      const yaw = Math.atan2(-_aim.x, -_aim.z);
+      const pitch = Math.asin(clamp(_aim.y, -1, 1));
+      const errYaw = wrapAngle(wantYaw - yaw);
+      const errPitch = wantPitch - pitch;
+      const pull = sm(0.3, 0.85, L);
       const moving = Math.hypot(this.move.x, this.move.y) > 0.2;
-      if (moving || this.down('fire') || ads > 0.5) {
-        _to.subVectors(_best, _eye);
-        const wantYaw = Math.atan2(-_to.x, -_to.z);
-        const wantPitch = Math.asin(clamp(_to.y / bestDist, -1, 1));
-        const yaw = Math.atan2(-_aim.x, -_aim.z);
-        const pitch = Math.asin(clamp(_aim.y, -1, 1));
-        const rate = (0.9 + 1.6 * ads) * closeness * strength * dt;
-        const px = -clamp(wrapAngle(wantYaw - yaw), -rate, rate); // Beitrag zu look.dx
-        const py = -clamp(wantPitch - pitch, -rate, rate) * 0.6;
-        if (ux * px >= 0) this.look.dx += px;
-        if (uy * py >= 0) this.look.dy += py;
+      if (pull > 0 && (L > 0.6 || moving || this.down('fire') || ads > 0.5)) {
+        const rate = (0.9 + 1.6 * ads) * (0.6 + 1.4 * L) * closeness * pull * padK * dt;
+        const px = -clamp(errYaw, -rate, rate); // Beitrag zu look.dx
+        const py = -clamp(errPitch, -rate, rate) * 0.6;
+        if (L > 0.6 || ux * px >= 0) this.look.dx += px;
+        if (L > 0.6 || uy * py >= 0) this.look.dy += py;
+      }
+      // 4) Einrasten (ab 0,85 zunehmend, 1,0 = voll): Restfehler zur Brust je Bild schließen (Zielpunkt Oberkörper)
+      const lock = sm(0.85, 1, L);
+      if (lock > 0) {
+        _pt.copy(best.position);
+        _pt.y += h * (best.proneBlend > 0.5 ? 0.45 : 0.72);
+        _to.subVectors(_pt, _eye);
+        const d = _to.length() || 1;
+        const lYaw = wrapAngle(Math.atan2(-_to.x, -_to.z) - yaw);
+        const lPitch = Math.asin(clamp(_to.y / d, -1, 1)) - pitch;
+        const k = lock * Math.min(1, 0.35 + 0.65 * lock) * (dt > 0 ? Math.min(1, dt * 30) : 0);
+        this.look.dx = this.look.dx * (1 - lock) - lYaw * k;
+        this.look.dy = this.look.dy * (1 - lock) - lPitch * k;
       }
     } else {
       this._track = null;
     }
 
-    // Auto-Feuer (Touch, „einfacher Modus“): feuert, solange die Visierlinie eine echte Trefferzone eines
-    // sichtbaren Gegners schneidet (Kopf, Körper, Glieder) – in Waffenreichweite und wenn die Waffe bereit ist.
+    // Auto-Feuer: feuert, solange die Visierlinie eine Trefferzone eines sichtbaren Gegners schneidet. Stufe F:
+    // Verzögerung 0,32 s → 0, Reichweite 35 % → 100 % der Waffe (ab 0,75), ab 0,5 auch knapp daneben (bis 2°), Takt halbautomatisch 0,24 → 0,1 s.
     const wpn = player.weapon;
-    const autoOn = this.mode === 'touch' && G.settings.get('autoFire') && (!wpn || wpn.autoFireReady !== false) && !player.mantling;
-    const target = autoOn ? this._autoFireTarget(player, wpn) : null;
-    if (target) {
+    const autoOn = F > 0 && (!wpn || wpn.autoFireReady !== false) && !player.mantling;
+    const target = autoOn ? this._autoFireTarget(player, wpn, F) : null;
+    if (target !== this._afTarget) { this._afTarget = target; this._afSince = now; }
+    const delay = 0.32 * Math.pow(1 - F, 1.5);
+    if (target && now - this._afSince >= delay) {
       const def = wpn && wpn.currentDef;
       const auto = def && def.fireMode === 'auto';
       if (auto) this._press('fire', 'auto');
       else {
         this._autoPulse -= dt;
-        if (this._autoPulse <= 0) { this._autoPulse = 0.16; this._press('fire', 'auto'); } else this._release('fire', 'auto');
+        if (this._autoPulse <= 0) { this._autoPulse = 0.24 - 0.14 * F; this._press('fire', 'auto'); } else this._release('fire', 'auto');
       }
     } else {
       this._releaseSource('auto');
     }
   }
 
-  /** Gegner, dessen Trefferzonen die Visierlinie schneidet (freie Sicht, ≤ autoFireRange) – sonst null. */
-  _autoFireTarget(player, wpn) {
+  /** Gegner, dessen Trefferzonen die Visierlinie schneidet (freie Sicht, ≤ Reichweite je Stufe); ab F > 0,5 auch knapp daneben. */
+  _autoFireTarget(player, wpn, F = 0.5) {
     const G = this.G;
-    const range = (wpn && wpn.autoFireRange) || ASSIST_RANGE;
+    const range = ((wpn && wpn.autoFireRange) || ASSIST_RANGE) * Math.min(1, 0.35 + 0.87 * F);
+    const tol = F > 0.5 ? (F - 0.5) * 2 * 0.035 : 0;
     _ray.origin.copy(_eye);
     _ray.direction.copy(_aim);
     let best = null;
     let bestD = range;
     for (const a of G.actors) {
       if (!a.alive || a === player || typeof a.raycastHitboxes !== 'function' || !G.combat.isHostile(player, a)) continue;
-      // Grobfilter: Abstand der Körpermitte zur Visierlinie > 1,2 m → kann nicht treffen
+      // Grobfilter: Abstand der Körpermitte zur Visierlinie > 1,2 m (+ Toleranz) → kann nicht treffen
       const h = a.body ? a.body.height : 1.8;
       _to.copy(a.position);
       _to.y += h * 0.5;
       _to.sub(_eye);
       const along = _to.dot(_aim);
-      if (along <= 0 || along > bestD + 1.5 || _to.lengthSq() - along * along > 1.44) continue;
+      const slack = 1.2 + tol * along;
+      if (along <= 0 || along > bestD + 1.5 || _to.lengthSq() - along * along > slack * slack) continue;
       const hit = a.raycastHitboxes(_ray, bestD);
       if (hit && hit.distance < bestD) {
         best = a;
         bestD = hit.distance;
         _hit.copy(hit.point);
+      } else if (tol > 0 && along < bestD) {
+        // knapp daneben: Winkel zur Körpermitte innerhalb der Toleranz (zusätzlich zur Körperbreite)
+        const d = _to.length();
+        const ang = Math.acos(clamp(along / d, -1, 1)) - Math.atan(0.3 / d);
+        if (ang < tol) { best = a; bestD = along; _hit.copy(_to).add(_eye); }
       }
     }
     if (!best) return null;
@@ -1212,6 +1250,9 @@ class TouchUI {
       ${BTN_HTML('tc-lean tc-lean-l', 'lean_left', 'Links lehnen', ICONS.leanL, ' data-toggle="1"')}
       ${BTN_HTML('tc-lean tc-lean-r', 'lean_right', 'Rechts lehnen', ICONS.leanR, ' data-toggle="1"')}
       ${BTN_HTML('tc-light', 'light', 'Lampe', ICONS.light)}
+      ${BTN_HTML('tc-prone', 'prone', 'Hinlegen', ICONS.prone)}
+      <div class="tc-btn tc-plate" data-action="plate" role="button" aria-label="Panzerplatte einsetzen">${ICONS.plate}<span class="tc-badge">0</span></div>
+      <div class="tc-btn tc-gadget" data-action="gadget" role="button" aria-label="Klassen-Ausrüstung">${ICONS.gadget}<span class="tc-badge">0</span></div>
       <div class="tc-btn tc-swap" data-action="swap" role="button" aria-label="Waffe wechseln">${ICONS.swap}<span class="tc-swap-name">—</span></div>
       <div class="tc-streaks">
         <div class="tc-btn tc-streak" data-action="streak1" role="button" aria-label="Serie 1">${ICONS.streak}</div>
@@ -1232,6 +1273,11 @@ class TouchUI {
       grenade: r.querySelector('.tc-grenade'),
       tactical: r.querySelector('.tc-tactical'),
       tacBadge: r.querySelector('.tc-tactical .tc-badge'),
+      plate: r.querySelector('.tc-plate'),
+      plateBadge: r.querySelector('.tc-plate .tc-badge'),
+      gadget: r.querySelector('.tc-gadget'),
+      gadgetBadge: r.querySelector('.tc-gadget .tc-badge'),
+      prone: r.querySelector('.tc-prone'),
       leanL: r.querySelector('.tc-lean-l'),
       leanR: r.querySelector('.tc-lean-r'),
       swapName: r.querySelector('.tc-swap-name'),
@@ -1515,6 +1561,8 @@ class TouchUI {
     const w = p && p.weapon;
     if (kind === 'tactical') { const t = w && w.equipment && w.equipment.tactical; return !!(t && t.id); }
     if (kind === 'light') return !!(p && (p.flashlight || (w && (w.hasLight || w.light))));
+    if (kind === 'armor') return !!(p && p.armor && p.armor.slots > 0);
+    if (kind === 'gadget') return !!(p && p.gadget);
     return true;
   }
 
@@ -1632,6 +1680,24 @@ class TouchUI {
         }
       }
     }
+    // Haltung, Platten (Reserve, läuft gerade), Klassen-Ausrüstung (Ladungen; Reparatur/Markieren ohne Zähler)
+    const pl = G.player;
+    set('prone', !!(pl && pl.prone), (v) => this.el.prone.classList.toggle('is-active', v));
+    const ar = pl && pl.armor;
+    set('plate', ar ? `${ar.carry}|${ar.inserting ? 1 : 0}|${ar.hp < ar.maxHp - 0.5 ? 1 : 0}` : '', () => {
+      this.el.plateBadge.textContent = String(ar ? ar.carry : 0);
+      this.el.plate.classList.toggle('is-active', !!(ar && ar.inserting));
+      this.el.plate.classList.toggle('is-empty', !ar || ar.carry <= 0 || ar.hp >= ar.maxHp - 0.5);
+    });
+    const gd = pl && pl.gadget;
+    set('gadget', gd ? `${gd.id}|${gd.charges}|${pl.repairTarget ? 1 : 0}` : '', () => {
+      const counted = !!(gd && gd.max > 0);
+      this.el.gadgetBadge.textContent = counted ? String(gd.charges) : '';
+      this.el.gadgetBadge.hidden = !counted;
+      this.el.gadget.classList.toggle('is-empty', counted && gd.charges <= 0);
+      this.el.gadget.classList.toggle('is-active', !!(pl && pl.repairTarget));
+      this.el.gadget.setAttribute('aria-label', gd ? ({ adrenalin: 'Adrenalinspritze', medkit: 'Verbandskasten', repair: 'Reparieren', spot: 'Markieren' }[gd.id] || 'Klassen-Ausrüstung') : 'Klassen-Ausrüstung');
+    });
     if (!w) return;
     const lethal = w.equipment && w.equipment.lethal;
     const count = lethal ? lethal.count : 0;

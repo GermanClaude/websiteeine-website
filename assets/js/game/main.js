@@ -571,9 +571,13 @@ function applyLoadoutNow(p, lo) {
   safe('player.applyClass', () => p.applyClass && p.applyClass());
 }
 
-/** Respawn-Zeit anhalten (Ausrüsten-Menü offen) bzw. weiterlaufen lassen. */
-function holdRespawn(on = true) {
+/**
+ * Respawn des Spielers zurückhalten (Ausrüsten-Menü / Einsatzkarte offen) bzw. freigeben.
+ * pause = true (Standard): Restzeit steht still; pause = false: Zeit läuft weiter, nur der Wiedereinstieg wartet.
+ */
+function holdRespawn(on = true, { pause = true } = {}) {
   on = !!on;
+  G.match.respawnHoldPause = !!pause;
   if (G.match.respawnHold === on) return on;
   G.match.respawnHold = on;
   G.events.emit('respawn:hold', { on, remaining: respawnRemaining() });
@@ -1336,7 +1340,7 @@ function updateRespawns() {
   const now = G.time.elapsed;
   // Respawn-Halt (Ausrüsten im Todesbildschirm): Restzeit des Spielers steht still
   const p = G.player;
-  if (G.match.respawnHold && p && !p.alive && p.respawnAt != null) p.respawnAt += G.time.dt;
+  if (G.match.respawnHold && G.match.respawnHoldPause !== false && p && !p.alive && p.respawnAt != null) p.respawnAt += G.time.dt;
   for (const a of G.actors) {
     if (a.alive || a.respawnAt == null || now < a.respawnAt) continue;
     if (a === p && G.match.respawnHold) continue;

@@ -21,6 +21,7 @@ import { Killfeed } from './killfeed.js';
 import { scoreboardHtml, liveRows } from './scoreboard.js';
 import { StrikeTargeting } from './strike-target.js';
 import { actionKey } from './settings/keys.js';
+import { DeployScreen } from './deploy.js';
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
@@ -146,6 +147,9 @@ export class HUD {
       <div class="h-medal"></div>
       <div class="h-death" hidden><div class="k">Ausgeschaltet<em>.</em></div><div class="by"></div><div class="info"></div><div class="re"><span></span><i><u></u></i></div></div>
       <div class="h-health"><b>100</b><i><u></u><s></s></i></div>
+      <div class="h-armor" hidden><span class="h-armico">${ICON.plate}</span><div class="h-plates"></div><b class="h-carry"></b><i class="h-ins"><u></u></i></div>
+      <div class="h-stance" data-st="stand" aria-hidden="true"></div>
+      <div class="h-zone" hidden><b></b><span></span></div>
       <div class="h-weapon"><div class="h-wname"><span class="n"></span><span class="m"></span></div><div class="h-ammo"><b>0</b><span>/ 0</span></div><div class="h-magbar"><u></u></div><div class="h-equip"></div><div class="h-next"></div></div>
       <div class="h-streaks"></div>
       <div class="h-train" hidden></div>
@@ -168,6 +172,8 @@ export class HUD {
       health: q('.h-health'), hpN: q('.h-health b'), hpBar: q('.h-health u'), hpLag: q('.h-health s'),
       weapon: q('.h-weapon'), wName: q('.h-wname .n'), wMode: q('.h-wname .m'), mag: q('.h-ammo b'), reserve: q('.h-ammo span'), equip: q('.h-equip'), next: q('.h-next'),
       streaks: q('.h-streaks'), train: q('.h-train'), board: q('.h-board'),
+      armor: q('.h-armor'), plates: q('.h-plates'), carry: q('.h-carry'), ins: q('.h-ins'), insBar: q('.h-ins u'), stance: q('.h-stance'),
+      zone: q('.h-zone'), zoneT: q('.h-zone b'), zoneS: q('.h-zone span'),
     };
     // Kompass-Streifen (zweimal 360° für nahtloses Scrollen)
     let strip = '';
@@ -224,6 +230,14 @@ export class HUD {
       if (p && typeof p.action === 'function') p.action();
     });
     this.targeting = new StrikeTargeting(this.G, top);
+    // modes-ui: Einsatzkarte (Eroberung) und „Ausrüsten“ nach dem Tod; Trupp-Befehl-Knopf (Touch, Eroberung)
+    this.deploy = new DeployScreen(this.G);
+    this.orderBtn = el('button', 'ht-order');
+    this.orderBtn.type = 'button';
+    this.orderBtn.hidden = true;
+    this.orderBtn.innerHTML = `${ICON.squad}<span>Befehl</span>`;
+    this.orderBtn.addEventListener('click', (e) => { e.preventDefault(); this._squadPing(); });
+    this.topUi.appendChild(this.orderBtn);
   }
 
   /* ================================================================ Lebenszyklus */
@@ -239,7 +253,15 @@ export class HUD {
     const modeId = mode ? mode.id : G.match.modeId;
     this.root.dataset.mode = modeId || '';
     this.root.dataset.teams = mode && mode.teams ? '1' : '0';
+    this._flags = (G.match && G.match.styleFlags) || {};
+    this.root.dataset.gstyle = (G.match && G.match.style) || 'arcade';
     this._applyStyle();
+    this._armKey = '';
+    this._teamSeen = G.player ? G.player.team : null;
+    this.el.armor.hidden = true;
+    this.el.zone.hidden = true;
+    if (this.deploy) this.deploy.attach(G);
+    this.orderBtn.hidden = !(mode && mode.squads);
     // Touch-Knöpfe ohne Funktion im Modus ausblenden (Serien im Waffenspiel/Schießstand, Granaten im Waffenspiel)
     document.body.dataset.streaks = mode && mode.streaks ? '1' : '0';
     document.body.dataset.lethals = mode && mode.def && mode.def.lethals === false ? '0' : '1';
@@ -287,6 +309,28 @@ export class HUD {
     s.on('training:parcours', (e) => this._onParcours(e));
     s.on('training:weapon', () => { this._slowT = 0; });
     s.on('objective:update', () => this._syncObjectives());
+    // modes-ui: Geheimnisse, Gebietswarnung, Trupp, Marken, Infektion, Tickets
+    s.on('secret:found', ({ name, actor } = {}) => { if (!actor || actor === P()) this._secretToast(name); });
+    s.on('zone:warn', (e) => this._zoneWarn(e));
+    s.on('squad:order', ({ squad, order, by }) => {
+      const me = P();
+      if (!me || !squad || squad !== me.squad || !order) return;
+      const f = (G.mode && G.mode.objectives || []).find((x) => x.id === order.objectiveId);
+      const txt = `${order.kind === 'defend' ? 'Verteidigt' : 'Angriff auf'} ${order.objectiveId}${f && f.name ? ` – ${f.name}` : ''}`;
+      this._notice(`Trupp ${squad.name}: ${txt}`, by === me ? 'ally' : 'dim', null, NOTICE_LIFE, 'squad');
+    });
+    s.on('squad:done', ({ squad }) => { if (squad && P() && squad === P().squad) this._notice('Befehl ausgeführt.', 'gold'); });
+    s.on('infect', ({ actor }) => {
+      if (actor === P()) this._notice('Du bist infiziert. Jage die Überlebenden.', 'enemy', null, 4, 'inf');
+      else if (G.mode && G.mode.scores && G.mode.scores.A === 1 && P() && P().team === 'A') this._notice('Letzter Überlebender!', 'gold', null, 4, 'inf');
+    });
+    s.on('ticket', ({ team, value, reason }) => {
+      const me = P();
+      if (!me || reason === 'start' || !G.mode || !G.mode.ticketsMax) return;
+      const max = G.mode.ticketsMax[team] || 1;
+      const warn = Math.round(max * 0.1);
+      if (value === warn) this._notice(team === me.team ? 'Unsere Tickets gehen zur Neige.' : 'Der Gegner hat kaum noch Tickets.', team === me.team ? 'enemy' : 'ally');
+    });
     s.on('settings:change', ({ key }) => {
       if (key === 'hudStyle' || key === 'bodycamStamp' || key === 'playerName') this._applyStyle();
       else if (key === 'bindings' || key === 'padIcons') this._buildStreaks(); // Tastenhinweise der Serien
@@ -297,6 +341,7 @@ export class HUD {
       this._vh = window.innerHeight;
       this._resetZones();
       this._syncFeedMax();
+      if (this.deploy) this.deploy.resize();
     };
     window.addEventListener('resize', this._onResize);
     this._onResize();
@@ -304,6 +349,7 @@ export class HUD {
   }
 
   detach() {
+    if (this.deploy) this.deploy.detach();
     if (this._subs) this._subs.dispose();
     this._subs = null;
     if (this._onResize) window.removeEventListener('resize', this._onResize);
@@ -312,6 +358,7 @@ export class HUD {
     if (this.feed) this.feed.clear();
     this._setPostDesat(0);
     if (this.topUi) this.topUi.hidden = true;
+    if (this.orderBtn) this.orderBtn.hidden = true;
     delete document.body.dataset.streaks;
     delete document.body.dataset.lethals;
     this._setDead(false);
@@ -418,12 +465,13 @@ export class HUD {
     const short = def.short || String(id).toUpperCase();
     const limit = mode && mode.scoreLimit > 0 ? ` · ${mode.scoreLimit}` : '';
     setText(this.el.mtag, `${short}${limit}`);
-    const names = G.data.TEAM_NAMES || { A: 'Team A', B: 'Team B' };
+    const names = (mode && mode.teamNames) || G.data.TEAM_NAMES || { A: 'Team A', B: 'Team B' };
     const myTeam = G.player && G.player.team === 'B' ? 'B' : 'A';
+    this._teamSeen = G.player ? G.player.team : null;
     setText(this.el.sAs, mode && mode.teams ? names[myTeam] : 'Du');
     setText(this.el.sBs, mode && mode.teams ? names[myTeam === 'A' ? 'B' : 'A'] : 'Spitze');
     let sub = '';
-    if (id === 'dom') {
+    if (id === 'dom' || (mode && mode.flagBar)) {
       sub = '<div class="h-flags">' + (mode.objectives || []).map((f) => `<div class="h-flag" data-id="${esc(f.id)}"><i></i><b>${esc(f.id)}</b></div>`).join('') + '</div>';
     } else if (id === 'gun') {
       const n = mode.steps ? mode.steps.length : 18;
@@ -508,7 +556,11 @@ export class HUD {
     if (!this.root) return;
     const S = this.G.settings;
     const v = S.get('hudStyle');
-    const st = HUD_STYLES.includes(v) ? v : 'voll';
+    let st = HUD_STYLES.includes(v) ? v : 'voll';
+    // Spielstil „Realistisch“: mindestens reduziertes HUD, Fadenkreuz nach Stil/Einstellung
+    const fl = this._flags || {};
+    if (fl.hudMin === 'reduziert' && st === 'voll') st = 'reduziert';
+    if (this.root.dataset.xhair !== (fl.crosshair === false ? '0' : '1')) this.root.dataset.xhair = fl.crosshair === false ? '0' : '1';
     const changed = this.style !== st;
     this.style = st;
     if (this.root.dataset.hud !== st) this.root.dataset.hud = st;
@@ -544,7 +596,7 @@ export class HUD {
   }
 
   _hitmarker(kind) {
-    if (this.style === 'aus') return; // Realismus: kein Treffermarker (der Klang bleibt)
+    if (this.style === 'aus' || (this._flags && this._flags.hitmarkers === 'aus')) return; // Realismus: kein Treffermarker (der Klang bleibt)
     this._hitT = kind === 'kill' ? 0.42 : 0.2;
     this._hitKind = kind;
     const h = this.el.hit;
@@ -555,7 +607,7 @@ export class HUD {
 
   _onKill(e) {
     const G = this.G;
-    this.feed.pushKill(e);
+    if (!(this._flags && this._flags.killfeed === 'eigene') || e.killer === this.G.player || e.victim === this.G.player) this.feed.pushKill(e, { weapons: !(this._flags && this._flags.killfeed === 'eigene' && this.G.match.style === 'realistisch') });
     const p = G.player;
     // Abschuss-Bestätigung unter dem Fadenkreuz
     const k = e.killer;
@@ -670,7 +722,7 @@ export class HUD {
 
   _damageDir({ amount, dir, attacker }) {
     const p = this.G.player;
-    if (!p) return;
+    if (!p || (this._flags && this._flags.damageDirection === false)) return;
     const src = attacker && attacker !== p && attacker.position ? attacker.position.clone() : null;
     let ang = null;
     if (!src && dir) ang = Math.atan2(dir.x, dir.z); // Quelle liegt entgegen dir
@@ -970,6 +1022,7 @@ export class HUD {
       this._updateStreakPanel();
       this._updatePrompt(touch);
       this._updateStamp();
+      this._updateStance(p);
       // Linkshänder-Layout (gespiegelte Touch-Knöpfe): HUD-Ecken mitspiegeln (Minikarte rechts, Knöpfe links)
       toggle(this.root, 'is-mirror', !!(touch && input.touchLayout && input.touchLayout.mirror));
       if (G.mode && G.mode.id === 'training') this._updateTraining();
@@ -991,6 +1044,12 @@ export class HUD {
 
     /* ---------- Flaggenmarker + Einnahmebalken */
     this._updateMarkers(vw, vh);
+
+    /* ---------- Rüstung, Einsatzkarte, Trupp-Befehl (modes-ui) */
+    this._updateArmor(p, now);
+    if (this.deploy) this.deploy.update(dt);
+    if (G.mode && G.mode.squads && p && p.alive && input && typeof input.pressed === 'function' && input.pressed('squad_order')) this._squadPing();
+    if (this._zoneT > 0) { this._zoneT -= dt; if (this._zoneT <= 0) this.el.zone.hidden = true; }
 
     /* ---------- Punkte / Medaillen / Hinweise */
     if (this._popups.t > 0) {
@@ -1151,12 +1210,20 @@ export class HUD {
     toggle(this.el.time, 'is-ot', !!mode.overtime);
     toggle(this.el.time, 'is-last', Number.isFinite(tl) && tl <= 30 && !mode.overtime);
     const held = id === 'dom' ? (mode.objectives || []).filter((f) => f.owner === p.team).length : 0;
-    setText(this.el.timeS, mode.overtime ? 'Verlängerung' : held && mode.tickIn != null ? `+${held} · ${Math.ceil(mode.tickIn)}\u202fs` : '');
+    let sub = mode.overtime ? 'Verlängerung' : held && mode.tickIn != null ? `+${held} · ${Math.ceil(mode.tickIn)}\u202fs` : '';
+    if (mode.flagBar && mode.ticketsMax) { // Eroberung: Flaggenmehrheit = Ausbluten
+      let a = 0;
+      let b = 0;
+      for (const f of mode.objectives || []) { if (f.owner === p.team) a++; else if (f.owner) b++; }
+      sub = a > b ? 'Gegner blutet aus' : b > a ? 'Wir bluten aus' : '';
+    }
+    setText(this.el.timeS, sub);
+    if (this._teamSeen !== p.team) this._buildModeSections(); // Infiziert: Seitenwechsel
     if (Number.isFinite(tl) && tl <= 60 && tl > 50 && !this._lastMinuteSaid && !mode.overtime && mode.timeLimit > 90) {
       this._lastMinuteSaid = true;
       this._notice('Noch eine Minute.', 'signal');
     }
-    const limit = mode.scoreLimit || 0;
+    const limit = mode.scoreMax || mode.scoreLimit || 0;
     if (mode.teams) {
       const mine = p.team === 'B' ? 'B' : 'A';
       const other = mine === 'A' ? 'B' : 'A';
@@ -1203,7 +1270,7 @@ export class HUD {
       setText(this.el.sBs, 'Treffer %');
     }
     // Flaggenleiste
-    if (id === 'dom' && this.el.flags) {
+    if ((id === 'dom' || mode.flagBar) && this.el.flags) {
       const map = new Map((mode.objectives || []).map((f) => [f.id, f]));
       for (const n of this.el.flags) {
         const f = map.get(n.dataset.id);
@@ -1444,16 +1511,89 @@ export class HUD {
     for (const n of nodes) io.observe(n);
   }
 
+  /* ================================================================ modes-ui: Rüstung, Haltung, Gebiet, Trupp */
+
+  /** Westenplatten (core-mechanics: player.armor = createArmorState) + Einsetz-Fortschritt + Reserve. */
+  _updateArmor(p, now) {
+    const a = p && p.alive ? p.armor : null;
+    const show = !!(a && a.slots > 0 && a.plateHp > 0);
+    if (this.el.armor.hidden === show) this.el.armor.hidden = !show;
+    if (!show) { this._armKey = ''; return; }
+    const n = a.slots | 0;
+    const key = `${n}`;
+    if (this._armKey !== key) {
+      this._armKey = key;
+      this.el.plates.innerHTML = '<i><u></u></i>'.repeat(n);
+      this._plateEls = [...this.el.plates.querySelectorAll('u')];
+    }
+    for (let i = 0; i < n; i++) {
+      const f = clamp(((a.hp || 0) - i * a.plateHp) / a.plateHp, 0, 1);
+      setStyle(this._plateEls[i], 'transform', `scaleX(${f.toFixed(3)})`);
+    }
+    setText(this.el.carry, a.carryMax != null ? `×${a.carry | 0}` : '');
+    const ins = a.inserting;
+    let prog = 0;
+    if (ins && typeof ins === 'object' && ins.dur > 0) prog = clamp((now - ins.start) / ins.dur, 0, 1);
+    else if (typeof ins === 'number') prog = clamp(ins, 0, 1);
+    toggle(this.el.armor, 'is-ins', prog > 0);
+    setStyle(this.el.insBar, 'transform', `scaleX(${prog.toFixed(3)})`);
+    toggle(this.el.armor, 'is-empty', (a.hp || 0) <= 0.5);
+  }
+
+  /** Haltung (stehen/hocken/liegen) als kleines Symbol neben dem Leben. */
+  _updateStance(p) {
+    if (!p) return;
+    const st = p.stance || (p.prone ? 'prone' : p.crouching ? 'crouch' : 'stand');
+    if (this.el.stance.dataset.st === st) return;
+    this.el.stance.dataset.st = st;
+    setHtml(this.el.stance, ICON[st] || ICON.stand);
+  }
+
+  /** Eroberung: feindliches HQ / Kampfgebiet verlassen – Countdown in der Bildmitte. */
+  _zoneWarn({ kind, left } = {}) {
+    if (!kind) { this.el.zone.hidden = true; this._zoneT = 0; return; }
+    this.el.zone.hidden = false;
+    this._zoneT = 0.6;
+    setText(this.el.zoneT, kind === 'hq' ? 'Feindliches HQ' : 'Kampfgebiet verlassen');
+    setText(this.el.zoneS, `Kehre um – ${Math.ceil(left)} s`);
+  }
+
+  _secretToast(name) {
+    this._notice(`Geheimnis gefunden: ${name || '???'}`, 'gold', null, 5, 'secret');
+    this.G.events.emit('ui:sound', { name: 'confirm' });
+  }
+
+  /** Trupp-Befehl: Flagge in Blickrichtung (sonst die nächste) angreifen bzw. verteidigen. */
+  _squadPing() {
+    const G = this.G;
+    const m = G.mode;
+    const p = G.player;
+    if (!m || typeof m.squadOrder !== 'function' || !p || !m.objectives || !m.objectives.length) return;
+    const cam = G.camera;
+    let best = null;
+    let bestS = Infinity;
+    const fwd = new THREE.Vector3();
+    if (cam) cam.getWorldDirection(fwd);
+    for (const f of m.objectives) {
+      const to = f.position.clone().sub(p.position);
+      const d = to.length() || 1;
+      const ang = cam ? Math.acos(clamp(to.normalize().dot(fwd), -1, 1)) : 0;
+      const sc = ang < 0.45 ? ang * 10 + d / 400 : 10 + d / 100;
+      if (sc < bestS) { bestS = sc; best = f; }
+    }
+    if (best) { m.squadOrder(best.id, p); G.events.emit('ui:sound', { name: 'confirm' }); }
+  }
+
   _renderBoard() {
     const G = this.G;
     const mode = G.mode;
     if (!mode) return;
     const rows = liveRows(mode);
     const p = G.player;
-    const names = G.data.TEAM_NAMES || { A: 'Team A', B: 'Team B' };
+    const names = mode.teamNames || G.data.TEAM_NAMES || { A: 'Team A', B: 'Team B' };
     const head = `<div class="hb-head"><div><div class="hb-k">${esc(G.world ? G.world.name : '')}</div><div class="hb-t">${esc(mode.def.name || '')}<em>.</em></div></div><div class="hb-time">${Number.isFinite(mode.timeLeft) ? clock(mode.timeLeft) : '∞'}</div></div>`;
     setHtml(this.el.board, head + scoreboardHtml(rows, {
-      teams: mode.teams, playerTeam: p ? p.team : 'A', teamNames: names, teamScores: mode.teams ? mode.scores : null, live: true,
+      teams: mode.teams, playerTeam: p ? p.team : 'A', teamNames: names, teamScores: mode.teams ? mode.scores : null, live: true, squads: !!mode.squads,
     }));
   }
 }

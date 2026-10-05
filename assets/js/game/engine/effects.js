@@ -76,6 +76,9 @@ export class Effects {
     this._lightPrio = 0;
     this._light = null;
     this._delayed = [];
+    // Welle 2 (arsenal): Emitter für Rauchwolken und Brandflächen, Blendung des Spielers (DOM-Weißblende)
+    this._emitters = [];
+    this._blind = { t: 0, dur: 0, hold: 0, peak: 0, el: null };
     this.stats = { impacts: 0, decals: 0, explosions: 0, tracers: 0, blood: 0, muzzle: 0 };
   }
 
@@ -170,6 +173,9 @@ export class Effects {
     for (const p of this._pending) p.on = false;
     this._lightLife = 0;
     this._glintLos.clear();
+    this._emitters.length = 0;
+    this._setBlind(0);
+    this._blind.t = this._blind.dur = 0;
   }
 
   /** Umgebungslicht für Staub/Rauch aus der Kartenbeleuchtung. */
@@ -764,6 +770,8 @@ export class Effects {
    */
   explosion(position, radius = 6, opts = {}) {
     if (!this._built || !this._subs) return;
+    if (opts.type === 'flash') return this._flashBurst(position, opts);
+    if (opts.type === 'smoke') return this.smokeCloud(position, { radius: opts.smokeRadius, duration: opts.duration, grow: opts.grow });
     this.stats.explosions++;
     const G = this.G;
     const x = position.x, y = position.y, z = position.z;
@@ -899,6 +907,188 @@ export class Effects {
     }
   }
 
+  /* ================================================================ Wurfmittel & Raketen (Welle 2) */
+
+  /** Blendgranate: greller Kugelblitz, Funkenregen, kurzer weißer Rauch, starkes Licht (ohne Feuerball). */
+  _flashBurst(p, opts = {}) {
+    this.stats.explosions++;
+    const x = p.x, y = p.y + 0.15, z = p.z;
+    const W = [1, 1, 1];
+    this._flash(x, y, z, 6, 0.18, W, 9);
+    this._flash(x, y, z, 2.6, 0.1, W, 14, CELL.STAR);
+    const n = Math.round(22 * Math.max(0.5, this.scale));
+    for (let i = 0; i < n; i++) {
+      this._scatter(0, 1, 0, 1.4, _dir);
+      const sp = rnd(4, 11);
+      this._spark(x, y, z, _dir.x * sp, _dir.y * sp, _dir.z * sp, rnd(0.25, 0.6), rnd(0.02, 0.04), C.sparkHot, 4, 6);
+    }
+    for (let i = 0; i < 5; i++) this._puff(x + rnd(-0.3, 0.3), y + rnd(0, 0.4), z + rnd(-0.3, 0.3), rnd(-0.6, 0.6), rnd(0.3, 1), rnd(-0.6, 0.6), rnd(1.6, 2.6), 0.4, rnd(1.6, 2.4), lin('#d9d6cf'), 0.45, 1.6, 0.25);
+    if (this._light) {
+      this._light.position.set(x, y + 0.5, z);
+      this._light.color.setHex(0xf2f6ff);
+      this._light.distance = 22;
+      this._lightLife = this._lightDur = 0.22;
+      this._lightPeak = 140;
+      this._lightPrio = 4;
+      this._light.intensity = this._lightPeak;
+    }
+  }
+
+  /**
+   * Rauchwolke (Rauchgranate): Emitter, der bis zum Ende der Brenndauer dichte, beleuchtete Rauchballen ausstößt –
+   * in der Aufbauzeit schnell (Quellwolke), danach gleichmäßig; die letzten Ballen verwehen. Dichte bleibt auch auf
+   * „low“ deckend (Spielmechanik: Sicht), dort mit größeren statt mehr Ballen.
+   * opts: { radius (5,5), duration (16), grow (2,6), color }
+   */
+  smokeCloud(position, opts = {}) {
+    if (!this._built) return null;
+    const e = {
+      kind: 'smoke', x: position.x, y: position.y, z: position.z, t: 0, next: 0,
+      dur: opts.duration || 16, radius: opts.radius || 5.5, grow: opts.grow || 2.6,
+      col: opts.color ? lin(opts.color) : lin('#bdb9b1'), colDark: lin('#8e8a83'),
+    };
+    this._emitters.push(e);
+    return e;
+  }
+
+  /** Brandfläche (Brandsatz): Flammen, Glut, dunkler Rauch, flackerndes Licht für `duration` s. */
+  fireArea(position, radius = 3, duration = 7) {
+    if (!this._built) return null;
+    const e = { kind: 'fire', x: position.x, y: position.y, z: position.z, t: 0, next: 0, smokeNext: 0, lightNext: 0, dur: duration, radius };
+    this._emitters.push(e);
+    // Aufflammen beim Glasbruch
+    this._flash(e.x, e.y + 0.5, e.z, 3.2, 0.2, C.flash, 3);
+    for (let i = 0; i < 6; i++) this._fireBall(e.x + rnd(-1, 1) * radius * 0.5, e.y + 0.2, e.z + rnd(-1, 1) * radius * 0.5, rnd(0.9, 1.5), rnd(0.5, 0.8), 2.5);
+    if (this.G.world) { _t1.set(e.x, e.y + 0.05, e.z); this.decals.add(DECAL.SCORCH, _t1, UP, radius * 1.4, Math.max(20, duration * 3), this._time, 0.9); }
+    return e;
+  }
+
+  _fireBall(x, y, z, size, life, rise = 2) {
+    const L = this.fire;
+    const j = L.spawn(x, y, z, rnd(-0.3, 0.3), rnd(0.6, 1.4), rnd(-0.3, 0.3), life, size * 0.6, size, 3.0, 1.7, 0.75, 1, CELL.FIRE);
+    if (j < 0) return;
+    L.flags[j] |= PF.ANIM;
+    L.frames[j] = CELL.FIRE_FRAMES;
+    L.drag[j] = 2;
+    L.grav[j] = -rise;
+    L.rv[j] = rnd(-1, 1);
+  }
+
+  /** Raketen-Abgasstrahl: Flamme an der Düse (additiv) + grauer Rauchfaden. */
+  rocketTrail(pos, dir) {
+    if (!this._built) return;
+    const bx = pos.x - dir.x * 0.35, by = pos.y - dir.y * 0.35, bz = pos.z - dir.z * 0.35;
+    this._flash(bx, by, bz, rnd(0.35, 0.5), 0.05, C.muzzle, 4);
+    if (Math.random() < 0.85 * Math.max(0.5, this.scale)) {
+      this._puff(bx, by, bz, -dir.x * 1.5 + rnd(-0.3, 0.3), rnd(0, 0.4), -dir.z * 1.5 + rnd(-0.3, 0.3), rnd(1.6, 2.6), 0.18, rnd(0.8, 1.3), C.smokeLight, 0.42, 1.8, 0.15);
+    }
+  }
+
+  /** Rückstrahl hinter dem Werfer: Staub-/Rauchkegel nach hinten. */
+  backblast(pos, dir) {
+    if (!this._built) return;
+    const x = pos.x - dir.x * 1.0, y = pos.y - dir.y * 1.0, z = pos.z - dir.z * 1.0;
+    this._flash(x, y, z, 1.4, 0.08, C.flash, 3);
+    const n = Math.round(10 * Math.max(0.5, this.scale));
+    for (let i = 0; i < n; i++) {
+      const sp = rnd(3, 9);
+      this._puff(x, y, z, -dir.x * sp + rnd(-1.2, 1.2), -dir.y * sp + rnd(-0.4, 1.2), -dir.z * sp + rnd(-1.2, 1.2), rnd(1.2, 2.2), 0.3, rnd(1.4, 2.4), C.smokeLight, 0.5, 2.6, 0.2);
+    }
+  }
+
+  _updateEmitters(dt) {
+    const L = this._emitters;
+    if (!L.length) return;
+    const sc = Math.max(0.7, this.scale);
+    for (let i = L.length - 1; i >= 0; i--) {
+      const e = L[i];
+      e.t += dt;
+      if (e.t >= e.dur) { L.splice(i, 1); continue; }
+      if (e.kind === 'smoke') {
+        // Wolkenradius wächst in der Aufbauzeit; Ballen leben ~6 s → konstante Dichte durch Nachschub
+        const k = Math.min(1, e.t / e.grow), R = e.radius * (0.3 + 0.7 * (1 - (1 - k) * (1 - k)));
+        const left = e.dur - e.t;
+        const rate = (e.t < e.grow ? 22 : 7.5) * sc * (left < 4 ? left / 4 : 1);
+        e.next -= dt * rate;
+        let guard = 0;
+        while (e.next <= 0 && guard++ < 6) {
+          e.next += 1;
+          const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * R * 0.8;
+          const h = Math.random() * R * 0.9;
+          const big = 1 / Math.sqrt(sc);
+          const life = rnd(5, 7.5);
+          const j = this._puff(e.x + Math.cos(a) * rr, e.y + 0.3 + h * 0.75, e.z + Math.sin(a) * rr,
+            Math.cos(a) * rnd(0.1, 0.5), rnd(0.02, 0.18), Math.sin(a) * rnd(0.1, 0.5), life,
+            rnd(1.5, 2.2) * big, rnd(3.2, 4.4) * big * Math.min(1.2, R / 4), h < R * 0.3 ? e.colDark : e.col, 0.62, 0.6, 0.06);
+          if (j >= 0) { this.alpha.fadeIn[j] = 0.12; this.alpha.fadePow[j] = 0.45; }
+        }
+      } else if (e.kind === 'fire') {
+        const left = e.dur - e.t, k = left < 1.5 ? left / 1.5 : 1;
+        e.next -= dt * 26 * k * sc;
+        let guard = 0;
+        while (e.next <= 0 && guard++ < 4) {
+          e.next += 1;
+          const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * e.radius * 0.9;
+          this._fireBall(e.x + Math.cos(a) * rr, e.y + 0.15, e.z + Math.sin(a) * rr, rnd(0.6, 1.2) * (0.6 + 0.4 * k), rnd(0.45, 0.8), rnd(1.5, 3));
+          if (Math.random() < 0.3) this._spark(e.x + Math.cos(a) * rr, e.y + 0.3, e.z + Math.sin(a) * rr, rnd(-0.4, 0.4), rnd(1.5, 3.5), rnd(-0.4, 0.4), rnd(0.8, 1.6), 0.025, C.ember, 2.5, -0.5);
+        }
+        e.smokeNext -= dt * 3.5 * sc;
+        if (e.smokeNext <= 0) {
+          e.smokeNext += 1;
+          this._puff(e.x + rnd(-1, 1) * e.radius * 0.5, e.y + 1.2, e.z + rnd(-1, 1) * e.radius * 0.5, rnd(-0.3, 0.3), rnd(1, 1.8), rnd(-0.3, 0.3), rnd(2.5, 3.5), 0.8, rnd(2.6, 3.6), C.smokeDark, 0.45, 0.8, 0.5);
+        }
+        e.lightNext -= dt;
+        if (e.lightNext <= 0) { e.lightNext = 0.09; _t2.set(e.x, e.y + 0.8, e.z); this.muzzleLight(_t2, (6 + Math.random() * 5) * k, 2, 0.14, 9); }
+      }
+    }
+  }
+
+  /**
+   * Blendung des Spielers (Blendgranate): Weißblende über dem Bild (DOM, billig auf Telefonen), dazu das
+   * Ausbrennen des Renderers (R.flash) – Halten ≈ 35 % der Dauer, dann abklingen. strength 0..1, duration s.
+   */
+  blind(strength = 1, duration = 3) {
+    const b = this._blind;
+    const peak = clamp(0.35 + 0.65 * strength, 0, 1);
+    if (b.t < b.dur && b.peak > peak && b.dur - b.t > duration) return;
+    b.t = 0; b.dur = Math.max(0.3, duration); b.hold = b.dur * 0.35; b.peak = peak;
+  }
+
+  _setBlind(o) {
+    const b = this._blind;
+    if (!b.el && o <= 0) return;
+    if (!b.el && typeof document !== 'undefined') {
+      const el = document.createElement('div');
+      el.id = 'np-flashbang';
+      el.setAttribute('aria-hidden', 'true');
+      el.style.cssText = 'position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:28;mix-blend-mode:screen;transition:none';
+      document.body.appendChild(el);
+      b.el = el;
+    }
+    if (b.el) { b.el.style.opacity = o > 0.003 ? o.toFixed(3) : '0'; b.el.style.display = o > 0.003 ? 'block' : 'none'; }
+  }
+
+  _updateBlind(dt) {
+    const b = this._blind;
+    if (b.dur <= 0) return;
+    b.t += dt;
+    let o;
+    if (b.t <= b.hold) o = b.peak;
+    else o = b.peak * Math.pow(Math.max(0, 1 - (b.t - b.hold) / Math.max(0.05, b.dur - b.hold)), 1.6);
+    const pl = this.G.player;
+    if (pl && pl.alive === false) o = 0;
+    this._setBlind(o);
+    if (this.G.renderer && typeof this.G.renderer.flash === 'function' && o > 0.05) this.G.renderer.flash(Math.min(1.5, o * 1.5));
+    if (b.t >= b.dur || o <= 0) { b.dur = 0; this._setBlind(0); }
+  }
+
+  /** Aktuelle Blendung 0..1 (HUD/Tests). */
+  get blindness() {
+    const b = this._blind;
+    if (b.dur <= 0) return 0;
+    return b.t <= b.hold ? b.peak : b.peak * Math.pow(Math.max(0, 1 - (b.t - b.hold) / Math.max(0.05, b.dur - b.hold)), 1.6);
+  }
+
   /* ================================================================ Zielfernrohr-Glanz */
 
   _updateGlints() {
@@ -1027,6 +1217,8 @@ export class Effects {
       }
     }
     this.debris.update(dt, this.G.world);
+    this._updateEmitters(dt);
+    this._updateBlind(dt);
     this._updateMotes(dt);
     this.motes.update(dt);
     if (this._light && this._lightLife > 0) {
@@ -1039,6 +1231,7 @@ export class Effects {
 
   dispose() {
     this.detach();
+    if (this._blind.el) { this._blind.el.remove(); this._blind.el = null; }
     if (!this._built) return;
     this.alpha.dispose();
     this.fire.dispose();

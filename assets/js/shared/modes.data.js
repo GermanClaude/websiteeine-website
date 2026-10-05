@@ -620,6 +620,13 @@ export function styleRules(style, { crosshair } = {}) {
   return r;
 }
 
+/** Ausführungen der Klassen-Outfits (loadout.skin = `${klasse}:${id}`; Darstellung: bots/gunsmith). */
+export const OPERATOR_TIERS = [
+  { id: 'standard', name: 'Standard', level: 1, text: 'Dienstausführung' },
+  { id: 'veteran', name: 'Veteran', level: 20, text: 'Getragen, mit Abzeichen' },
+  { id: 'elite', name: 'Elite', level: 40, text: 'Dunkel, Goldrand' },
+];
+
 /** Trupp-Rufnamen (Eroberung): 4 Mitglieder je Trupp. */
 export const SQUAD_NAMES = ['Anton', 'Berta', 'Cäsar', 'Dora', 'Emil', 'Friedrich', 'Gustav', 'Heinrich'];
 export const SQUAD_SIZE = 4;

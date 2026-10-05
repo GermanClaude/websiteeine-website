@@ -1484,13 +1484,15 @@ export class Player {
   _footImpulse(hs) {
     const c = this._cam;
     const side = (this._stepSide = -this._stepSide);
-    const sp = clamp(hs / SPEED_WALK, 0.5, 1.4);
-    const sprint = this.sprinting, crouch = this.crouching;
-    const kY = sprint ? 1.4 : crouch ? 0.35 : 0.75;
-    const kR = sprint ? 0.34 : crouch ? 0.08 : 0.2;
-    const kP = sprint ? 0.26 : crouch ? 0.06 : 0.13;
-    const kW = sprint ? 0.22 : crouch ? 0.03 : 0.06;
-    const kX = sprint ? 0.7 : crouch ? 0.15 : 0.35;
+    const sp = this.prone ? clamp(hs / SPEED_PRONE, 0.5, 1.2) : clamp(hs / SPEED_WALK, 0.5, 1.4);
+    const sprint = this.sprinting, crouch = this.crouching, prone = this.prone;
+    // Bodycam-Abstimmung: kräftigere Fersenaufsätze, seitliches Pendeln und Kopfdrehen (× Komfortregler in _updateCamera);
+    // liegend: Ellbogen-Kriechen rollt den Körper deutlich, kaum Höhe
+    const kY = prone ? 0.3 : sprint ? 1.75 : crouch ? 0.42 : 0.9;
+    const kR = prone ? 0.42 : sprint ? 0.42 : crouch ? 0.1 : 0.25;
+    const kP = prone ? 0.12 : sprint ? 0.3 : crouch ? 0.07 : 0.15;
+    const kW = prone ? 0.16 : sprint ? 0.28 : crouch ? 0.04 : 0.09;
+    const kX = prone ? 0.3 : sprint ? 0.9 : crouch ? 0.2 : 0.45;
     c.y.v -= kY * sp;
     c.r.v += side * kR * sp;
     c.p.v -= kP * sp;
@@ -1559,9 +1561,14 @@ export class Player {
     }
 
     // Augenhöhe (beim Klettern geduckt)
-    let eyeTarget = this.sliding ? SLIDE_EYE : this.crouching || this.mantling ? CROUCH_EYE : STAND_EYE;
+    let eyeTarget = this.sliding ? SLIDE_EYE : this.prone ? PRONE_EYE : this.crouching || this.mantling ? CROUCH_EYE : STAND_EYE;
     eyeTarget = Math.min(eyeTarget, this.body.height - 0.12);
-    if (this.alive) this._eye += (eyeTarget - this._eye) * damp(14, dt);
+    const pt = this.alive && this._stanceBusy() ? this.stanceT : -1; // Übergang ins/aus dem Liegen
+    if (pt >= 0) {
+      // hinlegen: erst auf die Knie, dann nach vorn ablegen; aufstehen: hochstemmen, dann aufrichten
+      const k = this.prone ? ease(clamp(pt * 1.15, 0, 1)) : ease(clamp(pt * 1.1 - 0.1, 0, 1));
+      this._eye = this._stanceEye0 + (eyeTarget - this._stanceEye0) * k;
+    } else if (this.alive) this._eye += (eyeTarget - this._eye) * damp(14, dt);
     else if (this._deathCam) {
       const t = clamp(this._deathCam.t / 0.7, 0, 1);
       this._eye = this._deathCam.eye + (0.32 - this._deathCam.eye) * (1 - Math.pow(1 - t, 3));
@@ -1573,29 +1580,44 @@ export class Player {
     const mm = M * (1 - 0.75 * ads) * (this.alive ? 1 : 0.3);
     this._sprintBlend += ((this.sprinting ? 1 : 0) - this._sprintBlend) * damp(6, dt);
     const ex = this.exertion;
-    const bA = 0.0028 * (1 + 1.6 * ex) * (1 - 0.6 * moving);
+    // Atmung (Bodycam: sichtbar, nach dem Sprint tief und schnell; liegend drückt der Brustkorb gegen den Boden)
+    const lie = this.proneBlend;
+    const bA = 0.0034 * (1 + 1.6 * ex) * (1 - 0.6 * moving) * (1 - 0.4 * lie);
     const breathY = Math.sin(this._breathPh) * bA;
-    const breathP = Math.sin(this._breathPh - 0.7) * 0.0019 * (1 + 2 * ex) * (1 - 0.5 * moving);
-    // seitliches Pendeln im Schrittzyklus (zwischen den Impulsen), beim Sprint kräftiger
-    const gaitAmp = body.onGround && !this.sliding && this.alive ? clamp(hs / SPEED_WALK, 0, 1.5) : 0;
-    const swayX = Math.cos(this._bobPhase) * gaitAmp * (0.006 + 0.01 * this._sprintBlend);
-    const camX = (c.x.x + swayX) * mm;
+    const breathP = Math.sin(this._breathPh - 0.7) * 0.0023 * (1 + 2 * ex) * (1 - 0.5 * moving) * (1 + 0.6 * lie);
+    // seitliches Pendeln im Schrittzyklus (Gewicht von Fuß zu Fuß), Kopf dreht und rollt mit den Schultern; beim Sprint kräftiger
+    const gaitAmp = body.onGround && !this.sliding && this.alive ? (this.prone ? clamp(hs / SPEED_PRONE, 0, 1.2) * 0.6 : clamp(hs / SPEED_WALK, 0, 1.5)) : 0;
+    const sb = this._sprintBlend;
+    const swayX = Math.cos(this._bobPhase) * gaitAmp * (0.009 + 0.016 * sb);
+    const gaitW = Math.sin(this._bobPhase) * gaitAmp * (0.003 + 0.006 * sb);
+    const gaitR = Math.cos(this._bobPhase) * gaitAmp * (0.004 + 0.008 * sb + 0.02 * lie);
+    // Gewichtsverlagerung beim Anlaufen/Stoppen (Nicken) und Seitwärts-Anfahren (Rollen + Versatz in die Gegenrichtung)
+    const accP = clamp(-this._accF * 0.0016, -0.034, 0.034);
+    const accR = clamp(-this._accS * 0.0014, -0.026, 0.026);
+    const accX = clamp(-this._accS * 0.0012, -0.02, 0.02);
+    // Ruhe: der Kopf steht nie ganz still (langsames Driften, Bodycam)
+    const idle = (1 - moving) * (this.alive ? 1 : 0);
+    const t0 = this._time;
+    const idleW = (Math.sin(t0 * 0.53) * 0.0011 + Math.sin(t0 * 0.31 + 1) * 0.0007) * idle;
+    const idleP = Math.sin(t0 * 0.41 + 2) * 0.0008 * idle;
+    const camX = (c.x.x + swayX + accX) * mm;
     const camY = (c.y.x + breathY) * mm;
     const camZ = c.z.x * mm;
-    const accP = clamp(-this._accF * 0.0011, -0.022, 0.022);
-    const accR = clamp(-this._accS * 0.0009, -0.016, 0.016);
     const turnR = clamp(this._turn * 0.0025, -0.011, 0.011) * (0.4 + 0.6 * moving);
-    const sprintP = -0.026 * this._sprintBlend;
+    const sprintP = -0.026 * sb;
     const mantleP = this.mantling ? -0.07 * Math.sin(Math.PI * this.mantleProgress) : 0;
-    const camP = (c.p.x + breathP + accP + sprintP + mantleP) * mm;
-    const camW = c.w.x * mm;
-    const camR = (c.r.x + accR + turnR) * mm;
+    // Hinlegen/Aufstehen: Nicken nach vorn und seitliches Abrollen im Übergang (Gameplay-Rückmeldung, nicht abschaltbar)
+    const stanceP = pt >= 0 ? (this.prone ? -0.12 : 0.06) * Math.sin(Math.PI * pt) : 0;
+    const stanceR = pt >= 0 ? 0.07 * this._stanceSide * Math.sin(Math.PI * pt) : 0;
+    const camP = (c.p.x + breathP + accP + sprintP + mantleP + idleP) * mm + stanceP * kM;
+    const camW = (c.w.x + gaitW + idleW) * mm;
+    const camR = (c.r.x + accR + turnR + gaitR) * mm + stanceR * kM;
 
     // Neigung (Seitwärts, Rutschen) – wie bisher, × Komfort
     const input = G.input;
     const strafe = this.alive && input ? input.move.x : 0;
     this._slideBlend += ((this.sliding ? 1 : 0) - this._slideBlend) * damp(10, dt);
-    const tiltTarget = (-strafe * 0.02 + this._slideBlend * 0.07) * kM;
+    const tiltTarget = (-strafe * 0.02 * (1 - this.proneBlend) + this._slideBlend * 0.07) * kM;
     this._tilt += (tiltTarget - this._tilt) * damp(8, dt);
 
     // Shake

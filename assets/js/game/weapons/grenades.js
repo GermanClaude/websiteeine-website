@@ -3,6 +3,9 @@
 // Gegnern, Zünder, Explosion über G.combat.explode. Modelle aus models.js ('third'), Haft-LED blinkt.
 //
 // Öffentliche Sicht (G.weapons.grenades): [{ id, type, actor, position, velocity, fuse, radius, stuckTo, rest }]
+// Welle 2: Aufschlaggranate (zündet beim ersten Kontakt), Brandsatz (Glas bricht → brennende Fläche, Schaden je
+// Sekunde), Blendgranate (Blendung je Akteur nach Sicht/Abstand/Blickrichtung → actor.flashedUntil, Ereignisse
+// actor:flashed / player:flashed), Rauchgranate (Wolke im Rauch-Register von WeaponSystem → Sichtdämpfung).
 
 import * as THREE from 'three';
 import { EQUIPMENT as DATA_EQUIPMENT } from '../../shared/weapons.data.js';
@@ -32,6 +35,7 @@ export class GrenadeSystem {
   constructor(system) {
     this.system = system;
     this.list = [];
+    this.fires = [];   // brennende Flächen (Brandsatz): { position, radius, until, attacker, dps, vehicleMult, tick }
     this._templates = new Map();
     this._ledTex = null;
     this._ledMat = null;
@@ -176,6 +180,7 @@ export class GrenadeSystem {
   /* ------------------------------------------------------------ Simulation */
 
   update(dt) {
+    if (this.fires.length) this._updateFires(dt);
     const list = this.list;
     if (!list.length) return;
     const G = this.G;
@@ -241,7 +246,10 @@ export class GrenadeSystem {
     // Haftgranate trifft Gegner
     if (g.sticky && this._stickActor(g, len)) return;
     // Frag prallt von Akteuren leicht ab
-    if (!g.sticky && this._bumpActor(g, len)) return;
+    if (!g.sticky && this._bumpActor(g, len)) {
+      if (g.eq.impact && g.age >= (g.eq.armTime ?? 0.1)) { g.fuse = 0; g.rest = true; v.set(0, 0, 0); }
+      return;
+    }
     const hit = world && typeof world.raycast === 'function' ? world.raycast(p, _dir, len + RADIUS) : null;
     if (!hit) { p.add(_move); return; }
     _n.copy(hit.normal);
@@ -257,6 +265,11 @@ export class GrenadeSystem {
       return;
     }
     p.copy(hit.point).addScaledVector(_n, RADIUS * 1.02);
+    if (g.eq.impact && g.age >= (g.eq.armTime ?? 0.1)) {
+      // Aufschlagzünder / Glasbruch: sofort am Kontaktpunkt
+      g.fuse = 0; g.rest = true; g.hitNormal = _n.clone(); v.set(0, 0, 0);
+      return;
+    }
     if (g.sticky) {
       g.stuckTo = 'world';
       g.stuckNormal = _n.clone();
@@ -383,6 +396,9 @@ export class GrenadeSystem {
 
   _boom(p, eq, actor) {
     const G = this.G;
+    if (eq.fire) return this._ignite(p, eq, actor);
+    if (eq.flash) return this._flashBang(p, eq, actor);
+    if (eq.smoke) return this._smoke(p, eq, actor);
     if (!G.combat) return;
     // Schwierigkeit (Bots): derselbe Schadensfaktor wie bei Kugeln und Messer
     const scale = actor && Number.isFinite(actor.damageScale) ? actor.damageScale : 1;
@@ -391,6 +407,95 @@ export class GrenadeSystem {
       minDamage: Number.isFinite(eq.minDamage) ? eq.minDamage * scale : eq.minDamage,
       attacker: actor || null, weaponId: eq.id, type: eq.id,
     });
+  }
+
+  /** Brandsatz: Glas zerbricht, Fläche brennt `fire.duration` s. */
+  _ignite(p, eq, actor) {
+    const G = this.G;
+    const F = eq.fire;
+    // Brandfläche auf den Boden unter dem Aufschlag legen
+    const pos = p.clone();
+    const w = G.world;
+    if (w && typeof w.raycast === 'function') {
+      const hit = w.raycast(_p.set(p.x, p.y + 0.3, p.z), _dir.set(0, -1, 0), 4);
+      if (hit) pos.copy(hit.point);
+    }
+    const scale = actor && Number.isFinite(actor.damageScale) ? actor.damageScale : 1;
+    const f = { position: pos, radius: F.radius, until: G.time.elapsed + F.duration, attacker: actor || null, dps: F.dps * scale, vehicleMult: F.vehicleMult ?? 0.3, tick: 0, weaponId: eq.id };
+    this.fires.push(f);
+    G.events.emit('impact', { point: pos.clone().setY(pos.y + 0.1), normal: UP.clone(), surface: 'glass', shooter: actor || null, weaponId: eq.id, melee: true });
+    G.events.emit('fire:start', { position: pos.clone(), radius: F.radius, duration: F.duration, attacker: actor || null, weaponId: eq.id });
+    if (G.effects && typeof G.effects.fireArea === 'function') G.effects.fireArea(pos, F.radius, F.duration);
+  }
+
+  _updateFires(dt) {
+    const G = this.G;
+    const now = G.time.elapsed;
+    for (let i = this.fires.length - 1; i >= 0; i--) {
+      const f = this.fires[i];
+      if (now >= f.until) { this.fires.splice(i, 1); G.events.emit('fire:end', { position: f.position.clone() }); continue; }
+      f.tick -= dt;
+      if (f.tick > 0) continue;
+      f.tick = 0.25;
+      const amount = f.dps * 0.25;
+      for (const a of G.actors) {
+        if (!a || !a.alive || a.invulnerable) continue;
+        if (f.attacker && a !== f.attacker && G.combat && !G.combat.isHostile(f.attacker, a)) continue;
+        const dx = a.position.x - f.position.x, dz = a.position.z - f.position.z, dy = a.position.y - f.position.y;
+        if (dx * dx + dz * dz > f.radius * f.radius || dy < -1.2 || dy > 1.4) continue;
+        if (G.world && G.world.lineOfSight && !G.world.lineOfSight(_p.set(f.position.x, f.position.y + 0.4, f.position.z), _ray.origin.set(a.position.x, a.position.y + 0.4, a.position.z))) continue;
+        G.combat && G.combat.damage(a, { amount, attacker: f.attacker, weaponId: f.weaponId, zone: 'body', dir: UP.clone(), point: a.position.clone(), explosive: false, burn: true });
+      }
+      const V = G.vehicles;
+      if (V && V.list) for (const v of V.list) {
+        if (!v.alive || (v.def && v.def.armored)) continue;
+        if (v.body.pos.distanceTo(f.position) > f.radius + 1.5) continue;
+        v.applyDamage(amount * f.vehicleMult * 4, { attacker: f.attacker, weaponId: f.weaponId, kind: 'fire', zone: 'hull', point: f.position.clone() });
+      }
+    }
+  }
+
+  /**
+   * Blendgranate: Stärke je Akteur aus Abstand, Sichtlinie und Blickrichtung (abgewandt/verdeckt schwach).
+   * Setzt actor.flashedUntil / actor.flashStrength (Bots: Wahrnehmung aussetzen), Spieler: Weißblende über effects.blind.
+   */
+  _flashBang(p, eq, actor) {
+    const G = this.G;
+    const F = eq.flash;
+    const now = G.time.elapsed;
+    G.events.emit('explosion', { position: p.clone(), radius: eq.radius || 0.6, attacker: actor || null, type: 'flash', weaponId: eq.id, nonLethal: true, concuss: false });
+    const eye = new THREE.Vector3(), aim = new THREE.Vector3(), to = new THREE.Vector3();
+    for (const a of G.actors) {
+      if (!a || !a.alive || typeof a.getEyePosition !== 'function') continue;
+      a.getEyePosition(eye);
+      to.subVectors(p, eye);
+      const d = to.length();
+      if (d > F.radius) continue;
+      to.divideScalar(Math.max(1e-3, d));
+      const los = !G.world || !G.world.lineOfSight || G.world.lineOfSight(eye, p);
+      if (!los && d > 3) continue;
+      if (typeof a.getAimDirection === 'function') a.getAimDirection(aim); else aim.copy(to);
+      const facing = 0.3 + 0.7 * clamp((aim.dot(to) + 0.25) / 1.25, 0, 1);
+      const strength = clamp(Math.pow(1 - d / F.radius, 0.6) * facing * (los ? 1 : 0.35), 0, 1);
+      if (strength < 0.05) continue;
+      const duration = (F.minDuration ?? 0.6) + (F.duration - (F.minDuration ?? 0.6)) * strength;
+      a.flashedUntil = Math.max(a.flashedUntil || 0, now + duration);
+      a.flashStrength = strength;
+      G.events.emit('actor:flashed', { actor: a, strength, duration, attacker: actor || null });
+      if (a.isPlayer) {
+        G.events.emit('player:flashed', { strength, duration, attacker: actor || null });
+        if (G.effects && typeof G.effects.blind === 'function') G.effects.blind(strength, duration);
+      }
+    }
+  }
+
+  /** Rauchgranate: Wolke ins Register (Sichtdämpfung für Bots), Klang + Darstellung über das explosion-Ereignis. */
+  _smoke(p, eq, actor) {
+    const G = this.G;
+    const S = eq.smoke;
+    const pos = p.clone();
+    if (this.system && typeof this.system.addSmoke === 'function') this.system.addSmoke(pos, S, actor);
+    G.events.emit('explosion', { position: pos, radius: eq.radius || 0.6, attacker: actor || null, type: 'smoke', weaponId: eq.id, nonLethal: true, concuss: false, duration: S.duration, smokeRadius: S.radius, grow: S.grow });
   }
 
   _removeMesh(g) {
@@ -403,6 +508,7 @@ export class GrenadeSystem {
   clear() {
     for (const g of this.list) this._removeMesh(g);
     this.list.length = 0;
+    this.fires.length = 0;
   }
 
   dispose() {

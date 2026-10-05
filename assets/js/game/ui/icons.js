@@ -53,6 +53,22 @@ export const ICON = {
   undo: svg('<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'),
   camera: svg('<rect x="3" y="7" width="13" height="11" rx="2"/><path d="M16 11l5-3v9l-5-3"/><circle cx="7" cy="10.5" r="1" fill="currentColor"/>'),
   grid: svg('<path d="M4 4h16v16H4zM4 9.3h16M4 14.6h16M9.3 4v16M14.6 4v16"/>'),
+  // modes-ui: Klassen, Einsatz, Haltung, Rüstung, Fortschritt
+  sturm: svg('<path d="M3 14h11l2-2h5v3h-4l-2 2H9l-1 3H5l1-3H3z"/><path d="M8 11V9h4"/>'),
+  sanitaeter: svg('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/>'),
+  pionier: svg('<path d="M14.5 5.5l4 4-9 9h-4v-4z"/><path d="M12.5 7.5l4 4"/>'),
+  aufklaerer: svg('<circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/><circle cx="12" cy="12" r="1"/>'),
+  hq: svg('<path d="M4 20V9l8-5 8 5v11z"/><path d="M9 20v-6h6v6"/>'),
+  tank: svg('<rect x="3" y="12" width="18" height="6" rx="3"/><path d="M7 12V9h8v3M15 10.5h6"/>'),
+  squad: svg('<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M3 20c0-3 2.2-5 5-5s5 2 5 5M11 20c0-3 2.2-5 5-5s5 2 5 5"/>'),
+  plate: svg('<path d="M6 4h12v9c0 4-3 6-6 7-3-1-6-3-6-7z"/><path d="M9 9h6M9 12.5h6"/>'),
+  stand: svg('<circle cx="12" cy="4.5" r="2"/><path d="M12 7v7M12 14l-3 7M12 14l3 7M8 10h8"/>'),
+  crouch: svg('<circle cx="12" cy="7" r="2"/><path d="M12 9.5l-1 5 4 1.5-1 5M11 14.5l-4 3 1 3.5M8.5 11.5h7"/>'),
+  prone: svg('<circle cx="5" cy="13" r="2"/><path d="M7.5 14h9l4 2M10 14l2-2.5h5"/>'),
+  trophy: svg('<path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8"/>'),
+  dogtag: svg('<path d="M8 3h8l1 4v11a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3V7z"/><circle cx="12" cy="7" r="1.2"/><path d="M9.5 12h5M9.5 15h3.5"/>'),
+  secret: svg('<path d="M12 3a6 6 0 0 1 6 6c0 2.4-1.5 3.6-2.6 4.6-.8.7-1.4 1.4-1.4 2.4v.5h-4v-.6c0-1.6.8-2.7 1.9-3.6 1-.9 2.1-1.6 2.1-3.3a2 2 0 0 0-4 0H6a6 6 0 0 1 6-6z"/><path d="M10 19.5h4"/>'),
+  palette: svg('<path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.6 0-1.3-1.2-1.6-1.2-2.8 0-1 .8-1.6 1.8-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/>'),
 };
 
 /** Medaillen-Abzeichen (Sechseck, Stufenfarbe über CSS --tier). */

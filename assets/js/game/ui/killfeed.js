@@ -38,8 +38,9 @@ export class Killfeed {
   }
 
   /** Abschuss eintragen (Payload des 'kill'-Ereignisses). */
-  pushKill({ victim, killer, weaponId, headshot, explosive, suicide }) {
+  pushKill({ victim, killer, weaponId, headshot, explosive, suicide }, { weapons = true } = {}) {
     if (!victim) return;
+    if (!weapons) { weaponId = 'world'; headshot = false; explosive = false; } // Realistisch: Killfeed ohne Waffe
     const label = weaponName(this.G, weaponId);
     let html;
     const flags = `${headshot ? `<span class="kf-flag kf-hs" title="Kopftreffer">${ICON.head}</span>` : ''}${explosive && weaponId !== 'strike' ? `<span class="kf-flag">${ICON.explosion}</span>` : ''}`;

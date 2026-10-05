@@ -57,9 +57,9 @@ const TAIL_DB = -8, MECH_DB = -14;
  * Beton-Schritte bewusst +3 dB über der Synthese (häufigster Boden, Schritte müssen hörbar sein).
  */
 const REC_TRIM = {
-  step_concrete: 3, step_wood: 4, step_dirt: 4.5, step_gravel: 4, step_metal: 3, step_grass: -6.5,
-  impact_concrete: 2.5, impact_wood: 5.5, impact_dirt: -3.5, impact_glass: -6, hit_flesh: 4.5,
-  melee_hit: 4, land: 2.5, explosion: -1.5, explosion_far: 2,
+  step_concrete: 3, step_wood: 4, step_dirt: 4.5, step_gravel: 4, step_metal: 3, step_grass: -10.5,
+  impact_concrete: 2.5, impact_wood: 9, impact_dirt: -3.5, impact_glass: -6, hit_flesh: 4.5,
+  melee_hit: 4, land: 2.5, explosion: -1.5, explosion_far: 0,
 };
 /** Eigener Schuss: Aufnahme mit echtem Crest-Faktor läuft in den Limiter → etwas mehr Pegel für gleiche Lautheit. */
 const PLAYER_NEAR_DB = 2.5, FAR_DB = 2;

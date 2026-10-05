@@ -34,7 +34,7 @@ export const DEFAULTS = Object.freeze({
   gyroBiasX: 0, gyroBiasY: 0, gyroBiasZ: 0, padIcons: 'auto',
   // Kernmechanik (core-mechanics): Spielstil, Klassen, stufenlose Zielhilfe und Auto-Feuer
   gameStyle: 'arcade', realisticCrosshair: false, lastClass: 'sturm', classLoadouts: Object.freeze({}),
-  aimAssistLevel: 0.4, aimAssistDevices: 'touch_pad', autoFireLevel: 0.5, autoFireDevices: 'touch',
+  aimAssistLevel: 0.5, aimAssistDevices: 'touch_pad', autoFireLevel: 0.6, autoFireDevices: 'touch',
 });
 
 const HOLD_TOGGLE = Object.freeze({ options: ['hold', 'toggle'], labels: { hold: 'Halten', toggle: 'Umschalten' } });
@@ -234,8 +234,8 @@ const DEVICE_RANK = { touch: 0, touch_pad: 1, alle: 2 };
 export function assistLevels(get, cap = null) {
   const num = (k, d) => { const v = Number(get(k)); return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : d; };
   const dev = (k, d, c) => { const v = DEVICE_RANK[get(k)] != null ? get(k) : d; return c && DEVICE_RANK[c] < DEVICE_RANK[v] ? c : v; };
-  let aim = get('aimAssist') === false ? 0 : num('aimAssistLevel', 0.4);
-  let fire = get('autoFire') ? num('autoFireLevel', 0.5) : 0;
+  let aim = get('aimAssist') === false ? 0 : num('aimAssistLevel', 0.5);
+  let fire = get('autoFire') ? num('autoFireLevel', 0.6) : 0;
   if (cap) { aim = Math.min(aim, cap.aimAssistLevel ?? 1); fire = Math.min(fire, cap.autoFireLevel ?? 1); }
   return {
     aim, aimDevices: dev('aimAssistDevices', 'touch_pad', cap && cap.aimAssistDevices),

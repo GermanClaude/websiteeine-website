@@ -47,6 +47,7 @@ export const ACTION_DEFS = Object.freeze([
   { id: 'interact', label: 'Interagieren', group: 'sonstiges' },
   { id: 'inspect', label: 'Waffe inspizieren (nur PC)', short: 'Inspizieren', group: 'sonstiges' },
   { id: 'loadout', label: 'Ausrüsten (nach dem Tod / im Pausemenü)', short: 'Ausrüsten', group: 'sonstiges' },
+  { id: 'squad_order', label: 'Trupp-Befehl (Flagge im Blick angreifen/verteidigen, Eroberung)', short: 'Befehl', group: 'sonstiges' },
   { id: 'scoreboard', label: 'Punktetabelle', group: 'sonstiges' },
   { id: 'pause', label: 'Pause', group: 'sonstiges', fixed: true },
 ]);
@@ -66,7 +67,7 @@ export const DEFAULT_BINDINGS = deepFreeze({
     fire: ['Mouse0'], ads: ['Mouse2'], reload: ['KeyR'], melee: ['KeyV', 'Mouse3'], grenade: ['KeyG'], tactical: ['KeyX'],
     swap: ['Mouse4', 'Wheel'], slot1: ['Digit1'], slot2: ['Digit2'], light: ['KeyT'],
     streak1: ['Digit3'], streak2: ['Digit4'], streak3: ['Digit5'], interact: ['KeyF'], scoreboard: ['Tab'], pause: ['Escape'],
-    prone: ['KeyZ'], plate: ['Digit4'], gadget: ['KeyB'], inspect: ['KeyI'], loadout: ['KeyL'],
+    prone: ['KeyZ'], plate: ['Digit4'], gadget: ['KeyB'], inspect: ['KeyI'], loadout: ['KeyL'], squad_order: ['Mouse1', 'KeyH'],
   },
   pad: {
     move_forward: [], move_back: [], move_left: [], move_right: [],
@@ -74,7 +75,7 @@ export const DEFAULT_BINDINGS = deepFreeze({
     fire: ['Pad7'], ads: ['Pad6'], reload: ['Pad2'], melee: ['Pad11'], grenade: ['Pad4'], tactical: ['Pad5'],
     swap: ['Pad3'], slot1: [], slot2: [], light: ['Pad13'],
     streak1: ['Pad12'], streak2: ['Pad14'], streak3: ['Pad15'], interact: ['Pad2'], scoreboard: ['Pad8'], pause: ['Pad9'],
-    prone: [], plate: ['Pad13'], gadget: ['Pad6+Pad3'], inspect: [], loadout: ['Pad3'],
+    prone: [], plate: ['Pad13'], gadget: ['Pad6+Pad3'], inspect: [], loadout: ['Pad3'], squad_order: [],
   },
 });
 

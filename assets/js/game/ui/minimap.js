@@ -177,7 +177,9 @@ export class Minimap {
     }
 
     // Akteure
-    const blips = uav && uav.own ? uav.own.blips : null;
+    const flags = (G.match && G.match.styleFlags) || {};
+    const noEnemies = flags.minimapEnemies === false;
+    const blips = uav && uav.own && flags.uavEnemies !== false ? uav.own.blips : null;
     const blipAge = uav && uav.own ? now - uav.own.sweepAt : 0;
     for (const a of G.actors) {
       if (a === p || !a.alive) continue;
@@ -187,6 +189,7 @@ export class Minimap {
         arrow(ctx, pt.x, pt.y, yaw - (a.yaw || 0), 5.2 * d, COL.ally);
         continue;
       }
+      if (noEnemies) continue; // Spielstil „Realistisch“: keine Gegnerpunkte
       const fired = now - (a.lastFiredTime ?? -1e9) < FIRE_SHOW && !a._suppressedShot;
       if (fired) {
         toScreen(a.position.x, a.position.z, pt);
