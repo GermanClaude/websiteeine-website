@@ -14,10 +14,12 @@ export const LIB_URL = new URL('../../../../lib/audio/', import.meta.url);
  * gleichzeitige Ladeaufträge. `group` überschreibt `maxVar` je Manifest-Gruppe (Schritte brauchen Abwechslung).
  */
 export const SAMPLE_TIERS = {
-  high: { label: 'Hoch', maxVar: { near: 4, far: 2, tail: 2, oneshot: 4, mech: 1, bed: 1 }, group: {}, rate: {}, ch: {}, capMB: 44, concurrency: 3 },
-  medium: { label: 'Mittel', maxVar: { near: 3, far: 2, tail: 1, oneshot: 3, mech: 1, bed: 1 }, group: { step: 4 }, rate: { near: 32000, oneshot: 32000, tail: 24000, bed: 22050 }, ch: { tail: 1 }, capMB: 26, concurrency: 2 },
-  low: { label: 'Niedrig', maxVar: { near: 2, far: 1, tail: 1, oneshot: 2, mech: 0, bed: 1 }, group: { step: 3, impact: 2 }, rate: { near: 32000, far: 22050, tail: 22050, oneshot: 32000, mech: 32000, bed: 16000 }, ch: { near: 1, far: 1, tail: 1, oneshot: 1, mech: 1, bed: 1 }, capMB: 13, concurrency: 1 },
+  high: { label: 'Hoch', maxVar: { near: 4, far: 2, tail: 2, oneshot: 4, mech: 1, bed: 1 }, group: {}, rate: {}, ch: {}, capMB: 40, concurrency: 3 },
+  medium: { label: 'Mittel', maxVar: { near: 3, far: 2, tail: 1, oneshot: 3, mech: 1, bed: 1 }, group: { step: 4 }, rate: { near: 32000, oneshot: 32000, tail: 24000, bed: 22050 }, ch: { tail: 1 }, capMB: 24, concurrency: 2 },
+  low: { label: 'Niedrig', maxVar: { near: 2, far: 1, tail: 1, oneshot: 2, mech: 0, bed: 1 }, group: { step: 3, impact: 2 }, rate: { near: 32000, far: 22050, tail: 22050, oneshot: 32000, mech: 32000, bed: 16000 }, ch: { near: 1, far: 1, tail: 1, oneshot: 1, mech: 1, bed: 1 }, capMB: 12, concurrency: 1 },
 };
+/** Hörbare Länge je Lage (s): die Außen-Fahne blendet die Engine nach ≤ 1,5 s aus (Plan §10 A3) → Rest nicht speichern. */
+export const MAX_DUR = { tail: 1.6 };
 export const tierFor = (q) => (q === 'low' ? 'low' : q === 'medium' ? 'medium' : 'high');
 
 const clock = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -200,7 +202,7 @@ class SampleLibrary {
     if (!this.man || !this.enabled) return;
     if (this._early) { const e = this._early; this._early = null; for (const [n, p] of e) this.request([n], p); }
     const limit = this.tier?.concurrency || 2;
-    // Während des Spiels höchstens ein Auftrag gleichzeitig (Netz/Dekoder teilen sich das Gerät mit dem Spiel)
+    // Während Kartenaufbau und Spiel höchstens ein Auftrag gleichzeitig (Netz/Dekoder teilen sich das Gerät mit dem Spiel)
     const cap = this.inPlay ? 1 : limit;
     while (this.running < cap) {
       const j = this._next(); if (!j) break;
@@ -219,8 +221,8 @@ class SampleLibrary {
     if (!s || !meta) return;
     const key = `${j.name}#${j.v}`;
     try {
-      const rate = this._rate(s), wantCh = this._ch(s);
-      const need = meta.dur * rate * wantCh * 4;
+      const rate = this._rate(s), wantCh = this._ch(s), maxDur = MAX_DUR[s.layer] || 0;
+      const need = Math.min(meta.dur, maxDur || Infinity) * rate * wantCh * 4;
       if (!this._room(need, j)) { this.stats.skipped = (this.stats.skipped || 0) + 1; return; } // Speichergrenze: später erneut anfordern
       const res = await fetch(new URL(meta.file, LIB_URL));
       if (!res.ok) throw new Error(`${meta.file}: HTTP ${res.status}`);
@@ -232,7 +234,7 @@ class SampleLibrary {
       const t0 = clock();
       let buf = await decodeWith(dec, ab);
       this.stats.decodeMs += clock() - t0;
-      if (wantCh === 1 && buf.numberOfChannels > 1) buf = await this._mono(buf, dec);
+      if ((wantCh === 1 && buf.numberOfChannels > 1) || (maxDur && buf.duration > maxDur + 0.02)) buf = await this._reshape(buf, dec, wantCh, maxDur);
       const t1 = clock();
       const offset = s.layer === 'bed' ? 0 : this._lead(buf, meta.peakDb); // Schleifen nahtlos lassen
       const bytes = buf.length * buf.numberOfChannels * 4;
@@ -279,18 +281,26 @@ class SampleLibrary {
     return i0 >= 8 && i0 < max ? i0 / buf.sampleRate : 0;
   }
 
-  /** Stereo → Mono (Mittelwert), in Häppchen über mehrere Aufgaben (lange Atmo-Betten). */
-  async _mono(buf, dec) {
-    const n = buf.length, sr = buf.sampleRate;
-    const out = HAS_CTOR ? new AudioBuffer({ length: n, numberOfChannels: 1, sampleRate: sr }) : dec.createBuffer(1, n, sr);
-    const L = buf.getChannelData(0), R = buf.getChannelData(1), m = new Float32Array(n);
-    for (let i0 = 0; i0 < n; i0 += MIX_CHUNK) {
-      const t = clock(), i1 = Math.min(n, i0 + MIX_CHUNK);
-      for (let i = i0; i < i1; i++) m[i] = (L[i] + R[i]) * 0.5;
-      this._main(clock() - t);
-      if (i1 < n) await yieldTask();
+  /**
+   * Stereo → Mono (Mittelwert) und/oder auf die hörbare Länge kürzen (mit 30 ms Ausblendung), in Häppchen über
+   * mehrere Aufgaben (lange Atmo-Betten blockieren den Hauptthread nie am Stück).
+   */
+  async _reshape(buf, dec, wantCh, maxDur) {
+    const sr = buf.sampleRate, n = maxDur ? Math.min(buf.length, Math.round(maxDur * sr)) : buf.length;
+    const outCh = wantCh === 1 ? 1 : buf.numberOfChannels;
+    const out = HAS_CTOR ? new AudioBuffer({ length: n, numberOfChannels: outCh, sampleRate: sr }) : dec.createBuffer(outCh, n, sr);
+    const fadeN = n < buf.length ? Math.min(n, Math.round(0.03 * sr)) : 0;
+    for (let c = 0; c < outCh; c++) {
+      const m = new Float32Array(n), srcs = outCh === 1 && buf.numberOfChannels > 1 ? [buf.getChannelData(0), buf.getChannelData(1)] : [buf.getChannelData(c)];
+      for (let i0 = 0; i0 < n; i0 += MIX_CHUNK) {
+        const t = clock(), i1 = Math.min(n, i0 + MIX_CHUNK);
+        if (srcs.length === 2) { const L = srcs[0], R = srcs[1]; for (let i = i0; i < i1; i++) m[i] = (L[i] + R[i]) * 0.5; } else m.set(srcs[0].subarray(i0, i1), i0);
+        this._main(clock() - t);
+        if (i1 < n) await yieldTask();
+      }
+      for (let k = 0; k < fadeN; k++) m[n - 1 - k] *= k / fadeN;
+      if (out.copyToChannel) out.copyToChannel(m, c); else out.getChannelData(c).set(m);
     }
-    if (out.copyToChannel) out.copyToChannel(m, 0); else out.getChannelData(0).set(m);
     return out;
   }
 

@@ -146,9 +146,10 @@ export function casingGeometry(type) {
   return g;
 }
 
-/** Hülsen-Pool: spawn(type, position, velocity) im Elternraum; Schwerkraft über setGravity().
+/** Hülsen-Pool: spawn(type, position, velocity, orient?, handover?) im Elternraum; Schwerkraft über setGravity().
  *  prepare(types) legt die Pools vorab an (ViewModel.warmup → Shader beim Laden statt beim ersten Schuss);
- *  ein Pool ohne fliegende Hülse ist unsichtbar (kein Draw Call). */
+ *  ein Pool ohne fliegende Hülse ist unsichtbar (kein Draw Call). Mit `onHandover(type, pos, vel, quat)` wird eine
+ *  Hülse nach `handover` Sekunden an die Welt übergeben (Physik-lite, liegt dann auf dem Boden) und hier entfernt. */
 export class ShellPool {
   constructor(perType = 14) {
     this.group = new THREE.Group();
@@ -174,7 +175,7 @@ export class ShellPool {
     _m.makeScale(0, 0, 0);
     for (let i = 0; i < this.perType; i++) mesh.setMatrixAt(i, _m);
     this.group.add(mesh);
-    p = this.pools[type] = { mesh, items: Array.from({ length: this.perType }, () => ({ alive: false, pos: new THREE.Vector3(), vel: new THREE.Vector3(), q: new THREE.Quaternion(), w: new THREE.Vector3(), life: 0 })), next: 0 };
+    p = this.pools[type] = { mesh, items: Array.from({ length: this.perType }, () => ({ alive: false, pos: new THREE.Vector3(), vel: new THREE.Vector3(), q: new THREE.Quaternion(), w: new THREE.Vector3(), life: 0, handover: Infinity })), next: 0 };
     return p;
   }
 
@@ -185,12 +186,14 @@ export class ShellPool {
 
   setGravity(v) { this.gravity.copy(v); }
 
-  spawn(type, pos, vel, orient) {
+  spawn(type, pos, vel, orient, handover = Infinity) {
     if (!type || type === 'none') return;
     const p = this._pool(type);
     const it = p.items[p.next = (p.next + 1) % Math.max(1, Math.min(this.limit, p.items.length))];
+    if (it.alive && this.onHandover && Number.isFinite(it.handover)) this.onHandover(type, it.pos, it.vel, it.q);
     it.alive = true;
     it.life = 0;
+    it.handover = handover;
     it.pos.copy(pos);
     it.vel.copy(vel);
     if (orient) it.q.copy(orient); else it.q.identity();
@@ -210,6 +213,10 @@ export class ShellPool {
         if (!it.alive) continue;
         dirty = true;
         it.life += dt;
+        if (it.life >= it.handover && this.onHandover) {
+          this.onHandover(type, it.pos, it.vel, it.q);
+          it.alive = false; _m.makeScale(0, 0, 0); p.mesh.setMatrixAt(i, _m); continue;
+        }
         if (it.life > 1.1) { it.alive = false; _m.makeScale(0, 0, 0); p.mesh.setMatrixAt(i, _m); continue; }
         alive++;
         it.vel.addScaledVector(this.gravity, dt);

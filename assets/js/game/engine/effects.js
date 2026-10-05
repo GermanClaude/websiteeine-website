@@ -9,6 +9,8 @@
 import * as THREE from 'three';
 import { ParticleLayer, TracerLayer, DecalLayer, PF } from '../weapons/ballistics/fxlayers.js';
 import { getParticleAtlas, getDecalAtlas, CELL, DECAL } from '../weapons/ballistics/fxtex.js';
+import { Debris } from '../weapons/ballistics/debris.js';
+import { handlingFor } from '../weapons/gunsmith/handling.js';
 
 const ALPHA_CAP = 900;
 const ADD_CAP = 640;
@@ -67,6 +69,7 @@ export class Effects {
     this._lightLife = 0;
     this._lightPeak = 0;
     this._light = null;
+    this._delayed = [];
     this.stats = { impacts: 0, decals: 0, explosions: 0, tracers: 0, blood: 0, muzzle: 0 };
   }
 
@@ -82,6 +85,8 @@ export class Effects {
     this.glints.mesh.renderOrder = 14;
     this.tracers = new TracerLayer(TRACER_CAP);
     this.decals = new DecalLayer(getDecalAtlas(), DECAL_CAP);
+    // Hülsen + Magazine in der Welt (Physik-lite gegen die Kugel-BVH, P4)
+    this.debris = new Debris({ events: this.G && this.G.events });
   }
 
   get preset() { return (this.G.renderer && this.G.renderer.preset) || { particleScale: 1, decals: 120, id: 'high' }; }
@@ -92,9 +97,12 @@ export class Effects {
     this.detach();
     this._build();
     const scene = G.scene;
-    scene.add(this.decals.mesh, this.alpha.mesh, this.fire.mesh, this.add.mesh, this.tracers.mesh, this.glints.mesh);
+    scene.add(this.decals.mesh, this.alpha.mesh, this.fire.mesh, this.add.mesh, this.tracers.mesh, this.glints.mesh, this.debris.group);
     // sichtbar lassen, bis main die Shader vorkompiliert hat (leere Schichten blenden sich im ersten update aus)
     for (const L of [this.alpha, this.fire, this.add, this.tracers, this.glints]) L.mesh.visible = true;
+    this.debris.events = G.events;
+    this.debris.showForCompile();
+    this.debris.setQuality(this.preset.id || G.renderer?.quality || 'high');
     this.decals.setLimit(this.preset.decals || 120);
     // Punktlicht nur ab „high“ (konstante Lichterzahl → kein Shader-Neukompilieren im Match)
     const id = this.preset.id || G.renderer?.quality;
@@ -106,7 +114,11 @@ export class Effects {
     this._updateLight();
     // Qualitätswechsel im Match (dynamische Auflösung): Lochanzahl anpassen
     if (G.renderer && typeof G.renderer.onQualityChange === 'function') {
-      this._offQuality = G.renderer.onQualityChange(() => { if (this._built) this.decals.setLimit(this.preset.decals || 40); });
+      this._offQuality = G.renderer.onQualityChange((q) => {
+        if (!this._built) return;
+        this.decals.setLimit(this.preset.decals || 40);
+        this.debris.setQuality(this.preset.id || q || 'high');
+      });
     }
     const s = (this._subs = G.events.scope());
     s.on('impact', (e) => this._onImpact(e));
@@ -116,6 +128,7 @@ export class Effects {
     s.on('weapon:fire', (e) => this._onFire(e));
     s.on('kill', (e) => this._onKill(e));
     s.on('grenade:bounce', (e) => this._onBounce(e));
+    s.on('weapon:reload', (e) => this._onReload(e));
     s.on('training:hit', (e) => this._cancelDecal(e && e.point));
     s.on('target:hit', (e) => this._cancelDecal(e && e.point));
     s.on('match:start', () => { this._updateLight(); });
@@ -126,7 +139,7 @@ export class Effects {
     this._subs = null;
     if (this._offQuality) { this._offQuality(); this._offQuality = null; }
     if (!this._built) return;
-    for (const o of [this.decals.mesh, this.alpha.mesh, this.fire.mesh, this.add.mesh, this.tracers.mesh, this.glints.mesh]) o.removeFromParent();
+    for (const o of [this.decals.mesh, this.alpha.mesh, this.fire.mesh, this.add.mesh, this.tracers.mesh, this.glints.mesh, this.debris.group]) o.removeFromParent();
     if (this._light) { this._light.removeFromParent(); this._light.intensity = 0; }
     this.clear();
   }
@@ -140,6 +153,8 @@ export class Effects {
     this.glints.clear();
     this.tracers.clear();
     this.decals.clear();
+    this.debris.clear();
+    this._delayed.length = 0;
     for (const p of this._pending) p.on = false;
     this._lightLife = 0;
     this._glintLos.clear();
@@ -540,7 +555,7 @@ export class Effects {
     let pos = e.muzzle;
     if (!pos && e.origin && e.dir) pos = _t2.copy(e.origin).addScaledVector(e.dir, 0.65);
     if (!pos || !e.dir) return;
-    this.muzzleFlash(pos, e.dir, { cls: def ? def.cls : 'ar', actor: e.actor });
+    this.muzzleFlash(pos, e.dir, { cls: def ? def.cls : 'ar', actor: e.actor, def });
   }
 
   /** Mündungsfeuer (dritte Person). opts: { cls, actor, scale } */
@@ -568,18 +583,61 @@ export class Effects {
     if (d < 40 && this.scale > 0.4) {
       this._puff(pos.x, pos.y, pos.z, dir.x * 0.8, dir.y * 0.8 + 0.2, dir.z * 0.8, rnd(0.5, 0.8), 0.04, 0.3 * big, C.smokeLight, 0.18, 2.5, 0.25);
     }
-    // Hülse (nahe Bots)
+    // Hülse (nahe Bots): echte Hülse in der Welt (Physik-lite), Repetierer/Flinte erst beim Durchladen
     const a = opts.actor;
-    if (a && d < 18 && cls !== 'shotgun' && cls !== 'sniper' && Math.random() < this.scale) {
-      _v.crossVectors(dir, UP);
-      if (_v.lengthSq() > 1e-6) {
-        _v.normalize();
-        const floor = a.position ? a.position.y + 0.03 : pos.y - 1.3;
-        const i = this._chip(pos.x - dir.x * 0.45, pos.y, pos.z - dir.z * 0.45, _v.x * rnd(1.6, 2.6), rnd(1.4, 2.2), _v.z * rnd(1.6, 2.6), 0.9, 0.022, C.brass, 11, floor);
-        this.alpha.stretch[i] = 0.004;
-        this.alpha.fadePow[i] = 0.25;
+    if (a && d < 24 && Math.random() < Math.max(0.35, this.scale)) {
+      const def = opts.def;
+      const type = def ? handlingFor(def.model || def.id).shell : (cls === 'shotgun' ? 'shotgun' : cls === 'pistol' || cls === 'smg' ? 'pistol' : cls === 'sniper' ? 'big' : 'rifle');
+      if (type && type !== 'none') {
+        _v.crossVectors(dir, UP);
+        if (_v.lengthSq() > 1e-6) {
+          _v.normalize();
+          const delay = def && (def.fireMode === 'bolt' || def.fireMode === 'pump') ? (def.fireMode === 'bolt' ? 0.55 : 0.32) : 0;
+          _t1.set(pos.x - dir.x * 0.42, pos.y - dir.y * 0.42 + 0.03, pos.z - dir.z * 0.42);
+          const bv = a.body && a.body.velocity;
+          _w.set(_v.x * rnd(1.6, 2.6) + (bv ? bv.x : 0), rnd(1.3, 2.2) + (bv ? bv.y * 0.5 : 0), _v.z * rnd(1.6, 2.6) + (bv ? bv.z : 0));
+          this.dropCasing(type, _t1, _w, null, { actor: a, delay });
+        }
       }
     }
+  }
+
+  /**
+   * Hülse in die Welt werfen (Physik-lite, Klang über `shell:land`). type: rifle | pistol | big | shotgun.
+   * opts: { actor, delay (s) }
+   */
+  dropCasing(type, pos, vel, quat, opts = {}) {
+    if (!this._built || !this._subs || !type || type === 'none') return;
+    if (opts.delay > 0) {
+      if (this._delayed.length < 32) this._delayed.push({ at: this._time + opts.delay, type, pos: pos.clone(), vel: vel.clone(), actor: opts.actor || null });
+      return;
+    }
+    this.debris.casing(type, pos, vel, quat, opts);
+  }
+
+  /** Magazin fallen lassen (3rd-Person-Modell `key` = def.model). opts: { actor, delay (s) } */
+  dropMagazine(key, pos, vel, quat, opts = {}) {
+    if (!this._built || !this._subs || !key) return;
+    this.debris.magazine(key, pos, vel, quat, opts);
+  }
+
+  /** Bots: beim Nachladen fällt das leere bzw. angebrochene Magazin (Spieler: Viewmodel, passend zur Animation). */
+  _onReload(e) {
+    if (!e || e.phase !== 'start' || !e.actor || e.actor.isPlayer || !this._built) return;
+    const a = e.actor;
+    const W = this.G.data && this.G.data.WEAPONS;
+    const def = W && e.weaponId ? W[e.weaponId] : null;
+    if (!def || def.perShellReload || def.cls === 'melee' || !a.position) return;
+    const c = this._camPos;
+    if (Math.hypot(a.position.x - c.x, a.position.y - c.y, a.position.z - c.z) > 26) return;
+    if (typeof a.getMuzzlePosition === 'function') a.getMuzzlePosition(_t1);
+    else { a.getEyePosition(_t1); _t1.y -= 0.3; }
+    a.getAimDirection(_dir);
+    _t1.addScaledVector(_dir, -0.42);
+    _t1.y -= 0.12;
+    const bv = a.body && a.body.velocity;
+    _w.set((bv ? bv.x : 0) + rnd(-0.3, 0.3), -0.6, (bv ? bv.z : 0) + rnd(-0.3, 0.3));
+    this.debris.magazine(def.model || def.id, _t1, _w, null, { actor: a, delay: def.cls === 'pistol' ? 0.2 : 0.38 });
   }
 
   /** Leuchtspur (öffentlich). */
@@ -797,6 +855,15 @@ export class Effects {
     const px = cam ? (2 * Math.tan((cam.fov * Math.PI) / 360)) / h * 1.3 : 0.002;
     this.tracers.update(dt, px);
     this.decals.update(dt, this._time);
+    if (this._delayed.length) {
+      for (let i = this._delayed.length - 1; i >= 0; i--) {
+        const d = this._delayed[i];
+        if (d.at > this._time) continue;
+        this._delayed.splice(i, 1);
+        this.debris.casing(d.type, d.pos, d.vel, null, { actor: d.actor });
+      }
+    }
+    this.debris.update(dt, this.G.world);
     if (this._light && this._lightLife > 0) {
       this._lightLife -= dt;
       const k = Math.max(0, this._lightLife / 0.32);
@@ -813,6 +880,7 @@ export class Effects {
     this.glints.dispose();
     this.tracers.dispose();
     this.decals.dispose();
+    this.debris.dispose();
     if (this._light) { this._light.dispose(); this._light = null; }
     this._built = false;
   }

@@ -91,7 +91,7 @@ export class AudioEngine {
     // rendered/queued/renderMs/maxSliceMs kommen aus der gemeinsamen Bank (renderMs = Hauptthread-Anteil)
     const B = bank.stats;
     this.stats = {
-      played: 0, recorded: 0, dropped: 0, stolen: 0, substituted: 0, missed: 0, deferred: 0, errors: 0, lastError: null,
+      played: 0, recorded: 0, dropped: 0, stolen: 0, substituted: 0, missed: 0, lastMissed: null, deferred: 0, errors: 0, lastError: null,
       get rendered() { return B.rendered; }, get queued() { return bank.queued; }, get renderMs() { return B.mainMs; },
       get maxSliceMs() { return B.maxMainMs; }, get workerMs() { return B.workerMs; },
     };
@@ -674,7 +674,7 @@ export class AudioEngine {
       if (s) { buffer = s.buffer; offset = s.offset; recGain = this._recGain(rn); recorded = true; }
     }
     if (!buffer) {
-      if (e.sampleOnly) { this.stats.missed++; this._recName(e.name); return null; }
+      if (e.sampleOnly) { this.stats.missed++; this.stats.lastMissed = e.name; this._recName(e.name); return null; }
       const n = this._variants(e);
       let v = o.variant != null ? Math.abs(Math.floor(o.variant)) % n : Math.floor(this._rand() * n);
       if (o.variant == null && n > 1 && v === this._lastVar.get(e.name)) v = (v + 1 + Math.floor(this._rand() * (n - 1))) % n;
@@ -682,7 +682,7 @@ export class AudioEngine {
       buffer = this._buffer(e, v);
       if (!buffer && this._inPlay()) buffer = this._altBuffer(e);
       if (!buffer) {
-        this.stats.missed++;
+        this.stats.missed++; this.stats.lastMissed = e.name;
         if (!this._inPlay() && !o._deferred && !o.loop) this._defer(e, v, o); else this.stats.dropped++;
         return null;
       }
@@ -906,7 +906,6 @@ export class AudioEngine {
     if (!this.ctx || !this.unlocked) return;
     dt = clamp(dt, 0, 0.1);
     this._updateListener();
-    library.inPlay = this._inPlay();
     // Raum am Hörer: Strahlen reihum (Handy 1, sonst 2 je Bild) oder Sonden-Gitter der Welt
     const w = this.G.world, L = this.listener;
     this.acoustics.setWorld(w, this.G.THREE);
@@ -1592,7 +1591,7 @@ export class AudioEngine {
     this._muffle.pause = s === 'paused';
     if (s === 'lobby' || s === 'boot') { this._muffle.dead = false; this.hearing.reset(); this._muffle.hearing = NO_MUFFLE; }
     if (this.muffle) this._applyMuffle(true);
-    library.inPlay = IN_PLAY.has(s);
+    library.inPlay = s === 'loading' || IN_PLAY.has(s); // Kartenaufbau/Spiel: nur ein Ladeauftrag gleichzeitig
     // Klangbank ab der Lobby füllen (Worker, ohne AudioContext); Ausrüstung aus der letzten Wahl zuerst;
     // Aufnahmen für Ausrüstung und Karte nachladen (Lobby: letzte Wahl, Laden: echte Wahl)
     if (s === 'lobby' || s === 'loading') { this._warmBank(); this._prioritizeLoadout(); this._planSamples(); }

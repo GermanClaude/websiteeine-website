@@ -36,6 +36,7 @@ const PROBE_SKY = [[0, 1, 0, 2], ...[0, 1, 2, 3, 4].map(i => {
 const PROBE_SKY_W = PROBE_SKY.reduce((n, d) => n + d[3], 0);
 const PROBE_SEQ = [0, 3, 1, 4, 2, 5, 6, 7, 8];
 const _pv = new THREE.Vector3(), _pv2 = new THREE.Vector3();
+let _e2q = null;
 
 // Hand-Ziel: Position + Ausrichtung (Kameraraum) + Fingerpose
 class HandTarget {
@@ -130,6 +131,8 @@ export class ViewModel {
     this.root.add(this.smoke.group);
     this.shells = new ShellPool(14);
     this.root.add(this.shells.group);
+    // Hülsen fliegen kurz im Viewmodel (vor der Waffe sichtbar) und landen dann als Welt-Hülsen auf dem Boden
+    this.shells.onHandover = (type, pos, vel, q) => this._casingToWorld(type, pos, vel, q);
     this._lighting = null;
     this._ownEnv = null;
     // Sonne sichtbar / Himmel offen (0..1), siehe _updateProbe
@@ -379,7 +382,65 @@ export class ViewModel {
     _v2.set(1, 0, 0).applyQuaternion(_q);
     const up = this.h.shell === 'pistol' ? 1.4 : 1.1;
     _v3.copy(_v2).multiplyScalar(1.5 + Math.random() * 0.7).add(_s1.set(0, up + Math.random() * 0.6, 0.35 + Math.random() * 0.4));
-    this.shells.spawn(this.h.shell, _v, _v3, _q);
+    // Übergabe an die Welt, sobald die Hülse die Waffe verlassen hat (ohne Effekte/Welt: bleibt im Viewmodel)
+    const world = this._worldFx() ? 0.1 + Math.random() * 0.05 : Infinity;
+    this.shells.spawn(this.h.shell, _v, _v3, _q, world);
+  }
+
+  /** Effekte der Welt (Hülsen/Magazine) vorhanden? */
+  _worldFx() {
+    const fx = this.G?.effects;
+    return !!(fx && typeof fx.dropCasing === 'function' && this.G.camera && this.G.world);
+  }
+
+  /**
+   * Punkt im Viewmodel-Raum (Wurzel = Viewmodel-Kamera) → Weltpunkt der Hauptszene mit gleicher Bildposition
+   * und Tiefe (wie getMuzzleWorldPosition). Richtungen drehen nur mit der Hauptkamera.
+   */
+  _vmToWorld(local, out) {
+    const main = this.G.camera, vm = this.camera;
+    _pv.copy(local);
+    this.root.localToWorld(_pv);
+    _pv.applyMatrix4(vm.matrixWorldInverse);
+    const depth = Math.max(0.05, -_pv.z);
+    _pv.applyMatrix4(vm.projectionMatrix);
+    const tan = Math.tan(THREE.MathUtils.degToRad(main.fov) / 2) / (main.zoom || 1);
+    return out.set(_pv.x * depth * tan * main.aspect, _pv.y * depth * tan, -depth).applyMatrix4(main.matrixWorld);
+  }
+
+  _casingToWorld(type, pos, vel, q) {
+    const fx = this.G?.effects, main = this.G?.camera;
+    if (!fx || !main || typeof fx.dropCasing !== 'function') return;
+    const wp = this._vmToWorld(pos, _pv2.set(0, 0, 0));
+    main.getWorldQuaternion(_q);
+    const wv = _s1.copy(vel).applyQuaternion(_q);
+    const bv = this.G.player?.body?.velocity;
+    if (bv) wv.add(bv);
+    _q2.copy(_q).multiply(q);
+    try { fx.dropCasing(type, wp.clone(), wv.clone(), _q2.clone(), { actor: this.G.player || null }); } catch { /* Welt im Abbau */ }
+  }
+
+  /**
+   * Magazin fällt (Nachladen): Weltmagazin an der Stelle des Viewmodel-Magazins, mit der Bewegung des Spielers.
+   * Das Viewmodel-Magazin wird bis zum Einsetzen des neuen ausgeblendet (siehe _actReload*).
+   */
+  _dropMag() {
+    if (!this._worldFx() || typeof this.G.effects.dropMagazine !== 'function' || !this.cur) return;
+    const part = this._part('mag') || (this.h.reload === 'belt' ? this._part('belt') : null);
+    if (!part) return;
+    part.updateWorldMatrix(true, false);
+    part.getWorldPosition(_v);
+    this.root.worldToLocal(_v);
+    const wp = this._vmToWorld(_v, _pv2.set(0, 0, 0)).clone();
+    const main = this.G.camera;
+    main.getWorldQuaternion(_q);
+    const wv = _s1.set((Math.random() - 0.5) * 0.4, -0.9 - Math.random() * 0.3, 0.1).applyQuaternion(_q);
+    const bv = this.G.player?.body?.velocity;
+    if (bv) wv.add(bv);
+    part.getWorldQuaternion(_q2);
+    this.root.getWorldQuaternion(_e2q || (_e2q = new THREE.Quaternion()));
+    _q2.premultiply(_e2q.invert()).premultiply(_q);
+    try { this.G.effects.dropMagazine(this.cur.key, wp, wv.clone(), _q2.clone(), { actor: this.G.player || null }); } catch { /* Welt im Abbau */ }
   }
 
   // ---------------------------------------------------------------- Licht
