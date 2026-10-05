@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Steuerungs-Prüfstand – NULLPUNKT</title>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/game.css">
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+<style>
+  #panel { position: fixed; top: 8px; right: 8px; z-index: 50; width: 330px; max-height: calc(100% - 16px); overflow-y: auto; background: rgba(12,14,17,.9); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 10px 12px; font: 12px/1.45 "JetBrains Mono NP", ui-monospace, monospace; color: #e8ecef; user-select: text; -webkit-user-select: text; touch-action: pan-y; overscroll-behavior: contain; }
+  #panel h1 { font: 800 15px/1 "Archivo NP", sans-serif; letter-spacing: .04em; margin: 0 0 8px; }
+  #panel h1 span { color: #ff5b1f; }
+  #panel h2 { font: 700 11px/1 "Archivo NP", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #8a949d; margin: 12px 0 6px; }
+  #panel select, #panel button, #panel input { font: inherit; color: inherit; background: #1b1f24; border: 1px solid rgba(255,255,255,.14); border-radius: 6px; padding: 4px 7px; min-height: 30px; }
+  #panel button.on { background: #ff5b1f; color: #111; border-color: #ff5b1f; }
+  #panel label { display: flex; align-items: center; gap: 6px; justify-content: space-between; margin: 4px 0; }
+  #panel label > span { flex: 1; }
+  #panel input[type=range] { width: 120px; padding: 0; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; align-items: center; }
+  #stats { white-space: pre; color: #b9c2ca; }
+  .bind { display: grid; grid-template-columns: 1fr auto; gap: 4px 6px; align-items: center; }
+  .bind .codes { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .bind button { min-height: 26px; padding: 2px 6px; }
+  .bind .conf { border-color: #ff3b3b; color: #ff8a8a; }
+  .bind .grp { grid-column: 1 / -1; color: #8a949d; margin-top: 6px; font-weight: 700; }
+  .note { color: #8a949d; }
+  #panel.collapsed > :not(h1) { display: none; }
+  #aimdot, #centerdot { position: absolute; z-index: 15; pointer-events: none; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; left: 50%; top: 50%; }
+  #aimdot { background: #ff5b1f; box-shadow: 0 0 0 2px rgba(0,0,0,.6); }
+  #centerdot { width: 4px; height: 4px; margin: -2px 0 0 -2px; background: rgba(255,255,255,.6); }
+  body.editing #touch-ui .tc-btn, body.editing #touch-ui .tc-streaks, body.editing #touch-ui .tc-stick-base { outline: 2px dashed #ff5b1f; outline-offset: 2px; cursor: move; }
+  body.editing #touch-ui .tc-stick { pointer-events: auto; }
+  @media (max-width: 760px) { #panel { width: 250px; font-size: 11px; } }
+</style>
+</head>
+<body data-match-state="playing">
+<div id="game-root">
+  <canvas id="game-canvas" tabindex="-1" aria-label="Prüfstand"></canvas>
+  <div id="centerdot"></div><div id="aimdot"></div>
+  <div id="touch-ui" aria-label="Touch-Steuerung"></div>
+</div>
+<aside id="panel" data-scrollable>
+  <h1>STEUERUNG<span>·</span>PRÜFSTAND <button id="collapse" title="Einklappen">–</button></h1>
+  <div class="note">Klick ins Bild: Maus fangen (Esc gibt frei). WASD, Leertaste vor Kisten = überklettern, Q/E lehnen.</div>
+  <h2>Live</h2>
+  <div id="stats"></div>
+  <h2>Orte</h2>
+  <div class="row">
+    <button data-go="start">Start</button><button data-go="parcours">Kletterparcours</button><button data-go="wall">Lehnwand</button>
+    <button data-go="stairs">Treppe</button><button data-go="ramp">Rampe</button>
+  </div>
+  <h2>Komfort &amp; Zielen</h2>
+  <div id="opts"></div>
+  <h2>Gyro</h2>
+  <div class="row"><button id="gyro">Gyro erlauben</button><span id="gyrostate" class="note"></span></div>
+  <h2>Touch-Layout</h2>
+  <div class="row">
+    <select id="preset"></select>
+    <label style="margin:0"><input type="checkbox" id="fixed"> fester Stick</label>
+  </div>
+  <div class="row">
+    <label style="margin:0"><input type="checkbox" id="optional"> Lehnen + Zielen/Feuern zeigen</label>
+  </div>
+  <div class="row"><button id="edit">Knöpfe verschieben</button><button id="tlreset">Layout zurücksetzen</button></div>
+  <div class="note" id="tlnote"></div>
+  <h2>Belegung</h2>
+  <div class="row"><button data-dev="kb" class="on">Tastatur &amp; Maus</button><button data-dev="pad">Gamepad</button><button id="breset">Zurücksetzen</button></div>
+  <div class="row"><label style="margin:0">Bei Doppelbelegung <select id="conflict"><option value="swap">tauschen</option><option value="unbind">andere lösen</option><option value="keep">behalten</option></select></label></div>
+  <div class="note" id="capnote"></div>
+  <div class="bind" id="binds"></div>
+</aside>
+<script type="module">
+import * as THREE from 'three';
+import { settings } from '../assets/js/shared/settings.js';
+import { EventBus } from '../assets/js/game/engine/events.js';
+import { Input } from '../assets/js/game/engine/input.js';
+import { Player } from '../assets/js/game/player.js';
+import { createTestWorld } from './input/testworld.js';
+import * as B from '../assets/js/shared/bindings.data.js';
+
+const canvas = document.getElementById('game-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(1.5, devicePixelRatio || 1));
+renderer.shadowMap.enabled = true;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9fb2c2);
+scene.fog = new THREE.Fog(0x9fb2c2, 30, 90);
+scene.add(new THREE.HemisphereLight(0xdfe9f3, 0x4a4136, 1.2));
+const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
+sun.position.set(12, 20, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30 });
+scene.add(sun);
+const world = createTestWorld({ withMeshes: true });
+scene.add(world.group);
+// Markierungen: Höhen der Kisten
+const params = new URLSearchParams(location.search);
+
+const events = new EventBus();
+const G = {
+  THREE, canvas, scene, settings, events, world, renderer: null, actors: [], combat: null, viewmodel: null, weapons: null,
+  match: { state: 'playing' }, time: { dt: 0, elapsed: 0, frame: 0, real: 0 }, data: {}, debug: true,
+};
+const player = new Player(G);
+G.player = player;
+G.camera = player.camera;
+G.actors.push(player);
+const input = new Input(G);
+G.input = input;
+input.attach(G);
+input.setEnabled(true);
+const SPOTS = { start: [0, 14, 0], parcours: [2, -3.2, 0], wall: [11.2, 0, Math.PI / 2], stairs: [-14, 0.5, 0], ramp: [-20, 0.5, 0] };
+const go = (k) => { const [x, z, yaw] = SPOTS[k]; player.respawn({ position: new THREE.Vector3(x, 0.05, z), yaw }); };
+player.alive = false;
+go(params.get('spot') || 'start');
+const log = [];
+for (const ev of ['player:mantle', 'player:lean', 'player:jump', 'player:land', 'footstep', 'input:gyro']) events.on(ev, (p) => { log.push(`${ev.replace('player:', '')} ${p && p.phase ? p.phase : ''}${p && p.vault ? ' (Sprung)' : ''}${p && p.dir != null ? p.dir : ''}${p && p.permission ? p.permission : ''}`); if (log.length > 5) log.shift(); });
+window.__dev = { G, input, player, world, B, go };
+
+/* ------------------------------------------------------------ Einstellungen */
+const S = settings.schema;
+const OPTS = ['cameraMotion', 'reducedMotion', 'freeAim', 'adsMode', 'sprintMode', 'crouchMode', 'leanMode', 'sensitivity', 'sensitivityY', 'zoomSensitivityCoef', 'padSensitivity', 'padDeadzone', 'padCurve', 'padSwapSticks', 'aimAssistStrength', 'gyroMode', 'gyroSensitivityX', 'gyroSensitivityY', 'touchOpacity', 'touchButtonScale'];
+const opts = document.getElementById('opts');
+for (const k of OPTS) {
+  const d = S[k];
+  const lab = document.createElement('label');
+  const span = document.createElement('span');
+  span.textContent = d.label;
+  lab.append(span);
+  let ctl;
+  if (d.type === 'number') {
+    ctl = Object.assign(document.createElement('input'), { type: 'range', min: d.min, max: d.max, step: d.step });
+    ctl.value = settings.get(k);
+    ctl.addEventListener('input', () => settings.set(k, ctl.value));
+  } else if (d.type === 'boolean') {
+    ctl = Object.assign(document.createElement('input'), { type: 'checkbox', checked: !!settings.get(k) });
+    ctl.addEventListener('change', () => settings.set(k, ctl.checked));
+  } else {
+    ctl = document.createElement('select');
+    for (const o of d.options) ctl.append(new Option((d.labels && d.labels[o]) || o, o));
+    ctl.value = settings.get(k);
+    ctl.addEventListener('change', () => {
+      settings.set(k, ctl.value);
+      // iOS: Bewegungssensoren nur aus einer Nutzergeste erlauben
+      if (k === 'gyroMode' && ctl.value !== 'off') input.requestGyroPermission();
+    });
+  }
+  lab.append(ctl);
+  opts.append(lab);
+}
+document.getElementById('gyro').addEventListener('click', () => input.requestGyroPermission().then(paintGyro));
+const paintGyro = () => { const g = input.gyro; document.getElementById('gyrostate').textContent = `${g.supported ? 'unterstützt' : 'nicht unterstützt'} · ${g.permission}${g.receiving ? ' · Daten' : ''}`; };
+events.on('input:gyro', paintGyro);
+paintGyro();
+document.getElementById('collapse').addEventListener('click', () => document.getElementById('panel').classList.toggle('collapsed'));
+document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
+
+/* ------------------------------------------------------------ Touch-Layout */
+const preset = document.getElementById('preset');
+for (const id of B.TOUCH_PRESET_IDS) preset.append(new Option(B.TOUCH_PRESETS[id].label, id));
+const fixed = document.getElementById('fixed');
+const optional = document.getElementById('optional');
+const syncTl = () => {
+  const L = settings.get('touchLayout');
+  preset.value = L.preset;
+  fixed.checked = !!L.stick.fixed;
+  const r = input.touchLayout;
+  const shown = r && r.buttons.leanL && r.buttons.leanL.h === false;
+  optional.checked = !!shown;
+  document.getElementById('tlnote').textContent = r ? `Seitenverhältnis ${r.aspect} · Stick ${r.stick.side === 'right' ? 'rechts' : 'links'}${r.mirror ? ' · gespiegelt' : ''} · eigene Klassen: ${Object.keys(L.custom).join(', ') || '–'}` : '';
+};
+preset.addEventListener('change', () => { const L = settings.get('touchLayout'); L.preset = preset.value; settings.set('touchLayout', L); syncTl(); });
+fixed.addEventListener('change', () => { const L = settings.get('touchLayout'); L.stick.fixed = fixed.checked; settings.set('touchLayout', L); syncTl(); });
+optional.addEventListener('change', () => {
+  let L = settings.get('touchLayout');
+  const asp = input.touchLayout.aspect;
+  for (const id of ['leanL', 'leanR', 'adsfire']) L = B.setTouchEntry(L, asp, id, { h: !optional.checked });
+  settings.set('touchLayout', L);
+  syncTl();
+});
+document.getElementById('tlreset').addEventListener('click', () => { settings.set('touchLayout', null); syncTl(); });
+settings.onChange((k) => { if (k === 'touchLayout') syncTl(); if (k === 'bindings') paintBinds(); });
+// Editor-Vorführung: Knöpfe ziehen (Eingabe dabei aus), Lage in % je Seitenverhältnis speichern
+const editBtn = document.getElementById('edit');
+let editing = false, drag = null;
+editBtn.addEventListener('click', () => {
+  editing = !editing;
+  editBtn.classList.toggle('on', editing);
+  document.body.classList.toggle('editing', editing);
+  input.setEnabled(!editing);
+  document.body.dataset.inputMode = 'touch';
+});
+const tui = document.getElementById('touch-ui');
+tui.addEventListener('pointerdown', (e) => {
+  if (!editing) return;
+  const def = B.TOUCH_BUTTONS.find((b) => { const el = tui.querySelector(b.sel); return el && (el === e.target || el.contains(e.target)); });
+  if (!def) return;
+  e.preventDefault();
+  drag = { id: def.id, pid: e.pointerId };
+}, true);
+window.addEventListener('pointermove', (e) => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  const r = tui.getBoundingClientRect();
+  const x = ((e.clientX - r.left) / r.width) * 100, y = ((e.clientY - r.top) / r.height) * 100;
+  drag.layout = B.setTouchEntry(settings.get('touchLayout'), input.touchLayout.aspect, drag.id, { x, y });
+  input.applyTouchLayout(drag.layout); // Vorschau ohne Speichern
+});
+window.addEventListener('pointerup', (e) => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  if (drag.layout) settings.set('touchLayout', drag.layout);
+  drag = null;
+  syncTl();
+});
+
+/* ------------------------------------------------------------ Belegung */
+let dev = 'kb';
+document.querySelectorAll('[data-dev]').forEach((b) => b.addEventListener('click', () => {
+  dev = b.dataset.dev;
+  document.querySelectorAll('[data-dev]').forEach((x) => x.classList.toggle('on', x === b));
+  paintBinds();
+}));
+document.getElementById('breset').addEventListener('click', () => settings.set('bindings', B.resetBindings(settings.get('bindings'), dev)));
+const binds = document.getElementById('binds');
+const capnote = document.getElementById('capnote');
+function paintBinds() {
+  const res = input.bindings;
+  const conf = new Set(input.conflicts.filter((c) => c.device === dev).flatMap((c) => c.actions.map((a) => `${a}|${c.code}`)));
+  binds.innerHTML = '';
+  let grp = null;
+  for (const a of B.ACTION_DEFS) {
+    if (a.group !== grp) { grp = a.group; const g = document.createElement('div'); g.className = 'grp'; g.textContent = B.ACTION_GROUPS[grp]; binds.append(g); }
+    const name = document.createElement('div');
+    name.textContent = a.label;
+    const codes = document.createElement('div');
+    codes.className = 'codes';
+    const list = res[dev][a.id] || [];
+    for (let i = 0; i <= Math.min(list.length, B.MAX_SLOTS - 1); i++) {
+      const c = list[i];
+      const btn = document.createElement('button');
+      btn.textContent = c ? B.codeLabel(c, { layout: input._kbLayout }) : '+';
+      btn.title = c ? `${B.codeLabel(c, { long: true })}${B.codeWarning(c) ? ` – ${B.codeWarning(c)}` : ''}` : 'Taste hinzufügen';
+      if (c && conf.has(`${a.id}|${c}`)) btn.classList.add('conf');
+      btn.disabled = !!a.fixed;
+      btn.addEventListener('click', async () => {
+        capnote.textContent = dev === 'pad' ? 'Gamepad-Taste drücken … (Menü bricht ab, Akkord: erste Taste halten)' : 'Taste oder Maustaste drücken … (Esc bricht ab)';
+        btn.textContent = '…';
+        const code = await input.capture({ device: dev });
+        capnote.textContent = code ? `${a.label}: ${B.codeLabel(code)}` : 'abgebrochen';
+        if (!code) { paintBinds(); return; }
+        const r = B.setBinding(settings.get('bindings'), dev, a.id, i, code, { conflict: document.getElementById('conflict').value });
+        if (r.displaced.length) capnote.textContent += ` · ${r.displaced.map((d) => `${B.ACTION_BY_ID[d.action].label} ${d.replacement ? `→ ${B.codeLabel(d.replacement)}` : 'gelöst'}`).join(', ')}`;
+        settings.set('bindings', r.overrides);
+      });
+      btn.addEventListener('contextmenu', (e) => { e.preventDefault(); if (c) settings.set('bindings', B.setBinding(settings.get('bindings'), dev, a.id, i, null).overrides); });
+      codes.append(btn);
+    }
+    binds.append(name, codes);
+  }
+}
+paintBinds();
+syncTl();
+
+/* ------------------------------------------------------------ Schleife */
+const stats = document.getElementById('stats');
+const aimdot = document.getElementById('aimdot');
+const sp = { x: 0, y: 0 };
+let last = 0, statsAt = 0;
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  renderer.setSize(w, h, false);
+  player.camera.aspect = w / Math.max(1, h);
+  player.camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+resize();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const raw = last ? Math.min(0.1, (now - last) / 1000) : 0;
+  last = now;
+  const dt = Math.min(raw, 1 / 20);
+  G.time.dt = dt; G.time.elapsed += dt; G.time.real += raw; G.time.frame++;
+  input.update(dt);
+  player.update(dt);
+  if (!player.alive || player.position.y < -5) go('start');
+  renderer.render(scene, player.camera);
+  input.endFrame();
+  player.getAimScreenPoint(sp);
+  aimdot.style.left = `${(sp.x * 0.5 + 0.5) * 100}%`;
+  aimdot.style.top = `${(-sp.y * 0.5 + 0.5) * 100}%`;
+  if (now - statsAt > 120) {
+    statsAt = now;
+    const v = player.body.velocity;
+    const g = input.gyro;
+    stats.textContent =
+      `Gerät ${input.lastDevice} · ${input.mode}${input.locked ? ' · Maus gefangen' : ''}\n` +
+      `Tempo ${Math.hypot(v.x, v.z).toFixed(2)} m/s ${player.sprinting ? 'Sprint' : player.crouching ? 'geduckt' : ''}${player.sliding ? ' Rutschen' : ''}\n` +
+      `Lehnen ${player.lean.toFixed(2)} · Versatz ${Math.hypot(player.leanOffset.x, player.leanOffset.z).toFixed(2)} m\n` +
+      `Freies Zielen ${(player.aimOffset.x * 57.3).toFixed(1)}° / ${(player.aimOffset.y * 57.3).toFixed(1)}° (Radius ${(player.freeAimRadius * 57.3).toFixed(1)}°)\n` +
+      `Klettern ${player.mantling ? `${Math.round(player.mantleProgress * 100)} %` : '–'} · Anstrengung ${player.exertion.toFixed(2)}\n` +
+      `Kamerabewegung ${player.cameraMotion.toFixed(2)} · Höhe ${player.position.y.toFixed(2)} m\n` +
+      `Gyro ${g.permission}${g.active ? ' aktiv' : ''} · Pad ${input._pad ? input._pad.id.slice(0, 24) : '–'}\n` +
+      `Konflikte ${input.conflicts.length} · aktiv: ${['ads', 'lean_left', 'lean_right'].filter((a) => input.active(a)).join(', ') || '–'}\n` +
+      log.join('\n');
+  }
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

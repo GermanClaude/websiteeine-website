@@ -72,6 +72,8 @@ const UP_FRAG = /* glsl */ `
   }
 `;
 
+const UP_WEIGHT = 0.9;
+
 export class Bloom {
   /** levels: Anzahl Mip-Stufen (Start halbe Auflösung). */
   constructor({ levels = 5 } = {}) {
@@ -104,6 +106,13 @@ export class Bloom {
   }
 
   get texture() { return this.targets.length ? this.targets[0].texture : null; }
+
+  /** Summe der Stufengewichte im Ergebnis (zum Normieren der Stärke). */
+  get levelSum() {
+    let s = 0, w = 1;
+    for (let i = 0; i < this.levels; i++) { s += w; w *= UP_WEIGHT; }
+    return s;
+  }
 
   setSize(renderer, w, h) {
     const bw = Math.max(1, w >> 1), bh = Math.max(1, h >> 1);
@@ -146,7 +155,7 @@ export class Bloom {
       u.tSrc.value = t[i + 1].texture;
       u.uTexel.value.set(1 / t[i + 1].width, 1 / t[i + 1].height);
       u.uRadius.value = this.radius;
-      u.uWeight.value = 0.9; // größere Stufen tragen etwas weniger (weiter Schleier bleibt dezent)
+      u.uWeight.value = UP_WEIGHT; // größere Stufen tragen etwas weniger (weiter Schleier bleibt dezent)
       fs.draw(renderer, this.up, t[i]);
     }
   }

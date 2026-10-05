@@ -1041,6 +1041,7 @@ export class ViewModel {
     const mag = curve(m, [[0.26, ZERO3], [0.36, [0, -0.07, 0.012]], [0.47, [-0.16, -0.5, 0.12]], [0.48, [-0.12, -0.45, 0.1]], [0.58, [0, -0.08, 0.014]], [0.65, [0, -0.01, 0.002]], [0.67, ZERO3]]);
     const magRot = curve(m, [[0.26, 0], [0.4, 0.25], [0.48, 0.25], [0.58, 0.12], [0.67, 0]]);
     out.parts.mag = [mag[0], mag[1], mag[2], magRot, 0, 0];
+    this._magWindow(A, out, m, 0.3, 0.475);
     if (m > 0.66 && m < 0.7 && !A.slapped) { A.slapped = true; this._jolt.kick(1.2, 0, 0); this._recoilPos.kick(0, 0.4, 0); }
     // Linke Hand: zum Magazin, mit ihm hinaus und zurück
     const wMag = windowW(m, 0.14, 0.25, 0.68, 0.8);
@@ -1075,6 +1076,12 @@ export class ViewModel {
       if (this.h.action === 'bolt' && c > 0) this._boltMotion(c, out, true);
     }
     return u >= 1;
+  }
+
+  /** Altes Magazin fällt bei t ≥ from in die Welt (einmal je Nachladen); bis `to` (neues Magazin) ausgeblendet. */
+  _magWindow(A, out, t, from, to) {
+    if (t >= from && !A.dropped && !A.cancel) { A.dropped = true; this._dropMag(); }
+    if (A.dropped && t >= from && t < to && this._worldFx()) (out.parts._vis || (out.parts._vis = {})).mag = false;
   }
 
   _boltMotion(c, out, inReload) {
@@ -1172,6 +1179,7 @@ export class ViewModel {
     // Magazin fällt entlang der Griffachse heraus, neues kommt von unten links
     const mag = curve(u, [[0.12, ZERO3], [0.2, [0, -0.07, 0.025]], [0.3, [0.02, -0.5, 0.15]], [0.31, [-0.12, -0.3, 0.1]], [0.48, [-0.02, -0.075, 0.03]], [0.58, [0, -0.012, 0.004]], [0.62, ZERO3]]);
     out.parts.mag = [mag[0], mag[1], mag[2]];
+    this._magWindow(A, out, u, 0.17, 0.305);
     if (u > 0.6 && !A.slapped) { A.slapped = true; this._jolt.kick(1.4, 0, 0); this._recoilPos.kick(0, 0.5, 0); }
     // Linke Hand verlässt den Stützgriff, holt das neue Magazin, setzt es ein
     const wAway = windowW(u, 0.1, 0.22, 0.66, 0.82);
@@ -1196,6 +1204,7 @@ export class ViewModel {
     const mag = curve(m, [[0.25, ZERO3], [0.33, [0, 0.022, 0.03]], [0.45, [-0.2, -0.35, 0.15]], [0.46, [-0.2, -0.3, -0.05]], [0.58, [0, 0.03, -0.02]], [0.66, [0, 0.008, 0]], [0.69, ZERO3]]);
     const magRot = curve(m, [[0.25, 0], [0.33, -0.18], [0.46, -0.3], [0.58, -0.1], [0.69, 0]]);
     out.parts.mag = [mag[0], mag[1], mag[2], magRot, 0, 0];
+    this._magWindow(A, out, m, 0.3, 0.455);
     if (m > 0.68 && !A.slapped) { A.slapped = true; this._jolt.kick(1.3, 0, 0); }
     const wMag = windowW(m, 0.14, 0.25, 0.7, 0.82);
     if (wMag > 0 && ud.anchors.magGrab) req(out.left, wMag, { anchor: ud.anchors.magGrab, style: 'magTop' });
@@ -1227,6 +1236,7 @@ export class ViewModel {
     const belt = curve(u, [[0.58, [0, -0.02, 0]], [0.66, ZERO3]]);
     out.parts.belt = [belt[0], belt[1], belt[2]];
     out.parts._vis = { belt: !(u > 0.3 && u < 0.6) };
+    this._magWindow(A, out, u, 0.32, 0.445);
     // Hand: Deckel öffnen → Kasten → Gurt einlegen → Deckel schließen
     const coverReq = { part: 'cover', style: 'pinchSide', offset: [-0.028, 0.02, 0.232] };
     if (u < 0.24) req(out.left, windowW(u, 0.06, 0.12, 0.2, 0.26), coverReq);

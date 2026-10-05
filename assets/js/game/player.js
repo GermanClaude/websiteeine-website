@@ -996,7 +996,7 @@ export class Player {
     const sp = clamp(hs / SPEED_WALK, 0.5, 1.4);
     const sprint = this.sprinting, crouch = this.crouching;
     const kY = sprint ? 1.4 : crouch ? 0.35 : 0.75;
-    const kR = sprint ? 0.52 : crouch ? 0.1 : 0.22;
+    const kR = sprint ? 0.34 : crouch ? 0.08 : 0.2;
     const kP = sprint ? 0.26 : crouch ? 0.06 : 0.13;
     const kW = sprint ? 0.22 : crouch ? 0.03 : 0.06;
     const kX = sprint ? 0.7 : crouch ? 0.15 : 0.35;

@@ -444,13 +444,15 @@ export function probeLedge(world, body, dirX, dirZ, opts = {}) {
   // nur frontal genug (nicht an einer Wand entlangschrammen)
   const facing = -(wall.nx * _d.x + wall.nz * _d.z) / Math.max(1e-3, Math.hypot(wall.nx, wall.nz));
   if (facing < 0.45) return null;
-  // 2) Oberkante: Abwärtsstrahl knapp hinter der Wandfläche
-  const probe = wall.distance + 0.2;
+  // 2) Oberkante: Abwärtsstrahl knapp hinter der Wandfläche (dünne Mauern ab 8 cm Stärke werden noch getroffen)
   const topStart = p.y + maxH + 0.65;
-  _o.set(p.x + _d.x * probe, topStart, p.z + _d.z * probe);
-  const down = collisionRay(world, _o, _v3down, maxH + 0.65 - minH + 0.25, _hitB);
-  if (!down || down.ny < 0.7) return null;
-  const topY = topStart - down.distance;
+  let topY = -Infinity, probe = 0;
+  for (const k of [0.08, 0.22]) {
+    _o.set(p.x + _d.x * (wall.distance + k), topStart, p.z + _d.z * (wall.distance + k));
+    const down = collisionRay(world, _o, _v3down, maxH + 0.65 - minH + 0.25, _hitB);
+    if (down && down.ny >= 0.7 && topStart - down.distance > topY) { topY = topStart - down.distance; probe = wall.distance + k; }
+  }
+  if (topY === -Infinity) return null;
   const height = topY - p.y;
   if (height < minH - 0.06 || height > maxH + 0.04) return null;
   // Über dem Startpunkt des Abwärtsstrahls darf nichts hängen (sonst steckt der Kopf in der Decke)
