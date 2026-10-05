@@ -254,6 +254,8 @@ export function createDecalMaterials(quality = 'high') {
     grime: new THREE.MeshStandardMaterial({ ...base, roughness: 0.92, metalness: 0 }),
     wet: new THREE.MeshStandardMaterial({ ...base, color: '#3a3f44', roughness: 0.04, metalness: 0.1, envMapIntensity: 1.4 }),
     paint: new THREE.MeshStandardMaterial({ ...base, roughness: 0.75, metalness: 0 }),
+    // Lichtkegel am Boden (unbeleuchtet, additiv): Lampenpools ohne echte Punktlichter (auch auf low)
+    light: new THREE.MeshBasicMaterial({ ...base, blending: THREE.AdditiveBlending }),
   };
   for (const [k, m] of Object.entries(decalMats)) { m.name = 'decal_' + k; m.userData.surface = 'concrete'; }
   return decalMats;

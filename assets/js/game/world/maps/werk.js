@@ -253,6 +253,13 @@ function furnace(b, x0, z0, x1, z1, s) {
   b.noNav(x0 - 0.3, z0 - 0.3, x1 + 0.3, z1 + 0.3, 3, 30);
 }
 
+/** Warmer Lichtkegel einer Natriumlampe auf dem Boden (additives Decal, auf allen Stufen, ohne Lichtkosten). */
+function lampPool(b, x, z, size) {
+  // feste Drehung: der Karten-Zufall (Requisiten danach) bleibt unverändert
+  b.decal(x, 0.016, z, size, size * 0.92, 'puddle', { kind: 'light', tint: '#ff9a3c', opacity: 0.3, ry: x * 0.7 });
+  b.decal(x, 0.017, z, size * 0.45, size * 0.42, 'puddle', { kind: 'light', tint: '#ffb060', opacity: 0.22, ry: z * 0.9 });
+}
+
 /** Wandleuchte (Natriumdampf) mit Lichthof; ry = Blickrichtung nach außen. */
 function wallLight(b, x, y, z, ry, o = {}) {
   const f = frame(b, x, y, z, ry);
@@ -676,6 +683,9 @@ function half(b, M, ctx) {
   sandbags(b, -38.0, Z(23.6), -35.6, Z(23.2), { rows: 5 });
   lampPost(b, -28.6, Z(26.5), { h: 7, arm: 1.5, ry: Math.PI, kind: 'sodium', light: south, intensity: 22, distance: 18, glow: true });
   lampPost(b, -51.0, Z(14.0), { h: 7, arm: 1.5, ry: 0, kind: 'sodium', light: !south, intensity: 22, distance: 18, glow: true });
+  // Weitere Natriumlampe am Hofende: Lichtkegel als additives Boden-Decal (kein zusätzliches Punktlicht)
+  lampPost(b, -51.0, Z(37.0), { h: 7, arm: 1.5, ry: 0, kind: 'sodium', glow: true });
+  lampPool(b, -49.5, Z(37.0), 7.5);
   // Westgrenze: Ziegelmauer mit Stacheldraht
   b.boxMM(-52.6, 0, Math.min(0, Z(48)), -52.0, 3.6, Math.max(0, Z(48)), 'brick', { tint: '#8a5a4a', minimap: 'wall' });
   b.boxMM(-52.7, 3.6, Math.min(0, Z(48)), -51.9, 3.75, Math.max(0, Z(48)), 'concrete', { tint: '#8a8680', collide: false, minimap: false, grad: false });
@@ -713,6 +723,7 @@ function half(b, M, ctx) {
   // Ostgrenze
   b.boxMM(52.0, 0, Math.min(0, Z(48)), 52.6, 3.6, Math.max(0, Z(48)), 'brick', { tint: '#8a5a4a', minimap: 'wall' });
   lampPost(b, 51.2, Z(32.0), { h: 6.5, arm: 1.3, ry: Math.PI, kind: 'sodium', glow: true });
+  lampPool(b, 49.9, Z(32.0), 6.5);
   for (let i = 0; i < 8; i++) {
     const x = b.rnd(23, 51), z = Z(b.rnd(2, 45)), k = b.rand();
     b.decal(x, 0.012, z, b.rnd(1.5, 3), b.rnd(1.5, 3), k < 0.4 ? 'oil' : k < 0.75 ? 'puddle' : 'stain', { opacity: 0.7 });

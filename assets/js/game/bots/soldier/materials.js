@@ -3,6 +3,7 @@
 //   Attribut aNp = (Tarnmuster-Anteil, Gewebe-Detail, Leuchtanteil, Glanz/Metall 0..1)
 //   uDissolve   = Auflösen der Leiche (Rasterrauschen, ohne Transparenz-Sortierung)
 //   uRim/uRimPow/uRimColor/uRimTint = Randlicht-Saum (Gegner kräftiger, breiter, zur Teamfarbe getönt)
+//   uLightFloor = Mindesthelligkeit als Anteil der Albedo (Gegner im tiefen Schatten noch erkennbar)
 // Alle Schemata teilen ein Shaderprogramm; nur Tarntextur und Uniform-Werte unterscheiden sich.
 // Gegnerschemata werden je Karte nach Helligkeit gewählt (schemeForTeam/ffaSchemes), damit sich
 // Gegner von Wänden und Boden abheben (Ziel: Leuchtdichte-Kontrast ≥ 1,8 : 1).
@@ -253,6 +254,7 @@ uniform float uRim;
 uniform float uRimPow;
 uniform float uRimTint;
 uniform vec3 uRimColor;
+uniform float uLightFloor;
 `;
 
 const materialCache = new Map();
@@ -282,6 +284,8 @@ export function soldierMaterial(schemeId, { dissolve = false, quality = 'high' }
   m.userData.uRim = { value: sc.hostile ? 0.95 : 0.45 };
   m.userData.uRimPow = { value: sc.hostile ? 2.2 : 3 }; // breiterer Saum bei Gegnern (Umriss auch im Schatten)
   m.userData.uRimTint = { value: sc.hostile ? 0.35 : 0 };
+  // Mindesthelligkeit (Anteil der Albedo): Gegner „versinken“ nicht im tiefen Schatten; im Licht ohne Wirkung
+  m.userData.uLightFloor = { value: sc.hostile ? 0.55 : 0 };
   m.userData.uRimColor = { value: new THREE.Color(sc.accent) };
   m.userData.soldier = true;
   m.onBeforeCompile = (shader) => {
@@ -291,6 +295,7 @@ export function soldierMaterial(schemeId, { dissolve = false, quality = 'high' }
     shader.uniforms.uRimPow = m.userData.uRimPow;
     shader.uniforms.uRimTint = m.userData.uRimTint;
     shader.uniforms.uRimColor = m.userData.uRimColor;
+    shader.uniforms.uLightFloor = m.userData.uLightFloor;
     shader.vertexShader = VERT_HEAD + shader.vertexShader
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvNp = aNp;\n\tvNpPos = position;');
     let fs = FRAG_HEAD + shader.fragmentShader;
@@ -319,6 +324,8 @@ export function soldierMaterial(schemeId, { dissolve = false, quality = 'high' }
 	vec3 npRimCol = mix( diffuseColor.rgb * 0.6 + vec3( 0.05, 0.055, 0.06 ), uRimColor * 0.5, uRimTint );
 	totalEmissiveRadiance += npRimCol * pow( npRim, uRimPow ) * uRim;
 	if (uDissolve > 0.0 && npDis < uDissolve + 0.035) totalEmissiveRadiance += vec3(1.0, 0.36, 0.08) * 0.6;`);
+    fs = fs.replace('#include <opaque_fragment>', `outgoingLight = max( outgoingLight, diffuseColor.rgb * uLightFloor );
+	#include <opaque_fragment>`);
     shader.fragmentShader = fs;
   };
   m.customProgramCacheKey = () => 'np-soldier-4' + (low ? 'l' : 'h');

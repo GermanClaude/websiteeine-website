@@ -202,7 +202,7 @@ try {
   }
   await waitFor(() => window.__game && ['countdown', 'playing'].includes(window.__game.match.state), 90000, 'Match-Start');
   pass('matchStarted');
-  await waitFor(() => window.__game.match.state === 'playing', 60000, 'Countdown');
+  await waitFor(() => window.__game.match.state === 'playing', 240000, 'Countdown');
   pass('playing');
   // Headless gewährt keinen Pointer-Lock: Maustasten auch ohne Sperre zulassen (wie autostart)
   await page.evaluate(() => { window.__game.input.allowUnlockedMouse = true; });

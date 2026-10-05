@@ -209,7 +209,7 @@ function perchStep(bot, now, A, fresh) {
 
 /** Haltezeit beginnen; Grundblickrichtung: überwachter Ort, sonst Gegnerseite (FFA: Kartenmitte). */
 function startHold(bot, now, A, d, duration) {
-  d.holdUntil = now + duration;
+  d.holdUntil = now + duration * (bot.team ? 1 : 0.6); // Jeder gegen jeden: kürzer halten (Tempo)
   const p = bot.position;
   const to = d.watch || (bot.team === 'A' ? A.sb : bot.team === 'B' ? A.sa : A.center);
   d.baseYaw = Math.atan2(-(to.x - p.x), -(to.z - p.z));

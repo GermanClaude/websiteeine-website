@@ -834,7 +834,7 @@ export class MapBuilder {
   _buildDecals(group) {
     if (!this.decals.length) return [];
     const mats = createDecalMaterials(this._quality);
-    const byKind = { grime: [], wet: [], paint: [] };
+    const byKind = { grime: [], wet: [], paint: [], light: [] };
     for (const d of this.decals) byKind[d.kind]?.push(d);
     const out = [];
     const up = new THREE.Vector3(0, 1, 0), nrm = new THREE.Vector3(), q = new THREE.Quaternion(), q2 = new THREE.Quaternion(), v = new THREE.Vector3();
@@ -878,7 +878,7 @@ export class MapBuilder {
       g.setAttribute('color', new THREE.Float32BufferAttribute(C, 4));
       g.computeBoundingSphere();
       const mesh = new THREE.Mesh(g, mats[kind]);
-      mesh.receiveShadow = true; mesh.renderOrder = 1; mesh.matrixAutoUpdate = false;
+      mesh.receiveShadow = kind !== 'light'; mesh.renderOrder = kind === 'light' ? 2 : 1; mesh.matrixAutoUpdate = false;
       mesh.name = 'decals-' + kind;
       group.add(mesh);
       out.push(mesh);

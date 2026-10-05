@@ -51,7 +51,7 @@ class SoundBank {
     this.ctx = null; this.seq = 0;
     this.storeQ = []; this._storeT = 0;   // große Ergebnisse: stückweise in den AudioBuffer kopieren
     this._sched = false; this._pumping = false; this._closeT = 0;
-    this.stats = { rendered: 0, workerMs: 0, mainMs: 0, maxMainMs: 0, bytes: 0, released: 0, errors: 0, lastError: null, workers: 0, mode: 'worker' };
+    this.stats = { rendered: 0, workerMs: 0, mainMs: 0, maxMainMs: 0, bytes: 0, released: 0, errors: 0, lastError: null, poolError: null, workers: 0, mode: 'worker' };
   }
 
   key(name, v, sr) { return `${name}#${v}@${sr}`; }
@@ -271,7 +271,7 @@ class SoundBank {
       j.running = false; j.worker = null;
       if (j.cancelled) this.jobs.delete(j.key);
     }
-    this._error(err);
+    this.stats.poolError = String((err && err.message) || err); // kein Synthesefehler: Rückfall greift
     // Lief der Pool schon (Laufzeitfehler, z. B. Speicher), einmal neu starten; sonst Hauptthread
     if (!(hadResults && this.respawns++ < 2)) { this.poolBroken = true; this.stats.mode = 'main'; this.stats.workers = 0; }
     this._notify();
