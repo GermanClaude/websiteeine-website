@@ -10,8 +10,12 @@ import { HINTS } from './schema-page.js';
 /** Bildstil-Vorlagen: jede setzt diese Werte (alles andere bleibt). */
 export const LOOKS = [
   {
-    id: 'bodycam', label: 'Bodycam', desc: 'Fischauge, Rauschen, Kompression, Gehäuse, Kamerawackeln – wie eine echte Körperkamera.',
-    set: { lensStyle: 'bodycam', lensStrength: 0.7, grain: 0.6, lensArtifacts: 0.35, lensBorder: true, autoExposure: true, cameraMotion: 0.6, weaponPose: 'bodycam', weaponSway: 1, bodycamStamp: true },
+    id: 'bodycam', label: 'Bodycam', desc: 'Der Standard: Fischauge, Rauschen, leichte Kompression, wackelnde Körperkamera.',
+    set: { lensStyle: 'bodycam', lensStrength: 0.7, grain: 0.6, lensArtifacts: 0.35, lensBorder: false, autoExposure: true, cameraMotion: 0.6, weaponPose: 'auto', weaponSway: 1, bodycamStamp: false },
+  },
+  {
+    id: 'echt', label: 'Bodycam · Echt', desc: 'Wie eine echte Aufnahme: Gehäuserand, Zeitstempel, tiefe Waffenhaltung, mehr Bildfehler.',
+    set: { lensStyle: 'bodycam', lensStrength: 0.85, grain: 0.7, lensArtifacts: 0.5, lensBorder: true, autoExposure: true, cameraMotion: 0.75, weaponPose: 'bodycam', weaponSway: 1, bodycamStamp: true },
   },
   {
     id: 'komfort', label: 'Bodycam · Komfort', desc: 'Gleicher Look, aber ruhige Kamera und wenig Verzeichnung – gegen Reiseübelkeit.',
@@ -36,8 +40,8 @@ export function activeLook(S) {
 
 // Kleine Vorschau je Vorlage (SVG): Gitter gerade/gebogen, Rand, Rauschen
 function lookArt(id) {
-  const curved = id === 'bodycam' || id === 'komfort';
-  const k = id === 'bodycam' ? 7 : id === 'komfort' ? 3 : 0;
+  const curved = id === 'bodycam' || id === 'echt' || id === 'komfort';
+  const k = id === 'echt' ? 8.5 : id === 'bodycam' ? 7 : id === 'komfort' ? 3 : 0;
   const v = [20, 40, 60, 80].map((x) => {
     const dx = (x - 50) / 50;
     return `<path d="M${x} 0 Q${(x + dx * k).toFixed(1)} 30 ${x} 60"/>`;
@@ -46,9 +50,9 @@ function lookArt(id) {
     const dy = (y - 30) / 30;
     return `<path d="M0 ${y} Q50 ${(y + dy * k * 0.8).toFixed(1)} 100 ${y}"/>`;
   }).join('');
-  const grain = id === 'bodycam' || id === 'komfort' ? '<rect class="la-grain" width="100" height="60"/>' : '';
-  const border = id === 'bodycam' ? '<rect class="la-border" x="1.5" y="1.5" width="97" height="57" rx="9"/>' : '';
-  const stamp = id === 'bodycam' ? '<text class="la-stamp" x="94" y="9" text-anchor="end">NP-K2 14:32:07</text>' : '';
+  const grain = curved ? '<rect class="la-grain" width="100" height="60"/>' : '';
+  const border = id === 'echt' ? '<rect class="la-border" x="1.5" y="1.5" width="97" height="57" rx="9"/>' : '';
+  const stamp = id === 'echt' ? '<text class="la-stamp" x="94" y="9" text-anchor="end">NP-K2 14:32:07</text>' : '';
   return `<svg class="la la-${id}" viewBox="0 0 100 60" aria-hidden="true"><rect class="la-bg" width="100" height="60"/><g class="la-grid${curved ? ' is-curved' : ''}">${v}${h}</g><circle class="la-sun" cx="74" cy="17" r="6"/>${grain}${border}${stamp}</svg>`;
 }
 
@@ -81,7 +85,7 @@ export function displayPage(P) {
       const rows = (keys) => keys.map((k) => rowHtml(P, k, { hint: HINTS[k], control: k === 'quality' ? 'seg' : undefined, wide: k === 'quality' })).join('');
       host.innerHTML = `
         ${headHtml('Bildstil')}
-        <div class="lk-cards" role="group" aria-label="Bildstil-Vorlagen">
+        <div class="lk-cards lk-looks" role="group" aria-label="Bildstil-Vorlagen">
           ${LOOKS.map((l) => `<button type="button" class="lk-card" data-look="${l.id}" aria-pressed="false">${lookArt(l.id)}<b>${esc(l.label)}</b><small>${esc(l.desc)}</small></button>`).join('')}
         </div>
         <p class="sp-tip" data-look-own hidden>${ICON.info}Eigene Einstellung – eine Vorlage stellt alle Werte darunter auf einmal.</p>
@@ -91,7 +95,7 @@ export function displayPage(P) {
         ${headHtml('Sicht')}
         ${rows(ROWS.sicht)}
         ${headHtml('Komfort')}
-        <p class="sp-tip">${ICON.info}Wird dir beim Spielen übel? Kamerabewegung und Waffenträgheit senken, Fischauge verringern, Sichtfeld erhöhen – oder die Vorlage „Bodycam · Komfort“.</p>
+        <p class="sp-tip">${ICON.info}Wird dir beim Spielen übel? Kamerabewegung und Waffenträgheit senken, Fischauge verringern, Sichtfeld erhöhen – oder die Vorlage „Bodycam · Komfort“. Ganz ohne HUD wie bei Bodycam: HUD → „Realismus“.</p>
         <p class="sp-tip is-on" data-sysrm hidden>${ICON.check}Systemeinstellung „Bewegung reduzieren“ ist aktiv: Kamerabewegung höchstens 15 %, halbe Verzeichnung.</p>
         ${rows(ROWS.komfort)}
         ${headHtml('Bild')}

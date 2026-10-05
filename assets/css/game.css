@@ -2099,13 +2099,14 @@ kbd.kb-pad[data-pad="3"][data-ps="1"] { color: #4fe0b0; }
 .lk-card small { font-size: 12.5px; line-height: 1.35; color: var(--np-ink-2); }
 .la, .ha { display: block; width: 100%; height: auto; border-radius: 2px; }
 .la-bg { fill: #2a3036; }
-.la-bodycam .la-bg, .la-komfort .la-bg { fill: #263034; }
+.la-bodycam .la-bg, .la-echt .la-bg, .la-komfort .la-bg { fill: #263034; }
+.lk-cards.lk-looks { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .la-klassisch .la-bg { fill: #3a3329; }
 .la-grid path { fill: none; stroke: rgba(233, 230, 223, .35); stroke-width: .8; }
 .la-sun { fill: rgba(255, 220, 160, .85); }
 .la-klassisch .la-sun { fill: #ffd27a; }
 .la-grain { fill: none; opacity: 0; }
-.la-bodycam .la-grain, .la-komfort .la-grain { opacity: 1; fill: rgba(255, 255, 255, .04); }
+.la-bodycam .la-grain, .la-echt .la-grain, .la-komfort .la-grain { opacity: 1; fill: rgba(255, 255, 255, .04); }
 .la-border { fill: none; stroke: #000; stroke-width: 6; opacity: .75; }
 .la-stamp { font: 600 5.5px var(--font-mono); fill: rgba(255, 255, 255, .8); }
 .ha-bg { fill: #2a3036; }
@@ -2254,6 +2255,8 @@ body[data-touch-edit="1"] .te-overlap { box-shadow: 0 0 0 2px var(--np-enemy), 0
   .sp-chip { min-height: 34px; padding: 0 11px; font-size: 12px; }
   .lk-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .lk-cards.hs-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lk-cards.lk-looks { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .lk-looks .lk-card { padding: 6px; }
   .lk-card small { display: none; }
   .tp-cards { gap: 8px; }
   .pc { grid-template-columns: minmax(120px, 160px) minmax(0, 1fr); gap: 10px; padding: 8px 0; }
