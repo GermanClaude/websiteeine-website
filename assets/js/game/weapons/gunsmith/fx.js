@@ -121,7 +121,8 @@ export class SmokeWisps {
   dispose() { for (const it of this.items) parkMaterials('smoke', it.m.material); }
 }
 
-function casingGeometry(type) {
+/** Hülsen-Geometrie je Art (rifle | pistol | big | shotgun), Achse = lokales Y, Vertex-Farben (Messing/Hülle). */
+export function casingGeometry(type) {
   if (type === 'shotgun') {
     const hull = new THREE.CylinderGeometry(0.0103, 0.0103, 0.05, 10, 1);
     hull.translate(0, 0.006, 0);

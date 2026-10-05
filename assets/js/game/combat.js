@@ -70,7 +70,8 @@ export function rayCapsule(ro, rd, pa, pb, r) {
 
 /**
  * Standard-Hitboxen eines Menschen (Kopf-Kugel, Torso-Kapsel, Bein-Kapsel) an actor.position (Füße),
- * Höhe aus actor.body.height (Ducken). Für Spieler und Bots ohne eigenes Skelett.
+ * Höhe aus actor.body.height (Ducken). Für Spieler und Bots ohne eigenes Skelett. Lehnt der Akteur
+ * (actor.leanOffset, Weltversatz des Kopfes), wandern Kopf und Oberkörper mit.
  * → { distance, point, normal, zone } | null
  */
 export function raycastHumanoid(actor, ray, maxDist = Infinity) {
