@@ -365,9 +365,10 @@ export class FullscreenManager {
   _failed(err) {
     this.lastError = err || null;
     // Nur zählen, wenn die Geste sicher war (sonst lehnen alte Browser ohne userActivation bei Esc/Gamepad ab)
-    if (typeof navigator === 'undefined' || !navigator.userActivation) return;
-    this._fails += 1;
-    if (this._fails >= MAX_FAILS && !this.blocked) { this.blocked = true; this._emit(); }
+    if (typeof navigator !== 'undefined' && navigator.userActivation) {
+      this._fails += 1;
+      if (this._fails >= MAX_FAILS && !this.blocked) { this.blocked = true; this._emit(); }
+    }
     const ev = this.G.events;
     if (ev && typeof ev.emit === 'function') ev.emit('fullscreen:error', { error: err || null, user: !!this._userReq, blocked: this.blocked });
   }

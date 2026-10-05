@@ -35,6 +35,8 @@ export const DEFAULTS = Object.freeze({
   // Kernmechanik (core-mechanics): Spielstil, Klassen, stufenlose Zielhilfe und Auto-Feuer
   gameStyle: 'arcade', realisticCrosshair: false, lastClass: 'sturm', classLoadouts: Object.freeze({}),
   aimAssistLevel: 0.5, aimAssistDevices: 'touch_pad', autoFireLevel: 0.6, autoFireDevices: 'touch',
+  // Vollbild (engine/fullscreen.js): auto = erste Geste, Matchstart, Fortsetzen | off = nur Knopf/Taste
+  fullscreen: 'auto',
 });
 
 const HOLD_TOGGLE = Object.freeze({ options: ['hold', 'toggle'], labels: { hold: 'Halten', toggle: 'Umschalten' } });
@@ -214,6 +216,10 @@ export const SETTINGS_SCHEMA = Object.freeze({
   autoFireDevices: {
     type: 'enum', label: 'Auto-Feuer für', group: 'steuerung',
     options: ['touch', 'alle'], labels: { touch: 'Nur Touch', alle: 'Alle Geräte (auch Maus & Controller)' },
+  },
+  fullscreen: {
+    type: 'enum', label: 'Vollbild', group: 'spiel',
+    options: ['auto', 'off'], labels: { auto: 'Automatisch', off: 'Nur per Knopf/Taste' },
   },
 });
 

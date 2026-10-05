@@ -31,6 +31,7 @@ export const HINTS = {
   autoFireDevices: 'Für welche Eingabegeräte das automatische Feuern gilt.',
   gameStyle: 'Arcade: das bekannte Spiel. Realistisch: keine Gegneranzeigen, minimales HUD, mehr Schaden, langsamere Heilung.',
   realisticCrosshair: 'Zeigt im Spielstil „Realistisch“ trotzdem ein Fadenkreuz.',
+  fullscreen: 'Automatisch: Vollbild beim ersten Klick bzw. Tippen, bei Spielstart und beim Fortsetzen. Umschalten jederzeit mit Alt + Eingabe oder der Vollbild-Taste (Belegung).',
   gyroMode: 'Zielen durch Neigen und Drehen des Geräts, zusätzlich zum Ziehen.',
   touchOpacity: 'Gilt für alle Knöpfe; einzelne Knöpfe im Layout-Editor.',
   touchButtonScale: 'Gilt für alle Knöpfe; einzelne Knöpfe im Layout-Editor.',

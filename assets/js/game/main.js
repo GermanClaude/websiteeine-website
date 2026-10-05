@@ -22,6 +22,8 @@ import * as classesData from '../shared/classes.data.js'; // core-mechanics: Kla
 import { EventBus } from './engine/events.js';
 import { createRenderer, QUALITY_LEVELS, resolveQuality } from './engine/renderer.js';
 import { Input } from './engine/input.js';
+import { createFullscreen } from './engine/fullscreen.js'; // Vollbild auf allen Plattformen (G.fullscreen)
+import { FullscreenUI } from './ui/fullscreen-ui.js';
 import { separateActors } from './engine/physics.js';
 import { DynamicResolution } from './engine/dynres.js';
 import { renderScaleValue, fpsLimitValue } from '../shared/graphics.data.js'; // Erweitert-Grafik (S9, ui-controls)
@@ -518,7 +520,7 @@ function cleanLoadout(lo = {}, fallback = {}) {
   const EQ = G.data.EQUIPMENT || {};
   const unlocked = (id) => DEBUG || profile.isUnlocked(id);
   const cls = classesData.CLASSES[lo.cls] ? lo.cls : classesData.CLASSES[fallback.cls] ? fallback.cls : classesData.DEFAULT_CLASS;
-  const base = { ...fallback, ...Object.fromEntries(Object.entries(lo).filter(([, v]) => v != null)) };
+  const base = Object.fromEntries(Object.entries({ ...fallback, ...Object.fromEntries(Object.entries(lo).filter(([, v]) => v != null)) }).filter(([, v]) => v != null));
   const r = classesData.resolveClassLoadout(cls, { weapons: W, equipment: EQ, isUnlocked: unlocked, base });
   const out = { ...base, cls, primary: r.primary, secondary: r.secondary, lethal: r.lethal, armor: r.armor, helmet: r.helmet };
   if (r.launcher) out.launcher = r.launcher;
@@ -547,7 +549,10 @@ function requestLoadout(loadout) {
   if (!p || !loadout || typeof loadout !== 'object') return { ok: false, reason: 'ungueltig' };
   const st = G.match.state;
   if (st !== 'playing' && st !== 'countdown' && st !== 'paused') return { ok: false, reason: 'kein-match' };
-  const lo = cleanLoadout(loadout, p.loadout || G.match.loadout || {});
+  // Klassenwechsel: Weste/Helm/Werfer der neuen Klasse (außer ausdrücklich gewählt), Waffen bleiben (alle Klassen dürfen alle)
+  const prev = p.loadout || G.match.loadout || {};
+  const fallback = loadout.cls && loadout.cls !== prev.cls ? { ...prev, cls: loadout.cls, armor: undefined, helmet: undefined, launcher: undefined } : prev;
+  const lo = cleanLoadout(loadout, fallback);
   if (!lo.primary && !lo.secondary) return { ok: false, reason: 'ungueltig' };
   const now = G.time.elapsed;
   const fresh = p.alive && (st === 'countdown' || (now - (p.spawnTime || 0) <= SPAWN_GRACE && (p.lastFiredTime || -1e9) < (p.spawnTime || 0)));
@@ -774,7 +779,7 @@ function startMatch(config) {
   // Direkt aus dem Klick-Handler → Nutzergeste für Audio, Pointer-Lock bzw. Vollbild
   safe('audio.unlock', () => { const p = G.audio.unlock(); if (p && typeof p.catch === 'function') p.catch(() => {}); });
   if (G.input.mode === 'desktop' && !G.input.allowUnlockedMouse) G.input.requestLock();
-  else if (G.input.mode === 'touch') enterLandscape();
+  enterImmersive(); // nach dem Pointer-Lock: requestFullscreen verbraucht die Nutzeraktivierung
   const key = configKey(config);
   if (startTask) {
     if (key === startingKey && !queuedConfig) return startTask; // derselbe Start läuft schon (Doppelklick)
@@ -1152,13 +1157,14 @@ const lockRequired = () => G.input.mode === 'desktop' && !G.input.allowUnlockedM
  */
 function resume() {
   if (G.match.state !== 'paused' || portraitMQ.matches) return;
-  if (G.input.mode === 'touch') enterLandscape();
   if (lockRequired() && !G.input.locked) {
     safe('menus.hideAll', () => G.menus.hideAll());
     setAwaitingLock(true);
     G.input.requestLock().then((locked) => { if (locked) finishResume(); });
+    enterImmersive(); // synchron nach requestPointerLock (noch in derselben Geste)
     return;
   }
+  enterImmersive();
   finishResume();
 }
 
@@ -1177,21 +1183,12 @@ function setAwaitingLock(on) {
   updateLockHint();
 }
 
-/** Vollbild + Querformat-Sperre (nur aus einer Nutzergeste heraus wirksam; Fehler werden ignoriert). */
-function enterLandscape() {
-  const el = document.documentElement;
-  const lock = () => {
-    const o = screen.orientation;
-    if (o && typeof o.lock === 'function') return o.lock('landscape').catch(() => {});
-    return undefined;
-  };
-  try {
-    if (document.fullscreenElement) { lock(); return; }
-    if (!document.fullscreenEnabled || !el.requestFullscreen) return;
-    // Ohne Nutzeraktivierung (z. B. autostart) lehnt der Browser mit Konsolenwarnung ab → gar nicht erst versuchen
-    if (navigator.userActivation && !navigator.userActivation.isActive) return;
-    el.requestFullscreen({ navigationUI: 'hide' }).then(lock).catch(() => {});
-  } catch { /* nicht unterstützt (z. B. iOS-Safari auf dem iPhone) */ }
+/**
+ * Vollbild nach Einstellung „Vollbild“ (alle Geräte; Touch zusätzlich Querformat-Sperre, Desktop-Chromium
+ * Tastatursperre für Esc). Nur aus einer Nutzergeste wirksam, sonst still; nie Fehler. engine/fullscreen.js
+ */
+function enterImmersive() {
+  safe('fullscreen.auto', () => { if (G.fullscreen) G.fullscreen.auto(); });
 }
 
 async function toLobby() {
@@ -1509,6 +1506,7 @@ function wireGlobal() {
     if (!G.match.awaitingLock || G.match.state !== 'paused' || e.button !== 0) return;
     e.preventDefault();
     G.input.requestLock();
+    enterImmersive();
   });
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'Escape' || e.defaultPrevented || !G.match.awaitingLock || G.match.state !== 'paused') return;
@@ -1555,11 +1553,10 @@ function wireGlobal() {
 function wireRotateOverlay() {
   const btn = $('rotate-play');
   const hint = $('rotate-hint');
-  const o = window.screen && screen.orientation;
-  const canLock = !!(document.fullscreenEnabled && document.documentElement.requestFullscreen && o && typeof o.lock === 'function');
+  const canLock = !!(G.fullscreen && G.fullscreen.canLockOrientation); // inkl. Präfix-API (altes iPadOS)
   if (btn) {
     btn.hidden = !canLock;
-    btn.addEventListener('click', () => enterLandscape());
+    btn.addEventListener('click', () => { if (G.fullscreen) G.fullscreen.request({ user: true }); });
   }
   if (hint) hint.hidden = canLock;
 }
@@ -1596,6 +1593,7 @@ async function bootstrap() {
     G.input = new Input(G);
     G.input.allowUnlockedMouse = AUTOSTART;
     G.input.attach(G);
+    G.fullscreen = safe('fullscreen', () => createFullscreen(G, { autoDisabled: AUTOSTART })) || null;
     G.combat = new Combat(G);
     G.audio = createAudio();
     G.weapons = new G.modules.weapons.WeaponSystem(G);
@@ -1604,6 +1602,7 @@ async function bootstrap() {
     G.vehicles = new G.modules.vehicles.VehicleSystem(G);
     G.hud = new G.modules.hud.HUD(G);
     G.menus = new G.modules.menus.Menus(G);
+    if (G.fullscreen) G.fullscreenUi = safe('fullscreenUi', () => new FullscreenUI(G, { autoShow: !AUTOSTART })) || null;
     wireGlobal();
 
     setBoot(0.92, 'Bereite Grafik vor …');

@@ -49,6 +49,7 @@ export const ACTION_DEFS = Object.freeze([
   { id: 'loadout', label: 'Ausrüsten (nach dem Tod / im Pausemenü)', short: 'Ausrüsten', group: 'sonstiges' },
   { id: 'squad_order', label: 'Trupp-Befehl (Flagge im Blick angreifen/verteidigen, Eroberung)', short: 'Befehl', group: 'sonstiges' },
   { id: 'scoreboard', label: 'Punktetabelle', group: 'sonstiges' },
+  { id: 'fullscreen', label: 'Vollbild umschalten (auch Alt + Eingabe)', short: 'Vollbild', group: 'sonstiges' },
   { id: 'pause', label: 'Pause', group: 'sonstiges', fixed: true },
 ]);
 export const ACTION_IDS = Object.freeze(ACTION_DEFS.map((a) => a.id));
@@ -66,7 +67,7 @@ export const DEFAULT_BINDINGS = deepFreeze({
     sprint: ['ShiftLeft', 'ShiftRight'], jump: ['Space'], crouch: ['KeyC'], lean_left: ['KeyQ'], lean_right: ['KeyE'],
     fire: ['Mouse0'], ads: ['Mouse2'], reload: ['KeyR'], melee: ['KeyV', 'Mouse3'], grenade: ['KeyG'], tactical: ['KeyX'],
     swap: ['Mouse4', 'Wheel'], slot1: ['Digit1'], slot2: ['Digit2'], light: ['KeyT'],
-    streak1: ['Digit3'], streak2: ['Digit4'], streak3: ['Digit5'], interact: ['KeyF'], scoreboard: ['Tab'], pause: ['Escape'],
+    streak1: ['Digit3'], streak2: ['Digit4'], streak3: ['Digit5'], interact: ['KeyF'], scoreboard: ['Tab'], pause: ['Escape'], fullscreen: ['F11'],
     prone: ['KeyZ'], plate: ['Digit4'], gadget: ['KeyB'], inspect: ['KeyI'], loadout: ['KeyL'], squad_order: ['Mouse1', 'KeyH'],
   },
   pad: {
@@ -74,7 +75,7 @@ export const DEFAULT_BINDINGS = deepFreeze({
     sprint: ['Pad10'], jump: ['Pad0'], crouch: ['Pad1'], lean_left: ['Pad6+Pad10'], lean_right: ['Pad6+Pad11'],
     fire: ['Pad7'], ads: ['Pad6'], reload: ['Pad2'], melee: ['Pad11'], grenade: ['Pad4'], tactical: ['Pad5'],
     swap: ['Pad3'], slot1: [], slot2: [], light: ['Pad13'],
-    streak1: ['Pad12'], streak2: ['Pad14'], streak3: ['Pad15'], interact: ['Pad2'], scoreboard: ['Pad8'], pause: ['Pad9'],
+    streak1: ['Pad12'], streak2: ['Pad14'], streak3: ['Pad15'], interact: ['Pad2'], scoreboard: ['Pad8'], pause: ['Pad9'], fullscreen: [],
     prone: [], plate: ['Pad13'], gadget: ['Pad6+Pad3'], inspect: [], loadout: ['Pad3'], squad_order: [],
   },
 });
@@ -114,6 +115,7 @@ export function codeDevice(code) {
 export function isBindable(code, device, action = null) {
   if (codeDevice(code) !== device) return false;
   if (action === 'pause') return true;
+  if (action === 'fullscreen' && code === 'F11') return true; // F11: Vollbild (engine/fullscreen.js fängt sie ab)
   return !code.split('+').some((p) => RESERVED_CODES.includes(p));
 }
 

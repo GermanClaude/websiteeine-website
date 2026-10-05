@@ -2644,3 +2644,60 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
   .lb-tabs .m-tab svg { display: none; }
   .lb-tabs .m-tab { padding-left: 8px; padding-right: 8px; letter-spacing: .08em; }
 }
+
+/* =====================================================================
+   Vollbild (fullscreen) – Umschalter im Lobby-Kopf/Pausenmenü (.np-fs-btn), Knopf im Drehen-Hinweis
+   (.np-fs-rot) und Anleitung „Als App spielen“ (.np-fsg). Ebene 75: über dem Drehen-Hinweis (70), weil
+   iPhones die Anleitung hochkant brauchen. Logik: engine/fullscreen.js (G.fullscreen), ui/fullscreen-ui.js.
+   ===================================================================== */
+.m-icon.np-fs-btn[aria-pressed="true"] { border-color: var(--np-signal); color: var(--np-signal); }
+.m-icon.np-fs-btn:focus-visible { outline: 2px solid var(--np-signal); outline-offset: 2px; }
+.np-fs-rot { width: 100%; }
+.np-fsg {
+  position: fixed;
+  inset: 0;
+  z-index: 75;
+  display: grid;
+  place-items: center;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: rgba(10, 11, 13, .84);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.np-fsg-card {
+  width: min(100%, 540px);
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 22px 22px 18px;
+  border: 1px solid var(--np-line-strong);
+  border-top: 2px solid var(--np-signal);
+  border-radius: 2px;
+  background: var(--np-black-2);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
+  animation: np-fsg-in .22s var(--ease-out) both;
+}
+.np-fsg-title { margin: 4px 0 0; font-weight: 900; font-stretch: 120%; font-size: clamp(24px, 4.2vw, 34px); line-height: 1; letter-spacing: -.01em; text-transform: uppercase; }
+.np-fsg-title em { font-style: normal; color: var(--np-signal); }
+.np-fsg-lead { margin: 10px 0 0; color: var(--np-ink-2); font: 500 15px/1.45 var(--font-hud); letter-spacing: .02em; }
+.np-fsg-steps { margin: 14px 0 0; padding: 0; list-style: none; counter-reset: np-fsg; display: grid; gap: 8px; }
+.np-fsg-steps li { counter-increment: np-fsg; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; font: 500 15px/1.4 var(--font-hud); letter-spacing: .02em; }
+.np-fsg-steps li::before { content: counter(np-fsg); display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--np-signal); color: var(--np-signal); font: 700 12px/1 var(--font-mono); }
+.np-fsg-steps svg { display: inline-block; width: 18px; height: 18px; vertical-align: -4px; color: var(--np-signal); }
+.np-fsg-note { margin: 10px 0 0; color: var(--np-dim); font: 500 13px/1.4 var(--font-hud); letter-spacing: .02em; }
+.np-fsg-url { display: block; width: 100%; margin-top: 14px; font: 500 13px var(--font-mono); letter-spacing: 0; user-select: text; -webkit-user-select: text; }
+.np-fsg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.np-fsg-actions .m-btn { flex: 1 1 170px; justify-content: center; text-decoration: none; }
+.np-fsg-actions .m-btn > span { flex: none; }
+@keyframes np-fsg-in { from { opacity: 0; transform: translateY(8px); } }
+@media (max-height: 440px) {
+  .np-fsg-card { padding: 14px 16px 12px; }
+  .np-fsg-title { font-size: 22px; }
+  .np-fsg-lead, .np-fsg-steps li { font-size: 14px; }
+  .np-fsg-steps { margin-top: 10px; gap: 5px; }
+  .np-fsg-actions { margin-top: 12px; }
+  .np-fsg-actions .m-btn { min-height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) { .np-fsg-card { animation: none; } }
+/* Ende Vollbild */
