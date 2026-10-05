@@ -296,7 +296,9 @@ function frame(now) {
     $('stats').textContent = `${fps} FPS · ${renderer.info.render.calls} Draw Calls · ${(tri / 1000).toFixed(1)}k Dreiecke\n` +
       `LOD-Dreiecke: ${s0 ? s0.meshes.map((m) => m.geometry.userData.triangles).join(' / ') : '–'}\nVariante: ${VARIANTS[Math.min(VARIANTS.length - 1, gal.focus)].name}`;
   } else if (state.view === 'sandbox' && sandbox) {
-    sandbox.update(dt, fps);
+    applyOrbit();
+    camera.updateMatrixWorld();
+    sandbox.update(state.frozen != null ? 1 / 60 : dt, fps);
   }
 }
 

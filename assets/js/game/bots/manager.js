@@ -45,6 +45,7 @@ export class BotManager {
     this._frustum = new THREE.Frustum();
     this._shadowT = 0;
     this._plateLos = new Map();
+    this.activity = []; // jüngste Gefechtslärm-Positionen { pos, time, actor } (hörbar über die ganze Karte)
     this.debug = { los: 0, paths: 0, ms: 0, losUsed: 0, pathsUsed: 0 };
   }
 
@@ -56,6 +57,7 @@ export class BotManager {
     this.quality = G.renderer && G.renderer.quality === 'low' ? 'low' : 'high';
     this._intel.clear();
     this._paths.clear();
+    this.activity.length = 0;
     const s = (this._subs = G.events.scope());
     s.on('weapon:fire', (e) => this._onFire(e));
     s.on('footstep', (e) => this._onFootstep(e));
@@ -374,7 +376,28 @@ export class BotManager {
 
   _onFire({ actor, suppressed } = {}) {
     if (!actor || !actor.position || actor.isStreakEntity) return;
-    this._hear(actor, suppressed ? 14 : 75, 1.5, this.G.time.elapsed);
+    const now = this.G.time.elapsed;
+    this._hear(actor, suppressed ? 14 : 75, 1.5, now);
+    if (!suppressed && now - (actor._actT || -1e9) > 0.8) {
+      actor._actT = now;
+      const a = this.activity;
+      let e = a.length >= 24 ? a.shift() : { pos: new THREE.Vector3(), time: 0, actor: null };
+      e.pos.copy(actor.position); e.time = now; e.actor = actor;
+      a.push(e);
+    }
+  }
+
+  /** Jüngster Gefechtslärm in Reichweite (nicht vom Bot selbst/seinem Team). */
+  activityFor(bot, now, maxAge = 18, maxDist = 90) {
+    let best = null, bs = Infinity;
+    for (const e of this.activity) {
+      if (now - e.time > maxAge || e.actor === bot || (bot.team && e.actor && e.actor.team === bot.team)) continue;
+      const d = e.pos.distanceTo(bot.position);
+      if (d > maxDist || d < 8) continue;
+      const s = d * 0.5 + (now - e.time) * 2 + Math.random() * 10;
+      if (s < bs) { bs = s; best = e; }
+    }
+    return best;
   }
 
   _onFootstep({ actor, sprint, crouch } = {}) {
@@ -442,17 +465,21 @@ export class BotManager {
     const G = this.G;
     const cam = G.camera;
     if (!cam) return;
-    const viewH = G.renderer && G.renderer.renderer ? G.renderer.renderer.domElement.clientHeight || 720 : 720;
+    const el = G.renderer && G.renderer.renderer ? G.renderer.renderer.domElement : null;
+    const viewH = el ? el.clientHeight || 720 : 720;
+    const viewW = el ? el.clientWidth || 1280 : 1280;
     const aimT = G.input && G.input.aimTarget;
     const now = G.time.real || G.time.elapsed;
     const playerAlive = G.player && G.player.alive;
+    const list = this._plateList || (this._plateList = []);
+    list.length = 0;
     for (const [bot, p] of this._plates) {
       if (p.sprite.parent !== this.scene) this.scene.add(p.sprite);
       p.setKind(this._plateKind(bot));
       let target = 0;
       const d = bot.camDist;
       if (bot.alive && bot.inView) {
-        if (p.kind === 'ally') target = d < 50 ? 1 : d < 70 ? (70 - d) / 20 : 0;
+        if (p.kind === 'ally') target = d < 40 ? 1 : d < 60 ? (60 - d) / 20 : 0;
         else if (aimT === bot) target = 1;
         else if (d < 7 && playerAlive) {
           let c = this._plateLos.get(bot);
@@ -466,10 +493,30 @@ export class BotManager {
         }
       }
       const s = bot.soldier;
-      if (s && bot.alive) s.getHeadPosition(_v); else _v.copy(bot.position).setY(bot.position.y + 1.7);
-      _v.y += 0.36;
-      p.update(_v, cam, viewH, target, dt);
+      const pos = p._pos || (p._pos = new THREE.Vector3());
+      if (s && bot.alive) s.getHeadPosition(pos); else pos.copy(bot.position).setY(bot.position.y + 1.7);
+      pos.y += 0.36;
+      p._target = target;
+      p._d = d;
+      if (target > 0) {
+        // Bildschirmposition für die Entflechtung
+        _v.copy(pos).project(cam);
+        p._sx = _v.x * viewW * 0.5;
+        p._sy = _v.y * viewH * 0.5;
+        list.push(p);
+      }
     }
+    // Überlappende Schilder: das nähere gewinnt (Ziel unter dem Fadenkreuz immer)
+    list.sort((a, b) => (b._target - a._target) || (a._d - b._d));
+    const placed = [];
+    const wPx = viewH < 500 ? 70 : 84, hPx = viewH < 500 ? 22 : 26;
+    for (const p of list) {
+      let hide = false;
+      for (const q of placed) if (Math.abs(q._sx - p._sx) < wPx && Math.abs(q._sy - p._sy) < hPx) { hide = true; break; }
+      if (hide && p._target < 1.01 && !(aimT && this._plates.get(aimT) === p)) p._target = 0;
+      else placed.push(p);
+    }
+    for (const p of this._plates.values()) p.update(p._pos, cam, viewH, p._target || 0, dt);
   }
 
   /* ================================================================ Diagnose */

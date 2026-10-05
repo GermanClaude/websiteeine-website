@@ -184,8 +184,10 @@ export class WeaponController {
     else if (this.equipment.lethal.id !== lethal) this.equipment.lethal = { id: lethal, count: EQ[lethal].count || 1 };
     // Aktive Aktionen beenden (gezogene Granate fällt vor die Füße)
     this._abortActions(false, true);
+    // Gleiche Waffe behalten; sonst denselben Slot (z. B. neue Pistole, während die alte in der Hand war)
     const keepIdx = prevId ? this.slots.findIndex((s) => s.id === prevId) : -1;
-    this.index = keepIdx >= 0 ? keepIdx : 0;
+    const prevIndex = this.index;
+    this.index = keepIdx >= 0 ? keepIdx : prevIndex < this.slots.length ? prevIndex : 0;
     this._burstLeft = 0;
     this.shotIndex = 0;
     this._bloomHip = this._bloomAds = 0;

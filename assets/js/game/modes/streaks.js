@@ -250,9 +250,16 @@ export class StreakManager {
     return !!e && e.until > this.G.time.elapsed;
   }
 
-  /** Wird `actor` gerade von einem gegnerischen Aufklärer erfasst? */
-  isRevealed(actor) {
+  /**
+   * Wird `actor` gerade von einem gegnerischen Aufklärer erfasst? Optional `by` (Team 'A'|'B', Akteur
+   * oder Akteur-Id): nur der Aufklärer dieser Seite zählt (FFA: nicht der eines Dritten).
+   */
+  isRevealed(actor, by) {
     const now = this.G.time.elapsed;
+    if (by != null) {
+      const e = this.uav.get(typeof by === 'object' ? this._uavKey(by) : by);
+      return !!e && e.until > now && this._hostileToKey(actor, e.key);
+    }
     for (const e of this.uav.values()) if (e.until > now && this._hostileToKey(actor, e.key)) return true;
     return false;
   }

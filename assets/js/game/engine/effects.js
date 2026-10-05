@@ -49,7 +49,7 @@ for (const k in SURF) { const d = SURF[k].dust; SURF[k].dustDark = [d[0] * 0.62,
 
 const C = {
   spark: [1.0, 0.62, 0.26], sparkHot: [1.0, 0.85, 0.55], flash: [1.0, 0.78, 0.5], muzzle: [1.0, 0.66, 0.32],
-  blood: lin('#7a0d0b'), bloodDark: lin('#4a0706'), smoke: lin('#4c4945'), smokeLight: lin('#7d7770'), smokeDark: lin('#211d1a'),
+  blood: lin('#a3160f'), bloodDark: lin('#640a07'), smoke: lin('#4c4945'), smokeLight: lin('#7d7770'), smokeDark: lin('#211d1a'),
   ember: [1.0, 0.45, 0.12], brass: lin('#c9a24a'), glint: [0.85, 0.95, 1.0], debris: lin('#3a342e'),
 };
 
@@ -104,6 +104,10 @@ export class Effects {
       scene.add(this._light);
     }
     this._updateLight();
+    // Qualitätswechsel im Match (dynamische Auflösung): Lochanzahl anpassen
+    if (G.renderer && typeof G.renderer.onQualityChange === 'function') {
+      this._offQuality = G.renderer.onQualityChange(() => { if (this._built) this.decals.setLimit(this.preset.decals || 40); });
+    }
     const s = (this._subs = G.events.scope());
     s.on('impact', (e) => this._onImpact(e));
     s.on('actor:hit', (e) => this._onHit(e));
@@ -120,6 +124,7 @@ export class Effects {
   detach() {
     if (this._subs) this._subs.dispose();
     this._subs = null;
+    if (this._offQuality) { this._offQuality(); this._offQuality = null; }
     if (!this._built) return;
     for (const o of [this.decals.mesh, this.alpha.mesh, this.fire.mesh, this.add.mesh, this.tracers.mesh, this.glints.mesh]) o.removeFromParent();
     if (this._light) { this._light.removeFromParent(); this._light.intensity = 0; }
@@ -448,23 +453,36 @@ export class Effects {
     const lod = this._lod(point.x, point.y, point.z);
     if (lod <= 0) return;
     this.stats.blood++;
-    const dx = dir ? dir.x : 0, dy = dir ? dir.y : 0, dz = dir ? dir.z : 0;
-    const big = headshot ? 1.45 : melee ? 1.2 : 1;
-    const puffs = Math.max(1, this._count(headshot ? 3 : 2, Math.max(0.6, lod)));
+    let dx = dir ? dir.x : 0, dy = dir ? dir.y : 0, dz = dir ? dir.z : 0;
+    if (!dir) { const c = this._camPos; dx = point.x - c.x; dy = point.y - c.y; dz = point.z - c.z; const l = Math.hypot(dx, dy, dz) || 1; dx /= l; dy /= l; dz /= l; }
+    const big = headshot ? 1.4 : melee ? 1.2 : 1;
+    // Eintritt: etwas vor dem Körper (sonst verdeckt), Nebel weht zum Schützen zurück
+    const ex = point.x - dx * 0.14, ey = point.y - dy * 0.14, ez = point.z - dz * 0.14;
+    const k = this._puff(ex, ey, ez, -dx * 0.5, 0.15, -dz * 0.5, 0.22, 0.14 * big, 0.5 * big, C.blood, 0.55, 6, 0, CELL.SOFT);
+    this.alpha.fadePow[k] = 1.4;
+    const puffs = Math.max(1, this._count(headshot ? 3 : 2, Math.max(0.7, lod)));
     for (let i = 0; i < puffs; i++) {
-      const sp = rnd(0.6, 1.6);
-      const j = this._puff(point.x, point.y, point.z, dx * sp + rnd(-0.4, 0.4), dy * sp + rnd(0, 0.5), dz * sp + rnd(-0.4, 0.4),
-        rnd(0.28, 0.42) * big, 0.08 * big, rnd(0.32, 0.5) * big, i % 2 ? C.blood : C.bloodDark, 0.85, 4, 0, CELL.SMOKE_A);
-      this.alpha.fadePow[j] = 1.6;
+      const sp = rnd(0.3, 0.9);
+      const j = this._puff(ex, ey, ez, -dx * sp + rnd(-0.5, 0.5), rnd(0, 0.6), -dz * sp + rnd(-0.5, 0.5),
+        rnd(0.28, 0.4) * big, 0.1 * big, rnd(0.36, 0.52) * big, i % 2 ? C.blood : C.bloodDark, 0.9, 4.5, 0, CELL.SMOKE_A);
+      this.alpha.fadePow[j] = 1.5;
     }
-    const drops = this._count(headshot ? 7 : 4, lod);
+    // Austritt hinter dem Ziel
+    const xx = point.x + dx * 0.42, xy = point.y + dy * 0.42, xz = point.z + dz * 0.42;
+    const j = this._puff(xx, xy, xz, dx * 1.6, dy * 1.6 + 0.2, dz * 1.6, rnd(0.3, 0.45) * big, 0.12 * big, 0.6 * big, C.bloodDark, 0.8, 4, 0, CELL.SMOKE_B);
+    this.alpha.fadePow[j] = 1.5;
+    const drops = this._count(headshot ? 8 : 5, lod);
     for (let i = 0; i < drops; i++) {
-      const sp = rnd(1.5, 3.5);
-      const j = this._chip(point.x, point.y, point.z, dx * sp + rnd(-1, 1), dy * sp + rnd(0.2, 1.6), dz * sp + rnd(-1, 1), rnd(0.3, 0.5), rnd(0.012, 0.022), C.bloodDark, 12);
-      this.alpha.cell[j] = CELL.DROP;
-      this.alpha.rv[j] = 0;
+      const back = i % 2 === 0;
+      const sp = rnd(1.2, 3);
+      const sx = back ? xx : ex, sy = back ? xy : ey, sz = back ? xz : ez;
+      const sgn = back ? 1 : -0.5;
+      const q = this._chip(sx, sy, sz, dx * sp * sgn + rnd(-1, 1), dy * sp * sgn + rnd(0.3, 1.8), dz * sp * sgn + rnd(-1, 1), rnd(0.3, 0.5), rnd(0.016, 0.028), C.bloodDark, 12);
+      this.alpha.cell[q] = CELL.DROP;
+      this.alpha.rv[q] = 0;
+      this.alpha.stretch[q] = 0.02;
     }
-    if (killed && headshot) this._flash(point.x, point.y, point.z, 0.25, 0.06, C.flash, 0.8);
+    if (killed && headshot) this._flash(ex, ey, ez, 0.3, 0.06, C.flash, 0.7);
   }
 
   _onKill(e) {

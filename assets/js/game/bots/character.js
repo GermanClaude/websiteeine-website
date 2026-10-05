@@ -21,6 +21,8 @@ export { VARIANTS, VARIANT_IDS, SCHEMES, FFA_SCHEMES };
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 const _q = new THREE.Quaternion();
+const _q2 = new THREE.Quaternion();
+const _e = new THREE.Euler();
 const _m = new THREE.Matrix4();
 const ZERO = new THREE.Vector3();
 
@@ -404,7 +406,7 @@ export class Soldier {
     const g = d.gun;
     d.vel.y -= 16 * dt;
     g.position.addScaledVector(d.vel, dt);
-    _q.setFromEuler(new THREE.Euler(d.spin.x * dt, d.spin.y * dt, d.spin.z * dt));
+    _q.setFromEuler(_e.set(d.spin.x * dt, d.spin.y * dt, d.spin.z * dt));
     g.quaternion.premultiply(_q);
     if (d.ground === null || d.t % 0.2 < dt) {
       const gy = world && world.groundHeight ? world.groundHeight(g.position.x, g.position.z, g.position.y + 0.5) : 0;
@@ -421,7 +423,7 @@ export class Soldier {
       if (_v.lengthSq() < 1e-4) _v.set(0, 0, -1);
       _v.normalize();
       const yaw = Math.atan2(-_v.x, -_v.z);
-      const target = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, Math.PI / 2, 'YXZ'));
+      const target = _q2.setFromEuler(_e.set(0, yaw, Math.PI / 2, 'YXZ'));
       g.quaternion.slerp(target, 0.35);
       if (d.vel.lengthSq() < 0.05 && d.t > 0.4) { g.quaternion.copy(target); d.rest = true; }
     }

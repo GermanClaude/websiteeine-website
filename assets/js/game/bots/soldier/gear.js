@@ -3,11 +3,11 @@
 // Koordinaten: Modellraum der Bindepose (Füße im Ursprung, Blick −Z, rechts +X, Arme hängen).
 // Körper aus gedrehten Profilen mit elliptischem Querschnitt (weiche Silhouette), Ausrüstung aus
 // abgerundeten Quadern; auf Stufe 2 nur noch die Silhouette tragenden Teile.
-import { SkinBuilder, limb, lathe, rbox, ellipsoid, cyl, torus, xf } from './builder.js';
+import { SkinBuilder, limb, lathe as latheBase, rbox, ellipsoid, cyl, torus, xf } from './builder.js';
 import { SCHEMES, SKIN_TONES } from './materials.js';
 
 export const VARIANTS = [
-  { id: 'sturm', name: 'Sturm', head: 'helmet', nvg: true, ears: true, face: 'none', vest: 'plate', back: 'assault', knees: true, holster: true, sleeves: 'long', skin: 1, hair: '#2a2119' },
+  { id: 'sturm', name: 'Sturm', head: 'helmet', nvg: true, ears: true, face: 'shades', vest: 'plate', back: 'assault', knees: true, holster: true, sleeves: 'long', skin: 1, hair: '#2a2119' },
   { id: 'spaeher', name: 'Späher', head: 'boonie', face: 'shades', beard: true, shemagh: true, vest: 'rig', back: 'hydration', knees: false, holster: false, sleeves: 'rolled', skin: 2, hair: '#3b2a1c' },
   { id: 'funker', name: 'Funker', head: 'cap', ears: true, face: 'none', vest: 'plate', back: 'radio', knees: false, holster: true, sleeves: 'long', skin: 0, hair: '#5a4026' },
   { id: 'grenadier', name: 'Grenadier', head: 'helmet', face: 'balaclava', goggles: true, vest: 'plate', back: 'none', knees: true, dump: true, sleeves: 'long', skin: 3, hair: '#18120d' },
@@ -20,9 +20,9 @@ export const VARIANT_IDS = VARIANTS.map((v) => v.id);
 
 // Detailstufen: Profilsegmente (Gliedmaßen/Rumpf), Ringe, Kappenringe, Rundquader, Kugel-Segmente, Zylinder
 const Q = [
-  { seg: 10, tseg: 14, rings: 3, cap: 2, rb: 1, sw: 14, sh: 9, cs: 10 },
+  { seg: 10, tseg: 12, rings: 3, cap: 2, rb: 1, sw: 12, sh: 8, cs: 10 },
   { seg: 7, tseg: 9, rings: 2, cap: 1, rb: 0, sw: 9, sh: 6, cs: 7 },
-  { seg: 5, tseg: 6, rings: 1, cap: 1, rb: 0, sw: 6, sh: 4, cs: 5 },
+  { seg: 4, tseg: 6, rings: 1, cap: 1, rb: 0, sw: 6, sh: 3, cs: 4 },
 ];
 
 const cache = new Map();
@@ -82,7 +82,9 @@ function buildSoldier(V, S, lod) {
   const add = (geo, bone, mat) => B.add(geo, { bone, ...mat });
   const pair = (geo, boneL, boneR, mat) => B.add(geo, { bone: boneL, mirrorBone: boneR, ...mat });
   const R = (w, h, d, r, opts) => rbox(w, h, d, r, q.rb, opts);
-  const E = (rx, ry, rz, opts, cut, ws = q.sw, hs = q.sh) => ellipsoid(rx, ry, rz, ws, hs, opts, cut);
+  const E = (rx, ry, rz, opts, cut, ws = q.sw, hs = q.sh) => ellipsoid(rx, ry, rz, FAR ? Math.min(ws, 6) : ws, FAR ? Math.min(hs, 3) : hs, opts, cut);
+  // Drehprofile auf Stufe 2 ausdünnen (jeder zweite Punkt, Enden bleiben)
+  const lathe = (profile, seg, opts) => latheBase(FAR ? profile.filter((_, i) => i === 0 || i === profile.length - 1 || i % 2 === 0) : profile, seg, opts);
 
   /* ------------------------------------------------------------ Beine */
   pair(lathe([[0.058, 0.44], [0.064, 0.5], [0.075, 0.6], [0.086, 0.72], [0.092, 0.83], [0.094, 0.9], [0.08, 0.96]], q.seg, { p: [-0.098, 0, 0.004], s: [1, 1, 1.06] }), 'thighL', 'thighR', C.pants);
@@ -103,7 +105,7 @@ function buildSoldier(V, S, lod) {
     if (L0) pair(torus(0.064, 0.007, 3, q.cs, { p: [-0.1, 0.45, 0.006], r: [Math.PI / 2, 0, 0], s: [1, 1.1, 1] }), 'shinL', 'shinR', C.strap);
   }
   // Stiefel: Schaft, Hosenaufschlag, Fuß mit Sohle und Zehenkappe
-  pair(cyl(0.058, 0.061, 0.15, q.cs, { p: [-0.1, 0.13, -0.002], s: [1, 1, 1.08] }), 'shinL', 'shinR', C.boot);
+  pair(cyl(0.058, 0.061, 0.15, q.cs, { p: [-0.1, 0.13, -0.002], s: [1, 1, 1.08] }, FAR), 'shinL', 'shinR', C.boot);
   if (L01) pair(torus(0.058, 0.013, 4, q.cs, { p: [-0.1, 0.21, 0.004], r: [Math.PI / 2, 0, 0], s: [1, 1.1, 1] }), 'shinL', 'shinR', C.pants);
   if (L0) for (let i = 0; i < 3; i++) pair(rbox(0.045, 0.007, 0.01, 0, 0, { p: [-0.1, 0.1 + i * 0.033, -0.063] }), 'shinL', 'shinR', C.plastic);
   pair(R(0.096, 0.07, 0.235, 0.032, { p: [-0.1, 0.058, -0.048] }), 'footL', 'footR', C.boot);
@@ -116,7 +118,7 @@ function buildSoldier(V, S, lod) {
   add(lathe([[0.143, 0.99], [0.14, 1.06], [0.146, 1.13], [0.156, 1.2], [0.16, 1.23]], q.tseg, { s: [1.04, 1, 0.72], p: [0, 0, 0.006] }), 'spine', C.top);
   add(lathe([[0.156, 1.18], [0.172, 1.26], [0.182, 1.33], [0.18, 1.39], [0.162, 1.44], [0.118, 1.475], [0.07, 1.495]], q.tseg, { s: [1.08, 1, 0.68], p: [0, 0, 0.006] }), 'chest', C.top);
   // Trapez + Schultern
-  pair(E(0.085, 0.048, 0.07, { p: [-0.115, 1.452, 0.014] }, undefined, q.sw / 2 + 2, q.sh / 2 + 1), 'chest', 'chest', C.top);
+  if (!FAR) pair(E(0.085, 0.048, 0.07, { p: [-0.115, 1.452, 0.014] }, undefined, q.sw / 2 + 2, q.sh / 2 + 1), 'chest', 'chest', C.top);
   // Kragen
   if (!FAR) add(cyl(0.064, 0.078, 0.06, q.cs, { p: [0, 1.495, 0.014], s: [1, 1, 0.92] }, true), 'chest', V.shemagh ? { color: '#b6a27f', detail: 1 } : C.top);
   // Gefechtsgürtel (Ring um das Becken)
@@ -289,7 +291,7 @@ function buildSoldier(V, S, lod) {
   if (L01) pair(E(0.047, 0.045, 0.048, { p: [-0.19, 1.155, 0.004] }, undefined, q.sw / 2 + 1, q.sh / 2), 'foreArmL', 'foreArmR', rolled ? C.skin : C.top);
   pair(lathe([[0.038, 0.91], [0.041, 0.96], [0.049, 1.06], [0.05, 1.12], [0.046, 1.17]], q.seg, { p: [-0.19, 0, 0.0], s: [0.92, 1, 1.08] }), 'foreArmL', 'foreArmR', rolled ? C.skin : C.top);
   if (rolled) pair(torus(0.05, 0.015, 4, q.cs, { p: [-0.19, 1.12, 0.0], r: [Math.PI / 2, 0, 0] }), 'foreArmL', 'foreArmR', C.top);
-  pair(cyl(0.044, 0.042, 0.05, q.cs, { p: [-0.19, 0.93, 0] }), 'foreArmL', 'foreArmR', C.glove);
+  if (!FAR) pair(cyl(0.044, 0.042, 0.05, q.cs, { p: [-0.19, 0.93, 0] }), 'foreArmL', 'foreArmR', C.glove);
   if (L0) add(R(0.016, 0.026, 0.034, 0.004, { p: [-0.232, 0.962, 0] }), 'foreArmL', C.plastic);
   // Hände: Handfläche (innen = +X links), gekrümmte Finger, Daumen, Knöchelpolster
   pair(R(0.032, 0.085, 0.08, 0.014, { p: [-0.19, 0.86, 0.0] }), 'handL', 'handR', C.glove);

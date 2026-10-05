@@ -133,6 +133,19 @@ export function think(bot, now) {
   }
   if (goal.kind === 'hunt' && !bot.nav.arrived && now - goal.since < 20) return;
 
+  // --- Gefechtslärm in der Ferne (FFA/Waffenspiel häufig, Teams gelegentlich)
+  if (goal.kind !== 'hunt' || bot.nav.arrived || bot.nav.failed) {
+    const ffa = !bot.team;
+    if (Math.random() < (ffa ? 0.55 : 0.2)) {
+      const act = bot.manager.activityFor(bot, now, ffa ? 20 : 12, ffa ? 95 : 55);
+      if (act) {
+        const p = act.pos.clone().add(new THREE.Vector3(rnd(-5, 5), 0, rnd(-5, 5)));
+        set(goal, 'hunt', now, { move: p, speed: 'sprint', look: 'move', tolerance: 4 });
+        goal.data = act.actor;
+        return;
+      }
+    }
+  }
   // --- Umherziehen
   if (goal.kind !== 'roam' || bot.nav.arrived || bot.nav.failed || now - goal.since > 35) {
     const target = pickRoamGoal(bot, A, bot.manager.roamClaims(bot));
@@ -262,7 +275,7 @@ function intelFromStreaks(bot, now) {
   for (const a of bot.G.actors) {
     if (!a.alive || a === bot || !bot.G.combat.isHostile(bot, a)) continue;
     let rev = false;
-    try { rev = typeof st.isRevealed === 'function' ? st.isRevealed(a) : true; } catch { rev = false; }
+    try { rev = typeof st.isRevealed === 'function' ? st.isRevealed(a, bot.team || bot) : true; } catch { rev = false; }
     if (rev) bot.memory.hear(a, a.position, now, 3, 'uav');
   }
 }

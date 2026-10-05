@@ -95,7 +95,7 @@ export class Nameplate {
     this.material.opacity = this.alpha;
     // konstante Bildschirmgröße: 26 px Schrifthöhe
     const fov = camera && camera.isPerspectiveCamera ? camera.fov : 60;
-    const px = viewH < 500 ? 30 : 34;
+    const px = viewH < 500 ? 24 : 32;
     const h = (px / Math.max(200, viewH)) * 2 * Math.tan((fov * Math.PI) / 360);
     this.sprite.scale.set(h * (256 / 80), h, 1);
   }

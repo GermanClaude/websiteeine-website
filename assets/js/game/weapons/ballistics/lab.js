@@ -255,4 +255,8 @@ function frame(now) {
   }
 }
 requestAnimationFrame(frame);
-window.__lab = { G, fx, actions, shootAt };
+window.__lab = {
+  G, fx, actions, shootAt,
+  /** Kamera setzen (Tests): Ziel, Abstand, Gier/Nick */
+  view(x, y, z, d = dist, yw = yaw, pt = pitch) { target.set(x, y, z); dist = d; yaw = yw; pitch = pt; },
+};

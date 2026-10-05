@@ -266,10 +266,13 @@ export function soldierMaterial(schemeId, { dissolve = false, quality = 'high' }
     fs = fs.replace('mapN.xy *= normalScale;', 'mapN.xy *= normalScale * vNp.y;');
     fs = fs.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
 	totalEmissiveRadiance += diffuseColor.rgb * vNp.z * 2.2;
+	// dezenter Randlicht-Saum (Silhouette lesbar vor dunklem/unruhigem Hintergrund)
+	float npRim = 1.0 - clamp( dot( normal, normalize( vViewPosition ) ), 0.0, 1.0 );
+	totalEmissiveRadiance += ( diffuseColor.rgb * 0.6 + vec3( 0.05, 0.055, 0.06 ) ) * pow( npRim, 3.0 ) * 0.45;
 	if (uDissolve > 0.0 && npDis < uDissolve + 0.035) totalEmissiveRadiance += vec3(1.0, 0.36, 0.08) * 0.6;`);
     shader.fragmentShader = fs;
   };
-  m.customProgramCacheKey = () => 'np-soldier-2' + (low ? 'l' : 'h');
+  m.customProgramCacheKey = () => 'np-soldier-3' + (low ? 'l' : 'h');
   if (!dissolve) materialCache.set(key, m);
   return m;
 }

@@ -271,7 +271,8 @@ export class Gunner {
     if (!rec) return out;
     const def = bot.weapon && bot.weapon.currentDef;
     const cls = def ? def.cls : 'ar';
-    const ideal = IDEAL_RANGE[cls] || 18;
+    const w = bot.weapon;
+    const ideal = cls === 'melee' ? 1 : Math.max(4, Math.min(IDEAL_RANGE[cls] || 18, w && Number.isFinite(w.idealRange) && w.idealRange > 0 ? w.idealRange * 1.1 : 99));
     _d.subVectors(rec.pos, bot.position).setY(0);
     const d = _d.length() || 1e-3;
     _d.multiplyScalar(1 / d);

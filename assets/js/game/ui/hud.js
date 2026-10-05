@@ -19,8 +19,8 @@ const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
 const COMPASS = [[0, 'N'], [45, 'NO'], [90, 'O'], [135, 'SO'], [180, 'S'], [225, 'SW'], [270, 'W'], [315, 'NW']];
 const DEG_PX = 2.4;
-const PAD_HINT = { reload: 'X', swap: 'Y', grenade: 'LB', melee: 'RB', interact: 'X', streak1: '▲', streak2: '◀', streak3: '▶', scoreboard: 'View' };
-const KEY_HINT = { reload: 'R', swap: '1/2', grenade: 'G', melee: 'V', interact: 'F', streak1: '3', streak2: '4', streak3: '5', scoreboard: 'Tab' };
+const PAD_HINT = { breath: 'L3', reload: 'X', swap: 'Y', grenade: 'LB', melee: 'RB', interact: 'X', streak1: '▲', streak2: '◀', streak3: '▶', scoreboard: 'View' };
+const KEY_HINT = { breath: 'Umschalt', reload: 'R', swap: '1/2', grenade: 'G', melee: 'V', interact: 'F', streak1: '3', streak2: '4', streak3: '5', scoreboard: 'Tab' };
 const NOTICE_LIFE = 2.6;
 
 export class HUD {
@@ -76,6 +76,7 @@ export class HUD {
           <path class="thin" d="M-60 -3V3M-40 -3V3M-20 -3V3M20 -3V3M40 -3V3M60 -3V3M-3 20H3M-3 40H3M-3 60H3" />
           <circle r="1.1" />
         </svg>
+        <div class="h-breath"><span></span><i><b></b></i></div>
       </div>
       <div class="h-markers"></div>
       <div class="h-dmgnums"></div>
@@ -111,7 +112,7 @@ export class HUD {
     host.appendChild(r);
     const q = (s) => r.querySelector(s);
     this.el = {
-      lowhp: q('.h-lowhp'), flash: q('.h-flash'), acog: q('.h-acog'), scope: q('.h-scope'), markers: q('.h-markers'), dmgnums: q('.h-dmgnums'),
+      lowhp: q('.h-lowhp'), flash: q('.h-flash'), acog: q('.h-acog'), scope: q('.h-scope'), breath: q('.h-breath'), breathT: q('.h-breath span'), breathBar: q('.h-breath b'), markers: q('.h-markers'), dmgnums: q('.h-dmgnums'),
       dirs: [...r.querySelectorAll('.h-hitdir')], cross: q('.h-cross'), hit: q('.h-hit'), killico: q('.h-killico'), cook: q('.h-cook'), cookFg: q('.h-cook .fg'), cookT: q('.h-cook b'),
       ammoHint: q('.h-ammo-hint'), ammoHintT: q('.h-ammo-hint .t'), ammoHintK: q('.h-ammo-hint kbd'), ammoHintBar: q('.h-ammo-hint .bar'),
       mm: q('.h-mm'), uav: q('.h-uav'), uavT: q('.h-uav span'), feed: q('.h-feed'), top: q('.h-top'), mtag: q('.h-mtag'),
@@ -213,7 +214,7 @@ export class HUD {
     s.on('match:start', () => this._matchStart());
     s.on('weapon:fire', (e) => { if (e.actor) e.actor._suppressedShot = !!e.suppressed; });
     s.on('actor:spawn', ({ actor }) => { if (actor === P()) { this._death = null; this.el.death.hidden = true; this._dirs.length = 0; } });
-    s.on('streak:ready', ({ actor, streakId }) => { if (actor === P()) this._notice(`${this._streakName(streakId)} bereit.`, 'gold', this._keyFor(`streak${this._streakIndex(streakId) + 1}`)); });
+    s.on('streak:ready', ({ actor, streakId }) => { if (actor === P()) this._notice(`${this._streakName(streakId)} bereit.`, 'gold', this._keyFor(`streak${this._streakIndex(streakId) + 1}`), NOTICE_LIFE, `ready:${streakId}`); });
     s.on('streak:denied', ({ streakId, need }) => this._notice(`${this._streakName(streakId)}: noch ${need} ${need === 1 ? 'Abschuss' : 'Abschüsse'}.`, 'dim'));
     s.on('streak:activate', (e) => this._onStreakActivate(e));
     s.on('streak:destroyed', (e) => this._onStreakDestroyed(e));
@@ -470,12 +471,18 @@ export class HUD {
     this.el.medal.innerHTML = `<div class="h-medal-in tier-${m.tier}">${medalBadge(m.label, m.tier)}<div><b>${esc(m.label)}</b><small>${esc(m.desc)}</small></div></div>`;
   }
 
-  _notice(text, tone = '', key = null, life = NOTICE_LIFE) {
+  _notice(text, tone = '', key = null, life = NOTICE_LIFE, id = null) {
+    if (id) this._dropNotice(id);
     const n = el('div', `h-notice ${tone ? `is-${tone}` : ''}`, `${esc(text)}${key ? `<kbd>${esc(key)}</kbd>` : ''}`);
     this.el.notices.appendChild(n);
-    this._notices.push({ n, t: life });
+    this._notices.push({ n, t: life, id });
     const max = this.G.input && this.G.input.mode === 'touch' ? 2 : 3;
     while (this._notices.length > max) this._notices.shift().n.remove();
+  }
+
+  /** Hinweis mit Kennung entfernen (z. B. „… bereit.“, sobald die Prämie eingesetzt ist). */
+  _dropNotice(id) {
+    for (let i = this._notices.length - 1; i >= 0; i--) if (this._notices[i].id === id) { this._notices[i].n.remove(); this._notices.splice(i, 1); }
   }
 
   _damageDir({ amount, dir, attacker }) {
@@ -522,6 +529,7 @@ export class HUD {
     const ally = !own && p && G.mode && G.mode.teams && actor && actor.team === p.team;
     const name = this._streakName(streakId);
     if (own) {
+      this._dropNotice(`ready:${streakId}`);
       if (streakId !== 'uav') this._notice(streakId === 'strike' ? 'Präzisionsschlag angefordert.' : 'Wachgeschütz aufgestellt.', 'ally');
     } else if (ally) {
       this._notice(`${actor.name}: ${name}.`, 'ally');
@@ -676,6 +684,18 @@ export class HUD {
 
     /* ---------- Zielfernrohr */
     toggle(this.el.scope, 'is-on', scoped && alive);
+    // Atem anhalten (Scharfschützen mit Zielfernrohr-Schwanken): Balken + Hinweis
+    const sway = scoped && alive && !!(def && def.scopeSway > 0) && w.breath != null;
+    toggle(this.el.breath, 'is-on', sway);
+    if (sway) {
+      const ex = (w._exhausted || 0) > 0;
+      const hold = !ex && !!w.holdingBreath;
+      setStyle(this.el.breathBar, 'transform', `scaleX(${clamp(w.breath, 0, 1).toFixed(3)})`);
+      toggle(this.el.breath, 'is-hold', hold);
+      toggle(this.el.breath, 'is-ex', ex);
+      const k = this._keyFor('breath');
+      setHtml(this.el.breathT, ex ? 'Außer Atem' : hold ? 'Atem angehalten' : k ? `<kbd>${esc(k)}</kbd> halten: Atem anhalten` : 'Ruhig halten …');
+    }
     const acog = alive && !scoped && def && def.scope && def.scope.overlay === 'acog' && ads > 0.8;
     toggle(this.el.acog, 'is-on', !!acog);
 

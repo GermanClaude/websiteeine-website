@@ -21,6 +21,10 @@ const UP = new THREE.Vector3(0, 1, 0);
 const _e = new THREE.Euler();
 const _q = Qn(), _q2 = Qn(), _qi = Qn();
 const _v = V(), _v2 = V(), _v3 = V(), _v4 = V(), _a = V(), _b = V(), _c = V(), _pole = V();
+// feste Zwischenspeicher (keine Allokationen pro Bild)
+const S_R = V(), S_BP = V(), S_G = V(), S_L = V(), S_T = V(), S_M = V();
+const S_GRIP = V(), S_WELL = V(), S_WD = V(), S_PORT = V(), S_END = V();
+const S_LQ = Qn();
 
 /** Haltungen je Waffenart (Position des Griffs im Anschlagrahmen, Drehung Pitch/Yaw/Roll). */
 const POSES = {
@@ -456,13 +460,13 @@ export class Animator {
     const gq = this.gunQuat;
 
     // --- Rechte Hand: am Griff, oder Geste (Granate / Kammerstängel)
-    const rTarget = this._gunToModel(_v2.set(0, 0, 0), V());
+    const rTarget = this._gunToModel(_v2.set(0, 0, 0), S_R);
     const rQuat = this._handOnGrip(_q2, 'R');
     let rFree = 0;
     // Kammerstängel / Pumpe (Repetierer)
     if (this.boltT < 0.75 && this.fireMode === 'bolt' && A.bolt) {
       const b = Math.sin(Math.PI * ramp(this.boltT, 0.1, 0.72));
-      const bp = this._gunToModel(_v3.copy(A.bolt).add(_v4.set(0.03, 0.0, 0.07 * ramp(this.boltT, 0.3, 0.45) * (1 - ramp(this.boltT, 0.5, 0.65)))), V());
+      const bp = this._gunToModel(_v3.copy(A.bolt).add(_v4.set(0.03, 0.0, 0.07 * ramp(this.boltT, 0.3, 0.45) * (1 - ramp(this.boltT, 0.5, 0.65)))), S_BP);
       rTarget.lerp(bp, b);
     }
     // Granatwurf
@@ -474,7 +478,7 @@ export class Animator {
       const back = _v4.set(0.1, 0.25, 0.18).applyQuaternion(this.aimQuat).add(shoulder);
       const fwd = _b.set(0.02, 0.12, -0.52).applyQuaternion(this.aimQuat).add(shoulder);
       const follow = _c.set(-0.1, -0.25, -0.38).applyQuaternion(this.aimQuat).add(shoulder);
-      const g = V();
+      const g = S_G;
       if (tt < 0.3) g.copy(rTarget).lerp(chestP, ramp(tt, 0, 0.22));
       else if (tt < 0.5) g.copy(chestP).lerp(back, ramp(tt, 0.3, 0.47));
       else if (tt < 0.7) g.copy(back).lerp(fwd, ramp(tt, 0.56, 0.68));
@@ -493,8 +497,8 @@ export class Animator {
     this._armIK('R', rTarget, rq, this._poleWorld(this.poleR, rFree > 0.5 ? _v.set(0.3, -0.2, 0.8) : null));
 
     // --- Linke Hand
-    const lTarget = V();
-    const lQuat = Qn();
+    const lTarget = S_L;
+    const lQuat = S_LQ.identity();
     let lFree = 0;
     // Grundgriff
     if (kind === 'knife') {
@@ -514,7 +518,7 @@ export class Animator {
     }
     // Nachladen
     if (this.reloadW > 0.01) {
-      const tgt = this._reloadLeft(V());
+      const tgt = this._reloadLeft(S_T);
       if (tgt) { lTarget.lerp(tgt, this.reloadW); lFree = Math.max(lFree, this.reloadW * 0.6); }
     }
     // Pumpe nach dem Schuss
@@ -529,7 +533,7 @@ export class Animator {
       const shoulder = _a.set(-DIM.shoulderX, DIM.shoulderY, 0).applyQuaternion(this.wq[chest]).add(wp[chest]);
       const wind = _v3.set(-0.05, -0.05, -0.12).applyQuaternion(this.aimQuat).add(shoulder);
       const stab = _v4.set(0.12, 0.05, -0.55).applyQuaternion(this.aimQuat).add(shoulder);
-      const g = V().copy(lTarget).lerp(wind, ramp(m, 0, 0.08)).lerp(stab, ramp(m, 0.08, 0.17));
+      const g = S_M.copy(lTarget).lerp(wind, ramp(m, 0, 0.08)).lerp(stab, ramp(m, 0.08, 0.17));
       g.lerp(lTarget, ramp(m, 0.35, 0.7));
       const w = ramp(m, 0, 0.05) * (1 - ramp(m, 0.6, 0.72));
       lTarget.lerp(g, w);
@@ -609,13 +613,13 @@ export class Animator {
     const A = this.anchors;
     const r = this.reloadP;
     const chest = BONE.chest;
-    const grip = this._gunToModel(A.left, V());
-    const well = A.well ? this._gunToModel(A.well, V()) : this._gunToModel(_v3.set(0, -0.06, -0.08), V());
-    const wellDown = V().copy(well).add(_v3.set(0, -0.16, 0.04).applyQuaternion(this.gunQuat));
+    const grip = this._gunToModel(A.left, S_GRIP);
+    const well = A.well ? this._gunToModel(A.well, S_WELL) : this._gunToModel(_v3.set(0, -0.06, -0.08), S_WELL);
+    const wellDown = S_WD.copy(well).add(_v3.set(0, -0.16, 0.04).applyQuaternion(this.gunQuat));
     const pouch = _v4.set(-0.07, -0.12, -0.2).applyQuaternion(this.wq[chest]).add(this.wp[chest]);
     if (this.perShell) {
       // Patrone für Patrone: Gürtel ↔ Ladeöffnung im Takt
-      const port = A.shell ? this._gunToModel(A.shell, V()) : well;
+      const port = A.shell ? this._gunToModel(A.shell, S_PORT) : well;
       const belt = _v3.set(-0.15, -0.05, -0.08).applyQuaternion(this.wq[0]).add(this.wp[0]);
       const k = 0.5 - 0.5 * Math.cos(this.shellT * Math.PI * 2 / 0.48);
       return out.copy(port).lerp(belt, k * (1 - ramp(r, 0.92, 1)));
@@ -624,7 +628,7 @@ export class Animator {
       const keys = [[0, grip], [0.15, well], [0.3, wellDown], [0.45, pouch], [0.6, pouch], [0.72, wellDown], [0.8, well], [0.92, grip], [1, grip]];
       return this._keys(out, keys, r);
     }
-    const end = this.reloadEmpty && A.charge ? this._gunToModel(A.charge, V()) : grip;
+    const end = this.reloadEmpty && A.charge ? this._gunToModel(A.charge, S_END) : grip;
     const keys = [[0, grip], [0.12, well], [0.27, wellDown], [0.42, pouch], [0.56, pouch], [0.72, wellDown], [0.8, well], [0.88, end], [0.95, grip], [1, grip]];
     // Magazin sichtbar? (raus zwischen 0,25 und 0,74)
     if (this.magazine) this.magazine.visible = !(r > 0.26 && r < 0.73);
