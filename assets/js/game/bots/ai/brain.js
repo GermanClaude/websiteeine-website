@@ -9,7 +9,8 @@ import { analyze, pickRoamGoal, flankPoint, findCover, retreatPoint, isPerch, pe
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 const rnd = (a, b) => a + Math.random() * (b - a);
-const CHASE_PERCH = 0.4; // Anteil vorsichtiger Verfolgungen über einen erhöhten Posten
+const CHASE_PERCH = 0.4; // Anteil vorsichtiger Verfolgungen über einen erhöhten Posten (FFA: halb so oft)
+const HUNT_PERCH = 0.35; // Anteil der Anmärsche zu Gefechtslärm über einen erhöhten Posten (FFA: halb so oft)
 
 export const GOALS = ['roam', 'engage', 'cover', 'retreat', 'chase', 'hunt', 'flank', 'objective', 'evade', 'heal', 'grenade'];
 
@@ -123,10 +124,10 @@ export function think(bot, now) {
     // vorsichtig verfolgen: gelegentlich über einen erhöhten Posten mit Sicht auf die letzte Position
     if (cautious && now > (bot._perchTryAt || 0) && fresh.pos.distanceTo(bot.position) > 10) {
       bot._perchTryAt = now + rnd(3, 6);
-      const n = Math.random() < CHASE_PERCH ? perchNear(bot, A, fresh.pos, 22, { tests: 10, minDist: 6, maxFromBot: fresh.pos.distanceTo(bot.position) + 6 }) : null;
+      const n = Math.random() < CHASE_PERCH * (bot.team ? 1 : 0.5) ? perchNear(bot, A, fresh.pos, 22, { tests: 10, minDist: 6, maxFromBot: fresh.pos.distanceTo(bot.position) + 6 }) : null;
       if (n) {
         set(goal, 'chase', now, { move: n.position, speed: 'run', look: 'point', lookAt: fresh.pos, tolerance: 0.8 });
-        goal.data = perchData(n, fresh.actor, fresh.pos, rnd(5, 9));
+        goal.data = perchData(n, fresh.actor, fresh.pos, rnd(4, 7));
         return;
       }
     }
@@ -162,10 +163,10 @@ export function think(bot, now) {
       const act = bot.manager.activityFor(bot, now, ffa ? 20 : 12, ffa ? 95 : 55);
       if (act) {
         // gelegentlich über einen erhöhten Posten mit Sicht auf den Gefechtsort anrücken
-        const perch = Math.random() < 0.35 ? perchNear(bot, A, act.pos, 18) : null;
+        const perch = Math.random() < HUNT_PERCH * (ffa ? 0.5 : 1) ? perchNear(bot, A, act.pos, 18) : null;
         const p = perch ? perch.position : _v.copy(act.pos).add(_v2.set(rnd(-5, 5), 0, rnd(-5, 5)));
         set(goal, 'hunt', now, { move: p, speed: 'sprint', look: 'move', tolerance: perch ? 0.8 : 4 });
-        goal.data = perch ? perchData(perch, act.actor, act.pos, rnd(6, 12)) : act.actor;
+        goal.data = perch ? perchData(perch, act.actor, act.pos, rnd(5, 10)) : act.actor;
         return;
       }
     }
@@ -177,7 +178,7 @@ export function think(bot, now) {
       bot.lastGoal = node.position.clone();
       const perch = isPerch(A, node);
       set(goal, 'roam', now, { move: node.position, speed: 'sprint', look: 'move', tolerance: perch ? 0.8 : 2 });
-      goal.data = perch ? perchData(node, null, null, rnd(7, 15)) : null;
+      goal.data = perch ? perchData(node, null, null, rnd(6, 12)) : null;
     } else set(goal, 'idle', now, {});
   }
 }

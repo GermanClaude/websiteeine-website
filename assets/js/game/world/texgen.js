@@ -260,7 +260,7 @@ G.plaster = (t, r, o) => {
   const stone = hex(o.stone || '#a8957a');
   for (let i = 0; i < n; i++) {
     let v = 0.94 + (big[i] - 0.5) * 0.12 + (mid[i] - 0.5) * 0.08 + (stucco[i] - 0.5) * 0.08;
-    const d = smooth(0.6, 0.95, dirt[i]) * 0.14 + smooth(0.65, 0.95, streak[i]) * 0.1;
+    const d = (smooth(0.6, 0.95, dirt[i]) * 0.14 + smooth(0.65, 0.95, streak[i]) * 0.1) * (o.dirt ?? 1);
     const peel = smooth(0.9, 0.915, dmg[i]) * (o.peel ?? 1);
     const cr = (1 - smooth(0.0, 0.008, Math.abs(crack[i] - 0.5))) * smooth(0.7, 0.8, big[i]);
     v *= 1 - d - cr * 0.4;
@@ -913,8 +913,9 @@ export const TEX = {
   concrete_panel: { gen: 'concrete', o: { base: '#a8a59e', panels: [2, 2] }, normal: 1.8 },
   asphalt:        { gen: 'asphalt', o: {}, normal: 1.3 },
   // peel 0: keine großen Ausbrüche in der Kachel (wiederholten sich alle 3 m) – MapBuilder verstreut sie als Decals
-  plaster_warm:   { gen: 'plaster', o: { base: '#dcc29a', stone: '#a08a6c', peel: 0 }, normal: 2 },
-  plaster_white:  { gen: 'plaster', o: { base: '#ece7dc', stone: '#a8957a', peel: 0 }, normal: 2 },
+  // Schmutzflecken halbiert: ihr Rhythmus (Kachel) war an langen Wänden deutlich zu sehen
+  plaster_warm:   { gen: 'plaster', o: { base: '#dcc29a', stone: '#a08a6c', peel: 0, dirt: 0.5 }, normal: 2 },
+  plaster_white:  { gen: 'plaster', o: { base: '#ece7dc', stone: '#a8957a', peel: 0, dirt: 0.5 }, normal: 2 },
   brick:          { gen: 'brick', o: {}, normal: 3.5 },
   brick_dark:     { gen: 'brick', o: { palette: ['#5e3a2e', '#6a4232', '#523428', '#74493a', '#4c2f25'], mortar: '#7d776e' }, normal: 3.5 },
   stone_wall:     { gen: 'stoneWall', o: {}, normal: 4 },

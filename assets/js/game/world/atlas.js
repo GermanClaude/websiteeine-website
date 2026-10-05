@@ -183,7 +183,7 @@ function drawDecalAtlas(ctx, S) {
     const pts = [];
     const n = 22;
     for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2, rr = 78 + (r() - 0.5) * 46 + Math.sin(a * 3 + r()) * 12;
+      const a = (i / n) * Math.PI * 2, rr = 84 + (r() - 0.5) * 24 + Math.sin(a * 3 + r()) * 10;
       pts.push([128 + Math.cos(a) * rr * 1.18, 128 + Math.sin(a) * rr * 0.82]);
     }
     const path = () => { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); };

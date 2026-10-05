@@ -80,7 +80,7 @@ export class DynamicResolution {
 
   /** Ein Bild im Zustand 'playing': now = Echtzeit (s), intervalMs = rAF-Abstand, workMs = Hauptthread-Arbeit. */
   frame(now, intervalMs, workMs) {
-    if (!(intervalMs > 0) || intervalMs > 250) return; // Hänger, Hintergrund-Tab, erstes Bild
+    if (!(intervalMs > 0) || intervalMs > 1000) return; // echte Hänger (GC, Tab im Hintergrund), erstes Bild
     this._t.push(now);
     this._int.push(intervalMs);
     this._work.push(Math.max(0, workMs || 0));

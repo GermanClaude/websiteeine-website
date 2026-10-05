@@ -532,7 +532,7 @@ export class MapBuilder {
     const ry = o.ry || 0, c = Math.cos(ry), sn = Math.sin(ry);
     const tx = c, tz = -sn, nzx = sn, nzz = c; // lokale +x (Wandlänge) und +z (Wandnormale) in Welt
     for (const side of [1, -1]) {
-      const n = Math.min(Math.floor(rnd() * 3 * (w / 4) + rnd() * 0.7), Math.ceil(w / 4) * 2);
+      const n = Math.min(Math.floor(rnd() * 1.8 * (w / 4) + rnd() * 0.6), Math.ceil(w / 4) * 2);
       for (let i = 0; i < n; i++) {
         const k = rnd();
         const cell = k < 0.42 ? 'chip_stone' : k < 0.6 ? 'chip_brick' : k < 0.85 ? 'plaster_patch' : 'damp';
@@ -847,9 +847,10 @@ export class MapBuilder {
         nrm.set(...(d.normal || [0, 1, 0])).normalize();
         let ax = null, bx = null;
         if (d.tangent) {
-          // feste Ausrichtung: w entlang tangent, d entlang nrm × tangent (bei Wänden: nach oben)
-          ax = new THREE.Vector3(...d.tangent).normalize();
-          bx = new THREE.Vector3().crossVectors(nrm, ax);
+          // feste Ausrichtung: Breite entlang −tangent, Höhe entlang (−tangent) × nrm (bei Wänden: nach oben);
+          // so zeigt die Vorderseite (bx × ax = nrm) aus der Wand heraus
+          ax = new THREE.Vector3(...d.tangent).normalize().negate();
+          bx = new THREE.Vector3().crossVectors(ax, nrm);
         } else {
           q.setFromUnitVectors(up, nrm);
           q2.setFromAxisAngle(up, d.ry);
