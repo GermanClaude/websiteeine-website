@@ -11,7 +11,7 @@ export const EVENT_RATE = {
   amb_gull: 22050, amb_horn: 16000, amb_creak: 16000, amb_clank: 16000, amb_dog: 16000, amb_chime: 24000, amb_flap: 22050, amb_moped: 16000,
   amb_drip: 16000, amb_steam: 32000, amb_groan: 16000, amb_arc: 32000, amb_bird: 22050, amb_crow: 16000, amb_pa: 16000, loop_drone: 24000,
 };
-export const MAP_AMBIENCE = { hafen: 'harbor', altstadt: 'desert', werk: 'industrial', range: 'range' };
+export const MAP_AMBIENCE = { hafen: 'harbor', altstadt: 'desert', werk: 'industrial', range: 'range', grenzland: 'range' };
 
 /** Weich interpolierte Zufallskurve (Kosinus) mit Stützstellen alle step Sekunden. */
 function smoothRandom(R, T, step, lo, hi) {

@@ -219,7 +219,7 @@ import { AudioEngine, MIX_PRESETS, SAMPLE_TIERS, renderOffline } from '../assets
 import { MAX_DUR } from '../assets/js/game/engine/audio/samples.js';
 
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
-const fmt = (x, d = 1) => (Number.isFinite(x) ? x.toFixed(d).replace('.', ',') : '–');
+const fmt = (x, d = 1) => (Number.isFinite(x) ? (Math.abs(x) < 0.5 * 10 ** -d ? 0 : x).toFixed(d).replace('.', ',') : '–');
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const params = new URLSearchParams(location.search);
 
