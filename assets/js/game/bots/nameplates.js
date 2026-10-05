@@ -1,25 +1,40 @@
 // NULLPUNKT — Namensschilder über Soldaten (Canvas-Sprites, konstante Bildschirmgröße).
 // Verbündete: immer sichtbar (blau, Raute, auch durch Wände); Gegner: nur unter dem Fadenkreuz oder
 // sehr nah mit freier Sicht (rot). Ein Draw Call pro sichtbarem Schild.
+// Schilder werden über Matches hinweg wiederverwendet (Nameplate.acquire/release): Material, Textur und
+// Canvas bleiben bestehen, damit eine Revanche weder das Sprite-Shaderprogramm neu linken noch Texturen
+// neu anlegen muss. Nur Name/Art/Deckkraft sind je Match.
 import * as THREE from 'three';
 
 const COLORS = { ally: '#38b6ff', enemy: '#ff3b3b', ffa: '#ff3b3b' };
-let fontReady = false;
-const waiting = new Set();
+const POOL_MAX = 24; // mehr freie Schilder werden wirklich entsorgt (größtes Match: 15 Bots)
+const pool = [];
+
+let fontState = 0; // 0 = nicht angefordert, 1 = lädt, 2 = fertig (oder nicht verfügbar)
+const waiting = new Set(); // Schilder, die nach dem Laden der Schrift neu gezeichnet werden
 
 function ensureFont() {
-  if (fontReady || typeof document === 'undefined' || !document.fonts) return;
-  fontReady = true;
-  document.fonts.load('700 40px "Rajdhani NP"').then(() => {
+  if (fontState) return;
+  if (typeof document === 'undefined' || !document.fonts) { fontState = 2; return; }
+  fontState = 1;
+  const done = () => {
+    fontState = 2;
     for (const p of waiting) p._draw();
     waiting.clear();
-  }).catch(() => {});
+  };
+  document.fonts.load('700 40px "Rajdhani NP"').then(done, done);
 }
 
 export class Nameplate {
+  /** Schild aus dem Vorrat (oder neu). */
+  static acquire(name, kind = 'enemy') {
+    const p = pool.pop();
+    if (!p) return new Nameplate(name, kind);
+    p._init(name, kind);
+    return p;
+  }
+
   constructor(name, kind = 'enemy') {
-    this.name = name;
-    this.kind = kind;
     this.canvas = document.createElement('canvas');
     this.canvas.width = 256;
     this.canvas.height = 80;
@@ -34,18 +49,27 @@ export class Nameplate {
     this.sprite.name = 'namensschild';
     this.sprite.renderOrder = 20;
     this.sprite.center.set(0.5, 0);
+    this._init(name, kind);
+  }
+
+  /** Je-Match-Zustand setzen und Schild zeichnen. */
+  _init(name, kind) {
+    this.name = name;
+    this.kind = kind;
+    this.material.depthTest = kind !== 'ally';
+    this.material.opacity = 0;
     this.sprite.visible = false;
     this.alpha = 0;
+    this._target = 0;
     ensureFont();
-    waiting.add(this);
+    if (fontState === 1) waiting.add(this);
     this._draw();
   }
 
   setKind(kind) {
     if (kind === this.kind) return;
     this.kind = kind;
-    this.material.depthTest = kind !== 'ally';
-    this.material.needsUpdate = true;
+    this.material.depthTest = kind !== 'ally'; // Tiefentest ändert das Shaderprogramm nicht
     this._draw();
   }
 
@@ -100,10 +124,29 @@ export class Nameplate {
     this.sprite.scale.set(h * (256 / 80), h, 1);
   }
 
+  /** Aus der Szene nehmen und für das nächste Match aufheben (GPU-Ressourcen bleiben bestehen). */
+  release() {
+    waiting.delete(this);
+    this.sprite.removeFromParent();
+    this.sprite.visible = false;
+    this.alpha = 0;
+    this.material.opacity = 0;
+    if (pool.length < POOL_MAX && !pool.includes(this)) pool.push(this);
+    else this.dispose();
+  }
+
+  /** Endgültig entsorgen (Material + Textur). */
   dispose() {
     waiting.delete(this);
     this.sprite.removeFromParent();
     this.material.dispose();
     this.texture.dispose();
+    const i = pool.indexOf(this);
+    if (i >= 0) pool.splice(i, 1);
   }
+}
+
+/** Alle aufgehobenen Schilder endgültig entsorgen (z. B. beim Verlassen des Spiels). */
+export function disposeNameplatePool() {
+  while (pool.length) pool.pop().dispose();
 }

@@ -61,7 +61,8 @@ export function dateLong(ts) {
  * Zählwörter als [Einzahl, Mehrzahl].
  */
 export const TERMS = {
-  xp: 'XP',
+  xp: 'EP', // Erfahrungspunkte – wie im Spiel (Lobby, Endbildschirm); nicht „XP“
+  xpLong: 'Erfahrungspunkte', // ausgeschrieben für vorgelesene Zusammenfassungen
   kills: ['Abschuss', 'Abschüsse'],
   deaths: ['Tod', 'Tode'],
   assists: ['Unterstützung', 'Unterstützungen'],

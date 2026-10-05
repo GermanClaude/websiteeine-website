@@ -12,6 +12,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { boxUV, chamferBoxGeometry } from './builder.js';
 import { camoMap, fabricNormal, watchFaceTexture, tapeMap } from './textures.js';
+import { takeMaterials, parkMaterials } from './materials.js';
 
 const FINGERS = [
   { x: -0.0285, y: 0.001, z: -0.08, len: [0.043, 0.027, 0.022], r: [0.0094, 0.0088, 0.0082], splay: 0.07 },
@@ -726,18 +727,26 @@ export function getPose(name) {
 
 export function newPose(name = 'relaxed') { return clonePose(getPose(name)); }
 
+// Materialsatz der Arme (überdauert das Match, siehe takeMaterials in materials.js)
+function makeArmMaterials() {
+  const watchTex = watchFaceTexture();
+  const set = {
+    glove: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.22, 0.22) }),
+    sleeve: new THREE.MeshStandardMaterial({ map: camoMap('arid'), roughness: 0.92, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.3, 0.3) }),
+    tape: new THREE.MeshStandardMaterial({ map: tapeMap(), roughness: 0.6, metalness: 0.0 }),
+    watchCase: new THREE.MeshStandardMaterial({ color: 0x1b1c1d, roughness: 0.55, metalness: 0.2 }),
+    watchFace: new THREE.MeshStandardMaterial({ map: watchTex, emissive: 0xffffff, emissiveMap: watchTex, emissiveIntensity: 0.55, roughness: 0.15, metalness: 0.0 }),
+  };
+  for (const [k, m] of Object.entries(set)) m.name = 'vm:' + k;
+  return set;
+}
+
 export class Arms {
   /** camo: Palettenname ('arid' | 'wood' | 'neutral') oder 5 Hex-Farben (siehe textures.js CAMO_PALETTES). */
   constructor({ camo = 'arid' } = {}) {
-    const watchTex = watchFaceTexture();
-    this.camo = camo;
-    this.mats = {
-      glove: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.22, 0.22) }),
-      sleeve: new THREE.MeshStandardMaterial({ map: camoMap(camo), roughness: 0.92, metalness: 0.0, normalMap: fabricNormal(), normalScale: new THREE.Vector2(0.3, 0.3) }),
-      tape: new THREE.MeshStandardMaterial({ map: tapeMap(), roughness: 0.6, metalness: 0.0 }),
-      watchCase: new THREE.MeshStandardMaterial({ color: 0x1b1c1d, roughness: 0.55, metalness: 0.2 }),
-      watchFace: new THREE.MeshStandardMaterial({ map: watchTex, emissive: 0xffffff, emissiveMap: watchTex, emissiveIntensity: 0.55, roughness: 0.15, metalness: 0.0 }),
-    };
+    this.mats = takeMaterials('arms', makeArmMaterials);
+    this.camo = null;
+    this.setCamo(camo);
     getPose('relaxed');
     this.group = new THREE.Group();
     this.group.name = 'arme';
@@ -753,8 +762,8 @@ export class Arms {
     const cur = Array.isArray(this.camo) ? this.camo.join(',') : this.camo;
     if (key === cur) return;
     this.camo = camo;
+    // Nur die Textur wechselt (Karte war schon gesetzt) → gleiches Shaderprogramm, kein needsUpdate nötig
     this.mats.sleeve.map = camoMap(camo);
-    this.mats.sleeve.needsUpdate = true;
   }
 
   update(dt) {
@@ -766,11 +775,12 @@ export class Arms {
     }
   }
 
+  /** Geometrie und Skelette sind je Instanz; die Materialien gehen in den Vorrat (Shaderprogramme bleiben gelinkt). */
   dispose() {
     this.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
-    for (const m of Object.values(this.mats)) m.dispose();
     this.right.mesh.skeleton.dispose();
     this.left.mesh.skeleton.dispose();
+    parkMaterials('arms', this.mats);
   }
 }
 

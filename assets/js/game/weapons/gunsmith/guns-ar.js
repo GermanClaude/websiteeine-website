@@ -110,6 +110,16 @@ export function m17(b) {
   if (b.hi) {
     b.box('polymer', 0.012, 0.01, 0.05, 0, 0.074, -0.205, { c: 0.002 });              // Verstellhebel
     b.cyl('steel', 0.006, 0.006, 0.04, 0, 0.012, -0.27, { axis: 'x', seg: 10 });      // Riemenbügel
+    // Gliederung der großen FDE-Flächen (an der Hüfte ragt die Schaftoberseite ins Bild): Wangenauflage-Grat
+    // oben, Schaftkappe am Rohreintritt, Griffmulden-Kanten + QD-Riemenaufnahme an den Seiten
+    b.side('polymerTan', [[-0.198, 0.1215], [-0.206, 0.1262], [-0.268, 0.1305], [-0.276, 0.1265], [-0.276, 0.12], [-0.198, 0.116]], 0.016, 0, { bevel: 0.0016 });
+    b.cyl('polymer', 0.0172, 0.0172, 0.007, 0, axis, -0.1615, { seg: 16 });
+    for (const s of [-1, 1]) {
+      b.box('cavity', 0.0012, 0.0024, 0.072, s * 0.0181, 0.104, -0.236, { c: 0 });
+      b.box('cavity', 0.0012, 0.0024, 0.05, s * 0.0181, 0.03, -0.252, { c: 0 });
+      b.cyl('steel', 0.0062, 0.0062, 0.003, s * 0.0186, 0.07, -0.268, { axis: 'x', seg: 14 });
+      b.cyl('cavity', 0.0034, 0.0034, 0.0032, s * 0.0189, 0.07, -0.268, { axis: 'x', seg: 10 });
+    }
   }
   // Holo-Visier
   holoSight(b, 0.0, 0.124);

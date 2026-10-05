@@ -1,4 +1,5 @@
-/* NULLPUNKT — Spielmodi, Serienprämien, Schwierigkeitsgrade, Medaillen, XP (reine Daten).
+/* NULLPUNKT — Spielmodi, Serienprämien, Schwierigkeitsgrade, Medaillen, Erfahrungspunkte (reine Daten).
+ * Begriff für Spieler: „EP“ (Erfahrungspunkte) – in Spiel und Website; im Code heißen sie xp / XP_RULES.
  * Keine Imports, kein three.js, kein DOM: wird von Spiel UND Website geladen.
  *
  * Konventionen:

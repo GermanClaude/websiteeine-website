@@ -153,7 +153,7 @@ export function initFahne(D, ctx = {}) {
     const wordEl = h('p.fahne-word', { 'data-fit': '', 'data-fit-wdth': String(wd), 'aria-hidden': 'true', style: { '--wdth': String(wd), 'font-weight': String(wg) } }, word, h('span.o', {}, '.'));
     wordEl.fitOpts = { max: maxFs };
     const tear = h('button.txt-btn.fahne-tear', { type: 'button' }, 'Abreißen');
-    // Gefaltet: Ergebnis, XP und Aufstieg in einer Zeile (bricht nur an den Mittelpunkten)
+    // Gefaltet: Ergebnis, EP und Aufstieg in einer Zeile (bricht nur an den Mittelpunkten)
     const nw = (t) => h('span.nw', {}, t);
     const minParts = [nw('FAHNE'), h('b.fs-word', {}, `${word}.`), nw(xpText)];
     if (levelUp) minParts.push(nw(`STUFE ${p.level}`));
@@ -209,7 +209,7 @@ export function initFahne(D, ctx = {}) {
     edge.addEventListener('pointerup', end);
     edge.addEventListener('pointercancel', end);
 
-    const summary = `Einsatzbericht: ${SPOKEN[kind]}, ${D.M?.MODES?.[m.modeId]?.name || m.modeId}, ${count(m.kills, 'kills')}, ${count(m.deaths, 'deaths')}, plus ${num(m.xp || 0)} ${TERMS.xp}.${levelUp ? ` Stufe ${p.level} erreicht.` : ''}`;
+    const summary = `Einsatzbericht: ${SPOKEN[kind]}, ${D.M?.MODES?.[m.modeId]?.name || m.modeId}, ${count(m.kills, 'kills')}, ${count(m.deaths, 'deaths')}, plus ${num(m.xp || 0)} ${TERMS.xpLong}.${levelUp ? ` Stufe ${p.level} erreicht.` : ''}`;
     announce(summary);
     if (levelUp) snd?.ui('levelup');
   }

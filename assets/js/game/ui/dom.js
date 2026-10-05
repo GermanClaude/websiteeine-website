@@ -12,10 +12,37 @@ export function el(tag, cls = '', html = '') {
   return e;
 }
 
+// Zahlenformate einmal je Stellenzahl anlegen: toLocaleString() mit Optionen baut bei jedem Aufruf ein neues
+// Intl.NumberFormat, und das allererste lädt die ICU-Daten (gedrosselt ≈ 40 ms – fiel sonst auf den ersten Abschuss).
+const NF = new Map();
+function numberFormat(digits) {
+  let f = NF.get(digits);
+  if (!f) {
+    f = new Intl.NumberFormat('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    NF.set(digits, f);
+  }
+  return f;
+}
+
 /** 1234.5 → „1.234,5“ (digits Nachkommastellen). */
 export function num(v, digits = 0) {
-  const n = Number(v) || 0;
-  return n.toLocaleString('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return numberFormat(digits).format(Number(v) || 0);
+}
+
+/** Zahlenformate vorab anlegen (HUD-Aufbau während des Ladens statt beim ersten Abschuss). */
+export function warmNumbers() {
+  for (let d = 0; d <= 2; d++) numberFormat(d).format(1234.5);
+}
+
+/**
+ * Einmal-Animation über Web Animations starten – ohne synchrones Layout. Ersetzt das Muster „Klasse entfernen,
+ * offsetWidth lesen, Klasse setzen“: das erzwungene Layout bezahlte im Ereignis-Listener alle ausstehende Stil-/
+ * Layoutarbeit des Dokuments (erster Abschuss: Hunderte ms). Eine neue Animation überdeckt ältere derselben
+ * Eigenschaften; beendete (fill: none) verschwinden von selbst.
+ */
+export function replay(node, keyframes, options) {
+  if (!node || !keyframes || typeof node.animate !== 'function') return null;
+  try { return node.animate(keyframes, options); } catch { return null; }
 }
 
 /** Prozent 0..1 → „57 %“. */

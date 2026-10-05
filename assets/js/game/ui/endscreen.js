@@ -96,6 +96,13 @@ export class EndScreen {
           ${pr.levelUp ? `<div class="e-up" data-xp-up hidden><b>Aufgestiegen<em>.</em></b> Stufe ${pr.levelAfter}${pr.rankUp ? ` · Neuer Dienstgrad: ${esc(pr.rankAfter.name)}` : ''}</div>` : ''}
           ${unlocks ? `<div class="e-unlocks"><small>Neu freigeschaltet</small>${unlocks}</div>` : ''}
         </div>`;
+    } else if (G.match && G.match.unranked) {
+      // Ungewertet (verkürzte Limits per URL, Gottmodus, Zeitraffer, Debug-Hilfen, gesperrte Ausrüstung): kein EP-Block
+      xp = `
+        <div class="e-xp e-xp-off" role="note">
+          <div class="e-xp-off-t"><b>Testmatch – keine EP</b></div>
+          <p>${esc(unrankedReason(G))} Dieses Match zählt nicht für EP, Stufe und Statistik.</p>
+        </div>`;
     }
 
     const board = (r.scoreboard || []).length
@@ -173,6 +180,17 @@ export class EndScreen {
   stop() {
     cancelAnimationFrame(this._raf);
   }
+}
+
+/** Kurzbegründung für ein ungewertetes Match (G.match.unranked). */
+function unrankedReason(G) {
+  const m = G.mode;
+  const def = (m && m.def) || {};
+  const shorter = (v, std) => Number.isFinite(v) && v > 0 && Number.isFinite(std) && std > 0 && v < std;
+  if (m && (shorter(m.timeLimit, def.timeLimit) || shorter(m.scoreLimit, def.scoreLimit))) return 'Verkürzte Zeit- oder Punktegrenze.';
+  if (G.player && G.player.godMode) return 'Unverwundbar gespielt.';
+  if (G.timeScale != null && G.timeScale !== 1) return 'Mit veränderter Spielgeschwindigkeit gespielt.';
+  return 'Mit Testhilfen gespielt.';
 }
 
 function tierRank(t) {

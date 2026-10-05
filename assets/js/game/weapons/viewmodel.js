@@ -14,7 +14,7 @@ import { WEAPONS } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
 import { ID_TO_MODEL, handlingFor, KNIFE_MELEE } from './gunsmith/handling.js';
 import { MuzzleFlash, ShellPool, SmokeWisps } from './gunsmith/fx.js';
-import { SCHEMES } from '../bots/soldier/materials.js';
+import { SCHEMES, schemeForTeam } from '../bots/soldier/materials.js';
 import { Spring, Spring3, curve, windowW, clamp, damp, smooth, easeOut, easeInOut, easeOutBack } from './gunsmith/anim.js';
 
 const V3 = () => new THREE.Vector3();
@@ -54,9 +54,12 @@ function req(list, w, o) {
   r.part = o.part || null; r.offset = o.offset || null; r.free = o.free || null; r.dy = o.dy || 0;
 }
 
-/** Ärmel-Palette (5 Farben, siehe gunsmith/textures.js) aus dem Soldaten-Farbschema des Teams. */
-function sleeveCamo(team) {
-  const sc = team ? SCHEMES[team] : null;
+/**
+ * Ärmel-Palette (5 Farben, siehe gunsmith/textures.js) aus dem Soldaten-Farbschema, das die Bots desselben
+ * Teams auf dieser Karte tragen (schemeForTeam: helle Karten → dunklere Variante). FFA/kein Team: neutral.
+ */
+function sleeveCamo(schemeId) {
+  const sc = schemeId ? SCHEMES[schemeId] : null;
   if (!sc || !Array.isArray(sc.camo) || sc.camo.length < 4) return 'neutral';
   const [base, dark, light, accent] = sc.camo;
   const deep = '#' + [1, 3, 5].map(i => Math.round(parseInt(dark.slice(i, i + 2), 16) * 0.72).toString(16).padStart(2, '0')).join('');
@@ -91,7 +94,8 @@ export class ViewModel {
     this.root.add(this.gun);
     // Ärmel im Tarnmuster des eigenen Teams (wie die Mitspieler-Bots); Jeder gegen jeden: neutral
     this._team = G.player ? G.player.team ?? null : 'A';
-    this.arms = new Arms({ camo: sleeveCamo(this._team) });
+    this._scheme = schemeForTeam(this._team, G.world) || null;
+    this.arms = new Arms({ camo: sleeveCamo(this._scheme) });
     this.root.add(this.arms.group);
 
     // Licht (folgt der Weltbeleuchtung relativ zur Blickrichtung)
@@ -354,6 +358,17 @@ export class ViewModel {
     // Neue Karte/Beleuchtung: Sonde beim nächsten Bild sofort vollständig messen
     this._probe.reset = true;
     this._applyIntensities();
+    this._syncCamo();
+  }
+
+  /** Ärmel-Tarnung an Team + Karte angleichen (wie die Bots desselben Teams); ohne Spieler (Waffenlabor) Team A. */
+  _syncCamo() {
+    const player = this.G?.player;
+    this._team = player ? player.team ?? null : 'A';
+    const scheme = schemeForTeam(this._team, this.G?.world) || null;
+    if (scheme === this._scheme) return;
+    this._scheme = scheme;
+    this.arms.setCamo(sleeveCamo(scheme));
   }
 
   /**
@@ -467,7 +482,7 @@ export class ViewModel {
 
   update(dt, s = {}) {
     const player = this.G?.player;
-    if (player && (player.team ?? null) !== this._team) { this._team = player.team ?? null; this.arms.setCamo(sleeveCamo(this._team)); }
+    if (player && (player.team ?? null) !== this._team) this._syncCamo();
     if (!this.G?.world?.lighting && !this._lighting) this._ensureOwnEnv();
     else if (this.G?.world?.lighting && this.G.world.lighting !== this._lighting) this.setLighting(this.G.world.lighting);
     dt = Math.min(Math.max(dt || 0, 0), 0.05);

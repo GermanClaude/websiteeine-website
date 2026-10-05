@@ -93,7 +93,7 @@ const DK = ['reactionTime', 'aimError', 'trackingSpeed', 'burstMin', 'burstMax',
 $('diff').innerHTML = `<tr><th>Grad</th>${DK.map((k) => `<th>${k}</th>`).join('')}</tr>` +
   M.DIFFICULTY_ORDER.map((id) => M.DIFFICULTIES[id]).map((d) => `<tr><td>${esc(d.name)}</td>${DK.map((k) => `<td>${d[k]}</td>`).join('')}</tr>`).join('');
 
-$('medals').innerHTML = '<tr><th>Medaille</th><th>Beschreibung</th><th>XP</th></tr>' +
+$('medals').innerHTML = '<tr><th>Medaille</th><th>Beschreibung</th><th>EP</th></tr>' +
   M.MEDAL_ORDER.map((id) => M.MEDALS[id]).map((m) => `<tr><td class="tier-${m.tier}">${esc(m.label)}</td><td style="text-align:left">${esc(m.description)}</td><td>${m.xp}</td></tr>`).join('');
 </script>
 </body>

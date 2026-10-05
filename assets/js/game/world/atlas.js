@@ -257,6 +257,18 @@ export function createDecalMaterials(quality = 'high') {
     // Lichtkegel am Boden (unbeleuchtet, additiv): Lampenpools ohne echte Punktlichter (auch auf low)
     light: new THREE.MeshBasicMaterial({ ...base, blending: THREE.AdditiveBlending }),
   };
+  // Additives Licht verblasst im Nebel nach Schwarz (die Standard-Mischung zur Nebelfarbe würde fern graue Flecken addieren)
+  decalMats.light.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <fog_fragment>', `#ifdef USE_FOG
+        #ifdef FOG_EXP2
+          float npFog = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+        #else
+          float npFog = smoothstep( fogNear, fogFar, vFogDepth );
+        #endif
+        gl_FragColor.rgb *= 1.0 - npFog;
+      #endif`);
+  };
+  decalMats.light.customProgramCacheKey = () => 'decal-light-v1';
   for (const [k, m] of Object.entries(decalMats)) { m.name = 'decal_' + k; m.userData.surface = 'concrete'; }
   return decalMats;
 }

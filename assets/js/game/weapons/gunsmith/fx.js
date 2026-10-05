@@ -3,19 +3,32 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { flashMap, smokeMap } from './textures.js';
+import { takeMaterials, parkMaterials } from './materials.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _e = new THREE.Euler();
+
+// Materialien der Ego-Effekte überdauern das Match (Vorrat in materials.js): kein Neu-Linken der Shader je Match
+function makeFlashMaterials() {
+  const add = (map, color, name) => Object.assign(new THREE.MeshBasicMaterial({
+    map, color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true,
+    toneMapped: false, side: THREE.DoubleSide, fog: false,
+  }), { name });
+  return { star: add(flashMap('star'), new THREE.Color(2.6, 1.7, 0.9), 'vm:flashStar'), side: add(flashMap('side'), new THREE.Color(2.2, 1.35, 0.7), 'vm:flashSide') };
+}
+const makeSmokeMaterial = () => new THREE.SpriteMaterial({ name: 'vm:smoke', map: smokeMap(), color: 0xb9b3a8, transparent: true, opacity: 0, depthWrite: false, fog: false });
+const makeShellMaterials = () => ({
+  brass: new THREE.MeshStandardMaterial({ name: 'vm:shell', vertexColors: true, metalness: 0.9, roughness: 0.32 }),
+  shot: new THREE.MeshStandardMaterial({ name: 'vm:shellShot', vertexColors: true, metalness: 0.35, roughness: 0.45 }),
+});
 
 export class MuzzleFlash {
   constructor() {
     this.group = new THREE.Group();
     this.group.name = 'muendungsfeuer';
-    const add = (map, color) => new THREE.MeshBasicMaterial({
-      map, color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true,
-      toneMapped: false, side: THREE.DoubleSide, fog: false,
-    });
-    this.starMat = add(flashMap('star'), new THREE.Color(2.6, 1.7, 0.9));
-    this.sideMat = add(flashMap('side'), new THREE.Color(2.2, 1.35, 0.7));
+    this._mats = takeMaterials('muzzle', makeFlashMaterials);
+    this.starMat = this._mats.star;
+    this.sideMat = this._mats.side;
+    this.starMat.opacity = this.sideMat.opacity = 1;
     // Frontaler Stern (Normale zur Kamera)
     this.star = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), this.starMat);
     this.star.renderOrder = 10;
@@ -64,7 +77,7 @@ export class MuzzleFlash {
 
   dispose() {
     this.star.geometry.dispose(); this.sides.geometry.dispose();
-    this.starMat.dispose(); this.sideMat.dispose();
+    parkMaterials('muzzle', this._mats);
     this.light.dispose();
   }
 }
@@ -74,9 +87,10 @@ export class SmokeWisps {
   constructor(max = 10) {
     this.group = new THREE.Group();
     this.items = [];
-    const tex = smokeMap();
     for (let i = 0; i < max; i++) {
-      const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xb9b3a8, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+      const mat = takeMaterials('smoke', makeSmokeMaterial);
+      mat.opacity = 0;
+      const m = new THREE.Sprite(mat);
       m.visible = false;
       this.group.add(m);
       this.items.push({ m, life: 0, max: 1, vel: new THREE.Vector3() });
@@ -104,7 +118,7 @@ export class SmokeWisps {
     }
   }
   clear() { for (const it of this.items) it.m.visible = false; }
-  dispose() { for (const it of this.items) it.m.material.dispose(); }
+  dispose() { for (const it of this.items) parkMaterials('smoke', it.m.material); }
 }
 
 function casingGeometry(type) {
@@ -136,8 +150,9 @@ export class ShellPool {
   constructor(perType = 14) {
     this.group = new THREE.Group();
     this.group.name = 'huelsen';
-    this.mat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.9, roughness: 0.32 });
-    this.matShot = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.35, roughness: 0.45 });
+    this._mats = takeMaterials('shells', makeShellMaterials);
+    this.mat = this._mats.brass;
+    this.matShot = this._mats.shot;
     this.pools = {};
     this.perType = perType;
     this.limit = perType;            // aktiv genutzte Plätze (≤ perType), z. B. kleiner auf 'low'
@@ -209,6 +224,6 @@ export class ShellPool {
 
   dispose() {
     for (const type in this.pools) { this.pools[type].mesh.geometry.dispose(); this.pools[type].mesh.dispose(); }
-    this.mat.dispose(); this.matShot.dispose();
+    parkMaterials('shells', this._mats);
   }
 }

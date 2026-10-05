@@ -7,15 +7,16 @@ export const ID_TO_MODEL = {
 };
 
 // Hüfte: Mündung leicht zur Bildmitte gedreht und angehoben (Schaft wandert aus der rechten unteren Ecke);
-// linke Schulter tief und weit vorn, damit der Unterarm von unten zum Handschutz kommt statt als langer,
-// gestreckter Schlauch diagonal durchs Bild (Ellbogen bleibt unter dem Bildrand).
+// linke Schulter tiefer und etwas vor der Kamera, damit der Unterarm von unten zum Handschutz kommt statt als
+// langer, gestreckter Schlauch diagonal durchs Bild (Ellbogen am Bildrand). Nicht weiter nach vorn: sonst
+// knickt der Ellbogen bei Inspizieren/Nachladen VOR die Hand und der Ärmel zeigt als „Dose“ zur Kamera.
 const RIFLE = {
   hip: [0.13, -0.2, -0.42], hipRot: [0.09, 0.11, 0.0],
   sprintPos: [-0.01, -0.055, 0.05], sprintRot: [0.22, 0.55, 0.72],
   crouchPos: [-0.012, -0.006, 0.012], crouchRot: [0.0, 0.0, 0.07],
   kick: { back: 0.026, up: 0.045, side: 0.01, roll: 0.045, kickRot: 0.02 },
   weight: 1.0, reload: 'mag', action: 'auto', leftGrip: 'under', shell: 'rifle', flash: 1.0, flashLen: 1.0,
-  shoulderR: [0.19, -0.3, 0.06], shoulderL: [-0.12, -0.42, -0.3], poleR: [0.6, -1, 0.1], poleL: [-0.5, -1, 0.2],
+  shoulderR: [0.19, -0.3, 0.06], shoulderL: [-0.2, -0.4, -0.12], poleR: [0.6, -1, 0.1], poleL: [-0.7, -1, 0.05],
   reloadTime: 2.2, emptyTime: 2.8, equipTime: 0.55, boltTime: 0.06, boltTravel: 0.035,
   inspect: 3.2,
 };
@@ -43,9 +44,11 @@ export const HANDLING = {
   bulldog: { ...RIFLE, hip: [0.15, -0.16, -0.36], kick: { back: 0.065, up: 0.1, side: 0.012, roll: 0.06, kickRot: 0.08 }, action: 'pump', reload: 'shell', leftGrip: 'pump', shell: 'shotgun', weight: 1.2, flash: 1.9, flashLen: 1.1, reloadTime: 1.2, emptyTime: 3.6 },
   p9: { ...PISTOL },
   adler: { ...PISTOL, kick: { back: 0.045, up: 0.15, side: 0.012, roll: 0.05, kickRot: 0.1 }, shell: 'big', flash: 1.0, flashLen: 0.8, weight: 0.85, reloadTime: 1.9, emptyTime: 2.35 },
-  // Messer: Klinge steil nach oben, Klingenfläche + Handrücken zur Kamera (vorher nur die Schneide als Strich)
+  // Messer: Klinge schräg nach vorn oben zur Bildmitte, Handrücken + Knöchel zur Kamera, Handgelenk zeigt nach
+  // unten zum Unterarm (Klinge ⊥ Handgelenkachse im Hammergriff). Zeigt die Handgelenkachse zur Kamera, sieht man
+  // Handschuhbund und Ärmel als „Dose“ von vorn – deshalb nicht die Klinge senkrecht stellen.
   knife: {
-    ...PISTOL, hip: [0.12, -0.135, -0.34], hipRot: [1.27, 0.54, 1.47], sprintPos: [0.0, -0.05, 0.05], sprintRot: [-0.35, 0.15, 0.2],
+    ...PISTOL, hip: [0.13, -0.12, -0.34], hipRot: [0.29, 0.37, -2.87], sprintPos: [0.0, -0.05, 0.05], sprintRot: [-0.35, 0.15, 0.2],
     action: 'knife', leftGrip: 'none', reload: 'none', shell: 'none', flash: 0, weight: 0.5, equipTime: 0.25,
   },
 };

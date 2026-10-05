@@ -5,6 +5,7 @@
 
 import { el } from './dom.js';
 import { ICON } from './icons.js';
+import { drawGlyph } from './glyphs.js';
 
 const COL = { ally: '#38b6ff', enemy: '#ff3b3b', me: '#ffffff', signal: '#ff5b1f', neutral: '#e9e6df' };
 
@@ -210,11 +211,7 @@ export class StrikeTargeting {
       ctx.strokeStyle = col;
       ctx.lineWidth = 2 * d;
       ctx.stroke();
-      ctx.fillStyle = col;
-      ctx.font = `700 ${Math.round(13 * d)}px "Rajdhani NP", sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(f.id, x, y + d);
+      drawGlyph(ctx, String(f.id), `700 ${Math.round(13 * d)}px "Rajdhani NP", sans-serif`, col, x, y + d); // ohne Stilberechnung je Bild
     }
     // Mitspieler + bekannte Gegner
     const streaks = mode && mode.streaks;

@@ -1,7 +1,10 @@
 // NULLPUNKT — rotierende Minikarte (Canvas): Kartenbild aus world.minimap, Spieler fest in der Mitte mit Blick
 // nach oben, Nordmarke am Rand, Mitspieler (Pfeile), Gegner beim Feuern bzw. per Aufklärer-Sweep, Flaggen
 // (am Rand festgeklemmt), Wachgeschütze, Luftschlag-Zonen, Radar-Sweep bei eigenem Aufklärer,
-// pulsierender roter Rand bei gegnerischem Aufklärer.
+// pulsierender roter Rand bei gegnerischem Aufklärer. Beschriftungen (N, Flaggen) als Schrift-Sprites (glyphs.js):
+// fillText erzwänge je Bild eine Stilberechnung des Dokuments.
+
+import { drawGlyph } from './glyphs.js';
 
 const COL = {
   ally: '#38b6ff', enemy: '#ff3b3b', me: '#ffffff', gold: '#ffc23d', signal: '#ff5b1f', neutral: '#e9e6df',
@@ -24,7 +27,7 @@ export class Minimap {
     this.mapImg = null;
     this._acc = 0;
     this._t = 0;
-    this._fontSet = null;
+    this.font = '700 11px "Rajdhani NP", sans-serif';
   }
 
   setWorld(world) {
@@ -39,7 +42,8 @@ export class Minimap {
     this.dpr = Math.min(2, window.devicePixelRatio || 1);
     this.size = css;
     const px = Math.max(16, Math.round(css * this.dpr));
-    if (this.canvas.width !== px) { this.canvas.width = px; this.canvas.height = px; this._fontSet = null; } // Größenänderung setzt den Kontextzustand zurück
+    if (this.canvas.width !== px) { this.canvas.width = px; this.canvas.height = px; }
+    this.font = `700 ${Math.round(11 * this.dpr)}px "Rajdhani NP", sans-serif`;
     this.range = css < 130 ? 36 : 42;
   }
 
@@ -65,7 +69,6 @@ export class Minimap {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, W);
     if (!p || !mm) return;
-    this._font(ctx);
     const yaw = p.yaw || 0;
     const cos = Math.cos(yaw);
     const sin = Math.sin(yaw);
@@ -208,7 +211,7 @@ export class Minimap {
         const len = Math.hypot(x, y);
         const lim = rad - 9 * d;
         if (len > lim) { x = (x / len) * lim; y = (y / len) * lim; }
-        flag(ctx, half + x, half + y, f, p.team, d);
+        flag(ctx, half + x, half + y, f, p.team, d, this.font);
       }
     }
 
@@ -233,18 +236,7 @@ export class Minimap {
     ctx.beginPath();
     ctx.arc(nx, ny, 7 * d, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = COL.signal;
-    ctx.fillText('N', nx, ny + 0.5 * d);
-  }
-
-  /** Schrift nur bei Änderung setzen (außerhalb von save/restore): jede Zuweisung an ctx.font erzwingt eine Stilberechnung. */
-  _font(ctx) {
-    const f = `700 ${Math.round(11 * this.dpr)}px "Rajdhani NP", sans-serif`;
-    if (this._fontSet === f) return;
-    ctx.font = f;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    this._fontSet = f;
+    drawGlyph(ctx, 'N', this.font, COL.signal, nx, ny + 0.5 * d);
   }
 }
 
@@ -278,7 +270,7 @@ function arrow(ctx, x, y, rot, s, color, outline = false) {
   ctx.restore();
 }
 
-function flag(ctx, x, y, f, myTeam, d) {
+function flag(ctx, x, y, f, myTeam, d, font) {
   const r = 8.5 * d;
   const col = f.owner == null ? COL.neutral : f.owner === myTeam ? COL.ally : COL.enemy;
   ctx.beginPath();
@@ -295,6 +287,5 @@ function flag(ctx, x, y, f, myTeam, d) {
     ctx.lineWidth = 3 * d;
     ctx.stroke();
   }
-  ctx.fillStyle = f.contested ? COL.gold : col;
-  ctx.fillText(f.id, x, y + 0.5 * d);
+  drawGlyph(ctx, String(f.id), font, f.contested ? COL.gold : col, x, y + 0.5 * d);
 }

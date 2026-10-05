@@ -209,6 +209,9 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.info.autoReset = false;
   renderer.setClearColor(0x0a0b0d, 1);
+  // Max. Anisotropie jetzt abfragen (three.js merkt sie sich): gl.getParameter wartet, bis die GPU alle
+  // anstehenden Befehle abgearbeitet hat – beim ersten Kartenladen kostete das einen langen Hänger.
+  renderer.capabilities.getMaxAnisotropy();
 
   const qualityListeners = new Set();
   const contextListeners = new Set();
@@ -458,7 +461,8 @@ export function createRenderer(canvas, { quality = 'auto' } = {}) {
   function onRestored() {
     R.lost = false;
     R._shadowDirty = true;
-    // three.js stellt seinen Zustand selbst wieder her; Composer-Ziele neu aufbauen.
+    // three.js stellt seinen Zustand selbst wieder her (neue capabilities); Composer-Ziele neu aufbauen.
+    renderer.capabilities.getMaxAnisotropy();
     R._build();
     R.resize(true);
     if (R._lastScene) refreshScene(R._lastScene, R.preset, true);

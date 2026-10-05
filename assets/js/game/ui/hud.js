@@ -8,7 +8,7 @@
 // Interaktive Teile liegen in #hud-top (über der Touch-Steuerung, unter den Menüs).
 
 import * as THREE from 'three';
-import { el, esc, num, pct, clock, secs, meters, setText, setHtml, toggle, setStyle, clamp, weaponName } from './dom.js';
+import { el, esc, num, pct, clock, secs, meters, setText, setHtml, toggle, setStyle, clamp, weaponName, replay, warmNumbers } from './dom.js';
 import { ICON, medalBadge } from './icons.js';
 import { Minimap } from './minimap.js';
 import { Killfeed } from './killfeed.js';
@@ -22,6 +22,26 @@ const DEG_PX = 2.4;
 const PAD_HINT = { breath: 'L3', reload: 'X', swap: 'Y', grenade: 'LB', melee: 'RB', interact: 'X', streak1: '▲', streak2: '◀', streak3: '▶', scoreboard: 'View' };
 const KEY_HINT = { breath: 'Umschalt', reload: 'R', swap: '1/2', grenade: 'G', melee: 'V', interact: 'F', streak1: '3', streak2: '4', streak3: '5', scoreboard: 'Tab' };
 const NOTICE_LIFE = 2.6;
+
+// Einmal-Animationen (Web Animations statt CSS-Klasse + erzwungenem Layout, siehe dom.js replay()).
+// CSS-Keyframes setzen die Zeitfunktion je Abschnitt – hier daher je Keyframe.
+const EASE = 'cubic-bezier(.16, 1, .3, 1)'; // = --ease-out
+const ANIM = {
+  hit: { k: [{ transform: 'scale(1.45)', easing: EASE }, { transform: 'none' }], o: { duration: 200 } },
+  killico: {
+    k: [{ opacity: 0, transform: 'scale(1.8)', easing: EASE }, { opacity: 1, transform: 'none', offset: 0.15, easing: EASE }, { opacity: 1, offset: 0.7, easing: EASE }, { opacity: 0, transform: 'translateY(-6px)' }],
+    calm: [{ opacity: 0 }, { opacity: 1, offset: 0.15 }, { opacity: 1, offset: 0.7 }, { opacity: 0 }],
+    o: { duration: 750 },
+  },
+  count: { k: [{ opacity: 0, transform: 'scale(1.6)', easing: EASE }, { opacity: 1, transform: 'none', offset: 0.25, easing: EASE }, { opacity: 1, offset: 0.85, easing: EASE }, { opacity: 0.2 }], o: { duration: 900 } },
+  bump: { k: [{ transform: 'scale(1.3)', easing: EASE }, { transform: 'none' }], o: { duration: 250 } },
+  dmg: {
+    k: [{ opacity: 0, transform: 'translate(-50%, -50%) scale(1.4)', easing: EASE }, { opacity: 1, transform: 'translate(-50%, -80%) scale(1)', offset: 0.15, easing: EASE }, { opacity: 0, transform: 'translate(-50%, -260%) scale(1)' }],
+    calm: [{ opacity: 0 }, { opacity: 1, offset: 0.15 }, { opacity: 0 }],
+    o: { duration: 900 },
+  },
+};
+const RM = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 
 export class HUD {
   constructor(G) {
@@ -58,8 +78,7 @@ export class HUD {
     this._parcours = null;
     this._fov = 0;
     this._dead = false;
-    this._zones = null;
-    this._zonesAt = 0;
+    this._resetZones();
   }
 
   /* ================================================================ Aufbau */
@@ -144,6 +163,10 @@ export class HUD {
       this.el.dmgnums.appendChild(n);
       this._dmgPool.push(n);
     }
+    // Erstnutzung vorwegnehmen (während des Ladens statt beim ersten Abschuss): Zahlenformate (ICU) und das
+    // Abschuss-Symbol (SVG, unsichtbar bis zur Animation)
+    warmNumbers();
+    setHtml(this.el.killico, ICON.skull);
     this.root = r;
     this.minimap = new Minimap(this.G, this.el.mm);
     this.feed = new Killfeed(this.G, this.el.feed, { max: 6 });
@@ -234,7 +257,7 @@ export class HUD {
       if (this.minimap) this.minimap.resize();
       this._vw = window.innerWidth;
       this._vh = window.innerHeight;
-      this._zones = null;
+      this._resetZones();
       this._syncFeedMax();
     };
     window.addEventListener('resize', this._onResize);
@@ -254,6 +277,7 @@ export class HUD {
     delete document.body.dataset.streaks;
     delete document.body.dataset.lethals;
     this._setDead(false);
+    this._resetZones();
     this._attached = false;
   }
 
@@ -397,13 +421,21 @@ export class HUD {
     return st ? st.order.indexOf(id) : 0;
   }
 
+  /** Einmal-Animation (ANIM[name]); bei reduzierter Bewegung die ruhige Variante bzw. keine. Erzwingt kein Layout. */
+  _play(node, name) {
+    const a = ANIM[name];
+    const calm = !!(RM && RM.matches) || !!this.G.settings.get('reducedMotion');
+    const k = calm ? a.calm : a.k;
+    if (k) replay(node, k, a.o);
+  }
+
   _hitmarker(kind) {
     this._hitT = kind === 'kill' ? 0.42 : 0.2;
     this._hitKind = kind;
     const h = this.el.hit;
-    h.className = `h-hit is-on ${kind ? `is-${kind}` : ''}`;
-    void h.offsetWidth;
-    h.classList.add('pop');
+    const cls = `h-hit is-on${kind ? ` is-${kind}` : ''}`;
+    if (h.className !== cls) h.className = cls;
+    this._play(h, 'hit');
   }
 
   _onKill(e) {
@@ -414,10 +446,10 @@ export class HUD {
     const k = e.killer;
     if (k && e.victim !== p && (k === p || (k.isStreakEntity && k.owner === p))) {
       const n = this.el.killico;
-      n.innerHTML = e.headshot ? ICON.head : ICON.skull;
-      n.className = `h-killico${e.headshot ? ' is-head' : ''}`;
-      void n.offsetWidth;
-      n.classList.add('go');
+      setHtml(n, e.headshot ? ICON.head : ICON.skull);
+      const cls = `h-killico${e.headshot ? ' is-head' : ''}`;
+      if (n.className !== cls) n.className = cls;
+      this._play(n, 'killico');
     }
     if (e.victim === p) {
       const k = e.killer && e.killer.isStreakEntity ? e.killer : e.killer;
@@ -467,10 +499,8 @@ export class HUD {
     P.t = 2.1;
     setText(this.el.popTotal, `+${num(P.total)}`);
     setHtml(this.el.popLines, P.lines.map((l) => `<div>${esc(l.label)}${l.n > 1 ? ` ×${l.n}` : ''} <span>+${num(l.points)}</span></div>`).join(''));
-    const p = this.el.pop;
-    p.classList.remove('bump');
-    void p.offsetWidth;
-    p.classList.add('is-on', 'bump');
+    this.el.pop.classList.add('is-on');
+    this._play(this.el.popTotal, 'bump');
   }
 
   _medalToast({ id, label, tier }) {
@@ -536,11 +566,8 @@ export class HUD {
       this.el.banner.classList.add('is-on');
       this._bannerT = 4.2;
     }
-    const c = this.el.count;
-    setHtml(c, v > 0 ? String(v) : 'Los<em>.</em>');
-    c.classList.remove('pop');
-    void c.offsetWidth;
-    c.classList.add('pop');
+    setHtml(this.el.count, v > 0 ? String(v) : 'Los<em>.</em>');
+    this._play(this.el.count, 'count');
     this._countT = v > 0 ? 1.05 : 0.9;
   }
 
@@ -627,8 +654,7 @@ export class HUD {
     n.className = `h-dmgnum${e.zone === 'head' ? ' is-head' : ''}${e.killed ? ' is-kill' : ''}`;
     n.style.left = `${x}px`;
     n.style.top = `${y}px`;
-    void n.offsetWidth;
-    n.classList.add('go');
+    this._play(n, 'dmg');
   }
 
   _onParcours(e) {
@@ -636,15 +662,11 @@ export class HUD {
     this._parcours = e;
     if (e.phase === 'countdown') {
       setHtml(this.el.count, String(e.value));
-      this.el.count.classList.remove('pop');
-      void this.el.count.offsetWidth;
-      this.el.count.classList.add('pop');
+      this._play(this.el.count, 'count');
       this._countT = 1;
     } else if (e.phase === 'start') {
       setHtml(this.el.count, 'Los<em>.</em>');
-      this.el.count.classList.remove('pop');
-      void this.el.count.offsetWidth;
-      this.el.count.classList.add('pop');
+      this._play(this.el.count, 'count');
       this._countT = 0.8;
     } else if (e.phase === 'done' && e.result) {
       const r = e.result;
@@ -674,7 +696,7 @@ export class HUD {
     if (this.root.dataset.input !== (touch ? 'touch' : 'desktop')) {
       this.root.dataset.input = touch ? 'touch' : 'desktop';
       this._syncFeedMax();
-      this._zones = null;
+      this._resetZones();
       this._buildStreaks();
       if (this.minimap) this.minimap.resize();
     }
@@ -1163,24 +1185,52 @@ export class HUD {
     setStyle(this.el.captureBar, 'transform', `scaleX(${clamp((myCtl + 1) / 2, 0, 1).toFixed(3)})`);
   }
 
-  /** Touch: Rechtecke der Bedienelemente, die Flaggenmarker freihalten müssen (alle 2 s bzw. nach Größen-/Moduswechsel neu). */
+  /**
+   * Touch: Rechtecke der Bedienelemente, die Flaggenmarker freihalten müssen (alle 2 s bzw. nach Größen-/Moduswechsel
+   * neu). Gemessen asynchron über einen IntersectionObserver (liefert boundingClientRect aus dem regulären Rendern):
+   * getBoundingClientRect() mitten in hud.update() erzwang nach den Stiländerungen dieses Bildes ein Layout.
+   */
   _controlZones() {
     const now = this.G.time.real || 0;
-    if (this._zones && now - this._zonesAt < 2) return this._zones;
-    this._zonesAt = now;
-    const z = [];
-    const add = (n) => {
-      const r = n && n.getBoundingClientRect();
-      if (r && r.width > 0 && r.height > 0) z.push({ l: r.left, t: r.top, r: r.right, b: r.bottom });
-    };
+    if (!this._zonesIo && (!this._zones || now - this._zonesAt >= 2)) {
+      this._zonesAt = now;
+      this._measureZones();
+    }
+    return this._zones;
+  }
+
+  _resetZones() {
+    if (this._zonesIo) this._zonesIo.disconnect();
+    this._zonesIo = null;
+    this._zones = null;
+    this._zonesAt = 0;
+  }
+
+  _measureZones() {
+    const nodes = [];
     const ui = document.getElementById('touch-ui');
     if (ui) {
-      ui.querySelectorAll('.tc-btn').forEach(add);
-      add(ui.querySelector('.tc-stick[data-idle="1"] .tc-stick-base'));
+      nodes.push(...ui.querySelectorAll('.tc-btn'));
+      const stick = ui.querySelector('.tc-stick[data-idle="1"] .tc-stick-base');
+      if (stick) nodes.push(stick);
     }
-    add(this.el.weapon);
-    this._zones = z;
-    return z;
+    if (this.el.weapon) nodes.push(this.el.weapon);
+    const toZone = (r) => (r && r.width > 0 && r.height > 0 ? { l: r.left, t: r.top, r: r.right, b: r.bottom } : null);
+    if (typeof IntersectionObserver !== 'function' || !nodes.length) {
+      this._zones = nodes.map((n) => toZone(n.getBoundingClientRect())).filter(Boolean);
+      return;
+    }
+    const got = new Map();
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) got.set(e.target, e.boundingClientRect);
+      if (got.size < nodes.length) return;
+      io.disconnect();
+      if (this._zonesIo !== io) return;
+      this._zonesIo = null;
+      this._zones = nodes.map((n) => toZone(got.get(n))).filter(Boolean);
+    });
+    this._zonesIo = io;
+    for (const n of nodes) io.observe(n);
   }
 
   _renderBoard() {

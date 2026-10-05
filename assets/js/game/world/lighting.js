@@ -110,30 +110,34 @@ export function createLighting(G, def, group) {
   sky.material.uniforms.sunPosition.value.copy(sunDir).multiplyScalar(450000);
   group.add(sky);
 
-  // Umgebung (PMREM) aus Himmel + Bodenhalbkugel
-  const envScene = new THREE.Scene();
-  // Eigene Grenzen + breitere Mie-Keule: weicher Richtungsverlauf statt Hotspot (Metalle spiegeln die Map 1:1;
-  // die Sonnenenergie selbst liefert das gerichtete Licht)
-  const envSky = makeSky({ ...(def.sky || {}), limit: def.env?.limit }, fogColor, SKY_LIMITS.env);
-  envSky.material.uniforms.sunPosition.value.copy(sunDir).multiplyScalar(450000);
-  envSky.material.uniforms.showSunDisc.value = 0;
-  envSky.material.uniforms.mieDirectionalG.value = Math.min(envSky.material.uniforms.mieDirectionalG.value, def.env?.mieDirectionalG ?? 0.72);
-  envSky.material.uniforms.cloudCoverage.value *= 0.8;
-  if (def.env?.tint) envSky.material.uniforms.skyTint.value.set(def.env.tint);
-  envScene.add(envSky);
-  const groundCol = new THREE.Color(def.env?.ground || def.hemi.ground).multiplyScalar(def.env?.groundIntensity ?? 0.5);
-  const groundDome = new THREE.Mesh(new THREE.SphereGeometry(400, 32, 8, 0, Math.PI * 2, Math.PI / 2 + 0.03, Math.PI / 2 - 0.03), new THREE.MeshBasicMaterial({ color: groundCol, side: THREE.BackSide, fog: false }));
-  envScene.add(groundDome);
-  let envMap = null, pmremRT = null;
-  if (renderer && renderer.isWebGLRenderer) {
+  // Umgebung (PMREM) aus Himmel + Bodenhalbkugel. Nach einem WebGL-Kontextverlust ist das Ziel leer und gehört
+  // zum alten Kontext → bei 'lost' freigeben (still), bei 'restored' neu rendern (siehe unten).
+  const renderEnv = () => {
+    if (!renderer || !renderer.isWebGLRenderer) return null;
+    const envScene = new THREE.Scene();
+    // Eigene Grenzen + breitere Mie-Keule: weicher Richtungsverlauf statt Hotspot (Metalle spiegeln die Map 1:1;
+    // die Sonnenenergie selbst liefert das gerichtete Licht)
+    const envSky = makeSky({ ...(def.sky || {}), limit: def.env?.limit }, fogColor, SKY_LIMITS.env);
+    const eu = envSky.material.uniforms;
+    eu.sunPosition.value.copy(sunDir).multiplyScalar(450000);
+    eu.showSunDisc.value = 0;
+    eu.mieDirectionalG.value = Math.min(eu.mieDirectionalG.value, def.env?.mieDirectionalG ?? 0.72);
+    eu.cloudCoverage.value *= 0.8;
+    if (def.env?.tint) eu.skyTint.value.set(def.env.tint);
+    envScene.add(envSky);
+    const groundCol = new THREE.Color(def.env?.ground || def.hemi.ground).multiplyScalar(def.env?.groundIntensity ?? 0.5);
+    const groundDome = new THREE.Mesh(new THREE.SphereGeometry(400, 32, 8, 0, Math.PI * 2, Math.PI / 2 + 0.03, Math.PI / 2 - 0.03), new THREE.MeshBasicMaterial({ color: groundCol, side: THREE.BackSide, fog: false }));
+    envScene.add(groundDome);
     const pmrem = new THREE.PMREMGenerator(renderer);
     // weicher Himmel braucht keine hohe Auflösung: low 128² je Würfelseite (¼ der Rechenzeit), sonst 256²
-    pmremRT = pmrem.fromScene(envScene, 0.02, 0.1, 2000, { size: preset.id === 'low' ? 128 : 256 });
-    envMap = pmremRT.texture;
+    const rt = pmrem.fromScene(envScene, 0.02, 0.1, 2000, { size: preset.id === 'low' ? 128 : 256 });
     pmrem.dispose();
-  }
-  groundDome.geometry.dispose(); groundDome.material.dispose();
-  envSky.geometry.dispose(); envSky.material.dispose();
+    groundDome.geometry.dispose(); groundDome.material.dispose();
+    envSky.geometry.dispose(); envSky.material.dispose();
+    return rt;
+  };
+  let pmremRT = renderEnv();
+  let envMap = pmremRT ? pmremRT.texture : null;
 
   // Sonne
   const sun = new THREE.DirectionalLight(def.sun.color, def.sun.intensity);
@@ -153,6 +157,11 @@ export function createLighting(G, def, group) {
   sun.shadow.normalBias = def.shadow?.normalBias ?? 0.035;
   sun.shadow.radius = 2;
   group.add(sun); group.add(sun.target);
+
+  // Gedrosselte Schattenkarte (low): die neue Sonne hat noch keine Karte → im nächsten Bild zeichnen lassen.
+  // Ohne Karte bindet three.js eine nie hochgeladene Ersatz-Tiefentextur an den Schatten-Sampler
+  // („Mismatch between texture format and sampler type“ bei jedem Zeichenaufruf).
+  G.renderer?.invalidateShadows?.();
 
   // Himmel-/Bodenlicht
   const hemi = new THREE.HemisphereLight(def.hemi.sky, def.hemi.ground, def.hemi.intensity);
@@ -188,7 +197,7 @@ export function createLighting(G, def, group) {
     sun, hemi, sky,
   };
 
-  return {
+  const controller = {
     lighting,
     /** Schatten folgt der Kamera, Wolken ziehen. */
     update(dt, camera) {
@@ -220,24 +229,46 @@ export function createLighting(G, def, group) {
     /** Schattenqualität nach Qualitätswechsel: { shadows, mapSize, size } oder ein Renderer-Preset. */
     setShadowQuality({ shadows, mapSize, size, preset: p } = {}) {
       if (p) { shadows = p.shadows; mapSize = p.shadowMapSize; size = extentFor(p); }
-      if (shadows !== undefined) sun.castShadow = shadows;
-      if (mapSize && mapSize !== sun.shadow.mapSize.x) {
-        sun.shadow.mapSize.set(mapSize, mapSize);
-        sun.shadow.map?.dispose(); sun.shadow.map = null;
-      }
+      let dirty = false;
+      if (shadows !== undefined && shadows !== sun.castShadow) { sun.castShadow = shadows; dirty = true; }
+      // Neue Kartengröße: three.js passt die bestehende Karte beim nächsten Schattenpass an (setSize) –
+      // die Karte bleibt bis dahin gültig gebunden (kein Bild mit fehlender Schattentextur)
+      if (mapSize && mapSize !== sun.shadow.mapSize.x) { sun.shadow.mapSize.set(mapSize, mapSize); dirty = true; }
       if (size && size !== shadowSize) {
         shadowSize = size; cam.left = -size; cam.right = size; cam.top = size; cam.bottom = -size; cam.updateProjectionMatrix();
-        centered = false;
+        centered = false; dirty = true;
       }
+      if (dirty) G.renderer?.invalidateShadows?.();
     },
     dispose() {
+      offContext?.();
       sky.geometry.dispose(); sky.material.dispose();
       sun.shadow.map?.dispose();
-      pmremRT?.dispose();
+      pmremRT?.dispose(); pmremRT = null;
       if (scene.environment === envMap) scene.environment = prev.environment;
       scene.environmentIntensity = prev.environmentIntensity ?? 1;
       scene.fog = prev.fog;
       scene.background = prev.background;
     },
   };
+
+  // WebGL-Kontextverlust: das PMREM-Ziel gehört zum verlorenen Kontext. Jetzt freigeben (auf dem verlorenen
+  // Kontext still – später gäbe es „object does not belong to this context“), nach der Wiederherstellung neu
+  // rendern und überall einsetzen, wo die alte Map hing (Weltszene, Viewmodel-Szene, lighting.envMap).
+  const swapEnv = (next) => {
+    const old = envMap;
+    envMap = next;
+    lighting.envMap = next;
+    for (const s of [scene, G.viewmodel?.scene]) if (s && old && s.environment === old) s.environment = next;
+  };
+  const offContext = typeof G.renderer?.onContextChange === 'function' ? G.renderer.onContextChange((state) => {
+    if (state === 'lost') {
+      pmremRT?.dispose(); pmremRT = null;
+    } else if (state === 'restored' && !pmremRT) {
+      pmremRT = renderEnv();
+      if (pmremRT) swapEnv(pmremRT.texture);
+    }
+  }) : null;
+
+  return controller;
 }

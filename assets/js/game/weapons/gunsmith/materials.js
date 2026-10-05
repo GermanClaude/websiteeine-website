@@ -26,8 +26,8 @@ const DEFS = {
   // Cerakote Oliv (Scharfschützengewehr-Schaft)
   aluOD: () => std({ color: 0x3f4630, metalness: 0.2, roughness: 0.66, roughnessMap: wearMap(), normalMap: grainNormal(), normalScale: new THREE.Vector2(0.35, 0.35) }),
   polymer: () => std({ color: 0x1f2023, metalness: 0.0, roughness: 0.78, roughnessMap: wearMap(), normalMap: grainNormal(), normalScale: new THREE.Vector2(0.12, 0.12) }),
-  // FDE-Kunststoff (Schaft, Magazin): Albedo-Fleckung dunkelt im Mittel auf ≈ #6f5e45 ab
-  polymerTan: () => std({ color: 0x8c7655, map: polymerMap(), metalness: 0.0, roughness: 0.8, roughnessMap: wearMap(), normalMap: grainNormal(), normalScale: new THREE.Vector2(0.16, 0.16) }),
+  // FDE-Kunststoff (Schaft, Magazin): Grundton × Albedo-Fleckung ≈ #66553c im Mittel (sonnenbeschienen nicht grell)
+  polymerTan: () => std({ color: 0x7f6b4d, map: polymerMap(), metalness: 0.0, roughness: 0.8, roughnessMap: wearMap(), normalMap: grainNormal(), normalScale: new THREE.Vector2(0.16, 0.16) }),
   polymerOD: () => std({ color: 0x3f4630, metalness: 0.0, roughness: 0.8, roughnessMap: wearMap(), normalMap: grainNormal(), normalScale: new THREE.Vector2(0.12, 0.12) }),
   polymerGrey: () => std({ color: 0x35383b, metalness: 0.0, roughness: 0.74, roughnessMap: wearMap(), normalMap: grainNormal(), normalScale: new THREE.Vector2(0.12, 0.12) }),
   // Griffflächen mit Stippling
@@ -73,7 +73,7 @@ const DEFS = {
 };
 
 // Ersatzfarben (sRGB) für texturierte Materialien in der Bot-Detailstufe
-const LOD_COLORS = { woodWarm: 0x6a3a22, woodWalnut: 0x4a2d1c, polymerTan: 0x6f5e45 };
+const LOD_COLORS = { woodWarm: 0x6a3a22, woodWalnut: 0x4a2d1c, polymerTan: 0x66553c };
 const _lodCol = new Map();
 /** Farbe (linear) + Metall-Gruppe eines Materials für die zusammengeführte Bot-Detailstufe. */
 export function lodInfo(key) {
@@ -104,7 +104,34 @@ export function getMat(key) {
 
 export function materialKeys() { return Object.keys(DEFS); }
 
+// Vorrat für Instanz-Materialien des Viewmodels (Arme, Mündungsfeuer, Rauch, Hülsen). Beim Matchende werden sie
+// hier geparkt statt entsorgt: dispose() gäbe ihre Shaderprogramme frei, und das nächste Match müsste jedes neu
+// kompilieren und linken (auf Telefonen Hunderte ms). Ein Eintrag ist ein Material oder ein Objekt aus Materialien;
+// Instanzzustand (Deckkraft, Textur) setzt der neue Besitzer beim Holen selbst.
+const spare = new Map();
+
+/** Material(-satz) unter `key` aus dem Vorrat holen, sonst mit make() neu anlegen. */
+export function takeMaterials(key, make) {
+  const list = spare.get(key);
+  return list && list.length ? list.pop() : make();
+}
+
+/** Material(-satz) zurück in den Vorrat legen (ersetzt dispose(); endgültig frei erst mit disposeMaterials()). */
+export function parkMaterials(key, set) {
+  if (!set) return;
+  let list = spare.get(key);
+  if (!list) spare.set(key, (list = []));
+  if (!list.includes(set)) list.push(set);
+}
+
+function disposeSet(set) {
+  if (set.isMaterial) set.dispose();
+  else for (const m of Object.values(set)) if (m && m.isMaterial) m.dispose();
+}
+
 export function disposeMaterials() {
   for (const m of mats.values()) m.dispose();
   mats.clear();
+  for (const list of spare.values()) list.forEach(disposeSet);
+  spare.clear();
 }

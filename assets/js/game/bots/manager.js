@@ -162,12 +162,16 @@ export class BotManager {
       const i = G.actors.indexOf(b);
       if (i >= 0) G.actors.splice(i, 1);
     }
-    for (const p of this._plates.values()) p.dispose();
+    // Schilder zurück in den Vorrat (Material/Textur bleiben → kein Neulinken in der Revanche)
+    for (const p of this._plates.values()) p.release();
     this._plates.clear();
     this._plateLos.clear();
     this.bots = [];
     this._paths.clear();
     this._pathQ.length = 0;
+    this._hostileCache.clear();
+    this._hostileFrame.clear();
+    this._targetCount.clear();
   }
 
   /** Drittpersonen-Waffenmodell (Klon) für eine Waffe. */
@@ -495,7 +499,7 @@ export class BotManager {
   /* ================================================================ Namensschilder */
 
   _plate(bot) {
-    const p = new Nameplate(bot.name, this._plateKind(bot));
+    const p = Nameplate.acquire(bot.name, this._plateKind(bot));
     this.scene.add(p.sprite);
     this._plates.set(bot, p);
   }

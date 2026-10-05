@@ -326,16 +326,18 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .tc-grenade.is-empty { opacity: .35; }
 .tc-melee { --s: 46; right: calc(6.5% + var(--tc-u) * 110 + env(safe-area-inset-right)); bottom: calc(5% + env(safe-area-inset-bottom)); }
 .tc-badge {
+  /* Zählerschrift auf kleinen Telefonen nie unter 11 px (667 × 375: --tc-u ≈ 0,9 px) */
+  --tb: max(11px, calc(var(--tc-u) * 13));
   position: absolute;
   right: -2px;
   top: -2px;
-  min-width: calc(var(--tc-u) * 18);
-  height: calc(var(--tc-u) * 18);
+  min-width: calc(var(--tb) * 1.45);
+  height: calc(var(--tb) * 1.45);
   padding: 0 4px;
-  border-radius: 9px;
+  border-radius: 999px;
   background: var(--np-ink);
   color: var(--np-black);
-  font: 700 calc(var(--tc-u) * 12) / calc(var(--tc-u) * 18) var(--font-hud);
+  font: 700 var(--tb) / calc(var(--tb) * 1.45) var(--font-hud);
   text-align: center;
 }
 .tc-swap {
@@ -413,9 +415,11 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
   align-items: center;
   gap: 2px;
   color: var(--np-ink-2);
-  font: 700 calc(var(--tc-u) * 11) var(--font-hud);
-  letter-spacing: .12em;
+  font: 700 max(11px, calc(var(--tc-u) * 13)) var(--font-hud);
+  letter-spacing: .1em;
   text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
   opacity: 0;
   transition: opacity .15s, color .15s;
 }
@@ -543,14 +547,11 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-hit.is-head i { background: var(--np-gold); height: 11px; }
 .h-hit.is-metal i { background: #b9c6d0; }
 .h-hit.is-kill i { background: var(--np-enemy); height: 13px; width: 2.5px; }
-.h-hit.pop { animation: h-hitpop .2s var(--ease-out); }
-@keyframes h-hitpop { from { transform: scale(1.45); } }
+/* Treffer-Puls, Abschuss-Symbol, Countdown-Ziffer, Punkte-Bump und Schadenszahlen: Web Animations in ui/hud.js (ANIM) */
 
 .h-killico { position: absolute; left: 50%; top: calc(50% + 26px); width: 26px; height: 26px; margin-left: -13px; color: var(--np-enemy); opacity: 0; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .8)); }
 .h-killico svg { width: 100%; height: 100%; display: block; }
 .h-killico.is-head { color: var(--np-gold); }
-.h-killico.go { animation: h-killico .75s var(--ease-out); }
-@keyframes h-killico { 0% { opacity: 0; transform: scale(1.8); } 15% { opacity: 1; transform: scale(1); } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
 .h-hitdirs { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
 .h-hitdir { position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0; }
 .h-hitdir i {
@@ -775,16 +776,12 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-banner .t em, .h-count em, .h-death .k em, .ht-title em { font-style: normal; color: var(--np-signal); }
 .h-banner .s { font-size: 18px; letter-spacing: .06em; color: var(--np-ink-2); }
 .h-count { font-family: var(--font-display); font-weight: 900; font-stretch: 110%; font-size: clamp(64px, 11vw, 132px); line-height: 1; min-height: 1px; text-shadow: 0 4px 24px rgba(0, 0, 0, .55); }
-.h-count.pop { animation: h-count .9s var(--ease-out); }
-@keyframes h-count { 0% { opacity: 0; transform: scale(1.6); } 25% { opacity: 1; transform: scale(1); } 85% { opacity: 1; } 100% { opacity: .2; } }
 
 /* --------------------------------------------- Punkte & Medaillen */
 .h-popups { position: absolute; left: 50%; top: calc(50% + 92px); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .h-pop { display: flex; flex-direction: column; align-items: center; opacity: 0; transition: opacity .3s; }
 .h-pop.is-on { opacity: 1; }
 .h-pop b { font-size: 28px; line-height: 1; color: var(--np-gold); font-weight: 700; }
-.h-pop.bump b { animation: h-bump .25s var(--ease-out); }
-@keyframes h-bump { from { transform: scale(1.3); } }
 .h-pop .lines { display: flex; flex-direction: column; align-items: center; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--np-ink); margin-top: 2px; }
 .h-pop .lines span { color: var(--np-ink-2); margin-left: 4px; }
 .h-medal { position: absolute; left: 50%; top: 21%; transform: translateX(-50%); }
@@ -934,8 +931,6 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-dmgnum { position: absolute; transform: translate(-50%, -50%); font-size: 18px; font-weight: 700; opacity: 0; }
 .h-dmgnum.is-head { color: var(--np-gold); font-size: 21px; }
 .h-dmgnum.is-kill { color: var(--np-enemy); }
-.h-dmgnum.go { animation: h-dmg .9s var(--ease-out) forwards; }
-@keyframes h-dmg { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); } 15% { opacity: 1; transform: translate(-50%, -80%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -260%); } }
 
 .ht-prompt {
   position: absolute;
@@ -1156,16 +1151,19 @@ body[data-input-mode="touch"] .ht-prompt { top: 33%; }
   pointer-events: none;
 }
 .tc-streak[data-left]:not([data-left=""])::after {
+  --tb: max(11px, calc(var(--tc-u) * 13)); /* wie .tc-badge: nie unter 11 px */
   content: attr(data-left);
   position: absolute;
   right: -5px;
   bottom: -5px;
-  min-width: calc(var(--tc-u) * 17);
-  height: calc(var(--tc-u) * 17);
-  border-radius: 9px;
-  background: rgba(10, 11, 13, .85);
+  min-width: calc(var(--tb) * 1.45);
+  height: calc(var(--tb) * 1.45);
+  padding: 0 3px;
+  border-radius: 999px;
+  background: rgba(10, 11, 13, .88);
+  box-shadow: 0 0 0 1px rgba(233, 230, 223, .18);
   color: var(--np-ink);
-  font: 700 calc(var(--tc-u) * 11) / calc(var(--tc-u) * 17) var(--font-hud);
+  font: 700 var(--tb) / calc(var(--tb) * 1.45) var(--font-hud);
   text-align: center;
   pointer-events: none;
 }
@@ -1177,7 +1175,7 @@ body[data-streaks="0"] .tc-streaks, body[data-lethals="0"] .tc-grenade { display
   .h-root:not([data-input="touch"]) .h-ammo b { font-size: 40px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .h-count.pop, .h-pop.bump b, .h-medal-in, .h-hit.pop, .kf-row, .h-notice, .h-death, .h-streak.is-ready, .h-health.is-regen u,
+  .h-medal-in, .kf-row, .h-notice, .h-death, .h-streak.is-ready, .h-health.is-regen u,
   .h-time.is-last span, .h-flag.is-contested, .h-uav.is-enemy, .h-ammo-hint[data-kind="is-empty"] .t { animation: none; }
 }
 
@@ -1657,6 +1655,9 @@ body[data-input-mode="touch"] .m-btn kbd { display: none; }
 .e-xpbar.flash { animation: e-flash .5s ease-out; }
 @keyframes e-flash { 0% { box-shadow: 0 0 0 0 rgba(255, 194, 61, .9); } 100% { box-shadow: 0 0 0 10px rgba(255, 194, 61, 0); } }
 .e-xp-note { font: 500 12px var(--font-mono); color: var(--np-dim); }
+.e-xp-off { border-style: dashed; border-left: 2px solid var(--np-signal); }
+.e-xp-off-t b { font: 700 20px var(--font-hud); letter-spacing: .06em; text-transform: uppercase; }
+.e-xp-off p { margin: 4px 0 0; font: 500 14px var(--font-hud); color: var(--np-ink-2); }
 .e-break { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 3px; font: 600 14px var(--font-hud); }
 .e-break li { display: flex; justify-content: space-between; color: var(--np-ink-2); animation: e-row .4s var(--ease-out) both; animation-delay: calc(.5s + var(--i) * .12s); }
 .e-break li b { color: var(--np-ink); }
