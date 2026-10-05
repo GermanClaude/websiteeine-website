@@ -786,14 +786,37 @@ export class MapBuilder {
 
     // Kollisionsgeometrie (Weltkoordinaten, 9 Floats je Dreieck)
     const colArr = this.colTris.view().slice();
-    this.colTris = new FBuf(16);
 
     let drawTris = 0; for (const m of meshes) drawTris += m.geometry.attributes.position.count / 3;
+    const stats = { meshes: meshes.length, triangles: drawTris, bulletTris: triCount, colliderTris: colArr.length / 9, prims: this.stats.prims, signAtlas: this.signAtlasSize || null };
+    this._releaseScratch();
     return {
       group, meshes, decalMeshes, signMesh, foliage, lights, objects,
       bulletTris: btris, bulletData: bdata, colTris: colArr,
-      stats: { meshes: meshes.length, triangles: drawTris, bulletTris: triCount, colliderTris: colArr.length / 9, prims: this.stats.prims, signAtlas: this.signAtlasSize || null },
+      stats,
     };
+  }
+
+  /**
+   * Bau-Zwischendaten freigeben (nach build()): Die Buckets sind in die Meshes kopiert, Bodenraster und
+   * Innenraumgitter wurden nur für die Vertexfarben gebraucht, Decal-/Schild-/Pflanzen-/Licht-Listen sind verbaut.
+   * Danach bleiben nur footprints, navPoints, navExclude und objects (Minikarte, Navigation, world.update).
+   */
+  _releaseScratch() {
+    this.buckets.clear();
+    this.colTris = new FBuf(16);
+    this._aoRaster = null;
+    this._interiorGrid = null;
+    this.interiors = [];
+    this.navBlockers = [];
+    this.decals = [];
+    this.signs = [];
+    this.signDefs = {};
+    this.plants = [];
+    this.lights = [];
+    this.glows = [];
+    this.floors = [];
+    this.materials.clear();
   }
 
   _buildGlows(group) {

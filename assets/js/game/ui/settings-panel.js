@@ -113,7 +113,7 @@ export class SettingsPanel {
       case 'boolean':
         return `<div class="sp-row" data-k="${k}">${lab}<div class="sp-ctl"><button type="button" class="m-switch" role="switch" aria-checked="${!!v}" aria-label="${esc(d.label)}"><i></i></button></div></div>`;
       case 'enum':
-        return `<div class="sp-row" data-k="${k}">${lab}<div class="sp-ctl m-seg" role="radiogroup">${d.options.map((o) => `<button type="button" role="radio" data-v="${esc(o)}" aria-checked="${o === v}">${esc((d.labels && d.labels[o]) || o)}</button>`).join('')}</div></div>`;
+        return `<div class="sp-row${d.options.length >= 5 ? ' sp-row-wide' : ''}" data-k="${k}">${lab}<div class="sp-ctl m-seg" role="radiogroup">${d.options.map((o) => `<button type="button" role="radio" data-v="${esc(o)}" aria-checked="${o === v}">${esc((d.labels && d.labels[o]) || o)}</button>`).join('')}</div></div>`;
       case 'color':
         return `<div class="sp-row" data-k="${k}">${lab}<div class="sp-ctl sp-colors">${COLORS.map((c) => `<button type="button" class="sp-sw" data-v="${c}" style="--c:${c}" aria-label="Farbe ${c}" aria-pressed="${c === String(v).toLowerCase()}"></button>`).join('')}<label class="sp-sw sp-custom" aria-label="Eigene Farbe"><input type="color" value="${esc(v)}"></label></div></div>`;
       case 'string':

@@ -145,7 +145,9 @@ function casingGeometry(type) {
   return g;
 }
 
-/** Hülsen-Pool: spawn(type, position, velocity) im Elternraum; Schwerkraft über setGravity(). */
+/** Hülsen-Pool: spawn(type, position, velocity) im Elternraum; Schwerkraft über setGravity().
+ *  prepare(types) legt die Pools vorab an (ViewModel.warmup → Shader beim Laden statt beim ersten Schuss);
+ *  ein Pool ohne fliegende Hülse ist unsichtbar (kein Draw Call). */
 export class ShellPool {
   constructor(perType = 14) {
     this.group = new THREE.Group();
@@ -167,11 +169,17 @@ export class ShellPool {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.frustumCulled = false;
     mesh.count = this.perType;
+    mesh.visible = false;
     _m.makeScale(0, 0, 0);
     for (let i = 0; i < this.perType; i++) mesh.setMatrixAt(i, _m);
     this.group.add(mesh);
     p = this.pools[type] = { mesh, items: Array.from({ length: this.perType }, () => ({ alive: false, pos: new THREE.Vector3(), vel: new THREE.Vector3(), q: new THREE.Quaternion(), w: new THREE.Vector3(), life: 0 })), next: 0 };
     return p;
+  }
+
+  /** Pools für diese Hülsenarten anlegen (unsichtbar; renderer.compile übersetzt ihre Shader trotzdem). */
+  prepare(types) {
+    for (const t of types) if (t && t !== 'none') this._pool(t);
   }
 
   setGravity(v) { this.gravity.copy(v); }
@@ -188,18 +196,21 @@ export class ShellPool {
     // Hülse liegt quer zur Laufachse: lokal Y entlang Waffen-X
     it.q.multiply(_q.setFromEuler(_e.set(0, 0, Math.PI / 2)));
     it.w.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 12, 18 + Math.random() * 16);
+    p.mesh.visible = true;
   }
 
   update(dt) {
     for (const type in this.pools) {
       const p = this.pools[type];
-      let dirty = false;
+      if (!p.mesh.visible) continue;
+      let dirty = false, alive = 0;
       for (let i = 0; i < p.items.length; i++) {
         const it = p.items[i];
         if (!it.alive) continue;
         dirty = true;
         it.life += dt;
         if (it.life > 1.1) { it.alive = false; _m.makeScale(0, 0, 0); p.mesh.setMatrixAt(i, _m); continue; }
+        alive++;
         it.vel.addScaledVector(this.gravity, dt);
         it.vel.multiplyScalar(Math.exp(-0.6 * dt));
         it.pos.addScaledVector(it.vel, dt);
@@ -210,6 +221,7 @@ export class ShellPool {
         p.mesh.setMatrixAt(i, _m);
       }
       if (dirty) p.mesh.instanceMatrix.needsUpdate = true;
+      if (!alive) p.mesh.visible = false;
     }
   }
 
@@ -219,6 +231,7 @@ export class ShellPool {
       _m.makeScale(0, 0, 0);
       p.items.forEach((it, i) => { it.alive = false; p.mesh.setMatrixAt(i, _m); });
       p.mesh.instanceMatrix.needsUpdate = true;
+      p.mesh.visible = false;
     }
   }
 

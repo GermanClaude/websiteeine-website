@@ -521,6 +521,7 @@ export class BotManager {
     const aimT = G.input && G.input.aimTarget;
     const now = G.time.real || G.time.elapsed;
     const playerAlive = G.player && G.player.alive;
+    cam.getWorldPosition(_cam); // Sichtstrahlen von der Kamera aus (das Schild wird aus ihrer Sicht gezeichnet)
     const list = this._plateList || (this._plateList = []);
     list.length = 0;
     const bots = this.bots;
@@ -531,27 +532,28 @@ export class BotManager {
       if (p.sprite.parent !== this.scene) this.scene.add(p.sprite);
       p.setKind(this._plateKind(bot));
       let target = 0;
+      let fade = 6;
       const d = bot.camDist;
-      if (bot.alive && bot.inView) {
-        if (p.kind === 'ally') target = d < 40 ? 1 : d < 60 ? (60 - d) / 20 : 0;
-        else if (aimT === bot) target = 1;
-        else if (d < 7 && playerAlive) {
-          let c = this._plateLos.get(bot);
-          if (!c || now - c.t > 0.3) {
-            const eye = G.player.getEyePosition(_v);
-            const h = _w.set(bot.position.x, bot.position.y + bot.body.height - 0.1, bot.position.z);
-            if (!c) { c = { t: 0, v: false }; this._plateLos.set(bot, c); }
-            c.t = now;
-            c.v = !G.world || !G.world.lineOfSight || G.world.lineOfSight(eye, h);
-          }
-          target = c.v ? 1 : 0;
-        }
-      }
       const s = bot.soldier;
       const pos = p._pos || (p._pos = new THREE.Vector3());
       if (s && bot.alive) s.getHeadPosition(pos); else pos.copy(bot.position).setY(bot.position.y + 1.7);
+      if (!bot.alive) fade = 16;
+      else if (bot.inView) {
+        if (p.kind === 'ally') target = d < 40 ? 1 : d < 60 ? (60 - d) / 20 : 0;
+        else {
+          // Gegner: unter dem Fadenkreuz oder sehr nah – und nur bei freier Sicht auf den Kopf. Schilder ohne
+          // Tiefentest: ein (gedrosselter) Strahl je Schild entscheidet, solange es gewünscht oder noch sichtbar ist.
+          const aimed = aimT === bot;
+          const want = aimed || (d < 7 && playerAlive);
+          if (want || p.alpha > 0.02) {
+            if (this._plateSight(bot, pos, now, aimed ? 0.08 : 0.15)) target = want ? 1 : 0;
+            else fade = 16;
+          }
+        }
+      }
       pos.y += 0.36;
       p._target = target;
+      p._fade = fade;
       p._d = d;
       if (target > 0) {
         // Bildschirmposition für die Entflechtung
@@ -582,8 +584,20 @@ export class BotManager {
     }
     for (let i = 0; i < bots.length; i++) {
       const p = this._plates.get(bots[i]);
-      if (p) p.update(p._pos, cam, viewH, p._target || 0, dt);
+      if (p) p.update(p._pos, cam, viewH, p._target || 0, dt, p._fade || 6);
     }
+  }
+
+  /** Freie Sicht Kamera → Kopf (`head`), je Bot höchstens alle `every` s neu geprüft (ein Strahl). */
+  _plateSight(bot, head, now, every) {
+    let c = this._plateLos.get(bot);
+    if (!c) { c = { t: -1e9, v: false }; this._plateLos.set(bot, c); }
+    if (now - c.t >= every || now < c.t) {
+      c.t = now;
+      const W = this.G.world;
+      c.v = !W || !W.lineOfSight || W.lineOfSight(_cam, head);
+    }
+    return c.v;
   }
 
   /* ================================================================ Diagnose */

@@ -90,6 +90,8 @@ const MATS = {
   wood_dark:         { tex: 'wood_dark', tile: 2, surface: 'wood' },
   wood_crate:        { tex: 'wood_crate', tile: 1, surface: 'wood' },
   wood_stock:        { tex: 'wood_stock', tile: 0.4, surface: 'wood', params: { roughness: 1 } },
+  bark:              { tex: 'bark', tile: 1.2, surface: 'wood' },
+  bark_palm:         { tex: 'bark_palm', tile: 1.2, surface: 'wood' },
   cardboard:         { tex: 'cardboard', tile: 1, surface: 'wood' },
   metal_painted:     { tex: 'metal_painted', tile: 2, surface: 'metal', params: { metalness: 1 } },
   metal_rust:        { tex: 'metal_rust', tile: 2, surface: 'metal', params: { metalness: 0.35 } },

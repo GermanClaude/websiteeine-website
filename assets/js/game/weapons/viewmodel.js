@@ -1115,14 +1115,19 @@ export class ViewModel {
     if (!v) { this.flash.hide(); this.shells.clear(); this.smoke.clear(); }
   }
 
-  /** Alle Waffenmodelle vorbauen und Shader kompilieren (z. B. im Ladebildschirm). */
+  /** Alle Waffenmodelle vorbauen und Shader kompilieren (z. B. im Ladebildschirm) – auch die der Effekte
+   *  (Mündungsfeuer, Rauch, Hülsen je Art), damit der erste Schuss kein Programm mehr linkt. */
   warmup(renderer, ids = Object.keys(ID_TO_MODEL)) {
     const prev = this.cur;
     const holder = new THREE.Group();
+    const shells = new Set();
     for (const id of ids) {
       const e = this._getModel(id, (this._defFor(id)?.model) || ID_TO_MODEL[id] || id);
+      shells.add(handlingFor(e.key).shell);
       if (e !== prev) holder.add(e.model);
     }
+    this.shells.prepare(shells);
+    if (!this.flash.group.parent) holder.add(this.flash.group);   // noch keine Waffe gezogen
     this.root.add(holder);
     for (const p of Object.values(this.props)) p.visible = true;
     try { renderer?.compile?.(this.scene, this.camera); } catch { /* optional */ }

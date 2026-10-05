@@ -4,7 +4,7 @@
 // Ohne vermessenen Plan zeichnet die Seite die Karte aus Maßen und Wegen (dimensions, lanes, features).
 import { h, $, signalLost, tabs } from './dom.js';
 import { fit } from './fit.js';
-import { buildPlayUrl } from './deploy.js';
+import { buildPlayUrl, rememberLaunch } from './deploy.js';
 import { makeBallistics } from './ballistics.js';
 import { ui } from './state.js';
 import { announce } from './live.js';
@@ -486,11 +486,11 @@ export async function init(sec, D, ctx = {}) {
     jumpTo(document.getElementById('auf-distanz') ? 'auf-distanz' : 'arsenal', { hash: false });
   });
   playLink.addEventListener('click', () => {
-    const u = new URL(playLink.href, location.href).searchParams;
-    S.patch({ lastMode: u.get('mode') || undefined, lastMap: u.get('map') || undefined });
+    rememberLaunch(playLink.href);
     snd?.ui('confirm');
   });
-  ui.onChange((k) => { if (k === 'mode' || k === 'diff' || k === 'map') refreshPlay(); });
+  // Auch die Stärken: der Link übernimmt sie aus dem Satz, solange der Modus derselbe ist
+  ui.onChange((k) => { if (k === 'mode' || k === 'diff' || k === 'map' || k === 'allies' || k === 'enemies') refreshPlay(); });
 
   if ('ResizeObserver' in window) {
     let rs = 0;

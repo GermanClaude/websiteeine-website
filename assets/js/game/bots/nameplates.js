@@ -1,6 +1,9 @@
 // NULLPUNKT — Namensschilder über Soldaten (Canvas-Sprites, konstante Bildschirmgröße).
 // Verbündete: immer sichtbar (blau, Raute, auch durch Wände); Gegner: nur unter dem Fadenkreuz oder
-// sehr nah mit freier Sicht (rot). Ein Draw Call pro sichtbarem Schild.
+// sehr nah, jeweils nur bei freier Sicht auf den Kopf (rot). Ein Draw Call pro sichtbarem Schild.
+// Alle Schilder werden ohne Tiefentest gezeichnet: Verdeckung entscheidet der BotManager einmal je Schild
+// (gedrosselter Sichtstrahl Kamera → Kopf) und blendet das ganze Schild ein/aus – eine Wandkante schneidet
+// den Namen nie pixelweise an.
 // Schilder werden über Matches hinweg wiederverwendet (Nameplate.acquire/release): Material, Textur und
 // Canvas bleiben bestehen, damit eine Revanche weder das Sprite-Shaderprogramm neu linken noch Texturen
 // neu anlegen muss. Nur Name/Art/Deckkraft sind je Match.
@@ -43,7 +46,7 @@ export class Nameplate {
     this.texture.minFilter = THREE.LinearFilter;
     this.texture.generateMipmaps = false;
     this.material = new THREE.SpriteMaterial({
-      map: this.texture, transparent: true, depthWrite: false, depthTest: kind !== 'ally', sizeAttenuation: false, opacity: 0, fog: false,
+      map: this.texture, transparent: true, depthWrite: false, depthTest: false, sizeAttenuation: false, opacity: 0, fog: false,
     });
     this.sprite = new THREE.Sprite(this.material);
     this.sprite.name = 'namensschild';
@@ -56,7 +59,6 @@ export class Nameplate {
   _init(name, kind) {
     this.name = name;
     this.kind = kind;
-    this.material.depthTest = kind !== 'ally';
     this.material.opacity = 0;
     this.sprite.visible = false;
     this.alpha = 0;
@@ -69,7 +71,6 @@ export class Nameplate {
   setKind(kind) {
     if (kind === this.kind) return;
     this.kind = kind;
-    this.material.depthTest = kind !== 'ally'; // Tiefentest ändert das Shaderprogramm nicht
     this._draw();
   }
 
@@ -108,10 +109,11 @@ export class Nameplate {
   }
 
   /**
-   * Position (Welt, über dem Kopf), Kamera, Bildhöhe in px, Ziel-Deckkraft, dt.
+   * Position (Welt, über dem Kopf), Kamera, Bildhöhe in px, Ziel-Deckkraft, dt,
+   * Ausblendrate in 1/s (Standard 6 = sanft; verdeckt oder tot schneller, damit das Schild nicht über der Wand stehen bleibt).
    */
-  update(pos, camera, viewH, targetAlpha, dt) {
-    const k = 1 - Math.exp(-(targetAlpha > this.alpha ? 14 : 6) * dt);
+  update(pos, camera, viewH, targetAlpha, dt, fadeOut = 6) {
+    const k = 1 - Math.exp(-(targetAlpha > this.alpha ? 14 : fadeOut) * dt);
     this.alpha += (targetAlpha - this.alpha) * k;
     if (this.alpha < 0.02) { this.sprite.visible = false; return; }
     this.sprite.visible = true;

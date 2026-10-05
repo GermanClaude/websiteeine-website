@@ -139,7 +139,7 @@ export class Lobby {
             <button type="button" class="m-tab" role="tab" data-tab="deploy" aria-selected="${this.tab === 'deploy'}">${ICON.map}<span>Einsatz</span></button>
             <button type="button" class="m-tab" role="tab" data-tab="loadout" aria-selected="${this.tab === 'loadout'}">${ICON.target}<span>Ausrüstung</span></button>
           </div>
-          <button type="button" class="lb-profile" data-act="profile" title="Rufzeichen ändern"></button>
+          <div class="lb-me"><button type="button" class="lb-profile" data-act="profile" title="Rufzeichen ändern"></button></div>
           <div class="lb-tools">
             <button type="button" class="m-icon" data-act="settings" aria-label="Einstellungen" title="Einstellungen">${ICON.gear}</button>
             <button type="button" class="m-icon" data-act="controls" aria-label="Steuerung" title="Steuerung">${ICON.pad}</button>

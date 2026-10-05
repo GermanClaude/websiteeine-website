@@ -821,6 +821,52 @@ G.woodStock = (t, r, o) => {
   }
 };
 
+/**
+ * Rinde. o.rings > 0: Palmstamm – waagerechte Blattnarben-Ringe (je Kachel o.rings), heller Wulst über einer
+ * schattigen Kerbe, senkrechte Fasern. Sonst Borke (Olive/Laubbaum): senkrechte Platten mit tiefen Furchen.
+ * Albedo bewusst mittelhell (Stämme stehen in der Sonne; die Vertexfarbe tönt nur noch leicht).
+ */
+G.bark = (t, r, o) => {
+  const { S, n } = t;
+  const base = hex(o.base || '#857a6b'), dark = hex(o.dark || '#463d33'), light = hex(o.light || '#a69c8c');
+  const mott = fbm(S, 3, 5, r), fib = fbm(S, 40, 3, r, { py: 3 }), fine = fbm(S, 96, 2, r);
+  const rings = o.rings | 0;
+  if (rings > 0) {
+    const wob = fbm(S, 5, 3, r, { py: 2 });
+    const ring = []; for (let k = 0; k < rings; k++) ring.push({ tone: (r() - 0.5) * 0.16, w: 0.1 + r() * 0.06 });
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const i = y * S + x;
+      const fy = (y / S) * rings + (wob[i] - 0.5) * 0.45;
+      const k = ((Math.floor(fy) % rings) + rings) % rings, f = fy - Math.floor(fy), R = ring[k];
+      // Profil je Ring: Kerbe (f < w), dann Wulst, zur nächsten Kerbe hin abfallend
+      const groove = 1 - smooth(0, R.w, f);
+      const bulge = smooth(R.w * 0.6, R.w + 0.25, f) * (1 - smooth(0.6, 1, f) * 0.5);
+      const fiber = fib[i] * 0.7 + fine[i] * 0.3;
+      let c = mixC(base, light, bulge * 0.55 + (fiber - 0.5) * 0.3);
+      c = c.map(v => v * (0.9 + mott[i] * 0.2 + R.tone));
+      c = mixC(c, dark, groove * 0.85);
+      t.set(i, c[0], c[1], c[2]);
+      t.height[i] = bulge * 0.8 - groove * 0.6 + fiber * 0.25;
+      t.rough[i] = 0.86 + fine[i] * 0.1;
+    }
+    return;
+  }
+  // Borke: lange senkrechte Platten (Worley gestreckt), dunkle Furchen an den Zellgrenzen
+  const cx = o.cells || 7, cells = worley(S, cx, r, { cy: 2, jitter: 0.8 });
+  const plateTone = Float32Array.from({ length: cx * 2 }, () => (r() - 0.5) * 0.18);
+  for (let i = 0; i < n; i++) {
+    const edge = cells.f2[i] - cells.f1[i];
+    const furrow = 1 - smooth(0.02, 0.22, edge);
+    const fiber = fib[i] * 0.6 + fine[i] * 0.4;
+    let c = mixC(base, light, (1 - furrow) * 0.35 + (fiber - 0.5) * 0.35);
+    c = c.map(v => v * (0.88 + mott[i] * 0.22 + plateTone[cells.id[i]]));
+    c = mixC(c, dark, furrow * 0.9);
+    t.set(i, c[0], c[1], c[2]);
+    t.height[i] = (1 - furrow) * 0.8 + fiber * 0.3;
+    t.rough[i] = 0.88 + fine[i] * 0.1;
+  }
+};
+
 G.camo = (t, r, o) => {
   const { S, n } = t;
   const cols = o.colors.map(hex);
@@ -926,6 +972,8 @@ export const TEX = {
   wood_dark:      { gen: 'planks', o: { palette: ['#5a4634', '#4e3c2c', '#62503c', '#45362a'], rows: 10 }, normal: 3 },
   wood_crate:     { gen: 'crate', o: {}, normal: 3 },
   wood_stock:     { gen: 'woodStock', o: {}, normal: 1.5 },
+  bark:           { gen: 'bark', o: { base: '#857c6f', dark: '#433b32', light: '#a8a092', cells: 7 }, normal: 4 },
+  bark_palm:      { gen: 'bark', o: { base: '#8f8270', dark: '#4a4034', light: '#b0a38c', rings: 12 }, normal: 3.5 },
   cardboard:      { gen: 'cardboard', o: {}, normal: 1.5 },
   metal_painted:  { gen: 'paint', o: {}, normal: 1.5 },
   metal_rust:     { gen: 'rust', o: {}, normal: 3 },

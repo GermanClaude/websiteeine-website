@@ -261,7 +261,12 @@ input, textarea, select { user-select: text; -webkit-user-select: text; touch-ac
 #rotate-overlay .rotate-actions { display: flex; flex-direction: column; align-items: stretch; gap: 12px; width: min(100%, 300px); margin-top: 18px; }
 #rotate-overlay .rotate-actions small { font-size: 14px; line-height: 1.4; }
 @keyframes rotate-hint { 0%, 25% { transform: rotate(0); } 55%, 100% { transform: rotate(-90deg); } }
-/* Nur Telefone hochkant (Tablets spielen auch im Hochformat); gleiche Abfrage wie main.js PORTRAIT_QUERY */
+/* Gespielt wird nur quer (wie COD Mobile): main.js PORTRAIT_QUERY = (orientation: portrait) and (pointer: coarse)
+   hält das Match an. Tablets (≥ 600 px) sehen den Hinweis nur im Match – Lobby, Laden und Endbildschirm
+   bleiben hochkant bedienbar; Telefone sehen ihn immer (die Menüs sind für ≥ 640 px Breite gebaut). */
+@media (orientation: portrait) and (pointer: coarse) {
+  body:is([data-match-state=countdown], [data-match-state=playing], [data-match-state=paused]) #rotate-overlay { display: flex; }
+}
 @media (orientation: portrait) and (pointer: coarse) and (max-width: 599px) {
   #rotate-overlay { display: flex; }
 }
@@ -1285,11 +1290,14 @@ body[data-input-mode="touch"] .m-btn kbd { display: none; }
 .m-tab:hover { color: var(--np-ink); }
 .m-tab[aria-selected="true"] { color: var(--np-ink); border-bottom-color: var(--np-signal); }
 
-.m-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--np-line-strong); border-radius: 2px; }
+/* Segmentleiste: immer eine Zeile ohne Lücken – gleich breite Felder über die ganze Spalte; ein längeres Wort
+   („Automatisch“) behält seine Breite, die anderen teilen sich den Rest. Die Spalten sind breit genug gebaut. */
+.m-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--np-line-strong); border-radius: 2px; }
 .m-seg button {
   appearance: none;
   min-height: 42px;
-  padding: 0 14px;
+  padding: 0 clamp(8px, 1vw, 14px);
+  white-space: nowrap;
   border: 0;
   border-right: 1px solid var(--np-line);
   background: none;
@@ -1318,21 +1326,27 @@ body[data-input-mode="touch"] .m-btn kbd { display: none; }
     linear-gradient(90deg, rgba(10, 11, 13, .98) 0%, rgba(10, 11, 13, .96) 58%, rgba(10, 11, 13, .55) 72%, rgba(10, 11, 13, .2) 100%);
 }
 .lb { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; padding: var(--mp-t) var(--mp-r) var(--mp-b) var(--mp-l); }
-.lb-head { min-width: 0; display: flex; align-items: center; gap: 22px; padding-bottom: 10px; border-bottom: 1px solid var(--np-line); }
+.lb-head { min-width: 0; display: flex; align-items: center; gap: clamp(12px, 2.2vw, 22px); padding-bottom: 10px; border-bottom: 1px solid var(--np-line); }
 .lb-brand { flex: none; font-weight: 900; font-stretch: 125%; font-size: 24px; letter-spacing: -.01em; line-height: 1; white-space: nowrap; }
 .lb-brand em { font-style: normal; }
 .lb-brand i { font-style: normal; color: var(--np-signal); }
-.lb-tabs { min-width: 0; margin-right: auto; }
-.lb-profile { appearance: none; flex: 0 1 auto; display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 44px; padding: 2px 8px; border: 1px solid transparent; border-radius: 2px; background: none; color: var(--np-ink); text-align: left; cursor: pointer; touch-action: manipulation; }
+/* Reiter schrumpfen nie (sonst schiebt sich das Profil darüber); das Profil nimmt nur den Restplatz
+   (.lb-me, Container) und zeigt Name/Stufe nur, wenn sie dort hineinpassen – unabhängig von der Namenslänge. */
+.lb-tabs { flex: none; }
+.lb-me { flex: 1 1 0; min-width: 0; display: flex; justify-content: flex-end; container: lbme / inline-size; }
+.lb-profile { appearance: none; flex: 0 1 auto; display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 100%; min-height: 44px; padding: 2px 8px; border: 1px solid transparent; border-radius: 2px; background: none; color: var(--np-ink); text-align: left; cursor: pointer; touch-action: manipulation; }
 .lb-profile:hover { border-color: var(--np-line-strong); }
 .lb-profile:focus-visible { outline: 2px solid var(--np-signal); outline-offset: 2px; }
 .lb-rank { color: var(--np-gold); display: grid; place-items: center; }
 .lb-rank svg { width: 30px; height: 30px; }
 .lb-pinfo { display: flex; flex-direction: column; min-width: 0; font-family: var(--font-hud); }
 .lb-pinfo b { font-size: 16px; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-.lb-pinfo small { font-size: 12px; color: var(--np-ink-2); letter-spacing: .06em; white-space: nowrap; }
-.lb-xp { display: block; width: 140px; height: 3px; margin-top: 4px; background: var(--np-line); }
+.lb-pinfo small { font-size: 12px; color: var(--np-ink-2); letter-spacing: .06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-xp { display: block; width: 140px; max-width: 100%; height: 3px; margin-top: 4px; background: var(--np-line); }
 .lb-xp u { display: block; height: 100%; background: var(--np-gold); transform-origin: left; }
+/* nach den Grundregeln (gleiche Spezifität): Name/Stufe nur, wenn ≥ 160 px Restplatz; unter 48 px gar kein Profil */
+@container lbme (max-width: 159px) { .lb-pinfo { display: none; } }
+@container lbme (max-width: 47px) { .lb-profile { display: none; } }
 .lb-tools { flex: none; display: flex; gap: 6px; }
 .lb-main { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 34vw, 500px); gap: 24px; }
 .lb-pane { min-height: 0; padding: 16px 6px 20px 0; }
@@ -1406,10 +1420,12 @@ body[data-input-mode="touch"] .m-btn kbd { display: none; }
 .lb-map-txt small { font: 500 12px var(--font-hud); color: var(--np-ink-2); letter-spacing: .06em; }
 .lb-map[aria-pressed="true"] { border-color: var(--np-signal); box-shadow: inset 0 0 0 1px var(--np-signal); }
 .lb-map[aria-pressed="true"]::after { content: ""; position: absolute; right: 8px; top: 8px; width: 9px; height: 9px; background: var(--np-signal); }
-.lb-row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; }
+/* Gegnerstärke | Teams: zwei Spalten nur, wenn jede ≥ 310 px bekommt (Segmentleiste in einer Zeile, Stepper ganz sichtbar) */
+.lb-row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr)); gap: 12px 22px; }
 .lb-note { margin: 8px 0 0; font: 500 13.5px/1.4 var(--font-hud); color: var(--np-ink-2); }
 .lb-note b { color: var(--np-gold); font-weight: 700; }
-.lb-step { display: grid; grid-template-columns: 1fr auto 40px auto; align-items: center; gap: 8px; margin-bottom: 6px; font: 600 15px var(--font-hud); letter-spacing: .06em; text-transform: uppercase; }
+.lb-step { display: grid; grid-template-columns: minmax(0, 1fr) auto 40px auto; align-items: center; gap: 8px; margin-bottom: 6px; font: 600 15px var(--font-hud); letter-spacing: .06em; text-transform: uppercase; }
+.lb-step > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lb-step b { text-align: center; font-size: 22px; }
 .lb-bal { appearance: none; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 4px; border: 0; background: none; color: var(--np-ink-2); font: 600 14px var(--font-hud); letter-spacing: .06em; cursor: pointer; }
 .m-check { display: inline-grid; place-items: center; width: 20px; height: 20px; border: 1px solid var(--np-line-strong); border-radius: 2px; }
@@ -1548,14 +1564,18 @@ body[data-input-mode="touch"] .m-btn kbd { display: none; }
 .sp { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
 .sp-tabs { flex-wrap: wrap; border-bottom: 1px solid var(--np-line); }
 .sp-body { flex: 1; min-height: 0; padding: 4px 6px 4px 0; }
-.sp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 380px); align-items: center; gap: 18px; padding: 10px 0; border-bottom: 1px solid var(--np-line); }
+.sp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 440px); align-items: center; gap: 18px; padding: 10px 0; border-bottom: 1px solid var(--np-line); }
+/* Segmentleiste mit vielen Feldern (Grafikqualität): rutscht unter die Beschriftung, wenn neben ihr kein Platz ist */
+.sp-row-wide { display: flex; flex-wrap: wrap; row-gap: 8px; }
+.sp-row-wide .sp-lab { flex: 1 1 180px; }
+.sp-row-wide .sp-ctl { flex: 1 1 440px; max-width: 440px; margin-left: auto; }
 .sp-lab { display: flex; flex-direction: column; gap: 2px; font: 600 16px var(--font-hud); letter-spacing: .04em; }
 .sp-sub { margin: 18px 0 2px; }
 .sp-lab small { font-weight: 500; font-size: 13px; color: var(--np-dim); letter-spacing: 0; }
 .sp-ctl { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
 .sp-range input { flex: 1; }
 .sp-range output { min-width: 54px; text-align: right; font: 700 15px var(--font-hud); font-variant-numeric: tabular-nums; }
-.sp-ctl.m-seg { justify-self: end; }
+.sp-ctl.m-seg { display: grid; gap: 0; }
 .sp-colors { flex-wrap: wrap; }
 .sp-sw { appearance: none; position: relative; width: 34px; height: 34px; border: 2px solid rgba(233, 230, 223, .2); border-radius: 50%; background: var(--c, #fff); cursor: pointer; padding: 0; overflow: hidden; }
 .sp-sw[aria-pressed="true"] { border-color: var(--np-ink); box-shadow: 0 0 0 2px var(--np-black), 0 0 0 4px var(--np-signal); }
@@ -1714,7 +1734,7 @@ body[data-input-mode="touch"] .m-btn kbd { display: none; }
   .lb-map { height: 78px; }
   .lb-map-txt b { font-size: 14px; }
   .lb-maps { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-  .lb-row2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  .lb-row2 { gap: 8px 14px; }
   .lb-foot { gap: 12px; padding-top: 6px; }
   .lb-summary b { font-size: 15px; }
   .lb-summary span { font-size: 12px; }
@@ -1780,7 +1800,7 @@ body[data-input-mode="touch"] .m-btn kbd { display: none; }
   .m-tab { padding: 0 8px; }
 }
 @media (max-width: 600px) {
-  .lb-row2, .e-grid, .ps { grid-template-columns: 1fr; }
+  .e-grid, .ps { grid-template-columns: 1fr; }
   .lb-tools .m-icon { width: 40px; height: 40px; }
   .lb-profile { display: none; }
 }

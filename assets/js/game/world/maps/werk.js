@@ -38,7 +38,6 @@ export default {
 
   build(b, ctx) {
     const zones = [];
-    fx.list.length = 0;
     defineSigns(b);
 
     // -----------------------------------------------------------------------
@@ -102,13 +101,9 @@ export default {
       spawns,
       objectives: { dom: [{ id: 'A', x: -36, z: 27, radius: 5 }, { id: 'B', x: 0, z: 0, radius: 5.5 }, { id: 'C', x: -36, z: -27, radius: 5 }] },
       zones,
-      update: dt => fx.update(dt),
     };
   },
 };
-
-// kleine Animationen (Kranhaken pendelt, Funken), per update()
-const fx = { list: [], update(dt) { for (const f of this.list) f(dt); } };
 
 function defineSigns(b) {
   b.defineSign('title', { style: 'logo', text: 'WALZWERK 7', sub: 'Hütte Nordstahl · seit 1923', bg: '#1f2a33', fg: '#e8e4dc', accent: '#ff8a2a' });
@@ -188,12 +183,14 @@ function fireBarrel(b, x, z, o = {}) {
     m.renderOrder = 3;
     g.add(m); flames.push(m);
   }
-  b.object(g);
+  // Animation hängt am Objekt (world.update ruft sie) – kein Modulzustand, der eine alte Welt festhält
   let t = b.rand() * 10;
-  fx.list.push(dt => {
-    t += dt;
-    flames.forEach((m, i) => { const k = 0.8 + Math.sin(t * (9 + i * 3.1) + i) * 0.15 + Math.sin(t * 17 + i * 2) * 0.08; m.scale.set(1, k, 1); m.position.y = 0.88 + (0.55 + i * 0.12) * k / 2; });
-    mat.opacity = 0.7 + Math.sin(t * 11) * 0.12;
+  b.object(g, {
+    update: dt => {
+      t += dt;
+      flames.forEach((m, i) => { const k = 0.8 + Math.sin(t * (9 + i * 3.1) + i) * 0.15 + Math.sin(t * 17 + i * 2) * 0.08; m.scale.set(1, k, 1); m.position.y = 0.88 + (0.55 + i * 0.12) * k / 2; });
+      mat.opacity = 0.7 + Math.sin(t * 11) * 0.12;
+    },
   });
   if (o.light !== false) b.light('point', x, 1.6, z, { color: '#ff9a40', intensity: o.intensity ?? 9, distance: o.distance ?? 9, priority: 2 });
   b.glow(x, 1.25, z, { color: '#ff8a30', size: 2.6, intensity: 0.9 });
@@ -376,11 +373,12 @@ function hall(b) {
 }
 
 /** Lichtschacht: weicher, additiver Lichtkegel von einem Dachloch (Ränder blenden aus). */
-let shaftMat = null;
+const shaftMats = new WeakMap(); // ein Material je Kartenaufbau (Schlüssel: MapBuilder), ohne Modulzustand
 function dustShaft(b, x, z) {
   const geo = new THREE.CylinderGeometry(1.7, 2.8, 13.5, 16, 1, true);
   geo.translate(0, 6.75, 0);
-  if (!shaftMat || shaftMat.userData.disposed) {
+  let shaftMat = shaftMats.get(b);
+  if (!shaftMat) {
     shaftMat = new THREE.ShaderMaterial({
       uniforms: { uColor: { value: new THREE.Color('#a9bcd2') }, uOpacity: { value: 0.11 } },
       vertexShader: `varying vec3 vN; varying vec3 vV; varying float vY;
@@ -390,7 +388,7 @@ function dustShaft(b, x, z) {
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
     });
     shaftMat.userData.disposable = true;
-    shaftMat.addEventListener('dispose', () => { shaftMat.userData.disposed = true; });
+    shaftMats.set(b, shaftMat);
   }
   const m = new THREE.Mesh(geo, shaftMat);
   m.position.set(x, 0, z); m.rotation.z = 0.32; m.rotation.y = 0.4;
@@ -524,9 +522,8 @@ function overheadCrane(b, z) {
   const hook = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.08, 6, 12, Math.PI * 1.4), dark);
   hook.position.set(0, -5.25, 0); hook.rotation.z = Math.PI * 0.8; g.add(hook);
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  b.object(g);
   let t = 0;
-  fx.list.push(dt => { t += dt; g.rotation.z = Math.sin(t * 0.7) * 0.025; g.rotation.x = Math.sin(t * 0.53 + 1) * 0.02; });
+  b.object(g, { update: dt => { t += dt; g.rotation.z = Math.sin(t * 0.7) * 0.025; g.rotation.x = Math.sin(t * 0.53 + 1) * 0.02; } });
 }
 
 // ---------------------------------------------------------------------------

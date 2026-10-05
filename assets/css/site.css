@@ -417,6 +417,8 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .mode-name {
   --wght: 700; display: block; font-size: var(--fs-dm); font-weight: var(--wght); line-height: .95;
   white-space: nowrap; overflow: clip; contain: layout paint style; padding-block: .06em .1em;
+  /* Boxen + Akte bleiben in der Zeile (fit.js/kinetic.js); die Marge fängt nur Rundungsreste der Glyphenkanten auf */
+  overflow-clip-margin: .06em;
 }
 .mode-head:focus-visible { outline-offset: -2px; }
 .mode-head[aria-expanded="true"] .mono-s { color: var(--np-ink); }

@@ -619,13 +619,16 @@ export function marketStall(b, x, z, o = {}) {
 // ---------------------------------------------------------------------------
 export function palm(b, x, z, o = {}) {
   const y = o.y ?? 0, h = o.h ?? 7, segs = 6, lean = o.lean ?? (b.rand() - 0.5) * 0.25, dir = o.dir ?? b.rand() * Math.PI * 2;
+  // leichte Tonvariation aus der Position (verbraucht keinen Kartenzufall → übrige Platzierung unverändert)
+  const tint = o.tint || ['#f2ece2', '#e6dfd2', '#ece8de'][Math.abs(Math.round(x * 7 + z * 13)) % 3];
   let px = x, pz = z, py = y;
   for (let i = 0; i < segs; i++) {
     const sh = h / segs, r0 = 0.24 - i * 0.018;
     const t = (i + 1) / segs;
     const nx = x + Math.cos(dir) * lean * h * t * t, nz = z + Math.sin(dir) * lean * h * t * t;
     const dx = nx - px, dz = nz - pz;
-    b.cyl(px, py, pz, r0, Math.hypot(sh, dx, dz), 'wood_dark', { r1: r0 - 0.015, tint: '#9d8b70', seg: 8, collide: i < 2, minimap: i === 0 ? 'prop' : false, rx: Math.atan2(dz, sh), rz: -Math.atan2(dx, sh), uv: 'keep', grad: i === 0 });
+    // Rinde mit Blattnarben-Ringen; v läuft über alle Segmente durch (uvOffset = bisherige Höhe), sonst Sprung an jeder Fuge
+    b.cyl(px, py, pz, r0, Math.hypot(sh, dx, dz), 'bark_palm', { r1: r0 - 0.015, tint, seg: 8, collide: i < 2, minimap: i === 0 ? 'prop' : false, rx: Math.atan2(dz, sh), rz: -Math.atan2(dx, sh), uvOffset: [0, py - y], grad: i === 0 });
     px = nx; pz = nz; py += sh;
   }
   b.plant('palm', px, py - 0.1, pz, { s: o.s ?? (0.9 + b.rand() * 0.3) });
@@ -634,9 +637,11 @@ export function palm(b, x, z, o = {}) {
 export function tree(b, x, z, o = {}) {
   const y = o.y ?? 0, kind = o.kind || 'olive', h = o.h ?? (kind === 'olive' ? 2.6 : 3.4);
   const tw = kind === 'olive' ? 0.2 : 0.18;
-  b.cyl(x, y, z, tw, h * 0.55, 'wood_dark', { r1: tw * 0.8, tint: '#7d6a55', seg: 8, minimap: 'prop', rz: (b.rand() - 0.5) * 0.2 });
-  b.cyl(x + 0.1, y + h * 0.5, z, tw * 0.7, h * 0.5, 'wood_dark', { r1: tw * 0.4, tint: '#7d6a55', seg: 7, collide: false, minimap: false, rz: -0.35, grad: false });
-  b.cyl(x - 0.1, y + h * 0.5, z + 0.05, tw * 0.6, h * 0.45, 'wood_dark', { r1: tw * 0.35, tint: '#7d6a55', seg: 7, collide: false, minimap: false, rz: 0.4, rx: 0.2, grad: false });
+  // Borke (Olive grauer, Laubbaum brauner) – Albedo aus der Textur, die Tönung variiert nur leicht
+  const tint = o.tint || (kind === 'olive' ? '#e2e0da' : '#e8dccb');
+  b.cyl(x, y, z, tw, h * 0.55, 'bark', { r1: tw * 0.8, tint, seg: 8, minimap: 'prop', rz: (b.rand() - 0.5) * 0.2 });
+  b.cyl(x + 0.1, y + h * 0.5, z, tw * 0.7, h * 0.5, 'bark', { r1: tw * 0.4, tint, seg: 7, collide: false, minimap: false, rz: -0.35, grad: false, uvOffset: [0.3, h * 0.5] });
+  b.cyl(x - 0.1, y + h * 0.5, z + 0.05, tw * 0.6, h * 0.45, 'bark', { r1: tw * 0.35, tint, seg: 7, collide: false, minimap: false, rz: 0.4, rx: 0.2, grad: false, uvOffset: [0.6, h * 0.5] });
   b.plant(kind === 'olive' ? 'olive' : 'tree', x, y, z, { s: o.s ?? (0.85 + b.rand() * 0.3) });
 }
 

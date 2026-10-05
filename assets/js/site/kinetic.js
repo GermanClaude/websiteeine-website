@@ -274,6 +274,7 @@ export class Kinetic {
         dcOf.set(g.unit, dc * scale);
       }
     }
+    this.contain(dw, dg, dcOf);
     for (let i = 0; i < n; i++) {
       const s = this.s[i];
       const g = this.glyphs[i];
@@ -284,6 +285,40 @@ export class Kinetic {
     for (const [unit, dc] of dcOf) unit.style.setProperty('--dc', Math.abs(dc) < 0.01 ? '0' : dc.toFixed(2));
     if (perLine) this.el.style.removeProperty('--dc');
     else for (const l of this.lines) if (l !== this.el) l.style.removeProperty('--dc');
+  }
+
+  /**
+   * Feste Glyphenboxen (fit.js, data-fit-slots): eine Zeichnung darf über ihre Box hinaus wachsen (die Nachbarn
+   * bleiben stehen), aber nie über das Zeilenende – dort schneidet overflow: clip. Begrenzt je Glyphe erst die
+   * Stärke, dann die Breite auf den gemessenen Platz bis zum Rand (abzüglich Rundungsreserve). Schmaler/leichter
+   * geht immer.
+   */
+  contain(dw, dg, dcOf) {
+    const cache = new Map();
+    const modelOf = (unit) => {
+      if (!cache.has(unit)) cache.set(unit, glyphModel(unit)?.slots ? glyphModel(unit) : null);
+      return cache.get(unit);
+    };
+    for (let i = 0; i < this.n; i++) {
+      const line = this.lines[this.lineOf[i]];
+      let m = line !== this.el ? modelOf(line) : null;
+      let o = this.off[i];
+      if (!m) { m = modelOf(this.el); o = i; }
+      const sl = m?.slots;
+      if (!sl || !(sl.s[o] > 0)) continue;
+      const dc = dcOf.get(line) ?? dcOf.get(this.el) ?? 0;
+      const allow = Math.max(0, sl.room[o] - (0.75 + 0.04 * sl.s[o]));
+      const rw = m.rw ?? 400;
+      let gw = Math.max(100, Math.min(900, rw + dg[i])) - rw;
+      let wpx = gw > 0 ? sl.wc[o] * gw : 0;
+      if (wpx > allow) {
+        gw = sl.wc[o] > 0 ? allow / sl.wc[o] : 0;
+        dg[i] = gw;
+        wpx = sl.wc[o] * gw;
+      }
+      const e = Math.max(62, Math.min(125, m.wdth + dw[i] + dc)) - m.wdth;
+      if (e > 0 && wpx + sl.up[o] * e > allow) dw[i] = (sl.up[o] > 0 ? Math.max(0, (allow - wpx) / sl.up[o]) : 0) - dc;
+    }
   }
 
   step(dt, t) {

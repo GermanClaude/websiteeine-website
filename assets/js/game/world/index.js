@@ -10,7 +10,7 @@ import { createLighting } from './lighting.js';
 import { createWater } from './water.js';
 import { navFromData, validateNavGraph } from './navgraph.js';
 import { createMinimap } from './minimap.js';
-import { foliageUniforms, restoreAtlases } from './atlas.js';
+import { foliageUniforms } from './atlas.js';
 
 const MAP_MODULES = {
   hafen: () => import('./maps/hafen.js'),
@@ -97,14 +97,6 @@ async function uploadTextures(renderer, root) {
   return Math.round(performance.now() - t0);
 }
 
-// Canvas-Atlanten geben ihren Pixelspeicher nach dem Upload frei → nach Kontextverlust neu zeichnen (einmal je Renderer)
-const restoreHooked = new WeakSet();
-function hookAtlasRestore(R) {
-  if (!R || typeof R.onContextChange !== 'function' || restoreHooked.has(R)) return;
-  restoreHooked.add(R);
-  R.onContextChange(state => { if (state === 'restored') restoreAtlases(); });
-}
-
 async function fontsReady() {
   if (typeof document === 'undefined' || !document.fonts?.load) return;
   const t = new Promise(r => setTimeout(r, 1200));
@@ -149,7 +141,6 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   try {
     res = def.build(b, ctx) || {};
     progress(0.05, 'Geometrie');
-    hookAtlasRestore(G.renderer);
     built = await b.build({ quality, anisotropy: Math.min(G.renderer?.preset?.anisotropy || 4, maxAniso), onProgress: (p, l) => progress(p * 0.8, l) });
   } finally {
     deferTextureGeneration(false);
@@ -219,6 +210,11 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   };
   progress(0.95, 'Navigation');
   const nav = navFromData(job.nav, cbvh);
+  // Bau-Zwischendaten lösen: Die Methoden von `world` (unten) sind Closures dieser Funktion und halten deren
+  // Variablen (b, built, job …) so lange wie die Welt. Dreieckslisten für Worker/Octree und die rohen Nav-Daten
+  // werden nicht mehr gebraucht (die BVHs haben eigene, umsortierte Kopien); MapBuilder.build() räumt selbst auf.
+  built.bulletTris = built.bulletData = built.colTris = null;
+  job.nav = null;
   if (debug) {
     const rep = validateNavGraph(nav, { spawns, objectives }, nav.removed);
     nav.report = rep;

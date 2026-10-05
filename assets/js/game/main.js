@@ -38,6 +38,7 @@ const MODULES = {
   weapons: ['./weapons/index.js', ['WeaponSystem']],
   effects: ['./engine/effects.js', ['Effects']],
   bots: ['./bots/manager.js', ['BotManager']],
+  soldiers: ['./bots/character.js', ['createSoldier', 'VARIANTS', 'schemeForTeam', 'ffaSchemes']],
   modes: ['./modes/index.js', ['createMode']],
   hud: ['./ui/hud.js', ['HUD']],
   menus: ['./ui/menus.js', ['Menus']],
@@ -74,8 +75,9 @@ const clampTimeScale = (v) => Math.min(4, Math.max(0.05, Number(v) || 1));
 // Test-/Entwicklerparameter wirken nur zusammen mit debug=1 (und machen das Match „ungewertet“)
 const DEV_GOD = DEBUG && params.get('god') === '1';
 const DEV_TIMESCALE = DEBUG && params.has('timescale') ? clampTimeScale(params.get('timescale')) : null;
-// Hochformat-Sperre wie in game.css (#rotate-overlay): nur Telefone, Tablets spielen auch hochkant
-const PORTRAIT_QUERY = '(orientation: portrait) and (pointer: coarse) and (max-width: 599px)';
+// Hochformat-Sperre wie in game.css (#rotate-overlay): gespielt wird auf allen Touch-Geräten nur quer
+// (Telefone sehen den Hinweis immer, Tablets nur im Match – Lobby/Menüs bleiben dort hochkant bedienbar)
+const PORTRAIT_QUERY = '(orientation: portrait) and (pointer: coarse)';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('game-canvas');
@@ -198,13 +200,38 @@ function showFatal(kind, err) {
   try { if (G.input) G.input.exitLock(); } catch { /* ignore */ }
 }
 
-function webglAvailable() {
+/**
+ * Renderer auf der Spielleinwand erzeugen; `null`, wenn kein WebGL-2-Kontext entsteht. Kein
+ * Wegwerf-Kontext als Vorprüfung (kostete beim Start eine zusätzliche GPU-Kontexterzeugung und hielt
+ * bis zur Speicherbereinigung einen weiteren Kontext offen – Android begrenzt die Zahl). Scheitert
+ * der Kontext, bleiben die three.js-Konsolenfehler dazu aus: das Fehlerpanel „WebGL ist nicht
+ * verfügbar“ erklärt es. Andere Meldungen beim Erzeugen werden unverändert weitergereicht.
+ */
+function createRendererOrNull(opts) {
+  if (typeof WebGL2RenderingContext === 'undefined') return null;
+  let contextFailed = false;
+  const onCreationError = () => { contextFailed = true; };
+  const held = [];
+  const prevConsole = THREE.getConsoleFunction();
+  canvas.addEventListener('webglcontextcreationerror', onCreationError);
+  THREE.setConsoleFunction((type, ...args) => held.push([type, args]));
+  let renderer = null;
   try {
-    const c = document.createElement('canvas');
-    return !!c.getContext('webgl2');
-  } catch {
-    return false;
+    renderer = createRenderer(canvas, opts);
+  } catch (err) {
+    if (!(contextFailed || /WebGL context/i.test(String(err && err.message)))) throw err;
+    contextFailed = true;
+  } finally {
+    THREE.setConsoleFunction(prevConsole);
+    canvas.removeEventListener('webglcontextcreationerror', onCreationError);
+    if (!contextFailed) {
+      for (const [type, args] of held) {
+        if (prevConsole) prevConsole(type, ...args);
+        else (console[type] || console.log)(...args);
+      }
+    }
   }
+  return renderer;
 }
 
 /* ===================================================== Module laden */
@@ -416,6 +443,116 @@ function spawnActor(actor) {
 }
 G.spawnActor = spawnActor;
 
+/* ===================================================== Matchstart in Schritten (G18) */
+
+// Der Aufbau nach dem Laden der Karte (Viewmodel, Bots, HUD, Shader) lief als ein einziger Block
+// (erstes Match ≈ 1,3 s Hauptthread-CPU am Desktop, auf Telefonen sekundenlang stehender Ladebalken).
+// Jetzt füllen matchAssetJobs()/runJobs() die Caches der Modelle/Soldaten in kleinen Schritten – parallel
+// zum Kartenaufbau, dessen Worker-Phasen den Hauptthread frei lassen –, runStart() trennt die übrigen
+// Phasen durch Bildpausen und warmUp() kompiliert die Shader teilbaumweise.
+
+const yieldPort = typeof MessageChannel === 'function' ? new MessageChannel() : null;
+const yieldQueue = [];
+if (yieldPort) yieldPort.port1.onmessage = () => { const resolve = yieldQueue.shift(); if (resolve) resolve(); };
+
+/** Weiter in einer neuen Aufgabe der Ereignisschleife (ungedrosselt, auch im verborgenen Tab). */
+function nextTask() {
+  return new Promise((resolve) => {
+    if (!yieldPort) { setTimeout(resolve, 0); return; }
+    yieldQueue.push(resolve);
+    yieldPort.port2.postMessage(0);
+  });
+}
+
+/** Weiter nach dem nächsten gezeichneten Bild (Ladebalken bewegt sich); im verborgenen Tab ruht rAF → nextTask(). */
+function nextFrame() {
+  if (document.hidden) return nextTask();
+  return new Promise((resolve) => {
+    let done = false;
+    const go = () => { if (!done) { done = true; resolve(); } };
+    requestAnimationFrame(() => setTimeout(go, 0));
+    setTimeout(go, 100); // Tab wird gerade verborgen
+  });
+}
+
+const warmed = new Set(); // erledigte Vorarbeiten ('m:<Modell>:<LOD>', 's:<Schema>:<Variante>:<Qualität>')
+const mapSchemes = new Map(); // mapId → { B, ffa }: Tarnschemata der Bots auf dieser Karte (nach dem ersten Laden bekannt)
+
+/**
+ * Vorarbeiten für ein Match als kleine Einzelschritte (je ein Waffen-Template bzw. ein Soldat aus
+ * Variante × Schema mit allen Detailstufen, Material und Tarntextur). Nur öffentliche APIs:
+ * `models.preloadWeaponModels([key], [lod])` (Ego-Modelle der Ausrüstung – in gun/training aller Waffen –
+ * sowie Messer/Granaten; Drittperson-Modelle der Bot-Ausrüstungen) und `createSoldier(...).dispose()`
+ * (bots/character.js; Geometrie-, Material- und Textur-Caches bleiben). Die Tarnschemata der Gegner bzw.
+ * im FFA hängen von der Karte ab (helle Karten): ohne `world` nur, wenn die Karte schon einmal geladen war.
+ */
+function matchAssetJobs(cfg, world) {
+  const jobs = [];
+  const W = G.data.WEAPONS || {};
+  const EQ = G.data.EQUIPMENT || {};
+  const models = G.modules.models;
+  const soldiers = G.modules.soldiers;
+  const modelOf = (id) => (W[id] && W[id].model) || (EQ[id] && EQ[id].model) || null;
+  const seen = new Set();
+  const add = (k, fn) => {
+    if (warmed.has(k) || seen.has(k)) return;
+    seen.add(k);
+    jobs.push(() => { fn(); warmed.add(k); });
+  };
+  const addModel = (key, lod) => {
+    if (key && models && typeof models.preloadWeaponModels === 'function') add(`m:${key}:${lod}`, () => models.preloadWeaponModels([key], [lod]));
+  };
+  const allWeapons = cfg.modeId === 'gun' || cfg.modeId === 'training';
+  // Ego: Ausrüstung (gun/training: alle Waffen, siehe WeaponController.warmup) + Requisiten des Viewmodels
+  const own = allWeapons ? Object.keys(W) : [cfg.loadout.primary, cfg.loadout.secondary];
+  for (const id of [...own, 'knife', 'frag', 'semtex']) addModel(modelOf(id), 'first');
+  // Bots: Drittperson-Modelle ihrer Ausrüstungen (gun: alle Stufen) + Requisiten (Granate, Messer)
+  const bots = (cfg.allies | 0) + (cfg.enemies | 0);
+  if (bots > 0) {
+    const ids = new Set(['knife', 'frag']);
+    if (allWeapons) for (const id of Object.keys(W)) ids.add(id);
+    else {
+      for (const l of G.data.DEFAULT_LOADOUTS || []) { ids.add(l.primary); ids.add(l.secondary); ids.add(l.lethal); }
+      for (const id of Object.keys(W)) if (W[id].cls === 'sniper') ids.add(id); // ein Scharfschütze je Seite
+    }
+    for (const id of ids) addModel(modelOf(id), 'third');
+  }
+  // Soldaten je Schema × Variante (alle Varianten: welche ein Team bekommt, entscheidet BotManager zufällig)
+  if (bots > 0 && soldiers) {
+    let map = mapSchemes.get(cfg.mapId);
+    if (world) mapSchemes.set(cfg.mapId, (map = { B: soldiers.schemeForTeam('B', world), ffa: soldiers.ffaSchemes(world) }));
+    const schemes = [];
+    if (cfg.ffa) { if (map) schemes.push(...map.ffa); }
+    else {
+      if (cfg.allies > 0) schemes.push(soldiers.schemeForTeam('A', world));
+      if (cfg.enemies > 0 && map) schemes.push(map.B);
+    }
+    const quality = G.renderer.quality === 'low' ? 'low' : 'high';
+    for (const scheme of schemes) {
+      for (let v = 0; v < soldiers.VARIANTS.length; v++) {
+        add(`s:${scheme}:${v}:${quality}`, () => soldiers.createSoldier({ team: scheme === 'A' ? 'A' : 'B', variant: v, camo: scheme, quality }).dispose());
+      }
+    }
+  }
+  return jobs;
+}
+
+/**
+ * Führt Vorarbeiten in Zeitscheiben aus (≈ 8 ms, dann ein Bild Pause). Bricht ab, sobald der Start
+ * nicht mehr aktuell ist. Fehler einzelner Schritte werden gemeldet; der Matchaufbau baut dann selbst.
+ */
+async function runJobs(jobs, live) {
+  let t = performance.now();
+  for (const job of jobs) {
+    if (!live()) return;
+    safe('prepareMatchAssets', job);
+    if (performance.now() - t > 8) {
+      await nextFrame();
+      t = performance.now();
+    }
+  }
+}
+
 /**
  * Startet ein Match (Lobby „Einsatz starten“, Revanche, autostart). Läuft bereits ein Start, wird dieser
  * abgebrochen und danach mit der neuen Konfiguration begonnen (nichts geht verloren, nichts startet doppelt).
@@ -469,19 +606,30 @@ async function runStart(config, gen) {
 
     vmBase = new Set(G.viewmodel.scene.children);
     const onProgress = (p) => { if (live()) safe('menus', () => G.menus.showLoading(Math.min(0.85, p * 0.85))); };
+    const nextStep = async (p) => {
+      await nextFrame();
+      if (live()) safe('menus', () => G.menus.showLoading(p));
+      return live();
+    };
     if (reuse) {
       onProgress(1);
       if (dynres) dynres.reset();
     } else {
       sceneBase = new Set(G.scene.children);
+      // Vorarbeiten ohne Kartenbezug laufen in den Pausen des Kartenaufbaus (Worker-Phasen) mit
+      const early = runJobs(matchAssetJobs(cfg, null), live);
       const world = await G.modules.world.loadWorld(G, cfg.mapId, { onProgress });
       if (!world) throw new Error(`loadWorld(${cfg.mapId}) lieferte keine Welt`);
       G.world = world;
       if (world.group && !world.group.parent) G.scene.add(world.group);
       if (dynres) { dynres.reset(); G.renderer.setResolutionScale(1); }
+      await early;
       // Abgebrochen (neuer Start/Lobby): Welt stehen lassen – der Nachfolger entscheidet (gleiche Karte → wiederverwenden)
       if (!live()) { await teardownMatch({ keepWorld: true }); return; }
     }
+    // Restliche Vorarbeiten (Tarnschemata dieser Karte; bei einer Revanche meist nichts mehr)
+    await runJobs(matchAssetJobs(cfg, G.world), live);
+    if (!(await nextStep(0.86))) { await teardownMatch({ keepWorld: true }); return; }
 
     G.combat.attach(G);
     G.weapons.attach(G);
@@ -496,24 +644,28 @@ async function runStart(config, gen) {
     };
     G.mode = G.modules.modes.createMode(G, cfg.modeId, opts);
     G.mode.attach(G);
+    if (!(await nextStep(0.87))) { await teardownMatch({ keepWorld: true }); return; }
 
+    // Spieler + Viewmodel (Arme, Waffen, Viewmodel-Shader)
     G.player.resetForMatch({ team: cfg.ffa ? null : 'A', loadout: cfg.loadout, name: settings.get('playerName') });
     G.player.godMode = DEV_GOD;
     if (DEV_TIMESCALE) G.timeScale = DEV_TIMESCALE;
     G.camera = G.player.camera;
     G.actors.length = 0;
     G.actors.push(G.player);
+    if (!(await nextStep(0.88))) { await teardownMatch({ keepWorld: true }); return; }
 
     G.bots.attach(G);
     const bots = G.bots.spawnBots({ allies: cfg.allies, enemies: cfg.enemies, ffa: cfg.ffa, difficulty: cfg.difficulty, modeId: cfg.modeId }) || [];
     for (const b of bots) if (!G.actors.includes(b)) G.actors.push(b);
     for (const a of G.actors) spawnActor(a);
+    if (!(await nextStep(0.9))) { await teardownMatch({ keepWorld: true }); return; }
 
     G.hud.attach(G);
     safe('audio.startAmbience', () => G.audio.startAmbience(G.world.ambience));
     G.mode.start();
-    G.menus.showLoading(0.9);
-    await warmUp();
+    if (!(await nextStep(0.92))) { await teardownMatch({ keepWorld: true }); return; }
+    await warmUp(live);
     if (!live()) { await teardownMatch({ keepWorld: true }); return; }
     G.menus.showLoading(1);
     G.matchCount += 1;
@@ -526,19 +678,49 @@ async function runStart(config, gen) {
   }
 }
 
-/** Shader vorkompilieren, damit der erste Schuss nicht ruckelt. */
-async function warmUp() {
+/** Teilbäume ohne Lichtquelle (three.js zählt die Lichter eines kompilierten Teilbaums sonst doppelt zu denen der Zielszene). */
+function lightFreeParts(root, out) {
+  for (const child of root.children) {
+    let lit = false;
+    child.traverse((o) => { if (o.isLight) lit = true; });
+    if (!lit) out.push(child);
+    else if (!child.isLight || child.children.length) lightFreeParts(child, out);
+  }
+  return out;
+}
+
+/**
+ * Shader vorkompilieren, damit der erste Schuss nicht ruckelt – in Zeitscheiben: Teilbäume der Szene und des
+ * Viewmodels einzeln (Lichter aus der jeweiligen Zielszene), dazwischen Bildpausen. Danach ein Durchgang über
+ * die ganzen Szenen (nur noch Treffer im Programmcache; fängt Objekte unter einem Licht ab) und ein Bild,
+ * das Geometrien/Texturen hochlädt.
+ */
+async function warmUp(live = () => true) {
   const r = G.renderer.renderer;
   try {
     G.player._updateCamera(0);
+    const passes = [[G.scene, G.camera], [G.viewmodel.scene, G.viewmodel.camera]];
+    let t = performance.now();
+    for (const [scene, camera] of passes) {
+      for (const part of lightFreeParts(scene, [])) {
+        r.compile(part, camera, scene);
+        if (performance.now() - t > 12) {
+          await nextFrame();
+          if (!live()) return;
+          t = performance.now();
+        }
+      }
+    }
     // compileAsync nur mit KHR_parallel_shader_compile (sonst warnt three.js) – sonst synchron
     if (typeof r.compileAsync === 'function' && r.extensions && r.extensions.has('KHR_parallel_shader_compile')) {
-      const jobs = [r.compileAsync(G.scene, G.camera), r.compileAsync(G.viewmodel.scene, G.viewmodel.camera)];
+      const jobs = passes.map(([scene, camera]) => r.compileAsync(scene, camera));
       await Promise.race([Promise.all(jobs), new Promise((res) => setTimeout(res, 4000))]);
     } else {
-      r.compile(G.scene, G.camera);
-      r.compile(G.viewmodel.scene, G.viewmodel.camera);
+      for (const [scene, camera] of passes) r.compile(scene, camera);
     }
+    await nextFrame();
+    if (!live()) return;
+    G.menus.showLoading(0.97);
     G.renderer.render(G.scene, G.camera, G.viewmodel.scene, G.viewmodel.camera);
   } catch (err) {
     console.warn('[NULLPUNKT] Shader-Vorbereitung:', err);
@@ -1122,8 +1304,8 @@ async function bootstrap() {
   let phase = 'error';
   try {
     setBoot(0.02, 'Prüfe Grafik …');
-    if (!webglAvailable()) { showFatal('webgl'); return; }
-    G.renderer = createRenderer(canvas, { quality: QUALITY_OVERRIDE || settings.get('quality') });
+    G.renderer = createRendererOrNull({ quality: QUALITY_OVERRIDE || settings.get('quality') });
+    if (!G.renderer) { showFatal('webgl'); return; }
     G.renderer.onQualityChange(onQualityChanged);
     applyQualityClasses();
     G.perf = dynres = new DynamicResolution({ touch: window.matchMedia ? window.matchMedia('(pointer: coarse)').matches : false });

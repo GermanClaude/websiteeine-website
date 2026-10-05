@@ -3,7 +3,7 @@
 import { h, $, signalLost } from './dom.js';
 import { fit } from './fit.js';
 import { split, Kinetic } from './kinetic.js';
-import { buildPlayUrl } from './deploy.js';
+import { buildPlayUrl, rememberLaunch } from './deploy.js';
 import { ui } from './state.js';
 import { calm, reduced, pointerFine, ease } from './motion.js';
 import { clamp } from './fmt.js';
@@ -178,7 +178,6 @@ export async function init(sec, D, ctx = {}) {
   if (!list) return;
   const M = D.M;
   if (!D.ok.modes) { signalLost(list.parentNode, 'Die Moduldaten fehlen. Die Übersicht bleibt statisch.'); return; }
-  const S = D.settings;
   const rows = [];
   let open = null;
   let acting = null;
@@ -252,8 +251,7 @@ export async function init(sec, D, ctx = {}) {
       snd?.ui('hover');
     });
     r.play.addEventListener('click', () => {
-      const u = new URL(r.play.href, location.href).searchParams;
-      S.patch({ lastMode: u.get('mode') || r.id, lastMap: u.get('map') || undefined });
+      rememberLaunch(r.play.href);
       snd?.ui('confirm');
     });
   }

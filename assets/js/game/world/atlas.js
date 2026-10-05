@@ -18,38 +18,61 @@ function canvas(w, h) {
 /** Atlasgröße je Qualitätsstufe: low halbiert (¼ Speicher), sonst volle Auflösung. */
 export function atlasScale(quality) { return quality === 'low' ? 0.5 : 1; }
 
-// Lebende Canvas-Atlanten: Nach dem GPU-Upload wird die Canvas freigegeben (sonst hält die CanvasTexture
-// ihren Pixelspeicher dauerhaft); bei WebGL-Kontextverlust zeichnet restoreAtlases() sie neu.
-const liveAtlases = new Set();
+// Canvas-Atlanten werden bei Bedarf gezeichnet: three.js liest das Bild einer Textur nur, wenn es sie hochlädt
+// (erstes Bild bzw. initTexture, nach dispose(), nach WebGL-Kontextverlust und -wiederherstellung). Genau dann
+// zeichnet die Quelle den Atlas deterministisch aus seiner gespeicherten Beschreibung (draw-Funktion mit festem
+// Zufallsstartwert) und gibt die Canvas direkt nach dem Upload wieder frei. Kein Pixelspeicher bleibt resident, und
+// es gibt keine Registrierung, die ein dispose() (etwa main.js beim Kontextverlust) aushebeln könnte.
+const atlasStats = { draws: 0, resident: 0, drawMs: 0 };
+
+/** Textur-Quelle, deren Canvas erst beim Lesen (Upload) entsteht und danach wieder freigegeben wird. */
+class AtlasSource extends THREE.TextureSource {
+  constructor(w, h, draw) {
+    super(null);
+    this.width = w; this.height = h; this._draw = draw; this._cv = null;
+  }
+  get data() {
+    if (!this._draw) return null; // nur während des Source-Konstruktors
+    if (!this._cv) {
+      const t0 = performance.now();
+      const cv = canvas(this.width, this.height);
+      this._draw(cv.getContext('2d'), this.width, this.height);
+      this._cv = cv;
+      atlasStats.draws++; atlasStats.resident++; atlasStats.drawMs += performance.now() - t0;
+      // three.js lädt synchron hoch; ein Lesen ohne Upload (Tests, toJSON) hält die Canvas so nur bis zum Mikrotask
+      queueMicrotask(() => this.release());
+    }
+    return this._cv;
+  }
+  set data(_) { /* Inhalt kommt ausschließlich aus draw() */ }
+  /** Größe ohne zu zeichnen (texture.width/height). */
+  getSize(target) { return target.set(this.width, this.height, 0); }
+  /** Canvas-Pixelspeicher sofort freigeben (die GPU hat ihre Kopie). */
+  release() {
+    const cv = this._cv;
+    if (!cv) return;
+    this._cv = null; atlasStats.resident--;
+    cv.width = 1; cv.height = 1;
+  }
+}
 
 /**
- * CanvasTexture, deren Canvas nach dem Hochladen freigegeben wird.
- * draw(ctx, w, h) zeichnet den Inhalt (auch erneut nach Kontextverlust).
+ * Atlas-Textur (w × h), deren Inhalt draw(ctx, w, h) bei jedem Upload neu zeichnet. draw muss deterministisch
+ * sein (eigener Zufallsstartwert), denn nach Kontextverlust oder dispose() wird erneut gezeichnet.
  */
 function atlasTexture(w, h, draw, { anisotropy = 4, name = 'atlas' } = {}) {
-  const tex = new THREE.CanvasTexture(canvas(1, 1));
+  const tex = new THREE.CanvasTexture(null);
+  tex.source = new AtlasSource(w, h, draw);
+  tex.needsUpdate = true;
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = anisotropy;
   tex.name = name;
-  const entry = {
-    tex,
-    redraw() {
-      const cv = canvas(w, h);
-      draw(cv.getContext('2d'), w, h);
-      tex.image = cv;
-      tex.needsUpdate = true;
-    },
-  };
-  tex.onUpdate = () => { const cv = tex.image; if (cv && cv.width > 1) { cv.width = 1; cv.height = 1; } };
-  const dispose = tex.dispose.bind(tex);
-  tex.dispose = () => { liveAtlases.delete(entry); dispose(); };
-  liveAtlases.add(entry);
-  entry.redraw();
+  tex.onUpdate = () => tex.source.release?.();
   return tex;
 }
 
-/** Nach WebGL-Kontextwiederherstellung: alle lebenden Atlanten neu zeichnen und hochladen. */
-export function restoreAtlases() { for (const a of liveAtlases) a.redraw(); }
+/** Diagnose: { draws, resident (gerade gezeichnete Canvas), drawMs }. */
+export function atlasInfo() { return { ...atlasStats, drawMs: Math.round(atlasStats.drawMs) }; }
 
 // ---------------------------------------------------------------------------
 // Decals

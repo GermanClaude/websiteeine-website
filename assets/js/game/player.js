@@ -45,6 +45,19 @@ const damp = (k, dt) => 1 - Math.exp(-k * dt);
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const ease = (t) => t * t * (3 - 2 * t);
 
+// Kritisch gedämpfte Feder mit Ruhelage 0 (x'' = −ω²x − 2ωx'), exakt gelöst statt explizit
+// integriert → stabil für jedes dt (Zeitlupe/Zeitraffer, Bildaussetzer). Ergebnis in `_spr`.
+const _spr = { x: 0, v: 0 };
+function critSpring(x, v, omega, dt) {
+  const e = Math.exp(-omega * dt);
+  const b = v + omega * x;
+  _spr.x = (x + b * dt) * e;
+  _spr.v = (v - omega * b * dt) * e;
+  return _spr;
+}
+const KICK_OMEGA = Math.sqrt(220); // Kameraschlag beim Schuss
+const LAND_OMEGA = Math.sqrt(180); // Einknicken bei der Landung
+
 /** COD-FOV (horizontal, 4:3) → vertikales Kamera-FOV in Grad. */
 export function hfovToVfov(hfov) {
   return (2 * Math.atan(Math.tan((hfov * Math.PI) / 360) * 0.75) * 180) / Math.PI;
@@ -544,16 +557,18 @@ export class Player {
       const s = damp(38, dt);
       this.recoilPitch += (this._recoilTP - this.recoilPitch) * s;
       this.recoilYaw += (this._recoilTY - this.recoilYaw) * s;
-      // Kick-Feder (kritisch gedämpft)
-      this._kickVel += (-this._kick * 220 - this._kickVel * 2 * Math.sqrt(220)) * dt;
-      this._kick += this._kickVel * dt;
+      // Kick-Feder (kritisch gedämpft, exakt)
+      let sp = critSpring(this._kick, this._kickVel, KICK_OMEGA, dt);
+      this._kick = sp.x;
+      this._kickVel = sp.v;
       const fl = Math.exp(-9 * dt);
       this._flinchP *= fl;
       this._flinchY *= fl;
       this._stepSmooth *= Math.exp(-16 * dt);
-      // Landeeinknicken (Feder)
-      this._landVel += (-this._landDip * 180 - this._landVel * 2 * Math.sqrt(180)) * dt;
-      this._landDip += this._landVel * dt;
+      // Landeeinknicken (Feder, exakt)
+      sp = critSpring(this._landDip, this._landVel, LAND_OMEGA, dt);
+      this._landDip = sp.x;
+      this._landVel = sp.v;
       this.trauma = Math.max(0, this.trauma - 1.5 * dt);
     }
 

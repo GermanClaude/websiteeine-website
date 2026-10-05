@@ -1,6 +1,6 @@
 // §01 Satzbau: Der Einsatz ist ein Satz. Jedes Wort ist eine native Auswahl.
 // buildPlayUrl() ist der EINZIGE Erzeuger von Spiel-Links auf der Seite.
-import { ui } from './state.js';
+import { ui, site } from './state.js';
 import { mapsForMode } from './data.js';
 import { reduced } from './motion.js';
 import { announce, debounced } from './live.js';
@@ -16,6 +16,42 @@ export function mapPrep(id) { return PREP[id] || 'auf'; }
 
 function modeDef(id) { return D?.M?.MODES?.[id] || null; }
 function clampInt(v, [a, b]) { return Math.max(a, Math.min(b, Math.round(Number(v) || 0))); }
+function limitsOf(def) { return def?.limits || { allies: [0, 7], enemies: [1, 11] }; }
+
+/**
+ * Mannschaftsstärken eines Modus: die zuletzt gewählten (Website-Speicher `teams`, überlebt den Weg ins Spiel
+ * und zurück), sonst die Vorgabe des Modus – immer in dessen Grenzen.
+ */
+export function teamsFor(mode) {
+  const def = modeDef(mode);
+  const lim = limitsOf(def);
+  const saved = site.get('teams')?.[mode];
+  return {
+    allies: def?.teams === false ? 0 : clampInt(saved?.allies ?? def?.defaultAllies ?? 5, lim.allies),
+    enemies: clampInt(saved?.enemies ?? def?.defaultEnemies ?? 6, lim.enemies),
+  };
+}
+
+function rememberTeams(mode, allies, enemies) {
+  if (!modeDef(mode) || mode === 'training' || !Number.isFinite(allies) || !Number.isFinite(enemies)) return;
+  const all = site.get('teams') || {};
+  if (all[mode]?.allies === allies && all[mode]?.enemies === enemies) return;
+  site.set('teams', { ...all, [mode]: { allies, enemies } });
+}
+
+/**
+ * Vor dem Folgen eines Spiel-Links: Modus, Karte und Mannschaftsstärken merken – der Satzbau zeigt nach der
+ * Rückkehr genau den gestarteten Einsatz. Stärken zuerst, damit der Satzbau beim Moduswechsel die richtigen liest.
+ */
+export function rememberLaunch(href) {
+  let q;
+  try { q = new URL(href, location.href).searchParams; } catch { return; }
+  const mode = q.get('mode');
+  if (!modeDef(mode)) return;
+  if (q.has('allies') && q.has('enemies')) rememberTeams(mode, Number(q.get('allies')), Number(q.get('enemies')));
+  const map = q.get('map');
+  D?.settings?.patch({ lastMode: mode, ...(map && D.P?.MAPS?.[map] ? { lastMap: map } : {}) });
+}
 
 /** Spiel-Link aus dem aktuellen Zustand plus Überschreibungen. */
 export function buildPlayUrl(cfg = {}) {
@@ -23,10 +59,11 @@ export function buildPlayUrl(cfg = {}) {
   const mode = cfg.mode || st.mode || 'tdm';
   if (mode === 'training') return 'spielen.html?mode=training&map=range';
   const def = modeDef(mode);
-  const same = mode === st.mode;
-  const lim = def?.limits || { allies: [0, 7], enemies: [1, 11] };
-  let allies = cfg.allies ?? (same ? st.allies : def?.defaultAllies ?? 5);
-  let enemies = cfg.enemies ?? (same ? st.enemies : def?.defaultEnemies ?? 6);
+  const lim = limitsOf(def);
+  // Gleicher Modus: die Stärken aus dem Satz; anderer Modus: dessen zuletzt gewählte bzw. Vorgabe
+  const sizes = mode === st.mode ? st : teamsFor(mode);
+  let allies = cfg.allies ?? sizes.allies;
+  let enemies = cfg.enemies ?? sizes.enemies;
   allies = def?.teams === false ? 0 : clampInt(allies, lim.allies);
   enemies = clampInt(enemies, lim.enemies);
   let map = cfg.map || st.map || 'hafen';
@@ -104,8 +141,7 @@ export function initDeploy(data, { snd, webgl } = {}) {
   const lastMap = S.get('lastMap');
   const map = mode === 'training' ? 'range' : (allowed.includes(lastMap) ? lastMap : allowed[0]);
   const diff = D.M.DIFFICULTY_ORDER.includes(S.get('difficulty')) ? S.get('difficulty') : 'regulaer';
-  const def = modeDef(mode);
-  ui.patch({ mode, map, diff, allies: def?.defaultAllies ?? 5, enemies: def?.defaultEnemies ?? 6 });
+  ui.patch({ mode, map, diff, ...teamsFor(mode) });
 
   // Bausteine (einmal erzeugt, danach nur umgestellt – der Fokus bleibt erhalten)
   const mk = (cls, text) => { const s = document.createElement('span'); s.className = cls; s.textContent = text; return s; };
@@ -210,6 +246,7 @@ export function initDeploy(data, { snd, webgl } = {}) {
 
   function persist() {
     const st = ui.get();
+    rememberTeams(st.mode, st.allies, st.enemies);
     S.patch({ lastMode: st.mode, lastMap: st.map, difficulty: st.diff });
   }
 
@@ -220,10 +257,9 @@ export function initDeploy(data, { snd, webgl } = {}) {
     const v = sel.value;
     const st = ui.get();
     if (key === 'mode') {
-      const md = modeDef(v);
       const maps = v === 'training' ? ['range'] : mapsForMode(D, v);
       const nextMap = maps.includes(st.map) ? st.map : (maps.includes(S.get('lastMap')) ? S.get('lastMap') : maps[0]);
-      ui.patch({ mode: v, map: nextMap, allies: md?.defaultAllies ?? 0, enemies: md?.defaultEnemies ?? 0 });
+      ui.patch({ mode: v, map: nextMap, ...teamsFor(v) });
     } else if (key === 'allies' || key === 'enemies') {
       ui.set(key, Number(v));
     } else {
@@ -237,6 +273,11 @@ export function initDeploy(data, { snd, webgl } = {}) {
   form.addEventListener('submit', (e) => e.preventDefault());
   go.addEventListener('click', () => sound?.ui('confirm'));
   for (const a of document.querySelectorAll('.cta-fill, .st-play, .bar-play')) a.addEventListener('click', () => sound?.ui('confirm'));
+  // Jeder Spiel-Link mit [data-play] (auch „Direkt spielen“, „Ersten Einsatz starten“) merkt sich den Einsatz
+  document.addEventListener('click', (e) => {
+    const a = e.target instanceof Element ? e.target.closest('a[data-play]') : null;
+    if (a) rememberLaunch(a.href);
+  });
 
   // Link kopieren
   const copy = $('#copy-url');
@@ -267,15 +308,22 @@ export function initDeploy(data, { snd, webgl } = {}) {
     const st = ui.get();
     if (k === 'difficulty' && v !== st.diff && D.M.DIFFICULTY_ORDER.includes(v)) { ui.set('diff', v); render(true); }
     if (k === 'lastMode' && v !== st.mode && order.includes(v)) {
-      const md = modeDef(v);
       const maps = v === 'training' ? ['range'] : mapsForMode(D, v);
-      ui.patch({ mode: v, map: maps.includes(st.map) ? st.map : maps[0], allies: md?.defaultAllies ?? 0, enemies: md?.defaultEnemies ?? 0 });
+      ui.patch({ mode: v, map: maps.includes(st.map) ? st.map : maps[0], ...teamsFor(v) });
       render(true);
     }
     if (k === 'lastMap' && v !== ui.get('map')) {
       const maps = ui.get('mode') === 'training' ? ['range'] : mapsForMode(D, ui.get('mode'));
       if (maps.includes(v)) { ui.set('map', v); render(true); }
     }
+  });
+  // Stärken aus einem anderen Tab (oder nach „Daten löschen“) übernehmen
+  site.onChange((k) => {
+    if (k !== 'teams') return;
+    const st = ui.get();
+    if (st.mode === 'training') return;
+    const t = teamsFor(st.mode);
+    if (t.allies !== st.allies || t.enemies !== st.enemies) { ui.patch(t); render(true); }
   });
 
   render(false);
