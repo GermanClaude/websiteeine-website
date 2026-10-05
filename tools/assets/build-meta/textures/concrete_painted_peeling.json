@@ -1,12 +1,12 @@
 {
   "id": "concrete_painted_peeling",
-  "recipe": "a1aa4eccd477",
+  "recipe": "08600d9c28bc",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/concrete_painted_peeling/concrete_painted_peeling_512_albedo.ktx2",
-          "bytes": 64830,
+          "bytes": 64797,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/concrete_painted_peeling/concrete_painted_peeling_512_normal.ktx2",
-          "bytes": 11990,
+          "bytes": 12075,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/concrete_painted_peeling/concrete_painted_peeling_512_orm.ktx2",
-          "bytes": 35591,
+          "bytes": 35737,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 112411,
+      "bytes": 112609,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/concrete_painted_peeling/concrete_painted_peeling_1024_albedo.ktx2",
-          "bytes": 210583,
+          "bytes": 210621,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/concrete_painted_peeling/concrete_painted_peeling_1024_normal.ktx2",
-          "bytes": 122342,
+          "bytes": 122542,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/concrete_painted_peeling/concrete_painted_peeling_1024_orm.ktx2",
-          "bytes": 124599,
+          "bytes": 124413,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 457524,
+      "bytes": 457576,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

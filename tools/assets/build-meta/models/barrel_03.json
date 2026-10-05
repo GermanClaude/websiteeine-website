@@ -1,6 +1,6 @@
 {
   "id": "barrel_03",
-  "recipe": "336f9a43c5a1",
+  "recipe": "7db23a9d17ee",
   "size": [
     0.634,
     0.93,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/barrel_03/barrel_03_512.glb",
-      "bytes": 163676,
+      "bytes": 131044,
       "srcTris": 1473,
       "lods": [
         {
-          "tris": 716
+          "tris": 716,
+          "level": 1
         },
         {
-          "tris": 226
+          "tris": 226,
+          "level": 2
         }
       ],
       "parts": [
         "barrel_03"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        25.9
+      ],
       "bounds": {
         "min": [
           -0.317,
@@ -71,22 +77,22 @@
         {
           "name": "barrel_03_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 44699,
+          "bytes": 12066,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 25782,
       "gpu": {
-        "desktop": 550071,
-        "mobile": 550071,
-        "rgba8": 4220085
+        "desktop": 418999,
+        "mobile": 418999,
+        "rgba8": 3171509
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        25.9
       ]
     },
     "1024": {
       "path": "models/barrel_03/barrel_03_1024.glb",
-      "bytes": 515020,
+      "bytes": 401476,
       "srcTris": 1473,
       "lods": [
         {
-          "tris": 1473
+          "tris": 1473,
+          "level": 0
         },
         {
-          "tris": 716
+          "tris": 716,
+          "level": 1
         },
         {
-          "tris": 226
+          "tris": 226,
+          "level": 2
         }
       ],
       "parts": [
         "barrel_03"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        9.1,
+        25.9
+      ],
       "bounds": {
         "min": [
           -0.317,
@@ -161,22 +171,22 @@
         {
           "name": "barrel_03_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 158242,
+          "bytes": 44699,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
       "geometryBytes": 59392,
       "gpu": {
-        "desktop": 2156545,
-        "mobile": 2156545,
-        "rgba8": 16836607
+        "desktop": 1632257,
+        "mobile": 1632257,
+        "rgba8": 12642303
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        9.1,
-        25.9
       ]
     }
   }

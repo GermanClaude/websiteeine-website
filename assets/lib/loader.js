@@ -4,9 +4,9 @@
 //   loadTextureSet(id, tier)   → { map, normalMap, ormMap, … } (KTX2/Basis, transkodiert je nach GPU)
 //   createMaterial(id, opts)   → MeshStandardMaterial (ORM: aoMap/roughnessMap/metalnessMap teilen eine Textur)
 //   loadHDRI(id, renderer)     → { envMap (PMREM), background, sunDirection, … }
-//   loadModel(id, tier, opts)  → Object3D (THREE.LOD bei LOD-Ketten; Klone teilen Geometrie/Materialien)
+//   loadModel(id, tier, opts)  → Object3D (THREE.LOD bei LOD-Ketten, opts.lod = n für eine Stufe; Klone teilen Daten)
 //   budget()                   → geladene Bytes + geschätzter GPU-Speicher
-// Stufen: 512 (low/Handy), 1024 (medium/high), 2048 (ultra, nur Helden-Materialien/Waffen) — tierFor(quality).
+// Stufen: 512 (low/Handy), 1024 (medium/high), 2048 (ultra, nur Helden-Materialien/Waffen) — tierFor(quality, kind).
 //
 // Seiten brauchen die Import-Map des Projekts ("three", "three/addons/"). Der Basis-Transcoder liegt unter
 // assets/vendor/three/addons/libs/basis/ und wird relativ zu diesem Modul gefunden.
@@ -19,14 +19,21 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 const LIB_URL = new URL('./', import.meta.url);
 const TRANSCODER_URL = new URL('../vendor/three/addons/libs/basis/', import.meta.url).href;
 
-/** Qualitätsstufe → Texturstufe. HDR-Beleuchtung: low 512, sonst 1024. */
+/**
+ * Qualitätsstufe → Dateistufe (wie tools/assets/manifest.mjs, REALISM_PLAN §4.2/4.3):
+ *  Texturen 512 / 1024 / 1024 / 2048 (2048 nur Helden-Sätze), Requisiten 512 / 512 / 1024 / 2048 (2048 nur Waffen),
+ *  HDRI-Licht (.hdr → PMREM) 512 / 512 / 1024 / 1024, Himmel (KTX2) 1024×512 auf low, sonst 2048×1024.
+ */
 export const QUALITY_TIER = { low: 512, medium: 1024, high: 1024, ultra: 2048 };
-export const HDRI_TIER = { low: 512, medium: 1024, high: 1024, ultra: 1024 };
+export const MODEL_TIER = { low: 512, medium: 512, high: 1024, ultra: 2048 };
+export const HDRI_TIER = { low: 512, medium: 512, high: 1024, ultra: 1024 };
+export const SKY_TIER = { low: 512, medium: 1024, high: 1024, ultra: 1024 };
+const TIERS_BY_KIND = { texture: QUALITY_TIER, model: MODEL_TIER, hdri: HDRI_TIER, sky: SKY_TIER };
 
-/** Stufe für eine Qualität ('auto' → high). kind: 'texture' | 'model' | 'hdri' */
+/** Stufe für eine Qualität ('auto'/unbekannt → high). kind: 'texture' | 'model' | 'hdri' | 'sky' */
 export function tierFor(quality = 'high', kind = 'texture') {
   const q = QUALITY_TIER[quality] ? quality : 'high';
-  return kind === 'hdri' ? HDRI_TIER[q] : QUALITY_TIER[q];
+  return (TIERS_BY_KIND[kind] || QUALITY_TIER)[q];
 }
 
 /** Beste vorhandene Stufe ≤ Wunsch (sonst die kleinste). */
@@ -226,7 +233,8 @@ export class AssetLibrary {
   // -------------------------------------------------------------------------------------------
   /**
    * Umgebung laden: PMREM für envMap (Beleuchtung/Reflexion) + vorab getonemappter Himmel (sRGB, KTX2).
-   * opts: tier (512|1024), background (true), pmrem (true).
+   * opts: tier (512|1024: Licht, Standard aus der Qualität), skyTier (Stufe, deren Himmel geladen wird; Standard
+   * aus der Qualität, Stufe 512 → 1024×512, 1024 → 2048×1024), background (true), pmrem (true).
    * → { id, tier, envMap, background, sunDirection: Vector3, sun, backgroundExposure, meta, createSky(opts), dispose() }
    * Sichtbarer Himmel: createSky() (Kuppel mit der komprimierten Textur, ~2,7 MB GPU bei 2048×1024) statt
    * scene.background = background (three rechnet dann in eine unkomprimierte Würfelkarte um: 6×1024²×4 B ≈ 25 MB).
@@ -236,9 +244,10 @@ export class AssetLibrary {
     if (!this.renderer) throw new Error('loadHDRI: Renderer fehlt');
     const e = await this._entry('hdris', id);
     const t = pickTier(e.tiers, opts.tier || this.tierFor('hdri'));
-    const key = `${id}@${t}:${opts.background !== false ? 'bg' : ''}${opts.pmrem !== false ? 'env' : ''}`;
+    const tb = pickTier(e.tiers, opts.skyTier || opts.tier || this.tierFor('sky'));
+    const key = `${id}@${t}:${opts.background !== false ? 'bg' + tb : ''}${opts.pmrem !== false ? 'env' : ''}`;
     if (!this._hdris.has(key)) {
-      const files = e.tiers[t];
+      const files = e.tiers[t], skyFiles = e.tiers[tb];
       const p = (async () => {
         let envMap = null, background = null;
         if (opts.pmrem !== false) {
@@ -252,17 +261,17 @@ export class AssetLibrary {
           this._track(files.hdr, files.sizes?.hdr, files.gpuParts?.pmrem);
         }
         if (opts.background !== false) {
-          background = await this._ktx().loadAsync(this._url(files.background));
+          background = await this._ktx().loadAsync(this._url(skyFiles.background));
           background.mapping = THREE.EquirectangularReflectionMapping;
           background.name = `${id}:background`;
           background.colorSpace = THREE.SRGBColorSpace;
           background.minFilter = THREE.LinearFilter; // Datei ohne Mipmaps (sonst unvollständige Würfelkarte bei scene.background)
           background.generateMipmaps = false;
-          this._track(files.background, files.sizes?.background, files.gpuParts?.background);
+          this._track(skyFiles.background, skyFiles.sizes?.background, skyFiles.gpuParts?.background);
         }
         const s = e.sun.dir;
-        const rec = { id, tier: t, envMap, background, sunDirection: new THREE.Vector3(s[0], s[1], s[2]).normalize(), sun: e.sun, backgroundExposure: e.backgroundExposure, luminance: e.luminance, meta: e };
-        const paths = [envMap && files.hdr, background && files.background].filter(Boolean);
+        const rec = { id, tier: t, skyTier: tb, envMap, background, sunDirection: new THREE.Vector3(s[0], s[1], s[2]).normalize(), sun: e.sun, backgroundExposure: e.backgroundExposure, luminance: e.luminance, meta: e };
+        const paths = [envMap && files.hdr, background && skyFiles.background].filter(Boolean);
         this._loaded.set(`hdri:${key}`, { type: 'hdri', id, tier: t, paths });
         rec.createSky = (o) => createSky(rec, o);
         rec.dispose = () => { envMap?.dispose(); background?.dispose(); this._hdris.delete(key); this._loaded.delete(`hdri:${key}`); this._untrack(paths); };
@@ -279,9 +288,11 @@ export class AssetLibrary {
   // -------------------------------------------------------------------------------------------
   /**
    * Modell laden → neuer Klon (Geometrie/Materialien geteilt). tier wie oben.
-   * opts: lod (true: THREE.LOD aus LOD0/LOD1/LOD2; false: nur LOD0), part (Name eines Teils eines Baukastens/
-   * Modells → nur dieses Teil), castShadow (true), receiveShadow (true).
-   * userData: { assetId, tier, size, radius, parts }
+   * opts: lod (true: THREE.LOD aus LOD0/LOD1/LOD2 mit den Abständen aus dem Manifest; false: nur LOD0; Zahl n: nur
+   * Stufe n, z. B. für eigene Instanzierung je Stufe), part (Name eines Teils eines Baukastens/Modells → nur dieses
+   * Teil), castShadow (true), receiveShadow (true).
+   * Hinweis: In der 512er-Stufe fehlt bei Requisiten die volle Geometrie (lodShift) — LOD0 ist dort das frühere LOD1.
+   * userData: { assetId, tier, size, radius, parts, lodDistances }
    */
   async loadModel(id, tier, opts = {}) {
     const e = await this._entry('models', id);
@@ -316,6 +327,9 @@ export class AssetLibrary {
       if (!src) throw new Error(`${id}: Teil „${opts.part}“ fehlt (vorhanden: ${meta.parts.join(', ')})`);
       out = src.clone(true);
       out.position.set(0, 0, 0);
+    } else if (typeof opts.lod === 'number' && lodNodes.length) {
+      out = new THREE.Group();
+      for (const c of lodNodes[Math.max(0, Math.min(lodNodes.length - 1, opts.lod))].children) out.add(c.clone(true));
     } else if (lodNodes.length > 1 && opts.lod !== false) {
       out = new THREE.LOD();
       // Handy-Stufe ohne volle Geometrie (lodShift): eigene Abstände je Stufe
@@ -329,7 +343,7 @@ export class AssetLibrary {
     out.name = id;
     const cast = opts.castShadow ?? true, recv = opts.receiveShadow ?? true;
     out.traverse((o) => { if (o.isMesh) { o.castShadow = cast; o.receiveShadow = recv; } });
-    out.userData = { assetId: id, tier: t, size: meta.size, radius: meta.radius, parts: meta.parts };
+    out.userData = { assetId: id, tier: t, size: meta.size, radius: meta.radius, parts: meta.parts, lodDistances: tierMeta.lodDistances || meta.lodDistances || null };
     return out;
   }
 
@@ -374,6 +388,13 @@ export class AssetLibrary {
     return { downloadedBytes: this.downloadedBytes, residentBytes: bytes, gpu, count: assets.length, assets, renderer: this.renderer ? { ...this.renderer.info.memory } : null };
   }
 
+  /** Von dieser GPU unterstützte Kompressionsformate (Diagnose), z. B. ['etc2', 'etc1', 'astc', 'dxt']. BC7 (bptc) ist für
+   * die Bibliothek abgeschaltet (ETC1S → BC1/BC3 auf dem Desktop, gleiche Qualität, halber Speicher). */
+  compressionSupport() {
+    const c = this._ktx().workerConfig || {};
+    return Object.entries(c).filter(([, v]) => v === true).map(([k]) => k.replace(/Supported$/, ''));
+  }
+
   /** Budget im Voraus schätzen (ohne zu laden): { textures, models, hdri } + Qualität → { bytes, gpu }; geteilte Dateien einmal. */
   async estimate({ textures = [], models = [], hdri = null } = {}, quality = this.quality) {
     const m = await this.ready();
@@ -387,8 +408,9 @@ export class AssetLibrary {
     }
     for (const id of models) { const e = m.models[id]; if (!e) continue; const f = e.tiers[pickTier(e.tiers, tierFor(quality, 'model'))]; add(f.glb, f.bytes, f.gpu); }
     if (hdri && m.hdris[hdri]) {
-      const f = m.hdris[hdri].tiers[pickTier(m.hdris[hdri].tiers, tierFor(quality, 'hdri'))];
-      add(f.hdr, f.sizes?.hdr, f.gpuParts?.pmrem); add(f.background, f.sizes?.background, f.gpuParts?.background);
+      const tiers = m.hdris[hdri].tiers;
+      const f = tiers[pickTier(tiers, tierFor(quality, 'hdri'))], fb = tiers[pickTier(tiers, tierFor(quality, 'sky'))];
+      add(f.hdr, f.sizes?.hdr, f.gpuParts?.pmrem); add(fb.background, fb.sizes?.background, fb.gpuParts?.background);
     }
     return { bytes, gpu };
   }

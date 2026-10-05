@@ -1,6 +1,6 @@
 {
   "id": "security_camera_01",
-  "recipe": "105529eaa41e",
+  "recipe": "430b66677c9c",
   "size": [
     0.17,
     0.286,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/security_camera_01/security_camera_01_512.glb",
-      "bytes": 161520,
+      "bytes": 133704,
       "srcTris": 13571,
       "lods": [
         {
-          "tris": 1600
+          "tris": 1600,
+          "level": 1
         },
         {
-          "tris": 671
+          "tris": 447,
+          "level": 2
         }
       ],
       "parts": [
         "security_camera_01"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        16
+      ],
       "bounds": {
         "min": [
           -0.085,
@@ -71,22 +77,22 @@
         {
           "name": "security_camera_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 35509,
+          "bytes": 10955,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 73652,
+      "geometryBytes": 65378,
       "gpu": {
-        "desktop": 597941,
-        "mobile": 597941,
-        "rgba8": 4267955
+        "desktop": 458595,
+        "mobile": 458595,
+        "rgba8": 3211105
       },
       "materials": [
         {
@@ -99,31 +105,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        16
       ]
     },
     "1024": {
       "path": "models/security_camera_01/security_camera_01_1024.glb",
-      "bytes": 454464,
+      "bytes": 373884,
       "srcTris": 13571,
       "lods": [
         {
-          "tris": 4001
+          "tris": 4001,
+          "level": 0
         },
         {
-          "tris": 1600
+          "tris": 1600,
+          "level": 1
         },
         {
-          "tris": 671
+          "tris": 447,
+          "level": 2
         }
       ],
       "parts": [
         "security_camera_01"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        6,
+        16
+      ],
       "bounds": {
         "min": [
           -0.085,
@@ -166,22 +176,22 @@
         {
           "name": "security_camera_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 112822,
+          "bytes": 35509,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 182634,
+      "geometryBytes": 174360,
       "gpu": {
-        "desktop": 2279787,
-        "mobile": 2279787,
-        "rgba8": 16959849
+        "desktop": 1747225,
+        "mobile": 1747225,
+        "rgba8": 12757271
       },
       "materials": [
         {
@@ -194,11 +204,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        6,
-        16
       ]
     }
   }

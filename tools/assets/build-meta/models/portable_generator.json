@@ -1,6 +1,6 @@
 {
   "id": "portable_generator",
-  "recipe": "194c4aaaf602",
+  "recipe": "2f7b04cb4dcd",
   "size": [
     0.817,
     0.575,
@@ -15,23 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/portable_generator/portable_generator_512.glb",
-      "bytes": 345416,
+      "bytes": 238004,
       "srcTris": 26419,
       "lods": [
         {
-          "tris": 5688
+          "tris": 3999,
+          "level": 1
         },
         {
-          "tris": 4098
+          "tris": 1115,
+          "level": 2
         }
       ],
       "parts": [
-        "portable_generator",
-        "portable_generator_dial",
-        "portable_generator_switch",
-        "portable_generator_toggle"
+        "portable_generator"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        22.9
+      ],
       "bounds": {
         "min": [
           -0.415,
@@ -87,22 +90,22 @@
         {
           "name": "portable_generator_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 42930,
+          "bytes": 13145,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 380212,
+      "geometryBytes": 198830,
       "gpu": {
-        "desktop": 1079264,
-        "mobile": 1079264,
-        "rgba8": 5972616
+        "desktop": 766810,
+        "mobile": 766810,
+        "rgba8": 4742658
       },
       "materials": [
         {
@@ -115,34 +118,35 @@
           "alphaMode": "BLEND",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        22.9
       ]
     },
     "1024": {
       "path": "models/portable_generator/portable_generator_1024.glb",
-      "bytes": 845720,
+      "bytes": 663176,
       "srcTris": 26419,
       "lods": [
         {
-          "tris": 8063
+          "tris": 7984,
+          "level": 0
         },
         {
-          "tris": 5688
+          "tris": 3999,
+          "level": 1
         },
         {
-          "tris": 4098
+          "tris": 1115,
+          "level": 2
         }
       ],
       "parts": [
-        "portable_generator",
-        "portable_generator_dial",
-        "portable_generator_switch",
-        "portable_generator_toggle"
+        "portable_generator"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        8,
+        22.9
+      ],
       "bounds": {
         "min": [
           -0.415,
@@ -198,22 +202,22 @@
         {
           "name": "portable_generator_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 148489,
+          "bytes": 42930,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 653402,
+      "geometryBytes": 474412,
       "gpu": {
-        "desktop": 3449606,
-        "mobile": 3449606,
-        "rgba8": 23023022
+        "desktop": 2746328,
+        "mobile": 2746328,
+        "rgba8": 18649728
       },
       "materials": [
         {
@@ -226,11 +230,6 @@
           "alphaMode": "BLEND",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        8,
-        22.9
       ]
     }
   }

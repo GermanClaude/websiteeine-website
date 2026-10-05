@@ -1,6 +1,6 @@
 {
   "id": "ammo_box",
-  "recipe": "9c6c18f27a36",
+  "recipe": "22c615fef808",
   "size": [
     0.086,
     0.177,
@@ -15,24 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/ammo_box/ammo_box_512.glb",
-      "bytes": 135940,
+      "bytes": 95916,
       "srcTris": 4382,
       "lods": [
         {
-          "tris": 1235
+          "tris": 1198,
+          "level": 1
         },
         {
-          "tris": 650
+          "tris": 522,
+          "level": 2
         }
       ],
       "parts": [
-        "ammo_box_handle_ring_b",
-        "ammo_box",
-        "ammo_box_handle_ring_a",
-        "ammo_box_latch",
-        "ammo_box_handle"
+        "ammo_box_handle_ring_b"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        16
+      ],
       "bounds": {
         "min": [
           -0.043,
@@ -75,22 +77,22 @@
         {
           "name": "ammo_box_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 39286,
+          "bytes": 11541,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 62346,
+      "geometryBytes": 60898,
       "gpu": {
-        "desktop": 586635,
-        "mobile": 586635,
-        "rgba8": 4256649
+        "desktop": 454115,
+        "mobile": 454115,
+        "rgba8": 3206625
       },
       "materials": [
         {
@@ -98,105 +100,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        16
-      ]
-    },
-    "1024": {
-      "path": "models/ammo_box/ammo_box_1024.glb",
-      "bytes": 392092,
-      "srcTris": 4382,
-      "lods": [
-        {
-          "tris": 2993
-        },
-        {
-          "tris": 1235
-        },
-        {
-          "tris": 650
-        }
-      ],
-      "parts": [
-        "ammo_box_handle_ring_b",
-        "ammo_box",
-        "ammo_box_handle_ring_a",
-        "ammo_box_latch",
-        "ammo_box_handle"
-      ],
-      "lodShift": false,
-      "bounds": {
-        "min": [
-          -0.043,
-          0,
-          -0.129
-        ],
-        "max": [
-          0.043,
-          0.177,
-          0.129
-        ]
-      },
-      "textures": [
-        {
-          "name": "ammo_box_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 23599,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "ammo_box_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 161204,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "ammo_box_arm_1k.ktx2",
-          "role": "orm",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 129973,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        }
-      ],
-      "geometryBytes": 146018,
-      "gpu": {
-        "desktop": 2243171,
-        "mobile": 2243171,
-        "rgba8": 16923233
-      },
-      "materials": [
-        {
-          "name": "ammo_box",
-          "alphaMode": "OPAQUE",
-          "doubleSided": true
-        }
-      ],
-      "lodDistances": [
-        0,
-        6,
-        16
       ]
     }
   }

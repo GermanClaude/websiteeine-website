@@ -1,52 +1,49 @@
 {
   "id": "old_military_crate",
-  "recipe": "b2ab7efdfd46",
+  "recipe": "2a25b5aebd3a",
   "size": [
-    1.812,
-    0.301,
-    0.976
+    1.808,
+    0.299,
+    0.968
   ],
-  "radius": 1.04,
+  "radius": 1.036,
   "lodDistances": [
     0,
     14.6,
-    41.6
+    41.7
   ],
   "tiers": {
     "512": {
       "path": "models/old_military_crate/old_military_crate_512.glb",
-      "bytes": 231640,
-      "srcTris": 10476,
+      "bytes": 191324,
+      "srcTris": 20952,
       "lods": [
         {
-          "tris": 4786
+          "tris": 2400,
+          "level": 1
         },
         {
-          "tris": 2342
+          "tris": 816,
+          "level": 2
         }
       ],
       "parts": [
-        "old_military_crate_lid_a",
-        "old_military_crate_loop_a",
-        "old_military_crate_latch_a",
-        "old_military_crate_cloth_a",
-        "old_military_crate_a",
-        "old_military_crate_lid_b",
-        "old_military_crate_loop_b",
-        "old_military_crate_latch_b",
-        "old_military_crate_cloth_b",
-        "old_military_crate_b"
+        "old_military_crate_lid_a"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        41.7
+      ],
       "bounds": {
         "min": [
-          -0.91,
-          0,
-          -0.667
+          -0.907,
+          0.001,
+          -0.659
         ],
         "max": [
-          0.902,
-          0.301,
+          0.901,
+          0.3,
           0.309
         ]
       },
@@ -80,22 +77,22 @@
         {
           "name": "old_military_crate_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 38955,
+          "bytes": 11126,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 112068,
+      "geometryBytes": 119528,
       "gpu": {
-        "desktop": 636357,
-        "mobile": 636357,
-        "rgba8": 4306371
+        "desktop": 512745,
+        "mobile": 512745,
+        "rgba8": 3265255
       },
       "materials": [
         {
@@ -103,40 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        41.6
       ]
     },
     "1024": {
       "path": "models/old_military_crate/old_military_crate_1024.glb",
-      "bytes": 675852,
-      "srcTris": 10476,
+      "bytes": 570248,
+      "srcTris": 20952,
       "lods": [
         {
-          "tris": 5998
+          "tris": 6000,
+          "level": 0
         },
         {
-          "tris": 4786
+          "tris": 2400,
+          "level": 1
         },
         {
-          "tris": 2342
+          "tris": 816,
+          "level": 2
         }
       ],
       "parts": [
-        "old_military_crate_lid_a",
-        "old_military_crate_loop_a",
-        "old_military_crate_latch_a",
-        "old_military_crate_cloth_a",
-        "old_military_crate_a",
-        "old_military_crate_lid_b",
-        "old_military_crate_loop_b",
-        "old_military_crate_latch_b",
-        "old_military_crate_cloth_b",
-        "old_military_crate_b"
+        "old_military_crate_lid_a"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        14.6,
+        41.7
+      ],
       "bounds": {
         "min": [
           -0.913,
@@ -179,22 +171,22 @@
         {
           "name": "old_military_crate_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 133063,
+          "bytes": 38955,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 261752,
+      "geometryBytes": 286824,
       "gpu": {
-        "desktop": 2358905,
-        "mobile": 2358905,
-        "rgba8": 17038967
+        "desktop": 1859689,
+        "mobile": 1859689,
+        "rgba8": 12869735
       },
       "materials": [
         {
@@ -202,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        14.6,
-        41.6
       ]
     }
   }

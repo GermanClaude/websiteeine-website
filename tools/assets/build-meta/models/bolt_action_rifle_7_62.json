@@ -1,6 +1,6 @@
 {
   "id": "bolt_action_rifle_7_62",
-  "recipe": "1af1d60bfd52",
+  "recipe": "e25533805cd8",
   "size": [
     1.231,
     0.205,
@@ -15,17 +15,20 @@
   "tiers": {
     "512": {
       "path": "models/bolt_action_rifle_7_62/bolt_action_rifle_7_62_512.glb",
-      "bytes": 700112,
+      "bytes": 687016,
       "srcTris": 19985,
       "lods": [
         {
-          "tris": 19985
+          "tris": 19985,
+          "level": 0
         },
         {
-          "tris": 8036
+          "tris": 7988,
+          "level": 1
         },
         {
-          "tris": 3398
+          "tris": 2602,
+          "level": 2
         }
       ],
       "parts": [
@@ -38,6 +41,11 @@
         "bolt_action_rifle_7_62_trigger"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        8.7,
+        25
+      ],
       "bounds": {
         "min": [
           -0.635,
@@ -130,11 +138,11 @@
           }
         }
       ],
-      "geometryBytes": 925492,
+      "geometryBytes": 893192,
       "gpu": {
-        "desktop": 1974070,
-        "mobile": 1974070,
-        "rgba8": 9314098
+        "desktop": 1941770,
+        "mobile": 1941770,
+        "rgba8": 9281798
       },
       "materials": [
         {
@@ -152,26 +160,24 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        8.7,
-        25
       ]
     },
     "1024": {
       "path": "models/bolt_action_rifle_7_62/bolt_action_rifle_7_62_1024.glb",
-      "bytes": 1471196,
+      "bytes": 1458096,
       "srcTris": 19985,
       "lods": [
         {
-          "tris": 19985
+          "tris": 19985,
+          "level": 0
         },
         {
-          "tris": 8036
+          "tris": 7988,
+          "level": 1
         },
         {
-          "tris": 3398
+          "tris": 2602,
+          "level": 2
         }
       ],
       "parts": [
@@ -184,6 +190,11 @@
         "bolt_action_rifle_7_62_trigger"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        8.7,
+        25
+      ],
       "bounds": {
         "min": [
           -0.635,
@@ -276,11 +287,11 @@
           }
         }
       ],
-      "geometryBytes": 925492,
+      "geometryBytes": 893192,
       "gpu": {
-        "desktop": 5119798,
-        "mobile": 5119798,
-        "rgba8": 34479922
+        "desktop": 5087498,
+        "mobile": 5087498,
+        "rgba8": 34447622
       },
       "materials": [
         {
@@ -298,26 +309,24 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        8.7,
-        25
       ]
     },
     "2048": {
       "path": "models/bolt_action_rifle_7_62/bolt_action_rifle_7_62_2048.glb",
-      "bytes": 4609704,
+      "bytes": 4596604,
       "srcTris": 19985,
       "lods": [
         {
-          "tris": 19985
+          "tris": 19985,
+          "level": 0
         },
         {
-          "tris": 8036
+          "tris": 7988,
+          "level": 1
         },
         {
-          "tris": 3398
+          "tris": 2602,
+          "level": 2
         }
       ],
       "parts": [
@@ -330,6 +339,11 @@
         "bolt_action_rifle_7_62_trigger"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        8.7,
+        25
+      ],
       "bounds": {
         "min": [
           -0.635,
@@ -422,11 +436,11 @@
           }
         }
       ],
-      "geometryBytes": 925492,
+      "geometryBytes": 893192,
       "gpu": {
-        "desktop": 17702710,
-        "mobile": 17702710,
-        "rgba8": 135143218
+        "desktop": 17670410,
+        "mobile": 17670410,
+        "rgba8": 135110918
       },
       "materials": [
         {
@@ -444,11 +458,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        8.7,
-        25
       ]
     }
   }

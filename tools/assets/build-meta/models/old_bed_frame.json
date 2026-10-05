@@ -1,6 +1,6 @@
 {
   "id": "old_bed_frame",
-  "recipe": "31c84258c7b6",
+  "recipe": "8fcf301f28c3",
   "size": [
     0.905,
     1.201,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/old_bed_frame/old_bed_frame_512.glb",
-      "bytes": 225772,
+      "bytes": 193720,
       "srcTris": 49990,
       "lods": [
         {
-          "tris": 3568
+          "tris": 3568,
+          "level": 1
         },
         {
-          "tris": 1229
+          "tris": 1229,
+          "level": 2
         }
       ],
       "parts": [
         "old_bed_frame"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        50.1
+      ],
       "bounds": {
         "min": [
           -0.448,
@@ -71,22 +77,22 @@
         {
           "name": "old_bed_frame_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 46235,
+          "bytes": 14316,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 198770,
+      "geometryBytes": 197912,
       "gpu": {
-        "desktop": 723059,
-        "mobile": 723059,
-        "rgba8": 4393073
+        "desktop": 591129,
+        "mobile": 591129,
+        "rgba8": 3343639
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        50.1
       ]
     },
     "1024": {
       "path": "models/old_bed_frame/old_bed_frame_1024.glb",
-      "bytes": 681240,
+      "bytes": 573056,
       "srcTris": 49990,
       "lods": [
         {
-          "tris": 8921
+          "tris": 8921,
+          "level": 0
         },
         {
-          "tris": 3568
+          "tris": 3568,
+          "level": 1
         },
         {
-          "tris": 1229
+          "tris": 1229,
+          "level": 2
         }
       ],
       "parts": [
         "old_bed_frame"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        17.5,
+        50.1
+      ],
       "bounds": {
         "min": [
           -0.448,
@@ -161,22 +171,22 @@
         {
           "name": "old_bed_frame_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 154286,
+          "bytes": 46235,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 485568,
+      "geometryBytes": 484710,
       "gpu": {
-        "desktop": 2582721,
-        "mobile": 2582721,
-        "rgba8": 17262783
+        "desktop": 2057575,
+        "mobile": 2057575,
+        "rgba8": 13067621
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        17.5,
-        50.1
       ]
     }
   }

@@ -1,6 +1,6 @@
 {
   "id": "hanging_industrial_lamp",
-  "recipe": "91ecfc05c008",
+  "recipe": "0257d20df62d",
   "size": [
     0.55,
     1.355,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/hanging_industrial_lamp/hanging_industrial_lamp_512.glb",
-      "bytes": 270372,
+      "bytes": 227008,
       "srcTris": 9530,
       "lods": [
         {
-          "tris": 2509
+          "tris": 1965,
+          "level": 1
         },
         {
-          "tris": 1240
+          "tris": 728,
+          "level": 2
         }
       ],
       "parts": [
         "hanging_industrial_lamp"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        31.2
+      ],
       "bounds": {
         "min": [
           -0.275,
@@ -84,14 +90,14 @@
         {
           "name": "hanging_industrial_lamp_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 42896,
+          "bytes": 13908,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         },
         {
@@ -108,11 +114,11 @@
           }
         }
       ],
-      "geometryBytes": 131658,
+      "geometryBytes": 95116,
       "gpu": {
-        "desktop": 1005473,
-        "mobile": 1005473,
-        "rgba8": 7122163
+        "desktop": 837859,
+        "mobile": 837859,
+        "rgba8": 6037045
       },
       "materials": [
         {
@@ -125,31 +131,35 @@
           "alphaMode": "BLEND",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        31.2
       ]
     },
     "1024": {
       "path": "models/hanging_industrial_lamp/hanging_industrial_lamp_1024.glb",
-      "bytes": 820988,
+      "bytes": 700468,
       "srcTris": 9530,
       "lods": [
         {
-          "tris": 5340
+          "tris": 5000,
+          "level": 0
         },
         {
-          "tris": 2509
+          "tris": 1965,
+          "level": 1
         },
         {
-          "tris": 1240
+          "tris": 728,
+          "level": 2
         }
       ],
       "parts": [
         "hanging_industrial_lamp"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        10.9,
+        31.2
+      ],
       "bounds": {
         "min": [
           -0.275,
@@ -205,14 +215,14 @@
         {
           "name": "hanging_industrial_lamp_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 145592,
+          "bytes": 42896,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         },
         {
@@ -229,11 +239,11 @@
           }
         }
       ],
-      "geometryBytes": 282718,
+      "geometryBytes": 236876,
       "gpu": {
-        "desktop": 3777973,
-        "mobile": 3777973,
-        "rgba8": 28244743
+        "desktop": 3207843,
+        "mobile": 3207843,
+        "rgba8": 24004597
       },
       "materials": [
         {
@@ -246,11 +256,6 @@
           "alphaMode": "BLEND",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        10.9,
-        31.2
       ]
     }
   }

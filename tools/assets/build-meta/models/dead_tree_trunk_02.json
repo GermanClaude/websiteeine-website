@@ -1,6 +1,6 @@
 {
   "id": "dead_tree_trunk_02",
-  "recipe": "c29bd96b4f87",
+  "recipe": "f1312109b133",
   "size": [
     4.038,
     1.053,
@@ -9,26 +9,32 @@
   "radius": 2.15,
   "lodDistances": [
     0,
-    30.1,
-    86
+    30.2,
+    86.3
   ],
   "tiers": {
     "512": {
       "path": "models/dead_tree_trunk_02/dead_tree_trunk_02_512.glb",
-      "bytes": 250144,
+      "bytes": 220644,
       "srcTris": 83128,
       "lods": [
         {
-          "tris": 2388
+          "tris": 2388,
+          "level": 1
         },
         {
-          "tris": 836
+          "tris": 836,
+          "level": 2
         }
       ],
       "parts": [
         "dead_tree_trunk_02"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        86.3
+      ],
       "bounds": {
         "min": [
           -1.923,
@@ -71,22 +77,22 @@
         {
           "name": "dead_tree_trunk_02_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 40774,
+          "bytes": 11267,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 83870,
       "gpu": {
-        "desktop": 608159,
-        "mobile": 608159,
-        "rgba8": 4278173
+        "desktop": 477087,
+        "mobile": 477087,
+        "rgba8": 3229597
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        86
       ]
     },
     "1024": {
       "path": "models/dead_tree_trunk_02/dead_tree_trunk_02_1024.glb",
-      "bytes": 753080,
+      "bytes": 647572,
       "srcTris": 83128,
       "lods": [
         {
-          "tris": 5988
+          "tris": 5988,
+          "level": 0
         },
         {
-          "tris": 2388
+          "tris": 2388,
+          "level": 1
         },
         {
-          "tris": 836
+          "tris": 836,
+          "level": 2
         }
       ],
       "parts": [
         "dead_tree_trunk_02"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        30.2,
+        86.3
+      ],
       "bounds": {
         "min": [
           -1.923,
@@ -161,22 +171,22 @@
         {
           "name": "dead_tree_trunk_02_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 146286,
+          "bytes": 40774,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
       "geometryBytes": 214948,
       "gpu": {
-        "desktop": 2312101,
-        "mobile": 2312101,
-        "rgba8": 16992163
+        "desktop": 1787813,
+        "mobile": 1787813,
+        "rgba8": 12797859
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        30.1,
-        86
       ]
     }
   }

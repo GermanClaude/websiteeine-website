@@ -1,10 +1,10 @@
 {
   "id": "potted_plant_02",
-  "recipe": "010a22af5757",
+  "recipe": "6061e50e2aa4",
   "size": [
     0.7,
     0.839,
-    0.655
+    0.654
   ],
   "radius": 0.637,
   "lodDistances": [
@@ -15,22 +15,27 @@
   "tiers": {
     "512": {
       "path": "models/potted_plant_02/potted_plant_02_512.glb",
-      "bytes": 408508,
+      "bytes": 334836,
       "srcTris": 69806,
       "lods": [
         {
-          "tris": 6977
+          "tris": 4776,
+          "level": 1
         },
         {
-          "tris": 1913
+          "tris": 1730,
+          "level": 2
         }
       ],
       "parts": [
         "potted_plant_02_pot",
-        "potted_plant_02_leaves",
-        "potted_plant_02_dirt"
+        "potted_plant_02_leaves"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        25.5
+      ],
       "bounds": {
         "min": [
           -0.396,
@@ -40,7 +45,7 @@
         "max": [
           0.304,
           0.84,
-          0.236
+          0.235
         ]
       },
       "textures": [
@@ -73,14 +78,14 @@
         {
           "name": "potted_plant_02_pot_rough_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 31842,
+          "bytes": 9124,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         },
         {
@@ -112,22 +117,22 @@
         {
           "name": "potted_plant_02_leaves_rough_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 30946,
+          "bytes": 8596,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 271492,
+      "geometryBytes": 211098,
       "gpu": {
-        "desktop": 1320070,
-        "mobile": 1320070,
-        "rgba8": 8660098
+        "desktop": 997532,
+        "mobile": 997532,
+        "rgba8": 6502552
       },
       "materials": [
         {
@@ -140,37 +145,40 @@
           "alphaMode": "MASK",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        25.5
       ]
     },
     "1024": {
       "path": "models/potted_plant_02/potted_plant_02_1024.glb",
-      "bytes": 1140396,
+      "bytes": 967652,
       "srcTris": 69806,
       "lods": [
         {
-          "tris": 12040
+          "tris": 11986,
+          "level": 0
         },
         {
-          "tris": 6977
+          "tris": 4776,
+          "level": 1
         },
         {
-          "tris": 1913
+          "tris": 1730,
+          "level": 2
         }
       ],
       "parts": [
         "potted_plant_02_pot",
-        "potted_plant_02_leaves",
-        "potted_plant_02_dirt"
+        "potted_plant_02_leaves"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        8.9,
+        25.5
+      ],
       "bounds": {
         "min": [
           -0.396,
-          0.001,
+          0,
           -0.42
         ],
         "max": [
@@ -209,14 +217,14 @@
         {
           "name": "potted_plant_02_pot_rough_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 102259,
+          "bytes": 31842,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         },
         {
@@ -248,22 +256,22 @@
         {
           "name": "potted_plant_02_leaves_rough_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 101446,
+          "bytes": 30946,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 578230,
+      "geometryBytes": 516676,
       "gpu": {
-        "desktop": 4772536,
-        "mobile": 4772536,
-        "rgba8": 34132660
+        "desktop": 3662406,
+        "mobile": 3662406,
+        "rgba8": 25682498
       },
       "materials": [
         {
@@ -276,11 +284,6 @@
           "alphaMode": "MASK",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        8.9,
-        25.5
       ]
     }
   }

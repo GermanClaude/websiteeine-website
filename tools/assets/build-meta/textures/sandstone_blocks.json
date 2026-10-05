@@ -1,12 +1,12 @@
 {
   "id": "sandstone_blocks",
-  "recipe": "554c760f3298",
+  "recipe": "6dbc4d0d5be0",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/sandstone_blocks/sandstone_blocks_512_albedo.ktx2",
-          "bytes": 65474,
+          "bytes": 65133,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/sandstone_blocks/sandstone_blocks_512_normal.ktx2",
-          "bytes": 105813,
+          "bytes": 105780,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/sandstone_blocks/sandstone_blocks_512_orm.ktx2",
-          "bytes": 34211,
+          "bytes": 34149,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 205498,
+      "bytes": 205062,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/sandstone_blocks/sandstone_blocks_1024_albedo.ktx2",
-          "bytes": 217514,
+          "bytes": 217479,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/sandstone_blocks/sandstone_blocks_1024_normal.ktx2",
-          "bytes": 303916,
+          "bytes": 303736,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/sandstone_blocks/sandstone_blocks_1024_orm.ktx2",
-          "bytes": 124301,
+          "bytes": 124120,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 645731,
+      "bytes": 645335,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,7 +104,7 @@
       "files": {
         "albedo": {
           "path": "textures/sandstone_blocks/sandstone_blocks_2048_albedo.ktx2",
-          "bytes": 864821,
+          "bytes": 861561,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -117,7 +117,7 @@
         },
         "normal": {
           "path": "textures/sandstone_blocks/sandstone_blocks_2048_normal.ktx2",
-          "bytes": 1080044,
+          "bytes": 1081726,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -130,7 +130,7 @@
         },
         "orm": {
           "path": "textures/sandstone_blocks/sandstone_blocks_2048_orm.ktx2",
-          "bytes": 492561,
+          "bytes": 492475,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -142,7 +142,7 @@
           }
         }
       },
-      "bytes": 2437426,
+      "bytes": 2435762,
       "gpu": {
         "desktop": 8388609,
         "mobile": 8388609,

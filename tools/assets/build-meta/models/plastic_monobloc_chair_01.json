@@ -1,6 +1,6 @@
 {
   "id": "plastic_monobloc_chair_01",
-  "recipe": "6bb1de0ac0a8",
+  "recipe": "c9ad62515241",
   "size": [
     0.642,
     0.88,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/plastic_monobloc_chair_01/plastic_monobloc_chair_01_512.glb",
-      "bytes": 190984,
+      "bytes": 166860,
       "srcTris": 3356,
       "lods": [
         {
-          "tris": 1342
+          "tris": 1342,
+          "level": 1
         },
         {
-          "tris": 602
+          "tris": 602,
+          "level": 2
         }
       ],
       "parts": [
         "plastic_monobloc_chair_01"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        25.1
+      ],
       "bounds": {
         "min": [
           -0.321,
@@ -71,22 +77,22 @@
         {
           "name": "plastic_monobloc_chair_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 34245,
+          "bytes": 10118,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 68006,
       "gpu": {
-        "desktop": 592295,
-        "mobile": 592295,
-        "rgba8": 4262309
+        "desktop": 461223,
+        "mobile": 461223,
+        "rgba8": 3213733
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        25.1
       ]
     },
     "1024": {
       "path": "models/plastic_monobloc_chair_01/plastic_monobloc_chair_01_1024.glb",
-      "bytes": 554588,
+      "bytes": 479556,
       "srcTris": 3356,
       "lods": [
         {
-          "tris": 3356
+          "tris": 3356,
+          "level": 0
         },
         {
-          "tris": 1342
+          "tris": 1342,
+          "level": 1
         },
         {
-          "tris": 602
+          "tris": 602,
+          "level": 2
         }
       ],
       "parts": [
         "plastic_monobloc_chair_01"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        8.8,
+        25.1
+      ],
       "bounds": {
         "min": [
           -0.321,
@@ -161,22 +171,22 @@
         {
           "name": "plastic_monobloc_chair_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 109279,
+          "bytes": 34245,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
       "geometryBytes": 160104,
       "gpu": {
-        "desktop": 2257257,
-        "mobile": 2257257,
-        "rgba8": 16937319
+        "desktop": 1732969,
+        "mobile": 1732969,
+        "rgba8": 12743015
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        8.8,
-        25.1
       ]
     }
   }

@@ -1,6 +1,6 @@
 {
   "id": "street_lamp_01",
-  "recipe": "1b404d7e7766",
+  "recipe": "15cafd92bbcb",
   "size": [
     0.704,
     3.871,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/street_lamp_01/street_lamp_01_512.glb",
-      "bytes": 154468,
+      "bytes": 120764,
       "srcTris": 30610,
       "lods": [
         {
-          "tris": 2604
+          "tris": 2396,
+          "level": 1
         },
         {
-          "tris": 911
+          "tris": 828,
+          "level": 2
         }
       ],
       "parts": [
         "street_lamp_01"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        79.1
+      ],
       "bounds": {
         "min": [
           -0.352,
@@ -71,22 +77,22 @@
         {
           "name": "street_lamp_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 40600,
+          "bytes": 13231,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 87134,
+      "geometryBytes": 80680,
       "gpu": {
-        "desktop": 611423,
-        "mobile": 611423,
-        "rgba8": 4281437
+        "desktop": 473897,
+        "mobile": 473897,
+        "rgba8": 3226407
       },
       "materials": [
         {
@@ -99,31 +105,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        79.1
       ]
     },
     "1024": {
       "path": "models/street_lamp_01/street_lamp_01_1024.glb",
-      "bytes": 454160,
+      "bytes": 357520,
       "srcTris": 30610,
       "lods": [
         {
-          "tris": 6178
+          "tris": 5997,
+          "level": 0
         },
         {
-          "tris": 2604
+          "tris": 2396,
+          "level": 1
         },
         {
-          "tris": 911
+          "tris": 828,
+          "level": 2
         }
       ],
       "parts": [
         "street_lamp_01"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        27.7,
+        79.1
+      ],
       "bounds": {
         "min": [
           -0.352,
@@ -166,22 +176,22 @@
         {
           "name": "street_lamp_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 131198,
+          "bytes": 40600,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 213344,
+      "geometryBytes": 207962,
       "gpu": {
-        "desktop": 2310497,
-        "mobile": 2310497,
-        "rgba8": 16990559
+        "desktop": 1780827,
+        "mobile": 1780827,
+        "rgba8": 12790873
       },
       "materials": [
         {
@@ -194,11 +204,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        27.7,
-        79.1
       ]
     }
   }

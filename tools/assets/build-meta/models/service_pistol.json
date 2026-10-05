@@ -1,6 +1,6 @@
 {
   "id": "service_pistol",
-  "recipe": "aa52aab0d458",
+  "recipe": "308f439e683a",
   "size": [
     0.302,
     0.281,
@@ -15,17 +15,20 @@
   "tiers": {
     "512": {
       "path": "models/service_pistol/service_pistol_512.glb",
-      "bytes": 681700,
-      "srcTris": 25064,
+      "bytes": 630584,
+      "srcTris": 27548,
       "lods": [
         {
-          "tris": 25064
+          "tris": 27548,
+          "level": 0
         },
         {
-          "tris": 11620
+          "tris": 11012,
+          "level": 1
         },
         {
-          "tris": 7176
+          "tris": 4172,
+          "level": 2
         }
       ],
       "parts": [
@@ -40,6 +43,12 @@
         "service_pistol_slide_b",
         "service_pistol_hammer_b",
         "service_pistol_trigger_b"
+      ],
+      "lodShift": false,
+      "lodDistances": [
+        0,
+        6,
+        16
       ],
       "bounds": {
         "min": [
@@ -94,11 +103,11 @@
           }
         }
       ],
-      "geometryBytes": 1332130,
+      "geometryBytes": 1186340,
       "gpu": {
-        "desktop": 1856419,
-        "mobile": 1856419,
-        "rgba8": 5526433
+        "desktop": 1710629,
+        "mobile": 1710629,
+        "rgba8": 5380643
       },
       "materials": [
         {
@@ -110,17 +119,20 @@
     },
     "1024": {
       "path": "models/service_pistol/service_pistol_1024.glb",
-      "bytes": 1029008,
-      "srcTris": 25064,
+      "bytes": 977892,
+      "srcTris": 27548,
       "lods": [
         {
-          "tris": 25064
+          "tris": 27548,
+          "level": 0
         },
         {
-          "tris": 11620
+          "tris": 11012,
+          "level": 1
         },
         {
-          "tris": 7176
+          "tris": 4172,
+          "level": 2
         }
       ],
       "parts": [
@@ -135,6 +147,12 @@
         "service_pistol_slide_b",
         "service_pistol_hammer_b",
         "service_pistol_trigger_b"
+      ],
+      "lodShift": false,
+      "lodDistances": [
+        0,
+        6,
+        16
       ],
       "bounds": {
         "min": [
@@ -189,11 +207,11 @@
           }
         }
       ],
-      "geometryBytes": 1332130,
+      "geometryBytes": 1186340,
       "gpu": {
-        "desktop": 3429283,
-        "mobile": 3429283,
-        "rgba8": 18109345
+        "desktop": 3283493,
+        "mobile": 3283493,
+        "rgba8": 17963555
       },
       "materials": [
         {
@@ -205,17 +223,20 @@
     },
     "2048": {
       "path": "models/service_pistol/service_pistol_2048.glb",
-      "bytes": 2314604,
-      "srcTris": 25064,
+      "bytes": 2263488,
+      "srcTris": 27548,
       "lods": [
         {
-          "tris": 25064
+          "tris": 27548,
+          "level": 0
         },
         {
-          "tris": 11620
+          "tris": 11012,
+          "level": 1
         },
         {
-          "tris": 7176
+          "tris": 4172,
+          "level": 2
         }
       ],
       "parts": [
@@ -230,6 +251,12 @@
         "service_pistol_slide_b",
         "service_pistol_hammer_b",
         "service_pistol_trigger_b"
+      ],
+      "lodShift": false,
+      "lodDistances": [
+        0,
+        6,
+        16
       ],
       "bounds": {
         "min": [
@@ -284,11 +311,11 @@
           }
         }
       ],
-      "geometryBytes": 1332130,
+      "geometryBytes": 1186340,
       "gpu": {
-        "desktop": 9720739,
-        "mobile": 9720739,
-        "rgba8": 68440993
+        "desktop": 9574949,
+        "mobile": 9574949,
+        "rgba8": 68295203
       },
       "materials": [
         {

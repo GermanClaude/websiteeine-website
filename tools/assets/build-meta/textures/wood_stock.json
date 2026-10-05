@@ -1,12 +1,12 @@
 {
   "id": "wood_stock",
-  "recipe": "5b06848ce821",
+  "recipe": "dc8d91f0c487",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/wood_stock/wood_stock_512_albedo.ktx2",
-          "bytes": 48254,
+          "bytes": 48241,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/wood_stock/wood_stock_512_orm.ktx2",
-          "bytes": 24070,
+          "bytes": 23950,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 73290,
+      "bytes": 73157,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/wood_stock/wood_stock_1024_albedo.ktx2",
-          "bytes": 166461,
+          "bytes": 166474,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/wood_stock/wood_stock_1024_orm.ktx2",
-          "bytes": 103654,
+          "bytes": 103728,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 271385,
+      "bytes": 271472,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,7 +104,7 @@
       "files": {
         "albedo": {
           "path": "textures/wood_stock/wood_stock_2048_albedo.ktx2",
-          "bytes": 678960,
+          "bytes": 679479,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -130,7 +130,7 @@
         },
         "orm": {
           "path": "textures/wood_stock/wood_stock_2048_orm.ktx2",
-          "bytes": 495082,
+          "bytes": 494565,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -142,7 +142,7 @@
           }
         }
       },
-      "bytes": 1175885,
+      "bytes": 1175887,
       "gpu": {
         "desktop": 8388609,
         "mobile": 8388609,

@@ -1,6 +1,6 @@
 {
   "id": "weed_plant_02",
-  "recipe": "7b930968a0c8",
+  "recipe": "99ac00776434",
   "size": [
     2.126,
     0.075,
@@ -15,24 +15,27 @@
   "tiers": {
     "512": {
       "path": "models/weed_plant_02/weed_plant_02_512.glb",
-      "bytes": 226708,
+      "bytes": 185920,
       "srcTris": 11116,
       "lods": [
         {
-          "tris": 2394
+          "tris": 2399,
+          "level": 1
         },
         {
-          "tris": 931
+          "tris": 839,
+          "level": 2
         }
       ],
       "parts": [
         "weed_plant_02_a_LOD0",
-        "weed_plant_02_b_LOD0",
-        "weed_plant_02_c_LOD0",
-        "weed_plant_02_d_LOD0",
-        "weed_plant_02_e_LOD0"
+        "weed_plant_02_c_LOD0"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        42.9
+      ],
       "bounds": {
         "min": [
           -0.086,
@@ -75,22 +78,22 @@
         {
           "name": "weed_plant_02_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 37206,
+          "bytes": 10651,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 86636,
+      "geometryBytes": 84046,
       "gpu": {
-        "desktop": 610925,
-        "mobile": 610925,
-        "rgba8": 4280939
+        "desktop": 477263,
+        "mobile": 477263,
+        "rgba8": 3229773
       },
       "materials": [
         {
@@ -98,35 +101,36 @@
           "alphaMode": "MASK",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        42.9
       ]
     },
     "1024": {
       "path": "models/weed_plant_02/weed_plant_02_1024.glb",
-      "bytes": 615660,
+      "bytes": 504056,
       "srcTris": 11116,
       "lods": [
         {
-          "tris": 5995
+          "tris": 5999,
+          "level": 0
         },
         {
-          "tris": 2394
+          "tris": 2399,
+          "level": 1
         },
         {
-          "tris": 931
+          "tris": 839,
+          "level": 2
         }
       ],
       "parts": [
         "weed_plant_02_a_LOD0",
-        "weed_plant_02_b_LOD0",
-        "weed_plant_02_c_LOD0",
-        "weed_plant_02_d_LOD0",
-        "weed_plant_02_e_LOD0"
+        "weed_plant_02_c_LOD0"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        15,
+        42.9
+      ],
       "bounds": {
         "min": [
           -0.086,
@@ -135,7 +139,7 @@
         ],
         "max": [
           2.04,
-          0.067,
+          0.066,
           0.18
         ]
       },
@@ -169,22 +173,22 @@
         {
           "name": "weed_plant_02_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 124715,
+          "bytes": 37206,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 230580,
+      "geometryBytes": 226958,
       "gpu": {
-        "desktop": 2327733,
-        "mobile": 2327733,
-        "rgba8": 17007795
+        "desktop": 1799823,
+        "mobile": 1799823,
+        "rgba8": 12809869
       },
       "materials": [
         {
@@ -192,11 +196,6 @@
           "alphaMode": "MASK",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        15,
-        42.9
       ]
     }
   }

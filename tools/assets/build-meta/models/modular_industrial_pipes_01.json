@@ -1,6 +1,6 @@
 {
   "id": "modular_industrial_pipes_01",
-  "recipe": "420e8d4a830c",
+  "recipe": "e2d10ea86d35",
   "size": [
     1.403,
     1.954,
@@ -11,11 +11,12 @@
   "tiers": {
     "512": {
       "path": "models/modular_industrial_pipes_01/modular_industrial_pipes_01_512.glb",
-      "bytes": 488688,
+      "bytes": 422984,
       "srcTris": 12340,
       "lods": [
         {
-          "tris": 12340
+          "tris": 12340,
+          "level": 0
         }
       ],
       "parts": [
@@ -29,6 +30,7 @@
         "modular_industrial_pipes_01_pipe04"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -0.704,
@@ -71,14 +73,14 @@
         {
           "name": "modular_industrial_pipes_01_group01_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 46625,
+          "bytes": 13671,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         },
         {
@@ -110,22 +112,22 @@
         {
           "name": "modular_industrial_pipes_01_group02_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 47318,
+          "bytes": 14569,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 377310,
       "gpu": {
-        "desktop": 1425888,
-        "mobile": 1425888,
-        "rgba8": 8765916
+        "desktop": 1163744,
+        "mobile": 1163744,
+        "rgba8": 6668764
       },
       "materials": [
         {
@@ -138,16 +140,16 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     },
     "1024": {
       "path": "models/modular_industrial_pipes_01/modular_industrial_pipes_01_1024.glb",
-      "bytes": 1271000,
+      "bytes": 1036792,
       "srcTris": 12340,
       "lods": [
         {
-          "tris": 12340
+          "tris": 12340,
+          "level": 0
         }
       ],
       "parts": [
@@ -161,6 +163,7 @@
         "modular_industrial_pipes_01_pipe04"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -0.704,
@@ -203,14 +206,14 @@
         {
           "name": "modular_industrial_pipes_01_group01_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 162449,
+          "bytes": 46625,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         },
         {
@@ -242,22 +245,22 @@
         {
           "name": "modular_industrial_pipes_01_group02_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 165675,
+          "bytes": 47318,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
       "geometryBytes": 377310,
       "gpu": {
-        "desktop": 4571616,
-        "mobile": 4571616,
-        "rgba8": 33931740
+        "desktop": 3523040,
+        "mobile": 3523040,
+        "rgba8": 25543132
       },
       "materials": [
         {
@@ -270,8 +273,7 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     }
   }
 }

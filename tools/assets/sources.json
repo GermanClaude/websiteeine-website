@@ -778,26 +778,6 @@
    ]
   },
   {
-   "id": "grass_overgrown",
-   "source": "ambientcg",
-   "sourceId": "Ground037",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=Ground037",
-   "author": "Lennart Demes (ambientCG)",
-   "category": "ground",
-   "surface": "grass",
-   "replaces": [],
-   "tiers": [
-    512,
-    1024
-   ],
-   "name": "Ground 037",
-   "sizeM": [
-    2.1,
-    2.1
-   ]
-  },
-  {
    "id": "wood_planks",
    "source": "polyhaven",
    "sourceId": "wood_planks",
@@ -941,28 +921,6 @@
    "sizeM": [
     0.76,
     0.76
-   ]
-  },
-  {
-   "id": "bark",
-   "source": "polyhaven",
-   "sourceId": "bark_brown_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/bark_brown_02",
-   "author": "Rob Tuytel",
-   "category": "wood",
-   "surface": "wood",
-   "replaces": [
-    "bark"
-   ],
-   "tiers": [
-    512,
-    1024
-   ],
-   "name": "Bark Brown 02",
-   "sizeM": [
-    1,
-    1
    ]
   },
   {
@@ -1764,29 +1722,6 @@
    ]
   },
   {
-   "id": "stick_grenade",
-   "source": "polyhaven",
-   "sourceId": "stick_grenade",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/stick_grenade",
-   "author": "singaii",
-   "category": "weapon",
-   "tiers": [
-    512,
-    1024,
-    2048
-   ],
-   "lod0Tris": null,
-   "weapon": true,
-   "name": "Stick Grenade",
-   "polycount": 6250,
-   "dimensionsM": [
-    0.081,
-    0.081,
-    0.381
-   ]
-  },
-  {
    "id": "ammo_box",
    "source": "polyhaven",
    "sourceId": "ammo_box",
@@ -2323,7 +2258,7 @@
     512,
     1024
    ],
-   "lod0Tris": null,
+   "lod0Tris": 36000,
    "kit": true,
    "name": "Modular Chainlink Fence",
    "polycount": 89232,
@@ -2674,7 +2609,8 @@
     1.097,
     0.502,
     2.141
-   ]
+   ],
+   "scale": 0.1
   },
   {
    "id": "worn_metal_rack",
@@ -2842,27 +2778,6 @@
     4.054,
     1.057,
     1.055
-   ]
-  },
-  {
-   "id": "boulder_01",
-   "source": "polyhaven",
-   "sourceId": "boulder_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/boulder_01",
-   "author": "Rico Cilliers",
-   "category": "nature",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 6000,
-   "name": "Boulder 01",
-   "polycount": 123976,
-   "dimensionsM": [
-    1.273,
-    1.831,
-    1.004
    ]
   },
   {

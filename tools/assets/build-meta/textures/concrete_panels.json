@@ -1,12 +1,12 @@
 {
   "id": "concrete_panels",
-  "recipe": "1503ce2388d6",
+  "recipe": "c84d8a316c9e",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/concrete_panels/concrete_panels_512_albedo.ktx2",
-          "bytes": 44812,
+          "bytes": 44796,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/concrete_panels/concrete_panels_512_normal.ktx2",
-          "bytes": 76751,
+          "bytes": 76723,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/concrete_panels/concrete_panels_512_orm.ktx2",
-          "bytes": 29528,
+          "bytes": 29546,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 151091,
+      "bytes": 151065,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/concrete_panels/concrete_panels_1024_albedo.ktx2",
-          "bytes": 157832,
+          "bytes": 158036,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/concrete_panels/concrete_panels_1024_normal.ktx2",
-          "bytes": 231008,
+          "bytes": 231174,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/concrete_panels/concrete_panels_1024_orm.ktx2",
-          "bytes": 112281,
+          "bytes": 112396,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 501121,
+      "bytes": 501606,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

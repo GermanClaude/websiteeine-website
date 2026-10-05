@@ -1,6 +1,6 @@
 {
   "id": "industrial_pastic_container",
-  "recipe": "2134b2f178ad",
+  "recipe": "2ba6b911c54b",
   "size": [
     0.458,
     0.419,
@@ -15,22 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/industrial_pastic_container/industrial_pastic_container_512.glb",
-      "bytes": 213536,
+      "bytes": 100028,
       "srcTris": 7118,
       "lods": [
         {
-          "tris": 4278
+          "tris": 1986,
+          "level": 1
         },
         {
-          "tris": 4182
+          "tris": 654,
+          "level": 2
         }
       ],
       "parts": [
-        "industrial_pastic_container",
-        "industrial_pastic_container_lid_a",
-        "industrial_pastic_container_lid_b"
+        "industrial_pastic_container"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        17.7
+      ],
       "bounds": {
         "min": [
           -0.226,
@@ -73,22 +77,22 @@
         {
           "name": "industrial_pastic_container_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 42256,
+          "bytes": 11897,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 395126,
+      "geometryBytes": 111980,
       "gpu": {
-        "desktop": 919415,
-        "mobile": 919415,
-        "rgba8": 4589429
+        "desktop": 505197,
+        "mobile": 505197,
+        "rgba8": 3257707
       },
       "materials": [
         {
@@ -96,33 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        17.7
       ]
     },
     "1024": {
       "path": "models/industrial_pastic_container/industrial_pastic_container_1024.glb",
-      "bytes": 454448,
+      "bytes": 261060,
       "srcTris": 7118,
       "lods": [
         {
-          "tris": 5141
+          "tris": 5000,
+          "level": 0
         },
         {
-          "tris": 4278
+          "tris": 1986,
+          "level": 1
         },
         {
-          "tris": 4182
+          "tris": 654,
+          "level": 2
         }
       ],
       "parts": [
-        "industrial_pastic_container",
-        "industrial_pastic_container_lid_a",
-        "industrial_pastic_container_lid_b"
+        "industrial_pastic_container"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        6.2,
+        17.7
+      ],
       "bounds": {
         "min": [
           -0.226,
@@ -165,22 +171,22 @@
         {
           "name": "industrial_pastic_container_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 154181,
+          "bytes": 42256,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 617020,
+      "geometryBytes": 330256,
       "gpu": {
-        "desktop": 2714173,
-        "mobile": 2714173,
-        "rgba8": 17394235
+        "desktop": 1903121,
+        "mobile": 1903121,
+        "rgba8": 12913167
       },
       "materials": [
         {
@@ -188,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        6.2,
-        17.7
       ]
     }
   }

@@ -1,6 +1,6 @@
 {
   "id": "trashbag",
-  "recipe": "3b7afc1b6649",
+  "recipe": "2e7e01fd5ea4",
   "size": [
     0.523,
     0.575,
@@ -9,26 +9,32 @@
   "radius": 0.452,
   "lodDistances": [
     0,
-    6.3,
-    18.1
+    6.4,
+    18.2
   ],
   "tiers": {
     "512": {
       "path": "models/trashbag/trashbag_512.glb",
-      "bytes": 181604,
+      "bytes": 154720,
       "srcTris": 4482,
       "lods": [
         {
-          "tris": 1200
+          "tris": 1200,
+          "level": 1
         },
         {
-          "tris": 420
+          "tris": 420,
+          "level": 2
         }
       ],
       "parts": [
         "trashbag"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        18.2
+      ],
       "bounds": {
         "min": [
           -0.26,
@@ -71,22 +77,22 @@
         {
           "name": "trashbag_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 38079,
+          "bytes": 11189,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 32182,
       "gpu": {
-        "desktop": 556471,
-        "mobile": 556471,
-        "rgba8": 4226485
+        "desktop": 425399,
+        "mobile": 425399,
+        "rgba8": 3177909
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        18.1
       ]
     },
     "1024": {
       "path": "models/trashbag/trashbag_1024.glb",
-      "bytes": 516292,
+      "bytes": 426892,
       "srcTris": 4482,
       "lods": [
         {
-          "tris": 3000
+          "tris": 3000,
+          "level": 0
         },
         {
-          "tris": 1200
+          "tris": 1200,
+          "level": 1
         },
         {
-          "tris": 420
+          "tris": 420,
+          "level": 2
         }
       ],
       "parts": [
         "trashbag"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        6.4,
+        18.2
+      ],
       "bounds": {
         "min": [
           -0.26,
@@ -161,22 +171,22 @@
         {
           "name": "trashbag_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 127476,
+          "bytes": 38079,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
       "geometryBytes": 87736,
       "gpu": {
-        "desktop": 2184889,
-        "mobile": 2184889,
-        "rgba8": 16864951
+        "desktop": 1660601,
+        "mobile": 1660601,
+        "rgba8": 12670647
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        6.3,
-        18.1
       ]
     }
   }

@@ -1,6 +1,6 @@
 {
   "id": "mounted_fluorescent_lights",
-  "recipe": "332ced9c19da",
+  "recipe": "d97de37b4154",
   "size": [
     0.912,
     0.035,
@@ -11,11 +11,12 @@
   "tiers": {
     "512": {
       "path": "models/mounted_fluorescent_lights/mounted_fluorescent_lights_512.glb",
-      "bytes": 210312,
+      "bytes": 185540,
       "srcTris": 17820,
       "lods": [
         {
-          "tris": 5990
+          "tris": 5990,
+          "level": 0
         }
       ],
       "parts": [
@@ -28,6 +29,7 @@
         "mounted_fluorescent_lights_c"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -0.456,
@@ -70,14 +72,14 @@
         {
           "name": "mounted_fluorescent_lights_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 34993,
+          "bytes": 10231,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         },
         {
@@ -96,9 +98,9 @@
       ],
       "geometryBytes": 184660,
       "gpu": {
-        "desktop": 883712,
-        "mobile": 883712,
-        "rgba8": 5777064
+        "desktop": 752640,
+        "mobile": 752640,
+        "rgba8": 4728488
       },
       "materials": [
         {
@@ -111,16 +113,16 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     },
     "1024": {
       "path": "models/mounted_fluorescent_lights/mounted_fluorescent_lights_1024.glb",
-      "bytes": 434256,
+      "bytes": 355568,
       "srcTris": 17820,
       "lods": [
         {
-          "tris": 5990
+          "tris": 5990,
+          "level": 0
         }
       ],
       "parts": [
@@ -133,6 +135,7 @@
         "mounted_fluorescent_lights_c"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -0.456,
@@ -175,14 +178,14 @@
         {
           "name": "mounted_fluorescent_lights_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 113685,
+          "bytes": 34993,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         },
         {
@@ -201,9 +204,9 @@
       ],
       "geometryBytes": 184660,
       "gpu": {
-        "desktop": 2980864,
-        "mobile": 2980864,
-        "rgba8": 22554280
+        "desktop": 2456576,
+        "mobile": 2456576,
+        "rgba8": 18359976
       },
       "materials": [
         {
@@ -216,8 +219,7 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     }
   }
 }

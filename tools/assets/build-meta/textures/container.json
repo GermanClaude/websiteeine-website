@@ -1,12 +1,12 @@
 {
   "id": "container",
-  "recipe": "2218c899ee31",
+  "recipe": "67aa020da5c3",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/container/container_512_albedo.ktx2",
-          "bytes": 26987,
+          "bytes": 26995,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/container/container_512_normal.ktx2",
-          "bytes": 23465,
+          "bytes": 23502,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/container/container_512_orm.ktx2",
-          "bytes": 18612,
+          "bytes": 18594,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 69064,
+      "bytes": 69091,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/container/container_1024_albedo.ktx2",
-          "bytes": 91565,
+          "bytes": 91481,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/container/container_1024_normal.ktx2",
-          "bytes": 128816,
+          "bytes": 128868,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/container/container_1024_orm.ktx2",
-          "bytes": 60117,
+          "bytes": 60329,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 280498,
+      "bytes": 280678,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,7 +104,7 @@
       "files": {
         "albedo": {
           "path": "textures/container/container_2048_albedo.ktx2",
-          "bytes": 363051,
+          "bytes": 362823,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -117,7 +117,7 @@
         },
         "normal": {
           "path": "textures/container/container_2048_normal.ktx2",
-          "bytes": 603700,
+          "bytes": 603168,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -130,7 +130,7 @@
         },
         "orm": {
           "path": "textures/container/container_2048_orm.ktx2",
-          "bytes": 291635,
+          "bytes": 291837,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -142,7 +142,7 @@
           }
         }
       },
-      "bytes": 1258386,
+      "bytes": 1257828,
       "gpu": {
         "desktop": 8388609,
         "mobile": 8388609,

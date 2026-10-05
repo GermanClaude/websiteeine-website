@@ -1,42 +1,48 @@
 {
   "id": "tool_cart",
-  "recipe": "cbfd2e6db859",
+  "recipe": "0d0c2b9d3da9",
   "size": [
-    1.267,
+    1.272,
     0.962,
-    0.752
+    0.747
   ],
-  "radius": 0.88,
+  "radius": 0.881,
   "lodDistances": [
     0,
-    12.3,
-    35.2
+    12.4,
+    35.3
   ],
   "tiers": {
     "512": {
       "path": "models/tool_cart/tool_cart_512.glb",
-      "bytes": 262268,
+      "bytes": 194816,
       "srcTris": 29394,
       "lods": [
         {
-          "tris": 3738
+          "tris": 2916,
+          "level": 1
         },
         {
-          "tris": 3260
+          "tris": 1204,
+          "level": 2
         }
       ],
       "parts": [
         "tool_cart"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        35.3
+      ],
       "bounds": {
         "min": [
-          -0.655,
+          -0.658,
           -0.001,
-          -0.385
+          -0.38
         ],
         "max": [
-          0.612,
+          0.614,
           0.961,
           0.367
         ]
@@ -71,22 +77,22 @@
         {
           "name": "tool_cart_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 39716,
+          "bytes": 11954,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 243464,
+      "geometryBytes": 129242,
       "gpu": {
-        "desktop": 767753,
-        "mobile": 767753,
-        "rgba8": 4437767
+        "desktop": 522459,
+        "mobile": 522459,
+        "rgba8": 3274969
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        35.2
       ]
     },
     "1024": {
       "path": "models/tool_cart/tool_cart_1024.glb",
-      "bytes": 727684,
+      "bytes": 591916,
       "srcTris": 29394,
       "lods": [
         {
-          "tris": 7999
+          "tris": 7999,
+          "level": 0
         },
         {
-          "tris": 3738
+          "tris": 2916,
+          "level": 1
         },
         {
-          "tris": 3260
+          "tris": 1204,
+          "level": 2
         }
       ],
       "parts": [
         "tool_cart"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        12.4,
+        35.3
+      ],
       "bounds": {
         "min": [
           -0.658,
@@ -161,22 +171,22 @@
         {
           "name": "tool_cart_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 135793,
+          "bytes": 39716,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 473618,
+      "geometryBytes": 359396,
       "gpu": {
-        "desktop": 2570771,
-        "mobile": 2570771,
-        "rgba8": 17250833
+        "desktop": 1932261,
+        "mobile": 1932261,
+        "rgba8": 12942307
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        12.3,
-        35.2
       ]
     }
   }

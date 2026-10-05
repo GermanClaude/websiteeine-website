@@ -1,12 +1,12 @@
 {
   "id": "brick_factory",
-  "recipe": "ba57b2877f31",
+  "recipe": "1ab22b922746",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/brick_factory/brick_factory_512_albedo.ktx2",
-          "bytes": 64562,
+          "bytes": 64472,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/brick_factory/brick_factory_512_normal.ktx2",
-          "bytes": 91579,
+          "bytes": 91494,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/brick_factory/brick_factory_512_orm.ktx2",
-          "bytes": 36811,
+          "bytes": 36839,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 192952,
+      "bytes": 192805,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/brick_factory/brick_factory_1024_albedo.ktx2",
-          "bytes": 218049,
+          "bytes": 218150,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/brick_factory/brick_factory_1024_normal.ktx2",
-          "bytes": 263359,
+          "bytes": 262827,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/brick_factory/brick_factory_1024_orm.ktx2",
-          "bytes": 138921,
+          "bytes": 139566,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 620329,
+      "bytes": 620543,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,7 +104,7 @@
       "files": {
         "albedo": {
           "path": "textures/brick_factory/brick_factory_2048_albedo.ktx2",
-          "bytes": 870231,
+          "bytes": 869846,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -117,7 +117,7 @@
         },
         "normal": {
           "path": "textures/brick_factory/brick_factory_2048_normal.ktx2",
-          "bytes": 973250,
+          "bytes": 971767,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -130,7 +130,7 @@
         },
         "orm": {
           "path": "textures/brick_factory/brick_factory_2048_orm.ktx2",
-          "bytes": 616920,
+          "bytes": 618549,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -142,7 +142,7 @@
           }
         }
       },
-      "bytes": 2460401,
+      "bytes": 2460162,
       "gpu": {
         "desktop": 8388609,
         "mobile": 8388609,

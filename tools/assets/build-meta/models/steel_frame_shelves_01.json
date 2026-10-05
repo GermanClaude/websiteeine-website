@@ -1,44 +1,50 @@
 {
   "id": "steel_frame_shelves_01",
-  "recipe": "3ddb340feec2",
+  "recipe": "0be0935dcca0",
   "size": [
-    10.973,
-    21.405,
-    5.021
+    1.098,
+    2.14,
+    0.502
   ],
-  "radius": 12.286,
+  "radius": 1.229,
   "lodDistances": [
     0,
-    172,
-    491.4
+    17.2,
+    49.1
   ],
   "tiers": {
     "512": {
       "path": "models/steel_frame_shelves_01/steel_frame_shelves_01_512.glb",
-      "bytes": 128040,
+      "bytes": 104708,
       "srcTris": 4348,
       "lods": [
         {
-          "tris": 1738
+          "tris": 1738,
+          "level": 1
         },
         {
-          "tris": 607
+          "tris": 607,
+          "level": 2
         }
       ],
       "parts": [
         "steel_frame_shelves_01"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        49.1
+      ],
       "bounds": {
         "min": [
-          -5.486,
-          -0.011,
-          -2.511
+          -0.549,
+          -0.001,
+          -0.251
         ],
         "max": [
-          5.487,
-          21.394,
-          2.51
+          0.549,
+          2.139,
+          0.251
         ]
       },
       "textures": [
@@ -71,22 +77,22 @@
         {
           "name": "steel_frame_shelves_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 32994,
+          "bytes": 9670,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 77958,
       "gpu": {
-        "desktop": 602247,
-        "mobile": 602247,
-        "rgba8": 4272261
+        "desktop": 471175,
+        "mobile": 471175,
+        "rgba8": 3223685
       },
       "materials": [
         {
@@ -94,41 +100,45 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        491.4
       ]
     },
     "1024": {
       "path": "models/steel_frame_shelves_01/steel_frame_shelves_01_1024.glb",
-      "bytes": 399612,
+      "bytes": 314712,
       "srcTris": 4348,
       "lods": [
         {
-          "tris": 4348
+          "tris": 4348,
+          "level": 0
         },
         {
-          "tris": 1738
+          "tris": 1738,
+          "level": 1
         },
         {
-          "tris": 607
+          "tris": 607,
+          "level": 2
         }
       ],
       "parts": [
         "steel_frame_shelves_01"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        17.2,
+        49.1
+      ],
       "bounds": {
         "min": [
-          -5.486,
-          -0.011,
-          -2.511
+          -0.549,
+          -0.001,
+          -0.251
         ],
         "max": [
-          5.487,
-          21.394,
-          2.51
+          0.549,
+          2.139,
+          0.251
         ]
       },
       "textures": [
@@ -161,22 +171,22 @@
         {
           "name": "steel_frame_shelves_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 117904,
+          "bytes": 32994,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
       "geometryBytes": 183950,
       "gpu": {
-        "desktop": 2281103,
-        "mobile": 2281103,
-        "rgba8": 16961165
+        "desktop": 1756815,
+        "mobile": 1756815,
+        "rgba8": 12766861
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        172,
-        491.4
       ]
     }
   }

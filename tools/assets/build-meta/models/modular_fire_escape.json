@@ -1,6 +1,6 @@
 {
   "id": "modular_fire_escape",
-  "recipe": "8e82c7acbf78",
+  "recipe": "ab4ddc3a6cd0",
   "size": [
     6.661,
     9.757,
@@ -11,11 +11,12 @@
   "tiers": {
     "512": {
       "path": "models/modular_fire_escape/modular_fire_escape_512.glb",
-      "bytes": 440204,
+      "bytes": 390408,
       "srcTris": 11322,
       "lods": [
         {
-          "tris": 11322
+          "tris": 11322,
+          "level": 0
         }
       ],
       "parts": [
@@ -28,6 +29,7 @@
         "modular_fire_escape_platform_bottom"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -2.401,
@@ -70,14 +72,14 @@
         {
           "name": "modular_fire_escape_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 34382,
+          "bytes": 9255,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         },
         {
@@ -109,22 +111,22 @@
         {
           "name": "modular_fire_escape_02_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 33981,
+          "bytes": 9319,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 375536,
       "gpu": {
-        "desktop": 1424114,
-        "mobile": 1424114,
-        "rgba8": 8764142
+        "desktop": 1161970,
+        "mobile": 1161970,
+        "rgba8": 6666990
       },
       "materials": [
         {
@@ -137,16 +139,16 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     },
     "1024": {
       "path": "models/modular_fire_escape/modular_fire_escape_1024.glb",
-      "bytes": 1145928,
+      "bytes": 955464,
       "srcTris": 11322,
       "lods": [
         {
-          "tris": 11322
+          "tris": 11322,
+          "level": 0
         }
       ],
       "parts": [
@@ -159,6 +161,7 @@
         "modular_fire_escape_platform_bottom"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -2.401,
@@ -201,14 +204,14 @@
         {
           "name": "modular_fire_escape_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 129744,
+          "bytes": 34382,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         },
         {
@@ -240,22 +243,22 @@
         {
           "name": "modular_fire_escape_02_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 129064,
+          "bytes": 33981,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
       "geometryBytes": 375536,
       "gpu": {
-        "desktop": 4569842,
-        "mobile": 4569842,
-        "rgba8": 33929966
+        "desktop": 3521266,
+        "mobile": 3521266,
+        "rgba8": 25541358
       },
       "materials": [
         {
@@ -268,8 +271,7 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     }
   }
 }

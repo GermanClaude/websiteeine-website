@@ -1,6 +1,6 @@
 {
   "id": "television_01",
-  "recipe": "35bbf63e9a1a",
+  "recipe": "6f2e9d568a64",
   "size": [
     0.6,
     0.457,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/television_01/television_01_512.glb",
-      "bytes": 153184,
+      "bytes": 124824,
       "srcTris": 1918,
       "lods": [
         {
-          "tris": 767
+          "tris": 767,
+          "level": 1
         },
         {
-          "tris": 343
+          "tris": 315,
+          "level": 2
         }
       ],
       "parts": [
         "Television_01"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        17.8
+      ],
       "bounds": {
         "min": [
           -0.3,
@@ -71,22 +77,22 @@
         {
           "name": "Television_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 38489,
+          "bytes": 10635,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 45712,
+      "geometryBytes": 44400,
       "gpu": {
-        "desktop": 570001,
-        "mobile": 570001,
-        "rgba8": 4240015
+        "desktop": 437617,
+        "mobile": 437617,
+        "rgba8": 3190127
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        17.8
       ]
     },
     "1024": {
       "path": "models/television_01/television_01_1024.glb",
-      "bytes": 454000,
+      "bytes": 355828,
       "srcTris": 1918,
       "lods": [
         {
-          "tris": 1918
+          "tris": 1918,
+          "level": 0
         },
         {
-          "tris": 767
+          "tris": 767,
+          "level": 1
         },
         {
-          "tris": 343
+          "tris": 315,
+          "level": 2
         }
       ],
       "parts": [
         "Television_01"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        6.2,
+        17.8
+      ],
       "bounds": {
         "min": [
           -0.3,
@@ -161,22 +171,22 @@
         {
           "name": "Television_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 136168,
+          "bytes": 38489,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 108596,
+      "geometryBytes": 107284,
       "gpu": {
-        "desktop": 2205749,
-        "mobile": 2205749,
-        "rgba8": 16885811
+        "desktop": 1680149,
+        "mobile": 1680149,
+        "rgba8": 12690195
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        6.2,
-        17.8
       ]
     }
   }

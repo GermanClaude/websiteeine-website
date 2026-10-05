@@ -1,6 +1,6 @@
 {
   "id": "wooden_bookshelf_worn",
-  "recipe": "bda58024fbca",
+  "recipe": "c450799f96f4",
   "size": [
     1.374,
     2.063,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/wooden_bookshelf_worn/wooden_bookshelf_worn_512.glb",
-      "bytes": 217656,
+      "bytes": 190464,
       "srcTris": 10106,
       "lods": [
         {
-          "tris": 2400
+          "tris": 2400,
+          "level": 1
         },
         {
-          "tris": 840
+          "tris": 840,
+          "level": 2
         }
       ],
       "parts": [
         "wooden_bookshelf_worn"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        50.9
+      ],
       "bounds": {
         "min": [
           -0.687,
@@ -71,22 +77,22 @@
         {
           "name": "wooden_bookshelf_worn_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 37641,
+          "bytes": 10454,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 88982,
       "gpu": {
-        "desktop": 613271,
-        "mobile": 613271,
-        "rgba8": 4283285
+        "desktop": 482199,
+        "mobile": 482199,
+        "rgba8": 3234709
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        50.9
       ]
     },
     "1024": {
       "path": "models/wooden_bookshelf_worn/wooden_bookshelf_worn_1024.glb",
-      "bytes": 665456,
+      "bytes": 563476,
       "srcTris": 10106,
       "lods": [
         {
-          "tris": 6000
+          "tris": 6000,
+          "level": 0
         },
         {
-          "tris": 2400
+          "tris": 2400,
+          "level": 1
         },
         {
-          "tris": 840
+          "tris": 840,
+          "level": 2
         }
       ],
       "parts": [
         "wooden_bookshelf_worn"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        17.8,
+        50.9
+      ],
       "bounds": {
         "min": [
           -0.687,
@@ -161,22 +171,22 @@
         {
           "name": "wooden_bookshelf_worn_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 139632,
+          "bytes": 37641,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
       "geometryBytes": 218680,
       "gpu": {
-        "desktop": 2315833,
-        "mobile": 2315833,
-        "rgba8": 16995895
+        "desktop": 1791545,
+        "mobile": 1791545,
+        "rgba8": 12801591
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        17.8,
-        50.9
       ]
     }
   }

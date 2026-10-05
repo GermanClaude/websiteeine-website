@@ -1,6 +1,6 @@
 {
   "id": "modular_metal_gutter",
-  "recipe": "7459ad168c58",
+  "recipe": "fae6b4748c61",
   "size": [
     2.269,
     1.842,
@@ -11,11 +11,12 @@
   "tiers": {
     "512": {
       "path": "models/modular_metal_gutter/modular_metal_gutter_512.glb",
-      "bytes": 309936,
+      "bytes": 281392,
       "srcTris": 16490,
       "lods": [
         {
-          "tris": 16490
+          "tris": 16490,
+          "level": 0
         }
       ],
       "parts": [
@@ -33,6 +34,7 @@
         "modular_metal_gutter_section"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -0.516,
@@ -75,22 +77,22 @@
         {
           "name": "modular_metal_gutter_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 39891,
+          "bytes": 11346,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 354008,
       "gpu": {
-        "desktop": 878297,
-        "mobile": 878297,
-        "rgba8": 4548311
+        "desktop": 747225,
+        "mobile": 747225,
+        "rgba8": 3499735
       },
       "materials": [
         {
@@ -98,16 +100,16 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     },
     "1024": {
       "path": "models/modular_metal_gutter/modular_metal_gutter_1024.glb",
-      "bytes": 655092,
+      "bytes": 555408,
       "srcTris": 16490,
       "lods": [
         {
-          "tris": 16490
+          "tris": 16490,
+          "level": 0
         }
       ],
       "parts": [
@@ -125,6 +127,7 @@
         "modular_metal_gutter_section"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -0.516,
@@ -167,22 +170,22 @@
         {
           "name": "modular_metal_gutter_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 139569,
+          "bytes": 39891,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
       "geometryBytes": 354008,
       "gpu": {
-        "desktop": 2451161,
-        "mobile": 2451161,
-        "rgba8": 17131223
+        "desktop": 1926873,
+        "mobile": 1926873,
+        "rgba8": 12936919
       },
       "materials": [
         {
@@ -190,8 +193,7 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     }
   }
 }

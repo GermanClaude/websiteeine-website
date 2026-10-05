@@ -1,6 +1,6 @@
 {
   "id": "utility_box_01",
-  "recipe": "8e1ac4fb2813",
+  "recipe": "0128f3c3f586",
   "size": [
     0.52,
     1.12,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/utility_box_01/utility_box_01_512.glb",
-      "bytes": 159984,
+      "bytes": 133580,
       "srcTris": 4404,
       "lods": [
         {
-          "tris": 1761
+          "tris": 1761,
+          "level": 1
         },
         {
-          "tris": 615
+          "tris": 615,
+          "level": 2
         }
       ],
       "parts": [
         "utility_box_01_box"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        26.2
+      ],
       "bounds": {
         "min": [
           -0.26,
@@ -71,22 +77,22 @@
         {
           "name": "utility_box_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 37605,
+          "bytes": 11199,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 75504,
       "gpu": {
-        "desktop": 599793,
-        "mobile": 599793,
-        "rgba8": 4269807
+        "desktop": 468721,
+        "mobile": 468721,
+        "rgba8": 3221231
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        26.2
       ]
     },
     "1024": {
       "path": "models/utility_box_01/utility_box_01_1024.glb",
-      "bytes": 512376,
+      "bytes": 422060,
       "srcTris": 4404,
       "lods": [
         {
-          "tris": 4404
+          "tris": 4404,
+          "level": 0
         },
         {
-          "tris": 1761
+          "tris": 1761,
+          "level": 1
         },
         {
-          "tris": 615
+          "tris": 615,
+          "level": 2
         }
       ],
       "parts": [
         "utility_box_01_box"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        9.2,
+        26.2
+      ],
       "bounds": {
         "min": [
           -0.26,
@@ -161,22 +171,22 @@
         {
           "name": "utility_box_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 127923,
+          "bytes": 37605,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
       "geometryBytes": 181766,
       "gpu": {
-        "desktop": 2278919,
-        "mobile": 2278919,
-        "rgba8": 16958981
+        "desktop": 1754631,
+        "mobile": 1754631,
+        "rgba8": 12764677
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        9.2,
-        26.2
       ]
     }
   }

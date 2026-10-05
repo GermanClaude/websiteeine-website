@@ -1,21 +1,22 @@
 {
   "id": "modular_electricity_poles",
-  "recipe": "1a09a0d70700",
+  "recipe": "3352fb749052",
   "size": [
-    13.119,
+    13.112,
     7,
     1.957
   ],
-  "radius": 7.499,
+  "radius": 7.496,
   "lodDistances": null,
   "tiers": {
     "512": {
       "path": "models/modular_electricity_poles/modular_electricity_poles_512.glb",
-      "bytes": 1025460,
-      "srcTris": 106430,
+      "bytes": 656612,
+      "srcTris": 200610,
       "lods": [
         {
-          "tris": 43746
+          "tris": 31541,
+          "level": 0
         }
       ],
       "parts": [
@@ -124,6 +125,7 @@
         "preset_01_transformer_02"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -7.35,
@@ -131,7 +133,7 @@
           -1.531
         ],
         "max": [
-          5.769,
+          5.762,
           7,
           0.426
         ]
@@ -166,14 +168,14 @@
         {
           "name": "modular_electricity_poles_pieces_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 47128,
+          "bytes": 13997,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         },
         {
@@ -205,22 +207,22 @@
         {
           "name": "modular_electricity_poles_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 35216,
+          "bytes": 9267,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 1533708,
+      "geometryBytes": 652902,
       "gpu": {
-        "desktop": 2582286,
-        "mobile": 2582286,
-        "rgba8": 9922314
+        "desktop": 1439336,
+        "mobile": 1439336,
+        "rgba8": 6944356
       },
       "materials": [
         {
@@ -233,16 +235,16 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     },
     "1024": {
       "path": "models/modular_electricity_poles/modular_electricity_poles_1024.glb",
-      "bytes": 1819368,
-      "srcTris": 106430,
+      "bytes": 1302172,
+      "srcTris": 200610,
       "lods": [
         {
-          "tris": 43746
+          "tris": 31541,
+          "level": 0
         }
       ],
       "parts": [
@@ -351,6 +353,7 @@
         "preset_01_transformer_02"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -7.35,
@@ -358,7 +361,7 @@
           -1.531
         ],
         "max": [
-          5.769,
+          5.762,
           7,
           0.426
         ]
@@ -393,14 +396,14 @@
         {
           "name": "modular_electricity_poles_pieces_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 162833,
+          "bytes": 47128,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         },
         {
@@ -432,22 +435,22 @@
         {
           "name": "modular_electricity_poles_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 126900,
+          "bytes": 35216,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 1533708,
+      "geometryBytes": 652902,
       "gpu": {
-        "desktop": 5728014,
-        "mobile": 5728014,
-        "rgba8": 35088138
+        "desktop": 3798632,
+        "mobile": 3798632,
+        "rgba8": 25818724
       },
       "materials": [
         {
@@ -460,8 +463,7 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     }
   }
 }

@@ -1,6 +1,6 @@
 {
   "id": "worn_metal_rack",
-  "recipe": "552b8441d235",
+  "recipe": "364671724425",
   "size": [
     0.915,
     1.9,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/worn_metal_rack/worn_metal_rack_512.glb",
-      "bytes": 213176,
+      "bytes": 139716,
       "srcTris": 6372,
       "lods": [
         {
-          "tris": 3052
+          "tris": 1952,
+          "level": 1
         },
         {
-          "tris": 3050
+          "tris": 880,
+          "level": 2
         }
       ],
       "parts": [
         "worn_metal_rack"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        43.9
+      ],
       "bounds": {
         "min": [
           -0.46,
@@ -71,22 +77,22 @@
         {
           "name": "worn_metal_rack_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 43039,
+          "bytes": 13299,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 251420,
+      "geometryBytes": 107632,
       "gpu": {
-        "desktop": 775709,
-        "mobile": 775709,
-        "rgba8": 4445723
+        "desktop": 500849,
+        "mobile": 500849,
+        "rgba8": 3253359
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        43.9
       ]
     },
     "1024": {
       "path": "models/worn_metal_rack/worn_metal_rack_1024.glb",
-      "bytes": 588356,
+      "bytes": 441648,
       "srcTris": 6372,
       "lods": [
         {
-          "tris": 6372
+          "tris": 6372,
+          "level": 0
         },
         {
-          "tris": 3052
+          "tris": 1952,
+          "level": 1
         },
         {
-          "tris": 3050
+          "tris": 880,
+          "level": 2
         }
       ],
       "parts": [
         "worn_metal_rack"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        15.3,
+        43.9
+      ],
       "bounds": {
         "min": [
           -0.46,
@@ -161,22 +171,22 @@
         {
           "name": "worn_metal_rack_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 146019,
+          "bytes": 43039,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 448580,
+      "geometryBytes": 304792,
       "gpu": {
-        "desktop": 2545733,
-        "mobile": 2545733,
-        "rgba8": 17225795
+        "desktop": 1877657,
+        "mobile": 1877657,
+        "rgba8": 12887703
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        15.3,
-        43.9
       ]
     }
   }

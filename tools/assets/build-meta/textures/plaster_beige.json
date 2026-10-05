@@ -1,12 +1,12 @@
 {
   "id": "plaster_beige",
-  "recipe": "20ea8a6f4229",
+  "recipe": "30c53dc79698",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/plaster_beige/plaster_beige_512_albedo.ktx2",
-          "bytes": 49877,
+          "bytes": 49895,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/plaster_beige/plaster_beige_512_normal.ktx2",
-          "bytes": 86075,
+          "bytes": 86088,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/plaster_beige/plaster_beige_512_orm.ktx2",
-          "bytes": 29583,
+          "bytes": 29548,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 165535,
+      "bytes": 165531,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/plaster_beige/plaster_beige_1024_albedo.ktx2",
-          "bytes": 165566,
+          "bytes": 165453,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/plaster_beige/plaster_beige_1024_normal.ktx2",
-          "bytes": 241056,
+          "bytes": 241161,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/plaster_beige/plaster_beige_1024_orm.ktx2",
-          "bytes": 106228,
+          "bytes": 106284,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 512850,
+      "bytes": 512898,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,

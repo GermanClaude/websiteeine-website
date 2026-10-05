@@ -530,7 +530,9 @@ function matchAssetJobs(cfg, world) {
   const fx = G.modules.fxtex;
   if (fx && typeof fx.getParticleAtlas === 'function') add('fx:particles', () => fx.getParticleAtlas());
   if (fx && typeof fx.getDecalAtlas === 'function') add('fx:decals', () => fx.getDecalAtlas());
-  // Soldaten je Schema × Variante (alle Varianten: welche ein Team bekommt, entscheidet BotManager zufällig)
+  // Soldaten je Schema × Variante (alle Varianten: welche ein Team bekommt, entscheidet BotManager zufällig;
+  // je Kombination ≈ 1,7 MB Geometrie). FFA auf 'low' (Telefone): 4–5 Schemata × 8 wären ≈ 60 MB → je Schema
+  // nur eine Variante (Tarntextur + Material, der teure Teil); die übrigen Geometrien baut spawnBots.
   const soldierApi = soldiers && typeof soldiers.createSoldier === 'function' && Array.isArray(soldiers.VARIANTS) &&
     typeof soldiers.schemeForTeam === 'function' && typeof soldiers.ffaSchemes === 'function';
   if (bots > 0 && soldierApi) {
@@ -543,11 +545,13 @@ function matchAssetJobs(cfg, world) {
       if (cfg.enemies > 0 && map) schemes.push(map.B);
     }
     const quality = G.renderer.quality === 'low' ? 'low' : 'high';
-    for (const scheme of schemes) {
-      for (let v = 0; v < soldiers.VARIANTS.length; v++) {
+    const n = soldiers.VARIANTS.length;
+    const lean = cfg.ffa && quality === 'low';
+    schemes.forEach((scheme, i) => {
+      for (let v = lean ? i % n : 0; v < (lean ? (i % n) + 1 : n); v++) {
         add(`s:${scheme}:${v}:${quality}`, () => soldiers.createSoldier({ team: scheme === 'A' ? 'A' : 'B', variant: v, camo: scheme, quality }).dispose());
       }
-    }
+    });
   }
   return jobs;
 }

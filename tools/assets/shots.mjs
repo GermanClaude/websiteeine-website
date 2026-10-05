@@ -13,6 +13,9 @@ mkdirSync(out, { recursive: true });
 export const SHOTS = [
   ['tex-hero', 'tab=textures&id=concrete_floor_worn&tier=1024&hdri=freight_station'],
   ['tex-container', 'tab=textures&id=container&tier=1024&hdri=freight_station'],
+  // Normalen-Orientierung (Licht von oben): Fugen oben dunkel/unten hell, Erhebungen oben hell/unten dunkel
+  ['chk-normal-brick', 'tab=textures&id=brick_factory&tier=1024&check=normal&ui=0'],
+  ['chk-normal-tread', 'tab=textures&id=metal_tread&tier=1024&check=normal&ui=0'],
   ['tex-grid-metal', 'tab=textures&grid=1&ui=0&cat=metal&tier=512&hdri=abandoned_slipway'],
   ['tex-grid-masonry', 'tab=textures&grid=1&ui=0&cat=masonry&tier=512&hdri=old_outdoor_theater'],
   ['tex-grid-interior', 'tab=textures&grid=1&ui=0&cat=interior&tier=512&hdri=burnt_warehouse'],
@@ -29,6 +32,15 @@ export const SHOTS = [
   ['mdl-grid-containers', 'tab=models&grid=1&ui=0&cat=containers&tier=512&hdri=freight_station'],
   ['mdl-grid-nature', 'tab=models&grid=1&ui=0&cat=nature&tier=512&hdri=old_outdoor_theater'],
   ['mdl-grid-modular', 'tab=models&grid=1&ui=0&cat=modular&tier=512&hdri=abandoned_slipway'],
+  // LOD-Ketten nebeneinander (Vereinfachung prüfen: Löcher, UV-Nähte, Kleinteile)
+  ['lod-hand-truck', 'tab=models&id=hand_truck&tier=1024&cmp=1&hdri=abandoned_slipway'],
+  ['lod-crate', 'tab=models&id=old_military_crate&tier=1024&cmp=1&hdri=zwartkops_straight_morning'],
+  ['lod-hydrant', 'tab=models&id=fire_hydrant&tier=1024&cmp=1&hdri=old_outdoor_theater'],
+  ['lod-shelves', 'tab=models&id=steel_frame_shelves_01&tier=1024&cmp=1&hdri=burnt_warehouse'],
+  ['lod-tree', 'tab=models&id=dead_tree_trunk_02&tier=1024&cmp=1&hdri=zwartkops_straight_morning'],
+  ['lod-plant', 'tab=models&id=potted_plant_02&tier=1024&cmp=1&hdri=old_outdoor_theater'],
+  ['lod-generator', 'tab=models&id=portable_generator&tier=512&cmp=1&hdri=abandoned_slipway'],
+  ['mdl-fence', 'tab=models&id=modular_chainlink_fence&tier=1024&hdri=freight_station'],
   ['hdri-freight', 'tab=hdris&id=freight_station&tier=1024&hdri=freight_station'],
   ['hdri-night', 'tab=hdris&id=cobblestone_street_night&tier=1024'],
   ['hdri-basement', 'tab=hdris&id=debris_basement_corridor&tier=1024'],

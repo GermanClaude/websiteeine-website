@@ -1,6 +1,6 @@
 {
   "id": "metal_jerrycan_green",
-  "recipe": "6312484015dc",
+  "recipe": "af29a458f9c4",
   "size": [
     0.36,
     0.5,
@@ -15,24 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/metal_jerrycan_green/metal_jerrycan_green_512.glb",
-      "bytes": 226516,
+      "bytes": 174920,
       "srcTris": 9636,
       "lods": [
         {
-          "tris": 2064
+          "tris": 1998,
+          "level": 1
         },
         {
-          "tris": 727
+          "tris": 698,
+          "level": 2
         }
       ],
       "parts": [
-        "metal_jerrycan_green_pin",
-        "metal_jerrycan_green_cap",
-        "metal_jerrycan_green_body",
-        "metal_jerrycan_green_latch",
-        "metal_jerrycan_green_fastener"
+        "metal_jerrycan_green_pin"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        16
+      ],
       "bounds": {
         "min": [
           -0.188,
@@ -75,22 +77,22 @@
         {
           "name": "metal_jerrycan_green_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 50709,
+          "bytes": 15097,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 80722,
+      "geometryBytes": 76962,
       "gpu": {
-        "desktop": 605011,
-        "mobile": 605011,
-        "rgba8": 4275025
+        "desktop": 470179,
+        "mobile": 470179,
+        "rgba8": 3222689
       },
       "materials": [
         {
@@ -98,35 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        16
       ]
     },
     "1024": {
       "path": "models/metal_jerrycan_green/metal_jerrycan_green_1024.glb",
-      "bytes": 673836,
+      "bytes": 525880,
       "srcTris": 9636,
       "lods": [
         {
-          "tris": 5118
+          "tris": 5000,
+          "level": 0
         },
         {
-          "tris": 2064
+          "tris": 1998,
+          "level": 1
         },
         {
-          "tris": 727
+          "tris": 698,
+          "level": 2
         }
       ],
       "parts": [
-        "metal_jerrycan_green_pin",
-        "metal_jerrycan_green_cap",
-        "metal_jerrycan_green_body",
-        "metal_jerrycan_green_latch",
-        "metal_jerrycan_green_fastener"
+        "metal_jerrycan_green_pin"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        6,
+        16
+      ],
       "bounds": {
         "min": [
           -0.188,
@@ -169,22 +171,22 @@
         {
           "name": "metal_jerrycan_green_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 172884,
+          "bytes": 50709,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 201960,
+      "geometryBytes": 196040,
       "gpu": {
-        "desktop": 2299113,
-        "mobile": 2299113,
-        "rgba8": 16979175
+        "desktop": 1768905,
+        "mobile": 1768905,
+        "rgba8": 12778951
       },
       "materials": [
         {
@@ -192,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        6,
-        16
       ]
     }
   }

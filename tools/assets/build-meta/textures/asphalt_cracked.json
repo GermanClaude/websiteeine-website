@@ -1,12 +1,12 @@
 {
   "id": "asphalt_cracked",
-  "recipe": "aebd1af4db99",
+  "recipe": "e69abbd19f29",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/asphalt_cracked/asphalt_cracked_512_albedo.ktx2",
-          "bytes": 59403,
+          "bytes": 59698,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/asphalt_cracked/asphalt_cracked_512_normal.ktx2",
-          "bytes": 82467,
+          "bytes": 82397,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/asphalt_cracked/asphalt_cracked_512_orm.ktx2",
-          "bytes": 31155,
+          "bytes": 31162,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 173025,
+      "bytes": 173257,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/asphalt_cracked/asphalt_cracked_1024_albedo.ktx2",
-          "bytes": 199896,
+          "bytes": 200233,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/asphalt_cracked/asphalt_cracked_1024_normal.ktx2",
-          "bytes": 247420,
+          "bytes": 247544,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/asphalt_cracked/asphalt_cracked_1024_orm.ktx2",
-          "bytes": 128257,
+          "bytes": 128476,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 575573,
+      "bytes": 576253,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,7 +104,7 @@
       "files": {
         "albedo": {
           "path": "textures/asphalt_cracked/asphalt_cracked_2048_albedo.ktx2",
-          "bytes": 817419,
+          "bytes": 818069,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -117,7 +117,7 @@
         },
         "normal": {
           "path": "textures/asphalt_cracked/asphalt_cracked_2048_normal.ktx2",
-          "bytes": 959739,
+          "bytes": 959610,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -130,7 +130,7 @@
         },
         "orm": {
           "path": "textures/asphalt_cracked/asphalt_cracked_2048_orm.ktx2",
-          "bytes": 653411,
+          "bytes": 652907,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -142,7 +142,7 @@
           }
         }
       },
-      "bytes": 2430569,
+      "bytes": 2430586,
       "gpu": {
         "desktop": 8388609,
         "mobile": 8388609,

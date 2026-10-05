@@ -1,12 +1,12 @@
 {
   "id": "gunmetal_worn",
-  "recipe": "b84fe692026d",
+  "recipe": "0891146e91ca",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/gunmetal_worn/gunmetal_worn_512_albedo.ktx2",
-          "bytes": 52404,
+          "bytes": 52412,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/gunmetal_worn/gunmetal_worn_512_normal.ktx2",
-          "bytes": 16930,
+          "bytes": 16937,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/gunmetal_worn/gunmetal_worn_512_orm.ktx2",
-          "bytes": 35188,
+          "bytes": 35150,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 104522,
+      "bytes": 104499,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/gunmetal_worn/gunmetal_worn_1024_albedo.ktx2",
-          "bytes": 170405,
+          "bytes": 170409,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/gunmetal_worn/gunmetal_worn_1024_normal.ktx2",
-          "bytes": 124191,
+          "bytes": 124346,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/gunmetal_worn/gunmetal_worn_1024_orm.ktx2",
-          "bytes": 132862,
+          "bytes": 132501,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 427458,
+      "bytes": 427256,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,7 +104,7 @@
       "files": {
         "albedo": {
           "path": "textures/gunmetal_worn/gunmetal_worn_2048_albedo.ktx2",
-          "bytes": 681670,
+          "bytes": 681621,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -117,7 +117,7 @@
         },
         "normal": {
           "path": "textures/gunmetal_worn/gunmetal_worn_2048_normal.ktx2",
-          "bytes": 549954,
+          "bytes": 550659,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -130,7 +130,7 @@
         },
         "orm": {
           "path": "textures/gunmetal_worn/gunmetal_worn_2048_orm.ktx2",
-          "bytes": 553315,
+          "bytes": 554736,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -142,7 +142,7 @@
           }
         }
       },
-      "bytes": 1784939,
+      "bytes": 1787016,
       "gpu": {
         "desktop": 8388609,
         "mobile": 8388609,

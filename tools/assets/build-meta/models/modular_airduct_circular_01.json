@@ -1,6 +1,6 @@
 {
   "id": "modular_airduct_circular_01",
-  "recipe": "65650a97ff09",
+  "recipe": "3d207706725b",
   "size": [
     4.171,
     1.325,
@@ -11,11 +11,12 @@
   "tiers": {
     "512": {
       "path": "models/modular_airduct_circular_01/modular_airduct_circular_01_512.glb",
-      "bytes": 268192,
+      "bytes": 244752,
       "srcTris": 14280,
       "lods": [
         {
-          "tris": 14280
+          "tris": 14280,
+          "level": 0
         }
       ],
       "parts": [
@@ -37,6 +38,7 @@
         "modular_airduct_circular_bend_quater"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -2.086,
@@ -79,22 +81,22 @@
         {
           "name": "modular_airduct_circular_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 32737,
+          "bytes": 9304,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 357454,
       "gpu": {
-        "desktop": 881743,
-        "mobile": 881743,
-        "rgba8": 4551757
+        "desktop": 750671,
+        "mobile": 750671,
+        "rgba8": 3503181
       },
       "materials": [
         {
@@ -102,16 +104,16 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     },
     "1024": {
       "path": "models/modular_airduct_circular_01/modular_airduct_circular_01_1024.glb",
-      "bytes": 521700,
+      "bytes": 443844,
       "srcTris": 14280,
       "lods": [
         {
-          "tris": 14280
+          "tris": 14280,
+          "level": 0
         }
       ],
       "parts": [
@@ -133,6 +135,7 @@
         "modular_airduct_circular_bend_quater"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -2.086,
@@ -175,22 +178,22 @@
         {
           "name": "modular_airduct_circular_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 110597,
+          "bytes": 32737,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
       "geometryBytes": 357454,
       "gpu": {
-        "desktop": 2454607,
-        "mobile": 2454607,
-        "rgba8": 17134669
+        "desktop": 1930319,
+        "mobile": 1930319,
+        "rgba8": 12940365
       },
       "materials": [
         {
@@ -198,8 +201,7 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     }
   }
 }

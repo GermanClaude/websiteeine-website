@@ -1,6 +1,6 @@
 {
   "id": "exterior_aircon_unit",
-  "recipe": "c77221434bba",
+  "recipe": "9c9fff3f33f5",
   "size": [
     1.784,
     0.928,
@@ -9,20 +9,22 @@
   "radius": 1.023,
   "lodDistances": [
     0,
-    14.3,
-    40.9
+    14.4,
+    41.2
   ],
   "tiers": {
     "512": {
       "path": "models/exterior_aircon_unit/exterior_aircon_unit_512.glb",
-      "bytes": 566520,
+      "bytes": 571044,
       "srcTris": 18986,
       "lods": [
         {
-          "tris": 3202
+          "tris": 3168,
+          "level": 1
         },
         {
-          "tris": 1138
+          "tris": 1120,
+          "level": 2
         }
       ],
       "parts": [
@@ -30,6 +32,10 @@
         "exterior_aircon_unit_rusted"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        41.2
+      ],
       "bounds": {
         "min": [
           -0.879,
@@ -72,14 +78,14 @@
         {
           "name": "exterior_aircon_unit_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 35358,
+          "bytes": 10658,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         },
         {
@@ -111,14 +117,14 @@
         {
           "name": "exterior_aircon_unit_02_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 28192,
+          "bytes": 8207,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         },
         {
@@ -150,14 +156,14 @@
         {
           "name": "exterior_aircon_unit_rusted_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 36662,
+          "bytes": 10896,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         },
         {
@@ -189,22 +195,48 @@
         {
           "name": "exterior_aircon_unit_rusted_02_arm_1k.ktx2",
           "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 9518,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "exterior_aircon_unit_01_opacity_1k_rgba.ktx2",
+          "role": "albedo",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 33752,
+          "bytes": 63555,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
+            "desktop": 349525,
+            "mobile": 349525,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "exterior_aircon_unit_rusted_02_opacity_1k_rgba.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 71086,
+          "gpu": {
+            "desktop": 349525,
+            "mobile": 349525,
             "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 68174,
+      "geometryBytes": 66720,
       "gpu": {
-        "desktop": 2165330,
-        "mobile": 2165330,
-        "rgba8": 16845386
+        "desktop": 2338638,
+        "mobile": 2338638,
+        "rgba8": 15445830
       },
       "materials": [
         {
@@ -214,7 +246,7 @@
         },
         {
           "name": "exterior_aircon_unit_02",
-          "alphaMode": "OPAQUE",
+          "alphaMode": "MASK",
           "doubleSided": true
         },
         {
@@ -224,28 +256,27 @@
         },
         {
           "name": "exterior_aircon_unit_rusted_02",
-          "alphaMode": "OPAQUE",
+          "alphaMode": "MASK",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        40.9
       ]
     },
     "1024": {
       "path": "models/exterior_aircon_unit/exterior_aircon_unit_1024.glb",
-      "bytes": 1734480,
+      "bytes": 1714976,
       "srcTris": 18986,
       "lods": [
         {
-          "tris": 8056
+          "tris": 8006,
+          "level": 0
         },
         {
-          "tris": 3202
+          "tris": 3168,
+          "level": 1
         },
         {
-          "tris": 1138
+          "tris": 1120,
+          "level": 2
         }
       ],
       "parts": [
@@ -253,6 +284,11 @@
         "exterior_aircon_unit_rusted"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        14.4,
+        41.2
+      ],
       "bounds": {
         "min": [
           -0.892,
@@ -295,14 +331,14 @@
         {
           "name": "exterior_aircon_unit_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 118476,
+          "bytes": 35358,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         },
         {
@@ -334,14 +370,14 @@
         {
           "name": "exterior_aircon_unit_02_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 84772,
+          "bytes": 28192,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         },
         {
@@ -373,14 +409,14 @@
         {
           "name": "exterior_aircon_unit_rusted_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 122194,
+          "bytes": 36662,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         },
         {
@@ -412,22 +448,48 @@
         {
           "name": "exterior_aircon_unit_rusted_02_arm_1k.ktx2",
           "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 33752,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "exterior_aircon_unit_01_opacity_1k_rgba.ktx2",
+          "role": "albedo",
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
-          "bytes": 104964,
+          "bytes": 183075,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
+            "desktop": 1398101,
+            "mobile": 1398101,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "exterior_aircon_unit_rusted_02_opacity_1k_rgba.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 203376,
+          "gpu": {
+            "desktop": 1398101,
+            "mobile": 1398101,
             "rgba8": 5592405
           }
         }
       ],
-      "geometryBytes": 169364,
+      "geometryBytes": 167210,
       "gpu": {
-        "desktop": 8557976,
-        "mobile": 8557976,
-        "rgba8": 67278224
+        "desktop": 9254872,
+        "mobile": 9254872,
+        "rgba8": 61683664
       },
       "materials": [
         {
@@ -437,7 +499,7 @@
         },
         {
           "name": "exterior_aircon_unit_02",
-          "alphaMode": "OPAQUE",
+          "alphaMode": "MASK",
           "doubleSided": true
         },
         {
@@ -447,14 +509,9 @@
         },
         {
           "name": "exterior_aircon_unit_rusted_02",
-          "alphaMode": "OPAQUE",
+          "alphaMode": "MASK",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        14.3,
-        40.9
       ]
     }
   }

@@ -9,7 +9,7 @@ und ebenfalls CC0. Quellenliste mit Download-IDs: `tools/assets/sources.json`, P
 Vielen Dank an [Poly Haven](https://polyhaven.com) und [ambientCG](https://ambientcg.com) sowie alle
 Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 
-## Texturen (71)
+## Texturen (69)
 
 | Asset | ID | Urheber:in | Quelle | Lizenz |
 |---|---|---|---|---|
@@ -49,7 +49,6 @@ Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 | Brown Mud 02 | `mud` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/brown_mud_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Dry Ground 01 | `ground_dry_cracked` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/dry_ground_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Grass 004 | `grass` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Grass004) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Ground 037 | `grass_overgrown` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Ground037) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Wood Planks | `wood_planks` | Amal Kumar | [Poly Haven](https://polyhaven.com/a/wood_planks) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Weathered Planks | `wood_planks_weathered` | Dario Barresi, Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/weathered_planks) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Dark Wooden Planks | `wood_planks_dark` | Amal Kumar | [Poly Haven](https://polyhaven.com/a/dark_wooden_planks) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
@@ -57,7 +56,6 @@ Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 | Oriented Strand Board | `osb` | Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/oriented_strand_board) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Old Wood Floor | `wood_floor_old` | Guillaume Monsergent | [Poly Haven](https://polyhaven.com/a/old_wood_floor) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Wood Peeling Paint Weathered | `wood_peeling_paint` | Rob Tuytel, Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/wood_peeling_paint_weathered) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Bark Brown 02 | `bark` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/bark_brown_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Palm Tree Bark | `bark_palm` | Dimitrios Savva, Rico Cilliers | [Poly Haven](https://polyhaven.com/a/palm_tree_bark) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Cardboard 004 | `cardboard` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Cardboard004) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Green Metal Rust | `metal_painted` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/green_metal_rust) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
@@ -98,13 +96,12 @@ Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 | Industrial Pipe & Valve 01 | `industrial_pipe_and_valve_01` | Philip Modin | [Poly Haven](https://polyhaven.com/a/industrial_pipe_and_valve_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Debris Basement Corridor | `debris_basement_corridor` | Elvis Posa | [Poly Haven](https://polyhaven.com/a/debris_basement_corridor) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 
-## Modelle (59)
+## Modelle (57)
 
 | Asset | ID | Urheber:in | Quelle | Lizenz |
 |---|---|---|---|---|
 | Bolt Action Rifle 7.62 | `bolt_action_rifle_7_62` | Mateusz Sadek | [Poly Haven](https://polyhaven.com/a/bolt_action_rifle_7_62) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Service Pistol | `service_pistol` | Mateusz Sadek | [Poly Haven](https://polyhaven.com/a/service_pistol) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Stick Grenade | `stick_grenade` | singaii | [Poly Haven](https://polyhaven.com/a/stick_grenade) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Ammo Box | `ammo_box` | DanKit | [Poly Haven](https://polyhaven.com/a/ammo_box) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Old Military Crate | `old_military_crate` | Jack Mava | [Poly Haven](https://polyhaven.com/a/old_military_crate) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Wooden Military Crate | `wooden_military_crate` | Prabhjinder Singh | [Poly Haven](https://polyhaven.com/a/wooden_military_crate) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
@@ -155,12 +152,16 @@ Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 | Old Bed Frame | `old_bed_frame` | Luca B | [Poly Haven](https://polyhaven.com/a/old_bed_frame) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Wet Floor Sign 01 | `wetfloorsign_01` | Fran Calvente | [Poly Haven](https://polyhaven.com/a/WetFloorSign_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Dead Tree Trunk 02 | `dead_tree_trunk_02` | Jenelle van Heerden, Rico Cilliers | [Poly Haven](https://polyhaven.com/a/dead_tree_trunk_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Boulder 01 | `boulder_01` | Rico Cilliers | [Poly Haven](https://polyhaven.com/a/boulder_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Rock 07 | `rock_07` | Jenelle van Heerden | [Poly Haven](https://polyhaven.com/a/rock_07) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Planter Pot Clay | `planter_pot_clay` | Amal Kumar | [Poly Haven](https://polyhaven.com/a/planter_pot_clay) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Potted Plant 02 | `potted_plant_02` | Rico Cilliers | [Poly Haven](https://polyhaven.com/a/potted_plant_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Shrub 04 | `shrub_04` | Rico Cilliers | [Poly Haven](https://polyhaven.com/a/shrub_04) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Weed Plant 02 | `weed_plant_02` | Rob Tuytel, Rico Cilliers | [Poly Haven](https://polyhaven.com/a/weed_plant_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+
+## Klänge
+
+Die aufgenommenen Klänge unter `assets/lib/audio/` (ebenfalls CC0: The Free Firearm Sound Library, Freesound,
+Kenney) sind mit Quelle, Urheber:in und Lizenz je Datei in [docs/AUDIO_SOURCES.md](docs/AUDIO_SOURCES.md) aufgeführt.
 
 ## Software
 

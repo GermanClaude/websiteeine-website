@@ -1,6 +1,6 @@
 {
   "id": "shrub_04",
-  "recipe": "4ec88470fbf7",
+  "recipe": "c70047d29838",
   "size": [
     0.583,
     0.219,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/shrub_04/shrub_04_512.glb",
-      "bytes": 240896,
+      "bytes": 221416,
       "srcTris": 27327,
       "lods": [
         {
-          "tris": 4713
+          "tris": 4713,
+          "level": 1
         },
         {
-          "tris": 1623
+          "tris": 1623,
+          "level": 2
         }
       ],
       "parts": [
         "shrub_04"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        16
+      ],
       "bounds": {
         "min": [
           -0.024,
@@ -71,22 +77,22 @@
         {
           "name": "shrub_04_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 29441,
+          "bytes": 9964,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 202356,
       "gpu": {
-        "desktop": 726645,
-        "mobile": 726645,
-        "rgba8": 4396659
+        "desktop": 595573,
+        "mobile": 595573,
+        "rgba8": 3348083
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "MASK",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        16
       ]
     },
     "1024": {
       "path": "models/shrub_04/shrub_04_1024.glb",
-      "bytes": 616580,
+      "bytes": 565468,
       "srcTris": 27327,
       "lods": [
         {
-          "tris": 11968
+          "tris": 11968,
+          "level": 0
         },
         {
-          "tris": 4713
+          "tris": 4713,
+          "level": 1
         },
         {
-          "tris": 1623
+          "tris": 1623,
+          "level": 2
         }
       ],
       "parts": [
         "shrub_04"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        6,
+        16
+      ],
       "bounds": {
         "min": [
           -0.024,
@@ -161,22 +171,22 @@
         {
           "name": "shrub_04_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 80553,
+          "bytes": 29441,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
       "geometryBytes": 487982,
       "gpu": {
-        "desktop": 2585135,
-        "mobile": 2585135,
-        "rgba8": 17265197
+        "desktop": 2060847,
+        "mobile": 2060847,
+        "rgba8": 13070893
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "MASK",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        6,
-        16
       ]
     }
   }

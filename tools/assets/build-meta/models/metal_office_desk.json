@@ -1,6 +1,6 @@
 {
   "id": "metal_office_desk",
-  "recipe": "6a94f726fc75",
+  "recipe": "76fca6dd9322",
   "size": [
     2,
     0.787,
@@ -15,28 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/metal_office_desk/metal_office_desk_512.glb",
-      "bytes": 184608,
+      "bytes": 130724,
       "srcTris": 6898,
       "lods": [
         {
-          "tris": 2750
+          "tris": 2758,
+          "level": 1
         },
         {
-          "tris": 1112
+          "tris": 965,
+          "level": 2
         }
       ],
       "parts": [
-        "metal_office_desk_drawer_06",
-        "metal_office_desk_tray_01",
-        "metal_office_desk",
-        "metal_office_desk_drawer_04",
-        "metal_office_desk_drawer_03",
-        "metal_office_desk_drawer_05",
-        "metal_office_desk_drawer_02",
-        "metal_office_desk_drawer_01",
-        "metal_office_desk_tray_02"
+        "metal_office_desk_drawer_06"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        47
+      ],
       "bounds": {
         "min": [
           -1,
@@ -79,22 +77,22 @@
         {
           "name": "metal_office_desk_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 38756,
+          "bytes": 11711,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 126748,
+      "geometryBytes": 124022,
       "gpu": {
-        "desktop": 651037,
-        "mobile": 651037,
-        "rgba8": 4321051
+        "desktop": 517239,
+        "mobile": 517239,
+        "rgba8": 3269749
       },
       "materials": [
         {
@@ -102,39 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        47
       ]
     },
     "1024": {
       "path": "models/metal_office_desk/metal_office_desk_1024.glb",
-      "bytes": 475516,
+      "bytes": 354520,
       "srcTris": 6898,
       "lods": [
         {
-          "tris": 6898
+          "tris": 6898,
+          "level": 0
         },
         {
-          "tris": 2750
+          "tris": 2758,
+          "level": 1
         },
         {
-          "tris": 1112
+          "tris": 965,
+          "level": 2
         }
       ],
       "parts": [
-        "metal_office_desk_drawer_06",
-        "metal_office_desk_tray_01",
-        "metal_office_desk",
-        "metal_office_desk_drawer_04",
-        "metal_office_desk_drawer_03",
-        "metal_office_desk_drawer_05",
-        "metal_office_desk_drawer_02",
-        "metal_office_desk_drawer_01",
-        "metal_office_desk_tray_02"
+        "metal_office_desk_drawer_06"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        16.4,
+        47
+      ],
       "bounds": {
         "min": [
           -1,
@@ -177,22 +171,22 @@
         {
           "name": "metal_office_desk_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 128778,
+          "bytes": 38756,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 286580,
+      "geometryBytes": 298950,
       "gpu": {
-        "desktop": 2383733,
-        "mobile": 2383733,
-        "rgba8": 17063795
+        "desktop": 1871815,
+        "mobile": 1871815,
+        "rgba8": 12881861
       },
       "materials": [
         {
@@ -200,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        16.4,
-        47
       ]
     }
   }

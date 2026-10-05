@@ -1,6 +1,6 @@
 {
   "id": "schoolchair_01",
-  "recipe": "19ef2e126954",
+  "recipe": "5fa95daca591",
   "size": [
     0.566,
     1.004,
@@ -9,26 +9,32 @@
   "radius": 0.668,
   "lodDistances": [
     0,
-    9.3,
+    9.4,
     26.7
   ],
   "tiers": {
     "512": {
       "path": "models/schoolchair_01/schoolchair_01_512.glb",
-      "bytes": 166032,
+      "bytes": 143532,
       "srcTris": 5072,
       "lods": [
         {
-          "tris": 2028
+          "tris": 2028,
+          "level": 1
         },
         {
-          "tris": 710
+          "tris": 710,
+          "level": 2
         }
       ],
       "parts": [
         "SchoolChair_01"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        26.7
+      ],
       "bounds": {
         "min": [
           -0.283,
@@ -71,22 +77,22 @@
         {
           "name": "SchoolChair_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 32460,
+          "bytes": 10459,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 65312,
+      "geometryBytes": 63200,
       "gpu": {
-        "desktop": 589601,
-        "mobile": 589601,
-        "rgba8": 4259615
+        "desktop": 456417,
+        "mobile": 456417,
+        "rgba8": 3208927
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        26.7
       ]
     },
     "1024": {
       "path": "models/schoolchair_01/schoolchair_01_1024.glb",
-      "bytes": 457064,
+      "bytes": 390812,
       "srcTris": 5072,
       "lods": [
         {
-          "tris": 5072
+          "tris": 5072,
+          "level": 0
         },
         {
-          "tris": 2028
+          "tris": 2028,
+          "level": 1
         },
         {
-          "tris": 710
+          "tris": 710,
+          "level": 2
         }
       ],
       "parts": [
         "SchoolChair_01"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        9.4,
+        26.7
+      ],
       "bounds": {
         "min": [
           -0.283,
@@ -161,22 +171,22 @@
         {
           "name": "SchoolChair_01_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 98213,
+          "bytes": 32460,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 167574,
+      "geometryBytes": 165462,
       "gpu": {
-        "desktop": 2264727,
-        "mobile": 2264727,
-        "rgba8": 16944789
+        "desktop": 1738327,
+        "mobile": 1738327,
+        "rgba8": 12748373
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        9.3,
-        26.7
       ]
     }
   }

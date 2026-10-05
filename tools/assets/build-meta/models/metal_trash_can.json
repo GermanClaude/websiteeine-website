@@ -1,10 +1,10 @@
 {
   "id": "metal_trash_can",
-  "recipe": "b606a31b2c27",
+  "recipe": "2d9fc68fd624",
   "size": [
-    1.778,
+    1.777,
     0.906,
-    0.551
+    0.552
   ],
   "radius": 1.035,
   "lodDistances": [
@@ -15,37 +15,37 @@
   "tiers": {
     "512": {
       "path": "models/metal_trash_can/metal_trash_can_512.glb",
-      "bytes": 473608,
+      "bytes": 392244,
       "srcTris": 13960,
       "lods": [
         {
-          "tris": 3026
+          "tris": 2394,
+          "level": 1
         },
         {
-          "tris": 1006
+          "tris": 832,
+          "level": 2
         }
       ],
       "parts": [
         "metal_trash_can_handle_left",
-        "metal_trash_can_lid",
-        "metal_trash_can",
-        "metal_trash_can_handle_right",
-        "metal_trash_can_rust",
-        "metal_trash_can_rust_handle_left",
-        "metal_trash_can_rust_handle_right",
-        "metal_trash_can_rust_lid"
+        "metal_trash_can_rust"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        41.4
+      ],
       "bounds": {
         "min": [
           -0.953,
           0,
-          -0.277
+          -0.276
         ],
         "max": [
-          0.825,
+          0.824,
           0.906,
-          0.274
+          0.276
         ]
       },
       "textures": [
@@ -78,14 +78,14 @@
         {
           "name": "metal_trash_can_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 41781,
+          "bytes": 11582,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         },
         {
@@ -117,22 +117,22 @@
         {
           "name": "metal_trash_can_rust_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 37749,
+          "bytes": 10718,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 101990,
+      "geometryBytes": 88502,
       "gpu": {
-        "desktop": 1150568,
-        "mobile": 1150568,
-        "rgba8": 8490596
+        "desktop": 874936,
+        "mobile": 874936,
+        "rgba8": 6379956
       },
       "materials": [
         {
@@ -145,38 +145,36 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        41.4
       ]
     },
     "1024": {
       "path": "models/metal_trash_can/metal_trash_can_1024.glb",
-      "bytes": 1388092,
+      "bytes": 1149340,
       "srcTris": 13960,
       "lods": [
         {
-          "tris": 7089
+          "tris": 5998,
+          "level": 0
         },
         {
-          "tris": 3026
+          "tris": 2394,
+          "level": 1
         },
         {
-          "tris": 1006
+          "tris": 832,
+          "level": 2
         }
       ],
       "parts": [
         "metal_trash_can_handle_left",
-        "metal_trash_can_lid",
-        "metal_trash_can",
-        "metal_trash_can_handle_right",
-        "metal_trash_can_rust",
-        "metal_trash_can_rust_handle_left",
-        "metal_trash_can_rust_handle_right",
-        "metal_trash_can_rust_lid"
+        "metal_trash_can_rust"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        14.5,
+        41.4
+      ],
       "bounds": {
         "min": [
           -0.953,
@@ -219,14 +217,14 @@
         {
           "name": "metal_trash_can_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 148571,
+          "bytes": 41781,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         },
         {
@@ -258,22 +256,22 @@
         {
           "name": "metal_trash_can_rust_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 130739,
+          "bytes": 37749,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 259570,
+      "geometryBytes": 229496,
       "gpu": {
-        "desktop": 4453876,
-        "mobile": 4453876,
-        "rgba8": 33814000
+        "desktop": 3375226,
+        "mobile": 3375226,
+        "rgba8": 25395318
       },
       "materials": [
         {
@@ -286,11 +284,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        14.5,
-        41.4
       ]
     }
   }

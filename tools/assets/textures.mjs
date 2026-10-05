@@ -1,6 +1,8 @@
 // PBR-Texturensätze → KTX2 in Stufen (512 / 1024 / 2048).
 // Je Satz und Stufe: <id>_<tier>_albedo.ktx2 (sRGB, ETC1S; Alpha bei Gittern), _normal.ktx2 (OpenGL-Konvention,
-// UASTC+RDO+Zstd), _orm.ktx2 (R = Umgebungsverdeckung, G = Rauheit, B = Metall; linear, ETC1S).
+// ETC1S q255 im Normalen-Modus), _orm.ktx2 (R = Umgebungsverdeckung, G = Rauheit, B = Metall; linear, ETC1S).
+// Zeilen werden beim Kodieren gespiegelt (isYFlip): komprimierte Texturen kennen kein flipY, so liegt v = 0 wie bei
+// TextureLoader-Texturen unten — Laufspuren/Rost zeigen nach unten und OpenGL-Normalen gelten mit normalScale (1, 1).
 // Aufruf: node tools/assets/textures.mjs [ids…] [--force]
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,7 +17,7 @@ const ids = args._.length ? args._ : src.textures.map((t) => t.id);
 
 
 // Rezept = nur verarbeitungsrelevante Felder (Metadaten wie sizeM/replaces ändern keine Dateien)
-const recipe = (e) => hash({ v: PIPELINE_VERSION, s: e.source, sid: e.sourceId, tiers: e.tiers, recolor: e.recolor || null, alpha: !!e.alpha, base: e.base || null, profiles: 'k5' });
+const recipe = (e) => hash({ v: PIPELINE_VERSION, s: e.source, sid: e.sourceId, tiers: e.tiers, recolor: e.recolor || null, alpha: !!e.alpha, base: e.base || null, profiles: 'k5', yflip: 1 });
 
 // ---------------------------------------------------------------------------------------------
 // Prozedurale Tarnmuster (kachelbar): periodisches Value-Noise mit Domain-Warping
@@ -99,7 +101,7 @@ function stats(albedo, orm) {
 }
 
 async function writeKTX(file, img, kind, tier) {
-  const bytes = await encodeKTX2(img, kind, tier);
+  const bytes = await encodeKTX2(img, kind, tier, { yflip: true });
   writeFileAtomic(file, bytes);
   const info = ktx2Info(bytes);
   return { path: rel(file).replace(/^assets\/lib\//, ''), bytes: bytes.length, width: info.width, height: info.height, codec: info.codec, alpha: info.alpha, gpu: gpuBytes(info.width, info.height, { codec: info.codec, alpha: info.alpha }) };

@@ -1,6 +1,6 @@
 {
   "id": "metal_jerrycan",
-  "recipe": "4131ca7cdabf",
+  "recipe": "82719566dbf3",
   "size": [
     0.349,
     0.455,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/metal_jerrycan/metal_jerrycan_512.glb",
-      "bytes": 218216,
+      "bytes": 184676,
       "srcTris": 20022,
       "lods": [
         {
-          "tris": 2000
+          "tris": 2000,
+          "level": 1
         },
         {
-          "tris": 695
+          "tris": 695,
+          "level": 2
         }
       ],
       "parts": [
         "metal_jerrycan"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        16
+      ],
       "bounds": {
         "min": [
           -0.169,
@@ -71,22 +77,22 @@
         {
           "name": "metal_jerrycan_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 45879,
+          "bytes": 12330,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 61490,
       "gpu": {
-        "desktop": 585779,
-        "mobile": 585779,
-        "rgba8": 4255793
+        "desktop": 454707,
+        "mobile": 454707,
+        "rgba8": 3207217
       },
       "materials": [
         {
@@ -94,101 +100,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        16
-      ]
-    },
-    "1024": {
-      "path": "models/metal_jerrycan/metal_jerrycan_1024.glb",
-      "bytes": 669508,
-      "srcTris": 20022,
-      "lods": [
-        {
-          "tris": 5000
-        },
-        {
-          "tris": 2000
-        },
-        {
-          "tris": 695
-        }
-      ],
-      "parts": [
-        "metal_jerrycan"
-      ],
-      "lodShift": false,
-      "bounds": {
-        "min": [
-          -0.17,
-          0,
-          -0.089
-        ],
-        "max": [
-          0.18,
-          0.455,
-          0.083
-        ]
-      },
-      "textures": [
-        {
-          "name": "metal_jerrycan_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 249840,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "metal_jerrycan_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 189569,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "metal_jerrycan_arm_1k.ktx2",
-          "role": "orm",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 161243,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        }
-      ],
-      "geometryBytes": 162506,
-      "gpu": {
-        "desktop": 2259659,
-        "mobile": 2259659,
-        "rgba8": 16939721
-      },
-      "materials": [
-        {
-          "name": "metal_jerrycan",
-          "alphaMode": "OPAQUE",
-          "doubleSided": true
-        }
-      ],
-      "lodDistances": [
-        0,
-        6,
-        16
       ]
     }
   }

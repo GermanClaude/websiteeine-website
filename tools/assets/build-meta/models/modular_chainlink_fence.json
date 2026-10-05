@@ -1,21 +1,22 @@
 {
   "id": "modular_chainlink_fence",
-  "recipe": "f1cdf1463904",
+  "recipe": "6f9cffca79a0",
   "size": [
-    8.115,
-    2.523,
-    2.149
+    8.114,
+    2.522,
+    2.148
   ],
-  "radius": 4.383,
+  "radius": 4.382,
   "lodDistances": null,
   "tiers": {
     "512": {
       "path": "models/modular_chainlink_fence/modular_chainlink_fence_512.glb",
-      "bytes": 1034164,
+      "bytes": 702828,
       "srcTris": 89232,
       "lods": [
         {
-          "tris": 89232
+          "tris": 36211,
+          "level": 0
         }
       ],
       "parts": [
@@ -41,15 +42,16 @@
         "modular_chainlink_fence_start_01_corner_02"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -6.04,
           0,
-          -2.075
+          -2.074
         ],
         "max": [
-          2.075,
-          2.523,
+          2.074,
+          2.522,
           0.074
         ]
       },
@@ -83,14 +85,14 @@
         {
           "name": "modular_chainlink_fence_posts_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 40819,
+          "bytes": 10447,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         },
         {
@@ -122,22 +124,35 @@
         {
           "name": "modular_chainlink_fence_wire_arm_1k.ktx2",
           "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 9783,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "modular_chainlink_fence_wire_diff_1k_rgba.ktx2",
+          "role": "albedo",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 37872,
+          "bytes": 97911,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
+            "desktop": 349525,
+            "mobile": 349525,
             "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 2345246,
+      "geometryBytes": 1151936,
       "gpu": {
-        "desktop": 3393824,
-        "mobile": 3393824,
-        "rgba8": 10733852
+        "desktop": 2287895,
+        "mobile": 2287895,
+        "rgba8": 8841491
       },
       "materials": [
         {
@@ -147,19 +162,19 @@
         },
         {
           "name": "modular_chainlink_fence_wire",
-          "alphaMode": "OPAQUE",
+          "alphaMode": "MASK",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     },
     "1024": {
       "path": "models/modular_chainlink_fence/modular_chainlink_fence_1024.glb",
-      "bytes": 1656864,
+      "bytes": 1239520,
       "srcTris": 89232,
       "lods": [
         {
-          "tris": 89232
+          "tris": 36211,
+          "level": 0
         }
       ],
       "parts": [
@@ -185,15 +200,16 @@
         "modular_chainlink_fence_start_01_corner_02"
       ],
       "lodShift": false,
+      "lodDistances": null,
       "bounds": {
         "min": [
           -6.04,
           0,
-          -2.075
+          -2.074
         ],
         "max": [
-          2.075,
-          2.523,
+          2.074,
+          2.522,
           0.074
         ]
       },
@@ -227,14 +243,14 @@
         {
           "name": "modular_chainlink_fence_posts_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 145206,
+          "bytes": 40819,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         },
         {
@@ -266,22 +282,35 @@
         {
           "name": "modular_chainlink_fence_wire_arm_1k.ktx2",
           "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 37872,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "modular_chainlink_fence_wire_diff_1k_rgba.ktx2",
+          "role": "albedo",
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
-          "bytes": 129226,
+          "bytes": 224212,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
+            "desktop": 1398101,
+            "mobile": 1398101,
             "rgba8": 5592405
           }
         }
       ],
-      "geometryBytes": 2345246,
+      "geometryBytes": 1151936,
       "gpu": {
-        "desktop": 6539552,
-        "mobile": 6539552,
-        "rgba8": 35899676
+        "desktop": 5695767,
+        "mobile": 5695767,
+        "rgba8": 31910163
       },
       "materials": [
         {
@@ -291,11 +320,10 @@
         },
         {
           "name": "modular_chainlink_fence_wire",
-          "alphaMode": "OPAQUE",
+          "alphaMode": "MASK",
           "doubleSided": true
         }
-      ],
-      "lodDistances": null
+      ]
     }
   }
 }

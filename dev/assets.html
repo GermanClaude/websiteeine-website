@@ -80,6 +80,7 @@
   <div class="row" id="lodrow" style="display:none">
     <label>LOD</label>
     <button data-lod="auto" class="on">Auto</button><button data-lod="0">0</button><button data-lod="1">1</button><button data-lod="2">2</button>
+    <button id="cmp" title="Alle LOD-Stufen nebeneinander">Vergleich</button>
   </div>
   <input id="q" type="search" placeholder="Suchen …">
   <div id="list"></div>
@@ -123,7 +124,8 @@ const shadowTex = (() => {
 const state = {
   tab: params.get('tab') || 'textures', id: params.get('id') || null, tier: Number(params.get('tier') || 1024),
   hdri: params.get('hdri') || Object.keys(manifest.hdris)[0], bg: params.get('bg') !== '0', grid: params.has('grid'),
-  cat: params.get('cat') || null, spin: !params.has('shot') && params.get('spin') !== '0', exposure: Number(params.get('exp') || 0), lod: 'auto', filter: '',
+  cat: params.get('cat') || null, spin: !params.has('shot') && params.get('spin') !== '0', exposure: Number(params.get('exp') || 0),
+  lod: params.get('lod') || 'auto', cmp: params.has('cmp'), filter: '',
 };
 let env = null, sky = null, current = null, gridItems = [], busy = 0;
 const status = (t) => { $('#status').textContent = t || ''; };
@@ -183,7 +185,29 @@ function sphereUV(sizeM) {
   return g;
 }
 
+async function showNormalCheck(id) {
+  // Prüfansicht Normalen-Orientierung: Wand frontal, nur ein Licht von oben (kein HDRI). Links: Normalen-Y wie
+  // geladen umgedreht (falsch, wenn der Loader richtig ist), rechts: Material genau wie createMaterial() es liefert.
+  // Richtig: Fugen (Vertiefungen) sind oben dunkel und unten hell; Erhebungen oben hell und unten dunkel.
+  const e = manifest.textures[id];
+  const good = await lib.createMaterial(id, { tier: state.tier });
+  const bad = good.clone(); bad.normalScale.y *= -1;
+  for (const [i, m] of [[-1, bad], [1, good]]) {
+    const w = new THREE.Mesh(tileGeo(e.sizeM), m);
+    w.position.set(i * 1.05, 1, 0);
+    content.add(w);
+    gridItems.push({ id: i < 0 ? 'Y gedreht (Gegenprobe)' : 'createMaterial()', obj: w, labelPos: new THREE.Vector3(i * 1.05, 2.15, 0) });
+  }
+  scene.environment = null; if (sky) sky.visible = false;
+  const sun = new THREE.DirectionalLight(0xffffff, 3.2); sun.position.set(0, 10, 3.5);
+  content.add(sun, new THREE.AmbientLight(0xffffff, 0.15));
+  renderer.toneMappingExposure = 1;
+  orbit.target.set(0, 1, 0); orbit.yaw = 0; orbit.pitch = 0; orbit.dist = 2.4 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.min(1.6, camera.aspect) * 1.1;
+  current = { type: 'check', id };
+}
+
 async function showTexture(id) {
+  if (params.get('check') === 'normal') return showNormalCheck(id);
   const e = manifest.textures[id];
   const mat = await lib.createMaterial(id, { tier: state.tier, color: e.tintable ? tintFor(id) : undefined });
   const ball = new THREE.Mesh(sphereUV(e.sizeM), mat);
@@ -200,7 +224,31 @@ async function showTexture(id) {
 const TINT = { container: '#b8392c', metal_painted: '#4f6a55', canvas: '#3b5c86', concrete_epoxy: '#8e979c', fabric_uniform: '#55603f', linoleum: '#8a7a62', plaster_painted: '#b9b4a8' };
 function tintFor(id) { return TINT[id] || '#c8c8c8'; }
 
+async function showModelLods(id) {
+  // LOD-Vergleich: jede Stufe nebeneinander (gleicher Maßstab), Beschriftung mit Dreiecken
+  const e = manifest.models[id];
+  const tier = pickTier(e.tiers, state.tier);
+  const tris = e.tiers[tier].tris;
+  const n = e.kit ? 1 : tris.length;
+  const objs = await Promise.all(Array.from({ length: n }, (_, i) => lib.loadModel(id, state.tier, { lod: i })));
+  const box = new THREE.Box3().setFromObject(objs[0]), size = box.getSize(new THREE.Vector3());
+  const step = Math.max(size.x, size.z) * 1.15 + 0.05;
+  objs.forEach((o, i) => {
+    const b = new THREE.Box3().setFromObject(o), c = b.getCenter(new THREE.Vector3());
+    const x = (i - (n - 1) / 2) * step;
+    o.position.set(x - c.x, -b.min.y, -c.z);
+    content.add(o);
+    gridItems.push({ id: `LOD${i} · ${tris[i]} △`, obj: o, labelPos: new THREE.Vector3(x, size.y + 0.12, 0) });
+  });
+  // Bildausschnitt: alle Stufen in den freien Bereich zwischen den Bedienfeldern (≈ 50 % der Breite, ohne UI 90 %)
+  const tv = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), free = document.body.classList.contains('noui') ? 0.9 : 0.5;
+  orbit.target.set(0, size.y / 2, 0); orbit.yaw = 0; orbit.pitch = 0.18;
+  orbit.dist = Math.max((step * n / 2) / (tv * camera.aspect * free), (size.y / 2 + 0.25) / (tv * 0.85)) + Math.max(size.x, size.z) / 2;
+  current = { type: 'lods', id };
+}
+
 async function showModel(id) {
+  if (state.cmp) return showModelLods(id);
   const e = manifest.models[id];
   const obj = await lib.loadModel(id, state.tier, { lod: true });
   const box = new THREE.Box3().setFromObject(obj);
@@ -219,7 +267,9 @@ async function showModel(id) {
 }
 function applyLod() {
   const lod = current?.obj?.isLOD ? current.obj : null;
-  $('#lodrow').style.display = lod ? '' : 'none';
+  $('#lodrow').style.display = lod || current?.type === 'lods' ? '' : 'none';
+  for (const b of document.querySelectorAll('#lodrow [data-lod]')) b.classList.toggle('on', b.dataset.lod === String(state.lod));
+  $('#cmp').classList.toggle('on', state.cmp);
   if (!lod) return;
   lod.autoUpdate = state.lod === 'auto';
   if (state.lod !== 'auto') lod.levels.forEach((l, i) => { l.object.visible = i === Number(state.lod); });
@@ -287,6 +337,7 @@ async function show() {
   } catch (err) { console.error(err); status('Fehler: ' + err.message); busy--; return; }
   status('');
   busy--;
+  if (state.tab === 'models') applyLod();
   renderInfo();
   syncUrl();
 }
@@ -320,10 +371,11 @@ function renderInfo() {
   const budgetHtml = `<div class="k" style="margin-top:8px">Geladen: ${fmt(b.downloadedBytes)} · GPU ≈ ${fmt(b.gpu.desktop)} (mobil ${fmt(b.gpu.mobile)}) · ${b.count} Assets · three: ${b.renderer?.textures ?? 0} Texturen, ${b.renderer?.geometries ?? 0} Geometrien</div>`;
   let html = '';
   if (state.tab === 'maps' || current?.type === 'grid' || !state.id) {
-    const rows = Object.entries(manifest.maps).map(([id, m]) => `<tr><td>${id}${m.planned ? '*' : ''}</td>${['low', 'high', 'ultra'].map((q) => `<td>${fmt(m.budget[q].bytes)}<br><span class="k">${fmt(m.budget[q].gpu.desktop)}</span></td>`).join('')}</tr>`).join('');
-    html += `<h2>Kartenbudgets</h2><div class="k">Download · GPU (Desktop) je Qualität, Vorschlagslisten aus manifest.maps (* geplant)</div><table><tr><th>Karte</th><th>low</th><th>high</th><th>ultra</th></tr>${rows}</table>`;
+    const Q = ['low', 'medium', 'high', 'ultra'];
+    const rows = Object.entries(manifest.maps).map(([id, m]) => `<tr><td>${id}${m.planned ? '*' : ''}</td>${Q.map((q) => `<td>${fmt(m.budget[q].bytes)}<br><span class="k">${fmt(m.budget[q].gpu.desktop)}</span></td>`).join('')}</tr>`).join('');
+    html += `<h2>Kartenbudgets</h2><div class="k">Download · GPU je Qualität (Texturen + Modelle + HDRI der Vorschlagslisten in manifest.maps, * geplant)</div><table><tr><th>Karte</th>${Q.map((q) => `<th>${q}</th>`).join('')}</tr>${rows}</table>`;
     const T = manifest.totals;
-    html += `<div class="k">Bibliothek: ${T.counts.textures} Texturen, ${T.counts.hdris} HDRIs, ${T.counts.models} Modelle — ${fmt(T.all.bytes)} in ${T.all.files} Dateien</div>`;
+    html += `<div class="k">Bibliothek: ${T.counts.textures} Texturen, ${T.counts.hdris} HDRIs, ${T.counts.models} Modelle — ${fmt(T.all.bytes)} in ${T.all.files} Dateien${T.byTier ? '<br>je Stufe: ' + Object.entries(T.byTier).map(([t, b]) => `${t}: ${fmt(b)}`).join(' · ') : ''}</div>`;
   }
   if (current && current.type !== 'grid' && state.id && state.tab !== 'maps') {
     const e = manifest[state.tab][state.id];
@@ -344,9 +396,17 @@ function renderInfo() {
       html += `<table><tr><th>Stufe</th><th>Download</th><th>GPU</th><th>mobil</th></tr>${tierTable(e)}</table>`;
     }
   }
-  if (env) html += `<div class="k">Licht: ${esc(env.id)} (${env.tier})</div>`;
+  if (env) html += `<div class="k">Licht: ${esc(env.id)} (${env.tier}, Himmel ${env.skyTier})</div>`;
+  const map = current?.obj?.material?.map;
+  html += `<div class="k">GPU-Formate: ${lib.compressionSupport().join(', ') || '–'}${map ? ' · Albedo als ' + (FORMAT_NAMES[map.format] || map.format) : ''}</div>`;
   $('#info').innerHTML = html + budgetHtml;
 }
+
+const FORMAT_NAMES = {
+  [THREE.RGB_ETC2_Format]: 'ETC2', [THREE.RGBA_ETC2_EAC_Format]: 'ETC2-RGBA', [THREE.RGB_ETC1_Format]: 'ETC1', [THREE.RGBA_ASTC_4x4_Format]: 'ASTC 4×4',
+  [THREE.RGBA_BPTC_Format]: 'BC7', [THREE.RGB_S3TC_DXT1_Format]: 'BC1', [THREE.RGBA_S3TC_DXT5_Format]: 'BC3', [THREE.RGBA_S3TC_DXT1_Format]: 'BC1a',
+  [THREE.RGB_PVRTC_4BPPV1_Format]: 'PVRTC', [THREE.RGBA_PVRTC_4BPPV1_Format]: 'PVRTC-A', [THREE.RGBAFormat]: 'RGBA8 (unkomprimiert)',
+};
 
 function syncUrl() {
   if (params.has('shot')) return;
@@ -354,6 +414,7 @@ function syncUrl() {
   if (state.id) p.set('id', state.id);
   if (state.grid) p.set('grid', '1');
   if (state.cat) p.set('cat', state.cat);
+  if (state.cmp) p.set('cmp', '1');
   history.replaceState(null, '', '?' + p);
 }
 
@@ -387,6 +448,7 @@ $('#exp').addEventListener('input', (e) => { state.exposure = Number(e.target.va
 $('#spin').addEventListener('click', () => { state.spin = !state.spin; $('#spin').classList.toggle('on', state.spin); });
 $('#grid').addEventListener('click', () => { state.grid = !state.grid; $('#grid').classList.toggle('on', state.grid); show(); });
 $('#lodrow').addEventListener('click', (e) => { const l = e.target.dataset.lod; if (!l) return; state.lod = l; for (const b of document.querySelectorAll('#lodrow button')) b.classList.toggle('on', b.dataset.lod === l); applyLod(); renderInfo(); });
+$('#cmp').addEventListener('click', () => { state.cmp = !state.cmp; show(); });
 $('#q').addEventListener('input', (e) => { state.filter = e.target.value.toLowerCase(); renderList(); });
 $('#min').addEventListener('click', () => $('#panel').classList.toggle('min'));
 
@@ -405,7 +467,7 @@ function frame() {
   const dt = Math.min(0.05, clock.getDelta());
   if (state.spin && !orbit.drag) {
     if (current?.type === 'model' && current.holder) current.holder.rotation.y += dt * 0.35;
-    else if (current?.type === 'grid') for (const g of gridItems) g.obj.rotation.y += dt * 0.35;
+    else if (current?.type === 'grid' || current?.type === 'lods') for (const g of gridItems) g.obj.rotation.y += dt * 0.35;
     else if (current?.type === 'texture') current.obj.rotation.y += dt * 0.25;
   }
   placeCamera();
@@ -415,7 +477,8 @@ function frame() {
     const labels = $('#labels');
     if (labels.children.length !== gridItems.length) labels.innerHTML = gridItems.map((g) => `<div>${esc(g.id)}</div>`).join('');
     gridItems.forEach((g, i) => {
-      vp.copy(g.obj.position); vp.y -= 0.5; vp.project(camera);
+      if (g.labelPos) vp.copy(g.labelPos); else { vp.copy(g.obj.position); vp.y -= 0.5; }
+      vp.project(camera);
       const el = labels.children[i];
       el.style.left = ((vp.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - vp.y) / 2 * innerHeight) + 'px';
     });
@@ -432,7 +495,7 @@ if (!state.id && !state.grid && state.tab !== 'maps') state.id = listIds()[0];
 await show();
 renderList();
 // Für Tests (Playwright): Bereitschaft + Zugriff
-if (params.has('shot')) { frame(); frame(); }
+if (params.has('shot')) { frame(); frame(); renderInfo(); }
 window.__assets = { lib, state, manifest, ready: true, budget: () => lib.budget(), frame };
 document.documentElement.dataset.ready = '1';
 </script>

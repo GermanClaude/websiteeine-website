@@ -1,6 +1,6 @@
 {
   "id": "metal_tool_chest",
-  "recipe": "eb15e14b6c5d",
+  "recipe": "de8a3dd1ae18",
   "size": [
     0.684,
     0.652,
@@ -15,26 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/metal_tool_chest/metal_tool_chest_512.glb",
-      "bytes": 232540,
+      "bytes": 156900,
       "srcTris": 13360,
       "lods": [
         {
-          "tris": 3272
+          "tris": 2089,
+          "level": 1
         },
         {
-          "tris": 2426
+          "tris": 1030,
+          "level": 2
         }
       ],
       "parts": [
-        "metal_tool_chest_chest",
-        "metal_tool_chest_hinge_chest",
-        "metal_tool_chest_lid",
-        "metal_tool_chest_handle_left",
-        "metal_tool_chest_lock",
-        "metal_tool_chest_hinge_lid",
-        "metal_tool_chest_handle_right"
+        "metal_tool_chest_chest"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        20.6
+      ],
       "bounds": {
         "min": [
           -0.369,
@@ -77,22 +77,22 @@
         {
           "name": "metal_tool_chest_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 37463,
+          "bytes": 11261,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 205656,
+      "geometryBytes": 119144,
       "gpu": {
-        "desktop": 729945,
-        "mobile": 729945,
-        "rgba8": 4399959
+        "desktop": 512361,
+        "mobile": 512361,
+        "rgba8": 3264871
       },
       "materials": [
         {
@@ -100,37 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        20.6
       ]
     },
     "1024": {
       "path": "models/metal_tool_chest/metal_tool_chest_1024.glb",
-      "bytes": 609580,
+      "bytes": 462112,
       "srcTris": 13360,
       "lods": [
         {
-          "tris": 6144
+          "tris": 6000,
+          "level": 0
         },
         {
-          "tris": 3272
+          "tris": 2089,
+          "level": 1
         },
         {
-          "tris": 2426
+          "tris": 1030,
+          "level": 2
         }
       ],
       "parts": [
-        "metal_tool_chest_chest",
-        "metal_tool_chest_hinge_chest",
-        "metal_tool_chest_lid",
-        "metal_tool_chest_handle_left",
-        "metal_tool_chest_lock",
-        "metal_tool_chest_hinge_lid",
-        "metal_tool_chest_handle_right"
+        "metal_tool_chest_chest"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        7.2,
+        20.6
+      ],
       "bounds": {
         "min": [
           -0.369,
@@ -173,22 +171,22 @@
         {
           "name": "metal_tool_chest_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 123952,
+          "bytes": 37463,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 388380,
+      "geometryBytes": 298298,
       "gpu": {
-        "desktop": 2485533,
-        "mobile": 2485533,
-        "rgba8": 17165595
+        "desktop": 1871163,
+        "mobile": 1871163,
+        "rgba8": 12881209
       },
       "materials": [
         {
@@ -196,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        7.2,
-        20.6
       ]
     }
   }

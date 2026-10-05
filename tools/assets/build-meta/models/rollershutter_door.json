@@ -1,6 +1,6 @@
 {
   "id": "rollershutter_door",
-  "recipe": "a949fb7d8501",
+  "recipe": "c6e48060632d",
   "size": [
     3.08,
     2.4,
@@ -15,14 +15,16 @@
   "tiers": {
     "512": {
       "path": "models/rollershutter_door/rollershutter_door_512.glb",
-      "bytes": 177932,
+      "bytes": 154736,
       "srcTris": 1104,
       "lods": [
         {
-          "tris": 440
+          "tris": 440,
+          "level": 1
         },
         {
-          "tris": 352
+          "tris": 154,
+          "level": 2
         }
       ],
       "parts": [
@@ -30,6 +32,10 @@
         "rollershutter_door_graffiti"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        78.3
+      ],
       "bounds": {
         "min": [
           -0.54,
@@ -72,14 +78,14 @@
         {
           "name": "rollershutter_door_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 30331,
+          "bytes": 8368,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         },
         {
@@ -96,11 +102,11 @@
           }
         }
       ],
-      "geometryBytes": 16500,
+      "geometryBytes": 12826,
       "gpu": {
-        "desktop": 715552,
-        "mobile": 715552,
-        "rgba8": 5608904
+        "desktop": 580806,
+        "mobile": 580806,
+        "rgba8": 4556654
       },
       "materials": [
         {
@@ -113,25 +119,24 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        78.3
       ]
     },
     "1024": {
       "path": "models/rollershutter_door/rollershutter_door_1024.glb",
-      "bytes": 587876,
+      "bytes": 507204,
       "srcTris": 1104,
       "lods": [
         {
-          "tris": 1104
+          "tris": 1104,
+          "level": 0
         },
         {
-          "tris": 440
+          "tris": 440,
+          "level": 1
         },
         {
-          "tris": 352
+          "tris": 154,
+          "level": 2
         }
       ],
       "parts": [
@@ -139,6 +144,11 @@
         "rollershutter_door_graffiti"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        27.4,
+        78.3
+      ],
       "bounds": {
         "min": [
           -0.54,
@@ -181,14 +191,14 @@
         {
           "name": "rollershutter_door_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 109779,
+          "bytes": 30331,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         },
         {
@@ -205,11 +215,11 @@
           }
         }
       ],
-      "geometryBytes": 34552,
+      "geometryBytes": 30878,
       "gpu": {
-        "desktop": 2830756,
-        "mobile": 2830756,
-        "rgba8": 22404172
+        "desktop": 2302794,
+        "mobile": 2302794,
+        "rgba8": 18206194
       },
       "materials": [
         {
@@ -222,11 +232,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        27.4,
-        78.3
       ]
     }
   }

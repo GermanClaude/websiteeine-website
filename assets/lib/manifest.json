@@ -2,20 +2,33 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-05T15:39:08.579Z",
+ "generated": "2026-10-05T16:09:50.391Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
   "high": 1024,
   "ultra": 2048
  },
+ "modelTiers": {
+  "low": 512,
+  "medium": 512,
+  "high": 1024,
+  "ultra": 2048
+ },
  "hdriTiers": {
+  "low": 512,
+  "medium": 512,
+  "high": 1024,
+  "ultra": 1024
+ },
+ "skyTiers": {
   "low": 512,
   "medium": 1024,
   "high": 1024,
   "ultra": 1024
  },
- "gpuNote": "gpu.desktop: BC7/ASTC-Schätzung (1 B/px, ETC1S auf Desktop ohne BPTC sogar nur 0,5 B/px), gpu.mobile: ETC1/ETC2/ASTC (ETC1S RGB 0,5 B/px), gpu.rgba8: Rückfall ohne Kompressionsformat (4 B/px). Jeweils inkl. Mipmaps; Modelle inkl. Geometrie; HDRIs = PMREM-Ziel + Hintergrund.",
+ "gpuNote": "Schätzung inkl. Mipmaps. gpu.desktop: ETC1S → BC1 (0,5 B/px; loader.js schaltet BC7 ab), mit Alpha BC3 (1 B/px). gpu.mobile: ETC1S → ETC2/ETC1 (0,5 B/px), mit Alpha ETC2-RGBA/ASTC (1 B/px). gpu.rgba8: Rückfall ohne Kompressionsformat (4 B/px). Modelle inkl. dekodierter (quantisierter) Geometrie; HDRIs = PMREM-Ziel (RGBA16F) + Himmel (KTX2, ohne Mipmaps).",
+ "budgetNote": "maps.*.budget: Summe der vorgeschlagenen Texturen, Modelle und des HDRIs je Qualität (geteilte Dateien einmal) — ohne Spielcode, Audio und prozedurale Welt-Geometrie.",
  "textures": {
   "concrete_floor_worn": {
    "type": "texture",
@@ -144,7 +157,12 @@
    "source": "polyhaven",
    "sourceId": "concrete_floor_worn_001",
    "url": "https://polyhaven.com/a/concrete_floor_worn_001",
-   "author": "Dimitrios Savva, Rico Cilliers"
+   "author": "Dimitrios Savva, Rico Cilliers",
+   "maps": [
+    "hafen",
+    "werk",
+    "range"
+   ]
   },
   "concrete_wall_dark": {
    "type": "texture",
@@ -240,7 +258,11 @@
    "source": "polyhaven",
    "sourceId": "concrete_wall_006",
    "url": "https://polyhaven.com/a/concrete_wall_006",
-   "author": "Dario Barresi, Charlotte Baglioni"
+   "author": "Dario Barresi, Charlotte Baglioni",
+   "maps": [
+    "hafen",
+    "werk"
+   ]
   },
   "concrete_panels": {
    "type": "texture",
@@ -336,7 +358,11 @@
    "source": "polyhaven",
    "sourceId": "concrete_wall_004",
    "url": "https://polyhaven.com/a/concrete_wall_004",
-   "author": "Dario Barresi, Charlotte Baglioni"
+   "author": "Dario Barresi, Charlotte Baglioni",
+   "maps": [
+    "hafen",
+    "range"
+   ]
   },
   "concrete_dirty": {
    "type": "texture",
@@ -430,7 +456,11 @@
    "source": "polyhaven",
    "sourceId": "dirty_concrete",
    "url": "https://polyhaven.com/a/dirty_concrete",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "werk",
+    "innenraum"
+   ]
   },
   "concrete_painted_peeling": {
    "type": "texture",
@@ -524,7 +554,11 @@
    "source": "polyhaven",
    "sourceId": "painted_concrete",
    "url": "https://polyhaven.com/a/painted_concrete",
-   "author": "Dario Barresi, Dimitrios Savva"
+   "author": "Dario Barresi, Dimitrios Savva",
+   "maps": [
+    "werk",
+    "innenraum"
+   ]
   },
   "concrete_epoxy": {
    "type": "texture",
@@ -621,7 +655,11 @@
    "source": "polyhaven",
    "sourceId": "painted_concrete_02",
    "url": "https://polyhaven.com/a/painted_concrete_02",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "hafen",
+    "range"
+   ]
   },
   "rubble": {
    "type": "texture",
@@ -715,7 +753,11 @@
    "source": "polyhaven",
    "sourceId": "rubble",
    "url": "https://polyhaven.com/a/rubble",
-   "author": "Amal Kumar"
+   "author": "Amal Kumar",
+   "maps": [
+    "werk",
+    "innenraum"
+   ]
   },
   "plaster_beige": {
    "type": "texture",
@@ -811,7 +853,10 @@
    "source": "polyhaven",
    "sourceId": "beige_wall_002",
    "url": "https://polyhaven.com/a/beige_wall_002",
-   "author": "Dimitrios Savva, Rico Cilliers"
+   "author": "Dimitrios Savva, Rico Cilliers",
+   "maps": [
+    "altstadt"
+   ]
   },
   "plaster_white": {
    "type": "texture",
@@ -908,7 +953,11 @@
    "source": "polyhaven",
    "sourceId": "white_stucco_02",
    "url": "https://polyhaven.com/a/white_stucco_02",
-   "author": "Dimitrios Savva"
+   "author": "Dimitrios Savva",
+   "maps": [
+    "hafen",
+    "altstadt"
+   ]
   },
   "plaster_white_peeling": {
    "type": "texture",
@@ -1002,7 +1051,10 @@
    "source": "polyhaven",
    "sourceId": "white_rough_plaster",
    "url": "https://polyhaven.com/a/white_rough_plaster",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "altstadt"
+   ]
   },
   "plaster_damaged_brick": {
    "type": "texture",
@@ -1096,7 +1148,11 @@
    "source": "polyhaven",
    "sourceId": "damaged_plaster",
    "url": "https://polyhaven.com/a/damaged_plaster",
-   "author": "Amal Kumar"
+   "author": "Amal Kumar",
+   "maps": [
+    "werk",
+    "innenraum"
+   ]
   },
   "plaster_worn_patched": {
    "type": "texture",
@@ -1190,7 +1246,10 @@
    "source": "polyhaven",
    "sourceId": "worn_plaster_wall",
    "url": "https://polyhaven.com/a/worn_plaster_wall",
-   "author": "Dimitrios Savva"
+   "author": "Dimitrios Savva",
+   "maps": [
+    "innenraum"
+   ]
   },
   "plaster_blue_weathered": {
    "type": "texture",
@@ -1284,7 +1343,10 @@
    "source": "polyhaven",
    "sourceId": "blue_plaster_weathered",
    "url": "https://polyhaven.com/a/blue_plaster_weathered",
-   "author": "Amal Kumar"
+   "author": "Amal Kumar",
+   "maps": [
+    "altstadt"
+   ]
   },
   "plaster_painted": {
    "type": "texture",
@@ -1378,7 +1440,10 @@
    "source": "polyhaven",
    "sourceId": "painted_plaster_wall",
    "url": "https://polyhaven.com/a/painted_plaster_wall",
-   "author": "Amal Kumar"
+   "author": "Amal Kumar",
+   "maps": [
+    "innenraum"
+   ]
   },
   "wallpaper_stained": {
    "type": "texture",
@@ -1472,7 +1537,10 @@
    "source": "ambientcg",
    "sourceId": "Wallpaper002C",
    "url": "https://ambientcg.com/view?id=Wallpaper002C",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "innenraum"
+   ]
   },
   "sandstone_blocks": {
    "type": "texture",
@@ -1601,7 +1669,10 @@
    "source": "polyhaven",
    "sourceId": "sandstone_blocks_05",
    "url": "https://polyhaven.com/a/sandstone_blocks_05",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "altstadt"
+   ]
   },
   "brick_factory": {
    "type": "texture",
@@ -1730,7 +1801,10 @@
    "source": "polyhaven",
    "sourceId": "factory_brick",
    "url": "https://polyhaven.com/a/factory_brick",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "werk"
+   ]
   },
   "brick_dark": {
    "type": "texture",
@@ -1826,7 +1900,11 @@
    "source": "polyhaven",
    "sourceId": "brick_wall_10",
    "url": "https://polyhaven.com/a/brick_wall_10",
-   "author": "Dimitrios Savva"
+   "author": "Dimitrios Savva",
+   "maps": [
+    "werk",
+    "innenraum"
+   ]
   },
   "cobblestone": {
    "type": "texture",
@@ -1922,7 +2000,10 @@
    "source": "polyhaven",
    "sourceId": "cobblestone_floor_08",
    "url": "https://polyhaven.com/a/cobblestone_floor_08",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "altstadt"
+   ]
   },
   "paving_flagstone": {
    "type": "texture",
@@ -2018,7 +2099,10 @@
    "source": "polyhaven",
    "sourceId": "pavement_02",
    "url": "https://polyhaven.com/a/pavement_02",
-   "author": "Dario Barresi, Charlotte Baglioni"
+   "author": "Dario Barresi, Charlotte Baglioni",
+   "maps": [
+    "altstadt"
+   ]
   },
   "roof_clay_tiles": {
    "type": "texture",
@@ -2114,7 +2198,10 @@
    "source": "polyhaven",
    "sourceId": "clay_roof_tiles_02",
    "url": "https://polyhaven.com/a/clay_roof_tiles_02",
-   "author": "Amal Kumar"
+   "author": "Amal Kumar",
+   "maps": [
+    "altstadt"
+   ]
   },
   "tiles_terracotta": {
    "type": "texture",
@@ -2210,7 +2297,10 @@
    "source": "polyhaven",
    "sourceId": "terracotta_floor_tiles",
    "url": "https://polyhaven.com/a/terracotta_floor_tiles",
-   "author": "Dimitrios Savva"
+   "author": "Dimitrios Savva",
+   "maps": [
+    "altstadt"
+   ]
   },
   "tiles_worn": {
    "type": "texture",
@@ -2306,7 +2396,11 @@
    "source": "polyhaven",
    "sourceId": "worn_tile_floor",
    "url": "https://polyhaven.com/a/worn_tile_floor",
-   "author": "Dimitrios Savva"
+   "author": "Dimitrios Savva",
+   "maps": [
+    "hafen",
+    "innenraum"
+   ]
   },
   "tiles_checker": {
    "type": "texture",
@@ -2402,7 +2496,11 @@
    "source": "polyhaven",
    "sourceId": "floor_tiles_06",
    "url": "https://polyhaven.com/a/floor_tiles_06",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "altstadt",
+    "innenraum"
+   ]
   },
   "tiles_white_wall": {
    "type": "texture",
@@ -2496,7 +2594,11 @@
    "source": "polyhaven",
    "sourceId": "long_white_tiles",
    "url": "https://polyhaven.com/a/long_white_tiles",
-   "author": "Jenelle van Heerden, Sergej Majboroda"
+   "author": "Jenelle van Heerden, Sergej Majboroda",
+   "maps": [
+    "werk",
+    "innenraum"
+   ]
   },
   "linoleum": {
    "type": "texture",
@@ -2590,7 +2692,10 @@
    "source": "polyhaven",
    "sourceId": "linoleum_brown",
    "url": "https://polyhaven.com/a/linoleum_brown",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "innenraum"
+   ]
   },
   "carpet_dirty": {
    "type": "texture",
@@ -2684,7 +2789,10 @@
    "source": "polyhaven",
    "sourceId": "dirty_carpet",
    "url": "https://polyhaven.com/a/dirty_carpet",
-   "author": "Rohit Seervi"
+   "author": "Rohit Seervi",
+   "maps": [
+    "innenraum"
+   ]
   },
   "ceiling_office": {
    "type": "texture",
@@ -2778,7 +2886,10 @@
    "source": "ambientcg",
    "sourceId": "OfficeCeiling001",
    "url": "https://ambientcg.com/view?id=OfficeCeiling001",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "innenraum"
+   ]
   },
   "rubber_floor": {
    "type": "texture",
@@ -2874,7 +2985,11 @@
    "source": "ambientcg",
    "sourceId": "Rubber001",
    "url": "https://ambientcg.com/view?id=Rubber001",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "werk",
+    "range"
+   ]
   },
   "asphalt_cracked": {
    "type": "texture",
@@ -3003,7 +3118,11 @@
    "source": "polyhaven",
    "sourceId": "asphalt_02",
    "url": "https://polyhaven.com/a/asphalt_02",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "hafen",
+    "werk"
+   ]
   },
   "gravel": {
    "type": "texture",
@@ -3099,7 +3218,12 @@
    "source": "polyhaven",
    "sourceId": "gravel_floor_02",
    "url": "https://polyhaven.com/a/gravel_floor_02",
-   "author": "Jenelle van Heerden, Dimitrios Savva"
+   "author": "Jenelle van Heerden, Dimitrios Savva",
+   "maps": [
+    "hafen",
+    "werk",
+    "range"
+   ]
   },
   "sand": {
    "type": "texture",
@@ -3195,7 +3319,11 @@
    "source": "polyhaven",
    "sourceId": "dense_sand",
    "url": "https://polyhaven.com/a/dense_sand",
-   "author": "Dimitrios Savva"
+   "author": "Dimitrios Savva",
+   "maps": [
+    "altstadt",
+    "range"
+   ]
   },
   "dirt": {
    "type": "texture",
@@ -3291,7 +3419,11 @@
    "source": "polyhaven",
    "sourceId": "dirt",
    "url": "https://polyhaven.com/a/dirt",
-   "author": "Charlotte Baglioni"
+   "author": "Charlotte Baglioni",
+   "maps": [
+    "altstadt",
+    "range"
+   ]
   },
   "mud": {
    "type": "texture",
@@ -3385,7 +3517,10 @@
    "source": "polyhaven",
    "sourceId": "brown_mud_02",
    "url": "https://polyhaven.com/a/brown_mud_02",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "range"
+   ]
   },
   "ground_dry_cracked": {
    "type": "texture",
@@ -3479,7 +3614,10 @@
    "source": "polyhaven",
    "sourceId": "dry_ground_01",
    "url": "https://polyhaven.com/a/dry_ground_01",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "range"
+   ]
   },
   "grass": {
    "type": "texture",
@@ -3575,101 +3713,12 @@
    "source": "ambientcg",
    "sourceId": "Grass004",
    "url": "https://ambientcg.com/view?id=Grass004",
-   "author": "Lennart Demes (ambientCG)"
-  },
-  "grass_overgrown": {
-   "type": "texture",
-   "name": "Ground 037",
-   "category": "ground",
-   "surface": "grass",
-   "replaces": [],
-   "sizeM": [
-    2.1,
-    2.1
-   ],
-   "tintable": false,
-   "alpha": false,
-   "hero": false,
-   "stats": {
-    "avgColor": "#9a955c",
-    "avgRoughness": 0.463,
-    "avgMetalness": 0,
-    "avgAO": 0.971,
-    "coverage": 1
-   },
-   "tiers": {
-    "512": {
-     "albedo": "textures/grass_overgrown/grass_overgrown_512_albedo.ktx2",
-     "normal": "textures/grass_overgrown/grass_overgrown_512_normal.ktx2",
-     "orm": "textures/grass_overgrown/grass_overgrown_512_orm.ktx2",
-     "sizes": {
-      "albedo": 68002,
-      "normal": 95302,
-      "orm": 35092
-     },
-     "gpuFiles": {
-      "albedo": {
-       "desktop": 174763,
-       "mobile": 174763,
-       "rgba8": 1398101
-      },
-      "normal": {
-       "desktop": 174763,
-       "mobile": 174763,
-       "rgba8": 1398101
-      },
-      "orm": {
-       "desktop": 174763,
-       "mobile": 174763,
-       "rgba8": 1398101
-      }
-     },
-     "bytes": 198396,
-     "gpu": {
-      "desktop": 524289,
-      "mobile": 524289,
-      "rgba8": 4194303
-     }
-    },
-    "1024": {
-     "albedo": "textures/grass_overgrown/grass_overgrown_1024_albedo.ktx2",
-     "normal": "textures/grass_overgrown/grass_overgrown_1024_normal.ktx2",
-     "orm": "textures/grass_overgrown/grass_overgrown_1024_orm.ktx2",
-     "sizes": {
-      "albedo": 226116,
-      "normal": 280573,
-      "orm": 122365
-     },
-     "gpuFiles": {
-      "albedo": {
-       "desktop": 699051,
-       "mobile": 699051,
-       "rgba8": 5592405
-      },
-      "normal": {
-       "desktop": 699051,
-       "mobile": 699051,
-       "rgba8": 5592405
-      },
-      "orm": {
-       "desktop": 699051,
-       "mobile": 699051,
-       "rgba8": 5592405
-      }
-     },
-     "bytes": 629054,
-     "gpu": {
-      "desktop": 2097153,
-      "mobile": 2097153,
-      "rgba8": 16777215
-     }
-    }
-   },
-   "license": "CC0-1.0",
-   "source": "ambientcg",
-   "sourceId": "Ground037",
-   "url": "https://ambientcg.com/view?id=Ground037",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "hafen",
+    "altstadt",
+    "range"
+   ]
   },
   "wood_planks": {
    "type": "texture",
@@ -3765,7 +3814,13 @@
    "source": "polyhaven",
    "sourceId": "wood_planks",
    "url": "https://polyhaven.com/a/wood_planks",
-   "author": "Amal Kumar"
+   "author": "Amal Kumar",
+   "maps": [
+    "hafen",
+    "altstadt",
+    "werk",
+    "range"
+   ]
   },
   "wood_planks_weathered": {
    "type": "texture",
@@ -3859,7 +3914,10 @@
    "source": "polyhaven",
    "sourceId": "weathered_planks",
    "url": "https://polyhaven.com/a/weathered_planks",
-   "author": "Dario Barresi, Dimitrios Savva"
+   "author": "Dario Barresi, Dimitrios Savva",
+   "maps": [
+    "hafen"
+   ]
   },
   "wood_planks_dark": {
    "type": "texture",
@@ -3955,7 +4013,11 @@
    "source": "polyhaven",
    "sourceId": "dark_wooden_planks",
    "url": "https://polyhaven.com/a/dark_wooden_planks",
-   "author": "Amal Kumar"
+   "author": "Amal Kumar",
+   "maps": [
+    "altstadt",
+    "range"
+   ]
   },
   "wood_crate": {
    "type": "texture",
@@ -4051,7 +4113,10 @@
    "source": "polyhaven",
    "sourceId": "raw_plank_wall",
    "url": "https://polyhaven.com/a/raw_plank_wall",
-   "author": "Dimitrios Savva"
+   "author": "Dimitrios Savva",
+   "maps": [
+    "hafen"
+   ]
   },
   "osb": {
    "type": "texture",
@@ -4145,7 +4210,11 @@
    "source": "polyhaven",
    "sourceId": "oriented_strand_board",
    "url": "https://polyhaven.com/a/oriented_strand_board",
-   "author": "Dimitrios Savva"
+   "author": "Dimitrios Savva",
+   "maps": [
+    "werk",
+    "innenraum"
+   ]
   },
   "wood_floor_old": {
    "type": "texture",
@@ -4239,7 +4308,10 @@
    "source": "polyhaven",
    "sourceId": "old_wood_floor",
    "url": "https://polyhaven.com/a/old_wood_floor",
-   "author": "Guillaume Monsergent"
+   "author": "Guillaume Monsergent",
+   "maps": [
+    "innenraum"
+   ]
   },
   "wood_peeling_paint": {
    "type": "texture",
@@ -4333,103 +4405,11 @@
    "source": "polyhaven",
    "sourceId": "wood_peeling_paint_weathered",
    "url": "https://polyhaven.com/a/wood_peeling_paint_weathered",
-   "author": "Rob Tuytel, Dimitrios Savva"
-  },
-  "bark": {
-   "type": "texture",
-   "name": "Bark Brown 02",
-   "category": "wood",
-   "surface": "wood",
-   "replaces": [
-    "bark"
-   ],
-   "sizeM": [
-    1,
-    1
-   ],
-   "tintable": false,
-   "alpha": false,
-   "hero": false,
-   "stats": {
-    "avgColor": "#645b47",
-    "avgRoughness": 0.902,
-    "avgMetalness": 0.006,
-    "avgAO": 0.588,
-    "coverage": 1
-   },
-   "tiers": {
-    "512": {
-     "albedo": "textures/bark/bark_512_albedo.ktx2",
-     "normal": "textures/bark/bark_512_normal.ktx2",
-     "orm": "textures/bark/bark_512_orm.ktx2",
-     "sizes": {
-      "albedo": 67104,
-      "normal": 104147,
-      "orm": 35047
-     },
-     "gpuFiles": {
-      "albedo": {
-       "desktop": 174763,
-       "mobile": 174763,
-       "rgba8": 1398101
-      },
-      "normal": {
-       "desktop": 174763,
-       "mobile": 174763,
-       "rgba8": 1398101
-      },
-      "orm": {
-       "desktop": 174763,
-       "mobile": 174763,
-       "rgba8": 1398101
-      }
-     },
-     "bytes": 206298,
-     "gpu": {
-      "desktop": 524289,
-      "mobile": 524289,
-      "rgba8": 4194303
-     }
-    },
-    "1024": {
-     "albedo": "textures/bark/bark_1024_albedo.ktx2",
-     "normal": "textures/bark/bark_1024_normal.ktx2",
-     "orm": "textures/bark/bark_1024_orm.ktx2",
-     "sizes": {
-      "albedo": 226574,
-      "normal": 309352,
-      "orm": 137467
-     },
-     "gpuFiles": {
-      "albedo": {
-       "desktop": 699051,
-       "mobile": 699051,
-       "rgba8": 5592405
-      },
-      "normal": {
-       "desktop": 699051,
-       "mobile": 699051,
-       "rgba8": 5592405
-      },
-      "orm": {
-       "desktop": 699051,
-       "mobile": 699051,
-       "rgba8": 5592405
-      }
-     },
-     "bytes": 673393,
-     "gpu": {
-      "desktop": 2097153,
-      "mobile": 2097153,
-      "rgba8": 16777215
-     }
-    }
-   },
-   "license": "CC0-1.0",
-   "source": "polyhaven",
-   "sourceId": "bark_brown_02",
-   "url": "https://polyhaven.com/a/bark_brown_02",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel, Dimitrios Savva",
+   "maps": [
+    "altstadt",
+    "innenraum"
+   ]
   },
   "bark_palm": {
    "type": "texture",
@@ -4525,7 +4505,10 @@
    "source": "polyhaven",
    "sourceId": "palm_tree_bark",
    "url": "https://polyhaven.com/a/palm_tree_bark",
-   "author": "Dimitrios Savva, Rico Cilliers"
+   "author": "Dimitrios Savva, Rico Cilliers",
+   "maps": [
+    "altstadt"
+   ]
   },
   "cardboard": {
    "type": "texture",
@@ -4621,7 +4604,10 @@
    "source": "ambientcg",
    "sourceId": "Cardboard004",
    "url": "https://ambientcg.com/view?id=Cardboard004",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "altstadt"
+   ]
   },
   "metal_painted": {
    "type": "texture",
@@ -4750,7 +4736,13 @@
    "source": "polyhaven",
    "sourceId": "green_metal_rust",
    "url": "https://polyhaven.com/a/green_metal_rust",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "hafen",
+    "altstadt",
+    "werk",
+    "range"
+   ]
   },
   "metal_rust_painted": {
    "type": "texture",
@@ -4846,7 +4838,11 @@
    "source": "polyhaven",
    "sourceId": "rusty_metal_02",
    "url": "https://polyhaven.com/a/rusty_metal_02",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "werk",
+    "innenraum"
+   ]
   },
   "metal_corrugated": {
    "type": "texture",
@@ -4942,7 +4938,11 @@
    "source": "polyhaven",
    "sourceId": "corrugated_iron_02",
    "url": "https://polyhaven.com/a/corrugated_iron_02",
-   "author": "Jenelle van Heerden, Sergej Majboroda"
+   "author": "Jenelle van Heerden, Sergej Majboroda",
+   "maps": [
+    "hafen",
+    "werk"
+   ]
   },
   "metal_corrugated_rusty": {
    "type": "texture",
@@ -5036,7 +5036,11 @@
    "source": "polyhaven",
    "sourceId": "rusty_corrugated_iron",
    "url": "https://polyhaven.com/a/rusty_corrugated_iron",
-   "author": "Charlotte Baglioni"
+   "author": "Charlotte Baglioni",
+   "maps": [
+    "hafen",
+    "werk"
+   ]
   },
   "metal_cladding_green": {
    "type": "texture",
@@ -5130,7 +5134,10 @@
    "source": "polyhaven",
    "sourceId": "factory_wall",
    "url": "https://polyhaven.com/a/factory_wall",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "werk"
+   ]
   },
   "metal_shutter": {
    "type": "texture",
@@ -5224,7 +5231,10 @@
    "source": "polyhaven",
    "sourceId": "painted_metal_shutter",
    "url": "https://polyhaven.com/a/painted_metal_shutter",
-   "author": "Dario Barresi, Rico Cilliers, Charlotte Baglioni"
+   "author": "Dario Barresi, Rico Cilliers, Charlotte Baglioni",
+   "maps": [
+    "innenraum"
+   ]
   },
   "metal_galvanized": {
    "type": "texture",
@@ -5320,7 +5330,13 @@
    "source": "ambientcg",
    "sourceId": "Metal009",
    "url": "https://ambientcg.com/view?id=Metal009",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "hafen",
+    "altstadt",
+    "werk",
+    "range"
+   ]
   },
   "metal_tread": {
    "type": "texture",
@@ -5416,7 +5432,12 @@
    "source": "polyhaven",
    "sourceId": "metal_plate",
    "url": "https://polyhaven.com/a/metal_plate",
-   "author": "Rob Tuytel"
+   "author": "Rob Tuytel",
+   "maps": [
+    "hafen",
+    "werk",
+    "range"
+   ]
   },
   "metal_grate": {
    "type": "texture",
@@ -5512,7 +5533,11 @@
    "source": "ambientcg",
    "sourceId": "MetalWalkway010",
    "url": "https://ambientcg.com/view?id=MetalWalkway010",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "hafen",
+    "werk"
+   ]
   },
   "chainlink": {
    "type": "texture",
@@ -5606,7 +5631,11 @@
    "source": "ambientcg",
    "sourceId": "Fence007A",
    "url": "https://ambientcg.com/view?id=Fence007A",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "hafen",
+    "range"
+   ]
   },
   "hazard_stripes": {
    "type": "texture",
@@ -5702,7 +5731,11 @@
    "source": "ambientcg",
    "sourceId": "PaintedMetal016",
    "url": "https://ambientcg.com/view?id=PaintedMetal016",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "hafen",
+    "werk"
+   ]
   },
   "container": {
    "type": "texture",
@@ -5836,7 +5869,10 @@
    "source": "polyhaven",
    "sourceId": "container_side",
    "url": "https://polyhaven.com/a/container_side",
-   "author": "Dimitrios Savva"
+   "author": "Dimitrios Savva",
+   "maps": [
+    "hafen"
+   ]
   },
   "burlap": {
    "type": "texture",
@@ -5932,7 +5968,10 @@
    "source": "polyhaven",
    "sourceId": "hessian_230",
    "url": "https://polyhaven.com/a/hessian_230",
-   "author": "colormass, Rico Cilliers"
+   "author": "colormass, Rico Cilliers",
+   "maps": [
+    "range"
+   ]
   },
   "canvas": {
    "type": "texture",
@@ -6028,7 +6067,10 @@
    "source": "polyhaven",
    "sourceId": "rough_linen",
    "url": "https://polyhaven.com/a/rough_linen",
-   "author": "colormass, Rico Cilliers"
+   "author": "colormass, Rico Cilliers",
+   "maps": [
+    "altstadt"
+   ]
   },
   "awning_stripes": {
    "type": "texture",
@@ -6124,7 +6166,10 @@
    "source": "ambientcg",
    "sourceId": "Fabric006",
    "url": "https://ambientcg.com/view?id=Fabric006",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "altstadt"
+   ]
   },
   "felt_panel": {
    "type": "texture",
@@ -6220,7 +6265,10 @@
    "source": "ambientcg",
    "sourceId": "Fabric034",
    "url": "https://ambientcg.com/view?id=Fabric034",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "range"
+   ]
   },
   "fabric_uniform": {
    "type": "texture",
@@ -6314,7 +6362,10 @@
    "source": "ambientcg",
    "sourceId": "Fabric036",
    "url": "https://ambientcg.com/view?id=Fabric036",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "ausruestung"
+   ]
   },
   "camo_woodland": {
    "type": "texture",
@@ -6419,7 +6470,10 @@
    "source": "derived",
    "sourceId": "camo:woodland",
    "url": "https://ambientcg.com/view?id=Fabric036",
-   "author": "NULLPUNKT (prozedurales Tarnmuster, CC0) auf Basis von „Fabric 036“ von Lennart Demes (ambientCG)"
+   "author": "NULLPUNKT (prozedurales Tarnmuster, CC0) auf Basis von „Fabric 036“ von Lennart Demes (ambientCG)",
+   "maps": [
+    "ausruestung"
+   ]
   },
   "camo_desert": {
    "type": "texture",
@@ -6524,7 +6578,10 @@
    "source": "derived",
    "sourceId": "camo:desert",
    "url": "https://ambientcg.com/view?id=Fabric036",
-   "author": "NULLPUNKT (prozedurales Tarnmuster, CC0) auf Basis von „Fabric 036“ von Lennart Demes (ambientCG)"
+   "author": "NULLPUNKT (prozedurales Tarnmuster, CC0) auf Basis von „Fabric 036“ von Lennart Demes (ambientCG)",
+   "maps": [
+    "ausruestung"
+   ]
   },
   "camo_urban": {
    "type": "texture",
@@ -6627,7 +6684,10 @@
    "source": "derived",
    "sourceId": "camo:urban",
    "url": "https://ambientcg.com/view?id=Fabric036",
-   "author": "NULLPUNKT (prozedurales Tarnmuster, CC0) auf Basis von „Fabric 036“ von Lennart Demes (ambientCG)"
+   "author": "NULLPUNKT (prozedurales Tarnmuster, CC0) auf Basis von „Fabric 036“ von Lennart Demes (ambientCG)",
+   "maps": [
+    "ausruestung"
+   ]
   },
   "gunmetal_worn": {
    "type": "texture",
@@ -6756,7 +6816,10 @@
    "source": "ambientcg",
    "sourceId": "Metal046B",
    "url": "https://ambientcg.com/view?id=Metal046B",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "ausruestung"
+   ]
   },
   "polymer_black": {
    "type": "texture",
@@ -6885,7 +6948,10 @@
    "source": "ambientcg",
    "sourceId": "Plastic006",
    "url": "https://ambientcg.com/view?id=Plastic006",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "ausruestung"
+   ]
   },
   "wood_stock": {
    "type": "texture",
@@ -7014,7 +7080,10 @@
    "source": "polyhaven",
    "sourceId": "lacquered_cherry_wood",
    "url": "https://polyhaven.com/a/lacquered_cherry_wood",
-   "author": "Jenelle van Heerden, Rico Cilliers"
+   "author": "Jenelle van Heerden, Rico Cilliers",
+   "maps": [
+    "ausruestung"
+   ]
   },
   "rubber": {
    "type": "texture",
@@ -7110,7 +7179,12 @@
    "source": "ambientcg",
    "sourceId": "Rubber004",
    "url": "https://ambientcg.com/view?id=Rubber004",
-   "author": "Lennart Demes (ambientCG)"
+   "author": "Lennart Demes (ambientCG)",
+   "maps": [
+    "hafen",
+    "altstadt",
+    "ausruestung"
+   ]
   }
  },
  "hdris": {
@@ -7971,16 +8045,16 @@
    "tiers": {
     "512": {
      "glb": "models/bolt_action_rifle_7_62/bolt_action_rifle_7_62_512.glb",
-     "bytes": 700112,
+     "bytes": 687016,
      "gpu": {
-      "desktop": 1974070,
-      "mobile": 1974070,
-      "rgba8": 9314098
+      "desktop": 1941770,
+      "mobile": 1941770,
+      "rgba8": 9281798
      },
      "tris": [
       19985,
-      8036,
-      3398
+      7988,
+      2602
      ],
      "textures": 6,
      "lodDistances": [
@@ -7991,16 +8065,16 @@
     },
     "1024": {
      "glb": "models/bolt_action_rifle_7_62/bolt_action_rifle_7_62_1024.glb",
-     "bytes": 1471196,
+     "bytes": 1458096,
      "gpu": {
-      "desktop": 5119798,
-      "mobile": 5119798,
-      "rgba8": 34479922
+      "desktop": 5087498,
+      "mobile": 5087498,
+      "rgba8": 34447622
      },
      "tris": [
       19985,
-      8036,
-      3398
+      7988,
+      2602
      ],
      "textures": 6,
      "lodDistances": [
@@ -8011,16 +8085,16 @@
     },
     "2048": {
      "glb": "models/bolt_action_rifle_7_62/bolt_action_rifle_7_62_2048.glb",
-     "bytes": 4609704,
+     "bytes": 4596604,
      "gpu": {
-      "desktop": 17702710,
-      "mobile": 17702710,
-      "rgba8": 135143218
+      "desktop": 17670410,
+      "mobile": 17670410,
+      "rgba8": 135110918
      },
      "tris": [
       19985,
-      8036,
-      3398
+      7988,
+      2602
      ],
      "textures": 6,
      "lodDistances": [
@@ -8034,7 +8108,10 @@
    "source": "polyhaven",
    "sourceId": "bolt_action_rifle_7_62",
    "url": "https://polyhaven.com/a/bolt_action_rifle_7_62",
-   "author": "Mateusz Sadek"
+   "author": "Mateusz Sadek",
+   "maps": [
+    "range"
+   ]
   },
   "service_pistol": {
    "type": "model",
@@ -8066,7 +8143,7 @@
     "service_pistol_hammer_b",
     "service_pistol_trigger_b"
    ],
-   "sourceTris": 25064,
+   "sourceTris": 27548,
    "materials": [
     {
      "name": "service_pistol",
@@ -8077,136 +8154,73 @@
    "tiers": {
     "512": {
      "glb": "models/service_pistol/service_pistol_512.glb",
-     "bytes": 681700,
+     "bytes": 630584,
      "gpu": {
-      "desktop": 1856419,
-      "mobile": 1856419,
-      "rgba8": 5526433
+      "desktop": 1710629,
+      "mobile": 1710629,
+      "rgba8": 5380643
      },
      "tris": [
-      25064,
-      11620,
-      7176
+      27548,
+      11012,
+      4172
      ],
-     "textures": 3
+     "textures": 3,
+     "lodDistances": [
+      0,
+      6,
+      16
+     ]
     },
     "1024": {
      "glb": "models/service_pistol/service_pistol_1024.glb",
-     "bytes": 1029008,
+     "bytes": 977892,
      "gpu": {
-      "desktop": 3429283,
-      "mobile": 3429283,
-      "rgba8": 18109345
+      "desktop": 3283493,
+      "mobile": 3283493,
+      "rgba8": 17963555
      },
      "tris": [
-      25064,
-      11620,
-      7176
+      27548,
+      11012,
+      4172
      ],
-     "textures": 3
+     "textures": 3,
+     "lodDistances": [
+      0,
+      6,
+      16
+     ]
     },
     "2048": {
      "glb": "models/service_pistol/service_pistol_2048.glb",
-     "bytes": 2314604,
+     "bytes": 2263488,
      "gpu": {
-      "desktop": 9720739,
-      "mobile": 9720739,
-      "rgba8": 68440993
+      "desktop": 9574949,
+      "mobile": 9574949,
+      "rgba8": 68295203
      },
      "tris": [
-      25064,
-      11620,
-      7176
+      27548,
+      11012,
+      4172
      ],
-     "textures": 3
+     "textures": 3,
+     "lodDistances": [
+      0,
+      6,
+      16
+     ]
     }
    },
    "license": "CC0-1.0",
    "source": "polyhaven",
    "sourceId": "service_pistol",
    "url": "https://polyhaven.com/a/service_pistol",
-   "author": "Mateusz Sadek"
-  },
-  "stick_grenade": {
-   "type": "model",
-   "name": "Stick Grenade",
-   "category": "weapon",
-   "kit": false,
-   "weapon": true,
-   "size": [
-    0.082,
-    0.379,
-    0.082
-   ],
-   "radius": 0.198,
-   "lodDistances": [
-    0,
-    6,
-    16
-   ],
-   "parts": [
-    "stick_grenade"
-   ],
-   "sourceTris": 4612,
-   "materials": [
-    {
-     "name": "stick_grenade",
-     "alphaMode": "OPAQUE",
-     "doubleSided": true
-    }
-   ],
-   "tiers": {
-    "512": {
-     "glb": "models/stick_grenade/stick_grenade_512.glb",
-     "bytes": 212608,
-     "gpu": {
-      "desktop": 671647,
-      "mobile": 671647,
-      "rgba8": 4341661
-     },
-     "tris": [
-      4612,
-      1844,
-      643
-     ],
-     "textures": 3
-    },
-    "1024": {
-     "glb": "models/stick_grenade/stick_grenade_1024.glb",
-     "bytes": 546436,
-     "gpu": {
-      "desktop": 2244511,
-      "mobile": 2244511,
-      "rgba8": 16924573
-     },
-     "tris": [
-      4612,
-      1844,
-      643
-     ],
-     "textures": 3
-    },
-    "2048": {
-     "glb": "models/stick_grenade/stick_grenade_2048.glb",
-     "bytes": 1845808,
-     "gpu": {
-      "desktop": 8535967,
-      "mobile": 8535967,
-      "rgba8": 67256221
-     },
-     "tris": [
-      4612,
-      1844,
-      643
-     ],
-     "textures": 3
-    }
-   },
-   "license": "CC0-1.0",
-   "source": "polyhaven",
-   "sourceId": "stick_grenade",
-   "url": "https://polyhaven.com/a/stick_grenade",
-   "author": "singaii"
+   "author": "Mateusz Sadek",
+   "maps": [
+    "range"
+   ]
   },
   "ammo_box": {
    "type": "model",
@@ -8226,11 +8240,7 @@
     16
    ],
    "parts": [
-    "ammo_box_handle_ring_b",
-    "ammo_box",
-    "ammo_box_handle_ring_a",
-    "ammo_box_latch",
-    "ammo_box_handle"
+    "ammo_box_handle_ring_b"
    ],
    "sourceTris": 4382,
    "materials": [
@@ -8243,15 +8253,15 @@
    "tiers": {
     "512": {
      "glb": "models/ammo_box/ammo_box_512.glb",
-     "bytes": 135940,
+     "bytes": 95916,
      "gpu": {
-      "desktop": 586635,
-      "mobile": 586635,
-      "rgba8": 4256649
+      "desktop": 454115,
+      "mobile": 454115,
+      "rgba8": 3206625
      },
      "tris": [
-      1235,
-      650
+      1198,
+      522
      ],
      "textures": 3,
      "lodDistances": [
@@ -8259,33 +8269,16 @@
       16
      ],
      "lodShift": true
-    },
-    "1024": {
-     "glb": "models/ammo_box/ammo_box_1024.glb",
-     "bytes": 392092,
-     "gpu": {
-      "desktop": 2243171,
-      "mobile": 2243171,
-      "rgba8": 16923233
-     },
-     "tris": [
-      2993,
-      1235,
-      650
-     ],
-     "textures": 3,
-     "lodDistances": [
-      0,
-      6,
-      16
-     ]
     }
    },
    "license": "CC0-1.0",
    "source": "polyhaven",
    "sourceId": "ammo_box",
    "url": "https://polyhaven.com/a/ammo_box",
-   "author": "DanKit"
+   "author": "DanKit",
+   "maps": [
+    "range"
+   ]
   },
   "old_military_crate": {
    "type": "model",
@@ -8294,29 +8287,20 @@
    "kit": false,
    "weapon": false,
    "size": [
-    1.812,
-    0.301,
-    0.976
+    1.808,
+    0.299,
+    0.968
    ],
-   "radius": 1.04,
+   "radius": 1.036,
    "lodDistances": [
     0,
     14.6,
-    41.6
+    41.7
    ],
    "parts": [
-    "old_military_crate_lid_a",
-    "old_military_crate_loop_a",
-    "old_military_crate_latch_a",
-    "old_military_crate_cloth_a",
-    "old_military_crate_a",
-    "old_military_crate_lid_b",
-    "old_military_crate_loop_b",
-    "old_military_crate_latch_b",
-    "old_military_crate_cloth_b",
-    "old_military_crate_b"
+    "old_military_crate_lid_a"
    ],
-   "sourceTris": 10476,
+   "sourceTris": 20952,
    "materials": [
     {
      "name": "military_crate_m_01",
@@ -8327,41 +8311,41 @@
    "tiers": {
     "512": {
      "glb": "models/old_military_crate/old_military_crate_512.glb",
-     "bytes": 231640,
+     "bytes": 191324,
      "gpu": {
-      "desktop": 636357,
-      "mobile": 636357,
-      "rgba8": 4306371
+      "desktop": 512745,
+      "mobile": 512745,
+      "rgba8": 3265255
      },
      "tris": [
-      4786,
-      2342
+      2400,
+      816
      ],
      "textures": 3,
      "lodDistances": [
       0,
-      41.6
+      41.7
      ],
      "lodShift": true
     },
     "1024": {
      "glb": "models/old_military_crate/old_military_crate_1024.glb",
-     "bytes": 675852,
+     "bytes": 570248,
      "gpu": {
-      "desktop": 2358905,
-      "mobile": 2358905,
-      "rgba8": 17038967
+      "desktop": 1859689,
+      "mobile": 1859689,
+      "rgba8": 12869735
      },
      "tris": [
-      5998,
-      4786,
-      2342
+      6000,
+      2400,
+      816
      ],
      "textures": 3,
      "lodDistances": [
       0,
       14.6,
-      41.6
+      41.7
      ]
     }
    },
@@ -8369,7 +8353,12 @@
    "source": "polyhaven",
    "sourceId": "old_military_crate",
    "url": "https://polyhaven.com/a/old_military_crate",
-   "author": "Jack Mava"
+   "author": "Jack Mava",
+   "maps": [
+    "hafen",
+    "range",
+    "innenraum"
+   ]
   },
   "wooden_military_crate": {
    "type": "model",
@@ -8389,9 +8378,7 @@
     28.5
    ],
    "parts": [
-    "wooden_military_crate",
-    "wooden_military_crate_lid",
-    "wooden_military_crate_latch"
+    "wooden_military_crate"
    ],
    "sourceTris": 22986,
    "materials": [
@@ -8404,15 +8391,15 @@
    "tiers": {
     "512": {
      "glb": "models/wooden_military_crate/wooden_military_crate_512.glb",
-     "bytes": 235888,
+     "bytes": 190792,
      "gpu": {
-      "desktop": 697415,
-      "mobile": 697415,
-      "rgba8": 4367429
+      "desktop": 533825,
+      "mobile": 533825,
+      "rgba8": 3286335
      },
      "tris": [
-      3196,
-      1616
+      3200,
+      772
      ],
      "textures": 3,
      "lodDistances": [
@@ -8423,16 +8410,16 @@
     },
     "1024": {
      "glb": "models/wooden_military_crate/wooden_military_crate_1024.glb",
-     "bytes": 689612,
+     "bytes": 577748,
      "gpu": {
-      "desktop": 2484443,
-      "mobile": 2484443,
-      "rgba8": 17164505
+      "desktop": 1926077,
+      "mobile": 1926077,
+      "rgba8": 12936123
      },
      "tris": [
-      7996,
-      3196,
-      1616
+      8000,
+      3200,
+      772
      ],
      "textures": 3,
      "lodDistances": [
@@ -8446,7 +8433,12 @@
    "source": "polyhaven",
    "sourceId": "wooden_military_crate",
    "url": "https://polyhaven.com/a/wooden_military_crate",
-   "author": "Prabhjinder Singh"
+   "author": "Prabhjinder Singh",
+   "maps": [
+    "hafen",
+    "altstadt",
+    "range"
+   ]
   },
   "metal_jerrycan": {
    "type": "model",
@@ -8479,11 +8471,11 @@
    "tiers": {
     "512": {
      "glb": "models/metal_jerrycan/metal_jerrycan_512.glb",
-     "bytes": 218216,
+     "bytes": 184676,
      "gpu": {
-      "desktop": 585779,
-      "mobile": 585779,
-      "rgba8": 4255793
+      "desktop": 454707,
+      "mobile": 454707,
+      "rgba8": 3207217
      },
      "tris": [
       2000,
@@ -8495,33 +8487,16 @@
       16
      ],
      "lodShift": true
-    },
-    "1024": {
-     "glb": "models/metal_jerrycan/metal_jerrycan_1024.glb",
-     "bytes": 669508,
-     "gpu": {
-      "desktop": 2259659,
-      "mobile": 2259659,
-      "rgba8": 16939721
-     },
-     "tris": [
-      5000,
-      2000,
-      695
-     ],
-     "textures": 3,
-     "lodDistances": [
-      0,
-      6,
-      16
-     ]
     }
    },
    "license": "CC0-1.0",
    "source": "polyhaven",
    "sourceId": "metal_jerrycan",
    "url": "https://polyhaven.com/a/metal_jerrycan",
-   "author": "Sean Buckley"
+   "author": "Sean Buckley",
+   "maps": [
+    "hafen"
+   ]
   },
   "metal_jerrycan_green": {
    "type": "model",
@@ -8541,11 +8516,7 @@
     16
    ],
    "parts": [
-    "metal_jerrycan_green_pin",
-    "metal_jerrycan_green_cap",
-    "metal_jerrycan_green_body",
-    "metal_jerrycan_green_latch",
-    "metal_jerrycan_green_fastener"
+    "metal_jerrycan_green_pin"
    ],
    "sourceTris": 9636,
    "materials": [
@@ -8558,15 +8529,15 @@
    "tiers": {
     "512": {
      "glb": "models/metal_jerrycan_green/metal_jerrycan_green_512.glb",
-     "bytes": 226516,
+     "bytes": 174920,
      "gpu": {
-      "desktop": 605011,
-      "mobile": 605011,
-      "rgba8": 4275025
+      "desktop": 470179,
+      "mobile": 470179,
+      "rgba8": 3222689
      },
      "tris": [
-      2064,
-      727
+      1998,
+      698
      ],
      "textures": 3,
      "lodDistances": [
@@ -8577,16 +8548,16 @@
     },
     "1024": {
      "glb": "models/metal_jerrycan_green/metal_jerrycan_green_1024.glb",
-     "bytes": 673836,
+     "bytes": 525880,
      "gpu": {
-      "desktop": 2299113,
-      "mobile": 2299113,
-      "rgba8": 16979175
+      "desktop": 1768905,
+      "mobile": 1768905,
+      "rgba8": 12778951
      },
      "tris": [
-      5118,
-      2064,
-      727
+      5000,
+      1998,
+      698
      ],
      "textures": 3,
      "lodDistances": [
@@ -8600,7 +8571,11 @@
    "source": "polyhaven",
    "sourceId": "metal_jerrycan_green",
    "url": "https://polyhaven.com/a/metal_jerrycan_green",
-   "author": "Ulan Cabanilla"
+   "author": "Ulan Cabanilla",
+   "maps": [
+    "altstadt",
+    "range"
+   ]
   },
   "barrel_01": {
    "type": "model",
@@ -8633,11 +8608,11 @@
    "tiers": {
     "512": {
      "glb": "models/barrel_01/barrel_01_512.glb",
-     "bytes": 183560,
+     "bytes": 153356,
      "gpu": {
-      "desktop": 566267,
-      "mobile": 566267,
-      "rgba8": 4236281
+      "desktop": 434909,
+      "mobile": 434909,
+      "rgba8": 3187419
      },
      "tris": [
       1071,
@@ -8652,11 +8627,11 @@
     },
     "1024": {
      "glb": "models/barrel_01/barrel_01_1024.glb",
-     "bytes": 587212,
+     "bytes": 481824,
      "gpu": {
-      "desktop": 2200367,
-      "mobile": 2200367,
-      "rgba8": 16880429
+      "desktop": 1675793,
+      "mobile": 1675793,
+      "rgba8": 12685839
      },
      "tris": [
       2682,
@@ -8675,7 +8650,11 @@
    "source": "polyhaven",
    "sourceId": "Barrel_01",
    "url": "https://polyhaven.com/a/Barrel_01",
-   "author": "Jorge Camacho"
+   "author": "Jorge Camacho",
+   "maps": [
+    "hafen",
+    "werk"
+   ]
   },
   "barrel_02": {
    "type": "model",
@@ -8708,15 +8687,15 @@
    "tiers": {
     "512": {
      "glb": "models/barrel_02/barrel_02_512.glb",
-     "bytes": 137612,
+     "bytes": 113684,
      "gpu": {
-      "desktop": 567657,
-      "mobile": 567657,
-      "rgba8": 4237671
+      "desktop": 435049,
+      "mobile": 435049,
+      "rgba8": 3187559
      },
      "tris": [
       1074,
-      522
+      464
      ],
      "textures": 3,
      "lodDistances": [
@@ -8727,16 +8706,16 @@
     },
     "1024": {
      "glb": "models/barrel_02/barrel_02_1024.glb",
-     "bytes": 381052,
+     "bytes": 312568,
      "gpu": {
-      "desktop": 2198801,
-      "mobile": 2198801,
-      "rgba8": 16878863
+      "desktop": 1672977,
+      "mobile": 1672977,
+      "rgba8": 12683023
      },
      "tris": [
       2688,
       1074,
-      522
+      464
      ],
      "textures": 3,
      "lodDistances": [
@@ -8750,7 +8729,10 @@
    "source": "polyhaven",
    "sourceId": "Barrel_02",
    "url": "https://polyhaven.com/a/Barrel_02",
-   "author": "Jorge Camacho"
+   "author": "Jorge Camacho",
+   "maps": [
+    "hafen"
+   ]
   },
   "barrel_03": {
    "type": "model",
@@ -8783,11 +8765,11 @@
    "tiers": {
     "512": {
      "glb": "models/barrel_03/barrel_03_512.glb",
-     "bytes": 163676,
+     "bytes": 131044,
      "gpu": {
-      "desktop": 550071,
-      "mobile": 550071,
-      "rgba8": 4220085
+      "desktop": 418999,
+      "mobile": 418999,
+      "rgba8": 3171509
      },
      "tris": [
       716,
@@ -8802,11 +8784,11 @@
     },
     "1024": {
      "glb": "models/barrel_03/barrel_03_1024.glb",
-     "bytes": 515020,
+     "bytes": 401476,
      "gpu": {
-      "desktop": 2156545,
-      "mobile": 2156545,
-      "rgba8": 16836607
+      "desktop": 1632257,
+      "mobile": 1632257,
+      "rgba8": 12642303
      },
      "tris": [
       1473,
@@ -8825,7 +8807,11 @@
    "source": "polyhaven",
    "sourceId": "barrel_03",
    "url": "https://polyhaven.com/a/barrel_03",
-   "author": "Serhii Khromov"
+   "author": "Serhii Khromov",
+   "maps": [
+    "hafen",
+    "werk"
+   ]
   },
   "old_tyre": {
    "type": "model",
@@ -8858,11 +8844,11 @@
    "tiers": {
     "512": {
      "glb": "models/old_tyre/old_tyre_512.glb",
-     "bytes": 166692,
+     "bytes": 143940,
      "gpu": {
-      "desktop": 561883,
-      "mobile": 561883,
-      "rgba8": 4231897
+      "desktop": 430811,
+      "mobile": 430811,
+      "rgba8": 3183321
      },
      "tris": [
       1152,
@@ -8877,11 +8863,11 @@
     },
     "1024": {
      "glb": "models/old_tyre/old_tyre_1024.glb",
-     "bytes": 541044,
+     "bytes": 453932,
      "gpu": {
-      "desktop": 2198007,
-      "mobile": 2198007,
-      "rgba8": 16878069
+      "desktop": 1673719,
+      "mobile": 1673719,
+      "rgba8": 12683765
      },
      "tris": [
       2880,
@@ -8900,7 +8886,12 @@
    "source": "polyhaven",
    "sourceId": "old_tyre",
    "url": "https://polyhaven.com/a/old_tyre",
-   "author": "MP"
+   "author": "MP",
+   "maps": [
+    "hafen",
+    "werk",
+    "range"
+   ]
   },
   "cardboard_box_01": {
    "type": "model",
@@ -8933,11 +8924,11 @@
    "tiers": {
     "512": {
      "glb": "models/cardboard_box_01/cardboard_box_01_512.glb",
-     "bytes": 186568,
+     "bytes": 167032,
      "gpu": {
-      "desktop": 555349,
-      "mobile": 555349,
-      "rgba8": 4225363
+      "desktop": 424277,
+      "mobile": 424277,
+      "rgba8": 3176787
      },
      "tris": [
       1200,
@@ -8952,11 +8943,11 @@
     },
     "1024": {
      "glb": "models/cardboard_box_01/cardboard_box_01_1024.glb",
-     "bytes": 538700,
+     "bytes": 481272,
      "gpu": {
-      "desktop": 2182645,
-      "mobile": 2182645,
-      "rgba8": 16862707
+      "desktop": 1658357,
+      "mobile": 1658357,
+      "rgba8": 12668403
      },
      "tris": [
       3000,
@@ -8975,7 +8966,12 @@
    "source": "polyhaven",
    "sourceId": "cardboard_box_01",
    "url": "https://polyhaven.com/a/cardboard_box_01",
-   "author": "Rahul Chaudhary"
+   "author": "Rahul Chaudhary",
+   "maps": [
+    "hafen",
+    "altstadt",
+    "innenraum"
+   ]
   },
   "cement_bag": {
    "type": "model",
@@ -8992,7 +8988,7 @@
    "lodDistances": [
     0,
     6,
-    17.1
+    17.2
    ],
    "parts": [
     "cement_bag"
@@ -9008,11 +9004,11 @@
    "tiers": {
     "512": {
      "glb": "models/cement_bag/cement_bag_512.glb",
-     "bytes": 124900,
+     "bytes": 112612,
      "gpu": {
-      "desktop": 534471,
-      "mobile": 534471,
-      "rgba8": 4204485
+      "desktop": 403399,
+      "mobile": 403399,
+      "rgba8": 3155909
      },
      "tris": [
       336,
@@ -9021,17 +9017,17 @@
      "textures": 3,
      "lodDistances": [
       0,
-      17.1
+      17.2
      ],
      "lodShift": true
     },
     "1024": {
      "glb": "models/cement_bag/cement_bag_1024.glb",
-     "bytes": 397512,
+     "bytes": 342192,
      "gpu": {
-      "desktop": 2124235,
-      "mobile": 2124235,
-      "rgba8": 16804297
+      "desktop": 1599947,
+      "mobile": 1599947,
+      "rgba8": 12609993
      },
      "tris": [
       844,
@@ -9042,7 +9038,7 @@
      "lodDistances": [
       0,
       6,
-      17.1
+      17.2
      ]
     }
    },
@@ -9050,7 +9046,10 @@
    "source": "polyhaven",
    "sourceId": "cement_bag",
    "url": "https://polyhaven.com/a/cement_bag",
-   "author": "PierreB3D"
+   "author": "PierreB3D",
+   "maps": [
+    "altstadt"
+   ]
   },
   "metal_trash_can": {
    "type": "model",
@@ -9059,9 +9058,9 @@
    "kit": false,
    "weapon": false,
    "size": [
-    1.778,
+    1.777,
     0.906,
-    0.551
+    0.552
    ],
    "radius": 1.035,
    "lodDistances": [
@@ -9071,13 +9070,7 @@
    ],
    "parts": [
     "metal_trash_can_handle_left",
-    "metal_trash_can_lid",
-    "metal_trash_can",
-    "metal_trash_can_handle_right",
-    "metal_trash_can_rust",
-    "metal_trash_can_rust_handle_left",
-    "metal_trash_can_rust_handle_right",
-    "metal_trash_can_rust_lid"
+    "metal_trash_can_rust"
    ],
    "sourceTris": 13960,
    "materials": [
@@ -9095,15 +9088,15 @@
    "tiers": {
     "512": {
      "glb": "models/metal_trash_can/metal_trash_can_512.glb",
-     "bytes": 473608,
+     "bytes": 392244,
      "gpu": {
-      "desktop": 1150568,
-      "mobile": 1150568,
-      "rgba8": 8490596
+      "desktop": 874936,
+      "mobile": 874936,
+      "rgba8": 6379956
      },
      "tris": [
-      3026,
-      1006
+      2394,
+      832
      ],
      "textures": 6,
      "lodDistances": [
@@ -9114,16 +9107,16 @@
     },
     "1024": {
      "glb": "models/metal_trash_can/metal_trash_can_1024.glb",
-     "bytes": 1388092,
+     "bytes": 1149340,
      "gpu": {
-      "desktop": 4453876,
-      "mobile": 4453876,
-      "rgba8": 33814000
+      "desktop": 3375226,
+      "mobile": 3375226,
+      "rgba8": 25395318
      },
      "tris": [
-      7089,
-      3026,
-      1006
+      5998,
+      2394,
+      832
      ],
      "textures": 6,
      "lodDistances": [
@@ -9137,7 +9130,11 @@
    "source": "polyhaven",
    "sourceId": "metal_trash_can",
    "url": "https://polyhaven.com/a/metal_trash_can",
-   "author": "GurJas Studios"
+   "author": "GurJas Studios",
+   "maps": [
+    "hafen",
+    "altstadt"
+   ]
   },
   "trashbag": {
    "type": "model",
@@ -9153,8 +9150,8 @@
    "radius": 0.452,
    "lodDistances": [
     0,
-    6.3,
-    18.1
+    6.4,
+    18.2
    ],
    "parts": [
     "trashbag"
@@ -9170,11 +9167,11 @@
    "tiers": {
     "512": {
      "glb": "models/trashbag/trashbag_512.glb",
-     "bytes": 181604,
+     "bytes": 154720,
      "gpu": {
-      "desktop": 556471,
-      "mobile": 556471,
-      "rgba8": 4226485
+      "desktop": 425399,
+      "mobile": 425399,
+      "rgba8": 3177909
      },
      "tris": [
       1200,
@@ -9183,17 +9180,17 @@
      "textures": 3,
      "lodDistances": [
       0,
-      18.1
+      18.2
      ],
      "lodShift": true
     },
     "1024": {
      "glb": "models/trashbag/trashbag_1024.glb",
-     "bytes": 516292,
+     "bytes": 426892,
      "gpu": {
-      "desktop": 2184889,
-      "mobile": 2184889,
-      "rgba8": 16864951
+      "desktop": 1660601,
+      "mobile": 1660601,
+      "rgba8": 12670647
      },
      "tris": [
       3000,
@@ -9203,8 +9200,8 @@
      "textures": 3,
      "lodDistances": [
       0,
-      6.3,
-      18.1
+      6.4,
+      18.2
      ]
     }
    },
@@ -9212,7 +9209,11 @@
    "source": "polyhaven",
    "sourceId": "trashbag",
    "url": "https://polyhaven.com/a/trashbag",
-   "author": "Benny Weimer"
+   "author": "Benny Weimer",
+   "maps": [
+    "altstadt",
+    "innenraum"
+   ]
   },
   "industrial_pastic_container": {
    "type": "model",
@@ -9232,9 +9233,7 @@
     17.7
    ],
    "parts": [
-    "industrial_pastic_container",
-    "industrial_pastic_container_lid_a",
-    "industrial_pastic_container_lid_b"
+    "industrial_pastic_container"
    ],
    "sourceTris": 7118,
    "materials": [
@@ -9247,15 +9246,15 @@
    "tiers": {
     "512": {
      "glb": "models/industrial_pastic_container/industrial_pastic_container_512.glb",
-     "bytes": 213536,
+     "bytes": 100028,
      "gpu": {
-      "desktop": 919415,
-      "mobile": 919415,
-      "rgba8": 4589429
+      "desktop": 505197,
+      "mobile": 505197,
+      "rgba8": 3257707
      },
      "tris": [
-      4278,
-      4182
+      1986,
+      654
      ],
      "textures": 3,
      "lodDistances": [
@@ -9266,16 +9265,16 @@
     },
     "1024": {
      "glb": "models/industrial_pastic_container/industrial_pastic_container_1024.glb",
-     "bytes": 454448,
+     "bytes": 261060,
      "gpu": {
-      "desktop": 2714173,
-      "mobile": 2714173,
-      "rgba8": 17394235
+      "desktop": 1903121,
+      "mobile": 1903121,
+      "rgba8": 12913167
      },
      "tris": [
-      5141,
-      4278,
-      4182
+      5000,
+      1986,
+      654
      ],
      "textures": 3,
      "lodDistances": [
@@ -9289,7 +9288,10 @@
    "source": "polyhaven",
    "sourceId": "industrial_pastic_container",
    "url": "https://polyhaven.com/a/industrial_pastic_container",
-   "author": "Galo Benivegna"
+   "author": "Galo Benivegna",
+   "maps": [
+    "werk"
+   ]
   },
   "propane_tank": {
    "type": "model",
@@ -9322,15 +9324,15 @@
    "tiers": {
     "512": {
      "glb": "models/propane_tank/propane_tank_512.glb",
-     "bytes": 176844,
+     "bytes": 143780,
      "gpu": {
-      "desktop": 583791,
-      "mobile": 583791,
-      "rgba8": 4253805
+      "desktop": 442751,
+      "mobile": 442751,
+      "rgba8": 3195261
      },
      "tris": [
       1198,
-      766
+      454
      ],
      "textures": 3,
      "lodDistances": [
@@ -9341,16 +9343,16 @@
     },
     "1024": {
      "glb": "models/propane_tank/propane_tank_1024.glb",
-     "bytes": 571712,
+     "bytes": 470684,
      "gpu": {
-      "desktop": 2233103,
-      "mobile": 2233103,
-      "rgba8": 16913165
+      "desktop": 1698847,
+      "mobile": 1698847,
+      "rgba8": 12708893
      },
      "tris": [
       2999,
       1198,
-      766
+      454
      ],
      "textures": 3,
      "lodDistances": [
@@ -9364,7 +9366,10 @@
    "source": "polyhaven",
    "sourceId": "propane_tank",
    "url": "https://polyhaven.com/a/propane_tank",
-   "author": "Slinc"
+   "author": "Slinc",
+   "maps": [
+    "hafen"
+   ]
   },
   "exterior_aircon_unit": {
    "type": "model",
@@ -9380,8 +9385,8 @@
    "radius": 1.023,
    "lodDistances": [
     0,
-    14.3,
-    40.9
+    14.4,
+    41.2
    ],
    "parts": [
     "exterior_aircon_unit",
@@ -9413,41 +9418,41 @@
    "tiers": {
     "512": {
      "glb": "models/exterior_aircon_unit/exterior_aircon_unit_512.glb",
-     "bytes": 566520,
+     "bytes": 471220,
      "gpu": {
-      "desktop": 2165330,
-      "mobile": 2165330,
-      "rgba8": 16845386
+      "desktop": 1639588,
+      "mobile": 1639588,
+      "rgba8": 12649628
      },
      "tris": [
-      3202,
-      1138
+      3168,
+      1120
      ],
      "textures": 12,
      "lodDistances": [
       0,
-      40.9
+      41.2
      ],
      "lodShift": true
     },
     "1024": {
      "glb": "models/exterior_aircon_unit/exterior_aircon_unit_1024.glb",
-     "bytes": 1734480,
+     "bytes": 1437176,
      "gpu": {
-      "desktop": 8557976,
-      "mobile": 8557976,
-      "rgba8": 67278224
+      "desktop": 6458670,
+      "mobile": 6458670,
+      "rgba8": 50498854
      },
      "tris": [
-      8056,
-      3202,
-      1138
+      8006,
+      3168,
+      1120
      ],
      "textures": 12,
      "lodDistances": [
       0,
-      14.3,
-      40.9
+      14.4,
+      41.2
      ]
     }
    },
@@ -9455,7 +9460,11 @@
    "source": "polyhaven",
    "sourceId": "exterior_aircon_unit",
    "url": "https://polyhaven.com/a/exterior_aircon_unit",
-   "author": "Monsta3D"
+   "author": "Monsta3D",
+   "maps": [
+    "hafen",
+    "altstadt"
+   ]
   },
   "fire_hydrant": {
    "type": "model",
@@ -9464,7 +9473,7 @@
    "kit": false,
    "weapon": false,
    "size": [
-    0.874,
+    0.873,
     0.799,
     0.317
    ],
@@ -9476,15 +9485,7 @@
    ],
    "parts": [
     "fire_hydrant",
-    "fire_hydrant_cap_01",
-    "fire_hydrant_cap_02",
-    "fire_hydrant_cap_03",
-    "fire_hydrant_chain",
-    "fire_hydrant_aged",
-    "fire_hydrant_cap_01_aged",
-    "fire_hydrant_cap_02_aged",
-    "fire_hydrant_cap_03_aged",
-    "fire_hydrant_chain_aged"
+    "fire_hydrant_aged"
    ],
    "sourceTris": 86316,
    "materials": [
@@ -9502,15 +9503,15 @@
    "tiers": {
     "512": {
      "glb": "models/fire_hydrant/fire_hydrant_512.glb",
-     "bytes": 398000,
+     "bytes": 302320,
      "gpu": {
-      "desktop": 1131154,
-      "mobile": 1131154,
-      "rgba8": 8471182
+      "desktop": 843132,
+      "mobile": 843132,
+      "rgba8": 6348152
      },
      "tris": [
-      3982,
-      1646
+      2492,
+      1044
      ],
      "textures": 6,
      "lodDistances": [
@@ -9521,16 +9522,16 @@
     },
     "1024": {
      "glb": "models/fire_hydrant/fire_hydrant_1024.glb",
-     "bytes": 1137440,
+     "bytes": 885736,
      "gpu": {
-      "desktop": 4347356,
-      "mobile": 4347356,
-      "rgba8": 33707480
+      "desktop": 3276588,
+      "mobile": 3276588,
+      "rgba8": 25296680
      },
      "tris": [
-      6070,
-      3982,
-      1646
+      5800,
+      2492,
+      1044
      ],
      "textures": 6,
      "lodDistances": [
@@ -9544,7 +9545,11 @@
    "source": "polyhaven",
    "sourceId": "fire_hydrant",
    "url": "https://polyhaven.com/a/fire_hydrant",
-   "author": "Gonçalo Felício"
+   "author": "Gonçalo Felício",
+   "maps": [
+    "hafen",
+    "altstadt"
+   ]
   },
   "concrete_road_barrier": {
    "type": "model",
@@ -9577,11 +9582,11 @@
    "tiers": {
     "512": {
      "glb": "models/concrete_road_barrier/concrete_road_barrier_512.glb",
-     "bytes": 197712,
+     "bytes": 174648,
      "gpu": {
-      "desktop": 568823,
-      "mobile": 568823,
-      "rgba8": 4238837
+      "desktop": 437751,
+      "mobile": 437751,
+      "rgba8": 3190261
      },
      "tris": [
       1594,
@@ -9596,11 +9601,11 @@
     },
     "1024": {
      "glb": "models/concrete_road_barrier/concrete_road_barrier_1024.glb",
-     "bytes": 609268,
+     "bytes": 522520,
      "gpu": {
-      "desktop": 2218011,
-      "mobile": 2218011,
-      "rgba8": 16898073
+      "desktop": 1693723,
+      "mobile": 1693723,
+      "rgba8": 12703769
      },
      "tris": [
       3994,
@@ -9619,7 +9624,11 @@
    "source": "polyhaven",
    "sourceId": "concrete_road_barrier",
    "url": "https://polyhaven.com/a/concrete_road_barrier",
-   "author": "Amal Kumar"
+   "author": "Amal Kumar",
+   "maps": [
+    "hafen",
+    "range"
+   ]
   },
   "utility_box_01": {
    "type": "model",
@@ -9652,11 +9661,11 @@
    "tiers": {
     "512": {
      "glb": "models/utility_box_01/utility_box_01_512.glb",
-     "bytes": 159984,
+     "bytes": 133580,
      "gpu": {
-      "desktop": 599793,
-      "mobile": 599793,
-      "rgba8": 4269807
+      "desktop": 468721,
+      "mobile": 468721,
+      "rgba8": 3221231
      },
      "tris": [
       1761,
@@ -9671,11 +9680,11 @@
     },
     "1024": {
      "glb": "models/utility_box_01/utility_box_01_1024.glb",
-     "bytes": 512376,
+     "bytes": 422060,
      "gpu": {
-      "desktop": 2278919,
-      "mobile": 2278919,
-      "rgba8": 16958981
+      "desktop": 1754631,
+      "mobile": 1754631,
+      "rgba8": 12764677
      },
      "tris": [
       4404,
@@ -9694,7 +9703,10 @@
    "source": "polyhaven",
    "sourceId": "utility_box_01",
    "url": "https://polyhaven.com/a/utility_box_01",
-   "author": "James Ray Cock"
+   "author": "James Ray Cock",
+   "maps": [
+    "hafen"
+   ]
   },
   "power_box_01": {
    "type": "model",
@@ -9703,19 +9715,18 @@
    "kit": false,
    "weapon": false,
    "size": [
-    0.461,
+    0.456,
     0.504,
-    0.399
+    0.398
    ],
-   "radius": 0.396,
+   "radius": 0.394,
    "lodDistances": [
     0,
     6,
     16
    ],
    "parts": [
-    "power_box_01_door",
-    "power_box_01_box"
+    "power_box_01_door"
    ],
    "sourceTris": 21272,
    "materials": [
@@ -9728,15 +9739,15 @@
    "tiers": {
     "512": {
      "glb": "models/power_box_01/power_box_01_512.glb",
-     "bytes": 258100,
+     "bytes": 158096,
      "gpu": {
-      "desktop": 836671,
-      "mobile": 836671,
-      "rgba8": 4506685
+      "desktop": 516121,
+      "mobile": 516121,
+      "rgba8": 3268631
      },
      "tris": [
-      3875,
-      3833
+      2400,
+      891
      ],
      "textures": 3,
      "lodDistances": [
@@ -9747,16 +9758,16 @@
     },
     "1024": {
      "glb": "models/power_box_01/power_box_01_1024.glb",
-     "bytes": 672748,
+     "bytes": 502656,
      "gpu": {
-      "desktop": 2626737,
-      "mobile": 2626737,
-      "rgba8": 17306799
+      "desktop": 1912873,
+      "mobile": 1912873,
+      "rgba8": 12922919
      },
      "tris": [
-      5998,
-      3875,
-      3833
+      6000,
+      2400,
+      891
      ],
      "textures": 3,
      "lodDistances": [
@@ -9770,7 +9781,11 @@
    "source": "polyhaven",
    "sourceId": "power_box_01",
    "url": "https://polyhaven.com/a/power_box_01",
-   "author": "Rico Cilliers, Yann Kervran"
+   "author": "Rico Cilliers, Yann Kervran",
+   "maps": [
+    "hafen",
+    "werk"
+   ]
   },
   "street_lamp_01": {
    "type": "model",
@@ -9808,15 +9823,15 @@
    "tiers": {
     "512": {
      "glb": "models/street_lamp_01/street_lamp_01_512.glb",
-     "bytes": 154468,
+     "bytes": 120764,
      "gpu": {
-      "desktop": 611423,
-      "mobile": 611423,
-      "rgba8": 4281437
+      "desktop": 473897,
+      "mobile": 473897,
+      "rgba8": 3226407
      },
      "tris": [
-      2604,
-      911
+      2396,
+      828
      ],
      "textures": 3,
      "lodDistances": [
@@ -9827,16 +9842,16 @@
     },
     "1024": {
      "glb": "models/street_lamp_01/street_lamp_01_1024.glb",
-     "bytes": 454160,
+     "bytes": 357520,
      "gpu": {
-      "desktop": 2310497,
-      "mobile": 2310497,
-      "rgba8": 16990559
+      "desktop": 1780827,
+      "mobile": 1780827,
+      "rgba8": 12790873
      },
      "tris": [
-      6178,
-      2604,
-      911
+      5997,
+      2396,
+      828
      ],
      "textures": 3,
      "lodDistances": [
@@ -9850,7 +9865,10 @@
    "source": "polyhaven",
    "sourceId": "street_lamp_01",
    "url": "https://polyhaven.com/a/street_lamp_01",
-   "author": "Josh Dean"
+   "author": "Josh Dean",
+   "maps": [
+    "hafen"
+   ]
   },
   "rollershutter_door": {
    "type": "model",
@@ -9889,15 +9907,15 @@
    "tiers": {
     "512": {
      "glb": "models/rollershutter_door/rollershutter_door_512.glb",
-     "bytes": 177932,
+     "bytes": 154736,
      "gpu": {
-      "desktop": 715552,
-      "mobile": 715552,
-      "rgba8": 5608904
+      "desktop": 580806,
+      "mobile": 580806,
+      "rgba8": 4556654
      },
      "tris": [
       440,
-      352
+      154
      ],
      "textures": 4,
      "lodDistances": [
@@ -9908,16 +9926,16 @@
     },
     "1024": {
      "glb": "models/rollershutter_door/rollershutter_door_1024.glb",
-     "bytes": 587876,
+     "bytes": 507204,
      "gpu": {
-      "desktop": 2830756,
-      "mobile": 2830756,
-      "rgba8": 22404172
+      "desktop": 2302794,
+      "mobile": 2302794,
+      "rgba8": 18206194
      },
      "tris": [
       1104,
       440,
-      352
+      154
      ],
      "textures": 4,
      "lodDistances": [
@@ -9931,7 +9949,10 @@
    "source": "polyhaven",
    "sourceId": "rollershutter_door",
    "url": "https://polyhaven.com/a/rollershutter_door",
-   "author": "MP"
+   "author": "MP",
+   "maps": [
+    "hafen"
+   ]
   },
   "water_manhole_cover": {
    "type": "model",
@@ -9947,12 +9968,11 @@
    "radius": 0.489,
    "lodDistances": [
     0,
-    6.8,
+    6.9,
     19.6
    ],
    "parts": [
-    "water_manhole_cover_frame",
-    "water_manhole_cover"
+    "water_manhole_cover_frame"
    ],
    "sourceTris": 6301,
    "materials": [
@@ -9965,15 +9985,15 @@
    "tiers": {
     "512": {
      "glb": "models/water_manhole_cover/water_manhole_cover_512.glb",
-     "bytes": 236160,
+     "bytes": 192912,
      "gpu": {
-      "desktop": 600421,
-      "mobile": 600421,
-      "rgba8": 4270435
+      "desktop": 442769,
+      "mobile": 442769,
+      "rgba8": 3195279
      },
      "tris": [
-      1129,
-      831
+      1054,
+      293
      ],
      "textures": 3,
      "lodDistances": [
@@ -9984,21 +10004,21 @@
     },
     "1024": {
      "glb": "models/water_manhole_cover/water_manhole_cover_1024.glb",
-     "bytes": 662180,
+     "bytes": 546036,
      "gpu": {
-      "desktop": 2240851,
-      "mobile": 2240851,
-      "rgba8": 16920913
+      "desktop": 1685853,
+      "mobile": 1685853,
+      "rgba8": 12695899
      },
      "tris": [
-      2120,
-      1129,
-      831
+      2000,
+      1054,
+      293
      ],
      "textures": 3,
      "lodDistances": [
       0,
-      6.8,
+      6.9,
       19.6
      ]
     }
@@ -10007,7 +10027,10 @@
    "source": "polyhaven",
    "sourceId": "water_manhole_cover",
    "url": "https://polyhaven.com/a/water_manhole_cover",
-   "author": "Raunox"
+   "author": "Raunox",
+   "maps": [
+    "altstadt"
+   ]
   },
   "covered_car": {
    "type": "model",
@@ -10018,20 +10041,16 @@
    "size": [
     1.788,
     1.405,
-    4.344
+    4.375
    ],
-   "radius": 2.452,
+   "radius": 2.465,
    "lodDistances": [
     0,
-    34.3,
-    98.1
+    34.6,
+    98.7
    ],
    "parts": [
-    "covered_car_wheel_01",
-    "covered_car_wheel_02",
-    "covered_car_wheel_03",
-    "covered_car_wheel_04",
-    "covered_car"
+    "covered_car_wheel_01"
    ],
    "sourceTris": 12592,
    "materials": [
@@ -10044,41 +10063,41 @@
    "tiers": {
     "512": {
      "glb": "models/covered_car/covered_car_512.glb",
-     "bytes": 249624,
+     "bytes": 196232,
      "gpu": {
-      "desktop": 723697,
-      "mobile": 723697,
-      "rgba8": 4393711
+      "desktop": 565629,
+      "mobile": 565629,
+      "rgba8": 3318139
      },
      "tris": [
-      4371,
-      2009
+      3970,
+      1394
      ],
      "textures": 3,
      "lodDistances": [
       0,
-      98.1
+      98.7
      ],
      "lodShift": true
     },
     "1024": {
      "glb": "models/covered_car/covered_car_1024.glb",
-     "bytes": 696504,
+     "bytes": 571680,
      "gpu": {
-      "desktop": 2556115,
-      "mobile": 2556115,
-      "rgba8": 17236177
+      "desktop": 2001005,
+      "mobile": 2001005,
+      "rgba8": 13011051
      },
      "tris": [
-      9995,
-      4371,
-      2009
+      9999,
+      3970,
+      1394
      ],
      "textures": 3,
      "lodDistances": [
       0,
-      34.3,
-      98.1
+      34.6,
+      98.7
      ]
     }
    },
@@ -10086,7 +10105,11 @@
    "source": "polyhaven",
    "sourceId": "covered_car",
    "url": "https://polyhaven.com/a/covered_car",
-   "author": "MP"
+   "author": "MP",
+   "maps": [
+    "hafen",
+    "altstadt"
+   ]
   },
   "security_camera_01": {
    "type": "model",
@@ -10124,15 +10147,15 @@
    "tiers": {
     "512": {
      "glb": "models/security_camera_01/security_camera_01_512.glb",
-     "bytes": 161520,
+     "bytes": 133704,
      "gpu": {
-      "desktop": 597941,
-      "mobile": 597941,
-      "rgba8": 4267955
+      "desktop": 458595,
+      "mobile": 458595,
+      "rgba8": 3211105
      },
      "tris": [
       1600,
-      671
+      447
      ],
      "textures": 3,
      "lodDistances": [
@@ -10143,16 +10166,16 @@
     },
     "1024": {
      "glb": "models/security_camera_01/security_camera_01_1024.glb",
-     "bytes": 454464,
+     "bytes": 373884,
      "gpu": {
-      "desktop": 2279787,
-      "mobile": 2279787,
-      "rgba8": 16959849
+      "desktop": 1747225,
+      "mobile": 1747225,
+      "rgba8": 12757271
      },
      "tris": [
       4001,
       1600,
-      671
+      447
      ],
      "textures": 3,
      "lodDistances": [
@@ -10166,7 +10189,10 @@
    "source": "polyhaven",
    "sourceId": "security_camera_01",
    "url": "https://polyhaven.com/a/security_camera_01",
-   "author": "Alexander Otterbeck, Yann Kervran"
+   "author": "Alexander Otterbeck, Yann Kervran",
+   "maps": [
+    "werk"
+   ]
   },
   "modular_chainlink_fence": {
    "type": "model",
@@ -10175,11 +10201,11 @@
    "kit": true,
    "weapon": false,
    "size": [
-    8.115,
-    2.523,
-    2.149
+    8.114,
+    2.522,
+    2.148
    ],
-   "radius": 4.383,
+   "radius": 4.382,
    "lodDistances": null,
    "parts": [
     "modular_chainlink_fence_door_latch",
@@ -10219,28 +10245,28 @@
    "tiers": {
     "512": {
      "glb": "models/modular_chainlink_fence/modular_chainlink_fence_512.glb",
-     "bytes": 1034164,
+     "bytes": 654244,
      "gpu": {
-      "desktop": 3393824,
-      "mobile": 3393824,
-      "rgba8": 10733852
+      "desktop": 1938370,
+      "mobile": 1938370,
+      "rgba8": 7443390
      },
      "tris": [
-      89232
+      36211
      ],
      "textures": 6,
      "lodDistances": null
     },
     "1024": {
      "glb": "models/modular_chainlink_fence/modular_chainlink_fence_1024.glb",
-     "bytes": 1656864,
+     "bytes": 1139612,
      "gpu": {
-      "desktop": 6539552,
-      "mobile": 6539552,
-      "rgba8": 35899676
+      "desktop": 4297666,
+      "mobile": 4297666,
+      "rgba8": 26317758
      },
      "tris": [
-      89232
+      36211
      ],
      "textures": 6,
      "lodDistances": null
@@ -10250,7 +10276,11 @@
    "source": "polyhaven",
    "sourceId": "modular_chainlink_fence",
    "url": "https://polyhaven.com/a/modular_chainlink_fence",
-   "author": "James Ray Cock, Amal Kumar"
+   "author": "James Ray Cock, Amal Kumar",
+   "maps": [
+    "hafen",
+    "range"
+   ]
   },
   "modular_electricity_poles": {
    "type": "model",
@@ -10259,11 +10289,11 @@
    "kit": true,
    "weapon": false,
    "size": [
-    13.119,
+    13.112,
     7,
     1.957
    ],
-   "radius": 7.499,
+   "radius": 7.496,
    "lodDistances": null,
    "parts": [
     "bolt_large",
@@ -10370,7 +10400,7 @@
     "preset_01_transformer_01",
     "preset_01_transformer_02"
    ],
-   "sourceTris": 106430,
+   "sourceTris": 200610,
    "materials": [
     {
      "name": "modular_electricity_poles_pieces",
@@ -10386,28 +10416,28 @@
    "tiers": {
     "512": {
      "glb": "models/modular_electricity_poles/modular_electricity_poles_512.glb",
-     "bytes": 1025460,
+     "bytes": 656612,
      "gpu": {
-      "desktop": 2582286,
-      "mobile": 2582286,
-      "rgba8": 9922314
+      "desktop": 1439336,
+      "mobile": 1439336,
+      "rgba8": 6944356
      },
      "tris": [
-      43746
+      31541
      ],
      "textures": 6,
      "lodDistances": null
     },
     "1024": {
      "glb": "models/modular_electricity_poles/modular_electricity_poles_1024.glb",
-     "bytes": 1819368,
+     "bytes": 1302172,
      "gpu": {
-      "desktop": 5728014,
-      "mobile": 5728014,
-      "rgba8": 35088138
+      "desktop": 3798632,
+      "mobile": 3798632,
+      "rgba8": 25818724
      },
      "tris": [
-      43746
+      31541
      ],
      "textures": 6,
      "lodDistances": null
@@ -10417,7 +10447,10 @@
    "source": "polyhaven",
    "sourceId": "modular_electricity_poles",
    "url": "https://polyhaven.com/a/modular_electricity_poles",
-   "author": "James Ray Cock"
+   "author": "James Ray Cock",
+   "maps": [
+    "hafen"
+   ]
   },
   "modular_fire_escape": {
    "type": "model",
@@ -10457,11 +10490,11 @@
    "tiers": {
     "512": {
      "glb": "models/modular_fire_escape/modular_fire_escape_512.glb",
-     "bytes": 440204,
+     "bytes": 390408,
      "gpu": {
-      "desktop": 1424114,
-      "mobile": 1424114,
-      "rgba8": 8764142
+      "desktop": 1161970,
+      "mobile": 1161970,
+      "rgba8": 6666990
      },
      "tris": [
       11322
@@ -10471,11 +10504,11 @@
     },
     "1024": {
      "glb": "models/modular_fire_escape/modular_fire_escape_1024.glb",
-     "bytes": 1145928,
+     "bytes": 955464,
      "gpu": {
-      "desktop": 4569842,
-      "mobile": 4569842,
-      "rgba8": 33929966
+      "desktop": 3521266,
+      "mobile": 3521266,
+      "rgba8": 25541358
      },
      "tris": [
       11322
@@ -10488,7 +10521,10 @@
    "source": "polyhaven",
    "sourceId": "modular_fire_escape",
    "url": "https://polyhaven.com/a/modular_fire_escape",
-   "author": "Juniix"
+   "author": "Juniix",
+   "maps": [
+    "werk"
+   ]
   },
   "modular_metal_gutter": {
    "type": "model",
@@ -10528,11 +10564,11 @@
    "tiers": {
     "512": {
      "glb": "models/modular_metal_gutter/modular_metal_gutter_512.glb",
-     "bytes": 309936,
+     "bytes": 281392,
      "gpu": {
-      "desktop": 878297,
-      "mobile": 878297,
-      "rgba8": 4548311
+      "desktop": 747225,
+      "mobile": 747225,
+      "rgba8": 3499735
      },
      "tris": [
       16490
@@ -10542,11 +10578,11 @@
     },
     "1024": {
      "glb": "models/modular_metal_gutter/modular_metal_gutter_1024.glb",
-     "bytes": 655092,
+     "bytes": 555408,
      "gpu": {
-      "desktop": 2451161,
-      "mobile": 2451161,
-      "rgba8": 17131223
+      "desktop": 1926873,
+      "mobile": 1926873,
+      "rgba8": 12936919
      },
      "tris": [
       16490
@@ -10559,7 +10595,11 @@
    "source": "polyhaven",
    "sourceId": "modular_metal_gutter",
    "url": "https://polyhaven.com/a/modular_metal_gutter",
-   "author": "Maxim Domnin"
+   "author": "Maxim Domnin",
+   "maps": [
+    "altstadt",
+    "werk"
+   ]
   },
   "modular_airduct_circular_01": {
    "type": "model",
@@ -10603,11 +10643,11 @@
    "tiers": {
     "512": {
      "glb": "models/modular_airduct_circular_01/modular_airduct_circular_01_512.glb",
-     "bytes": 268192,
+     "bytes": 244752,
      "gpu": {
-      "desktop": 881743,
-      "mobile": 881743,
-      "rgba8": 4551757
+      "desktop": 750671,
+      "mobile": 750671,
+      "rgba8": 3503181
      },
      "tris": [
       14280
@@ -10617,11 +10657,11 @@
     },
     "1024": {
      "glb": "models/modular_airduct_circular_01/modular_airduct_circular_01_1024.glb",
-     "bytes": 521700,
+     "bytes": 443844,
      "gpu": {
-      "desktop": 2454607,
-      "mobile": 2454607,
-      "rgba8": 17134669
+      "desktop": 1930319,
+      "mobile": 1930319,
+      "rgba8": 12940365
      },
      "tris": [
       14280
@@ -10634,7 +10674,10 @@
    "source": "polyhaven",
    "sourceId": "modular_airduct_circular_01",
    "url": "https://polyhaven.com/a/modular_airduct_circular_01",
-   "author": "Riley Queen"
+   "author": "Riley Queen",
+   "maps": [
+    "werk"
+   ]
   },
   "modular_airduct_rectangular_01": {
    "type": "model",
@@ -10685,28 +10728,28 @@
    "tiers": {
     "512": {
      "glb": "models/modular_airduct_rectangular_01/modular_airduct_rectangular_01_512.glb",
-     "bytes": 576160,
+     "bytes": 519904,
      "gpu": {
-      "desktop": 1869462,
-      "mobile": 1869462,
-      "rgba8": 9209490
+      "desktop": 1597244,
+      "mobile": 1597244,
+      "rgba8": 7102264
      },
      "tris": [
-      25428
+      25069
      ],
      "textures": 6,
      "lodDistances": null
     },
     "1024": {
      "glb": "models/modular_airduct_rectangular_01/modular_airduct_rectangular_01_1024.glb",
-     "bytes": 1127188,
+     "bytes": 946516,
      "gpu": {
-      "desktop": 5015190,
-      "mobile": 5015190,
-      "rgba8": 34375314
+      "desktop": 3956540,
+      "mobile": 3956540,
+      "rgba8": 25976632
      },
      "tris": [
-      25428
+      25069
      ],
      "textures": 6,
      "lodDistances": null
@@ -10716,7 +10759,10 @@
    "source": "polyhaven",
    "sourceId": "modular_airduct_rectangular_01",
    "url": "https://polyhaven.com/a/modular_airduct_rectangular_01",
-   "author": "James Ray Cock"
+   "author": "James Ray Cock",
+   "maps": [
+    "werk"
+   ]
   },
   "modular_industrial_pipes_01": {
    "type": "model",
@@ -10757,11 +10803,11 @@
    "tiers": {
     "512": {
      "glb": "models/modular_industrial_pipes_01/modular_industrial_pipes_01_512.glb",
-     "bytes": 488688,
+     "bytes": 422984,
      "gpu": {
-      "desktop": 1425888,
-      "mobile": 1425888,
-      "rgba8": 8765916
+      "desktop": 1163744,
+      "mobile": 1163744,
+      "rgba8": 6668764
      },
      "tris": [
       12340
@@ -10771,11 +10817,11 @@
     },
     "1024": {
      "glb": "models/modular_industrial_pipes_01/modular_industrial_pipes_01_1024.glb",
-     "bytes": 1271000,
+     "bytes": 1036792,
      "gpu": {
-      "desktop": 4571616,
-      "mobile": 4571616,
-      "rgba8": 33931740
+      "desktop": 3523040,
+      "mobile": 3523040,
+      "rgba8": 25543132
      },
      "tris": [
       12340
@@ -10788,7 +10834,10 @@
    "source": "polyhaven",
    "sourceId": "modular_industrial_pipes_01",
    "url": "https://polyhaven.com/a/modular_industrial_pipes_01",
-   "author": "Jorge Camacho"
+   "author": "Jorge Camacho",
+   "maps": [
+    "werk"
+   ]
   },
   "mounted_fluorescent_lights": {
    "type": "model",
@@ -10828,11 +10877,11 @@
    "tiers": {
     "512": {
      "glb": "models/mounted_fluorescent_lights/mounted_fluorescent_lights_512.glb",
-     "bytes": 210312,
+     "bytes": 185540,
      "gpu": {
-      "desktop": 883712,
-      "mobile": 883712,
-      "rgba8": 5777064
+      "desktop": 752640,
+      "mobile": 752640,
+      "rgba8": 4728488
      },
      "tris": [
       5990
@@ -10842,11 +10891,11 @@
     },
     "1024": {
      "glb": "models/mounted_fluorescent_lights/mounted_fluorescent_lights_1024.glb",
-     "bytes": 434256,
+     "bytes": 355568,
      "gpu": {
-      "desktop": 2980864,
-      "mobile": 2980864,
-      "rgba8": 22554280
+      "desktop": 2456576,
+      "mobile": 2456576,
+      "rgba8": 18359976
      },
      "tris": [
       5990
@@ -10859,7 +10908,11 @@
    "source": "polyhaven",
    "sourceId": "mounted_fluorescent_lights",
    "url": "https://polyhaven.com/a/mounted_fluorescent_lights",
-   "author": "Ulan Cabanilla"
+   "author": "Ulan Cabanilla",
+   "maps": [
+    "werk",
+    "innenraum"
+   ]
   },
   "hanging_industrial_lamp": {
    "type": "model",
@@ -10897,15 +10950,15 @@
    "tiers": {
     "512": {
      "glb": "models/hanging_industrial_lamp/hanging_industrial_lamp_512.glb",
-     "bytes": 270372,
+     "bytes": 227008,
      "gpu": {
-      "desktop": 1005473,
-      "mobile": 1005473,
-      "rgba8": 7122163
+      "desktop": 837859,
+      "mobile": 837859,
+      "rgba8": 6037045
      },
      "tris": [
-      2509,
-      1240
+      1965,
+      728
      ],
      "textures": 5,
      "lodDistances": [
@@ -10916,16 +10969,16 @@
     },
     "1024": {
      "glb": "models/hanging_industrial_lamp/hanging_industrial_lamp_1024.glb",
-     "bytes": 820988,
+     "bytes": 700468,
      "gpu": {
-      "desktop": 3777973,
-      "mobile": 3777973,
-      "rgba8": 28244743
+      "desktop": 3207843,
+      "mobile": 3207843,
+      "rgba8": 24004597
      },
      "tris": [
-      5340,
-      2509,
-      1240
+      5000,
+      1965,
+      728
      ],
      "textures": 5,
      "lodDistances": [
@@ -10939,7 +10992,12 @@
    "source": "polyhaven",
    "sourceId": "hanging_industrial_lamp",
    "url": "https://polyhaven.com/a/hanging_industrial_lamp",
-   "author": "Kuutti Siitonen"
+   "author": "Kuutti Siitonen",
+   "maps": [
+    "werk",
+    "range",
+    "innenraum"
+   ]
   },
   "industrial_wall_lamp": {
    "type": "model",
@@ -10977,11 +11035,11 @@
    "tiers": {
     "512": {
      "glb": "models/industrial_wall_lamp/industrial_wall_lamp_512.glb",
-     "bytes": 331268,
+     "bytes": 277352,
      "gpu": {
-      "desktop": 1295561,
-      "mobile": 1295561,
-      "rgba8": 9858927
+      "desktop": 1033417,
+      "mobile": 1033417,
+      "rgba8": 7761775
      },
      "tris": [
       1776,
@@ -10993,33 +11051,16 @@
       16
      ],
      "lodShift": true
-    },
-    "1024": {
-     "glb": "models/industrial_wall_lamp/industrial_wall_lamp_1024.glb",
-     "bytes": 1053548,
-     "gpu": {
-      "desktop": 5071189,
-      "mobile": 5071189,
-      "rgba8": 39324667
-     },
-     "tris": [
-      4446,
-      1776,
-      610
-     ],
-     "textures": 7,
-     "lodDistances": [
-      0,
-      6,
-      16
-     ]
     }
    },
    "license": "CC0-1.0",
    "source": "polyhaven",
    "sourceId": "industrial_wall_lamp",
    "url": "https://polyhaven.com/a/industrial_wall_lamp",
-   "author": "Kuutti Siitonen"
+   "author": "Kuutti Siitonen",
+   "maps": [
+    "werk"
+   ]
   },
   "hand_truck": {
    "type": "model",
@@ -11036,7 +11077,7 @@
    "lodDistances": [
     0,
     11.7,
-    33.4
+    33.5
    ],
    "parts": [
     "hand_truck"
@@ -11052,41 +11093,41 @@
    "tiers": {
     "512": {
      "glb": "models/hand_truck/hand_truck_512.glb",
-     "bytes": 348280,
+     "bytes": 200524,
      "gpu": {
-      "desktop": 974501,
-      "mobile": 974501,
-      "rgba8": 4644515
+      "desktop": 500871,
+      "mobile": 500871,
+      "rgba8": 3253381
      },
      "tris": [
-      5490,
-      5254
+      2465,
+      862
      ],
      "textures": 3,
      "lodDistances": [
       0,
-      33.4
+      33.5
      ],
      "lodShift": true
     },
     "1024": {
      "glb": "models/hand_truck/hand_truck_1024.glb",
-     "bytes": 833036,
+     "bytes": 613824,
      "gpu": {
-      "desktop": 2792899,
-      "mobile": 2792899,
-      "rgba8": 17472961
+      "desktop": 1926053,
+      "mobile": 1926053,
+      "rgba8": 12936099
      },
      "tris": [
       6166,
-      5490,
-      5254
+      2465,
+      862
      ],
      "textures": 3,
      "lodDistances": [
       0,
       11.7,
-      33.4
+      33.5
      ]
     }
    },
@@ -11094,7 +11135,11 @@
    "source": "polyhaven",
    "sourceId": "hand_truck",
    "url": "https://polyhaven.com/a/hand_truck",
-   "author": "Mutanzom3D"
+   "author": "Mutanzom3D",
+   "maps": [
+    "hafen",
+    "werk"
+   ]
   },
   "metal_tool_chest": {
    "type": "model",
@@ -11114,13 +11159,7 @@
     20.6
    ],
    "parts": [
-    "metal_tool_chest_chest",
-    "metal_tool_chest_hinge_chest",
-    "metal_tool_chest_lid",
-    "metal_tool_chest_handle_left",
-    "metal_tool_chest_lock",
-    "metal_tool_chest_hinge_lid",
-    "metal_tool_chest_handle_right"
+    "metal_tool_chest_chest"
    ],
    "sourceTris": 13360,
    "materials": [
@@ -11133,15 +11172,15 @@
    "tiers": {
     "512": {
      "glb": "models/metal_tool_chest/metal_tool_chest_512.glb",
-     "bytes": 232540,
+     "bytes": 156900,
      "gpu": {
-      "desktop": 729945,
-      "mobile": 729945,
-      "rgba8": 4399959
+      "desktop": 512361,
+      "mobile": 512361,
+      "rgba8": 3264871
      },
      "tris": [
-      3272,
-      2426
+      2089,
+      1030
      ],
      "textures": 3,
      "lodDistances": [
@@ -11152,16 +11191,16 @@
     },
     "1024": {
      "glb": "models/metal_tool_chest/metal_tool_chest_1024.glb",
-     "bytes": 609580,
+     "bytes": 462112,
      "gpu": {
-      "desktop": 2485533,
-      "mobile": 2485533,
-      "rgba8": 17165595
+      "desktop": 1871163,
+      "mobile": 1871163,
+      "rgba8": 12881209
      },
      "tris": [
-      6144,
-      3272,
-      2426
+      6000,
+      2089,
+      1030
      ],
      "textures": 3,
      "lodDistances": [
@@ -11175,7 +11214,10 @@
    "source": "polyhaven",
    "sourceId": "metal_tool_chest",
    "url": "https://polyhaven.com/a/metal_tool_chest",
-   "author": "Yann Kervran, John Hutcheson"
+   "author": "Yann Kervran, John Hutcheson",
+   "maps": [
+    "werk"
+   ]
   },
   "portable_generator": {
    "type": "model",
@@ -11195,10 +11237,7 @@
     22.9
    ],
    "parts": [
-    "portable_generator",
-    "portable_generator_dial",
-    "portable_generator_switch",
-    "portable_generator_toggle"
+    "portable_generator"
    ],
    "sourceTris": 26419,
    "materials": [
@@ -11216,15 +11255,15 @@
    "tiers": {
     "512": {
      "glb": "models/portable_generator/portable_generator_512.glb",
-     "bytes": 345416,
+     "bytes": 238004,
      "gpu": {
-      "desktop": 1079264,
-      "mobile": 1079264,
-      "rgba8": 5972616
+      "desktop": 766810,
+      "mobile": 766810,
+      "rgba8": 4742658
      },
      "tris": [
-      5688,
-      4098
+      3999,
+      1115
      ],
      "textures": 4,
      "lodDistances": [
@@ -11235,16 +11274,16 @@
     },
     "1024": {
      "glb": "models/portable_generator/portable_generator_1024.glb",
-     "bytes": 845720,
+     "bytes": 663176,
      "gpu": {
-      "desktop": 3449606,
-      "mobile": 3449606,
-      "rgba8": 23023022
+      "desktop": 2746328,
+      "mobile": 2746328,
+      "rgba8": 18649728
      },
      "tris": [
-      8063,
-      5688,
-      4098
+      7984,
+      3999,
+      1115
      ],
      "textures": 4,
      "lodDistances": [
@@ -11258,7 +11297,10 @@
    "source": "polyhaven",
    "sourceId": "portable_generator",
    "url": "https://polyhaven.com/a/portable_generator",
-   "author": "James Ray Cock"
+   "author": "James Ray Cock",
+   "maps": [
+    "werk"
+   ]
   },
   "tool_cart": {
    "type": "model",
@@ -11267,15 +11309,15 @@
    "kit": false,
    "weapon": false,
    "size": [
-    1.267,
+    1.272,
     0.962,
-    0.752
+    0.747
    ],
-   "radius": 0.88,
+   "radius": 0.881,
    "lodDistances": [
     0,
-    12.3,
-    35.2
+    12.4,
+    35.3
    ],
    "parts": [
     "tool_cart"
@@ -11291,41 +11333,41 @@
    "tiers": {
     "512": {
      "glb": "models/tool_cart/tool_cart_512.glb",
-     "bytes": 262268,
+     "bytes": 194816,
      "gpu": {
-      "desktop": 767753,
-      "mobile": 767753,
-      "rgba8": 4437767
+      "desktop": 522459,
+      "mobile": 522459,
+      "rgba8": 3274969
      },
      "tris": [
-      3738,
-      3260
+      2916,
+      1204
      ],
      "textures": 3,
      "lodDistances": [
       0,
-      35.2
+      35.3
      ],
      "lodShift": true
     },
     "1024": {
      "glb": "models/tool_cart/tool_cart_1024.glb",
-     "bytes": 727684,
+     "bytes": 591916,
      "gpu": {
-      "desktop": 2570771,
-      "mobile": 2570771,
-      "rgba8": 17250833
+      "desktop": 1932261,
+      "mobile": 1932261,
+      "rgba8": 12942307
      },
      "tris": [
       7999,
-      3738,
-      3260
+      2916,
+      1204
      ],
      "textures": 3,
      "lodDistances": [
       0,
-      12.3,
-      35.2
+      12.4,
+      35.3
      ]
     }
    },
@@ -11333,7 +11375,10 @@
    "source": "polyhaven",
    "sourceId": "tool_cart",
    "url": "https://polyhaven.com/a/tool_cart",
-   "author": "Savva Zakharov"
+   "author": "Savva Zakharov",
+   "maps": [
+    "werk"
+   ]
   },
   "metal_office_desk": {
    "type": "model",
@@ -11353,15 +11398,7 @@
     47
    ],
    "parts": [
-    "metal_office_desk_drawer_06",
-    "metal_office_desk_tray_01",
-    "metal_office_desk",
-    "metal_office_desk_drawer_04",
-    "metal_office_desk_drawer_03",
-    "metal_office_desk_drawer_05",
-    "metal_office_desk_drawer_02",
-    "metal_office_desk_drawer_01",
-    "metal_office_desk_tray_02"
+    "metal_office_desk_drawer_06"
    ],
    "sourceTris": 6898,
    "materials": [
@@ -11374,15 +11411,15 @@
    "tiers": {
     "512": {
      "glb": "models/metal_office_desk/metal_office_desk_512.glb",
-     "bytes": 184608,
+     "bytes": 130724,
      "gpu": {
-      "desktop": 651037,
-      "mobile": 651037,
-      "rgba8": 4321051
+      "desktop": 517239,
+      "mobile": 517239,
+      "rgba8": 3269749
      },
      "tris": [
-      2750,
-      1112
+      2758,
+      965
      ],
      "textures": 3,
      "lodDistances": [
@@ -11393,16 +11430,16 @@
     },
     "1024": {
      "glb": "models/metal_office_desk/metal_office_desk_1024.glb",
-     "bytes": 475516,
+     "bytes": 354520,
      "gpu": {
-      "desktop": 2383733,
-      "mobile": 2383733,
-      "rgba8": 17063795
+      "desktop": 1871815,
+      "mobile": 1871815,
+      "rgba8": 12881861
      },
      "tris": [
       6898,
-      2750,
-      1112
+      2758,
+      965
      ],
      "textures": 3,
      "lodDistances": [
@@ -11416,7 +11453,11 @@
    "source": "polyhaven",
    "sourceId": "metal_office_desk",
    "url": "https://polyhaven.com/a/metal_office_desk",
-   "author": "Ulan Cabanilla"
+   "author": "Ulan Cabanilla",
+   "maps": [
+    "werk",
+    "innenraum"
+   ]
   },
   "schoolchair_01": {
    "type": "model",
@@ -11432,7 +11473,7 @@
    "radius": 0.668,
    "lodDistances": [
     0,
-    9.3,
+    9.4,
     26.7
    ],
    "parts": [
@@ -11449,11 +11490,11 @@
    "tiers": {
     "512": {
      "glb": "models/schoolchair_01/schoolchair_01_512.glb",
-     "bytes": 166032,
+     "bytes": 143532,
      "gpu": {
-      "desktop": 589601,
-      "mobile": 589601,
-      "rgba8": 4259615
+      "desktop": 456417,
+      "mobile": 456417,
+      "rgba8": 3208927
      },
      "tris": [
       2028,
@@ -11468,11 +11509,11 @@
     },
     "1024": {
      "glb": "models/schoolchair_01/schoolchair_01_1024.glb",
-     "bytes": 457064,
+     "bytes": 390812,
      "gpu": {
-      "desktop": 2264727,
-      "mobile": 2264727,
-      "rgba8": 16944789
+      "desktop": 1738327,
+      "mobile": 1738327,
+      "rgba8": 12748373
      },
      "tris": [
       5072,
@@ -11482,7 +11523,7 @@
      "textures": 3,
      "lodDistances": [
       0,
-      9.3,
+      9.4,
       26.7
      ]
     }
@@ -11491,7 +11532,11 @@
    "source": "polyhaven",
    "sourceId": "SchoolChair_01",
    "url": "https://polyhaven.com/a/SchoolChair_01",
-   "author": "Ethan Place"
+   "author": "Ethan Place",
+   "maps": [
+    "werk",
+    "innenraum"
+   ]
   },
   "steel_frame_shelves_01": {
    "type": "model",
@@ -11500,15 +11545,15 @@
    "kit": false,
    "weapon": false,
    "size": [
-    10.973,
-    21.405,
-    5.021
+    1.098,
+    2.14,
+    0.502
    ],
-   "radius": 12.286,
+   "radius": 1.229,
    "lodDistances": [
     0,
-    172,
-    491.4
+    17.2,
+    49.1
    ],
    "parts": [
     "steel_frame_shelves_01"
@@ -11524,11 +11569,11 @@
    "tiers": {
     "512": {
      "glb": "models/steel_frame_shelves_01/steel_frame_shelves_01_512.glb",
-     "bytes": 128040,
+     "bytes": 104708,
      "gpu": {
-      "desktop": 602247,
-      "mobile": 602247,
-      "rgba8": 4272261
+      "desktop": 471175,
+      "mobile": 471175,
+      "rgba8": 3223685
      },
      "tris": [
       1738,
@@ -11537,17 +11582,17 @@
      "textures": 3,
      "lodDistances": [
       0,
-      491.4
+      49.1
      ],
      "lodShift": true
     },
     "1024": {
      "glb": "models/steel_frame_shelves_01/steel_frame_shelves_01_1024.glb",
-     "bytes": 399612,
+     "bytes": 314712,
      "gpu": {
-      "desktop": 2281103,
-      "mobile": 2281103,
-      "rgba8": 16961165
+      "desktop": 1756815,
+      "mobile": 1756815,
+      "rgba8": 12766861
      },
      "tris": [
       4348,
@@ -11557,8 +11602,8 @@
      "textures": 3,
      "lodDistances": [
       0,
-      172,
-      491.4
+      17.2,
+      49.1
      ]
     }
    },
@@ -11566,7 +11611,11 @@
    "source": "polyhaven",
    "sourceId": "steel_frame_shelves_01",
    "url": "https://polyhaven.com/a/steel_frame_shelves_01",
-   "author": "James Ray Cock"
+   "author": "James Ray Cock",
+   "maps": [
+    "werk",
+    "innenraum"
+   ]
   },
   "worn_metal_rack": {
    "type": "model",
@@ -11599,15 +11648,15 @@
    "tiers": {
     "512": {
      "glb": "models/worn_metal_rack/worn_metal_rack_512.glb",
-     "bytes": 213176,
+     "bytes": 139716,
      "gpu": {
-      "desktop": 775709,
-      "mobile": 775709,
-      "rgba8": 4445723
+      "desktop": 500849,
+      "mobile": 500849,
+      "rgba8": 3253359
      },
      "tris": [
-      3052,
-      3050
+      1952,
+      880
      ],
      "textures": 3,
      "lodDistances": [
@@ -11618,16 +11667,16 @@
     },
     "1024": {
      "glb": "models/worn_metal_rack/worn_metal_rack_1024.glb",
-     "bytes": 588356,
+     "bytes": 441648,
      "gpu": {
-      "desktop": 2545733,
-      "mobile": 2545733,
-      "rgba8": 17225795
+      "desktop": 1877657,
+      "mobile": 1877657,
+      "rgba8": 12887703
      },
      "tris": [
       6372,
-      3052,
-      3050
+      1952,
+      880
      ],
      "textures": 3,
      "lodDistances": [
@@ -11641,7 +11690,10 @@
    "source": "polyhaven",
    "sourceId": "worn_metal_rack",
    "url": "https://polyhaven.com/a/worn_metal_rack",
-   "author": "Luca B"
+   "author": "Luca B",
+   "maps": [
+    "werk"
+   ]
   },
   "sofa_01": {
    "type": "model",
@@ -11674,11 +11726,11 @@
    "tiers": {
     "512": {
      "glb": "models/sofa_01/sofa_01_512.glb",
-     "bytes": 176212,
+     "bytes": 155580,
      "gpu": {
-      "desktop": 583405,
-      "mobile": 583405,
-      "rgba8": 4253419
+      "desktop": 452333,
+      "mobile": 452333,
+      "rgba8": 3204843
      },
      "tris": [
       1639,
@@ -11693,11 +11745,11 @@
     },
     "1024": {
      "glb": "models/sofa_01/sofa_01_1024.glb",
-     "bytes": 534384,
+     "bytes": 467956,
      "gpu": {
-      "desktop": 2251283,
-      "mobile": 2251283,
-      "rgba8": 16931345
+      "desktop": 1726995,
+      "mobile": 1726995,
+      "rgba8": 12737041
      },
      "tris": [
       4101,
@@ -11716,7 +11768,11 @@
    "source": "polyhaven",
    "sourceId": "Sofa_01",
    "url": "https://polyhaven.com/a/Sofa_01",
-   "author": "Kirill Sannikov"
+   "author": "Kirill Sannikov",
+   "maps": [
+    "altstadt",
+    "innenraum"
+   ]
   },
   "television_01": {
    "type": "model",
@@ -11749,15 +11805,15 @@
    "tiers": {
     "512": {
      "glb": "models/television_01/television_01_512.glb",
-     "bytes": 153184,
+     "bytes": 124824,
      "gpu": {
-      "desktop": 570001,
-      "mobile": 570001,
-      "rgba8": 4240015
+      "desktop": 437617,
+      "mobile": 437617,
+      "rgba8": 3190127
      },
      "tris": [
       767,
-      343
+      315
      ],
      "textures": 3,
      "lodDistances": [
@@ -11768,16 +11824,16 @@
     },
     "1024": {
      "glb": "models/television_01/television_01_1024.glb",
-     "bytes": 454000,
+     "bytes": 355828,
      "gpu": {
-      "desktop": 2205749,
-      "mobile": 2205749,
-      "rgba8": 16885811
+      "desktop": 1680149,
+      "mobile": 1680149,
+      "rgba8": 12690195
      },
      "tris": [
       1918,
       767,
-      343
+      315
      ],
      "textures": 3,
      "lodDistances": [
@@ -11791,7 +11847,11 @@
    "source": "polyhaven",
    "sourceId": "Television_01",
    "url": "https://polyhaven.com/a/Television_01",
-   "author": "Gabriel Radić"
+   "author": "Gabriel Radić",
+   "maps": [
+    "altstadt",
+    "innenraum"
+   ]
   },
   "wooden_bookshelf_worn": {
    "type": "model",
@@ -11824,11 +11884,11 @@
    "tiers": {
     "512": {
      "glb": "models/wooden_bookshelf_worn/wooden_bookshelf_worn_512.glb",
-     "bytes": 217656,
+     "bytes": 190464,
      "gpu": {
-      "desktop": 613271,
-      "mobile": 613271,
-      "rgba8": 4283285
+      "desktop": 482199,
+      "mobile": 482199,
+      "rgba8": 3234709
      },
      "tris": [
       2400,
@@ -11843,11 +11903,11 @@
     },
     "1024": {
      "glb": "models/wooden_bookshelf_worn/wooden_bookshelf_worn_1024.glb",
-     "bytes": 665456,
+     "bytes": 563476,
      "gpu": {
-      "desktop": 2315833,
-      "mobile": 2315833,
-      "rgba8": 16995895
+      "desktop": 1791545,
+      "mobile": 1791545,
+      "rgba8": 12801591
      },
      "tris": [
       6000,
@@ -11866,7 +11926,10 @@
    "source": "polyhaven",
    "sourceId": "wooden_bookshelf_worn",
    "url": "https://polyhaven.com/a/wooden_bookshelf_worn",
-   "author": "Ulan Cabanilla"
+   "author": "Ulan Cabanilla",
+   "maps": [
+    "innenraum"
+   ]
   },
   "plastic_monobloc_chair_01": {
    "type": "model",
@@ -11899,11 +11962,11 @@
    "tiers": {
     "512": {
      "glb": "models/plastic_monobloc_chair_01/plastic_monobloc_chair_01_512.glb",
-     "bytes": 190984,
+     "bytes": 166860,
      "gpu": {
-      "desktop": 592295,
-      "mobile": 592295,
-      "rgba8": 4262309
+      "desktop": 461223,
+      "mobile": 461223,
+      "rgba8": 3213733
      },
      "tris": [
       1342,
@@ -11918,11 +11981,11 @@
     },
     "1024": {
      "glb": "models/plastic_monobloc_chair_01/plastic_monobloc_chair_01_1024.glb",
-     "bytes": 554588,
+     "bytes": 479556,
      "gpu": {
-      "desktop": 2257257,
-      "mobile": 2257257,
-      "rgba8": 16937319
+      "desktop": 1732969,
+      "mobile": 1732969,
+      "rgba8": 12743015
      },
      "tris": [
       3356,
@@ -11941,7 +12004,11 @@
    "source": "polyhaven",
    "sourceId": "plastic_monobloc_chair_01",
    "url": "https://polyhaven.com/a/plastic_monobloc_chair_01",
-   "author": "Kuutti Siitonen"
+   "author": "Kuutti Siitonen",
+   "maps": [
+    "altstadt",
+    "innenraum"
+   ]
   },
   "old_bed_frame": {
    "type": "model",
@@ -11974,11 +12041,11 @@
    "tiers": {
     "512": {
      "glb": "models/old_bed_frame/old_bed_frame_512.glb",
-     "bytes": 225772,
+     "bytes": 193720,
      "gpu": {
-      "desktop": 723059,
-      "mobile": 723059,
-      "rgba8": 4393073
+      "desktop": 591129,
+      "mobile": 591129,
+      "rgba8": 3343639
      },
      "tris": [
       3568,
@@ -11993,11 +12060,11 @@
     },
     "1024": {
      "glb": "models/old_bed_frame/old_bed_frame_1024.glb",
-     "bytes": 681240,
+     "bytes": 573056,
      "gpu": {
-      "desktop": 2582721,
-      "mobile": 2582721,
-      "rgba8": 17262783
+      "desktop": 2057575,
+      "mobile": 2057575,
+      "rgba8": 13067621
      },
      "tris": [
       8921,
@@ -12016,7 +12083,10 @@
    "source": "polyhaven",
    "sourceId": "old_bed_frame",
    "url": "https://polyhaven.com/a/old_bed_frame",
-   "author": "Luca B"
+   "author": "Luca B",
+   "maps": [
+    "innenraum"
+   ]
   },
   "wetfloorsign_01": {
    "type": "model",
@@ -12049,15 +12119,15 @@
    "tiers": {
     "512": {
      "glb": "models/wetfloorsign_01/wetfloorsign_01_512.glb",
-     "bytes": 79056,
+     "bytes": 55788,
      "gpu": {
-      "desktop": 532205,
-      "mobile": 532205,
-      "rgba8": 4202219
+      "desktop": 397893,
+      "mobile": 397893,
+      "rgba8": 3150403
      },
      "tris": [
-      138,
-      96
+      116,
+      40
      ],
      "textures": 3,
      "lodDistances": [
@@ -12068,16 +12138,16 @@
     },
     "1024": {
      "glb": "models/wetfloorsign_01/wetfloorsign_01_1024.glb",
-     "bytes": 223516,
+     "bytes": 153700,
      "gpu": {
-      "desktop": 2112025,
-      "mobile": 2112025,
-      "rgba8": 16792087
+      "desktop": 1584497,
+      "mobile": 1584497,
+      "rgba8": 12594543
      },
      "tris": [
       228,
-      138,
-      96
+      116,
+      40
      ],
      "textures": 3,
      "lodDistances": [
@@ -12091,7 +12161,11 @@
    "source": "polyhaven",
    "sourceId": "WetFloorSign_01",
    "url": "https://polyhaven.com/a/WetFloorSign_01",
-   "author": "Fran Calvente"
+   "author": "Fran Calvente",
+   "maps": [
+    "werk",
+    "innenraum"
+   ]
   },
   "dead_tree_trunk_02": {
    "type": "model",
@@ -12107,8 +12181,8 @@
    "radius": 2.15,
    "lodDistances": [
     0,
-    30.1,
-    86
+    30.2,
+    86.3
    ],
    "parts": [
     "dead_tree_trunk_02"
@@ -12124,11 +12198,11 @@
    "tiers": {
     "512": {
      "glb": "models/dead_tree_trunk_02/dead_tree_trunk_02_512.glb",
-     "bytes": 250144,
+     "bytes": 220644,
      "gpu": {
-      "desktop": 608159,
-      "mobile": 608159,
-      "rgba8": 4278173
+      "desktop": 477087,
+      "mobile": 477087,
+      "rgba8": 3229597
      },
      "tris": [
       2388,
@@ -12137,17 +12211,17 @@
      "textures": 3,
      "lodDistances": [
       0,
-      86
+      86.3
      ],
      "lodShift": true
     },
     "1024": {
      "glb": "models/dead_tree_trunk_02/dead_tree_trunk_02_1024.glb",
-     "bytes": 753080,
+     "bytes": 647572,
      "gpu": {
-      "desktop": 2312101,
-      "mobile": 2312101,
-      "rgba8": 16992163
+      "desktop": 1787813,
+      "mobile": 1787813,
+      "rgba8": 12797859
      },
      "tris": [
       5988,
@@ -12157,8 +12231,8 @@
      "textures": 3,
      "lodDistances": [
       0,
-      30.1,
-      86
+      30.2,
+      86.3
      ]
     }
    },
@@ -12166,82 +12240,10 @@
    "source": "polyhaven",
    "sourceId": "dead_tree_trunk_02",
    "url": "https://polyhaven.com/a/dead_tree_trunk_02",
-   "author": "Jenelle van Heerden, Rico Cilliers"
-  },
-  "boulder_01": {
-   "type": "model",
-   "name": "Boulder 01",
-   "category": "nature",
-   "kit": false,
-   "weapon": false,
-   "size": [
-    1.272,
-    1.004,
-    1.828
-   ],
-   "radius": 1.221,
-   "lodDistances": [
-    0,
-    17.1,
-    48.9
-   ],
-   "parts": [
-    "boulder_01"
-   ],
-   "sourceTris": 66122,
-   "materials": [
-    {
-     "name": "boulder_01",
-     "alphaMode": "OPAQUE",
-     "doubleSided": true
-    }
-   ],
-   "tiers": {
-    "512": {
-     "glb": "models/boulder_01/boulder_01_512.glb",
-     "bytes": 1458932,
-     "gpu": {
-      "desktop": 3591881,
-      "mobile": 3591881,
-      "rgba8": 7261895
-     },
-     "tris": [
-      51482,
-      51478
-     ],
-     "textures": 3,
-     "lodDistances": [
-      0,
-      48.9
-     ],
-     "lodShift": true
-    },
-    "1024": {
-     "glb": "models/boulder_01/boulder_01_1024.glb",
-     "bytes": 2554028,
-     "gpu": {
-      "desktop": 6762837,
-      "mobile": 6762837,
-      "rgba8": 21442899
-     },
-     "tris": [
-      54122,
-      51482,
-      51478
-     ],
-     "textures": 3,
-     "lodDistances": [
-      0,
-      17.1,
-      48.9
-     ]
-    }
-   },
-   "license": "CC0-1.0",
-   "source": "polyhaven",
-   "sourceId": "boulder_01",
-   "url": "https://polyhaven.com/a/boulder_01",
-   "author": "Rico Cilliers"
+   "author": "Jenelle van Heerden, Rico Cilliers",
+   "maps": [
+    "range"
+   ]
   },
   "rock_07": {
    "type": "model",
@@ -12274,11 +12276,11 @@
    "tiers": {
     "512": {
      "glb": "models/rock_07/rock_07_512.glb",
-     "bytes": 198788,
+     "bytes": 178788,
      "gpu": {
-      "desktop": 562519,
-      "mobile": 562519,
-      "rgba8": 4232533
+      "desktop": 431447,
+      "mobile": 431447,
+      "rgba8": 3183957
      },
      "tris": [
       1198,
@@ -12290,33 +12292,17 @@
       16
      ],
      "lodShift": true
-    },
-    "1024": {
-     "glb": "models/rock_07/rock_07_1024.glb",
-     "bytes": 546092,
-     "gpu": {
-      "desktop": 2199585,
-      "mobile": 2199585,
-      "rgba8": 16879647
-     },
-     "tris": [
-      3000,
-      1198,
-      420
-     ],
-     "textures": 3,
-     "lodDistances": [
-      0,
-      6,
-      16
-     ]
     }
    },
    "license": "CC0-1.0",
    "source": "polyhaven",
    "sourceId": "rock_07",
    "url": "https://polyhaven.com/a/rock_07",
-   "author": "Jenelle van Heerden"
+   "author": "Jenelle van Heerden",
+   "maps": [
+    "altstadt",
+    "range"
+   ]
   },
   "planter_pot_clay": {
    "type": "model",
@@ -12349,11 +12335,11 @@
    "tiers": {
     "512": {
      "glb": "models/planter_pot_clay/planter_pot_clay_512.glb",
-     "bytes": 170796,
+     "bytes": 148180,
      "gpu": {
-      "desktop": 559297,
-      "mobile": 559297,
-      "rgba8": 4229311
+      "desktop": 428225,
+      "mobile": 428225,
+      "rgba8": 3180735
      },
      "tris": [
       1232,
@@ -12365,33 +12351,16 @@
       16
      ],
      "lodShift": true
-    },
-    "1024": {
-     "glb": "models/planter_pot_clay/planter_pot_clay_1024.glb",
-     "bytes": 513832,
-     "gpu": {
-      "desktop": 2191627,
-      "mobile": 2191627,
-      "rgba8": 16871689
-     },
-     "tris": [
-      3080,
-      1232,
-      430
-     ],
-     "textures": 3,
-     "lodDistances": [
-      0,
-      6,
-      16
-     ]
     }
    },
    "license": "CC0-1.0",
    "source": "polyhaven",
    "sourceId": "planter_pot_clay",
    "url": "https://polyhaven.com/a/planter_pot_clay",
-   "author": "Amal Kumar"
+   "author": "Amal Kumar",
+   "maps": [
+    "altstadt"
+   ]
   },
   "potted_plant_02": {
    "type": "model",
@@ -12402,7 +12371,7 @@
    "size": [
     0.7,
     0.839,
-    0.655
+    0.654
    ],
    "radius": 0.637,
    "lodDistances": [
@@ -12412,8 +12381,7 @@
    ],
    "parts": [
     "potted_plant_02_pot",
-    "potted_plant_02_leaves",
-    "potted_plant_02_dirt"
+    "potted_plant_02_leaves"
    ],
    "sourceTris": 69806,
    "materials": [
@@ -12431,15 +12399,15 @@
    "tiers": {
     "512": {
      "glb": "models/potted_plant_02/potted_plant_02_512.glb",
-     "bytes": 408508,
+     "bytes": 334836,
      "gpu": {
-      "desktop": 1320070,
-      "mobile": 1320070,
-      "rgba8": 8660098
+      "desktop": 997532,
+      "mobile": 997532,
+      "rgba8": 6502552
      },
      "tris": [
-      6977,
-      1913
+      4776,
+      1730
      ],
      "textures": 6,
      "lodDistances": [
@@ -12450,16 +12418,16 @@
     },
     "1024": {
      "glb": "models/potted_plant_02/potted_plant_02_1024.glb",
-     "bytes": 1140396,
+     "bytes": 967652,
      "gpu": {
-      "desktop": 4772536,
-      "mobile": 4772536,
-      "rgba8": 34132660
+      "desktop": 3662406,
+      "mobile": 3662406,
+      "rgba8": 25682498
      },
      "tris": [
-      12040,
-      6977,
-      1913
+      11986,
+      4776,
+      1730
      ],
      "textures": 6,
      "lodDistances": [
@@ -12473,7 +12441,10 @@
    "source": "polyhaven",
    "sourceId": "potted_plant_02",
    "url": "https://polyhaven.com/a/potted_plant_02",
-   "author": "Rico Cilliers"
+   "author": "Rico Cilliers",
+   "maps": [
+    "altstadt"
+   ]
   },
   "shrub_04": {
    "type": "model",
@@ -12506,11 +12477,11 @@
    "tiers": {
     "512": {
      "glb": "models/shrub_04/shrub_04_512.glb",
-     "bytes": 240896,
+     "bytes": 221416,
      "gpu": {
-      "desktop": 726645,
-      "mobile": 726645,
-      "rgba8": 4396659
+      "desktop": 595573,
+      "mobile": 595573,
+      "rgba8": 3348083
      },
      "tris": [
       4713,
@@ -12525,11 +12496,11 @@
     },
     "1024": {
      "glb": "models/shrub_04/shrub_04_1024.glb",
-     "bytes": 616580,
+     "bytes": 565468,
      "gpu": {
-      "desktop": 2585135,
-      "mobile": 2585135,
-      "rgba8": 17265197
+      "desktop": 2060847,
+      "mobile": 2060847,
+      "rgba8": 13070893
      },
      "tris": [
       11968,
@@ -12548,7 +12519,10 @@
    "source": "polyhaven",
    "sourceId": "shrub_04",
    "url": "https://polyhaven.com/a/shrub_04",
-   "author": "Rico Cilliers"
+   "author": "Rico Cilliers",
+   "maps": [
+    "altstadt"
+   ]
   },
   "weed_plant_02": {
    "type": "model",
@@ -12569,10 +12543,7 @@
    ],
    "parts": [
     "weed_plant_02_a_LOD0",
-    "weed_plant_02_b_LOD0",
-    "weed_plant_02_c_LOD0",
-    "weed_plant_02_d_LOD0",
-    "weed_plant_02_e_LOD0"
+    "weed_plant_02_c_LOD0"
    ],
    "sourceTris": 11116,
    "materials": [
@@ -12585,15 +12556,15 @@
    "tiers": {
     "512": {
      "glb": "models/weed_plant_02/weed_plant_02_512.glb",
-     "bytes": 226708,
+     "bytes": 185920,
      "gpu": {
-      "desktop": 610925,
-      "mobile": 610925,
-      "rgba8": 4280939
+      "desktop": 477263,
+      "mobile": 477263,
+      "rgba8": 3229773
      },
      "tris": [
-      2394,
-      931
+      2399,
+      839
      ],
      "textures": 3,
      "lodDistances": [
@@ -12604,16 +12575,16 @@
     },
     "1024": {
      "glb": "models/weed_plant_02/weed_plant_02_1024.glb",
-     "bytes": 615660,
+     "bytes": 504056,
      "gpu": {
-      "desktop": 2327733,
-      "mobile": 2327733,
-      "rgba8": 17007795
+      "desktop": 1799823,
+      "mobile": 1799823,
+      "rgba8": 12809869
      },
      "tris": [
-      5995,
-      2394,
-      931
+      5999,
+      2399,
+      839
      ],
      "textures": 3,
      "lodDistances": [
@@ -12627,7 +12598,10 @@
    "source": "polyhaven",
    "sourceId": "weed_plant_02",
    "url": "https://polyhaven.com/a/weed_plant_02",
-   "author": "Rob Tuytel, Rico Cilliers"
+   "author": "Rob Tuytel, Rico Cilliers",
+   "maps": [
+    "altstadt"
+   ]
   }
  },
  "maps": {
@@ -12653,7 +12627,9 @@
     "grass",
     "gravel",
     "concrete_epoxy",
-    "tiles_worn"
+    "tiles_worn",
+    "chainlink",
+    "wood_planks_weathered"
    ],
    "models": [
     "barrel_01",
@@ -12675,39 +12651,40 @@
     "utility_box_01",
     "covered_car",
     "cardboard_box_01",
-    "propane_tank"
+    "propane_tank",
+    "fire_hydrant"
    ],
    "budget": {
     "low": {
-     "bytes": 9518837,
+     "bytes": 8488100,
      "gpu": {
-      "desktop": 36841179,
-      "mobile": 36841179,
-      "rgba8": 208545407
+      "desktop": 32804713,
+      "mobile": 32804713,
+      "rgba8": 193324123
      }
     },
     "medium": {
-     "bytes": 27462563,
+     "bytes": 16147736,
      "gpu": {
-      "desktop": 113147969,
-      "mobile": 113147969,
-      "rgba8": 799965157
+      "desktop": 69242729,
+      "mobile": 69242729,
+      "rgba8": 476439643
      }
     },
     "high": {
-     "bytes": 27462563,
+     "bytes": 25676229,
      "gpu": {
-      "desktop": 113147969,
-      "mobile": 113147969,
-      "rgba8": 799965157
+      "desktop": 103706609,
+      "mobile": 103706609,
+      "rgba8": 737527011
      }
     },
     "ultra": {
-     "bytes": 32585086,
+     "bytes": 30798752,
      "gpu": {
-      "desktop": 138313793,
-      "mobile": 138313793,
-      "rgba8": 1001291749
+      "desktop": 128872433,
+      "mobile": 128872433,
+      "rgba8": 938853603
      }
     }
    }
@@ -12757,39 +12734,40 @@
     "modular_metal_gutter",
     "covered_car",
     "sofa_01",
-    "television_01"
+    "television_01",
+    "fire_hydrant"
    ],
    "budget": {
     "low": {
-     "bytes": 8392838,
+     "bytes": 7988238,
      "gpu": {
-      "desktop": 32604434,
-      "mobile": 32604434,
-      "rgba8": 203260086
+      "desktop": 30263818,
+      "mobile": 30263818,
+      "rgba8": 185321898
      }
     },
     "medium": {
-     "bytes": 26272461,
+     "bytes": 16333474,
      "gpu": {
-      "desktop": 107900760,
-      "mobile": 107900760,
-      "rgba8": 790523644
+      "desktop": 67226122,
+      "mobile": 67226122,
+      "rgba8": 481020330
      }
     },
     "high": {
-     "bytes": 26272461,
+     "bytes": 24511473,
      "gpu": {
-      "desktop": 107900760,
-      "mobile": 107900760,
-      "rgba8": 790523644
+      "desktop": 96435514,
+      "mobile": 96435514,
+      "rgba8": 700153050
      }
     },
     "ultra": {
-     "bytes": 28928134,
+     "bytes": 27167146,
      "gpu": {
-      "desktop": 120483672,
-      "mobile": 120483672,
-      "rgba8": 891186940
+      "desktop": 109018426,
+      "mobile": 109018426,
+      "rgba8": 800816346
      }
     }
    }
@@ -12848,35 +12826,35 @@
    ],
    "budget": {
     "low": {
-     "bytes": 9787013,
+     "bytes": 8519601,
      "gpu": {
-      "desktop": 39185769,
-      "mobile": 39185769,
-      "rgba8": 230463405
+      "desktop": 34242485,
+      "mobile": 34242485,
+      "rgba8": 200747513
      }
     },
     "medium": {
-     "bytes": 28598674,
+     "bytes": 16679354,
      "gpu": {
-      "desktop": 124227789,
-      "mobile": 124227789,
-      "rgba8": 889338641
+      "desktop": 71729077,
+      "mobile": 71729077,
+      "rgba8": 496445945
      }
     },
     "high": {
-     "bytes": 28598674,
+     "bytes": 24916618,
      "gpu": {
-      "desktop": 124227789,
-      "mobile": 124227789,
-      "rgba8": 889338641
+      "desktop": 105679379,
+      "mobile": 105679379,
+      "rgba8": 751514711
      }
     },
     "ultra": {
-     "bytes": 34583381,
+     "bytes": 30901325,
      "gpu": {
-      "desktop": 149393613,
-      "mobile": 149393613,
-      "rgba8": 1090665233
+      "desktop": 130845203,
+      "mobile": 130845203,
+      "rgba8": 952841303
      }
     }
    }
@@ -12898,7 +12876,10 @@
     "felt_panel",
     "concrete_epoxy",
     "burlap",
-    "rubber_floor"
+    "rubber_floor",
+    "mud",
+    "ground_dry_cracked",
+    "chainlink"
    ],
    "models": [
     "ammo_box",
@@ -12909,39 +12890,42 @@
     "old_tyre",
     "hanging_industrial_lamp",
     "bolt_action_rifle_7_62",
-    "service_pistol"
+    "service_pistol",
+    "dead_tree_trunk_02",
+    "modular_chainlink_fence",
+    "rock_07"
    ],
    "budget": {
     "low": {
-     "bytes": 5457872,
+     "bytes": 6736507,
      "gpu": {
-      "desktop": 22910021,
-      "mobile": 22910021,
-      "rgba8": 118942055
+      "desktop": 26342152,
+      "mobile": 26342152,
+      "rgba8": 137796978
      }
     },
     "medium": {
-     "bytes": 16169439,
+     "bytes": 13484903,
      "gpu": {
-      "desktop": 64926031,
-      "mobile": 64926031,
-      "rgba8": 449054321
+      "desktop": 55964424,
+      "mobile": 55964424,
+      "rgba8": 370580850
      }
     },
     "high": {
-     "bytes": 16169439,
+     "bytes": 18917514,
      "gpu": {
-      "desktop": 64926031,
-      "mobile": 64926031,
-      "rgba8": 449054321
+      "desktop": 73259824,
+      "mobile": 73259824,
+      "rgba8": 502564250
      }
     },
     "ultra": {
-     "bytes": 22883182,
+     "bytes": 25631257,
      "gpu": {
-      "desktop": 96383311,
-      "mobile": 96383311,
-      "rgba8": 700712561
+      "desktop": 104717104,
+      "mobile": 104717104,
+      "rgba8": 754222490
      }
     }
    }
@@ -12988,35 +12972,35 @@
    ],
    "budget": {
     "low": {
-     "bytes": 5767022,
+     "bytes": 5356806,
      "gpu": {
-      "desktop": 25609574,
-      "mobile": 25609574,
-      "rgba8": 152225058
+      "desktop": 23735236,
+      "mobile": 23735236,
+      "rgba8": 137505664
      }
     },
     "medium": {
-     "bytes": 18672285,
+     "bytes": 12072649,
      "gpu": {
-      "desktop": 81325646,
-      "mobile": 81325646,
-      "rgba8": 587787786
+      "desktop": 54406084,
+      "mobile": 54406084,
+      "rgba8": 382872448
      }
     },
     "high": {
-     "bytes": 18672285,
+     "bytes": 17428885,
      "gpu": {
-      "desktop": 81325646,
-      "mobile": 81325646,
-      "rgba8": 587787786
+      "desktop": 73969692,
+      "mobile": 73969692,
+      "rgba8": 529051608
      }
     },
     "ultra": {
-     "bytes": 18672285,
+     "bytes": 17428885,
      "gpu": {
-      "desktop": 81325646,
-      "mobile": 81325646,
-      "rgba8": 587787786
+      "desktop": 73969692,
+      "mobile": 73969692,
+      "rgba8": 529051608
      }
     }
    }
@@ -13072,25 +13056,30 @@
  },
  "totals": {
   "textures": {
-   "files": 441,
-   "bytes": 59740980
+   "files": 429,
+   "bytes": 58033839
   },
   "hdri": {
    "files": 32,
    "bytes": 19209703
   },
   "models": {
-   "files": 121,
-   "bytes": 71669580
+   "files": 111,
+   "bytes": 51576572
   },
   "all": {
-   "files": 594,
-   "bytes": 150620263
+   "files": 572,
+   "bytes": 128820114
+  },
+  "byTier": {
+   "512": 26571887,
+   "1024": 79644994,
+   "2048": 22603233
   },
   "counts": {
-   "textures": 71,
+   "textures": 69,
    "hdris": 8,
-   "models": 59
+   "models": 57
   }
  }
 }

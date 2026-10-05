@@ -1,6 +1,6 @@
 {
   "id": "planter_pot_clay",
-  "recipe": "7fe079087844",
+  "recipe": "cb1e674c5e39",
   "size": [
     0.266,
     0.222,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/planter_pot_clay/planter_pot_clay_512.glb",
-      "bytes": 170796,
+      "bytes": 148180,
       "srcTris": 3080,
       "lods": [
         {
-          "tris": 1232
+          "tris": 1232,
+          "level": 1
         },
         {
-          "tris": 430
+          "tris": 430,
+          "level": 2
         }
       ],
       "parts": [
         "planter_pot_clay"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        16
+      ],
       "bounds": {
         "min": [
           -0.134,
@@ -71,22 +77,22 @@
         {
           "name": "planter_pot_clay_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 31691,
+          "bytes": 9077,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 35008,
       "gpu": {
-        "desktop": 559297,
-        "mobile": 559297,
-        "rgba8": 4229311
+        "desktop": 428225,
+        "mobile": 428225,
+        "rgba8": 3180735
       },
       "materials": [
         {
@@ -94,101 +100,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        16
-      ]
-    },
-    "1024": {
-      "path": "models/planter_pot_clay/planter_pot_clay_1024.glb",
-      "bytes": 513832,
-      "srcTris": 3080,
-      "lods": [
-        {
-          "tris": 3080
-        },
-        {
-          "tris": 1232
-        },
-        {
-          "tris": 430
-        }
-      ],
-      "parts": [
-        "planter_pot_clay"
-      ],
-      "lodShift": false,
-      "bounds": {
-        "min": [
-          -0.134,
-          0,
-          -0.12
-        ],
-        "max": [
-          0.132,
-          0.222,
-          0.143
-        ]
-      },
-      "textures": [
-        {
-          "name": "planter_pot_clay_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 180201,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "planter_pot_clay_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 179896,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "planter_pot_clay_arm_1k.ktx2",
-          "role": "orm",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 110885,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        }
-      ],
-      "geometryBytes": 94474,
-      "gpu": {
-        "desktop": 2191627,
-        "mobile": 2191627,
-        "rgba8": 16871689
-      },
-      "materials": [
-        {
-          "name": "planter_pot_clay",
-          "alphaMode": "OPAQUE",
-          "doubleSided": true
-        }
-      ],
-      "lodDistances": [
-        0,
-        6,
-        16
       ]
     }
   }

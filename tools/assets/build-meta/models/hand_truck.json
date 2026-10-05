@@ -1,6 +1,6 @@
 {
   "id": "hand_truck",
-  "recipe": "e7bf6abb6dea",
+  "recipe": "6e1a55ab7fb1",
   "size": [
     0.594,
     1.402,
@@ -10,25 +10,31 @@
   "lodDistances": [
     0,
     11.7,
-    33.4
+    33.5
   ],
   "tiers": {
     "512": {
       "path": "models/hand_truck/hand_truck_512.glb",
-      "bytes": 348280,
+      "bytes": 200524,
       "srcTris": 13220,
       "lods": [
         {
-          "tris": 5490
+          "tris": 2465,
+          "level": 1
         },
         {
-          "tris": 5254
+          "tris": 862,
+          "level": 2
         }
       ],
       "parts": [
         "hand_truck"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        33.5
+      ],
       "bounds": {
         "min": [
           -0.297,
@@ -71,22 +77,22 @@
         {
           "name": "hand_truck_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 40011,
+          "bytes": 12449,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
-      "geometryBytes": 450212,
+      "geometryBytes": 107654,
       "gpu": {
-        "desktop": 974501,
-        "mobile": 974501,
-        "rgba8": 4644515
+        "desktop": 500871,
+        "mobile": 500871,
+        "rgba8": 3253381
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        33.4
       ]
     },
     "1024": {
       "path": "models/hand_truck/hand_truck_1024.glb",
-      "bytes": 833036,
+      "bytes": 613824,
       "srcTris": 13220,
       "lods": [
         {
-          "tris": 6166
+          "tris": 6166,
+          "level": 0
         },
         {
-          "tris": 5490
+          "tris": 2465,
+          "level": 1
         },
         {
-          "tris": 5254
+          "tris": 862,
+          "level": 2
         }
       ],
       "parts": [
         "hand_truck"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        11.7,
+        33.5
+      ],
       "bounds": {
         "min": [
           -0.297,
@@ -161,22 +171,22 @@
         {
           "name": "hand_truck_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 139037,
+          "bytes": 40011,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 695746,
+      "geometryBytes": 353188,
       "gpu": {
-        "desktop": 2792899,
-        "mobile": 2792899,
-        "rgba8": 17472961
+        "desktop": 1926053,
+        "mobile": 1926053,
+        "rgba8": 12936099
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        11.7,
-        33.4
       ]
     }
   }

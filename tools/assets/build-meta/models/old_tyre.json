@@ -1,6 +1,6 @@
 {
   "id": "old_tyre",
-  "recipe": "9fa5cac106e4",
+  "recipe": "f07296051a47",
   "size": [
     0.6,
     0.6,
@@ -15,20 +15,26 @@
   "tiers": {
     "512": {
       "path": "models/old_tyre/old_tyre_512.glb",
-      "bytes": 166692,
+      "bytes": 143940,
       "srcTris": 2880,
       "lods": [
         {
-          "tris": 1152
+          "tris": 1152,
+          "level": 1
         },
         {
-          "tris": 402
+          "tris": 402,
+          "level": 2
         }
       ],
       "parts": [
         "old_tyre"
       ],
       "lodShift": true,
+      "lodDistances": [
+        0,
+        17.3
+      ],
       "bounds": {
         "min": [
           -0.3,
@@ -71,22 +77,22 @@
         {
           "name": "old_tyre_arm_1k.ktx2",
           "role": "orm",
-          "width": 512,
-          "height": 512,
+          "width": 256,
+          "height": 256,
           "codec": "etc1s",
-          "bytes": 31323,
+          "bytes": 8576,
           "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
           }
         }
       ],
       "geometryBytes": 37594,
       "gpu": {
-        "desktop": 561883,
-        "mobile": 561883,
-        "rgba8": 4231897
+        "desktop": 430811,
+        "mobile": 430811,
+        "rgba8": 3183321
       },
       "materials": [
         {
@@ -94,31 +100,35 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        17.3
       ]
     },
     "1024": {
       "path": "models/old_tyre/old_tyre_1024.glb",
-      "bytes": 541044,
+      "bytes": 453932,
       "srcTris": 2880,
       "lods": [
         {
-          "tris": 2880
+          "tris": 2880,
+          "level": 0
         },
         {
-          "tris": 1152
+          "tris": 1152,
+          "level": 1
         },
         {
-          "tris": 402
+          "tris": 402,
+          "level": 2
         }
       ],
       "parts": [
         "old_tyre"
       ],
       "lodShift": false,
+      "lodDistances": [
+        0,
+        6.1,
+        17.3
+      ],
       "bounds": {
         "min": [
           -0.3,
@@ -161,22 +171,22 @@
         {
           "name": "old_tyre_arm_1k.ktx2",
           "role": "orm",
-          "width": 1024,
-          "height": 1024,
+          "width": 512,
+          "height": 512,
           "codec": "etc1s",
-          "bytes": 118438,
+          "bytes": 31323,
           "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
       "geometryBytes": 100854,
       "gpu": {
-        "desktop": 2198007,
-        "mobile": 2198007,
-        "rgba8": 16878069
+        "desktop": 1673719,
+        "mobile": 1673719,
+        "rgba8": 12683765
       },
       "materials": [
         {
@@ -184,11 +194,6 @@
           "alphaMode": "OPAQUE",
           "doubleSided": true
         }
-      ],
-      "lodDistances": [
-        0,
-        6.1,
-        17.3
       ]
     }
   }

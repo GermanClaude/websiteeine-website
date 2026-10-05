@@ -1,12 +1,12 @@
 {
   "id": "polymer_black",
-  "recipe": "f1e6ad9c630d",
+  "recipe": "ccdb0d87051f",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/polymer_black/polymer_black_512_albedo.ktx2",
-          "bytes": 41289,
+          "bytes": 41180,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/polymer_black/polymer_black_512_orm.ktx2",
-          "bytes": 26408,
+          "bytes": 26549,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 68663,
+      "bytes": 68695,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/polymer_black/polymer_black_1024_albedo.ktx2",
-          "bytes": 151417,
+          "bytes": 151225,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/polymer_black/polymer_black_1024_normal.ktx2",
-          "bytes": 3452,
+          "bytes": 3474,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/polymer_black/polymer_black_1024_orm.ktx2",
-          "bytes": 91836,
+          "bytes": 92426,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 246705,
+      "bytes": 247125,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,7 +104,7 @@
       "files": {
         "albedo": {
           "path": "textures/polymer_black/polymer_black_2048_albedo.ktx2",
-          "bytes": 645185,
+          "bytes": 640064,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -117,7 +117,7 @@
         },
         "normal": {
           "path": "textures/polymer_black/polymer_black_2048_normal.ktx2",
-          "bytes": 177999,
+          "bytes": 179396,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -130,7 +130,7 @@
         },
         "orm": {
           "path": "textures/polymer_black/polymer_black_2048_orm.ktx2",
-          "bytes": 346282,
+          "bytes": 345780,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -142,7 +142,7 @@
           }
         }
       },
-      "bytes": 1169466,
+      "bytes": 1165240,
       "gpu": {
         "desktop": 8388609,
         "mobile": 8388609,
