@@ -1,12 +1,12 @@
 {
   "id": "plaster_blue_weathered",
-  "recipe": "5e35ef1e1025",
+  "recipe": "a6895cdb17e3",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/plaster_blue_weathered/plaster_blue_weathered_512_albedo.ktx2",
-          "bytes": 57703,
+          "bytes": 57604,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/plaster_blue_weathered/plaster_blue_weathered_512_normal.ktx2",
-          "bytes": 47932,
+          "bytes": 47956,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/plaster_blue_weathered/plaster_blue_weathered_512_orm.ktx2",
-          "bytes": 21496,
+          "bytes": 21524,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 127131,
+      "bytes": 127084,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/plaster_blue_weathered/plaster_blue_weathered_1024_normal.ktx2",
-          "bytes": 185117,
+          "bytes": 184998,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/plaster_blue_weathered/plaster_blue_weathered_1024_orm.ktx2",
-          "bytes": 73815,
+          "bytes": 74082,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 451523,
+      "bytes": 451671,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
