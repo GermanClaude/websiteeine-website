@@ -202,6 +202,7 @@ export class HUD {
     this.detach();
     this._build();
     this.reset();
+    this._clearWarm();
     this.feed.clear();
     const mode = G.mode;
     const modeId = mode ? mode.id : G.match.modeId;
@@ -278,6 +279,7 @@ export class HUD {
     delete document.body.dataset.lethals;
     this._setDead(false);
     this._resetZones();
+    this._clearWarm();
     this._attached = false;
   }
 
@@ -287,6 +289,46 @@ export class HUD {
     this.topUi.hidden = false;
     this._visible = true;
     if (this.minimap) this.minimap.resize();
+    this._prewarm();
+  }
+
+  /**
+   * Einmal je Match (beim Einblenden, also im Countdown): unsichtbare Muster von Abschussmeldung, Medaille, Hinweis und
+   * Punkte-Einblendung durch Stil, Layout und Schriftsatz schicken. Sonst fällt diese Erstarbeit (Schriftschnitte,
+   * SVG-Symbole, neue Stilregeln) in das Bild des ersten Abschusses. Nach zwei Bildern wieder entfernt.
+   */
+  _prewarm() {
+    if (this._warm !== null || !this.root) return;
+    const G = this.G;
+    const p = G.player;
+    const wid = p && p.weapon && p.weapon.currentDef ? p.weapon.currentDef.id : null;
+    const nodes = [];
+    const add = (host, cls, html) => {
+      if (!host) return;
+      const n = el('div', cls, html);
+      n.setAttribute('aria-hidden', 'true');
+      n.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;animation:none';
+      host.appendChild(n);
+      nodes.push(n);
+    };
+    add(this.el.feed, 'kf-row is-mine', `<span class="kf-name kf-me">${esc(p ? p.name : 'Operator')}</span><span class="kf-w">${this.feed.weaponIcon(wid)}<span class="kf-flag kf-hs">${ICON.head}</span><span class="kf-flag">${ICON.explosion}</span></span><span class="kf-name kf-enemy">Gegner</span>`);
+    add(this.el.notices, 'h-notice h-notice-medal tier-bronze', `${medalBadge('Erstes Blut', 'bronze')}<span>Erstes Blut</span>`);
+    add(this.el.notices, 'h-notice is-gold', 'Aufklärer bereit.<kbd>3</kbd>');
+    add(this.el.medal, 'h-medal-in tier-gold', `${medalBadge('Doppel', 'gold')}<div><b>Doppel</b><small>Zwei Abschüsse</small></div>`);
+    add(this.el.pop.parentNode, 'h-pop is-on', '<b>+100</b><div class="lines"><div>Abschuss <span>+100</span></div></div>');
+    const done = () => {
+      if (this._warm !== nodes) return;
+      this._warm = undefined; // bis zum nächsten attach() nicht wiederholen
+      for (const n of nodes) n.remove();
+    };
+    this._warm = nodes;
+    requestAnimationFrame(() => requestAnimationFrame(done));
+    setTimeout(done, 1500); // verborgener Tab: rAF ruht
+  }
+
+  _clearWarm() {
+    if (Array.isArray(this._warm)) for (const n of this._warm) n.remove();
+    this._warm = null;
   }
 
   hide() {

@@ -112,7 +112,7 @@ export class EndScreen {
       <div class="e-wrap m-scroll" data-scrollable>
         <header class="e-head">
           <div class="m-kicker">${kicker}</div>
-          <h1 class="e-title is-${outcome}">${esc(title)}<em>.</em></h1>
+          <h1 class="e-title is-${outcome}" style="--n:${[...title].length + 1}">${esc(title)}<em>.</em></h1>
           ${line}
         </header>
         <div class="e-grid">
