@@ -419,7 +419,7 @@ export class AudioEngine {
       if (this._disposed) return;
       for (const e of Object.values(CATALOG)) {
         if (e.tier > 2) continue;
-        if (!game && !(e.tier === 0 && e.bus === 'ui') && !e.name.startsWith('gun_') && !SITE_SET.has(e.name)) continue;
+        if (!game && !(e.tier === 0 && e.bus === 'ui') && !/^gun(fp)?_/.test(e.name) && !SITE_SET.has(e.name)) continue;
         this._request(e, this._replaced(e.name) ? PRIO.lazy : this._prioOf(e));
       }
       if (game) { this._prioritizeLoadout(); this._planSamples(); }
@@ -1165,10 +1165,10 @@ export class AudioEngine {
       });
       // Mechanik am Ohr (Aufnahme, unter dem Schuss; mit Schalldämpfer hört man sie deutlich)
       const mech = MECH_OF[voice] || MECH_OF[profile];
-      if (mech && !low && this.layers.mech) this.play(mech, { player: true, priority: 3, volume: vol * nearGain * dbg(MECH_DB) * (sup ? 1.8 : 1), pitch: pitch * this._rand.range(0.97, 1.03), env: 0 });
+      if (mech && !low && this.layers.mech) this.play(mech, { player: true, priority: 3, volume: vol * nearGain * dbg(MECH_DB) * (sup ? 1.8 : 1), pitch: pitch * this._rand.range(0.97, 1.03), env: 0, _deferred: true });
       // Ich-Perspektive (Synthese): Druckstoß auf den Brustkorb + Verschluss – je Wiedergabeprofil (Handy kaum Bass)
       const fp = CATALOG[`gunfp_${profile}`];
-      if (fp && P.sub > 0.05 && this.layers.fp) this._spawn(fp, { player: true, priority: 3, volume: vol * P.sub * (sup ? 0.55 : 1) * (low ? 0.8 : 1), pitch });
+      if (fp && P.sub > 0.05 && this.layers.fp) this._spawn(fp, { player: true, priority: 3, volume: vol * P.sub * (sup ? 0.55 : 1) * (low ? 0.8 : 1), pitch, _deferred: true }); // Schichten nie verspätet
       // Außen-Nachhall (Aufnahme), Pegel an den Nahschuss gekoppelt; innen übernimmt die Faltung
       if (tailName && ind < 0.95 && this.layers.tail) this._tail(tailName, o.actor || 'player', nearGain * vol * dbg(TAIL_DB) * (1 - ind) * (sup ? 0.3 : 1), 0.004, pitch);
       // Gehör: Schüsse in engen Räumen (Plan §10 A6)
@@ -1206,7 +1206,7 @@ export class AudioEngine {
     const old = this._tails.get(key);
     if (old && !old.stopped && this.ctx.currentTime < old.start + 0.12) return; // Feuerstoß: Fahne läuft schon
     if (old && !old.stopped) this._kill(old, 0.12);
-    const v = this._spawn(entryOf(name), { volume: gain, delay, pitch, fadeAt: 0.95, fadeLen: 0.55, priority: 2, env: 0, er: 0 });
+    const v = this._spawn(entryOf(name), { volume: gain, delay, pitch, fadeAt: 0.95, fadeLen: 0.55, priority: 2, env: 0, er: 0, _deferred: true });
     if (v) { this._tails.set(key, v); if (this._tails.size > 32) this._tails.delete(this._tails.keys().next().value); }
   }
 
@@ -1272,8 +1272,8 @@ export class AudioEngine {
     if (far > 0.05) v = this._spawn(CATALOG.explosion_far, { position: pos, volume: vol * far * 1.2, delay, priority: 2 }) || v;
     // Hybrid: Sub-Druck unter der Aufnahme (Erschütterung), nachrieselnde Trümmer in der Nähe
     if (v?.recorded && this.layers.sub) {
-      if (dist < 140 && P.sub > 0.05) this._spawn(CATALOG.boom_sub, { position: pos, volume: vol * P.sub * (0.5 + 0.5 * near), delay, priority: 2 });
-      if (dist < 35) this._spawn(CATALOG.debris, { position: pos, volume: vol * (1 - dist / 35), delay: delay + this._rand.range(0.2, 0.35) });
+      if (dist < 140 && P.sub > 0.05) this._spawn(CATALOG.boom_sub, { position: pos, volume: vol * P.sub * (0.5 + 0.5 * near), delay, priority: 2, _deferred: true });
+      if (dist < 35) this._spawn(CATALOG.debris, { position: pos, volume: vol * (1 - dist / 35), delay: delay + this._rand.range(0.2, 0.35), _deferred: true });
     }
     const r = (p.radius || 6.5) * 1.5, pl = this.G.player;
     if (p.concuss !== false && this.listener.valid && dist < r && (!pl || pl.alive !== false)) this.concuss(1 - dist / r);
