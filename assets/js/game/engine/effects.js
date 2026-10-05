@@ -93,6 +93,9 @@ export class Effects {
     this.decals = new DecalLayer(getDecalAtlas(), DECAL_CAP, { normalMap: getDecalNormalAtlas });
     // Hülsen + Magazine in der Welt (Physik-lite gegen die Kugel-BVH, P4)
     this.debris = new Debris({ events: this.G && this.G.events });
+    // Schwebestaub im Sonnenlicht (R6, medium+): eigene additive Schicht, je Staubkorn 1 Sonnenstrahl beim Entstehen
+    this.motes = new ParticleLayer({ capacity: 128, additive: true, texture: atlas, name: 'fx-motes' });
+    this.motes.mesh.renderOrder = 12;
   }
 
   get preset() { return (this.G.renderer && this.G.renderer.preset) || { particleScale: 1, decals: 120, id: 'high' }; }
@@ -103,9 +106,9 @@ export class Effects {
     this.detach();
     this._build();
     const scene = G.scene;
-    scene.add(this.decals.mesh, this.alpha.mesh, this.fire.mesh, this.add.mesh, this.tracers.mesh, this.glints.mesh, this.debris.group);
+    scene.add(this.decals.mesh, this.alpha.mesh, this.fire.mesh, this.add.mesh, this.tracers.mesh, this.glints.mesh, this.debris.group, this.motes.mesh);
     // sichtbar lassen, bis main die Shader vorkompiliert hat (leere Schichten blenden sich im ersten update aus)
-    for (const L of [this.alpha, this.fire, this.add, this.tracers, this.glints]) L.mesh.visible = true;
+    for (const L of [this.alpha, this.fire, this.add, this.tracers, this.glints, this.motes]) L.mesh.visible = true;
     this.debris.events = G.events;
     this.debris.showForCompile();
     this.debris.setQuality(this.preset.id || G.renderer?.quality || 'high');
@@ -147,7 +150,7 @@ export class Effects {
     this._subs = null;
     if (this._offQuality) { this._offQuality(); this._offQuality = null; }
     if (!this._built) return;
-    for (const o of [this.decals.mesh, this.alpha.mesh, this.fire.mesh, this.add.mesh, this.tracers.mesh, this.glints.mesh, this.debris.group]) o.removeFromParent();
+    for (const o of [this.decals.mesh, this.alpha.mesh, this.fire.mesh, this.add.mesh, this.tracers.mesh, this.glints.mesh, this.debris.group, this.motes.mesh]) o.removeFromParent();
     if (this._light) { this._light.removeFromParent(); this._light.intensity = 0; }
     this.clear();
   }
@@ -162,6 +165,7 @@ export class Effects {
     this.tracers.clear();
     this.decals.clear();
     this.debris.clear();
+    this.motes.clear();
     this._delayed.length = 0;
     for (const p of this._pending) p.on = false;
     this._lightLife = 0;
@@ -332,7 +336,7 @@ export class Effects {
     }
     // Feiner Staub, der noch einige Sekunden in der Luft steht (realistisch: Beton- und Putzmehl)
     if (lod > 0.5) {
-      const j = this._puff(x + nx * 0.1, y + ny * 0.1, z + nz * 0.1, nx * 0.35, 0.06, nz * 0.35, rnd(2.2, 3.2), 0.2 * g, rnd(1.1, 1.5) * g, S.dust, 0.2, 1.4, 0.04, CELL.SMOKE_B);
+      const j = this._puff(x + nx * 0.1, y + ny * 0.1, z + nz * 0.1, nx * 0.35, 0.06, nz * 0.35, rnd(1.8, 2.6), 0.16 * g, rnd(0.7, 0.95) * Math.min(g, 1.6), S.dust, 0.2, 1.4, 0.04, CELL.SMOKE_B);
       this.alpha.fadeIn[j] = 0.12;
       this.alpha.fadePow[j] = 1.1;
     }
@@ -600,18 +604,19 @@ export class Effects {
     const cls = def ? def.cls : 'ar';
     const big = cls === 'shotgun' ? 1.9 : cls === 'sniper' ? 1.6 : cls === 'lmg' ? 1.3 : cls === 'marksman' ? 1.2 : cls === 'pistol' ? 0.7 : cls === 'smg' ? 0.8 : 1;
     this.muzzleLight(pos, 13 * big, 2, 0.045, 7);
-    const d = e.dir;
+    // Pulvergas in der Welt nur bei schweren Waffen (Flinte, Scharfschütze, LMG, PG) und nicht auf low: die Wolke
+    // entsteht vor der Mündung und bleibt klein im Bild (große Sprites direkt vor der Kamera kosten Füllrate)
     const sc = this.scale;
-    // Gasstoß nach vorn (schnell, dicht) + stehender Rest
-    const k = this._puff(pos.x + d.x * 0.08, pos.y + d.y * 0.08, pos.z + d.z * 0.08, d.x * 2.2, d.y * 2.2 + 0.05, d.z * 2.2, 0.35 + 0.15 * big, 0.04 * big, 0.32 * big, C.smokeLight, 0.12 + 0.05 * big, 5.5, 0.05, CELL.SMOKE_A);
+    if (big < 1.2 || sc < 0.5) return;
+    const d = e.dir;
+    const fw = 0.25 + 0.1 * big;
+    const k = this._puff(pos.x + d.x * fw, pos.y + d.y * fw, pos.z + d.z * fw, d.x * 1.6, d.y * 1.6 + 0.05, d.z * 1.6, 0.3 + 0.1 * big, 0.03 * big, 0.14 * big, C.smokeLight, 0.1 + 0.03 * big, 5.5, 0.05, CELL.SMOKE_A);
     this.alpha.fadeIn[k] = 0.02;
-    if (big >= 1.2 && sc > 0.3) {
-      const n = Math.max(1, Math.round((big - 0.6) * 2 * sc));
-      for (let i = 0; i < n; i++) {
-        const sp = rnd(0.4, 1.4);
-        this._puff(pos.x + d.x * 0.2, pos.y + d.y * 0.2, pos.z + d.z * 0.2, d.x * sp + rnd(-0.2, 0.2), d.y * sp + rnd(0.05, 0.25), d.z * sp + rnd(-0.2, 0.2),
-          rnd(1.1, 1.9), 0.08 * big, rnd(0.5, 0.8) * big, C.smokeLight, 0.1 + 0.03 * big, 1.6, 0.2);
-      }
+    if (big >= 1.5 && (this._pShot = ((this._pShot || 0) + 1) % 2) === 0) {
+      // Flinte/Scharfschütze: stehende Wolke ein Stück vor der Mündung
+      const sp = rnd(0.5, 1.1);
+      this._puff(pos.x + d.x * 0.6, pos.y + d.y * 0.6, pos.z + d.z * 0.6, d.x * sp + rnd(-0.15, 0.15), d.y * sp + rnd(0.05, 0.2), d.z * sp + rnd(-0.15, 0.15),
+        rnd(1.0, 1.6), 0.06 * big, rnd(0.28, 0.4) * big, C.smokeLight, 0.08 + 0.02 * big, 1.8, 0.2);
     }
   }
 
@@ -640,7 +645,7 @@ export class Effects {
     const st = clamp(opts.strength ?? 0.5, 0, 1);
     if (Math.random() > Math.max(0.35, this.scale)) return;
     const j = this._puff(pos.x + rnd(-0.01, 0.01), pos.y + 0.01, pos.z + rnd(-0.01, 0.01), rnd(-0.04, 0.04), 0.0, rnd(-0.04, 0.04),
-      rnd(1.4, 2.4), 0.012, rnd(0.09, 0.16) * (0.7 + 0.5 * st), C.smokeLight, 0.06 + 0.12 * st, 0.8, rnd(0.25, 0.4), CELL.SMOKE_B);
+      rnd(1.2, 2.0), 0.01, rnd(0.05, 0.09) * (0.7 + 0.5 * st), C.smokeLight, 0.06 + 0.12 * st, 0.8, rnd(0.25, 0.4), CELL.SMOKE_B);
     this.alpha.fadeIn[j] = 0.15;
     this.alpha.fadePow[j] = 1.1;
     this.alpha.rv[j] = rnd(-0.8, 0.8);
@@ -944,6 +949,56 @@ export class Effects {
     if (this._glintLos.size > 48) this._glintLos.clear();
   }
 
+  /* ================================================================ Schwebestaub (R6) */
+
+  /**
+   * Feiner Staub, der nur im direkten Sonnenlicht glitzert (Lichtkegel durch Fenster, Hallentore): Körner entstehen
+   * zufällig vor der Kamera; je Korn prüft EIN Strahl (world.lineOfSight) zur Sonne – liegt es im Schatten, wird es
+   * verworfen. Helligkeit je Bild aus der Vorwärtsstreuung (Blick gegen die Sonne leuchtet stärker). medium 36,
+   * high 70, ultra 110 Körner; low keine (eine Schicht = ein Draw Call, Simulation ≈ 0,05 ms).
+   */
+  _updateMotes(dt) {
+    const M = this.motes;
+    const id = this.preset.id;
+    const want = id === 'ultra' ? 110 : id === 'high' ? 70 : id === 'medium' ? 36 : 0;
+    const w = this.G.world;
+    const L = w && w.lighting;
+    if (!want || !L || !L.sunDirection || typeof w.lineOfSight !== 'function') { if (M.n) M.clear(); return; }
+    const sd = _t2.copy(L.sunDirection).normalize();
+    if (sd.y < 0) sd.negate();
+    const c = this._camPos, f = this._camFwd;
+    const sunI = clamp((L.sunIntensity ?? 2.5) / 2.5, 0.2, 2);
+    const fwdScatter = Math.max(0, f.x * sd.x + f.y * sd.y + f.z * sd.z);
+    const glow = (0.35 + 2.4 * Math.pow(fwdScatter, 6)) * sunI;
+    // neue Körner (gedrosselt: höchstens 4 Strahlen je Bild)
+    let tries = 4;
+    _v.crossVectors(f, UP);
+    if (_v.lengthSq() < 1e-6) _v.set(1, 0, 0); else _v.normalize();
+    while (M.n < want && tries-- > 0) {
+      const dist = rnd(0.5, 6);
+      const x = c.x + f.x * dist + _v.x * rnd(-2.6, 2.6), y = c.y + f.y * dist + rnd(-1.3, 1.6), z = c.z + f.z * dist + _v.z * rnd(-2.6, 2.6);
+      _t1.set(x, y, z);
+      _w.set(x + sd.x * 80, y + sd.y * 80, z + sd.z * 80);
+      if (!w.lineOfSight(_t1, _w)) continue;
+      const i = M.spawn(x, y, z, rnd(-0.03, 0.03), rnd(-0.015, 0.025), rnd(-0.03, 0.03), rnd(3, 6.5), rnd(0.005, 0.011), rnd(0.005, 0.011), 1, 1, 1, 1, CELL.SOFT);
+      M.fadeIn[i] = 0.25;
+      M.fadePow[i] = 0.5;
+      M.drag[i] = 0.2;
+      M.rot[i] = Math.random() * 6.283; // Funkelphase
+    }
+    // Helligkeit je Bild (Blickrichtung zur Sonne), leichtes Funkeln, Sonnenfarbe
+    const sc = L.sunColor || { r: 1, g: 0.95, b: 0.85 };
+    const t = this._time;
+    for (let i = 0; i < M.n; i++) {
+      const dx = M.px[i] - c.x, dy = M.py[i] - c.y, dz = M.pz[i] - c.z;
+      // aus dem Blickfeld/zu weit gewandert → bald ersetzen
+      if (dx * f.x + dy * f.y + dz * f.z < 0.2 || dx * dx + dy * dy + dz * dz > 64) M.life[i] = Math.min(M.life[i], 0.2);
+      const tw = 0.6 + 0.4 * Math.sin(t * 3.1 + M.rot[i] * 7);
+      const I = glow * tw * 1.6;
+      M.r[i] = sc.r * I; M.g[i] = sc.g * I; M.b[i] = sc.b * I;
+    }
+  }
+
   /* ================================================================ Takt */
 
   update(dt) {
@@ -972,6 +1027,8 @@ export class Effects {
       }
     }
     this.debris.update(dt, this.G.world);
+    this._updateMotes(dt);
+    this.motes.update(dt);
     if (this._light && this._lightLife > 0) {
       this._lightLife -= dt;
       const k = Math.max(0, this._lightLife / this._lightDur);
@@ -990,6 +1047,7 @@ export class Effects {
     this.tracers.dispose();
     this.decals.dispose();
     this.debris.dispose();
+    this.motes.dispose();
     if (this._light) { this._light.dispose(); this._light = null; }
     this._built = false;
   }

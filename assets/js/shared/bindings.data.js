@@ -321,24 +321,24 @@ export function actionLabel(resolved, device, action, opts) {
  * Touch-Knöpfe (engine/input.js baut sie in #touch-ui). sel = Element; kind: btn | group (Container) | stick.
  * optional: standardmäßig verborgen. auto: sichtbar, sobald die Funktion verfügbar ist ('tactical' = taktische
  * Granate in der Ausrüstung, 'light' = Lampe). def: Standardlage (Mitte in % der Fläche, s = Größe in --tc-u)
- * für Knöpfe ohne Lage in game.css.
+ * für Knöpfe ohne Lage in game.css (ui-controls: Lagen so gewählt, dass sie im Standard-Layout 16:9–20:9 nichts überdecken).
  */
 export const TOUCH_BUTTONS = Object.freeze([
   { id: 'stick', sel: '.tc-stick', label: 'Joystick', kind: 'stick' },
   { id: 'fire', sel: '.tc-fire-r', label: 'Feuern (rechts)' },
   { id: 'fireL', sel: '.tc-fire-l', label: 'Feuern (links)' },
   { id: 'ads', sel: '.tc-ads', label: 'Zielen' },
-  { id: 'adsfire', sel: '.tc-adsfire', label: 'Zielen + Feuern', optional: true, def: { x: 69.4, y: 62, s: 56 } },
+  { id: 'adsfire', sel: '.tc-adsfire', label: 'Zielen + Feuern', optional: true, def: { x: 65, y: 60, s: 56 } },
   { id: 'reload', sel: '.tc-reload', label: 'Nachladen' },
   { id: 'jump', sel: '.tc-jump', label: 'Springen / Überklettern' },
   { id: 'crouch', sel: '.tc-crouch', label: 'Ducken' },
   { id: 'grenade', sel: '.tc-grenade', label: 'Granate' },
-  { id: 'tactical', sel: '.tc-tactical', label: 'Taktische Granate', auto: 'tactical', def: { x: 64.2, y: 87.5, s: 48 } },
+  { id: 'tactical', sel: '.tc-tactical', label: 'Taktische Granate', auto: 'tactical', def: { x: 57.5, y: 76, s: 48 } },
   { id: 'melee', sel: '.tc-melee', label: 'Messer' },
   { id: 'swap', sel: '.tc-swap', label: 'Waffe wechseln' },
-  { id: 'leanL', sel: '.tc-lean-l', label: 'Links lehnen', optional: true, def: { x: 5.6, y: 58.5, s: 46 } },
-  { id: 'leanR', sel: '.tc-lean-r', label: 'Rechts lehnen', optional: true, def: { x: 12.2, y: 58.5, s: 46 } },
-  { id: 'light', sel: '.tc-light', label: 'Lampe', auto: 'light', def: { x: 70.4, y: 41.5, s: 46 } },
+  { id: 'leanL', sel: '.tc-lean-l', label: 'Links lehnen', optional: true, def: { x: 4.8, y: 56, s: 46 } },
+  { id: 'leanR', sel: '.tc-lean-r', label: 'Rechts lehnen', optional: true, def: { x: 11, y: 56, s: 46 } },
+  { id: 'light', sel: '.tc-light', label: 'Lampe', auto: 'light', def: { x: 63, y: 42, s: 46 } },
   { id: 'streaks', sel: '.tc-streaks', label: 'Serienprämien', kind: 'group' },
   { id: 'score', sel: '.tc-score', label: 'Punktetabelle' },
   { id: 'pause', sel: '.tc-pause', label: 'Pause' },

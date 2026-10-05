@@ -264,7 +264,7 @@ const mkActor = (id, team, pos) => ({ id, name: id, team, alive: true, health: 1
 const player = Object.assign(mkActor('spieler', 'A', new THREE.Vector3(0, 0.05, 0)), { getEyePosition: o => o.copy(camera.position) });
 const bot = mkActor('gegner', 'B', new THREE.Vector3(0, 0, -10));
 const G = { THREE, camera, events, settings, world, player, actors: [player, bot], match: { state: 'playing', mapId: 'hafen', loadout: { primary: 'ar_m17', secondary: 'pi_p9' } }, params };
-const audio = new AudioEngine(G, { autoMusic: false });
+const audio = new AudioEngine(G, { autoMusic: false, keepProc: true }); // A/B: Synthese-Puffer behalten
 audio.attach(G);
 window.__audioLab = { audio, G, world, setRoom: id => setRoom(id), measure: () => measureAll() };
 

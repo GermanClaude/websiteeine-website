@@ -125,5 +125,7 @@ export function weaponName(G, id) {
   if (W[id]) return W[id].name;
   if (EQ[id]) return EQ[id].name;
   if (S[id]) return S[id].name;
+  const vn = G.vehicles && G.vehicles.weaponName ? G.vehicles.weaponName(id) : null; // vehicles: Fahrzeugwaffen/-ursachen
+  if (vn) return vn;
   return { fall: 'Sturz', world: 'Umgebung', sentry: 'Wachgeschütz', strike: 'Präzisionsschlag' }[id] || (id ? String(id) : 'Umgebung');
 }

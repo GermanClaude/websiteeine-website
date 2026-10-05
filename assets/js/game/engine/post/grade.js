@@ -360,6 +360,7 @@ export class GradePass {
         tBloom: { value: null },
         tDirt: { value: null },
         tShafts: { value: null },
+        tDepth: { value: null },
         uBloom: { value: 0 },
         uDirt: { value: 0 },
         uShafts: { value: 0 },
@@ -372,6 +373,7 @@ export class GradePass {
         uniform sampler2D tBloom;
         uniform sampler2D tDirt;
         uniform sampler2D tShafts;
+        uniform sampler2D tDepth;
         uniform float uBloom;
         uniform float uDirt;
         uniform float uShafts;
@@ -384,7 +386,8 @@ export class GradePass {
             c += bl * uBloom;
             if (uDirt > 0.0) c += bl * texture2D(tDirt, vUv).rgb * uDirt;
           }
-          if (uShafts > 0.0) c += texture2D(tShafts, vUv).rgb * uShafts;
+          // Strahlen nicht über dem Viewmodel (nach dessen Pass steht dort Tiefe < 1, sonst gelöscht = 1)
+          if (uShafts > 0.0) c += texture2D(tShafts, vUv).rgb * uShafts * step(0.99995, texture2D(tDepth, vUv).r);
           gl_FragColor = vec4(npGrade(c), 1.0);
         }
       `,

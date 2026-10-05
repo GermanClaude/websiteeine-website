@@ -934,7 +934,7 @@ export class ViewModel {
     if (this._heat > 0.18 && (s.timeSinceShot ?? 9) > 0.15 && h.flash > 0 && !this.showScopeOverlay && this._visible && this._worldFx() && typeof this.G.effects.wisp === 'function') {
       this._wispT = (this._wispT ?? 0) - dt;
       if (this._wispT <= 0) {
-        this._wispT = 0.06 + 0.18 * (1 - this._heat);
+        this._wispT = 0.1 + 0.2 * (1 - this._heat);
         try { this.G.effects.wisp(this.getMuzzleWorldPosition(_pv2), { strength: this._heat }); } catch { /* Welt im Abbau */ }
       }
     }

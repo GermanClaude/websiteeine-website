@@ -28,31 +28,40 @@ const MASK_FRAG = /* glsl */ `
     sky += step(0.99995, texture2D(tDepth, vUv + vec2(-o.x,  o.y)).r);
     sky += step(0.99995, texture2D(tDepth, vUv + vec2( o.x,  o.y)).r);
     sky *= 0.25;
-    vec3 c = min(texture2D(tScene, vUv).rgb * E, vec3(6.0));
+    // nur der helle Hof um die Sonne erzeugt Strahlen (der übrige Himmel würde als Schleier über allem liegen)
+    vec3 c = min(max(texture2D(tScene, vUv).rgb * E - 1.0, 0.0), vec3(6.0));
     float d = length((vUv - uSun) * vec2(uAspect, 1.0));
-    float w = sky * smoothstep(0.8, 0.0, d);
+    float w = sky * smoothstep(0.32, 0.0, d);
     gl_FragColor = vec4(c * w, 1.0);
   }
 `;
 
 const BLUR_FRAG = /* glsl */ `
   uniform sampler2D tSrc;
+  uniform sampler2D tDepth;
   uniform vec2 uSun;
   uniform float uSpan;
   uniform float uDecay;
+  uniform vec3 uScatter;    // near, far, Streulänge (m); z = 0 → ohne Tiefengewicht
   varying vec2 vUv;
   void main() {
     vec2 delta = (vUv - uSun) * (uSpan / 16.0);
     vec2 uv = vUv;
     vec3 acc = vec3(0.0);
-    float w = 1.0, ws = 0.0;
+    float w = 1.0;
     for (int i = 0; i < 16; i++) {
       acc += texture2D(tSrc, uv).rgb * w;
-      ws += w;
       w *= uDecay;
       uv -= delta;
     }
-    gl_FragColor = vec4(acc / ws, 1.0);
+    acc *= 1.0 / 10.0;
+    // In-Streuung wächst mit der Strecke bis zum Hindernis: nahe Wände bekommen kaum Strahlen
+    if (uScatter.z > 0.0) {
+      float d = texture2D(tDepth, vUv).r;
+      float viewZ = (uScatter.x * uScatter.y) / ((uScatter.y - uScatter.x) * d - uScatter.y);
+      acc *= d > 0.99995 ? 1.0 : 1.0 - exp(viewZ / uScatter.z);
+    }
+    gl_FragColor = vec4(acc, 1.0);
   }
 `;
 
@@ -77,7 +86,10 @@ export class LightShafts {
     });
     this.blur = new THREE.ShaderMaterial({
       name: 'NullpunktShaftsBlur', ...common, fragmentShader: BLUR_FRAG,
-      uniforms: { tSrc: { value: null }, uSun: { value: new THREE.Vector2() }, uSpan: { value: 1 }, uDecay: { value: 0.93 } },
+      uniforms: {
+        tSrc: { value: null }, tDepth: { value: null }, uSun: { value: new THREE.Vector2() }, uSpan: { value: 1 }, uDecay: { value: 0.93 },
+        uScatter: { value: new THREE.Vector3(0.05, 600, 0) },
+      },
     });
   }
 
@@ -109,7 +121,7 @@ export class LightShafts {
   }
 
   /** Maske + 2 radiale Durchgänge. g = { exposure, auto, exposureTex }. Ergebnis in this.texture. */
-  render(renderer, fs, sceneTex, depthTex, aspect, g) {
+  render(renderer, fs, sceneTex, depthTex, aspect, g, camera) {
     const m = this.mask.uniforms;
     m.tScene.value = sceneTex;
     m.tDepth.value = depthTex;
@@ -122,9 +134,11 @@ export class LightShafts {
     fs.draw(renderer, this.mask, this.a);
     const b = this.blur.uniforms;
     b.uSun.value.copy(this.sunUv);
-    b.tSrc.value = this.a.texture; b.uSpan.value = 0.9; b.uDecay.value = 0.94;
+    b.tDepth.value = depthTex;
+    b.tSrc.value = this.a.texture; b.uSpan.value = 0.9; b.uDecay.value = 0.94; b.uScatter.value.z = 0;
     fs.draw(renderer, this.blur, this.b);
     b.tSrc.value = this.b.texture; b.uSpan.value = 0.22; b.uDecay.value = 0.97;
+    b.uScatter.value.set(camera ? camera.near : 0.05, camera ? camera.far : 600, 45);
     fs.draw(renderer, this.blur, this.a);
   }
 

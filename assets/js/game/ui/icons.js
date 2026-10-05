@@ -44,6 +44,15 @@ export const ICON = {
   warn: svg('<path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.5h.01" stroke-width="2.2"/>'),
   radar: svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l6.4-6.4"/>'),
   info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01" stroke-width="2.2"/>'),
+  // Einstellungen / Touch-Editor (ui-controls)
+  chip: svg('<rect x="6" y="6" width="12" height="12" rx="1.5"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/>'),
+  layout: svg('<rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><circle cx="7.5" cy="13.5" r="2.2"/><circle cx="16.5" cy="13" r="2.6"/><circle cx="18" cy="8.6" r="1"/>'),
+  gyro: svg('<rect x="8" y="3" width="8" height="18" rx="1.8"/><path d="M4.5 8.5a9 9 0 0 0 0 7M19.5 8.5a9 9 0 0 1 0 7"/><path d="M3 15l1.5.5L5 14M21 9l-1.5-.5L19 10"/>'),
+  move: svg('<path d="M12 3v18M3 12h18"/><path d="M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>'),
+  eyeOff: svg('<path d="M3 3l18 18"/><path d="M10.6 5.6A10 10 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.6 3.4M6.4 7.1A16.5 16.5 0 0 0 2.5 12S6 18.5 12 18.5a9 9 0 0 0 4.1-1"/>'),
+  undo: svg('<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'),
+  camera: svg('<rect x="3" y="7" width="13" height="11" rx="2"/><path d="M16 11l5-3v9l-5-3"/><circle cx="7" cy="10.5" r="1" fill="currentColor"/>'),
+  grid: svg('<path d="M4 4h16v16H4zM4 9.3h16M4 14.6h16M9.3 4v16M14.6 4v16"/>'),
 };
 
 /** Medaillen-Abzeichen (Sechseck, Stufenfarbe über CSS --tier). */

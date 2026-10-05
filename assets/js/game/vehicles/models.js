@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { boxUV } from '../engine/textures.js';
-import { VEHICLES, mountY } from './data.js';
+import { VEHICLES, mountY, staticComp } from './data.js';
 import { vehicleMaterials, trackMaterial } from './materials.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
@@ -439,7 +439,7 @@ function template(type, team, quality) {
     lv[0].wheels.forEach((w0, i) => {
       const pivot = new THREE.Group();
       pivot.name = `wheel${i}`;
-      pivot.position.set(w0.x, my - (D.wheels.rest - D.wheels.comp), w0.z);
+      pivot.position.set(w0.x, my - (D.wheels.rest - staticComp(D)), w0.z);
       const spin = new THREE.Group(); spin.name = 'spin';
       spin.add(lodOf(lv.map((x) => x.wheels[i].spin), dists));
       pivot.add(spin);

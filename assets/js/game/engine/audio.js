@@ -59,10 +59,12 @@ const TAIL_DB = -8, MECH_DB = -14;
 const REC_TRIM = {
   step_concrete: 3, step_wood: 4, step_dirt: 4.5, step_gravel: 4, step_metal: 3, step_grass: -6.5,
   impact_concrete: 2.5, impact_wood: 5.5, impact_dirt: -3.5, impact_glass: -6, hit_flesh: 4.5,
-  melee_hit: 3, land: 2.5, explosion_far: 2,
+  melee_hit: 5, land: 2.5, explosion: -1.5, explosion_far: 4,
 };
 /** Eigener Schuss: Aufnahme mit echtem Crest-Faktor läuft in den Limiter → etwas mehr Pegel für gleiche Lautheit. */
 const PLAYER_NEAR_DB = 2.5, FAR_DB = 2;
+/** Feinabgleich je Profil (eigener Schuss, nach „Körperkamera-Mikro“-Sättigung gemessen). */
+const PLAYER_TRIM = { ar: 0.5, ar_heavy: 1.5, smg: 1.5, lmg: 2, sniper: 0.5, shotgun: 1.5, pistol: 2, pistol_heavy: 0 };
 /** Hülsen je Untergrund (weiche Böden: fast lautlos → aus). */
 const SHELL_SURF = { concrete: 'shell_concrete', tile: 'shell_concrete', metal: 'shell_hard', wood: 'shell_hard', glass: 'shell_hard', dirt: 'soft' };
 const FLASH_TYPES = new Set(['flash', 'flashbang', 'blend', 'blendgranate', 'stun', 'tactical_flash']);
@@ -87,7 +89,8 @@ const transientName = n => !!CATALOG[n]?.transient;
 export class AudioEngine {
   /**
    * @param G     Spielkontext oder minimal { settings, events }
-   * @param opts  { context?: AudioContext|OfflineAudioContext, autoUnlock = true, autoMusic = true, maxVoices, recordings? }
+   * @param opts  { context?: AudioContext|OfflineAudioContext, autoUnlock = true, autoMusic = true, maxVoices, recordings?,
+   *                keepProc? (ersetzte Synthese-Puffer nicht freigeben – A/B-Prüfstand) }
    */
   constructor(G = {}, opts = {}) {
     this.G = G || {};
@@ -190,6 +193,14 @@ export class AudioEngine {
     this.revSmallIn = null;
     this.echoIn = gain(1); this.echoOut = gain(1); this.echoOut.connect(this.bus.sfx);
     this.er = new EarlyReflections(ctx, this.bus.sfx);
+    // „Körperkamera-Mikro“: eigener Mündungsknall läuft in eine weiche Sättigung (Kamera-/Mikrofon-Begrenzung) –
+    // dichter, ohne höhere Spitzen; Kleinsignal unverändert. Ein gemeinsamer Knoten für alle eigenen Schüsse.
+    this.drive = { pre: gain(0.4), shaper: ctx.createWaveShaper(), post: gain(1) };
+    { const N = 2048, c = new Float32Array(N), k = 2.2, t = Math.tanh(k);
+      for (let i = 0; i < N; i++) { const x = i / (N - 1) * 2 - 1; c[i] = Math.tanh(k * x) / t; }
+      this.drive.shaper.curve = c; this.drive.shaper.oversample = '2x';
+      this.drive.post.gain.value = 1 / (0.4 * k / t); }
+    this.drive.pre.connect(this.drive.shaper).connect(this.drive.post).connect(this.bus.sfx);
     this.hearing.attach(ctx, this.bus.fb);
     this._applyVolumes(true);
     this._applyMix(true);
@@ -473,8 +484,10 @@ export class AudioEngine {
       'bullet_whiz', 'bodyfall', 'shell_concrete', 'grenade_bounce',
     ];
     if (amb) core.unshift(`amb_bed_${amb}`);
+    // Fahnen fremder Waffen nur ab „medium“ (Handy: nur die eigene Fahne, Stimmenbudget)
+    const tails = this._quality() === 'low' ? [] : Object.keys(GUN_PROFILES).map(p => `guntail_${p}`);
     const rest = [
-      ...Object.keys(GUN_PROFILES).map(p => `gun_${p}`), ...Object.keys(GUN_PROFILES).map(p => `guntail_${p}`),
+      ...Object.keys(GUN_PROFILES).map(p => `gun_${p}`), ...tails,
       ...['wood', 'dirt', 'metal', 'grass', 'gravel'].map(s => `step_${s}`), ...['wood', 'dirt', 'glass'].map(s => `impact_${s}`),
       'melee_swing', 'melee_hit', 'shell_hard', 'shell_shotgun', 'reload_bolt', 'bolt', 'pump', 'slide_release', 'mech_rifle', 'mech_pistol',
     ];
@@ -525,7 +538,7 @@ export class AudioEngine {
 
   /** Eine Aufnahme ist da: ersetzte Synthese freigeben (Speicher, Plan §10 A9). */
   _onSampleLoaded(name) {
-    if (this._disposed || this.offline || !this._replaced(name)) return;
+    if (this._disposed || this.offline || this.opts.keepProc || !this._replaced(name)) return; // keepProc: A/B-Prüfstand
     if (!this.G.events?.on && !name.startsWith('gun_')) return; // Website: nur die Schüsse
     bank.release(n => n === name);
   }
@@ -754,7 +767,7 @@ export class AudioEngine {
       const sp = ctx.createStereoPanner(); sp.pan.value = clamp(o.pan, -1, 1); g.connect(sp); out = sp; nodes.push(sp);
     }
     const busName = o.bus || e.bus;
-    const dest = busName === 'sfx' && (o.quiet ?? e.quiet) ? this.bus.q : this.bus[busName] || this.bus.sfx;
+    const dest = o.drive && this.drive && busName === 'sfx' ? this.drive.pre : busName === 'sfx' && (o.quiet ?? e.quiet) ? this.bus.q : this.bus[busName] || this.bus.sfx;
     out.connect(dest);
     // Hall-/Echo-Sends (vor dem Panner: Raumanteil ist diffus)
     const envAmt = e.env * (o.env ?? 1);
@@ -1145,9 +1158,9 @@ export class AudioEngine {
     if (isPlayer) {
       const room = this._roomOf(null, o), ind = room.ind;
       const v = this._spawn(nearE, {
-        ...o, position: null, player: true, priority: 3, pitch, eq: !low && this.layers.eq, volume: vol * dbg(PLAYER_NEAR_DB) * (supRifle ? 0.22 : 1),
+        ...o, position: null, player: true, priority: 3, pitch, eq: !low && this.layers.eq, volume: vol * dbg(PLAYER_NEAR_DB + (PLAYER_TRIM[profile] || 0)) * (supRifle ? 0.18 : 1),
         lowpass: supRifle ? 3400 : 0, highpass: supRifle ? 220 : 0, env: (o.env ?? 1) * 0.4, echo: 0.5,
-        er: supRifle || supName ? 0.45 : 1, loud: sup ? -14 : -3,
+        er: supRifle || supName ? 0.45 : 1, loud: sup ? -14 : -3, drive: !sup,
       });
       // Mechanik am Ohr (Aufnahme, unter dem Schuss; mit Schalldämpfer hört man sie deutlich)
       const mech = MECH_OF[voice] || MECH_OF[profile];
@@ -1217,7 +1230,8 @@ export class AudioEngine {
 
   /** Hülsen fallen (Aufnahme je Untergrund), 0,35–0,7 s nach dem Schuss; nur Spieler und nahe Schützen. */
   _shell(a, profile, pl, at = 0) {
-    if (this._casingEvents || profile === 'sniper') return;
+    // Physik-Hülsen (effects.dropCasing → 'shell:land') übernehmen, sobald es sie gibt
+    if (this._casingEvents || typeof this.G.effects?.dropCasing === 'function') return;
     const t = this.ctx.currentTime, last = this._shellAt.get(a) ?? -9;
     if (t - last < 0.09) return;
     this._shellAt.set(a, t);
@@ -1558,14 +1572,31 @@ export class AudioEngine {
       const s = +p.speed || 3; if (s < 0.6) return;
       this.play('grenade_bounce', { position: p.position, volume: clamp(s / 8, 0.15, 1), pitch: clamp(0.9 + s / 40, 0.9, 1.15) });
     });
-    // Hülsen/Magazine mit eigener Physik (weapons-feel P4): meldet die Landung → Klang je Untergrund
-    on('casing:land', p => {
+    // Hülsen/Magazine mit eigener Physik (weapons-feel P4, effects.debris): Aufschlag → Klang je Untergrund.
+    // Die Hülsen-Aufnahmen enthalten schon das Nachspringen → nur der erste Aufschlag; Magazine bis zu 2×.
+    const casing = p => {
       this._casingEvents = true;
-      const s = this._surface(p.surface), kind = SHELL_SURF[s]; if (!kind || !p.position) return;
-      const mag = p.kind === 'mag', name = p.kind === 'shotgun' ? 'shell_shotgun' : mag ? 'land' : kind === 'soft' ? 'shell_concrete' : kind;
-      const pl = this._isPlayer(p.actor), speed = clamp((+p.speed || 3) / 6, 0.2, 1);
-      this.play(name, { position: xyz(p.position), actor: p.actor, volume: (mag ? 0.25 : kind === 'soft' ? 0.3 : 0.7) * speed * (pl ? 1 : 0.8), lowpass: kind === 'soft' || mag ? 1800 : 0, pitch: mag ? 1.6 : 1, quiet: true });
-    });
+      if (!p.position || !this.ctx) return;
+      const s = this._surface(p.surface), mag = p.kind === 'mag', pos = xyz(p.position);
+      if (s === 'water' || this._dist(pos) > 16) return;
+      if (!mag && p.first === false) return;
+      const t = this.ctx.currentTime;
+      this._shellWin = (this._shellWin || []).filter(x => t - x < 0.3);
+      if (this._shellWin.length > (mag ? 8 : 5)) return; // Dauerfeuer: Klimpern nicht stapeln
+      this._shellWin.push(t);
+      const kind = SHELL_SURF[s], soft = !kind || kind === 'soft', speed = clamp((+p.speed || 2) / 3.5, 0.2, 1);
+      if (mag) {
+        this.play('grenade_bounce', { position: pos, actor: p.actor, volume: 0.42 * speed * (p.first === false ? 0.6 : 1), pitch: this._rand.range(0.68, 0.8), lowpass: soft ? 900 : 3400, occlusion: false, quiet: true });
+        return;
+      }
+      if (soft && s !== 'dirt') return; // Gras, Sand, Stoff: praktisch lautlos
+      const name = p.type === 'shotgun' ? 'shell_shotgun' : soft ? 'shell_concrete' : kind;
+      const pitch = p.type === 'pistol' ? 1.12 : p.type === 'big' ? 0.82 : 1;
+      const o = { position: pos, actor: p.actor, volume: (soft ? 0.3 : 0.75) * speed, lowpass: soft ? 1600 : 0, pitch, occlusion: false };
+      if (!this.play(name, o)) this.play('shell_tink', o); // ohne Aufnahme: Synthese
+    };
+    on('shell:land', casing);
+    on('casing:land', p => casing({ ...p, kind: p.kind === 'mag' ? 'mag' : 'shell', type: p.type || p.kind }));
     on('footstep', p => {
       const pl = this._isPlayer(p.actor);
       const vol = pl ? (p.crouch ? 0.16 : p.sprint ? 0.42 : 0.3) : (p.crouch ? 0.4 : p.sprint ? 1 : 0.72);

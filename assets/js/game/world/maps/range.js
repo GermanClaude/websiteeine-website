@@ -224,6 +224,7 @@ export default {
     for (let i = 0; i < 10; i++) spawns.B.push({ x: -20 + i * 4.4, z: -70 + (i % 2) * 2, yaw: Math.PI });
     // Trainingskarte: auch „Jeder gegen jeden“ startet sicher hinter der Feuerlinie (Bahnen bleiben frei)
     for (let i = 0; i < 14; i++) spawns.ffa.push({ x: -19.5 + (i % 7) * 6.5, z: 44 + Math.floor(i / 7) * 9, yaw: 0 });
+    spawns.ffa[12].x += 0.75; // (13, 53) lag 0,2 m an der Waffenkammer-Wand
 
     // --- Ziele (instanziert, animiert) --------------------------------------
     const T = createTargets(targets);

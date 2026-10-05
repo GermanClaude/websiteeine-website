@@ -182,7 +182,9 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
   const group = new THREE.Group();
   group.name = 'world:' + id;
   const tM = performance.now();
+  const tLib = performance.now();
   const tmat = await createTerrainMaterial({ hf, quality, lib, libOk, getMaterial, tier: lib.stats?.tier?.texture });
+  ms.terrainLib = Math.round(performance.now() - tLib);
   const chunks = new TerrainChunks(hf, tmat.material, { steps: tier.steps, dists: tier.dists, chunk: 128 });
   await chunks.build((p) => progress(0.55 + p * 0.05, 'Gelände-Kacheln'));
   const firstSpawn = def.spawns?.A?.[0] || [0, 0];
@@ -197,6 +199,7 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
 
   // 4) Straßen, Vegetation
   progress(0.62, 'Straßen und Vegetation');
+  const tV = performance.now();
   const footprints = sites.flatMap(s => s.b.footprints);
   const blockers = footprints.filter(f => f.kind === 'building').map(f => ({ minX: f.x - f.hw, maxX: f.x + f.hw, minZ: f.z - f.hd, maxZ: f.z + f.hd }));
   const roads = new RoadNetwork(terr.roads, hf, { blockers });
@@ -224,6 +227,7 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
   const veg = new Vegetation({ hf, spec: def.vegetation, quality, tier, blocked, bounds: pb });
   const vegCol = veg.colliders();
   group.add(veg.build(getMaterial));
+  ms.vegetation = Math.round(performance.now() - tV);
 
   // 5) Kollision/Kugeln/Navigation im Worker
   const objects = [chunks.group];
@@ -266,8 +270,9 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
       id: s.def.id,
       bounds: { minX: nb.minX - m, maxX: nb.maxX + m, minZ: nb.minZ - m, maxZ: nb.maxZ + m, minY: (s.def.y ?? 0) - 4, maxY: (s.def.y ?? 0) + (s.def.height ?? 16) },
       points: s.b.navPoints.map(p => ({ x: p.x, y: p.y, z: p.z })),
-      exclude: s.b.navExclude,
+      exclude: [...s.b.navExclude, { minX: -1e5, maxX: 1e5, minZ: -1e5, maxZ: 1e5, minY: -1e5, maxY: hf.waterY - 0.7 }],
       seeds: (s.def.seeds || [[(nb.minX + nb.maxX) / 2, (nb.minZ + nb.maxZ) / 2]]).map(q => ({ x: q[0], y: q[2] ?? (s.def.y ?? 0), z: q[1] })),
+      spacing: s.def.spacing || 1.5,
     };
   });
   const seeds = [...spawnSrc, ...hqSrc].map(e => ({ x: e.s[0], z: e.s[1] })).concat(cqSrc.map(e => ({ x: e.f.x, z: e.f.z })));
@@ -281,9 +286,11 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
   }, (stage) => progress({ Kollision: 0.74, 'Kugel-BVH': 0.77, Navigation: 0.8 }[stage] ?? 0.75, stage), hf);
 
   // Licht & Himmel parallel; Nebel nach Sichtweite der Stufe
+  const tL = performance.now();
   const hdri = await hdriPromise;
   const lightDef = { ...def.lighting, fog: { ...def.lighting.fog, near: tier.view * (def.lighting.fog?.nearFactor ?? 0.16), far: tier.view }, shadow: { ...(def.lighting.shadow || {}), size: tier.shadow } };
   const light = createLighting(G, lightDef, group, { hdri });
+  ms.light = Math.round(performance.now() - tL);
   for (const s of sites) group.add(s.built.group);
   G.scene.add(group);
   const postKeys = { exposure: def.lighting.exposure, bloomThreshold: def.lighting.bloom?.threshold, bloomStrength: def.lighting.bloom?.strength };
@@ -294,6 +301,7 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
 
   const job = await jobP;
   ms.job = Math.round(performance.now() - tJ);
+  const usesWorker = runner.usesWorker;
   runner.dispose();
   const colBVH = TriangleBVH.fromData(job.col), bulBVH = TriangleBVH.fromData(job.bullet);
   const compCol = new CompositeBVH(hf, colBVH, { terrainObject: 0 });
@@ -305,21 +313,46 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
   const V = (i, yOff = 0) => new THREE.Vector3(pts[i].x, job.snapped[i] + yOff, pts[i].z);
   const cx = (pb.minX + pb.maxX) / 2, cz = (pb.minZ + pb.maxZ) / 2;
   const yawTo = (x, z, tx = cx, tz = cz) => Math.atan2(-(tx - x), -(tz - z));
+  // Startpunkte auf begehbare Fläche: liegt kein Nav-Knoten in 2,5 m, auf den nächsten Knoten setzen
+  const onNav = (v) => {
+    const n = nav.nearest(v);
+    if (n && n.position.distanceTo(v) > 2.5) v.copy(n.position);
+    return v;
+  };
+  /** count Startpunkte um pos (rMin…rMax) aus Nav-Knoten, möglichst weit verteilt, Blick zur Mitte. */
+  const pickSpawns = (pos, count, rMin, rMax) => {
+    const cand = nav.nodesInRadius(pos, rMax).filter(n => n.position.distanceTo(pos) >= rMin && Math.abs(n.position.y - pos.y) < 5 && n.links.length >= 3);
+    const out = [];
+    if (!cand.length) return out;
+    out.push(cand[(cand.length * 0.5) | 0]);
+    while (out.length < count && out.length < cand.length) {
+      let best = null, bd = -1;
+      for (const c of cand) { let d = Infinity; for (const o of out) d = Math.min(d, c.position.distanceToSquared(o.position)); if (d > bd) { bd = d; best = c; } }
+      out.push(best);
+    }
+    return out.map(n => ({ position: n.position.clone(), yaw: yawTo(n.position.x, n.position.z, pos.x, pos.z) }));
+  };
   const spawns = { A: [], B: [], ffa: [], hq: { A: [], B: [] } };
-  for (const e of spawnSrc) spawns[e.team].push({ position: V(e.i), yaw: e.s[2] ?? yawTo(e.s[0], e.s[1]) });
-  for (const e of hqSrc) spawns.hq[e.team].push({ position: V(e.i), yaw: e.s[2] ?? yawTo(e.s[0], e.s[1]) });
+  for (const e of spawnSrc) spawns[e.team].push({ position: onNav(V(e.i)), yaw: e.s[2] ?? yawTo(e.s[0], e.s[1]) });
+  for (const e of hqSrc) spawns.hq[e.team].push({ position: onNav(V(e.i)), yaw: e.s[2] ?? yawTo(e.s[0], e.s[1]) });
   const objectives = {
     dom: domSrc.map(e => ({ id: e.f.id, name: e.f.name, position: V(e.i), radius: e.f.radius ?? 9 })),
     cq: cqSrc.map(e => ({
       id: e.f.id, name: e.f.name, position: V(e.i), radius: e.f.radius ?? 22, heightBand: e.f.heightBand || [-3, 14],
-      spawns: e.sp.map((i, k) => ({ position: V(i), yaw: e.f.spawns[k][2] ?? yawTo(pts[i].x, pts[i].z) })),
+      spawns: e.sp.length ? e.sp.map((i, k) => ({ position: onNav(V(i)), yaw: e.f.spawns[k][2] ?? yawTo(pts[i].x, pts[i].z) })) : pickSpawns(V(e.i), 8, 12, e.f.radius ? e.f.radius + 14 : 34),
     })),
   };
-  const vehicleSpawns = vehSrc.map(e => ({ id: e.v.id, team: e.v.team ?? null, kind: e.v.kind, name: e.v.name || null, position: V(e.i), yaw: e.v.yaw ?? 0, secret: !!e.v.secret }));
+  // Fahrzeug-Stellplätze: `type` = VEHICLES-Schlüssel des Fahrzeug-Agenten (tank → mbt); geheime Plätze (Traktor
+  // „Gertrud“) nur in vehicleSpots, damit kein unbekannter Typ automatisch erscheint
+  const VTYPE = { tank: 'mbt', jeep: 'jeep' };
+  const vehicleSpots = vehSrc.map(e => ({ id: e.v.id, team: e.v.team ?? null, kind: e.v.kind, type: e.v.type || VTYPE[e.v.kind] || e.v.kind, name: e.v.name || null, position: V(e.i), yaw: e.v.yaw ?? 0, secret: !!e.v.secret }));
+  const vehicleSpawns = vehicleSpots.filter(v => !v.secret);
   const secrets = secSrc.map(e => ({ id: e.s.id, name: e.s.name, hint: e.s.hint || '', position: V(e.i), trigger: e.s.trigger || { type: 'proximity', radius: 2 } }));
 
   progress(0.93, 'Minikarte');
+  const tMM = performance.now();
   const minimap = createBigMinimap({ hf, bounds: pb, size: tier.mapPx, roads: roads.roads, footprints });
+  ms.minimap = Math.round(performance.now() - tMM);
   const bounds = new THREE.Box3(new THREE.Vector3(pb.minX, pb.minY ?? -8, pb.minZ), new THREE.Vector3(pb.maxX, pb.maxY ?? 90, pb.maxZ));
   const hit = { t: 0, tri: 0, nx: 0, ny: 0, nz: 0, data: 0 };
   const sitesVis = sites.map(s => {
@@ -337,17 +370,18 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
     ambience: def.ambience || meta.ambience || 'range',
     targets: [],
     terrain: { heightfield: hf, chunks, size: hf.size, waterY: hf.waterY, material: tmat.material, source: tmat.source },
-    roads, vehicleSpawns, secrets, secretsAuto: true,
+    roads, vehicleSpawns, vehicleSpots, secrets, secretsAuto: true,
     viewDistance: tier.view,
     mapImage: minimap.canvas,
     stats: {
-      totalMs: 0, ms, worker: job.ms, usesWorker: runner.usesWorker, quality,
+      totalMs: 0, ms, worker: job.ms, usesWorker, quality,
       nav: nav.stats, roads: roads.stats, vegetation: veg.stats, terrain: chunks.stats, terrainSource: tmat.source,
       colliderTris: colTris.length / 9, bulletTris: bulletTris.length / 9,
+      meshes: sites.reduce((n, s) => n + s.built.stats.meshes, 0), triangles: sites.reduce((n, s) => n + s.built.stats.triangles, 0),
       sites: sites.map(s => ({ id: s.def.id, meshes: s.built.stats.meshes, triangles: s.built.stats.triangles })),
       assets: lib.stats,
     },
-    debugData: { colliderBVH: compCol, bulletBVH: compBul, footprints, navPoints: sites.flatMap(s => s.b.navPoints), zones: [] },
+    debugData: { colliderBVH: colBVH, bulletBVH: bulBVH, compositeCollider: compCol, compositeBullet: compBul, heightfield: hf, footprints, navPoints: sites.flatMap(s => s.b.navPoints), zones: [] },
 
     heightAt: (x, z) => hf.heightAt(x, z),
     normalAt: (x, z, out = new THREE.Vector3()) => { hf.normalAt(x, z, nOut); return out.set(nOut.x, nOut.y, nOut.z); },

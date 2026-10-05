@@ -32,6 +32,8 @@ export class Killfeed {
     if (EQ[id] && EQ[id].icon) return `<span class="kf-ico">${EQ[id].icon}</span>`;
     if (S[id] && S[id].icon) return `<span class="kf-ico">${S[id].icon}</span>`;
     if (id === 'fall') return `<span class="kf-ico">${ICON.fall}</span>`;
+    const vi = this.G.vehicles && this.G.vehicles.weaponIcon ? this.G.vehicles.weaponIcon(id) : null; // vehicles
+    if (vi) return `<span class="kf-ico">${vi}</span>`;
     return `<span class="kf-ico">${ICON.skull}</span>`;
   }
 

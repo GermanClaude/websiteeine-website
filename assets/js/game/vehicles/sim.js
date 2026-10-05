@@ -9,10 +9,10 @@
 // • Schlafzustand für stehende, unbesetzte Fahrzeuge (kostet dann nichts).
 import * as THREE from 'three';
 import { collisionRay } from '../engine/physics.js';
-import { mountY } from './data.js';
+import { mountY, staticComp, VEHICLE_GRAVITY } from './data.js';
 
 export const STEP = 1 / 60;
-export const GRAVITY = 13; // etwas „schwerer“ als 9,81 – Fahrzeuge kleben besser (Arcade, wie BF)
+export const GRAVITY = VEHICLE_GRAVITY;
 const MAX_STEPS = 5;
 
 const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _hit = { distance: 0, nx: 0, ny: 1, nz: 0 };
@@ -119,7 +119,8 @@ export class VehicleBody {
     this.angVel.set(0, 0, 0);
     this.prevPos.copy(this.pos); this.prevQuat.copy(this.quat);
     this.renderPos.copy(this.pos); this.renderQuat.copy(this.quat);
-    for (const w of this.wheels) { w.comp = w.prevComp = this.def.wheels.comp; w.contact = false; }
+    const c0 = staticComp(this.def);
+    for (const w of this.wheels) { w.comp = w.prevComp = c0; w.contact = false; }
     this.acc = 0;
     this.wake();
   }

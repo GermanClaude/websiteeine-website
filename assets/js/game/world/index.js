@@ -20,7 +20,10 @@ const MAP_MODULES = {
   range: () => import('./maps/range.js'),
 };
 
-export const MAP_IDS = Object.keys(MAP_MODULES);
+/** Großkarten (MAPS[id].scale === 'gross'): eigener Lader, nur per import() (GROSSKAMPF_PLAN §12.5). */
+const BIG_MAPS = new Set(['grenzland']);
+
+export const MAP_IDS = [...Object.keys(MAP_MODULES), ...BIG_MAPS];
 
 /**
  * Blickrichtung eines Startpunkts: bevorzugt `preferred` (Kartenvorgabe bzw. Richtung Kartenmitte), weicht aber
@@ -111,6 +114,7 @@ async function fontsReady() {
  * @param {{ onProgress?: (p:number, label:string)=>void }} [opts]
  */
 export async function loadWorld(G, mapId, { onProgress } = {}) {
+  if (BIG_MAPS.has(mapId) && MAPS[mapId]?.scale === 'gross') return (await import('./terrain/bigworld.js')).loadBigWorld(G, mapId, { onProgress });
   const t0 = performance.now();
   const id = MAP_MODULES[mapId] ? mapId : 'hafen';
   const meta = MAPS[id];

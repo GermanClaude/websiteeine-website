@@ -67,10 +67,10 @@ export const VEHICLES = {
     gunLimits: { min: deg(-8), max: deg(18) },
     traverse: deg(42), elevate: deg(28),
     wheels: {
-      radius: 0.36, rest: 0.44, stiffness: 430000, damping: 48000, comp: 0.12,
+      radius: 0.36, rest: 0.44, stiffness: 430000, damping: 48000,
       x: 1.42, z: [-2.65, -1.32, 0, 1.32, 2.65],
     },
-    engine: { force: 120000, maxSpeed: 13, reverseSpeed: 6, brake: 330000, turnRate: 0.95, turnRateMoving: 0.62 },
+    engine: { force: 165000, maxSpeed: 13, reverseSpeed: 6, brake: 330000, turnRate: 0.95, turnRateMoving: 0.62 },
     grip: { long: 1.0, lat: 0.95, latTurning: 0.55, rollInfluence: 0.25 },
     drag: 0.9, angularDamp: 2.2,
     zones: {
@@ -101,7 +101,7 @@ export const VEHICLES = {
     mass: 2400, com: [0, 0.62, 0.05],
     hullBox: [0, 0.98, 0.05, 1.0, 0.5, 2.32],
     wheels: {
-      radius: 0.42, rest: 0.38, stiffness: 62000, damping: 5600, comp: 0.1,
+      radius: 0.42, rest: 0.38, stiffness: 62000, damping: 5600,
       x: 0.86, z: [-1.45, 1.38], steer: [true, false], drive: [true, true], maxSteer: deg(34),
     },
     engine: { force: 15500, maxSpeed: 28, reverseSpeed: 8, brake: 30000 },
@@ -143,10 +143,19 @@ export const VEHICLES = {
 
 export const VEHICLE_IDS = Object.keys(VEHICLES);
 
-/** Statische Einfederung → Aufhängungshöhe (siehe Kopf). */
+/** Schwerkraft der Fahrzeugsimulation (m/s², etwas „schwerer“ als 9,81 – Fahrzeuge kleben besser). */
+export const VEHICLE_GRAVITY = 13;
+
+/** Statische Einfederung (m) aus Masse, Federrate und Radzahl. */
+export function staticComp(def) {
+  const w = def.wheels;
+  return (def.mass * VEHICLE_GRAVITY) / (w.stiffness * w.z.length * 2);
+}
+
+/** Aufhängungshöhe: Radunterkante bei statischer Last auf y = 0 (siehe Kopf). */
 export function mountY(def) {
   const w = def.wheels;
-  return w.rest + w.radius - w.comp;
+  return w.rest + w.radius - staticComp(def);
 }
 
 /** Wiedererscheinen je Klasse (Plan §6.2): leicht 30 s, Panzer 90 s. */

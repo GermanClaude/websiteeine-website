@@ -357,6 +357,7 @@ function loop(now) {
       `Haltung: ${vm()?.pose === 'bodycam' ? 'Körperkamera' : 'Standard'}\n` +
       `Wandkollision: ${Math.round(ctrl.obstructed * 100)} %${ctrl.obstructed > 0.72 ? ' (Feuer gesperrt)' : ctrl.obstructed > 0.45 ? ' (kein Anschlag)' : ''}\n` +
       `Atemnot: ${Math.round(ctrl.winded * 100)} %\n` +
+      `Laufhitze: ${Math.round((vm()?._heat || 0) * 100)} %${vm()?.haze?.mesh.visible ? ' · Flimmern' : ''}${vm()?.haze?.failed ? ' (nicht verfügbar)' : ''}\n` +
       `Hülsen: ${d.shells} · fliegend ${d.flying} · Magazine ${d.mags}\nStrahlen/Bild: ${d.rays}\n` +
       `Munition: ${ctrl.ammo.mag}/${ctrl.ammo.magSize}  Anschlag ${Math.round(ctrl.adsProgress * 100)} %\n` +
       `Draw Calls: ${renderer.info.render.calls}`;

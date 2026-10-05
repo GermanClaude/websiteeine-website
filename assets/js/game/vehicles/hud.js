@@ -222,7 +222,7 @@ export class VehicleHUD {
       if (w.reloadT > 0) txt = `lädt ${fmt1(w.reloadT)} s`;
       else if (w.def.kind === 'shell') txt = 'geladen';
       else txt = `${w.mag}/${w.def.mag}`;
-      const prog = w.reloadT > 0 ? (1 - w.reloadT / w.def.reload).toFixed(2) : '0';
+      const prog = w.reloadT > 0 ? (Math.round((1 - w.reloadT / w.def.reload) * 20) / 20).toFixed(2) : '0';
       wh += `<div class="vh-wep${sel ? ' is-sel' : ''}"><b>${esc(w.def.name)}</b><span>${txt}</span><i style="transform:scaleX(${prog})"></i></div>`;
     });
     if (!seat.weapons.length) wh = `<div class="vh-wep is-sel"><b>${esc(seat.def.label)}</b><span>keine Waffe</span></div>`;

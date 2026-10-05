@@ -17,7 +17,7 @@ const SEAT_ACTIONS = ['slot1', 'slot2', 'streak1', 'streak2', 'streak3'];
  * Eingaben eines Frames lesen und in die Sitz-Absicht schreiben.
  * @returns {{ exit:boolean, camera:boolean, seatTo:number|null, nextSeat:boolean, lights:boolean }}
  */
-export function readPlayerControls(input, vehicle, seat, dt, { frozen = false, hullYaw = 0 } = {}) {
+export function readPlayerControls(input, vehicle, seat, dt, { frozen = false } = {}) {
   const it = seat.intent;
   const out = { exit: false, camera: false, seatTo: null, nextSeat: false, lights: false };
   if (!input) return out;
@@ -79,6 +79,5 @@ export function readPlayerControls(input, vehicle, seat, dt, { frozen = false, h
   out.nextSeat = input.pressed('v_seat');
   out.lights = input.pressed('light') || input.pressed('v_light');
   for (let i = 0; i < SEAT_ACTIONS.length; i++) if (input.pressed(SEAT_ACTIONS[i])) out.seatTo = i;
-  void hullYaw;
   return out;
 }

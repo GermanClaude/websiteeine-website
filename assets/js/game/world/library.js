@@ -208,12 +208,17 @@ export function createWorldAssets(G, def, quality) {
     stats.modelIds = [...modelIds];
     const jobs = [];
     const got = new Map(); // abgeschlossene Aufträge: 'tex:<name>' | 'model:<id>' → Ergebnis
+    // Ohne Transcoder (blockiert/offline) nichts anfordern: Sätze bleiben prozedural, Requisiten nutzen ihre Ersatzformen
+    const ktxOk = (assets.transcoderReady ? assets.transcoderReady() : Promise.resolve(true)).then((ok) => {
+      if (!ok) { stats.failed.push('KTX2-Transcoder nicht ladbar'); stats.reason = 'KTX2-Transcoder nicht ladbar'; }
+      return ok;
+    });
     for (const n of names) {
       const spec = plan.get(n);
       if (!spec) continue;
-      jobs.push(loadSet(spec.id, spec.tier).then(v => { got.set('tex:' + n, v); }));
+      jobs.push(ktxOk.then(ok => (ok ? loadSet(spec.id, spec.tier) : null)).then(v => { got.set('tex:' + n, v); }));
     }
-    for (const id of modelIds) jobs.push(loadModel(id).then(v => { got.set('model:' + id, v); }));
+    for (const id of modelIds) jobs.push(ktxOk.then(ok => (ok ? loadModel(id) : null)).then(v => { got.set('model:' + id, v); }));
     let done = 0;
     const total = jobs.length || 1;
     for (const p of jobs) p.then(() => { done++; try { onProgress?.(done / total, `Fotoscans ${done}/${total}`); } catch { /* UI */ } });
@@ -248,7 +253,11 @@ export function createWorldAssets(G, def, quality) {
         const wantSky = def.lighting?.sky?.hdri !== false;
         const [envRT, bg] = await Promise.all([
           buildEnvironment(renderer, e, tier, rotation, def.lighting?.env?.hdriMax, def.lighting?.env?.hdriTint),
-          wantSky ? assets.loadHDRI(cfg.hdri, renderer, { pmrem: false, tier: skyTier, skyTier }) : Promise.resolve(null),
+          // Himmels-KTX2 optional: ohne Transcoder bleibt der Preetham-Himmel, das .hdr-Umgebungslicht trotzdem
+          wantSky ? assets.loadHDRI(cfg.hdri, renderer, { pmrem: false, tier: skyTier, skyTier }).catch((err) => {
+            stats.failed.push(`hdri-sky:${cfg.hdri}: ${err?.message || err}`);
+            return null;
+          }) : Promise.resolve(null),
         ]);
         const f = e.tiers[tier], fb = e.tiers[skyTier];
         stats.download += fileBytes(f, 'hdr') + (bg ? fileBytes(fb, 'background') : 0);

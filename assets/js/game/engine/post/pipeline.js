@@ -40,6 +40,8 @@ const STYLE = {
   klassisch: { distortion: 0, ca: 0, vignette: 0, vigClassic: 1, grain: 0, artifacts: 0, sharpen: 0, classic: true, bloomDirt: false },
 };
 
+const AGX_CONTRAST = 1.26;
+const AGX_SAT = 1.1;
 const CLASSIC_BLOOM = { threshold: 3.0, strength: 0.24, radius: 0.55 };
 
 function widen(cam, F) {
@@ -230,9 +232,11 @@ export class PostPipeline {
       exposureTex: autoOn ? this.exposure.texture : null,
       lut: classic ? null : this.lut,
       lutMix: 1,
-      saturation: classic ? post.saturation : post.saturation / 1.16,
+      // AgX hat eine weiche Schulter/Fußzone; Kontrast (log, um Mittelgrau) und Sättigung davor geben den harten
+      // Videolook. postState-Werte wirken relativ zu ihren klassischen Standardwerten (1,12 / 1,16).
+      saturation: classic ? post.saturation : (post.saturation / 1.16) * AGX_SAT,
       desaturate: post.desaturate,
-      contrast: classic ? post.contrast : post.contrast / 1.12,
+      contrast: classic ? post.contrast : (post.contrast / 1.12) * AGX_CONTRAST,
       flash: post.flash || 0,
       classic,
     };
@@ -289,7 +293,7 @@ export class PostPipeline {
         const gs = this._gradeState(post, false);
         if (gs.auto) gs.exposureTex = this.exposure.texture;
         r.autoClear = false;
-        this.shafts.render(r, this.fs, this.hdr.texture, this.hdr.depthTexture, this.inner.w / this.inner.h, gs);
+        this.shafts.render(r, this.fs, this.hdr.texture, this.hdr.depthTexture, this.inner.w / this.inner.h, gs, camera);
         shaftsOn = true;
       }
       if (hasVm) {
@@ -353,6 +357,7 @@ export class PostPipeline {
       gm.uniforms.tDirt.value = dirt;
       gm.uniforms.uDirt.value = dirt ? gain * this._bloomDirt * 2.5 : 0;
       gm.uniforms.tShafts.value = shaftsOn ? this.shafts.texture : null;
+      gm.uniforms.tDepth.value = shaftsOn ? this.hdr.depthTexture : null;
       gm.uniforms.uShafts.value = shaftsOn ? (this.mood.shafts || 0) * this.shafts.visible : 0;
       this.fs.draw(r, gm, this.ldr[0]);
       src = this.ldr[0];

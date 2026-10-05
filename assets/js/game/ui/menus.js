@@ -9,6 +9,7 @@ import { ICON } from './icons.js';
 import { Lobby } from './lobby.js';
 import { WeaponPreview } from './preview3d.js';
 import { SettingsPanel } from './settings-panel.js';
+import { TouchEditor } from './touch-editor.js';
 import { controlsHtml, bindControls } from './controls-help.js';
 import { EndScreen } from './endscreen.js';
 import { drawMapArt, rememberMinimap } from './mapart.js';
@@ -43,6 +44,9 @@ export class Menus {
     this.lobby = new Lobby(this);
     this.endScreen = new EndScreen(G);
     this.settingsPanel = new SettingsPanel(G);
+    this.settingsPanel.menus = this;
+    this.touchEditor = new TouchEditor(G);
+    this._padMute = 0;
     this._tipT = null;
     this._padPrev = [];
     this._padRepeat = 0;
@@ -86,6 +90,7 @@ export class Menus {
   _leave() {
     if (this.current === 'lobby') { this.preview.stop(); this.lobby.unmount(); }
     if (this.current === 'settings') this.settingsPanel.unmount();
+    if (this.current === 'touchedit' && this.touchEditor.open) this.touchEditor.stop(false);
     if (this.current === 'end') this.endScreen.stop();
     if (this._tipT) { clearInterval(this._tipT); this._tipT = null; }
   }
@@ -316,6 +321,22 @@ export class Menus {
     this._focusFirst(s, '.m-tab[aria-selected="true"]');
   }
 
+  /**
+   * Touch-Layout-Editor (aus Einstellungen → Steuerung/Belegung). Schließen kehrt in die Einstellungen zurück
+   * (gleicher Reiter, gleiche Scrollposition).
+   */
+  showTouchEditor() {
+    const back = this.parent || (this.G.match.state === 'paused' ? 'pause' : 'lobby');
+    const s = this._screen('touchedit', 'm-touchedit', '');
+    this.parent = back;
+    this.touchEditor.start(s, { onClose: () => { if (this.current === 'touchedit') this.showSettings(back); } });
+  }
+
+  /** Gamepad-Eingaben im Menü kurz ignorieren (nach einer Tastenerfassung: das Loslassen gehört noch dazu). */
+  mutePad(ms = 250) {
+    this._padMute = Math.max(this._padMute, performance.now() + ms);
+  }
+
   _back() {
     this.sound('back');
     if (this.parent === 'lobby') this.showLobby();
@@ -414,6 +435,11 @@ export class Menus {
     const btn = (i) => !!(pad.buttons[i] && pad.buttons[i].pressed);
     const prev = this._padPrev;
     const now = performance.now();
+    // Tastenerfassung („Taste drücken …“) fragt selbst ab; danach kurz stumm, sonst wirkt das Loslassen im Menü
+    const capturing = !!(this.G.input && this.G.input.capturing);
+    if (capturing) this._padMute = now + 250;
+    if (capturing || now < this._padMute) { for (let i = 0; i < pad.buttons.length; i++) prev[i] = btn(i); this._padDir = null; return; }
+    if (this.current === 'touchedit') { this.touchEditor.pollPad(pad); return; }
     const released = (i) => prev[i] && !btn(i);
     // Richtung (Steuerkreuz oder Stick, mit Wiederholung)
     const ax = pad.axes[0] || 0;
@@ -430,6 +456,9 @@ export class Menus {
           const st = Number(a.step) || 0.01;
           a.value = String(Number(a.value) + (dir === 'right' ? st : -st) * 2);
           a.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (a && a.matches && a.matches('.sp-step') && (dir === 'left' || dir === 'right')) {
+          // Wähler ‹ Wert › (Einstellungen): links/rechts ändert den Wert
+          a.dispatchEvent(new CustomEvent('np-step', { bubbles: true, detail: { d: dir === 'right' ? 1 : -1 } }));
         } else this._move(dir);
         this._padRepeat = now + (dir === this._padDir ? 120 : 380);
         this._padDir = dir;
@@ -462,7 +491,7 @@ export class Menus {
 
   /** Räumliche Fokus-Navigation. */
   _move(dir) {
-    const items = [...this.root.querySelectorAll('button:not([disabled]), input, select, [tabindex="0"]')].filter((n) => n.offsetParent !== null && !n.closest('[hidden]'));
+    const items = [...this.root.querySelectorAll('button:not([disabled]), input:not([disabled]), select, [tabindex="0"]')].filter((n) => n.tabIndex !== -1 && n.offsetParent !== null && !n.closest('[hidden]'));
     if (!items.length) return;
     const a = document.activeElement;
     if (!a || !this.root.contains(a) || !items.includes(a)) { items[0].focus({ preventScroll: false }); return; }

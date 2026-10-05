@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Einstellungs-Prüfstand – NULLPUNKT</title>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/game.css">
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+<style>
+  #dev { position: fixed; left: 6px; bottom: 6px; z-index: 80; display: flex; gap: 4px; flex-wrap: wrap; max-width: 60vw; font: 11px var(--font-mono); }
+  #dev button { min-height: 26px; padding: 0 8px; border: 1px solid rgba(255, 255, 255, .2); background: rgba(12, 14, 17, .85); color: #ddd; font: inherit; cursor: pointer; }
+  #dev button.on { background: #ff5b1f; color: #111; }
+  #dev.min > :not(#devmin) { display: none; }
+</style>
+</head>
+<body data-match-state="lobby">
+<!--
+  Prüfstand für die Einstellungen (ui-controls): echtes SettingsPanel + Touch-Layout-Editor + Renderer (Grafikspeicher
+  gemessen an einer kleinen Testszene) ohne Spielstart. URL-Parameter:
+    tab=steuerung|belegung|grafik|erweitert|audio|hud|profil|spiel   dev=kb|pad|touch (Belegung)
+    editor=1 (Touch-Editor öffnen)   state=paused (Testszene gilt als geladene Karte → „gemessen“)
+    touch=1 (Eingabeart Touch erzwingen)   quality=low|medium|high|ultra
+-->
+<div id="game-root">
+  <canvas id="game-canvas" tabindex="-1" aria-label="Testszene"></canvas>
+  <div id="vignette" aria-hidden="true"></div>
+  <div id="hud" aria-live="off"></div>
+  <div id="touch-ui" aria-label="Touch-Steuerung"></div>
+  <div id="menu-root"></div>
+</div>
+<div id="dev" aria-hidden="true">
+  <button id="devmin" title="Einklappen">≡</button>
+  <button data-x="settings">Einstellungen</button>
+  <button data-x="editor">Touch-Editor</button>
+  <button data-x="touch">Touch an/aus</button>
+  <button data-x="match">„Karte geladen“</button>
+  <button data-x="reset">Alles zurücksetzen</button>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { settings } from '../assets/js/shared/settings.js';
+import * as weaponsData from '../assets/js/shared/weapons.data.js';
+import * as modesData from '../assets/js/shared/modes.data.js';
+import * as mapsData from '../assets/js/shared/maps.data.js';
+import { EventBus } from '../assets/js/game/engine/events.js';
+import { createRenderer } from '../assets/js/game/engine/renderer.js';
+import { Input } from '../assets/js/game/engine/input.js';
+import { Menus } from '../assets/js/game/ui/menus.js';
+
+const params = new URLSearchParams(location.search);
+const canvas = document.getElementById('game-canvas');
+const events = new EventBus();
+const G = {
+  THREE, canvas, events, settings, profile: { get: () => ({ level: 1, xp: 0, name: settings.get('playerName') }), onChange: () => () => {} },
+  data: { ...weaponsData, ...modesData, ...mapsData }, match: { state: 'lobby' }, time: { real: 0, elapsed: 0, dt: 0, frame: 0 },
+  actors: [], world: null, params,
+};
+window.__game = G;
+settings.onChange((key, value) => events.emit('settings:change', { key, value }));
+
+// Renderer + kleine Testszene (Boden, Kisten, Sonne mit Schatten) – damit der Grafikspeicher etwas zu messen hat
+G.renderer = createRenderer(canvas, { quality: params.get('quality') || settings.get('quality'), settings });
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2b3138);
+const cam = new THREE.PerspectiveCamera(70, 16 / 9, 0.05, 400);
+cam.position.set(0, 1.65, 6);
+const sun = new THREE.DirectionalLight(0xfff1d6, 3);
+sun.position.set(8, 14, 6);
+sun.castShadow = G.renderer.preset.shadows;
+sun.shadow.mapSize.set(G.renderer.preset.shadowMapSize, G.renderer.preset.shadowMapSize);
+scene.add(sun, new THREE.HemisphereLight(0xbfd4ff, 0x40362c, 1.1));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStandardMaterial({ color: 0x6b6458, roughness: 0.9 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+const boxMat = new THREE.MeshStandardMaterial({ color: 0x8a5a3a, roughness: 0.7 });
+for (let i = 0; i < 18; i++) {
+  const b = new THREE.Mesh(new THREE.BoxGeometry(1 + (i % 3) * 0.4, 0.6 + (i % 4) * 0.5, 1), boxMat);
+  b.position.set(Math.sin(i * 1.7) * 9, b.geometry.parameters.height / 2, -4 - (i % 6) * 3);
+  b.castShadow = b.receiveShadow = true;
+  scene.add(b);
+}
+G.scene = scene;
+G.camera = cam;
+G.viewmodel = { scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(54, 16 / 9, 0.01, 10) };
+G.renderer.onQualityChange((q, p) => { sun.castShadow = p.shadows; sun.shadow.mapSize.set(p.shadowMapSize, p.shadowMapSize); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } });
+
+G.input = new Input(G);
+G.input.attach(G);
+if (params.get('touch') === '1') G.input._setMode('touch', 'touch');
+G.menus = new Menus(G);
+G.menus.showLobby = () => G.menus.showSettings('lobby'); // keine Lobby im Prüfstand
+G.menus.onResume = () => {};
+if (params.get('tab')) G.menus.settingsPanel.group = params.get('tab');
+if (params.get('dev')) G.menus.settingsPanel._state.belegung = { device: params.get('dev') };
+const setState = (s) => { G.match.state = s; document.body.dataset.matchState = s; };
+if (params.get('state') === 'paused') { G.world = { name: 'Prüfstand' }; setState('paused'); }
+G.menus.showSettings(G.match.state === 'paused' ? 'pause' : 'lobby');
+if (params.get('editor') === '1') G.menus.showTouchEditor();
+
+// Testszene nur bei Bedarf zeichnen (Start, Einstellungs-/Stufenwechsel): SwiftShader-Prüfrechner bleiben bedienbar,
+// und memoryEstimate() findet Szene, Schattenkarte und Ketten-Ziele vor
+let renderT = 0;
+function draw() {
+  renderT = 0;
+  cam.lookAt(0, 1.2, -8);
+  G.renderer.render(scene, cam, G.viewmodel.scene, G.viewmodel.camera);
+}
+function requestDraw() { if (!renderT) renderT = setTimeout(() => requestAnimationFrame(draw), 60); }
+settings.onChange(requestDraw);
+G.renderer.onQualityChange(requestDraw);
+window.addEventListener('resize', requestDraw);
+requestDraw();
+
+document.getElementById('dev').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.id === 'devmin') { e.currentTarget.classList.toggle('min'); return; }
+  const x = b.dataset.x;
+  if (x === 'settings') G.menus.showSettings(G.match.state === 'paused' ? 'pause' : 'lobby');
+  else if (x === 'editor') G.menus.showTouchEditor();
+  else if (x === 'touch') G.input._setMode(G.input.mode === 'touch' ? 'desktop' : 'touch', G.input.mode === 'touch' ? 'mouse' : 'touch');
+  else if (x === 'match') { if (G.world) { G.world = null; setState('lobby'); } else { G.world = { name: 'Prüfstand' }; setState('paused'); } b.classList.toggle('on', !!G.world); G.menus.showSettings(G.world ? 'pause' : 'lobby'); }
+  else if (x === 'reset') { settings.reset(); G.menus.showSettings(G.match.state === 'paused' ? 'pause' : 'lobby'); }
+});
+</script>
+</body>
+</html>

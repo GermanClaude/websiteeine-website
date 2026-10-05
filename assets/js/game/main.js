@@ -39,6 +39,7 @@ const MODULES = {
   weapons: ['./weapons/index.js', ['WeaponSystem']],
   effects: ['./engine/effects.js', ['Effects']],
   bots: ['./bots/manager.js', ['BotManager']],
+  vehicles: ['./vehicles/index.js', ['VehicleSystem']], // vehicles: Fahrzeuge (G.vehicles)
   // nur für die Vorarbeit im Ladebildschirm/Leerlauf (matchAssetJobs) – fehlende Exporte: Schritt entfällt
   soldiers: ['./bots/character.js', []],
   fxtex: ['./weapons/ballistics/fxtex.js', []],
@@ -714,6 +715,7 @@ async function runStart(config, gen) {
     for (const a of G.actors) spawnActor(a);
     if (!(await nextStep(0.9))) { await teardownMatch({ keepWorld: true }); return; }
 
+    safe('vehicles.attach', () => G.vehicles.attach(G)); // vehicles: Spawns aus world.vehicleSpawns bzw. ?vehicles=1
     G.hud.attach(G);
     safe('audio.startAmbience', () => G.audio.startAmbience(G.world.ambience));
     G.mode.start();
@@ -881,6 +883,7 @@ async function teardownMatch({ keepWorld = false } = {}) {
   safe('hud', () => { G.hud.hide(); G.hud.detach(); });
   safe('mode', () => { if (G.mode) G.mode.detach(); });
   G.mode = null;
+  safe('vehicles', () => G.vehicles.detach()); // vehicles: Insassen aussteigen lassen, vor Bots/Spieler/Welt
   safe('bots', () => { G.bots.removeAll(); G.bots.detach(); });
   safe('player', () => G.player.endMatch());
   safe('audio', () => { G.audio.stopAmbience(); G.audio.detach(); });
@@ -1143,9 +1146,10 @@ function frame(now) {
     if (st === 'countdown') tickCountdown(Math.min(raw, 0.25) * G.timeScale); // Echtzeit, nicht Simulationszeit
     step('input', () => G.input.update(dt));
     if (G.input.pressed('pause') && G.match.state !== 'paused') pause();
-    step('player', () => G.player.update(dt));
+    step('player', () => (G.player.vehicle ? G.vehicles.updateOccupant(G.player, dt) : G.player.update(dt))); // vehicles: Sitz statt Laufen
     step('bots', () => G.bots.update(dt));
     if (st === 'playing') step('separate', () => separateActors(G.actors));
+    step('vehicles', () => G.vehicles.update(dt));
     step('weapons', () => G.weapons.update(dt));
     step('mode', () => { if (G.mode) G.mode.update(dt); });
     if (G.match.state === 'playing') step('respawn', updateRespawns);
@@ -1429,6 +1433,7 @@ async function bootstrap() {
     G.weapons = new G.modules.weapons.WeaponSystem(G);
     G.effects = new G.modules.effects.Effects(G);
     G.bots = new G.modules.bots.BotManager(G);
+    G.vehicles = new G.modules.vehicles.VehicleSystem(G);
     G.hud = new G.modules.hud.HUD(G);
     G.menus = new G.modules.menus.Menus(G);
     wireGlobal();

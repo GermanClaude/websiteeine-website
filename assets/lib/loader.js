@@ -391,6 +391,12 @@ export class AssetLibrary {
     return { downloadedBytes: this.downloadedBytes, residentBytes: bytes, gpu, count: assets.length, assets, renderer: this.renderer ? { ...this.renderer.info.memory } : null };
   }
 
+  /** Basis-Transcoder (JS + WASM) laden → true | false (blockiert, offline). Danach scheitert kein KTX2-Satz/Modell mehr
+   * an ihm; bei false Modelle gar nicht erst laden (der GLTFLoader meldet sonst jede eingebettete KTX2-Textur als Fehler). */
+  async transcoderReady() {
+    try { await this._ktx().init(); return true; } catch { return false; }
+  }
+
   /** Von dieser GPU unterstützte Kompressionsformate (Diagnose), z. B. ['etc2', 'etc1', 'astc', 'dxt']. BC7 (bptc) ist für
    * die Bibliothek abgeschaltet (ETC1S → BC1/BC3 auf dem Desktop, gleiche Qualität, halber Speicher). */
   compressionSupport() {

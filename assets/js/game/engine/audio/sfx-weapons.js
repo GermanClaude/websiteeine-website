@@ -49,7 +49,7 @@ export function cloth(d, sr, at, R, dur, amp = 0.3, freq = 1200) {
   return mixAt(d, sr, c, at, amp);
 }
 /** Hülsen-Klimpern auf dem Boden. */
-function shellTinkle(d, sr, at, R, amp) {
+export function shellTinkle(d, sr, at, R, amp) {
   const f = R.range(4200, 5600);
   modal(d, sr, at, [[f, 1, 0.05], [f * 1.53, 0.6, 0.035], [f * 2.31, 0.3, 0.02]], amp, R);
   modal(d, sr, at + R.range(0.06, 0.1), [[f * 1.04, 1, 0.03], [f * 1.6, 0.5, 0.02]], amp * 0.5, R);
@@ -461,4 +461,11 @@ export function ricochet(sr, R) {
   burst(d, sr, 0.004, { dur: T, type: 'bandpass', freqAt: t => f0 * Math.pow(f1 / f0, clamp(t / T)), q: 6, envFn: bell(T, 0.15), R, amp: 0.5 });
   click(d, sr, 0, { dur: 0.004, tau: 0.0006, hp: 2500, amp: 0.6, R });
   return normalize(d, 0.75);
+}
+
+/** Hülse fällt auf harten Boden (Rückfall ohne Aufnahme; Physik-Hülsen melden `shell:land`). */
+export function shellDrop(sr, R) {
+  const d = buf(sr, 0.45);
+  shellTinkle(d, sr, 0.002, R, 0.5);
+  return trim(normalize(d, 0.7), sr);
 }
