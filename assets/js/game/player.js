@@ -275,6 +275,13 @@ export class Player {
     if (G.events && typeof G.events.on === 'function') {
       G.events.on('bullet:whiz', (e) => this._onWhiz(e));
       G.events.on('kill', (e) => this._onKill(e));
+      // Einsteigen beendet Liegen/Platte/Lehnen (im Fahrzeug läuft player.update nicht; beim Aussteigen steht man)
+      G.events.on('vehicle:enter', (e) => {
+        if (!e || e.actor !== this) return;
+        if (this.armor && this.armor.inserting && G.combat) G.combat.cancelPlate(this);
+        this.crouching = this.sliding = false;
+        this._resetStance(); // Kapselhöhe setzt vehicles (Sitz/Aussteigen)
+      });
     }
   }
 
