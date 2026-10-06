@@ -1,6 +1,8 @@
 // NULLPUNKT — Namensschilder über Soldaten (Canvas-Sprites, konstante Bildschirmgröße).
 // Verbündete: immer sichtbar (blau, Raute, auch durch Wände); Gegner: nur unter dem Fadenkreuz oder
 // sehr nah, jeweils nur bei freier Sicht auf den Kopf (rot). Ein Draw Call pro sichtbarem Schild.
+// Spielstil: G.match.styleFlags.nameplates ('alle' | 'team' | 'aus') wertet der BotManager je Bild aus –
+// „Realistisch“ ('team') zeigt nur Mitspieler-Schilder, nie Gegner (auch nicht in FFA).
 // Alle Schilder werden ohne Tiefentest gezeichnet: Verdeckung entscheidet der BotManager einmal je Schild
 // (gedrosselter Sichtstrahl Kamera → Kopf) und blendet das ganze Schild ein/aus – eine Wandkante schneidet
 // den Namen nie pixelweise an.

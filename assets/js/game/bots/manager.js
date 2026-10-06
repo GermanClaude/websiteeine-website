@@ -721,6 +721,10 @@ export class BotManager {
     const lens = R && R.lens && typeof R.lens.toScreen === 'function' ? R.lens : null;
     const now = G.time.real || G.time.elapsed;
     const playerAlive = G.player && G.player.alive;
+    // Spielstil (G.match.styleFlags.nameplates): 'alle' | 'team' (Realistisch: nur Mitspieler; FFA: keine) | 'aus'.
+    // Je Bild gelesen → ein neues Match mit anderem Stil gilt sofort, ohne die Schilder neu anzulegen.
+    const fl = G.match && G.match.styleFlags;
+    const plates = (fl && fl.nameplates) || 'alle';
     cam.getWorldPosition(_cam); // Sichtstrahlen von der Kamera aus (das Schild wird aus ihrer Sicht gezeichnet)
     const list = this._plateList || (this._plateList = []);
     list.length = 0;
@@ -738,6 +742,7 @@ export class BotManager {
       const pos = p._pos || (p._pos = new THREE.Vector3());
       if (s && bot.alive) s.getHeadPosition(pos); else pos.copy(bot.position).setY(bot.position.y + 1.7);
       if (!bot.alive) fade = 16;
+      else if (plates === 'aus' || (plates === 'team' && p.kind !== 'ally')) fade = 16; // Stil verbietet das Schild
       else if (bot.inView) {
         if (p.kind === 'ally') target = d < 40 ? 1 : d < 60 ? (60 - d) / 20 : 0;
         else {

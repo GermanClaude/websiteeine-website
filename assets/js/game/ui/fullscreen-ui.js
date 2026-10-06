@@ -1,7 +1,8 @@
 // NULLPUNKT — Vollbild-Oberfläche: Umschalter im Lobby-Kopf (.lb-tools) und im Pausenmenü (.ps-menu), Knopf im
 // Drehen-Hinweis und die Anleitung „Als App spielen“ (.np-fsg) für Plattformen ohne Element-Vollbild (iPhone,
 // App-Browser, eingebettet, abgelehnt). Wird per MutationObserver in #menu-root eingesetzt – lobby.js/menus.js
-// bleiben unberührt; Klicks laufen über einen eigenen Listener (data-fs). Logik: engine/fullscreen.js.
+// bleiben unberührt; Klicks laufen über einen eigenen Listener (data-fs). Logik: engine/fullscreen.js (G.fullscreen) oder,
+// falls dieses Modul nicht geladen werden konnte, der kleine Ersatz aus main.js (opts.fs; nur Umschalter, keine Anleitung).
 
 import { codeLabel } from '../../shared/bindings.data.js';
 
@@ -25,10 +26,10 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const pageUrl = () => location.href.split('#')[0];
 
 export class FullscreenUI {
-  /** opts.autoShow: Anleitung beim ersten Lobby-Besuch einmal zeigen (nicht in Testläufen). */
-  constructor(G, { autoShow = true } = {}) {
+  /** opts.autoShow: Anleitung beim ersten Lobby-Besuch einmal zeigen (nicht in Testläufen). opts.fs: Ersatz statt G.fullscreen. */
+  constructor(G, { autoShow = true, fs = null } = {}) {
     this.G = G;
-    this.fs = G.fullscreen;
+    this.fs = G.fullscreen || fs;
     this.root = document.getElementById('menu-root');
     this.guide = null;
     this._prevFocus = null;
@@ -275,7 +276,7 @@ export class FullscreenUI {
       ] : [
         `Tippe auf „⋮“ bzw. „…“ ${IC.dots} oben rechts.`,
         'Wähle „Im Browser öffnen“ bzw. „In Chrome öffnen“.',
-        'Im Browser geht NULLPUNKT beim ersten Tippen ins Vollbild.',
+        'Im Browser geht NULLPUNKT beim Tippen auf „Einsatz starten“ ins Vollbild.',
       ];
       if (P.android) {
         const u = new URL(url);
@@ -285,7 +286,7 @@ export class FullscreenUI {
       actions.push(`<button type="button" class="m-btn" data-fsg="copy">${IC.copy}<span>Link kopieren</span></button>`);
     } else if (reason === 'iframe') {
       title = 'In eigenem Tab spielen';
-      lead = 'NULLPUNKT ist hier in eine andere Seite eingebettet, die kein Vollbild erlaubt. Im eigenen Tab startet das Spiel mit dem ersten Klick im Vollbild.';
+      lead = 'NULLPUNKT ist hier in eine andere Seite eingebettet, die kein Vollbild erlaubt. Im eigenen Tab geht das Spiel mit „Einsatz starten“ ins Vollbild.';
       actions.unshift(`<a class="m-btn m-primary" href="${esc(url)}" target="_blank" rel="noopener">${IC.external}<span>In neuem Tab öffnen</span></a>`);
     } else {
       lead = reason === 'blocked' ? 'Dein Browser hat das Vollbild abgelehnt.' : 'Dieser Browser unterstützt kein Vollbild für Webseiten.';

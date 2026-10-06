@@ -48,7 +48,7 @@ export const HINTS = {
   weaponPose: 'Körperkamera: Waffe tiefer und mittiger, verdeckt weniger vom Bild.',
   hudStyle: 'Realismus: kein Fadenkreuz, keine Munitions- und Lebensanzeige, keine Minikarte – wie bei Bodycam.',
   bodycamStamp: 'Uhrzeit und erfundene Geräte-ID in der Bildecke, wie bei einer Körperkamera-Aufnahme.',
-  showFps: 'Bildrate oben links.',
+  showFps: 'Bildrate unten links.',
   audioMix: 'Handy: hebt Schritte und Stimmen hervor, nimmt tiefe Bässe weg.',
 };
 

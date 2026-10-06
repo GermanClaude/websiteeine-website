@@ -5,27 +5,25 @@
 // - request() MUSS synchron in einer Nutzergeste laufen (click, pointerup bei Touch, keydown außer Esc),
 //   nie nach einem await: requestFullscreen verbraucht die Nutzeraktivierung. Pointer-Lock deshalb vorher
 //   anfordern (Pointer-Lock-Spezifikation; main.js tut das).
-// - Beim Betreten: Touch → Querformat sperren; Desktop-Chromium → navigator.keyboard.lock(): Esc kommt beim
-//   Spiel an (Pause ohne Vollbildverlust; Esc halten beendet das Vollbild, der Browser zeigt den Hinweis),
-//   Strg+W/T/N schließen beim Ducken-Laufen keinen Tab. Firefox ≥ 151/Safari ≥ 26.4: Option keyboardLock.
-// - Einstellung „fullscreen“: 'auto' (Standard: erste Geste auf der Spielseite, Matchstart, Fortsetzen,
-//   Berührung im Match) | 'off' (nur Knopf/Taste). Ausdrückliches Verlassen per Knopf/Taste schaltet die
-//   Automatik bis zum nächsten ausdrücklichen Betreten ab.
+// - Keine Tastatursperre, kein Abfangen von Esc: Esc verlässt Vollbild und Pointer-Lock wie im Browser üblich,
+//   das Spiel pausiert über den Verlust des Pointer-Locks (main.js). Browser-Tastenkürzel bleiben unberührt.
+// - Beim Betreten auf Touch: Querformat sperren.
+// - Einstellung „fullscreen“: 'auto' (Standard) betritt das Vollbild nur bei klaren Spielaktionen – „Einsatz
+//   starten“ (Matchstart), „Fortsetzen“ und auf Touch beim Tippen auf die Touch-Steuerung im laufenden Match
+//   (z. B. nach der Android-Zurück-Geste) | 'off' (nur Knopf/Taste). Nie bei einem beliebigen Klick auf der Seite.
+//   Ausdrückliches Verlassen per Knopf/Taste schaltet die Automatik bis zum nächsten ausdrücklichen Betreten ab.
 // - Tasten: Alt+Enter (fest) und Aktion „fullscreen“ (Standard F11, umbelegbar).
 // - Wake-Lock auf Touch-Geräten, solange ein Match läuft (countdown/playing/paused).
 // - Ereignis 'fullscreen:change' { active, kind: 'api'|'standalone'|'none' }; body[data-fullscreen].
+// - Wird von main.js dynamisch geladen (MODULES, optional): fehlt das Modul, bleibt G.fullscreen null und main.js
+//   nutzt einen kleinen Ersatz (Knopf, Taste, Alt+Enter, Matchstart/Fortsetzen).
 
 import { resolveBindings } from '../../shared/bindings.data.js';
 
 const D = typeof document !== 'undefined' ? document : null;
-const MATCH = new Set(['countdown', 'playing']);
 const WAKE_STATES = new Set(['countdown', 'playing', 'paused']);
 const CHANGE_EVENTS = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
 const ERROR_EVENTS = ['fullscreenerror', 'webkitfullscreenerror', 'mozfullscreenerror', 'MSFullscreenError'];
-/** Gesperrte Tasten (Chromium): Esc fürs Spiel; Strg+Buchstabe (W/T/N/Q/R/…) nicht mehr für den Browser. Ohne Tab (Alt+Tab bleibt). */
-const KB_LOCK = ['Escape', 'KeyW', 'KeyT', 'KeyN', 'KeyQ', 'KeyR', 'KeyF', 'KeyD', 'KeyS', 'KeyA', 'KeyE', 'KeyP', 'KeyH', 'KeyJ', 'KeyL', 'KeyO', 'KeyU', 'KeyG', 'KeyK', 'KeyB'];
-/** Tasten, deren keydown als Geste fürs automatische Vollbild zählt (keine Modifikatoren, F-Tasten, Esc, Tab). */
-const GESTURE_KEY = /^(Key[A-Z]|Digit\d|Numpad\d|Space|Enter|NumpadEnter|Arrow(Up|Down|Left|Right))$/;
 const MODS = { Control: 'ctrlKey', Alt: 'altKey', Shift: 'shiftKey', Meta: 'metaKey', OS: 'metaKey' };
 const MAX_FAILS = 2;
 
@@ -117,16 +115,11 @@ export class FullscreenManager {
     this._fails = 0;
     this._optOut = false; // ausdrücklich verlassen → keine Automatik bis zum nächsten ausdrücklichen Betreten
     this._exitWanted = false; // ausdrückliches Verlassen noch nicht vollzogen (kam während des Betretens)
-    this._firstDone = false; // erste Geste auf der Seite erledigt (Lobby: nicht ständig neu anfordern)
     this._autoAt = -1e9;
     this._active = !!fsElement();
-    this._kbLocked = false;
     this._wakeLock = null;
     this._wakePending = false;
     this._noOpts = false;
-    this._exiting = false;
-    this._hiddenAt = -1e9;
-    this._wantAt = -1e9; // Desktop: Automatik wollte Vollbild, es war aber (noch) aktiv – z. B. „Fortsetzen“ während der Austritts-Animation
     this._keys = [];
     this._off = [];
     this._reloadKeys();
@@ -152,7 +145,6 @@ export class FullscreenManager {
     const v = this.G.settings && typeof this.G.settings.get === 'function' ? this.G.settings.get('fullscreen') : null;
     return v === 'off' ? 'off' : 'auto';
   }
-  get keyboardLocked() { return this._kbLocked; }
   get canLockOrientation() {
     const o = typeof screen !== 'undefined' ? screen.orientation : null;
     return this.supported && !!(o && typeof o.lock === 'function');
@@ -198,7 +190,7 @@ export class FullscreenManager {
     this._pending = true;
     this._userReq = !!user;
     try {
-      if (kind === 'std') ret = fn.call(this.el, this._noOpts ? undefined : { navigationUI: 'hide', keyboardLock: 'browser' });
+      if (kind === 'std') ret = fn.call(this.el, this._noOpts ? undefined : { navigationUI: 'hide' });
       else if (kind === 'webkit') {
         // Altes Safari (Mac) braucht ALLOW_KEYBOARD_INPUT für Tasten; iPadOS lehnt das Flag ab → dort ohne
         const flag = !this.platform.ios && typeof Element !== 'undefined' ? Element.ALLOW_KEYBOARD_INPUT : 0;
@@ -225,11 +217,14 @@ export class FullscreenManager {
     return true;
   }
 
-  /** Automatik (Einstellung 'auto'): Matchstart, Fortsetzen, erste Geste, Berührung im Match. throttle in ms. */
+  /**
+   * Automatik (Einstellung 'auto') – nur aus klaren Spielaktionen aufrufen: „Einsatz starten“, „Fortsetzen“ (main.js)
+   * und Tippen auf die Touch-Steuerung im laufenden Match (input.js, throttle 4000). throttle in ms.
+   */
   auto({ throttle = 0 } = {}) {
     if (this.autoDisabled || this._optOut || this.blocked || this.setting !== 'auto' || !this.supported) return false;
     if (this.standalone && this._touch()) return false; // installierte App läuft schon randlos
-    if (this.active || this._pending) { if (this.active && !throttle && !this._touch()) this._wantAt = performance.now(); return false; }
+    if (this.active || this._pending) return false;
     if (throttle && performance.now() - this._autoAt < throttle) return false;
     const ok = this.request();
     if (ok) this._autoAt = performance.now();
@@ -239,12 +234,10 @@ export class FullscreenManager {
   /** Vollbild verlassen. user = ausdrücklich (Knopf/Taste) → Automatik ruht bis zum nächsten Betreten. */
   exit({ user = false } = {}) {
     if (user) { this._optOut = true; this._exitWanted = true; }
-    this._releaseKeyboard();
     if (!this.active) return false;
     const fn = exitFn();
     if (!fn) return false;
-    this._exiting = true;
-    try { swallow(fn.call(D)); } catch { this._exiting = false; return false; }
+    try { swallow(fn.call(D)); } catch { return false; }
     return true;
   }
 
@@ -275,7 +268,6 @@ export class FullscreenManager {
   dispose() {
     this._off.forEach((f) => f());
     this._off = [];
-    this._releaseKeyboard();
     this._releaseWake();
   }
 
@@ -297,14 +289,11 @@ export class FullscreenManager {
     // (schnelles Doppeldrücken) kann verloren gehen → nach dem Übergang nachholen.
     for (const t of CHANGE_EVENTS) this._on(D, t, () => { this._sync(); if (this._exitWanted && this.active) this.exit(); });
     for (const t of ERROR_EVENTS) this._on(D, t, () => { if (this._pending) { this._pending = false; this._failed(new Error(t)); } this._sync(); });
-    // Gesten: Bubble-Phase, damit ein Knopf („Einsatz starten“) zuerst selbst Pointer-Lock + Vollbild anfordert
-    this._on(window, 'click', (e) => this._gesture(e));
-    this._on(window, 'pointerup', (e) => { if (e.pointerType !== 'mouse') this._gesture(e); });
-    this._on(window, 'keydown', (e) => this._gesture(e));
+    // Kein Vollbild auf beliebige Klicks/Tasten: nur Start/Fortsetzen (main.js), Touch-Steuerung (input.js), Knopf, Taste.
     // Tasten: Capture, vor deploy.js/strike-target.js (Enter ohne Alt-Prüfung)
     this._on(window, 'keydown', (e) => this._key(e), { capture: true });
     this._on(D, 'dragstart', (e) => { const t = e.target; if (!(t && t.closest && t.closest('input, textarea'))) e.preventDefault(); });
-    this._on(D, 'visibilitychange', () => { if (D.hidden) this._hiddenAt = performance.now(); this._wake(); });
+    this._on(D, 'visibilitychange', () => this._wake());
     const ev = this.G.events;
     if (ev && typeof ev.on === 'function') {
       const onState = () => this._wake();
@@ -317,8 +306,8 @@ export class FullscreenManager {
     if (S && typeof S.onChange === 'function') {
       const off = S.onChange((key, value) => {
         if (key === 'bindings') this._reloadKeys();
-        // 'auto' im Menü gewählt (Klick = Geste) → sofort; ohne Geste (anderer Tab) prüft request() selbst
-        if (key === 'fullscreen' && value === 'auto') { this._optOut = false; if (!this.autoDisabled) this.request(); }
+        // 'auto' gewählt: Automatik wieder erlaubt – wirksam ab dem nächsten Start/Fortsetzen (nicht sofort)
+        if (key === 'fullscreen' && value === 'auto') this._optOut = false;
         if (key === 'fullscreen') this._emit();
       });
       if (typeof off === 'function') this._off.push(off);
@@ -332,25 +321,9 @@ export class FullscreenManager {
     } catch { this._keys = ['F11']; }
   }
 
-  _gesture(e) {
-    if (!e.isTrusted) return;
-    if (e.type === 'keydown') {
-      if (e.repeat || !GESTURE_KEY.test(e.code) || e.ctrlKey || e.metaKey || e.altKey) return;
-      const t = e.target;
-      if (t && t.closest && t.closest('input, textarea, select, [contenteditable="true"]')) return;
-    }
-    const st = this.G.match && this.G.match.state;
-    // Im Match nur Touch (z. B. nach der Android-Zurück-Geste); am Desktop betreten Start/Fortsetzen erneut,
-    // damit ein bewusst verlassenes Vollbild (F11, Esc halten) nicht beim nächsten Tastendruck zurückkommt.
-    if (MATCH.has(st)) { if (e.type === 'pointerup' || this._touch()) this.auto({ throttle: 4000 }); }
-    else if (!this._firstDone && e.type !== 'pointerup') this.auto(); // Menüs: erst „click“ (Ziel steht fest)
-  }
-
   /** Alt+Enter (fest) und Aktion „fullscreen“ (umbelegbar, Standard F11). */
   _key(e) {
-    // Esc gehalten (Chrome/Edge mit Tastatursperre: so verlässt man das Vollbild): Wiederholungen dürfen Pause/
-    // Fortsetzen nicht hin- und herschalten (menus.js, main.js) → hier verschlucken; das erste keydown pausiert.
-    if (e.code === 'Escape' && e.repeat) { e.stopImmediatePropagation(); return; }
+    // Esc wird nie abgefangen (verlässt Vollbild/Pointer-Lock wie üblich); Wiederholungen ignorieren die Menüs selbst.
     if (e.repeat || !e.isTrusted) return;
     const inp = this.G.input;
     if (inp && inp._capture) return; // Tastenbelegung wird gerade aufgenommen
@@ -395,27 +368,11 @@ export class FullscreenManager {
     const on = this.active;
     if (on === this._active) return;
     this._active = on;
-    if (on) { this._pending = false; this._firstDone = true; this._fails = 0; if (!this._exitWanted) this._optOut = false; this._afterEnter(); } else {
-      const kb = this._kbLocked;
+    if (on) { this._pending = false; this._fails = 0; if (!this._exitWanted) this._optOut = false; this._afterEnter(); } else {
+      // Verlassen (Esc, F11, Zurück-Geste, Knopf): nie automatisch neu betreten. Esc beendet am Desktop auch den
+      // Pointer-Lock → Pause (main.js); das nächste „Fortsetzen“ bzw. „Einsatz starten“ betritt wieder (Einstellung 'auto').
       this._exitWanted = false;
-      this._releaseKeyboard();
-      // Vom Browser beendet, ohne dass wir es wollten. Bewusst ist das nur mit Tastatursperre (Chrome/Edge: Esc
-      // halten, F11) → Automatik ruht bis zum nächsten ausdrücklichen Betreten. Ohne Sperre (Firefox/Safari) beendet
-      // schon das Esc zum Pausieren das Vollbild – fullscreenchange kommt erst nach der Austritts-Animation, evtl. nach
-      // einem schnellen „Fortsetzen“ → nie als Abschalten werten (das geht per Knopf/Taste/Einstellung). Tab-/App-Wechsel: nie.
-      if (!this._exiting && !this._touch()) {
-        // „Fortsetzen“ kam noch während der Animation (auto() sah aktives Vollbild): jetzt nachholen, solange die Geste gilt
-        const st0 = this.G.match && this.G.match.state;
-        if (!kb && MATCH.has(st0) && performance.now() - this._wantAt < 2000) this.auto();
-        if (kb) {
-          setTimeout(() => {
-            const hidden = (D && D.hidden) || performance.now() - this._hiddenAt < 3000;
-            if (!this.active && !this._pending && !hidden) this._optOut = true;
-          }, 400);
-        }
-      }
     }
-    this._exiting = false;
     this._applyBody();
     this._emit();
   }
@@ -425,23 +382,8 @@ export class FullscreenManager {
     if (this._touch()) {
       const o = typeof screen !== 'undefined' ? screen.orientation : null;
       if (o && typeof o.lock === 'function') { try { swallow(o.lock('landscape')); } catch { /* */ } }
-    } else if (!this._kbLocked) {
-      const kb = typeof navigator !== 'undefined' ? navigator.keyboard : null;
-      if (kb && typeof kb.lock === 'function') {
-        try {
-          const p = kb.lock(KB_LOCK);
-          this._kbLocked = true;
-          if (p && typeof p.then === 'function') p.then(null, () => { this._kbLocked = false; this._emit(); });
-        } catch { this._kbLocked = false; }
-      }
     }
     this._wake();
-  }
-
-  _releaseKeyboard() {
-    if (!this._kbLocked) return;
-    this._kbLocked = false;
-    try { const kb = navigator.keyboard; if (kb && typeof kb.unlock === 'function') kb.unlock(); } catch { /* */ }
   }
 
   _wantWake() {
