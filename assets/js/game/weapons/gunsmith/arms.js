@@ -266,8 +266,9 @@ export const GRIPS = {
   },
   // Stützhand an der Pistole: umfasst die Schusshand, Daumen vorn am Rahmen
   pistol: {
-    shape: d => gripShape(d, 0.019, 0.012), F: (d, s) => s.U, B: () => [-1, -0.12, 0.06], hOff: d => (d.ho ?? 0) + 0.03, pc: [0, -0.0175, -0.05],
-    thumb: (d, s) => leftOf(s, -0.007, 0.022, 0.012),
+    // hands-v3 (wrap): höher (Zeigefinger unter dem Abzugsbügel statt am Magazinboden), Daumen nach vorn am Rahmen
+    shape: d => gripShape(d, 0.019, 0.012), F: (d, s) => s.U, B: () => [-1, -0.12, 0.06], hOff: d => (d.ho ?? 0) + (d.wrap ? 0.016 : 0.03), pc: [0, -0.0175, -0.05],
+    thumb: (d, s) => (d.wrap ? leftOf(s, -0.006, 0.03, 0.045) : leftOf(s, -0.007, 0.022, 0.012)),
   },
   // Magazin seitlich greifen (linke Hand)
   mag: {
@@ -533,7 +534,7 @@ class Arm {
     // Unterarm: zum Handgelenk oval, über dem elastischen Saum gebauscht, Saum liegt eng über dem Handschuh-Bündchen
     const seg = lod === 'low' ? 14 : 20;
     this.fore = new THREE.Mesh(sleeveGeometry(this.foreLen + 0.008, 0.049, 0.0355, 3.2, side > 0 ? 1 : 2.4, { bulge: 0.004, bulgeAt: 0.22, oval: 1, bunch: 0.0036, cinch: 0.0046, seg, N: lod === 'low' ? 22 : 30 }), mats.sleeve);
-    this.upper = new THREE.Mesh(sleeveGeometry(this.upperLen, 0.056, 0.05, 2.2, side > 0 ? 3 : 4.1, { bulge: 0.002, bulgeAt: 0.55, seg: lod === 'low' ? 14 : 18 }), mats.sleeve);
+    this.upper = new THREE.Mesh(sleeveGeometry(this.upperLen, 0.056, 0.05, 2.2, side > 0 ? 3 : 4.1, { bulge: 0.002, bulgeAt: 0.55, seg: lod === 'low' ? 14 : 18, N: lod === 'low' ? 16 : 22 }), mats.sleeve);
     // Ellbogen: Kugel im ovalen Ärmelquerschnitt (folgt der Unterarmdrehung, siehe solve) → kein Absatz zwischen den Röhren
     const elbowGeo = new THREE.SphereGeometry(0.0495, lod === 'low' ? 12 : 16, lod === 'low' ? 8 : 12);
     elbowGeo.scale(1.06, 0.94, 1);

@@ -60,7 +60,7 @@ export function p9(b) {
   gripMag(b, { u: -0.026, v: -0.056, w: 0.021, len: 0.085, depth: 0.03 });
   b.anchor('ejection', 0.006, 0.084, 0.04, { rz: 0.5 });
   b.anchor('muzzle', 0, axis, 0.147);
-  const grip = { rake: RAKE, gw: 0.0145, gd: 0.0265, gu: -0.0025, ho: 0.0, tu: 0.06, wrap: 0.38, tf: 0.03 };   // wrap/tf: hands-v3 (Daumen links am Rahmen)
+  const grip = { rake: RAKE, gw: 0.0145, gd: 0.0265, gu: -0.0025, ho: 0.0, tu: 0.052, wrap: 0.38, tf: 0.055 };   // wrap/tf: hands-v3 (Daumen links am Rahmen)
   b.anchor('rightHandGrip', 0, -0.015, -0.019, { data: grip });
   b.anchor('magWell', 0, -0.056, -0.026);
   b.anchor('sight', 0, 0.0895, -0.031, { data: { type: 'iron', eyeRelief: 0.36 } });
@@ -123,7 +123,7 @@ export function adler(b) {
   if (b.hi) b.box('cavity', 0.009, 0.005, 0.005, 0, 0.084, -0.07, { part: 'hammer', rx: -0.7, c: 0 });
   gripMag(b, { u: -0.024, v: -0.086, w: 0.024, len: 0.11, depth: 0.036, plate: 'steel', body: 'steel' });
   b.anchor('ejection', 0.018, 0.084, 0.042, { rz: 0.35 });
-  const grip = { rake: RAKE, gw: 0.0185, gd: 0.0255, gu: 0.0, ho: 0.0105, tu: 0.065, wrap: 0.38, tf: 0.03 };   // wrap/tf: hands-v3
+  const grip = { rake: RAKE, gw: 0.0185, gd: 0.0255, gu: 0.0, ho: 0.0105, tu: 0.056, wrap: 0.38, tf: 0.055 };   // wrap/tf: hands-v3
   b.anchor('rightHandGrip', 0, -0.018, -0.02, { data: grip });
   b.anchor('magWell', 0, -0.086, -0.024);
   b.anchor('sight', 0, 0.1035, -0.054, { data: { type: 'iron', eyeRelief: 0.36 } });

@@ -1180,7 +1180,8 @@ export class Player {
       if (best <= 0.015) break;
     }
     b.position.x = bx; b.position.z = bz; b._sync();
-    if (bx !== cx || bz !== cz) { b.velocity.x = 0; b.velocity.z = 0; }
+    // zurückgenommene Lage stammt von vor der Kollisionsauflösung (nach dem Schub vorn) → Kapsel ausdrücken
+    if (bx !== cx || bz !== cz) { b.velocity.x = 0; b.velocity.z = 0; if (typeof b.depenetrate === 'function') b.depenetrate(world); }
     if (byaw !== y1) { this.yaw = byaw; this._proneYaw = this._proneYawPrev = byaw; }
   }
 
