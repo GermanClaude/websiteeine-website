@@ -309,13 +309,47 @@
         });
         return;
       }
-      // Fehler, bevor main.js läuft (Modul nicht ladbar / Syntaxfehler) → Fehlerpanel statt ewigem Ladebildschirm
+      // Fehler, bevor main.js läuft (Modul nicht ladbar / Syntaxfehler) → erst einmal automatisch mit frisch geholten
+      // Dateien neu versuchen (alter Zwischenspeicher, Update gerade im Gange), danach Fehlerpanel mit Diagnose
+      function flag(v) { try { if (v === undefined) return sessionStorage.getItem('np-retry') === '1'; if (v) sessionStorage.setItem('np-retry', '1'); else sessionStorage.removeItem('np-retry'); } catch (x) { return true; } }
+      function urls() {
+        var l = document.querySelectorAll('link[rel="modulepreload"], script[type="module"][src]'), out = [];
+        for (var i = 0; i < l.length; i++) out.push(l[i].href || l[i].src);
+        return out;
+      }
+      function each(list, fn) {
+        var i = 0;
+        function next() { if (i >= list.length) return Promise.resolve(); var u = list[i++]; return fn(u).then(next, next); }
+        return Promise.all([next(), next(), next(), next(), next(), next()]);
+      }
+      function diagnose(f) {
+        var bad = [];
+        each(urls(), function (u) {
+          return fetch(u, { cache: 'reload' }).then(function (r) { if (!r.ok) bad.push(r.status + ' ' + u); }, function () { bad.push('Netzwerkfehler ' + u); });
+        }).then(function () {
+          var d = f.querySelector('[data-fatal-detail]');
+          d.textContent += bad.length ? '\nNicht ladbar:\n' + bad.slice(0, 5).join('\n') : '\nAlle Spieldateien sind erreichbar – vermutlich blockiert eine Browser-Erweiterung, ein Werbe-/Inhaltsfilter oder das Netzwerk das Laden.';
+          d.textContent += '\n' + navigator.userAgent;
+          d.hidden = false;
+        });
+      }
       window.addEventListener('error', function (e) {
         var t = e.target;
         if (window.__game || (t && t !== window && t.tagName !== 'SCRIPT')) return; // Bilder/Stile/Schriften ignorieren
+        if (!flag()) {
+          flag(true);
+          var s = document.getElementById('boot-status');
+          if (s) s.textContent = 'Lade Spieldateien neu …';
+          each(urls(), function (u) { return fetch(u, { cache: 'reload' }); }).then(function () { location.reload(); });
+          return;
+        }
+        flag(false);
         var detail = t && t.tagName === 'SCRIPT' ? 'Skript nicht ladbar: ' + (t.src || 'Inline-Modul') : (e.message || 'Unbekannter Fehler') + (e.filename ? '\n' + e.filename + ':' + e.lineno : '');
-        fatal('Beim Laden ist ein Fehler aufgetreten', 'Die Spielmodule konnten nicht geladen werden. Prüfe deine Verbindung und lade die Seite neu.', detail, true);
+        fatal('Beim Laden ist ein Fehler aufgetreten', 'Die Spielmodule konnten nicht geladen werden. Bitte die Seite neu laden (am PC Strg + F5). Hilft das nicht: Website-Daten im Browser löschen, Werbeblocker für diese Seite ausschalten oder ein anderes Netz (WLAN/Mobil) versuchen.', detail, true);
+        diagnose(document.getElementById('fatal'));
       }, true);
+      var okPoll = setInterval(function () { if (window.__game) { flag(false); clearInterval(okPoll); } }, 2000);
+      setTimeout(function () { clearInterval(okPoll); }, 120000);
       setTimeout(function () {
         if (window.__game) return;
         var s = document.getElementById('boot-status');
