@@ -26,10 +26,11 @@ export default {
     sky: { turbidity: 3.2, rayleigh: 1.25, mieCoefficient: 0.004, mieDirectionalG: 0.8, exposure: 0.62, clouds: { coverage: 0.22, density: 0.35, scale: 0.00022 }, hazeHigh: 0.14 },
     hemi: { sky: '#d3dbe2', ground: '#ab9775', intensity: 0.55, hdriIntensity: 0.4 },
     env: { intensity: 0.6, ground: '#9a8d74', groundIntensity: 0.6, tint: '#f2ebe0' },
-    fog: { color: '#cfdae3', near: 110, far: 620, density: 0.0018, falloff: 0.03, start: 40, sun: 0.3, sunExp: 6 },
+    // atmosphere-weather: Morgendunst – etwas dichter, kräftigere Gegenlicht-Einstreuung zur Morgensonne
+    fog: { color: '#cfdae3', near: 110, far: 620, density: 0.0026, falloff: 0.035, start: 30, sun: 0.65, sunExp: 4 },
     shadow: { size: 40 },
     probes: { bounce: 1.15 },
-    atmos: { beams: 0.02, beamG: 0.4, dust: 0.6 },
+    atmos: { beams: 0.03, beamG: 0.45, dust: 0.8, slots: 0.6, outdoor: 0.5 },
   },
 
   build(b) {

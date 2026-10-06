@@ -340,7 +340,7 @@ export default {
     env: { intensity: 1.0, ground: '#6a6c52', groundIntensity: 0.5, tint: '#eef3ff', hdriIntensity: 0.6 },
     // atmosphere-weather: Höhennebel über dem Tal (baseY = Wasserspiegel, Skalenhöhe ≈ 45 m), Gegenlicht-Einstreuung;
     // lineare Nebelweite bleibt für Materialien ohne Welt-Shading
-    fog: { color: '#b9c7d2', nearFactor: 0.18, density: 0.0021, falloff: 0.022, start: 30, max: 0.9, sun: 0.5, sunExp: 5 },
+    fog: { color: '#b9c7d2', nearFactor: 0.18, density: 0.003, falloff: 0.022, start: 25, max: 0.9, sun: 0.7, sunExp: 4 },
     // Fernkaskade über die ganze Karte (eine Karte, ≈ 0,3 m/Texel), Nahkaskade 40 m (Bäume scharf)
     shadow: { size: 60, bias: -0.0004, normalBias: 0.04, near: 40, farMaxY: 60 },
     exposure: 1.0,

@@ -40,7 +40,9 @@ export default {
     exposure: 0.94,
     // Gassen: heller Putz und Sand werfen viel Licht zurück (warme Schattenseiten), staubige Luft
     probes: { bounce: 1.25 },
-    atmos: { beams: 0.02, beamG: 0.35, dust: 1.3 },
+    // atmosphere-weather: Strahlen durch Kirchenfenster/Türen kräftiger; Torbögen/Fenster ins Freie (outdoor), Gassen-
+    // schlitze nur bei tiefer Sonne (Morgen/Abend; die Mittagssonne steht zu steil)
+    atmos: { beams: 0.03, beamG: 0.4, dust: 1.4, slots: 0.7, outdoor: 0.65 },
   },
   // Belichtung: draußen unverändert (L̄ 0,156 ≈ Referenz 0,16); Kirche/Häuser (L̄ ≈ 0,016) stießen an evMax 1,8 → 2,2
   grade: { exposure: { evMax: 2.2 } },

@@ -37,7 +37,9 @@ export default {
     shadow: { size: 42 },
     // Sonden-Gitter (Innenräume, Rückprall), Atmosphäre (Strahlen durch die Hallentore, Staub)
     probes: { bounce: 1.1 },
-    atmos: { beams: 0.024, beamG: 0.4, dust: 1 },
+    // atmosphere-weather: Lichtschein – Strahlen durch die Hallentore (kräftiger), tiefe Abendsonne in Schlitzen
+    // zwischen den Containerstapeln (slots) und durch Öffnungen ins Freie (outdoor)
+    atmos: { beams: 0.032, beamG: 0.45, dust: 1.15, slots: 0.75, outdoor: 0.6 },
   },
   // Belichtung (core-render, post/exposure): mit Sonden gemessenes L̄ draußen 0,104 (vorher 0,118) → Referenz neu,
   // etwas kräftigere Anpassung, damit Halle/Büros (L̄ ≈ 0,032) wie bisher ≈ 1 Blende aufgehellt werden

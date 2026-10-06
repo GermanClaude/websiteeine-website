@@ -587,6 +587,11 @@ export async function loadWorld(G, mapId, opts = {}) {
   world.stats.assets.fallbackMaterials = libraryStats.fallback;
   // Requisiten einmal vollständig sichtbar (Shader-Vorwärmen im Ladebildschirm), ab dem ersten update() je Abstand
   props?.showAll();
+  // env-look (medium+): Verwitterungs-Decals an Wänden (Rost-/Wasserläufe, Schmutzsockel, Risse, Plakate), per
+  // Strahltest gesetzt; low unverändert (Modul wird dort gar nicht geladen)
+  if (quality !== 'low' && def.lookDecals !== false) {
+    try { world.stats.lookDecals = (await import('./decals.js')).placeLookDecals(world, group, { quality, seed: [...id].reduce((a, c) => a * 31 + c.charCodeAt(0), 7), def }); } catch (err) { console.warn('[world] Decals', err); }
+  }
   // Welt-Shading: alle Weltmaterialien bekommen den gemeinsamen Haken; Sonden + Fernkaskade aktivieren
   world.stats.lighting = activateLighting(G, def, world, group, light, probes, quality, debug);
   if (atmos) world.stats.lighting.atmos = atmos.stats;

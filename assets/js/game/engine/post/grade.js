@@ -44,7 +44,7 @@ export const MOODS = Object.freeze({
       shadowTint: [0.98, 1.0, 1.03], highTint: [1.03, 1.0, 0.96], greenShift: 0.35, blackLevel: 0.01, whiteLevel: 0.98 },
     exposure: { ...BASE_EXPOSURE, ref: 0.16 },
     bloom: { threshold: 2.6, strength: 0.28, dirt: 0.5 },
-    shafts: 0.22,
+    shafts: 0.3, // atmosphere-weather: 0,22 → 0,3
   },
   werk: { // Bedeckte Dämmerung im Industriegebiet: kühl, entsättigt, Natriumlicht bleibt warm
     label: 'Werk – Dämmerung',
@@ -60,7 +60,7 @@ export const MOODS = Object.freeze({
       greenShift: 0.25, blackLevel: 0.012, whiteLevel: 0.985 },
     exposure: { ...BASE_EXPOSURE, ref: 0.18 },
     bloom: { threshold: 2.5, strength: 0.28, dirt: 0.5 },
-    shafts: 0.3,
+    shafts: 0.42, // atmosphere-weather: Morgendunst (0,3 → 0,42)
   },
   grenzland: { // Flusstal am späten Vormittag: leichter Dunst, Grün Richtung Oliv (wie Videokameras), weiche Wärme
     label: 'Grenzland – Vormittag',
@@ -68,7 +68,7 @@ export const MOODS = Object.freeze({
       shadowTint: [0.97, 1.0, 1.035], highTint: [1.03, 1.0, 0.95], greenShift: 0.45, blackLevel: 0.012, whiteLevel: 0.985 },
     exposure: { ...BASE_EXPOSURE, ref: 0.11 },
     bloom: { threshold: 2.5, strength: 0.28, dirt: 0.5 },
-    shafts: 0.35,
+    shafts: 0.45, // atmosphere-weather: Sonne durch Baumkronen (0,35 → 0,45)
   },
   nacht: { // Nacht/Innenräume mit Leuchtstoffröhren: grünstichig, angehobene Videoschwärzen
     label: 'Nacht – Leuchtstoff',

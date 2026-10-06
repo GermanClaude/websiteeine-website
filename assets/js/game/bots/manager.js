@@ -332,6 +332,8 @@ export class BotManager {
       if (s && b.alive && s.state === 'alive') {
         s.root.visible = inView;
         s.updateLod(d * (cam ? cam.fov / 60 : 1), this.tier);
+        // Waffe (eigene Draw Calls) erst ab 140 m (low 90 m) ausblenden – dort ≈ 1 Pixel (bots-scale: 64 Akteure)
+        if (s.gunHolder) s.gunHolder.visible = d * (cam ? cam.fov / 60 : 1) < (low ? 90 : 140);
       }
       for (let k = 0; k < b.soldiers.length; k++) {
         const o = b.soldiers[k];
