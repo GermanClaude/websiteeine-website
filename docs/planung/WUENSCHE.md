@@ -184,3 +184,9 @@ Karten-Feinschliff (alle Karten, „alles originalgetreu und sinnvoll platzieren
 - Werk: Stahlrollen realistisch stapeln; Rohre sinnvoll verbinden/platzieren; einzelnen deplatzierten Ziegelblock entfernen; unsichtbare Wand an der Treppe in der großen Halle entfernen; Treppe richtig an die Etage anbinden; Werkbank am Eingang entfernen (im Weg); Kran fährt links/rechts; leuchtender oranger Balken an der Wand prüfen.
 - Hafen: Kran fährt ab und zu links/rechts.
 - Grenzland: Gemüsestände an der Kirche (Mitte); Traktor in die Hütte; linke Straßenseite evtl. Brücke oder Erdbrücke mit Rohr darunter.
+
+## REIHENFOLGE AB DONNERSTAG (Nutzer 06.10. abends, VERBINDLICH, ersetzt frühere Reihenfolgen)
+1) MEHRSPIELER – kommt definitiv rein, zuerst (Raumcode, Zufallsmatches mit Matchmaking, Host-Menü/-Einstellungen, Anti-Cheat, große Karten mit Fahrzeugen so weit machbar).
+2) Danach ALLES ANDERE von der bisherigen Liste: offene WIP-Punkte vom 06.10. (Tester-Fehler, Waffe neben Fahrzeugen, Magazine/Hülsen, Schwimmen, Ausdauer/Hänge-Rutschen), Waffen (Neumodellierung, Aufsätze, Munitionstypen, Inspizier-/Nachlade-Animationen, Arme/Hände), Fahrzeuge (Nachschub, WT-Schaden, Crew, neue Typen, AT/AA, Heli/Jets, Fahrzeug-Serien, Bots fahren), Abschussserien per Level, Grenzland mehr Deckung + Bot-Verteilung, NPC-Strategien/Funk/Stimmen/Regen, Bug-Log-Reste.
+3) Dann die „Wunschliste 06.10. abends“ (Modi, Shop, Zerstörung, Interieur, Licht, Gore, Friendly Fire, Karten-Feinschliff).
+4) GRAFIK GANZ ZULETZT (Bodycam-Look, Grafikstufen sichtbar unterschiedlich, Leistungsoptimierung).
