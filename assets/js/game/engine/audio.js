@@ -852,6 +852,8 @@ export class AudioEngine {
     v.stopped = true;
     const t = this.ctx.currentTime;
     try {
+      // Noch nicht gestartet (geplant): gar nicht erst abspielen – sonst bliebe ein kurzer Rest der Ausblendung hörbar
+      if (v.start > t + 0.002) { v.gain.gain.cancelScheduledValues(t); v.gain.gain.setValueAtTime(0, t); v.src.stop(t); return; }
       v.gain.gain.cancelScheduledValues(t);
       v.gain.gain.setValueAtTime(v.gain.gain.value, t);
       v.gain.gain.linearRampToValueAtTime(0, t + Math.max(0.005, fade));
