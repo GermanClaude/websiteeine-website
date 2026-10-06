@@ -24,7 +24,7 @@ import { assets, tierFor, pickTier } from '../../../lib/loader.js';
 // Farbe kommt aus Materialparameter bzw. Vertexfarbe. repeat: fester Wert für „fit“-UVs (0..1 je Fläche).
 // macro: [Albedo groß, Albedo mittel, Rauheit] der Weltraum-Variation (false = aus).
 export const LIB_MATERIALS = {
-  concrete: { id: 'concrete_floor_worn', color: 1.7 },
+  concrete: { id: 'concrete_floor_worn', color: 1.45, macro: [0.22, 0.12, 0.16] }, // env-look: vorher 1,7 (flach/hell)
   concrete_dark: { id: 'concrete_wall_dark', color: 1.35 },
   concrete_panel: { id: 'concrete_panels', color: 1.5 },
   concrete_dirty: { id: 'concrete_dirty', color: 1.0 },
@@ -36,7 +36,7 @@ export const LIB_MATERIALS = {
   plaster_blue: { id: 'plaster_blue_weathered', color: 1.05 },
   plaster_damaged: { id: 'plaster_damaged_brick', color: 1.1 },
   plaster_patched: { id: 'plaster_worn_patched', color: 1.3 },
-  brick: { id: 'brick_factory', color: 1.55 },
+  brick: { id: 'brick_factory', color: 1.55, normalScale: 1.25, aoMapIntensity: 1.35 }, // env-look: Mörtel lesbarer
   brick_dark: { id: 'brick_dark', color: 2.0 },
   stone_wall: { id: 'sandstone_blocks', color: 1.0 },
   cobble: { id: 'cobblestone', color: 0.85 },
@@ -63,12 +63,12 @@ export const LIB_MATERIALS = {
   metal_grate: { id: 'metal_grate', color: 2.4, macro: false },
   chainlink: { id: 'chainlink', color: 1.0, macro: false },
   hazard: { id: 'hazard_stripes', color: 1.3 },
-  container: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1] },
-  container_red: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1] },
-  container_blue: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1] },
-  container_green: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1] },
-  container_orange: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1] },
-  container_gray: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1] },
+  container: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1], normalScale: 1.25 },
+  container_red: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1], normalScale: 1.25 },
+  container_blue: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1], normalScale: 1.25 },
+  container_green: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1], normalScale: 1.25 },
+  container_orange: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1], normalScale: 1.25 },
+  container_gray: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1], normalScale: 1.25 },
   sand: { id: 'sand', color: 1.6, macro: [0.2, 0.1, 0.1] },
   dirt: { id: 'dirt', color: 1.25, macro: [0.2, 0.1, 0.1] },
   mud: { id: 'mud', color: 1.2 },
@@ -81,13 +81,36 @@ export const LIB_MATERIALS = {
   tiles_pattern: { id: 'tiles_checker', color: 2.1 },
   tiles_white: { id: 'tiles_white_wall', color: 1.0, macro: [0.06, 0.04, 0.06] },
   linoleum: { id: 'linoleum', color: 1.0 },
-  sandbag: { id: 'burlap', color: 1.35, metalness: 0, macro: false },
+  sandbag: { id: 'burlap', color: 1.35, metalness: 0, macro: false, normalScale: 0.6 },
   tarp: { id: 'canvas', color: 1.0, macro: false },
   rubber: { id: 'rubber', color: 0.6, macro: false },
   rubber_floor: { id: 'rubber_floor', color: 1.6 },
   epoxy: { id: 'concrete_epoxy', color: [2.07, 2.52, 2.29], macro: [0.06, 0.04, 0.08] },
   epoxy_blue: { id: 'concrete_epoxy', color: [1.2, 1.78, 2.38], macro: [0.06, 0.04, 0.08] },
   panel_wall: { id: 'felt_panel', color: 1.15, macro: false },
+};
+
+// env-look (medium+, nie low): Nahdetail je Materialklasse – detail (Stärke der Detailnormalen), ds (Maßstab 1/m),
+// anti (gedrehte zweite Albedo-Abtastung gegen Kachelwiederholung; nur bei ungerichteten Mustern, nie bei Ziegeln,
+// Fliesen, Planken, Wellblech), pom (Parallaxe-Tiefe in m, nur ultra; Höhe = AO-Kanal). textures.js applyLook().
+const LOOK_GROUND = { detail: 0.34, ds: 1.25, anti: 0.6, fade: [7, 30] };
+const LOOK_WALL = { detail: 0.22, ds: 1.6, anti: 0.4, fade: [5, 22] };
+const LOOK_MASONRY = { detail: 0.16, ds: 2.4, anti: 0, fade: [4, 18] };
+const LOOK_METAL = { detail: 0.1, ds: 3.2, anti: 0, fade: [3, 14] };
+const LOOK_WOOD = { detail: 0.08, ds: 3.0, anti: 0, fade: [3, 12] };
+export const LIB_LOOK = {
+  concrete: LOOK_GROUND, asphalt: LOOK_GROUND, sand: LOOK_GROUND, dirt: LOOK_GROUND, mud: LOOK_GROUND, ground_dry: LOOK_GROUND,
+  gravel: { ...LOOK_GROUND, detail: 0.2 }, rubble: { ...LOOK_GROUND, detail: 0.2 }, grass: { ...LOOK_GROUND, detail: 0.25 },
+  epoxy: { ...LOOK_GROUND, detail: 0.14, anti: 0.4 }, epoxy_blue: { ...LOOK_GROUND, detail: 0.14, anti: 0.4 },
+  concrete_dark: LOOK_WALL, concrete_panel: { ...LOOK_WALL, anti: 0 }, concrete_dirty: LOOK_WALL, concrete_painted: LOOK_WALL,
+  plaster_warm: LOOK_WALL, plaster_white: LOOK_WALL, plaster_peeling: LOOK_WALL, plaster_blue: LOOK_WALL, plaster_damaged: { ...LOOK_WALL, anti: 0 }, plaster_patched: LOOK_WALL,
+  brick: { ...LOOK_MASONRY, pom: 0.022 }, brick_dark: { ...LOOK_MASONRY, pom: 0.022 }, stone_wall: { ...LOOK_MASONRY, pom: 0.03 },
+  cobble: { ...LOOK_MASONRY, detail: 0.2, pom: 0.035 }, paving: { ...LOOK_MASONRY, detail: 0.22, pom: 0.012 }, roof_tiles: { ...LOOK_MASONRY, pom: 0.03 },
+  tiles: LOOK_MASONRY, tiles_terracotta: LOOK_MASONRY,
+  container: LOOK_METAL, container_red: LOOK_METAL, container_blue: LOOK_METAL, container_green: LOOK_METAL, container_orange: LOOK_METAL, container_gray: LOOK_METAL,
+  metal_corrugated: LOOK_METAL, metal_corrugated_rust: LOOK_METAL, metal_cladding: LOOK_METAL, metal_shutter: LOOK_METAL,
+  metal_painted: LOOK_METAL, metal_rust: { ...LOOK_METAL, detail: 0.16, anti: 0.35 }, metal_galvanized: LOOK_METAL,
+  wood_planks: LOOK_WOOD, wood_dark: LOOK_WOOD, wood_weathered: LOOK_WOOD, wood_peeling: LOOK_WOOD, wood_floor: LOOK_WOOD,
 };
 
 /** Zeitlimit für Downloads je Stufe (s): danach prozedural weiter (langsames Netz). */
@@ -168,9 +191,13 @@ export function createWorldAssets(G, def, quality) {
       if (!e) continue;
       const tier = pickTier(e.tiers, stats.tier.texture);
       const calib = JSON.stringify([spec.color, spec.roughness, spec.metalness, spec.normalScale, spec.repeat, spec.macro, spec.aoMapIntensity, spec.envMapIntensity]);
-      // low (Handy): keine Weltraum-Variation im Shader (2 Texturabfragen je Pixel gespart)
+      // low (Handy): keine Weltraum-Variation im Shader (2 Texturabfragen je Pixel gespart), kein Nahdetail
       if (q === 'low') spec = { ...spec, macro: false };
-      plan.set(name, { ...spec, tier, sizeM: e.sizeM?.[0], key: `${spec.id}@${tier}:${calib}${q === 'low' ? ':lo' : ''}` });
+      // env-look: Nahdetail ab medium (Kartenzuordnung kann look: false oder eigene Werte setzen), Parallaxe nur ultra
+      let look = q === 'low' ? null : (spec.look === false ? null : (spec.look || LIB_LOOK[name] || null));
+      if (look && q !== 'ultra' && look.pom) look = { ...look, pom: 0 };
+      const lk = look ? ':L' + JSON.stringify(look) : '';
+      plan.set(name, { ...spec, look, tier, sizeM: e.sizeM?.[0], key: `${spec.id}@${tier}:${calib}${q === 'low' ? ':lo' : ''}${lk}` });
     }
     return plan;
   }

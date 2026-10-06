@@ -602,6 +602,20 @@ export class ViewModel {
     // Im Schatten bleibt nur ein Rest Streulicht der Sonne; drinnen (Himmel verdeckt) wird das
     // Himmels-/Umgebungslicht ähnlich stark gedämpft wie das gebackene Innenraumlicht der Karte.
     this.sun.intensity = sunBase * (0.07 + 0.93 * pr.sun);
+    // atmosphere-weather: mit Sonden-Gitter (world.probes) Himmelssicht + Rückprall an der Augenposition wie die
+    // Welt (V ≈ 0,05–0,2 in Hallen) → Waffe/Arme dunkeln drinnen natürlich ab; Untergrenzen 0,16 (Himmel) bzw.
+    // 0,22 (Umgebung/Glanz). Draußen (V ≈ 1) unverändert – der Glanz der Waffe bleibt.
+    const W = this.G?.world;
+    const g = W?.probes && pr.eye && this._lighting ? W.probes.light(pr.eye.x, pr.eye.y, pr.eye.z, this._gridLight || (this._gridLight = { sky: 1, sun: 1, bounce: [0, 0, 0] })) : null;
+    if (g && Number.isFinite(g.sky)) {
+      const sky = Math.min(1, Math.max(0, g.sky) * 1.1);
+      const b = g.bounce ? (g.bounce[0] + g.bounce[1] + g.bounce[2]) / 3 : 0;
+      const fill = Math.min(0.35, b * sunBase * 0.6); // Sonnenrückprall hellt drinnen auf (Fenster, Tore)
+      this.hemi.intensity = hemiBase * (0.16 + 0.84 * sky) + fill;
+      this.scene.environmentIntensity = envBase * (0.22 + 0.78 * sky) + fill * 0.5;
+      this.rim.intensity = 0.6 * (0.3 + 0.7 * sky);
+      return;
+    }
     this.hemi.intensity = hemiBase * (0.5 + 0.5 * pr.sky);
     this.scene.environmentIntensity = envBase * (0.42 + 0.58 * pr.sky);
     this.rim.intensity = 0.6 * (0.45 + 0.55 * pr.sky);

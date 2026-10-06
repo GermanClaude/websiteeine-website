@@ -230,6 +230,16 @@ export class Navigator {
         pr.at = now;
         this.failed = true; // Entscheidung wählt ein anderes Ziel; bis dahin vom aktuellen Standort neu planen
         this.noProgress++;
+        // bots-scale: wiederholt an derselben Stelle ohne Fortschritt (Grube, Kante, Verbindung durch eine Mauer) →
+        // außerhalb der Sicht des Spielers zum nächsten Wegpunkt versetzen
+        const np = this._np || (this._np = { pos: new THREE.Vector3(1e9, 0, 0), run: 0 });
+        np.run = np.pos.distanceToSquared(pos) < 16 ? np.run + 1 : 1;
+        np.pos.copy(pos);
+        if (np.run >= 2 && bot.manager.canTeleport(bot)) {
+          bot.body.teleport(p);
+          np.run = 0;
+          this.unstuck = (this.unstuck || 0) + 1;
+        }
         this._request();
       }
     } else if (!wantMove) pr.at = now;
@@ -243,11 +253,19 @@ export class Navigator {
         const nx = path[Math.min(this.idx + 1, path.length - 1)];
         _s.set(-wn.z, 0, wn.x);
         if (_s.x * (nx.x - pos.x) + _s.z * (nx.z - pos.z) < 0) _s.multiplyScalar(-1);
-        if (this._wallHits % 2 === 1) _s.multiplyScalar(-1); // zweiter Versuch: andere Richtung
+        if (this._wallHits % 2 === 1) { _s.multiplyScalar(-1); this.jump = true; } // zweiter Versuch: andere Richtung + Sprung (niedrige Mauer)
         st.side.copy(_s).addScaledVector(wn, 0.35).normalize();
         st.sideUntil = now + 0.5;
         this.wallSlides++;
-        if (++this._wallHits >= 3) { this._wallHits = 0; if (this.dest && !this.pending) this._request(); }
+        if (++this._wallHits >= 3) {
+          this._wallHits = 0;
+          // derselbe Wegpunkt scheitert erneut (Nav-Verbindung durch ein Hindernis) → unbemerkt versetzen, sonst neu planen
+          const wp = this._wallPt || (this._wallPt = new THREE.Vector3(1e9, 0, 0));
+          this._wallRun = wp.distanceToSquared(p) < 1 ? (this._wallRun || 0) + 1 : 1;
+          wp.copy(p);
+          if (this._wallRun >= 2 && bot.manager.canTeleport(bot)) { bot.body.teleport(p); this._wallRun = 0; this.unstuck = (this.unstuck || 0) + 1; }
+          else if (this.dest && !this.pending) this._request();
+        }
       }
     } else if (this._wallT > 0) this._wallT = Math.max(0, this._wallT - dt);
     if (now < st.sideUntil) this.dir.lerp(st.side, 0.85).normalize();

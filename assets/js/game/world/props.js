@@ -185,7 +185,8 @@ export function palletStack(b, x, z, o = {}) {
 // ---------------------------------------------------------------------------
 // Sandsäcke
 // ---------------------------------------------------------------------------
-export function sandbagGeom() {
+export function sandbagGeom(detail = false) {
+  if (detail) return cached('sandbag-hd', sandbagGeomHD);
   return cached('sandbag', () => {
     const g = new THREE.BoxGeometry(0.56, 0.16, 0.32, 3, 2, 2);
     const p = g.attributes.position;
@@ -206,9 +207,37 @@ export function sandbagGeom() {
   });
 }
 
+/** env-look (medium+): Sandsack als gefülltes Kissen – flach gedrückte Lauffläche, gewölbte Flanken, abgebundene,
+ * eingeschnürte Enden („Ohren“), unten breiter gesackt (Last der oberen Lage), leichte Längsnaht. ≈ 180 Dreiecke. */
+function sandbagGeomHD() {
+  const L = 0.56, H = 0.16, D = 0.32;
+  const g = new THREE.BoxGeometry(L, H, D, 7, 3, 4);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const a = p.getX(i) / (L / 2), bb = p.getY(i) / (H / 2), c = p.getZ(i) / (D / 2);
+    const ea = Math.abs(a);
+    // Enden: abgebunden (Querschnitt schnürt sich zusammen), Ecken gerundet
+    const tie = ea > 0.78 ? 1 - Math.pow((ea - 0.78) / 0.22, 1.6) * 0.62 : 1;
+    const round = Math.pow(Math.max(0, 1 - Math.pow(ea, 6)), 0.32);
+    let y = bb * (H / 2) * round * tie * (1 - 0.22 * c * c * c * c);
+    if (bb < 0) y *= 0.82;                         // Unterseite flach aufliegend
+    y += (bb > 0.5 && Math.abs(c) < 0.3 ? -0.004 : 0) * (1 - ea); // Längsnaht
+    let z = c * (D / 2) * (1 - 0.14 * a * a * a * a) * (1 - 0.1 * bb * bb) * tie * (1 + 0.07 * Math.max(0, -bb));
+    const x = a * (L / 2) * (1 - 0.05 * bb * bb) * (ea > 0.95 ? 0.98 : 1);
+    p.setXYZ(i, x, y, z);
+  }
+  g.computeVertexNormals();
+  const ng = g.toNonIndexed();
+  ng.translate(0, 0.075, 0);
+  const uv = ng.attributes.uv, pp = ng.attributes.position;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, pp.getX(i) + pp.getZ(i) * 0.7, pp.getY(i) + pp.getZ(i) * 0.3);
+  return ng;
+}
+
 /** Sandsackwall entlang einer Linie. rows: Lagen (3 ≈ 0,45 m, 6 ≈ 0,9 m). */
 export function sandbags(b, x0, z0, x1, z1, o = {}) {
-  const rows = o.rows ?? 4, y = o.y ?? 0, g = sandbagGeom();
+  const hd = o.detail ?? (b.lookQuality ? b.lookQuality !== 'low' : false);
+  const rows = o.rows ?? 4, y = o.y ?? 0, g = sandbagGeom(hd);
   const L = Math.hypot(x1 - x0, z1 - z0), ry = Math.atan2(-(z1 - z0), x1 - x0);
   const ux = (x1 - x0) / L, uz = (z1 - z0) / L;
   const depth = o.double ? 2 : 1;
@@ -221,7 +250,10 @@ export function sandbags(b, x0, z0, x1, z1, o = {}) {
       for (let k = 0; k < depth; k++) {
         const lz = (k - (depth - 1) / 2) * 0.33 - uz * 0;
         const nx = -uz * lz, nz = ux * lz;
-        b.geom(g, x0 + ux * s + nx + (b.rand() - 0.5) * 0.03, y + r * 0.145, z0 + uz * s + nz + (b.rand() - 0.5) * 0.03, 'sandbag', { ry: ry + (b.rand() - 0.5) * 0.12, tint: b.pick(tints), collide: false, minimap: false, uv: 'keep', grad: false, aoFloor: y });
+        const jx = (b.rand() - 0.5) * 0.03, jz = (b.rand() - 0.5) * 0.03, jr = (b.rand() - 0.5) * 0.12, tint = b.pick(tints);
+        // env-look: leichte Neigung je Sack (liegen nie exakt eben), nur mit der Detailform
+        const tilt = hd ? { rx: (b.rand() - 0.5) * 0.06, rz: (b.rand() - 0.5) * 0.08, sy: 0.92 + b.rand() * 0.16 } : {};
+        b.geom(g, x0 + ux * s + nx + jx, y + r * 0.145, z0 + uz * s + nz + jz, 'sandbag', { ry: ry + jr, ...tilt, tint, collide: false, minimap: false, uv: 'keep', grad: false, aoFloor: y });
       }
     }
   }

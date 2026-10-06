@@ -71,6 +71,8 @@ export class BotManager {
     this._shadowT = 0;
     this._plateLos = new Map();
     this.tactics = new TeamTactics(this);
+    this.lodEnabled = true;
+    this._stepEv = { actor: null, sprint: false, crouch: false }; // Simulations-Detailstufen (Prüfstand/Messung: false = alle Bots jedes Bild)
     this.lodCount = [0, 0, 0, 0];
     this.activity = []; // jüngste Gefechtslärm-Positionen { pos, time, actor } (hörbar über die ganze Karte)
     this.debug = { los: 0, paths: 0, ms: 0, losUsed: 0, pathsUsed: 0 };
@@ -321,7 +323,8 @@ export class BotManager {
       // Simulations-Detailstufe nach Abstand/Sicht; Gefecht mit dem Spieler = volle Rate
       const pl = G.player;
       const duel = !!pl && ((b.gunner.rec && b.gunner.rec.actor === pl && now - (b.gunner.rec.seenAt || -1e9) < 3) || (aimT === b));
-      const tier = !b.alive || duel || d < 70 || (inView && d < 140) ? 0 : d < 160 || inView ? 1 : d < 260 ? 2 : 3;
+      // (Sichtkegel ohne Verdeckung: auf der Großkarte liegt fast jeder im Bild → Abstand entscheidet, Sicht hebt eine Stufe an)
+      const tier = !this.lodEnabled ? 0 : !b.alive || duel || d < 50 || (inView && d < 90) ? 0 : d < 120 || (inView && d < 220) ? 1 : d < 260 || inView ? 2 : 3;
       b.simTier = tier;
       const L = SIM_LOD[tier];
       b.simEvery = L.every; b.lodSense = L.sense; b.lodThink = L.think;
@@ -347,7 +350,17 @@ export class BotManager {
       const b = bots[i];
       const every = b.alive ? b.simEvery || 1 : 1;
       b._simAcc += dt;
-      if (every > 1 && (this._frame + b.simPhase) % every !== 0) continue;
+      if (every > 1 && (this._frame + b.simPhase) % every !== 0) {
+        // Zwischenbild: sichtbare Figur entlang der Geschwindigkeit weiterschieben (kein Ruckeln bei 10–15 Hz Takt)
+        const s = b.soldier;
+        if (b.alive && b.inView && s && s.state === 'alive') {
+          const v = b.body.velocity;
+          _w.copy(s.root.position);
+          _w.x += v.x * dt; _w.z += v.z * dt;
+          s.place(_w, s.anim.bodyYaw);
+        }
+        continue;
+      }
       const sdt = Math.min(b._simAcc, 0.15);
       b._simAcc = 0;
       b.update(sdt);
@@ -485,12 +498,15 @@ export class BotManager {
 
   /** Unsichtbar umsetzen erlaubt? (nicht im Blick des Spielers) */
   canTeleport(bot) {
-    return !bot.inView && bot.camDist > 18;
+    // nicht im Bild, oder so weit weg, dass der Versatz nicht auffällt (Großkarte: Sichtkegel ohne Verdeckung)
+    return (!bot.inView && bot.camDist > 18) || bot.camDist > 70;
   }
 
   footstep(bot) {
     const G = this.G;
     const sprint = bot.sprinting, crouch = bot.crouching;
+    // Weit weg vom Hörer (> 50 m, unhörbar): kein Ereignis (Audio-Kosten), nur das Gehör der Bots bedienen
+    if (bot.camDist > 50) { this._stepEv.actor = bot; this._stepEv.sprint = sprint; this._stepEv.crouch = crouch; this._onFootstep(this._stepEv); return; }
     const surface = bot.camDist < 32 && G.world && G.world.surfaceAt ? G.world.surfaceAt(bot.position) : 'concrete';
     G.events.emit('footstep', { actor: bot, surface, sprint, crouch, position: bot.position.clone() });
   }

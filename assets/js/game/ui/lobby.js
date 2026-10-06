@@ -3,6 +3,7 @@
 // Vorlagen, 3D-Vorschau). Vorbelegung aus URL-Parametern (erster Aufruf) und den letzten Einstellungen.
 
 import { rulesFor, limitsFor, teamWarning } from '../../shared/modes.data.js';
+import { WEATHERS } from '../../shared/maps.data.js'; // atmosphere-weather
 import { CLASSES, SOLDIER_CLASS_ORDER, GAME_STYLES, STYLE_ORDER, resolveClassLoadout, classAllows, classProfile } from '../../shared/classes.data.js';
 import { esc, num, secs, meters } from './dom.js';
 import { ICON } from './icons.js';
@@ -69,7 +70,10 @@ export class Lobby {
       allies: null, enemies: null, balance: true,
       primary: last.primary, secondary: last.secondary, lethal: last.lethal,
       style: GAME_STYLES[S.get('gameStyle')] ? S.get('gameStyle') : 'arcade', cls: CLASSES[S.get('lastClass')] ? S.get('lastClass') : 'sturm',
-      matchLength: 'standard', timeOfDay: null,
+      matchLength: 'standard',
+      // atmosphere-weather: Wetter/Tageszeit wie die übrigen Lobby-Optionen gemerkt ('standard' = Kartenvorgabe)
+      timeOfDay: S.get('lastTime') && S.get('lastTime') !== 'standard' ? S.get('lastTime') : null,
+      weather: S.get('lastWeather') || 'standard',
     };
     if (prm) {
       if (d.MODES[prm.get('mode')]) base.modeId = prm.get('mode');
@@ -83,6 +87,8 @@ export class Lobby {
       if (d.EQ[prm.get('lethal')]) base.lethal = prm.get('lethal');
       if (GAME_STYLES[prm.get('style')]) base.style = prm.get('style');
       if (CLASSES[prm.get('cls')]) base.cls = prm.get('cls');
+      if (WEATHERS[prm.get('weather')] || prm.get('weather') === 'zufall') base.weather = prm.get('weather'); // atmosphere-weather
+      if (prm.get('tod')) base.timeOfDay = prm.get('tod');
       // Zeit-/Punktelimit aus der URL sind Testparameter: nur mit debug=1 (Match dann ungewertet) und nur
       // für den Modus, mit dem die Seite geöffnet wurde
       const tl = G.debug ? parseFloat(prm.get('time')) : NaN;
@@ -140,6 +146,14 @@ export class Lobby {
     return ids.filter((id) => id !== 'range');
   }
 
+  /** Tageszeit der gewählten Karte (null = Kartenzeit; gemerkte Zeit, die die Karte nicht hat → null). atmosphere-weather */
+  _todFor(c) {
+    const t = c.timeOfDay;
+    if (!t || t === 'zufall') return t || null;
+    const map = this._data().MAPS[c.mapId] || {};
+    return (Array.isArray(map.times) ? map.times : []).some((x) => x.id === t) ? t : null;
+  }
+
   /** Startkonfiguration für main (onStart). */
   config() {
     const c = this.cfg;
@@ -150,7 +164,7 @@ export class Lobby {
     return {
       modeId: c.modeId, mapId: c.mapId, difficulty: c.difficulty, allies: c.allies, enemies: c.enemies,
       style: c.style, crosshair: c.style === 'realistisch' ? !!this.G.settings.get('realisticCrosshair') : null,
-      matchLength: c.matchLength, timeOfDay: c.timeOfDay,
+      matchLength: c.matchLength, timeOfDay: this._todFor(c), weather: c.weather && c.weather !== 'standard' ? c.weather : null,
       loadout: { primary: c.primary, secondary: c.secondary, lethal: c.lethal, cls: c.cls, camo, ...(skin ? { skin } : {}) },
       ...(c.limits && c.limits.modeId === c.modeId ? { timeLimit: c.limits.timeLimit, scoreLimit: c.limits.scoreLimit } : {}),
     };
@@ -237,7 +251,8 @@ export class Lobby {
     }
     if (ds.xhair != null) { try { this.G.settings.set('realisticCrosshair', !this.G.settings.get('realisticCrosshair')); } catch { /* */ } this._renderDeploy(); this.menus.sound('toggle'); return; }
     if (ds.len) { c.matchLength = ds.len; this._renderDeploy(); this.menus.sound('click'); return; }
-    if (ds.tod != null) { c.timeOfDay = ds.tod || null; this._renderDeploy(); this.menus.sound('click'); return; }
+    if (ds.tod != null) { c.timeOfDay = ds.tod || null; try { this.G.settings.set('lastTime', ds.tod || 'standard'); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
+    if (ds.wx != null) { c.weather = ds.wx || 'standard'; try { this.G.settings.set('lastWeather', c.weather); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
     if (ds.cls) { this._setClass(ds.cls); return; }
     if (ds.camo) { this._setCamo(ds.camo, b); return; }
     if (ds.diff) { c.difficulty = ds.diff; this._renderDeploy(); this._renderSummary(); this.menus.sound('click'); return; }
@@ -305,8 +320,13 @@ export class Lobby {
     const xh = !!this.G.settings.get('realisticCrosshair');
     const map = d.MAPS[c.mapId] || {};
     const times = Array.isArray(map.times) ? map.times : [];
+    // atmosphere-weather: Wetter je Karte (MAPS[id].weathers), Standard = Kartenwetter, Zufall
+    const wxs = (Array.isArray(map.weathers) ? map.weathers : []).filter((w) => WEATHERS[w]);
+    const wxSel = c.weather === 'zufall' || wxs.includes(c.weather) ? c.weather : 'standard';
+    const todSel = this._todFor(c);
     const extra = `${m.matchLengths ? `<div><h2 class="m-h2">Matchlänge</h2><div class="m-seg" role="radiogroup" aria-label="Matchlänge">${LENGTHS.map(([id, l]) => `<button type="button" role="radio" data-len="${id}" aria-checked="${id === c.matchLength}">${l}</button>`).join('')}</div></div>` : ''}
-      ${times.length ? `<div><h2 class="m-h2">Tageszeit</h2><div class="m-seg" role="radiogroup" aria-label="Tageszeit"><button type="button" role="radio" data-tod="" aria-checked="${!c.timeOfDay}">${esc(map.timeOfDay || 'Standard')}</button>${times.map((t) => `<button type="button" role="radio" data-tod="${esc(t.id)}" aria-checked="${t.id === c.timeOfDay}">${esc(t.name || t.label || t.id)}</button>`).join('')}</div></div>` : ''}`;
+      ${times.length ? `<div><h2 class="m-h2">Tageszeit</h2><div class="m-seg" role="radiogroup" aria-label="Tageszeit"><button type="button" role="radio" data-tod="" aria-checked="${!todSel}">${esc(map.timeOfDay || 'Standard')}</button>${times.map((t) => `<button type="button" role="radio" data-tod="${esc(t.id)}" aria-checked="${t.id === todSel}">${esc(t.name || t.label || t.id)}</button>`).join('')}<button type="button" role="radio" data-tod="zufall" aria-checked="${todSel === 'zufall'}">Zufall</button></div></div>` : ''}
+      ${wxs.length ? `<div><h2 class="m-h2">Wetter</h2><div class="m-seg" role="radiogroup" aria-label="Wetter">${[['standard', 'Standard', map.weather || ''], ...wxs.map((w) => [w, WEATHERS[w].name, WEATHERS[w].short || '']), ['zufall', 'Zufall', 'Zufälliges Wetter beim Start']].map(([id, l, t]) => `<button type="button" role="radio" data-wx="${id}" aria-checked="${id === wxSel}"${t ? ` title="${esc(t)}"` : ''}>${esc(l)}</button>`).join('')}</div></div>` : ''}`;
     this.el.deploy.innerHTML = `
       <section class="lb-sec"><h2 class="m-h2">Modus</h2><div class="lb-modes" role="group" aria-label="Modus">${modes}</div>
         <div class="lb-modeinfo"><p>${esc(m.description || '')}</p><ul class="lb-rules"></ul></div></section>

@@ -86,6 +86,7 @@ const scene = new THREE.Scene();
 // vertikales Äquivalent von 80° (4:3) wie im Spiel
 const camera = new THREE.PerspectiveCamera(Number(params.get('fov') || 64.4), 1, 0.05, 1200);
 camera.rotation.order = 'YXZ';
+window.__devScene = scene;
 const vmScene = new THREE.Scene();
 const vmCamera = new THREE.PerspectiveCamera(54, 1, 0.01, 10);
 vmScene.add(new THREE.HemisphereLight(0xdfe6ee, 0x3a332c, 1.6));
@@ -175,7 +176,7 @@ async function load(mapId) {
   for (const m of marks) { m.el.remove(); markGroup.remove(m.mesh); }
   marks.length = 0;
   world = await loadWorld(G, mapId, { onProgress: (p, l) => { $('ptext').textContent = `${Math.round(p * 100)} % · ${l}`; } });
-  R.setMood(mapId);
+  R.setMood(world.grade || mapId); // atmosphere-weather: Wetter/Tageszeit-Stimmung (wie main.js)
   R.setSun(world.lighting);
   $('mood').value = Object.keys(MOODS).includes(mapId) ? mapId : 'neutral';
   post.exposure = R.post.exposure;
@@ -213,6 +214,10 @@ const _p = {};
 let last = performance.now(), statAt = 0;
 window.__dev = {
   ready: false, R, camera, setCam, paused: false,
+  // atmosphere-weather (Prüfskripte tools/out/atmos): Welt, Strahltest, Licht-Statistik
+  get world() { return world; },
+  raycast(x, y, z, dx, dy, dz, max) { return world.raycast(new THREE.Vector3(x, y, z), new THREE.Vector3(dx, dy, dz), max); },
+  lightStats() { const L = world.stats.lighting || {}; return { atmos: L.atmos || null, far: L.far ? { active: L.far.active, size: L.far.size, texel: L.far.texel } : null, weather: world.weather || null, mood: R.info().post?.mood }; },
   set(c) { cfg = { ...cfg, ...c }; apply(); return R.lensSettings; },
   setQuality(q) { R.setQuality(q); }, setScale(s) { scale = s; R.setResolutionScale(s); },
   setMood(m) { return R.setMood(m); }, setPost(p) { Object.assign(post, p); R.setPost(post); },

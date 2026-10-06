@@ -239,7 +239,7 @@ export function createLighting(G, def, group, { hdri = null, far = null, heightF
   cam.near = 1; cam.far = 420;
   sun.shadow.bias = def.shadow?.bias ?? -0.00035;
   sun.shadow.normalBias = def.shadow?.normalBias ?? 0.035;
-  sun.shadow.radius = 2;
+  sun.shadow.radius = def.shadow?.radius ?? 2; // bewölkt: weichere Schatten (atmosphere-weather)
   group.add(sun); group.add(sun.target);
   // Fernkaskade (einmal gerendert; bake() ruft loadWorld nach dem Aufbau, wenn alle Requisiten stehen)
   const farShadow = far ? createFarShadow(G, { sunDir, bounds: far.bounds, group, exclude: far.exclude }) : null;

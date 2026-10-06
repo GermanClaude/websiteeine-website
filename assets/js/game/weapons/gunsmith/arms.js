@@ -410,10 +410,10 @@ function capsule(r0, r1, len, seg = 10) {
 }
 
 function buildHandGeometry(mirror, lod = 'high') {
-  const SEG = lod === 'low' ? 7 : 12;
+  const SEG = lod === 'low' ? 6 : 9;   // Umfangssegmente je Fingerglied (≈ 2,7k Dreiecke je Hand auf high, ≈ 1,9k auf low)
   const parts = [];
   // Handfläche: verjüngt zum Handgelenk
-  const palm = new RoundedBoxGeometry(0.084, 0.032, 0.09, lod === 'low' ? 2 : 3, 0.012);
+  const palm = new RoundedBoxGeometry(0.084, 0.032, 0.09, 2, 0.012);
   palm.translate(0, 0.0, -0.045);
   const pa = palm.attributes.position;
   for (let i = 0; i < pa.count; i++) {
@@ -429,17 +429,17 @@ function buildHandGeometry(mirror, lod = 'high') {
 
   parts.push(tag(palmS, 0, sideColor));
   // Daumenballen
-  const thenar = lod === 'low' ? new THREE.SphereGeometry(0.019, 7, 5) : new THREE.SphereGeometry(0.019, 10, 8);
+  const thenar = lod === 'low' ? new THREE.SphereGeometry(0.019, 7, 5) : new THREE.SphereGeometry(0.019, 9, 6);
   thenar.scale(0.9, 0.75, 1.5);
   thenar.translate(-0.021, -0.009, -0.03);
   parts.push(tag(thenar, 0, sideColor));
   // Knöchelschutz (hart) + Polster auf dem Handrücken
-  const knuckle = bent(new RoundedBoxGeometry(0.068, 0.008, 0.024, 2, 0.0035), 5);
+  const knuckle = bent(new RoundedBoxGeometry(0.068, 0.008, 0.024, 1, 0.0035), 5);
   knuckle.translate(0, 0.0175, -0.074);
   parts.push(tag(knuckle, 0, PAD));
   // Fingergrundgelenke als einzelne Höcker unter dem Protektor (lesbare Knöchel-Silhouette)
   if (lod !== 'low') for (const f of FINGERS) {
-    const k = new THREE.SphereGeometry(f.r[0] * 0.95, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2);
+    const k = new THREE.SphereGeometry(f.r[0] * 0.95, 7, 3, 0, Math.PI * 2, 0, Math.PI / 2);
     k.scale(1.05, 0.55, 0.9);
     k.translate(f.x, f.y + 0.0105, f.z + 0.004);
     parts.push(tag(k, 0, sideColor));
@@ -470,7 +470,7 @@ function buildHandGeometry(mirror, lod = 'high') {
       parts.push(tag(g, bone + s, sideColor));
       if (s < 2) {
         // Gepolsterte Glieder auf dem Fingerrücken
-        const pad = new RoundedBoxGeometry(r0 * 1.35, 0.003, len * (s ? 0.42 : 0.5), 1, 0.0012);
+        const pad = new THREE.BoxGeometry(r0 * 1.35, 0.003, len * (s ? 0.42 : 0.5));
         pad.translate(f.x, f.y + r0 * 0.86, z - len * 0.5);
         parts.push(tag(pad, bone + s, PAD));
       }
@@ -484,7 +484,7 @@ function buildHandGeometry(mirror, lod = 'high') {
     const len = THUMB.len[s], r0 = THUMB.r[s], r1 = s < 2 ? THUMB.r[s + 1] : THUMB.r[s] * 0.88;
     const g = capsule(r0, r1, len, SEG);
     if (s === 2) {
-      const pad = new RoundedBoxGeometry(r0 * 1.3, 0.003, len * 0.45, 1, 0.0012);
+      const pad = new THREE.BoxGeometry(r0 * 1.3, 0.003, len * 0.45);
       pad.translate(0, r0 * 0.86, -len * 0.45);
       g.deleteAttribute('uv');
       const merged = mergeGeometries([g.toNonIndexed(), tagPlain(pad)]);

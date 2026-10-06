@@ -11,6 +11,7 @@ import { createLighting, sunVector } from './lighting.js';
 import { applyWorldShading, initShading, resetShading, setShadingMode, shadingMode, bindShadingScene, watchScene, WS } from './shading.js';
 import { createProbeQuery, PROBE_TIERS, PROBE_BOUNCE_SCALE } from './probes.js';
 import { createAtmosphere } from './atmos.js';
+import { resolveConditions, applyConditions } from './weather.js';
 import { createWater } from './water.js';
 import { navFromData, validateNavGraph } from './navgraph.js';
 import { createMinimap } from './minimap.js';
@@ -164,8 +165,11 @@ function activateLighting(G, def, world, group, light, probes, quality, debug) {
  * @param {string} mapId 'hafen' | 'altstadt' | 'werk' | 'range'
  * @param {{ onProgress?: (p:number, label:string)=>void }} [opts]
  */
-export async function loadWorld(G, mapId, { onProgress } = {}) {
-  if (BIG_MAPS.has(mapId) && MAPS[mapId]?.scale === 'gross') return (await import('./terrain/bigworld.js')).loadBigWorld(G, mapId, { onProgress });
+export async function loadWorld(G, mapId, opts = {}) {
+  const { onProgress } = opts;
+  // atmosphere-weather: Wetter/Tageszeit (opts.weather/opts.time; sonst URL weather=/tod= – Prüfseiten)
+  const condReq = { weather: 'weather' in opts ? opts.weather : G.params?.get?.('weather'), time: 'time' in opts ? opts.time : G.params?.get?.('tod') };
+  if (BIG_MAPS.has(mapId) && MAPS[mapId]?.scale === 'gross') return (await import('./terrain/bigworld.js')).loadBigWorld(G, mapId, { onProgress, ...condReq });
   const t0 = performance.now();
   const id = MAP_MODULES[mapId] ? mapId : 'hafen';
   const meta = MAPS[id];
@@ -180,7 +184,9 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   configureTextures({ size: lowTex ? 256 : 512, anisotropy: Math.min(lowTex ? 2 : 8, maxAniso) });
   beginTextureEpoch(); // Texturen, die diese Karte nicht nutzt, werden am Ende freigegeben
 
-  const [{ default: def }] = await Promise.all([MAP_MODULES[id](), fontsReady()]);
+  const [{ default: def0 }] = await Promise.all([MAP_MODULES[id](), fontsReady()]);
+  const conditions = resolveConditions(meta, condReq);
+  const def = applyConditions(def0, conditions, id); // Standard = def0 unverändert
   // Fotoscan-Bibliothek (assets/lib): Verfügbarkeit prüfen (Manifest, Transcoder, Kompressionsformat), HDRI sofort
   // laden; Texturensätze und Requisiten lädt MapBuilder.build() parallel zur prozeduralen Arbeit (b.library)
   const lib = createWorldAssets(G, def, quality);
@@ -210,6 +216,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     THREE, quality, debug, getMaterial, lib: libOk,
     water: o => { const w = createWater(o); waters.push(w); return w; },
   };
+  b.lookQuality = quality; // env-look: Detailformen (Sandsäcke) ab medium
   // Texturen, die Requisiten direkt anfordern (Kran, Wasser …), nicht sofort im Hauptthread erzeugen:
   // Platzhalter jetzt, Daten gesammelt im Worker-Pool während b.build() (preloadMaterials)
   deferTextureGeneration(true);
@@ -374,7 +381,7 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
   // Atmosphäre: Sonnenstrahlen durch Öffnungen in dunkle Innenräume + schwebender Staub (je Kartenstimmung)
   let atmos = null;
   try {
-    atmos = createAtmosphere(G, { quality, def: def.lighting, sunDir, openings: b.openings, bvh, probes: probes?.query || null, sun: light.lighting.sun });
+    atmos = createAtmosphere(G, { quality, def: def.lighting, sunDir, openings: b.openings, bvh, probes: probes?.query || null, sun: light.lighting.sun, bounds: pb });
     group.add(atmos.group);
   } catch (err) { console.warn('[world] Atmosphäre:', err); }
   b.openings = [];
@@ -404,6 +411,8 @@ export async function loadWorld(G, mapId, { onProgress } = {}) {
     lighting: light.lighting,
     /** Farbstimmung/Belichtung für core-render (`renderer.setMood(world.grade || mapId)`): Karten-`grade` über der Stimmung der Karte. */
     grade: def.grade ? { mood: id, ...def.grade } : undefined,
+    /** Wetter/Tageszeit (world/weather.js): { weather, time (null = Kartenzeit), key, isDefault } */
+    weather: conditions,
     minimap,
     ambience: def.ambience || meta.ambience,
     targets,

@@ -18,6 +18,9 @@ export const MAPS = {
     dimensions: { x: 96, z: 104 },
     timeOfDay: 'Goldene Stunde',
     weather: 'Klar, tiefe Sonne',
+    // atmosphere-weather: wählbares Wetter (ohne Niederschlag) + Tageszeiten; Standard = Kartenwetter/-zeit (unverändert)
+    weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'klar',
+    timeDefault: 'abend', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'mittag', name: 'Mittag' }],
     modes: ['tdm', 'ffa', 'dom', 'gun', 'kc', 'inf'],
     palette: ['#f2a65a', '#c8402f', '#2d5f94', '#1f4a57', '#3b3f44'],
     features: ['Kletterbare Containerstapel', 'Portalkran als Wahrzeichen', 'Lagerhalle mit Büro-Empore', 'Kaikante mit Wasser'],
@@ -84,6 +87,9 @@ export const MAPS = {
     dimensions: { x: 92, z: 104 },
     timeOfDay: 'Mittag',
     weather: 'Wolkenlos, gleißende Sonne',
+    // atmosphere-weather: wählbares Wetter (ohne Niederschlag) + Tageszeiten; Standard = Kartenwetter/-zeit (unverändert)
+    weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'klar',
+    timeDefault: 'mittag', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'nachmittag', name: 'Nachmittag' }, { id: 'abend', name: 'Abend' }],
     modes: ['tdm', 'ffa', 'dom', 'gun', 'kc', 'inf'],
     palette: ['#ede6d6', '#2f6f9a', '#b65a37', '#d9b26a', '#7fa0c8'],
     features: ['Begehbare Häuser und Dachterrassen', 'Markt mit Sonnensegeln', 'Brunnenplatz mit Glockenturm', 'Enge Gassen und Torbögen'],
@@ -143,6 +149,9 @@ export const MAPS = {
     dimensions: { x: 104, z: 96 },
     timeOfDay: 'Bewölkte Dämmerung',
     weather: 'Bedeckt, kühles Abendlicht',
+    // atmosphere-weather: wählbares Wetter (ohne Niederschlag) + Tageszeiten; Standard = Kartenwetter/-zeit (unverändert)
+    weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'dunst',
+    timeDefault: 'abend', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'mittag', name: 'Mittag' }],
     modes: ['tdm', 'ffa', 'dom', 'gun', 'kc', 'inf'],
     palette: ['#ffae4a', '#4b5560', '#7d8a84', '#2a3036', '#a35d2c'],
     features: ['Große Halle mit Laufstegen', 'Maschinen und Rohrbrücken', 'Ladebuchten und Lkw-Hof', 'Warmes Natriumlicht gegen kalte Dämmerung'],
@@ -215,6 +224,9 @@ export const MAPS = {
     dimensions: { x: 60, z: 139 },
     timeOfDay: 'Klarer Morgen',
     weather: 'Klar, frische Luft',
+    // atmosphere-weather: wählbares Wetter (ohne Niederschlag) + Tageszeiten; Standard = Kartenwetter/-zeit (unverändert)
+    weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'klar',
+    timeDefault: 'morgen', times: [{ id: 'mittag', name: 'Mittag' }, { id: 'abend', name: 'Abend' }],
     modes: ['training'],
     palette: ['#ff5b1f', '#e8ecef', '#5d7488', '#2c2f33', '#f2c230'],
     features: ['Acht Schießbahnen', 'Klappziele 10–100 m', 'Entfernungstafeln', 'Einschieß-Parcours'],
@@ -265,6 +277,9 @@ export const MAPS = {
     dimensions: { x: 500, z: 500 },
     timeOfDay: 'Später Vormittag',
     weather: 'Leicht dunstig, Schönwetterwolken',
+    // atmosphere-weather: wählbares Wetter (ohne Niederschlag) + Tageszeiten; Standard = Kartenwetter/-zeit (unverändert)
+    weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'dunst',
+    timeDefault: 'vormittag', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'abend', name: 'Abend' }],
     modes: ['cq', 'tdm', 'dom', 'ffa'],
     palette: ['#6f8a4e', '#c9b98a', '#3f5d6a', '#8a4232', '#e9e2d0'],
     features: ['Fünf Eroberungsflaggen A–E mit HQs', 'Fluss mit Brücke und zwei Furten', 'Betretbare Häuser, Scheune mit Heuboden', 'Wälder, Hecken, Felder und Randgebirge', 'Fahrzeug-Stellplätze in beiden HQs'],
@@ -291,5 +306,14 @@ export const MAPS = {
     spawns: { A: [4, 124], B: [46, -72] },
   },
 };
+
+/** Wetter ohne Niederschlag (atmosphere-weather; Wirkung in world/weather.js). Lobby: „Wetter“ (Standard = Kartenwetter, Zufall). */
+export const WEATHERS = {
+  klar: { id: 'klar', name: 'Klar', short: 'Klare Sicht, harte Schatten' },
+  dunst: { id: 'dunst', name: 'Dunst', short: 'Diesige Luft, sichtbare Lichtstrahlen' },
+  morgennebel: { id: 'morgennebel', name: 'Morgennebel', short: 'Bodennebel, Sonne bricht durch' },
+  bewoelkt: { id: 'bewoelkt', name: 'Bewölkt', short: 'Geschlossene Wolkendecke, weiches Licht' },
+};
+export const WEATHER_ORDER = ['klar', 'dunst', 'morgennebel', 'bewoelkt'];
 
 export const MAP_ORDER = ['hafen', 'altstadt', 'werk', 'range', 'grenzland'];

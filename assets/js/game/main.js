@@ -426,6 +426,7 @@ function normalizeConfig(cfg = {}) {
     style, crosshair: typeof cfg.crosshair === 'boolean' ? cfg.crosshair : null,
     matchLength: ['kurz', 'standard', 'lang'].includes(cfg.matchLength) ? cfg.matchLength : 'standard',
     timeOfDay: typeof cfg.timeOfDay === 'string' ? cfg.timeOfDay : null,
+    weather: typeof cfg.weather === 'string' ? cfg.weather : null, // atmosphere-weather: id | 'standard' | 'zufall'
     timeLimit: numParam(cfg.timeLimit), scoreLimit: numParam(cfg.scoreLimit),
   };
 }
@@ -448,6 +449,8 @@ function configFromParams() {
     allies: params.get('allies'), enemies: params.get('enemies'),
     loadout: { primary: params.get('primary'), secondary: params.get('secondary'), lethal: params.get('lethal'), cls: params.get('cls'), armor: params.get('vest'), helmet: params.get('helmet') },
     timeLimit: params.get('time'), scoreLimit: params.get('score'), style: params.get('style'), armor: params.get('armor'),
+    // atmosphere-weather: weather=klar|dunst|morgennebel|bewoelkt|zufall, tod=<Tageszeit-id> (time= nur, wenn nicht numerisch)
+    weather: params.get('weather'), timeOfDay: params.get('tod') || (params.get('time') && !/^[\d.]+$/.test(params.get('time')) ? params.get('time') : null),
   };
 }
 
@@ -806,7 +809,8 @@ async function runStart(config, gen) {
   const live = () => gen === matchGen;
   try {
     const cfg = normalizeConfig(config);
-    const reuse = !!(G.world && G.world.id === cfg.mapId);
+    const condKey = `${cfg.weather || ''}|${cfg.timeOfDay || ''}`; // atmosphere-weather: anderes Wetter/Zeit → neu aufbauen
+    const reuse = !!(G.world && G.world.id === cfg.mapId && (G.world._condKey ?? '|') === condKey);
     await teardownMatch({ keepWorld: reuse });
     if (!live()) return;
     applyAutoTier();
@@ -817,6 +821,7 @@ async function runStart(config, gen) {
       startedAt: null, startedReal: null, countdown: 0, pausedFrom: null, endedAt: null, result: null,
       unranked: isUnranked(cfg),
       style: cfg.style, crosshair: cfg.crosshair, matchLength: cfg.matchLength, timeOfDay: cfg.timeOfDay, cls: cfg.loadout.cls || null, // modes-ui
+      weather: cfg.weather, // atmosphere-weather (Anfrage; aufgelöst in G.world.weather)
     });
     settings.patch({ lastMode: cfg.modeId, lastMap: cfg.mapId, difficulty: cfg.difficulty, lastLoadout: cfg.loadout, lastClass: cfg.loadout.cls || 'sturm' });
     applyStyle(cfg); // core-mechanics: G.match.style/styleFlags/armor
@@ -838,8 +843,9 @@ async function runStart(config, gen) {
       sceneBase = new Set(G.scene.children);
       // Vorarbeiten ohne Kartenbezug laufen in den Pausen des Kartenaufbaus (Worker-Phasen) mit
       const early = runJobs(matchAssetJobs(cfg, null), live);
-      const world = await G.modules.world.loadWorld(G, cfg.mapId, { onProgress });
+      const world = await G.modules.world.loadWorld(G, cfg.mapId, { onProgress, weather: cfg.weather, time: cfg.timeOfDay });
       if (!world) throw new Error(`loadWorld(${cfg.mapId}) lieferte keine Welt`);
+      world._condKey = condKey;
       G.world = world;
       safe('renderer.setMood', () => { G.renderer.setMood?.(world.grade || cfg.mapId); G.renderer.setSun?.(world.lighting); }); // core-render: LUT/Belichtung/Lichtstrahlen je Karte
       if (world.group && !world.group.parent) G.scene.add(world.group);

@@ -12,6 +12,9 @@ import { configureTextures, getMaterial, beginTextureEpoch, releaseUnusedTexture
 import { createWorldAssets } from '../library.js';
 import { MapBuilder, SURFACES } from '../builder.js';
 import { createLighting } from '../lighting.js';
+import { applyWorldShading, bindShadingScene, watchScene, initShading, resetShading, setShadingMode } from '../shading.js';
+import { createAtmosphere } from '../atmos.js';
+import { resolveConditions, applyConditions } from '../weather.js';
 import { createWater } from '../water.js';
 import { TriangleBVH } from '../bvh.js';
 import { makeTests } from '../navbuild.js';
@@ -36,9 +39,9 @@ export const BIG_MAP_IDS = Object.keys(BIG_MAPS);
 /** Budgets je Qualitätsstufe (GROSSKAMPF_PLAN §3.4; Handy = low). */
 export const BIG_TIERS = {
   low: { view: 340, steps: [2, 4, 8, 16], dists: [56, 150, 260], treeNear: 55, treeFar: 330, grass: 12, grassStep: 1.7, grassCap: 220, treeShadow: false, density: 0.55, far: 700, mapPx: 512, siteCull: 210, shadow: 24 },
-  medium: { view: 600, steps: [1, 2, 4, 8], dists: [48, 150, 330], treeNear: 90, treeFar: 580, grass: 25, grassStep: 1.4, grassCap: 1400, treeShadow: false, density: 0.8, far: 900, mapPx: 1024, siteCull: 520, shadow: 40 },
-  high: { view: 850, steps: [1, 2, 4, 8], dists: [70, 200, 380], treeNear: 150, treeFar: 820, grass: 40, grassStep: 1.3, grassCap: 3200, treeShadow: true, density: 1, far: 1000, mapPx: 1024, siteCull: 760, shadow: 60 },
-  ultra: { view: 850, steps: [1, 2, 4, 8], dists: [90, 240, 420], treeNear: 190, treeFar: 840, grass: 55, grassStep: 1.25, grassCap: 5600, treeShadow: true, density: 1, far: 1000, mapPx: 1024, siteCull: 800, shadow: 70 },
+  medium: { view: 600, steps: [1, 2, 4, 8], dists: [48, 150, 330], treeNear: 90, treeFar: 580, grass: 25, grassStep: 1.4, grassCap: 1600, grassBlades: 10, treeShadow: false, density: 0.8, far: 900, mapPx: 1024, siteCull: 520, shadow: 40 },
+  high: { view: 850, steps: [1, 2, 4, 8], dists: [70, 200, 380], treeNear: 150, treeFar: 820, grass: 40, grassStep: 1.3, grassCap: 4400, grassBlades: 12, grassNear: 12, treeShadow: true, density: 1, far: 1000, mapPx: 1024, siteCull: 760, shadow: 60 },
+  ultra: { view: 850, steps: [1, 2, 4, 8], dists: [90, 240, 420], treeNear: 190, treeFar: 840, grass: 55, grassStep: 1.25, grassCap: 7400, grassBlades: 12, grassNear: 16, treeShadow: true, density: 1, far: 1000, mapPx: 1024, siteCull: 800, shadow: 70 },
 };
 
 /** Gelände-/Welt-Aufträge im Worker (Rückfall: Hauptthread). */
@@ -120,7 +123,7 @@ function boundaryWalls(r, yMin, yMax) {
  * @param {string} mapId Großkarten-ID (BIG_MAP_IDS)
  * @param {{ onProgress?: (p:number, label:string)=>void }} [opts]
  */
-export async function loadBigWorld(G, mapId, { onProgress } = {}) {
+export async function loadBigWorld(G, mapId, { onProgress, weather = null, time = null } = {}) {
   const t0 = performance.now();
   const id = BIG_MAPS[mapId] ? mapId : BIG_MAP_IDS[0];
   const meta = MAPS[id] || { name: id };
@@ -135,7 +138,10 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
   configureTextures({ size: lowTex ? 256 : 512, anisotropy: Math.min(lowTex ? 2 : 8, maxAniso) });
   beginTextureEpoch();
 
-  const { default: def } = await BIG_MAPS[id]();
+  const { default: def0 } = await BIG_MAPS[id]();
+  // atmosphere-weather: Wetter/Tageszeit → abgeleitete Definition (Standard = def0)
+  const conditions = resolveConditions(meta, { weather, time });
+  const def = applyConditions(def0, conditions, id);
   const runner = createRunner();
   const ms = {};
   // 1) Gelände im Worker (parallel zu den Ortschaften)
@@ -158,6 +164,7 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
       const s = def.sites[k];
       const vb = { minX: s.bounds.minX - 12, maxX: s.bounds.maxX + 12, minZ: s.bounds.minZ - 12, maxZ: s.bounds.maxZ + 12 };
       const b = new MapBuilder({ bounds: vb, seed: (def.seed || 1) + k * 101, chunkSize: s.chunkSize || (quality === 'low' ? 64 : 48), groundNoise: s.groundNoise ?? 0.12, interiorTint: s.interiorTint });
+      b.lookQuality = quality; // env-look: Detailformen ab medium
       if (libOk) {
         b.lib = lib.modelIds();
         b.library = async (req, onProg) => { const r = await lib.load({ ...req, plan: libPlan }, onProg); resolveLibraryMaterials(r.sets); return r; };
@@ -288,8 +295,21 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
   // Licht & Himmel parallel; Nebel nach Sichtweite der Stufe
   const tL = performance.now();
   const hdri = await hdriPromise;
-  const lightDef = { ...def.lighting, fog: { ...def.lighting.fog, near: tier.view * (def.lighting.fog?.nearFactor ?? 0.16), far: tier.view }, shadow: { ...(def.lighting.shadow || {}), size: tier.shadow } };
-  const light = createLighting(G, lightDef, group, { hdri });
+  const fogFar = Math.min(tier.view, def.lighting.fog?.farCap ?? Infinity);
+  const lightDef = { ...def.lighting, fog: { ...def.lighting.fog, near: fogFar * (def.lighting.fog?.nearFactor ?? 0.16), far: fogFar, baseY: def.lighting.fog?.baseY ?? hf.waterY }, shadow: { ...(def.lighting.shadow || {}), size: tier.shadow } };
+  // atmosphere-weather: Höhennebel (Welt-Shading) + eine zwischengespeicherte Fernkaskade über die ganze Karte
+  // (≈ 0,3 m/Texel; Häuser/Brücke/Felsen, ohne kamerabezogene Vegetation; low: keine Karte)
+  // Prüfparameter ?lightfx=0 (wie Arenakarten): ohne Höhennebel/Fernkaskade/Staub – bisheriger Look für A/B
+  const fxOn = G.params?.get?.('lightfx') !== '0';
+  initShading(renderer);
+  const light = createLighting(G, lightDef, group, {
+    hdri, heightFog: fxOn && def.lighting.fog?.density != null,
+    far: !fxOn || def.lighting.shadow?.far === false ? null : {
+      bounds: { minX: pb.minX - 10, maxX: pb.maxX + 10, minZ: pb.minZ - 10, maxZ: pb.maxZ + 10, minY: Math.min(hf.waterY - 4, pb.minY ?? -8), maxY: def.lighting.shadow?.farMaxY ?? 60 },
+      exclude: () => [veg.group, water.mesh || water].filter(Boolean),
+      prepare: () => { for (const s of sites) s.built.props?.showAll(); },
+    },
+  });
   ms.light = Math.round(performance.now() - tL);
   for (const s of sites) group.add(s.built.group);
   G.scene.add(group);
@@ -367,6 +387,9 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
     id, name: meta.name || def.name, meta, scale: 'gross',
     group, collider, collisionBVH: compCol, bounds, spawns, objectives, nav, minimap,
     lighting: light.lighting,
+    /** Farbstimmung für core-render (`setMood(world.grade || mapId)`) + Wetter/Tageszeit (world/weather.js) */
+    grade: def.grade ? { mood: id, ...def.grade } : undefined,
+    weather: conditions,
     ambience: def.ambience || meta.ambience || 'range',
     targets: [],
     terrain: { heightfield: hf, chunks, size: hf.size, waterY: hf.waterY, material: tmat.material, source: tmat.source },
@@ -453,6 +476,7 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
 
     update(dt, camera) {
       light.update(dt, camera);
+      atmos?.update(dt, camera);
       foliageUniforms.uTime.value += dt;
       water.update(dt);
       if (!camera) return;
@@ -498,6 +522,8 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
       chunks.dispose(); farRing.geometry.dispose(); tmat.dispose();
       veg.dispose(); water.dispose();
       group.traverse(o => { if (o.name === 'roads-asphalt') { o.geometry.dispose(); o.material.dispose(); } });
+      atmos?.dispose();
+      world._sceneWatch?.stop(); world._unbindShading?.(); resetShading();
       light.dispose(); hdri?.dispose();
       offQuality?.();
       if (typeof G.renderer?.setPost === 'function') G.renderer.setPost(postRestore);
@@ -515,6 +541,23 @@ export async function loadBigWorld(G, mapId, { onProgress } = {}) {
   const cam0 = new THREE.PerspectiveCamera(70, 1.7, 0.1, 900);
   const s0 = spawns.A[0] || spawns.ffa[0];
   if (s0) { cam0.position.copy(s0.position).add(new THREE.Vector3(0, 1.7, 0)); chunks.update(cam0, 64); veg.update(cam0, true); }
+  // atmosphere-weather: Welt-Shading (Höhennebel, Fernschatten, spekulares AA; ohne Sonden-Gitter) + Staub/Strahlen
+  let atmos = null;
+  if (fxOn) try {
+    world.stats.lighting = { materials: applyWorldShading(group), far: null, atmos: null };
+    world._unbindShading = bindShadingScene(G.scene);
+    world._sceneWatch = watchScene(G.scene);
+    setShadingMode({ probe: 0, specAA: def.lighting.specAA ?? 1 });
+    light.setProbeSun(false);
+    const farOk = light.bakeFar();
+    if (light.farShadow) world.stats.lighting.far = { active: farOk, ...light.farShadow.stats };
+    if (def.lighting.atmos) {
+      atmos = createAtmosphere(G, { quality, def: def.lighting, sunDir: light.lighting.sunDirection, openings: sites.flatMap(s => s.b.openings || []), bvh: compBul, probes: null, sun: light.lighting.sun });
+      group.add(atmos.group);
+      world.stats.lighting.atmos = atmos.stats;
+    }
+  } catch (err) { console.warn('[world] Großkarte: Atmosphäre/Welt-Shading', err); }
+  for (const s of sites) s.b.openings = [];
   progress(0.97, 'Texturen hochladen');
   world.stats.uploadMs = await uploadTextures(renderer, group);
   world.stats.totalMs = Math.round(performance.now() - t0);

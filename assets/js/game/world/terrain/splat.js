@@ -2,6 +2,8 @@
 // RGBA-Kontrollkarte, Fotoscan-Sätze aus assets/lib (KTX2) mit prozeduralem Rückfall (engine/textures.js),
 // Gegen-Kachelung (zwei Maßstäbe + Makro-Rauschen), Nässe am Ufer, Detailnormalen ab medium (Owner: world).
 import * as THREE from 'three';
+import { LIB_MATERIALS } from '../library.js';
+import { getDetailNormalTexture } from '../../engine/textures.js';
 
 /** Schichten: Bibliotheks-ID, prozeduraler Ersatz, Kachelgröße (m), Rauheit, Normalen-Rang (−1 = keine). */
 export const TERRAIN_LAYERS = [
@@ -36,6 +38,8 @@ export async function createTerrainMaterial(o) {
   // Texturen: Bibliothek (KTX2) oder prozedural
   const maps = new Array(TERRAIN_LAYERS.length).fill(null), normals = new Array(TERRAIN_LAYERS.length).fill(null);
   const sizes = TERRAIN_LAYERS.map(l => l.size);
+  // env-look: Kalibrierung der Fotoscan-Albedos wie bei den Karten-Materialien (LIB_MATERIALS.color; Kies war ×1 → weiß)
+  const cal = TERRAIN_LAYERS.map(() => 1);
   let source = 'prozedural';
   const libIds = [];
   if (o.libOk && o.lib) {
@@ -46,6 +50,8 @@ export async function createTerrainMaterial(o) {
         const set = r.sets.get('gelaende:' + l.key);
         if (!set) return;
         maps[k] = set.map; normals[k] = set.normalMap;
+        const c = LIB_MATERIALS[l.key]?.color ?? LIB_MATERIALS[l.lib]?.color;
+        if (typeof c === 'number') cal[k] = c;
         // sizeM ist [Breite, Höhe] in m; Gelände etwas gröber kacheln (weniger Wiederholung aus Augenhöhe)
         const sm = Array.isArray(set.sizeM) ? set.sizeM[0] : set.sizeM;
         if (Number.isFinite(sm) && sm > 0) sizes[k] = Math.max(2.2, Math.min(6, sm * 1.6));
@@ -69,6 +75,9 @@ export async function createTerrainMaterial(o) {
     tWaterY: { value: hf.waterY },
     tScale: { value: sizes.map(s => 1 / s) },
     tRough: { value: TERRAIN_LAYERS.map(l => l.rough) },
+    tCal: { value: cal },
+    // env-look (medium+): feine Detailnormalen nah an der Kamera (geteilte Karte aus engine/textures.js)
+    tDetail: { value: low ? null : getDetailNormalTexture() },
   };
   TERRAIN_LAYERS.forEach((l, k) => { uniforms['tMap' + k] = { value: maps[k] }; });
   const nList = TERRAIN_LAYERS.filter(l => l.normal >= 0);
@@ -90,7 +99,10 @@ export async function createTerrainMaterial(o) {
       #if TERR_NORMALS
       uniform sampler2D tNor0, tNor1, tNor2;
       #endif
-      uniform vec2 tOrigin; uniform float tSize; uniform float tWaterY; uniform float tScale[5]; uniform float tRough[5];
+      uniform vec2 tOrigin; uniform float tSize; uniform float tWaterY; uniform float tScale[5]; uniform float tRough[5]; uniform float tCal[5];
+      #if TERR_NORMALS
+      uniform sampler2D tDetail;
+      #endif
       vec3 gTerrN; float gTerrRough;
       float tHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float tNoise(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
@@ -98,7 +110,8 @@ export async function createTerrainMaterial(o) {
       vec3 tSample(sampler2D t, vec2 uv, float anti) {
         vec3 a = texture2D(t, uv).rgb;
         #if TERR_ANTITILE
-        vec3 b = texture2D(t, uv * 0.43 + vec2(0.31, 0.17)).rgb;
+        // gedrehte, gröbere zweite Abtastung (env-look: Drehung bricht die Rasterwiederholung besser als nur Skalierung)
+        vec3 b = texture2D(t, mat2(0.8, -0.6, 0.6, 0.8) * uv * 0.53 + vec2(0.31, 0.17)).rgb;
         a = mix(a, b, anti);
         #endif
         return a;
@@ -118,12 +131,15 @@ export async function createTerrainMaterial(o) {
         float wG = clamp(1.0 - c.r - c.g - c.b - c.a, 0.0, 1.0);
         // Übergänge schärfer + leicht verrauscht (wirkt nicht wie Überblendung)
         vec4 wv = vec4(c.r, c.g, c.b, c.a) * (0.85 + 0.3 * macro);
-        vec3 aG = tSample(tMap0, vTW.xz * tScale[0], anti);
+        vec3 aG = tSample(tMap0, vTW.xz * tScale[0], anti) * tCal[0];
         aG *= mix(vec3(1.06, 1.02, 0.86), vec3(0.86, 0.98, 0.9), macro); // grün ↔ gelblich
-        vec3 aD = tSample(tMap1, vTW.xz * tScale[1], anti);
-        vec3 aK = texture2D(tMap2, vTW.xz * tScale[2]).rgb;
-        vec3 aF = tSample(tMap3, vTW.xz * tScale[3], anti) * vec3(0.62, 0.6, 0.56); // Fels/Geröll dunkler (kein Schnee-Eindruck)
-        vec3 aM = texture2D(tMap4, vTW.xz * tScale[4]).rgb;
+        // env-look: Grasbüschel/Horste (dunklere Flecken 0,5–2 m) und trockene Stellen – bricht die gleichmäßige Fläche
+        float clump = tNoise(vTW.xz * 1.9) * 0.6 + tNoise(vTW.xz * 4.3 + 7.1) * 0.4;
+        aG *= mix(0.78, 1.1, clump) * mix(vec3(1.0), vec3(1.12, 1.04, 0.8), smoothstep(0.62, 0.8, tNoise(vTW.xz / 6.5 + 11.0)));
+        vec3 aD = tSample(tMap1, vTW.xz * tScale[1], anti) * tCal[1];
+        vec3 aK = tSample(tMap2, vTW.xz * tScale[2], anti) * tCal[2];
+        vec3 aF = tSample(tMap3, vTW.xz * tScale[3], anti) * vec3(0.62, 0.6, 0.56) * tCal[3]; // Fels/Geröll dunkler (kein Schnee-Eindruck)
+        vec3 aM = texture2D(tMap4, vTW.xz * tScale[4]).rgb * tCal[4];
         float sum = wG + wv.x + wv.y + wv.z + wv.w + 1e-4;
         vec3 alb = (aG * wG + aD * wv.x + aK * wv.y + aF * wv.z + aM * wv.w) / sum;
         gTerrRough = (tRough[0] * wG + tRough[1] * wv.x + tRough[2] * wv.y + tRough[3] * wv.z + tRough[4] * wv.w) / sum;
@@ -136,9 +152,16 @@ export async function createTerrainMaterial(o) {
         #if TERR_NORMALS
         vec2 uG = vTW.xz * tScale[0], uD = vTW.xz * tScale[1], uF = vTW.xz * tScale[3];
         vec3 nG = texture2D(tNor0, uG).xyz * 2.0 - 1.0, nD = texture2D(tNor1, uD).xyz * 2.0 - 1.0, nF = texture2D(tNor2, uF).xyz * 2.0 - 1.0;
-        gTerrN = normalize(nG * (wG + wv.y) + nD * (wv.x + wv.w) + nF * wv.z + vec3(0.0, 0.0, 0.05));
-        float fade = 1.0 - smoothstep(40.0, 140.0, length(vTW - cameraPosition));
+        // env-look: Kies nutzt die Erd-Normalen (vorher Gras), feine Detailnormalen nah an der Kamera
+        gTerrN = normalize(nG * wG + nD * (wv.x + wv.y + wv.w) + nF * wv.z + vec3(0.0, 0.0, 0.05));
+        float camD = length(vTW - cameraPosition);
+        float fade = 1.0 - smoothstep(40.0, 140.0, camD);
         gTerrN = normalize(mix(vec3(0.0, 0.0, 1.0), gTerrN, 0.85 * fade));
+        float dFade = 1.0 - smoothstep(4.0, 26.0, camD);
+        if (dFade > 0.01) {
+          vec3 dn = texture2D(tDetail, vTW.xz * 1.15).xyz * 2.0 - 1.0;
+          gTerrN = normalize(gTerrN + vec3(dn.xy * 0.45 * dFade, 0.0));
+        }
         #else
         gTerrN = vec3(0.0, 0.0, 1.0);
         #endif
@@ -153,7 +176,7 @@ export async function createTerrainMaterial(o) {
         #endif
       `);
   };
-  mat.customProgramCacheKey = () => `terrain-v1-${haveNormals ? 1 : 0}-${low ? 0 : 1}`;
+  mat.customProgramCacheKey = () => `terrain-v2-${haveNormals ? 1 : 0}-${low ? 0 : 1}`;
   return {
     material: mat, uniforms, libIds, source,
     dispose() { ctrl.dispose(); mat.dispose(); },

@@ -338,9 +338,14 @@ export default {
     sky: { turbidity: 4.2, rayleigh: 1.5, mieCoefficient: 0.005, mieDirectionalG: 0.8, exposure: 0.48, clouds: { coverage: 0.42, density: 0.45, scale: 0.00016, elevation: 0.5 }, hazeHigh: 0.1, hazeAmount: 0.8, hdriIntensity: 0.55 },
     hemi: { sky: '#cbd9e8', ground: '#5d6046', intensity: 0.7, hdriIntensity: 0.35 },
     env: { intensity: 1.0, ground: '#6a6c52', groundIntensity: 0.5, tint: '#eef3ff', hdriIntensity: 0.6 },
-    fog: { color: '#b9c7d2', nearFactor: 0.18 },
-    shadow: { size: 60, bias: -0.0004, normalBias: 0.04 },
+    // atmosphere-weather: Höhennebel über dem Tal (baseY = Wasserspiegel, Skalenhöhe ≈ 45 m), Gegenlicht-Einstreuung;
+    // lineare Nebelweite bleibt für Materialien ohne Welt-Shading
+    fog: { color: '#b9c7d2', nearFactor: 0.18, density: 0.0021, falloff: 0.022, start: 30, max: 0.9, sun: 0.5, sunExp: 5 },
+    // Fernkaskade über die ganze Karte (eine Karte, ≈ 0,3 m/Texel), Nahkaskade 40 m (Bäume scharf)
+    shadow: { size: 60, bias: -0.0004, normalBias: 0.04, near: 40, farMaxY: 60 },
     exposure: 1.0,
+    // Staub/Pollen im Sonnenlicht (Waldränder, Scheune), Strahlen durch Scheunen-/Hallenöffnungen
+    atmos: { beams: 0.022, beamG: 0.45, dust: 0.8, dustSize: 0.014 },
   },
   water: { color: '#2b4a40' },
 

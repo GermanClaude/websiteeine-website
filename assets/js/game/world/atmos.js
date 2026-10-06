@@ -146,28 +146,80 @@ void main() {
 const _v = new THREE.Vector3(), _d = new THREE.Vector3();
 
 /**
+ * Lichtschlitze im Freien (atmosphere-weather): schmale, besonnte Streifen zwischen beschatteten Bereichen (Gassen,
+ * Lücken zwischen Containern/Häusern, Torbögen). Rasterabtastung über bounds in zwei Höhen; je Fund wird der Eintritt
+ * des Lichts gesucht (zur Sonne hin, bis die Nachbarn nicht mehr im Schatten liegen) und als virtuelle Öffnung
+ * (senkrecht zur Sonne) geliefert – die Strahlen-Logik unten behandelt sie wie Fenster. → [{x,y,z,ux,uz,w,h,t,virtual}]
+ */
+function findLightSlots(occluded, L, bounds, max, step = 3) {
+  const out = [];
+  const lh = Math.hypot(L.x, L.z);
+  if (!bounds || lh < 0.05 || L.y > 0.75) return out; // steile Mittagssonne: kaum seitliche Schlitze
+  const ux = -L.z / lh, uz = L.x / lh; // waagerecht, quer zur Sonne
+  const hit = occluded.hit;
+  const shadow = (x, y, z) => occluded(x, y, z, L.x, L.y, L.z, 140);
+  const edge = (x, y, z, sgn) => {
+    for (let d = 0.3; d <= 2.4; d += 0.3) if (shadow(x + ux * sgn * d, y, z + uz * sgn * d)) return d - 0.15;
+    return -1;
+  };
+  for (let x = bounds.minX + step / 2; x < bounds.maxX; x += step) {
+    for (let z = bounds.minZ + step / 2; z < bounds.maxZ; z += step) {
+      if (!occluded(x, 40, z, 0, -1, 0, 60) || hit.ny < 0.7) continue;
+      const gy = 40 - hit.t;
+      for (const h of [1.5, 3.4]) {
+        const y = gy + h;
+        if (shadow(x, y, z)) continue;
+        const l = edge(x, y, z, -1); if (l < 0) continue;
+        const r = edge(x, y, z, 1); if (r < 0) continue;
+        const w = l + r;
+        if (w < 0.5 || w > 3.6) continue;
+        const cx = x + ux * (r - l) / 2, cz = z + uz * (r - l) / 2;
+        // Eintritt: zur Sonne laufen, bis beide Nachbarn (± w/2 + 0,5) besonnt sind (vor den Hindernissen)
+        const side = w / 2 + 0.5;
+        let k = 0;
+        for (let s = 0.8; s <= 14; s += 0.8) {
+          const px = cx + L.x * s, py = y + L.y * s, pz = cz + L.z * s;
+          if (!shadow(px + ux * side, py, pz + uz * side) && !shadow(px - ux * side, py, pz - uz * side)) { k = s; break; }
+        }
+        if (k < 1.2) continue; // kein Durchgang (offene Fläche hinter einer einzelnen Kante)
+        const ex = cx + L.x * (k - 0.4), ey = y + L.y * (k - 0.4), ez = cz + L.z * (k - 0.4);
+        if (out.some((o) => (o.x - ex) ** 2 + (o.y - ey) ** 2 + (o.z - ez) ** 2 < 9)) continue;
+        out.push({ x: ex, y: ey, z: ez, ux, uz, w: Math.max(0.6, w), h: 2.2, t: 0.1, virtual: true });
+        if (out.length >= max) return out;
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * opts: { quality, def (lighting-Definition der Karte), sunDir (zur Sonne), openings (MapBuilder.openings),
  *         bvh (Kugel-BVH), probes (createProbeQuery | null), sun (DirectionalLight), hemiSky (Color) }
  * → { group, update(dt, camera), dispose(), stats }
  */
-export function createAtmosphere(G, { quality, def, sunDir, openings = [], bvh, probes, sun }) {
+export function createAtmosphere(G, { quality, def, sunDir, openings = [], bvh, probes, sun, bounds = null }) {
   const tier = TIERS[quality] || TIERS.high;
   const A = def.atmos || {};
   const group = new THREE.Group();
   group.name = 'atmos';
-  const stats = { beams: 0, beamCandidates: 0, dust: 0, ms: 0 };
+  const stats = { beams: 0, beamCandidates: 0, slots: 0, dust: 0, ms: 0 };
   const t0 = performance.now();
   const L = sunDir.clone().normalize();
   const sunCol = new THREE.Color(def.sun.color);
   const hit = { t: 0, tri: 0, nx: 0, ny: 0, nz: 0, data: 0 };
   const occluded = (x, y, z, dx, dy, dz, max) => bvh && bvh.raycast(x, y, z, dx, dy, dz, max, hit);
+  occluded.hit = hit;
 
   // ------------------------------------------------------------------ Strahlen
   let beamMesh = null, beamMat = null;
   const beamStrength = A.beams ?? 0.02;
   if (beamStrength > 0 && L.y > 0.02 && bvh) {
     const cand = [];
-    for (const op of openings) {
+    // Lichtschlitze im Freien (A.slots = relative Stärke; nur Karten, die es wollen) + Öffnungen ins Helle (A.outdoor)
+    const slotK = A.slots ?? 0, outK = A.outdoor ?? 0;
+    const slots = slotK > 0 ? findLightSlots(occluded, L, bounds, tier.beams * 2) : [];
+    stats.slots = slots.length;
+    for (const op of slots.length ? [...openings, ...slots] : openings) {
       const nx = -op.uz, nz = op.ux; // Wandnormale (eine Seite)
       const dn = -(L.x * nx + L.z * nz); // Lichtlaufrichtung (−L) · n
       if (Math.abs(dn) < 0.1) continue;
@@ -180,10 +232,17 @@ export function createAtmosphere(G, { quality, def, sunDir, openings = [], bvh, 
         if (!occluded(px, py, pz, L.x, L.y, L.z, 120)) lit++;
       }
       if (lit < 2) continue;
-      // Innen dunkel? (Sondenhimmel bzw. Decke über der Öffnung)
+      // Innen dunkel? (Sondenhimmel bzw. Decke über der Öffnung) – sonst (Torbogen, Gasse) nur, wenn die Luft
+      // neben dem Strahl im Schatten liegt (Lichtschlitz) und die Karte Strahlen im Freien will
       const ix = op.x + inX * 1.6 - L.x * 0.8, iy = op.y - L.y * 0.8, iz = op.z + inZ * 1.6 - L.z * 0.8;
-      if (probes) { if (probes.light(ix, iy, iz).sky > 0.55) continue; }
-      else if (!occluded(ix, iy, iz, 0, 1, 0, 14)) continue;
+      let kOut = 1;
+      const dark = !op.virtual && (probes ? probes.light(ix, iy, iz).sky <= 0.55 : occluded(ix, iy, iz, 0, 1, 0, 14));
+      if (!dark) {
+        if (!op.virtual && outK <= 0) continue;
+        const sd = op.w / 2 + 0.7, bx = op.x + inX * 1.5 - L.x * 1.2, by = op.y - L.y * 1.2, bz = op.z + inZ * 1.5 - L.z * 1.2;
+        if (!op.virtual && !(occluded(bx + op.ux * sd, by, bz + op.uz * sd, L.x, L.y, L.z, 120) && occluded(bx - op.ux * sd, by, bz - op.uz * sd, L.x, L.y, L.z, 120))) continue;
+        kOut = op.virtual ? slotK : outK;
+      }
       // Länge bis zum Boden/zur Wand: Endebene aus dem Mitteltreffer; trifft eine Ecke vorher etwas anderes (Zwischen-
       // wand, Regal), endet der Körper dort (sonst ragte er in den Nachbarraum)
       const ox = op.x + inX * half, oy = op.y, oz = op.z + inZ * half;
@@ -210,7 +269,7 @@ export function createAtmosphere(G, { quality, def, sunDir, openings = [], bvh, 
       if (blocked) maxLen = minHit;
       if (maxLen < 0.6) continue;
       const area = op.w * op.h;
-      cand.push({ op, s, ox, oy, oz, len: Math.min(maxLen + 0.5, 30), endN, endD, k: lit / 5, score: area * Math.min(maxLen, 10) * (lit / 5) });
+      cand.push({ op, s, ox, oy, oz, len: Math.min(maxLen + 0.5, 30), endN, endD, k: lit / 5, kOut, score: area * Math.min(maxLen, 10) * (lit / 5) * (kOut < 1 ? 0.7 : 1) });
     }
     stats.beamCandidates = cand.length;
     cand.sort((a, b) => b.score - a.score);
@@ -238,7 +297,7 @@ export function createAtmosphere(G, { quality, def, sunDir, openings = [], bvh, 
           P[j] = c.ox + U.x * cx * 1.04 + D.x * cz; P[j + 1] = c.oy + V.y * cy * 1.04 + D.y * cz; P[j + 2] = c.oz + U.z * cx * 1.04 + D.z * cz;
           O.set([c.ox, c.oy, c.oz], j); R0.set(r0, j); R1.set(r1, j); R2.set(r2, j);
           E.set([c.endN[0], c.endN[1], c.endN[2], c.endD], (base + k) * 4);
-          K.set([beamStrength * (0.6 + 0.4 * c.k) * (op.glass ? 0.8 : 1), c.len], (base + k) * 2);
+          K.set([beamStrength * (0.6 + 0.4 * c.k) * (op.glass ? 0.8 : 1) * c.kOut, c.len], (base + k) * 2);
           k++;
         }
         // Quader-Indizes (Ecken: Bit0 x, Bit1 y, Bit2 z)

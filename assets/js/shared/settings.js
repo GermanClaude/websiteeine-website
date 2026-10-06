@@ -38,6 +38,8 @@ export const DEFAULTS = Object.freeze({
   aimAssistLevel: 0.5, aimAssistDevices: 'touch_pad', autoFireLevel: 0.6, autoFireDevices: 'touch',
   // Vollbild (engine/fullscreen.js): auto = erste Geste, Matchstart, Fortsetzen | off = nur Knopf/Taste
   fullscreen: 'auto',
+  // Lobby: Wetter/Tageszeit (atmosphere-weather): 'standard' | 'zufall' | Wetter-/Zeit-id
+  lastWeather: 'standard', lastTime: 'standard',
 });
 
 const HOLD_TOGGLE = Object.freeze({ options: ['hold', 'toggle'], labels: { hold: 'Halten', toggle: 'Umschalten' } });
@@ -203,6 +205,8 @@ export const SETTINGS_SCHEMA = Object.freeze({
   },
   realisticCrosshair: { type: 'boolean', label: 'Fadenkreuz im Spielstil „Realistisch“', group: 'hud' },
   lastClass: { type: 'id', label: 'Letzte Klasse', group: 'intern' },
+  lastWeather: { type: 'id', label: 'Letztes Wetter', group: 'intern' },
+  lastTime: { type: 'id', label: 'Letzte Tageszeit', group: 'intern' },
   classLoadouts: { type: 'classLoadouts', label: 'Ausrüstung je Klasse', group: 'intern' },
   aimAssistLevel: {
     type: 'number', min: 0, max: 1, step: 0.05, label: 'Stärke der Zielhilfe (Bremsen → Ziehen → Einrasten)', group: 'steuerung',

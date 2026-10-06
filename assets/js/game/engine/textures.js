@@ -488,6 +488,8 @@ function fillLibMaterial(mat) {
   if (p.polygonOffset) { mat.polygonOffset = true; mat.polygonOffsetFactor = -1; mat.polygonOffsetUnits = -2; }
   mat.userData.libSet = `${set.id}@${set.tier}`;
   if (spec.macro !== false) applyMacroVariation(mat, spec.macro || [0.16, 0.08, 0.12]);
+  // env-look (medium+): Detailnormalen, Gegen-Kachelung der Albedo, Parallaxe (ultra) – nach dem Makro-Haken
+  if (spec.look) applyLook(mat, spec.look, rx, ry);
   libraryStats.materials++;
   mat.needsUpdate = true;
 }
@@ -565,6 +567,140 @@ function macroPatch(u) {
         roughnessFactor = clamp( roughnessFactor + ( npB.b - 0.5 ) * 2.0 * npMacro.z, 0.04, 1.0 );`);
   };
   _macroPatches.set(u, fn);
+  return fn;
+}
+
+// --- env-look: Detailnormalen (nah, nach Entfernung ausgeblendet), Gegen-Kachelung (zweite, gedrehte Albedo-
+// Abtastung, über Weltraum-Rauschen eingeblendet) und günstige Parallaxe (ultra; Höhe = AO-Kanal der ORM-Karte,
+// Fugen/Mörtel liegen tiefer). spec.look = { detail: Stärke, ds: Detailmaßstab (1/m), anti: 0..1, pom: Tiefe (m),
+// fade: [m0, m1] } – library.js setzt es je Stufe (low: nie). Eine geteilte 256²-Detailkarte (≈ 0,35 MB GPU).
+let detailTex = null;
+function detailTexture() {
+  if (detailTex) return detailTex;
+  const S = 256, H = new Float32Array(S * S), data = new Uint8Array(S * S * 4);
+  const hash = (i, j, s) => { let n = Math.imul(i & (S - 1), 374761393) + Math.imul(j & (S - 1), 668265263) + Math.imul(s, 2246822519); n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+  const vnoise = (x, y, f, s) => {
+    const fx = x * f / S, fy = y * f / S, i = Math.floor(fx), j = Math.floor(fy), tx = fx - i, ty = fy - j;
+    const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+    const g = (a, b) => hash(((a % f) + f) % f * (S / f), ((b % f) + f) % f * (S / f), s);
+    return (g(i, j) * (1 - sx) + g(i + 1, j) * sx) * (1 - sy) + (g(i, j + 1) * (1 - sx) + g(i + 1, j + 1) * sx) * sy;
+  };
+  // Körnung (feine Oktaven) + vereinzelte Poren/Kerben
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    let h = vnoise(x, y, 16, 3) * 0.35 + vnoise(x, y, 32, 5) * 0.3 + vnoise(x, y, 64, 9) * 0.22 + vnoise(x, y, 128, 11) * 0.13;
+    if (hash(x, y, 21) > 0.985) h -= 0.35;
+    H[y * S + x] = h;
+  }
+  const at = (x, y) => H[((y + S) % S) * S + ((x + S) % S)];
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const dx = (at(x + 1, y) - at(x - 1, y)) * 2.2, dy = (at(x, y + 1) - at(x, y - 1)) * 2.2;
+    const l = Math.hypot(dx, dy, 1), o = (y * S + x) * 4;
+    data[o] = (-dx / l * 0.5 + 0.5) * 255; data[o + 1] = (-dy / l * 0.5 + 0.5) * 255; data[o + 2] = (1 / l * 0.5 + 0.5) * 255; data[o + 3] = 255;
+  }
+  detailTex = new THREE.DataTexture(data, S, S, THREE.RGBAFormat);
+  detailTex.wrapS = detailTex.wrapT = THREE.RepeatWrapping;
+  detailTex.magFilter = THREE.LinearFilter; detailTex.minFilter = THREE.LinearMipmapLinearFilter; detailTex.generateMipmaps = true;
+  detailTex.anisotropy = anisotropy;
+  detailTex.name = 'np:detail';
+  detailTex.needsUpdate = true;
+  return detailTex;
+}
+
+/** Geteilte Detailnormalen-Karte (Gelände-Splat nutzt sie ebenfalls; nur medium+ anfordern). */
+export function getDetailNormalTexture() { return detailTexture(); }
+
+function applyLook(mat, look, rx, ry) {
+  const pom = look.pom ? look.pom * Math.max(rx, ry) : 0; // Tiefe in Textur-Einheiten
+  const u = {
+    npDetailTex: { value: detailTexture() }, npLookNoise: { value: macroTexture() },
+    npLook: { value: new THREE.Vector4(look.detail ?? 0, look.ds ?? 1.5, look.anti ?? 0, pom) },
+    npLookFade: { value: new THREE.Vector3(look.fade?.[0] ?? 6, look.fade?.[1] ?? 28, look.pomFade ?? 14) },
+  };
+  mat.userData.npLook = u.npLook.value;
+  // eigener Schlüssel für die Parallaxe-Variante (anderer Shader-Text → anderer Programm-Schlüssel)
+  addShaderPatch(mat, pom ? 'look-pom' : 'look', lookPatch(u, !!pom));
+}
+
+const _lookPatches = new Map();
+function lookPatch(u, pom) {
+  // je Uniform-Satz eine Funktion (gleiche Funktion = kein erneutes Kompilieren)
+  const key = u;
+  let fn = _lookPatches.get(key);
+  if (fn) return fn;
+  fn = (shader) => {
+    Object.assign(shader.uniforms, u);
+    ensureWorldVaryings(shader);
+    let fs = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform sampler2D npDetailTex;\nuniform sampler2D npLookNoise;\nuniform vec4 npLook;\nuniform vec3 npLookFade;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        #ifdef USE_MAP
+        if ( npLook.z > 0.0 ) {
+          vec2 npRuv = mat2( 0.8139, -0.5810, 0.5810, 0.8139 ) * vMapUv * 0.87 + vec2( 0.37, 0.61 );
+          float npAb = smoothstep( 0.38, 0.62, texture2D( npLookNoise, vNpWorld.xz * 0.061 + vNpWorld.y * 0.031 ).g ) * npLook.z;
+          vec3 npS1 = texture2D( map, vMapUv ).rgb, npS2 = texture2D( map, npRuv ).rgb;
+          diffuseColor.rgb *= mix( vec3( 1.0 ), ( npS2 + 0.03 ) / ( npS1 + 0.03 ), npAb );
+        }
+        #endif`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        {
+          float npDd = length( vViewPosition );
+          float npDf = npLook.x * ( 1.0 - smoothstep( npLookFade.x, npLookFade.y, npDd ) );
+          if ( npDf > 0.003 ) {
+            vec3 npAn = abs( normalize( vNpNormal ) );
+            vec3 npT = vec3( 1.0, 0.0, 0.0 ), npB = vec3( 0.0, 0.0, 1.0 ); vec2 npDp = vNpWorld.xz;
+            if ( npAn.y <= 0.6 ) { if ( npAn.x > npAn.z ) { npDp = vNpWorld.zy; npT = vec3( 0.0, 0.0, 1.0 ); } else { npDp = vNpWorld.xy; } npB = vec3( 0.0, 1.0, 0.0 ); }
+            vec3 npDn = texture2D( npDetailTex, npDp * npLook.y ).xyz * 2.0 - 1.0;
+            vec3 npVT = normalize( ( viewMatrix * vec4( npT, 0.0 ) ).xyz ), npVB = normalize( ( viewMatrix * vec4( npB, 0.0 ) ).xyz );
+            normal = normalize( normal + ( npVT * npDn.x + npVB * npDn.y ) * npDf );
+          }
+        }`);
+    if (pom) {
+      // Parallaxe: alle Karten-UVs (Albedo, Normalen, ORM) über eine globale, vor main() verschobene Koordinate
+      fs = fs.replace('void main() {', `
+        #if defined( USE_MAP ) && defined( USE_AOMAP ) && defined( USE_NORMALMAP )
+        vec2 npRawUv() { return vMapUv; }
+        vec2 npPom( vec2 uv ) {
+          float dist = length( vViewPosition );
+          if ( dist > npLookFade.z || npLook.w <= 0.0 ) return uv;
+          vec3 q0 = dFdx( -vViewPosition ), q1 = dFdy( -vViewPosition );
+          vec2 st0 = dFdx( uv ), st1 = dFdy( uv );
+          vec3 N = normalize( vNormal ) * ( gl_FrontFacing ? 1.0 : -1.0 );
+          vec3 q1p = cross( q1, N ), q0p = cross( N, q0 );
+          vec3 T = q1p * st0.x + q0p * st1.x, B = q1p * st0.y + q0p * st1.y;
+          if ( max( dot( T, T ), dot( B, B ) ) <= 0.0 ) return uv;
+          vec3 V = normalize( vViewPosition );
+          vec3 Vt = vec3( dot( V, normalize( T ) ), dot( V, normalize( B ) ), dot( V, N ) );
+          float n = mix( 12.0, 5.0, clamp( Vt.z, 0.0, 1.0 ) );
+          vec2 dUv = -Vt.xy / max( Vt.z, 0.25 ) * npLook.w / n;
+          float dl = 1.0 / n, layer = 0.0;
+          vec2 cuv = uv;
+          float d = 1.0 - textureGrad( aoMap, cuv, st0, st1 ).r;
+          for ( int i = 0; i < 12; i++ ) {
+            if ( layer >= d || float( i ) >= n ) break;
+            cuv += dUv; layer += dl;
+            d = 1.0 - textureGrad( aoMap, cuv, st0, st1 ).r;
+          }
+          vec2 puv = cuv - dUv;
+          float after = d - layer, before = ( 1.0 - textureGrad( aoMap, puv, st0, st1 ).r ) - ( layer - dl );
+          vec2 res = mix( cuv, puv, clamp( after / ( after - before + 1e-5 ), 0.0, 1.0 ) );
+          return mix( res, uv, smoothstep( npLookFade.z * 0.6, npLookFade.z, dist ) );
+        }
+        vec2 npUvP;
+        #define vMapUv npUvP
+        #define vNormalMapUv npUvP
+        #define vRoughnessMapUv npUvP
+        #define vMetalnessMapUv npUvP
+        #define vAoMapUv npUvP
+        #define NP_POM 1
+        #endif
+        void main() {
+        #ifdef NP_POM
+          npUvP = npPom( npRawUv() );
+        #endif`);
+    }
+    shader.fragmentShader = fs;
+  };
+  _lookPatches.set(key, fn);
   return fn;
 }
 
