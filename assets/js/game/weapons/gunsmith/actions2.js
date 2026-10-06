@@ -125,12 +125,14 @@ export const EXTRA_ACTIONS = {
     out.parts.cylinder = [0, 0, 0, 0, 0, curve(u, [[0.74, 0], [0.8, 0.9], [0.84, Math.PI / 3]])];
     // Linke Hand: Trommel ausdrücken → Ausstoßer → Lader holen → einschwenken → Stützgriff
     if (u < 0.22) req(out.left, windowW(u, 0.02, 0.08, 0.18, 0.24), { anchor: ud.anchors.cylGrab, style: 'pinchSide' });
-    else if (u < 0.38) req(out.left, windowW(u, 0.2, 0.25, 0.33, 0.38), { anchor: ud.anchors.ejectorGrab, style: 'slapSide' });
+    // hands-v3: Ausstoßer mit Daumen/Zeigefinger drücken und Trommel mit gekrümmten Fingern zuschieben (vorher flache,
+    // offene Hand – das „Winken“ beim Wechsel Trommel → Ausstoßer → Lader)
+    else if (u < 0.38) req(out.left, windowW(u, 0.2, 0.25, 0.33, 0.38), { anchor: ud.anchors.ejectorGrab, style: 'pinchSide' });
     else if (u < 0.74) {
       const w = windowW(u, 0.36, 0.42, 0.68, 0.74);
       if (u < 0.44) req(out.left, w, { free: [[-0.13, -0.27, -0.33], [0.2, 0.6, -0.7], [-0.6, 0.3, 0.3], 'pinch'] });
       else req(out.left, w, { part: 'loader', style: 'pinchSide', offset: [0, 0, 0.02] });
-    } else req(out.left, windowW(u, 0.72, 0.75, 0.8, 0.88), { anchor: ud.anchors.cylGrab, style: 'slapSide' });
+    } else req(out.left, windowW(u, 0.72, 0.75, 0.8, 0.88), { anchor: ud.anchors.cylGrab, style: 'boltKnob' });
     return u >= 1;
   },
 
@@ -275,7 +277,8 @@ export const EXTRA_ACTIONS = {
     out.p[0] = 0.07 * gw; out.p[1] = -0.26 * gw; out.p[2] = 0.08 * gw;
     out.r[0] = -0.7 * gw; out.r[1] = 0.25 * gw; out.r[2] = 0.3 * gw;
     const w = windowW(u, 0.04, 0.16, 0.8, 0.94);
-    const pos = curve(u, [[0.04, [-0.3, -0.5, -0.18]], [0.24, [-0.13, -0.17, -0.36]], [0.46, [-0.07, -0.2, -0.34]], [0.66, [-0.04, -0.4, -0.16]], [0.8, [-0.06, -0.56, -0.08]]]);
+    // hands-v3: Hand höher (die Platte hängt jetzt unter den Fingern statt quer durch die Hand)
+    const pos = curve(u, [[0.04, [-0.3, -0.42, -0.18]], [0.24, [-0.13, -0.05, -0.38]], [0.46, [-0.07, -0.08, -0.36]], [0.66, [-0.04, -0.3, -0.16]], [0.8, [-0.06, -0.5, -0.08]]]);
     const F = curve(u, [[0.04, [0.3, 0.9, -0.3]], [0.24, [0.15, 0.95, -0.25]], [0.46, [0.1, 0.9, -0.4]], [0.66, [0.05, 0.4, -0.9]], [0.8, [0.05, 0.3, -0.95]]]);
     req(out.left, w, { free: [pos, F, [0.1, 0.25, 0.96], 'wrap'] });
     const plate = this.props.plate;

@@ -534,7 +534,9 @@ class Arm {
     const seg = lod === 'low' ? 14 : 20;
     this.fore = new THREE.Mesh(sleeveGeometry(this.foreLen + 0.008, 0.049, 0.0355, 3.2, side > 0 ? 1 : 2.4, { bulge: 0.004, bulgeAt: 0.22, oval: 1, bunch: 0.0036, cinch: 0.0046, seg, N: lod === 'low' ? 22 : 30 }), mats.sleeve);
     this.upper = new THREE.Mesh(sleeveGeometry(this.upperLen, 0.056, 0.05, 2.2, side > 0 ? 3 : 4.1, { bulge: 0.002, bulgeAt: 0.55, seg: lod === 'low' ? 14 : 18 }), mats.sleeve);
-    const elbowGeo = new THREE.SphereGeometry(0.05, 12, 8);
+    // Ellbogen: Kugel im ovalen Ärmelquerschnitt (folgt der Unterarmdrehung, siehe solve) → kein Absatz zwischen den Röhren
+    const elbowGeo = new THREE.SphereGeometry(0.0495, lod === 'low' ? 12 : 16, lod === 'low' ? 8 : 12);
+    elbowGeo.scale(1.06, 0.94, 1);
     elbowGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(elbowGeo.attributes.position.count * 3).fill(0.86), 3));
     this.elbow = new THREE.Mesh(elbowGeo, mats.sleeve);
     for (const m of [this.fore, this.upper, this.elbow]) { m.frustumCulled = false; this.group.add(m); }
@@ -954,6 +956,7 @@ class Arm {
     orient(this.upper, S0, E, _upB.set(0, 1, 0), 0.0);
     this.upper.scale.z = THREE.MathUtils.clamp(S0.distanceTo(E) / Lu, 0.6, 1.6);
     this.elbow.position.copy(E);
+    this.elbow.quaternion.slerpQuaternions(this.fore.quaternion, this.upper.quaternion, 0.5);
     this.elbowPos = E;
     // Bündchen-Knochen = Ärmel am Handgelenk (gleiche Drehung wie der Unterarm-Ärmel, Ursprung im Handgelenk)
     this.foreBone.position.copy(W);

@@ -32,7 +32,9 @@ const _s1 = V3();
 const _a3 = [0, 0, 0], _b3 = [0, 0, 0], _c3 = [0, 0, 0];
 const ZERO3 = [0, 0, 0];
 // Handanfragen, bei denen die Finger den Gegenstand umschließen (Kontaktlöser legt sie an die Oberfläche)
-const GRIP_STYLES = new Set(['mag', 'magTop', 'under', 'flat', 'pump', 'post', 'pistol', 'pistolGrip', 'knife', 'wrap', 'ball']);
+// 'ball' (Granate) fehlt absichtlich (hands-v3): die Ballhaltung ist schon an die Granatenkugel gelöst; „Greifen“ bog
+// Ring-/Kleinfinger sonst gegen die Waffe statt gegen die Requisite bis zum Anschlag – durch die Granate (29 mm)
+const GRIP_STYLES = new Set(['mag', 'magTop', 'under', 'flat', 'pump', 'post', 'pistol', 'pistolGrip', 'knife', 'wrap']);
 // Erwärmung des Laufs je Schuss (0..1; Rauchfahne/Hitzeflimmern nach Feuerstößen), abklingend ≈ 0,12/s
 const HEAT_PER_SHOT = { auto: 0.022, semi: 0.03, bolt: 0.08, pump: 0.07, pistol: 0.02 };
 
@@ -1128,8 +1130,16 @@ export class ViewModel {
     let busyR = act ? this._applyRequests(act.right, R, 1) : 0;
     // Bewegte Teile unter der Schusshand (Schlitten zurück, Verschluss/Trommel in Bewegung): je Bild statt gemerkt
     if (busyR <= 1e-3 && (this._slideLocked || this._boltLocked || this._boltT < 1 || (act && (act.parts.slide || act.parts.boltHandle || act.parts.crane || act.parts.cylinder)))) { busyR = 2e-3; this._reqStyle = rStyle; }
+    // Abzugsfinger beim Patronenladen gestreckt längs des Gehäuses (hands-v3): die Patrone läuft vor dem Abzugsbügel
+    // in die Ladeöffnung und ging sonst durch die Zeigefingerkuppe (Bulldog/Hagel 9–11 mm)
+    const disc = this._idxDisc = clamp((this._idxDisc || 0) + (act && act.parts && act.parts.shell ? 0.12 : -0.12), 0, 1);
+    if (disc > 0 && rStyle === 'pistolGrip' && busyR < 0.5) {
+      const f0 = R.pose.f[0], k = smooth(disc);
+      f0[0] += (0.12 - f0[0]) * k; f0[1] += (0.06 - f0[1]) * k; f0[2] += (0.04 - f0[2]) * k; f0[3] += (0.1 - f0[3]) * k;
+      if (disc < 0.98) busyR = Math.max(busyR, 2e-3);   // Übergang je Bild lösen (gemerkter Ruhegriff hätte den alten Finger)
+    }
     this.arms.right.applyPose(R.pose);
-    this._contact(this.arms.right, R, busyR, 'R:' + rStyle, { grip: busyR < 0.5 || GRIP_STYLES.has(this._reqStyle), skipIndex: rStyle === 'pistolGrip' && busyR < 0.5 });
+    this._contact(this.arms.right, R, busyR, 'R:' + rStyle + (disc > 0.5 ? ':disc' : ''), { grip: busyR < 0.5 || GRIP_STYLES.has(this._reqStyle), skipIndex: rStyle === 'pistolGrip' && busyR < 0.5 && disc < 0.5 });
     this.arms.right.solve(R.pos, R.quat);
     // Requisiten in der rechten Hand (Granate) für den Splint-Griff aktualisieren
     this.arms.right.handBone.updateWorldMatrix(true, true);
@@ -1650,9 +1660,10 @@ export class ViewModel {
       _m.makeBasis(_v.set(0, side, 0), _v2.set(0, 0, 1), _v3.set(side, 0, 0));
       prop.quaternion.setFromRotationMatrix(_m);
     } else if (kind === 'plate') {
-      // Platte an der Oberkante gegriffen: hängt unter den Fingern, Fläche zur Kamera
-      prop.position.set(0.0, -0.035, -0.12);
-      prop.rotation.set(-0.15, 0, 0);
+      // Platte an der Oberkante gegriffen: Kante liegt in den gekrümmten Fingern, Platte hängt darunter, Fläche zur
+      // Kamera (hands-v3: vorher Mitte unter der Handfläche → Oberkante 11 cm über dem Handrücken, Finger steckten darin)
+      prop.position.set(0.0, -0.162, -0.112);
+      prop.rotation.set(-0.12, 0, 0);
     } else {
       const g = PROP_SHAPES.grenade.pos;
       prop.position.set(g[0] * side, g[1], g[2]);
