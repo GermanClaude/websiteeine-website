@@ -10,7 +10,11 @@ import { HINTS } from './schema-page.js';
 /** Bildstil-Vorlagen: jede setzt diese Werte (alles andere bleibt). */
 export const LOOKS = [
   {
-    id: 'bodycam', label: 'Bodycam', desc: 'Der Standard: Fischauge, Rauschen, leichte Kompression, wackelnde Körperkamera.',
+    id: 'realistisch', label: 'Realistisch', desc: 'Der Standard: realistisches Licht und natürliche Körperbewegung, nur ein Hauch Objektiv und Rauschen.',
+    set: { lensStyle: 'bodycam', lensStrength: 0.15, grain: 0.2, lensArtifacts: 0.05, lensBorder: false, autoExposure: true, cameraMotion: 0.6, weaponPose: 'auto', weaponSway: 1, bodycamStamp: false },
+  },
+  {
+    id: 'bodycam', label: 'Bodycam', desc: 'Wie eine Helmkamera: deutliches Fischauge, Rauschen, leichte Kompression.',
     set: { lensStyle: 'bodycam', lensStrength: 0.7, grain: 0.6, lensArtifacts: 0.35, lensBorder: false, autoExposure: true, cameraMotion: 0.6, weaponPose: 'auto', weaponSway: 1, bodycamStamp: false },
   },
   {
@@ -40,8 +44,8 @@ export function activeLook(S) {
 
 // Kleine Vorschau je Vorlage (SVG): Gitter gerade/gebogen, Rand, Rauschen
 function lookArt(id) {
-  const curved = id === 'bodycam' || id === 'echt' || id === 'komfort';
-  const k = id === 'echt' ? 8.5 : id === 'bodycam' ? 7 : id === 'komfort' ? 3 : 0;
+  const curved = id === 'bodycam' || id === 'echt' || id === 'komfort' || id === 'realistisch';
+  const k = id === 'echt' ? 8.5 : id === 'bodycam' ? 7 : id === 'komfort' ? 3 : id === 'realistisch' ? 1.5 : 0;
   const v = [20, 40, 60, 80].map((x) => {
     const dx = (x - 50) / 50;
     return `<path d="M${x} 0 Q${(x + dx * k).toFixed(1)} 30 ${x} 60"/>`;

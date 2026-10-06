@@ -23,7 +23,8 @@ export const DEFAULTS = Object.freeze({
   // Waffengefühl (Realismus-Plan F2/F9; weapons-feel)
   weaponPose: 'auto', weaponSway: 1.0,
   // Bild: Objektiv, Farbe, Belichtung, Hochskalierung (Realismus-Plan R2/R3/R4/R12; core-render)
-  lensStyle: 'bodycam', lensStrength: 0.7, grain: 0.6, lensArtifacts: 0.35, lensBorder: false,
+  // Standard = Vorlage „Realistisch“ (dezentes Objektiv); kräftiges Fischauge nur über die Vorlage „Bodycam“
+  lensStyle: 'bodycam', lensStrength: 0.15, grain: 0.2, lensArtifacts: 0.05, lensBorder: false,
   autoExposure: true, sharpness: 0.5, upscaler: 'fsr',
   // Klang (Realismus-Plan A1/A6/A8; audio)
   audioMix: 'auto', hearingProtection: false, audioRecordings: true,
