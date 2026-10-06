@@ -567,8 +567,13 @@ class Arm {
       // Uhrgruppe: Ursprung auf der Handgelenksachse, lokal +Y zeigt zur Handflächenseite; Band umschließt das
       // Handschuh-Bündchen (≈ 2,8 × 2,0 cm Halbachsen bei +1 cm)
       const watch = new THREE.Group();
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.016, 22, 1, true), mats.watchCase);
-      band.rotation.x = Math.PI / 2; band.scale.set(0.0292, 0.0222, 1);
+      // Einheitszylinder erst in der Geometrie auf die Handgelenksachse (Z) drehen, dann skalieren (wie das Klebeband):
+      // vorher drehte das Mesh (rotation.x) und scale.z = 1 traf die ungedrehte Radiusachse → das „Band“ war eine
+      // 0,4 mm dünne Ellipse mit 1 m Halbachse – eine gepunktete „Schnur“ vom linken Handgelenk quer durchs Bild.
+      const bandGeo = new THREE.CylinderGeometry(1, 1, 0.016, 22, 1, true);
+      bandGeo.rotateX(Math.PI / 2);
+      const band = new THREE.Mesh(bandGeo, mats.watchCase);
+      band.scale.set(0.0292, 0.0222, 1);
       const caseM = new THREE.Mesh(chamferBoxGeometry(0.03, 0.009, 0.034, 0.0032), mats.watchCase);
       caseM.position.y = 0.0262;
       const face = new THREE.Mesh(new THREE.CircleGeometry(0.0115, 20), mats.watchFace);
