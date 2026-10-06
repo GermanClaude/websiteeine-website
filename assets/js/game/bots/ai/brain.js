@@ -12,12 +12,12 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const CHASE_PERCH = 0.4; // Anteil vorsichtiger Verfolgungen über einen erhöhten Posten (FFA: halb so oft)
 const HUNT_PERCH = 0.35; // Anteil der Anmärsche zu Gefechtslärm über einen erhöhten Posten (FFA: halb so oft)
 
-export const GOALS = ['roam', 'engage', 'cover', 'retreat', 'chase', 'hunt', 'flank', 'objective', 'evade', 'heal', 'grenade', 'squad'];
+export const GOALS = ['roam', 'engage', 'cover', 'retreat', 'chase', 'hunt', 'flank', 'objective', 'evade', 'heal', 'grenade', 'squad', 'check'];
 
 /** Anzeigenamen (Prüfstand). */
 export const GOAL_LABELS = {
   roam: 'Suchen', engage: 'Gefecht', cover: 'Deckung', retreat: 'Rückzug', chase: 'Verfolgen', hunt: 'Jagen',
-  flank: 'Flanke', objective: 'Flagge', evade: 'Ausweichen', heal: 'Heilen', grenade: 'Granate', idle: 'Warten', squad: 'Trupp',
+  flank: 'Flanke', objective: 'Flagge', evade: 'Ausweichen', heal: 'Heilen', grenade: 'Granate', idle: 'Warten', squad: 'Trupp', check: 'Prüfen',
 };
 /** Truppbefehle (bots-scale, ai/squad.js), die auch bei Feindsicht weiterlaufen (Bot feuert dabei). */
 const MOVE_UNDER_FIRE = new Set(['fallback', 'medic']);
@@ -33,6 +33,7 @@ export function think(bot, now) {
   const gunner = bot.gunner;
   const goal = bot.goal;
   const A = analyze(G.world);
+  const adapt = bot.manager.adapt && bot.manager.adapt.on(bot) ? bot.manager.adapt : null; // ai-adapt
   mem.forget(now, 16);
 
   // Aufklärer: gegnerische Positionen bekannt (wie der Spieler auf seiner Minikarte)
@@ -132,14 +133,18 @@ export function think(bot, now) {
       if (f) { set(goal, 'flank', now, { move: f, speed: 'run', look: 'point', lookAt: fresh.pos, tolerance: 1.5 }); goal.until = now + 9; return; }
     }
     if (goal.kind === 'flank' && now < goal.until && !bot.nav.arrived && !bot.nav.failed) return;
-    const cautious = age > 2 || fresh.source === 'sound';
+    // ai-adapt: gegen einen Nahkämpfer lieber einen Winkel halten (Posten/Deckung mit Sicht) statt nachzurennen
+    const holdA = !!(adapt && now > (bot._perchTryAt || 0) && adapt.holdRoll(bot, fresh));
+    const cautious = age > 2 || fresh.source === 'sound' || holdA;
     // vorsichtig verfolgen: gelegentlich über einen erhöhten Posten mit Sicht auf die letzte Position
     if (cautious && now > (bot._perchTryAt || 0) && fresh.pos.distanceTo(bot.position) > 10) {
       bot._perchTryAt = now + rnd(3, 6);
-      const n = Math.random() < CHASE_PERCH * (bot.team ? 1 : 0.5) ? perchNear(bot, A, fresh.pos, 22, { tests: 10, minDist: 6, maxFromBot: fresh.pos.distanceTo(bot.position) + 6 }) : null;
+      let n = holdA || Math.random() < CHASE_PERCH * (bot.team ? 1 : 0.5) ? perchNear(bot, A, fresh.pos, 22, { tests: 10, minDist: 6, maxFromBot: fresh.pos.distanceTo(bot.position) + 6 }) : null;
+      if (!n && holdA) n = findCover(bot, fresh.pos, 10, bot.manager.coverClaims(bot));
       if (n) {
         set(goal, 'chase', now, { move: n.position, speed: 'run', look: 'point', lookAt: fresh.pos, tolerance: 0.8 });
-        goal.data = perchData(n, fresh.actor, fresh.pos, rnd(4, 7));
+        goal.data = perchData(n, fresh.actor, fresh.pos, rnd(4, 7) * (holdA ? 1.6 : 1));
+        if (holdA) adapt.note(bot, 'hold_angle');
         return;
       }
     }
@@ -185,6 +190,13 @@ export function think(bot, now) {
   }
   // --- Umherziehen (erhöhte Posten werden über perchStep eine Weile gehalten)
   if (goal.kind !== 'roam' || bot.nav.arrived || bot.nav.failed || now - goal.since > 35) {
+    // ai-adapt: gelernte Lieblingsplätze des Spielers kontrollieren (überwachen bzw. von hinten anlaufen, dann halten)
+    const chk = adapt && adapt.checkGoal(bot, now, A);
+    if (chk) {
+      set(goal, 'check', now, { move: chk.move, speed: chk.speed, look: 'point', lookAt: chk.watch, tolerance: 0.9 });
+      goal.data = perchData(chk.node, null, chk.watch, chk.hold);
+      return;
+    }
     const node = pickRoamGoal(bot, A, bot.manager.roamClaims(bot));
     if (node) {
       bot.lastGoal = node.position.clone();
@@ -398,7 +410,10 @@ function maybeGrenade(bot, now, rec, visible) {
   if (now < bot.nextGrenadeAt || w.isThrowing || w.isReloading || !G.weapons || !G.weapons.grenadeAim) return false;
   const d = rec.pos.distanceTo(bot.position);
   if (d < 8 || d > 30) return false;
-  let chance = D.grenadeChance;
+  // ai-adapt: gegen einen campenden Spieler (eigene Wahrnehmung) öfter
+  const adapt = bot.manager.adapt && bot.manager.adapt.on(bot) ? bot.manager.adapt : null;
+  const campMul = adapt ? adapt.nadeMul(bot, rec) : 1;
+  let chance = D.grenadeChance * campMul;
   // Gruppe: weitere Gegner nahe beim Ziel
   let cluster = 0;
   for (const r of bot.memory.list) if (r !== rec && r.actor.alive && now - r.time < 4 && r.pos.distanceTo(rec.pos) < 5) cluster++;
@@ -418,6 +433,7 @@ function maybeGrenade(bot, now, rec, visible) {
   const cook = D.grenadeCook && eq && eq.cookable ? Math.max(0, fuse - aim.flightTime - rnd(0.7, 1.1)) : 0;
   bot.throwPlan = { yaw: aim.yaw, pitch: aim.pitch, cook, started: false, at: now, target };
   bot.nextGrenadeAt = now + rnd(12, 22);
+  if (campMul > 1) adapt.note(bot, 'nade_camper', { kind: type });
   set(bot.goal, 'grenade', now, { look: 'point', lookAt: target });
   return true;
 }

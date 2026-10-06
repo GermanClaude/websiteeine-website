@@ -11,6 +11,7 @@ export const HINTS = {
   fov: 'Horizontales Sichtfeld, bezogen auf ein 4:3-Bild. Breitere Bildschirme sehen seitlich mehr.',
   reducedMotion: 'Weniger Wackeln, Verzeichnung und Animationen. Folgt auch der Systemeinstellung.',
   difficulty: 'Vorgabe für die Lobby.',
+  adaptiveBots: 'Gegnerische Bots lernen deinen Stil (Plätze, Distanzen, Routen) und passen ihre Taktik an – leicht ab Regulär, stark auf Elite. Zielen und Reaktion bleiben unverändert.',
   playerName: 'Erscheint in Tabelle und Abschussmeldungen.',
   sensitivity: 'Rohe Mausbewegung (ohne Beschleunigung des Systems).',
   sensitivityY: 'Faktor für die senkrechte Achse – gilt für Maus, Controller, Touch und Gyro.',

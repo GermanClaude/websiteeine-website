@@ -418,6 +418,7 @@ export class Bot {
       if (this._thinkT <= 0) {
         this._thinkT = D.thinkInterval * this.lodThink * rnd(0.85, 1.15);
         think(this, now);
+        if (this.manager.adapt) this.manager.adapt.afterThink(this, now); // ai-adapt: Vorzielen, Camper ausräuchern, Rauch
       }
       this._streakT -= dt;
       if (this._streakT <= 0) { this._streakT = rnd(1.8, 3); if (this.manager.handlesStreaks) useStreaks(this, now); }

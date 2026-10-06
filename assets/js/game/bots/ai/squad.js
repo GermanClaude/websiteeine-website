@@ -144,7 +144,7 @@ export class TeamTactics {
     // Ziel des Trupps (vom Führer, solange er frei entscheidet)
     if (!lead.order || !lead.order.kind) {
       const g = lead.goal;
-      if (g && g.hasMove && (g.kind === 'objective' || g.kind === 'roam' || g.kind === 'hunt' || g.kind === 'chase')) { sq.dest.copy(g.move); sq.hasDest = true; sq.destAt = now; }
+      if (g && g.hasMove && (g.kind === 'objective' || g.kind === 'roam' || g.kind === 'hunt' || g.kind === 'chase' || g.kind === 'check')) { sq.dest.copy(g.move); sq.hasDest = true; sq.destAt = now; }
     }
     // Feindlage: frischester, nächster bekannter Gegner aller Mitglieder (gesehen bzw. gemeldet < 6 s)
     let best = null, bd = Infinity, n = 0;
@@ -521,14 +521,16 @@ export class TeamTactics {
     u.multiplyScalar(1 / dist);
     const R = Math.max(14, Math.min(26, dist * 0.6));
     let best = null, bs = Infinity;
+    const ad = this.mgr.adapt && this.mgr.adapt.on({ team: sq.team }) ? this.mgr.adapt : null; // ai-adapt: hinter den gelernten Blickwinkel
     for (const s of [-1, 1]) {
       _v.set(contact.x - u.z * s * R - u.x * R * 0.25, contact.y, contact.z + u.x * s * R - u.z * R * 0.25);
       const n = nav.nearest(_v);
       if (!n || n.position.distanceTo(_v) > 8 || n.position.distanceTo(contact) < 9) continue;
-      const score = n.position.distanceTo(cm) + Math.random() * 4;
+      const score = n.position.distanceTo(cm) + Math.random() * 4 + (ad ? ad.flankBias(contact, n.position) : 0);
       if (score < bs) { bs = score; best = { s, flank: n.position.clone() }; }
     }
     if (!best) return null;
+    if (ad && ad.flankBias(contact, best.flank) < -1) ad.note(sq.lead, 'flank_behind');
     const s = best.s;
     // weit ausholen: seitlich der eigenen Linie, gut ein Drittel des Wegs nach vorn
     _v.set(cm.x - u.z * s * R * 0.85 + u.x * dist * 0.3, cm.y, cm.z + u.x * s * R * 0.85 + u.z * dist * 0.3);

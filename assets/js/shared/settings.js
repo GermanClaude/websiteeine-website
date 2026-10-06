@@ -40,6 +40,8 @@ export const DEFAULTS = Object.freeze({
   fullscreen: 'auto',
   // Lobby: Wetter/Tageszeit (atmosphere-weather): 'standard' | 'zufall' | Wetter-/Zeit-id
   lastWeather: 'standard', lastTime: 'standard',
+  // Lernende Bots (ai-adapt): Gegner stellen sich auf den Spielstil ein (Stärke nach Schwierigkeit)
+  adaptiveBots: true,
 });
 
 const HOLD_TOGGLE = Object.freeze({ options: ['hold', 'toggle'], labels: { hold: 'Halten', toggle: 'Umschalten' } });
@@ -222,6 +224,7 @@ export const SETTINGS_SCHEMA = Object.freeze({
     type: 'enum', label: 'Auto-Feuer für', group: 'steuerung',
     options: ['touch', 'alle'], labels: { touch: 'Nur Touch', alle: 'Alle Geräte (auch Maus & Controller)' },
   },
+  adaptiveBots: { type: 'boolean', label: 'Lernende Bots', group: 'spiel' },
   fullscreen: {
     type: 'enum', label: 'Vollbild', group: 'spiel',
     options: ['auto', 'off'], labels: { auto: 'Automatisch', off: 'Nur per Knopf/Taste' },

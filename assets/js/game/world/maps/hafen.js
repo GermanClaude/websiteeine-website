@@ -215,7 +215,7 @@ export default {
     jersey(b, 10.4, 27.0, { len: 3, ry: Math.PI / 2 + 0.06, stripes: true });
     jersey(b, 10.6, -27.4, { len: 3, ry: Math.PI / 2 - 0.08, stripes: true });
     crateStack(b, -39.6, 2.6, { ry: 0.5, pattern: [[0, 0, 0, 1.1], [1.15, 0, 0.05, 1.0]] });
-    barrelGroup(b, -33.4, -2.8, { n: 3, colors: ['#3e7a4c', '#3e7a4c', '#c8402f'] });
+    barrelGroup(b, -33.4, -2.8, { n: 3, colors: ['#c8402f', '#c9a227', '#c8402f'] }); // nur barrel_01 (Modellbudget „niedrig“)
 
     // -----------------------------------------------------------------------
     // Süd (Team A): Torbereich
@@ -679,7 +679,7 @@ function eastYard(b) {
     cableReel(b, 72.2, Z(22.6), { ry: 0.4 * s });
     dumpster(b, 72.3, Z(38.2), { ry: Math.PI / 2, color: south ? '#2f5e3e' : '#2d4a6e' });
     crateStack(b, 54.4, Z(41.0), { ry: -0.25 * s, pattern: [[0, 0, 0, 1.2], [1.25, 0, 0.1, 1.1], [0.6, 1, 0.05, 1.0]] });
-    barrelGroup(b, 66.8, Z(46.6), { n: 3, colors: ['#2d5f94', '#c8402f', '#2d5f94'] });
+    barrelGroup(b, 66.8, Z(46.6), { n: 3, colors: ['#c8402f', '#c9a227', '#c8402f'] });
     jersey(b, 58.5, Z(47.5), { len: 3, ry: 0.2 * s, stripes: true });
     gasBottles(b, 72.6, Z(8.6), { n: 4 });
     car(b, 52.4, Z(36.0), { ry: 0.06 * s, color: south ? '#6b7a52' : '#3b3d40' });

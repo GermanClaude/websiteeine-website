@@ -110,6 +110,9 @@ export class EndScreen {
         </div>`;
     }
 
+    // ai-adapt: eine Zeile, worauf sich die lernenden Bots eingestellt haben
+    const ad = !training && G.bots && G.bots.adapt && typeof G.bots.adapt.summaryLine === 'function' ? G.bots.adapt.summaryLine() : '';
+    const adaptHtml = ad ? `<p class="e-adapt">${esc(ad)}</p>` : '';
     const board = (r.scoreboard || []).length
       ? scoreboardHtml(r.scoreboard, { teams: r.teams, playerTeam: mine, teamNames: names, teamScores: r.teamScores })
       : '';
@@ -119,6 +122,7 @@ export class EndScreen {
           <div class="m-kicker">${kicker}</div>
           <h1 class="e-title is-${outcome}" style="--n:${[...title].length + 1}">${esc(title)}<em>.</em></h1>
           ${line}
+          ${adaptHtml}
         </header>
         <div class="e-grid">
           <section class="e-me" aria-label="Deine Bilanz">${xp}${stats}${medalHtml}</section>

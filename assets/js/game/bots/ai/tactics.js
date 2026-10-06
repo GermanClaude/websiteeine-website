@@ -93,6 +93,7 @@ export function pickRoamGoal(bot, A, taken = []) {
   const forward = team === 'B' ? -1 : 1; // B läuft rückwärts entlang der Achse
   const lane = bot.lane ?? 1;
   const push = Math.min(0.85, 0.42 + (bot.G.time.elapsed - (bot.spawnTime || 0)) * 0.006 + Math.random() * 0.25);
+  const ad = bot.manager && bot.manager.adapt && bot.manager.adapt.on(bot) ? bot.manager.adapt : null; // ai-adapt: Hinterhalt-Wege meiden
   for (let k = 0; k < tries; k++) {
     let n;
     if (A.perch.length && Math.random() < (team ? PERCH_TRY : PERCH_TRY * 0.5)) n = A.perch[(Math.random() * A.perch.length) | 0];
@@ -116,6 +117,7 @@ export function pickRoamGoal(bot, A, taken = []) {
     if (A.perchSet.has(n)) s += team ? PERCH_BONUS : PERCH_BONUS * 0.5;
     for (const t of taken) if (t && t.distanceToSquared(n.position) < 100) s -= 2.5;
     if (bot.lastGoal && bot.lastGoal.distanceToSquared(n.position) < 64) s -= 2;
+    if (ad) s -= ad.roamPenalty(n.position);
     s += Math.random() * 1.2;
     if (s > bestScore) { bestScore = s; best = n; }
   }

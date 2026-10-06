@@ -14,6 +14,7 @@ import { VARIANTS, schemeForTeam, ffaSchemes } from './character.js';
 import { upgradeSoldierMaterials, soldierDetailInfo } from './soldier/materials.js';
 import { analyze } from './ai/tactics.js';
 import { TeamTactics, planRoles } from './ai/squad.js';
+import { BotAdapt } from './ai/adapt.js';
 import { CLASSES, pickBotClass, resolveClassLoadout } from '../../shared/classes.data.js';
 
 const _m = new THREE.Matrix4();
@@ -74,6 +75,7 @@ export class BotManager {
     this._shadowT = 0;
     this._plateLos = new Map();
     this.tactics = new TeamTactics(this);
+    this.adapt = new BotAdapt(this); // ai-adapt: lernende Bots (Spielermodell + Anpassung der Gegner)
     this.lodEnabled = true;
     this._stepEv = { actor: null, sprint: false, crouch: false }; // Simulations-Detailstufen (Prüfstand/Messung: false = alle Bots jedes Bild)
     this.lodCount = [0, 0, 0, 0];
@@ -105,12 +107,14 @@ export class BotManager {
     s.on('actor:hit', (e) => this._onHit(e));
     s.on('kill', (e) => this._onKill(e));
     s.on('actor:flashed', (e) => this._onFlashed(e));
+    this.adapt.attach(G);
   }
 
   detach() {
     this.removeAll();
     if (this._subs) this._subs.dispose();
     this._subs = null;
+    this.adapt.detach();
     this._intel.clear();
     this._paths.clear();
     this._pathQ.length = 0;
@@ -124,6 +128,7 @@ export class BotManager {
     const G = this.G;
     if (!this._subs) this.attach(G);
     const diff = difficultyProfile(difficulty, G.data && G.data.DIFFICULTIES);
+    this.adapt.begin(diff, modeId); // ai-adapt: gelerntes Spielermodell laden, Anpassungsstärke nach Schwierigkeit
     const used = new Set(G.actors.map((a) => a.name));
     if (G.player && G.player.name) used.add(G.player.name);
     const total = ffa ? allies + enemies : allies + enemies;
@@ -152,7 +157,7 @@ export class BotManager {
     };
     const make = (team, i, lo, variant, scheme, lane) => {
       const bot = new Bot(this, {
-        team, name: names.shift() || `Bot ${this.bots.length + 1}`, diff,
+        team, name: names.shift() || `Bot ${this.bots.length + 1}`, diff: this.adapt.diffFor(diff, team, ffa),
         loadout: { primary: lo.primary, secondary: lo.secondary, lethal: lo.lethal, tactical: lo.tactical, cls: lo.cls }, variant, scheme, modeId, lane,
       });
       this.bots.push(bot);
@@ -177,6 +182,8 @@ export class BotManager {
       for (const [team, n] of [['A', allies], ['B', enemies]]) {
         if (n <= 0) continue;
         const roles = planRoles(n);
+        // ai-adapt: gegen Fernkämpfer zusätzliche Schützen (Gegen-Scharfschützen) im gegnerischen Team
+        if (this.adapt.on({ team })) { let extra = this.adapt.extraMarksmen(); for (const from of ['rifleman', 'grenadier']) for (let i = 0; i < n && extra > 0; i++) if (roles[i].role === from) { roles[i] = { ...roles[i], role: 'marksman' }; extra--; } }
         const lanes = shuffle([0, 1, 2]);
         const scheme = schemeForTeam(team, G.world); // Gegner auf hellen Karten dunkler (Kontrast)
         for (let i = 0; i < n; i++) {
@@ -184,6 +191,7 @@ export class BotManager {
           const cls = pickBotClass(Math.random, plan.role);
           const lo = this._classLoadout(cls, plan.role);
           const bot = make(team, i, lo, this._lookFor(cls, plan.role, lo, plan.ft), scheme, lanes[plan.squad % 3]);
+          if (this.adapt.on(bot)) bot.lane = this.adapt.laneFor(bot.lane); // ai-adapt: Lieblingsspur des Spielers sichern
           bot.cls = cls;
           bot.classDef = CLASSES[cls];
           this.tactics.register(bot, plan);
@@ -362,6 +370,7 @@ export class BotManager {
     }
     // Trupptaktik (gestaffelt je Trupp)
     this.tactics.update(dt, now);
+    this.adapt.update(dt, now);
     // Bots (ferne Detailstufen nur jedes n-te Bild mit aufgelaufener Zeit, Phase je Bot verteilt)
     let simmed = 0;
     for (let i = 0; i < bots.length; i++) {

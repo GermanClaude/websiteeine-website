@@ -1666,6 +1666,7 @@ body[data-input-mode="touch"] .m-btn kbd { display: none; }
 .e-title.is-draw { color: var(--np-gold); }
 .e-title.is-train { color: var(--np-ink); }
 .e-teams { display: flex; align-items: center; gap: 14px; font-family: var(--font-hud); }
+.e-adapt { margin: 10px 0 0; max-width: 72ch; font-size: 13.5px; line-height: 1.45; color: var(--np-ink-2); } /* ai-adapt */
 .e-teams span { display: flex; align-items: baseline; gap: 10px; }
 .e-teams b { font-size: 40px; line-height: 1; }
 .e-teams small { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--np-ink-2); }
