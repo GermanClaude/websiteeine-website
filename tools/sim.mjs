@@ -141,6 +141,19 @@ console.log(`Bots-CPU ${JSON.stringify(rep.perf)}  Taktik ${JSON.stringify(rep.t
 console.log(`Anpassung ${JSON.stringify(rep.adapt)}  Bot-Granaten ${JSON.stringify(rep.nades)}  Gegner-Ziele ${JSON.stringify(rep.goals)}\nModell ${JSON.stringify(rep.adaptSnap)}`);
 console.log(`Spieler K${rep.player.k} D${rep.player.d} Treffer erhalten ${rep.phits} Schaden ${rep.pdmg} Tode ${rep.pdeaths}`);
 writeFileSync(`tools/out/sim-${name}.json`, JSON.stringify(rep));
+// ai-adapt: --endmatch beendet das Match (match:end → Modell speichern) und zeigt Endbildschirm-Zeile + Speicher
+if (opt.endmatch) {
+  const e = await page.evaluate(async () => {
+    const G = window.__game;
+    G.debugApi.endMatch();
+    await new Promise((r) => setTimeout(r, 4000));
+    let st = null;
+    try { st = JSON.parse(localStorage.getItem('nullpunkt:botAdapt')); } catch { st = null; }
+    const m = st && st.maps ? Object.values(st.maps)[0] : null;
+    return { state: G.match.state, line: G.bots.adapt.summaryLine(), endLine: (document.querySelector('.e-adapt') || {}).textContent || null, stored: st ? { g: { t: st.g.t, camp: st.g.camp, k: st.g.k, d: st.g.d, db: st.g.db }, heatCells: m ? Object.keys(m.heat).length : 0, dangerCells: m ? Object.keys(m.danger).length : 0, bytes: JSON.stringify(st).length } : null };
+  });
+  console.log(`Matchende ${JSON.stringify(e)}`);
+}
 // Aufnahmen: hinter Bots stellen
 const shots = Number(opt.shots ?? 2);
 for (let i = 0; i < shots; i++) {

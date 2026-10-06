@@ -134,7 +134,7 @@ export function planOf(T, s, spots) {
     flash: s >= 0.6,
     smoke: s >= 0.6 ? Math.min(0.8, s * (0.3 + 0.7 * T.longRange)) * (T.longRange > 0.2 ? 1 : 0) : 0,
     marksmen: Math.min(2, Math.floor(s * 2 * Math.max(T.longRange, T.weakSniper * 0.6) + 0.35)),
-    hold: Math.min(0.6, s * T.closeRange * 0.7),
+    hold: Math.min(0.6, s * Math.max(T.closeRange, 0.6 * T.hipfire, 0.5 * T.slider, 0.5 * T.aggressive) * 0.7), // Nahkampf/Hüfte/Rutschen/Sturm → Winkel halten
     avoid: s * 2.5,
     lane: s * T.lanePref,
     favLane: T.lane,
@@ -242,6 +242,7 @@ export class BotAdapt {
     s.on('player:stance', (e) => { if (this.active && e && e.actor === P() && e.stance === 'prone' && e.prev !== 'prone' && !e.denied) this.cur.prone++; });
     s.on('player:slide', (e) => { if (this.active && e && e.phase === 'start') this.cur.slide++; });
     s.on('match:end', () => this.commit());
+    s.on('match:state', (e) => { if (e && e.state === 'ended') this.commit(); }); // auch Debug-/Menü-Ende ohne match:end
   }
 
   detach() {

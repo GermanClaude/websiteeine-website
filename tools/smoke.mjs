@@ -252,7 +252,8 @@ try {
     const info = await page.evaluate(() => {
       const G = window.__game;
       const i = G.renderer.info();
-      return { result: G.lastResult && G.lastResult.playerSummary ? G.lastResult.playerSummary.result : null, xp: G.lastProgression ? G.lastProgression.xpGained : null, unranked: !!G.match.unranked, matches: G.profile.get().matches, geometries: i.geometries, textures: i.textures, programs: i.programs, listeners: G.events.count(), sceneChildren: G.scene.children.length, menuText: document.getElementById('menu-root').innerText.slice(0, 160) };
+      const adaptLine = (document.querySelector('.e-adapt') || {}).textContent || null; // ai-adapt: Zeile auf dem Endbildschirm
+      return { adaptLine, result: G.lastResult && G.lastResult.playerSummary ? G.lastResult.playerSummary.result : null, xp: G.lastProgression ? G.lastProgression.xpGained : null, unranked: !!G.match.unranked, matches: G.profile.get().matches, geometries: i.geometries, textures: i.textures, programs: i.programs, listeners: G.events.count(), sceneChildren: G.scene.children.length, menuText: document.getElementById('menu-root').innerText.slice(0, 160) };
     });
     summary.matches.push({ label, ...info });
     await shot(`end-${label}`);
