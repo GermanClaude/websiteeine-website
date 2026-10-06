@@ -190,3 +190,9 @@ Karten-Feinschliff (alle Karten, „alles originalgetreu und sinnvoll platzieren
 2) Danach ALLES ANDERE von der bisherigen Liste: offene WIP-Punkte vom 06.10. (Tester-Fehler, Waffe neben Fahrzeugen, Magazine/Hülsen, Schwimmen, Ausdauer/Hänge-Rutschen), Waffen (Neumodellierung, Aufsätze, Munitionstypen, Inspizier-/Nachlade-Animationen, Arme/Hände), Fahrzeuge (Nachschub, WT-Schaden, Crew, neue Typen, AT/AA, Heli/Jets, Fahrzeug-Serien, Bots fahren), Abschussserien per Level, Grenzland mehr Deckung + Bot-Verteilung, NPC-Strategien/Funk/Stimmen/Regen, Bug-Log-Reste.
 3) Dann die „Wunschliste 06.10. abends“ (Modi, Shop, Zerstörung, Interieur, Licht, Gore, Friendly Fire, Karten-Feinschliff).
 4) GRAFIK GANZ ZULETZT (Bodycam-Look, Grafikstufen sichtbar unterschiedlich, Leistungsoptimierung).
+
+## Nachtrag 06.10. spät (Nutzer) – gehört zu Schritt 2–4 der REIHENFOLGE bzw. „später, wenn noch Energie übrig“
+- Gilt ausdrücklich: ALLE in diesem Chat besprochenen Punkte umsetzen (nicht nur die Listen) – Aufsätze für Waffen sicher einbauen.
+- Zu Schritt 4 (Grafik, zuletzt): alles neu rendern/überarbeiten; Texturen auf allen Karten EINHEITLICH (kein „zusammengewürfelter Flickenteppich“); Lichtverhältnisse richtig; Lichtstrahlen nicht blockig/„wie Bauklötze“, sondern weich verteilt und realistisch geworfen; realistische Schatten; eigener Spieler-Charakter wirft je nach Sonnenstand einen Schatten, ebenso alle NPCs und Gegenstände (prüfen, wo das noch fehlt).
+- Waffen extrem detailliert modelliert + gute Texturen; Inspektion mit mehr Animationen; generell deutlich mehr und schönere Animationen in allen Situationen, mehrere Varianten pro Aktion (z. B. mehrere Nachlade-Animationen).
+- Später (nach den Megapatches, wenn noch Kapazität): Emotes.
