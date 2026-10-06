@@ -115,10 +115,8 @@ export function qx90(b) {
     [0.1, -0.093], [0.0, -0.095], [-0.08, -0.091], [-0.15, -0.079], [-0.2, -0.06], [-0.226, -0.032], [-0.235, 0.0],
     [-0.236, 0.04], [-0.232, 0.07], [-0.226, 0.088],
   ];
-  // hv3 (H-QX90): Griffsteg zwischen Daumenloch und vorderer Öffnung 4,2 cm statt 7,3 cm tief (wie beim Vorbild) –
-  // die Schusshand umfasst ihn jetzt, vorher lag der Mittelfinger 35 mm frei in der Öffnung
-  const front = [[0.036, 0.03], [0.12, 0.03], [0.168, 0.022], [0.188, 0.002], [0.194, -0.028], [0.188, -0.056], [0.17, -0.072], [0.06, -0.075], [0.018, -0.064], [0.012, -0.032], [0.014, 0.0], [0.024, 0.024]];
-  const thumb = ellipsePts(-0.064, -0.03, 0.034, 0.036, b.hi ? 16 : 6).map(([u, v]) => [u - (v + 0.03) * 0.25, v]);
+  const front = [[0.05, 0.03], [0.12, 0.03], [0.168, 0.022], [0.188, 0.002], [0.194, -0.028], [0.188, -0.056], [0.17, -0.072], [0.06, -0.075], [0.036, -0.062], [0.03, -0.032], [0.033, 0.0], [0.04, 0.022]];
+  const thumb = ellipsePts(-0.072, -0.03, 0.029, 0.036, b.hi ? 16 : 6).map(([u, v]) => [u - (v + 0.03) * 0.25, v]);
   b.side('polymer', outer, 0.055, 0, { holes: [front, thumb], bevel: 0.011, bevelSeg: b.hi ? 3 : 1 });
   // Oberes Gehäuseband (dunkelgrau, etwas breiter) mit Spannhebel-Schlitz
   b.side('polymerGrey', [[-0.21, 0.07], [0.17, 0.07], [0.205, 0.078], [0.228, 0.086], [0.205, 0.1], [-0.21, 0.1]], 0.058, 0, { bevel: 0.004 });
@@ -168,7 +166,7 @@ export function qx90(b) {
   // Hülsenauswurf nach unten durch den Griff
   b.anchor('ejection', 0, -0.094, -0.01, { rz: -Math.PI / 2 });
   b.part('bolt', 0, axis, 0.0);
-  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.22, gw: 0.0275, gd: 0.021, gu: -0.009, ho: 0.02, tu: 0.04 } });
+  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.22, gw: 0.0275, gd: 0.034, gu: -0.0065, ho: 0.02, tu: 0.04 } });
   b.anchor('trigger', 0, 0.006, 0.048);
   b.anchor('magWell', 0, 0.116, 0.0);
   b.anchor('leftHandGrip', 0, -0.03, 0.215, { data: { style: 'post', rake: 0.25, gw: 0.0275, gd: 0.023, gu: 0, ho: 0.024 } });
