@@ -325,7 +325,14 @@ export class ConquestMode extends DomMode {
 
   chooseSpawn(actor) {
     const team = actor.team;
-    if ((team !== 'A' && team !== 'B') || !this.objectives.length) return super.chooseSpawn(actor);
+    if (team !== 'A' && team !== 'B') return super.chooseSpawn(actor);
+    if (!this.objectives.length) {
+      // Erstspawn (main.js spawnt alle Akteure vor onStart): ins HQ, nicht auf TDM-/FFA-Punkte – bei 32 je Seite liefen
+      // die acht Teampunkte über und beide Teams landeten auf denselben FFA-Punkten (bots-verify F1)
+      const sp = this.G.world && this.G.world.spawns;
+      const hq = sp && sp.hq && sp.hq[team];
+      return (hq && hq.length && this._pickSafe(actor, hq)) || super.chooseSpawn(actor);
+    }
     let choice = null;
     if (actor.isPlayer) choice = this.deployChoice;
     else choice = this._botChoice(actor);
@@ -382,7 +389,39 @@ export class ConquestMode extends DomMode {
       if (near) sc -= flatDist(s.position, near) * 0.8;
       if (sc > bestS) { bestS = sc; best = s; }
     }
-    return best ? { position: best.position.clone(), yaw: best.yaw || 0, source: 'cq' } : null;
+    return best ? { position: this._spread(actor, best.position), yaw: best.yaw || 0, source: 'cq' } : null;
+  }
+
+  /** Belegter Spawnpunkt (mehr Akteure als Punkte, z. B. 32 je Seite auf 8 HQ-Punkten): freien Platz im Ring daneben
+   *  suchen – gleiche Bodenhöhe, Sichtlinie zum Punkt (nicht hinter eine Wand). → neuer Vector3 */
+  _spread(actor, pos) {
+    const G = this.G;
+    const w = G.world;
+    const busy = (p) => G.actors.some((a) => a.alive && a !== actor && flatDist(a.position, p) < 1.1 && Math.abs(a.position.y - p.y) < 2);
+    if (!busy(pos)) return pos.clone();
+    for (let r = 1.5; r <= 6.1; r += 1.5) {
+      const n = Math.round(r * 4);
+      const off = Math.random() * Math.PI * 2;
+      for (let i = 0; i < n; i++) {
+        const ang = off + (i / n) * Math.PI * 2;
+        _b.set(pos.x + Math.sin(ang) * r, pos.y, pos.z + Math.cos(ang) * r);
+        if (busy(_b)) continue;
+        if (w && typeof w.groundHeight === 'function') {
+          const gy = w.groundHeight(_b.x, _b.z, pos.y + 1.2);
+          if (gy == null || Math.abs(gy - pos.y) > 0.5) continue;
+          _b.y = Math.max(gy, pos.y - 0.05);
+        }
+        if (w && typeof w.lineOfSight === 'function') {
+          _a.set(pos.x, pos.y + 1, pos.z);
+          _b.y += 1;
+          const ok = w.lineOfSight(_a, _b);
+          _b.y -= 1;
+          if (!ok) continue;
+        }
+        return _b.clone();
+      }
+    }
+    return pos.clone();
   }
 
   /** Neben dem Truppkameraden (hinter ihm, falls frei), sonst an seiner Stelle. */

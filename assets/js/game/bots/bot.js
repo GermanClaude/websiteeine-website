@@ -13,6 +13,7 @@ import { Gunner } from './ai/combat.js';
 import { think, newGoal, useStreaks } from './ai/brain.js';
 import { targetPoints } from './ai/perception.js';
 import { GADGETS } from '../../shared/classes.data.js';
+import { BONE } from './soldier/rig.js';
 
 const STAND_H = 1.8, CROUCH_H = 1.15, PRONE_H = 0.75;
 const SPEED = { walk: 3.1, run: 5.4, sprint: 8.2, crouch: 2.6, crawl: 1.05 };
@@ -844,20 +845,38 @@ export class Bot {
     this._spotAt = now + 1;
   }
 
-  /** Waffe an der Wand (bots-scale): Strahl vom Anschlag nach vorn, gedrosselt, nur für nahe sichtbare Bots. → 0..1 */
+  /** Waffe an der Wand (bots-scale): Strahlen von der rechten Schulter (echte Lage der Waffe, auch geduckt/liegend)
+   *  entlang Zielrichtung und entlang der Waffe zur Mündung, gedrosselt, nur für nahe sichtbare Bots. → 0..1 */
   _obstructAmount(now) {
     if (!this.inView || this.camDist > 45) return 0;
     if (now < this._obsAt) return this._obstruct;
-    this._obsAt = now + 0.15;
+    this._obsAt = now + 0.12;
     const W = this.G.world;
     const def = this.weapon && this.weapon.currentDef;
-    if (!W || typeof W.raycast !== 'function' || !def || def.cls === 'melee') { this._obstruct = 0; return 0; }
-    const p = this.body.position;
-    const reach = def.cls === 'pistol' ? 0.6 : def.cls === 'sniper' || def.cls === 'lmg' || def.cls === 'launcher' ? 1.25 : 1.0;
-    _lp.set(p.x + this.leanOffset.x, p.y + this.body.height * 0.78 + this.leanOffset.y, p.z + this.leanOffset.z);
+    const s = this.soldier;
+    if (!W || typeof W.raycast !== 'function' || !def || def.cls === 'melee' || !s) { this._obstruct = 0; return 0; }
+    const reach = def.cls === 'pistol' ? 0.65 : def.cls === 'sniper' || def.cls === 'lmg' || def.cls === 'launcher' ? 1.3 : 1.05;
+    // Schulter (Pose des letzten Frames) – Waffe liegt rechts der Kapselachse und je nach Haltung tiefer
+    s.joint(BONE.upperArmR, _lp);
     this.getAimDirection(_ld);
-    const h = W.raycast(_lp, _ld, reach + 0.1);
-    this._obstruct = h ? clamp((reach + 0.1 - h.distance) / 0.5, 0, 1) : 0;
+    let d = reach + 0.1;
+    let h = W.raycast(_lp, _ld, d);
+    if (h) d = h.distance;
+    // zweiter Strahl entlang der tatsächlichen Waffe (Pose weicht vom Zielvektor ab), auf volle Länge verlängert
+    s.getMuzzlePosition(_le).sub(_lp);
+    const L = _le.length();
+    if (L > 0.15 && _le.dot(_ld) > 0.8 * L) { // nur solange die Waffe noch im Anschlag liegt (sonst Decke → Selbsthalt)
+      _le.multiplyScalar(1 / L);
+      h = W.raycast(_lp, _le, reach + 0.1);
+      if (h && h.distance < d) d = h.distance;
+    }
+    // Kapselachse → Schulter: steckt die Schulter selbst schon in der Wand (Ecke), ganz hochnehmen
+    const p = this.body.position;
+    _lh.set(p.x + this.leanOffset.x, _lp.y, p.z + this.leanOffset.z);
+    _v.subVectors(_lp, _lh);
+    const sl = _v.length();
+    if (sl > 0.02 && W.raycast(_lh, _v.multiplyScalar(1 / sl), sl + 0.05)) d = 0;
+    this._obstruct = clamp((reach + 0.1 - d) / (reach * 0.7), 0, 1);
     return this._obstruct;
   }
 

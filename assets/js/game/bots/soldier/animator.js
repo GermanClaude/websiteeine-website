@@ -567,7 +567,7 @@ export class Animator {
     }
     // Waffe an der Wand (bots-scale): zurückziehen und hochnehmen („high ready“), damit der Lauf nicht in die Wand ragt
     const ob = this.obstruct;
-    if (ob > 1e-3) { pos.z += 0.26 * ob; pos.y += 0.08 * ob; rx += 0.95 * ob; }
+    if (ob > 1e-3) { pos.z += 0.3 * ob; pos.y += 0.1 * ob; rx += 1.3 * ob; } // ob=1: Lauf fast senkrecht („high port“)
     // Rahmen → Modellraum
     qrot(this.gunPos.copy(pos), this.aimQuat).add(this.aimPivot);
     _e.set(rx, ry, rz, 'YXZ');
