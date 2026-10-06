@@ -14,6 +14,7 @@ import { think, newGoal, useStreaks } from './ai/brain.js';
 import { targetPoints } from './ai/perception.js';
 import { GADGETS } from '../../shared/classes.data.js';
 import { BONE } from './soldier/rig.js';
+import { Stamina, STAMINA_COST, RECOVER } from '../stamina.js';
 
 const STAND_H = 1.8, CROUCH_H = 1.15, PRONE_H = 0.75;
 const SPEED = { walk: 3.1, run: 5.4, sprint: 8.2, crouch: 2.6, crawl: 1.05 };
@@ -92,6 +93,8 @@ export class Bot {
     this.respawnAt = null;
     this.crouching = false;
     this.sprinting = false;
+    /** Ausdauer wie beim Spieler (stamina.js, vereinfacht: Sprint + Sprung): erschöpft wird gelaufen statt gesprintet. */
+    this.stamina = new Stamina();
     // Haltung (bots-scale, gleiche Felder wie der Spieler): stance 'stand'|'crouch'|'prone', proneBlend 0..1 (Trefferzonen
     // folgen der liegenden Pose), proneYaw (Körperachse beim Hinlegen)
     this.stance = 'stand';
@@ -363,6 +366,7 @@ export class Bot {
     this.spawnTime = this.G.time.elapsed;
     this.respawnAt = null;
     this.crouching = this.sprinting = false;
+    this.stamina.reset();
     this.lean = 0; this.leanRoll = 0; this.leanOffset.set(0, 0, 0); this._leanWant = 0; this.leanSide = 0;
     this.staggerUntil = this.limpUntil = this._staggerCd = 0;
     this.flashedUntil = 0; this.flashStrength = 0;
@@ -534,6 +538,7 @@ export class Bot {
     const limping = now < this.limpUntil;
     let sprint = speedKind === 'sprint' && facing > 0.8 && ads < 0.1 && (!w || w.canSprint !== false) && body.onGround && !wantCrouch && now - (w ? w.lastShotTime : 0) > 0.4 && !limping && !staggered && Math.abs(this.lean) < 0.1;
     if (sprint && rec && rec.visible) sprint = false;
+    if (sprint && !this.stamina.canSprint) sprint = false; // erschöpft: laufen (Navigation/Ziel bleiben gleich)
     this.sprinting = sprint && moveLen > 0.3;
     if (this.stance === 'prone' || this.proneBlend > 0.3) this.sprinting = false;
     if (wantCrouch !== this.crouching) {
@@ -562,7 +567,7 @@ export class Bot {
         v.z += (tz - v.z) * a * 0.5;
       }
     }
-    if (!frozen && wantJump && body.onGround && !this.crouching && body.canStand(world, STAND_H)) { v.y = JUMP_V; body.onGround = false; }
+    if (!frozen && wantJump && body.onGround && !this.crouching && body.canStand(world, STAND_H)) { v.y = JUMP_V; body.onGround = false; this.stamina.drain(STAMINA_COST.jump); }
     // Kapselhöhe
     const targetH = this.stance === 'prone' ? PRONE_H : this.crouching ? CROUCH_H : STAND_H;
     if (targetH > body.height + 1e-3) {
@@ -581,6 +586,11 @@ export class Bot {
 
     // Regeneration (wie Spieler; Spielstil: Realistisch heilt später und langsamer – styleFlags.regenDelay/regenRate)
     const fl = G.match && G.match.styleFlags;
+    // Ausdauer (wie Spieler, Spielstil: styleFlags.staminaMult)
+    const sta = this.stamina;
+    sta.setStyle(fl);
+    if (this.sprinting && !frozen) sta.sprint(dt);
+    sta.update(dt, !body.onGround ? RECOVER.none : Math.hypot(v.x, v.z) > 0.6 && !this.crouching ? RECOVER.move : RECOVER.still);
     if (this.health < this.maxHealth && now - this.lastDamageTime > ((fl && fl.regenDelay) || 3.5)) this.health = Math.min(this.maxHealth, this.health + ((fl && fl.regenRate) || 55) * dt);
 
     // --- Waffe

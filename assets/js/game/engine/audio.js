@@ -1064,15 +1064,25 @@ export class AudioEngine {
       F.sprintT = 0;
     }
     if (exhausted && F.breaths < 2 && !this._lowHp) { F.breaths = 2; F.level = Math.max(F.level || 0, 0.7); }
-    if (F.breaths > 0 && !this._lowHp && !p.sprinting) {
+    // Ausdauer (stamina.js): knapp → schwerer, schneller Atem, auch im Lauf; erschöpft am lautesten
+    const strain = p.stamina ? p.stamina.strain : 0;
+    if (strain > 0.15 && F.breaths < 2 && !this._lowHp) { F.breaths = 2; F.level = Math.max(F.level || 0, 0.55 + 0.5 * strain); }
+    if (F.breaths > 0 && !this._lowHp && (!p.sprinting || strain > 0.3)) {
       F.breathT -= dt;
       if (F.breathT <= 0) {
-        const lvl = (F.level || 0.6) * (0.55 + 0.45 * Math.min(1, F.breaths / 4));
+        const lvl = Math.min(1, (F.level || 0.6) * (0.55 + 0.45 * Math.min(1, Math.max(F.breaths, strain * 4) / 4)));
         this.play(F.breathIn ? 'breath_in' : 'breath_out', { volume: 0.26 * lvl, pitch: 1.07, priority: 2 });
         if (!F.breathIn) F.breaths--;
-        F.breathT = F.breathIn ? 0.42 + 0.1 * (1 - lvl) : 0.5 + 0.25 * (1 - lvl);
+        F.breathT = (F.breathIn ? 0.42 + 0.1 * (1 - lvl) : 0.5 + 0.25 * (1 - lvl)) * (1 - 0.25 * strain);
         F.breathIn = !F.breathIn;
       }
+    }
+    // Langes Rutschen (Hang): Reibegeräusch nahtlos fortsetzen statt nach einer Aufnahme (≈ 0,7 s) zu verstummen
+    const sv = this._slideVoice;
+    const sHv = p.sliding && p.body ? Math.hypot(p.body.velocity.x, p.body.velocity.z) : 0;
+    if (sHv > 6.5 && sv && this.ctx && this.ctx.currentTime > sv.end - 0.22) {
+      const v = clamp(sHv, 6, 13);
+      this._slideVoice = this.play('slide', { player: true, volume: clamp(0.4 + (v - 8) * 0.05, 0.35, 0.7), pitch: clamp(0.94 + (v - 8) * 0.015, 0.92, 1.06) });
     }
   }
 

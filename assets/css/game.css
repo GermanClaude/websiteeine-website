@@ -2458,6 +2458,19 @@ body[data-input-mode="touch"] .sb-table th:nth-child(3) { width: 52px; }
 .h-root.is-mirror .h-armor { left: auto; right: var(--pad-r); }
 .h-root[data-hud="aus"] .h-armor, .h-root[data-hud="aus"] .h-stance { display: none; }
 body[data-vehicle] .h-armor, body[data-vehicle] .h-stance { display: none; }
+/* ---------- Ausdauer (stamina.js): dünner Balken unter dem Leben, nur unter vollem Wert; erschöpft rot mit Marke (30 %) */
+.h-stam { position: absolute; left: calc(var(--pad-l) + 50px); bottom: calc(var(--pad-b) + 2px); width: 190px; height: 3px; opacity: 0; transition: opacity .6s .4s; pointer-events: none; }
+.h-stam.is-on { opacity: .85; transition: opacity .15s; }
+.h-stam i { position: absolute; inset: 0; background: rgba(233, 230, 223, .12); border-radius: 1px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0, 0, 0, .3); }
+.h-stam u { position: absolute; inset: 0; transform-origin: left; background: rgba(233, 230, 223, .78); text-decoration: none; transition: background-color .2s; }
+.h-stam em { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(233, 230, 223, .55); display: none; }
+.h-stam.is-low u { background: var(--np-gold); }
+.h-stam.is-ex u { background: var(--np-enemy); }
+.h-stam.is-ex em { display: block; }
+.h-stam.is-deny { animation: h-blink .3s steps(2) 2; }
+.h-root.is-dead .h-stam, .h-root[data-hud="aus"] .h-stam, body[data-vehicle] .h-stam { display: none; }
+.h-root[data-input="touch"] .h-stam { left: var(--pad-l); top: calc(var(--col-t) + 27px); bottom: auto; width: min(var(--mm), 200px); }
+.h-root[data-input="touch"].is-mirror .h-stam { left: auto; right: var(--pad-r); }
 /* Spielstil „Realistisch“: Fadenkreuz nach Stil/Einstellung */
 .h-root[data-xhair="0"] .h-cross { display: none; }
 

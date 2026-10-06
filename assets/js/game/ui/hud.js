@@ -149,6 +149,7 @@ export class HUD {
       <div class="h-medal"></div>
       <div class="h-death" hidden><div class="k">Ausgeschaltet<em>.</em></div><div class="by"></div><div class="info"></div><div class="re"><span></span><i><u></u></i></div></div>
       <div class="h-health"><b>100</b><i><u></u><s></s></i></div>
+      <div class="h-stam" aria-hidden="true"><i><u></u><em></em></i></div>
       <div class="h-armor" hidden><span class="h-armico">${ICON.plate}</span><div class="h-plates"></div><b class="h-carry"></b><i class="h-ins"><u></u></i></div>
       <div class="h-stance" data-st="stand" aria-hidden="true"></div>
       <div class="h-zone" hidden><b></b><span></span></div>
@@ -172,6 +173,7 @@ export class HUD {
       pop: q('.h-pop'), popTotal: q('.h-pop b'), popLines: q('.h-pop .lines'), medal: q('.h-medal'),
       death: q('.h-death'), deathBy: q('.h-death .by'), deathInfo: q('.h-death .info'), deathRe: q('.h-death .re span'), deathBar: q('.h-death .re u'),
       health: q('.h-health'), hpN: q('.h-health b'), hpBar: q('.h-health u'), hpLag: q('.h-health s'),
+      stam: q('.h-stam'), stamBar: q('.h-stam u'), stamMark: q('.h-stam em'),
       weapon: q('.h-weapon'), wName: q('.h-wname .n'), wMode: q('.h-wname .m'), mag: q('.h-ammo b'), reserve: q('.h-ammo span'), equip: q('.h-equip'), next: q('.h-next'),
       streaks: q('.h-streaks'), train: q('.h-train'), board: q('.h-board'),
       armor: q('.h-armor'), plates: q('.h-plates'), carry: q('.h-carry'), ins: q('.h-ins'), insBar: q('.h-ins u'), stance: q('.h-stance'),
@@ -979,6 +981,17 @@ export class HUD {
       setStyle(this.el.lowhp, 'opacity', (low * 0.95).toFixed(2));
       setStyle(this.el.flash, 'opacity', (this._flashT / 0.18 * 0.45).toFixed(2));
       this._setPostDesat(alive ? clamp((0.35 - hpR) / 0.35, 0, 1) * 0.55 : 0.4);
+      // Ausdauer (stamina.js): nur unter vollem Wert sichtbar, blendet aus; erschöpft mit Marke der Wiederkehr (30 %)
+      const st = p.stamina;
+      if (st) {
+        const sr = alive ? clamp(st.ratio, 0, 1) : 1;
+        setStyle(this.el.stamBar, 'transform', `scaleX(${sr.toFixed(3)})`);
+        toggle(this.el.stam, 'is-on', alive && sr < 0.995);
+        toggle(this.el.stam, 'is-low', alive && sr < 0.3);
+        toggle(this.el.stam, 'is-ex', alive && st.exhausted);
+        toggle(this.el.stam, 'is-deny', alive && st.deniedT > 0);
+        setStyle(this.el.stamMark, 'left', `${(st.resumeRatio * 100).toFixed(1)}%`);
+      }
     }
 
     /* ---------- Trefferrichtung */

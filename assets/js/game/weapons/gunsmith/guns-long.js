@@ -42,7 +42,7 @@ export function brecher(b) {
   b.box('steel', 0.032, 0.07, 0.07, 0, 0.0, 0.1, { part: 'mag', c: 0.002 });
   b.box('polymer', 0.036, 0.01, 0.074, 0, -0.035, 0.1, { part: 'mag', c: 0.002 });
   // Patronen (.338, gestaucht): versetzt gestapelt, oberste an den Lippen bzw. leerer Zubringer
-  magRounds(b, { cal: 'r338', fit: 0.066, width: 0.029, depth: 0.068, pitch: 0.0085, path: [[0, 0.0405, 0.1], [0, -0.018, 0.1]] });
+  magRounds(b, { cal: 'r338', fit: 0.062, width: 0.029, depth: 0.068, pitch: 0.0085, path: [[0, 0.0405, 0.1], [0, -0.018, 0.1]] });
   b.anchor('magGrab', 0, -0.0, 0.1, { part: 'mag', data: { w: 0.016, d: 0.035 } });
   // Abzug
   b.side('steel', [[0.048, -0.006], [0.05, -0.02], [0.044, -0.04], [0.04, -0.038], [0.044, -0.02], [0.043, -0.006]], 0.006, 0, { bevel: 0.0008 });
