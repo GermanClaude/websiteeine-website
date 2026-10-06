@@ -11,6 +11,7 @@ function std(o) {
   const m = new THREE.MeshStandardMaterial(o);
   return m;
 }
+const solid = (m) => { m.userData.solid = true; return m; };
 
 const DEFS = {
   // Parkerisierter Stahl / Gunmetal
@@ -49,6 +50,16 @@ const DEFS = {
   glass: () => std({ color: 0x9fd8d0, metalness: 0.4, roughness: 0.05, transparent: true, opacity: 0.18, depthWrite: false, envMapIntensity: 1.4 }),
   // Transluzentes Magazin (QX-90)
   smoke: () => std({ color: 0x3c4a50, metalness: 0.1, roughness: 0.18, transparent: true, opacity: 0.62, envMapIntensity: 1.2 }),
+  // Durchscheinende Polymermagazine (Rauch, Wüstenbraun, Grau wie Lancer/UMP/AUG): Patronen + Zubringer innen
+  // sichtbar (magfill.js). userData.solid: zählt für den Handkontakt (contact.js) wie ein festes Teil;
+  // Bot-Detailstufe: undurchsichtige Ersatzfarbe (LOD_COLORS)
+  smokeTan: () => solid(std({ color: 0x9a7f55, metalness: 0.05, roughness: 0.3, transparent: true, opacity: 0.58, envMapIntensity: 1.1 })),
+  smokeGrey: () => solid(std({ color: 0x5c6266, metalness: 0.05, roughness: 0.26, transparent: true, opacity: 0.52, envMapIntensity: 1.1 })),
+  smokeDark: () => solid(std({ color: 0x2f363b, metalness: 0.08, roughness: 0.24, transparent: true, opacity: 0.6, envMapIntensity: 1.2 })),
+  // Patronen im Magazin (InstancedMesh, Vertex-Farben Messing/Tombak bzw. rote Schrothülse) und Zubringer
+  rounds: () => std({ color: 0xffffff, vertexColors: true, metalness: 0.95, roughness: 0.3 }),
+  roundsShell: () => std({ color: 0xffffff, vertexColors: true, metalness: 0.35, roughness: 0.48 }),
+  follower: () => std({ color: 0x8a4a22, metalness: 0.0, roughness: 0.6 }),
   paintWhite: () => std({ color: 0xdedbd2, metalness: 0.0, roughness: 0.6 }),
   paintOlive: () => std({ color: 0x505733, metalness: 0.25, roughness: 0.62, roughnessMap: wearMap(), normalMap: grainNormal(), normalScale: new THREE.Vector2(0.35, 0.35) }),
   paintYellow: () => std({ color: 0xc9a52b, metalness: 0.1, roughness: 0.55 }),
@@ -75,7 +86,7 @@ const DEFS = {
 };
 
 // Ersatzfarben (sRGB) für texturierte Materialien in der Bot-Detailstufe
-const LOD_COLORS = { woodWarm: 0x6a3a22, woodWalnut: 0x4a2d1c, polymerTan: 0x66553c };
+const LOD_COLORS = { woodWarm: 0x6a3a22, woodWalnut: 0x4a2d1c, polymerTan: 0x66553c, smokeTan: 0x6e5a3e, smokeGrey: 0x45494c, smokeDark: 0x25292c };
 const _lodCol = new Map();
 /** Farbe (linear) + Metall-Gruppe eines Materials für die zusammengeführte Bot-Detailstufe. */
 export function lodInfo(key) {

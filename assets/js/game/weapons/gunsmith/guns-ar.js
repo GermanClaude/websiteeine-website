@@ -1,5 +1,6 @@
 // Sturmgewehre & Präzisionsgewehr: M-17 Falke (M4-artig, Holo), KV-47 (AK-artig, Holz), SK-14 (DMR, ACOG)
 import { holoSight, acog, birdcage, akBrake, brake, ejectionPort, triggerGuard, arGrip, slots, roundRect, ellipsePts } from './parts.js';
+import { magRounds } from './magfill.js';
 
 // Achteckiger Querschnitt um (0, axis)
 export function octagon(r, axis) {
@@ -60,7 +61,8 @@ export function arLower(b, { lowerMat = 'alu', upperMat = 'alu', gripMat = 'grip
   b.anchor('magWell', 0, 0.0, 0.088);
 }
 
-// PMAG-artiges Polymermagazin, Teil 'mag' mit Drehpunkt im Schacht
+// PMAG-artiges Polymermagazin, Teil 'mag' mit Drehpunkt im Schacht. Durchscheinendes Material (smoke*, wie
+// Lancer-Magazine): alle Patronen sichtbar, sonst nur die obersten an den Lippen (magfill.js)
 export function arMag(b, mat, o = {}) {
   const len = o.len ?? 1;
   b.part('mag', 0, 0.0, 0.088);
@@ -74,10 +76,12 @@ export function arMag(b, mat, o = {}) {
   if (b.hi) {
     // Griffrippen unten
     for (let i = 0; i < 4; i++) for (const s of [-1, 1]) b.box(mat, 0.002, 0.004, 0.05, s * 0.0118, -0.105 * len - i * 0.009, 0.112 + i * 0.002, { part: 'mag', rx: -0.22, c: 0 });
-    // Patrone sichtbar oben
-    b.cyl('brass', 0.0046, 0.0046, 0.03, 0, 0.051, 0.092, { part: 'mag', seg: 8 });
-    b.cyl('copper', 0.0016, 0.0046, 0.012, 0, 0.051, 0.113, { part: 'mag', seg: 8 });
   }
+  // Patronen (5,56): Doppelreihe entlang der Krümmung, Mitte der obersten knapp über den Lippen
+  magRounds(b, {
+    cal: 'r556', width: 0.0195, depth: 0.058, show: mat.startsWith('smoke') ? 'all' : 3,
+    path: [[0, 0.0505, 0.0885], [0, 0.0, 0.0895], [0, -0.05 * len, 0.0955], [0, -0.1 * len, 0.1055], [0, -0.133 * len, 0.114]],
+  });
   b.anchor('magGrab', 0, -0.07 * len, 0.099, { part: 'mag', data: { w: 0.0113, d: 0.029 } });
 }
 
@@ -123,7 +127,7 @@ export function m17(b) {
   }
   // Holo-Visier
   holoSight(b, 0.0, 0.124);
-  arMag(b, 'polymerTan');
+  arMag(b, 'smokeTan');
   // Linke Hand: unter dem Handschutz
   b.anchor('leftHandGrip', 0, axis - 0.024, 0.255, { data: { style: 'under', r: 0.024 } });
   b.meta = { sight: 'holo', axis, kind: 'rifle' };
@@ -158,6 +162,8 @@ export function sk14(b) {
   b.side('steel', [[0.119, 0.045], [0.12, 0.0], [0.124, -0.09], [0.064, -0.096], [0.058, 0.0], [0.058, 0.045]], 0.024, 0, { part: 'mag', bevel: 0.0018 });
   b.box('steel', 0.028, 0.008, 0.066, 0, -0.096, 0.092, { part: 'mag', rx: -0.06, c: 0.002 });
   if (b.hi) for (const s of [-1, 1]) b.box('steel', 0.0015, 0.07, 0.008, s * 0.0122, -0.03, 0.105, { part: 'mag', c: 0 });
+  // Stahl: nur die obersten Patronen (7,62 NATO, auf die Magazintiefe gestaucht) bzw. der leere Zubringer
+  magRounds(b, { cal: 'r308', fit: 0.057, width: 0.021, depth: 0.06, pitch: 0.0066, path: [[0, 0.051, 0.0885], [0, 0.0, 0.0895], [0, -0.075, 0.0925]] });
   b.anchor('magGrab', 0, -0.05, 0.0915, { part: 'mag', data: { w: 0.012, d: 0.0305 } });
   // Zweibein-Adapter
   if (b.hi) b.box('alu', 0.02, 0.012, 0.03, 0, axis - 0.034, 0.385, { c: 0.002 });
@@ -249,8 +255,11 @@ export function kv47(b) {
       const a = Math.PI + 0.62 * i / 6, r = 0.3325;
       for (const s of [-1, 1]) b.box('steel', 0.002, 0.004, 0.052, s * 0.0135, C[1] + Math.sin(a) * r, C[0] + Math.cos(a) * r, { part: 'mag', rx: a - Math.PI, c: 0 });
     }
-    b.cyl('brass', 0.0055, 0.0055, 0.03, 0, 0.032, 0.153, { part: 'mag', seg: 8 });
   }
+  // Patronen (7,62×39) entlang des Bogens, Geschoss zum Bogenzentrum; Stahl: nur oben an den Lippen sichtbar
+  const rp = [];
+  for (let a = Math.PI - 0.016; a < Math.PI + 0.6; a += 0.1) rp.push([0, C[1] + Math.sin(a) * 0.332, C[0] + Math.cos(a) * 0.332]);
+  magRounds(b, { cal: 'r762k', width: 0.023, depth: 0.062, path: rp });
   const aEnd = Math.PI + 0.62;
   b.box('steel', 0.03, 0.006, 0.07, 0, C[1] + Math.sin(aEnd) * 0.3325 - 0.003, C[0] + Math.cos(aEnd) * 0.3325, { part: 'mag', rx: 0.62, c: 0.0015 });
   b.anchor('magGrab', 0, -0.07, 0.147, { part: 'mag', data: { w: 0.013, d: 0.03 } });

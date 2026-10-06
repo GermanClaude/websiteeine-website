@@ -1,5 +1,6 @@
 // Maschinenpistolen & LMG: VP-9 Viper (MP5-artig), QX-90 (P90-artiger Bullpup, Rotpunkt), HM-60 Hammer (gurtgespeist)
 import { redDot, ejectionPort, triggerGuard, slots, roundRect, ellipsePts } from './parts.js';
+import { magRounds } from './magfill.js';
 
 // Bogenförmiges Magazin: Zentrum (cu, cv) vor dem Magazin, Radien rFront < rBack, Winkelspanne sweep
 function curvedMag(b, mat, cu, cv, rFront, rBack, sweep, width, o = {}) {
@@ -87,8 +88,9 @@ export function vp9(b) {
   const at = curvedMag(b, 'steel', 0.31, 0.03, 0.188, 0.222, 0.7, 0.024);
   if (b.hi) {
     for (let i = 1; i < 5; i++) { const [mu, mv] = at(i / 5.2); for (const s of [-1, 1]) b.box('steel', 0.0018, 0.003, 0.03, s * 0.0125, mv, mu, { part: 'mag', rx: 0.7 * i / 5.2, c: 0 }); }
-    b.cyl('brass', 0.0045, 0.0045, 0.018, 0, 0.032, 0.1, { part: 'mag', seg: 8 });
   }
+  // Patronen (9 mm) entlang des Bogens; Stahl: oberste an den Lippen bzw. leerer Zubringer
+  magRounds(b, { cal: 'p9', width: 0.021, depth: 0.032, path: [-0.03, 0.2, 0.4, 0.6, 0.8, 0.93].map(t => { const [u, v] = at(t); return [0, v, u]; }) });
   const [gu, gv] = at(0.45);
   b.anchor('magGrab', 0, gv, gu, { part: 'mag', data: { w: 0.012, d: 0.017 } });
   // Einschiebe-Schulterstütze (A3): zwei Streben + Schaftkappe
@@ -137,15 +139,10 @@ export function qx90(b) {
   b.part('mag', 0, 0.116, 0.0);
   b.box('smoke', 0.05, 0.03, 0.34, 0, 0.114, 0.0, { part: 'mag', r: 0.007 });
   b.box('polymer', 0.052, 0.02, 0.028, 0, 0.112, -0.178, { part: 'mag', c: 0.003 });
-  if (b.hi) {
-    for (let i = 0; i < 14; i++) for (const row of [0, 1]) {
-      const u = -0.15 + i * 0.022 + row * 0.011, v = 0.108 + row * 0.01;
-      b.cyl('brass', 0.0034, 0.0034, 0.032, -0.004, v, u, { part: 'mag', axis: 'x', seg: 6 });
-      b.cyl('copper', 0.0008, 0.0034, 0.008, 0.016, v, u, { part: 'mag', axis: 'x', seg: 6 });
-    }
-  } else {
-    b.box('brass', 0.04, 0.02, 0.31, 0, 0.113, 0.0, { part: 'mag' });
-  }
+  // Patronen (5,7×28) quer in zwei Lagen; Zuführung hinten am Schwarzteil – das Magazin leert sich von vorn
+  magRounds(b, { cal: 'p57', axis: 'x', show: 'all', width: 0.026, fol: [0.024, 0.006, 0.044], path: [[0, 0.114, -0.154], [0, 0.114, 0.158]] });
+  // Bot-Detailstufe: Rauchkörper als undurchsichtiger Block
+  if (!b.hi) b.box('smokeDark', 0.046, 0.026, 0.32, 0, 0.114, 0.0, { part: 'mag' });
   b.anchor('magGrab', 0, 0.13, -0.09, { part: 'mag' });
   // Visierbrücke über dem Magazin + Ringvisier
   for (const s of [-1, 1]) b.side('polymer', [[-0.02, 0.095], [0.085, 0.095], [0.074, 0.138], [-0.008, 0.138]], 0.006, s * 0.0285, { bevel: 0.0018 });
@@ -203,20 +200,12 @@ export function hm60(b) {
     b.box('paintYellow', 0.0006, 0.018, 0.06, -0.1025, -0.01, 0.1, { part: 'mag', c: 0 });
     for (let i = 0; i < 4; i++) b.box('paintOlive', 0.002, 0.08, 0.004, -0.1035, -0.015, 0.05 + i * 0.033, { part: 'mag', c: 0 });
   }
-  // Gurt: Patronen parallel zur Laufachse entlang eines Bogens vom Kasten ins Gehäuse
+  // Gurt: Patronen parallel zur Laufachse entlang eines Bogens vom Kasten ins Gehäuse. Platz 0 steckt im Gehäuse;
+  // geht der Kasten zur Neige, wird das Gurtende kürzer (magfill.js, Glied je Patrone)
   b.part('belt', 0, 0, 0, 'mag');
-  const nB = b.hi ? 9 : 3;
-  for (let i = 0; i < nB; i++) {
-    const t = i / (nB - 1);
-    const x = -0.075 + t * 0.05 + Math.sin(t * Math.PI) * -0.012, v = 0.035 + t * 0.06 + Math.sin(t * Math.PI) * 0.018;
-    if (b.hi) {
-      b.cyl('brass', 0.0055, 0.0055, 0.05, x, v, 0.09, { part: 'belt', seg: 8 });
-      b.cyl('copper', 0.0015, 0.0052, 0.016, x, v, 0.123, { part: 'belt', seg: 8 });
-      b.box('steel', 0.012, 0.004, 0.008, x, v - 0.005, 0.075, { part: 'belt', c: 0.001 });
-    } else if (i === 0) {
-      b.box('brass', 0.03, 0.06, 0.05, -0.06, 0.06, 0.095, { part: 'belt', rz: -0.5 });
-    }
-  }
+  const beltAt = (t) => [-0.075 + t * 0.05 + Math.sin(t * Math.PI) * -0.012, 0.035 + t * 0.06 + Math.sin(t * Math.PI) * 0.018, 0.098];
+  magRounds(b, { part: 'belt', cal: 'r308', fit: 0.066, link: true, stagger: false, follower: false, spread: 9, path: Array.from({ length: 9 }, (_, i) => beltAt(1 - i / 8)) });
+  if (!b.hi) b.box('brass', 0.03, 0.06, 0.05, -0.06, 0.06, 0.095, { part: 'belt', rz: -0.5 });
   b.anchor('magGrab', -0.065, -0.01, 0.1, { part: 'mag', data: { w: 0.0375, d: 0.065 } });
   // Pistolengriff + Abzugsbügel
   b.side('grip', [

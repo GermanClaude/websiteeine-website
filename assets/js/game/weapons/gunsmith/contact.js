@@ -24,9 +24,10 @@ export class GunCollider {
     model.updateMatrixWorld(true);
     const byObj = new Map();
     model.traverse((o) => {
-      if (!o.isMesh || o.isSkinnedMesh || !o.geometry?.attributes?.position) return;
+      if (!o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || o.userData.noContact || !o.geometry?.attributes?.position) return;
       const m = o.material;
-      if (!m || m.transparent || m.blending === THREE.AdditiveBlending || m.visible === false) return;
+      // Durchscheinende Magazine (userData.solid, magfill) zählen; Patronen/Zubringer darin nicht
+      if (!m || (m.transparent && !m.userData.solid) || m.blending === THREE.AdditiveBlending || m.visible === false) return;
       if (o.name && /flash|muzzle|smoke|haze|reticle|lens/i.test(o.name)) return;
       const parent = o.parent || model;
       if (!byObj.has(parent)) byObj.set(parent, []);

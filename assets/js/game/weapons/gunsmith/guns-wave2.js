@@ -4,6 +4,7 @@
 // Koordinaten wie alle Waffen: x rechts, v oben, u vorn (Lauf), Ursprung = Pistolengriff der rechten Hand.
 import { redDot, acog, birdcage, brake, akBrake, ejectionPort, triggerGuard, arGrip, slots, roundRect, ellipsePts } from './parts.js';
 import { arLower, arMag, octagon } from './guns-ar.js';
+import { magRounds } from './magfill.js';
 
 // Klappbares Kimme-/Korn-Paar (Ersatzvisier) – Korn vorn auf Höhe der Visierlinie
 function postFront(b, mat, u, v, axis) {
@@ -40,7 +41,7 @@ export function k36(b) {
   if (b.hi) b.box('polymer', 0.01, 0.009, 0.044, 0, 0.074, -0.2, { c: 0.002 });
   // Rotpunkt (Röhre) auf der Schiene
   redDot(b, 0.0, 0.124);
-  arMag(b, 'polymer');
+  arMag(b, 'smokeDark');
   b.anchor('leftHandGrip', 0, axis - 0.024, 0.232, { data: { style: 'under', r: 0.024 } });
   b.meta = { sight: 'reddot', axis, kind: 'rifle' };
 }
@@ -86,14 +87,14 @@ export function bx20(b) {
   // Integrierte Optik (Tragegriff-Zielfernrohr) mit Ersatz-Kimme
   b.side('polymerOD', [[-0.13, 0.104], [-0.11, 0.122], [0.07, 0.122], [0.1, 0.104]], 0.03, 0, { bevel: 0.003 });
   acog(b, -0.075, 0.122);
-  // Magazin hinter dem Griff (gebogen, Polymer rauchgrau)
+  // Magazin hinter dem Griff (gebogen, durchscheinend rauchgrau wie beim Vorbild – Patronen sichtbar)
   b.part('mag', 0, 0.0, -0.14);
-  b.side('polymerGrey', [[-0.112, 0.032], [-0.11, -0.02], [-0.1, -0.08], [-0.088, -0.13], [-0.134, -0.142], [-0.148, -0.088], [-0.158, -0.026], [-0.164, 0.032]], 0.022, 0, { part: 'mag', bevel: 0.002 });
+  b.side('smokeGrey', [[-0.112, 0.032], [-0.11, -0.02], [-0.1, -0.08], [-0.088, -0.13], [-0.134, -0.142], [-0.148, -0.088], [-0.158, -0.026], [-0.164, 0.032]], 0.022, 0, { part: 'mag', bevel: 0.002 });
   b.box('polymer', 0.027, 0.008, 0.05, 0, -0.139, -0.11, { part: 'mag', rx: -0.25, c: 0.002 });
   if (b.hi) {
     for (let i = 0; i < 3; i++) for (const s of [-1, 1]) b.box('polymer', 0.0016, 0.004, 0.044, s * 0.0118, -0.06 - i * 0.022, -0.128 + i * 0.006, { part: 'mag', rx: -0.18, c: 0 });
-    b.cyl('brass', 0.0046, 0.0046, 0.03, 0, 0.036, -0.14, { part: 'mag', seg: 8 });
   }
+  magRounds(b, { cal: 'r556', width: 0.019, depth: 0.044, show: 'all', path: [[0, 0.036, -0.138], [0, -0.02, -0.134], [0, -0.08, -0.1235], [0, -0.12, -0.113]] });
   b.anchor('magGrab', 0, -0.07, -0.128, { part: 'mag', data: { w: 0.0113, d: 0.028 } });
   b.anchor('magWell', 0, 0.0, -0.14);
   b.anchor('boltCatch', -0.0255, 0.02, -0.06);
@@ -159,8 +160,9 @@ export function g7(b) {
   b.box('steel', 0.03, 0.007, 0.056, 0, -0.114, 0.129, { part: 'mag', rx: -0.06, c: 0.002 });
   if (b.hi) {
     for (let i = 0; i < 3; i++) for (const s of [-1, 1]) b.box('steel', 0.0016, 0.026, 0.004, s * 0.0135, -0.06, 0.106 + i * 0.016, { part: 'mag', c: 0 });
-    b.cyl('brass', 0.0052, 0.0052, 0.034, 0, 0.03, 0.12, { part: 'mag', seg: 8 });
   }
+  // Stahl (7,62 NATO, gestaucht): oberste Patronen an den Lippen bzw. leerer Zubringer
+  magRounds(b, { cal: 'r308', fit: 0.046, width: 0.023, depth: 0.048, path: [[0, 0.03, 0.121], [0, -0.04, 0.124], [0, -0.097, 0.128]] });
   b.anchor('magGrab', 0, -0.06, 0.128, { part: 'mag', data: { w: 0.013, d: 0.026 } });
   b.anchor('magWell', 0, 0.02, 0.12);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.3, gw: 0.0175, gd: 0.022, gu: 0.005, ho: 0.044, tu: 0.02 } });
@@ -187,7 +189,8 @@ export function wespe(b) {
   b.part('mag', 0, -0.112, 0.004);
   b.box('steel', 0.022, 0.15, 0.03, 0, -0.04, 0.004, { part: 'mag', rx: -rake * 0.4, c: 0.0015 });
   b.box('polymer', 0.028, 0.012, 0.036, 0, -0.118, 0.006, { part: 'mag', rx: -rake * 0.4, c: 0.003 });
-  if (b.hi) b.cyl('brass', 0.0042, 0.0042, 0.016, 0, 0.012, 0.0, { part: 'mag', seg: 8 });
+  // Stahl (9 mm): oberste Patronen an den Lippen bzw. leerer Zubringer, entlang der leicht geneigten Achse
+  magRounds(b, { cal: 'p9', fit: 0.027, width: 0.019, depth: 0.028, path: [[0, 0.0398, 0.0104], [0, -0.1, -0.0008]] });
   b.anchor('magGrab', 0, -0.116, 0.01, { part: 'mag', data: { w: 0.012, d: 0.018 } });
   b.anchor('magWell', 0, -0.112, 0.004);
   // Lauf + Mündungsgewinde, Korn und Kimme (offen)
@@ -236,12 +239,13 @@ export function keiler(b) {
   // Kastenmagazin (gerade, breit: .45)
   b.box('polymer', 0.034, 0.024, 0.046, 0, 0.02, 0.135, { c: 0.002 });
   b.part('mag', 0, 0.01, 0.135);
-  b.side('polymer', [[0.112, 0.016], [0.114, -0.05], [0.118, -0.13], [0.16, -0.13], [0.16, -0.05], [0.158, 0.016]], 0.03, 0, { part: 'mag', bevel: 0.0022 });
+  // Durchscheinendes Rauch-Polymer (wie beim Vorbild): .45-Doppelreihe sichtbar, Rippen und Boden undurchsichtig
+  b.side('smokeDark', [[0.112, 0.016], [0.114, -0.05], [0.118, -0.13], [0.16, -0.13], [0.16, -0.05], [0.158, 0.016]], 0.03, 0, { part: 'mag', bevel: 0.0022 });
   b.box('polymer', 0.034, 0.008, 0.052, 0, -0.134, 0.139, { part: 'mag', c: 0.002 });
   if (b.hi) {
     for (let i = 0; i < 4; i++) for (const s of [-1, 1]) b.box('polymer', 0.0016, 0.004, 0.04, s * 0.0152, -0.04 - i * 0.02, 0.138, { part: 'mag', c: 0 });
-    b.cyl('brass', 0.0058, 0.0058, 0.02, 0, 0.022, 0.13, { part: 'mag', seg: 8 });
   }
+  magRounds(b, { cal: 'p45', width: 0.027, depth: 0.044, show: 'all', path: [[0, 0.022, 0.135], [0, -0.05, 0.137], [0, -0.117, 0.139]] });
   b.anchor('magGrab', 0, -0.07, 0.137, { part: 'mag', data: { w: 0.015, d: 0.024 } });
   b.anchor('magWell', 0, 0.01, 0.135);
   // Lauf mit Kompensator
@@ -320,16 +324,26 @@ export function lm8(b) {
   b.box('steel', 0.036, 0.022, 0.05, 0, 0.026, 0.115, { c: 0.002 });
   b.part('mag', 0, 0.02, 0.115);
   b.box('polymer', 0.03, 0.05, 0.046, 0, -0.01, 0.118, { part: 'mag', rx: -0.12, c: 0.003 });
-  b.cyl('polymer', 0.072, 0.072, 0.07, 0, -0.1, 0.13, { part: 'mag', axis: 'x', seg: b.seg(26, 10) });
+  // Trommel: Mantel + rechte Wand undurchsichtig, linke Wand durchsichtig (Fenster: Patronenböden der Spirale
+  // sichtbar, wie bei Trommeln mit Klarsichtdeckel). Innen ein nach innen gewandter Mantel + Innenwand rechts.
+  b.cyl('polymer', 0.072, 0.072, 0.07, 0, -0.1, 0.13, { part: 'mag', axis: 'x', seg: b.seg(26, 10), open: b.hi });
   b.cyl('steel', 0.074, 0.074, 0.012, 0, -0.1, 0.13, { part: 'mag', axis: 'x', seg: b.seg(26, 10) });
   if (b.hi) {
+    b.lathe('polymer', [[0.035, 0.0708], [-0.035, 0.0708]], 0, -0.1, 0.13, { part: 'mag', axis: 'x', seg: 26 });
+    b.circle('polymer', 0.072, 0.035, -0.1, 0.13, { part: 'mag', ry: Math.PI / 2, seg: 26 });
+    b.circle('polymer', 0.071, 0.0345, -0.1, 0.13, { part: 'mag', ry: -Math.PI / 2, seg: 26 });
+    b.circle('smokeDark', 0.072, -0.035, -0.1, 0.13, { part: 'mag', ry: -Math.PI / 2, seg: 26 });
     for (const s of [-1, 1]) {
       b.cyl('steel', 0.024, 0.024, 0.006, s * 0.037, -0.1, 0.13, { part: 'mag', axis: 'x', seg: 16 });
       b.cyl('knurl', 0.008, 0.008, 0.012, s * 0.043, -0.1, 0.13, { part: 'mag', axis: 'x', seg: 12 });
-      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; b.box('polymer', 0.003, 0.008, 0.03, s * 0.0362, -0.1 + Math.sin(a) * 0.05, 0.13 + Math.cos(a) * 0.05, { part: 'mag', rx: -a, c: 0 }); }
+      if (s > 0) for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; b.box('polymer', 0.003, 0.008, 0.03, s * 0.0362, -0.1 + Math.sin(a) * 0.05, 0.13 + Math.cos(a) * 0.05, { part: 'mag', rx: -a, c: 0 }); }
     }
-    b.cyl('brass', 0.0052, 0.0052, 0.034, 0, 0.03, 0.115, { part: 'mag', seg: 8 });
   }
+  // Patronen (5,56): zwei im Hals, dann die Spirale von außen nach innen – leert sich von innen her
+  magRounds(b, {
+    cal: 'r556', width: 0.026, follower: false, neck: 2, path: [[0, 0.03, 0.115], [0, 0.0, 0.117], [0, -0.03, 0.121]],
+    drum: { c: [0, -0.1, 0.13], r0: 0.0615, dr: 0.0105, rmin: 0.03, a0: 1.73 },
+  });
   b.anchor('magGrab', -0.03, -0.1, 0.13, { part: 'mag', data: { w: 0.036, d: 0.07 } });
   b.anchor('magWell', 0, 0.02, 0.115);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.32, gw: 0.016, gd: 0.022, gu: 0.004, ho: 0.03, tu: 0.034 } });

@@ -1,16 +1,19 @@
 // Pistolen: P-9 Kompakt (Polymer, Schlagbolzen) und Adler .50 (schwere Edelstahlpistole mit Dreieckslauf)
 import { slots } from './parts.js';
+import { magRounds } from './magfill.js';
 
 const RAKE = 0.3;
 
 // Magazin im Griff: fällt entlang der Griffachse heraus
-function gripMag(b, { u, v, w, len, depth, plate = 'polymer', body = 'steel', rake = RAKE }) {
+// cal = Kaliber (magfill.js): oberste Patronen an den Lippen bzw. leerer Zubringer (Stahl, beim Wechsel sichtbar)
+function gripMag(b, { u, v, w, len, depth, plate = 'polymer', body = 'steel', rake = RAKE, cal = 'p9' }) {
   b.part('mag', 0, v, u);
   const s = Math.sin(rake), c = Math.cos(rake);
   // Körper (im Griff verborgen, sichtbar beim Wechsel)
   b.box(body, w, len, depth, 0, v + c * len / 2 + 0.004, u + s * len / 2, { part: 'mag', rx: -rake, c: 0.0015 });
   b.box(plate, w + 0.005, 0.009, depth + 0.008, 0, v, u + 0.002, { part: 'mag', rx: -rake, c: 0.0025 });
-  if (b.hi) b.cyl('brass', 0.0045, 0.0045, 0.018, 0, v + c * len + 0.002, u + s * len + 0.004, { part: 'mag', seg: 8 });
+  const at = (l) => [0, v + 0.004 + c * l, u + s * l];
+  magRounds(b, { cal, fit: depth - 0.003, width: w - 0.003, depth: depth - 0.002, path: [at(len + 0.002), at(0.02)] });
   b.anchor('magGrab', 0, v - 0.004, u + 0.004, { part: 'mag', data: { w: 0.011, d: 0.016 } });
 }
 
@@ -121,7 +124,7 @@ export function adler(b) {
   b.part('hammer', 0, 0.066, -0.06);
   b.side('steel', [[-0.058, 0.064], [-0.062, 0.062], [-0.078, 0.082], [-0.076, 0.092], [-0.068, 0.092], [-0.064, 0.082], [-0.056, 0.072]], 0.0085, 0, { part: 'hammer', bevel: 0.001 });
   if (b.hi) b.box('cavity', 0.009, 0.005, 0.005, 0, 0.084, -0.07, { part: 'hammer', rx: -0.7, c: 0 });
-  gripMag(b, { u: -0.024, v: -0.086, w: 0.024, len: 0.11, depth: 0.036, plate: 'steel', body: 'steel' });
+  gripMag(b, { u: -0.024, v: -0.086, w: 0.024, len: 0.11, depth: 0.036, plate: 'steel', body: 'steel', cal: 'p50' });
   b.anchor('ejection', 0.018, 0.084, 0.042, { rz: 0.35 });
   const grip = { rake: RAKE, gw: 0.0185, gd: 0.0255, gu: 0.0, ho: 0.0105, tu: 0.056, wrap: 0.38, tf: 0.055 };   // wrap/tf: hands-v3
   b.anchor('rightHandGrip', 0, -0.018, -0.02, { data: grip });

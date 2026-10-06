@@ -78,9 +78,9 @@ export function titan(b) {
   b.box('steel', 0.044, 0.01, 0.09, 0, -0.108, 0.132, { part: 'mag', c: 0.003 });
   if (b.hi) {
     for (const s of [-1, 1]) b.box('steel', 0.002, 0.08, 0.006, s * 0.0205, -0.045, 0.11, { part: 'mag', c: 0 });
-    b.cyl('brass', 0.0082, 0.0082, 0.06, 0, 0.012, 0.13, { part: 'mag', seg: 10 });
-    b.cyl('copper', 0.003, 0.0082, 0.024, 0, 0.012, 0.172, { part: 'mag', seg: 10 });
   }
+  // Patronen (.50, gestaucht) versetzt gestapelt; Stahl: oberste an den Lippen bzw. leerer Zubringer
+  magRounds(b, { cal: 'r50', fit: 0.084, width: 0.036, depth: 0.08, pitch: 0.011, path: [[0, 0.0175, 0.142], [0, -0.08, 0.142]] });
   b.anchor('magGrab', 0, -0.06, 0.135, { part: 'mag', data: { w: 0.02, d: 0.042 } });
   b.anchor('magWell', 0, 0.012, 0.13);
   // Zielfernrohr (hohe Montage)
@@ -133,9 +133,9 @@ export function hagel(b) {
   b.box('polymer', 0.04, 0.01, 0.074, 0, -0.14, 0.136, { part: 'mag', rx: -0.17, c: 0.003 });
   if (b.hi) {
     for (const s of [-1, 1]) b.box('polymer', 0.002, 0.11, 0.004, s * 0.0182, -0.05, 0.126, { part: 'mag', rx: -0.1, c: 0 });
-    b.cyl('shellRed', 0.0105, 0.0105, 0.05, 0, 0.03, 0.124, { part: 'mag', seg: 10 });
-    b.cyl('brass', 0.0108, 0.0108, 0.012, 0, 0.03, 0.094, { part: 'mag', seg: 10 });
   }
+  // Schrotpatronen: oberste an den Lippen bzw. leerer Zubringer
+  magRounds(b, { cal: 'g12', width: 0.033, depth: 0.066, path: [[0, 0.033, 0.123], [0, -0.04, 0.128], [0, -0.11, 0.132]] });
   b.anchor('magGrab', 0, -0.07, 0.13, { part: 'mag', data: { w: 0.019, d: 0.032 } });
   b.anchor('magWell', 0, 0.02, 0.12);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.32, gw: 0.016, gd: 0.022, gu: 0.004, ho: 0.03, tu: 0.034 } });
@@ -197,6 +197,8 @@ export function kobra(b) {
     b.cyl('brass', 0.0048, 0.0048, 0.03, Math.cos(a) * 0.0122, axis - 0.003 + Math.sin(a) * 0.0122, cu - cl / 2 - 0.018, { part: 'loader', seg: b.seg(10, 5) });
     if (b.hi) b.cyl('copper', 0.002, 0.0046, 0.008, Math.cos(a) * 0.0122, axis - 0.003 + Math.sin(a) * 0.0122, cu - cl / 2 + 0.0, { part: 'loader', seg: 8 });
   }
+  // Geladene Kammern: Geschossspitzen vorn in der Trommel (abgefeuerte bleiben dunkel); Platz 0 = nächster Schuss
+  magRounds(b, { part: 'cylinder', cal: 'nose357', follower: false, cyl: { c: [0, axis - 0.003], u: cu + cl / 2 - 0.001, R: 0.0122, n: 6, F: Math.PI * 2 / 3 } });
   b.anchor('loaderGrab', 0, axis - 0.003, cu - cl / 2 - 0.056, { part: 'loader' });
   b.anchor('cylGrab', -0.022, axis - 0.006, cu, { part: 'cylinder' });
   b.anchor('ejectorGrab', 0, axis - 0.0225, cu + cl / 2 + 0.118, { part: 'crane' });

@@ -17,7 +17,7 @@
 //     follower false = kein Zubringer, fol = [Breite, Höhe, Tiefe] (sonst aus width/depth)
 //     drum   { c: [x, v, u], r0, dr, rmin, a0 } Spirale in der Trommel (Patronen seitlich, Böden zum Fenster)
 //     cyl    { c: [x, v, u], R, n, F, u } Revolvertrommel: Geschossspitzen in den Kammern, Platz 0 unter dem Hahn
-//     link   Gurtglied je Patrone, neck = Plätze im Trommelhals
+//     link   Gurtglied je Patrone, neck = Plätze im Trommelhals, stagger false = einreihig (Gurt)
 //   }
 //
 // API: magRounds(b, spec) · magFillFor(b, key) → fill · attachMagFill(root, fill) · setMagRounds(model, n, turn)
@@ -161,6 +161,7 @@ function computeFill(spec, pivot, cap) {
     if (spec.drum) p = spec.pitch ?? d * 0.62;
     let stag = p < d * 0.999 ? Math.sqrt(d * d - p * p) / 2 * 1.02 : 0;
     if (spec.width) stag = Math.min(stag, Math.max(0, spec.width / 2 - c.r));
+    if (spec.stagger === false) stag = 0;
     const show = spec.show === 'all' || spec.drum ? nPath : Math.min(nPath, spec.show ?? spec.spread ?? 3);
     let mirror = stag > 0;
     for (let i = 0; i < show; i++) {
