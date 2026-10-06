@@ -13,7 +13,7 @@
 //   playGrenade(type?, opts?) releaseGrenade() playInspect() cancelAction() getMuzzleWorldPosition(out)
 //   setVisible(bool) setLighting(lighting) showScopeOverlay warmup(renderer) dispose()
 import * as THREE from 'three';
-import { createWeaponModel } from './models.js';
+import { createWeaponModel, setMagRounds } from './models.js';
 import { WEAPONS, weaponHandling } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
 import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE, MELEE_STYLES } from './gunsmith/handling.js';
@@ -557,7 +557,8 @@ export class ViewModel {
     part.getWorldQuaternion(_q2);
     this.root.getWorldQuaternion(_e2q || (_e2q = new THREE.Quaternion()));
     _q2.premultiply(_e2q.invert()).premultiply(_q);
-    try { this.G.effects.dropMagazine(this.cur.key, wp, wv.clone(), _q2.clone(), { actor: this.G.player || null }); } catch { /* Welt im Abbau */ }
+    // Weltmagazin mit dem alten Füllstand (leer bleibt leer, angebrochen zeigt die obersten Patronen)
+    try { this.G.effects.dropMagazine(this.cur.key, wp, wv.clone(), _q2.clone(), { actor: this.G.player || null, rounds: this._magRaw ?? 0 }); } catch { /* Welt im Abbau */ }
   }
 
   // ---------------------------------------------------------------- Licht
@@ -778,6 +779,7 @@ export class ViewModel {
 
   update(dt, s = {}) {
     this._magNow = s.mag ?? 1;
+    this._magRaw = typeof s.mag === 'number' ? s.mag : null;   // Magazininhalt (ohne Controller: voll)
     const player = this.G?.player;
     if (player && (player.team ?? null) !== this._team) this._syncCamo();
     if (!this.G?.world?.lighting && !this._lighting) this._ensureOwnEnv();
@@ -1275,6 +1277,7 @@ export class ViewModel {
       this._setPartOffset(n, o[0] || 0, o[1] || 0, o[2] || 0, o[3] || 0, o[4] || 0, o[5] || 0);
     }
     if (act && act.parts && act.parts._vis) for (const [n, v] of Object.entries(act.parts._vis)) { const p = this._part(n); if (p) p.visible = v; }
+    this._updateMagFill();
     // Semtex-LED in der Hand blinkt
     this._led += dt;
     const led = this.props.semtex.userData.parts.led;
@@ -1388,10 +1391,34 @@ export class ViewModel {
     return u >= 1;
   }
 
-  /** Altes Magazin fällt bei t ≥ from in die Welt (einmal je Nachladen); bis `to` (neues Magazin) ausgeblendet. */
+  /**
+   * Altes Magazin fällt bei t ≥ from in die Welt (einmal je Nachladen); bis `to` (neues Magazin) ausgeblendet.
+   * Ab `from` zeigt das Magazin-Teil den Füllstand des neuen Magazins (A.magNew), vorher den alten.
+   */
   _magWindow(A, out, t, from, to) {
     if (t >= from && !A.dropped && !A.cancel) { A.dropped = true; this._dropMag(); }
+    if (t >= from && A.magNew == null && !A.cancel) A.magNew = this._freshMag();
     if (A.dropped && t >= from && t < to && this._worldFx()) (out.parts._vis || (out.parts._vis = {})).mag = false;
+  }
+
+  /** Füllstand des neuen Magazins – wie WeaponController._addAmmo (reicht der Vorrat nicht, ist es nicht voll). */
+  _freshMag() {
+    const cap = this.def?.mag ?? 0;
+    const w = this.G?.player?.weapon, st = w && w.viewModel === this ? w.current : null;
+    if (!st || this._magRaw == null || w.infiniteAmmo) return cap;
+    return Math.min(cap, st.mag + Math.max(0, st.reserve || 0));
+  }
+
+  /**
+   * Magazininhalt (gunsmith/magfill.js): Patronen im Magazin-Teil = Munitionsstand des Controllers, während des
+   * Nachladens ab dem Herausziehen das neue Magazin (A.magNew); Revolver: Trommelstellung dreht die Kammern mit.
+   * Ändert sich nichts, kostet es nichts (setMagRounds vergleicht den letzten Stand).
+   */
+  _updateMagFill() {
+    const A = this.action;
+    let n = this._magRaw ?? this.def?.mag ?? 0;
+    if (A && A.magNew != null && !A.cancel && (A.type === 'reload' || A.type === 'shells')) n = A.magNew;
+    setMagRounds(this.cur.model, n, this._cylTarget || 0);
   }
 
   _boltMotion(c, out, inReload) {

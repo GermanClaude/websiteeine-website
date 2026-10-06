@@ -128,12 +128,13 @@ export class SmokeWisps {
   dispose() { for (const it of this.items) parkMaterials('smoke', it.m.material); }
 }
 
-/** Hülsen-Geometrie je Art (rifle | pistol | big | shotgun), Achse = lokales Y, Vertex-Farben (Messing/Hülle). */
-export function casingGeometry(type) {
+/** Hülsen-Geometrie je Art (rifle | pistol | big | shotgun), Achse = lokales Y, Vertex-Farben (Messing/Hülle).
+ *  seg: Segmente des Umfangs (Viewmodel 8; liegende Welt-Hülsen weniger – Hunderte gleichzeitig). */
+export function casingGeometry(type, seg = 8) {
   if (type === 'shotgun') {
-    const hull = new THREE.CylinderGeometry(0.0103, 0.0103, 0.05, 10, 1);
+    const hull = new THREE.CylinderGeometry(0.0103, 0.0103, 0.05, seg + 2, 1);
     hull.translate(0, 0.006, 0);
-    const base = new THREE.CylinderGeometry(0.0108, 0.0108, 0.013, 10, 1);
+    const base = new THREE.CylinderGeometry(0.0108, 0.0108, 0.013, seg + 2, 1);
     base.translate(0, -0.0245, 0);
     const col = (g, c) => { const n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) c.toArray(a, i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; };
     const g = mergeGeometries([col(hull, new THREE.Color(0x8f1f17)), col(base, new THREE.Color(0xc09a45))]);
@@ -146,7 +147,7 @@ export function casingGeometry(type) {
   if (neck > 0) pts.push([rNeck, len / 2 - neck], [rNeck, len / 2]);
   else pts.push([rBody, len / 2]);
   pts.push([rNeck * 0.7, len / 2]);
-  const g = new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 8);
+  const g = new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg);
   const n = g.attributes.position.count, a = new Float32Array(n * 3), c = new THREE.Color(0xc09a45);
   for (let i = 0; i < n; i++) c.toArray(a, i * 3);
   g.setAttribute('color', new THREE.BufferAttribute(a, 3));

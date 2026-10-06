@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import { casingGeometry } from '../gunsmith/fx.js';
 import { createWeaponModel } from '../models.js';
+import { dropRounds } from '../gunsmith/magfill.js';
 
 export const CASING_TYPES = ['rifle', 'pistol', 'big', 'shotgun'];
 // Je Qualitätsstufe: liegende Hülsen gesamt, Magazine, Liegezeit der Magazine (s), Strahlen je Bild,
@@ -105,7 +106,8 @@ export class Debris {
     const mats = shellMaterials();
     this.pools = {};
     for (const type of CASING_TYPES) {
-      const mesh = new THREE.InstancedMesh(casingGeometry(type), type === 'shotgun' ? mats.shot : mats.brass, CAP_PER_TYPE);
+      // 6 Segmente reichen für 1 cm Messing in ≥ 0,5 m Abstand (bis zu 2000 Stück: ~25 % weniger Dreiecke als 8)
+      const mesh = new THREE.InstancedMesh(casingGeometry(type, 6), type === 'shotgun' ? mats.shot : mats.brass, CAP_PER_TYPE);
       mesh.name = 'fx-casings-' + type;
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       // Farbe je Hülse (Abkühlen) – von Anfang an vorhanden, sonst neues Programm beim ersten Schuss
@@ -199,11 +201,11 @@ export class Debris {
 
   /**
    * Magazin fallen lassen (3rd-Person-Magazin des Modells). key = Modellschlüssel (def.model), pos/vel Welt.
-   * opts: { actor, delay (s) }
+   * opts: { actor, delay (s), rounds (Patronen darin: 0 = leerer Zubringer, sonst die obersten an den Lippen) }
    */
   magazine(key, pos, vel, quat, opts = {}) {
     if (opts.delay > 0) {
-      if (this._pending.length < 16) this._pending.push({ at: this._time + opts.delay, key, pos: pos.clone(), vel: vel.clone(), quat: quat ? quat.clone() : null, actor: opts.actor || null });
+      if (this._pending.length < 16) this._pending.push({ at: this._time + opts.delay, key, pos: pos.clone(), vel: vel.clone(), quat: quat ? quat.clone() : null, actor: opts.actor || null, rounds: opts.rounds ?? 0 });
       return null;
     }
     const proto = this._proto(key);
@@ -214,6 +216,7 @@ export class Debris {
     it.reset();
     it.alive = true; it.flying = true; it.mag = true; it.type = key;
     it.obj = proto.take();
+    if (proto.rounds) proto.rounds.set(it.obj.getObjectByName('fx-rounds'), opts.rounds ?? 0);
     it.thin = proto.thin; it.halfT = proto.half[proto.thin]; it.r = Math.max(0.015, it.halfT);
     it.pos.copy(pos); it.vel.copy(vel);
     if (quat) it.q.copy(quat); else it.q.identity();
@@ -245,11 +248,15 @@ export class Debris {
         const c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
         base.position.copy(c).negate();
         base.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = true; o.frustumCulled = true; } });
+        // Inhalt (magfill.js): oberste Patronen bzw. leerer Zubringer, Sammelmaterial der Bots (kein neues Programm)
+        const fill = model.userData.magFill;
+        const rounds = fill ? dropRounds(fill) : null;
+        if (rounds) (base.getObjectByName(fill.part) || base).add(rounds.mesh());
         const half = [size.x / 2, size.y / 2, size.z / 2];
         const thin = half[0] <= half[1] && half[0] <= half[2] ? 0 : half[1] <= half[2] ? 1 : 2;
         const spare = [];
         p = {
-          half, thin,
+          half, thin, rounds,
           // Klon-Hülle (Ursprung = Mitte des Magazins); Geometrie/Material bleiben geteilt (Modell-Cache)
           take: () => { if (spare.length) return spare.pop(); const g = new THREE.Group(); g.name = 'fx-mag-' + key; g.add(base.clone(true)); return g; },
           give: (g) => { if (spare.length < MAG_CAP) spare.push(g); },
@@ -279,7 +286,7 @@ export class Debris {
         const d = this._pending[i];
         if (d.at > this._time) continue;
         this._pending.splice(i, 1);
-        this.magazine(d.key, d.pos, d.vel, d.quat, { actor: d.actor });
+        this.magazine(d.key, d.pos, d.vel, d.quat, { actor: d.actor, rounds: d.rounds });
       }
     }
     let budget = this.tier.rays;

@@ -738,7 +738,7 @@ export class Effects {
     this.debris.casing(type, pos, vel, quat, opts);
   }
 
-  /** Magazin fallen lassen (3rd-Person-Modell `key` = def.model). opts: { actor, delay (s) } */
+  /** Magazin fallen lassen (3rd-Person-Modell `key` = def.model). opts: { actor, delay (s), rounds (Restpatronen) } */
   dropMagazine(key, pos, vel, quat, opts = {}) {
     if (!this._built || !this._subs || !key) return;
     this.debris.magazine(key, pos, vel, quat, opts);
@@ -760,7 +760,10 @@ export class Effects {
     _t1.y -= 0.12;
     const bv = a.body && a.body.velocity;
     _w.set((bv ? bv.x : 0) + rnd(-0.3, 0.3), -0.6, (bv ? bv.z : 0) + rnd(-0.3, 0.3));
-    this.debris.magazine(def.model || def.id, _t1, _w, null, { actor: a, delay: def.cls === 'pistol' ? 0.2 : 0.38 });
+    // Inhalt: Restpatronen beim Start des Nachladens (leer → leerer Zubringer)
+    const st = a.weapon && a.weapon.current;
+    const rounds = st && typeof st.mag === 'number' ? st.mag : (e.empty ? 0 : 1);
+    this.debris.magazine(def.model || def.id, _t1, _w, null, { actor: a, delay: def.cls === 'pistol' ? 0.2 : 0.38, rounds });
   }
 
   /** Leuchtspur (öffentlich). */

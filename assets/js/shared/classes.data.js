@@ -326,6 +326,7 @@ export const GAME_STYLES = deepFreeze({
     bulletMult: 1, explosiveMult: 1, regenDelay: 3.5, regenRate: 55, bleedout: 15,
     nameplates: 'alle', minimapEnemies: true, uavEnemies: true, hitmarkers: 'immer', hitmarkerThroughWalls: true,
     killfeed: 'alle', enemyMarkers: true, crosshair: 'an', hudMin: 'voll', spotting: true, damageDirection: true,
+    staminaMult: 1, // Ausdauer-Verbrauch (stamina.js): ≈ 7 s Dauersprint
   },
   realistisch: {
     id: 'realistisch', label: 'Realistisch', short: 'Real',
@@ -333,6 +334,7 @@ export const GAME_STYLES = deepFreeze({
     bulletMult: 1.5, explosiveMult: 1.25, regenDelay: 7, regenRate: 14, bleedout: 8,
     nameplates: 'team', minimapEnemies: false, uavEnemies: false, hitmarkers: 'sicht', hitmarkerThroughWalls: false,
     killfeed: 'eigene', enemyMarkers: false, crosshair: 'einstellung', hudMin: 'reduziert', spotting: true, damageDirection: false,
+    staminaMult: 1.4, // ≈ 5 s Dauersprint, Rutschen/Sprung entsprechend teurer
   },
 });
 export const STYLE_ORDER = Object.freeze(['arcade', 'realistisch']);

@@ -112,14 +112,15 @@ export const EXTRA_ACTIONS = {
     // Ausstoßer: Stern fährt nach hinten, Hülsen fallen (einmal)
     const ej = windowW(u, 0.26, 0.29, 0.31, 0.34);
     out.parts.ejector = [0, 0, 0.022 * ej];
-    if (u > 0.29 && !A.ejected && !A.cancel) { A.ejected = true; this._revolverBrass(); }
+    // Magazininhalt: Kammern leer ab dem Ausstoßen, voll (bzw. Vorrat) sobald der Schnelllader sitzt
+    if (u > 0.29 && !A.ejected && !A.cancel) { A.ejected = true; A.magNew = 0; this._revolverBrass(); }
     // Schnelllader: von unten hinten an die Trommel, eindrehen, abziehen
     const lu = curve(u, [[0.42, [0.0, -0.2, 0.18]], [0.54, [0.0, -0.02, 0.08]], [0.6, [0, 0, 0.004]], [0.62, ZERO3], [0.66, ZERO3], [0.7, [0, -0.04, 0.12]], [0.74, [0.02, -0.2, 0.18]]]);
     out.frame = 0.6 * swing;
     const twist = windowW(u, 0.6, 0.63, 0.66, 0.7) * 0.5;
     out.parts.loader = [lu[0], lu[1], lu[2], 0, 0, twist];
     vis(out).loader = u > 0.42 && u < 0.74;
-    if (u > 0.62 && !A.seated) { A.seated = true; this._jolt.kick(0.5, 0, 0); }
+    if (u > 0.62 && !A.seated) { A.seated = true; if (!A.cancel) A.magNew = this._freshMag(); this._jolt.kick(0.5, 0, 0); }
     if (u > 0.755 && !A.closed) { A.closed = true; this._jolt.kick(1.2, 0.4, 0); this._recoilPos.kick(0, 0.004, 0); }
     // Trommel dreht beim Einschwenken nach
     out.parts.cylinder = [0, 0, 0, 0, 0, curve(u, [[0.74, 0], [0.8, 0.9], [0.84, Math.PI / 3]])];

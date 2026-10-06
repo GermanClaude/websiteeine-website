@@ -173,7 +173,7 @@ function computeFill(spec, pivot, cap) {
       _P.addScaledVector(_D, (i % 2 ? 1 : -1) * stag);
       push(_P.clone(), _A, _Yv.copy(_T).negate());
     }
-    f.mirror = mirror;
+    f.mirror = mirror && !spec.drum;      // Trommel: Spirale nicht spiegeln (Böden zum Fenster)
     // Zubringer: Oberkante unter der untersten Patrone (n = 0: an den Lippen)
     if (spec.follower !== false && !spec.drum) {
       const fh = spec.fol?.[1] ?? 0.007;
