@@ -18,6 +18,7 @@ import { WEAPONS, weaponHandling } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
 import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE, MELEE_STYLES } from './gunsmith/handling.js';
 import { EXTRA_ACTIONS } from './gunsmith/actions2.js';
+import { GunCollider } from './gunsmith/contact.js';
 import { applyCamo } from './gunsmith/camos.js';
 import { CLASS_LOOKS, SKIN_TIERS, classLookId } from '../../shared/weapons.data.js';
 import { MuzzleFlash, ShellPool, SmokeWisps, HeatHaze } from './gunsmith/fx.js';
@@ -30,6 +31,8 @@ const _v = V3(), _v2 = V3(), _v3 = V3(), _q = new THREE.Quaternion(), _q2 = new 
 const _s1 = V3();
 const _a3 = [0, 0, 0], _b3 = [0, 0, 0], _c3 = [0, 0, 0];
 const ZERO3 = [0, 0, 0];
+// Handanfragen, bei denen die Finger den Gegenstand umschließen (Kontaktlöser legt sie an die Oberfläche)
+const GRIP_STYLES = new Set(['mag', 'magTop', 'under', 'flat', 'pump', 'post', 'pistol', 'pistolGrip', 'knife', 'wrap', 'ball']);
 // Erwärmung des Laufs je Schuss (0..1; Rauchfahne/Hitzeflimmern nach Feuerstößen), abklingend ≈ 0,12/s
 const HEAT_PER_SHOT = { auto: 0.022, semi: 0.03, bolt: 0.08, pump: 0.07, pistol: 0.02 };
 
@@ -236,6 +239,9 @@ export class ViewModel {
     const rest = new Map();
     for (const [n, p] of Object.entries(ud.parts)) rest.set(n, { pos: p.position.clone(), quat: p.quaternion.clone(), vis: p.visible });
     entry = { id, key, model, ud, rest };
+    // Kontaktgitter (hands): Hände legen sich an die echte Oberfläche statt in die Waffe (Arm.contact)
+    try { entry.collider = new GunCollider(model); } catch (err) { console.warn('[gunsmith] Kontaktgitter', err); entry.collider = null; }
+    entry.contactMemo = new Map();
     this._models.set(id, entry);
     this._prepareGrips(entry);
     return entry;
@@ -932,22 +938,6 @@ export class ViewModel {
     this._lean = damp(this._lean, clamp(s.lean || 0, -1, 1), 9, dt);
     P.x += this._lean * 0.012 * na;
     R.z -= this._lean * 0.07 * na;
-    // Wandkollision (F3; walls): mit gemessener Wandtiefe (s.wallDist, Controller) passt wallFit() die Lage an die echte
-    // Länge des Modells an – kein sichtbarer Punkt der Waffe liegt tiefer als die Wand. Sonst wie bisher über `obstruct`.
-    this._obstruct = damp(this._obstruct, clamp(s.obstruct || 0, 0, 1), s.obstruct > this._obstruct ? 14 : 7, dt);
-    const ob = smooth(this._obstruct);
-    if (typeof s.wallDist === 'number' && this.cur && h.action !== 'knife') {
-      wallFit(this, P, R, s.wallDist, a, h.action === 'pistol', dt);
-    } else if (ob > 1e-3) {
-      const o1 = clamp(ob / 0.5, 0, 1) * na, o2 = smooth(clamp((ob - 0.4) / 0.6, 0, 1)) * na;
-      if (h.action === 'pistol') {
-        P.z += 0.1 * o1; P.y -= 0.025 * o1; P.x -= 0.03 * o2;
-        R.x += 0.35 * o2; R.y += 0.2 * o2; R.z += 0.1 * o2;
-      } else if (h.action !== 'knife') {
-        P.z += 0.12 * o1; P.y -= 0.04 * o2; P.x -= 0.02 * o2;
-        R.x -= 0.55 * o2; R.y += 0.32 * o2; R.z += 0.26 * o2;
-      }
-    }
     // Überklettern (core, F6): Waffe kurz gesenkt und zur Seite gekippt, die Hand ist am Hindernis
     this._mantle = damp(this._mantle, s.mantling ? 1 : 0, s.mantling ? 12 : 7, dt);
     if (this._mantle > 1e-3) {
@@ -969,6 +959,37 @@ export class ViewModel {
       R.x += act.r[0]; R.y += act.r[1]; R.z += act.r[2];
     }
 
+    // walls 2: Wandprüfung NACH Überklettern/Ziehen/Aktion (Nachladen kippt die Waffe) und mit der Drehung um das Auge
+    // (freies Zielen, Nachlauf im Anschlag) – geprüft wird die Lage, die tatsächlich im Bild steht
+    let eyeQw = null;
+    {
+      const fa = s.freeAim;
+      let fx = 0, fy = 0;
+      if (fa && (fa.x || fa.y)) {
+        const main = this.G?.camera;
+        const kf = main && main.fov ? Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2) / Math.tan(THREE.MathUtils.degToRad(main.fov) / 2) : 1;
+        fx = Math.atan(Math.tan(fa.x || 0) * kf); fy = Math.atan(Math.tan(fa.y || 0) * kf);
+      }
+      const ey = -fx + lagY * a, ep = fy + lagP * a;
+      if (ey || ep) eyeQw = (this._wallEyeQ || (this._wallEyeQ = new THREE.Quaternion())).setFromEuler(_e.set(ep, ey, 0, 'YXZ'));
+    }
+    // Wandkollision (F3; walls 2): wallFit() tastet die Waffe selbst ab (Strahlen Auge → Stützpunkte, Kolben → Mündung)
+    // und passt die Lage an – kein sichtbarer Punkt liegt hinter Wand, Kante, Brüstung. Ohne s.wallDist über `obstruct`.
+    this._obstruct = damp(this._obstruct, clamp(s.obstruct || 0, 0, 1), s.obstruct > this._obstruct ? 14 : 7, dt);
+    const ob = smooth(this._obstruct);
+    s.wallNeed = 0; s.wallAds = false; // Rückmeldung an den Controller (walls 2), von wallFit gesetzt
+    if (typeof s.wallDist === 'number' && this.cur && h.action !== 'knife') {
+      wallFit(this, P, R, s.wallDist, a, h.action === 'pistol', dt, s, eyeQw);
+    } else if (ob > 1e-3) {
+      const o1 = clamp(ob / 0.5, 0, 1) * na, o2 = smooth(clamp((ob - 0.4) / 0.6, 0, 1)) * na;
+      if (h.action === 'pistol') {
+        P.z += 0.1 * o1; P.y -= 0.025 * o1; P.x -= 0.03 * o2;
+        R.x += 0.35 * o2; R.y += 0.2 * o2; R.z += 0.1 * o2;
+      } else if (h.action !== 'knife') {
+        P.z += 0.12 * o1; P.y -= 0.04 * o2; P.x -= 0.02 * o2;
+        R.x -= 0.55 * o2; R.y += 0.32 * o2; R.z += 0.26 * o2;
+      }
+    }
     this.gun.position.copy(P);
     this.gun.rotation.set(R.x, R.y, R.z, 'YXZ');
     // Drehung um das Auge: freies Zielen (Waffe zeigt in die Laufrichtung, Visierlinie bleibt am Auge) und der
@@ -1055,10 +1076,13 @@ export class ViewModel {
   _solveHands(act) {
     const ud = this.cur.ud, h = this.h;
     const R = this._hR, L = this._hL;
+    this._contactFrame = (this._contactFrame || 0) + 1;
     // Rechte Hand: Pistolengriff (Messer: Faustgriff)
-    this._anchorTarget(ud.rightHandGrip, h.action === 'knife' ? 'knife' : 'pistolGrip', ud.rightHandGrip.userData, R, 1);
-    if (act) this._applyRequests(act.right, R, 1);
+    const rStyle = h.action === 'knife' ? 'knife' : 'pistolGrip';
+    this._anchorTarget(ud.rightHandGrip, rStyle, ud.rightHandGrip.userData, R, 1);
+    const busyR = act ? this._applyRequests(act.right, R, 1) : 0;
     this.arms.right.applyPose(R.pose);
+    this._contact(this.arms.right, R, busyR, 'R:' + rStyle, { grip: busyR < 0.5 || GRIP_STYLES.has(this._reqStyle), skipIndex: rStyle === 'pistolGrip' && busyR < 0.5 });
     this.arms.right.solve(R.pos, R.quat);
     // Requisiten in der rechten Hand (Granate) für den Splint-Griff aktualisieren
     this.arms.right.handBone.updateWorldMatrix(true, true);
@@ -1066,13 +1090,45 @@ export class ViewModel {
     const lg = ud.leftHandGrip, style = lg.userData.style || h.leftGrip;
     if (h.leftGrip === 'none') this._freeTarget([-0.12, -0.34, -0.22], [0.3, 0.6, -0.8], [-0.6, 0.2, 0.3], 'relaxed', L);
     else this._anchorTarget(lg, style, lg.userData, L, -1);
-    if (act) this._applyRequests(act.left, L, -1);
+    const busyL = act ? this._applyRequests(act.left, L, -1) : 0;
     this.arms.left.applyPose(L.pose);
+    const gripL = busyL < 0.5 ? h.leftGrip !== 'none' : GRIP_STYLES.has(this._reqStyle);
+    this._contact(this.arms.left, L, h.leftGrip === 'none' && busyL < 1e-3 ? -1 : busyL, 'L:' + style, { grip: gripL });
     this.arms.left.solve(L.pos, L.quat);
   }
 
-  // Handanfragen einer Aktion der Reihe nach einmischen
+  /**
+   * Hand an die Waffenoberfläche (hands): ohne Handanfrage (Hüfte/Anschlag/Sprint, Hand am Grundgriff) wird die
+   * Korrektur einmal je Waffe+Griff gelöst und gemerkt (Versatz im Handraum + Fingerknochen); während Aktionen
+   * (Nachladen, Inspizieren, Übergänge) läuft der Löser je Bild. busy < 0: Hand frei (kein Kontakt nötig).
+   */
+  _contact(arm, T, busy, key, opts) {
+    const col = this.cur.collider;
+    if (!col || busy < 0) return;
+    if (col.frame !== this._contactFrame) { col.sync(); col.frame = this._contactFrame; }
+    const memo = this.cur.contactMemo;
+    if (busy <= 1e-3) {
+      const m = memo.get(key);
+      if (m) {
+        T.pos.add(_v.fromArray(m.d).applyQuaternion(T.quat));
+        for (let i = 0; i < m.bones.length; i++) m.bones[i].quaternion.fromArray(m.q, i * 4);
+        return;
+      }
+      _v3.copy(T.pos);
+      arm.contact(col, T, opts);
+      const bones = [...arm.fingers.flat(), ...arm.thumb];
+      const q = new Float32Array(bones.length * 4);
+      bones.forEach((b, i) => b.quaternion.toArray(q, i * 4));
+      memo.set(key, { d: _v.subVectors(T.pos, _v3).applyQuaternion(_q.copy(T.quat).invert()).toArray(), bones, q });
+      return;
+    }
+    arm.contact(col, T, opts);
+  }
+
+  // Handanfragen einer Aktion der Reihe nach einmischen; Rückgabe: größtes Gewicht (Stil in this._reqStyle)
   _applyRequests(list, target, side) {
+    let wMax = 0;
+    this._reqStyle = null;
     for (let i = 0; i < list.n; i++) {
       const r = list.items[i];
       if (r.w <= 0) continue;
@@ -1083,7 +1139,9 @@ export class ViewModel {
       else continue;
       if (r.dy) t.pos.y += r.dy;
       target.lerp(t, r.w);
+      if (r.w > wMax) { wMax = r.w; this._reqStyle = r.free ? r.free[3] : r.style; }
     }
+    return wMax;
   }
 
   _part(name) { return this.cur?.ud.parts[name] || null; }
@@ -1589,27 +1647,46 @@ ViewModel.FOV = 54;
 
 /* ---------------------------------------------------------------- Wandkollision nach Modelllänge (walls) */
 
-const WALL_MARGIN = 0.04;   // m Abstand der vordersten sichtbaren Waffenpunkte zur Wandfläche
+const WALL_MARGIN = 0.04;   // m Abstand der sichtbaren Waffenpunkte zur Fläche
 const WALL_BACK = 0.12;     // m Anziehen (Pistole 0,10; im Anschlag höchstens 0,08)
-const WALL_TILT = 1.3;      // rad größtes Absenken (Gewehr) bzw. Anheben (Pistole)
-const _wq = new THREE.Quaternion(), _wq0 = new THREE.Quaternion(), _we = new THREE.Euler(), _wv = new THREE.Vector3();
-const _wb = new THREE.Vector3(), _wpiv = new THREE.Vector3();
+const WALL_TILT = 1.3;      // rad größtes Kippen in Hauptrichtung (Gewehr: absenken + eindrehen, Pistole: an die Brust)
+const WALL_TILT2 = 1.0;     // rad Gegenrichtung (Gewehr: Mündung hoch über Kante/Brüstung, Pistole: Mündung ab)
+const WALL_NEAR = 0.45;     // m: Fläche, die der Strahl eines anderen Stützpunkts fand, gilt in diesem Umkreis um den Treffer
+const WALL_PLANES = 32;
+const _wq = new THREE.Quaternion(), _wq0 = new THREE.Quaternion(), _we = new THREE.Euler(), _we0 = new THREE.Euler(), _wv = new THREE.Vector3();
+const _wb = new THREE.Vector3(), _wpiv = new THREE.Vector3(), _woff = new THREE.Vector3();
+const _wcp = new THREE.Vector3(), _wcq = new THREE.Quaternion(), _wcqi = new THREE.Quaternion();
+const _wro = new THREE.Vector3(), _wrd = new THREE.Vector3(), _wn = new THREE.Vector3(), _wvel = new THREE.Vector3();
+const _whit = { t: 0, nx: 0, ny: 0, nz: 0 };
+/** Zustand der Wandprüfung je Bild: Flächen (Hauptkamera-Blickraum) + Abbildung Viewmodel → Hauptkamera. */
+const _wW = {
+  n: 0, d: Infinity, kx: 1, ky: 1, tanV: 1, tanH: 1,
+  pl: Array.from({ length: WALL_PLANES }, () => ({ nx: 0, ny: 0, nz: 0, c: 0, hx: 0, hy: 0, hz: 0, src: -1 })),
+};
 
-/** Stützpunkte des Modells (Modellraum): Kolbenmitte → vordere Ecken der Hüllbox, ohne Effekte. Einmal je Modell. */
+/**
+ * Stützpunkte des Modells (Modellraum): vordere Ecken der Hüllbox, Zwischenpunkte zum Kolben, Mittellinie, Oberkante,
+ * Mündung + Stützhand (Marker), ohne Effekte. Einmal je Modell. `_wallSeg` = Indizes der Vorderpunkte für die
+ * Kolben → Mündung-Strahlen (dünne Hindernisse zwischen den Augenstrahlen).
+ */
 function wallPoints(vm, entry) {
   if (entry._wallPts) return entry._wallPts;
   const model = entry.model;
   const skip = new Set();
-  for (const fx of [vm.flash && vm.flash.group]) if (fx) fx.traverse((o) => skip.add(o));
+  for (const fx of [vm.flash && vm.flash.group, vm.smoke && vm.smoke.group, vm.shells && vm.shells.group, vm.haze && vm.haze.mesh]) if (fx) fx.traverse((o) => skip.add(o));
   model.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(model.matrixWorld).invert();
-  const box = new THREE.Box3(), bb = new THREE.Box3();
-  model.traverse((o) => {
-    if (!o.isMesh || !o.geometry || skip.has(o)) return;
-    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
-    box.union(bb.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld).applyMatrix4(inv));
+  // Hüllbox exakt aus den Eckpunkten im Modellraum (die gedrehte Hüllbox je Teil blähte sich z. B. beim Titan auf
+  // 1,8 × 1,8 m auf → Stützpunkte weit neben der Waffe); unsichtbare Teile (Mündungsfeuer o. ä.) zählen nicht
+  const box = new THREE.Box3(), mw = new THREE.Matrix4(), v = new THREE.Vector3();
+  model.traverseVisible((o) => {
+    const pos = o.isMesh && !skip.has(o) && o.geometry && o.geometry.attributes.position;
+    if (!pos) return;
+    mw.multiplyMatrices(inv, o.matrixWorld);
+    for (let i = 0; i < pos.count; i++) box.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(mw));
   });
   const pts = [];
+  entry._wallSeg = [];
   if (!box.isEmpty()) {
     const { min, max } = box;
     const cx = (min.x + max.x) / 2, cy = (min.y + max.y) / 2;
@@ -1617,87 +1694,230 @@ function wallPoints(vm, entry) {
     const corners = [];
     for (const x of [min.x, max.x]) for (const y of [min.y, max.y]) corners.push(new THREE.Vector3(x, y, min.z));
     const fc = new THREE.Vector3(cx, cy, min.z);
-    for (const c of corners) { pts.push(c); pts.push(back.clone().lerp(c, 0.6)); }
+    for (const c of corners) { entry._wallSeg.push(pts.length); pts.push(c); pts.push(back.clone().lerp(c, 0.6)); }
+    entry._wallSeg.push(pts.length);
     pts.push(fc, back.clone().lerp(fc, 0.35), back.clone().lerp(fc, 0.7));
     pts.push(new THREE.Vector3(cx, max.y, (min.z + max.z) / 2));
+    // Unterkante Mitte (Magazin/Griff) und Mitte unten vorn (Handschutz/Stützhand)
+    pts.push(new THREE.Vector3(cx, min.y, (min.z + max.z) / 2), new THREE.Vector3(cx, min.y, min.z * 0.75 + max.z * 0.25));
+    const ud = entry.ud || model.userData || {};
+    for (const k of ['muzzle', 'leftHandGrip']) {
+      const o = ud[k];
+      if (o && o.isObject3D) pts.push(o.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv));
+    }
     entry._wallBack = back.clone();
+    entry._wallBackIdx = pts.length;
+    pts.push(back.clone());
   }
   entry._wallPts = pts;
   return pts;
 }
 
-/** Tiefste sichtbare Tiefe (m vor dem Auge) der Waffe in der Lage P/R + Anziehen dz + Kippen th (Wurzelraum = Kamera). */
-function wallTilt(vm, R, th, pistol) {
-  const t = pistol ? th : -th;
-  _we.set(R.x + t, R.y + th * (pistol ? 0.35 : 0.58), R.z + th * (pistol ? 0.2 : 0.47), 'YXZ');
+/**
+ * Lage der Waffe beim Wandausweichen: setzt _wq (Drehung im Kamera-/Wurzelraum) und _woff (Versatz zu P inkl.
+ * Drehpunkt an der Kolbenkappe). th > 0 = Hauptrichtung, th < 0 = Gegenrichtung (s. WALL_TILT/WALL_TILT2).
+ */
+function wallPose(vm, R, th, back, pistol) {
+  const u = Math.abs(th);
+  _woff.set(0, 0, 0);
+  if (pistol) {
+    if (th >= 0) { _we.set(R.x + u, R.y + u * 0.35, R.z + u * 0.2, 'YXZ'); _woff.x = -0.03 * (u / WALL_TILT); }
+    else { _we.set(R.x - u, R.y + u * 0.25, R.z + u * 0.1, 'YXZ'); _woff.x = -0.02 * u; _woff.y = -0.03 * u; }
+    _woff.y -= 0.02 * Math.min(1, back / 0.1);
+  } else if (th >= 0) {
+    _we.set(R.x - u, R.y + u * 0.58, R.z + u * 0.47, 'YXZ');
+    _woff.x = -0.02 * (u / WALL_TILT); _woff.y = -0.05 * u;
+  } else {
+    _we.set(R.x + u, R.y + u * 0.3, R.z - u * 0.12, 'YXZ');
+    _woff.x = 0.01 * u; _woff.y = -0.04 * u;
+  }
   _wq.setFromEuler(_we);
   // Gewehre kippen um die Kolbenkappe (Schulter/Hüfte) statt um den Griff – der Kolben schwenkt nicht ins Gesicht
-  _wpiv.set(0, 0, 0);
-  if (!pistol && th > 0 && vm.cur._wallBack) {
+  if (!pistol && u > 0 && vm.cur._wallBack) {
     _wb.copy(vm.cur._wallBack).applyMatrix4(vm.cur.model.matrix);
-    _wq0.setFromEuler(_we.set(R.x, R.y, R.z, 'YXZ'));
+    _wq0.setFromEuler(_we0.set(R.x, R.y, R.z, 'YXZ'));
     _wpiv.copy(_wb).applyQuaternion(_wq0);
-    _wpiv.sub(_wb.applyQuaternion(_wq));
+    _woff.add(_wpiv.sub(_wb.applyQuaternion(_wq)));
   }
   return _wq;
 }
 
-function wallDepth(vm, pts, P, R, dz, th, pistol, tanV, tanH) {
-  wallTilt(vm, R, th, pistol);
-  const m = vm.cur.model;
-  let worst = 0;
+/** Strahl gegen die sichtbare Geometrie (Kugel-BVH, allokationsfrei; sonst world.raycast ohne Ziele). */
+function wallRay(w, bvh, o, d, len) {
+  if (bvh) return bvh.raycast(o.x, o.y, o.z, d.x, d.y, d.z, len, _whit) ? _whit : null;
+  const r = w.raycast(o, d, len);
+  if (!r || r.targetId !== undefined || !Number.isFinite(r.distance)) return null;
+  _whit.t = r.distance; _whit.nx = r.normal.x; _whit.ny = r.normal.y; _whit.nz = r.normal.z;
+  return _whit;
+}
+
+/**
+ * Wandprüfung je Bild (walls 2): Strahlen vom Auge (Hauptkamera) zu jedem sichtbaren Stützpunkt der Waffe in der
+ * unveränderten Lage (gleiche Bildposition + Tiefe wie im Bild) und vom Kolben zu den Vorderpunkten. Jeder Treffer
+ * wird eine Fläche (Normale zum Auge bzw. Kolben, Vorhalt der Annäherung), die für ihren Punkt und Punkte in
+ * WALL_NEAR um den Treffer gilt. Boden unter den Füßen zählt nicht (Liegend-Haltung), Oberseiten von Kisten,
+ * Brüstungen, Motorhauben usw. schon. Dazu die Wandtiefe des Controllers als Ebene quer zur Blickachse.
+ */
+function wallProbe(vm, pts, P, R, d, pistol, dt) {
+  const W = _wW;
+  W.n = 0; W.d = d;
+  const cam = vm.camera;
+  const tv = Math.tan(((cam.fov || 54) * Math.PI) / 360);
+  W.tanV = tv * 1.04; W.tanH = W.tanV * (cam.aspect || 1.78);
+  const G = vm.G, main = G && G.camera, w = G && G.world;
+  if (!main || !w || typeof w.raycast !== 'function') { W.kx = W.ky = 1; return W; }
+  const bvh = (w.debugData && (w.debugData.compositeBullet || w.debugData.bulletBVH)) || null;
+  const tm = Math.tan(((main.fov || 70) * Math.PI) / 360) / (main.zoom || 1);
+  W.ky = tm / tv; W.kx = W.ky * (main.aspect || 1.78) / (cam.aspect || 1.78);
+  main.getWorldPosition(_wcp); main.getWorldQuaternion(_wcq); _wcqi.copy(_wcq).invert();
+  const body = G.player && G.player.body;
+  if (body && body.velocity) _wvel.copy(body.velocity).applyQuaternion(_wcqi); else _wvel.set(0, 0, 0);
+  const lead = 3 * Math.min(dt, 0.05) + 0.04, ahead = Math.min(1.2, _wvel.length() * lead);
+  const feetY = body && body.position ? body.position.y : -Infinity;
+  const entry = vm.cur, m = entry.model;
+  const base = entry._wallBase || (entry._wallBase = pts.map(() => new THREE.Vector3()));
+  wallPose(vm, R, 0, 0, pistol);
+  for (let i = 0; i < pts.length; i++) { base[i].copy(pts[i]).applyMatrix4(m.matrix).applyQuaternion(_wq).add(P); if (W.eq) base[i].applyQuaternion(W.eq); }
+  const add = (src, ox, oy, oz) => {
+    // Treffer _whit (Welt) → Fläche im Blickraum der Hauptkamera; ox/oy/oz = Strahlursprung (Blickraum)
+    if (W.n >= WALL_PLANES) return;
+    _wn.set(_whit.nx, _whit.ny, _whit.nz);
+    const hy = _wro.y + _wrd.y * _whit.t;
+    if (_wn.y > 0.7 && hy < feetY + 0.25) return; // Boden, auf dem der Spieler steht/liegt
+    _wn.applyQuaternion(_wcqi);
+    const lx = _wrd.x, ly = _wrd.y, lz = _wrd.z; // Weltrichtung → Blickraum
+    _wv.set(lx, ly, lz).applyQuaternion(_wcqi);
+    if (_wn.dot(_wv) > 0) _wn.negate();
+    const pl = W.pl[W.n++];
+    pl.hx = ox + _wv.x * _whit.t; pl.hy = oy + _wv.y * _whit.t; pl.hz = oz + _wv.z * _whit.t;
+    pl.nx = _wn.x; pl.ny = _wn.y; pl.nz = _wn.z;
+    pl.c = -(pl.nx * pl.hx + pl.ny * pl.hy + pl.nz * pl.hz) + lead * Math.min(0, _wn.dot(_wvel));
+    pl.src = src;
+  };
+  // Augenstrahlen
+  const bi = entry._wallBackIdx;
+  let backFree = true;
+  for (let i = 0; i < pts.length; i++) {
+    const b = base[i], depth = -b.z;
+    const vis = depth > 0.02 && Math.abs(b.x) <= depth * W.tanH && Math.abs(b.y) <= depth * W.tanV;
+    if (!vis && i !== bi) continue;
+    const X = b.x * W.kx, Y = b.y * W.ky, Z = b.z, L = Math.hypot(X, Y, Z);
+    if (L < 0.03) continue;
+    _wrd.set(X / L, Y / L, Z / L).applyQuaternion(_wcq);
+    _wro.copy(_wcp);
+    const hit = wallRay(w, bvh, _wro, _wrd, L + (vis ? 0.3 + ahead : 0));
+    if (!hit) continue;
+    if (i === bi) { if (hit.t < L) backFree = false; if (!vis) continue; }
+    add(i, 0, 0, 0);
+  }
+  // Kolben → Vorderpunkte (Lauf/Handschutz durch Geländer, Pfosten, Fensterkreuze)
+  if (backFree && bi != null) {
+    const B = base[bi], bx = B.x * W.kx, by = B.y * W.ky, bz = B.z;
+    for (const j of entry._wallSeg) {
+      const F = base[j];
+      const fx = F.x * W.kx - bx, fy = F.y * W.ky - by, fz = F.z - bz, L = Math.hypot(fx, fy, fz);
+      if (L < 0.05) continue;
+      _wro.set(bx, by, bz).applyQuaternion(_wcq).add(_wcp);
+      _wrd.set(fx / L, fy / L, fz / L).applyQuaternion(_wcq);
+      const hit = wallRay(w, bvh, _wro, _wrd, L + 0.05);
+      if (hit && hit.t > 0.04) add(j, bx, by, bz);
+    }
+  }
+  return W;
+}
+
+/** Größte Verletzung (m; ≤ 0 = frei) der sichtbaren Stützpunkte in der Lage P/R + Anziehen back + Kippen th. */
+function wallViol(vm, pts, P, R, back, th, pistol, W) {
+  wallPose(vm, R, th, back, pistol);
+  const m = vm.cur.model, pl = W.pl, n = W.n, nr2 = WALL_NEAR * WALL_NEAR;
+  const tgt = W.d - WALL_MARGIN;
+  let worst = -Infinity;
   for (let i = 0; i < pts.length; i++) {
     _wv.copy(pts[i]).applyMatrix4(m.matrix).applyQuaternion(_wq);
-    const x = _wv.x + P.x + _wpiv.x, y = _wv.y + P.y + _wpiv.y - (pistol ? 0 : 0.05 * th), z = _wv.z + P.z + _wpiv.z + dz;
+    _wv.x += P.x + _woff.x; _wv.y += P.y + _woff.y; _wv.z += P.z + _woff.z + back;
+    if (W.eq) _wv.applyQuaternion(W.eq);
+    const x = _wv.x, y = _wv.y, z = _wv.z;
     const depth = -z;
-    if (depth < 0.02 || Math.abs(x) > depth * tanH || Math.abs(y) > depth * tanV) continue; // nicht im Bild
-    if (depth > worst) worst = depth;
+    if (depth < 0.02 || Math.abs(x) > depth * W.tanH || Math.abs(y) > depth * W.tanV) continue; // nicht im Bild
+    if (depth - tgt > worst) worst = depth - tgt;
+    const X = x * W.kx, Y = y * W.ky;
+    for (let j = 0; j < n; j++) {
+      const p = pl[j];
+      if (p.src !== i) {
+        const dx = X - p.hx, dy = Y - p.hy, dz = z - p.hz;
+        if (dx * dx + dy * dy + dz * dz > nr2) continue;
+      }
+      const v = WALL_MARGIN - (p.nx * X + p.ny * Y + p.nz * z + p.c);
+      if (v > worst) worst = v;
+    }
   }
   return worst;
 }
 
+/** Kippen in Richtung sg (±1) bis höchstens max: { th (vorzeichenbehaftet), ok, res }. */
+function wallSolveTilt(vm, pts, P, R, back, pistol, W, sg, max, out) {
+  const res = wallViol(vm, pts, P, R, back, sg * max, pistol, W);
+  if (res > 0) { out.th = sg * max; out.ok = false; out.res = res; return out; }
+  let lo = 0, hi = max;
+  for (let i = 0; i < 9; i++) { const mid = (lo + hi) / 2; if (wallViol(vm, pts, P, R, back, sg * mid, pistol, W) > 0) lo = mid; else hi = mid; }
+  out.th = sg * hi; out.ok = true; out.res = 0;
+  return out;
+}
+const _wt1 = { th: 0, ok: false, res: 0 }, _wt2 = { th: 0, ok: false, res: 0 };
+
 /**
- * Waffe vor der Wand halten: Wandtiefe d (m, entlang der Blickachse, Controller-Messung inkl. Vorhalt). Erst
- * anziehen, dann (an der Hüfte) absenken und eindrehen – so weit, bis alle sichtbaren Punkte vor der Wand liegen.
- * Lange Waffen kippen dadurch früher und weiter als kurze; im Anschlag nur Anziehen (der Controller beendet das
- * Zielen, bevor mehr nötig wäre). Ergebnis geglättet (schnell hinein, langsamer zurück).
+ * Waffe vor Wänden und Hindernissen halten (walls 2): erst anziehen, dann (an der Hüfte) kippen – Gewehre absenken
+ * und eindrehen oder, wenn das tiefer in eine Kante/Brüstung führt, die Mündung anheben; Pistolen an die Brust oder
+ * Mündung ab –, so weit, bis kein sichtbarer Punkt mehr hinter einer Fläche liegt. Im Anschlag nur Anziehen; bleibt
+ * etwas in der Fläche, meldet `s.wallAds` dem Controller, das Zielen zu beenden. `s.wallNeed` (0..1, Kippen) sperrt
+ * dort den Schuss bei stark gekippter Waffe. Ergebnis geglättet (schnell hinein, langsamer zurück).
  */
-function wallFit(vm, P, R, d, a, pistol, dt) {
+function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
   const pts = wallPoints(vm, vm.cur);
-  let wantBack = 0, wantTh = 0;
-  if (pts.length && d < 4) {
-    const cam = vm.camera;
-    const tanV = Math.tan(((cam.fov || 54) * Math.PI) / 360) * 1.04;
-    const tanH = tanV * (cam.aspect || 1.78);
-    const target = Math.max(0.05, d - WALL_MARGIN);
-    const f0 = wallDepth(vm, pts, P, R, 0, 0, pistol, tanV, tanH);
-    if (f0 > target) {
+  const st = vm._wallFit || (vm._wallFit = { back: 0, th: 0, dir: 1 });
+  let wantBack = 0, wantTh = 0, resid = 0;
+  if (pts.length) {
+    _wW.eq = eq || null;
+    const W = wallProbe(vm, pts, P, R, d, pistol, dt);
+    vm._wallW = W; // Prüfstand (tools/out/walls2): Flächen dieses Bildes
+    if ((W.n > 0 || W.d < 4) && wallViol(vm, pts, P, R, 0, 0, pistol, W) > 0) {
       const maxBack = (pistol ? 0.1 : WALL_BACK) * (1 - a) + 0.08 * a;
-      wantBack = Math.min(maxBack, f0 - target);
+      if (wallViol(vm, pts, P, R, maxBack, 0, pistol, W) > 0) wantBack = maxBack;
+      else {
+        let lo = 0, hi = maxBack;
+        for (let i = 0; i < 7; i++) { const mid = (lo + hi) / 2; if (wallViol(vm, pts, P, R, mid, 0, pistol, W) > 0) lo = mid; else hi = mid; }
+        wantBack = hi;
+      }
       const na = 1 - a;
-      if (na > 0.02 && wallDepth(vm, pts, P, R, wantBack, 0, pistol, tanV, tanH) > target) {
-        let lo = 0, hi = WALL_TILT;
-        if (wallDepth(vm, pts, P, R, wantBack, hi, pistol, tanV, tanH) > target) lo = hi;
-        else for (let i = 0; i < 9; i++) { const mid = (lo + hi) / 2; if (wallDepth(vm, pts, P, R, wantBack, mid, pistol, tanV, tanH) > target) lo = mid; else hi = mid; }
-        wantTh = hi * na;
+      if (wantBack >= maxBack - 1e-6) {
+        if (na > 0.02) {
+          const t1 = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, 1, WALL_TILT, _wt1);
+          const t2 = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, -1, WALL_TILT2, _wt2);
+          let pick;
+          if (t1.ok && t2.ok) {
+            const keep = st.dir > 0 ? t1 : t2, other = st.dir > 0 ? t2 : t1;
+            pick = Math.abs(keep.th) <= Math.abs(other.th) + 0.2 ? keep : other;
+          } else if (t1.ok || t2.ok) pick = t1.ok ? t1 : t2;
+          else pick = t1.res <= t2.res + 0.02 ? t1 : t2;
+          st.dir = pick.th >= 0 ? 1 : -1;
+          wantTh = pick.th * na;
+          resid = pick.ok ? 0 : pick.res;
+        } else resid = wallViol(vm, pts, P, R, wantBack, 0, pistol, W);
       }
     }
   }
-  const st = vm._wallFit || (vm._wallFit = { back: 0, th: 0 });
   st.back = damp(st.back, wantBack, wantBack > st.back ? 45 : 8, dt);
-  st.th = damp(st.th, wantTh, wantTh > st.th ? 40 : 7, dt);
-  if (st.back < 1e-4 && st.th < 1e-4) return;
-  const th = st.th;
-  P.z += st.back;
-  wallTilt(vm, R, th, pistol);
-  P.add(_wpiv);
-  if (pistol) {
-    P.x -= 0.03 * (th / WALL_TILT); P.y -= 0.02 * Math.min(1, st.back / 0.1);
-    R.x += th; R.y += th * 0.35; R.z += th * 0.2;
-  } else {
-    P.y -= 0.05 * th; P.x -= 0.02 * (th / WALL_TILT);
-    R.x -= th; R.y += th * 0.58; R.z += th * 0.47;
+  const grow = Math.abs(wantTh) > Math.abs(st.th) && wantTh * st.th >= 0;
+  st.th = damp(st.th, wantTh, grow ? 40 : wantTh * st.th < 0 ? 14 : 7, dt);
+  if (s) {
+    s.wallNeed = Math.min(1, Math.abs(st.th) / 0.9);
+    s.wallAds = a > 0.5 && resid > 0.02;
   }
+  if (st.back < 1e-4 && Math.abs(st.th) < 1e-4) return;
+  P.z += st.back;
+  wallPose(vm, R, st.th, st.back, pistol);
+  P.add(_woff);
+  R.set(_we.x, _we.y, _we.z);
 }
 
 // Welle 2 (Arsenal): zusätzliche Choreografien (Nachladen je Mechanik, Inspizieren je Klasse, Platte, Klingenhiebe)

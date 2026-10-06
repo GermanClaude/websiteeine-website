@@ -184,6 +184,18 @@ export class CapsuleBody {
     if (world.bounds && this.position.y < world.bounds.min.y - 6) this.outOfWorld = true;
   }
 
+  /**
+   * walls 2: Nachschub nach äußeren Korrekturen (Kartengrenze o. ä. nach step()): Kapsel aus der Geometrie schieben
+   * (gleiche Regeln wie im Unterschritt: Wände nur waagerecht). Ohne Dreiecks-Collider wirkungslos.
+   */
+  depenetrate(world) {
+    const collider = world && world.collider;
+    if (!collider || typeof collider.getCapsuleTriangles !== 'function' || typeof collider.triangleCapsuleIntersect !== 'function') return;
+    this._gatherTris(collider, this.position.y - 0.02);
+    this._resolve(collider, this.onGround);
+    _tris.length = 0;
+  }
+
   /** Sammelt einmal pro Unterschritt alle Dreiecke um Körper + Sondenbereich. */
   _gatherTris(collider, probeBot) {
     const p = this.position;

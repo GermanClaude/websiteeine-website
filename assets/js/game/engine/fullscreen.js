@@ -116,6 +116,7 @@ export class FullscreenManager {
     this._pending = false;
     this._fails = 0;
     this._optOut = false; // ausdrücklich verlassen → keine Automatik bis zum nächsten ausdrücklichen Betreten
+    this._exitWanted = false; // ausdrückliches Verlassen noch nicht vollzogen (kam während des Betretens)
     this._firstDone = false; // erste Geste auf der Seite erledigt (Lobby: nicht ständig neu anfordern)
     this._autoAt = -1e9;
     this._active = !!fsElement();
@@ -186,6 +187,7 @@ export class FullscreenManager {
    */
   request({ user = false } = {}) {
     if (user) this._optOut = false;
+    this._exitWanted = false;
     if (!this.supported || !this.el) return false;
     if (this.active) { this._afterEnter(); return true; }
     if (this._pending) return true;
@@ -237,7 +239,7 @@ export class FullscreenManager {
 
   /** Vollbild verlassen. user = ausdrücklich (Knopf/Taste) → Automatik ruht bis zum nächsten Betreten. */
   exit({ user = false } = {}) {
-    if (user) this._optOut = true;
+    if (user) { this._optOut = true; this._exitWanted = true; }
     this._releaseKeyboard();
     if (!this.active) return false;
     const fn = exitFn();
@@ -292,7 +294,9 @@ export class FullscreenManager {
 
   _attach() {
     if (!D) return;
-    for (const t of CHANGE_EVENTS) this._on(D, t, () => this._sync());
+    // Chromium löst das request-Promise vor dem Ende des Übergangs auf; ein exitFullscreen() in diesem Fenster
+    // (schnelles Doppeldrücken) kann verloren gehen → nach dem Übergang nachholen.
+    for (const t of CHANGE_EVENTS) this._on(D, t, () => { this._sync(); if (this._exitWanted && this.active) this.exit(); });
     for (const t of ERROR_EVENTS) this._on(D, t, () => { if (this._pending) { this._pending = false; this._failed(new Error(t)); } this._sync(); });
     // Gesten: Bubble-Phase, damit ein Knopf („Einsatz starten“) zuerst selbst Pointer-Lock + Vollbild anfordert
     this._on(window, 'click', (e) => this._gesture(e));
@@ -392,8 +396,9 @@ export class FullscreenManager {
     const on = this.active;
     if (on === this._active) return;
     this._active = on;
-    if (on) { this._pending = false; this._firstDone = true; this._fails = 0; this._optOut = false; this._afterEnter(); } else {
+    if (on) { this._pending = false; this._firstDone = true; this._fails = 0; if (!this._exitWanted) this._optOut = false; this._afterEnter(); } else {
       const kb = this._kbLocked;
+      this._exitWanted = false;
       this._releaseKeyboard();
       // Vom Browser beendet, ohne dass wir es wollten: bewusst verlassen (Esc halten bei Tastatursperre, F11, oder
       // am Desktop wird ohne Pause weitergespielt) → Automatik ruht bis zum nächsten ausdrücklichen Betreten.

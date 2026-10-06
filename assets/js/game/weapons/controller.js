@@ -302,6 +302,7 @@ export class WeaponController {
     this.obstructed = 0;
     this._obsSample.fill(Infinity);
     this.wallDist = Infinity;
+    this._obsLatch = null;
     this._obsAds = this._obsFire = false;
     this.winded = 0;
     this._sprintT = 0;
@@ -1151,10 +1152,24 @@ export class WeaponController {
     this.wallDist = wall;
     this.obstructed += (raw - this.obstructed) * damp(raw > this.obstructed ? 40 : 8, dt);
     if (this.obstructed < 1e-3) this.obstructed = 0;
-    const o = this.obstructed;
-    const oa = Math.max(o, this._obsAdsRaw || 0);
+    // walls 2: Rückmeldung des Viewmodels (Stützpunkt-Strahlen gegen niedrige/schräge Hindernisse, s. viewmodel wallFit):
+    // stark gekippte Waffe → kein Schuss; im Anschlag nicht frei zu bekommen → Anschlag endet und bleibt gesperrt, bis
+    // sich Spieler (> 0,25 m) oder Blick (> 8°) bewegt haben (sonst Flackern Anschlag ↔ Hüfte an derselben Kante)
+    const vs = this._vmState;
+    const need = vs && reach > 0 && Number.isFinite(vs.wallNeed) ? vs.wallNeed : 0;
+    const L = this._obsLatch;
+    if (vs && vs.wallAds && reach > 0) {
+      actor.getEyePosition(_eye); actor.getAimDirection(_aim);
+      if (!L) this._obsLatch = { x: _eye.x, y: _eye.y, z: _eye.z, ax: _aim.x, ay: _aim.y, az: _aim.z };
+      else { L.x = _eye.x; L.y = _eye.y; L.z = _eye.z; L.ax = _aim.x; L.ay = _aim.y; L.az = _aim.z; }
+    } else if (L) {
+      actor.getEyePosition(_eye); actor.getAimDirection(_aim);
+      if (reach <= 0 || Math.hypot(_eye.x - L.x, _eye.y - L.y, _eye.z - L.z) > 0.25 || _aim.x * L.ax + _aim.y * L.ay + _aim.z * L.az < 0.990) this._obsLatch = null;
+    }
+    const o = this.obstructed, of = Math.max(o, need);
+    const oa = this._obsLatch ? 1 : Math.max(o, this._obsAdsRaw || 0);
     this._obsAds = this._obsAds ? oa > OBSTRUCT_ADS[1] : oa > OBSTRUCT_ADS[0];
-    this._obsFire = this._obsFire ? o > OBSTRUCT_FIRE[1] : o > OBSTRUCT_FIRE[0];
+    this._obsFire = this._obsFire ? of > OBSTRUCT_FIRE[1] : of > OBSTRUCT_FIRE[0];
   }
 
   /**

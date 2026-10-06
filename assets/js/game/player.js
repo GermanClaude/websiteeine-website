@@ -1466,11 +1466,18 @@ export class Player {
     const p = this.body.position;
     const v = this.body.velocity;
     const r = this.body.radius;
-    if (p.x < b.min.x + r) { p.x = b.min.x + r; if (v.x < 0) v.x = 0; }
-    if (p.x > b.max.x - r) { p.x = b.max.x - r; if (v.x > 0) v.x = 0; }
-    if (p.z < b.min.z + r) { p.z = b.min.z + r; if (v.z < 0) v.z = 0; }
-    if (p.z > b.max.z - r) { p.z = b.max.z - r; if (v.z > 0) v.z = 0; }
-    this.body._sync();
+    // walls 2: an der Kartengrenze schob die Grenze die Kapsel jedes Bild zurück in eine Wandkante (Ecke Grenze/Wand,
+    // Hafen 49,65/−13,6: 1,7–3,4 cm dauerhaft, bei dt 0,1 durch die Wand) → nach dem Begrenzen erneut aus der Geometrie
+    for (let pass = 0; pass < 2; pass++) {
+      let hit = false;
+      if (p.x < b.min.x + r) { p.x = b.min.x + r; if (v.x < 0) v.x = 0; hit = true; }
+      if (p.x > b.max.x - r) { p.x = b.max.x - r; if (v.x > 0) v.x = 0; hit = true; }
+      if (p.z < b.min.z + r) { p.z = b.min.z + r; if (v.z < 0) v.z = 0; hit = true; }
+      if (p.z > b.max.z - r) { p.z = b.max.z - r; if (v.z > 0) v.z = 0; hit = true; }
+      this.body._sync();
+      if (!hit || pass || !this.G.world || typeof this.body.depenetrate !== 'function') break;
+      this.body.depenetrate(this.G.world);
+    }
   }
 
   _updateDead(dt) {
