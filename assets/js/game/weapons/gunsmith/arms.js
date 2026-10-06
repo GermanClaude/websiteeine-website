@@ -451,15 +451,13 @@ function buildHandGeometry(mirror, lod = 'high') {
   // Bündchen (hands 2): eng am Handgelenk anliegender, flach-ovaler Schlauch mit gewölbtem Abschluss zum Arm – keine
   // Stirnfläche (las sich bei gebeugtem Handgelenk als Scheibe/Dose) und schmaler als die Ärmelöffnung (r 0,036),
   // damit es im Ärmel verschwindet; Anfang steckt im Handballen
-  const cuffProfile = [[0.0272, -0.012], [0.029, -0.004], [0.0295, 0.006], [0.0288, 0.016], [0.0268, 0.024], [0.022, 0.031], [0.013, 0.035], [0, 0.0365]]
+  // kurz (2,5 cm) und zum Arm hin gerundet wie ein Handgelenk; ohne den dunklen Klettriegel (las sich als Dosenband)
+  const cuffProfile = [[0.0272, -0.012], [0.029, -0.004], [0.0292, 0.004], [0.0282, 0.011], [0.025, 0.017], [0.019, 0.0215], [0.01, 0.0242], [0, 0.025]]
     .map(([r, z]) => new THREE.Vector2(r, z));
   const cuff = new THREE.LatheGeometry(cuffProfile, lod === 'low' ? 10 : 14);
   cuff.rotateX(Math.PI / 2);
   cuff.scale(1.06, 0.74, 1);
-  parts.push(tag(cuff, 0, CUFF));
-  const strap = bent(new RoundedBoxGeometry(0.04, 0.004, 0.016, 1, 0.0018), 9);
-  strap.translate(0.003, 0.0226, 0.008);
-  parts.push(tag(strap, 0, PAD));
+  parts.push(tag(cuff, 0, sideColor));
 
   // Finger
   let bone = 1;
