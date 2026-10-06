@@ -1881,6 +1881,7 @@ function wallBegin(vm, d, dt, eq, hit) {
   const tm = Math.tan(((main.fov || 70) * Math.PI) / 360) / (main.zoom || 1);
   W.ky = tm / tv; W.kx = (W.ky * (main.aspect || 1.78)) / (cam.aspect || 1.78);
   main.getWorldPosition(_wcp); main.getWorldQuaternion(_wcq); _wcqi.copy(_wcq).invert();
+  W.cp = _wcp; W.cq = _wcq; // Prüfstand: Kamera der Wandprüfung
   const body = G.player && G.player.body;
   if (body && body.velocity) _wvel.copy(body.velocity).applyQuaternion(_wcqi); else _wvel.set(0, 0, 0);
   W.lead = 3 * Math.min(dt, 0.05) + 0.04;
