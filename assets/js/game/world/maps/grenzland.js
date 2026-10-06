@@ -231,6 +231,10 @@ function gehoeft(b) {
   car(b, -152, 92, { ry: 0.4, color: '#3b3d40' });
   barrelGroup(b, -170, 104, { n: 3 }); palletStack(b, -128, 104, { n: 4 });
   sandbags(b, -146, 111, -140, 112, { rows: 3 }); sandbags(b, -156, 99, -152, 101, { rows: 3 });
+  // maps-expand: Rundballen und Quaderballen rund um die Flagge (Hock-/Brustdeckung), ausgebranntes Auto
+  for (const [x, z, r] of [[-131, 104, 0.3], [-129.4, 105.6, 1.2], [-158, 112, 0.9], [-156.4, 113.6, 0.2], [-140, 96, 1.5], [-166, 118, 0.6]]) hayRoll(b, x, z, r);
+  for (const [x, y, z, r] of [[-143, 0, 101, 0.1], [-143, 0, 102, 0.05], [-143, 0.6, 101.5, 0.15]]) hayBale(b, x, y, z, r);
+  car(b, -170, 111, { ry: 0.9, color: '#5a4a3a', style: 'wreck', model: false });
   return {};
 }
 
@@ -286,6 +290,9 @@ function kieswerk(b) {
   floodMast(b, 120, -112, { h: 10 }); floodMast(b, 184, -76, { h: 10 });
   sandbags(b, 146, -104, 152, -102, { rows: 4 }); sandbags(b, 156, -120, 160, -116, { rows: 4 });
   tires(b, 130, -110, { n: 4 }); crateStack(b, 160, -84, { ry: 0.3 });
+  // maps-expand: Schützenloch (Sandsack-U) + Wrack bei Flagge D
+  sandbags(b, 145, -124, 149, -126, { rows: 4 }); sandbags(b, 145, -124, 144, -120, { rows: 4 }); sandbags(b, 149, -126, 150, -122, { rows: 4 });
+  car(b, 140, -114, { ry: 0.8, color: '#4a4f52', style: 'wreck', model: false });
   return {};
 }
 
@@ -314,6 +321,8 @@ function funkhuegel(b, Y) {
   b.box(-126, Y, -141, 1.4, 1.8, 0.9, 'metal_painted', { tint: '#4b5a46', minimap: 'cover' });
   sandbags(b, -131, -132, -125, -129, { rows: 4, y: Y }); sandbags(b, -112, -148, -106, -146, { rows: 4, y: Y });
   sandbags(b, -133, -150, -131, -144, { rows: 4, y: Y });
+  // maps-expand: zweites Schützenloch (Sandsack-U) südöstlich der Flagge E
+  sandbags(b, -122, -152, -117, -153, { rows: 4, y: Y }); sandbags(b, -122, -152, -123, -148, { rows: 4, y: Y });
   crateStack(b, -110, -141, { ry: 0.4, y: Y });
   return {};
 }
@@ -411,9 +420,26 @@ export default {
       { pts: [[-190, 74], [-112, 70]], trees: 0.2 }, { pts: [[-112, 70], [-110, 144]], trees: 0.15 },
       { pts: [[16, 116], [74, 110]], trees: 0.3 }, { pts: [[-118, 26], [-40, 30]], trees: 0.25 },
       { pts: [[70, -5], [120, -35]], trees: 0.2 }, { pts: [[-60, 120], [-20, 150], [10, 160]], trees: 0.35 },
+      // maps-expand: Heckenreihen neben den neuen Lesesteinmauern (Sichtschutz, keine Kugeldeckung)
+      { pts: [[-10, 22], [25, 16]], trees: 0.1 }, { pts: [[72, -57.5], [100, -68]], trees: 0.15 },
+      { pts: [[-95, -98], [-70, -83]], trees: 0.1 }, { pts: [[10, 168], [45, 175]], trees: 0.2 },
     ],
     reeds: { offset: 8.6 },
-    rocks: { count: 85, extra: [[-104, -128, 2.2], [-136, -156, 1.8], [40, -60, 1.6], [-70, -40, 2.0]] },
+    rocks: {
+      count: 85, extra: [[-104, -128, 2.2], [-136, -156, 1.8], [40, -60, 1.6], [-70, -40, 2.0]],
+      // maps-expand: Lesesteinmauern entlang der Feldgrenzen in den offenen Abschnitten zwischen den Flaggen/HQs
+      walls: [
+        [[-10, 19], [25, 13]], [[30, 6], [62, 0]], [[-32, -4], [0, -12]],            // Dorf ↔ Brücke
+        [[-96, 92], [-70, 100]], [[-100, 55], [-74, 47]],                             // Dorf ↔ Gehöft
+        [[70, -55], [100, -66]], [[106, -40], [130, -58]],                            // Brücke ↔ Kieswerk
+        [[-95, -95], [-70, -80]], [[-60, -60], [-30, -70]],                           // Funkhügel ↔ Mühle/Brücke
+        [[10, 165], [45, 172]], [[52, 150], [80, 140]],                               // HQ A ↔ Dorf
+        [[-30, -160], [5, -150]], [[15, -122], [40, -106]],                           // HQ B ↔ Brücke/Funkhügel
+      ],
+      // Felsgruppen [x, z, Anzahl, Radius] mitten in großen Freiflächen
+      clusters: [[20, 40, 4, 4], [-38, 30, 4, 4], [78, 22, 4, 5], [96, -96, 4, 4], [-86, -66, 4, 4], [-128, 58, 3, 4],
+        [32, 146, 4, 5], [-6, -136, 4, 4], [120, -30, 3, 4], [-88, 124, 3, 4], [64, -118, 4, 4], [-40, -98, 4, 4]],
+    },
   },
   clearings: [[-62, 14, 18], [40, -30, 26]],
 

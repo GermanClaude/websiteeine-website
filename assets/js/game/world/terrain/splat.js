@@ -1,6 +1,6 @@
 // NULLPUNKT — Gelände-Material: Splat aus 5 Schichten (Gras, Erde, Kies, Fels, Acker/Schlamm) über eine
 // RGBA-Kontrollkarte, Fotoscan-Sätze aus assets/lib (KTX2) mit prozeduralem Rückfall (engine/textures.js),
-// Gegen-Kachelung (zwei Maßstäbe + Makro-Rauschen), Nässe am Ufer, Detailnormalen ab medium (Owner: world).
+// Gegen-Kachelung (zwei Maßstäbe + Makro-Rauschen + UV-Verzerrung), Nässe am Ufer, Detailnormalen (low: nur nah) (Owner: world).
 import * as THREE from 'three';
 import { LIB_MATERIALS } from '../library.js';
 import { getDetailNormalTexture } from '../../engine/textures.js';
@@ -77,7 +77,8 @@ export async function createTerrainMaterial(o) {
     tRough: { value: TERRAIN_LAYERS.map(l => l.rough) },
     tCal: { value: cal },
     // env-look (medium+): feine Detailnormalen nah an der Kamera (geteilte Karte aus engine/textures.js)
-    tDetail: { value: low ? null : getDetailNormalTexture() },
+    // textures-2: auch low (nur Detailnormalen, 1 Abfrage bis 16 m; sonst flach beleuchteter Boden)
+    tDetail: { value: getDetailNormalTexture() },
   };
   TERRAIN_LAYERS.forEach((l, k) => { uniforms['tMap' + k] = { value: maps[k] }; });
   const nList = TERRAIN_LAYERS.filter(l => l.normal >= 0);
@@ -88,7 +89,7 @@ export async function createTerrainMaterial(o) {
   mat.name = 'terrain';
   mat.userData.surface = 'grass';
   mat.polygonOffset = true; mat.polygonOffsetFactor = 1; mat.polygonOffsetUnits = 2; // Straßen/Plätze liegen knapp darüber
-  mat.defines = { TERR_NORMALS: haveNormals ? 1 : 0, TERR_ANTITILE: low ? 0 : 1 };
+  mat.defines = { TERR_NORMALS: haveNormals ? 1 : 0, TERR_ANTITILE: low ? 0 : 1, TERR_DETAIL: 1 };
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, uniforms);
     sh.vertexShader = 'varying vec3 vTW;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
@@ -100,7 +101,7 @@ export async function createTerrainMaterial(o) {
       uniform sampler2D tNor0, tNor1, tNor2;
       #endif
       uniform vec2 tOrigin; uniform float tSize; uniform float tWaterY; uniform float tScale[5]; uniform float tRough[5]; uniform float tCal[5];
-      #if TERR_NORMALS
+      #if TERR_NORMALS || TERR_DETAIL
       uniform sampler2D tDetail;
       #endif
       vec3 gTerrN; float gTerrRough;
@@ -131,7 +132,9 @@ export async function createTerrainMaterial(o) {
         float wG = clamp(1.0 - c.r - c.g - c.b - c.a, 0.0, 1.0);
         // Übergänge schärfer + leicht verrauscht (wirkt nicht wie Überblendung)
         vec4 wv = vec4(c.r, c.g, c.b, c.a) * (0.85 + 0.3 * macro);
-        vec3 aG = tSample(tMap0, vTW.xz * tScale[0], anti) * tCal[0];
+        // textures-2: weiche UV-Verzerrung aus vorhandenem Rauschen (keine Zusatzabfrage) bricht das Kachelraster
+        vec2 tW = vec2(macro - 0.5, anti - 0.5) * 1.2;
+        vec3 aG = tSample(tMap0, vTW.xz * tScale[0] + tW, anti) * tCal[0];
         aG *= mix(vec3(1.06, 1.02, 0.86), vec3(0.86, 0.98, 0.9), macro); // grün ↔ gelblich
         // env-look: Grasbüschel/Horste (dunklere Flecken 0,5–2 m) und trockene Stellen – bricht die gleichmäßige Fläche
         // (nicht auf low: drei Rauschauswertungen je Pixel sind auf Telefonen spürbar – dort wie vor env-look)
@@ -139,10 +142,10 @@ export async function createTerrainMaterial(o) {
         float clump = tNoise(vTW.xz * 1.9) * 0.6 + tNoise(vTW.xz * 4.3 + 7.1) * 0.4;
         aG *= mix(0.78, 1.1, clump) * mix(vec3(1.0), vec3(1.12, 1.04, 0.8), smoothstep(0.62, 0.8, tNoise(vTW.xz / 6.5 + 11.0)));
         #endif
-        vec3 aD = tSample(tMap1, vTW.xz * tScale[1], anti) * tCal[1];
-        vec3 aK = tSample(tMap2, vTW.xz * tScale[2], anti) * tCal[2];
-        vec3 aF = tSample(tMap3, vTW.xz * tScale[3], anti) * vec3(0.62, 0.6, 0.56) * tCal[3]; // Fels/Geröll dunkler (kein Schnee-Eindruck)
-        vec3 aM = texture2D(tMap4, vTW.xz * tScale[4]).rgb * tCal[4];
+        vec3 aD = tSample(tMap1, vTW.xz * tScale[1] + tW, anti) * tCal[1];
+        vec3 aK = tSample(tMap2, vTW.xz * tScale[2] + tW, anti) * tCal[2];
+        vec3 aF = tSample(tMap3, vTW.xz * tScale[3] + tW, anti) * vec3(0.62, 0.6, 0.56) * tCal[3]; // Fels/Geröll dunkler (kein Schnee-Eindruck)
+        vec3 aM = texture2D(tMap4, vTW.xz * tScale[4] + tW).rgb * tCal[4];
         float sum = wG + wv.x + wv.y + wv.z + wv.w + 1e-4;
         vec3 alb = (aG * wG + aD * wv.x + aK * wv.y + aF * wv.z + aM * wv.w) / sum;
         gTerrRough = (tRough[0] * wG + tRough[1] * wv.x + tRough[2] * wv.y + tRough[3] * wv.z + tRough[4] * wv.w) / sum;
@@ -153,7 +156,7 @@ export async function createTerrainMaterial(o) {
         alb *= 0.9 + 0.2 * macro;
         diffuseColor.rgb *= alb;
         #if TERR_NORMALS
-        vec2 uG = vTW.xz * tScale[0], uD = vTW.xz * tScale[1], uF = vTW.xz * tScale[3];
+        vec2 uG = vTW.xz * tScale[0] + tW, uD = vTW.xz * tScale[1] + tW, uF = vTW.xz * tScale[3] + tW;
         vec3 nG = texture2D(tNor0, uG).xyz * 2.0 - 1.0, nD = texture2D(tNor1, uD).xyz * 2.0 - 1.0, nF = texture2D(tNor2, uF).xyz * 2.0 - 1.0;
         // env-look: Kies nutzt die Erd-Normalen (vorher Gras), feine Detailnormalen nah an der Kamera
         gTerrN = normalize(nG * wG + nD * (wv.x + wv.y + wv.w) + nF * wv.z + vec3(0.0, 0.0, 0.05));
@@ -165,13 +168,30 @@ export async function createTerrainMaterial(o) {
           vec3 dn = texture2D(tDetail, vTW.xz * 1.15).xyz * 2.0 - 1.0;
           gTerrN = normalize(gTerrN + vec3(dn.xy * 0.45 * dFade, 0.0));
         }
+        // textures-2: zweite, feinere Detailstufe direkt vor den Füßen (≈ 30 cm Periode, bis 9 m)
+        float dFade2 = 1.0 - smoothstep(2.0, 9.0, camD);
+        if (dFade2 > 0.01) {
+          vec3 dn2 = texture2D(tDetail, vTW.xz * 3.4 + 0.5).xyz * 2.0 - 1.0;
+          gTerrN = normalize(gTerrN + vec3(dn2.xy * 0.3 * dFade2, 0.0));
+        }
         #else
         gTerrN = vec3(0.0, 0.0, 1.0);
+        #if TERR_DETAIL
+        // textures-2 (low): nur die geteilte Detailkarte nah an der Kamera – Bodenrelief statt glatter Fläche
+        {
+          float camDl = length(vTW - cameraPosition);
+          float dFl = 1.0 - smoothstep(3.0, 16.0, camDl);
+          if (dFl > 0.01) {
+            vec3 dnl = texture2D(tDetail, vTW.xz * 1.15).xyz * 2.0 - 1.0;
+            gTerrN = normalize(vec3(dnl.xy * 0.5 * dFl, 1.0));
+          }
+        }
+        #endif
         #endif
       `)
       .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = gTerrRough;')
       .replace('#include <normal_fragment_maps>', `
-        #if TERR_NORMALS
+        #if TERR_NORMALS || TERR_DETAIL
         vec3 tT = normalize((viewMatrix * vec4(1.0, 0.0, 0.0, 0.0)).xyz);
         tT = normalize(tT - normal * dot(normal, tT));
         vec3 tB = cross(tT, normal);
@@ -179,7 +199,7 @@ export async function createTerrainMaterial(o) {
         #endif
       `);
   };
-  mat.customProgramCacheKey = () => `terrain-v2-${haveNormals ? 1 : 0}-${low ? 0 : 1}`;
+  mat.customProgramCacheKey = () => `terrain-v3-${haveNormals ? 1 : 0}-${low ? 0 : 1}`;
   return {
     material: mat, uniforms, libIds, source,
     dispose() { ctrl.dispose(); mat.dispose(); },

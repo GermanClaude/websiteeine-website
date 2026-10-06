@@ -276,6 +276,27 @@ export class Vegetation {
         made++;
       }
       for (const p of rk.extra || []) this.rocks.push({ x: p[0], y: hf.heightAt(p[0], p[1]) - 0.3, z: p[1], s: p[2] ?? 1.5, ry: r() * 6.28, v: 0 });
+      // maps-expand: Deckung im offenen Gelände – Lesesteinmauern (flache, gestreckte Felsen entlang Linien, ≈ 0,6–0,95 m
+      // hoch = Hockdeckung) und Felsgruppen; nur auf trockenem, flachem, freiem Boden (nicht in Orten/Straßen/Flaggen)
+      const okRock = (x, z) => hf.contains(x, z) && !this.blocked(x, z) && hf.heightAt(x, z) > hf.waterY + 0.3 && hf.normalAt(x, z, n3).y > 0.85;
+      for (const w of rk.walls || []) {
+        for (let k = 0; k < w.length - 1; k++) {
+          const [ax, az] = w[k], [bx, bz] = w[k + 1], L = Math.hypot(bx - ax, bz - az), yaw = Math.atan2(-(bz - az), bx - ax);
+          for (let d = 0.9; d < L; d += 1.9) {
+            const t = d / L, x = ax + (bx - ax) * t + (r() - 0.5) * 0.3, z = az + (bz - az) * t + (r() - 0.5) * 0.3;
+            const sx = 0.95 + r() * 0.25, sy = 1.45 + r() * 0.35, sz = 0.5 + r() * 0.12, ry = yaw + (r() - 0.5) * 0.25, v = (k + Math.round(d)) % 3;
+            if (!okRock(x, z)) continue;
+            this.rocks.push({ x, y: hf.heightAt(x, z) - 0.2, z, s: 1, sx, sy, sz, ry, v });
+          }
+        }
+      }
+      for (const [cx, cz, n, rad] of rk.clusters || []) {
+        for (let k = 0; k < n; k++) {
+          const a = r() * 6.28, d = r() * rad, x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d, s = 0.85 + r() * 0.8, ry = r() * 6.28;
+          if (!okRock(x, z)) continue;
+          this.rocks.push({ x, y: hf.heightAt(x, z) - 0.25, z, s, ry, v: k % 3 });
+        }
+      }
     }
     // Matrizen vorberechnen
     for (const [kind, sp] of Object.entries(this.species)) {
@@ -323,7 +344,7 @@ export class Vegetation {
     for (const rk of this.rocks) {
       const g = this._rockGeoms ? this._rockGeoms[rk.v] : (this._rockGeoms = [rockGeometry(11), rockGeometry(23), rockGeometry(37)])[rk.v];
       const p = g.index ? g.toNonIndexed().attributes.position : g.attributes.position;
-      _q.setFromAxisAngle(_up, rk.ry); _s.setScalar(rk.s); _p.set(rk.x, rk.y, rk.z); _m.compose(_p, _q, _s);
+      _q.setFromAxisAngle(_up, rk.ry); _s.set(rk.sx ?? rk.s, rk.sy ?? rk.s, rk.sz ?? rk.s); _p.set(rk.x, rk.y, rk.z); _m.compose(_p, _q, _s);
       const v = new THREE.Vector3();
       for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(_m); out.push(v.x, v.y, v.z); }
     }
@@ -380,7 +401,7 @@ export class Vegetation {
         if (!list.length) continue;
         const m = new THREE.InstancedMesh(this._rockGeoms[v], rockMat, list.length);
         list.forEach((rk, i) => {
-          _q.setFromAxisAngle(_up, rk.ry); _s.setScalar(rk.s); _p.set(rk.x, rk.y, rk.z); _m.compose(_p, _q, _s); m.setMatrixAt(i, _m);
+          _q.setFromAxisAngle(_up, rk.ry); _s.set(rk.sx ?? rk.s, rk.sy ?? rk.s, rk.sz ?? rk.s); _p.set(rk.x, rk.y, rk.z); _m.compose(_p, _q, _s); m.setMatrixAt(i, _m);
           m.setColorAt(i, _c.set('#a39a8c').multiplyScalar(0.8 + hash2(i, v) * 0.3));
         });
         m.name = 'veg-felsen'; m.castShadow = q !== 'low'; m.receiveShadow = true;

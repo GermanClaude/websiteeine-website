@@ -32,17 +32,17 @@ export const QUALITY_PRESETS = Object.freeze({
   low: Object.freeze({
     id: 'low', pixelRatio: 1.5, shadows: true, shadowMapSize: 1024, shadowExtent: 24, shadowInterval: 4,
     bloom: false, smaa: false, fxaa: false,
-    ssao: false, grade: false, post: false, maxBotsVisibleShadows: 0, particleScale: 0.45, decals: 40, anisotropy: 2,
+    ssao: false, grade: false, post: false, maxBotsVisibleShadows: 0, particleScale: 0.45, decals: 40, anisotropy: 4,
   }),
   medium: Object.freeze({
     id: 'medium', pixelRatio: 1.25, shadows: true, shadowMapSize: 2048, shadowExtent: null, shadowInterval: 1,
     bloom: true, smaa: false, fxaa: true,
-    ssao: false, grade: true, post: true, maxBotsVisibleShadows: 4, particleScale: 0.7, decals: 80, anisotropy: 4,
+    ssao: false, grade: true, post: true, maxBotsVisibleShadows: 4, particleScale: 0.7, decals: 80, anisotropy: 8,
   }),
   high: Object.freeze({
     id: 'high', pixelRatio: 1.5, shadows: true, shadowMapSize: 2048, shadowExtent: null, shadowInterval: 1,
     bloom: true, smaa: true, fxaa: false,
-    ssao: false, grade: true, post: true, maxBotsVisibleShadows: 8, particleScale: 1, decals: 120, anisotropy: 8,
+    ssao: false, grade: true, post: true, maxBotsVisibleShadows: 8, particleScale: 1, decals: 120, anisotropy: 16,
   }),
   ultra: Object.freeze({
     id: 'ultra', pixelRatio: 2, shadows: true, shadowMapSize: 4096, shadowExtent: null, shadowInterval: 1,
@@ -66,7 +66,8 @@ export function isLowEndDevice() {
 }
 
 /**
- * 'auto' | Stufe → konkrete Stufe. auto: Telefone/Tablets low (Spitzengeräte mit ≥ 8 GB/8 Kernen medium),
+ * 'auto' | Stufe → konkrete Stufe. auto: Telefone/Tablets low (Spitzengeräte mit ≥ 8 GB/8 Kernen und große Tablets
+ * mit ≥ 8 Kernen medium),
  * schwache Desktops medium, sonst high. Die dynamische Auflösung in main.js regelt danach nach unten.
  */
 export function resolveQuality(q) {
@@ -76,7 +77,15 @@ export function resolveQuality(q) {
   const cores = typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency : 0;
   const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   const fine = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
-  if (coarse || (navigator.maxTouchPoints > 0 && !fine)) return mem >= 8 && cores >= 8 ? 'medium' : 'low';
+  if (coarse || (navigator.maxTouchPoints > 0 && !fine)) {
+    if (mem >= 8 && cores >= 8) return 'medium';
+    // textures-2: Tablets mit großer, dichter Anzeige (kurze Seite ≥ 700 CSS-px, DPR ≥ 2) und ≥ 8 Kernen – auch
+    // iPadOS (kein deviceMemory) bzw. 6-GB-Android (meldet 4) – starten auf medium; die Stufenrückstufung nach dem
+    // Match (main.js applyAutoTier) fängt Fehlgriffe auf. Telefone bleiben low.
+    const short = Math.min(window.screen?.width || 0, window.screen?.height || 0);
+    if (short >= 700 && (window.devicePixelRatio || 1) >= 2 && cores >= 8 && (mem === 0 || mem >= 4)) return 'medium';
+    return 'low';
+  }
   if ((mem && mem <= 4) || (cores && cores <= 2)) return 'medium';
   return 'high';
 }

@@ -16,8 +16,9 @@ const QUAY_X = -44;
 export default {
   id: 'hafen',
   seed: 20251,
-  bounds: { minX: -46, maxX: 50, minZ: -52, maxZ: 52, minY: -3, maxY: 16 },
-  visualBounds: { minX: -140, maxX: 120, minZ: -200, maxZ: 130 },
+  // maps-expand: Osthof (x 50..74) – Spielfläche 96 × 104 → 120 × 104 m (+25 %)
+  bounds: { minX: -46, maxX: 74, minZ: -52, maxZ: 52, minY: -3, maxY: 16 },
+  visualBounds: { minX: -140, maxX: 140, minZ: -200, maxZ: 130 },
   chunkSize: 32,
   ambience: 'harbor',
   // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
@@ -56,9 +57,10 @@ export default {
     zones.push({ x0: QUAY_X, z0: -52, x1: -27, z1: 52, kind: 'dock' });
     zones.push({ x0: -140, z0: -200, x1: QUAY_X, z1: 130, kind: 'water' });
     // Kulissenboden
-    b.groundTiled(QUAY_X, -200, 120, -52, 'asphalt', { cell: 4, collide: false, groundAO: false });
-    b.groundTiled(QUAY_X, 52, 120, 130, 'asphalt', { cell: 4, collide: false, groundAO: false });
-    b.groundTiled(50, -52, 120, 52, 'asphalt', { cell: 4, collide: false, groundAO: false });
+    b.groundTiled(50, -52, 74, 52, 'asphalt', { cell: 2, tint: '#d9d4cb' });   // Osthof (maps-expand)
+    b.groundTiled(QUAY_X, -200, 140, -52, 'asphalt', { cell: 4, collide: false, groundAO: false });
+    b.groundTiled(QUAY_X, 52, 140, 130, 'asphalt', { cell: 4, collide: false, groundAO: false });
+    b.groundTiled(74, -52, 140, 52, 'asphalt', { cell: 4, collide: false, groundAO: false });
     // Kaimauer zum Wasser + Kante + Fender
     b.box(QUAY_X - 0.3, -3.5, -40, 0.6, 3.5, 320, 'concrete_dark', { collide: false, minimap: false, grad: false });
     b.box(QUAY_X + 0.25, 0, 0, 0.5, 0.22, 104, 'concrete', { tint: '#c9c4b8', minimap: false, grad: false });
@@ -81,7 +83,7 @@ export default {
     for (const z of [-41, -21, 19, 39]) for (const x of [-15.6, 4.8]) b.decal(x, 0.011, z, 5.6, 0.12, 'line', { ry: 0, tint: '#e8c22c', kind: 'paint', opacity: 0.6 });
     // Schmutz, Pfützen, Ölflecken
     for (let i = 0; i < 46; i++) {
-      const x = b.rnd(-42, 46), z = b.rnd(-50, 50);
+      const x = b.rnd(-42, 72), z = b.rnd(-50, 50);
       const k = b.rand();
       if (k < 0.35) b.decal(x, 0.012, z, b.rnd(1.2, 3), b.rnd(1.2, 3), 'oil', { opacity: 0.55 });
       else if (k < 0.55) b.decal(x, 0.013, z, b.rnd(2, 5), b.rnd(1.5, 3.5), 'puddle', { opacity: 0.9 });
@@ -202,15 +204,25 @@ export default {
     truck(b, 46.6, 30, { ry: 0, trailer: 'container', color: '#c8402f', containerColor: '#3e7a4c' });
     car(b, 45.6, 3.5, { ry: 0.05, color: '#b98b3a' });
     jersey(b, 45.8, -6, { len: 3, ry: Math.PI / 2, stripes: true });
-    fence(b, 50.4, -52, 50.4, 52, { h: 2.6, style: 'chain', barbed: true });
     for (const z of [-40, -14, 14, 40]) lampPost(b, 49.6, z, { h: 7, arm: 1.5, ry: Math.PI, kind: 'sodium' });
+    // Osthof: Leercontainerdepot mit Schuppen 4 und Kranfundamenten (maps-expand)
+    eastYard(b);
+    // Zusatzdeckung an dünnen Stellen (Straße hinter der Halle, Hallenvorfeld, Kaikante) – maps-expand
+    crateStack(b, 47.6, 14.2, { ry: 0.3 });
+    crateStack(b, 47.9, -13.0, { ry: -0.15, pattern: [[0, 0, 0, 1.2], [1.25, 0, 0.05, 1.1], [0.55, 1, 0.02, 1.0]] });
+    cableReel(b, 44.4, 22.6, { ry: 0.5 });
+    sandbags(b, 44.2, -40.6, 46.8, -40.2, { rows: 5 });
+    jersey(b, 10.4, 27.0, { len: 3, ry: Math.PI / 2 + 0.06, stripes: true });
+    jersey(b, 10.6, -27.4, { len: 3, ry: Math.PI / 2 - 0.08, stripes: true });
+    crateStack(b, -39.6, 2.6, { ry: 0.5, pattern: [[0, 0, 0, 1.1], [1.15, 0, 0.05, 1.0]] });
+    barrelGroup(b, -33.4, -2.8, { n: 3, colors: ['#3e7a4c', '#3e7a4c', '#c8402f'] });
 
     // -----------------------------------------------------------------------
     // Süd (Team A): Torbereich
     // -----------------------------------------------------------------------
     gatehouse(b, 26, 45.5);
     fence(b, QUAY_X + 1, 52.4, 20.5, 52.4, { h: 2.6, style: 'chain', barbed: true });
-    fence(b, 31.5, 52.4, 50.4, 52.4, { h: 2.6, style: 'chain', barbed: true });
+    fence(b, 31.5, 52.4, 74.4, 52.4, { h: 2.6, style: 'chain', barbed: true });
     b.collider(26, 0, 52.6, 11, 6, 0.4, {});
     for (const x of [21.5, 30.5]) { b.box(x, 0, 52.2, 0.5, 1.1, 0.5, 'concrete', { tint: '#e8e2d4', minimap: 'cover' }); }
     barrier(b, 26, 49.4);
@@ -232,7 +244,7 @@ export default {
     // Nordgrenze: Containerwand (3 hoch) + Kulisse
     for (let x = -42; x <= 15; x += 12.4) stackAt(b, x + 6, -54.6, 12.19, 'x', [b.pick(['#8d9399', '#2d5f94', '#c8402f']), b.pick(['#3e7a4c', '#d9762a', '#e3e1da']), b.pick(['#2d5f94', '#9a3328'])]);
     fence(b, QUAY_X + 1, -52.6, -42, -52.6, { h: 2.6 });
-    fence(b, 19.5, -52.6, 50.4, -52.6, { h: 2.6, style: 'chain', barbed: true });
+    fence(b, 19.5, -52.6, 74.4, -52.6, { h: 2.6, style: 'chain', barbed: true });
 
     // -----------------------------------------------------------------------
     // Kulisse außerhalb (ohne Kollision)
@@ -246,9 +258,9 @@ export default {
     // Startpunkte & Flaggen
     // -----------------------------------------------------------------------
     const spawns = { A: [], B: [], ffa: [] };
-    const sA = [[-38, 47], [-31, 43], [-19, 47.5], [-9, 48], [0, 47], [10.5, 47.5], [16, 43], [34, 49.5], [-21, 41.5], [1.5, 41.5]];
+    const sA = [[-38, 47], [-31, 43], [-19, 47.5], [-9, 48], [0, 47], [10.5, 47.5], [16, 43], [34, 49.5], [-21, 41.5], [1.5, 41.5], [55.5, 48.5], [64, 49.5], [72.5, 49.5]];
     for (const [x, z] of sA) { spawns.A.push({ x, z, yaw: 0 }); spawns.B.push({ x, z: -z, yaw: Math.PI }); }
-    for (const [x, z] of [[-40, 20], [-38, -8], [-34, -40], [-20, -26], [-20, 26], [-10, 18], [-11, -18], [0, -1], [9, -30], [9, 30], [20, -10], [38.5, 8], [24, 14], [38, -14], [30, -40], [-26, -48]]) spawns.ffa.push({ x, z });
+    for (const [x, z] of [[-40, 20], [-38, -8], [-34, -40], [-20, -26], [-20, 26], [-10, 18], [-11, -18], [0, -1], [9, -30], [9, 30], [20, -10], [38.5, 8], [24, 14], [38, -14], [30, -40], [-26, -48], [61, -15], [61, 15], [71.5, 0], [52.5, -32], [52.5, 32], [64.5, -44], [64.5, 44]]) spawns.ffa.push({ x, z });
     return {
       spawns,
       objectives: { dom: [{ id: 'A', x: -5, z: 30.6, radius: 5 }, { id: 'B', x: -14.2, z: -0.8, radius: 6 }, { id: 'C', x: -13.6, z: -30.6, radius: 5 }] },
@@ -635,6 +647,99 @@ function warehouse(b) {
   electricBox(b, x0 - 0.35, 0, -14, { ry: -Math.PI / 2, w: 1.0, h: 1.6, d: 0.5 });
 }
 
+// ---------------------------------------------------------------------------
+// maps-expand: Osthof (x 50..74) – Leercontainerdepot, Schuppen 4, Kranfundamente, viel Deckung.
+// Nord/Süd nahezu spiegelgleich; drei Längsgassen (x ≈ 52, 63, 72) mit Querwegen alle 8–12 m.
+// ---------------------------------------------------------------------------
+function eastYard(b) {
+  // Grenzzaun (ersetzt den alten Zaun bei x 50,4) + Laternen an der Ostkante
+  fence(b, 74.4, -52.6, 74.4, 52.4, { h: 2.6, style: 'chain', barbed: true });
+  for (const z of [-44, -20, 20, 44]) lampPost(b, 73.7, z, { h: 7, arm: 1.5, ry: Math.PI, kind: 'sodium', glow: true });
+  // Fahrspur-Markierungen
+  for (let z = -46; z <= 46; z += 4) b.decal(57.6, 0.01, z, 0.15, 2.2, 'line', { ry: 0, tint: '#e8c22c', kind: 'paint', opacity: 0.7 });
+  for (const z of [-41, -21, 21, 41]) b.decal(69.4, 0.011, z, 5.6, 0.12, 'line', { ry: 0, tint: '#e8c22c', kind: 'paint', opacity: 0.55 });
+  schuppen4(b);
+  for (const s of [1, -1]) {
+    const Z = z => z * s, south = s > 0;
+    // Containerreihen (Ostkante x ≈ 69,5: hoch – bricht die Sicht entlang des Zauns; Westreihe x ≈ 60: 1–2 hoch)
+    stackAt(b, 69.5, Z(14.5), 6.06, 'z', south ? ['#2d5f94', '#c8402f'] : ['#3e7a4c', '#8d9399']);
+    stackAt(b, 69.5, Z(30), 12.19, 'z', south ? ['#d9762a'] : ['#c9a227']);
+    stackAt(b, 60.2, Z(22), 6.06, 'z', south ? ['#8d9399', '#3e7a4c'] : ['#c8402f', '#2d5f94']);
+    stackAt(b, 62.6, Z(39.5), 6.06, 'x', south ? ['#9a3328'] : ['#1f6f6a']);
+    container(b, 68.8, 0, Z(44.0), { len: 6.06, ry: Math.PI / 2 + 0.12 * s, color: south ? '#e3e1da' : '#6b3f7a' });
+    // Kranfundament (Brusthöhe) mit Turmstumpf (über Kopfhöhe) – bricht die Längssicht in der Hofmitte
+    craneBase(b, 64.5, Z(29.5), s);
+    // Deckung: Leitwände, Kisten, Paletten, Reifen, Kabeltrommeln, Sandsäcke, Müllcontainer
+    jersey(b, 53.0, Z(11.5), { len: 3, ry: 0.1 * s, stripes: true });
+    jersey(b, 66.0, Z(10.5), { len: 3, ry: -0.12 * s });
+    crateStack(b, 55.0, Z(18.5), { ry: 0.35 * s });
+    crateStack(b, 52.6, Z(27.5), { ry: 0.15 * s, pattern: [[0, 0, 0, 1.2], [1.25, 0, 0.05, 1.1], [0.55, 1, 0.02, 1.0]] });
+    sandbags(b, 57.0, Z(33.6), 59.6, Z(34.4), { rows: 5 });
+    b.box(66.6, 0, Z(20.4), 2.2, 1.05, 1.0, 'concrete', { tint: '#b9b4a8', minimap: 'cover', ry: 0.1 * s }); // Ballastblock
+    cableReel(b, 72.2, Z(22.6), { ry: 0.4 * s });
+    dumpster(b, 72.3, Z(38.2), { ry: Math.PI / 2, color: south ? '#2f5e3e' : '#2d4a6e' });
+    crateStack(b, 54.4, Z(41.0), { ry: -0.25 * s, pattern: [[0, 0, 0, 1.2], [1.25, 0, 0.1, 1.1], [0.6, 1, 0.05, 1.0]] });
+    barrelGroup(b, 66.8, Z(46.6), { n: 3, colors: ['#2d5f94', '#c8402f', '#2d5f94'] });
+    jersey(b, 58.5, Z(47.5), { len: 3, ry: 0.2 * s, stripes: true });
+    gasBottles(b, 72.6, Z(8.6), { n: 4 });
+    car(b, 52.4, Z(36.0), { ry: 0.06 * s, color: south ? '#6b7a52' : '#3b3d40' });
+    floodMast(b, 61.0, Z(46.0), { h: 12, ry: south ? Math.PI : 0, kind: 'sodium', glow: true });
+    // Schmutz/Ölflecken im Osthof
+    for (let i = 0; i < 6; i++) b.decal(b.rnd(51, 73), 0.012, Z(b.rnd(4, 50)), b.rnd(1.4, 3.2), b.rnd(1.4, 3.2), b.pick(['oil', 'puddle', 'stain', 'tire']), { opacity: 0.6 });
+  }
+  b.decal(63, 0.012, 21.5, 1.1, 1.1, 'manhole', { opacity: 1 });
+}
+
+/** Schuppen 4 (12 × 14 m, begehbar): Tor nach Westen, Türen Nord/Süd/Ost; innen Regale und Paletten. */
+function schuppen4(b) {
+  const x = 63, z = 0, w = 12, d = 14, H5 = 5.2;
+  building(b, {
+    x, z, w, d, floors: 1, fh: H5, mat: 'metal_corrugated', tint: '#a8b0a4', floorMat: 'epoxy', frameMat: 'metal_painted', frameTint: '#2a2e33',
+    plinth: { h: 1.0, mat: 'concrete', tint: '#c9c4b8', over: 0.04 },
+    roof: { mat: 'metal_corrugated', tint: '#7d878c', edge: true },
+    openings: [
+      { side: 'w', at: 0, w: 4.2, h: 4.2, kind: 'gap' },
+      { side: 'e', at: -1.0, w: 1.4, h: 2.3, kind: 'door' },
+      { side: 'e', at: -4.6, w: 1.6, h: 1.0, sill: 1.5, kind: 'window' },
+      { side: 'n', at: -2.5, w: 1.6, h: 2.3, kind: 'door' },
+      { side: 's', at: 2.5, w: 1.6, h: 2.3, kind: 'door' },
+      { side: 'n', at: 3.0, w: 2.0, h: 1.0, sill: 1.6, kind: 'window' },
+      { side: 's', at: -3.0, w: 2.0, h: 1.0, sill: 1.6, kind: 'window' },
+    ],
+  });
+  b.sign(x - w / 2 - 0.02, 4.4, -4.3, 2.6, 0.9, 'dock3', { ry: -Math.PI / 2, depth: 0.02 });
+  // Innen: Regalreihe (Deckung + Sichtschutz), Paletten, Gabelstapler
+  rack(b, 61.0, -3.8, { ry: 0, bays: 2, levels: 2 });
+  crateStack(b, 65.4, 3.9, { ry: 0.1, pattern: [[0, 0, 0, 1.2], [1.25, 0, 0, 1.2], [-1.25, 0, 0.05, 1.1], [0.6, 1, 0, 1.1]] });
+  crateStack(b, 59.0, 4.4, { ry: 0.1 });
+  crateStack(b, 67.4, -4.2, { ry: -0.2, pattern: [[0, 0, 0, 1.1], [0, 0, 1.15, 1.0]] });
+  forklift(b, 60.4, 0.4, { ry: Math.PI / 2 + 0.2, color: '#e0a02a' });
+  for (const lz of [-3.5, 3.5]) {
+    b.box(63, H5 - 0.42, lz, 3.2, 0.06, 0.4, 'lamp_cool', { collide: false, minimap: false, ao: false, cast: false });
+    b.light('point', 63, H5 - 0.9, lz, { color: '#e6f0ff', intensity: 16, distance: 13 });
+  }
+  b.noNav(x - w / 2 - 0.5, z - d / 2 - 0.5, x + w / 2 + 0.5, z + d / 2 + 0.5, H5 - 0.4, 20);
+  // Außen: Rampe/Leitwand vor dem Tor, Technik an der Ostwand
+  jersey(b, 54.6, -1.5, { len: 3, ry: Math.PI / 2 + 0.08 });
+  electricBox(b, 69.35, 0, 1.2, { ry: Math.PI / 2, w: 1.0, h: 1.6, d: 0.5 });
+  acUnit(b, 69.3, 2.4, 4.2, { ry: Math.PI / 2, pipe: 2.0 });
+}
+
+/** Kranfundament: Betonsockel (1,25 m, Brusthöhe) + Stahlturmstumpf mit Leiter; s = Seite (±1). */
+function craneBase(b, x, z, s) {
+  b.box(x, 0, z, 4.4, 1.25, 4.4, 'concrete', { tint: '#b9b4a8', minimap: 'cover' });
+  b.box(x, 1.25, z, 4.5, 0.08, 4.5, 'hazard', { collide: false, minimap: false, grad: false });
+  // Turmstumpf (2,2 × 2,2 m, bis 6,5 m) – gelb lackiert, mit Drehkranz
+  b.box(x, 1.25, z, 2.2, 5.25, 2.2, 'metal_painted', { tint: '#d9a72a', minimap: 'pillar' });
+  b.cyl(x, 6.5, z, 1.5, 0.35, 'metal_painted', { tint: '#4b5560', seg: 14, collide: false, minimap: false });
+  for (let k = 0; k < 6; k++) b.box(x + 1.13, 1.6 + k * 0.8, z, 0.05, 0.05, 0.5, 'metal_galvanized', { collide: false, minimap: false, grad: false, ao: false });
+  // Ankerbolzen + abgelegte Auslegerspitze (Gitterträger, kniehoch) als Deckung daneben
+  for (const [dx, dz] of [[-2.0, -2.0], [2.0, -2.0], [-2.0, 2.0], [2.0, 2.0]]) b.cyl(x + dx, 1.25, z + dz, 0.08, 0.18, 'metal_galvanized', { seg: 6, collide: false, minimap: false });
+  const bx = x - 1.0, bz = z + 6.0 * s;
+  b.box(bx, 0, bz, 6.5, 0.9, 0.9, 'metal_painted', { tint: '#c99a2a', minimap: 'cover', ry: 0.04 * s });
+  for (let k = -3; k <= 3; k++) b.box(bx + k * 0.95, 0.9, bz, 0.06, 0.06, 0.95, 'metal_painted', { tint: '#8a6a1a', collide: false, minimap: false, grad: false, ry: 0.04 * s });
+}
+
 /** Kulisse: Containerfelder, Hallen, Kräne, Hügel (ohne Kollision). */
 function backdrop(b) {
   const colors = ['#8d9399', '#2d5f94', '#c8402f', '#3e7a4c', '#d9762a', '#e3e1da', '#9a3328', '#1f6f6a'];
@@ -642,18 +747,23 @@ function backdrop(b) {
   for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) {
     const x = -38 + c * 13.4 + (r % 2) * 3, z = -64 - r * 9;
     const n = 2 + ((r * 7 + c * 3) % 3);
-    for (let k = 0; k < n; k++) container(b, x, k * H, z, { len: 12.19, ry: 0, color: colors[(r * 5 + c * 3 + k) % colors.length], minimap: false });
+    // maps-expand: auf „niedrig“ (Handy) nur Quader je Lage statt Detail-Container (Kulisse, ≈ 250 → 12 Dreiecke)
+    for (let k = 0; k < n; k++) {
+      const color = colors[(r * 5 + c * 3 + k) % colors.length];
+      if (b.lookQuality === 'low') b.box(x, k * H, z, 12.19, H - 0.02, 2.44, 'container', { tint: color, uv: 'local', collide: false, minimap: false, grad: false });
+      else container(b, x, k * H, z, { len: 12.19, ry: 0, color, minimap: false });
+    }
     b.box(x, 0, z, 12.2, n * H, 2.44, 'black', { visual: false, collide: false, minimap: false });
   }
   // Osthallen
-  for (const [x, z, w, d, h] of [[78, -30, 30, 40, 12], [78, 25, 30, 34, 10], [60, 80, 40, 24, 9], [10, 95, 50, 26, 11], [-25, 92, 26, 22, 8]]) {
+  for (const [x, z, w, d, h] of [[100, -30, 30, 40, 12], [100, 25, 30, 34, 10], [60, 80, 40, 24, 9], [10, 95, 50, 26, 11], [-25, 92, 26, 22, 8]]) {
     b.box(x, 0, z, w, h, d, 'metal_corrugated', { tint: b.pick(['#a9b3b8', '#c4c0b4', '#8f9ba3']), collide: false, minimap: false, grad: false, uv: 'world' });
     b.box(x, h, z, w + 0.6, 0.4, d + 0.6, 'metal_painted', { tint: '#4b5560', collide: false, minimap: false, grad: false });
   }
   // Südliche Straße mit Laternen
-  for (let x = -40; x <= 60; x += 16) lampPost(b, x, 58, { h: 8, arm: 1.6, ry: Math.PI / 2, kind: 'sodium' });
+  for (let x = -40; x <= 76; x += 16) lampPost(b, x, 58, { h: 8, arm: 1.6, ry: Math.PI / 2, kind: 'sodium' });
   // Silos
-  for (const [x, z] of [[95, -80], [104, -80], [95, -71]]) b.cyl(x, 0, z, 4, 24, 'concrete', { seg: 18, collide: false, minimap: false, tint: '#cfc8bb' });
+  for (const [x, z] of [[105, -80], [114, -80], [105, -71]]) b.cyl(x, 0, z, 4, 24, 'concrete', { seg: 18, collide: false, minimap: false, tint: '#cfc8bb' });
 }
 
 /** Frachtschiff am Nordkai (Kulisse). */

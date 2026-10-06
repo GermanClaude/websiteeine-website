@@ -92,6 +92,27 @@ export class AssetLibrary {
 
   setQuality(q) { this.quality = q; return this; }
 
+  /**
+   * textures-2: Anisotropie für neue und bereits geladene Texturensätze (Welt/Gelände je Stufe, engine/textures.js
+   * textureAnisotropy). Bereits hochgeladene Texturen werden neu hochgeladen (nur beim Stufenwechsel).
+   */
+  setAnisotropy(n) {
+    n = Math.max(1, n | 0);
+    if (this.anisotropy === n) return this;
+    this.anisotropy = n;
+    for (const p of this._sets.values()) {
+      p.then((s) => {
+        for (const k of ['map', 'normalMap', 'ormMap']) {
+          const t = s?.[k];
+          if (!t || t.anisotropy === n) continue;
+          t.anisotropy = n;
+          if (t.version > 0) t.needsUpdate = true;
+        }
+      }, () => { /* fehlgeschlagen */ });
+    }
+    return this;
+  }
+
   /** Manifest laden (einmalig). */
   async ready() {
     if (this._manifest) return this._manifest;

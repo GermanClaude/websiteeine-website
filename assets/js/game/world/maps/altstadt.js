@@ -19,7 +19,8 @@ const STONE = '#e3d6bd';
 export default {
   id: 'altstadt',
   seed: 7311,
-  bounds: { minX: -46, maxX: 46, minZ: -52, maxZ: 52, minY: -2, maxY: 22 },
+  // maps-expand: Ostviertel (x 46..69) – Spielfläche 92 × 104 → 115 × 104 m (+25 %)
+  bounds: { minX: -46, maxX: 69, minZ: -52, maxZ: 52, minY: -2, maxY: 22 },
   visualBounds: { minX: -180, maxX: 180, minZ: -190, maxZ: 190 },
   chunkSize: 32,
   ambience: 'desert',
@@ -61,25 +62,32 @@ export default {
     b.groundTiled(-46, PZ, 46, 52, 'cobble', cob);
     b.groundTiled(-46, -PZ, PX0, PZ, 'cobble', cob);
     b.groundTiled(PX1, -PZ, 46, PZ, 'cobble', cob);
+    // Ostviertel (maps-expand): Gasse + Höfe Kopfstein, Ölbaumplatz Steinplatten
+    b.groundTiled(46, -52, 50.5, 52, 'cobble', { cell: 1, tint: '#e6d2ae' });
+    b.groundTiled(50.5, -52, 69, -8, 'cobble', { cell: 1, tint: '#e6d2ae' });
+    b.groundTiled(50.5, 8, 69, 52, 'cobble', { cell: 1, tint: '#e6d2ae' });
+    b.groundTiled(50.5, -8, 69, 8, 'paving', { cell: 1, tint: '#efdfc2' });
     // Kulissenboden
     b.groundTiled(-180, -190, 180, -52, 'sand', { cell: 6, collide: false, groundAO: false, chunk: 900 });
     b.groundTiled(-180, 52, 180, 190, 'sand', { cell: 6, collide: false, groundAO: false, chunk: 901 });
     b.groundTiled(-180, -52, -46, 52, 'sand', { cell: 6, collide: false, groundAO: false, chunk: 902 });
-    b.groundTiled(46, -52, 180, 52, 'sand', { cell: 6, collide: false, groundAO: false, chunk: 903 });
+    b.groundTiled(69, -52, 180, 52, 'sand', { cell: 6, collide: false, groundAO: false, chunk: 903 });
     zones.push(
       { x0: PX0, z0: -PZ, x1: PX1, z1: PZ, kind: 'plaza' },
       { x0: -38, z0: -51, x1: -27, z1: 51, kind: 'road' },
       { x0: -6, z0: -51, x1: 6, z1: 51, kind: 'road' },
       { x0: 31, z0: -51, x1: 35, z1: 51, kind: 'road' },
-      { x0: -44, z0: 42, x1: 44, z1: 51, kind: 'sand' },
-      { x0: -44, z0: -51, x1: 44, z1: -42, kind: 'sand' },
+      { x0: -44, z0: 42, x1: 67, z1: 51, kind: 'sand' },
+      { x0: -44, z0: -51, x1: 67, z1: -42, kind: 'sand' },
+      { x0: 46, z0: -42, x1: 51.5, z1: 42, kind: 'road' },
+      { x0: 50, z0: -8, x1: 68, z1: 8, kind: 'plaza' },
     );
 
     // Unsichtbare Kartengrenze (hoch genug gegen Dachsprünge)
     b.collider(-46.4, -2, 0, 0.8, 34, 106);
-    b.collider(46.4, -2, 0, 0.8, 34, 106);
-    b.collider(0, -2, -52.4, 94, 34, 0.8);
-    b.collider(0, -2, 52.4, 94, 34, 0.8);
+    b.collider(69.4, -2, 0, 0.8, 34, 106);
+    b.collider(11.5, -2, -52.4, 117, 34, 0.8);
+    b.collider(11.5, -2, 52.4, 117, 34, 0.8);
 
     // -----------------------------------------------------------------------
     // Mitte: Brunnenplatz, Kirche Sant Aurel, Torhaus, Werkstatt
@@ -90,6 +98,7 @@ export default {
     loggia(b, 15, 8, 20, 13);
     torhaus(b);
     workshop(b);
+    eastSquare(b);   // maps-expand: Ölbaumplatz im Ostviertel
 
     // -----------------------------------------------------------------------
     // Beide Hälften (Süd = Team A, Nord = Team B)
@@ -106,11 +115,12 @@ export default {
     // Startpunkte & Flaggen
     // -----------------------------------------------------------------------
     const spawns = { A: [], B: [], ffa: [] };
-    const sA = [[-41, 47], [-33, 48.5], [-23.5, 47], [-14, 48.5], [-4, 47.5], [4.5, 48.5], [13.5, 47], [22.5, 48.5], [31.5, 47.5], [40.5, 48.5], [-30, 44.5], [26, 44.5]];
+    const sA = [[-41, 47], [-33, 48.5], [-23.5, 47], [-14, 48.5], [-4, 47.5], [4.5, 48.5], [13.5, 47], [22.5, 48.5], [31.5, 47.5], [40.5, 48.5], [-30, 44.5], [26, 44.5], [49.5, 47.5], [57, 49], [62.5, 48.8], [67.2, 47.5]];
     for (const [x, z] of sA) { spawns.A.push({ x, z, yaw: 0 }); spawns.B.push({ x, z: -z, yaw: Math.PI }); }
     for (const [x, z] of [
       [-33, 30], [-31.5, -16], [-21, 26.5], [-21.5, -36.5], [-10, -6], [10.5, 7], [-1, 21], [3, -31], [17, 18], [17, -20],
       [25, 24.5], [26.5, -36], [33, 12], [33, -27], [40, 5], [-12.6, 17.6], [-34, -38], [33.5, 38],
+      [48.5, 20], [48.5, -20], [62, 4.8], [65.5, 28], [65.5, -28], [55, 23], [55, -23],
     ]) spawns.ffa.push({ x, z });
     return {
       spawns,
@@ -806,6 +816,8 @@ function workshop(b) {
       { side: 'w', at: -4.5, w: 1.3, h: 2.4, kind: 'door' },
       { side: 'w', at: 4.5, w: 1.3, h: 2.4, kind: 'door' },
       { side: 'w', at: 0, w: 3.2, h: 1.2, kind: 'window', sill: 1.1, bars: true },
+      { side: 'e', at: 3.0, w: 1.4, h: 2.4, kind: 'door' },   // maps-expand: Durchgang zum Ölbaumplatz
+      { side: 'e', at: -4.0, w: 1.6, h: 1.1, kind: 'window', sill: 1.1, bars: true },
     ],
   });
   // Einrichtung: Werkbänke, Mopeds, Reifen
@@ -1122,6 +1134,8 @@ function half(b, M) {
       { side: 'w', at: 2.6, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1, shutters: true },
       { side: 'n', at: -1.5, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1 },
       { side: 'n', at: 3.0, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1, shutters: true },
+      { side: 'e', at: -1.0, w: 1.2, h: 2.3, kind: 'door' },   // maps-expand: Durchgang zur Ostgasse
+      { side: 'e', at: 3.0, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1, shutters: true },
     ],
     stairsIn: { x: 44.4, z: 20.1, dir: 'w', w: 1.1, open: 'right' },
     gaps: [{ side: 's', a: 35.6, b: 45.4 }, { side: 'n', a: 40.0, b: 41.6 }],
@@ -1170,6 +1184,7 @@ function half(b, M) {
   // ===== Startbereich + Stadtmauer ===========================================
   cityWall(b, M);
   spawnDeco(b, M);
+  eastBlock(b, M);   // maps-expand: Ostviertel (Gasse, Eckhaus, Hof, Dachhaus, Hintergasse)
 }
 
 /** Kleiner Palettenstapel mit Säcken (für Innenräume). */
@@ -1320,20 +1335,20 @@ function cityWall(b, M) {
   // Mauer mit Tor (Mitte)
   const gw = 5.2;
   b.boxMM(-46, 0, Math.min(zc - t / 2, zc + t / 2), -gw / 2, H, Math.max(zc - t / 2, zc + t / 2), mat, { tint, minimap: 'wall' });
-  b.boxMM(gw / 2, 0, Math.min(zc - t / 2, zc + t / 2), 46, H, Math.max(zc - t / 2, zc + t / 2), mat, { tint, minimap: 'wall' });
+  b.boxMM(gw / 2, 0, Math.min(zc - t / 2, zc + t / 2), 69, H, Math.max(zc - t / 2, zc + t / 2), mat, { tint, minimap: 'wall' });
   b.boxMM(-gw / 2, 4.6, Math.min(zc - t / 2, zc + t / 2), gw / 2, H, Math.max(zc - t / 2, zc + t / 2), mat, { tint, minimap: 'wall' });
   arch(b, 0, 3.0, zi + s * 0.2, gw, 1.6, 1.6, 0.4, mat, { tint: '#cdbd9c' });
   // Torflügel (geschlossen) + Kollisionsriegel
   b.boxMM(-gw / 2, 0, zc - 0.1, gw / 2, 4.5, zc + 0.1, 'wood_dark', { tint: '#5a3a24', minimap: 'wall' });
   for (let i = 0; i < 6; i++) b.box(-gw / 2 + 0.45 + i * (gw - 0.9) / 5, 0.4, zc - s * 0.12, 0.08, 3.8, 0.04, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false });
   // Zinnen + Wehrgang-Kante
-  b.boxMM(-46, H, Math.min(zi, zi - s * 0.3), 46, H + 0.18, Math.max(zi, zi - s * 0.3), mat, { tint: '#cdbd9c', collide: false, minimap: false, grad: false });
-  for (let x = -45; x <= 45; x += 1.8) b.box(x, H, zi + s * 0.15, 0.9, 0.9, 0.5, mat, { tint, collide: false, minimap: false, grad: false });
+  b.boxMM(-46, H, Math.min(zi, zi - s * 0.3), 69, H + 0.18, Math.max(zi, zi - s * 0.3), mat, { tint: '#cdbd9c', collide: false, minimap: false, grad: false });
+  for (let x = -45; x <= 68; x += 1.8) b.box(x, H, zi + s * 0.15, 0.9, 0.9, 0.5, mat, { tint, collide: false, minimap: false, grad: false });
   // Seitenmauern am Startbereich
-  for (const sx of [-1, 1]) b.boxMM(sx < 0 ? -46.6 : 45.4, 0, Math.min(Z(42), zc), sx < 0 ? -45.4 : 46.6, H, Math.max(Z(42), zc), mat, { tint, minimap: 'wall' });
+  for (const sx of [-1, 1]) b.boxMM(sx < 0 ? -46.6 : 68.4, 0, Math.min(Z(42), zc), sx < 0 ? -45.4 : 69.6, H, Math.max(Z(42), zc), mat, { tint, minimap: 'wall' });
   b.sign(0, 5.0, zi + s * 0.02, 4.4, 1.0, south ? 'gate_s' : 'gate_n', { ry: M.ry(Math.PI), back: false, depth: 0 });
   // Strebepfeiler + Wappen
-  for (const x of [-30, -14, 14, 30]) b.box(x, 0, zi - s * 0.35, 1.2, 5.2, 0.7, mat, { tint: '#cdbd9c', minimap: 'cover' });
+  for (const x of [-30, -14, 14, 30, 54]) b.box(x, 0, zi - s * 0.35, 1.2, 5.2, 0.7, mat, { tint: '#cdbd9c', minimap: 'cover' });
   // Kulisse jenseits der Mauer (Türme)
   for (const x of [-38, 38]) {
     b.cyl(x, 0, Z(55.5), 3.2, 11.5, mat, { tint, seg: 14, collide: false, minimap: false });
@@ -1362,6 +1377,104 @@ function spawnDeco(b, M) {
   sandbags(b, 31.6, Z(44.2), 34.2, Z(44.2), { rows: 5 });
 }
 
+// ---------------------------------------------------------------------------
+// maps-expand: Ostviertel (x 46..69). Gasse hinter den Ostrand-Häusern (x 46..51,5) verbindet beide Startbereiche,
+// Durchgänge über Werkstatt (z ±3) und EP1 (z ±14). Je Hälfte: Eckhaus (2 Geschosse, begehbar, Innentreppe),
+// Hof mit Olivenbaum und Mäuerchen, Dachhaus mit Außentreppe (Machtposition über Hof und Startbereich),
+// Hintergasse an der Ostmauer. In der Mitte der Ölbaumplatz (eastSquare) mit Brunnen und Pflanztrögen.
+// ---------------------------------------------------------------------------
+function eastBlock(b, M) {
+  const Z = M.z, south = M.s > 0;
+  // Ostmauer (Rückseiten der Nachbarhäuser) zwischen Platz und Startbereich
+  b.boxMM(68.6, 0, Math.min(Z(8), Z(42)), 69.4, 6.4, Math.max(Z(8), Z(42)), 'stone_wall', { tint: '#d9c9a8', minimap: 'wall' });
+  b.boxMM(68.5, 6.4, Math.min(Z(8), Z(42)), 69.5, 6.56, Math.max(Z(8), Z(42)), 'plaster_white', { tint: '#f2ece0', collide: false, minimap: false, grad: false });
+  // Eckhaus am Platz (begehbar, OG mit Blick auf Platz und Gasse)
+  const h1 = house(b, M, {
+    x0: 51.5, x1: 62, z0: 9, z1: 19.5, floors: 2, roof: 'terrace', color: south ? '#f1dcb6' : '#e9c7a6', upperClosed: false,
+    open: [
+      { side: 'w', at: -1.6, w: 1.2, h: 2.3, kind: 'door' },
+      { side: 'w', at: 2.6, w: 1.1, h: 1.4, kind: 'window', sill: 1.0, shutters: true, glass: true },
+      { side: 'w', at: -2.6, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1, shutters: true },
+      { side: 'w', at: 2.2, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1, shutters: true },
+      { side: 'n', at: -2.2, w: 1.3, h: 2.3, kind: 'door' },
+      { side: 'n', at: 2.4, w: 1.4, h: 1.4, kind: 'window', sill: 1.0, shutters: true, glass: true },
+      { side: 'n', at: -2.4, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1, shutters: true },
+      { side: 'n', at: 2.6, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1, shutters: true },
+      { side: 'e', at: 0.5, w: 1.2, h: 2.3, kind: 'door' },
+      { side: 's', at: 0, w: 1.1, h: 1.7, kind: 'window', sill: 0.85, floor: 1, shutters: true },
+    ],
+    stairsIn: { x: 60.6, z: 18.6, dir: 'w', w: 1.1, open: 'right' },
+  });
+  b.box(55.0, 0.12, Z(15.6), 1.8, 0.76, 1.0, 'wood_planks', { tint: '#9a7a52', minimap: 'cover' });
+  b.box(53.0, 0.12, Z(11.2), 1.0, 0.95, 2.0, 'wood_dark', { tint: '#6a4a32', minimap: 'cover' });
+  b.box(58.6, 3.32, Z(11.0), 2.0, 0.55, 0.9, 'tarp', { tint: '#b8a888', minimap: 'cover' });
+  // Durchgang Hof ↔ Hintergasse (z 19,5..21,5) + Hof mit Mäuerchen, Olivenbaum, Trog, Karren
+  lowWall(b, 51.5, Z(21.5), 51.5, Z(24.0), { h: 1.1 });
+  lowWall(b, 51.5, Z(26.6), 51.5, Z(29.2), { h: 1.1 });
+  tree(b, 57.0, Z(25.2), { kind: 'olive', h: 3.0 });
+  b.box(57.0, 0, Z(25.2), 1.6, 0.45, 1.6, 'stone_wall', { tint: '#d8ccb2', minimap: 'cover' });
+  handcart(b, 59.8, Z(22.6), M.ry(0.6));
+  crateStack(b, 53.8, Z(27.6), { ry: 0.3 * M.s });
+  b.box(61.0, 0, Z(27.2), 1.8, 0.7, 0.7, 'stone_wall', { tint: '#d0c2a6', minimap: 'cover' });
+  // Dachhaus (geschlossen) mit Außentreppe vom Hof aufs Dach – Brüstung = Deckung
+  const h2 = house(b, M, {
+    x0: 51.5, x1: 62, z0: 30, z1: 39.5, floors: 1, fh: 3.4, roof: 'terrace', color: south ? '#efe3cc' : '#e4d0b4', closed: true,
+    open: [
+      { side: 'w', at: 0, w: 1.2, h: 2.3, kind: 'door', leaf: 'closed' },
+      { side: 'w', at: 3.0, w: 1.1, h: 1.3, kind: 'window', sill: 1.0, closed: true },
+      { side: 's', at: -3.0, w: 1.1, h: 1.3, kind: 'window', sill: 1.0, closed: true },
+    ],
+    gaps: [{ side: 'n', a: 58.35, b: 59.65 }],
+  });
+  extStairs(b, M, { x: 53.5, z: 29.25, dir: 'e', y1: h2.roofY, w: 1.2, open: 'left', run: 4.85, wallGap: 0.15 });
+  terraceDeco(b, M, h2, { pots: [[52.3, 38.8], [61.2, 31.0]], tank: [60.4, 37.4] });
+  sandbags(b, 53.0, Z(38.9), 55.8, Z(38.9), { rows: 3, y: h2.roofY });
+  // Gasse (x 46..51,5): Karren, Kisten, Fässer, Pflanztrog, Wäsche
+  planter(b, 48.9, Z(11.0), 1.0, 2.2, { plant: 'flowers' });
+  handcart(b, 48.6, Z(24.4), M.ry(-0.25));
+  crateStack(b, 47.2, Z(30.0), { ry: 0.15 * M.s });
+  barrelGroup(b, 50.6, Z(34.6), { n: 2, colors: ['#3a6f8a', '#8a3a2a'] });
+  b.box(47.1, 0, Z(39.0), 1.3, 1.1, 1.0, 'wood_crate', { uv: 'fit', minimap: 'cover' });
+  laundry(b, 46.1, 4.9, Z(17.5), 51.4, 5.0, Z(18.5), { n: 3 });
+  for (const z of [12, 26, 36]) wallLamp(b, 51.48, 3.1, Z(z), Math.PI / 2);
+  // Hintergasse (x 62..69): Fässer, Kisten, Dreirad, Müllcontainer
+  barrelGroup(b, 64.0, Z(12.2), { n: 3, colors: ['#c8402f', '#3a6f8a', '#3a6f8a'] });
+  b.box(66.9, 0, Z(17.4), 1.4, 1.1, 1.4, 'wood_crate', { uv: 'fit', minimap: 'cover', ry: 0.2 });
+  trike(b, 65.2, Z(24.4), M.ry(1.4), south ? '#3a7aa8' : '#9a4b2a');
+  dumpster(b, 67.6, Z(33.0), { ry: Math.PI / 2, color: south ? '#2f5e3e' : '#3c5a7a' });
+  b.box(64.2, 0, Z(37.0), 1.2, 0.95, 2.0, 'wood_dark', { tint: '#6a4a32', minimap: 'cover' });
+  laundry(b, 62.1, 4.6, Z(27.0), 68.5, 4.8, Z(28.0), { n: 3 });
+  // Startbereich-Erweiterung (z 42..52): Deckung an den Ausgängen
+  sandbags(b, 54.6, Z(43.5), 57.4, Z(43.5), { rows: 5 });
+  jerseyLike(b, 49.0, Z(44.3), 0.15 * M.s);
+  crateStack(b, 66.4, Z(43.2), { ry: 0.3 * M.s });
+  if (south) car(b, 62.0, Z(45.0), { style: 'sedan', ry: Math.PI / 2 + 0.05, color: '#b98b3a' });
+  else { b.box(61.6, 0, Z(45.0), 2.6, 0.75, 1.0, 'stone_wall', { tint: '#d8ccb2', minimap: 'cover' }); handcart(b, 64.6, Z(45.2), M.ry(1.2)); }
+  for (const x of [52, 65]) (south ? palm(b, x, Z(50.4), { h: 6.2 }) : tree(b, x, Z(50.4), { kind: 'olive', h: 2.8 }));
+}
+
+/** Ölbaumplatz (x 50..69, z −8..8): Brunnen, Pflanztröge, Bänke, Café-Tische – Deckung in Brust- und Kniehöhe. */
+function eastSquare(b) {
+  b.boxMM(68.6, 0, -8, 69.4, 6.4, 8, 'stone_wall', { tint: '#d9c9a8', minimap: 'wall' });
+  arch(b, 68.55, 2.4, 0, 3.4, 0.9, 1.0, 0.3, 'stone_wall', { ry: Math.PI / 2, tint: '#cdbd9c' });
+  b.cyl(59.5, 0, 0, 1.9, 0.75, 'stone_wall', { seg: 16, tint: '#dccdb2', minimap: 'cover' });
+  b.cyl(59.5, 0.6, 0, 1.6, 0.06, 'metal_painted', { seg: 16, tint: '#35606a', collide: false, minimap: false, ao: false });
+  b.cyl(59.5, 0, 0, 0.35, 1.7, 'stone_wall', { seg: 10, tint: '#e3d6bd', minimap: false });
+  b.cyl(59.5, 1.7, 0, 0.6, 0.18, 'stone_wall', { seg: 10, tint: '#e3d6bd', collide: false, minimap: false });
+  for (const s of [1, -1]) {
+    planter(b, 53.6, 5.4 * s, 2.4, 1.0, { tree: s > 0 ? 'olive' : undefined });
+    planter(b, 66.4, 4.6 * s, 1.0, 2.4, {});
+    bench(b, 56.6, 6.9 * s, { ry: s > 0 ? Math.PI : 0 });
+    lowWall(b, 62.6, 7.6 * s, 65.2, 7.6 * s, { h: 0.95 });
+  }
+  cafeTable(b, 64.3, 1.6, {}); cafeTable(b, 64.6, -1.8, {});
+  parasol(b, 64.4, -0.1, {});
+  marketStall(b, 52.4, 0, { ry: Math.PI / 2 });
+  ornateLamp(b, 62.5, 5.6);
+  ornateLamp(b, 56.0, -5.6);
+  b.sign(68.58, 2.6, 0, 1.5, 0.42, 'st_dach', { ry: -Math.PI / 2, depth: 0.02 });
+}
+
 function jerseyLike(b, x, z, ry) {
   // Steinbank / Pflanztrog als Deckung im Startbereich
   b.box(x, 0, z, 3.0, 0.8, 0.8, 'stone_wall', { ry, tint: '#ddd0b4', minimap: 'cover' });
@@ -1378,7 +1491,7 @@ function backdrop(b) {
   const ring = [];
   // Häuserblöcke rund um die Spielfläche
   for (let x = -100; x <= 100; x += 9.5) for (const zr of [[-64, -56], [56, 64]]) ring.push([x + b.rnd(-1.5, 1.5), b.rnd(zr[0], zr[1]) + (zr[0] < 0 ? -b.rnd(0, 14) : b.rnd(0, 14))]);
-  for (let z = -50; z <= 50; z += 9.5) for (const xr of [[-62, -54], [54, 62]]) ring.push([b.rnd(xr[0], xr[1]) + (xr[0] < 0 ? -b.rnd(0, 14) : b.rnd(0, 14)), z + b.rnd(-1.5, 1.5)]);
+  for (let z = -50; z <= 50; z += 9.5) for (const xr of [[-62, -54], [77, 85]]) ring.push([b.rnd(xr[0], xr[1]) + (xr[0] < 0 ? -b.rnd(0, 14) : b.rnd(0, 14)), z + b.rnd(-1.5, 1.5)]);
   for (const [x, z] of ring) {
     const w = b.rnd(7, 11), d = b.rnd(7, 11), h = b.rnd(6.5, 13), q = 1000 + (x < 0 ? 0 : 1) + (z < 0 ? 0 : 2);
     b.box(x, 0, z, w, h, d, 'plaster_white', { tint: b.pick(PLASTER), collide: false, minimap: false, grad: false, ao: false, chunk: q, cast: false });
@@ -1410,6 +1523,7 @@ function backdrop(b) {
   // Zypressen
   for (let i = 0; i < 34; i++) {
     const a = b.rand() * Math.PI * 2, r = b.rnd(72, 125), x = Math.cos(a) * r, z = Math.sin(a) * r, h = b.rnd(7, 11);
+    if (x > 40 && x < 74 && Math.abs(z) < 58) continue; // Ostviertel (Spielfläche) freihalten
     b.cyl(x, 0, z, b.rnd(0.8, 1.1), h, 'grass', { r1: 0.12, seg: 7, tint: '#4a5e3a', collide: false, minimap: false, grad: false, ao: false, chunk: 1011, cast: false });
   }
 }

@@ -17,7 +17,8 @@ const BRICK = '#a8705c', BRICK_D = '#8a5a4a', STEEL = '#4b5560', YEL = '#d9a72a'
 export default {
   id: 'werk',
   seed: 9077,
-  bounds: { minX: -52, maxX: 52, minZ: -48, maxZ: 48, minY: -2, maxY: 20 },
+  // maps-expand: Außenlager im Westen (x −78..−52) – Spielfläche 104 × 96 → 130 × 96 m (+25 %)
+  bounds: { minX: -78, maxX: 52, minZ: -48, maxZ: 48, minY: -2, maxY: 20 },
   visualBounds: { minX: -170, maxX: 170, minZ: -170, maxZ: 170 },
   chunkSize: 36,
   ambience: 'industrial',
@@ -56,21 +57,23 @@ export default {
     b.groundTiled(-HX, HZ, HX, 48, 'asphalt', { cell: 1, tint: '#e2ddd2' });
     b.groundTiled(-HX, -HZ, HX, HZ, 'concrete', { cell: 1, tint: '#a8a49c' });
     b.groundTiled(HX, -48, 52, 48, 'concrete', { cell: 1, tint: '#b8b2a6' });
+    b.groundTiled(-78, -48, -52, 48, 'asphalt', { cell: 2, tint: '#d2ccc0' });   // Außenlager (maps-expand)
     // Kulisse
     b.groundTiled(-170, -170, 170, -48, 'gravel', { cell: 6, collide: false, groundAO: false, chunk: 900, tint: '#8a857c' });
     b.groundTiled(-170, 48, 170, 170, 'gravel', { cell: 6, collide: false, groundAO: false, chunk: 901, tint: '#8a857c' });
-    b.groundTiled(-170, -48, -52, 48, 'gravel', { cell: 6, collide: false, groundAO: false, chunk: 902, tint: '#8a857c' });
+    b.groundTiled(-170, -48, -78, 48, 'gravel', { cell: 6, collide: false, groundAO: false, chunk: 902, tint: '#8a857c' });
     b.groundTiled(52, -48, 170, 48, 'gravel', { cell: 6, collide: false, groundAO: false, chunk: 903, tint: '#8a857c' });
     zones.push(
       { x0: -52, z0: -48, x1: -HX, z1: 48, kind: 'road' },
       { x0: -HX, z0: -HZ, x1: HX, z1: HZ, kind: 'hall' },
       { x0: HX, z0: -48, x1: 52, z1: 48, kind: 'dock' },
+      { x0: -78, z0: -48, x1: -52, z1: 48, kind: 'road' },
     );
     // Unsichtbare Grenze
-    b.collider(-52.4, -2, 0, 0.8, 30, 98);
+    b.collider(-78.4, -2, 0, 0.8, 30, 98);
     b.collider(52.4, -2, 0, 0.8, 30, 98);
-    b.collider(0, -2, -48.4, 106, 30, 0.8);
-    b.collider(0, -2, 48.4, 106, 30, 0.8);
+    b.collider(-13, -2, -48.4, 132, 30, 0.8);
+    b.collider(-13, -2, 48.4, 132, 30, 0.8);
 
     // -----------------------------------------------------------------------
     // Mitte: Walzhalle
@@ -90,6 +93,8 @@ export default {
     // Hälften
     // -----------------------------------------------------------------------
     for (const s of [1, -1]) half(b, mirror(s), ctx);
+    // Außenlager (West): Rohrbrücke, Halle 9, Abstellgleis, viel Deckung (maps-expand)
+    outerYard(b);
 
     backdrop(b);
     dressing(b);
@@ -98,13 +103,14 @@ export default {
     // Startpunkte & Flaggen
     // -----------------------------------------------------------------------
     const spawns = { A: [], B: [], ffa: [] };
-    const sA = [[-47, 43], [-39, 45.5], [-30, 41.5], [-24.5, 43.5], [-12, 41.5], [-2, 44], [8, 41], [17, 44.5], [26, 41.2], [32, 45], [47.5, 44], [41, 40.5]];
-    const sB = [[-47, -43], [-39, -46], [-30, -39.5], [-19, -46.5], [-12, -40], [-1, -46.5], [8, -41], [17, -45], [21, -40], [40, -46.5], [47.5, -44], [33, -40]];
+    const sA = [[-47, 43], [-39, 45.5], [-30, 41.5], [-24.5, 43.5], [-12, 41.5], [-2, 44], [8, 41], [17, 44.5], [26, 41.2], [32, 45], [47.5, 44], [41, 40.5], [-61, 45], [-70, 46.5], [-76, 44]];
+    const sB = [[-47, -43], [-39, -46], [-30, -39.5], [-19, -46.5], [-12, -40], [-1, -46.5], [8, -41], [17, -45], [21, -40], [40, -46.5], [47.5, -44], [33, -40], [-56, -46.5], [-75.5, -40], [-68, -38.5]];
     for (const [x, z] of sA) spawns.A.push({ x, z, yaw: 0 });
     for (const [x, z] of sB) spawns.B.push({ x, z, yaw: Math.PI });
     for (const [x, z] of [
       [-46, 24], [-44, -12], [-31, 30], [-30, -33], [-24.5, 5], [-13, 17], [-12, -16], [-8, 5], [9, -6], [13, 15], [12, -24],
       [26, 18], [25.7, -15], [36, 16], [35, 0], [48, 12], [47.5, -30], [24, -38],
+      [-68, 1.5], [-57, 14], [-57, -14], [-72, 26], [-72, -24], [-64, 38], [-64, -37],
     ]) spawns.ffa.push({ x, z });
     return {
       spawns,
@@ -734,8 +740,12 @@ function half(b, M, ctx) {
   lampPost(b, -51.0, Z(37.0), { h: 7, arm: 1.5, ry: 0, kind: 'sodium', glow: true });
   lampPool(b, -49.5, Z(37.0), 7.5);
   // Westgrenze: Ziegelmauer mit Stacheldraht
-  b.boxMM(-52.6, 0, Math.min(0, Z(48)), -52.0, 3.6, Math.max(0, Z(48)), 'brick', { tint: '#8a5a4a', minimap: 'wall' });
-  b.boxMM(-52.7, 3.6, Math.min(0, Z(48)), -51.9, 3.75, Math.max(0, Z(48)), 'concrete', { tint: '#8a8680', collide: false, minimap: false, grad: false });
+  // maps-expand: drei Durchbrüche ins Außenlager (z 0..4 · 18..24 · 32..38), Mauerreste als Deckung
+  for (const [a, c] of [[4, 18], [24, 32], [38, 48]]) {
+    b.boxMM(-52.6, 0, Math.min(Z(a), Z(c)), -52.0, 3.6, Math.max(Z(a), Z(c)), 'brick', { tint: '#8a5a4a', minimap: 'wall' });
+    b.boxMM(-52.7, 3.6, Math.min(Z(a), Z(c)), -51.9, 3.75, Math.max(Z(a), Z(c)), 'concrete', { tint: '#8a8680', collide: false, minimap: false, grad: false });
+  }
+  for (const [a, c] of [[18, 18.9], [32, 32.9]]) b.boxMM(-52.6, 0, Math.min(Z(a), Z(c)), -52.0, 1.1, Math.max(Z(a), Z(c)), 'brick', { tint: '#7a4a3a', minimap: 'cover' });
   for (let i = 0; i < 10; i++) {
     const x = b.rnd(-50, -29), z = Z(b.rnd(2, 45)), k = b.rand();
     b.decal(x, 0.012, z, b.rnd(1.5, 3.5), b.rnd(1.5, 3.5), k < 0.4 ? 'oil' : k < 0.7 ? 'puddle' : k < 0.85 ? 'tire' : 'cracks', { opacity: 0.7 });
@@ -789,7 +799,8 @@ function half(b, M, ctx) {
   } else {
     // Gleisanschluss mit Waggons
     gateWall(b, M, 'gate_n');
-    railTrack(b, Z(43.5), -52, 52);
+    railTrack(b, Z(43.5), -78, 52);
+    wagon(b, -66.0, Z(43.5), 'box', '#4a5a6a');
     wagon(b, -28.0, Z(43.5), 'box', '#7a3a2a');
     wagon(b, -10.0, Z(43.5), 'ore', '#3d4247');
     wagon(b, 30.0, Z(43.5), 'box', '#5a4a3a');
@@ -797,8 +808,99 @@ function half(b, M, ctx) {
   }
   sandbags(b, -14.8, Z(39.0), -12.0, Z(39.0), { rows: 5 });
   sandbags(b, 11.6, Z(40.0), 14.4, Z(40.0), { rows: 5 });
+  // Zusatzdeckung Vorplatz (maps-expand): Lücken zwischen Hallenecke und Startbereich schließen
+  crateStack(b, -25.6, Z(36.5), { ry: 0.25 * s, pattern: [[0, 0, 0, 1.2], [1.25, 0, 0.05, 1.1], [0.55, 1, 0.02, 1.0]] });
+  crateStack(b, 21.8, Z(37.6), { ry: -0.3 * s });
+  jersey(b, -3.2, Z(41.8), { len: 3, ry: -0.12 * s, stripes: true });
   for (let i = 0; i < 8; i++) b.decal(b.rnd(-48, 48), 0.012, Z(b.rnd(38, 47)), b.rnd(2, 4), b.rnd(1.5, 3), b.pick(['stain', 'oil', 'cracks']), { opacity: 0.6 });
   void ctx;
+}
+
+// ---------------------------------------------------------------------------
+// maps-expand: Außenlager (x −78..−52). Rohrbrücke längs x ≈ −57 (Stützen = schmale Deckung), Halle 9 in der
+// Mitte (begehbar, Tor nach Osten), Abstellgleis mit Erzwagen (Süd) bzw. Containerstapel (Nord), dazwischen
+// Brusthöhe-/Kniehöhe-Deckung im Abstand von 6–9 m. Drei Mauerdurchbrüche verbinden mit dem Lkw-Hof.
+// ---------------------------------------------------------------------------
+function outerYard(b) {
+  // Westgrenze: Ziegelmauer mit Stacheldraht-Krone
+  b.boxMM(-78.6, 0, -48, -78.0, 3.6, 48, 'brick', { tint: '#8a5a4a', minimap: 'wall' });
+  b.boxMM(-78.7, 3.6, -48, -77.9, 3.75, 48, 'concrete', { tint: '#8a8680', collide: false, minimap: false, grad: false });
+  // Rohrbrücke (Stützenpaare alle 7 m, Rohre auf 4,8–5,3 m)
+  for (let z = -42; z <= 42; z += 7) {
+    for (const x of [-58.6, -55.4]) b.box(x, 0, z, 0.3, 5.0, 0.3, 'metal_painted', { tint: '#5a646c', minimap: 'pillar' });
+    b.box(-57, 4.75, z, 3.6, 0.25, 0.25, 'metal_painted', { tint: '#5a646c', collide: false, minimap: false, grad: false });
+    b.box(-57, 0, z, 3.6, 0.12, 0.6, 'concrete', { tint: '#8f8b84', collide: false, minimap: false, grad: false });
+  }
+  for (const [x, r, t] of [[-58.0, 0.3, '#8a8f94'], [-57.1, 0.22, '#a0663a'], [-56.3, 0.18, '#6f8a7a']]) pipe(b, [[x, 5.0 + r, -44], [x, 5.0 + r, 44]], { r, tint: t, collide: false });
+  pipe(b, [[-55.8, 5.2, -35], [-55.8, 5.2, -30], [-53.2, 5.2, -30], [-53.2, 3.9, -30]], { r: 0.16, tint: '#a0663a' });
+  halle9(b);
+  for (const s of [1, -1]) {
+    const Z = z => z * s, south = s > 0;
+    // Abstellgleis mit Erzwagen (Süd) bzw. Containerstapel (Nord) – über Kopfhöhe, bricht die Längssicht
+    if (south) {
+      railTrack(b, Z(29.5), -78, -59);
+      wagon(b, -69.5, Z(29.5), 'ore', '#5a4a3a');
+      b.box(-59.4, 0, Z(29.5), 0.8, 1.2, 3.0, 'concrete', { tint: '#9a968e', minimap: 'cover' }); // Prellbock
+      b.box(-59.6, 0.6, Z(29.5), 0.25, 0.35, 2.2, 'hazard', { collide: false, minimap: false, grad: false });
+    } else {
+      container(b, -70.0, 0, Z(29.5), { len: 12.19, ry: 0, color: '#2d5f94' });
+      container(b, -72.6, 2.59, Z(29.6), { len: 6.06, ry: 0.03, color: '#c8402f' });
+      b.noNav(-76.4, -31.0, -63.6, -28.0, 2.0, 30);
+    }
+    // Deckung (Brust-/Kniehöhe), versetzt angeordnet
+    jersey(b, -62.6, Z(13.0), { len: 3, ry: 0.1 * s, stripes: true });
+    coilRow(b, -72.5, Z(15.0), 0, 3, { top: south });
+    slabStack(b, -65.0, Z(21.5), 0.2 * s, 4);
+    crateStack(b, -75.4, Z(21.0), { ry: 0.2 * s, pattern: [[0, 0, 0, 1.2], [1.25, 0, 0.05, 1.1], [0.55, 1, 0.02, 1.0]] });
+    sandbags(b, -62.0, Z(37.4), -59.4, Z(37.9), { rows: 5 });
+    crateStack(b, -73.4, Z(39.5), { ry: 0.3 * s });
+    b.box(-57.0, 0, Z(21.0), 1.2, 1.05, 2.2, 'concrete', { tint: '#9a968e', minimap: 'cover' }); // Fundamentblock
+    cableReel(b, -57.0, Z(33.5), { ry: 0.2 * s });
+    barrelGroup(b, south ? -66.5 : -76.2, Z(south ? 44.0 : 37.6), { n: 3, colors: ['#3a4a5a', '#5a3a2a', '#c9a227'] });
+    dumpster(b, -75.9, Z(33.5), { ry: Math.PI / 2, color: south ? '#4a5a4a' : '#5a4a3a' });
+    crateStack(b, -59.8, Z(7.2), { ry: -0.3 * s, pattern: [[0, 0, 0, 1.1], [1.15, 0, 0.05, 1.0]] });
+    slabStack(b, -57.0, Z(43.0), Math.PI / 2, 3);
+    // Licht: Natriumlampen an der Westmauer (ein Echtzeitlicht je Hälfte), Lichtpfützen als Decal
+    lampPost(b, -77.3, Z(10.5), { h: 7, arm: 1.5, ry: 0, kind: 'sodium', glow: true, light: south, intensity: 20, distance: 18 });
+    lampPost(b, -77.3, Z(38.0), { h: 7, arm: 1.5, ry: 0, kind: 'sodium', glow: true, light: !south, intensity: 20, distance: 18 });
+    lampPool(b, -75.8, Z(10.5), 7.0);
+    lampPool(b, -75.8, Z(38.0), 7.0);
+    for (let i = 0; i < 7; i++) {
+      const x = b.rnd(-77, -53), z = Z(b.rnd(2, 46)), k = b.rand();
+      b.decal(x, 0.012, z, b.rnd(1.5, 3.2), b.rnd(1.5, 3.2), k < 0.4 ? 'oil' : k < 0.7 ? 'puddle' : k < 0.85 ? 'tire' : 'cracks', { opacity: 0.7 });
+    }
+  }
+}
+
+/** Halle 9 (12 × 16 m, eingeschossig 6 m, begehbar): Tor Ost, Türen Nord/Süd/West, Werkbänke und Coils als Deckung. */
+function halle9(b) {
+  const x = -68, z = 0, w = 12, d = 16, H6 = 6.0;
+  building(b, {
+    x, z, w, d, floors: 1, fh: H6, mat: 'brick', tint: '#8a5a4a', floorMat: 'concrete', frameMat: 'metal_painted', frameTint: '#2a2e33',
+    roof: { mat: 'metal_corrugated', tint: '#5a646c', edge: true },
+    openings: [
+      { side: 'e', at: 0, w: 4.6, h: 4.4, kind: 'gap' },
+      { side: 'w', at: 4.5, w: 1.3, h: 2.3, kind: 'door' },
+      { side: 'w', at: -3.5, w: 2.0, h: 1.2, sill: 1.6, kind: 'window' },
+      { side: 'n', at: -3.0, w: 1.6, h: 2.3, kind: 'door' },
+      { side: 's', at: 3.0, w: 1.6, h: 2.3, kind: 'door' },
+      { side: 'n', at: 2.5, w: 2.2, h: 1.2, sill: 1.6, kind: 'window' },
+      { side: 's', at: -2.5, w: 2.2, h: 1.2, sill: 1.6, kind: 'window' },
+    ],
+  });
+  rollDoor(b, x + w / 2 + 0.05, 0, 4.6, 4.4, 3.3, Math.PI / 2);
+  workbench(b, -72.6, -4.0, { ry: Math.PI / 2 });
+  lockers(b, -73.4, -0.6, { ry: Math.PI / 2 });
+  coilRow(b, -67.5, 4.6, 0, 2);
+  slabStack(b, -66.5, -4.6, 0, 3);
+  crateStack(b, -70.5, 6.4, { ry: 0.1 });
+  barrelGroup(b, -64.0, -6.6, { n: 3 });
+  for (const lz of [-4.5, 4.5]) {
+    b.box(x, H6 - 0.42, lz, 3.4, 0.06, 0.4, 'lamp_cool', { collide: false, minimap: false, ao: false, cast: false });
+    b.light('point', x, H6 - 1.0, lz, { color: '#e6f0ff', intensity: 16, distance: 14, realtime: false });
+  }
+  b.glow(x, H6 - 0.5, 0, { color: '#d8e6ff', size: 1.6, intensity: 0.6 });
+  b.noNav(x - w / 2 - 0.5, z - d / 2 - 0.5, x + w / 2 + 0.5, z + d / 2 + 0.5, H6 - 0.4, 20);
 }
 
 /** Tank in Auffangwanne (Betonwand 1,1 m mit Öffnungen). */
@@ -878,9 +980,9 @@ function weighbridge(b, x, z) {
 /** Mauer am Startbereich mit geschlossenem Tor. */
 function gateWall(b, M, key) {
   const s = M.s, zc = M.z(48.2), zi = zc - s * 0.3;
-  b.boxMM(-52, 0, Math.min(zc - 0.3, zc + 0.3), -6, 4.2, Math.max(zc - 0.3, zc + 0.3), 'brick', { tint: '#8a5a4a', minimap: 'wall' });
+  b.boxMM(-78, 0, Math.min(zc - 0.3, zc + 0.3), -6, 4.2, Math.max(zc - 0.3, zc + 0.3), 'brick', { tint: '#8a5a4a', minimap: 'wall' });
   b.boxMM(6, 0, Math.min(zc - 0.3, zc + 0.3), 52, 4.2, Math.max(zc - 0.3, zc + 0.3), 'brick', { tint: '#8a5a4a', minimap: 'wall' });
-  b.boxMM(-52, 4.2, Math.min(zc - 0.35, zc + 0.35), 52, 4.35, Math.max(zc - 0.35, zc + 0.35), 'concrete', { tint: '#8a8680', collide: false, minimap: false, grad: false });
+  b.boxMM(-78, 4.2, Math.min(zc - 0.35, zc + 0.35), 52, 4.35, Math.max(zc - 0.35, zc + 0.35), 'concrete', { tint: '#8a8680', collide: false, minimap: false, grad: false });
   // Torflügel (Stahlgitter, geschlossen)
   for (let i = 0; i < 24; i++) b.box(-5.75 + i * 0.5, 0, zc, 0.06, 3.4, 0.06, 'metal_painted', { tint: '#2b3a3a', collide: false, minimap: false, grad: false });
   for (const y of [0.3, 1.7, 3.2]) b.box(0, y, zc, 12, 0.1, 0.08, 'metal_painted', { tint: '#2b3a3a', collide: false, minimap: false, grad: false });
@@ -934,7 +1036,7 @@ function backdrop(b) {
   const q = 1000;
   const o = (chunk, tint) => ({ tint, collide: false, minimap: false, grad: false, ao: false, chunk, cast: false });
   // Hallenreihen
-  for (const [x, z, w, d, h, t] of [[-92, -20, 30, 70, 16, '#8a5a4a'], [-90, 60, 36, 30, 12, '#7a6a5a'], [92, -40, 28, 50, 14, '#6a6a68'], [96, 40, 34, 40, 18, '#8a5a4a'], [10, 90, 70, 24, 13, '#7a6a5a'], [-30, -92, 60, 26, 15, '#6a6a68'], [40, -95, 40, 30, 11, '#8a5a4a']]) {
+  for (const [x, z, w, d, h, t] of [[-106, -20, 30, 70, 16, '#8a5a4a'], [-104, 62, 36, 30, 12, '#7a6a5a'], [92, -40, 28, 50, 14, '#6a6a68'], [96, 40, 34, 40, 18, '#8a5a4a'], [10, 90, 70, 24, 13, '#7a6a5a'], [-30, -92, 60, 26, 15, '#6a6a68'], [40, -95, 40, 30, 11, '#8a5a4a']]) {
     b.box(x, 0, z, w, h, d, 'brick', o(q + (x < 0 ? 0 : 1), t));
     b.box(x, h, z, w + 0.6, 0.6, d + 0.6, 'metal_painted', o(q + (x < 0 ? 0 : 1), '#3d4247'));
     for (let k = 0; k < 3; k++) b.box(x + (k - 1) * w / 3.2, h + 0.6, z, w / 4, 1.8, d * 0.9, 'metal_corrugated', o(q + (x < 0 ? 0 : 1), '#5a646c'));
@@ -942,7 +1044,7 @@ function backdrop(b) {
   // Hochofen-Silhouette im Nordwesten
   b.cyl(-75, 0, -75, 7, 34, 'metal_rust', { ...o(q + 2, '#6a4a3a'), seg: 14, r1: 5 });
   b.cyl(-75, 34, -75, 4, 10, 'metal_rust', { ...o(q + 2, '#5a4038'), seg: 12, r1: 3 });
-  for (const [x, z] of [[-62, -80], [-88, -64]]) b.cyl(x, 0, z, 4.2, 28, 'metal_painted', { ...o(q + 2, '#7a7670'), seg: 12 });
+  for (const [x, z] of [[-62, -80], [-96, -64]]) b.cyl(x, 0, z, 4.2, 28, 'metal_painted', { ...o(q + 2, '#7a7670'), seg: 12 });
   b.box(-68, 22, -77, 16, 1.4, 1.4, 'metal_rust', o(q + 2, '#5a4038'));
   // Kühltürme im Nordosten
   for (const [x, z] of [[85, -95], [118, -70]]) b.cyl(x, 0, z, 16, 34, 'concrete', { ...o(q + 3, '#9a968e'), seg: 22, r1: 11 });

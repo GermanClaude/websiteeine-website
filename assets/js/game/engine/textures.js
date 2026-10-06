@@ -49,14 +49,38 @@ function disposeMaterial(m) {
 }
 
 /** Texturauflösung / Anisotropie festlegen (z. B. 256 auf Low/Mobile). Bereits erzeugte Texturen bleiben gültig. */
-export function configureTextures({ size, anisotropy: an } = {}) {
+/** textures-2: anisotrope Filterung je Stufe (Boden/Wände unter flachem Blickwinkel scharf; KTX2 hat volle Mip-Ketten).
+ * Gilt für alle Welt-/Gelände-/Requisiten-Texturen (prozedural, Bibliothek, Detail-/Makrokarten). */
+export const ANISO_BY_QUALITY = Object.freeze({ low: 8, medium: 8, high: 16, ultra: 16 }); // low 8: Bibliothek lief dort schon mit 8 (Lader-Standard), prozedural vorher 2
+export function textureAnisotropy(renderer, quality) {
+  const max = renderer?.capabilities?.getMaxAnisotropy?.() || 4;
+  return Math.max(1, Math.min(ANISO_BY_QUALITY[quality] || 8, max));
+}
+
+// Anisotropie ist Teil des GPU-Cache-Schlüssels von three (Klone mit abweichendem Wert = eigener Upload):
+// bei einem Wechsel alle Texturen einer Source gemeinsam umstellen und neu hochladen lassen
+function setAniso(t, an) {
+  if (!t || t.anisotropy === an) return;
+  t.anisotropy = an;
+  if (t.version > 0) t.needsUpdate = true;
+}
+
+/**
+ * Texturgröße (prozedural) und Anisotropie setzen. { size, anisotropy } oder { size, quality, renderer }
+ * (dann Anisotropie aus ANISO_BY_QUALITY, begrenzt auf das Gerät).
+ */
+export function configureTextures({ size, anisotropy: an0, quality, renderer } = {}) {
   if (size && size !== texSize) {
     texSize = size;
     disposeMaterials();
   }
-  if (an) {
+  const an = quality ? textureAnisotropy(renderer, quality) : an0;
+  if (an && an !== anisotropy) {
     anisotropy = an;
-    for (const t of texCache.values()) for (const k of ['map', 'normalMap', 'roughnessMap']) if (t[k]) t[k].anisotropy = an;
+    for (const t of texCache.values()) for (const k of ['map', 'normalMap', 'roughnessMap']) setAniso(t[k], an);
+    for (const m of matCache.values()) for (const k of ['map', 'normalMap', 'roughnessMap']) setAniso(m[k], an);
+    for (const t of libClones.values()) setAniso(t, an);
+    setAniso(detailTex, an);
   }
 }
 
@@ -436,6 +460,7 @@ function libTexture(set, slot, rx, ry) {
   let t = libClones.get(k);
   if (!t) {
     t = set[slot].clone(); // gleiche Source → ein GPU-Upload
+    t.anisotropy = anisotropy; // textures-2: Stufenwert (alle Klone gleich → ein Upload je Source)
     t.repeat.set(rx, ry);
     t.needsUpdate = true;
     t.userData = { ...(t.userData || {}), libSet: `${set.id}@${set.tier}` };

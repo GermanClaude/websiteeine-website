@@ -188,7 +188,8 @@ export function palletStack(b, x, z, o = {}) {
 export function sandbagGeom(detail = false) {
   if (detail) return cached('sandbag-hd', sandbagGeomHD);
   return cached('sandbag', () => {
-    const g = new THREE.BoxGeometry(0.56, 0.16, 0.32, 3, 2, 2);
+    // maps-expand: einfache Form (nur Stufe „niedrig“) mit 2×1×1 Segmenten (20 statt 64 Dreiecke je Sack, Kissenform bleibt)
+    const g = new THREE.BoxGeometry(0.56, 0.16, 0.32, 2, 1, 1);
     const p = g.attributes.position;
     for (let i = 0; i < p.count; i++) {
       const a = p.getX(i) / 0.28, bb = p.getY(i) / 0.08, c = p.getZ(i) / 0.16;

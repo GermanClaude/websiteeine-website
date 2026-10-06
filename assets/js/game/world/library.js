@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { assets, tierFor, pickTier } from '../../../lib/loader.js';
+import { textureAnisotropy } from '../engine/textures.js';
 
 // ---------------------------------------------------------------------------
 // Zuordnung Spielmaterial → Bibliothekssatz
@@ -24,31 +25,31 @@ import { assets, tierFor, pickTier } from '../../../lib/loader.js';
 // Farbe kommt aus Materialparameter bzw. Vertexfarbe. repeat: fester Wert für „fit“-UVs (0..1 je Fläche).
 // macro: [Albedo groß, Albedo mittel, Rauheit] der Weltraum-Variation (false = aus).
 export const LIB_MATERIALS = {
-  concrete: { id: 'concrete_floor_worn', color: 1.45, macro: [0.22, 0.12, 0.16] }, // env-look: vorher 1,7 (flach/hell)
+  concrete: { id: 'concrete_floor_worn', color: 1.45, roughness: 1.4, macro: [0.22, 0.12, 0.16] }, // env-look: vorher 1,7 (flach/hell); textures-2: Rauheit Ø 0,54 → 0,76 (wirkte nass/speckig)
   concrete_dark: { id: 'concrete_wall_dark', color: 1.35 },
   concrete_panel: { id: 'concrete_panels', color: 1.5 },
   concrete_dirty: { id: 'concrete_dirty', color: 1.0 },
   concrete_painted: { id: 'concrete_painted_peeling', color: 1.0 },
   asphalt: { id: 'asphalt_cracked', color: 0.85, macro: [0.18, 0.1, 0.14] },
-  plaster_warm: { id: 'plaster_beige', color: 2.1 },
+  plaster_warm: { id: 'plaster_beige', color: [1.95, 2.1, 2.4] }, // textures-2: weniger lachsfarben (Scan Ø #836f56 × 2,1 war R/B 2,4)
   plaster_white: { id: 'plaster_white', color: 1.7 },
-  plaster_peeling: { id: 'plaster_white_peeling', color: 1.15 },
+  plaster_peeling: { id: 'plaster_white_peeling', color: 1.15, roughness: 1.5 }, // textures-2: Putz matt (Ø 0,52 → 0,78)
   plaster_blue: { id: 'plaster_blue_weathered', color: 1.05 },
   plaster_damaged: { id: 'plaster_damaged_brick', color: 1.1 },
   plaster_patched: { id: 'plaster_worn_patched', color: 1.3 },
   brick: { id: 'brick_factory', color: 1.55, normalScale: 1.25, aoMapIntensity: 1.35 }, // env-look: Mörtel lesbarer
   brick_dark: { id: 'brick_dark', color: 2.0 },
   stone_wall: { id: 'sandstone_blocks', color: 1.0 },
-  cobble: { id: 'cobblestone', color: 0.85 },
+  cobble: { id: 'cobblestone', color: 0.85, roughness: 1.25 }, // textures-2: Ø 0,58 → 0,72 (abgetreten, nicht nass)
   paving: { id: 'paving_flagstone', color: [1.45, 1.6, 1.75] }, // Weißabgleich Richtung Kalkstein
-  roof_tiles: { id: 'roof_clay_tiles', color: 0.95 },
+  roof_tiles: { id: 'roof_clay_tiles', color: [0.78, 1.19, 1.71] }, // textures-2: Scan Ø #97532d sehr gesättigt → verwitterter Ton (≈ #895c3e, Helligkeit +9 %)
   wood_planks: { id: 'wood_planks', color: [1.2, 1.32, 1.5] }, // etwas entsättigt (Fotoscan sehr orange)
   wood_dark: { id: 'wood_planks_dark', color: 0.8 },
   wood_crate: { id: 'wood_crate', color: 0.95, repeat: 0.62, macro: [0.16, 0.1, 0.12], normalScale: 1.35, aoMapIntensity: 1.3 }, // LV-7: Bretter in echter Breite (1,87-m-Satz ≈ 1,16 m je Kistenseite), Kisten nicht mehr gleichfarbig
   wood_weathered: { id: 'wood_planks_weathered', color: 1.2 },
   wood_peeling: { id: 'wood_peeling_paint', color: 1.2 },
   wood_floor: { id: 'wood_floor_old', color: 1.2 },
-  osb: { id: 'osb', color: 0.9 },
+  osb: { id: 'osb', color: 0.9, roughness: 1.4 }, // textures-2: Ø 0,58 → 0,81
   bark_palm: { id: 'bark_palm', color: 0.8, macro: false },
   // cardboard: bleibt prozedural – der Fotoscan ist nackte Wellpappe; Klebeband/Aufdruck des prozeduralen Kartons lesen
   // sich auf Kistenflächen besser (Kartenzuordnung assets.materials.cardboard = 'cardboard' schaltet ihn wieder zu)
@@ -73,15 +74,15 @@ export const LIB_MATERIALS = {
   dirt: { id: 'dirt', color: 1.25, macro: [0.2, 0.1, 0.1] },
   mud: { id: 'mud', color: 1.2 },
   ground_dry: { id: 'ground_dry_cracked', color: 1.0 },
-  gravel: { id: 'gravel', color: 0.6, macro: [0.18, 0.1, 0.12] },
+  gravel: { id: 'gravel', color: 0.6, roughness: 1.7, macro: [0.18, 0.1, 0.12] }, // textures-2: Ø 0,47 → 0,8 (Kies glänzte)
   rubble: { id: 'rubble', color: 0.8 },
-  grass: { id: 'grass', color: 1.1, macro: [0.22, 0.12, 0.1] },
-  tiles: { id: 'tiles_worn', color: 3.0 },
-  tiles_terracotta: { id: 'tiles_terracotta', color: 3.4 },
+  grass: { id: 'grass', color: 1.1, roughness: 3.2, macro: [0.22, 0.12, 0.1] }, // textures-2: Ø 0,26 → 0,84 (Plastikglanz)
+  tiles: { id: 'tiles_worn', color: 3.0, roughness: 1.2 },
+  tiles_terracotta: { id: 'tiles_terracotta', color: [3.3, 5.0, 5.2] }, // textures-2: vorher ×3,4 grell orangerot
   tiles_pattern: { id: 'tiles_checker', color: 2.1 },
   tiles_white: { id: 'tiles_white_wall', color: 1.0, macro: [0.06, 0.04, 0.06] },
   linoleum: { id: 'linoleum', color: 1.0 },
-  sandbag: { id: 'burlap', color: 1.35, metalness: 0, macro: false, normalScale: 1.2, aoMapIntensity: 1.25 }, // LV-7: Gewebe sichtbar (vorher 0,6: „glattes Brot“)
+  sandbag: { id: 'burlap', color: 1.35, roughness: 1.45, metalness: 0, macro: false, normalScale: 1.2, aoMapIntensity: 1.25 }, // LV-7: Gewebe sichtbar (vorher 0,6: „glattes Brot“)
   tarp: { id: 'canvas', color: 1.0, macro: false },
   rubber: { id: 'rubber', color: 0.6, macro: false },
   rubber_floor: { id: 'rubber_floor', color: 1.6 },
@@ -114,6 +115,17 @@ export const LIB_LOOK = {
   wood_crate: { ...LOOK_WOOD, detail: 0.14, ds: 2.6 }, // LV-7: Maserung/Dellen in der Nähe
   sandbag: { detail: 0.3, ds: 4.5, anti: 0, fade: [2, 12] }, // LV-7: Knitter/Falten (≈ 22 cm) auf dem Sackleinen
 };
+
+// textures-2: low (Telefon) bekommt auf den großen, flach gesehenen Flächen (Böden, Wände, Mauerwerk) eine günstige
+// Fassung des Nahdetails: Weltraum-Variation (2 Abfragen einer 128²-Karte) + Detailnormalen (1 Abfrage, nur bis
+// ≈ 12 m), ohne Gegen-Kachelung/Parallaxe. Alles andere (Metall, Holz, Requisiten) bleibt auf low wie bisher.
+const LOW_LOOK = new Set([
+  'concrete', 'asphalt', 'sand', 'dirt', 'mud', 'ground_dry', 'gravel', 'rubble', 'grass', 'epoxy', 'epoxy_blue', 'cobble', 'paving',
+  'concrete_dark', 'concrete_panel', 'concrete_dirty', 'concrete_painted', 'plaster_warm', 'plaster_white', 'plaster_peeling',
+  'plaster_blue', 'plaster_damaged', 'plaster_patched', 'brick', 'brick_dark', 'stone_wall',
+]);
+const LOW_MACRO = [0.14, 0.07, 0.1];
+const lowLook = (look) => ({ detail: look.detail ?? 0.2, ds: look.ds ?? 1.5, anti: 0, pom: 0, fade: [Math.min(3, look.fade?.[0] ?? 3), Math.min(12, look.fade?.[1] ?? 12)] });
 
 /** Zeitlimit für Downloads je Stufe (s): danach prozedural weiter (langsames Netz). */
 const LOAD_TIMEOUT = { low: 25, medium: 30, high: 35, ultra: 40 };
@@ -163,6 +175,7 @@ export function createWorldAssets(G, def, quality) {
       if (cfg.disabled || G.params?.get?.('lib') === '0') { stats.reason = 'abgeschaltet'; return false; }
       if (!renderer?.isWebGLRenderer || typeof WebAssembly !== 'object') { stats.reason = 'kein WebGL2/WebAssembly'; return false; }
       assets.setRenderer(renderer);
+      assets.setAnisotropy?.(textureAnisotropy(renderer, q)); // textures-2: Sätze (auch Gelände) je Stufe
       await assets.ready();
       stats.formats = assets.compressionSupport();
       const compressed = stats.formats.some(f => ['etc2', 'etc1', 'astc', 'dxt', 'bptc', 'pvrtc', 's3tc'].includes(f));
@@ -193,11 +206,13 @@ export function createWorldAssets(G, def, quality) {
       if (!e) continue;
       const tier = pickTier(e.tiers, stats.tier.texture);
       const calib = JSON.stringify([spec.color, spec.roughness, spec.metalness, spec.normalScale, spec.repeat, spec.macro, spec.aoMapIntensity, spec.envMapIntensity]);
-      // low (Handy): keine Weltraum-Variation im Shader (2 Texturabfragen je Pixel gespart), kein Nahdetail
-      if (q === 'low') spec = { ...spec, macro: false };
+      // low (Handy): Weltraum-Variation + günstiges Nahdetail nur auf Böden/Wänden (LOW_LOOK, textures-2), sonst aus
+      const lowLit = q === 'low' && LOW_LOOK.has(name);
+      if (q === 'low') spec = { ...spec, macro: lowLit && spec.macro !== false ? (spec.macro || LOW_MACRO) : false };
       // env-look: Nahdetail ab medium (Kartenzuordnung kann look: false oder eigene Werte setzen), Parallaxe nur ultra
-      let look = q === 'low' ? null : (spec.look === false ? null : (spec.look || LIB_LOOK[name] || null));
-      if (look && q !== 'ultra' && look.pom) look = { ...look, pom: 0 };
+      let look = spec.look === false ? null : (spec.look || LIB_LOOK[name] || null);
+      if (q === 'low') look = look && lowLit ? lowLook(look) : null;
+      else if (look && q !== 'ultra' && look.pom) look = { ...look, pom: 0 };
       const lk = look ? ':L' + JSON.stringify(look) : '';
       plan.set(name, { ...spec, look, tier, sizeM: e.sizeM?.[0], key: `${spec.id}@${tier}:${calib}${q === 'low' ? ':lo' : ''}${lk}` });
     }

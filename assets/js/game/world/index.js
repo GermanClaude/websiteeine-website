@@ -182,7 +182,7 @@ export async function loadWorld(G, mapId, opts = {}) {
   const debug = !!(G.debug || G.params?.get?.('debug') === '1');
   const lowTex = quality === 'low';
   const maxAniso = renderer?.capabilities?.getMaxAnisotropy?.() || 4;
-  configureTextures({ size: lowTex ? 256 : 512, anisotropy: Math.min(lowTex ? 2 : 8, maxAniso) });
+  configureTextures({ size: lowTex ? 256 : 512, quality, renderer }); // textures-2: Anisotropie je Stufe (low 4, medium 8, high/ultra 16)
   beginTextureEpoch(); // Texturen, die diese Karte nicht nutzt, werden am Ende freigegeben
 
   const [{ default: def0 }] = await Promise.all([MAP_MODULES[id](), fontsReady()]);

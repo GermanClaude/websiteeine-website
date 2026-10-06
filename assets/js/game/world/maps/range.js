@@ -155,6 +155,12 @@ export default {
     crateStack(b, 4, -18, { ry: 0.4 });
     sandbags(b, 15, -8, 19, -8.5, { rows: 5 });
     sandbags(b, -20, -36, -16, -35, { rows: 5 });
+    // maps-expand: zusätzliche Deckung für Bewegungstraining (Hock- und Brusthöhe, versetzt zwischen den Bahnen)
+    crateStack(b, -4, -40, { ry: -0.3, pattern: [[0, 0, 0, 1.1], [1.15, 0, 0.05, 1.0]] });
+    sandbags(b, 6, -60, 10, -60.5, { rows: 5 });
+    jersey(b, 20, -44, { len: 3, ry: 0.12 });
+    crateStack(b, -22, -14, { ry: 0.2 });
+    b.box(2, 0, -27, 2.4, 1.05, 0.6, 'concrete', { tint: '#b8b2a6', minimap: 'cover' });
     barrel(b, -2, 0, -42, { color: '#2d5f94' }); barrel(b, -1.4, 0, -42.3, { color: '#b8392c' });
     // Flutlichtmasten
     for (const s of [-1, 1]) for (const z of [20, -20, -60]) floodMast(b, s * 28.5, z, { h: 10, ry: s > 0 ? Math.PI / 2 : -Math.PI / 2, kind: 'cool' });
