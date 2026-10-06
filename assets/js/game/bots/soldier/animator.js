@@ -20,6 +20,8 @@ const Qn = () => new THREE.Quaternion();
 const UP = new THREE.Vector3(0, 1, 0);
 const _e = new THREE.Euler();
 const _q = Qn(), _q2 = Qn(), _qi = Qn();
+// Liegen (bots-scale): Beinknochen (Neigung, Gierung, Rollen) – gestreckt, leicht gespreizt, rechtes Knie etwas angewinkelt
+const PRONE_LEGS = [[BONE.thighL, 0.16, 0, 0.12], [BONE.shinL, 0.02, 0, 0], [BONE.footL, 0.3, 0, 0], [BONE.thighR, 0.14, 0, -0.16], [BONE.shinR, -0.08, 0, 0], [BONE.footR, 0.35, 0, 0]];
 const _v = V(), _v2 = V(), _v3 = V(), _v4 = V(), _a = V(), _b = V(), _c = V(), _pole = V();
 // feste Zwischenspeicher (keine Allokationen pro Bild)
 const S_R = V(), S_BP = V(), S_G = V(), S_L = V(), S_T = V(), S_M = V();
@@ -91,6 +93,8 @@ export class Animator {
     this.speed = 0;
     this.localVel = new THREE.Vector3();
     this.crouch = 0;
+    this.prone = 0; // bots-scale: Liegen 0..1 (Becken flach, Rumpf auf den Ellbogen, Beine gestreckt nach hinten)
+    this.obstruct = 0; // bots-scale: Waffe an der Wand 0..1 (zurückgezogen + hoch)
     this.sprint = 0;
     this.ads = 0;
     this.air = 0;
@@ -281,6 +285,9 @@ export class Animator {
     this.speed += (sp - this.speed) * damp(12, dt);
     this.localVel.lerp(p.velocity, damp(10, dt));
     this.crouch += ((p.crouch ? 1 : 0) - this.crouch) * damp(9, dt);
+    this.prone += ((p.prone ? 1 : 0) - this.prone) * damp(4.2, dt);
+    if (this.prone < 1e-3) this.prone = 0;
+    this.obstruct += ((p.obstruct || 0) - this.obstruct) * damp(12, dt);
     this.sprint += ((p.sprint ? 1 : 0) - this.sprint) * damp(7, dt);
     this.ads += ((p.ads || 0) - this.ads) * damp(14, dt);
     const airborne = !p.onGround;
@@ -290,7 +297,7 @@ export class Animator {
     this.air += (airTarget - this.air) * damp(airTarget ? 8 : 14, dt);
 
     // Körper-Gierung: folgt dem Ziel im Lauf eng, im Stand mit Totzone + Nachsetzschritt
-    const want = p.aimYaw;
+    const want = this.prone > 0.05 && Number.isFinite(p.proneYaw) ? p.proneYaw : p.aimYaw;
     const diff = wrap(want - this.bodyYaw);
     if (this.speed > 0.6 || this.air > 0.5) {
       this.bodyYaw = wrap(this.bodyYaw + diff * damp(9, dt));
@@ -420,6 +427,14 @@ export class Animator {
     const pelvisPitch = -crouch * 0.18 - sprint * 0.12;
     _e.set(pelvisPitch, this.hipYaw + twist, sway * 1.4 + (bL - bR) * 0.26 + leanRoll * 0.15, 'YXZ');
     wq[0].setFromEuler(_e);
+    const pr = this.prone;
+    if (pr > 0) {
+      // Liegen: Becken flach (Wirbelsäule zeigt nach vorn, Beine nach hinten), knapp über dem Boden, Körper hinter den Füßen
+      this.hipsPos.set(this.hipsPos.x * (1 - pr), lerp(this.hipsPos.y, 0.2, pr), lerp(this.hipsPos.z, 0.66, pr));
+      _e.set(-1.47, this.hipYaw * 0.3, sway * 0.5, 'YXZ');
+      _q.setFromEuler(_e);
+      wq[0].slerp(_q, pr);
+    }
     lq[0].copy(wq[0]);
     wp[0].copy(this.hipsPos);
 
@@ -436,10 +451,10 @@ export class Animator {
     const cwY = cower * 0.55, cwP = cower * 0.3;
     // Wirbelsäule, Brust, Hals, Kopf: (Gierung, Neigung, Rollen)
     const gl = this.glance;
-    this._rotFk(1, yawRest * 0.35 + tw * 0.5, pitch * 0.18 - lean * 0.5 - pelvisPitch * 0.4 + fP * 0.5 + cower * 0.12, -sway * 1.2 + fR * 0.5 + leanRoll * 0.4);
-    this._rotFk(2, yawRest * 0.4 + tw * 0.35, pitch * 0.32 - lean * 0.45 - pelvisPitch * 0.6 + breatheP + fP * 0.5 + this.recoilP.x * 0.04 + cower * 0.1, fR * 0.4 + leanRoll * 0.4);
-    this._rotFk(3, yawRest * 0.12 + gl.yaw * 0.4 - tw * 0.3 + cwY * 0.4, pitch * 0.2 + lean * 0.4 - ads * 0.22 + gl.pitch * 0.4 + cwP * 0.4, -ads * 0.06 + leanRoll * 0.08);
-    this._rotFk(4, yawRest * 0.13 + gl.yaw * 0.6 - tw * 0.2 + cwY * 0.6, pitch * 0.3 + lean * 0.55 + ads * 0.12 + this.flinchH.x * 0.3 + gl.pitch * 0.6 + cwP * 0.6, -ads * 0.2 - fR * 0.2 - leanRoll * 0.1);
+    this._rotFk(1, yawRest * 0.35 + tw * 0.5, pr * 0.16 + pitch * 0.18 - lean * 0.5 - pelvisPitch * 0.4 + fP * 0.5 + cower * 0.12, -sway * 1.2 + fR * 0.5 + leanRoll * 0.4);
+    this._rotFk(2, yawRest * 0.4 + tw * 0.35, pr * 0.36 + pitch * 0.32 - lean * 0.45 - pelvisPitch * 0.6 + breatheP + fP * 0.5 + this.recoilP.x * 0.04 + cower * 0.1, fR * 0.4 + leanRoll * 0.4);
+    this._rotFk(3, yawRest * 0.12 + gl.yaw * 0.4 - tw * 0.3 + cwY * 0.4, pr * 0.42 + pitch * 0.2 + lean * 0.4 - ads * 0.22 + gl.pitch * 0.4 + cwP * 0.4, -ads * 0.06 + leanRoll * 0.08);
+    this._rotFk(4, yawRest * 0.13 + gl.yaw * 0.6 - tw * 0.2 + cwY * 0.6, pr * 0.4 + pitch * 0.3 + lean * 0.55 + ads * 0.12 + this.flinchH.x * 0.3 + gl.pitch * 0.6 + cwP * 0.6, -ads * 0.2 - fR * 0.2 - leanRoll * 0.1);
 
     /* ---------- Anschlagrahmen + Waffe */
     const chest = BONE.chest;
@@ -454,10 +469,23 @@ export class Animator {
 
     /* ---------- Beine */
     this._legs(p);
+    if (pr > 0) this._proneLegs(pr);
 
     /* ---------- Kopfmitte (Trefferzone) */
     qrot(this.headCenter.fromArray(DIM.headCenter), wq[BONE.head]).add(wp[BONE.head]);
     void init;
+  }
+
+  /** Liegen: Beine gestreckt und leicht gespreizt, Fußspitzen im Boden (Überblendung über die Lauf-IK). */
+  _proneLegs(pr) {
+    const L = PRONE_LEGS;
+    for (let k = 0; k < L.length; k++) {
+      const [i, x, y, z] = L[k];
+      _e.set(x, y, z, 'YXZ');
+      _q.setFromEuler(_e);
+      this.lq[i].slerp(_q, pr);
+      this._fk(i);
+    }
   }
 
   _fk(i) {
@@ -537,6 +565,9 @@ export class Animator {
       rz -= b * (this.fireMode === 'bolt' ? 0.18 : 0.08);
       pos.y -= b * 0.01;
     }
+    // Waffe an der Wand (bots-scale): zurückziehen und hochnehmen („high ready“), damit der Lauf nicht in die Wand ragt
+    const ob = this.obstruct;
+    if (ob > 1e-3) { pos.z += 0.26 * ob; pos.y += 0.08 * ob; rx += 0.95 * ob; }
     // Rahmen → Modellraum
     qrot(this.gunPos.copy(pos), this.aimQuat).add(this.aimPivot);
     _e.set(rx, ry, rz, 'YXZ');

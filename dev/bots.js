@@ -103,7 +103,7 @@ const ANIMS = {
   strafeL: 'Seitwärts links', back: 'Rückwärts', diag: 'Diagonal', crouch: 'Hocke', crouchwalk: 'Schleichen', air: 'Sprung',
   turn: 'Drehen im Stand', aimUp: 'Ziel hoch', aimDown: 'Ziel tief', reload: 'Nachladen', reloadEmpty: 'Nachladen (leer)',
   throw: 'Granatwurf', melee: 'Nahkampf', hit: 'Treffer', hitLeg: 'Treffer Bein', hitArm: 'Treffer Arm', stagger: 'Taumeln (Explosion)',
-  flash: 'Geblendet', leanL: 'Lehnen links', leanR: 'Lehnen rechts', death: 'Tod (Ragdoll)',
+  flash: 'Geblendet', leanL: 'Lehnen links', leanR: 'Lehnen rechts', prone: 'Liegen (Anschlag)', proneIdle: 'Liegen', wall: 'Waffe an der Wand', death: 'Tod (Ragdoll)',
 };
 const flatWorld = { groundHeight: () => 0, raycast: () => null };
 
@@ -140,13 +140,18 @@ function buildGallery() {
 function respawnGallery() {
   for (const s of gal.soldiers) s.dispose();
   gal.soldiers = [];
-  const n = VARIANTS.length;
-  for (let i = 0; i < n; i++) {
+  // bots-scale: ?variants=funker,sanitaeter,… (Klassen-Aufstellung) und ?weapons=… (je Figur eine Waffe)
+  const only = params.get('variants') ? params.get('variants').split(',').map((v) => VARIANTS.findIndex((x) => x.id === v)).filter((i) => i >= 0) : null;
+  const perWeapon = params.get('weapons') ? params.get('weapons').split(',') : null;
+  const list = only && only.length ? only : VARIANTS.map((_, i) => i);
+  const n = list.length;
+  for (let k = 0; k < n; k++) {
+    const i = list[k];
     const s = createSoldier({ team: gal.scheme === 'A' ? 'A' : gal.scheme === 'B' ? 'B' : null, camo: gal.scheme, variant: i, quality: gal.quality, models: { createWeaponModel }, name: VARIANTS[i].name });
     s.setShadows(true);
-    const def = WEAPONS[gal.weaponId] || WEAPONS.ar_m17;
+    const def = WEAPONS[(perWeapon && perWeapon[k]) || gal.weaponId] || WEAPONS.ar_m17;
     s.setWeaponModel(createWeaponModel(def.model, { lod: 'third' }), def);
-    const x = (i - (n - 1) / 2) * 1.15;
+    const x = (k - (n - 1) / 2) * 1.15;
     s.reset(new THREE.Vector3(x, 0, 0), 0);
     s.home = new THREE.Vector3(x, 0, 0);
     gal.scene.add(s.root);
@@ -222,6 +227,9 @@ function galleryParams(s, i, t, dt) {
     case 'flash': if (Math.floor(t / 3.2) !== Math.floor((t - dt) / 3.2)) s.playFlash(2.2, 1); break;
     case 'leanL': p.ads = 1; p.lean = -1; break;
     case 'leanR': p.ads = 1; p.lean = 1; break;
+    case 'prone': p.prone = true; p.proneYaw = 0; p.ads = 1; break; // bots-scale: liegend im Anschlag
+    case 'proneIdle': p.prone = true; p.proneYaw = 0; break;
+    case 'wall': p.obstruct = 1; break; // Waffe an der Wand (hochgenommen)
     default: break;
   }
   p.position = s.home;

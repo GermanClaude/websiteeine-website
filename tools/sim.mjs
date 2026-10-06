@@ -33,6 +33,10 @@ await page.evaluate(async (god) => {
     window.__sim.deathsBy[k] = (window.__sim.deathsBy[k] || 0) + 1;
     if ((k === 'world' || k === 'fall') && e.victim && e.victim.position) window.__sim.envDeaths = (window.__sim.envDeaths || []).concat([[e.victim.name, k, e.victim.position.x.toFixed(1), e.victim.position.y.toFixed(1), e.victim.position.z.toFixed(1)]]);
   });
+  // bots-scale: Taktik-Ereignisse, Eroberungen, Panzerung/Heilung/Markieren zählen
+  G.events.on('bot:tactic', (e) => { const s = window.__sim, k = e && e.type || '?'; if (s) s.tactics[k] = (s.tactics[k] || 0) + 1; });
+  G.events.on('objective:captured', () => { if (window.__sim) window.__sim.captures++; });
+  for (const ev of ['gadget:heal', 'spot', 'armor:plate', 'player:stance']) G.events.on(ev, (e) => { const s = window.__sim; if (s && e && e.actor && e.actor.isBot && (ev !== 'armor:plate' || e.phase === 'end')) s.ev[ev] = (s.ev[ev] || 0) + 1; });
   G.events.on('actor:spawn', ({ actor }) => {
     if (actor !== G.player || !window.__simCenter) return;
     const n = G.world.nav.nearest(window.__simCenter);
@@ -42,6 +46,7 @@ await page.evaluate(async (god) => {
   window.__sim = {
     pdmg: 0, pdeaths: 0, phits: 0, firstHitAfterSeen: [],
     visits: new Map(), dist: new Map(), last: new Map(), errors: [], inWall: 0, deathsBy: {}, falls: 0,
+    tactics: {}, ev: {}, captures: 0, botMs: 0, botTicks: 0, botMax: 0, botSamples: [], wallWalk: 0, inWallWhere: [],
     run(seconds, dt) {
       const G = window.__game;
       const steps = Math.round(seconds / dt);
@@ -59,7 +64,11 @@ await page.evaluate(async (god) => {
         G.time.dt = dt; G.time.elapsed += dt; G.time.real += dt; G.time.frame++;
         try {
           G.player.update(dt);
+          const tb = performance.now();
           G.bots.update(dt);
+          const mb = performance.now() - tb;
+          this.botMs += mb; this.botTicks++; if (mb > this.botMax) this.botMax = mb;
+          if (this.botSamples.length < 20000) this.botSamples.push(mb);
           phys.separateActors(G.actors);
           G.weapons.update(dt);
           if (G.mode) G.mode.update(dt);
@@ -85,7 +94,10 @@ await page.evaluate(async (god) => {
             // in Wand? (Kollisionskapsel steckt fest)
             if (G.world.collider && G.time.frame % 60 === 0) {
               const hit = G.world.collider.capsuleIntersect(b.body.collisionCapsule);
-              if (hit && hit.depth > 0.12) this.inWall++;
+              if (hit && hit.depth > 0.12) { this.inWall++; if (this.inWallWhere.length < 12) this.inWallWhere.push([b.name, +b.position.x.toFixed(1), +b.position.y.toFixed(1), +b.position.z.toFixed(1), +hit.depth.toFixed(2)]); }
+              // gegen die Wand laufen: will sich bewegen, Wandkontakt, kaum Geschwindigkeit
+              const wn = b.body.wallNormal, v = b.body.velocity, mx = b._mx || 0, mz = b._mz || 0, ml = Math.hypot(mx, mz);
+              if (wn && ml > 0.3 && (mx * wn.x + mz * wn.z) / ml < -0.7 && Math.hypot(v.x, v.z) < 0.4) { this.wallWalk++; if ((this.wallWhere || (this.wallWhere = [])).length < 8) this.wallWhere.push([b.name, +b.position.x.toFixed(1), +b.position.y.toFixed(1), +b.position.z.toFixed(1), b.goal.kind]); }
             }
           }
         }
@@ -96,7 +108,9 @@ await page.evaluate(async (god) => {
     report() {
       const G = window.__game;
       const bots = G.bots.bots.map((b) => ({ n: b.name, t: b.team, a: b.alive, g: b.goal.kind, k: b.stats.kills, d: b.stats.deaths, sh: b.stats.shotsFired, hit: b.stats.shotsHit, dist: Math.round(this.dist.get(b) || 0), st: b.nav.stuck.level, w: b.weapon && b.weapon.currentDef && b.weapon.currentDef.id, p: [+b.position.x.toFixed(1), +b.position.y.toFixed(1), +b.position.z.toFixed(1)] }));
-      return { stuckWhere: (this.stuckWhere || []).slice(-12), deathsBy: this.deathsBy, envDeaths: this.envDeaths || [], stuckEvents: this.stuckEvents || 0, pdmg: Math.round(this.pdmg), phits: this.phits, pdeaths: this.pdeaths, t: +G.time.elapsed.toFixed(1), state: G.match.state, kills: G.combat.killCount, scores: G.mode && G.mode.scores, cells: this.visits.size, inWall: this.inWall, errors: this.errors.slice(0, 3), stats: G.bots.stats(), player: { k: G.player.stats.kills, d: G.player.stats.deaths }, bots };
+      const sm = this.botSamples.slice().sort((a, b) => a - b);
+      const perf = { botAvg: +(this.botMs / Math.max(1, this.botTicks)).toFixed(3), botP95: +(sm[Math.floor(sm.length * 0.95)] || 0).toFixed(3), botMax: +this.botMax.toFixed(2), ticks: this.botTicks };
+      return { perf, tactics: this.tactics, ev: this.ev, captures: this.captures, wallWalk: this.wallWalk, wallWhere: this.wallWhere || [], inWallWhere: this.inWallWhere, stuckWhere: (this.stuckWhere || []).slice(-12), deathsBy: this.deathsBy, envDeaths: this.envDeaths || [], stuckEvents: this.stuckEvents || 0, pdmg: Math.round(this.pdmg), phits: this.phits, pdeaths: this.pdeaths, t: +G.time.elapsed.toFixed(1), state: G.match.state, kills: G.combat.killCount, scores: G.mode && G.mode.scores, cells: this.visits.size, inWall: this.inWall, errors: this.errors.slice(0, 3), stats: G.bots.stats(), player: { k: G.player.stats.kills, d: G.player.stats.deaths }, bots };
     },
   };
 }, opt.player !== 'mortal');
@@ -117,8 +131,9 @@ for (let s = 0; s < total; s += chunk) {
   if (rep.state !== 'playing') break;
 }
 console.log(`Echtzeit ${(Date.now() - t0) / 1000}s  Tode nach Waffe ${JSON.stringify(rep.deathsBy)}  Umwelt ${JSON.stringify(rep.envDeaths)} Festhänge-Stufen>=3: ${rep.stuckEvents}`);
-for (const b of rep.bots) console.log(`${b.n.padEnd(12)} ${String(b.t).padEnd(4)} ${b.g.padEnd(9)} K${b.k} D${b.d} Schüsse ${b.sh} Treffer ${b.hit} Weg ${b.dist} m stuck ${b.st} ${b.w} @${b.p.join(',')}`);
+if (!opt.brief) for (const b of rep.bots) console.log(`${b.n.padEnd(12)} ${String(b.t).padEnd(4)} ${b.g.padEnd(9)} K${b.k} D${b.d} Schüsse ${b.sh} Treffer ${b.hit} Weg ${b.dist} m stuck ${b.st} ${b.w} @${b.p.join(',')}`);
 if (rep.stuckWhere.length) console.log('Festhängen:', JSON.stringify(rep.stuckWhere));
+console.log(`Bots-CPU ${JSON.stringify(rep.perf)}  Taktik ${JSON.stringify(rep.tactics)}  Ereignisse ${JSON.stringify(rep.ev)}  Eroberungen ${rep.captures}  Wandlaufen ${rep.wallWalk} ${JSON.stringify(rep.wallWhere)}  inWall ${rep.inWall} ${JSON.stringify(rep.inWallWhere)}`);
 console.log(`Spieler K${rep.player.k} D${rep.player.d} Treffer erhalten ${rep.phits} Schaden ${rep.pdmg} Tode ${rep.pdeaths}`);
 writeFileSync(`tools/out/sim-${name}.json`, JSON.stringify(rep));
 // Aufnahmen: hinter Bots stellen

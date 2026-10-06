@@ -227,6 +227,9 @@ export class Soldier {
     p.meleeing = !!params.meleeing;
     p.idleLook = !!params.idleLook;
     p.lean = params.lean || 0;
+    p.prone = !!params.prone; // bots-scale: Liegen (Pose + Trefferzonen folgen den Knochen)
+    p.proneYaw = params.proneYaw;
+    p.obstruct = params.obstruct || 0; // Waffe an der Wand: zurückziehen + hochnehmen
     if (params.firing) a.shot(params.shotStrength || 1);
     let bodyYaw = a.update(dt, p);
     // Schutz: kaputte Pose (nicht endliche Werte aus Eingaben) → Ruhepose statt unsichtbarem/untreffbarem Soldaten
@@ -361,8 +364,12 @@ export class Soldier {
   /** Strahl gegen die Trefferzonen → { distance, point, normal, zone } | null. */
   raycast(ray, maxDist = Infinity) {
     if (this.state !== 'alive') return null;
-    if (this._hitStamp < 0) this._updateHitboxes();
     const ro = ray.origin, rd = ray.direction;
+    // Grobtest vor dem Aktualisieren der Trefferzonen (bots-scale: 64 Akteure × jeder Schuss): Kugel um die Wurzel,
+    // groß genug für Lehnen und Liegen (Körper reicht 1,6 m nach hinten)
+    _v2.copy(this.root.position); _v2.y += 0.9;
+    if (raySphere(ro, rd, _v2, 2.1) < 0) return null;
+    if (this._hitStamp < 0) this._updateHitboxes();
     // Hüllkugel um die Brust
     const c = this._hb[2].a;
     _v2.copy(c).add(this._hb[2].b).multiplyScalar(0.5);

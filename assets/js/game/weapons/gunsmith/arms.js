@@ -734,11 +734,28 @@ class Arm {
     const cc = opts.own ? _multi.set([col, opts.own]) : col;
     if (this._rigid(col, false)) opts.own?.sync();
     this._chains(cc, opts);
-    if (opts.grip) { this._grip(cc, opts); this._chains(cc, opts); }
+    const saved = _saved;
+    if (opts.grip) {
+      for (let i = 0; i < 4; i++) for (let k = 0; k < 3; k++) saved[i * 3 + k] = this.fingers[i][k].rotation.x;
+      this._grip(cc, opts); this._chains(cc, opts);
+    }
     if (this._rigid(col, true)) { opts.own?.sync(); this._chains(cc, opts); }
     // Handballen/Fingergrund haben Vorrang (Finger lösen sich danach über ihre Gelenke)
     if (this._rigid(col, false)) { opts.own?.sync(); this._chains(cc, opts); }
+    // Greifen darf nie verschlechtern: steckt ein Finger danach noch, zurück auf den Stand vor dem Anlegen
+    if (opts.grip) for (let i = 0; i < 4; i++) {
+      if (this._fingerPen(cc, i) <= 0.0015) continue;
+      for (let k = 0; k < 3; k++) { this.fingers[i][k].rotation.x = saved[i * 3 + k]; }
+      this.fingers[i][0].updateMatrixWorld(true);
+      this._unpenChain(cc, this.fingers[i], FINGERS[i].len, FINGERS[i].r, this._sc, false, TS_F);
+    }
     T.pos.copy(hand.position);
+  }
+
+  _fingerPen(col, i) {
+    let worst = -Infinity;
+    for (let s = 0; s < 3; s++) for (const t of TS_F) worst = Math.max(worst, col.pen(segPoint(this.fingers[i][s], FINGERS[i].len[s], t, _c1), FINGERS[i].r[s] * 0.92 * this._sc, _hit));
+    return worst;
   }
 
   // Starr herausschieben: all = alle Hand-Punkte (sonst nur Handballen/Fingergrund/Daumenballen). true = bewegt.
@@ -848,23 +865,19 @@ class Arm {
         let g = Infinity, gs = -1;
         for (let s = 1; s < 3; s++) for (const t of TS_F) {
           segPoint(ch[s], f.len[s], t, _c1);
-          if (col.query(_c1, f.r[s] * sc + 0.025, H) && H.d - f.r[s] * 0.92 * sc < g) { g = H.d - f.r[s] * 0.92 * sc; gs = s; _c4.copy(_c1); _c3.copy(H.dir).negate(); }
+          if (col.query(_c1, f.r[s] * sc + 0.035, H) && H.d - f.r[s] * 0.92 * sc < g) { g = H.d - f.r[s] * 0.92 * sc; gs = s; _c4.copy(_c1); _c3.copy(H.dir).negate(); }
         }
         if (gs < 0 || g <= 0.002) break;
-        // Mittelgelenk bewegt beide Glieder; am Anschlag das Endgelenk (nur wenn der Punkt am Endglied liegt)
-        let done = false;
-        for (const j of gs === 2 ? [1, 2] : [1]) {
+        // Gelenk mit dem größten Hebel zur Oberfläche (Grund-, Mittel- oder Endgelenk; Endgelenk nur für Punkte am Endglied)
+        let bj = -1, bv = 2e-4;
+        for (const j of gs === 2 ? [0, 1, 2] : [0, 1]) {
           const vn = this._flexRate(ch[j], _c4, _c3);
-          if (vn < 2e-4) continue;
-          const cur = -ch[j].rotation.x;
-          const nxt = Math.min(FMAX[j], cur + Math.min(0.5, (g - 0.0008) / vn));
-          if (nxt - cur < 1e-3) continue;
-          ch[j].rotation.x = -nxt;
-          ch[j].updateMatrixWorld(true);
-          done = true;
-          break;
+          if (vn > bv && -ch[j].rotation.x < FMAX[j] - 1e-3) { bv = vn; bj = j; }
         }
-        if (!done) break;
+        if (bj < 0) break;
+        const cur = -ch[bj].rotation.x;
+        ch[bj].rotation.x = -Math.min(FMAX[bj], cur + Math.min(0.5, (g - 0.0008) / bv));
+        ch[bj].updateMatrixWorld(true);
       }
     }
   }
@@ -917,7 +930,7 @@ Arm.FINGER_L = FINGERS.map(f => f.len.slice());
 const _upA = V3(), _upB = V3(), _oz = V3(), _oy = V3(), _ox = V3(), _fd = V3();
 const _c1 = V3(), _c2 = V3(), _c3 = V3(), _c4 = V3(), _c5 = V3(), _c6 = V3(), _c7 = V3(), _c8 = V3(), _cs = V3();
 const _cq = new THREE.Quaternion(), _cq2 = new THREE.Quaternion(), _cm = new THREE.Matrix4();
-const _hit = contactHit(), _multi = new MultiCollider();
+const _hit = contactHit(), _multi = new MultiCollider(), _saved = new Float32Array(12);
 // Starre Kontaktpunkte: Handballen (Handraum, x gespiegelt je Seite), Fingergrund, Daumenballen
 const RIGID = [];
 for (const x of [-0.025, 0, 0.025]) for (const z of [-0.065, -0.035, -0.01]) RIGID.push({ bone: -1, p: [x, 0, z], r: 0.011 });
@@ -1002,15 +1015,16 @@ export function gloveMaps(S = 512) {
   const h = new Float32Array(S * S);
   for (let i = 0; i < h.length; i++) h[i] = fine[i] * 0.7 + Math.max(0, pore[i] - 0.55) * 1.4;
   const normal = mkTex(normalFromHeight(h, S, S / 256 * 1.6), false);
-  const wear = fbm(A, A, { seed: 73, period: 4, octaves: 4 }), grime = fbm(A, A, { seed: 74, period: 6, octaves: 3 });
+  // Abrieb/Schmutz nur dezent und kleinteilig (Kachel = 3 cm; große Flecken wirkten wie Tarnmuster)
+  const wear = fbm(A, A, { seed: 73, period: 10, octaves: 3 }), grime = fbm(A, A, { seed: 74, period: 14, octaves: 3 });
   const speck = fbm(A, A, { seed: 75, period: A >> 2, octaves: 1 });
   const ca = texCanvas(A), cr = texCanvas(A);
   const ia = ca.getContext('2d').createImageData(A, A), ir = cr.getContext('2d').createImageData(A, A);
   for (let i = 0; i < A * A; i++) {
     const scuff = THREE.MathUtils.smoothstep(wear[i], 0.58, 0.72), dirt = THREE.MathUtils.smoothstep(grime[i], 0.6, 0.78);
-    const v = (0.86 + 0.1 * scuff - 0.16 * dirt + (speck[i] - 0.5) * 0.08) * 255;
+    const v = (0.9 + 0.045 * scuff - 0.06 * dirt + (speck[i] - 0.5) * 0.06) * 255;
     ia.data[i * 4] = ia.data[i * 4 + 1] = ia.data[i * 4 + 2] = THREE.MathUtils.clamp(v, 0, 255); ia.data[i * 4 + 3] = 255;
-    const rgh = (0.86 - 0.22 * scuff + 0.06 * dirt) * 255;
+    const rgh = (0.84 - 0.16 * scuff + 0.05 * dirt) * 255;
     ir.data[i * 4] = ir.data[i * 4 + 1] = ir.data[i * 4 + 2] = rgh; ir.data[i * 4 + 3] = 255;
   }
   ca.getContext('2d').putImageData(ia, 0, 0); cr.getContext('2d').putImageData(ir, 0, 0);

@@ -37,6 +37,11 @@ export class Navigator {
     this.noProgress = 0; // Anzahl Wächter-Auslösungen (Diagnose)
     this._skipIdx = -1; // zuletzt abgelehnte Abkürzung (Wegpunkt) …
     this._skipAt = 0; // … und frühester Zeitpunkt der nächsten Prüfung
+    // bots-scale: Wandkontakt (Laufrichtung gegen die Wand, kaum Tempo) → an der Wand entlang ausweichen, nach 3× neu planen
+    this._wallT = 0;
+    this._wallHits = 0;
+    this.wallSlides = 0;
+    this._sdir = new THREE.Vector3(); // geglättete Laufrichtung (kein Zittern an Ecken)
   }
 
   reset() {
@@ -228,7 +233,29 @@ export class Navigator {
         this._request();
       }
     } else if (!wantMove) pr.at = now;
+    // Gegen eine Wand laufen (bots-scale): Richtung zeigt in die Wand, Tempo bleibt aus → entlang der Wand zum Weg hin
+    const wn = bot.body.wallNormal;
+    if (wantMove && wn && this.dir.x * wn.x + this.dir.z * wn.z < -0.55) {
+      const v = bot.body.velocity;
+      this._wallT = Math.hypot(v.x, v.z) < 0.8 ? this._wallT + dt : 0;
+      if (this._wallT > 0.3 && now >= st.sideUntil) {
+        this._wallT = 0;
+        const nx = path[Math.min(this.idx + 1, path.length - 1)];
+        _s.set(-wn.z, 0, wn.x);
+        if (_s.x * (nx.x - pos.x) + _s.z * (nx.z - pos.z) < 0) _s.multiplyScalar(-1);
+        if (this._wallHits % 2 === 1) _s.multiplyScalar(-1); // zweiter Versuch: andere Richtung
+        st.side.copy(_s).addScaledVector(wn, 0.35).normalize();
+        st.sideUntil = now + 0.5;
+        this.wallSlides++;
+        if (++this._wallHits >= 3) { this._wallHits = 0; if (this.dest && !this.pending) this._request(); }
+      }
+    } else if (this._wallT > 0) this._wallT = Math.max(0, this._wallT - dt);
     if (now < st.sideUntil) this.dir.lerp(st.side, 0.85).normalize();
+    // leicht glätten (Wegpunktwechsel, Seitschritt): Ecken ohne Zittern; scharfe Kehren sofort
+    const sd = this._sdir;
+    if (sd.lengthSq() < 0.5 || sd.dot(this.dir) < 0.2) sd.copy(this.dir);
+    else sd.lerp(this.dir, 1 - Math.exp(-20 * dt)).normalize();
+    this.dir.copy(sd);
     return this.dir;
   }
 

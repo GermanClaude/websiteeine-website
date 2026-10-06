@@ -110,6 +110,7 @@ export function sense(bot, now, dt) {
       rate *= sp > 3 ? 1.3 : sp < 0.5 ? 0.72 : 1;
       if (firing) rate *= 2.3;
       if (a.body && a.body.height < 1.5) rate *= 0.75;
+      if (a.stance === 'prone' || a.proneBlend > 0.5) rate *= 0.6; // liegend (bots-scale): noch schwerer zu entdecken
       if (partial) rate *= 0.7;
       if (hurt) rate *= 2.5;
       if (d < 6) rate *= 4;

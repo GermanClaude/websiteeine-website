@@ -19,6 +19,11 @@ export const VARIANTS = [
   { id: 'bastion', name: 'Bastion', head: 'helmet', face: 'gasmask', eyes: null, vest: 'heavy', back: 'none', knees: true, pauldrons: true, dump: true, sleeves: 'long', skin: 1, hair: '#2a2119' },
   { id: 'kundschafter', name: 'Kundschafter', head: 'wrap', ears: true, face: 'gaiter', eyes: 'shades', vest: 'rig', back: 'assault', knees: true, sleeves: 'rolled', skin: 5, hair: '#4a3420' },
   { id: 'pionier', name: 'Pionier', head: 'cap', capBack: true, ears: true, face: 'gaiter', eyes: 'shades', vest: 'plate', back: 'none', knees: true, holster: true, dump: true, sleeves: 'long', skin: 2, hair: '#2e2016' },
+  // Klassen-Ausführungen (bots-scale): Sanitäter (leichte Weste, Armbinde mit rotem Kreuz, Sanitätstasche), Panzerpionier
+  // (schwere Weste mit Schulterschutz, Werfer RW-90 auf dem Rücken), Scharfschütze (Tarnüberwurf/„Ghillie“ über Kopf und Schultern)
+  { id: 'sanitaeter', name: 'Sanitäter', head: 'helmet', cover: true, ears: true, face: 'gaiter', eyes: 'glasses', vest: 'light', back: 'medbag', armband: 'medic', knees: false, holster: true, sleeves: 'long', skin: 3, hair: '#2a2119' },
+  { id: 'panzerpionier', name: 'Panzerpionier', head: 'helmet', face: 'balaclava', eyes: 'goggles', vest: 'heavy', back: 'launcher', knees: true, pauldrons: true, dump: true, sleeves: 'long', skin: 0, hair: '#18120d' },
+  { id: 'scharfschuetze', name: 'Scharfschütze', head: 'boonie', face: 'shemagh', eyes: null, shemagh: true, vest: 'rig', back: 'hydration', ghillie: true, knees: false, holster: false, sleeves: 'rolled', skin: 5, hair: '#3b2a1c' },
 ];
 export const VARIANT_IDS = VARIANTS.map((v) => v.id);
 
@@ -112,6 +117,12 @@ function buildSoldier(V, lod) {
     patch: { pal: 'gear', shade: 0.72, detail: 1, cls: 'gear' },
     knit: { color: '#2a2b2c', detail: 1, shine: 0, cls: 'cloth' },
     sand: { color: '#4b4c3c', detail: 1, cls: 'cloth' }, // Shemagh (dunkles Oliv – heller Sand las sich als Haut)
+    // bots-scale: Sanitäter-Kennzeichen, Werferrohr, Tarnüberwurf (Jute-Streifen)
+    medWhite: { color: '#d4d2c8', detail: 0.4, shine: 0.1, emis: 0.12, cls: 'cloth' },
+    medRed: { color: '#9a1c18', detail: 0.3, shine: 0.1, emis: 0.1, cls: 'cloth' },
+    tube: { color: '#3c4130', detail: 0.6, shine: 0.22, cls: 'hard', wear: 0.5 },
+    jute: { color: '#55553a', camo: 0.5, detail: 1, shine: 0, cls: 'cloth' },
+    jute2: { color: '#6b6444', detail: 1, shine: 0, cls: 'cloth' },
   };
   const covered = V.face === 'balaclava';
   const lowerCovered = covered || V.face === 'gaiter' || V.face === 'shemagh' || V.face === 'gasmask';
@@ -240,6 +251,24 @@ function buildSoldier(V, lod) {
     add(cyl(0.006, 0.01, 0.55, 4, { p: [0.075, 1.61, 0.26], r: [-0.12, 0, -0.06] }), 'chest', C.plastic);
     if (L01) add(cyl(0.022, 0.022, 0.04, q.cs, { p: [-0.06, 1.42, 0.255] }), 'chest', C.metal);
     if (L0) add(rbox(0.12, 0.05, 0.012, 0, 0, { p: [0, 1.32, 0.292] }), 'chest', C.mag);
+  } else if (V.back === 'medbag') {
+    // Sanitätstasche: weißes Feld mit rotem Kreuz (von hinten auf Distanz lesbar)
+    add(R(0.25, 0.22, 0.12, 0.03, { p: [0, 1.24, 0.235] }), 'chest', C.gear2);
+    add(rbox(0.11, 0.11, 0.004, 0, 0, { p: [0, 1.25, 0.297] }), 'chest', C.medWhite);
+    add(rbox(0.075, 0.022, 0.004, 0, 0, { p: [0, 1.25, 0.3] }), 'chest', C.medRed);
+    add(rbox(0.022, 0.075, 0.004, 0, 0, { p: [0, 1.25, 0.3] }), 'chest', C.medRed);
+    if (!FAR) add(R(0.2, 0.05, 0.1, 0.02, { p: [0, 1.375, 0.235] }), 'chest', C.flap);
+  } else if (V.back === 'launcher') {
+    // Werfer RW-90 schräg auf dem Rücken (Rohr, Kappen, Visier, Griffstück) + kleiner Rucksack mit Ersatzraketen
+    add(R(0.24, 0.26, 0.11, 0.03, { p: [0, 1.25, 0.225] }), 'chest', C.gear2);
+    add(cyl(0.052, 0.052, 1.02, q.cs, { p: [0.02, 1.2, 0.315], r: [0, 0, 0.55] }), 'chest', C.tube);
+    add(cyl(0.062, 0.062, 0.1, q.cs, { p: [-0.245, 1.633, 0.315], r: [0, 0, 0.55] }), 'chest', C.plastic);
+    add(cyl(0.062, 0.062, 0.1, q.cs, { p: [0.285, 0.767, 0.315], r: [0, 0, 0.55] }), 'chest', C.plastic);
+    if (!FAR) {
+      add(rbox(0.035, 0.07, 0.05, 0, 0, { p: [0.04, 1.2, 0.37], r: [0, 0, 0.55] }), 'chest', C.plastic);
+      add(rbox(0.03, 0.09, 0.04, 0, 0, { p: [0.12, 1.06, 0.36], r: [0, 0, 0.55] }), 'chest', C.plastic);
+      pair(rbox(0.012, 0.36, 0.024, 0, 0, { p: [-0.12, 1.26, 0.2] }), 'chest', 'chest', C.strap);
+    }
   } else if (V.back === 'hydration') {
     add(R(0.2, 0.31, 0.065, 0.028, { p: [0, 1.28, 0.205] }), 'chest', C.gear2);
     if (L01) add(cyl(0.008, 0.008, 0.3, 4, { p: [-0.13, 1.34, -0.03], r: [0.4, 0, 0.3] }), 'chest', C.plastic);
@@ -329,6 +358,22 @@ function buildSoldier(V, lod) {
     add(cyl(0.185, 0.195, 0.014, q.cs + 3, { p: [0, 1.735, 0.012], r: [0.04, 0, 0], s: [1, 1, 1.05] }), 'head', C.top);
     add(cyl(0.112, 0.112, 0.022, q.cs, { p: [0, 1.752, 0.012], s: [1, 1, 1.08] }), 'head', C.band); // Hutband in Teamfarbe
     add(rbox(0.035, 0.022, 0.006, 0, 0, { p: [0.0, 1.752, -0.11] }), 'head', C.accent);
+    if (V.ghillie) {
+      // Tarnüberwurf: Jute-Streifen auf Hutkrempe und Nacken (Kopf) + Umhang über Schultern/Rücken (Brust); feste Anordnung
+      add(E(0.2, 0.05, 0.21, { p: [0, 1.75, 0.02] }, { thetaLength: Math.PI * 0.5 }, q.sw, Math.max(3, q.sh / 2)), 'head', C.jute);
+      add(E(0.27, 0.2, 0.2, { p: [0, 1.4, 0.07] }, { thetaLength: Math.PI * 0.55 }), 'chest', C.jute);
+      const n = FAR ? 6 : L01 ? 14 : 22;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + (i % 3) * 0.37;
+        const onHead = i % 2 === 0;
+        const r = onHead ? 0.17 + (i % 4) * 0.012 : 0.22 + (i % 5) * 0.01;
+        const x = Math.sin(a) * r, z = Math.cos(a) * r * (onHead ? 1 : 0.85) + (onHead ? 0.012 : 0.08);
+        if (!onHead && z < -0.05) continue; // vorn frei (Waffe/Gesicht)
+        const len = onHead ? 0.09 + (i % 3) * 0.03 : 0.16 + (i % 4) * 0.05;
+        const y = onHead ? 1.73 - len * 0.45 : 1.42 - len * 0.45;
+        add(rbox(0.035, len, 0.012, 0, 0, { p: [x, y, z], r: [Math.cos(a) * 0.35, a, -Math.sin(a) * 0.35] }), onHead ? 'head' : 'chest', i % 3 ? C.jute : C.jute2);
+      }
+    }
   } else if (V.head === 'beanie') {
     add(E(0.103, 0.104, 0.114, { p: [0, 1.703, 0.012] }, { thetaLength: Math.PI * 0.55 }), 'head', C.knit);
     add(cyl(0.106, 0.108, 0.04, q.cs + 2, { p: [0, 1.718, 0.012], s: [1, 1, 1.07] }), 'head', { ...C.knit, color: '#323334' });
@@ -384,6 +429,12 @@ function buildSoldier(V, lod) {
   // Armbinde in Teamfarbe rund um den Oberarm (auch aus der Ferne und von hinten sichtbar)
   pair(cyl(0.066, 0.064, 0.06, q.cs, { p: [-0.19, 1.275, 0.0], s: [0.97, 1, 1.05] }, true), 'upperArmL', 'upperArmR', C.band);
   if (L0) pair(rbox(0.006, 0.05, 0.05, 0, 0, { p: [-0.256, 1.345, 0.0] }), 'upperArmL', 'upperArmR', C.patch); // Ärmeltaschen-Klett
+  if (V.armband === 'medic') {
+    // Armbinde Sanitäter (weiß, rotes Kreuz außen) unter dem Teamband
+    pair(cyl(0.067, 0.065, 0.07, q.cs, { p: [-0.19, 1.2, 0.0], s: [0.97, 1, 1.05] }, true), 'upperArmL', 'upperArmR', C.medWhite);
+    pair(rbox(0.006, 0.046, 0.014, 0, 0, { p: [-0.259, 1.2, 0.0] }), 'upperArmL', 'upperArmR', C.medRed);
+    pair(rbox(0.006, 0.014, 0.046, 0, 0, { p: [-0.259, 1.2, 0.0] }), 'upperArmL', 'upperArmR', C.medRed);
+  }
   if (V.pauldrons) pair(E(0.08, 0.06, 0.086, { p: [-0.21, 1.41, 0.0] }, { thetaLength: Math.PI * 0.5 }), 'upperArmL', 'upperArmR', C.gear);
   const rolled = V.sleeves === 'rolled';
   if (L01) pair(E(0.047, 0.045, 0.048, { p: [-0.19, 1.155, 0.004] }, undefined, q.sw / 2 + 1, q.sh / 2), 'foreArmL', 'foreArmR', rolled ? C.skin : { ...C.top, wear: 0.6 });

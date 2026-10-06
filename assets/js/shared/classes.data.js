@@ -284,12 +284,29 @@ export function classProfile(clsId, { armor, helmet } = {}) {
 }
 
 /** Klasse für einen Bot ziehen (rng() ∈ [0,1)); gewichtet nach CLASSES[*].bot.weight. */
-export function pickBotClass(rng = Math.random) {
+/**
+ * Klassenverteilung je Truppenrolle (bots-scale): leader Truppführer, mg MG-Schütze, rifleman Schütze,
+ * grenadier Pionier mit Panzerabwehr, medic Sanitäter, marksman Aufklärer/Scharfschütze. Gewichte je Klasse.
+ */
+export const BOT_ROLE_CLASSES = deepFreeze({
+  leader: { sturm: 0.85, aufklaerer: 0.15 },
+  mg: { pionier: 0.75, sturm: 0.25 },
+  rifleman: { sturm: 0.8, aufklaerer: 0.2 },
+  grenadier: { pionier: 1 },
+  medic: { sanitaeter: 1 },
+  marksman: { aufklaerer: 0.9, sturm: 0.1 },
+});
+
+/** Zufallsklasse für einen Bot; mit `role` (BOT_ROLE_CLASSES) nach Truppenrolle, sonst nach CLASSES[*].bot.weight. */
+export function pickBotClass(rng = Math.random, role = null) {
+  const table = role && BOT_ROLE_CLASSES[role];
+  const ids = table ? Object.keys(table) : SOLDIER_CLASS_ORDER;
+  const weight = (id) => (table ? table[id] : CLASSES[id].bot.weight);
   let sum = 0;
-  for (const id of SOLDIER_CLASS_ORDER) sum += CLASSES[id].bot.weight;
+  for (const id of ids) sum += weight(id);
   let r = rng() * sum;
-  for (const id of SOLDIER_CLASS_ORDER) { r -= CLASSES[id].bot.weight; if (r < 0) return id; }
-  return DEFAULT_CLASS;
+  for (const id of ids) { r -= weight(id); if (r < 0) return id; }
+  return table ? ids[0] : DEFAULT_CLASS;
 }
 
 /* ============================================================= Spielstile */

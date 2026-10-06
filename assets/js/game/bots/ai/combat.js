@@ -323,6 +323,11 @@ export class Gunner {
       else if (d > 14 && r < D.strafeChance + D.peekChance * 0.5) this.moveMode = 'crouch';
       else this.moveMode = cls === 'shotgun' && d > ideal ? 'advance' : 'hold';
       if (Math.random() < 0.55) this.strafe = -this.strafe;
+      // bots-scale: Seitwärts nur, wo Platz ist (Wand/Absturz auf 1,6 m prüfen; sonst andere Seite bzw. halten)
+      if (this.moveMode === 'strafe' || this.moveMode === 'backoff') {
+        const ok = this._sideFree(_d, this.strafe);
+        if (!ok) { this.strafe = -this.strafe; if (!this._sideFree(_d, this.strafe)) this.moveMode = D.peekChance > 0.3 ? 'crouch' : 'hold'; }
+      }
       if (this.moveMode === 'strafe' && D.jumpShot > 0 && d < 16 && Math.random() < D.jumpShot * 3) out.jump = true;
     }
     const lx = -_d.z * this.strafe, lz = _d.x * this.strafe;
@@ -363,6 +368,23 @@ export class Gunner {
     return out;
   }
 }
+
+/** Platz für Seitwärtsschritte? toTarget (horizontal, normiert), side ±1. Ein Strahl + zwei Bodenproben. */
+Gunner.prototype._sideFree = function (toTarget, side) {
+  const bot = this.bot;
+  const W = bot.G.world;
+  if (!W || typeof W.raycast !== 'function') return true;
+  const p = bot.position;
+  _a.set(-toTarget.z * side, 0, toTarget.x * side);
+  _eye.set(p.x, p.y + 0.9, p.z);
+  const h = W.raycast(_eye, _a, 1.6);
+  if (h && h.distance < 1.5) return false;
+  if (typeof W.groundHeight === 'function') {
+    const g = W.groundHeight(p.x + _a.x * 1.4, p.z + _a.z * 1.4, p.y + 0.6);
+    if (g === null || Math.abs(g - p.y) > 0.6) return false;
+  }
+  return true;
+};
 
 /** Zielt a ungefähr auf b? (Bedrohung) */
 function aimingAt(a, b, d) {

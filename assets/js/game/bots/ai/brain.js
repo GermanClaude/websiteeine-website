@@ -12,16 +12,18 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const CHASE_PERCH = 0.4; // Anteil vorsichtiger Verfolgungen über einen erhöhten Posten (FFA: halb so oft)
 const HUNT_PERCH = 0.35; // Anteil der Anmärsche zu Gefechtslärm über einen erhöhten Posten (FFA: halb so oft)
 
-export const GOALS = ['roam', 'engage', 'cover', 'retreat', 'chase', 'hunt', 'flank', 'objective', 'evade', 'heal', 'grenade'];
+export const GOALS = ['roam', 'engage', 'cover', 'retreat', 'chase', 'hunt', 'flank', 'objective', 'evade', 'heal', 'grenade', 'squad'];
 
 /** Anzeigenamen (Prüfstand). */
 export const GOAL_LABELS = {
   roam: 'Suchen', engage: 'Gefecht', cover: 'Deckung', retreat: 'Rückzug', chase: 'Verfolgen', hunt: 'Jagen',
-  flank: 'Flanke', objective: 'Flagge', evade: 'Ausweichen', heal: 'Heilen', grenade: 'Granate', idle: 'Warten',
+  flank: 'Flanke', objective: 'Flagge', evade: 'Ausweichen', heal: 'Heilen', grenade: 'Granate', idle: 'Warten', squad: 'Trupp',
 };
+/** Truppbefehle (bots-scale, ai/squad.js), die auch bei Feindsicht weiterlaufen (Bot feuert dabei). */
+const MOVE_UNDER_FIRE = new Set(['fallback', 'medic']);
 
 export function newGoal() {
-  return { kind: 'idle', move: new THREE.Vector3(), hasMove: false, tolerance: 1, speed: 'run', look: 'move', lookAt: new THREE.Vector3(), hasLook: false, since: 0, until: 0, crouch: false, data: null };
+  return { kind: 'idle', move: new THREE.Vector3(), hasMove: false, tolerance: 1, speed: 'run', look: 'move', lookAt: new THREE.Vector3(), hasLook: false, since: 0, until: 0, crouch: false, data: null, hold: false, sub: null, repath: 1.5 };
 }
 
 export function think(bot, now) {
@@ -49,6 +51,10 @@ export function think(bot, now) {
   }
   if (goal.kind === 'evade' && now < goal.until) return;
   if (goal.kind === 'grenade' && bot.throwPlan) return;
+  // Truppbefehl (bots-scale): gilt bis order.until
+  let ord = bot.order && bot.order.kind && now < bot.order.until ? bot.order : null;
+  // Weg zum Befehlsziel gescheitert (Fortschrittswächter/Festhängen) → Befehl fallen lassen, 8 s selbst entscheiden
+  if (ord && ord.hasPos && goal.kind === 'squad' && bot.nav.failed) { bot._orderBan = now + 8; ord.kind = null; ord = null; }
 
   // --- Ziel wählen
   const rec = gunner.selectTarget(now);
@@ -58,6 +64,8 @@ export function think(bot, now) {
   const objective = objectiveFor(bot, now);
 
   if (rec) {
+    // Ausweichen/Sanitäter: weiterlaufen und dabei feuern
+    if (ord && MOVE_UNDER_FIRE.has(ord.kind)) { applyOrder(bot, ord, now, rec); return; }
     const d = rec.pos.distanceTo(bot.position);
     // Verletzt → Deckung / Rückzug
     if (hp < D.retreatHealth + (d < 8 ? -10 : 0) && Math.random() < D.cover + 0.2 && !(objective && objective.inside)) {
@@ -81,6 +89,8 @@ export function think(bot, now) {
     }
     set(goal, 'engage', now, { look: 'target' });
     if (bot.coverNode) { goal.move.copy(bot.coverNode.position); goal.hasMove = true; goal.tolerance = 0.5; }
+    // Stellung aus dem Truppbefehl halten (Feuerbasis, Sichern, Stapel): von dort kämpfen statt vorzugehen
+    if (ord && ord.hold && ord.hasPos) { bot.coverNode = null; goal.move.copy(ord.pos); goal.hasMove = true; goal.tolerance = 0.8; goal.hold = true; }
     // Granate auf Gruppe
     maybeGrenade(bot, now, rec, true);
     return;
@@ -96,6 +106,8 @@ export function think(bot, now) {
     if (c) bot.coverNode = c;
     return;
   }
+  // Truppbefehl (Vorgehen, Sichern, Niederhalten, Flanke, Sammeln, Stapel …)
+  if (ord) { applyOrder(bot, ord, now, null); return; }
   // Erhöhter Posten (aus Umherziehen/Verfolgen/Jagen/Verteidigen): hingehen, dann eine Weile halten
   if (perchStep(bot, now, A, fresh)) return;
   // Herrschaft: Flaggen haben Vorrang vor weitem Verfolgen
@@ -179,8 +191,25 @@ export function think(bot, now) {
       const perch = isPerch(A, node);
       set(goal, 'roam', now, { move: node.position, speed: 'sprint', look: 'move', tolerance: perch ? 0.8 : 2 });
       goal.data = perch ? perchData(node, null, null, rnd(6, 12)) : null;
+    } else if (A && A.nodes.length) {
+      // immer ein Ziel (bots-scale): notfalls ein zufälliger erreichbarer Knoten statt Herumstehen
+      const n = A.nodes[(Math.random() * A.nodes.length) | 0];
+      set(goal, 'roam', now, { move: n.position, speed: 'run', look: 'move', tolerance: 2 });
     } else set(goal, 'idle', now, {});
   }
+}
+
+/** Truppbefehl als Ziel übernehmen (Warten auf den Einsatz: stehen bleiben, hocken). */
+function applyOrder(bot, ord, now, rec) {
+  const goal = bot.goal;
+  const wait = ord.startAt && now < ord.startAt;
+  set(goal, 'squad', now, {
+    move: ord.hasPos && !wait ? ord.pos : null, speed: ord.speed, look: ord.hasLook ? 'point' : rec ? 'target' : 'move',
+    lookAt: ord.hasLook ? ord.look : null, tolerance: ord.tol, crouch: ord.stance === 'crouch' || wait,
+  });
+  goal.sub = ord.kind;
+  goal.hold = ord.hold;
+  goal.repath = ord.repath || 1.5;
 }
 
 /* -------------------------------------------------------------------- Erhöhte Posten */
@@ -295,6 +324,9 @@ function set(goal, kind, now, o) {
   goal.hasLook = !!o.lookAt;
   if (o.lookAt) goal.lookAt.copy(o.lookAt);
   goal.crouch = !!o.crouch;
+  goal.hold = false;
+  goal.sub = null;
+  goal.repath = 1.5;
 }
 
 function predicted(rec, age) {

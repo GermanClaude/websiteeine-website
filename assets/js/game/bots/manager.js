@@ -13,17 +13,31 @@ import { Nameplate } from './nameplates.js';
 import { VARIANTS, schemeForTeam, ffaSchemes } from './character.js';
 import { upgradeSoldierMaterials, soldierDetailInfo } from './soldier/materials.js';
 import { analyze } from './ai/tactics.js';
+import { TeamTactics, planRoles } from './ai/squad.js';
+import { CLASSES, pickBotClass, resolveClassLoadout } from '../../shared/classes.data.js';
 
 const _m = new THREE.Matrix4();
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
 const _sphere = new THREE.Sphere();
 const _cam = new THREE.Vector3();
+const NO_SMOOTH = { smooth: false };
 
 const LOS_BASE = 48, LOS_BASE_LOW = 26; // Sichtstrahlen pro Bild (Grundbudget)
 const LOS_PER_SENSE = 10; // geschätzte Strahlen je Wahrnehmungsschritt eines Bots (≈ 6 Gegner im Blick, teils Kopfstrahl)
 
 const SNIPER_LOADOUT = { id: 'praezision', primary: 'sr_brecher', secondary: 'pi_p9', lethal: 'frag' };
+const PATH_MS = 1.6, PATH_MS_LOW = 1.0; // ms je Bild für Pfadsuchen (mindestens eine)
+// Simulations-Detailstufen (bots-scale): Takt (jedes n-te Bild), Wahrnehmungsrate ×, Entscheidungsintervall ×
+const SIM_LOD = [
+  { every: 1, sense: 1, think: 1 }, // nah / sichtbar / im Gefecht mit dem Spieler
+  { every: 2, sense: 0.6, think: 1.6 }, // mittel
+  { every: 3, sense: 0.35, think: 2.5 }, // fern, nicht im Bild
+  { every: 4, sense: 0.15, think: 4 }, // sehr fern, nicht im Bild (≈ 1 Hz Entscheidungen)
+];
+// Aussehen je Klasse (Varianten aus soldier/gear.js); Truppführer tragen das Funkgerät
+const CLASS_LOOKS = { sturm: ['sturm', 'grenadier', 'schatten'], sanitaeter: ['sanitaeter'], pionier: ['pionier', 'bastion'], aufklaerer: ['spaeher', 'kundschafter'] };
+const pick = (a) => a[(Math.random() * a.length) | 0];
 
 /** Reihenfolge der Namensschilder: höheres Ziel zuerst, dann näher. */
 function plateOrder(a, b) { return (b._target - a._target) || (a._d - b._d); }
@@ -56,6 +70,8 @@ export class BotManager {
     this._frustum = new THREE.Frustum();
     this._shadowT = 0;
     this._plateLos = new Map();
+    this.tactics = new TeamTactics(this);
+    this.lodCount = [0, 0, 0, 0];
     this.activity = []; // jüngste Gefechtslärm-Positionen { pos, time, actor } (hörbar über die ganze Karte)
     this.debug = { los: 0, paths: 0, ms: 0, losUsed: 0, pathsUsed: 0 };
   }
@@ -132,7 +148,7 @@ export class BotManager {
     const make = (team, i, lo, variant, scheme, lane) => {
       const bot = new Bot(this, {
         team, name: names.shift() || `Bot ${this.bots.length + 1}`, diff,
-        loadout: { primary: lo.primary, secondary: lo.secondary, lethal: lo.lethal }, variant, scheme, modeId, lane,
+        loadout: { primary: lo.primary, secondary: lo.secondary, lethal: lo.lethal, tactical: lo.tactical, cls: lo.cls }, variant, scheme, modeId, lane,
       });
       this.bots.push(bot);
       if (!G.actors.includes(bot)) G.actors.push(bot);
@@ -146,15 +162,27 @@ export class BotManager {
       const vars = shuffle(VARIANTS.map((_, i) => i));
       const schemes = ffaSchemes(G.world); // je Karte gut sichtbare Tarnschemata
       const off = (Math.random() * schemes.length) | 0;
-      for (let i = 0; i < n; i++) make(null, i, los[i], vars[i % vars.length], schemes[(i + off) % schemes.length], (Math.random() * 3) | 0);
+      for (let i = 0; i < n; i++) {
+        const cls = pickBotClass();
+        const bot = make(null, i, los[i], vars[i % vars.length], schemes[(i + off) % schemes.length], (Math.random() * 3) | 0);
+        bot.cls = cls; bot.classDef = CLASSES[cls]; bot.loadout.cls = cls;
+      }
     } else {
+      // bots-scale: Trupps zu 8 (2 Feuerteams à 4) mit Rollen → Klasse (pickBotClass je Rolle) → Ausrüstung + Aussehen
       for (const [team, n] of [['A', allies], ['B', enemies]]) {
         if (n <= 0) continue;
-        const los = loadoutPool(n);
-        const vars = shuffle(VARIANTS.map((_, i) => i));
+        const roles = planRoles(n);
         const lanes = shuffle([0, 1, 2]);
         const scheme = schemeForTeam(team, G.world); // Gegner auf hellen Karten dunkler (Kontrast)
-        for (let i = 0; i < n; i++) make(team, i, los[i], vars[i % vars.length], scheme, lanes[i % 3]);
+        for (let i = 0; i < n; i++) {
+          const plan = roles[i];
+          const cls = pickBotClass(Math.random, plan.role);
+          const lo = this._classLoadout(cls, plan.role);
+          const bot = make(team, i, lo, this._lookFor(cls, plan.role, lo), scheme, lanes[plan.squad % 3]);
+          bot.cls = cls;
+          bot.classDef = CLASSES[cls];
+          this.tactics.register(bot, plan);
+        }
       }
     }
     // Analyse der Karte vorab (Spuren/Machtpositionen)
@@ -162,8 +190,43 @@ export class BotManager {
     return created;
   }
 
+  /** Ausrüstung einer Klasse/Rolle (Waffen aus den Wunschlisten + Waffenklassen, Werfer für Pioniere, Rauch/Blend). */
+  _classLoadout(cls, role) {
+    const G = this.G;
+    const W = (G.data && G.data.WEAPONS) || {};
+    const EQ = (G.data && G.data.EQUIPMENT) || {};
+    let r = null;
+    try { r = resolveClassLoadout(cls, { weapons: W, equipment: EQ, isUnlocked: () => true }); } catch { r = null; }
+    const of = (...classes) => Object.keys(W).filter((id) => classes.includes(W[id].cls) && W[id].slot !== 'secondary');
+    let primary = r && r.primary;
+    if (role === 'mg') primary = pick(of('lmg')) || primary;
+    else if (role === 'marksman') primary = pick(of(cls === 'aufklaerer' ? 'sniper' : 'marksman')) || pick(of('marksman', 'sniper')) || primary;
+    else if (cls === 'sturm') primary = pick(of('ar', 'carbine')) || primary;
+    else if (cls === 'sanitaeter') primary = pick(Math.random() < 0.7 ? of('smg') : of('ar', 'carbine')) || primary;
+    else if (cls === 'pionier') primary = pick(Math.random() < 0.35 ? of('shotgun') : Math.random() < 0.5 ? of('lmg') : of('ar')) || primary;
+    else if (cls === 'aufklaerer') primary = pick(of('marksman', 'ar')) || primary;
+    if (!W[primary]) primary = W.ar_m17 ? 'ar_m17' : Object.keys(W).find((id) => W[id].slot !== 'secondary');
+    const launcher = r && r.launcher && W[r.launcher] ? r.launcher : cls === 'pionier' && W.at_donner ? 'at_donner' : null;
+    const secondary = launcher || (r && r.secondary) || 'pi_p9';
+    const lethal = (r && r.lethal) || 'frag';
+    const tactical = (role === 'rifleman' || role === 'grenadier') && EQ.flash ? 'flash' : EQ.smoke ? 'smoke' : undefined;
+    return { cls, primary, secondary, lethal, tactical };
+  }
+
+  /** Soldatenvariante zur Klasse (Weste/Helm/Gepäck): Sanitäter mit Armbinde, Pionier mit Werfer, Scharfschütze im Überwurf. */
+  _lookFor(cls, role, lo) {
+    const W = (this.G.data && this.G.data.WEAPONS) || {};
+    const pcls = W[lo.primary] ? W[lo.primary].cls : 'ar';
+    if (role === 'leader' && cls === 'sturm') return 'funker';
+    if (cls === 'pionier' && W[lo.secondary] && W[lo.secondary].cls === 'launcher') return 'panzerpionier';
+    if (cls === 'aufklaerer' && (pcls === 'sniper' || pcls === 'marksman')) return 'scharfschuetze';
+    const ids = (CLASS_LOOKS[cls] || CLASS_LOOKS.sturm).filter((v) => VARIANTS.some((x) => x.id === v));
+    return ids.length ? pick(ids) : 0;
+  }
+
   removeAll() {
     const G = this.G;
+    this.tactics.clear();
     for (const b of this.bots) {
       b.dispose();
       const i = G.actors.indexOf(b);
@@ -213,21 +276,31 @@ export class BotManager {
       const r = b.alive && b.gunner.rec;
       if (r && r.visible) this._targetCount.set(r.actor, (this._targetCount.get(r.actor) || 0) + 1);
     }
-    // Pfadsuchen (Budget, in Anfragereihenfolge)
-    let pathsLeft = low ? 2 : 3;
+    // Pfadsuchen (Zeitbudget je Bild, mindestens eine, in Anfragereihenfolge); ferne Bots ohne Glättung (billiger)
     const nav = G.world && G.world.nav;
     const q = this._pathQ;
-    while (pathsLeft > 0 && q.length) {
+    const pStart = performance.now();
+    const pBudget = low ? PATH_MS_LOW : PATH_MS;
+    let done = 0;
+    while (q.length && (done === 0 || (performance.now() - pStart < pBudget && done < 8))) {
       const bot = q.shift();
       const dest = this._paths.get(bot);
       this._paths.delete(bot);
       if (!dest || !bot.alive) continue;
       let path = [];
-      try { path = nav ? nav.findPath(bot.position, dest) : [dest.clone()]; } catch { path = []; }
+      // Großkarte: A*-Expansionen nach Luftlinie begrenzen (unerreichbare Ziele kosteten bis 30 000 Expansionen ≈ 20–50 ms)
+      const cap = nav && typeof nav.maxExpand === 'number' ? nav.maxExpand : null;
+      if (cap !== null) nav.maxExpand = Math.max(1500, Math.min(cap, Math.round(bot.position.distanceTo(dest) * (bot.simTier >= 2 ? 25 : 45))));
+      try { path = nav ? nav.findPath(bot.position, dest, bot.simTier >= 2 ? NO_SMOOTH : undefined) : [dest.clone()]; } catch { path = []; }
+      if (cap !== null) nav.maxExpand = cap;
       bot.nav.onPath(path);
-      pathsLeft--;
+      done++;
     }
+    this.debug.pathsDone = done;
     // Kamera: Sichtbarkeit + Abstand
+    const now = G.time.elapsed;
+    const aimT = G.input && G.input.aimTarget;
+    this.lodCount[0] = this.lodCount[1] = this.lodCount[2] = this.lodCount[3] = 0;
     const cam = G.camera;
     if (cam) {
       _m.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
@@ -243,7 +316,16 @@ export class BotManager {
       _sphere.radius = 1.5;
       const inView = !cam || this._frustum.intersectsSphere(_sphere);
       b.inView = inView;
-      b.animEvery = !inView ? 6 : d < (low ? 16 : 26) ? 1 : d < (low ? 40 : 60) ? 2 : 3;
+      // Animationsrate: nah jedes Bild … fern seltener; außerhalb des Bildes 1/6, fern und unsichtbar eingefroren (nur Lage)
+      b.animEvery = !inView ? (d > 50 ? 0 : 6) : d < (low ? 16 : 26) ? 1 : d < (low ? 40 : 60) ? 2 : d < 110 ? 3 : 5;
+      // Simulations-Detailstufe nach Abstand/Sicht; Gefecht mit dem Spieler = volle Rate
+      const pl = G.player;
+      const duel = !!pl && ((b.gunner.rec && b.gunner.rec.actor === pl && now - (b.gunner.rec.seenAt || -1e9) < 3) || (aimT === b));
+      const tier = !b.alive || duel || d < 70 || (inView && d < 140) ? 0 : d < 160 || inView ? 1 : d < 260 ? 2 : 3;
+      b.simTier = tier;
+      const L = SIM_LOD[tier];
+      b.simEvery = L.every; b.lodSense = L.sense; b.lodThink = L.think;
+      this.lodCount[tier]++;
       if (s && b.alive && s.state === 'alive') {
         s.root.visible = inView;
         s.updateLod(d * (cam ? cam.fov / 60 : 1), this.tier);
@@ -257,12 +339,22 @@ export class BotManager {
         }
       }
     }
-    // Bots
+    // Trupptaktik (gestaffelt je Trupp)
+    this.tactics.update(dt, now);
+    // Bots (ferne Detailstufen nur jedes n-te Bild mit aufgelaufener Zeit, Phase je Bot verteilt)
+    let simmed = 0;
     for (let i = 0; i < bots.length; i++) {
       const b = bots[i];
-      b.update(dt);
-      if (b.alive) b.updateCorpsesOnly(dt);
+      const every = b.alive ? b.simEvery || 1 : 1;
+      b._simAcc += dt;
+      if (every > 1 && (this._frame + b.simPhase) % every !== 0) continue;
+      const sdt = Math.min(b._simAcc, 0.15);
+      b._simAcc = 0;
+      b.update(sdt);
+      simmed++;
+      if (b.alive) b.updateCorpsesOnly(sdt);
     }
+    this.debug.simmed = simmed;
     // Schatten (nächste N sichtbare)
     this._shadowT -= dt;
     if (this._shadowT <= 0) { this._shadowT = 0.5; this._assignShadows(); }
@@ -643,7 +735,22 @@ export class BotManager {
       if (Math.abs(b.lean) > 0.5) leaning++;
       if (now < b.staggerUntil) staggered++;
     }
-    return { bots: this.bots.length, alive: this.bots.filter((b) => b.alive).length, states, ms: +this.debug.ms.toFixed(2), losPerFrame: this.debug.losUsed, pathQueue: this._paths.size, broken, leaning, staggered, fabric: soldierDetailInfo().kind };
+    let prone = 0, ordered = 0, corpses = 0, sunk = 0;
+    const W = this.G.world;
+    for (const b of this.bots) {
+      // Leichen: Becken nicht unter dem Boden (Ragdoll gegen world.groundHeight)
+      for (const sd of b.soldiers) {
+        if (!sd || sd.state !== 'dead' || !W || typeof W.groundHeight !== 'function') continue;
+        corpses++;
+        sd.joint(0, _v);
+        const g = W.groundHeight(_v.x, _v.z, _v.y + 1.2);
+        if (g !== null && _v.y < g - 0.15) sunk++;
+      }
+      if (!b.alive) continue;
+      if (b.stance === 'prone') prone++;
+      if (b.order && b.order.kind && now < b.order.until) ordered++;
+    }
+    return { bots: this.bots.length, alive: this.bots.filter((b) => b.alive).length, states, ms: +this.debug.ms.toFixed(2), losPerFrame: this.debug.losUsed, pathQueue: this._paths.size, broken, leaning, staggered, prone, ordered, corpses, sunk, lod: this.lodCount.slice(), simmed: this.debug.simmed, tactics: { ...this.tactics.counts }, squads: this.tactics.squads.length, fabric: soldierDetailInfo().kind };
   }
 
   /** Diagnose: Pose/Trefferzonen eines lebenden Bots endlich und am Körper (≤ 3 m von den Füßen)? */

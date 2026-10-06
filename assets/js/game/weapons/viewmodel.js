@@ -1162,7 +1162,19 @@ export class ViewModel {
       memo.set(key, { d: _v.subVectors(T.pos, _v3).applyQuaternion(_q.copy(T.quat).invert()).toArray(), bones, q });
       return;
     }
+    // Während Aktionen je Bild lösen; auf low nur jedes 3., auf medium jedes 2. Bild (dazwischen letzte Korrektur im Handraum)
+    const every = this.quality === 'low' ? 3 : this.quality === 'medium' ? 2 : 1;
+    const lc = arm._lastContact || (arm._lastContact = { d: new THREE.Vector3(), q: new Float32Array(60), bones: [...arm.fingers.flat(), ...arm.thumb], n: 0, frame: -9 });
+    if (every > 1 && this._contactFrame - lc.frame < every && !own && !other) {
+      T.pos.add(_v.copy(lc.d).applyQuaternion(T.quat));
+      for (let i = 0; i < lc.bones.length; i++) lc.bones[i].quaternion.fromArray(lc.q, i * 4);
+      return;
+    }
+    _v3.copy(T.pos);
     arm.contact(col, T, opts);
+    lc.frame = this._contactFrame;
+    lc.d.subVectors(T.pos, _v3).applyQuaternion(_q.copy(T.quat).invert());
+    lc.bones.forEach((b, i) => b.quaternion.toArray(lc.q, i * 4));
   }
 
   // Handanfragen einer Aktion der Reihe nach einmischen; Rückgabe: größtes Gewicht (Stil in this._reqStyle)
@@ -1179,6 +1191,9 @@ export class ViewModel {
       else continue;
       if (r.dy) t.pos.y += r.dy;
       target.lerp(t, r.w);
+      // Übergang im Bogen (hands): zwischen zwei Griffen hebt sich die Hand über den Handrücken von der Waffe ab,
+      // statt auf der Geraden durch Gehäuse/Schlitten zu gleiten (Spitze 4,5 cm bei halber Überblendung)
+      if (!r.free && r.w < 1) target.pos.add(_v.set(0, 0.18 * r.w * (1 - r.w), 0).applyQuaternion(target.quat));
       if (r.w > wMax) { wMax = r.w; this._reqStyle = r.free ? r.free[3] : r.style; }
     }
     return wMax;
