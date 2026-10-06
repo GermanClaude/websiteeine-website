@@ -653,7 +653,43 @@ class Arm {
     this._maxPush = 0.13 / this._sc;
     if (this._rigid(col, true)) { opts.own?.sync(); this._chains(cc, opts); this._rescue(cc); }
     if (opts.rest) this._restNudge(cc, opts);
+    if (opts.rest && opts.layThumb) this._thumbLay(cc);
     T.pos.copy(hand.position);
+  }
+
+  // Abstand (m) von Mittel-/Endglied des Daumens zur Waffe (hv3; ≤ 0 = liegt an)
+  _thumbGap(col) {
+    const H = _hit;
+    let g = 0.06;
+    for (let s = 1; s < 3; s++) for (const t of TS_T) {
+      const r = THUMB.r[s] * 0.92 * this._sc;
+      if (col.query(segPoint(this.thumb[s], THUMB.len[s], t, _c1), r + 0.06, H)) g = Math.min(g, H.d - r);
+    }
+    return g;
+  }
+
+  /**
+   * Daumen anlegen (hv3, nur gemerkter Ruhegriff der Stützhand): steht der Daumen nach dem Lösen > 4 mm von der Waffe
+   * ab (KV-47: lange Röhre schräg nach oben in die Luft, P9: quer über dem Griff), das Grundglied in Schritten um
+   * seine drei Achsen drehen, Glieder wahlweise beugen – es bleibt die Lage mit dem kleinsten Abstand ohne Eindringen.
+   */
+  _thumbLay(col) {
+    const ch = this.thumb;
+    let g0 = this._thumbGap(col);
+    if (g0 <= 0.004) return;
+    for (let k = 0; k < 3; k++) { ch[k].quaternion.toArray(_rsBest, k * 4); ch[k].quaternion.toArray(_rsBase, k * 4); }
+    for (const a of THUMB_LAY) {
+      for (let k = 0; k < 3; k++) ch[k].quaternion.fromArray(_rsBase, k * 4);
+      ch[0].quaternion.multiply(_cq2.setFromAxisAngle(_c5.set(a[0], a[1], a[2]), a[3]));
+      if (a[4]) { ch[1].rotation.x -= a[4]; ch[2].rotation.x -= a[4] * 0.7; }
+      ch[0].updateMatrixWorld(true);
+      if (this._chainPen(col, 4) > 0.0012) continue;
+      const g = this._thumbGap(col);
+      if (g < g0 - 0.0015) { g0 = g; for (let k = 0; k < 3; k++) ch[k].quaternion.toArray(_rsBest, k * 4); }
+      if (g0 <= 0.0025) break;
+    }
+    for (let k = 0; k < 3; k++) ch[k].quaternion.fromArray(_rsBest, k * 4);
+    ch[0].updateMatrixWorld(true);
   }
 
   // Größtes Eindringen der ganzen Hand (Handballen, Finger, Daumen)
@@ -984,7 +1020,10 @@ for (const x of [-0.025, 0, 0.025]) for (const z of [-0.065, -0.035, -0.01]) RIG
 for (let i = 0; i < 4; i++) RIGID.push({ bone: 1 + i * 3, len: FINGERS[i].len[0], t: 0.15, r: FINGERS[i].r[0] * 0.92 });
 RIGID.push({ bone: 13, len: THUMB.len[0], t: 0.2, r: THUMB.r[0] * 0.92 });
 function segPoint(bone, len, t, out) { return out.set(0, 0, -len * t).applyMatrix4(bone.matrixWorld); }
-const TS_F = [0.15, 0.5, 0.9], TS_T = [0.2, 0.6, 0.95];          // Messpunkte je Glied (wie tools/out/hands2/probe.mjs)
+const TS_F = [0.15, 0.5, 0.9], TS_T = [0.2, 0.6, 0.95];
+// hv3: Daumen-Anlegen – kleine Drehungen des Grundglieds (Achse, Winkel) ohne/mit Beugen der Glieder, kleine zuerst
+const THUMB_LAY = [];
+for (const ang of [0.12, 0.25, 0.4, 0.6, 0.8]) for (const bend of [0, 0.3]) for (const ax of [[1, 0, 0], [0, 1, 0], [0, 0, 1]]) for (const sg of [1, -1]) THUMB_LAY.push([ax[0], ax[1], ax[2], sg * ang, bend]);          // Messpunkte je Glied (wie tools/out/hands2/probe.mjs)
 const CONTACT_TOL = 0.0006;                                       // m zulässiges Eindringen beim Lösen
 const FLIM0 = [-0.25, FMAX[0]], FLIM = [-0.1, 0];                 // Beugegrenzen Grundglied / Mittel-+Endglied (oben FMAX)
 
@@ -1191,7 +1230,7 @@ function makeArmMaterials() {
     sleeve: new THREE.MeshStandardMaterial({ map: camoMap('arid'), vertexColors: true, roughness: 0.9, metalness: 0.0, normalMap: sleeveWeave(512), normalScale: new THREE.Vector2(0.5, 0.5), side: THREE.DoubleSide }),
     tape: new THREE.MeshStandardMaterial({ map: tapeMap(), roughness: 0.6, metalness: 0.0 }),
     watchCase: new THREE.MeshStandardMaterial({ color: 0x1b1c1d, roughness: 0.55, metalness: 0.2 }),
-    watchFace: new THREE.MeshStandardMaterial({ map: watchTex, emissive: 0xffffff, emissiveMap: watchTex, emissiveIntensity: 0.55, roughness: 0.15, metalness: 0.0 }),
+    watchFace: new THREE.MeshStandardMaterial({ map: watchTex, emissive: 0xffffff, emissiveMap: watchTex, emissiveIntensity: 0.16, roughness: 0.15, metalness: 0.0 }),
   };
   for (const [k, m] of Object.entries(set)) m.name = 'vm:' + k;
   return set;

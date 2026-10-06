@@ -1136,7 +1136,9 @@ export class ViewModel {
     if (disc > 0 && rStyle === 'pistolGrip' && busyR < 0.5) {
       const f0 = R.pose.f[0], k = smooth(disc);
       f0[0] += (0.12 - f0[0]) * k; f0[1] += (0.06 - f0[1]) * k; f0[2] += (0.04 - f0[2]) * k; f0[3] += (0.1 - f0[3]) * k;
-      if (disc < 0.98) busyR = Math.max(busyR, 2e-3);   // Übergang je Bild lösen (gemerkter Ruhegriff hätte den alten Finger)
+      // je Bild lösen, solange Patronen laufen (hv3: der gemerkte Ruhegriff kannte die bewegte Patrone nicht – Bulldog
+      // reload t 0,46 Zeigefinger 7–9 mm in der Patrone); im Übergang ohnehin (gemerkter Griff hätte den alten Finger)
+      if (disc < 0.98 || (act && act.parts && act.parts.shell)) busyR = Math.max(busyR, 2e-3);
     }
     this.arms.right.applyPose(R.pose);
     this._contact(this.arms.right, R, busyR, 'R:' + rStyle + (disc > 0.5 ? ':disc' : ''), { grip: busyR < 0.5 || GRIP_STYLES.has(this._reqStyle), skipIndex: rStyle === 'pistolGrip' && busyR < 0.5 && disc < 0.5 });
@@ -1150,7 +1152,7 @@ export class ViewModel {
     const busyL = act ? this._applyRequests(act.left, L, -1) : 0;
     this.arms.left.applyPose(L.pose);
     const gripL = busyL < 0.5 ? h.leftGrip !== 'none' : GRIP_STYLES.has(this._reqStyle);
-    this._contact(this.arms.left, L, h.leftGrip === 'none' && busyL < 1e-3 ? -1 : busyL, 'L:' + style, { grip: gripL });
+    this._contact(this.arms.left, L, h.leftGrip === 'none' && busyL < 1e-3 ? -1 : busyL, 'L:' + style, { grip: gripL, layThumb: busyL < 0.5 && h.leftGrip !== 'none' });
     this.arms.left.solve(L.pos, L.quat);
   }
 
