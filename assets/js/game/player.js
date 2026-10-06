@@ -1156,32 +1156,35 @@ export class Player {
     const len = PRONE.length * Math.max(0.35, this.proneBlend);
     let deep = this._proneNeed(world, this.yaw, len, true);
     if (deep <= 0.015) return;
+    // hv3 (W-PRONELEGS): jede Kandidatenlage wird NACH dem Ausdrücken der Kapsel bewertet – vorher wurde die Kapsel
+    // erst nach der Wahl ausgedrückt (Schub nach vorn/Rücknahme ohne Kollisionsauflösung) und die Beine danach nicht
+    // mehr nachgemessen: Werk s31 Beine bis 25 cm, Kapsel 5,8 cm in der Wand
+    const dep = typeof b.depenetrate === 'function';
+    const settle = (x, z, yaw) => {
+      b.position.x = x; b.position.z = z; b._sync();
+      if (dep) b.depenetrate(world);
+      return this._proneNeed(world, yaw, len, true);
+    };
+    const y1 = this.yaw;
+    const cx = b.position.x, cz = b.position.z;
+    let best = deep, bx = cx, bz = cz, byaw = y1;
     const need = this._proneNeed(world, this.yaw, len);
     if (need > 0) {
       const push = Math.min(need, 3 * dt + 0.01);
-      b.position.x += -Math.sin(this.yaw) * push;
-      b.position.z += -Math.cos(this.yaw) * push;
-      b._sync();
-      deep = this._proneNeed(world, this.yaw, len, true);
-      if (deep <= 0.015) return;
+      const d = settle(cx - Math.sin(y1) * push, cz - Math.cos(y1) * push, y1);
+      if (d < best - 1e-3) { best = d; bx = b.position.x; bz = b.position.z; }
     }
-    const y1 = this.yaw;
     const prevYaw = this._proneYawStart;
-    const tryState = (x, z, yaw) => {
-      b.position.x = x; b.position.z = z; b._sync();
-      return this._proneNeed(world, yaw, len, true);
-    };
-    const cx = b.position.x, cz = b.position.z;
-    let best = deep, bx = cx, bz = cz, byaw = y1;
-    for (const [x, z, yaw] of [[_proneGuardP.x, _proneGuardP.z, y1], [cx, cz, prevYaw], [_proneGuardP.x, _proneGuardP.z, prevYaw]]) {
-      if (yaw == null || !Number.isFinite(yaw)) continue;
-      const d = tryState(x, z, yaw);
-      if (d < best - 1e-3) { best = d; bx = x; bz = z; byaw = yaw; }
-      if (best <= 0.015) break;
+    if (best > 0.015) {
+      for (const [x, z, yaw] of [[_proneGuardP.x, _proneGuardP.z, y1], [cx, cz, prevYaw], [_proneGuardP.x, _proneGuardP.z, prevYaw]]) {
+        if (yaw == null || !Number.isFinite(yaw)) continue;
+        const d = settle(x, z, yaw);
+        if (d < best - 1e-3) { best = d; bx = b.position.x; bz = b.position.z; byaw = yaw; }
+        if (best <= 0.015) break;
+      }
     }
     b.position.x = bx; b.position.z = bz; b._sync();
-    // zurückgenommene Lage stammt von vor der Kollisionsauflösung (nach dem Schub vorn) → Kapsel ausdrücken
-    if (bx !== cx || bz !== cz) { b.velocity.x = 0; b.velocity.z = 0; if (typeof b.depenetrate === 'function') b.depenetrate(world); }
+    if (bx !== cx || bz !== cz) { b.velocity.x = 0; b.velocity.z = 0; }
     if (byaw !== y1) { this.yaw = byaw; this._proneYaw = this._proneYawPrev = byaw; }
   }
 

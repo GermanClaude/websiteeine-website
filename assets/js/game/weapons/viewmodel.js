@@ -1754,6 +1754,9 @@ const WALL_NEAR = 0.45;     // m: Fläche, die der Strahl eines anderen Stützpu
 const WALL_PLANES = 64;
 const WALL_OK = 0.01;       // m Rest, der bei der Strahlprüfung als frei gilt
 const WALL_DROP = 0.32;     // m (walls 3) größtes zusätzliches Absenken, wenn Anziehen + Kippen nicht frei werden
+const WALL_LIFT = 0.1;      // m (hv3) größtes Anheben (Auflegen auf eine brusthohe Deckung statt aus dem Bild kippen)
+const WALL_CARRY_T = 0.25;  // s (hv3) Flächen der letzten Bilder (Welt) so lange weiterführen
+const WALL_CARRY_N = 24;    // höchstens so viele weitergeführte Flächen je Bild
 const _wq = new THREE.Quaternion(), _wq0 = new THREE.Quaternion(), _we = new THREE.Euler(), _we0 = new THREE.Euler(), _wv = new THREE.Vector3();
 const _wb = new THREE.Vector3(), _wpiv = new THREE.Vector3(), _woff = new THREE.Vector3();
 const _wcp = new THREE.Vector3(), _wcq = new THREE.Quaternion(), _wcqi = new THREE.Quaternion();
@@ -1903,7 +1906,53 @@ function wallBegin(vm, d, dt, eq, hit) {
     hp.hz = Math.hypot(hit.nx, hit.nz);
     W.hp = hp;
   }
+  // hv3 (W-VMDEEP): Flächen der letzten Bilder (Weltraum) weiterführen. Dünne Hindernisse (Geländer, Pfosten, Rohre)
+  // trafen die wenigen Strahlen nur in manchen Bildern – im nächsten galt die Grundlage als frei, die Waffe sprang
+  // zurück und steckte bis 0,8 m darin. Weitergeführte Flächen gelten nur im Umkreis WALL_NEAR um ihren Treffer.
+  const car = vm._wallCarry;
+  if (car && car.length) {
+    const now = vm._time;
+    let k = 0;
+    for (let i = 0; i < car.length; i++) {
+      const q = car[i];
+      if (now - q.t > WALL_CARRY_T || now < q.t) continue;
+      car[k++] = q;
+      if (W.n >= WALL_CARRY_N) continue;
+      _whp.set(q.px - _wcp.x, q.py - _wcp.y, q.pz - _wcp.z).applyQuaternion(_wcqi);
+      if (_whp.lengthSq() > 4) continue;
+      _wn2.set(q.nx, q.ny, q.nz).applyQuaternion(_wcqi);
+      const pl = W.pl[W.n++];
+      pl.hx = _whp.x; pl.hy = _whp.y; pl.hz = _whp.z;
+      pl.nx = _wn2.x; pl.ny = _wn2.y; pl.nz = _wn2.z;
+      pl.c = -(pl.nx * pl.hx + pl.ny * pl.hy + pl.nz * pl.hz);
+      pl.src = -1;
+    }
+    car.length = k;
+  }
+  W.nCarry = W.n;
   return W;
+}
+
+/** hv3: neu gefundene Flächen dieses Bildes (src ≥ 0) für die nächsten Bilder merken (Weltraum, ähnliche zusammengelegt). */
+function wallRemember(vm, W) {
+  const car = vm._wallCarry || (vm._wallCarry = []);
+  const now = vm._time;
+  for (let i = W.nCarry || 0; i < W.n; i++) {
+    const pl = W.pl[i];
+    if (pl.src < 0) continue;
+    _whp.set(pl.hx, pl.hy, pl.hz).applyQuaternion(_wcq).add(_wcp);
+    _wn2.set(pl.nx, pl.ny, pl.nz).applyQuaternion(_wcq);
+    let same = null;
+    for (const q of car) {
+      const dx = q.px - _whp.x, dy = q.py - _whp.y, dz = q.pz - _whp.z;
+      if (dx * dx + dy * dy + dz * dz < 0.0025 && q.nx * _wn2.x + q.ny * _wn2.y + q.nz * _wn2.z > 0.96) { same = q; break; }
+    }
+    if (same) { same.t = now; continue; }
+    let q;
+    if (car.length < 32) car.push((q = {}));
+    else { q = car[0]; for (const c of car) if (c.t < q.t) q = c; }
+    q.px = _whp.x; q.py = _whp.y; q.pz = _whp.z; q.nx = _wn2.x; q.ny = _wn2.y; q.nz = _wn2.z; q.t = now;
+  }
 }
 
 /**
@@ -2044,7 +2093,7 @@ function wallVisible(vm, pts, P, R, back, th, pistol, W) {
   for (let i = 0; i < pts.length; i++) if (wallPoint(vm, pts, i, P, back, W, 1)) n++;
   return n;
 }
-const _wt1 = { th: 0, ok: false, res: 0, vis: 0 }, _wt2 = { th: 0, ok: false, res: 0, vis: 0 };
+const _wt1 = { th: 0, ok: false, res: 0, vis: 0 }, _wt2 = { th: 0, ok: false, res: 0, vis: 0 }, _wt3 = { th: 0, ok: false, res: 0, vis: 0 };
 
 /**
  * Waffe vor Wänden und Hindernissen halten (walls 2): erst anziehen, dann (an der Hüfte) kippen – Gewehre absenken
@@ -2105,9 +2154,35 @@ function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
             else if (tB.ok) pick = tB;
             else if (!tA.ok) pick = tA.res <= tB.res + 0.02 ? tA : tB;
           }
+          // hv3 (W-COVER): Auflegen – nähme die Lösung die Waffe (fast) ganz aus dem Bild (brusthohe Deckung, Blick auf
+          // oder über die Oberkante), die Waffe stattdessen anheben (Kamera-Hochachse, höchstens WALL_LIFT), bei Bedarf
+          // mit etwas Mündung hoch (≤ 0,5 rad): kleinster Hub per Halbierung, per Strahl geprüft. An einer echten Wand
+          // hilft Anheben nicht (die Fläche bleibt vor den Punkten) – dort bleibt es beim Kippen/Absenken.
+          let lift = 0;
+          if (!pick.ok || pick.vis < vis0 * 0.3) {
+            // die Controller-Fläche gilt hier nicht als unendliche Ebene (die Stirnseite einer Deckung reicht nicht
+            // über deren Oberkante) – geprüft wird der Hub mit den Strahlflächen und per Strahl
+            const y0 = P.y, hp0 = W.hp;
+            W.hp = null;
+            P.y = y0 + WALL_LIFT;
+            let lt = null;
+            if (wallViol(vm, pts, P, R, wantBack, 0, pistol, W) <= 0) { _wt3.th = 0; lt = _wt3; }
+            else { const t = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, -1, 0.5, nBase, _wt3); if (t.ok) lt = t; }
+            if (lt) {
+              let lo = 0, hi = WALL_LIFT;
+              for (let i = 0; i < 6; i++) { const mid = (lo + hi) / 2; P.y = y0 + mid; if (wallViol(vm, pts, P, R, wantBack, lt.th, pistol, W) > 0) lo = mid; else hi = mid; }
+              P.y = y0 + hi;
+              if (wallVerify(vm, pts, P, R, wantBack, lt.th, pistol, W) <= WALL_OK) {
+                const vis = wallVisible(vm, pts, P, R, wantBack, lt.th, pistol, W);
+                if (vis >= vis0 * 0.3 || vis > pick.vis) { lift = hi; lt.ok = true; lt.res = 0; lt.vis = vis; pick = lt; }
+              }
+            }
+            P.y = y0; W.hp = hp0;
+          }
           st.dir = pick.th >= 0 ? 1 : -1;
-          if (vm._wallDbgOn) st.dbg = { vis0, A: { ...tA }, B: pick === tA && tB0 == null ? null : { ...(tB0 || {}) }, pick: pick === tA ? 'A' : 'B' };
+          if (vm._wallDbgOn) st.dbg = { vis0, lift, A: { ...tA }, B: tB0 ? { ...tB0 } : null, pick: pick === tA ? 'A' : pick === _wt3 ? 'L' : 'B' };
           wantTh = pick.th * na;
+          wantDrop = -lift;
           resid = pick.ok ? 0 : pick.res;
           // walls 3: bleibt trotz Kippen ein sichtbarer Punkt in der Fläche (Auge dicht an der Wand, lange Waffe beim
           // Lehnen/Liegen, Pistole an Brüstung/Engstelle), die Waffe zusätzlich nach unten aus der Fläche nehmen –
@@ -2154,7 +2229,7 @@ function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
   const grow = Math.abs(wantTh) > Math.abs(st.th) && wantTh * st.th >= 0;
   // Richtungswechsel schnell (der Weg führt durch die Ausgangslage, also durch die Wand), Zurücknehmen langsam
   let nTh = damp(st.th, wantTh, grow || wantTh * st.th < 0 ? 40 : 7, dt);
-  let nDrop = damp(st.drop || 0, wantDrop, wantDrop > (st.drop || 0) ? 45 : 6, dt);
+  let nDrop = damp(st.drop || 0, wantDrop, Math.abs(wantDrop) > Math.abs(st.drop || 0) ? 45 : 6, dt); // < 0 = Anheben (hv3)
   // walls-3 (HV2-W2): die geglättete Lage selbst prüfen. Vorher galt nur das Ziel als frei – auf dem Weg dorthin
   // (Zurücknehmen nach dem Kippen über eine Brüstung/einen Busch, Nachlauf beim Hinlaufen, Lehnen, Drehen) lag die
   // Waffe bis 1,4 m in der Geometrie. Liegt ein sichtbarer Punkt hinter einer Fläche, rückt die Lage so weit zum
@@ -2168,14 +2243,25 @@ function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
       let lo = 0, hi = 1;
       for (let i = 0; i < 6; i++) { const mid = (lo + hi) / 2; P.y = y0 - ld(mid); if (wallViol(vm, pts, P, R, lb(mid), lt(mid), pistol, W) > 0) lo = mid; else hi = mid; }
       if (hi < 1) { P.y = y0 - ld(hi); if (wallVerify(vm, pts, P, R, lb(hi), lt(hi), pistol, W) > WALL_OK) hi = 1; }
+      // hv3 (W-VMDEEP): steckt auch das Ziel nachweislich in einer Fläche (die Strahlen der Grundlage hatten sie
+      // verfehlt), nicht dorthin springen – die Lage des letzten Bildes halten, wenn sie frei ist
+      if (hi >= 1) {
+        P.y = y0 - wantDrop;
+        if (wallVerify(vm, pts, P, R, wantBack, wantTh, pistol, W) > WALL_OK) {
+          P.y = y0 - (st.drop || 0);
+          if (wallVerify(vm, pts, P, R, st.back, st.th, pistol, W) <= WALL_OK) hi = -1;
+        }
+      }
       st.fix = hi;
-      nBack = lb(hi); nTh = lt(hi); nDrop = ld(hi);
+      if (hi < 0) { nBack = st.back; nTh = st.th; nDrop = st.drop || 0; }
+      else { nBack = lb(hi); nTh = lt(hi); nDrop = ld(hi); }
     }
     P.y = y0;
   }
   st.back = nBack; st.th = nTh; st.drop = nDrop;
+  if (_wW.ok && pts.length) wallRemember(vm, _wW);
   if (s) {
-    s.wallNeed = Math.min(1, Math.max(Math.abs(st.th) / 0.9, st.drop / (WALL_DROP * 0.5)));
+    s.wallNeed = Math.min(1, Math.max(Math.abs(st.th) / 0.9, st.drop / (WALL_DROP * 0.5), 0));
     s.wallAds = a > 0.5 && (resid > 0.02 || adsBlock);
   }
   if (vm._wallDbgOn && pts.length) { // Prüfstand: berechnete Lage der Stützpunkte (Vergleich mit dem Bild)
@@ -2184,7 +2270,7 @@ function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
     wallPose(vm, R, st.th, st.back, pistol);
     vm._wallDbgPts = pts.map((_, i) => { const v = wallPoint(vm, pts, i, P, st.back, _wW); return [+_wv.x.toFixed(3), +_wv.y.toFixed(3), +_wv.z.toFixed(3), v]; });
   }
-  if (st.back < 1e-4 && Math.abs(st.th) < 1e-4 && st.drop < 1e-4) return;
+  if (st.back < 1e-4 && Math.abs(st.th) < 1e-4 && Math.abs(st.drop) < 1e-4) return;
   P.z += st.back;
   P.y -= st.drop;
   wallPose(vm, R, st.th, st.back, pistol);
