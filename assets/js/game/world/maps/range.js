@@ -30,7 +30,7 @@ export default {
     fog: { color: '#cfdae3', near: 110, far: 620, density: 0.0026, falloff: 0.035, start: 30, sun: 0.65, sunExp: 4 },
     shadow: { size: 40 },
     probes: { bounce: 1.15 },
-    atmos: { beams: 0.03, beamG: 0.45, dust: 0.8, slots: 0.6, outdoor: 0.5 },
+    atmos: { beams: 0.024, beamG: 0.45, dust: 0.8, slots: 0.5, outdoor: 0.4 },
   },
 
   build(b) {

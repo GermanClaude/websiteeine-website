@@ -40,7 +40,7 @@ function drawAtlas(ctx) {
     }
   };
   // 0 Rostlauf (von oben, orange-braun, Tropfnasen)
-  cell(0, () => { streaks(14, '120,58,22', 0.55, 250, 18, true); streaks(8, '70,36,18', 0.45, 180, 8, true); });
+  cell(0, () => { streaks(20, '108,62,32', 0.4, 250, 8, true); streaks(12, '66,40,22', 0.36, 200, 4, true); });
   // 1 Wasser-/Kalkfahne (grau-dunkel, breit, weich)
   cell(1, () => { streaks(10, '28,28,26', 0.32, 256, 34, false); streaks(6, '205,200,188', 0.18, 200, 20, false); });
   // 2 Schmutzsockel (unten dunkel, Spritzer, nach oben auslaufend)
@@ -118,9 +118,10 @@ function decalMaterial() {
       .replace('#include <common>', '#include <common>\nattribute vec4 aCell;')
       .replace('#include <uv_vertex>', '#include <uv_vertex>\n#ifdef USE_MAP\nvMapUv = aCell.xy + uv * aCell.zw;\n#endif');
     sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
-      diffuseColor.a *= 1.0 - smoothstep( 34.0, 48.0, length( vViewPosition ) );`);
+      // Atlas ist weich gezeichnet (mittlere Deckung 0,1–0,2) → Verstärkung, sonst verschwinden die Läufe auf dunklen Wänden
+      diffuseColor.a = clamp( diffuseColor.a * 2.1, 0.0, 1.0 ) * ( 1.0 - smoothstep( 34.0, 48.0, length( vViewPosition ) ) );`);
   };
-  m.customProgramCacheKey = () => 'np-look-decals-v1';
+  m.customProgramCacheKey = () => 'np-look-decals-v2';
   return m;
 }
 
@@ -166,7 +167,9 @@ export function placeLookDecals(world, group, { quality = 'high', seed = 1, def 
     const sel = pick(name, r);
     if (!sel) continue;
     let [cell, w, hh, cy] = sel;
+    // Normale zur Strahlquelle drehen (die BVH liefert die Dreiecksnormale ohne Ausrichtung)
     _n.copy(h.normal).setY(0).normalize();
+    if (_n.dot(_d) > 0) _n.negate();
     _t.set(-_n.z, 0, _n.x); // waagerecht entlang der Wand
     const baseY = gy;
     // Container: Rost von der Oberkante (Höhe aus Strahl nach oben suchen wäre teuer → Containerhöhe)
@@ -182,11 +185,11 @@ export function placeLookDecals(world, group, { quality = 'high', seed = 1, def 
       _o.copy(_p).addScaledVector(_t, u * w).addScaledVector(_n, 0.15); _o.y += v * hh;
       _d.copy(_n).negate();
       const c = world.raycast(_o, _d, 0.4);
-      if (!c || Math.abs(c.distance - 0.15) > 0.06 || c.normal.dot(_n) < 0.95) { ok = false; break; }
+      if (!c || Math.abs(c.distance - 0.15) > 0.06 || Math.abs(c.normal.dot(_n)) < 0.95) { ok = false; break; }
     }
     if (!ok) continue;
     taken.set(k, 1);
-    items.push({ x: _p.x + _n.x * 0.012, y: _p.y, z: _p.z + _n.z * 0.012, nx: _n.x, nz: _n.z, w, h: hh, cell, flip: r() < 0.5, tint: 0.82 + r() * 0.3 });
+    items.push({ x: _p.x + _n.x * 0.012, y: _p.y, z: _p.z + _n.z * 0.012, nx: _n.x, nz: _n.z, w, h: hh, cell, tint: 0.82 + r() * 0.3 });
   }
   if (!items.length) return { count: 0, meshes: 0, ms: Math.round(performance.now() - t0) };
   // je Zelle ein InstancedMesh (Frustum-Culling)
@@ -201,7 +204,8 @@ export function placeLookDecals(world, group, { quality = 'high', seed = 1, def 
     const mesh = new THREE.InstancedMesh(g, mat, list.length);
     list.forEach((it, i) => {
       // Ebene: +Z = Wandnormale
-      _bx.set(-it.nz, 0, it.nx).multiplyScalar(it.flip ? -1 : 1); _by.set(0, 1, 0); _n.set(it.nx, 0, it.nz);
+      // rechtshändige Basis (x = up × n): sonst Spiegelung → Rückseite zur Kamera, Decal unsichtbar
+      _bx.set(it.nz, 0, -it.nx); _by.set(0, 1, 0); _n.set(it.nx, 0, it.nz);
       _m.makeBasis(_bx, _by, _n); _q.setFromRotationMatrix(_m);
       _m.compose(_p.set(it.x, it.y, it.z), _q, _s.set(it.w, it.h, 1));
       mesh.setMatrixAt(i, _m);

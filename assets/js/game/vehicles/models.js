@@ -13,11 +13,14 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { boxUV } from '../engine/textures.js';
 import { VEHICLES, mountY, staticComp } from './data.js';
-import { vehicleMaterials, trackMaterial } from './materials.js';
+import { vehicleMaterials, trackMaterial, markingMaterial, applyVehicleLook } from './materials.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
 const PI = Math.PI, HP = PI / 2;
 const LOD_DIST = { low: [0, 18, 50], medium: [0, 28, 75], high: [0, 40, 110], ultra: [0, 55, 140] };
+/** env-look: Detailteile (Rückrollen, Zähne, Schürzensegmente, Seile, Staukästen, Profilreifen …) nur ab medium –
+ * low behält exakt die bisherige Geometrie (Dreiecke ≤ vorher). Wird je Vorlage in template() gesetzt. */
+let HQ = true;
 
 /** Sammelt Geometrien je Material und verschmilzt sie. */
 class Bucket {
@@ -36,11 +39,18 @@ class Bucket {
     if (tag) this.tag.set(mat, tag);
     return this;
   }
-  build(parent, { shadow = true } = {}) {
+  build(parent, { shadow = true, off = null } = {}) {
     for (const [mat, list] of this.map) {
       const merged = list.length === 1 ? list[0] : mergeGeometries(list, false);
       if (list.length > 1) for (const g of list) g.dispose();
       if (!merged.attributes.uv) boxUV(merged, 1);
+      // env-look: Position im Fahrzeugraum (Gruppen-Versatz des Turms/Rohrs) für Schlamm/Staub/Tarnung im Lack-Shader
+      if (HQ) {
+        const P = merged.attributes.position, A = new Float32Array(P.count * 3);
+        const ox = off ? off[0] : 0, oy = off ? off[1] : 0, oz = off ? off[2] : 0;
+        for (let i = 0; i < P.count; i++) { A[i * 3] = P.getX(i) + ox; A[i * 3 + 1] = P.getY(i) + oy; A[i * 3 + 2] = P.getZ(i) + oz; }
+        merged.setAttribute('aVeh', new THREE.BufferAttribute(A, 3));
+      }
       merged.computeBoundingSphere();
       const mesh = new THREE.Mesh(merged, mat);
       mesh.castShadow = shadow;
@@ -157,6 +167,81 @@ function addRoadWheel(B, S, x, y, z, r, seg, lod) {
   }
 }
 
+/** env-look: Laufwerk und Wanne – Rückrollen, Triebradzähne, Nabenschrauben, Schürzensegmente mit Schrauben,
+ * Schmutzfänger, Fahrer-Winkelspiegel, Kanister und Schanzzeug. Nur HQ (medium+). */
+function mbtDetail(B, S, paint, lod, seg) {
+  const W = VEHICLES.mbt.wheels;
+  for (const sx of [-1, 1]) {
+    if (lod < 2) for (const z of [-1.95, 0, 1.95]) {
+      B.add(cyl(0.1, 0.1, 0.2, Math.max(8, seg >> 1)), S.rubber, [sx * W.x, 0.78, z], [0, 0, HP]);
+      B.add(cyl(0.045, 0.045, 0.34, 6), S.dark, [sx * (W.x - 0.12), 0.78, z], [0, 0, HP]);
+    }
+    if (lod === 0) {
+      // Triebrad (hinten): zwei Zahnkränze
+      for (const dx of [-0.13, 0.13]) for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * PI * 2;
+        B.add(box(0.07, 0.075, 0.07), S.dark, [sx * W.x + dx, 0.55 + Math.sin(a) * 0.34, 3.05 + Math.cos(a) * 0.34], [a, 0, 0]);
+      }
+      // Nabenschrauben der Laufrollen
+      for (const z of W.z) for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * PI * 2;
+        B.add(box(0.03, 0.032, 0.032), S.dark, [sx * (W.x + 0.25), W.radius + Math.sin(a) * 0.1, z + Math.cos(a) * 0.1]);
+      }
+      // Schürze in Segmenten (leicht versetzt) mit Schraubenreihe, Gummi-Schmutzfänger vorn/hinten
+      for (let i = 0; i < 6; i++) {
+        const z = -2.55 + i * 1.04;
+        B.add(box(0.014, 0.46, 0.98), paint, [sx * 1.828, 0.73, z], [0, 0, sx * 0.035]);
+        for (let j = 0; j < 4; j++) B.add(box(0.02, 0.026, 0.026), S.dark, [sx * 1.842, 0.92, z - 0.36 + j * 0.24]);
+      }
+      B.add(box(0.04, 0.4, 0.14), S.rubber, [sx * 1.78, 0.56, -3.2]);
+      B.add(box(0.5, 0.42, 0.03), S.rubber, [sx * 1.42, 0.55, 3.66]);
+    }
+  }
+  if (lod < 2) {
+    // Fahrer-Winkelspiegel um die Luke
+    for (let i = -1; i <= 1; i++) B.add(box(0.14, 0.08, 0.1), S.glass, [-0.55 + i * 0.2, 1.66, -2.66 + Math.abs(i) * 0.06], [0, -i * 0.35, 0]);
+    // Kanister auf dem Motordeck
+    for (const sx of [-1, 1]) {
+      B.add(box(0.17, 0.46, 0.34), paint, [sx * 1.45, 1.86, 2.75]);
+      if (lod === 0) B.add(box(0.05, 0.05, 0.12), S.dark, [sx * 1.45, 2.11, 2.68]);
+    }
+  }
+  if (lod === 0) {
+    // Schaufel + Brechstange neben der Fahrerluke
+    B.add(cyl(0.018, 0.018, 1.1, 6), S.canvas, [0.35, 1.65, -1.75], [HP, 0, 0]);
+    B.add(box(0.22, 0.02, 0.28), S.dark, [0.35, 1.65, -1.08]);
+    B.add(cyl(0.014, 0.014, 1.2, 6), S.dark, [0.62, 1.65, -1.6], [HP, 0, 0]);
+    // Schweißnähte/Plattenkanten am Glacis
+    B.add(box(3.3, 0.02, 0.02), S.dark, [0, 1.3, -3.02], [-0.5, 0, 0]);
+  }
+}
+
+/** env-look: Turm – Zusatzpanzerung an den Wangen, Staukästen, Winkelspiegel der Ladeluke, Hebeösen, Windsensor,
+ * zweite Antenne, Dachnähte. Nur HQ (medium+). */
+function turretDetail(T, S, paint, lod, seg) {
+  if (lod < 2) {
+    for (const sx of [-1, 1]) {
+      // Wangenpanzer (schräg, auf Abstand) + Staukasten seitlich hinten
+      T.add(box(0.12, 0.62, 0.95), paint, [sx * 1.08, 0.4, -1.42], [0, sx * 0.58, 0]);
+      T.add(box(0.3, 0.44, 0.92), paint, [sx * 1.505, 0.46, 1.05]);
+      if (lod === 0) {
+        T.add(box(0.31, 0.02, 0.94), S.dark, [sx * 1.505, 0.69, 1.05]);
+        for (let j = 0; j < 4; j++) T.add(box(0.03, 0.03, 0.03), S.dark, [sx * (1.08 + 0.07), 0.62 - (j % 2) * 0.42, -1.42 + (j < 2 ? -0.3 : 0.3)], [0, sx * 0.58, 0]);
+      }
+    }
+    // Winkelspiegel an der Ladeluke
+    for (let i = 0; i < 3; i++) { const a = -0.9 + i * 0.9; T.add(box(0.12, 0.07, 0.06), S.glass, [0.6 + Math.sin(a) * 0.36, 0.83, 0.55 - Math.cos(a) * 0.36], [0, a, 0]); }
+  }
+  if (lod === 0) {
+    for (const [x, z] of [[-1.15, -0.8], [1.15, -0.8], [-1.0, 1.7], [1.0, 1.7]]) T.add(new THREE.TorusGeometry(0.05, 0.014, 4, 8), S.dark, [x, 0.8, z], [0, x > 0 ? HP : -HP, 0]);
+    T.add(cyl(0.015, 0.015, 0.42, 5), S.dark, [0.15, 0.99, 1.65]);
+    T.add(box(0.08, 0.06, 0.16), S.dark, [0.15, 1.2, 1.65]);
+    T.add(cyl(0.012, 0.012, 1.9, 4), S.dark, [-0.95, 1.73, 1.55]);
+    T.add(cyl(0.05, 0.06, 0.08, 8), S.dark, [-0.95, 0.82, 1.55]);
+    for (const z of [-0.6, 0.6]) T.add(box(2.2, 0.012, 0.02), S.dark, [0, 0.785, z]);
+  }
+}
+
 function buildMBT(lod, S, team) {
   const D = VEHICLES.mbt;
   const seg = [20, 12, 7][lod];
@@ -171,8 +256,9 @@ function buildMBT(lod, S, team) {
   // Seitenschürzen
   for (const sx of [-1, 1]) {
     B.add(box(0.06, 0.5, 6.3), paint, [sx * 1.79, 0.72, 0.1]);
-    if (lod === 0) for (let i = 0; i < 6; i++) B.add(box(0.07, 0.04, 0.9), S.dark, [sx * 1.8, 0.95, -2.5 + i * 1.05]);
+    if (lod === 0 && !HQ) for (let i = 0; i < 6; i++) B.add(box(0.07, 0.04, 0.9), S.dark, [sx * 1.8, 0.95, -2.5 + i * 1.05]);
   }
+  if (HQ) mbtDetail(B, S, paint, lod, seg);
   // Heck: Motordeck-Gitter, Auspuff, Rücklichter
   if (lod < 2) {
     B.add(box(2.6, 0.04, 1.6), S.dark, [0, 1.645, 2.0]);
@@ -203,6 +289,16 @@ function buildMBT(lod, S, team) {
     B.add(cyl(0.3, 0.3, 0.46, seg), S.dark, [x, 0.56, -3.12], [0, 0, HP]);
   }
   B.build(hull, { shadow: true });
+  if (HQ && lod < 2) {
+    // Abschleppseile an den Wannenflanken (durchhängend, Ösen an den Enden) – eigenes Bucket, Rohr-UVs bleiben
+    const TB = new Bucket();
+    for (const sx of [-1, 1]) {
+      const x = sx * 1.785, curve = new THREE.CatmullRomCurve3([[x, 1.42, -2.3], [x, 1.36, -1.2], [x, 1.34, 0], [x, 1.36, 1.2], [x, 1.42, 2.3]].map((p) => new THREE.Vector3(...p)));
+      TB.add(new THREE.TubeGeometry(curve, lod === 0 ? 40 : 16, 0.022, lod === 0 ? 6 : 4, false), S.dark);
+      if (lod === 0) for (const z of [-2.36, 2.36]) TB.add(new THREE.TorusGeometry(0.055, 0.018, 5, 10), S.dark, [x, 1.43, z], [0, HP, 0]);
+    }
+    TB.build(hull, { shadow: lod === 0 });
+  }
   // Ketten (eigenes Material je Seite → Texturlauf)
   const path = mbtTrackPath(lod);
   for (const [i, sx] of [[0, -1], [1, 1]]) {
@@ -251,8 +347,15 @@ function buildMBT(lod, S, team) {
     if (lod === 0) { T.add(box(0.8, 0.35, 0.4), S.canvas, [-0.6, 0.27, 2.24]); T.add(box(0.6, 0.3, 0.38), S.canvas, [0.55, 0.25, 2.24]); }
   }
   for (const sx of [-1, 1]) T.add(cyl(0.18, 0.18, 0.02, seg), mark, [sx * 1.335, 0.42, 0.3], [0, 0, HP]);
+  if (HQ) turretDetail(T, S, paint, lod, seg);
   const turLod = new THREE.Group();
-  T.build(turLod);
+  T.build(turLod, { off: D.turretPivot });
+  if (HQ && lod < 2) {
+    // taktische Kennung (Schablone) an den Turm-Staukästen
+    const MK = new Bucket();
+    for (const sx of [-1, 1]) MK.add(new THREE.PlaneGeometry(0.66, 0.165), markingMaterial(team), [sx * 1.662, 0.46, 1.05], [0, sx * HP, 0], null, { keepUV: true });
+    MK.build(turLod, { shadow: false, off: D.turretPivot });
+  }
   tur.add(turLod);
 
   // Rohr (Wiege + Mantelblende)
@@ -269,7 +372,7 @@ function buildMBT(lod, S, team) {
   }
   Gb.add(box(0.12, 0.1, 0.22), S.dark, [D.coax[0], D.coax[1], -0.28]);
   const gunLod = new THREE.Group();
-  Gb.build(gunLod);
+  Gb.build(gunLod, { off: [D.turretPivot[0] + D.gunPivot[0], D.turretPivot[1] + D.gunPivot[1], D.turretPivot[2] + D.gunPivot[2]] });
   gun.add(gunLod);
 
   // Kommandanten-MG (fernbedient)
@@ -280,17 +383,63 @@ function buildMBT(lod, S, team) {
   C.add(cyl(0.024, 0.024, 0.85, 8), S.dark, [0, 0.08, -0.8], [HP, 0, 0]);
   if (lod < 2) { C.add(box(0.12, 0.16, 0.24), S.dark, [0.16, 0.02, 0.02]); C.add(box(0.16, 0.12, 0.16), S.glass, [-0.17, 0.08, -0.05]); }
   const cmgLod = new THREE.Group();
-  C.build(cmgLod, { shadow: lod < 2 });
+  C.build(cmgLod, { shadow: lod < 2, off: [D.turretPivot[0] + D.cmgPivot[0], D.turretPivot[1] + D.cmgPivot[1], D.turretPivot[2] + D.cmgPivot[2]] });
   cmg.add(cmgLod);
 
   return { hull, tur, gun, cmg };
 }
 
-function tireGeometry(r, w, seg) {
+function tireGeometry(r, w, seg, tread = false) {
+  if (tread) return treadTire(r, w);
   const pts = [[r * 0.62, -w / 2], [r * 0.86, -w * 0.52], [r * 0.97, -w * 0.4], [r, 0], [r * 0.97, w * 0.4], [r * 0.86, w * 0.52], [r * 0.62, w / 2]]
     .map(([x, y]) => new THREE.Vector2(x, y));
   const g = new THREE.LatheGeometry(pts, seg);
   return g;
+}
+
+/** env-look: Geländereifen mit Stollenprofil (versetzte Blöcke, Schulterstollen) – Lathe mit 48 Segmenten, die
+ * Laufflächen-Ringe nach Winkel ausgelenkt. */
+function treadTire(r, w) {
+  const prof = [[0.62, -0.5], [0.86, -0.52], [0.95, -0.44], [0.985, -0.3], [1, -0.12], [1, 0.12], [0.985, 0.3], [0.95, 0.44], [0.86, 0.52], [0.62, 0.5]];
+  const g = new THREE.LatheGeometry(prof.map(([x, y]) => new THREE.Vector2(r * x, w * y)), 48);
+  const P = g.attributes.position;
+  const lugs = 16;
+  for (let i = 0; i < P.count; i++) {
+    const x = P.getX(i), y = P.getY(i), z = P.getZ(i), rad = Math.hypot(x, z);
+    if (rad < r * 0.94) continue;
+    const a = Math.atan2(z, x), side = y < 0 ? 0 : 0.5;
+    const on = Math.sin((a * lugs) / 1 + side * PI * 2 + (Math.abs(y) > w * 0.25 ? 0.6 : 0)) > 0 ? 1 : 0;
+    const k = (rad + on * r * 0.045) / rad;
+    P.setXYZ(i, x * k, y, z * k);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/** env-look: Geländewagen – Seilwinde, Abschleppösen, Blinker, Scheinwerferringe, Wischer, Außenspiegel, Antenne,
+ * Trittbretter, Kotflügelverbreiterungen. Nur HQ (medium+). */
+function jeepDetail(B, S, paint, lod, seg) {
+  const D = VEHICLES.jeep;
+  if (lod < 2) {
+    for (const sx of [-1, 1]) {
+      B.add(box(0.06, 0.06, 1.6), paint, [sx * 0.96, 0.66, 0.35]);                  // Trittbrett
+      B.add(box(0.08, 0.06, 1.1), S.rubber, [sx * 1.0, 1.0, -1.47]);               // Kotflügelverbreiterung
+      B.add(box(0.07, 0.05, 0.04), S.lensOff, [sx * 0.88, 0.86, -2.4]);             // Blinker
+    }
+    B.add(cyl(0.09, 0.09, 0.62, Math.max(8, seg >> 1)), S.dark, [0, 0.56, -2.62], [0, 0, HP]); // Seilwinde
+  }
+  if (lod === 0) {
+    for (const sx of [-1, 1]) B.add(new THREE.TorusGeometry(0.06, 0.016, 4, 10), S.dark, [sx * 0.62, 0.48, -2.6], [0, HP, 0]); // Ösen
+    for (const L of D.lights) B.add(new THREE.TorusGeometry(0.125, 0.015, 4, 16), S.dark, [L[0], L[1], L[2] - 0.03]);
+    for (const sx of [-1, 1]) {
+      B.add(box(0.5, 0.012, 0.02), S.dark, [sx * 0.42, 1.31, -0.96], [0, 0, sx * 0.25]); // Wischer
+      B.add(cyl(0.01, 0.01, 0.3, 4), S.dark, [sx * 0.98, 1.62, -0.92], [0, 0, sx * 1.1]); // Spiegelarm
+      B.add(box(0.03, 0.16, 0.12), S.dark, [sx * 1.1, 1.7, -0.92]);
+      B.add(box(0.005, 0.13, 0.1), S.glass, [sx * 1.118, 1.7, -0.92]);
+    }
+    B.add(cyl(0.008, 0.008, 1.8, 4), S.dark, [-0.86, 2.0, 2.1]);                     // Antenne
+    B.add(cyl(0.03, 0.035, 0.08, 6), S.dark, [-0.86, 1.1, 2.1]);
+  }
 }
 
 function buildJeep(lod, S, team) {
@@ -331,13 +480,17 @@ function buildJeep(lod, S, team) {
     B.add(cyl(0.03, 0.03, 1.9, 8), S.dark, [sx * 0.86, 1.62, 1.15], [1.08, 0, 0]);
   }
   B.add(cyl(0.035, 0.035, 1.72, 8), S.dark, [0, 2.1, 0.3], [0, 0, HP]);
-  // Sitze, Lenkrad
+  // Sitze, Lenkrad (env-look LOD0: gepolsterte Kissen mit gerundeten Kanten)
+  const seat = (w, h, d, pos, rot) => {
+    if (HQ && lod === 0) { const g = topExtrude([[-w / 2 + 0.04, d / 2 - 0.04], [w / 2 - 0.04, d / 2 - 0.04], [w / 2 - 0.04, -d / 2 + 0.04], [-w / 2 + 0.04, -d / 2 + 0.04]], h - 0.08, true); g.translate(0, -h / 2 + 0.04, 0); B.add(g, S.canvas, pos, rot); }
+    else B.add(box(w, h, d), S.canvas, pos, rot);
+  };
   for (const sx of [-1, 1]) {
-    B.add(box(0.5, 0.14, 0.5), S.canvas, [sx * 0.46, 1.0, -0.1]);
-    B.add(box(0.5, 0.56, 0.1), S.canvas, [sx * 0.46, 1.3, 0.18], [-0.12, 0, 0]);
+    seat(0.5, 0.14, 0.5, [sx * 0.46, 1.0, -0.1]);
+    seat(0.5, 0.56, 0.1, [sx * 0.46, 1.3, 0.18], [-0.12, 0, 0]);
   }
-  B.add(box(1.5, 0.14, 0.5), S.canvas, [0, 1.0, 1.6]);
-  B.add(box(1.5, 0.5, 0.1), S.canvas, [0, 1.28, 1.9], [-0.1, 0, 0]);
+  seat(1.5, 0.14, 0.5, [0, 1.0, 1.6]);
+  seat(1.5, 0.5, 0.1, [0, 1.28, 1.9], [-0.1, 0, 0]);
   if (lod < 2) {
     B.add(new THREE.TorusGeometry(0.18, 0.022, 6, seg), S.dark, [-0.46, 1.48, -0.6], [-0.95, 0, 0]);
     B.add(cyl(0.022, 0.022, 0.5, 6), S.dark, [-0.46, 1.32, -0.75], [-0.95 + HP, 0, 0]);
@@ -346,14 +499,20 @@ function buildJeep(lod, S, team) {
   B.add(cyl(0.06, 0.08, 0.9, 10), S.dark, [D.mgPivot[0], 1.42, D.mgPivot[2]]);
   // Ersatzrad, Kanister
   if (lod < 2) {
-    B.add(tireGeometry(0.4, 0.28, seg), S.rubber, [0.45, 1.25, 2.33], [HP, 0, 0]);
+    B.add(tireGeometry(0.4, 0.28, seg, HQ && lod === 0), S.rubber, [0.45, 1.25, 2.33], [HP, 0, 0]);
     B.add(cyl(0.24, 0.24, 0.29, seg), S.dark, [0.45, 1.25, 2.33], [HP, 0, 0]);
   }
   if (lod === 0) for (const sx of [-1, 1]) B.add(box(0.16, 0.44, 0.32), sx < 0 ? paint : S.dark, [sx * -0.55 - 0.1, 1.2, 2.3]);
   // Kennung
   B.add(cyl(0.24, 0.24, 0.015, seg), mark, [0, 1.165, -1.62], [0.05, 0, 0]);
   B.add(cyl(0.15, 0.15, 0.015, seg), mark, [-0.5, 1.12, 2.186], [HP, 0, 0]);
+  if (HQ) jeepDetail(B, S, paint, lod, seg);
   B.build(hull, { shadow: true });
+  if (HQ && lod < 2) {
+    const MK = new Bucket();
+    for (const sx of [-1, 1]) MK.add(new THREE.PlaneGeometry(0.5, 0.125), markingMaterial(team), [sx * 0.866, 0.95, -1.62], [0, sx * HP, 0], null, { keepUV: true });
+    MK.build(hull, { shadow: false });
+  }
   // Glas
   const GB = new Bucket();
   GB.add(box(1.66, 0.5, 0.015), S.glass, [0, 1.53, -0.92], [-0.08, 0, 0]);
@@ -374,7 +533,7 @@ function buildJeep(lod, S, team) {
   M.add(box(0.05, 0.12, 0.05), S.dark, [0.08, 0.06, 0.3]);
   M.add(box(0.12, 0.1, 0.14), S.dark, [0, -0.06, 0.05]);
   const mgLod = new THREE.Group();
-  M.build(mgLod, { shadow: lod < 2 });
+  M.build(mgLod, { shadow: lod < 2, off: D.mgPivot });
   mg.add(mgLod);
 
   // Räder (eigene Drehpunkte)
@@ -384,10 +543,15 @@ function buildJeep(lod, S, team) {
     for (const sx of [-1, 1]) {
       const spin = new THREE.Group();
       const R = new Bucket();
-      R.add(tireGeometry(W.radius, 0.32, seg), S.rubber, null, [0, 0, HP]);
+      R.add(tireGeometry(W.radius, 0.32, seg, HQ && lod === 0), S.rubber, null, [0, 0, HP]);
       R.add(cyl(0.25, 0.25, 0.3, seg), S.dark, null, [0, 0, HP]);
       if (lod === 0) R.add(cyl(0.08, 0.08, 0.34, 8), paint, null, [0, 0, HP]);
-      R.build(spin, { shadow: true });
+      if (HQ && lod === 0) {
+        // Felgenring + Radmuttern (außen)
+        R.add(new THREE.TorusGeometry(0.22, 0.02, 4, 18), S.dark, [sx * 0.155, 0, 0], [0, HP, 0]);
+        for (let i = 0; i < 5; i++) { const a = (i / 5) * PI * 2; R.add(box(0.03, 0.03, 0.03), S.dark, [sx * 0.175, Math.sin(a) * 0.12, Math.cos(a) * 0.12]); }
+      }
+      R.build(spin, { shadow: true, off: [sx * W.x, W.radius, z] });
       wheels.push({ spin, axle, side: sx, x: sx * W.x, z });
     }
   });
@@ -408,6 +572,8 @@ function template(type, team, quality) {
   const key = `${type}:${team}:${quality}`;
   if (TEMPLATES.has(key)) return TEMPLATES.get(key);
   const S = vehicleMaterials();
+  HQ = quality !== 'low';
+  applyVehicleLook(quality); // Tarnung/Schlamm/Staub (einmal, nur medium+)
   const dists = LOD_DIST[quality] || LOD_DIST.high;
   const root = new THREE.Group();
   root.name = `vehicle:${type}`;
@@ -480,7 +646,8 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
     lenses: [], cones: [], meshes: [],
     lightsOn: false, wrecked: false,
   };
-  const tm = [trackMaterial(), trackMaterial()];
+  const hq = quality !== 'low';
+  const tm = [trackMaterial(hq), trackMaterial(hq)];
   root.traverse((o) => {
     if (o.isMesh) {
       model.meshes.push(o);
@@ -496,7 +663,7 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
     if (o.name && o.name.startsWith('wheel')) model.wheels.push({ pivot: o, spin: o.getObjectByName('spin'), axle: o.userData.axle, side: o.userData.side });
   });
   if (type === 'mbt') model.trackMats = tm;
-  else for (const m of tm) { m.map.dispose(); m.dispose(); }
+  else for (const m of tm) { m.map.dispose(); m.normalMap?.dispose(); m.dispose(); }
 
   model.setLights = (on) => {
     model.lightsOn = !!on && !model.wrecked;
@@ -521,11 +688,12 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
       const v = i === 0 ? vl : vr;
       const t = model.trackMats[i].map;
       t.offset.x = (t.offset.x - (v * dt * model.trackK[i]) / model.trackLen[i]) % 1;
+      if (model.trackMats[i].normalMap) model.trackMats[i].normalMap.offset.x = t.offset.x;
     }
   };
   model.dispose = () => {
     root.removeFromParent();
-    for (const m of model.trackMats) { m.map.dispose(); m.dispose(); }
+    for (const m of model.trackMats) { m.map.dispose(); m.normalMap?.dispose(); m.dispose(); }
     model.trackMats = [];
   };
   return model;

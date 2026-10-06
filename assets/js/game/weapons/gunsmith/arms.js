@@ -448,10 +448,11 @@ function buildHandGeometry(mirror, lod = 'high') {
   backPad.translate(0.002, 0.0178, -0.036);
   parts.push(tag(backPad, 0, PAD));
   // Bündchen + Klettverschluss
-  const cuff = new THREE.CylinderGeometry(0.036, 0.033, 0.055, 14, 1, false);
+  // Bündchen kürzer (hands): bei gebeugtem Handgelenk ragte die Stirnfläche als Scheibe aus dem Ärmel
+  const cuff = new THREE.CylinderGeometry(0.036, 0.033, 0.04, 14, 1, false);
   cuff.rotateX(Math.PI / 2);
   cuff.scale(1.05, 0.85, 1);
-  cuff.translate(0, 0.0, 0.022);
+  cuff.translate(0, 0.0, 0.015);
   parts.push(tag(cuff, 0, CUFF));
   const strap = bent(new RoundedBoxGeometry(0.046, 0.005, 0.022, 1, 0.002), 9);
   strap.translate(0.003, 0.0305, 0.02);

@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { getMaterial } from '../engine/textures.js';
 import { assets, tierFor } from '../../../lib/loader.js';
+import { addShaderPatch } from '../world/shading.js';
 
 let SET = null;
 let upgrading = null;
@@ -45,6 +46,121 @@ function trackTexture() {
   return t;
 }
 
+/** env-look (medium+): Kettenglieder 256×128 mit Greifstegen, Bolzen, Verschleiß + passende Normalenkarte (aus Höhe). */
+function trackTextureHQ() {
+  const W = 256, H = 128, hc = document.createElement('canvas'); hc.width = W; hc.height = H;
+  const h = hc.getContext('2d');
+  h.fillStyle = '#000'; h.fillRect(0, 0, W, H);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.fillStyle = '#1f1d19'; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 4; i++) {
+    const x = i * 64;
+    // Platte
+    g.fillStyle = '#3a3731'; g.fillRect(x + 3, 6, 54, 116);
+    h.fillStyle = '#6a6a6a'; h.fillRect(x + 3, 6, 54, 116);
+    // Greifsteg (quer) + Führungszahn (Mitte)
+    g.fillStyle = '#56524a'; g.fillRect(x + 22, 6, 12, 116);
+    h.fillStyle = '#f0f0f0'; h.fillRect(x + 22, 6, 12, 116);
+    g.fillStyle = '#2b2925'; g.fillRect(x + 24, 54, 8, 20);
+    h.fillStyle = '#ffffff'; h.fillRect(x + 23, 52, 10, 24);
+    // Bolzen + Gummipolster
+    for (const y of [16, 104]) { g.fillStyle = '#6b665c'; g.beginPath(); g.arc(x + 10, y, 4, 0, 7); g.arc(x + 48, y, 4, 0, 7); g.fill(); h.fillStyle = '#9a9a9a'; h.beginPath(); h.arc(x + 10, y, 4, 0, 7); h.arc(x + 48, y, 4, 0, 7); h.fill(); }
+    g.fillStyle = '#141311'; g.fillRect(x + 58, 0, 6, H);
+    // blanker Verschleiß an den Stegkanten
+    g.fillStyle = 'rgba(150,145,135,0.35)'; g.fillRect(x + 22, 6, 2, 116); g.fillRect(x + 32, 6, 2, 116);
+  }
+  // Schmutz in den Fugen
+  for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(52,42,30,${Math.random() * 0.35})`; g.beginPath(); g.arc(Math.random() * W, Math.random() * H, 1 + Math.random() * 4, 0, 7); g.fill(); }
+  const hd = h.getImageData(0, 0, W, H).data, nc = document.createElement('canvas'); nc.width = W; nc.height = H;
+  const nx = nc.getContext('2d'), out = nx.createImageData(W, H);
+  const at = (x, y) => hd[(((y + H) % H) * W + ((x + W) % W)) * 4] / 255;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const dx = (at(x + 1, y) - at(x - 1, y)) * 3, dy = (at(x, y + 1) - at(x, y - 1)) * 3, l = Math.hypot(dx, dy, 1), o = (y * W + x) * 4;
+    out.data[o] = (-dx / l * 0.5 + 0.5) * 255; out.data[o + 1] = (dy / l * 0.5 + 0.5) * 255; out.data[o + 2] = (1 / l * 0.5 + 0.5) * 255; out.data[o + 3] = 255;
+  }
+  nx.putImageData(out, 0, 0);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  const n = new THREE.CanvasTexture(nc); n.wrapS = n.wrapT = THREE.RepeatWrapping; n.anisotropy = 4;
+  return { map: t, normal: n };
+}
+
+/** Taktische Kennung (Schablone): Winkel + Nummer, weiß-grau, verwittert; je Team eine Textur (256×64). */
+function markingTexture(team) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, 256, 64);
+  g.fillStyle = 'rgba(226,222,208,0.92)';
+  g.font = '700 46px monospace'; g.textBaseline = 'middle';
+  // Winkel (A: ^, B: Balken) – lesbar wie echte Verbandsabzeichen, ohne reale Hoheitszeichen
+  if (team === 'B') { g.fillRect(14, 20, 44, 9); g.fillRect(14, 35, 44, 9); } else { g.beginPath(); g.moveTo(12, 50); g.lineTo(36, 12); g.lineTo(60, 50); g.lineTo(50, 50); g.lineTo(36, 28); g.lineTo(22, 50); g.fill(); }
+  g.fillText(team === 'B' ? '3 4' : team === 'A' ? '2 1' : '0 7', 84, 34);
+  g.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 700; i++) { g.globalAlpha = Math.random() * 0.7; g.fillRect(Math.random() * 256, Math.random() * 64, 1 + Math.random() * 3, 1 + Math.random() * 2); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return t;
+}
+
+// env-look: Tarnung (3 Töne je Team als Faktor auf die Teamtönung), Schlamm nach Höhe über Grund, Staub auf
+// Oberseiten, Lackabplatzer – alles im Fahrzeugraum (Attribut aVeh aus models.js), keine Textur, nur medium+.
+const CAMO = { A: [0x39452e, 0x5c4f37], B: [0x6b5d43, 0xa69c80], null: [0x4a4f45, 0x6c6a5c] };
+const _ca = new THREE.Color(), _cb = new THREE.Color();
+function paintLookPatch(team) {
+  const base = _ca.set(TEAM_TINT[team] ?? TEAM_TINT.null);
+  const ratio = (hex) => { _cb.set(hex); return new THREE.Vector3(_cb.r / Math.max(1e-4, base.r), _cb.g / Math.max(1e-4, base.g), _cb.b / Math.max(1e-4, base.b)); };
+  const [t2, t3] = CAMO[team] || CAMO.null;
+  const u = { uCamo2: { value: ratio(t2) }, uCamo3: { value: ratio(t3) }, uMud: { value: new THREE.Color(0x4a3e2f) }, uDust: { value: new THREE.Color(0x9a8f78) } };
+  return (sh) => {
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec3 aVeh;\nvarying vec3 vVeh;\nvarying vec3 vVehN;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvVeh = aVeh;\nvVehN = objectNormal;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec3 vVeh; varying vec3 vVehN;
+        uniform vec3 uCamo2, uCamo3, uMud, uDust;
+        float npVh( vec3 p ) { p = fract( p * 0.3183099 + 0.1 ); p *= 17.0; return fract( p.x * p.y * p.z * ( p.x + p.y + p.z ) ); }
+        float npVn( vec3 x ) { vec3 i = floor( x ), f = fract( x ); f = f * f * ( 3.0 - 2.0 * f );
+          return mix( mix( mix( npVh( i ), npVh( i + vec3( 1.0, 0.0, 0.0 ) ), f.x ), mix( npVh( i + vec3( 0.0, 1.0, 0.0 ) ), npVh( i + vec3( 1.0, 1.0, 0.0 ) ), f.x ), f.y ),
+                      mix( mix( npVh( i + vec3( 0.0, 0.0, 1.0 ) ), npVh( i + vec3( 1.0, 0.0, 1.0 ) ), f.x ), mix( npVh( i + vec3( 0.0, 1.0, 1.0 ) ), npVh( i + vec3( 1.0, 1.0, 1.0 ) ), f.x ), f.y ), f.z ); }`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        float npC1 = npVn( vVeh * vec3( 0.55, 0.8, 0.55 ) ) * 0.65 + npVn( vVeh * 1.6 + 3.1 ) * 0.35;
+        float npC2 = npVn( vVeh * vec3( 0.7, 0.9, 0.7 ) + 11.3 ) * 0.65 + npVn( vVeh * 2.1 + 7.0 ) * 0.35;
+        float npT2 = smoothstep( 0.55, 0.59, npC1 ), npT3 = smoothstep( 0.58, 0.62, npC2 ) * ( 1.0 - npT2 );
+        diffuseColor.rgb *= mix( vec3( 1.0 ), uCamo2, npT2 ) * mix( vec3( 1.0 ), uCamo3, npT3 );
+        float npMn = npVn( vVeh * vec3( 2.2, 0.8, 2.2 ) );
+        float npVMud = 1.0 - smoothstep( 0.22 + npMn * 0.3, 0.85 + npMn * 0.5, vVeh.y );
+        npVMud = max( npVMud, smoothstep( 0.8, 0.86, npVn( vVeh * 6.0 ) ) * ( 1.0 - smoothstep( 0.6, 1.6, vVeh.y ) ) * 0.75 );
+        diffuseColor.rgb = mix( diffuseColor.rgb, uMud * ( 0.75 + 0.5 * npMn ), npVMud * 0.85 );
+        float npUp = clamp( normalize( vVehN ).y, 0.0, 1.0 );
+        diffuseColor.rgb = mix( diffuseColor.rgb, uDust, smoothstep( 0.6, 0.95, npUp ) * ( 0.18 + 0.34 * npVn( vVeh * 1.3 + 5.0 ) ) * ( 1.0 - npVMud ) );
+        float npVCh = smoothstep( 0.8, 0.86, npVn( vVeh * 11.0 + 2.0 ) ) * ( 0.3 + 0.7 * smoothstep( 0.35, 0.9, npVn( vVeh * 1.1 ) ) ) * ( 1.0 - npVMud );
+        diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.05, 0.047, 0.043 ), npVCh * 0.8 );`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        roughnessFactor = mix( mix( roughnessFactor, 0.97, npVMud ), 0.42, npVCh );`)
+      .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
+        metalnessFactor = mix( mix( metalnessFactor, 0.0, npVMud ), 0.85, npVCh );`);
+  };
+}
+
+let looked = false;
+/** Tarnung/Schlamm/Staub/Abplatzer an die Lackmaterialien hängen (einmal; nur medium+). */
+export function applyVehicleLook(quality = 'high') {
+  if (looked || quality === 'low') return false;
+  const S = vehicleMaterials();
+  for (const k of ['A', 'B', 'null']) addShaderPatch(S.paint[k], 'vehLook', paintLookPatch(k));
+  looked = true;
+  return true;
+}
+
+/** Kennzeichnungs-Material je Team (Schablone, alphaTest, liegt mit Versatz auf dem Lack). */
+export function markingMaterial(team) {
+  const S = vehicleMaterials();
+  const k = team === 'A' || team === 'B' ? team : 'null';
+  if (!S.marking[k]) S.marking[k] = new THREE.MeshStandardMaterial({ name: `veh:marking${k}`, map: markingTexture(k), transparent: true, alphaTest: 0.35, depthWrite: false, roughness: 0.75, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+  return S.marking[k];
+}
+
 /**
  * Geteilter Materialsatz. Wird einmal erzeugt; `upgrade(renderer, quality)` tauscht im Hintergrund auf
  * Fotoscan-Texturen (sicher mehrfach aufrufbar).
@@ -69,6 +185,8 @@ export function vehicleMaterials() {
     },
     wreck: fromBase('metal_rust', { color: 0x2a2420, metalness: 0.2, roughness: 0.95 }),
     trackTex: trackTexture(),
+    trackHQ: null, // env-look: Kettenglieder mit Normalenkarte (medium+), bei Bedarf erzeugt
+    marking: {},
     cone: new THREE.MeshBasicMaterial({ name: 'veh:cone', color: 0xffe2b0, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: true }),
     flash: new THREE.MeshBasicMaterial({ name: 'veh:flash', color: 0xffc070, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }),
   };
@@ -77,11 +195,13 @@ export function vehicleMaterials() {
 }
 
 /** Kettenmaterial je Fahrzeugseite (eigene Texturkopie → eigener Versatz für den Kettenlauf). */
-export function trackMaterial() {
+export function trackMaterial(hq = false) {
   const S = vehicleMaterials();
-  const tex = S.trackTex.clone();
+  if (hq && !S.trackHQ) S.trackHQ = trackTextureHQ();
+  const tex = (hq ? S.trackHQ.map : S.trackTex).clone();
   tex.needsUpdate = true;
   const m = new THREE.MeshStandardMaterial({ name: 'veh:track', map: tex, color: 0xffffff, roughness: 0.85, metalness: 0.45 });
+  if (hq) { m.normalMap = S.trackHQ.normal.clone(); m.normalMap.needsUpdate = true; m.normalScale.set(1.2, 1.2); m.roughness = 0.78; m.metalness = 0.55; }
   return m;
 }
 
@@ -102,6 +222,7 @@ function applySet(m, set, { metalness, roughness } = {}) {
 export function upgradeVehicleMaterials(renderer, quality = 'high') {
   if (upgrading) return upgrading;
   const S = vehicleMaterials();
+  applyVehicleLook(quality);
   upgrading = (async () => {
     try {
       if (!assets.renderer && renderer) assets.setRenderer(renderer);
