@@ -1,0 +1,1200 @@
+diff --git a/assets/js/game/bots/manager.js b/assets/js/game/bots/manager.js
+index 02b9900..18c716f 100644
+--- a/assets/js/game/bots/manager.js
++++ b/assets/js/game/bots/manager.js
+@@ -721,6 +721,10 @@ export class BotManager {
+     const lens = R && R.lens && typeof R.lens.toScreen === 'function' ? R.lens : null;
+     const now = G.time.real || G.time.elapsed;
+     const playerAlive = G.player && G.player.alive;
++    // Spielstil (G.match.styleFlags.nameplates): 'alle' | 'team' (Realistisch: nur Mitspieler; FFA: keine) | 'aus'.
++    // Je Bild gelesen → ein neues Match mit anderem Stil gilt sofort, ohne die Schilder neu anzulegen.
++    const fl = G.match && G.match.styleFlags;
++    const plates = (fl && fl.nameplates) || 'alle';
+     cam.getWorldPosition(_cam); // Sichtstrahlen von der Kamera aus (das Schild wird aus ihrer Sicht gezeichnet)
+     const list = this._plateList || (this._plateList = []);
+     list.length = 0;
+@@ -738,6 +742,7 @@ export class BotManager {
+       const pos = p._pos || (p._pos = new THREE.Vector3());
+       if (s && bot.alive) s.getHeadPosition(pos); else pos.copy(bot.position).setY(bot.position.y + 1.7);
+       if (!bot.alive) fade = 16;
++      else if (plates === 'aus' || (plates === 'team' && p.kind !== 'ally')) fade = 16; // Stil verbietet das Schild
+       else if (bot.inView) {
+         if (p.kind === 'ally') target = d < 40 ? 1 : d < 60 ? (60 - d) / 20 : 0;
+         else {
+diff --git a/assets/js/game/bots/nameplates.js b/assets/js/game/bots/nameplates.js
+index c434b9b..affeb83 100644
+--- a/assets/js/game/bots/nameplates.js
++++ b/assets/js/game/bots/nameplates.js
+@@ -1,6 +1,8 @@
+ // NULLPUNKT — Namensschilder über Soldaten (Canvas-Sprites, konstante Bildschirmgröße).
+ // Verbündete: immer sichtbar (blau, Raute, auch durch Wände); Gegner: nur unter dem Fadenkreuz oder
+ // sehr nah, jeweils nur bei freier Sicht auf den Kopf (rot). Ein Draw Call pro sichtbarem Schild.
++// Spielstil: G.match.styleFlags.nameplates ('alle' | 'team' | 'aus') wertet der BotManager je Bild aus –
++// „Realistisch“ ('team') zeigt nur Mitspieler-Schilder, nie Gegner (auch nicht in FFA).
+ // Alle Schilder werden ohne Tiefentest gezeichnet: Verdeckung entscheidet der BotManager einmal je Schild
+ // (gedrosselter Sichtstrahl Kamera → Kopf) und blendet das ganze Schild ein/aus – eine Wandkante schneidet
+ // den Namen nie pixelweise an.
+diff --git a/assets/js/game/engine/audio.js b/assets/js/game/engine/audio.js
+index 6e5cee1..35270c4 100644
+--- a/assets/js/game/engine/audio.js
++++ b/assets/js/game/engine/audio.js
+@@ -122,7 +122,7 @@ export class AudioEngine {
+     this.hdr = new HdrWindow();
+     this._unsubs = [];
+     this._warm = false; this._bankLow = null; this._pinAt = new WeakMap(); this._slideVoice = null;
+-    this._occl = new Map(); this._lastFire = new WeakMap(); this._reloads = new Map();
++    this._occl = new Map(); this._lastFire = new WeakMap(); this._reloads = new Map(); this._reloadSeq = new Map();
+     this._lastVar = new Map(); this._objOwners = new Map(); this._actorPain = new WeakMap();
+     this._tails = new Map(); this._shellAt = new WeakMap(); this._surf = new WeakMap(); this._shots = new WeakMap();
+     this._pass = new Map(); this._whiz = new Map(); this._passQueued = false; this._combatWhiz = false; this._casingEvents = false;
+@@ -852,6 +852,8 @@ export class AudioEngine {
+     v.stopped = true;
+     const t = this.ctx.currentTime;
+     try {
++      // Noch nicht gestartet (geplant): gar nicht erst abspielen – sonst bliebe ein kurzer Rest der Ausblendung hörbar
++      if (v.start > t + 0.002) { v.gain.gain.cancelScheduledValues(t); v.gain.gain.setValueAtTime(0, t); v.src.stop(t); return; }
+       v.gain.gain.cancelScheduledValues(t);
+       v.gain.gain.setValueAtTime(v.gain.gain.value, t);
+       v.gain.gain.linearRampToValueAtTime(0, t + Math.max(0.005, fade));
+@@ -1003,6 +1005,7 @@ export class AudioEngine {
+     this._muffle.hearing = this.hearing.update(dt);
+     this._updateVitals(dt);
+     this._updateFoley(dt);
++    this._updateReloads(dt);
+     this._applyMuffle();
+   }
+ 
+@@ -1395,22 +1398,57 @@ export class AudioEngine {
+     }
+   }
+ 
++  /**
++   * Nachladen abgebrochen (Sprint, Wechsel, Messer, Granate, Tod, Fahrzeug, Matchende …): laufende Teilklänge kurz
++   * ausblenden (30 ms, kein Knacken), bereits eingeplante gar nicht erst starten, ausstehende Schritte verwerfen.
++   */
+   _cancelReload(a) {
+-    const list = a && this._reloads.get(a); if (!list) return;
++    if (!a) return;
++    this._reloadSeq.delete(a);
++    const list = this._reloads.get(a); if (!list) return;
+     for (const v of list) this._kill(v, 0.03);
+     this._reloads.delete(a);
+   }
+ 
++  /** Stimme dem Nachlade-Kanal des Akteurs zuordnen (wird bei Abbruch geschnitten). */
++  _trackReload(a, v) {
++    if (!v || !a) return v;
++    const l = (this._reloads.get(a) || []).filter(x => !x.stopped); l.push(v); this._reloads.set(a, l);
++    return v;
++  }
++
++  /**
++   * Teilklänge (Magazin raus/rein, Verschluss) laufen in Spielzeit statt vorab auf der Audio-Uhr: Pause und
++   * Bildrateneinbrüche (dt-Grenze 1/20 s) halten Klang und Animation synchron, ein Abbruch erwischt nichts mehr
++   * in der Zukunft. Vorlauf höchstens ein Bild (sauberes Timing), solche Stimmen schneidet _cancelReload mit.
++   */
++  _updateReloads(dt) {
++    for (const [a, r] of this._reloadSeq) {
++      if (a.alive === false) { this._cancelReload(a); continue; }
++      if (r.fresh) r.fresh = false; else r.t += dt; // Start-Bild: der Controller zählt erst ab dem nächsten Bild
++      while (r.i < r.seq.length && r.seq[r.i][1] <= r.t + dt) {
++        const [n, at] = r.seq[r.i++], pl = this._isPlayer(a);
++        const pos = pl ? null : this._eye(a);
++        if (!pl && (!pos || this._dist(pos) > 24)) continue;
++        this._trackReload(a, this.play(n, { player: pl, position: pos, actor: a, volume: r.volume, delay: Math.max(0, at - r.t) }));
++      }
++      if (r.i >= r.seq.length) this._reloadSeq.delete(a);
++    }
++  }
++
+   _reload(p) {
+     const a = p.actor, pl = this._isPlayer(a), def = this.weaponDef(p.weaponId), prof = this.profileFor(p.weaponId, def);
++    // Ende vor der Entfernungsprüfung (Akteur kann inzwischen weit weg sein): Abbruch schneidet alles,
++    // fertig nachgeladen darf der Ausklang stehen bleiben
++    if (p.phase === 'end') { if (p.interrupted) this._cancelReload(a); else if (a) { this._reloads.delete(a); this._reloadSeq.delete(a); } }
++    if (!this.ctx || !this.unlocked) return; // stumm (kein AudioContext / noch nicht entsperrt): nichts einplanen
+     const pos = pl ? null : this._eye(a);
+     if (!pl && (!pos || this._dist(pos) > 24)) return;
+     const shell = !!def?.perShellReload || (def == null && prof === 'shotgun');
+     const base = { player: pl, position: pos, actor: a, volume: pl ? 0.9 : 0.8 };
+-    const track = v => { if (!v || !a) return; const l = this._reloads.get(a) || []; l.push(v); this._reloads.set(a, l.filter(x => !x.stopped)); };
+     if (p.phase === 'start') {
+       this._cancelReload(a);
+-      if (shell) { track(this.play('ads_out', { ...base, volume: 0.7 })); return; }
++      if (shell) { this._trackReload(a, this.play('ads_out', { ...base, volume: 0.7 })); return; }
+       const T = (p.empty ? def?.reloadEmptyTime : def?.reloadTime) || RELOAD_TIME[prof] * (p.empty ? 1.25 : 1);
+       const seq = prof === 'lmg'
+         ? [['reload_bolt', 0.06], ['reload_mag_out', 0.22], ['reload_mag_in', 0.58], ['reload_bolt', 0.82]]
+@@ -1418,12 +1456,16 @@ export class AudioEngine {
+       // Leer: Verschluss/Schlitten vor – Pistolen mit echter Schlitten-Aufnahme
+       const pistol = prof === 'pistol' || prof === 'pistol_heavy';
+       if (p.empty && prof !== 'lmg') seq.push([prof === 'sniper' ? 'bolt' : pistol && this._recName('slide_release', true) ? 'slide_release' : 'reload_bolt', 0.78]);
+-      for (const [n, f] of seq) track(this.play(n, { ...base, delay: T * f }));
++      if (a) this._reloadSeq.set(a, { seq: seq.map(([n, f]) => [n, T * f]), i: 0, t: 0, fresh: true, volume: base.volume });
+     } else if (p.phase === 'insert') {
+-      if (shell) track(this.play('reload_shell', base));
++      if (shell) this._trackReload(a, this.play('reload_shell', base));
+     } else if (p.phase === 'end') {
+-      this._reloads.delete(a);
+-      if (shell && p.empty) this.play(def?.fireMode === 'bolt' ? 'bolt' : 'pump', base);
++      if (!shell || !p.empty) return;
++      // Leer nachgeladene Flinte pumpt – nach Sprint-Abbruch nur mit Patrone im Rohr, passend zur Ego-Animation (Pumpe
++      // im Ausklang); andere Abbrüche (Schuss, Messer, Wechsel, Tod …) ohne Pumpe
++      const fm = def?.fireMode === 'bolt' ? 'bolt' : 'pump';
++      if (!p.interrupted) this.play(fm, base);
++      else if (p.cause === 'sprint' && a && a.weapon?.current?.mag > 0) this._reloadSeq.set(a, { seq: [[fm, 0.38]], i: 0, t: 0, fresh: true, volume: base.volume });
+     }
+   }
+ 
+@@ -1471,8 +1513,7 @@ export class AudioEngine {
+         const mag = a?.weapon?.current?.mag;
+         if (mag !== 0) {
+           cycle = clamp((60 / (def?.rpm || (fm === 'pump' ? 70 : 45))) * 0.42, 0.22, 0.65);
+-          const v = this.play(fm, { player: pl, position: pos, actor: a, delay: cycle, volume: pl ? 0.85 : 0.65 });
+-          if (v && a) { const l = this._reloads.get(a) || []; l.push(v); this._reloads.set(a, l); }
++          this._trackReload(a, this.play(fm, { player: pl, position: pos, actor: a, delay: cycle, volume: pl ? 0.85 : 0.65 }));
+         }
+       }
+       // Hülse fällt (Repetierer/Pumpe: beim Durchladen)
+@@ -1692,6 +1733,8 @@ export class AudioEngine {
+     // Ohrenklingeln nicht in Pausenmenü/Endbildschirm stehen lassen (dort läuft kein update())
+     if (s === 'lobby' || s === 'boot' || s === 'paused' || s === 'ended') { this.hearing.reset(); this._muffle.hearing = NO_MUFFLE; }
+     if (this.muffle) this._applyMuffle(true);
++    // Außerhalb von Spiel/Pause stehen die Controller still: kein Nachlade-Klang läuft in Endbildschirm oder Lobby weiter
++    if (s !== 'paused' && !IN_PLAY.has(s)) for (const a of [...this._reloads.keys(), ...this._reloadSeq.keys()]) this._cancelReload(a);
+     library.inPlay = s === 'loading' || IN_PLAY.has(s); // Kartenaufbau/Spiel: nur ein Ladeauftrag gleichzeitig
+     // Klangbank ab der Lobby füllen (Worker, ohne AudioContext); Ausrüstung aus der letzten Wahl zuerst;
+     // Aufnahmen für Ausrüstung und Karte nachladen (Lobby: letzte Wahl, Laden: echte Wahl)
+@@ -1715,7 +1758,7 @@ export class AudioEngine {
+     clearTimeout(this._musicT);
+     for (const t of this._timers || []) clearTimeout(t);
+     this._timers?.clear();
+-    for (const a of this._reloads.keys()) this._cancelReload(a);
++    for (const a of [...this._reloads.keys(), ...this._reloadSeq.keys()]) this._cancelReload(a);
+     this._occl.clear(); this.acoustics.clear(); this._tails.clear(); this._pass.clear(); this._whiz.clear(); this._dif.clear();
+     if (this.ctx && this.unlocked) {
+       for (const v of this.voices.slice()) if (v.group === 'vital' || v.group === 'loop' && v.name === 'smoke_hiss') this._kill(v, 0.2);
+diff --git a/assets/js/game/engine/post/pipeline.js b/assets/js/game/engine/post/pipeline.js
+index d640bfc..927a4ea 100644
+--- a/assets/js/game/engine/post/pipeline.js
++++ b/assets/js/game/engine/post/pipeline.js
+@@ -49,6 +49,18 @@ function widen(cam, F) {
+   cam.updateProjectionMatrix();
+ }
+ 
++/**
++ * Viewmodel-Pass. Üblich (wie in den meisten Shootern): Tiefe löschen → Waffe immer über der Welt, ragt nie sichtbar
++ * in Wände. worldDepth (Einstellung „Waffe an Hindernissen“ = 'clip'): gegen die Welttiefe – mit near/far der
++ * Hauptkamera, dann ist die Tiefe je Pixel vergleichbar (gleiche Bildposition + Tiefe wie viewmodel._vmToWorld).
++ */
++export function renderViewmodel(r, vmScene, vmCamera, camera, worldDepth) {
++  if (!worldDepth || !camera) { r.clearDepth(); r.render(vmScene, vmCamera); return; }
++  const n = vmCamera.near, f = vmCamera.far;
++  vmCamera.near = camera.near; vmCamera.far = camera.far; vmCamera.updateProjectionMatrix();
++  try { r.render(vmScene, vmCamera); } finally { vmCamera.near = n; vmCamera.far = f; vmCamera.updateProjectionMatrix(); }
++}
++
+ export class PostPipeline {
+   constructor(renderer) {
+     this.renderer = renderer;
+@@ -311,8 +323,7 @@ export class PostPipeline {
+       if (hasVm) {
+         r.setRenderTarget(this.hdr);
+         r.autoClear = false;
+-        r.clearDepth();
+-        r.render(vmScene, vmCamera);
++        renderViewmodel(r, vmScene, vmCamera, camera, this.vmWorldDepth);
+         this.stats.sceneRenders++;
+       }
+     } finally {
+diff --git a/assets/js/game/engine/renderer.js b/assets/js/game/engine/renderer.js
+index e70cad3..07c2e82 100644
+--- a/assets/js/game/engine/renderer.js
++++ b/assets/js/game/engine/renderer.js
+@@ -14,7 +14,7 @@
+ // (siehe post/lens.js). Ohne aktives Objektiv sind das Identitäten.
+ 
+ import * as THREE from 'three';
+-import { PostPipeline, LENS_DEFAULTS, LENS_STYLES } from './post/pipeline.js';
++import { PostPipeline, LENS_DEFAULTS, LENS_STYLES, renderViewmodel } from './post/pipeline.js';
+ import { estimateMemory } from './post/memory.js';
+ import { MOODS, MOOD_FOR_MAP } from './post/grade.js';
+ import { resetFormatCache } from './post/common.js';
+@@ -317,7 +317,7 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
+       pipeline.setSize(_db.x, _db.y, this.resolutionScale, w, h);
+     },
+ 
+-    /** Rendert Welt + Viewmodel (Viewmodel mit gelöschter Tiefe, nie in Wänden) samt Nachbearbeitung. */
++    /** Rendert Welt + Viewmodel (Viewmodel mit gelöschter Tiefe, nie in Wänden – außer Einstellung 'clip') samt Nachbearbeitung. */
+     render(scene, camera, vmScene, vmCamera) {
+       const now = performance.now();
+       let dt = 0;
+@@ -339,6 +339,10 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
+       fitCamera(camera, aspect);
+       if (vmCamera) fitCamera(vmCamera, aspect);
+       renderer.info.reset();
++      // Einstellung „Waffe an Wänden und Hindernissen“: nur 'clip' zeichnet die Waffe gegen die Welttiefe (ragt sichtbar
++      // in Wände); sonst wie in den meisten Shootern über der Welt (Tiefe gelöscht)
++      const vmWorld = !!(settings && typeof settings.get === 'function' && settings.get('weaponObstruction') === 'clip');
++      pipeline.vmWorldDepth = vmWorld;
+       // Gedrosselte Schatten (low): statische Welt + gleiche Kaskade → Karte nur jedes n-te Bild oder nach invalidateShadows()
+       const sm = renderer.shadowMap, every = this.preset.shadowInterval || 1;
+       if (sm.enabled && every > 1) {
+@@ -366,8 +370,7 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
+         renderer.render(scene, camera);
+         if (vmScene && vmCamera && vmScene.visible !== false) {
+           renderer.autoClear = false;
+-          renderer.clearDepth();
+-          renderer.render(vmScene, vmCamera);
++          renderViewmodel(renderer, vmScene, vmCamera, camera, vmWorld);
+           renderer.autoClear = true;
+         }
+       }
+diff --git a/assets/js/game/ui/settings/display-page.js b/assets/js/game/ui/settings/display-page.js
+index 19912a2..486a51e 100644
+--- a/assets/js/game/ui/settings/display-page.js
++++ b/assets/js/game/ui/settings/display-page.js
+@@ -68,7 +68,7 @@ export function displayPage(P) {
+     qualitaet: ['quality'],
+     sicht: ['fov'],
+     komfort: ['cameraMotion', 'weaponSway', 'lensStrength', 'grain', 'reducedMotion'],
+-    bild: ['lensStyle', 'lensArtifacts', 'lensBorder', 'autoExposure', 'weaponPose'],
++    bild: ['lensStyle', 'lensArtifacts', 'lensBorder', 'autoExposure', 'weaponPose', 'weaponObstruction'],
+   };
+ 
+   function syncLooks() {
+@@ -82,7 +82,7 @@ export function displayPage(P) {
+   }
+ 
+   return {
+-    keys: ['quality', 'fov', ...LOOK_KEYS, 'reducedMotion'],
++    keys: ['quality', 'fov', ...LOOK_KEYS, 'reducedMotion', 'weaponObstruction'],
+     resetLabel: 'Grafik',
+     mount(h) {
+       host = h;
+diff --git a/assets/js/game/ui/settings/schema-page.js b/assets/js/game/ui/settings/schema-page.js
+index 84311e3..83935c5 100644
+--- a/assets/js/game/ui/settings/schema-page.js
++++ b/assets/js/game/ui/settings/schema-page.js
+@@ -46,6 +46,7 @@ export const HINTS = {
+   sharpness: 'Nachschärfen nach der Hochskalierung.',
+   upscaler: 'FSR 1.0 hält das Bild bei verkleinerter Auflösung scharf.',
+   weaponPose: 'Körperkamera: Waffe tiefer und mittiger, verdeckt weniger vom Bild.',
++  weaponObstruction: 'Ruhig: Die Waffe bleibt vor Wänden in Haltung und wird über allem gezeichnet. Hochnehmen/An den Körper ziehen: erst, wenn wirklich etwas vor der Mündung steht. Schüsse starten immer am Auge, nie hinter der Wand.',
+   hudStyle: 'Realismus: kein Fadenkreuz, keine Munitions- und Lebensanzeige, keine Minikarte – wie bei Bodycam.',
+   bodycamStamp: 'Uhrzeit und erfundene Geräte-ID in der Bildecke, wie bei einer Körperkamera-Aufnahme.',
+   showFps: 'Bildrate unten links.',
+diff --git a/assets/js/game/weapons/controller.js b/assets/js/game/weapons/controller.js
+index 5f6937f..24151e1 100644
+--- a/assets/js/game/weapons/controller.js
++++ b/assets/js/game/weapons/controller.js
+@@ -22,6 +22,7 @@ const _to = new THREE.Vector3();
+ const _side = new THREE.Vector3();
+ const _fwd = new THREE.Vector3();
+ const _org = new THREE.Vector3();
++const _mdir = new THREE.Vector3();
+ 
+ const MOVE_REF = 5.4; // Gehtempo (m/s) – Bezug für Laufstreuung
+ const SWITCH_LOWER = 0.2; // Wegstecken (passend zum ViewModel)
+@@ -135,10 +136,7 @@ export class WeaponController {
+     this._swayY = 0;
+     this._shotSerial = 0;
+     this._obsSample = [Infinity, Infinity, Infinity];
+-    // walls-3: Trefferpunkt + Normale je Strahl (Welt) → Viewmodel s.wallHit (echte Fläche statt Tiefenebene)
+-    this._obsHit = [0, 1, 2].map(() => ({ ok: false, px: 0, py: 0, pz: 0, nx: 0, ny: 0, nz: 0 }));
+-    this.wallHit = null;
+-    this.wallDist = Infinity; // m Wandtiefe vor dem Auge (Messung + Vorhalt, walls) → Viewmodel s.wallDist
++    this.wallDist = Infinity; // m Wandtiefe vor dem Auge (Messung + Vorhalt, walls)
+     this._obsK = 0;
+     this._obsAds = false;
+     this._obsFire = false;
+@@ -238,7 +236,7 @@ export class WeaponController {
+     // Aussehen (nur Spieler-Viewmodel): Tarnmuster je Waffe, Klassen-Arme
+     if (this.viewModel) this._applyCosmetics(loadout);
+     // Aktive Aktionen beenden (gezogene Granate fällt vor die Füße)
+-    this._abortActions(false, true);
++    this._abortActions(true);
+     // Gleiche Waffe behalten; sonst denselben Slot (z. B. neue Pistole, während die alte in der Hand war)
+     const keepIdx = prevId ? this.slots.findIndex((s) => s.id === prevId) : -1;
+     const prevIndex = this.index;
+@@ -288,7 +286,7 @@ export class WeaponController {
+     if (tq && tq.id) { const d = this._equipmentDefs()[tq.id]; tq.count = d ? d.count || 1 : 1; }
+     this._plate = null;
+     this.isPlating = false;
+-    this._abortActions(false);
++    this._abortActions();
+     this.adsProgress = 0;
+     this.ads = this._adsOn = false;
+     this._cooldown = 0;
+@@ -305,8 +303,6 @@ export class WeaponController {
+     this.obstructed = 0;
+     this._obsSample.fill(Infinity);
+     this.wallDist = Infinity;
+-    this.wallHit = null;
+-    this._obsLatch = null;
+     this._obsAds = this._obsFire = false;
+     this.winded = 0;
+     this._sprintT = 0;
+@@ -330,8 +326,9 @@ export class WeaponController {
+     this.spread = this.fireSpread = def.hipSpread || 0.04;
+   }
+ 
+-  _abortActions(emit = true, dropGrenade = false) {
+-    if (this._reload) this._finishReload(true, emit);
++  _abortActions(dropGrenade = false) {
++    // Abbruch immer melden: Audio schneidet daran die restlichen Nachlade-Klänge (Loadout-Wechsel mitten im Nachladen)
++    if (this._reload) this._finishReload(true);
+     if (dropGrenade && this._throw && this._throw.pinned && !this._throw.thrown && this.actor.alive !== false) {
+       // Splint gezogen, aber nicht geworfen (z. B. Gun-Game-Wechsel): Granate fällt vor die Füße
+       this._dropCookedGrenade();
+@@ -496,8 +493,6 @@ export class WeaponController {
+         v.x = bv.x * cy - bv.z * sy; v.y = bv.y; v.z = -bv.x * sy - bv.z * cy;
+       } else { v.x = 0; v.y = 0; v.z = it.speed || 0; }
+       s.obstruct = this.obstructed;
+-      s.wallDist = this.wallDist;
+-      s.wallHit = this.wallHit; // walls-3: {px,py,pz,nx,ny,nz,lead} (Welt) oder null
+       s.winded = this.winded;
+       s.exhausted = this._exhausted > 0;
+       s.holdingBreath = this.holdingBreath;
+@@ -612,6 +607,7 @@ export class WeaponController {
+     actor.getEyePosition(_eye);
+     actor.getAimDirection(_aim);
+     this.getMuzzlePosition(_muz);
++    this._safeMuzzle(_eye, _muz);
+ 
+     const pellets = Math.max(1, def.pellets || 1);
+     G.events.emit('weapon:fire', {
+@@ -710,6 +706,25 @@ export class WeaponController {
+     return out.addScaledVector(_fwd, 0.62).addScaledVector(_side, 0.16).addScaledVector(UP, -0.2);
+   }
+ 
++  /**
++   * Mündung nie hinter einer Fläche: Die Viewmodel-Waffe bleibt vor Wänden in Haltung (Einstellung „Ruhig“/„Keine
++   * Anpassung“) bzw. ragt in Kanten – ihre Mündung kann dann jenseits der Wand liegen. Kugeln starten ohnehin am Auge;
++   * Rakete, Leuchtspur und Mündungsfeuer in der Welt starten am letzten freien Punkt der Strecke Auge → Mündung (5 cm vor
++   * dem Treffer). Ändert `muz` an Ort und Stelle.
++   */
++  _safeMuzzle(eye, muz) {
++    const w = this.G.world;
++    _mdir.subVectors(muz, eye);
++    const len = _mdir.length();
++    if (len < 1e-3 || !w || typeof w.raycast !== 'function') return muz;
++    _mdir.multiplyScalar(1 / len);
++    try {
++      const hit = w.raycast(eye, _mdir, len + 0.05);
++      if (hit && Number.isFinite(hit.distance) && hit.targetId === undefined) muz.copy(eye).addScaledVector(_mdir, Math.max(0, Math.min(len, hit.distance - 0.05)));
++    } catch { /* Welt im Abbau */ }
++    return muz;
++  }
++
+   /* ================================================================ Nachladen */
+ 
+   /** Nachladen starten (falls sinnvoll). → bool */
+@@ -757,7 +772,7 @@ export class WeaponController {
+       return;
+     }
+     // Sprint (bewusst ausgelöst) bricht das Nachladen ab
+-    if (this._sprintCancel(it)) { this._finishReload(true); return; }
++    if (this._sprintCancel(it)) { this._finishReload(true, true, 'sprint'); return; }
+     const r = this._reload;
+     r.t += dt;
+     if (!r.shells) {
+@@ -796,7 +811,8 @@ export class WeaponController {
+     else if (st.reserve < (st.def.mag || 1)) st.reserve = st.def.reserve || st.reserve;
+   }
+ 
+-  _finishReload(interrupted, emit = true) {
++  /** cause (nur bei Abbruch, optional): 'sprint' – Audio pumpt dann eine leer nachgeladene Flinte wie die Ego-Animation. */
++  _finishReload(interrupted, emit = true, cause = null) {
+     const r = this._reload;
+     if (!r) return;
+     this._reload = null;
+@@ -805,7 +821,7 @@ export class WeaponController {
+     this.reloadPhase = null;
+     const def = this.currentDef;
+     if (interrupted && this.viewModel && !r.shells) this._vm('cancelAction');
+-    if (emit) this.G.events.emit('weapon:reload', { actor: this.actor, weaponId: def ? def.id : null, phase: 'end', empty: r.empty, interrupted: !!interrupted });
++    if (emit) this.G.events.emit('weapon:reload', { actor: this.actor, weaponId: def ? def.id : null, phase: 'end', empty: r.empty, interrupted: !!interrupted, cause: interrupted ? cause : null });
+   }
+ 
+   /** Spieler: erneutes Sprint-Drücken bricht Nachladen ab (Bots: intent.cancelReload). */
+@@ -1097,14 +1113,19 @@ export class WeaponController {
+   /**
+    * Wandkollision (F3, nur Spieler): je Bild EIN Strahl gegen die Kugel-Geometrie, abwechselnd entlang der
+    * Laufrichtung ab dem Auge und ab der Waffenseite (rechts unten, nur an der Hüfte). Liegt die Wand näher als
+-   * die Reichweite der Waffe (`handling.reach`, Auge → Mündung), wird sie angezogen: `obstructed` 0..1.
+-   * Ab OBSTRUCT_ADS kein Anschlag, ab OBSTRUCT_FIRE kein Schuss (mit Hysterese).
++   * die Reichweite der Waffe (`handling.reach`, Auge → Mündung), wird sie angezogen: `obstructed` 0..1 – nur, was vor
++   * der Mündung steht (Fahrzeug/Container neben dem Spieler zählt nicht). Ab OBSTRUCT_ADS kein Anschlag, ab
++   * OBSTRUCT_FIRE kein Schuss (mit Hysterese). Nur bei Einstellung „Hochnehmen“/„An den Körper ziehen“
++   * (weaponObstruction 'raise'/'tuck'); „Ruhig“ (Standard) und „Keine Anpassung“ lassen die Waffe in Haltung –
++   * Zielen und Schießen wie in anderen Shootern (Kugeln starten am Auge, die Mündung per _safeMuzzle vor der Wand).
+    */
+   _updateObstruct(dt, def) {
+     const G = this.G;
+     const actor = this.actor;
+     const w = G.world;
+-    const reach = def.cls === 'melee' ? 0 : weaponHandling(def).reach || 0;
++    const vm = this.viewModel;
++    const wm = vm && typeof vm._obstructionMode === 'function' ? vm._obstructionMode() : 'raise';
++    const reach = def.cls === 'melee' || (wm !== 'raise' && wm !== 'tuck') ? 0 : weaponHandling(def).reach || 0;
+     let raw = 0;
+     let wall = Infinity;
+     if (reach > 0 && w && typeof w.raycast === 'function' && actor.alive !== false) {
+@@ -1133,25 +1154,13 @@ export class WeaponController {
+           dir = _wdir;
+         }
+         let d = Infinity;
+-        const oh = this._obsHit[k];
+-        oh.ok = false;
+         try {
+           const hit = w.raycast(_org, dir, (reach + 0.15) / scale);
+-          if (hit && Number.isFinite(hit.distance) && hit.targetId === undefined) {
+-            d = hit.distance * scale;
+-            if (hit.normal) {
+-              oh.ok = true;
+-              oh.px = _org.x + dir.x * hit.distance; oh.py = _org.y + dir.y * hit.distance; oh.pz = _org.z + dir.z * hit.distance;
+-              oh.nx = hit.normal.x; oh.ny = hit.normal.y; oh.nz = hit.normal.z;
+-            }
+-          }
++          if (hit && Number.isFinite(hit.distance) && hit.targetId === undefined) d = hit.distance * scale;
+         } catch { /* Welt im Abbau */ }
+         this._obsSample[k] = d;
+       }
+       let dmin = Math.min(this._obsSample[0], this._obsSample[1], this._obsSample[2]);
+-      // walls-3: Fläche des nächsten Treffers (Punkt/Normale) für das Viewmodel; Vorhalt als Verschiebung entlang der Blickachse
+-      const km = this._obsSample.indexOf(dmin);
+-      this.wallHit = Number.isFinite(dmin) && km >= 0 && this._obsHit[km].ok ? this._obsHit[km] : null;
+       // Vorhalt: Annäherung an die Wand (Messungen bis zu drei Bilder alt, Glättung im Viewmodel)
+       const bv = actor.body && actor.body.velocity;
+       if (bv && Number.isFinite(dmin)) dmin -= Math.max(0, bv.x * _aim.x + bv.y * _aim.y + bv.z * _aim.z) * (3 * dt + 0.04);
+@@ -1165,30 +1174,14 @@ export class WeaponController {
+     } else {
+       this._obsSample.fill(Infinity);
+       this._obsAdsRaw = 0;
+-      this.wallHit = null;
+     }
+     this.wallDist = wall;
+-    if (this.wallHit) this.wallHit.lead = Number.isFinite(wall) ? Math.max(0, Math.min(this._obsSample[0], this._obsSample[1], this._obsSample[2]) - wall) : 0;
+     this.obstructed += (raw - this.obstructed) * damp(raw > this.obstructed ? 40 : 8, dt);
+     if (this.obstructed < 1e-3) this.obstructed = 0;
+-    // walls 2: Rückmeldung des Viewmodels (Stützpunkt-Strahlen gegen niedrige/schräge Hindernisse, s. viewmodel wallFit):
+-    // stark gekippte Waffe → kein Schuss; im Anschlag nicht frei zu bekommen → Anschlag endet und bleibt gesperrt, bis
+-    // sich Spieler (> 0,25 m) oder Blick (> 8°) bewegt haben (sonst Flackern Anschlag ↔ Hüfte an derselben Kante)
+-    const vs = this._vmState;
+-    const need = vs && reach > 0 && Number.isFinite(vs.wallNeed) ? vs.wallNeed : 0;
+-    const L = this._obsLatch;
+-    if (vs && vs.wallAds && reach > 0) {
+-      actor.getEyePosition(_eye); actor.getAimDirection(_aim);
+-      if (!L) this._obsLatch = { x: _eye.x, y: _eye.y, z: _eye.z, ax: _aim.x, ay: _aim.y, az: _aim.z };
+-      else { L.x = _eye.x; L.y = _eye.y; L.z = _eye.z; L.ax = _aim.x; L.ay = _aim.y; L.az = _aim.z; }
+-    } else if (L) {
+-      actor.getEyePosition(_eye); actor.getAimDirection(_aim);
+-      if (reach <= 0 || Math.hypot(_eye.x - L.x, _eye.y - L.y, _eye.z - L.z) > 0.25 || _aim.x * L.ax + _aim.y * L.ay + _aim.z * L.az < 0.990) this._obsLatch = null;
+-    }
+-    const o = this.obstructed, of = Math.max(o, need);
+-    const oa = this._obsLatch ? 1 : Math.max(o, this._obsAdsRaw || 0);
++    const o = this.obstructed;
++    const oa = Math.max(o, this._obsAdsRaw || 0);
+     this._obsAds = this._obsAds ? oa > OBSTRUCT_ADS[1] : oa > OBSTRUCT_ADS[0];
+-    this._obsFire = this._obsFire ? of > OBSTRUCT_FIRE[1] : of > OBSTRUCT_FIRE[0];
++    this._obsFire = this._obsFire ? o > OBSTRUCT_FIRE[1] : o > OBSTRUCT_FIRE[0];
+   }
+ 
+   /**
+@@ -1292,6 +1285,8 @@ export class WeaponController {
+   dispose() {
+     if (this._disposed) return;
+     this._disposed = true;
++    // Laufendes Nachladen abmelden (Audio schneidet sonst nicht), z. B. Akteur verlässt das Match mitten im Nachladen
++    if (this._reload) { try { this._finishReload(true); } catch (err) { console.error('[NULLPUNKT] Nachladen beenden:', err); } }
+     this._reload = this._switch = this._melee = this._throw = null;
+     if (this.viewModel) {
+       try { this.viewModel.dispose(); } catch (err) { console.error('[NULLPUNKT] ViewModel.dispose:', err); }
+diff --git a/assets/js/game/weapons/index.js b/assets/js/game/weapons/index.js
+index bb3e76f..c00d114 100644
+--- a/assets/js/game/weapons/index.js
++++ b/assets/js/game/weapons/index.js
+@@ -144,6 +144,11 @@ export class WeaponSystem {
+       const w = victim && victim.weapon;
+       if (w && typeof w.onDeath === 'function') w.onDeath();
+     });
++    // Einsteigen: Infanteriewaffe ruht (ihr update läuft im Sitz nicht) – Nachladen bricht ab, Klang endet mit
++    this._subs.on('vehicle:enter', (e = {}) => {
++      const w = e.actor && e.actor.weapon;
++      if (w && typeof w.cancelReload === 'function') w.cancelReload();
++    });
+     // Rüstung (core-mechanics): Platte einsetzen → Ego-Animation + Sperre im Controller
+     this._subs.on('armor:plate', (e = {}) => {
+       const w = e.actor && e.actor.weapon;
+diff --git a/assets/js/game/weapons/viewmodel.js b/assets/js/game/weapons/viewmodel.js
+index 58eba4d..fcb1898 100644
+--- a/assets/js/game/weapons/viewmodel.js
++++ b/assets/js/game/weapons/viewmodel.js
+@@ -188,6 +188,7 @@ export class ViewModel {
+     this._strafeRoll = 0;
+     this._lean = 0;
+     this._obstruct = 0;
++    this._obsPose = 'raise'; // Ausweichhaltung der laufenden Überblendung ('raise' | 'tuck')
+     this._mantle = 0;
+     this._breathPh = Math.random() * 6;
+     this._stepIdx = 0;
+@@ -754,6 +755,23 @@ export class ViewModel {
+     return 'standard';
+   }
+ 
++  /**
++   * Einstellung „Waffe an Wänden und Hindernissen“ (weaponObstruction): 'overlay' (Standard: Waffe bleibt in Haltung,
++   * über der Welt gezeichnet) | 'raise' (hochnehmen) | 'tuck' (an den Körper ziehen) | 'clip' (keine Anpassung, gegen
++   * die Welttiefe gezeichnet – renderer). setObstruction() überschreibt (Prüfseiten).
++   */
++  _obstructionMode() {
++    if (this._forcedObstruction) return this._forcedObstruction;
++    const st = this.G?.settings;
++    const v = st && typeof st.get === 'function' ? st.get('weaponObstruction') : undefined;
++    return v === 'raise' || v === 'tuck' || v === 'clip' ? v : 'overlay';
++  }
++
++  /** Verhalten an Hindernissen erzwingen ('overlay' | 'raise' | 'tuck' | 'clip' | null = Einstellung). */
++  setObstruction(mode) {
++    this._forcedObstruction = mode === 'overlay' || mode === 'raise' || mode === 'tuck' || mode === 'clip' ? mode : null;
++  }
++
+   /** Haltung erzwingen ('standard' | 'bodycam' | null = Einstellung). instant = ohne Überblendung. */
+   setPose(pose, instant = true) {
+     this._forcedPose = pose === 'standard' || pose === 'bodycam' ? pose : null;
+@@ -990,35 +1008,40 @@ export class ViewModel {
+       R.x += act.r[0]; R.y += act.r[1]; R.z += act.r[2];
+     }
+ 
+-    // walls 2: Wandprüfung NACH Überklettern/Ziehen/Aktion (Nachladen kippt die Waffe) und mit der Drehung um das Auge
+-    // (freies Zielen, Nachlauf im Anschlag) – geprüft wird die Lage, die tatsächlich im Bild steht
+-    let eyeQw = null;
+-    {
+-      const fa = s.freeAim;
+-      let fx = 0, fy = 0;
+-      if (fa && (fa.x || fa.y)) {
+-        const main = this.G?.camera;
+-        const kf = main && main.fov ? Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2) / Math.tan(THREE.MathUtils.degToRad(main.fov) / 2) : 1;
+-        fx = Math.atan(Math.tan(fa.x || 0) * kf); fy = Math.atan(Math.tan(fa.y || 0) * kf);
+-      }
+-      const ey = -fx + lagY * a, ep = fy + lagP * a;
+-      if (ey || ep) eyeQw = (this._wallEyeQ || (this._wallEyeQ = new THREE.Quaternion())).setFromEuler(_e.set(ep, ey, 0, 'YXZ'));
+-    }
+-    // Wandkollision (F3; walls 2): wallFit() tastet die Waffe selbst ab (Strahlen Auge → Stützpunkte, Kolben → Mündung)
+-    // und passt die Lage an – kein sichtbarer Punkt liegt hinter Wand, Kante, Brüstung. Ohne s.wallDist über `obstruct`.
+-    this._obstruct = damp(this._obstruct, clamp(s.obstruct || 0, 0, 1), s.obstruct > this._obstruct ? 14 : 7, dt);
++    // Waffe an Wänden und Hindernissen (F3, Einstellung weaponObstruction): `s.obstruct` (Controller, Strahlen entlang
++    // der Laufrichtung bis zur Waffenlänge – nur was wirklich vor der Mündung steht, nicht Fahrzeug/Container daneben).
++    // 'overlay' (Standard, wie die meisten Shooter) und 'clip': Waffe bleibt in Haltung (über der Welt bzw. gegen die
++    // Welttiefe gezeichnet, renderer). 'raise'/'tuck': feste Ausweichhaltung, weich überblendet – erst zurückziehen
++    // (o1), dann hochnehmen bzw. flach an den Oberkörper (o2). Die Waffe wird immer über der Welt gezeichnet, ragt
++    // also auch auf dem Weg dorthin nicht sichtbar in die Wand.
++    const wm = this._obstructionMode(), adapt = wm === 'raise' || wm === 'tuck';
++    const obT = adapt && h.action !== 'knife' ? clamp(s.obstruct || 0, 0, 1) : 0;
++    this._obstruct = damp(this._obstruct, obT, obT > this._obstruct ? 14 : 7, dt);
++    if (this._obstruct < 1e-4) this._obstruct = 0;
+     const ob = smooth(this._obstruct);
+-    s.wallNeed = 0; s.wallAds = false; // Rückmeldung an den Controller (walls 2), von wallFit gesetzt
+-    if (typeof s.wallDist === 'number' && this.cur && h.action !== 'knife') {
+-      wallFit(this, P, R, s.wallDist, a, h.action === 'pistol', dt, s, eyeQw);
+-    } else if (ob > 1e-3) {
+-      const o1 = clamp(ob / 0.5, 0, 1) * na, o2 = smooth(clamp((ob - 0.4) / 0.6, 0, 1)) * na;
+-      if (h.action === 'pistol') {
+-        P.z += 0.1 * o1; P.y -= 0.025 * o1; P.x -= 0.03 * o2;
+-        R.x += 0.35 * o2; R.y += 0.2 * o2; R.z += 0.1 * o2;
+-      } else if (h.action !== 'knife') {
+-        P.z += 0.12 * o1; P.y -= 0.04 * o2; P.x -= 0.02 * o2;
+-        R.x -= 0.55 * o2; R.y += 0.32 * o2; R.z += 0.26 * o2;
++    if (ob > 1e-3 && h.action !== 'knife') {
++      // Pose der laufenden Ausweichhaltung merken: Umschalten im Spiel blendet in der begonnenen Haltung aus
++      if (adapt) this._obsPose = wm;
++      const pistol = h.action === 'pistol';
++      const o1 = clamp(ob / 0.5, 0, 1) * na, o2 = smooth(clamp((ob - 0.3) / 0.7, 0, 1)) * na;
++      if (this._obsPose === 'raise') {
++        // Hochnehmen: Mündung schräg nach oben um die Griffhand, zurück und etwas tiefer – Verschluss/Optik bleiben
++        // unten rechts im Bild statt vor das Auge zu schwenken
++        if (pistol) {
++          P.z += 0.08 * o1; P.y -= 0.02 * o1;
++          R.x += 0.65 * o2; R.y += 0.12 * o2; P.y -= 0.03 * o2; P.x -= 0.01 * o2;
++        } else {
++          P.z += 0.1 * o1; P.y -= 0.03 * o1;
++          R.x += 0.7 * o2; R.y += 0.15 * o2; R.z -= 0.1 * o2; P.y -= 0.07 * o2; P.x += 0.02 * o2;
++        }
++      } else if (pistol) {
++        // An den Körper: Pistole kompakt vor die Brust (Compressed Ready), Mündung leicht ab, nach innen gekantet
++        P.z += 0.1 * o1; P.y -= 0.03 * o1;
++        R.x -= 0.2 * o2; R.y += 0.5 * o2; R.z += 0.5 * o2; P.x -= 0.06 * o2; P.y -= 0.04 * o2;
++      } else {
++        // An den Körper: Gewehr flach vor den Oberkörper – eingedreht, Mündung leicht ab, nach innen gekantet, tiefer
++        P.z += 0.12 * o1; P.y -= 0.04 * o1;
++        R.x -= 0.22 * o2; R.y += 0.75 * o2; R.z += 0.45 * o2; P.x -= 0.05 * o2; P.y -= 0.06 * o2; P.z += 0.03 * o2;
+       }
+     }
+     // Nachladen einrahmen (hands): die Arbeitsstelle der Stützhand (Magazinschacht, Ladeöffnung, Trommel, Rohrmündung)
+@@ -1746,540 +1769,6 @@ export class ViewModel {
+ /** Empfohlenes vertikales Sichtfeld der Viewmodel-Kamera (Positionen sind darauf abgestimmt). */
+ ViewModel.FOV = 54;
+ 
+-/* ---------------------------------------------------------------- Wandkollision nach Modelllänge (walls) */
+-
+-const WALL_MARGIN = 0.04;   // m Abstand der sichtbaren Waffenpunkte zur Fläche
+-const WALL_BACK = 0.12;     // m Anziehen (Pistole 0,10; im Anschlag höchstens 0,08)
+-const WALL_TILT = 1.3;      // rad größtes Kippen in Hauptrichtung (Gewehr: absenken + eindrehen, Pistole: an die Brust)
+-const WALL_TILT2 = 1.0;     // rad Gegenrichtung (Gewehr: Mündung hoch über Kante/Brüstung, Pistole: Mündung ab)
+-const WALL_NEAR = 0.45;     // m: Fläche, die der Strahl eines anderen Stützpunkts fand, gilt in diesem Umkreis um den Treffer
+-const WALL_PLANES = 64;
+-const WALL_OK = 0.01;       // m Rest, der bei der Strahlprüfung als frei gilt
+-const WALL_DROP = 0.32;     // m (walls 3) größtes zusätzliches Absenken, wenn Anziehen + Kippen nicht frei werden
+-const WALL_LIFT = 0.1;      // m (hv3) größtes Anheben (Auflegen auf eine brusthohe Deckung statt aus dem Bild kippen)
+-const WALL_CARRY_T = 0.25;  // s (hv3) Flächen der letzten Bilder (Welt) so lange weiterführen
+-const WALL_CARRY_N = 24;    // höchstens so viele weitergeführte Flächen je Bild
+-const _wq = new THREE.Quaternion(), _wq0 = new THREE.Quaternion(), _we = new THREE.Euler(), _we0 = new THREE.Euler(), _wv = new THREE.Vector3();
+-const _wb = new THREE.Vector3(), _wpiv = new THREE.Vector3(), _woff = new THREE.Vector3();
+-const _wcp = new THREE.Vector3(), _wcq = new THREE.Quaternion(), _wcqi = new THREE.Quaternion();
+-const _wro = new THREE.Vector3(), _wrd = new THREE.Vector3(), _wn = new THREE.Vector3(), _wvel = new THREE.Vector3();
+-const _whit = { t: 0, nx: 0, ny: 0, nz: 0 };
+-const _wn2 = new THREE.Vector3(), _whp = new THREE.Vector3();
+-let _wvis = [];
+-/** Zustand der Wandprüfung je Bild: Flächen (Hauptkamera-Blickraum) + Abbildung Viewmodel → Hauptkamera. */
+-const _wW = {
+-  n: 0, d: Infinity, kx: 1, ky: 1, tanV: 1, tanH: 1, ok: false, w: null, bvh: null, eq: null, lead: 0, ahead: 0, feetY: -Infinity, rays: 0,
+-  veh: null, hp: null, hpShift: 0, hpl: { nx: 0, ny: 0, nz: 1, c: 0, hz: 1 },
+-  pl: Array.from({ length: WALL_PLANES }, () => ({ nx: 0, ny: 0, nz: 0, c: 0, hx: 0, hy: 0, hz: 0, src: -1 })),
+-};
+-
+-/**
+- * Stützpunkte des Modells (Modellraum): vordere Ecken der Hüllbox, Zwischenpunkte zum Kolben, Mittellinie, Oberkante,
+- * Mündung + Stützhand (Marker), ohne Effekte. Einmal je Modell. `_wallSeg` = Indizes der Vorderpunkte für die
+- * Kolben → Mündung-Strahlen (dünne Hindernisse zwischen den Augenstrahlen).
+- */
+-function wallPoints(vm, entry) {
+-  if (entry._wallPts) return entry._wallPts;
+-  const model = entry.model;
+-  const skip = new Set();
+-  for (const fx of [vm.flash && vm.flash.group, vm.smoke && vm.smoke.group, vm.shells && vm.shells.group, vm.haze && vm.haze.mesh]) if (fx) fx.traverse((o) => skip.add(o));
+-  model.updateMatrixWorld(true);
+-  const inv = new THREE.Matrix4().copy(model.matrixWorld).invert();
+-  // Hüllbox exakt aus den Eckpunkten im Modellraum (die gedrehte Hüllbox je Teil blähte sich z. B. beim Titan auf
+-  // 1,8 × 1,8 m auf → Stützpunkte weit neben der Waffe); unsichtbare Teile (Mündungsfeuer o. ä.) zählen nicht
+-  const box = new THREE.Box3(), mw = new THREE.Matrix4(), v = new THREE.Vector3();
+-  model.traverseVisible((o) => {
+-    const pos = o.isMesh && !skip.has(o) && o.geometry && o.geometry.attributes.position;
+-    if (!pos) return;
+-    mw.multiplyMatrices(inv, o.matrixWorld);
+-    for (let i = 0; i < pos.count; i++) box.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(mw));
+-  });
+-  const pts = [];
+-  entry._wallSeg = [];
+-  if (!box.isEmpty()) {
+-    const { min, max } = box;
+-    const cx = (min.x + max.x) / 2, cy = (min.y + max.y) / 2;
+-    const back = new THREE.Vector3(cx, cy, max.z);
+-    const corners = [];
+-    for (const x of [min.x, max.x]) for (const y of [min.y, max.y]) corners.push(new THREE.Vector3(x, y, min.z));
+-    const fc = new THREE.Vector3(cx, cy, min.z);
+-    for (const c of corners) { entry._wallSeg.push(pts.length); pts.push(c); pts.push(back.clone().lerp(c, 0.6)); }
+-    entry._wallSeg.push(pts.length);
+-    pts.push(fc, back.clone().lerp(fc, 0.35), back.clone().lerp(fc, 0.7));
+-    pts.push(new THREE.Vector3(cx, max.y, (min.z + max.z) / 2));
+-    // Unterkante Mitte (Magazin/Griff) und Mitte unten vorn (Handschutz/Stützhand)
+-    pts.push(new THREE.Vector3(cx, min.y, (min.z + max.z) / 2), new THREE.Vector3(cx, min.y, min.z * 0.75 + max.z * 0.25));
+-    const ud = entry.ud || model.userData || {};
+-    for (const k of ['muzzle', 'leftHandGrip']) {
+-      const o = ud[k];
+-      if (o && o.isObject3D) pts.push(o.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv));
+-    }
+-    entry._wallBack = back.clone();
+-    entry._wallBackIdx = pts.length;
+-    pts.push(back.clone());
+-  }
+-  entry._wallPts = pts;
+-  return pts;
+-}
+-
+-/**
+- * Lage der Waffe beim Wandausweichen: setzt _wq (Drehung im Kamera-/Wurzelraum) und _woff (Versatz zu P inkl.
+- * Drehpunkt an der Kolbenkappe). th > 0 = Hauptrichtung, th < 0 = Gegenrichtung (s. WALL_TILT/WALL_TILT2).
+- */
+-function wallPose(vm, R, th, back, pistol) {
+-  const u = Math.abs(th);
+-  _woff.set(0, 0, 0);
+-  if (pistol) {
+-    if (th >= 0) { _we.set(R.x + u, R.y + u * 0.35, R.z + u * 0.2, 'YXZ'); _woff.x = -0.03 * (u / WALL_TILT); }
+-    else { _we.set(R.x - u, R.y + u * 0.25, R.z + u * 0.1, 'YXZ'); _woff.x = -0.02 * u; _woff.y = -0.03 * u; }
+-    _woff.y -= 0.02 * Math.min(1, back / 0.1);
+-  } else if (th >= 0) {
+-    _we.set(R.x - u, R.y + u * 0.58, R.z + u * 0.47, 'YXZ');
+-    _woff.x = -0.02 * (u / WALL_TILT); _woff.y = -0.05 * u;
+-  } else {
+-    _we.set(R.x + u, R.y + u * 0.3, R.z - u * 0.12, 'YXZ');
+-    _woff.x = 0.01 * u; _woff.y = -0.04 * u;
+-  }
+-  _wq.setFromEuler(_we);
+-  // Gewehre kippen um die Kolbenkappe (Schulter/Hüfte) statt um den Griff – der Kolben schwenkt nicht ins Gesicht
+-  if (!pistol && u > 0 && vm.cur._wallBack) {
+-    _wb.copy(vm.cur._wallBack).applyMatrix4(vm.cur.model.matrix);
+-    _wq0.setFromEuler(_we0.set(R.x, R.y, R.z, 'YXZ'));
+-    _wpiv.copy(_wb).applyQuaternion(_wq0);
+-    _woff.add(_wpiv.sub(_wb.applyQuaternion(_wq)));
+-  }
+-  return _wq;
+-}
+-
+-/**
+- * Strahl gegen die sichtbare Geometrie (Kugel-BVH, allokationsfrei; sonst world.raycast ohne Ziele). walls-3: dazu
+- * Fahrzeuge (nicht im BVH, world.raycast kennt sie über die Fahrzeug-Hülle) – die Waffe ragte sonst in Panzer/Jeeps.
+- */
+-function wallRay(W, o, d, len) {
+-  let hit = null;
+-  if (W.bvh) hit = W.bvh.raycast(o.x, o.y, o.z, d.x, d.y, d.z, len, _whit) ? _whit : null;
+-  else {
+-    const r = W.w.raycast(o, d, len);
+-    if (r && r.targetId === undefined && Number.isFinite(r.distance)) { _whit.t = r.distance; _whit.nx = r.normal.x; _whit.ny = r.normal.y; _whit.nz = r.normal.z; hit = _whit; }
+-    return hit; // world.raycast enthält die Fahrzeuge bereits
+-  }
+-  const vs = W.veh;
+-  if (vs) {
+-    const vh = vs.raycastVehicles(o, d, hit ? hit.t : len, null);
+-    if (vh && Number.isFinite(vh.distance) && vh.normal) { _whit.t = vh.distance; _whit.nx = vh.normal.x; _whit.ny = vh.normal.y; _whit.nz = vh.normal.z; hit = _whit; }
+-  }
+-  return hit;
+-}
+-
+-/** Bildzustand der Wandprüfung: Hauptkamera, Abbildung Viewmodel → Hauptkamera (gleiche Bildposition + Tiefe), Vorhalt. */
+-function wallBegin(vm, d, dt, eq, hit) {
+-  const W = _wW;
+-  W.n = 0; W.d = d; W.eq = eq || null; W.ok = false; W.rays = 0; W.hp = null; W.hpShift = 0; W.veh = null;
+-  const cam = vm.camera;
+-  const tv = Math.tan(((cam.fov || 54) * Math.PI) / 360);
+-  W.tanV = tv; W.tanH = tv * (cam.aspect || 1.78);
+-  W.kx = W.ky = 1;
+-  const G = vm.G, main = G && G.camera, w = G && G.world;
+-  if (!main || !w || typeof w.raycast !== 'function') return W;
+-  W.ok = true; W.w = w;
+-  W.bvh = (w.debugData && (w.debugData.compositeBullet || w.debugData.bulletBVH)) || null;
+-  const tm = Math.tan(((main.fov || 70) * Math.PI) / 360) / (main.zoom || 1);
+-  W.ky = tm / tv; W.kx = (W.ky * (main.aspect || 1.78)) / (cam.aspect || 1.78);
+-  main.getWorldPosition(_wcp); main.getWorldQuaternion(_wcq); _wcqi.copy(_wcq).invert();
+-  W.cp = _wcp; W.cq = _wcq; // Prüfstand: Kamera der Wandprüfung
+-  const body = G.player && G.player.body;
+-  if (body && body.velocity) _wvel.copy(body.velocity).applyQuaternion(_wcqi); else _wvel.set(0, 0, 0);
+-  W.lead = 3 * Math.min(dt, 0.05) + 0.04;
+-  W.ahead = Math.min(1.2, _wvel.length() * W.lead);
+-  W.feetY = body && body.position ? body.position.y : -Infinity;
+-  const vs = G.vehicles;
+-  if (vs && vs.list && vs.list.length && typeof vs.raycastVehicles === 'function') W.veh = vs;
+-  // walls-3 (HV2-W5): Fläche des nächsten Controller-Treffers als echte Ebene (Hauptkamera-Blickraum, Vorhalt entlang
+-  // der Blickachse) statt einer Tiefenebene quer zur Blickachse – blickt man auf die Oberseite einer brusthohen
+-  // Deckung, lag vorher jeder sichtbare Punkt „hinter“ der Tiefe und die Waffe verschwand ganz aus dem Bild
+-  if (hit && Number.isFinite(d)) {
+-    _wn2.set(hit.nx, hit.ny, hit.nz).applyQuaternion(_wcqi);
+-    _whp.set(hit.px - _wcp.x, hit.py - _wcp.y, hit.pz - _wcp.z).applyQuaternion(_wcqi);
+-    let c = -_wn2.dot(_whp);
+-    if (c < 0) { _wn2.negate(); c = -c; }
+-    const hp = W.hpl;
+-    hp.nx = _wn2.x; hp.ny = _wn2.y; hp.nz = _wn2.z;
+-    hp.c = c - _wn2.z * (hit.lead || 0);
+-    hp.hz = Math.hypot(hit.nx, hit.nz);
+-    W.hp = hp;
+-  }
+-  // hv3 (W-VMDEEP): Flächen der letzten Bilder (Weltraum) weiterführen. Dünne Hindernisse (Geländer, Pfosten, Rohre)
+-  // trafen die wenigen Strahlen nur in manchen Bildern – im nächsten galt die Grundlage als frei, die Waffe sprang
+-  // zurück und steckte bis 0,8 m darin. Weitergeführte Flächen gelten nur im Umkreis WALL_NEAR um ihren Treffer.
+-  const car = vm._wallCarry;
+-  if (car && car.length) {
+-    const now = vm._time;
+-    let k = 0;
+-    for (let i = 0; i < car.length; i++) {
+-      const q = car[i];
+-      if (now - q.t > WALL_CARRY_T || now < q.t) continue;
+-      car[k++] = q;
+-      if (W.n >= WALL_CARRY_N) continue;
+-      _whp.set(q.px - _wcp.x, q.py - _wcp.y, q.pz - _wcp.z).applyQuaternion(_wcqi);
+-      if (_whp.lengthSq() > 4) continue;
+-      _wn2.set(q.nx, q.ny, q.nz).applyQuaternion(_wcqi);
+-      const pl = W.pl[W.n++];
+-      pl.hx = _whp.x; pl.hy = _whp.y; pl.hz = _whp.z;
+-      pl.nx = _wn2.x; pl.ny = _wn2.y; pl.nz = _wn2.z;
+-      pl.c = -(pl.nx * pl.hx + pl.ny * pl.hy + pl.nz * pl.hz);
+-      pl.src = -1;
+-    }
+-    car.length = k;
+-  }
+-  W.nCarry = W.n;
+-  return W;
+-}
+-
+-/** hv3: neu gefundene Flächen dieses Bildes (src ≥ 0) für die nächsten Bilder merken (Weltraum, ähnliche zusammengelegt). */
+-function wallRemember(vm, W) {
+-  const car = vm._wallCarry || (vm._wallCarry = []);
+-  const now = vm._time;
+-  for (let i = W.nCarry || 0; i < W.n; i++) {
+-    const pl = W.pl[i];
+-    if (pl.src < 0) continue;
+-    _whp.set(pl.hx, pl.hy, pl.hz).applyQuaternion(_wcq).add(_wcp);
+-    _wn2.set(pl.nx, pl.ny, pl.nz).applyQuaternion(_wcq);
+-    let same = null;
+-    for (const q of car) {
+-      const dx = q.px - _whp.x, dy = q.py - _whp.y, dz = q.pz - _whp.z;
+-      if (dx * dx + dy * dy + dz * dz < 0.0025 && q.nx * _wn2.x + q.ny * _wn2.y + q.nz * _wn2.z > 0.96) { same = q; break; }
+-    }
+-    if (same) { same.t = now; continue; }
+-    let q;
+-    if (car.length < 32) car.push((q = {}));
+-    else { q = car[0]; for (const c of car) if (c.t < q.t) q = c; }
+-    q.px = _whp.x; q.py = _whp.y; q.pz = _whp.z; q.nx = _wn2.x; q.ny = _wn2.y; q.nz = _wn2.z; q.t = now;
+-  }
+-}
+-
+-/**
+- * Stützpunkt i in der zuletzt mit wallPose gesetzten Lage (+ Anziehen back) → _wv (Viewmodel-Kameraraum); true = im
+- * Bild. f = Bildrand-Zugabe: Prüfen/Lösen mit 1,25 – eine Lösung „Waffe aus dem Bild“ muss deutlich jenseits des
+- * Randes liegen (sonst ragt sie während des Glättens sichtbar in die Wand), Zählen der sichtbaren Punkte mit 1.
+- */
+-function wallPoint(vm, pts, i, P, back, W, f = 1.25) {
+-  _wv.copy(pts[i]).applyMatrix4(vm.cur.model.matrix).applyQuaternion(_wq);
+-  _wv.x += P.x + _woff.x; _wv.y += P.y + _woff.y; _wv.z += P.z + _woff.z + back;
+-  if (W.eq) _wv.applyQuaternion(W.eq);
+-  const depth = -_wv.z;
+-  return depth >= 0.02 && Math.abs(_wv.x) <= depth * W.tanH * f && Math.abs(_wv.y) <= depth * W.tanV * f;
+-}
+-
+-/**
+- * Strahl zum Punkt (x, y, z; Viewmodel-Raum → Hauptkamera) ab o (Hauptkamera-Blickraum, Standard Auge), um `extra`
+- * verlängert. Treffer (außer Boden unter den Füßen) → Fläche für Stützpunkt src (src < 0: keine). Rückgabe:
+- * Eindringtiefe entlang des Strahls (m; > 0 = Punkt liegt hinter der Fläche) oder -Infinity.
+- */
+-function wallCast(W, src, x, y, z, extra, ox = 0, oy = 0, oz = 0, minT = 0) {
+-  const X = x * W.kx - ox, Y = y * W.ky - oy, Z = z - oz, L = Math.hypot(X, Y, Z);
+-  if (L < 0.03) return -Infinity;
+-  _wn.set(X / L, Y / L, Z / L);
+-  _wrd.copy(_wn).applyQuaternion(_wcq);
+-  _wro.set(ox, oy, oz).applyQuaternion(_wcq).add(_wcp);
+-  W.rays++;
+-  const hit = wallRay(W, _wro, _wrd, L + extra);
+-  if (!hit || hit.t < minT) return -Infinity;
+-  const t = hit.t;
+-  if (hit.ny > 0.7 && _wro.y + _wrd.y * t < W.feetY + 0.25) return -Infinity; // Boden, auf dem der Spieler steht/liegt
+-  if (src >= 0 && W.n < WALL_PLANES) {
+-    _wn2.set(hit.nx, hit.ny, hit.nz).applyQuaternion(_wcqi);
+-    if (_wn2.dot(_wn) > 0) _wn2.negate();
+-    const pl = W.pl[W.n++];
+-    pl.hx = ox + _wn.x * t; pl.hy = oy + _wn.y * t; pl.hz = oz + _wn.z * t;
+-    pl.nx = _wn2.x; pl.ny = _wn2.y; pl.nz = _wn2.z;
+-    // ohne Vorhalt: der steckt in der Wandtiefe des Controllers (Ebene quer zur Blickachse); verschobene Einzelflächen
+-    // machten beim Hinlaufen jede kleine Neigung ungültig → die Waffe sprang spät und weit aus dem Bild
+-    pl.c = -(pl.nx * pl.hx + pl.ny * pl.hy + pl.nz * pl.hz);
+-    pl.src = src;
+-  }
+-  return L - t;
+-}
+-
+-/**
+- * Abtasten in der unveränderten Lage (walls 2): Strahlen vom Auge zu jedem sichtbaren Stützpunkt (verlängert um
+- * 0,3 m + Vorhalt der Annäherung) und vom Kolben zu den Vorderpunkten (Lauf/Handschutz durch Geländer, Pfosten,
+- * Fensterkreuze). Jeder Treffer wird eine Fläche für seinen Punkt und Punkte in WALL_NEAR um den Treffer.
+- */
+-function wallProbe(vm, pts, P, R, pistol, W) {
+-  if (!W.ok) return;
+-  const entry = vm.cur;
+-  const base = entry._wallBase || (entry._wallBase = pts.map(() => new THREE.Vector3()));
+-  if (_wvis.length < pts.length) _wvis = new Array(pts.length).fill(false);
+-  wallPose(vm, R, 0, 0, pistol);
+-  for (let i = 0; i < pts.length; i++) { _wvis[i] = wallPoint(vm, pts, i, P, 0, W); base[i].copy(_wv); }
+-  const bi = entry._wallBackIdx;
+-  let backFree = true;
+-  for (let i = 0; i < pts.length; i++) {
+-    const b = base[i];
+-    if (i === bi) { if (wallCast(W, _wvis[i] ? i : -1, b.x, b.y, b.z, _wvis[i] ? 0.3 + W.ahead : 0) > 0) backFree = false; continue; }
+-    if (_wvis[i]) wallCast(W, i, b.x, b.y, b.z, 0.3 + W.ahead);
+-  }
+-  if (backFree && bi != null) {
+-    const B = base[bi];
+-    for (const j of entry._wallSeg) { const F = base[j]; wallCast(W, j, F.x, F.y, F.z, 0.05, B.x * W.kx, B.y * W.ky, B.z, 0.04); }
+-  }
+-}
+-
+-/** Größte Verletzung (m; ≤ 0 = frei) der sichtbaren Stützpunkte gegen die Flächen, Lage back/th. */
+-function wallViol(vm, pts, P, R, back, th, pistol, W, f = 1.25) {
+-  wallPose(vm, R, th, back, pistol);
+-  const pl = W.pl, n = W.n, nr2 = WALL_NEAR * WALL_NEAR;
+-  const tgt = W.d - WALL_MARGIN;
+-  let worst = -Infinity;
+-  const hp = W.hp;
+-  for (let i = 0; i < pts.length; i++) {
+-    if (!wallPoint(vm, pts, i, P, back, W, f)) continue;
+-    const z = _wv.z;
+-    const X = _wv.x * W.kx, Y = _wv.y * W.ky;
+-    if (hp) { const v = WALL_MARGIN - (hp.nx * X + hp.ny * Y + hp.nz * z + hp.c - W.hpShift); if (v > worst) worst = v; }
+-    else if (-z - tgt > worst) worst = -z - tgt;
+-    for (let j = 0; j < n; j++) {
+-      const p = pl[j];
+-      if (p.src !== i) {
+-        const dx = X - p.hx, dy = Y - p.hy, dz = z - p.hz;
+-        if (dx * dx + dy * dy + dz * dz > nr2) continue;
+-      }
+-      const v = WALL_MARGIN - (p.nx * X + p.ny * Y + p.nz * z + p.c);
+-      if (v > worst) worst = v;
+-    }
+-  }
+-  return worst;
+-}
+-
+-/** Strahlprüfung einer Lage: größte Eindringtiefe sichtbarer Punkte (m); Treffer werden Flächen (nächste Runde). */
+-function wallVerify(vm, pts, P, R, back, th, pistol, W, f = 1.25) {
+-  if (!W.ok) return -Infinity;
+-  wallPose(vm, R, th, back, pistol);
+-  let worst = -Infinity;
+-  for (let i = 0; i < pts.length; i++) {
+-    if (!wallPoint(vm, pts, i, P, back, W, f)) continue;
+-    const pen = wallCast(W, i, _wv.x, _wv.y, _wv.z, 0.02);
+-    if (pen > worst) worst = pen;
+-  }
+-  return worst;
+-}
+-
+-/**
+- * Kippen in Richtung sg (±1) bis höchstens max: Halbierungssuche gegen die Flächen, dann Strahlprüfung der Lösung;
+- * findet sie neue Flächen (die gekippte Waffe ragt in Geometrie, die in der Grundlage nicht im Weg war), bis zu
+- * drei Runden. Flächen je Richtung getrennt (ab nBase). → { th (vorzeichenbehaftet), ok, res }
+- */
+-function wallSolveTilt(vm, pts, P, R, back, pistol, W, sg, max, nBase, out) {
+-  W.n = nBase;
+-  let th = max, ver = Infinity;
+-  for (let round = 0; round < 3; round++) {
+-    if (wallViol(vm, pts, P, R, back, sg * max, pistol, W) > 0) th = max;
+-    else {
+-      let lo = 0, hi = max;
+-      for (let i = 0; i < 9; i++) { const mid = (lo + hi) / 2; if (wallViol(vm, pts, P, R, back, sg * mid, pistol, W) > 0) lo = mid; else hi = mid; }
+-      th = hi;
+-    }
+-    const n0 = W.n;
+-    ver = wallVerify(vm, pts, P, R, back, sg * th, pistol, W);
+-    if (ver <= WALL_OK || W.n === n0) break;
+-  }
+-  out.th = sg * th; out.ok = ver <= WALL_OK; out.res = Math.max(0, ver);
+-  out.vis = wallVisible(vm, pts, P, R, back, sg * th, pistol, W);
+-  return out;
+-}
+-
+-/** Anzahl sichtbarer Stützpunkte in der Lage back/th (Lösungen, die die Waffe ganz aus dem Bild kippen, verlieren). */
+-function wallVisible(vm, pts, P, R, back, th, pistol, W) {
+-  wallPose(vm, R, th, back, pistol);
+-  let n = 0;
+-  for (let i = 0; i < pts.length; i++) if (wallPoint(vm, pts, i, P, back, W, 1)) n++;
+-  return n;
+-}
+-const _wt1 = { th: 0, ok: false, res: 0, vis: 0 }, _wt2 = { th: 0, ok: false, res: 0, vis: 0 }, _wt3 = { th: 0, ok: false, res: 0, vis: 0 };
+-
+-/**
+- * Waffe vor Wänden und Hindernissen halten (walls 2): erst anziehen, dann (an der Hüfte) kippen – Gewehre absenken
+- * und eindrehen oder, wenn das tiefer in eine Kante/Brüstung führt, die Mündung anheben; Pistolen an die Brust oder
+- * Mündung ab –, so weit, bis kein sichtbarer Punkt mehr hinter einer Fläche liegt (Flächen aus Strahlen, Lösung per
+- * Strahl nachgeprüft). Im Anschlag nur Anziehen; bleibt etwas in der Fläche, meldet `s.wallAds` dem Controller, das
+- * Zielen zu beenden. `s.wallNeed` (0..1, Kippen) sperrt dort den Schuss bei stark gekippter Waffe. Ergebnis
+- * geglättet (schnell hinein, langsamer zurück). eq = Drehung um das Auge (freies Zielen, Nachlauf) oder null.
+- */
+-function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
+-  const pts = wallPoints(vm, vm.cur);
+-  const st = vm._wallFit || (vm._wallFit = { back: 0, th: 0, dir: 1 });
+-  let wantBack = 0, wantTh = 0, resid = 0, wantDrop = 0, adsBlock = false;
+-  if (pts.length) {
+-    const W = wallBegin(vm, d, dt, eq, s && s.wallHit);
+-    wallProbe(vm, pts, P, R, pistol, W);
+-    vm._wallW = W; // Prüfstand (tools/out/walls2): Flächen/Strahlen dieses Bildes
+-    if ((W.n > 0 || W.d < 4) && wallViol(vm, pts, P, R, 0, 0, pistol, W) > 0) {
+-      const maxBack = (pistol ? 0.1 : WALL_BACK) * (1 - a) + 0.08 * a;
+-      let backOk = false;
+-      if (wallViol(vm, pts, P, R, maxBack, 0, pistol, W) > 0) wantBack = maxBack;
+-      else {
+-        let lo = 0, hi = maxBack;
+-        for (let i = 0; i < 7; i++) { const mid = (lo + hi) / 2; if (wallViol(vm, pts, P, R, mid, 0, pistol, W) > 0) lo = mid; else hi = mid; }
+-        wantBack = hi;
+-        backOk = wallVerify(vm, pts, P, R, wantBack, 0, pistol, W) <= WALL_OK;
+-        if (!backOk) wantBack = maxBack;
+-      }
+-      // walls 3: hält Anziehen allein die Waffe nicht frei, wird auch im Anschlag gekippt (vorher blieb sie dort bis
+-      // zum Ende des Zielens – Titan/Donner bis 1 m in der Wand); `s.wallAds` beendet das Zielen
+-      const na = backOk ? 1 - a : 1;
+-      adsBlock = !backOk && a > 0.5;
+-      if (!backOk) {
+-        if (na > 0.02) {
+-          const nBase = W.n;
+-          // immer zuerst die Hauptrichtung (Gewehr ab/ein, Pistole an die Brust: löst Wände in jeder Nähe); die
+-          // Gegenrichtung nur, wenn die Hauptrichtung nicht frei wird oder die Waffe ganz aus dem Bild nähme – sonst
+-          // kippte die Waffe vor einer näher kommenden Wand erst hoch, dann (durch die Wand) herunter
+-          const first = 1;
+-          const vis0 = Math.max(1, wallVisible(vm, pts, P, R, 0, 0, pistol, W));
+-          const tA = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, first, first > 0 ? WALL_TILT : WALL_TILT2, nBase, _wt1);
+-          let pick = tA, tB0 = null;
+-          // Gegenrichtung prüfen, wenn die erste nicht frei wird, weit kippt oder die Waffe großteils aus dem Bild
+-          // nimmt (an einer hüfthohen Kiste lieber Mündung hoch als die Waffe unter den Bildrand)
+-          if (!tA.ok || Math.abs(tA.th) > 0.5 || tA.vis < vis0 * 0.3) {
+-            const tB = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, -first, first > 0 ? WALL_TILT2 : WALL_TILT, nBase, _wt2);
+-            tB0 = tB;
+-            // Gegenrichtung nur über niedrigen Hindernissen: hält sie nicht mehr, wenn die Wand vor dem Auge 0,35 m
+-            // näher käme, ist es eine Wand – dann gleich die Hauptrichtung (kein Umschwenken durch die Wand beim Hinlaufen)
+-            // walls-3: mit Fläche nur um deren waagerechten Anteil verschieben – die Oberseite einer Deckung ist keine Wand
+-            if (tB.ok && W.d < 4) {
+-              const d0 = W.d; W.d = d0 - 0.35; W.hpShift = W.hp ? 0.35 * W.hp.hz : 0;
+-              if (wallViol(vm, pts, P, R, wantBack, tB.th, pistol, W) > 0) { tB.ok = false; tB.res = Math.max(tB.res, 0.05); }
+-              W.d = d0; W.hpShift = 0;
+-            }
+-            const score = (t) => Math.abs(t.th) + (t.vis < vis0 * 0.3 ? 0.6 : 0);
+-            if (tA.ok && tB.ok) pick = score(tA) <= score(tB) + 0.15 ? tA : tB;
+-            else if (tB.ok) pick = tB;
+-            else if (!tA.ok) pick = tA.res <= tB.res + 0.02 ? tA : tB;
+-          }
+-          // hv3 (W-COVER): Auflegen – nähme die Lösung die Waffe (fast) ganz aus dem Bild (brusthohe Deckung, Blick auf
+-          // oder über die Oberkante), die Waffe stattdessen anheben (Kamera-Hochachse, höchstens WALL_LIFT), bei Bedarf
+-          // mit etwas Mündung hoch (≤ 0,5 rad): kleinster Hub per Halbierung, per Strahl geprüft. An einer echten Wand
+-          // hilft Anheben nicht (die Fläche bleibt vor den Punkten) – dort bleibt es beim Kippen/Absenken.
+-          let lift = 0;
+-          if (!pick.ok || pick.vis < vis0 * 0.3) {
+-            // die Controller-Fläche gilt hier nicht als unendliche Ebene (die Stirnseite einer Deckung reicht nicht
+-            // über deren Oberkante) – geprüft wird der Hub mit den Strahlflächen und per Strahl
+-            const y0 = P.y, hp0 = W.hp;
+-            W.hp = null;
+-            P.y = y0 + WALL_LIFT;
+-            let lt = null;
+-            if (wallViol(vm, pts, P, R, wantBack, 0, pistol, W) <= 0) { _wt3.th = 0; lt = _wt3; }
+-            else { const t = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, -1, 0.5, nBase, _wt3); if (t.ok) lt = t; }
+-            if (lt) {
+-              let lo = 0, hi = WALL_LIFT;
+-              for (let i = 0; i < 6; i++) { const mid = (lo + hi) / 2; P.y = y0 + mid; if (wallViol(vm, pts, P, R, wantBack, lt.th, pistol, W) > 0) lo = mid; else hi = mid; }
+-              P.y = y0 + hi;
+-              if (wallVerify(vm, pts, P, R, wantBack, lt.th, pistol, W) <= WALL_OK) {
+-                const vis = wallVisible(vm, pts, P, R, wantBack, lt.th, pistol, W);
+-                if (vis >= vis0 * 0.3 || vis > pick.vis) { lift = hi; lt.ok = true; lt.res = 0; lt.vis = vis; pick = lt; }
+-              }
+-            }
+-            P.y = y0; W.hp = hp0;
+-          }
+-          st.dir = pick.th >= 0 ? 1 : -1;
+-          if (vm._wallDbgOn) st.dbg = { vis0, lift, A: { ...tA }, B: tB0 ? { ...tB0 } : null, pick: pick === tA ? 'A' : pick === _wt3 ? 'L' : 'B' };
+-          wantTh = pick.th * na;
+-          wantDrop = -lift;
+-          resid = pick.ok ? 0 : pick.res;
+-          // walls 3: bleibt trotz Kippen ein sichtbarer Punkt in der Fläche (Auge dicht an der Wand, lange Waffe beim
+-          // Lehnen/Liegen, Pistole an Brüstung/Engstelle), die Waffe zusätzlich nach unten aus der Fläche nehmen –
+-          // Halbierungssuche, per Strahl geprüft
+-          if (!pick.ok) {
+-            const y0 = P.y;
+-            P.y = y0 - WALL_DROP;
+-            const full = wallVerify(vm, pts, P, R, wantBack, wantTh, pistol, W);
+-            if (full <= WALL_OK) {
+-              let lo = 0, hi = WALL_DROP;
+-              for (let i = 0; i < 6; i++) { const mid = (lo + hi) / 2; P.y = y0 - mid; if (wallVerify(vm, pts, P, R, wantBack, wantTh, pistol, W) > WALL_OK) lo = mid; else hi = mid; }
+-              wantDrop = hi; resid = 0;
+-            } else { wantDrop = WALL_DROP; resid = Math.max(0, full); }
+-            P.y = y0;
+-          }
+-          // walls-3 (HV2-W5): nie ganz verschwinden – liegt die Lösung vollständig unter/neben dem Bildrand (das Auge
+-          // klebt aber nicht an der Wand), so weit zur Ausgangslage zurück, wie sie frei bleibt (Bildrand ohne Zugabe):
+-          // die Waffe ragt dann gesenkt/eingedreht von unten ins Bild (Low-Ready) statt aus dem Bild zu fallen
+-          if (resid <= 0 && vis0 > 0) {
+-            const y0 = P.y;
+-            P.y = y0 - wantDrop;
+-            if (wallVisible(vm, pts, P, R, wantBack, wantTh, pistol, W) === 0) {
+-              let lo = 0, hi = 1;
+-              for (let i = 0; i < 7; i++) {
+-                const mid = (lo + hi) / 2;
+-                P.y = y0 - wantDrop * (1 - mid);
+-                if (wallViol(vm, pts, P, R, wantBack, wantTh * (1 - mid), pistol, W, 1) <= 0) lo = mid; else hi = mid;
+-              }
+-              if (lo > 0.01) {
+-                P.y = y0 - wantDrop * (1 - lo);
+-                if (wallVisible(vm, pts, P, R, wantBack, wantTh * (1 - lo), pistol, W) > 0 && wallVerify(vm, pts, P, R, wantBack, wantTh * (1 - lo), pistol, W, 1) <= WALL_OK) {
+-                  wantTh *= 1 - lo; wantDrop *= 1 - lo; st.lowReady = lo;
+-                }
+-              }
+-            }
+-            P.y = y0;
+-          }
+-        } else resid = Math.max(0, wallVerify(vm, pts, P, R, wantBack, 0, pistol, W));
+-      }
+-    }
+-  }
+-  st.want = wantTh; st.wantBack = wantBack; st.resid = resid; st.a = a; // Prüfstand
+-  let nBack = damp(st.back, wantBack, wantBack > st.back ? 45 : 8, dt);
+-  const grow = Math.abs(wantTh) > Math.abs(st.th) && wantTh * st.th >= 0;
+-  // Richtungswechsel schnell (der Weg führt durch die Ausgangslage, also durch die Wand), Zurücknehmen langsam
+-  let nTh = damp(st.th, wantTh, grow || wantTh * st.th < 0 ? 40 : 7, dt);
+-  let nDrop = damp(st.drop || 0, wantDrop, Math.abs(wantDrop) > Math.abs(st.drop || 0) ? 45 : 6, dt); // < 0 = Anheben (hv3)
+-  // walls-3 (HV2-W2): die geglättete Lage selbst prüfen. Vorher galt nur das Ziel als frei – auf dem Weg dorthin
+-  // (Zurücknehmen nach dem Kippen über eine Brüstung/einen Busch, Nachlauf beim Hinlaufen, Lehnen, Drehen) lag die
+-  // Waffe bis 1,4 m in der Geometrie. Liegt ein sichtbarer Punkt hinter einer Fläche, rückt die Lage so weit zum
+-  // (geprüften) Ziel, bis sie frei ist (Halbierung gegen die Flächen, Strahl-Nachprüfung).
+-  st.fix = 0;
+-  if (_wW.ok && pts.length && (Math.abs(nBack - wantBack) > 2e-3 || Math.abs(nTh - wantTh) > 2e-3 || Math.abs(nDrop - wantDrop) > 2e-3)) {
+-    const W = _wW, y0 = P.y;
+-    P.y = y0 - nDrop;
+-    if (wallVerify(vm, pts, P, R, nBack, nTh, pistol, W) > WALL_OK) {
+-      const lb = (k) => nBack + (wantBack - nBack) * k, lt = (k) => nTh + (wantTh - nTh) * k, ld = (k) => nDrop + (wantDrop - nDrop) * k;
+-      let lo = 0, hi = 1;
+-      for (let i = 0; i < 6; i++) { const mid = (lo + hi) / 2; P.y = y0 - ld(mid); if (wallViol(vm, pts, P, R, lb(mid), lt(mid), pistol, W) > 0) lo = mid; else hi = mid; }
+-      if (hi < 1) { P.y = y0 - ld(hi); if (wallVerify(vm, pts, P, R, lb(hi), lt(hi), pistol, W) > WALL_OK) hi = 1; }
+-      // hv3 (W-VMDEEP): steckt auch das Ziel nachweislich in einer Fläche (die Strahlen der Grundlage hatten sie
+-      // verfehlt), nicht dorthin springen – die Lage des letzten Bildes halten, wenn sie frei ist
+-      if (hi >= 1) {
+-        P.y = y0 - wantDrop;
+-        if (wallVerify(vm, pts, P, R, wantBack, wantTh, pistol, W) > WALL_OK) {
+-          P.y = y0 - (st.drop || 0);
+-          if (wallVerify(vm, pts, P, R, st.back, st.th, pistol, W) <= WALL_OK) hi = -1;
+-        }
+-      }
+-      st.fix = hi;
+-      if (hi < 0) { nBack = st.back; nTh = st.th; nDrop = st.drop || 0; }
+-      else { nBack = lb(hi); nTh = lt(hi); nDrop = ld(hi); }
+-    }
+-    P.y = y0;
+-  }
+-  st.back = nBack; st.th = nTh; st.drop = nDrop;
+-  if (_wW.ok && pts.length) wallRemember(vm, _wW);
+-  if (s) {
+-    s.wallNeed = Math.min(1, Math.max(Math.abs(st.th) / 0.9, st.drop / (WALL_DROP * 0.5), 0));
+-    s.wallAds = a > 0.5 && (resid > 0.02 || adsBlock);
+-  }
+-  if (vm._wallDbgOn && pts.length) { // Prüfstand: berechnete Lage der Stützpunkte (Vergleich mit dem Bild)
+-    wallPose(vm, R, st.th, st.back, pistol);
+-    vm._wallDbgInfo = { d: _wW.d, n: _wW.n, viol: +wallViol(vm, pts, P, R, st.back, st.th, pistol, _wW).toFixed(3), violWant: +wallViol(vm, pts, P, R, wantBack, wantTh, pistol, _wW).toFixed(3), ver: +wallVerify(vm, pts, P, R, wantBack, wantTh, pistol, _wW).toFixed(3) };
+-    wallPose(vm, R, st.th, st.back, pistol);
+-    vm._wallDbgPts = pts.map((_, i) => { const v = wallPoint(vm, pts, i, P, st.back, _wW); return [+_wv.x.toFixed(3), +_wv.y.toFixed(3), +_wv.z.toFixed(3), v]; });
+-  }
+-  if (st.back < 1e-4 && Math.abs(st.th) < 1e-4 && Math.abs(st.drop) < 1e-4) return;
+-  P.z += st.back;
+-  P.y -= st.drop;
+-  wallPose(vm, R, st.th, st.back, pistol);
+-  P.add(_woff);
+-  R.set(_we.x, _we.y, _we.z);
+-}
+-
+ // Welle 2 (Arsenal): zusätzliche Choreografien (Nachladen je Mechanik, Inspizieren je Klasse, Platte, Klingenhiebe)
+ Object.assign(ViewModel.prototype, EXTRA_ACTIONS);
+ 
+diff --git a/assets/js/shared/settings.js b/assets/js/shared/settings.js
+index 3698939..e68addd 100644
+--- a/assets/js/shared/settings.js
++++ b/assets/js/shared/settings.js
+@@ -22,6 +22,8 @@ export const DEFAULTS = Object.freeze({
+   touchOpacity: 1.0, touchButtonScale: 1.0, bindings: Object.freeze({}), touchLayout: DEFAULT_TOUCH_LAYOUT,
+   // Waffengefühl (Realismus-Plan F2/F9; weapons-feel)
+   weaponPose: 'auto', weaponSway: 1.0,
++  // Waffe an Hindernissen: overlay = ruhig, über der Welt gezeichnet (wie die meisten Shooter) | raise | tuck | clip
++  weaponObstruction: 'overlay',
+   // Bild: Objektiv, Farbe, Belichtung, Hochskalierung (Realismus-Plan R2/R3/R4/R12; core-render)
+   // Standard = Vorlage „Realistisch“ (dezentes Objektiv); kräftiges Fischauge nur über die Vorlage „Bodycam“
+   lensStyle: 'bodycam', lensStrength: 0.15, grain: 0.2, lensArtifacts: 0.05, lensBorder: false,
+@@ -127,6 +129,11 @@ export const SETTINGS_SCHEMA = Object.freeze({
+     options: ['auto', 'standard', 'bodycam'], labels: { auto: 'Automatisch', standard: 'Standard (Hüfte)', bodycam: 'Körperkamera (tief, mittig)' },
+   },
+   weaponSway: { type: 'number', min: 0, max: 1, step: 0.05, label: 'Waffenträgheit und -schwanken', group: 'grafik' },
++  weaponObstruction: {
++    type: 'enum', label: 'Waffe an Wänden und Hindernissen', group: 'grafik',
++    options: ['overlay', 'raise', 'tuck', 'clip'],
++    labels: { overlay: 'Ruhig – wie in den meisten Shootern', raise: 'Hochnehmen', tuck: 'An den Körper ziehen', clip: 'Keine Anpassung – Waffe kann in Wände ragen' },
++  },
+   // Bild (core-render; Bedeutung im Changelog „core-render“)
+   lensStyle: {
+     type: 'enum', label: 'Bildstil', group: 'grafik',
