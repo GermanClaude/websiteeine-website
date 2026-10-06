@@ -115,6 +115,8 @@ export class Effects {
     this.debris.events = G.events;
     this.debris.showForCompile();
     this.debris.setQuality(this.preset.id || G.renderer?.quality || 'high');
+    // liegende Hülsen empfangen Schatten ab high (nur hier: anderes Programm, nicht beim Qualitätswechsel im Match)
+    { const q = this.preset.id || G.renderer?.quality; this.debris.setShadows(q === 'high' || q === 'ultra'); }
     // Decals 2.0: ab medium beleuchtete Einschusslöcher mit Normalen (zwischen Matches, Shader im Ladebildschirm)
     this.decals.setDetail((this.preset.id || G.renderer?.quality) !== 'low');
     this.decals.setLimit(this.preset.decals || 120);
@@ -662,6 +664,8 @@ export class Effects {
     if (!this._built || !this._subs) return;
     const c = this._camPos;
     const d = Math.hypot(pos.x - c.x, pos.y - c.y, pos.z - c.z);
+    const cls = opts.cls || 'ar';
+    this._botCasing(pos, dir, cls, opts, d);
     if (d > 160) return;
     const f = this._camFwd;
     if ((pos.x - c.x) * f.x + (pos.y - c.y) * f.y + (pos.z - c.z) * f.z < -2) return;
@@ -699,23 +703,27 @@ export class Effects {
     if (d < 40 && this.scale > 0.4) {
       this._puff(pos.x, pos.y, pos.z, dir.x * 0.8, dir.y * 0.8 + 0.2, dir.z * 0.8, rnd(0.5, 0.8), 0.04, 0.3 * big, C.smokeLight, 0.18, 2.5, 0.25);
     }
-    // Hülse (nahe Bots): echte Hülse in der Welt (Physik-lite), Repetierer/Flinte erst beim Durchladen
+  }
+
+  /**
+   * Hülse eines Bots: echte Hülse in der Welt (Physik-lite, bleibt liegen), Repetierer/Flinte erst beim Durchladen.
+   * Auch außer Sicht (hinter der Kamera), damit Feuergefechte Hülsen am Boden hinterlassen; Reichweite je Stufe.
+   */
+  _botCasing(pos, dir, cls, opts, d) {
     const a = opts.actor;
-    if (a && d < 24 && Math.random() < Math.max(0.35, this.scale)) {
-      const def = opts.def;
-      const type = def ? handlingFor(def.model || def.id).shell : (cls === 'shotgun' ? 'shotgun' : cls === 'pistol' || cls === 'smg' ? 'pistol' : cls === 'sniper' ? 'big' : 'rifle');
-      if (type && type !== 'none') {
-        _v.crossVectors(dir, UP);
-        if (_v.lengthSq() > 1e-6) {
-          _v.normalize();
-          const delay = def && (def.fireMode === 'bolt' || def.fireMode === 'pump') ? (def.fireMode === 'bolt' ? 0.55 : 0.32) : 0;
-          _t1.set(pos.x - dir.x * 0.42, pos.y - dir.y * 0.42 + 0.03, pos.z - dir.z * 0.42);
-          const bv = a.body && a.body.velocity;
-          _w.set(_v.x * rnd(1.6, 2.6) + (bv ? bv.x : 0), rnd(1.3, 2.2) + (bv ? bv.y * 0.5 : 0), _v.z * rnd(1.6, 2.6) + (bv ? bv.z : 0));
-          this.dropCasing(type, _t1, _w, null, { actor: a, delay });
-        }
-      }
-    }
+    const sc = this.scale;
+    if (!a || d > (sc < 0.5 ? 20 : 32) || Math.random() > Math.max(0.5, sc)) return;
+    const def = opts.def;
+    const type = def ? handlingFor(def.model || def.id).shell : (cls === 'shotgun' ? 'shotgun' : cls === 'pistol' || cls === 'smg' ? 'pistol' : cls === 'sniper' ? 'big' : 'rifle');
+    if (!type || type === 'none') return;
+    _v.crossVectors(dir, UP);
+    if (_v.lengthSq() < 1e-6) return;
+    _v.normalize();
+    const delay = def && (def.fireMode === 'bolt' || def.fireMode === 'pump') ? (def.fireMode === 'bolt' ? 0.55 : 0.32) : 0;
+    _t1.set(pos.x - dir.x * 0.42, pos.y - dir.y * 0.42 + 0.03, pos.z - dir.z * 0.42);
+    const bv = a.body && a.body.velocity;
+    _w.set(_v.x * rnd(1.6, 2.6) + (bv ? bv.x : 0), rnd(1.3, 2.2) + (bv ? bv.y * 0.5 : 0), _v.z * rnd(1.6, 2.6) + (bv ? bv.z : 0));
+    this.dropCasing(type, _t1, _w, null, { actor: a, delay });
   }
 
   /**
@@ -1216,7 +1224,10 @@ export class Effects {
         this.debris.casing(d.type, d.pos, d.vel, null, { actor: d.actor });
       }
     }
-    this.debris.update(dt, this.G.world);
+    this.debris.update(dt, this.G.world, this._camPos, this._camFwd);
+    // Spieler läuft durch liegende Hülsen → wegtreten (nur die Rasterzellen unter den Füßen)
+    const pl = this.G.player;
+    if (pl && pl.alive && !pl.vehicle && pl.body && pl.body.onGround) this.debris.kick(pl.position, pl.body.velocity);
     this._updateEmitters(dt);
     this._updateBlind(dt);
     this._updateMotes(dt);
