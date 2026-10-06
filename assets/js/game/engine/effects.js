@@ -670,7 +670,6 @@ export class Effects {
     const f = this._camFwd;
     if ((pos.x - c.x) * f.x + (pos.y - c.y) * f.y + (pos.z - c.z) * f.z < -2) return;
     this.stats.muzzle++;
-    const cls = opts.cls || 'ar';
     const big = (cls === 'shotgun' || cls === 'sniper' || cls === 'lmg' ? 1.35 : cls === 'smg' || cls === 'pistol' ? 0.8 : 1) * (opts.scale || 1);
     // Ferne Mündungsfeuer etwas größer (Lesbarkeit wie COD)
     const far = 1 + Math.min(1.6, d / 45);
