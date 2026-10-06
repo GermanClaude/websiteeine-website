@@ -125,6 +125,8 @@ export class FullscreenManager {
     this._noOpts = false;
     this._exiting = false;
     this._hiddenAt = -1e9;
+    this._leftMatchAt = -1e9; // zuletzt countdown/playing verlassen (Pause)
+    this._wantAt = -1e9; // Desktop: Automatik wollte Vollbild, es war aber (noch) aktiv – z. B. „Fortsetzen“ während der Austritts-Animation
     this._keys = [];
     this._off = [];
     this._reloadKeys();
@@ -226,7 +228,7 @@ export class FullscreenManager {
   auto({ throttle = 0 } = {}) {
     if (this.autoDisabled || this._optOut || this.blocked || this.setting !== 'auto' || !this.supported) return false;
     if (this.standalone && this._touch()) return false; // installierte App läuft schon randlos
-    if (this.active || this._pending) return false;
+    if (this.active || this._pending) { if (this.active && !throttle && !this._touch()) this._wantAt = performance.now(); return false; }
     if (throttle && performance.now() - this._autoAt < throttle) return false;
     const ok = this.request();
     if (ok) this._autoAt = performance.now();
@@ -247,7 +249,8 @@ export class FullscreenManager {
 
   /** Umschalten (Knopf/Taste, aus einer Geste). → true wenn danach (voraussichtlich) Vollbild. */
   toggle() {
-    if (this.active || this._pending) { this.exit({ user: true }); return false; }
+    if (this._pending) return true; // Anfrage läuft (schnelles Doppeldrücken): nicht abbrechbar → ignorieren statt Automatik abzuschalten
+    if (this.active) { this.exit({ user: true }); return false; }
     return this.request({ user: true });
   }
 
@@ -301,7 +304,7 @@ export class FullscreenManager {
     this._on(D, 'visibilitychange', () => { if (D.hidden) this._hiddenAt = performance.now(); this._wake(); });
     const ev = this.G.events;
     if (ev && typeof ev.on === 'function') {
-      const onState = () => this._wake();
+      const onState = ({ state } = {}) => { if (!MATCH.has(state)) this._leftMatchAt = performance.now(); this._wake(); };
       const onMode = () => this._wake();
       ev.on('match:state', onState);
       ev.on('input:mode', onMode);
@@ -342,6 +345,9 @@ export class FullscreenManager {
 
   /** Alt+Enter (fest) und Aktion „fullscreen“ (umbelegbar, Standard F11). */
   _key(e) {
+    // Esc gehalten (Chrome/Edge mit Tastatursperre: so verlässt man das Vollbild): Wiederholungen dürfen Pause/
+    // Fortsetzen nicht hin- und herschalten (menus.js, main.js) → hier verschlucken; das erste keydown pausiert.
+    if (e.code === 'Escape' && e.repeat) { e.stopImmediatePropagation(); return; }
     if (e.repeat || !e.isTrusted) return;
     const inp = this.G.input;
     if (inp && inp._capture) return; // Tastenbelegung wird gerade aufgenommen
@@ -386,17 +392,23 @@ export class FullscreenManager {
     const on = this.active;
     if (on === this._active) return;
     this._active = on;
-    if (on) { this._pending = false; this._firstDone = true; this._fails = 0; this._afterEnter(); } else {
+    if (on) { this._pending = false; this._firstDone = true; this._fails = 0; this._optOut = false; this._afterEnter(); } else {
       const kb = this._kbLocked;
       this._releaseKeyboard();
       // Vom Browser beendet, ohne dass wir es wollten: bewusst verlassen (Esc halten bei Tastatursperre, F11, oder
       // am Desktop wird ohne Pause weitergespielt) → Automatik ruht bis zum nächsten ausdrücklichen Betreten.
-      // Nicht bewusst: Esc ohne Tastatursperre (Firefox/Safari: Pointer-Lock weg → Pause), Tab-/App-Wechsel.
+      // Nicht bewusst: Esc ohne Tastatursperre (Firefox/Safari: Pointer-Lock weg → Pause sofort, fullscreenchange
+      // erst nach der Austritts-Animation – auch wenn inzwischen schon „Fortsetzen“ geklickt wurde), Tab-/App-Wechsel.
       if (!this._exiting && !this._touch()) {
+        const at = performance.now();
+        const st0 = this.G.match && this.G.match.state;
+        // „Fortsetzen“ kam noch während der Animation (auto() sah aktives Vollbild): jetzt nachholen, solange die Geste gilt
+        if (!kb && MATCH.has(st0) && at - this._wantAt < 2000) this.auto();
+        const paused = at - this._leftMatchAt < 3000 || at - this._wantAt < 3000;
         setTimeout(() => {
           const st = this.G.match && this.G.match.state;
           const hidden = (D && D.hidden) || performance.now() - this._hiddenAt < 3000;
-          if (!this.active && !hidden && (kb || MATCH.has(st))) this._optOut = true;
+          if (!this.active && !this._pending && !hidden && (kb || (MATCH.has(st) && !paused))) this._optOut = true;
         }, 400);
       }
     }

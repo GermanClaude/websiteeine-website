@@ -41,7 +41,13 @@ export class FullscreenUI {
     this._off.push(() => document.removeEventListener('click', onClick));
     const ev = G.events;
     const upd = () => this.refresh();
-    const onErr = ({ user } = {}) => { if (user) this.openGuide(); else this.refresh(); };
+    // Automatik scheitert wiederholt (z. B. Android-App-Browser, eingebettet): Anleitung einmal von selbst zeigen –
+    // nicht mitten ins laufende Match, sondern bei der nächsten Pause bzw. in der Lobby.
+    const onErr = ({ user, blocked } = {}) => {
+      if (user) { this.openGuide(); return; }
+      this.refresh();
+      if (blocked && autoShow) this._autoShowIdle();
+    };
     ev.on('fullscreen:change', upd);
     ev.on('fullscreen:error', onErr);
     ev.on('input:mode', upd);
@@ -140,7 +146,8 @@ export class FullscreenUI {
         b.innerHTML = `${on ? IC.compress : IC.expand}<span>${label}</span><kbd>${esc(key)}</kbd>`;
       }
     } else {
-      const label = this.fs.reason === 'in-app' || this.fs.reason === 'iframe' ? 'Vollbild: im Browser öffnen' : 'Vollbild einrichten';
+      const r = this.fs.reason;
+      const label = r === 'in-app' ? 'Vollbild: im Browser öffnen' : r === 'iframe' ? 'Vollbild: in neuem Tab öffnen' : 'Vollbild einrichten';
       b.removeAttribute('aria-pressed');
       b.title = label;
       if (b.dataset.fsv === 'icon') { b.setAttribute('aria-label', label); b.innerHTML = IC.phone; }
@@ -165,6 +172,21 @@ export class FullscreenUI {
   }
 
   /* ------------------------------------------------------------ Anleitung */
+
+  _autoShowIdle() {
+    const ev = this.G.events;
+    const idle = (st) => st === 'lobby' || st === 'paused';
+    if (idle(this.G.match && this.G.match.state)) { this._autoShow(); return; }
+    if (this._idleWait) return;
+    this._idleWait = ({ state } = {}) => {
+      if (!idle(state)) return;
+      ev.off('match:state', this._idleWait);
+      this._idleWait = null;
+      setTimeout(() => this._autoShow(), 300);
+    };
+    ev.on('match:state', this._idleWait);
+    this._off.push(() => { if (this._idleWait) ev.off('match:state', this._idleWait); });
+  }
 
   _autoShow() {
     if (!this.fs.needsGuide || this.fs.reason === 'blocked' || this.guide) return;

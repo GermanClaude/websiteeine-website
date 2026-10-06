@@ -2656,8 +2656,10 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 .m-icon.np-fs-btn:focus-visible { outline: 2px solid var(--np-signal); outline-offset: 2px; }
 .np-fs-rot { width: 100%; }
 /* Schmale Touch-Kopfzeile: der Umschalter entfällt in der Lobby (erstes Tippen geht ohnehin ins Vollbild, Pausenmenü
-   behält ihn); die Anleitung (iPhone) bleibt. */
+   behält ihn); die Anleitung (iPhone) bleibt – außer unter 600 px (iPhone SE quer): dort ist die Kopfzeile schon
+   voll, die Anleitung bleibt über Pausenmenü, Drehen-Hinweis und das einmalige Öffnen erreichbar. */
 @media (max-width: 860px) and (pointer: coarse) { .lb-tools .np-fs-btn[data-fs="toggle"] { display: none; } }
+@media (max-width: 600px) { .lb-tools .np-fs-btn[data-fs="guide"] { display: none; } }
 .np-fsg {
   position: fixed;
   inset: 0;
