@@ -2085,11 +2085,12 @@ function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
           const first = 1;
           const vis0 = Math.max(1, wallVisible(vm, pts, P, R, 0, 0, pistol, W));
           const tA = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, first, first > 0 ? WALL_TILT : WALL_TILT2, nBase, _wt1);
-          let pick = tA;
+          let pick = tA, tB0 = null;
           // Gegenrichtung prüfen, wenn die erste nicht frei wird, weit kippt oder die Waffe großteils aus dem Bild
           // nimmt (an einer hüfthohen Kiste lieber Mündung hoch als die Waffe unter den Bildrand)
           if (!tA.ok || Math.abs(tA.th) > 0.5 || tA.vis < vis0 * 0.3) {
             const tB = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, -first, first > 0 ? WALL_TILT2 : WALL_TILT, nBase, _wt2);
+            tB0 = tB;
             // Gegenrichtung nur über niedrigen Hindernissen: hält sie nicht mehr, wenn die Wand vor dem Auge 0,35 m
             // näher käme, ist es eine Wand – dann gleich die Hauptrichtung (kein Umschwenken durch die Wand beim Hinlaufen)
             // walls-3: mit Fläche nur um deren waagerechten Anteil verschieben – die Oberseite einer Deckung ist keine Wand
@@ -2104,6 +2105,7 @@ function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
             else if (!tA.ok) pick = tA.res <= tB.res + 0.02 ? tA : tB;
           }
           st.dir = pick.th >= 0 ? 1 : -1;
+          if (vm._wallDbgOn) st.dbg = { vis0, A: { ...tA }, B: pick === tA && tB0 == null ? null : { ...(tB0 || {}) }, pick: pick === tA ? 'A' : 'B' };
           wantTh = pick.th * na;
           resid = pick.ok ? 0 : pick.res;
           // walls 3: bleibt trotz Kippen ein sichtbarer Punkt in der Fläche (Auge dicht an der Wand, lange Waffe beim
