@@ -19,6 +19,7 @@ export const ICON = {
   pad: svg('<path d="M7 8h10a4.5 4.5 0 0 1 4.3 5.8l-1.1 3.6a2.2 2.2 0 0 1-3.8.7L14 15h-4l-2.4 3.1a2.2 2.2 0 0 1-3.8-.7l-1.1-3.6A4.5 4.5 0 0 1 7 8z"/><path d="M7 10.5v3M5.5 12h3"/><circle cx="16" cy="11" r=".8" fill="currentColor"/><circle cx="17.8" cy="12.8" r=".8" fill="currentColor"/>'),
   keyboard: svg('<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M9 10h.01M12 10h.01M15 10h.01M18 10h.01M7 14h10"/>'),
   touch: svg('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18.5h2"/>'),
+  install: svg('<path d="M12 4v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M5 20h14"/>'),
   exit: svg('<path d="M14 4h5v16h-5"/><path d="M10 8l-4 4 4 4M6 12h10"/>'),
   back: svg('<path d="M15 5l-7 7 7 7"/>'),
   play: svg('<path d="M7 4.5v15l12-7.5z" fill="currentColor"/>'),

@@ -937,8 +937,8 @@ export class WeaponController {
     const G = this.G;
     const a = this.actor;
     m.t += dt;
+    const spec = m.spec; // gameplay-hunt: vor der ersten Verwendung (vorher TDZ-Fehler bei Ausfallschritt → Messer hing endlos)
     if (!m.anim && m.t >= m.animAt) { m.anim = true; this._vm('playMelee', { backstab: m.backstab, duration: spec.swingTime }); }
-    const spec = m.spec;
     const range = spec.range || 2.4;
     // Ausfallschritt: auf das Ziel zu, Blick rastet ein
     if (m.lunge && !m.hit && m.target && m.target.alive) {

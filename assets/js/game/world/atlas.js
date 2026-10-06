@@ -657,7 +657,8 @@ function mergeSimple(geoms) {
 }
 
 const KINDS = {
-  bush:    { geom: () => clusterGeom(0, 1.2, 7, 11, 0.9), cast: true, tint: ['#9fb27a', '#87a06a', '#b2b884'] },
+  // visual-hunt: crossGeom steht auf y 0 (nicht mittig) → Busch schwebte ≈ 0,5 m (Schatten frei darunter); 0,9 → 0,6
+  bush:    { geom: () => clusterGeom(0, 1.2, 7, 11, 0.6), cast: true, tint: ['#9fb27a', '#87a06a', '#b2b884'] },
   hedge:   { geom: () => clusterGeom(0, 1.0, 6, 12, 0.7), cast: true, tint: ['#7f9a5a', '#90a868'] },
   olive:   { geom: () => clusterGeom(0, 2.6, 14, 13, 3.6), cast: true, tint: ['#a9b391', '#9aa884', '#b6bb98'] },
   tree:    { geom: () => clusterGeom(0, 3.0, 16, 14, 4.6), cast: true, tint: ['#8ea866', '#7f9c5c', '#a0b070'] },

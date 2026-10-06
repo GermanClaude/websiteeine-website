@@ -333,27 +333,29 @@ export function actionLabel(resolved, device, action, opts) {
  * Touch-Knöpfe (engine/input.js baut sie in #touch-ui). sel = Element; kind: btn | group (Container) | stick.
  * optional: standardmäßig verborgen. auto: sichtbar, sobald die Funktion verfügbar ist ('tactical' = taktische
  * Granate in der Ausrüstung, 'light' = Lampe). def: Standardlage (Mitte in % der Fläche, s = Größe in --tc-u)
- * für Knöpfe ohne Lage in game.css (ui-controls: Lagen so gewählt, dass sie im Standard-Layout 16:9–20:9 nichts überdecken).
+ * für Knöpfe ohne Lage in game.css (ui-controls: Lagen so gewählt, dass sie im Standard-Layout 16:9–20:9 nichts überdecken;
+ * bughunt-ui: Ausrüstung – Lampe, Klassen-Ausrüstung, Platte, Taktische – als Spalte bei x 65 % rechts der Bildmitte, frei von
+ * Munitionsanzeige (Mitte unten) und von Zielen/Nachladen auch auf 4:3, wo diese per --tc-u weiter zur Mitte rücken).
  */
 export const TOUCH_BUTTONS = Object.freeze([
   { id: 'stick', sel: '.tc-stick', label: 'Joystick', kind: 'stick' },
   { id: 'fire', sel: '.tc-fire-r', label: 'Feuern (rechts)' },
   { id: 'fireL', sel: '.tc-fire-l', label: 'Feuern (links)' },
   { id: 'ads', sel: '.tc-ads', label: 'Zielen' },
-  { id: 'adsfire', sel: '.tc-adsfire', label: 'Zielen + Feuern', optional: true, def: { x: 65, y: 60, s: 56 } },
+  { id: 'adsfire', sel: '.tc-adsfire', label: 'Zielen + Feuern', optional: true, def: { x: 57, y: 62, s: 56 } },
   { id: 'reload', sel: '.tc-reload', label: 'Nachladen' },
   { id: 'jump', sel: '.tc-jump', label: 'Springen / Überklettern' },
   { id: 'crouch', sel: '.tc-crouch', label: 'Ducken' },
   { id: 'grenade', sel: '.tc-grenade', label: 'Granate' },
-  { id: 'tactical', sel: '.tc-tactical', label: 'Taktische Granate', auto: 'tactical', def: { x: 60.5, y: 76, s: 48 } },
+  { id: 'tactical', sel: '.tc-tactical', label: 'Taktische Granate', auto: 'tactical', def: { x: 65, y: 70, s: 48 } },
   { id: 'melee', sel: '.tc-melee', label: 'Messer' },
   { id: 'swap', sel: '.tc-swap', label: 'Waffe wechseln' },
-  { id: 'leanL', sel: '.tc-lean-l', label: 'Links lehnen', optional: true, def: { x: 4.8, y: 56, s: 46 } },
-  { id: 'leanR', sel: '.tc-lean-r', label: 'Rechts lehnen', optional: true, def: { x: 11, y: 56, s: 46 } },
-  { id: 'light', sel: '.tc-light', label: 'Lampe', auto: 'light', def: { x: 63, y: 42, s: 46 } },
-  { id: 'prone', sel: '.tc-prone', label: 'Hinlegen', def: { x: 86.8, y: 92.5, s: 46 } },
-  { id: 'plate', sel: '.tc-plate', label: 'Panzerplatte', auto: 'armor', def: { x: 54, y: 76, s: 46 } },
-  { id: 'gadget', sel: '.tc-gadget', label: 'Klassen-Ausrüstung', auto: 'gadget', def: { x: 54, y: 62, s: 46 } },
+  { id: 'leanL', sel: '.tc-lean-l', label: 'Links lehnen', optional: true, def: { x: 4.8, y: 76, s: 46 } },
+  { id: 'leanR', sel: '.tc-lean-r', label: 'Rechts lehnen', optional: true, def: { x: 11, y: 76, s: 46 } },
+  { id: 'light', sel: '.tc-light', label: 'Lampe', auto: 'light', def: { x: 65, y: 28, s: 46 } },
+  { id: 'prone', sel: '.tc-prone', label: 'Hinlegen', def: { x: 85.5, y: 92.5, s: 46 } },
+  { id: 'plate', sel: '.tc-plate', label: 'Panzerplatte', auto: 'armor', def: { x: 65, y: 56, s: 46 } },
+  { id: 'gadget', sel: '.tc-gadget', label: 'Klassen-Ausrüstung', auto: 'gadget', def: { x: 65, y: 42, s: 46 } },
   { id: 'streaks', sel: '.tc-streaks', label: 'Serienprämien', kind: 'group' },
   { id: 'score', sel: '.tc-score', label: 'Punktetabelle' },
   { id: 'pause', sel: '.tc-pause', label: 'Pause' },

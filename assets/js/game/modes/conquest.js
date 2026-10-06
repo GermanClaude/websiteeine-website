@@ -431,10 +431,19 @@ export class ConquestMode extends DomMode {
     _a.copy(m.position);
     _b.set(m.position.x + Math.sin(yaw) * 1.4, m.position.y, m.position.z + Math.cos(yaw) * 1.4);
     const pos = _b.clone();
-    if (w && typeof w.lineOfSight === 'function') {
-      _a.y += 1; _b.y += 1;
-      if (!w.lineOfSight(_a, _b)) pos.copy(m.position);
+    let ok = true;
+    // gameplay-hunt: Bodenhöhe am Punkt übernehmen – am Grenzland-Hang lag der Punkt sonst bis 0,8 m im Gelände
+    // (Spawn-Kapsel 0,36 m tief); Stufe/Kante > 0,6 m → an der Stelle des Kameraden
+    if (w && typeof w.groundHeight === 'function') {
+      const gy = w.groundHeight(pos.x, pos.z, m.position.y + 1.2);
+      if (gy == null || Math.abs(gy - m.position.y) > 0.6) ok = false;
+      else { pos.y = gy; _b.y = gy; }
     }
+    if (ok && w && typeof w.lineOfSight === 'function') {
+      _a.y += 1; _b.y += 1;
+      if (!w.lineOfSight(_a, _b)) ok = false;
+    }
+    if (!ok) pos.copy(m.position);
     return { position: pos, yaw, source: 'squad' };
   }
 

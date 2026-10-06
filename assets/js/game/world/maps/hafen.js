@@ -491,7 +491,7 @@ function reachStacker(b, x, z, ry) {
 function barrier(b, x, z) {
   b.box(x - 4.8, 0, z, 0.5, 1.1, 0.5, 'metal_painted', { tint: '#e8e2d4', minimap: 'prop' });
   b.box(x - 1.2, 0.95, z, 7.2, 0.1, 0.1, 'white', { tint: '#e8e2d4', collide: false, minimap: false, grad: false });
-  for (let i = 0; i < 6; i++) b.box(x - 4.2 + i * 1.2, 0.951, z, 0.6, 0.102, 0.102, 'white', { tint: '#c8302a', collide: false, minimap: false, grad: false, ao: false });
+  for (let i = 0; i < 6; i++) b.box(x - 4.2 + i * 1.2, 0.944, z, 0.6, 0.112, 0.112, 'white', { tint: '#c8302a', collide: false, minimap: false, grad: false, ao: false });
 }
 
 /** Pförtnerhaus am Tor (begehbar). */

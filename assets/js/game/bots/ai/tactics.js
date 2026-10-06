@@ -94,9 +94,12 @@ export function pickRoamGoal(bot, A, taken = []) {
   const lane = bot.lane ?? 1;
   const push = Math.min(0.85, 0.42 + (bot.G.time.elapsed - (bot.spawnTime || 0)) * 0.006 + Math.random() * 0.25);
   const ad = bot.manager && bot.manager.adapt && bot.manager.adapt.on(bot) ? bot.manager.adapt : null; // ai-adapt: Hinterhalt-Wege meiden
+  // gameplay-hunt: Posten oder Boden wird vorab gewürfelt – vorher konkurrierten Posten-Kandidaten mit +1,1 Bonus in
+  // derselben Runde und gewannen 84 % aller Ziele (Werk TDM: Außenlager ohne Posten nie Ziel, Spuren wirkungslos)
+  const perchRound = A.perch.length > 0 && Math.random() < (team ? PERCH_GOAL : PERCH_GOAL * 0.5);
   for (let k = 0; k < tries; k++) {
     let n;
-    if (A.perch.length && Math.random() < (team ? PERCH_TRY : PERCH_TRY * 0.5)) n = A.perch[(Math.random() * A.perch.length) | 0];
+    if (perchRound) n = A.perch[(Math.random() * A.perch.length) | 0];
     else if (team && Math.random() < 0.72) {
       const L = A.lanes[Math.random() < 0.8 ? lane : (Math.random() * 3) | 0];
       n = L[(Math.random() * L.length) | 0];
@@ -114,7 +117,7 @@ export function pickRoamGoal(bot, A, taken = []) {
     }
     if (d < 8) s -= 3;
     if (n.cover) s += 0.6;
-    if (A.perchSet.has(n)) s += team ? PERCH_BONUS : PERCH_BONUS * 0.5;
+    if (perchRound && A.perchSet.has(n)) s += team ? PERCH_BONUS : PERCH_BONUS * 0.5;
     for (const t of taken) if (t && t.distanceToSquared(n.position) < 100) s -= 2.5;
     if (bot.lastGoal && bot.lastGoal.distanceToSquared(n.position) < 64) s -= 2;
     if (ad) s -= ad.roamPenalty(n.position);
@@ -124,8 +127,8 @@ export function pickRoamGoal(bot, A, taken = []) {
   return best;
 }
 
-const PERCH_TRY = 0.22; // Anteil der Kandidaten aus den erhöhten Posten (FFA: halb so viele)
-const PERCH_BONUS = 1.1; // Bewertungsbonus erhöhter Posten (FFA: halb so groß)
+const PERCH_GOAL = 0.35; // Anteil der Umherzieh-Ziele auf erhöhten Posten (FFA: halb so viele)
+const PERCH_BONUS = 1.1; // Bewertungsbonus erhöhter Posten in einer Posten-Runde (FFA: halb so groß)
 
 /** Ist der Knoten ein erhöhter Posten? */
 export function isPerch(A, node) {

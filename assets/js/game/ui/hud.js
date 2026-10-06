@@ -201,7 +201,10 @@ export class HUD {
         const e = entries[entries.length - 1];
         const box = e.borderBoxSize && e.borderBoxSize[0];
         const h = box ? box.blockSize : e.contentRect.height;
+        const w = box ? box.inlineSize : e.contentRect.width;
         if (h > 0) setStyle(r, '--top-h', `${Math.round(h)}px`);
+        // Breite: der Touch-Killfeed oben links endet vor dem Punktestand
+        if (w > 0) setStyle(r, '--top-w', `${Math.round(w)}px`);
       });
       this._topRo.observe(this.el.top);
     }
@@ -442,7 +445,8 @@ export class HUD {
   _syncFeedMax() {
     if (!this.feed) return;
     const touch = this.G.input && this.G.input.mode === 'touch';
-    this.feed.max = !touch ? 6 : (this._vh || window.innerHeight) <= 430 ? 3 : 4;
+    // Touch: Spalte neben der Minikarte (game.css) – so viele Zeilen, wie neben ihr Platz haben
+    this.feed.max = !touch ? 6 : (this._vh || window.innerHeight) <= 520 ? 3 : 4;
   }
 
   /** Vom StreakManager: Zielkarte für den Präzisionsschlag. */

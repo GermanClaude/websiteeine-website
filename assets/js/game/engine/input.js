@@ -182,7 +182,6 @@ export class Input {
     this._afTarget = null; // Auto-Feuer: aktuelles Ziel und seit wann (Verzögerung je Stufe)
     this._afSince = 0;
     this._lastVibrate = 0;
-    this._fsTriedAt = -1e9;
     this._track = null; // Rotationshilfe: letzte Peilung des Ziels
     this._uiRefreshAt = 0;
     this._touch = null; // Touch-Oberfläche (DOM + Zeiger-Zuordnung)

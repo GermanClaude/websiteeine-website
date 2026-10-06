@@ -317,7 +317,8 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .tc-fire-l {
   --s: 62;
   left: calc(4% + env(safe-area-inset-left));
-  top: 32%;
+  /* unter Minikarte + Leben/Westenplatten (.h-health/.h-armor, --col-t + 32 px); auf kurzen Telefonen tiefer als 32 % */
+  top: max(32%, calc(max(8px, env(safe-area-inset-top)) + clamp(92px, 25vmin, 132px) + 40px));
   border-color: rgba(255, 91, 31, .6);
 }
 .tc-fire-l.is-down { background: rgba(255, 91, 31, .38); }
@@ -1062,16 +1063,26 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
   .h-root[data-input="touch"] { --nslots: 1; }
 }
 .h-root[data-input="touch"] .h-compass, .h-root[data-input="touch"] .h-mtag, .h-root[data-input="touch"] .h-streaks { display: none; }
-/* Abschussmeldungen wie bei COD Mobile links unter der Minikarte, rechts neben dem linken Feuerknopf;
-   Breite endet vor der Bildmitte (Fadenkreuz), oben beginnt er unter den Hinweis-Plätzen (--feed-t). */
+/* Abschussmeldungen oben rechts neben der Minikarte, bis vor den Punktestand (--top-w misst hud.js, Touch-Skalierung .9).
+   Früher rechts neben dem linken Feuerknopf – dort lagen sie über dem SPRINT-Einrastsymbol des Sticks (112u über der
+   Ruhelage). Zu lange Namen kürzt .kf-name (Ellipse), die Zeile bleibt in der Spalte. */
 .h-root[data-input="touch"] .h-feed {
-  left: calc(var(--fl-r) + 10px);
+  --feed-l: calc(var(--pad-l) + var(--mm) + 10px);
+  left: var(--feed-l);
   right: auto;
-  top: var(--feed-t);
-  width: min(270px, calc(50% - 56px - var(--fl-r) - 10px));
+  top: var(--pad-t);
+  width: max(118px, calc(50% - var(--top-w, 270px) * .45 - 10px - var(--feed-l)));
   align-items: flex-start;
+  gap: 3px;
 }
 .h-root[data-input="touch"] .kf-row { font-size: 12.5px; line-height: 16px; padding: 2px 7px; gap: 5px; }
+.h-root[data-input="touch"] .kf-row > * { flex: 0 1 auto; min-width: 0; }
+.h-root[data-input="touch"] .kf-w { flex: none; }
+@media (max-height: 430px) {
+  .h-root[data-input="touch"] .kf-row { font-size: 11.5px; line-height: 15px; padding: 2px 6px; gap: 4px; }
+  .h-root[data-input="touch"] .kf-gun svg { width: 30px; height: 11px; }
+  .h-root[data-input="touch"] .kf-name { max-width: 84px; }
+}
 .h-root[data-input="touch"] .kf-gun svg { width: 38px; height: 13px; }
 .h-root[data-input="touch"] .kf-ico svg, .h-root[data-input="touch"] .kf-flag svg { width: 14px; height: 14px; }
 .h-root[data-input="touch"] .kf-name { max-width: 96px; }
@@ -1822,6 +1833,30 @@ body[data-input-mode="touch"] .m-btn kbd { display: none; }
   .lb-tools .m-icon { width: 40px; height: 40px; }
   .lb-profile { display: none; }
 }
+/* bughunt-ui: Lobby-Kopf passt bei jeder Breite ≥ 320 px (Tablets hochkant 768–834 px liefen 40–90 px über, „Zur
+   Website“ war weg). Stufen: ≤ 980 px schmalere Reiter, ≤ 560 px Reiter nur als Symbol (Name bleibt für Vorleser),
+   ≤ 420 px Reiter in eigener Zeile über die volle Breite. flex-wrap ist das Sicherheitsnetz – nie etwas abschneiden. */
+.lb-head { flex-wrap: wrap; row-gap: 6px; }
+@media (max-width: 980px) {
+  .lb-head { gap: 12px; }
+  .lb-brand { font-size: 18px; }
+  .lb-tabs .m-tab { padding: 0 10px; gap: 6px; font-size: 14px; letter-spacing: .06em; }
+}
+@media (max-width: 700px) {
+  .lb-head { gap: 10px; }
+  .lb-brand { font-size: 15px; }
+  .lb-tabs .m-tab { padding: 0 8px; }
+}
+@media (max-width: 560px) {
+  .lb-tabs .m-tab { min-width: 44px; justify-content: center; }
+  .lb-tabs .m-tab span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@media (max-width: 420px) {
+  .lb-tabs { order: 3; flex: 1 1 100%; }
+  .lb-tabs .m-tab { flex: 1 1 0; min-width: 0; padding: 0 4px; }
+  .lb-tabs .m-tab span { position: static; width: auto; height: auto; clip-path: none; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+}
+@media (max-width: 360px) { .lb-tabs .m-tab svg { display: none; } }
 @media (prefers-reduced-motion: reduce) {
   .m-screen, .e-title, .e-break li, .e-up, .lb-start.is-go, #match-banner [data-banner-sub] { animation: none; }
 }
@@ -2387,7 +2422,9 @@ body[data-input-mode="touch"] .sb-table th:nth-child(3) { width: 52px; }
 .h-root[data-input="touch"].is-mirror .h-tl { left: auto; right: var(--pad-r); }
 .h-root[data-input="touch"].is-mirror .h-uav { left: auto; right: calc(100% + 8px); }
 .h-root[data-input="touch"].is-mirror .h-health { left: auto; right: var(--pad-r); flex-direction: row-reverse; }
-.h-root[data-input="touch"].is-mirror .h-feed { left: auto; right: calc(var(--fl-r) + 10px); align-items: flex-end; }
+.h-root[data-input="touch"].is-mirror .h-feed { left: auto; right: calc(var(--pad-r) + var(--mm) + 10px); width: max(118px, calc(50% - var(--top-w, 270px) * .45 - 20px - var(--pad-r) - var(--mm))); align-items: flex-end; }
+.h-root[data-hud="aus"]:not(.is-tablet)[data-input="touch"] .h-feed { --feed-l: var(--pad-l); }
+.h-root[data-hud="aus"]:not(.is-tablet)[data-input="touch"].is-mirror .h-feed { right: var(--pad-r); }
 .h-root[data-input="touch"].is-mirror .h-train { right: auto; left: var(--pad-l); border-right: 0; border-left: 2px solid var(--np-signal); }
 .h-root[data-input="touch"].is-mirror .h-stamp { right: auto; left: calc(2.2% + var(--tc-u) * 52 + max(44px, var(--tc-u) * 42) + 12px + env(safe-area-inset-left)); align-items: flex-start; }
 .te-back.is-mirror .te-h-mm { left: auto; right: max(10px, env(safe-area-inset-right)); }
@@ -2431,7 +2468,9 @@ body[data-vehicle] .h-armor, body[data-vehicle] .h-stance { display: none; }
 .h-zone { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 18px; background: rgba(60, 8, 8, .72); border: 1px solid var(--np-enemy); border-radius: 2px; text-align: center; }
 .h-zone b { font: 700 18px/1 var(--font-hud); letter-spacing: .12em; text-transform: uppercase; color: var(--np-enemy); }
 .h-zone span { font: 600 14px/1.2 var(--font-mono); }
-.ht-order { position: absolute; left: var(--pad-l, 16px); top: calc(var(--col-t, 140px) + 30px); display: none; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border: 1px solid var(--np-line-strong); border-radius: 22px; background: rgba(10, 11, 13, .6); color: var(--np-ink); font: 600 13px var(--font-hud); letter-spacing: .06em; }
+/* bughunt-ui: unter dem linken Feuerknopf (.tc-fire-l: top max(32 %, Minikarte + 40 px), 62u) – vorher fest 170 px, seit dem
+   tieferen Feuerknopf auf kurzen Telefonen darüber */
+.ht-order { position: absolute; left: var(--pad-l, 16px); top: calc(max(32%, calc(max(8px, env(safe-area-inset-top)) + clamp(92px, 25vmin, 132px) + 40px)) + max(44px, calc(var(--tc-u) * 62)) + 8px); display: none; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border: 1px solid var(--np-line-strong); border-radius: 22px; background: rgba(10, 11, 13, .6); color: var(--np-ink); font: 600 13px var(--font-hud); letter-spacing: .06em; }
 .ht-order svg { width: 18px; height: 18px; }
 body[data-input-mode="touch"][data-match-state="playing"]:not([data-player-dead]) .ht-order:not([hidden]) { display: inline-flex; }
 
@@ -2551,6 +2590,10 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 .lb-warn.is-yellow { color: var(--np-gold); }
 .lb-warn.is-red { color: var(--np-enemy); }
 .lb-extra { display: flex; flex-direction: column; gap: 12px; }
+/* bughunt-ui: Matchlänge/Tageszeit/Wetter haben bis zu 7 Felder – auf Telefonen (740 px) lief „Wetter“ 110 px über die Spalte
+   und machte die ganze Einsatz-Seite waagerecht scrollbar. Felder umbrechen statt überlaufen (jede Zeile füllt sich). */
+.lb-extra .m-seg { display: flex; flex-wrap: wrap; }
+.lb-extra .m-seg button { flex: 1 0 auto; }
 .lb-style + .lb-note { min-height: 2.8em; }
 .lo-classes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 4px; }
 .lo-clsbtn { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; align-items: center; column-gap: 8px; min-height: 52px; padding: 5px 10px; border: 1px solid var(--np-line-strong); border-radius: 2px; background: rgba(255, 255, 255, .03); color: var(--np-ink-2); text-align: left; cursor: pointer; }

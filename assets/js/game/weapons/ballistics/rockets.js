@@ -147,7 +147,10 @@ export class RocketSystem {
     if (hit.vehicle) {
       const v = hit.vehicle;
       const mult = (FACE_MULT[hit.face] || 1) * (v.def && v.def.armored ? 1 : 1.35) * (armed ? 1 : 0.15);
-      const dealt = v.applyDamage((P.vehicleDamage || 300) * mult * r.scale, { attacker, weaponId: def.id, zone: hit.zone, kind: armed ? 'shell' : 'collision', point: at.clone(), dir: dir.clone() });
+      // gameplay-hunt: nicht scharfe Rakete läuft als 'collision' an der Freund-Feind-Prüfung von applyDamage vorbei →
+      // eigenes/verbündetes Fahrzeug nahm bis 60 Schaden durch einen Blindgänger; jetzt nur gegen feindliche Fahrzeuge
+      const dud = !armed && attacker && typeof v.hostileTo === 'function' && !v.hostileTo(attacker);
+      const dealt = dud ? 0 : v.applyDamage((P.vehicleDamage || 300) * mult * r.scale, { attacker, weaponId: def.id, zone: hit.zone, kind: armed ? 'shell' : 'collision', point: at.clone(), dir: dir.clone() });
       if (dealt > 0) G.events.emit('vehicle:hit', { vehicle: v, attacker, amount: dealt, weaponId: def.id, face: hit.face, zone: hit.zone });
     } else if (hit.actor && G.combat) {
       G.combat.damage(hit.actor, { amount: (armed ? P.actorDamage || 150 : 45) * r.scale, attacker, weaponId: def.id, explosive: armed, point: at.clone(), dir: dir.clone(), zone: hit.zone || 'body' });

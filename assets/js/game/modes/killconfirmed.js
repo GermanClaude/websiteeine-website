@@ -74,10 +74,12 @@ export class KillConfirmedMode extends BaseMode {
   _drop(victim, killer) {
     if (!victim || (victim.team !== 'A' && victim.team !== 'B') || !victim.position) return;
     if (this.tags.length >= POOL) this._remove(this.tags[0]);
-    const g = this._pool.find((x) => !x.visible);
+    // gameplay-hunt: belegte Knoten über ein Flag statt `visible` – blinkende Marken (letzte 5 s) sind zeitweise
+    // unsichtbar und ihr Knoten wurde sonst an eine neue Marke vergeben (zwei Marken teilen ein Modell, eine wird unsichtbar)
+    const g = this._pool.find((x) => !x.userData.used);
     const pos = victim.position.clone();
     const tag = { id: ++this._seq, team: victim.team, victim, killer, position: pos, born: this.G.time.elapsed, node: g };
-    if (g) { g.visible = true; g.position.copy(pos); }
+    if (g) { g.userData.used = true; g.visible = true; g.position.copy(pos); }
     this.tags.push(tag);
     this.G.events.emit('tag:drop', { tag: { id: tag.id, team: tag.team, position: pos }, victim, killer });
   }
@@ -85,7 +87,7 @@ export class KillConfirmedMode extends BaseMode {
   _remove(tag) {
     const i = this.tags.indexOf(tag);
     if (i >= 0) this.tags.splice(i, 1);
-    if (tag.node) tag.node.visible = false;
+    if (tag.node) { tag.node.visible = false; tag.node.userData.used = false; }
   }
 
   onKillScored(killer, victim) {

@@ -220,6 +220,7 @@ export class Menus {
           ${!training && mode && !mode.lockLoadout ? `<button type="button" class="m-btn" data-act="equip">${ICON.target}<span>Ausrüstung</span></button>` : ''}
           <button type="button" class="m-btn" data-act="settings">${ICON.gear}<span>Einstellungen</span></button>
           <button type="button" class="m-btn" data-act="controls">${ICON.pad}<span>Steuerung</span></button>
+          ${G.fullscreen && G.fullscreen.installAvailable ? `<button type="button" class="m-btn" data-act="install">${ICON.install}<span>Als App installieren</span></button>` : ''}
           ${training ? `<button type="button" class="m-btn" data-act="finish">${ICON.check}<span>Training beenden</span></button>` : `<button type="button" class="m-btn" data-act="restart">${ICON.restart}<span>Neu starten</span></button>`}
           <button type="button" class="m-btn m-danger" data-act="quit">${ICON.exit}<span>Match verlassen</span></button>
           <div class="ps-confirm" hidden>
@@ -235,6 +236,12 @@ export class Menus {
       if (act === 'resume') { this.sound('confirm'); this._resume(); }
       else if (act === 'settings') this.showSettings('pause');
       else if (act === 'controls') this.showControls('pause');
+      else if (act === 'install') {
+        // Chromium/Edge: das Angebot (beforeinstallprompt) war bisher nur im Vollbild-Ratgeber erreichbar
+        this.sound('confirm');
+        b.disabled = true;
+        G.fullscreen.install().then(() => { if (this.current === 'pause' && G.match.state === 'paused') this.showPause(); });
+      }
       else if (act === 'armory') this.showArmory();
       else if (act === 'equip') this.showEquip();
       else if (act === 'restart') { this.sound('confirm'); if (this.onRestart) this.onRestart(); }
