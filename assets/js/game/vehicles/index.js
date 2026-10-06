@@ -282,6 +282,8 @@ export class VehicleSystem {
     if (idx == null || idx < 0 || idx >= v.seats.length || v.seats[idx].actor) idx = v.seats.findIndex((s) => !s.actor);
     if (idx < 0) return -1;
     this._seat(actor, v, idx);
+    // Infanteriewaffe ruht im Sitz (kein weapon.update): laufendes Nachladen abbrechen, sonst klingt es weiter
+    if (actor.weapon && typeof actor.weapon.cancelReload === 'function') actor.weapon.cancelReload();
     if (actor.isPlayer) this._playerEnter(actor, v);
     v.body.wake();
     this.G.events.emit('vehicle:enter', { vehicle: v, actor, seat: idx });

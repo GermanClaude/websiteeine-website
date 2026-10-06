@@ -240,7 +240,7 @@ export class Menus {
         // Chromium/Edge: das Angebot (beforeinstallprompt) war bisher nur im Vollbild-Ratgeber erreichbar
         this.sound('confirm');
         b.disabled = true;
-        G.fullscreen.install().then(() => { if (this.current === 'pause' && G.match.state === 'paused') this.showPause(); });
+        (G.fullscreen ? G.fullscreen.install() : Promise.resolve('unavailable')).then(() => { if (this.current === 'pause' && G.match.state === 'paused') this.showPause(); });
       }
       else if (act === 'armory') this.showArmory();
       else if (act === 'equip') this.showEquip();
@@ -450,6 +450,8 @@ export class Menus {
     const t = e.target;
     const typing = t && t.matches && t.matches('input[type="text"], textarea');
     if (e.code === 'Escape') {
+      // Esc gehalten (z. B. beim Verlassen von Vollbild/Pointer-Lock): Wiederholungen schalten nicht Pause/Fortsetzen hin und her
+      if (e.repeat) return;
       if (this.current === 'pause') {
         const c = this.root.querySelector('.ps-confirm');
         if (c && !c.hidden) { c.hidden = true; e.preventDefault(); return; }

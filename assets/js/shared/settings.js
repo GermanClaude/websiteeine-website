@@ -36,7 +36,7 @@ export const DEFAULTS = Object.freeze({
   // Kernmechanik (core-mechanics): Spielstil, Klassen, stufenlose Zielhilfe und Auto-Feuer
   gameStyle: 'arcade', realisticCrosshair: false, lastClass: 'sturm', classLoadouts: Object.freeze({}),
   aimAssistLevel: 0.5, aimAssistDevices: 'touch_pad', autoFireLevel: 0.6, autoFireDevices: 'touch',
-  // Vollbild (engine/fullscreen.js): auto = erste Geste, Matchstart, Fortsetzen | off = nur Knopf/Taste
+  // Vollbild (engine/fullscreen.js): auto = bei „Einsatz starten“, „Fortsetzen“ und (Touch) Tippen auf die Steuerung im Match | off = nur Knopf/Taste
   fullscreen: 'auto',
   // Lobby: Wetter/Tageszeit (atmosphere-weather): 'standard' | 'zufall' | Wetter-/Zeit-id
   lastWeather: 'standard', lastTime: 'standard',

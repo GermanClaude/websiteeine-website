@@ -579,8 +579,9 @@ export class Bot {
     if (body.outOfWorld && G.combat) { G.combat.damage(this, { amount: 9999, attacker: null, weaponId: 'world' }); return; }
     if (world && world.bounds) this._clamp(world.bounds);
 
-    // Regeneration (wie Spieler)
-    if (this.health < this.maxHealth && now - this.lastDamageTime > 3.5) this.health = Math.min(this.maxHealth, this.health + 55 * dt);
+    // Regeneration (wie Spieler; Spielstil: Realistisch heilt später und langsamer – styleFlags.regenDelay/regenRate)
+    const fl = G.match && G.match.styleFlags;
+    if (this.health < this.maxHealth && now - this.lastDamageTime > ((fl && fl.regenDelay) || 3.5)) this.health = Math.min(this.maxHealth, this.health + ((fl && fl.regenRate) || 55) * dt);
 
     // --- Waffe
     const it = this._intent;

@@ -10,7 +10,8 @@
 //
 // Die Subsysteme werden parallel dynamisch geladen (Fortschrittsbalken); spielen.html lädt den ganzen
 // Modulgraphen per <link rel="modulepreload"> vor (Liste: node tools/preload.mjs). Fehlt ein Pflichtmodul,
-// erscheint das Fehlerpanel („Neu laden“, „Zurück zur Website“); fehlt nur das Audiomodul, läuft das Spiel stumm.
+// erscheint das Fehlerpanel („Neu laden“, „Zurück zur Website“); fehlt nur das Audiomodul, läuft das Spiel stumm;
+// fehlen die Vollbild-Module (z. B. von einem Inhaltsfilter blockiert), übernimmt ein kleiner Ersatz (basicFullscreen).
 
 import * as THREE from 'three';
 import { settings } from '../shared/settings.js';
@@ -22,8 +23,6 @@ import * as classesData from '../shared/classes.data.js'; // core-mechanics: Kla
 import { EventBus } from './engine/events.js';
 import { createRenderer, QUALITY_LEVELS, resolveQuality } from './engine/renderer.js';
 import { Input } from './engine/input.js';
-import { createFullscreen } from './engine/fullscreen.js'; // Vollbild auf allen Plattformen (G.fullscreen)
-import { FullscreenUI } from './ui/fullscreen-ui.js';
 import { watchForUpdates } from './engine/update.js'; // Hinweis auf neue Fassung (nur veröffentlicht)
 import { separateActors } from './engine/physics.js';
 import { DynamicResolution } from './engine/dynres.js';
@@ -50,9 +49,16 @@ const MODULES = {
   modes: ['./modes/index.js', ['createMode']],
   hud: ['./ui/hud.js', ['HUD']],
   menus: ['./ui/menus.js', ['Menus']],
+  // Vollbild (G.fullscreen) und seine Knöpfe/Anleitung (G.fullscreenUi) – optional, sonst basicFullscreen
+  fullscreen: ['./engine/fullscreen.js', ['createFullscreen']],
+  fullscreenUi: ['./ui/fullscreen-ui.js', ['FullscreenUI']],
 };
-/** Ohne diese Module bleibt das Spiel spielbar (stummer Ersatz). */
-const OPTIONAL = new Set(['audio']);
+/** Ohne diese Module bleibt das Spiel spielbar (Ersatz) – Wert: Hinweis für die Konsole. */
+const OPTIONAL = new Map([
+  ['audio', 'Spiel läuft ohne Ton.'],
+  ['fullscreen', 'Vollbild nur über den eingebauten Ersatz (Knopf, Taste, Spielstart).'],
+  ['fullscreenUi', 'keine Vollbild-Knöpfe in Lobby und Pausenmenü (Taste/Alt + Eingabe gehen weiter).'],
+]);
 
 /** Stummer Ersatz für die AudioEngine, falls das Audiomodul nicht lädt oder nicht startet. */
 const SILENT_AUDIO = Object.freeze({
@@ -195,7 +201,7 @@ function showFatal(kind, err) {
   } else {
     if (kind === 'module') {
       title.textContent = 'Spieldaten konnten nicht geladen werden';
-      text.textContent = 'Ein Teil des Spiels ließ sich nicht laden – meist wegen einer kurz unterbrochenen Verbindung. Lade die Seite neu.';
+      text.textContent = 'Ein Teil des Spiels ließ sich nicht laden – meist wegen einer kurz unterbrochenen Verbindung. Lade die Seite neu. Kommt die Meldung immer wieder, blockiert vermutlich ein Virenscanner (Web-Schutz), ein Werbeblocker oder ein Netzwerkfilter eine Spieldatei.';
     } else {
       title.textContent = kind === 'match' ? 'Das Match konnte nicht gestartet werden' : 'Beim Laden ist ein Fehler aufgetreten';
       text.textContent = 'Lade die Seite neu. Tritt der Fehler erneut auf, hilft die Meldung unten bei der Fehlersuche.';
@@ -207,6 +213,8 @@ function showFatal(kind, err) {
   }
   panel.hidden = false;
   document.body.dataset.matchState = 'error';
+  // Sicherheitsnetz in spielen.html: Dateien frisch abrufen, blockierte nennen (Virenscanner/Werbeblocker-Hinweis)
+  if (kind === 'module' && typeof window.__npDiagnose === 'function') safe('diagnose', () => window.__npDiagnose());
   if (err) console.error('[NULLPUNKT]', err);
   try { if (G.input) G.input.exitLock(); } catch { /* ignore */ }
 }
@@ -281,7 +289,7 @@ async function loadModules(onProgress) {
       }
       G.modules[key] = null;
       G.moduleStatus[key] = 'missing';
-      console.warn(`[NULLPUNKT] ${key}: Modul nicht ladbar – Spiel läuft ohne Ton.`, err);
+      console.warn(`[NULLPUNKT] ${key}: Modul nicht ladbar – ${OPTIONAL.get(key)}`, err);
     } finally {
       onProgress(++done / keys.length);
     }
@@ -1194,11 +1202,110 @@ function setAwaitingLock(on) {
 }
 
 /**
- * Vollbild nach Einstellung „Vollbild“ (alle Geräte; Touch zusätzlich Querformat-Sperre, Desktop-Chromium
- * Tastatursperre für Esc). Nur aus einer Nutzergeste wirksam, sonst still; nie Fehler. engine/fullscreen.js
+ * Vollbild nach Einstellung „Vollbild“ (alle Geräte; Touch zusätzlich Querformat-Sperre) – nur aus „Einsatz
+ * starten“ und „Fortsetzen“ aufrufen, synchron in der Geste und nach requestPointerLock. Ohne Nutzergeste still;
+ * nie Fehler. engine/fullscreen.js, sonst basicFullscreen.
  */
 function enterImmersive() {
-  safe('fullscreen.auto', () => { if (G.fullscreen) G.fullscreen.auto(); });
+  safe('fullscreen.auto', () => { if (G.fullscreen) G.fullscreen.auto(); else basicFullscreen.auto(); });
+}
+
+/* ===================================================== Vollbild-Ersatz */
+
+/**
+ * Kleiner Vollbild-Ersatz, falls engine/fullscreen.js nicht geladen werden konnte (G.fullscreen bleibt dann null),
+ * z. B. weil ein Inhaltsfilter die Datei blockiert: Standard- und webkit-API, Umschalten per Knopf (Lobby/Pause über
+ * ui/fullscreen-ui.js, Drehen-Hinweis), Aktion „fullscreen“ und Alt + Eingabe, Automatik nur bei „Einsatz starten“
+ * und „Fortsetzen“. Immer synchron in der Nutzergeste aufrufen (requestFullscreen verbraucht die Aktivierung).
+ * Gleiche Form wie G.fullscreen, soweit ui/fullscreen-ui.js sie liest; keine Anleitung, kein Installationsangebot.
+ */
+const basicFullscreen = (() => {
+  const d = document;
+  const root = d.documentElement;
+  const element = () => d.fullscreenElement || d.webkitFullscreenElement || null;
+  const quiet = (p) => { if (p && typeof p.then === 'function') p.then(null, () => {}); };
+  let optOut = false; // per Knopf/Taste verlassen → keine Automatik bis zum nächsten ausdrücklichen Betreten
+  const fs = {
+    platform: {}, blocked: false, standalone: false, needsGuide: false, reason: null, pending: false, installAvailable: false,
+    get supported() {
+      const flag = typeof d.fullscreenEnabled === 'boolean' ? d.fullscreenEnabled : d.webkitFullscreenEnabled;
+      return flag !== false && typeof (root.requestFullscreen || root.webkitRequestFullscreen) === 'function';
+    },
+    get active() { return !!element(); },
+    get keys() { const b = G.input && G.input.bindings; return ((b && b.kb && b.kb.fullscreen) || ['F11']).slice(); },
+    get canLockOrientation() {
+      const o = typeof screen !== 'undefined' ? screen.orientation : null;
+      return fs.supported && !!(o && typeof o.lock === 'function');
+    },
+    request({ user = false } = {}) {
+      if (user) optOut = false;
+      if (!fs.supported) return false;
+      if (fs.active) return true;
+      const ua = navigator.userActivation;
+      if (ua && !ua.isActive) return false; // ohne Geste lehnt der Browser ab → still bleiben
+      try {
+        quiet(root.requestFullscreen ? root.requestFullscreen({ navigationUI: 'hide' }) : root.webkitRequestFullscreen());
+        return true;
+      } catch { return false; }
+    },
+    exit({ user = false } = {}) {
+      if (user) optOut = true;
+      const fn = d.exitFullscreen || d.webkitExitFullscreen;
+      if (!fs.active || !fn) return false;
+      try { quiet(fn.call(d)); return true; } catch { return false; }
+    },
+    toggle() {
+      if (fs.active) { fs.exit({ user: true }); return false; }
+      return fs.request({ user: true });
+    },
+    /** „Einsatz starten“/„Fortsetzen“: nur bei Einstellung 'auto', nicht nach ausdrücklichem Verlassen, nicht in Testläufen. */
+    auto() {
+      if (AUTOSTART || optOut || settings.get('fullscreen') === 'off' || fs.active) return false;
+      return fs.request();
+    },
+    install: () => Promise.resolve('unavailable'),
+    onInstallChange: () => () => {},
+  };
+  return fs;
+})();
+
+const FS_MODS = { Control: 'ctrlKey', Alt: 'altKey', Shift: 'shiftKey', Meta: 'metaKey', OS: 'metaKey' };
+
+/** Passt keydown zur Aktion „fullscreen“ (z. B. 'F11' oder 'ShiftLeft+KeyF')? Wie engine/fullscreen.js. */
+function fullscreenKeyMatches(e) {
+  const t = e.target;
+  const typing = t && t.closest && t.closest('input, textarea, select, [contenteditable="true"]');
+  return basicFullscreen.keys.some((code) => {
+    const parts = code.split('+');
+    const trig = parts[parts.length - 1];
+    if (trig !== e.code || (typing && !/^F\d{1,2}$/.test(trig))) return false;
+    if (parts.length === 2) { const mod = FS_MODS[parts[0].replace(/(Left|Right)$/, '')]; return !!(mod && e[mod]); }
+    return !e.ctrlKey && !e.altKey && !e.metaKey;
+  });
+}
+
+/** Nur ohne G.fullscreen: Tasten (Alt + Eingabe fest, Aktion „fullscreen“), Querformat auf Touch, 'fullscreen:change'. */
+function wireBasicFullscreen() {
+  if (!basicFullscreen.supported) return;
+  // Capture wie engine/fullscreen.js: vor deploy.js/strike-target.js (Enter ohne Alt-Prüfung)
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat || !e.isTrusted || (G.input && G.input.capturing)) return;
+    const altEnter = (e.code === 'Enter' || e.code === 'NumpadEnter') && e.altKey && !e.ctrlKey && !e.metaKey;
+    if (!altEnter && !fullscreenKeyMatches(e)) return;
+    e.preventDefault();
+    if (altEnter) e.stopImmediatePropagation(); // sonst löst Enter „Einsatz“/Zielwahl aus
+    basicFullscreen.toggle();
+  }, { capture: true });
+  const onChange = () => {
+    const active = basicFullscreen.active;
+    const o = typeof screen !== 'undefined' ? screen.orientation : null;
+    if (active && G.input && G.input.mode === 'touch' && o && typeof o.lock === 'function') {
+      try { const p = o.lock('landscape'); if (p && typeof p.then === 'function') p.then(null, () => {}); } catch { /* */ }
+    }
+    G.events.emit('fullscreen:change', { active, kind: active ? 'api' : 'none' });
+  };
+  document.addEventListener('fullscreenchange', onChange);
+  document.addEventListener('webkitfullscreenchange', onChange);
 }
 
 async function toLobby() {
@@ -1511,15 +1618,16 @@ function wireGlobal() {
     // Wechsel zu Touch/Gamepad während „Klicken, um weiterzuspielen“: keine Sperre mehr nötig
     if (G.match.awaitingLock && !lockRequired()) finishResume();
   });
-  // „Klicken, um weiterzuspielen“: jeder Klick holt die Sperre (Nutzergeste), Esc zurück ins Pausenmenü
+  // „Klicken, um weiterzuspielen“: jeder Klick holt die Sperre (Nutzergeste), Esc zurück ins Pausenmenü. Vollbild
+  // nicht hier (Klick irgendwo auf der Seite), sondern nur über „Fortsetzen“/„Einsatz starten“, Knopf oder Taste.
   document.addEventListener('mousedown', (e) => {
     if (!G.match.awaitingLock || G.match.state !== 'paused' || e.button !== 0) return;
     e.preventDefault();
     G.input.requestLock();
-    enterImmersive();
   });
   window.addEventListener('keydown', (e) => {
-    if (e.code !== 'Escape' || e.defaultPrevented || !G.match.awaitingLock || G.match.state !== 'paused') return;
+    // Esc gehalten: Wiederholungen schalten nicht zwischen Pausenmenü und „Klicken, um weiterzuspielen“ hin und her
+    if (e.code !== 'Escape' || e.repeat || e.defaultPrevented || !G.match.awaitingLock || G.match.state !== 'paused') return;
     e.preventDefault();
     setAwaitingLock(false);
     safe('menus.showPause', () => G.menus.showPause());
@@ -1563,10 +1671,11 @@ function wireGlobal() {
 function wireRotateOverlay() {
   const btn = $('rotate-play');
   const hint = $('rotate-hint');
-  const canLock = !!(G.fullscreen && G.fullscreen.canLockOrientation); // inkl. Präfix-API (altes iPadOS)
+  const fs = () => G.fullscreen || basicFullscreen;
+  const canLock = !!fs().canLockOrientation; // inkl. Präfix-API (altes iPadOS)
   if (btn) {
     btn.hidden = !canLock;
-    btn.addEventListener('click', () => { if (G.fullscreen) G.fullscreen.request({ user: true }); });
+    btn.addEventListener('click', () => { safe('fullscreen.request', () => fs().request({ user: true })); });
   }
   if (hint) hint.hidden = canLock;
 }
@@ -1603,7 +1712,10 @@ async function bootstrap() {
     G.input = new Input(G);
     G.input.allowUnlockedMouse = AUTOSTART;
     G.input.attach(G);
-    G.fullscreen = safe('fullscreen', () => createFullscreen(G, { autoDisabled: AUTOSTART })) || null;
+    // Vollbild: Modul optional (MODULES); fehlt es oder scheitert es, bleibt G.fullscreen null → basicFullscreen
+    const fsMod = G.modules.fullscreen;
+    G.fullscreen = (fsMod && safe('fullscreen', () => fsMod.createFullscreen(G, { autoDisabled: AUTOSTART }))) || null;
+    if (!G.fullscreen) safe('basicFullscreen', wireBasicFullscreen);
     G.combat = new Combat(G);
     G.audio = createAudio();
     G.weapons = new G.modules.weapons.WeaponSystem(G);
@@ -1612,7 +1724,8 @@ async function bootstrap() {
     G.vehicles = new G.modules.vehicles.VehicleSystem(G);
     G.hud = new G.modules.hud.HUD(G);
     G.menus = new G.modules.menus.Menus(G);
-    if (G.fullscreen) G.fullscreenUi = safe('fullscreenUi', () => new FullscreenUI(G, { autoShow: !AUTOSTART })) || null;
+    const fsUi = G.modules.fullscreenUi;
+    G.fullscreenUi = (fsUi && safe('fullscreenUi', () => new fsUi.FullscreenUI(G, { autoShow: !AUTOSTART, fs: basicFullscreen }))) || null;
     wireGlobal();
 
     setBoot(0.92, 'Bereite Grafik vor …');

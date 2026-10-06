@@ -115,7 +115,7 @@ export function codeDevice(code) {
 export function isBindable(code, device, action = null) {
   if (codeDevice(code) !== device) return false;
   if (action === 'pause') return true;
-  if (action === 'fullscreen' && code === 'F11') return true; // F11: Vollbild (engine/fullscreen.js fängt sie ab)
+  if (action === 'fullscreen' && code === 'F11') return true; // F11: Vollbild (engine/fullscreen.js bzw. Ersatz in main.js fängt sie ab)
   return !code.split('+').some((p) => RESERVED_CODES.includes(p));
 }
 

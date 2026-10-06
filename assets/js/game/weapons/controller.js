@@ -238,7 +238,7 @@ export class WeaponController {
     // Aussehen (nur Spieler-Viewmodel): Tarnmuster je Waffe, Klassen-Arme
     if (this.viewModel) this._applyCosmetics(loadout);
     // Aktive Aktionen beenden (gezogene Granate fällt vor die Füße)
-    this._abortActions(false, true);
+    this._abortActions(true);
     // Gleiche Waffe behalten; sonst denselben Slot (z. B. neue Pistole, während die alte in der Hand war)
     const keepIdx = prevId ? this.slots.findIndex((s) => s.id === prevId) : -1;
     const prevIndex = this.index;
@@ -288,7 +288,7 @@ export class WeaponController {
     if (tq && tq.id) { const d = this._equipmentDefs()[tq.id]; tq.count = d ? d.count || 1 : 1; }
     this._plate = null;
     this.isPlating = false;
-    this._abortActions(false);
+    this._abortActions();
     this.adsProgress = 0;
     this.ads = this._adsOn = false;
     this._cooldown = 0;
@@ -330,8 +330,9 @@ export class WeaponController {
     this.spread = this.fireSpread = def.hipSpread || 0.04;
   }
 
-  _abortActions(emit = true, dropGrenade = false) {
-    if (this._reload) this._finishReload(true, emit);
+  _abortActions(dropGrenade = false) {
+    // Abbruch immer melden: Audio schneidet daran die restlichen Nachlade-Klänge (Loadout-Wechsel mitten im Nachladen)
+    if (this._reload) this._finishReload(true);
     if (dropGrenade && this._throw && this._throw.pinned && !this._throw.thrown && this.actor.alive !== false) {
       // Splint gezogen, aber nicht geworfen (z. B. Gun-Game-Wechsel): Granate fällt vor die Füße
       this._dropCookedGrenade();
@@ -757,7 +758,7 @@ export class WeaponController {
       return;
     }
     // Sprint (bewusst ausgelöst) bricht das Nachladen ab
-    if (this._sprintCancel(it)) { this._finishReload(true); return; }
+    if (this._sprintCancel(it)) { this._finishReload(true, true, 'sprint'); return; }
     const r = this._reload;
     r.t += dt;
     if (!r.shells) {
@@ -796,7 +797,8 @@ export class WeaponController {
     else if (st.reserve < (st.def.mag || 1)) st.reserve = st.def.reserve || st.reserve;
   }
 
-  _finishReload(interrupted, emit = true) {
+  /** cause (nur bei Abbruch, optional): 'sprint' – Audio pumpt dann eine leer nachgeladene Flinte wie die Ego-Animation. */
+  _finishReload(interrupted, emit = true, cause = null) {
     const r = this._reload;
     if (!r) return;
     this._reload = null;
@@ -805,7 +807,7 @@ export class WeaponController {
     this.reloadPhase = null;
     const def = this.currentDef;
     if (interrupted && this.viewModel && !r.shells) this._vm('cancelAction');
-    if (emit) this.G.events.emit('weapon:reload', { actor: this.actor, weaponId: def ? def.id : null, phase: 'end', empty: r.empty, interrupted: !!interrupted });
+    if (emit) this.G.events.emit('weapon:reload', { actor: this.actor, weaponId: def ? def.id : null, phase: 'end', empty: r.empty, interrupted: !!interrupted, cause: interrupted ? cause : null });
   }
 
   /** Spieler: erneutes Sprint-Drücken bricht Nachladen ab (Bots: intent.cancelReload). */
@@ -1292,6 +1294,8 @@ export class WeaponController {
   dispose() {
     if (this._disposed) return;
     this._disposed = true;
+    // Laufendes Nachladen abmelden (Audio schneidet sonst nicht), z. B. Akteur verlässt das Match mitten im Nachladen
+    if (this._reload) { try { this._finishReload(true); } catch (err) { console.error('[NULLPUNKT] Nachladen beenden:', err); } }
     this._reload = this._switch = this._melee = this._throw = null;
     if (this.viewModel) {
       try { this.viewModel.dispose(); } catch (err) { console.error('[NULLPUNKT] ViewModel.dispose:', err); }

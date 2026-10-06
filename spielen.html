@@ -34,8 +34,6 @@
   <link rel="modulepreload" href="assets/js/game/engine/events.js">
   <link rel="modulepreload" href="assets/js/game/engine/renderer.js">
   <link rel="modulepreload" href="assets/js/game/engine/input.js">
-  <link rel="modulepreload" href="assets/js/game/engine/fullscreen.js">
-  <link rel="modulepreload" href="assets/js/game/ui/fullscreen-ui.js">
   <link rel="modulepreload" href="assets/js/game/engine/update.js">
   <link rel="modulepreload" href="assets/js/game/engine/physics.js">
   <link rel="modulepreload" href="assets/js/game/engine/dynres.js">
@@ -56,6 +54,8 @@
   <link rel="modulepreload" href="assets/js/game/modes/index.js">
   <link rel="modulepreload" href="assets/js/game/ui/hud.js">
   <link rel="modulepreload" href="assets/js/game/ui/menus.js">
+  <link rel="modulepreload" href="assets/js/game/engine/fullscreen.js">
+  <link rel="modulepreload" href="assets/js/game/ui/fullscreen-ui.js">
   <link rel="modulepreload" href="assets/js/shared/bindings.data.js">
   <link rel="modulepreload" href="assets/js/game/engine/post/pipeline.js">
   <link rel="modulepreload" href="assets/js/game/engine/post/memory.js">
@@ -322,17 +322,31 @@
         function next() { if (i >= list.length) return Promise.resolve(); var u = list[i++]; return fn(u).then(next, next); }
         return Promise.all([next(), next(), next(), next(), next(), next()]);
       }
+      // Alle Spieldateien frisch abrufen. Scheitern nur einzelne mit Netzwerkfehler, während der Rest lädt, blockiert fast
+      // immer etwas auf dem Gerät gezielt diese Dateien (Web-Schutz eines Virenscanners, Werbe-/Trackerblocker, Netzfilter):
+      // dann statt „Verbindung prüfen“ klar sagen, was zu tun ist. Neuladen allein hilft in dem Fall nicht.
       function diagnose(f) {
-        var bad = [];
+        if (!f || f.getAttribute('data-diagnosed')) return;
+        f.setAttribute('data-diagnosed', '1');
+        var bad = [], net = 0, ok = 0;
         each(urls(), function (u) {
-          return fetch(u, { cache: 'reload' }).then(function (r) { if (!r.ok) bad.push(r.status + ' ' + u); }, function () { bad.push('Netzwerkfehler ' + u); });
+          return fetch(u, { cache: 'reload' }).then(function (r) { if (r.ok) ok++; else bad.push(r.status + ' ' + u); }, function () { net++; bad.push('Netzwerkfehler ' + u); });
         }).then(function () {
           var d = f.querySelector('[data-fatal-detail]');
+          if (net && net <= 5 && ok >= 4 * net) {
+            var host = location.hostname || 'germanclaude.github.io';
+            f.querySelector('[data-fatal-title]').textContent = net === 1 ? 'Eine Spieldatei wird blockiert' : 'Spieldateien werden blockiert';
+            f.querySelector('[data-fatal-text]').textContent = 'Alle anderen Dateien laden einwandfrei, aber ' + (net === 1 ? 'eine Datei wird' : net + ' Dateien werden') +
+              ' auf diesem Gerät blockiert – meist vom Web-Schutz eines Virenscanners (z. B. Avast, AVG, Kaspersky, ESET, Bitdefender), von einem Werbe- oder Trackerblocker (z. B. uBlock Origin, AdGuard) oder von einem Netzwerkfilter (Firma, Schule, Jugendschutz). ' +
+              'So geht es: ' + host + ' dort als Ausnahme eintragen (bzw. den Blocker auf dieser Seite ausschalten) oder den Web-Schutz kurz für diese Seite deaktivieren – danach die Seite neu laden.';
+          }
           d.textContent += bad.length ? '\nNicht ladbar:\n' + bad.slice(0, 5).join('\n') : '\nAlle Spieldateien sind erreichbar – vermutlich blockiert eine Browser-Erweiterung, ein Werbe-/Inhaltsfilter oder das Netzwerk das Laden.';
           d.textContent += '\n' + navigator.userAgent;
           d.hidden = false;
         });
       }
+      // Auch für das Fehlerpanel aus main.js (Pflichtmodul nicht ladbar)
+      window.__npDiagnose = function () { diagnose(document.getElementById('fatal')); };
       window.addEventListener('error', function (e) {
         var t = e.target;
         if (window.__game || (t && t !== window && t.tagName !== 'SCRIPT')) return; // Bilder/Stile/Schriften ignorieren

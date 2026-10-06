@@ -122,7 +122,7 @@ export class AudioEngine {
     this.hdr = new HdrWindow();
     this._unsubs = [];
     this._warm = false; this._bankLow = null; this._pinAt = new WeakMap(); this._slideVoice = null;
-    this._occl = new Map(); this._lastFire = new WeakMap(); this._reloads = new Map();
+    this._occl = new Map(); this._lastFire = new WeakMap(); this._reloads = new Map(); this._reloadSeq = new Map();
     this._lastVar = new Map(); this._objOwners = new Map(); this._actorPain = new WeakMap();
     this._tails = new Map(); this._shellAt = new WeakMap(); this._surf = new WeakMap(); this._shots = new WeakMap();
     this._pass = new Map(); this._whiz = new Map(); this._passQueued = false; this._combatWhiz = false; this._casingEvents = false;
@@ -1003,6 +1003,7 @@ export class AudioEngine {
     this._muffle.hearing = this.hearing.update(dt);
     this._updateVitals(dt);
     this._updateFoley(dt);
+    this._updateReloads(dt);
     this._applyMuffle();
   }
 
@@ -1395,22 +1396,56 @@ export class AudioEngine {
     }
   }
 
+  /**
+   * Nachladen abgebrochen (Sprint, Wechsel, Messer, Granate, Tod, Fahrzeug, Matchende …): laufende Teilklänge kurz
+   * ausblenden (30 ms, kein Knacken), bereits eingeplante gar nicht erst starten, ausstehende Schritte verwerfen.
+   */
   _cancelReload(a) {
-    const list = a && this._reloads.get(a); if (!list) return;
+    if (!a) return;
+    this._reloadSeq.delete(a);
+    const list = this._reloads.get(a); if (!list) return;
     for (const v of list) this._kill(v, 0.03);
     this._reloads.delete(a);
   }
 
+  /** Stimme dem Nachlade-Kanal des Akteurs zuordnen (wird bei Abbruch geschnitten). */
+  _trackReload(a, v) {
+    if (!v || !a) return v;
+    const l = (this._reloads.get(a) || []).filter(x => !x.stopped); l.push(v); this._reloads.set(a, l);
+    return v;
+  }
+
+  /**
+   * Teilklänge (Magazin raus/rein, Verschluss) laufen in Spielzeit statt vorab auf der Audio-Uhr: Pause und
+   * Bildrateneinbrüche (dt-Grenze 1/20 s) halten Klang und Animation synchron, ein Abbruch erwischt nichts mehr
+   * in der Zukunft. Vorlauf höchstens ein Bild (sauberes Timing), solche Stimmen schneidet _cancelReload mit.
+   */
+  _updateReloads(dt) {
+    for (const [a, r] of this._reloadSeq) {
+      if (a.alive === false) { this._cancelReload(a); continue; }
+      if (r.fresh) r.fresh = false; else r.t += dt; // Start-Bild: der Controller zählt erst ab dem nächsten Bild
+      while (r.i < r.seq.length && r.seq[r.i][1] <= r.t + dt) {
+        const [n, at] = r.seq[r.i++], pl = this._isPlayer(a);
+        const pos = pl ? null : this._eye(a);
+        if (!pl && (!pos || this._dist(pos) > 24)) continue;
+        this._trackReload(a, this.play(n, { player: pl, position: pos, actor: a, volume: r.volume, delay: Math.max(0, at - r.t) }));
+      }
+      if (r.i >= r.seq.length) this._reloadSeq.delete(a);
+    }
+  }
+
   _reload(p) {
     const a = p.actor, pl = this._isPlayer(a), def = this.weaponDef(p.weaponId), prof = this.profileFor(p.weaponId, def);
+    // Ende vor der Entfernungsprüfung (Akteur kann inzwischen weit weg sein): Abbruch schneidet alles,
+    // fertig nachgeladen darf der Ausklang stehen bleiben
+    if (p.phase === 'end') { if (p.interrupted) this._cancelReload(a); else if (a) { this._reloads.delete(a); this._reloadSeq.delete(a); } }
     const pos = pl ? null : this._eye(a);
     if (!pl && (!pos || this._dist(pos) > 24)) return;
     const shell = !!def?.perShellReload || (def == null && prof === 'shotgun');
     const base = { player: pl, position: pos, actor: a, volume: pl ? 0.9 : 0.8 };
-    const track = v => { if (!v || !a) return; const l = this._reloads.get(a) || []; l.push(v); this._reloads.set(a, l.filter(x => !x.stopped)); };
     if (p.phase === 'start') {
       this._cancelReload(a);
-      if (shell) { track(this.play('ads_out', { ...base, volume: 0.7 })); return; }
+      if (shell) { this._trackReload(a, this.play('ads_out', { ...base, volume: 0.7 })); return; }
       const T = (p.empty ? def?.reloadEmptyTime : def?.reloadTime) || RELOAD_TIME[prof] * (p.empty ? 1.25 : 1);
       const seq = prof === 'lmg'
         ? [['reload_bolt', 0.06], ['reload_mag_out', 0.22], ['reload_mag_in', 0.58], ['reload_bolt', 0.82]]
@@ -1418,12 +1453,16 @@ export class AudioEngine {
       // Leer: Verschluss/Schlitten vor – Pistolen mit echter Schlitten-Aufnahme
       const pistol = prof === 'pistol' || prof === 'pistol_heavy';
       if (p.empty && prof !== 'lmg') seq.push([prof === 'sniper' ? 'bolt' : pistol && this._recName('slide_release', true) ? 'slide_release' : 'reload_bolt', 0.78]);
-      for (const [n, f] of seq) track(this.play(n, { ...base, delay: T * f }));
+      if (a) this._reloadSeq.set(a, { seq: seq.map(([n, f]) => [n, T * f]), i: 0, t: 0, fresh: true, volume: base.volume });
     } else if (p.phase === 'insert') {
-      if (shell) track(this.play('reload_shell', base));
+      if (shell) this._trackReload(a, this.play('reload_shell', base));
     } else if (p.phase === 'end') {
-      this._reloads.delete(a);
-      if (shell && p.empty) this.play(def?.fireMode === 'bolt' ? 'bolt' : 'pump', base);
+      if (!shell || !p.empty) return;
+      // Leer nachgeladene Flinte pumpt – nach Sprint-Abbruch nur mit Patrone im Rohr, passend zur Ego-Animation (Pumpe
+      // im Ausklang); andere Abbrüche (Schuss, Messer, Wechsel, Tod …) ohne Pumpe
+      const fm = def?.fireMode === 'bolt' ? 'bolt' : 'pump';
+      if (!p.interrupted) this.play(fm, base);
+      else if (p.cause === 'sprint' && a && a.weapon?.current?.mag > 0) this._reloadSeq.set(a, { seq: [[fm, 0.38]], i: 0, t: 0, fresh: true, volume: base.volume });
     }
   }
 
@@ -1471,8 +1510,7 @@ export class AudioEngine {
         const mag = a?.weapon?.current?.mag;
         if (mag !== 0) {
           cycle = clamp((60 / (def?.rpm || (fm === 'pump' ? 70 : 45))) * 0.42, 0.22, 0.65);
-          const v = this.play(fm, { player: pl, position: pos, actor: a, delay: cycle, volume: pl ? 0.85 : 0.65 });
-          if (v && a) { const l = this._reloads.get(a) || []; l.push(v); this._reloads.set(a, l); }
+          this._trackReload(a, this.play(fm, { player: pl, position: pos, actor: a, delay: cycle, volume: pl ? 0.85 : 0.65 }));
         }
       }
       // Hülse fällt (Repetierer/Pumpe: beim Durchladen)
@@ -1692,6 +1730,8 @@ export class AudioEngine {
     // Ohrenklingeln nicht in Pausenmenü/Endbildschirm stehen lassen (dort läuft kein update())
     if (s === 'lobby' || s === 'boot' || s === 'paused' || s === 'ended') { this.hearing.reset(); this._muffle.hearing = NO_MUFFLE; }
     if (this.muffle) this._applyMuffle(true);
+    // Außerhalb von Spiel/Pause stehen die Controller still: kein Nachlade-Klang läuft in Endbildschirm oder Lobby weiter
+    if (s !== 'paused' && !IN_PLAY.has(s)) for (const a of [...this._reloads.keys(), ...this._reloadSeq.keys()]) this._cancelReload(a);
     library.inPlay = s === 'loading' || IN_PLAY.has(s); // Kartenaufbau/Spiel: nur ein Ladeauftrag gleichzeitig
     // Klangbank ab der Lobby füllen (Worker, ohne AudioContext); Ausrüstung aus der letzten Wahl zuerst;
     // Aufnahmen für Ausrüstung und Karte nachladen (Lobby: letzte Wahl, Laden: echte Wahl)
@@ -1715,7 +1755,7 @@ export class AudioEngine {
     clearTimeout(this._musicT);
     for (const t of this._timers || []) clearTimeout(t);
     this._timers?.clear();
-    for (const a of this._reloads.keys()) this._cancelReload(a);
+    for (const a of [...this._reloads.keys(), ...this._reloadSeq.keys()]) this._cancelReload(a);
     this._occl.clear(); this.acoustics.clear(); this._tails.clear(); this._pass.clear(); this._whiz.clear(); this._dif.clear();
     if (this.ctx && this.unlocked) {
       for (const v of this.voices.slice()) if (v.group === 'vital' || v.group === 'loop' && v.name === 'smoke_hiss') this._kill(v, 0.2);

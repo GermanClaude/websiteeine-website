@@ -25,6 +25,8 @@ import { DeployScreen } from './deploy.js';
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
+const _eye = new THREE.Vector3(); // Sichtprüfung der Treffermarker (Spielstil „Realistisch“)
+const _tgt = new THREE.Vector3();
 const COMPASS = [[0, 'N'], [45, 'NO'], [90, 'O'], [135, 'SO'], [180, 'S'], [225, 'SW'], [270, 'W'], [315, 'NW']];
 const DEG_PX = 2.4;
 const _aim = { x: 0, y: 0 };
@@ -286,7 +288,12 @@ export class HUD {
     const P = () => G.player;
     const mine = (a) => a && (a === P() || (a.isStreakEntity && a.owner === P()));
     s.on('actor:hit', (e) => {
-      if (mine(e.attacker) && e.target !== P()) this._hitmarker(e.killed ? 'kill' : e.zone === 'head' ? 'head' : '');
+      if (!mine(e.attacker) || e.target === P()) return;
+      // Realistisch: nur bei freier Sicht (kein Marker durch Wände/hinter Deckung); _onKill übernimmt das Ergebnis
+      const seen = this._hitVisible(e.target, e.point);
+      this._hitSeen = e.target;
+      this._hitSeenOk = seen;
+      if (seen) this._hitmarker(e.killed ? 'kill' : e.zone === 'head' ? 'head' : '');
     });
     s.on('streak:hit', (e) => { if (mine(e.attacker)) this._hitmarker(e.destroyed ? 'kill' : 'metal'); });
     s.on('training:hit', (e) => this._onTrainingHit(e));
@@ -609,13 +616,35 @@ export class HUD {
     this._play(h, 'hit');
   }
 
+  /**
+   * Treffermarker erlaubt? Spielstil „Realistisch“ (styleFlags.hitmarkers 'sicht' bzw. hitmarkerThroughWalls false):
+   * nur bei freier Sicht der Kamera auf den Trefferpunkt (sonst Körpermitte) – Treffer durch Wände oder hinter Deckung
+   * (Durchschuss, Granate) bleiben unbestätigt. Arcade: immer.
+   */
+  _hitVisible(target, point) {
+    const fl = this._flags;
+    if (!fl || (fl.hitmarkers !== 'sicht' && fl.hitmarkerThroughWalls !== false)) return true;
+    const G = this.G;
+    const W = G.world;
+    if (!W || typeof W.lineOfSight !== 'function' || !G.camera) return true;
+    if (point) _tgt.copy(point);
+    else if (target && target.position) {
+      _tgt.copy(target.position);
+      _tgt.y += target.body && target.body.height ? target.body.height * 0.6 : 1.1;
+    } else return true;
+    G.camera.getWorldPosition(_eye);
+    return W.lineOfSight(_eye, _tgt);
+  }
+
   _onKill(e) {
     const G = this.G;
     if (!(this._flags && this._flags.killfeed === 'eigene') || e.killer === this.G.player || e.victim === this.G.player) this.feed.pushKill(e, { weapons: !(this._flags && this._flags.killfeed === 'eigene' && this.G.match.style === 'realistisch') });
     const p = G.player;
-    // Abschuss-Bestätigung unter dem Fadenkreuz
+    // Abschuss-Bestätigung unter dem Fadenkreuz (Realistisch: nur bei freier Sicht – Ergebnis des letzten Treffers)
     const k = e.killer;
-    if (k && e.victim !== p && (k === p || (k.isStreakEntity && k.owner === p)) && this.style !== 'aus') {
+    const seen = e.victim === this._hitSeen ? this._hitSeenOk : this._hitVisible(e.victim, null);
+    this._hitSeen = null;
+    if (k && e.victim !== p && (k === p || (k.isStreakEntity && k.owner === p)) && this.style !== 'aus' && seen) {
       const n = this.el.killico;
       setHtml(n, e.headshot ? ICON.head : ICON.skull);
       const cls = `h-killico${e.headshot ? ' is-head' : ''}`;
@@ -906,7 +935,7 @@ export class HUD {
       const st = melee ? 'dot' : def && def.pellets > 1 && style === 'cross' ? 'circle' : style;
       if (cross.dataset.style !== st) cross.dataset.style = st;
       setStyle(cross, '--cc', G.settings.get('crosshairColor'));
-      toggle(cross, 'is-enemy', !!(input && input.aimTarget));
+      toggle(cross, 'is-enemy', !!(input && input.aimTarget) && !(this._flags && this._flags.enemyMarkers === false)); // Realistisch: Fadenkreuz verrät keine Gegner
     }
     // Fadenkreuz, Treffermarker und Abschuss-Symbol auf dem Laufpunkt (freies Zielen, Lehnen, Körperkamera, Objektiv)
     this._updateAim(p, alive, vw, vh);
