@@ -257,7 +257,7 @@ async function importModule(path, required) {
     mod = await import(url);
   } catch (err) {
     if (!isFetchError(err)) throw err;
-    mod = await import(`${url}?retry=${Date.now()}`);
+    mod = await import(`${url}${url.includes('?') ? '&' : '?'}retry=${Date.now()}`);
   }
   const missing = required.filter((n) => typeof mod[n] === 'undefined');
   if (missing.length) throw new Error(`${path}: Exporte fehlen (${missing.join(', ')})`);

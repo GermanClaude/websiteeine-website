@@ -14,7 +14,7 @@ import { VARIANTS, schemeForTeam, ffaSchemes } from './character.js';
 import { upgradeSoldierMaterials, soldierDetailInfo } from './soldier/materials.js';
 import { analyze } from './ai/tactics.js';
 import { TeamTactics, planRoles } from './ai/squad.js';
-import { BotAdapt } from './ai/adapt.js';
+import { BotAdapt } from './ai/spielstil.js';
 import { CLASSES, pickBotClass, resolveClassLoadout } from '../../shared/classes.data.js';
 
 const _m = new THREE.Matrix4();

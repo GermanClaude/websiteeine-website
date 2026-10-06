@@ -17,5 +17,7 @@ sed -i "s#$URL_OLD#$URL_NEW#g" "$DST/index.html"
 BUILD="$(date -u +%Y%m%d%H%M%S)"
 printf "// NULLPUNKT — Fassungskennung (von tools/publish.sh geschrieben).\nexport const BUILD = '%s';\n" "$BUILD" > "$DST/assets/js/shared/build.js"
 printf '{"build":"%s"}\n' "$BUILD" > "$DST/version.json"
+# alle eigenen Moduladressen mit ?v=<Fassung> versehen (kein Mischen alter und neuer Module aus dem Browser-Cache)
+node "$SRC/tools/stamp.mjs" "$DST" "$BUILD"
 echo "Fassung $BUILD"
 echo "Übertragen nach $DST – jetzt dort prüfen, committen und pushen (README.md dort wird nicht überschrieben)."
