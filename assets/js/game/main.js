@@ -24,6 +24,7 @@ import { createRenderer, QUALITY_LEVELS, resolveQuality } from './engine/rendere
 import { Input } from './engine/input.js';
 import { createFullscreen } from './engine/fullscreen.js'; // Vollbild auf allen Plattformen (G.fullscreen)
 import { FullscreenUI } from './ui/fullscreen-ui.js';
+import { watchForUpdates } from './engine/update.js'; // Hinweis auf neue Fassung (nur veröffentlicht)
 import { separateActors } from './engine/physics.js';
 import { DynamicResolution } from './engine/dynres.js';
 import { renderScaleValue, fpsLimitValue } from '../shared/graphics.data.js'; // Erweitert-Grafik (S9, ui-controls)
@@ -1624,6 +1625,7 @@ async function bootstrap() {
     if (DEBUG) console.info('[NULLPUNKT] Module:', { ...G.moduleStatus });
     if (AUTOSTART) startMatch(configFromParams());
     else G.menus.showLobby();
+    safe('update', () => watchForUpdates({ isIdle: () => G.match.state === 'lobby' }));
   } catch (err) {
     showFatal(phase, err);
   }

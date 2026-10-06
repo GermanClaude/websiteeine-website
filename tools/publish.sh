@@ -13,4 +13,9 @@ rm -rf "$DST/assets" && cp -a "$SRC/assets" "$DST/assets"
 # 3 MB) lädt das Spiel immer (Hybrid-Klang, audio) → bleiben auch ohne PUBLISH_LIB
 [ "${PUBLISH_LIB:-0}" = 1 ] || find "$DST/assets/lib" -mindepth 1 -maxdepth 1 ! -name audio -exec rm -rf {} +
 sed -i "s#$URL_OLD#$URL_NEW#g" "$DST/index.html"
+# Fassungskennung: Spiel vergleicht shared/build.js mit version.json und bietet nach Updates „Jetzt aktualisieren“ an
+BUILD="$(date -u +%Y%m%d%H%M%S)"
+printf "// NULLPUNKT — Fassungskennung (von tools/publish.sh geschrieben).\nexport const BUILD = '%s';\n" "$BUILD" > "$DST/assets/js/shared/build.js"
+printf '{"build":"%s"}\n' "$BUILD" > "$DST/version.json"
+echo "Fassung $BUILD"
 echo "Übertragen nach $DST – jetzt dort prüfen, committen und pushen (README.md dort wird nicht überschrieben)."
