@@ -100,7 +100,7 @@ export class GunCollider {
       const md = maxD / g.scale;
       if (g.box.distanceToPoint(_p) > Math.min(md, best)) continue;
       const stamp = ++this._stamp >= 0xffffffff ? (this._stamp = 1) : this._stamp;
-      const r = Math.min(2, Math.ceil(md / CELL));
+      const r = Math.min(3, Math.ceil(md / CELL));
       const cx = Math.floor(_p.x / CELL), cy = Math.floor(_p.y / CELL), cz = Math.floor(_p.z / CELL);
       const T = g.T, N = g.N, st = g.stamp;
       for (let x = cx - r; x <= cx + r; x++) for (let y = cy - r; y <= cy + r; y++) for (let z = cz - r; z <= cz + r; z++) {
@@ -134,6 +134,21 @@ export class GunCollider {
     return true;
   }
 }
+
+/**
+ * Eindringtest für einen Kugelpunkt (Mittelpunkt p, Radius r): erst kleine Suche (r + 1 mm); findet sie nichts,
+ * liegt p aber in der Hüllbox eines Teils, kann der Punkt tief innen stecken → große Suche (65 mm).
+ * Rückgabe: Eindringtiefe (m, > 0 = steckt drin) oder −Infinity; Richtung heraus in out.dir.
+ */
+GunCollider.prototype.pen = function pen(p, r, out) {
+  if (this.query(p, r + 0.001, out)) return r - out.d;
+  for (const g of this.groups) {
+    if (!g.on) continue;
+    _p.copy(p).applyMatrix4(g.inv);
+    if (g.box.containsPoint(_p)) return this.query(p, 0.065, out) ? r - out.d : -Infinity;
+  }
+  return -Infinity;
+};
 
 // Nächster Punkt auf Dreieck (Ericson, Real-Time Collision Detection 5.1.5) → CP, Rückgabe Abstand²
 const CP = new Float64Array(3);
@@ -173,3 +188,22 @@ function closestOnTri(T, o, px, py, pz) {
 
 /** Ergebnisobjekt für GunCollider.query (wiederverwendbar). */
 export function contactHit() { return { hit: false, d: Infinity, dir: new THREE.Vector3(), g: null, dl: 0, cx: 0, cy: 0, cz: 0, nx: 0, ny: 0, nz: 0, px: 0, py: 0, pz: 0 }; }
+
+/** Mehrere Kollisionskörper als einer (Waffe + sichtbare Requisiten wie Granate, Messer, Platte). */
+export class MultiCollider {
+  constructor() { this.list = []; this._h = contactHit(); }
+  set(list) { this.list = list; return this; }
+  sync() { for (const c of this.list) c.sync(); }
+  query(p, maxD, out) {
+    out.hit = false; out.d = Infinity;
+    const h = this._h;
+    for (const c of this.list) if (c.query(p, maxD, h) && h.d < out.d) { out.hit = true; out.d = h.d; out.dir.copy(h.dir); out.g = h.g; }
+    return out.hit;
+  }
+  pen(p, r, out) {
+    let best = -Infinity;
+    const h = this._h;
+    for (const c of this.list) { const v = c.pen(p, r, h); if (v > best) { best = v; out.d = h.d; out.dir.copy(h.dir); out.g = h.g; out.hit = h.hit; } }
+    return best;
+  }
+}

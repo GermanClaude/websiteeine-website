@@ -18,7 +18,7 @@ import { WEAPONS, weaponHandling } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
 import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE, MELEE_STYLES } from './gunsmith/handling.js';
 import { EXTRA_ACTIONS } from './gunsmith/actions2.js';
-import { GunCollider } from './gunsmith/contact.js';
+import { GunCollider, MultiCollider } from './gunsmith/contact.js';
 import { applyCamo } from './gunsmith/camos.js';
 import { CLASS_LOOKS, SKIN_TIERS, classLookId } from '../../shared/weapons.data.js';
 import { MuzzleFlash, ShellPool, SmokeWisps, HeatHaze } from './gunsmith/fx.js';
@@ -125,7 +125,7 @@ export class ViewModel {
     // Ärmel im Tarnmuster des eigenen Teams (wie die Mitspieler-Bots); Jeder gegen jeden: neutral
     this._team = G.player ? G.player.team ?? null : 'A';
     this._scheme = schemeForTeam(this._team, G.world) || null;
-    this.arms = new Arms({ camo: sleeveCamo(this._scheme) });
+    this.arms = new Arms({ camo: sleeveCamo(this._scheme), quality: G.renderer?.quality || 'high' });
     this.root.add(this.arms.group);
 
     // Licht (folgt der Weltbeleuchtung relativ zur Blickrichtung)
@@ -239,6 +239,10 @@ export class ViewModel {
     const rest = new Map();
     for (const [n, p] of Object.entries(ud.parts)) rest.set(n, { pos: p.position.clone(), quat: p.quaternion.clone(), vis: p.visible });
     entry = { id, key, model, ud, rest };
+    // Arbeitsstelle der Stützhand beim Nachladen (Modellraum, Ruhelage) für _frameWork
+    const h0 = handlingFor(key), an = ud.anchors;
+    const work = h0.reload === 'revolver' ? an.cylGrab : h0.reload === 'rocket' ? (an.rocketGrab || ud.muzzle) : h0.reload === 'shell' ? an.shellPort : (an.magGrab || ud.magazine);
+    if (work) entry.workRest = model.worldToLocal(work.getWorldPosition(new THREE.Vector3()));
     // Kontaktgitter (hands): Hände legen sich an die echte Oberfläche statt in die Waffe (Arm.contact)
     try { entry.collider = new GunCollider(model); } catch (err) { console.warn('[gunsmith] Kontaktgitter', err); entry.collider = null; }
     entry.contactMemo = new Map();
@@ -373,7 +377,7 @@ export class ViewModel {
     const look = CLASS_LOOKS[lookId] || CLASS_LOOKS.standard;
     const T = SKIN_TIERS[tier] || SKIN_TIERS.standard;
     const m = this.arms.mats;
-    m.glove.color.set(T.glove || look.glove || '#ffffff');
+    this.arms.setGlove(T.glove || look.glove || '#ffffff');   // taktischer Mittelton (nie fast schwarz), siehe arms.js gloveTone
     m.sleeve.color.set(T.sleeve || look.sleeve || '#ffffff');
     this.arms.setCamo(look.sleeveCamo || sleeveCamo(this._scheme));
     const key = lookId + ':' + (T.id || 'standard');
@@ -654,6 +658,7 @@ export class ViewModel {
 
   _applyQuality(q) {
     this.quality = q;
+    this.arms?.setQuality?.(q);   // Handschuh-/Ärmeltexturen 256² (low) … 1024² (high/ultra)
     this.rim.visible = q !== 'low';
     this.shells.limit = q === 'low' ? 6 : 14;
     // Hitzeflimmern nur auf high/ultra (Bildkopie + ein Billboard)
@@ -934,6 +939,13 @@ export class ViewModel {
     // Rückstoß: Federstoß + Hochklettern im Dauerfeuer
     P.x += rp.x; P.y += rp.y + this._climb * 0.04 * na; P.z += rp.z + this._climb * 0.06;
     R.x += rr.x + this._climb * (0.12 + 0.88 * na); R.y += rr.y; R.z += rr.z;
+    // Liegen (hands): Waffe angehoben, näher und leicht gekantet – Magazin/Hand tauchen nicht in den nahen Boden
+    this._prone = damp(this._prone || 0, clamp(this.G?.player?.proneBlend ?? 0, 0, 1), 6, dt);
+    if (this._prone > 1e-3) {
+      const pr = smooth(this._prone) * na;
+      P.x -= 0.018 * pr; P.y += 0.058 * pr; P.z += 0.035 * pr;
+      R.x += 0.04 * pr; R.z += 0.14 * pr;
+    }
     // Lehnen: Waffe folgt mit leichtem Verzug zur Seite und kantet etwas mehr (nur an der Hüfte)
     this._lean = damp(this._lean, clamp(s.lean || 0, -1, 1), 9, dt);
     P.x += this._lean * 0.012 * na;
@@ -990,6 +1002,10 @@ export class ViewModel {
         R.x -= 0.55 * o2; R.y += 0.32 * o2; R.z += 0.26 * o2;
       }
     }
+    // Nachladen einrahmen (hands): die Arbeitsstelle der Stützhand (Magazinschacht, Ladeöffnung, Trommel, Rohrmündung)
+    // wird während der Aktion ins untere Bilddrittel gehoben/geschoben – wie bei echten Ego-Shootern dreht und hebt
+    // man die Waffe zur Kamera, statt unter dem Bildrand zu hantieren. Nur anheben/wegschieben, höchstens 0,22 m.
+    if (act && act.frame > 1e-3 && this.cur.workRest) this._frameWork(P, R, act.frame);
     this.gun.position.copy(P);
     this.gun.rotation.set(R.x, R.y, R.z, 'YXZ');
     // Drehung um das Auge: freies Zielen (Waffe zeigt in die Laufrichtung, Visierlinie bleibt am Auge) und der
@@ -1055,6 +1071,18 @@ export class ViewModel {
     this._updateLights(dt);
   }
 
+  _frameWork(P, R, w) {
+    const cam = this.camera;
+    _q.setFromEuler(_e.set(R.x, R.y, R.z, 'YXZ'));
+    const p = _v.copy(this.cur.workRest).applyMatrix4(this.cur.model.matrix).applyQuaternion(_q).add(P);
+    const d = Math.max(0.3, -p.z);
+    const tanV = Math.tan(((cam.fov || 54) * Math.PI) / 360), tanH = tanV * (cam.aspect || 1.78);
+    const tx = clamp(p.x, -0.3 * d * tanH, 0.2 * d * tanH), ty = -0.42 * d * tanV;
+    const dx = tx - p.x, dy = Math.max(0, ty - p.y), dz = Math.min(0, -d - p.z);
+    const l = Math.hypot(dx, dy, dz), k = l > 0.22 ? 0.22 / l : 1;
+    P.x += dx * k * w; P.y += dy * k * w; P.z += dz * k * w;
+  }
+
   // Anker → Handziel im Kameraraum
   _anchorTarget(anchor, style, data, out, side = 1) {
     _m.multiplyMatrices(this._rootInv, anchor.matrixWorld);
@@ -1080,7 +1108,9 @@ export class ViewModel {
     // Rechte Hand: Pistolengriff (Messer: Faustgriff)
     const rStyle = h.action === 'knife' ? 'knife' : 'pistolGrip';
     this._anchorTarget(ud.rightHandGrip, rStyle, ud.rightHandGrip.userData, R, 1);
-    const busyR = act ? this._applyRequests(act.right, R, 1) : 0;
+    let busyR = act ? this._applyRequests(act.right, R, 1) : 0;
+    // Bewegte Teile unter der Schusshand (Schlitten zurück, Verschluss/Trommel in Bewegung): je Bild statt gemerkt
+    if (busyR <= 1e-3 && (this._slideLocked || this._boltLocked || this._boltT < 1 || (act && (act.parts.slide || act.parts.boltHandle || act.parts.crane || act.parts.cylinder)))) { busyR = 2e-3; this._reqStyle = rStyle; }
     this.arms.right.applyPose(R.pose);
     this._contact(this.arms.right, R, busyR, 'R:' + rStyle, { grip: busyR < 0.5 || GRIP_STYLES.has(this._reqStyle), skipIndex: rStyle === 'pistolGrip' && busyR < 0.5 });
     this.arms.right.solve(R.pos, R.quat);
@@ -1103,9 +1133,19 @@ export class ViewModel {
    * (Nachladen, Inspizieren, Übergänge) läuft der Löser je Bild. busy < 0: Hand frei (kein Kontakt nötig).
    */
   _contact(arm, T, busy, key, opts) {
-    const col = this.cur.collider;
+    let col = this.cur.collider;
     if (!col || busy < 0) return;
     if (col.frame !== this._contactFrame) { col.sync(); col.frame = this._contactFrame; }
+    // Sichtbare Requisiten (Granate, Messer, Platte): fremde zählen wie die Waffe, das eigene nur für die Finger
+    let own = null, other = null;
+    for (const p of Object.values(this.props)) {
+      if (!p.visible || !p.parent) continue;
+      const c = p.userData.__col || (p.userData.__col = new GunCollider(p));
+      if (c.frame !== this._contactFrame) { c.sync(); c.frame = this._contactFrame; }
+      if (p.parent === arm.handBone) own = c; else (other || (other = [])).push(c);
+    }
+    if (other) { col = (this._multiCol || (this._multiCol = new MultiCollider())).set([col, ...other]); busy = Math.max(busy, 2e-3); }
+    if (own) { busy = Math.max(busy, 2e-3); opts.own = own; }
     const memo = this.cur.contactMemo;
     if (busy <= 1e-3) {
       const m = memo.get(key);
@@ -1203,7 +1243,7 @@ export class ViewModel {
     }
     const out = this._act || (this._act = { p: [0, 0, 0], r: [0, 0, 0], left: reqList(), right: reqList(), parts: {} });
     out.p[0] = out.p[1] = out.p[2] = 0; out.r[0] = out.r[1] = out.r[2] = 0;
-    out.left.n = 0; out.right.n = 0;
+    out.left.n = 0; out.right.n = 0; out.frame = 0;
     for (const k in out.parts) delete out.parts[k];
     let done = false;
     switch (A.type) {
@@ -1221,6 +1261,7 @@ export class ViewModel {
     const f = A.cancel ? Math.max(0, A.fade) : 1;
     if (f < 1) {
       for (let i = 0; i < 3; i++) { out.p[i] *= f; out.r[i] *= f; }
+      out.frame *= f;
       for (let i = 0; i < out.left.n; i++) out.left.items[i].w *= f;
       for (let i = 0; i < out.right.n; i++) out.right.items[i].w *= f;
       for (const k in out.parts) if (k !== '_vis') out.parts[k] = out.parts[k].map(v => v * f);
@@ -1253,10 +1294,13 @@ export class ViewModel {
     curve(m, [[0, ZERO3], [0.13, [0.16, 0.2, -0.46]], [0.8, [0.18, 0.22, -0.5]], [0.95, ZERO3]], out.r);
     curve(m, [[0, ZERO3], [0.13, [-0.045, 0.045, 0.05]], [0.8, [-0.045, 0.05, 0.05]], [0.95, ZERO3]], out.p);
     // Magazin: raus nach unten, aus dem Bild, neues hinein
-    const mag = curve(m, [[0.26, ZERO3], [0.36, [0, -0.07, 0.012]], [0.47, [-0.16, -0.5, 0.12]], [0.48, [-0.12, -0.45, 0.1]], [0.58, [0, -0.08, 0.014]], [0.65, [0, -0.01, 0.002]], [0.67, ZERO3]]);
-    const magRot = curve(m, [[0.26, 0], [0.4, 0.25], [0.48, 0.25], [0.58, 0.12], [0.67, 0]]);
+    // Stützhand zieht das Magazin, lässt es fallen (Welt-Kopie ab 0,3), taucht nur kurz unter den Bildrand zur Tasche
+    // und kommt mit dem neuen Magazin zurück (hands: früher 0,5 m tief und lange außerhalb des Bildes)
+    const mag = curve(m, [[0.26, ZERO3], [0.36, [0, -0.07, 0.012]], [0.425, [-0.08, -0.22, 0.06]], [0.435, [-0.07, -0.21, 0.055]], [0.56, [0, -0.08, 0.014]], [0.65, [0, -0.01, 0.002]], [0.67, ZERO3]]);
+    const magRot = curve(m, [[0.26, 0], [0.4, 0.25], [0.44, 0.25], [0.56, 0.12], [0.67, 0]]);
     out.parts.mag = [mag[0], mag[1], mag[2], magRot, 0, 0];
-    this._magWindow(A, out, m, 0.3, 0.475);
+    this._magWindow(A, out, m, 0.3, 0.43);
+    out.frame = windowW(m, 0.08, 0.22, 0.7, 0.86);
     if (m > 0.66 && m < 0.7 && !A.slapped) { A.slapped = true; this._jolt.kick(1.2, 0, 0); this._recoilPos.kick(0, 0.004, 0); }
     // Linke Hand: zum Magazin, mit ihm hinaus und zurück
     const wMag = windowW(m, 0.14, 0.25, 0.68, 0.8);
@@ -1349,11 +1393,12 @@ export class ViewModel {
     else tilt = 1 - smooth(clamp(A.pt / T.end, 0, 1));
     out.r[0] = 0.18 * tilt; out.r[1] = 0.12 * tilt; out.r[2] = -0.42 * tilt;
     out.p[0] = -0.03 * tilt; out.p[1] = 0.03 * tilt; out.p[2] = 0.02 * tilt;
+    out.frame = 0.8 * tilt;   // Ladeöffnung ins Bild (hands)
     // Linke Hand: Patrone holen und von unten einschieben
     const port = ud.anchors.shellPort;
     if (A.phase === 'insert' && port) {
       const c = clamp(A.pt / T.insert, 0, 1);
-      const shellOff = curve(c, [[0, [-0.06, -0.3, 0.06]], [0.45, [0, -0.045, 0.02]], [0.62, [0, -0.012, 0.004]], [0.78, [0, 0.008, -0.03]]]);
+      const shellOff = curve(c, [[0, [-0.05, -0.18, 0.05]], [0.45, [0, -0.045, 0.02]], [0.62, [0, -0.012, 0.004]], [0.78, [0, 0.008, -0.03]]]);
       out.parts.shell = [shellOff[0], shellOff[1], shellOff[2], 0.3 * (1 - c), 0, 0];
       out.parts._vis = { shell: c < 0.8 };
       // Hand hält die Patrone (folgt dem Patronen-Teil)
@@ -1392,14 +1437,16 @@ export class ViewModel {
     curve(u, [[0, ZERO3], [0.12, [0.36, 0.22, -0.42]], [0.8, [0.38, 0.24, -0.45]], [0.95, ZERO3]], out.r);
     curve(u, [[0, ZERO3], [0.12, [-0.035, 0.06, 0.04]], [0.8, [-0.035, 0.062, 0.04]], [0.95, ZERO3]], out.p);
     // Magazin fällt entlang der Griffachse heraus, neues kommt von unten links
-    const mag = curve(u, [[0.12, ZERO3], [0.2, [0, -0.07, 0.025]], [0.3, [0.02, -0.5, 0.15]], [0.31, [-0.12, -0.3, 0.1]], [0.48, [-0.02, -0.075, 0.03]], [0.58, [0, -0.012, 0.004]], [0.62, ZERO3]]);
+    const mag = curve(u, [[0.12, ZERO3], [0.2, [0, -0.07, 0.025]], [0.3, [0.02, -0.5, 0.15]], [0.31, [-0.08, -0.22, 0.07]], [0.44, [-0.02, -0.07, 0.028]], [0.56, [0, -0.012, 0.004]], [0.62, ZERO3]]);
     out.parts.mag = [mag[0], mag[1], mag[2]];
     this._magWindow(A, out, u, 0.17, 0.305);
+    out.frame = windowW(u, 0.06, 0.16, 0.66, 0.84);
     if (u > 0.6 && !A.slapped) { A.slapped = true; this._jolt.kick(1.4, 0, 0); this._recoilPos.kick(0, 0.005, 0); }
     // Linke Hand verlässt den Stützgriff, holt das neue Magazin, setzt es ein
-    const wAway = windowW(u, 0.1, 0.22, 0.66, 0.82);
+    // Stützhand: kurz zur Magazintasche (knapp unter dem Bildrand), dann mit dem neuen Magazin von unten zum Schacht
+    const wAway = windowW(u, 0.1, 0.2, 0.66, 0.82);
     if (wAway > 0) {
-      if (u < 0.3) req(out.left, wAway, { free: [[-0.1, -0.32, -0.22], [0.4, 0.5, -0.7], [-0.7, 0.4, 0.2], 'relaxed'] });
+      if (u < 0.3) req(out.left, wAway, { free: [[-0.11, -0.25, -0.27], [0.4, 0.5, -0.7], [-0.7, 0.4, 0.2], 'relaxed'] });
       else req(out.left, wAway, { anchor: ud.anchors.magGrab || ud.magazine, style: 'mag' });
     }
     // Schlittenfang lösen (leer): Schlitten schnellt vor
@@ -1416,10 +1463,11 @@ export class ViewModel {
     const k = empty ? 0.78 : 1, m = u / k;
     curve(m, [[0, ZERO3], [0.14, [0.1, 0.24, 0.42]], [0.8, [0.1, 0.24, 0.44]], [0.95, ZERO3]], out.r);
     curve(m, [[0, ZERO3], [0.14, [-0.01, -0.05, -0.03]], [0.8, [-0.01, -0.05, -0.03]], [0.95, ZERO3]], out.p);
-    const mag = curve(m, [[0.25, ZERO3], [0.33, [0, 0.022, 0.03]], [0.45, [-0.2, -0.35, 0.15]], [0.46, [-0.2, -0.3, -0.05]], [0.58, [0, 0.03, -0.02]], [0.66, [0, 0.008, 0]], [0.69, ZERO3]]);
-    const magRot = curve(m, [[0.25, 0], [0.33, -0.18], [0.46, -0.3], [0.58, -0.1], [0.69, 0]]);
+    const mag = curve(m, [[0.25, ZERO3], [0.33, [0, 0.022, 0.03]], [0.42, [-0.13, -0.2, 0.09]], [0.43, [-0.12, -0.18, -0.03]], [0.57, [0, 0.03, -0.02]], [0.66, [0, 0.008, 0]], [0.69, ZERO3]]);
+    const magRot = curve(m, [[0.25, 0], [0.33, -0.18], [0.43, -0.3], [0.57, -0.1], [0.69, 0]]);
     out.parts.mag = [mag[0], mag[1], mag[2], magRot, 0, 0];
-    this._magWindow(A, out, m, 0.3, 0.455);
+    this._magWindow(A, out, m, 0.3, 0.425);
+    out.frame = windowW(m, 0.08, 0.22, 0.72, 0.88);
     if (m > 0.68 && !A.slapped) { A.slapped = true; this._jolt.kick(1.3, 0, 0); }
     const wMag = windowW(m, 0.14, 0.25, 0.7, 0.82);
     if (wMag > 0 && ud.anchors.magGrab) req(out.left, wMag, { anchor: ud.anchors.magGrab, style: 'magTop' });
@@ -1446,12 +1494,13 @@ export class ViewModel {
     const cover = curve(u, [[0.1, 0], [0.18, -1.15], [0.66, -1.15], [0.74, 0]]);
     out.parts.cover = [0, 0, 0, cover, 0, 0];
     if (u > 0.735 && !A.slapped) { A.slapped = true; this._jolt.kick(1.5, 0, 0); }
-    const box = curve(u, [[0.26, ZERO3], [0.34, [-0.04, -0.08, 0.02]], [0.44, [-0.25, -0.5, 0.1]], [0.45, [-0.22, -0.45, 0.05]], [0.56, [-0.02, -0.06, 0.01]], [0.6, ZERO3]]);
+    const box = curve(u, [[0.26, ZERO3], [0.34, [-0.04, -0.08, 0.02]], [0.42, [-0.14, -0.3, 0.07]], [0.43, [-0.13, -0.28, 0.04]], [0.56, [-0.02, -0.06, 0.01]], [0.6, ZERO3]]);
+    out.frame = windowW(u, 0.06, 0.16, 0.8, 0.94);
     out.parts.mag = [box[0], box[1], box[2]];
     const belt = curve(u, [[0.58, [0, -0.02, 0]], [0.66, ZERO3]]);
     out.parts.belt = [belt[0], belt[1], belt[2]];
     out.parts._vis = { belt: !(u > 0.3 && u < 0.6) };
-    this._magWindow(A, out, u, 0.32, 0.445);
+    this._magWindow(A, out, u, 0.32, 0.425);
     // Hand: Deckel öffnen → Kasten → Gurt einlegen → Deckel schließen
     const coverReq = { part: 'cover', style: 'pinchSide', offset: [-0.028, 0.02, 0.232] };
     if (u < 0.24) req(out.left, windowW(u, 0.06, 0.12, 0.2, 0.26), coverReq);
@@ -1761,7 +1810,7 @@ function wallBegin(vm, d, dt, eq) {
   W.n = 0; W.d = d; W.eq = eq || null; W.ok = false; W.rays = 0;
   const cam = vm.camera;
   const tv = Math.tan(((cam.fov || 54) * Math.PI) / 360);
-  W.tanV = tv * 1.04; W.tanH = W.tanV * (cam.aspect || 1.78);
+  W.tanV = tv; W.tanH = tv * (cam.aspect || 1.78);
   W.kx = W.ky = 1;
   const G = vm.G, main = G && G.camera, w = G && G.world;
   if (!main || !w || typeof w.raycast !== 'function') return W;
@@ -1778,13 +1827,17 @@ function wallBegin(vm, d, dt, eq) {
   return W;
 }
 
-/** Stützpunkt i in der zuletzt mit wallPose gesetzten Lage (+ Anziehen back) → _wv (Viewmodel-Kameraraum); true = im Bild. */
-function wallPoint(vm, pts, i, P, back, W) {
+/**
+ * Stützpunkt i in der zuletzt mit wallPose gesetzten Lage (+ Anziehen back) → _wv (Viewmodel-Kameraraum); true = im
+ * Bild. f = Bildrand-Zugabe: Prüfen/Lösen mit 1,25 – eine Lösung „Waffe aus dem Bild“ muss deutlich jenseits des
+ * Randes liegen (sonst ragt sie während des Glättens sichtbar in die Wand), Zählen der sichtbaren Punkte mit 1.
+ */
+function wallPoint(vm, pts, i, P, back, W, f = 1.25) {
   _wv.copy(pts[i]).applyMatrix4(vm.cur.model.matrix).applyQuaternion(_wq);
   _wv.x += P.x + _woff.x; _wv.y += P.y + _woff.y; _wv.z += P.z + _woff.z + back;
   if (W.eq) _wv.applyQuaternion(W.eq);
   const depth = -_wv.z;
-  return depth >= 0.02 && Math.abs(_wv.x) <= depth * W.tanH && Math.abs(_wv.y) <= depth * W.tanV;
+  return depth >= 0.02 && Math.abs(_wv.x) <= depth * W.tanH * f && Math.abs(_wv.y) <= depth * W.tanV * f;
 }
 
 /**
@@ -1809,7 +1862,9 @@ function wallCast(W, src, x, y, z, extra, ox = 0, oy = 0, oz = 0, minT = 0) {
     const pl = W.pl[W.n++];
     pl.hx = ox + _wn.x * t; pl.hy = oy + _wn.y * t; pl.hz = oz + _wn.z * t;
     pl.nx = _wn2.x; pl.ny = _wn2.y; pl.nz = _wn2.z;
-    pl.c = -(pl.nx * pl.hx + pl.ny * pl.hy + pl.nz * pl.hz) + W.lead * Math.min(0, _wn2.dot(_wvel));
+    // ohne Vorhalt: der steckt in der Wandtiefe des Controllers (Ebene quer zur Blickachse); verschobene Einzelflächen
+    // machten beim Hinlaufen jede kleine Neigung ungültig → die Waffe sprang spät und weit aus dem Bild
+    pl.c = -(pl.nx * pl.hx + pl.ny * pl.hy + pl.nz * pl.hz);
     pl.src = src;
   }
   return L - t;
@@ -1905,7 +1960,7 @@ function wallSolveTilt(vm, pts, P, R, back, pistol, W, sg, max, nBase, out) {
 function wallVisible(vm, pts, P, R, back, th, pistol, W) {
   wallPose(vm, R, th, back, pistol);
   let n = 0;
-  for (let i = 0; i < pts.length; i++) if (wallPoint(vm, pts, i, P, back, W)) n++;
+  for (let i = 0; i < pts.length; i++) if (wallPoint(vm, pts, i, P, back, W, 1)) n++;
   return n;
 }
 const _wt1 = { th: 0, ok: false, res: 0, vis: 0 }, _wt2 = { th: 0, ok: false, res: 0, vis: 0 };
@@ -1941,15 +1996,25 @@ function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
       if (!backOk) {
         if (na > 0.02) {
           const nBase = W.n;
-          const first = st.dir > 0 ? 1 : -1;
+          // immer zuerst die Hauptrichtung (Gewehr ab/ein, Pistole an die Brust: löst Wände in jeder Nähe); die
+          // Gegenrichtung nur, wenn die Hauptrichtung nicht frei wird oder die Waffe ganz aus dem Bild nähme – sonst
+          // kippte die Waffe vor einer näher kommenden Wand erst hoch, dann (durch die Wand) herunter
+          const first = 1;
           const vis0 = Math.max(1, wallVisible(vm, pts, P, R, 0, 0, pistol, W));
           const tA = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, first, first > 0 ? WALL_TILT : WALL_TILT2, nBase, _wt1);
           let pick = tA;
           // Gegenrichtung prüfen, wenn die erste nicht frei wird, weit kippt oder die Waffe großteils aus dem Bild
           // nimmt (an einer hüfthohen Kiste lieber Mündung hoch als die Waffe unter den Bildrand)
-          if (!tA.ok || Math.abs(tA.th) > 0.5 || tA.vis < vis0 * 0.6) {
+          if (!tA.ok || Math.abs(tA.th) > 0.5 || tA.vis < vis0 * 0.3) {
             const tB = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, -first, first > 0 ? WALL_TILT2 : WALL_TILT, nBase, _wt2);
-            const score = (t) => Math.abs(t.th) + 0.6 * Math.max(0, 1 - t.vis / vis0);
+            // Gegenrichtung nur über niedrigen Hindernissen: hält sie nicht mehr, wenn die Wand vor dem Auge 0,35 m
+            // näher käme, ist es eine Wand – dann gleich die Hauptrichtung (kein Umschwenken durch die Wand beim Hinlaufen)
+            if (tB.ok && W.d < 4) {
+              const d0 = W.d; W.d = d0 - 0.35;
+              if (wallViol(vm, pts, P, R, wantBack, tB.th, pistol, W) > 0) { tB.ok = false; tB.res = Math.max(tB.res, 0.05); }
+              W.d = d0;
+            }
+            const score = (t) => Math.abs(t.th) + (t.vis < vis0 * 0.3 ? 0.6 : 0);
             if (tA.ok && tB.ok) pick = score(tA) <= score(tB) + 0.15 ? tA : tB;
             else if (tB.ok) pick = tB;
             else if (!tA.ok) pick = tA.res <= tB.res + 0.02 ? tA : tB;
@@ -1961,12 +2026,20 @@ function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
       }
     }
   }
+  st.want = wantTh; st.wantBack = wantBack; st.resid = resid; st.a = a; // Prüfstand
   st.back = damp(st.back, wantBack, wantBack > st.back ? 45 : 8, dt);
   const grow = Math.abs(wantTh) > Math.abs(st.th) && wantTh * st.th >= 0;
-  st.th = damp(st.th, wantTh, grow ? 40 : wantTh * st.th < 0 ? 14 : 7, dt);
+  // Richtungswechsel schnell (der Weg führt durch die Ausgangslage, also durch die Wand), Zurücknehmen langsam
+  st.th = damp(st.th, wantTh, grow || wantTh * st.th < 0 ? 40 : 7, dt);
   if (s) {
     s.wallNeed = Math.min(1, Math.abs(st.th) / 0.9);
     s.wallAds = a > 0.5 && resid > 0.02;
+  }
+  if (vm._wallDbgOn && pts.length) { // Prüfstand: berechnete Lage der Stützpunkte (Vergleich mit dem Bild)
+    wallPose(vm, R, st.th, st.back, pistol);
+    vm._wallDbgInfo = { d: _wW.d, n: _wW.n, viol: +wallViol(vm, pts, P, R, st.back, st.th, pistol, _wW).toFixed(3), violWant: +wallViol(vm, pts, P, R, wantBack, wantTh, pistol, _wW).toFixed(3), ver: +wallVerify(vm, pts, P, R, wantBack, wantTh, pistol, _wW).toFixed(3) };
+    wallPose(vm, R, st.th, st.back, pistol);
+    vm._wallDbgPts = pts.map((_, i) => { const v = wallPoint(vm, pts, i, P, st.back, _wW); return [+_wv.x.toFixed(3), +_wv.y.toFixed(3), +_wv.z.toFixed(3), v]; });
   }
   if (st.back < 1e-4 && Math.abs(st.th) < 1e-4) return;
   P.z += st.back;

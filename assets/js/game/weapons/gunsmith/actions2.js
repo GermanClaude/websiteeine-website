@@ -42,13 +42,14 @@ export const EXTRA_ACTIONS = {
     const ud = this.cur.ud, k = A.empty ? 0.72 : 1, m = u / k;
     curve(m, [[0, ZERO3], [0.12, [0.32, 0.24, -0.34]], [0.8, [0.34, 0.26, -0.36]], [0.95, ZERO3]], out.r);
     curve(m, [[0, ZERO3], [0.12, [-0.03, 0.055, 0.04]], [0.8, [-0.03, 0.056, 0.04]], [0.95, ZERO3]], out.p);
-    const mag = curve(m, [[0.12, ZERO3], [0.2, [0, -0.06, 0.012]], [0.3, [0.02, -0.5, 0.12]], [0.31, [-0.1, -0.32, 0.08]], [0.48, [-0.02, -0.08, 0.02]], [0.58, [0, -0.012, 0.003]], [0.62, ZERO3]]);
+    const mag = curve(m, [[0.12, ZERO3], [0.2, [0, -0.06, 0.012]], [0.3, [0.02, -0.5, 0.12]], [0.31, [-0.08, -0.22, 0.06]], [0.44, [-0.02, -0.08, 0.02]], [0.56, [0, -0.012, 0.003]], [0.62, ZERO3]]);
     out.parts.mag = [mag[0], mag[1], mag[2]];
     this._magWindow(A, out, m, 0.17, 0.305);
+    out.frame = windowW(m, 0.06, 0.16, 0.66, 0.84);
     if (m > 0.6 && !A.slapped) { A.slapped = true; this._jolt.kick(1.3, 0, 0); this._recoilPos.kick(0, 0.005, 0); }
     const wAway = windowW(m, 0.1, 0.22, 0.66, 0.82);
     if (wAway > 0) {
-      if (m < 0.3) req(out.left, wAway, { free: [[-0.1, -0.32, -0.22], [0.4, 0.5, -0.7], [-0.7, 0.4, 0.2], 'relaxed'] });
+      if (m < 0.3) req(out.left, wAway, { free: [[-0.11, -0.25, -0.27], [0.4, 0.5, -0.7], [-0.7, 0.4, 0.2], 'relaxed'] });
       else req(out.left, wAway, { anchor: ud.anchors.magGrab || ud.magazine, style: 'mag' });
     }
     if (A.empty) this._chargeCycle(A, out, (u - 0.72) / 0.28);
@@ -58,12 +59,15 @@ export const EXTRA_ACTIONS = {
   /** Bullpup (BX-20): Magazin hinter dem Griff – Waffe hoch und nah an die Brust, Stützhand greift weit nach hinten. */
   _actReloadBullpup(A, out, u) {
     const ud = this.cur.ud, k = A.empty ? 0.76 : 1, m = u / k;
-    curve(m, [[0, ZERO3], [0.14, [0.36, 0.34, -0.3]], [0.82, [0.38, 0.36, -0.32]], [0.96, ZERO3]], out.r);
-    curve(m, [[0, ZERO3], [0.14, [-0.07, 0.035, 0.1]], [0.82, [-0.07, 0.04, 0.1]], [0.96, ZERO3]], out.p);
-    const mag = curve(m, [[0.24, ZERO3], [0.33, [0, -0.08, 0.02]], [0.44, [-0.12, -0.5, 0.2]], [0.45, [-0.14, -0.42, 0.15]], [0.57, [0, -0.09, 0.02]], [0.64, [0, -0.012, 0.003]], [0.67, ZERO3]]);
-    const magRot = curve(m, [[0.24, 0], [0.38, 0.22], [0.45, 0.22], [0.57, 0.1], [0.67, 0]]);
+    // hands: Waffe vom Körper weg nach vorn/oben und gegen den Uhrzeigersinn gedreht – der Schacht hinter dem Griff
+    // kommt ins Bild (früher 10 cm zur Brust gezogen: Hand und Magazin lagen 60 % des Nachladens unter dem Bildrand)
+    curve(m, [[0, ZERO3], [0.14, [0.34, 0.62, -0.34]], [0.82, [0.36, 0.64, -0.36]], [0.96, ZERO3]], out.r);
+    curve(m, [[0, ZERO3], [0.14, [-0.02, 0.07, -0.08]], [0.82, [-0.02, 0.072, -0.08]], [0.96, ZERO3]], out.p);
+    const mag = curve(m, [[0.24, ZERO3], [0.33, [0, -0.08, 0.02]], [0.42, [-0.07, -0.2, 0.07]], [0.43, [-0.065, -0.19, 0.065]], [0.56, [0, -0.09, 0.02]], [0.64, [0, -0.012, 0.003]], [0.67, ZERO3]]);
+    const magRot = curve(m, [[0.24, 0], [0.38, 0.22], [0.43, 0.22], [0.56, 0.1], [0.67, 0]]);
     out.parts.mag = [mag[0], mag[1], mag[2], magRot, 0, 0];
-    this._magWindow(A, out, m, 0.3, 0.45);
+    this._magWindow(A, out, m, 0.3, 0.425);
+    out.frame = windowW(m, 0.06, 0.18, 0.72, 0.88);
     if (m > 0.66 && !A.slapped) { A.slapped = true; this._jolt.kick(1.25, 0, 0); this._recoilPos.kick(0, 0.004, 0); }
     const wMag = windowW(m, 0.14, 0.24, 0.68, 0.8);
     if (wMag > 0 && ud.anchors.magGrab) req(out.left, wMag, { anchor: ud.anchors.magGrab, style: 'mag' });
@@ -77,10 +81,11 @@ export const EXTRA_ACTIONS = {
     curve(m, [[0, ZERO3], [0.1, [0.1, 0.22, -0.4]], [0.84, [0.12, 0.24, -0.42]], [0.96, ZERO3]], out.r);
     curve(m, [[0, ZERO3], [0.1, [-0.03, 0.03, 0.06]], [0.84, [-0.03, 0.032, 0.06]], [0.96, ZERO3]], out.p);
     // Abkippen (Vorderkante zuerst), dann heraus nach unten, neue Trommel: vorn ansetzen, hinten hochschwenken
-    const mag = curve(m, [[0.2, ZERO3], [0.28, [0, -0.012, -0.006]], [0.36, [0, -0.06, 0.0]], [0.46, [-0.2, -0.55, 0.12]], [0.47, [-0.2, -0.5, 0.0]], [0.6, [0, -0.06, -0.012]], [0.66, [0, -0.014, -0.004]], [0.7, ZERO3]]);
-    const rock = curve(m, [[0.2, 0], [0.28, -0.22], [0.36, -0.3], [0.47, -0.3], [0.6, -0.28], [0.66, -0.14], [0.7, 0]]);
+    const mag = curve(m, [[0.2, ZERO3], [0.28, [0, -0.012, -0.006]], [0.36, [0, -0.06, 0.0]], [0.435, [-0.09, -0.22, 0.06]], [0.445, [-0.085, -0.21, 0.0]], [0.58, [0, -0.06, -0.012]], [0.66, [0, -0.014, -0.004]], [0.7, ZERO3]]);
+    const rock = curve(m, [[0.2, 0], [0.28, -0.22], [0.36, -0.3], [0.445, -0.3], [0.58, -0.28], [0.66, -0.14], [0.7, 0]]);
     out.parts.mag = [mag[0], mag[1], mag[2], rock, 0, 0];
-    this._magWindow(A, out, m, 0.36, 0.465);
+    this._magWindow(A, out, m, 0.36, 0.44);
+    out.frame = windowW(m, 0.06, 0.16, 0.74, 0.9);
     if (m > 0.28 && m < 0.3 && !A.unlatched) { A.unlatched = true; this._jolt.kick(0.6, 0, 0); }
     if (m > 0.69 && !A.slapped) { A.slapped = true; this._jolt.kick(1.6, 0, 0); this._recoilPos.kick(0, 0.006, 0); }
     const wMag = windowW(m, 0.1, 0.2, 0.72, 0.84);
@@ -101,14 +106,16 @@ export const EXTRA_ACTIONS = {
     out.r[0] = 0.2 * swing + 0.95 * up - 0.55 * down;
     out.r[1] = 0.25 * swing;
     out.r[2] = 0.55 * swing - 0.25 * up;
-    out.p[0] = -0.02 * swing; out.p[1] = 0.05 * swing + 0.04 * up - 0.02 * down; out.p[2] = 0.05 * swing + 0.04 * up;
+    // hands: Waffe bleibt auf Armlänge (früher 5–9 cm zur Kamera → Hände füllten ¼ des Bildes)
+    out.p[0] = -0.03 * swing; out.p[1] = 0.03 * swing + 0.03 * up - 0.02 * down; out.p[2] = -0.04 * swing + 0.01 * up;
     out.parts.crane = [-0.012 * swing, -0.006 * swing, 0, 0, 0, 1.55 * swing];
     // Ausstoßer: Stern fährt nach hinten, Hülsen fallen (einmal)
     const ej = windowW(u, 0.26, 0.29, 0.31, 0.34);
     out.parts.ejector = [0, 0, 0.022 * ej];
     if (u > 0.29 && !A.ejected && !A.cancel) { A.ejected = true; this._revolverBrass(); }
     // Schnelllader: von unten hinten an die Trommel, eindrehen, abziehen
-    const lu = curve(u, [[0.42, [0.0, -0.32, 0.3]], [0.54, [0.0, -0.02, 0.08]], [0.6, [0, 0, 0.004]], [0.62, ZERO3], [0.66, ZERO3], [0.7, [0, -0.04, 0.12]], [0.74, [0.02, -0.3, 0.26]]]);
+    const lu = curve(u, [[0.42, [0.0, -0.2, 0.18]], [0.54, [0.0, -0.02, 0.08]], [0.6, [0, 0, 0.004]], [0.62, ZERO3], [0.66, ZERO3], [0.7, [0, -0.04, 0.12]], [0.74, [0.02, -0.2, 0.18]]]);
+    out.frame = 0.6 * swing;
     const twist = windowW(u, 0.6, 0.63, 0.66, 0.7) * 0.5;
     out.parts.loader = [lu[0], lu[1], lu[2], 0, 0, twist];
     vis(out).loader = u > 0.42 && u < 0.74;
@@ -121,7 +128,7 @@ export const EXTRA_ACTIONS = {
     else if (u < 0.38) req(out.left, windowW(u, 0.2, 0.25, 0.33, 0.38), { anchor: ud.anchors.ejectorGrab, style: 'slapSide' });
     else if (u < 0.74) {
       const w = windowW(u, 0.36, 0.42, 0.68, 0.74);
-      if (u < 0.44) req(out.left, w, { free: [[-0.16, -0.42, -0.2], [0.2, 0.6, -0.7], [-0.6, 0.3, 0.3], 'pinch'] });
+      if (u < 0.44) req(out.left, w, { free: [[-0.13, -0.27, -0.33], [0.2, 0.6, -0.7], [-0.6, 0.3, 0.3], 'pinch'] });
       else req(out.left, w, { part: 'loader', style: 'pinchSide', offset: [0, 0, 0.02] });
     } else req(out.left, windowW(u, 0.72, 0.75, 0.8, 0.88), { anchor: ud.anchors.cylGrab, style: 'slapSide' });
     return u >= 1;
@@ -147,13 +154,14 @@ export const EXTRA_ACTIONS = {
     const ud = this.cur.ud;
     curve(u, [[0, ZERO3], [0.12, [0.34, 0.38, 0.18]], [0.78, [0.36, 0.4, 0.2]], [0.92, ZERO3]], out.r);
     curve(u, [[0, ZERO3], [0.12, [-0.04, -0.07, 0.07]], [0.78, [-0.04, -0.07, 0.07]], [0.92, ZERO3]], out.p);
-    const rk = curve(u, [[0.3, [-0.14, -0.5, -0.1]], [0.46, [0.0, -0.02, -0.22]], [0.54, [0, 0, -0.19]], [0.64, [0, 0, -0.01]], [0.66, ZERO3]]);
+    const rk = curve(u, [[0.3, [-0.1, -0.28, -0.1]], [0.46, [0.0, -0.02, -0.22]], [0.54, [0, 0, -0.19]], [0.64, [0, 0, -0.01]], [0.66, ZERO3]]);
     out.parts.rocket = [rk[0], rk[1], rk[2], curve(u, [[0.3, 0.6], [0.46, 0.05], [0.54, 0]]), 0, 0];
     vis(out).rocket = u > 0.3;
+    out.frame = windowW(u, 0.08, 0.2, 0.7, 0.86);
     if (u > 0.655 && !A.slapped) { A.slapped = true; this._jolt.kick(1.4, 0, 0); this._recoilPos.kick(0, 0.003, 0.004); }
     const wAway = windowW(u, 0.06, 0.14, 0.7, 0.86);
     if (wAway > 0) {
-      if (u < 0.3) req(out.left, wAway, { free: [[-0.18, -0.46, -0.16], [0.3, 0.7, -0.6], [-0.6, 0.3, 0.3], 'relaxed'] });
+      if (u < 0.3) req(out.left, wAway, { free: [[-0.15, -0.29, -0.3], [0.3, 0.7, -0.6], [-0.6, 0.3, 0.3], 'relaxed'] });
       else req(out.left, wAway, { part: 'rocket', style: 'under', offset: [0, -0.022, -0.06] });
     }
     return u >= 1;

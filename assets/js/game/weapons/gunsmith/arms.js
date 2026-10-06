@@ -13,7 +13,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { boxUV, chamferBoxGeometry } from './builder.js';
 import { camoMap, watchFaceTexture, tapeMap, fbm } from './textures.js';
 import { takeMaterials, parkMaterials } from './materials.js';
-import { contactHit } from './contact.js';
+import { contactHit, MultiCollider } from './contact.js';
 
 // Fingerradien (hands): etwas schlanker als zuvor (−5 %), damit zwischen den Handschuhfingern Fugen sichtbar sind
 const FINGERS = [
@@ -716,112 +716,157 @@ class Arm {
 
   /**
    * Kontakt mit der Waffe (hands): Hand (Ziel T.pos/T.quat im Elternraum der Arme, Pose bereits per applyPose gesetzt)
-   * starr aus der Waffe schieben (Handballen, Fingergrund, Daumenballen), dann Daumen- und Fingerglieder um ihre
-   * Gelenke aus der Oberfläche drehen (Daumengrund frei, sonst nur Beugeachse) und – bei grip – greifende Finger
-   * an die Oberfläche beugen (Spalt ≤ 3 mm). col: GunCollider (contact.js). Ändert T.pos und die Knochen.
-   * opts: { grip: bool, skipIndex: bool (Zeigefinger am Abzug), push: m (größte Verschiebung) }
+   * starr aus der Waffe schieben (Handballen, Fingergrund, Daumenballen), dann je Finger-/Daumenkette die Glieder
+   * aus der Oberfläche drehen – je Punkt das Gelenk der Kette mit dem größten Hebel (Daumengrund frei, sonst nur
+   * Beugeachse, in Gelenkgrenzen) – und bei grip greifende Finger an die Oberfläche beugen (Spalt ≤ 2,5 mm). Was
+   * danach noch steckt, schiebt ein zweiter starrer Durchgang (alle Punkte) heraus. col: GunCollider (contact.js).
+   * Ändert T.pos und die Knochen. opts: { grip: bool, skipIndex: bool (Zeigefinger am Abzug), push: m }
    */
   contact(col, T, opts = {}) {
     const hand = this.handBone;
     hand.position.copy(T.pos); hand.quaternion.copy(T.quat);
     hand.updateMatrixWorld(true);
     hand.matrixWorld.decompose(_c1, _cq, _cs);
-    const sc = _cs.x || 1, H = _hit;
-    const tol = 0.0006;
-    // 1) Starr herausschieben
-    const maxPush = (opts.push ?? 0.05) / sc;
-    const start = _c2.copy(hand.position);
-    for (let it = 0; it < 4; it++) {
-      let worst = tol, wd = null;
+    this._sc = _cs.x || 1;
+    this._start = (this._start || V3()).copy(hand.position);
+    this._maxPush = (opts.push ?? 0.08) / this._sc;
+    // Requisit in DIESER Hand (Granate, Messer, Platte) bewegt sich mit ihr: nur für Finger/Daumen, nicht starr
+    const cc = opts.own ? _multi.set([col, opts.own]) : col;
+    if (this._rigid(col, false)) opts.own?.sync();
+    this._chains(cc, opts);
+    if (opts.grip) { this._grip(cc, opts); this._chains(cc, opts); }
+    if (this._rigid(col, true)) { opts.own?.sync(); this._chains(cc, opts); }
+    // Handballen/Fingergrund haben Vorrang (Finger lösen sich danach über ihre Gelenke)
+    if (this._rigid(col, false)) { opts.own?.sync(); this._chains(cc, opts); }
+    T.pos.copy(hand.position);
+  }
+
+  // Starr herausschieben: all = alle Hand-Punkte (sonst nur Handballen/Fingergrund/Daumenballen). true = bewegt.
+  _rigid(col, all) {
+    const hand = this.handBone, H = _hit, sc = this._sc;
+    let moved = false;
+    for (let it = 0; it < 6; it++) {
+      // Mittel der Eindringvektoren (eingeklemmte Hand pendelt nicht zwischen zwei Seiten), Länge ≥ halbe Tiefe
+      let worst = CONTACT_TOL, wd = null, n = 0;
+      _c8.set(0, 0, 0);
+      const test = (p, r) => { const pen = col.pen(p, r, H); if (pen > CONTACT_TOL) { _c8.addScaledVector(H.dir, pen); n++; if (pen > worst) { worst = pen; wd = _c3.copy(H.dir); } } };
       for (let k = 0; k < RIGID.length; k++) {
         const R = RIGID[k];
         if (R.bone < 0) _c1.set(R.p[0] * this.side, R.p[1], R.p[2]).applyMatrix4(hand.matrixWorld);
         else segPoint(R.bone < 13 ? this.fingers[(R.bone - 1) / 3 | 0][0] : this.thumb[0], R.len, R.t, _c1);
-        const r = R.r * sc;
-        if (!col.query(_c1, r + 0.001, H)) continue;
-        const pen = r - H.d;
-        if (pen > worst) { worst = pen; wd = _c3.copy(H.dir); }
+        test(_c1, R.r * sc);
+      }
+      if (all) {
+        for (let i = 0; i < 4; i++) for (let s = 0; s < 3; s++) for (const t of TS_F) test(segPoint(this.fingers[i][s], FINGERS[i].len[s], t, _c1), FINGERS[i].r[s] * 0.92 * sc);
+        for (let s = 0; s < 3; s++) for (const t of TS_T) test(segPoint(this.thumb[s], THUMB.len[s], t, _c1), THUMB.r[s] * 0.92 * sc);
       }
       if (!wd) break;
-      // Weltverschiebung → Elternraum der Hand
+      const avg = _c8.divideScalar(n), al = avg.length();
+      if (al > worst * 0.5) wd.copy(avg).divideScalar(al); else if (al > 1e-5) wd.copy(avg).divideScalar(al).multiplyScalar(Math.max(al, worst * 0.5) / worst);
+      else break;   // ringsum gleich tief eingeklemmt: Finger lösen das über die Gelenke
       _c1.setFromMatrixPosition(hand.matrixWorld).addScaledVector(wd, worst + 0.0004);
       _c1.applyMatrix4(_cm.copy(hand.parent.matrixWorld).invert());
       hand.position.copy(_c1);
-      if (hand.position.distanceTo(start) > maxPush) hand.position.sub(start).setLength(maxPush).add(start);
+      if (hand.position.distanceTo(this._start) > this._maxPush) hand.position.sub(this._start).setLength(this._maxPush).add(this._start);
       hand.updateMatrixWorld(true);
+      moved = true;
     }
-    T.pos.copy(hand.position);
-    // 2) Daumen: Grundglied frei drehen (höchstens 0,6 rad), Endglieder beugen/strecken
-    for (let s = 0; s < 3; s++) this._unpen(col, this.thumb[s], THUMB.len[s], THUMB.r[s] * sc, s === 0 ? [0.6, 0.95] : [0.2, 0.6, 0.95], s === 0, tol, s);
-    // 3) Finger
-    for (let i = 0; i < 4; i++) {
-      const ch = this.fingers[i], f = FINGERS[i];
-      for (let s = 0; s < 3; s++) this._unpen(col, ch[s], f.len[s], f.r[s] * sc, s === 0 ? [0.5, 0.9] : [0.15, 0.5, 0.9], false, tol, s);
-      if (!opts.grip || (i === 0 && opts.skipIndex)) continue;
-      // Greifen: nächster Punkt von Mittel-/Endglied an die Oberfläche (über das Mittelgelenk, dann das Endgelenk)
-      for (let it = 0; it < 4; it++) {
-        let g = Infinity, gs = -1;
-        for (let s = 1; s < 3; s++) for (const t of [0.15, 0.5, 0.9]) {
-          segPoint(ch[s], f.len[s], t, _c1);
-          if (col.query(_c1, f.r[s] * sc + 0.025, H) && H.d - f.r[s] * sc < g) { g = H.d - f.r[s] * sc; gs = s; _c4.copy(_c1); _c3.copy(H.dir); }
-        }
-        if (gs < 0 || g <= 0.0025 || !Number.isFinite(g)) break;
-        const s = it < 2 ? 1 : gs;   // erst Mittelgelenk (bewegt beide Glieder), dann das Glied mit dem Punkt
-        if (!this._flexToward(ch[s], s, _c4, _c3.negate(), g - 0.001, 0.6)) break;
-        this._unpen(col, ch[2], f.len[2], f.r[2] * sc, [0.15, 0.5, 0.9], false, tol, 2);
-      }
-    }
+    return moved;
   }
 
-  // Glied aus der Waffe drehen: free = Drehachse frei (Daumengrund), sonst Beugeachse (lokal X)
-  _unpen(col, bone, len, r, ts, free, tol, s) {
+  // Alle Ketten (Daumen, vier Finger) aus der Waffe drehen
+  _chains(col, opts) {
+    const sc = this._sc;
+    this._unpenChain(col, this.thumb, THUMB.len, THUMB.r, sc, true, TS_T);
+    for (let i = 0; i < 4; i++) this._unpenChain(col, this.fingers[i], FINGERS[i].len, FINGERS[i].r, sc, false, TS_F);
+  }
+
+  // Kette: je Glied den tiefsten Punkt suchen und über das wirksamste Gelenk (0..s) herausdrehen
+  _unpenChain(col, ch, lens, radii, sc, freeBase, ts) {
     const H = _hit;
-    let total = 0;
-    for (let it = 0; it < 4; it++) {
-      let worst = tol;
-      for (const t of ts) {
-        segPoint(bone, len, t, _c1);
-        if (!col.query(_c1, r * 0.92 + 0.001, H)) continue;
-        const pen = r * 0.92 - H.d;
-        if (pen > worst) { worst = pen; _c4.copy(_c1); _c3.copy(H.dir); }
+    let baseTurn = 0;
+    for (let s = 0; s < 3; s++) {
+      const r = radii[s] * 0.92 * sc;
+      for (let it = 0; it < 5; it++) {
+        let worst = CONTACT_TOL;
+        for (const t of ts) {
+          const pen = col.pen(segPoint(ch[s], lens[s], t, _c1), r, H);
+          if (pen > worst) { worst = pen; _c4.copy(_c1); _c3.copy(H.dir); }
+        }
+        if (worst <= CONTACT_TOL) break;
+        // wirksamstes Gelenk wählen
+        let bj = -1, bv = 0, bdc = 0;
+        for (let j = s; j >= 0; j--) {
+          if (freeBase && j === 0) {
+            if (baseTurn >= 0.8) continue;
+            ch[0].getWorldPosition(_c2);
+            const l = _c6.crossVectors(_c5.subVectors(_c4, _c2), _c3).length();
+            if (l > bv) { bv = l; bj = 0; bdc = 0; }
+            continue;
+          }
+          const vn = this._flexRate(ch[j], _c4, _c3);
+          if (Math.abs(vn) < 2e-4) continue;
+          const want = THREE.MathUtils.clamp((worst + 0.0005) / vn, -0.6, 0.6);
+          const cur = -ch[j].rotation.x, lim = j === 0 ? FLIM0 : FLIM;
+          const got = THREE.MathUtils.clamp(cur + want, lim[0], j === 0 ? lim[1] : FMAX[j]) - cur;
+          if (Math.abs(got) < 1e-3) continue;
+          const eff = Math.abs(vn) * Math.abs(got / want);
+          if (eff > bv) { bv = eff; bj = j; bdc = got; }
+        }
+        if (bj < 0) break;
+        if (freeBase && bj === 0) {
+          ch[0].getWorldPosition(_c2);
+          const ax = _c6.crossVectors(_c5.subVectors(_c4, _c2), _c3);
+          const l = ax.length();
+          let da = Math.min(0.35, (worst + 0.0005) / l, 0.8 - baseTurn);
+          baseTurn += da;
+          ax.divideScalar(l).applyQuaternion(ch[0].getWorldQuaternion(_cq).invert());
+          ch[0].quaternion.multiply(_cq2.setFromAxisAngle(ax, da));
+          ch[0].updateMatrixWorld(true);
+        } else {
+          ch[bj].rotation.x -= bdc;
+          ch[bj].updateMatrixWorld(true);
+        }
       }
-      if (worst <= tol) return;
-      if (free) {
-        bone.getWorldPosition(_c2);
-        const lever = _c5.subVectors(_c4, _c2);
-        const ax = _c6.crossVectors(lever, _c3);
-        const l = ax.length(), arm = lever.length();
-        if (l < 1e-7 || arm < 1e-4) return;
-        ax.divideScalar(l);
-        let da = Math.min(0.35, (worst + 0.0005) / (arm * l / arm));
-        if (total + da > 0.6) da = 0.6 - total;
-        if (da <= 1e-4) return;
-        total += da;
-        bone.getWorldQuaternion(_cq);
-        ax.applyQuaternion(_cq.invert());
-        bone.quaternion.multiply(_cq2.setFromAxisAngle(ax, da));
-        bone.updateMatrixWorld(true);
-      } else if (!this._flexToward(bone, s, _c4, _c3, worst + 0.0005, 1.2)) return;
     }
   }
 
-  // Beugewinkel eines Glieds so ändern, dass Punkt p (Welt) sich um dist entlang dir bewegt. Gibt false zurück,
-  // wenn das Gelenk diese Richtung nicht erreicht oder am Anschlag ist. maxStep: größte Änderung je Schritt.
-  _flexToward(bone, s, p, dir, dist, maxStep = 0.6) {
+  // Bewegung (m/rad) von Punkt p entlang dir beim Beugen des Glieds (Beugen = Drehung um −X des Glieds)
+  _flexRate(bone, p, dir) {
     bone.getWorldPosition(_c2);
-    _c5.set(1, 0, 0).applyQuaternion(bone.getWorldQuaternion(_cq)).negate();     // Beugen = −X
-    const v = _c6.crossVectors(_c5, _c7.subVectors(p, _c2));
-    const vn = v.dot(dir);
-    if (Math.abs(vn) < 2e-4) return false;
-    let dc = THREE.MathUtils.clamp(dist / vn, -maxStep, maxStep);
-    const e = bone.rotation;   // Glieder: rotation.x = −Beugung (siehe applyPose)
-    const cur = -e.x;
-    const lim = s === 0 ? [-0.25, FMAX[0]] : [-0.1, FMAX[s]];
-    const nxt = THREE.MathUtils.clamp(cur + dc, lim[0], lim[1]);
-    if (Math.abs(nxt - cur) < 1e-4) return false;
-    e.x = -nxt;
-    bone.updateMatrixWorld(true);
-    return true;
+    _c5.set(1, 0, 0).applyQuaternion(bone.getWorldQuaternion(_cq)).negate();
+    return _c6.crossVectors(_c5, _c7.subVectors(p, _c2)).dot(dir);
+  }
+
+  // Greifende Finger an die Oberfläche beugen: nächster Punkt von Mittel-/Endglied, über Mittel- und Endgelenk
+  _grip(col, opts) {
+    const H = _hit, sc = this._sc;
+    for (let i = 0; i < 4; i++) {
+      if (i === 0 && opts.skipIndex) continue;
+      const ch = this.fingers[i], f = FINGERS[i];
+      for (let it = 0; it < 5; it++) {
+        let g = Infinity, gs = -1;
+        for (let s = 1; s < 3; s++) for (const t of TS_F) {
+          segPoint(ch[s], f.len[s], t, _c1);
+          if (col.query(_c1, f.r[s] * sc + 0.025, H) && H.d - f.r[s] * 0.92 * sc < g) { g = H.d - f.r[s] * 0.92 * sc; gs = s; _c4.copy(_c1); _c3.copy(H.dir).negate(); }
+        }
+        if (gs < 0 || g <= 0.002) break;
+        // Mittelgelenk bewegt beide Glieder; am Anschlag das Endgelenk (nur wenn der Punkt am Endglied liegt)
+        let done = false;
+        for (const j of gs === 2 ? [1, 2] : [1]) {
+          const vn = this._flexRate(ch[j], _c4, _c3);
+          if (vn < 2e-4) continue;
+          const cur = -ch[j].rotation.x;
+          const nxt = Math.min(FMAX[j], cur + Math.min(0.5, (g - 0.0008) / vn));
+          if (nxt - cur < 1e-3) continue;
+          ch[j].rotation.x = -nxt;
+          ch[j].updateMatrixWorld(true);
+          done = true;
+          break;
+        }
+        if (!done) break;
+      }
+    }
   }
 
   // Handgelenk setzen und Arm per Zwei-Knochen-IK anschließen (alles im Elternraum der Arme)
@@ -870,15 +915,18 @@ class Arm {
 Arm.FINGER_R = FINGERS.map(f => f.r.slice());
 Arm.FINGER_L = FINGERS.map(f => f.len.slice());
 const _upA = V3(), _upB = V3(), _oz = V3(), _oy = V3(), _ox = V3(), _fd = V3();
-const _c1 = V3(), _c2 = V3(), _c3 = V3(), _c4 = V3(), _c5 = V3(), _c6 = V3(), _c7 = V3(), _cs = V3();
+const _c1 = V3(), _c2 = V3(), _c3 = V3(), _c4 = V3(), _c5 = V3(), _c6 = V3(), _c7 = V3(), _c8 = V3(), _cs = V3();
 const _cq = new THREE.Quaternion(), _cq2 = new THREE.Quaternion(), _cm = new THREE.Matrix4();
-const _hit = contactHit();
+const _hit = contactHit(), _multi = new MultiCollider();
 // Starre Kontaktpunkte: Handballen (Handraum, x gespiegelt je Seite), Fingergrund, Daumenballen
 const RIGID = [];
 for (const x of [-0.025, 0, 0.025]) for (const z of [-0.065, -0.035, -0.01]) RIGID.push({ bone: -1, p: [x, 0, z], r: 0.011 });
 for (let i = 0; i < 4; i++) RIGID.push({ bone: 1 + i * 3, len: FINGERS[i].len[0], t: 0.15, r: FINGERS[i].r[0] * 0.92 });
 RIGID.push({ bone: 13, len: THUMB.len[0], t: 0.2, r: THUMB.r[0] * 0.92 });
 function segPoint(bone, len, t, out) { return out.set(0, 0, -len * t).applyMatrix4(bone.matrixWorld); }
+const TS_F = [0.15, 0.5, 0.9], TS_T = [0.2, 0.6, 0.95];          // Messpunkte je Glied (wie tools/out/hands2/probe.mjs)
+const CONTACT_TOL = 0.0006;                                       // m zulässiges Eindringen beim Lösen
+const FLIM0 = [-0.25, FMAX[0]], FLIM = [-0.1, 0];                 // Beugegrenzen Grundglied / Mittel-+Endglied (oben FMAX)
 
 function orient(mesh, from, to, up, extend) {
   const z = _oz.subVectors(from, to).normalize();     // lokal +Z zeigt zurück zum Ursprung
