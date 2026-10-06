@@ -10,6 +10,7 @@ export const CAMS = {
   altstadt: [-6, 11, 46, 0, -12, 40],
   werk: [-38, 8, 46, 10, -8, 40],
   range: [0, 4, 26, 0, -5, 40],
+  grenzland: [10, 34, 150, 0, -11, 45],
 };
 const W = 1600;
 const H = 600;
