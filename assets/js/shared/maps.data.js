@@ -311,7 +311,7 @@ export const MAPS = {
 export const WEATHERS = {
   klar: { id: 'klar', name: 'Klar', short: 'Klare Sicht, harte Schatten' },
   dunst: { id: 'dunst', name: 'Dunst', short: 'Diesige Luft, sichtbare Lichtstrahlen' },
-  morgennebel: { id: 'morgennebel', name: 'Morgennebel', short: 'Bodennebel, Sonne bricht durch' },
+  morgennebel: { id: 'morgennebel', name: 'Morgennebel', short: 'Bodennebel, Sonne bricht durch', time: 'morgen' }, // time: Lobby wählt beim Umschalten „Morgen“ vor (= weather.js)
   bewoelkt: { id: 'bewoelkt', name: 'Bewölkt', short: 'Geschlossene Wolkendecke, weiches Licht' },
 };
 export const WEATHER_ORDER = ['klar', 'dunst', 'morgennebel', 'bewoelkt'];

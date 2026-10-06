@@ -135,6 +135,9 @@ export class WeaponController {
     this._swayY = 0;
     this._shotSerial = 0;
     this._obsSample = [Infinity, Infinity, Infinity];
+    // walls-3: Trefferpunkt + Normale je Strahl (Welt) → Viewmodel s.wallHit (echte Fläche statt Tiefenebene)
+    this._obsHit = [0, 1, 2].map(() => ({ ok: false, px: 0, py: 0, pz: 0, nx: 0, ny: 0, nz: 0 }));
+    this.wallHit = null;
     this.wallDist = Infinity; // m Wandtiefe vor dem Auge (Messung + Vorhalt, walls) → Viewmodel s.wallDist
     this._obsK = 0;
     this._obsAds = false;
@@ -302,6 +305,7 @@ export class WeaponController {
     this.obstructed = 0;
     this._obsSample.fill(Infinity);
     this.wallDist = Infinity;
+    this.wallHit = null;
     this._obsLatch = null;
     this._obsAds = this._obsFire = false;
     this.winded = 0;
@@ -493,6 +497,7 @@ export class WeaponController {
       } else { v.x = 0; v.y = 0; v.z = it.speed || 0; }
       s.obstruct = this.obstructed;
       s.wallDist = this.wallDist;
+      s.wallHit = this.wallHit; // walls-3: {px,py,pz,nx,ny,nz,lead} (Welt) oder null
       s.winded = this.winded;
       s.exhausted = this._exhausted > 0;
       s.holdingBreath = this.holdingBreath;
@@ -1128,13 +1133,25 @@ export class WeaponController {
           dir = _wdir;
         }
         let d = Infinity;
+        const oh = this._obsHit[k];
+        oh.ok = false;
         try {
           const hit = w.raycast(_org, dir, (reach + 0.15) / scale);
-          if (hit && Number.isFinite(hit.distance) && hit.targetId === undefined) d = hit.distance * scale;
+          if (hit && Number.isFinite(hit.distance) && hit.targetId === undefined) {
+            d = hit.distance * scale;
+            if (hit.normal) {
+              oh.ok = true;
+              oh.px = _org.x + dir.x * hit.distance; oh.py = _org.y + dir.y * hit.distance; oh.pz = _org.z + dir.z * hit.distance;
+              oh.nx = hit.normal.x; oh.ny = hit.normal.y; oh.nz = hit.normal.z;
+            }
+          }
         } catch { /* Welt im Abbau */ }
         this._obsSample[k] = d;
       }
       let dmin = Math.min(this._obsSample[0], this._obsSample[1], this._obsSample[2]);
+      // walls-3: Fläche des nächsten Treffers (Punkt/Normale) für das Viewmodel; Vorhalt als Verschiebung entlang der Blickachse
+      const km = this._obsSample.indexOf(dmin);
+      this.wallHit = Number.isFinite(dmin) && km >= 0 && this._obsHit[km].ok ? this._obsHit[km] : null;
       // Vorhalt: Annäherung an die Wand (Messungen bis zu drei Bilder alt, Glättung im Viewmodel)
       const bv = actor.body && actor.body.velocity;
       if (bv && Number.isFinite(dmin)) dmin -= Math.max(0, bv.x * _aim.x + bv.y * _aim.y + bv.z * _aim.z) * (3 * dt + 0.04);
@@ -1148,8 +1165,10 @@ export class WeaponController {
     } else {
       this._obsSample.fill(Infinity);
       this._obsAdsRaw = 0;
+      this.wallHit = null;
     }
     this.wallDist = wall;
+    if (this.wallHit) this.wallHit.lead = Number.isFinite(wall) ? Math.max(0, Math.min(this._obsSample[0], this._obsSample[1], this._obsSample[2]) - wall) : 0;
     this.obstructed += (raw - this.obstructed) * damp(raw > this.obstructed ? 40 : 8, dt);
     if (this.obstructed < 1e-3) this.obstructed = 0;
     // walls 2: Rückmeldung des Viewmodels (Stützpunkt-Strahlen gegen niedrige/schräge Hindernisse, s. viewmodel wallFit):

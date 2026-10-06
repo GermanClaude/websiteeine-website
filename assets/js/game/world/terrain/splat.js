@@ -134,8 +134,11 @@ export async function createTerrainMaterial(o) {
         vec3 aG = tSample(tMap0, vTW.xz * tScale[0], anti) * tCal[0];
         aG *= mix(vec3(1.06, 1.02, 0.86), vec3(0.86, 0.98, 0.9), macro); // grün ↔ gelblich
         // env-look: Grasbüschel/Horste (dunklere Flecken 0,5–2 m) und trockene Stellen – bricht die gleichmäßige Fläche
+        // (nicht auf low: drei Rauschauswertungen je Pixel sind auf Telefonen spürbar – dort wie vor env-look)
+        #if TERR_ANTITILE
         float clump = tNoise(vTW.xz * 1.9) * 0.6 + tNoise(vTW.xz * 4.3 + 7.1) * 0.4;
         aG *= mix(0.78, 1.1, clump) * mix(vec3(1.0), vec3(1.12, 1.04, 0.8), smoothstep(0.62, 0.8, tNoise(vTW.xz / 6.5 + 11.0)));
+        #endif
         vec3 aD = tSample(tMap1, vTW.xz * tScale[1], anti) * tCal[1];
         vec3 aK = tSample(tMap2, vTW.xz * tScale[2], anti) * tCal[2];
         vec3 aF = tSample(tMap3, vTW.xz * tScale[3], anti) * vec3(0.62, 0.6, 0.56) * tCal[3]; // Fels/Geröll dunkler (kein Schnee-Eindruck)

@@ -175,7 +175,7 @@ function knucklePadD(x, y, z) {
     const gx = (FINGERS[i].x + FINGERS[i + 1].x) * 0.5;
     d = smax(d, -(Math.abs(x - gx) - 0.0006), 0.0008);
   }
-  const back = roundBox(x - 0.002, y - (0.0149 - 3.6 * x * x), z + 0.039, 0.021, 0.0016, 0.019, 0.0014);
+  const back = roundBox(x - 0.003, y - (0.0146 - 3.6 * x * x), z + 0.041, 0.0165, 0.0013, 0.0145, 0.0012);
   return Math.min(d, back);
 }
 function wristD(x, y, z) {
@@ -216,7 +216,13 @@ function field(x, y, z) {
 }
 
 // ------------------------------------------------------------------ Gitter (grob → fein) + Surface Nets
-const BX = [-0.082, 0.062], BY = [-0.052, 0.038], BZ = [-0.205, 0.07];
+// Gitterrahmen aus den Knochen (Enden ± 2,2 cm) und dem Bündchen
+const BX = [-0.06, 0.05], BY = [-0.04, 0.032], BZ = [-0.1, 0.07];
+for (const b of bones) for (const p of [b.o, b.end]) {
+  BX[0] = Math.min(BX[0], p.x - 0.022); BX[1] = Math.max(BX[1], p.x + 0.022);
+  BY[0] = Math.min(BY[0], p.y - 0.022); BY[1] = Math.max(BY[1], p.y + 0.022);
+  BZ[0] = Math.min(BZ[0], p.z - 0.022);
+}
 function sample(res) {
   const nx = Math.ceil((BX[1] - BX[0]) / res) + 1, ny = Math.ceil((BY[1] - BY[0]) / res) + 1, nz = Math.ceil((BZ[1] - BZ[0]) / res) + 1;
   return { nx, ny, nz, res, f: new Float32Array(nx * ny * nz) };
@@ -386,10 +392,12 @@ function masksAt(x, y, z, n, out) {
     leather += L * w; wsum += w;
   }
   leather /= wsum;
-  const cuff = smooth(0.004, 0.009, z);
+  const cuff = smooth(-0.003, 0.016, z);
   leather *= 1 - cuff;
   const padF = Math.min(AUX.pad, AUX.fpadAll);
-  const pad = Math.max(smooth(0.0011, 0.00025, padF - d) * (1 - cuff), smooth(0.0011, 0.00025, AUX.tab - d));
+  // weiches Feld (Iso 0,5 ≈ 0,7 mm neben der Polsterkante) → die Naht im Shader verläuft glatt statt entlang der Dreiecke
+  const padField = (e) => clamp(0.5 - (e - d - 0.0007) / 0.0032, 0, 1);
+  const pad = Math.max(padField(padF) * (1 - smooth(0.004, 0.009, z)), padField(AUX.tab));
   // Abrieb: Kuppen Daumen/Zeige-/Mittelfinger, Handballenkante, Knöchelschutz-Kanten
   let wear = 0;
   for (const [b, k] of [[FB(0, 2), 1], [FB(1, 2), 0.9], [FB(2, 2), 0.6], [FB(3, 2), 0.5], [TB(2), 1]]) {

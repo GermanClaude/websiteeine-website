@@ -72,6 +72,7 @@ const _eye = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _o = new THREE.Vector3();
 const _hit = {};
+const _proneGuardP = new THREE.Vector3(); // walls-3: Lage vor dem Physikschritt (liegend)
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const damp = (k, dt) => 1 - Math.exp(-k * dt);
@@ -722,7 +723,12 @@ export class Player {
     // Physik
     const wasGround = body.onGround;
     const vyBefore = v.y;
+    // walls-3 (HV2-W4): liegend Lage vor dem Schritt merken – führt der Schritt (Kriechen, Abgleiten an der Wand,
+    // Kollisionsschub vom Kopfende) die Beine in eine Wand, wird er unten zurückgenommen
+    const proneGuard = this.prone && this.proneBlend > 0.9 && world && this.alive && !this.mantling;
+    if (proneGuard) _proneGuardP.copy(body.position);
     body.step(dt, world, { gravity: GRAVITY, stepHeight: 0.45 });
+    if (proneGuard) this._proneAfterStep(world, dt);
     this._stepSmooth -= body.stepOffset;
     this._stepSmooth = clamp(this._stepSmooth, -0.5, 0.5);
     // Stufe hinauf: kurzer Tempoverlust und ein kleiner Stoß in der Körperkamera (Treppen fühlen sich nach Treppen an)
@@ -842,6 +848,10 @@ export class Player {
       it.aimOffsetX = this.aimOffset.x;
       it.aimOffsetY = this.aimOffset.y;
       it.exertion = this.exertion;
+      // walls-3 (HV2-W2): Kamera dieses Bildes vorläufig setzen (dt = 0: Federn/Rückstoß bleiben stehen) – die Waffe
+      // (Viewmodel-Wandprüfung) tastet von der Hauptkamera aus; vorher sah sie die Lage des LETZTEN Bildes (Lehnen,
+      // Drehen, Laufen, Liegen: Waffe bis 1,4 m in der Wand, weil die Strahlen an der Wand vorbeigingen)
+      this._updateCamera(0);
       w.update(dt, it);
       // Inspizieren (nur PC): Controller kann es selbst übernehmen (handlesInspect), sonst spielt das Viewmodel die Animation
       if (it.inspect && (w.adsProgress || 0) < 0.05 && !it.fire) {
@@ -983,7 +993,7 @@ export class Player {
    * Platzbedarf liegend bei Blickrichtung yaw: nötiger Schub nach vorn (m, ≥ 0), damit die Beine (PRONE.length nach hinten)
    * nicht in einer Wand stecken – oder −1, wenn auch vorn kein Platz ist. Bodentreffer (Hang) zählen nicht als Wand.
    */
-  _proneNeed(world, yaw, len = PRONE.length) {
+  _proneNeed(world, yaw, len = PRONE.length, raw = false) {
     const p = this.body.position;
     const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
     let back = len;
@@ -994,6 +1004,7 @@ export class Player {
       if (r && Math.abs(r.ny) < 0.6) back = Math.min(back, r.distance);
     }
     const need = len - back;
+    if (raw) return Math.max(0, need); // walls-3: tatsächliche Beintiefe in der Wand (ohne Prüfung vorn; Prüfstand/Wächter)
     if (need <= 0.002) return 0;
     _o.set(p.x, p.y + 0.22, p.z);
     _dir.set(fx, 0, fz);
@@ -1096,6 +1107,7 @@ export class Player {
 
   /** Liegend: Wand hinter den Beinen schiebt nach vorn; ohne Platz bleibt die alte Blickrichtung (Drehen gesperrt). */
   _proneConstraint(world, dt) {
+    this._proneYawStart = this._proneYawPrev ?? this._proneYaw ?? this.yaw; // walls-3: Blickrichtung vom Ende des letzten Bildes
     if (!this.prone || !world || !this.alive) { this._proneYaw = this._proneYawPrev = this.yaw; return; }
     const len = PRONE.length * Math.max(0.35, this.proneBlend);
     const maxPush = 3 * dt + 0.01;
@@ -1131,6 +1143,45 @@ export class Player {
       if (Math.abs(dy) > 1e-4 && this._proneNeed(world, this.yaw, len) > 0.02) { this.yaw = this._proneYawPrev ?? this.yaw; this._proneYaw = this.yaw; }
     }
     this._proneYawPrev = this.yaw;
+  }
+
+  /**
+   * walls-3 (HV2-W4): nach dem Physikschritt im Liegen – steckt mehr als 1,5 cm Bein in einer Wand, erst nach vorn
+   * schieben (so weit vorn Platz ist), sonst die waagerechte Bewegung dieses Schritts und die Drehung dieses Bildes
+   * zurücknehmen (vorher: Kollisionsschub am Kopfende drückte die Beine bis 0,86 m in die Wand, Drehen in engen
+   * Gängen ließ sie 6+ cm darin).
+   */
+  _proneAfterStep(world, dt) {
+    const b = this.body;
+    const len = PRONE.length * Math.max(0.35, this.proneBlend);
+    let deep = this._proneNeed(world, this.yaw, len, true);
+    if (deep <= 0.015) return;
+    const need = this._proneNeed(world, this.yaw, len);
+    if (need > 0) {
+      const push = Math.min(need, 3 * dt + 0.01);
+      b.position.x += -Math.sin(this.yaw) * push;
+      b.position.z += -Math.cos(this.yaw) * push;
+      b._sync();
+      deep = this._proneNeed(world, this.yaw, len, true);
+      if (deep <= 0.015) return;
+    }
+    const y1 = this.yaw;
+    const prevYaw = this._proneYawStart;
+    const tryState = (x, z, yaw) => {
+      b.position.x = x; b.position.z = z; b._sync();
+      return this._proneNeed(world, yaw, len, true);
+    };
+    const cx = b.position.x, cz = b.position.z;
+    let best = deep, bx = cx, bz = cz, byaw = y1;
+    for (const [x, z, yaw] of [[_proneGuardP.x, _proneGuardP.z, y1], [cx, cz, prevYaw], [_proneGuardP.x, _proneGuardP.z, prevYaw]]) {
+      if (yaw == null || !Number.isFinite(yaw)) continue;
+      const d = tryState(x, z, yaw);
+      if (d < best - 1e-3) { best = d; bx = x; bz = z; byaw = yaw; }
+      if (best <= 0.015) break;
+    }
+    b.position.x = bx; b.position.z = bz; b._sync();
+    if (bx !== cx || bz !== cz) { b.velocity.x = 0; b.velocity.z = 0; }
+    if (byaw !== y1) { this.yaw = byaw; this._proneYaw = this._proneYawPrev = byaw; }
   }
 
   /* ------------------------------------------------------------ Panzerung / Klassen-Ausrüstung */
@@ -1440,7 +1491,17 @@ export class Player {
       else body.velocity.set(m.dx * 1.2, 0, m.dz * 1.2);
       body._sync();
       // Stehen, falls Platz (sonst geduckt bleiben)
-      this.crouching = !body.canStand(this.G.world);
+      let stand = body.canStand(this.G.world);
+      // walls-3 (HV2-W3): canStand prüft nichts, wenn der Körper schon volle Höhe hat – am Ende der Bahn steckte der
+      // Kopf so bis 10 cm in Überhängen/Dachkanten (Grenzland). Kapsel prüfen, ausdrücken, sonst geduckt weiter.
+      const col = this.G.world && this.G.world.collider;
+      if (col && typeof col.capsuleIntersect === 'function') {
+        let hit = col.capsuleIntersect(body.collisionCapsule);
+        // Wand/Kante: ausdrücken; Decke/Überhang (Normale nach unten): nicht nach unten in den Boden drücken, sondern ducken
+        if (hit && hit.depth > 0.005 && !(hit.normal && hit.normal.y < -0.45) && typeof body.depenetrate === 'function') { body.depenetrate(this.G.world); hit = col.capsuleIntersect(body.collisionCapsule); }
+        if (hit && hit.depth > 0.005 && body.height > CROUCH_H + 0.05) { stand = false; body.setHeight(CROUCH_H); body._sync(); }
+      }
+      this.crouching = !stand;
       this._cam.y.v -= 0.3;
       this._cam.p.v += 0.2;
       this.G.events.emit('player:mantle', { phase: 'end', height: Math.round(m.height * 100) / 100, vault: m.vault, position: body.position.clone() });

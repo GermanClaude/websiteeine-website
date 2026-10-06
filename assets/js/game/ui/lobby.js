@@ -89,6 +89,7 @@ export class Lobby {
       if (CLASSES[prm.get('cls')]) base.cls = prm.get('cls');
       if (WEATHERS[prm.get('weather')] || prm.get('weather') === 'zufall') base.weather = prm.get('weather'); // atmosphere-weather
       if (prm.get('tod')) base.timeOfDay = prm.get('tod');
+      else if (prm.get('weather')) this._wxAutoTime(base); // wie ein Start per URL: Morgennebel → Morgen
       // Zeit-/Punktelimit aus der URL sind Testparameter: nur mit debug=1 (Match dann ungewertet) und nur
       // für den Modus, mit dem die Seite geöffnet wurde
       const tl = G.debug ? parseFloat(prm.get('time')) : NaN;
@@ -154,6 +155,18 @@ export class Lobby {
     return (Array.isArray(map.times) ? map.times : []).some((x) => x.id === t) ? t : null;
   }
 
+  /**
+   * atmosphere-weather: Wetter mit eigener Tageszeit (Morgennebel → Morgen) bei „Standard“-Zeit sichtbar vorwählen –
+   * die Lobby zeigt so genau, was gespielt wird; „Standard“ (Kartenzeit) bleibt danach ausdrücklich wählbar.
+   */
+  _wxAutoTime(c) {
+    const auto = WEATHERS[c.weather]?.time;
+    const map = this._data().MAPS[c.mapId] || {};
+    if (!auto || this._todFor(c) || map.weatherDefault === c.weather || !(Array.isArray(map.times) ? map.times : []).some((x) => x.id === auto)) return;
+    c.timeOfDay = auto;
+    try { this.G.settings.set('lastTime', auto); } catch { /* */ }
+  }
+
   /** Startkonfiguration für main (onStart). */
   config() {
     const c = this.cfg;
@@ -164,7 +177,7 @@ export class Lobby {
     return {
       modeId: c.modeId, mapId: c.mapId, difficulty: c.difficulty, allies: c.allies, enemies: c.enemies,
       style: c.style, crosshair: c.style === 'realistisch' ? !!this.G.settings.get('realisticCrosshair') : null,
-      matchLength: c.matchLength, timeOfDay: this._todFor(c), weather: c.weather && c.weather !== 'standard' ? c.weather : null,
+      matchLength: c.matchLength, timeOfDay: this._todFor(c) || 'standard', weather: c.weather && c.weather !== 'standard' ? c.weather : null,
       loadout: { primary: c.primary, secondary: c.secondary, lethal: c.lethal, cls: c.cls, camo, ...(skin ? { skin } : {}) },
       ...(c.limits && c.limits.modeId === c.modeId ? { timeLimit: c.limits.timeLimit, scoreLimit: c.limits.scoreLimit } : {}),
     };
@@ -252,7 +265,7 @@ export class Lobby {
     if (ds.xhair != null) { try { this.G.settings.set('realisticCrosshair', !this.G.settings.get('realisticCrosshair')); } catch { /* */ } this._renderDeploy(); this.menus.sound('toggle'); return; }
     if (ds.len) { c.matchLength = ds.len; this._renderDeploy(); this.menus.sound('click'); return; }
     if (ds.tod != null) { c.timeOfDay = ds.tod || null; try { this.G.settings.set('lastTime', ds.tod || 'standard'); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
-    if (ds.wx != null) { c.weather = ds.wx || 'standard'; try { this.G.settings.set('lastWeather', c.weather); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
+    if (ds.wx != null) { c.weather = ds.wx || 'standard'; this._wxAutoTime(c); try { this.G.settings.set('lastWeather', c.weather); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
     if (ds.cls) { this._setClass(ds.cls); return; }
     if (ds.camo) { this._setCamo(ds.camo, b); return; }
     if (ds.diff) { c.difficulty = ds.diff; this._renderDeploy(); this._renderSummary(); this.menus.sound('click'); return; }

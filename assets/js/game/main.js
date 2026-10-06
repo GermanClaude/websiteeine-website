@@ -809,7 +809,10 @@ async function runStart(config, gen) {
   const live = () => gen === matchGen;
   try {
     const cfg = normalizeConfig(config);
-    const condKey = `${cfg.weather || ''}|${cfg.timeOfDay || ''}`; // atmosphere-weather: anderes Wetter/Zeit → neu aufbauen
+    // atmosphere-weather: Wetter/Zeit hier auflösen – „Zufall“ würfelt bei jedem Start (auch Revanche) neu, der
+    // Ladebildschirm zeigt das Ergebnis; anderes Wetter/Zeit → Welt neu aufbauen
+    const cond = safe('weather', () => G.modules.world?.resolveConditions?.(G.data.MAPS?.[cfg.mapId], { weather: cfg.weather, time: cfg.timeOfDay })) || null;
+    const condKey = cond ? cond.key : `${cfg.weather || ''}|${cfg.timeOfDay || ''}`;
     const reuse = !!(G.world && G.world.id === cfg.mapId && (G.world._condKey ?? '|') === condKey);
     await teardownMatch({ keepWorld: reuse });
     if (!live()) return;
@@ -821,7 +824,7 @@ async function runStart(config, gen) {
       startedAt: null, startedReal: null, countdown: 0, pausedFrom: null, endedAt: null, result: null,
       unranked: isUnranked(cfg),
       style: cfg.style, crosshair: cfg.crosshair, matchLength: cfg.matchLength, timeOfDay: cfg.timeOfDay, cls: cfg.loadout.cls || null, // modes-ui
-      weather: cfg.weather, // atmosphere-weather (Anfrage; aufgelöst in G.world.weather)
+      weather: cfg.weather, conditions: cond, // atmosphere-weather (Anfrage; aufgelöst: conditions = G.world.weather)
     });
     settings.patch({ lastMode: cfg.modeId, lastMap: cfg.mapId, difficulty: cfg.difficulty, lastLoadout: cfg.loadout, lastClass: cfg.loadout.cls || 'sturm' });
     applyStyle(cfg); // core-mechanics: G.match.style/styleFlags/armor
@@ -843,7 +846,7 @@ async function runStart(config, gen) {
       sceneBase = new Set(G.scene.children);
       // Vorarbeiten ohne Kartenbezug laufen in den Pausen des Kartenaufbaus (Worker-Phasen) mit
       const early = runJobs(matchAssetJobs(cfg, null), live);
-      const world = await G.modules.world.loadWorld(G, cfg.mapId, { onProgress, weather: cfg.weather, time: cfg.timeOfDay });
+      const world = await G.modules.world.loadWorld(G, cfg.mapId, { onProgress, weather: cond ? cond.weather : cfg.weather, time: cond ? cond.time || 'standard' : cfg.timeOfDay });
       if (!world) throw new Error(`loadWorld(${cfg.mapId}) lieferte keine Welt`);
       world._condKey = condKey;
       G.world = world;

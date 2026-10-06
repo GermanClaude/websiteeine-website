@@ -46,6 +46,13 @@ export function addShaderPatch(material, key, fn) {
   return material;
 }
 
+/** Haken `key` wieder entfernen (neues Programm beim nächsten Rendern; z. B. Qualitätswechsel zwischen Matches). */
+export function removeShaderPatch(material, key) {
+  const r = REG.get(material);
+  if (r && r.patches.delete(key)) material.needsUpdate = true;
+  return material;
+}
+
 /** Hat das Material den Haken `key`? */
 export function hasShaderPatch(material, key) { return !!REG.get(material)?.patches.has(key); }
 

@@ -154,12 +154,15 @@ export class Menus {
       const map = (D.MAPS || {})[G.match.mapId] || null;
       const mode = (D.MODES || {})[G.match.modeId] || null;
       const prep = { hafen: 'im', altstadt: 'in der', werk: 'im', range: 'am' }[G.match.mapId] || 'auf';
+      // atmosphere-weather: aufgelöstes Wetter + Tageszeit („Bewölkt · Mittag“), sonst die Kartenzeit
+      let cond = map && map.timeOfDay ? map.timeOfDay : '';
+      try { if (G.match.conditions && G.modules?.world?.conditionsLabel) cond = G.modules.world.conditionsLabel(G.match.conditions, map, D.WEATHERS); } catch { /* Kartenzeit */ }
       const s = this._screen('loading', 'm-loading', `
         <canvas class="ld-art" aria-hidden="true"></canvas>
         <div class="ld-inner">
           <div class="m-kicker">${esc(mode ? mode.name : 'Einsatz')} ${esc(prep)} ${esc(map ? map.name : 'Testgelände')}</div>
           <h1 class="ld-title">${esc(map ? map.name : 'Testgelände')}<em>.</em></h1>
-          <div class="ld-sub">${esc(map ? map.subtitle || '' : '')}${map && map.timeOfDay ? ` · ${esc(map.timeOfDay)}` : ''}</div>
+          <div class="ld-sub">${esc([map ? map.subtitle : '', cond].filter(Boolean).join(' · '))}</div>
           ${mode ? `<p class="ld-obj"><span class="ld-ico">${mode.icon || ''}</span>${esc(mode.hudObjective || mode.tagline || '')}</p>` : ''}
           <div class="ld-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i></i></div>
           <div class="ld-row"><span class="ld-pct">0 %</span><span class="ld-state">Einsatzgebiet wird aufgebaut</span></div>

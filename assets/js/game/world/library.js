@@ -44,7 +44,7 @@ export const LIB_MATERIALS = {
   roof_tiles: { id: 'roof_clay_tiles', color: 0.95 },
   wood_planks: { id: 'wood_planks', color: [1.2, 1.32, 1.5] }, // etwas entsättigt (Fotoscan sehr orange)
   wood_dark: { id: 'wood_planks_dark', color: 0.8 },
-  wood_crate: { id: 'wood_crate', color: 0.95, repeat: 1, macro: false },
+  wood_crate: { id: 'wood_crate', color: 0.95, repeat: 0.62, macro: [0.16, 0.1, 0.12], normalScale: 1.35, aoMapIntensity: 1.3 }, // LV-7: Bretter in echter Breite (1,87-m-Satz ≈ 1,16 m je Kistenseite), Kisten nicht mehr gleichfarbig
   wood_weathered: { id: 'wood_planks_weathered', color: 1.2 },
   wood_peeling: { id: 'wood_peeling_paint', color: 1.2 },
   wood_floor: { id: 'wood_floor_old', color: 1.2 },
@@ -81,7 +81,7 @@ export const LIB_MATERIALS = {
   tiles_pattern: { id: 'tiles_checker', color: 2.1 },
   tiles_white: { id: 'tiles_white_wall', color: 1.0, macro: [0.06, 0.04, 0.06] },
   linoleum: { id: 'linoleum', color: 1.0 },
-  sandbag: { id: 'burlap', color: 1.35, metalness: 0, macro: false, normalScale: 0.6 },
+  sandbag: { id: 'burlap', color: 1.35, metalness: 0, macro: false, normalScale: 1.2, aoMapIntensity: 1.25 }, // LV-7: Gewebe sichtbar (vorher 0,6: „glattes Brot“)
   tarp: { id: 'canvas', color: 1.0, macro: false },
   rubber: { id: 'rubber', color: 0.6, macro: false },
   rubber_floor: { id: 'rubber_floor', color: 1.6 },
@@ -111,6 +111,8 @@ export const LIB_LOOK = {
   metal_corrugated: LOOK_METAL, metal_corrugated_rust: LOOK_METAL, metal_cladding: LOOK_METAL, metal_shutter: LOOK_METAL,
   metal_painted: LOOK_METAL, metal_rust: { ...LOOK_METAL, detail: 0.16, anti: 0.35 }, metal_galvanized: LOOK_METAL,
   wood_planks: LOOK_WOOD, wood_dark: LOOK_WOOD, wood_weathered: LOOK_WOOD, wood_peeling: LOOK_WOOD, wood_floor: LOOK_WOOD,
+  wood_crate: { ...LOOK_WOOD, detail: 0.14, ds: 2.6 }, // LV-7: Maserung/Dellen in der Nähe
+  sandbag: { detail: 0.3, ds: 4.5, anti: 0, fade: [2, 12] }, // LV-7: Knitter/Falten (≈ 22 cm) auf dem Sackleinen
 };
 
 /** Zeitlimit für Downloads je Stufe (s): danach prozedural weiter (langsames Netz). */

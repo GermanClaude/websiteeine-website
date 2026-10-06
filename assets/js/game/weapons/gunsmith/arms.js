@@ -1,4 +1,4 @@
-// Ego-Arme: Handschuhhände als SkinnedMesh (je Hand 1 Draw Call, 16 Knochen mit Fingergliedern),
+// Ego-Arme: Handschuhhände als SkinnedMesh (je Hand 1 Draw Call, 17 Knochen: Hand, Fingerglieder, Daumen, Unterarm),
 // Unter-/Oberarm-Ärmel mit Tarnmuster, Zwei-Knochen-IK von der Schulter zum Handgelenk, Uhr + Klebeband.
 // Handkoordinaten (rechte Hand): Handgelenk im Ursprung, Finger −Z, Handrücken +Y, Daumen −X.
 // Die linke Hand ist gespiegelt gebaut (gleiche Semantik: Finger −Z, Handrücken +Y, Daumen +X).
@@ -8,27 +8,14 @@
 // bis sie anliegen; der Zeigefinger sucht den Abzug; die Daumenausrichtung wird gesucht, bis die Kuppe ihr
 // Ziel auf der Gegenseite erreicht. Ergebnisse werden je Griffart + Maßen gecacht.
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { boxUV, chamferBoxGeometry } from './builder.js';
+import { chamferBoxGeometry } from './builder.js';
 import { camoMap, watchFaceTexture, tapeMap, fbm } from './textures.js';
 import { takeMaterials, parkMaterials } from './materials.js';
 import { contactHit, MultiCollider } from './contact.js';
 
-// Fingerradien (hands): etwas schlanker als zuvor (−5 %), damit zwischen den Handschuhfingern Fugen sichtbar sind
-const FINGERS = [
-  { x: -0.0285, y: 0.001, z: -0.08, len: [0.043, 0.027, 0.022], r: [0.0089, 0.0084, 0.0078], splay: 0.07 },
-  { x: -0.0093, y: 0.002, z: -0.084, len: [0.047, 0.03, 0.023], r: [0.0092, 0.0086, 0.008], splay: 0.0 },
-  { x: 0.0102, y: 0.001, z: -0.081, len: [0.044, 0.028, 0.022], r: [0.0088, 0.0083, 0.0076], splay: -0.06 },
-  { x: 0.0285, y: -0.002, z: -0.073, len: [0.034, 0.022, 0.019], r: [0.008, 0.0074, 0.0069], splay: -0.14 },
-];
-const THUMB = { base: [-0.027, -0.011, -0.018], len: [0.042, 0.032, 0.026], r: [0.0128, 0.0112, 0.0101] };
-
-// Handschuh-Schattierung (Vertex-Farben, multipliziert mit dem Klassenton in mats.glove.color): heller Grundstoff,
-// Handfläche aus dunklerem Synthetik-Wildleder, Protektoren/Polster aus TPR, Neopren-Bündchen. Früher fast schwarz
-// (0x2e3032) – im Schatten las sich die Hand als konturloser Fäustling.
-const GLOVE = new THREE.Color(0xd2cdc2), PALM = new THREE.Color(0x9c9486), PAD = new THREE.Color(0x6a665e), CUFF = new THREE.Color(0xa9a497);
-const SEAM = 0.78;   // Seitennähte der Finger (Fugen/Kappnaht), Faktor auf die Grundfarbe
+// Fingermaße + Bindehaltung des Handschuhnetzes (hands-v3): gemeinsam mit tools/assets/hands/build-hand.mjs
+import { FINGERS, THUMB, THUMB_REST, BIND_SPLAY, BIND_CURL, BIND_THUMB_FLEX, handDimsKey } from './handdims.js';
+import { GLOVE_MESH } from './glove-mesh.js';
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const _v1 = V3(), _v2 = V3(), _v3 = V3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
@@ -243,13 +230,17 @@ function barShape(d, A = V3(0, 0, -1)) {
   const w = d.w ?? d.r ?? 0.024, h = d.h ?? d.r ?? 0.024;
   return makeCyl(V3(0, h, 0), A, V3(1, 0, 0), w, h, -0.12, 0.12);
 }
+const wrapF = (s, w = 0) => (w ? s.U.clone().multiplyScalar(Math.cos(w)).addScaledVector(s.V, Math.sin(w)) : s.U);
+const wrapB = (s, w) => s.V.clone().multiplyScalar(Math.cos(w)).addScaledVector(s.U, -Math.sin(w)).addScaledVector(s.A, -0.05);
 const leftOf = (s, ext, up, fwd) => s.c.clone().addScaledVector(s.V, -(s.b + ext)).addScaledVector(s.A, -up).addScaledVector(s.U, fwd);
 
 export const GRIPS = {
   // Rechte Hand am Pistolengriff, Zeigefinger am Abzug, Daumen links am Gehäuse
+  // wrap (hands-v3, Pistolen): Hand um die Griffachse nach hinten gedreht – Handballen rechts hinten, Daumenwurzel links
+  // hinten am Griffrücken (hoch im Biber), Daumen liegt links am Rahmen unter dem Schlitten nach vorn (nicht darüber)
   pistolGrip: {
-    shape: d => gripShape(d), F: (d, s) => s.U, B: () => [1, 0.05, 0.3], hOff: d => d.ho ?? 0.018, pc: [0, -0.0175, -0.066],
-    index: 'trigger', thumb: (d, s) => leftOf(s, 0.011, d.tu ?? 0.034, s.a * 0.35),
+    shape: d => gripShape(d), F: (d, s) => wrapF(s, d.wrap), B: (d, s) => (d.wrap ? wrapB(s, d.wrap) : [1, 0.05, 0.3]), hOff: d => d.ho ?? 0.018, pc: [0, -0.0175, -0.066],
+    index: 'trigger', thumb: (d, s) => leftOf(s, 0.011, d.tu ?? 0.034, d.wrap ? (d.tf ?? 0.03) : s.a * 0.35),
   },
   // Linke Hand unter dem Handschutz (Handfläche links unten, Finger um die rechte Seite, Daumen links vorn).
   // Finger schräg nach vorn oben → das Handgelenk liegt hinten unten, der Unterarm kommt kurz und steil von
@@ -306,7 +297,7 @@ export const GRIPS = {
 };
 
 const gripCache = new Map();
-const KEYS = ['rake', 'gw', 'gd', 'gu', 'gl', 'ho', 'tu', 'r', 'w', 'h', 'd'];
+const KEYS = ['rake', 'gw', 'gd', 'gu', 'gl', 'ho', 'tu', 'r', 'w', 'h', 'd', 'wrap', 'tf'];
 
 function solveGrip(style, d, side) {
   const g = GRIPS[style] || GRIPS.under;
@@ -374,228 +365,94 @@ export function gripTransform(style, data = {}, side = 1, outPos = V3(), outQuat
 
 // ---------------------------------------------------------------- Geometrie
 
-function tag(geo, bone, color) {
-  const g = geo.index ? geo.toNonIndexed() : geo;
-  for (const n of Object.keys(g.attributes)) if (n !== 'position' && n !== 'normal') g.deleteAttribute(n);
-  const n = g.attributes.position.count;
-  const si = new Uint16Array(n * 4), sw = new Float32Array(n * 4), col = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) { si[i * 4] = bone; sw[i * 4] = 1; }
-  // Handflächenseite heller (Wildleder), Rücken dunkel
-  const nrm = g.attributes.normal;
-  for (let i = 0; i < n; i++) {
-    const c = typeof color === 'function' ? color(nrm.getY(i), g.attributes.position.getY(i), nrm.getX(i)) : color;
-    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
-  }
-  g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
-  g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  return g;
+// ---------------------------------------------------------------- Handschuhnetz (hands-v3)
+// Ein geglättetes, gehäutetes Netz je Hand aus glove-mesh.js (erzeugt von tools/assets/hands/build-hand.mjs aus einem
+// Distanzfeld anatomischer Grundkörper, ≈ 3,5k Dreiecke high / 1,5k low): weiche Hautgewichte über die Gelenke
+// (≤ 4 Knochen je Ecke), Bündchen auf dem Unterarm-Knochen 16 (folgt dem Ärmel, steckt immer darin); Masken (Leder-
+// Innenhand, Polster, Bündchen, Abrieb) + Umgebungsverdeckung als Attribute für den Handschuh-Shader. Die Kapseln
+// (FINGERS/THUMB) bleiben unsichtbar die Messkörper für Kontaktlöser und Prüfwerkzeuge.
+const DEC = {};
+function unb64(s, T) { const bin = atob(s), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new T(u.buffer); }
+function decodeGlove(lod) {
+  if (DEC[lod]) return DEC[lod];
+  if (GLOVE_MESH.key !== handDimsKey()) console.warn('[arms] glove-mesh.js passt nicht zu handdims.js – node tools/assets/hands/build-hand.mjs ausführen');
+  const M = GLOVE_MESH[lod], n = M.n, q = unb64(M.pos, Uint16Array), nq = unb64(M.nrm, Int8Array);
+  const pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3);
+  for (let i = 0; i < n * 3; i++) { const k = i % 3; pos[i] = M.lo[k] + q[i] * M.sc[k]; nrm[i] = nq[i] / 127; }
+  return (DEC[lod] = { n, pos, nrm, idx: unb64(M.idx, Uint16Array), ski: unb64(M.ski, Uint8Array), skw: unb64(M.skw, Uint8Array), msk: unb64(M.msk, Uint8Array), ao: unb64(M.ao, Uint8Array) });
 }
-
-const _sc = new THREE.Color();
-// Handfläche (unten) Wildleder, Rücken Grundstoff; an den Fingerseiten (|nx| groß, ny ≈ 0) die dunkle Naht
-const sideColor = (ny, y, nx = 0) => (ny < -0.35 ? PALM : Math.abs(nx) > 0.82 && Math.abs(ny) < 0.3 ? _sc.copy(GLOVE).multiplyScalar(SEAM) : GLOVE);
-
-function capsule(r0, r1, len, seg = 10) {
-  // Leicht konisches Fingerglied mit runden Enden, entlang −Z ab Ursprung
-  const pts = [];
-  const cap = 3;
-  for (let i = 0; i <= cap; i++) { const a = -Math.PI / 2 + (i / cap) * Math.PI / 2; pts.push(new THREE.Vector2(Math.cos(a) * r0, Math.sin(a) * r0)); }
-  for (let i = 0; i <= cap; i++) { const a = (i / cap) * Math.PI / 2; pts.push(new THREE.Vector2(Math.cos(a) * r1, len + Math.sin(a) * r1)); }
-  const g = new THREE.LatheGeometry(pts, seg);
-  g.rotateX(-Math.PI / 2);
-  // leicht abgeflacht (Finger sind breiter als hoch)
-  g.scale(1.03, 0.93, 1);
-  return g;
-}
-
-function buildHandGeometry(mirror, lod = 'high') {
-  const SEG = lod === 'low' ? 6 : 9;   // Umfangssegmente je Fingerglied (≈ 2,7k Dreiecke je Hand auf high, ≈ 1,9k auf low)
-  const parts = [];
-  // Handfläche: verjüngt zum Handgelenk
-  const palm = new RoundedBoxGeometry(0.084, 0.032, 0.09, 2, 0.012);
-  palm.translate(0, 0.0, -0.045);
-  const pa = palm.attributes.position;
-  for (let i = 0; i < pa.count; i++) {
-    const z = pa.getZ(i), t = THREE.MathUtils.clamp(-z / 0.09, 0, 1);
-    pa.setX(i, pa.getX(i) * (0.72 + 0.28 * t));
-    // gewölbter Handrücken, Handballen
-    const y = pa.getY(i);
-    if (y > 0) pa.setY(i, y + 0.004 * Math.cos(pa.getX(i) / 0.04 * Math.PI / 2));
-    else pa.setY(i, y - 0.003 * (1 - t));
-  }
-  palm.computeVertexNormals();
-  const palmS = mergeVerticesSmooth(palm);
-
-  parts.push(tag(palmS, 0, sideColor));
-  // Daumenballen
-  const thenar = lod === 'low' ? new THREE.SphereGeometry(0.019, 7, 5) : new THREE.SphereGeometry(0.019, 9, 6);
-  thenar.scale(0.9, 0.75, 1.5);
-  thenar.translate(-0.021, -0.009, -0.03);
-  parts.push(tag(thenar, 0, sideColor));
-  // Knöchelschutz (hart) + Polster auf dem Handrücken
-  const knuckle = bent(new RoundedBoxGeometry(0.068, 0.008, 0.024, 1, 0.0035), 5);
-  knuckle.translate(0, 0.0175, -0.074);
-  parts.push(tag(knuckle, 0, PAD));
-  // Fingergrundgelenke als einzelne Höcker unter dem Protektor (lesbare Knöchel-Silhouette)
-  if (lod !== 'low') for (const f of FINGERS) {
-    const k = new THREE.SphereGeometry(f.r[0] * 0.95, 7, 3, 0, Math.PI * 2, 0, Math.PI / 2);
-    k.scale(1.05, 0.55, 0.9);
-    k.translate(f.x, f.y + 0.0105, f.z + 0.004);
-    parts.push(tag(k, 0, sideColor));
-  }
-  const backPad = bent(new RoundedBoxGeometry(0.046, 0.004, 0.036, 2, 0.0018), 7);
-  backPad.translate(0.002, 0.0178, -0.036);
-  parts.push(tag(backPad, 0, PAD));
-  // Bündchen + Klettverschluss
-  // Bündchen (hands 2): eng am Handgelenk anliegender, flach-ovaler Schlauch mit gewölbtem Abschluss zum Arm – keine
-  // Stirnfläche (las sich bei gebeugtem Handgelenk als Scheibe/Dose) und schmaler als die Ärmelöffnung (r 0,036),
-  // damit es im Ärmel verschwindet; Anfang steckt im Handballen
-  // kurz (2,5 cm) und zum Arm hin gerundet wie ein Handgelenk; ohne den dunklen Klettriegel (las sich als Dosenband)
-  const cuffProfile = [[0.0272, -0.012], [0.029, -0.004], [0.0292, 0.004], [0.0282, 0.011], [0.025, 0.017], [0.019, 0.0215], [0.01, 0.0242], [0, 0.025]]
-    .map(([r, z]) => new THREE.Vector2(r, z));
-  const cuff = new THREE.LatheGeometry(cuffProfile, lod === 'low' ? 10 : 14);
-  cuff.rotateX(Math.PI / 2);
-  cuff.scale(1.06, 0.74, 1);
-  parts.push(tag(cuff, 0, sideColor));
-
-  // Finger
-  let bone = 1;
-  for (const f of FINGERS) {
-    for (let s = 0; s < 3; s++) {
-      const len = f.len[s], r0 = f.r[s], r1 = s < 2 ? f.r[s + 1] : f.r[s] * 0.88;
-      const g = capsule(r0, r1, len, SEG);
-      // Ruheposition entlang −Z ab Knöchel
-      let z = f.z;
-      for (let k = 0; k < s; k++) z -= f.len[k];
-      g.translate(f.x, f.y, z);
-      parts.push(tag(g, bone + s, sideColor));
-      if (s < 2) {
-        // Gepolsterte Glieder auf dem Fingerrücken
-        const pad = new THREE.BoxGeometry(r0 * 1.35, 0.003, len * (s ? 0.42 : 0.5));
-        pad.translate(f.x, f.y + r0 * 0.86, z - len * 0.5);
-        parts.push(tag(pad, bone + s, PAD));
-      }
-    }
-    bone += 3;
-  }
-  // Daumen (Ruhe entlang seiner eigenen −Z-Achse; Ausrichtung über Knochen-Ruhedrehung)
-  const tq = thumbRestQuat();
-  let tz = 0;
-  for (let s = 0; s < 3; s++) {
-    const len = THUMB.len[s], r0 = THUMB.r[s], r1 = s < 2 ? THUMB.r[s + 1] : THUMB.r[s] * 0.88;
-    const g = capsule(r0, r1, len, SEG);
-    if (s === 2) {
-      const pad = new THREE.BoxGeometry(r0 * 1.3, 0.003, len * 0.45);
-      pad.translate(0, r0 * 0.86, -len * 0.45);
-      g.deleteAttribute('uv');
-      const merged = mergeGeometries([g.toNonIndexed(), tagPlain(pad)]);
-      g.dispose();
-      merged.translate(0, 0, tz);
-      merged.applyQuaternion(tq);
-      merged.translate(...THUMB.base);
-      parts.push(tag(merged, 13 + s, sideColor));
-    } else {
-      g.translate(0, 0, tz);
-      g.applyQuaternion(tq);
-      g.translate(...THUMB.base);
-      parts.push(tag(g, 13 + s, sideColor));
-    }
-    tz -= len;
-  }
-  let geo = mergeGeometries(parts, false);
-  parts.forEach(p => p.dispose());
+function gloveGeometry(mirror, lod = 'high') {
+  const D = decodeGlove(lod === 'low' ? 'low' : 'high');
+  const pos = D.pos.slice(), nrm = D.nrm.slice(), idx = D.idx.slice();
   if (mirror) {
-    const p = geo.attributes.position, n = geo.attributes.normal;
-    for (let i = 0; i < p.count; i++) { p.setX(i, -p.getX(i)); n.setX(i, -n.getX(i)); }
-    // Dreiecksumlauf umkehren
-    for (const name of Object.keys(geo.attributes)) {
-      const a = geo.attributes[name], sz = a.itemSize, arr = a.array;
-      for (let t = 0; t < a.count; t += 3) for (let k = 0; k < sz; k++) { const tmp = arr[(t + 1) * sz + k]; arr[(t + 1) * sz + k] = arr[(t + 2) * sz + k]; arr[(t + 2) * sz + k] = tmp; }
-    }
+    for (let i = 0; i < pos.length; i += 3) { pos[i] = -pos[i]; nrm[i] = -nrm[i]; }
+    for (let t = 0; t < idx.length; t += 3) { const a = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = a; }
   }
-  boxUV(geo, 0.03);
-  geo.computeBoundingSphere();
-  return geo;
-}
-
-// Platte entlang X zur Handrücken-Wölbung biegen (y −= k·x²)
-function bent(g, k) {
-  const p = g.attributes.position;
-  for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) - k * p.getX(i) * p.getX(i));
-  g.computeVertexNormals();
-  return g;
-}
-
-function tagPlain(g) {
-  const n = g.index ? g.toNonIndexed() : g;
-  if (n !== g) g.dispose();
-  for (const k of Object.keys(n.attributes)) if (k !== 'position' && k !== 'normal') n.deleteAttribute(k);
-  return n;
-}
-
-// Glättet Normalen einer Box (für die Handfläche)
-function mergeVerticesSmooth(geo) {
-  geo.deleteAttribute('uv');
-  const g = geo.index ? geo.toNonIndexed() : geo;
-  if (g !== geo) geo.dispose();
-  // Gleiche Positionen → gemittelte Normalen
-  const p = g.attributes.position, n = g.attributes.normal, map = new Map();
-  for (let i = 0; i < p.count; i++) {
-    const k = `${p.getX(i).toFixed(4)},${p.getY(i).toFixed(4)},${p.getZ(i).toFixed(4)}`;
-    if (!map.has(k)) map.set(k, []);
-    map.get(k).push(i);
-  }
-  for (const idx of map.values()) {
-    let x = 0, y = 0, z = 0;
-    for (const i of idx) { x += n.getX(i); y += n.getY(i); z += n.getZ(i); }
-    const l = Math.hypot(x, y, z) || 1;
-    for (const i of idx) n.setXYZ(i, x / l, y / l, z / l);
-  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  g.setAttribute('skinIndex', new THREE.Uint8BufferAttribute(D.ski, 4));
+  g.setAttribute('skinWeight', new THREE.Uint8BufferAttribute(D.skw, 4, true));
+  g.setAttribute('gloveMask', new THREE.Uint8BufferAttribute(D.msk, 4, true));
+  g.setAttribute('gloveAO', new THREE.Uint8BufferAttribute(D.ao, 1, true));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  g.computeBoundingSphere();
   return g;
 }
 
 function thumbRestQuat(mirror = false) {
-  const q = basisQuat([-0.62, -0.42, -0.66], [-0.75, 0.6, -0.1]);
+  const q = basisQuat(THUMB_REST.F, THUMB_REST.B);
   if (mirror) { q.y = -q.y; q.z = -q.z; }
   return q.clone();
 }
+// Bindehaltung im Pose-Format (applyPose spiegelt für die linke Hand)
+function bindPose() {
+  const q = thumbRestQuat(false);
+  return { f: BIND_CURL.map((c, i) => [c[0], c[1], c[2], BIND_SPLAY[i] - FINGERS[i].splay * 0.5]), t: [q.x, q.y, q.z, q.w, BIND_THUMB_FLEX[0], BIND_THUMB_FLEX[1]] };
+}
 
-// Ärmel: Stoffrohr entlang −Z (0 = Ellbogen/Schulter → −len = Handgelenk/Ellbogen) mit Muskelform,
-// verjüngt zum Ende, schräg verlaufenden Stauchfalten (an den Enden dichter: Bündchen, Ellbogenbeuge) und
-// Vertex-Farben als Stoffschattierung (Faltentäler dunkler, Rücken heller, Säume abgedunkelt).
-// opts: bulge (m, Muskelbauch), bulgeAt (0..1), seg (Umfangssegmente)
-function sleeveGeometry(len, rA, rB, folds, seed = 1, { bulge = 0, bulgeAt = 0.3, seg = 16 } = {}) {
-  const N = 22;
-  // Profil: [t, Radius, Faltenanteil, Helligkeit]; t < 0 / > 1 = Saum (nach innen umgeschlagen)
-  const prof = [[-0.012, rA * 0.72, 0, 0.55]];
-  for (let i = 0; i <= N; i++) {
-    const t = i / N;
-    const taper = 1 - THREE.MathUtils.smoothstep(t, 0.06, 1);
-    let r = rB + (rA - rB) * taper + bulge * Math.exp(-(((t - bulgeAt) / 0.2) ** 2));
-    // Falten an den Enden kräftiger (Stoff staut sich über dem Bündchen und in der Beuge)
+// Ärmel (hands-v3): Stoffrohr entlang −Z (0 = Ellbogen/Schulter → −len = Handgelenk/Ellbogen) mit Muskelform, zum
+// Ende ovaler (Unterarm am Handgelenk), schräg verlaufenden Stauchfalten (an den Enden dichter), über dem elastischen
+// Saum gebauschter Stoff (bunch) und Saumeinzug (cinch); beide Enden als gerundete, umgeschlagene Kante mit Futter
+// nach innen – aus keinem Winkel ist eine offene Röhre oder Rückseite zu sehen (Material zusätzlich beidseitig).
+// Vertex-Farben = Stoffschattierung (Faltentäler dunkler, Säume/Futter abgedunkelt). userData.fit(z) → {rx, ry}:
+// Außenmaß ohne Falten an lokaler Höhe z (für Zubehör-Ringe, Klettlasche, Uhr).
+function sleeveGeometry(len, rA, rB, folds, seed = 1, { bulge = 0, bulgeAt = 0.3, seg = 16, oval = 0, bunch = 0, cinch = 0, lining = 0.016, N = 26 } = {}) {
+  const S = THREE.MathUtils.smoothstep, lip = 0.0017;
+  const radius = (t) => rB + (rA - rB) * (1 - S(t, 0.06, 1)) + bulge * Math.exp(-(((t - bulgeAt) / 0.2) ** 2)) - cinch * S(t, 1 - 0.04 / len, 1);
+  const ovalT = (t) => oval * S(t, 0.55, 1);
+  const prof = [];   // [z, r, Faltenanteil, Helligkeit, t]
+  const r0 = radius(0), r1 = radius(1);
+  prof.push([-lining, r0 - 2 * lip, 0, 0.4, 0], [-0.004, r0 - 2 * lip, 0, 0.46, 0]);
+  for (let k = 0; k <= 4; k++) { const a = Math.PI * (1 - k / 4); prof.push([Math.sin(a) * lip, r0 - lip + Math.cos(a) * lip, 0, 0.5 + 0.08 * k, 0]); }
+  for (let i = 1; i < N; i++) {
+    const t = 1 - Math.pow(1 - i / N, 1.5);
     const fw = 0.7 + 0.8 * Math.exp(-t / 0.14) + 1.1 * Math.exp(-(1 - t) / 0.12);
-    // Säume etwas dunkler (Überlappung, Schatten der Nachbarteile)
-    const shade = 1 - 0.16 * Math.exp(-t / 0.05) - 0.2 * Math.exp(-(1 - t) / 0.06);
-    prof.push([t, r, fw, shade]);
+    const shade = 1 - 0.12 * Math.exp(-t / 0.05) - 0.12 * Math.exp(-(1 - t) / 0.05);
+    prof.push([-t * len, radius(t), fw, shade, t]);
   }
-  prof.push([1 + 0.002 / len, rB * 1.05, 0.6, 0.76], [1 + 0.007 / len, rB * 0.8, 0, 0.5]);
+  for (let k = 0; k <= 4; k++) { const a = Math.PI * (k / 4); prof.push([-len - Math.sin(a) * lip, r1 - lip + Math.cos(a) * lip, 0, 0.82 - 0.08 * k, 1]); }
+  prof.push([-len + 0.004, r1 - 2 * lip, 0, 0.46, 1], [-len + lining, r1 - 2 * lip, 0, 0.4, 1]);
   const rows = prof.length, cols = seg + 1;
   const pos = new Float32Array(rows * cols * 3), uv = new Float32Array(rows * cols * 2), col = new Float32Array(rows * cols * 3);
-  const uS = 2 * Math.PI * rA / 0.22, vS = len / 0.22;
+  const uS = 2 * Math.PI * rA / 0.22;
   for (let i = 0; i < rows; i++) {
-    const [t, r0, fw, shade] = prof[i];
+    const [z, r0_, fw, shade, t] = prof[i];
+    const dEnd = (1 - t) * len, ot = ovalT(t), sx = 1.06 + 0.07 * ot, sy = 0.94 - 0.1 * ot;
+    const env = bunch * S(dEnd, 0.075, 0.03) * S(dEnd, 0.004, 0.016) * (fw > 0 ? 1 : 0);
     for (let j = 0; j < cols; j++) {
       const th = (j / seg) * Math.PI * 2;
       // schräge, unregelmäßige Faltenringe: Phase wandert mit dem Umfang
       const ph = t * Math.PI * folds * 1.7 + seed + 0.9 * Math.sin(th * 2 + seed) + 0.45 * Math.sin(th * 3 - seed * 1.7);
       const f = Math.sin(ph) * 0.62 + Math.sin(ph * 2.3 + seed * 2 + th) * 0.38;
-      const r = r0 + f * 0.003 * fw;
-      const k = (i * cols + j);
-      pos[k * 3] = Math.sin(th) * r * 1.06; pos[k * 3 + 1] = Math.cos(th) * r * 0.94; pos[k * 3 + 2] = -t * len;
-      uv[k * 2] = (j / seg) * uS; uv[k * 2 + 1] = t * vS;
-      // Faltentäler dunkler, Rücken heller (nur wo Falten sind)
-      const c = shade * (0.9 + 0.13 * f * Math.min(1, fw));
+      // Bausch über dem Saum: wulstige, ungleichmäßige Ringe (≈ 1,6 cm), nach außen gewölbt
+      const pb = dEnd / 0.016 * Math.PI * 2 + 1.3 * Math.sin(th + seed) + 0.6 * Math.sin(2 * th - seed * 1.3);
+      const puff = Math.pow(0.5 + 0.5 * Math.sin(pb), 0.8) * (0.75 + 0.25 * Math.sin(th * 3 + seed * 2.1));
+      const r = r0_ + f * 0.003 * fw * (fw > 0 ? 1 : 0) + env * puff;
+      const k = i * cols + j;
+      pos[k * 3] = Math.sin(th) * r * sx; pos[k * 3 + 1] = Math.cos(th) * r * sy; pos[k * 3 + 2] = z;
+      uv[k * 2] = (j / seg) * uS; uv[k * 2 + 1] = -z / 0.22;
+      const c = shade * (fw > 0 ? 0.9 + 0.13 * f * Math.min(1, fw) : 1) * (env > 0 ? 0.86 + 0.2 * puff * env / bunch : 1);
       col[k * 3] = col[k * 3 + 1] = col[k * 3 + 2] = c;
     }
   }
@@ -617,6 +474,10 @@ function sleeveGeometry(len, rA, rB, folds, seed = 1, { bulge = 0, bulgeAt = 0.3
     const x = n.getX(a) + n.getX(b), y = n.getY(a) + n.getY(b), z = n.getZ(a) + n.getZ(b), l = Math.hypot(x, y, z) || 1;
     n.setXYZ(a, x / l, y / l, z / l); n.setXYZ(b, x / l, y / l, z / l);
   }
+  g.userData.fit = (z) => {
+    const t = THREE.MathUtils.clamp(-z / len, 0, 1), r = radius(t), ot = ovalT(t);
+    return { rx: r * (1.06 + 0.07 * ot), ry: r * (0.94 - 0.1 * ot) };
+  };
   return g;
 }
 
@@ -627,7 +488,7 @@ class Arm {
     this.side = side;            // 1 = rechts, −1 = links
     this.group = new THREE.Group();
     this.group.name = side > 0 ? 'arm-rechts' : 'arm-links';
-    const geo = buildHandGeometry(side < 0, lod);
+    const geo = gloveGeometry(side < 0, lod);
     // Knochen
     const bones = [];
     const hand = new THREE.Bone(); hand.name = 'hand'; bones.push(hand);
@@ -654,9 +515,13 @@ class Arm {
     }
     this.thumb = thumb;
     this.handBone = hand;
+    // Unterarm-Knochen (16): trägt das Bündchen, folgt in solve() dem Ärmel (Ursprung Handgelenk, +Z zum Ellbogen)
+    const foreBone = new THREE.Bone(); foreBone.name = 'unterarm'; bones.push(foreBone);
+    this.foreBone = foreBone;
     this.mesh = new THREE.SkinnedMesh(geo, mats.glove);
     this.mesh.name = 'handschuh';
-    this.mesh.add(hand);
+    this.mesh.add(hand, foreBone);
+    this.applyPose(bindPose());   // Bindehaltung des Netzes (leicht gespreizt/gebeugt)
     this.mesh.updateMatrixWorld(true);
     this.mesh.bind(new THREE.Skeleton(bones));
     this.mesh.frustumCulled = false;
@@ -665,35 +530,52 @@ class Arm {
     // Ärmel (Unter- und Oberarm) + Ellbogen
     this.upperLen = 0.33; this.foreLen = 0.3;
     // Unterarm: kräftig am Ellbogen (Muskelbauch), schlank zum Bündchen; Oberarm kaum verjüngt
-    this.fore = new THREE.Mesh(sleeveGeometry(this.foreLen + 0.008, 0.049, 0.036, 3.2, side > 0 ? 1 : 2.4, { bulge: 0.004, bulgeAt: 0.22 }), mats.sleeve);
-    this.upper = new THREE.Mesh(sleeveGeometry(this.upperLen, 0.056, 0.05, 2.2, side > 0 ? 3 : 4.1, { bulge: 0.002, bulgeAt: 0.55 }), mats.sleeve);
+    // Unterarm: zum Handgelenk oval, über dem elastischen Saum gebauscht, Saum liegt eng über dem Handschuh-Bündchen
+    const seg = lod === 'low' ? 14 : 20;
+    this.fore = new THREE.Mesh(sleeveGeometry(this.foreLen + 0.008, 0.049, 0.0355, 3.2, side > 0 ? 1 : 2.4, { bulge: 0.004, bulgeAt: 0.22, oval: 1, bunch: 0.0036, cinch: 0.0046, seg, N: lod === 'low' ? 22 : 30 }), mats.sleeve);
+    this.upper = new THREE.Mesh(sleeveGeometry(this.upperLen, 0.056, 0.05, 2.2, side > 0 ? 3 : 4.1, { bulge: 0.002, bulgeAt: 0.55, seg: lod === 'low' ? 14 : 18 }), mats.sleeve);
     const elbowGeo = new THREE.SphereGeometry(0.05, 12, 8);
     elbowGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(elbowGeo.attributes.position.count * 3).fill(0.86), 3));
     this.elbow = new THREE.Mesh(elbowGeo, mats.sleeve);
     for (const m of [this.fore, this.upper, this.elbow]) { m.frustumCulled = false; this.group.add(m); }
-    // Klebeband am rechten Unterarm, Uhr an der Innenseite des linken Handgelenks
+    // Klettlasche am Ärmelsaum (Außenseite, über dem Bausch), Klebeband am rechten Unterarm, Uhr an der Innenseite
+    // des linken Handgelenks (auf dem Unterarm-Knochen: sitzt auf dem Bündchen, das dem Ärmel folgt)
+    const fit = this.fore.geometry.userData.fit, zEnd = -(this.foreLen + 0.008);
+    const tabFit = fit(zEnd + 0.02);
+    const tabGeo = chamferBoxGeometry(0.019, 0.0022, 0.026, 0.0009);
+    tabGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(tabGeo.attributes.position.count * 3).fill(0.9), 3));
+    // UV wie der Ärmel (≈ 0,22 m je Kachel), sonst zeigt die Lasche nur einen Tarnfleck
+    { const p = tabGeo.attributes.position, uv = new Float32Array(p.count * 2); for (let i = 0; i < p.count; i++) { uv[i * 2] = 0.3 + p.getX(i) / 0.22; uv[i * 2 + 1] = 0.6 + p.getZ(i) / 0.22; } tabGeo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); }
+    const tab = new THREE.Mesh(tabGeo, mats.sleeve);
+    const ta = side * 0.42;   // Winkel um die Ärmelachse (von oben zur Außenseite)
+    tab.position.set(Math.sin(ta) * (tabFit.rx + 0.0036), Math.cos(ta) * (tabFit.ry + 0.0036), zEnd + 0.017);
+    tab.rotation.set(0.06, 0, -ta * 0.92);
+    tab.frustumCulled = false;
+    this.fore.add(tab);
     if (side > 0) {
       // Radius = Ärmelprofil an dieser Stelle (+ Faltenhöhe), damit das Band anliegt
-      const tape = new THREE.Mesh(new THREE.CylinderGeometry(0.0412, 0.0412, 0.032, 16, 1, true), mats.tape);
+      const tf = fit(-0.21);
+      const tape = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.032, 18, 1, true), mats.tape);
       tape.geometry.rotateX(Math.PI / 2);
-      tape.scale.set(1.06, 0.94, 1);
+      tape.scale.set(tf.rx + 0.0034, tf.ry + 0.0034, 1);
       tape.position.z = -0.21;
       this.fore.add(tape);
     } else {
-      // Uhrgruppe: Ursprung auf der Handgelenksachse, lokal +Y zeigt zur Handflächenseite
+      // Uhrgruppe: Ursprung auf der Handgelenksachse, lokal +Y zeigt zur Handflächenseite; Band umschließt das
+      // Handschuh-Bündchen (≈ 2,8 × 2,0 cm Halbachsen bei +1 cm)
       const watch = new THREE.Group();
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.018, 18, 1, true), mats.watchCase);
-      band.rotation.x = Math.PI / 2; band.scale.set(1.08, 0.9, 1);
-      const caseM = new THREE.Mesh(chamferBoxGeometry(0.032, 0.01, 0.036, 0.0035), mats.watchCase);
-      caseM.position.y = 0.0365;
-      const face = new THREE.Mesh(new THREE.CircleGeometry(0.0122, 20), mats.watchFace);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.016, 22, 1, true), mats.watchCase);
+      band.rotation.x = Math.PI / 2; band.scale.set(0.0292, 0.0222, 1);
+      const caseM = new THREE.Mesh(chamferBoxGeometry(0.03, 0.009, 0.034, 0.0032), mats.watchCase);
+      caseM.position.y = 0.0262;
+      const face = new THREE.Mesh(new THREE.CircleGeometry(0.0115, 20), mats.watchFace);
       // Zifferblatt: nach außen (+Y), Ziffern lesbar vom Handgelenk zu den Fingern
       face.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
-      face.position.y = 0.0418;
+      face.position.y = 0.0308;
       watch.add(band, caseM, face);
-      watch.position.set(0, -0.001, 0.013);
+      watch.position.set(0, -0.0008, 0.0105);
       watch.rotation.z = Math.PI;
-      this.handBone.add(watch);
+      this.foreBone.add(watch);
       this.watch = watch;
     }
     this.align = 0.7;            // 0 = reine IK, 1 = Unterarm exakt in Handachse
@@ -1073,6 +955,9 @@ class Arm {
     this.upper.scale.z = THREE.MathUtils.clamp(S0.distanceTo(E) / Lu, 0.6, 1.6);
     this.elbow.position.copy(E);
     this.elbowPos = E;
+    // Bündchen-Knochen = Ärmel am Handgelenk (gleiche Drehung wie der Unterarm-Ärmel, Ursprung im Handgelenk)
+    this.foreBone.position.copy(W);
+    this.foreBone.quaternion.copy(this.fore.quaternion);
   }
 }
 // Fingermaße für Prüfwerkzeuge (tools/out/hands2/probe.mjs)
@@ -1135,11 +1020,11 @@ export function getPose(name) {
 
 export function newPose(name = 'relaxed') { return clonePose(getPose(name)); }
 
-// ---------------------------------------------------------------- Handschuh-/Ärmel-Texturen (hands)
-// Prozedural, kachelbar, je Größe gecacht: Handschuh = Albedo-Detail (Grau, multipliziert Vertex- und Klassenfarbe:
-// Abrieb hell, Schmutz dunkel, Faser-Sprenkel), Normalen (Synthetikleder-Narbung + feine Prägung), Rauheit
-// (abgegriffene Stellen glatter). Ärmel = Ripstop-Gewebe (Gitterfäden + Grundbindung) als Normal-Map.
-// Größe je Qualität: low 256², medium 512², high/ultra 1024² (Normalen; Albedo/Rauheit halb).
+// ---------------------------------------------------------------- Handschuh-/Ärmel-Texturen (hands, hands-v3)
+// Prozedural, kachelbar, je Größe gecacht. Handschuh (hands-v3) = eine RGBA-Detailkarte, im Shader dreiachsig über die
+// Bindeposition gelegt (keine UV-Nähte, klebt an der Haut): R Strickstoff-Höhe (Stretch-Rücken), G Narbung des
+// Synthetikleders (Innenhand), B Abrieb/Schmutz, A Faser-Helligkeit. Ärmel = Ripstop-Gewebe als Normal-Map.
+// Größe je Qualität: low 256², medium 512², high/ultra 1024².
 const TEX = new Map();
 function texCanvas(S) { const c = document.createElement('canvas'); c.width = c.height = S; return c; }
 function mkTex(c, srgb, repeat = 1) {
@@ -1163,32 +1048,32 @@ function normalFromHeight(h, S, strength) {
   ctx.putImageData(img, 0, 0);
   return c;
 }
-export function gloveMaps(S = 512) {
-  const key = 'glove' + S;
+export function gloveDetail(S = 512) {
+  const key = 'gloveD' + S;
   if (TEX.has(key)) return TEX.get(key);
-  const A = Math.max(128, S >> 1);
-  // Narbung: feines Rauschen (≈ 0,3 mm bei 3 cm Kachel) + gröbere Poren
-  const fine = fbm(S, S, { seed: 71, period: S >= 1024 ? 128 : 64, octaves: 2, gain: 0.6 });
-  const pore = fbm(S, S, { seed: 72, period: 24, octaves: 2, gain: 0.5 });
-  const h = new Float32Array(S * S);
-  for (let i = 0; i < h.length; i++) h[i] = fine[i] * 0.7 + Math.max(0, pore[i] - 0.55) * 1.4;
-  const normal = mkTex(normalFromHeight(h, S, S / 256 * 1.6), false);
-  // Abrieb/Schmutz nur dezent und kleinteilig (Kachel = 3 cm; große Flecken wirkten wie Tarnmuster)
-  const wear = fbm(A, A, { seed: 73, period: 10, octaves: 3 }), grime = fbm(A, A, { seed: 74, period: 14, octaves: 3 });
-  const speck = fbm(A, A, { seed: 75, period: A >> 2, octaves: 1 });
-  const ca = texCanvas(A), cr = texCanvas(A);
-  const ia = ca.getContext('2d').createImageData(A, A), ir = cr.getContext('2d').createImageData(A, A);
-  for (let i = 0; i < A * A; i++) {
-    const scuff = THREE.MathUtils.smoothstep(wear[i], 0.58, 0.72), dirt = THREE.MathUtils.smoothstep(grime[i], 0.6, 0.78);
-    const v = (0.9 + 0.045 * scuff - 0.06 * dirt + (speck[i] - 0.5) * 0.06) * 255;
-    ia.data[i * 4] = ia.data[i * 4 + 1] = ia.data[i * 4 + 2] = THREE.MathUtils.clamp(v, 0, 255); ia.data[i * 4 + 3] = 255;
-    const rgh = (0.84 - 0.16 * scuff + 0.05 * dirt) * 255;
-    ir.data[i * 4] = ir.data[i * 4 + 1] = ir.data[i * 4 + 2] = rgh; ir.data[i * 4 + 3] = 255;
+  // Kachel = 3,5 cm: 40 Maschenstäbchen (0,9 mm), Leder-Poren ≈ 0,3 mm, Abrieb-Flecken ≈ 3–6 mm
+  const grain = fbm(S, S, { seed: 71, period: S >= 1024 ? 96 : 64, octaves: 2, gain: 0.55 });
+  const pore = fbm(S, S, { seed: 72, period: 28, octaves: 2, gain: 0.5 });
+  const crease = fbm(S, S, { seed: 76, period: 9, octaves: 3, gain: 0.5 });
+  const wear = fbm(S, S, { seed: 73, period: 8, octaves: 3 }), fib = fbm(S, S, { seed: 75, period: S >> 3, octaves: 2 });
+  const d = new Uint8Array(S * S * 4), cols = 40, rows = 52;
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const i = y * S + x, u = (x / S) * cols, v = (y / S) * rows, fu = u - Math.floor(u);
+    // Rechts-Links-Maschen: Stäbchen mit V-förmig versetzten Schlaufen
+    const loop = 0.5 + 0.5 * Math.sin((v + Math.abs(fu - 0.5) * 1.2) * Math.PI * 2);
+    const knit = 0.18 + 0.62 * Math.sin(fu * Math.PI) * (0.55 + 0.45 * loop) + (fib[i] - 0.5) * 0.25;
+    const leather = 0.55 + (grain[i] - 0.5) * 0.7 - Math.max(0, pore[i] - 0.6) * 1.6 - Math.pow(1 - Math.abs(crease[i] - 0.5) * 2, 8) * 0.35;
+    d[i * 4] = THREE.MathUtils.clamp(knit, 0, 1) * 255;
+    d[i * 4 + 1] = THREE.MathUtils.clamp(leather, 0, 1) * 255;
+    d[i * 4 + 2] = THREE.MathUtils.clamp(wear[i], 0, 1) * 255;
+    d[i * 4 + 3] = THREE.MathUtils.clamp(0.5 + (fib[i] - 0.5) * 1.4, 0, 1) * 255;
   }
-  ca.getContext('2d').putImageData(ia, 0, 0); cr.getContext('2d').putImageData(ir, 0, 0);
-  const r = { map: mkTex(ca, true), normalMap: normal, roughnessMap: mkTex(cr, false) };
-  TEX.set(key, r);
-  return r;
+  const t = new THREE.DataTexture(d, S, S, THREE.RGBAFormat);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
+  t.anisotropy = 4; t.colorSpace = THREE.NoColorSpace; t.needsUpdate = true;
+  TEX.set(key, t);
+  return t;
 }
 export function sleeveWeave(S = 512) {
   const key = 'weave' + S;
@@ -1208,22 +1093,98 @@ export function sleeveWeave(S = 512) {
 }
 const texSize = q => (q === 'low' ? 256 : q === 'medium' ? 512 : 1024);
 
-/** Klassen-Handschuhton aufhellen (Datenwerte reichen bis fast schwarz) – Farbton bleibt, Helligkeit ≥ 0,4. */
-const COYOTE = '#a38b69';
+/**
+ * Klassen-Handschuhton (hands-v3): taktische Töne statt Pappe/Haut – Standard Schwarz/Anthrazit, Klassen behalten
+ * ihren Farbton (Grau, Coyote, Braun, Oliv, Dunkeloliv, Elite schwarz), Sättigung ≤ 0,32, Helligkeit 0,2–0,42
+ * (Untergrenze: schwarzer Handschuh säuft im Schatten nicht ab; Glanzsaum im Shader hält die Kontur).
+ */
+const GLOVE_DEFAULT = '#383a3d';
 const _hsl = {};
 export function gloveTone(hex, out = new THREE.Color()) {
-  if (!hex || /^#?f{6}$/i.test(hex)) return out.set(COYOTE);
+  if (!hex || /^#?f{6}$/i.test(hex)) return out.set(GLOVE_DEFAULT);
   out.set(hex).getHSL(_hsl, THREE.SRGBColorSpace);
-  return out.setHSL(_hsl.h, Math.min(_hsl.s, 0.35), Math.max(_hsl.l, _hsl.l < 0.2 ? 0.3 : 0.42), THREE.SRGBColorSpace);
+  return out.setHSL(_hsl.h, Math.min(_hsl.s, 0.32), THREE.MathUtils.clamp(_hsl.l * 0.82, 0.2, 0.42), THREE.SRGBColorSpace);
+}
+
+// Handschuh-Shader (hands-v3): MeshStandardMaterial + Einschübe. Masken je Ecke (gloveMask: Leder, Polster, Bündchen,
+// Abrieb; gloveAO) → Grundfarbe je Zone (Stretch-Rücken, dunkleres Synthetikleder innen, TPR-Polster, Neopren-
+// Bündchen), Nähte als scharfe Linien auf den Zonengrenzen (Ableitungs-geglättet), Abrieb an Kuppen/Handballen,
+// Feld-AO; Rauheit je Zone; Mikrorelief (Strick/Narbung/Nahtrillen) über Höhen-Ableitungen (ohne Tangenten/UVs, ab
+// medium); weicher Stoff-Glanzsaum (Sheen) aus der diffusen Beleuchtung → Kontur bleibt auch im Schatten lesbar.
+function makeGloveMaterial(S) {
+  const m = new THREE.MeshStandardMaterial({ color: GLOVE_DEFAULT, roughness: 0.85, metalness: 0.0 });
+  const U = { gloveDetail: { value: gloveDetail(S) }, gloveTile: { value: 1 / 0.035 }, gloveBump: { value: 0.00032 }, gloveSheen: { value: 0.32 } };
+  m.userData.gloveU = U;
+  m.defines = { GLOVE_BUMP: '' };
+  m.customProgramCacheKey = () => 'glove-v3';
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec4 gloveMask;\nattribute float gloveAO;\nvarying vec4 vGM;\nvarying float vGAO;\nvarying vec3 vBP;\nvarying vec3 vBN;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGM = gloveMask; vGAO = gloveAO; vBP = position; vBN = normal;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform sampler2D gloveDetail; uniform float gloveTile; uniform float gloveBump; uniform float gloveSheen;
+varying vec4 vGM; varying float vGAO; varying vec3 vBP; varying vec3 vBN;
+float gL, gPad, gCuf, gWear, gH;`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+{
+  vec3 bw = abs(normalize(vBN)); bw *= bw; bw *= bw; bw /= (bw.x + bw.y + bw.z);
+  vec3 P = vBP * gloveTile;
+  vec4 tx = texture2D(gloveDetail, P.zy) * bw.x + texture2D(gloveDetail, P.xz) * bw.y + texture2D(gloveDetail, P.xy) * bw.z;
+  gL = smoothstep(0.4, 0.6, vGM.x); gPad = smoothstep(0.4, 0.6, vGM.y); gCuf = smoothstep(0.35, 0.65, vGM.z) * (1.0 - gPad);
+  vec3 base = diffuseColor.rgb;
+  vec3 fabric = base * (0.9 + 0.3 * (tx.a - 0.5)) * (0.94 + 0.12 * tx.r);
+  vec3 leather = base * vec3(0.6, 0.6, 0.63) * (0.9 + 0.3 * (tx.g - 0.5));
+  vec3 padC = base * 0.56 * (0.95 + 0.1 * tx.g);
+  vec3 cuffC = base * 0.8 * (0.92 + 0.16 * tx.r);
+  vec3 col = mix(mix(fabric, leather, gL), padC, gPad);
+  col = mix(col, cuffC, gCuf);
+  float sw = fwidth(vGM.x) * 1.3 + 0.012, pw = fwidth(vGM.y) * 1.3 + 0.012, cw = fwidth(vGM.z) * 1.3 + 0.012;
+  float seam = max((1.0 - smoothstep(0.0, sw, abs(vGM.x - 0.5))) * (1.0 - gCuf), 1.0 - smoothstep(0.0, pw, abs(vGM.y - 0.5)));
+  seam = max(seam, 1.0 - smoothstep(0.0, cw, abs(vGM.z - 0.5)));
+  // Steppnaht neben der Kappnaht (heller Faden, gestrichelt entlang der Grenze)
+  float st = (1.0 - smoothstep(0.0, sw, abs(abs(vGM.x - 0.5) - 0.09))) * step(0.5, fract(dot(P, vec3(9.0, 11.0, 13.0)))) * (1.0 - gCuf);
+  col *= 1.0 - 0.5 * seam;
+  col = mix(col, base * 1.25 + 0.012, st * 0.35);
+  gWear = vGM.w * smoothstep(0.3, 0.7, tx.b + vGM.w * 0.3);
+  col = mix(col, col * 1.55 + 0.018, gWear * 0.55);
+  col *= 0.88 + 0.24 * tx.b * (1.0 - gWear);
+  col *= mix(1.0, vGAO, 0.85);
+  diffuseColor.rgb = col;
+  gH = mix(tx.r * 0.75, tx.g * 0.55, gL) * (1.0 - gPad) + gPad * (0.5 + tx.g * 0.15) - seam * 0.9 + gCuf * tx.r * 0.2;
+}`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+roughnessFactor = mix(mix(0.86, 0.6, gL), 0.5, gPad);
+roughnessFactor = mix(roughnessFactor, 0.92, gCuf) - gWear * 0.18 + 0.06 * (vGAO - 0.7);`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+#ifdef GLOVE_BUMP
+{
+  vec2 dH = vec2(dFdx(gH), dFdy(gH)) * gloveBump;
+  vec3 sX = dFdx(-vViewPosition), sY = dFdy(-vViewPosition);
+  vec3 R1 = cross(sY, normal), R2 = cross(normal, sX);
+  float det = dot(sX, R1) * faceDirection;
+  normal = normalize(abs(det) * normal - sign(det) * (dH.x * R1 + dH.y * R2));
+}
+#endif`)
+      .replace('#include <opaque_fragment>', `{
+  float fr = 1.0 - saturate(dot(normal, normalize(vViewPosition)));
+  fr = fr * fr * fr;
+  vec3 irr = (reflectedLight.directDiffuse + reflectedLight.indirectDiffuse) / max(diffuseColor.rgb, vec3(0.03));
+  outgoingLight += irr * fr * gloveSheen * mix(1.0, 0.4, gL) * (1.0 - 0.6 * gPad) * vec3(0.92, 0.95, 1.0);
+}
+#include <opaque_fragment>`);
+  };
+  return m;
 }
 
 // Materialsatz der Arme (überdauert das Match, siehe takeMaterials in materials.js)
 function makeArmMaterials() {
   const watchTex = watchFaceTexture();
-  const gm = gloveMaps(512);
   const set = {
-    glove: new THREE.MeshStandardMaterial({ vertexColors: true, color: COYOTE, roughness: 1.0, metalness: 0.0, map: gm.map, roughnessMap: gm.roughnessMap, normalMap: gm.normalMap, normalScale: new THREE.Vector2(0.55, 0.55) }),
-    sleeve: new THREE.MeshStandardMaterial({ map: camoMap('arid'), vertexColors: true, roughness: 0.9, metalness: 0.0, normalMap: sleeveWeave(512), normalScale: new THREE.Vector2(0.5, 0.5) }),
+    glove: makeGloveMaterial(512),
+    // Ärmel beidseitig: Futter/Saum zeigen Stoff, nie eine offene Rückseite
+    sleeve: new THREE.MeshStandardMaterial({ map: camoMap('arid'), vertexColors: true, roughness: 0.9, metalness: 0.0, normalMap: sleeveWeave(512), normalScale: new THREE.Vector2(0.5, 0.5), side: THREE.DoubleSide }),
     tape: new THREE.MeshStandardMaterial({ map: tapeMap(), roughness: 0.6, metalness: 0.0 }),
     watchCase: new THREE.MeshStandardMaterial({ color: 0x1b1c1d, roughness: 0.55, metalness: 0.2 }),
     watchFace: new THREE.MeshStandardMaterial({ map: watchTex, emissive: 0xffffff, emissiveMap: watchTex, emissiveIntensity: 0.55, roughness: 0.15, metalness: 0.0 }),
@@ -1242,7 +1203,7 @@ export class Arms {
     getPose('relaxed');
     this.group = new THREE.Group();
     this.group.name = 'arme';
-    // LOD: auf 'low' gröbere Finger/Handballen (≈ 1,6k statt ≈ 2,9k Dreiecke je Hand)
+    // LOD: Handschuhnetz ≈ 3,5k Dreiecke je Hand (high/medium) bzw. ≈ 1,5k (low), Ärmel 20 bzw. 14 Segmente
     const lod = quality === 'low' ? 'low' : 'high';
     this.right = new Arm(1, this.mats, lod);
     this.left = new Arm(-1, this.mats, lod);
@@ -1260,17 +1221,20 @@ export class Arms {
     this.mats.sleeve.map = camoMap(camo);
   }
 
-  /** Texturgröße je Qualität (Karten werden nur getauscht – gleiches Shaderprogramm). */
+  /** Texturgröße/Mikrorelief je Qualität (Karten werden getauscht; low ohne Relief → eigenes Programm). */
   setQuality(q) {
     const S = texSize(q);
     if (S === this._texS) return;
     this._texS = S;
-    const gm = gloveMaps(S), g = this.mats.glove, sl = this.mats.sleeve;
-    g.map = gm.map; g.normalMap = gm.normalMap; g.roughnessMap = gm.roughnessMap;
+    const g = this.mats.glove, sl = this.mats.sleeve;
+    if (g.userData.gloveU) g.userData.gloveU.gloveDetail.value = gloveDetail(S);
+    // Mikrorelief erst ab medium (low: nur Zonenfarben, Nähte, AO, Glanzsaum)
+    const bump = q !== 'low';
+    if (g.defines && ('GLOVE_BUMP' in g.defines) !== bump) { if (bump) g.defines.GLOVE_BUMP = ''; else delete g.defines.GLOVE_BUMP; g.needsUpdate = true; }
     sl.normalMap = sleeveWeave(S);
   }
 
-  /** Handschuhfarbe (Klassen-Look, sRGB-Hex); zu dunkle Töne werden auf taktische Mitteltöne angehoben. */
+  /** Handschuhfarbe (Klassen-Look, sRGB-Hex); Töne werden auf taktische Werte gebracht (gloveTone). */
   setGlove(hex) { gloveTone(hex, this.mats.glove.color); }
 
   update(dt) {

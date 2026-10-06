@@ -12,6 +12,7 @@ import { applyWorldShading, initShading, resetShading, setShadingMode, shadingMo
 import { createProbeQuery, PROBE_TIERS, PROBE_BOUNCE_SCALE } from './probes.js';
 import { createAtmosphere } from './atmos.js';
 import { resolveConditions, applyConditions } from './weather.js';
+export { resolveConditions, conditionsLabel } from './weather.js'; // atmosphere-weather: main.js löst Wetter/Zeit vor dem Laden auf
 import { createWater } from './water.js';
 import { navFromData, validateNavGraph } from './navgraph.js';
 import { createMinimap } from './minimap.js';

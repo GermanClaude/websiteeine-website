@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { getMaterial } from '../engine/textures.js';
 import { assets, tierFor } from '../../../lib/loader.js';
-import { addShaderPatch } from '../world/shading.js';
+import { addShaderPatch, removeShaderPatch } from '../world/shading.js';
 
 let SET = null;
 let upgrading = null;
@@ -143,13 +143,21 @@ function paintLookPatch(team) {
   };
 }
 
-let looked = false;
-/** Tarnung/Schlamm/Staub/Abplatzer an die Lackmaterialien hängen (einmal; nur medium+). */
+let lookOn = false, lookFns = null;
+/**
+ * Tarnung/Schlamm/Staub/Abplatzer an die (geteilten, matchübergreifenden) Lackmaterialien hängen – nur medium+;
+ * auf low wird der Haken wieder entfernt (Qualitätswechsel/Auto-Stufe zwischen Matches). Aufruf je Match.
+ */
 export function applyVehicleLook(quality = 'high') {
-  if (looked || quality === 'low') return false;
+  const want = quality !== 'low';
+  if (want === lookOn) return false;
   const S = vehicleMaterials();
-  for (const k of ['A', 'B', 'null']) addShaderPatch(S.paint[k], 'vehLook', paintLookPatch(k));
-  looked = true;
+  if (want && !lookFns) lookFns = { A: paintLookPatch('A'), B: paintLookPatch('B'), null: paintLookPatch('null') };
+  for (const k of ['A', 'B', 'null']) {
+    if (want) addShaderPatch(S.paint[k], 'vehLook', lookFns[k]);
+    else removeShaderPatch(S.paint[k], 'vehLook');
+  }
+  lookOn = want;
   return true;
 }
 
@@ -220,9 +228,9 @@ function applySet(m, set, { metalness, roughness } = {}) {
  * Stufe: low 512, sonst 1024 (Fahrzeuge sind keine Helden-Sätze).
  */
 export function upgradeVehicleMaterials(renderer, quality = 'high') {
+  applyVehicleLook(quality); // je Match (auch nach dem ersten Aufruf): low entfernt den Haken wieder
   if (upgrading) return upgrading;
   const S = vehicleMaterials();
-  applyVehicleLook(quality);
   upgrading = (async () => {
     try {
       if (!assets.renderer && renderer) assets.setRenderer(renderer);

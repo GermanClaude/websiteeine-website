@@ -573,7 +573,7 @@ function template(type, team, quality) {
   if (TEMPLATES.has(key)) return TEMPLATES.get(key);
   const S = vehicleMaterials();
   HQ = quality !== 'low';
-  applyVehicleLook(quality); // Tarnung/Schlamm/Staub (einmal, nur medium+)
+  applyVehicleLook(quality); // Tarnung/Schlamm/Staub (nur medium+; low entfernt den Haken)
   const dists = LOD_DIST[quality] || LOD_DIST.high;
   const root = new THREE.Group();
   root.name = `vehicle:${type}`;
