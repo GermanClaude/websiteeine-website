@@ -81,7 +81,8 @@ export class GunCollider {
       g.on = visibleChain(g.obj, this.model.parent);
       if (!g.on) continue;
       g.obj.matrixWorld.decompose(_t, g.rot, _s);
-      g.scale = _s.x || 1;
+      g.scale = Math.min(_s.x, _s.y, _s.z);
+      if (!(g.scale > 0.05)) { g.on = false; continue; }   // weggeskaliertes Teil (ausgeblendet)
       g.inv.copy(g.obj.matrixWorld).invert();
     }
   }
@@ -99,7 +100,7 @@ export class GunCollider {
       const md = maxD / g.scale;
       if (g.box.distanceToPoint(_p) > Math.min(md, best)) continue;
       const stamp = ++this._stamp >= 0xffffffff ? (this._stamp = 1) : this._stamp;
-      const r = Math.ceil(md / CELL);
+      const r = Math.min(2, Math.ceil(md / CELL));
       const cx = Math.floor(_p.x / CELL), cy = Math.floor(_p.y / CELL), cz = Math.floor(_p.z / CELL);
       const T = g.T, N = g.N, st = g.stamp;
       for (let x = cx - r; x <= cx + r; x++) for (let y = cy - r; y <= cy + r; y++) for (let z = cz - r; z <= cz + r; z++) {

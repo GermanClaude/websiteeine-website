@@ -375,7 +375,10 @@ export class VehicleSystem {
 
   _findExit(v, idx) {
     const w = this.world, seat = v.seats[idx];
-    const cands = [...(seat ? seat.def.exit : []), [-3, 0, 0], [3, 0, 0], [0, 0, -5], [0, 0, 5]];
+    // walls 2: mehr Ausweichpunkte (Diagonalen, weiter außen) – an Gelände-/Mauerkanten (Grenzland-Panzer) war sonst
+    // gelegentlich kein Punkt frei
+    const cands = [...(seat ? seat.def.exit : []), [-3, 0, 0], [3, 0, 0], [0, 0, -5], [0, 0, 5],
+      [-3.6, 0, -2.6], [3.6, 0, -2.6], [-3.6, 0, 2.6], [3.6, 0, 2.6], [-4.4, 0, 0], [4.4, 0, 0], [0, 0, -6.2], [0, 0, 6.2]];
     v.center(_c);
     for (const e of cands) {
       _a.fromArray(e);

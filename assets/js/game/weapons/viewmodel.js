@@ -1652,15 +1652,18 @@ const WALL_BACK = 0.12;     // m Anziehen (Pistole 0,10; im Anschlag höchstens 
 const WALL_TILT = 1.3;      // rad größtes Kippen in Hauptrichtung (Gewehr: absenken + eindrehen, Pistole: an die Brust)
 const WALL_TILT2 = 1.0;     // rad Gegenrichtung (Gewehr: Mündung hoch über Kante/Brüstung, Pistole: Mündung ab)
 const WALL_NEAR = 0.45;     // m: Fläche, die der Strahl eines anderen Stützpunkts fand, gilt in diesem Umkreis um den Treffer
-const WALL_PLANES = 32;
+const WALL_PLANES = 64;
+const WALL_OK = 0.01;       // m Rest, der bei der Strahlprüfung als frei gilt
 const _wq = new THREE.Quaternion(), _wq0 = new THREE.Quaternion(), _we = new THREE.Euler(), _we0 = new THREE.Euler(), _wv = new THREE.Vector3();
 const _wb = new THREE.Vector3(), _wpiv = new THREE.Vector3(), _woff = new THREE.Vector3();
 const _wcp = new THREE.Vector3(), _wcq = new THREE.Quaternion(), _wcqi = new THREE.Quaternion();
 const _wro = new THREE.Vector3(), _wrd = new THREE.Vector3(), _wn = new THREE.Vector3(), _wvel = new THREE.Vector3();
 const _whit = { t: 0, nx: 0, ny: 0, nz: 0 };
+const _wn2 = new THREE.Vector3();
+let _wvis = [];
 /** Zustand der Wandprüfung je Bild: Flächen (Hauptkamera-Blickraum) + Abbildung Viewmodel → Hauptkamera. */
 const _wW = {
-  n: 0, d: Infinity, kx: 1, ky: 1, tanV: 1, tanH: 1,
+  n: 0, d: Infinity, kx: 1, ky: 1, tanV: 1, tanH: 1, ok: false, w: null, bvh: null, eq: null, lead: 0, ahead: 0, feetY: -Infinity, rays: 0,
   pl: Array.from({ length: WALL_PLANES }, () => ({ nx: 0, ny: 0, nz: 0, c: 0, hx: 0, hy: 0, hz: 0, src: -1 })),
 };
 
@@ -1743,6 +1746,7 @@ function wallPose(vm, R, th, back, pistol) {
 }
 
 /** Strahl gegen die sichtbare Geometrie (Kugel-BVH, allokationsfrei; sonst world.raycast ohne Ziele). */
+/** Strahl gegen die sichtbare Geometrie (Kugel-BVH, allokationsfrei; sonst world.raycast ohne Ziele). */
 function wallRay(w, bvh, o, d, len) {
   if (bvh) return bvh.raycast(o.x, o.y, o.z, d.x, d.y, d.z, len, _whit) ? _whit : null;
   const r = w.raycast(o, d, len);
@@ -1751,96 +1755,102 @@ function wallRay(w, bvh, o, d, len) {
   return _whit;
 }
 
-/**
- * Wandprüfung je Bild (walls 2): Strahlen vom Auge (Hauptkamera) zu jedem sichtbaren Stützpunkt der Waffe in der
- * unveränderten Lage (gleiche Bildposition + Tiefe wie im Bild) und vom Kolben zu den Vorderpunkten. Jeder Treffer
- * wird eine Fläche (Normale zum Auge bzw. Kolben, Vorhalt der Annäherung), die für ihren Punkt und Punkte in
- * WALL_NEAR um den Treffer gilt. Boden unter den Füßen zählt nicht (Liegend-Haltung), Oberseiten von Kisten,
- * Brüstungen, Motorhauben usw. schon. Dazu die Wandtiefe des Controllers als Ebene quer zur Blickachse.
- */
-function wallProbe(vm, pts, P, R, d, pistol, dt) {
+/** Bildzustand der Wandprüfung: Hauptkamera, Abbildung Viewmodel → Hauptkamera (gleiche Bildposition + Tiefe), Vorhalt. */
+function wallBegin(vm, d, dt, eq) {
   const W = _wW;
-  W.n = 0; W.d = d;
+  W.n = 0; W.d = d; W.eq = eq || null; W.ok = false; W.rays = 0;
   const cam = vm.camera;
   const tv = Math.tan(((cam.fov || 54) * Math.PI) / 360);
   W.tanV = tv * 1.04; W.tanH = W.tanV * (cam.aspect || 1.78);
+  W.kx = W.ky = 1;
   const G = vm.G, main = G && G.camera, w = G && G.world;
-  if (!main || !w || typeof w.raycast !== 'function') { W.kx = W.ky = 1; return W; }
-  const bvh = (w.debugData && (w.debugData.compositeBullet || w.debugData.bulletBVH)) || null;
+  if (!main || !w || typeof w.raycast !== 'function') return W;
+  W.ok = true; W.w = w;
+  W.bvh = (w.debugData && (w.debugData.compositeBullet || w.debugData.bulletBVH)) || null;
   const tm = Math.tan(((main.fov || 70) * Math.PI) / 360) / (main.zoom || 1);
-  W.ky = tm / tv; W.kx = W.ky * (main.aspect || 1.78) / (cam.aspect || 1.78);
+  W.ky = tm / tv; W.kx = (W.ky * (main.aspect || 1.78)) / (cam.aspect || 1.78);
   main.getWorldPosition(_wcp); main.getWorldQuaternion(_wcq); _wcqi.copy(_wcq).invert();
   const body = G.player && G.player.body;
   if (body && body.velocity) _wvel.copy(body.velocity).applyQuaternion(_wcqi); else _wvel.set(0, 0, 0);
-  const lead = 3 * Math.min(dt, 0.05) + 0.04, ahead = Math.min(1.2, _wvel.length() * lead);
-  const feetY = body && body.position ? body.position.y : -Infinity;
-  const entry = vm.cur, m = entry.model;
-  const base = entry._wallBase || (entry._wallBase = pts.map(() => new THREE.Vector3()));
-  wallPose(vm, R, 0, 0, pistol);
-  for (let i = 0; i < pts.length; i++) { base[i].copy(pts[i]).applyMatrix4(m.matrix).applyQuaternion(_wq).add(P); if (W.eq) base[i].applyQuaternion(W.eq); }
-  const add = (src, ox, oy, oz) => {
-    // Treffer _whit (Welt) → Fläche im Blickraum der Hauptkamera; ox/oy/oz = Strahlursprung (Blickraum)
-    if (W.n >= WALL_PLANES) return;
-    _wn.set(_whit.nx, _whit.ny, _whit.nz);
-    const hy = _wro.y + _wrd.y * _whit.t;
-    if (_wn.y > 0.7 && hy < feetY + 0.25) return; // Boden, auf dem der Spieler steht/liegt
-    _wn.applyQuaternion(_wcqi);
-    const lx = _wrd.x, ly = _wrd.y, lz = _wrd.z; // Weltrichtung → Blickraum
-    _wv.set(lx, ly, lz).applyQuaternion(_wcqi);
-    if (_wn.dot(_wv) > 0) _wn.negate();
-    const pl = W.pl[W.n++];
-    pl.hx = ox + _wv.x * _whit.t; pl.hy = oy + _wv.y * _whit.t; pl.hz = oz + _wv.z * _whit.t;
-    pl.nx = _wn.x; pl.ny = _wn.y; pl.nz = _wn.z;
-    pl.c = -(pl.nx * pl.hx + pl.ny * pl.hy + pl.nz * pl.hz) + lead * Math.min(0, _wn.dot(_wvel));
-    pl.src = src;
-  };
-  // Augenstrahlen
-  const bi = entry._wallBackIdx;
-  let backFree = true;
-  for (let i = 0; i < pts.length; i++) {
-    const b = base[i], depth = -b.z;
-    const vis = depth > 0.02 && Math.abs(b.x) <= depth * W.tanH && Math.abs(b.y) <= depth * W.tanV;
-    if (!vis && i !== bi) continue;
-    const X = b.x * W.kx, Y = b.y * W.ky, Z = b.z, L = Math.hypot(X, Y, Z);
-    if (L < 0.03) continue;
-    _wrd.set(X / L, Y / L, Z / L).applyQuaternion(_wcq);
-    _wro.copy(_wcp);
-    const hit = wallRay(w, bvh, _wro, _wrd, L + (vis ? 0.3 + ahead : 0));
-    if (!hit) continue;
-    if (i === bi) { if (hit.t < L) backFree = false; if (!vis) continue; }
-    add(i, 0, 0, 0);
-  }
-  // Kolben → Vorderpunkte (Lauf/Handschutz durch Geländer, Pfosten, Fensterkreuze)
-  if (backFree && bi != null) {
-    const B = base[bi], bx = B.x * W.kx, by = B.y * W.ky, bz = B.z;
-    for (const j of entry._wallSeg) {
-      const F = base[j];
-      const fx = F.x * W.kx - bx, fy = F.y * W.ky - by, fz = F.z - bz, L = Math.hypot(fx, fy, fz);
-      if (L < 0.05) continue;
-      _wro.set(bx, by, bz).applyQuaternion(_wcq).add(_wcp);
-      _wrd.set(fx / L, fy / L, fz / L).applyQuaternion(_wcq);
-      const hit = wallRay(w, bvh, _wro, _wrd, L + 0.05);
-      if (hit && hit.t > 0.04) add(j, bx, by, bz);
-    }
-  }
+  W.lead = 3 * Math.min(dt, 0.05) + 0.04;
+  W.ahead = Math.min(1.2, _wvel.length() * W.lead);
+  W.feetY = body && body.position ? body.position.y : -Infinity;
   return W;
 }
 
-/** Größte Verletzung (m; ≤ 0 = frei) der sichtbaren Stützpunkte in der Lage P/R + Anziehen back + Kippen th. */
+/** Stützpunkt i in der zuletzt mit wallPose gesetzten Lage (+ Anziehen back) → _wv (Viewmodel-Kameraraum); true = im Bild. */
+function wallPoint(vm, pts, i, P, back, W) {
+  _wv.copy(pts[i]).applyMatrix4(vm.cur.model.matrix).applyQuaternion(_wq);
+  _wv.x += P.x + _woff.x; _wv.y += P.y + _woff.y; _wv.z += P.z + _woff.z + back;
+  if (W.eq) _wv.applyQuaternion(W.eq);
+  const depth = -_wv.z;
+  return depth >= 0.02 && Math.abs(_wv.x) <= depth * W.tanH && Math.abs(_wv.y) <= depth * W.tanV;
+}
+
+/**
+ * Strahl zum Punkt (x, y, z; Viewmodel-Raum → Hauptkamera) ab o (Hauptkamera-Blickraum, Standard Auge), um `extra`
+ * verlängert. Treffer (außer Boden unter den Füßen) → Fläche für Stützpunkt src (src < 0: keine). Rückgabe:
+ * Eindringtiefe entlang des Strahls (m; > 0 = Punkt liegt hinter der Fläche) oder -Infinity.
+ */
+function wallCast(W, src, x, y, z, extra, ox = 0, oy = 0, oz = 0, minT = 0) {
+  const X = x * W.kx - ox, Y = y * W.ky - oy, Z = z - oz, L = Math.hypot(X, Y, Z);
+  if (L < 0.03) return -Infinity;
+  _wn.set(X / L, Y / L, Z / L);
+  _wrd.copy(_wn).applyQuaternion(_wcq);
+  _wro.set(ox, oy, oz).applyQuaternion(_wcq).add(_wcp);
+  W.rays++;
+  const hit = wallRay(W.w, W.bvh, _wro, _wrd, L + extra);
+  if (!hit || hit.t < minT) return -Infinity;
+  const t = hit.t;
+  if (hit.ny > 0.7 && _wro.y + _wrd.y * t < W.feetY + 0.25) return -Infinity; // Boden, auf dem der Spieler steht/liegt
+  if (src >= 0 && W.n < WALL_PLANES) {
+    _wn2.set(hit.nx, hit.ny, hit.nz).applyQuaternion(_wcqi);
+    if (_wn2.dot(_wn) > 0) _wn2.negate();
+    const pl = W.pl[W.n++];
+    pl.hx = ox + _wn.x * t; pl.hy = oy + _wn.y * t; pl.hz = oz + _wn.z * t;
+    pl.nx = _wn2.x; pl.ny = _wn2.y; pl.nz = _wn2.z;
+    pl.c = -(pl.nx * pl.hx + pl.ny * pl.hy + pl.nz * pl.hz) + W.lead * Math.min(0, _wn2.dot(_wvel));
+    pl.src = src;
+  }
+  return L - t;
+}
+
+/**
+ * Abtasten in der unveränderten Lage (walls 2): Strahlen vom Auge zu jedem sichtbaren Stützpunkt (verlängert um
+ * 0,3 m + Vorhalt der Annäherung) und vom Kolben zu den Vorderpunkten (Lauf/Handschutz durch Geländer, Pfosten,
+ * Fensterkreuze). Jeder Treffer wird eine Fläche für seinen Punkt und Punkte in WALL_NEAR um den Treffer.
+ */
+function wallProbe(vm, pts, P, R, pistol, W) {
+  if (!W.ok) return;
+  const entry = vm.cur;
+  const base = entry._wallBase || (entry._wallBase = pts.map(() => new THREE.Vector3()));
+  if (_wvis.length < pts.length) _wvis = new Array(pts.length).fill(false);
+  wallPose(vm, R, 0, 0, pistol);
+  for (let i = 0; i < pts.length; i++) { _wvis[i] = wallPoint(vm, pts, i, P, 0, W); base[i].copy(_wv); }
+  const bi = entry._wallBackIdx;
+  let backFree = true;
+  for (let i = 0; i < pts.length; i++) {
+    const b = base[i];
+    if (i === bi) { if (wallCast(W, _wvis[i] ? i : -1, b.x, b.y, b.z, _wvis[i] ? 0.3 + W.ahead : 0) > 0) backFree = false; continue; }
+    if (_wvis[i]) wallCast(W, i, b.x, b.y, b.z, 0.3 + W.ahead);
+  }
+  if (backFree && bi != null) {
+    const B = base[bi];
+    for (const j of entry._wallSeg) { const F = base[j]; wallCast(W, j, F.x, F.y, F.z, 0.05, B.x * W.kx, B.y * W.ky, B.z, 0.04); }
+  }
+}
+
+/** Größte Verletzung (m; ≤ 0 = frei) der sichtbaren Stützpunkte gegen die Flächen, Lage back/th. */
 function wallViol(vm, pts, P, R, back, th, pistol, W) {
   wallPose(vm, R, th, back, pistol);
-  const m = vm.cur.model, pl = W.pl, n = W.n, nr2 = WALL_NEAR * WALL_NEAR;
+  const pl = W.pl, n = W.n, nr2 = WALL_NEAR * WALL_NEAR;
   const tgt = W.d - WALL_MARGIN;
   let worst = -Infinity;
   for (let i = 0; i < pts.length; i++) {
-    _wv.copy(pts[i]).applyMatrix4(m.matrix).applyQuaternion(_wq);
-    _wv.x += P.x + _woff.x; _wv.y += P.y + _woff.y; _wv.z += P.z + _woff.z + back;
-    if (W.eq) _wv.applyQuaternion(W.eq);
-    const x = _wv.x, y = _wv.y, z = _wv.z;
-    const depth = -z;
-    if (depth < 0.02 || Math.abs(x) > depth * W.tanH || Math.abs(y) > depth * W.tanV) continue; // nicht im Bild
-    if (depth - tgt > worst) worst = depth - tgt;
-    const X = x * W.kx, Y = y * W.ky;
+    if (!wallPoint(vm, pts, i, P, back, W)) continue;
+    const z = _wv.z;
+    if (-z - tgt > worst) worst = -z - tgt;
+    const X = _wv.x * W.kx, Y = _wv.y * W.ky;
     for (let j = 0; j < n; j++) {
       const p = pl[j];
       if (p.src !== i) {
@@ -1854,55 +1864,100 @@ function wallViol(vm, pts, P, R, back, th, pistol, W) {
   return worst;
 }
 
-/** Kippen in Richtung sg (±1) bis höchstens max: { th (vorzeichenbehaftet), ok, res }. */
-function wallSolveTilt(vm, pts, P, R, back, pistol, W, sg, max, out) {
-  const res = wallViol(vm, pts, P, R, back, sg * max, pistol, W);
-  if (res > 0) { out.th = sg * max; out.ok = false; out.res = res; return out; }
-  let lo = 0, hi = max;
-  for (let i = 0; i < 9; i++) { const mid = (lo + hi) / 2; if (wallViol(vm, pts, P, R, back, sg * mid, pistol, W) > 0) lo = mid; else hi = mid; }
-  out.th = sg * hi; out.ok = true; out.res = 0;
+/** Strahlprüfung einer Lage: größte Eindringtiefe sichtbarer Punkte (m); Treffer werden Flächen (nächste Runde). */
+function wallVerify(vm, pts, P, R, back, th, pistol, W) {
+  if (!W.ok) return -Infinity;
+  wallPose(vm, R, th, back, pistol);
+  let worst = -Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    if (!wallPoint(vm, pts, i, P, back, W)) continue;
+    const pen = wallCast(W, i, _wv.x, _wv.y, _wv.z, 0.02);
+    if (pen > worst) worst = pen;
+  }
+  return worst;
+}
+
+/**
+ * Kippen in Richtung sg (±1) bis höchstens max: Halbierungssuche gegen die Flächen, dann Strahlprüfung der Lösung;
+ * findet sie neue Flächen (die gekippte Waffe ragt in Geometrie, die in der Grundlage nicht im Weg war), bis zu
+ * drei Runden. Flächen je Richtung getrennt (ab nBase). → { th (vorzeichenbehaftet), ok, res }
+ */
+function wallSolveTilt(vm, pts, P, R, back, pistol, W, sg, max, nBase, out) {
+  W.n = nBase;
+  let th = max, ver = Infinity;
+  for (let round = 0; round < 3; round++) {
+    if (wallViol(vm, pts, P, R, back, sg * max, pistol, W) > 0) th = max;
+    else {
+      let lo = 0, hi = max;
+      for (let i = 0; i < 9; i++) { const mid = (lo + hi) / 2; if (wallViol(vm, pts, P, R, back, sg * mid, pistol, W) > 0) lo = mid; else hi = mid; }
+      th = hi;
+    }
+    const n0 = W.n;
+    ver = wallVerify(vm, pts, P, R, back, sg * th, pistol, W);
+    if (ver <= WALL_OK || W.n === n0) break;
+  }
+  out.th = sg * th; out.ok = ver <= WALL_OK; out.res = Math.max(0, ver);
+  out.vis = wallVisible(vm, pts, P, R, back, sg * th, pistol, W);
   return out;
 }
-const _wt1 = { th: 0, ok: false, res: 0 }, _wt2 = { th: 0, ok: false, res: 0 };
+
+/** Anzahl sichtbarer Stützpunkte in der Lage back/th (Lösungen, die die Waffe ganz aus dem Bild kippen, verlieren). */
+function wallVisible(vm, pts, P, R, back, th, pistol, W) {
+  wallPose(vm, R, th, back, pistol);
+  let n = 0;
+  for (let i = 0; i < pts.length; i++) if (wallPoint(vm, pts, i, P, back, W)) n++;
+  return n;
+}
+const _wt1 = { th: 0, ok: false, res: 0, vis: 0 }, _wt2 = { th: 0, ok: false, res: 0, vis: 0 };
 
 /**
  * Waffe vor Wänden und Hindernissen halten (walls 2): erst anziehen, dann (an der Hüfte) kippen – Gewehre absenken
  * und eindrehen oder, wenn das tiefer in eine Kante/Brüstung führt, die Mündung anheben; Pistolen an die Brust oder
- * Mündung ab –, so weit, bis kein sichtbarer Punkt mehr hinter einer Fläche liegt. Im Anschlag nur Anziehen; bleibt
- * etwas in der Fläche, meldet `s.wallAds` dem Controller, das Zielen zu beenden. `s.wallNeed` (0..1, Kippen) sperrt
- * dort den Schuss bei stark gekippter Waffe. Ergebnis geglättet (schnell hinein, langsamer zurück).
+ * Mündung ab –, so weit, bis kein sichtbarer Punkt mehr hinter einer Fläche liegt (Flächen aus Strahlen, Lösung per
+ * Strahl nachgeprüft). Im Anschlag nur Anziehen; bleibt etwas in der Fläche, meldet `s.wallAds` dem Controller, das
+ * Zielen zu beenden. `s.wallNeed` (0..1, Kippen) sperrt dort den Schuss bei stark gekippter Waffe. Ergebnis
+ * geglättet (schnell hinein, langsamer zurück). eq = Drehung um das Auge (freies Zielen, Nachlauf) oder null.
  */
 function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
   const pts = wallPoints(vm, vm.cur);
   const st = vm._wallFit || (vm._wallFit = { back: 0, th: 0, dir: 1 });
   let wantBack = 0, wantTh = 0, resid = 0;
   if (pts.length) {
-    _wW.eq = eq || null;
-    const W = wallProbe(vm, pts, P, R, d, pistol, dt);
-    vm._wallW = W; // Prüfstand (tools/out/walls2): Flächen dieses Bildes
+    const W = wallBegin(vm, d, dt, eq);
+    wallProbe(vm, pts, P, R, pistol, W);
+    vm._wallW = W; // Prüfstand (tools/out/walls2): Flächen/Strahlen dieses Bildes
     if ((W.n > 0 || W.d < 4) && wallViol(vm, pts, P, R, 0, 0, pistol, W) > 0) {
       const maxBack = (pistol ? 0.1 : WALL_BACK) * (1 - a) + 0.08 * a;
+      let backOk = false;
       if (wallViol(vm, pts, P, R, maxBack, 0, pistol, W) > 0) wantBack = maxBack;
       else {
         let lo = 0, hi = maxBack;
         for (let i = 0; i < 7; i++) { const mid = (lo + hi) / 2; if (wallViol(vm, pts, P, R, mid, 0, pistol, W) > 0) lo = mid; else hi = mid; }
         wantBack = hi;
+        backOk = wallVerify(vm, pts, P, R, wantBack, 0, pistol, W) <= WALL_OK;
+        if (!backOk) wantBack = maxBack;
       }
       const na = 1 - a;
-      if (wantBack >= maxBack - 1e-6) {
+      if (!backOk) {
         if (na > 0.02) {
-          const t1 = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, 1, WALL_TILT, _wt1);
-          const t2 = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, -1, WALL_TILT2, _wt2);
-          let pick;
-          if (t1.ok && t2.ok) {
-            const keep = st.dir > 0 ? t1 : t2, other = st.dir > 0 ? t2 : t1;
-            pick = Math.abs(keep.th) <= Math.abs(other.th) + 0.2 ? keep : other;
-          } else if (t1.ok || t2.ok) pick = t1.ok ? t1 : t2;
-          else pick = t1.res <= t2.res + 0.02 ? t1 : t2;
+          const nBase = W.n;
+          const first = st.dir > 0 ? 1 : -1;
+          const vis0 = Math.max(1, wallVisible(vm, pts, P, R, 0, 0, pistol, W));
+          const tA = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, first, first > 0 ? WALL_TILT : WALL_TILT2, nBase, _wt1);
+          let pick = tA;
+          // Gegenrichtung prüfen, wenn die erste nicht frei wird, weit kippt oder die Waffe großteils aus dem Bild
+          // nimmt (an einer hüfthohen Kiste lieber Mündung hoch als die Waffe unter den Bildrand)
+          if (!tA.ok || Math.abs(tA.th) > 0.5 || tA.vis < vis0 * 0.6) {
+            const tB = wallSolveTilt(vm, pts, P, R, wantBack, pistol, W, -first, first > 0 ? WALL_TILT2 : WALL_TILT, nBase, _wt2);
+            const score = (t) => Math.abs(t.th) + 0.6 * Math.max(0, 1 - t.vis / vis0);
+            if (tA.ok && tB.ok) pick = score(tA) <= score(tB) + 0.15 ? tA : tB;
+            else if (tB.ok) pick = tB;
+            else if (!tA.ok) pick = tA.res <= tB.res + 0.02 ? tA : tB;
+          }
           st.dir = pick.th >= 0 ? 1 : -1;
           wantTh = pick.th * na;
           resid = pick.ok ? 0 : pick.res;
-        } else resid = wallViol(vm, pts, P, R, wantBack, 0, pistol, W);
+        } else resid = Math.max(0, wallVerify(vm, pts, P, R, wantBack, 0, pistol, W));
       }
     }
   }

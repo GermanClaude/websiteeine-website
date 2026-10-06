@@ -126,7 +126,6 @@ export class FullscreenManager {
     this._noOpts = false;
     this._exiting = false;
     this._hiddenAt = -1e9;
-    this._leftMatchAt = -1e9; // zuletzt countdown/playing verlassen (Pause)
     this._wantAt = -1e9; // Desktop: Automatik wollte Vollbild, es war aber (noch) aktiv – z. B. „Fortsetzen“ während der Austritts-Animation
     this._keys = [];
     this._off = [];
@@ -308,7 +307,7 @@ export class FullscreenManager {
     this._on(D, 'visibilitychange', () => { if (D.hidden) this._hiddenAt = performance.now(); this._wake(); });
     const ev = this.G.events;
     if (ev && typeof ev.on === 'function') {
-      const onState = ({ state } = {}) => { if (!MATCH.has(state)) this._leftMatchAt = performance.now(); this._wake(); };
+      const onState = () => this._wake();
       const onMode = () => this._wake();
       ev.on('match:state', onState);
       ev.on('input:mode', onMode);
@@ -400,21 +399,20 @@ export class FullscreenManager {
       const kb = this._kbLocked;
       this._exitWanted = false;
       this._releaseKeyboard();
-      // Vom Browser beendet, ohne dass wir es wollten: bewusst verlassen (Esc halten bei Tastatursperre, F11, oder
-      // am Desktop wird ohne Pause weitergespielt) → Automatik ruht bis zum nächsten ausdrücklichen Betreten.
-      // Nicht bewusst: Esc ohne Tastatursperre (Firefox/Safari: Pointer-Lock weg → Pause sofort, fullscreenchange
-      // erst nach der Austritts-Animation – auch wenn inzwischen schon „Fortsetzen“ geklickt wurde), Tab-/App-Wechsel.
+      // Vom Browser beendet, ohne dass wir es wollten. Bewusst ist das nur mit Tastatursperre (Chrome/Edge: Esc
+      // halten, F11) → Automatik ruht bis zum nächsten ausdrücklichen Betreten. Ohne Sperre (Firefox/Safari) beendet
+      // schon das Esc zum Pausieren das Vollbild – fullscreenchange kommt erst nach der Austritts-Animation, evtl. nach
+      // einem schnellen „Fortsetzen“ → nie als Abschalten werten (das geht per Knopf/Taste/Einstellung). Tab-/App-Wechsel: nie.
       if (!this._exiting && !this._touch()) {
-        const at = performance.now();
-        const st0 = this.G.match && this.G.match.state;
         // „Fortsetzen“ kam noch während der Animation (auto() sah aktives Vollbild): jetzt nachholen, solange die Geste gilt
-        if (!kb && MATCH.has(st0) && at - this._wantAt < 2000) this.auto();
-        const paused = at - this._leftMatchAt < 3000 || at - this._wantAt < 3000;
-        setTimeout(() => {
-          const st = this.G.match && this.G.match.state;
-          const hidden = (D && D.hidden) || performance.now() - this._hiddenAt < 3000;
-          if (!this.active && !this._pending && !hidden && (kb || (MATCH.has(st) && !paused))) this._optOut = true;
-        }, 400);
+        const st0 = this.G.match && this.G.match.state;
+        if (!kb && MATCH.has(st0) && performance.now() - this._wantAt < 2000) this.auto();
+        if (kb) {
+          setTimeout(() => {
+            const hidden = (D && D.hidden) || performance.now() - this._hiddenAt < 3000;
+            if (!this.active && !this._pending && !hidden) this._optOut = true;
+          }, 400);
+        }
       }
     }
     this._exiting = false;
