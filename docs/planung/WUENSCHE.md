@@ -149,3 +149,38 @@ Liegen ggf. noch unter scratchpad/ref-bodycam/ (Container-temporär).
   - Grafik-Leistung optimieren (Messen/Planen/Umsetzen, inkl. dynamischer Auflösung) – angehalten, neu starten.
   - Workflow-Skripte zum Fortsetzen: ~/.claude/projects/-home-user-websiteeine-website/eafff7d3-…/workflows/scripts/ (tester-feedback-patch, mag-rounds-and-casings, swimming, stamina-and-slope-slide, graphics-performance) – nur gültig, falls der Container noch existiert.
 - NUTZER-SCREENSHOT (06.10. 16:47, Grenzland Eroberung, K-36 Kurzer mit Optik, Handy-Aufnahme) ausdrücklich als FEHLER gemeldet („Das ist ein fehler“, „gab es öfter“): Spieler steht neben einem abgedeckten Fahrzeug (links, sehr nah), vorne ist alles frei – trotzdem steht die Waffe mittig hochgezogen vor dem Auge (Wandhaltung), man sieht von hinten auf Schiene und Optik, die Optik-Rückseite wirkt dunkel/undurchsichtig. Prüfen: (a) Wandprüfung (viewmodel.js wallFit/_obstruct, Strahlen zu seitlichen Stützpunkten) schlägt bei seitlichen Objekten/Fahrzeug-Kollisionskörpern an; (b) in dieser Haltung Optik-Glas/Absehen unsichtbar oder Auge zu weit hinter der Optik. Mit Nachstellung (Fahrzeug links, freie Sicht) beheben – höchste Priorität unter den Fehlern am Donnerstag.
+
+## Wunschliste 06.10. abends (Nutzer, mit 20 Screenshots aus Werk/Hafen/Altstadt) → Megapatch 1/2 (Reihenfolge nach Priorität dort einsortieren)
+SOFORT (laufender Fehler-Patch): Waffe soll an Wänden NICHT mehr nach oben gehen – Wandhaltung nur noch als Einstellung (an/aus), Standard aus. (In ~8 der Screenshots steht die Waffe hochgezogen vor dem Auge, obwohl nur seitlich/schräg etwas ist.)
+Modi & Wirtschaft:
+- Battle-Royale-Modus. „Call-of-Duty“-Modus (genauer klären, z. B. Suchen & Zerstören/Hardpoint).
+- Währung in der Runde zum Kaufen von Waffen (auch Waffen, die sonst nicht freischaltbar sind, z. B. im TDM/DDM); Ingame-Shop: 1 Kill = 1 Coin.
+- Karten aus eingescannten 3D-Modellen (Fotoscans) erstellen.
+Zerstörung & Interaktion:
+- Fenster zerbrechlich (Schuss oder Schlag); Häuser/Gegenstände bekommen realistischen Schaden durch Granaten, Patronen, Panzergeschosse (wie im echten Leben).
+- Karten interaktiver: offene Container begehbar; Waggon-Schiebetüren (Werk) mit Griff, öffnbar; LKW/Gabelstapler mit richtigen Modellen und richtig gedrehten Rädern, evtl. fahrbar.
+Gebäude:
+- Möbel/Inneneinrichtung, Innenbeleuchtung; einige Häuser mit Dachboden zum Schießen/Snipen; Balkone an Wänden; Grills auf Dächern.
+- Animationen: über Gegenstände steigen, aus Fenstern steigen.
+Licht & Schatten:
+- Spieler wirft je nach Haltung einen Schatten wie die NPCs.
+- Sonnenstrahlen realistisch, nicht durch Wände, natürlich verteilt (Screenshot Werk: Lichtkegel).
+- Abendmodus: Laternen an, Licht gut verteilt/geworfen; schwebende Lampen an die Decke; Flutlichter sinnvoll ausrichten; Taschenlampen an Waffen.
+Ton:
+- Geräusche je Oberfläche; Schreie bei tödlicher Verwundung (NPC/Spieler); Altstadt: Kirchenglocke z. B. um 21:00 Spielzeit.
+Gore & Schaden (Stärke einstellbar):
+- Blutspritzer kurz auf dem Bildschirm bei Nahkampf; Messer bzw. Waffe wird mit Nahkampf-Kills (≤ 50 cm) sichtbar blutiger.
+- Individuelle Wunden/äußerliche Schäden; Trefferzonen-Folgen: Knie → Humpeln bis Medkit, Arm → schlechtere Treffsicherheit; Medkits.
+- Leichen bleiben mit ihren Wunden liegen, Entfernung alle 10 Minuten (einstellbar).
+Team:
+- Friendly Fire an/aus; verbündete Bots können einen treffen (gleicher Schaden wie Gegner); Teamkill = XP-Abzug in Höhe eines Kills.
+Waffen/Optik/Lobby:
+- Einschusslöcher je Aufprallmaterial unterschiedlich.
+- Lobby-Waffenansicht: gewählter Skin erscheint auf der Waffe.
+Karten-Feinschliff (alle Karten, „alles originalgetreu und sinnvoll platzieren“):
+- Deplatzierte/ineinander verbuggte Gegenstände entfernen, Schilder sinnvoll setzen, Gebäudeteile/Säulen sinnvoll, Hitboxen an die Größe der Gegenstände anpassen.
+- Bäume besser setzen + bessere Blätter (Screenshot: flache Blatt-Ebenen am Himmel sichtbar); Pflanzen/Gras wiegen sich im Wind; Blumenbeete besser; aufgeplatzte Fassaden einheitlicher/schöner; bessere Autos.
+- Altstadt: Brunnen mit Wasseranimation; Couch (liegt auf der Straße) entfernen; Bänke mit Rückenlehne verbinden.
+- Werk: Stahlrollen realistisch stapeln; Rohre sinnvoll verbinden/platzieren; einzelnen deplatzierten Ziegelblock entfernen; unsichtbare Wand an der Treppe in der großen Halle entfernen; Treppe richtig an die Etage anbinden; Werkbank am Eingang entfernen (im Weg); Kran fährt links/rechts; leuchtender oranger Balken an der Wand prüfen.
+- Hafen: Kran fährt ab und zu links/rechts.
+- Grenzland: Gemüsestände an der Kirche (Mitte); Traktor in die Hütte; linke Straßenseite evtl. Brücke oder Erdbrücke mit Rohr darunter.
