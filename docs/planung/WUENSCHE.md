@@ -133,3 +133,8 @@ Die drei Referenzbilder des Nutzers (Spiel „Bodycam“, nur als Stil-Vorlage, 
 2. Schützengraben mit Erdwänden im harten Sonnenlicht, tote Kiefern, Strommast, Gras-/Wurzelreste, Waffe mit Schaft nah an der Kamera;
 3. Graben mit Sandsack-/Erdwänden, Wurzeln, Schutt, sehr detaillierter Boden, hochdetailliertes Sturmgewehr (heller Schaft/Rail), schwarze taktische Handschuhe.
 Liegen ggf. noch unter scratchpad/ref-bodycam/ (Container-temporär).
+
+## Wünsche 06.10. abends → MEGAPATCH 1 (Karten-Teil)
+- Grenzland (große Karte): deutlich mehr Hindernisse, Deckung, Gebäude usw. („wie gesagt beim Megapatch“) – mehr Weiler/Gehöfte/Ruinen, Mauern, Zäune, Hecken, Gräben, Fahrzeugwracks, Felsgruppen, Holzstapel, Bunker/Stellungen zwischen den Flaggen, damit offene Flächen Deckung bieten.
+- Bots sollen sich über die ganze Grenzland-Karte verteilen (nicht nur an wenigen Flaggen/Wegen ballen): Spawn-/Ziel-Verteilung über alle Sektoren, Flanken-/Patrouillen-Rollen, Fahrzeugtrupps auf entfernte Flaggen.
+- Heute (06.10.) zusätzlich im laufenden Patch: Vollbild ohne Tastensperre (Virenscanner-Blockade), Tester-Fehler (FPS-Text, Nachladeton, Gegnernamen im Realistisch-Stil, Wandhaltung flach an den Oberkörper, Grafikstufen sichtbar unterschiedlich), Waffe hebt sich neben Fahrzeugen fälschlich an, Magazine leeren sich sichtbar, Hülsen bleiben liegen, Schwimmen, Grafik-Leistung optimieren.
