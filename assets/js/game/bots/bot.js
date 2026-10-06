@@ -583,7 +583,7 @@ export class Bot {
       else if (this.atTarget && !staggered && !blinded) this._fireArmor(now, it, angErr);
       else if (rec && !staggered && !blinded) gunner.trigger(dt, now, angErr, it);
       else if (suppressing && !staggered && !blinded) this._suppressFire(now, it, angErr, ord);
-      if (this.proneBlend > 0.05 && this.proneBlend < 0.95) { it.fire = it.firePressed = false; } // beim Hinlegen/Aufstehen kein Schuss
+      if (this.proneBlend > 0.15 && this.proneBlend < 0.85) { it.fire = it.firePressed = false; } // beim Hinlegen/Aufstehen kein Schuss
       if (this.atTarget) {
         // Werfer ziehen (Panzerabwehr)
         const li = this._launcherSlot();
@@ -625,7 +625,7 @@ export class Bot {
       const atOrder = ord && ord.stance === 'prone' && (!ord.hasPos || this.position.distanceTo(ord.pos) < 1.6);
       if (atOrder) want = true;
       else if (sniper && D.prone >= 0.5 && rec && d > 35) want = true;
-      else if (D.prone >= 1 && rec && rec.visible && d > 32 && now - this.lastDamageTime < 4 && !(this.coverNode && this.coverNode.coverHigh)) want = true;
+      else if (D.prone >= 1 && rec && rec.visible && d > 38 && now - this.lastDamageTime < 3 && !this.coverNode && (this.role === 'mg' || this.role === 'marksman' || this.role === 'rifleman')) want = true;
       else if (this.stance === 'prone' && rec && now - (rec.seenAt || 0) < 4 && !wantCrouch) want = true; // liegen bleiben
       if (want && rec) {
         const yaw = Math.atan2(-(rec.pos.x - this.position.x), -(rec.pos.z - this.position.z));

@@ -90,7 +90,7 @@ export function think(bot, now) {
     set(goal, 'engage', now, { look: 'target' });
     if (bot.coverNode) { goal.move.copy(bot.coverNode.position); goal.hasMove = true; goal.tolerance = 0.5; }
     // Stellung aus dem Truppbefehl halten (Feuerbasis, Sichern, Stapel): von dort kämpfen statt vorzugehen
-    if (ord && ord.hold && ord.hasPos) { bot.coverNode = null; goal.move.copy(ord.pos); goal.hasMove = true; goal.tolerance = 0.8; goal.hold = true; }
+    if (ord && ord.hold && ord.hasPos && d > 18) { bot.coverNode = null; goal.move.copy(ord.pos); goal.hasMove = true; goal.tolerance = 0.8; goal.hold = true; }
     // Granate auf Gruppe
     maybeGrenade(bot, now, rec, true);
     return;

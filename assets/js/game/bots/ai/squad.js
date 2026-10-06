@@ -388,7 +388,7 @@ export class TeamTactics {
     sq.state = 'contact';
     const contact = sq.contact;
     // Seit 5 s sieht niemand den Feind → Befehle lösen, jeder rückt selbst nach (Verfolgen/Absuchen)
-    if (now - sq.seenAt > 5) {
+    if (now - sq.seenAt > 3) {
       for (const m of alive) if (m !== medicBusy && m.order && m.order.kind && m.order.kind !== 'fallback') this._release(m);
       if (sq.plan && now - sq.plan.made > 8) sq.plan = null;
       return;
@@ -449,7 +449,7 @@ export class TeamTactics {
     const d = m.position.distanceTo(contact);
     const prev = m.order && m.order.kind === 'suppress';
     const pos = prev && m.order.pos.distanceTo(m.position) < 6 ? m.order.pos : this._spot(m.position, contact, 5, null);
-    const lying = m.diff.prone >= 1 && d > 28 && (m.role === 'mg' || m.role === 'marksman' || Math.random() < 0.3);
+    const lying = m.diff.prone >= 1 && d > 40 && (m.role === 'mg' || m.role === 'marksman');
     _w.copy(contact).setY(contact.y + 1.1);
     this._order(m, 'suppress', now, { pos, look: _w, suppress: _w, stance: lying ? 'prone' : prev ? m.order.stance || 'crouch' : 'crouch', tol: 1.3, dur: 3 });
     if (!prev) this.emit(sq, 'suppress', { role: m.role, d: Math.round(d) });
