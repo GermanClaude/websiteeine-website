@@ -81,7 +81,7 @@ export function titan(b) {
     for (const s of [-1, 1]) b.box('steel', 0.002, 0.08, 0.006, s * 0.0205, -0.045, 0.11, { part: 'mag', c: 0 });
   }
   // Patronen (.50, gestaucht) versetzt gestapelt; Stahl: oberste an den Lippen bzw. leerer Zubringer
-  magRounds(b, { cal: 'r50', fit: 0.084, width: 0.036, depth: 0.08, pitch: 0.011, path: [[0, 0.0175, 0.142], [0, -0.08, 0.142]] });
+  magRounds(b, { cal: 'r50', fit: 0.079, width: 0.036, depth: 0.08, pitch: 0.011, path: [[0, 0.0175, 0.133], [0, -0.08, 0.133]] });
   b.anchor('magGrab', 0, -0.06, 0.135, { part: 'mag', data: { w: 0.02, d: 0.042 } });
   b.anchor('magWell', 0, 0.012, 0.13);
   // Zielfernrohr (hohe Montage)
