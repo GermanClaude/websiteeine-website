@@ -208,16 +208,16 @@ export function sandbagGeom(detail = false) {
 }
 
 /** env-look (medium+): Sandsack als gefülltes Kissen – flach gedrückte Lauffläche, gewölbte Flanken, abgebundene,
- * eingeschnürte Enden („Ohren“), unten breiter gesackt (Last der oberen Lage), leichte Längsnaht. ≈ 180 Dreiecke. */
+ * eingeschnürte Enden („Ohren“), unten breiter gesackt (Last der oberen Lage), leichte Längsnaht. 144 Dreiecke. */
 function sandbagGeomHD() {
   const L = 0.56, H = 0.16, D = 0.32;
-  const g = new THREE.BoxGeometry(L, H, D, 7, 3, 4);
+  const g = new THREE.BoxGeometry(L, H, D, 6, 2, 3); // 144 Dreiecke (Speicher: Grenzland hat ≈ 1000 Säcke)
   const p = g.attributes.position;
   for (let i = 0; i < p.count; i++) {
     const a = p.getX(i) / (L / 2), bb = p.getY(i) / (H / 2), c = p.getZ(i) / (D / 2);
     const ea = Math.abs(a);
     // Enden: abgebunden (Querschnitt schnürt sich zusammen), Ecken gerundet
-    const tie = ea > 0.78 ? 1 - Math.pow((ea - 0.78) / 0.22, 1.6) * 0.62 : 1;
+    const tie = ea > 0.6 ? 1 - Math.pow((ea - 0.6) / 0.4, 1.6) * 0.62 : 1;
     const round = Math.pow(Math.max(0, 1 - Math.pow(ea, 6)), 0.32);
     let y = bb * (H / 2) * round * tie * (1 - 0.22 * c * c * c * c);
     if (bb < 0) y *= 0.82;                         // Unterseite flach aufliegend

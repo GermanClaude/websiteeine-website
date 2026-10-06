@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 
 const CELL = 0.022;                 // m Gitterweite (Teilraum)
+const TIE = 2e-5;                   // m (Teilraum) gleich nahe Dreiecke (gemeinsame Kante/Ecke)
 const OFF = 1 << 9, SPAN = 1 << 10;
 const key = (x, y, z) => ((x + OFF) * SPAN + (y + OFF)) * SPAN + (z + OFF);
 const _inv = new THREE.Matrix4(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _q = new THREE.Quaternion(), _t = new THREE.Vector3();
@@ -111,13 +112,19 @@ export class GunCollider {
           if (st[t] === stamp) continue;
           st[t] = stamp;
           const d2 = closestOnTri(T, t * 9, _p.x, _p.y, _p.z);
-          if (d2 < best * best && d2 <= md * md) {
-            best = Math.sqrt(d2);
-            out.hit = true; out.g = g;
+          if (d2 > md * md || d2 > (best + TIE) * (best + TIE)) continue;
+          // Vorzeichen (hands 2): liegt der nächste Punkt auf einer Kante/Ecke, gilt „innen“ nur, wenn ALLE gleich
+          // nahen Dreiecke innen sagen – eine einzelne Flächennormale an einer Außenkante meldete Punkte 4 cm
+          // neben der Waffe als 4 cm tief drin
+          const sd = (_p.x - CP[0]) * N[t * 3] + (_p.y - CP[1]) * N[t * 3 + 1] + (_p.z - CP[2]) * N[t * 3 + 2];
+          const dd = Math.sqrt(d2);
+          if (dd < best - TIE) {
+            best = dd;
+            out.hit = true; out.g = g; out.outv = sd >= 0;
             out.cx = CP[0]; out.cy = CP[1]; out.cz = CP[2];
             out.nx = N[t * 3]; out.ny = N[t * 3 + 1]; out.nz = N[t * 3 + 2];
             out.px = _p.x; out.py = _p.y; out.pz = _p.z;
-          }
+          } else if (sd >= 0 && out.g === g) out.outv = true;
         }
       }
       if (out.hit && out.g === g) out.dl = best;
@@ -125,7 +132,7 @@ export class GunCollider {
     if (!out.hit) return false;
     const g = out.g;
     const dx = out.px - out.cx, dy = out.py - out.cy, dz = out.pz - out.cz;
-    const inside = dx * out.nx + dy * out.ny + dz * out.nz < 0 && out.dl > 1e-5;
+    const inside = !out.outv && out.dl > 1e-5;
     const l = Math.hypot(dx, dy, dz);
     // Richtung heraus: vom Punkt zur Oberfläche (innen) bzw. von der Oberfläche weg (außen); auf der Fläche: Normale
     if (l > 1e-6) { const s = inside ? -1 / l : 1 / l; out.dir.set(dx * s, dy * s, dz * s); } else out.dir.set(out.nx, out.ny, out.nz);
@@ -187,7 +194,7 @@ function closestOnTri(T, o, px, py, pz) {
 }
 
 /** Ergebnisobjekt für GunCollider.query (wiederverwendbar). */
-export function contactHit() { return { hit: false, d: Infinity, dir: new THREE.Vector3(), g: null, dl: 0, cx: 0, cy: 0, cz: 0, nx: 0, ny: 0, nz: 0, px: 0, py: 0, pz: 0 }; }
+export function contactHit() { return { hit: false, outv: true, d: Infinity, dir: new THREE.Vector3(), g: null, dl: 0, cx: 0, cy: 0, cz: 0, nx: 0, ny: 0, nz: 0, px: 0, py: 0, pz: 0 }; }
 
 /** Mehrere Kollisionskörper als einer (Waffe + sichtbare Requisiten wie Granate, Messer, Platte). */
 export class MultiCollider {

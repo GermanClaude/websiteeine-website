@@ -34,6 +34,8 @@ const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
 const _eye = new THREE.Vector3();
 const _lp = new THREE.Vector3();
+/** Bodenproben für das Hinlegen: [m hinter dem Becken, m seitlich] – Becken, Knie, Füße (gespreizt). */
+const PRONE_PROBES = [[0, 0], [0.55, 0], [1.05, -0.12], [1.05, 0.12], [1.5, -0.2], [1.5, 0.2]];
 const _lh = new THREE.Vector3();
 const _ld = new THREE.Vector3();
 const _le = new THREE.Vector3();
@@ -428,6 +430,11 @@ export class Bot {
     const ord = this.order && this.order.kind && now < this.order.until ? this.order : null;
     let suppressing = false;
     if (!frozen && now >= this._atCheckAt) this._findArmor(now);
+    // Infanterie bedroht den Pionier (nah oder trifft ihn gerade) → Fahrzeug vorerst ignorieren, erst sich wehren
+    if (this.atTarget && rec && rec.actor.alive && rec.visible && !rec.actor.vehicle && (rec.pos.distanceTo(this.position) < 35 || now - this.lastDamageTime < 2.5)) {
+      this.atTarget = null;
+      this._atCheckAt = now + 3;
+    }
     if (tp) {
       gunner.look(dt, tp.yaw, tp.pitch, 1.2);
     } else if (this.atTarget) {
@@ -449,15 +456,25 @@ export class Bot {
       if (goal.kind === 'engage' && rec) {
         const em = gunner.engageMove(dt, now, this._em);
         const hold = goal.hold && goal.hasMove;
-        const toCover = (this.coverNode || hold) && goal.hasMove && this.position.distanceTo(goal.move) > (hold ? 1.3 : 0.7) && (hold || rec.pos.distanceTo(this.position) > 8);
-        if (toCover) {
+        // Truppbewegung (Flanke, Sprung von Deckung zu Deckung) im Gefecht weiterlaufen und dabei schießen –
+        // nur ein naher Gegner (< 12 m) zwingt zum Stehenbleiben
+        const moveOrd = !hold && goal.kind === 'squad' && ord && (ord.kind === 'flank' || ord.kind === 'bound') && goal.hasMove &&
+          this.position.distanceTo(goal.move) > (ord.tol || 1.5) && !(rec.visible && rec.pos.distanceTo(this.position) < 12);
+        const toCover = !moveOrd && (this.coverNode || hold) && goal.hasMove && this.position.distanceTo(goal.move) > (hold ? 1.3 : 0.7) && (hold || rec.pos.distanceTo(this.position) > 8);
+        if (moveOrd) {
+          this._goOpts.tolerance = ord.tol || 1.5;
+          this._goOpts.repath = ord.repath || 2;
+          this.nav.goTo(goal.move, this._goOpts);
+          const d = this.nav.update(dt, now, true);
+          mx = d.x; mz = d.z; speedKind = 'run';
+        } else if (toCover) {
           this.nav.goTo(goal.move, GO_COVER);
           const d = this.nav.update(dt, now, true);
           mx = d.x; mz = d.z; speedKind = 'run';
         } else if (hold) {
           // Stellung halten (Truppbefehl): nur ducken/spähen, nicht vorgehen
           this.nav.update(dt, now, false);
-          if (ord && ord.stance === 'crouch') em.crouch = true;
+          if (ord && (ord.stance === 'crouch' || ord.stance === 'prone')) em.crouch = true; // liegen: bis zum Hinlegen geduckt
         } else if (em.nav) {
           this.nav.goTo(em.nav, GO_ENGAGE);
           const d = this.nav.update(dt, now, true);
@@ -482,7 +499,7 @@ export class Bot {
         if (!this.nav.arrived) { mx = d.x; mz = d.z; }
         wantCrouch = goal.crouch && this.nav.arrived;
         if (goal.kind === 'cover' || goal.kind === 'heal') wantCrouch = this.nav.arrived && !!(this.coverNode && !this.coverNode.coverHigh);
-        if (goal.kind === 'squad' && ord && ord.stance === 'crouch' && (this.nav.arrived || this.position.distanceTo(goal.move) < 1.6)) wantCrouch = true;
+        if (goal.kind === 'squad' && ord && (ord.stance === 'crouch' || ord.stance === 'prone') && (this.nav.arrived || this.position.distanceTo(goal.move) < 1.6)) wantCrouch = true;
       }
       if (this.nav.jump) wantJump = true;
       // lokales Ausweichen
@@ -636,11 +653,19 @@ export class Bot {
     }
     const prev = this.stance;
     if (want && prev !== 'prone') {
-      if (now >= this._proneCheckAt) { this._proneCheckAt = now + 1; this._proneOk = this._proneSpace(); }
+      // Prüfung mit der Richtung, in die der Körper tatsächlich gelegt wird; Ergebnis gilt nur für diesen Ort + diese Richtung
+      const pyaw = rec && rec.visible ? Math.atan2(-(rec.pos.x - this.position.x), -(rec.pos.z - this.position.z)) : this.yaw;
+      const pk = this._proneKey || (this._proneKey = { x: 1e9, z: 0, yaw: 0 });
+      const p = this.position;
+      if (now >= this._proneCheckAt || Math.hypot(p.x - pk.x, p.z - pk.z) > 0.25 || Math.abs(wrap(pyaw - pk.yaw)) > 0.2) {
+        this._proneCheckAt = now + 1;
+        pk.x = p.x; pk.z = p.z; pk.yaw = pyaw;
+        this._proneOk = this._proneSpace(pyaw);
+      }
       if (this._proneOk) {
         this.stance = 'prone';
         this._proneSince = now;
-        this.proneYaw = rec && rec.visible ? Math.atan2(-(rec.pos.x - this.position.x), -(rec.pos.z - this.position.z)) : this.yaw;
+        this.proneYaw = pyaw;
         this.crouching = false;
         this.G.events.emit('player:stance', { actor: this, stance: 'prone', prev, duration: PRONE_TIME });
         if (this.tsquad) this.manager.tactics.emit(this.tsquad, 'prone', { role: this.role });
@@ -662,13 +687,15 @@ export class Bot {
     }
   }
 
-  /** Platz zum Liegen? Boden hinter dem Körper eben, keine Wand auf 1,7 m nach hinten (zwei Strahlen auf Hüfthöhe). */
-  _proneSpace() {
+  /** Platz zum Liegen entlang `yaw` (Blickrichtung des liegenden Körpers)? Keine Wand auf 1,7 m nach hinten (zwei
+   *  Strahlen auf Hüfthöhe); Boden unter Becken, Knien und Füßen (auch seitlich gespreizt) nicht höher als die Füße
+   *  des Bots (sonst stecken Beine im Boden – die Liegepose ist starr) und höchstens 0,25 m tiefer. */
+  _proneSpace(yaw = this.yaw) {
     const W = this.G.world;
     if (!W || typeof W.raycast !== 'function') return false;
     const p = this.body.position;
-    const bx = Math.sin(this.yaw), bz = Math.cos(this.yaw); // hinter dem Blick
-    const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
+    const bx = Math.sin(yaw), bz = Math.cos(yaw); // hinter dem Blick
+    const rx = Math.cos(yaw), rz = -Math.sin(yaw);
     _ld.set(bx, 0, bz);
     for (const s of [-0.22, 0.22]) {
       _lp.set(p.x + rx * s, p.y + 0.3, p.z + rz * s);
@@ -676,9 +703,9 @@ export class Bot {
       if (h && h.distance < 1.7) return false;
     }
     if (typeof W.groundHeight === 'function') {
-      for (const k of [0.8, 1.5]) {
-        const g = W.groundHeight(p.x + bx * k, p.z + bz * k, p.y + 0.6);
-        if (g === null || Math.abs(g - p.y) > 0.35) return false;
+      for (const [k, s] of PRONE_PROBES) {
+        const g = W.groundHeight(p.x + bx * k + rx * s, p.z + bz * k + rz * s, p.y + 0.6);
+        if (g === null || g - p.y > 0.07 || p.y - g > 0.25) return false;
       }
     }
     return true;
@@ -849,7 +876,11 @@ export class Bot {
    *  entlang Zielrichtung und entlang der Waffe zur Mündung, gedrosselt, nur für nahe sichtbare Bots. → 0..1 */
   _obstructAmount(now) {
     if (!this.inView || this.camDist > 45) return 0;
-    if (now < this._obsAt) return this._obstruct;
+    this.getAimDirection(_ld);
+    // gedrosselt – aber sofort neu prüfen, wenn sich die Zielrichtung seit der letzten Prüfung deutlich gedreht hat
+    const od = this._obsDir || (this._obsDir = new THREE.Vector3());
+    if (now < this._obsAt && od.dot(_ld) > 0.985) return this._obstruct;
+    od.copy(_ld);
     this._obsAt = now + 0.12;
     const W = this.G.world;
     const def = this.weapon && this.weapon.currentDef;
@@ -858,17 +889,16 @@ export class Bot {
     const reach = def.cls === 'pistol' ? 0.65 : def.cls === 'sniper' || def.cls === 'lmg' || def.cls === 'launcher' ? 1.3 : 1.05;
     // Schulter (Pose des letzten Frames) – Waffe liegt rechts der Kapselachse und je nach Haltung tiefer
     s.joint(BONE.upperArmR, _lp);
-    this.getAimDirection(_ld);
     let d = reach + 0.1;
     let h = W.raycast(_lp, _ld, d);
     if (h) d = h.distance;
     // zweiter Strahl entlang der tatsächlichen Waffe (Pose weicht vom Zielvektor ab), auf volle Länge verlängert
     s.getMuzzlePosition(_le).sub(_lp);
     const L = _le.length();
-    if (L > 0.15 && _le.dot(_ld) > 0.8 * L) { // nur solange die Waffe noch im Anschlag liegt (sonst Decke → Selbsthalt)
+    if (L > 0.15) { // auch bei gesenkter/abweichender Waffe; Decken zählen hier nicht (hochgenommene Waffe → Selbsthalt)
       _le.multiplyScalar(1 / L);
       h = W.raycast(_lp, _le, reach + 0.1);
-      if (h && h.distance < d) d = h.distance;
+      if (h && h.distance < d && (!h.normal || h.normal.y > -0.7)) d = h.distance; // Decken ausgenommen
     }
     // Kapselachse → Schulter: steckt die Schulter selbst schon in der Wand (Ecke), ganz hochnehmen
     const p = this.body.position;
@@ -876,7 +906,7 @@ export class Bot {
     _v.subVectors(_lp, _lh);
     const sl = _v.length();
     if (sl > 0.02 && W.raycast(_lh, _v.multiplyScalar(1 / sl), sl + 0.05)) d = 0;
-    this._obstruct = clamp((reach + 0.1 - d) / (reach * 0.7), 0, 1);
+    this._obstruct = clamp((reach + 0.15 - d) / (reach * 0.5), 0, 1);
     return this._obstruct;
   }
 

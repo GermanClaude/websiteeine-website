@@ -1163,17 +1163,20 @@ export class ViewModel {
     const memo = this.cur.contactMemo;
     if (busy <= 1e-3) {
       const m = memo.get(key);
-      if (m) {
+      // hands 2: einmal nach 12 Ruhebildern neu lösen – das erste Lösen fällt oft ins Ende des Ziehens (Teile/Waffe
+      // noch in Bewegung), das Ergebnis hing dann von der Reihenfolge der Waffenwechsel ab
+      if (m && ++m.uses !== 12) {
         T.pos.add(_v.fromArray(m.d).applyQuaternion(T.quat));
         for (let i = 0; i < m.bones.length; i++) m.bones[i].quaternion.fromArray(m.q, i * 4);
         return;
       }
       _v3.copy(T.pos);
+      opts.rest = true;   // gemerkter Ruhegriff: Finger zusätzlich über Abspreizen anlegen (hands 2)
       arm.contact(col, T, opts);
       const bones = [...arm.fingers.flat(), ...arm.thumb];
       const q = new Float32Array(bones.length * 4);
       bones.forEach((b, i) => b.quaternion.toArray(q, i * 4));
-      memo.set(key, { d: _v.subVectors(T.pos, _v3).applyQuaternion(_q.copy(T.quat).invert()).toArray(), bones, q });
+      memo.set(key, { d: _v.subVectors(T.pos, _v3).applyQuaternion(_q.copy(T.quat).invert()).toArray(), bones, q, uses: m ? m.uses : 0 });
       return;
     }
     // Während Aktionen je Bild lösen; auf low nur jedes 3., auf medium jedes 2. Bild (dazwischen letzte Korrektur im Handraum)
@@ -1182,7 +1185,11 @@ export class ViewModel {
     if (every > 1 && this._contactFrame - lc.frame < every && !own && !other) {
       T.pos.add(_v.copy(lc.d).applyQuaternion(T.quat));
       for (let i = 0; i < lc.bones.length; i++) lc.bones[i].quaternion.fromArray(lc.q, i * 4);
-      return;
+      // hands 2: die alte Korrektur gilt nur, solange sie noch passt – beim schnellen Griff zum Magazin steckten
+      // die Finger auf low sonst 1–3 cm in der Waffe; Schnellprüfung, bei Eindringen doch lösen
+      if (arm.quickPen(col, T) <= 0.0015) return;
+      T.pos.sub(_v);
+      arm.applyPose(T.pose);
     }
     _v3.copy(T.pos);
     arm.contact(col, T, opts);
@@ -1732,6 +1739,7 @@ const WALL_TILT2 = 1.0;     // rad Gegenrichtung (Gewehr: Mündung hoch über Ka
 const WALL_NEAR = 0.45;     // m: Fläche, die der Strahl eines anderen Stützpunkts fand, gilt in diesem Umkreis um den Treffer
 const WALL_PLANES = 64;
 const WALL_OK = 0.01;       // m Rest, der bei der Strahlprüfung als frei gilt
+const WALL_DROP = 0.32;     // m (walls 3) größtes zusätzliches Absenken, wenn Anziehen + Kippen nicht frei werden
 const _wq = new THREE.Quaternion(), _wq0 = new THREE.Quaternion(), _we = new THREE.Euler(), _we0 = new THREE.Euler(), _wv = new THREE.Vector3();
 const _wb = new THREE.Vector3(), _wpiv = new THREE.Vector3(), _woff = new THREE.Vector3();
 const _wcp = new THREE.Vector3(), _wcq = new THREE.Quaternion(), _wcqi = new THREE.Quaternion();
@@ -2005,7 +2013,7 @@ const _wt1 = { th: 0, ok: false, res: 0, vis: 0 }, _wt2 = { th: 0, ok: false, re
 function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
   const pts = wallPoints(vm, vm.cur);
   const st = vm._wallFit || (vm._wallFit = { back: 0, th: 0, dir: 1 });
-  let wantBack = 0, wantTh = 0, resid = 0;
+  let wantBack = 0, wantTh = 0, resid = 0, wantDrop = 0, adsBlock = false;
   if (pts.length) {
     const W = wallBegin(vm, d, dt, eq);
     wallProbe(vm, pts, P, R, pistol, W);
@@ -2021,7 +2029,10 @@ function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
         backOk = wallVerify(vm, pts, P, R, wantBack, 0, pistol, W) <= WALL_OK;
         if (!backOk) wantBack = maxBack;
       }
-      const na = 1 - a;
+      // walls 3: hält Anziehen allein die Waffe nicht frei, wird auch im Anschlag gekippt (vorher blieb sie dort bis
+      // zum Ende des Zielens – Titan/Donner bis 1 m in der Wand); `s.wallAds` beendet das Zielen
+      const na = backOk ? 1 - a : 1;
+      adsBlock = !backOk && a > 0.5;
       if (!backOk) {
         if (na > 0.02) {
           const nBase = W.n;
@@ -2051,6 +2062,20 @@ function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
           st.dir = pick.th >= 0 ? 1 : -1;
           wantTh = pick.th * na;
           resid = pick.ok ? 0 : pick.res;
+          // walls 3: bleibt trotz Kippen ein sichtbarer Punkt in der Fläche (Auge dicht an der Wand, lange Waffe beim
+          // Lehnen/Liegen, Pistole an Brüstung/Engstelle), die Waffe zusätzlich nach unten aus der Fläche nehmen –
+          // Halbierungssuche, per Strahl geprüft
+          if (!pick.ok) {
+            const y0 = P.y;
+            P.y = y0 - WALL_DROP;
+            const full = wallVerify(vm, pts, P, R, wantBack, wantTh, pistol, W);
+            if (full <= WALL_OK) {
+              let lo = 0, hi = WALL_DROP;
+              for (let i = 0; i < 6; i++) { const mid = (lo + hi) / 2; P.y = y0 - mid; if (wallVerify(vm, pts, P, R, wantBack, wantTh, pistol, W) > WALL_OK) lo = mid; else hi = mid; }
+              wantDrop = hi; resid = 0;
+            } else { wantDrop = WALL_DROP; resid = Math.max(0, full); }
+            P.y = y0;
+          }
         } else resid = Math.max(0, wallVerify(vm, pts, P, R, wantBack, 0, pistol, W));
       }
     }
@@ -2060,9 +2085,10 @@ function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
   const grow = Math.abs(wantTh) > Math.abs(st.th) && wantTh * st.th >= 0;
   // Richtungswechsel schnell (der Weg führt durch die Ausgangslage, also durch die Wand), Zurücknehmen langsam
   st.th = damp(st.th, wantTh, grow || wantTh * st.th < 0 ? 40 : 7, dt);
+  st.drop = damp(st.drop || 0, wantDrop, wantDrop > (st.drop || 0) ? 45 : 6, dt);
   if (s) {
-    s.wallNeed = Math.min(1, Math.abs(st.th) / 0.9);
-    s.wallAds = a > 0.5 && resid > 0.02;
+    s.wallNeed = Math.min(1, Math.max(Math.abs(st.th) / 0.9, st.drop / (WALL_DROP * 0.5)));
+    s.wallAds = a > 0.5 && (resid > 0.02 || adsBlock);
   }
   if (vm._wallDbgOn && pts.length) { // Prüfstand: berechnete Lage der Stützpunkte (Vergleich mit dem Bild)
     wallPose(vm, R, st.th, st.back, pistol);
@@ -2070,8 +2096,9 @@ function wallFit(vm, P, R, d, a, pistol, dt, s, eq) {
     wallPose(vm, R, st.th, st.back, pistol);
     vm._wallDbgPts = pts.map((_, i) => { const v = wallPoint(vm, pts, i, P, st.back, _wW); return [+_wv.x.toFixed(3), +_wv.y.toFixed(3), +_wv.z.toFixed(3), v]; });
   }
-  if (st.back < 1e-4 && Math.abs(st.th) < 1e-4) return;
+  if (st.back < 1e-4 && Math.abs(st.th) < 1e-4 && st.drop < 1e-4) return;
   P.z += st.back;
+  P.y -= st.drop;
   wallPose(vm, R, st.th, st.back, pistol);
   P.add(_woff);
   R.set(_we.x, _we.y, _we.z);

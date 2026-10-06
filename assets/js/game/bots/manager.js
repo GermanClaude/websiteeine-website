@@ -21,6 +21,9 @@ const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
 const _sphere = new THREE.Sphere();
 const _cam = new THREE.Vector3();
+const _tc = new THREE.Vector3(); // canTeleport
+const _tw = new THREE.Vector3();
+const _tv = new THREE.Vector3();
 const NO_SMOOTH = { smooth: false };
 
 const LOS_BASE = 48, LOS_BASE_LOW = 26; // Sichtstrahlen pro Bild (Grundbudget)
@@ -180,7 +183,7 @@ export class BotManager {
           const plan = roles[i];
           const cls = pickBotClass(Math.random, plan.role);
           const lo = this._classLoadout(cls, plan.role);
-          const bot = make(team, i, lo, this._lookFor(cls, plan.role, lo), scheme, lanes[plan.squad % 3]);
+          const bot = make(team, i, lo, this._lookFor(cls, plan.role, lo, plan.ft), scheme, lanes[plan.squad % 3]);
           bot.cls = cls;
           bot.classDef = CLASSES[cls];
           this.tactics.register(bot, plan);
@@ -208,18 +211,30 @@ export class BotManager {
     else if (cls === 'pionier') primary = pick(Math.random() < 0.35 ? of('shotgun') : Math.random() < 0.5 ? of('lmg') : of('ar')) || primary;
     else if (cls === 'aufklaerer') primary = pick(of('marksman', 'ar')) || primary;
     if (!W[primary]) primary = W.ar_m17 ? 'ar_m17' : Object.keys(W).find((id) => W[id].slot !== 'secondary');
-    const launcher = r && r.launcher && W[r.launcher] ? r.launcher : cls === 'pionier' && W.at_donner ? 'at_donner' : null;
-    const secondary = launcher || (r && r.secondary) || 'pi_p9';
+    // Panzerabwehr nur, wenn es in diesem Match Fahrzeuge gibt (sonst Pistole statt nutzlosem Werfer)
+    const veh = this._vehiclesExpected();
+    const launcher = !veh ? null : r && r.launcher && W[r.launcher] ? r.launcher : cls === 'pionier' && W.at_donner ? 'at_donner' : null;
+    let secondary = launcher || (r && r.secondary) || 'pi_p9';
+    if (!veh && W[secondary] && W[secondary].cls === 'launcher') secondary = W.pi_p9 ? 'pi_p9' : Object.keys(W).find((id) => W[id].slot === 'secondary' && W[id].cls !== 'launcher') || secondary;
     const lethal = (r && r.lethal) || 'frag';
     const tactical = (role === 'rifleman' || role === 'grenadier') && EQ.flash ? 'flash' : EQ.smoke ? 'smoke' : undefined;
     return { cls, primary, secondary, lethal, tactical };
   }
 
-  /** Soldatenvariante zur Klasse (Weste/Helm/Gepäck): Sanitäter mit Armbinde, Pionier mit Werfer, Scharfschütze im Überwurf. */
-  _lookFor(cls, role, lo) {
+  /** Gibt es in diesem Match Fahrzeuge? (Kartenstellplätze bzw. ?vehicles=1 / Matchoption; ?vehicles=0 schaltet ab) */
+  _vehiclesExpected() {
+    const G = this.G, w = G.world;
+    const param = G.params && typeof G.params.get === 'function' ? G.params.get('vehicles') : null;
+    if (param === '0') return false;
+    return !!((w && Array.isArray(w.vehicleSpawns) && w.vehicleSpawns.length) || param === '1' || (G.match && G.match.vehicles));
+  }
+
+  /** Soldatenvariante zur Klasse (Weste/Helm/Gepäck): Sanitäter mit Armbinde, Pionier mit Werfer, Scharfschütze im Überwurf,
+   *  Funkgerät nur beim Truppführer (Feuerteam 0). */
+  _lookFor(cls, role, lo, ft = 0) {
     const W = (this.G.data && this.G.data.WEAPONS) || {};
     const pcls = W[lo.primary] ? W[lo.primary].cls : 'ar';
-    if (role === 'leader' && cls === 'sturm') return 'funker';
+    if (role === 'leader' && ft === 0 && cls === 'sturm') return 'funker';
     if (cls === 'pionier' && W[lo.secondary] && W[lo.secondary].cls === 'launcher') return 'panzerpionier';
     if (cls === 'aufklaerer' && (pcls === 'sniper' || pcls === 'marksman')) return 'scharfschuetze';
     const ids = (CLASS_LOOKS[cls] || CLASS_LOOKS.sturm).filter((v) => VARIANTS.some((x) => x.id === v));
@@ -228,6 +243,7 @@ export class BotManager {
 
   removeAll() {
     const G = this.G;
+    this._restoreNav();
     this.tactics.clear();
     for (const b of this.bots) {
       b.dispose();
@@ -498,10 +514,52 @@ export class BotManager {
     return true;
   }
 
-  /** Unsichtbar umsetzen erlaubt? (nicht im Blick des Spielers) */
-  canTeleport(bot) {
-    // nicht im Bild, oder so weit weg, dass der Versatz nicht auffällt (Großkarte: Sichtkegel ohne Verdeckung)
-    return (!bot.inView && bot.camDist > 18) || bot.camDist > 70;
+  /** Unsichtbar umsetzen erlaubt? Weder der Bot noch der Zielpunkt `to` dürfen für den Spieler sichtbar sein:
+   *  außerhalb des Bildes, vom Auge aus verdeckt, oder (mit Zoom/Zielfernrohr gerechnet) weiter als 220 m. */
+  canTeleport(bot, to = null) {
+    const cam = this.G.camera;
+    if (!cam) return true;
+    _tc.setFromMatrixPosition(cam.matrixWorld);
+    if (cam.fov > (this._fovBase || 0)) this._fovBase = cam.fov; // Hüft-FOV (größter beobachteter Wert)
+    const base = Math.max(55, this._fovBase || 70);
+    const zoom = Math.max(1, Math.tan((base * Math.PI) / 360) / Math.tan((Math.max(1, cam.fov) * Math.PI) / 360));
+    if (bot.camDist * zoom > 220 && (!to || to.distanceTo(_tc) * zoom > 220)) return true;
+    if (bot.camDist < 18) return false;
+    const W = this.G.world;
+    const seen = (p, inView) => {
+      if (!inView) return false;
+      if (!W || typeof W.lineOfSight !== 'function') return true;
+      _tw.set(p.x, p.y + 1.2, p.z);
+      if (W.lineOfSight(_tc, _tw)) return true;
+      _tw.y = p.y + 0.4;
+      return W.lineOfSight(_tc, _tw);
+    };
+    if (seen(bot.position, bot.inView)) return false;
+    if (to) {
+      _tv.copy(to).project(cam);
+      const inView = _tv.z < 1 && Math.abs(_tv.x) < 1.1 && Math.abs(_tv.y) < 1.1;
+      if (seen(to, inView) || to.distanceTo(_tc) < 18) return false;
+    }
+    return true;
+  }
+
+  /** Nav-Knoten an `p` für diesen Match verteuern (Verbindung scheitert wiederholt, Bot darf nicht versetzt werden). */
+  penalizeNav(p) {
+    const nav = this.G.world && this.G.world.nav;
+    if (!nav || typeof nav.nearest !== 'function' || !p) return;
+    const n = nav.nearest(p);
+    if (!n || n.position.distanceTo(p) > 0.5) return;
+    const pen = this._navPen || (this._navPen = new Map());
+    if (!pen.has(n)) pen.set(n, n.cost || 0);
+    n.cost = Math.min((n.cost || 0) + 40, pen.get(n) + 160);
+    this.navPenalties = (this.navPenalties || 0) + 1;
+  }
+
+  /** Verteuerte Nav-Knoten zurücksetzen (Matchende). */
+  _restoreNav() {
+    if (!this._navPen) return;
+    for (const [n, c] of this._navPen) n.cost = c;
+    this._navPen.clear();
   }
 
   footstep(bot) {

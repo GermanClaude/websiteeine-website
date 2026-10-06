@@ -5,7 +5,7 @@
 // Platzierung nach dem Weltaufbau per Strahltest gegen die Kugel-BVH (world.raycast): auf einem gestreuten Raster
 // werden waagerechte Strahlen geschossen; senkrechte Treffer bekommen je nach Material (Container, Wellblech, Beton,
 // Putz, Ziegel) ein passendes Decal, wenn die ganze Fläche des Decals auf derselben Wand liegt (4 Eckstrahlen).
-// Gesät über die Kartenkennung → jedes Laden gleich. Je 24-m-Zelle ein InstancedMesh (Frustum-Culling), Ausblenden
+// Gesät über die Kartenkennung → jedes Laden gleich. Je Zelle (64/44/32 m) ein InstancedMesh (Culling), Ausblenden
 // ab ≈ 34–48 m im Shader. Höchstens 140/220/300 Decals (medium/high/ultra).
 //
 // placeLookDecals(world, group, { quality, seed, def }) → { count, meshes, ms }
@@ -13,7 +13,8 @@ import * as THREE from 'three';
 
 export const LOOK_DECAL = { rust: 0, water: 1, grime: 2, cracks: 3, leak: 4, poster: 5, tag: 6, soot: 7 };
 const CAP = { medium: 140, high: 220, ultra: 300 };
-const CELL = 24;
+/** Zellgröße der Instanz-Gruppen (m): größer = weniger Draw Calls, kleiner = besseres Frustum-Culling. */
+const CELL = { medium: 64, high: 44, ultra: 32 };
 
 let atlas = null;
 
@@ -194,7 +195,8 @@ export function placeLookDecals(world, group, { quality = 'high', seed = 1, def 
   if (!items.length) return { count: 0, meshes: 0, ms: Math.round(performance.now() - t0) };
   // je Zelle ein InstancedMesh (Frustum-Culling)
   const byCell = new Map();
-  for (const it of items) { const ck = `${Math.floor(it.x / CELL)}|${Math.floor(it.z / CELL)}`; if (!byCell.has(ck)) byCell.set(ck, []); byCell.get(ck).push(it); }
+  const cs = CELL[quality] || 44;
+  for (const it of items) { const ck = `${Math.floor(it.x / cs)}|${Math.floor(it.z / cs)}`; if (!byCell.has(ck)) byCell.set(ck, []); byCell.get(ck).push(it); }
   const geo = new THREE.PlaneGeometry(1, 1);
   const mat = decalMaterial();
   let meshes = 0;

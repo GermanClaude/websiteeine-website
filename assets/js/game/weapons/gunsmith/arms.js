@@ -448,14 +448,17 @@ function buildHandGeometry(mirror, lod = 'high') {
   backPad.translate(0.002, 0.0178, -0.036);
   parts.push(tag(backPad, 0, PAD));
   // Bündchen + Klettverschluss
-  // Bündchen kürzer (hands): bei gebeugtem Handgelenk ragte die Stirnfläche als Scheibe aus dem Ärmel
-  const cuff = new THREE.CylinderGeometry(0.036, 0.033, 0.04, 14, 1, false);
+  // Bündchen (hands 2): eng am Handgelenk anliegender, flach-ovaler Schlauch mit gewölbtem Abschluss zum Arm – keine
+  // Stirnfläche (las sich bei gebeugtem Handgelenk als Scheibe/Dose) und schmaler als die Ärmelöffnung (r 0,036),
+  // damit es im Ärmel verschwindet; Anfang steckt im Handballen
+  const cuffProfile = [[0.0272, -0.012], [0.029, -0.004], [0.0295, 0.006], [0.0288, 0.016], [0.0268, 0.024], [0.022, 0.031], [0.013, 0.035], [0, 0.0365]]
+    .map(([r, z]) => new THREE.Vector2(r, z));
+  const cuff = new THREE.LatheGeometry(cuffProfile, lod === 'low' ? 10 : 14);
   cuff.rotateX(Math.PI / 2);
-  cuff.scale(1.05, 0.85, 1);
-  cuff.translate(0, 0.0, 0.015);
+  cuff.scale(1.06, 0.74, 1);
   parts.push(tag(cuff, 0, CUFF));
-  const strap = bent(new RoundedBoxGeometry(0.046, 0.005, 0.022, 1, 0.002), 9);
-  strap.translate(0.003, 0.0305, 0.02);
+  const strap = bent(new RoundedBoxGeometry(0.04, 0.004, 0.016, 1, 0.0018), 9);
+  strap.translate(0.003, 0.0226, 0.008);
   parts.push(tag(strap, 0, PAD));
 
   // Finger
@@ -743,14 +746,163 @@ class Arm {
     if (this._rigid(col, true)) { opts.own?.sync(); this._chains(cc, opts); }
     // Handballen/Fingergrund haben Vorrang (Finger lösen sich danach über ihre Gelenke)
     if (this._rigid(col, false)) { opts.own?.sync(); this._chains(cc, opts); }
-    // Greifen darf nie verschlechtern: steckt ein Finger danach noch, zurück auf den Stand vor dem Anlegen
+    // Greifen darf nie verschlechtern: steckt ein Finger danach noch, zwischen dem Stand vor dem Anlegen und dem
+    // angelegten halbieren (hands 2: früher ganz zurück – die Finger standen dann 2–4 cm vom Handschutz ab)
     if (opts.grip) for (let i = 0; i < 4; i++) {
       if (this._fingerPen(cc, i) <= 0.0015) continue;
-      for (let k = 0; k < 3; k++) { this.fingers[i][k].rotation.x = saved[i * 3 + k]; }
-      this.fingers[i][0].updateMatrixWorld(true);
-      this._unpenChain(cc, this.fingers[i], FINGERS[i].len, FINGERS[i].r, this._sc, false, TS_F);
+      const ch = this.fingers[i];
+      for (let k = 0; k < 3; k++) _gripCur[k] = ch[k].rotation.x;
+      let lo = 0, hi = 1;
+      for (let it = 0; it < 6; it++) {
+        const mid = (lo + hi) / 2;
+        for (let k = 0; k < 3; k++) ch[k].rotation.x = saved[i * 3 + k] + (_gripCur[k] - saved[i * 3 + k]) * mid;
+        ch[0].updateMatrixWorld(true);
+        if (this._fingerPen(cc, i) <= 0.0012) lo = mid; else hi = mid;
+      }
+      for (let k = 0; k < 3; k++) ch[k].rotation.x = saved[i * 3 + k] + (_gripCur[k] - saved[i * 3 + k]) * lo;
+      ch[0].updateMatrixWorld(true);
+      this._unpenChain(cc, ch, FINGERS[i].len, FINGERS[i].r, this._sc, false, TS_F);
     }
+    if (opts.grip && opts.rest) this._gripSearch(cc, opts);
+    // hands 2: was jetzt noch steckt (Daumen am Schlitten/Trommelkran, Finger im Bügel, Handballen beim Griff an
+    // Schlitten oder Granate): erst Ersatzhaltungen je Kette, dann ein weiterer starrer Durchgang mit mehr Spielraum
+    this._rescue(cc);
+    this._maxPush = 0.13 / this._sc;
+    if (this._rigid(col, true)) { opts.own?.sync(); this._chains(cc, opts); this._rescue(cc); }
+    if (opts.rest) this._restNudge(cc, opts);
     T.pos.copy(hand.position);
+  }
+
+  // Größtes Eindringen der ganzen Hand (Handballen, Finger, Daumen)
+  _handPen(col) {
+    const hand = this.handBone, sc = this._sc;
+    let worst = -Infinity;
+    for (let k = 0; k < 9; k++) { const R = RIGID[k]; _c1.set(R.p[0] * this.side, R.p[1], R.p[2]).applyMatrix4(hand.matrixWorld); worst = Math.max(worst, col.pen(_c1, R.r * sc, _hit)); }
+    for (let i = 0; i < 5; i++) worst = Math.max(worst, this._chainPen(col, i));
+    return worst;
+  }
+
+  /**
+   * Ruhegriff (hands 2, einmal je Waffe gemerkt): steckt die Hand danach noch (zwischen eng stehenden Griffteilen
+   * eingeklemmt, Brecher/Bulldog), kleine Versätze entlang der Handachsen probieren (je mit Lösen der Ketten).
+   */
+  _restNudge(col, opts) {
+    const hand = this.handBone;
+    let best = this._handPen(col);
+    if (best <= 0.0015) return;
+    const bones = this._allBones || (this._allBones = [...this.fingers.flat(), ...this.thumb]);
+    const base = _nudgeBase, keep = _nudgeKeep;
+    bones.forEach((b, i) => b.quaternion.toArray(base, i * 4));
+    base[60] = hand.position.x; base[61] = hand.position.y; base[62] = hand.position.z;
+    keep.set(base);
+    for (let ax = 0; ax < 6 && best > 0.0015; ax++) {
+      _c5.set(ax >> 1 === 0 ? 1 : 0, ax >> 1 === 1 ? 1 : 0, ax >> 1 === 2 ? 1 : 0).multiplyScalar(ax & 1 ? -1 : 1).applyQuaternion(hand.quaternion);
+      for (const st of NUDGE) {
+        bones.forEach((b, i) => b.quaternion.fromArray(base, i * 4));
+        hand.position.set(base[60], base[61], base[62]).addScaledVector(_c5, st / this._sc);
+        hand.updateMatrixWorld(true);
+        opts.own?.sync();
+        this._chains(col, opts);
+        const p = this._handPen(col);
+        if (p < best - 0.0005) { best = p; bones.forEach((b, i) => b.quaternion.toArray(keep, i * 4)); keep[60] = hand.position.x; keep[61] = hand.position.y; keep[62] = hand.position.z; }
+      }
+    }
+    bones.forEach((b, i) => b.quaternion.fromArray(keep, i * 4));
+    hand.position.set(keep[60], keep[61], keep[62]);
+    hand.updateMatrixWorld(true);
+    opts.own?.sync();
+  }
+
+  // Abstand (m) von Mittel-/Endglied eines Fingers zur Waffe (wie das Prüfwerkzeug; ≤ 0 = liegt an)
+  _fingerGap(col, i) {
+    const f = FINGERS[i], H = _hit;
+    let g = 0.06;
+    for (let s = 1; s < 3; s++) for (const t of TS_F) {
+      const r = f.r[s] * 0.92 * this._sc;
+      if (col.query(segPoint(this.fingers[i][s], f.len[s], t, _c1), r + 0.06, H)) g = Math.min(g, H.d - r);
+    }
+    return g;
+  }
+
+  /**
+   * Ruhegriff (hands 2, nur beim gemerkten Lösen): greifende Finger, die nach dem Anlegen noch > 5 mm abstehen
+   * (kleiner Finger hinter dem Handschutz, Finger neben dem Griff), im Grundgelenk abspreizen und neu anlegen; es
+   * bleibt die Lage mit dem kleinsten Abstand ohne Eindringen.
+   */
+  _gripSearch(col, opts) {
+    for (let i = 0; i < 4; i++) {
+      if (i === 0 && opts.skipIndex) continue;
+      const ch = this.fingers[i];
+      let g0 = this._fingerGap(col, i);
+      if (g0 <= 0.005) continue;
+      for (let k = 0; k < 3; k++) { ch[k].quaternion.toArray(_rsBest, k * 4); ch[k].quaternion.toArray(_rsBase, k * 4); }
+      for (const sp of GRIP_SPLAY) {
+        for (let k = 0; k < 3; k++) ch[k].quaternion.fromArray(_rsBase, k * 4);
+        ch[0].rotation.y += sp * this.side;
+        ch[0].updateMatrixWorld(true);
+        this._grip(col, opts, i);
+        if (this._fingerPen(col, i) > 0.0012) continue;
+        const g = this._fingerGap(col, i);
+        if (g < g0 - 0.002) { g0 = g; for (let k = 0; k < 3; k++) ch[k].quaternion.toArray(_rsBest, k * 4); }
+      }
+      for (let k = 0; k < 3; k++) ch[k].quaternion.fromArray(_rsBest, k * 4);
+      ch[0].updateMatrixWorld(true);
+    }
+  }
+
+  // Größtes Eindringen einer Kette (0–3 Finger, 4 Daumen)
+  _chainPen(col, i) {
+    if (i < 4) return this._fingerPen(col, i);
+    let worst = -Infinity;
+    for (let s = 0; s < 3; s++) for (const t of TS_T) worst = Math.max(worst, col.pen(segPoint(this.thumb[s], THUMB.len[s], t, _c1), THUMB.r[s] * 0.92 * this._sc, _hit));
+    return worst;
+  }
+
+  // Ersatzhaltungen (hands 2) für Ketten, die nach dem Lösen noch > 1,5 mm stecken: Grundgelenk abspreizen bzw.
+  // (Daumen) um seine drei Achsen drehen, Glieder strecken oder beugen – je mit Lösen; die beste Haltung bleibt.
+  _rescue(col) {
+    const sc = this._sc;
+    for (let i = 0; i < 5; i++) {
+      const thumb = i === 4, ch = thumb ? this.thumb : this.fingers[i];
+      let best = this._chainPen(col, i);
+      if (best <= 0.0015) continue;
+      for (let k = 0; k < 3; k++) { ch[k].quaternion.toArray(_rsBest, k * 4); ch[k].quaternion.toArray(_rsBase, k * 4); }
+      const C = thumb ? RESCUE_T : RESCUE_F;
+      for (let c = 0; c < C.length && best > 0.0015; c++) {
+        for (let k = 0; k < 3; k++) ch[k].quaternion.fromArray(_rsBase, k * 4);
+        const a = C[c];
+        if (thumb) {
+          ch[0].quaternion.multiply(_cq2.setFromAxisAngle(_c5.set(a[0], a[1], a[2]).normalize(), a[3]));
+          if (a[4] >= 0) { ch[1].rotation.x = -a[4]; ch[2].rotation.x = -a[4]; }
+        } else {
+          ch[0].rotation.y += a[0] * this.side;
+          if (a[1] >= 0) for (let k = 0; k < 3; k++) ch[k].rotation.x = -a[1] * FMAX[k];
+        }
+        ch[0].updateMatrixWorld(true);
+        this._unpenChain(col, ch, thumb ? THUMB.len : FINGERS[i].len, thumb ? THUMB.r : FINGERS[i].r, sc, thumb, thumb ? TS_T : TS_F);
+        const p = this._chainPen(col, i);
+        if (p < best - 0.0003) { best = p; for (let k = 0; k < 3; k++) ch[k].quaternion.toArray(_rsBest, k * 4); }
+      }
+      for (let k = 0; k < 3; k++) ch[k].quaternion.fromArray(_rsBest, k * 4);
+      ch[0].updateMatrixWorld(true);
+    }
+  }
+
+  /**
+   * Schnellprüfung (hands 2) für Bilder ohne Lösen (low/medium): Hand auf T setzen (Knochen wie gesetzt) und das
+   * größte Eindringen an Handballen, Fingergliedern und Daumen messen (≈ 30 Abfragen statt mehrerer Hundert).
+   */
+  quickPen(col, T) {
+    const hand = this.handBone;
+    hand.position.copy(T.pos); hand.quaternion.copy(T.quat);
+    hand.updateMatrixWorld(true);
+    hand.matrixWorld.decompose(_c1, _cq, _cs);
+    const sc = _cs.x || 1;
+    let worst = -Infinity;
+    for (let k = 0; k < 9; k += 2) { const R = RIGID[k]; _c1.set(R.p[0] * this.side, R.p[1], R.p[2]).applyMatrix4(hand.matrixWorld); worst = Math.max(worst, col.pen(_c1, R.r * sc, _hit)); }
+    for (let i = 0; i < 4; i++) for (let s = 0; s < 3; s++) for (const t of s ? QTS : QTS0) worst = Math.max(worst, col.pen(segPoint(this.fingers[i][s], FINGERS[i].len[s], t, _c1), FINGERS[i].r[s] * 0.92 * sc, _hit));
+    for (let s = 0; s < 3; s++) for (const t of QTS) worst = Math.max(worst, col.pen(segPoint(this.thumb[s], THUMB.len[s], t, _c1), THUMB.r[s] * 0.92 * sc, _hit));
+    return worst;
   }
 
   _fingerPen(col, i) {
@@ -857,16 +1009,16 @@ class Arm {
   }
 
   // Greifende Finger an die Oberfläche beugen: nächster Punkt von Mittel-/Endglied, über Mittel- und Endgelenk
-  _grip(col, opts) {
+  _grip(col, opts, only = -1) {
     const H = _hit, sc = this._sc;
     for (let i = 0; i < 4; i++) {
-      if (i === 0 && opts.skipIndex) continue;
+      if ((i === 0 && opts.skipIndex) || (only >= 0 && i !== only)) continue;
       const ch = this.fingers[i], f = FINGERS[i];
       for (let it = 0; it < 5; it++) {
         let g = Infinity, gs = -1;
         for (let s = 1; s < 3; s++) for (const t of TS_F) {
           segPoint(ch[s], f.len[s], t, _c1);
-          if (col.query(_c1, f.r[s] * sc + 0.035, H) && H.d - f.r[s] * 0.92 * sc < g) { g = H.d - f.r[s] * 0.92 * sc; gs = s; _c4.copy(_c1); _c3.copy(H.dir).negate(); }
+          if (col.query(_c1, f.r[s] * sc + 0.05, H) && H.d - f.r[s] * 0.92 * sc < g) { g = H.d - f.r[s] * 0.92 * sc; gs = s; _c4.copy(_c1); _c3.copy(H.dir).negate(); }
         }
         if (gs < 0 || g <= 0.002) break;
         // Gelenk mit dem größten Hebel zur Oberfläche (Grund-, Mittel- oder Endgelenk; Endgelenk nur für Punkte am Endglied)
@@ -932,6 +1084,13 @@ const _upA = V3(), _upB = V3(), _oz = V3(), _oy = V3(), _ox = V3(), _fd = V3();
 const _c1 = V3(), _c2 = V3(), _c3 = V3(), _c4 = V3(), _c5 = V3(), _c6 = V3(), _c7 = V3(), _c8 = V3(), _cs = V3();
 const _cq = new THREE.Quaternion(), _cq2 = new THREE.Quaternion(), _cm = new THREE.Matrix4();
 const _hit = contactHit(), _multi = new MultiCollider(), _saved = new Float32Array(12);
+const _gripCur = new Float32Array(3), _rsBest = new Float32Array(12), _rsBase = new Float32Array(12);
+const _nudgeBase = new Float32Array(63), _nudgeKeep = new Float32Array(63), NUDGE = [0.004, 0.008, 0.013, 0.02];
+const QTS0 = [0.5], QTS = [0.5, 0.92], GRIP_SPLAY = [0.12, -0.12, 0.24, -0.24, 0.36, -0.36];
+// Ersatzhaltungen (hands 2) – Finger: [Abspreizen rad, Beugung als Anteil von FMAX (−1 = lassen)];
+// Daumen: [Achse x, y, z (Grundgliedraum), Winkel rad, Beugung Mittel-/Endglied rad (−1 = lassen)]
+const RESCUE_F = [[0.2, -1], [-0.2, -1], [0.4, -1], [-0.4, -1], [0, 0.04], [0, 0.95], [0.25, 0.5], [-0.25, 0.5]];
+const RESCUE_T = [[1, 0, 0, 0.5, -1], [1, 0, 0, -0.5, -1], [0, 1, 0, 0.5, -1], [0, 1, 0, -0.5, -1], [0, 0, 1, 0.6, -1], [0, 0, 1, -0.6, -1], [1, 0, 0, 0.9, 0.1], [0, 1, 0, -0.9, 0.1], [0, 0, 0, 0, 0.05], [1, 0, 0, -0.9, 0.5]];
 // Starre Kontaktpunkte: Handballen (Handraum, x gespiegelt je Seite), Fingergrund, Daumenballen
 const RIGID = [];
 for (const x of [-0.025, 0, 0.025]) for (const z of [-0.065, -0.035, -0.01]) RIGID.push({ bone: -1, p: [x, 0, z], r: 0.011 });

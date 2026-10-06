@@ -28,6 +28,9 @@ export const FT_ROLES = [
   ['leader', 'grenadier', 'marksman', 'rifleman'],
 ];
 /** Befehle, bei denen der Bot seine Stellung hält und aus ihr kämpft. */
+/** Kleine Trupps (≤ 6, Arena-Teamgrößen): zweites Feuerteam ohne eigenen Führer – sonst gäbe es keine Schützen
+ *  und jeder dritte Bot wäre „Führer“ (Funkgerät-Aussehen). */
+export const FT_ROLES_SMALL = ['rifleman', 'grenadier', 'marksman'];
 export const HOLD_ORDERS = new Set(['overwatch', 'suppress', 'hold', 'stack', 'regroup_hold']);
 
 /** Rollenplan für n Bots einer Seite → [{ squad, ft, role }] (Trupps möglichst gleich groß, höchstens 8). */
@@ -40,7 +43,8 @@ export function planRoles(n) {
     left -= size;
     const a = Math.ceil(size / 2), b = size - a;
     for (let i = 0; i < a; i++) out.push({ squad: s, ft: 0, role: FT_ROLES[0][i] || 'rifleman' });
-    for (let i = 0; i < b; i++) out.push({ squad: s, ft: 1, role: FT_ROLES[1][i] || 'rifleman' });
+    const r1 = size <= 6 ? FT_ROLES_SMALL : FT_ROLES[1];
+    for (let i = 0; i < b; i++) out.push({ squad: s, ft: 1, role: r1[i] || 'rifleman' });
   }
   return out;
 }
@@ -302,7 +306,7 @@ export class TeamTactics {
     const danger = dist < 90 && (recent || !!intel || this._enemyFlagNear(sq));
     const both = sq.ft[0].some((m) => m.alive) && sq.ft[1].some((m) => m.alive);
     if (dist < 22 || alive.length < 2) { for (const m of alive) if (m !== medicBusy) this._release(m); sq.bound.active = false; return; }
-    if (danger && both) { this._bound(sq, alive, now, medicBusy); return; }
+    if (danger && both && this._cohesive(sq, medicBusy)) { this._bound(sq, alive, now, medicBusy); return; }
     sq.bound.active = false;
     // Reisemarsch: Keil hinter dem Führer (Führer entscheidet selbst)
     this._release(lead);
@@ -324,6 +328,24 @@ export class TeamTactics {
     }
   }
 
+  /** Trupp beisammen? Beide Feuerteams nahe ihrem Schwerpunkt (≤ 22 m) und nahe beieinander (≤ 30 m). */
+  _cohesive(sq, medicBusy) {
+    const c0 = this._centroid(sq.ft[0], _a), c1 = this._centroid(sq.ft[1], _b);
+    if (!c0 || !c1 || c0.distanceTo(c1) > 30) return false;
+    for (const m of sq.members) {
+      if (!m.alive || m === medicBusy) continue;
+      if (m.position.distanceTo(m.ft === 0 ? c0 : c1) > 22) return false;
+    }
+    return true;
+  }
+
+  /** Größte Entfernung eines Teammitglieds vom Teamschwerpunkt c. */
+  _spread(team, c, medicBusy) {
+    let s = 0;
+    for (const m of team) if (m.alive && m !== medicBusy) s = Math.max(s, m.position.distanceTo(c));
+    return s;
+  }
+
   _enemyFlagNear(sq) {
     const mode = this.mgr.G.mode;
     const obj = mode && mode.objectives;
@@ -342,7 +364,10 @@ export class TeamTactics {
       moving++;
       if (m.order && m.order.kind === 'bound' && m.position.distanceTo(m.order.pos) < 2.2) arrived++;
     }
-    if (!b.active || now > b.until || (moving && arrived >= moving)) {
+    // angekommen: kurz in Stellung gehen (das andere Team sichert weiter), erst dann wechseln
+    if (b.active && moving && arrived >= moving && !b.settled) b.settled = now;
+    if (!b.active || now > b.until || (b.settled && now - b.settled > 2.5)) {
+      b.settled = 0;
       // Wechsel (zu Beginn bewegt sich das Team mit dem Führer zuerst)
       b.mover = b.active ? 1 - b.mover : (sq.lead.ft === 0 ? 0 : 1);
       b.active = true;
@@ -387,8 +412,12 @@ export class TeamTactics {
   _contact(sq, alive, now, medicBusy) {
     sq.state = 'contact';
     const contact = sq.contact;
-    // Seit 5 s sieht niemand den Feind → Befehle lösen, jeder rückt selbst nach (Verfolgen/Absuchen)
-    if (now - sq.seenAt > 3) {
+    // Seit 3 s sieht niemand den Feind → Feuerbasis rückt selbst nach (Verfolgen/Absuchen); ein laufendes Flankenmanöver
+    // wird zu Ende geführt (es soll den Feind ja gerade aus einer neuen Richtung finden)
+    const lost = now - sq.seenAt > 3;
+    const run = sq.plan;
+    const flanking = !!run && now - run.made < 16 && !(run.heldAt && now - run.heldAt > 6);
+    if (lost && !flanking) {
       for (const m of alive) if (m !== medicBusy && m.order && m.order.kind && m.order.kind !== 'fallback') this._release(m);
       if (sq.plan && now - sq.plan.made > 8) sq.plan = null;
       return;
@@ -404,15 +433,38 @@ export class TeamTactics {
     }
     if (base < 0) base = c0.distanceTo(contact) <= c1.distanceTo(contact) ? 0 : 1;
     let p = sq.plan;
-    if (!p || (p.contact.distanceTo(contact) > 20 && now - p.made > 8) || now > p.until) {
-      p = sq.plan = this._flankPlan(sq, base, contact, now);
-      if (!p) { for (const m of alive) if (m !== medicBusy) this._suppressOrder(sq, m, now); return; }
+    if (!lost && (!p || (p.contact.distanceTo(contact) > 20 && now - p.made > 8) || now > p.until)) {
+      p = sq.plan = this._flankPlan(sq, base, contact, now, medicBusy);
+      if (!p) {
+        // Manöverteam zu weit weg oder verstreut: erst an der Feuerbasis sammeln (Flanke danach), Basis hält nieder
+        const man = sq.ft[1 - base];
+        const cb = this._centroid(sq.ft[base], new THREE.Vector3());
+        const claims = [];
+        for (const m of alive) {
+          if (m === medicBusy) continue;
+          if (m.ft === base || !cb || m.position.distanceTo(cb) < 16) { this._suppressOrder(sq, m, now); continue; }
+          _v.copy(cb).addScaledVector(_u.subVectors(m.position, cb).setY(0).normalize(), 6);
+          const spot = this._spot(_v, contact, 6, claims);
+          claims.push(spot);
+          this._order(m, 'follow', now, { pos: spot, look: _w.copy(contact).setY(contact.y + 1.2), speed: m.position.distanceTo(spot) > 12 ? 'sprint' : 'run', tol: 2.5, dur: 3, repath: 5 });
+        }
+        void man;
+        return;
+      }
     }
-    for (const m of sq.ft[p.base]) if (m.alive && m !== medicBusy) this._suppressOrder(sq, m, now);
+    if (!p) return;
+    for (const m of sq.ft[p.base]) {
+      if (!m.alive || m === medicBusy) continue;
+      if (lost) this._release(m); else this._suppressOrder(sq, m, now);
+    }
     // Manöver: erst weit ausholen (via), dann in die Flanke
     const man = sq.ft[1 - p.base];
     const cm = this._centroid(man, _c);
-    if (cm && p.phase === 'via' && cm.distanceTo(p.via) < 5) p.phase = 'flank';
+    if (cm && p.phase === 'via') {
+      let at = 0, cnt = 0;
+      for (const m of man) if (m.alive && m !== medicBusy) { cnt++; if (m.position.distanceTo(p.via) < 7) at++; }
+      if (cm.distanceTo(p.via) < 6 || (cnt && at * 2 >= cnt)) p.phase = 'flank';
+    }
     let k = 0;
     for (const m of man) {
       if (!m.alive || m === medicBusy) continue;
@@ -456,14 +508,16 @@ export class TeamTactics {
   }
 
   /** Flankenplan (L-Form): Punkt seitlich der Kontaktstelle, rechtwinklig zur Linie Feuerbasis → Feind. */
-  _flankPlan(sq, base, contact, now) {
+  _flankPlan(sq, base, contact, now, medicBusy = null) {
     const nav = this._nav();
     const cb = this._centroid(sq.ft[base], new THREE.Vector3());
     const cm = this._centroid(sq.ft[1 - base], new THREE.Vector3());
     if (!nav || !cb || !cm) return null;
     const u = new THREE.Vector3().subVectors(contact, cb).setY(0);
     const dist = u.length();
-    if (dist < 8) return null;
+    if (dist < 8 || dist > 85) return null;
+    // Manöverteam muss beisammen und in Reichweite sein (sonst nur Ereignisse ohne Ausführung)
+    if (cm.distanceTo(contact) > 80 || cm.distanceTo(cb) > 40 || this._spread(sq.ft[1 - base], cm, medicBusy) > 20) return null;
     u.multiplyScalar(1 / dist);
     const R = Math.max(14, Math.min(26, dist * 0.6));
     let best = null, bs = Infinity;
@@ -480,6 +534,7 @@ export class TeamTactics {
     _v.set(cm.x - u.z * s * R * 0.85 + u.x * dist * 0.3, cm.y, cm.z + u.x * s * R * 0.85 + u.z * dist * 0.3);
     const nv = nav.nearest(_v);
     const via = nv && nv.position.distanceTo(_v) < 10 ? nv.position.clone() : best.flank.clone();
+    if (best.flank.distanceTo(cm) > 75) return null;
     const plan = { contact: contact.clone(), base, u, side: s, flank: best.flank, via, phase: 'via', until: now + 30, smoked: false, made: now, heldAt: 0 };
     this.emit(sq, 'flank', { side: s, R: Math.round(R) });
     // Offenes Gelände bis zum Umweg (vom Feind aus einsehbar) → vorher einnebeln

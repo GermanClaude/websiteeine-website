@@ -102,6 +102,75 @@ export class Navigator {
       return;
     }
     this._setPath(path);
+    // Erster Wegpunkt steil über dem Bot (Bachbett unter der Brücke: nächster Knoten liegt auf der Fahrbahn) → erst
+    // über eine begehbare Rampe zu einem Knoten der eigenen Ebene, von dort neu planen
+    const pos = this.bot.position, p0 = path[0];
+    const up = p0.y - pos.y;
+    if (up > 1.6 && up > Math.hypot(p0.x - pos.x, p0.z - pos.z) * 0.6) this._escapeLevel();
+  }
+
+  /** Zu einem zu Fuß erreichbaren Knoten der eigenen Ebene ausweichen (statt senkrecht unter dem Zielknoten zu hängen). */
+  _escapeLevel() {
+    const q = this._levelEscape(this.bot.position);
+    if (!q) return false;
+    this._setPath([q.clone()]);
+    this.resume = true;
+    this.levelEscapes = (this.levelEscapes || 0) + 1;
+    return true;
+  }
+
+  /** Nächster Knoten (≤ 26 m) auf ungefähr gleicher Höhe, zu dem eine begehbare Rampe führt. → Vector3 | null */
+  _levelEscape(pos) {
+    const nav = this.bot.G.world && this.bot.G.world.nav;
+    if (!nav || typeof nav.nodesInRadius !== 'function') return null;
+    const cands = nav.nodesInRadius(pos, 26);
+    let tries = 0;
+    for (const n of cands) {
+      const q = n.position;
+      const dy = q.y - pos.y;
+      const h = Math.hypot(q.x - pos.x, q.z - pos.z);
+      if (dy > 2.6 || dy < -1.2 || h < 1.2 || dy > h * 0.55 || !n.links || !n.links.length) continue;
+      if (++tries > 12) break;
+      if (this._rampOk(pos, q)) return q;
+    }
+    return null;
+  }
+
+  /** Strecke ohne Wand (Knie/Brust) mit durchgehendem, nicht zu steilem Boden (≤ 0,42 m Anstieg je 0,6 m)? */
+  _rampOk(from, to) {
+    const world = this.bot.G.world;
+    if (!world || typeof world.lineOfSight !== 'function') return true;
+    _a.set(from.x, from.y + 0.7, from.z);
+    _b.set(to.x, to.y + 0.7, to.z);
+    if (!world.lineOfSight(_a, _b)) return false;
+    _a.y = from.y + 1.4;
+    _b.y = to.y + 1.4;
+    if (!world.lineOfSight(_a, _b)) return false;
+    if (typeof world.groundHeight !== 'function') return true;
+    const dx = to.x - from.x, dz = to.z - from.z;
+    const steps = Math.max(2, Math.ceil(Math.hypot(dx, dz) / 0.6));
+    let prev = from.y;
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const g = world.groundHeight(from.x + dx * t, from.z + dz * t, prev + 0.9);
+      if (g === null || g - prev > 0.42 || prev - g > 1.2) return false;
+      prev = g;
+    }
+    return Math.abs(prev - to.y) < 0.7;
+  }
+
+  /** Freie Strecke (m, ≤ max) entlang dir auf Knie- und Brusthöhe (Kollisionsgeometrie). */
+  _free(pos, dir, max) {
+    const W = this.bot.G.world;
+    const ray = W && (W.collisionRaycast || W.raycast);
+    if (!ray) return max;
+    let d = max;
+    for (const y of [0.55, 1.2]) {
+      _a.set(pos.x, pos.y + y, pos.z);
+      const h = ray.call(W, _a, dir, max);
+      if (h && h.distance < d) d = h.distance;
+    }
+    return d;
   }
 
   /** Pfad übernehmen + Restweglängen (Suffixsummen) für den Fortschrittswächter. */
@@ -235,10 +304,13 @@ export class Navigator {
         const np = this._np || (this._np = { pos: new THREE.Vector3(1e9, 0, 0), run: 0 });
         np.run = np.pos.distanceToSquared(pos) < 16 ? np.run + 1 : 1;
         np.pos.copy(pos);
-        if (np.run >= 2 && bot.manager.canTeleport(bot)) {
+        if (np.run >= 2 && bot.manager.canTeleport(bot, p)) {
           bot.body.teleport(p);
           np.run = 0;
           this.unstuck = (this.unstuck || 0) + 1;
+        } else if (np.run >= 2) {
+          bot.manager.penalizeNav(p);
+          if (this._escapeLevel()) return this.dir;
         }
         this._request();
       }
@@ -251,8 +323,17 @@ export class Navigator {
       if (this._wallT > 0.3 && now >= st.sideUntil) {
         this._wallT = 0;
         const nx = path[Math.min(this.idx + 1, path.length - 1)];
-        _s.set(-wn.z, 0, wn.x);
-        if (_s.x * (nx.x - pos.x) + _s.z * (nx.z - pos.z) < 0) _s.multiplyScalar(-1);
+        // Seite wählen, auf der wirklich Platz ist (Pfosten/Ecke): quer zur Wand und schräg nach vorn messen
+        let bestSide = 1, bestScore = -Infinity;
+        for (const sg of [1, -1]) {
+          _s.set(-wn.z * sg, 0, wn.x * sg);
+          const side = this._free(pos, _s, 2.2);
+          _d.copy(_s).add(this.dir).setY(0).normalize();
+          const diag = this._free(pos, _d, 2.2);
+          const score = Math.min(side, 1.4) + diag * 1.5 + (_s.x * (nx.x - pos.x) + _s.z * (nx.z - pos.z) > 0 ? 0.6 : 0);
+          if (score > bestScore) { bestScore = score; bestSide = sg; }
+        }
+        _s.set(-wn.z * bestSide, 0, wn.x * bestSide);
         if (this._wallHits % 2 === 1) { _s.multiplyScalar(-1); this.jump = true; } // zweiter Versuch: andere Richtung + Sprung (niedrige Mauer)
         st.side.copy(_s).addScaledVector(wn, 0.35).normalize();
         st.sideUntil = now + 0.5;
@@ -263,7 +344,10 @@ export class Navigator {
           const wp = this._wallPt || (this._wallPt = new THREE.Vector3(1e9, 0, 0));
           this._wallRun = wp.distanceToSquared(p) < 1 ? (this._wallRun || 0) + 1 : 1;
           wp.copy(p);
-          if (this._wallRun >= 2 && bot.manager.canTeleport(bot)) { bot.body.teleport(p); this._wallRun = 0; this.unstuck = (this.unstuck || 0) + 1; }
+          // Knoten hinter der gescheiterten Verbindung für diesen Match verteuern: alle Bots lernen daraus, A* sucht
+          // einen anderen Weg (Nav-Verbindung durch Geländer/Mauer, z. B. Grenzland 7824→7825)
+          bot.manager.penalizeNav(p);
+          if (this._wallRun >= 2 && bot.manager.canTeleport(bot, p)) { bot.body.teleport(p); this._wallRun = 0; this.unstuck = (this.unstuck || 0) + 1; }
           else if (this.dest && !this.pending) this._request();
         }
       }
@@ -293,12 +377,14 @@ export class Navigator {
     else if (lvl >= 4) {
       const nav = bot.G.world && bot.G.world.nav;
       const node = nav && nav.nearestReachable ? nav.nearestReachable(bot.position) : nav && nav.nearest(bot.position);
+      // nächster Knoten liegt auf einer anderen Ebene (über dem Bot) → erst über eine Rampe auf die eigene Ebene
+      if ((!node || node.position.y - bot.position.y > 1.6) && this._escapeLevel()) return;
       if (node) {
         // erst zum nächsten Knoten, danach neu planen
         this._setPath([node.position.clone()]);
         this.resume = true;
       }
-      if (lvl >= 6 && node && bot.manager.canTeleport(bot)) {
+      if (lvl >= 6 && node && bot.manager.canTeleport(bot, node.position)) {
         bot.body.teleport(node.position);
         st.level = 0;
         if (this.dest) this._request();

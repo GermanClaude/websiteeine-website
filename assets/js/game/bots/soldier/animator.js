@@ -23,6 +23,9 @@ const _q = Qn(), _q2 = Qn(), _qi = Qn();
 // Liegen (bots-scale): Beinknochen (Neigung, Gierung, Rollen) – gestreckt, leicht gespreizt, rechtes Knie etwas angewinkelt
 const PRONE_LEGS = [[BONE.thighL, 0.16, 0, 0.12], [BONE.shinL, 0.02, 0, 0], [BONE.footL, 0.3, 0, 0], [BONE.thighR, 0.14, 0, -0.16], [BONE.shinR, -0.08, 0, 0], [BONE.footR, 0.35, 0, 0]];
 const _v = V(), _v2 = V(), _v3 = V(), _v4 = V(), _a = V(), _b = V(), _c = V(), _pole = V();
+const _ax = V();
+const PRONE_ANKLE_Y = 0.1; // m über der Standfläche (Liegen)
+const PRONE_CHAINS = [[BONE.thighL, BONE.shinL, BONE.footL], [BONE.thighR, BONE.shinR, BONE.footR]];
 // feste Zwischenspeicher (keine Allokationen pro Bild)
 const S_R = V(), S_BP = V(), S_G = V(), S_L = V(), S_T = V(), S_M = V();
 const S_GRIP = V(), S_WELL = V(), S_WD = V(), S_PORT = V(), S_END = V();
@@ -287,7 +290,7 @@ export class Animator {
     this.crouch += ((p.crouch ? 1 : 0) - this.crouch) * damp(9, dt);
     this.prone += ((p.prone ? 1 : 0) - this.prone) * damp(4.2, dt);
     if (this.prone < 1e-3) this.prone = 0;
-    this.obstruct += ((p.obstruct || 0) - this.obstruct) * damp(12, dt);
+    this.obstruct += ((p.obstruct || 0) - this.obstruct) * damp((p.obstruct || 0) > this.obstruct ? 22 : 8, dt); // schnell hoch, langsam zurück
     this.sprint += ((p.sprint ? 1 : 0) - this.sprint) * damp(7, dt);
     this.ads += ((p.ads || 0) - this.ads) * damp(14, dt);
     const airborne = !p.onGround;
@@ -486,6 +489,23 @@ export class Animator {
       this.lq[i].slerp(_q, pr);
       this._fk(i);
     }
+    // Knöchel nicht unter den Boden (Modellraum y = 0 = Standfläche): Oberschenkel so weit anheben, dass das
+    // Fußgelenk ≥ PRONE_ANKLE_Y liegt – nur die Fußspitzen berühren den Boden
+    for (const [th, sh, ft] of PRONE_CHAINS) {
+      const y0 = this.wp[ft].y;
+      const need = PRONE_ANKLE_Y - y0;
+      if (need <= 0.005) continue;
+      const len = Math.max(0.3, this.wp[ft].distanceTo(this.wp[th]));
+      const ang = Math.min(0.6, need / len) * pr;
+      _q.setFromAxisAngle(_ax.set(1, 0, 0), ang);
+      this.lq[th].multiply(_q);
+      this._fk(th); this._fk(sh); this._fk(ft);
+      if (this.wp[ft].y < y0) {
+        _q.setFromAxisAngle(_ax, -2 * ang);
+        this.lq[th].multiply(_q);
+        this._fk(th); this._fk(sh); this._fk(ft);
+      }
+    }
   }
 
   _fk(i) {
@@ -567,7 +587,7 @@ export class Animator {
     }
     // Waffe an der Wand (bots-scale): zurückziehen und hochnehmen („high ready“), damit der Lauf nicht in die Wand ragt
     const ob = this.obstruct;
-    if (ob > 1e-3) { pos.z += 0.3 * ob; pos.y += 0.1 * ob; rx += 1.3 * ob; } // ob=1: Lauf fast senkrecht („high port“)
+    if (ob > 1e-3) { pos.z += 0.34 * ob; pos.y += 0.12 * ob; rx += 1.4 * ob; } // ob=1: Lauf fast senkrecht („high port“)
     // Rahmen → Modellraum
     qrot(this.gunPos.copy(pos), this.aimQuat).add(this.aimPivot);
     _e.set(rx, ry, rz, 'YXZ');

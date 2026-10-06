@@ -1096,7 +1096,7 @@ export class Player {
 
   /** Liegend: Wand hinter den Beinen schiebt nach vorn; ohne Platz bleibt die alte Blickrichtung (Drehen gesperrt). */
   _proneConstraint(world, dt) {
-    if (!this.prone || !world || !this.alive) { this._proneYaw = this.yaw; return; }
+    if (!this.prone || !world || !this.alive) { this._proneYaw = this._proneYawPrev = this.yaw; return; }
     const len = PRONE.length * Math.max(0.35, this.proneBlend);
     const maxPush = 3 * dt + 0.01;
     let need = this._proneNeed(world, this.yaw, len);
@@ -1114,6 +1114,10 @@ export class Player {
       this.yaw = y0 + dy * lo;
       need = this._proneNeed(world, this.yaw, len);
     }
+    // walls 3: auch vorn kein Platz (Gang kürzer als der liegende Körper, Beine steckten 6+ cm in der Wand) –
+    // nach kurzer Zeit in die Hocke
+    this._proneNoRoom = need < 0 ? (this._proneNoRoom || 0) + dt : 0;
+    if (this._proneNoRoom > 0.2 && this.proneBlend > 0.9 && !this._stanceBusy()) { this._proneNoRoom = 0; this._leaveProne('crouch'); return; }
     if (need < 0) need = 0;
     this._proneYaw = this.yaw;
     if (need > 0.004) {
@@ -1122,7 +1126,11 @@ export class Player {
       b.position.x += -Math.sin(this.yaw) * push;
       b.position.z += -Math.cos(this.yaw) * push;
       b._sync();
+      // walls 3: Drehen im Liegen – bleibt nach dem Schub noch Bein in der Wand (Schub vorn begrenzt), die Drehung
+      // dieses Bildes zurücknehmen (Harness proneLegs: alle Fälle in „proneTurn“)
+      if (Math.abs(dy) > 1e-4 && this._proneNeed(world, this.yaw, len) > 0.02) { this.yaw = this._proneYawPrev ?? this.yaw; this._proneYaw = this.yaw; }
     }
+    this._proneYawPrev = this.yaw;
   }
 
   /* ------------------------------------------------------------ Panzerung / Klassen-Ausrüstung */
@@ -1370,7 +1378,7 @@ export class Player {
   _mantlePathFree(world, ledge, dx, dz) {
     const m = { start: this.body.position, end: ledge.end, topY: ledge.topY, vault: ledge.vault, dx, dz, wall: ledge.wallDist };
     const r = this.body.radius * 0.92;
-    for (let i = 2; i <= 10; i++) {
+    for (let i = 1; i <= 10; i++) {
       this._mantlePos(m, i / 10, _v);
       if (!canOccupy(world, _v, CROUCH_H, r)) return false;
     }
@@ -1403,7 +1411,16 @@ export class Player {
       z = az + (e.z - az) * u;
       y = lift + (e.y - lift) * u;
     }
-    body.position.set(x, y, z);
+    // walls 3: Bahn + Versatz aus der Geometrie (Kante, Überhang, Seitenwand streiften bis 10 cm in den Körper):
+    // nach dem Setzen ausdrücken, Versatz für die folgenden Bilder merken (sonst führte die Bahn wieder hinein)
+    if (m.ox === undefined) { m.ox = 0; m.oy = 0; m.oz = 0; }
+    body.position.set(x + m.ox, y + m.oy, z + m.oz);
+    body._sync();
+    const world = this.G.world;
+    if (world && typeof body.depenetrate === 'function') {
+      body.depenetrate(world);
+      m.ox = body.position.x - x; m.oy = body.position.y - y; m.oz = body.position.z - z;
+    }
     body.velocity.set(0, 0, 0);
     body.onGround = false;
     body._sync();
