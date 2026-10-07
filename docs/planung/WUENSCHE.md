@@ -218,3 +218,7 @@ Karten-Feinschliff (alle Karten, „alles originalgetreu und sinnvoll platzieren
 - Bots füllen die Teams bis zur eingestellten Matchgröße auf (mehr Menschen → weniger Bots); Bot-Anzahl einstellbar, Empfehlung berücksichtigt auch die Bot-Rechenlast beim Host.
 - Bandbreite wächst ungefähr quadratisch mit der Spielerzahl → Interest-Management (weit entfernte Spieler seltener senden) für große Karten; echte Grenze beim Testabend mit der SL-/UGN-Community messen (vorher kurze Testanleitung schreiben).
 - 50–100 Spieler (Battle Royale) gehen nicht über den Browser eines Spielers → bräuchte dedizierten Server (Kosten), erst später entscheiden.
+
+## MEHRSPIELER IN ZWEI STUFEN veröffentlichen (Nutzer 07.10. abends)
+- STUFE 1 so früh wie möglich live (Ziel Sa./So. nach Start Do. 17:10): Raumcode + öffentliche Spiele, Host-Menü, Verbindungstest + Empfehlungswert, bis 32 Spieler mit Bot-Auffüllung, Grund-Anti-Cheat (Host prüft Treffer/Bewegung), bestehende Karten und Hauptmodi.
+- STUFE 2 danach als eigenes Update: Matchmaking nach Können, Duell-Modus 1v1–4v4, Fahrzeuge online auf großen Karten, Host-Wechsel, lernende Bots; spielerübergreifendes Lernen erst, wenn das Sammeldienst-Konto (Cloudflare/Supabase) existiert.
