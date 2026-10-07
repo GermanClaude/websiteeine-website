@@ -220,5 +220,5 @@ Karten-Feinschliff (alle Karten, „alles originalgetreu und sinnvoll platzieren
 - 50–100 Spieler (Battle Royale) gehen nicht über den Browser eines Spielers → bräuchte dedizierten Server (Kosten), erst später entscheiden.
 
 ## MEHRSPIELER IN ZWEI STUFEN veröffentlichen (Nutzer 07.10. abends)
-- STUFE 1 so früh wie möglich live (Ziel Sa./So. nach Start Do. 17:10): Raumcode + öffentliche Spiele, Host-Menü, Verbindungstest + Empfehlungswert, bis 32 Spieler mit Bot-Auffüllung, Grund-Anti-Cheat (Host prüft Treffer/Bewegung), bestehende Karten und Hauptmodi.
+- STUFE 1 live bis SAMSTAG 12 UHR (Nutzerwunsch 07.10.; Start Do. 17:10; Fr. abends Test mit Nutzer PC+Handy; falls Router-/NAT-Probleme: trotzdem Sa. mittag veröffentlichen, Relay-Lösung nachreichen): Raumcode + öffentliche Spiele, Host-Menü, Verbindungstest + Empfehlungswert, bis 32 Spieler mit Bot-Auffüllung, Grund-Anti-Cheat (Host prüft Treffer/Bewegung), bestehende Karten und Hauptmodi.
 - STUFE 2 danach als eigenes Update: Matchmaking nach Können, Duell-Modus 1v1–4v4, Fahrzeuge online auf großen Karten, Host-Wechsel, lernende Bots; spielerübergreifendes Lernen erst, wenn das Sammeldienst-Konto (Cloudflare/Supabase) existiert.
