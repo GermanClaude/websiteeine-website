@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NULLPUNKT – Netz-Prüfstand</title>
+<style>body{font:14px/1.4 system-ui,sans-serif;background:#111;color:#ddd;margin:16px}pre{white-space:pre-wrap}</style>
+</head>
+<body>
+<h1>Netz-Prüfstand (Vermittlung + WebRTC)</h1>
+<p>Host: <code>?role=host&amp;code=ABCDEF</code> · Client: <code>?role=client&amp;code=ABCDEF</code> · lokal: <code>&amp;relays=ws://127.0.0.1:7777</code> · öffentlich gelistet: <code>&amp;public=1</code> · Liste: <code>?role=lobby</code></p>
+<pre id="log"></pre>
+<script type="module">
+import { HostSignal, joinRoom, watchLobby, relaysFromUrl, normCode, newRoomCode } from '../assets/js/game/net/signal.js';
+import { PeerLink, candidateTypes } from '../assets/js/game/net/peer.js';
+const q = new URLSearchParams(location.search);
+const relays = relaysFromUrl();
+const out = document.getElementById('log');
+const log = (...a) => { out.textContent += a.join(' ') + '\n'; console.log('[net-test]', ...a); };
+const st = window.__net = { role: q.get('role') || 'host', peers: [], got: [], errors: [], lobby: [] };
+const ice = relays ? [] : undefined; // lokal: kein STUN nötig
+if (st.role === 'host') {
+  const code = normCode(q.get('code') || newRoomCode());
+  st.code = code;
+  const host = new HostSignal({ relays, code, meta: { name: 'Test-Host', map: 'hafen', players: 1, max: 8 },
+    onStatus: (o, n) => log('Relays offen:', o + '/' + n),
+    onOffer: async (pk, hello, sdp) => {
+      const { link, sdp: answer } = await PeerLink.answer(sdp, ice);
+      link.on('open', () => { st.peers.push({ pk, hello, link }); log('Client verbunden:', hello.name); link.sendRel({ t: 'welcome', n: st.peers.length }); host.setMeta({ players: st.peers.length + 1 }); });
+      link.on('message', (m, ch) => { st.got.push({ from: hello.name, ch, m: typeof m === 'string' || m.t ? m : '[bin ' + m.byteLength + ']' }); if (m && m.t === 'echo') link.sendRel({ t: 'echo-back', x: m.x }); if (m instanceof ArrayBuffer) link.sendFast(m); });
+      link.on('close', (r) => log('Client getrennt:', hello.name, r));
+      return { sdp: answer };
+    } });
+  st.ready = host.start().then((ok) => { log('Host bereit, Code', code, 'Relay ok:', ok); if (q.get('public')) host.setPublic(true); return ok; });
+  window.__host = host;
+} else if (st.role === 'client') {
+  const code = normCode(q.get('code'));
+  const name = q.get('name') || 'Client';
+  try {
+    const res = await joinRoom({ relays, code, hello: { name }, makeOffer: () => PeerLink.offer(ice), onStatus: (o, n) => log('Relays offen:', o + '/' + n) });
+    st.link = res.link;
+    res.link.on('message', (m, ch) => st.got.push({ ch, m: m instanceof ArrayBuffer ? '[bin ' + m.byteLength + ']' : m }));
+    res.link.on('open', () => { st.open = true; log('Verbunden mit Host', JSON.stringify(res.meta)); });
+    res.link.on('close', (r) => { st.open = false; log('Getrennt:', r); });
+  } catch (err) { st.errors.push(err.code || String(err)); log('Fehler:', err.code || err); }
+} else if (st.role === 'lobby') {
+  watchLobby({ relays, onChange: (list) => { st.lobby = list; log('Liste:', JSON.stringify(list.map((g) => g.code + ' ' + g.name))); } });
+}
+</script>
+</body>
+</html>
