@@ -151,9 +151,17 @@ try {
   // Bewegung: Host-Spieler und Bert gehen 1,5 m zur Seite (Bert innerhalb des Anti-Cheat-Budgets)
   await ev(host, () => { const p = window.__game.player; window.__game.debugApi.teleport(p.position.x + 1.5, p.position.y + 0.2, p.position.z); });
   await ev(c2, () => { const p = window.__game.player; p.body.teleport(new window.__game.THREE.Vector3(p.position.x - 1.5, p.position.y + 0.2, p.position.z)); });
-  await sleep(6000);
-  const [vh, v1, v2] = await Promise.all([view(host), view(c1), view(c2)]);
   const sees = (v, id) => v.actors.find((a) => a.id === id);
+  // bis die Bewegungen überall angekommen sind (SwiftShader: Host-Bilder bis 3 s, Schnappschüsse entsprechend selten)
+  let vh, v1, v2;
+  const settleT0 = Date.now();
+  for (;;) {
+    await sleep(2000);
+    [vh, v1, v2] = await Promise.all([view(host), view(c1), view(c2)]);
+    const ok = sees(v1, 1) && sees(v1, B) && sees(v2, A) && sees(vh, B) && d3(sees(v1, 1).pos, vh.pos) < 0.5 && d3(sees(v1, B).pos, v2.pos) < 0.5 && d3(sees(v2, A).pos, v1.pos) < 0.5 && d3(sees(vh, B).pos, v2.pos) < 0.5;
+    if (ok || Date.now() - settleT0 > 40000) break;
+  }
+  info(`Positionen angeglichen nach ${((Date.now() - settleT0) / 1000).toFixed(0)} s`);
   check(!!sees(v1, 1) && sees(v1, 1).puppet && !!sees(v1, B) && sees(v1, B).puppet && sees(v1, B).human, `Anna sieht Host (1) und Bert (${B}) als Puppen (Menschen)`);
   check(!!sees(v2, 1) && !!sees(v2, A) && sees(v2, A).puppet, `Bert sieht Host und Anna (${A}) als Puppen`);
   check(!!sees(vh, A) && sees(vh, A).puppet && !!sees(vh, B) && sees(vh, B).human, 'Host hat Puppen für Anna und Bert');
@@ -189,6 +197,16 @@ try {
     window.__glide = { bot, orig, sync };
     return bot.netId;
   });
+  // Host-Tab „verborgen“: der Hintergrund-Takt simuliert mit bis zu 20 Hz ohne Zeichnen – Schnappschüsse in echter Rate
+  // (SwiftShader zeichnet sonst nur ~1 Bild/s, dann gibt es auch nur ~1 Schnappschuss/s)
+  const hideHost = (on) => ev(host, (h) => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, on);
+  if (glideId) await hideHost(true);
+  await sleep(1500);
+  const glideF0 = await ev(host, () => [window.__game.time.frame, performance.now()]);
   const glide = glideId && await ev(c1, ([id, ms]) => new Promise((resolve) => {
     const G = window.__game;
     const a = G.net.actorById(id);
@@ -199,12 +217,15 @@ try {
       if (now - t0 < ms) requestAnimationFrame(step); else resolve(pts);
     };
     requestAnimationFrame(step);
-  }), [glideId, 7000]);
+  }), [glideId, 20000]);
+  const glideF1 = await ev(host, () => [window.__game.time.frame, performance.now()]);
+  const hostHz = (glideF1[0] - glideF0[0]) / Math.max(0.001, (glideF1[1] - glideF0[1]) / 1000);
+  if (glideId) await hideHost(false);
   await ev(host, () => { const g = window.__glide; if (g) { g.sync._sendSnapshot = g.orig; g.bot.invulnerable = false; window.__game.bots.setPuppet(g.bot, false); } });
   {
     const V = 4.5;
     let back = 0, jumps = 0, hold = 0, maxDev = 0, n = 0, side = 0;
-    const pts = (glide || []).slice(4); // Einschwingen (Bot stand vorher)
+    const pts = (glide || []).slice(2); // Einschwingen (Bot stand vorher)
     for (let i = 1; i < pts.length; i++) {
       const dt = (pts[i][0] - pts[i - 1][0]) / 1000;
       const ds = pts[i][1] - pts[i - 1][1];
@@ -218,7 +239,7 @@ try {
       side = Math.max(side, Math.abs(pts[i][2] - pts[0][2]));
     }
     const vd = await ev(c1, () => (window.__game.net.sync && window.__game.net.sync.viewDelay ? window.__game.net.sync.viewDelay() : null));
-    check(n >= 4 && back === 0 && jumps === 0, `Glätte bei Anna (Bot 4,5 m/s geradeaus, ${n} Bilder): rückwärts ${back}, Sprünge ${jumps}, Stillstand ${hold}, max. Abweichung/Bild ${maxDev.toFixed(2)} m, seitlich ${side.toFixed(2)} m, Darstellungsverzug ${vd == null ? '–' : (vd * 1000).toFixed(0) + ' ms'}`);
+    check(n >= 4 && back === 0 && jumps === 0, `Glätte bei Anna (Bot 4,5 m/s geradeaus, Host ${hostHz.toFixed(1)} Bilder/s im Hintergrund-Takt, ${n} Bilder bei Anna): rückwärts ${back}, Sprünge ${jumps}, Stillstand ${hold}, max. Abweichung/Bild ${maxDev.toFixed(2)} m, seitlich ${side.toFixed(2)} m, Darstellungsverzug ${vd == null ? '–' : (vd * 1000).toFixed(0) + ' ms'}`);
   }
 
   // ================================================================== Anna schießt einen Host-Bot ab
@@ -415,6 +436,9 @@ try {
   const steady = r1.every((v) => Number.isFinite(v) && v > 0.05) && r2.every((v) => Number.isFinite(v)) && Math.abs(r2[0] - r1[0]) < 0.15 && Math.abs(r2[1] - r1[1]) < 0.15;
   check(!!opened && opened.open && opened.hold && !!heldOnHost && steady,
     `Bert „Ausrüsten“: Wiedereinstieg angehalten – Rest bei Bert ${r1[0] != null ? r1[0].toFixed(2) : '–'} → ${r2[0] != null ? r2[0].toFixed(2) : '–'} s, beim Host ${r1[1] != null ? r1[1].toFixed(2) : '–'} → ${r2[1] != null ? r2[1].toFixed(2) : '–'} s (4 s gewartet)`);
+  // Restzeit auf beiden Seiten auf 0,3 s kürzen (SwiftShader: Spielzeit läuft ~20× langsamer), dann „Einsatz“
+  await ev(host, (bId) => { const G = window.__game; const a = G.net.actorById(bId); if (a && !a.alive) a.respawnAt = G.time.elapsed + 0.3; }, B);
+  await ev(c2, () => { const G = window.__game; if (!G.player.alive) G.player.respawnAt = G.time.elapsed + 0.3; });
   await ev(c2, () => { const b = window.__game.hud.deploy.root.querySelector('.dp-go'); if (b) b.click(); });
   const deployed = await until(c2, () => window.__game.player.alive, null, 120000, 500);
   const newLo = await until(host, (bId) => { const a = window.__game.net.actorById(bId); return a && a.alive && a.loadout && a.loadout.primary; }, B, 10000);

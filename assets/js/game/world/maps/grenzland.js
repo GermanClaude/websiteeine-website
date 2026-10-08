@@ -391,7 +391,12 @@ export default {
       { id: 'furtweg', name: 'Furtweg', kind: 'dirt', width: 3.6, pts: [[-150, 105], [-162, 40], [-150, -28], [-138, -86], [-121, -136], [-70, -178], [-20, -222]] },
       { id: 'werkstrasse', name: 'Werkstraße', kind: 'gravel', width: 5, pts: [[150, -110], [186, -60], [196, -38], [176, 30], [120, 92], [55, 218]] },
       { id: 'muehlweg', name: 'Mühlweg', kind: 'dirt', width: 3.2, pts: [[-5, 72], [-40, 40], [-62, 16]] },
+      // Feldweg links der Landstraße (Blick von Start A nach Norden) zur Erdbrücke über den Fluss
+      { id: 'dammweg', name: 'Dammweg', kind: 'dirt', width: 3.6, pts: [[16, 31], [6, 22], [-6, 10], [-15, -1], [-18, -10], [-18, -27], [-17, -38], [-11, -50]] },
     ],
+    // Erdbrücke: Damm quer über den Fluss (Krone 6 m auf y 0,5, Böschung 1 : 1,5) mit Betonrohr-Durchlass in Flussmitte;
+    // Stirn-/Flügelwände und Rohr baut die Ortschaft „damm“ (Achse x = −18, Durchlass z = −18 → Aussparung z −21…−15)
+    dams: [{ a: [-18, -4], b: [-18, -31], y: 0.5, crown: 6, slope: 1.5, culverts: [{ at: [-18, -18], half: 3, out: 3 }] }],
     fields: [
       { x: -150, z: 45, w: 60, d: 34, ry: 0.15, kind: 'acker' }, { x: -215, z: 92, w: 40, d: 60, ry: -0.1, kind: 'acker' },
       { x: -95, z: 140, w: 46, d: 38, ry: 0.35, kind: 'acker' }, { x: 45, z: 140, w: 56, d: 36, ry: -0.3, kind: 'acker' },

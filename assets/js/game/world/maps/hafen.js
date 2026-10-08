@@ -9,6 +9,7 @@ import {
   forklift, truck, van, car, lampPost, floodMast, fence, tires, cableReel, gasBottles, electricBox, acUnit, pipe, cable,
   rack, workbench, lockers, dumpster, frame, roofVent, dress,
 } from '../props.js';
+import { craneClock, createTrack, partBuilder, partGroup, place, inView } from '../crane-anim.js';
 
 const H = CONTAINER_H;
 const QUAY_X = -44;
@@ -71,8 +72,8 @@ export default {
     b.collider(QUAY_X - 0.2, -3, 0, 0.4, 12, 112);
     const water = ctx.water({ x0: -700, z0: -700, x1: QUAY_X - 0.6, z1: 700, y: -1.7, color: '#24505c', scale: 10 });
     void water;
-    // Kranschienen
-    for (const x of [-42.2, -30.8]) b.box(x, 0, -40, 0.16, 0.02, 184, 'metal_galvanized', { collide: false, minimap: false, grad: false, ao: false });
+    // Kranschienen (nach Norden bis hinter den zweiten Kulissenkran, z −176..52: dessen Fahrbereich)
+    for (const x of [-42.2, -30.8]) b.box(x, 0, -62, 0.16, 0.02, 228, 'metal_galvanized', { collide: false, minimap: false, grad: false, ao: false });
     // Fahrbahnmarkierungen
     for (const z of [-30, 30]) b.decal(-12, 0.01, z, 26, 0.15, 'line', { ry: 0, tint: '#f2f0ea', kind: 'paint', opacity: 0.8 });
     for (let z = -46; z <= 46; z += 4) b.decal(-20.6, 0.01, z, 0.15, 2.2, 'line', { ry: 0, tint: '#e8c22c', kind: 'paint', opacity: 0.8 });
@@ -97,7 +98,9 @@ export default {
     // -----------------------------------------------------------------------
     // Westbahn: Kaikante mit Portalkran
     // -----------------------------------------------------------------------
-    const crane = gantryCrane(b, 0, { label: 'crane_grete' });
+    // Kräne fahren nach der gemeinsamen Uhr (online Host-Zeit) → alle Spieler sehen dieselbe Stellung; attach() verdrahtet sie
+    const clock = craneClock();
+    gantryCrane(b, 0, { label: 'crane_grete', clock });
     // Deckung entlang der Kaikante (Süd → Nord, nahezu punktsymmetrisch)
     stackAt(b, -37.2, 39, 6.06, 'z', ['#2d5f94', '#c8402f']);
     stackAt(b, -37.2, -39, 6.06, 'z', ['#3e7a4c', '#d9762a']);
@@ -250,7 +253,9 @@ export default {
     // Kulisse außerhalb (ohne Kollision)
     // -----------------------------------------------------------------------
     backdrop(b);
-    for (const z of [-95, -150]) gantryCrane(b, z, { backdrop: true });
+    // Kulissenkräne fahren auf den Schienen (Bereiche überlappen nicht, Abstand der Fahrwerke ≥ 4,8 m)
+    gantryCrane(b, -95, { backdrop: true, clock, seed: 951, period: 205, range: [-106, -76] });
+    gantryCrane(b, -150, { backdrop: true, clock, seed: 1502, period: 233, range: [-160, -132] });
     ship(b);
     dressing(b);
 
@@ -265,7 +270,7 @@ export default {
       spawns,
       objectives: { dom: [{ id: 'A', x: -5, z: 30.6, radius: 5 }, { id: 'B', x: -14.2, z: -0.8, radius: 6 }, { id: 'C', x: -13.6, z: -30.6, radius: 5 }] },
       zones,
-      update: dt => crane.update(dt),
+      attach(world, G) { clock.attach(G); },
     };
   },
 };

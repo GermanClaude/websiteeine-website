@@ -4,9 +4,11 @@
 // spec (aus dem Kartenmodul, `terrain`):
 //   size (m), res (m), seed, base { amp, scale, octaves, floor }, detail { amp, scale }, hills [{ x, z, r, h }],
 //   edge { start, end, height } (Randgebirge), waterY, river { pts, width, depth, bank, fords [{ x, z, r, depth }] },
-//   pads [{ x, z, w, d, y, blend, worn }] (eingeebnete Bauflächen), roads [{ id, kind 'asphalt'|'gravel'|'dirt', width,
-//   pts, bridge? { a: [x, z], b: [x, z], y } }], fields [{ x, z, w, d, ry, kind 'acker'|'wiese' }], forests [{ x, z, r }]
-// Reihenfolge: Grundform → Details → Fluss → Bauflächen → Straßen (planieren) → Felder → Splat/Maske.
+//   pads [{ x, z, w, d, y, blend, worn }] (eingeebnete Bauflächen), dams [{ a: [x, z], b: [x, z], y, crown, slope,
+//   culverts [{ at: [x, z], half, out }] }] (Erddämme, nur Aufschüttung), roads [{ id, kind 'asphalt'|'gravel'|'dirt',
+//   width, shoulder, pts, bridge? { a: [x, z], b: [x, z], y } }], fields [{ x, z, w, d, ry, kind 'acker'|'wiese' }],
+//   forests [{ x, z, r }]
+// Reihenfolge: Grundform → Details → Fluss → Bauflächen → Dämme → Straßen (planieren) → Felder → Splat/Maske.
 import { createSimplex, fbm, ridged, smoothstep, lerp } from './noise.js';
 import { Heightfield } from './heightfield.js';
 
@@ -180,6 +182,34 @@ export async function generateTerrain(spec, { onProgress } = {}) {
       if (p.worn !== false && sd < 0) splat[o * 4] = Math.max(splat[o * 4], Math.round(255 * Math.max(0, 0.18 + noise2(x / 6, z / 6) * 0.3)));
     }
   }
+  // 3b) Erddämme quer über Fluss/Gräben (Erdbrücke): Krone `crown` m breit auf Höhe y, Böschung 1 : slope, Enden
+  //     kegelförmig; nur Aufschüttung (Maximum mit dem Gelände), so laufen die Enden von selbst in die Ufer aus.
+  //     Durchlässe { at: [x, z] auf der Achse, half: halbe Breite der Aussparung längs der Achse, out: Seitenabstand der
+  //     Stirnwand }: dort endet die Aufschüttung senkrecht bei |Seitenabstand| ≤ out (Stirn-/Flügelwände baut die
+  //     Ortschaft), davor bleibt das Flussbett frei (Rohrmündung im Wasser). Auf ganze Meter legen (Raster res = 1):
+  //     Achse auf x bzw. z = ganzzahlig, out und half ganzzahlig – dann liegen die Wandrückseiten auf Rasterlinien.
+  const keep = new Uint8Array(spec.dams?.length ? N : 0); // Durchlass-Aussparungen: Straßen planieren dort nicht
+  for (const dm of spec.dams || []) {
+    const [ax, az] = dm.a, [bx, bz] = dm.b;
+    const L = Math.hypot(bx - ax, bz - az) || 1e-6, ux = (bx - ax) / L, uz = (bz - az) / L;
+    const half = (dm.crown ?? 5) / 2, sl = dm.slope ?? 1.5, top = dm.y ?? 0.5;
+    const reach = half + (top - waterY + 4) * sl;
+    const cuts = (dm.culverts || []).map(c => ({ t: (c.at[0] - ax) * ux + (c.at[1] - az) * uz, half: c.half ?? 3, out: c.out ?? half }));
+    const i0 = Math.max(0, Math.floor((Math.min(ax, bx) - reach - minX) / res)), i1 = Math.min(n - 1, Math.ceil((Math.max(ax, bx) + reach - minX) / res));
+    const j0 = Math.max(0, Math.floor((Math.min(az, bz) - reach - minZ) / res)), j1 = Math.min(n - 1, Math.ceil((Math.max(az, bz) + reach - minZ) / res));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const x = minX + i * res, z = minZ + j * res, px = x - ax, pz = z - az;
+      const t = px * ux + pz * uz, s = Math.abs(px * uz - pz * ux);
+      if (cuts.some(c => Math.abs(t - c.t) < c.half && s > c.out)) { if (s < reach) keep[j * n + i] = 1; continue; }
+      const dl = t < 0 ? -t : t > L ? t - L : 0;
+      const d = Math.hypot(Math.max(0, s - half), dl);
+      if (d > reach) continue;
+      // Böschung leicht unregelmäßig (± 8 cm), Krone eben
+      const h = top - d / sl + (d > 0.5 ? noise(x / 6, z / 6) * 0.08 : 0);
+      const o = j * n + i;
+      if (h > H[o]) H[o] = h;
+    }
+  }
   await breathe();
   onProgress?.(0.5, 'Gelände: Bauflächen');
 
@@ -214,6 +244,7 @@ export async function generateTerrain(spec, { onProgress } = {}) {
       if (d === Infinity) continue;
       const k = Math.min(L - 1, Math.max(0, Math.round(along[o])));
       if (k > bridgeA && k < bridgeB) continue; // unter der Brücke bleibt der Fluss
+      if (keep.length && keep[o]) continue;     // Durchlass-Aussparung neben der Dammkrone bleibt frei
       const i = o % n, j = (o / n) | 0, x = minX + i * res, z = minZ + j * res;
       const ty = prof[k] - (rd.kind === 'asphalt' ? 0.04 : 0.06);
       const w = 1 - smoothstep(hw, hw + shoulder, d);
