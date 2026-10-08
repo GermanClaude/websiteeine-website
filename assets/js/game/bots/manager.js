@@ -12,6 +12,7 @@
 //      Simulationstakt), ohne Trupptaktik, Lernen und Gehör; Gefechte mit entfernten Menschen laufen in voller Rate.
 import * as THREE from 'three';
 import { Bot } from './bot.js';
+export { netPoseOf, NET_FLAGS } from './bot.js'; // Mehrspieler: Netz-Pose lokal simulierter Akteure (Sync-Module, G.modules.bots)
 import { difficultyProfile } from './difficulty.js';
 import { pickNames } from './names.js';
 import { Nameplate } from './nameplates.js';

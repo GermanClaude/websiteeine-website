@@ -367,7 +367,7 @@ export class NetMenus {
         const code = String(g.code || '').replace(/[^A-Z0-9]/g, '');
         return `<div class="nm-row${g.compatible && !g.full ? '' : ' is-off'}" role="listitem">
           <span class="nm-mode" title="${esc(mode.name || g.mode)}">${mode.icon || ICON.globe}</span>
-          <span class="nm-rname"><b>${esc(g.name || 'Raum')}</b><small>${esc([g.host ? `Host ${g.host}` : '', map.name || g.map, mode.short || g.mode].filter(Boolean).join(' · '))}</small></span>
+          <span class="nm-rname"><b>${esc(g.name || 'Raum')}</b><small><span>${esc(g.host ? `Host: ${g.host}` : 'Host unbekannt')}</span><span class="nm-rmeta">${esc(` · ${map.name || g.map} · ${mode.short || g.mode} · St. ${g.level}${g.state === 'match' ? ' · läuft' : ''}`)}</span></small></span>
           <span class="nm-cell nm-cmap">${esc(map.name || g.map || '–')}</span>
           <span class="nm-cell nm-cmode">${esc(mode.short || g.mode || '–')}${g.pvp === 'coop' ? ' <em>Koop</em>' : ''}</span>
           <span class="nm-cell nm-cpl"><b>${g.players}</b>/${g.max}</span>
@@ -631,7 +631,7 @@ export class NetMenus {
     const s = this.roomDefaults();
     const m = d.MODES[s.mode] || {};
     const map = d.MAPS[s.map] || {};
-    return `<small>Mehrspieler · eigener Raum</small><b>Raum erstellen</b><span>${esc(m.short || s.mode)} · ${esc(map.name || s.map)} · ${esc((d.DIFF[s.difficulty] || {}).name || s.difficulty)}</span>`;
+    return `<small>Mehrspieler · Vorgaben aus „Einsatz“</small><b>Eigener Raum</b><span>${esc(m.short || s.mode)} · ${esc(map.name || s.map)} · ${esc((d.DIFF[s.difficulty] || {}).name || s.difficulty)}</span>`;
   }
 
   /* ================================================================ Raum-Bildschirm */
@@ -740,7 +740,7 @@ export class NetMenus {
       const side = !teams ? 'ffa' : (r.team === 'B' ? 'B' : 'A') === myTeam ? 'ally' : 'enemy';
       const cls = r.cls && CLASSES[r.cls] ? CLASSES[r.cls].name : '';
       const ping = Number(r.ping) || 0;
-      const pingTxt = r.isHost ? 'Host' : ping > 0 ? `${ping} ms` : '–';
+      const pingTxt = ping > 0 ? `${ping} ms` : '–';
       const ask = host && this._kickAsk === r.id;
       let acts = '';
       if (host && ask) {
@@ -754,7 +754,7 @@ export class NetMenus {
       return `<div class="nr-p is-${side}${self ? ' is-me' : ''}${ask ? ' is-ask' : ''}" data-id="${r.id}">
         <i class="nr-dot" aria-hidden="true"></i>
         <span class="nr-pname"><b>${esc(r.name)}</b>${r.isHost ? `<em class="nr-badge is-host" title="Host">${ICON.crown}Host</em>` : ''}${self ? '<em class="nr-badge is-me">Du</em>' : ''}<small>Stufe ${clampInt(r.level || 1, 1, 99)}${cls ? ` · ${esc(cls)}` : ''}${r.ready && net.room.state === 'match' ? ' · bereit' : ''}</small></span>
-        <span class="nr-ping is-${r.isHost ? 'none' : pingTone(ping)}" title="Ping">${r.isHost ? ICON.crown : ICON.signal}<span>${pingTxt}</span></span>
+        ${r.isHost ? '<span class="nr-ping is-none"></span>' : `<span class="nr-ping is-${pingTone(ping)}" title="Ping">${ICON.signal}<span>${pingTxt}</span></span>`}
         <span class="nr-acts">${acts}</span>
       </div>`;
     };
@@ -808,7 +808,8 @@ export class NetMenus {
     const map = d.MAPS[s.map] || {};
     const times = Array.isArray(map.times) ? map.times : [];
     const t = s.time === 'zufall' ? 'Zufall' : s.time && s.time !== 'standard' ? (times.find((x) => x.id === s.time) || {}).name || s.time : `${map.timeOfDay || 'Standard'}`;
-    const w = s.weather === 'zufall' ? 'Zufall' : s.weather && s.weather !== 'standard' ? (WEATHERS[s.weather] || {}).name || s.weather : `Standard${map.weather ? ` (${map.weather})` : ''}`;
+    const wd = WEATHERS[map.weatherDefault];
+    const w = s.weather === 'zufall' ? 'Zufall' : s.weather && s.weather !== 'standard' ? (WEATHERS[s.weather] || {}).name || s.weather : `Standard${wd ? ` (${wd.name})` : ''}`;
     return { mode, map, time: t, weather: w, diff: (d.DIFF[s.difficulty] || {}).name || s.difficulty, style: (GAME_STYLES[s.style] || GAME_STYLES.arcade || {}).label || s.style };
   }
 
@@ -1268,7 +1269,7 @@ export class NetMenus {
           const ping = Number(r.ping) || 0;
           return `<div class="ps-np is-${side}${ask ? ' is-ask' : ''}">
             <i class="nr-dot" aria-hidden="true"></i><b>${esc(r.name)}</b>${self ? '<em class="nr-badge is-me">Du</em>' : ''}
-            <span class="nr-ping is-${r.isHost ? 'none' : pingTone(ping)}">${r.isHost ? 'Host' : ping > 0 ? `${ping} ms` : '–'}</span>
+            <span class="nr-ping is-${r.isHost ? 'none' : pingTone(ping)}">${r.isHost ? '<em class="nr-badge is-host">Host</em>' : ping > 0 ? `${ping} ms` : '–'}</span>
             ${self ? '' : ask
               ? `<button type="button" class="m-btn m-danger nr-mini" data-pk="yes" data-id="${r.id}" data-fk="pk-y-${r.id}">${ICON.userX}<span>Entfernen</span></button><button type="button" class="m-btn nr-mini" data-pk="no" data-id="${r.id}" data-fk="pk-n-${r.id}">${ICON.close}<span>Nein</span></button>`
               : `<button type="button" class="m-icon nr-kick" data-pk="ask" data-id="${r.id}" data-fk="pk-${r.id}" aria-label="${esc(r.name)} entfernen" title="Entfernen">${ICON.userX}</button>`}

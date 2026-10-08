@@ -1,6 +1,7 @@
 // NULLPUNKT — Lobby: Einsatz (Modus-Karten, Kartenwahl mit Vorschau, Schwierigkeit, Teamgrößen mit Ausgleich)
 // und Ausrüstung (Primär/Sekundär/Granate mit Werte-Balken aus computeStats, Vergleich, Stufen-Sperren,
 // Vorlagen, 3D-Vorschau). Vorbelegung aus URL-Parametern (erster Aufruf) und den letzten Einstellungen.
+// Reiter „Mehrspieler“: Inhalt und Logik in ui/net-menus.js (menus.net); der Fußknopf wird dort zu „Raum erstellen“.
 
 import { rulesFor, limitsFor, teamWarning } from '../../shared/modes.data.js';
 import { WEATHERS } from '../../shared/maps.data.js'; // atmosphere-weather
@@ -196,6 +197,7 @@ export class Lobby {
             <button type="button" class="m-tab" role="tab" data-tab="deploy" aria-selected="${this.tab === 'deploy'}">${ICON.map}<span>Einsatz</span></button>
             <button type="button" class="m-tab" role="tab" data-tab="loadout" aria-selected="${this.tab === 'loadout'}">${ICON.target}<span>Ausrüstung</span></button>
             <button type="button" class="m-tab" role="tab" data-tab="progress" aria-selected="${this.tab === 'progress'}">${ICON.trophy}<span>Fortschritt</span></button>
+            <button type="button" class="m-tab" role="tab" data-tab="online" aria-selected="${this.tab === 'online'}">${ICON.globe}<span>Mehrspieler</span></button>
           </div>
           <div class="lb-me"><button type="button" class="lb-profile" data-act="profile" title="Rufzeichen ändern"></button></div>
           <div class="lb-tools">
@@ -208,6 +210,7 @@ export class Lobby {
           <div class="lb-pane m-scroll" data-scrollable data-pane="deploy"${this.tab === 'deploy' ? '' : ' hidden'}></div>
           <div class="lb-pane lb-pane-loadout" data-pane="loadout"${this.tab === 'loadout' ? '' : ' hidden'}></div>
           <div class="lb-pane m-scroll" data-scrollable data-pane="progress"${this.tab === 'progress' ? '' : ' hidden'}></div>
+          <div class="lb-pane m-scroll" data-scrollable data-pane="online"${this.tab === 'online' ? '' : ' hidden'}></div>
           <aside class="lb-side">
             <div class="lb-stage" aria-label="Waffenvorschau – ziehen zum Drehen"><div class="lb-stage-name"></div><div class="lb-stage-hint">Ziehen zum Drehen</div></div>
             <div class="lb-kit"></div>
@@ -219,7 +222,8 @@ export class Lobby {
         </footer>
       </div>`;
     this.el = {
-      screen, deploy: screen.querySelector('[data-pane="deploy"]'), loadout: screen.querySelector('[data-pane="loadout"]'), progress: screen.querySelector('[data-pane="progress"]'),
+      screen, deploy: screen.querySelector('[data-pane="deploy"]'), loadout: screen.querySelector('[data-pane="loadout"]'), progress: screen.querySelector('[data-pane="progress"]'), online: screen.querySelector('[data-pane="online"]'),
+      start: screen.querySelector('.lb-start'),
       stage: screen.querySelector('.lb-stage'), stageName: screen.querySelector('.lb-stage-name'), kit: screen.querySelector('.lb-kit'),
       summary: screen.querySelector('.lb-summary'), side: screen.querySelector('.lb-side'), profile: screen.querySelector('.lb-profile'),
     };
@@ -282,7 +286,13 @@ export class Lobby {
     this.el.deploy.hidden = this.tab !== 'deploy';
     this.el.loadout.hidden = this.tab !== 'loadout';
     this.el.progress.hidden = this.tab !== 'progress';
+    this.el.online.hidden = this.tab !== 'online';
     if (this.tab === 'progress') this.progress.mount(this.el.progress); else this.progress.unmount();
+    // Mehrspieler (ui/net-menus.js): Reiter nur beobachten (öffentliche Spiele), solange er sichtbar ist
+    const nm = this.menus.net;
+    if (nm) { if (this.tab === 'online') nm.mountPane(this.el.online); else nm.unmountPane(); }
+    this._renderStart();
+    this._renderSummary();
     s.querySelector('.lb').dataset.tab = this.tab;
     if (this.tab === 'loadout') { this.view = this.view || this.cfg[this.slot]; this._showView(); }
     else this._showView(this.cfg.primary);
@@ -404,7 +414,21 @@ export class Lobby {
     });
   }
 
+  /** Fußknopf: „Einsatz starten“ – im Mehrspieler-Reiter „Raum erstellen“ (menus.js: data-act net-host). */
+  _renderStart() {
+    const b = this.el && this.el.start;
+    if (!b) return;
+    const online = this.tab === 'online';
+    const act = online ? 'net-host' : 'start';
+    b.disabled = online && !(this.menus.net && this.menus.net.net);
+    if (b.dataset.act === act) return;
+    b.dataset.act = act;
+    b.classList.remove('is-go');
+    b.innerHTML = online ? `${ICON.userPlus}<span>Raum erstellen<em>.</em></span>` : `${ICON.play}<span>Einsatz starten<em>.</em></span>`;
+  }
+
   _renderSummary() {
+    if (this.tab === 'online' && this.menus.net) { this.el.summary.innerHTML = this.menus.net.summaryHtml(); return; }
     const d = this._data();
     const c = this.cfg;
     const m = d.MODES[c.modeId] || {};
@@ -625,6 +649,7 @@ export class Lobby {
 
   unmount() {
     this.progress.unmount();
+    if (this.menus.net) this.menus.net.unmountPane();
     for (const off of this._offs) off();
     this._offs = [];
     this.el = null;

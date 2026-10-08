@@ -3,6 +3,8 @@
 // Vollständig per Touch, Maus, Tastatur (Pfeile = räumliche Navigation, Esc = zurück) und Gamepad
 // (Steuerkreuz/Stick, A wählen, B zurück, Start fortsetzen) bedienbar. Absichten an main über
 // onStart(cfg) · onResume() · onRestart() · onQuit() · onExit().
+// Mehrspieler (ui/net-menus.js, this.net): Lobby-Reiter, Raum-Bildschirm ('room', 'roomequip'), Online-Teil von
+// Pause und Endbildschirm. Einstiege für Deep-Links: openJoin(code) · openRoom().
 
 import { el, esc, clock } from './dom.js';
 import { ICON } from './icons.js';
@@ -14,6 +16,7 @@ import { controlsHtml, bindControls } from './controls-help.js';
 import { EndScreen } from './endscreen.js';
 import { LoadoutPanel } from './loadout-panel.js';
 import { drawMapArt, rememberMinimap } from './mapart.js';
+import { NetMenus } from './net-menus.js';
 
 const TIPS = [
   'Sprinte und ducke dich, um zu rutschen. Ideal für Ecken und Türen.',
@@ -43,6 +46,7 @@ export class Menus {
     this.onExit = null;
     this.preview = new WeaponPreview(G);
     this.lobby = new Lobby(this);
+    this.net = new NetMenus(this);
     this.endScreen = new EndScreen(G);
     this.settingsPanel = new SettingsPanel(G);
     this.settingsPanel.menus = this;
@@ -93,6 +97,8 @@ export class Menus {
     if (this.current === 'settings') this.settingsPanel.unmount();
     if (this.current === 'touchedit' && this.touchEditor.open) this.touchEditor.stop(false);
     if (this.current === 'end') this.endScreen.stop();
+    if (this.current === 'room') this.net.unmountRoom();
+    if (this.current === 'roomequip' && this.net._equipPanel) this.net._equipPanel.unmount();
     if (this._tipT) { clearInterval(this._tipT); this._tipT = null; }
   }
 
@@ -116,7 +122,13 @@ export class Menus {
 
   /* ================================================================ Lobby */
 
-  showLobby() {
+  /**
+   * Lobby. opts.tab: Reiter vorwählen ('deploy'|'loadout'|'progress'|'online'). Ist eine Mehrspieler-Sitzung aktiv
+   * (Rückkehr aus dem Match, Revanche), geht es in den Raum statt in die Lobby – außer opts.room === false.
+   */
+  showLobby(opts = {}) {
+    if (opts.room !== false && this.net.inRoom()) { this.net.showRoom(); return; }
+    if (opts.tab) this.lobby.tab = opts.tab;
     const s = this._screen('lobby', 'm-lobby', '');
     this.lobby.mount(s);
     s.addEventListener('click', (e) => {
@@ -124,6 +136,7 @@ export class Menus {
       if (!b || b.disabled) return;
       const act = b.dataset.act;
       if (act === 'start') this._start(b);
+      else if (act === 'net-host') this.net.createRoom({}, b);
       else if (act === 'settings') this.showSettings('lobby');
       else if (act === 'profile') { this.settingsPanel.group = 'profil'; this.showSettings('lobby'); }
       else if (act === 'controls') this.showControls('lobby');
@@ -133,6 +146,19 @@ export class Menus {
     this.preview.start(stage);
     this.lobby._showView();
     this._focusFirst(s, '.lb-start');
+  }
+
+  /** Deep-Link spielen.html?raum=CODE: Lobby → Mehrspieler, Code eintragen und (auto) beitreten. */
+  openJoin(code, { auto = true } = {}) {
+    if (this.net.inRoom()) { this.net.showRoom(); return; }
+    this.showLobby({ tab: 'online', room: false });
+    this.net.prefillJoin(code, { auto });
+  }
+
+  /** Raum-Bildschirm (aktive Sitzung), sonst Lobby im Mehrspieler-Reiter. */
+  openRoom() {
+    if (this.net.inRoom()) this.net.showRoom();
+    else this.showLobby({ tab: 'online', room: false });
   }
 
   _start(btn) {
@@ -195,6 +221,12 @@ export class Menus {
     const def = mode ? mode.def : {};
     const training = mode && mode.id === 'training';
     const names = G.data.TEAM_NAMES || { A: 'A', B: 'B' };
+    // Mehrspieler: das Spiel läuft weiter; kein „Neu starten“, Verlassen erklärt die Folgen
+    const online = !!(G.net && G.net.online);
+    const host = online && G.net.role === 'host';
+    const quitText = !online ? 'Match wirklich verlassen? Punkte und Fortschritt dieses Matches verfallen.'
+      : host ? 'Match verlassen? Als Host beendest du das Match für alle – ihr landet wieder im Raum.'
+        : 'Match verlassen? Du verlässt damit auch den Raum.';
     let score = '';
     if (mode && mode.teams) {
       const mine = G.player && G.player.team === 'B' ? 'B' : 'A';
@@ -211,8 +243,9 @@ export class Menus {
       <div class="ps">
         <div class="ps-info">
           <div class="m-kicker">${esc(def.name || '')} · ${esc(G.world ? G.world.name : '')}${mode && Number.isFinite(mode.timeLeft) ? ` · ${clock(mode.timeLeft)}` : ''}</div>
-          <h1 class="m-title">Pause<em>.</em></h1>
+          <h1 class="m-title">${online ? 'Menü' : 'Pause'}<em>.</em></h1>
           ${score}
+          ${online ? this.net.pauseHtml() : ''}
         </div>
         <nav class="ps-menu" aria-label="Pausenmenü">
           <button type="button" class="m-btn m-primary" data-act="resume">${ICON.play}<span>Fortsetzen</span><kbd>Esc</kbd></button>
@@ -221,10 +254,10 @@ export class Menus {
           <button type="button" class="m-btn" data-act="settings">${ICON.gear}<span>Einstellungen</span></button>
           <button type="button" class="m-btn" data-act="controls">${ICON.pad}<span>Steuerung</span></button>
           ${G.fullscreen && G.fullscreen.installAvailable ? `<button type="button" class="m-btn" data-act="install">${ICON.install}<span>Als App installieren</span></button>` : ''}
-          ${training ? `<button type="button" class="m-btn" data-act="finish">${ICON.check}<span>Training beenden</span></button>` : `<button type="button" class="m-btn" data-act="restart">${ICON.restart}<span>Neu starten</span></button>`}
+          ${training ? `<button type="button" class="m-btn" data-act="finish">${ICON.check}<span>Training beenden</span></button>` : online ? '' : `<button type="button" class="m-btn" data-act="restart">${ICON.restart}<span>Neu starten</span></button>`}
           <button type="button" class="m-btn m-danger" data-act="quit">${ICON.exit}<span>Match verlassen</span></button>
           <div class="ps-confirm" hidden>
-            <p>Match wirklich verlassen? Punkte und Fortschritt dieses Matches verfallen.</p>
+            <p>${esc(quitText)}</p>
             <div class="m-actions"><button type="button" class="m-btn m-danger" data-act="quit-yes">${ICON.exit}<span>Verlassen</span></button><button type="button" class="m-btn" data-act="quit-no">${ICON.back}<span>Weiterspielen</span></button></div>
           </div>
         </nav>
@@ -250,9 +283,14 @@ export class Menus {
         s.querySelector('.ps-confirm').hidden = false;
         this.sound('click');
         this._focusFirst(s, '[data-act="quit-no"]');
-      } else if (act === 'quit-yes') { this.sound('back'); if (this.onQuit) this.onQuit(); }
-      else if (act === 'quit-no') { s.querySelector('.ps-confirm').hidden = true; this._focusFirst(s); }
+      } else if (act === 'quit-yes') {
+        this.sound('back');
+        // Client: Match verlassen = Raum verlassen. Host: zurück in den Raum (Sitzung bleibt offen).
+        if (G.net && G.net.online && G.net.role === 'client') { try { G.net.leave('verlassen'); } catch { /* */ } }
+        if (this.onQuit) this.onQuit();
+      } else if (act === 'quit-no') { s.querySelector('.ps-confirm').hidden = true; this._focusFirst(s); }
     });
+    if (online) this.net.bindPause(s);
     this._focusFirst(s);
   }
 
@@ -328,6 +366,8 @@ export class Menus {
         panel.save();
         const when = G.mode && typeof G.mode.setLoadout === 'function' ? G.mode.setLoadout(lo) : 'next';
         G.events.emit('loadout:change', { actor: G.player, loadout: lo, when });
+        // Mehrspieler: Ausrüstung dem Host melden (gilt ab dem nächsten Einsatz)
+        if (G.net && G.net.online && typeof G.net.setLoadout === 'function') { try { G.net.setLoadout({ cls: lo.cls, loadout: lo }); } catch { /* */ } }
         this.sound('confirm');
         panel.unmount();
         this.showPause();
@@ -403,14 +443,32 @@ export class Menus {
   /* ================================================================ Ende */
 
   showEnd(result, progression) {
+    const G = this.G;
     const s = this._screen('end', 'm-end', this.endScreen.html(result, progression));
+    // Mehrspieler: „Revanche“ = zurück in den Raum (der Host startet neu), „Lobby“ = Raum verlassen
+    const online = () => !!(G.net && G.net.online);
+    if (online()) {
+      const r = s.querySelector('[data-act="restart"] span');
+      const l = s.querySelector('[data-act="lobby"] span');
+      if (r) r.textContent = 'Zurück in den Raum';
+      if (l) l.textContent = 'Raum verlassen';
+    }
     s.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (!b) return;
       const act = b.dataset.act;
-      if (act === 'restart') { this.sound('confirm'); if (this.onRestart) this.onRestart(); }
-      else if (act === 'lobby') { this.sound('back'); if (this.onQuit) this.onQuit(); }
-      else if (act === 'exit') { this.sound('back'); if (this.onExit) this.onExit(); }
+      if (act === 'restart') {
+        this.sound('confirm');
+        if (online()) { if (this.onQuit) this.onQuit(); } else if (this.onRestart) this.onRestart();
+      } else if (act === 'lobby') {
+        this.sound('back');
+        if (online()) { try { G.net.leave('verlassen'); } catch { /* */ } }
+        if (this.onQuit) this.onQuit();
+      } else if (act === 'exit') {
+        this.sound('back');
+        if (online()) { try { G.net.leave('verlassen'); } catch { /* */ } }
+        if (this.onExit) this.onExit();
+      }
     });
     this.endScreen.animate(s, progression);
     this._focusFirst(s);
@@ -458,6 +516,8 @@ export class Menus {
         e.preventDefault();
         this._resume();
       } else if (['settings', 'controls', 'armory', 'equip'].includes(this.current)) { e.preventDefault(); if (this._equipPanel) this._equipPanel.unmount(); this._back(); }
+      else if (this.current === 'room') { e.preventDefault(); if (typing) t.blur(); else this.net.back(); }
+      else if (this.current === 'roomequip') { e.preventDefault(); this.net.backFromEquip(); }
       return;
     }
     if (typing) return;
@@ -530,6 +590,8 @@ export class Menus {
     if (released(1)) {
       if (this.current === 'pause') this._resume();
       else if (['settings', 'controls', 'armory', 'equip'].includes(this.current)) { if (this._equipPanel) this._equipPanel.unmount(); this._back(); }
+      else if (this.current === 'room') this.net.back();
+      else if (this.current === 'roomequip') this.net.backFromEquip();
     }
     if (released(9) && this.current === 'pause') this._resume();
     if (released(4) || released(5)) this._cycleTabs(released(5) ? 1 : -1);
@@ -581,6 +643,7 @@ export class Menus {
 
   dispose() {
     this.hideAll();
+    this.net.dispose();
     while (this._listeners.length) this._listeners.pop()();
     for (const off of this._offs) off();
     this.preview.dispose();

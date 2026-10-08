@@ -989,7 +989,11 @@ export class Bot {
     if (this.puppet === on) return;
     this.puppet = on;
     this.manualPlates = on;
+    // laufende Aktionen des Controllers (Nachladen/Wechsel/Wurf der KI) beenden – Puppen führen keine eigenen
+    const w = this.weapon;
+    if (w && typeof w._abortActions === 'function') w._abortActions(false);
     this._resetNetWeapon(false);
+    if (!on && this.stance === 'prone') this._proneSince = this.G.time.elapsed - 3; // KI darf sofort aufstehen
     this.netPose = null;
     this._netWeaponRef = undefined;
     this._netQuietWeapon = true;

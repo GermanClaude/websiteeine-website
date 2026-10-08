@@ -138,3 +138,7 @@ pro Spielerzahl n ≈ 20 Hz × (n−1) × n × 40 Byte. Anzeige: „Empfehlung: 
 | Oberfläche | `ui/lobby.js` (Reiter „Mehrspieler“), `ui/net-menus.js` (neu), `ui/menus.js`, `ui/scoreboard.js`, `assets/css/game.css` |
 | Altlasten (WIP) | `release-fixes-wip.patch` einarbeiten (weaponObstruction), `engine/audio.js`-Wächter, Preload-Liste |
 | Synchronisation | `net/sync-host.js`, `net/sync-client.js` (neu), `main.js`, `combat.js`, `modes/*` (netState), `player.js`, `weapons/grenades.js`, `weapons/ballistics/rockets.js` |
+
+## 11. Budget (Nutzer 08.10. ~18:30)
+- Mehrspieler Stufe 1 komplett (inkl. Tests und Veröffentlichung) mit höchstens **40–50 % des Wochenlimits**. Stand beim Start: ~3 % Woche / ~6 % Tag.
+- Rest bleibt als Puffer für Fehler im Mehrspieler und für Logik-/Kartenfehler. Deshalb: gezielte Agenten statt breiter Fächer, mittlere Denkstufe für mechanische Arbeit, Tests wiederverwenden statt neu bauen.
