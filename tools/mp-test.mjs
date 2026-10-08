@@ -115,7 +115,9 @@ const view = (p) => ev(p, () => {
 });
 const d3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
-async function bothInMatch(list, timeout = 300000) {
+// SwiftShader teilt sich einen GPU-Prozess: unter Last zeichnet eine Seite zeitweise nur 0,1–0,2 Bilder/s, der Countdown
+// zählt aber höchstens 0,25 s je Bild (Echtzeit) – daher großzügig warten
+async function bothInMatch(list, timeout = 600000) {
   const ok = await Promise.all(list.map((p) => until(p, () => window.__game.match.state === 'playing' && window.__game.player.alive, null, timeout, 1000)));
   return ok.every(Boolean);
 }
@@ -210,6 +212,7 @@ try {
     window.__glide = { bot, orig, sync };
     return { id: bot.netId, x0: p0[0], t0 };
   });
+  const glideId = glideInfo && glideInfo.id;
   // Host-Tab „verborgen“: der Hintergrund-Takt simuliert mit bis zu 20 Hz ohne Zeichnen – Schnappschüsse in echter Rate
   // (SwiftShader zeichnet sonst nur ~1 Bild/s, dann gibt es auch nur ~1 Schnappschuss/s)
   const hideHost = (on) => ev(host, (h) => {
@@ -220,7 +223,6 @@ try {
   if (glideId) await hideHost(true);
   await sleep(1500);
   const glideF0 = await ev(host, () => [window.__game.time.frame, performance.now()]);
-  const glideId = glideInfo && glideInfo.id;
   const glide = glideId && await ev(c1, ([id, ms]) => new Promise((resolve) => {
     const G = window.__game;
     const a = G.net.actorById(id);

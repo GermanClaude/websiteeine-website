@@ -840,7 +840,8 @@ function backdrop(b) {
     // maps-expand: auf „niedrig“ (Handy) nur Quader je Lage statt Detail-Container (Kulisse, ≈ 250 → 12 Dreiecke)
     for (let k = 0; k < n; k++) {
       const color = colors[(r * 5 + c * 3 + k) % colors.length];
-      if (b.lookQuality === 'low') b.box(x, k * H, z, 12.19, H - 0.02, 2.44, 'container', { tint: color, uv: 'local', collide: false, minimap: false, grad: false });
+      // Kollision wie container() auf den höheren Stufen (Mehrspieler: Kollision unabhängig von der Grafikstufe)
+      if (b.lookQuality === 'low') { b.box(x, k * H, z, 12.19, H - 0.02, 2.44, 'container', { tint: color, uv: 'local', collide: false, minimap: false, grad: false }); b.solid(x, k * H, z, 12.19, H, 2.44, { minimap: false }); }
       else container(b, x, k * H, z, { len: 12.19, ry: 0, color, minimap: false });
     }
     b.box(x, 0, z, 12.2, n * H, 2.44, 'black', { visual: false, collide: false, minimap: false });

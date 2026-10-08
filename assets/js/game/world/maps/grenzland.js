@@ -189,6 +189,8 @@ function dorf(b) {
   barrelGroup(b, -36, 66, { n: 3 }); dumpster(b, 30, 60, { ry: 1.57 });
   crateStack(b, 10, 92, { ry: 0.6 });
   b.sign(-5, 2.4, 116, 2.8, 0.7, 'ortsschild', { ry: Math.PI * 0.9 });
+  // Pfosten unter dem Ortsschild (stand vorher frei in der Luft)
+  for (const lx of [-1.1, 1.1]) { const c = Math.cos(Math.PI * 0.9), s = Math.sin(Math.PI * 0.9); b.cyl(-5 + lx * c - 0.07 * s, -0.15, 116 - lx * s - 0.07 * c, 0.045, 3.27, 'metal_galvanized', { seg: 8, minimap: false }); }
   bauernmarkt(b);
   return {};
 }
