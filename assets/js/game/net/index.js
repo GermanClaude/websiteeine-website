@@ -856,7 +856,8 @@ export class NetSystem {
       });
     } catch (err) {
       if (this._joining === token) this._joining = null;
-      throw netError(err && err.code ? err.code : 'verbindung-fehlgeschlagen');
+      // nur eigene Fehlercodes (Text) – DOMException trägt Zahlen (z. B. 11 = InvalidStateError)
+      throw netError(err && typeof err.code === 'string' && err.code ? err.code : 'verbindung-fehlgeschlagen');
     }
     const link = res.link;
     this._applyChaos(link);
@@ -891,7 +892,7 @@ export class NetSystem {
     } catch (err) {
       if (this._joining === token) this._joining = null;
       link.close('abgebrochen');
-      throw err && err.code ? err : netError('verbindung-fehlgeschlagen');
+      throw err && typeof err.code === 'string' && err.code ? err : netError('verbindung-fehlgeschlagen');
     }
   }
 

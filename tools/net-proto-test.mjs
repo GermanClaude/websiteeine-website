@@ -193,6 +193,17 @@ simR = simulate(acH, 43, 0, 4, (s) => ({ x: s * 10.4, y: 0, z: 0, flags: GROUND 
 let tH = simR.end + 0.7;
 const afterGap = acH.onState(43, { x: 4 * 10.4 + 0.7 * 10.4, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }, tH, { alive: true });
 check(!simR.bad.length && afterGap.ok && acH.score(43, tH) === 0, `Host hängt 1 s (gebündelt) + 0,7 s Funkloch (7,3 m Schritt) ohne Verstoß ${simR.bad.join(' ')}`);
+// Host mit 0,4 FPS (Bilder bis 2,5 s, Lasttest): Zustände kommen nur alle 2,5 s gebündelt an – Sprint ohne Verstoß
+const acB = new AntiCheat();
+acB.onSpawn(48, [0, 0, 0], 0);
+let badB = 0;
+for (let k = 1; k <= 30 * 12; k++) {
+  const tc = k / 30;
+  const b = Math.ceil(tc / 2.5 - 1e-9);
+  const arrive = b * 2.5 + (tc - (b - 1) * 2.5) * 0.001; // gebündelt am Ende jedes Bildes, in Sendereihenfolge
+  if (!acB.onState(48, { x: tc * 10.4, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }, arrive, { alive: true }).ok) badB++;
+}
+check(badB === 0 && acB.score(48, 13) === 0, `Host hängt je 2,5 s (Zustände gebündelt), Sprint 10,4 m/s über 12 s: ${badB} Verstöße`);
 // Einzelne Sprünge: 7 m (Gehen, volles Budget) und 14 m (früher erlaubt) → teleport + Rücksetzung
 const acT = new AntiCheat();
 acT.onSpawn(44, [0, 0, 0], 0);

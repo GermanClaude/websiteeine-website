@@ -127,7 +127,8 @@ Host sieht ein Protokoll im Host-Menü.
 
 `recommendation()`: aus Kernen (`navigator.hardwareConcurrency`), Speicher (`deviceMemory`, wenn vorhanden), gemessener
 Bildrate und gemessenem Upload (gesendete Bytes/s vs. Stau im Sendepuffer; vor der ersten Messung konservativ 8). Bandbreite
-pro Spielerzahl n ≈ 20 Hz × (n−1) × n × 40 Byte. Anzeige: „Empfehlung: bis N Spieler“ + Grund; über der Empfehlung Warnung.
+pro Spielerzahl n: kalibriert nach dem Lasttest, siehe §13 (früher ≈ 20 Hz × (n−1) × n × 40 Byte – unterschätzte, weil die
+Bots in jedem Schnappschuss stehen). Anzeige: „Empfehlung: bis N Spieler“ + Grund; über der Empfehlung Warnung.
 
 ## 10. Dateizuständigkeit (Parallelbau)
 
@@ -213,8 +214,7 @@ Fahrzeugsystem eigene Spur gegen Welt + Akteure – vorher flogen Raketen online
 Reserveplatten] für den getroffenen Client, 'ev' `ap` nach Plattenaufnahme/-einsatz. Der Client meldet sein Platteneinsetzen
 ('plate' {chain} bzw. {cancel}), der Host setzt die Platte an der Puppe ein.
 
-**Offen (Stufe 1 → 2)**: Respawn-Halt/„Einsatz“ der
-Clients wirkt nicht (Host setzt nach der Wartezeit ein); eine beim Tod gezogene Granate eines Clients fällt nicht (die Puppe
+**Offen (Stufe 1 → 2)**: ~~Respawn-Halt/„Einsatz“ der Clients~~ (erledigt, §13); eine beim Tod gezogene Granate eines Clients fällt nicht (die Puppe
 ist beim Host schon tot); Streuungs-/Rückstoß-Zufall nicht synchron (Treffer zählen so, wie der Schütze sie sieht, Prüfung
 durch den Anti-Cheat); Teamwechsel im laufenden Match gilt erst im nächsten Match; Bots fügen sich beim Einstieg sofort ein,
 die Clients sehen ihre ersten Spawns über den Lebend-Abgleich (≈ 0,35 s).

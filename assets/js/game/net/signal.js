@@ -158,6 +158,7 @@ export async function joinRoom({ relays, code, hello, makeOffer, onStatus, timeo
   const topic = await roomTopic(code);
   const rkey = await roomKey(code);
   const fail = (codeName) => { const e = new Error(codeName); e.code = codeName; return e; };
+  let offered = null;
   try {
     if (!(await pool.waitOpen())) throw fail('kein-relay');
     // 1) Host-Lebenszeichen abwarten
@@ -174,6 +175,7 @@ export async function joinRoom({ relays, code, hello, makeOffer, onStatus, timeo
     if (host.v !== PROTOCOL) throw fail('abgelehnt:version');
     // 2) Angebot erzeugen und verschlüsselt an den Host schicken
     const { link, sdp } = await makeOffer(host.meta);
+    offered = link;
     const key = await sharedKey(keys, host.pk);
     const nonce = hex(randomBytes(6));
     const answer = await new Promise((resolve, reject) => {
@@ -190,8 +192,13 @@ export async function joinRoom({ relays, code, hello, makeOffer, onStatus, timeo
         .then((ev) => pool.publish(ev));
     });
     if (answer.reject) { link.close('abgelehnt'); throw fail('abgelehnt:' + answer.reject); }
-    await link.accept(answer.sdp);
+    try { await link.accept(answer.sdp); } catch { throw fail('verbindung-fehlgeschlagen'); }
+    offered = null;
     return { link, hostPk: host.pk, meta: host.meta };
+  } catch (err) {
+    // Angebot ohne Antwort/Annahme: Verbindung schließen (sonst hängt sie bis zur Zeitüberschreitung)
+    if (offered) offered.close('abgebrochen');
+    throw err;
   } finally {
     // Die Vermittlung wird nach dem Austausch nicht mehr gebraucht.
     setTimeout(() => pool.close(), 1000);

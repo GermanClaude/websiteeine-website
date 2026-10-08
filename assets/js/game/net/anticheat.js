@@ -42,7 +42,7 @@ export const AC_DEFAULTS = Object.freeze({
   budgetWindow: 1.0, // s angesparte Bewegungszeit (gebündelte Pakete, kurze Aussetzer)
   teleport: 6, // m: Mindestgrenze eines einzelnen Schritts (darüber nur, wenn Δt × Tempo es erklärt)
   teleportUp: 3.5, // m: Mindestgrenze eines einzelnen Schritts nach oben
-  stepWindow: 1.0, // s: höchstens so viel Host-Zeit erklärt einen einzelnen Schritt (Paketverlust, Aussetzer)
+  stepWindow: 2.0, // s: höchstens so viel Host-Zeit erklärt einen einzelnen Schritt (Paketverlust, Aussetzer)
   // Höchsttempo (m/s) je Zustand – player.js: Gehen 5,4 · Sprint 8,2 · Ducken 2,6 · Liegen 1,05 · Rutschen +2,9
   // (Hang ≤ 11,8); in der Luft bleibt der Schwung (Rutschsprung ≈ 11 m/s)
   speeds: Object.freeze({ walk: 5.4, sprint: 8.2, crouch: 2.6, prone: 1.05, slide: 11.1, air: 9.5, swim: 4.5 }),
@@ -302,10 +302,15 @@ export class AntiCheat {
     const speed = this._speedFor(flags);
     const vMax = speed * o.boost * (1 + o.tolerance);
     const vStep = Math.max(speed, this._speedFor(p.flags)) * o.boost * (1 + o.tolerance);
-    const capH = this._capH(speed);
-    const budgetH = Math.min(capH, p.budgetH + vMax * dt);
+    // Obergrenze des Budgets: budgetWindow – hing der Host länger (langes Bild, die Zustände der Lücke kommen danach
+    // gebündelt an), gilt für dieses Bündel (0,25 s Host-Zeit) die ganze Lücke (höchstens stepWindow)
     const climb = o.climb * (1 + o.tolerance);
-    const budgetUp = Math.min(this._capUp(), p.budgetUp + climb * dt);
+    const gap = Math.min(dt, o.stepWindow);
+    if (vMax * gap + o.slack > this._capH(speed)) { p.capH = vMax * gap + o.slack; p.capUp = climb * gap + o.stepUp; p.capUntil = nowSec + 0.25; }
+    const burst = nowSec <= (p.capUntil || -1);
+    const capH = burst ? Math.max(this._capH(speed), p.capH) : this._capH(speed);
+    const budgetH = Math.min(capH, p.budgetH + vMax * dt);
+    const budgetUp = Math.min(burst ? Math.max(this._capUp(), p.capUp) : this._capUp(), p.budgetUp + climb * dt);
     const hd = distH(pos, p.pos);
     const dy = pos[1] - p.pos[1];
     const stepDt = Math.min(o.stepWindow, dt);

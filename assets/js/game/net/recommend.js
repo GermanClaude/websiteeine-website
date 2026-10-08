@@ -17,7 +17,7 @@ export const ENTITY_BYTES = 31;
 export const PACKET_OVERHEAD = 60;
 /** Interessenfilter (sync-host.js): ab so vielen Akteuren; gemessener Anteil der Akteure je Schnappschuss (Hafen, 32). */
 export const INTEREST_MIN = 12;
-export const INTEREST_SHARE = 0.72;
+export const INTEREST_SHARE = 0.5;
 /** Gemessen: zuverlässige Nachrichten je Client (Byte/s inkl. Paketkopf). */
 export const RELIABLE_BYTES = 1400;
 /** Mittlere Byte je Akteur und Schnappschuss (Kopf umgelegt) – nur noch zur Anzeige/Kompatibilität. */

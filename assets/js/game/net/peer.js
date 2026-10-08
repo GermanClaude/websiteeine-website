@@ -10,7 +10,8 @@ export const ICE_SERVERS = [
   { urls: 'stun:stun.cloudflare.com:3478' },
 ];
 const ICE_WAIT = 2500;
-const OPEN_TIMEOUT = 15000;
+const OPEN_TIMEOUT = 15000; // ms ab Antwort (accept/answer) bis die Kanäle offen sein müssen
+const OFFER_TIMEOUT = 45000; // ms ab Angebot: Antwort über die Relays darf dauern (langsamer Host, mehrere Beitritte)
 
 function gathered(pc) {
   if (pc.iceGatheringState === 'complete') return Promise.resolve();
@@ -43,7 +44,7 @@ export class PeerLink {
     this._pingSeq = 0;
     this._pings = new Map();
     this._timer = null;
-    this._openTimer = setTimeout(() => { if (!this.open) this.close('zeitueberschreitung'); }, OPEN_TIMEOUT);
+    this._armOpen(role === 'client' ? OFFER_TIMEOUT : OPEN_TIMEOUT);
     pc.addEventListener('connectionstatechange', () => {
       const st = pc.connectionState;
       if (st === 'failed' || st === 'closed') this.close(st === 'failed' ? 'verbindung-fehlgeschlagen' : 'geschlossen');
@@ -53,6 +54,11 @@ export class PeerLink {
         this._dcTimer = setTimeout(() => { if (pc.connectionState === 'disconnected') this.close('getrennt'); }, 8000);
       }
     });
+  }
+
+  _armOpen(ms) {
+    clearTimeout(this._openTimer);
+    this._openTimer = setTimeout(() => { if (!this.open) this.close('zeitueberschreitung'); }, ms);
   }
 
   on(name, fn) { this.handlers[name].push(fn); return () => { this.handlers[name] = this.handlers[name].filter((f) => f !== fn); }; }
@@ -157,6 +163,8 @@ export class PeerLink {
 
   /** Anrufer übernimmt die Antwort des Hosts. */
   async accept(answerSdp) {
+    if (this.closed) { const e = new Error('verbindung-fehlgeschlagen'); e.code = 'verbindung-fehlgeschlagen'; throw e; }
     await this.pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+    if (!this.open) this._armOpen(OPEN_TIMEOUT);
   }
 }

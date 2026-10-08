@@ -87,14 +87,29 @@ const instrumentHost = (p) => p.evaluate(() => {
   const m = (window.__bytes = { per: {}, rel: {}, pkts: {}, snapBytes: 0, snaps: 0, snapEnts: 0, since: performance.now(), game0: G.time.elapsed });
   const add = (id, n) => { m.per[id] = (m.per[id] || 0) + n + 60; m.pkts[id] = (m.pkts[id] || 0) + 1; };
   const origJson = N._sendJsonTo.bind(N);
-  N._sendJsonTo = (peer, json) => { const ok = origJson(peer, json); if (ok && peer && peer.id) { add(peer.id, json.length); m.rel[peer.id] = (m.rel[peer.id] || 0) + json.length + 60; } return ok; };
+  // zuverlässig je Typ: Echtzeit-getrieben (Modus ≥ 1 Hz, Treffer der Last-Clients) vs. Spielzeit-getrieben (Bots: Treffer,
+  // Abschüsse, Spawns, Effekte, Akteursliste) – Letzteres wird auf Spielzeit = Echtzeit hochgerechnet
+  m.real = 0; m.game = 0; m.types = {};
+  N._sendJsonTo = (peer, json) => {
+    const ok = origJson(peer, json);
+    if (ok && peer && peer.id) {
+      add(peer.id, json.length);
+      m.rel[peer.id] = (m.rel[peer.id] || 0) + json.length + 60;
+      const t = (/^\{"t":"([^"]+)"/.exec(json) || [])[1] || '?';
+      const att = t === 'hit' ? Number((/"attacker":(\d+)/.exec(json) || [])[1]) : 0;
+      const realTime = t === 'mode' || t === 'roster' || t === 'room' || (t === 'hit' && att > 1 && att < 1000);
+      if (realTime) m.real += json.length + 60; else m.game += json.length + 60;
+      m.types[t] = (m.types[t] || 0) + json.length + 60;
+    }
+    return ok;
+  };
   const origFast = N.sendFast.bind(N);
   N.sendFast = (to, buf, ex) => {
     const n = origFast(to, buf, ex);
     if (n && typeof to === 'number') { add(to, buf.byteLength); if (new DataView(buf).getUint8(0) === 1) { m.snaps++; m.snapBytes += buf.byteLength; m.snapEnts += new DataView(buf).getUint16(9, true); } }
     return n;
   };
-  window.__resetBytes = () => { m.per = {}; m.rel = {}; m.pkts = {}; m.snapBytes = 0; m.snaps = 0; m.snapEnts = 0; m.since = performance.now(); m.game0 = G.time.elapsed; };
+  window.__resetBytes = () => { m.per = {}; m.rel = {}; m.pkts = {}; m.snapBytes = 0; m.snaps = 0; m.snapEnts = 0; m.real = 0; m.game = 0; m.types = {}; m.since = performance.now(); m.game0 = G.time.elapsed; };
 });
 const hostBytes = (p) => p.evaluate(() => { const m = window.__bytes; return { ...m, sec: (performance.now() - m.since) / 1000, gameSec: window.__game.time.elapsed - m.game0 }; });
 const hostView = (p) => p.evaluate(() => {
@@ -183,9 +198,12 @@ try {
   // Hochrechnung auf einen flüssigen Host (20 Schnappschüsse/s, Spielzeit = Echtzeit): SwiftShader schafft nur wenige
   // Bilder/s, der Host schickt höchstens einen Schnappschuss je Bild und Ereignisse folgen der (gedrosselten) Spielzeit
   const relPer = Object.values(bytes.rel);
-  const relReal = relPer.reduce((a, b) => a + b, 0) / Math.max(1, relPer.length) / bytes.sec;
-  const relGame = relPer.reduce((a, b) => a + b, 0) / Math.max(1, relPer.length) / Math.max(1e-3, bytes.gameSec);
-  const at20 = (snapAvg + 60) * 20 + Math.max(relReal, Math.min(relGame, 5000));
+  const nCl = Math.max(1, relPer.length);
+  const relReal = relPer.reduce((a, b) => a + b, 0) / nCl / bytes.sec;
+  // hochgerechnet: Echtzeit-Teil je Sekunde + Spielzeit-Teil je Spielsekunde (bei Spielzeit = Echtzeit)
+  const relGame = bytes.real / nCl / bytes.sec + bytes.game / nCl / Math.max(1e-3, bytes.gameSec);
+  const at20 = (snapAvg + 60) * 20 + relGame;
+  result.reliableTypes = Object.fromEntries(Object.entries(bytes.types).map(([k, v]) => [k, Math.round(v / nCl / bytes.sec)]));
   result.bandwidth = {
     perClientAvg: Math.round(perClient.reduce((a, b) => a + b, 0) / Math.max(1, perClient.length)), perClientMax: Math.round(Math.max(...perClient)),
     totalUpload: Math.round(totalUp), snapshotAvgBytes: Math.round(snapAvg), snapshotAvgEntities: Math.round(entAvg * 10) / 10, snapshotsPerClientPerSec: Math.round(snapRate * 10) / 10,
@@ -193,7 +211,7 @@ try {
     perClientAt20Hz: Math.round(at20), totalAt20Hz: Math.round(at20 * perClient.length), share: Math.round((entAvg / 32) * 100) / 100,
     seconds: Math.round(bytes.sec),
   };
-  info(`Upload Host (gemessen bei ${during.fps} FPS): je Client Ø ${(result.bandwidth.perClientAvg / 1024).toFixed(1)} KB/s (max ${(result.bandwidth.perClientMax / 1024).toFixed(1)}), gesamt ${(totalUp / 1024).toFixed(1)} KB/s; Schnappschuss Ø ${result.bandwidth.snapshotAvgBytes} B (${result.bandwidth.snapshotAvgEntities} von 32 Akteuren = ${result.bandwidth.share}), ${result.bandwidth.snapshotsPerClientPerSec}/s je Client; zuverlässig ${result.bandwidth.reliablePerClientReal} B/s (${result.bandwidth.reliablePerClientGame} B je Spielsekunde)`);
+  info(`Upload Host (gemessen bei ${during.fps} FPS): je Client Ø ${(result.bandwidth.perClientAvg / 1024).toFixed(1)} KB/s (max ${(result.bandwidth.perClientMax / 1024).toFixed(1)}), gesamt ${(totalUp / 1024).toFixed(1)} KB/s; Schnappschuss Ø ${result.bandwidth.snapshotAvgBytes} B (${result.bandwidth.snapshotAvgEntities} von 32 Akteuren = ${result.bandwidth.share}), ${result.bandwidth.snapshotsPerClientPerSec}/s je Client; zuverlässig ${result.bandwidth.reliablePerClientReal} B/s (hochgerechnet auf Spielzeit = Echtzeit ${result.bandwidth.reliablePerClientGame} B/s; je Typ ${JSON.stringify(result.reliableTypes)})`);
   info(`Hochgerechnet auf 20 Schnappschüsse/s: je Client ${(at20 / 1024).toFixed(1)} KB/s, gesamt ${(at20 * perClient.length / 1024).toFixed(0)} KB/s für ${perClient.length} Clients`);
   // Empfang der Clients (Gegenprobe) und deren Upload
   const recv = fakeEnd.map((e, i) => ({ inBps: (e.bytesIn - fakeStart[i].bytesIn) / (e.sec - fakeStart[i].sec), outBps: (e.sentBytes - fakeStart[i].sentBytes) / (e.sec - fakeStart[i].sec), sendHz: (e.sent - fakeStart[i].sent) / (e.sec - fakeStart[i].sec), snapHz: (e.snaps - fakeStart[i].snaps) / (e.sec - fakeStart[i].sec) }));
@@ -236,8 +254,8 @@ try {
       if (a && a.alive && bot) { G.combat.damage(a, { amount: 500, attacker: bot, weaponId: 'ar_m17', zone: 'head', dir: new G.THREE.Vector3(1, 0, 0) }); out.push(id); }
     }
     return out;
-  }, joins.slice(-3).map((j) => j.id));
-  const victimPages = fakes.filter((f, i) => victims.includes(joins[i].id));
+  }, joins.filter((j) => j.ok).slice(-3).map((j) => j.id));
+  const victimPages = fakes.filter((f, i) => joins[i].ok && victims.includes(joins[i].id));
   const respawned = await Promise.all(victimPages.map((f) => until(f.p, () => window.__fake.st.deaths >= 1 && window.__fake.st.spawns >= 2 && window.__fake.st.alive, null, 120000, 1000)));
   await sleep(5000);
   const acAfterRespawn = await host.evaluate(() => window.__game.net.anticheat.log.map((l) => ({ peer: l.peer, reason: l.reason })));
