@@ -70,6 +70,15 @@ export const ICON = {
   dogtag: svg('<path d="M8 3h8l1 4v11a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3V7z"/><circle cx="12" cy="7" r="1.2"/><path d="M9.5 12h5M9.5 15h3.5"/>'),
   secret: svg('<path d="M12 3a6 6 0 0 1 6 6c0 2.4-1.5 3.6-2.6 4.6-.8.7-1.4 1.4-1.4 2.4v.5h-4v-.6c0-1.6.8-2.7 1.9-3.6 1-.9 2.1-1.6 2.1-3.3a2 2 0 0 0-4 0H6a6 6 0 0 1 6-6z"/><path d="M10 19.5h4"/>'),
   palette: svg('<path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.6 0-1.3-1.2-1.6-1.2-2.8 0-1 .8-1.6 1.8-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/>'),
+  // Mehrspieler (Raum, Beitreten, Spielerliste)
+  link: svg('<path d="M10 14a4 4 0 0 0 5.7 0l3.1-3.1a4 4 0 0 0-5.7-5.7L11.6 6.7"/><path d="M14 10a4 4 0 0 0-5.7 0l-3.1 3.1a4 4 0 0 0 5.7 5.7l1.5-1.5"/>'),
+  copy: svg('<rect x="8.5" y="8.5" width="11" height="11" rx="1.5"/><path d="M15.5 8.5V5.5a1 1 0 0 0-1-1h-9a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h3"/>'),
+  swap: svg('<path d="M4 8h14l-3.5-3.5"/><path d="M20 16H6l3.5 3.5"/>'),
+  userX: svg('<circle cx="10" cy="8" r="4"/><path d="M3 21c1-4.5 3.8-6.5 7-6.5 1.6 0 3 .4 4.2 1.3"/><path d="M16.5 15.5l5 5M21.5 15.5l-5 5"/>'),
+  userPlus: svg('<circle cx="10" cy="8" r="4"/><path d="M3 21c1-4.5 3.8-6.5 7-6.5 1.6 0 3 .4 4.2 1.3"/><path d="M18.5 14.5v6M15.5 17.5h6"/>'),
+  signal: svg('<path d="M5 20v-3M10 20v-7M15 20v-11M20 20V4"/>'),
+  bolt: svg('<path d="M13 2.5L5 13.5h6l-1 8 8-11h-6z"/>'),
+  door: svg('<path d="M5 21V4.5L14 3v18"/><path d="M14 5h5v16H3"/><path d="M11 12.5h.01" stroke-width="2.4"/>'),
 };
 
 /** Medaillen-Abzeichen (Sechseck, Stufenfarbe über CSS --tier). */

@@ -710,8 +710,9 @@ export class BotManager {
         }
       }
     }
-    // Trupptaktik (gestaffelt je Trupp)
+    // Trupptaktik (gestaffelt je Trupp); lernende Bots nur offline
     this.tactics.update(dt, now);
+    if (this.adapt.active && this._online()) this._adaptOnline();
     this.adapt.update(dt, now);
     // Bots (ferne Detailstufen nur jedes n-te Bild mit aufgelaufener Zeit, Phase je Bot verteilt)
     let simmed = 0;

@@ -66,11 +66,12 @@ export function recommend({ cores = null, memory = null, fps = null, upload = nu
     if (UNMEASURED_MAX < max) { max = UNMEASURED_MAX; reason = 'Upload noch nicht gemessen – vorsichtig 8'; }
   } else {
     up = Math.round(upload.rate);
-    // Kein Stau: die Leitung trägt mindestens das Gemessene – vorsichtig hochrechnen (×2); Stau: das Gemessene ist
-    // die Grenze. Nie unter die Spielerzahl, die ohne Stau lief.
-    const capacity = upload.congested ? upload.rate : upload.rate * 2;
-    let net = maxPlayersForUpload(capacity);
-    if (!upload.congested && Number.isFinite(upload.players)) net = Math.max(net, upload.players);
+    // Stau: das Gemessene ist die Grenze (auch unter 8). Kein Stau: die Leitung trägt mindestens das Gemessene –
+    // vorsichtig hochrechnen (×2), aber nie unter den Startwert 8 oder die Spielerzahl, die ohne Stau lief (wenig
+    // Verkehr beweist keine Grenze).
+    let net;
+    if (upload.congested) net = maxPlayersForUpload(upload.rate);
+    else net = Math.max(UNMEASURED_MAX, maxPlayersForUpload(upload.rate * 2), Number.isFinite(upload.players) ? upload.players : 0);
     if (net < max) {
       max = net;
       const kbit = Math.round((upload.rate * 8) / 1000);

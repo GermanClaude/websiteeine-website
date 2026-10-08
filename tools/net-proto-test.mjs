@@ -247,6 +247,10 @@ rec = recommend({ cores: 16, memory: 16, fps: 144, upload: { rate: 400000, conge
 check(rec.max === maxPlayersForUpload(800000) && rec.max >= 24 && rec.measured && rec.upload === 400000, `starker Rechner, 400 KB/s ohne Stau: ${rec.max} („${rec.reason}“)`);
 rec = recommend({ cores: 16, memory: 16, fps: 144, upload: { rate: 40000, congested: true, measured: true, players: 8 } });
 check(rec.max === maxPlayersForUpload(40000) && rec.max < 8 && /ausgelastet/.test(rec.reason), `Stau bei 40 KB/s: ${rec.max} („${rec.reason}“)`);
+rec = recommend({ cores: 16, memory: 16, fps: 144, upload: { rate: 6000, congested: false, measured: true, players: 2 } });
+check(rec.max === UNMEASURED_MAX && rec.measured, `wenig Verkehr ohne Stau senkt die Empfehlung nicht (${rec.max})`);
+rec = recommend({ cores: 16, memory: 16, fps: 144, upload: { rate: 80000, congested: false, measured: true, players: 8 } });
+check(rec.max === maxPlayersForUpload(160000) && rec.max > 8, `80 KB/s ohne Stau → hochgerechnet ${rec.max}`);
 rec = recommend({ cores: 8, memory: 2, fps: 25, upload: { rate: 1e6, congested: false, measured: true } });
 check(rec.max === 8 && rec.fps === 25, `2 GB / 25 FPS: ${rec.max} („${rec.reason}“)`);
 rec = recommend({ cores: 8, memory: 8, upload: { rate: 1e6, measured: true }, connection: { effectiveType: '3g' } });
