@@ -74,6 +74,13 @@ async function open(name) {
     G.events.on('match:end', () => { log.ends++; });
     G.events.on('objective:captured', (e) => log.objectives.push({ id: e.objective && e.objective.id, team: e.team }));
     G.net.on('correct', () => { log.corrects++; });
+    // Host: feindlicher Bot für ein Ziel – lebend bevorzugt, sonst sofort wieder eingesetzt (kleine Teams)
+    window.__hostileBot = (actor) => {
+      const list = G.bots.bots.filter((b) => !b.isRemoteHuman && G.combat.isHostile(actor, b));
+      let bot = list.find((b) => b.alive) || list[0] || null;
+      if (bot && !bot.alive) G.spawnActor(bot);
+      return bot;
+    };
   });
   pages[name] = p;
   return p;
@@ -163,7 +170,7 @@ try {
     const G = window.__game;
     const T = G.THREE;
     const anna = G.net.actorById(aId);
-    const bot = G.bots.bots.find((b) => !b.isRemoteHuman && b.alive && G.combat.isHostile(anna, b));
+    const bot = anna && window.__hostileBot(anna);
     if (!anna || !bot) return null;
     // Ziel festhalten (KI aus) und 7 m vor Anna stellen – Richtung mit freier Sicht
     G.bots.setPuppet(bot, true);
@@ -234,7 +241,7 @@ try {
     const G = window.__game;
     const T = G.THREE;
     const anna = G.net.actorById(aId);
-    const bot = G.bots.bots.find((b) => !b.isRemoteHuman && b.alive && G.combat.isHostile(anna, b));
+    const bot = anna && window.__hostileBot(anna);
     if (!anna || !bot) return null;
     G.bots.setPuppet(bot, true);
     const eye = anna.getEyePosition(new T.Vector3());
@@ -265,6 +272,29 @@ try {
   const gDmg = await ev(host, ([id, aId]) => window.__mp.hits.some((h) => h.t === id && h.a === aId), [gTarget.id, A]);
   check(gDmg, 'Host: Granatenschaden am Bot mit Anna als Angreiferin');
   await ev(host, () => window.__game.debugApi.setTimeScale(1));
+
+  // ================================================================== Nahkampf: Anna sticht einen Bot (Meldung 'melee')
+  const mTarget = await ev(host, ([aId]) => {
+    const G = window.__game;
+    const T = G.THREE;
+    const anna = G.net.actorById(aId);
+    const bot = anna && window.__hostileBot(anna);
+    if (!anna || !bot) return null;
+    G.bots.setPuppet(bot, true);
+    bot.body.teleport(new T.Vector3(anna.position.x - Math.sin(anna.yaw) * 1.3, anna.position.y, anna.position.z - Math.cos(anna.yaw) * 1.3));
+    bot.health = bot.maxHealth;
+    return bot.netId;
+  }, [A]);
+  await sleep(3000);
+  const stab = await ev(c1, (id) => {
+    const G = window.__game;
+    const t = G.net.actorById(id);
+    if (!t || !t.alive) return null;
+    const pt = t.position.clone(); pt.y += 1.1;
+    return G.combat.damage(t, { amount: 135, attacker: G.player, weaponId: 'knife', zone: 'body', dir: pt.clone().sub(G.player.position).normalize(), point: pt });
+  }, mTarget);
+  const meleeKill = await until(host, ([id, aId]) => window.__mp.kills.some((k) => k.v === id && k.k === aId && k.w === 'knife'), [mTarget, A], 30000);
+  check(stab > 0 && !!meleeKill, `Nahkampf: Annas Messer (vorhergesagt ${Math.round(stab || 0)}) → Abschuss beim Host`);
 
   // ================================================================== Host-Bot schadet Bert, Tod + Respawn
   const dmg = await ev(host, ([bId]) => {
@@ -301,6 +331,13 @@ try {
   const bertOnHost = await ev(host, (bId) => { const a = window.__game.net.actorById(bId); return a ? { alive: a.alive, pos: [a.position.x, a.position.y, a.position.z] } : null; }, B);
   const vb = await view(c2);
   check(!!bertOnHost && bertOnHost.alive && d3(bertOnHost.pos, vb.pos) < 1, `Host: Berts Puppe lebt wieder am gemeldeten Ort (${bertOnHost ? d3(bertOnHost.pos, vb.pos).toFixed(2) : '–'} m)`);
+
+  // ================================================================== Sturzschaden: Meldung an sich selbst, Host wendet ihn an
+  await sleep(1500);
+  const fallBefore = await ev(c2, () => Math.round(window.__game.player.health));
+  await ev(c2, () => window.__game.combat.damage(window.__game.player, { amount: 30, attacker: null, weaponId: 'fall', zone: 'body', dir: new window.__game.THREE.Vector3(0, -1, 0) }));
+  const fallHp = await until(c2, (h) => window.__game.player.health <= h - 20 && Math.round(window.__game.player.health), fallBefore, 20000);
+  check(!!fallHp, `Sturzschaden über den Host: Bert ${fallBefore} → ${fallHp} LP`);
 
   // ================================================================== Anti-Cheat: Teleport 20 m
   const origin = (await view(c2)).pos;
@@ -389,7 +426,7 @@ try {
       const G = window.__game;
       const T = G.THREE;
       const bert = G.net.actorById(bId);
-      const bot = G.bots.bots.find((b) => !b.isRemoteHuman && b.alive && G.combat.isHostile(bert, b));
+      const bot = bert && window.__hostileBot(bert);
       if (!bert || !bot) return null;
       G.bots.setPuppet(bot, true);
       bot.body.teleport(new T.Vector3(bert.position.x + 0.8, bert.position.y, bert.position.z));
@@ -403,6 +440,51 @@ try {
     check(!!tagsLeft, 'Marke beim Client verschwunden');
     await ev(host, () => window.__game.debugApi.endMatch());
     check(!!(await until(c2, () => window.__game.match.state === 'ended', null, 60000)), 'Abschuss bestätigt endet auch bei Bert');
+
+    // ================================================================== Jeder gegen jeden: Wertung je netId
+    await Promise.all([host, c2].map((p) => ev(p, () => window.__game.menus.onQuit())));
+    await until(host, () => window.__game.match.state === 'lobby', null, 30000);
+    await ev(host, () => window.__game.net.updateSettings({ mode: 'ffa', map: 'hafen', teamSize: 2 }));
+    await sleep(500);
+    await ev(host, () => window.__game.net.startMatch());
+    check(await bothInMatch([host, c2]), 'Jeder gegen jeden: Host + Bert im Match');
+    const ffaTeams = await ev(c2, () => window.__game.actors.filter((a) => a.puppet).every((a) => a.team === null) && window.__game.player.team === null);
+    check(ffaTeams, 'FFA: alle Puppen und der eigene Spieler ohne Team');
+    await ev(host, () => {
+      const G = window.__game;
+      const bot = G.bots.bots.find((b) => !b.isRemoteHuman && b.alive);
+      G.combat.damage(bot, { amount: 500, attacker: G.player, weaponId: 'ar_m17', zone: 'head', dir: new G.THREE.Vector3(1, 0, 0) });
+    });
+    const ffaScore = await until(c2, () => window.__game.mode.scores.net_1 >= 1 && window.__game.mode.standing(window.__game.player).leaderName, null, 30000);
+    check(!!ffaScore, `FFA: Wertung des Hosts beim Client unter seiner Puppe (Führender laut HUD: ${ffaScore})`);
+    // Online-Pause: Menü offen, Simulation läuft weiter (Host-Restzeit und die des Clients)
+    await ev(host, () => window.__game.debugApi.pause());
+    const snap = () => ev(host, () => ({ st: window.__game.match.state, live: window.__game.match.netLive, tl: window.__game.mode.timeLeft, el: window.__game.time.elapsed, fr: window.__game.time.frame }));
+    const p1 = await snap();
+    const b1 = await ev(c2, () => window.__game.mode.timeLeft);
+    await sleep(5000);
+    const p2 = await snap();
+    const b2 = await until(c2, (b) => window.__game.mode.timeLeft < b - 0.05 && window.__game.mode.timeLeft, b1, 15000);
+    check(p1.st === 'paused' && p1.live && p2.el > p1.el && p2.tl < p1.tl && !!b2, `Online-Pause beim Host: Menü offen, Zeit läuft weiter (Host ${p1.tl.toFixed(1)} → ${p2.tl.toFixed(1)} s, Bert ${b1.toFixed(1)} → ${b2 && b2.toFixed(1)} s)`);
+    // Host-Tab verborgen: Bilder über den Worker-Takt (rAF ruht in echten Browsern)
+    const hide = (on) => ev(host, (h) => {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, on);
+    await hide(true);
+    const h1 = await snap();
+    await sleep(4000);
+    const h2 = await snap();
+    await hide(false);
+    check(h2.fr - h1.fr >= 20 && h2.el > h1.el, `verborgener Host-Tab: Hintergrund-Takt simuliert weiter (${h2.fr - h1.fr} Bilder in 4 s)`);
+    await ev(host, () => window.__game.debugApi.endMatch());
+    const ffaEnd = await until(c2, () => { const r = window.__game.lastResult; return window.__game.match.state === 'ended' && r && { winner: r.winner, placement: r.placement, won: r.playerWon, me: r.scoreboard.filter((x) => x.isPlayer).length }; }, null, 60000);
+    // Sieger-Id aus Sicht des Clients: Host-Spieler → net_1, Berts Puppe → player, Bots unverändert
+    const hostWinner = await ev(host, () => window.__game.lastResult && window.__game.lastResult.winner);
+    const bertPuppetId = await ev(host, (id) => { const a = window.__game.net.actorById(id); return a ? a.id : null; }, rj.id);
+    const expectWinner = hostWinner === 'player' ? 'net_1' : hostWinner === bertPuppetId ? 'player' : hostWinner;
+    check(!!ffaEnd && ffaEnd.winner === expectWinner && ffaEnd.me === 1 && ffaEnd.placement >= 1, `FFA-Ende bei Bert: Sieger ${ffaEnd && ffaEnd.winner} (Host: ${hostWinner}), Platz ${ffaEnd && ffaEnd.placement}`);
   }
 
   const errs = Object.entries(errors).filter(([, l]) => l.length);
