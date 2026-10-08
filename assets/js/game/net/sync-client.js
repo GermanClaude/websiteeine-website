@@ -183,12 +183,7 @@ export class ClientSync {
       this._reconcile(id, a, list, now, resync);
       if (!a.alive || rt == null) continue;
       const np = a._netPoseObj || (a._netPoseObj = { pos: [0, 0, 0], vel: [0, 0, 0] });
-      // seltener gesendete (ferne) Akteure etwas weiter zurück, damit auch sie zwischen zwei Einträgen liegen
-      const rtA = list.gap > this._snapGap * 1.5 ? rt - Math.min(0.4, (list.gap - this._snapGap) * 1.1) : rt;
-      if (this._sample(list, rtA, np, this.spawnSt.get(id))) {
-        this._smoothPose(id, np, dtReal);
-        a.netPose = np;
-      }
+      if (this._puppetPose(id, list, rt, dtReal, np)) a.netPose = np;
     }
     // Ausrüsten im Todesbildschirm: die Restzeit steht still – beim Host ebenso ('hold'), hier nur die Anzeige
     const pl = G.player;
@@ -251,6 +246,15 @@ export class ClientSync {
       if (list.length > MAX_SAMPLES) list.splice(0, list.length - MAX_SAMPLES);
       this.seen.set(e.id, now);
     }
+  }
+
+  /** Pose einer Puppe für dieses Bild (Wiedergabezeit rt, reale Bildzeit dt) → out; false = nichts Gültiges im Puffer. */
+  _puppetPose(id, list, rt, dt, out) {
+    // seltener gesendete (ferne) Akteure etwas weiter zurück, damit auch sie zwischen zwei Einträgen liegen
+    const rtA = list.gap > this._snapGap * 1.5 ? rt - Math.min(0.4, (list.gap - this._snapGap) * 1.1) : rt;
+    if (!this._sample(list, rtA, out, this.spawnSt.get(id))) return false;
+    this._smoothPose(id, out, dt);
+    return true;
   }
 
   /**

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NULLPUNKT – Interpolations-Prüfstand</title>
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+<style>
+  body { font: 13px/1.45 system-ui, sans-serif; background: #111; color: #ddd; margin: 16px; }
+  table { border-collapse: collapse; } td, th { padding: 2px 10px; border-bottom: 1px solid #333; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+</style>
+</head>
+<body>
+<h1>Interpolation der Puppen unter Laufzeit, Schwankung und Verlust</h1>
+<p>Treibt den echten Code von <code>ClientSync</code> (Wiedergabe-Uhr <code>_playout</code>, <code>_onFast</code>,
+<code>_puppetPose</code> = Interpolation + Glättung) mit einer <b>virtuellen Uhr</b> (performance.now ersetzt): Host schickt
+20 Hz Schnappschüsse eines Akteurs mit bekannter Bahn, Pakete kommen mit Laufzeit ± Schwankung an, ein Anteil geht verloren;
+der Client rechnet 60 Bilder/s. Gemessen je Bild: Darstellungsverzug D = Host-Zeit − Bahnzeit der gezeigten Stelle
+(Schwankung von D = Ruckeln), Rückwärtsschritte, größte Abweichung je Bild von v·dt, Überschwingen bei der Wende.
+Zum Vergleich dieselben Pakete mit der alten Rechnung (Wiedergabezeit = serverTime − max(0,1, 2,2 × Paketabstand), ohne Glättung).
+Prüfung: <code>node tools/net-interp-test.mjs</code> (liest <code>window.__interp</code>).</p>
+<div id="out"></div>
+<script type="module">
+// Virtuelle Uhr vor dem Laden der Module (sync-client liest performance.now über nowSec())
+let VT = 10000;
+performance.now = () => VT;
+const { ClientSync } = await import('../assets/js/game/net/sync-client.js');
+const { encodeSnapshot, FLAGS } = await import('../assets/js/game/net/protocol.js');
+const { INTERP_MIN, INTERP_MAX } = await import('../assets/js/game/net/sync-common.js');
+
+// deterministischer Zufall
+let seed = 12345;
+const rand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+const HOST_OFF = 37.5; // Host-Zeit = lokale Zeit + HOST_OFF (s)
+
+/**
+ * Ein Durchlauf. path(t) → x (m) mit Ableitung vel(t); lag/jitter in ms (je Richtung), loss 0..1, hostHz Schnappschüsse/s.
+ * → Kennzahlen neue/alte Rechnung.
+ */
+function run({ name, lag = 0, jitter = 0, loss = 0, hostHz = 20, seconds = 12, path, vel, turnAt = null }) {
+  seed = 4242;
+  VT = 10000;
+  const net = { on: () => () => {}, onFast: () => () => {}, timeSynced: true, selfId: 2, online: true, peerRtt: () => 2 * lag, serverTime: () => VT / 1000 + HOST_OFF };
+  const G = { events: { on: () => () => {} }, match: {}, player: null, time: { dt: 1 / 60 } };
+  const sync = new ClientSync(G, net, { selfId: 2 });
+  sync.active = true;
+  // Pakete erzeugen (Host-Zeit), Ankunft lokal
+  const pk = [];
+  const t0 = VT / 1000;
+  for (let k = 0; k * (1 / hostHz) < seconds; k++) {
+    const ht = t0 + HOST_OFF + k / hostHz;
+    if (rand() < loss) continue;
+    const arrive = (ht - HOST_OFF) + (lag + (jitter ? (rand() * 2 - 1) * jitter : 0)) / 1000;
+    const tt = ht - t0 - HOST_OFF;
+    const ent = { id: 1000, x: path(tt), y: 0, z: 0, yaw: 0, pitch: 0, vx: vel(tt), vy: 0, vz: 0, flags: FLAGS.ALIVE | FLAGS.ON_GROUND, weapon: 'ar_m17', hp: 100, lean: 0, shots: 0, proneBlend: 0 };
+    pk.push({ arrive, buf: encodeSnapshot(k + 1, ht, [ent]), ht });
+  }
+  pk.sort((a, b) => a.arrive - b.arrive);
+  // Bilder 60/s; alte Rechnung parallel (eigener Puffer + Paketabstand)
+  const oldBuf = [];
+  let oldGap = 0.05;
+  let oldLast = null;
+  const np = { pos: [0, 0, 0], vel: [0, 0, 0] };
+  const npOld = { pos: [0, 0, 0], vel: [0, 0, 0] };
+  const rows = [];
+  let pi = 0;
+  for (let f = 0; f * (1 / 60) < seconds + 1; f++) {
+    const now = t0 + f / 60;
+    while (pi < pk.length && pk[pi].arrive <= now) {
+      VT = pk[pi].arrive * 1000;
+      sync._onFast(pk[pi].buf);
+      const ht = pk[pi].ht;
+      if (oldLast != null) { const g = ht - oldLast; if (g > 0 && g < 2) oldGap = oldGap * 0.85 + g * 0.15; }
+      if (oldLast == null || ht > oldLast) { oldLast = ht; oldBuf.push({ t: ht, e: { ...decodeEnt(pk[pi].buf) } }); if (oldBuf.length > 40) oldBuf.shift(); }
+      pi++;
+    }
+    VT = now * 1000;
+    const dt = sync.clock.lastNow == null ? 0 : now - sync.clock.lastNow;
+    const rt = sync._playout(now);
+    const list = sync.buf.get(1000);
+    const hostNow = now + HOST_OFF;
+    let x = null;
+    if (rt != null && list && sync._puppetPose(1000, list, rt, dt, np)) x = np.pos[0];
+    // alt: rt = serverTime − max(0,1, 2,2 × Abstand) (≤ 0,4), ohne Glättung
+    let xo = null;
+    if (oldBuf.length) {
+      const rtOld = hostNow - Math.min(INTERP_MAX, Math.max(INTERP_MIN, oldGap * 2.2));
+      if (sync._sample(oldBuf, rtOld, npOld, undefined)) xo = npOld.pos[0];
+    }
+    rows.push({ now, hostT: hostNow - t0 - HOST_OFF, x, xo });
+  }
+  // nur solange Pakete kommen (danach steht die Puppe absichtlich still)
+  const live = rows.filter((r) => r.hostT < seconds - 0.6);
+  return { name, lag, jitter, loss, hostHz, ...metrics(live, path, vel, turnAt, 'x'), old: metrics(live, path, vel, turnAt, 'xo'), viewDelay: sync.viewDelay() };
+}
+
+function decodeEnt(buf) {
+  const dv = new DataView(buf);
+  return { id: dv.getUint16(11, true), x: dv.getFloat32(13, true), y: dv.getFloat32(17, true), z: dv.getFloat32(21, true), yaw: 0, pitch: 0, vx: dv.getInt16(29, true) / 100, vy: 0, vz: 0, flags: dv.getUint16(35, true), weaponId: null, hp: 100, lean: 0, shots: 0, proneBlend: 0 };
+}
+
+/** Kennzahlen: D (Darstellungsverzug) aus der Bahn, Schwankung, Rückwärtsschritte, Sprünge je Bild, Überschwingen. */
+function metrics(rows, path, vel, turnAt, key) {
+  const pts = rows.filter((r) => r[key] != null && r.hostT > 1.5); // Einschwingen
+  const D = [];
+  let back = 0;
+  let maxJump = 0;
+  let over = 0;
+  const turnX = turnAt != null ? path(turnAt) : null;
+  // Bahnzeit der gezeigten Stelle (vor der Wende: x = v·t streng monoton) → Darstellungsverzug je Bild
+  for (const r of pts) if (turnAt == null || r.hostT < turnAt) D.push(r.hostT - r[key] / vel(0));
+  const Dsorted = [...D].sort((a, b) => a - b);
+  const Dmed = Dsorted.length ? Dsorted[Math.floor(Dsorted.length / 2)] : 0.15;
+  for (let i = 0; i < pts.length; i++) {
+    const r = pts[i];
+    if (turnX != null) over = Math.max(over, r[key] - turnX);
+    if (i) {
+      const dx = r[key] - pts[i - 1][key];
+      const dtf = r.now - pts[i - 1].now;
+      // erwartete Bewegung: Bahn zur gezeigten Zeit (Host-Zeit − gemessener Verzug); an der Wende selbst ein Bild Toleranz
+      const tShow = r.hostT - Dmed;
+      if (turnAt != null && Math.abs(tShow - turnAt) < 1 / 30) continue;
+      const want = vel(Math.max(0, tShow)) * dtf;
+      if (turnAt == null && dx < -0.01) back++;
+      maxJump = Math.max(maxJump, Math.abs(dx - want));
+    }
+  }
+  D.sort((a, b) => a - b);
+  const q = (f) => (D.length ? D[Math.min(D.length - 1, Math.round(f * (D.length - 1)))] : NaN);
+  return { frames: pts.length, delayMs: Math.round(q(0.5) * 1000), spreadMs: Math.round((q(0.99) - q(0.01)) * 1000), back, maxJumpCm: Math.round(maxJump * 100), overshootCm: turnX != null ? Math.round(over * 100) : null };
+}
+
+const V = 4.5;
+const straight = { path: (t) => V * t, vel: () => V };
+// Sprint vorwärts, Wende nach 6 s (Überschwingen beim Fortschreiben)
+const turn = { path: (t) => (t < 6 ? 8 * t : 48 - 8 * (t - 6)), vel: (t) => (t < 6 ? 8 : -8), turnAt: 6 };
+const cases = [
+  { name: 'ideal', ...straight },
+  { name: '150±30 ms, 5 %', lag: 150, jitter: 30, loss: 0.05, ...straight },
+  { name: '300 ms, 15 %', lag: 300, jitter: 0, loss: 0.15, ...straight },
+  { name: '150±60 ms, 5 %', lag: 150, jitter: 60, loss: 0.05, ...straight },
+  { name: 'Host 10 Hz, 150±30 ms', lag: 150, jitter: 30, loss: 0.05, hostHz: 10, ...straight },
+  { name: 'Wende 8 m/s, 150±30 ms, 5 %', lag: 150, jitter: 30, loss: 0.05, ...turn },
+];
+const results = cases.map((c) => run(c));
+const fmt = (m) => `${m.delayMs} ms / ${m.spreadMs} ms / ${m.back} / ${m.maxJumpCm} cm${m.overshootCm != null ? ` / ${m.overshootCm} cm` : ''}`;
+document.getElementById('out').innerHTML = `<table><tr><th>Fall</th><th>neu: Verzug / Schwankung / rückwärts / Sprung (/ Überschwingen)</th><th>alt</th></tr>${results.map((r) => `<tr><td>${r.name}</td><td>${fmt(r)}</td><td>${fmt(r.old)}</td></tr>`).join('')}</table>`;
+window.__interp = { done: true, results };
+</script>
+</body>
+</html>

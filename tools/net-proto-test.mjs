@@ -204,6 +204,12 @@ for (let k = 1; k <= 30 * 12; k++) {
   if (!acB.onState(48, { x: tc * 10.4, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }, arrive, { alive: true }).ok) badB++;
 }
 check(badB === 0 && acB.score(48, 13) === 0, `Host hängt je 2,5 s (Zustände gebündelt), Sprint 10,4 m/s über 12 s: ${badB} Verstöße`);
+// Langsamer Client (ein Zustand alle 2 s): 20 m Sprung bleibt ein Teleport (Schrittgrenze ≤ 1 s × vMax)
+const acSlow = new AntiCheat();
+acSlow.onSpawn(49, [0, 0, 0], 0);
+const slow1 = acSlow.onState(49, { x: 0.5, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }, 2, { alive: true });
+const slow2 = acSlow.onState(49, { x: 20.5, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }, 4, { alive: true });
+check(slow1.ok && !slow2.ok && slow2.reason === 'teleport', 'langsamer Client (Zustand alle 2 s): 20 m in einem Schritt → teleport');
 // Einzelne Sprünge: 7 m (Gehen, volles Budget) und 14 m (früher erlaubt) → teleport + Rücksetzung
 const acT = new AntiCheat();
 acT.onSpawn(44, [0, 0, 0], 0);
