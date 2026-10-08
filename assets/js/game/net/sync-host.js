@@ -27,6 +27,13 @@ const _v = new THREE.Vector3();
 const armorOf = (a) => [rnd(a.armor.hp, 1), rnd(a.armor.helmetHp, 1), a.armor.carry | 0];
 const THROW_GAP = 0.3; // s zwischen zwei Würfen eines Clients
 const ENV_GAP = 0.4; // s zwischen zwei Sturz-/Weltmeldungen
+const HOLD_MAX = 30; // s: so lange hält der Host den Wiedereinstieg eines Clients höchstens an (Ausrüsten)
+const EXTRAPOLATE_OWN = 0.05; // s: Puppe eines Clients zwischen zwei Zuständen höchstens so weit fortschreiben
+// Interessenfilter der Schnappschüsse (je Empfänger): Akteure weiter als FAR_DIST vom eigenen Körper und Tote nur jeden
+// FAR_EVERY-ten Takt (20 Hz → 5 Hz, je Akteur versetzt); der eigene Eintrag immer. Erst ab INTEREST_MIN Akteuren.
+const FAR_DIST = 60;
+const FAR_EVERY = 4;
+const INTEREST_MIN = 12;
 
 export class HostSync {
   /**
@@ -48,6 +55,7 @@ export class HostSync {
     this._lastThrow = new Map();
     this._lastEnv = new Map();
     this._hitSerial = new Map(); // Client → letzte Schussnummer mit Treffer (Trefferstatistik)
+    this._holds = new Map(); // Client → {pause, since}: Wiedereinstieg angehalten (Ausrüsten im Todesbildschirm)
     this._lastDir = new WeakMap(); // Opfer → Richtung des letzten Treffers (Ragdoll auf den Clients)
     this._snapAt = 0;
     this._tick = 0;
@@ -58,6 +66,9 @@ export class HostSync {
     this._rebalanceAt = 0;
     this._pose = {};
     this._scope = null;
+    /** Interessenfilter an (Prüfläufe: ?netinterest=0 schaltet ihn ab – Vergleichsmessung). */
+    this.interest = !(G.params && typeof G.params.get === 'function' && G.params.get('netinterest') === '0');
+    this.snapStats = { sent: 0, bytes: 0, ents: 0, full: 0 };
     this._offs = [
       net.on('ready', (m, from) => this._onReady(from)),
       net.on('loadout', (m, from) => this._onLoadout(m, from)),
@@ -65,6 +76,7 @@ export class HostSync {
       net.on('melee', (m, from) => this._onMelee(m, from)),
       net.on('throw', (m, from) => this._onThrow(m, from)),
       net.on('plate', (m, from) => this._onPlate(m, from)),
+      net.on('hold', (m, from) => this._onHold(m, from)),
       net.onFast((buf, from) => this._onFast(buf, from)),
     ];
     if (G.events) {
@@ -116,6 +128,7 @@ export class HostSync {
     this._unsubscribe();
     this._ready.clear();
     this._pendingReady.clear();
+    this._holds.clear();
   }
 
   dispose() {
@@ -153,10 +166,22 @@ export class HostSync {
   /* ================================================================ Bild */
 
   preUpdate() {
-    // Zustände der Clients werden bei Ankunft übernommen (_onFast); hier nur die Bot-Netz-Ids nachziehen (addBot von außen)
+    // Zustände der Clients werden bei Ankunft übernommen (_onFast); hier die Bot-Netz-Ids nachziehen (addBot von außen) und
+    // die Puppen der Clients zwischen zwei Zuständen kurz fortschreiben (30 Hz-Zustände, Ankunft schwankt – sonst ruckeln
+    // sie im Bild des Hosts und in den Schnappschüssen): höchstens EXTRAPOLATE_OWN s mit der gemeldeten Geschwindigkeit
     if (!this.active) return;
     const G = this.G;
-    for (const b of G.bots.bots) if (!Number.isInteger(b.netId) && !b.isRemoteHuman) { b.netId = this._nextBotId++; this._actorsDirty = true; }
+    const now = nowSec();
+    for (const b of G.bots.bots) {
+      if (!Number.isInteger(b.netId) && !b.isRemoteHuman) { b.netId = this._nextBotId++; this._actorsDirty = true; }
+      const raw = b._ownRaw;
+      if (!raw || b.netPose !== b._ownPose || !b.alive) continue;
+      const age = Math.min(EXTRAPOLATE_OWN, Math.max(0, now - b._ownAt));
+      const np = b._ownPose;
+      np.pos[0] = raw.pos[0] + raw.vel[0] * age;
+      np.pos[1] = raw.pos[1] + ((raw.flags & FLAGS.ON_GROUND) ? 0 : raw.vel[1] * age);
+      np.pos[2] = raw.pos[2] + raw.vel[2] * age;
+    }
   }
 
   postUpdate() {
@@ -167,6 +192,7 @@ export class HostSync {
     // Positionsverlauf für die Trefferprüfung (Anti-Cheat)
     if (net.history) for (const a of G.actors) if (Number.isInteger(a.netId) && a.position) net.history.record(a.netId, t, a.position.x, a.position.y, a.position.z);
     const now = nowSec();
+    if (this._holds.size) this._tickHolds(now);
     if (now >= this._rebalanceAt) { this._rebalanceAt = now + 2; this._rebalance(); }
     if (this._actorsDirty) this._sendActors();
     this._sendMode(false);
@@ -188,8 +214,29 @@ export class HostSync {
         flags: p.flags, weapon: p.weapon, hp: Math.max(0, Math.min(255, Math.round(p.hp))), lean: p.lean, shots: p.shots, proneBlend: p.proneBlend,
       });
     }
-    const buf = encodeSnapshot(++this._tick, t, ents);
-    for (const id of this._ready) this.net.sendFast(id, buf);
+    const tick = ++this._tick;
+    const st = this.snapStats;
+    if (!this.interest || ents.length < INTEREST_MIN) {
+      const buf = encodeSnapshot(tick, t, ents);
+      for (const id of this._ready) if (this.net.sendFast(id, buf)) { st.sent++; st.bytes += buf.byteLength; st.ents += ents.length; st.full++; }
+      return;
+    }
+    // Interessenfilter je Empfänger: nah + eigener Eintrag jeden Takt, fern/tot nur im eigenen Fünftel-Takt
+    const far2 = FAR_DIST * FAR_DIST;
+    const list = [];
+    for (const id of this._ready) {
+      const me = this._puppet(id);
+      const mp = me && me.position;
+      list.length = 0;
+      for (const e of ents) {
+        if (e.id === id || !mp || (tick + e.id) % FAR_EVERY === 0) { list.push(e); continue; }
+        if ((e.flags & FLAGS.ALIVE) === 0) continue;
+        const dx = e.x - mp.x, dz = e.z - mp.z;
+        if (dx * dx + dz * dz <= far2) list.push(e);
+      }
+      const buf = encodeSnapshot(tick, t, list);
+      if (this.net.sendFast(id, buf)) { st.sent++; st.bytes += buf.byteLength; st.ents += list.length; if (list.length === ents.length) st.full++; }
+    }
   }
 
   _sendMode(force) {
@@ -205,7 +252,7 @@ export class HostSync {
     if (!force && key === this._modeKey && gap < MODE_MAX_GAP) return;
     this._modeKey = key;
     this._modeAt = now;
-    this.net.send('all', { t: 'mode', s });
+    this.net.send('all', { t: 'mode', s, st: rnd(this.net.serverTime(), 3) });
   }
 
   _sendActors(to = null) {
@@ -264,6 +311,7 @@ export class HostSync {
   /** Mensch hat den Raum verlassen (Austritt, Kick, Verbindungsabbruch): Puppe entfernen, Bots ausgleichen. */
   _drop(id) {
     this._ready.delete(id);
+    this._holds.delete(id);
     this._pendingReady.delete(id);
     this._lastThrow.delete(id);
     this._lastEnv.delete(id);
@@ -288,8 +336,39 @@ export class HostSync {
     if (fresh) { p.setNetLoadout(lo); this._actorsDirty = true; } else p.pendingNetLoadout = lo;
   }
 
+  /**
+   * Wiedereinstieg anhalten/freigeben ('hold' {on, p}): der Client hat „Ausrüsten“ im Todesbildschirm offen (p = Restzeit
+   * steht still) bzw. drückt „Einsatz“ (on = false → Einsatz, sobald die Wartezeit um ist). Wie offline über
+   * mode.holdRespawn; höchstens HOLD_MAX s.
+   */
+  _onHold(m, from) {
+    const G = this.G;
+    const p = this._puppet(from);
+    if (!this.active || this.ended || !p || !G.mode || typeof G.mode.holdRespawn !== 'function') return;
+    if (m && m.on && !p.alive) {
+      if (!this._holds.has(from)) this._holds.set(from, { pause: m.p !== false, since: nowSec() });
+      else this._holds.get(from).pause = m.p !== false;
+      G.mode.holdRespawn(p, true);
+    } else if (this._holds.delete(from)) G.mode.holdRespawn(p, false);
+  }
+
+  _tickHolds(now) {
+    const G = this.G;
+    for (const [id, h] of this._holds) {
+      const p = this._puppet(id);
+      const over = now - h.since > HOLD_MAX;
+      if (!p || p.alive || over) {
+        this._holds.delete(id);
+        if (p && G.mode && typeof G.mode.holdRespawn === 'function') G.mode.holdRespawn(p, false);
+        continue;
+      }
+      if (h.pause && p.respawnAt != null) p.respawnAt += G.time.dt; // Restzeit steht still (wie der Spieler offline)
+    }
+  }
+
   /** main.spawnActor: vorgemerkte Ausrüstung eines Menschen übernehmen. */
   beforeSpawn(actor) {
+    if (actor && actor.isRemoteHuman && this._holds.delete(actor.netId) && this.G.mode) this.G.mode.holdRespawn(actor, false);
     if (actor && actor.isRemoteHuman && actor.pendingNetLoadout) {
       actor.setNetLoadout(actor.pendingNetLoadout);
       actor.pendingNetLoadout = null;
@@ -358,11 +437,15 @@ export class HostSync {
     p._netSeq = d.seq;
     const e = d.entity;
     const clientAlive = (e.flags & FLAGS.ALIVE) !== 0;
-    const r = this.net.checkState(from, { x: e.x, y: e.y, z: e.z, flags: e.flags }, { alive: p.alive && clientAlive });
+    // Anker nur bei Tod der Puppe neu setzen – meldet der Client „tot“, während sie lebt (Spawn unterwegs), bleibt er
+    const r = this.net.checkState(from, { x: e.x, y: e.y, z: e.z, flags: e.flags }, { alive: p.alive, clientAlive, rtt: this.net.peerRtt(from) / 1000 });
     if (!p.alive || !clientAlive || !r || !r.ok) return; // Rücksetzung/veraltet: Puppe bleibt an der letzten gültigen Stelle
     const np = p._ownPose || (p._ownPose = { pos: [0, 0, 0], vel: [0, 0, 0] });
-    np.pos[0] = e.x; np.pos[1] = e.y; np.pos[2] = e.z;
-    np.vel[0] = e.vx; np.vel[1] = e.vy; np.vel[2] = e.vz;
+    const raw = p._ownRaw || (p._ownRaw = { pos: [0, 0, 0], vel: [0, 0, 0], flags: 0 });
+    raw.pos[0] = np.pos[0] = e.x; raw.pos[1] = np.pos[1] = e.y; raw.pos[2] = np.pos[2] = e.z;
+    raw.vel[0] = np.vel[0] = e.vx; raw.vel[1] = np.vel[1] = e.vy; raw.vel[2] = np.vel[2] = e.vz;
+    raw.flags = e.flags;
+    p._ownAt = nowSec();
     np.yaw = e.yaw; np.pitch = e.pitch; np.flags = e.flags;
     np.weapon = e.weaponId || null; np.lean = e.lean; np.shots = e.shots; np.proneBlend = e.proneBlend;
     p.netPose = np;
@@ -381,11 +464,21 @@ export class HostSync {
     return [...out];
   }
 
-  _ctxFor(p, from, target) {
+  _shooterPos(p) {
+    const raw = p._ownRaw;
+    if (raw && p.netPose === p._ownPose && nowSec() - (p._ownAt || 0) < 1) return raw.pos.slice();
+    return [p.position.x, p.position.y, p.position.z];
+  }
+
+  _ctxFor(p, from, target, m = null) {
     const G = this.G;
     const W = G.world;
     return {
-      shooter: { alive: p.alive, team: p.team, pos: [p.position.x, p.position.y, p.position.z], weapons: this._weaponsOf(p, from) },
+      // Darstellungsverzug des Schützen (Interpolation + Laufzeit der Schnappschüsse), sonst Standard der Prüfung
+      interp: m && Number.isFinite(m.ip) ? Math.max(0, Math.min(1, m.ip)) : undefined,
+      // Schützenposition: zuletzt gemeldeter Zustand (die Puppe übernimmt ihn erst im nächsten Bild – bei langsamen Hosts
+      // läge der Körper sonst ein ganzes Bild zurück), sonst der Körper
+      shooter: { alive: p.alive, team: p.team, pos: this._shooterPos(p), weapons: this._weaponsOf(p, from) },
       target: { alive: target.alive, team: target.team, pos: [target.position.x, target.position.y, target.position.z] },
       los: W && typeof W.lineOfSight === 'function' ? (o, q) => W.lineOfSight(_eye.set(o[0], o[1], o[2]), _v.set(q[0], q[1], q[2])) : undefined,
     };
@@ -410,7 +503,7 @@ export class HostSync {
     }
     const target = this.net.actorById(tid);
     if (!target || target === p) return;
-    const r = this.net.checkHit(from, m, this._ctxFor(p, from, target));
+    const r = this.net.checkHit(from, m, this._ctxFor(p, from, target, m));
     if (!r || !r.ok || !(r.dmg > 0)) return;
     const def = WEAPONS[m.weapon];
     // Treffer je Schuss einmal zählen (Schrot) – wie combat.fireHitscan
@@ -436,7 +529,7 @@ export class HostSync {
     const p = this._puppet(from);
     const target = this.net.actorById(Number(m.target));
     if (!p || !target || target === p) return;
-    const r = this.net.checkHit(from, { ...m, t: 'melee' }, this._ctxFor(p, from, target));
+    const r = this.net.checkHit(from, { ...m, t: 'melee' }, this._ctxFor(p, from, target, m));
     if (!r || !r.ok || !(r.dmg > 0)) return;
     p.getEyePosition(_eye);
     const point = target.position.clone();
@@ -497,7 +590,7 @@ export class HostSync {
     this.net.send('all', {
       t: 'hit', target: t.netId, attacker: a && Number.isInteger(a.netId) ? a.netId : 0, dmg: rnd(e.amount, 1), zone: e.zone || 'body',
       hp: Math.max(0, Math.round(t.health)), weapon: e.weaponId || null, dir: arr3(e.dir, 3), point: arr3(e.point), exp: e.explosive ? 1 : 0,
-      killed: e.killed ? 1 : 0, ar: t.armor ? armorOf(t) : undefined,
+      killed: e.killed ? 1 : 0, ar: t.armor ? armorOf(t) : undefined, st: t.isRemoteHuman ? rnd(this.net.serverTime(), 3) : undefined,
     });
   }
 

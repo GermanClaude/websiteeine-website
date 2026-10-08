@@ -8,11 +8,16 @@
 //   ac.validateHit(peer, claim, ctx)                          // → {ok, dmg, reason, kick}
 //   ac.validateMelee(peer, claim, ctx)                        // → {ok, dmg, reason, kick}
 //
-// Bewegung: Geschwindigkeits-„Budget“ je Client (angesparte Laufstrecke, höchstens budgetWindow Sekunden) – so
-// schlagen gebündelt ankommende Pakete (Latenzschwankung) nicht an, ein Tempo-Hack aber schon. Teleport > 6 m ohne
-// Spawn → Rücksetzung (correct) + Verstoß. Verstöße sind gewichtet und klingen mit der Zeit ab; ab `threshold` wird
-// einmalig onKick(peer, grund, text) gerufen (und das Ergebnis trägt `kick`). Protokoll: ac.log = [{t, peer, reason,
-// text, weight, score}] (für das Host-Menü).
+// Bewegung, zwei Prüfungen je Zustand:
+//   • Schritt: Abstand zum letzten gültigen Zustand ≤ max(teleport, vMax × Δt + slack) – Δt = Host-Zeit seit dem letzten
+//     Zustand (höchstens 1 s). Gebündelt ankommende Pakete sind einzeln kurz; nach Paketverlust/Aussetzern wächst Δt mit.
+//     Ein einzelner Sprung > 6 m (Rutschen ≈ 7 m) ohne Spawn → Rücksetzung (correct) + Verstoß 'teleport'.
+//   • Budget: angesparte Laufstrecke (höchstens budgetWindow Sekunden) gegen Tempo-Hacks über mehrere Pakete ('tempo').
+//   Aufwärts genauso (Schritt > max(teleportUp, Steigtempo × Δt + Stufe) bzw. Steig-Budget → 'steigen'), abwärts freier Fall.
+// Nach Spawn/Rücksetzung gelten Schonfristen + Laufzeit (rtt), Zustände des vorigen Lebens werden still verworfen.
+// Meldet der Client „tot“, während seine Puppe beim Host lebt (Spawn unterwegs), bleibt der Anker unverändert.
+// Verstöße sind gewichtet und klingen mit der Zeit ab; ab `threshold` wird einmalig onKick(peer, grund, text) gerufen
+// (und das Ergebnis trägt `kick`). Protokoll: ac.log = [{t, peer, reason, text, weight, score}] (für das Host-Menü).
 import { damageAt, zoneMult } from '../../shared/weapons.data.js';
 import { FLAGS } from './protocol.js';
 
@@ -35,17 +40,23 @@ export const AC_DEFAULTS = Object.freeze({
   tolerance: 0.35, // Bewegung: Höchsttempo je Zustand + 35 %
   slack: 0.75, // m Zusatz je Prüfung (Rundung, Interpolation)
   budgetWindow: 1.0, // s angesparte Bewegungszeit (gebündelte Pakete, kurze Aussetzer)
-  teleport: 6, // m in einem Schritt ohne Spawn
+  teleport: 6, // m: Mindestgrenze eines einzelnen Schritts (darüber nur, wenn Δt × Tempo es erklärt)
+  teleportUp: 3.5, // m: Mindestgrenze eines einzelnen Schritts nach oben
+  stepWindow: 1.0, // s: höchstens so viel Host-Zeit erklärt einen einzelnen Schritt (Paketverlust, Aussetzer)
   // Höchsttempo (m/s) je Zustand – player.js: Gehen 5,4 · Sprint 8,2 · Ducken 2,6 · Liegen 1,05 · Rutschen +2,9
-  speeds: Object.freeze({ walk: 5.4, sprint: 8.2, crouch: 2.6, prone: 1.05, slide: 11.1, air: 8.2, swim: 4.5 }),
+  // (Hang ≤ 11,8); in der Luft bleibt der Schwung (Rutschsprung ≈ 11 m/s)
+  speeds: Object.freeze({ walk: 5.4, sprint: 8.2, crouch: 2.6, prone: 1.05, slide: 11.1, air: 9.5, swim: 4.5 }),
   boost: 1.25, // Waffen-Tempo (≤ 1,07) × Adrenalin (1,12) × Gefälle
   climb: 8, // m/s aufwärts (Sprung 7,3 m/s, Klettern)
+  climbWindow: 0.5, // s angesparte Steigzeit (Steig-Budget)
   stepUp: 1.2, // m Stufen/Kanten ohne Budget
   fall: 45, // m/s abwärts (freier Fall)
   rpmTolerance: 0.2, // Feuerrate + 20 %
   burst: 3, // Schüsse, die sich durch Paketbündelung stauen dürfen
   hitRadius: 2.5, // m: Ziel muss so nah am gemeldeten Punkt gewesen sein …
-  hitWindow: 0.4, // s: … irgendwann in diesem Zeitfenster (+ Laufzeit des Schützen)
+  hitWindow: 0.4, // s: … irgendwann in diesem Zeitfenster (+ Laufzeit des Schützen + Interpolation beim Schützen)
+  interp: 0.45, // s: Interpolation + Fortschreiben beim Schützen (sync-client: ≤ 0,4 s Puffer), falls ctx.interp fehlt
+  maxRewind: 2, // s: weiter zurück wird nie geprüft (Positionsverlauf des Hosts ≥ so lang)
   targetHeight: 1.9, // m: Zielkörper als senkrechte Strecke ab der Fußposition
   originRadius: 3.5, // m: Schussursprung ↔ bekannte Position des Schützen
   rangeSlack: 1.05,
@@ -55,8 +66,8 @@ export const AC_DEFAULTS = Object.freeze({
   threshold: 20,
   decayPerSec: 0.05, // ≈ 3 Punkte je Minute
   minGap: 0.5, // s: derselbe Verstoß zählt höchstens so oft
-  spawnGrace: 1.0, // s nach Spawn: Zustände des vorigen Lebens still verwerfen
-  correctGrace: 0.75, // s nach Rücksetzung: Abweichungen ohne neuen Verstoß (Nachricht unterwegs)
+  spawnGrace: 1.5, // s nach Spawn: Zustände des vorigen Lebens still verwerfen (+ Laufzeit ctx.rtt; Client-Bild ≤ 1 s)
+  correctGrace: 0.75, // s nach Rücksetzung: Abweichungen ohne neuen Verstoß (Nachricht unterwegs, + Laufzeit ctx.rtt)
   correctRadius: 2.5, // m: so nah an der Rücksetzposition gilt die Rücksetzung als übernommen
   losWindow: 20, // weiche Sichtprüfung: letzte n Treffer …
   losRatio: 0.6, // … davon mindestens dieser Anteil ohne Sicht → Verstoß
@@ -143,7 +154,7 @@ export class AntiCheat {
     let p = this.peers.get(id);
     if (!p) {
       p = {
-        id, pos: null, t: 0, budgetH: 0, budgetUp: 0, score: 0, scoreAt: 0, kicked: false, strikes: 0,
+        id, pos: null, t: 0, flags: 0, budgetH: 0, budgetUp: 0, score: 0, scoreAt: 0, kicked: false, strikes: 0,
         spawnPos: null, spawnAt: -1e9, correctPos: null, correctAt: -1e9, lastStrike: new Map(),
         shotBuckets: new Map(), hitBuckets: new Map(), serials: new Set(), serialOrder: [], los: [],
       };
@@ -209,6 +220,7 @@ export class AntiCheat {
     p.spawnPos = v;
     p.spawnAt = nowSec;
     p.correctPos = null;
+    p.flags = 0; // erster Schritt nach dem Spawn: großzügigstes Tempo (Luft)
     p.budgetH = this._capH(this.opts.speeds.sprint);
     p.budgetUp = this.opts.stepUp;
   }
@@ -241,9 +253,16 @@ export class AntiCheat {
     return speed * o.boost * (1 + o.tolerance) * o.budgetWindow + o.slack;
   }
 
+  _capUp() {
+    const o = this.opts;
+    return o.climb * (1 + o.tolerance) * o.climbWindow + o.stepUp;
+  }
+
   /**
    * Zustand eines Clients prüfen. state: {x,y,z,flags} (decodeState().entity) oder {pos:[x,y,z], flags}.
-   * ctx: { alive?: bool } – tote Spieler werden nicht geprüft (neuer Anker beim nächsten Spawn/Zustand).
+   * ctx: { alive?: bool (Puppe lebt beim Host), clientAlive?: bool (Client meldet „lebt“), rtt?: s }.
+   *   alive === false → nicht geprüft, neuer Anker beim nächsten Spawn/Zustand.
+   *   clientAlive === false bei lebender Puppe (Spawn unterwegs) → verworfen, Anker bleibt.
    * → { ok, reason, correct?: [x,y,z] (Rücksetzposition, Host schickt 'correct'), kick: grund|null }
    */
   onState(id, state, nowSec, ctx = {}) {
@@ -252,43 +271,53 @@ export class AntiCheat {
     const pos = readPos(state);
     if (!pos) return { ok: false, reason: 'ungueltig', kick: this.strike(id, 'ungueltig', nowSec).kick };
     if (ctx.alive === false) { p.pos = null; return { ok: true, reason: 'tot', kick: null }; }
+    if (ctx.clientAlive === false) return { ok: false, reason: 'tot-client', kick: null };
+    const flags = typeof state.flags === 'number' ? state.flags : 0;
     if (!p.pos) {
-      p.pos = pos; p.t = nowSec;
+      p.pos = pos; p.t = nowSec; p.flags = flags;
       p.budgetH = this._capH(o.speeds.sprint); p.budgetUp = o.stepUp;
       return { ok: true, reason: 'anker', kick: null };
     }
+    const rtt = num(ctx.rtt) ? Math.min(1.5, Math.max(0, ctx.rtt)) : 0;
     // Nach einem Spawn kommen noch Zustände aus dem vorigen Leben an – still verwerfen
     if (p.spawnPos) {
-      if (nowSec - p.spawnAt < o.spawnGrace && dist3(pos, p.spawnPos) > o.teleport) return { ok: false, reason: 'veraltet', kick: null };
+      if (nowSec - p.spawnAt < o.spawnGrace + rtt && dist3(pos, p.spawnPos) > o.teleport) return { ok: false, reason: 'veraltet', kick: null };
       p.spawnPos = null;
     }
     // Rücksetzung unterwegs: abwarten, bis der Client sie übernommen hat
     if (p.correctPos) {
       if (dist3(pos, p.correctPos) <= o.correctRadius) {
-        p.pos = pos; p.t = nowSec; p.correctPos = null;
+        p.pos = pos; p.t = nowSec; p.correctPos = null; p.flags = flags;
         p.budgetH = 0; p.budgetUp = o.stepUp;
         return { ok: true, reason: 'korrigiert', kick: null };
       }
-      if (nowSec - p.correctAt < o.correctGrace) return { ok: false, reason: 'korrektur', correct: null, kick: null };
+      if (nowSec - p.correctAt < o.correctGrace + rtt) return { ok: false, reason: 'korrektur', correct: null, kick: null };
       p.correctAt = nowSec;
       const s = this.strike(id, 'korrektur', nowSec);
       return { ok: false, reason: 'korrektur', correct: p.correctPos.slice(), kick: s.kick };
     }
     const dt = Math.min(2, Math.max(0, nowSec - p.t));
-    const speed = this._speedFor(state.flags);
+    // Budget nach dem gemeldeten Zustand; der einzelne Schritt darf bei Übergängen (Sprint → Rutschen, Rutschen →
+    // Sprung) das schnellere der beiden Zustandstempi nutzen
+    const speed = this._speedFor(flags);
     const vMax = speed * o.boost * (1 + o.tolerance);
+    const vStep = Math.max(speed, this._speedFor(p.flags)) * o.boost * (1 + o.tolerance);
     const capH = this._capH(speed);
     const budgetH = Math.min(capH, p.budgetH + vMax * dt);
     const climb = o.climb * (1 + o.tolerance);
-    const budgetUp = Math.min(climb * o.budgetWindow + o.stepUp, p.budgetUp + climb * dt);
+    const budgetUp = Math.min(this._capUp(), p.budgetUp + climb * dt);
     const hd = distH(pos, p.pos);
     const dy = pos[1] - p.pos[1];
+    const stepDt = Math.min(o.stepWindow, dt);
+    const stepH = Math.max(o.teleport, vStep * stepDt + o.slack);
+    const stepUp = Math.max(o.teleportUp, climb * stepDt + o.stepUp + o.slack);
     // Budget darf ins Minus gehen (Defizit bleibt bestehen) – erst unter −slack ist es ein Verstoß
     const afterH = budgetH - hd;
     const afterUp = budgetUp - Math.max(0, dy);
     let reason = null;
-    if (hd > o.teleport && afterH < -o.slack) reason = 'teleport';
+    if (hd > stepH) reason = 'teleport';
     else if (-dy > o.fall * dt + o.teleport) reason = 'teleport';
+    else if (dy > stepUp) reason = 'steigen';
     else if (afterH < -o.slack) reason = 'tempo';
     else if (afterUp < -o.slack) reason = 'steigen';
     if (reason) {
@@ -297,13 +326,14 @@ export class AntiCheat {
       p.t = nowSec;
       p.budgetH = Math.max(0, budgetH);
       p.budgetUp = Math.max(0, budgetUp);
-      const s = this.strike(id, reason, nowSec, { dist: Math.round(hd * 100) / 100, dt: Math.round(dt * 1000) / 1000 });
+      const s = this.strike(id, reason, nowSec, { dist: Math.round(Math.hypot(hd, dy) * 100) / 100, dt: Math.round(dt * 1000) / 1000 });
       return { ok: false, reason, correct: p.correctPos.slice(), kick: s.kick };
     }
     p.budgetH = afterH;
     p.budgetUp = afterUp;
     p.pos = pos;
     p.t = nowSec;
+    p.flags = flags;
     return { ok: true, reason: 'ok', kick: null };
   }
 
@@ -345,6 +375,17 @@ export class AntiCheat {
     if (h && typeof h.range === 'function') return h.range(targetId, t0, t1);
     const tp = ctx.target && readPos(ctx.target.pos || ctx.target.position || null);
     return tp ? [{ t: t1, x: tp[0], y: tp[1], z: tp[2] }] : [];
+  }
+
+  /**
+   * Wie weit der Zielverlauf zurück geprüft wird (s): Grundfenster + Laufzeit des Schützen (rtt, Hin- und Rückweg) +
+   * seine Interpolation/Fortschreibung (ctx.interp) – der Schütze sah das Ziel so weit in der Vergangenheit.
+   */
+  _rewind(ctx) {
+    const o = this.opts;
+    const rtt = num(ctx.rtt) ? Math.min(1, Math.max(0, ctx.rtt)) : 0;
+    const interp = num(ctx.interp) ? Math.min(1, Math.max(0, ctx.interp)) : o.interp;
+    return Math.min(o.maxRewind, o.hitWindow + rtt + interp);
   }
 
   _reject(id, reason, nowSec, detail) {
@@ -415,8 +456,7 @@ export class AntiCheat {
     if (dist > (def.range || 0) * o.rangeSlack + 1) return this._reject(id, 'reichweite', nowSec, Math.round(dist));
     const shooterPos = ctx.shooter && readPos(ctx.shooter.pos || ctx.shooter.position || null);
     if (shooterPos && distToBody(origin, shooterPos, o.targetHeight) > o.originRadius) return this._reject(id, 'herkunft', nowSec);
-    const rtt = num(ctx.rtt) ? Math.min(1, Math.max(0, ctx.rtt)) : 0;
-    const samples = this._history(ctx, claim.target, nowSec - o.hitWindow - rtt, nowSec);
+    const samples = this._history(ctx, claim.target, nowSec - this._rewind(ctx), nowSec);
     if (samples.length) {
       let best = Infinity;
       for (const s of samples) best = Math.min(best, distToBody(point, readPos(s), o.targetHeight));
@@ -458,8 +498,7 @@ export class AntiCheat {
     if (common) return common;
     const shooterPos = ctx.shooter && readPos(ctx.shooter.pos || ctx.shooter.position || null);
     if (shooterPos) {
-      const rtt = num(ctx.rtt) ? Math.min(1, Math.max(0, ctx.rtt)) : 0;
-      const samples = this._history(ctx, claim.target, nowSec - o.hitWindow - rtt, nowSec);
+      const samples = this._history(ctx, claim.target, nowSec - this._rewind(ctx), nowSec);
       if (samples.length) {
         let best = Infinity;
         for (const s of samples) best = Math.min(best, distH(shooterPos, readPos(s)));

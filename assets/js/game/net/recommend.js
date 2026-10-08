@@ -1,10 +1,26 @@
-// NULLPUNKT – Mehrspieler: Empfehlung für die maximale Spielerzahl eines Hosts (Vertrag §9).
+// NULLPUNKT – Mehrspieler: Empfehlung für die maximale Spielerzahl eines Hosts (Vertrag §9, kalibriert §13).
 // Grundlage: Kerne (navigator.hardwareConcurrency), Speicher (navigator.deviceMemory, falls vorhanden), gemessene
 // Bildrate und gemessener Upload (gesendete Bytes/s vs. Stau im Sendepuffer). Vor der ersten Upload-Messung
-// konservativ 8. Bandbreite pro Spielerzahl n ≈ 20 Hz × (n − 1) × n × 40 Byte (Snapshots an n − 1 Clients).
-// Reine Logik – UpdateMeter misst, recommend() rechnet; beides ohne DOM prüfbar.
+// konservativ 8.
+//
+// Bandbreite (Lasttest tools/mp-load-test.mjs, §13): der Host schickt jedem der n − 1 Clients
+//   je Schnappschuss (20 Hz): 11 Byte Kopf + 60 Byte Paketkopf (IP/UDP/DTLS/SCTP) + Akteure × 31 Byte × Anteil
+//   (Interessenfilter ab 12 Akteuren: ferne/tote nur 5 Hz → gemessen INTEREST_SHARE der Akteure je Schnappschuss)
+//   + zuverlässige Nachrichten (Treffer, Abschüsse, Modus, Akteursliste, Ping) ≈ RELIABLE_BYTES je Client.
+//   upload(n, A) = (n − 1) × [20 × (71 + A × 31 × anteil(A)) + RELIABLE_BYTES], A = Akteure im Match (Bots füllen auf:
+//   mit Bot-Auffüllung 2 × teamSize, sonst n). Beispiel 13 Menschen, 32 Akteure: 12 × ≈ 16,6 KB/s ≈ 199 KB/s.
+// Reine Logik – UploadMeter misst, recommend() rechnet; beides ohne DOM prüfbar.
 
 export const SNAPSHOT_HZ = 20;
+export const SNAPSHOT_HEADER = 11;
+export const ENTITY_BYTES = 31;
+export const PACKET_OVERHEAD = 60;
+/** Interessenfilter (sync-host.js): ab so vielen Akteuren; gemessener Anteil der Akteure je Schnappschuss (Hafen, 32). */
+export const INTEREST_MIN = 12;
+export const INTEREST_SHARE = 0.72;
+/** Gemessen: zuverlässige Nachrichten je Client (Byte/s inkl. Paketkopf). */
+export const RELIABLE_BYTES = 1400;
+/** Mittlere Byte je Akteur und Schnappschuss (Kopf umgelegt) – nur noch zur Anzeige/Kompatibilität. */
 export const BYTES_PER_ENTITY = 40;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 32;
@@ -13,17 +29,26 @@ export const UNMEASURED_MAX = 8;
 /** Anteil des gemessenen Uploads, den das Spiel höchstens belegen soll (Rest: Zuverlässiges, Schwankungen). */
 const HEADROOM = 0.8;
 
-/** Benötigter Upload des Hosts (Byte/s) bei n Spielern (entities = Akteure je Snapshot, Standard n). */
-export function bandwidthFor(n, { hz = SNAPSHOT_HZ, bytes = BYTES_PER_ENTITY, entities = n } = {}) {
-  return hz * Math.max(0, n - 1) * Math.max(0, entities) * bytes;
+/** Upload des Hosts je Client (Byte/s) bei `actors` Akteuren im Match. */
+export function clientBytes(actors, { hz = SNAPSHOT_HZ } = {}) {
+  const a = Math.max(0, actors);
+  const share = a >= INTEREST_MIN ? INTEREST_SHARE : 1;
+  return hz * (SNAPSHOT_HEADER + PACKET_OVERHEAD + a * ENTITY_BYTES * share) + RELIABLE_BYTES;
 }
 
-/** Größte Spielerzahl, deren Bandbreite in `bytesPerSec` passt (mindestens 2). */
-export function maxPlayersForUpload(bytesPerSec, { headroom = HEADROOM, entitiesFor = null } = {}) {
+/** Benötigter Upload des Hosts (Byte/s) bei n Spielern; actors = Akteure im Match (mindestens n, Bots füllen auf). */
+export function bandwidthFor(n, { hz = SNAPSHOT_HZ, actors = n, entities = null } = {}) {
+  const a = Math.max(n, Number.isFinite(entities) ? entities : actors || 0);
+  return Math.max(0, n - 1) * clientBytes(a, { hz });
+}
+
+/** Größte Spielerzahl, deren Bandbreite in `bytesPerSec` passt (mindestens 2). actors = Akteure im Match (Bots). */
+export function maxPlayersForUpload(bytesPerSec, { headroom = HEADROOM, actors = 0, entitiesFor = null } = {}) {
   const budget = Math.max(0, bytesPerSec) * headroom;
   let n = MIN_PLAYERS;
   for (let k = MIN_PLAYERS + 1; k <= MAX_PLAYERS; k++) {
-    if (bandwidthFor(k, { entities: entitiesFor ? entitiesFor(k) : k }) <= budget) n = k; else break;
+    const a = entitiesFor ? entitiesFor(k) : Math.max(k, actors || 0);
+    if (bandwidthFor(k, { actors: a }) <= budget + 1e-6) n = k; else break;
   }
   return n;
 }
@@ -53,10 +78,11 @@ export function maxPlayersForDevice({ cores = null, memory = null, fps = null } 
 
 /**
  * Empfehlung. upload: {rate (Byte/s, gemessen gesendet), congested (Stau im Sendepuffer), measured, players
- * (Spieler während der Messung)} · connection: navigator.connection-Hinweise {effectiveType, saveData}.
+ * (Spieler während der Messung)} · connection: navigator.connection-Hinweise {effectiveType, saveData} ·
+ * actors: Akteure im Match (Bot-Auffüllung 2 × teamSize; 0 = nur Menschen).
  * → {max, reason, upload (Byte/s|null), fps, cores, memory, measured}
  */
-export function recommend({ cores = null, memory = null, fps = null, upload = null, connection = null } = {}) {
+export function recommend({ cores = null, memory = null, fps = null, upload = null, connection = null, actors = 0 } = {}) {
   const dev = maxPlayersForDevice({ cores, memory, fps });
   let max = dev.max;
   let reason = dev.why ? `Begrenzt durch ${dev.why}` : 'Gerät leistungsstark genug';
@@ -70,8 +96,8 @@ export function recommend({ cores = null, memory = null, fps = null, upload = nu
     // vorsichtig hochrechnen (×2), aber nie unter den Startwert 8 oder die Spielerzahl, die ohne Stau lief (wenig
     // Verkehr beweist keine Grenze).
     let net;
-    if (upload.congested) net = maxPlayersForUpload(upload.rate);
-    else net = Math.max(UNMEASURED_MAX, maxPlayersForUpload(upload.rate * 2), Number.isFinite(upload.players) ? upload.players : 0);
+    if (upload.congested) net = maxPlayersForUpload(upload.rate, { actors });
+    else net = Math.max(UNMEASURED_MAX, maxPlayersForUpload(upload.rate * 2, { actors }), Number.isFinite(upload.players) ? upload.players : 0);
     if (net < max) {
       max = net;
       const kbit = Math.round((upload.rate * 8) / 1000);
@@ -91,7 +117,11 @@ export function recommend({ cores = null, memory = null, fps = null, upload = nu
  * Verkehr (≥ minRate Byte/s, also z. B. während eines Matches); Stau = Sendepuffer wächst mehrfach hintereinander.
  */
 export class UploadMeter {
-  constructor({ minRate = 3000, minSamples = 5, congestBytes = 64 * 1024 } = {}) {
+  constructor({ minRate = 3000, minSamples = 5, congestBytes = 64 * 1024, peakWindow = 3 } = {}) {
+    // Bestwert nur über Fenster ≥ peakWindow s: ein langes Bild schickt viel auf einmal, das danach kurze Messintervall
+    // überschätzte sonst den Upload um ein Vielfaches (Lasttest §13: 529 statt 46 KB/s bei 1,6 FPS)
+    this.peakWindow = peakWindow;
+    this.recent = [];
     this.minRate = minRate;
     this.minSamples = minSamples;
     this.congestBytes = congestBytes;
@@ -128,11 +158,23 @@ export class UploadMeter {
     else if (buffered < this.congestBytes / 2) this.growing = 0;
     if (this.growing >= 2) this.congested = true;
     else if (this.growing === 0) this.congested = false;
+    // tatsächlich abgeflossen = gesendet − Pufferzuwachs
+    const drainedBytes = Math.max(0, sent - Math.max(0, growth));
+    this.recent.push({ b: drainedBytes, dt });
+    let wb = 0;
+    let wt = 0;
+    for (let i = this.recent.length - 1; i >= 0; i--) {
+      wb += this.recent[i].b;
+      wt += this.recent[i].dt;
+      if (wt >= this.peakWindow) { this.recent.splice(0, i); break; }
+    }
     if (sent / dt >= this.minRate) {
-      // tatsächlich abgeflossen = gesendet − Pufferzuwachs
-      const drained = Math.max(0, sent - Math.max(0, growth)) / dt;
-      this.rate = this.rate ? this.rate * 0.7 + drained * 0.3 : drained;
-      this.peak = Math.max(this.peak, drained);
+      // über das Fenster gemittelt (Bündel aus langen Bildern verteilen sich); erst ab einem vollen Fenster
+      if (wt >= this.peakWindow) {
+        const windowed = wb / wt;
+        this.rate = this.rate ? this.rate * 0.7 + windowed * 0.3 : windowed;
+        this.peak = Math.max(this.peak, windowed);
+      }
       this.samples++;
       if (Number.isFinite(players)) this.players = Math.max(this.players || 0, players);
     }

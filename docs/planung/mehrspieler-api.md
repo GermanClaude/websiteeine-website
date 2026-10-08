@@ -261,3 +261,45 @@ ICONS added: link, copy, swap, userX, userPlus, signal, bolt, door.
 - Module-internal helper `flushRanges(attr, n, min, max, size)`. It merges update ranges three.js has not uploaded yet instead of discarding them.
 - DEBRIS_TIERS unchanged: shells 150 / 400 / 1000 / 2000.
 
+
+## Härtetest (Schritt 3, 08.10.) – Ergänzungen
+
+**Netz-Chaos (nur Prüfläufe)** – `net/index.js`: `chaosFromUrl(search)` liest `?netlag=<ms>&netjitter=<ms>&netloss=<%>`;
+`NetSystem.chaos` = `{lag, jitter, loss}` oder `null` (dann bleibt jede Verbindung unverändert). Mit Chaos ersetzt
+`LinkChaos` an jeder PeerLink-Instanz `sendRel`/`sendFast`/`close` (auch Ping/Pong und Zeitabgleich):
+zuverlässig = Laufzeit lag ± jitter, Reihenfolge bleibt, „Verlust“ = Wiederholung (+ max(200 ms, 2 × lag), alle folgenden
+warten), nie verworfen; schnell = Laufzeit je Paket (Reihenfolge darf kippen), Anteil `loss` verworfen; `close` wartet auf
+die Warteschlange. Abgearbeitet per Zeitgeber + jedes Bild (`preUpdate`). Prüfwerkzeuge: `tools/mp-test.mjs --params="…"`,
+`tools/mp-load-test.mjs --params="…"`, `dev/fake-client.html?…&netlag=…`.
+
+**Neue/erweiterte Nachrichten**
+- Client → Host `hold` {on, p} – Wiedereinstieg anhalten („Ausrüsten“ im Todesbildschirm, p = Restzeit steht) bzw. freigeben
+  („Einsatz“). Host: `mode.holdRespawn(puppe)`, höchstens 30 s, endet mit jedem Spawn. Client meldet es selbst über
+  `respawn:hold`; Ausrüstungswechsel im Match (`loadout:change` des Spielers) gehen als `loadout` an den Host.
+- `hit`/`melee` (Client → Host) tragen `ip` = Darstellungsverzug des Schützen in s (`ClientSync.viewDelay()` =
+  serverTime − Wiedergabezeit); der Host prüft den Zielverlauf `hitWindow + rtt + ip` (≤ 2 s) zurück.
+- `hit` (Host → Clients) trägt bei Menschen `st` (Host-Zeit): ältere Schnappschüsse setzen die eigenen Lebenspunkte nicht zurück.
+- `mode` trägt `st` (Host-Zeit): der Client verkürzt die Restzeit um die Laufzeit.
+- `hold` und `plate` sind reserviert (keine Weiterleitung an andere Clients).
+
+**Anti-Cheat** – `onState(peer, state, now, ctx)`: ctx `{alive (Puppe beim Host), clientAlive (Client meldet lebt), rtt (s)}`.
+Schrittgrenze je Zustand `max(teleport 6 m, vMax × min(Δt, 1 s) + slack)` (vMax des schnelleren Zustands vorher/jetzt),
+nach oben `max(teleportUp 3,5 m, Steigtempo × Δt + Stufe + slack)`, Budget wie bisher (Tempo-Hacks). `clientAlive === false`
+bei lebender Puppe → `{ok:false, reason:'tot-client'}`, Anker bleibt. Schonfristen `spawnGrace` (1,5 s) und `correctGrace`
+(0,75 s) jeweils + rtt. Treffer: `ctx.interp` (s, Standard 0,45), `opts.maxRewind` 2 s; `PositionHistory` des Hosts 2,5 s.
+
+**HostSync** – Puppen der Clients werden zwischen zwei Zuständen höchstens 50 ms mit der gemeldeten Geschwindigkeit
+fortgeschrieben. Interessenfilter der Schnappschüsse ab 12 Akteuren: je Empfänger nah (≤ 60 m vom eigenen Körper) + eigener
+Eintrag jeden Takt, ferne und tote Akteure jeden 4. Takt (5 Hz, je Akteur versetzt); `?netinterest=0` schaltet ihn ab
+(Vergleichsmessung). `sync.snapStats` {sent, bytes, ents, full}.
+
+**ClientSync** – Wiedergabe-Uhr `clock` {off, jit, buf, rt}: off = max(Stempel − Ankunft) (gibt 0,02 s/s nach), Puffer
+`clamp(1,25 × Paketabstand + 2,5 × Schwankung + 20 ms, 0,1, 0,4)`, rt folgt mit ±12 %. Je Akteur `list.gap`: seltener
+gesendete Akteure um (gap − Paketabstand) × 1,1 weiter zurück. Glättungsversatz (klingt mit 10/s ab, ab 3 m gesetzt).
+Leben im Puffer abgegrenzt (Einträge nach dem ersten toten gelten erst nach dem nächsten Spawn); Lebend-Abgleich nach
+0,35 s + rtt, auch für Tod + Wiedereinstieg zwischen zwei Meldungen; verspätete `kill`/`spawn` eines schon nachgeholten
+Lebens ändern nichts mehr (nur Abschussliste).
+
+**recommend.js** – `clientBytes(actors)`, `bandwidthFor(n, {actors})`, `maxPlayersForUpload(rate, {actors})`,
+`recommend({…, actors})`; Konstanten `SNAPSHOT_HEADER`, `ENTITY_BYTES`, `PACKET_OVERHEAD`, `INTEREST_MIN`, `INTEREST_SHARE`,
+`RELIABLE_BYTES` (gemessen, §13). `NetSystem.recommendation()` rechnet mit 2 × teamSize Akteuren, wenn Bots auffüllen.

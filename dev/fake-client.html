@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NULLPUNKT – Last-Client</title>
+<!-- three nur für world/weather.js (über net/index.js), kein WebGL, kein Spiel -->
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+<style>
+  body { font: 13px/1.4 system-ui, sans-serif; background: #111; color: #ddd; margin: 12px; }
+  pre { white-space: pre-wrap; word-break: break-word; }
+</style>
+</head>
+<body>
+<h1>Last-Client (NetSystem ohne Spiel)</h1>
+<p>Für <code>node tools/mp-load-test.mjs</code>: tritt einem Raum bei wie ein echter Client ('join' → 'loadout' → 'ready'),
+schickt danach 30 Hz Zustände (PKT_STATE) mit glaubhafter Bewegung (kleiner Kreis im Gehtempo ab dem Spawnpunkt des Hosts,
+Bodenhöhe aus 'spawn') und ab und zu Treffermeldungen auf feindliche Akteure aus den Schnappschüssen.
+Steuerung: <code>window.__fake</code> (join(code), leave(), stats()). Parameter: <code>?name=Fake01&amp;relays=ws://127.0.0.1:7777</code>,
+optional <code>&amp;netlag=…</code> (Netz-Chaos wie im Spiel), <code>&amp;radius=3&amp;speed=4.2&amp;hits=1</code>.</p>
+<pre id="log"></pre>
+<script type="module">
+import { EventBus } from '../assets/js/game/engine/events.js';
+import { NetSystem } from '../assets/js/game/net/index.js';
+import { PKT_SNAPSHOT, decodeSnapshot, encodeState, packetType, FLAGS } from '../assets/js/game/net/protocol.js';
+import { WEAPONS, damageAt } from '../assets/js/shared/weapons.data.js';
+
+const q = new URLSearchParams(location.search);
+const name = q.get('name') || 'Last';
+const RADIUS = Number(q.get('radius')) || 3; // m
+const SPEED = Number(q.get('speed')) || 4.2; // m/s (Gehen: 5,4)
+const HITS = q.get('hits') !== '0';
+const out = document.getElementById('log');
+const log = (...a) => { out.textContent += a.join(' ') + '\n'; if (out.textContent.length > 20000) out.textContent = out.textContent.slice(-10000); };
+const loadout = { cls: 'sturm', primary: 'ar_m17', secondary: 'pi_p9', lethal: 'frag', tactical: 'flash', melee: 'knife' };
+const store = { playerName: name, lastClass: 'sturm', realisticCrosshair: false, lastLoadout: loadout };
+const G = {
+  events: new EventBus(),
+  settings: { get: (k) => store[k], set: (k, v) => { store[k] = v; return v; } },
+  profile: { get: () => ({ name, level: 5 }), stats: () => ({ level: 5, kd: 1 }) },
+  actors: [], match: { state: 'lobby' }, menus: null, modules: {},
+};
+const net = new NetSystem(G);
+
+// ------------------------------------------------------------------ Zustand
+const st = {
+  inMatch: false, alive: false, ended: false, team: null, ffa: false,
+  pos: [0, 0, 0], center: [0, 0, 0], angle: 0, dir: 1, yaw: 0, shots: 0, seq: 0, serial: 0,
+  spawns: 0, deaths: 0, corrects: 0, kills: 0, claims: 0, confirmed: 0, hitsTaken: 0,
+  ids: new Map(), snap: null, snapAt: 0,
+  bytesIn: 0, fastIn: 0, relIn: 0, snaps: 0, snapBytes: 0, snapEnts: 0, sent: 0, sentBytes: 0, errors: [],
+  t0: performance.now(),
+};
+window.__fake = { net, st, log, stats, join, leave };
+window.addEventListener('error', (e) => st.errors.push(String(e.message)));
+window.addEventListener('unhandledrejection', (e) => st.errors.push(String(e.reason && e.reason.message || e.reason)));
+
+// ------------------------------------------------------------------ Netz
+net.startGame = (cfg) => {
+  // „Laden“ ohne Welt: sofort bereit (Ausrüstung melden wie main.js nach warmUp, dann 'ready')
+  st.inMatch = true;
+  st.ended = false;
+  st.alive = false;
+  st.ffa = !!(cfg && cfg.net && cfg.net.ffa);
+  st.team = st.ffa ? null : (cfg && cfg.net && cfg.net.team) || null;
+  log('start', cfg && cfg.modeId, cfg && cfg.mapId, 'Team', st.team);
+  setTimeout(() => {
+    net.setLoadout({ cls: loadout.cls, loadout });
+    net.markReady();
+  }, 300 + Math.random() * 400);
+};
+net.on('actors', (m) => { if (m && Array.isArray(m.list)) { st.ids = new Map(m.list.map((e) => [e.id, e])); const me = st.ids.get(net.selfId); if (me && !st.ffa) st.team = me.t; } });
+net.on('spawn', (m) => {
+  if (!m || m.id !== net.selfId || !Array.isArray(m.pos)) return;
+  st.alive = true;
+  st.spawns++;
+  st.pos = m.pos.slice();
+  // Kreis beginnt am Spawnpunkt: Mittelpunkt RADIUS m daneben, Richtung zufällig
+  st.angle = Math.random() * Math.PI * 2;
+  st.dir = Math.random() < 0.5 ? -1 : 1;
+  st.center = [m.pos[0] - Math.cos(st.angle) * RADIUS, m.pos[1], m.pos[2] - Math.sin(st.angle) * RADIUS];
+  st.yaw = Number(m.yaw) || 0;
+});
+net.on('kill', (m) => {
+  if (!m) return;
+  if (m.victim === net.selfId) { st.alive = false; st.deaths++; }
+  if (m.killer === net.selfId && m.victim !== net.selfId) st.kills++;
+});
+net.on('hit', (m) => {
+  if (!m) return;
+  if (m.attacker === net.selfId) st.confirmed++;
+  if (m.target === net.selfId) st.hitsTaken++;
+});
+net.on('correct', (m) => {
+  if (!m || !Array.isArray(m.pos)) return;
+  st.corrects++;
+  st.pos = m.pos.slice();
+  st.center = [m.pos[0] - Math.cos(st.angle) * RADIUS, m.pos[1], m.pos[2] - Math.sin(st.angle) * RADIUS];
+  log('correct', JSON.stringify(m.pos));
+});
+net.on('end', () => { st.ended = true; st.inMatch = false; st.alive = false; });
+net.on('*', (m) => { try { const n = JSON.stringify(m).length; st.relIn += n; st.bytesIn += n; } catch { /* */ } });
+net.onFast((buf) => {
+  st.fastIn += buf.byteLength;
+  st.bytesIn += buf.byteLength;
+  if (packetType(buf) !== PKT_SNAPSHOT) return;
+  const d = decodeSnapshot(buf);
+  if (!d) return;
+  st.snaps++;
+  st.snapBytes += buf.byteLength;
+  st.snapEnts += d.entities.length;
+  if (!st.snap || d.tick > st.snap.tick) { st.snap = d; st.snapAt = performance.now(); }
+});
+
+// ------------------------------------------------------------------ 30 Hz: Bewegung + Zustand (Worker-Takt – Zeitgeber im Hauptthread werden gedrosselt)
+const wantDef = WEAPONS[loadout.primary];
+let lastTick = performance.now();
+let nextClaimAt = performance.now() + 3000 + Math.random() * 3000;
+const state = {};
+function tick() {
+  const now = performance.now();
+  const dt = Math.min(0.25, (now - lastTick) / 1000);
+  lastTick = now;
+  if (!net.online || !st.inMatch) return;
+  if (st.alive) {
+    st.angle += (st.dir * SPEED * dt) / RADIUS;
+    const x = st.center[0] + Math.cos(st.angle) * RADIUS;
+    const z = st.center[2] + Math.sin(st.angle) * RADIUS;
+    const vx = (x - st.pos[0]) / Math.max(1e-3, dt);
+    const vz = (z - st.pos[2]) / Math.max(1e-3, dt);
+    st.pos = [x, st.center[1], z];
+    if (Math.hypot(vx, vz) > 0.1) st.yaw = Math.atan2(-vx, -vz);
+    Object.assign(state, { x, y: st.center[1], z, vx, vy: 0, vz, yaw: st.yaw, pitch: 0, flags: FLAGS.ALIVE | FLAGS.ON_GROUND, weapon: loadout.primary, lean: 0, shots: st.shots, proneBlend: 0 });
+  } else {
+    Object.assign(state, { x: st.pos[0], y: st.pos[1], z: st.pos[2], vx: 0, vy: 0, vz: 0, yaw: st.yaw, pitch: 0, flags: FLAGS.ON_GROUND, weapon: loadout.primary, lean: 0, shots: st.shots, proneBlend: 0 });
+  }
+  const buf = encodeState(++st.seq, net.serverTime(), state);
+  if (net.sendFast(1, buf)) { st.sent++; st.sentBytes += buf.byteLength; }
+  if (HITS && st.alive && now >= nextClaimAt) { nextClaimAt = now + 3000 + Math.random() * 4000; claimHits(); }
+}
+const workerUrl = URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 33);'], { type: 'text/javascript' }));
+const ticker = new Worker(workerUrl);
+ticker.onmessage = tick;
+
+/** Ein paar Treffermeldungen auf einen feindlichen Akteur aus dem letzten Schnappschuss (nächster in Reichweite). */
+function claimHits() {
+  const d = st.snap;
+  if (!d || performance.now() - st.snapAt > 1000 || !wantDef) return;
+  const me = st.pos;
+  let best = null;
+  let bestD = Infinity;
+  for (const e of d.entities) {
+    if (e.id === net.selfId || !(e.flags & FLAGS.ALIVE)) continue;
+    const info = st.ids.get(e.id);
+    if (!st.ffa && (!info || !info.t || info.t === st.team)) continue;
+    const dd = Math.hypot(e.x - me[0], e.y - me[1], e.z - me[2]);
+    if (dd < bestD && dd < (wantDef.range || 60) * 0.8) { best = e; bestD = dd; }
+  }
+  if (!best) return;
+  const n = 1 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < n; i++) {
+    setTimeout(() => {
+      if (!st.alive) return;
+      const origin = [st.pos[0], st.pos[1] + 1.6, st.pos[2]];
+      const point = [best.x, best.y + 1.2, best.z];
+      const dist = Math.hypot(point[0] - origin[0], point[1] - origin[1], point[2] - origin[2]);
+      st.shots = (st.shots + 1) & 255;
+      st.serial++;
+      st.claims++;
+      net.send(1, {
+        t: 'hit', target: best.id, zone: 'body', dmg: Math.round(damageAt(wantDef, dist) * 100) / 100, weapon: wantDef.id,
+        dist: Math.round(dist * 100) / 100, origin, point, serial: st.serial, pellet: 0,
+        ip: Math.round(Math.min(1, (performance.now() - st.snapAt) / 1000 + 0.05) * 1000) / 1000, // so alt war das gesehene Ziel
+      });
+    }, i * 140);
+  }
+}
+
+// ------------------------------------------------------------------ Steuerung
+async function join(code) {
+  try {
+    const r = await net.join(code, { name });
+    log('beigetreten', JSON.stringify(r));
+    return { ok: true, id: r.id, team: r.team };
+  } catch (err) {
+    log('Beitritt gescheitert', err.code || err.message);
+    return { ok: false, code: err.code || String(err.message) };
+  }
+}
+function leave() { net.leave('verlassen'); st.inMatch = false; st.alive = false; }
+function stats() {
+  const sec = (performance.now() - st.t0) / 1000;
+  return {
+    id: net.selfId, online: net.online, inMatch: st.inMatch, alive: st.alive, ended: st.ended, team: st.team,
+    spawns: st.spawns, deaths: st.deaths, kills: st.kills, corrects: st.corrects, claims: st.claims, confirmed: st.confirmed, hitsTaken: st.hitsTaken,
+    bytesIn: st.bytesIn, fastIn: st.fastIn, relIn: st.relIn, snaps: st.snaps, snapBytes: st.snapBytes, snapEnts: st.snapEnts,
+    sent: st.sent, sentBytes: st.sentBytes, sec, rtt: Math.round(net.peerRtt(1)), errors: st.errors.slice(0, 5),
+  };
+}
+log('bereit:', name, 'Relays', net.relays.join(', '));
+st.ready = true;
+</script>
+</body>
+</html>

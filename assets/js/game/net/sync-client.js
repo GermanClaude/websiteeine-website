@@ -2,9 +2,14 @@
 //
 // Der Client simuliert nur seinen eigenen Spieler. Alles andere sind Puppen (BotManager.spawnPuppet) aus der Akteursliste
 // ('actors') und den Schnappschüssen des Hosts; der Modus läuft als Abbild (mode.applyNetState). ClientSync:
-//   • Schnappschüsse puffern und je Puppe ~100–400 ms hinter der Host-Zeit interpolieren (puppet.netPose vor G.bots.update);
-//     eigener Eintrag → maßgebliche Lebenspunkte. Tod/Spawn kommen als 'kill'/'spawn'; fehlt eine Meldung, gleicht der
-//     Lebend-Zustand der Schnappschüsse ab.
+//   • Schnappschüsse puffern und je Puppe interpolieren (puppet.netPose vor G.bots.update). Wiedergabe-Uhr aus den
+//     Zeitstempeln der Schnappschüsse selbst (nicht aus serverTime – die Laufzeit Host → Client steckt so nicht im Puffer):
+//     rt = jetzt + max(Stempel − Ankunft) − Puffer, Puffer = 1,25 × Paketabstand + 2,5 × Ankunftsschwankung + 20 ms
+//     (0,1…0,4 s), die Uhr läuft mit ±12 % nach. Höchstens 0,25 s fortschreiben; Sprünge in der Rohposition (Korrektur
+//     nach dem Fortschreiben) glättet ein abklingender Versatz (≈ 0,1 s), ab 3 m wird gesetzt (Spawn/Teleport).
+//     Eigener Eintrag → maßgebliche Lebenspunkte. Tod/Spawn kommen als 'kill'/'spawn'; Einträge nach dem ersten toten
+//     Eintrag gehören zum nächsten Leben und gelten erst nach dessen Spawn; fehlt eine Meldung, gleicht der
+//     Lebend-Zustand der Schnappschüsse ab (nach 0,35 s + Laufzeit).
 //   • Eigener Spieler: wartet bis 'spawn' (G.spawnActor mit vorgegebenem Ort), schickt 30 Hz PKT_STATE, folgt 'correct'.
 //   • Schaden: combat.damage ruft claimDamage – eigene Treffer auf Puppen → 'hit'/'melee' an den Host + vorhergesagte
 //     Trefferanzeige; Sturz/Welt → Meldung an sich selbst; alles andere wirkt nicht (der Host entscheidet).
@@ -22,7 +27,12 @@ const nowSec = () => performance.now() / 1000;
 const ENV_GAP = 0.4;
 const MAX_SAMPLES = 40;
 const EXTRAPOLATE = 0.25; // s über den letzten Schnappschuss hinaus fortschreiben
-const RECONCILE = 0.35; // s: so lange muss der Lebend-Zustand der Schnappschüsse abweichen, bevor er gilt
+const RECONCILE = 0.35; // s (+ Laufzeit): so lange muss der Lebend-Zustand der Schnappschüsse abweichen, bevor er gilt
+const OFF_DECAY = 0.02; // s/s: Zeitbezug gibt langsam nach (Laufzeit wächst) – schnellere Pakete heben ihn sofort
+const CLOCK_STEER = 0.12; // Wiedergabe-Uhr läuft höchstens ±12 % schneller/langsamer, um aufzuholen
+const SMOOTH_K = 10; // 1/s: Abklingen des Glättungsversatzes
+const SMOOTH_MIN = 0.04; // m: kleinere Abweichungen von der erwarteten Bewegung sind Bewegung, keine Korrektur
+const SNAP = 3; // m: darüber wird gesetzt statt geglättet (Spawn, Rücksetzung)
 const _eye = new THREE.Vector3();
 const _aim = new THREE.Vector3();
 
@@ -54,6 +64,9 @@ export class ClientSync {
     this.modeState = null;
     this.self = null; // letzter eigener Schnappschuss-Eintrag {t, e}
     this._mismatch = new Map(); // netId → seit wann der Lebend-Zustand abweicht
+    this._smooth = new Map(); // netId → Glättung {x,y,z Versatz, rx,ry,rz letzte Rohposition}
+    /** Wiedergabe-Uhr: off = max(Stempel − Ankunft), jit = Ankunftsschwankung, buf = Puffer, rt = Wiedergabezeit (Host-Zeit). */
+    this.clock = { off: null, jit: 0.005, buf: INTERP_MIN, rt: null, lastArr: 0, lastNow: null };
     this._snapGap = 0.05;
     this._lastSnapT = null;
     this._snapAt = 0;
@@ -75,6 +88,20 @@ export class ClientSync {
       net.on('correct', (m) => this._onCorrect(m)),
       net.onFast((buf) => this._onFast(buf)),
     ];
+    // Wiedereinstieg anhalten („Ausrüsten“ im Todesbildschirm) bzw. „Einsatz“: der Host hält die Puppe genauso an
+    if (G.events) this._offs.push(G.events.on('respawn:hold', (e) => {
+      if (!this.active || this.ended || !e) return;
+      this.net.send(HOST_ID, { t: 'hold', on: !!e.on, p: G.match.respawnHoldPause !== false });
+    }));
+    // Ausrüstung im Match gewechselt (Todesbildschirm, Pausenmenü): dem Host melden – gilt dort ab dem nächsten Spawn
+    if (G.events) this._offs.push(G.events.on('loadout:change', (e) => {
+      if (!this.active || this.ended || !e || e.actor !== G.player || !e.loadout) return;
+      const lo = { ...e.loadout };
+      const key = JSON.stringify(lo);
+      if (key === this._loKey) return;
+      this._loKey = key;
+      if (typeof this.net.setLoadout === 'function') this.net.setLoadout({ cls: lo.cls || null, loadout: lo });
+    }));
     // Panzerung: eigenes Platteneinsetzen an den Host melden (dort wirkt es; Ergebnis kommt mit 'hit'/'ev' ap zurück)
     if (G.events) this._offs.push(G.events.on('armor:plate', (e) => {
       if (!this.active || !e || e.actor !== G.player || e.net) return;
@@ -106,6 +133,7 @@ export class ClientSync {
     this.buf.clear();
     this.seen.clear();
     this._mismatch.clear();
+    this._smooth.clear();
   }
 
   dispose() {
@@ -116,22 +144,55 @@ export class ClientSync {
 
   /* ================================================================ Bild */
 
+  /** Wiedergabezeit (Host-Zeit) dieses Bildes: Zeitbezug der Schnappschüsse − Puffer, sanft nachgeführt. */
+  _playout(now) {
+    const c = this.clock;
+    const dt = c.lastNow == null ? 0 : Math.max(0, Math.min(1, now - c.lastNow));
+    c.lastNow = now;
+    if (c.off == null) return null;
+    const want = Math.min(INTERP_MAX, Math.max(INTERP_MIN, this._snapGap * 1.25 + c.jit * 2.5 + 0.02));
+    c.buf += (want - c.buf) * Math.min(1, dt * 2);
+    const target = now + c.off - c.buf;
+    if (c.rt == null || Math.abs(target - c.rt) > 0.5) c.rt = target;
+    else {
+      c.rt += dt;
+      const err = target - c.rt;
+      c.rt += Math.max(-CLOCK_STEER * dt, Math.min(CLOCK_STEER * dt, err));
+    }
+    return c.rt;
+  }
+
+  /** Darstellungsverzug (s): wie weit die Puppen hinter der Host-Zeit stehen (Treffermeldung → Prüffenster des Hosts). */
+  viewDelay() {
+    const c = this.clock;
+    if (c.rt == null || !this.net.timeSynced) return null;
+    return Math.max(0, Math.min(1, this.net.serverTime() - c.rt));
+  }
+
   preUpdate() {
     if (!this.active) return;
     const G = this.G;
-    const t = this.net.serverTime();
-    const delay = Math.min(INTERP_MAX, Math.max(INTERP_MIN, this._snapGap * 2.2));
-    const rt = t - delay;
     const now = nowSec();
+    const dtReal = this.clock.lastNow == null ? 0 : Math.max(0, Math.min(1, now - this.clock.lastNow));
+    const rt = this._playout(now);
+    const resync = Math.max(0, (this.net.peerRtt(HOST_ID) || 0) / 1000);
     for (const [id, list] of this.buf) {
       if (id === this.selfId || !list.length) continue;
       const a = this._ensurePuppet(id);
       if (!a) continue;
-      this._reconcile(id, a, list[list.length - 1], now);
-      if (!a.alive) continue;
+      this._reconcile(id, a, list, now, resync);
+      if (!a.alive || rt == null) continue;
       const np = a._netPoseObj || (a._netPoseObj = { pos: [0, 0, 0], vel: [0, 0, 0] });
-      if (this._sample(list, rt, np, this.spawnSt.get(id))) a.netPose = np;
+      // seltener gesendete (ferne) Akteure etwas weiter zurück, damit auch sie zwischen zwei Einträgen liegen
+      const rtA = list.gap > this._snapGap * 1.5 ? rt - Math.min(0.4, (list.gap - this._snapGap) * 1.1) : rt;
+      if (this._sample(list, rtA, np, this.spawnSt.get(id))) {
+        this._smoothPose(id, np, dtReal);
+        a.netPose = np;
+      }
     }
+    // Ausrüsten im Todesbildschirm: die Restzeit steht still – beim Host ebenso ('hold'), hier nur die Anzeige
+    const pl = G.player;
+    if (G.match.respawnHold && G.match.respawnHoldPause !== false && pl && !pl.alive && pl.respawnAt != null) pl.respawnAt += G.time.dt;
     // Puppen, die in den Schnappschüssen fehlen, während andere weiter ankommen (Host hat sie entfernt): nach STALE_SEC weg
     if (now - this._snapAt < 1) {
       for (const [id, at] of this.seen) if (now - at >= STALE_SEC) this._removePuppet(id);
@@ -170,10 +231,22 @@ export class ClientSync {
     this._lastSnapT = t;
     const now = nowSec();
     this._snapAt = now;
+    // Zeitbezug: das am wenigsten verspätete Paket bestimmt ihn (gibt langsam nach), Abstand dazu = Schwankung
+    const c = this.clock;
+    const o = t - now;
+    if (c.off == null || !Number.isFinite(c.off)) { c.off = o; c.rt = null; }
+    else {
+      c.off -= OFF_DECAY * Math.max(0, Math.min(5, now - c.lastArr));
+      if (o > c.off) c.off = o;
+      c.jit = c.jit * 0.92 + Math.min(0.5, c.off - o) * 0.08;
+    }
+    c.lastArr = now;
     for (const e of d.entities) {
       if (e.id === this.selfId) { this.self = { t, e }; continue; }
       let list = this.buf.get(e.id);
       if (!list) this.buf.set(e.id, (list = []));
+      // Abstand der Einträge je Akteur (ferne Akteure kommen seltener – Interessenfilter des Hosts)
+      if (list.length) { const g = t - list[list.length - 1].t; if (g > 0 && g < 2) list.gap = list.gap ? list.gap * 0.7 + g * 0.3 : g; }
       list.push({ t, e });
       if (list.length > MAX_SAMPLES) list.splice(0, list.length - MAX_SAMPLES);
       this.seen.set(e.id, now);
@@ -187,7 +260,11 @@ export class ClientSync {
   _sample(list, rt, out, spawnSt) {
     let i = list.length - 1;
     const minT = Number.isFinite(spawnSt) ? spawnSt - 0.02 : -Infinity;
-    const ok = (s) => s.t >= minT && (s.e.flags & FLAGS.ALIVE) !== 0;
+    // Leben abgrenzen: ab dem ersten toten Eintrag nach dem Spawn beginnt das nächste Leben (gilt erst nach dessen
+    // Spawn) – sonst gleitet die Puppe vor dem verspäteten 'kill' quer über die Karte zum neuen Spawnpunkt
+    let deadT = Infinity;
+    for (let k = 0; k < list.length; k++) if (list[k].t >= minT && (list[k].e.flags & FLAGS.ALIVE) === 0) { deadT = list[k].t; break; }
+    const ok = (s) => s.t >= minT && s.t < deadT && (s.e.flags & FLAGS.ALIVE) !== 0;
     while (i >= 0 && list[i].t > rt) i--;
     let a = i >= 0 ? list[i] : null;
     let b = i + 1 < list.length ? list[i + 1] : null;
@@ -228,23 +305,62 @@ export class ClientSync {
     return true;
   }
 
-  /** Lebend-Zustand der Schnappschüsse ↔ Puppe (verpasste 'spawn'/'kill' nachholen, nach kurzer Wartezeit). */
-  _reconcile(id, a, last, now) {
+  /**
+   * Glättung: die Rohposition darf sich wie erwartet bewegen (Geschwindigkeit × dt); was davon abweicht (Korrektur nach
+   * dem Fortschreiben, verspätetes Paket), wandert in einen Versatz, der mit SMOOTH_K abklingt. Ab SNAP wird gesetzt.
+   */
+  _smoothPose(id, np, dt) {
+    const p = np.pos;
+    let sm = this._smooth.get(id);
+    if (!sm) { this._smooth.set(id, (sm = { x: 0, y: 0, z: 0, rx: p[0], ry: p[1], rz: p[2] })); return; }
+    const dx = p[0] - sm.rx - np.vel[0] * dt;
+    const dy = p[1] - sm.ry - np.vel[1] * dt;
+    const dz = p[2] - sm.rz - np.vel[2] * dt;
+    sm.rx = p[0]; sm.ry = p[1]; sm.rz = p[2];
+    const dev = Math.hypot(dx, dy, dz);
+    if (dev > SNAP) { sm.x = sm.y = sm.z = 0; return; }
+    if (dev > SMOOTH_MIN) { sm.x -= dx; sm.y -= dy; sm.z -= dz; }
+    const k = Math.exp(-SMOOTH_K * dt);
+    sm.x *= k; sm.y *= k; sm.z *= k;
+    if (Math.hypot(sm.x, sm.y, sm.z) > SNAP) { sm.x = sm.y = sm.z = 0; return; }
+    p[0] += sm.x; p[1] += sm.y; p[2] += sm.z;
+  }
+
+  /**
+   * Lebend-Zustand der Schnappschüsse ↔ Puppe (verpasste 'spawn'/'kill' nachholen, nach kurzer Wartezeit + Laufzeit –
+   * 'kill'/'spawn' können hinter einer Wiederholung auf dem zuverlässigen Kanal warten).
+   */
+  _reconcile(id, a, list, now, extra = 0) {
+    const last = list[list.length - 1];
     const alive = (last.e.flags & FLAGS.ALIVE) !== 0;
     const sp = this.spawnSt.get(id);
     const kl = this.killSt.get(id);
     const fresh = (!Number.isFinite(sp) || last.t > sp + 0.05) && (!Number.isFinite(kl) || last.t > kl + 0.05);
-    if (alive === !!a.alive || !fresh) { this._mismatch.delete(id); return; }
+    // Tod + Wiedereinstieg ganz zwischen zwei Meldungen (beide noch unterwegs): lebt vorn und hinten, tot dazwischen
+    let gap = false;
+    if (alive && a.alive) {
+      const minT = Number.isFinite(sp) ? sp - 0.02 : -Infinity;
+      for (const e of list) if (e.t >= minT && (e.e.flags & FLAGS.ALIVE) === 0) { gap = true; break; }
+    }
+    if ((alive === !!a.alive && !gap) || !fresh) { this._mismatch.delete(id); return; }
     const since = this._mismatch.get(id);
     if (since == null) { this._mismatch.set(id, now); return; }
-    if (now - since < RECONCILE) return;
+    if (now - since < RECONCILE + Math.min(1, extra)) return;
     this._mismatch.delete(id);
     const G = this.G;
+    if (gap) { a.health = 0; a.onDeath({}); }
+    // Beginn des neuen Zustands im Puffer (erster Eintrag nach dem letzten mit dem alten Zustand)
+    let k = list.length - 1;
+    while (k > 0 && ((list[k - 1].e.flags & FLAGS.ALIVE) !== 0) === alive) k--;
+    const since0 = list[k];
     if (alive) {
+      this.spawnSt.set(id, since0.t);
+      this._smooth.delete(id);
       a.respawn({ position: new THREE.Vector3(last.e.x, last.e.y, last.e.z), yaw: last.e.yaw });
       a.health = last.e.hp;
       G.events.emit('actor:spawn', { actor: a, net: true });
     } else {
+      this.killSt.set(id, since0.t);
       a.health = 0;
       a.onDeath({});
     }
@@ -261,17 +377,18 @@ export class ClientSync {
     if (Number.isFinite(kl) && s.t < kl + 0.02) return;
     const alive = (s.e.flags & FLAGS.ALIVE) !== 0;
     if (alive && p.alive) {
-      if (Math.abs((p.health || 0) - s.e.hp) >= 1) p.health = Math.max(1, Math.min(p.maxHealth || 100, s.e.hp));
+      const older = Number.isFinite(this._selfHitSt) && s.t < this._selfHitSt;
+      if (!older && Math.abs((p.health || 0) - s.e.hp) >= 1) p.health = Math.max(1, Math.min(p.maxHealth || 100, s.e.hp));
       this._mismatch.delete(this.selfId);
       return;
     }
     if (alive === !!p.alive || !Number.isFinite(sp)) { this._mismatch.delete(this.selfId); return; }
     const since = this._mismatch.get(this.selfId);
     if (since == null) { this._mismatch.set(this.selfId, now); return; }
-    if (now - since < RECONCILE * 2) return;
+    if (now - since < RECONCILE * 2 + Math.min(1, (this.net.peerRtt(HOST_ID) || 0) / 1000)) return;
     this._mismatch.delete(this.selfId);
     const G = this.G;
-    if (alive) G.spawnActor(p, { position: new THREE.Vector3(s.e.x, s.e.y, s.e.z), yaw: s.e.yaw });
+    if (alive) { this.spawnSt.set(this.selfId, s.t); G.spawnActor(p, { position: new THREE.Vector3(s.e.x, s.e.y, s.e.z), yaw: s.e.yaw }); }
     else { p.health = 0; p.onDeath({}); }
   }
 
@@ -316,6 +433,7 @@ export class ClientSync {
     this.buf.delete(id);
     this.seen.delete(id);
     this._mismatch.delete(id);
+    this._smooth.delete(id);
     this.pendingSpawns.delete(id);
     const a = G.bots && G.bots.byNetId(id);
     if (a && a.puppet) G.bots.removeBot(a);
@@ -325,16 +443,20 @@ export class ClientSync {
 
   _onSpawn(m) {
     if (!m || !Number.isInteger(m.id)) return;
-    if (Number.isFinite(m.st)) this.spawnSt.set(m.id, m.st);
+    // Schon nachgeholt (Lebend-Abgleich hat dieses Leben aus den Schnappschüssen übernommen): nicht noch einmal einsetzen
+    const prev = this.spawnSt.get(m.id);
+    const late = this.active && Number.isFinite(m.st) && Number.isFinite(prev) && m.st <= prev + 1e-3;
+    if (Number.isFinite(m.st) && !late) this.spawnSt.set(m.id, m.st);
     if (!this.active) { this.pendingSpawns.set(m.id, m); return; }
     const G = this.G;
     if (m.id === this.selfId) {
       const pos = vec3(m.pos);
-      if (!pos) return;
+      if (!pos || (late && G.player.alive)) return;
       this._mismatch.delete(this.selfId);
       G.spawnActor(G.player, { position: pos, yaw: Number(m.yaw) || 0 });
       return;
     }
+    if (late) { const a0 = G.bots && G.bots.byNetId(m.id); if (a0 && a0.alive) return; }
     const a = this._ensurePuppet(m.id);
     if (!a) { this.pendingSpawns.set(m.id, m); return; }
     this._spawnPuppet(a, m);
@@ -349,6 +471,7 @@ export class ClientSync {
     a.respawn({ position: pos, yaw: Number(m.yaw) || 0 });
     if (Number.isFinite(m.hp)) a.health = m.hp;
     this._mismatch.delete(m.id);
+    this._smooth.delete(m.id);
     // alte Schnappschüsse (vor dem Spawn) gelten nicht mehr
     const list = this.buf.get(m.id);
     if (list && Number.isFinite(m.st)) { let k = 0; while (k < list.length && list[k].t < m.st - 0.02) k++; if (k) list.splice(0, k); }
@@ -375,6 +498,8 @@ export class ClientSync {
     };
     const p = G.player;
     if (target === p) {
+      // ältere Schnappschüsse (vor diesem Treffer) setzen die Lebenspunkte nicht mehr zurück
+      if (Number.isFinite(m.st)) this._selfHitSt = Math.max(this._selfHitSt || 0, m.st);
       if (p.alive) {
         p.health = Math.max(0, Math.min(p.maxHealth || 100, Number(m.hp) || 0));
         p.lastDamageTime = G.time.elapsed;
@@ -395,15 +520,19 @@ export class ClientSync {
   /** Abschuss laut Host: Tod (Ragdoll/Todeskamera), lokales 'kill' für Abschussliste, Medaillen-Hinweise, Respawn-Anzeige. */
   _onKill(m) {
     if (!m) return;
-    if (Number.isFinite(m.st)) this.killSt.set(m.victim, m.st);
+    if (Number.isFinite(m.st)) this.killSt.set(m.victim, Math.max(m.st, this.killSt.get(m.victim) ?? -Infinity));
     if (!this.active) return;
     const G = this.G;
     const v = this._actor(m.victim);
     if (!v) return;
     const k = this._actor(m.killer);
     const dir = vec3(m.dir);
-    this._mismatch.delete(m.victim);
-    if (v.alive) {
+    // Verspätetes 'kill' eines früheren Lebens (der Lebend-Abgleich hat Tod + Wiedereinstieg schon nachgeholt):
+    // nur Abschussliste, das neue Leben bleibt
+    const sp = this.spawnSt.get(m.victim);
+    const stale = Number.isFinite(m.st) && Number.isFinite(sp) && sp > m.st && v.alive;
+    if (!stale) this._mismatch.delete(m.victim);
+    if (v.alive && !stale) {
       v.health = 0;
       if (typeof v.onDeath === 'function') v.onDeath({ killer: k, weaponId: m.weapon || null, headshot: !!m.head, explosive: !!m.exp, dir, distance: m.dist || 0 });
       v.alive = false;
@@ -414,6 +543,7 @@ export class ClientSync {
       assisters, streak: m.streak | 0, firstBlood: !!m.fb, longshot: !!m.ls, revenge: !!m.rv, distance: Number(m.dist) || 0,
       suicide: !!m.sui, net: true,
     });
+    if (stale) return;
     // Wartezeit bis zum Wiedereinstieg (Host: Modus-Ausgleich) – main setzt sie im 'kill'-Hörer, hier der Wert des Hosts
     const resp = Number.isFinite(m.resp) ? m.resp : 3;
     v.diedAt = G.time.elapsed;
@@ -423,6 +553,11 @@ export class ClientSync {
 
   _onMode(m) {
     if (!m || !m.s) return;
+    // Restzeit um die Laufzeit der Nachricht verkürzen (Host-Zeitstempel st)
+    if (Number.isFinite(m.st) && Number.isFinite(m.s.tl) && m.s.tl > 0 && this.net.timeSynced) {
+      const lag = Math.max(0, Math.min(1, this.net.serverTime() - m.st));
+      if (lag > 0.005) m.s = { ...m.s, tl: Math.max(0, Math.round((m.s.tl - lag) * 100) / 100) };
+    }
     this.modeState = m.s;
     if (m.s.ph === 1) this.hostPlaying = true;
     if (this.active) this._applyMode(m.s);
@@ -573,13 +708,16 @@ export class ClientSync {
     const amount = Number(info.amount) || 0;
     if (!def || amount <= 0 || !target.alive) return 0;
     const point = info.point || target.position;
+    // Darstellungsverzug (s): so weit zurück sah der Schütze das Ziel – der Host prüft den Zielverlauf entsprechend
+    const vd = this.viewDelay();
+    const ip = vd == null ? undefined : rnd(vd, 3);
     if (def.cls === 'melee') {
-      net.send(HOST_ID, { t: 'melee', target: target.netId, weapon: def.id, serial: ++this._meleeSerial, dmg: rnd(amount, 1) });
+      net.send(HOST_ID, { t: 'melee', target: target.netId, weapon: def.id, serial: ++this._meleeSerial, dmg: rnd(amount, 1), ip });
     } else {
       const origin = info.origin || p.getEyePosition(_eye);
       net.send(HOST_ID, {
         t: 'hit', target: target.netId, zone: info.zone || 'body', dmg: rnd(amount, 2), weapon: def.id, dist: rnd(Number(info.distance) || 0, 2),
-        origin: arr3(origin), point: arr3(point), serial: p._shotSerial | 0, pellet: info.pelletIndex | 0,
+        origin: arr3(origin), point: arr3(point), serial: p._shotSerial | 0, pellet: info.pelletIndex | 0, ip,
       });
     }
     // Vorhergesagter Treffer: Trefferanzeige + Blut sofort; Lebenspunkte bleiben beim Host

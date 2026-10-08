@@ -6,7 +6,7 @@ import {
   NO_WEAPON, FLAGS, packFlags, unpackFlags, PKT_SNAPSHOT, PKT_STATE, SNAPSHOT_HEADER, SNAPSHOT_ENTITY, STATE_SIZE,
 } from '../assets/js/game/net/protocol.js';
 import { AntiCheat, PositionHistory, AC_TEXT } from '../assets/js/game/net/anticheat.js';
-import { recommend, bandwidthFor, maxPlayersForUpload, UploadMeter, UNMEASURED_MAX } from '../assets/js/game/net/recommend.js';
+import { recommend, bandwidthFor, maxPlayersForUpload, clientBytes, UploadMeter, UNMEASURED_MAX, INTEREST_MIN, INTEREST_SHARE, RELIABLE_BYTES } from '../assets/js/game/net/recommend.js';
 import { WEAPONS, WEAPON_IDS } from '../assets/js/shared/weapons.data.js';
 
 let fail = 0;
@@ -135,6 +135,96 @@ let vy = 0;
 for (let i = 1; i <= 45; i++) { vy += 24 / 30; y = Math.max(0, y - vy / 30); if (!ac2.onState(3, { x: 0, y, z: 0, flags: FLAGS.ALIVE }, i / 30).ok) fallOk = false; }
 check(fallOk, 'freier Fall aus 30 m erlaubt');
 check(ac2.onState(3, { x: 0, y: 0, z: 0 }, 2, { alive: false }).reason === 'tot', 'tote Spieler werden nicht geprüft');
+
+// Härtetest Bewegung (§13): legale Grenzfälle ohne Verstoß, einzelne Sprünge > 6–8 m werden zurückgesetzt.
+// Pakete 30 Hz mit Ankunftsschwankung (±60 ms, gebündelt), 5 % Verlust; Tempi aus player.js/slide.js mit allen Zuschlägen.
+let seed = 7;
+const rand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+/** Bewegung simulieren: path(tc) → {x, y, z, flags} je 1/30 s Client-Zeit; Ankunft mit Schwankung/Verlust. → Verstoß-Gründe */
+function simulate(acX, id, t0, dur, path, { jitter = 0.06, loss = 0.05, stall = null } = {}) {
+  const bad = [];
+  let last = t0;
+  const sent = [];
+  for (let k = 1; k <= Math.round(dur * 30); k++) {
+    const tc = t0 + k / 30;
+    if (rand() < loss) continue;
+    let arrive = tc + 0.15 + rand() * jitter;
+    if (stall && tc > stall[0] && tc < stall[0] + stall[1]) arrive = stall[0] + stall[1] + 0.15; // Host hängt: alles kommt gebündelt
+    sent.push({ k, tc, arrive, s: path(tc - t0) });
+  }
+  sent.sort((a, b) => a.arrive - b.arrive);
+  let seq = -1;
+  for (const m of sent) {
+    if (m.k <= seq) continue; // überholte Pakete verwirft sync-host (seq)
+    seq = m.k;
+    last = Math.max(last, m.arrive);
+    const r = acX.onState(id, m.s, last, { alive: true, rtt: 0.3 });
+    if (!r.ok) bad.push(`${r.reason}@${(m.tc - t0).toFixed(2)}`);
+  }
+  return { bad, end: last };
+}
+const GROUND = FLAGS.ALIVE | FLAGS.ON_GROUND;
+const acL = new AntiCheat();
+acL.onSpawn(40, [0, 0, 0], 100);
+// Sprint mit allen Zuschlägen: 8,2 × 1,07 (Waffe) × 1,12 (Adrenalin) × 1,06 (bergab) ≈ 10,4 m/s, 3 s
+let simR = simulate(acL, 40, 100, 3, (s) => ({ x: s * 10.4, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }));
+// Rutschen aus vollem Sprint: 13,3 m/s, Reibung bis 3,4 m/s (0,9 s), dann Rutschsprung (Schwung bleibt in der Luft)
+let x0 = 31.2;
+let simR2 = simulate(acL, 40, simR.end, 0.9, (s) => ({ x: x0 + 13.3 * s - 4.5 * s * s, y: 0, z: 0, flags: GROUND | FLAGS.SLIDING }));
+x0 += 13.3 * 0.9 - 4.5 * 0.81;
+let simR3 = simulate(acL, 40, simR2.end, 0.6, (s) => ({ x: x0 + 11 * s, y: Math.max(0, 7.27 * s - 12 * s * s), z: 0, flags: FLAGS.ALIVE }));
+check(!simR.bad.length && !simR2.bad.length && !simR3.bad.length && acL.score(40, simR3.end) === 0,
+  `Sprint 10,4 m/s + Rutschen 13,3 m/s + Rutschsprung 11 m/s (Schwankung ±60 ms, 5 % Verlust) ohne Verstoß ${[...simR.bad, ...simR2.bad, ...simR3.bad].join(' ')}`);
+// Hangrutschen (Grenzland): 11,8 m/s waagerecht 4 s bergab (y fällt 0,35 m je m) + Sprungserie im Sprint
+const acS = new AntiCheat();
+acS.onSpawn(41, [0, 80, 0], 0);
+simR = simulate(acS, 41, 0, 4, (s) => ({ x: s * 11.8, y: 80 - s * 11.8 * 0.35, z: 0, flags: GROUND | FLAGS.SLIDING }));
+simR2 = simulate(acS, 41, simR.end, 3, (s) => ({ x: 47.2 + s * 10.4, y: 63.5 + Math.max(0, 7.27 * (s % 0.6) - 12 * (s % 0.6) ** 2), z: 0, flags: (s % 0.6) < 0.05 ? GROUND | FLAGS.SPRINT : FLAGS.ALIVE | FLAGS.SPRINT }));
+check(!simR.bad.length && !simR2.bad.length && acS.score(41, simR2.end) === 0, `Hangrutschen 11,8 m/s + Sprungserie im Sprint ohne Verstoß ${[...simR.bad, ...simR2.bad].join(' ')}`);
+// Spawn in 40 m Höhe (Host setzt ihn dort ein) → freier Fall (bis 44 m/s) mit 8 m/s seitwärts
+const acF = new AntiCheat();
+acF.onSpawn(42, [0, 40, 0], 0);
+simR = simulate(acF, 42, 0, 2.2, (s) => ({ x: s * 8, y: Math.max(0, 40 - 12 * s * s), z: 0, flags: s * s * 12 >= 40 ? GROUND : FLAGS.ALIVE }));
+check(!simR.bad.length && acF.score(42, simR.end) === 0, `Spawn in 40 m Höhe + freier Fall ohne Verstoß ${simR.bad.join(' ')}`);
+// Host hängt 1 s (Bildrate): 30 Pakete kommen auf einmal; danach Funkloch 0,7 s (Pakete verloren) im Sprint
+const acH = new AntiCheat();
+acH.onSpawn(43, [0, 0, 0], 0);
+simR = simulate(acH, 43, 0, 4, (s) => ({ x: s * 10.4, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }), { stall: [1, 1] });
+let tH = simR.end + 0.7;
+const afterGap = acH.onState(43, { x: 4 * 10.4 + 0.7 * 10.4, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }, tH, { alive: true });
+check(!simR.bad.length && afterGap.ok && acH.score(43, tH) === 0, `Host hängt 1 s (gebündelt) + 0,7 s Funkloch (7,3 m Schritt) ohne Verstoß ${simR.bad.join(' ')}`);
+// Einzelne Sprünge: 7 m (Gehen, volles Budget) und 14 m (früher erlaubt) → teleport + Rücksetzung
+const acT = new AntiCheat();
+acT.onSpawn(44, [0, 0, 0], 0);
+simR = simulate(acT, 44, 0, 2, (s) => ({ x: s * 4, y: 0, z: 0, flags: GROUND }), { loss: 0, jitter: 0 });
+tH = simR.end + 1 / 30;
+const tp7 = acT.onState(44, { x: 8 + 7, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }, tH, { alive: true });
+check(!tp7.ok && tp7.reason === 'teleport' && near(tp7.correct[0], 8, 0.2), `Sprung 7 m in einem Paket (volles Budget) → teleport, zurück auf x=${tp7.correct && tp7.correct[0].toFixed(1)}`);
+acT.onState(44, { x: tp7.correct[0], y: 0, z: 0, flags: GROUND }, tH + 0.2, { alive: true });
+const tp14 = acT.onState(44, { x: tp7.correct[0] + 14, y: 0, z: 0, flags: GROUND }, tH + 1.2, { alive: true });
+check(!tp14.ok && tp14.reason === 'teleport', 'Sprung 14 m nach 1 s Pause im Gehen → teleport (früher im Budget)');
+// 5 m senkrecht nach oben in einem Paket → steigen; Klettern 1,3 m in 0,25 s erlaubt
+const acU = new AntiCheat();
+acU.onSpawn(45, [0, 0, 0], 0);
+const mantle = [0.4, 0.8, 1.1, 1.3, 1.3].map((yy, i) => acU.onState(45, { x: 0.2 * i, y: yy, z: 0, flags: FLAGS.ALIVE }, 1 + (i + 1) / 30, { alive: true }).ok);
+const up5 = acU.onState(45, { x: 1, y: 6.3, z: 0, flags: GROUND }, 1.3, { alive: true });
+check(mantle.every(Boolean) && !up5.ok && up5.reason === 'steigen', 'Klettern 1,3 m erlaubt, 5 m senkrecht in einem Paket → steigen');
+// Spawn unterwegs: Client meldet noch „tot“ (Puppe lebt beim Host) → Anker bleibt; kein Neuanker per tot/lebendig
+const acD = new AntiCheat();
+acD.onSpawn(46, [50, 0, 50], 0);
+check(acD.onState(46, { x: 10, y: 0, z: 10, flags: FLAGS.ON_GROUND }, 0.3, { alive: true, clientAlive: false }).reason === 'tot-client', 'Client noch tot, Puppe lebt (Spawn unterwegs) → verworfen');
+check(acD.onState(46, { x: 50.2, y: 0, z: 50, flags: GROUND }, 0.6, { alive: true, clientAlive: true }).ok, 'danach am Spawnpunkt angenommen');
+acD.onState(46, { x: 50.4, y: 0, z: 50, flags: FLAGS.ON_GROUND }, 0.7, { alive: true, clientAlive: false });
+const exploit = acD.onState(46, { x: 90, y: 0, z: 50, flags: GROUND }, 0.75, { alive: true, clientAlive: true });
+check(!exploit.ok && exploit.reason === 'teleport', '„tot“ melden + 40 m weiter lebendig → teleport (kein neuer Anker)');
+// Spawn mit hoher Laufzeit (rtt 0,8 s): Zustände des vorigen Lebens kommen bis 1,7 s später noch an → still verworfen
+const acR = new AntiCheat();
+acR.onSpawn(47, [0, 0, 0], 0);
+acR.onState(47, { x: 0.1, y: 0, z: 0, flags: GROUND }, 0.1, { alive: true });
+acR.onSpawn(47, [120, 0, 0], 1);
+const stale = acR.onState(47, { x: 0.3, y: 0, z: 0, flags: GROUND }, 2.6, { alive: true, rtt: 0.8 });
+const fresh = acR.onState(47, { x: 120.2, y: 0, z: 0, flags: GROUND }, 2.7, { alive: true, rtt: 0.8 });
+check(stale.reason === 'veraltet' && fresh.ok && acR.score(47, 3) === 0, 'Spawn bei rtt 0,8 s: altes Leben nach 1,6 s still verworfen, neuer Ort angenommen');
 // Feuerrate
 const m17 = WEAPONS.ar_m17; // 700 rpm
 const ac3 = new AntiCheat();
@@ -154,7 +244,7 @@ for (let i = 0; i <= 120; i++) { const tt = 10 + i / 30; hist.record(10, tt, Mat
 const ac4 = new AntiCheat({ onKick: (peer, reason) => kicks.push([peer, reason]) });
 let hitNow = 11.5;
 const ctxBase = (o = {}) => ({
-  now: (hitNow += 0.1), ffa: false, weapons: WEAPONS, history: hist,
+  now: (hitNow += 0.1), ffa: false, weapons: WEAPONS, history: hist, interp: 0,
   shooter: { alive: true, team: 'A', pos: [10, 0, 0], weapons: ['ar_m17', 'pi_p9', 'knife'] },
   target: { alive: true, team: 'B' }, ...o,
 });
@@ -169,6 +259,12 @@ r = ac4.validateHit(21, claim({ serial: 31, point: [22, 1.2, 0] }), ctxBase({ no
 check(!r.ok && r.reason === 'position', 'Ziel war vor 800 ms dort – zu alt → position');
 r = ac4.validateHit(22, claim({ serial: 32, point: [22, 1.2, 0] }), ctxBase({ now: 11.07, rtt: 0.5 }));
 check(r.ok, 'hohe Laufzeit des Schützen verlängert das Zeitfenster');
+r = ac4.validateHit(23, claim({ serial: 33, point: [22, 1.2, 0] }), ctxBase({ now: 11.08, interp: 0.4 }));
+check(r.ok, 'Interpolation des Schützen (0,4 s) verlängert das Zeitfenster (400 ms + rtt + Interpolation)');
+r = ac4.validateHit(24, claim({ serial: 34, point: [22, 1.2, 0] }), ctxBase({ now: 11.09, interp: undefined }));
+check(r.ok, 'ohne Angabe: Standard-Interpolation 0,45 s eingerechnet');
+r = ac4.validateHit(25, claim({ serial: 35, point: [20.5, 1.2, 0] }), ctxBase({ now: 13.5, rtt: 1, interp: 1 }));
+check(!r.ok && r.reason === 'position', 'höchstens 2 s zurück (maxRewind), auch bei rtt 1 s + Interpolation 1 s');
 r = ac4.validateHit(2, claim({ serial: 4, point: [15, 1.2, 0] }), ctxBase());
 check(!r.ok && r.reason === 'position', 'Ziel nie in 2,5 m vom Trefferpunkt → position');
 r = ac4.validateHit(2, claim({ serial: 1 }), ctxBase());
@@ -201,7 +297,7 @@ check(!r.ok && r.reason === 'ungueltig', 'Schrotkugel-Index außerhalb');
 let rapid = 0;
 for (let i = 0; i < 20; i++) if (ac4.validateHit(3, claim({ serial: 500 + i }), { ...ctxBase(), now: 13 + i * 0.01 }).reason === 'feuerrate') rapid++;
 check(rapid > 10, `Treffer mit neuen Schussnummern schneller als rpm → feuerrate (${rapid}×)`);
-check(ac4.log.length > 5 && ac4.log.every((l) => typeof l.t === 'number' && [2, 3, 21].includes(l.peer) && AC_TEXT[l.reason]), `Protokoll mit ${ac4.log.length} Einträgen {t, peer, reason}`);
+check(ac4.log.length > 5 && ac4.log.every((l) => typeof l.t === 'number' && [2, 3, 21, 25].includes(l.peer) && AC_TEXT[l.reason]), `Protokoll mit ${ac4.log.length} Einträgen {t, peer, reason}`);
 // Nahkampf
 r = ac4.validateMelee(2, { target: 10, weapon: 'knife', serial: 50 }, ctxBase({ shooter: { alive: true, team: 'A', pos: [29, 0, 0], weapons: ['knife'] } }));
 check(r.ok && r.dmg === 135, 'Nahkampf in Reichweite');
@@ -237,7 +333,11 @@ check(near(ac8.score(1, 0.1), 2, 0.01), 'gleicher Verstoß innerhalb 0,5 s zähl
 check(near(ac8.score(1, 20), 1, 1e-9), 'Verstöße klingen ab (0,05/s)');
 
 /* ------------------------------------------------------------------ recommend */
-check(bandwidthFor(8) === 20 * 7 * 8 * 40 && bandwidthFor(1) === 0, 'Bandbreitenformel 20 Hz × (n−1) × n × 40 Byte');
+const perClient = (a) => 20 * (11 + 60 + a * 31 * (a >= INTEREST_MIN ? INTEREST_SHARE : 1)) + RELIABLE_BYTES;
+check(near(bandwidthFor(8), 7 * perClient(8), 1e-6) && bandwidthFor(1) === 0, `Bandbreite 8 Menschen ohne Bots: (n−1) × [20 Hz × (71 + n × 31) + ${RELIABLE_BYTES}] = ${Math.round(bandwidthFor(8))} B/s`);
+check(near(bandwidthFor(13, { actors: 32 }), 12 * perClient(32), 1e-6) && near(clientBytes(32), perClient(32), 1e-6),
+  `13 Menschen + Bots (32 Akteure, Interessenfilter ${INTEREST_SHARE}): je Client ${(clientBytes(32) / 1024).toFixed(1)} KB/s, gesamt ${(bandwidthFor(13, { actors: 32 }) / 1024).toFixed(0)} KB/s`);
+check(maxPlayersForUpload(bandwidthFor(10, { actors: 24 }) / 0.8, { actors: 24 }) === 10, 'Spieler je Upload mit Bot-Auffüllung (24 Akteure)');
 check(maxPlayersForUpload(bandwidthFor(10) / 0.8) === 10 && maxPlayersForUpload(0) === 2 && maxPlayersForUpload(1e9) === 32, 'Spieler je Upload');
 let rec = recommend({ cores: 8, memory: 8, fps: 120, upload: null });
 check(rec.max === UNMEASURED_MAX && rec.measured === false && /nicht gemessen/.test(rec.reason), `ohne Messung: ${rec.max} („${rec.reason}“)`);
@@ -262,6 +362,12 @@ for (let i = 0; i < 4; i++) { um.add(50000); tt += 1; um.sample(1000, tt, 6); }
 check(um.measured && near(um.state().rate, 50000, 2000) && !um.congested && um.players === 6, `Upload-Messung ${Math.round(um.state().rate)} B/s ohne Stau`);
 for (let i = 0; i < 3; i++) { um.add(50000); tt += 1; um.sample(100000 + i * 40000, tt, 6); }
 check(um.congested && um.state().rate < 50000, `wachsender Sendepuffer → Stau, Abfluss ${Math.round(um.state().rate)} B/s`);
+// Bündel aus langen Bildern (1,6 FPS-Host): 3 s Verkehr kommen in 0,3 s an, dann 2,7 s nichts – Bestwert über ≥ 3 s
+const bursty = new UploadMeter({ minSamples: 2 });
+let tb = 0;
+bursty.sample(0, tb);
+for (let i = 0; i < 6; i++) { bursty.add(138000); tb += 0.3; bursty.sample(0, tb, 13); tb += 2.7; bursty.sample(0, tb, 13); }
+check(bursty.measured && bursty.state().rate < 60000, `Upload in Bündeln (46 KB/s im Mittel): gemessen ${Math.round(bursty.state().rate)} B/s statt ${Math.round(138000 / 0.3)} B/s Spitze`);
 const quiet = new UploadMeter();
 quiet.sample(0, 0);
 for (let i = 1; i < 10; i++) { quiet.add(500); quiet.sample(0, i); }

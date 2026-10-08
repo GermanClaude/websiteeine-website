@@ -11,7 +11,8 @@
 //   • kurzes Match endet (Restzeit beim Host) → Endbildschirm bei Host und Client, Zusammenfassung beim Client.
 //   • Herrschaft: Flaggenzustand synchron; Einstieg ins laufende Match (welcome.cfg); Kick mitten im Match.
 // Voraussetzung: Server auf 8765 (npx http-server -p 8765 -s -c-1 .) und node tools/nostr-relay.mjs 7777.
-// Aufruf: node tools/mp-test.mjs [--size=640x360] [--quality=low] [--keep] [--skip-dom]
+// Aufruf: node tools/mp-test.mjs [--size=640x360] [--quality=low] [--keep] [--skip-dom] [--params="netlag=150&netjitter=30&netloss=5"]
+//   --params: zusätzliche URL-Parameter für alle Seiten (z. B. Netz-Chaos ?netlag/netjitter/netloss, net/index.js).
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 import { readFileSync, mkdirSync } from 'node:fs';
 
@@ -19,6 +20,7 @@ const opt = Object.fromEntries(process.argv.slice(2).map((a) => { const [k, ...v
 const RELAY = process.env.NP_RELAY || 'ws://127.0.0.1:7777';
 const [W, H] = String(opt.size || '640x360').split('x').map(Number);
 const QUALITY = String(opt.quality || 'low');
+const EXTRA = typeof opt.params === 'string' && opt.params ? '&' + opt.params.replace(/^[?&]+/, '') : '';
 const OUT = 'tools/out';
 mkdirSync(OUT, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -58,7 +60,7 @@ async function open(name) {
     errors[name].push(text);
     console.log(`[${name}] Konsole: ${text.slice(0, 300)}`);
   });
-  await p.goto(`${BASE}spielen.html?quality=${QUALITY}&relays=${encodeURIComponent(RELAY)}`);
+  await p.goto(`${BASE}spielen.html?quality=${QUALITY}&relays=${encodeURIComponent(RELAY)}${EXTRA}`);
   await p.waitForFunction(() => window.__game && window.__game.net && window.__game.match.state === 'lobby', null, { timeout: 120000 });
   await p.evaluate((n) => { window.__game.settings.set('playerName', n); }, name);
   // Beobachter: Abschüsse, Treffer, Spawns, Korrekturen (je Seite)
@@ -123,7 +125,7 @@ try {
   const host = await open('Hosti');
   const c1 = await open('Anna');
   const c2 = await open('Bert');
-  info(`drei Seiten geladen (${QUALITY}, ${W}×${H})`);
+  info(`drei Seiten geladen (${QUALITY}, ${W}×${H}${EXTRA ? `, ${EXTRA.slice(1)}` : ''})`);
   const code = await ev(host, () => window.__game.net.host({
     name: 'MP-Test', mode: 'tdm', map: 'hafen', maxPlayers: 4, teamSize: 3, pvp: 'pvp', botFill: true, difficulty: 'rekrut',
     weather: 'standard', time: 'standard', style: 'arcade',
@@ -138,7 +140,7 @@ try {
   const inMatch = await bothInMatch([host, c1, c2]);
   check(inMatch, 'Host + beide Clients im Zustand playing, eigener Spieler lebt');
   if (!inMatch) {
-    for (const [n, p] of Object.entries(pages)) info(`${n}: ${JSON.stringify(await ev(p, () => ({ st: window.__game.match.state, alive: window.__game.player.alive, net: window.__game.debugApi.state().net, sync: !!window.__game.net.sync, active: window.__game.net.sync && window.__game.net.sync.active })).catch((e) => e.message))}`);
+    for (const [n, p] of Object.entries(pages)) info(`${n}: ${JSON.stringify(await ev(p, () => ({ st: window.__game.match.state, cd: window.__game.match.countdown, fr: window.__game.time.frame, real: Math.round(window.__game.time.real), hidden: document.hidden, alive: window.__game.player.alive, net: window.__game.debugApi.state().net, sync: !!window.__game.net.sync, active: window.__game.net.sync && window.__game.net.sync.active, hp: window.__game.net.sync && window.__game.net.sync.hostPlaying })).catch((e) => e.message))}`);
     throw new Error('Match nicht erreicht');
   }
   await shot(c1, '1-start-anna');
@@ -164,6 +166,60 @@ try {
   check(e1 < 0.5 && e2 < 0.5 && e3 < 0.5 && e4 < 0.5, `Positionen: Anna→Host ${e1.toFixed(2)} m, Anna→Bert ${e2.toFixed(2)} m, Bert→Anna ${e3.toFixed(2)} m, Host→Bert ${e4.toFixed(2)} m`);
   const botSync = vh.actors.filter((a) => !a.human && a.alive).map((b) => { const o = sees(v1, b.id); return o ? d3(o.pos, b.pos) : 99; });
   info(`Bot-Abweichung Anna (laufende Bots, ~0,1–0,4 s Interpolation): max ${Math.max(...botSync).toFixed(2)} m`);
+
+  // ================================================================== Glätte: Host zieht einen Bot (KI aus) gleichmäßig geradeaus, Anna misst jedes Bild
+  // Position des Bots exakt zur Zeit jedes Schnappschusses (x0 + v·t) – jede Unruhe bei Anna kommt aus Netz/Interpolation
+  const glideId = await ev(host, () => {
+    const G = window.__game;
+    const bot = G.bots.bots.find((b) => !b.isRemoteHuman && b.alive);
+    if (!bot) return null;
+    G.bots.setPuppet(bot, true);
+    bot.invulnerable = true;
+    const p0 = [bot.position.x, bot.position.y, bot.position.z];
+    const t0 = G.net.serverTime();
+    const sync = G.net.sync;
+    const orig = sync._sendSnapshot.bind(sync);
+    const np = { pos: p0.slice(), vel: [4.5, 0, 0], yaw: -Math.PI / 2, pitch: 0, flags: 1 | 64, weapon: null, lean: 0, shots: 0 };
+    sync._sendSnapshot = (t) => {
+      np.pos[0] = p0[0] + 4.5 * Math.max(0, t - t0);
+      bot.body.position.set(np.pos[0], np.pos[1], np.pos[2]);
+      bot.netPose = np;
+      orig(t);
+    };
+    window.__glide = { bot, orig, sync };
+    return bot.netId;
+  });
+  const glide = glideId && await ev(c1, ([id, ms]) => new Promise((resolve) => {
+    const G = window.__game;
+    const a = G.net.actorById(id);
+    const pts = [];
+    const t0 = performance.now();
+    const step = (now) => {
+      if (a && a.alive) pts.push([now, a.position.x, a.position.z]);
+      if (now - t0 < ms) requestAnimationFrame(step); else resolve(pts);
+    };
+    requestAnimationFrame(step);
+  }), [glideId, 7000]);
+  await ev(host, () => { const g = window.__glide; if (g) { g.sync._sendSnapshot = g.orig; g.bot.invulnerable = false; window.__game.bots.setPuppet(g.bot, false); } });
+  {
+    const V = 4.5;
+    let back = 0, jumps = 0, hold = 0, maxDev = 0, n = 0, side = 0;
+    const pts = (glide || []).slice(4); // Einschwingen (Bot stand vorher)
+    for (let i = 1; i < pts.length; i++) {
+      const dt = (pts[i][0] - pts[i - 1][0]) / 1000;
+      const ds = pts[i][1] - pts[i - 1][1];
+      const want = V * dt;
+      const dev = Math.abs(ds - want);
+      n++;
+      if (ds < -0.05) back++;
+      if (dev > 0.6 + 0.35 * want) jumps++;
+      if (ds < 0.15 * want && dt > 0.04) hold++;
+      maxDev = Math.max(maxDev, dev);
+      side = Math.max(side, Math.abs(pts[i][2] - pts[0][2]));
+    }
+    const vd = await ev(c1, () => (window.__game.net.sync && window.__game.net.sync.viewDelay ? window.__game.net.sync.viewDelay() : null));
+    check(n >= 4 && back === 0 && jumps === 0, `Glätte bei Anna (Bot 4,5 m/s geradeaus, ${n} Bilder): rückwärts ${back}, Sprünge ${jumps}, Stillstand ${hold}, max. Abweichung/Bild ${maxDev.toFixed(2)} m, seitlich ${side.toFixed(2)} m, Darstellungsverzug ${vd == null ? '–' : (vd * 1000).toFixed(0) + ' ms'}`);
+  }
 
   // ================================================================== Anna schießt einen Host-Bot ab
   const target = await ev(host, ([aId]) => {
@@ -332,6 +388,39 @@ try {
   const vb = await view(c2);
   check(!!bertOnHost && bertOnHost.alive && d3(bertOnHost.pos, vb.pos) < 1, `Host: Berts Puppe lebt wieder am gemeldeten Ort (${bertOnHost ? d3(bertOnHost.pos, vb.pos).toFixed(2) : '–'} m)`);
 
+  // ================================================================== Client: „Ausrüsten“ hält den Wiedereinstieg auch beim Host an, „Einsatz“ setzt ein
+  await ev(host, (bId) => {
+    const G = window.__game;
+    G.mode.respawnDelay = 3;
+    const bert = G.net.actorById(bId);
+    const bot = G.bots.bots.find((b) => !b.isRemoteHuman && G.combat.isHostile(b, bert));
+    G.combat.damage(bert, { amount: 500, attacker: bot, weaponId: 'ar_m17', zone: 'head', dir: new G.THREE.Vector3(1, 0, 0) });
+  }, B);
+  const dead2 = await until(c2, () => !window.__game.player.alive && window.__game.match.state === 'playing' && window.__game.player.respawnAt != null, null, 15000);
+  const opened = dead2 && await ev(c2, () => {
+    const G = window.__game;
+    G.hud.deploy.open('equip');
+    // andere Hauptwaffe wählen (wie das Ausrüsten-Feld: mode.setLoadout → gilt beim nächsten Einsatz)
+    G.mode.setLoadout({ ...G.player.loadout, primary: 'smg_vp9' });
+    return { open: G.hud.deploy.isOpen, hold: G.match.respawnHold };
+  });
+  const heldOnHost = await until(host, (bId) => { const G = window.__game; const a = G.net.actorById(bId); return a && !a.alive && G.mode.respawnHolds.has(a); }, B, 15000);
+  const remain = () => Promise.all([
+    ev(c2, () => window.__game.respawnRemaining()),
+    ev(host, (bId) => { const G = window.__game; const a = G.net.actorById(bId); return a && !a.alive && a.respawnAt != null ? a.respawnAt - G.time.elapsed : null; }, B),
+  ]);
+  const r1 = await remain();
+  await sleep(4000);
+  const r2 = await remain();
+  const steady = r1.every((v) => Number.isFinite(v) && v > 0.05) && r2.every((v) => Number.isFinite(v)) && Math.abs(r2[0] - r1[0]) < 0.15 && Math.abs(r2[1] - r1[1]) < 0.15;
+  check(!!opened && opened.open && opened.hold && !!heldOnHost && steady,
+    `Bert „Ausrüsten“: Wiedereinstieg angehalten – Rest bei Bert ${r1[0] != null ? r1[0].toFixed(2) : '–'} → ${r2[0] != null ? r2[0].toFixed(2) : '–'} s, beim Host ${r1[1] != null ? r1[1].toFixed(2) : '–'} → ${r2[1] != null ? r2[1].toFixed(2) : '–'} s (4 s gewartet)`);
+  await ev(c2, () => { const b = window.__game.hud.deploy.root.querySelector('.dp-go'); if (b) b.click(); });
+  const deployed = await until(c2, () => window.__game.player.alive, null, 120000, 500);
+  const newLo = await until(host, (bId) => { const a = window.__game.net.actorById(bId); return a && a.alive && a.loadout && a.loadout.primary; }, B, 10000);
+  const ownLo = await ev(c2, () => window.__game.player.weapon && window.__game.player.weapon.slots && window.__game.player.weapon.slots.map((x) => x && x.id).join(','));
+  check(!!deployed && newLo === 'smg_vp9' && /smg_vp9/.test(ownLo || ''), `„Einsatz“: Bert spawnt (Host setzt ein), neue Hauptwaffe beim Host ${newLo} / bei Bert ${ownLo}`);
+
   // ================================================================== Sturzschaden: Meldung an sich selbst, Host wendet ihn an
   await sleep(1500);
   const fallBefore = await ev(c2, () => Math.round(window.__game.player.health));
@@ -373,6 +462,53 @@ try {
     info(`Anti-Cheat-Verlauf: ${(await ev(host, () => window.__ac.slice(-12))).join(' | ')}`);
     info(`Bert-Ereignisse: ${JSON.stringify(await ev(c2, () => ({ kills: window.__mp.kills.slice(-3), spawns: window.__mp.spawns.slice(-3) })))}`);
   }
+
+  // ================================================================== Sturz aus 9 m (Host setzt Bert dort ein) + Rutschen: kein Anti-Cheat-Verstoß
+  const acN = await ev(host, (bId) => window.__game.net.anticheat.log.filter((l) => l.peer === bId).length, B);
+  const corrN = await ev(c2, () => window.__mp.corrects);
+  await ev(host, (bId) => {
+    const N = window.__game.net;
+    window.__slideStates = 0;
+    const orig = N.checkState.bind(N);
+    N.checkState = (pid, st, ctx) => { if (pid === bId && (st.flags & 128)) window.__slideStates++; return orig(pid, st, ctx); };
+  }, B);
+  const drop = await ev(host, (bId) => {
+    const G = window.__game;
+    const T = G.THREE;
+    const bert = G.net.actorById(bId);
+    if (!bert || !bert.alive) return null;
+    const base = bert.position.clone();
+    const up = (v, h) => v.clone().setY(v.y + h);
+    for (let k = 0; k < 16; k++) {
+      const a = (k * Math.PI) / 8;
+      const p = new T.Vector3(base.x + Math.sin(a) * (k ? 3 : 0), base.y, base.z + Math.cos(a) * (k ? 3 : 0));
+      if (G.world.lineOfSight(up(p, 0.6), up(p, 11)) && G.world.lineOfSight(up(base, 0.6), up(p, 0.6))) {
+        const spot = up(p, 9);
+        G.spawnActor(bert, { position: spot, yaw: bert.yaw });
+        return { from: [spot.x, spot.y, spot.z], ground: base.y };
+      }
+    }
+    return null;
+  }, B);
+  const landed = drop && await until(c2, (gy) => { const p = window.__game.player; return p.alive && p.body.onGround && p.position.y < gy + 1.5 && p.position.y; }, drop.ground, 60000, 500);
+  check(!!landed, `Bert fällt ${drop ? (drop.from[1] - (landed || drop.ground)).toFixed(1) : '–'} m (Host-Spawn in der Luft) und landet`);
+  // Rutschen aus dem Sprint (player._startSlide wie die Taste), bis es endet
+  const slid = await ev(c2, () => {
+    const G = window.__game;
+    const p = G.player;
+    if (!p.alive || !p.body.onGround) return null;
+    p.body.velocity.set(-Math.sin(p.yaw) * 8.2, 0, -Math.cos(p.yaw) * 8.2);
+    p.sprinting = true;
+    p._startSlide();
+    return { sliding: p.sliding, x: p.position.x, z: p.position.z };
+  });
+  const slideEnd = slid && await until(c2, () => !window.__game.player.sliding && [window.__game.player.position.x, window.__game.player.position.z], null, 60000, 300);
+  await sleep(2500);
+  const acAfter = await ev(host, ([bId, n]) => window.__game.net.anticheat.log.filter((l) => l.peer === bId).slice(n).map((l) => l.reason), [B, acN]);
+  const slideStates = await ev(host, () => window.__slideStates);
+  const corrAfter = await ev(c2, () => window.__mp.corrects);
+  check(!!slid && slid.sliding && !!slideEnd && slideStates > 0 && !acAfter.length && corrAfter === corrN,
+    `Rutschen ${slid && slideEnd ? Math.hypot(slideEnd[0] - slid.x, slideEnd[1] - slid.z).toFixed(1) : '–'} m (${slideStates} Zustände mit Rutsch-Bit beim Host) + Sturz: Anti-Cheat ${acAfter.length ? acAfter.join(',') : 'ohne Verstoß'}, 'correct' ${corrAfter - corrN}`);
   await ev(host, (bId) => { const a = window.__game.net.actorById(bId); if (a) a.invulnerable = false; }, B);
 
   // ================================================================== Bert verlässt das Match

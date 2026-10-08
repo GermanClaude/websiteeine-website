@@ -69,7 +69,7 @@ const LOCAL_RELAY = /^wss?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?(\/|$)/;
 
 /** Typen, die NetSystem selbst kennt: Clients dürfen sie nicht an andere Clients weiterleiten lassen. */
 const RESERVED = new Set([
-  'join', 'ready', 'loadout', 'hit', 'melee', 'throw', 'leave',
+  'join', 'ready', 'loadout', 'hit', 'melee', 'throw', 'leave', 'hold', 'plate',
   'welcome', 'room', 'roster', 'start', 'spawn', 'kill', 'mode', 'ev', 'end', 'kick', 'host-away', 'correct', 'reject',
 ]);
 /** Nur der Host darf sie senden (der Host verwirft sie von Clients). */
@@ -175,9 +175,116 @@ function tabPid() {
 }
 
 function sendJson(link, json) {
+  if (link && link._chaos) return link._chaos.sendJson(json);
   const ch = link && link.rel;
   if (!ch || ch.readyState !== 'open') return false;
   try { ch.send(json); return true; } catch { return false; }
+}
+
+/**
+ * Netz-Chaos für Prüfläufe: ?netlag=<ms>&netjitter=<ms>&netloss=<%> (alle eigenen Sendungen dieser Seite). Ohne Parameter
+ * null – dann bleibt jede Verbindung unverändert (kein Aufwand im echten Spiel).
+ */
+export function chaosFromUrl(search = typeof location !== 'undefined' ? location.search : '') {
+  let q;
+  try { q = new URLSearchParams(search || ''); } catch { return null; }
+  const n = (k, max) => { const v = Number(q.get(k)); return Number.isFinite(v) && v > 0 ? Math.min(max, v) : 0; };
+  const lag = n('netlag', 5000);
+  const jitter = n('netjitter', 5000);
+  const loss = n('netloss', 90) / 100;
+  return lag || jitter || loss ? { lag, jitter, loss } : null;
+}
+
+/**
+ * Chaos auf einer Verbindung (PeerLink): ersetzt sendRel/sendFast/close der Instanz.
+ *   • zuverlässig: Laufzeit lag ± jitter, Reihenfolge bleibt; „Verlust“ = Wiederholung (+ max(200 ms, 2 × lag)),
+ *     alle folgenden Nachrichten warten (Head-of-Line wie SCTP) – nie verworfen. Auch Ping/Pong und Zeitabgleich.
+ *   • schnell: Laufzeit lag ± jitter je Paket (Reihenfolge darf kippen), Anteil loss wird verworfen.
+ *   • close wartet, bis die zuverlässige Warteschlange gesendet ist (Kick/Abschied kommen noch an).
+ * Abgearbeitet per Zeitgeber und zusätzlich jedes Bild (NetSystem.preUpdate – Zeitgeber ruhen in verborgenen Tabs).
+ */
+class LinkChaos {
+  constructor(link, opts, onDone) {
+    this.link = link;
+    this.o = opts;
+    this.rel = [];
+    this.fast = [];
+    this.relAt = 0;
+    this.timer = null;
+    this.timerAt = Infinity;
+    this.closing = null;
+    this.onDone = onDone;
+    this._fast = link.sendFast.bind(link);
+    this._close = link.close.bind(link);
+    link._chaos = this;
+    link.sendRel = (obj) => { let json; try { json = JSON.stringify(obj); } catch { return false; } return this.sendJson(json); };
+    link.sendFast = (buf) => this.sendFast(buf);
+    link.close = (reason) => this.close(reason);
+  }
+
+  _delay() {
+    const j = this.o.jitter;
+    return Math.max(0, this.o.lag + (j ? (Math.random() * 2 - 1) * j : 0));
+  }
+
+  sendJson(json) {
+    const ch = this.link.rel;
+    if (!ch || ch.readyState !== 'open' || this.closing != null) return false;
+    let at = performance.now() + this._delay();
+    if (this.o.loss && Math.random() < this.o.loss) at += Math.max(200, 2 * this.o.lag);
+    at = Math.max(at, this.relAt);
+    this.relAt = at;
+    this.rel.push({ at, json });
+    this._arm(at);
+    return true;
+  }
+
+  sendFast(buf) {
+    const ch = this.link.fast;
+    if (!ch || ch.readyState !== 'open' || this.closing != null) return false;
+    if (this.o.loss && Math.random() < this.o.loss) return true; // unterwegs verloren
+    const at = performance.now() + this._delay();
+    let i = this.fast.length;
+    while (i > 0 && this.fast[i - 1].at > at) i--;
+    this.fast.splice(i, 0, { at, buf });
+    this._arm(at);
+    return true;
+  }
+
+  flush(now = performance.now()) {
+    const ch = this.link.rel;
+    while (this.rel.length && this.rel[0].at <= now) {
+      const m = this.rel.shift();
+      if (ch && ch.readyState === 'open') { try { ch.send(m.json); } catch { /* Kanal zu */ } }
+    }
+    while (this.fast.length && this.fast[0].at <= now) this._fast(this.fast.shift().buf);
+    if (this.closing != null && !this.rel.length) { const r = this.closing; this.closing = null; this._finish(r); return; }
+    const next = Math.min(this.rel.length ? this.rel[0].at : Infinity, this.fast.length ? this.fast[0].at : Infinity);
+    if (next < Infinity) this._arm(next);
+  }
+
+  _arm(at) {
+    if (this.timer && this.timerAt <= at) return;
+    clearTimeout(this.timer);
+    this.timerAt = at;
+    this.timer = setTimeout(() => { this.timer = null; this.timerAt = Infinity; this.flush(); }, Math.max(0, at - performance.now()));
+  }
+
+  close(reason) {
+    if (this.link.closed) return;
+    const ch = this.link.rel;
+    if (this.rel.length && ch && ch.readyState === 'open') { if (this.closing == null) this.closing = reason; return; }
+    this._finish(reason);
+  }
+
+  _finish(reason) {
+    clearTimeout(this.timer);
+    this.timer = null;
+    this.rel.length = 0;
+    this.fast.length = 0;
+    if (this.onDone) this.onDone(this);
+    this._close(reason);
+  }
 }
 
 export class NetSystem {
@@ -230,6 +337,10 @@ export class NetSystem {
     this._metaTimer = null;
     this._errLogged = new Set();
     this.upload = new UploadMeter();
+    /** Netz-Chaos für Prüfläufe (?netlag/netjitter/netloss) oder null. */
+    this.chaos = chaosFromUrl();
+    this._chaosLinks = new Set();
+    if (this.chaos) console.info(`[net] Netz-Chaos (Prüflauf): Laufzeit ${this.chaos.lag} ± ${this.chaos.jitter} ms, Verlust ${Math.round(this.chaos.loss * 100)} %`);
     this._onVis = () => this._visibility();
     // Rückkehr in die Lobby beendet auf dem Host den Spielzustand des Raums (Revanche = zurück in den Raum)
     this._offState = G && G.events ? G.events.on('match:state', (e) => { if (e && e.state === 'lobby') this._matchOver(); }) : null;
@@ -305,7 +416,7 @@ export class NetSystem {
       cls: (lo && lo.cls) || null, loadout: sanitizeLoadout(lo), kd: me.kd,
     }];
     this.anticheat = new AntiCheat({ onKick: (id, reason, text) => this.kick(id, `Anti-Cheat: ${text}`) });
-    this.history = new PositionHistory(1.5);
+    this.history = new PositionHistory(2.5); // ≥ AntiCheat maxRewind (2 s)
     this.upload = new UploadMeter();
     this._loadWeather();
     const signal = new HostSignal({
@@ -372,6 +483,7 @@ export class NetSystem {
     try { res = await PeerLink.answer(sdp, this.ice); } catch (err) { this._pending.delete(peer); throw err; }
     if (peer.dropped || this.role !== 'host') { this._pending.delete(peer); res.link.close('abgebrochen'); return { reject: 'fehler' }; }
     const { link, sdp: answer } = res;
+    this._applyChaos(link);
     peer.link = link;
     peer.helloTimer = setTimeout(() => { if (!peer.joined) this._dropPeer(peer, 'keine-anmeldung'); }, HELLO_WAIT_MS);
     link.on('message', (m) => this._hostMessage(peer, m));
@@ -747,6 +859,7 @@ export class NetSystem {
       throw netError(err && err.code ? err.code : 'verbindung-fehlgeschlagen');
     }
     const link = res.link;
+    this._applyChaos(link);
     if (this._joining !== token) { link.close('abgebrochen'); throw netError('abgebrochen'); }
     try {
       await this._waitOpen(link);
@@ -932,6 +1045,17 @@ export class NetSystem {
     this._away = false;
     this.relayStatus = { open: 0, total: this.relays.length };
     if (was) this._status();
+  }
+
+  /** Prüflauf: Chaos auf eine neue Verbindung legen (ohne ?netlag/… nichts). */
+  _applyChaos(link) {
+    if (!this.chaos || !link || link._chaos) return;
+    this._chaosLinks.add(new LinkChaos(link, this.chaos, (c) => this._chaosLinks.delete(c)));
+  }
+
+  _chaosFlush() {
+    const now = performance.now();
+    for (const c of this._chaosLinks) c.flush(now);
   }
 
   _every(ms, fn) {
@@ -1192,7 +1316,11 @@ export class NetSystem {
   recommendation() {
     const nav = typeof navigator !== 'undefined' ? navigator : {};
     const conn = nav.connection ? { effectiveType: nav.connection.effectiveType, saveData: !!nav.connection.saveData } : null;
+    // Akteure im Match: mit Bot-Auffüllung 2 × teamSize (Schnappschüsse tragen auch die Bots), sonst nur die Menschen
+    const st = this.room && this.room.settings ? this.room.settings : DEFAULT_ROOM;
+    const actors = st.botFill !== false ? Math.min(MAX_PLAYERS, 2 * (st.teamSize || DEFAULT_ROOM.teamSize)) : 0;
     return recommend({
+      actors,
       cores: Number.isFinite(nav.hardwareConcurrency) ? nav.hardwareConcurrency : null,
       memory: Number.isFinite(nav.deviceMemory) ? nav.deviceMemory : null,
       fps: this._fps,
@@ -1216,6 +1344,7 @@ export class NetSystem {
 
   preUpdate(dt) {
     this._actorMapValid = false;
+    if (this.chaos) this._chaosFlush();
     this._measureFps();
     if (this.sync && typeof this.sync.preUpdate === 'function') this.sync.preUpdate(dt);
   }
