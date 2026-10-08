@@ -2,6 +2,15 @@
 // Regeneration, Fallschaden, WeaponController + combat), gesteuert von Wahrnehmung → Entscheidung →
 // Motorik. Darstellung über Soldier-Instanzen (zwei im Wechsel, damit die Leiche nach dem Respawn liegen
 // bleiben und sich auflösen kann).
+//
+// Mehrspieler – Puppe (bot.puppet = true, Vertrag docs/planung/mehrspieler.md §1/§7): jeder nicht lokal simulierte
+// Akteur (entfernter Mensch auf dem Host; auf Clients alle anderen). Keine Wahrnehmung/Entscheidung/Navigation/Physik/
+// Waffenlogik; jedes Bild übernimmt die Puppe bot.netPose (vom Sync-Modul geschrieben, bereits interpoliert):
+//   { pos:[x,y,z], yaw, pitch, vel:[x,y,z], flags (NET_FLAGS, §5), weapon (Id | Index in WEAPON_INDEX | Definition),
+//     lean (−1…1), shots (Zähler mod 256), proneBlend (0…1), hp (fehlt auf dem Host → eigene Regeneration),
+//     optional ads (0…1), reloadEmpty, cooking }
+// und animiert sie (_animate). Schüsse (Zählerwechsel) → Schussgeste + manager.puppetFired (nur Darstellung, kein
+// Schaden). Leben/Tod nicht aus der Pose, sondern über respawn()/onDeath() (Ereignisse vom Host).
 import * as THREE from 'three';
 import { CapsuleBody } from '../engine/physics.js';
 import { raycastHumanoid } from '../combat.js';
@@ -12,7 +21,7 @@ import { Navigator } from './ai/navigator.js';
 import { Gunner } from './ai/combat.js';
 import { think, newGoal, useStreaks } from './ai/brain.js';
 import { targetPoints } from './ai/perception.js';
-import { GADGETS } from '../../shared/classes.data.js';
+import { GADGETS, CLASSES } from '../../shared/classes.data.js';
 import { BONE } from './soldier/rig.js';
 import { Stamina, STAMINA_COST, RECOVER } from '../stamina.js';
 
@@ -52,14 +61,78 @@ export function blankStats() {
   return { kills: 0, deaths: 0, assists: 0, score: 0, shotsFired: 0, shotsHit: 0, headshots: 0, streak: 0, bestStreak: 0, damage: 0, captures: 0, longestKill: 0 };
 }
 
+/* ================================================================ Mehrspieler: Netz-Pose */
+
+/** Zustandsbits der Netz-Pose (Vertrag §5: u16 flags). */
+export const NET_FLAGS = Object.freeze({
+  alive: 1, crouch: 2, prone: 4, sprint: 8, ads: 16, reloading: 32, onGround: 64, sliding: 128,
+  throwing: 256, meleeing: 512, swimming: 1024,
+});
+const NF = NET_FLAGS;
+const PRONE_LEAN_SIDE = 0.18; // liegend: kleiner Seitversatz (wie der Spieler)
+const NET_SHOT_QUEUE = 8; // höchstens so viele Schüsse nachholen (Paketverlust, Ruckler)
+const SHELL_TIMING = { start: 0.3, insert: 0.48, end: 0.42 };
+
+/** [x,y,z] | {x,y,z} → out (true) bzw. false bei fehlenden/nicht endlichen Werten. */
+function readVec(src, out) {
+  if (!src) return false;
+  const x = src.x !== undefined ? src.x : src[0], y = src.y !== undefined ? src.y : src[1], z = src.z !== undefined ? src.z : src[2];
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return false;
+  out.set(x, y, z);
+  return true;
+}
+
+/**
+ * Netz-Pose eines lokal simulierten Akteurs (Bot, Spieler, Puppe) im Format von bot.netPose (für Schnappschüsse des Hosts
+ * bzw. den eigenen Zustand eines Clients). out wird wiederverwendet (pos/vel als Arrays). Puppen reichen Schusszähler und
+ * Zustandsbits aus ihrer Netz-Pose durch (kein Abdriften über die gedrosselte Schusswiedergabe).
+ */
+export function netPoseOf(actor, out = {}) {
+  const body = actor.body;
+  const p = body ? body.position : actor.position;
+  const v = body ? body.velocity : null;
+  const pos = out.pos || (out.pos = [0, 0, 0]);
+  const vel = out.vel || (out.vel = [0, 0, 0]);
+  pos[0] = p ? p.x : 0; pos[1] = p ? p.y : 0; pos[2] = p ? p.z : 0;
+  vel[0] = v ? v.x : 0; vel[1] = v ? v.y : 0; vel[2] = v ? v.z : 0;
+  out.yaw = actor.yaw || 0;
+  out.pitch = actor.pitch || 0;
+  const w = actor.weapon;
+  const np = actor.puppet ? actor.netPose : null;
+  let f = 0;
+  if (np && Number.isFinite(actor.netFlags)) f = actor.netFlags & ~NF.alive;
+  else {
+    const prone = actor.stance === 'prone' || actor.prone === true;
+    if (prone) f |= NF.prone;
+    else if (actor.crouching || actor.stance === 'crouch') f |= NF.crouch;
+    if (actor.sprinting) f |= NF.sprint;
+    if (w && (w.adsProgress || 0) > 0.5) f |= NF.ads;
+    if (w && w.isReloading) f |= NF.reloading;
+    if (!body || body.onGround) f |= NF.onGround;
+    if (actor.sliding) f |= NF.sliding;
+    if (w && w.isThrowing) f |= NF.throwing;
+    if (w && w.isMeleeing) f |= NF.meleeing;
+    if (actor.swimming) f |= NF.swimming;
+  }
+  if (actor.alive) f |= NF.alive;
+  out.flags = f;
+  const def = w && w.currentDef;
+  out.weapon = def ? def.id : null;
+  out.hp = Number.isFinite(actor.health) ? actor.health : 0;
+  out.lean = actor.lean || 0;
+  out.shots = np && Number.isFinite(np.shots) ? np.shots & 255 : (actor._shotSerial || 0) & 255;
+  out.proneBlend = actor.proneBlend || 0;
+  return out;
+}
+
 let serial = 0;
 
 export class Bot {
   /**
    * @param {import('./manager.js').BotManager} manager
-   * opts: { team, name, diff (Profil), loadout, variant, scheme, modeId, lane }
+   * opts: { team, name, diff (Profil), loadout, variant, scheme, modeId, lane, puppet (Mehrspieler-Puppe) }
    */
-  constructor(manager, { team, name, diff, loadout, variant = 0, scheme = null, modeId = 'tdm', lane = 1 }) {
+  constructor(manager, { team, name, diff, loadout, variant = 0, scheme = null, modeId = 'tdm', lane = 1, puppet = false }) {
     const G = manager.G;
     this.manager = manager;
     this.G = G;
@@ -68,6 +141,20 @@ export class Bot {
     this.team = team;
     this.isPlayer = false;
     this.isBot = true;
+    // Mehrspieler: Netz-Id (Host vergibt), Puppe (Zustand aus dem Netz), Mensch hinter der Puppe
+    this.netId = null;
+    this.puppet = !!puppet;
+    this.isRemoteHuman = false;
+    this.netPose = null;
+    this.netFlags = 0;
+    this._netShots = null;
+    this._netShotQ = 0;
+    this._netShotAt = 0;
+    this._netReload = null;
+    this._netWeaponRef = undefined;
+    this._netQuietWeapon = true;
+    // Puppen setzen keine Schutzplatten selbst ein (combat.tickArmor)
+    this.manualPlates = this.puppet;
     this.alive = false;
     this.health = 100;
     this.maxHealth = 100;
@@ -199,6 +286,10 @@ export class Bot {
   }
 
   get soldier() { return this.soldiers[this.active]; }
+
+  /** Mensch (lokaler Spieler oder entfernter Mensch hinter einer Puppe) – Vertrag §2. */
+  get isHuman() { return !!(this.isPlayer || this.isRemoteHuman); }
+  set isHuman(v) { this.isRemoteHuman = !!v && !this.isPlayer; }
 
   /** Drittpersonen-Waffe der aktiven Instanz an die aktuelle Waffe anpassen. */
   _syncGun(force = false) {
@@ -343,6 +434,7 @@ export class Bot {
     this.stance = 'stand';
     this.atTarget = null;
     if (this.order) this.order.kind = null;
+    if (this.puppet) this._resetNetWeapon(true);
     this.manager.onBotDeath(this);
   }
 
@@ -385,6 +477,8 @@ export class Bot {
     this._senseT = Math.random() * 0.15;
     this.nextGrenadeAt = this.spawnTime + rnd(4, 10);
     if (this.weapon) this.weapon.refill();
+    // Puppe: alte Netz-Pose (vor dem Tod) gilt nicht mehr; Waffe der nächsten Pose still übernehmen
+    if (this.puppet) { this.netPose = null; this._resetNetWeapon(false); this._netWeaponRef = undefined; this._netQuietWeapon = true; }
     this._syncGun(true);
     const s = this.soldier;
     s.reset(pos, this.yaw);
@@ -395,6 +489,7 @@ export class Bot {
 
   update(dt) {
     const G = this.G;
+    if (this.puppet) { this._updatePuppet(dt); return; }
     if (!this.alive) { this._updateCorpses(dt); return; }
     const now = G.time.elapsed;
     const frozen = G.match.state !== 'playing';
@@ -641,6 +736,277 @@ export class Bot {
     // --- Darstellung
     this._animate(dt, now);
   }
+
+  /* ================================================================ Puppe (Mehrspieler) */
+
+  /**
+   * Bild einer Puppe: Netz-Pose übernehmen (Körper, Blick, Haltung, Lehnen, Waffe, Anschlag, Nachladen, Wurf, Nahkampf,
+   * Schüsse) und animieren. Keine Wahrnehmung/Entscheidung/Navigation/Physik/Waffenlogik/Verbandskasten.
+   */
+  _updatePuppet(dt) {
+    if (!this.alive) { this._updateCorpses(dt); return; }
+    const now = this.G.time.elapsed;
+    const np = this.netPose;
+    if (np) this._applyNetPose(np, dt, now);
+    else this._puppetRegen(dt, now);
+    this._releaseNetShots(now);
+    this._animate(dt, now);
+  }
+
+  _applyNetPose(np, dt, now) {
+    const body = this.body;
+    if (readVec(np.pos, _v)) { body.position.copy(_v); body.outOfWorld = false; }
+    if (readVec(np.vel, _v)) body.velocity.copy(_v);
+    if (Number.isFinite(np.yaw)) this.yaw = wrap(np.yaw);
+    if (Number.isFinite(np.pitch)) this.pitch = clamp(np.pitch, -1.4, 1.4);
+    const f = Number.isFinite(np.flags) ? np.flags | 0 : NF.alive | NF.onGround;
+    this.netFlags = f;
+    // Haltung (Rutschen = geduckte Pose; der Soldat kennt kein eigenes Rutschen)
+    const prone = (f & NF.prone) !== 0;
+    const crouch = !prone && (f & (NF.crouch | NF.sliding)) !== 0;
+    const prev = this.stance;
+    this.stance = prone ? 'prone' : crouch ? 'crouch' : 'stand';
+    this.crouching = crouch;
+    this.sprinting = !prone && (f & NF.sprint) !== 0;
+    this.sliding = (f & NF.sliding) !== 0;
+    this.swimming = (f & NF.swimming) !== 0;
+    body.onGround = (f & NF.onGround) !== 0;
+    // Liegen: Körperachse – Mensch dreht den ganzen Körper mit dem Blick (wie der Spieler), Bot legt sich in eine feste
+    // Richtung und blickt höchstens ±PRONE_YAW zur Seite (wie auf dem Host)
+    if (prone) {
+      if (prev !== 'prone' || this.isRemoteHuman) this.proneYaw = this.yaw;
+      else {
+        const dy = wrap(this.yaw - this.proneYaw), lim = PRONE_YAW + 0.1;
+        if (Math.abs(dy) > lim) this.proneYaw = wrap(this.yaw - Math.sign(dy) * lim);
+      }
+    }
+    if (Number.isFinite(np.proneBlend)) this.proneBlend = clamp(np.proneBlend, 0, 1);
+    else {
+      const step = dt / PRONE_TIME;
+      this.proneBlend = prone ? Math.min(1, this.proneBlend + step) : Math.max(0, this.proneBlend - step * 0.82);
+    }
+    // Kapselhöhe (Augenhöhe, Trefferpunkte für die Wahrnehmung der Bots)
+    const targetH = prone ? PRONE_H : crouch ? CROUCH_H : STAND_H;
+    if (Math.abs(targetH - body.height) > 1e-3) body.setHeight(body.height + (targetH - body.height) * (1 - Math.exp(-(targetH > body.height ? 16 : 18) * dt)));
+    body._sync();
+    // Lehnen (Kopfversatz im Körperrahmen wie _updateLean)
+    this.lean = Number.isFinite(np.lean) ? clamp(np.lean, -1, 1) : 0;
+    if (Math.abs(this.lean) < 1e-3) this.lean = 0;
+    const yaw = this._leanYaw();
+    const a = this.lean * (prone ? PRONE_LEAN_SIDE : LEAN_SIDE);
+    this.leanOffset.set(Math.cos(yaw) * a, -Math.abs(this.lean) * LEAN_DROP, -Math.sin(yaw) * a);
+    this.leanRoll = -this.lean * 0.38;
+    // Leben: Clients bekommen es vom Host; auf dem Host (ohne hp) rechnet die Puppe selbst (Regeneration wie der Spieler)
+    if (Number.isFinite(np.hp)) this.health = clamp(np.hp, 0, this.maxHealth);
+    else this._puppetRegen(dt, now);
+    // Waffe (nur bei Änderung des Verweises; setNetWeapon prüft selbst auf gleiche Waffe)
+    if (np.weapon != null && np.weapon !== this._netWeaponRef) {
+      this._netWeaponRef = np.weapon;
+      this.setNetWeapon(np.weapon, { silent: this._netQuietWeapon });
+      this._netQuietWeapon = false;
+    }
+    this._applyNetWeapon(f, np, dt, now);
+    if (Number.isFinite(np.shots)) this._netShotsIn(np.shots | 0);
+  }
+
+  /** Regeneration (Puppe ohne Lebenspunkte aus dem Netz – Host-Seite eines entfernten Menschen). */
+  _puppetRegen(dt, now) {
+    const fl = this.G.match && this.G.match.styleFlags;
+    if (this.health < this.maxHealth && now - this.lastDamageTime > ((fl && fl.regenDelay) || 3.5)) {
+      this.health = Math.min(this.maxHealth, this.health + ((fl && fl.regenRate) || 55) * dt);
+    }
+  }
+
+  /** Waffenzustand für die Animation (Anschlag, Nachladen, Wurf, Nahkampf) aus den Zustandsbits. */
+  _applyNetWeapon(f, np, dt, now) {
+    const w = this.weapon;
+    if (!w) return;
+    const def = w.currentDef;
+    const G = this.G;
+    // Anschlag: Fortschritt aus dem Netz oder mit der Anschlagzeit der Waffe nachgeführt
+    const ads = (f & NF.ads) !== 0;
+    w.ads = ads;
+    if (Number.isFinite(np.ads)) w.adsProgress = clamp(np.ads, 0, 1);
+    else {
+      const t = Math.max(0.08, (def && def.adsTime) || 0.25);
+      w.adsProgress = clamp((w.adsProgress || 0) + ((ads ? 1 : -1.35) * dt) / t, 0, 1);
+    }
+    // Nachladen: Fortschritt aus der Nachladezeit geschätzt (Audio/Effekte über weapon:reload wie beim Bot)
+    const rel = (f & NF.reloading) !== 0;
+    if (rel && !w.isReloading) this._netReloadStart(def, now, !!np.reloadEmpty);
+    else if (!rel && w.isReloading) this._netReloadEnd(now);
+    if (w.isReloading) this._netReloadTick(now);
+    // Wurf (Splint ziehen hörbar) und Nahkampf (Schwung hörbar) – die Wirkung kommt vom Host
+    const thr = (f & NF.throwing) !== 0;
+    if (thr && !w.isThrowing) G.events.emit('grenade:pin', { actor: this, type: null, cosmetic: true });
+    w.isThrowing = thr;
+    w.cooking = thr && !!np.cooking;
+    const mel = (f & NF.meleeing) !== 0;
+    if (mel && !w.isMeleeing) G.events.emit('weapon:melee', { actor: this, phase: 'swing', lunge: false, target: null, cosmetic: true });
+    w.isMeleeing = mel;
+  }
+
+  _netReloadStart(def, now, empty) {
+    const w = this.weapon;
+    if (!def || !w || def.cls === 'melee') return;
+    const shells = !!def.perShellReload;
+    let dur = empty ? def.reloadEmptyTime || 2.6 : def.reloadTime || 2;
+    const tm = def.shellTiming || SHELL_TIMING;
+    const need = Math.max(1, Math.round((def.mag || 4) * 0.5));
+    if (shells) dur = tm.start + tm.insert * need + tm.end + (empty ? 0.45 : 0);
+    this._netReload = { at: now, dur, empty, weaponId: def.id, shells, tm, need, done: 0, insertAt: dur * (empty ? 0.64 : 0.76), inserted: false };
+    w.isReloading = true;
+    w.reloadEmpty = empty;
+    w.reloadProgress = 0;
+    w.reloadPhase = 'start';
+    this.G.events.emit('weapon:reload', { actor: this, weaponId: def.id, phase: 'start', empty, cosmetic: true });
+  }
+
+  _netReloadTick(now) {
+    const r = this._netReload, w = this.weapon;
+    if (!r || !w) return;
+    const t = now - r.at;
+    w.reloadProgress = clamp(t / Math.max(0.1, r.dur), 0, 0.99);
+    if (r.shells) {
+      // Patrone für Patrone (geschätzt): Einführen hörbar im Takt der Waffe
+      while (r.done < r.need && t >= r.tm.start + r.tm.insert * (r.done + 1)) {
+        r.done++;
+        w.reloadPhase = 'insert';
+        this.G.events.emit('weapon:reload', { actor: this, weaponId: r.weaponId, phase: 'insert', empty: r.empty, shell: true, cosmetic: true });
+      }
+    } else if (!r.inserted && t >= r.insertAt) {
+      r.inserted = true;
+      w.reloadPhase = 'insert';
+      this.G.events.emit('weapon:reload', { actor: this, weaponId: r.weaponId, phase: 'insert', empty: r.empty, cosmetic: true });
+    }
+  }
+
+  _netReloadEnd(now, emit = true) {
+    const r = this._netReload, w = this.weapon;
+    this._netReload = null;
+    if (w) { w.isReloading = false; w.reloadProgress = 0; w.reloadPhase = null; }
+    if (!r || !emit) return;
+    const interrupted = now - r.at < r.dur * 0.85;
+    this.G.events.emit('weapon:reload', { actor: this, weaponId: r.weaponId, phase: 'end', empty: r.empty, interrupted, cause: null, cosmetic: true });
+  }
+
+  /** Waffenzustand der Puppe zurücksetzen (Tod/Respawn/Umschalten). emit: laufendes Nachladen abmelden (Audio). */
+  _resetNetWeapon(emit = false) {
+    if (this._netReload) this._netReloadEnd(this.G.time.elapsed, emit);
+    this._netShots = null;
+    this._netShotQ = 0;
+    this._netShotAt = 0;
+    const w = this.weapon;
+    if (!w) return;
+    w.isReloading = w.isThrowing = w.isMeleeing = w.isSwitching = w.cooking = w.ads = false;
+    w.reloadProgress = 0;
+    w.reloadPhase = null;
+    w.adsProgress = 0;
+  }
+
+  /** Schusszähler (mod 256) aus dem Netz: Differenz → Warteschlange (Wiedergabe im Takt der Waffe). */
+  _netShotsIn(shots) {
+    const last = this._netShots;
+    this._netShots = shots & 255;
+    if (last == null) return; // erster Wert (Spawn/Beitritt): nicht nachfeuern
+    const n = (shots - last) & 255;
+    if (!n || n > 64) return; // > 64: Sprung (Neubeginn) statt Schüsse
+    this._netShotQ = Math.min(NET_SHOT_QUEUE, this._netShotQ + n);
+  }
+
+  _releaseNetShots(now) {
+    if (this._netShotQ <= 0 || now < this._netShotAt) return;
+    const w = this.weapon;
+    const def = w && w.currentDef;
+    const interval = 60 / Math.max(1, (def && def.rpm) || 600);
+    // Rückstand > 3: bis auf zwei sofort, sonst einer je Schussintervall
+    const k = this._netShotQ > 3 ? this._netShotQ - 2 : 1;
+    this._netShotQ -= k;
+    this._netShotAt = now + interval * 0.85;
+    this._shotPending += k;
+    this.manager.puppetFired(this, k);
+  }
+
+  /** Waffenmodell aus Id, Index (WEAPON_INDEX bzw. nach Id sortiert) oder Definition. */
+  _netDef(ref) {
+    const G = this.G;
+    const W = (G.data && G.data.WEAPONS) || {};
+    if (ref == null) return null;
+    if (typeof ref === 'object') return ref.id ? W[ref.id] || ref : null;
+    if (typeof ref === 'number') {
+      const idx = (G.data && Array.isArray(G.data.WEAPON_INDEX) && G.data.WEAPON_INDEX) || this.manager.weaponIndex();
+      const e = idx[ref];
+      const id = typeof e === 'string' ? e : e && e.id;
+      return (id && W[id]) || null;
+    }
+    return W[ref] || null;
+  }
+
+  /**
+   * Puppe: Waffe in die Hand nehmen (Id, Index oder Definition). Fehlt sie in der Ausrüstung (Ausrüstungswechsel beim
+   * anderen Spieler), ersetzt sie den passenden Platz. Drittpersonen-Modell + Animation folgen sofort. → true bei Wechsel
+   */
+  setNetWeapon(ref, { silent = false } = {}) {
+    const def = this._netDef(ref);
+    const w = this.weapon;
+    if (!def || !w) return false;
+    const cur = w.currentDef;
+    if (cur && cur.id === def.id) { if (this._gunId !== def.id) this._syncGun(true); return false; }
+    const from = cur ? cur.id : null;
+    let i = w.slots.findIndex((s) => s && s.id === def.id);
+    if (i < 0) {
+      const second = def.slot === 'secondary' || def.cls === 'pistol' || def.cls === 'launcher';
+      i = second ? Math.min(1, w.slots.length) : 0;
+      w.slots[i] = { id: def.id, def, mag: def.mag || 0, reserve: def.reserve || 0 };
+      if (this.loadout) this.loadout[second ? 'secondary' : 'primary'] = def.id;
+    }
+    if (this._netReload) this._netReloadEnd(this.G.time.elapsed, !silent);
+    w.index = i;
+    w.shotIndex = 0;
+    if (typeof w._refreshStatic === 'function') w._refreshStatic();
+    this._syncGun(true);
+    if (!silent && from) this.G.events.emit('weapon:switch', { actor: this, weaponId: def.id, from, slot: i, cosmetic: true });
+    return true;
+  }
+
+  /** Puppe: neue Ausrüstung (Klasse/Waffen, z. B. Spawn mit geänderter Ausrüstung); die Waffe in der Hand folgt der Pose. */
+  setNetLoadout(loadout = {}) {
+    const w = this.weapon;
+    if (!w || !loadout) return;
+    this.loadout = { ...this.loadout, ...loadout };
+    if (loadout.cls && CLASSES[loadout.cls]) { this.cls = loadout.cls; this.classDef = CLASSES[loadout.cls]; }
+    if (this._netReload) this._netReloadEnd(this.G.time.elapsed, false);
+    w.setLoadout(this.loadout);
+    w._switch = null; // kein Ziehen (update() läuft bei Puppen nicht)
+    this._netWeaponRef = undefined;
+    this._netQuietWeapon = true;
+    this._syncGun(true);
+  }
+
+  /** KI ↔ Puppe umschalten (Manager: setPuppet räumt zusätzlich Trupp/Pfade auf). */
+  setPuppet(on = true) {
+    on = !!on;
+    if (this.puppet === on) return;
+    this.puppet = on;
+    this.manualPlates = on;
+    this._resetNetWeapon(false);
+    this.netPose = null;
+    this._netWeaponRef = undefined;
+    this._netQuietWeapon = true;
+    this.nav.stop();
+    this.gunner.reset();
+    this.memory.clear();
+    this.goal = newGoal();
+    this.throwPlan = null;
+    this.coverNode = null;
+    this.atTarget = null;
+    this.wantReload = false;
+    if (this.order) this.order.kind = null;
+    if (!on) this.sliding = this.swimming = false;
+  }
+
+  /** Netz-Pose dieses Akteurs (Host: Schnappschuss eines KI-Bots; siehe netPoseOf). */
+  netState(out = {}) { return netPoseOf(this, out); }
 
   /* ================================================================ Haltung (bots-scale) */
 
@@ -1111,7 +1477,8 @@ export class Bot {
     p.throwing = w ? w.isThrowing : false;
     p.cooking = w ? w.cooking : false;
     p.meleeing = w ? w.isMeleeing : false;
-    p.idleLook = !this.gunner.rec && Math.hypot(this.body.velocity.x, this.body.velocity.z) < 0.4;
+    // Puppen: kein zufälliges Umherblicken – der Kopf zeigt, wohin der Mensch/Host-Bot wirklich schaut
+    p.idleLook = !this.puppet && !this.gunner.rec && Math.hypot(this.body.velocity.x, this.body.velocity.z) < 0.4;
     p.lean = this.lean;
     p.prone = this.stance === 'prone';
     p.proneYaw = this.proneYaw;
@@ -1138,6 +1505,7 @@ export class Bot {
   }
 
   dispose() {
+    if (this.puppet && this._netReload) this._netReloadEnd(this.G.time.elapsed, true); // Audio: Nachladen abmelden
     if (this.weapon && typeof this.weapon.dispose === 'function') this.weapon.dispose();
     this.weapon = null;
     for (const s of this.soldiers) if (s) s.dispose();

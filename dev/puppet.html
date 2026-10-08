@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Puppen-Prüfstand – NULLPUNKT</title>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/css/fonts.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0d10; color: #e8ecef; font-family: "JetBrains Mono NP", ui-monospace, monospace; overflow: hidden; }
+  iframe#game { position: fixed; inset: 0; width: 100vw; height: 100vh; border: 0; display: block; }
+  #panel { position: fixed; top: 10px; right: 10px; width: 300px; max-height: calc(100vh - 20px); overflow-y: auto; background: rgba(12,14,17,.86); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 12px; font-size: 11px; line-height: 1.45; box-sizing: border-box; z-index: 20; }
+  #panel h1 { font: 800 15px/1 "Archivo NP", sans-serif; letter-spacing: .04em; margin: 0 0 8px; }
+  #panel h1 span { color: #ff5b1f; }
+  #panel p { color: #8a949d; margin: 0 0 8px; }
+  #panel button { font: inherit; color: inherit; background: #1b1f24; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; padding: 5px 8px; min-height: 30px; cursor: pointer; }
+  #panel button.on { background: #ff5b1f; color: #111; border-color: #ff5b1f; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; align-items: center; }
+  #phase { font: 700 12px "Archivo NP", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #ffb38f; margin: 8px 0 4px; }
+  #out { white-space: pre-wrap; color: #b9c2ca; margin: 6px 0 0; font: inherit; }
+  #panel.collapsed > :not(h1) { display: none; }
+  @media (max-width: 700px) { #panel { width: 220px; font-size: 10px; } }
+</style>
+</head>
+<body>
+<iframe id="game" title="NULLPUNKT (Offline-Match)" allow="autoplay; fullscreen"></iframe>
+<div id="panel">
+  <h1>PUPPEN<span>·</span>PRÜFSTAND</h1>
+  <p>Mehrspieler-Puppen (bot.puppet) im Offline-Match: Netz-Pose per Skript – Kreis gehen, Sprint, Ducken, Liegen, Anschlag,
+    Nachladen, Waffenwechsel, Schüsse. URL: <code>?auto=1&amp;map=hafen&amp;mode=tdm&amp;quality=low</code></p>
+  <div class="row"><button id="run">Szenario starten</button><button id="hold">Anhalten</button><button id="collapse">–</button></div>
+  <div class="row"><button id="add">KI-Bot hinzufügen</button><button id="remove">Puppe B entfernen</button></div>
+  <div id="phase">Spiel lädt …</div>
+  <pre id="out"></pre>
+</div>
+<script type="module">
+// NULLPUNKT — Puppen-Prüfstand: lädt spielen.html (Offline-Match) im Rahmen, entfernt die KI-Bots (removeBot mitten im
+// Match), legt zwei Puppen an (G.bots.spawnPuppet) und schreibt ihre Netz-Pose wie ein Sync-Modul (bot.netPose, ~10 s
+// Skript). Prüft: Figur folgt der Pose, Animation je Haltung, Schüsse (weapon:fire cosmetic + Leuchtspur, kein Schaden),
+// Waffenwechsel, Nachladen, Trefferzonen (combat.fireHitscan vom Spieler), removeBot, addBot.
+// Testhaken: window.__puppet { phase, proneReady, done, ok, checks, results, errors, hold(on), run() } (tools/puppet-test.mjs)
+const q = new URLSearchParams(location.search);
+const $ = (id) => document.getElementById(id);
+const frame = $('game');
+const gq = new URLSearchParams({ autostart: '1', debug: '1', mode: q.get('mode') || 'tdm', map: q.get('map') || 'hafen', allies: q.get('allies') || '1', enemies: q.get('enemies') || '1' });
+if (q.get('quality')) gq.set('quality', q.get('quality'));
+frame.src = `../spielen.html?${gq}`;
+
+const st = window.__puppet = {
+  phase: 'laden', phaseB: null, proneReady: false, running: false, playing: false, done: false, ok: null, held: false, heldFor: 0,
+  checks: {}, results: {}, errors: [], log: [],
+  /** Skriptzeit anhalten (Puppen behalten die Pose, Animation läuft weiter); heldFor = Spielzeit seitdem. */
+  hold(on = true) { st.held = !!on; st.heldFor = 0; $('hold').classList.toggle('on', st.held); return st.held; },
+  /** Bildschirmfoto-Ansicht: Prüfstand-Tafel und Ego-Waffe ausblenden. */
+  shotMode(on = true) {
+    $('panel').style.display = on ? 'none' : '';
+    const g = G();
+    if (g && g.viewmodel && g.viewmodel.scene) g.viewmodel.scene.visible = !on;
+    return !!on;
+  },
+  run: () => run(),
+};
+const log = (...a) => { const s = a.join(' '); st.log.push(s); $('out').textContent = st.log.slice(-22).join('\n'); console.log('[puppet]', s); };
+const check = (name, ok, detail = '') => { st.checks[name] = { ok: !!ok, detail: String(detail) }; log(`${ok ? 'OK  ' : 'FEHL'} ${name}${detail !== '' ? ` (${detail})` : ''}`); return !!ok; };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const r2 = (x) => Math.round(x * 100) / 100;
+const avg = (a) => (a && a.length ? a.reduce((s, x) => s + x, 0) / a.length : NaN);
+const G = () => frame.contentWindow && frame.contentWindow.__game;
+
+// Fehler im Spiel mitschreiben (zusätzlich zu den Konsolenmeldungen, die der Playwright-Test sammelt)
+frame.addEventListener('load', () => {
+  const w = frame.contentWindow;
+  if (!w) return;
+  w.addEventListener('error', (e) => st.errors.push(`[Fehler] ${e.message}`));
+  w.addEventListener('unhandledrejection', (e) => st.errors.push(`[Promise] ${(e.reason && e.reason.message) || e.reason}`));
+  const ce = w.console.error.bind(w.console);
+  w.console.error = (...a) => { st.errors.push(`[console.error] ${a.map((x) => (x && x.message) || String(x)).join(' ')}`); ce(...a); };
+});
+
+async function until(fn, timeout, label) {
+  const t0 = performance.now();
+  for (;;) {
+    let v = false;
+    try { v = fn(); } catch { v = false; }
+    if (v) return v;
+    if (performance.now() - t0 > timeout) throw new Error(`Zeitüberschreitung: ${label}`);
+    await sleep(100);
+  }
+}
+/** n Simulationsbilder des Spiels abwarten (Spielzeit läuft). */
+async function gameTime(sec) {
+  const g = G();
+  const t0 = g.time.elapsed;
+  await until(() => g.time.elapsed - t0 >= sec, 120000 + sec * 20000, `Spielzeit ${sec} s`);
+}
+
+/* ---------------------------------------------------------------- Skript */
+
+const R = 2.5; // Kreisradius (m)
+const BEH = {
+  gehen: { speed: 3.1 },
+  sprint: { speed: 7.6, sprint: true },
+  ducken: { speed: 1.6, crouch: true },
+  liegen: { speed: 0, prone: true },
+  anschlag: { speed: 0, ads: true, fire: 10, face: true, lean: 0.8 },
+  nachladen: { speed: 0, reload: true, face: true },
+  wechsel: { speed: 0, face: true, fire: 4, weapon: 'secondary' },
+  gehenNachladen: { speed: 2.4, reload: true },
+};
+// Puppe A (Mensch, sendet proneBlend + hp wie ein Client-Schnappschuss) und B (Host-Bot-Puppe ohne hp/proneBlend)
+const PLAN_A = [['gehen', 2.0], ['sprint', 1.5], ['ducken', 1.5], ['liegen', 2.0], ['anschlag', 1.5], ['nachladen', 1.0], ['wechsel', 1.2]];
+const PLAN_B = [['ducken', 3.5], ['liegen', 1.5], ['anschlag', 2.0], ['sprint', 1.5], ['gehenNachladen', 2.2]];
+const TOTAL = PLAN_A.reduce((s, p) => s + p[1], 0);
+const F = { alive: 1, crouch: 2, prone: 4, sprint: 8, ads: 16, reloading: 32, onGround: 64 };
+
+function phaseAt(plan, t) {
+  let a = 0;
+  for (const [name, dur] of plan) { if (t < a + dur) return { name, tIn: t - a, dur }; a += dur; }
+  const [name, dur] = plan[plan.length - 1];
+  return { name, tIn: dur, dur };
+}
+
+/** Freier, ebener Platz vor dem Spieler (Kreis mit Sicht vom Auge, Platz zum Liegen). */
+function findSpot(g) {
+  const W = g.world, P = g.player;
+  const V = (x, y, z) => new g.THREE.Vector3(x, y, z);
+  const eye = P.getEyePosition(V(0, 0, 0));
+  for (const dist of [9, 7.5, 11, 6.5]) {
+    for (let k = 0; k < 24; k++) {
+      const yaw = P.yaw + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (Math.PI / 12);
+      const cx = P.position.x - Math.sin(yaw) * dist, cz = P.position.z - Math.cos(yaw) * dist;
+      const gy = W.groundHeight(cx, cz, P.position.y + 2);
+      if (gy === null || !Number.isFinite(gy) || Math.abs(gy - P.position.y) > 1.2) continue;
+      let ok = W.lineOfSight(eye, V(cx, gy + 1.0, cz));
+      for (let j = 0; ok && j < 12; j++) {
+        const a = (j * Math.PI) / 6;
+        for (const rr of [R, R + 1.7]) {
+          const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
+          const gg = W.groundHeight(x, z, gy + 1.5);
+          if (gg === null || Math.abs(gg - gy) > 0.3) { ok = false; break; }
+          if (!W.lineOfSight(V(x, gg + 0.5, z), V(cx, gy + 0.5, cz))) { ok = false; break; }
+          if (rr === R && (!W.lineOfSight(eye, V(x, gg + 1.0, z)) || !W.lineOfSight(eye, V(x, gg + 0.25, z)))) { ok = false; break; }
+        }
+      }
+      if (ok) return { x: cx, y: gy, z: cz, dist };
+    }
+  }
+  return null;
+}
+
+function makeState(g, bot, name, plan, ang0, dir, weapons, opts) {
+  return {
+    name, bot, plan, ang: ang0, dir, weapons, opts, shots: 0, shotAcc: 0, proneBlend: 0,
+    pose: { pos: [0, 0, 0], vel: [0, 0, 0], yaw: 0, pitch: 0, flags: F.alive | F.onGround, weapon: weapons[0], lean: 0, shots: 0 },
+    ph: null, written: false, writeT: 0, maxDev: 0, devN: 0,
+    stats: {}, fires: 0, cosmetic: 0, tracers: 0, impacts: 0, switches: 0, reloads: [], steps: 0, dealt: 0,
+    tmp: new g.THREE.Vector3(),
+  };
+}
+
+function writePose(g, s, t, dt, C) {
+  const ph = phaseAt(s.plan, t);
+  const b = BEH[ph.name];
+  s.ph = ph;
+  s.ang += ((b.speed || 0) / R) * dt * s.dir;
+  const x = C.x + Math.cos(s.ang) * R, z = C.z + Math.sin(s.ang) * R;
+  const gy = g.world.groundHeight(x, z, C.y + 1.5);
+  const y = gy === null ? C.y : gy;
+  const tx = -Math.sin(s.ang) * s.dir, tz = Math.cos(s.ang) * s.dir; // Laufrichtung (Tangente)
+  const p = s.pose;
+  p.pos[0] = x; p.pos[1] = y; p.pos[2] = z;
+  p.vel[0] = tx * (b.speed || 0); p.vel[1] = 0; p.vel[2] = tz * (b.speed || 0);
+  if (b.face) {
+    // zum Spieler, leicht seitlich vorbei (Leuchtspuren sichtbar, Vorbeiflug)
+    const P = g.player.position;
+    p.yaw = Math.atan2(-(P.x - x), -(P.z - z)) + 0.3;
+    p.pitch = Math.atan2(P.y + 1.4 - (y + 1.45), Math.hypot(P.x - x, P.z - z));
+  } else { p.yaw = Math.atan2(-tx, -tz); p.pitch = 0; }
+  let f = F.alive | F.onGround;
+  if (b.crouch) f |= F.crouch;
+  if (b.prone) f |= F.prone;
+  if (b.sprint) f |= F.sprint;
+  if (b.ads) f |= F.ads;
+  if (b.reload) f |= F.reloading;
+  p.flags = f;
+  s.proneBlend = b.prone ? Math.min(1, s.proneBlend + dt / 0.7) : Math.max(0, s.proneBlend - (dt / 0.7) * 0.82);
+  if (s.opts.proneBlend) p.proneBlend = s.proneBlend; else delete p.proneBlend;
+  if (s.opts.hp) p.hp = 100; else delete p.hp;
+  p.weapon = b.weapon === 'secondary' ? s.weapons[1] : s.weapons[0];
+  p.lean = b.lean && ph.tIn > ph.dur * 0.4 ? b.lean : 0;
+  if (b.fire) { s.shotAcc += dt * b.fire; while (s.shotAcc >= 1) { s.shotAcc -= 1; s.shots = (s.shots + 1) & 255; } }
+  p.shots = s.shots;
+  s.bot.netPose = p;
+  s.written = true;
+  s.writeT = g.time.elapsed;
+}
+
+function measure(g, s) {
+  const bot = s.bot;
+  if (!bot.alive || !bot.soldier || !s.written || !(g.time.elapsed > s.writeT)) return;
+  const so = bot.soldier, r = so.root.position, p = s.pose.pos;
+  const d = Math.hypot(r.x - p[0], r.y - p[1], r.z - p[2]);
+  s.maxDev = Math.max(s.maxDev, d);
+  s.devN++;
+  const ph = s.ph;
+  if (!ph || ph.tIn < ph.dur * 0.6) return; // zweite Phasenhälfte (Übergänge abgeklungen)
+  const m = s.stats[ph.name] || (s.stats[ph.name] = { head: [], crouch: [], prone: [], ads: [], reload: [], sprint: [] });
+  m.head.push(so.getHeadPosition(s.tmp).y - r.y);
+  const a = so.anim;
+  m.crouch.push(a.crouch); m.prone.push(a.prone); m.ads.push(a.ads); m.reload.push(a.reloadW); m.sprint.push(a.sprint);
+}
+
+/** Strahl vom Spielerauge auf eine Trefferzone der Puppe (combat.fireHitscan wie ein echter Schuss). */
+function hitscanAt(g, bot, zoneIndex) {
+  const so = bot.soldier;
+  const hb = so.hitboxes[zoneIndex];
+  const target = hb.b ? hb.a.clone().add(hb.b).multiplyScalar(0.5) : hb.a.clone();
+  const eye = g.player.getEyePosition(new g.THREE.Vector3());
+  const dir = target.clone().sub(eye).normalize();
+  const res = g.combat.fireHitscan({ shooter: g.player, origin: eye, dir, range: 200, weapon: g.player.weapon.currentDef });
+  const blocked = g.world.raycast(eye, dir, target.distanceTo(eye));
+  return { target: res && res.target, hit: res && res.hit, zone: res && res.zone, blocked: !!(blocked && blocked.distance < target.distanceTo(eye) - 0.4), dist: r2(target.distanceTo(eye)) };
+}
+
+let running = null;
+async function run() {
+  if (running) return running;
+  running = (async () => {
+    st.running = true;
+    try { await scenario(); } catch (err) { st.errors.push(`[Prüfstand] ${err && err.stack ? err.stack : err}`); log('Abbruch:', err && err.message); }
+    const failed = Object.entries(st.checks).filter(([, c]) => !c.ok).map(([k]) => k);
+    st.ok = failed.length === 0 && st.errors.length === 0;
+    st.results.failed = failed;
+    st.done = true;
+    st.running = false;
+    $('phase').textContent = st.ok ? 'fertig – alle Prüfungen bestanden' : `fertig – ${failed.length} Prüfung(en) fehlgeschlagen, ${st.errors.length} Fehler`;
+  })();
+  return running;
+}
+
+async function scenario() {
+  $('phase').textContent = 'warte auf Match …';
+  await until(() => { const g = G(); return g && g.match && g.match.state === 'playing' && g.world && g.bots; }, 240000, 'Match läuft');
+  const g = G();
+  st.playing = true;
+  g.debugApi.godMode(true);
+  const ts = Number(q.get('ts'));
+  if (ts > 0 && ts !== 1) log(`Zeitraffer ×${g.debugApi.setTimeScale(ts)}`);
+  await gameTime(0.5);
+
+  // 1) removeBot mitten im Match: KI-Bots entfernen (Platz für das Szenario)
+  const ai = g.bots.bots.filter((b) => !b.puppet);
+  const n0 = g.actors.length;
+  for (const b of ai) g.bots.removeBot(b);
+  check('removeBot: KI-Bots entfernt', ai.length > 0 && g.actors.length === n0 - ai.length && !g.bots.bots.length && !ai.some((b) => g.actors.includes(b)) && ai.every((b) => b.soldiers.length === 0), `${ai.length} Bots, Akteure ${n0} → ${g.actors.length}`);
+  check('removeBot: Trupps aufgelöst', g.bots.tactics.squads.length === 0, `${g.bots.tactics.squads.length} Trupps`);
+  await gameTime(0.3);
+
+  // 2) Platz + Puppen
+  const spot = findSpot(g);
+  if (!check('freier Platz vor dem Spieler', !!spot, spot ? `${r2(spot.dist)} m` : 'keiner')) return;
+  const C = spot;
+  g.debugApi.lookAt(C.x, C.y - 0.6, C.z); // etwas tiefer: Puppen über der Ego-Waffe im Bild
+  const W = g.data.WEAPONS;
+  const wA = ['ar_m17', 'pi_p9'], wB = [W.lmg_hm60 ? 'lmg_hm60' : 'ar_kv47', 'pi_p9'];
+  const posOn = (ang) => { const x = C.x + Math.cos(ang) * R, z = C.z + Math.sin(ang) * R; const y = g.world.groundHeight(x, z, C.y + 1.5); return [x, y === null ? C.y : y, z]; };
+  const A = g.bots.spawnPuppet({ netId: 2, name: 'Puppe A', team: 'B', cls: 'sturm', loadout: { primary: wA[0], secondary: wA[1], lethal: 'frag' }, isHuman: true, spawn: { position: posOn(0), yaw: 0 } });
+  const B = g.bots.spawnPuppet({ netId: 1001, name: 'Puppe B', team: 'A', cls: 'pionier', loadout: { primary: wB[0], secondary: wB[1], lethal: 'frag' }, isHuman: false, spawn: { position: posOn(Math.PI), yaw: 0 } });
+  check('spawnPuppet: zwei Puppen', A.puppet && B.puppet && g.actors.includes(A) && g.actors.includes(B) && g.bots.bots.includes(A) && A.alive && B.alive,
+    `${A.id}/${B.id}, Mensch ${A.isRemoteHuman}/${B.isRemoteHuman}, isHuman ${A.isHuman}/${B.isHuman}`);
+  check('spawnPuppet: Namensschilder + Netz-Id', g.bots._plates.has(A) && g.bots._plates.has(B) && g.bots.byNetId(2) === A && g.bots.byNetId(1001) === B && A.id === 'net_2', A.name);
+  const S = [makeState(g, A, 'A', PLAN_A, 0, 1, wA, { proneBlend: true, hp: true }), makeState(g, B, 'B', PLAN_B, Math.PI, -1, wB, { proneBlend: false, hp: false })];
+  const byBot = (a) => S.find((s) => s.bot === a);
+  const offs = [];
+  offs.push(g.events.on('weapon:fire', (e) => { const s = byBot(e.actor); if (s) { s.fires++; if (e.cosmetic) s.cosmetic++; } }));
+  offs.push(g.events.on('tracer', (e) => { const s = byBot(e.actor); if (s && e.cosmetic) s.tracers++; }));
+  offs.push(g.events.on('impact', (e) => { const s = byBot(e.actor); if (s && e.cosmetic) s.impacts++; }));
+  offs.push(g.events.on('weapon:switch', (e) => { const s = byBot(e.actor); if (s) s.switches++; }));
+  offs.push(g.events.on('weapon:reload', (e) => { const s = byBot(e.actor); if (s) s.reloads.push(e.phase); }));
+  offs.push(g.events.on('footstep', (e) => { const s = byBot(e.actor); if (s) s.steps++; }));
+  offs.push(g.events.on('actor:hit', (e) => { const s = byBot(e.attacker); if (s) s.dealt++; }));
+
+  // 3) Skript (Spielzeit; „Anhalten“ friert die Skriptzeit ein)
+  let t = 0, last = g.time.elapsed;
+  const hits = {};
+  await new Promise((resolve) => {
+    const loop = () => {
+      try {
+        const now = g.time.elapsed;
+        const gdt = Math.min(0.25, Math.max(0, now - last));
+        const dt = st.held ? 0 : Math.min(0.1, gdt);
+        if (st.held) st.heldFor += gdt;
+        last = now;
+        for (const s of S) measure(g, s);
+        t += dt;
+        for (const s of S) writePose(g, s, Math.min(t, TOTAL - 1e-3), dt, C);
+        st.phase = S[0].ph.name; st.phaseB = S[1].ph.name;
+        st.proneReady = st.phase === 'liegen' && A.proneBlend > 0.95 && A.soldier.anim.prone > 0.8;
+        $('phase').textContent = `${r2(t)} s · A: ${st.phase} · B: ${st.phaseB}${st.held ? ' (angehalten)' : ''}`;
+        // Trefferzonen: stehend im Anschlag (Rumpf) und liegend (Kopf)
+        if (!hits.stand && st.phase === 'anschlag' && S[0].ph.tIn > 0.5) hits.stand = hitscanAt(g, A, 2);
+        if (!hits.prone && st.phase === 'liegen' && S[0].ph.tIn > 1.5) hits.prone = hitscanAt(g, A, 0);
+      } catch (err) { st.errors.push(`[Skript] ${err && err.stack ? err.stack : err}`); }
+      if (t >= TOTAL) { resolve(); return; }
+      frame.contentWindow.requestAnimationFrame(loop);
+    };
+    frame.contentWindow.requestAnimationFrame(loop);
+  });
+  await gameTime(0.6); // Rest der Schusswarteschlange
+  for (const s of S) measure(g, s);
+
+  // 4) Auswertung
+  const sa = S[0].stats, sb = S[1].stats;
+  const hd = (m) => r2(avg(m && m.head));
+  for (const s of S) check(`Puppe ${s.name} folgt der Pose`, s.devN > 20 && s.maxDev < 0.1, `max ${s.maxDev.toFixed(4)} m, ${s.devN} Bilder`);
+  check('Animation A: Kopfhöhe stehen > ducken > liegen', hd(sa.gehen) > hd(sa.ducken) + 0.2 && hd(sa.ducken) > hd(sa.liegen) + 0.3,
+    `gehen ${hd(sa.gehen)}, sprint ${hd(sa.sprint)}, ducken ${hd(sa.ducken)}, liegen ${hd(sa.liegen)}, anschlag ${hd(sa.anschlag)}`);
+  check('Animation B (ohne proneBlend): ducken > liegen', hd(sb.ducken) > hd(sb.liegen) + 0.3 && hd(sb.anschlag) > hd(sb.ducken) + 0.2,
+    `ducken ${hd(sb.ducken)}, liegen ${hd(sb.liegen)}, anschlag ${hd(sb.anschlag)}`);
+  check('Animation A: Sprint/Anschlag/Nachladen/Liegen', avg(sa.sprint && sa.sprint.sprint) > 0.6 && avg(sa.anschlag && sa.anschlag.ads) > 0.6 && avg(sa.nachladen && sa.nachladen.reload) > 0.5 && avg(sa.liegen && sa.liegen.prone) > 0.6 && avg(sa.gehen && sa.gehen.ads) < 0.2,
+    `sprint ${r2(avg(sa.sprint && sa.sprint.sprint))}, ads ${r2(avg(sa.anschlag && sa.anschlag.ads))}, reload ${r2(avg(sa.nachladen && sa.nachladen.reload))}, prone ${r2(avg(sa.liegen && sa.liegen.prone))}`);
+  check('Animation: Schritte beim Gehen', S[0].steps > 0, `${S[0].steps}/${S[1].steps} Schritte`);
+  for (const s of S) check(`Schüsse ${s.name}: weapon:fire (cosmetic) + Leuchtspur`, s.cosmetic >= 5 && s.cosmetic === s.fires && s.tracers >= 2, `${s.cosmetic} Schüsse (Zähler ${s.shots}), ${s.tracers} Spuren, ${s.impacts} Einschläge`);
+  check('Schüsse: kein Schaden durch Puppen', S[0].dealt === 0 && S[1].dealt === 0, `${S[0].dealt}/${S[1].dealt}`);
+  check('Waffenwechsel A → Pistole (Modell + Controller)', A.weapon.currentDef.id === 'pi_p9' && A.soldier.def && A.soldier.def.id === 'pi_p9' && S[0].switches >= 1, `${A.weapon.currentDef.id}/${A.soldier.def && A.soldier.def.id}, ${S[0].switches} Wechsel`);
+  check('Nachladen: weapon:reload start/end', S[0].reloads.includes('start') && S[0].reloads.includes('end') && S[1].reloads.includes('start'), `A ${S[0].reloads.join(',')} · B ${S[1].reloads.join(',')}`);
+  check('Trefferzonen stehend: fireHitscan trifft Puppe A', hits.stand && hits.stand.target === A, hits.stand ? `${hits.stand.hit}/${hits.stand.zone}, ${hits.stand.dist} m` : 'kein Schuss');
+  check('Trefferzonen liegend: fireHitscan trifft Puppe A (Kopf)', hits.prone && (hits.prone.target === A || (hits.prone.blocked && !hits.prone.target)), hits.prone ? `${hits.prone.hit}/${hits.prone.zone}${hits.prone.blocked ? ' (Welt davor)' : ''}, ${hits.prone.dist} m` : 'kein Schuss');
+  check('Lebenspunkte: A aus dem Netz, B regeneriert', A.health === 100 && B.health > 0, `${r2(A.health)}/${r2(B.health)}`);
+  const sane = g.bots.stats();
+  check('Pose/Trefferzonen endlich (stats.broken)', sane.broken === 0, `broken ${sane.broken}, puppets ${sane.puppets}`);
+  st.results.puppets = S.map((s) => ({ name: s.name, maxDev: s.maxDev, frames: s.devN, fires: s.fires, tracers: s.tracers, impacts: s.impacts, steps: s.steps, reloads: s.reloads, head: Object.fromEntries(Object.entries(s.stats).map(([k, m]) => [k, hd(m)])) }));
+  st.results.hits = hits;
+
+  // 5) Puppe B mitten im Match entfernen
+  st.phase = 'entfernen';
+  const nA = g.actors.length;
+  const roots = B.soldiers.map((so) => so.root);
+  const okRm = g.bots.removeBot(B);
+  await gameTime(1.0);
+  check('removeBot(Puppe B) mitten im Match', okRm && !g.actors.includes(B) && !g.bots.bots.includes(B) && g.actors.length === nA - 1 && roots.every((rt) => !rt.parent) && !g.bots._plates.has(B) && !g.bots.byNetId(1001),
+    `Akteure ${nA} → ${g.actors.length}`);
+  check('G.actors konsistent (Spieler + Puppe A)', g.actors.length === 2 && g.actors.includes(g.player) && g.actors.includes(A) && g.actors.every((a) => a === g.player || g.bots.bots.includes(a)), g.actors.map((a) => a.id).join(','));
+
+  // 6) addBot: ein KI-Bot wie spawnBots, Spawn über den Spielablauf (G.spawnActor)
+  st.phase = 'addBot';
+  const nb = g.bots.addBot({ team: 'B' });
+  g.spawnActor(nb);
+  const p0 = nb.position.clone();
+  await gameTime(3.0);
+  const moved = nb.position.distanceTo(p0);
+  check('addBot: KI-Bot lebt und handelt', nb && !nb.puppet && nb.alive && g.actors.includes(nb) && g.bots._plates.has(nb) && !!nb.tsquad && nb.soldier.state === 'alive' && Number.isFinite(nb.position.x) && (moved > 0.3 || nb.goal.kind !== 'idle'),
+    `${nb.name} (${nb.cls}, ${nb.role}), Ziel ${nb.goal.kind}, ${r2(moved)} m bewegt, Trupp ${nb.tsquad && nb.tsquad.id}`);
+  for (const off of offs) off();
+  st.results.errors = st.errors.slice();
+  st.phase = 'fertig';
+}
+
+$('run').onclick = () => run();
+$('hold').onclick = () => st.hold(!st.held);
+$('collapse').onclick = () => $('panel').classList.toggle('collapsed');
+$('add').onclick = () => { const g = G(); if (!g || !g.bots) return; const b = g.bots.addBot({ team: g.match.ffa ? null : 'B' }); g.spawnActor(b); log(`addBot: ${b.name} (${b.cls})`); };
+$('remove').onclick = () => { const g = G(); if (!g || !g.bots) return; const b = g.bots.byNetId(1001); log(b ? `removeBot: ${g.bots.removeBot(b)}` : 'Puppe B nicht vorhanden'); };
+if (q.get('auto') === '1') run();
+</script>
+</body>
+</html>

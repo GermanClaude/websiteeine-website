@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 
 const COLORS = { ally: '#38b6ff', enemy: '#ff3b3b', ffa: '#ff3b3b' };
-const POOL_MAX = 24; // mehr freie Schilder werden wirklich entsorgt (größtes Match: 15 Bots)
+const POOL_MAX = 40; // mehr freie Schilder werden wirklich entsorgt (online bis 32 Spieler; Großkarte mit mehr Bots legt den Rest neu an)
 const pool = [];
 
 let fontState = 0; // 0 = nicht angefordert, 1 = lädt, 2 = fertig (oder nicht verfügbar)

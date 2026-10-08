@@ -283,22 +283,25 @@ export class AntiCheat {
     const budgetUp = Math.min(climb * o.budgetWindow + o.stepUp, p.budgetUp + climb * dt);
     const hd = distH(pos, p.pos);
     const dy = pos[1] - p.pos[1];
+    // Budget darf ins Minus gehen (Defizit bleibt bestehen) – erst unter −slack ist es ein Verstoß
+    const afterH = budgetH - hd;
+    const afterUp = budgetUp - Math.max(0, dy);
     let reason = null;
-    if (hd > o.teleport && hd > budgetH + o.slack) reason = 'teleport';
+    if (hd > o.teleport && afterH < -o.slack) reason = 'teleport';
     else if (-dy > o.fall * dt + o.teleport) reason = 'teleport';
-    else if (hd > budgetH + o.slack) reason = 'tempo';
-    else if (dy > budgetUp + o.slack) reason = 'steigen';
+    else if (afterH < -o.slack) reason = 'tempo';
+    else if (afterUp < -o.slack) reason = 'steigen';
     if (reason) {
       p.correctPos = p.pos.slice();
       p.correctAt = nowSec;
       p.t = nowSec;
-      p.budgetH = budgetH;
-      p.budgetUp = budgetUp;
+      p.budgetH = Math.max(0, budgetH);
+      p.budgetUp = Math.max(0, budgetUp);
       const s = this.strike(id, reason, nowSec, { dist: Math.round(hd * 100) / 100, dt: Math.round(dt * 1000) / 1000 });
       return { ok: false, reason, correct: p.correctPos.slice(), kick: s.kick };
     }
-    p.budgetH = Math.max(0, budgetH - hd);
-    p.budgetUp = Math.max(0, budgetUp - Math.max(0, dy));
+    p.budgetH = afterH;
+    p.budgetUp = afterUp;
     p.pos = pos;
     p.t = nowSec;
     return { ok: true, reason: 'ok', kick: null };

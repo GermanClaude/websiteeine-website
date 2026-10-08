@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NULLPUNKT – Raum-Prüfstand</title>
+<!-- three nur für world/weather.js (Wetter/Zeit-Auflösung beim Host), kein WebGL nötig -->
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; background: #111; color: #ddd; margin: 16px; }
+  pre { white-space: pre-wrap; word-break: break-word; }
+  code { color: #f2a65a; }
+</style>
+</head>
+<body>
+<h1>Raum-Prüfstand (NetSystem)</h1>
+<p>NetSystem mit einem minimalen Spielobjekt (EventBus, Einstellungen, Profil) – gesteuert über <code>window.__room</code>
+(z. B. <code>__room.net.host({…})</code>, <code>__room.net.join(code)</code>). Parameter: <code>?name=Anna&amp;level=7</code>,
+lokales Relay: <code>&amp;relays=ws://127.0.0.1:7777</code>. Prüfung: <code>node tools/net-room-test.mjs</code>.</p>
+<pre id="log"></pre>
+<script type="module">
+import { EventBus } from '../assets/js/game/engine/events.js';
+import { NetSystem } from '../assets/js/game/net/index.js';
+import * as proto from '../assets/js/game/net/protocol.js';
+
+const q = new URLSearchParams(location.search);
+const name = q.get('name') || 'Tester';
+const level = Number(q.get('level') || 5);
+const out = document.getElementById('log');
+const log = (...a) => { out.textContent += a.join(' ') + '\n'; console.log('[net-room]', ...a); };
+const store = {
+  playerName: name, lastClass: 'sturm', realisticCrosshair: false,
+  lastLoadout: { primary: q.get('primary') || 'ar_m17', secondary: 'pi_p9', lethal: 'frag', cls: 'sturm' },
+};
+const G = {
+  events: new EventBus(),
+  settings: { get: (k) => store[k], set: (k, v) => { store[k] = v; return v; } },
+  profile: { get: () => ({ name, level }), stats: () => ({ level, kd: 1.25 }) },
+  actors: [], match: { state: 'lobby' }, menus: null, modules: {}, debug: true,
+};
+const net = new NetSystem(G);
+G.net = net;
+const st = window.__room = { G, net, proto, store, events: [], started: [], msgs: [], fast: [], log };
+G.events.onAny((ev, p) => {
+  if (!ev.startsWith('net:')) return;
+  let copy = null;
+  try { copy = JSON.parse(JSON.stringify(p)); } catch { copy = String(p); }
+  st.events.push({ name: ev, p: copy, at: Date.now() });
+  log(ev, JSON.stringify(copy).slice(0, 240));
+});
+net.startGame = (cfg) => { st.started.push(JSON.parse(JSON.stringify(cfg))); log('startGame', JSON.stringify(cfg)); };
+net.on('*', (m, from) => st.msgs.push({ m, from }));
+net.onFast((buf, from) => st.fast.push({ len: buf.byteLength, from, type: proto.packetType(buf), buf }));
+st.ready = true;
+log('bereit:', name, 'Relays', net.relays.join(', '), 'ICE', JSON.stringify(net.ice));
+</script>
+</body>
+</html>
