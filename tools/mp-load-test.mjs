@@ -118,6 +118,18 @@ const instrumentHost = (p) => p.evaluate(() => {
     if (n && typeof to === 'number') { add(to, buf.byteLength); if (new DataView(buf).getUint8(0) === 1) { m.snaps++; m.snapBytes += buf.byteLength; m.snapEnts += new DataView(buf).getUint16(9, true); } }
     return n;
   };
+  // Kampfrate der Bots über den ganzen Lauf (Spielzeit, viele Spielsekunden statt nur des Messfensters): Treffer/Abschüsse/
+  // Spawns mit Bot als Verursacher je Bot-Spielsekunde → hochgerechnet auf 32 kämpfende Akteure
+  const f = (m.fight = { hits: 0, kills: 0, spawns: 0, botSec: 0, gameSec: 0 });
+  const isBot = (a) => a && a !== G.player && !a.isRemoteHuman && Number.isInteger(a.netId);
+  G.events.on('actor:hit', (e) => { if (e && isBot(e.attacker)) f.hits++; });
+  G.events.on('kill', (e) => { if (e && isBot(e.killer)) f.kills++; });
+  G.events.on('actor:spawn', (e) => { if (e && isBot(e.actor)) f.spawns++; });
+  const pre = N.preUpdate.bind(N);
+  N.preUpdate = (dt) => {
+    if (G.match.state === 'playing' && dt > 0) { f.gameSec += dt; f.botSec += dt * G.bots.bots.filter((b) => !b.isRemoteHuman).length; }
+    return pre(dt);
+  };
   window.__resetBytes = () => { m.per = {}; m.rel = {}; m.pkts = {}; m.snapBytes = 0; m.snaps = 0; m.snapEnts = 0; m.real = 0; m.game = 0; m.fake = 0; m.types = {}; m.since = performance.now(); m.game0 = G.time.elapsed; };
 });
 const hostBytes = (p) => p.evaluate(() => { const m = window.__bytes; return { ...m, sec: (performance.now() - m.since) / 1000, gameSec: window.__game.time.elapsed - m.game0 }; });
@@ -209,15 +221,27 @@ try {
   const relPer = Object.values(bytes.rel);
   const nCl = Math.max(1, relPer.length);
   const relReal = relPer.reduce((a, b) => a + b, 0) / nCl / bytes.sec;
-  // hochgerechnet: Echtzeit-Teil je Sekunde + Bot-Ereignisse je Spielsekunde (Spielzeit = Echtzeit), skaliert auf alle 32
-  // Akteure (die Menschen kämpfen so viel wie Bots: × 32 / Bots); die künstlichen Treffermeldungen der Last-Clients zählen
-  // dabei nicht (sie sind in der Skalierung enthalten)
+  // hochgerechnet: Echtzeit-Teil (Modus, Roster …) je Sekunde + Kampf-Teil: Treffer/Abschüsse/Spawns je Bot-Spielsekunde über
+  // den ganzen Lauf × 32 Akteure (die Menschen kämpfen so viel wie Bots) × mittlere Nachrichtengröße (gemessen) + übrige
+  // Spielzeit-Ereignisse (Granaten, Explosionen) des Messfensters je Spielsekunde × 32/Bots. Die künstlichen
+  // Treffermeldungen der Last-Clients zählen dabei nicht (sie stecken in der Hochrechnung auf 32 Akteure)
   const gameSec = Math.max(1e-3, bytes.gameSec);
   const fightScale = 32 / Math.max(1, v1.bots);
-  const relGame = bytes.real / nCl / bytes.sec + (bytes.game / nCl / gameSec) * fightScale;
+  const fight = bytes.fight;
+  const size = (k, dflt) => { const v = bytes.types[k]; return v && v.n ? (v.real + v.game + v.fake) / v.n : dflt; };
+  const perBot = (n) => (fight.botSec > 0 ? n / fight.botSec : 0);
+  const fightRates = { hits: perBot(fight.hits) * 32, kills: perBot(fight.kills) * 32, spawns: perBot(fight.spawns) * 32 };
+  const fightBps = fightRates.hits * size('hit', 225) + fightRates.kills * size('kill', 270) + fightRates.spawns * size('spawn', 230);
+  const otherGame = Object.entries(bytes.types).filter(([k]) => !['hit', 'kill', 'spawn'].includes(k)).reduce((a, [, v]) => a + v.game, 0);
+  const relGame = bytes.real / nCl / bytes.sec + fightBps + (otherGame / nCl / gameSec) * fightScale;
   const at20 = (snapAvg + 60) * 20 + relGame;
+  result.fight = {
+    gameSec: Math.round(fight.gameSec * 10) / 10, botSec: Math.round(fight.botSec), hits: fight.hits, kills: fight.kills, spawns: fight.spawns,
+    per32: { hits: Math.round(fightRates.hits * 10) / 10, kills: Math.round(fightRates.kills * 100) / 100, spawns: Math.round(fightRates.spawns * 100) / 100 },
+    sizes: { hit: Math.round(size('hit', 225)), kill: Math.round(size('kill', 270)), spawn: Math.round(size('spawn', 230)) }, bps: Math.round(fightBps),
+  };
   result.reliableTypes = Object.fromEntries(Object.entries(bytes.types).map(([k, v]) => [k, {
-    n: v.n, realBps: Math.round((v.real + v.fake) / nCl / bytes.sec), projBps: Math.round(v.real / nCl / bytes.sec + (v.game / nCl / gameSec) * fightScale),
+    n: v.n, realBps: Math.round((v.real + v.fake) / nCl / bytes.sec), projBps: Math.round(v.real / nCl / bytes.sec + (['hit', 'kill', 'spawn'].includes(k) ? 0 : (v.game / nCl / gameSec) * fightScale)),
   }]));
   result.bandwidth = {
     perClientAvg: Math.round(perClient.reduce((a, b) => a + b, 0) / Math.max(1, perClient.length)), perClientMax: Math.round(Math.max(...perClient)),
@@ -226,7 +250,8 @@ try {
     perClientAt20Hz: Math.round(at20), totalAt20Hz: Math.round(at20 * perClient.length), share: Math.round((entAvg / 32) * 100) / 100,
     seconds: Math.round(bytes.sec),
   };
-  info(`Upload Host (gemessen bei ${during.fps} FPS): je Client Ø ${(result.bandwidth.perClientAvg / 1024).toFixed(1)} KB/s (max ${(result.bandwidth.perClientMax / 1024).toFixed(1)}), gesamt ${(totalUp / 1024).toFixed(1)} KB/s; Schnappschuss Ø ${result.bandwidth.snapshotAvgBytes} B (${result.bandwidth.snapshotAvgEntities} von 32 Akteuren = ${result.bandwidth.share}), ${result.bandwidth.snapshotsPerClientPerSec}/s je Client; zuverlässig ${result.bandwidth.reliablePerClientReal} B/s gemessen; hochgerechnet (Spielzeit = Echtzeit, ${result.bandwidth.gameSeconds} s Spielzeit gemessen, Kämpfe × ${result.bandwidth.fightScale}) ${result.bandwidth.reliablePerClientGame} B/s; je Typ (gemessen → hochgerechnet B/s) ${Object.entries(result.reliableTypes).map(([k, v]) => `${k} ${v.n}× ${v.realBps}→${v.projBps}`).join(', ')}`);
+  info(`Upload Host (gemessen bei ${during.fps} FPS): je Client Ø ${(result.bandwidth.perClientAvg / 1024).toFixed(1)} KB/s (max ${(result.bandwidth.perClientMax / 1024).toFixed(1)}), gesamt ${(totalUp / 1024).toFixed(1)} KB/s; Schnappschuss Ø ${result.bandwidth.snapshotAvgBytes} B (${result.bandwidth.snapshotAvgEntities} von 32 Akteuren = ${result.bandwidth.share}), ${result.bandwidth.snapshotsPerClientPerSec}/s je Client; zuverlässig ${result.bandwidth.reliablePerClientReal} B/s gemessen; hochgerechnet (Spielzeit = Echtzeit) ${result.bandwidth.reliablePerClientGame} B/s; je Typ (gemessen → Echtzeit-Teil B/s) ${Object.entries(result.reliableTypes).map(([k, v]) => `${k} ${v.n}× ${v.realBps}→${v.projBps}`).join(', ')}`);
+  info(`Kampfrate der Bots (ganzer Lauf, ${result.fight.gameSec} s Spielzeit, ${result.fight.botSec} Bot-Sekunden): ${result.fight.hits} Treffer, ${result.fight.kills} Abschüsse, ${result.fight.spawns} Spawns → bei 32 Akteuren je Spielsekunde ${result.fight.per32.hits} Treffer à ${result.fight.sizes.hit} B, ${result.fight.per32.kills} Abschüsse à ${result.fight.sizes.kill} B, ${result.fight.per32.spawns} Spawns à ${result.fight.sizes.spawn} B = ${result.fight.bps} B/s je Client`);
   info(`Hochgerechnet auf 20 Schnappschüsse/s: je Client ${(at20 / 1024).toFixed(1)} KB/s, gesamt ${(at20 * perClient.length / 1024).toFixed(0)} KB/s für ${perClient.length} Clients`);
   // Empfang der Clients (Gegenprobe) und deren Upload
   const recv = fakeEnd.map((e, i) => ({ inBps: (e.bytesIn - fakeStart[i].bytesIn) / (e.sec - fakeStart[i].sec), outBps: (e.sentBytes - fakeStart[i].sentBytes) / (e.sec - fakeStart[i].sec), sendHz: (e.sent - fakeStart[i].sent) / (e.sec - fakeStart[i].sec), snapHz: (e.snaps - fakeStart[i].snaps) / (e.sec - fakeStart[i].sec) }));
@@ -285,6 +310,18 @@ try {
   const v2 = await hostView(host);
   result.rosterAfterLeave = v2;
   check(!!refilled && v2.actors === 32, `${leaving.length} Clients gehen: Puppen ${vBefore.puppets} → ${v2.puppets}, Bots ${vBefore.bots} → ${v2.bots} ${JSON.stringify(v2.botsBy)}, Roster ${v2.roster}, ${v2.actors} Akteure`);
+
+  // Kampfrate über den ganzen Lauf (mehr Spielsekunden als im Messfenster) → zuverlässiger Anteil je Client (Kalibrierung
+  // RELIABLE_BYTES in recommend.js: Echtzeit-Teil + Kampf-Teil)
+  {
+    const fEnd = await host.evaluate(() => ({ ...window.__bytes.fight }));
+    const sz = result.fight.sizes;
+    const per = (n) => (fEnd.botSec > 0 ? (n / fEnd.botSec) * 32 : 0);
+    const bps = per(fEnd.hits) * sz.hit + per(fEnd.kills) * sz.kill + per(fEnd.spawns) * sz.spawn;
+    const realPart = result.bandwidth.reliablePerClientGame - result.fight.bps;
+    result.fightEnd = { gameSec: Math.round(fEnd.gameSec * 10) / 10, botSec: Math.round(fEnd.botSec), hits: fEnd.hits, kills: fEnd.kills, spawns: fEnd.spawns, bps: Math.round(bps), reliable: Math.round(realPart + bps) };
+    info(`Kampfrate ganzer Lauf (${result.fightEnd.gameSec} s Spielzeit, ${result.fightEnd.botSec} Bot-Sekunden): ${fEnd.hits} Treffer, ${fEnd.kills} Abschüsse, ${fEnd.spawns} Spawns → bei 32 Akteuren ${per(fEnd.hits).toFixed(1)} Treffer/s, ${per(fEnd.kills).toFixed(2)} Abschüsse/s, ${per(fEnd.spawns).toFixed(2)} Spawns/s = ${result.fightEnd.bps} B/s; zuverlässig je Client ≈ ${result.fightEnd.reliable} B/s`);
+  }
 
   // ================================================================== Matchende
   await host.evaluate(() => window.__game.debugApi.endMatch());
