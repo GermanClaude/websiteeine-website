@@ -142,3 +142,74 @@ pro Spielerzahl n ≈ 20 Hz × (n−1) × n × 40 Byte. Anzeige: „Empfehlung: 
 ## 11. Budget (Nutzer 08.10. ~18:30)
 - Mehrspieler Stufe 1 komplett (inkl. Tests und Veröffentlichung) mit höchstens **40–50 % des Wochenlimits**. Stand beim Start: ~3 % Woche / ~6 % Tag.
 - Rest bleibt als Puffer für Fehler im Mehrspieler und für Logik-/Kartenfehler. Deshalb: gezielte Agenten statt breiter Fächer, mittlere Denkstufe für mechanische Arbeit, Tests wiederverwenden statt neu bauen.
+
+## 12. Umsetzung Synchronisation (Schritt 2, 08.10.)
+
+Stand der Synchronisation (Host ↔ Clients) – Code in `net/sync-host.js`, `net/sync-client.js`, `net/sync-common.js`;
+Anschlüsse in `main.js`, `combat.js`, `modes/*`, `weapons/*`, `engine/physics.js`, `ui/endscreen.js`.
+Ende-zu-Ende-Prüfung: `node tools/mp-test.mjs` (Host + 2 Clients, lokales Relay, SwiftShader).
+
+**main.js**
+- `MODULES`: `net` (NetSystem), `netHost` (HostSync), `netClient` (ClientSync) – alle optional; fehlt `net`, bleibt `G.net = null`
+  und der Einzelspieler läuft unverändert. `G.net` entsteht nach `G.menus`. `spielen.html?raum=CODE` → `G.menus.openJoin(code)`.
+- `runStart`: cfg mit `net` (und aktiver Sitzung derselben Rolle) → `G.net.sync = new HostSync|ClientSync(G, net, cfg.net)`
+  (je Match neu, vor dem ersten `await` – Nachrichten während des Ladens werden gepuffert). `G.match.net/netRole` gelten bis zum
+  Abbau. Online: Bots je Team = `cfg.net.botsA/botsB` (absolute Teams, ohne `limitsFor`), Spielerteam = `cfg.net.team`,
+  `opts.streaks = false`, keine Fahrzeuge, `lastMode/lastMap` der Einzelspieler-Lobby bleiben. Client: Modus als Abbild
+  (`opts.replica`), keine `spawnBots`, Spieler wartet ohne Körper an einem Teamspawn (`placeSpectator`). Nach `warmUp`:
+  Client meldet seine tatsächliche Ausrüstung (`G.net.setLoadout`), dann `G.net.onMatchStart(cfg)` (Client → 'ready').
+- Bild: `G.net.preUpdate` nach Eingabe/Pausenprüfung, vor Spieler/Bots; `G.net.postUpdate` nach den Respawns. Respawns nur
+  auf dem Host. **Pause online**: Zustand 'paused' (Menü, Eingabe aus), die Simulation läuft weiter (`G.match.netLive`; Bots,
+  Modus, Respawns, Countdown). Client-Countdown wartet am Ende, bis der Host 'playing' meldet (höchstens 15 s).
+- `spawnActor(actor, fixed)`: fester Ort (Client-Spawn vom Host); Host ruft vorher `sync.beforeSpawn` (gemeldete Ausrüstung).
+  `deploy()` auf Clients wirkungslos (Host setzt ein). `endMatch` → `G.net.onMatchEnd(result)`; `teardownMatch` →
+  `G.net.onTeardown()` zuerst. **Verlassen bei Sitzungsverlust** gehört der Oberfläche (net-menus ruft `onQuit` nach
+  `net:kicked`/`net:error`); die Sync ruft `onQuit` nur bei 'end' mit `aborted` (Host hat das Match abgebrochen).
+
+**Host (HostSync)** – Netz-Ids: Host 1, Clients Roster-Id, Bots ab 1000 (auch `addBot`/`debugApi.spawnBots`).
+- 'ready' → Puppe (`spawnPuppet`, isHuman) + `G.spawnActor`; vor dem eigenen Matchstart gepuffert. Bots je Team so, dass
+  Bots + Menschen = teamSize (Koop: B nur Bots; FFA 2 × teamSize) – beim Einstieg, Austritt, Kick und alle 2 s.
+- PKT_STATE → `checkState` (Anti-Cheat, 'correct') → `puppet.netPose` nur bei gültigem Zustand (lebend, nicht veraltet).
+- 'hit' → `checkHit` (Waffenliste aus Roster/Puppe/gemeldeter Ausrüstung) → `combat.damage(target, {attacker: Puppe})` –
+  Abschüsse, Unterstützung, Modus, Medaillen laufen unverändert; Sturz/Welt ('fall'/'world', target = selbst) direkt.
+  'melee' → `validateMelee`. 'throw' → echte Granate/Rakete aus der Puppe (Ursprung ≤ 3,5 m, 0,3 s Abstand).
+- Sendet: Schnappschuss 20 Hz an bereite Clients (alle Akteure inkl. eigener Puppe), 'actors' (Name/Team/Mensch/Klasse/
+  Ausrüstung, Bot-Variante/Tarnschema) bei Änderung, 'spawn' {+st Host-Zeit}, 'hit', 'kill' {+resp Wartezeit, dir, st},
+  'mode' {s} (bei Änderung ≤ 5 Hz, sonst 1 Hz), 'ev' (gr/gb Granate geworfen/gezündet, rk/rb/rd Rakete, ex Explosion,
+  sc/md Punkte/Medaille nur an den betroffenen Client), 'end' je Client (`mode.resultFor`: Sieg/Platz/Zeilen aus seiner Sicht +
+  `summaryFor` = playerSummary). Abbau eines laufenden Matches → 'end' {aborted}.
+
+**Client (ClientSync)**
+- Puppen aus 'actors' + Schnappschüssen, Interpolation `max(0,1 s, 2,2 × Paketabstand)` (≤ 0,4 s) hinter `serverTime()`,
+  0,25 s Fortschreiben; Einträge vor dem letzten Spawn und tote Einträge zählen nicht. Fehlende 'spawn'/'kill' gleicht der
+  Lebend-Zustand der Schnappschüsse nach 0,35 s aus (z. B. Bots, die vor dem Beitritt gespawnt sind). Puppen fehlen > 3 s
+  (während andere Schnappschüsse kommen) → entfernt.
+- Eigene Lebenspunkte aus dem eigenen Schnappschuss-Eintrag und 'hit'; 'hit' → `actor:hit`/`player:damaged`/`onDamaged`;
+  'kill' → `onDeath` + lokales 'kill' (Abschussliste, Todesbildschirm, Wartezeit des Hosts); 'spawn' → `G.spawnActor(player,
+  fixed)` bzw. `puppet.respawn`; 'correct' → Teleport; 'mode' → `mode.applyNetState`; 'end' → `match:end` mit Ergebnis +
+  Zusammenfassung (Profil wie offline über `endMatch`), Endbildschirm-Knöpfe führen in den Raum.
+- `combat.damage` auf Clients → `sync.claimDamage`: eigene Treffer auf Puppen → 'hit'/'melee' + vorhergesagtes `actor:hit`
+  (Trefferanzeige/Blut), Sturz/Welt → Meldung an sich selbst, sonst 0. Eigene Würfe/Raketen (`WeaponSystem.throwGrenade/
+  explodeInHand/fireProjectile`) → 'throw' + Darstellungs-Geschoss (`remote`, zündet nicht selbst; übernimmt per `cid` die
+  Id des Hosts). Fremde Granaten/Raketen als Darstellung, Zündung über `remoteBoom` (Explosion/Blendung/Rauch/Brand lokal,
+  Schaden ohnehin nur beim Host).
+
+**Modi**: `BaseMode.replica` (kein `_onKill`/Punkte/Ende, Restzeit zählt zwischen den Zuständen weiter), `netState()`/
+`applyNetState()` (Restzeit, Verlängerung, Phase, Teampunkte bzw. FFA je netId, Wertung je Akteur), Dom (`ob`, `ti`;
+Besitzwechsel → `objective:captured/neutral` auf dem Client), Kc (`tg` Marken mit Alter; Aufsammeln nur beim Host).
+`count()` und Medaillen 'unaufhaltsam'/'mvp' zählen auch für entfernte Menschen; Ergebniszeilen tragen `netId`/`isHuman`
+(Ping-Spalte im Endbildschirm über `netRows`).
+
+**Kleine Anpassungen außerhalb der Sync**: `bots/bot.js` (Bots denken im Host-Pausenmenü weiter: `netLive`),
+`engine/physics.js` (Puppen werden nicht geschoben, der andere Akteur weicht ganz aus), `rockets.js` (ohne aktives
+Fahrzeugsystem eigene Spur gegen Welt + Akteure – vorher flogen Raketen online durch alles).
+
+**Panzerung (Großkarten)**: Der Host rechnet Weste/Helm in `combat.damage`; 'hit' trägt `ar` [Westen-LP, Helm-LP,
+Reserveplatten] für den getroffenen Client, 'ev' `ap` nach Plattenaufnahme/-einsatz. Der Client meldet sein Platteneinsetzen
+('plate' {chain} bzw. {cancel}), der Host setzt die Platte an der Puppe ein.
+
+**Offen (Stufe 1 → 2)**: Host-Tab im Hintergrund hält das Spiel an (rAF ruht; nur 'host-away'); Respawn-Halt/„Einsatz“ der
+Clients wirkt nicht (Host setzt nach der Wartezeit ein); eine beim Tod gezogene Granate eines Clients fällt nicht (die Puppe
+ist beim Host schon tot); Streuungs-/Rückstoß-Zufall nicht synchron (Treffer zählen so, wie der Schütze sie sieht, Prüfung
+durch den Anti-Cheat); Teamwechsel im laufenden Match gilt erst im nächsten Match; Bots fügen sich beim Einstieg sofort ein,
+die Clients sehen ihre ersten Spawns über den Lebend-Abgleich (≈ 0,35 s).

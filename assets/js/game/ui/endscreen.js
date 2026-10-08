@@ -5,7 +5,7 @@
 
 import { esc, num, pct, kd, clock, meters, secs } from './dom.js';
 import { ICON, medalBadge } from './icons.js';
-import { scoreboardHtml } from './scoreboard.js';
+import { scoreboardHtml, netRows } from './scoreboard.js';
 
 const REASON = {
   score: 'Punktelimit erreicht', time: 'Zeit abgelaufen', overtime: 'In der Verlängerung entschieden', forced: 'Match beendet',
@@ -113,8 +113,9 @@ export class EndScreen {
     // ai-adapt: eine Zeile, worauf sich die lernenden Bots eingestellt haben
     const ad = !training && G.bots && G.bots.adapt && typeof G.bots.adapt.summaryLine === 'function' ? G.bots.adapt.summaryLine() : '';
     const adaptHtml = ad ? `<p class="e-adapt">${esc(ad)}</p>` : '';
+    // Mehrspieler: Ping/Host/Mensch je Zeile aus dem Roster (netRows wirkt nur online)
     const board = (r.scoreboard || []).length
-      ? scoreboardHtml(r.scoreboard, { teams: r.teams, playerTeam: mine, teamNames: names, teamScores: r.teamScores })
+      ? scoreboardHtml(netRows(G, r.scoreboard), { teams: r.teams, playerTeam: mine, teamNames: names, teamScores: r.teamScores })
       : '';
     return `
       <div class="e-wrap m-scroll" data-scrollable>

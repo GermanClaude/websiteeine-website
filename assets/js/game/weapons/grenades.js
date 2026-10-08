@@ -113,16 +113,24 @@ export class GrenadeSystem {
 
   /**
    * Granate werfen. opts: { cook (s bereits abgelaufen), drop (fallen lassen), origin, dir, speed }
+   * Mehrspieler: remote (nur Darstellung – zündet nicht selbst, wartet auf remoteBoom), cid (Wurfnummer des Clients),
+   * netId (Granaten-Id des Hosts), pos/vel (Startzustand vom Host statt aus dem Werfer berechnet), fuse.
    */
   throw(actor, type, opts = {}) {
     const G = this.G;
     const eq = this._eq(type);
-    if (this.list.length >= MAX_LIVE) this._explode(this.list[0], 0);
+    if (this.list.length >= MAX_LIVE) {
+      const old = this.list[0];
+      if (old.remote) { this.list.shift(); this._removeMesh(old); } else this._explode(old, 0);
+    }
     const pos = new THREE.Vector3();
     const vel = new THREE.Vector3();
-    const eye = actor.getEyePosition(new THREE.Vector3());
-    const aim = opts.dir ? _dir.copy(opts.dir).normalize() : actor.getAimDirection(_dir);
-    if (opts.drop) {
+    const eye = actor && actor.getEyePosition ? actor.getEyePosition(new THREE.Vector3()) : new THREE.Vector3();
+    const aim = opts.dir ? _dir.copy(opts.dir).normalize() : actor && actor.getAimDirection ? actor.getAimDirection(_dir) : _dir.set(0, 0, -1);
+    if (opts.pos && opts.vel) {
+      pos.copy(opts.pos);
+      vel.copy(opts.vel);
+    } else if (opts.drop) {
       pos.copy(eye);
       pos.y -= 0.9;
       vel.set((Math.random() - 0.5) * 0.6, 0.5, (Math.random() - 0.5) * 0.6);
@@ -148,7 +156,7 @@ export class GrenadeSystem {
       const speed = opts.speed || eq.throwSpeed || 18;
       const c = Math.cos(pitch);
       vel.set(-Math.sin(yaw) * c, Math.sin(pitch), -Math.cos(yaw) * c).multiplyScalar(speed);
-      if (actor.body && actor.body.velocity) {
+      if (actor && actor.body && actor.body.velocity) {
         vel.x += actor.body.velocity.x * 0.6;
         vel.z += actor.body.velocity.z * 0.6;
         vel.y += Math.max(0, actor.body.velocity.y) * 0.3;
@@ -157,15 +165,16 @@ export class GrenadeSystem {
     const mesh = this._model(eq.id || type);
     mesh.position.copy(pos);
     G.scene.add(mesh);
-    const fuse = Math.max(0.05, (eq.fuse || 2.8) - (eq.cookable ? opts.cook || 0 : 0));
+    const fuse = Number.isFinite(opts.fuse) ? Math.max(0.05, opts.fuse) : Math.max(0.05, (eq.fuse || 2.8) - (eq.cookable ? opts.cook || 0 : 0));
     const g = {
       id: nextId++, type: eq.id || type, eq, actor, position: pos, velocity: vel, fuse, radius: eq.radius || 6.5,
       mesh, stuckTo: null, stuckLocal: null, stuckYaw: 0, stuckNormal: null, rest: false, rolling: false, age: 0,
       lastBounce: -1, spin: new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2).normalize(),
       spinRate: opts.drop ? 2 : 9 + Math.random() * 6, sticky: !!eq.sticky, armed: true,
+      remote: !!opts.remote, cid: Number.isFinite(opts.cid) ? opts.cid : null, netId: Number.isFinite(opts.netId) ? opts.netId : null,
     };
     this.list.push(g);
-    G.events.emit('grenade:throw', { actor, position: pos.clone(), velocity: vel.clone(), type: g.type, cooked: opts.cook || 0, dropped: !!opts.drop });
+    G.events.emit('grenade:throw', { actor, position: pos.clone(), velocity: vel.clone(), type: g.type, cooked: opts.cook || 0, dropped: !!opts.drop, grenade: g });
     return g;
   }
 
@@ -174,7 +183,31 @@ export class GrenadeSystem {
     const eq = this._eq(type);
     const p = actor.getEyePosition(new THREE.Vector3());
     p.y -= 0.35;
+    this.G.events.emit('grenade:explode', { grenade: null, type: eq.id || type, actor, position: p.clone() });
     this._boom(p, eq, actor);
+  }
+
+  /* ------------------------------------------------------------ Mehrspieler (Client) */
+
+  /** Granate mit Host-Id (netId) bzw. eigener Wurfnummer (cid). */
+  findNet(netId, cid = null) {
+    for (const g of this.list) if ((netId != null && g.netId === netId) || (cid != null && g.cid === cid && g.netId == null)) return g;
+    return null;
+  }
+
+  /**
+   * Zündung vom Host nachspielen: Darstellungs-Granate entfernen, Wirkung an `position` (Explosion, Blendung, Rauch,
+   * Brand – Schaden entscheidet auf Clients ohnehin der Host). Ohne passende Granate (verpasst) direkt am Ort.
+   */
+  remoteBoom(netId, type, position, actor = null) {
+    const g = this.findNet(netId);
+    if (g) {
+      const i = this.list.indexOf(g);
+      if (i >= 0) this.list.splice(i, 1);
+      this._removeMesh(g);
+    }
+    const eq = g ? g.eq : this._eq(type);
+    this._boom(position.clone(), eq, actor || (g ? g.actor : null));
   }
 
   /* ------------------------------------------------------------ Simulation */
@@ -192,6 +225,11 @@ export class GrenadeSystem {
       if (g.stuckTo) this._followStuck(g);
       else if (!g.rest) this._simulate(g, dt, world);
       this._visual(g, dt);
+      if (g.remote) {
+        // Mehrspieler-Client: Zündung kommt vom Host (remoteBoom); bleibt sie aus, still entfernen
+        if (g.fuse < -4) { list.splice(i, 1); this._removeMesh(g); }
+        continue;
+      }
       if (g.fuse <= 0) this._explode(g, i);
     }
   }
@@ -391,6 +429,7 @@ export class GrenadeSystem {
     this._removeMesh(g);
     const p = g.position.clone();
     if (!g.stuckTo || g.stuckTo === 'world') p.y += 0.08;
+    this.G.events.emit('grenade:explode', { grenade: g, type: g.type, actor: g.actor, position: p.clone() });
     this._boom(p, g.eq, g.actor);
   }
 
@@ -405,7 +444,7 @@ export class GrenadeSystem {
     G.combat.explode({
       position: p, radius: eq.radius || 6.5, maxDamage: (eq.maxDamage || 150) * scale, innerRadius: eq.innerRadius,
       minDamage: Number.isFinite(eq.minDamage) ? eq.minDamage * scale : eq.minDamage,
-      attacker: actor || null, weaponId: eq.id, type: eq.id,
+      attacker: actor || null, weaponId: eq.id, type: eq.id, source: 'grenade',
     });
   }
 
@@ -463,7 +502,7 @@ export class GrenadeSystem {
     const G = this.G;
     const F = eq.flash;
     const now = G.time.elapsed;
-    G.events.emit('explosion', { position: p.clone(), radius: eq.radius || 0.6, attacker: actor || null, type: 'flash', weaponId: eq.id, nonLethal: true, concuss: false });
+    G.events.emit('explosion', { position: p.clone(), radius: eq.radius || 0.6, attacker: actor || null, type: 'flash', weaponId: eq.id, nonLethal: true, concuss: false, source: 'grenade' });
     const eye = new THREE.Vector3(), aim = new THREE.Vector3(), to = new THREE.Vector3();
     for (const a of G.actors) {
       if (!a || !a.alive || typeof a.getEyePosition !== 'function') continue;
@@ -495,7 +534,7 @@ export class GrenadeSystem {
     const S = eq.smoke;
     const pos = p.clone();
     if (this.system && typeof this.system.addSmoke === 'function') this.system.addSmoke(pos, S, actor);
-    G.events.emit('explosion', { position: pos, radius: eq.radius || 0.6, attacker: actor || null, type: 'smoke', weaponId: eq.id, nonLethal: true, concuss: false, duration: S.duration, smokeRadius: S.radius, grow: S.grow });
+    G.events.emit('explosion', { position: pos, radius: eq.radius || 0.6, attacker: actor || null, type: 'smoke', weaponId: eq.id, nonLethal: true, concuss: false, duration: S.duration, smokeRadius: S.radius, grow: S.grow, source: 'grenade' });
   }
 
   _removeMesh(g) {

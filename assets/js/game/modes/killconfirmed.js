@@ -151,6 +151,39 @@ export class KillConfirmedMode extends BaseMode {
     this._lifeTags.delete(actor);
   }
 
+  /* ------------------------------------------------------------ Mehrspieler */
+
+  /** Marken für die Clients: [id, Team, x, y, z, Alter]. Aufsammeln entscheidet nur der Host. */
+  netExtra(s) {
+    const now = this.G.time.elapsed;
+    s.tg = this.tags.map((t) => [t.id, t.team, Math.round(t.position.x * 100) / 100, Math.round(t.position.y * 100) / 100, Math.round(t.position.z * 100) / 100, Math.round((now - t.born) * 10) / 10]);
+  }
+
+  /** Abbild: fehlende Marken anlegen (Darstellung), verschwundene entfernen. */
+  applyNetExtra(s) {
+    if (!Array.isArray(s.tg)) return;
+    const G = this.G;
+    const now = G.time.elapsed;
+    const seen = new Set();
+    for (const [id, team, x, y, z, age] of s.tg) {
+      seen.add(id);
+      if (this.tags.some((t) => t.id === id)) continue;
+      if (this.tags.length >= POOL) this._remove(this.tags[0]);
+      const g = this._pool.find((n) => !n.userData.used);
+      const pos = new THREE.Vector3(x, y, z);
+      const tag = { id, team, victim: null, killer: null, position: pos, born: now - (Number(age) || 0), node: g };
+      if (g) { g.userData.used = true; g.visible = true; g.position.copy(pos); }
+      this.tags.push(tag);
+      G.events.emit('tag:drop', { tag: { id, team, position: pos }, victim: null, killer: null });
+    }
+    for (const t of [...this.tags]) if (!seen.has(t.id)) this._remove(t);
+  }
+
+  /** Abbild: Marken schweben/blinken lassen (ohne Aufsammeln). */
+  replicaTick(dt) {
+    this.tick(dt, false);
+  }
+
   /** Bots: nächste Marke (≤ 30 m) aufsammeln. */
   objectiveFor(bot) {
     if (!bot || !this.tags.length) return null;

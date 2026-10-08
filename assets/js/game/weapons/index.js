@@ -32,8 +32,19 @@ export class WeaponSystem {
   get fires() { return this.grenadeSystem.fires; }
 
   /** Projektil-Waffe abfeuern (Controller): Rakete aus der Mündung in Richtung dir. */
-  fireProjectile(actor, def, origin, dir, scale = 1) {
-    return this.rocketSystem.fire(actor, def, origin, dir, scale);
+  fireProjectile(actor, def, origin, dir, scale = 1, opts) {
+    // Mehrspieler-Client: eigener Schuss → Meldung an den Host + Darstellungs-Rakete (Wirkung vom Host)
+    const net = this._netClient(actor);
+    if (net) return net.localRocket(actor, def, origin, dir);
+    return this.rocketSystem.fire(actor, def, origin, dir, scale, opts);
+  }
+
+  /** Mehrspieler-Client-Synchronisation, wenn `actor` der lokale Spieler eines Online-Matches als Client ist (sonst null). */
+  _netClient(actor) {
+    const G = this.G;
+    if (!actor || !actor.isPlayer || !G.match || G.match.netRole !== 'client') return null;
+    const sync = G.net && G.net.sync;
+    return sync && sync.role === 'client' && typeof sync.localThrow === 'function' ? sync : null;
   }
 
   /* ------------------------------------------------------------ Rauch-Register */
@@ -180,10 +191,15 @@ export class WeaponSystem {
 
   /** Granate werfen. opts: { cook, drop, origin, dir, speed } */
   throwGrenade(actor, type, opts = {}) {
+    // Mehrspieler-Client: Wurf an den Host melden, lokal nur eine Darstellungs-Granate (Zündung vom Host)
+    const net = this._netClient(actor);
+    if (net) return net.localThrow(actor, type || 'frag', opts);
     return this.grenadeSystem.throw(actor, type || 'frag', opts);
   }
 
   explodeInHand(actor, type) {
+    const net = this._netClient(actor);
+    if (net) { net.localThrow(actor, type || 'frag', { inHand: true }); return; }
     this.grenadeSystem.explodeInHand(actor, type || 'frag');
   }
 

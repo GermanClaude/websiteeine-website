@@ -12,6 +12,7 @@ const MAX_LIVE = 12;
 const FACE_MULT = { front: 0.6, side: 1.0, rear: 2.0, top: 1.6 };
 const _d = new THREE.Vector3(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _z = new THREE.Vector3(0, 0, -1);
 const _ray = new THREE.Ray(), _to = new THREE.Vector3(), _at = new THREE.Vector3();
+let nextId = 1;
 
 export class RocketSystem {
   constructor(system) {
@@ -39,14 +40,20 @@ export class RocketSystem {
     return m;
   }
 
-  /** Rakete abfeuern (vom WeaponController). origin = Mündung (Welt), dir = Flugrichtung (normiert). */
-  fire(actor, def, origin, dir, scale = 1) {
+  /**
+   * Rakete abfeuern (vom WeaponController). origin = Mündung (Welt), dir = Flugrichtung (normiert).
+   * opts (Mehrspieler): remote (nur Darstellung, Treffer/Explosion vom Host), cid (Schussnummer des Clients), netId (Id des Hosts).
+   */
+  fire(actor, def, origin, dir, scale = 1, opts = {}) {
     const G = this.G;
     const P = def.projectile || {};
-    if (this.list.length >= MAX_LIVE) this._detonate(this.list[0], this.list[0].pos, null, true);
+    if (this.list.length >= MAX_LIVE) {
+      const old = this.list[0];
+      if (old.remote) this._remove(old); else this._detonate(old, old.pos, null, true);
+    }
     const pos = origin.clone();
     // Start nicht in der Wand: vom Auge zur Mündung prüfen
-    if (G.world && typeof G.world.raycast === 'function' && actor.getEyePosition) {
+    if (G.world && typeof G.world.raycast === 'function' && actor && actor.getEyePosition) {
       const eye = actor.getEyePosition(new THREE.Vector3());
       _to.subVectors(pos, eye);
       const len = _to.length();
@@ -60,11 +67,38 @@ export class RocketSystem {
     mesh.position.copy(pos);
     mesh.quaternion.setFromUnitVectors(_z, _d.copy(vel).normalize());
     G.scene.add(mesh);
-    const r = { pos, vel, dir: dir.clone().normalize(), actor, def, P, scale, age: 0, travel: 0, mesh, trailT: 0 };
+    const r = {
+      pos, vel, dir: dir.clone().normalize(), actor, def, P, scale, age: 0, travel: 0, mesh, trailT: 0,
+      id: nextId++, remote: !!opts.remote, cid: Number.isFinite(opts.cid) ? opts.cid : null, netId: Number.isFinite(opts.netId) ? opts.netId : null,
+    };
     this.list.push(r);
     this._backblast(actor, def, P, pos, r.dir, scale);
-    G.events.emit('projectile:launch', { actor, weaponId: def.id, position: pos.clone(), velocity: vel.clone(), kind: P.kind || 'rocket' });
+    G.events.emit('projectile:launch', { actor, weaponId: def.id, position: pos.clone(), velocity: vel.clone(), kind: P.kind || 'rocket', rocket: r });
     return r;
+  }
+
+  /* ------------------------------------------------------------ Mehrspieler (Client) */
+
+  /** Rakete mit Host-Id (netId) bzw. eigener Schussnummer (cid). */
+  findNet(netId, cid = null) {
+    for (const r of this.list) if ((netId != null && r.netId === netId) || (cid != null && r.cid === cid && r.netId == null)) return r;
+    return null;
+  }
+
+  /** Explosion vom Host nachspielen (Darstellung; Schaden entscheidet der Host). dud = Blindgänger (Funken). */
+  remoteBoom(netId, position, { def = null, actor = null, dud = false, normal = null } = {}) {
+    const G = this.G;
+    const r = this.findNet(netId);
+    if (r) this._remove(r);
+    const d = def || (r && r.def);
+    if (dud) {
+      if (G.effects && typeof G.effects.impact === 'function') G.effects.impact(position, normal || new THREE.Vector3(0, 1, 0), 'concrete', { big: true });
+      return;
+    }
+    if (!G.combat || !d) return;
+    const P = d.projectile || {};
+    const sp = P.splash || { radius: 4.5, innerRadius: 1.2, maxDamage: 130, minDamage: 20 };
+    G.combat.explode({ position, radius: sp.radius, maxDamage: sp.maxDamage, attacker: actor || (r && r.actor) || null, weaponId: d.id, type: 'rocket', innerRadius: sp.innerRadius, minDamage: sp.minDamage || 0, source: 'rocket' });
   }
 
   _backblast(actor, def, P, pos, dir, scale) {
@@ -100,10 +134,13 @@ export class RocketSystem {
       const step = r.vel.length() * dt;
       _d.copy(r.vel).normalize();
       let hit = null;
-      if (G.vehicles && typeof G.vehicles.traceShell === 'function') {
+      // Fahrzeugsystem nur, wenn es im Match aktiv ist (online ohne Fahrzeuge: eigene Spur gegen Welt + Akteure)
+      if (G.vehicles && G.vehicles.attached !== false && typeof G.vehicles.traceShell === 'function') {
         hit = G.vehicles.traceShell(r.pos, _d, step, { vehicle: r.actor && r.actor.vehicle ? r.actor.vehicle : null, age: r.age, shooter: r.actor });
       } else hit = this._trace(r, _d, step);
       if (hit && hit.distance <= step) {
+        // Mehrspieler-Client: Darstellungs-Rakete endet am Hindernis, die Wirkung kommt vom Host (remoteBoom)
+        if (r.remote) { this._remove(r); continue; }
         _at.copy(r.pos).addScaledVector(_d, hit.distance);
         this._impact(r, hit, _at, _d);
         continue;
@@ -115,7 +152,7 @@ export class RocketSystem {
       r.trailT -= dt;
       if (r.trailT <= 0 && G.effects && typeof G.effects.rocketTrail === 'function') { r.trailT = 0.016; G.effects.rocketTrail(r.pos, _d); }
       const bounds = G.world && G.world.bounds;
-      if (r.age > (P.life || 4.5) || (bounds && r.pos.y < bounds.min.y - 10)) this._detonate(r, r.pos, null, true);
+      if (r.age > (P.life || 4.5) || (bounds && r.pos.y < bounds.min.y - 10)) { if (r.remote) this._remove(r); else this._detonate(r, r.pos, null, true); }
     }
   }
 
@@ -162,6 +199,7 @@ export class RocketSystem {
     } else {
       // Nicht scharf (zu nah): Abpraller mit Funken, keine Explosion
       if (G.effects && typeof G.effects.impact === 'function') G.effects.impact(at, hit.normal || dir.clone().negate(), hit.vehicle ? 'metal' : hit.surface || 'concrete', { big: true });
+      G.events.emit('projectile:dud', { rocket: r, position: at.clone(), normal: hit.normal ? hit.normal.clone() : null });
       this._remove(r);
     }
     G.events.emit('projectile:impact', { actor: attacker, weaponId: def.id, position: at.clone(), vehicle: hit.vehicle || null, target: hit.actor || null, armed });
@@ -175,7 +213,8 @@ export class RocketSystem {
     if (!splash || !G.combat) return;
     const sp = P.splash || { radius: 4.5, innerRadius: 1.2, maxDamage: 130, minDamage: 20 };
     const at = pos.clone();
-    const boom = () => G.combat.explode({ position: at, radius: sp.radius, maxDamage: sp.maxDamage * r.scale, attacker, weaponId: def.id, type: 'rocket', innerRadius: sp.innerRadius, minDamage: (sp.minDamage || 0) * r.scale });
+    G.events.emit('projectile:detonate', { rocket: r, position: at.clone() });
+    const boom = () => G.combat.explode({ position: at, radius: sp.radius, maxDamage: sp.maxDamage * r.scale, attacker, weaponId: def.id, type: 'rocket', innerRadius: sp.innerRadius, minDamage: (sp.minDamage || 0) * r.scale, source: 'rocket' });
     const V = G.vehicles;
     if (V && typeof V.ownExplosion === 'function') {
       V.ownExplosion(boom);

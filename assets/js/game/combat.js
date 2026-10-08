@@ -267,7 +267,7 @@ export class Combat {
         if (def.id) wstat(shooter, def.id).hits += 1;
       }
       const dealt = this.damage(target, {
-        amount, attacker: shooter, weaponId: def.id, zone, dir: _dir.clone(), point, distance, pelletIndex,
+        amount, attacker: shooter, weaponId: def.id, zone, dir: _dir.clone(), point, distance, pelletIndex, origin: _origin,
       });
       return { hit: 'actor', point, distance, target, zone, normal, surface: 'flesh', damage: dealt, penetrated };
     }
@@ -331,6 +331,12 @@ export class Combat {
   damage(target, info = {}) {
     const G = this.G;
     if (!target || !target.alive) return 0;
+    // Mehrspieler-Client: Schaden entscheidet der Host. Eigene Treffer auf Puppen werden als Treffermeldung geschickt
+    // (vorhergesagte Trefferanzeige), eigener Sturz-/Weltschaden als Meldung an sich selbst; alles andere ist nur Darstellung.
+    if (G.match && G.match.netRole === 'client') {
+      const sync = G.net && G.net.sync;
+      return sync && typeof sync.claimDamage === 'function' ? sync.claimDamage(target, info) || 0 : 0;
+    }
     const attacker = info.attacker || null;
     if (attacker && attacker !== target && !this.isHostile(attacker, target)) return 0; // Friendly Fire aus
     if (target.godMode || target.invulnerable) return 0;
@@ -466,12 +472,15 @@ export class Combat {
 
   /**
    * Explosion mit Sichtlinienprüfung (Kopf/Brust/Füße), Eigenschaden an, Teamschaden aus.
-   * { position, radius, maxDamage, attacker, weaponId, type, innerRadius?, minDamage? }
+   * { position, radius, maxDamage, attacker, weaponId, type, innerRadius?, minDamage?, source? }
+   * source ('grenade'|'rocket', Mehrspieler): Herkunft im 'explosion'-Ereignis – der Host spielt sie über die Granate/Rakete nach.
    */
-  explode({ position, radius = 6, maxDamage = 150, attacker = null, weaponId = null, type = 'frag', innerRadius, minDamage }) {
+  explode({ position, radius = 6, maxDamage = 150, attacker = null, weaponId = null, type = 'frag', innerRadius, minDamage, source }) {
     const G = this.G;
     const pos = position.clone ? position.clone() : new THREE.Vector3(position.x, position.y, position.z);
-    G.events.emit('explosion', { position: pos, radius, attacker, type, weaponId });
+    const ev = { position: pos, radius, attacker, type, weaponId };
+    if (source) ev.source = source;
+    G.events.emit('explosion', ev);
     const from = _v1.copy(pos);
     from.y += 0.15;
     const hits = [];

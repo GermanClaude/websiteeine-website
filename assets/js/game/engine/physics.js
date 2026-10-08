@@ -368,9 +368,11 @@ export function separateActors(actors, maxPush = 0.12) {
       if (d2 >= minD * minD) continue;
       let d = Math.sqrt(d2);
       if (d < 1e-4) { const t = (i * 7 + j * 13) % 6.283; dx = Math.cos(t); dz = Math.sin(t); d = 1; } else { dx /= d; dz /= d; }
+      // Mehrspieler-Puppen (Position kommt aus dem Netz) weichen nicht aus – der andere Akteur nimmt den ganzen Stoß
+      if (a.puppet && b.puppet) continue;
       const push = Math.min(maxPush, (minD - Math.min(d, minD)) * 0.5);
       // Der Spieler wird weniger geschoben als Bots (fühlt sich „fester“ an)
-      const wa = a.isPlayer ? 0.35 : b.isPlayer ? 1.65 : 1;
+      const wa = a.puppet ? 0 : b.puppet ? 2 : a.isPlayer ? 0.35 : b.isPlayer ? 1.65 : 1;
       pa.x -= dx * push * wa; pa.z -= dz * push * wa;
       pb.x += dx * push * (2 - wa); pb.z += dz * push * (2 - wa);
       a.body._sync();

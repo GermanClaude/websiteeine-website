@@ -492,7 +492,7 @@ export class Bot {
     if (this.puppet) { this._updatePuppet(dt); return; }
     if (!this.alive) { this._updateCorpses(dt); return; }
     const now = G.time.elapsed;
-    const frozen = G.match.state !== 'playing';
+    const frozen = G.match.state !== 'playing' && !G.match.netLive; // online läuft das Match im Pausenmenü des Hosts weiter
     const D = this.diff;
     const goal = this.goal;
     const gunner = this.gunner;

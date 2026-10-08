@@ -139,6 +139,8 @@ export class Player {
     this.team = 'A';
     this.isPlayer = true;
     this.isBot = false;
+    /** Mehrspieler: Netz-Id im Online-Match (Host 1, Clients ihre Roster-Id; offline null) – main.runStart setzt sie. */
+    this.netId = null;
     this.alive = false;
     this.health = 100;
     this.maxHealth = 100;

@@ -50,7 +50,10 @@ export class BaseMode {
     this.overtime = false;
     this.endReason = null;
     this.medals = new MedalTracker(this);
-    this.streaks = this.def.streaks ? new StreakManager(G, this) : null;
+    // Mehrspieler: replica = Abbild auf dem Client (Zustand vom Host, keine eigene Wertung, kein eigenes Ende);
+    // opts.streaks === false schaltet Serienprämien ab (online Stufe 1)
+    this.replica = !!opts.replica;
+    this.streaks = this.def.streaks && opts.streaks !== false && !this.replica ? new StreakManager(G, this) : null;
     this._subs = null;
     this._warmup = null;
     this._life = new Map(); // actor → { kills, all, deathsInRow }
@@ -65,6 +68,15 @@ export class BaseMode {
     this.G = G;
     this.detach();
     const s = (this._subs = G.events.scope());
+    if (this.replica) {
+      // Abbild: Punkte, Medaillen und Ziele kommen vom Host (applyNetState / 'ev'); nur Spawns und Matchbeginn lokal
+      s.on('weapon:fire', (e) => { if (e.actor && e.actor.isPlayer) e.actor._firedSinceSpawn = true; });
+      s.on('actor:spawn', ({ actor }) => { this._applyPending(actor); this.onSpawn(actor); });
+      s.on('match:start', () => this.onMatchStart());
+      this._addWarmup(G);
+      this.onAttach(s);
+      return;
+    }
     s.on('kill', (e) => { if (!this.isOver) this._onKill(e); });
     s.on('actor:hit', (e) => this.medals.onHit(e));
     s.on('impact', (e) => this.medals.onImpact(e));
@@ -141,7 +153,14 @@ export class BaseMode {
     if (this._warmup) this._removeWarmup();
     if (this.isOver || !this.started) return;
     const G = this.G;
-    const playing = G.match.state === 'playing';
+    // Online im Pausenmenü (Host) läuft das Match weiter
+    const playing = G.match.state === 'playing' || !!G.match.netLive;
+    if (this.replica) {
+      // Abbild: Restzeit zwischen den Zuständen des Hosts weiterzählen (ohne Ende), Darstellung der Modusobjekte
+      if (playing && Number.isFinite(this.timeLeft)) { this.elapsed += dt; this.timeLeft = Math.max(0, this.timeLeft - dt); }
+      this.replicaTick(dt);
+      return;
+    }
     if (playing) {
       this.elapsed += dt;
       if (Number.isFinite(this.timeLeft)) {
@@ -159,6 +178,7 @@ export class BaseMode {
 
   /** debugApi.endMatch */
   forceEnd() {
+    if (this.replica) return; // das Ende eines Online-Matches bestimmt der Host
     if (!this.isOver) this.end('forced');
   }
 
@@ -233,9 +253,9 @@ export class BaseMode {
     G.events.emit('loadout:change', { actor, loadout: { ...next } });
   }
 
-  /** Zähler je Akteur für playerSummary.counters (Herausforderungen). */
+  /** Zähler je Akteur für playerSummary.counters (Herausforderungen) – Spieler und (online) entfernte Menschen. */
   count(actor, key, n = 1) {
-    if (!actor || !actor.isPlayer) return;
+    if (!actor || !(actor.isPlayer || actor.isRemoteHuman)) return;
     let c = this.counters.get(actor);
     if (!c) { c = {}; this.counters.set(actor, c); }
     c[key] = (c[key] || 0) + n;
@@ -267,6 +287,8 @@ export class BaseMode {
 
   onAttach() {}
   onDetach() {}
+  /** Abbild (Mehrspieler-Client): Darstellung je Bild ohne Spiellogik (z. B. schwebende Marken). */
+  replicaTick() {}
   onStart() {}
   onMatchStart() {}
   onSpawn() {}
@@ -306,7 +328,7 @@ export class BaseMode {
   }
 
   _afterScore() {
-    if (this.isOver) return;
+    if (this.isOver || this.replica) return;
     if (this.overtime) {
       const lead = this.leader();
       if (lead && !lead.tied) this.end('overtime');
@@ -452,9 +474,10 @@ export class BaseMode {
     if ((reason === 'score' || reason === 'overtime') && this._lastKill && G.time.elapsed - this._lastKill.time < 0.05) {
       this.medals.award(this._lastKill.actor, 'siegtreffer');
     }
-    const p = G.player;
-    if (p && p.stats.deaths === 0 && p.stats.kills >= MEDAL_RULES.flawlessMinKills && reason !== 'forced') {
-      this.medals.award(p, 'unaufhaltsam');
+    // Spieler und (online) entfernte Menschen
+    for (const p of G.actors) {
+      if (!p || !(p.isPlayer || p.isRemoteHuman) || !p.stats) continue;
+      if (p.stats.deaths === 0 && p.stats.kills >= MEDAL_RULES.flawlessMinKills && reason !== 'forced') this.medals.award(p, 'unaufhaltsam');
     }
     if (this.streaks) this.streaks.endAll();
     this.result = this.buildResult(reason);
@@ -512,22 +535,11 @@ export class BaseMode {
     const mvp = byScore.length && byScore[0].score > 0 ? byScore[0].actor : null;
     const teamMvp = {};
     if (this.teams) for (const t of ['A', 'B']) { const r = byScore.find((x) => x.team === t); if (r && r.score > 0) teamMvp[t] = r.id; }
-    if (mvp && mvp === player) this.medals.award(player, 'mvp');
+    if (mvp && (mvp === player || mvp.isRemoteHuman)) this.medals.award(mvp, 'mvp');
 
-    const ps = player ? player.stats : null;
-    const medals = player ? this.medals.medalsOf(player) : {};
     const resultKey = draw ? 'draw' : playerWon ? 'win' : 'loss';
-    const weaponStats = {};
-    if (player) for (const [id, w] of Object.entries(player.weaponStats || {})) if (WEAPONS[id]) weaponStats[id] = { kills: w.kills | 0, shots: w.shots | 0, hits: w.hits | 0, headshots: w.headshots | 0 };
     const duration = Math.round(this.elapsed * 10) / 10;
-    const playerSummary = player ? {
-      modeId: this.id, mapId: G.match.mapId, result: resultKey,
-      kills: ps.kills | 0, deaths: ps.deaths | 0, assists: ps.assists | 0, headshots: ps.headshots | 0, score: ps.score | 0,
-      shotsFired: ps.shotsFired | 0, shotsHit: Math.min(ps.shotsHit | 0, ps.shotsFired | 0), bestStreak: ps.bestStreak | 0,
-      longestKill: Math.round((ps.longestKill || 0) * 10) / 10, damage: Math.round(ps.damage || 0), captures: ps.captures | 0,
-      medals, weaponStats, duration, placement, players: board.length,
-      counters: { ...(this.counters.get(player) || {}) }, style: this.style, cls: player.cls || (player.loadout && player.loadout.cls) || null,
-    } : null;
+    const playerSummary = player ? this.summaryFor(player, { resultKey, placement, players: board.length, duration }) : null;
     const winnerRow = winner !== 'draw' && !this.teams ? board.find((r) => r.id === winner) : null;
     return {
       modeId: this.id, mapId: G.match.mapId, modeName: this.def.name, mapName: G.world ? G.world.name : G.match.mapId,
@@ -535,11 +547,16 @@ export class BaseMode {
       overtime: this.overtime, duration, placement, players: board.length, style: this.style,
       teamScores: this.teams ? { A: this.scores.A || 0, B: this.scores.B || 0 } : null,
       scoreLimit: this.scoreLimit, timeLimit: this.timeLimit, scoreUnit: this.def.scoreUnit || 'Punkte',
-      scoreboard: board.map((r) => ({
-        id: r.id, name: r.name, team: r.team, score: r.score, kills: r.kills, deaths: r.deaths, assists: r.assists,
-        captures: r.captures, extra: r.extra, isPlayer: r.isPlayer, isBot: r.isBot, mvp: mvp ? r.actor === mvp : false,
-        teamMvp: this.teams ? teamMvp[r.team] === r.id : false,
-      })),
+      scoreboard: board.map((r) => {
+        const row = {
+          id: r.id, name: r.name, team: r.team, score: r.score, kills: r.kills, deaths: r.deaths, assists: r.assists,
+          captures: r.captures, extra: r.extra, isPlayer: r.isPlayer, isBot: r.isBot, mvp: mvp ? r.actor === mvp : false,
+          teamMvp: this.teams ? teamMvp[r.team] === r.id : false,
+        };
+        // Mehrspieler: Netz-Id und Mensch/Bot für die Tabelle der Clients (Ping-Spalte, Kennzeichnung)
+        if (Number.isInteger(r.actor.netId)) { row.netId = r.actor.netId; row.isHuman = !!(r.actor.isPlayer || r.actor.isRemoteHuman); }
+        return row;
+      }),
       mvp: mvp ? mvp.id : null, mvpName: mvp ? mvp.name : null, teamMvp,
       playerSummary,
       extra: this.resultExtra(),
@@ -547,6 +564,119 @@ export class BaseMode {
   }
 
   resultExtra() { return null; }
+
+  /**
+   * Persönliche Zusammenfassung eines Akteurs (playerSummary für profile.recordMatch) – der Spieler bzw. online der Mensch
+   * hinter einer Puppe (der Host schickt sie dem Client mit 'end'). o: { resultKey, placement, players, duration }
+   */
+  summaryFor(actor, { resultKey, placement, players, duration }) {
+    const G = this.G;
+    const ps = actor.stats || {};
+    const weaponStats = {};
+    for (const [id, w] of Object.entries(actor.weaponStats || {})) if (WEAPONS[id]) weaponStats[id] = { kills: w.kills | 0, shots: w.shots | 0, hits: w.hits | 0, headshots: w.headshots | 0 };
+    return {
+      modeId: this.id, mapId: G.match.mapId, result: resultKey,
+      kills: ps.kills | 0, deaths: ps.deaths | 0, assists: ps.assists | 0, headshots: ps.headshots | 0, score: ps.score | 0,
+      shotsFired: ps.shotsFired | 0, shotsHit: Math.min(ps.shotsHit | 0, ps.shotsFired | 0), bestStreak: ps.bestStreak | 0,
+      longestKill: Math.round((ps.longestKill || 0) * 10) / 10, damage: Math.round(ps.damage || 0), captures: ps.captures | 0,
+      medals: this.medals.medalsOf(actor), weaponStats, duration, placement, players,
+      counters: { ...(this.counters.get(actor) || {}) }, style: this.style, cls: actor.cls || (actor.loadout && actor.loadout.cls) || null,
+    };
+  }
+
+  /**
+   * Ergebnis aus Sicht eines anderen Akteurs (Mehrspieler-Host → Client): Sieg/Platz, eigene Zeile, Zusammenfassung.
+   * Akteur-Ids werden auf die Sicht des Clients abgebildet (Puppe → 'player', Host-Spieler → 'net_1').
+   */
+  resultFor(actor, result) {
+    const G = this.G;
+    if (!result || !actor) return null;
+    const board = this.scoreboard();
+    const placement = this.placementOf(actor, board);
+    let draw = result.winner === 'draw';
+    let won = false;
+    if (this.teams) won = !draw && result.winner === actor.team;
+    else {
+      const mine = board.find((r) => r.actor === actor);
+      draw = draw && !!mine && board.length > 0 && this.rankKey(mine) === this.rankKey(board[0]);
+      won = !draw && placement <= (this.def.winPlaces || 1);
+    }
+    const resultKey = draw ? 'draw' : won ? 'win' : 'loss';
+    const hostId = G.player ? G.player.id : 'player';
+    const hostNet = G.player && Number.isInteger(G.player.netId) ? `net_${G.player.netId}` : 'net_1';
+    const map = (id) => (id === actor.id ? 'player' : id === hostId ? hostNet : id);
+    const teamMvp = {};
+    for (const [k, v] of Object.entries(result.teamMvp || {})) teamMvp[k] = map(v);
+    return {
+      ...result,
+      winner: map(result.winner), playerWon: won, draw, placement,
+      mvp: result.mvp != null ? map(result.mvp) : null, teamMvp,
+      scoreboard: (result.scoreboard || []).map((r) => ({ ...r, id: map(r.id), isPlayer: r.id === actor.id, teamMvp: this.teams ? teamMvp[r.team] === map(r.id) : false })),
+      playerSummary: this.summaryFor(actor, { resultKey, placement, players: board.length, duration: result.duration }),
+    };
+  }
+
+  /* ------------------------------------------------------------ Mehrspieler: Zustand (Host → Clients) */
+
+  /**
+   * Kompakter Modus-Zustand für die Clients ('mode' {s}): Restzeit, Verlängerung, Phase, Punkte (Teams bzw. je netId),
+   * Wertung je Akteur [netId, Punkte, Abschüsse, Tode, Unterstützung, Eroberungen, Marken] + Moduszusatz (netExtra).
+   */
+  netState() {
+    const G = this.G;
+    const s = {
+      tl: Number.isFinite(this.timeLeft) ? Math.round(this.timeLeft * 10) / 10 : -1,
+      ot: this.overtime ? 1 : 0,
+      ph: G.match && G.match.state === 'countdown' ? 0 : 1,
+    };
+    if (this.teams) s.sc = { A: this.scores.A || 0, B: this.scores.B || 0 };
+    else {
+      s.sc = [];
+      for (const a of G.actors) if (Number.isInteger(a.netId) && Object.prototype.hasOwnProperty.call(this.scores, a.id)) s.sc.push([a.netId, this.scores[a.id] || 0]);
+    }
+    s.st = [];
+    for (const a of G.actors) {
+      if (!Number.isInteger(a.netId) || a.isStreakEntity) continue;
+      const t = a.stats || {};
+      s.st.push([a.netId, t.score | 0, t.kills | 0, t.deaths | 0, t.assists | 0, t.captures | 0, t.kcConfirms | 0]);
+    }
+    this.netExtra(s);
+    return s;
+  }
+
+  /** Zustand des Hosts übernehmen (Abbild). byNetId(id) → lokaler Akteur (G.net.actorById). */
+  applyNetState(s, byNetId) {
+    if (!s || typeof s !== 'object') return;
+    const G = this.G;
+    const find = typeof byNetId === 'function' ? byNetId : () => null;
+    if (Number.isFinite(s.tl)) this.timeLeft = s.tl < 0 ? Infinity : s.tl;
+    const ot = !!s.ot;
+    if (ot && !this.overtime) { this.overtime = true; G.events.emit('mode:overtime', { mode: this, seconds: OVERTIME_SECONDS }); }
+    else this.overtime = ot;
+    if (this.teams && s.sc && !Array.isArray(s.sc)) {
+      this.scores.A = Number(s.sc.A) || 0;
+      this.scores.B = Number(s.sc.B) || 0;
+    } else if (!this.teams && Array.isArray(s.sc)) {
+      const next = {};
+      for (const [id, v] of s.sc) { const a = find(id); if (a) next[a.id] = Number(v) || 0; }
+      this.scores = next;
+    }
+    if (Array.isArray(s.st)) {
+      for (const row of s.st) {
+        const a = find(row[0]);
+        if (!a || !a.stats) continue;
+        const t = a.stats;
+        t.score = row[1] | 0; t.kills = row[2] | 0; t.deaths = row[3] | 0; t.assists = row[4] | 0; t.captures = row[5] | 0;
+        if (row[6]) t.kcConfirms = row[6] | 0;
+      }
+    }
+    this.applyNetExtra(s, find);
+  }
+
+  /** Moduszusatz für netState (Ziele, Marken …). */
+  netExtra() {}
+  /** Moduszusatz aus dem Zustand des Hosts übernehmen. */
+  applyNetExtra() {}
 
   /* ------------------------------------------------------------ Spawns */
 

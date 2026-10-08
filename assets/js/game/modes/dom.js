@@ -227,6 +227,43 @@ export class DomMode extends BaseMode {
 
   onCaptured() {}
 
+  /* ------------------------------------------------------------ Mehrspieler */
+
+  /** Flaggen für die Clients: [id, Besitzer, einnehmendes Team, Kontrolle, umkämpft, Anwesende A, B] + Takt. */
+  netExtra(s) {
+    s.ob = this.objectives.map((f) => [f.id, f.owner || '', f.capturingTeam || '', Math.round(f.control * 100) / 100, f.contested ? 1 : 0, f.counts.A | 0, f.counts.B | 0]);
+    s.ti = Math.round(this.tickIn * 10) / 10;
+  }
+
+  /** Abbild: Flaggenzustand übernehmen; Besitzwechsel lösen dieselben Ereignisse aus wie beim Host (HUD-Hinweise). */
+  applyNetExtra(s) {
+    if (Number.isFinite(s.ti)) this._tickT = Math.max(0, this.cfg.tickInterval - s.ti);
+    if (!Array.isArray(s.ob)) return;
+    let changed = false;
+    for (const [id, owner, cap, control, contested, a, b] of s.ob) {
+      const f = this.objectives.find((x) => x.id === id);
+      if (!f) continue;
+      const prev = f.owner;
+      const next = owner === 'A' || owner === 'B' ? owner : null;
+      const capT = cap === 'A' || cap === 'B' ? cap : null;
+      if (f.capturingTeam !== capT || !!f.contested !== !!contested) changed = true;
+      f.owner = next;
+      f.capturingTeam = capT;
+      f.control = Number.isFinite(control) ? clamp(control, -1, 1) : f.control;
+      f.contested = !!contested;
+      f.counts.A = a | 0;
+      f.counts.B = b | 0;
+      f.progress = capT === 'A' ? Math.max(0, f.control) : capT === 'B' ? Math.max(0, -f.control) : f.owner ? 1 : 0;
+      if (prev !== next) {
+        changed = true;
+        f.lastOwner = prev;
+        if (next) this.G.events.emit('objective:captured', { objective: this._public(f), team: next, prev });
+        else this.G.events.emit('objective:neutral', { objective: this._public(f), by: prev === 'A' ? 'B' : 'A', prev });
+      }
+    }
+    this._emit(changed || this.G.time.elapsed - this._emitAt > 1);
+  }
+
   extraRow(a) {
     return { label: 'Eroberungen', value: a.stats ? a.stats.captures || 0 : 0 };
   }

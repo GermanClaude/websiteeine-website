@@ -127,6 +127,7 @@ const G = {
   mode: null,
   hud: null,
   menus: null,
+  net: null, // Mehrspieler: NetSystem (net/index.js), G.net.sync = HostSync | ClientSync während eines Online-Matches
   actors: [],
   match: {
     state: 'boot', modeId: null, mapId: null, difficulty: null, allies: 0, enemies: 0, loadout: null,
@@ -1098,7 +1099,14 @@ function tickCountdown(dt) {
     G.events.emit('match:countdown', { value: v });
   }
   if (G.match.countdown <= 0) {
-    setState('playing');
+    // Mehrspieler-Client: erst los, wenn das Match beim Host läuft (höchstens 15 s warten)
+    const sync = G.match.netRole === 'client' && G.net ? G.net.sync : null;
+    if (sync && sync.hostPlaying !== true && G.match.countdown > -15) return;
+    if (G.match.state === 'paused') {
+      // Online im Pausenmenü: das Match beginnt trotzdem (Simulation läuft weiter), das Menü bleibt offen
+      G.match.pausedFrom = 'playing';
+      G.match.netLive = !!G.match.netRole;
+    } else setState('playing');
     G.match.startedAt = G.time.elapsed;
     G.match.startedReal = G.time.real;
     G.events.emit('match:start', { modeId: G.match.modeId, mapId: G.match.mapId });
@@ -1123,6 +1131,8 @@ function endMatch(result) {
       console.error('[NULLPUNKT] profile.recordMatch:', err);
     }
   }
+  // Mehrspieler: Host schickt jedem Client Ergebnis + eigene Zusammenfassung ('end'), Raum zurück in die Lobby
+  if (G.match.netRole && G.net) safe('net.onMatchEnd', () => G.net.onMatchEnd(res));
   G.lastResult = res;
   G.lastProgression = progression;
   safe('hud.hide', () => G.hud.hide());
@@ -1152,6 +1162,9 @@ async function teardownMatch({ keepWorld = false } = {}) {
   G._endScreenAt = null;
   const banner = $('match-banner');
   if (banner) banner.hidden = true;
+  // Mehrspieler: zuerst die Synchronisation (Host meldet ein abgebrochenes Match an die Clients)
+  if (G.net) safe('net.onTeardown', () => G.net.onTeardown());
+  G.match.netLive = false;
   safe('input', () => G.input.releaseAll());
   safe('hud', () => { G.hud.hide(); G.hud.detach(); });
   safe('mode', () => { if (G.mode) G.mode.detach(); });
@@ -1174,6 +1187,8 @@ async function teardownMatch({ keepWorld = false } = {}) {
     G.world = null;
   }
   G.actors.length = 0;
+  G.match.net = null;
+  G.match.netRole = null;
   if (sceneBase) {
     const keep = new Set(sceneBase);
     if (G.world && G.world.group) keep.add(G.world.group);
@@ -1485,10 +1500,15 @@ let lastNow = 0;
 let idleRenderAt = 0;
 
 let capAt = 0;
-function frame(now) {
-  requestAnimationFrame(frame);
+/**
+ * Ein Bild. bg = Takt aus dem Hintergrund-Zeitgeber (Mehrspieler-Host im verborgenen Tab: requestAnimationFrame ruht,
+ * die Simulation muss für die Clients weiterlaufen) – dann ohne Zeichnen und ohne neues rAF.
+ */
+function frame(now, bg = false) {
+  if (bg !== true) requestAnimationFrame(frame);
+  else if (!document.hidden) return;
   // Bildratenbegrenzung (Einstellung fpsLimit): Bilder auslassen; die Zeit läuft im nächsten Bild weiter
-  const cap = fpsLimitValue(settings.get('fpsLimit'));
+  const cap = bg === true ? 0 : fpsLimitValue(settings.get('fpsLimit'));
   if (cap) {
     if (now < capAt - 1.5) return;
     capAt += 1000 / cap; // Takt halten (bei 144 Hz und 60er-Grenze im Mittel 60 Bilder)
@@ -1502,38 +1522,67 @@ function frame(now) {
   G.time.dt = dt;
   G.time.frame += 1;
   const st = G.match.state;
-  const sim = st === 'countdown' || st === 'playing';
+  // Mehrspieler: im Pausenmenü läuft die Simulation weiter (der Host hält sonst alle an)
+  const netPaused = st === 'paused' && !!G.match.netRole;
+  const sim = st === 'countdown' || st === 'playing' || netPaused;
 
   if (sim) {
     G.time.elapsed += dt;
     if (G.timeScale !== 1 || (G.player && G.player.godMode)) G.match.unranked = true;
-    if (st === 'countdown') tickCountdown(Math.min(raw, 0.25) * G.timeScale); // Echtzeit, nicht Simulationszeit
+    if (st === 'countdown' || (netPaused && G.match.pausedFrom === 'countdown')) tickCountdown(Math.min(raw, 0.25) * G.timeScale); // Echtzeit, nicht Simulationszeit
     step('input', () => G.input.update(dt));
     if (G.input.pressed('pause') && G.match.state !== 'paused') pause();
+    const net = G.match.netRole && G.net ? G.net : null;
+    if (net) step('net:pre', () => net.preUpdate(dt)); // Host: Zustände der Clients → Puppen; Client: Schnappschüsse → Puppen
     step('player', () => (G.player.vehicle ? G.vehicles.updateOccupant(G.player, dt) : G.player.update(dt))); // vehicles: Sitz statt Laufen
     step('bots', () => G.bots.update(dt));
-    if (st === 'playing') step('separate', () => separateActors(G.actors));
+    const live = G.match.state === 'playing' || G.match.netLive;
+    if (live) step('separate', () => separateActors(G.actors));
     step('vehicles', () => G.vehicles.update(dt));
     step('armor', () => G.combat.tickArmor(G.actors)); // core-mechanics: Platten fertig einsetzen, Bots setzen selbst ein
     step('weapons', () => G.weapons.update(dt));
     step('mode', () => { if (G.mode) G.mode.update(dt); });
-    if (G.match.state === 'playing') step('respawn', updateRespawns);
+    // Respawns entscheidet online nur der Host (Client: 'spawn' vom Host)
+    if (live && G.match.netRole !== 'client') step('respawn', updateRespawns);
+    if (net) step('net:post', () => net.postUpdate(dt)); // Host: Schnappschüsse/Modus senden; Client: eigener Zustand
     step('world', () => { if (G.world) G.world.update(dt, G.camera); });
     step('effects', () => G.effects.update(dt));
     step('hud', () => G.hud.update(dt));
     step('audio', () => G.audio.update(dt));
-    if (G.mode && G.mode.isOver && G.match.state === 'playing') G.events.emit('match:end', { result: G.mode.result });
+    if (G.mode && G.mode.isOver && (G.match.state === 'playing' || G.match.netLive)) G.events.emit('match:end', { result: G.mode.result });
   }
   if (G._endScreenAt && G.time.real >= G._endScreenAt) showEndScreen();
 
   // Pausiert/Ende: Bild steht still → nur ~4×/s neu zeichnen (Akku auf Mobilgeräten)
-  if (G.world && G.camera && st !== 'loading' && (sim || now - idleRenderAt > 250)) {
+  if (bg !== true && G.world && G.camera && st !== 'loading' && (sim || now - idleRenderAt > 250)) {
     idleRenderAt = now;
     step('render', () => G.renderer.render(G.scene, G.camera, G.viewmodel.scene, G.viewmodel.camera));
   }
   if (sim) G.input.endFrame();
   updateStats(now);
   if (st === 'playing' && G.match.state === 'playing') updatePerf(G.time.real, performance.now() - t0, raw * 1000);
+}
+
+/**
+ * Mehrspieler-Host im verborgenen Tab: Bilder über einen Worker-Zeitgeber (20 Hz; Zeitgeber im Hauptthread werden im
+ * Hintergrund stark gedrosselt), damit Bots, Modus und Schnappschüsse für die Clients weiterlaufen.
+ */
+let bgTicker = null;
+function updateBackgroundTicker() {
+  const st = G.match.state;
+  const need = typeof document !== 'undefined' && document.hidden && G.match.netRole === 'host' && !!(G.net && G.net.online) &&
+    (st === 'countdown' || st === 'playing' || st === 'paused');
+  if (need && !bgTicker && typeof Worker === 'function' && typeof Blob === 'function') {
+    try {
+      const url = URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 50);'], { type: 'text/javascript' }));
+      bgTicker = new Worker(url);
+      URL.revokeObjectURL(url);
+      bgTicker.onmessage = () => step('frame:bg', () => frame(performance.now(), true));
+    } catch (err) { bgTicker = null; console.warn('[NULLPUNKT] Hintergrund-Takt nicht verfügbar:', err); }
+  } else if (!need && bgTicker) {
+    bgTicker.terminate();
+    bgTicker = null;
+  }
 }
 
 function updateRespawns() {
@@ -1663,6 +1712,7 @@ G.debugApi = {
       scores: G.mode ? G.mode.scores : null, timeLeft: G.mode ? G.mode.timeLeft : null,
       unranked: G.match.unranked, awaitingLock: G.match.awaitingLock,
       modules: { ...G.moduleStatus }, listeners: G.events.count(),
+      net: G.net && G.net.online ? { role: G.net.role, selfId: G.net.selfId, match: G.match.netRole, puppets: G.bots ? G.bots.puppets().length : 0 } : null,
     };
   },
 };
@@ -1734,7 +1784,8 @@ function wireGlobal() {
     }
   });
 
-  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); updateBackgroundTicker(); });
+  G.events.on('match:state', () => updateBackgroundTicker());
   const onPortrait = () => { if (portraitMQ.matches) pause(); };
   if (portraitMQ.addEventListener) portraitMQ.addEventListener('change', onPortrait);
   wireRotateOverlay();
@@ -1811,6 +1862,9 @@ async function bootstrap() {
     G.vehicles = new G.modules.vehicles.VehicleSystem(G);
     G.hud = new G.modules.hud.HUD(G);
     G.menus = new G.modules.menus.Menus(G);
+    // Mehrspieler: Sitzung/Raum (öffnet erst bei host()/join() eine Verbindung); fehlt das Modul, bleibt G.net null
+    const netMod = G.modules.net;
+    G.net = (netMod && safe('net', () => new netMod.NetSystem(G))) || null;
     const fsUi = G.modules.fullscreenUi;
     G.fullscreenUi = (fsUi && safe('fullscreenUi', () => new fsUi.FullscreenUI(G, { autoShow: !AUTOSTART, fs: basicFullscreen }))) || null;
     wireGlobal();
@@ -1823,7 +1877,10 @@ async function bootstrap() {
     setState('lobby');
     hideBoot();
     if (DEBUG) console.info('[NULLPUNKT] Module:', { ...G.moduleStatus });
+    // Einladungslink spielen.html?raum=CODE → Lobby „Mehrspieler“ mit Code, Beitritt startet automatisch
+    const raum = params.get('raum');
     if (AUTOSTART) startMatch(configFromParams());
+    else if (raum && G.net && typeof G.menus.openJoin === 'function') G.menus.openJoin(raum);
     else G.menus.showLobby();
     safe('update', () => watchForUpdates({ isIdle: () => G.match.state === 'lobby' }));
   } catch (err) {
