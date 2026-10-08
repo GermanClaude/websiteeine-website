@@ -18,12 +18,14 @@ const LISTING_MS = 15000;
 const LISTING_TTL = 60;
 
 /** Öffentliche Relays (Port 443, ohne Konto). Reihenfolge = Vorrang. */
+// Geprüft 08.10.2026: nehmen kurzlebige (25050) und ersetzbare Ereignisse (30650 mit Ablaufzeit) an und liefern sie aus.
 export const DEFAULT_RELAYS = [
   'wss://relay.damus.io',
   'wss://nos.lol',
   'wss://relay.primal.net',
-  'wss://relay.nostr.band',
   'wss://offchain.pub',
+  'wss://nostr.mom',
+  'wss://nostr-pub.wellorder.net',
 ];
 
 /** Relays aus der Adresse (?relays=ws://…,ws://…) – für Tests mit lokalem Relay. */
