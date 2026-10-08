@@ -17,6 +17,7 @@ const PLASTER = ['#f7efe2', '#f2dfbb', '#ecc98f', '#f0cfae', '#eab796', '#f5e7c6
 const SHUTTERS = ['#2f6f9a', '#3c7a5a', '#2a5d7c', '#6f8f3a', '#9a4b2a', '#35626e', '#1f5f8a', '#4f7f6a'];
 const IRON = '#2b2d30';
 const STONE = '#e3d6bd';
+const CAPLESS = [0, 0, 0, 0, 1, 1];   // Quader ohne Deck-/Bodenfläche (verdeckte Stäbe, Bretter)
 
 export default {
   id: 'altstadt',
@@ -370,8 +371,8 @@ function balcony(b, M, h, o) {
   for (const sx of [-w / 2 + 0.2, w / 2 - 0.2]) f.box(sx, -0.42, 0.2, 0.12, 0.26, 0.4, 'stone_wall', { tint: STONE, collide: false, minimap: false, grad: false });
   // schmiedeeisernes Geländer
   const n = Math.round(w / 0.12);
-  for (let i = 0; i <= n; i++) f.box(-w / 2 + 0.04 + (i * (w - 0.08)) / n, 0, dep - 0.05, 0.018, 0.95, 0.018, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
-  for (let i = 1; i < Math.round(dep / 0.12); i++) for (const sx of [-w / 2 + 0.04, w / 2 - 0.04]) f.box(sx, 0, i * 0.12, 0.018, 0.95, 0.018, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
+  for (let i = 0; i <= n; i++) f.box(-w / 2 + 0.04 + (i * (w - 0.08)) / n, 0, dep - 0.05, 0.018, 0.95, 0.018, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false, skip: CAPLESS });
+  for (let i = 1; i < Math.round(dep / 0.12); i++) for (const sx of [-w / 2 + 0.04, w / 2 - 0.04]) f.box(sx, 0, i * 0.12, 0.018, 0.95, 0.018, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false, skip: CAPLESS });
   f.box(0, 0.95, dep - 0.05, w, 0.04, 0.05, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
   for (const sx of [-w / 2 + 0.04, w / 2 - 0.04]) f.box(sx, 0.95, dep / 2, 0.05, 0.04, dep, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
   f.solid(0, 0, dep - 0.05, w, 1.0, 0.06, { minimap: false, bullet: false });
@@ -392,9 +393,9 @@ function woodBalcony(b, f, w, dep, o) {
   for (const sx of [-w / 2 + 0.04, w / 2 - 0.04]) f.box(sx, 0.94, dep / 2, 0.1, 0.06, dep, 'wood_planks', { tint: wood, ...V });
   f.box(0, 0.06, dep - 0.04, w, 0.06, 0.06, 'wood_planks', { tint: wood, ...V });
   const n = Math.round((w - 0.16) / 0.15);
-  for (let i = 0; i < n; i++) f.box(-w / 2 + 0.08 + (i + 0.5) * (w - 0.16) / n, 0.12, dep - 0.04, 0.075, 0.82, 0.022, 'wood_planks', { tint: wood, ...V, ao: false });
+  for (let i = 0; i < n; i++) f.box(-w / 2 + 0.08 + (i + 0.5) * (w - 0.16) / n, 0.12, dep - 0.04, 0.075, 0.82, 0.022, 'wood_planks', { tint: wood, ...V, ao: false, skip: CAPLESS });
   const ns = Math.max(2, Math.round((dep - 0.12) / 0.15));
-  for (let i = 0; i < ns; i++) for (const sx of [-w / 2 + 0.04, w / 2 - 0.04]) f.box(sx, 0.06, 0.04 + (i + 0.5) * (dep - 0.12) / ns, 0.022, 0.88, 0.075, 'wood_planks', { tint: wood, ...V, ao: false });
+  for (let i = 0; i < ns; i++) for (const sx of [-w / 2 + 0.04, w / 2 - 0.04]) f.box(sx, 0.06, 0.04 + (i + 0.5) * (dep - 0.12) / ns, 0.022, 0.88, 0.075, 'wood_planks', { tint: wood, ...V, ao: false, skip: CAPLESS });
   f.solid(0, 0, dep - 0.04, w, 1.0, 0.08, { minimap: false, bullet: false });
 }
 

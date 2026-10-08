@@ -307,7 +307,8 @@ Lebens ändern nichts mehr (nur Abschussliste).
 
 **Weitere Korrekturen** – `peer.js`: Angebot darf 45 s auf die Antwort warten (`OFFER_TIMEOUT`), danach 15 s bis offen;
 `accept` auf geschlossener Verbindung → Code 'verbindung-fehlgeschlagen'. `signal.js joinRoom` schließt ein offenes Angebot bei
-Fehlern. `NetSystem.join` gibt nur Text-Codes weiter. `HostSync._shooterPos(p)`: Schussursprung gegen den zuletzt gemeldeten
+Fehlern. `NetSystem.join` gibt nur Text-Codes weiter; `WELCOME_WAIT_MS` 20 s (Client wartet auf 'welcome'), `HELLO_WAIT_MS` 25 s
+(Host wartet auf 'join'). `HostSync._shooterPos(p)`: Schussursprung gegen den zuletzt gemeldeten
 Zustand. `UploadMeter` (recommend.js): Rate/Bestwert nur über Fenster ≥ `peakWindow` 3 s. `main.js`: Hintergrund-Takt des
 Hosts lässt aufgestaute Takte verfallen (≥ 40 ms Abstand).
 

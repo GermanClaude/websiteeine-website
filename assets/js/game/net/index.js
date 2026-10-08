@@ -61,8 +61,10 @@ const TIME_SYNC_MS = 2000;
 const TICK_MS = 1000;
 const ROSTER_PING_EVERY = 3; // Sekunden-Takte
 const OPEN_WAIT_MS = 16000;
-const WELCOME_WAIT_MS = 12000;
-const HELLO_WAIT_MS = 15000;
+// Beitritt: ein beschäftigter Host (Kartenaufbau beim Matchstart, langsames Gerät) antwortet erst nach seinem langen Bild –
+// 'welcome' darf daher 20 s dauern; der Host wartet ab seiner Antwort 25 s auf 'join' (Kanäle öffnen ≤ 16 s + Zustellung)
+const WELCOME_WAIT_MS = 20000;
+const HELLO_WAIT_MS = 25000;
 const FLOOD_PER_SEC = 400;
 const BYTE_OVERHEAD = 60; // grobe Kopfdaten je Paket (IP/UDP/DTLS/SCTP) für die Upload-Messung
 const LOCAL_RELAY = /^wss?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?(\/|$)/;

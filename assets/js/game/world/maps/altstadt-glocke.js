@@ -21,7 +21,7 @@ const P_PEAL = 300, PEAL_FROM = 50, PEAL_SPAN = 170, T_PEAL = 2.4, A_PEAL = 0.6,
 const SOUND = 343; // m/s
 // Schläge werden bis AHEAD s im Voraus mit genauer WebAudio-Verzögerung eingeplant → Takt unabhängig von der Bildrate;
 // verpasste (Bildlücke > AHEAD) kommen bis LATE s verspätet, ältere entfallen (kein Nachholen nach Tab-Wechsel)
-const AHEAD = 1.5, LATE = 1;
+const AHEAD = 2.2, LATE = 1.5;
 const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 
 /** Ganzzahl-Hash → 0..1 (auf allen Rechnern bitgleich). */

@@ -152,8 +152,20 @@ try {
     weather: 'standard', time: 'standard', style: 'arcade',
   }).then((r) => r.code, (e) => 'FEHLER:' + e.code));
   check(/^[A-Z2-9]{6}$/.test(code), `Host öffnet Raum ${code}`);
-  const joins = await Promise.all([c1, c2].map((p, i) => ev(p, ([c, n]) => window.__game.net.join(c, { name: n }).then((r) => ({ ok: true, id: r.id, team: r.team }), (e) => ({ ok: false, code: e.code })), [code, i ? 'Bert' : 'Anna'])));
-  check(joins.every((j) => j.ok), `zwei Clients treten bei (${joins.map((j) => (j.ok ? `id ${j.id}/${j.team}` : j.code)).join(', ')})`);
+  const joinOnce = (p, n) => ev(p, ([c, nm]) => window.__game.net.join(c, { name: nm }).then((r) => ({ ok: true, id: r.id, team: r.team }), (e) => ({ ok: false, code: e.code })), [code, n]);
+  // Ein zweiter Versuch bei 'keine-antwort'/'verbindung-fehlgeschlagen' (SwiftShader-Host blockiert unter Fremdlast teils
+  // > 20 s – wie ein Spieler, der erneut auf „Beitreten“ tippt); wird protokolliert
+  const joins = await Promise.all([c1, c2].map(async (p, i) => {
+    const n = i ? 'Bert' : 'Anna';
+    let r = await joinOnce(p, n);
+    if (!r.ok && (r.code === 'keine-antwort' || r.code === 'verbindung-fehlgeschlagen')) {
+      info(`${n}: Beitritt ${r.code} – zweiter Versuch (Last ${readFileSync('/proc/loadavg', 'utf8').split(' ').slice(0, 3).join(' ')})`);
+      r = await joinOnce(p, n);
+      if (r.ok) r.retry = true;
+    }
+    return r;
+  }));
+  check(joins.every((j) => j.ok), `zwei Clients treten bei (${joins.map((j) => (j.ok ? `id ${j.id}/${j.team}${j.retry ? ' (2. Versuch)' : ''}` : j.code)).join(', ')})`);
   const [A, B] = joins.map((j) => j.id);
   await until(host, () => window.__game.net.roster.length === 3, null, 15000);
   const cfg = await ev(host, () => { const c = window.__game.net.startMatch(); return c && { mode: c.modeId, map: c.mapId, botsA: c.net.botsA, botsB: c.net.botsB }; });

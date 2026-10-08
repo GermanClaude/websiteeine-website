@@ -255,7 +255,9 @@ Ohne Parameter: `NetSystem.chaos = null`, Verbindungen unverändert. Werkzeuge: 
    'loadout' an den Host (vorher spawnte die Puppe mit der alten Klasse/Ausrüstung).
 5. *Beitritt bei langsamem Host*: der Client schloss seine Verbindung 15 s nach dem Angebot, der Beitritt wartete 20 s – kam die
    Antwort dazwischen (Lasttest: 4 von 12 Beitritten bei 0,9 FPS), scheiterte `accept` mit DOMException 11, und die Zahl landete
-   als Fehlercode in der Oberfläche. Jetzt 45 s fürs Angebot, 15 s ab Antwort, nur Text-Codes, offenes Angebot wird geschlossen.
+   als Fehlercode in der Oberfläche. Jetzt 45 s fürs Angebot, 15 s ab Antwort, nur Text-Codes, offenes Angebot wird geschlossen;
+   'welcome' darf 20 s dauern (vorher 12 s – ein unter Fremdlast blockierter Host ließ einen Beitritt mit 'keine-antwort'
+   scheitern), der Host wartet 25 s auf 'join'.
 6. *Hintergrund-Takt des Hosts*: der Worker tickt mit 20 Hz; dauert ein Bild länger, stauten sich die Takte ohne Ende (Latenz
    wuchs im Prüflauf auf Minuten). Aufgestaute Takte verfallen jetzt (`main.js`, nur online-Host).
 7. *Upload-Messung*: ein langes Bild schickt viel auf einmal, das kurze Messintervall danach ergab 529 KB/s statt 46 KB/s –
