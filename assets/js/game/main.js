@@ -52,12 +52,19 @@ const MODULES = {
   // Vollbild (G.fullscreen) und seine Knöpfe/Anleitung (G.fullscreenUi) – optional, sonst basicFullscreen
   fullscreen: ['./engine/fullscreen.js', ['createFullscreen']],
   fullscreenUi: ['./ui/fullscreen-ui.js', ['FullscreenUI']],
+  // Mehrspieler (docs/planung/mehrspieler.md): Sitzung/Raum (G.net) und die Synchronisation je Rolle
+  net: ['./net/index.js', ['NetSystem']],
+  netHost: ['./net/sync-host.js', ['HostSync']],
+  netClient: ['./net/sync-client.js', ['ClientSync']],
 };
 /** Ohne diese Module bleibt das Spiel spielbar (Ersatz) – Wert: Hinweis für die Konsole. */
 const OPTIONAL = new Map([
   ['audio', 'Spiel läuft ohne Ton.'],
   ['fullscreen', 'Vollbild nur über den eingebauten Ersatz (Knopf, Taste, Spielstart).'],
   ['fullscreenUi', 'keine Vollbild-Knöpfe in Lobby und Pausenmenü (Taste/Alt + Eingabe gehen weiter).'],
+  ['net', 'kein Mehrspieler (Einzelspieler läuft normal).'],
+  ['netHost', 'kein Mehrspieler als Host.'],
+  ['netClient', 'kein Mehrspieler als Client.'],
 ]);
 
 /** Stummer Ersatz für die AudioEngine, falls das Audiomodul nicht lädt oder nicht startet. */
@@ -127,6 +134,8 @@ const G = {
     unranked: false, awaitingLock: false,
     // core-mechanics: Spielstil-Flags, Panzerung an/aus, Online-Deckel der Hilfen, Respawn-Halt, Ausrüstung ab nächstem Spawn
     style: 'arcade', styleFlags: classesData.styleFlags('arcade'), armor: false, assistCap: null, respawnHold: false, pendingLoadout: null,
+    // Mehrspieler: cfg.net des laufenden Matches (null = Einzelspieler), Rolle ('host'|'client'|null), Simulation läuft im Pausenmenü weiter
+    net: null, netRole: null, netLive: false,
   },
   time: { dt: 0, elapsed: 0, frame: 0, real: 0 },
   timeScale: 1,
@@ -314,6 +323,8 @@ function setState(state) {
   const prev = G.match.state;
   if (prev === state) return;
   G.match.state = state;
+  // Online läuft die Simulation im Pausenmenü weiter (Host: Bots, Modus, Respawns; Client: Netz, Puppen)
+  G.match.netLive = state === 'paused' && !!G.match.netRole && G.match.pausedFrom === 'playing';
   document.body.dataset.matchState = state;
   if (state !== 'paused') setAwaitingLock(false);
   if (G.input) G.input.setEnabled(state === 'playing' || state === 'countdown');
@@ -474,10 +485,14 @@ let queuedConfig = null; // Start, der während eines laufenden Starts angeforde
 let startingKey = null; // normalisierte Konfiguration des laufenden Starts
 const configKey = (cfg) => { try { return JSON.stringify(normalizeConfig(cfg)); } catch { return String(Math.random()); } };
 
-function spawnActor(actor) {
+/**
+ * Akteur einsetzen. fixed = { position, yaw }: vorgegebener Ort (Mehrspieler-Client: Spawn vom Host), sonst wählt der
+ * Modus (mode.chooseSpawn) bzw. ein zufälliger Kartenspawn.
+ */
+function spawnActor(actor, fixed = null) {
   const mode = G.mode;
-  let spawn = null;
-  if (mode && typeof mode.chooseSpawn === 'function') spawn = safe('mode.chooseSpawn', () => mode.chooseSpawn(actor));
+  let spawn = fixed && fixed.position ? { position: fixed.position.clone ? fixed.position.clone() : new THREE.Vector3(fixed.position.x, fixed.position.y, fixed.position.z), yaw: Number(fixed.yaw) || 0 } : null;
+  if (!spawn && mode && typeof mode.chooseSpawn === 'function') spawn = safe('mode.chooseSpawn', () => mode.chooseSpawn(actor));
   if (!spawn && G.world && G.world.spawns) {
     const list = (actor.team && G.world.spawns[actor.team]) || G.world.spawns.ffa || G.world.spawns.A || [];
     const s = list[(Math.random() * list.length) | 0];
@@ -492,6 +507,8 @@ function spawnActor(actor) {
     if (actor.weapon && typeof actor.weapon.setLoadout === 'function') safe('weapon.setLoadout', () => actor.weapon.setLoadout(actor.loadout));
   }
   if (actor === G.player) G.match.respawnHold = false;
+  // Mehrspieler (Host): gemeldete Ausrüstung eines entfernten Menschen gilt ab diesem Spawn
+  if (G.match.netRole === 'host' && G.net && G.net.sync && typeof G.net.sync.beforeSpawn === 'function') safe('net.beforeSpawn', () => G.net.sync.beforeSpawn(actor));
   safe('equipActor', () => equipActor(actor));
   actor.respawn(spawn);
   actor.respawnAt = null;
@@ -499,6 +516,24 @@ function spawnActor(actor) {
   G.events.emit('actor:spawn', { actor });
 }
 G.spawnActor = spawnActor;
+
+/**
+ * Mehrspieler-Client vor dem ersten Spawn (bzw. Einstieg ins laufende Spiel): Kamera an einem Spawn des eigenen Teams,
+ * Spieler nicht am Leben (keine Waffe, kein Körper im Spiel), bis der Host 'spawn' schickt.
+ */
+function placeSpectator(p) {
+  const list = (G.world && G.world.spawns && ((p.team && G.world.spawns[p.team]) || G.world.spawns.ffa || G.world.spawns.A)) || [];
+  const s = list[0];
+  if (s) {
+    p.body.setHeight(1.8);
+    p.body.teleport(s.position.clone());
+    p.yaw = s.yaw || 0;
+    p.pitch = -0.05;
+  }
+  p.alive = false;
+  p.respawnAt = null;
+  p._deathCam = null;
+}
 
 /* ===================================================== Klassen, Panzerung, Ausrüstung im Match (core-mechanics) */
 
@@ -612,6 +647,8 @@ function respawnRemaining() {
 function deploy() {
   const p = G.player;
   holdRespawn(false);
+  // Mehrspieler-Client: der Host setzt den Spieler nach Ablauf der Wartezeit selbst ein ('spawn')
+  if (G.match.netRole === 'client') return false;
   if (!p || p.alive || G.match.state !== 'playing' || p.respawnAt == null) return false;
   const mode = G.mode;
   if (mode && typeof mode.canRespawn === 'function' && mode.canRespawn(p) === false) return false;
@@ -692,7 +729,7 @@ function matchAssetJobs(cfg, world) {
   // Ego: einmalige Viewmodel-Texturen (Ärmel-Tarnmuster des Teams, Stoff, Mündungsfeuer …), weapons/viewmodel.js
   const vm = G.modules.viewmodel;
   if (vm && typeof vm.viewModelWarmupSteps === 'function') {
-    const team = cfg.ffa ? null : 'A';
+    const team = cfg.ffa ? null : cfg.net && cfg.net.team === 'B' ? 'B' : 'A';
     vm.viewModelWarmupSteps({ team, world }).forEach((fn, i) => add(`v:${team || 'ffa'}:${i}`, fn));
   }
   // Bots: Drittperson-Modelle ihrer Ausrüstungen (gun: alle Stufen) + Requisiten (Granate, Messer)
@@ -814,10 +851,40 @@ function startMatch(config) {
   return startTask;
 }
 
+/**
+ * Mehrspieler: cfg.net des Matches (nur mit aktiver Sitzung) → Synchronisationsobjekt der Rolle anlegen (G.net.sync).
+ * Ohne Sitzung wird ein altes Objekt entsorgt (Einzelspieler bleibt unberührt). → netCfg | null
+ */
+function setupNetSync(config) {
+  const N = G.net;
+  const net = config && config.net && typeof config.net === 'object' ? config.net : null;
+  const role = net && N && N.online && (net.role === 'host' || net.role === 'client') && N.role === net.role ? net.role : null;
+  // je Match ein frisches Objekt (kein Zustand aus dem vorigen Match)
+  if (N && N.sync) {
+    safe('net.sync.dispose', () => N.sync.dispose());
+    N.sync = null;
+  }
+  if (!role) return null;
+  const mod = role === 'host' ? G.modules.netHost : G.modules.netClient;
+  const Cls = mod && (role === 'host' ? mod.HostSync : mod.ClientSync);
+  if (!Cls) { console.warn('[NULLPUNKT] Mehrspieler-Synchronisation nicht geladen – Match läuft ohne Netz.'); return null; }
+  const out = { ...net, role, selfId: Number.isInteger(net.selfId) ? net.selfId : N.selfId };
+  N.sync = new Cls(G, N, out);
+  return out;
+}
+
 async function runStart(config, gen) {
   const live = () => gen === matchGen;
   try {
+    // Mehrspieler: Synchronisation sofort (vor dem ersten await) – Nachrichten während des Ladens werden gepuffert
+    const netCfg = setupNetSync(config);
     const cfg = normalizeConfig(config);
+    if (netCfg) {
+      // Online: Bots je Team vom Host (absolute Teams A/B, ohne die lokalen Grenzen von limitsFor); Client erzeugt keine
+      cfg.allies = Math.max(0, netCfg.botsA | 0);
+      cfg.enemies = Math.max(0, netCfg.botsB | 0);
+      cfg.net = netCfg;
+    }
     // atmosphere-weather: Wetter/Zeit hier auflösen – „Zufall“ würfelt bei jedem Start (auch Revanche) neu, der
     // Ladebildschirm zeigt das Ergebnis; anderes Wetter/Zeit → Welt neu aufbauen
     const cond = safe('weather', () => G.modules.world?.resolveConditions?.(G.data.MAPS?.[cfg.mapId], { weather: cfg.weather, time: cfg.timeOfDay })) || null;
@@ -834,8 +901,11 @@ async function runStart(config, gen) {
       unranked: isUnranked(cfg),
       style: cfg.style, crosshair: cfg.crosshair, matchLength: cfg.matchLength, timeOfDay: cfg.timeOfDay, cls: cfg.loadout.cls || null, // modes-ui
       weather: cfg.weather, conditions: cond, // atmosphere-weather (Anfrage; aufgelöst: conditions = G.world.weather)
+      net: netCfg, netRole: netCfg ? netCfg.role : null, netLive: false, // Mehrspieler
     });
-    settings.patch({ lastMode: cfg.modeId, lastMap: cfg.mapId, difficulty: cfg.difficulty, lastLoadout: cfg.loadout, lastClass: cfg.loadout.cls || 'sturm' });
+    // Online: Modus/Karte/Schwierigkeit gehören dem Raum – die Lobby-Vorauswahl für Einzelspieler bleibt
+    if (netCfg) settings.patch({ lastLoadout: cfg.loadout, lastClass: cfg.loadout.cls || 'sturm' });
+    else settings.patch({ lastMode: cfg.modeId, lastMap: cfg.mapId, difficulty: cfg.difficulty, lastLoadout: cfg.loadout, lastClass: cfg.loadout.cls || 'sturm' });
     applyStyle(cfg); // core-mechanics: G.match.style/styleFlags/armor
     setState('loading');
     G.menus.showLoading(0);
@@ -882,12 +952,16 @@ async function runStart(config, gen) {
       time: cfg.timeLimit ?? undefined, score: cfg.scoreLimit ?? undefined,
       difficulty: cfg.difficulty, allies: cfg.allies, enemies: cfg.enemies, mapId: cfg.mapId,
     };
+    // Mehrspieler: Serienprämien online aus (Stufe 2); Client führt den Modus als Abbild (Zustand vom Host)
+    if (netCfg) { opts.streaks = false; opts.replica = netCfg.role === 'client'; }
     G.mode = G.modules.modes.createMode(G, cfg.modeId, opts);
     G.mode.attach(G);
     if (!(await nextStep(0.87))) { await teardownMatch({ keepWorld: true }); return; }
 
-    // Spieler + Viewmodel (Arme, Waffen, Viewmodel-Shader)
-    G.player.resetForMatch({ team: cfg.ffa ? null : 'A', loadout: cfg.loadout, name: settings.get('playerName') });
+    // Spieler + Viewmodel (Arme, Waffen, Viewmodel-Shader); online: Team laut Raum (absolute Teams A/B)
+    const team = cfg.ffa ? null : netCfg && netCfg.team === 'B' ? 'B' : 'A';
+    G.player.resetForMatch({ team, loadout: cfg.loadout, name: settings.get('playerName') });
+    G.player.netId = netCfg ? netCfg.selfId : null;
     G.player.godMode = DEV_GOD;
     if (DEV_TIMESCALE) G.timeScale = DEV_TIMESCALE;
     G.camera = G.player.camera;
@@ -896,12 +970,18 @@ async function runStart(config, gen) {
     if (!(await nextStep(0.88))) { await teardownMatch({ keepWorld: true }); return; }
 
     G.bots.attach(G);
-    const bots = G.bots.spawnBots({ allies: cfg.allies, enemies: cfg.enemies, ffa: cfg.ffa, difficulty: cfg.difficulty, modeId: cfg.modeId }) || [];
-    for (const b of bots) if (!G.actors.includes(b)) G.actors.push(b);
-    for (const a of G.actors) spawnActor(a);
+    if (netCfg && netCfg.role === 'client') {
+      // Client: keine eigenen Bots; Puppen kommen vom Host (Roster + Schnappschüsse), der Spieler wartet auf 'spawn'
+      safe('net.spectate', () => placeSpectator(G.player));
+    } else {
+      const bots = G.bots.spawnBots({ allies: cfg.allies, enemies: cfg.enemies, ffa: cfg.ffa, difficulty: cfg.difficulty, modeId: cfg.modeId }) || [];
+      for (const b of bots) if (!G.actors.includes(b)) G.actors.push(b);
+      for (const a of G.actors) spawnActor(a);
+    }
     if (!(await nextStep(0.9))) { await teardownMatch({ keepWorld: true }); return; }
 
-    safe('vehicles.attach', () => G.vehicles.attach(G)); // vehicles: Spawns aus world.vehicleSpawns bzw. ?vehicles=1
+    // vehicles: Spawns aus world.vehicleSpawns bzw. ?vehicles=1 – online keine Fahrzeuge (Stufe 2)
+    if (!netCfg) safe('vehicles.attach', () => G.vehicles.attach(G));
     G.hud.attach(G);
     safe('audio.startAmbience', () => G.audio.startAmbience(G.world.ambience));
     G.mode.start();
@@ -912,6 +992,13 @@ async function runStart(config, gen) {
     G.matchCount += 1;
     G.menus.hideAll();
     G.hud.show();
+    // Client ohne Körper bis zum ersten 'spawn' (Viewmodel erst nach dem Vorkompilieren ausblenden)
+    if (netCfg && netCfg.role === 'client' && !G.player.alive && G.viewmodel) G.viewmodel.scene.visible = false;
+    if (netCfg && G.net) {
+      // Client meldet seine tatsächliche Ausrüstung (nach normalizeConfig) vor 'ready' – der Host setzt die Puppe damit ein
+      if (netCfg.role === 'client') safe('net.setLoadout', () => G.net.setLoadout({ cls: cfg.loadout.cls || null, loadout: cfg.loadout }));
+      safe('net.onMatchStart', () => G.net.onMatchStart(cfg));
+    }
     beginCountdown();
   } catch (err) {
     if (live()) showFatal(err && (err.moduleKey || isFetchError(err)) ? 'module' : 'match', err);
