@@ -229,3 +229,9 @@ Karten-Feinschliff (alle Karten, „alles originalgetreu und sinnvoll platzieren
 - Stufe B (gutes VR): beide Hände an der Waffe, Nachladen per Handbewegung, Menüs/Lobby in VR, Granaten werfen, Ducken/Lehnen echt, VR + Mehrspieler zusammen.
 - Test nur am echten Gerät aussagekräftig (Nutzer testet); im Container nur WebXR-Emulator.
 - EINORDNUNG (Vorschlag Claude): NACH Mehrspieler-Stufe 1 (Sa. 12 Uhr nicht gefährden); Nutzer kann umpriorisieren.
+
+## IRGENDWANN (Nutzer 08.10.): eigenes Scan-Werkzeug für 3D-Modelle
+- Ziel: Nathanael fotografiert/filmt echte Objekte mit dem Handy → daraus wird automatisch ein spielfertiges Modell für NULLPUNKT.
+- Weg 1 (einfach): fertige Scan-App (RealityScan/Polycam/Scaniverse) → glb hochladen → eigene „Brücke“: Größe/Ausrichtung korrigieren, Boden/Reste abschneiden, verkleinern, LODs + Kollision, KTX2-Texturen (bestehende Asset-Pipeline nutzen) → im Spiel platzierbar.
+- Weg 2 (eigener Scanner): Fotos in ein Repo laden → GitHub Action rechnet Photogrammetrie (z. B. COLMAP + OpenMVS) auf CPU → glb → Brücke wie oben. Unklar, ob das auf kostenlosen Runnern schnell genug ist → erst mit kleinem Objekt testen.
+- Rechte: nur selbst gescannte Objekte bzw. erlaubte; keine Personen.
