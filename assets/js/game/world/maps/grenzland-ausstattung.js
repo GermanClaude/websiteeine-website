@@ -14,14 +14,18 @@ import { railing } from '../arch.js';
 const WAREN = {
   kohl: { col: ['#6f9a42', '#86ad55', '#5d8a3a'], r: 0.105, form: 'rund', n: 4, fein: true },
   salat: { col: ['#9cc45c', '#8ab84a'], r: 0.1, form: 'flach', n: 4, fein: true },
-  kartoffeln: { col: ['#b89a68', '#a88a5a', '#c2a674'], r: 0.045, form: 'flach', n: 8 },
-  moehren: { col: ['#e0782a', '#d8692a'], r: 0.026, form: 'lang', n: 8 },
-  tomaten: { col: ['#c8342a', '#b82c24', '#d4402e'], r: 0.04, form: 'rund', n: 8 },
-  aepfel: { col: ['#b8402a', '#c8582e', '#9ab83a'], r: 0.044, form: 'rund', n: 8 },
-  zwiebeln: { col: ['#c89a52', '#b8843e', '#d8b070'], r: 0.04, form: 'rund', n: 8 },
-  paprika: { col: ['#d43c2a', '#e6c53a', '#3a8a2a'], r: 0.045, form: 'flach', n: 8 },
+  kartoffeln: { col: ['#b89a68', '#a88a5a', '#c2a674'], r: 0.048, form: 'flach', n: 6 },
+  moehren: { col: ['#e0782a', '#d8692a'], r: 0.026, form: 'lang', n: 7 },
+  tomaten: { col: ['#c8342a', '#b82c24', '#d4402e'], r: 0.044, form: 'rund', n: 6 },
+  aepfel: { col: ['#b8402a', '#c8582e', '#9ab83a'], r: 0.047, form: 'rund', n: 6 },
+  zwiebeln: { col: ['#c89a52', '#b8843e', '#d8b070'], r: 0.044, form: 'rund', n: 6 },
+  paprika: { col: ['#d43c2a', '#e6c53a', '#3a8a2a'], r: 0.048, form: 'flach', n: 6 },
   kuerbis: { col: ['#e0802a', '#d8702a', '#e89a3a'], r: 0.19, form: 'flach', n: 2, fein: true },
 };
+
+// Kugel mittlerer Auflösung (Kohl, Salat: 56 Dreiecke); kleine Waren lowSphereGeom (36), Kürbisse sphereGeom (120)
+let _mittelKugel = null;
+const mittelKugel = () => _mittelKugel || (_mittelKugel = new THREE.SphereGeometry(1, 7, 5).toNonIndexed());
 
 /** Auslage auf einer Kiste (Mitte lx, Oberkante ly, lz; Kiste kw × kd): Haufen aus Kugeln/Kegeln. */
 function auslage(b, f, lx, ly, lz, kw, kd, art, low, seed) {
@@ -41,10 +45,10 @@ function auslage(b, f, lx, ly, lz, kw, kd, art, low, seed) {
       continue;
     }
     const sy = w.form === 'flach' ? 0.72 : 0.92;
-    const g = r > 0.08 ? sphereGeom() : lowSphereGeom();
+    const g = r > 0.15 ? sphereGeom() : r > 0.08 ? mittelKugel() : lowSphereGeom();
     // gestapelt: hintere Reihe/zweite Lage etwas höher (Haufen statt Gitter)
     const lift = (ri % 2) * r * 0.35 + (k >= cols * 2 ? r * 0.6 : 0);
-    f.geom(g, px, ly + r * sy + lift, pz, 'white', { sx: r, sy: r * sy, sz: r, ry: h(6) * 6.28, tint, collide: false, minimap: false, ao: false, bullet: false, cast: r > 0.08 });
+    f.geom(g, px, ly + r * sy + lift, pz, 'white', { sx: r, sy: r * sy, sz: r, ry: h(6) * 6.28, tint, collide: false, minimap: false, ao: false, bullet: false, cast: r > 0.15 });
   }
 }
 
@@ -162,17 +166,21 @@ export function traktor(b, x, z, o = {}) {
   // Achsen, Rahmen, Motorblock (dunkel)
   f.box(0, Rf - 0.07, zf, 1.12, 0.14, 0.16, 'metal_painted', { ...P, tint: dark, grad: false });
   f.cyl(0, R, zr, 0.1, 1.42, 'metal_painted', { ...P, axis: 'x', tint: dark, seg: 8 });
-  f.box(0, 0.42, 0.55, 0.56, 0.62, 2.5, 'metal_painted', { ...P, tint: dark, grad: false });
+  f.box(0, 0.42, 0.68, 0.56, 0.62, 2.76, 'metal_painted', { ...P, tint: dark, grad: false });
   // Getriebegehäuse unter der Kabine
   f.box(0, 0.5, -0.75, 0.82, 0.62, 1.0, 'metal_painted', { ...P, tint: col, grad: false });
   // Motorhaube + Kühlergrill + Frontgewicht
   f.box(0, 1.0, 1.18, 0.76, 0.5, 1.72, 'metal_painted', { ...P, tint: col, grad: false });
   f.box(0, 1.5, 1.18, 0.6, 0.05, 1.68, 'metal_painted', { ...P, tint: col, grad: false });
-  f.box(0, 1.02, 2.045, 0.64, 0.44, 0.04, 'metal_grate', { ...P, tint: '#3a3c3a', grad: false });
-  for (const s of [-1, 1]) f.box(s * 0.22, 1.36, 2.07, 0.13, 0.09, 0.03, 'lamp_warm', { ...P, ao: false });
-  f.box(0, 0.4, 2.2, 0.82, 0.34, 0.28, 'metal_painted', { ...P, tint: dark, grad: false });
+  // Grill als dunkle Platte mit Querstreben (nur vorhandene Materialien → keine zusätzlichen Draw Calls)
+  f.box(0, 1.02, 2.045, 0.64, 0.44, 0.04, 'metal_painted', { ...P, tint: '#262826', grad: false });
+  for (let k = 0; k < 5; k++) f.box(0, 1.06 + k * 0.08, 2.07, 0.6, 0.025, 0.02, 'metal_painted', { ...P, tint: '#6a6c66', grad: false, ao: false });
+  for (const s of [-1, 1]) f.box(s * 0.22, 1.36, 2.07, 0.13, 0.09, 0.03, 'polymer', { ...P, tint: '#f4ecd0', ao: false });
+  // Frontballast unter dem Grill, am Motorblock angesetzt
+  f.box(0, 0.38, 2.2, 0.82, 0.62, 0.28, 'metal_painted', { ...P, tint: dark, grad: false });
+  for (let k = 0; k < 3; k++) f.box(0, 0.44 + k * 0.18, 2.345, 0.78, 0.015, 0.01, 'metal_painted', { ...P, tint: '#151515', ao: false, grad: false });
   // seitliche Lüftungsschlitze (dunkle Streifen)
-  for (const s of [-1, 1]) for (let k = 0; k < 4; k++) f.box(s * 0.385, 1.12 + k * 0.08, 1.55, 0.01, 0.035, 0.42, 'black', { ...P, ao: false, grad: false });
+  for (const s of [-1, 1]) for (let k = 0; k < 4; k++) f.box(s * 0.385, 1.12 + k * 0.08, 1.55, 0.01, 0.035, 0.42, 'metal_painted', { ...P, tint: '#151515', ao: false, grad: false });
   // Auspuff (senkrecht) + Luftansaugung
   f.cyl(0.22, 1.5, 1.6, 0.045, 0.95, 'metal_galvanized', { ...P, tint: '#3c3a36', seg: 8 });
   f.cyl(0.22, 2.45, 1.6, 0.055, 0.05, 'metal_painted', { ...P, tint: '#1e1e1e', seg: 8 });
@@ -181,7 +189,7 @@ export function traktor(b, x, z, o = {}) {
   f.box(0, 1.05, 0.2, 0.62, 0.42, 0.3, 'metal_painted', { ...P, tint: col, grad: false });
   // Kabine: Boden, Pfosten, Dach, Scheiben
   const cz0 = -1.32, cz1 = 0.32, cw = 1.22, cy0 = 1.12, cy1 = 2.42;
-  f.box(0, cy0 - 0.08, (cz0 + cz1) / 2, cw + 0.1, 0.08, cz1 - cz0, 'metal_tread', { ...P, grad: false });
+  f.box(0, cy0 - 0.08, (cz0 + cz1) / 2, cw + 0.1, 0.08, cz1 - cz0, 'metal_painted', { ...P, tint: '#3a3c3a', grad: false });
   for (const sx of [-1, 1]) for (const zz of [cz0, cz1]) f.box(sx * cw / 2, cy0, zz, 0.06, cy1 - cy0, 0.06, 'metal_painted', { ...P, tint: dark, grad: false });
   f.box(0, cy1, (cz0 + cz1) / 2, cw + 0.22, 0.09, cz1 - cz0 + 0.24, 'metal_painted', { ...P, tint: roof, grad: false });
   f.box(0, cy1 + 0.09, (cz0 + cz1) / 2, cw - 0.1, 0.05, cz1 - cz0 - 0.1, 'metal_painted', { ...P, tint: roof, grad: false });
@@ -204,13 +212,13 @@ export function traktor(b, x, z, o = {}) {
   for (const s of [-1, 1]) {
     f.geom(fg, s * 0.8, R, zr, 'metal_painted', { ...P, tint: col, uv: 'keep', ao: false });
     f.box(s * 0.56, cy0 - 0.08, zr, 0.04, 0.55, 1.5, 'metal_painted', { ...P, tint: col, grad: false });
-    f.box(s * 0.68, 0.55, 0.0, 0.26, 0.04, 0.3, 'metal_tread', { ...P, grad: false });
+    f.box(s * 0.68, 0.55, 0.0, 0.26, 0.04, 0.3, 'metal_painted', { ...P, tint: '#3a3c3a', grad: false });
   }
   // Dreipunkt-Hydraulik + Zapfwelle hinten
   for (const s of [-1, 1]) f.box(s * 0.32, 0.45, -1.6, 0.07, 0.07, 0.75, 'metal_painted', { ...P, tint: rim, grad: false, rx: 0.25 });
   f.box(0, 0.95, -1.5, 0.08, 0.08, 0.6, 'metal_painted', { ...P, tint: rim, grad: false, rx: -0.1 });
   f.cyl(0, 0.62, -1.35, 0.04, 0.22, 'metal_galvanized', { ...P, axis: 'z', seg: 6 });
-  for (const s of [-1, 1]) f.box(s * 0.62, 1.05, -1.42, 0.12, 0.1, 0.03, 'lamp_red', { ...P, ao: false });
+  for (const s of [-1, 1]) f.box(s * 0.62, 1.05, -1.42, 0.12, 0.1, 0.03, 'polymer', { ...P, tint: '#a8241c', ao: false });
   // Kollision: ein Quader um Räder und Kabine (Kugeln treffen die sichtbaren Teile)
   f.solid(0, 0, 0.27, 2.04, 2.5, 3.95, { minimap: 'vehicle' });
 }
@@ -262,21 +270,22 @@ function mauerGeom(pts, depth, hole = null) {
  * Passend zu terrain.dams (crown/2 = c, culvert half = hz, out = c): Stirnwände (1 m dick, Rückseite auf der
  * Rasterlinie |s| = c) mit Rohrloch, Flügelwände (1 m dick, Rückseite auf |z − zc| = hz) mit Böschungsneigung,
  * Betonrohr DN 1400 (halb gefüllt, Wasserspiegel der Karte), Rechen am Einlauf, Geländer auf den Stirnwänden.
- * o: { ax, zc, c (3), hz (3), top (0,75), bottom (−4,2), pipeY (−1,15), slope (1,5), wing (5,5), low }
+ * Nur zwei Materialien (Beton, verzinkter Stahl). o: { ax, zc, c (3), hz (3), top (0,75), bottom (−4,2), pipeY (−1,15),
+ * slope (1,5), wing (5,5) }
  */
 export function durchlass(b, o) {
   const ax = o.ax, zc = o.zc, c = o.c ?? 3, hz = o.hz ?? 3, T = 1.0;
   const top = o.top ?? 0.75, bot = o.bottom ?? -4.2, py = o.pipeY ?? -1.15, sl = o.slope ?? 1.5, wing = o.wing ?? 5.5;
   const ro = 0.85, ri = 0.7, len = 2 * (c + T) + 0.6;
   // grad: false – kein Boden-AO-Verlauf ab y = 0 (die Wände reichen bis ins Flussbett und wären sonst halb so hell)
-  const conc = { tint: '#b4aea1', minimap: false, grad: false };
+  const conc = { tint: '#d2ccbf', minimap: false, grad: false };
   // Stirnwände (Loch für das Rohr), Abdeckkappe, Geländer
   const stirn = mauerGeom([[-hz, bot], [hz, bot], [hz, top], [-hz, top]], T, [0, py, ro + 0.01]);
   for (const s of [-1, 1]) {
     // lokal z (Dicke) → Welt ±x: ry = s·π/2; Rückseite bei |s| = c
     const xb = ax + s * c;
     b.geom(stirn, xb, 0, zc, 'concrete', { ...conc, ry: s * Math.PI / 2, collide: true, minimap: 'wall' });
-    b.box(ax + s * (c + T / 2), top, zc, T + 0.12, 0.12, 2 * hz + 0.12, 'concrete', { tint: '#b9b3a6', collide: false, minimap: false, grad: false });
+    b.box(ax + s * (c + T / 2), top, zc, T + 0.12, 0.12, 2 * hz + 0.12, 'concrete', { tint: '#ddd8cc', collide: false, minimap: false, grad: false });
     railing(b, ax + s * (c + 0.55), zc - hz + 0.15, ax + s * (c + 0.55), zc + hz - 0.15, top + 0.12, { mat: 'metal_galvanized', tint: '#b4b8ba', h: 1.0 });
   }
   // Flügelwände: Oberkante fällt mit der Böschung (1 : sl) von top auf ≈ Flussbett
@@ -289,14 +298,14 @@ export function durchlass(b, o) {
     else b.geom(fl, x0, 0, e > 0 ? zc + hz : zc - hz + T, 'concrete', { ...conc, ry: Math.PI, collide: 'mesh' });
   }
   // Rohr: außen Beton, innen dunkler (kaum Licht im Rohr); Mündungen ragen 0,3 m vor die Stirnwand
-  b.geom(rohrGeom(ro, ri, len, 20, 'aussen'), ax, py, zc, 'concrete', { tint: '#b3ad9f', collide: false, minimap: false, uv: 'keep', ao: false, cast: false });
+  b.geom(rohrGeom(ro, ri, len, 20, 'aussen'), ax, py, zc, 'concrete', { tint: '#cdc7ba', collide: false, minimap: false, uv: 'keep', ao: false, cast: false });
   b.geom(rohrGeom(ro, ri, len, 20, 'innen', -len / 2, -len / 2 + 0.7), ax, py, zc, 'concrete', { tint: '#6c685f', collide: false, minimap: false, uv: 'keep', ao: false, cast: false });
   b.geom(rohrGeom(ro, ri, len, 20, 'innen', len / 2 - 0.7, len / 2), ax, py, zc, 'concrete', { tint: '#6c685f', collide: false, minimap: false, uv: 'keep', ao: false, cast: false });
   b.geom(rohrGeom(ro, ri, len, 20, 'innen', -len / 2 + 0.7, len / 2 - 0.7), ax, py, zc, 'concrete', { tint: '#2e2c28', collide: false, minimap: false, uv: 'keep', ao: false, cast: false });
   // Rechen (Treibgut-Gitter) am Einlauf (Westseite)
   const gx = ax - len / 2 - 0.06;
-  for (let k = -3; k <= 3; k++) { const hh = Math.sqrt(ro * ro - (k * 0.2) ** 2) - 0.04; b.box(gx, py - hh, zc + k * 0.2, 0.04, 2 * hh, 0.04, 'metal_painted', { tint: '#3a3d3a', collide: false, minimap: false, grad: false, ao: false }); }
-  for (const yy of [py - 0.35, py + 0.35]) b.box(gx - 0.03, yy, zc, 0.05, 0.05, 1.5, 'metal_painted', { tint: '#3a3d3a', collide: false, minimap: false, grad: false, ao: false });
-  // Treibgut am Rechen (Äste) – nicht auf low
-  if (!o.low) for (const [dz, dy, r, len2] of [[-0.35, 0.02, 0.05, 1.3], [0.25, -0.05, 0.04, 1.0]]) b.cyl(gx - 0.12, py + dy - 0.02, zc + dz, r, len2, 'bark', { axis: 'z', ry: dz, tint: '#6a5a46', seg: 6, collide: false, minimap: false, cast: false });
+  // (verzinkt wie das Geländer – ein Material weniger)
+  const gal = { tint: '#8e9396', collide: false, minimap: false, grad: false, ao: false };
+  for (let k = -3; k <= 3; k++) { const hh = Math.sqrt(ro * ro - (k * 0.2) ** 2) - 0.04; b.box(gx, py - hh, zc + k * 0.2, 0.04, 2 * hh, 0.04, 'metal_galvanized', gal); }
+  for (const yy of [py - 0.35, py + 0.35]) b.box(gx - 0.03, yy, zc, 0.05, 0.05, 1.5, 'metal_galvanized', gal);
 }

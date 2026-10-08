@@ -164,6 +164,8 @@ function dorf(b) {
   pitchedRoof(b, { x: -48, z: 72, w: 7.02, d: 9.02, y: 3.18, ridge: 'z', pitch: 0.55, over: 0.4, gableMat: 'wood_planks', gableTint: '#8a6a4a', tint: '#5d5a52' });
   b.noNav(-52, 67, -44, 77, 2.6, 40);
   palletStack(b, -46, 70, { n: 5 }); crateStack(b, -49.5, 75.5, { ry: 0.3 });
+  // Traktor im Schuppen (rot, Blick zum Tor im Osten; auf dem Hallenboden y 0,12; ohne b.rand → Dorf-Zufall unverändert)
+  traktor(b, -48.6, 72.2, { ry: Math.PI / 2, y: 0.12, color: '#a8322a', rim: '#d8d4c8' });
   // Kapelle mit Turm (Wahrzeichen)
   building(b, { x: -8, z: 100, w: 7, d: 13, floors: 1, fh: 5.2, mat: 'plaster_white', tint: '#f3eee4', openings: [{ side: 's', at: 0, w: 1.6, h: 2.8, kind: 'door', leaf: 'open' }, { side: 'e', at: -3, w: 0.9, h: 2.2, sill: 1.8, kind: 'window', glass: true }, { side: 'e', at: 2, w: 0.9, h: 2.2, sill: 1.8, kind: 'window', glass: true }, { side: 'w', at: -3, w: 0.9, h: 2.2, sill: 1.8, kind: 'window', glass: true }, { side: 'w', at: 2, w: 0.9, h: 2.2, sill: 1.8, kind: 'window', glass: true }], roof: { edge: false, mat: 'concrete', tint: '#b9ab94' }, floorMat: 'paving', interiorFactor: 0.5 });
   pitchedRoof(b, { x: -8, z: 100, w: 7.02, d: 13.02, y: 5.18, ridge: 'z', pitch: 1.0, over: 0.45, gableMat: 'plaster_white', gableTint: '#f3eee4', tint: '#5f5e5a' });
@@ -264,7 +266,7 @@ function gehoeft(b) {
   for (const [x, y, z, r] of [[-143, 0, 101, 0.1], [-143, 0, 102, 0.05], [-143, 0.6, 101.5, 0.15]]) hayBale(b, x, y, z, r);
   car(b, -170, 111, { ry: 0.9, color: '#5a4a3a', style: 'wreck', model: false });
   // Traktor „Gertrud“ auf ihrem Stellplatz (Ölfleck, Schild) – statisch, Blick zum Scheunentor (Süden)
-  traktor(b, -134.5, 119.5, { ry: 0 });
+  traktor(b, -134.5, 119.5, { ry: 0, y: 0.12 });
   return {};
 }
 
@@ -362,7 +364,7 @@ function funkhuegel(b, Y) {
  * Gelände (terrain.dams/roads), hier nur der Betondurchlass in Flussmitte – Werte passend zu terrain.dams.
  */
 function damm(b) {
-  durchlass(b, { ax: -18, zc: -18, c: 3, hz: 3, top: 0.75, pipeY: -1.15, low: b.lookQuality === 'low' });
+  durchlass(b, { ax: -18, zc: -18, c: 3, hz: 3, top: 0.75, pipeY: -1.15 });
   return {};
 }
 

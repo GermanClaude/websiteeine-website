@@ -140,7 +140,20 @@ try {
   const inMatch = await bothInMatch([host, c1, c2]);
   check(inMatch, 'Host + beide Clients im Zustand playing, eigener Spieler lebt');
   if (!inMatch) {
-    for (const [n, p] of Object.entries(pages)) info(`${n}: ${JSON.stringify(await ev(p, () => ({ st: window.__game.match.state, cd: window.__game.match.countdown, fr: window.__game.time.frame, real: Math.round(window.__game.time.real), hidden: document.hidden, alive: window.__game.player.alive, net: window.__game.debugApi.state().net, sync: !!window.__game.net.sync, active: window.__game.net.sync && window.__game.net.sync.active, hp: window.__game.net.sync && window.__game.net.sync.hostPlaying })).catch((e) => e.message))}`);
+    const diag = (p) => ev(p, () => new Promise((resolve) => {
+      const G = window.__game;
+      const a = { fr: G.time.frame, real: G.time.real };
+      let raf = 0;
+      const t0 = performance.now();
+      const tick = () => { raf++; if (performance.now() - t0 < 3000) requestAnimationFrame(tick); };
+      requestAnimationFrame(tick);
+      setTimeout(() => {
+        let lost = null;
+        try { lost = G.renderer.renderer.getContext().isContextLost(); } catch { /* */ }
+        resolve({ st: G.match.state, cd: G.match.countdown, frames3s: G.time.frame - a.fr, real3s: +(G.time.real - a.real).toFixed(2), raf3s: raf, ts: G.timeScale, lost, hidden: document.hidden, vis: document.visibilityState, alive: G.player.alive, net: G.debugApi.state().net, hp: G.net.sync && G.net.sync.hostPlaying });
+      }, 3200);
+    }));
+    for (const [n, p] of Object.entries(pages)) info(`${n}: ${JSON.stringify(await diag(p).catch((e) => e.message))}`);
     throw new Error('Match nicht erreicht');
   }
   await shot(c1, '1-start-anna');
