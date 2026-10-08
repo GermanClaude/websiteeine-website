@@ -5,11 +5,11 @@
 // Geläut: ab und zu (im Mittel alle 5 Minuten) läutet die Glocke eine Weile. Die Zeitpunkte kommen aus der gemeinsamen
 // Uhr (online Host-Zeit, sonst Spielzeit) und der Kartensaat → alle Spieler hören/sehen dasselbe Läuten.
 // Die Schwingstellung ist eine reine Funktion der Zeit (keine Integration über Bilder, kein Math.random); die Glocke
-// hat keine Kollision und liegt nicht in der Kugel-BVH (nur Optik) – der Glockenstuhl darunter ist statisch.
+// hat keine Kollision und liegt nicht in der Kugel-BVH (nur Optik) – der Glockenstuhl (Querbalken) ist statisch.
 // Klang: Atmo-Ereignis 'amb_bell' (engine/audio/ambience.js, additive Glockenteiltöne), räumlich vom Turm aus und
 // um die Schalllaufzeit verzögert (erst sieht man den Schwung, dann kommt der Schlag).
 //
-// Einbau (altstadt.js): const bell = createBell(b, { x, z, pivotY, floorY, seed, faces }); im Ergebnis der Karte
+// Einbau (altstadt.js): const bell = createBell(b, { x, z, pivotY, seed, faces }); im Ergebnis der Karte
 // attach(world, G) { bell.attach(world, G); }. Prüfhilfe: __game.world.glocke.test(9) bzw. .test('laeuten').
 import * as THREE from 'three';
 import { craneClock, partBuilder, partGroup, place, inView } from '../crane-anim.js';
@@ -19,6 +19,9 @@ const T_HOUR = 4.2, A_HOUR = 0.27, RAMP_HOUR = 2 * T_HOUR;
 // Geläut (gemeinsame Uhr): Zyklus, Fenster des Beginns im Zyklus, Dauer, Schwingdauer, Ausschlag
 const P_PEAL = 300, PEAL_FROM = 50, PEAL_SPAN = 170, T_PEAL = 2.4, A_PEAL = 0.6, RAMP_PEAL = 3 * T_PEAL;
 const SOUND = 343; // m/s
+// Schläge werden bis AHEAD s im Voraus mit genauer WebAudio-Verzögerung eingeplant → Takt unabhängig von der Bildrate;
+// verpasste (Bildlücke > AHEAD) kommen bis LATE s verspätet, ältere entfallen (kein Nachholen nach Tab-Wechsel)
+const AHEAD = 1.5, LATE = 1;
 const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 
 /** Ganzzahl-Hash → 0..1 (auf allen Rechnern bitgleich). */
@@ -62,11 +65,11 @@ function pealAmp(u, hold) {
 
 /**
  * Glocke + Glockenstuhl + bewegliche Uhrzeiger.
- * o: { x, z (Turmmitte), pivotY (Drehachse der Glocke), floorY (Boden der Glockenstube), seed (Kartensaat),
+ * o: { x, z (Turmmitte), pivotY (Drehachse der Glocke), span (Länge der Querbalken, Standard 4,4 m), seed (Kartensaat),
  *      faces: [[x, y, z, ry], …] (Mitte der Zifferblätter, ry = Blickrichtung nach außen) }
  */
 export function createBell(b, o) {
-  const { x, z, pivotY, floorY } = o;
+  const { x, z, pivotY } = o;
   const seed = (o.seed | 0) ^ 0x51a7;
   const P = { collide: false, minimap: false, grad: false };
   const BRONZE = '#b08a48', OAK = '#5a3f2b', IRON = '#2b2d30';
@@ -79,7 +82,6 @@ export function createBell(b, o) {
     for (const sz of [-1, 1]) b.box(px, pivotY - 0.08, z + sz * 0.1, 0.12, 0.17, 0.035, 'metal_painted', { tint: IRON, ...P, ao: false });
     b.box(px, pivotY - 0.1, z, 0.14, 0.05, 0.24, 'metal_painted', { tint: IRON, ...P, ao: false });
   }
-  void floorY;
 
   // --- Schwingende Teile um die Drehachse (lokal: Achse = x, Glocke hängt nach −y)
   const pb = partBuilder(b);
@@ -161,9 +163,11 @@ export function createBell(b, o) {
 
   // --- Zeitplan, Klang, Stellung
   const clock = craneClock();
-  let G = null, lastWall = null, lastShared = null, reqT = -1e9, test = null;
+  let G = null, reqT = -1e9, test = null, hourSec = -1, hourCache = null;
+  let hourKey = null, hourUpTo = -Infinity, pealKey = null, pealUpTo = -Infinity;
 
-  function ring(vol, fadeAt) {
+  /** Ein Schlag in dt Sekunden (negativ: verspätet) + Schalllaufzeit vom Turm zum Hörer. */
+  function ring(vol, fadeAt, dt = 0) {
     const a = G?.audio, st = G?.match?.state;
     if (!a || typeof a.play !== 'function' || (st !== 'playing' && st !== 'countdown')) return;
     if (G.settings?.get?.('glocke') === false) return; // Liste 2: Läuten abschaltbar (Einstellung folgt) – fehlt sie, läutet es
@@ -171,7 +175,7 @@ export function createBell(b, o) {
     try {
       a.play('amb_bell', {
         position: { x: sx0, y: sy0, z: sz0 }, volume: vol, bus: 'amb', priority: 1, ref: 28, env: 0, er: 0, loud: null,
-        pitchJit: 0, occlusion: false, delay: dist / SOUND, fadeAt, fadeLen: fadeAt ? 1.6 : undefined,
+        pitchJit: 0, occlusion: false, delay: Math.max(0, dt + dist / SOUND), fadeAt, fadeLen: fadeAt ? 1.6 : undefined,
       });
     } catch { /* Ton ist Beiwerk */ }
   }
@@ -192,8 +196,10 @@ export function createBell(b, o) {
       if (s <= (test.n - 1) * T_HOUR / 2 + 20) return { t0: test.t0, n: test.n, s };
       test = null;
     }
-    const H = hourAt(tw * 1000), s = tw - H.t0;
-    return s <= (H.n - 1) * T_HOUR / 2 + 20 ? { t0: H.t0, n: H.n, s } : null;
+    // volle Stunde nur einmal je Sekunde bestimmen (Date-Objekte), Winkel/Schläge je Bild aus s
+    if (Math.floor(tw) !== hourSec) { hourSec = Math.floor(tw); hourCache = hourAt(tw * 1000); }
+    const H = hourCache, s = tw - H.t0;
+    return s >= -RAMP_HOUR && s <= (H.n - 1) * T_HOUR / 2 + 20 ? { t0: H.t0, n: H.n, s } : null;
   }
   /** Laufendes Geläut (gemeinsame Uhr) oder null. */
   function pealEvent(ts, tw) {
@@ -210,33 +216,40 @@ export function createBell(b, o) {
     const ms = Date.now(), tw = ms / 1000, ts = clock.now();
     if (Math.floor(ms / 60000) !== shownMin) { shownMin = Math.floor(ms / 60000); setHands(ms); }
     if (G) prepare(tw);
-    // Rücksprung (neues Match, Zeitabgleich) → nichts nachholen
-    if (lastWall === null || tw < lastWall - 1 || tw - lastWall > 5) lastWall = tw;
-    if (lastShared === null || ts < lastShared - 1 || ts - lastShared > 5) lastShared = ts;
     const H = hourEvent(tw);
     let theta = 0;
     if (H) {
       theta = hourAngle(H.s, H.n);
+      // läuft gerade ein Geläut, schwingt es in 3 s aus (kein Sprung), seine Schläge entfallen
+      const E = H.s < -RAMP_HOUR + 3 ? pealEvent(ts, tw) : null;
+      if (E) theta += pealAmp(E.u, E.hold) * Math.sin((2 * Math.PI * E.u) / T_PEAL) * (1 - smooth((H.s + RAMP_HOUR) / 3));
+      // Stundenschläge bei s = k · T/2 (Umkehrpunkte), vorausgeplant
+      if (hourKey !== H.t0) { hourKey = H.t0; hourUpTo = -Infinity; }
       for (let k = 0; k < H.n; k++) {
         const t = H.t0 + (k * T_HOUR) / 2;
-        if (t > lastWall && t <= tw && tw - t < 0.75) ring(0.95);
+        if (t <= hourUpTo || t > tw + AHEAD) continue;
+        hourUpTo = t;
+        if (t >= tw - LATE) ring(0.95, undefined, t - tw);
       }
     } else {
       const E = pealEvent(ts, tw);
       if (E) {
-        const t1 = E.wall ? tw : ts, t0p = t1 - E.u, prev = E.wall ? lastWall : lastShared;
+        const t1 = E.wall ? tw : ts, t0p = t1 - E.u;
         theta = pealAmp(E.u, E.hold) * Math.sin((2 * Math.PI * E.u) / T_PEAL);
-        // Schläge an den Umkehrpunkten (Klöppel schlägt an), sobald die Glocke hoch genug schwingt
-        const k0 = Math.max(0, Math.floor(((prev - t0p) - T_PEAL / 4) / (T_PEAL / 2)));
-        for (let k = k0; k < k0 + 4; k++) {
+        // Schläge an den Umkehrpunkten (Klöppel schlägt an), sobald die Glocke hoch genug schwingt; vorausgeplant
+        const key = (E.wall ? 'w' : 's') + Math.round(t0p * 100);
+        if (pealKey !== key) { pealKey = key; pealUpTo = -Infinity; }
+        const from = Math.max(pealUpTo, t1 - LATE) - t0p;
+        for (let k = Math.max(0, Math.floor((from - T_PEAL / 4) / (T_PEAL / 2))); ; k++) {
           const u = T_PEAL / 4 + (k * T_PEAL) / 2, t = t0p + u;
-          if (t > t1) break;
+          if (t > t1 + AHEAD) break;
+          if (t <= pealUpTo) continue;
+          pealUpTo = t;
           const amp = pealAmp(u, E.hold) / A_PEAL;
-          if (t > prev && t1 - t < 0.75 && amp > 0.42) ring(0.45 + 0.4 * amp, 3.2);
+          if (amp > 0.42 && t >= t1 - LATE) ring(0.45 + 0.4 * amp, 2.6, t - t1);
         }
       }
     }
-    lastWall = tw; lastShared = ts;
     if (camera && !inView(camera, x, pivotY - 0.8, z, 2.5, 20)) return;
     place(swing, x, pivotY, z, theta);
   };

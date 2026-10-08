@@ -530,6 +530,14 @@ try {
     const orig = N.checkState.bind(N);
     N.checkState = (pid, st, ctx) => { if (pid === bId && (st.flags & 128)) window.__slideStates++; return orig(pid, st, ctx); };
   }, B);
+  // Spawns des eigenen Spielers bei Bert zählen: unter Laufzeit kommt 'spawn' erst 150–500 ms nach dem Host-Spawn an –
+  // vorher steht Bert noch am Boden und „gelandet“ wäre schon erfüllt (das Rutschen begann dann vor dem Spawn und der
+  // eintreffende Spawn brach es nach 0 m ab)
+  await ev(c2, () => {
+    const G = window.__game;
+    window.__selfSpawns = 0;
+    G.events.on('actor:spawn', (e) => { if (e && e.actor === G.player) window.__selfSpawns++; });
+  });
   const drop = await ev(host, (bId) => {
     const G = window.__game;
     const T = G.THREE;
@@ -549,20 +557,53 @@ try {
     return null;
   }, B);
   // gelandet = wieder am Boden, mindestens 3 m unter dem Spawnpunkt (Dächer/Container zählen auch)
-  const landed = drop && await until(c2, (sy) => { const p = window.__game.player; return p.alive && p.body.onGround && p.position.y < sy - 3 && { y: p.position.y }; }, drop.from[1], 240000, 1000); // SwiftShader: ~17 Spielbilder Fall, je Bild bis 3 s
+  const spawnedAir = drop && await until(c2, () => window.__selfSpawns >= 1, null, 60000, 200);
+  if (drop && !spawnedAir) info('Bert: Spawn in der Luft kam nicht an');
+  const landed = drop && spawnedAir && await until(c2, (sy) => { const p = window.__game.player; return p.alive && p.body.onGround && p.position.y < sy - 3 && { y: p.position.y }; }, drop.from[1], 240000, 1000); // SwiftShader: ~17 Spielbilder Fall, je Bild bis 3 s
   if (drop && !landed) info(`Bert nach dem Fall: ${JSON.stringify(await ev(c2, () => { const p = window.__game.player; return { alive: p.alive, ground: p.body.onGround, y: +p.position.y.toFixed(2) }; }))}, Spawn y ${drop.from[1].toFixed(2)}`);
   check(!!landed, `Bert fällt ${drop ? (drop.from[1] - (landed ? landed.y : drop.ground)).toFixed(1) : '–'} m (Host-Spawn in der Luft) und landet`);
-  // Rutschen aus dem Sprint (player._startSlide wie die Taste), bis es endet
-  const slid = await ev(c2, () => {
-    const G = window.__game;
-    const p = G.player;
-    if (!p.alive || !p.body.onGround) return null;
-    p.body.velocity.set(-Math.sin(p.yaw) * 8.2, 0, -Math.cos(p.yaw) * 8.2);
-    p.sprinting = true;
-    p._startSlide();
-    return { sliding: p.sliding, x: p.position.x, z: p.position.z };
+  // Rutschen aus dem Sprint (player._startSlide wie die Taste), bis es endet – in eine freie Richtung (nach dem Sturz kann
+  // Bert vor einer Wand/Kiste stehen; dann endete das Rutschen sofort nach 0 m), höchstens 3 Versuche
+  let slid = null;
+  let slideEnd = null;
+  // Diagnose: warum endet ein Rutschen (Zeit, Boden, Tempo, Leben, Spielzustand), Spawns/Tode des Spielers währenddessen
+  await ev(c2, () => {
+    const p = window.__game.player;
+    const d = (window.__slideDbg = { ends: [], respawns: 0, deaths: 0 });
+    const end = p._endSlide.bind(p);
+    p._endSlide = (j) => { d.ends.push({ j: !!j, t: +(p.slideTime || 0).toFixed(2), og: p.body.onGround, v: +Math.hypot(p.body.velocity.x, p.body.velocity.z).toFixed(1), alive: p.alive, ms: window.__game.match.state, mant: !!p.mantling }); return end(j); };
+    const rs = p.respawn.bind(p);
+    p.respawn = (...a) => { d.respawns++; return rs(...a); };
+    const od = p.onDeath.bind(p);
+    p.onDeath = (...a) => { d.deaths++; return od(...a); };
   });
-  const slideEnd = slid && await until(c2, () => !window.__game.player.sliding && [window.__game.player.position.x, window.__game.player.position.z], null, 240000, 500);
+  const bertState = () => ev(c2, () => { const p = window.__game.player; return { alive: p.alive, og: p.body.onGround, hp: Math.round(p.health), y: +p.position.y.toFixed(2), sliding: p.sliding, mant: !!p.mantling, ms: window.__game.match.state, dbg: window.__slideDbg }; });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await until(c2, () => window.__game.player.alive && window.__game.player.body.onGround && !window.__game.player.mantling, null, 30000, 500);
+    slid = await ev(c2, (k) => {
+      const G = window.__game;
+      const p = G.player;
+      if (!p.alive || !p.body.onGround) return null;
+      const T = G.THREE;
+      const at = (h) => p.position.clone().setY(p.position.y + h);
+      let dir = null;
+      for (let i = 0; i < 16 && !dir; i++) {
+        const a = p.yaw + ((i + k * 5) * Math.PI) / 8;
+        const d = new T.Vector3(-Math.sin(a), 0, -Math.cos(a));
+        if (G.world.lineOfSight(at(0.5), at(0.5).addScaledVector(d, 8)) && G.world.lineOfSight(at(1.2), at(1.2).addScaledVector(d, 8))) dir = d;
+      }
+      if (!dir) dir = new T.Vector3(-Math.sin(p.yaw), 0, -Math.cos(p.yaw));
+      p.body.velocity.set(dir.x * 8.2, 0, dir.z * 8.2);
+      p.sprinting = true;
+      p._startSlide();
+      return { sliding: p.sliding, x: p.position.x, z: p.position.z };
+    }, attempt);
+    slideEnd = slid && await until(c2, () => !window.__game.player.sliding && [window.__game.player.position.x, window.__game.player.position.z], null, 240000, 500);
+    if (!slid) info(`Rutschen ${attempt + 1}: Bert nicht bereit ${JSON.stringify(await bertState())}`);
+    if (!slid || !slideEnd || Math.hypot(slideEnd[0] - slid.x, slideEnd[1] - slid.z) >= 1.5) break;
+    info(`Rutschen ${attempt + 1}: nur ${Math.hypot(slideEnd[0] - slid.x, slideEnd[1] - slid.z).toFixed(1)} m – nächste Richtung; ${JSON.stringify(await bertState())}`);
+    await sleep(1500);
+  }
   await sleep(2500);
   const acAfter = await ev(host, ([bId, n]) => window.__game.net.anticheat.log.filter((l) => l.peer === bId).slice(n).map((l) => l.reason), [B, acN]);
   const slideStates = await ev(host, () => window.__slideStates);

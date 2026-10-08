@@ -794,7 +794,7 @@ function bellTower(b, x0, z0, x1, z1) {
   b.boxMM(x0 + 0.3, y, z0 + 0.3, x1 - 0.3, y + 0.1, z1 - 0.3, 'wood_dark', { tint: '#5a4030', collide: false, minimap: false, grad: false });
   // Glocke im Glockenstuhl: schwingt beim Stundenschlag (echte Uhrzeit) und beim Geläut (gemeinsame Uhr), Turmuhr-
   // Zeiger zeigen die echte Uhrzeit (altstadt-glocke.js)
-  const bell = createBell(b, { x, z, pivotY: y + BH - 0.45, floorY: y + 0.1, seed: SEED, faces: [[x0 - 0.06, 13.9, z, -Math.PI / 2], [x, 13.9, z1 + 0.06, 0]] });
+  const bell = createBell(b, { x, z, pivotY: y + BH - 0.45, seed: SEED, faces: [[x0 - 0.06, 13.9, z, -Math.PI / 2], [x, 13.9, z1 + 0.06, 0]] });
   // Dach: Pyramide + Kreuzblume
   b.boxMM(x0 - 0.25, y + BH, z0 - 0.25, x1 + 0.25, y + BH + 0.35, z1 + 0.25, mat, { tint: dark, collide: false, minimap: false, grad: false });
   b.cyl(x, y + BH + 0.35, z, (w / 2 + 0.2) * Math.SQRT2, 4.2, 'roof_tiles', { r1: 0.05, seg: 4, ry: Math.PI / 4, tint: '#c27154', collide: false, minimap: false, uv: 'keep' });
@@ -1378,8 +1378,8 @@ function roofGrills(b, M, h) {
   kettleGrill(b, 28.3, y(h.em2), Z(35.4), -0.4, { color: south ? '#7a2420' : '#1d1f22' });
   grillTable(b, 29.35, y(h.em2), Z(36.55), M.ry(Math.PI));
   brickGrill(b, 45.4, y(h.ep2), Z(30.4), -Math.PI / 2);
-  kettleGrill(b, 53.0, y(h.h2), Z(31.3), 1.1, { color: '#2a3f5c' });
-  chair(b, 54.1, Z(32.2), { y: y(h.h2), ry: M.ry(Math.PI * 0.85), tint: '#c8402f', model: true });
+  kettleGrill(b, 54.3, y(h.h2), Z(31.4), 1.1, { color: '#2a3f5c' });
+  chair(b, 55.5, Z(32.3), { y: y(h.h2), ry: M.ry(Math.PI * 0.85), tint: '#c8402f', model: true });
 }
 
 /** Gemauerte Bogenbrücke zwischen zwei Dachterrassen über die Ostgasse. */
