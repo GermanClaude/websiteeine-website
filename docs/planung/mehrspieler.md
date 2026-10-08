@@ -296,28 +296,45 @@ Verstoß, 20-m-Teleport → 'teleport' + 'correct'; Lasttest (12 Clients, Kreisb
 `dev/fake-client.html` in einem zweiten Browser, 30-Hz-Zustände im Kreis mit 4,2 m/s ab dem Spawnpunkt, ab und zu 1–3
 Treffermeldungen auf den nächsten Gegner aus dem Schnappschuss):
 
-| | ohne Interessenfilter | mit Interessenfilter |
-|---|---|---|
-| Host allein (32 Akteure: Host + 31 Bots) | 1,8 FPS, Bildzeit Ø 551 / p95 900 ms | 1,6 FPS, Ø 643 / p95 1067 ms |
-| Host mit 12 Clients (32 Akteure: 13 Menschen + 19 Bots) | 1,6 FPS, Ø 627 / p95 1750 ms | 1,4 FPS, Ø 707 / p95 1367 ms |
-| Schnappschuss je Client | 1003 Byte (32 Akteure) | 464 Byte (Ø 14,6 von 32 Akteuren = 46 %) |
-| je Client bei 20 Hz (+ 60 Byte Paketkopf) | 21,3 KB/s + zuverlässig | 10,2 KB/s + zuverlässig |
-| zuverlässig je Client (gemessen) | – | 2,1 KB/s (Treffer, Abschüsse, Modus, Akteursliste) |
-| Anti-Cheat | 0 Bewegung; 12 'herkunft' (Fehler 3f), 7 'sicht' | 0 Bewegung, 0 'herkunft'; 9 'sicht' |
-| Treffermeldungen | 175 gesendet, 125 bestätigt | 146 gesendet, 134 bestätigt |
-| Roster/Bots | 13 Menschen (A 7/B 6), Bots 19 (9/10), 32 Akteure | gleich; 4 gehen → Bots 19 → 23 (11/12), 32 Akteure |
-| Empfehlung | `measured: true`, bis 8 („Bildrate 2 FPS“) | `measured: true`, bis 8 („Bildrate 2 FPS“) |
+| | ohne Interessenfilter | mit Filter (1. Lauf) | Endstand (mit Filter) |
+|---|---|---|---|
+| Host allein (32 Akteure: Host + 31 Bots) | 1,8 FPS, Bildzeit Ø 551 / p95 900 ms | 1,6 FPS, Ø 643 / p95 1067 ms | 0,7 FPS, Ø 1505 / p95 2283 ms |
+| Host mit 12 Clients (32 Akteure: 13 Menschen + 19 Bots) | 1,6 FPS, Ø 627 / p95 1750 ms | 1,4 FPS, Ø 707 / p95 1367 ms | 1,3 FPS, Ø 794 / p95 1567 / max 1700 ms |
+| Last (loadavg) während der Messung | 6,3 | 5,9 | 9,9 |
+| Schnappschuss je Client | 1003 Byte (32 Akteure) | 464 Byte (Ø 14,6 von 32 = 46 %) | 436 Byte (Ø 13,7 von 32 = 43 %) |
+| Schnappschüsse je Client bei 20 Hz (+ 60 Byte Paketkopf) | 20,8 KB/s | 10,2 KB/s | 9,7 KB/s |
+| zuverlässig je Client (gemessen, Echtzeit) | – | 2,1 KB/s | 1,7 KB/s: Modus 560, Roster 549, Treffer der Last-Clients 530, Abschüsse 109, Punkte/Medaillen 17 B/s |
+| Anti-Cheat | 0 Bewegung; 12 'herkunft' (Fehler 3f), 7 'sicht' | 0 Bewegung, 0 'herkunft'; 9 'sicht' | 0 Bewegung, 0 'herkunft'; 6 'sicht'; 'correct' an Clients 0 |
+| Treffermeldungen | 175 gesendet, 125 bestätigt | 146 gesendet, 134 bestätigt | 148 gesendet, 129 bestätigt |
+| Tod + Wiedereinstieg unter Last | – | – | 3 Clients abgeschossen, alle am neuen Spawnpunkt weiter, danach 0 Verstöße |
+| Roster/Bots | 13 Menschen (A 7/B 6), Bots 19 (9/10), 32 Akteure | gleich; 4 gehen → Bots 19 → 23 (11/12) | gleich; 4 gehen → Bots 19 → 23 (11/12), 32 Akteure; Matchende: alle 8 Clients 'end' |
+| Empfehlung | `measured: true`, bis 8 („Bildrate 2 FPS“) | `measured: true`, bis 8 („Bildrate 2 FPS“) | `measured: true`, bis 8 („Bildrate 1 FPS“) |
+| Seiten-/Konsolenfehler | 0 | 0 | 0 |
 
 'sicht' sind erwartet: die Last-Clients kennen keine Welt und melden auch Treffer durch Wände (weiche Prüfung, Gewicht 2).
-Die SwiftShader-Bildrate (1–2 FPS) begrenzt den Host hier; die Netzlast hängt am Schnappschuss (ein Schnappschuss je Bild,
-höchstens 20/s) und ist auf 20 Hz hochgerechnet. Ohne Filter lag ein Client bei 32 Akteuren über 20 KB/s → Filter eingebaut.
+Die Bildrate des Hosts (0,7–1,8 FPS) hängt auf dem Prüfrechner an SwiftShader und an der Fremdlast (andere Prüfläufe
+parallel, loadavg 6–10) – „vorher/nachher“ ist darum nur grob vergleichbar: die 12 Clients kosten den Host messbar wenig
+(Netz + 12 Puppen; im Endstand lag „mit Clients“ sogar über „allein“, weil die Fremdlast schwankte). Die Netzlast hängt am
+Schnappschuss (ein Schnappschuss je Bild, höchstens 20/s) und ist auf 20 Hz hochgerechnet. Ohne Filter lag ein Client bei 32
+Akteuren über 20 KB/s (20,8 KB/s nur Schnappschüsse) → Interessenfilter eingebaut (halbiert den Schnappschuss).
 
-**Empfehlung (recommend.js, kalibriert)**: Upload je Client bei A Akteuren
-`20 × (11 + 60 + A × 31 × anteil) + RELIABLE_BYTES` mit anteil = 0,5 ab 12 Akteuren (gemessen 0,46), sonst 1, und
-RELIABLE_BYTES = {{RELIABLE}} Byte/s; gesamt `(n − 1) ×` das, A = 2 × teamSize bei Bot-Auffüllung (sonst n). Beispiel 13 Menschen,
-32 Akteure: {{BEISPIEL}}. Die Upload-Messung nimmt nur Fenster ≥ 3 s (Bündel aus langen Bildern zählten vorher × 10).
+**Kampfverkehr** (`node tools/mp-fight-rate.mjs`): Treffer/Abschüsse/Spawns/Granaten gehen zuverlässig an jeden Client. Im
+Lasttest läuft die Spielzeit nur mit ≈ 5 % Echtzeit (≤ 50 ms je Bild bei ≈ 1 Bild/s) – in 4,8 Spielsekunden gab es noch keinen
+Bot-Kampf. Darum eigene Messung: Offline-Runde Hafen TDM (= Host-Runde ohne Netz), Zeichnen abgeschaltet, 94 Spielsekunden,
+23 Bots + Zuschauer, hochgerechnet auf 32 kämpfende Akteure: „regulär“ 7,6 Treffer, 0,96 Abschüsse, 0,93 Spawns, 0,30
+Granaten-/Raketen-Ereignisse je Sekunde × gemessene Nachrichtengrößen (Treffer 221, Abschuss 265, Spawn 230 Byte inkl.
+Paketkopf, Ereignis ≈ 170 geschätzt) = **2,2 KB/s je Client**; „Veteran“ (vorsichtiger) 2,9 Treffer/s = 0,9 KB/s.
 
-**Läufe** (Prüfrechner, 4 Kerne; ein mp-test-Lauf ≈ 20–30 min): {{LAEUFE}}
+**Empfehlung (recommend.js, kalibriert)**: Upload des Hosts je Client bei A Akteuren, davon n Menschen:
+`20 × (11 + 60 + A × 31 × anteil) + 570 + 44 × n + 70 × A` – anteil = 0,5 ab 12 Akteuren (gemessen 0,43–0,47), sonst 1;
+570 B/s Modus (≈ 1 Hz), 44 B/s je Mensch (Roster), 70 B/s je Akteur (Kampf, 2,2 KB/s bei 32). Gesamt `(n − 1) ×` das,
+A = 2 × teamSize bei Bot-Auffüllung (sonst n); höchstens 80 % des gemessenen Uploads. Beispiele: 13 Menschen, 32 Akteure: je
+Client 11 340 + 3 382 = 14 722 B/s ≈ 14,4 KB/s, gesamt ≈ 173 KB/s (Lasttest hochgerechnet: 9 920 + 1 109 + 2 188 =
+13 217 B/s je Client – die Formel liegt 11 % darüber); 8 Menschen ohne Bots: ≈ 7,7 KB/s je Client, gesamt ≈ 54 KB/s. Daraus bei
+einer Upload-Grenze (Stau gemessen; ohne Stau rechnet recommend() das Gemessene × 2 hoch) von 100 000 B/s → 9 Menschen ohne
+Bots / 6 bei 32 Akteuren; 200 000 B/s → 17 / 11; 400 000 B/s → 25 / 22 (1 KB = 1024 Byte). Die Upload-Messung nimmt nur Fenster ≥ 3 s (Bündel aus langen Bildern zählten vorher × 10).
+
+**Läufe** (Prüfrechner, 4 Kerne, Fremdlast 6–10; ein mp-test-Lauf ≈ 13–18 min): {{LAEUFE}}
 
 **Offen**: SwiftShader-Seiten zeichnen auf dem Prüfrechner unter Last nur 0,1–2 Bilder/s – der Countdown zählt je Bild höchstens
 0,25 s, daher dauert der Matchstart dort Minuten (kein Fehler des Spiels, mp-test wartet bis 10 min). Die Glätte im echten Spiel

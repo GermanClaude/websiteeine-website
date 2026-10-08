@@ -3,12 +3,15 @@
 // Bildrate und gemessener Upload (gesendete Bytes/s vs. Stau im Sendepuffer). Vor der ersten Upload-Messung
 // konservativ 8.
 //
-// Bandbreite (Lasttest tools/mp-load-test.mjs, §13): der Host schickt jedem der n − 1 Clients
-//   je Schnappschuss (20 Hz): 11 Byte Kopf + 60 Byte Paketkopf (IP/UDP/DTLS/SCTP) + Akteure × 31 Byte × Anteil
-//   (Interessenfilter ab 12 Akteuren: ferne/tote nur 5 Hz → gemessen INTEREST_SHARE der Akteure je Schnappschuss)
-//   + zuverlässige Nachrichten (Treffer, Abschüsse, Modus, Akteursliste, Ping) ≈ RELIABLE_BYTES je Client.
-//   upload(n, A) = (n − 1) × [20 × (71 + A × 31 × anteil(A)) + RELIABLE_BYTES], A = Akteure im Match (Bots füllen auf:
-//   mit Bot-Auffüllung 2 × teamSize, sonst n). Beispiel 13 Menschen, 32 Akteure: 12 × ≈ 16,6 KB/s ≈ 199 KB/s.
+// Bandbreite (Lasttest tools/mp-load-test.mjs + Kampfrate tools/mp-fight-rate.mjs, §13): der Host schickt jedem der n − 1
+// Clients
+//   Schnappschüsse (20 Hz): 11 Byte Kopf + 60 Byte Paketkopf (IP/UDP/DTLS/SCTP) + Akteure × 31 Byte × Anteil
+//   (Interessenfilter ab 12 Akteuren: ferne/tote nur 5 Hz → gemessen 0,43–0,47 der Akteure je Schnappschuss, gerechnet 0,5)
+//   + zuverlässige Nachrichten: Modus (≈ 1 Hz) RELIABLE_BASE + Roster RELIABLE_PER_HUMAN je Mensch + Kampf (Treffer,
+//   Abschüsse, Spawns, Granaten an alle) RELIABLE_PER_ACTOR je Akteur.
+//   upload(n, A) = (n − 1) × [20 × (71 + A × 31 × anteil(A)) + 570 + 44 × n + 70 × A], A = Akteure im Match (mit
+//   Bot-Auffüllung 2 × teamSize, sonst n). Beispiel 13 Menschen, 32 Akteure: je Client 11 340 + 3 382 ≈ 14,4 KB/s,
+//   gesamt 12 × ≈ 173 KB/s; 8 Menschen ohne Bots: je Client ≈ 7,7 KB/s, gesamt ≈ 54 KB/s (1 KB = 1024 Byte).
 // Reine Logik – UploadMeter misst, recommend() rechnet; beides ohne DOM prüfbar.
 
 export const SNAPSHOT_HZ = 20;
@@ -18,8 +21,12 @@ export const PACKET_OVERHEAD = 60;
 /** Interessenfilter (sync-host.js): ab so vielen Akteuren; gemessener Anteil der Akteure je Schnappschuss (Hafen, 32). */
 export const INTEREST_MIN = 12;
 export const INTEREST_SHARE = 0.5;
-/** Gemessen: zuverlässige Nachrichten je Client (Byte/s inkl. Paketkopf). */
-export const RELIABLE_BYTES = 1400;
+/** Gemessen (§13): zuverlässige Nachrichten je Client (Byte/s inkl. Paketkopf) – Modus (≈ 1 Hz, Lasttest 560–586 B/s),
+ *  Roster (≈ 42–45 B/s je Mensch), Kampf (Bot-Runde Hafen „regulär“: 7,6 Treffer, 0,96 Abschüsse, 0,93 Spawns je s
+ *  bei 32 Akteuren ≈ 2,2 KB/s → je Akteur ≈ 70 B/s; „Veteran“ kämpft vorsichtiger: 0,9 KB/s). */
+export const RELIABLE_BASE = 570;
+export const RELIABLE_PER_HUMAN = 44;
+export const RELIABLE_PER_ACTOR = 70;
 /** Mittlere Byte je Akteur und Schnappschuss (Kopf umgelegt) – nur noch zur Anzeige/Kompatibilität. */
 export const BYTES_PER_ENTITY = 40;
 export const MIN_PLAYERS = 2;
@@ -29,17 +36,22 @@ export const UNMEASURED_MAX = 8;
 /** Anteil des gemessenen Uploads, den das Spiel höchstens belegen soll (Rest: Zuverlässiges, Schwankungen). */
 const HEADROOM = 0.8;
 
-/** Upload des Hosts je Client (Byte/s) bei `actors` Akteuren im Match. */
-export function clientBytes(actors, { hz = SNAPSHOT_HZ } = {}) {
+/** Zuverlässige Nachrichten je Client (Byte/s) bei `actors` Akteuren und `humans` Menschen (ohne Angabe: alle Menschen). */
+export function reliableBytes(actors, humans = actors) {
+  return RELIABLE_BASE + RELIABLE_PER_HUMAN * Math.max(0, humans) + RELIABLE_PER_ACTOR * Math.max(0, actors);
+}
+
+/** Upload des Hosts je Client (Byte/s) bei `actors` Akteuren im Match, davon `humans` Menschen. */
+export function clientBytes(actors, { hz = SNAPSHOT_HZ, humans = actors } = {}) {
   const a = Math.max(0, actors);
   const share = a >= INTEREST_MIN ? INTEREST_SHARE : 1;
-  return hz * (SNAPSHOT_HEADER + PACKET_OVERHEAD + a * ENTITY_BYTES * share) + RELIABLE_BYTES;
+  return hz * (SNAPSHOT_HEADER + PACKET_OVERHEAD + a * ENTITY_BYTES * share) + reliableBytes(a, Math.min(a, humans));
 }
 
 /** Benötigter Upload des Hosts (Byte/s) bei n Spielern; actors = Akteure im Match (mindestens n, Bots füllen auf). */
 export function bandwidthFor(n, { hz = SNAPSHOT_HZ, actors = n, entities = null } = {}) {
   const a = Math.max(n, Number.isFinite(entities) ? entities : actors || 0);
-  return Math.max(0, n - 1) * clientBytes(a, { hz });
+  return Math.max(0, n - 1) * clientBytes(a, { hz, humans: n });
 }
 
 /** Größte Spielerzahl, deren Bandbreite in `bytesPerSec` passt (mindestens 2). actors = Akteure im Match (Bots). */

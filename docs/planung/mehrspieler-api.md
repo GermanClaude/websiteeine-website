@@ -301,9 +301,10 @@ Leben im Puffer abgegrenzt (Einträge nach dem ersten toten gelten erst nach dem
 0,35 s + rtt, auch für Tod + Wiedereinstieg zwischen zwei Meldungen; verspätete `kill`/`spawn` eines schon nachgeholten
 Lebens ändern nichts mehr (nur Abschussliste).
 
-**recommend.js** – `clientBytes(actors)`, `bandwidthFor(n, {actors})`, `maxPlayersForUpload(rate, {actors})`,
-`recommend({…, actors})`; Konstanten `SNAPSHOT_HEADER`, `ENTITY_BYTES`, `PACKET_OVERHEAD`, `INTEREST_MIN`, `INTEREST_SHARE`,
-`RELIABLE_BYTES` (gemessen, §13). `NetSystem.recommendation()` rechnet mit 2 × teamSize Akteuren, wenn Bots auffüllen.
+**recommend.js** – `reliableBytes(actors, humans)`, `clientBytes(actors, {humans})`, `bandwidthFor(n, {actors})`,
+`maxPlayersForUpload(rate, {actors})`, `recommend({…, actors})`; Konstanten `SNAPSHOT_HEADER`, `ENTITY_BYTES`,
+`PACKET_OVERHEAD`, `INTEREST_MIN`, `INTEREST_SHARE`, `RELIABLE_BASE` 570 / `RELIABLE_PER_HUMAN` 44 / `RELIABLE_PER_ACTOR` 70
+(gemessen, §13). `NetSystem.recommendation()` rechnet mit 2 × teamSize Akteuren, wenn Bots auffüllen.
 
 **Weitere Korrekturen** – `peer.js`: Angebot darf 45 s auf die Antwort warten (`OFFER_TIMEOUT`), danach 15 s bis offen;
 `accept` auf geschlossener Verbindung → Code 'verbindung-fehlgeschlagen'. `signal.js joinRoom` schließt ein offenes Angebot bei
@@ -315,6 +316,7 @@ Hosts lässt aufgestaute Takte verfallen (≥ 40 ms Abstand).
 **Prüfwerkzeuge** – `tools/mp-test.mjs [--params=…] [--size=…]` (zusätzlich: Glätte, „Ausrüsten“/„Einsatz“ + Ausrüstung beim
 Host, Sturz nach Host-Spawn in der Luft, Rutschen ohne Verstoß, verborgener Host-Tab mit ruhendem rAF);
 `tools/mp-load-test.mjs [--clients=12] [--mode=tdm|ffa] [--seconds=30] [--params=…]` → `tools/out/mp-load.json`;
+`tools/mp-fight-rate.mjs [--diff=regulaer] [--game=90]` (Kampfrate einer Bot-Runde ohne Zeichnen → `tools/out/mp-fight.json`);
 `dev/fake-client.html` (`window.__fake`: join(code), leave(), stats()); `tools/net-interp-test.mjs` + `dev/net-interp.html`
 (Interpolation mit virtueller Uhr, `window.__interp`). `ClientSync._puppetPose(id, list, rt, dt, out)` = Interpolation +
 Glättung einer Puppe (für den Prüfstand herausgelöst).

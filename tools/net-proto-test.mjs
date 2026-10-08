@@ -6,7 +6,7 @@ import {
   NO_WEAPON, FLAGS, packFlags, unpackFlags, PKT_SNAPSHOT, PKT_STATE, SNAPSHOT_HEADER, SNAPSHOT_ENTITY, STATE_SIZE,
 } from '../assets/js/game/net/protocol.js';
 import { AntiCheat, PositionHistory, AC_TEXT } from '../assets/js/game/net/anticheat.js';
-import { recommend, bandwidthFor, maxPlayersForUpload, clientBytes, UploadMeter, UNMEASURED_MAX, INTEREST_MIN, INTEREST_SHARE, RELIABLE_BYTES } from '../assets/js/game/net/recommend.js';
+import { recommend, bandwidthFor, maxPlayersForUpload, clientBytes, UploadMeter, UNMEASURED_MAX, INTEREST_MIN, INTEREST_SHARE, RELIABLE_BASE, RELIABLE_PER_HUMAN, RELIABLE_PER_ACTOR } from '../assets/js/game/net/recommend.js';
 import { WEAPONS, WEAPON_IDS } from '../assets/js/shared/weapons.data.js';
 
 let fail = 0;
@@ -361,10 +361,15 @@ check(near(ac8.score(1, 0.1), 2, 0.01), 'gleicher Verstoß innerhalb 0,5 s zähl
 check(near(ac8.score(1, 20), 1, 1e-9), 'Verstöße klingen ab (0,05/s)');
 
 /* ------------------------------------------------------------------ recommend */
-const perClient = (a) => 20 * (11 + 60 + a * 31 * (a >= INTEREST_MIN ? INTEREST_SHARE : 1)) + RELIABLE_BYTES;
-check(near(bandwidthFor(8), 7 * perClient(8), 1e-6) && bandwidthFor(1) === 0, `Bandbreite 8 Menschen ohne Bots: (n−1) × [20 Hz × (71 + n × 31) + ${RELIABLE_BYTES}] = ${Math.round(bandwidthFor(8))} B/s`);
-check(near(bandwidthFor(13, { actors: 32 }), 12 * perClient(32), 1e-6) && near(clientBytes(32), perClient(32), 1e-6),
-  `13 Menschen + Bots (32 Akteure, Interessenfilter ${INTEREST_SHARE}): je Client ${(clientBytes(32) / 1024).toFixed(1)} KB/s, gesamt ${(bandwidthFor(13, { actors: 32 }) / 1024).toFixed(0)} KB/s`);
+const perClient = (a, h = a) => 20 * (11 + 60 + a * 31 * (a >= INTEREST_MIN ? INTEREST_SHARE : 1)) + RELIABLE_BASE + RELIABLE_PER_HUMAN * h + RELIABLE_PER_ACTOR * a;
+check(near(bandwidthFor(8), 7 * perClient(8), 1e-6) && bandwidthFor(1) === 0,
+  `Bandbreite 8 Menschen ohne Bots: (n−1) × [20 Hz × (71 + n × 31) + ${RELIABLE_BASE} + ${RELIABLE_PER_HUMAN}·n + ${RELIABLE_PER_ACTOR}·n] = ${Math.round(bandwidthFor(8))} B/s`);
+check(near(bandwidthFor(13, { actors: 32 }), 12 * perClient(32, 13), 1e-6) && near(clientBytes(32, { humans: 13 }), perClient(32, 13), 1e-6) && clientBytes(32) > clientBytes(32, { humans: 13 }),
+  `13 Menschen + Bots (32 Akteure, Interessenfilter ${INTEREST_SHARE}): je Client ${(clientBytes(32, { humans: 13 }) / 1024).toFixed(1)} KB/s, gesamt ${(bandwidthFor(13, { actors: 32 }) / 1024).toFixed(0)} KB/s`);
+// Lasttest (§13, auf 20 Hz hochgerechnet): 32 Akteure, 13 Menschen – Schnappschuss Ø 436 B → (436 + 60) × 20 = 9920 B/s,
+// Modus + Roster 1109 B/s, Kampf (Bot-Runde) 2188 B/s = 13 217 B/s je Client; die Formel liegt darüber, aber < +25 %
+check(clientBytes(32, { humans: 13 }) >= 13217 && clientBytes(32, { humans: 13 }) <= 13217 * 1.25,
+  `Formel deckt den Lasttest (13 217 B/s je Client): ${Math.round(clientBytes(32, { humans: 13 }))} B/s (+${Math.round((clientBytes(32, { humans: 13 }) / 13217 - 1) * 100)} %)`);
 check(maxPlayersForUpload(bandwidthFor(10, { actors: 24 }) / 0.8, { actors: 24 }) === 10, 'Spieler je Upload mit Bot-Auffüllung (24 Akteure)');
 check(maxPlayersForUpload(bandwidthFor(10) / 0.8) === 10 && maxPlayersForUpload(0) === 2 && maxPlayersForUpload(1e9) === 32, 'Spieler je Upload');
 let rec = recommend({ cores: 8, memory: 8, fps: 120, upload: null });
