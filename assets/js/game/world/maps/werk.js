@@ -9,6 +9,7 @@ import {
   forklift, truck, van, car, lampPost, floodMast, fence, tires, cableReel, gasBottles, electricBox, pipe,
   workbench, lockers, dumpster, tank, roofVent, dress,
 } from '../props.js';
+import { craneClock, createTrack, partBuilder, partGroup, place, inView } from '../crane-anim.js';
 
 const HX = 22, HZ = 30;           // Halle: x −22..22, z −30..30
 const CW = 5.2;                   // Laufsteg-Höhe in der Halle
@@ -80,7 +81,9 @@ export default {
     // -----------------------------------------------------------------------
     hall(b);
     hallInterior(b);
-    overheadCrane(b, -9.5);
+    // Laufkatze fährt nach der gemeinsamen Uhr (online Host-Zeit); attach() verdrahtet sie
+    const clock = craneClock();
+    overheadCrane(b, -9.5, clock);
 
     // -----------------------------------------------------------------------
     // Osten: Kesselhaus, Rohrbrücke, Schornstein
@@ -116,6 +119,7 @@ export default {
       spawns,
       objectives: { dom: [{ id: 'A', x: -36, z: 27, radius: 5 }, { id: 'B', x: 0, z: 0, radius: 5.5 }, { id: 'C', x: -36, z: -27, radius: 5 }] },
       zones,
+      attach(world, G) { clock.attach(G); },
     };
   },
 };
@@ -552,33 +556,79 @@ function controlBooth(b, x, z, s) {
   b.noNav(x0 - 0.2, z0 - 0.2, x1 + 0.2, z1 + 0.2, 2, 30);
 }
 
-/** Brückenkran über der Halle (statisch) mit pendelndem Haken. */
-function overheadCrane(b, z) {
+/**
+ * Brückenkran über der Halle: Brücke + Kabine statisch; die Laufkatze fährt ab und zu langsam quer durch die Halle
+ * (x −15..15, gemeinsame Uhr → alle Spieler sehen dieselbe Stellung), hält, senkt den Haken (Unterkante ≥ 5,4 m) und
+ * hebt ihn wieder; der Haken pendelt beim Anfahren/Bremsen. Bewegte Teile ohne Kollision.
+ * Die Brücke selbst bleibt stehen: Binder-Untergurte (y 12,2), Hallenleuchten und Hänger der Querbrücke liegen
+ * in ihrer Fahrbahn.
+ */
+function overheadCrane(b, z, clock) {
   const y = 10.9;
   for (const dz of [-0.9, 0.9]) b.box(0, y, z + dz, 2 * HX - 2.4, 1.0, 0.5, 'metal_painted', { tint: YEL, collide: false, minimap: false, grad: false });
   for (const s of [-1, 1]) b.box(s * (HX - 1.6), y - 0.2, z, 1.2, 1.2, 3.6, 'metal_painted', { tint: '#c89a2a', collide: false, minimap: false, grad: false });
-  // Laufkatze + Kabine
-  b.box(-3, y + 1.0, z, 2.4, 0.9, 2.6, 'metal_painted', { tint: '#c89a2a', collide: false, minimap: false, grad: false });
-  b.box(-7.5, y - 2.0, z + 1.2, 1.8, 1.8, 1.6, 'metal_painted', { tint: '#3d4247', collide: false, minimap: false, grad: false });
-  b.box(-7.5, y - 1.6, z + 1.2 + 0.82, 1.6, 1.0, 0.04, 'glass', { tint: '#a0b0b8', collide: false, minimap: false, ao: false });
+  // Katzfahrbahn (Schienen auf den Trägern)
+  for (const dz of [-0.9, 0.9]) b.box(0, y + 1.0, z + dz, 2 * HX - 4, 0.08, 0.12, 'metal_galvanized', { collide: false, minimap: false, grad: false, ao: false });
+  // Kabine (etwas nach außen versetzt: Hakenflasche fährt mit Abstand daran vorbei) + Aufhängung am Träger
+  b.box(-7.5, y - 2.0, z + 1.45, 1.8, 1.8, 1.6, 'metal_painted', { tint: '#3d4247', collide: false, minimap: false, grad: false });
+  b.box(-7.5, y - 1.6, z + 1.45 + 0.82, 1.6, 1.0, 0.04, 'glass', { tint: '#a0b0b8', collide: false, minimap: false, ao: false });
+  b.box(-7.5, y - 0.2, z + 0.95, 1.2, 0.2, 0.4, 'metal_painted', { tint: '#3d4247', collide: false, minimap: false, grad: false });
   b.sign(0, y + 0.1, z + 1.16, 2.4, 0.8, 'crane', { ry: 0, back: false, depth: 0 });
   b.sign(0, y + 0.1, z - 1.16, 2.4, 0.8, 'crane', { ry: Math.PI, back: false, depth: 0 });
-  // Haken + Seile (animiert, leichtes Pendeln)
+  const P = { collide: false, minimap: false, grad: false };
+  const shade = [0, y + 1, z]; // gebackenes Hallenlicht wie die Brücke
+  // Laufkatze: Rahmen auf vier Rädern, Seiltrommel, Motor + Getriebe (lokal um x = 0)
+  const tp = partBuilder(b);
+  tp.box(0, y + 1.2, 0, 2.4, 0.38, 2.6, 'metal_painted', { tint: '#c89a2a', ...P });
+  for (const sx of [-0.85, 0.85]) for (const sz of [-0.9, 0.9]) tp.cyl(sx, y + 1.23, sz, 0.15, 0.14, 'metal_painted', { axis: 'z', tint: '#2b2d30', seg: 10, ...P });
+  tp.cyl(-0.2, y + 1.9, 0, 0.3, 1.3, 'metal_painted', { axis: 'x', tint: '#5a646c', seg: 14, ...P });
+  for (const sx of [-0.9, 0.5]) tp.box(sx, y + 1.58, 0, 0.08, 0.66, 0.8, 'metal_painted', { tint: '#c89a2a', ...P });
+  tp.box(0.85, y + 1.58, 0.5, 0.55, 0.45, 0.6, 'metal_painted', { tint: '#4a5a62', ...P });
+  tp.box(0.85, y + 1.58, -0.5, 0.5, 0.42, 0.5, 'metal_painted', { tint: '#3d4247', ...P });
+  const trolley = partGroup(b, tp, { name: 'kran-katze', shade });
+  // Seile (Einheitslänge, in y skaliert) + Hakenflasche mit Haken
+  const ROPE_TOP = y + 1.3;
+  const rp = partBuilder(b);
+  for (const dx of [-0.15, 0.15]) rp.cyl(dx, -1, 0, 0.03, 1, 'metal_painted', { tint: '#2b2d30', seg: 5, ...P, ao: false });
+  const ropes = partGroup(b, rp, { name: 'kran-seile', shade });
+  const hp = partBuilder(b);
+  hp.box(0, -0.9, 0, 0.8, 0.9, 0.5, 'metal_painted', { tint: '#d9a72a', ...P });
+  for (const sz of [-0.27, 0.27]) hp.cyl(0, -0.42, sz, 0.28, 0.04, 'metal_painted', { axis: 'z', tint: '#2b2d30', seg: 12, ...P, ao: false });
+  hp.box(0, -1.15, 0, 0.12, 0.26, 0.12, 'metal_painted', { tint: '#2b2d30', ...P });
+  hp.geom(new THREE.TorusGeometry(0.3, 0.08, 6, 12, Math.PI * 1.4), 0, -1.38, 0, 'metal_painted', { tint: '#2b2d30', rz: Math.PI * 0.8, ...P });
+  const hook = partGroup(b, hp, { name: 'kran-haken', shade });
+  const HOOK_DROP = 1.76; // Seilende → Hakenunterkante
+  const hang = new THREE.Group();
+  hang.matrixAutoUpdate = false;
+  hang.add(ropes, hook);
   const g = new THREE.Group();
-  g.position.set(-3, y + 0.9, z);
-  const dark = new THREE.MeshStandardMaterial({ color: '#2b2d30', roughness: 0.6, metalness: 0.8 });
-  const yel = new THREE.MeshStandardMaterial({ color: '#d9a72a', roughness: 0.5, metalness: 0.6 });
-  dark.userData.disposable = true; yel.userData.disposable = true;
-  const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 4.2, 5), dark);
-  rope.position.y = -2.1; g.add(rope);
-  const rope2 = rope.clone(); rope2.position.x = 0.3; g.add(rope2);
-  const block = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 0.5), yel);
-  block.position.y = -4.5; g.add(block);
-  const hook = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.08, 6, 12, Math.PI * 1.4), dark);
-  hook.position.set(0, -5.25, 0); hook.rotation.z = Math.PI * 0.8; g.add(hook);
-  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  let t = 0;
-  b.object(g, { update: dt => { t += dt; g.rotation.z = Math.sin(t * 0.7) * 0.025; g.rotation.x = Math.sin(t * 0.53 + 1) * 0.02; } });
+  g.name = 'kran-laufkatze';
+  g.matrixAutoUpdate = false;
+  g.add(trolley, hang);
+  const UP = 8.4; // Hakenunterkante bei Fahrt/Ruhe
+  const track = createTrack({
+    seed: 8, period: 150, home: -3, range: [-15, 15], speed: 0.5, ramp: 1.5, idle: [10, 45], stops: [1, 3], dwell: [3, 8],
+    minMove: 3, skip: 0.15, hoist: { up: UP, down: [5.4, 6.8], speed: 0.25 },
+  });
+  const LT = ROPE_TOP - (UP + HOOK_DROP) + 1.0;
+  const st = {};
+  let was = null;
+  const update = (dt, camera) => {
+    const t = clock.now();
+    track.at(t, st);
+    // Anfahren: Schützklacken (Lichtbogen), Halten: Stahl ächzt leise (Atmo-Lautstärke)
+    if (was !== null && was !== st.moving) clock.sound(st.moving ? 'amb_arc' : 'amb_groan', st.x, y + 1, z, st.moving ? 0.22 : 0.25, 60);
+    was = st.moving;
+    if (!inView(camera, 0, 9, z, 18)) return; // ganzer Fahrbereich
+    const L = ROPE_TOP - (st.h + HOOK_DROP);
+    const draft = 0.006 * Math.sin(0.53 * t + 1) + 0.003 * Math.sin(1.31 * t);
+    place(g, st.x, 0, z);
+    place(hang, 0, ROPE_TOP, 0, draft, track.sway(t, LT, 0.07, 0.6) + 0.004 * Math.sin(0.7 * t));
+    place(ropes, 0, 0, 0, 0, 0, L);
+    place(hook, 0, -L, 0);
+  };
+  update(0, null);
+  b.object(g, { update });
 }
 
 // ---------------------------------------------------------------------------

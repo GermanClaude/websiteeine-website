@@ -5,6 +5,7 @@
 // Geladen von world/terrain/bigworld.js (Ortschaften je eigener MapBuilder, Boden y = 0 bzw. Plateauhöhe).
 import { building, wall, stairs, railing, catwalk, slab, pitchedRoof } from '../arch.js';
 import { container, crateStack, barrelGroup, palletStack, sandbags, car, truck, fence, lampPost, floodMast, tires, bench, dumpster } from '../props.js';
+import { gemueseStand, aufsteller, traktor, durchlass } from './grenzland-ausstattung.js';
 
 const DIRV = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
 const PLASTER = ['#efe6d6', '#e8dcc4', '#f2ede2', '#e3d3b8', '#dfe0d6', '#eadbc8'];
@@ -186,7 +187,34 @@ function dorf(b) {
   barrelGroup(b, -36, 66, { n: 3 }); dumpster(b, 30, 60, { ry: 1.57 });
   crateStack(b, 10, 92, { ry: 0.6 });
   b.sign(-5, 2.4, 116, 2.8, 0.7, 'ortsschild', { ry: Math.PI * 0.9 });
+  bauernmarkt(b);
   return {};
+}
+
+/**
+ * Bauernmarkt an der Kapelle (Wunsch Nathanael): drei Gemüsestände in einer Reihe westlich der Kapelle (Front zur
+ * Kapellenwand, 4,5 m Gang davor), zwei Stände beidseits des Wegs zum Kapellenportal (Weg 6,8 m frei), Tafel zum
+ * Dorfplatz. Theken = Hockdeckung mit Kollision, Markisen kugeldurchlässig; Lücken ≥ 2,4 m für Wege/Navigation.
+ * Am Ende von dorf() gebaut und ohne b.rand → übrige Dorf-Platzierung unverändert.
+ */
+function bauernmarkt(b) {
+  const low = b.lookQuality === 'low';
+  const tafel = { style: 'plate', bg: '#26302a', fg: '#efeadc', borderColor: '#b9a77e' };
+  b.defineSign('markt_tafel', { ...tafel, text: 'BAUERNMARKT', sub: 'frisch vom Feld · an der Kapelle' });
+  b.defineSign('tafel_gemuese', { ...tafel, text: 'GEMÜSE' });
+  b.defineSign('tafel_obst', { ...tafel, text: 'OBST & TOMATEN' });
+  b.defineSign('tafel_kartoffeln', { ...tafel, text: 'KARTOFFELN' });
+  b.defineSign('tafel_hof', { ...tafel, text: 'FRISCH VOM HOF' });
+  b.defineSign('tafel_kuerbis', { ...tafel, text: 'KÜRBISSE' });
+  const E = Math.PI / 2, W = -Math.PI / 2;
+  // Reihe westlich der Kapelle (Kapellenwand x −11,5; Haus x −25,5)
+  gemueseStand(b, -17.2, 91.8, { ry: E, design: 0, waren: ['kohl', 'salat', 'moehren', 'kartoffeln', 'salat', 'kohl', 'kartoffeln', 'moehren'], boden: 'kuerbis', seite: 1, schild: 'tafel_gemuese', low });
+  gemueseStand(b, -17.2, 96.6, { ry: E, design: 2, waren: ['aepfel', 'tomaten', 'paprika', 'aepfel', 'tomaten', 'aepfel', 'zwiebeln', 'paprika'], boden: null, schild: 'tafel_obst', low });
+  gemueseStand(b, -17.2, 101.4, { ry: E, design: 3, waren: ['kartoffeln', 'zwiebeln', 'moehren', 'kohl', 'zwiebeln', 'kartoffeln', 'kohl', 'moehren'], boden: 'kuerbis', seite: -1, schild: 'tafel_kartoffeln', low });
+  // vor dem Portal (Tür x −8, z 106,5): links und rechts des Wegs
+  gemueseStand(b, -12.6, 111.0, { ry: E, design: 1, waren: ['salat', 'kohl', 'tomaten', 'paprika', 'kohl', 'salat', 'paprika', 'tomaten'], boden: 'kuerbis', seite: -1, schild: 'tafel_hof', low });
+  gemueseStand(b, -3.4, 111.0, { ry: W, design: 0, waren: ['aepfel', 'zwiebeln', 'kartoffeln', 'moehren', 'aepfel', 'kartoffeln', 'zwiebeln', 'aepfel'], boden: 'kuerbis', seite: 1, schild: 'tafel_kuerbis', low });
+  aufsteller(b, -14.8, 88.4, 'markt_tafel', Math.PI);
 }
 
 function gehoeft(b) {
@@ -235,6 +263,8 @@ function gehoeft(b) {
   for (const [x, z, r] of [[-131, 104, 0.3], [-129.4, 105.6, 1.2], [-158, 112, 0.9], [-156.4, 113.6, 0.2], [-140, 96, 1.5], [-166, 118, 0.6]]) hayRoll(b, x, z, r);
   for (const [x, y, z, r] of [[-143, 0, 101, 0.1], [-143, 0, 102, 0.05], [-143, 0.6, 101.5, 0.15]]) hayBale(b, x, y, z, r);
   car(b, -170, 111, { ry: 0.9, color: '#5a4a3a', style: 'wreck', model: false });
+  // Traktor „Gertrud“ auf ihrem Stellplatz (Ölfleck, Schild) – statisch, Blick zum Scheunentor (Süden)
+  traktor(b, -134.5, 119.5, { ry: 0 });
   return {};
 }
 
@@ -324,6 +354,15 @@ function funkhuegel(b, Y) {
   // maps-expand: zweites Schützenloch (Sandsack-U) südöstlich der Flagge E
   sandbags(b, -122, -152, -117, -153, { rows: 4, y: Y }); sandbags(b, -122, -152, -123, -148, { rows: 4, y: Y });
   crateStack(b, -110, -141, { ry: 0.4, y: Y });
+  return {};
+}
+
+/**
+ * Erdbrücke links der Landstraße (vom Startbereich A aus gesehen, 55 m westlich der Brücke): Damm und Feldweg sind
+ * Gelände (terrain.dams/roads), hier nur der Betondurchlass in Flussmitte – Werte passend zu terrain.dams.
+ */
+function damm(b) {
+  durchlass(b, { ax: -18, zc: -18, c: 3, hz: 3, top: 0.75, pipeY: -1.15, low: b.lookQuality === 'low' });
   return {};
 }
 
@@ -458,6 +497,8 @@ export default {
     { id: 'funkhuegel', name: 'Funkhügel', y: H_Y, bounds: { minX: -136, maxX: -104, minZ: -156, maxZ: -124 }, build: (b) => funkhuegel(b, H_Y), seeds: [[-121, -142, H_Y]], height: 12, spacing: 1.7 },
     { id: 'hq_a', name: 'Hauptquartier A', bounds: { minX: 24, maxX: 96, minZ: 196, maxZ: 242 }, nav: true, build: (b) => hq(b, { x: 60, z: 219, side: 'A', pads: [[78, 228, 'tank'], [78, 212, 'tank'], [40, 230, 'jeep'], [40, 220, 'jeep'], [40, 210, 'jeep']] }), seeds: [[60, 212]], spacing: 2.2 },
     { id: 'hq_b', name: 'Hauptquartier B', bounds: { minX: -56, maxX: 16, minZ: -246, maxZ: -198 }, nav: true, build: (b) => hq(b, { x: -20, z: -222, side: 'B', pads: [[-38, -213, 'tank'], [-38, -229, 'tank'], [2, -212, 'jeep'], [2, -222, 'jeep'], [2, -232, 'jeep']] }), seeds: [[-20, -215]], spacing: 2.2 },
+    // zuletzt angehängt: Builder-Zufall der übrigen Ortschaften bleibt gleich (seed + k·101)
+    { id: 'damm', name: 'Erdbrücke', bounds: { minX: -30, maxX: -6, minZ: -34, maxZ: -2 }, clear: { minX: -28, maxX: -8, minZ: -31, maxZ: -12.5 }, build: (b) => damm(b), seeds: [[-18, -9, 0.8], [-18, -27, 1.2]], height: 8, spacing: 1.5 },
   ],
 
   // Flaggen: Eroberung A–E, Herrschaft A–C (Dorf, Mühle, Brücke)

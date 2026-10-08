@@ -235,3 +235,12 @@ Karten-Feinschliff (alle Karten, „alles originalgetreu und sinnvoll platzieren
 - Weg 1 (einfach): fertige Scan-App (RealityScan/Polycam/Scaniverse) → glb hochladen → eigene „Brücke“: Größe/Ausrichtung korrigieren, Boden/Reste abschneiden, verkleinern, LODs + Kollision, KTX2-Texturen (bestehende Asset-Pipeline nutzen) → im Spiel platzierbar.
 - Weg 2 (eigener Scanner): Fotos in ein Repo laden → GitHub Action rechnet Photogrammetrie (z. B. COLMAP + OpenMVS) auf CPU → glb → Brücke wie oben. Unklar, ob das auf kostenlosen Runnern schnell genug ist → erst mit kleinem Objekt testen.
 - Rechte: nur selbst gescannte Objekte bzw. erlaubte; keine Personen.
+
+## NUTZER 08.10. ~21:30 – vor dem Mehrspieler-Release (Kartenrunde)
+- Liste 1 (in Arbeit, Workflow maps-wishes): Grenzland Gemüsestände an der Kirche (Mitte), Traktor in die Hütte, linke Straßenseite Brücke oder Erddamm mit Rohr; Hafen-Kran und Werk-Kran bewegen sich ab und zu links/rechts; Altstadt Glocke, Balkone an Wänden, Grills auf Dächern.
+- Kirchenglocke Altstadt GENAU: wie eine echte Kirchenglocke zu JEDER VOLLEN STUNDE die Stundenzahl schlagen (9 Uhr → 9 Schläge, 21 Uhr → 9 Schläge), „einfach generell so“. → braucht eine laufende Spieluhr (Start = Tageszeit der Runde).
+- ALLE Karten: nach Logikfehlern, deplatzierten/unpassenden Gegenständen, Glitches und Bugs suchen und beheben.
+- Häuser: passende Inneneinrichtung (nicht leer wirken) + Innenbeleuchtung.
+- Verbündete Bots sollen ebenfalls „wachsen“/lernen (nicht nur Gegner-Bots, spielstil.js/BotAdapt).
+- Texturen verbessern → erst MEGAPATCH 2 (Grafik), JETZT NICHT.
+- Liste 2 mit Bugs folgt vom Nutzer; beide Listen berücksichtigen.

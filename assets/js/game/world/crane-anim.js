@@ -231,7 +231,7 @@ export function partGroup(b, pb, o = {}) {
     mesh.updateMatrix();
     g.add(mesh);
   }
-  pb.buckets.clear();
+  pb._releaseScratch(); // Buckets + Kollisionspuffer des Baukastens freigeben
   return g;
 }
 

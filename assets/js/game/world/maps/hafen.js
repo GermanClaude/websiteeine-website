@@ -2,7 +2,6 @@
 // Drei Bahnen: Kaikante mit Portalkran (West) · Containerlabyrinth mit Kranplatz (Mitte) · Lagerhalle 3 (Ost).
 // Team A startet im Süden (Torbereich), Team B im Norden (Bereitstellungsfläche).
 import * as THREE from 'three';
-import { getMaterial } from '../../engine/textures.js';
 import { building, wall, stairs, railing, catwalk, slab } from '../arch.js';
 import {
   container, CONTAINER_H, crate, crateStack, barrel, barrelGroup, pallet, palletStack, sandbags, jersey, bollard, cone,
@@ -360,88 +359,174 @@ function plankBridge(b, x0, z0, x1, z1) {
   b.navLine(x0, H + 0.2, z0, x1, H + 0.2, z1, 1.2);
 }
 
-/** Portalkran (STS) bei z. backdrop: ohne Kollision, vereinfacht. */
+const CRANE_RED = '#c8402f', CRANE_WHITE = '#e8e4dc', CRANE_DARK = '#3a3d40', ROPE_DARK = '#26282b';
+const ROPE_TOP = 22.55;   // Seilaustritt unter der Laufkatze (y)
+const LOAD_DROP = 3.56;   // Seilende → Containerunterkante (Kopfblock 0,5 + Spreader 0,45 + Container 2,59 + Luft)
+const PARK_X = -60;       // Kulissenkräne: geparkte Katze über dem Schiff
+
+/**
+ * Portalkran (STS) bei z. Spielkran (GRETE): Stahlbau statisch in der Karte (Beine mit Kollision); Laufkatze mit Kabine,
+ * Spreader und Container fährt ab und zu den Ausleger entlang (eigene Teile ohne Kollision, gemeinsame Uhr).
+ * backdrop: ganzer Kran ohne Kollision als eigene Teile-Gruppe, fährt ab und zu auf den Schienen entlang der Kaikante.
+ */
 function gantryCrane(b, zc, o = {}) {
-  const red = '#c8402f', white = '#e8e4dc', dark = '#3a3d40';
-  const legX = [-42.2, -30.8], legZ = [-8, 8];
-  const col = !o.backdrop;
+  if (o.backdrop) return travellingCrane(b, zc, o);
+  craneSteel(b, zc, { collide: true });
+  b.sign(-23, 27, zc + 3.22, 5.2, 1.6, o.label || 'crane_grete', { ry: 0, back: false, depth: 0 });
+  b.sign(-23, 27, zc - 3.22, 5.2, 1.6, o.label || 'crane_grete', { ry: Math.PI, back: false, depth: 0 });
+  // Treppenturm-Andeutung an einem Bein
+  for (let k = 0; k < 7; k++) b.box(-30.8 + 0.95, 2 + k * 3, zc + 8, 0.8, 0.06, 1.2, 'metal_grate', { collide: false, minimap: false, grad: false, ao: false });
+  craneTrolley(b, zc, o.clock);
+}
+
+/**
+ * Stahlbau eines Portalkrans in Baukasten t (Karte oder partBuilder) bei z = zc. Der wasserseitige obere Riegel
+ * liegt ÜBER dem Ausleger (Beine verlängert): unter dem Ausleger bleibt die Durchfahrt für Katze, Kabine und Seile
+ * frei; der untere Riegel (y 12..13,4) wird mit hochgezogener Last (Unterkante ≥ 13,9) überfahren.
+ */
+function craneSteel(t, zc, o = {}) {
+  const legX = [-42.2, -30.8], legZ = [-8, 8], col = !!o.collide, P = { collide: false, minimap: false, grad: false };
   for (const x of legX) for (const dz of legZ) {
     const z = zc + dz;
-    b.box(x, 0, z, 1.4, 1.5, 5.2, 'metal_painted', { tint: dark, collide: col, minimap: col ? 'cover' : false });
-    for (const k of [-1.6, 0, 1.6]) b.cyl(x, 0.45, z + k, 0.45, 0.9, 'metal_painted', { axis: 'x', tint: '#26282b', collide: false, minimap: false });
-    b.box(x, 1.5, z, 1.1, 22.5, 1.1, 'metal_painted', { tint: red, collide: col, minimap: col ? 'pillar' : false, grad: false });
+    t.box(x, 0, z, 1.4, 1.5, 5.2, 'metal_painted', { tint: CRANE_DARK, collide: col, minimap: col ? 'cover' : false });
+    for (const k of [-1.6, 0, 1.6]) t.cyl(x, 0.45, z + k, 0.45, 0.9, 'metal_painted', { axis: 'x', tint: ROPE_DARK, collide: false, minimap: false });
+    t.box(x, 1.5, z, 1.1, 22.5, 1.1, 'metal_painted', { tint: CRANE_RED, collide: col, minimap: col ? 'pillar' : false, grad: false });
   }
-  // Portalriegel + Diagonalen
-  for (const x of legX) {
-    b.box(x, 12, zc, 1.0, 1.4, 17, 'metal_painted', { tint: red, collide: false, minimap: false, grad: false });
-    b.box(x, 22.5, zc, 1.2, 1.6, 17.2, 'metal_painted', { tint: red, collide: false, minimap: false, grad: false });
-  }
-  for (const dz of legZ) b.box(-36.5, 22.5, zc + dz, 12.6, 1.6, 1.2, 'metal_painted', { tint: red, collide: false, minimap: false, grad: false });
-  // Ausleger (zwei Träger) + Ausleger-Spitze über dem Wasser
+  // Portalriegel unten + Längsriegel; oben landseitig unter, wasserseitig über dem Ausleger
+  for (const x of legX) t.box(x, 12, zc, 1.0, 1.4, 17, 'metal_painted', { tint: CRANE_RED, ...P });
+  t.box(legX[1], 22.5, zc, 1.2, 1.6, 17.2, 'metal_painted', { tint: CRANE_RED, ...P });
+  for (const dz of legZ) t.box(legX[0], 24.0, zc + dz, 1.1, 1.9, 1.1, 'metal_painted', { tint: CRANE_RED, ...P });
+  t.box(legX[0], 25.9, zc, 1.2, 1.6, 17.2, 'metal_painted', { tint: CRANE_RED, ...P });
+  for (const dz of legZ) t.box(-36.5, 22.5, zc + dz, 12.6, 1.6, 1.2, 'metal_painted', { tint: CRANE_RED, ...P });
+  // Ausleger (zwei Träger) + Querverbände (Unterkante 24,1: die Katze hängt darunter)
   for (const dz of [-2.4, 2.4]) {
-    b.box(-55, 24.1, zc + dz, 74, 1.8, 1.1, 'metal_painted', { tint: white, collide: false, minimap: false, grad: false });
-    b.box(-55, 25.9, zc + dz, 74, 0.25, 0.4, 'metal_painted', { tint: red, collide: false, minimap: false, grad: false });
+    t.box(-55, 24.1, zc + dz, 74, 1.8, 1.1, 'metal_painted', { tint: CRANE_WHITE, ...P });
+    t.box(-55, 25.9, zc + dz, 74, 0.25, 0.4, 'metal_painted', { tint: CRANE_RED, ...P });
   }
-  for (let x = -90; x <= -20; x += 6) b.box(x, 24.1, zc, 0.3, 0.3, 4.8, 'metal_painted', { tint: white, collide: false, minimap: false, grad: false });
+  for (let x = -90; x <= -20; x += 6) t.box(x, 24.1, zc, 0.3, 0.3, 4.8, 'metal_painted', { tint: CRANE_WHITE, ...P });
   // A-Bock + Abspannungen
   for (const dz of [-2.4, 2.4]) {
-    b.box(-40.5, 25.9, zc + dz, 0.8, 13, 0.8, 'metal_painted', { tint: red, collide: false, minimap: false, rz: 0.12, grad: false });
-    b.box(-32.5, 25.9, zc + dz, 0.8, 12, 0.8, 'metal_painted', { tint: red, collide: false, minimap: false, rz: -0.25, grad: false });
-    cableLine(b, [-38.8, 38.6, zc + dz], [-90, 26.2, zc + dz]);
-    cableLine(b, [-38.8, 38.6, zc + dz], [-20, 26.2, zc + dz]);
+    t.box(-40.5, 25.9, zc + dz, 0.8, 13, 0.8, 'metal_painted', { tint: CRANE_RED, ...P, rz: 0.12 });
+    t.box(-32.5, 25.9, zc + dz, 0.8, 12, 0.8, 'metal_painted', { tint: CRANE_RED, ...P, rz: -0.25 });
+    cableLine(t, [-38.8, 38.6, zc + dz], [-90, 26.2, zc + dz], o.cableMat);
+    cableLine(t, [-38.8, 38.6, zc + dz], [-20, 26.2, zc + dz], o.cableMat);
   }
-  b.box(-38, 38.2, zc, 2.4, 1.0, 6, 'metal_painted', { tint: red, collide: false, minimap: false, grad: false });
+  t.box(-38, 38.2, zc, 2.4, 1.0, 6, 'metal_painted', { tint: CRANE_RED, ...P });
   // Maschinenhaus
-  b.box(-23, 25.9, zc, 7, 3.6, 6.4, 'metal_corrugated', { tint: white, collide: false, minimap: false, grad: false });
-  b.box(-23, 29.5, zc, 7.4, 0.2, 6.8, 'metal_painted', { tint: dark, collide: false, minimap: false, grad: false });
-  if (!o.backdrop) {
-    b.sign(-23, 27, zc + 3.22, 5.2, 1.6, o.label || 'crane_grete', { ry: 0, back: false, depth: 0 });
-    b.sign(-23, 27, zc - 3.22, 5.2, 1.6, o.label || 'crane_grete', { ry: Math.PI, back: false, depth: 0 });
-    // Treppenturm-Andeutung an einem Bein
-    for (let k = 0; k < 7; k++) b.box(-30.8 + 0.95, 2 + k * 3, zc + 8, 0.8, 0.06, 1.2, 'metal_grate', { collide: false, minimap: false, grad: false, ao: false });
-    // Laufkatze mit Kabine + Spreader (animiert)
-    return craneTrolley(b, zc);
-  }
-  return { update() {} };
+  t.box(-23, 25.9, zc, 7, 3.6, 6.4, 'metal_corrugated', { tint: CRANE_WHITE, ...P });
+  t.box(-23, 29.5, zc, 7.4, 0.2, 6.8, 'metal_painted', { tint: CRANE_DARK, ...P });
 }
 
-function cableLine(b, a, c) {
+function cableLine(b, a, c, mat = 'metal_galvanized') {
   const dx = c[0] - a[0], dy = c[1] - a[1], dz = c[2] - a[2], L = Math.hypot(dx, dy, dz);
-  b.cyl((a[0] + c[0]) / 2, (a[1] + c[1]) / 2, (a[2] + c[2]) / 2, 0.08, L, 'metal_galvanized', { axis: 'x', ry: Math.atan2(-dz, dx), rz: Math.atan2(dy, Math.hypot(dx, dz)), collide: false, minimap: false, seg: 6, ao: false });
+  b.cyl((a[0] + c[0]) / 2, (a[1] + c[1]) / 2, (a[2] + c[2]) / 2, 0.08, L, mat, { axis: 'x', ry: Math.atan2(-dz, dx), rz: Math.atan2(dy, Math.hypot(dx, dz)), collide: false, minimap: false, seg: 6, ao: false, tint: mat === 'metal_galvanized' ? undefined : '#8a9096' });
 }
 
-function craneTrolley(b, zc) {
+/** Laufkatze (hängt unter dem Ausleger, Oberkante 24,0) mit Kabine; Mitte bei (x, zc). */
+function trolleyBody(t, x, zc, o = {}) {
+  const P = { collide: false, minimap: false, grad: false };
+  t.box(x, 22.8, zc, 3.4, 1.2, 6.4, 'metal_painted', { tint: CRANE_RED, ...P });
+  for (const dz of [-2.4, 2.4]) for (const dx of [-1.1, 1.1]) t.box(x + dx, 24.0, zc + dz, 0.6, 0.1, 0.5, 'metal_painted', { tint: ROPE_DARK, ...P }); // Laufrollen
+  t.box(x, 22.45, zc, 1.9, 0.35, 2.8, 'metal_painted', { tint: CRANE_DARK, ...P }); // Seilrollen
+  // Kabine wasserseitig vorn, Fenster zur Last und zum Wasser
+  t.box(x + 0.4, 20.1, zc - 3.3, 2.6, 2.4, 2.4, 'metal_painted', { tint: CRANE_DARK, ...P });
+  t.box(x + 0.4, 22.5, zc - 3.3, 1.2, 0.3, 0.6, 'metal_painted', { tint: CRANE_DARK, ...P });
+  const win = o.glass === false ? ['metal_painted', { tint: '#1c2125', ...P, ao: false }] : ['glass', { ...P, ao: false }];
+  t.box(x + 0.4, 20.7, zc - 2.08, 2.3, 1.3, 0.04, win[0], win[1]);
+  t.box(x - 0.92, 20.7, zc - 3.3, 0.04, 1.3, 2.1, win[0], win[1]);
+}
+
+/** Seile (Einheitslänge 0..−1, werden in y skaliert) für 4 Aufhängepunkte. */
+function ropeSet(t, len = 1) {
+  for (const dx of [-0.8, 0.8]) for (const dz of [-1.1, 1.1]) t.cyl(dx, -len, dz, 0.035, len, 'metal_painted', { tint: ROPE_DARK, seg: 5, collide: false, minimap: false, ao: false });
+}
+
+/** Kopfblock + Spreader unterhalb y0 (Oberkante). */
+function spreader(t, y0) {
+  const P = { collide: false, minimap: false, grad: false };
+  t.box(0, y0 - 0.5, 0, 1.8, 0.5, 2.6, 'metal_painted', { tint: CRANE_DARK, ...P });
+  t.box(0, y0 - 0.95, 0, 2.6, 0.45, 6.2, 'metal_painted', { tint: '#d9a72a', ...P });
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) t.box(sx * 1.05, y0 - 1.0, sz * 2.9, 0.4, 0.06, 0.35, 'metal_painted', { tint: ROPE_DARK, ...P, ao: false });
+}
+
+/** Kulissenkran: fährt als Ganzes entlang der Kaikante (z), Spreader der geparkten Katze pendelt beim Anfahren/Bremsen. */
+function travellingCrane(b, zc, o) {
+  const pb = partBuilder(b);
+  craneSteel(pb, 0, { cableMat: 'metal_painted' });
+  trolleyBody(pb, PARK_X, 0, { glass: false });
+  const steel = partGroup(b, pb, { name: 'kran-kulisse-stahl' });
+  // Spreader 3 m unter der Katze (Unterkante 18,6 – über der Schiffsladung, Oberkante 17,3)
+  const hp = partBuilder(b);
+  ropeSet(hp, 3);
+  spreader(hp, -3);
+  const hang = partGroup(b, hp, { name: 'kran-kulisse-spreader' });
+  const root = new THREE.Group();
+  root.name = 'kran-kulisse';
+  root.matrixAutoUpdate = false;
+  root.add(steel, hang);
+  const track = createTrack({ seed: o.seed, period: o.period, home: zc, range: o.range, speed: 0.45, ramp: 3, idle: [8, 70], stops: [1, 2], dwell: [15, 45], minMove: 5, skip: 0.2 });
+  const st = {}, zMid = (o.range[0] + o.range[1]) / 2, zHalf = (o.range[1] - o.range[0]) / 2;
+  let was = null;
+  const update = (dt, camera) => {
+    const t = o.clock.now();
+    track.at(t, st);
+    // Fahrwarnung: leises Scheppern beim Anfahren (Atmo-Lautstärke)
+    if (was === false && st.moving) o.clock.sound('amb_clank', -36.5, 4, st.x, 0.35, 140);
+    was = st.moving;
+    // Sichtprüfung über den ganzen Fahrbereich (sonst bliebe eine veraltete Stellung sichtbar stehen)
+    if (!inView(camera, -55, 18, zMid, 46 + zHalf)) return;
+    place(root, 0, 0, st.x);
+    place(hang, PARK_X, ROPE_TOP, 0, -track.sway(t, 3.6, 0.12, 1));
+  };
+  update(0, null);
+  b.object(root, { update });
+}
+
+/** Laufkatze des Spielkrans: Fahrplan entlang des Auslegers (x), Senken nur im Stand, Last pendelt beim Anfahren/Bremsen. */
+function craneTrolley(b, zc, clock) {
+  const pb = partBuilder(b);
+  trolleyBody(pb, 0, 0);
+  const body = partGroup(b, pb, { name: 'kran-katze' });
+  const rp = partBuilder(b);
+  ropeSet(rp);
+  const ropes = partGroup(b, rp, { name: 'kran-seile' });
+  const lp = partBuilder(b);
+  spreader(lp, 0);
+  container(lp, 0, -LOAD_DROP, 0, { len: 6.06, ry: Math.PI / 2, color: '#2d5f94', minimap: false });
+  const load = partGroup(b, lp, { name: 'kran-last' });
+  const hang = new THREE.Group();
+  hang.matrixAutoUpdate = false;
+  hang.add(ropes, load);
   const g = new THREE.Group();
   g.name = 'crane-trolley';
-  const m = (geo, mat, x, y, z) => { const mesh = new THREE.Mesh(geo, mat); mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; g.add(mesh); return mesh; };
-  const red = getMaterial('metal_painted', { color: '#c8402f', repeat: 0.5 }), dark = getMaterial('metal_painted', { color: '#3a3d40', repeat: 0.5 }), glass = getMaterial('glass');
-  m(new THREE.BoxGeometry(3.4, 1.2, 6.4), red, 0, 23.4, 0);
-  const cab = m(new THREE.BoxGeometry(2.6, 2.4, 2.4), dark, 0.4, 21.3, -3.3);
-  void cab;
-  m(new THREE.BoxGeometry(2.62, 1.2, 0.05), glass, 0.4, 21.6, -2.08);
-  // Seile
-  const ropeGeo = new THREE.CylinderGeometry(0.04, 0.04, 1, 4);
-  const ropes = [];
-  for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const r = m(ropeGeo, dark, x, 0, z); r.castShadow = false; ropes.push(r); }
-  const spreader = m(new THREE.BoxGeometry(2.6, 0.5, 6.2), getMaterial('metal_painted', { color: '#d9a72a', repeat: 0.5 }), 0, 12, 0);
-  const box = m(new THREE.BoxGeometry(2.44, 2.59, 6.06), getMaterial('container', { color: '#2d5f94', repeat: [0.5, 0.5] }), 0, 10.4, 0);
-  g.position.set(-70, 0, zc);
-  b.object(g);
-  let t = 0;
-  return {
-    update(dt) {
-      t += dt;
-      // Zyklus: über Wasser heben → zur Kaikante fahren → senken → zurück
-      const cyc = (t % 60) / 60;
-      const xs = cyc < 0.4 ? -72 + (cyc / 0.4) * 34 : cyc < 0.6 ? -38 : cyc < 0.95 ? -38 - ((cyc - 0.6) / 0.35) * 34 : -72;
-      const lift = cyc < 0.4 ? 9.5 : cyc < 0.5 ? 9.5 - ((cyc - 0.4) / 0.1) * 3.5 : cyc < 0.6 ? 6 + ((cyc - 0.5) / 0.1) * 3.5 : 9.5;
-      g.position.x = xs;
-      spreader.position.y = lift + 3.0;
-      box.position.y = lift + 1.45;
-      const ropeLen = 23 - (lift + 3.25);
-      for (const r of ropes) { r.scale.y = ropeLen; r.position.y = lift + 3.25 + ropeLen / 2; }
-    },
+  g.matrixAutoUpdate = false;
+  g.add(body, hang);
+  // Haltepunkte: Kaikante zwischen den Beinen (Container bis 6,3 m absenken), über dem Wasser (Luke), Auslegerspitze.
+  // Gefahren wird immer mit hochgezogener Last (Unterkante 13,9 > Oberkante unterer Riegel 13,4); Ruhe bei x −48.
+  const UP = 13.9;
+  const track = createTrack({
+    seed: 9, period: 160, home: -48, speed: 1.5, ramp: 3.5, idle: [12, 55], stops: [1, 3], dwell: [4, 10], minMove: 6, skip: 0.1,
+    spots: [{ x: -38, down: [6.3, 7.2] }, { x: -35.5, down: [6.6, 7.4] }, { x: -56, down: [10, 12] }, { x: -66, down: [9.5, 11.5] }, { x: -74 }],
+    hoist: { up: UP, speed: 0.7 },
+  });
+  const LT = ROPE_TOP - (UP + LOAD_DROP) + 2.3; // Pendellänge bei Fahrt (bis Lastmitte)
+  const st = {};
+  let was = null;
+  const update = (dt, camera) => {
+    const t = clock.now();
+    track.at(t, st);
+    if (was !== null && was !== st.moving) clock.sound(st.moving ? 'amb_clank' : 'amb_creak', st.x, 23, zc, st.moving ? 0.4 : 0.3);
+    was = st.moving;
+    if (!inView(camera, -55, 16, zc, 34)) return; // ganzer Fahrbereich x −76..−34
+    const L = ROPE_TOP - (st.h + LOAD_DROP);
+    const wind = 0.004 * Math.sin(0.31 * t + 1.3) + 0.003 * Math.sin(0.77 * t);
+    place(g, st.x, 0, zc);
+    place(hang, 0, ROPE_TOP, 0, wind, track.sway(t, LT, 0.12, 0.45));
+    place(ropes, 0, 0, 0, 0, 0, L);
+    place(load, 0, -L, 0);
   };
+  update(0, null);
+  b.object(g, { update });
 }
 
 /** Kleines Kaibüro (begehbar, 4 × 3,2 m). ry: Tür zeigt nach … */
@@ -748,9 +833,9 @@ function craneBase(b, x, z, s) {
 /** Kulisse: Containerfelder, Hallen, Kräne, Hügel (ohne Kollision). */
 function backdrop(b) {
   const colors = ['#8d9399', '#2d5f94', '#c8402f', '#3e7a4c', '#d9762a', '#e3e1da', '#9a3328', '#1f6f6a'];
-  // Nordfelder
-  for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) {
-    const x = -38 + c * 13.4 + (r % 2) * 3, z = -64 - r * 9;
+  // Nordfelder (ab x −29: die Kaikante x −44..−29 ist Fahrgasse der Kulissenkräne)
+  for (let r = 0; r < 4; r++) for (let c = 1; c < 6; c++) {
+    const x = -36.5 + c * 13.4 + (r % 2) * 3, z = -64 - r * 9;
     const n = 2 + ((r * 7 + c * 3) % 3);
     // maps-expand: auf „niedrig“ (Handy) nur Quader je Lage statt Detail-Container (Kulisse, ≈ 250 → 12 Dreiecke)
     for (let k = 0; k < n; k++) {

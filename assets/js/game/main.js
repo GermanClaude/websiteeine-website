@@ -1577,7 +1577,15 @@ function updateBackgroundTicker() {
       const url = URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 50);'], { type: 'text/javascript' }));
       bgTicker = new Worker(url);
       URL.revokeObjectURL(url);
-      bgTicker.onmessage = () => step('frame:bg', () => frame(performance.now(), true));
+      // Dauert ein Bild länger als der Takt, stauen sich die Nachrichten des Workers – aufgestaute Takte verfallen (sonst wächst
+      // die Warteschlange ohne Ende und alles beim Host, auch die Schnappschüsse, läuft immer weiter hinterher)
+      let bgLast = 0;
+      bgTicker.onmessage = () => {
+        const t = performance.now();
+        if (t - bgLast < 40) return;
+        bgLast = t;
+        step('frame:bg', () => frame(t, true));
+      };
     } catch (err) { bgTicker = null; console.warn('[NULLPUNKT] Hintergrund-Takt nicht verfügbar:', err); }
   } else if (!need && bgTicker) {
     bgTicker.terminate();

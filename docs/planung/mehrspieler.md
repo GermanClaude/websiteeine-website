@@ -218,3 +218,53 @@ Reserveplatten] für den getroffenen Client, 'ev' `ap` nach Plattenaufnahme/-ein
 ist beim Host schon tot); Streuungs-/Rückstoß-Zufall nicht synchron (Treffer zählen so, wie der Schütze sie sieht, Prüfung
 durch den Anti-Cheat); Teamwechsel im laufenden Match gilt erst im nächsten Match; Bots fügen sich beim Einstieg sofort ein,
 die Clients sehen ihre ersten Spawns über den Lebend-Abgleich (≈ 0,35 s).
+
+## 13. Härtetest (Schritt 3, 08.10.)
+
+Ziel: das, was im Idealfall (0 ms, lokales Relay) schon lief, unter schlechtem Netz und unter Last robust machen und belegen.
+Alle Messungen auf dem Prüfrechner (4 Kerne, SwiftShader ohne GPU – die Spielseiten laufen dort mit ≈ 0,5–2 Bildern/s; echte
+Rechner sind um Größenordnungen schneller, die Netz-Logik ist davon unabhängig geprüft).
+
+**Netz-Chaos (nur Prüfläufe)**: `spielen.html?…&netlag=<ms>&netjitter=<ms>&netloss=<%>` – jede Seite verzögert ihre eigenen
+Sendungen (also je Richtung lag ± jitter): zuverlässige Nachrichten in Reihenfolge, „Verlust“ als Wiederholung (+ max(200 ms,
+2 × lag), alle folgenden warten wie bei SCTP), nie verworfen; schnelle Pakete einzeln verzögert (Reihenfolge darf kippen) und zu
+`netloss` % verworfen. Gilt auch für Ping/Pong und den Zeitabgleich (Laufzeit, Ping-Spalte und serverTime sehen das Chaos).
+Ohne Parameter: `NetSystem.chaos = null`, Verbindungen unverändert. Werkzeuge: `node tools/mp-test.mjs --params="…"`,
+`node tools/mp-load-test.mjs [--params="…"]`.
+
+**Gefundene Fehler und Korrekturen**
+1. *Puppen liefen unter Laufzeit ständig fortgeschrieben*: die Wiedergabezeit war `serverTime() − 0,1 s`; schon bei 150 ms
+   Laufzeit lag sie **vor** dem neuesten Schnappschuss → dauerndes Fortschreiben (bis 0,25 s), Überschwingen bei jedem
+   Richtungswechsel und Zurückspringen. Jetzt Wiedergabe-Uhr aus den Zeitstempeln der Schnappschüsse selbst (Laufzeit egal),
+   Puffer nach gemessenem Paketabstand + Ankunftsschwankung (0,1–0,4 s), Uhr läuft mit ±12 % nach, abklingender
+   Glättungsversatz statt Sprüngen (ab 3 m wird gesetzt), höchstens 0,25 s Fortschreiben.
+2. *Tod + Wiedereinstieg zwischen zwei Meldungen*: hingen 'kill'/'spawn' hinter einer Wiederholung, interpolierte die Puppe
+   vom Todesort quer über die Karte zum neuen Spawnpunkt (beide Einträge „lebend“); ein verspätetes 'kill' tötete dann das neue
+   Leben. Jetzt: Leben im Puffer abgegrenzt, Lebend-Abgleich nach 0,35 s + rtt (auch für Tod + Spawn dazwischen), verspätete
+   'kill'/'spawn' eines schon nachgeholten Lebens ändern nichts mehr. Reihenfolge Tod → Spawn ist so auf allen Wegen garantiert.
+3. *Anti-Cheat*: (a) ein einzelner Sprung von bis zu 14,6 m ging durch (Budget voll) – jetzt Schrittgrenze je Zustand
+   `max(6 m, vMax × min(Δt, 2 s) + 0,75 m)` (Rutschen ≈ 7 m), nach oben `max(3,5 m, Steigtempo × Δt + 1,95 m)`; (b) Lücke:
+   ein Client konnte „tot“ melden und lebendig an beliebiger Stelle wieder auftauchen (neuer Anker ohne Prüfung) – jetzt bleibt
+   der Anker, solange die Puppe beim Host lebt; (c) Schonfristen nach Spawn/Rücksetzung + rtt; (d) Treffer: Zielverlauf
+   `0,4 s + rtt + Darstellungsverzug des Schützen` (Client meldet ihn als `ip`, höchstens 2 s; Verlauf 2,5 s) – vorher fehlte
+   die Interpolation des Schützen; (e) hängt der Host länger als 1 s (langes Bild), kommen die Zustände gebündelt – das Budget
+   füllt für dieses Bündel die ganze Lücke nach (vorher 8 falsche 'tempo' im Lasttest); (f) Schussursprung gegen den zuletzt
+   gemeldeten Zustand statt gegen den Puppenkörper (der ein Bild nachhinkt – vorher 12 falsche 'herkunft' im Lasttest).
+4. *„Ausrüsten“/„Einsatz“ auf Clients wirkungslos*: Client meldet den Halt jetzt ('hold'), der Host hält die Puppe wie offline an
+   (Restzeit steht auf beiden Seiten, höchstens 30 s), „Einsatz“ gibt frei; die im Todesbildschirm gewählte Ausrüstung geht als
+   'loadout' an den Host (vorher spawnte die Puppe mit der alten Klasse/Ausrüstung).
+5. *Beitritt bei langsamem Host*: der Client schloss seine Verbindung 15 s nach dem Angebot, der Beitritt wartete 20 s – kam die
+   Antwort dazwischen (Lasttest: 4 von 12 Beitritten bei 0,9 FPS), scheiterte `accept` mit DOMException 11, und die Zahl landete
+   als Fehlercode in der Oberfläche. Jetzt 45 s fürs Angebot, 15 s ab Antwort, nur Text-Codes, offenes Angebot wird geschlossen.
+6. *Hintergrund-Takt des Hosts*: der Worker tickt mit 20 Hz; dauert ein Bild länger, stauten sich die Takte ohne Ende (Latenz
+   wuchs im Prüflauf auf Minuten). Aufgestaute Takte verfallen jetzt (`main.js`, nur online-Host).
+7. *Upload-Messung*: ein langes Bild schickt viel auf einmal, das kurze Messintervall danach ergab 529 KB/s statt 46 KB/s –
+   jetzt nur Fenster ≥ 3 s.
+8. Kleinere: eigene Lebenspunkte flackerten (älterer Schnappschuss nach 'hit' setzte sie zurück – 'hit' trägt jetzt `st`);
+   Restzeit des Modus um die Laufzeit korrigiert ('mode' trägt `st`); Puppen der Clients im Bild des Hosts zwischen zwei
+   30-Hz-Zuständen bis 50 ms fortgeschrieben (kein Treppchen-Ruckeln); Empfehlung rechnete mit n statt mit allen Akteuren.
+
+**Interessenfilter** (`sync-host.js`, ab 12 Akteuren): je Empfänger nah (≤ 60 m vom eigenen Körper) + eigener Eintrag mit 20 Hz,
+ferne und tote Akteure mit 5 Hz (je Akteur versetzt). Der Client legt seltener gesendete Akteure entsprechend weiter zurück.
+
+{{MESSUNGEN}}

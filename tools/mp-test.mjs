@@ -177,7 +177,7 @@ try {
 
   // ================================================================== Glätte: Host zieht einen Bot (KI aus) gleichmäßig geradeaus, Anna misst jedes Bild
   // Position des Bots exakt zur Zeit jedes Schnappschusses (x0 + v·t) – jede Unruhe bei Anna kommt aus Netz/Interpolation
-  const glideId = await ev(host, () => {
+  const glideInfo = await ev(host, () => {
     const G = window.__game;
     const bot = G.bots.bots.find((b) => !b.isRemoteHuman && b.alive);
     if (!bot) return null;
@@ -195,7 +195,7 @@ try {
       orig(t);
     };
     window.__glide = { bot, orig, sync };
-    return bot.netId;
+    return { id: bot.netId, x0: p0[0], t0 };
   });
   // Host-Tab „verborgen“: der Hintergrund-Takt simuliert mit bis zu 20 Hz ohne Zeichnen – Schnappschüsse in echter Rate
   // (SwiftShader zeichnet sonst nur ~1 Bild/s, dann gibt es auch nur ~1 Schnappschuss/s)
@@ -207,13 +207,14 @@ try {
   if (glideId) await hideHost(true);
   await sleep(1500);
   const glideF0 = await ev(host, () => [window.__game.time.frame, performance.now()]);
+  const glideId = glideInfo && glideInfo.id;
   const glide = glideId && await ev(c1, ([id, ms]) => new Promise((resolve) => {
     const G = window.__game;
     const a = G.net.actorById(id);
     const pts = [];
     const t0 = performance.now();
     const step = (now) => {
-      if (a && a.alive) pts.push([now, a.position.x, a.position.z]);
+      if (a && a.alive) pts.push([now, a.position.x, a.position.z, G.net.serverTime()]);
       if (now - t0 < ms) requestAnimationFrame(step); else resolve(pts);
     };
     requestAnimationFrame(step);
@@ -223,23 +224,21 @@ try {
   if (glideId) await hideHost(false);
   await ev(host, () => { const g = window.__glide; if (g) { g.sync._sendSnapshot = g.orig; g.bot.invulnerable = false; window.__game.bots.setPuppet(g.bot, false); } });
   {
+    // Je Bild bei Anna: gezeigte Stelle x ↔ wahre Bahn x0 + v·(t − t0) → Darstellungsverzug D = (Host-Zeit − t0) − (x − x0)/v.
+    // Glatt heißt: D bleibt (fast) gleich – Springen/Stehenbleiben/Zurückspringen ändern D. Unabhängig von Annas Bildrate.
     const V = 4.5;
-    let back = 0, jumps = 0, hold = 0, maxDev = 0, n = 0, side = 0;
-    const pts = (glide || []).slice(2); // Einschwingen (Bot stand vorher)
+    let back = 0, side = 0;
+    const pts = (glide || []).filter((q) => q[1] - glideInfo.x0 > 0.5); // erst sobald der Bot sichtbar läuft
+    const D = pts.map((q) => (q[3] - glideInfo.t0) - (q[1] - glideInfo.x0) / V);
     for (let i = 1; i < pts.length; i++) {
-      const dt = (pts[i][0] - pts[i - 1][0]) / 1000;
-      const ds = pts[i][1] - pts[i - 1][1];
-      const want = V * dt;
-      const dev = Math.abs(ds - want);
-      n++;
-      if (ds < -0.05) back++;
-      if (dev > 0.6 + 0.35 * want) jumps++;
-      if (ds < 0.15 * want && dt > 0.04) hold++;
-      maxDev = Math.max(maxDev, dev);
+      if (pts[i][1] - pts[i - 1][1] < -0.05) back++;
       side = Math.max(side, Math.abs(pts[i][2] - pts[0][2]));
     }
+    const sorted = [...D].sort((x, y) => x - y);
+    const q = (f) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(f * (sorted.length - 1))))] || 0;
+    const spread = sorted.length ? sorted[sorted.length - 1] - sorted[0] : 0;
     const vd = await ev(c1, () => (window.__game.net.sync && window.__game.net.sync.viewDelay ? window.__game.net.sync.viewDelay() : null));
-    check(n >= 4 && back === 0 && jumps === 0, `Glätte bei Anna (Bot 4,5 m/s geradeaus, Host ${hostHz.toFixed(1)} Bilder/s im Hintergrund-Takt, ${n} Bilder bei Anna): rückwärts ${back}, Sprünge ${jumps}, Stillstand ${hold}, max. Abweichung/Bild ${maxDev.toFixed(2)} m, seitlich ${side.toFixed(2)} m, Darstellungsverzug ${vd == null ? '–' : (vd * 1000).toFixed(0) + ' ms'}`);
+    check(pts.length >= 4 && back === 0 && spread < 0.45, `Glätte bei Anna (Bot 4,5 m/s geradeaus, Host ${hostHz.toFixed(1)} Bilder/s im Hintergrund-Takt, ${pts.length} Bilder bei Anna): Darstellungsverzug Median ${(q(0.5) * 1000).toFixed(0)} ms, Schwankung ${(spread * 1000).toFixed(0)} ms (≙ ${(spread * V).toFixed(2)} m), rückwärts ${back}, seitlich ${side.toFixed(2)} m, viewDelay ${vd == null ? '–' : (vd * 1000).toFixed(0) + ' ms'}`);
   }
 
   // ================================================================== Anna schießt einen Host-Bot ab
@@ -267,7 +266,8 @@ try {
   }, [A]);
   check(!!target, `Ziel-Bot ${target && target.name} (${target && target.id}) vor Anna gestellt`);
   const scoresBefore = await ev(host, () => ({ ...window.__game.mode.scores }));
-  await sleep(4000);
+  // bis Anna den Bot am neuen Platz sieht (SwiftShader: einige Sekunden)
+  await until(c1, ([id, tp]) => { const a = window.__game.net.actorById(id); return a && a.alive && Math.hypot(a.position.x - tp[0], a.position.y - tp[1], a.position.z - tp[2]) < 0.6; }, [target.id, target.pos], 30000, 1000);
   const seenTarget = await ev(c1, (id) => { const a = window.__game.net.actorById(id); return a ? { alive: a.alive, pos: [a.position.x, a.position.y, a.position.z] } : null; }, target.id);
   check(!!seenTarget && seenTarget.alive && d3(seenTarget.pos, target.pos) < 0.6, `Anna sieht den Ziel-Bot an seinem Platz (${seenTarget ? d3(seenTarget.pos, target.pos).toFixed(2) : '–'} m)`);
   const fired = await ev(c1, async (id) => {
