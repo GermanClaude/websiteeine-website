@@ -202,6 +202,24 @@ export class NetMenus {
     pane.addEventListener('change', this._paneChange = (e) => { if (e.target.matches('[data-net-name]')) { this._saveName(); this._renderMe(); } });
     this.renderPane();
     this._watchPublic();
+    if (!this.net) this._waitNet();
+  }
+
+  /** G.net entsteht evtl. erst nach dem Menü (main.js): kurz nachsehen, dann Reiter (und Deep-Link) nachholen. */
+  _waitNet() {
+    clearInterval(this._netT);
+    let n = 0;
+    this._netT = setInterval(() => {
+      if (!this.pane || ++n > 40) { clearInterval(this._netT); return; }
+      if (!this.net) return;
+      clearInterval(this._netT);
+      this.renderPane();
+      this._watchPublic();
+      if (this.menus.lobby && this.menus.lobby.el) this.menus.lobby._renderStart();
+      const code = this._pendingJoin;
+      this._pendingJoin = null;
+      if (code) this.startJoin(code);
+    }, 250);
   }
 
   unmountPane() {
@@ -215,6 +233,7 @@ export class NetMenus {
     const inp = p.querySelector('[data-net-name]');
     if (inp && inp.value.trim() && inp.value.trim() !== this._playerName()) this._saveName();
     this.pane = null;
+    clearInterval(this._netT);
     this._unwatchPublic();
   }
 
@@ -550,7 +569,8 @@ export class NetMenus {
     this.join.code = r.code;
     const inp = this.pane && this.pane.querySelector('[data-net-code]');
     if (inp) inp.value = r.code;
-    if (r.code.length === CODE_LENGTH && auto) this.startJoin(r.code);
+    if (r.code.length === CODE_LENGTH && auto && !this.net) this._pendingJoin = r.code; // nachholen, sobald G.net da ist
+    else if (r.code.length === CODE_LENGTH && auto) this.startJoin(r.code);
     else {
       if (r.code) this._setJoin(r.bad ? 'Raumcodes enthalten kein I, O, 0 und 1.' : 'Der Code im Link ist unvollständig.', 'warn');
       this._renderJoin();
@@ -934,7 +954,7 @@ export class NetMenus {
       keepFocus(go, () => {
         go.innerHTML = host
           ? `<button type="button" class="m-btn m-primary lb-start nr-start" data-act="room-start" data-fk="room-start"${starting ? ' disabled' : ''}>${ICON.play}<span>${starting ? 'Startet …' : 'Match starten'}<em>.</em></span></button>`
-          : `<div class="nr-wait" role="status"><i class="nm-spin" aria-hidden="true"></i><span>${starting ? 'Match startet …' : 'Warte auf den Host …'}</span></div>`;
+          : `<div class="nr-wait" role="status"><i class="nm-spin" aria-hidden="true"></i><span>${starting ? 'Match läuft beim Host …' : 'Warte auf den Host …'}</span></div>`;
       });
     }
   }
@@ -1002,10 +1022,11 @@ export class NetMenus {
   _update(partial, sound = 'click') {
     const net = this.net;
     if (!net || net.role !== 'host' || typeof net.updateSettings !== 'function') return;
+    const before = this._roomEvents;
     try { net.updateSettings(partial); } catch (err) { console.warn('[net-ui] Einstellungen', err); }
     if (sound) this.menus.sound(sound);
-    // net:room zeichnet neu – falls die Umsetzung nichts meldet, trotzdem aktualisieren
-    this._renderRoomAll();
+    // net:room zeichnet neu – meldet die Umsetzung nichts, trotzdem aktualisieren
+    if (this._roomEvents === before) this._renderRoomAll();
   }
 
   _focusIn(boxSel, sel) {
@@ -1163,6 +1184,7 @@ export class NetMenus {
   }
 
   _onRoom() {
+    this._roomEvents = (this._roomEvents || 0) + 1;
     if (!this.room) return;
     const net = this.net;
     if (net && net.room && net.room.state === 'lobby') this._starting = false;
@@ -1316,6 +1338,7 @@ export class NetMenus {
     this._offs = [];
     clearTimeout(this._toastRaf);
     clearTimeout(this._lostT);
+    clearInterval(this._netT);
     if (this._toastBox) this._toastBox.remove();
   }
 }

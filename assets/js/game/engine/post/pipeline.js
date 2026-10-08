@@ -49,6 +49,18 @@ function widen(cam, F) {
   cam.updateProjectionMatrix();
 }
 
+/**
+ * Viewmodel-Pass. Üblich (wie in den meisten Shootern): Tiefe löschen → Waffe immer über der Welt, ragt nie sichtbar
+ * in Wände. worldDepth (Einstellung „Waffe an Hindernissen“ = 'clip'): gegen die Welttiefe – mit near/far der
+ * Hauptkamera, dann ist die Tiefe je Pixel vergleichbar (gleiche Bildposition + Tiefe wie viewmodel._vmToWorld).
+ */
+export function renderViewmodel(r, vmScene, vmCamera, camera, worldDepth) {
+  if (!worldDepth || !camera) { r.clearDepth(); r.render(vmScene, vmCamera); return; }
+  const n = vmCamera.near, f = vmCamera.far;
+  vmCamera.near = camera.near; vmCamera.far = camera.far; vmCamera.updateProjectionMatrix();
+  try { r.render(vmScene, vmCamera); } finally { vmCamera.near = n; vmCamera.far = f; vmCamera.updateProjectionMatrix(); }
+}
+
 export class PostPipeline {
   constructor(renderer) {
     this.renderer = renderer;
@@ -311,8 +323,7 @@ export class PostPipeline {
       if (hasVm) {
         r.setRenderTarget(this.hdr);
         r.autoClear = false;
-        r.clearDepth();
-        r.render(vmScene, vmCamera);
+        renderViewmodel(r, vmScene, vmCamera, camera, this.vmWorldDepth);
         this.stats.sceneRenders++;
       }
     } finally {

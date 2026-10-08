@@ -14,7 +14,7 @@
 // (siehe post/lens.js). Ohne aktives Objektiv sind das Identitäten.
 
 import * as THREE from 'three';
-import { PostPipeline, LENS_DEFAULTS, LENS_STYLES } from './post/pipeline.js';
+import { PostPipeline, LENS_DEFAULTS, LENS_STYLES, renderViewmodel } from './post/pipeline.js';
 import { estimateMemory } from './post/memory.js';
 import { MOODS, MOOD_FOR_MAP } from './post/grade.js';
 import { resetFormatCache } from './post/common.js';
@@ -317,7 +317,7 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
       pipeline.setSize(_db.x, _db.y, this.resolutionScale, w, h);
     },
 
-    /** Rendert Welt + Viewmodel (Viewmodel mit gelöschter Tiefe, nie in Wänden) samt Nachbearbeitung. */
+    /** Rendert Welt + Viewmodel (Viewmodel mit gelöschter Tiefe, nie in Wänden – außer Einstellung 'clip') samt Nachbearbeitung. */
     render(scene, camera, vmScene, vmCamera) {
       const now = performance.now();
       let dt = 0;
@@ -339,6 +339,10 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
       fitCamera(camera, aspect);
       if (vmCamera) fitCamera(vmCamera, aspect);
       renderer.info.reset();
+      // Einstellung „Waffe an Wänden und Hindernissen“: nur 'clip' zeichnet die Waffe gegen die Welttiefe (ragt sichtbar
+      // in Wände); sonst wie in den meisten Shootern über der Welt (Tiefe gelöscht)
+      const vmWorld = !!(settings && typeof settings.get === 'function' && settings.get('weaponObstruction') === 'clip');
+      pipeline.vmWorldDepth = vmWorld;
       // Gedrosselte Schatten (low): statische Welt + gleiche Kaskade → Karte nur jedes n-te Bild oder nach invalidateShadows()
       const sm = renderer.shadowMap, every = this.preset.shadowInterval || 1;
       if (sm.enabled && every > 1) {
@@ -366,8 +370,7 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
         renderer.render(scene, camera);
         if (vmScene && vmCamera && vmScene.visible !== false) {
           renderer.autoClear = false;
-          renderer.clearDepth();
-          renderer.render(vmScene, vmCamera);
+          renderViewmodel(renderer, vmScene, vmCamera, camera, vmWorld);
           renderer.autoClear = true;
         }
       }

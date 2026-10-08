@@ -1451,6 +1451,7 @@ export class AudioEngine {
     // Ende vor der Entfernungsprüfung (Akteur kann inzwischen weit weg sein): Abbruch schneidet alles,
     // fertig nachgeladen darf der Ausklang stehen bleiben
     if (p.phase === 'end') { if (p.interrupted) this._cancelReload(a); else if (a) { this._reloads.delete(a); this._reloadSeq.delete(a); } }
+    if (!this.ctx || !this.unlocked) return; // stumm (kein AudioContext / noch nicht entsperrt): nichts einplanen
     const pos = pl ? null : this._eye(a);
     if (!pl && (!pos || this._dist(pos) > 24)) return;
     const shell = !!def?.perShellReload || (def == null && prof === 'shotgun');

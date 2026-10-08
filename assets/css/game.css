@@ -2847,6 +2847,7 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 .nm-foot svg { flex: none; width: 16px; height: 16px; margin-top: 2px; }
 
 /* Raum */
+.m-room { background: rgba(8, 9, 11, .95); }
 .m-room .sub.nr { width: min(1180px, 100%); }
 .nr-head { align-items: center; }
 .nr-titles { flex: 1; min-width: 0; }
@@ -2930,7 +2931,8 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 .nr-confirm { padding: 12px; border: 1px solid rgba(255, 59, 59, .5); background: rgba(255, 59, 59, .08); }
 .nr-confirm p { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 10px; font: 600 14px/1.4 var(--font-hud); }
 .nr-confirm p svg { flex: none; width: 18px; height: 18px; color: var(--np-enemy); }
-.nr-foot { display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid var(--np-line); }
+.nr-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid var(--np-line); }
+.nr-go { margin-left: auto; }
 .nr-foot .nr-sum { margin-left: auto; min-width: 0; }
 .nr-wait { display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 0 18px; border: 1px dashed var(--np-line-strong); font: 700 15px var(--font-hud); letter-spacing: .1em; text-transform: uppercase; color: var(--np-ink-2); }
 .nr-wait .nm-spin { margin-top: 0; }
@@ -3041,6 +3043,9 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 @media (max-width: 760px) and (min-height: 521px) {
   .nr-head { flex-wrap: wrap; }
   .nr-code { order: 3; flex: 1 1 100%; justify-content: space-between; }
+}
+@media (max-width: 800px) {
+  .nr-foot .nr-sum { display: none; }
 }
 @media (max-width: 640px) {
   .nr-body { grid-template-columns: minmax(0, 1fr); }

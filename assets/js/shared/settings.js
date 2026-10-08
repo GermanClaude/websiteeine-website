@@ -22,6 +22,8 @@ export const DEFAULTS = Object.freeze({
   touchOpacity: 1.0, touchButtonScale: 1.0, bindings: Object.freeze({}), touchLayout: DEFAULT_TOUCH_LAYOUT,
   // Waffengefühl (Realismus-Plan F2/F9; weapons-feel)
   weaponPose: 'auto', weaponSway: 1.0,
+  // Waffe an Hindernissen: overlay = ruhig, über der Welt gezeichnet (wie die meisten Shooter) | raise | tuck | clip
+  weaponObstruction: 'overlay',
   // Bild: Objektiv, Farbe, Belichtung, Hochskalierung (Realismus-Plan R2/R3/R4/R12; core-render)
   // Standard = Vorlage „Realistisch“ (dezentes Objektiv); kräftiges Fischauge nur über die Vorlage „Bodycam“
   lensStyle: 'bodycam', lensStrength: 0.15, grain: 0.2, lensArtifacts: 0.05, lensBorder: false,
@@ -127,6 +129,11 @@ export const SETTINGS_SCHEMA = Object.freeze({
     options: ['auto', 'standard', 'bodycam'], labels: { auto: 'Automatisch', standard: 'Standard (Hüfte)', bodycam: 'Körperkamera (tief, mittig)' },
   },
   weaponSway: { type: 'number', min: 0, max: 1, step: 0.05, label: 'Waffenträgheit und -schwanken', group: 'grafik' },
+  weaponObstruction: {
+    type: 'enum', label: 'Waffe an Wänden und Hindernissen', group: 'grafik',
+    options: ['overlay', 'raise', 'tuck', 'clip'],
+    labels: { overlay: 'Ruhig – wie in den meisten Shootern', raise: 'Hochnehmen', tuck: 'An den Körper ziehen', clip: 'Keine Anpassung – Waffe kann in Wände ragen' },
+  },
   // Bild (core-render; Bedeutung im Changelog „core-render“)
   lensStyle: {
     type: 'enum', label: 'Bildstil', group: 'grafik',

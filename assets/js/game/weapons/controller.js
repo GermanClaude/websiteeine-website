@@ -22,6 +22,7 @@ const _to = new THREE.Vector3();
 const _side = new THREE.Vector3();
 const _fwd = new THREE.Vector3();
 const _org = new THREE.Vector3();
+const _mdir = new THREE.Vector3();
 
 const MOVE_REF = 5.4; // Gehtempo (m/s) – Bezug für Laufstreuung
 const SWITCH_LOWER = 0.2; // Wegstecken (passend zum ViewModel)
@@ -36,6 +37,10 @@ const EXHAUST = 1.6; // s außer Atem
 // mit Hysterese, damit es an der Grenze nicht flackert
 const OBSTRUCT_ADS = [0.3, 0.2]; // walls: Reichweite = echte Vorderkante → Anschlag endet, bevor die Visierlinie anstößt
 const OBSTRUCT_NEAR = 0.3;        // m Wandtiefe, ab der die Waffe ganz angezogen ist (Auge an der Wand ≈ 0,33 m)
+// Nur Flächen VOR der Mündung zählen: Treffer, deren Fläche flacher als ~60° zur Laufrichtung steht (|n·Strahl| < 0,5),
+// sind streifende Seitenflächen (Fahrzeug/Container/Wand neben dem Spieler) – kein Hochnehmen, die Waffe wird ohnehin
+// über der Welt gezeichnet
+const OBSTRUCT_FACING = 0.5;
 const _wdir = new THREE.Vector3();
 const _wup = new THREE.Vector3();
 const _wlast = new THREE.Vector3();
@@ -135,10 +140,7 @@ export class WeaponController {
     this._swayY = 0;
     this._shotSerial = 0;
     this._obsSample = [Infinity, Infinity, Infinity];
-    // walls-3: Trefferpunkt + Normale je Strahl (Welt) → Viewmodel s.wallHit (echte Fläche statt Tiefenebene)
-    this._obsHit = [0, 1, 2].map(() => ({ ok: false, px: 0, py: 0, pz: 0, nx: 0, ny: 0, nz: 0 }));
-    this.wallHit = null;
-    this.wallDist = Infinity; // m Wandtiefe vor dem Auge (Messung + Vorhalt, walls) → Viewmodel s.wallDist
+    this.wallDist = Infinity; // m Wandtiefe vor dem Auge (Messung + Vorhalt, walls)
     this._obsK = 0;
     this._obsAds = false;
     this._obsFire = false;
@@ -305,8 +307,6 @@ export class WeaponController {
     this.obstructed = 0;
     this._obsSample.fill(Infinity);
     this.wallDist = Infinity;
-    this.wallHit = null;
-    this._obsLatch = null;
     this._obsAds = this._obsFire = false;
     this.winded = 0;
     this._sprintT = 0;
@@ -497,8 +497,6 @@ export class WeaponController {
         v.x = bv.x * cy - bv.z * sy; v.y = bv.y; v.z = -bv.x * sy - bv.z * cy;
       } else { v.x = 0; v.y = 0; v.z = it.speed || 0; }
       s.obstruct = this.obstructed;
-      s.wallDist = this.wallDist;
-      s.wallHit = this.wallHit; // walls-3: {px,py,pz,nx,ny,nz,lead} (Welt) oder null
       s.winded = this.winded;
       s.exhausted = this._exhausted > 0;
       s.holdingBreath = this.holdingBreath;
@@ -613,6 +611,7 @@ export class WeaponController {
     actor.getEyePosition(_eye);
     actor.getAimDirection(_aim);
     this.getMuzzlePosition(_muz);
+    this._safeMuzzle(_eye, _muz);
 
     const pellets = Math.max(1, def.pellets || 1);
     G.events.emit('weapon:fire', {
@@ -709,6 +708,25 @@ export class WeaponController {
     _side.crossVectors(_fwd, UP);
     if (_side.lengthSq() < 1e-6) _side.set(1, 0, 0); else _side.normalize();
     return out.addScaledVector(_fwd, 0.62).addScaledVector(_side, 0.16).addScaledVector(UP, -0.2);
+  }
+
+  /**
+   * Mündung nie hinter einer Fläche: Die Viewmodel-Waffe bleibt vor Wänden in Haltung (Einstellung „Ruhig“/„Keine
+   * Anpassung“) bzw. ragt in Kanten – ihre Mündung kann dann jenseits der Wand liegen. Kugeln starten ohnehin am Auge;
+   * Rakete, Leuchtspur und Mündungsfeuer in der Welt starten am letzten freien Punkt der Strecke Auge → Mündung (5 cm vor
+   * dem Treffer). Ändert `muz` an Ort und Stelle.
+   */
+  _safeMuzzle(eye, muz) {
+    const w = this.G.world;
+    _mdir.subVectors(muz, eye);
+    const len = _mdir.length();
+    if (len < 1e-3 || !w || typeof w.raycast !== 'function') return muz;
+    _mdir.multiplyScalar(1 / len);
+    try {
+      const hit = w.raycast(eye, _mdir, len + 0.05);
+      if (hit && Number.isFinite(hit.distance) && hit.targetId === undefined) muz.copy(eye).addScaledVector(_mdir, Math.max(0, Math.min(len, hit.distance - 0.05)));
+    } catch { /* Welt im Abbau */ }
+    return muz;
   }
 
   /* ================================================================ Nachladen */
@@ -1099,14 +1117,19 @@ export class WeaponController {
   /**
    * Wandkollision (F3, nur Spieler): je Bild EIN Strahl gegen die Kugel-Geometrie, abwechselnd entlang der
    * Laufrichtung ab dem Auge und ab der Waffenseite (rechts unten, nur an der Hüfte). Liegt die Wand näher als
-   * die Reichweite der Waffe (`handling.reach`, Auge → Mündung), wird sie angezogen: `obstructed` 0..1.
-   * Ab OBSTRUCT_ADS kein Anschlag, ab OBSTRUCT_FIRE kein Schuss (mit Hysterese).
+   * die Reichweite der Waffe (`handling.reach`, Auge → Mündung), wird sie angezogen: `obstructed` 0..1 – nur, was vor
+   * der Mündung steht (Fahrzeug/Container neben dem Spieler zählt nicht). Ab OBSTRUCT_ADS kein Anschlag, ab
+   * OBSTRUCT_FIRE kein Schuss (mit Hysterese). Nur bei Einstellung „Hochnehmen“/„An den Körper ziehen“
+   * (weaponObstruction 'raise'/'tuck'); „Ruhig“ (Standard) und „Keine Anpassung“ lassen die Waffe in Haltung –
+   * Zielen und Schießen wie in anderen Shootern (Kugeln starten am Auge, die Mündung per _safeMuzzle vor der Wand).
    */
   _updateObstruct(dt, def) {
     const G = this.G;
     const actor = this.actor;
     const w = G.world;
-    const reach = def.cls === 'melee' ? 0 : weaponHandling(def).reach || 0;
+    const vm = this.viewModel;
+    const wm = vm && typeof vm._obstructionMode === 'function' ? vm._obstructionMode() : 'raise';
+    const reach = def.cls === 'melee' || (wm !== 'raise' && wm !== 'tuck') ? 0 : weaponHandling(def).reach || 0;
     let raw = 0;
     let wall = Infinity;
     if (reach > 0 && w && typeof w.raycast === 'function' && actor.alive !== false) {
@@ -1135,25 +1158,15 @@ export class WeaponController {
           dir = _wdir;
         }
         let d = Infinity;
-        const oh = this._obsHit[k];
-        oh.ok = false;
         try {
           const hit = w.raycast(_org, dir, (reach + 0.15) / scale);
-          if (hit && Number.isFinite(hit.distance) && hit.targetId === undefined) {
-            d = hit.distance * scale;
-            if (hit.normal) {
-              oh.ok = true;
-              oh.px = _org.x + dir.x * hit.distance; oh.py = _org.y + dir.y * hit.distance; oh.pz = _org.z + dir.z * hit.distance;
-              oh.nx = hit.normal.x; oh.ny = hit.normal.y; oh.nz = hit.normal.z;
-            }
-          }
+          const n = hit && hit.normal;
+          const facing = !n || Math.abs(n.x * dir.x + n.y * dir.y + n.z * dir.z) >= OBSTRUCT_FACING;
+          if (hit && Number.isFinite(hit.distance) && hit.targetId === undefined && facing) d = hit.distance * scale;
         } catch { /* Welt im Abbau */ }
         this._obsSample[k] = d;
       }
       let dmin = Math.min(this._obsSample[0], this._obsSample[1], this._obsSample[2]);
-      // walls-3: Fläche des nächsten Treffers (Punkt/Normale) für das Viewmodel; Vorhalt als Verschiebung entlang der Blickachse
-      const km = this._obsSample.indexOf(dmin);
-      this.wallHit = Number.isFinite(dmin) && km >= 0 && this._obsHit[km].ok ? this._obsHit[km] : null;
       // Vorhalt: Annäherung an die Wand (Messungen bis zu drei Bilder alt, Glättung im Viewmodel)
       const bv = actor.body && actor.body.velocity;
       if (bv && Number.isFinite(dmin)) dmin -= Math.max(0, bv.x * _aim.x + bv.y * _aim.y + bv.z * _aim.z) * (3 * dt + 0.04);
@@ -1167,30 +1180,14 @@ export class WeaponController {
     } else {
       this._obsSample.fill(Infinity);
       this._obsAdsRaw = 0;
-      this.wallHit = null;
     }
     this.wallDist = wall;
-    if (this.wallHit) this.wallHit.lead = Number.isFinite(wall) ? Math.max(0, Math.min(this._obsSample[0], this._obsSample[1], this._obsSample[2]) - wall) : 0;
     this.obstructed += (raw - this.obstructed) * damp(raw > this.obstructed ? 40 : 8, dt);
     if (this.obstructed < 1e-3) this.obstructed = 0;
-    // walls 2: Rückmeldung des Viewmodels (Stützpunkt-Strahlen gegen niedrige/schräge Hindernisse, s. viewmodel wallFit):
-    // stark gekippte Waffe → kein Schuss; im Anschlag nicht frei zu bekommen → Anschlag endet und bleibt gesperrt, bis
-    // sich Spieler (> 0,25 m) oder Blick (> 8°) bewegt haben (sonst Flackern Anschlag ↔ Hüfte an derselben Kante)
-    const vs = this._vmState;
-    const need = vs && reach > 0 && Number.isFinite(vs.wallNeed) ? vs.wallNeed : 0;
-    const L = this._obsLatch;
-    if (vs && vs.wallAds && reach > 0) {
-      actor.getEyePosition(_eye); actor.getAimDirection(_aim);
-      if (!L) this._obsLatch = { x: _eye.x, y: _eye.y, z: _eye.z, ax: _aim.x, ay: _aim.y, az: _aim.z };
-      else { L.x = _eye.x; L.y = _eye.y; L.z = _eye.z; L.ax = _aim.x; L.ay = _aim.y; L.az = _aim.z; }
-    } else if (L) {
-      actor.getEyePosition(_eye); actor.getAimDirection(_aim);
-      if (reach <= 0 || Math.hypot(_eye.x - L.x, _eye.y - L.y, _eye.z - L.z) > 0.25 || _aim.x * L.ax + _aim.y * L.ay + _aim.z * L.az < 0.990) this._obsLatch = null;
-    }
-    const o = this.obstructed, of = Math.max(o, need);
-    const oa = this._obsLatch ? 1 : Math.max(o, this._obsAdsRaw || 0);
+    const o = this.obstructed;
+    const oa = Math.max(o, this._obsAdsRaw || 0);
     this._obsAds = this._obsAds ? oa > OBSTRUCT_ADS[1] : oa > OBSTRUCT_ADS[0];
-    this._obsFire = this._obsFire ? of > OBSTRUCT_FIRE[1] : of > OBSTRUCT_FIRE[0];
+    this._obsFire = this._obsFire ? o > OBSTRUCT_FIRE[1] : o > OBSTRUCT_FIRE[0];
   }
 
   /**

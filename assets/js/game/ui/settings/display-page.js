@@ -68,7 +68,7 @@ export function displayPage(P) {
     qualitaet: ['quality'],
     sicht: ['fov'],
     komfort: ['cameraMotion', 'weaponSway', 'lensStrength', 'grain', 'reducedMotion'],
-    bild: ['lensStyle', 'lensArtifacts', 'lensBorder', 'autoExposure', 'weaponPose'],
+    bild: ['lensStyle', 'lensArtifacts', 'lensBorder', 'autoExposure', 'weaponPose', 'weaponObstruction'],
   };
 
   function syncLooks() {
@@ -82,7 +82,7 @@ export function displayPage(P) {
   }
 
   return {
-    keys: ['quality', 'fov', ...LOOK_KEYS, 'reducedMotion'],
+    keys: ['quality', 'fov', ...LOOK_KEYS, 'reducedMotion', 'weaponObstruction'],
     resetLabel: 'Grafik',
     mount(h) {
       host = h;
