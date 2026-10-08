@@ -298,14 +298,14 @@ export class AntiCheat {
       const s = this.strike(id, 'korrektur', nowSec);
       return { ok: false, reason: 'korrektur', correct: p.correctPos.slice(), kick: s.kick };
     }
-    const dt = Math.min(2, Math.max(0, nowSec - p.t));
+    const dt = Math.min(Math.max(2, o.burstWindow), Math.max(0, nowSec - p.t));
     // Budget nach dem gemeldeten Zustand; der einzelne Schritt darf bei Übergängen (Sprint → Rutschen, Rutschen →
     // Sprung) das schnellere der beiden Zustandstempi nutzen
     const speed = this._speedFor(flags);
     const vMax = speed * o.boost * (1 + o.tolerance);
     const vStep = Math.max(speed, this._speedFor(p.flags)) * o.boost * (1 + o.tolerance);
     // Obergrenze des Budgets: budgetWindow – hing der Host länger (langes Bild, die Zustände der Lücke kommen danach
-    // gebündelt an), gilt für dieses Bündel (0,25 s Host-Zeit) die ganze Lücke (höchstens stepWindow)
+    // gebündelt an), gilt für dieses Bündel (0,25 s Host-Zeit) die ganze Lücke (höchstens burstWindow)
     const climb = o.climb * (1 + o.tolerance);
     const gap = Math.min(dt, o.burstWindow);
     if (vMax * gap + o.slack > this._capH(speed)) { p.capH = vMax * gap + o.slack; p.capUp = climb * gap + o.stepUp; p.capUntil = nowSec + 0.25; }

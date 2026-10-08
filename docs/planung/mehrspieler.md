@@ -243,12 +243,12 @@ Ohne Parameter: `NetSystem.chaos = null`, Verbindungen unverändert. Werkzeuge: 
    Leben. Jetzt: Leben im Puffer abgegrenzt, Lebend-Abgleich nach 0,35 s + rtt (auch für Tod + Spawn dazwischen), verspätete
    'kill'/'spawn' eines schon nachgeholten Lebens ändern nichts mehr. Reihenfolge Tod → Spawn ist so auf allen Wegen garantiert.
 3. *Anti-Cheat*: (a) ein einzelner Sprung von bis zu 14,6 m ging durch (Budget voll) – jetzt Schrittgrenze je Zustand
-   `max(6 m, vMax × min(Δt, 2 s) + 0,75 m)` (Rutschen ≈ 7 m), nach oben `max(3,5 m, Steigtempo × Δt + 1,95 m)`; (b) Lücke:
+   `max(6 m, vMax × min(Δt, 1 s) + 0,75 m)` (Rutschen ≈ 7 m), nach oben `max(3,5 m, Steigtempo × min(Δt, 1 s) + 1,95 m)`; (b) Lücke:
    ein Client konnte „tot“ melden und lebendig an beliebiger Stelle wieder auftauchen (neuer Anker ohne Prüfung) – jetzt bleibt
    der Anker, solange die Puppe beim Host lebt; (c) Schonfristen nach Spawn/Rücksetzung + rtt; (d) Treffer: Zielverlauf
    `0,4 s + rtt + Darstellungsverzug des Schützen` (Client meldet ihn als `ip`, höchstens 2 s; Verlauf 2,5 s) – vorher fehlte
    die Interpolation des Schützen; (e) hängt der Host länger als 1 s (langes Bild), kommen die Zustände gebündelt – das Budget
-   füllt für dieses Bündel die ganze Lücke nach (vorher 8 falsche 'tempo' im Lasttest); (f) Schussursprung gegen den zuletzt
+   füllt für dieses Bündel die ganze Lücke nach (höchstens 3 s, die Schrittgrenze bleibt bei 1 s; vorher 8 falsche 'tempo' im Lasttest); (f) Schussursprung gegen den zuletzt
    gemeldeten Zustand statt gegen den Puppenkörper (der ein Bild nachhinkt – vorher 12 falsche 'herkunft' im Lasttest).
 4. *„Ausrüsten“/„Einsatz“ auf Clients wirkungslos*: Client meldet den Halt jetzt ('hold'), der Host hält die Puppe wie offline an
    (Restzeit steht auf beiden Seiten, höchstens 30 s), „Einsatz“ gibt frei; die im Todesbildschirm gewählte Ausrüstung geht als
@@ -282,9 +282,9 @@ Uhr, 20-Hz-Schnappschüsse einer bekannten Bahn, Client 60 Bilder/s; Kennzahlen 
 Der neue Puffer zeigt die Puppen um die Laufzeit später (der alte schrieb diese Zeit ständig fort), dafür ohne Zurückspringen,
 Ruckeln und Überschwingen. Die Treffermeldung trägt diesen Verzug (`ip`), der Host prüft entsprechend weit zurück.
 
-**Anti-Cheat** (`node tools/net-proto-test.mjs`, 110 Prüfungen, davon 17 neu): ohne Verstoß – Sprint mit allen Zuschlägen
+**Anti-Cheat** (`node tools/net-proto-test.mjs`, 111 Prüfungen, davon 18 neu): ohne Verstoß – Sprint mit allen Zuschlägen
 10,4 m/s, Rutschen 13,3 m/s, Rutschsprung 11 m/s (je mit ±60 ms Ankunftsschwankung und 5 % Verlust), Hangrutschen 11,8 m/s
-4 s, Sprungserie im Sprint, Spawn in 40 m Höhe + freier Fall bis 44 m/s, Host hängt 1 s bzw. alle 2,5 s (Bündel), 0,7 s
+4 s, Sprungserie im Sprint, Spawn in 40 m Höhe + freier Fall bis 44 m/s, Host hängt 1 s bzw. alle 2,5 s / 2,95 s (Bündel; mit der alten 2-s-Grenze 48 falsche Verstöße bei 2,95 s), 0,7 s
 Funkloch (7,3 m Schritt), Klettern 1,3 m, Spawn bei rtt 0,8 s; erkannt – 7 m und 14 m Sprung (vorher erlaubt), 20 m bei einem
 Zustand alle 2 s, 5 m senkrecht, „tot melden + 40 m weiter auftauchen“, Tempo-Hack 2× Sprint nach 3,4 s, 3× nach 1,3 s.
 Im echten Spiel (`mp-test`): Rutschen eines Clients (17 Zustände mit Rutsch-Bit) und Sturz aus 9 m nach Host-Spawn ohne

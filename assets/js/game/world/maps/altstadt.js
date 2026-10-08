@@ -1360,11 +1360,10 @@ function brickGrill(b, x, y, z, ry) {
   f.box(0, 1.8, -0.06, 0.4, 0.6, 0.36, 'brick', { tint: BR, ...V });
   f.box(0, 2.4, -0.06, 0.52, 0.05, 0.48, 'stone_wall', { tint: CAP, ...V });
   f.box(0, 1.5, D / 2 - 0.08, W + 0.04, 0.05, 0.06, 'stone_wall', { tint: CAP, ...V });
-  // Holzstapel + Kohlesack
+  // Holzstapel + Kohlesack (flach, ohne Kollision)
   for (let i = 0; i < 5; i++) f.cyl(W / 2 + 0.3 + (i % 3) * 0.13 - (i >= 3 ? -0.065 : 0), 0.06 + (i >= 3 ? 0.11 : 0), -0.05, 0.055, 0.5, 'wood_dark', { ...V, axis: 'z', seg: 6, tint: '#8a6a4a', ao: false });
   f.box(-W / 2 - 0.28, 0, 0.0, 0.34, 0.48, 0.2, 'tarp', { ...V, tint: '#3a3a36', rx: -0.12 });
   f.solid(0, 0, 0, W + 0.1, 2.0, D + 0.08, { minimap: 'cover', bullet: false });
-  f.solid(W / 2 + 0.43, 0, -0.05, 0.42, 0.24, 0.52, { minimap: false, bullet: false });
 }
 
 /**

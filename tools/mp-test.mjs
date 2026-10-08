@@ -549,9 +549,9 @@ try {
     return null;
   }, B);
   // gelandet = wieder am Boden, mindestens 3 m unter dem Spawnpunkt (Dächer/Container zählen auch)
-  const landed = drop && await until(c2, (sy) => { const p = window.__game.player; return p.alive && p.body.onGround && p.position.y < sy - 3 && p.position.y; }, drop.from[1], 240000, 1000); // SwiftShader: ~17 Spielbilder Fall, je Bild bis 3 s
+  const landed = drop && await until(c2, (sy) => { const p = window.__game.player; return p.alive && p.body.onGround && p.position.y < sy - 3 && { y: p.position.y }; }, drop.from[1], 240000, 1000); // SwiftShader: ~17 Spielbilder Fall, je Bild bis 3 s
   if (drop && !landed) info(`Bert nach dem Fall: ${JSON.stringify(await ev(c2, () => { const p = window.__game.player; return { alive: p.alive, ground: p.body.onGround, y: +p.position.y.toFixed(2) }; }))}, Spawn y ${drop.from[1].toFixed(2)}`);
-  check(!!landed, `Bert fällt ${drop ? (drop.from[1] - (landed || drop.ground)).toFixed(1) : '–'} m (Host-Spawn in der Luft) und landet`);
+  check(!!landed, `Bert fällt ${drop ? (drop.from[1] - (landed ? landed.y : drop.ground)).toFixed(1) : '–'} m (Host-Spawn in der Luft) und landet`);
   // Rutschen aus dem Sprint (player._startSlide wie die Taste), bis es endet
   const slid = await ev(c2, () => {
     const G = window.__game;

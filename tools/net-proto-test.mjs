@@ -204,6 +204,17 @@ for (let k = 1; k <= 30 * 12; k++) {
   if (!acB.onState(48, { x: tc * 10.4, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }, arrive, { alive: true }).ok) badB++;
 }
 check(badB === 0 && acB.score(48, 13) === 0, `Host hängt je 2,5 s (Zustände gebündelt), Sprint 10,4 m/s über 12 s: ${badB} Verstöße`);
+// Bilder bis 3 s (Lasttest: längstes Bild 2,98 s): Lücke wird bis burstWindow nachgefüllt – Sprint ohne Verstoß
+const acB3 = new AntiCheat();
+acB3.onSpawn(50, [0, 0, 0], 0);
+let badB3 = 0;
+for (let k = 1; k <= 30 * 12; k++) {
+  const tc = k / 30;
+  const b = Math.ceil(tc / 2.95 - 1e-9);
+  const arrive = b * 2.95 + (tc - (b - 1) * 2.95) * 0.001;
+  if (!acB3.onState(50, { x: tc * 10.4, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }, arrive, { alive: true }).ok) badB3++;
+}
+check(badB3 === 0 && acB3.score(50, 13) === 0, `Host hängt je 2,95 s (Zustände gebündelt), Sprint 10,4 m/s über 12 s: ${badB3} Verstöße`);
 // Langsamer Client (ein Zustand alle 2 s): 20 m Sprung bleibt ein Teleport (Schrittgrenze ≤ 1 s × vMax)
 const acSlow = new AntiCheat();
 acSlow.onSpawn(49, [0, 0, 0], 0);

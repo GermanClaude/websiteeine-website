@@ -283,7 +283,8 @@ die Warteschlange. Abgearbeitet per Zeitgeber + jedes Bild (`preUpdate`). Prüfw
 - `hold` und `plate` sind reserviert (keine Weiterleitung an andere Clients).
 
 **Anti-Cheat** – `onState(peer, state, now, ctx)`: ctx `{alive (Puppe beim Host), clientAlive (Client meldet lebt), rtt (s)}`.
-Schrittgrenze je Zustand `max(teleport 6 m, vMax × min(Δt, 1 s) + slack)` (vMax des schnelleren Zustands vorher/jetzt),
+Schrittgrenze je Zustand `max(teleport 6 m, vMax × min(Δt, stepWindow 1 s) + slack)` (vMax des schnelleren Zustands vorher/jetzt),
+Budget-Nachfüllung nach einem hängenden Host für das ankommende Bündel bis `burstWindow` 3 s,
 nach oben `max(teleportUp 3,5 m, Steigtempo × Δt + Stufe + slack)`, Budget wie bisher (Tempo-Hacks). `clientAlive === false`
 bei lebender Puppe → `{ok:false, reason:'tot-client'}`, Anker bleibt. Schonfristen `spawnGrace` (1,5 s) und `correctGrace`
 (0,75 s) jeweils + rtt. Treffer: `ctx.interp` (s, Standard 0,45), `opts.maxRewind` 2 s; `PositionHistory` des Hosts 2,5 s.
@@ -303,3 +304,16 @@ Lebens ändern nichts mehr (nur Abschussliste).
 **recommend.js** – `clientBytes(actors)`, `bandwidthFor(n, {actors})`, `maxPlayersForUpload(rate, {actors})`,
 `recommend({…, actors})`; Konstanten `SNAPSHOT_HEADER`, `ENTITY_BYTES`, `PACKET_OVERHEAD`, `INTEREST_MIN`, `INTEREST_SHARE`,
 `RELIABLE_BYTES` (gemessen, §13). `NetSystem.recommendation()` rechnet mit 2 × teamSize Akteuren, wenn Bots auffüllen.
+
+**Weitere Korrekturen** – `peer.js`: Angebot darf 45 s auf die Antwort warten (`OFFER_TIMEOUT`), danach 15 s bis offen;
+`accept` auf geschlossener Verbindung → Code 'verbindung-fehlgeschlagen'. `signal.js joinRoom` schließt ein offenes Angebot bei
+Fehlern. `NetSystem.join` gibt nur Text-Codes weiter. `HostSync._shooterPos(p)`: Schussursprung gegen den zuletzt gemeldeten
+Zustand. `UploadMeter` (recommend.js): Rate/Bestwert nur über Fenster ≥ `peakWindow` 3 s. `main.js`: Hintergrund-Takt des
+Hosts lässt aufgestaute Takte verfallen (≥ 40 ms Abstand).
+
+**Prüfwerkzeuge** – `tools/mp-test.mjs [--params=…] [--size=…]` (zusätzlich: Glätte, „Ausrüsten“/„Einsatz“ + Ausrüstung beim
+Host, Sturz nach Host-Spawn in der Luft, Rutschen ohne Verstoß, verborgener Host-Tab mit ruhendem rAF);
+`tools/mp-load-test.mjs [--clients=12] [--mode=tdm|ffa] [--seconds=30] [--params=…]` → `tools/out/mp-load.json`;
+`dev/fake-client.html` (`window.__fake`: join(code), leave(), stats()); `tools/net-interp-test.mjs` + `dev/net-interp.html`
+(Interpolation mit virtueller Uhr, `window.__interp`). `ClientSync._puppetPose(id, list, rt, dt, out)` = Interpolation +
+Glättung einer Puppe (für den Prüfstand herausgelöst).
