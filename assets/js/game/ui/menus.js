@@ -240,7 +240,7 @@ export class Menus {
       score = `<div class="ps-score ps-ffa"><b>${t.down}</b><small>Ziele · ${t.shots ? Math.round(t.accuracy * 100) : 0} % Treffer</small></div>`;
     }
     const s = this._screen('pause', 'm-pause', `
-      <div class="ps">
+      <div class="ps${online ? ' ps-net-on' : ''}">
         <div class="ps-info">
           <div class="m-kicker">${esc(def.name || '')} · ${esc(G.world ? G.world.name : '')}${mode && Number.isFinite(mode.timeLeft) ? ` · ${clock(mode.timeLeft)}` : ''}</div>
           <h1 class="m-title">${online ? 'Menü' : 'Pause'}<em>.</em></h1>

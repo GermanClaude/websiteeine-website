@@ -6,7 +6,10 @@
 // begrenzt. Kurze Luftphasen über Buckeln (≤ AIR_GRACE s) beenden ein Hangrutschen nicht. Steilere Flächen als
 // maxSlope sind kein Boden (physics.js) → nach AIR_GRACE fällt man normal. Wände nehmen die Geschwindigkeit über
 // die Kollision (Kopf voran → Ende). Tunneln verhindern die Unterschritte von CapsuleBody.step (≤ halber Radius).
-// Auf Stufen/Treppen ist die Normale waagerecht → Verhalten wie bisher. Keine Allokationen pro Bild.
+// Treppen: Ihre Kollision ist eine glatte Rampe (world/arch.js stairs, ≈ 32°) – der Hangabtrieb gilt dort NICHT.
+// Erkannt an der sichtbaren Fläche unter den Füßen (Kugel-Geometrie, world.raycast): waagerechte Stufe über einer
+// schrägen Kollisionsfläche = Treppe → Verhalten wie auf ebenem Boden (kein Rutschen aus dem Gehen, kein Beschleunigen).
+// Keine Allokationen pro Bild (die Treppenprüfung läuft nur auf schrägem Boden und je 0,25 m Weg einmal).
 
 import { Vector3, Object3D } from 'three';
 
@@ -25,8 +28,13 @@ const START_RUN_SPEED = 3.6;
 const START_STEEP_GRADE = 0.3; // tan ≈ 17°
 const START_STEEP_SPEED = 1.5;
 
+const STAIR_FLAT = 0.97; // sichtbare Fläche mindestens so waagerecht (Normale y) → Stufe
+const STAIR_STEP = 0.25; // m Weg bis zur nächsten Treppenprüfung
+
 const _up = Object3D.DEFAULT_UP;
 const _d = new Vector3();
+const _ro = new Vector3();
+const _down = new Vector3(0, -1, 0);
 
 /** Gefälle (tan) entlang der waagerechten Richtung (dx, dz) auf der Bodennormalen n: > 0 bergab, < 0 bergauf. */
 export function slopeGrade(n, dx, dz) {
@@ -34,6 +42,26 @@ export function slopeGrade(n, dx, dz) {
   const l = Math.hypot(dx, dz);
   if (l < 1e-6) return 0;
   return (n.x * dx + n.z * dz) / l / n.y;
+}
+
+/**
+ * Bodennormale für den Hangabtrieb: body.groundNormal – auf Treppen null (Kollision glatte Rampe, sichtbar waagerechte
+ * Stufen; slopeGrade(null) = 0 → eben). Ergebnis je Standort zwischengespeichert (p._stairChk).
+ */
+export function slopeNormal(p) {
+  const body = p.body, n = body.groundNormal;
+  if (!n || n.y <= 0.3 || n.y >= 0.9999) return n;
+  const w = p.G && p.G.world;
+  if (!w || typeof w.raycast !== 'function') return n;
+  const pos = body.position;
+  const c = p._stairChk || (p._stairChk = { x: Infinity, y: 0, z: 0, stairs: false });
+  if (Math.abs(pos.x - c.x) > STAIR_STEP || Math.abs(pos.z - c.z) > STAIR_STEP || Math.abs(pos.y - c.y) > STAIR_STEP) {
+    c.x = pos.x; c.y = pos.y; c.z = pos.z;
+    let hit = null;
+    try { hit = w.raycast(_ro.set(pos.x, pos.y + 0.5, pos.z), _down, 1.2); } catch { hit = null; }
+    c.stairs = !!(hit && hit.targetId === undefined && hit.normal && Math.abs(hit.normal.y) > STAIR_FLAT);
+  }
+  return c.stairs ? null : n;
 }
 
 /**
@@ -46,7 +74,7 @@ export function slideAllowed(p, hSpeed) {
   if (p.sprinting && hSpeed > 5) return true;
   if (hSpeed < START_STEEP_SPEED) return false;
   const v = body.velocity;
-  const g = slopeGrade(body.groundNormal, v.x, v.z);
+  const g = slopeGrade(slopeNormal(p), v.x, v.z);
   return (g >= START_RUN_GRADE && hSpeed > START_RUN_SPEED) || g >= START_STEEP_GRADE;
 }
 
@@ -55,7 +83,7 @@ export function slideBegin(p) {
   p._slideRun = 0;
   p._slideAir = 0;
   const v = p.body.velocity;
-  p._slideGrade = p.body.onGround ? slopeGrade(p.body.groundNormal, v.x, v.z) : 0;
+  p._slideGrade = p.body.onGround ? slopeGrade(slopeNormal(p), v.x, v.z) : 0;
 }
 
 /**
@@ -72,7 +100,7 @@ export function slideStep(p, dt, mx, gravity, slideTime, friction) {
   if (steer) d.applyAxisAngle(_up, -steer).normalize();
   const cur = Math.hypot(v.x, v.z); // nach _startSlide() bereits mit Schub; Wände haben schon gebremst
   const ground = body.onGround;
-  const n = body.groundNormal;
+  const n = ground ? slopeNormal(p) : null; // Treppe → null (eben)
   let grade = p._slideGrade || 0;
   let sp;
   if (ground) {
@@ -82,7 +110,7 @@ export function slideStep(p, dt, mx, gravity, slideTime, friction) {
     // Reibung: bergab teils vom Hangabtrieb aufgehoben, bergauf/eben wie bisher
     const relief = grade > 0 ? Math.min(1, grade / SLOPE_FREE) * 0.85 : 0;
     sp = Math.max(0, cur * Math.exp(-friction * (1 - relief) * dt) - 0.6 * dt);
-    if (n.y > 0.3 && n.y < 0.9999) {
+    if (n && n.y > 0.3 && n.y < 0.9999) {
       // Hangabtrieb (waagerechter Anteil der Schwerkraft in der Ebene: g · n.y · (n.x, n.z)) als Vektor:
       // längs bremst/beschleunigt er, quer dreht er die Bahn hangabwärts
       const k = SLOPE_GAIN * gravity * n.y * dt;

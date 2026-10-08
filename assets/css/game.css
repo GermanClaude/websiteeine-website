@@ -2932,7 +2932,7 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 .nr-confirm p { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 10px; font: 600 14px/1.4 var(--font-hud); }
 .nr-confirm p svg { flex: none; width: 18px; height: 18px; color: var(--np-enemy); }
 .nr-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid var(--np-line); }
-.nr-go { margin-left: auto; }
+.nr-go { margin-left: 0; }
 .nr-foot .nr-sum { margin-left: auto; min-width: 0; }
 .nr-wait { display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 0 18px; border: 1px dashed var(--np-line-strong); font: 700 15px var(--font-hud); letter-spacing: .1em; text-transform: uppercase; color: var(--np-ink-2); }
 .nr-wait .nm-spin { margin-top: 0; }
@@ -3026,6 +3026,15 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
   .nr-wait { min-height: 50px; padding: 0 12px; font-size: 13px; }
   .nr-foot { gap: 8px; padding-top: 6px; }
   .ps-online { margin-top: 8px; padding: 6px 8px; font-size: 13px; }
+  /* Punktetabelle online auf Telefonen: schmalere Zahlenspalten, ohne K/D – der Name braucht den Platz */
+  .sb-table.sb-online th { width: 36px; }
+  .sb-table.sb-online th.sb-name { width: auto; }
+  .sb-table.sb-online th.sb-rank { width: 20px; }
+  .sb-table.sb-online th.sb-extra { width: 54px; }
+  .sb-table.sb-online th.sb-ping { width: 40px; }
+  .sb-table.sb-online .sb-kd { display: none; }
+  .sb-online .sb-host { margin-left: 4px; padding: 0 3px; font-size: 9.5px; }
+  .sb-online .sb-you { margin-left: 4px; }
   .ps-np { min-height: 36px; font-size: 13px; }
   .nt { bottom: auto; top: 30%; }
   .nt-item { font-size: 13px; padding: 5px 10px 5px 8px; }
@@ -3038,7 +3047,12 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
   .nr-equip span, .nr-leave span { display: none; }
   .nr-titles .m-title { font-size: 22px; }
   .nr-codebox small { display: none; }
-  .ps-net-list { max-height: 30vh; }
+  .ps-net-on .m-title { font-size: 30px; }
+  .ps-net-on .ps-score { margin-top: 6px; }
+  .ps-net-on .ps-score b { font-size: 26px; }
+  .ps-net-list { max-height: 40vh; }
+  .ps-room { margin-top: 4px; }
+  .ps-net { margin-top: 6px; }
 }
 @media (max-width: 760px) and (min-height: 521px) {
   .nr-head { flex-wrap: wrap; }
@@ -3046,6 +3060,7 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 }
 @media (max-width: 800px) {
   .nr-foot .nr-sum { display: none; }
+  .nr-go { margin-left: auto; }
 }
 @media (max-width: 640px) {
   .nr-body { grid-template-columns: minmax(0, 1fr); }

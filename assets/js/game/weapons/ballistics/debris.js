@@ -58,6 +58,28 @@ const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m = new THREE.
 const _e = new THREE.Euler();
 const Y = new THREE.Vector3(0, 1, 0), X = new THREE.Vector3(1, 0, 0), DOWN = new THREE.Vector3(0, -1, 0);
 const ZERO_M = new THREE.Matrix4().makeScale(0, 0, 0);
+const MAX_RANGES = 16; // offene Einzelbereiche, darüber zu einem Bereich zusammenfassen
+
+/**
+ * Teil-Upload eines Instanz-Attributs: n geänderte Plätze dieses Bildes (min…max, size Werte je Platz). three löscht
+ * updateRanges erst, wenn es das Mesh tatsächlich zeichnet – ein Bild ohne Zeichnen (außer Sicht, Pause, Ladebild)
+ * darf vorgemerkte Plätze nicht verwerfen (sonst bleiben liegende Hülsen auf der GPU unsichtbar/an alter Stelle).
+ * Viele Plätze bzw. viele offene Bereiche → EIN Bereich, der auch die noch offenen Bereiche früherer Bilder abdeckt.
+ */
+function flushRanges(a, n, min, max, size) {
+  const rs = a.updateRanges;
+  if (n > 8 || rs.length > MAX_RANGES) {
+    let s = min * size, e = (max + 1) * size;
+    for (let i = 0; i < rs.length; i++) {
+      const r = rs[i];
+      if (r.start < s) s = r.start;
+      if (r.start + r.count > e) e = r.start + r.count;
+    }
+    a.clearUpdateRanges();
+    a.addUpdateRange(s, e - s);
+  }
+  a.needsUpdate = true;
+}
 
 let _shellMats = null;
 function shellMaterials() {
@@ -529,18 +551,8 @@ export class Debris {
   /** Vorgemerkte Änderungen hochladen und die Hülle der Sichtprüfung nachführen. */
   _flush(p) {
     const m = p.mesh;
-    if (p.dn) {
-      const a = m.instanceMatrix;
-      if (p.dn > 8) { a.clearUpdateRanges(); a.addUpdateRange(p.dmin * 16, (p.dmax - p.dmin + 1) * 16); }
-      a.needsUpdate = true;
-      p.dn = 0;
-    }
-    if (p.cn) {
-      const a = m.instanceColor;
-      if (p.cn > 8) { a.clearUpdateRanges(); a.addUpdateRange(p.cmin * 3, (p.cmax - p.cmin + 1) * 3); }
-      a.needsUpdate = true;
-      p.cn = 0;
-    }
+    if (p.dn) { flushRanges(m.instanceMatrix, p.dn, p.dmin, p.dmax, 16); p.dn = 0; }
+    if (p.cn) { flushRanges(m.instanceColor, p.cn, p.cmin, p.cmax, 3); p.cn = 0; }
     if (p.grow) {
       p.grow = false;
       p.box.getBoundingSphere(m.boundingSphere);
