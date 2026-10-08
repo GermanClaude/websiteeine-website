@@ -132,7 +132,7 @@ export const SETTINGS_SCHEMA = Object.freeze({
   weaponObstruction: {
     type: 'enum', label: 'Waffe an Wänden und Hindernissen', group: 'grafik',
     options: ['overlay', 'raise', 'tuck', 'clip'],
-    labels: { overlay: 'Ruhig – wie in den meisten Shootern', raise: 'Hochnehmen', tuck: 'An den Körper ziehen', clip: 'Keine Anpassung – Waffe kann in Wände ragen' },
+    labels: { overlay: 'Ruhig (Standard)', raise: 'Hochnehmen', tuck: 'An den Körper ziehen', clip: 'Keine Anpassung' },
   },
   // Bild (core-render; Bedeutung im Changelog „core-render“)
   lensStyle: {

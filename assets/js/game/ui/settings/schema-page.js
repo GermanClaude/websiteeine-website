@@ -46,7 +46,7 @@ export const HINTS = {
   sharpness: 'Nachschärfen nach der Hochskalierung.',
   upscaler: 'FSR 1.0 hält das Bild bei verkleinerter Auflösung scharf.',
   weaponPose: 'Körperkamera: Waffe tiefer und mittiger, verdeckt weniger vom Bild.',
-  weaponObstruction: 'Ruhig: Die Waffe bleibt vor Wänden in Haltung und wird über allem gezeichnet. Hochnehmen/An den Körper ziehen: erst, wenn wirklich etwas vor der Mündung steht. Schüsse starten immer am Auge, nie hinter der Wand.',
+  weaponObstruction: 'Ruhig: Die Waffe bleibt vor Wänden in Haltung und wird über allem gezeichnet (wie in den meisten Shootern). Hochnehmen/An den Körper ziehen: nur, wenn wirklich etwas vor der Mündung steht. Keine Anpassung: Die Waffe ragt sichtbar in Wände. Schüsse starten immer am Auge.',
   hudStyle: 'Realismus: kein Fadenkreuz, keine Munitions- und Lebensanzeige, keine Minikarte – wie bei Bodycam.',
   bodycamStamp: 'Uhrzeit und erfundene Geräte-ID in der Bildecke, wie bei einer Körperkamera-Aufnahme.',
   showFps: 'Bildrate unten links.',

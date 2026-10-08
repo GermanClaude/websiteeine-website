@@ -8,7 +8,8 @@
 // die Kollision (Kopf voran → Ende). Tunneln verhindern die Unterschritte von CapsuleBody.step (≤ halber Radius).
 // Treppen: Ihre Kollision ist eine glatte Rampe (world/arch.js stairs, ≈ 32°) – der Hangabtrieb gilt dort NICHT.
 // Erkannt an der sichtbaren Fläche unter den Füßen (Kugel-Geometrie, world.raycast): waagerechte Stufe über einer
-// schrägen Kollisionsfläche = Treppe → Verhalten wie auf ebenem Boden (kein Rutschen aus dem Gehen, kein Beschleunigen).
+// deutlich steileren Kollisionsfläche = Treppe → Verhalten wie auf ebenem Boden (kein Rutschen aus dem Gehen, kein
+// Beschleunigen). Gelände und echte Rampen sind sichtbar genauso schräg wie ihre Kollision → Hangabtrieb wirkt.
 // Keine Allokationen pro Bild (die Treppenprüfung läuft nur auf schrägem Boden und je 0,25 m Weg einmal).
 
 import { Vector3, Object3D } from 'three';
@@ -28,7 +29,8 @@ const START_RUN_SPEED = 3.6;
 const START_STEEP_GRADE = 0.3; // tan ≈ 17°
 const START_STEEP_SPEED = 1.5;
 
-const STAIR_FLAT = 0.97; // sichtbare Fläche mindestens so waagerecht (Normale y) → Stufe
+const STAIR_FLAT = 0.995; // sichtbare Fläche mindestens so waagerecht (Normale y ≈ < 6°) → Stufe …
+const STAIR_GAP = 0.05; // … und die Kollisionsfläche deutlich steiler (Treppe ≈ 0,85; Gelände weicht < 0,02 ab)
 const STAIR_STEP = 0.25; // m Weg bis zur nächsten Treppenprüfung
 
 const _up = Object3D.DEFAULT_UP;
@@ -59,7 +61,8 @@ export function slopeNormal(p) {
     c.x = pos.x; c.y = pos.y; c.z = pos.z;
     let hit = null;
     try { hit = w.raycast(_ro.set(pos.x, pos.y + 0.5, pos.z), _down, 1.2); } catch { hit = null; }
-    c.stairs = !!(hit && hit.targetId === undefined && hit.normal && Math.abs(hit.normal.y) > STAIR_FLAT);
+    const vy = hit && hit.targetId === undefined && hit.normal ? Math.abs(hit.normal.y) : 0;
+    c.stairs = vy > STAIR_FLAT && vy - n.y > STAIR_GAP;
   }
   return c.stairs ? null : n;
 }
