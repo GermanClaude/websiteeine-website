@@ -260,3 +260,11 @@ B) SPÄTER nach der verbindlichen Reihenfolge (Schritt 2–4): Battle Royale, Co
 - Umfang Stufe A: Kopf-Tracking, Zielen/Schießen mit rechtem Controller, Laufen per Stick, Drehen in Schritten + Komfort-Vignette, Nachladen/Waffenwechsel/Springen/Ducken auf Tasten, HUD als Anzeige am Handgelenk/in der Welt, Postprocessing in VR aus, eigene VR-Grafikstufe (72–90 fps auf Quest; volle Grafik über PC + Air Link). Menüs außerhalb von VR (Lobby am Bildschirm, VR erst im Match).
 - Test im Container mit WebXR-Emulator (IWER von Meta, nur Testwerkzeug); echter Test durch Nathanael am Freitagabend auf der Quest 3.
 - Danach Live-Beta veröffentlichen, wenn aus Claudes Sicht bereit; Freitagabend gemeinsamer Test; gut → bleibt so, Nutzer gibt den Leuten Bescheid; schlecht → nachbessern.
+- VR-ERGÄNZUNG (Nutzer 08.10. ~22:30):
+  - Komfort-Einstellungen einstellbar: Rand-Abdunkeln (Vignette) an/aus + Stärke, Drehen in Schritten oder flüssig, Schrittwinkel, Sitzend/Stehend, Haupthand.
+  - Alle Einstellungen des PCs gelten auch in VR. Ein Menü in der Brille mit den wichtigsten Schaltern; das volle Einstellungsmenü in der Brille kommt später.
+  - VR-Steuerung wie in gängigen VR-Shootern, frei belegbar über das vorhandene Tastenbelegungs-System.
+  - Körperhaltung echt: Ducken/Hinlegen über die echte Kopfhöhe, Lehnen über die Kopfbewegung.
+  - Andere sehen die VR-Bewegungen: Kopf, Zielrichtung der Hand, Lehnen; Arme/Hände, so weit die Puppen-Animation es erlaubt.
+  - Geräte-Symbol (PC/Handy/VR) in der Anzeigetafel.
+- LEICHEN (Nutzer): sollen liegen bleiben; Verschwinden optional (Einstellung, Standard „bleiben liegen“). Leistungsschutz: Obergrenze je Grafikstufe, die ältesten verschwinden erst ab der Grenze, eingefrorene Leichen ohne Animationskosten. Gag: VR-Spieler können sich tot stellen.
