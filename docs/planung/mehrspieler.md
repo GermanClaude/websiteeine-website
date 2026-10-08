@@ -147,7 +147,10 @@ pro Spielerzahl n ≈ 20 Hz × (n−1) × n × 40 Byte. Anzeige: „Empfehlung: 
 
 Stand der Synchronisation (Host ↔ Clients) – Code in `net/sync-host.js`, `net/sync-client.js`, `net/sync-common.js`;
 Anschlüsse in `main.js`, `combat.js`, `modes/*`, `weapons/*`, `engine/physics.js`, `ui/endscreen.js`.
-Ende-zu-Ende-Prüfung: `node tools/mp-test.mjs` (Host + 2 Clients, lokales Relay, SwiftShader).
+Ende-zu-Ende-Prüfung: `node tools/mp-test.mjs` (Host + 2 Clients, lokales Relay, SwiftShader; 61 Prüfungen: Beitritt,
+Puppen/Positionen, Schuss-/Granaten-/Messertreffer, Schaden/Tod/Respawn, Sturz, Anti-Cheat-Teleport, Austritt + Bot-Auffüllen,
+Matchende, Herrschaft-Ziele, Einstieg ins laufende Match, Kick, Host-Abbruch, Marke bestätigen, FFA-Wertung, Online-Pause,
+verborgener Host-Tab; ≈ 13 min).
 
 **main.js**
 - `MODULES`: `net` (NetSystem), `netHost` (HostSync), `netClient` (ClientSync) – alle optional; fehlt `net`, bleibt `G.net = null`
@@ -161,6 +164,8 @@ Ende-zu-Ende-Prüfung: `node tools/mp-test.mjs` (Host + 2 Clients, lokales Relay
 - Bild: `G.net.preUpdate` nach Eingabe/Pausenprüfung, vor Spieler/Bots; `G.net.postUpdate` nach den Respawns. Respawns nur
   auf dem Host. **Pause online**: Zustand 'paused' (Menü, Eingabe aus), die Simulation läuft weiter (`G.match.netLive`; Bots,
   Modus, Respawns, Countdown). Client-Countdown wartet am Ende, bis der Host 'playing' meldet (höchstens 15 s).
+  **Host-Tab verborgen**: rAF ruht → ein Worker-Zeitgeber (20 Hz) ruft `frame(now, bg=true)` (Simulation ohne Zeichnen),
+  solange der Host verborgen in einem Online-Match ist (`updateBackgroundTicker`, bei Sichtbarkeit/Zustandswechsel).
 - `spawnActor(actor, fixed)`: fester Ort (Client-Spawn vom Host); Host ruft vorher `sync.beforeSpawn` (gemeldete Ausrüstung).
   `deploy()` auf Clients wirkungslos (Host setzt ein). `endMatch` → `G.net.onMatchEnd(result)`; `teardownMatch` →
   `G.net.onTeardown()` zuerst. **Verlassen bei Sitzungsverlust** gehört der Oberfläche (net-menus ruft `onQuit` nach
@@ -208,7 +213,7 @@ Fahrzeugsystem eigene Spur gegen Welt + Akteure – vorher flogen Raketen online
 Reserveplatten] für den getroffenen Client, 'ev' `ap` nach Plattenaufnahme/-einsatz. Der Client meldet sein Platteneinsetzen
 ('plate' {chain} bzw. {cancel}), der Host setzt die Platte an der Puppe ein.
 
-**Offen (Stufe 1 → 2)**: Host-Tab im Hintergrund hält das Spiel an (rAF ruht; nur 'host-away'); Respawn-Halt/„Einsatz“ der
+**Offen (Stufe 1 → 2)**: Respawn-Halt/„Einsatz“ der
 Clients wirkt nicht (Host setzt nach der Wartezeit ein); eine beim Tod gezogene Granate eines Clients fällt nicht (die Puppe
 ist beim Host schon tot); Streuungs-/Rückstoß-Zufall nicht synchron (Treffer zählen so, wie der Schütze sie sieht, Prüfung
 durch den Anti-Cheat); Teamwechsel im laufenden Match gilt erst im nächsten Match; Bots fügen sich beim Einstieg sofort ein,

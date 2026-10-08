@@ -340,6 +340,16 @@ try {
   check(!!fallHp, `Sturzschaden über den Host: Bert ${fallBefore} → ${fallHp} LP`);
 
   // ================================================================== Anti-Cheat: Teleport 20 m
+  // Berts Puppe währenddessen unverwundbar (sonst kann ein Bot ihn mitten in der Prüfung abschießen → neuer Spawn-Anker)
+  await ev(host, (bId) => {
+    const N = window.__game.net;
+    const a = N.actorById(bId);
+    if (a) a.invulnerable = true;
+    window.__ac = [];
+    const orig = N.checkState.bind(N);
+    N.checkState = (pid, st, ctx) => { const r = orig(pid, st, ctx); if (pid === bId) window.__ac.push(`${N.serverTime().toFixed(1)} ${st.x.toFixed(1)},${st.z.toFixed(1)} f${st.flags} lebt ${ctx.alive} → ${r.reason}`); return r; };
+  }, B);
+  await sleep(1500);
   const origin = (await view(c2)).pos;
   // 20 m Richtung Kartenmitte (am Rand würde die Kartengrenze den Sprung kürzen)
   const jumped = await ev(c2, () => {
@@ -359,7 +369,11 @@ try {
   const acLog = await ev(host, (bId) => window.__game.net.anticheat.log.filter((l) => l.peer === bId).map((l) => l.reason), B);
   check(!!corrected && d3(back, origin) < 3, `Teleport 20 m → 'correct' vom Host, Bert zurück (${d3(back, origin).toFixed(1)} m vom Ausgangspunkt), Protokoll: ${acLog.join(', ')}`);
   const bertHost2 = await ev(host, (bId) => { const a = window.__game.net.actorById(bId); return a ? [a.position.x, a.position.y, a.position.z] : null; }, B);
-  check(!!bertHost2 && d3(bertHost2, origin) < 3, `Host: Berts Puppe ist nicht mitgesprungen (${bertHost2 ? d3(bertHost2, origin).toFixed(1) : '–'} m)`);
+  if (!check(!!bertHost2 && d3(bertHost2, origin) < 3, `Host: Berts Puppe ist nicht mitgesprungen (${bertHost2 ? d3(bertHost2, origin).toFixed(1) : '–'} m)`)) {
+    info(`Anti-Cheat-Verlauf: ${(await ev(host, () => window.__ac.slice(-12))).join(' | ')}`);
+    info(`Bert-Ereignisse: ${JSON.stringify(await ev(c2, () => ({ kills: window.__mp.kills.slice(-3), spawns: window.__mp.spawns.slice(-3) })))}`);
+  }
+  await ev(host, (bId) => { const a = window.__game.net.actorById(bId); if (a) a.invulnerable = false; }, B);
 
   // ================================================================== Bert verlässt das Match
   const botsBefore = await ev(host, () => window.__game.bots.bots.filter((b) => !b.isRemoteHuman).length);
