@@ -114,6 +114,25 @@ const view = (p) => ev(p, () => {
   };
 });
 const d3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+/**
+ * Seite „verbergen“ wie ein echter Hintergrund-Tab: document.hidden + visibilitychange, und requestAnimationFrame ruht
+ * (Rückrufe werden gehalten und beim Zeigen nachgereicht) – sonst zeichnet Headless-Chromium einfach weiter.
+ */
+const hidePage = (p, on) => ev(p, (h) => {
+  if (h && !window.__rafOrig) {
+    window.__rafOrig = window.requestAnimationFrame;
+    window.__rafHeld = [];
+    window.requestAnimationFrame = (cb) => { window.__rafHeld.push(cb); return 0; };
+  }
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') });
+  document.dispatchEvent(new Event('visibilitychange'));
+  if (!h && window.__rafOrig) {
+    window.requestAnimationFrame = window.__rafOrig;
+    window.__rafOrig = null;
+    for (const cb of window.__rafHeld.splice(0)) window.requestAnimationFrame(cb);
+  }
+}, on);
 
 // SwiftShader teilt sich einen GPU-Prozess: unter Last zeichnet eine Seite zeitweise nur 0,1–0,2 Bilder/s, der Countdown
 // zählt aber höchstens 0,25 s je Bild (Echtzeit) – daher großzügig warten
@@ -215,11 +234,7 @@ try {
   const glideId = glideInfo && glideInfo.id;
   // Host-Tab „verborgen“: der Hintergrund-Takt simuliert mit bis zu 20 Hz ohne Zeichnen – Schnappschüsse in echter Rate
   // (SwiftShader zeichnet sonst nur ~1 Bild/s, dann gibt es auch nur ~1 Schnappschuss/s)
-  const hideHost = (on) => ev(host, (h) => {
-    Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
-    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') });
-    document.dispatchEvent(new Event('visibilitychange'));
-  }, on);
+  const hideHost = (on) => hidePage(host, on);
   if (glideId) await hideHost(true);
   await sleep(1500);
   const glideF0 = await ev(host, () => [window.__game.time.frame, performance.now()]);
@@ -660,17 +675,13 @@ try {
     const b2 = await until(c2, (b) => window.__game.mode.timeLeft < b - 0.05 && window.__game.mode.timeLeft, b1, 15000);
     check(p1.st === 'paused' && p1.live && p2.el > p1.el && p2.tl < p1.tl && !!b2, `Online-Pause beim Host: Menü offen, Zeit läuft weiter (Host ${p1.tl.toFixed(1)} → ${p2.tl.toFixed(1)} s, Bert ${b1.toFixed(1)} → ${b2 && b2.toFixed(1)} s)`);
     // Host-Tab verborgen: Bilder über den Worker-Takt (rAF ruht in echten Browsern)
-    const hide = (on) => ev(host, (h) => {
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
-      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') });
-      document.dispatchEvent(new Event('visibilitychange'));
-    }, on);
+    const hide = (on) => hidePage(host, on);
     await hide(true);
     const h1 = await snap();
     await sleep(4000);
     const h2 = await snap();
     await hide(false);
-    check(h2.fr - h1.fr >= 20 && h2.el > h1.el, `verborgener Host-Tab: Hintergrund-Takt simuliert weiter (${h2.fr - h1.fr} Bilder in 4 s)`);
+    check(h2.fr - h1.fr >= 12 && h2.el > h1.el, `verborgener Host-Tab (rAF ruht): Hintergrund-Takt simuliert weiter (${h2.fr - h1.fr} Bilder in 4 s)`);
     await ev(host, () => window.__game.debugApi.endMatch());
     const ffaEnd = await until(c2, () => { const r = window.__game.lastResult; return window.__game.match.state === 'ended' && r && { winner: r.winner, placement: r.placement, won: r.playerWon, me: r.scoreboard.filter((x) => x.isPlayer).length }; }, null, 60000);
     // Sieger-Id aus Sicht des Clients: Host-Spieler → net_1, Berts Puppe → player, Bots unverändert
