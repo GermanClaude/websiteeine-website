@@ -10,6 +10,7 @@ export const BED_RATE = { harbor: 16000, desert: 22050, industrial: 16000, range
 export const EVENT_RATE = {
   amb_gull: 22050, amb_horn: 16000, amb_creak: 16000, amb_clank: 16000, amb_dog: 16000, amb_chime: 24000, amb_flap: 22050, amb_moped: 16000,
   amb_drip: 16000, amb_steam: 32000, amb_groan: 16000, amb_arc: 32000, amb_bird: 22050, amb_crow: 16000, amb_pa: 16000, loop_drone: 24000,
+  amb_bell: 22050,
 };
 export const MAP_AMBIENCE = { hafen: 'harbor', altstadt: 'desert', werk: 'industrial', range: 'range', grenzland: 'range' };
 
@@ -204,6 +205,22 @@ export const AMB_EVENTS = {
       modal(d, sr, R.range(0, 1.4), [[f, 1, 0.9], [f * 2.76, 0.4, 0.4], [f * 5.4, 0.2, 0.2]], R.range(0.3, 0.7), R);
     }
     return normalize(d, 0.6);
+  },
+  // Kirchenglocke (Bronze, ≈ 1,6 m, Altstadt: Stundenschlag/Geläut aus world/maps/altstadt-glocke.js, nicht zufällig
+  // gestreut): Teiltöne einer Moll-Terz-Glocke – Summton (Unteroktave), Prime, kleine Terz, Quinte, Nominal (Oktave,
+  // bestimmt den Schlagton), darüber Dezime, Undezime, Duodezime, Doppeloktave. Jeder Teilton als Doppel (Schwebung
+  // durch die Unrundheit des Gusses), tiefe lange, hohe kurz; dazu der Anschlag des Klöppels und Widerhall vom Platz.
+  amb_bell: (sr, R) => {
+    const T = 6.5, d = buf(sr, T), f1 = 164;
+    for (const [r, a, tau] of [[0.5, 0.5, 4.2], [1, 0.42, 2.8], [1.19, 0.55, 2.4], [1.5, 0.18, 1.5], [2, 0.7, 2.0], [2.51, 0.26, 1.1], [2.67, 0.16, 0.9], [3.01, 0.2, 0.7], [4.03, 0.11, 0.45], [5.08, 0.06, 0.25]]) {
+      const f = f1 * r * (1 + R.bi() * 0.002), beat = R.range(0.3, 1.3);
+      modal(d, sr, 0.003, [[f, a * 0.62, tau], [f + beat, a * 0.38, tau * 0.92]], 1, R, T);
+    }
+    burst(d, sr, 0, { dur: 0.05, type: 'bandpass', freq: 2600, q: 0.9, envFn: ad(0.0008, 0.012), R, amp: 0.45 });
+    modal(d, sr, 0, metalModes(R.range(1700, 1900), R, { count: 5, decay: 0.05, spread: 0.06, ratios: [1, 1.63, 2.42, 3.3, 4.6] }), 0.22, R);
+    env(d, sr, t => (t > T - 1.2 ? ((T - t) / 1.2) ** 2 : 1));
+    const e = echoes(d, sr, [[0.13, 0.22, 1800], [0.29, 0.12, 1200], [0.52, 0.06, 900]]);
+    return normalize(reverb(e, sr, { size: 1.5, decay: 0.8, wet: 0.16, dry: 1, extra: 0.5, stereo: false })[0], 0.85);
   },
   amb_flap: (sr, R) => {
     const d = buf(sr, 1.2);

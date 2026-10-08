@@ -8,7 +8,9 @@ import {
   frame, crate, crateStack, barrel, barrelGroup, pallet, sandbags, car, van, lampPost, acUnit, cable,
   bench, cafeTable, parasol, awning, marketStall, palm, tree, pot, laundry, electricBox, pipe, sphereGeom, lowSphereGeom, dumpster, chair, dress,
 } from '../props.js';
+import { createBell } from './altstadt-glocke.js';
 
+const SEED = 7311;
 const FH = 3.2;                       // Geschosshöhe
 const DIRV = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
 const PLASTER = ['#f7efe2', '#f2dfbb', '#ecc98f', '#f0cfae', '#eab796', '#f5e7c6', '#e3e6dc', '#f0d9a6', '#e8c2a2', '#f6ecd8', '#e9d0b0'];
@@ -18,7 +20,7 @@ const STONE = '#e3d6bd';
 
 export default {
   id: 'altstadt',
-  seed: 7311,
+  seed: SEED,
   // maps-expand: Ostviertel (x 46..69) – Spielfläche 92 × 104 → 115 × 104 m (+25 %)
   bounds: { minX: -46, maxX: 69, minZ: -52, maxZ: 52, minY: -2, maxY: 22 },
   visualBounds: { minX: -180, maxX: 180, minZ: -190, maxZ: 190 },
@@ -94,7 +96,7 @@ export default {
     // -----------------------------------------------------------------------
     plaza(b, ctx);
     church(b);
-    bellTower(b, 15, -13, 20, -8);
+    const bell = bellTower(b, 15, -13, 20, -8);
     loggia(b, 15, 8, 20, 13);
     torhaus(b);
     workshop(b);
@@ -126,6 +128,8 @@ export default {
       spawns,
       objectives: { dom: [{ id: 'A', x: -5, z: 29, radius: 5 }, { id: 'B', x: -7.5, z: 0, radius: 5.5 }, { id: 'C', x: -5, z: -29, radius: 5 }] },
       zones,
+      // Glocke: Stundenschlag (echte Uhrzeit) + Geläut nach der gemeinsamen Uhr (online Host-Zeit)
+      attach(world, G) { bell.attach(world, G); },
     };
   },
 };
@@ -190,6 +194,18 @@ function mirror(s) {
     lr: lr => (s > 0 ? lr : lr === 'left' ? 'right' : 'left'),
   };
 }
+/**
+ * Ergänzungen mit eigenem, festem Zufall (Saat): der Kartenzufall b.rand wird währenddessen ersetzt und danach
+ * wiederhergestellt → alles, was danach gebaut wird (Hausfarben, Läden, Pflanzen …), bleibt wie bisher.
+ * Deterministisch (auf allen Rechnern gleich), unabhängig von der Grafikstufe.
+ */
+function withRng(b, seed, fn) {
+  const keep = b.rand;
+  let s = (seed >>> 0) || 1;
+  b.rand = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  try { return fn(); } finally { b.rand = keep; }
+}
+
 /** Blickrichtung (ry) nach außen für eine Hausseite. */
 const SIDE_RY = { n: Math.PI, s: 0, e: Math.PI / 2, w: -Math.PI / 2 };
 
@@ -211,6 +227,8 @@ function mapOpening(M, op, shutter) {
   const side = M.side(op.side);
   const at = side === 'e' || side === 'w' ? op.at * M.s : op.at;
   const r = { ...op, side, at };
+  // Balkontür (Fenstertür): Fenster bis zum Boden, verglast/mit Läden → kein Durchgang (Glas/Läden kollidieren)
+  if (op.fd) { r.sill = 0.05; r.h = op.fdH ?? 2.2; }
   if (op.shutters === true) r.shutters = shutter;
   if (op.closed === true) r.closed = shutter;
   if (op.leaf && !op.leafTint) r.leafTint = shutter;
@@ -277,8 +295,11 @@ function house(b, M, o) {
   }
   const res = { B, x0, x1, z0, z1, x, z, w, d, roofY, color, shutter, fh };
   if (o.dress !== false) dressFacade(b, M, res, o);
-  // Balkone, Klimageräte, Kletterpflanzen
-  for (const bl of o.balconies || []) balcony(b, M, res, bl);
+  // Balkone, Klimageräte, Kletterpflanzen (neue Balkone mit eigenem Zufall: Farben/Plätze der übrigen Karte bleiben)
+  for (const bl of o.balconies || []) {
+    if (bl.extra) withRng(b, Math.imul(Math.round(x * 10) + 7, 73856093) ^ Math.imul(Math.round(z * 10) + 3, 19349663) ^ Math.imul(Math.round(bl.at * 10) + 11, 83492791), () => balcony(b, M, res, bl));
+    else balcony(b, M, res, bl);
+  }
   for (const a of o.ac || []) {
     const [px, pz, ry] = onWall(M, res, a.side, a.at, 0.21);
     acUnit(b, px, a.y ?? fh + 1.0, pz, { ry, pipe: a.pipe });
@@ -297,8 +318,10 @@ function dressFacade(b, M, h, o) {
   for (const op of o.open || []) {
     const fl = op.floor ?? 0;
     if (op.kind === 'window' && fl >= 1 && !op.closed && b.rand() < 0.45) {
-      const [px, pz, ry] = onWall(M, h, op.side, op.at, 0.14);
-      const y = fl * h.fh + (op.sill ?? 0.95) - 0.3;
+      // Balkontür: Blumenkasten außen am Balkongeländer statt an der Fensterbank (gleicher Zufallsverbrauch)
+      const bl = op.fd ? (o.balconies || []).find(q => q.side === op.side && q.at === op.at && (q.floor ?? 1) === fl) : null;
+      const [px, pz, ry] = onWall(M, h, op.side, op.at, bl ? (bl.d ?? 0.85) + 0.15 : 0.14);
+      const y = bl ? fl * h.fh + 0.7 : fl * h.fh + (op.sill ?? 0.95) - 0.3;
       const f = frame(b, px, y, pz, ry);
       f.box(0, 0, 0, op.w + 0.1, 0.22, 0.24, 'tiles_terracotta', { tint: '#c47a52', collide: false, minimap: false, grad: false, ao: false });
       const n = Math.max(2, Math.round(op.w / 0.32));
@@ -327,11 +350,22 @@ function onWall(M, h, side, at, off = 0.2) {
   return sd === 'e' ? [h.x1 + off, zz, ry] : [h.x0 - off, zz, ry];
 }
 
-/** Balkon vor einer Fenstertür im Obergeschoss. */
+/**
+ * Balkon vor einer Fenstertür im Obergeschoss. o: { side, at, floor, w, d, style: 'iron' (Steinplatte + Schmiedeeisen,
+ * Standard) | 'wood' (Holzbalkon auf Kragbalken mit Kopfbändern) | 'stone' (Steinplatte mit Docken-Balustrade),
+ * corbels (false: ohne Konsolen, z. B. über dem Torbogen), pots (false: ohne Töpfe), chair (Stuhl), extra (neu, eigener
+ * Zufall) }. Platte + Brüstung kollidieren (nicht durchlaufbar/-springbar), Geländerstäbe nur Optik + Kugeln.
+ */
 function balcony(b, M, h, o) {
   const fy = (o.floor ?? 1) * h.fh, w = o.w ?? 2.2, dep = o.d ?? 0.85;
   const [px, pz, ry] = onWall(M, h, o.side, o.at, 0);
   const f = frame(b, px, fy, pz, ry);
+  if (o.style === 'wood' || o.style === 'stone') {
+    (o.style === 'wood' ? woodBalcony : stoneBalcony)(b, f, w, dep, o);
+    if (o.pots !== false) { const [qx, qz] = f.P(-w / 2 + 0.35, dep - 0.32); pot(b, qx, fy, qz, { r: 0.2, h: 0.32, collide: false, plant: b.rand() < 0.5 ? 'flowers' : 'bush', s: 0.45 }); }
+    if (o.chair) { const [qx, qz] = f.P(w / 2 - 0.42, 0.42); chair(b, qx, qz, { y: fy, ry: ry - 0.5, tint: o.chair === true ? '#2f6f9a' : o.chair, model: true }); }
+    return;
+  }
   f.box(0, -0.16, dep / 2, w, 0.16, dep, 'stone_wall', { tint: STONE, collide: true, minimap: false, grad: false });
   for (const sx of [-w / 2 + 0.2, w / 2 - 0.2]) f.box(sx, -0.42, 0.2, 0.12, 0.26, 0.4, 'stone_wall', { tint: STONE, collide: false, minimap: false, grad: false });
   // schmiedeeisernes Geländer
@@ -341,7 +375,56 @@ function balcony(b, M, h, o) {
   f.box(0, 0.95, dep - 0.05, w, 0.04, 0.05, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
   for (const sx of [-w / 2 + 0.04, w / 2 - 0.04]) f.box(sx, 0.95, dep / 2, 0.05, 0.04, dep, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
   f.solid(0, 0, dep - 0.05, w, 1.0, 0.06, { minimap: false, bullet: false });
-  if (o.pots !== false) for (const sx of [-w / 2 + 0.35, w / 2 - 0.35]) { const [qx, qz] = f.P(sx, dep - 0.3); pot(b, qx, fy, qz, { r: 0.2, h: 0.32, collide: false, plant: b.rand() < 0.5 ? 'flowers' : 'bush', s: 0.45 }); }
+  if (o.pots !== false) for (const sx of o.chair ? [-w / 2 + 0.35] : [-w / 2 + 0.35, w / 2 - 0.35]) { const [qx, qz] = f.P(sx, dep - 0.3); pot(b, qx, fy, qz, { r: 0.2, h: 0.32, collide: false, plant: b.rand() < 0.5 ? 'flowers' : 'bush', s: 0.45 }); }
+  if (o.chair) { const [qx, qz] = f.P(w / 2 - 0.42, 0.42); chair(b, qx, qz, { y: fy, ry: ry - 0.5, tint: o.chair === true ? '#2f6f9a' : o.chair, model: true }); }
+}
+
+/** Holzbalkon: Kragbalken mit sichtbaren Köpfen, Bohlenboden, Kopfbänder zur Wand, Brettergeländer mit Handlauf. */
+function woodBalcony(b, f, w, dep, o) {
+  const V = { collide: false, minimap: false, grad: false };
+  const beam = '#5a3f2b', wood = o.tint || '#86603e';
+  for (const sx of [-w / 2 + 0.1, 0, w / 2 - 0.1]) f.box(sx, -0.3, (dep + 0.12) / 2, 0.12, 0.17, dep + 0.12, 'wood_dark', { tint: beam, ...V });
+  f.box(0, -0.13, dep / 2, w, 0.13, dep, 'wood_planks', { tint: '#a07c56', collide: true, minimap: false, grad: false });
+  for (const sx of [-w / 2 + 0.1, w / 2 - 0.1]) f.box(sx, -1.0, 0.04, 0.08, 0.9, 0.08, 'wood_dark', { tint: beam, ...V, rx: 0.68 });
+  // Pfosten, Handlauf, Fußleiste, Bretter (vorn + seitlich)
+  for (const sx of [-w / 2 + 0.04, w / 2 - 0.04]) f.box(sx, 0, dep - 0.04, 0.08, 1.0, 0.08, 'wood_dark', { tint: beam, ...V });
+  f.box(0, 0.94, dep - 0.04, w, 0.06, 0.11, 'wood_planks', { tint: wood, ...V });
+  for (const sx of [-w / 2 + 0.04, w / 2 - 0.04]) f.box(sx, 0.94, dep / 2, 0.1, 0.06, dep, 'wood_planks', { tint: wood, ...V });
+  f.box(0, 0.06, dep - 0.04, w, 0.06, 0.06, 'wood_planks', { tint: wood, ...V });
+  const n = Math.round((w - 0.16) / 0.15);
+  for (let i = 0; i < n; i++) f.box(-w / 2 + 0.08 + (i + 0.5) * (w - 0.16) / n, 0.12, dep - 0.04, 0.075, 0.82, 0.022, 'wood_planks', { tint: wood, ...V, ao: false });
+  const ns = Math.max(2, Math.round((dep - 0.12) / 0.15));
+  for (let i = 0; i < ns; i++) for (const sx of [-w / 2 + 0.04, w / 2 - 0.04]) f.box(sx, 0.06, 0.04 + (i + 0.5) * (dep - 0.12) / ns, 0.022, 0.88, 0.075, 'wood_planks', { tint: wood, ...V, ao: false });
+  f.solid(0, 0, dep - 0.04, w, 1.0, 0.08, { minimap: false, bullet: false });
+}
+
+/** Steinbalkon: Platte mit Profilkante (+ Konsolen), Eckpfeiler, Docken-Balustrade, breiter Handlauf. */
+function stoneBalcony(b, f, w, dep, o) {
+  const V = { collide: false, minimap: false, grad: false }, dark = '#d2c4a6', rail = dep - 0.09;
+  f.box(0, -0.22, dep / 2, w, 0.22, dep, 'stone_wall', { tint: STONE, collide: true, minimap: false, grad: false });
+  f.box(0, -0.28, dep / 2 - 0.03, w - 0.12, 0.06, dep - 0.06, 'stone_wall', { tint: dark, ...V });
+  if (o.corbels !== false) for (const sx of [-w / 2 + 0.28, w / 2 - 0.28]) {
+    f.box(sx, -0.72, 0.16, 0.2, 0.44, 0.32, 'stone_wall', { tint: dark, ...V });
+    f.box(sx, -0.48, 0.42, 0.2, 0.2, 0.22, 'stone_wall', { tint: dark, ...V });
+  }
+  // Sockelleiste, Eckpfeiler, Handlauf (vorn + seitlich)
+  f.box(0, 0, rail, w, 0.1, 0.18, 'stone_wall', { tint: STONE, ...V });
+  for (const sx of [-1, 1]) {
+    f.box(sx * (w / 2 - 0.09), 0, dep / 2, 0.18, 0.1, dep, 'stone_wall', { tint: STONE, ...V });
+    f.box(sx * (w / 2 - 0.1), 0.1, rail, 0.2, 0.76, 0.2, 'stone_wall', { tint: STONE, ...V });
+    f.box(sx * (w / 2 - 0.09), 0.86, dep / 2, 0.22, 0.12, dep, 'stone_wall', { tint: STONE, ...V });
+  }
+  f.box(0, 0.86, rail, w + 0.04, 0.12, 0.22, 'stone_wall', { tint: STONE, ...V });
+  // Docken: zwei Kegelstümpfe (Bauch in der Mitte)
+  const dock = (lx, lz) => {
+    f.cyl(lx, 0.1, lz, 0.045, 0.38, 'stone_wall', { r1: 0.075, seg: 8, caps: false, tint: '#e9dec8', ...V, ao: false });
+    f.cyl(lx, 0.48, lz, 0.075, 0.38, 'stone_wall', { r1: 0.045, seg: 8, caps: false, tint: '#e9dec8', ...V, ao: false });
+  };
+  const nb = Math.max(3, Math.round((w - 0.4) / 0.21));
+  for (let i = 0; i < nb; i++) dock(-w / 2 + 0.2 + (i + 0.5) * (w - 0.4) / nb, rail);
+  const ns = Math.max(1, Math.round((dep - 0.3) / 0.21));
+  for (let i = 0; i < ns; i++) for (const sx of [-1, 1]) dock(sx * (w / 2 - 0.09), 0.06 + (i + 0.5) * (dep - 0.3) / ns);
+  f.solid(0, 0, rail, w, 1.0, 0.2, { minimap: false, bullet: false });
 }
 
 /** Außentreppe (gemauert) mit Podest bis Dach-/Geschosshöhe. */
@@ -709,10 +792,9 @@ function bellTower(b, x0, z0, x1, z1) {
     b.box(ax, y, az, ry ? 0.6 : span, 0.9, ry ? span : 0.6, mat, { tint: dark, collide: false, minimap: false, grad: false });
   }
   b.boxMM(x0 + 0.3, y, z0 + 0.3, x1 - 0.3, y + 0.1, z1 - 0.3, 'wood_dark', { tint: '#5a4030', collide: false, minimap: false, grad: false });
-  // Glocke
-  b.box(x, y + BH - 0.5, z, 3.0, 0.22, 0.22, 'wood_dark', { tint: '#4a3426', collide: false, minimap: false, grad: false });
-  b.cyl(x, y + 1.35, z, 0.75, 1.5, 'metal_painted', { r1: 0.4, tint: '#9a7a3a', seg: 16, collide: false, minimap: false });
-  b.cyl(x, y + 1.25, z, 0.82, 0.14, 'metal_painted', { tint: '#8a6a2a', seg: 16, collide: false, minimap: false });
+  // Glocke im Glockenstuhl: schwingt beim Stundenschlag (echte Uhrzeit) und beim Geläut (gemeinsame Uhr), Turmuhr-
+  // Zeiger zeigen die echte Uhrzeit (altstadt-glocke.js)
+  const bell = createBell(b, { x, z, pivotY: y + BH - 0.45, floorY: y + 0.1, seed: SEED, faces: [[x0 - 0.06, 13.9, z, -Math.PI / 2], [x, 13.9, z1 + 0.06, 0]] });
   // Dach: Pyramide + Kreuzblume
   b.boxMM(x0 - 0.25, y + BH, z0 - 0.25, x1 + 0.25, y + BH + 0.35, z1 + 0.25, mat, { tint: dark, collide: false, minimap: false, grad: false });
   b.cyl(x, y + BH + 0.35, z, (w / 2 + 0.2) * Math.SQRT2, 4.2, 'roof_tiles', { r1: 0.05, seg: 4, ry: Math.PI / 4, tint: '#c27154', collide: false, minimap: false, uv: 'keep' });
@@ -720,6 +802,7 @@ function bellTower(b, x0, z0, x1, z1) {
   b.cyl(x, y + BH + 4.6, z, 0.03, 1.1, 'metal_painted', { tint: '#b08a3a', seg: 5, collide: false, minimap: false, ao: false });
   b.noNav(x0 - 0.5, z0 - 0.5, x1 + 0.5, z1 + 0.5, 3.0, 40);
   b.navPoint(x0 - 1.0, 0.2, z); b.navPoint(x, 0.2, z); b.navPoint(x1 + 1.0, 0.2, z);
+  return bell;
 }
 
 function clockFace(b, x, y, z, ry) {
@@ -730,9 +813,8 @@ function clockFace(b, x, y, z, ry) {
     const a = (i / 12) * Math.PI * 2;
     f.box(Math.sin(a) * 0.7, Math.cos(a) * 0.7 - 0.06, 0.1, 0.05, 0.12, 0.01, 'black', { rz: -a, collide: false, minimap: false, ao: false, grad: false });
   }
-  // Zeiger: 12:10 Uhr (Mittag)
-  f.box(0.05, -0.02, 0.11, 0.06, 0.6, 0.015, 'black', { rz: -0.1, collide: false, minimap: false, ao: false, grad: false });
-  f.box(0.1, -0.02, 0.12, 0.05, 0.45, 0.015, 'black', { rz: -1.05, collide: false, minimap: false, ao: false, grad: false });
+  // Zeiger beweglich (echte Uhrzeit, altstadt-glocke.js) – hier nur die Achskappe
+  f.cyl(0, 0, 0.13, 0.045, 0.03, 'metal_painted', { axis: 'z', tint: '#2b2d30', collide: false, minimap: false, seg: 8, ao: false });
 }
 
 // ---------------------------------------------------------------------------
@@ -776,7 +858,7 @@ function torhaus(b) {
       { side: 'e', at: -4.6, w: 1.1, h: 1.3, kind: 'window', sill: 1.2, bars: true },
       { side: 'e', at: 4.6, w: 1.1, h: 1.3, kind: 'window', sill: 1.2, closed: true },
       { side: 'w', at: -3.8, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true },
-      { side: 'w', at: 0, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, closed: true },
+      { side: 'w', at: 0, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, closed: true, fd: true },
       { side: 'w', at: 3.8, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true },
       { side: 'e', at: -3.8, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true },
       { side: 'e', at: 0, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true },
@@ -784,6 +866,8 @@ function torhaus(b) {
       { side: 'n', at: 0, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, closed: true },
       { side: 's', at: 0, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, closed: true },
     ],
+    // Steinbalkon über dem Torbogen zur Marktgasse (ohne Konsolen: liegt auf dem Bogenscheitel)
+    balconies: [{ side: 'w', at: 0, floor: 1, w: 2.6, d: 0.85, style: 'stone', corbels: false, extra: true }],
   });
   // Durchgangswände + Gewölbe
   for (const zz of [-2.08, 2.08]) wall(b, { x0: x0 + 0.3, z0: zz, x1: x1 - 0.3, z1: zz, y: 0.12, h: 3.13, t: 0.16, mat: 'plaster_warm', tint: '#dcc6a0', minimap: false });
@@ -868,6 +952,7 @@ function half(b, M) {
       { side: 'e', at: -2, w: 2.4, h: 2.4, kind: 'window', sill: 0.3, closed: '#8a8f94' },
       { side: 'e', at: 2.4, w: 1.1, h: 2.3, kind: 'door', leaf: 'closed' },
       ...[-2.4, 2.4].flatMap(at => [1, 2].map(fl => ({ side: 'e', at, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: fl, shutters: b.rand() < 0.6 || undefined, closed: b.rand() < 0.4 || undefined, glass: true }))),
+      { side: 'e', at: 0, w: 1.1, h: 1.6, kind: 'window', floor: 1, closed: true, fd: true },
     ],
     balconies: [{ side: 'e', at: 0, floor: 1, w: 2.4 }],
   });
@@ -876,8 +961,9 @@ function half(b, M) {
     x0: -46, x1: -38, z0: 0.0, z1: 7, floors: 3, closed: true, roof: 'pitched', ridge: 'z', fh: 3.3,
     open: [
       { side: 'e', at: 0, w: 1.2, h: 2.3, kind: 'door', leaf: 'closed' },
-      ...[1, 2].map(fl => ({ side: 'e', at: 0, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: fl, shutters: true, glass: true })),
+      ...[1, 2].map(fl => ({ side: 'e', at: 0, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: fl, shutters: true, glass: true, fd: fl === 1 || undefined })),
     ],
+    balconies: [{ side: 'e', at: 0, floor: 1, w: 2.0, style: 'iron', extra: true, chair: south ? '#c8402f' : undefined }],
   });
   // Laden (begehbar) mit Hinterzimmer
   const shop = house(b, M, {
@@ -885,10 +971,11 @@ function half(b, M) {
     open: [
       { side: 'e', at: 1.5, w: 2.6, h: 2.5, kind: 'door', frame: true },
       { side: 'e', at: -3.0, w: 2.0, h: 1.5, kind: 'window', sill: 0.9 },
-      { side: 'e', at: -2.5, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true },
+      { side: 'e', at: -2.5, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true, fd: true },
       { side: 'e', at: 2.6, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, closed: true },
     ],
     ac: [{ side: 'e', at: 0.2, y: 4.6 }],
+    balconies: [{ side: 'e', at: -2.5, floor: 1, w: 1.8, d: 0.8, style: 'wood', extra: true, tint: south ? '#86603e' : '#3c6a5a' }],
   });
   wall(b, { x0: -42.4, z0: Z(16.3), x1: -42.4, z1: Z(27.7), y: 0.12, h: 2.85, t: 0.14, mat: 'plaster_white', tint: shop.color, minimap: false, openings: [{ at: 5.7, w: 1.0, h: 2.1, kind: 'door' }] });
   shopInterior(b, M, south ? 'spice' : 'tex');
@@ -899,7 +986,7 @@ function half(b, M) {
     open: [
       { side: 'e', at: -3.5, w: 1.2, h: 2.3, kind: 'door', leaf: 'closed' },
       { side: 'e', at: 2.5, w: 2.6, h: 2.4, kind: 'window', sill: 0.3, closed: '#7a5a3a' },
-      ...[-4, 0, 4].flatMap(at => [1, 2].map(fl => ({ side: 'e', at, w: 1.0, h: 1.5, kind: 'window', sill: 0.95, floor: fl, shutters: b.rand() < 0.7 || undefined, glass: true, closed: b.rand() < 0.3 || undefined }))),
+      ...[-4, 0, 4].flatMap(at => [1, 2].map(fl => ({ side: 'e', at, w: 1.0, h: 1.5, kind: 'window', sill: 0.95, floor: fl, shutters: b.rand() < 0.7 || undefined, glass: true, closed: b.rand() < 0.3 || undefined, fd: (at === 4 && fl === 2) || undefined }))),
     ],
     balconies: [{ side: 'e', at: 4, floor: 2, w: 1.8 }],
     vines: [{ side: 'e', at: -5.6, n: 4 }],
@@ -972,13 +1059,14 @@ function half(b, M) {
       { side: 'e', at: -1.0, w: 1.2, h: 2.3, kind: 'door' },
       { side: 'w', at: 2.0, w: 1.1, h: 1.4, kind: 'window', sill: 1.0, shutters: true, glass: true },
       { side: 'w', at: -3.0, w: 1.1, h: 2.3, kind: 'door', leaf: 'closed' },
-      { side: 'w', at: -2.6, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true },
+      { side: 'w', at: -2.6, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true, fd: true },
       { side: 'w', at: 2.4, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, closed: true },
       { side: 'e', at: 2.6, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true },
       { side: 'n', at: -2.5, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, closed: true },
     ],
     gaps: [{ side: 's', a: -26.95, b: -25.7 }],
     vines: [{ side: 'w', at: 4.6, n: 3 }],
+    balconies: [{ side: 'w', at: -2.6, floor: 1, w: 1.8, style: 'iron', extra: true }],
   });
   // Erdgeschoss WM2: Lagerraum mit Kisten (Deckung)
   crateStack(b, -24.6, Z(26.0), { y: 0.12, ry: 0.15 });
@@ -1002,7 +1090,7 @@ function half(b, M) {
       { side: 'n', at: 2.2, w: 2.4, h: 1.6, kind: 'window', sill: 0.85 },
       { side: 'e', at: 2.6, w: 1.4, h: 2.4, kind: 'door' },
       { side: 's', at: -2.8, w: 1.2, h: 2.3, kind: 'door' },
-      ...[-3.2, 0, 3.2].map(at => ({ side: 'n', at, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true })),
+      ...[-3.2, 0, 3.2].map(at => ({ side: 'n', at, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true, fd: at === 0 || undefined })),
       { side: 'e', at: -2.5, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, closed: true },
       { side: 's', at: 2.0, w: 1.1, h: 1.6, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true },
     ],
@@ -1031,20 +1119,22 @@ function half(b, M) {
       { side: 'n', at: -1.5, w: 1.2, h: 2.2, kind: 'door', leaf: 'closed' },
       { side: 'n', at: 2.5, w: 1.1, h: 1.3, kind: 'window', sill: 1.0, bars: true },
       { side: 's', at: 0, w: 1.1, h: 1.3, kind: 'window', sill: 1.0, closed: true },
-      ...[-2.5, 2.5].map(at => ({ side: 'n', at, w: 1.0, h: 1.5, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true })),
+      ...[-2.5, 2.5].map(at => ({ side: 'n', at, w: 1.0, h: 1.5, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true, fd: at > 0 || undefined })),
       ...[-2.5, 2.5].map(at => ({ side: 's', at, w: 1.0, h: 1.5, kind: 'window', sill: 0.9, floor: 1, closed: true })),
     ],
     vines: [{ side: 'n', at: 4.2, n: 3 }],
+    balconies: [{ side: 'n', at: 2.5, floor: 1, w: 1.8, style: 'wood', extra: true, tint: south ? '#6a4a32' : '#2f5f7a', chair: true }],
   });
   house(b, M, {
     x0: 6, x1: 15, z0: 34, z1: 42, floors: 2, closed: true, roof: 'flat', fh: 3.0,
     open: [
       { side: 'n', at: 1.5, w: 1.2, h: 2.2, kind: 'door', leaf: 'closed' },
       { side: 'w', at: 0, w: 2.4, h: 2.3, kind: 'window', sill: 0.3, closed: '#6f7a80' },
-      ...[-2.2, 2.2].map(at => ({ side: 'n', at, w: 1.0, h: 1.5, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true })),
+      ...[-2.2, 2.2].map(at => ({ side: 'n', at, w: 1.0, h: 1.5, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true, fd: at < 0 || undefined })),
       { side: 'w', at: 0, w: 1.0, h: 1.5, kind: 'window', sill: 0.9, floor: 1, shutters: true, glass: true },
     ],
     ac: [{ side: 'w', at: 2.6, y: 3.9 }],
+    balconies: [{ side: 'n', at: -2.2, floor: 1, w: 1.8, style: 'iron', extra: true }],
   });
   // Platz A / C (x −16..15, z 24..34): Deckung rund um die Flagge
   squareCover(b, M, south);
@@ -1184,7 +1274,10 @@ function half(b, M) {
   // ===== Startbereich + Stadtmauer ===========================================
   cityWall(b, M);
   spawnDeco(b, M);
-  eastBlock(b, M);   // maps-expand: Ostviertel (Gasse, Eckhaus, Hof, Dachhaus, Hintergasse)
+  const h2 = eastBlock(b, M);   // maps-expand: Ostviertel (Gasse, Eckhaus, Hof, Dachhaus, Hintergasse)
+
+  // ===== Grills auf den Dachterrassen (eigener Zufall: die übrige Karte bleibt unverändert) =====================
+  withRng(b, 0x6a11 + (south ? 1 : 2), () => roofGrills(b, M, { wm2, em2, ep2, h2 }));
 }
 
 /** Kleiner Palettenstapel mit Säcken (für Innenräume). */
@@ -1208,6 +1301,86 @@ function terraceDeco(b, M, h, o) {
   const ax = h.x0 + 0.8, az = h.z0 + 0.8;
   b.cyl(ax, y, az, 0.025, 2.2, 'metal_galvanized', { seg: 5, collide: false, minimap: false, ao: false });
   b.box(ax, y + 1.9, az, 1.0, 0.03, 0.03, 'metal_galvanized', { collide: false, minimap: false, ao: false, ry: 0.4 });
+}
+
+// --- Grills auf den Dachterrassen --------------------------------------------------
+const grillGeo = {};
+/** Kugelgrill-Schale (untere Halbkugel) und Deckel (flache Kuppel), einmal erzeugt. */
+function kettleGeoms() {
+  if (!grillGeo.bowl) {
+    grillGeo.bowl = new THREE.SphereGeometry(0.3, 12, 4, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+    grillGeo.lid = new THREE.SphereGeometry(0.305, 12, 4, 0, Math.PI * 2, 0, Math.PI / 2);
+  }
+  return grillGeo;
+}
+
+/** Kugelgrill (Holzkohle) auf drei Beinen mit Aschenteller, Deckel zu; Kollision als Quader (bewegt sich nicht). */
+function kettleGrill(b, x, y, z, ry, o = {}) {
+  const f = frame(b, x, y, z, ry), V = { collide: false, minimap: false, grad: false };
+  const col = o.color || '#1d1f22', H = 0.66, g = kettleGeoms();
+  f.geom(g.bowl, 0, H, 0, 'metal_painted', { ...V, tint: col, uv: 'world' });
+  f.geom(g.lid, 0, H + 0.004, 0, 'metal_painted', { ...V, tint: col, uv: 'world', sy: 0.82 });
+  f.cyl(0, H - 0.01, 0, 0.307, 0.025, 'metal_galvanized', { ...V, seg: 12, caps: false, ao: false });
+  f.cyl(0, H + 0.245, 0, 0.05, 0.02, 'metal_galvanized', { ...V, seg: 8, ao: false });
+  for (const sx of [-0.08, 0.08]) f.box(sx, H + 0.24, 0.0, 0.02, 0.06, 0.02, 'metal_galvanized', { ...V, ao: false });
+  f.box(0, H + 0.3, 0, 0.22, 0.035, 0.045, 'wood_dark', { ...V, tint: '#3a2a1e' });
+  f.box(0.31, H - 0.06, 0, 0.03, 0.03, 0.16, 'wood_dark', { ...V, tint: '#3a2a1e' });
+  for (let i = 0; i < 3; i++) {
+    const a = 0.5 + (i * Math.PI * 2) / 3, lx = Math.cos(a) * 0.31, lz = Math.sin(a) * 0.31;
+    f.cyl(lx, 0, lz, 0.014, H - 0.02, 'metal_galvanized', { ...V, seg: 5, caps: false, ry: -a, rz: 0.22, ao: false });
+  }
+  f.cyl(0, 0.2, 0, 0.13, 0.03, 'metal_galvanized', { ...V, seg: 8, ao: false });
+  f.solid(0, 0, 0, 0.66, 0.96, 0.66, { minimap: 'prop', bullet: false });
+}
+
+/** Klapptisch neben dem Grill: Teller, Grillzange, Flasche. */
+function grillTable(b, x, y, z, ry) {
+  const f = frame(b, x, y, z, ry), V = { collide: false, minimap: false, grad: false };
+  f.box(0, 0.7, 0, 0.62, 0.03, 0.42, 'wood_planks', { ...V, tint: '#a07a52' });
+  for (const sx of [-0.27, 0.27]) for (const sz of [-0.17, 0.17]) f.box(sx, 0, sz, 0.025, 0.7, 0.025, 'metal_painted', { ...V, tint: IRON, ao: false });
+  f.cyl(-0.12, 0.73, 0.03, 0.11, 0.015, 'white', { ...V, seg: 12, tint: '#efe9dc', ao: false });
+  f.box(0.12, 0.73, -0.04, 0.03, 0.012, 0.3, 'metal_galvanized', { ...V, ry: 0.35, ao: false });
+  f.cyl(0.2, 0.73, 0.12, 0.035, 0.24, 'glass', { ...V, seg: 8, tint: '#3a6a3a', ao: false });
+  f.solid(0, 0, 0, 0.64, 0.75, 0.44, { minimap: 'prop', bullet: false });
+}
+
+/** Gemauerter Grill mit Rost, Rauchfang und Schornstein; Rückseite an einer Brüstung (lokal −z), Holzstapel daneben. */
+function brickGrill(b, x, y, z, ry) {
+  const f = frame(b, x, y, z, ry), V = { collide: false, minimap: false, grad: false };
+  const W = 1.3, D = 0.62, BR = '#b46e52', CAP = '#d8ccb2';
+  f.box(0, 0, 0, W, 0.82, D, 'brick', { tint: BR, ...V });
+  f.box(0, 0.28, D / 2 + 0.004, 0.72, 0.38, 0.02, 'black', { ...V, ao: false });
+  f.box(0, 0.82, 0, W + 0.1, 0.06, D + 0.08, 'stone_wall', { tint: CAP, ...V });
+  f.box(0, 0.88, 0.05, 0.74, 0.03, 0.42, 'black', { ...V, ao: false });
+  for (let i = 0; i < 8; i++) f.box(-0.35 + i * 0.1, 0.93, 0.05, 0.012, 0.012, 0.46, 'metal_galvanized', { ...V, ao: false });
+  for (const s of [-1, 1]) f.box(0, 0.93, 0.05 + s * 0.23, 0.74, 0.015, 0.015, 'metal_galvanized', { ...V, ao: false });
+  for (const sx of [-1, 1]) f.box(sx * (W / 2 - 0.12), 0.88, -0.02, 0.24, 0.62, D - 0.04, 'brick', { tint: BR, ...V });
+  f.box(0, 0.88, -D / 2 + 0.08, W - 0.48, 0.62, 0.14, 'brick', { tint: BR, ...V });
+  f.box(0, 1.5, -0.03, W, 0.3, D - 0.06, 'brick', { tint: BR, ...V });
+  f.box(0, 1.8, -0.06, 0.4, 0.6, 0.36, 'brick', { tint: BR, ...V });
+  f.box(0, 2.4, -0.06, 0.52, 0.05, 0.48, 'stone_wall', { tint: CAP, ...V });
+  f.box(0, 1.5, D / 2 - 0.08, W + 0.04, 0.05, 0.06, 'stone_wall', { tint: CAP, ...V });
+  // Holzstapel + Kohlesack
+  for (let i = 0; i < 5; i++) f.cyl(W / 2 + 0.3 + (i % 3) * 0.13 - (i >= 3 ? -0.065 : 0), 0.06 + (i >= 3 ? 0.11 : 0), -0.05, 0.055, 0.5, 'wood_dark', { ...V, axis: 'z', seg: 6, tint: '#8a6a4a', ao: false });
+  f.box(-W / 2 - 0.28, 0, 0.0, 0.34, 0.48, 0.2, 'tarp', { ...V, tint: '#3a3a36', rx: -0.12 });
+  f.solid(0, 0, 0, W + 0.1, 2.0, D + 0.08, { minimap: 'cover', bullet: false });
+  f.solid(W / 2 + 0.43, 0, -0.05, 0.42, 0.24, 0.52, { minimap: false, bullet: false });
+}
+
+/**
+ * Grills auf begehbaren Dachterrassen (eigener Zufall, Südkoordinaten über M gespiegelt): Kugelgrill + Tisch auf WM2,
+ * EM2 und dem Dachhaus im Ostviertel, gemauerter Grill an der Ostbrüstung von EP2. Abseits der Treppen-/Brückenzugänge.
+ */
+function roofGrills(b, M, h) {
+  const Z = M.z, south = M.s > 0, y = (r) => r.roofY + 0.025;
+  kettleGrill(b, -19.6, y(h.wm2), Z(24.3), 0.3, { color: south ? '#1d1f22' : '#7a2420' });
+  grillTable(b, -20.75, y(h.wm2), Z(23.3), M.ry(0));
+  chair(b, -21.3, Z(24.6), { y: y(h.wm2), ry: M.ry(-Math.PI / 2 - 0.3), tint: '#3c7a5a', model: true });
+  kettleGrill(b, 28.3, y(h.em2), Z(35.4), -0.4, { color: south ? '#7a2420' : '#1d1f22' });
+  grillTable(b, 29.35, y(h.em2), Z(36.55), M.ry(Math.PI));
+  brickGrill(b, 45.4, y(h.ep2), Z(30.4), -Math.PI / 2);
+  kettleGrill(b, 53.0, y(h.h2), Z(31.3), 1.1, { color: '#2a3f5c' });
+  chair(b, 54.1, Z(32.2), { y: y(h.h2), ry: M.ry(Math.PI * 0.85), tint: '#c8402f', model: true });
 }
 
 /** Gemauerte Bogenbrücke zwischen zwei Dachterrassen über die Ostgasse. */
@@ -1451,6 +1624,7 @@ function eastBlock(b, M) {
   if (south) car(b, 62.0, Z(45.0), { style: 'sedan', ry: Math.PI / 2 + 0.05, color: '#b98b3a' });
   else { b.box(61.6, 0, Z(45.0), 2.6, 0.75, 1.0, 'stone_wall', { tint: '#d8ccb2', minimap: 'cover' }); handcart(b, 64.6, Z(45.2), M.ry(1.2)); }
   for (const x of [52, 65]) (south ? palm(b, x, Z(50.4), { h: 6.2 }) : tree(b, x, Z(50.4), { kind: 'olive', h: 2.8 }));
+  return h2;
 }
 
 /** Ölbaumplatz (x 50..69, z −8..8): Brunnen, Pflanztröge, Bänke, Café-Tische – Deckung in Brust- und Kniehöhe. */

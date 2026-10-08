@@ -267,4 +267,58 @@ Ohne Parameter: `NetSystem.chaos = null`, Verbindungen unverändert. Werkzeuge: 
 **Interessenfilter** (`sync-host.js`, ab 12 Akteuren): je Empfänger nah (≤ 60 m vom eigenen Körper) + eigener Eintrag mit 20 Hz,
 ferne und tote Akteure mit 5 Hz (je Akteur versetzt). Der Client legt seltener gesendete Akteure entsprechend weiter zurück.
 
-{{MESSUNGEN}}
+**Interpolation, deterministisch** (`node tools/net-interp-test.mjs`, `dev/net-interp.html`: echter ClientSync-Code, virtuelle
+Uhr, 20-Hz-Schnappschüsse einer bekannten Bahn, Client 60 Bilder/s; Kennzahlen neu | alt):
+
+| Fall | Darstellungsverzug | Schwankung des Verzugs | Rückwärtsschritte | größte Abweichung je Bild |
+|---|---|---|---|---|
+| ideal | 100 ms \| 110 ms | 0 \| 0 ms | 0 \| 0 | 0 \| 0 cm |
+| 150 ± 30 ms, 5 % Verlust | 264 \| 115 ms | 25 \| 30 ms | **0 \| 1** | **1 \| 15 cm** |
+| 300 ms, 15 % Verlust | 400 \| 124 ms | 6 \| 56 ms | 0 \| 0 | **0 \| 24 cm** |
+| 150 ± 60 ms, 5 % | 292 \| 143 ms | 49 \| 79 ms | **0 \| 5** | **1 \| 20 cm** |
+| Host 10 Hz, 150 ± 30 ms | 325 \| 220 ms | 59 \| 70 ms | **0 \| 3** | **1 \| 30 cm** |
+| Wende bei 8 m/s, 150 ± 30 ms | 266 \| 111 ms | 26 \| 29 ms | 0 \| 0 | 6 \| 36 cm, Überschwingen **0 \| 18 cm** |
+
+Der neue Puffer zeigt die Puppen um die Laufzeit später (der alte schrieb diese Zeit ständig fort), dafür ohne Zurückspringen,
+Ruckeln und Überschwingen. Die Treffermeldung trägt diesen Verzug (`ip`), der Host prüft entsprechend weit zurück.
+
+**Anti-Cheat** (`node tools/net-proto-test.mjs`, 110 Prüfungen, davon 17 neu): ohne Verstoß – Sprint mit allen Zuschlägen
+10,4 m/s, Rutschen 13,3 m/s, Rutschsprung 11 m/s (je mit ±60 ms Ankunftsschwankung und 5 % Verlust), Hangrutschen 11,8 m/s
+4 s, Sprungserie im Sprint, Spawn in 40 m Höhe + freier Fall bis 44 m/s, Host hängt 1 s bzw. alle 2,5 s (Bündel), 0,7 s
+Funkloch (7,3 m Schritt), Klettern 1,3 m, Spawn bei rtt 0,8 s; erkannt – 7 m und 14 m Sprung (vorher erlaubt), 20 m bei einem
+Zustand alle 2 s, 5 m senkrecht, „tot melden + 40 m weiter auftauchen“, Tempo-Hack 2× Sprint nach 3,4 s, 3× nach 1,3 s.
+Im echten Spiel (`mp-test`): Rutschen eines Clients (17 Zustände mit Rutsch-Bit) und Sturz aus 9 m nach Host-Spawn ohne
+Verstoß, 20-m-Teleport → 'teleport' + 'correct'; Lasttest (12 Clients, Kreisbahn, 3 Tode + Wiedereinstiege): 0 Bewegungs-Verstöße.
+
+**Lasttest** (`node tools/mp-load-test.mjs`: Host = echte Spielseite 480×270 niedrig, TDM Hafen teamSize 16; 12 Last-Clients
+`dev/fake-client.html` in einem zweiten Browser, 30-Hz-Zustände im Kreis mit 4,2 m/s ab dem Spawnpunkt, ab und zu 1–3
+Treffermeldungen auf den nächsten Gegner aus dem Schnappschuss):
+
+| | ohne Interessenfilter | mit Interessenfilter |
+|---|---|---|
+| Host allein (32 Akteure: Host + 31 Bots) | 1,8 FPS, Bildzeit Ø 551 / p95 900 ms | 1,6 FPS, Ø 643 / p95 1067 ms |
+| Host mit 12 Clients (32 Akteure: 13 Menschen + 19 Bots) | 1,6 FPS, Ø 627 / p95 1750 ms | 1,4 FPS, Ø 707 / p95 1367 ms |
+| Schnappschuss je Client | 1003 Byte (32 Akteure) | 464 Byte (Ø 14,6 von 32 Akteuren = 46 %) |
+| je Client bei 20 Hz (+ 60 Byte Paketkopf) | 21,3 KB/s + zuverlässig | 10,2 KB/s + zuverlässig |
+| zuverlässig je Client (gemessen) | – | 2,1 KB/s (Treffer, Abschüsse, Modus, Akteursliste) |
+| Anti-Cheat | 0 Bewegung; 12 'herkunft' (Fehler 3f), 7 'sicht' | 0 Bewegung, 0 'herkunft'; 9 'sicht' |
+| Treffermeldungen | 175 gesendet, 125 bestätigt | 146 gesendet, 134 bestätigt |
+| Roster/Bots | 13 Menschen (A 7/B 6), Bots 19 (9/10), 32 Akteure | gleich; 4 gehen → Bots 19 → 23 (11/12), 32 Akteure |
+| Empfehlung | `measured: true`, bis 8 („Bildrate 2 FPS“) | `measured: true`, bis 8 („Bildrate 2 FPS“) |
+
+'sicht' sind erwartet: die Last-Clients kennen keine Welt und melden auch Treffer durch Wände (weiche Prüfung, Gewicht 2).
+Die SwiftShader-Bildrate (1–2 FPS) begrenzt den Host hier; die Netzlast hängt am Schnappschuss (ein Schnappschuss je Bild,
+höchstens 20/s) und ist auf 20 Hz hochgerechnet. Ohne Filter lag ein Client bei 32 Akteuren über 20 KB/s → Filter eingebaut.
+
+**Empfehlung (recommend.js, kalibriert)**: Upload je Client bei A Akteuren
+`20 × (11 + 60 + A × 31 × anteil) + RELIABLE_BYTES` mit anteil = 0,5 ab 12 Akteuren (gemessen 0,46), sonst 1, und
+RELIABLE_BYTES = {{RELIABLE}} Byte/s; gesamt `(n − 1) ×` das, A = 2 × teamSize bei Bot-Auffüllung (sonst n). Beispiel 13 Menschen,
+32 Akteure: {{BEISPIEL}}. Die Upload-Messung nimmt nur Fenster ≥ 3 s (Bündel aus langen Bildern zählten vorher × 10).
+
+**Läufe** (Prüfrechner, 4 Kerne; ein mp-test-Lauf ≈ 20–30 min): {{LAEUFE}}
+
+**Offen**: SwiftShader-Seiten zeichnen auf dem Prüfrechner unter Last nur 0,1–2 Bilder/s – der Countdown zählt je Bild höchstens
+0,25 s, daher dauert der Matchstart dort Minuten (kein Fehler des Spiels, mp-test wartet bis 10 min). Die Glätte im echten Spiel
+lässt sich dort nur grob messen (Host schafft im Hintergrund-Takt dann < 8 Bilder/s → nur Info); die Interpolation selbst ist
+deterministisch belegt (oben). Unter 300 ms / 15 % Verlust: siehe Läufe.
+
