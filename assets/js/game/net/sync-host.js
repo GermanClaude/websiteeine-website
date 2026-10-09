@@ -12,12 +12,14 @@
 //     'hit', 'kill', 'spawn', 'ev' (Granaten, Raketen, Explosionen, Punkte, Medaillen), 'mode' (mode.netState(), bei Änderung
 //     und spätestens jede Sekunde), 'actors' (Akteursliste mit Namen/Team/Aussehen), 'end' je Client mit eigener Zusammenfassung.
 //   • Positionsverlauf (G.net.history) jedes Bild für die Trefferprüfung.
+//   • VR: Zustände eines VR-Clients tragen den VR-Zusatz (Kopf/Hände/Schussrichtung, protocol.js) → puppet.netPose.vr und
+//     unverändert in die Schnappschüsse; der Host-Spieler in VR schickt seinen eigenen (sync-common vrPoseOf).
 import * as THREE from 'three';
 import { WEAPONS, EQUIPMENT } from '../../shared/weapons.data.js';
 import { netPoseOf } from '../bots/bot.js';
 import { PKT_STATE, decodeState, encodeSnapshot, packetType, FLAGS } from './protocol.js';
 import { HOST_ID, FIRST_BOT_ID, sanitizeLoadout, loadoutWeapons } from './index.js';
-import { SNAPSHOT_HZ, MODE_MIN_GAP, MODE_MAX_GAP, rnd, arr3, vec3, dist3, loadoutOf, identityOf } from './sync-common.js';
+import { SNAPSHOT_HZ, MODE_MIN_GAP, MODE_MAX_GAP, rnd, arr3, vec3, dist3, loadoutOf, identityOf, vrPoseOf, newVrPose } from './sync-common.js';
 
 const nowSec = () => performance.now() / 1000;
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -207,12 +209,15 @@ export class HostSync {
     const G = this.G;
     const ents = [];
     const p = this._pose;
+    const vrSelf = this._vrSelf || (this._vrSelf = newVrPose());
     for (const a of G.actors) {
       if (!Number.isInteger(a.netId)) continue;
       netPoseOf(a, p);
       ents.push({
         id: a.netId, x: p.pos[0], y: p.pos[1], z: p.pos[2], yaw: p.yaw, pitch: p.pitch, vx: p.vel[0], vy: p.vel[1], vz: p.vel[2],
         flags: p.flags, weapon: p.weapon, hp: Math.max(0, Math.min(255, Math.round(p.hp))), lean: p.lean, shots: p.shots, proneBlend: p.proneBlend,
+        // VR-Körpersprache: Host-Spieler in VR bzw. weitergereicht vom VR-Client (Puppe); sonst null (kein Zusatzblock)
+        vr: vrPoseOf(G, a, vrSelf),
       });
     }
     const tick = ++this._tick;
@@ -451,6 +456,8 @@ export class HostSync {
     p._ownAt = nowSec();
     np.yaw = e.yaw; np.pitch = e.pitch; np.flags = e.flags;
     np.weapon = e.weaponId || null; np.lean = e.lean; np.shots = e.shots; np.proneBlend = e.proneBlend;
+    // VR-Zusatz (rein darstellend, durch die Kodierung begrenzt: Hände ≤ 1,27 m vom Kopf) – geht so an alle Clients weiter
+    np.vr = e.vr || null;
     p.netPose = np;
   }
 

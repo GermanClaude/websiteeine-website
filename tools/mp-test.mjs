@@ -168,6 +168,8 @@ try {
   check(joins.every((j) => j.ok), `zwei Clients treten bei (${joins.map((j) => (j.ok ? `id ${j.id}/${j.team}${j.retry ? ' (2. Versuch)' : ''}` : j.code)).join(', ')})`);
   const [A, B] = joins.map((j) => j.id);
   await until(host, () => window.__game.net.roster.length === 3, null, 15000);
+  const devs = await ev(host, () => window.__game.net.roster.map((r) => r.device));
+  check(devs.length === 3 && devs.every((d) => d === 'pc'), `Roster: Gerät je Mensch (${devs.join(', ')})`);
   const cfg = await ev(host, () => { const c = window.__game.net.startMatch(); return c && { mode: c.modeId, map: c.mapId, botsA: c.net.botsA, botsB: c.net.botsB }; });
   check(!!cfg && cfg.mode === 'tdm' && cfg.map === 'hafen', `Host startet TDM/Hafen (Bots ${cfg && cfg.botsA}/${cfg && cfg.botsB})`);
   const inMatch = await bothInMatch([host, c1, c2]);

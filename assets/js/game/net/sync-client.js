@@ -10,7 +10,9 @@
 //     Eigener Eintrag → maßgebliche Lebenspunkte. Tod/Spawn kommen als 'kill'/'spawn'; Einträge nach dem ersten toten
 //     Eintrag gehören zum nächsten Leben und gelten erst nach dessen Spawn; fehlt eine Meldung, gleicht der
 //     Lebend-Zustand der Schnappschüsse ab (nach 0,35 s + Laufzeit).
-//   • Eigener Spieler: wartet bis 'spawn' (G.spawnActor mit vorgegebenem Ort), schickt 30 Hz PKT_STATE, folgt 'correct'.
+//   • Eigener Spieler: wartet bis 'spawn' (G.spawnActor mit vorgegebenem Ort), schickt 30 Hz PKT_STATE (in VR mit
+//     VR-Zusatz: Schussrichtung der Hand, Hände relativ zum Kopf), folgt 'correct'. Puppen von VR-Spielern: der Zusatz wird
+//     wie die Pose interpoliert (netPose.vr → bots/bot.js Kopf, Waffe, Arme).
 //   • Schaden: combat.damage ruft claimDamage – eigene Treffer auf Puppen → 'hit'/'melee' an den Host + vorhergesagte
 //     Trefferanzeige; Sturz/Welt → Meldung an sich selbst; alles andere wirkt nicht (der Host entscheidet).
 //   • Würfe/Raketen: localThrow/localRocket → 'throw' an den Host + Darstellungs-Geschoss; Zündung kommt als 'ev'.
@@ -21,7 +23,7 @@ import { WEAPONS } from '../../shared/weapons.data.js';
 import { netPoseOf } from '../bots/bot.js';
 import { PKT_SNAPSHOT, decodeSnapshot, encodeState, packetType, FLAGS } from './protocol.js';
 import { HOST_ID } from './index.js';
-import { STATE_HZ, INTERP_MIN, INTERP_MAX, STALE_SEC, rnd, arr3, vec3, wrapAngle } from './sync-common.js';
+import { STATE_HZ, INTERP_MIN, INTERP_MAX, STALE_SEC, rnd, arr3, vec3, wrapAngle, vrPoseOf, newVrPose, lerpVrPose } from './sync-common.js';
 
 const nowSec = () => performance.now() / 1000;
 const ENV_GAP = 0.4;
@@ -208,6 +210,8 @@ export class ClientSync {
     s.vx = np.vel[0]; s.vy = np.vel[1]; s.vz = np.vel[2];
     s.yaw = np.yaw; s.pitch = np.pitch; s.flags = np.flags; s.weapon = np.weapon;
     s.lean = np.lean; s.shots = np.shots; s.proneBlend = np.proneBlend;
+    // VR: Kopf/Hände/Schussrichtung als Zusatzblock (sonst null – Paket wie ohne VR)
+    s.vr = vrPoseOf(this.G, p, this._vr || (this._vr = newVrPose()));
     this.net.sendFast(HOST_ID, encodeState(++this._seq, this.net.serverTime(), s));
   }
 
@@ -324,6 +328,8 @@ export class ClientSync {
     out.lean = lerp(e0.lean, e1.lean, f);
     out.proneBlend = lerp(e0.proneBlend, e1.proneBlend, f);
     out.shots = e0.shots; // Schüsse erst, wenn die Puppe an der Stelle ist
+    // VR-Körpersprache (Zielrichtung der Hand, Hände relativ zum Kopf) – nur bei VR-Spielern
+    out.vr = e0.vr || e1.vr ? lerpVrPose(e0.vr, e1.vr, f, out._vr || (out._vr = newVrPose())) : null;
     const last = list[list.length - 1].e;
     out.hp = last.hp;
     return true;

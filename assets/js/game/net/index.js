@@ -74,11 +74,15 @@ const LOCAL_RELAY = /^wss?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?(\/|$)/;
 
 /** Typen, die NetSystem selbst kennt: Clients dürfen sie nicht an andere Clients weiterleiten lassen. */
 const RESERVED = new Set([
-  'join', 'ready', 'loadout', 'hit', 'melee', 'throw', 'leave', 'hold', 'plate',
+  'join', 'ready', 'loadout', 'hit', 'melee', 'throw', 'leave', 'hold', 'plate', 'dev',
   'welcome', 'room', 'roster', 'start', 'spawn', 'kill', 'mode', 'ev', 'end', 'kick', 'host-away', 'correct', 'reject',
 ]);
 /** Nur der Host darf sie senden (der Host verwirft sie von Clients). */
 const HOST_ONLY = new Set(['welcome', 'room', 'roster', 'start', 'spawn', 'kill', 'mode', 'ev', 'end', 'kick', 'host-away', 'correct', 'reject']);
+
+/** Gerät eines Menschen im Roster (Symbol in Punktetabelle und Spielerliste): PC, Handy/Tablet (Touch), VR-Brille. */
+export const DEVICES = Object.freeze(['pc', 'mobile', 'vr']);
+const normDevice = (d) => (DEVICES.includes(d) ? d : 'pc');
 
 const nowSec = () => performance.now() / 1000;
 const clampInt = (v, lo, hi, fb) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fb; };
@@ -350,6 +354,27 @@ export class NetSystem {
     this._onVis = () => this._visibility();
     // Rückkehr in die Lobby beendet auf dem Host den Spielzustand des Raums (Revanche = zurück in den Raum)
     this._offState = G && G.events ? G.events.on('match:state', (e) => { if (e && e.state === 'lobby') this._matchOver(); else this._applyMatchRules(); }) : null;
+    // Gerät (Roster-Feld device): VR-Sitzung beginnt/endet, Touch ↔ Maus/Tastatur
+    this._device = null;
+    if (G && G.events) for (const ev of ['xr:start', 'xr:end', 'input:mode']) G.events.on(ev, () => this._deviceChanged());
+  }
+
+  /** Eigenes Gerät: 'vr' während einer VR-Sitzung, 'mobile' bei Touch-Steuerung, sonst 'pc'. */
+  localDevice() {
+    const G = this.G || {};
+    if (G.xr && G.xr.presenting) return 'vr';
+    if (G.input && G.input.mode === 'touch') return 'mobile';
+    return 'pc';
+  }
+
+  /** Gerät geändert → Host: eigener Roster-Eintrag; Client: 'dev' an den Host (der verteilt das Roster). */
+  _deviceChanged() {
+    const d = this.localDevice();
+    if (d === this._device || !this.online) return;
+    this._device = d;
+    if (this.role === 'client') { this.send(HOST_ID, { t: 'dev', d }); return; }
+    const me = this.role === 'host' ? this.roster.find((r) => r.id === HOST_ID) : null;
+    if (me && me.device !== d) { me.device = d; this._rosterChanged(); }
   }
 
   /**
@@ -430,7 +455,7 @@ export class NetSystem {
     this.room = { code, public: s.public, state: 'lobby', settings: s, hostName: me.name };
     this.roster = [{
       id: HOST_ID, name: me.name, team: 'A', isHost: true, isBot: false, level: me.level, ping: 0, ready: false,
-      cls: (lo && lo.cls) || null, loadout: sanitizeLoadout(lo), kd: me.kd,
+      cls: (lo && lo.cls) || null, loadout: sanitizeLoadout(lo), kd: me.kd, device: (this._device = this.localDevice()),
     }];
     this.anticheat = new AntiCheat({ onKick: (id, reason, text) => this.kick(id, `Anti-Cheat: ${text}`) });
     this.history = new PositionHistory(2.5); // ≥ AntiCheat maxRewind (2 s)
@@ -533,6 +558,11 @@ export class NetSystem {
       case 'ready':
         if (!entry.ready) { entry.ready = true; this._rosterChanged(); }
         break;
+      case 'dev': {
+        const d = normDevice(m.d);
+        if (entry.device !== d) { entry.device = d; this._rosterChanged(); }
+        break;
+      }
       case 'loadout': {
         const lo = sanitizeLoadout(m.loadout);
         entry.loadout = lo;
@@ -569,6 +599,7 @@ export class NetSystem {
       isHost: false, isBot: false, level: clampInt(m.level, 1, 99, 1), ping: Math.round(peer.link.rtt || 0), ready: false,
       cls: (typeof m.cls === 'string' && CLASSES[m.cls] ? m.cls : lo && lo.cls) || null, loadout: lo,
       kd: Number.isFinite(Number(m.kd)) ? Math.round(Math.min(99, Math.max(0, Number(m.kd))) * 100) / 100 : 0,
+      device: normDevice(m.dev),
     };
     peer.id = id;
     peer.joined = true;
@@ -903,9 +934,10 @@ export class NetSystem {
           else if (m.t === 'kick') done(netError('abgelehnt:gekickt'));
         }));
         offs.push(link.on('close', () => done(netError('verbindung-fehlgeschlagen'))));
+        this._device = this.localDevice();
         link.sendRel({
           t: 'join', name: nm, level: me.level, kd: me.kd, ver: NET_VERSION, build: this.build,
-          cls: (lo && lo.cls) || null, loadout: sanitizeLoadout(lo),
+          cls: (lo && lo.cls) || null, loadout: sanitizeLoadout(lo), dev: this._device,
         });
       });
     } catch (err) {

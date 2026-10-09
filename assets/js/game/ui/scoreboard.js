@@ -1,10 +1,11 @@
 // NULLPUNKT — Punktetabelle (HUD-Tab und Endbildschirm). Arbeitet mit einfachen Zeilen:
 // { name, team, score, kills, deaths, assists, extra:{label,value}, isPlayer, isBot, alive, mvp }.
-// Mehrspieler (optional je Zeile): ping (ms), isHost, isHuman – sobald eine Zeile ein Feld „ping“ hat (oder
-// opts.online gesetzt ist), erscheint die Ping-Spalte; Menschen und Host bekommen ein Abzeichen. Offline wie bisher.
+// Mehrspieler (optional je Zeile): ping (ms), isHost, isHuman, device ('pc'|'mobile'|'vr') – sobald eine Zeile ein Feld
+// „ping“ hat (oder opts.online gesetzt ist), erscheint die Ping-Spalte; Menschen bekommen das Symbol ihres Geräts
+// (PC/Handy/VR-Brille), der Host ein Abzeichen. Offline wie bisher.
 
 import { esc, kd } from './dom.js';
-import { ICON } from './icons.js';
+import { ICON, deviceOf } from './icons.js';
 
 /** Ping-Zelle: Bots „BOT“, Host „–“ (läuft dort), sonst Millisekunden mit Farbstufe. */
 function pingCell(r) {
@@ -29,8 +30,11 @@ export function scoreboardHtml(rows, opts = {}) {
     const sq = opts.squads && r.squad ? `<span class="sb-sq">${esc(r.squad)}</span>` : '';
     const badge = r.mvp ? `<span class="sb-mvp" title="MVP">${ICON.crown}</span>` : r.teamMvp ? `<span class="sb-mvp sb-tmvp" title="Bester im Team">${ICON.star}</span>` : '';
     const dead = r.alive === false && opts.live ? `<span class="sb-dead">${ICON.skull}</span>` : '';
-    // Mehrspieler: Mensch (nicht man selbst) und Host kennzeichnen
-    const human = online && r.isHuman && !r.isPlayer ? `<span class="sb-human" title="Mitspieler">${ICON.user}</span>` : '';
+    // Mehrspieler: Menschen mit Gerät (PC/Handy/VR-Brille; ohne Angabe das Personensymbol) und Host kennzeichnen
+    const dev = r.device ? deviceOf(r.device) : null;
+    const who = r.isPlayer ? 'Du' : 'Mitspieler';
+    const human = online && r.isHuman && (dev || !r.isPlayer)
+      ? `<span class="sb-human"${dev ? ` data-dev="${esc(r.device)}"` : ''} title="${dev ? `${who} · ${esc(dev.label)}` : who}">${dev ? dev.icon : ICON.user}</span>` : '';
     const hostTag = online && r.isHost ? '<span class="sb-host" title="Host">Host</span>' : '';
     return `<tr class="${cls}"><td class="sb-rank">${i + 1}</td><td class="sb-name">${sq}${human}<span class="sb-n">${esc(r.name)}</span>${r.isPlayer ? '<span class="sb-you">Du</span>' : ''}${hostTag}${badge}${dead}</td>` +
       `<td class="sb-score">${r.score}</td><td>${r.kills}</td><td>${r.deaths}</td><td>${r.assists}</td><td class="sb-kd">${kd(r.kills, r.deaths)}</td>` +
@@ -78,7 +82,10 @@ export function netRows(G, rows) {
     if (ping == null && r.isPlayer && net.role === 'client' && typeof net.peerRtt === 'function') {
       try { const v = net.peerRtt(1); if (v > 0) ping = Math.round(v); } catch { /* */ }
     }
-    return { ...r, netId: id, isHuman, isHost, ping: isHuman ? ping : null, isBot: isHuman ? false : r.isBot };
+    // Gerät aus dem Roster (eigene Zeile notfalls lokal)
+    let device = r.device || (entry && entry.device) || null;
+    if (!device && r.isPlayer && typeof net.localDevice === 'function') { try { device = net.localDevice(); } catch { /* */ } }
+    return { ...r, netId: id, isHuman, isHost, ping: isHuman ? ping : null, isBot: isHuman ? false : r.isBot, device: isHuman ? device : null };
   });
 }
 

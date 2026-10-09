@@ -79,7 +79,18 @@ export const ICON = {
   signal: svg('<path d="M5 20v-3M10 20v-7M15 20v-11M20 20V4"/>'),
   bolt: svg('<path d="M13 2.5L5 13.5h6l-1 8 8-11h-6z"/>'),
   door: svg('<path d="M5 21V4.5L14 3v18"/><path d="M14 5h5v16H3"/><path d="M11 12.5h.01" stroke-width="2.4"/>'),
+  // Geräte der Mitspieler (Punktetabelle, Spielerliste)
+  pc: svg('<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M9 20h6M12 16v4"/>'),
+  vr: svg('<path d="M3 8.5h18v7.5a1.5 1.5 0 0 1-1.5 1.5H15l-2-3h-2l-2 3H4.5A1.5 1.5 0 0 1 3 16z"/><circle cx="8" cy="12.3" r="1.5"/><circle cx="16" cy="12.3" r="1.5"/>'),
 };
+
+/** Gerät eines Mitspielers (Roster-Feld device, net/index.js): Symbol + Bezeichnung. Unbekannt → PC. */
+export const DEVICE = Object.freeze({
+  pc: { icon: ICON.pc, label: 'PC', short: 'PC' },
+  mobile: { icon: ICON.touch, label: 'Handy/Tablet', short: 'Handy' },
+  vr: { icon: ICON.vr, label: 'VR-Brille', short: 'VR' },
+});
+export const deviceOf = (d) => DEVICE[d] || DEVICE.pc;
 
 /** Medaillen-Abzeichen (Sechseck, Stufenfarbe über CSS --tier). */
 export function medalBadge(label, tier = 'bronze') {

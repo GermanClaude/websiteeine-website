@@ -8,9 +8,14 @@
 // Waffenlogik; jedes Bild übernimmt die Puppe bot.netPose (vom Sync-Modul geschrieben, bereits interpoliert):
 //   { pos:[x,y,z], yaw, pitch, vel:[x,y,z], flags (NET_FLAGS, §5), weapon (Id | Index in WEAPON_INDEX | Definition),
 //     lean (−1…1), shots (Zähler mod 256), proneBlend (0…1), hp (fehlt auf dem Host → eigene Regeneration),
-//     optional ads (0…1), reloadEmpty, cooking }
-// und animiert sie (_animate). Schüsse (Zählerwechsel) → Schussgeste + manager.puppetFired (nur Darstellung, kein
-// Schaden). Leben/Tod nicht aus der Pose, sondern über respawn()/onDeath() (Ereignisse vom Host).
+//     optional ads (0…1), reloadEmpty, cooking, vr }
+// und animiert sie (_animate). vr (nur VR-Spieler, net/protocol.js VR-Zusatz): { aimYaw, aimPitch, main:[x,y,z]|null,
+// off:[x,y,z]|null } – Schussrichtung der Hand und Hände relativ zum Kopf (Blickrahmen yaw: x rechts, y oben, z vorn).
+// Dann: Körper/Waffe folgen der Handrichtung, der Kopf blickt um die Differenz Kopf ↔ Hand daneben (Blick-Gelenke des
+// Animators), die Waffe liegt an der gemeldeten Hand (rechter Arm per IK nach), die linke Hand verlässt den Vordergriff,
+// wenn die Nebenhand weit davon ist (_vrArms). Schüsse/Leuchtspuren der Puppe fliegen in die Handrichtung.
+// Schüsse (Zählerwechsel) → Schussgeste + manager.puppetFired (nur Darstellung, kein Schaden). Leben/Tod nicht aus der
+// Pose, sondern über respawn()/onDeath() (Ereignisse vom Host).
 import * as THREE from 'three';
 import { CapsuleBody } from '../engine/physics.js';
 import { raycastHumanoid } from '../combat.js';
@@ -53,6 +58,18 @@ const _le = new THREE.Vector3();
 // erreicht ≈ 0,34 m (Becken 0,1 m + Rumpfrollen 0,33 rad)
 const LEAN_SIDE = 0.34, LEAN_DROP = 0.05;
 const LEAN_RATE = 12; // 1/s (≈ 90 % in 0,19 s)
+// VR-Puppe (_vrLook/_vrArms): Auge relativ zur Kopfmitte im Blickrahmen [rechts, oben, vorn]; Grenzen des Blicks neben der
+// Waffe (Hals + Kopf); Nebenhand löst sich ab VR_FREE_MIN m vom Vordergriff, ganz frei ab VR_FREE_MAX m
+const VR_EYE = [0, 0.03, 0.08];
+const VR_LOOK_YAW = 1.2, VR_LOOK_PITCH = 0.9;
+const VR_FREE_MIN = 0.12, VR_FREE_MAX = 0.3;
+const _vrE = new THREE.Vector3();
+const _vrH = new THREE.Vector3();
+const _vrO = new THREE.Vector3();
+const _vrT = new THREE.Vector3();
+const _vrPole = new THREE.Vector3();
+const _vrQ = new THREE.Quaternion();
+const _vrQ2 = new THREE.Quaternion();
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -80,6 +97,14 @@ function readVec(src, out) {
   if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return false;
   out.set(x, y, z);
   return true;
+}
+
+/** VR-Puppe: Handziel (Modellraum) auf die Armlänge ab der Schulter kürzen (Ober- + Unterarm + Griff, wie gerade gestellt). */
+function armReach(target, shoulder, elbow, wrist) {
+  const reach = (shoulder.distanceTo(elbow) + elbow.distanceTo(wrist)) * 0.98 + 0.06;
+  const d = target.distanceTo(shoulder);
+  if (d > reach && d > 1e-6) target.sub(shoulder).multiplyScalar(reach / d).add(shoulder);
+  return target;
 }
 
 /**
@@ -316,8 +341,10 @@ export class Bot {
   }
 
   getAimDirection(out = new THREE.Vector3()) {
-    const yaw = this.yaw + this.gunner.recoilY;
-    const pitch = clamp(this.pitch + this.gunner.recoilP, -1.4, 1.4);
+    // VR-Puppe: Schussrichtung der Hand statt der Kopfrichtung (Leuchtspuren/Einschläge wie beim VR-Spieler)
+    const vr = this.puppet && this.netPose ? this.netPose.vr : null;
+    const yaw = (vr ? vr.aimYaw : this.yaw) + this.gunner.recoilY;
+    const pitch = clamp((vr ? vr.aimPitch : this.pitch) + this.gunner.recoilP, vr ? -1.55 : -1.4, vr ? 1.55 : 1.4);
     const c = Math.cos(pitch);
     return out.set(-Math.sin(yaw) * c, Math.sin(pitch), -Math.cos(yaw) * c);
   }
@@ -1466,8 +1493,10 @@ export class Bot {
     const def = w ? w.currentDef : null;
     const p = this._ap || (this._ap = { velocity: new THREE.Vector3() });
     p.velocity.copy(this.body.velocity);
-    p.aimYaw = this.yaw + this.gunner.recoilY;
-    p.aimPitch = this.pitch + this.gunner.recoilP * 0.6;
+    // VR-Puppe: Körper und Waffe folgen der Hand, der Kopf blickt eigenständig (_vrLook)
+    const vr = this.puppet && this.netPose ? this.netPose.vr : null;
+    p.aimYaw = (vr ? vr.aimYaw : this.yaw) + this.gunner.recoilY;
+    p.aimPitch = (vr ? vr.aimPitch : this.pitch) + this.gunner.recoilP * 0.6;
     p.crouch = this.crouching;
     p.sprint = this.sprinting;
     p.ads = w ? w.adsProgress : 0;
@@ -1489,9 +1518,76 @@ export class Bot {
     p.proneYaw = this.proneYaw;
     p.obstruct = this._obstructAmount(now);
     p.position = this.body.position;
+    if (this.puppet) this._vrLook(s, p, vr);
     s.animate(adt, p);
+    if (this.puppet && (vr || this._vrW > 0)) this._vrArms(s, vr, adt);
     // Schritte (synchron zum Aufsetzen der Füße)
     if (s.anim.events.footstep >= 0) this.manager.footstep(this);
+  }
+
+  /**
+   * VR-Puppe: der Kopf blickt unabhängig von der Waffe – Differenz Kopf ↔ Handrichtung über die Blick-Gelenke des Animators
+   * (glance: Hals 40 %, Kopf 60 %; sonst nur fürs Umherblicken im Leerlauf). p.idleLook = true hält die Ziele (sonst setzt
+   * der Animator sie auf 0), until = ∞ verhindert zufälliges Umherblicken. Ohne VR wird der Blick wieder freigegeben.
+   */
+  _vrLook(s, p, vr) {
+    const g = s.anim && s.anim.glance;
+    if (!g) return;
+    if (vr) {
+      g.until = Infinity;
+      g.yaw = g.tYaw = clamp(wrap(this.yaw - vr.aimYaw), -VR_LOOK_YAW, VR_LOOK_YAW);
+      g.pitch = g.tPitch = clamp(this.pitch - vr.aimPitch, -VR_LOOK_PITCH, VR_LOOK_PITCH);
+      p.idleLook = true;
+    } else if (g.until === Infinity) { g.until = 0; g.tYaw = 0; g.tPitch = 0; }
+  }
+
+  /**
+   * VR-Puppe: Waffe an die gemeldete Haupthand, rechter Arm per IK nach; die linke Hand bleibt am Vordergriff, solange die
+   * Nebenhand nahe daran ist, sonst folgt sie ihr. Läuft nach animate() auf der fertigen Pose des Animators (Modellraum:
+   * Hände = Kopfmitte der Puppe + Auge + gemeldeter Versatz) und schreibt die Knochen neu – der Animator selbst kennt keine
+   * Handziele. Grenzen: Arme reichen ≈ 0,6 m ab der Schulter (weiter wird gekürzt), Ellbogen nach Standardpol, die Waffe
+   * bleibt in der rechten Hand (auch bei Linkshändern), aus beim Liegen, Werfen und Nahkampf (Animator-Gesten).
+   */
+  _vrArms(s, vr, dt) {
+    const a = s.anim;
+    if (this._vrArmsOff || !a || s.state !== 'alive' || typeof a._arms !== 'function' || typeof s._writePose !== 'function' || !a.gunPos || !a.headCenter || !a.wp) return;
+    const want = vr && vr.main && this.stance !== 'prone' ? 1 - clamp(a.lowered || 0, 0, 1) : 0;
+    const prev = this._vrW || 0;
+    this._vrW = prev + (want - prev) * Math.min(1, dt * 10);
+    if (!want && this._vrW < 0.02) { this._vrW = 0; return; }
+    const w = this._vrW;
+    try {
+      // Blickrahmen (Gierung yaw; lokal x rechts, y oben, z vorn) → Modellraum (Gierung bodyYaw): Drehung um yaw − bodyYaw
+      const rel = this.yaw - a.bodyYaw;
+      const c = Math.cos(rel), sn = Math.sin(rel);
+      const toModel = (o, out) => { const x = o[0], y = o[1], z = -o[2]; return out.set(x * c + z * sn, y, -x * sn + z * c); };
+      const eye = toModel(VR_EYE, _vrE).add(a.headCenter);
+      const wp = a.wp;
+      const hand = this._vrHand || (this._vrHand = new THREE.Vector3());
+      if (vr && vr.main) {
+        toModel(vr.main, hand).add(eye);
+        armReach(hand, wp[BONE.upperArmR], wp[BONE.foreArmR], wp[BONE.handR]);
+      }
+      a.gunPos.lerp(hand, w);
+      a._arms(s._p || {});
+      // Nebenhand frei, wenn sie weit vom Vordergriff ist (Zeigen, Abstützen, Waffe einhändig)
+      if (vr && vr.off && a.handLGrip && typeof a._armIK === 'function' && typeof a._freeHandQuat === 'function' && typeof a._poleWorld === 'function') {
+        const off = toModel(vr.off, _vrO).add(eye);
+        armReach(off, wp[BONE.upperArmL], wp[BONE.foreArmL], wp[BONE.handL]);
+        const k = w * clamp((off.distanceTo(a.handLGrip) - VR_FREE_MIN) / (VR_FREE_MAX - VR_FREE_MIN), 0, 1);
+        if (k > 0.01) {
+          const tgt = _vrT.copy(a.handLGrip).lerp(off, k);
+          const q = a._freeHandQuat(_vrQ, 'L', tgt);
+          _vrQ2.copy(a.wq[BONE.handL]).slerp(q, k);
+          a._armIK('L', tgt, _vrQ2, a._poleWorld(a.poleL, _vrPole.set(-0.4, -0.5, 0.6)));
+        }
+      }
+      s._writePose();
+    } catch (err) {
+      // Animator-Inneres geändert: VR-Arme für diese Puppe abschalten (Kopf/Richtung laufen weiter)
+      this._vrArmsOff = true;
+      console.warn('[bots] VR-Arme der Puppe abgeschaltet', err);
+    }
   }
 
   _updateCorpses(dt) {

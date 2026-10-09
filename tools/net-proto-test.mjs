@@ -4,10 +4,18 @@
 import {
   encodeSnapshot, decodeSnapshot, encodeState, decodeState, packetType, WEAPON_INDEX, weaponIndexOf, weaponByIndex,
   NO_WEAPON, FLAGS, packFlags, unpackFlags, PKT_SNAPSHOT, PKT_STATE, SNAPSHOT_HEADER, SNAPSHOT_ENTITY, STATE_SIZE,
+  VR_BLOCK, VR_REACH,
 } from '../assets/js/game/net/protocol.js';
 import { AntiCheat, PositionHistory, AC_TEXT } from '../assets/js/game/net/anticheat.js';
 import { recommend, bandwidthFor, maxPlayersForUpload, clientBytes, UploadMeter, UNMEASURED_MAX, INTEREST_MIN, INTEREST_SHARE, RELIABLE_BASE, RELIABLE_PER_HUMAN, RELIABLE_PER_ACTOR } from '../assets/js/game/net/recommend.js';
 import { WEAPONS, WEAPON_IDS } from '../assets/js/shared/weapons.data.js';
+import { register } from 'node:module';
+import { pathToFileURL } from 'node:url';
+
+// sync-common.js (VR-Helfer) importiert 'three' – in Node auf die mitgelieferte Datei abbilden (wie die Import-Map der Seite)
+const THREE_URL = pathToFileURL(new URL('../assets/vendor/three/three.module.min.js', import.meta.url).pathname).href;
+register('data:text/javascript,' + encodeURIComponent(`export async function resolve(s, c, n) { return s === 'three' ? { url: ${JSON.stringify(THREE_URL)}, shortCircuit: true } : n(s, c); }`), import.meta.url);
+const { vrPoseOf, newVrPose, lerpVrPose } = await import('../assets/js/game/net/sync-common.js');
 
 let fail = 0;
 let count = 0;
@@ -69,6 +77,69 @@ check(e.x === 1 && e.y === 2 && e.z === 3 && near(e.yaw, -1, 1e-4) && near(e.pit
 check(e.hp === undefined && e.id === undefined, 'Zustand ohne id/hp');
 check(decodeState(st.slice(0, 20)) === null, 'zu kurzer Zustand → null');
 check(snap.byteLength / 3 < 40, `≤ 40 Byte je Akteur (Bandbreitenformel §9)`);
+
+/* ------------------------------------------------------------------ VR-Zusatz (Kopf/Hände/Schussrichtung) */
+const vrA = { aimYaw: 0.75, aimPitch: -0.3, main: [0.21, -0.35, 0.42], off: [-0.18, -0.4, 0.55] };
+const vrEnts = [
+  { ...ents[0], id: 2, flags: FLAGS.ALIVE | FLAGS.ON_GROUND, vr: vrA },
+  { ...ents[0], id: 1000, flags: FLAGS.ALIVE | FLAGS.VR }, // VR-Bit ohne Zusatz → wird gelöscht
+  { ...ents[0], id: 3, flags: FLAGS.ALIVE, vr: { aimYaw: 4, aimPitch: 3, main: [2, -2, 0.004], off: null } },
+  { ...ents[0], id: 4, flags: FLAGS.ALIVE, vr: { aimYaw: NaN, aimPitch: 0, main: [0, 0, 0] } }, // ungültig → kein VR
+];
+const vsnap = encodeSnapshot(9, 50, vrEnts);
+check(vsnap.byteLength === SNAPSHOT_HEADER + 4 * SNAPSHOT_ENTITY + 2 * VR_BLOCK && VR_BLOCK === 11, `Snapshot mit 2 VR-Spielern: ${vsnap.byteLength} Byte (+${VR_BLOCK} je VR-Spieler)`);
+const vds = decodeSnapshot(vsnap);
+const [v0, v1, v2, v3] = vds.entities;
+check(v0.vr && (v0.flags & FLAGS.VR) && near(v0.vr.aimYaw, 0.75, 1e-4) && near(v0.vr.aimPitch, -0.3, 1e-4), 'VR: Schussrichtung rad×10000');
+check(v0.vr.main.every((x, i) => near(x, vrA.main[i], 0.0051)) && v0.vr.off.every((x, i) => near(x, vrA.off[i], 0.0051)), 'VR: Hände relativ zum Kopf auf 1 cm');
+check(v1.vr === null && !(v1.flags & FLAGS.VR) && v3.vr === null && !(v3.flags & FLAGS.VR), 'VR-Bit nur mit gültigem Zusatz (sonst gelöscht)');
+check(v2.vr && near(v2.vr.aimYaw, 4 - 2 * Math.PI, 1e-3) && near(v2.vr.aimPitch, Math.PI / 2, 1e-3) && v2.vr.off === null, 'VR: Gierung umgebrochen, Neigung auf ±90° begrenzt, fehlende Nebenhand → null');
+check(near(v2.vr.main[0], VR_REACH, 1e-9) && near(v2.vr.main[1], -VR_REACH, 1e-9) && v2.vr.main[2] === 0, `VR: Hand auf ±${VR_REACH} m begrenzt`);
+check(v0.x === ds.entities[0].x && v0.hp === 87 && v0.weaponId === 'ar_m17' && near(v0.lean, -0.5, 0.01), 'VR: übrige Felder unverändert');
+// ohne VR Byte für Byte wie vorher; ältere Dekodierer (feste 31 Byte) lesen VR-Pakete richtig und übergehen den Anhang
+const plain = encodeSnapshot(4294967295 + 5, 1234.5678, ents);
+check(new Uint8Array(plain).every((b, i) => b === new Uint8Array(snap)[i]) && ds.entities.every((x) => x.vr === null), 'ohne VR-Spieler: Paket unverändert, vr = null');
+const legacyN = Math.min(new DataView(vsnap).getUint16(9, true), Math.floor((vsnap.byteLength - SNAPSHOT_HEADER) / SNAPSHOT_ENTITY));
+check(legacyN === 4, 'alter Dekodierer: Akteurzahl trotz Anhang richtig (n = 4)');
+const vtr = decodeSnapshot(vsnap.slice(0, vsnap.byteLength - 3));
+check(vtr && vtr.entities.length === 4 && vtr.entities[0].vr && vtr.entities[2].vr === null, 'abgeschnittener VR-Anhang: vollständige Blöcke gelten, der Rest ohne vr');
+const vst = encodeState(5, 1.5, { ...ents[0], vr: vrA });
+check(vst.byteLength === STATE_SIZE + VR_BLOCK && packetType(vst) === PKT_STATE, `Zustand mit VR: ${vst.byteLength} Byte`);
+const vdst = decodeState(vst);
+check(vdst.entity.vr && near(vdst.entity.vr.main[2], 0.42, 0.0051) && (vdst.entity.flags & FLAGS.VR), 'Zustand: VR-Zusatz dekodiert');
+check(decodeState(vst.slice(0, STATE_SIZE)).entity.vr === null, 'Zustand: VR-Bit ohne Block → vr null');
+check(decodeState(st).entity.vr === null && encodeState(77, 12.25, { ...e, vr: null }).byteLength === STATE_SIZE, 'Zustand ohne VR: 37 Byte, vr null');
+check(unpackFlags(FLAGS.VR).vr && packFlags({ vr: true }) === 2048, 'Flag-Bit 11 = VR');
+// Ende-zu-Ende: vrPoseOf (eigener Spieler, G.xr) → Zustand → Puppe setzt die Hand wieder in die Welt
+{
+  const V = (x, y, z) => ({ x, y, z });
+  const yaw = 2.1;
+  const eye = V(10, 1.6, -4);
+  const gripW = V(10.35, 1.2, -4.5);
+  const offW = V(9.8, 1.25, -4.45);
+  const aimDir = V(-Math.sin(1.4) * Math.cos(-0.2), Math.sin(-0.2), -Math.cos(1.4) * Math.cos(-0.2));
+  const G = { xr: { presenting: true, ready: true, eye, aimDir, headFwd: V(0, 0, -1), hands: { main: { gripW: { ok: true, pos: gripW }, rayW: { ok: true, pos: gripW } }, off: { gripW: { ok: true, pos: offW }, rayW: { ok: false } } } } };
+  const pl = { isPlayer: true, alive: true, yaw };
+  const vp = vrPoseOf(G, pl, newVrPose());
+  check(vp && near(vp.aimYaw, 1.4, 1e-9) && near(vp.aimPitch, -0.2, 1e-9), 'vrPoseOf: Schussrichtung aus G.xr.aimDir');
+  const rt = decodeState(encodeState(1, 0, { ...ents[0], yaw, vr: vp })).entity;
+  // Puppe: Auge + R(yaw)·(x rechts, y oben, z vorn)
+  const back = (o) => [eye.x + o[0] * Math.cos(yaw) - o[2] * Math.sin(yaw), eye.y + o[1], eye.z - o[0] * Math.sin(yaw) - o[2] * Math.cos(yaw)];
+  const hm = back(rt.vr.main), ho = back(rt.vr.off);
+  check(Math.hypot(hm[0] - gripW.x, hm[1] - gripW.y, hm[2] - gripW.z) < 0.012 && Math.hypot(ho[0] - offW.x, ho[1] - offW.y, ho[2] - offW.z) < 0.012,
+    `Hände über das Netz zurück in die Welt: Abweichung ${(Math.hypot(hm[0] - gripW.x, hm[1] - gripW.y, hm[2] - gripW.z) * 100).toFixed(2)} cm`);
+  check(vrPoseOf(G, { ...pl, alive: false }) === null && vrPoseOf({ xr: { ...G.xr, presenting: false } }, pl) === null && vrPoseOf(G, { alive: true, isBot: true }) === null, 'vrPoseOf: ohne Sitzung/tot/Bot → null');
+  const puppet = { puppet: true, alive: true, netPose: { vr: rt.vr } };
+  check(vrPoseOf(G, puppet) === rt.vr && vrPoseOf(G, { puppet: true, alive: true, netPose: {} }) === null, 'vrPoseOf: Puppe reicht ihren Zusatz weiter (Host → andere Clients)');
+  G.xr.hands.main.gripW.ok = false; G.xr.hands.main.rayW.ok = false;
+  check(vrPoseOf(G, pl, newVrPose()).main === null, 'vrPoseOf: Haupthand verloren → main null');
+  // Interpolation
+  const A1 = { aimYaw: 3.0, aimPitch: 0, main: [0, 0, 0.4], off: null };
+  const B1 = { aimYaw: -3.0, aimPitch: 0.2, main: [0.2, 0, 0.4], off: [0, 0, 0.3] };
+  const li = lerpVrPose(A1, B1, 0.4, newVrPose());
+  check(near(li.aimYaw, 3 + (2 * Math.PI - 6) * 0.4, 1e-9) && near(li.aimPitch, 0.08, 1e-9) && near(li.main[0], 0.08, 1e-9) && li.off === null, 'lerpVrPose: Gierung über ±π, Hände linear, fehlende Hand vom näheren Eintrag');
+  check(lerpVrPose(null, B1, 0.3) === null && lerpVrPose(null, B1, 0.7).main[0] === 0.2 && lerpVrPose(A1, null, 0.2).aimYaw === 3 && lerpVrPose(null, null, 0.5) === null, 'lerpVrPose: VR beginnt/endet zwischen zwei Einträgen → näherer Eintrag');
+}
 
 /* ------------------------------------------------------------------ anticheat */
 const kicks = [];
@@ -395,6 +466,19 @@ r = ac4.validateHit(2, claim({ serial: 12, origin: [10, 1.6, 300] }), ctxBase({ 
 check(!r.ok && r.reason === 'reichweite', 'Entfernung > Reichweite');
 r = ac4.validateHit(2, claim({ serial: 13, origin: [25, 1.6, 0] }), ctxBase());
 check(!r.ok && r.reason === 'herkunft', 'Schuss nicht von der eigenen Position');
+// VR: Schüsse starten am (gelehnten/seitlich versetzten) Auge, die Richtung kommt von der Hand und weicht vom Blick ab –
+// der Anti-Cheat prüft Ursprung ↔ Körper und Ziel ↔ Trefferpunkt, keine Blickrichtung
+r = ac4.validateHit(2, claim({ serial: 15, origin: [10.45, 1.35, 0.4], dist: 19.5 }), ctxBase());
+check(r.ok, 'VR: Schuss vom gelehnten Auge (0,6 m neben der Körperachse), Richtung ≠ Blick → gültig');
+r = ac4.validateHit(2, claim({ serial: 16, origin: [10.3, 0.55, -0.2], dist: 19.6 }), ctxBase());
+check(r.ok, 'VR: Schuss aus der Hocke/liegend (Auge 0,55 m) → gültig');
+{
+  const acV = new AntiCheat();
+  acV.onSpawn(9, [0, 0, 0], 0);
+  let vOk = true;
+  for (let i = 1; i <= 60; i++) if (!acV.onState(9, { x: i * 3.1 / 30, y: 0, z: 0, flags: FLAGS.ALIVE | FLAGS.ON_GROUND | FLAGS.VR }, i / 30).ok) vOk = false;
+  check(vOk && acV.score(9, 2) === 0, 'VR-Bit in den Zuständen ändert die Bewegungsprüfung nicht (Gehen 3,1 m/s)');
+}
 const sg = { shooter: { alive: true, team: 'A', pos: [25, 0, 0], weapons: ['sg_bulldog'] } };
 r = ac4.validateHit(2, claim({ serial: 14, weapon: 'sg_bulldog', pellet: 7, dmg: 18, origin: [25, 1.6, 0] }), ctxBase(sg));
 check(r.ok, 'Schrotkugel 8 von 8');

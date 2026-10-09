@@ -6,10 +6,14 @@
 // Netz-Module. Fehlt G.net (Modul nicht geladen), bleibt der Reiter mit einem Hinweis bedienbar.
 
 import { esc, el } from './dom.js';
-import { ICON } from './icons.js';
+import { ICON, deviceOf } from './icons.js';
 import { LoadoutPanel } from './loadout-panel.js';
 import { CLASSES, GAME_STYLES, STYLE_ORDER } from '../../shared/classes.data.js';
 import { WEATHERS } from '../../shared/maps.data.js';
+
+/** Gerät eines Mitspielers (Roster device: PC/Handy/VR-Brille) – Abzeichen in der Raumliste bzw. Symbol vor dem Namen. */
+const devBadge = (r) => { const d = deviceOf(r.device); return `<em class="nr-badge is-dev" data-dev="${esc(r.device || 'pc')}" title="${esc(d.label)}">${d.icon}${esc(d.short)}</em>`; };
+const devIcon = (r) => { const d = deviceOf(r.device); return `<span class="sb-human" data-dev="${esc(r.device || 'pc')}" title="${esc(d.label)}">${d.icon}</span>`; };
 
 /** Stufe 1: nur diese Modi online (Spiegel von net/index.js – ohne Import, damit die Lobby keine Netz-Module lädt). */
 export const ONLINE_MODES = Object.freeze(['tdm', 'ffa', 'dom', 'kc']);
@@ -773,7 +777,7 @@ export class NetMenus {
       }
       return `<div class="nr-p is-${side}${self ? ' is-me' : ''}${ask ? ' is-ask' : ''}" data-id="${r.id}">
         <i class="nr-dot" aria-hidden="true"></i>
-        <span class="nr-pname"><b>${esc(r.name)}</b>${r.isHost ? `<em class="nr-badge is-host" title="Host">${ICON.crown}Host</em>` : ''}${self ? '<em class="nr-badge is-me">Du</em>' : ''}<small>Stufe ${clampInt(r.level || 1, 1, 99)}${cls ? ` · ${esc(cls)}` : ''}${r.ready && net.room.state === 'match' ? ' · bereit' : ''}</small></span>
+        <span class="nr-pname"><b>${esc(r.name)}</b>${devBadge(r)}${r.isHost ? `<em class="nr-badge is-host" title="Host">${ICON.crown}Host</em>` : ''}${self ? '<em class="nr-badge is-me">Du</em>' : ''}<small>Stufe ${clampInt(r.level || 1, 1, 99)}${cls ? ` · ${esc(cls)}` : ''}${r.ready && net.room.state === 'match' ? ' · bereit' : ''}</small></span>
         ${r.isHost ? '<span class="nr-ping is-none"></span>' : `<span class="nr-ping is-${pingTone(ping)}" title="Ping">${ICON.signal}<span>${pingTxt}</span></span>`}
         <span class="nr-acts">${acts}</span>
       </div>`;
@@ -1295,7 +1299,7 @@ export class NetMenus {
           const ask = this._pauseKick === r.id;
           const ping = Number(r.ping) || 0;
           return `<div class="ps-np is-${side}${ask ? ' is-ask' : ''}">
-            <i class="nr-dot" aria-hidden="true"></i><b>${esc(r.name)}</b>${self ? '<em class="nr-badge is-me">Du</em>' : ''}
+            <i class="nr-dot" aria-hidden="true"></i><b>${devIcon(r)}${esc(r.name)}</b>${self ? '<em class="nr-badge is-me">Du</em>' : ''}
             <span class="nr-ping is-${r.isHost ? 'none' : pingTone(ping)}">${r.isHost ? '<em class="nr-badge is-host">Host</em>' : ping > 0 ? `${ping} ms` : '–'}</span>
             ${self ? '' : ask
               ? `<button type="button" class="m-btn m-danger nr-mini" data-pk="yes" data-id="${r.id}" data-fk="pk-y-${r.id}">${ICON.userX}<span>Entfernen</span></button><button type="button" class="m-btn nr-mini" data-pk="no" data-id="${r.id}" data-fk="pk-n-${r.id}">${ICON.close}<span>Nein</span></button>`
