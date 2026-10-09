@@ -8,6 +8,11 @@
 // bzw. fehlende Hindernisse, verschiedene Kugeldeckung). Nur Kollisionsloses (Büsche, Schilf, Grasring) dünnt die
 // Stufe nachträglich per Positions-Hash aus (tier.density). Jeder kollidierende Baum wird auf jeder Stufe gezeichnet:
 // nah mit Laubkarten, sonst als Fernmodell (Kegel/Ikosaeder + Stamm) bis treeFar.
+//
+// gl-ground (Grasring, nur Optik): Grasflecken aus Halmen in Büscheln (nah viele Halme, ab halbem Radius eine ferne
+// Stufe mit wenigen breiten Halmen), Dichtefeld aus dem Gelände-Rauschen (splat.js), Farbe = Wiesenfarbe des Bodens,
+// weiches Ausblenden im Shader, spärliche Wiesenblumen (medium+). Alles aus Positions-Hashes – berührt weder die
+// Zufallsströme noch die Kollision (Felsen werden nur gelesen, um Gras aus ihnen herauszuhalten).
 import * as THREE from 'three';
 import { createFoliage, foliageUniforms, WIND_VERTEX, setWindAttribute, setFoliageQuality } from '../atlas.js';
 import { rng, hash2, createSimplex, smoothstep } from './noise.js';
