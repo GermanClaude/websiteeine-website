@@ -58,6 +58,32 @@ export const TIME_FX = Object.freeze({
   abend: { elevation: 12, azimuth: 252, sun: '#ffb676', hdri: 'freight_station', sky: { turbidity: 7, rayleigh: 2.4, mieCoefficient: 0.009 }, fog: '#dcb08a', hemi: '#d6c2ad', lut: { temperature: 0.12 } },
 });
 
+/**
+ * Typische Uhrzeit (Stunde, Ortszeit) je Tageszeit – für „Echtzeit“: gespielt wird die Tageszeit der Karte, die der
+ * echten Uhrzeit am nächsten liegt (Sonnenstand der TIME_FX-Einträge: Morgen ≈ 7 Uhr … Abend ≈ 19 Uhr).
+ */
+export const TIME_HOURS = Object.freeze({ morgen: 7, vormittag: 10, mittag: 12.5, nachmittag: 15.5, abend: 19 });
+
+/**
+ * „Echtzeit“ auflösen: Tageszeit der Karte (Kartenzeit `timeDefault` oder eine aus `times`), die `date` (Ortszeit)
+ * am nächsten liegt; nachts zählt der Abstand über Mitternacht. → Zeit-Id oder null (= Kartenzeit).
+ */
+export function realTimePreset(meta, date = new Date()) {
+  const m = meta || {};
+  const h = date.getHours() + date.getMinutes() / 60;
+  const times = (Array.isArray(m.times) ? m.times : []).map((t) => t.id).filter((t) => TIME_FX[t]);
+  const cands = [[null, m.timeDefault], ...times.map((t) => [t, t])];
+  let best = null, bd = Infinity;
+  for (const [id, key] of cands) {
+    const th = TIME_HOURS[key];
+    if (th == null) continue;
+    let d = Math.abs(h - th);
+    d = Math.min(d, 24 - d);
+    if (d < bd - 1e-9) { bd = d; best = id; }
+  }
+  return best;
+}
+
 const hex = (c) => { const n = parseInt(String(c).replace('#', ''), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => v / 255); };
 const toHex = (a) => '#' + a.map((v) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0')).join('');
 const mixHex = (a, b, t) => { const x = hex(a), y = hex(b); return toHex(x.map((v, i) => v + (y[i] - v) * t)); };
@@ -66,8 +92,10 @@ const rad = (d) => (d * Math.PI) / 180;
 const airmass = (el) => 0.25 + 0.75 * Math.pow(Math.max(0.02, Math.sin(rad(Math.max(el, 1)))), 0.6);
 
 /**
- * Wetter/Tageszeit für eine Karte auflösen. req: { weather: id|'standard'|'zufall'|null, time: id|'standard'|'zufall'|null }
- * → { weather, time (null = Kartenzeit), isDefault, key, label }. rnd: Zufallsquelle (Tests).
+ * Wetter/Tageszeit für eine Karte auflösen. req: { weather: id|'standard'|'zufall'|null,
+ * time: id|'standard'|'zufall'|'echtzeit'|null, now?: Date (für 'echtzeit', Standard: jetzt) }
+ * → { weather, time (null = Kartenzeit), isDefault, key, realtime }. rnd: Zufallsquelle (Tests).
+ * Online löst der Host auf (Zufall/Echtzeit nach seiner Uhr); die Clients bekommen die konkrete Zeit.
  */
 export function resolveConditions(meta, req = {}, rnd = Math.random) {
   const m = meta || {};
@@ -78,11 +106,13 @@ export function resolveConditions(meta, req = {}, rnd = Math.random) {
   if (w === 'zufall') w = allowed[Math.floor(rnd() * allowed.length)];
   if (!allowed.includes(w)) w = w0;
   let t = req.time;
+  const realtime = t === 'echtzeit';
   if (t === 'zufall') { const pool = [null, ...times]; t = pool[Math.floor(rnd() * pool.length)]; }
+  else if (realtime) t = realTimePreset(m, req.now instanceof Date ? req.now : new Date());
   if (!times.includes(t)) t = null;
-  // Morgennebel ohne gewählte Zeit → Morgen (wenn angeboten bzw. die Karte ohnehin morgens spielt)
-  if (!t && req.time !== 'standard' && WEATHER_FX[w].time && times.includes(WEATHER_FX[w].time) && w !== w0) t = WEATHER_FX[w].time;
-  return { weather: w, weatherDefault: w0, time: t, timeDefault: m.timeDefault || null, isDefault: w === w0 && !t, key: `${w}|${t || '-'}` };
+  // Morgennebel ohne gewählte Zeit → Morgen (wenn angeboten bzw. die Karte ohnehin morgens spielt); Echtzeit bleibt
+  if (!t && req.time !== 'standard' && !realtime && WEATHER_FX[w].time && times.includes(WEATHER_FX[w].time) && w !== w0) t = WEATHER_FX[w].time;
+  return { weather: w, weatherDefault: w0, time: t, timeDefault: m.timeDefault || null, isDefault: w === w0 && !t, key: `${w}|${t || '-'}`, realtime };
 }
 
 /**

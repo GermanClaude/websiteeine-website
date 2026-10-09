@@ -4,6 +4,8 @@
 // Sprint-Absicht (Taste halten, Umschalten, Touch-Sprintsperre) bleibt dabei bestehen und setzt danach von selbst
 // wieder ein – nichts bleibt hängen, nichts muss neu gedrückt werden.
 // Spielstil: styleFlags.staminaMult (GAME_STYLES; Realistisch zehrt schneller: ≈ 5 s statt ≈ 7 s Dauersprint).
+// staminaMult 0 (bzw. styleFlags.stamina === false) = Ausdauer aus: unbegrenzt, nie erschöpft (Raum-Einstellung
+// „Ausdauer“ online, net/index.js _applyMatchRules). Ungültige/negative Werte gelten als 1.
 // Rückmeldung: HUD-Balken (hud.js .h-stam), Atmung (audio.js Foley), strain → player.exertion (Kamera-Atmung,
 // Zielwandern der Waffe über controller.winded).
 //
@@ -28,8 +30,10 @@ export class Stamina {
   constructor() {
     this.value = STAMINA_MAX;
     this.exhausted = false;
-    /** Verbrauchsfaktor des Spielstils (styleFlags.staminaMult). */
+    /** Verbrauchsfaktor des Spielstils (styleFlags.staminaMult); 0 = unbegrenzt. */
     this.mult = 1;
+    /** Ausdauer aus (unbegrenzt): kein Verbrauch, immer voll. */
+    this.unlimited = false;
     /** > 0: eben verweigert (HUD blinkt). */
     this.deniedT = 0;
     this._idle = DELAY;
@@ -54,15 +58,18 @@ export class Stamina {
     return low * 0.6 + (this.exhausted ? 0.3 : 0);
   }
 
-  /** Spielstil übernehmen (styleFlags; ohne Angabe 1). */
+  /** Spielstil übernehmen (styleFlags; ohne Angabe 1; 0 bzw. stamina === false = unbegrenzt). */
   setStyle(flags) {
+    const off = !!flags && (flags.stamina === false || flags.staminaMult === 0);
     const m = flags && Number.isFinite(flags.staminaMult) ? flags.staminaMult : 1;
-    this.mult = m > 0 ? m : 1;
+    this.mult = off ? 0 : m > 0 ? m : 1;
+    if (off && !this.unlimited) { this.value = STAMINA_MAX; this.exhausted = false; this.deniedT = 0; this._idle = DELAY; }
+    this.unlimited = off;
   }
 
-  /** Einmaliger Verbrauch (× Spielstil); hält die Erholung an. */
+  /** Einmaliger Verbrauch (× Spielstil); hält die Erholung an. Unbegrenzt: nichts. */
   drain(amount) {
-    if (!(amount > 0)) return;
+    if (!(amount > 0) || this.unlimited) return;
     this.value = Math.max(0, this.value - amount * this.mult);
     this._idle = 0;
     if (this.value <= 0) this.exhausted = true;

@@ -21,6 +21,7 @@ import { upgradeSoldierMaterials, soldierDetailInfo } from './soldier/materials.
 import { analyze } from './ai/tactics.js';
 import { TeamTactics, planRoles } from './ai/squad.js';
 import { BotAdapt } from './ai/spielstil.js';
+import { CorpseStore } from './corpses.js';
 import { CLASSES, DEFAULT_CLASS, pickBotClass, resolveClassLoadout } from '../../shared/classes.data.js';
 
 const _m = new THREE.Matrix4();
@@ -87,6 +88,7 @@ export class BotManager {
     this._plateLos = new Map();
     this.tactics = new TeamTactics(this);
     this.adapt = new BotAdapt(this); // ai-adapt: lernende Bots (Spielermodell + Anpassung der Gegner)
+    this.corpses = new CorpseStore(this); // Leichen bleiben liegen (eingefroren, Obergrenze je Grafikstufe)
     this.lodEnabled = true;
     this._stepEv = { actor: null, sprint: false, crouch: false }; // Simulations-Detailstufen (Prüfstand/Messung: false = alle Bots jedes Bild)
     this.lodCount = [0, 0, 0, 0];
@@ -288,6 +290,7 @@ export class BotManager {
     for (const p of this._plates.values()) p.release();
     this._plates.clear();
     this._plateLos.clear();
+    this.corpses.clear(); // eingefrorene Leichen (Matchende/Kartenwechsel)
     this.bots = [];
     this._paths.clear();
     this._pathQ.length = 0;
@@ -747,6 +750,8 @@ export class BotManager {
       if (b.alive) b.updateCorpsesOnly(sdt);
     }
     this.debug.simmed = simmed;
+    // Eingefrorene Leichen: Pakete nachbauen, Lebensdauer (Einstellung „Leichen“)
+    this.corpses.update(dt, cam ? this._frustum : null);
     // Schatten (nächste N sichtbare)
     this._shadowT -= dt;
     if (this._shadowT <= 0) { this._shadowT = 0.5; this._assignShadows(); }
@@ -1214,7 +1219,7 @@ export class BotManager {
       if (b.stance === 'prone') prone++;
       if (b.order && b.order.kind && now < b.order.until) ordered++;
     }
-    return { bots: this.bots.length, alive: this.bots.filter((b) => b.alive).length, states, ms: +this.debug.ms.toFixed(2), losPerFrame: this.debug.losUsed, pathQueue: this._paths.size, broken, leaning, staggered, prone, ordered, corpses, sunk, lod: this.lodCount.slice(), simmed: this.debug.simmed, puppets, tactics: { ...this.tactics.counts }, squads: this.tactics.squads.length, fabric: soldierDetailInfo().kind };
+    return { bots: this.bots.length, alive: this.bots.filter((b) => b.alive).length, states, ms: +this.debug.ms.toFixed(2), losPerFrame: this.debug.losUsed, pathQueue: this._paths.size, broken, leaning, staggered, prone, ordered, corpses, frozenCorpses: this.corpses.order.length, sunk, lod: this.lodCount.slice(), simmed: this.debug.simmed, puppets, tactics: { ...this.tactics.counts }, squads: this.tactics.squads.length, fabric: soldierDetailInfo().kind };
   }
 
   /** Diagnose: Pose/Trefferzonen eines lebenden Bots endlich und am Körper (≤ 3 m von den Füßen)? */

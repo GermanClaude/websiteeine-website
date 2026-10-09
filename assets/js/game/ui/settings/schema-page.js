@@ -51,6 +51,8 @@ export const HINTS = {
   bodycamStamp: 'Uhrzeit und erfundene Geräte-ID in der Bildecke, wie bei einer Körperkamera-Aufnahme.',
   showFps: 'Bildrate unten links.',
   audioMix: 'Handy: hebt Schritte und Stimmen hervor, nimmt tiefe Bässe weg.',
+  glocke: 'Die Turmglocke in der Altstadt schlägt zu jeder vollen Stunde der echten Uhrzeit die Stundenzahl (21 Uhr: 9 Schläge).',
+  leichen: 'Wie lange gefallene Soldaten liegen bleiben. Zum Schutz der Bildrate gilt je Grafikstufe eine Obergrenze (Niedrig 24, Mittel 48, Hoch 96, Ultra 160) – darüber verschwinden die ältesten zuerst.',
 };
 
 /**

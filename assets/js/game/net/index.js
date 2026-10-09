@@ -14,7 +14,9 @@
 // Spielstart: startMatch() (Host) baut die Konfiguration (§6), schickt 'start' {cfg} an alle Clients und startet
 // selbst über this.startGame(cfg) – Standard: G.menus.onStart(cfg) (= main.startMatch). Clients starten bei 'start'
 // bzw. beim Einstieg ins laufende Spiel (welcome.cfg) genauso. cfg.net = {role, roomCode, selfId, team, teamSize, pvp,
-// botFill, maxPlayers, botsA, botsB, humans:{A,B}}; Wetter/Zeit sind aufgelöst (nie 'zufall').
+// botFill, maxPlayers, botsA, botsB, humans:{A,B}, stamina}; Wetter/Zeit sind aufgelöst (nie 'zufall'/'echtzeit').
+// stamina false (Raum-Einstellung „Ausdauer“ aus) = unbegrenzte Ausdauer für alle: beim Matchstart (match:state)
+// setzt NetSystem G.match.styleFlags.staminaMult = 0 (stamina.js: 0 = unbegrenzt).
 import { HostSignal, joinRoom, watchLobby, relaysFromUrl, DEFAULT_RELAYS, newRoomCode, normCode, isValidCode } from './signal.js';
 import { PeerLink, ICE_SERVERS } from './peer.js';
 import { hex, randomBytes } from './crypto.js';
@@ -55,6 +57,7 @@ export const NET_ERROR_TEXT = Object.freeze({
 export const DEFAULT_ROOM = Object.freeze({
   name: '', mode: 'tdm', map: 'hafen', time: 'standard', weather: 'standard', difficulty: 'regulaer',
   maxPlayers: 8, botFill: true, teamSize: 6, pvp: 'pvp', public: false, style: 'arcade', scoreLimit: null, timeLimit: null,
+  stamina: true, // Ausdauer an (aus = unbegrenzte Ausdauer für alle)
 });
 
 const TIME_SYNC_MS = 2000;
@@ -115,7 +118,7 @@ export function normalizeSettings(partial = {}, base = DEFAULT_ROOM, hostName = 
     name: str(pick('name'), 24) || `${str(hostName, 16) || 'Host'}s Raum`,
     mode,
     map,
-    time: time === 'zufall' || times.includes(time) ? time : 'standard',
+    time: time === 'zufall' || time === 'echtzeit' || times.includes(time) ? time : 'standard',
     weather: weather === 'zufall' || weathers.includes(weather) ? weather : 'standard',
     difficulty: DIFFICULTY_ORDER.includes(pick('difficulty')) ? pick('difficulty') : DIFFICULTY_ORDER.includes(b.difficulty) ? b.difficulty : 'regulaer',
     maxPlayers: clampInt(pick('maxPlayers'), 2, MAX_PLAYERS, 8),
@@ -126,6 +129,7 @@ export function normalizeSettings(partial = {}, base = DEFAULT_ROOM, hostName = 
     style: GAME_STYLES[pick('style')] ? pick('style') : 'arcade',
     scoreLimit: limit(pick('scoreLimit'), 1, 9999),
     timeLimit: limit(pick('timeLimit'), 30, 7200),
+    stamina: pick('stamina') !== false,
   };
 }
 
@@ -345,7 +349,18 @@ export class NetSystem {
     if (this.chaos) console.info(`[net] Netz-Chaos (Prüflauf): Laufzeit ${this.chaos.lag} ± ${this.chaos.jitter} ms, Verlust ${Math.round(this.chaos.loss * 100)} %`);
     this._onVis = () => this._visibility();
     // Rückkehr in die Lobby beendet auf dem Host den Spielzustand des Raums (Revanche = zurück in den Raum)
-    this._offState = G && G.events ? G.events.on('match:state', (e) => { if (e && e.state === 'lobby') this._matchOver(); }) : null;
+    this._offState = G && G.events ? G.events.on('match:state', (e) => { if (e && e.state === 'lobby') this._matchOver(); else this._applyMatchRules(); }) : null;
+  }
+
+  /**
+   * Raumregeln, die nicht über die Spielstil-Flags kommen, auf das laufende Match legen (Host und Clients gleich, aus
+   * cfg.net = G.match.net). main.applyStyle setzt G.match.styleFlags vor setState('loading') neu – daher bei jedem
+   * Zustandswechsel (idempotent). Ausdauer aus → staminaMult 0 (stamina.js: unbegrenzt, Spieler und Bots).
+   */
+  _applyMatchRules() {
+    const M = this.G && this.G.match;
+    if (!M || !M.net || !M.styleFlags) return;
+    if (M.net.stamina === false && M.styleFlags.staminaMult !== 0) M.styleFlags.staminaMult = 0;
   }
 
   /* ================================================================ Status / Ereignisse */
@@ -719,6 +734,7 @@ export class NetSystem {
       const ts = (Array.isArray(meta.times) ? meta.times : []).map((t) => t.id);
       const w = weather === 'zufall' ? ws[Math.floor(Math.random() * ws.length)] : ws.includes(weather) ? weather : meta.weatherDefault || ws[0];
       const pool = [null, ...ts];
+      // ('echtzeit' ohne weather.js: Kartenzeit – der Normalfall löst über realTimePreset nach der Uhr des Hosts auf)
       const t = time === 'zufall' ? pool[Math.floor(Math.random() * pool.length)] : ts.includes(time) ? time : null;
       cond = { weather: w, time: t };
     }
@@ -744,6 +760,7 @@ export class NetSystem {
       net: {
         roomCode: this.room.code, teamSize: s.teamSize, pvp: s.pvp, botFill: s.botFill, maxPlayers: s.maxPlayers,
         botsA, botsB, humans, ffa, conditions: cond, startedAt: this.serverTime(),
+        stamina: s.stamina !== false, // Raum-Einstellung „Ausdauer“ (aus = unbegrenzt für alle, _applyMatchRules)
       },
     };
     if (s.timeLimit != null) cfg.timeLimit = s.timeLimit;

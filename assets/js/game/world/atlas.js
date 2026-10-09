@@ -478,7 +478,69 @@ function drawSign(ctx, s, r) {
 // ---------------------------------------------------------------------------
 let foliageTex = null, foliageSize = 0;
 const foliageMats = new Map();
-export const foliageUniforms = { uTime: { value: 0 } };
+
+// Wind (Gras, Pflanzen, Laub): gemeinsame Uhr – online die Host-Zeit (G.net.serverTime(), auf allen Rechnern
+// abgeglichen), sonst die Spielzeit G.time.elapsed; ohne Spielkontext (Dev-Seiten) die aufaddierte Zeit
+// (world.update schreibt weiterhin `uTime.value += dt` – das landet dann nur in diesem Rückfallzähler).
+let windG = null, windAcc = 0;
+/** Spielkontext für die Wind-Uhr (loadWorld/loadBigWorld); ohne Aufruf gilt window.__game. */
+export function attachFoliageClock(G) { windG = G || null; }
+function windClock() {
+  const G = windG || (typeof window !== 'undefined' ? window.__game : null) || null;
+  const n = G && G.net;
+  if (n && n.online && typeof n.serverTime === 'function') { const t = n.serverTime(); if (Number.isFinite(t)) return t; }
+  const e = G && G.time && G.time.elapsed;
+  return Number.isFinite(e) && e > 0 ? e : windAcc;
+}
+/** Windrichtung (Welt xz, normiert), Stärke, Feinbewegung (Blattflattern; 0 auf „niedrig“). */
+const WIND_DIR = new THREE.Vector2(0.82, -0.57).normalize();
+export const foliageUniforms = {
+  uTime: { get value() { return windClock(); }, set value(v) { windAcc = Number.isFinite(v) ? v : 0; } },
+  uWind: { value: new THREE.Vector4(WIND_DIR.x, WIND_DIR.y, 1, 1) },
+};
+/** Grafikstufe → Windumfang: „niedrig“ nur die Biegung (kein Flattern), sonst beides. */
+export function setFoliageQuality(quality) { foliageUniforms.uWind.value.w = quality === 'low' ? 0 : 1; }
+
+/**
+ * Wind im Vertex-Shader (Laub, Gras, Schilf). aWind.x = Biegung (m an der Spitze bei voller Böe, Fuß 0),
+ * aWind.y = Flattern (m). Phase je Instanz aus ihrer Position, Böen laufen als Welle in Windrichtung über die
+ * Karte; Versatz in Weltrichtung (Instanz-Drehung herausgerechnet), mit der Instanzgröße skaliert. Geometrie ohne
+ * aWind (Attribut-Standard 0) bleibt still.
+ */
+export const WIND_VERTEX = `
+  {
+  #ifdef USE_INSTANCING
+    mat3 npWm = mat3(instanceMatrix);
+    vec2 npWp = vec2(instanceMatrix[3][0], instanceMatrix[3][2]);
+  #else
+    mat3 npWm = mat3(1.0);
+    vec2 npWp = vec2(modelMatrix[3][0], modelMatrix[3][2]);
+  #endif
+    float npPh = fract(sin(dot(npWp, vec2(12.9898, 78.233))) * 43758.5453) * 6.2832;
+    float npAl = dot(npWp, uWind.xy);
+    float npGust = 0.62 + 0.38 * sin(npAl * 0.055 - uTime * 0.9) * (0.65 + 0.35 * sin(npAl * 0.014 - uTime * 0.33 + 1.7));
+    float npB = aWind.x * uWind.z;
+    float npSw = sin(uTime * 1.25 + npPh) * 0.7 + sin(uTime * 2.2 + npPh * 1.9) * 0.3;
+    vec3 npOff = vec3(uWind.x, 0.0, uWind.y) * (npB * (npGust * 0.7 + npSw * 0.42))
+      + vec3(-uWind.y, 0.0, uWind.x) * (npB * 0.2 * sin(uTime * 0.85 + npPh * 2.3));
+    float npF = aWind.y * uWind.z * uWind.w * (0.45 + npGust);
+    npOff += npF * vec3(sin(uTime * 6.1 + npPh + position.x * 3.1 + position.z * 1.7),
+      0.5 * sin(uTime * 5.3 + npPh + position.y * 2.9),
+      cos(uTime * 5.7 + npPh + position.z * 3.3 + position.x * 1.3));
+    float npS = max(1e-3, length(npWm[0]));
+    transformed += transpose(npWm) * npOff / npS;
+    // Halm/Wedel wird beim Biegen nicht länger: Spitze sinkt um ≈ Versatz² / (2 · Höhe)
+    transformed.y -= dot(npOff.xz, npOff.xz) / (2.0 * max(0.35, abs(position.y)) * npS * npS);
+  }
+`;
+
+/** aWind-Attribut (vec2 je Ecke) aus einer Funktion (x, y, z) → [Biegung, Flattern]. */
+export function setWindAttribute(g, fn) {
+  const p = g.attributes.position, a = new Float32Array(p.count * 2);
+  for (let i = 0; i < p.count; i++) { const w = fn(p.getX(i), p.getY(i), p.getZ(i)); a[i * 2] = w[0]; a[i * 2 + 1] = w[1]; }
+  g.setAttribute('aWind', new THREE.BufferAttribute(a, 2));
+  return g;
+}
 
 function drawFoliageAtlas(ctx, S) {
   ctx.scale(S / 1024, S / 1024); // gezeichnet wird in 1024er-Koordinaten
@@ -555,20 +617,14 @@ function foliageMaterial(cast) {
   m.userData.surface = 'grass';
   m.onBeforeCompile = sh => {
     sh.uniforms.uTime = foliageUniforms.uTime;
-    sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-      #ifdef USE_INSTANCING
-        vec3 ip = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
-      #else
-        vec3 ip = vec3(0.0);
-      #endif
-      float sw = max(0.0, position.y) * 0.045;
-      transformed.x += sin(uTime * 1.6 + ip.x * 0.7 + ip.z * 0.3 + position.y) * sw;
-      transformed.z += cos(uTime * 1.3 + ip.z * 0.6 + position.x) * sw * 0.7;`);
+    sh.uniforms.uWind = foliageUniforms.uWind;
+    sh.vertexShader = 'uniform float uTime;\nuniform vec4 uWind;\nattribute vec2 aWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      ${WIND_VERTEX}`);
     // Rückseiten nicht abdunkeln: Normalen der Karte nach oben gemischt
     sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
       normal = normalize(mix(normal, (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz, 0.55));`);
   };
-  m.customProgramCacheKey = () => 'foliage-v1';
+  m.customProgramCacheKey = () => 'foliage-v2-wind';
   foliageMats.set(key, m);
   return m;
 }
@@ -656,18 +712,23 @@ function mergeSimple(geoms) {
   return g;
 }
 
+// Wind je Art (x, y, z lokal → [Biegung, Flattern] in m): Fuß fest, Spitze/Kronenrand am stärksten; Kletterpflanzen
+// an Wänden (vine) und Wandblüten (flowers) flattern nur (Biegung würde sie von der Wand lösen)
+const tip = (h, bend, flut) => (x, y) => { const t = Math.min(1, Math.max(0, y / h)); return [bend * t * t, flut * t]; };
+const crown = (top, bend, flut) => (x, y) => { const t = Math.min(1, Math.max(0, y / top)); return [bend * t * t, flut * (0.35 + 0.65 * t)]; };
 const KINDS = {
   // visual-hunt: crossGeom steht auf y 0 (nicht mittig) → Busch schwebte ≈ 0,5 m (Schatten frei darunter); 0,9 → 0,6
-  bush:    { geom: () => clusterGeom(0, 1.2, 7, 11, 0.6), cast: true, tint: ['#9fb27a', '#87a06a', '#b2b884'] },
-  hedge:   { geom: () => clusterGeom(0, 1.0, 6, 12, 0.7), cast: true, tint: ['#7f9a5a', '#90a868'] },
-  olive:   { geom: () => clusterGeom(0, 2.6, 14, 13, 3.6), cast: true, tint: ['#a9b391', '#9aa884', '#b6bb98'] },
-  tree:    { geom: () => clusterGeom(0, 3.0, 16, 14, 4.6), cast: true, tint: ['#8ea866', '#7f9c5c', '#a0b070'] },
-  grass:   { geom: () => crossGeom(1, 0.9, 0.7, 3), cast: false, tint: ['#c7c9a0', '#b9c08e', '#d6cfa0'] },
-  weeds:   { geom: () => crossGeom(1, 0.7, 0.55, 2), cast: false, tint: ['#a8b07c', '#c4b98a', '#9aa070'] },
-  reeds:   { geom: () => crossGeom(1, 1.0, 1.6, 3), cast: false, tint: ['#c2bc88', '#aab07a'] },
-  palm:    { geom: () => palmCrownGeom(), cast: true, tint: ['#c4cf8f', '#b5c482', '#d0d49a'] },
-  flowers: { geom: () => crossGeom(3, 1.4, 1.4, 1), cast: false, tint: ['#ffffff', '#f2e6ee'] },
-  vine:    { geom: () => clusterGeom(3, 1.1, 5, 15, 0.6), cast: true, tint: ['#ffffff', '#efe2ea'] },
+  bush:    { geom: () => clusterGeom(0, 1.2, 7, 11, 0.6), wind: crown(1.6, 0.06, 0.035), cast: true, tint: ['#9fb27a', '#87a06a', '#b2b884'] },
+  hedge:   { geom: () => clusterGeom(0, 1.0, 6, 12, 0.7), wind: crown(1.5, 0.04, 0.03), cast: true, tint: ['#7f9a5a', '#90a868'] },
+  olive:   { geom: () => clusterGeom(0, 2.6, 14, 13, 3.6), wind: crown(5.5, 0.14, 0.045), cast: true, tint: ['#a9b391', '#9aa884', '#b6bb98'] },
+  tree:    { geom: () => clusterGeom(0, 3.0, 16, 14, 4.6), wind: crown(7.0, 0.2, 0.05), cast: true, tint: ['#8ea866', '#7f9c5c', '#a0b070'] },
+  grass:   { geom: () => crossGeom(1, 0.9, 0.7, 3), wind: tip(0.7, 0.13, 0.03), cast: false, tint: ['#c7c9a0', '#b9c08e', '#d6cfa0'] },
+  weeds:   { geom: () => crossGeom(1, 0.7, 0.55, 2), wind: tip(0.55, 0.1, 0.03), cast: false, tint: ['#a8b07c', '#c4b98a', '#9aa070'] },
+  reeds:   { geom: () => crossGeom(1, 1.0, 1.6, 3), wind: tip(1.6, 0.26, 0.04), cast: false, tint: ['#c2bc88', '#aab07a'] },
+  // Palmwedel: Ursprung am Kronenansatz, Wedel hängen nach unten → Gewicht nach Abstand vom Ansatz
+  palm:    { geom: () => palmCrownGeom(), wind: (x, y, z) => { const t = Math.min(1, Math.hypot(x, y, z) / 3.4); return [0.24 * t * t, 0.07 * t]; }, cast: true, tint: ['#c4cf8f', '#b5c482', '#d0d49a'] },
+  flowers: { geom: () => crossGeom(3, 1.4, 1.4, 1), wind: tip(1.4, 0, 0.02), cast: false, tint: ['#ffffff', '#f2e6ee'] },
+  vine:    { geom: () => clusterGeom(3, 1.1, 5, 15, 0.6), wind: () => [0, 0.018], cast: true, tint: ['#ffffff', '#efe2ea'] },
 };
 
 /**
@@ -676,6 +737,7 @@ const KINDS = {
  */
 export function createFoliage(plants, quality = 'high') {
   if (plants.length) ensureFoliageAtlas(quality);
+  setFoliageQuality(quality);
   const byKind = new Map();
   for (const p of plants) {
     if (!KINDS[p.kind]) continue;
@@ -689,6 +751,7 @@ export function createFoliage(plants, quality = 'high') {
   for (const [kind, list] of byKind) {
     const def = KINDS[kind];
     const geom = def.geom();
+    setWindAttribute(geom, def.wind);
     geom.computeBoundingSphere();
     const mesh = new THREE.InstancedMesh(geom, foliageMaterial(def.cast), list.length);
     list.forEach((p, i) => {

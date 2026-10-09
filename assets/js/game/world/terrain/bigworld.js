@@ -18,7 +18,7 @@ import { resolveConditions, applyConditions } from '../weather.js';
 import { createWater } from '../water.js';
 import { TriangleBVH } from '../bvh.js';
 import { makeTests } from '../navbuild.js';
-import { foliageUniforms } from '../atlas.js';
+import { foliageUniforms, attachFoliageClock } from '../atlas.js';
 import { Heightfield } from './heightfield.js';
 import { makeCoarse } from './generate.js';
 import { CompositeBVH } from './composite.js';
@@ -130,6 +130,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   const progress = (p, label) => { try { onProgress?.(Math.min(1, Math.max(0, p)), label || ''); } catch { /* UI */ } };
   progress(0, 'Karte wird vorbereitet');
   const renderer = G.renderer?.renderer || G.renderer;
+  attachFoliageClock(G); // Wind (Gras/Laub) an der gemeinsamen Uhr (online Host-Zeit)
   const quality = ['low', 'medium', 'high', 'ultra'].includes(G.renderer?.quality) ? G.renderer.quality : (['low', 'medium', 'high', 'ultra'].includes(G.settings?.get?.('quality')) ? G.settings.get('quality') : 'high');
   const tier = BIG_TIERS[quality];
   const debug = !!(G.debug || G.params?.get?.('debug') === '1');
@@ -477,7 +478,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
     update(dt, camera) {
       light.update(dt, camera);
       atmos?.update(dt, camera);
-      foliageUniforms.uTime.value += dt;
+      foliageUniforms.uTime.value += dt; // nur Rückfall ohne Spielzeit (Dev-Seiten); im Spiel gilt die gemeinsame Uhr
       water.update(dt);
       if (!camera) return;
       if (camera.isPerspectiveCamera && camera.far < tier.view + 60) { camera.far = tier.view + 60; camera.updateProjectionMatrix(); }

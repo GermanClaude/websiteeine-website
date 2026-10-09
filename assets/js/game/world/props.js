@@ -109,25 +109,29 @@ export function crateStack(b, x, z, o = {}) {
 
 export function barrel(b, x, y, z, o = {}) {
   const color = o.color || b.pick(['#2d5f94', '#b8392c', '#3e7a4c', '#c9a227', '#3a3d40']);
+  // Mehrspieler: Kollision immer derselbe Zylinder – unabhängig von Bibliothek, Grafikstufe und geladenem Modell
+  if (o.tipped) b.cyl(x, y + 0.3, z, 0.3, 0.88, 'black', { axis: 'x', ry: o.ry || 0, visual: false, minimap: 'cover' });
+  else b.cyl(x, y, z, 0.3, 0.88, 'black', { visual: false, minimap: 'cover' });
   if (b.hasModel('barrel_01')) {
     // Fotoscan-Fässer: Rot (Stahl, Gefahrzeichen), Blau (Stahl), Blau (Kunststoff) – nach gewünschter Farbe/Ort
     const c = new THREE.Color(color), h = hash01(x, z, 3);
     const id = c.r > c.b * 1.4 ? 'barrel_01' : c.b > c.r * 1.3 ? (h < 0.6 ? 'barrel_03' : 'barrel_02') : (h < 0.5 ? 'barrel_01' : 'barrel_03');
     const fb = (bb) => barrelProc(bb, x, y, z, { ...o, color });
-    if (o.tipped) b.model(id, x, y + 0.3, z, { pivot: 'center', rz: Math.PI / 2, ry: o.ry || 0, minimap: 'cover', fallback: fb });
-    else b.model(id, x, y, z, { ry: hash01(x, z, 4) * Math.PI * 2, minimap: 'cover', fallback: fb });
+    if (o.tipped) b.model(id, x, y + 0.3, z, { pivot: 'center', rz: Math.PI / 2, ry: o.ry || 0, collide: false, fallback: fb });
+    else b.model(id, x, y, z, { ry: hash01(x, z, 4) * Math.PI * 2, collide: false, fallback: fb });
     return;
   }
   barrelProc(b, x, y, z, { ...o, color });
 }
 
+/** Prozedurales Fass – nur Optik (Kollision setzt barrel()). */
 function barrelProc(b, x, y, z, o) {
   const color = o.color;
   if (o.tipped) {
-    b.cyl(x, y + 0.3, z, 0.3, 0.88, 'metal_painted', { axis: 'x', ry: o.ry || 0, tint: color, minimap: 'cover' });
+    b.cyl(x, y + 0.3, z, 0.3, 0.88, 'metal_painted', { axis: 'x', ry: o.ry || 0, tint: color, collide: false, minimap: false });
     return;
   }
-  b.cyl(x, y, z, 0.3, 0.88, 'metal_painted', { tint: color, minimap: 'cover', seg: 14, aoFloor: y });
+  b.cyl(x, y, z, 0.3, 0.88, 'metal_painted', { tint: color, collide: false, minimap: false, seg: 14, aoFloor: y });
   for (const ry of [0.28, 0.58]) b.cyl(x, y + ry, z, 0.31, 0.03, 'metal_painted', { tint: shade(color, 0.8), collide: false, seg: 14, minimap: false, ao: false });
   b.cyl(x, y + 0.875, z, 0.285, 0.015, 'metal_painted', { tint: shade(color, 0.6), collide: false, seg: 14, minimap: false, ao: false });
   b.cyl(x + 0.14, y + 0.88, z + 0.05, 0.035, 0.02, 'metal_galvanized', { collide: false, seg: 6, minimap: false, ao: false });
@@ -252,9 +256,12 @@ export function sandbags(b, x0, z0, x1, z1, o = {}) {
         const lz = (k - (depth - 1) / 2) * 0.33 - uz * 0;
         const nx = -uz * lz, nz = ux * lz;
         const jx = (b.rand() - 0.5) * 0.03, jz = (b.rand() - 0.5) * 0.03, jr = (b.rand() - 0.5) * 0.12, tint = b.pick(tints);
-        // env-look: leichte Neigung je Sack (liegen nie exakt eben), nur mit der Detailform
-        const tilt = hd ? { rx: (b.rand() - 0.5) * 0.06, rz: (b.rand() - 0.5) * 0.08, sy: 0.92 + b.rand() * 0.16 } : {};
-        b.geom(g, x0 + ux * s + nx + jx, y + r * 0.145, z0 + uz * s + nz + jz, 'sandbag', { ry: ry + jr, ...tilt, tint, collide: false, minimap: false, uv: 'keep', grad: false, aoFloor: y });
+        const px = x0 + ux * s + nx + jx, pz = z0 + uz * s + nz + jz;
+        // env-look: leichte Neigung je Sack (liegen nie exakt eben), nur mit der Detailform. Mehrspieler: aus der
+        // Position (hash01), NICHT aus dem Kartenzufall – sonst verschöbe „ab mittel“ alle späteren Platzierungen
+        const hk = 40 + r * 8 + k * 3;
+        const tilt = hd ? { rx: (hash01(px, pz, hk) - 0.5) * 0.06, rz: (hash01(px, pz, hk + 1) - 0.5) * 0.08, sy: 0.92 + hash01(px, pz, hk + 2) * 0.16 } : {};
+        b.geom(g, px, y + r * 0.145, pz, 'sandbag', { ry: ry + jr, ...tilt, tint, collide: false, minimap: false, uv: 'keep', grad: false, aoFloor: y });
       }
     }
   }
@@ -760,10 +767,12 @@ export function tree(b, x, z, o = {}) {
 export function pot(b, x, y, z, o = {}) {
   const r = o.r ?? 0.28, h = o.h ?? 0.45;
   if (b.hasModel('planter_pot_clay') && o.model !== false) {
-    // Fotoscan-Terrakottatopf (0,27 × 0,22 m) auf Topfmaß skaliert; Erde + Pflanze wie bisher
+    // Fotoscan-Terrakottatopf (0,27 × 0,22 m) auf Topfmaß skaliert; Erde + Pflanze wie bisher. Kollision (Mehrspieler):
+    // derselbe Kegelstumpf wie beim prozeduralen Topf, unabhängig davon, ob das Modell lädt
     const k = (2 * r) / 0.27;
-    b.model('planter_pot_clay', x, y, z, { sx: k, sz: k, sy: h / 0.22, ry: hash01(x, z, 5) * 6.28, collide: o.collide ?? true, minimap: 'prop',
-      fallback: (bb) => bb.cyl(x, y, z, r * 0.8, h, 'tiles_terracotta', { r1: r, seg: 12, tint: '#c47a52', minimap: 'prop', collide: o.collide ?? true, uv: 'keep' }) });
+    if (o.collide ?? true) b.cyl(x, y, z, r * 0.8, h, 'black', { r1: r, seg: 12, visual: false, minimap: 'prop' });
+    b.model('planter_pot_clay', x, y, z, { sx: k, sz: k, sy: h / 0.22, ry: hash01(x, z, 5) * 6.28, collide: false,
+      fallback: (bb) => bb.cyl(x, y, z, r * 0.8, h, 'tiles_terracotta', { r1: r, seg: 12, tint: '#c47a52', minimap: false, collide: false, uv: 'keep' }) });
     b.cyl(x, y + h - 0.07, z, r * 0.86, 0.04, 'dirt', { seg: 12, collide: false, minimap: false, ao: false });
     b.plant(o.plant || 'bush', x, y + h - 0.15, z, { s: o.s ?? (r * 1.4) });
     return;

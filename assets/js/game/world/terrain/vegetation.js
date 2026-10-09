@@ -3,7 +3,7 @@
 // (Einfachmodell bis zur Nebelkante); Instanzen werden nach Kamerabewegung kompakt umsortiert (wenige Draw Calls).
 // Stämme und Felsen liefern Kollisions-/Kugel-Dreiecke; Laub blockiert keine Kugeln.
 import * as THREE from 'three';
-import { createFoliage, foliageUniforms } from '../atlas.js';
+import { createFoliage, foliageUniforms, WIND_VERTEX, setWindAttribute, setFoliageQuality } from '../atlas.js';
 import { rng, hash2, createSimplex, smoothstep } from './noise.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
@@ -39,6 +39,8 @@ function spruceGeometry() {
   g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+  // Wind: Stamm steif, Wipfel wiegt (≈ 0,3 m), Zweigspitzen (außen) federn leicht
+  setWindAttribute(g, (x, y, z) => { const t = Math.min(1, y / (H + 0.3)), out = Math.min(1, Math.hypot(x, z) / R0); return [0.3 * t * t, 0.04 * out]; });
   g.computeBoundingSphere();
   return g;
 }
@@ -61,9 +63,13 @@ function grassGeometry(blades = 0) {
   g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+  setWindAttribute(g, GRASS_WIND);
   g.computeBoundingSphere();
   return g;
 }
+
+/** Wind der Halme: Fuß fest, Spitze ≈ 0,14 m Biegung (quadratisch mit der Höhe) + leichtes Flattern. */
+const GRASS_WIND = (x, y) => { const t = Math.min(1, Math.max(0, y / 0.65)); return [0.14 * t * t, 0.025 * t]; };
 
 function grassClumpGeometry(n) {
   const P = [], C = [], N = [], r = rng(11);
@@ -93,27 +99,22 @@ function grassClumpGeometry(n) {
   g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+  setWindAttribute(g, GRASS_WIND);
   g.computeBoundingSphere();
   return g;
 }
 
-/** Material der Grashalme: Vertexfarbe × Instanzfarbe, beidseitig, Wind wie das Laub (foliageUniforms). */
+/** Material der Grashalme: Vertexfarbe × Instanzfarbe, beidseitig, Wind wie das Laub (atlas.js WIND_VERTEX). */
 function grassMaterial() {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
   m.name = 'vegetation-gras'; m.userData.disposable = true; m.userData.surface = 'grass';
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = foliageUniforms.uTime;
-    sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-      #ifdef USE_INSTANCING
-        vec3 ip = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
-      #else
-        vec3 ip = vec3(0.0);
-      #endif
-      float sw = max(0.0, position.y) * 0.22;
-      transformed.x += sin(uTime * 1.9 + ip.x * 0.35 + ip.z * 0.21) * sw;
-      transformed.z += cos(uTime * 1.5 + ip.z * 0.33) * sw * 0.6;`);
+    sh.uniforms.uWind = foliageUniforms.uWind;
+    sh.vertexShader = 'uniform float uTime;\nuniform vec4 uWind;\nattribute vec2 aWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      ${WIND_VERTEX}`);
   };
-  m.customProgramCacheKey = () => 'np-gras-v1';
+  m.customProgramCacheKey = () => 'np-gras-v2-wind';
   return m;
 }
 
@@ -355,6 +356,7 @@ export class Vegetation {
   /** Meshes anlegen (Laub-Material aus atlas.js, Stämme/Felsen aus engine/textures.js). */
   build(getMaterial) {
     const q = this.quality, t = this.tier;
+    setFoliageQuality(q);
     const proto = (kind) => createFoliage([{ kind, x: 0, y: 0, z: 0, s: 1, ry: 0 }], q).meshes[0];
     const make = (geom, mat, n, name, cast) => {
       const m = new THREE.InstancedMesh(geom, mat, Math.max(1, n));

@@ -5,6 +5,7 @@
 
 import { rulesFor, limitsFor, teamWarning } from '../../shared/modes.data.js';
 import { WEATHERS } from '../../shared/maps.data.js'; // atmosphere-weather
+import { realTimePreset } from '../world/weather.js'; // Tageszeit „Echtzeit“ (Vorschau der aufgelösten Zeit)
 import { CLASSES, SOLDIER_CLASS_ORDER, GAME_STYLES, STYLE_ORDER, resolveClassLoadout, classAllows, classProfile } from '../../shared/classes.data.js';
 import { esc, num, secs, meters } from './dom.js';
 import { ICON } from './icons.js';
@@ -148,10 +149,11 @@ export class Lobby {
     return ids.filter((id) => id !== 'range');
   }
 
-  /** Tageszeit der gewählten Karte (null = Kartenzeit; gemerkte Zeit, die die Karte nicht hat → null). atmosphere-weather */
+  /** Tageszeit der gewählten Karte (null = Kartenzeit; gemerkte Zeit, die die Karte nicht hat → null). atmosphere-weather
+   *  'zufall' und 'echtzeit' bleiben stehen – aufgelöst wird beim Start (world/weather.js resolveConditions). */
   _todFor(c) {
     const t = c.timeOfDay;
-    if (!t || t === 'zufall') return t || null;
+    if (!t || t === 'zufall' || t === 'echtzeit') return t || null;
     const map = this._data().MAPS[c.mapId] || {};
     return (Array.isArray(map.times) ? map.times : []).some((x) => x.id === t) ? t : null;
   }
@@ -347,8 +349,15 @@ export class Lobby {
     const wxs = (Array.isArray(map.weathers) ? map.weathers : []).filter((w) => WEATHERS[w]);
     const wxSel = c.weather === 'zufall' || wxs.includes(c.weather) ? c.weather : 'standard';
     const todSel = this._todFor(c);
+    // Echtzeit: Vorschau, welche Tageszeit der Karte jetzt gespielt würde (aufgelöst wird beim Start erneut)
+    let rtNote = '';
+    if (todSel === 'echtzeit') {
+      const rt = realTimePreset(map);
+      const rtName = rt ? (times.find((t) => t.id === rt) || {}).name || rt : map.timeOfDay || 'Kartenzeit';
+      rtNote = `<p class="lb-note">Passend zur echten Uhrzeit – jetzt: <b>${esc(rtName)}</b></p>`;
+    }
     const extra = `${m.matchLengths ? `<div><h2 class="m-h2">Matchlänge</h2><div class="m-seg" role="radiogroup" aria-label="Matchlänge">${LENGTHS.map(([id, l]) => `<button type="button" role="radio" data-len="${id}" aria-checked="${id === c.matchLength}">${l}</button>`).join('')}</div></div>` : ''}
-      ${times.length ? `<div><h2 class="m-h2">Tageszeit</h2><div class="m-seg" role="radiogroup" aria-label="Tageszeit"><button type="button" role="radio" data-tod="" aria-checked="${!todSel}">${esc(map.timeOfDay || 'Standard')}</button>${times.map((t) => `<button type="button" role="radio" data-tod="${esc(t.id)}" aria-checked="${t.id === todSel}">${esc(t.name || t.label || t.id)}</button>`).join('')}<button type="button" role="radio" data-tod="zufall" aria-checked="${todSel === 'zufall'}">Zufall</button></div></div>` : ''}
+      ${times.length ? `<div><h2 class="m-h2">Tageszeit</h2><div class="m-seg" role="radiogroup" aria-label="Tageszeit"><button type="button" role="radio" data-tod="" aria-checked="${!todSel}">${esc(map.timeOfDay || 'Standard')}</button>${times.map((t) => `<button type="button" role="radio" data-tod="${esc(t.id)}" aria-checked="${t.id === todSel}">${esc(t.name || t.label || t.id)}</button>`).join('')}<button type="button" role="radio" data-tod="echtzeit" aria-checked="${todSel === 'echtzeit'}" title="Passend zur echten Uhrzeit">Echtzeit</button><button type="button" role="radio" data-tod="zufall" aria-checked="${todSel === 'zufall'}">Zufall</button></div>${rtNote}</div>` : ''}
       ${wxs.length ? `<div><h2 class="m-h2">Wetter</h2><div class="m-seg" role="radiogroup" aria-label="Wetter">${[['standard', 'Standard', map.weather || ''], ...wxs.map((w) => [w, WEATHERS[w].name, WEATHERS[w].short || '']), ['zufall', 'Zufall', 'Zufälliges Wetter beim Start']].map(([id, l, t]) => `<button type="button" role="radio" data-wx="${id}" aria-checked="${id === wxSel}"${t ? ` title="${esc(t)}"` : ''}>${esc(l)}</button>`).join('')}</div></div>` : ''}`;
     this.el.deploy.innerHTML = `
       <section class="lb-sec"><h2 class="m-h2">Modus</h2><div class="lb-modes" role="group" aria-label="Modus">${modes}</div>

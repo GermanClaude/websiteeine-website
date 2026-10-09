@@ -113,6 +113,10 @@ function buildBigNav(job, hf, col, comp) {
       const len = Math.hypot(B.x - A.x, dy, B.z - A.z), ux = (B.x - A.x) / len, uy = dy / len, uz = (B.z - A.z) / len;
       if (col.occluded(A.x, A.y + 0.5, A.z, ux, uy, uz, len)) continue;
       if (col.occluded(A.x, A.y + 1.25, A.z, ux, uy, uz, len)) continue;
+      // Körperbreite: zwei seitlich versetzte Kniehöhen-Strahlen – sonst streift die Verbindung Mauer-/Felsenden
+      // und Stämme nur mit der Mittellinie frei, und Bots bleiben an der Kante hängen (z. B. Lesesteinmauer −59/−59)
+      const hl = Math.hypot(B.x - A.x, B.z - A.z) || 1, ox = -(B.z - A.z) / hl * (AGENT_R - 0.04), oz = (B.x - A.x) / hl * (AGENT_R - 0.04);
+      if (col.occluded(A.x + ox, A.y + 0.5, A.z + oz, ux, uy, uz, len) || col.occluded(A.x - ox, A.y + 0.5, A.z - oz, ux, uy, uz, len)) continue;
       link(a, c); coarseLinks++;
     }
     // Deckung (Bäume, Felsen, Mauern) auf Brusthöhe

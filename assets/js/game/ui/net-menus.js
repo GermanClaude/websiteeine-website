@@ -827,7 +827,7 @@ export class NetMenus {
     const mode = d.MODES[s.mode] || {};
     const map = d.MAPS[s.map] || {};
     const times = Array.isArray(map.times) ? map.times : [];
-    const t = s.time === 'zufall' ? 'Zufall' : s.time && s.time !== 'standard' ? (times.find((x) => x.id === s.time) || {}).name || s.time : `${map.timeOfDay || 'Standard'}`;
+    const t = s.time === 'zufall' ? 'Zufall' : s.time === 'echtzeit' ? 'Echtzeit (Uhr des Hosts)' : s.time && s.time !== 'standard' ? (times.find((x) => x.id === s.time) || {}).name || s.time : `${map.timeOfDay || 'Standard'}`;
     const wd = WEATHERS[map.weatherDefault];
     const w = s.weather === 'zufall' ? 'Zufall' : s.weather && s.weather !== 'standard' ? (WEATHERS[s.weather] || {}).name || s.weather : `Standard${wd ? ` (${wd.name})` : ''}`;
     return { mode, map, time: t, weather: w, diff: (d.DIFF[s.difficulty] || {}).name || s.difficulty, style: (GAME_STYLES[s.style] || GAME_STYLES.arcade || {}).label || s.style };
@@ -846,6 +846,7 @@ export class NetMenus {
       ${teams ? item('Spielart', s.pvp === 'coop' ? 'Gemeinsam gegen Bots' : 'Gegeneinander') : ''}
       ${item(teams ? 'Teamgröße' : 'Teilnehmer', teams ? `${size} gegen ${size}` : `${size * 2}`)}
       ${item('Bots', s.botFill ? 'füllen auf' : 'keine')}${item('Max. Spieler', String(s.maxPlayers || '–'))}
+      ${item('Ausdauer', s.stamina === false ? 'unbegrenzt' : 'normal')}
     </div>`;
   }
 
@@ -862,7 +863,7 @@ export class NetMenus {
       return [id, `${m.icon ? `<i class="nr-mico">${m.icon}</i>` : ''}<span>${esc(m.short || id)}</span>`, on ? m.name : `${m.name} – folgt in Stufe 2`, !on];
     }).sort((a, b) => a[3] - b[3]);
     const maps = this._mapsFor(s.mode).map((id) => [id, esc(d.MAPS[id].name), d.MAPS[id].subtitle || '']);
-    const times = [['standard', esc(map.timeOfDay || 'Standard'), 'Tageszeit der Karte'], ...(Array.isArray(map.times) ? map.times : []).map((t) => [t.id, esc(t.name || t.id), '']), ['zufall', 'Zufall', 'Der Host würfelt beim Start']];
+    const times = [['standard', esc(map.timeOfDay || 'Standard'), 'Tageszeit der Karte'], ...(Array.isArray(map.times) ? map.times : []).map((t) => [t.id, esc(t.name || t.id), '']), ['echtzeit', 'Echtzeit', 'Passend zur echten Uhrzeit (Uhr des Hosts)'], ['zufall', 'Zufall', 'Der Host würfelt beim Start']];
     const wxs = [['standard', 'Standard', map.weather || 'Wetter der Karte'], ...(Array.isArray(map.weathers) ? map.weathers : []).filter((w) => WEATHERS[w]).map((w) => [w, esc(WEATHERS[w].name), WEATHERS[w].short || '']), ['zufall', 'Zufall', 'Der Host würfelt beim Start']];
     const diffs = DIFF_ORDER.map((id) => [id, esc((d.DIFF[id] || {}).name || id), (d.DIFF[id] || {}).description || '']);
     const styles = (STYLE_ORDER || ['arcade', 'realistisch']).map((id) => [id, esc((GAME_STYLES[id] || {}).label || id), (GAME_STYLES[id] || {}).desc || '']);
@@ -907,6 +908,9 @@ export class NetMenus {
         <div class="nr-two">
           ${sw('botFill', 'Bots füllen auf', 'Freie Plätze bekommen Bots', s.botFill !== false)}
           ${sw('public', 'Öffentlich', 'In der Liste öffentlicher Spiele und für „Schnell spielen“', !!s.public)}
+        </div>
+        <div class="nr-two">
+          ${sw('stamina', 'Ausdauer', s.stamina === false ? 'Aus: unbegrenzt sprinten, rutschen, springen – für alle' : 'Sprinten, Rutschen und Springen kosten Ausdauer', s.stamina !== false)}
         </div>
         <div class="nr-field nr-namefield">
           <h3 class="nr-lab">Raumname</h3>
@@ -1008,7 +1012,8 @@ export class NetMenus {
     }
     if (ds.toggle) {
       const s = net.room.settings;
-      this._update({ [ds.toggle]: ds.toggle === 'botFill' ? s.botFill === false : !s[ds.toggle] }, 'toggle');
+      // Standard an (fehlt der Wert, gilt an): botFill, stamina
+      this._update({ [ds.toggle]: ds.toggle === 'botFill' || ds.toggle === 'stamina' ? s[ds.toggle] === false : !s[ds.toggle] }, 'toggle');
     }
   }
 

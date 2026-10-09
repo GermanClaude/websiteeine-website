@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { getMaterial, surfaceOf, preloadMaterials, proceduralNames, libraryPendingNames, materialAlbedo } from '../engine/textures.js';
 import { createDecalMaterials, createSignAtlas, createFoliage, DECAL_CELLS, DECAL_ROWS, DEFAULT_SIGNS } from './atlas.js';
 import { PropInstances, placementMatrix, forEachBulletTri, MODEL_SURFACE } from './libprops.js';
+import { assets } from '../../../lib/loader.js';
 
 export const SURFACES = ['concrete', 'metal', 'wood', 'dirt', 'sand', 'grass', 'glass', 'water', 'tile', 'fabric', 'flesh'];
 const SURF_INDEX = Object.fromEntries(SURFACES.map((s, i) => [s, i]));
@@ -325,6 +326,7 @@ export class MapBuilder {
   }
 
   _collTris(prim, m) {
+    if (this._noCollide) return; // Ersatzform einer Bibliotheks-Requisite: nur Optik (siehe _resolveModels)
     const e = m.elements, lp = prim.p, n = lp.length / 3;
     this.colTris.ensure(n * 3);
     const C = this.colTris.a; let ci = this.colTris.n;
@@ -456,6 +458,7 @@ export class MapBuilder {
 
   /** Unsichtbarer Kollisionsquader (Kartengrenzen, Wasser-Kante). Kugeln fliegen hindurch. */
   collider(x, y, z, w, h, d, o = {}) {
+    if (this._noCollide) return this;
     this._collTris(collBox(w, h, d), this._matrix(x, y, z, o));
     if (o.minimap) this._footprint(x, z, w, d, o.ry, y, y + h, o.minimap);
     if (o.navBlock !== false) this.navBlockers.push({ x, z, hw: w / 2 + 0.2, hd: d / 2 + 0.2, ry: o.ry || 0 });
@@ -494,11 +497,19 @@ export class MapBuilder {
     return this;
   }
 
-  /** Großer Boden in Kacheln (aufgeteilt in Chunks für Culling). */
+  /**
+   * Großer Boden in Kacheln (aufgeteilt in Chunks für Culling). Kollision als EIN Quader über die ganze Fläche:
+   * die Chunkgröße hängt auf Großkarten von der Grafikstufe ab – die Kollision muss auf jedem Rechner gleich sein.
+   */
   groundTiled(x0, z0, x1, z1, mat, o = {}) {
     const cs = this.chunkSize;
+    const tile = o.collide === false ? o : { ...o, collide: false };
     for (let z = z0; z < z1 - 1e-6; z += cs) for (let x = x0; x < x1 - 1e-6; x += cs) {
-      this.ground(x, z, Math.min(x1, x + cs), Math.min(z1, z + cs), mat, o);
+      this.ground(x, z, Math.min(x1, x + cs), Math.min(z1, z + cs), mat, tile);
+    }
+    if (o.collide !== false) {
+      const t = o.thickness ?? 0.5;
+      this._collTris(collBox(x1 - x0, t, z1 - z0), this._matrix((x0 + x1) / 2, (o.y ?? 0) - t, (z0 + z1) / 2, {}));
     }
     return this;
   }
@@ -603,7 +614,7 @@ export class MapBuilder {
    *      surface, tint (Instanzfarbe), interior (false: kein gebackenes Innenraumlicht), maxDist, castShadow,
    *      fallback: (b) => … prozeduraler Ersatz, falls das Modell nicht lädt }
    */
-  model(id, x, y, z, o = {}) { this.models.push({ id, x, y, z, o }); return this; }
+  model(id, x, y, z, o = {}) { this.models.push({ id, x, y, z, o: this._noCollide ? { ...o, collide: false } : o }); return this; }
 
   // ---------------------------------------------------------------------------
   // Fertigstellung
@@ -896,6 +907,12 @@ export class MapBuilder {
   /**
    * Bibliotheks-Requisiten auflösen (nach dem Laden): Instanzen anlegen, Kollision, Footprint, Kugeltreffer;
    * fehlt ein Modell, zeichnet der prozedurale Ersatz (o.fallback) in die Buckets.
+   *
+   * Mehrspieler: Die Bewegungskollision darf nicht davon abhängen, ob das Modell geladen wurde (Grafikstufe „niedrig“
+   * überspringt Modelle über dem Download-Budget, Zeitlimit, Netz). Deshalb: Kollisionsquader immer aus den
+   * Manifest-Maßen (`size`, gleich für alle Texturstufen) – geladen oder nicht –, und der Ersatz ist reine Optik
+   * (seine eigenen Kollisionsaufrufe werden verworfen). Teil-Auswahl (o.part) hat keine Manifest-Maße → keine
+   * automatische Kollision (die Karte setzt dann einen festen Quader, vgl. festesModell in hafen-ausstattung.js).
    */
   _resolveModels(templates) {
     if (!this.models.length) return;
@@ -903,10 +920,25 @@ export class MapBuilder {
     const bullet = { tris: new FBuf(65536), surf: [], group: [] };
     let fallbacks = 0;
     const col = new THREE.Color(), tmpBox = new THREE.Box3(), v = new THREE.Vector3(), mCol = new THREE.Matrix4(), tr = new THREE.Matrix4();
+    const sizeBox = new THREE.Box3();
+    const manifest = assets.manifest && assets.manifest.models;
     for (const pl of this.models) {
       const { id, x, y, z, o } = pl;
       const tpl = templates.get(id);
-      if (!tpl) { if (o.fallback) { o.fallback(this); fallbacks++; } continue; }
+      // Kollision (unabhängig vom Laden): Hüllquader in Manifest-Maßen, Unterkante-Mitte im Ursprung
+      const ms = manifest && manifest[id] && manifest[id].size;
+      if (o.collide !== false && !o.part && Array.isArray(ms) && ms.length === 3) {
+        sizeBox.min.set(-ms[0] / 2, 0, -ms[2] / 2); sizeBox.max.set(ms[0] / 2, ms[1], ms[2] / 2);
+        this._modelCollision(sizeBox, x, y, z, o, tmpBox, v, mCol, tr);
+      }
+      if (!tpl) {
+        if (o.fallback) {
+          this._noCollide = (this._noCollide || 0) + 1;
+          try { o.fallback(this); } finally { this._noCollide--; }
+          fallbacks++;
+        }
+        continue;
+      }
       const parts = PropInstances.selectParts(tpl, o.part);
       const box = PropInstances.boxOf(tpl, parts);
       const M = placementMatrix(box, x, y, z, o);
@@ -919,21 +951,8 @@ export class MapBuilder {
         if (iv) { color = color || new THREE.Color(1, 1, 1); color.multiplyScalar(iv.factor); if (iv.tint) color.multiply(col.setRGB(iv.tint[0], iv.tint[1], iv.tint[2])); }
       }
       const g = props.add(tpl, parts, M, color, o);
-      const size = box.getSize(new THREE.Vector3());
-      const sc = new THREE.Vector3(); M.decompose(new THREE.Vector3(), new THREE.Quaternion(), sc);
-      const h = size.y * sc.y;
-      if (o.collide !== false && h >= (o.minCollideH ?? 0.25)) {
-        const k = o.shrink ?? 1;
-        tr.makeTranslation((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2);
-        mCol.multiplyMatrices(M, tr);
-        // Quader in Modellmaßen (die Skalierung steckt in mCol); waagerecht ggf. verkleinert
-        this._collTris(collBox(size.x * k, Math.min(size.y, (o.collideH ?? Infinity) / sc.y), size.z * k), mCol);
-        tmpBox.copy(box).applyMatrix4(M);
-        const tilted = !!(o.rx || o.rz);
-        const kind = o.minimap ?? (h > 1.0 ? 'cover' : 'prop');
-        if (tilted) this._footprint((tmpBox.min.x + tmpBox.max.x) / 2, (tmpBox.min.z + tmpBox.max.z) / 2, (tmpBox.max.x - tmpBox.min.x) * k, (tmpBox.max.z - tmpBox.min.z) * k, 0, tmpBox.min.y, tmpBox.max.y, kind);
-        else { v.set((box.min.x + box.max.x) / 2, 0, (box.min.z + box.max.z) / 2).applyMatrix4(M); this._footprint(v.x, v.z, size.x * sc.x * k, size.z * sc.z * k, o.ry || 0, tmpBox.min.y, tmpBox.max.y, kind); }
-      }
+      // ohne Manifest-Maße (sollte nicht vorkommen): wie bisher aus der geladenen Vorlage
+      if (o.collide !== false && !o.part && !(Array.isArray(ms) && ms.length === 3)) this._modelCollision(box, x, y, z, o, tmpBox, v, mCol, tr);
       if (o.bullet !== false) {
         const sid = SURF_INDEX[o.surface || MODEL_SURFACE[id] || 'metal'] ?? 1;
         forEachBulletTri(tpl, parts, M, (...t) => {
@@ -943,9 +962,45 @@ export class MapBuilder {
       }
     }
     this._props = props.stats.instances ? props : null;
+    if (globalThis.__npCheckModelSizes) this._checkModelSizes(templates);
     this.modelIdsUsed = [...new Set(this.models.filter(m => templates.get(m.id)).map(m => m.id))];
     this._propBullet = bullet;
     this._propFallbacks = fallbacks;
+  }
+
+  /** Kollisionsquader + Footprint einer Bibliotheks-Platzierung (box = Hüllquader in Modellmaßen). */
+  _modelCollision(box, x, y, z, o, tmpBox, v, mCol, tr) {
+    const M = placementMatrix(box, x, y, z, o);
+    const size = box.getSize(v);
+    const sx = size.x, sy = size.y, sz = size.z;
+    const sc = new THREE.Vector3(); M.decompose(new THREE.Vector3(), new THREE.Quaternion(), sc);
+    const h = sy * sc.y;
+    if (h < (o.minCollideH ?? 0.25)) return;
+    const k = o.shrink ?? 1;
+    tr.makeTranslation((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2);
+    mCol.multiplyMatrices(M, tr);
+    // Quader in Modellmaßen (die Skalierung steckt in mCol); waagerecht ggf. verkleinert
+    this._collTris(collBox(sx * k, Math.min(sy, (o.collideH ?? Infinity) / sc.y), sz * k), mCol);
+    tmpBox.copy(box).applyMatrix4(M);
+    const tilted = !!(o.rx || o.rz);
+    const kind = o.minimap ?? (h > 1.0 ? 'cover' : 'prop');
+    if (tilted) this._footprint((tmpBox.min.x + tmpBox.max.x) / 2, (tmpBox.min.z + tmpBox.max.z) / 2, (tmpBox.max.x - tmpBox.min.x) * k, (tmpBox.max.z - tmpBox.min.z) * k, 0, tmpBox.min.y, tmpBox.max.y, kind);
+    else { v.set((box.min.x + box.max.x) / 2, 0, (box.min.z + box.max.z) / 2).applyMatrix4(M); this._footprint(v.x, v.z, sx * sc.x * k, sz * sc.z * k, o.ry || 0, tmpBox.min.y, tmpBox.max.y, kind); }
+  }
+
+  /** Prüfhilfe (globalThis.__npCheckModelSizes = true): Manifest-Maße gegen geladene Vorlagen; Abweichungen > 1 cm
+   *  landen in globalThis.__npModelSizeMismatch. */
+  _checkModelSizes(templates) {
+    const manifest = assets.manifest && assets.manifest.models, s = new THREE.Vector3();
+    const out = [];
+    for (const [id, tpl] of templates) {
+      const ms = tpl && manifest && manifest[id] && manifest[id].size;
+      if (!ms) continue;
+      tpl.box.getSize(s);
+      const d = Math.max(Math.abs(s.x - ms[0]), Math.abs(s.y - ms[1]), Math.abs(s.z - ms[2]));
+      if (d > 0.01) out.push(`${id}: Vorlage ${s.x.toFixed(3)}×${s.y.toFixed(3)}×${s.z.toFixed(3)} / Manifest ${ms.join('×')}`);
+    }
+    (globalThis.__npModelSizeMismatch ||= []).push(...out);
   }
 
   _buildGlows(group) {

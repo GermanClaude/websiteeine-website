@@ -445,7 +445,8 @@ export class Bot {
     if (cur && cur.state === 'dead') {
       const other = 1 - this.active;
       const o = this._soldier(other);
-      if (o.state === 'dead') o.hide();
+      // zweite Instanz noch nicht eingefroren (zwei Tode binnen Sekunden): jetzt einfrieren statt verschwinden lassen
+      if (o.state === 'dead') { if (this.manager.corpses) this.manager.corpses.add(o); o.hide(); }
       this.active = other;
     }
     this.body.setHeight(STAND_H);
@@ -1495,7 +1496,7 @@ export class Bot {
 
   _updateCorpses(dt) {
     const world = this.G.world;
-    for (let i = 0; i < this.soldiers.length; i++) { const s = this.soldiers[i]; if (s && s.state === 'dead') s.updateDead(dt, world); }
+    for (let i = 0; i < this.soldiers.length; i++) { const s = this.soldiers[i]; if (s && s.state === 'dead') this._corpseStep(s, dt, world); }
   }
 
   /** Leichen weiterführen, auch wenn der Bot schon wieder lebt. */
@@ -1504,8 +1505,21 @@ export class Bot {
     for (let i = 0; i < this.soldiers.length; i++) {
       if (i === this.active) continue;
       const s = this.soldiers[i];
-      if (s && s.state === 'dead') s.updateDead(dt, world);
+      if (s && s.state === 'dead') this._corpseStep(s, dt, world);
     }
+  }
+
+  /**
+   * Leiche eines Soldaten: Ragdoll/Waffe laufen lassen; sobald sie ruht (spätestens vor dem früheren Auflösen nach
+   * 4,5 s), übernimmt der Leichenspeicher (bots/corpses.js) die Pose eingefroren und der Soldat ist wieder frei.
+   */
+  _corpseStep(s, dt, world) {
+    const C = this.manager.corpses;
+    if (C && C.ready(s, dt) && C.add(s)) {
+      s.hide();
+      return;
+    }
+    s.updateDead(dt, world);
   }
 
   dispose() {

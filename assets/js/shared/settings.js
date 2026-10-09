@@ -44,6 +44,10 @@ export const DEFAULTS = Object.freeze({
   lastWeather: 'standard', lastTime: 'standard',
   // Lernende Bots (ai-adapt): Gegner stellen sich auf den Spielstil ein (Stärke nach Schwierigkeit)
   adaptiveBots: true,
+  // Kirchenglocke der Altstadt (world/maps/altstadt-glocke.js): Stundenschlag zur echten Uhrzeit an/aus
+  glocke: true,
+  // Leichen (bots/corpses.js): 'bleiben' | '10min' | '2min'; zusätzlich Obergrenze je Grafikstufe (älteste zuerst weg)
+  leichen: 'bleiben',
 });
 
 const HOLD_TOGGLE = Object.freeze({ options: ['hold', 'toggle'], labels: { hold: 'Halten', toggle: 'Umschalten' } });
@@ -232,6 +236,11 @@ export const SETTINGS_SCHEMA = Object.freeze({
     options: ['touch', 'alle'], labels: { touch: 'Nur Touch', alle: 'Alle Geräte (auch Maus & Controller)' },
   },
   adaptiveBots: { type: 'boolean', label: 'Lernende Bots', group: 'spiel' },
+  glocke: { type: 'boolean', label: 'Kirchenglocke (Altstadt)', group: 'audio' },
+  leichen: {
+    type: 'enum', label: 'Leichen', group: 'spiel',
+    options: ['bleiben', '10min', '2min'], labels: { bleiben: 'Bleiben liegen', '10min': '10 Minuten', '2min': '2 Minuten' },
+  },
   fullscreen: {
     type: 'enum', label: 'Vollbild', group: 'spiel',
     options: ['auto', 'off'], labels: { auto: 'Automatisch', off: 'Nur per Knopf/Taste' },
