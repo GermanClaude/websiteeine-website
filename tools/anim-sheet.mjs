@@ -4,7 +4,11 @@
 //
 // Aufruf (Server auf :8765):
 //   node tools/anim-sheet.mjs --weapons=ar_m17,pi_p9 --acts=reload,reloadEmpty,inspect [--frames=12] [--size=640x360]
-//        [--variant=1] [--cols=6] [--pose=bodycam] [--fps] [--debug=90,10,0.8]
+//        [--variant=1] [--cols=6] [--pose=bodycam] [--fps] [--debug=90,10,0.8] [--focus=magWell|ejection|mag|gun]
+//        [--from=0.2 --to=0.6]  (nur dieses Zeitfenster der Aktion, Anteil 0..1)
+// --debug = Außenkamera (Gierwinkel°, Nickwinkel°, Abstand m) um die Waffe; mit --focus folgt sie dem Anker/Teil
+// (Nahaufnahme z. B. des Magazinschachts). Je Bild wird geprüft, ob das Magazin im Schacht nur entlang der
+// Einführachse läuft (anim/magwell.js): Abweichung quer/Drehung solange s < Freigang → Zeile „Schacht“ in der Ausgabe.
 // Aktionen: siehe ACTS unten (reload, reloadEmpty, inspect, inspectN, equip, ready, holster, melee, grenade, grenadeLow,
 //           sprint, jump, slide, crouch, prone, mantle, fidget, fire …). --variant erzwingt eine Variante (sonst Standard 0).
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
@@ -22,6 +26,8 @@ const pose = arg('pose', 'standard');
 const debug = arg('debug', null);
 const scale = +arg('scale', 0.5);
 const tag = arg('tag', '');
+const focus = arg('focus', null);
+const from = +arg('from', 0), to = +arg('to', 1);
 
 // Aktion: start (JS im Seitenkontext, F = Prüfstand, V = Viewmodel, S = Simulation), dur (s, sonst Aktionsdauer),
 // pre (Vorlauf vor dem Start in s), during (JS je Schritt, z. B. Bewegung halten)
@@ -64,7 +70,9 @@ for (const weapon of weapons) {
   for (const act of acts) {
     const A = ACTS[act];
     if (!A) { console.log('unbekannte Aktion', act); continue; }
-    const res = await page.evaluate(async ({ weapon, A, frames, cols, variant, pose, debug, scale, fps }) => {
+    const res = await page.evaluate(async ({ weapon, A, frames, cols, variant, pose, debug, scale, fps, focus, from, to }) => {
+      const { magWellOf } = await import('/assets/js/game/weapons/anim/magwell.js');
+      const THREE = await import('three');
       const B = window.__bench, F = B.fp, V = F.vm, S = F.sim;
       B.pause(true);
       // Zustand zurücksetzen
@@ -80,14 +88,15 @@ for (const weapon of weapons) {
       G.player = G.player || {};
       const hz = fps || 60;
       const stepN = (sec) => {
-        const n = Math.max(1, Math.round(sec * hz));
+        if (!(sec > 1e-7)) return;
+        const n = Math.max(1, Math.ceil(sec * hz - 1e-6)), h = sec / n;
         for (let i = 0; i < n; i++) {
           G.player.sliding = !!S.slide;
-          G.player.proneBlend = Math.min(1, Math.max(0, (G.player.proneBlend || 0) + (S.prone ? 1 : -1) / hz / 0.9));
+          G.player.proneBlend = Math.min(1, Math.max(0, (G.player.proneBlend || 0) + (S.prone ? 1 : -1) * h / 0.9));
           G.player.prone = !!S.prone;
-          if (S.mantle) { S.mantle.t += 1 / hz; G.player.mantling = S.mantle.t < S.mantle.dur; G.player.mantleProgress = Math.min(1, S.mantle.t / S.mantle.dur); G.player._mantle = G.player.mantling ? { vault: S.mantle.vault, height: 1 } : null; }
+          if (S.mantle) { S.mantle.t += h; G.player.mantling = S.mantle.t < S.mantle.dur; G.player.mantleProgress = Math.min(1, S.mantle.t / S.mantle.dur); G.player._mantle = G.player.mantling ? { vault: S.mantle.vault, height: 1 } : null; }
           else { G.player.mantling = false; G.player.mantleProgress = 0; G.player._mantle = null; }
-          F.update(1 / hz);
+          F.update(h);
         }
       };
       stepN(1.6);
@@ -96,6 +105,26 @@ for (const weapon of weapons) {
       run(A.start);
       const dur = A.dur || (V.action ? Math.min(8, V.action.dur > 100 ? 4 : V.action.dur) + 0.15 : 1.5);
       const tw = Math.round(innerWidth * scale), th = Math.round(innerHeight * scale);
+      // Nahaufnahme: Außenkamera folgt einem Anker/Teil
+      const dbg = debug ? debug.split(',').map(Number) : null;
+      const focusPos = (out) => {
+        const ud = V.cur.ud;
+        const o = focus === 'gun' ? V.gun : ud.anchors[focus] || ud.parts[focus] || (focus === 'ejection' ? ud.ejection : null) || ud.magazine;
+        o.updateWorldMatrix(true, false);
+        return o.getWorldPosition(out);
+      };
+      const _t = new THREE.Vector3();
+      // Schachtprüfung: Magazin-Versatz gegenüber der Ruhelage, zerlegt in Achsweg s und Querabweichung
+      const mw = magWellOf(V.cur);
+      let worstLat = 0, worstRot = 0, worstAt = 0;
+      const wellCheck = (t) => {
+        const p = V.cur.ud.parts.mag, r = V.cur.rest.get('mag');
+        if (!mw || !p || !r || !p.visible) return;
+        const d = p.position.clone().sub(r.pos), s = d.dot(mw.axis);
+        if (s > mw.clear - 0.001) return;
+        const lat = d.addScaledVector(mw.axis, -s).length(), rot = 2 * Math.acos(Math.min(1, Math.abs(p.quaternion.dot(r.quat))));
+        if (lat > worstLat || rot > worstRot) { worstLat = Math.max(worstLat, lat); worstRot = Math.max(worstRot, rot); worstAt = t; }
+      };
       const rows = Math.ceil(frames / cols);
       const sheet = document.createElement('canvas');
       sheet.width = tw * cols; sheet.height = th * rows;
@@ -104,9 +133,12 @@ for (const weapon of weapons) {
       const pts = [];
       let t = 0;
       const name = () => (V.action ? V.action.type + (V.action.variant != null ? '#' + V.action.variant : '') : '–');
+      // Schachtprüfung über die ganze Aktion in feinen Schritten (unabhängig von den Bildern)
       for (let i = 0; i < frames; i++) {
-        const target = (dur * i) / Math.max(1, frames - 1);
-        stepN(target - t); t = target;
+        const target = dur * (from + (to - from) * i / Math.max(1, frames - 1));
+        while (t < target - 1e-6) { const h = Math.min(1 / 120, target - t); stepN(h); t += h; wellCheck(t); }
+        t = target;
+        if (dbg && focus) { focusPos(_t); F.debugView(dbg[0], dbg[1], dbg[2], [_t.x, _t.y, _t.z]); }
         F.render();
         const cx = (i % cols) * tw, cy = Math.floor(i / cols) * th;
         g.drawImage(B.renderer.domElement, cx, cy, tw, th);
@@ -116,9 +148,9 @@ for (const weapon of weapons) {
         const gp = V.gun.position, gq = V.gun.quaternion;
         pts.push([gp.x, gp.y, gp.z, gq.x, gq.y, gq.z, gq.w]);
       }
-      return { png: sheet.toDataURL('image/png').split(',')[1], dur, pts };
-    }, { weapon, A, frames, cols, variant, pose, debug, scale, fps: 60 });
-    const file = `tools/out/anim-${weapon}-${act}${variant != null ? '-v' + variant : ''}${pose !== 'standard' ? '-' + pose : ''}${debug ? '-dbg' : ''}${tag}.png`;
+      return { png: sheet.toDataURL('image/png').split(',')[1], dur, pts, well: mw ? { clear: mw.clear, lat: worstLat, rot: worstRot, at: worstAt } : null };
+    }, { weapon, A, frames, cols, variant, pose, debug, scale, fps: 60, focus, from, to });
+    const file = `tools/out/anim-${weapon}-${act}${variant != null ? '-v' + variant : ''}${pose !== 'standard' ? '-' + pose : ''}${debug ? '-dbg' : ''}${focus ? '-' + focus : ''}${tag}.png`;
     writeFileSync(file, Buffer.from(res.png, 'base64'));
     let fpsNote = '';
     if (flag('fps')) {
@@ -143,7 +175,8 @@ for (const weapon of weapons) {
       for (let i = 0; i < a.length; i++) dev = Math.max(dev, Math.hypot(a[i][0] - b[i][0], a[i][1] - b[i][1], a[i][2] - b[i][2]));
       fpsNote = ` 30↔144Hz max ${(dev * 1000).toFixed(1)} mm`;
     }
-    console.log(file, `${res.dur.toFixed(2)}s${fpsNote}`);
+    const wl = res.well ? ` Schacht: Freigang ${(res.well.clear * 1000).toFixed(0)} mm, quer max ${(res.well.lat * 1000).toFixed(2)} mm, Drehung ${(res.well.rot * 57.3).toFixed(2)}°${res.well.lat > 0.0005 || res.well.rot > 0.01 ? ` (bei ${res.well.at.toFixed(2)} s) FEHLER` : ' ok'}` : '';
+    console.log(file, `${res.dur.toFixed(2)}s${fpsNote}${wl}`);
   }
 }
 console.log(logs.length ? logs.slice(0, 20).join('\n') : 'Konsole sauber');

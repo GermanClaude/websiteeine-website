@@ -10,6 +10,8 @@
 //      spawnBots (Aufrufer spawnt ihn über G.spawnActor); puppetFired(bot, n) (Schüsse einer Puppe, nur Darstellung);
 //      setPuppet(bot, on); byNetId(id); puppets(); isPuppet(actor); weaponIndex(). Puppen laufen jedes Bild (kein
 //      Simulationstakt), ohne Trupptaktik, Lernen und Gehör; Gefechte mit entfernten Menschen laufen in voller Rate.
+// Befehlsrad (ai/orders.js): issueOrder({ leader, order, point, target, formation, radius }) → Anzahl; orderableNear(leader);
+//      commandedBy(leader). Online befiehlt ein Client über den Host (net/sync-host.js, Nachricht 'order').
 import * as THREE from 'three';
 import { Bot } from './bot.js';
 export { netPoseOf, NET_FLAGS } from './bot.js'; // Mehrspieler: Netz-Pose lokal simulierter Akteure (Sync-Module, G.modules.bots)
@@ -20,6 +22,7 @@ import { VARIANTS, schemeForTeam, ffaSchemes } from './character.js';
 import { upgradeSoldierMaterials, soldierDetailInfo } from './soldier/materials.js';
 import { analyze } from './ai/tactics.js';
 import { TeamTactics, planRoles } from './ai/squad.js';
+import { issueCommand, isCommanded, ORDER_DEFS, ORDER_RADIUS, ORDER_MAX } from './ai/orders.js';
 import { BotAdapt } from './ai/spielstil.js';
 import { CorpseStore } from './corpses.js';
 import { CLASSES, DEFAULT_CLASS, pickBotClass, resolveClassLoadout } from '../../shared/classes.data.js';
@@ -462,6 +465,7 @@ export class BotManager {
       b.memory.remove(bot);
       if (b.gunner.rec && b.gunner.rec.actor === bot) b.gunner.clear();
       if (b.order && b.order.target === bot) { b.order.kind = null; b.order.target = null; }
+      if (b.command && (b.command.by === bot || b.command.target === bot)) b.command = null; // Befehlsrad
       if (b.goal && b.goal.data === bot) b.goal.data = null;
     }
     if (G.input && G.input.aimTarget === bot) G.input.aimTarget = null;
@@ -1204,7 +1208,7 @@ export class BotManager {
       if (Math.abs(b.lean) > 0.5) leaning++;
       if (now < b.staggerUntil) staggered++;
     }
-    let prone = 0, ordered = 0, corpses = 0, sunk = 0;
+    let prone = 0, ordered = 0, corpses = 0, sunk = 0, commanded = 0;
     const W = this.G.world;
     for (const b of this.bots) {
       // Leichen: Becken nicht unter dem Boden (Ragdoll gegen world.groundHeight)
@@ -1218,8 +1222,52 @@ export class BotManager {
       if (!b.alive) continue;
       if (b.stance === 'prone') prone++;
       if (b.order && b.order.kind && now < b.order.until) ordered++;
+      if (!b.puppet && isCommanded(b, now)) commanded++;
     }
-    return { bots: this.bots.length, alive: this.bots.filter((b) => b.alive).length, states, ms: +this.debug.ms.toFixed(2), losPerFrame: this.debug.losUsed, pathQueue: this._paths.size, broken, leaning, staggered, prone, ordered, corpses, frozenCorpses: this.corpses.order.length, sunk, lod: this.lodCount.slice(), simmed: this.debug.simmed, puppets, tactics: { ...this.tactics.counts }, squads: this.tactics.squads.length, fabric: soldierDetailInfo().kind };
+    return { bots: this.bots.length, alive: this.bots.filter((b) => b.alive).length, states, ms: +this.debug.ms.toFixed(2), losPerFrame: this.debug.losUsed, pathQueue: this._paths.size, broken, leaning, staggered, prone, ordered, commanded, corpses, frozenCorpses: this.corpses.order.length, sunk, lod: this.lodCount.slice(), simmed: this.debug.simmed, puppets, tactics: { ...this.tactics.counts }, squads: this.tactics.squads.length, fabric: soldierDetailInfo().kind };
+  }
+
+  /* ================================================================ Befehle (Befehlsrad) */
+
+  /**
+   * Spielerbefehl an verbündete KI-Bots (ai/orders.js). order: 'follow' | 'hold' | 'regroup' | 'formation' | 'attack' | 'defend' |
+   * 'spread' | 'free'; leader: befehlender Akteur (Spieler bzw. Puppe eines Clients auf dem Host); point: Punkt unter dem
+   * Fadenkreuz (Vector3), target: Gegner im Fadenkreuz, formation: 'reihe' | 'keil' | 'kreis'. Empfänger: lebende KI-Bots seines
+   * Teams im Umkreis (radius, die nächsten ORDER_MAX) und alle, die schon einen Befehl dieses Anführers ausführen.
+   * Meldet 'bot:command' { leader, order, count, point, formation, bots }. → Anzahl der Empfänger
+   */
+  issueOrder({ leader, order, point = null, target = null, formation = null, radius = ORDER_RADIUS } = {}) {
+    const G = this.G;
+    if (!leader || !leader.team || !ORDER_DEFS[order] || !leader.alive) return 0;
+    const now = G.time.elapsed;
+    const near = this.orderableNear(leader, radius);
+    const mine = this.commandedBy(leader);
+    const set = new Set(near.slice(0, ORDER_MAX));
+    for (const b of mine) if (set.size < ORDER_MAX || order === 'free') set.add(b);
+    const bots = [...set];
+    if (target && (!target.alive || !G.combat || !G.combat.isHostile(leader, target))) target = null;
+    const n = bots.length ? issueCommand(G, bots, leader, order, { point, target, formation }, now) : 0;
+    G.events.emit('bot:command', { leader, order, count: n, point: point || (target ? target.position : null), formation, bots });
+    return n;
+  }
+
+  /** Verbündete KI-Bots (lebend, keine Puppen) ≤ radius m um den Anführer, nach Abstand. */
+  orderableNear(leader, radius = ORDER_RADIUS) {
+    const out = [];
+    if (!leader || !leader.team) return out;
+    const r2 = radius * radius;
+    for (const b of this.bots) {
+      if (b.puppet || !b.alive || b.team !== leader.team || b === leader) continue;
+      if (b.position.distanceToSquared(leader.position) <= r2) out.push(b);
+    }
+    out.sort((a, b) => a.position.distanceToSquared(leader.position) - b.position.distanceToSquared(leader.position));
+    return out;
+  }
+
+  /** KI-Bots mit aktivem Befehl dieses Anführers. */
+  commandedBy(leader) {
+    const now = this.G.time.elapsed;
+    return this.bots.filter((b) => !b.puppet && b.command && b.command.by === leader && isCommanded(b, now));
   }
 
   /** Diagnose: Pose/Trefferzonen eines lebenden Bots endlich und am Körper (≤ 3 m von den Füßen)? */

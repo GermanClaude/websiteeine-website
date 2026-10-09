@@ -598,16 +598,23 @@ export class MapBuilder {
       }
       return -1;
     };
-    // Raumseite? Innenraum-Volumen oder unter einem Gebäude-/Dach-Grundriss (auch Bauten ohne Innenraum-Volumen)
+    // Raumseite? Innenraum-Volumen, Gebäude-Grundriss (auch Bauten ohne Innenraum-Volumen) oder überdacht – Dach
+    // über dem Punkt vor der Wand UND 1,2 m weiter draußen (ein Dachüberstand allein macht die Außenseite nicht innen)
     const roofs = this.footprints.filter(f => f.kind === 'building' || f.kind === 'roof');
-    const indoor = (px, py, pz) => {
-      if (this.interiors.length && this._interiorAt(px, py, pz)) return true;
+    const covered = (px, py, pz, kind) => {
       for (const f of roofs) {
+        if (f.kind !== kind) continue;
         const c = Math.cos(f.ry || 0), sn = Math.sin(f.ry || 0), dx = px - f.x, dz = pz - f.z;
         if (Math.abs(dx * c - dz * sn) > f.hw || Math.abs(dx * sn + dz * c) > f.hd) continue;
-        if (f.kind === 'building' ? (py >= f.y0 && py <= f.y1) : (f.y0 > py && f.y0 - py < 8)) return true;
+        if (kind === 'building' ? (py >= f.y0 && py <= f.y1) : (f.y0 > py && f.y0 - py < 8)) return true;
       }
       return false;
+    };
+    const indoor = (fx, py, fz, nx, nz) => {
+      const px = fx + nx * 0.25, pz = fz + nz * 0.25;
+      if (this.interiors.length && this._interiorAt(px, py, pz)) return true;
+      if (covered(px, py, pz, 'building')) return true;
+      return covered(px, py, pz, 'roof') && covered(fx + nx * 1.2, py, fz + nz * 1.2, 'roof');
     };
     for (const q of Q) {
       const { x, y, z, w, h, d } = q;
@@ -621,7 +628,7 @@ export class MapBuilder {
       for (const side of [1, -1]) {
         const off = side * (d / 2), nx = nx0 * side, nz = nz0 * side;
         const fx = x + nx0 * off, fz = z + nz0 * off;
-        if (indoor(fx + nx * 0.25, y + 1.0, fz + nz * 0.25)) continue; // Raumseite: glatt verputzt
+        if (indoor(fx, y + 1.0, fz, nx, nz)) continue; // Raumseite: glatt verputzt
         const dec = (u, v, sw, sh, cell, opacity) => this.decal(fx + tx * u, y + v, fz + tz * u, sw, sh, cell, { normal: [nx, 0, nz], tangent: [tx * side, 0, tz * side], opacity });
         if (ground) {
           // Sockel (niedriger Quader an derselben Unterkante, z. B. Steinsockel aus arch.wall plinth) → Feuchte darüber

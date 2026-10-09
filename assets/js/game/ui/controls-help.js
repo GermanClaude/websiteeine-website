@@ -21,6 +21,7 @@ const TOUCH = [
   [80, 89, 'Messer', '', ''],
   [50, 92, 'Waffe wechseln', '', 'pill'],
   [86, 21, 'Serienprämien', 'Der Ring füllt sich mit jedem Abschuss.', ''],
+  [80, 8, 'Befehlsrad', 'Nur mit verbündeten Bots: halten und in Richtung ziehen oder antippen und Befehl wählen.', 'sm'],
   [96, 8, 'Pause', '', 'sm'],
   [89, 8, 'Punktetabelle', '', 'sm'],
   [8, 15, 'Minikarte', '', 'big'],

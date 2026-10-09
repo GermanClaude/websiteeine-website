@@ -7,7 +7,8 @@
 //   • Clients: 'ready' → Puppe anlegen + einsetzen (Spielstart wie Einstieg ins laufende Spiel); Austritt/Kick → Puppe weg;
 //     Bots je Team so auffüllen/abbauen, dass Bots + Menschen = teamSize (botFill).
 //   • Eingang: PKT_STATE (Anti-Cheat checkState → puppet.netPose), 'hit'/'melee' (checkHit → combat.damage mit der Puppe als
-//     Angreifer), 'throw' (echte Granate/Rakete aus der Puppe), 'loadout' (gilt ab dem nächsten Spawn).
+//     Angreifer), 'throw' (echte Granate/Rakete aus der Puppe), 'loadout' (gilt ab dem nächsten Spawn), 'order' (Befehlsrad:
+//     Befehl an die Bots seines Teams um seine Puppe, BotManager.issueOrder).
 //   • Ausgang: PKT_SNAPSHOT 20 Hz mit allen Akteuren (auch der eigenen Puppe des Empfängers – Lebenspunkte), Ereignisse
 //     'hit', 'kill', 'spawn', 'ev' (Granaten, Raketen, Explosionen, Punkte, Medaillen), 'mode' (mode.netState(), bei Änderung
 //     und spätestens jede Sekunde), 'actors' (Akteursliste mit Namen/Team/Aussehen), 'end' je Client mit eigener Zusammenfassung.
@@ -28,6 +29,7 @@ const _v = new THREE.Vector3();
 /** Panzerungszustand für den Client: [Westen-LP, Helm-LP, Reserveplatten]. */
 const armorOf = (a) => [rnd(a.armor.hp, 1), rnd(a.armor.helmetHp, 1), a.armor.carry | 0];
 const THROW_GAP = 0.3; // s zwischen zwei Würfen eines Clients
+const ORDER_GAP = 0.4; // s zwischen zwei Befehlen eines Clients (Befehlsrad)
 const ENV_GAP = 0.4; // s zwischen zwei Sturz-/Weltmeldungen
 const HOLD_MAX = 30; // s: so lange hält der Host den Wiedereinstieg eines Clients höchstens an (Ausrüsten)
 const EXTRAPOLATE_OWN = 0.05; // s: Puppe eines Clients zwischen zwei Zuständen höchstens so weit fortschreiben
@@ -55,6 +57,7 @@ export class HostSync {
     this._ready = new Set(); // Clients mit Welt geladen (bekommen Schnappschüsse)
     this._pendingReady = new Set(); // 'ready' vor dem eigenen Matchstart
     this._lastThrow = new Map();
+    this._lastOrder = new Map();
     this._lastEnv = new Map();
     this._hitSerial = new Map(); // Client → letzte Schussnummer mit Treffer (Trefferstatistik)
     this._holds = new Map(); // Client → {pause, since}: Wiedereinstieg angehalten (Ausrüsten im Todesbildschirm)
@@ -79,6 +82,7 @@ export class HostSync {
       net.on('throw', (m, from) => this._onThrow(m, from)),
       net.on('plate', (m, from) => this._onPlate(m, from)),
       net.on('hold', (m, from) => this._onHold(m, from)),
+      net.on('order', (m, from) => this._onOrder(m, from)),
       net.onFast((buf, from) => this._onFast(buf, from)),
     ];
     if (G.events) {
@@ -320,6 +324,7 @@ export class HostSync {
     this._holds.delete(id);
     this._pendingReady.delete(id);
     this._lastThrow.delete(id);
+    this._lastOrder.delete(id);
     this._lastEnv.delete(id);
     this._hitSerial.delete(id);
     if (!this.active) return;
@@ -557,6 +562,25 @@ export class HostSync {
     if (!this.active || !p || !p.alive || !p.armor || !G.combat) return;
     if (m && m.cancel) G.combat.cancelPlate(p);
     else G.combat.insertPlate(p, { chain: !!(m && m.chain) });
+  }
+
+  /**
+   * Befehlsrad eines Clients ('order' { order, point: [x,y,z] | null, target: netId | 0, formation }): Befehl an die KI-Bots
+   * seines Teams um seine Puppe (Anführer = Puppe; folgen/sammeln richten sich nach ihr). Prüfung (Befehl, Form, Gegner)
+   * in BotManager.issueOrder; Punkte weiter als 300 m von der Puppe werden verworfen.
+   */
+  _onOrder(m, from) {
+    const G = this.G;
+    if (!this.active || this.ended || !m || typeof m.order !== 'string' || !G.bots || typeof G.bots.issueOrder !== 'function') return;
+    const p = this._puppet(from);
+    if (!p || !p.alive || !p.team) return;
+    const t = nowSec();
+    if (t - (this._lastOrder.get(from) || 0) < ORDER_GAP) return;
+    this._lastOrder.set(from, t);
+    let point = vec3(m.point);
+    if (point && point.distanceTo(p.position) > 300) point = null;
+    const target = Number.isInteger(m.target) && m.target > 0 ? this.net.actorById(m.target) : null;
+    G.bots.issueOrder({ leader: p, order: m.order.slice(0, 16), point, target, formation: typeof m.formation === 'string' ? m.formation.slice(0, 8) : null });
   }
 
   /** Wurf/Raketenschuss eines Clients ('throw'): echtes Geschoss aus der Puppe (Wirkung auf dem Host), Darstellung über 'ev'. */

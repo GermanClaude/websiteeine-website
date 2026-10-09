@@ -12,6 +12,8 @@
 // Belegung: frei änderbar (settings.bindings, Daten und Hilfen in shared/bindings.data.js) für Tastatur, Maus und
 // Gamepad inkl. Akkorde („Pad6+Pad10“). Zusätzlich: aimTarget, lastDevice, label(), capture(), simulate.*,
 // vibrate(), rumble(), Gyro (requestGyroPermission), Touch-Layout (applyTouchLayout, measureTouch).
+// Befehlsrad (ui/command-wheel.js): openWheel()/closeWheel(); solange offen, lenken Maus, rechter Stick bzw. Ziehen am
+// Touch-Knopf den Zeiger des Rads (wheel.x/y) statt der Kamera, Feuern/Granaten/Nahkampf/Wechsel ruhen (WHEEL_MASK).
 
 import * as THREE from 'three';
 import {
@@ -37,6 +39,10 @@ const XR_BTN = { H: [0, 1, 2, 3, 4, 5, 6].map((i) => `XrH${i}`), N: [0, 1, 2, 3,
 const XR_STICK_DZ = 0.15;
 /** Aktionen, die input.js bei „Umschalten“ selbst einrastet (Sprint/Ducken entscheidet der Spieler). */
 const LATCHABLE = new Set(['ads', 'lean_left', 'lean_right']);
+/** Ruhen, solange das Befehlsrad offen ist (Feuern bestätigt stattdessen die Auswahl). */
+const WHEEL_MASK = new Set(['fire', 'grenade', 'tactical', 'melee', 'swap', 'slot1', 'slot2', 'inspect', 'streak1', 'streak2', 'streak3', 'gadget', 'plate']);
+const WHEEL_MOUSE_PX = 150; // Mausweg (px) bis zum Rand des Rads
+const WHEEL_TOUCH_PX = 70; // Ziehweg am Touch-Knopf bis zum Rand
 const EMPTY = Object.freeze([]);
 
 const _eye = new THREE.Vector3();
@@ -125,6 +131,7 @@ const ICONS = {
   prone: I('<circle cx="35" cy="22" r="4"/><path d="M8 31h20l5-4M14 31l-3-5M26 31l3 4"/><path d="M6 38h36" opacity=".45"/>'),
   plate: I('<path d="M24 7l14 5v11c0 9-6 15-14 18-8-3-14-9-14-18V12z"/><path d="M24 17v14M17 24h14"/>'),
   gadget: I('<rect x="10" y="16" width="28" height="22" rx="3"/><path d="M19 16v-5h10v5M24 21v12M18 27h12"/>'),
+  befehl: I('<circle cx="24" cy="24" r="16"/><path d="M12.7 12.7l5.7 5.7M35.3 12.7l-5.7 5.7M12.7 35.3l5.7-5.7M35.3 35.3l-5.7-5.7" opacity=".55"/><path d="M19 12l5-4 5 4"/><circle cx="24" cy="24" r="3.5" fill="currentColor" stroke="none"/>'),
 };
 
 export class Input {
@@ -151,6 +158,13 @@ export class Input {
     this.gyro = { supported: gyroSupported(), permission: 'unknown', active: false, receiving: false };
     /** Aufgelöstes Touch-Layout (shared/bindings.data.js resolveTouchLayout) oder null vor attach(). */
     this.touchLayout = null;
+    /**
+     * Befehlsrad: open (ui/command-wheel.js setzt es über openWheel/closeWheel), Zeiger x/y (Einheitskreis, y nach unten),
+     * click = Feuertaste gedrückt (bestätigt), drag = Touch-Knopf wird gezogen, cancel = Eingaben verworfen (Fokusverlust,
+     * Pause) – das Rad löscht click/cancel selbst.
+     */
+    this.wheel = { open: false, x: 0, y: 0, click: false, drag: false, cancel: false };
+    this._padStick = { x: 0, y: 0, m: 0 }; // rechter Stick roh (Befehlsrad)
 
     this._held = {};
     for (const s of SOURCES) this._held[s] = new Set();
@@ -215,17 +229,23 @@ export class Input {
         else for (const c of parts.reverse()) this._codeUp(dev, c);
       },
       gyro: (dxRad, dyRad) => { this._gyroDX += dxRad; this._gyroDY += dyRad; },
+      /** Befehlsrad-Zeiger setzen (Tests): x/y im Einheitskreis, y nach unten. */
+      wheel: (x, y) => { this.wheel.x = clamp(x, -1, 1); this.wheel.y = clamp(y, -1, 1); },
     };
   }
 
   /* ----------------------------------------------------------- Zustand */
 
   down(action) {
+    if (this.wheel.open && WHEEL_MASK.has(action)) return false;
+    return this._isDown(action);
+  }
+  _isDown(action) {
     const h = this._held;
     return h.key.has(action) || h.mouse.has(action) || h.pad.has(action) || h.touch.has(action) || h.auto.has(action) || h.sim.has(action) ||
       h.xr.has(action) || h.xrpose.has(action);
   }
-  pressed(action) { return this._pressed.has(action); }
+  pressed(action) { return this._pressed.has(action) && !(this.wheel.open && WHEEL_MASK.has(action)); }
   released(action) { return this._released.has(action); }
   /** Drücken dieses Bildes verbrauchen (geteilte Tasten: z. B. 4 = Platte statt Serie 2). */
   consume(action) { return this._pressed.delete(action); }
@@ -266,9 +286,10 @@ export class Input {
 
   _press(action, src) {
     if (!this.enabled && src !== 'sim') return;
-    const was = this.down(action);
+    const was = this._isDown(action);
     this._held[src].add(action);
     if (!was) this._pressed.add(action);
+    if (!was && action === 'fire' && this.wheel.open) this.wheel.click = true;
     // Umschalten: Flanke eines physischen Geräts schaltet den eingerasteten Zustand
     if (!was && LATCHABLE.has(action) && (src === 'key' || src === 'mouse' || src === 'pad' || src === 'xr') && this.behavior(action) === 'toggle') {
       this.setActive(action, !this._latched.has(action));
@@ -277,7 +298,7 @@ export class Input {
 
   _release(action, src) {
     if (!this._held[src].delete(action)) return;
-    if (!this.down(action)) this._released.add(action);
+    if (!this._isDown(action)) this._released.add(action);
   }
 
   _releaseSource(src) {
@@ -288,6 +309,7 @@ export class Input {
   }
 
   releaseAll() {
+    if (this.wheel.open) this.wheel.cancel = true; // Fokusverlust/Pause: Befehlsrad ohne Befehl schließen
     for (const s of SOURCES) this._releaseSource(s);
     this._codes.kb.clear();
     this._codes.pad.clear();
@@ -309,6 +331,36 @@ export class Input {
     this.releaseAll();
     this._pressed.clear();
     this._released.clear();
+  }
+
+  /** Befehlsrad öffnen (ui/command-wheel.js): Zeiger in die Mitte, Blick ruht. */
+  openWheel() {
+    const W = this.wheel;
+    W.open = true;
+    W.x = W.y = 0;
+    W.click = W.drag = W.cancel = false;
+  }
+
+  /** Befehlsrad schließen: Blick wieder frei; gehaltene Feuertaste löst erst nach erneutem Drücken aus. */
+  closeWheel() {
+    const W = this.wheel;
+    if (!W.open) return;
+    W.open = false;
+    W.x = W.y = 0;
+    W.click = W.drag = W.cancel = false;
+    this._mouseDX = this._mouseDY = this._touchDX = this._touchDY = this._gyroDX = this._gyroDY = 0;
+    for (const src of SOURCES) this._held[src].delete('fire');
+  }
+
+  /** Touch: Ziehen am Befehlsrad-Knopf (Versatz in px seit dem Aufsetzen) → Zeiger des Rads. */
+  _wheelDrag(dx, dy) {
+    const W = this.wheel;
+    if (!W.open) return;
+    W.x = dx / WHEEL_TOUCH_PX;
+    W.y = dy / WHEEL_TOUCH_PX;
+    const m = Math.hypot(W.x, W.y);
+    if (m > 1) { W.x /= m; W.y /= m; }
+    if (m > 0.3) W.drag = true;
   }
 
   /** ADS beenden: Touch-Umschalter und eingerastetes Zielen (Sprint, Tod, Respawn). */
@@ -724,6 +776,20 @@ export class Input {
     const gyroOn = this._gyroWanted(ads);
     this.gyro.active = gyroOn && this.gyro.receiving;
     if (gyroOn) { dx += this._gyroDX * fovScale; dy += this._gyroDY * fovScale; }
+    // Befehlsrad offen: Maus bzw. rechter Stick lenken den Zeiger des Rads, die Kamera ruht
+    if (this.wheel.open) {
+      const W = this.wheel;
+      if (!W.drag) {
+        W.x += this._mouseDX / WHEEL_MOUSE_PX;
+        W.y += this._mouseDY / WHEEL_MOUSE_PX;
+        const st = this._padStick;
+        if (st.m > 0.4) { W.x = st.x / st.m; W.y = st.y / st.m; }
+        const m = Math.hypot(W.x, W.y);
+        if (m > 1) { W.x /= m; W.y /= m; }
+      }
+      dx = 0;
+      dy = 0;
+    }
     this._mouseDX = this._mouseDY = this._touchDX = this._touchDY = this._gyroDX = this._gyroDY = 0;
 
     if (!this.enabled) { dx = 0; dy = 0; }
@@ -783,6 +849,7 @@ export class Input {
     if (!pad) {
       if (this._padActive) { this._releaseSource('pad'); this._padActive = false; }
       this._padMove.x = this._padMove.y = this._padLook.x = this._padLook.y = 0;
+      this._padStick.m = 0;
       return;
     }
     const s = this.G.settings;
@@ -817,6 +884,7 @@ export class Input {
     const R = swap ? [ax[0] || 0, ax[1] || 0] : [ax[2] || 0, ax[3] || 0];
     const [lx, ly] = radial(L[0], L[1], Math.max(0.1, dz + 0.03));
     const [rx, ry, rm] = radial(R[0], R[1], dz);
+    this._padStick.x = rx; this._padStick.y = ry; this._padStick.m = rm;
     this._padMove.x = lx;
     this._padMove.y = -ly;
     const curve = s.get('padCurve') || 'classic';
@@ -1340,6 +1408,7 @@ class TouchUI {
       ${BTN_HTML('tc-lean tc-lean-r', 'lean_right', 'Rechts lehnen', ICONS.leanR, ' data-toggle="1"')}
       ${BTN_HTML('tc-light', 'light', 'Lampe', ICONS.light)}
       ${BTN_HTML('tc-prone', 'prone', 'Hinlegen', ICONS.prone)}
+      ${BTN_HTML('tc-befehl', 'befehl', 'Befehlsrad', ICONS.befehl)}
       <div class="tc-btn tc-plate" data-action="plate" role="button" aria-label="Panzerplatte einsetzen">${ICONS.plate}<span class="tc-badge">0</span></div>
       <div class="tc-btn tc-gadget" data-action="gadget" role="button" aria-label="Klassen-Ausrüstung">${ICONS.gadget}<span class="tc-badge">0</span></div>
       <div class="tc-btn tc-swap" data-action="swap" role="button" aria-label="Waffe wechseln">${ICONS.swap}<span class="tc-swap-name">—</span></div>
@@ -1446,7 +1515,7 @@ class TouchUI {
     if (btn) {
       const action = btn.dataset.action;
       const look = btn.classList.contains('tc-fire') || action === 'adsfire';
-      const p = { kind: 'button', btn, action, x: e.clientX, y: e.clientY, t: now, look };
+      const p = { kind: 'button', btn, action, x: e.clientX, y: e.clientY, t: now, look, x0: e.clientX, y0: e.clientY };
       this.pointers.set(e.pointerId, p);
       btn.classList.add('is-down');
       if (btn.dataset.toggle) {
@@ -1509,6 +1578,8 @@ class TouchUI {
       this._stickUpdate();
       return;
     }
+    // Befehlsrad-Knopf: Ziehen wählt die Richtung im Rad
+    if (p.kind === 'button' && p.action === 'befehl') { this.input._wheelDrag(e.clientX - p.x0, e.clientY - p.y0); return; }
     if (p.kind === 'look' || (p.kind === 'button' && p.look)) {
       const now = performance.now();
       const dx = e.clientX - p.x;
@@ -1652,6 +1723,12 @@ class TouchUI {
     if (kind === 'light') return !!(p && (p.flashlight || (w && (w.hasLight || w.light))));
     if (kind === 'armor') return !!(p && p.armor && p.armor.slots > 0);
     if (kind === 'gadget') return !!(p && p.gadget);
+    if (kind === 'allies') {
+      // verbündete Bots (offline/Host: KI-Bots, Client: Puppen der Host-Bots) – sonst hat das Befehlsrad nichts zu tun
+      if (!p || !p.team || (G.xr && G.xr.presenting)) return false;
+      for (const a of G.actors) if (a !== p && a.isBot && a.team === p.team) return true;
+      return false;
+    }
     return true;
   }
 
@@ -1756,6 +1833,7 @@ class TouchUI {
     set('lock', input.sprintLock, (v) => this.el.stick.classList.toggle('is-locked', v));
     set('leanL', input._held.touch.has('lean_left'), () => this._syncLean());
     set('leanR', input._held.touch.has('lean_right'), () => this._syncLean());
+    set('befehl', input.wheel.open, (v) => { if (this.items.befehl) this.items.befehl.classList.toggle('is-active', v); });
     if (this.layoutDirty && this.layout && this._visibleRoot()) input.applyTouchLayout();
     // automatische Knöpfe (taktische Granate, Lampe) erscheinen, sobald die Funktion verfügbar ist
     if (this.layout) {

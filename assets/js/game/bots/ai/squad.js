@@ -11,8 +11,10 @@
 // Rekrut/Regulär: Trupps nur für Rollen/Ausrüstung, keine Befehle (einfache, aber zielgerichtete Bots).
 // Jede Maßnahme meldet `bot:tactic { type, squad, team, … }` (type: bound, overwatch, suppress, flank, crossfire,
 // smoke, stack, clear_grenade, enter, fallback, regroup, medic, heal, spot, at, prone).
+// Bots mit einem Spielerbefehl (Befehlsrad, ai/orders.js) zählen für den Trupp nicht mit und bekommen keine Truppbefehle.
 import * as THREE from 'three';
 import { analyze } from './tactics.js';
+import { isCommanded } from './orders.js';
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
@@ -132,7 +134,7 @@ export class TeamTactics {
   _eval(sq, now, hard) {
     const alive = this._alive;
     alive.length = 0;
-    for (const m of sq.members) if (m.alive) alive.push(m);
+    for (const m of sq.members) if (m.alive && !isCommanded(m, now)) alive.push(m);
     // Führer: Truppführer, sonst Teamführer, sonst irgendwer
     let lead = null;
     for (const m of alive) if (m.role === 'leader' && m.ft === 0) { lead = m; break; }
@@ -223,6 +225,8 @@ export class TeamTactics {
 
   _order(bot, kind, now, o) {
     const ord = bot.order || (bot.order = newOrder());
+    // Spielerbefehl hat Vorrang (Befehlsrad)
+    if (isCommanded(bot, now)) { ord.kind = null; return ord; }
     // Weg dorthin zuletzt gescheitert → eine Weile selbst entscheiden lassen
     if (now < (bot._orderBan || 0) && o.pos) { ord.kind = null; return ord; }
     const changed = ord.kind !== kind;

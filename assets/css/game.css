@@ -3070,3 +3070,143 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
   .nm-spin { animation-duration: 2.4s; }
   .nt-item { animation: none; transition: none; }
 }
+
+/* =====================================================================
+   Befehlsrad (ui/command-wheel.js): Rad in der Bildmitte (#hud-top), Weltmarkierungen für Angriff/Verteidigen/
+   Ausschwärmen, Touch-Knopf .tc-befehl (Lage: TOUCH_BUTTONS in shared/bindings.data.js).
+   ===================================================================== */
+.cw-root {
+  --cw: min(400px, 74vmin);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--cw);
+  height: var(--cw);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  color: var(--np-ink);
+  font-family: var(--font-hud);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .85);
+  animation: cw-in .14s var(--ease-out);
+}
+@keyframes cw-in { from { opacity: 0; transform: translate(-50%, -50%) scale(.9); } }
+.cw-ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.cw-back { fill: rgba(10, 11, 13, .34); }
+.cw-seg { fill: rgba(16, 18, 22, .66); stroke: rgba(233, 230, 223, .2); stroke-width: .8; transition: fill .08s, stroke .08s; }
+.cw-seg.is-sel { fill: rgba(255, 91, 31, .48); stroke: var(--np-signal); stroke-width: 1.4; }
+.cw-hub { fill: rgba(10, 11, 13, .78); stroke: rgba(233, 230, 223, .26); stroke-width: .8; }
+.cw-ptr { fill: var(--np-signal); opacity: 0; transition: opacity .1s; }
+.cw-ptr.is-on { opacity: 1; }
+.cw-item {
+  position: absolute;
+  width: 27%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: rgba(233, 230, 223, .8);
+  font: 600 clamp(10px, 2.6vmin, 13px) / 1.08 var(--font-hud);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  text-align: center;
+  pointer-events: none;
+}
+.cw-item svg { width: clamp(20px, 6.2vmin, 30px); height: clamp(20px, 6.2vmin, 30px); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .7)); }
+.cw-item.is-sel { color: #fff; }
+.cw-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 36%;
+  height: 36%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 3%;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  text-align: center;
+  pointer-events: none;
+}
+.cw-title { font: 700 clamp(13px, 3.5vmin, 19px) / 1.02 var(--font-hud); letter-spacing: .05em; text-transform: uppercase; }
+.cw-hint { font: 500 clamp(9.5px, 2.3vmin, 12px) / 1.15 var(--font-hud); color: var(--np-ink-2); }
+.cw-count { font: 600 clamp(9.5px, 2.2vmin, 11px) / 1.1 var(--font-hud); letter-spacing: .08em; text-transform: uppercase; color: var(--np-ally); }
+.cw-count.is-none { color: var(--np-gold); }
+.cw-foot {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%);
+  padding: 3px 10px;
+  border-radius: 3px;
+  background: rgba(10, 11, 13, .55);
+  font: 500 12px / 1.2 var(--font-hud);
+  letter-spacing: .04em;
+  color: var(--np-ink-2);
+  white-space: nowrap;
+}
+/* Touch (Antippen): Felder und Mitte bedienbar */
+#hud-top .cw-root.is-tap .cw-seg, #hud-top .cw-root.is-tap .cw-item, #hud-top .cw-root.is-tap .cw-center { pointer-events: auto; cursor: pointer; }
+#hud-top .cw-root.is-tap .cw-seg:active { fill: rgba(255, 91, 31, .48); }
+/* Kurze Telefone: Hinweistext in der Mitte weglassen, Fußzeile neben das Rad */
+@media (max-height: 460px) {
+  .cw-hint { display: none; }
+  .cw-foot { top: auto; bottom: 2px; left: calc(100% + 10px); transform: none; white-space: normal; width: max-content; max-width: 22vw; }
+}
+
+.cw-marks { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.cw-mark { position: absolute; left: 0; top: 0; width: 0; height: 0; color: var(--np-signal); transition: opacity .2s; }
+.cw-mark.is-enemy { color: var(--np-enemy); }
+.cw-mark.is-ally { color: var(--np-ally); }
+.cw-mark.is-signal { color: var(--np-signal); }
+.cw-mark-d {
+  position: absolute;
+  left: -16px;
+  top: -16px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: rgba(10, 11, 13, .55);
+}
+.cw-mark-d svg { width: 18px; height: 18px; }
+.cw-mark-d::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  animation: cw-ping 1.8s ease-out infinite;
+}
+@keyframes cw-ping { from { transform: scale(1); opacity: .8; } to { transform: scale(1.9); opacity: 0; } }
+.cw-mark span {
+  position: absolute;
+  top: 20px;
+  left: -70px;
+  width: 140px;
+  text-align: center;
+  font: 600 12px / 16px var(--font-hud);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--np-ink);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .85);
+}
+.cw-mark.is-edge { opacity: .7; }
+.cw-mark.is-edge .cw-mark-d::after { animation: none; opacity: 0; }
+
+.tc-befehl.is-active { background: var(--np-ink); color: var(--np-black); border-color: var(--np-ink); }
+@media (prefers-reduced-motion: reduce) {
+  .cw-root, .cw-mark-d::after { animation: none; }
+}

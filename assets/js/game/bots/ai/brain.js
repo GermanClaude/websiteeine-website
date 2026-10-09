@@ -2,9 +2,11 @@
 // ein Ziel (bot.goal): ausweichen (Granate) › kämpfen › Deckung/Rückzug (verletzt, Nachladen) ›
 // verfolgen/flankieren/Granate (Ziel verloren) › Herrschaftsflaggen › Hinweisen nachgehen (Team, Geräusche,
 // Aufklärer) › Gebiet absuchen (Spuren, Machtpositionen, erhöhte Posten halten). Setzt außerdem
-// Serienprämien ein.
+// Serienprämien ein. Befehle des Spielers (Befehlsrad, ai/orders.js) haben Vorrang vor Truppbefehlen, Flaggen und
+// Suchen; Ausweichen, Zurückschießen und Deckung bleiben dem Hirn.
 import * as THREE from 'three';
 import { analyze, pickRoamGoal, flankPoint, findCover, retreatPoint, isPerch, perchNear } from './tactics.js';
+import { commandFor, commandStep, isAnchored } from './orders.js';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
@@ -12,12 +14,13 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const CHASE_PERCH = 0.4; // Anteil vorsichtiger Verfolgungen über einen erhöhten Posten (FFA: halb so oft)
 const HUNT_PERCH = 0.35; // Anteil der Anmärsche zu Gefechtslärm über einen erhöhten Posten (FFA: halb so oft)
 
-export const GOALS = ['roam', 'engage', 'cover', 'retreat', 'chase', 'hunt', 'flank', 'objective', 'evade', 'heal', 'grenade', 'squad', 'check'];
+export const GOALS = ['roam', 'engage', 'cover', 'retreat', 'chase', 'hunt', 'flank', 'objective', 'evade', 'heal', 'grenade', 'squad', 'check', 'command'];
 
 /** Anzeigenamen (Prüfstand). */
 export const GOAL_LABELS = {
   roam: 'Suchen', engage: 'Gefecht', cover: 'Deckung', retreat: 'Rückzug', chase: 'Verfolgen', hunt: 'Jagen',
   flank: 'Flanke', objective: 'Flagge', evade: 'Ausweichen', heal: 'Heilen', grenade: 'Granate', idle: 'Warten', squad: 'Trupp', check: 'Prüfen',
+  command: 'Befehl',
 };
 /** Truppbefehle (bots-scale, ai/squad.js), die auch bei Feindsicht weiterlaufen (Bot feuert dabei). */
 const MOVE_UNDER_FIRE = new Set(['fallback', 'medic']);
@@ -52,8 +55,10 @@ export function think(bot, now) {
   }
   if (goal.kind === 'evade' && now < goal.until) return;
   if (goal.kind === 'grenade' && bot.throwPlan) return;
+  // Befehl des Spielers (Befehlsrad): verdrängt Truppbefehle (bot.order bleibt dann leer)
+  const cmd = commandFor(bot, now);
   // Truppbefehl (bots-scale): gilt bis order.until
-  let ord = bot.order && bot.order.kind && now < bot.order.until ? bot.order : null;
+  let ord = !cmd && bot.order && bot.order.kind && now < bot.order.until ? bot.order : null;
   // Weg zum Befehlsziel gescheitert (Fortschrittswächter/Festhängen) → Befehl fallen lassen, 8 s selbst entscheiden
   if (ord && ord.hasPos && goal.kind === 'squad' && bot.nav.failed) { bot._orderBan = now + 8; ord.kind = null; ord = null; }
 
@@ -65,6 +70,8 @@ export function think(bot, now) {
   const objective = objectiveFor(bot, now);
 
   if (rec) {
+    // Spielerbefehl: feuernd zum Platz/zur Stellung, aus der Stellung kämpfen (sonst normales Gefecht, siehe orders.js)
+    if (cmd && commandStep(bot, cmd, now, rec, set)) return;
     // Ausweichen/Sanitäter: weiterlaufen und dabei feuern
     if (ord && MOVE_UNDER_FIRE.has(ord.kind)) { applyOrder(bot, ord, now, rec); return; }
     const d = rec.pos.distanceTo(bot.position);
@@ -100,13 +107,15 @@ export function think(bot, now) {
   // --- kein sichtbares Ziel
   if (w && w.current && w.current.def && w.current.def.mag && !w.isReloading && w.current.mag < w.current.def.mag * 0.55) bot.wantReload = true;
   const fresh = mem.freshestUnseen(now, D.chaseTime);
-  if (hp < D.retreatHealth + 20 && fresh && now - bot.lastDamageTime < 3) {
+  if (hp < D.retreatHealth + 20 && fresh && now - bot.lastDamageTime < 3 && !isAnchored(cmd)) {
     // heilen in Deckung
     const c = findCover(bot, fresh.pos, 10, bot.manager.coverClaims(bot));
     set(goal, 'heal', now, { move: c ? c.position : bot.position, speed: 'run', look: 'point', lookAt: fresh.pos, tolerance: 0.6, crouch: !!(c && !c.coverHigh) });
     if (c) bot.coverNode = c;
     return;
   }
+  // Spielerbefehl (folgen, halten, sammeln, angreifen …)
+  if (cmd && commandStep(bot, cmd, now, null, set)) return;
   // Truppbefehl (Vorgehen, Sichern, Niederhalten, Flanke, Sammeln, Stapel …)
   if (ord) { applyOrder(bot, ord, now, null); return; }
   // Erhöhter Posten (aus Umherziehen/Verfolgen/Jagen/Verteidigen): hingehen, dann eine Weile halten

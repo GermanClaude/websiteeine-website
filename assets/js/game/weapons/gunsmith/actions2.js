@@ -37,63 +37,6 @@ export const EXTRA_ACTIONS = {
     if (c > 0.55 && !A.charged) { A.charged = true; this._boltLocked = false; this._boltT = 0.3; this._jolt.kick(0.8, 0.3, 0); }
   },
 
-  /** Magazin im Pistolengriff (KM-7 Wespe): Waffe gekippt, Magazin fällt entlang der Griffachse, Spannhebel oben. */
-  _actReloadGripMag(A, out, u) {
-    const ud = this.cur.ud, k = A.empty ? 0.72 : 1, m = u / k;
-    curve(m, [[0, ZERO3], [0.12, [0.32, 0.24, -0.34]], [0.8, [0.34, 0.26, -0.36]], [0.95, ZERO3]], out.r);
-    curve(m, [[0, ZERO3], [0.12, [-0.03, 0.055, 0.04]], [0.8, [-0.03, 0.056, 0.04]], [0.95, ZERO3]], out.p);
-    const mag = curve(m, [[0.12, ZERO3], [0.2, [0, -0.06, 0.012]], [0.3, [0.02, -0.5, 0.12]], [0.31, [-0.08, -0.22, 0.06]], [0.44, [-0.02, -0.08, 0.02]], [0.56, [0, -0.012, 0.003]], [0.62, ZERO3]]);
-    out.parts.mag = [mag[0], mag[1], mag[2]];
-    this._magWindow(A, out, m, 0.17, 0.305);
-    out.frame = windowW(m, 0.06, 0.16, 0.66, 0.84);
-    if (m > 0.6 && !A.slapped) { A.slapped = true; this._jolt.kick(1.3, 0, 0); this._recoilPos.kick(0, 0.005, 0); }
-    const wAway = windowW(m, 0.1, 0.22, 0.66, 0.82);
-    if (wAway > 0) {
-      if (m < 0.3) req(out.left, wAway, { free: [[-0.11, -0.25, -0.27], [0.4, 0.5, -0.7], [-0.7, 0.4, 0.2], 'relaxed'] });
-      else req(out.left, wAway, { anchor: ud.anchors.magGrab || ud.magazine, style: 'mag' });
-    }
-    if (A.empty) this._chargeCycle(A, out, (u - 0.72) / 0.28);
-    return u >= 1;
-  },
-
-  /** Bullpup (BX-20): Magazin hinter dem Griff – Waffe hoch und nah an die Brust, Stützhand greift weit nach hinten. */
-  _actReloadBullpup(A, out, u) {
-    const ud = this.cur.ud, k = A.empty ? 0.76 : 1, m = u / k;
-    // hands: Waffe vom Körper weg nach vorn/oben und gegen den Uhrzeigersinn gedreht – der Schacht hinter dem Griff
-    // kommt ins Bild (früher 10 cm zur Brust gezogen: Hand und Magazin lagen 60 % des Nachladens unter dem Bildrand)
-    curve(m, [[0, ZERO3], [0.14, [0.34, 0.62, -0.34]], [0.82, [0.36, 0.64, -0.36]], [0.96, ZERO3]], out.r);
-    curve(m, [[0, ZERO3], [0.14, [-0.02, 0.07, -0.08]], [0.82, [-0.02, 0.072, -0.08]], [0.96, ZERO3]], out.p);
-    const mag = curve(m, [[0.24, ZERO3], [0.33, [0, -0.08, 0.02]], [0.42, [-0.07, -0.2, 0.07]], [0.43, [-0.065, -0.19, 0.065]], [0.56, [0, -0.09, 0.02]], [0.64, [0, -0.012, 0.003]], [0.67, ZERO3]]);
-    const magRot = curve(m, [[0.24, 0], [0.38, 0.22], [0.43, 0.22], [0.56, 0.1], [0.67, 0]]);
-    out.parts.mag = [mag[0], mag[1], mag[2], magRot, 0, 0];
-    this._magWindow(A, out, m, 0.3, 0.425);
-    out.frame = windowW(m, 0.06, 0.18, 0.72, 0.88);
-    if (m > 0.66 && !A.slapped) { A.slapped = true; this._jolt.kick(1.25, 0, 0); this._recoilPos.kick(0, 0.004, 0); }
-    const wMag = windowW(m, 0.14, 0.24, 0.68, 0.8);
-    if (wMag > 0 && ud.anchors.magGrab) req(out.left, wMag, { anchor: ud.anchors.magGrab, style: 'mag' });
-    if (A.empty) this._chargeCycle(A, out, (u - 0.76) / 0.24);
-    return u >= 1;
-  },
-
-  /** Trommelmagazin (LM-8): schwer – nach vorn abkippen und herausziehen, neue Trommel vorn einhängen, hinten einrasten. */
-  _actReloadDrum(A, out, u) {
-    const ud = this.cur.ud, k = A.empty ? 0.8 : 1, m = u / k;
-    curve(m, [[0, ZERO3], [0.1, [0.1, 0.22, -0.4]], [0.84, [0.12, 0.24, -0.42]], [0.96, ZERO3]], out.r);
-    curve(m, [[0, ZERO3], [0.1, [-0.03, 0.03, 0.06]], [0.84, [-0.03, 0.032, 0.06]], [0.96, ZERO3]], out.p);
-    // Abkippen (Vorderkante zuerst), dann heraus nach unten, neue Trommel: vorn ansetzen, hinten hochschwenken
-    const mag = curve(m, [[0.2, ZERO3], [0.28, [0, -0.012, -0.006]], [0.36, [0, -0.06, 0.0]], [0.435, [-0.09, -0.22, 0.06]], [0.445, [-0.085, -0.21, 0.0]], [0.58, [0, -0.06, -0.012]], [0.66, [0, -0.014, -0.004]], [0.7, ZERO3]]);
-    const rock = curve(m, [[0.2, 0], [0.28, -0.22], [0.36, -0.3], [0.445, -0.3], [0.58, -0.28], [0.66, -0.14], [0.7, 0]]);
-    out.parts.mag = [mag[0], mag[1], mag[2], rock, 0, 0];
-    this._magWindow(A, out, m, 0.36, 0.44);
-    out.frame = windowW(m, 0.06, 0.16, 0.74, 0.9);
-    if (m > 0.28 && m < 0.3 && !A.unlatched) { A.unlatched = true; this._jolt.kick(0.6, 0, 0); }
-    if (m > 0.69 && !A.slapped) { A.slapped = true; this._jolt.kick(1.6, 0, 0); this._recoilPos.kick(0, 0.006, 0); }
-    const wMag = windowW(m, 0.1, 0.2, 0.72, 0.84);
-    if (wMag > 0 && ud.anchors.magGrab) req(out.left, wMag, { anchor: ud.anchors.magGrab, style: 'mag' });
-    if (A.empty) this._chargeCycle(A, out, (u - 0.8) / 0.2, 'right');
-    return u >= 1;
-  },
-
   /**
    * Revolver (R-6 Kobra): Trommel ausschwenken → Mündung hoch, Ausstoßer drücken (Hülsen fallen) → Mündung runter,
    * Schnelllader einsetzen und drehen → Lader weg, Trommel einschwenken (Ruck) → Stützgriff.

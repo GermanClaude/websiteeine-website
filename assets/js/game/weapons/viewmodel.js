@@ -18,6 +18,7 @@ import { WEAPONS, weaponHandling } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
 import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE, MELEE_STYLES } from './gunsmith/handling.js';
 import { EXTRA_ACTIONS } from './gunsmith/actions2.js';
+import { RELOAD_ACTIONS } from './anim/reloads.js';
 import { GunCollider, MultiCollider } from './gunsmith/contact.js';
 import { applyCamo } from './gunsmith/camos.js';
 import { CLASS_LOOKS, SKIN_TIERS, classLookId } from '../../shared/weapons.data.js';
@@ -324,18 +325,23 @@ export class ViewModel {
     return this.action;
   }
 
-  /** Nachladen starten. empty = Magazin leer (inkl. Durchladen). */
-  playReload(empty = false) {
+  /**
+   * Nachladen starten. empty = Magazin leer (inkl. Durchladen). variant = optische Variante (Standard: zufällig, nie
+   * zweimal dieselbe hintereinander – anim/reloads.js); Dauer und Munition bleiben die der Waffendaten.
+   */
+  playReload(empty = false, variant) {
     if (!this.cur || this.h.reload === 'none') return;
     const d = this.def;
-    if (this.h.reload === 'shell') {
+    const style = this.h.reload;
+    const v = this._pickVariant('reload:' + style + (empty ? ':leer' : ''), this._reloadVariants(style, empty), variant);
+    if (style === 'shell') {
       const timing = d?.shellTiming || { start: 0.3, insert: 0.48, end: 0.42 };
       const mag = d?.mag ?? 6;
-      this._start('shells', 1e9, { empty, timing, shells: empty ? mag : Math.max(1, Math.round(mag / 2)), phase: 'start', pt: 0, inserted: 0 });
+      this._start('shells', 1e9, { empty, timing, shells: empty ? mag : Math.max(1, Math.round(mag / 2)), phase: 'start', pt: 0, inserted: 0, variant: v });
       return;
     }
     const dur = empty ? (d?.reloadEmptyTime ?? this.h.emptyTime) : (d?.reloadTime ?? this.h.reloadTime);
-    this._start('reload', dur, { empty, style: this.h.reload });
+    this._start('reload', dur, { empty, style, variant: v });
   }
 
   /** Nahkampf. opts: { style ('slash'|'hook'|'chop'|'overhead'|'stab'), backstab, duration } – Standard aus der Nahkampfwaffe. */
@@ -1409,69 +1415,6 @@ export class ViewModel {
     for (const p of Object.values(this.props)) p.visible = false;
   }
 
-  _actReload(A, out) {
-    const u = clamp(A.t / A.dur, 0, 1);
-    const ud = this.cur.ud, style = A.style, empty = A.empty;
-    const anchors = ud.anchors;
-    if (style === 'pistol') return this._actReloadPistol(A, out, u);
-    if (style === 'gripmag') return this._actReloadGripMag(A, out, u);
-    if (style === 'bullpup') return this._actReloadBullpup(A, out, u);
-    if (style === 'drum') return this._actReloadDrum(A, out, u);
-    if (style === 'revolver') return this._actReloadRevolver(A, out, u);
-    if (style === 'rocket') return this._actReloadRocket(A, out, u);
-    if (style === 'belt') return this._actReloadBelt(A, out, u);
-    if (style === 'top') return this._actReloadTop(A, out, u);
-    // Standard-Magazinwechsel (optional mit Durchladen am Ende)
-    const k = empty ? 0.74 : 1;     // Magazin-Teil wird bei Leer-Nachladen gestaucht
-    const m = u / k;
-    // Waffe kippen
-    // Waffe anheben, heranziehen und im Uhrzeigersinn rollen: Magazinschacht zur Stützhand
-    curve(m, [[0, ZERO3], [0.13, [0.16, 0.2, -0.46]], [0.8, [0.18, 0.22, -0.5]], [0.95, ZERO3]], out.r);
-    curve(m, [[0, ZERO3], [0.13, [-0.045, 0.045, 0.05]], [0.8, [-0.045, 0.05, 0.05]], [0.95, ZERO3]], out.p);
-    // Magazin: raus nach unten, aus dem Bild, neues hinein
-    // Stützhand zieht das Magazin, lässt es fallen (Welt-Kopie ab 0,3), taucht nur kurz unter den Bildrand zur Tasche
-    // und kommt mit dem neuen Magazin zurück (hands: früher 0,5 m tief und lange außerhalb des Bildes)
-    const mag = curve(m, [[0.26, ZERO3], [0.36, [0, -0.07, 0.012]], [0.425, [-0.08, -0.22, 0.06]], [0.435, [-0.07, -0.21, 0.055]], [0.56, [0, -0.08, 0.014]], [0.65, [0, -0.01, 0.002]], [0.67, ZERO3]]);
-    const magRot = curve(m, [[0.26, 0], [0.4, 0.25], [0.44, 0.25], [0.56, 0.12], [0.67, 0]]);
-    out.parts.mag = [mag[0], mag[1], mag[2], magRot, 0, 0];
-    this._magWindow(A, out, m, 0.3, 0.43);
-    out.frame = windowW(m, 0.08, 0.22, 0.7, 0.86);
-    if (m > 0.66 && m < 0.7 && !A.slapped) { A.slapped = true; this._jolt.kick(1.2, 0, 0); this._recoilPos.kick(0, 0.004, 0); }
-    // Linke Hand: zum Magazin, mit ihm hinaus und zurück
-    const wMag = windowW(m, 0.14, 0.25, 0.68, 0.8);
-    if (wMag > 0 && ud.anchors.magGrab) req(out.left, wMag, { anchor: ud.anchors.magGrab, style: 'mag' });
-    if (empty) {
-      const c = (u - 0.74) / 0.26;   // 0..1 Durchladen
-      const ch = anchors.chargeGrab;
-      if (ch && ch.userData.style === 'release' && anchors.boltCatch && c > -0.05) {
-        // Verschlussfang mit dem Handballen schlagen: Verschluss schnellt vor
-        const wC = windowW(c, 0.0, 0.32, 0.55, 0.85);
-        if (wC > 0) req(out.left, wC, { anchor: anchors.boltCatch, style: 'slapSide' });
-        if (c > 0.45 && !A.charged) { A.charged = true; this._boltLocked = false; this._boltT = 0.3; this._jolt.kick(0.9, 0.25, 0); }
-        const rc = windowW(c, 0.0, 0.25, 0.55, 0.95);
-        out.r[2] += 0.12 * rc; out.r[1] += 0.06 * rc;
-      } else if (ch && c > -0.05) {
-        const st = ch.userData.style || 'pull';
-        const travel = ch.userData.travel || [0, 0, 0.06];
-        const pull = curve(c, [[0.2, 0], [0.42, 1], [0.52, 1], [0.56, 0]]);
-        const partName = ch.parent?.name || 'charge';
-        const lift = st === 'hkslap' ? -0.6 * windowW(c, 0.3, 0.42, 0.5, 0.56) : 0;
-        out.parts[partName] = [travel[0] * pull, travel[1] * pull, travel[2] * pull, 0, 0, lift];
-        const wC = windowW(c, 0.0, 0.18, 0.6, 0.85);
-        // Ladehebel rechts (KV-47): die Schusshand verlässt kurz den Griff; sonst greift die Stützhand
-        if (wC > 0) req(st === 'right' ? out.right : out.left, wC, { anchor: ch, style: st === 'right' ? 'pinchRight' : 'pinchSide' });
-        // Waffe zum Durchladen drehen (Hebelseite zur Kamera)
-        const rc = windowW(c, 0.0, 0.2, 0.62, 0.95);
-        out.r[2] += (st === 'right' ? 0.38 : 0.18) * rc; out.r[0] += 0.08 * rc; out.r[1] += (st === 'right' ? 0.12 : 0.1) * rc;
-        out.p[0] += (st === 'right' ? -0.03 : -0.02) * rc; out.p[1] += (st === 'right' ? 0.02 : 0) * rc;
-        if (c > 0.55 && c < 0.6 && !A.charged) { A.charged = true; this._jolt.kick(0.8, 0.3, 0); }
-      }
-      // Repetierer: Kammerstängel nach dem Magazinwechsel
-      if (this.h.action === 'bolt' && c > 0) this._boltMotion(c, out, true);
-    }
-    return u >= 1;
-  }
-
   /**
    * Altes Magazin fällt bei t ≥ from in die Welt (einmal je Nachladen); bis `to` (neues Magazin) ausgeblendet.
    * Ab `from` zeigt das Magazin-Teil den Füllstand des neuen Magazins (A.magNew), vorher den alten.
@@ -1534,49 +1477,6 @@ export class ViewModel {
     return c >= 1;
   }
 
-  _actShells(A, out, dt) {
-    const T = A.timing, ud = this.cur.ud;
-    // Phasen: start → insert × n → end (Pumpe bei leer)
-    A.pt += dt;
-    if (A.phase === 'start' && A.pt >= T.start) { A.phase = 'insert'; A.pt = 0; }
-    else if (A.phase === 'insert' && A.pt >= T.insert) {
-      A.inserted++; A.pt = 0;
-      const ctrl = this._ctrlReload;
-      if (A.stop || (!ctrl && A.inserted >= A.shells)) { A.phase = 'end'; }
-    } else if (A.phase === 'end' && A.pt >= T.end + (A.empty ? 0.45 : 0)) return true;
-    if (A.phase === 'insert' && A.stop) { A.phase = 'end'; A.pt = 0; }
-    // Kippen: Ladeöffnung zur linken Hand
-    let tilt;
-    if (A.phase === 'start') tilt = smooth(clamp(A.pt / T.start, 0, 1));
-    else if (A.phase === 'insert') tilt = 1;
-    else tilt = 1 - smooth(clamp(A.pt / T.end, 0, 1));
-    out.r[0] = 0.18 * tilt; out.r[1] = 0.12 * tilt; out.r[2] = -0.42 * tilt;
-    out.p[0] = -0.03 * tilt; out.p[1] = 0.03 * tilt; out.p[2] = 0.02 * tilt;
-    out.frame = 0.8 * tilt;   // Ladeöffnung ins Bild (hands)
-    // Linke Hand: Patrone holen und von unten einschieben
-    const port = ud.anchors.shellPort;
-    if (A.phase === 'insert' && port) {
-      const c = clamp(A.pt / T.insert, 0, 1);
-      const shellOff = curve(c, [[0, [-0.05, -0.18, 0.05]], [0.45, [0, -0.045, 0.02]], [0.62, [0, -0.012, 0.004]], [0.78, [0, 0.008, -0.03]]]);
-      out.parts.shell = [shellOff[0], shellOff[1], shellOff[2], 0.3 * (1 - c), 0, 0];
-      out.parts._vis = { shell: c < 0.8 };
-      // Hand hält die Patrone (folgt dem Patronen-Teil)
-      req(out.left, 1, { part: 'shell', style: 'mag', offset: [0, -0.012, 0.02] });
-      if (c > 0.62 && c < 0.7 && !A.pushed) { A.pushed = true; this._jolt.kick(0.6, 0, 0); }
-      if (c < 0.1) A.pushed = false;
-    } else {
-      const w = A.phase === 'start' ? smooth(clamp(A.pt / T.start, 0, 1)) : A.phase === 'end' ? 1 - smooth(clamp(A.pt / Math.max(0.1, T.end * 0.6), 0, 1)) : 1;
-      if (w > 0 && port) req(out.left, w * 0.85, { anchor: port, style: 'mag', dy: -0.12 * (1 - w) });
-      // Pumpen nach Leer-Nachladen
-      if (A.phase === 'end' && A.empty) {
-        const c = clamp((A.pt - T.end * 0.5) / 0.45, 0, 1);
-        const travel = ud.anchors.pumpGrab?.userData.travel?.[2] ?? 0.085;
-        out.parts.pump = [0, 0, travel * curve(c, [[0, 0], [0.4, 1], [0.5, 1], [0.85, 0]])];
-      }
-    }
-    return false;
-  }
-
   // Zielhand an einem Teil (Patrone, Magazin) ausrichten
   _partTarget(part, style, out, offset, side = -1) {
     const p = this._part(part);
@@ -1589,95 +1489,6 @@ export class ViewModel {
     this._anchorTarget(tmp, style, null, out, side);
     p.remove(tmp);
     return out;
-  }
-
-  _actReloadPistol(A, out, u) {
-    const ud = this.cur.ud, empty = A.empty;
-    curve(u, [[0, ZERO3], [0.12, [0.36, 0.22, -0.42]], [0.8, [0.38, 0.24, -0.45]], [0.95, ZERO3]], out.r);
-    curve(u, [[0, ZERO3], [0.12, [-0.035, 0.06, 0.04]], [0.8, [-0.035, 0.062, 0.04]], [0.95, ZERO3]], out.p);
-    // Magazin fällt entlang der Griffachse heraus, neues kommt von unten links
-    const mag = curve(u, [[0.12, ZERO3], [0.2, [0, -0.07, 0.025]], [0.3, [0.02, -0.5, 0.15]], [0.31, [-0.08, -0.22, 0.07]], [0.44, [-0.02, -0.07, 0.028]], [0.56, [0, -0.012, 0.004]], [0.62, ZERO3]]);
-    out.parts.mag = [mag[0], mag[1], mag[2]];
-    this._magWindow(A, out, u, 0.17, 0.305);
-    out.frame = windowW(u, 0.06, 0.16, 0.66, 0.84);
-    if (u > 0.6 && !A.slapped) { A.slapped = true; this._jolt.kick(1.4, 0, 0); this._recoilPos.kick(0, 0.005, 0); }
-    // Linke Hand verlässt den Stützgriff, holt das neue Magazin, setzt es ein
-    // Stützhand: kurz zur Magazintasche (knapp unter dem Bildrand), dann mit dem neuen Magazin von unten zum Schacht
-    const wAway = windowW(u, 0.1, 0.2, 0.66, 0.82);
-    if (wAway > 0) {
-      if (u < 0.3) req(out.left, wAway, { free: [[-0.11, -0.25, -0.27], [0.4, 0.5, -0.7], [-0.7, 0.4, 0.2], 'relaxed'] });
-      else req(out.left, wAway, { anchor: ud.anchors.magGrab || ud.magazine, style: 'mag' });
-    }
-    // Schlittenfang lösen (leer): Schlitten schnellt vor
-    if (empty) {
-      if (u < 0.74) this._slideLocked = true;
-      else if (this._slideLocked) { this._slideLocked = false; this._boltT = 0.3; this._jolt.kick(0.9, 0.2, 0); }
-    }
-    return u >= 1;
-  }
-
-  _actReloadTop(A, out, u) {
-    // Magazin oben (QX-90): nach oben-hinten abziehen, neues von vorn auflegen und einrasten
-    const ud = this.cur.ud, empty = A.empty;
-    const k = empty ? 0.78 : 1, m = u / k;
-    curve(m, [[0, ZERO3], [0.14, [0.1, 0.24, 0.42]], [0.8, [0.1, 0.24, 0.44]], [0.95, ZERO3]], out.r);
-    curve(m, [[0, ZERO3], [0.14, [-0.01, -0.05, -0.03]], [0.8, [-0.01, -0.05, -0.03]], [0.95, ZERO3]], out.p);
-    const mag = curve(m, [[0.25, ZERO3], [0.33, [0, 0.022, 0.03]], [0.42, [-0.13, -0.2, 0.09]], [0.43, [-0.12, -0.18, -0.03]], [0.57, [0, 0.03, -0.02]], [0.66, [0, 0.008, 0]], [0.69, ZERO3]]);
-    const magRot = curve(m, [[0.25, 0], [0.33, -0.18], [0.43, -0.3], [0.57, -0.1], [0.69, 0]]);
-    out.parts.mag = [mag[0], mag[1], mag[2], magRot, 0, 0];
-    this._magWindow(A, out, m, 0.3, 0.425);
-    out.frame = windowW(m, 0.08, 0.22, 0.72, 0.88);
-    if (m > 0.68 && !A.slapped) { A.slapped = true; this._jolt.kick(1.3, 0, 0); }
-    const wMag = windowW(m, 0.14, 0.25, 0.7, 0.82);
-    if (wMag > 0 && ud.anchors.magGrab) req(out.left, wMag, { anchor: ud.anchors.magGrab, style: 'magTop' });
-    if (empty) {
-      const c = (u - 0.78) / 0.22;
-      const ch = ud.anchors.chargeGrab;
-      if (ch && c > -0.05) {
-        const travel = ch.userData.travel || [0, 0, 0.06];
-        const pull = curve(c, [[0.2, 0], [0.45, 1], [0.55, 1], [0.6, 0]]);
-        out.parts.charge = [0, 0, travel[2] * pull];
-        const wC = windowW(c, 0.0, 0.2, 0.62, 0.9);
-        if (wC > 0) req(out.left, wC, { anchor: ch, style: 'pinchSide' });
-        if (c > 0.58 && !A.charged) { A.charged = true; this._jolt.kick(0.8, 0.2, 0); }
-      }
-    }
-    return u >= 1;
-  }
-
-  _actReloadBelt(A, out, u) {
-    // Gurtwechsel (HM-60): Deckel auf, Kasten raus, neuer Kasten + Gurt, Deckel zu, ggf. durchladen
-    const ud = this.cur.ud, empty = A.empty;
-    curve(u, [[0, ZERO3], [0.08, [0.1, 0.3, 0.36]], [0.86, [0.1, 0.32, 0.38]], [0.97, ZERO3]], out.r);
-    curve(u, [[0, ZERO3], [0.08, [0.0, -0.035, -0.02]], [0.86, [0.0, -0.035, -0.02]], [0.97, ZERO3]], out.p);
-    const cover = curve(u, [[0.1, 0], [0.18, -1.15], [0.66, -1.15], [0.74, 0]]);
-    out.parts.cover = [0, 0, 0, cover, 0, 0];
-    if (u > 0.735 && !A.slapped) { A.slapped = true; this._jolt.kick(1.5, 0, 0); }
-    const box = curve(u, [[0.26, ZERO3], [0.34, [-0.04, -0.08, 0.02]], [0.42, [-0.14, -0.3, 0.07]], [0.43, [-0.13, -0.28, 0.04]], [0.56, [-0.02, -0.06, 0.01]], [0.6, ZERO3]]);
-    out.frame = windowW(u, 0.06, 0.16, 0.8, 0.94);
-    out.parts.mag = [box[0], box[1], box[2]];
-    const belt = curve(u, [[0.58, [0, -0.02, 0]], [0.66, ZERO3]]);
-    out.parts.belt = [belt[0], belt[1], belt[2]];
-    out.parts._vis = { belt: !(u > 0.3 && u < 0.6) };
-    this._magWindow(A, out, u, 0.32, 0.425);
-    // Hand: Deckel öffnen → Kasten → Gurt einlegen → Deckel schließen
-    const coverReq = { part: 'cover', style: 'pinchSide', offset: [-0.028, 0.02, 0.232] };
-    if (u < 0.24) req(out.left, windowW(u, 0.06, 0.12, 0.2, 0.26), coverReq);
-    else if (u < 0.62) { if (ud.anchors.magGrab) req(out.left, windowW(u, 0.2, 0.28, 0.58, 0.64), { anchor: ud.anchors.magGrab, style: 'mag' }); }
-    else if (u < 0.8) req(out.left, windowW(u, 0.6, 0.66, 0.74, 0.82), coverReq);
-    if (empty) {
-      const c = (u - 0.8) / 0.18;
-      const ch = ud.anchors.chargeGrab;
-      if (ch && c > -0.05) {
-        const travel = ch.userData.travel || [0, 0, 0.1];
-        out.parts.charge = [0, 0, travel[2] * curve(c, [[0.2, 0], [0.45, 1], [0.55, 1], [0.62, 0]])];
-        const wC = windowW(c, 0.0, 0.2, 0.62, 0.9);
-        if (wC > 0) req(out.right, wC, { anchor: ch, style: 'pinchRight' });
-        const rc = windowW(c, 0.0, 0.2, 0.62, 0.95);
-        out.r[2] += 0.2 * rc; out.r[1] += 0.08 * rc;
-      }
-    }
-    return u >= 1;
   }
 
   _actMelee(A, out) {
@@ -1854,8 +1665,9 @@ export class ViewModel {
 /** Empfohlenes vertikales Sichtfeld der Viewmodel-Kamera (Positionen sind darauf abgestimmt). */
 ViewModel.FOV = 54;
 
-// Welle 2 (Arsenal): zusätzliche Choreografien (Nachladen je Mechanik, Inspizieren je Klasse, Platte, Klingenhiebe)
-Object.assign(ViewModel.prototype, EXTRA_ACTIONS);
+// Welle 2 (Arsenal): zusätzliche Choreografien (Nachladen je Mechanik, Inspizieren je Klasse, Platte, Klingenhiebe);
+// Animationen 09.10.: Nachladen mit Varianten, Magazin entlang der Schachtachse (anim/reloads.js, anim/magwell.js)
+Object.assign(ViewModel.prototype, EXTRA_ACTIONS, RELOAD_ACTIONS);
 
 // Zubehör der Klassen-Arme (Binde, Stulpen, Wickel, Band) – Materialien modulweit, überdauern Matches
 let _accMats = null;

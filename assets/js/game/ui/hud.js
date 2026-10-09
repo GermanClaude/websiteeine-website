@@ -5,7 +5,8 @@
 // hinweise, Granaten-Kochzeit, Zielfernrohr (Sniper) + ACOG-Tunnel, Flaggenmarker in der Welt, Einnahmebalken,
 // Punktetabelle (Tab/Touch), Start-Countdown-Banner, Todes-/Wiedereinstiegsbanner, Hinweise (Serien, Flaggen,
 // Verlängerung, Führung), Schießstand-Panel (Statistik, Parcours) und die Zielkarte des Präzisionsschlags.
-// Interaktive Teile liegen in #hud-top (über der Touch-Steuerung, unter den Menüs).
+// Interaktive Teile liegen in #hud-top (über der Touch-Steuerung, unter den Menüs), dort auch das Befehlsrad für
+// verbündete Bots samt Weltmarkierungen (ui/command-wheel.js).
 // HUD-Stil (Einstellung hudStyle, Realismus-Plan §5.3/§11.1): „voll“, „reduziert“ (ohne Minikarte/Kompass, Munition als
 // Balken, Leben nur nach Treffern) und „aus“ = Realismus wie Bodycam (kein Fadenkreuz, keine Treffermarker, keine
 // Munitions-/Lebensanzeige; Punktetabelle halten zeigt Minikarte, Stand und Flaggen wie ein Taktik-Tablet).
@@ -22,6 +23,7 @@ import { scoreboardHtml, liveRows } from './scoreboard.js';
 import { StrikeTargeting } from './strike-target.js';
 import { actionKey } from './settings/keys.js';
 import { DeployScreen } from './deploy.js';
+import { CommandWheel } from './command-wheel.js';
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
@@ -245,6 +247,8 @@ export class HUD {
     this.orderBtn.innerHTML = `${ICON.squad}<span>Befehl</span>`;
     this.orderBtn.addEventListener('click', (e) => { e.preventDefault(); this._squadPing(); });
     this.topUi.appendChild(this.orderBtn);
+    // Befehlsrad (verbündete Bots): Rad + Weltmarkierungen, Rückmeldung als Hinweis
+    this.wheel = new CommandWheel(this.G, top, { notice: (text, tone) => this._notice(text, tone, null, NOTICE_LIFE, 'befehl') });
   }
 
   /* ================================================================ Lebenszyklus */
@@ -268,6 +272,7 @@ export class HUD {
     this.el.armor.hidden = true;
     this.el.zone.hidden = true;
     if (this.deploy) this.deploy.attach(G);
+    if (this.wheel) this.wheel.attach(G);
     this.orderBtn.hidden = !(mode && mode.squads);
     // Touch-Knöpfe ohne Funktion im Modus ausblenden (Serien im Waffenspiel/Schießstand, Granaten im Waffenspiel)
     document.body.dataset.streaks = mode && mode.streaks ? '1' : '0';
@@ -362,6 +367,7 @@ export class HUD {
 
   detach() {
     if (this.deploy) this.deploy.detach();
+    if (this.wheel) this.wheel.detach();
     if (this._subs) this._subs.dispose();
     this._subs = null;
     if (this._onResize) window.removeEventListener('resize', this._onResize);
@@ -434,6 +440,7 @@ export class HUD {
   }
 
   hide() {
+    if (this.wheel) this.wheel.close(false, true);
     if (this.root) this.root.hidden = true;
     if (this.topUi) this.topUi.hidden = true;
     if (this.el) this.el.board.hidden = true;
@@ -933,7 +940,7 @@ export class HUD {
     toggle(this.root, 'is-dead', !!p && !alive);
     this._setDead(!!p && !alive);
     const melee = def && def.cls === 'melee';
-    const hide = !alive || scoped || ads > 0.55 || (p && p.sprinting) || (this.targeting && this.targeting.open) || this.style === 'aus';
+    const hide = !alive || scoped || ads > 0.55 || (p && p.sprinting) || (this.targeting && this.targeting.open) || (this.wheel && this.wheel.isOpen) || this.style === 'aus';
     const cross = this.el.cross;
     setStyle(cross, 'opacity', hide ? '0' : w && w.isReloading ? '.45' : '1');
     if (!hide && cam) {
@@ -1101,6 +1108,7 @@ export class HUD {
     /* ---------- Rüstung, Einsatzkarte, Trupp-Befehl (modes-ui) */
     this._updateArmor(p, now);
     if (this.deploy) this.deploy.update(dt);
+    if (this.wheel) this.wheel.update(dt);
     if (G.mode && G.mode.squads && p && p.alive && input && typeof input.pressed === 'function' && input.pressed('squad_order')) this._squadPing();
     if (this._zoneT > 0) { this._zoneT -= dt; if (this._zoneT <= 0) this.el.zone.hidden = true; }
 

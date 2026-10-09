@@ -155,6 +155,9 @@ function computeFill(spec, pivot, cap) {
   } else {
     const P = spec.path.map(toLocal), cum = [0];
     for (let k = 1; k < P.length; k++) cum.push(cum[k - 1] + P[k].distanceTo(P[k - 1]));
+    // Einführachse (anim/magwell.js): Richtung der Patronenbahn an den Lippen = Achse, entlang der das Magazin im
+    // Schacht sitzt (Teilraum, zeigt aus dem Schacht heraus); along = Magazin quer (QX-90, Bahn längs der Waffe)
+    if (P.length > 1) { f.axis = new THREE.Vector3().subVectors(P[1], P[0]).normalize().toArray(); f.top = P[0].toArray(); f.along = spec.axis === 'x'; }
     const total = cum[cum.length - 1];
     const nPath = spec.drum ? Math.min(spec.neck ?? 2, cap) : cap;
     let p = spec.pitch ?? (spec.spread ? total / Math.max(1, spec.spread - 1) : nPath > 1 ? Math.min(d, total / (nPath - 1)) : d);
@@ -300,6 +303,19 @@ export function dropRounds(fill) {
       if (g) mesh.geometry = g;
     },
   };
+}
+
+/**
+ * Eine einzelne Patrone als Mesh (anim/chamber.js: Patrone im Patronenlager, beim Kammer-Check im Auswurffenster
+ * sichtbar). cal = Kaliber-Schlüssel aus CAL oder ein Kaliber-Objekt (fill.cal); Geschoss zeigt nach −Z.
+ */
+export function roundMesh(cal = 'r556') {
+  const c = typeof cal === 'string' ? (CAL[cal] || CAL.r556) : cal;
+  const m = new THREE.Mesh(roundGeometry(c, 12, false), getMat(c.kind === 'shell' ? 'roundsShell' : 'rounds'));
+  m.name = 'chamber-round';
+  m.castShadow = false; m.receiveShadow = false;
+  m.userData.noContact = true;
+  return m;
 }
 
 /** Gecachte Patronen-Geometrien freigeben (disposeWeaponModels). */
