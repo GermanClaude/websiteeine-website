@@ -446,8 +446,12 @@ try {
   await until(host, ([vid]) => { const G = window.__game, v = G.vehicles.list.find((x) => x.netId === vid); return G.time.elapsed > (v.seats[3].readyAt || 0) + 0.1; }, [tA.vid], 60000, 300);
   const vn0 = await ev(bert, () => window.__mv.vn.length);
   await ev(bert, () => { const G = window.__game; G.vehicles.requestLoad(G.player, G.player.vehicle, 'einschieben'); });
-  const wrong = await until(bert, (n) => window.__mv.vn.slice(n)[0] || null, vn0, 15000);
-  check(wrong === 'schritt', `falsche Ladefolge (einschieben zuerst) → 'vn' ${wrong}`);
+  const tWrong = Date.now();
+  // unter Fremdlast (Seiten mit 1 Bild/s) kann die Antwort lange unterwegs sein → großzügig warten, Laufzeit ausgeben
+  const wrong = await until(bert, (n) => window.__mv.vn.slice(n)[0] || null, vn0, 45000);
+  const hostWhy = await ev(host, (id) => (window.__game.vehicles.net.rejectLog || []).filter((r) => r.id === id).map((r) => r.why).slice(-3), B);
+  check(wrong === 'schritt', `falsche Ladefolge (einschieben zuerst) → 'vn' ${wrong} nach ${((Date.now() - tWrong) / 1000).toFixed(1)} s (Host: ${hostWhy.join(', ') || '–'})`);
+  const vnAfterWrong = await ev(bert, () => window.__mv.vn.length);
   // Blick aufs Gestell, greifen
   const look = (which) => ev(bert, (w) => {
     const G = window.__game, v = G.player.vehicle, seat = v.seats[v.seatOf(G.player)];
@@ -473,7 +477,7 @@ try {
   await step('schliessen');
   const s3 = await hostStep('geladen');
   await ev(bert, () => { window.__lookYaw = null; });
-  const vnLoad = await ev(bert, (n) => window.__mv.vn.slice(n + 1), vn0);
+  const vnLoad = await ev(bert, (n) => window.__mv.vn.slice(n), vnAfterWrong);
   check(!!(s1 && s2 && s3), `richtige Ladefolge → geladen beim Host (gegriffen ${!!s1}, eingeschoben ${!!s2}, geladen ${!!s3}; weitere Ablehnungen: ${vnLoad.join(', ') || '–'})`);
   const loadedBert = await until(bert, (vid) => { const g = window.__game.vehicles.list.find((x) => x.netId === vid).gun; return g.step === 'geladen' && g.loaded ? g.loaded : null; }, tA.vid, 8000);
   check(!!loadedBert, `Bert sieht „geladen“ (${loadedBert})`);
@@ -555,9 +559,11 @@ try {
   if (!eB2.ok || eB2.tries > 1) info(`Bert einsteigen (2): ${JSON.stringify(eB2)}`);
   const bertIn2 = await until(host, ([vid, id]) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return v.seats.findIndex((s) => s.actor && s.actor.netId === id); }, [tA.vid, B], 20000);
   check(bertIn2 != null && bertIn2 >= 0, `Bert steigt wieder ein (Sitz ${bertIn2 != null ? bertIn2 + 1 : '–'})`);
-  const tClose = Date.now();
-  // wie ein echter Browser beim Schließen des Tabs: pagehide (persisted false), dann zu – Playwright löst es selbst nicht aus
-  await ev(bert, () => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: false }))).catch(() => {});
+  let tClose = Date.now();
+  // wie ein echter Browser beim Schließen des Tabs: pagehide (persisted false), dann zu – Playwright löst es selbst nicht aus.
+  // Zeit ab dem Ereignis in der Seite (nicht ab dem Playwright-Aufruf: unter Fremdlast braucht schon der Seitenaufruf Sekunden)
+  const tPage = await ev(bert, () => { const t = Date.now(); window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: false })); return t; }).catch(() => 0);
+  if (tPage > 0) tClose = tPage;
   await bert.close();
   delete pages.Bert;
   const freed = await until(host, ([vid, id]) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return !v.seats.some((s) => s.actor && s.actor.netId === id); }, [tA.vid, B], 15000, 200);
