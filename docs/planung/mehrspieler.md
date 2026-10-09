@@ -364,7 +364,10 @@ Bots / 6 bei 32 Akteuren; 200 000 B/s → 17 / 11; 400 000 B/s → 24 / 20 (1 KB
   Fehlschlag im Prüfskript (das Rutschen begann, bevor der um die Laufzeit verspätete Host-Spawn in der Luft ankam – der Spawn
   brach es nach 0 m ab; Prüfung wartet jetzt auf den Spawn), 1× Abbruch beim Beitritt ('keine-antwort': Host unter
   Fremdlast > 12 s blockiert → 'welcome'-Frist 20 s, Prüfung versucht einmal neu).
-- `mp-test --params="netlag=300&netloss=15"` (verschlechtert): {{LAUF300}}
+- `mp-test --params="netlag=300&netloss=15"` (verschlechtert): 66/66 – Positionen 0,00 m, nie rückwärts (Host 1,5 Bilder/s), Halt
+  2,95/2,85 s stabil, „Einsatz“ mit smg_vp9, Teleport erkannt, Sturz 9 m, Rutschen 5,6 m (15 Zustände) ohne Verstoß,
+  Online-Pause; keine hängenden Zustände, keine Seitenfehler (ein Vorlauf blieb beim Matchstart hängen – Seiten unter
+  Fremdlast 13 eingefroren, Prüfskript hing in `page.evaluate`; Wiederholung bestanden).
 - `mp-load-test`: 13/13 (Tabelle oben, Endstand bei Last 14); `mp-fight-rate`: regulär 2,2 KB/s, Veteran 0,9 KB/s
   Kampfverkehr je Client.
 - `net-proto-test` 116/116, `net-test`, `net-room-test` 60/60, `net-interp-test` 9/9, `check.sh`, `preload --check`,
