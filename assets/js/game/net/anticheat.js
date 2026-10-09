@@ -11,7 +11,8 @@
 // Bewegung, zwei Prüfungen je Zustand:
 //   • Schritt: Abstand zum letzten gültigen Zustand ≤ max(teleport, vMax × Δt + slack) – Δt = Host-Zeit seit dem letzten
 //     Zustand (höchstens stepWindow 1 s). Gebündelt ankommende Pakete sind einzeln kurz; nach Paketverlust wächst Δt mit.
-//     Hing der Host (langes Bild), füllt das Budget für das danach ankommende Bündel die Lücke nach (≤ burstWindow 3 s).
+//     Hing der Host (langes Bild), füllt das Budget für das danach ankommende Bündel die Lücke nach (≤ burstWindow 3 s,
+//     bei gemeldeter eigener Host-Lücke ctx.hostGap bis stallWindow 15 s).
 //     Ein einzelner Sprung > 6 m (Rutschen ≈ 7 m) ohne Spawn → Rücksetzung (correct) + Verstoß 'teleport'.
 //   • Budget: angesparte Laufstrecke (höchstens budgetWindow Sekunden) gegen Tempo-Hacks über mehrere Pakete ('tempo').
 //   Aufwärts genauso (Schritt > max(teleportUp, Steigtempo × Δt + Stufe) bzw. Steig-Budget → 'steigen'), abwärts freier Fall.
@@ -44,7 +45,8 @@ export const AC_DEFAULTS = Object.freeze({
   teleport: 6, // m: Mindestgrenze eines einzelnen Schritts (darüber nur, wenn Δt × Tempo es erklärt)
   teleportUp: 3.5, // m: Mindestgrenze eines einzelnen Schritts nach oben
   stepWindow: 1.0, // s: höchstens so viel Host-Zeit erklärt einen einzelnen Schritt (Paketverlust) – Sprint ≤ 14,6 m
-  burstWindow: 3.0, // s: hing der Host so lange, darf das Budget für das danach ankommende Bündel die Lücke nachfüllen
+  burstWindow: 3.0, // s: so lange Lücke darf das Budget für das danach ankommende Bündel nachfüllen (Funkloch, Aussetzer)
+  stallWindow: 15, // s: hing der Host selbst (ctx.hostGap: Zeit seit seinem letzten Bildbeginn), zählt seine Lücke bis hierhin
   // Höchsttempo (m/s) je Zustand – player.js: Gehen 5,4 · Sprint 8,2 · Ducken 2,6 · Liegen 1,05 · Rutschen +2,9
   // (Hang ≤ 11,8); in der Luft bleibt der Schwung (Rutschsprung ≈ 11 m/s)
   speeds: Object.freeze({ walk: 5.4, sprint: 8.2, crouch: 2.6, prone: 1.05, slide: 11.1, air: 9.5, swim: 4.5 }),
@@ -262,7 +264,8 @@ export class AntiCheat {
 
   /**
    * Zustand eines Clients prüfen. state: {x,y,z,flags} (decodeState().entity) oder {pos:[x,y,z], flags}.
-   * ctx: { alive?: bool (Puppe lebt beim Host), clientAlive?: bool (Client meldet „lebt“), rtt?: s }.
+   * ctx: { alive?: bool (Puppe lebt beim Host), clientAlive?: bool (Client meldet „lebt“), rtt?: s,
+   *   hostGap?: s (Zeit seit dem letzten Bildbeginn des Hosts – hing er, kommen die Zustände gebündelt) }.
    *   alive === false → nicht geprüft, neuer Anker beim nächsten Spawn/Zustand.
    *   clientAlive === false bei lebender Puppe (Spawn unterwegs) → verworfen, Anker bleibt.
    * → { ok, reason, correct?: [x,y,z] (Rücksetzposition, Host schickt 'correct'), kick: grund|null }
@@ -298,16 +301,21 @@ export class AntiCheat {
       const s = this.strike(id, 'korrektur', nowSec);
       return { ok: false, reason: 'korrektur', correct: p.correctPos.slice(), kick: s.kick };
     }
-    const dt = Math.min(Math.max(2, o.burstWindow), Math.max(0, nowSec - p.t));
+    // Lücke, die ein Bündel nachfüllen darf: burstWindow; hing der Host selbst länger (langes Bild, Kartenaufbau einer neuen
+    // Puppe – Lasttest: bis ≈ 9 s unter Fremdlast), seine ganze Lücke (≤ stallWindow). Ein Client, der selbst schweigt
+    // („Lag-Switch“), bekommt so höchstens burstWindow gutgeschrieben.
+    const hostGap = num(ctx.hostGap) ? Math.max(0, ctx.hostGap) : 0;
+    const win = Math.max(o.burstWindow, Math.min(o.stallWindow, hostGap + 0.5));
+    const dt = Math.min(Math.max(2, win), Math.max(0, nowSec - p.t));
     // Budget nach dem gemeldeten Zustand; der einzelne Schritt darf bei Übergängen (Sprint → Rutschen, Rutschen →
     // Sprung) das schnellere der beiden Zustandstempi nutzen
     const speed = this._speedFor(flags);
     const vMax = speed * o.boost * (1 + o.tolerance);
     const vStep = Math.max(speed, this._speedFor(p.flags)) * o.boost * (1 + o.tolerance);
     // Obergrenze des Budgets: budgetWindow – hing der Host länger (langes Bild, die Zustände der Lücke kommen danach
-    // gebündelt an), gilt für dieses Bündel (0,25 s Host-Zeit) die ganze Lücke (höchstens burstWindow)
+    // gebündelt an), gilt für dieses Bündel (0,25 s Host-Zeit) die ganze Lücke (höchstens win, s. o.)
     const climb = o.climb * (1 + o.tolerance);
-    const gap = Math.min(dt, o.burstWindow);
+    const gap = Math.min(dt, win);
     if (vMax * gap + o.slack > this._capH(speed)) { p.capH = vMax * gap + o.slack; p.capUp = climb * gap + o.stepUp; p.capUntil = nowSec + 0.25; }
     const burst = nowSec <= (p.capUntil || -1);
     const capH = burst ? Math.max(this._capH(speed), p.capH) : this._capH(speed);
@@ -333,7 +341,7 @@ export class AntiCheat {
       p.t = nowSec;
       p.budgetH = Math.max(0, budgetH);
       p.budgetUp = Math.max(0, budgetUp);
-      const s = this.strike(id, reason, nowSec, { dist: Math.round(Math.hypot(hd, dy) * 100) / 100, dt: Math.round(dt * 1000) / 1000 });
+      const s = this.strike(id, reason, nowSec, { dist: Math.round(Math.hypot(hd, dy) * 100) / 100, dt: Math.round(dt * 1000) / 1000, hg: Math.round(hostGap * 100) / 100 });
       return { ok: false, reason, correct: p.correctPos.slice(), kick: s.kick };
     }
     p.budgetH = afterH;

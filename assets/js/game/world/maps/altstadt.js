@@ -6,9 +6,13 @@ import * as THREE from 'three';
 import { building, wall, stairs, railing, pitchedRoof } from '../arch.js';
 import {
   frame, crate, crateStack, barrel, barrelGroup, pallet, sandbags, car, van, lampPost, acUnit, cable,
-  bench, cafeTable, parasol, awning, marketStall, palm, tree, pot, laundry, electricBox, pipe, sphereGeom, lowSphereGeom, dumpster, chair, dress,
+  cafeTable, parasol, awning, marketStall, palm, tree, pot, laundry, electricBox, pipe, sphereGeom, lowSphereGeom, dumpster, chair, dress,
 } from '../props.js';
 import { createBell } from './altstadt-glocke.js';
+import {
+  setupLook, isNight, lampGlass, lampLight, parkBench, flowerBed, fountainWater, hrng,
+  table, tableChairs, bed, wardrobe, dresser, nightstand, shelf, kitchen, armchair, pendant, ceilingLamp, rug, picture, barrelRack, sacks,
+} from './altstadt-ausstattung.js';
 
 const SEED = 7311;
 const FH = 3.2;                       // Geschosshöhe
@@ -53,6 +57,8 @@ export default {
 
   build(b, ctx) {
     const zones = [];
+    // Kartenrunde 2: Tageszeit (abends Laternen an), einheitliche Putzschäden (altstadt-ausstattung.js)
+    setupLook(b, { time: this?.conditions?.time ?? null, quality: ctx.quality });
     defineSigns(b);
 
     // -----------------------------------------------------------------------
@@ -95,13 +101,13 @@ export default {
     // -----------------------------------------------------------------------
     // Mitte: Brunnenplatz, Kirche Sant Aurel, Torhaus, Werkstatt
     // -----------------------------------------------------------------------
-    plaza(b, ctx);
+    const fountains = [plaza(b, ctx)];
     church(b);
     const bell = bellTower(b, 15, -13, 20, -8);
     loggia(b, 15, 8, 20, 13);
     torhaus(b);
     workshop(b);
-    eastSquare(b);   // maps-expand: Ölbaumplatz im Ostviertel
+    fountains.push(eastSquare(b, ctx));   // maps-expand: Ölbaumplatz im Ostviertel
 
     // -----------------------------------------------------------------------
     // Beide Hälften (Süd = Team A, Nord = Team B)
@@ -129,8 +135,8 @@ export default {
       spawns,
       objectives: { dom: [{ id: 'A', x: -5, z: 29, radius: 5 }, { id: 'B', x: -7.5, z: 0, radius: 5.5 }, { id: 'C', x: -5, z: -29, radius: 5 }] },
       zones,
-      // Glocke: Stundenschlag (echte Uhrzeit) + Geläut nach der gemeinsamen Uhr (online Host-Zeit)
-      attach(world, G) { bell.attach(world, G); },
+      // Glocke: Stundenschlag (echte Uhrzeit) + Geläut nach der gemeinsamen Uhr (online Host-Zeit); Brunnenwasser ebenso
+      attach(world, G) { bell.attach(world, G); for (const f of fountains) f.attach(G); },
     };
   },
 };
@@ -148,10 +154,11 @@ function dressing(b) {
     list.push(['metal_jerrycan_green', -36.95, 0, s * 7.6, 0.6]);
     // Ostgasse (x 31,4 … 35,0)
     list.push(['trashbag', 34.6, 0, s * 21.2], ['cardboard_box_01', 31.8, 0, s * 18.6, 0.8]);
-    // Torvorplatz (Sand): ausgedientes Sofa + Fernseher an der Stadtmauer, Kisten, Müll
-    list.push(['sofa_01', -30.0, 0, s * 50.45, R, { collide: true }], ['television_01', -28.55, 0, s * 50.55, R + 0.3]);
+    // Torvorplatz (Sand): Kisten, Müll an der Stadtmauer (Kartenrunde 2: Sofa + Fernseher entfernt – lagen auf der Straße)
     list.push(['trashbag', -27.9, 0, s * 50.7], ['cardboard_box_01', 18.6, 0, s * 50.6, 0.4], ['cardboard_box_01', 19.2, 0, s * 50.75, 1.3]);
-    list.push(['wooden_military_crate', 36.2, 0, s * 50.6, R + 0.05, { collide: true }]);
+    // Kiste mit Kollision: auf jedem Rechner gleich – ohne Bibliothek steht dieselbe Kiste prozedural (Maß wie das Modell)
+    const cx = 36.2, cz = s * 50.6, cry = R + 0.05;
+    b.model('wooden_military_crate', cx, 0, cz, { ry: cry, collide: true, minimap: 'cover', fallback: (bb) => bb.box(cx, 0, cz, 1.24, 0.46, 0.52, 'wood_crate', { ry: cry, uv: 'fit', tint: '#8a7a52', minimap: 'cover' }) });
     list.push(['metal_jerrycan_green', 9.4, 0, s * 50.8, 2.0], ['cement_bag', -9.6, 0, s * 50.7, 0.3]);
   }
   dress(b, list);
@@ -506,16 +513,8 @@ function lowWall(b, x0, z0, x1, z1, o = {}) {
   wall(b, { x0, z0, x1, z1, h, t, mat: 'stone_wall', tint: o.tint || '#dccdb2', cap: { mat: 'plaster_white', tint: '#f2ece0', h: 0.08, over: 0.05 }, minimap: 'cover', openings: o.openings || [] });
 }
 
-function planter(b, x, z, w, d, o = {}) {
-  const h = o.h ?? 0.75;
-  b.box(x, 0, z, w, h, d, 'stone_wall', { tint: o.tint || '#e0d2b8', minimap: 'cover', ry: o.ry || 0 });
-  b.box(x, h, z, w + 0.1, 0.06, d + 0.1, 'plaster_white', { tint: '#f2ece0', collide: false, minimap: false, grad: false, ry: o.ry || 0 });
-  b.box(x, h - 0.08, z, w - 0.3, 0.1, d - 0.3, 'dirt', { collide: false, minimap: false, grad: false, ao: false, ry: o.ry || 0 });
-  const n = Math.max(1, Math.round((w * d) / 1.6));
-  const f = frame(b, x, h - 0.1, z, o.ry || 0);
-  for (let i = 0; i < n; i++) { const [px, pz] = f.P((b.rand() - 0.5) * (w - 0.6), (b.rand() - 0.5) * (d - 0.6)); b.plant(o.plant || (b.rand() < 0.35 ? 'flowers' : 'bush'), px, h - 0.1, pz, { s: 0.6 + b.rand() * 0.4 }); }
-  if (o.tree) tree(b, x, z, { y: h - 0.1, kind: o.tree, h: 2.4 });
-}
+/** Blumenbeet (Kartenrunde 2: Trog mit Deckplatten, sichtbarer Erde und gemischten Blüten – altstadt-ausstattung.js). */
+function planter(b, x, z, w, d, o = {}) { flowerBed(b, x, z, w, d, o); }
 
 function handcart(b, x, z, ry, o = {}) {
   const f = frame(b, x, 0, z, ry);
@@ -556,11 +555,16 @@ function trike(b, x, z, ry, color = '#3a7aa8') {
   f.solid(0, 0, -0.2, 1.4, 1.5, 3.2, { minimap: 'vehicle' });
 }
 
+/** Wandlaterne (Wandplatte, Ausleger, hängende Laterne mit Bügel); abends Licht + Lichtpfütze vor der Wand. */
 function wallLamp(b, x, y, z, ry) {
-  const f = frame(b, x, y, z, ry);
-  f.box(0, 0.25, 0.25, 0.04, 0.04, 0.5, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
-  f.box(0, -0.15, 0.48, 0.22, 0.32, 0.22, 'white', { collide: false, minimap: false, ao: false, tint: '#f3e8cf' });
-  f.box(0, 0.17, 0.48, 0.28, 0.06, 0.28, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
+  const f = frame(b, x, y, z, ry), V = { tint: IRON, collide: false, minimap: false, grad: false, ao: false };
+  f.box(0, 0.16, 0.02, 0.12, 0.2, 0.04, 'metal_painted', V);
+  f.box(0, 0.25, 0.27, 0.04, 0.04, 0.5, 'metal_painted', V);
+  f.box(0, 0.22, 0.48, 0.03, 0.04, 0.03, 'metal_painted', V);
+  f.box(0, -0.15, 0.48, 0.22, 0.32, 0.22, lampGlass(), { collide: false, minimap: false, ao: false, tint: '#f3e8cf', cast: false });
+  f.box(0, 0.17, 0.48, 0.28, 0.06, 0.28, 'metal_painted', V);
+  const [gx, gz] = f.P(0, 0.48);
+  lampLight(b, gx, y, gz, { glow: 1.25, intensity: 6, distance: 8, pool: 1.9, poolAt: f.P(0, 1.0), poolI: 0.2 });
 }
 
 function streetSign(b, x, y, z, ry, key) { b.sign(x, y, z, 1.5, 0.42, key, { ry, depth: 0.02 }); }
@@ -572,17 +576,17 @@ function plaza(b, ctx) {
   // Pflasterring um den Brunnen + Rinnen
   b.cyl(0, 0, 0, 5.2, 0.03, 'cobble', { seg: 24, collide: false, minimap: false, tint: '#d8cdb8', ao: false });
   b.cyl(0, 0, 0, 5.45, 0.025, 'stone_wall', { seg: 24, collide: false, minimap: false, tint: '#cbbd9f', ao: false });
-  well(b, 0, 0, ctx);
-  // Platzrand: Poller + Laternen
+  const water = well(b, 0, 0, ctx);
+  // Platzrand: Poller + Laternen (abends: echte Punktlichter ab „hoch“, sonst gebacken)
   for (const [x, z] of [[-14.6, -4], [-14.6, 4], [13.6, -9], [13.6, 9]]) b.cyl(x, 0, z, 0.16, 0.7, 'stone_wall', { r1: 0.12, tint: STONE, seg: 8, minimap: 'prop' });
-  for (const [x, z] of [[-9.5, -9.5], [9.5, 9.5], [9.5, -9.5], [-9.5, 9.5]]) ornateLamp(b, x, z);
-  // Olivenbäume in Pflanzkübeln (Deckung)
-  planter(b, 7.5, -4.5, 2.2, 2.2, { tree: 'olive', plant: 'flowers' });
-  planter(b, 7.5, 4.5, 2.2, 2.2, { tree: 'olive' });
-  // Bänke
-  bench(b, 4.6, -7.6, { ry: Math.PI });
-  bench(b, 4.6, 7.6, { ry: 0 });
-  bench(b, -3.5, -8.2, { ry: Math.PI });
+  for (const [x, z] of [[-9.5, -9.5], [9.5, 9.5], [9.5, -9.5], [-9.5, 9.5]]) ornateLamp(b, x, z, { realtime: 'high' });
+  // Olivenbäume in Blumenbeeten (Deckung)
+  flowerBed(b, 7.5, -4.5, 2.2, 2.2, { tree: 'olive', plant: 'flowers', set: 0 });
+  flowerBed(b, 7.5, 4.5, 2.2, 2.2, { tree: 'olive', set: 3 });
+  // Bänke (Kartenrunde 2: zum Brunnen gewandt, Lehne an den Wangen befestigt)
+  parkBench(b, 4.6, -7.6, { ry: 0 });
+  parkBench(b, 4.6, 7.6, { ry: Math.PI });
+  parkBench(b, -3.5, -8.2, { ry: 0 });
   // Ziehwagen & Kisten als Deckung
   handcart(b, -11.2, -5.8, 0.4);
   crateStack(b, 11.6, 0.6, { ry: 0.3, pattern: [[0, 0, 0, 1.1], [0, 0, 1.15, 1.0], [0.05, 1, 0.55, 0.9]] });
@@ -602,23 +606,35 @@ function plaza(b, ctx) {
   b.decal(0, 0.03, 3.6, 2.4, 1.6, 'puddle', { opacity: 0.8, ry: 0.3 });
   b.decal(-2.8, 0.03, -2.4, 1.8, 1.4, 'puddle', { opacity: 0.7 });
   b.sign(-15.97, 2.9, 10.6, 1.5, 0.42, 'st_platz', { ry: Math.PI / 2, depth: 0.02 });
+  return water;
 }
 
-function ornateLamp(b, x, z) {
+/**
+ * Platzlaterne: Mast, zwei Arme mit hängenden Laternen (Bügel bis zum Arm). Abends leuchtet das Glas, je Laterne ein
+ * Lichthof, darunter eine Lichtpfütze; Licht gebacken bzw. echt ab o.realtime ('high' | 'ultra').
+ */
+function ornateLamp(b, x, z, o = {}) {
   b.cyl(x, 0, z, 0.2, 0.5, 'metal_painted', { r1: 0.12, tint: IRON, seg: 8, minimap: 'prop' });
   b.cyl(x, 0.5, z, 0.06, 3.2, 'metal_painted', { r1: 0.045, tint: IRON, seg: 8, collide: true, minimap: false });
   for (const a of [0, Math.PI]) {
     const f = frame(b, x, 3.5, z, a);
     f.box(0.35, 0, 0, 0.7, 0.04, 0.04, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
-    f.box(0.68, -0.42, 0, 0.24, 0.34, 0.24, 'white', { tint: '#f3e8cf', collide: false, minimap: false, ao: false });
+    f.box(0.68, -0.42, 0, 0.24, 0.34, 0.24, lampGlass(), { tint: '#f3e8cf', collide: false, minimap: false, ao: false, cast: false });
     f.box(0.68, -0.1, 0, 0.3, 0.06, 0.3, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false });
+    f.box(0.68, -0.04, 0, 0.03, 0.05, 0.03, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false }); // Bügel
+    f.box(0.68, -0.46, 0, 0.16, 0.04, 0.16, 'metal_painted', { tint: IRON, collide: false, minimap: false, grad: false, ao: false }); // Boden
+    if (isNight()) { const [gx, gz] = f.P(0.68, 0); b.glow(gx, 3.25, gz, { color: '#ffc47a', size: 1.7, intensity: 0.9 }); }
   }
   b.geom(sphereGeom(), x, 3.6, z, 'metal_painted', { sx: 0.09, sy: 0.09, sz: 0.09, tint: IRON, collide: false, minimap: false, ao: false });
+  lampLight(b, x, 3.2, z, { glow: false, intensity: 15, distance: 13, pool: 3.6, poolI: 0.24, realtime: o.realtime });
 }
 
-/** Achteckiger Brunnen mit Säule, oberer Schale und Wasser. */
+/**
+ * Achteckiger Brunnen mit Säule, oberer Schale und Wasserspiel (Kartenrunde 2): vier Speier an der Säule, vier
+ * Überlaufbahnen aus der Schale, kleine Fontänen am Aufsatz, Wellenringe – nach der gemeinsamen Uhr (alle sehen dasselbe).
+ */
 function well(b, x, z, ctx) {
-  const R = 2.25, t = 0.38, h = 0.78;
+  const R = 2.25, t = 0.38, h = 0.78, wy = h - 0.12;
   b.cyl(x, 0, z, R + 0.35, 0.16, 'stone_wall', { seg: 8, tint: '#d9ccb2', minimap: false, collide: true, ry: Math.PI / 8 });
   const side = 2 * R * Math.tan(Math.PI / 8);
   for (let i = 0; i < 8; i++) {
@@ -629,27 +645,44 @@ function well(b, x, z, ctx) {
     b.box(x + Math.cos(a) * (R - t / 2 + 0.02), h, z + Math.sin(a) * (R - t / 2 + 0.02), side + 0.1, 0.08, t + 0.12, 'plaster_white', { ry, tint: '#efe9dc', collide: false, minimap: false, grad: false });
   }
   b.cyl(x, 0.16, z, R - t + 0.02, 0.2, 'stone_wall', { seg: 8, tint: '#6f7a72', collide: false, minimap: false, ry: Math.PI / 8 });
-  // Wasser (achteckig)
-  const w = ctx.water({ x0: x - 1, z0: z - 1, x1: x + 1, z1: z + 1, y: h - 0.12, color: '#2f6a6e', scale: 2.5 });
+  // Wasser (achteckig) im Becken, rund in der Schale
+  const w = ctx.water({ x0: x - 1, z0: z - 1, x1: x + 1, z1: z + 1, y: wy, color: '#2f6a6e', scale: 2.5 });
   const g = new THREE.CircleGeometry((R - t + 0.04) / Math.cos(Math.PI / 8), 8);
-  g.rotateX(-Math.PI / 2); g.rotateY(Math.PI / 8); g.translate(x, h - 0.12, z);
+  g.rotateX(-Math.PI / 2); g.rotateY(Math.PI / 8); g.translate(x, wy, z);
   const p = g.attributes.position, uv = g.attributes.uv;
   for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / 2.5, -p.getZ(i) / 2.5);
   w.mesh.geometry.dispose(); w.mesh.geometry = g;
+  const bowlY = 2.125;
+  const w2 = ctx.water({ x0: x - 1, z0: z - 1, x1: x + 1, z1: z + 1, y: bowlY, color: '#2f6a6e', scale: 2.0 });
+  const g2 = new THREE.CircleGeometry(0.94, 20);
+  g2.rotateX(-Math.PI / 2); g2.translate(x, bowlY, z);
+  const p2 = g2.attributes.position, uv2 = g2.attributes.uv;
+  for (let i = 0; i < p2.count; i++) uv2.setXY(i, p2.getX(i) / 2.0, -p2.getZ(i) / 2.0);
+  w2.mesh.geometry.dispose(); w2.mesh.geometry = g2;
   // Säule, obere Schale, Aufsatz
   b.cyl(x, 0.3, z, 0.42, 0.5, 'stone_wall', { seg: 8, tint: '#d9ccb2', minimap: false });
   b.cyl(x, 0.8, z, 0.26, 1.0, 'stone_wall', { seg: 10, r1: 0.2, tint: '#e6dcc8', minimap: false });
   b.cyl(x, 1.8, z, 0.25, 0.22, 'stone_wall', { seg: 12, r1: 1.0, tint: '#e6dcc8', collide: false, minimap: false });
   b.cyl(x, 2.02, z, 1.02, 0.1, 'stone_wall', { seg: 12, tint: '#d9ccb2', collide: false, minimap: false });
-  b.cyl(x, 2.12, z, 0.92, 0.02, 'glass', { seg: 12, tint: '#5a8a8a', collide: false, minimap: false, ao: false });
   b.cyl(x, 2.1, z, 0.12, 0.7, 'stone_wall', { seg: 8, tint: '#e6dcc8', collide: false, minimap: false });
   b.geom(sphereGeom(), x, 2.95, z, 'stone_wall', { sx: 0.22, sy: 0.26, sz: 0.22, tint: '#e6dcc8', collide: false, minimap: false, ao: false });
-  // Wasserspeier
+  // Wasserspeier: Maske + Bronzerohr an der Säule (diagonal), Düsen am Aufsatz
+  const jets = [], sheets = [];
   for (let i = 0; i < 4; i++) {
-    const a = i * Math.PI / 2 + Math.PI / 4;
-    b.cyl(x + Math.cos(a) * 0.75, 1.15, z + Math.sin(a) * 0.75, 0.025, 0.9, 'glass', { seg: 5, collide: false, minimap: false, ao: false, tint: '#b8d8d8', bullet: false, cast: false });
+    const a = i * Math.PI / 2 + Math.PI / 4, dx = Math.sin(a), dz = Math.cos(a);
+    const f = frame(b, x, 0, z, a);
+    f.box(0, 1.2, 0.235, 0.15, 0.19, 0.1, 'stone_wall', { tint: '#d6c9ad', collide: false, minimap: false, grad: false });
+    f.cyl(0, 1.29, 0.33, 0.026, 0.12, 'metal_painted', { axis: 'z', tint: '#8a6a32', seg: 6, collide: false, minimap: false, ao: false });
+    jets.push({ from: [x + dx * 0.39, 1.29, z + dz * 0.39], dir: [dx, dz], v: 2.2, vy: 0.9, yEnd: wy, r0: 0.02, r1: 0.038, strands: 3 });
+    f.cyl(0, 2.62, 0.135, 0.016, 0.04, 'metal_painted', { axis: 'z', tint: '#8a6a32', seg: 6, collide: false, minimap: false, ao: false });
+    jets.push({ from: [x + dx * 0.155, 2.62, z + dz * 0.155], dir: [dx, dz], v: 1.15, vy: 0.6, yEnd: bowlY, r0: 0.01, r1: 0.018, strands: 2, splash: 0.6 });
+    // Überlaufbahnen aus der Schale (zwischen den Speiern, auf den Achsen)
+    const am = i * Math.PI / 2;
+    sheets.push({ x, z, r0: 1.03, y0: bowlY - 0.005, yEnd: wy, v: 0.32, a0: am - 0.2, a1: am + 0.2 });
   }
+  const water = fountainWater(b, { jets, sheets, pools: [{ x, z, y: wy + 0.004, r: (R - t + 0.02) / Math.cos(Math.PI / 8), seg: 8, rot: Math.PI / 8 }, { x, z, y: bowlY + 0.004, r: 0.93, seg: 20 }] });
   b.navPoint(x + 3.2, 0.2, z); b.navPoint(x - 3.2, 0.2, z); b.navPoint(x, 0.2, z + 3.2); b.navPoint(x, 0.2, z - 3.2);
+  return water;
 }
 
 // ---------------------------------------------------------------------------
@@ -739,7 +772,8 @@ function church(b) {
   }
   // Kronleuchter + Licht
   for (const xx of [22.4, 26.4]) {
-    b.cyl(xx, 6.2, 0, 0.015, H - 6.6, 'metal_galvanized', { seg: 4, collide: false, minimap: false, ao: false });
+    b.cyl(xx, 6.2, 0, 0.015, H - 0.25 - 6.2, 'metal_galvanized', { seg: 4, collide: false, minimap: false, ao: false }); // Kette bis zur Holzdecke
+    b.cyl(xx, H - 0.31, 0, 0.09, 0.06, 'metal_painted', { tint: '#6a5020', seg: 8, collide: false, minimap: false, ao: false });
     b.cyl(xx, 6.0, 0, 0.7, 0.08, 'metal_painted', { tint: '#6a5020', seg: 12, collide: false, minimap: false, ao: false });
     for (let k = 0; k < 8; k++) b.cyl(xx + Math.cos(k * 0.785) * 0.65, 6.08, Math.sin(k * 0.785) * 0.65, 0.03, 0.14, 'lamp_warm', { seg: 5, collide: false, minimap: false, ao: false, cast: false });
   }
@@ -838,7 +872,7 @@ function loggia(b, x0, z0, x1, z1) {
   pitchedRoof(b, { x, z, w: x1 - x0, d: z1 - z0, y: H + 0.8, ridge: 'z', pitch: 0.35, over: 0.3, gableMat: mat, gableTint: tint, tint: '#c47a5a' });
   b.interior(x0, z0, x1, z1, -0.1, H, 0.8);
   b.noNav(x0 - 0.5, z0 - 0.5, x1 + 0.5, z1 + 0.5, 2.5, 40);
-  bench(b, x, z + 1.4, { ry: Math.PI, back: true });
+  parkBench(b, x, z + 1.4, { ry: Math.PI });
   b.decal(x, 0.11, z - 0.8, 1.6, 1.6, 'leaves', { opacity: 0.9 });
 }
 
@@ -1474,7 +1508,7 @@ function bakery(b, M, h, south) {
   awning(b, 8.6, 2.95, Z(13.0) - 0.1 * M.s, 3.2, 1.3, { ry: M.ry(Math.PI), design: south ? 3 : 1 });
   // Brotkörbe / Bank vor dem Laden
   if (south) basketRow(b, 13.6, Z(11.6), 0, 2);
-  else bench(b, 12.6, Z(11.8), { ry: M.ry(Math.PI) });
+  else parkBench(b, 12.6, Z(11.8), { ry: M.ry(Math.PI) });
   // N-S-Gasse x 15..19 (zwischen Laden und EM1)
   crateStack(b, 16.2, Z(19.5), { ry: 0.2, pattern: [[0, 0, 0, 0.9], [0, 1, 0, 0.8]] });
   pot(b, 18.4, 0, Z(14.6), { r: 0.3 });
@@ -1536,7 +1570,7 @@ function spawnDeco(b, M) {
     car(b, -20.5, Z(45.6), { style: 'sedan', ry: Math.PI / 2 + 0.05, color: '#2f4f6e' });
     jerseyLike(b, 8.4, Z(44.6), 0.2);
     crateStack(b, 33.5, Z(45.2), { ry: 0.4 });
-    bench(b, -4.0, Z(50.4), { ry: M.ry(Math.PI) });
+    parkBench(b, -4.0, Z(50.4), { ry: M.ry(Math.PI) });
   } else {
     for (const x of [-26, -8, 8, 30]) tree(b, x, Z(50.4), { kind: 'olive', h: 2.8 });
     van(b, 20.5, Z(46.0), { ry: Math.PI / 2 - 0.05, color: '#e8e4dc' });
@@ -1638,7 +1672,7 @@ function eastSquare(b) {
   for (const s of [1, -1]) {
     planter(b, 53.6, 5.4 * s, 2.4, 1.0, { tree: s > 0 ? 'olive' : undefined });
     planter(b, 66.4, 4.6 * s, 1.0, 2.4, {});
-    bench(b, 56.6, 6.9 * s, { ry: s > 0 ? Math.PI : 0 });
+    parkBench(b, 56.6, 6.9 * s, { ry: s > 0 ? Math.PI : 0 });
     lowWall(b, 62.6, 7.6 * s, 65.2, 7.6 * s, { h: 0.95 });
   }
   cafeTable(b, 64.3, 1.6, {}); cafeTable(b, 64.6, -1.8, {});

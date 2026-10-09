@@ -248,8 +248,11 @@ Ohne Parameter: `NetSystem.chaos = null`, Verbindungen unverändert. Werkzeuge: 
    der Anker, solange die Puppe beim Host lebt; (c) Schonfristen nach Spawn/Rücksetzung + rtt; (d) Treffer: Zielverlauf
    `0,4 s + rtt + Darstellungsverzug des Schützen` (Client meldet ihn als `ip`, höchstens 2 s; Verlauf 2,5 s) – vorher fehlte
    die Interpolation des Schützen; (e) hängt der Host länger als 1 s (langes Bild), kommen die Zustände gebündelt – das Budget
-   füllt für dieses Bündel die ganze Lücke nach (höchstens 3 s, die Schrittgrenze bleibt bei 1 s; vorher 8 falsche 'tempo' im Lasttest); (f) Schussursprung gegen den zuletzt
-   gemeldeten Zustand statt gegen den Puppenkörper (der ein Bild nachhinkt – vorher 12 falsche 'herkunft' im Lasttest).
+   füllt für dieses Bündel die ganze Lücke nach (höchstens 3 s; meldet der Host seine eigene Lücke – `ctx.hostGap`, Zeit seit
+   seinem letzten Bildbeginn – bis 15 s; die Schrittgrenze bleibt bei 1 s; vorher 8 falsche 'tempo' im Lasttest, im Endlauf noch 3
+   nach einem ≈ 9-s-Hänger beim Beitritt neuer Clients unter Fremdlast; ein Client, der selbst schweigt, bekommt nur 3 s
+   gutgeschrieben); (f) Schussursprung gegen den zuletzt gemeldeten Zustand statt gegen den Puppenkörper (der ein Bild
+   nachhinkt – vorher 12 falsche 'herkunft' im Lasttest).
 4. *„Ausrüsten“/„Einsatz“ auf Clients wirkungslos*: Client meldet den Halt jetzt ('hold'), der Host hält die Puppe wie offline an
    (Restzeit steht auf beiden Seiten, höchstens 30 s), „Einsatz“ gibt frei; die im Todesbildschirm gewählte Ausrüstung geht als
    'loadout' an den Host (vorher spawnte die Puppe mit der alten Klasse/Ausrüstung).
@@ -284,9 +287,10 @@ Uhr, 20-Hz-Schnappschüsse einer bekannten Bahn, Client 60 Bilder/s; Kennzahlen 
 Der neue Puffer zeigt die Puppen um die Laufzeit später (der alte schrieb diese Zeit ständig fort), dafür ohne Zurückspringen,
 Ruckeln und Überschwingen. Die Treffermeldung trägt diesen Verzug (`ip`), der Host prüft entsprechend weit zurück.
 
-**Anti-Cheat** (`node tools/net-proto-test.mjs`, 111 Prüfungen, davon 18 neu): ohne Verstoß – Sprint mit allen Zuschlägen
+**Anti-Cheat** (`node tools/net-proto-test.mjs`, 113 Prüfungen, davon 20 neu): ohne Verstoß – Sprint mit allen Zuschlägen
 10,4 m/s, Rutschen 13,3 m/s, Rutschsprung 11 m/s (je mit ±60 ms Ankunftsschwankung und 5 % Verlust), Hangrutschen 11,8 m/s
-4 s, Sprungserie im Sprint, Spawn in 40 m Höhe + freier Fall bis 44 m/s, Host hängt 1 s bzw. alle 2,5 s / 2,95 s (Bündel; mit der alten 2-s-Grenze 48 falsche Verstöße bei 2,95 s), 0,7 s
+4 s, Sprungserie im Sprint, Spawn in 40 m Höhe + freier Fall bis 44 m/s, Host hängt 1 s bzw. alle 2,5 s / 2,95 s (Bündel; mit der alten 2-s-Grenze 48 falsche Verstöße bei 2,95 s) bzw. einmal 9 s
+(mit `hostGap` 0 Verstöße, ohne – Client schweigt – 12), 0,7 s
 Funkloch (7,3 m Schritt), Klettern 1,3 m, Spawn bei rtt 0,8 s; erkannt – 7 m und 14 m Sprung (vorher erlaubt), 20 m bei einem
 Zustand alle 2 s, 5 m senkrecht, „tot melden + 40 m weiter auftauchen“, Tempo-Hack 2× Sprint nach 3,4 s, 3× nach 1,3 s.
 Im echten Spiel (`mp-test`): Rutschen eines Clients (17 Zustände mit Rutsch-Bit) und Sturz aus 9 m nach Host-Spawn ohne
@@ -334,10 +338,29 @@ Client 11 340 + 3 382 = 14 722 B/s ≈ 14,4 KB/s, gesamt ≈ 173 KB/s (Lasttest 
 einer Upload-Grenze (Stau gemessen; ohne Stau rechnet recommend() das Gemessene × 2 hoch) von 100 000 B/s → 9 Menschen ohne
 Bots / 6 bei 32 Akteuren; 200 000 B/s → 17 / 11; 400 000 B/s → 25 / 22 (1 KB = 1024 Byte). Die Upload-Messung nimmt nur Fenster ≥ 3 s (Bündel aus langen Bildern zählten vorher × 10).
 
-**Läufe** (Prüfrechner, 4 Kerne, Fremdlast 6–10; ein mp-test-Lauf ≈ 13–18 min): {{LAEUFE}}
+**Läufe** (Prüfrechner, 4 Kerne, Fremdlast 6–10; ein mp-test-Lauf ≈ 13–18 min), Endstand:
+- `mp-test` ideal: 66/66 – Positionen Anna→Host 0,16 m / Anna→Bert 0,22 m, Halt 2,95 → 2,95 s auf beiden Seiten, „Einsatz“
+  mit smg_vp9 auf beiden Seiten, 20-m-Teleport → 'teleport' + 'correct' (0,0 m zurück), Sturz 9 m, Rutschen 5,6 m (17
+  Zustände mit Rutsch-Bit) ohne Verstoß, verborgener Host-Tab simuliert weiter, keine Seitenfehler.
+- `mp-test --params="netlag=150&netjitter=30&netloss=5"`: 66/66 – Positionen ≤ 0,01 m nach 8 s, Halt 3,00 → 3,00 s,
+  Teleport erkannt, Rutschen 4,1 m (14 Zustände) ohne Verstoß, Online-Pause: Zeit läuft weiter. Vorläufe: 2× je 1 Fehlschlag
+  im Prüfskript (das Rutschen begann, bevor der um die Laufzeit verspätete Host-Spawn in der Luft ankam – der Spawn brach es
+  nach 0 m ab; Prüfung wartet jetzt auf den Spawn), 1× Abbruch beim Beitritt ('keine-antwort': Host unter Fremdlast > 12 s
+  blockiert → 'welcome'-Frist 20 s, Prüfung versucht einmal neu).
+- `mp-test --params="netlag=300&netloss=15"` (verschlechtert): 66/66 – Positionen ≤ 0,29 m, Halt 3,00/2,95 s stabil,
+  „Einsatz“, Teleport, Sturz, Rutschen 5,6 m ohne Verstoß; keine hängenden Zustände, keine Seitenfehler.
+- `mp-load-test`: 13/13 (Tabelle oben); `mp-fight-rate`: regulär 2,2 KB/s, Veteran 0,9 KB/s Kampfverkehr je Client.
+- `net-proto-test` 113/113, `net-test`, `net-room-test` 60/60, `net-interp-test` 7/7, `check.sh`, `preload --check`,
+  `smoke --quality=low --params="mode=tdm&map=hafen" --end --seconds=20` (offline, ohne Fehler, Endbildschirm).
+
 
 **Offen**: SwiftShader-Seiten zeichnen auf dem Prüfrechner unter Last nur 0,1–2 Bilder/s – der Countdown zählt je Bild höchstens
 0,25 s, daher dauert der Matchstart dort Minuten (kein Fehler des Spiels, mp-test wartet bis 10 min). Die Glätte im echten Spiel
 lässt sich dort nur grob messen (Host schafft im Hintergrund-Takt dann < 8 Bilder/s → nur Info); die Interpolation selbst ist
-deterministisch belegt (oben). Unter 300 ms / 15 % Verlust: siehe Läufe.
+deterministisch belegt (oben). Unter 300 ms / 15 % Verlust: siehe Läufe. Weitere offene Punkte: (1) Treffer/Abschüsse gehen
+zuverlässig an alle Clients, auch ferne – bei 32 Akteuren ≈ 2,2 KB/s je Client (15 % des Uploads); ferne Bot-gegen-Bot-
+Treffer könnten entfallen oder gebündelt werden (Stufe 2). (2) Die Größe der Granaten-/Raketen-Ereignisse ist geschätzt
+(≈ 170 Byte), ihr Anteil klein (0,3/s). (3) Die 12 Last-Clients sind reine Netz-Clients (kein WebGL); echte Client-Seiten
+wurden mit höchstens 2 gleichzeitig geprüft (mp-test). (4) Bildrate des Hosts unter echten 12 Clients auf echter Hardware
+ist ungemessen – recommend() begrenzt dort über die gemessene Bildrate (< 30 FPS → 8, < 45 → 12).
 

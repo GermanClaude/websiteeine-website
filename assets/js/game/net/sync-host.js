@@ -172,6 +172,7 @@ export class HostSync {
     if (!this.active) return;
     const G = this.G;
     const now = nowSec();
+    this._frameAt = now; // Bildbeginn: danach eintreffende Zustände wissen, wie lange der Host hing (Anti-Cheat-Bündel)
     for (const b of G.bots.bots) {
       if (!Number.isInteger(b.netId) && !b.isRemoteHuman) { b.netId = this._nextBotId++; this._actorsDirty = true; }
       const raw = b._ownRaw;
@@ -438,7 +439,7 @@ export class HostSync {
     const e = d.entity;
     const clientAlive = (e.flags & FLAGS.ALIVE) !== 0;
     // Anker nur bei Tod der Puppe neu setzen – meldet der Client „tot“, während sie lebt (Spawn unterwegs), bleibt er
-    const r = this.net.checkState(from, { x: e.x, y: e.y, z: e.z, flags: e.flags }, { alive: p.alive, clientAlive, rtt: this.net.peerRtt(from) / 1000 });
+    const r = this.net.checkState(from, { x: e.x, y: e.y, z: e.z, flags: e.flags }, { alive: p.alive, clientAlive, rtt: this.net.peerRtt(from) / 1000, hostGap: this._frameAt != null ? nowSec() - this._frameAt : 0 });
     if (!p.alive || !clientAlive || !r || !r.ok) return; // Rücksetzung/veraltet: Puppe bleibt an der letzten gültigen Stelle
     const np = p._ownPose || (p._ownPose = { pos: [0, 0, 0], vel: [0, 0, 0] });
     const raw = p._ownRaw || (p._ownRaw = { pos: [0, 0, 0], vel: [0, 0, 0], flags: 0 });

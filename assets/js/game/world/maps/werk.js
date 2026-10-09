@@ -6,10 +6,14 @@ import * as THREE from 'three';
 import { building, wall, stairs, railing, catwalk } from '../arch.js';
 import {
   frame, container, crateStack, barrel, barrelGroup, palletStack, sandbags, jersey, cone,
-  forklift, truck, van, car, lampPost, floodMast, fence, tires, cableReel, gasBottles, electricBox, pipe,
-  workbench, lockers, dumpster, tank, roofVent, dress,
+  forklift, truck, van, car, lampPost, fence, tires, cableReel, gasBottles, electricBox, pipe,
+  workbench, lockers, dumpster, tank, roofVent, dress, hash01,
 } from '../props.js';
 import { craneClock, createTrack, partBuilder, partGroup, place, inView } from '../crane-anim.js';
+import {
+  stahlTreppe, coilLager, pendel, leuchtband, flutMast, schiebetuer, mgNest, schreibtisch, stuhl, aktenschrank,
+  regal, tisch, kaffeeEcke, stab, modell, ersatzQuader,
+} from './werk-ausstattung.js';
 
 const HX = 22, HZ = 30;           // Halle: x −22..22, z −30..30
 const CW = 5.2;                   // Laufsteg-Höhe in der Halle
@@ -131,15 +135,17 @@ function dressing(b) {
   const Q = Math.PI / 2;
   const list = [];
   for (const s of [1, -1]) {
-    // Hallenlampen an den Bindern (z = Binderlinien), deutlich über Laufsteg und Kranbahn
+    // Hallenlampen an den Bindern (z = Binderlinien): Pendel endet am Binder-Untergurt (y 12,2)
     for (const x of [-8, 8]) list.push(['hanging_industrial_lamp', x, 10.4, s * 12, 0, { s: 1.35, castShadow: false, maxDist: 90 }]);
     list.push(['hanging_industrial_lamp', 0, 10.4, s * 24, 0, { s: 1.35, castShadow: false, maxDist: 90 }]);
-    // Regale an der Westwand (zwischen Ladetor und Fenster), Werkzeug an der Ostseite
-    list.push(['steel_frame_shelves_01', -21.2, 0, s * 6.0, Q, { collide: true }]);
-    list.push(['worn_metal_rack', 21.15, 0, s * 6.6, -Q, { collide: true }]);
-    list.push(['metal_tool_chest', 20.95, 0, s * 13.65, -Q, { collide: true }]);
-    list.push(['tool_cart', 16.6, 0, s * 7.2, 0.3 * s, { collide: true }]);
-    list.push(['portable_generator', -3.2, 0, s * 22.4, 0.7 * s, { collide: true }]);
+    // Regale an der Westwand (zwischen Ladetor und Fenster), Werkzeug an der Ostseite – große Teile mit fester
+    // Kollision in Modellmaßen (unabhängig davon, ob die Bibliothek lädt) und prozeduralem Ersatz
+    const fest = (id, x, z, ry, size, mat, tint) => modell(b, id, x, 0, z, ry, size, ersatzQuader(x, 0, z, ry, size, mat, tint), { solid: true });
+    fest('steel_frame_shelves_01', -21.2, s * 6.0, Q, [1.098, 2.14, 0.502], 'metal_painted', '#8a9096');
+    fest('worn_metal_rack', 21.15, s * 6.6, -Q, [0.915, 1.9, 0.6], 'metal_rust', '#8a7a6a');
+    fest('metal_tool_chest', 20.95, s * 13.65, -Q, [0.684, 0.652, 0.407], 'metal_painted', '#b8402f');
+    fest('tool_cart', 16.6, s * 7.2, 0.3 * s, [1.272, 0.962, 0.747], 'metal_painted', '#3a5a4a');
+    fest('portable_generator', -3.2, s * 22.4, 0.7 * s, [0.817, 0.575, 0.562], 'metal_painted', '#c89a2a');
     list.push(['industrial_pastic_container', 14.2, 0, s * 18.9, 0.25], ['industrial_pastic_container', 14.0, 0, s * 19.6, 1.4]);
     list.push(['cardboard_box_01', -18.95, 0, s * 14.55, 0.2], ['cardboard_box_01', -18.45, 0, s * 15.1, 1.1], ['cardboard_box_01', -18.75, 0.34, s * 14.8, 0.5]);
     list.push(['wetfloorsign_01', 2.6, 0, s * 18.2, 0.4 * s]);
@@ -188,25 +194,8 @@ function mirror(s) {
 }
 
 // ---------------------------------------------------------------------------
-// Bausteine
+// Bausteine (Coils, Treppen, Leuchten, Möbel: werk-ausstattung.js)
 // ---------------------------------------------------------------------------
-/** Stahlcoil (liegend, Achse lokal x), (x,z) Mitte, y Unterkante. */
-function coil(b, x, y, z, ry = 0, o = {}) {
-  const r = o.r ?? 0.85, w = o.w ?? 1.3, f = frame(b, x, y, z, ry);
-  f.cyl(0, r, 0, r, w, 'metal_galvanized', { axis: 'x', tint: o.tint || '#9aa0a4', collide: false, minimap: false, seg: 18 });
-  for (const sx of [-1, 1]) f.cyl(sx * (w / 2 + 0.003), r, 0, r * 0.42, 0.01, 'black', { axis: 'x', collide: false, minimap: false, seg: 14, ao: false });
-  f.box(0, r * 0.55, 0, w * 0.9, 0.06, r * 1.9, 'metal_painted', { tint: '#3d4247', collide: false, minimap: false, grad: false, rx: 0, ao: false });
-  f.solid(0, 0, 0, w, r * 2, r * 2, { minimap: 'cover' });
-}
-
-/** Coil-Reihe auf Holzbalken. */
-function coilRow(b, x, z, ry, n = 3, o = {}) {
-  const f = frame(b, x, 0, z, ry);
-  for (const lz of [-0.6, 0.6]) f.box(0, 0, lz, n * 1.5 + 0.2, 0.18, 0.25, 'wood_planks', { tint: '#6a5440', collide: false, minimap: false });
-  for (let i = 0; i < n; i++) { const [px, pz] = f.P(-(n - 1) * 0.75 + i * 1.5, 0); coil(b, px, 0.18, pz, ry, { tint: b.pick(['#9aa0a4', '#8a8f94', '#a69a8a']) }); }
-  if (o.top) { const [px, pz] = f.P(0, 0); coil(b, px, 1.75, pz, ry, { r: 0.8 }); }
-}
-
 /** Stapel Brammen (Stahlplatten). */
 function slabStack(b, x, z, ry = 0, n = 4, o = {}) {
   const f = frame(b, x, 0, z, ry), w = o.w ?? 2.4, d = o.d ?? 1.1;
@@ -247,16 +236,17 @@ function fireBarrel(b, x, z, o = {}) {
   b.glow(x, 1.25, z, { color: '#ff8a30', size: 2.6, intensity: 0.9 });
 }
 
-/** Rollgang (Rollentisch) entlang z von z0 bis z1 bei x. */
-function rollerTable(b, x, z0, z1) {
+/** Rollgang (Rollentisch) entlang z von z0 bis z1 bei x; kein Antrieb unter dem Walzgerüst bei zStand. */
+function rollerTable(b, x, z0, z1, zStand = Infinity) {
   const L = Math.abs(z1 - z0), zc = (z0 + z1) / 2;
   b.box(x, 0, zc, 2.8, 0.55, L, 'metal_painted', { tint: '#3d4a44', minimap: false });
   for (const sx of [-1.35, 1.35]) b.box(x + sx, 0.55, zc, 0.12, 0.32, L, 'metal_painted', { tint: '#2f3a36', collide: false, minimap: false, grad: false });
   const n = Math.floor(L / 0.6);
   for (let i = 0; i < n; i++) b.cyl(x, 0.72, Math.min(z0, z1) + 0.3 + i * 0.6, 0.15, 2.6, 'metal_galvanized', { axis: 'x', tint: '#8a8f94', collide: false, minimap: false, seg: 8, ao: false });
   b.box(x, 0, zc, 2.8, 0.9, L, 'black', { visual: false, minimap: 'cover' });
-  // Antriebsmotoren seitlich
+  // Antriebsmotoren seitlich (im Norden lag einer im Ständer des Walzgerüsts → dort ausgelassen)
   for (let z = Math.min(z0, z1) + 2; z < Math.max(z0, z1) - 1; z += 4.5) {
+    if (Math.abs(z - zStand) < 2.0) continue;
     b.box(x - 2.0, 0, z, 0.9, 0.7, 0.8, 'metal_painted', { tint: '#4a6a5a', minimap: 'prop' });
     b.cyl(x - 1.55, 0.35, z, 0.08, 0.3, 'metal_galvanized', { axis: 'x', collide: false, minimap: false, seg: 6, ao: false });
   }
@@ -273,14 +263,19 @@ function millStand(b, x, z, s) {
   b.box(x, H, z, 5.8, 0.9, 2.6, 'metal_painted', { tint: '#3d5a52', minimap: false, collide: true });
   for (const yy of [1.15, 2.55]) b.cyl(x, yy, z, 0.6, 3.4, 'metal_galvanized', { axis: 'x', tint: '#7a8086', collide: false, minimap: false, seg: 16 });
   b.cyl(x, 4.2, z, 0.85, 3.4, 'metal_painted', { axis: 'x', tint: '#2f4a44', collide: false, minimap: false, seg: 16 });
+  // Walzensatz zwischen den Ständern war ohne Kollision (vom Rollgang aus durchlaufbar)
+  b.solid(x, 0.55, z, 3.4, H - 0.55, 1.7, { minimap: false });
   // Antrieb (Getriebe + Motor) auf der Ostseite
   b.box(x + 5.4, 0, z, 2.6, 2.2, 2.4, 'metal_painted', { tint: '#4a5a62', minimap: 'cover' });
   b.box(x + 8.1, 0, z, 2.4, 1.8, 1.8, 'metal_painted', { tint: '#5a6a5a', minimap: 'cover' });
   b.cyl(x + 3.2, 1.6, z, 0.28, 1.4, 'metal_galvanized', { axis: 'x', collide: false, minimap: false, seg: 10 });
   b.cyl(x + 6.9, 0.9, z, 0.22, 0.5, 'metal_galvanized', { axis: 'x', collide: false, minimap: false, seg: 10 });
   b.sign(x + 5.4, 1.5, z + s * 1.21, 0.9, 0.7, 'closed', { ry: s > 0 ? 0 : Math.PI, depth: 0.01, back: false });
-  // Kühlwasser-Rohr
-  pipe(b, [[x - 2.9, 0.4, z - 1.0], [x - 2.9, 4.8, z - 1.0], [x - 1.8, 4.8, z - 1.0]], { r: 0.08, tint: '#3a6a8a', flanges: false });
+  // Kühlwasser-Rohr: aus dem Bodenkanal (Flansch) am Ständer hoch, mit Schellen, oben in den Ständer
+  pipe(b, [[x - 3.05, 0, z - 1.0], [x - 3.05, 4.8, z - 1.0], [x - 2.86, 4.8, z - 1.0]], { r: 0.08, tint: '#3a6a8a', flanges: false });
+  b.cyl(x - 3.05, 0, z - 1.0, 0.15, 0.05, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, seg: 10, ao: false });
+  b.cyl(x - 2.92, 4.8, z - 1.0, 0.13, 0.05, 'metal_painted', { axis: 'x', tint: '#2b2d30', collide: false, minimap: false, seg: 10, ao: false });
+  for (const yy of [1.4, 3.2]) b.box(x - 2.96, yy, z - 1.0, 0.2, 0.05, 0.2, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
 }
 
 /** Wärmeofen (kalt, Mauerwerk mit dunkler Ofenöffnung). */
@@ -288,17 +283,27 @@ function furnace(b, x0, z0, x1, z1, s) {
   const x = (x0 + x1) / 2, z = (z0 + z1) / 2, w = x1 - x0, d = z1 - z0;
   b.box(x, 0, z, w, 4.6, d, 'brick_dark', { tint: '#9a7a6a', minimap: 'building' });
   b.box(x, 4.6, z, w + 0.3, 0.3, d + 0.3, 'metal_painted', { tint: STEEL, collide: false, minimap: false, grad: false });
-  // Ofenöffnungen zur Hallenmitte
+  // Ofenöffnungen zur Hallenmitte: schwarze Ofenmündung mit Rost; statt eines gleichmäßig leuchtenden Balkens
+  // („leuchtender oranger Balken an der Wand“) nur noch schwache, unregelmäßige Restglut auf dem Rost
   const face = s > 0 ? z0 - 0.01 : z1 + 0.01;
   for (const ox of [-w / 4, w / 4]) {
     b.box(x + ox, 0.6, face, 2.2, 1.6, 0.04, 'black', { collide: false, minimap: false, ao: false });
-    b.box(x + ox, 0.62, face - s * 0.005, 2.0, 0.25, 0.04, 'lamp_sodium', { collide: false, minimap: false, ao: false, cast: false, matOpts: { emissive: '#ff5a1a', emissiveIntensity: 1.6 } });
-    b.glow(x + ox, 0.8, face - s * 0.3, { color: '#ff6a20', size: 2.2, intensity: 0.7 });
+    b.box(x + ox, 0.6, face - s * 0.02, 2.2, 0.06, 0.06, 'metal_rust', { tint: '#4a3a32', collide: false, minimap: false, grad: false, ao: false });
+    for (let k = 0; k < 5; k++) {
+      const gx = x + ox - 0.8 + k * 0.4 + (hash01(x + ox, k, 51) - 0.5) * 0.16, gw = 0.16 + hash01(k, x + ox, 52) * 0.14;
+      b.box(gx, 0.66, face - s * 0.03, gw, 0.05 + hash01(x, k + ox, 53) * 0.05, 0.03, 'lamp_sodium', { collide: false, minimap: false, ao: false, cast: false, matOpts: { emissive: '#ff4a12', emissiveIntensity: 0.9 } });
+    }
+    b.glow(x + ox, 0.75, face - s * 0.3, { color: '#ff5a18', size: 1.5, intensity: 0.4 });
     b.box(x + ox, 2.3, face - s * 0.08, 2.6, 0.18, 0.16, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false });
   }
-  // Abzugshaube + Rohr zum Dach
-  b.box(x, 4.9, z, w * 0.5, 1.2, d * 0.6, 'metal_rust', { collide: false, minimap: false, grad: false });
-  b.cyl(x, 6.1, z, 0.7, 6.0, 'metal_rust', { collide: false, minimap: false, seg: 12 });
+  // Abzugshaube + Rauchrohr durch das Hallendach (endete vorher 1,9 m unter dem Dach in der Luft), mit Dachkragen
+  // und Regenhut; Haube/Rohr mit Kollision (vom Laufsteg aus erreichbar)
+  b.box(x, 4.9, z, w * 0.5, 1.2, d * 0.6, 'metal_rust', { minimap: false, grad: false });
+  const roofY = 12.5 + 3.8 * (1 - Math.abs(x) / HX) - 0.1, top = roofY + 1.6;
+  b.cyl(x, 6.1, z, 0.7, top - 6.1, 'metal_rust', { minimap: false, seg: 12 });
+  b.cyl(x, roofY - 0.05, z, 0.95, 0.3, 'metal_painted', { tint: '#4a4f55', collide: false, minimap: false, seg: 12, ao: false });
+  for (let k = 0; k < 3; k++) b.box(x + (k - 1) * 0.6, top, z, 0.05, 0.42, 0.05, 'metal_rust', { collide: false, minimap: false, grad: false, ao: false });
+  b.cyl(x, top + 0.4, z, 1.0, 0.35, 'metal_rust', { r1: 0.15, collide: false, minimap: false, seg: 12 });
   b.noNav(x0 - 0.3, z0 - 0.3, x1 + 0.3, z1 + 0.3, 3, 30);
 }
 
@@ -402,18 +407,20 @@ function hall(b) {
     b.box(s * (HX - 1.1), 10.5, 0, 0.5, 0.6, 2 * HZ - 1, 'metal_painted', { tint: '#5a646c', collide: false, minimap: false, grad: false });
     b.box(s * (HX - 1.1), 11.1, 0, 0.12, 0.1, 2 * HZ - 1, 'metal_galvanized', { collide: false, minimap: false, grad: false, ao: false });
   }
-  // Hallenleuchten (Natriumdampf) + echte Lichter (wenige)
-  for (const zz of [-21, -7, 7, 21]) for (const xx of [-9, 9]) {
-    b.cyl(xx, H - 1.6, zz, 0.02, 1.3, 'metal_galvanized', { collide: false, seg: 4, ao: false, minimap: false });
+  // Hallenleuchten (Natriumdampf) an den Bindern: Pendelrohr bis zum Untergurt (y 12,2) mit Klemmschelle,
+  // dazwischen hingen sie früher frei in der Luft (z ±7, ±21 liegen zwischen den Binderachsen)
+  for (const zz of [-18, -6, 6, 18]) for (const xx of [-9, 9]) {
+    b.box(xx, H - 0.38, zz, 0.18, 0.08, 0.34, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
+    b.cyl(xx, H - 1.6, zz, 0.022, 1.3, 'metal_galvanized', { collide: false, seg: 5, ao: false, minimap: false });
     b.cyl(xx, H - 2.1, zz, 0.6, 0.5, 'metal_painted', { r1: 0.18, tint: '#2b2d30', collide: false, seg: 12, ao: false, minimap: false });
     b.cyl(xx, H - 2.12, zz, 0.55, 0.02, 'lamp_sodium', { collide: false, seg: 12, ao: false, cast: false, minimap: false });
     b.glow(xx, H - 2.35, zz, { color: '#ffa850', size: 3.2, intensity: 0.9 });
   }
-  b.light('point', -9, 8.6, 7, { color: '#ffae5a', intensity: 40, distance: 24, priority: 1 });
-  b.light('point', 9, 8.6, -7, { color: '#ffae5a', intensity: 40, distance: 24, priority: 1 });
+  b.light('point', -9, 8.6, 6, { color: '#ffae5a', intensity: 40, distance: 24, priority: 1 });
+  b.light('point', 9, 8.6, -6, { color: '#ffae5a', intensity: 40, distance: 24, priority: 1 });
   // übrige Leuchten nur gebacken (Sonden-Gitter): Lichtinseln unter jeder Lampe ohne Laufzeitkosten
-  for (const zz of [-21, -7, 7, 21]) for (const xx of [-9, 9]) {
-    if ((xx === -9 && zz === 7) || (xx === 9 && zz === -7)) continue;
+  for (const zz of [-18, -6, 6, 18]) for (const xx of [-9, 9]) {
+    if ((xx === -9 && zz === 6) || (xx === 9 && zz === -6)) continue;
     b.light('point', xx, 8.6, zz, { color: '#ffae5a', intensity: 32, distance: 20, realtime: false });
   }
   // Kaltes Abendlicht durch die Dachlöcher (Lichtkegel als Staubschleier)
@@ -473,19 +480,24 @@ function hallInterior(b) {
     for (const zz of [-27, 27]) railing(b, x - 0.9, zz, x + 0.9, zz, CW, { tint: RAIL, posts: 2 });
   }
   catwalk(b, -cwx + 0.9, 0, cwx - 0.9, 0, CW, { w: 2.2, supports: false, interior: true, railTint: RAIL });
-  // Hänger der Querbrücke
-  for (const xx of [-13, -6.5, 6.5, 13]) for (const zz of [-1.05, 1.05]) b.cyl(xx, CW, zz, 0.025, 12.2 - CW, 'metal_galvanized', { seg: 4, collide: false, minimap: false, ao: false });
-  // Treppen in allen vier Ecken: quer zur Wand, münden frontal auf den Laufsteg (z ±21)
+  // Hänger der Querbrücke: Rundstäbe bis unter den Binder (z 0), dort ein Querjoch unter dem Untergurt – vorher
+  // endeten sie 0,9 m neben dem Binder in der Luft
+  for (const xx of [-13, -6.5, 6.5, 13]) {
+    for (const zz of [-1.05, 1.05]) b.cyl(xx, CW, zz, 0.025, 12.08 - CW, 'metal_galvanized', { seg: 4, collide: false, minimap: false, ao: false });
+    b.box(xx, 12.08, 0, 0.14, 0.12, 2.4, 'metal_painted', { tint: STEEL, collide: false, minimap: false, grad: false, ao: false });
+  }
+  // Treppen in allen vier Ecken: quer zur Wand, münden frontal auf den Laufsteg (z ±21). Offene Stahltreppe mit
+  // passender Kollision (früher: massiver unsichtbarer Keil unter der ganzen Treppe + Geländer-Riegel bis 6 m Höhe
+  // = „unsichtbare Wand“); Austritt bündig mit der Laufsteg-Innenkante
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const run = CW / 0.62, xTop = sx * (cwx - 0.9);   // Innenkante des Laufstegs
-    stairs(b, { x: xTop - sx * run, z: sz * 21, y0: 0, y1: CW, w: 1.3, dir: sx < 0 ? 'w' : 'e', run, style: 'steel', rail: true, railTint: RAIL, railFrom: 1.0 });
-    b.box(xTop - sx * (run - 1.0), 0, sz * 21, 0.12, CW * (1 - 1.0 / run) - 0.3, 0.12, 'metal_painted', { tint: STEEL, minimap: false, collide: false });
+    stahlTreppe(b, { x: xTop - sx * run, z: sz * 21, y0: 0, y1: CW, w: 1.3, dir: sx < 0 ? 'w' : 'e', run, rail: true, railTint: RAIL, railFrom: 1.0 });
   }
   // Wegpunkte im schmalen Gang zwischen Ofen und Stirnwand (liegt zwischen den Rasterpunkten)
   for (const s of [-1, 1]) b.navLine(-20.6, 0.2, s * 28.5, -8.6, 0.2, s * 28.5, 1.2);
   // Rollgang in der Hallenachse mit Lücke in der Mitte, Walzgerüste
   for (const s of [-1, 1]) {
-    rollerTable(b, 0, s * 6.5, s * 26.5);
+    rollerTable(b, 0, s * 6.5, s * 26.5, s * 15.5);
     millStand(b, 0, s * 15.5, s);
   }
   // Öfen an den Stirnseiten (Westteil), Leitstand (Ostteil)
@@ -496,15 +508,16 @@ function hallInterior(b) {
   // Deckung rund um die Hallenmitte (Flagge B)
   for (const s of [-1, 1]) {
     slabStack(b, -7.5, s * 3.6, 0.1 * s, 4);
-    coilRow(b, 7.4, s * 3.8, Math.PI / 2, 2);
+    coilLager(b, 7.4, s * 3.8, Math.PI / 2, 2);
     crateStack(b, -12.5, s * 9.5, { ry: 0.3 * s, pattern: [[0, 0, 0, 1.1], [1.15, 0, 0.05, 1.0], [0.5, 1, 0, 1.0]] });
-    coilRow(b, 13.5, s * 10.5, 0, 3, { top: s > 0 });
+    coilLager(b, 13.5, s * 10.5, 0, 3, { top: s > 0 });
     slabStack(b, -14.5, s * 16.5, Math.PI / 2, 6);
     palletStack(b, 15.8, s * 17.5, { n: 4, load: 'wrapped', ry: 0.2 });
     fireBarrel(b, -6.0, s * 21.0, { light: s > 0, intensity: 10 });
     barrelGroup(b, -18.2, s * 9.0, { n: 3, colors: ['#3a4a5a', '#5a3a2a', '#3a4a5a'] });
     gasBottles(b, 18.6, s * 3.5, { n: 4 });
-    workbench(b, 19.0, s * 12.0, { ry: -Math.PI / 2 });
+    // Werkbank an die Ostwand zwischen Pfeiler und Treppe (stand vorher 2 m vor der Seitentür z ±12 im Weg)
+    workbench(b, 20.95, s * 17.8, { ry: -Math.PI / 2 });
     lockers(b, -19.9, s * 16.4, { n: 4, ry: Math.PI / 2 });
     tires(b, 4.6, s * 9.2, { n: 3 });
   }
@@ -664,10 +677,10 @@ function boilerHouse(b) {
   railing(b, hole.x0, hole.z0, hole.x1, hole.z0, fh, { tint: RAIL, posts: 7 });
   railing(b, hole.x0, hole.z1, hole.x1, hole.z1, fh, { tint: RAIL, posts: 7 });
   railing(b, hole.x0, hole.z0, hole.x0, hole.z1, fh, { tint: RAIL, posts: 10 });
-  // Ostseite: Treppenaufgänge (beide Hälften) → Geländer dort ausgespart
+  // Ostseite: Treppenaufgänge (beide Hälften) → Geländer dort ausgespart; offene Stahltreppen mit passender Kollision
   for (const s of [-1, 1]) {
     const zr = s * 8.9;
-    stairs(b, { x: 33.6, z: zr, y0: 0.12, y1: fh, w: 1.2, dir: 'e', run: 8.0, style: 'steel', rail: true, railTint: RAIL, railFrom: 1.0 });
+    stahlTreppe(b, { x: 33.6, z: zr, y0: 0.12, y1: fh, w: 1.2, dir: 'e', run: 8.0, rail: true, railTint: RAIL, railFrom: 1.0 });
   }
   railing(b, hole.x1, -8.2, hole.x1, 8.2, fh, { tint: RAIL, posts: 9 });
   // Galerie-Wegpunkte (2 m breite Gänge liegen zwischen den Rasterpunkten)
@@ -678,22 +691,46 @@ function boilerHouse(b) {
   for (const s of [-1, 1]) {
     const zc = s * 4.2;
     b.box(37, 0.12, zc, 8.4, 0.6, 2.6, 'brick', { tint: '#8a5a4a', minimap: false });
-    b.cyl(37, 2.5, zc, 1.75, 8.6, 'metal_painted', { axis: 'x', tint: '#7d8f98', minimap: 'cover', seg: 20 });
+    // Kessel: Kollision achteckig statt als 3,5-m-Quader (der stand unten bis 1,75 m über die Rundung hinaus)
+    b.cyl(37, 2.5, zc, 1.75, 8.6, 'metal_painted', { axis: 'x', tint: '#7d8f98', collide: false, minimap: false, seg: 20 });
+    zylKoerper(b, 37, 2.5, zc, 1.75, 8.6, 0);
+    b.footprints.push({ x: 37, z: zc, hw: 4.3, hd: 1.75, ry: 0, y0: 0.75, y1: 4.25, kind: 'cover' });
     for (const sx of [-1, 1]) b.cyl(37 + sx * 4.3, 2.5, zc, 1.82, 0.12, 'metal_painted', { axis: 'x', tint: '#3d4247', collide: false, minimap: false, seg: 20 });
     for (const k of [-2, 0, 2]) b.cyl(37 + k, 2.5, zc, 1.79, 0.1, 'metal_painted', { axis: 'x', tint: '#4a5058', collide: false, minimap: false, seg: 20, ao: false });
     b.box(32.6, 1.4, zc, 0.2, 1.4, 1.2, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false });
     b.cyl(32.5, 2.1, zc, 0.12, 0.1, 'lamp_sodium', { axis: 'x', collide: false, minimap: false, ao: false, cast: false });
-    // Dampfleitungen nach oben
-    pipe(b, [[39.5, 4.2, zc], [39.5, 8.3, zc], [39.5, 8.3, s * 10.6], [39.5, 11.5, s * 10.6]], { r: 0.18, tint: '#8a8f94' });
-    b.cyl(37, 0.7, zc, 1.5, 0.2, 'black', { visual: false, minimap: false });
+    // Dampfleitungen nach oben: durch das Dach (Dachkragen) in einen Abblase-Schalldämpfer mit Regenhut – vorher
+    // endeten sie offen 1,5 m über dem Dach; Wandschelle am Galerie-Ende
+    pipe(b, [[39.5, 4.2, zc], [39.5, 8.3, zc], [39.5, 8.3, s * 10.6], [39.5, 11.6, s * 10.6]], { r: 0.18, tint: '#8a8f94' });
+    b.cyl(39.5, B.roofY - 0.02, s * 10.6, 0.32, 0.16, 'metal_painted', { tint: '#4a4f55', collide: false, minimap: false, seg: 10, ao: false });
+    b.cyl(39.5, 11.6, s * 10.6, 0.3, 0.95, 'metal_galvanized', { tint: '#9a9a94', collide: false, minimap: false, seg: 12 });
+    b.cyl(39.5, 12.55, s * 10.6, 0.3, 0.12, 'metal_galvanized', { r1: 0.1, tint: '#9a9a94', collide: false, minimap: false, seg: 12, ao: false });
+    b.cyl(39.5, 12.75, s * 10.6, 0.42, 0.08, 'metal_painted', { r1: 0.1, tint: '#4a4f55', collide: false, minimap: false, seg: 12, ao: false });
+    for (const k of [0, 2.1, 4.2]) b.box(39.5 + Math.cos(k) * 0.2, 12.55, s * 10.6 + Math.sin(k) * 0.2, 0.03, 0.22, 0.03, 'metal_galvanized', { collide: false, minimap: false, grad: false, ao: false });
+    b.box(39.5, 8.1, s * 10.95, 0.08, 0.4, 0.5, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
   }
   // Manometer / Ventilräder am Westgang
   for (const s of [-1, 1]) for (const k of [0, 1]) {
     const zz = s * (2.0 + k * 1.4);
     b.cyl(30.55, 1.6, zz, 0.18, 0.05, 'metal_painted', { axis: 'x', tint: '#c8402f', collide: false, minimap: false, seg: 10, ao: false });
   }
-  b.light('point', 37, 4.2, 0, { color: '#ffb468', intensity: 16, distance: 14 });
-  b.box(37, fh - 0.3, 0, 3, 0.05, 0.3, 'lamp_sodium', { collide: false, minimap: false, ao: false, cast: false });
+  // Licht: Pendelleuchten im Lichthof an der Dachdecke (statt des frei schwebenden Leuchtbalkens), Langfeldleuchten
+  // unter der Galerie und unter dem Dach über den Galeriegängen; ein Echtzeitlicht (wie bisher), Rest gebacken
+  const ceil0 = fh - 0.25, ceil1 = B.roofY - 0.25;
+  b.light('point', 37, 6.4, 0, { color: '#ffb468', intensity: 22, distance: 16 });
+  for (const xx of [34.5, 39.5]) pendel(b, xx, 0, ceil1, 7.2, { kind: 'sodium', r: 0.42, light: xx === 34.5 ? { intensity: 16, distance: 13 } : false });
+  for (const s of [-1, 1]) {
+    for (const xx of [31.4, 42.6]) {
+      leuchtband(b, xx, ceil0, s * 5.5, Math.PI / 2, 1.25, { kind: 'cool', light: { intensity: 5, distance: 7 } });
+      leuchtband(b, xx, ceil1, s * 5.0, Math.PI / 2, 1.25, { kind: 'cool', light: { intensity: 5, distance: 7 } });
+    }
+    // (x 39,5 bleibt frei: dort steigt die Dampfleitung durchs Dach)
+    for (const xx of [33.5, 37.0]) {
+      leuchtband(b, xx, ceil0, s * 10.6, 0, 1.25, { kind: 'cool', light: xx === 33.5 ? { intensity: 5, distance: 7 } : false });
+      leuchtband(b, xx, ceil1, s * 10.6, 0, 1.25, { kind: 'cool', light: xx === 33.5 ? { intensity: 5, distance: 7 } : false });
+    }
+  }
+  boilerFurniture(b, fh);
   b.sign(x0 - 0.03, 8.6, 0, 6.0, 1.2, 'kessel', { ry: -Math.PI / 2, back: false, depth: 0 });
   for (const zz of [-6, 6]) wallLight(b, x0, 3.0, zz + 1.3, -Math.PI / 2);
   for (const s of [-1, 1]) wallLight(b, 38.6, 3.4, s * 12, s > 0 ? 0 : Math.PI);
@@ -702,6 +739,15 @@ function boilerHouse(b) {
   b.noNav(x0 - 0.5, z0 - 0.5, x1 + 0.5, z1 + 0.5, B.roofY - 0.5, 40);
   // Kessel-Oberseiten nicht als Lauffläche
   b.noNav(32.6, -6.5, 41.4, 6.5, 3.0, 4.6);
+}
+
+/** Kesselhaus-Einrichtung: Spinde (Erdgeschoss, Westgang), Regal (Ostgang), Schaltschränke auf der Galerie. */
+function boilerFurniture(b, fh) {
+  for (const s of [-1, 1]) {
+    lockers(b, 30.67, s * 10.6, { n: 3, y: 0.12, ry: Math.PI / 2, tint: '#6f7f8a' });
+    regal(b, 43.32, 0.12, s * 3.8, -Math.PI / 2);
+    for (const xx of [35.7, 36.85]) electricBox(b, xx, fh + 0.02, s * 11.36, { ry: s > 0 ? Math.PI : 0, w: 1.05, h: 1.9, d: 0.45, tint: '#8a9488' });
+  }
 }
 
 /** Rohrbrücke zwischen Halle (Laufsteg) und Kesselhaus-Galerie mit Rohrtrasse entlang der Gasse. */

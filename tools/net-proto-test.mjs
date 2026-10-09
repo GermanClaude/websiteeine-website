@@ -215,6 +215,30 @@ for (let k = 1; k <= 30 * 12; k++) {
   if (!acB3.onState(50, { x: tc * 10.4, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }, arrive, { alive: true }).ok) badB3++;
 }
 check(badB3 === 0 && acB3.score(50, 13) === 0, `Host hängt je 2,95 s (Zustände gebündelt), Sprint 10,4 m/s über 12 s: ${badB3} Verstöße`);
+// Host hängt 9 s (Lasttest: neue Puppen beim Beitritt unter Fremdlast) – Zustände kommen danach auf einmal: mit gemeldeter
+// Host-Lücke (ctx.hostGap) ohne Verstoß; schweigt dagegen der Client selbst 9 s (Lag-Switch, Host läuft), zählen nur 3 s
+const stallRun = (withGap) => {
+  const ac = new AntiCheat();
+  ac.onSpawn(51, [3, 0, 0], 0);
+  let bad = 0;
+  let frameAt = 0;
+  for (let k = 1; k <= 30 * 20; k++) {
+    const tc = k / 30;
+    const a = (tc * 4.2) / 3;
+    // Host-Bilder 0,5 s, ab 5 s ein Bild von 9 s; Zustände werden nach dem Bild zugestellt, in dem sie ankamen
+    const frames = [];
+    for (let t = 0; t < 30; ) { const d = t >= 5 && t < 5.4 ? 9 : 0.5; frames.push([t, t + d]); t += d; }
+    const f = frames.find(([s0, s1]) => tc > s0 && tc <= s1) || [tc, tc];
+    frameAt = f[0];
+    const at = f[1] + k * 1e-5;
+    const r = ac.onState(51, { x: 3 * Math.cos(a), y: 0, z: 3 * Math.sin(a), flags: GROUND }, at, { alive: true, rtt: 0.05, hostGap: withGap ? at - frameAt : 0 });
+    if (!r.ok) bad++;
+  }
+  return bad;
+};
+const stallOk = stallRun(true);
+const stallSilent = stallRun(false);
+check(stallOk === 0 && stallSilent > 0, `Host hängt 9 s: mit Host-Lücke ${stallOk} Verstöße; dieselbe Lücke ohne Host-Lücke (Client schweigt) → ${stallSilent} (höchstens 3 s gutgeschrieben)`);
 // Langsamer Client (ein Zustand alle 2 s): 20 m Sprung bleibt ein Teleport (Schrittgrenze ≤ 1 s × vMax)
 const acSlow = new AntiCheat();
 acSlow.onSpawn(49, [0, 0, 0], 0);
