@@ -92,7 +92,14 @@ const puppetView = (p, id) => ev(p, (cid) => {
   const np = b.netPose;
   const vr = np && np.vr ? { aimYaw: np.vr.aimYaw, aimPitch: np.vr.aimPitch, main: np.vr.main && [...np.vr.main], off: np.vr.off && [...np.vr.off] } : null;
   const head = a.headCenter.toArray();
+  // Laufrichtung der Puppenwaffe (Waffenraum −Z) in der Welt ↔ Schussrichtung der Hand
+  const g = new G.THREE.Vector3(0, 0, -1).applyQuaternion(a.gunQuat);
+  const by = a.bodyYaw;
+  const wd = [g.x * Math.cos(by) + g.z * Math.sin(by), g.y, -g.x * Math.sin(by) + g.z * Math.cos(by)];
+  const ad = vr ? [-Math.sin(vr.aimYaw) * Math.cos(vr.aimPitch), Math.sin(vr.aimPitch), -Math.cos(vr.aimYaw) * Math.cos(vr.aimPitch)] : null;
+  const barrelErr = ad ? Math.acos(Math.max(-1, Math.min(1, wd[0] * ad[0] + wd[1] * ad[1] + wd[2] * ad[2]))) : null;
   return {
+    barrelErr,
     alive: b.alive, yaw: b.yaw, pitch: b.pitch, stance: b.stance, vr, vrW: b._vrW || 0, animEvery: b.animEvery,
     glance: { yaw: a.glance.yaw, pitch: a.glance.pitch, until: a.glance.until }, aimPitch: a.aimPitch, bodyYaw: a.bodyYaw,
     gunRel: a.gunPos.toArray().map((v, i) => v - head[i]), handLToGrip: a.wp[7].distanceTo(a.handLGrip), handLRel: a.wp[7].toArray().map((v, i) => v - head[i]),
@@ -223,6 +230,7 @@ try {
   await until(host, (id) => { const b = window.__game.bots.byNetId(id); return b && b.animEvery === 1; }, CID, 30000);
   const p0 = await until(host, (id) => { const b = window.__game.bots.byNetId(id); return !!(b && b.netPose && b.netPose.vr && b._vrW > 0.9); }, CID, 60000) && await puppetView(host, CID);
   check(!!(p0 && p0.vr && p0.vr.main), `Puppe beim Host hat VR-Pose (Hand ${p0 && p0.vr && p0.vr.main && p0.vr.main.map((v) => v.toFixed(2))}, Gewicht ${p0 && p0.vrW.toFixed(2)})`);
+  check(p0 && p0.barrelErr < 0.26, `Lauf der Puppenwaffe zeigt in die Schussrichtung der Hand (Abweichung ${p0 ? deg(p0.barrelErr) : '?'})`);
   info(`Ausgang: Kopf ${deg(p0.yaw)} / Hand ${deg(p0.vr.aimYaw)}, Blick ${deg(p0.glance.yaw)}, Neigung ${deg(p0.aimPitch)}, Waffe rel. Kopf ${p0.gunRel.map((v) => v.toFixed(2))}`);
   await shot(host, 'vr-mp-puppe-1-gerade');
 
@@ -241,7 +249,7 @@ try {
   // (2) Controller 35° nach oben → Waffe der Puppe hebt sich (aimPitch), Kopf blickt geradeaus (Blick-Gelenke nach unten)
   await setHand(cl, 'right', { pitch: 35 * Math.PI / 180 });
   const p2 = await until(host, (id) => { const b = window.__game.bots.byNetId(id); return b && b.netPose.vr && b.netPose.vr.aimPitch > 0.45 && b.soldier.anim.aimPitch > 0.45; }, CID, 90000) && await puppetView(host, CID);
-  check(!!p2, `Controller 35° hoch: Hand-Neigung ${p2 ? deg(p2.vr.aimPitch) : '?'}, Waffe der Puppe ${p2 ? deg(p2.aimPitch) : '?'}, Blick-Gelenke ${p2 ? deg(p2.glance.pitch) : '?'}`);
+  check(!!p2 && p2.barrelErr < 0.26, `Controller 35° hoch: Hand-Neigung ${p2 ? deg(p2.vr.aimPitch) : '?'}, Waffe der Puppe ${p2 ? deg(p2.aimPitch) : '?'} (Lauf ↔ Hand ${p2 ? deg(p2.barrelErr) : '?'}), Blick-Gelenke ${p2 ? deg(p2.glance.pitch) : '?'}`);
   await setHand(cl, 'right', { pitch: 0 });
 
   // (3) Haupthand 25 cm nach rechts und 20 cm hoch → Waffe der Puppe wandert mit
@@ -257,12 +265,16 @@ try {
   await shot(host, 'vr-mp-puppe-3-hand');
   await setHand(cl, 'right', { pos: base.r });
 
-  // (4) Nebenhand 45 cm nach links → linke Hand der Puppe verlässt den Vordergriff
-  const l0 = await puppetView(host, CID);
+  // (4) Nebenhand am Vorderschaft (30 cm vor der Haupthand) → linke Hand bleibt an der Waffe; 45 cm nach links → sie
+  //     verlässt den Vordergriff (Abstand Handgelenk ↔ Griffpunkt der Animator-Pose)
+  await setHand(cl, 'left', { pos: [base.r[0] - 0.03, base.r[1] + 0.03, base.r[2] - 0.3] });
+  const l0 = await until(host, (id) => { const b = window.__game.bots.byNetId(id); const m = b && b.netPose.vr && b.netPose.vr.off; return m && m[0] > 0.1; }, CID, 90000) && (await sleep(1500), await puppetView(host, CID));
+  check(!!l0 && l0.handLToGrip < 0.12, `Nebenhand am Vorderschaft: linke Hand der Puppe am Vordergriff (${l0 ? l0.handLToGrip.toFixed(2) : '?'} m)`);
+  await shot(host, 'vr-mp-puppe-4-beidhaendig');
   await setHand(cl, 'left', { pos: [base.l[0] - 0.45, base.l[1] + 0.1, base.l[2] + 0.1] });
-  const p4 = await until(host, (id) => { const b = window.__game.bots.byNetId(id); const a = b && b.soldier.anim; return a && a.wp[7].distanceTo(a.handLGrip) > 0.12; }, CID, 90000) && await puppetView(host, CID);
+  const p4 = await until(host, ([id, d0]) => { const b = window.__game.bots.byNetId(id); const a = b && b.soldier.anim; return a && a.wp[7].distanceTo(a.handLGrip) > d0 + 0.12; }, [CID, l0 ? l0.handLToGrip : 0.07], 90000) && await puppetView(host, CID);
   check(!!p4, `Nebenhand weit weg: linke Hand der Puppe ${l0 ? l0.handLToGrip.toFixed(2) : '?'} → ${p4 ? p4.handLToGrip.toFixed(2) : '?'} m vom Vordergriff`);
-  await shot(host, 'vr-mp-puppe-4-nebenhand');
+  await shot(host, 'vr-mp-puppe-5-nebenhand');
   await setHand(cl, 'left', { pos: base.l });
 
   // (5) echtes Ducken (Headset 0,95 m) → Puppe duckt
