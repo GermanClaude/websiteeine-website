@@ -276,3 +276,6 @@ B) SPÄTER nach der verbindlichen Reihenfolge (Schritt 2–4): Battle Royale, Co
 - PANZER NACHTRAG (Nutzer 09.10. ~14:30): beide Teams haben Panzer; stärkere Motoren, die größere Hügel bei guter Fahrweise schaffen; so realistisch wie möglich; MANUELLES NACHLADEN (mehrere Tasten, im Panzer umdrehen zum Munitionsgestell), per Host-Einstellung auf automatisch umstellbar; Panzer etwas detaillierter. (eingearbeitet in Workflow panzer-mp)
 - VERÖFFENTLICHUNG: alles, woran gerade gearbeitet wird, spätestens heute 21 Uhr hochladen.
 - DANACH (Nutzer 09.10. ~14:30, nach dem 21-Uhr-Release): alle Inhalte der Listen ergänzen; mehr Fahrzeuge und Kriegsgerät; jede Klasse bekommt einzigartige Waffen und Fähigkeiten, die nur sie hat; Fähigkeitenbaum (Skill Tree).
+- LIVE-TEST 09.10. ~19 Uhr: nur Host + 1 Spieler konnten beitreten („Host antwortet nicht“) → Ursache Relay-Drosselung/-Sperre (Lebenszeichen alle 2,5 s); Hotfix 1 (19:10) + Hotfix 2 (19:45) live.
+- K-36 KURZER (Nutzer 09.10. ~19:50): Zielfernrohr/Rotpunkt wirkt blockiert („als wäre da eine Klappe drauf“) → beheben (heute).
+- MUNITION PRO ABSCHUSS (Nutzer 09.10. ~19:50): Munition durch Abschüsse (oder von Gegnern aufheben); pro Kill ein Magazin, beim HM-60 Hammer ~20 Schuss; Vorrat füllt sich auf (heute).
