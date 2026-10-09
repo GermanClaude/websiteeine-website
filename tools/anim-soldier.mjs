@@ -7,6 +7,9 @@
 // Aufruf: node tools/anim-soldier.mjs [--anims=reload,reloadEmpty,...] [--weapons=ar_m17,pi_p9,...] [--frames=12]
 //           [--cols=6] [--dt=0.0167] [--size=420] [--variant=sturm] [--cam=close|side|front|left|back|top|<yaw,dist,y,pitch>]
 //           [--dur=Sekunden] [--from=Sekunden] [--bench] [--benchOnly] [--seed=1] [--tag=vorher]
+//           [--v=0..2 Nachlade-Variante] [--fidget=weight|gear|helmet|check|stretch|look] [--throw=over|under|side]
+//           [--melee=stab|slash|butt] [--death=back|crumple|forward|twist|knees] [--impl=vorher (Leistung: alter Stand)]
+//   Animationen u. a.: reload, reloadEmpty, idle, fidget, startStop, turnStep, crouchwalk, crawl, jump, slide, throw, melee, death
 //   --dt     Schrittweite (1/30 oder 1/144 → Bildraten-Unabhängigkeit prüfen)
 //   --tag    Zusatz im Dateinamen (z. B. vorher/nachher)
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
@@ -21,9 +24,9 @@ mkdirSync(OUT, { recursive: true });
 const SIZE = Number(opt.size || 420);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Rechner teilen sich mehrere Prüfläufe: bei hoher Last warten (höchstens 10 min)
-async function waitForLoad() {
-  for (let i = 0; i < 20; i++) {
+// Rechner teilen sich mehrere Prüfläufe: bei hoher Last warten (vor dem Start höchstens 5 min, zwischen den Bögen 1 min)
+async function waitForLoad(rounds = 2) {
+  for (let i = 0; i < rounds; i++) {
     let l1 = 0;
     try { l1 = Number(readFileSync('/proc/loadavg', 'utf8').split(' ')[0]); } catch { return; }
     if (!(l1 > 5)) return;
@@ -34,7 +37,7 @@ async function waitForLoad() {
 
 // Standard-Folgen: [Animation, Kamera, Dauer (s; 'reload' = aus der Waffe), Startzeit]
 const DEFAULT_ANIMS = ['reload', 'reloadEmpty', 'idle', 'throw', 'melee', 'crouchwalk', 'prone'];
-const CAM = { close: [-0.45, 2.3, 1.15, 0.08], upper: [-0.55, 1.45, 1.3, 0.1], upperL: [0.6, 1.45, 1.3, 0.1], front: [0, 2.6, 1.05, 0.06], side: [-Math.PI / 2, 3.0, 0.95, 0.05], left: [Math.PI / 2, 2.6, 1.1, 0.06], back: [Math.PI + 0.5, 2.6, 1.1, 0.12], top: [-0.6, 3.0, 1.0, 0.85], low: [-0.9, 3.2, 0.45, 0.03], wide: [-0.7, 4.6, 0.9, 0.12] };
+const CAM = { well: [0.9, 1.05, 1.18, 0.25, 0.0, -0.3], wellR: [-1.1, 1.1, 1.18, 0.2, 0.05, -0.3], full: [-0.5, 3.4, 0.85, 0.32], close: [-0.45, 2.3, 1.15, 0.08], upper: [-0.55, 1.45, 1.3, 0.1], upperL: [0.6, 1.45, 1.3, 0.1], front: [0, 2.6, 1.05, 0.06], side: [-Math.PI / 2, 3.0, 0.95, 0.05], left: [Math.PI / 2, 2.6, 1.1, 0.06], back: [Math.PI + 0.5, 2.6, 1.1, 0.12], top: [-0.6, 3.0, 1.0, 0.85], low: [-0.9, 3.2, 0.45, 0.03], wide: [-0.7, 4.6, 0.9, 0.12] };
 
 const anims = String(opt.anims || DEFAULT_ANIMS.join(',')).split(',').filter(Boolean);
 const weapons = String(opt.weapons || 'ar_m17').split(',').filter(Boolean);
@@ -42,7 +45,7 @@ const frames = Number(opt.frames || 12);
 const cols = Number(opt.cols || 6);
 const dt = Number(opt.dt || 1 / 60);
 
-await waitForLoad();
+await waitForLoad(10);
 const browser = await chromium.launch({ args: GL_ARGS });
 const ctx = await browser.newContext({ viewport: { width: 640, height: 640 } });
 const page = await ctx.newPage();
@@ -56,30 +59,51 @@ await page.waitForTimeout(800);
 if (opt.seed) await page.evaluate((seed) => { let s = seed >>> 0; Math.random = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }, Number(opt.seed));
 
 if (!opt.benchOnly) for (const wid of weapons) {
-  for (const anim of anims) {
+  for (const spec of anims) {
+    // „anim:variante“ – z. B. reload:1, throw:under, melee:slash, death:crumple, fidget:helmet (sonst Schalter/Zufall)
+    const [anim, vsel] = spec.split(':');
+    const force = { fidget: opt.fidget || null, throw: opt.throw || null, melee: opt.melee || null, death: opt.death || null };
+    let vnum = opt.v != null ? Number(opt.v) : null;
+    if (vsel != null) {
+      if (/^reload/.test(anim)) vnum = Number(vsel);
+      else if (anim in force) force[anim] = vsel;
+    }
     await waitForLoad();
-    const res = await page.evaluate(async ({ variant, wid, anim, frames, cols, dt, SIZE, cam, CAM, dur, from }) => {
+    const res = await page.evaluate(async ({ variant, force, wid, anim, frames, cols, dt, SIZE, cam, CAM, dur, from }) => {
       const B = window.__bots;
       const { WEAPONS } = await import('../assets/js/shared/weapons.data.js');
       const { createWeaponModel } = await import('../assets/js/game/weapons/models.js');
-      const THREE = await import('three');
+      const { BONE } = await import('../assets/js/game/bots/soldier/rig.js');
       const def = WEAPONS[wid] || WEAPONS.ar_m17;
+      // feste Varianten (sonst zufällig): Nachladen, Leerlauf-Geste, Wurf, Nahkampf, Todesart
       const { Handling } = await import('../assets/js/game/bots/soldier/actions.js');
+      const AN = await import('../assets/js/game/bots/soldier/animator.js');
+      const CH = await import('../assets/js/game/bots/character.js');
       Handling.force = variant == null ? null : Number(variant);
+      if (AN.Fidget) AN.Fidget.force = force.fidget || null;
+      if (AN.Gesture) { AN.Gesture.throw = force.throw || null; AN.Gesture.melee = force.melee || null; }
+      if (CH.DeathStyle) CH.DeathStyle.force = force.death || null;
       const gal = B.gal;
       gal.anim = anim;
       gal.t = 0;
-      for (const s of gal.soldiers) { s.setWeaponModel(createWeaponModel(def.model, { lod: 'third' }), def); s.reset(s.home, 0); }
-      // Kamera
-      const c = Array.isArray(cam) ? cam : (CAM[cam] || CAM.close);
+      for (const s of gal.soldiers) { s._gp = null; s.setWeaponModel(createWeaponModel(def.model, { lod: 'third' }), def); s.reset(s.home, 0); }
       const s0 = gal.soldiers[0];
+      if (anim === 'fidget') s0.anim.fid.next = 0.3; // Geste gleich zu Beginn
+      // Kamera (folgt bei Fortbewegung der Wurzel)
+      const c = Array.isArray(cam) ? cam : (CAM[cam] || CAM.close);
       const o = B.orbit;
-      o.target.set(s0.home.x, c[2], 0); o.dist = c[1]; o.yaw = Math.PI + c[0]; o.pitch = c[3];
-      const cp = Math.cos(o.pitch);
       const camera = B.camera;
-      camera.position.set(o.target.x + Math.sin(o.yaw) * cp * o.dist, o.target.y + Math.sin(o.pitch) * o.dist, o.target.z + Math.cos(o.yaw) * cp * o.dist);
-      camera.lookAt(o.target);
-      camera.updateMatrixWorld();
+      const follow = /^(startStop|crawl|jump|slide)$/.test(anim);
+      const place = () => {
+        const rx = follow ? s0.root.position.x : s0.home.x, rz = follow ? s0.root.position.z : 0;
+        // Ziel optional versetzt (Kamera-Array [gier, abstand, höhe, neigung, x, z]) – z. B. Nahaufnahme am Magazinschacht
+        o.target.set(rx + (c[4] || 0), c[2], rz + (c[5] || 0)); o.dist = c[1]; o.yaw = Math.PI + c[0]; o.pitch = c[3];
+        const cp = Math.cos(o.pitch);
+        camera.position.set(o.target.x + Math.sin(o.yaw) * cp * o.dist, o.target.y + Math.sin(o.pitch) * o.dist, o.target.z + Math.cos(o.yaw) * cp * o.dist);
+        camera.lookAt(o.target);
+        camera.updateMatrixWorld();
+      };
+      place();
       // Dauer je Animation
       let D = dur;
       if (!D) {
@@ -90,6 +114,12 @@ if (!opt.benchOnly) for (const wid of weapons) {
         else if (anim === 'throw') D = 1.6;
         else if (anim === 'melee') D = 1.2;
         else if (anim === 'death') D = 4.0;
+        else if (anim === 'fidget') D = 7;
+        else if (anim === 'startStop') D = 3.6;
+        else if (anim === 'turnStep') D = 6.4;
+        else if (anim === 'crawl') D = 3.2;
+        else if (anim === 'jump') D = 2.4;
+        else if (anim === 'slide') D = 2.6;
         else D = 3;
       }
       const t0 = from || 0;
@@ -100,45 +130,59 @@ if (!opt.benchOnly) for (const wid of weapons) {
       const g = sheet.getContext('2d');
       g.fillStyle = '#111'; g.fillRect(0, 0, sheet.width, sheet.height);
       g.font = '15px monospace'; g.fillStyle = '#ddd';
-      g.fillText(`${anim} · ${def.name} (${def.cls}) · dt ${dt.toFixed(4)} · ${D.toFixed(2)} s`, 8, 19);
+      const vtxt = [variant != null ? 'v' + variant : '', ...Object.entries(force).filter(([, v]) => v).map(([k, v]) => k + '=' + v)].filter(Boolean).join(' ');
+      g.fillText(`${anim} · ${def.name} (${def.cls}) · dt ${dt.toFixed(4)} · ${D.toFixed(2)} s ${vtxt}`, 8, 19);
       const canvas = B.renderer.domElement;
       let t = 0;
-      const step = (to) => { while (t + 1e-9 < to) { const h = Math.min(dt, to - t); B.step(h); t += h; } };
+      // Prüfwerte: Gleiten der Füße bei Bodenkontakt (cm, Welt), Hand ↔ Ziel beim Halten
+      const fp = [new (s0.root.position.constructor)(), new (s0.root.position.constructor)()];
+      const prev = [null, null];
+      let slide = 0, maxGapHold = 0;
+      const meas = () => {
+        for (let f = 0; f < 2; f++) {
+          s0.joint(f === 0 ? BONE.footL : BONE.footR, fp[f]);
+          const contact = fp[f].y - s0.root.position.y < 0.085 + 0.012 && s0.state === 'alive';
+          if (contact && prev[f]) slide += Math.hypot(fp[f].x - prev[f].x, fp[f].z - prev[f].z);
+          prev[f] = contact ? (prev[f] || fp[f].clone()).copy(fp[f]) : null;
+        }
+        const a = s0.anim;
+        if (a.hd && a.hd.lhold > 0.9) maxGapHold = Math.max(maxGapHold, a.lGap || 0);
+      };
+      const step = (to) => { while (t + 1e-9 < to) { const h = Math.min(dt, to - t); B.step(h); t += h; meas(); } };
       const notes = [];
       for (let k = 0; k < frames; k++) {
         const at = t0 + (frames === 1 ? 0 : (D * k) / (frames - 1));
         step(at);
+        if (follow) place();
         B.renderer.render(gal.scene, camera);
         const x = (k % cols) * fw, y = Math.floor(k / cols) * fh + 28;
-        // quadratischer Ausschnitt
         const side = Math.min(canvas.width, canvas.height);
         g.drawImage(canvas, (canvas.width - side) / 2, (canvas.height - side) / 2, side, side, x, y, fw, fh);
         g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(x, y, 150, 20);
         g.fillStyle = '#fff'; g.fillText(`t=${at.toFixed(2)}`, x + 4, y + 15);
         const a = s0.anim;
-        // Prüfwerte je Bild: tiefster Punkt aller Gelenke (Boden durchdrungen?), Abstand Hand ↔ Griff
         let minY = Infinity;
         for (let i = 0; i < a.wp.length; i++) minY = Math.min(minY, a.wp[i].y);
         notes.push({ t: +at.toFixed(2), minY: +minY.toFixed(3), state: s0.state, gap: +(a.lGap || 0).toFixed(3), hold: +((a.hd && a.hd.lhold) || 0).toFixed(2) });
       }
-      void THREE;
-      return { url: sheet.toDataURL('image/png'), notes };
-    }, { variant: opt.variant != null && /^\d+$/.test(String(opt.variant)) ? Number(opt.variant) : (opt.v != null ? Number(opt.v) : null), wid, anim, frames, cols, dt, SIZE, cam: opt.cam ? (String(opt.cam).includes(',') ? String(opt.cam).split(',').map(Number) : String(opt.cam)) : (/^(crouchwalk|walk|run|sprint|air|prone|proneIdle|crawl|jump|vault|start|stop)$/.test(anim) ? 'side' : anim === 'death' ? 'wide' : /^(reload|reloadEmpty|throw|melee)/.test(anim) ? 'upper' : 'close'), CAM, dur: opt.dur ? Number(opt.dur) : 0, from: opt.from ? Number(opt.from) : 0 });
-    const file = `${OUT}/anim-${anim}-${wid}${opt.v != null ? '-v' + opt.v : ''}${opt.tag ? '-' + opt.tag : ''}.png`;
+      return { url: sheet.toDataURL('image/png'), notes, slide: +(slide * 100).toFixed(1), maxGapHold: +maxGapHold.toFixed(3) };
+    }, { variant: vnum, force, wid, anim, frames, cols, dt, SIZE, cam: opt.cam ? (String(opt.cam).includes(',') ? String(opt.cam).split(',').map(Number) : String(opt.cam)) : (/^(crouchwalk|walk|run|sprint|air|prone|proneIdle|crawl|jump|vault|start|stop|startStop|slide)$/.test(anim) ? 'side' : anim === 'death' ? 'wide' : anim === 'turnStep' ? 'full' : /^(reload|reloadEmpty|throw|melee)/.test(anim) ? 'upper' : 'close'), CAM, dur: opt.dur ? Number(opt.dur) : 0, from: opt.from ? Number(opt.from) : 0 });
+    const extra = [vnum != null ? 'v' + vnum : '', force[anim] || '', opt.tag].filter(Boolean).join('-');
+    const file = `${OUT}/anim-${anim}-${wid}${extra ? '-' + extra : ''}.png`;
     writeFileSync(file, Buffer.from(res.url.split(',')[1], 'base64'));
     const low = Math.min(...res.notes.map((n) => n.minY));
-    const gapHold = Math.max(0, ...res.notes.filter((n) => n.hold > 0.9).map((n) => n.gap));
-    const gapAll = Math.max(0, ...res.notes.map((n) => n.gap));
-    console.log(`Bild: ${file}  (tiefstes Gelenk ${low.toFixed(3)} m, Hand↔Ziel max ${gapAll.toFixed(3)} m, beim Halten ${gapHold.toFixed(3)} m)`);
+    console.log(`Bild: ${file}  (tiefstes Gelenk ${low.toFixed(3)} m, Hand↔Magazin beim Halten max ${(res.maxGapHold * 100).toFixed(1)} cm, Füße gleiten ${res.slide} cm)`);
   }
 }
 
 if (opt.bench || opt.benchOnly) {
   await waitForLoad();
-  const r = await page.evaluate(async () => {
-    const { createSoldier } = await import('../assets/js/game/bots/character.js');
-    const { WEAPONS } = await import('../assets/js/shared/weapons.data.js');
-    const { createWeaponModel } = await import('../assets/js/game/weapons/models.js');
+  const r = await page.evaluate(async (impl) => {
+    // --impl=vorher: Kopie des alten Stands (git archive HEAD → tools/out/bench-vorher/) für Vorher/Nachher-Messung
+    const base = impl === 'vorher' ? '../tools/out/bench-vorher/assets/js' : '../assets/js';
+    const { createSoldier } = await import(`${base}/game/bots/character.js`);
+    const { WEAPONS } = await import(`${base}/shared/weapons.data.js`);
+    const { createWeaponModel } = await import(`${base}/game/weapons/models.js`);
     const THREE = await import('three');
     const ids = ['ar_m17', 'pi_p9', 'sg_bulldog', 'lmg_hm60', 'smg_vp9'];
     const list = [];
@@ -168,8 +212,8 @@ if (opt.bench || opt.benchOnly) {
     runs.sort((a, b) => a - b);
     for (const s of list) s.dispose();
     return { min: runs[0], median: runs[3], runs };
-  });
-  console.log(`Leistung: 20 Soldaten animieren = ${r.min.toFixed(3)} ms/Bild (min), ${r.median.toFixed(3)} ms (Median) – ${r.runs.map((x) => x.toFixed(3)).join(' ')}`);
+  }, opt.impl || null);
+  console.log(`Leistung${opt.impl ? ' (' + opt.impl + ')' : ''}: 20 Soldaten animieren = ${r.min.toFixed(3)} ms/Bild (min), ${r.median.toFixed(3)} ms (Median) – ${r.runs.map((x) => x.toFixed(3)).join(' ')}`);
 }
 
 await browser.close();

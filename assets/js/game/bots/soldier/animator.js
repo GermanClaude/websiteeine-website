@@ -27,10 +27,18 @@ const _v = V(), _v2 = V(), _v3 = V(), _v4 = V(), _a = V(), _b = V(), _c = V(), _
 const _ax = V();
 const PRONE_ANKLE_Y = 0.1; // m über der Standfläche (Liegen)
 const PRONE_CHAINS = [[BONE.thighL, BONE.shinL, BONE.footL], [BONE.thighR, BONE.shinR, BONE.footR]];
+// lokale Drehungen der Liege-Beinhaltung je Bein [Oberschenkel, Unterschenkel] (für _proneAnkle)
+const PRONE_Q = [[0, 1], [3, 4]].map(([a, b]) => [a, b].map((k) => new THREE.Quaternion().setFromEuler(new THREE.Euler(PRONE_LEGS[k][1], PRONE_LEGS[k][2], PRONE_LEGS[k][3], 'YXZ'))));
+const _qa = new THREE.Quaternion(), _ka = new THREE.Vector3(), _kb = new THREE.Vector3();
 // feste Zwischenspeicher (keine Allokationen pro Bild)
 const S_R = V(), S_BP = V(), S_G = V(), S_L = V(), S_T = V(), S_M = V();
 // (Griff-/Schacht-Zwischenspeicher des früheren Nachladens: jetzt in actions.js)
 const S_LQ = Qn();
+const S_SH = V(), S_GZ = V(), S_D = V();
+// Reichweite Schulter → Handfläche (Ober- + Unterarm + Handballen), leicht gebeugter Ellbogen
+const LEFT_REACH = 0.555;
+// Rumpf leicht seitlich eingedreht (linke Schulter vor) bei Langwaffen – wie echte Schützen, die Hand erreicht den Vorderschaft
+const BLADE = 0.24;
 // Wurfbahnen der rechten Hand (Anschlagrahmen, relativ zur Schulter): Ausholen, Abwurf (0,66 s), Nachschwung
 const THROW_OVER = [[0.1, 0.25, 0.18], [0.02, 0.12, -0.52], [-0.1, -0.25, -0.38]];
 const THROW_UNDER = [[0.12, -0.5, 0.2], [0.02, -0.12, -0.5], [-0.04, 0.1, -0.42]];
@@ -93,6 +101,13 @@ export class Animator {
     this.headCenter = V();
     this.handRGrip = V(); // Griffpunkt der rechten Hand (Modellraum)
     this.handLGrip = V();
+    // alle Felder vorab anlegen (feste Objektgestalt → schnelle Zugriffe in den heißen Schleifen)
+    this.lGap = 0; this.plantShift = 0; this._blade = 0; this._prLie = 0; this._replant = false;
+    this.throwVar = 'over'; this.meleeVar = 'stab'; this.longK = 0; this.bladeK = BLADE;
+    this.reloadP = 0; this.reloadEmpty = false; this.perShell = false; this.aimPitch = 0; this.aimRel = 0; this.turning = false;
+    this.grenadeVisible = false; this.knifeVisible = false;
+    this._feet = [V(), V()]; this._fp = [0, 0]; this._fy = [0, 0]; this._nx = [0, 0]; this._nz = [0, 0];
+    this._fl = { y: 0, p: 0, r: 0, sy: 0, cp: 0 };
     this.hd = new Handling(this); // Waffenhandhabung: Nachladen je Waffenart, bewegliche Teile (actions.js)
     this.reset();
   }
@@ -108,6 +123,7 @@ export class Animator {
     this.localVel = new THREE.Vector3();
     this.crouch = 0;
     this.prone = 0; // bots-scale: Liegen 0..1 (Becken flach, Rumpf auf den Ellbogen, Beine gestreckt nach hinten)
+    this.proneLin = 0;
     this.obstruct = 0; // bots-scale: Waffe an der Wand 0..1 (zurückgezogen + hoch)
     this.sprint = 0;
     this.ads = 0;
@@ -173,6 +189,8 @@ export class Animator {
   /** Waffe setzen: Anker im Waffenraum vermessen. */
   setWeapon(gun, def) {
     this.hd.restore(); // vorherige Waffe: Teile in Ruhelage, bevor neu vermessen wird
+    this.longK = 0;
+    this.bladeK = BLADE;
     this.gun = gun || null;
     this.def = def || null;
     const cls = def ? def.cls : 'ar';
@@ -203,6 +221,15 @@ export class Animator {
       // Magazin (für Aufrufer, z. B. Leichen): nur echte Magazine – die Schrotpatrone ('shell') bleibt versteckt
       this.magazine = ud.magazine && ud.magazine !== gun && ud.magazine.name === 'mag' ? ud.magazine : null;
       this.hd.setWeapon(gun, def, A); // Teile vermessen (Waffe steht in Grundstellung)
+      // Vordergriff darf bis kurz vor den Magazinschacht (bzw. bei Bullpup/ohne Schacht bis vor den Abzugsbügel) wandern
+      const mg = this.hd.rig && this.hd.rig.mag;
+      const stop = mg && mg.p0.z < -0.03 && !mg.top ? mg.p0.z - 0.035 : -0.1;
+      // Pumpflinte: Hand bleibt am Vorderschaft (bewegt sich beim Repetieren mit)
+      A.slideMax = this.hd.rig && this.hd.rig.pump ? 0.08 : Math.max(0, stop - A.left.z);
+      // lange Waffen: stärker eingedreht (Länge Schaft bis Mündung), in Hüfthaltung etwas näher am Körper
+      const len = (info.max ? info.max[2] : 0.3) - (info.min ? info.min[2] : -0.5);
+      this.longK = clamp((len - 0.75) / 0.6, 0, 1);
+      this.bladeK = BLADE + 0.26 * this.longK;
       gun.position.copy(prevPos); gun.quaternion.copy(prevQuat); gun.scale.copy(prevScale);
       if (prevParent) prevParent.add(gun);
     } else { this.magazine = null; this.hd.setWeapon(null, null, A); }
@@ -221,6 +248,10 @@ export class Animator {
       this.poses.ads.p.y = 0.15 - clamp(A.sight.y, 0.03, 0.12);
       this.poses.ads.p.x = 0.05;
       if (this.cls === 'lmg') { this.poses.ready.p.y -= 0.03; this.poses.ready.p.x += 0.01; }
+      // Hüfthaltung langer Waffen: Schaft unter die Achsel, Waffe näher (Vorderhand erreicht den Vorderschaft)
+      this.poses.ready.p.z += 0.09 * (this.longK || 0);
+      this.poses.ready.p.x -= 0.02 * (this.longK || 0);
+      this.poses.ads.p.z += 0.05 * (this.longK || 0);
     } else if (this.kind === 'pistol') {
       this.poses.ads.p.y = 0.15 - clamp(A.sight.y, 0.02, 0.06);
     }
@@ -323,7 +354,9 @@ export class Animator {
     this.speed += (sp - this.speed) * damp(12, dt);
     this.localVel.lerp(p.velocity, damp(10, dt));
     this.crouch += ((p.crouch ? 1 : 0) - this.crouch) * damp(9, dt);
-    this.prone += ((p.prone ? 1 : 0) - this.prone) * damp(4.2, dt);
+    // Hinlegen/Aufstehen: gleichmäßiger Ablauf (0,75 s hin, 0,6 s auf) mit weichem Anfang/Ende – erst auf die Knie, dann flach
+    this.proneLin = clamp((this.proneLin || 0) + (p.prone ? dt / 0.75 : -dt / 0.6), 0, 1);
+    this.prone = smooth(this.proneLin);
     if (this.prone < 1e-3) this.prone = 0;
     this.obstruct += ((p.obstruct || 0) - this.obstruct) * damp((p.obstruct || 0) > this.obstruct ? 22 : 8, dt); // schnell hoch, langsam zurück
     this.sprint += ((p.sprint ? 1 : 0) - this.sprint) * damp(7, dt);
@@ -550,14 +583,19 @@ export class Animator {
     wq[0].setFromEuler(_e);
     const pr = this.prone;
     if (pr > 0) {
-      // Liegen: Becken flach (Wirbelsäule zeigt nach vorn, Beine nach hinten), knapp über dem Boden, Körper hinter den Füßen
+      // Liegen: Becken flach (Wirbelsäule zeigt nach vorn, Beine nach hinten), knapp über dem Boden, Körper hinter den Füßen.
+      // Übergang über die Knie: erst sinkt das Becken (kniend, leicht vorgebeugt), dann legt sich der Körper nach vorn ab.
       // Kriechen: Becken pendelt seitlich und dreht im Wechsel mit dem ziehenden Knie
       const cw = this.crawlW * pr, cph = this.crawlPh * Math.PI * 2;
-      this.hipsPos.set(this.hipsPos.x * (1 - pr) + Math.sin(cph) * 0.035 * cw, lerp(this.hipsPos.y, 0.2, pr), lerp(this.hipsPos.z, 0.66, pr));
+      const k1 = smooth(pr / 0.45), k2 = (this._prLie = smooth((pr - 0.3) / 0.7));
+      const y = lerp(lerp(this.hipsPos.y, 0.52, k1), 0.2, k2), z = lerp(lerp(this.hipsPos.z, 0.1, k1), 0.66, k2);
+      this.hipsPos.set(this.hipsPos.x * (1 - pr) + Math.sin(cph) * 0.035 * cw, y, z);
       _e.set(-1.47, this.hipYaw * 0.3 + Math.sin(cph) * 0.13 * cw, sway * 0.5 + Math.sin(cph) * 0.05 * cw, 'YXZ');
       _q.setFromEuler(_e);
-      wq[0].slerp(_q, pr);
-    }
+      _e.set(-0.3, this.hipYaw * 0.3, 0, 'YXZ'); // kniend: Becken nach vorn gekippt
+      _q2.setFromEuler(_e);
+      wq[0].slerp(_q2, k1 * (1 - k2)).slerp(_q, k2);
+    } else this._prLie = 0;
     lq[0].copy(wq[0]);
     wp[0].copy(this.hipsPos);
 
@@ -592,10 +630,12 @@ export class Animator {
       else fl.cp += 0.14 * win(m, 0.06, 0.16, 0.3, 0.6);
     }
     const lkY = gl.yaw + this.hd.lookY + fl.y, lkP = gl.pitch + this.hd.lookP + fl.p;
-    this._rotFk(1, yawRest * 0.35 + tw * 0.5 + fl.sy, pr * 0.16 + pitch * 0.18 - lean * 0.5 - pelvisPitch * 0.4 + fP * 0.5 + cower * 0.12, -sway * 1.2 + fR * 0.5 + leanRoll * 0.4 - wShift * 0.05);
-    this._rotFk(2, yawRest * 0.4 + tw * 0.35 + fl.sy, pr * 0.36 + pitch * 0.32 - lean * 0.45 - pelvisPitch * 0.6 + breatheP + fP * 0.5 + this.recoilP.x * 0.04 + cower * 0.1 + this.hd.lookP * 0.15 + fl.cp, fR * 0.4 + leanRoll * 0.4 - wShift * 0.04);
-    this._rotFk(3, yawRest * 0.12 + lkY * 0.4 - tw * 0.3 + cwY * 0.4, pr * 0.42 + pitch * 0.2 + lean * 0.4 - ads * 0.22 + lkP * 0.4 + cwP * 0.4, -ads * 0.06 + leanRoll * 0.08 + fl.r * 0.4);
-    this._rotFk(4, yawRest * 0.13 + lkY * 0.6 - tw * 0.2 + cwY * 0.6, pr * 0.4 + pitch * 0.3 + lean * 0.55 + ads * 0.12 + this.flinchH.x * 0.3 + lkP * 0.6 + cwP * 0.6, -ads * 0.2 - fR * 0.2 - leanRoll * 0.1 + fl.r * 0.6);
+    // Langwaffe: Rumpf eingedreht (linke Schulter vor), Hals/Kopf gleichen aus – Blick bleibt auf dem Ziel
+    const blade = (this._blade = this.kind === 'rifle' ? (this.bladeK || BLADE) * (1 - sprint) * (1 - pr) * (1 - this.slide) * (1 - 0.45 * ads) : 0);
+    this._rotFk(1, yawRest * 0.35 + tw * 0.5 + fl.sy - blade * 0.45, pr * 0.16 + pitch * 0.18 - lean * 0.5 - pelvisPitch * 0.4 + fP * 0.5 + cower * 0.12, -sway * 1.2 + fR * 0.5 + leanRoll * 0.4 - wShift * 0.05);
+    this._rotFk(2, yawRest * 0.4 + tw * 0.35 + fl.sy - blade * 0.55, pr * 0.36 + pitch * 0.32 - lean * 0.45 - pelvisPitch * 0.6 + breatheP + fP * 0.5 + this.recoilP.x * 0.04 + cower * 0.1 + this.hd.lookP * 0.15 + fl.cp, fR * 0.4 + leanRoll * 0.4 - wShift * 0.04);
+    this._rotFk(3, yawRest * 0.12 + lkY * 0.4 - tw * 0.3 + cwY * 0.4 + blade * 0.55, pr * 0.42 + pitch * 0.2 + lean * 0.4 - ads * 0.22 + lkP * 0.4 + cwP * 0.4, -ads * 0.06 + leanRoll * 0.08 + fl.r * 0.4);
+    this._rotFk(4, yawRest * 0.13 + lkY * 0.6 - tw * 0.2 + cwY * 0.6 + blade * 0.45, pr * 0.4 + pitch * 0.3 + lean * 0.55 + ads * 0.12 + this.flinchH.x * 0.3 + lkP * 0.6 + cwP * 0.6, -ads * 0.2 - fR * 0.2 - leanRoll * 0.1 + fl.r * 0.6);
 
     /* ---------- Anschlagrahmen + Waffe */
     const chest = BONE.chest;
@@ -610,11 +650,20 @@ export class Animator {
 
     /* ---------- Beine */
     this._legs(p);
-    if (pr > 0) this._proneLegs(pr);
+    if (pr > 0) this._proneLegs(this._prLie || 0);
 
     /* ---------- Kopfmitte (Trefferzone) */
     qrot(this.headCenter.fromArray(DIM.headCenter), wq[BONE.head]).add(wp[BONE.head]);
     void init;
+  }
+
+  /** Knöchel der Liege-Beinhaltung (Modellraum) für Bein f, aus Becken + PRONE_LEGS (ohne die Knochen zu verändern). */
+  _proneAnkle(f, out) {
+    const [th, sh] = PRONE_CHAINS[f];
+    const qt = _qa.multiplyQuaternions(this.wq[0], PRONE_Q[f][0]);
+    const knee = qrot(_ka.copy(this.off[th]), this.wq[0]).add(this.wp[0]).add(qrot(_kb.copy(this.off[sh]), qt));
+    const qs = qt.multiply(PRONE_Q[f][1]);
+    return out.copy(knee).add(qrot(_kb.copy(this.off[sh + 1]), qs));
   }
 
   /** Liegen: Beine gestreckt und leicht gespreizt, Fußspitzen im Boden (Überblendung über die Lauf-IK). */
@@ -645,20 +694,22 @@ export class Animator {
     }
     // Knöchel nicht unter den Boden (Modellraum y = 0 = Standfläche): Oberschenkel so weit anheben, dass das
     // Fußgelenk ≥ PRONE_ANKLE_Y liegt – nur die Fußspitzen berühren den Boden
+    // (auch im Übergang: Mindesthöhe vom Stand-Knöchel 0,08 m zur Liegehöhe, Korrektur immer voll)
+    const ankleMin = lerp(DIM.ankle, PRONE_ANKLE_Y, pr);
     for (const [th, sh, ft] of PRONE_CHAINS) {
       const y0 = this.wp[ft].y;
-      const need = PRONE_ANKLE_Y - y0;
+      const need = ankleMin - y0;
       if (need <= 0.005) continue;
-      const len = Math.max(0.3, this.wp[ft].distanceTo(this.wp[th]));
-      const ang = Math.min(0.6, need / len) * pr;
-      _q.setFromAxisAngle(_ax.set(1, 0, 0), ang);
-      this.lq[th].multiply(_q);
-      this._fk(th); this._fk(sh); this._fk(ft);
-      if (this.wp[ft].y < y0) {
-        _q.setFromAxisAngle(_ax, -2 * ang);
-        this.lq[th].multiply(_q);
-        this._fk(th); this._fk(sh); this._fk(ft);
-      }
+      // Bein um die Hüfte zur Senkrechten hin drehen (Achse = Bein × oben): hebt den Knöchel auf kürzestem Weg an
+      const leg = _v.subVectors(this.wp[ft], this.wp[th]);
+      const len = Math.max(0.3, leg.length());
+      _ax.crossVectors(leg, UP);
+      if (_ax.lengthSq() < 1e-8) continue;
+      _ax.normalize();
+      const ang = Math.min(0.9, Math.asin(clamp((need + 0.01) / len, 0, 1)));
+      _q.setFromAxisAngle(_ax, ang).multiply(this.wq[th]);
+      this._setWorld(th, _q);
+      this._fk(sh); this._fk(ft);
     }
   }
 
@@ -696,6 +747,9 @@ export class Animator {
       pos.lerp(pose.p, w);
       rx += (pose.r[0] - rx) * w; ry += (pose.r[1] - ry) * w; rz += (pose.r[2] - rz) * w;
     };
+    // Eingedrehter Rumpf: Schaft bleibt an der (zurückgenommenen) rechten Schulter, die Laufrichtung bleibt das Ziel
+    const bl = this._blade || 0;
+    if (bl > 0) { pos.z += Math.sin(bl) * DIM.shoulderX; pos.x -= (1 - Math.cos(bl)) * DIM.shoulderX; }
     // Laufen: leichtes Wippen der Waffe
     const ph = this.phase * Math.PI * 2;
     const mv = clamp(this.speed / 5, 0, 1) * (1 - ads * 0.8);
@@ -704,7 +758,8 @@ export class Animator {
     // Leerlauf-Atmen
     pos.y += Math.sin(this.time * 1.7) * 0.003;
     blend(P.sprint, sprint * (1 - this.reloadW));
-    blend(P.reload, this.reloadW * (this.perShell ? 0.6 : 1));
+    // Nachlade-Grundhaltung (Patrone für Patrone: nur solange geladen wird – zum Repetieren zurück an die Pumpe)
+    blend(P.reload, this.reloadW * (this.perShell ? 0.6 * (this.hd.pres ?? 1) : 1));
     blend(P.lowered, this.lowered);
     // Nachladen: Haltung je Waffenart und Phase (actions.js: Schacht zur Hand, Einsetz-Stoß, Ladehebel, Trommel …)
     if (this.reloadW > 1e-3) {
@@ -863,7 +918,7 @@ export class Animator {
       lTarget.set(-0.2, -0.12, -0.28).applyQuaternion(this.aimQuat).add(this.aimPivot);
       lFree = 1;
     } else {
-      this._gunToModel(A.left, lTarget);
+      this._leftGrip(lTarget);
       this._handOnGrip(lQuat, 'L');
     }
     // Pistole im Sprint: linker Arm schwingt frei
@@ -941,6 +996,26 @@ export class Animator {
     this.lGap = this.handLGrip.distanceTo(lTarget); // Prüfwert: Hand erreicht ihr Ziel (Magazin/Hebel)?
     // Teile der Waffe in ihre aktuelle Lage (Magazin in der Hand, Schlitten, Ladehebel, Deckel, Trommel, Stängel, Pumpe)
     hd.parts(this.reloadW);
+  }
+
+  /**
+   * Vordergriff der linken Hand (Modellraum). Liegt er außerhalb der Armreichweite (lange Waffen in Hüfthaltung), greift
+   * die Hand weiter hinten am Vorderschaft – entlang der Laufachse bis höchstens kurz vor den Magazinschacht. So liegt die
+   * Hand immer an der Waffe statt davor in der Luft zu hängen.
+   */
+  _leftGrip(out) {
+    const A = this.anchors;
+    this._gunToModel(A.left, out);
+    if (!(A.slideMax > 0)) return out;
+    const S = qrot(S_SH.copy(this.off[BONE.upperArmL]), this.wq[BONE.chest]).add(this.wp[BONE.chest]);
+    const D = S_D.subVectors(out, S);
+    const d2 = D.lengthSq();
+    const R = LEFT_REACH;
+    if (d2 <= R * R) return out;
+    const gz = qrot(S_GZ.set(0, 0, 1), this.gunQuat);
+    const b = D.dot(gz), disc = b * b - (d2 - R * R);
+    const t = clamp(disc >= 0 ? -b - Math.sqrt(disc) : -b, 0, A.slideMax);
+    return out.addScaledVector(gz, t);
   }
 
   /** Pol im Anschlagrahmen → Modellraum. */
@@ -1078,6 +1153,17 @@ export class Animator {
       feet[0].lerp(_v.set(-0.1, 0.05, -0.72), this.slide);
       feet[1].lerp(_v.set(0.15, 0.0, -0.06), this.slide);
     }
+    // Liegen/Übergang: Fußziele zur Liege-Beinhaltung (aus der Vorwärtskinematik relativ zum Becken), nie unter den Boden –
+    // beim Hinlegen knickt so das Knie ein (kniend), statt dass die Beine durch den Boden schwingen
+    const prn = this.prone;
+    if (prn > 0) {
+      for (let f = 0; f < 2; f++) {
+        const ank = this._proneAnkle(f, _v);
+        ank.y -= DIM.ankle;
+        feet[f].lerp(ank, prn);
+        if (feet[f].y < 0) feet[f].y = 0;
+      }
+    }
     // Bodenanpassung (Treppen) aus Soldier
     const gOff = this.groundOff;
     if (gOff) { feet[0].y += gOff[0]; feet[1].y += gOff[1]; }
@@ -1093,8 +1179,10 @@ export class Animator {
       const H = qrot(_a.copy(this.off[th]), wq[0]).add(wp[0]);
       const foot = feet[f];
       const ankle = _b.set(foot.x, foot.y + DIM.ankle, foot.z + 0.0);
-      // Knie zeigt nach vorn (zwischen Hüft- und Fußrichtung) und leicht nach außen
-      _pole.set(side * 0.18, 0.1, -1).applyAxisAngle(UP, this.hipYaw + wrap(fy[f] + side * 0.08 - this.hipYaw) * 0.6).normalize();
+      // Knie zeigt nach vorn (zwischen Hüft- und Fußrichtung) und leicht nach außen; liegend/kniend nach unten
+      _pole.set(side * 0.18, 0.1, -1).applyAxisAngle(UP, this.hipYaw + wrap(fy[f] + side * 0.08 - this.hipYaw) * 0.6);
+      if (prn > 0) _pole.lerp(_v2.set(side * 0.2, -1, -0.3), prn);
+      _pole.normalize();
       const K = _c, T = _v4;
       twoBone(H, ankle, DIM.thigh, DIM.shin, _pole, K, T);
       _v.subVectors(H, K);
@@ -1144,9 +1232,10 @@ export class Animator {
       }
     }
     const crouch = this.crouch;
-    // Grundstellung (Modellraum) wie der Schrittzyklus ohne Bewegung
-    const nx = (f) => (f === 0 ? -1 : 1) * (0.1 + crouch * 0.05);
-    const nz = (f) => -crouch * 0.02 * (f === 0 ? -1 : 1) + (crouch > 0.01 ? crouch * (f === 0 ? -0.1 : 0.12) : 0);
+    // Grundstellung (Modellraum) wie der Schrittzyklus ohne Bewegung (links/rechts)
+    const NX = this._nx || (this._nx = [0, 0]), NZ = this._nz || (this._nz = [0, 0]);
+    NX[0] = -(0.1 + crouch * 0.05); NX[1] = -NX[0];
+    NZ[0] = crouch * 0.02 - crouch * 0.1; NZ[1] = -crouch * 0.02 + crouch * 0.12;
     // Abweichung je Fuß → ggf. Schritt starten
     let worst = -1, worstScore = 0, busy = -1;
     for (let f = 0; f < 2; f++) {
@@ -1154,7 +1243,7 @@ export class Animator {
       if (F.t >= 0) { busy = f; continue; }
       const dx = F.x - rx, dz = F.z - rz;
       const mx = dx * c - dz * sn, mz = dx * sn + dz * c;
-      const dev = Math.hypot(mx - nx(f), mz - nz(f));
+      const dev = Math.hypot(mx - NX[f], mz - NZ[f]);
       if (dev > 0.9 && !this._replant) {
         // Sprung der Wurzel (Teleport, Respawn): aktuelle Lage neu übernehmen
         this._replant = true; P.on = false;
@@ -1183,7 +1272,7 @@ export class Animator {
         F.t += dt;
         const k = Math.min(1, F.t / F.dur), e = smooth(k);
         // Ziel: Grundstellung in der Welt (folgt dem Körper weiter, falls er sich noch dreht)
-        const tx = nx(f) * c + nz(f) * sn + rx, tz = -nx(f) * sn + nz(f) * c + rz;
+        const tx = NX[f] * c + NZ[f] * sn + rx, tz = -NX[f] * sn + NZ[f] * c + rz;
         const tyaw = by + (f === 0 ? 0.08 : -0.08);
         F.x = F.sx + (tx - F.sx) * e;
         F.z = F.sz + (tz - F.sz) * e;
@@ -1197,7 +1286,7 @@ export class Animator {
       const y = (gOff ? gOff[f] : 0) + lift;
       m.set(m.x + (mx - m.x) * w, m.y + (y - m.y) * w, m.z + (mz - m.z) * w);
       fy[f] += wrap(F.yaw - by - fy[f]) * w;
-      shift += (mx - nx(f)) * 0.5;
+      shift += (mx - NX[f]) * 0.5;
     }
     // Becken folgt den Füßen ein Stück (Gewicht zwischen den Füßen)
     this.plantShift = clamp(shift * 0.35 * w, -0.05, 0.05);

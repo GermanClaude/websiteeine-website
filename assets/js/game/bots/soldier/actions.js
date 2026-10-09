@@ -32,7 +32,7 @@ const _corner = V();
 const M_CUR = { pos: V(), q: Q(), vis: true };
 const M_REF = { pos: V(), q: Q(), vis: true };
 const M_REF2 = { pos: V(), q: Q(), vis: true };
-const S_FG = V(), S_P1 = V(), S_P2 = V(), S_P3 = V(), S_CH = V();
+const S_FG = V(), S_P1 = V(), S_P2 = V(), S_P3 = V(), S_CH = V(), S_OFF = V();
 const Z_AX = V().set(0, 0, 1);
 const X_AX = V().set(1, 0, 0);
 // Linke Hand am Magazin (Magazinraum): Handfläche zeigt nach +X (liegt links am Magazin), Handgelenk unten hinten
@@ -47,8 +47,8 @@ const bump = (r, t, a, b) => ramp(r, t - a, t) * (1 - ramp(r, t, t + b));
 const POUCH = {
   chestL: { bone: BONE.chest, p: [-0.088, 0.0, -0.195] },
   chestC: { bone: BONE.chest, p: [0.0, 0.0, -0.195] },
-  hipL: { bone: BONE.hips, p: [-0.172, 0.06, 0.03] },
-  hipBox: { bone: BONE.hips, p: [-0.235, 0.02, 0.04] },
+  hipL: { bone: BONE.hips, p: [-0.17, 0.1, -0.01] },
+  hipBox: { bone: BONE.hips, p: [-0.2, 0.11, 0.05] },
   shells: { bone: BONE.hips, p: [-0.15, 0.045, -0.1] },
   back: { bone: BONE.hips, p: [-0.16, 0.1, 0.16] },
 };
@@ -92,6 +92,8 @@ export class Handling {
     this.mag = { pos: V(), q: Q(), vis: true, moved: false };
     this.shell = { pos: V(), q: Q(), vis: false };
     this.slideK = 0; this.chargeK = 0; this.coverA = 0; this.craneK = 0; this.ejectK = 0; this.boltU = -1; this.pumpK = 0;
+    this.boltMoved = this.pumpMoved = this.craneMoved = false;
+    this.pres = 1; this.phaseEnd = false; this.shellFrom = null; this.shellEnd = 0;
   }
 
   /* ================================================================ Vermessen */
@@ -209,6 +211,7 @@ export class Handling {
     this.shell.vis = false;
     this.slideK = this.chargeK = this.coverA = this.craneK = this.ejectK = this.pumpK = 0;
     this.boltU = -1;
+    this.boltMoved = this.pumpMoved = this.craneMoved = false;
   }
 
   /* ================================================================ Zeitplan */
@@ -226,6 +229,7 @@ export class Handling {
       this.v = Handling.force != null ? Handling.force % VARIANTS : (Math.random() * VARIANTS) | 0;
       this.shellT = 0;
       this.shellEnd = 0;
+      this.shellFrom = null;
       this.phaseEnd = false;
       this._timeline();
     }
@@ -244,14 +248,17 @@ export class Handling {
       tl.g1 = 0.075; tl.g2 = 0.12; tl.gD = clamp(0.38 / T, tl.g2 + 0.012, 0.26);
       tl.pA = 0.25; tl.p0 = 0.29; tl.p1 = 0.365; tl.s0 = 0.468; tl.s1 = 0.55;
       tl.f0 = 0.6; tl.f1 = 0.76;
-      tl.pouch = v === 1 ? POUCH.chestC : v === 2 ? POUCH.hipL : POUCH.chestL;
+      // Tasche: Brust links/Mitte; Hüfte nur bei kurzen Waffen (lange Waffen in tiefer Haltung: Arm reicht nicht)
+      tl.pouch = v === 1 ? POUCH.chestC : v === 2 && !(this.a.longK > 0.3) ? POUCH.hipL : POUCH.chestL;
       if (e) {
         const rig = this.rig;
         const bolt = this.a.fireMode === 'bolt' && rig.bolt;
         const right = rig.style === 'right';
         // leer: Kammerstängel (rechts), Ladehebel rechts (rechte Hand), Fanghebel schlagen (Variante 1, falls vorhanden),
-        // sonst Ladehebel mit links ziehen
-        tl.charge = bolt ? 'bolt' : right && rig.chargeAt ? 'right' : v === 1 && rig.catchAt ? 'catch' : rig.chargeAt ? 'left' : rig.catchAt ? 'catch' : 'none';
+        // sonst Ladehebel mit links ziehen – nur wenn die linke Hand ihn erreicht (weit vorn liegende Hebel: ohne)
+        const leftOk = rig.chargeAt && this._reachable(this._chargeRest(rig), 0.03);
+        const catchOk = rig.catchAt && this._reachable(rig.catchAt, 0.03);
+        tl.charge = bolt ? 'bolt' : right && rig.chargeAt ? 'right' : v === 1 && catchOk ? 'catch' : leftOk ? 'left' : catchOk ? 'catch' : 'none';
         if (tl.charge === 'left') { tl.c1 = 0.69; tl.c2 = 0.775; tl.c3 = 0.8; tl.f1 = 0.92; }
         else if (tl.charge === 'catch') { tl.c1 = 0.73; tl.c2 = 0.78; tl.c3 = 0.8; tl.f1 = 0.9; }
         else { tl.f1 = 0.72; tl.c1 = 0.7; tl.c2 = 0.775; tl.c3 = 0.8; tl.c4 = 0.88; }
@@ -269,8 +276,21 @@ export class Handling {
       tl.f0 = 0.58; tl.f1 = 0.72;
       tl.pouch = POUCH.hipL;
       tl.over = e && v !== 1 && !!this.rig.slide; // leer: Schlitten übergreifen (sonst Schlittenfang mit dem Daumen)
-      if (tl.over) { tl.c1 = 0.68; tl.c2 = 0.765; tl.c3 = 0.79; tl.f1 = 0.9; }
+      if (tl.over) { tl.c1 = 0.68; tl.c2 = 0.765; tl.c3 = 0.778; tl.f1 = 0.9; }
     }
+  }
+
+  /** Ladehebel-Griffpunkt in Ruhelage (Waffenraum). */
+  _chargeRest(rig) {
+    return rig.charge ? _d.copy(rig.chargeAt).add(rig.charge.p0) : _d.copy(rig.chargeAt);
+  }
+
+  /** Erreicht die linke Hand diesen Punkt der Waffe (Waffenraum) in der aktuellen Haltung? (Schulter → Handfläche) */
+  _reachable(local, slack = 0) {
+    const a = this.a;
+    const p = a._gunToModel(_b.copy(local), _b);
+    const sh = qrot(_c.copy(a.off[BONE.upperArmL]), a.wq[BONE.chest]).add(a.wp[BONE.chest]);
+    return p.distanceTo(sh) <= 0.555 + slack;
   }
 
   /* ================================================================ Haltung (Waffe, Blick) */
@@ -296,9 +316,11 @@ export class Handling {
       const b = bump(r, tl.s1, 0.025, 0.07);
       g.y += 0.016 * b; g.rx += 0.07 * b;
       // Ladehebel / Fanghebel: Waffe dreht sich zur Hand, Stoß beim Loslassen
-      if (tl.c1) {
+      if (tl.c1 && tl.charge !== 'none') {
+        // links: Waffe dreht den Hebel zur Hand; rechts: leicht zur rechten Hand; Kammerstängel: Waffe bleibt
         const c = win(r, tl.c1 - 0.08, tl.c1, tl.c3, tl.c3 + 0.08);
-        g.rz += 0.16 * c; g.ry -= 0.12 * c;
+        const left = tl.charge === 'left' || tl.charge === 'catch';
+        if (left) { g.rz += 0.16 * c; g.ry -= 0.12 * c; } else if (tl.charge === 'right') { g.rz -= 0.12 * c; g.ry += 0.06 * c; }
         const rel = bump(r, tl.c3, 0.012, 0.08);
         g.z += 0.012 * rel; g.rx += 0.05 * rel;
       }
@@ -338,15 +360,16 @@ export class Handling {
       this.lookP = -0.3 * swing + 0.1 * up;
       this.lookY = -0.2 * win(r, 0.34, 0.4, 0.44, 0.5);
     } else if (kind === 'shell') {
-      const pres = this._shellPres();
-      g.rz = -0.55 * pres; g.rx = 0.12 * pres; g.z = 0.06 * pres; g.y = -0.02 * pres; g.ry = 0.1 * pres;
+      const pres = (this.pres = this._shellPres());
+      g.rz = -0.55 * pres; g.rx = 0.12 * pres; g.z = 0.12 * pres; g.y = -0.02 * pres; g.ry = 0.1 * pres;
       // Patrone hineindrücken: kleiner Ruck je Patrone
       const u = this._shellU();
       if (u >= 0) g.y += 0.006 * bump(u, 0.9, 0.06, 0.1);
       this.lookP = -0.3 * pres;
     } else if (kind === 'rocket') {
+      // Rohr kippen (Mündung nach unten links) und zurücknehmen, damit die Stützhand vorn laden kann
       const pres = win(r, 0, 0.12, 0.8, 0.95);
-      g.rx = -0.3 * pres; g.rz = -0.25 * pres; g.y = -0.06 * pres; g.z = 0.05 * pres;
+      g.rx = -0.55 * pres; g.ry = 0.35 * pres; g.rz = -0.2 * pres; g.y = -0.1 * pres; g.z = 0.28 * pres; g.x = -0.06 * pres;
       this.lookP = -0.25 * pres;
     } else if (kind === 'generic') {
       const tilt = ramp(r, 0.05, 0.2) * (1 - ramp(r, 0.8, 0.96));
@@ -370,7 +393,7 @@ export class Handling {
     const tl = this.tl;
     if (!tl) return 0;
     const a = this.a, r = this.r;
-    const FG = a._gunToModel(a.anchors.left, S_FG);
+    const FG = a._leftGrip(S_FG);
     const kind = tl.kind;
     if (kind === 'mag' || kind === 'belt' || kind === 'pistol') return this._leftMag(out, FG, r, tl);
     if (kind === 'revolver') return this._leftRevolver(out, FG, r);
@@ -432,7 +455,7 @@ export class Handling {
       else this._path(out, latch, FG, ramp(r, tl.k4, tl.f1), null);
       this.lhold = 1 - ramp(r, tl.f0, tl.f0 + 0.04);
       this.lgrip = ramp(r, tl.f1 - 0.05, tl.f1);
-    } else if (!tl.c1 || tl.charge === 'right' || tl.charge === 'bolt' || (pistol && !tl.over)) {
+    } else if (!tl.c1 || tl.charge === 'right' || tl.charge === 'bolt' || tl.charge === 'none' || (pistol && !tl.over)) {
       // taktisch (oder Ladehebel/Kammerstängel mit rechts, Schlittenfang): zurück zum Vordergriff
       const mg = this._magGrab(this._magAt(tl.f0, M_REF), S_P1);
       this._path(out, mg, FG, ramp(r, tl.f0, tl.f1), pistol ? null : 'below');
@@ -447,7 +470,7 @@ export class Handling {
       else if (r < tl.c3) out.copy(at);
       else {
         // loslassen: Hand weicht nach hinten oben aus, dann zum Vordergriff
-        const off = _b.copy(this._chargePoint(tl.c3, tl, S_P2)).add(qrot(_c.set(-0.03, 0.04, 0.05), a.gunQuat));
+        const off = S_OFF.copy(this._chargePoint(tl.c3, tl, S_P2)).add(qrot(_c.set(-0.03, 0.04, 0.05), a.gunQuat));
         if (r < tl.c3 + 0.03) out.copy(S_P2).lerp(off, ramp(r, tl.c3, tl.c3 + 0.03));
         else this._path(out, off, FG, ramp(r, tl.c3 + 0.03, tl.f1), 'left');
       }
@@ -728,10 +751,11 @@ export class Handling {
     }
     const u = this._shellU();
     if (u < 0) {
-      // Ende: zurück zur Pumpe (vom Gürtel bzw. von der Ladeöffnung)
+      // Ende: zurück zur Pumpe – von dort, wo die Hand gerade war (Gürtel oder Ladeöffnung; Waffenraum gemerkt)
       if (!this.shellEnd) this.shellEnd = this.shellT;
       const k = smooth((this.shellT - this.shellEnd) / Math.max(0.15, tm.end * 0.7));
-      out.copy(port).lerp(FG, k);
+      const from = this.shellFrom ? a._gunToModel(_a.copy(this.shellFrom), S_P3) : port;
+      out.copy(from).lerp(FG, k);
       this.lgrip = k;
       return 1;
     }
@@ -742,6 +766,9 @@ export class Handling {
       const k = smooth((u - 0.72) / 0.2);
       out.copy(port).add(qrot(_a.set(0.008, 0.03 * k, -0.035 * k), a.gunQuat));
     }
+    // letzte Handlage im Waffenraum merken (Übergang in die Endphase ohne Sprung)
+    _qi.copy(a.gunQuat).invert();
+    qrot((this.shellFrom || (this.shellFrom = V())).copy(out).sub(a.gunPos), _qi);
     sh.vis = !!rig.shell && u > 0.1 && u < 0.93;
     if (sh.vis) {
       // Patrone in der Hand (zwischen den Fingern), an der Öffnung waffenparallel
@@ -760,7 +787,11 @@ export class Handling {
   _leftRocket(out, FG, r) {
     const a = this.a;
     const back = this._pouchPoint(POUCH.back, 0.0, 0.0, S_P1);
+    // Ladepunkt vorn am Rohr (Schacht 'magWell' bzw. kurz hinter der Mündung), notfalls so weit zurück wie erreichbar
     const front = a._gunToModel(_a.copy(this.a.anchors.muzzle).add(_b.set(-0.03, -0.04, 0.06)), S_P2);
+    const sh = qrot(_c.copy(a.off[BONE.upperArmL]), a.wq[BONE.chest]).add(a.wp[BONE.chest]);
+    const gz = qrot(_d.set(0, 0, 1), a.gunQuat);
+    for (let i = 0; i < 12 && front.distanceTo(sh) > 0.55; i++) front.addScaledVector(gz, 0.04);
     if (r < 0.3) out.copy(FG).lerp(back, ramp(r, 0.05, 0.28));
     else if (r < 0.55) out.copy(back).lerp(front, ramp(r, 0.32, 0.52));
     else if (r < 0.66) out.copy(front).add(qrot(_a.set(0, 0, 0.08 * ramp(r, 0.55, 0.64)), a.gunQuat));
@@ -806,6 +837,8 @@ export class Handling {
     if (!rig) return;
     const tl = this.tl;
     const active = (this.on || w > 0.02) && tl;
+    // nichts in Bewegung und alles in Ruhelage: nichts zu schreiben (häufigster Fall, je Bot und Bild)
+    if (!active && !this.mag.moved && !this.slideK && !this.chargeK && !this.coverA && !this.craneK && this.boltU < 0 && !this.boltMoved && !this.pumpK && !this.pumpMoved) return;
     // Magazin
     const m = rig.mag;
     if (m) {
@@ -849,8 +882,9 @@ export class Handling {
       if (ang !== this.coverA) { rig.cover.obj.quaternion.setFromAxisAngle(X_AX, ang).premultiply(rig.cover.q0); this.coverA = ang; }
     }
     // Revolver: Kran + Ausstoßer
-    if (rig.crane) {
+    if (rig.crane && (active || this.craneMoved)) {
       const k = active && tl.kind === 'revolver' ? this.craneK : 0;
+      this.craneMoved = k !== 0 || (active && this.ejectK !== 0);
       const o = rig.crane.obj;
       o.quaternion.setFromAxisAngle(Z_AX, 1.55 * k).premultiply(rig.crane.q0);
       o.position.copy(rig.crane.p0).add(_a.set(-0.012 * k, -0.006 * k, 0));
@@ -865,13 +899,15 @@ export class Handling {
         const back = ramp(u, 0.25, 0.48) * (1 - ramp(u, 0.52, 0.75));
         b.obj.quaternion.setFromAxisAngle(Z_AX, rot).premultiply(b.q0);
         b.obj.position.copy(b.p0).addScaledVector(b.travel, back);
-      } else { b.obj.quaternion.copy(b.q0); b.obj.position.copy(b.p0); }
+        this.boltMoved = true;
+      } else if (this.boltMoved) { b.obj.quaternion.copy(b.q0); b.obj.position.copy(b.p0); this.boltMoved = false; }
       this.boltU = -1;
     }
     // Pumpe
-    if (rig.pump) {
+    if (rig.pump && (this.pumpK || this.pumpMoved)) {
       const k = this.pumpK;
       rig.pump.obj.position.copy(rig.pump.p0).addScaledVector(rig.pump.travel, k);
+      this.pumpMoved = k !== 0;
     }
   }
 }

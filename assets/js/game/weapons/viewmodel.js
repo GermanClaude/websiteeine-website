@@ -25,6 +25,7 @@ import { RELOAD_ACTIONS } from './anim/reloads.js';
 import { INSPECT_ACTIONS } from './anim/inspects.js';
 import { MOVE_ACTIONS, GRENADE_LOW } from './anim/moves.js';
 import { COSMETIC } from './anim/reloads.js';
+import { magWellOf } from './anim/magwell.js';
 import { GunCollider, MultiCollider } from './gunsmith/contact.js';
 import { applyCamo } from './gunsmith/camos.js';
 import { CLASS_LOOKS, SKIN_TIERS, classLookId } from '../../shared/weapons.data.js';
@@ -259,6 +260,7 @@ export class ViewModel {
     entry.contactMemo = new Map();
     this._models.set(id, entry);
     this._prepareGrips(entry);
+    magWellOf(entry);   // Schachtachse + Freigang vorab (anim/magwell.js, wenige ms je Modell)
     return entry;
   }
 

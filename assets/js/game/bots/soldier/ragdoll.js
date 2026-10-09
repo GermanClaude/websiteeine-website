@@ -18,8 +18,6 @@ const LINKS = [
   [5, 7, 0.55, 3], [6, 8, 0.45, 4], [10, 12, 0.3, 6], [4, 6, 0.7, 2], [4, 8, 0.7, 2],
 ];
 const GRAVITY = -17;
-// Rumpf-Boden-Korrektur: Partikel (Index, Anteil) – Schultern/Kopf voll, Becken halb
-const TORSO_PUSH = [[2, 1], [3, 1], [4, 0.9], [0, 0.45], [1, 0.45]];
 
 const _d = new THREE.Vector3();
 const _v = new THREE.Vector3();
@@ -165,31 +163,31 @@ export class Ragdoll {
 
   /**
    * Rumpf gegen den Boden: Weste vorn und Rucksack hinten ragen weit über die Partikelradien hinaus (bis 0,37 m ab
-   * Rumpfmitte). Liegt die Leiche auf Brust oder Rücken, hebt das den Oberkörper an, statt Weste/Rucksack im Boden
-   * versinken zu lassen (Leichen bleiben liegen – die Endlage muss stimmen).
+   * Rumpfmitte). Je nach Lage (Rücken/Bauch/Seite) wächst der Boden-Radius der Schulter- und Hüftpartikel um die
+   * Dicke der nach unten zeigenden Seite – so liegt die Leiche auf Weste bzw. Rucksack auf, statt sie im Boden versinken
+   * zu lassen (Leichen bleiben liegen – die Endlage muss stimmen). Als Radius gelöst: stabil, kommt zur Ruhe.
    */
-  _torso() {
-    const p = this.p, o = this.o, g = this.ground;
+  _torsoRadii() {
+    const p = this.p, tr = this._tr || (this._tr = new Float32Array(13));
     const S = _mid.addVectors(p[2], p[3]).multiplyScalar(0.5);
     const H = _mid2.addVectors(p[0], p[1]).multiplyScalar(0.5);
     _y.subVectors(S, H);
     _x.subVectors(p[3], p[2]);
     _z.crossVectors(_y, _x); // vorn (Brust)
-    if (_z.lengthSq() < 1e-8) return;
+    for (let i = 0; i < 13; i++) tr[i] = RADIUS[i];
+    if (_z.lengthSq() < 1e-8) return tr;
     _z.normalize();
-    const cy = H.y + (S.y - H.y) * 0.68;
-    const gy = (g[2] + g[3]) * 0.34 + (g[0] + g[1]) * 0.16;
-    const low = Math.min(cy + _z.y * this.front, cy - _z.y * this.back);
-    const pen = gy + 0.012 - low;
-    if (!(pen > 0)) return;
-    const push = Math.min(pen, 0.08); // je Iteration begrenzt (kein Hochschnellen)
-    for (const [i, k] of TORSO_PUSH) { p[i].y += push * k; o[i].y += push * k; }
+    const ny = _z.y;
+    const ext = ny > 0 ? this.back * ny : this.front * -ny; // Ausdehnung nach unten ab Rumpfmitte
+    tr[2] = tr[3] = Math.max(RADIUS[2], ext + 0.03);
+    tr[0] = tr[1] = Math.max(RADIUS[0], Math.min(ext, 0.16)); // Becken: Gürtel/Taschen, kein Rucksack
+    return tr;
   }
 
   _collide(world, walls) {
-    if (walls && this.front) this._torso();
+    const R = this.front ? this._torsoRadii() : RADIUS;
     for (let i = 0; i < 13; i++) {
-      const p = this.p[i], o = this.o[i], r = RADIUS[i];
+      const p = this.p[i], o = this.o[i], r = R[i];
       // Wände (nur Rumpf/Kopf, letzte Iteration)
       if (walls && HEAVY[i] && world && world.raycast) {
         _d.subVectors(p, o);

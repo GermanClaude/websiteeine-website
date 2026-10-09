@@ -312,11 +312,11 @@ export const INSPECT_ACTIONS = {
       curve(u, [[0, Z3], [0.2, [-0.35, 0.5, 0.9]], [0.5, [-0.4, 0.55, 1.0]], [0.7, [0.2, 0.25, 1.4]], [0.88, [0.22, 0.25, 1.45]], [1, Z3]], out.r);
       curve(u, [[0, Z3], [0.2, [-0.07, 0.07, 0.07]], [0.88, [-0.07, 0.08, 0.07]], [1, Z3]], out.p);
     } else {
-      // Wirbel: eine volle Drehung um die Griffachse, abgefangen
+      // Wirbel: eine volle Drehung um die Längsachse der Klinge (Rollen im Modellraum), abgefangen
       const spin = curve(u, [[0.15, 0], [0.55, Math.PI * 2]]);
       curve(u, [[0, Z3], [0.12, [0.2, 0.2, 0.4]], [0.6, [0.2, 0.2, 0.4]], [0.85, [0.1, 0.1, 0.2]], [1, Z3]], out.r);
       curve(u, [[0, Z3], [0.12, [-0.05, 0.06, 0.05]], [0.85, [-0.04, 0.05, 0.04]], [1, Z3]], out.p);
-      out.r[1] += spin;
+      out.r[2] += spin;
       if (u > 0.55 && !A.caught) { A.caught = true; this._jolt.kick(0.5, 0.2, 0); }
     }
     return u >= 1;

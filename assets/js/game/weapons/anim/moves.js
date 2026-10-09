@@ -149,7 +149,8 @@ export const MOVE_ACTIONS = {
     const spawn = pl && Number.isFinite(pl.spawnTime) ? pl.spawnTime : null;
     if (spawn !== null && spawn !== this._spawnSeen) { this._spawnSeen = spawn; this._readyPending = pl.alive !== false; }
     const a = this.action;
-    const calm = !s.firing && !s.ads && !s.sprinting && !s.reloading && (s.timeSinceShot ?? 9) > 0.1;
+    // VR: die echte Hand hält die Waffe – keine kosmetischen Bewegungen
+    const calm = !this._vrOn && !s.firing && !s.ads && !s.sprinting && !s.reloading && (s.timeSinceShot ?? 9) > 0.1;
     const idle = calm && (s.speed ?? 0) < 0.6 && s.onGround !== false;
     // Bereitmachen läuft auch im Gehen weiter; die Leerlauf-Geste endet bei jeder Bewegung
     if (a && !a.cancel && ((a.type === 'ready' && !calm) || (a.type === 'fidget' && !idle))) a.cancel = true;

@@ -62,6 +62,7 @@ export class CommandWheel {
     this.sticky = false; // kurz angetippt: Rad bleibt offen
     this.tap = false; // Touch: Felder antippen
     this._formIdx = 1; // nächste Form (Keil)
+    this.tapMs = TAP_MS; // Antippen-Schwelle (Prüfläufe unter Last setzen sie höher)
     this._openAt = 0;
     this._marks = [];
     this._build();
@@ -163,7 +164,7 @@ export class CommandWheel {
         if (input.pressed('befehl')) { if (this.sel >= 0) this._confirm(this.sel); else this.close(false); }
       } else if (input.released('befehl') || !input.down('befehl')) {
         // Loslassen: Auswahl bestätigen; kurz angetippt ohne Auswahl → offen lassen
-        const quick = performance.now() - this._openAt < TAP_MS;
+        const quick = performance.now() - this._openAt < this.tapMs;
         if (quick && !W.drag && this.sel < 0) this._setSticky(touch);
         else if (this.sel >= 0) this._confirm(this.sel);
         else this.close(false);
