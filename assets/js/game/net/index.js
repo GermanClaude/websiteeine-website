@@ -341,6 +341,14 @@ export class NetSystem {
     this._pid = tabPid();
     this._handlers = new Map();
     this._fastHandlers = new Set();
+    // Seite wird geschlossen/verlassen: Austritt sofort melden – sonst merkt die Gegenseite es erst am Zeitlimit der
+    // Verbindung (≈ 20 s; z. B. bliebe ein Fahrzeugsitz so lange belegt). Aus dem bfcache (persisted) kann sie zurückkehren.
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('pagehide', (e) => {
+        if ((e && e.persisted) || !this.online) return;
+        try { this.leave('verlassen'); } catch { /* Seite geht ohnehin */ }
+      });
+    }
     this._timers = [];
     this._signal = null;
     this._hostLink = null;

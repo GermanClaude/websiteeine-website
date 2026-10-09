@@ -397,13 +397,13 @@ try {
   await aimAt(target.pos);
   const aligned = await until(host, ([vid, id]) => {
     const v = window.__game.vehicles.list.find((x) => x.netId === vid), s = v.seats[1];
-    return s.actor && s.actor.netId === id && s.aimError < 0.012 && v.gun.step === 'geladen' ? s.aimError : null;
+    return s.actor && s.actor.netId === id && s.aimError < 0.012 && v.gun.step === 'geladen' ? { err: s.aimError } : null;
   }, [tA.vid, B], 180000, 500);
-  const aimDiag = aligned != null ? '' : JSON.stringify(await ev(host, (vid) => {
+  const aimDiag = aligned ? '' : JSON.stringify(await ev(host, (vid) => {
     const v = window.__game.vehicles.list.find((x) => x.netId === vid), s = v.seats[1], d = s.intent.aimDir;
     return { err: +(s.aimError || 0).toFixed(3), ty: +v.mount.turretYaw.toFixed(3), gp: +v.mount.gunPitch.toFixed(3), aim: d ? [+d.x.toFixed(3), +d.y.toFixed(3), +d.z.toFixed(3)] : null, step: v.gun.step, actor: s.actor && s.actor.netId, up: v.body.up(new (v.body.pos.constructor)()).y.toFixed(3), hp: Math.round(v.health) };
   }, tA.vid));
-  check(aligned != null, `Host: Turm folgt Berts Zielrichtung (Fehler ${aligned != null ? (aligned * 1000).toFixed(1) : '–'} mrad), Kanone geladen ${aimDiag}`);
+  check(!!aligned, `Host: Turm folgt Berts Zielrichtung (Fehler ${aligned ? (aligned.err * 1000).toFixed(1) : '–'} mrad), Kanone geladen ${aimDiag}`);
   const hpB0 = (await vehs(host)).find((v) => v.vid === tB.vid).hp;
   const vh0 = await ev(bert, () => window.__mv.vh);
   await ev(bert, () => window.__game.input.simulate.tap('fire'));
@@ -483,9 +483,9 @@ try {
   await aimAt(target.pos);
   const aligned2 = await until(host, ([vid, id]) => {
     const v = window.__game.vehicles.list.find((x) => x.netId === vid), s = v.seats[1];
-    return s.actor && s.actor.netId === id && s.aimError < 0.012 ? s.aimError : null;
+    return s.actor && s.actor.netId === id && s.aimError < 0.012 ? { err: s.aimError } : null;
   }, [tA.vid, B], 120000, 500);
-  check(aligned2 != null, 'zurück im Richtschützensitz, Turm ausgerichtet');
+  check(!!aligned2, 'zurück im Richtschützensitz, Turm ausgerichtet');
   await ev(bert, () => window.__game.input.simulate.tap('fire'));
   const dead = await until(host, (vid) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return v && !v.alive; }, tB.vid, 60000, 300);
   check(!!dead, 'zweiter Schuss: Feindpanzer zerstört (Host)');
@@ -530,8 +530,9 @@ try {
   const far = await ev(bert, (vid) => { const G = window.__game, v = G.vehicles.list.find((x) => x.netId === vid); return v ? G.vehicles._boxDistance(v, G.player.position, 0.9) : null; }, newB);
   const vn2 = await ev(bert, () => window.__mv.vn.length);
   await ev(bert, (vid) => { const G = window.__game; G.vehicles.remote.enter(G.vehicles.list.find((v) => v.netId === vid), 0); }, newB);
-  const weit = await until(bert, (n) => window.__mv.vn.slice(n)[0] || null, vn2, 15000);
-  check(weit === 'weit' && far > 10, `Einsteigen aus ${far ? far.toFixed(0) : '–'} m → 'vn' ${weit}`);
+  const weitHost = await until(host, (id) => (window.__game.vehicles.net.rejectLog || []).some((r) => r.id === id && r.why === 'weit'), B, 30000, 300);
+  const weit = await until(bert, (n) => window.__mv.vn.slice(n).find((w) => w === 'weit') || null, vn2, 30000);
+  check(!!weitHost && weit === 'weit' && far > 10, `Einsteigen aus ${far ? far.toFixed(0) : '–'} m → Host lehnt ab (${weitHost ? 'weit' : '–'}), 'vn' bei Bert: ${weit}`);
   const notIn = await ev(host, ([vid, id]) => !window.__game.vehicles.list.find((x) => x.netId === vid).seats.some((s) => s.actor && s.actor.netId === id), [newB, B]);
   check(notIn, 'Bert sitzt nicht im fernen Panzer');
 

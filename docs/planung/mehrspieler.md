@@ -480,3 +480,15 @@ der Liste).
 **Budget** (§9, `recommend.js`: + 20 Hz × (2 + V × 60 × 0,5) je Client, V = 10 Grenzland bzw. 4): typisch Grenzland ≈ 3,4 KB/s
 je Client zusätzlich, höchstens ≈ 12 KB/s (10 Fahrzeuge nah und aktiv); Hafen (4) ≈ 1,5–2,5 KB/s. Liste ≈ 150 B je Änderung,
 'vs' ≈ 120 B je Kanonenschuss; aufwärts je sitzendem Client 16 B × 30 Hz ≈ 0,5 KB/s.
+**Gemessen** (`tools/mp-vehicle-test.mjs`, Hafen, 4 Fahrzeuge, 2 Clients, `snapStats`): 1827 Schnappschüsse, 505 KB, davon
+Fahrzeug-Anhang 146 KB (29 %) = Ø 80 B bzw. 1,3 Blöcke je Schnappschuss → bei 20 Hz ≈ 1,6 KB/s je Client (Schätzung oben
+1,5–2,5 KB/s). Liste: 12 Änderungen im ganzen Lauf.
+
+**Prüfungen**: `net-proto-test` (Größen 11 + n·31 + nvr·11 + 2 + nv·60 bzw. 37 [+11] [+16], Rundlauf aller Felder,
+abgeschnittene Pakete, ohne Anhang Byte für Byte gleich, Fahrzeugterm der Empfehlung), `net-room-test` (Standard/
+Normalisierung `vehicles`/`thirdPerson`/`vehReload`, `cfg.net.*`), `mp-vehicle-test` (Host + Anna + Bert: beide Teams je ein
+Panzer, Einsteigen/Sitzwechsel/Aussteigen über den Host, Fahren aus Annas Absicht ≥ 20 m und Lage danach gleich, Schuss → Treffer +
+'vh' + gleiche HP, manuelles Nachladen über das Netz inkl. falscher Folge, Zerstörung mit Abschussliste `mbt_ap`, Wiedererscheinen
+mit neuer vid, Anti-Cheat-Ablehnungen, Seite schließen → Sitz frei). Unter SwiftShader-Fremdlast (Last 8–16) läuft der Test mit
+verborgenem Host (Worker-Takt) und Zeitfaktor 1,6 und braucht 25–35 min (`--limit`). Beim Schließen der Seite meldet ein Client
+seinen Austritt jetzt über `pagehide` (sonst erst nach dem Verbindungs-Zeitlimit ≈ 20 s).

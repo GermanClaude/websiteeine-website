@@ -321,6 +321,9 @@ export class VehicleNet {
 
   _reject(id, why) {
     this.stats.rejects++;
+    this.rejectLog = this.rejectLog || [];
+    this.rejectLog.push({ id, why });
+    if (this.rejectLog.length > 20) this.rejectLog.shift();
     this._send(id, { t: 'ev', e: 'vn', why });
   }
 
