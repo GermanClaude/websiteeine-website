@@ -356,13 +356,15 @@ try {
         const hit = V._rc ? V._rc.orig.call(G.world, new T(x, P.y + 10, z), new T(0, -1, 0), 25) : G.world.raycast(new T(x, P.y + 10, z), new T(0, -1, 0), 25);
         if (!hit || Math.abs(hit.point.y - (P.y - 1)) > 3) continue;
         const pos = new T(x, hit.point.y, z);
-        if (strict && !V._clear(pos, ang, b.def)) continue;
+        // Breitseite zum Schützen (Abpraller bei flachem Auftreffwinkel ausgeschlossen): Fahrtrichtung quer zur Schusslinie
+        const yawB = Math.atan2(-Math.sin(ang), Math.cos(ang));
+        if (strict && !V._clear(pos, yawB, b.def)) continue;
         // Sicht vom Turm zur Mitte des Ziels frei (Welt ohne Fahrzeuge)
         const from = new T(P.x, P.y + 1.6, P.z), to = new T(x, hit.point.y + 1.2, z);
         const d = to.clone().sub(from), len = d.length();
         const w = V._rc ? V._rc.orig.call(G.world, from, d.normalize(), len) : null;
         if (w && w.distance < len - 1) continue;
-        b.body.setPose(pos, ang);
+        b.body.setPose(pos, yawB);
         return { pos: [x, hit.point.y + 1.0, z], dist };
       }
     }
