@@ -121,8 +121,23 @@ function phaseAt(plan, t) {
   return { name, tIn: dur, dur };
 }
 
-/** Freier, ebener Platz vor dem Spieler (Kreis mit Sicht vom Auge, Platz zum Liegen). */
+/** Freier, ebener Platz vor dem Spieler; sonst nacheinander alle Spawnpunkte der Karte probieren
+ *  (Karten mit Ausstattung haben vor manchem Spawn keinen freien Kreis mehr). */
 function findSpot(g) {
+  const here = findSpotHere(g);
+  if (here) return here;
+  const P = g.player, sp = (g.world && g.world.spawns) || {};
+  const all = [...new Set(Object.values(sp).flat())].filter((s) => s && s.position);
+  for (const s of all) {
+    P.body.teleport(s.position.clone());
+    P.yaw = s.yaw || 0;
+    const r = findSpotHere(g);
+    if (r) { log(`Platz an Spawn ${all.indexOf(s) + 1}/${all.length}`); return r; }
+  }
+  return null;
+}
+
+function findSpotHere(g) {
   const W = g.world, P = g.player;
   const V = (x, y, z) => new g.THREE.Vector3(x, y, z);
   const eye = P.getEyePosition(V(0, 0, 0));
