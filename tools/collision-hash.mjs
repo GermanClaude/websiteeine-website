@@ -3,8 +3,9 @@
 // alle Kollisionsdreiecke (auf 1 mm gerundet; Großkarte zusätzlich das Höhenfeld) und vergleicht die Stufen.
 // Bei Abweichungen: Orte (2-m-Raster) mit den meisten nur auf einer Stufe vorhandenen Dreiecken.
 //
-//   node tools/collision-hash.mjs [--maps=hafen,altstadt,werk,range,grenzland] [--qualities=low,high] [--top=12]
-//   Ergebnis zusätzlich in tools/out/collision-hash.json. Exit-Code 1 bei Abweichung.
+//   node tools/collision-hash.mjs [--maps=hafen,altstadt,werk,range,grenzland] [--qualities=low,medium,high] [--top=12] [--out=datei.json]
+//   Jede weitere Stufe wird mit der ersten verglichen. Ergebnis zusätzlich in tools/out/collision-hash.json (bzw. --out).
+//   Exit-Code 1 bei Abweichung.
 //   --no-veg: Großkarte ohne Vegetations-Kollision (Stämme/Felsen) – prüft nur Orte, Requisiten und Gelände.
 // Server: NP_BASE (Standard :8765). Rechenintensiv (SwiftShader): nur eine Seite gleichzeitig.
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
@@ -14,6 +15,7 @@ const opt = Object.fromEntries(process.argv.slice(2).map((a) => { const [k, ...v
 const MAPS = String(opt.maps || 'hafen,altstadt,werk,range,grenzland').split(',').filter(Boolean);
 const QS = String(opt.qualities || 'low,high').split(',').filter(Boolean);
 const TOP = Number(opt.top || 12);
+const OUT = String(opt.out || 'tools/out/collision-hash.json');
 mkdirSync('tools/out', { recursive: true });
 
 const browser = await chromium.launch({ args: GL_ARGS });
@@ -103,22 +105,28 @@ for (const map of MAPS) {
       res[q] = null;
     }
   }
-  const [a, b] = QS.map((q) => res[q]);
+  // jede weitere Stufe gegen die erste (z. B. low ↔ medium, low ↔ high)
+  const a = res[QS[0]];
   const entry = { qualities: Object.fromEntries(QS.map((q) => [q, res[q] ? { count: res[q].count, hash: res[q].hash, hf: res[q].hf, assets: res[q].assets } : null])) };
-  if (a && b) {
-    const same = a.hash === b.hash && a.count === b.count && (a.hf?.hash || '') === (b.hf?.hash || '');
-    entry.identical = same;
-    if (!same) {
-      bad++;
+  if (a && QS.slice(1).every((q) => res[q])) {
+    entry.identical = true;
+    entry.onlyIn = {};
+    for (const q of QS.slice(1)) {
+      const b = res[q];
+      const same = a.hash === b.hash && a.count === b.count && (a.hf?.hash || '') === (b.hf?.hash || '');
+      if (same) { console.log(`  ${QS[0]} = ${q} ✓`); continue; }
+      entry.identical = false;
       const da = onlyIn(a, b), db = onlyIn(b, a);
-      entry.onlyIn = { [QS[0]]: da, [QS[1]]: db };
-      console.log(`  ABWEICHUNG: nur ${QS[0]} ${da.total}, nur ${QS[1]} ${db.total}${(a.hf?.hash || '') !== (b.hf?.hash || '') ? ', Höhenfeld verschieden' : ''}`);
-      for (const [q, d] of [[QS[0], da], [QS[1], db]]) if (d.total) console.log(`    nur ${q}: ${d.cells.join(' · ')}`);
-    } else console.log('  gleich ✓');
+      entry.onlyIn[`${QS[0]}-${q}`] = { [QS[0]]: da, [q]: db };
+      console.log(`  ABWEICHUNG ${QS[0]} ↔ ${q}: nur ${QS[0]} ${da.total}, nur ${q} ${db.total}${(a.hf?.hash || '') !== (b.hf?.hash || '') ? ', Höhenfeld verschieden' : ''}`);
+      for (const [qq, d] of [[QS[0], da], [q, db]]) if (d.total) console.log(`    nur ${qq}: ${d.cells.join(' · ')}`);
+    }
+    if (!entry.identical) bad++;
+    else delete entry.onlyIn;
   } else { entry.identical = null; bad++; }
   report[map] = entry;
 }
 await browser.close();
-writeFileSync('tools/out/collision-hash.json', JSON.stringify(report, null, 1));
+writeFileSync(OUT, JSON.stringify(report, null, 1));
 console.log(bad ? `\n${bad} Karte(n) mit Abweichung/Fehler` : '\nAlle Karten: Kollision auf allen Stufen gleich.');
 process.exit(bad ? 1 : 0);
