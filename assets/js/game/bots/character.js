@@ -137,6 +137,9 @@ export class Soldier {
     this.deadT = 0;
     this.dissolve = 0;
     this._drop = null;
+    this._pending = false; // Waffenwechsel an einer Leiche → erst beim Zurücksetzen
+    this._pendingGun = null;
+    this._pendingDef = null;
     this._hitStamp = -1;
     this._hb = HITBOXES.map(() => ({ a: new THREE.Vector3(), b: new THREE.Vector3() }));
     this._velModel = new THREE.Vector3();
@@ -149,6 +152,11 @@ export class Soldier {
 
   /** Drittpersonen-Waffenmodell setzen (Klon aus models.createWeaponModel(..., {lod:'third'})). */
   setWeaponModel(group, def = null) {
+    // Leiche: die fallengelassene Waffe bleibt liegen und der Halter steht still – die neue Waffe kommt erst mit reset()
+    // (online trifft die neue Ausrüstung vor dem Respawn ein; sonst schwebte sie an der letzten Lebend-Pose neben der Leiche
+    // und die liegende Waffe landete später zusätzlich wieder in der Hand)
+    if (this.state === 'dead') { this._pending = true; this._pendingGun = group || null; this._pendingDef = def; return; }
+    this._pending = false; this._pendingGun = null; this._pendingDef = null;
     if (this.gun) this.gun.removeFromParent();
     this.gun = group || null;
     this.def = def;
@@ -551,6 +559,7 @@ export class Soldier {
     for (const m of this.meshes) m.castShadow = this.castShadow;
     this.material.userData.uDissolve.value = 0;
     this.state = 'alive';
+    if (this._pending) this.setWeaponModel(this._pendingGun, this._pendingDef);
     this.deadT = 0;
     this.dissolve = 0;
     this.ragdoll.active = false;

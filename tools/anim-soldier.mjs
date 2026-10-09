@@ -97,7 +97,7 @@ if (!opt.benchOnly) for (const wid of weapons) {
       const place = () => {
         const rx = follow ? s0.root.position.x : s0.home.x, rz = follow ? s0.root.position.z : 0;
         // Ziel optional versetzt (Kamera-Array [gier, abstand, höhe, neigung, x, z]) – z. B. Nahaufnahme am Magazinschacht
-        o.target.set(rx + (c[4] || 0), c[2], rz + (c[5] || 0)); o.dist = c[1]; o.yaw = Math.PI + c[0]; o.pitch = c[3];
+        o.target.set(rx + (c[4] || 0), c[2] + (follow ? s0.root.position.y : 0), rz + (c[5] || 0)); o.dist = c[1]; o.yaw = Math.PI + c[0]; o.pitch = c[3];
         const cp = Math.cos(o.pitch);
         camera.position.set(o.target.x + Math.sin(o.yaw) * cp * o.dist, o.target.y + Math.sin(o.pitch) * o.dist, o.target.z + Math.cos(o.yaw) * cp * o.dist);
         camera.lookAt(o.target);
@@ -178,7 +178,8 @@ if (!opt.benchOnly) for (const wid of weapons) {
 if (opt.bench || opt.benchOnly) {
   await waitForLoad();
   const r = await page.evaluate(async (impl) => {
-    // --impl=vorher: Kopie des alten Stands (git archive HEAD → tools/out/bench-vorher/) für Vorher/Nachher-Messung
+    // --impl=vorher: Kopie des alten Stands für Vorher/Nachher-Messung – Stand vor der Animations-Überarbeitung:
+    //   mkdir -p tools/out/bench-vorher && git archive 608a14a assets | tar -x -C tools/out/bench-vorher
     const base = impl === 'vorher' ? '../tools/out/bench-vorher/assets/js' : '../assets/js';
     const { createSoldier } = await import(`${base}/game/bots/character.js`);
     const { WEAPONS } = await import(`${base}/shared/weapons.data.js`);

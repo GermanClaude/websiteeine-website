@@ -271,7 +271,7 @@ export const INSPECT_ACTIONS = {
     out.parts.cover = [0, 0, 0, curve(u, [[0.2, 0], [0.3, -0.6], [0.5, -0.6], [0.58, 0]]), 0, 0];
     if (u > 0.58 && !A.slapped) { A.slapped = true; this._jolt.kick(1.0, 0, 0); }
     const w = windowW(u, 0.1, 0.2, 0.56, 0.66);
-    if (w > 0 && this._part('cover')) req(out.right, w, { part: 'cover', style: 'boltKnob', offset: [0.004, 0.03, 0.236] });
+    if (w > 0 && this._part('cover')) req(out.right, w, { part: 'cover', style: 'boltKnob', offset: [0.004, 0.03, 0.15] });
     if (u > 0.32) this._setReadout(A, 'belt');
     return u >= 1;
   },

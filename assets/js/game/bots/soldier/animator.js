@@ -30,10 +30,43 @@ const PRONE_LEGS = [[BONE.thighL, 0.16, 0, 0.12], [BONE.shinL, 0.02, 0, 0], [BON
 const _v = V(), _v2 = V(), _v3 = V(), _v4 = V(), _a = V(), _b = V(), _c = V(), _pole = V();
 const _ax = V();
 const PRONE_ANKLE_Y = 0.1; // m über der Standfläche (Liegen)
+const KNEE_MIN = 0.06; // Kniegelenk mindestens so hoch (Radius des Knies) – liegend, kniend, kriechend
 const PRONE_CHAINS = [[BONE.thighL, BONE.shinL, BONE.footL], [BONE.thighR, BONE.shinR, BONE.footR]];
 // lokale Drehungen der Liege-Beinhaltung je Bein [Oberschenkel, Unterschenkel] (für _proneAnkle)
 const PRONE_Q = [[0, 1], [3, 4]].map(([a, b]) => [a, b].map((k) => new THREE.Quaternion().setFromEuler(new THREE.Euler(PRONE_LEGS[k][1], PRONE_LEGS[k][2], PRONE_LEGS[k][3], 'YXZ'))));
 const _qa = new THREE.Quaternion(), _ka = new THREE.Vector3(), _kb = new THREE.Vector3();
+const _ku = V(), _ke1 = V(), _ke2 = V();
+
+/**
+ * Knie K auf seinem Kreis um die Achse Hüfte H → Knöchel T nach oben drehen, bis K.y ≥ minY (Knochenlängen und Knöchel
+ * bleiben; reicht der Kreis nicht so hoch, der höchste Punkt). side = −1 links / +1 rechts: das Knie weicht nach außen aus.
+ */
+function kneeUp(H, T, K, minY, side) {
+  _ku.subVectors(T, H);
+  const d = _ku.length();
+  if (d < 1e-5) return;
+  _ku.multiplyScalar(1 / d);
+  const s = _ke1.subVectors(K, H).dot(_ku);
+  const cx = H.x + _ku.x * s, cy = H.y + _ku.y * s, cz = H.z + _ku.z * s;
+  _ke1.set(K.x - cx, K.y - cy, K.z - cz);
+  const R = _ke1.length();
+  if (R < 1e-5) return;
+  _ke1.multiplyScalar(1 / R);
+  _ke2.crossVectors(_ku, _ke1);
+  const A = R * Math.hypot(_ke1.y, _ke2.y);
+  if (A < 1e-6) return;
+  const top = Math.atan2(_ke2.y, _ke1.y); // Winkel des höchsten Kreispunkts (0 = jetzige Lage)
+  const c = (minY - cy) / A;
+  let th = top;
+  if (c < 1) {
+    // von den zwei Lösungen die, bei der das Knie nach außen geht (nie über das andere Bein)
+    const w = Math.acos(Math.max(-1, c)), t1 = wrap(top + w), t2 = wrap(top - w);
+    const x1 = _ke1.x * Math.cos(t1) + _ke2.x * Math.sin(t1), x2 = _ke1.x * Math.cos(t2) + _ke2.x * Math.sin(t2);
+    th = x1 * side >= x2 * side ? t1 : t2;
+  }
+  const cs = Math.cos(th) * R, sn = Math.sin(th) * R;
+  K.set(cx + _ke1.x * cs + _ke2.x * sn, cy + _ke1.y * cs + _ke2.y * sn, cz + _ke1.z * cs + _ke2.z * sn);
+}
 // feste Zwischenspeicher (keine Allokationen pro Bild)
 const S_R = V(), S_BP = V(), S_G = V(), S_L = V(), S_T = V(), S_M = V();
 // (Griff-/Schacht-Zwischenspeicher des früheren Nachladens: jetzt in actions.js)
@@ -161,7 +194,7 @@ export class Animator {
     this.crawlW = 0; this.crawlPh = 0; // Kriechen (liegend in Bewegung)
     this.stepYaw = yaw;
     // Stand: Füße stehen fest in der Welt (x, z, Gierung), Nachsetzschritte (t ≥ 0) – siehe _plantFeet
-    this.plant = { on: false, w: 0, f: [0, 1].map(() => ({ x: 0, z: 0, yaw: 0, t: -1, dur: 0.28, sx: 0, sz: 0, syaw: 0, h0: 0, lift: 0 })) };
+    this.plant = { on: false, w: 0, rel: 0, f: [0, 1].map(() => ({ x: 0, z: 0, yaw: 0, t: -1, dur: 0.28, sx: 0, sz: 0, syaw: 0, h0: 0, lift: 0, w: 0 })) };
     this.rootX = NaN; this.rootZ = NaN;
     this._dt = 0;
     this.throwT = -1;
@@ -672,16 +705,19 @@ export class Animator {
 
   /** Liegen: Beine gestreckt und leicht gespreizt, Fußspitzen im Boden (Überblendung über die Lauf-IK). */
   _proneLegs(pr) {
-    const L = PRONE_LEGS;
+    // Liege-Beinhaltung erst gegen Ende des Ablegens überblenden (davor führt die Bein-IK über den Knie-Bodenpfad aus _legs –
+    // ein Mischen der lokalen Drehungen mittendrin ließe das Knie durch den Boden schwingen)
+    const L = PRONE_LEGS, wl = smooth((this.prone - 0.7) / 0.3);
     for (let k = 0; k < L.length; k++) {
       const [i, x, y, z] = L[k];
       _e.set(x, y, z, 'YXZ');
       _q.setFromEuler(_e);
-      this.lq[i].slerp(_q, pr);
+      this.lq[i].slerp(_q, wl);
       this._fk(i);
     }
-    // Kriechen: abwechselnd ein Knie seitlich nach vorn ziehen (abspreizen, auswärts drehen, Knie beugen – der
-    // Unterschenkel bleibt flach am Boden), das andere Bein schiebt gestreckt nach
+    // Kriechen: abwechselnd ein Knie seitlich nach vorn ziehen, das andere Bein schiebt gestreckt nach
+    // (Zwei-Knochen-IK: Knöchel rückt zur Hüfte und etwas nach außen, das Knie zeigt seitlich zum Boden –
+    // Unterschenkel bleibt flach am Boden statt in die Luft zu stehen)
     const cw = this.crawlW * pr;
     if (cw > 0.01) {
       for (let f = 0; f < 2; f++) {
@@ -689,11 +725,16 @@ export class Animator {
         const kk = Math.max(0, Math.sin((this.crawlPh + f * 0.5) * Math.PI * 2)) * cw;
         if (kk < 1e-3) continue;
         const [th, sh, ft] = PRONE_CHAINS[f];
-        _e.set(0.22 * kk, -side * 0.9 * kk, side * 0.75 * kk, 'YXZ');
-        this.lq[th].multiply(_q.setFromEuler(_e));
-        _e.set(-1.25 * kk, 0, 0, 'YXZ');
-        this.lq[sh].multiply(_q.setFromEuler(_e));
-        this._fk(th); this._fk(sh); this._fk(ft);
+        const H = this.wp[th];
+        const tgt = _v.copy(this.wp[ft]).lerp(_v2.set(H.x + side * 0.13, H.y - 0.1, H.z + 0.64), kk);
+        if (tgt.y < PRONE_ANKLE_Y) tgt.y = PRONE_ANKLE_Y;
+        _pole.set(side, -0.3, -0.25).normalize();
+        twoBone(H, tgt, DIM.thigh, DIM.shin, _pole, _c, _v4);
+        quatFromYZ(_q, _v3.subVectors(H, _c), _v2.copy(_pole).negate());
+        this._setWorld(th, _q);
+        quatFromYZ(_q, _v3.subVectors(_c, _v4), _v2.copy(_pole).negate());
+        this._setWorld(sh, _q);
+        this._fk(ft);
       }
     }
     // Knöchel nicht unter den Boden (Modellraum y = 0 = Standfläche): Oberschenkel so weit anheben, dass das
@@ -701,8 +742,26 @@ export class Animator {
     // (auch im Übergang: Mindesthöhe vom Stand-Knöchel 0,08 m zur Liegehöhe, Korrektur immer voll)
     const ankleMin = lerp(DIM.ankle, PRONE_ANKLE_Y, pr);
     for (const [th, sh, ft] of PRONE_CHAINS) {
-      const y0 = this.wp[ft].y;
-      const need = ankleMin - y0;
+      const need = ankleMin - this.wp[ft].y;
+      if (this.wp[sh].y < KNEE_MIN - 0.003) {
+        // Kniegelenk im Boden (Übergang kniend ↔ liegend): Bein neu lösen – Knöchel bleibt (mind. ankleMin), das Knie dreht
+        // auf seinem Kreis um die Achse Hüfte–Knöchel nach oben (Kniescheibe liegt auf statt im Boden)
+        const H = this.wp[th];
+        const A = _v.copy(this.wp[ft]);
+        if (A.y < ankleMin) A.y = ankleMin;
+        twoBone(H, A, DIM.thigh, DIM.shin, _v2.subVectors(this.wp[sh], H), _c, _v4);
+        kneeUp(H, _v4, _c, KNEE_MIN, th === BONE.thighL ? -1 : 1);
+        _v3.subVectors(_v4, H).normalize();
+        _ax.subVectors(_c, H);
+        _ax.addScaledVector(_v3, -_ax.dot(_v3)).negate(); // −Beugerichtung (wie −pole in _legs)
+        if (_ax.lengthSq() < 1e-8) _ax.set(0, 1, 0);
+        quatFromYZ(_q, _v3.subVectors(H, _c), _ax);
+        this._setWorld(th, _q);
+        quatFromYZ(_q, _v3.subVectors(_c, _v4), _ax);
+        this._setWorld(sh, _q);
+        this._fk(ft);
+        continue;
+      }
       if (need <= 0.005) continue;
       // Bein um die Hüfte zur Senkrechten hin drehen (Achse = Bein × oben): hebt den Knöchel auf kürzestem Weg an
       const leg = _v.subVectors(this.wp[ft], this.wp[th]);
@@ -1125,8 +1184,11 @@ export class Animator {
         if (k > 0.75) fp -= (k - 0.75) * 1.2 * run;
       } else {
         const k = (tt - duty) / (1 - duty);
-        const e = smooth(k);
-        along = stanceLen * (-0.5 + e);
+        // Hermite-Bahn: beim Abheben und Aufsetzen dieselbe Geschwindigkeit wie im Stand (relativ zur Hüfte) → in der Welt
+        // steht der Fuß in diesen Augenblicken still (kein Schleifen über den Boden beim Lösen/Aufsetzen)
+        const a = Math.min(1.5, (1 - duty) / Math.max(0.05, duty)); // Sprint gedeckelt: Rückhol-/Überschwung ≤ 8 % der Schrittlänge
+        const k2 = k * k, k3 = k2 * k;
+        along = stanceLen * (-0.5 + (3 * k2 - 2 * k3) * (1 + a) - a * k);
         up = Math.sin(Math.PI * Math.pow(k, 0.8)) * lift;
         fp = lerp(-0.5, 0.25, k) * run * 0.7 + Math.sin(Math.PI * k) * 0.15;
       }
@@ -1157,14 +1219,23 @@ export class Animator {
       feet[0].lerp(_v.set(-0.1, 0.05, -0.72), this.slide);
       feet[1].lerp(_v.set(0.15, 0.0, -0.06), this.slide);
     }
-    // Liegen/Übergang: Fußziele zur Liege-Beinhaltung (aus der Vorwärtskinematik relativ zum Becken), nie unter den Boden –
-    // beim Hinlegen knickt so das Knie ein (kniend), statt dass die Beine durch den Boden schwingen
+    // Liegen/Übergang (über die Knie): Knie-Bodenpfad – Kniegelenk auf KNEE_MIN + 1 cm, Schienbein flach dahinter; je nach
+    // Beckenhöhe rückt der Fuß nach hinten (kniend ½ m, liegend ~0,8 m hinter der Hüfte). Erst am Ende die Liege-Fußziele
+    // (Vorwärtskinematik der Liegehaltung) – mittendrin zeigten die am halb aufrechten Becken nach unten, das Knie klappte
+    // durch den Boden. Sohle nie unter dem Boden.
     const prn = this.prone;
     if (prn > 0) {
+      const k1 = smooth(prn / 0.45), kl = smooth((prn - 0.75) / 0.25);
       for (let f = 0; f < 2; f++) {
-        const ank = this._proneAnkle(f, _v);
-        ank.y -= DIM.ankle;
-        feet[f].lerp(ank, prn);
+        const hj = qrot(_v3.copy(this.off[f === 0 ? BONE.thighL : BONE.thighR]), wq[0]).add(wp[0]); // Hüftgelenk
+        const hk = hj.y - (KNEE_MIN + 0.01);
+        const back = Math.sqrt(Math.max(0, DIM.thigh * DIM.thigh - hk * hk)) + DIM.shin * 0.97;
+        feet[f].lerp(_v.set(hj.x + (f === 0 ? -0.02 : 0.02), 0.01, hj.z + back), k1);
+        if (kl > 0) {
+          const ank = this._proneAnkle(f, _v);
+          ank.y -= DIM.ankle;
+          feet[f].lerp(ank, kl);
+        }
         if (feet[f].y < 0) feet[f].y = 0;
       }
     }
@@ -1218,15 +1289,31 @@ export class Animator {
     const rx = this.rootX, rz = this.rootZ;
     this.plantShift = 0;
     if (!rest) {
-      // Anlaufen/Springen: gepflanzte Lage kurz ausblenden (der erste Schritt löst sich vom Boden)
+      // Anlaufen: das Standbein bleibt stehen, bis der Schrittzyklus es anhebt – dann löst es sich als Schritt (statt über den
+      // Boden zu gleiten); spätestens nach 0,5 s oder 30 cm Abstand zum Zyklus. Springen/Hinlegen: sofort lösen.
       P.on = false;
-      P.w = Math.max(0, P.w - dt * 7);
-      if (P.w <= 0 || !Number.isFinite(rx)) { P.w = 0; return; }
+      if (!(P.w > 0) || !Number.isFinite(rx)) { P.w = 0; P.f[0].w = 0; P.f[1].w = 0; return; }
+      P.rel += dt;
+      const now = this.air >= 0.2 || this.prone >= 0.05 || P.rel > 0.5;
+      let wMax = 0;
+      for (let f = 0; f < 2; f++) {
+        const F = P.f[f];
+        if (F.w <= 0) continue;
+        const dx = F.x - rx, dz = F.z - rz;
+        const dev = Math.hypot(dx * c - dz * sn - feet[f].x, dx * sn + dz * c - feet[f].z);
+        if (dev > 0.9) { F.w = 0; continue; } // Sprung der Wurzel
+        if (now || dev > 0.3 || feet[f].y - (gOff ? gOff[f] : 0) > 0.008) F.w = Math.max(0, F.w - dt * (now ? 8 : 5));
+        if (F.w > wMax) wMax = F.w;
+      }
+      P.w = wMax;
+      if (wMax <= 0) return;
     } else if (!P.on) {
       P.on = true;
       P.w = 1;
+      P.rel = 0;
       for (let f = 0; f < 2; f++) {
         const F = P.f[f], m = feet[f];
+        F.w = 1;
         F.x = m.x * c + m.z * sn + rx;
         F.z = -m.x * sn + m.z * c + rz;
         F.yaw = fy[f] + by;
@@ -1266,11 +1353,10 @@ export class Animator {
       const F = P.f[worst];
       F.t = 0; F.dur = 0.26 + crouch * 0.08; F.sx = F.x; F.sz = F.z; F.syaw = F.yaw; F.h0 = 0;
     }
-    // Schritte fortschreiben, Füße setzen
-    const w = P.w;
+    // Schritte fortschreiben, Füße setzen (Gewicht je Fuß: beim Anlaufen löst sich erst das Schwungbein)
     let shift = 0;
     for (let f = 0; f < 2; f++) {
-      const F = P.f[f];
+      const F = P.f[f], w = F.w;
       let lift = 0;
       if (F.t >= 0) {
         F.t += dt;
@@ -1289,11 +1375,13 @@ export class Animator {
       const m = feet[f];
       const y = (gOff ? gOff[f] : 0) + lift;
       m.set(m.x + (mx - m.x) * w, m.y + (y - m.y) * w, m.z + (mz - m.z) * w);
+      // Lösen beim Anlaufen: der Fuß hebt im Bogen ab (erster Schritt), statt am Boden zur Zyklus-Lage zu rutschen
+      if (!P.on && w > 0 && w < 1) m.y += Math.sin(Math.PI * (1 - w)) * 0.05;
       fy[f] += wrap(F.yaw - by - fy[f]) * w;
-      shift += (mx - NX[f]) * 0.5;
+      shift += (mx - NX[f]) * 0.5 * w;
     }
     // Becken folgt den Füßen ein Stück (Gewicht zwischen den Füßen)
-    this.plantShift = clamp(shift * 0.35 * w, -0.05, 0.05);
+    this.plantShift = clamp(shift * 0.35, -0.05, 0.05);
   }
 }
 

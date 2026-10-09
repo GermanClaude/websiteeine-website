@@ -56,6 +56,7 @@ const ACTS = {
   mantle: { start: 'S.mantle = { t: 0, dur: 0.6, vault: VAR == 1 }', dur: 1.2 },
   fidget: { start: 'V.playFidget ? V.playFidget(VAR) : 0' },
   fire: { start: 'F.setFiring(true)', dur: 0.8 },
+  bolt: { start: 'V.onShot(1, {}); if (V.action && VAR != null) V.action.variant = VAR', dur: 1.2 },
   idle: { start: '0', dur: 6 },
 };
 

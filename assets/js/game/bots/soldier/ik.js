@@ -14,7 +14,9 @@ export const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export const lerp = (a, b, t) => a + (b - a) * t;
 export const smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 export const damp = (k, dt) => 1 - Math.exp(-k * dt);
-export const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+// Winkel auf [−π, π] (rechnerisch statt atan2(sin, cos) – mehrfach pro Soldat und Bild)
+const TAU = Math.PI * 2;
+export const wrap = (a) => a - TAU * Math.round(a / TAU);
 /** Glatter Übergang a→b im Intervall [t0, t1]. */
 export const ramp = (t, t0, t1) => smooth((t - t0) / Math.max(1e-6, t1 - t0));
 

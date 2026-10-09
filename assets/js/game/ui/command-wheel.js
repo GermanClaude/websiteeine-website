@@ -83,7 +83,8 @@ export class CommandWheel {
       ${WHEEL.map((id, i) => {
         const a = i * SEG;
         const x = 50 + Math.sin(a) * 34.5, y = 50 - Math.cos(a) * 34.5;
-        return `<button type="button" class="cw-item" data-i="${i}" role="menuitem" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%">${ICONS[id]}<span>${esc(ORDER_DEFS[id].label)}</span></button>`;
+        const sub = id === 'formation' ? '<small></small>' : '';
+        return `<button type="button" class="cw-item" data-i="${i}" role="menuitem" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%">${ICONS[id]}<span>${esc(ORDER_DEFS[id].label)}${sub}</span></button>`;
       }).join('')}
       <button type="button" class="cw-center" aria-label="Schließen">
         <b class="cw-title">Befehl</b><span class="cw-hint"></span><span class="cw-count"></span>
@@ -98,7 +99,7 @@ export class CommandWheel {
     this.hintEl = r.querySelector('.cw-hint');
     this.countEl = r.querySelector('.cw-count');
     this.footEl = r.querySelector('.cw-foot');
-    this.formLabel = this.items[WHEEL.indexOf('formation')].querySelector('span');
+    this.formLabel = this.items[WHEEL.indexOf('formation')].querySelector('small'); // nächste Form
     // Touch (Antippen): Feld → Befehl, Mitte → schließen
     const pick = (e) => {
       if (!this.isOpen) return;
@@ -183,7 +184,7 @@ export class CommandWheel {
     G.input.openWheel();
     this.root.hidden = false;
     toggle(this.root, 'is-tap', false);
-    this.formLabel.textContent = `Formation · ${FORMATION_LABELS[FORMATIONS[this._formIdx]]}`;
+    this.formLabel.textContent = FORMATION_LABELS[FORMATIONS[this._formIdx]];
     const dev = G.input.mode === 'touch' ? 'touch' : G.input.lastDevice === 'gamepad' ? 'pad' : 'kb';
     setText(this.footEl, dev === 'touch' ? 'Ziehen und loslassen – oder antippen.' : dev === 'pad' ? 'Rechter Stick wählt, loslassen bestätigt.' : 'Maus wählt, loslassen oder Klick bestätigt.');
     this._select(-1);

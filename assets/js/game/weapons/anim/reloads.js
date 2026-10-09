@@ -363,8 +363,8 @@ export const RELOAD_ACTIONS = {
 
   /**
    * Gurtwechsel (HM-60): Deckel auf, Gurt aus der Zuführung heben, Kasten ab (Achse nach unten, dann weg), neuer
-   * Kasten, Gurt einlegen, Deckel zu (Ruck), leer: durchladen. Variante 1: Stützhand macht alles; Variante 2: die
-   * Schusshand klappt den Deckel, die Stützhand wechselt den Kasten (Waffe weiter zur Kamera gedreht).
+   * Kasten, Gurt einlegen, Deckel zu (Ruck), leer: durchladen. Die Schusshand klappt den Deckel, die Stützhand wechselt
+   * den Kasten; Variante 2 zusätzlich mit Gurt einlegen und weiter zur Kamera gedrehter Waffe.
    * Leer läuft der Wechsel gestaucht (Deckel zu vor 64 % = Munition gutgeschrieben), danach der Spannhebel.
    */
   _actReloadBelt(A, out, u) {
@@ -376,8 +376,9 @@ export const RELOAD_ACTIONS = {
     const mp = empty ? poseTime(keysR, m, u) : m;
     curve(mp, keysR, out.r);
     curve(mp, keysP, out.p);
-    // Deckel: auf 0,1–0,18, zu 0,66–0,74
-    const cover = curve(m, [[0.1, 0], [0.18, -1.15], [0.66, -1.15], [0.74, 0]]);
+    // Deckel: angehoben 0,1–0,14 (Hand am Riegel), schwingt bis 0,19 allein auf; zu: Hand fängt ihn halb offen ab
+    // (0,66) und drückt ihn zu (0,74) – die Hand folgt dem Deckel nie ganz nach oben (sonst Unterarm vor der Kamera)
+    const cover = curve(m, [[0.1, 0], [0.14, -0.45], [0.19, -1.15], [0.62, -1.15], [0.67, -0.5], [0.74, 0]]);
     out.parts.cover = [0, 0, 0, cover, 0, 0];
     if (m > 0.735 && !A.slapped) { A.slapped = true; this._jolt.kick(1.5, 0, 0); }
     // Gurt: bei offenem Deckel aus der Zuführung nach oben/links heben (nicht durch das Gehäuse), dann mit dem Kasten
@@ -412,19 +413,20 @@ export const RELOAD_ACTIONS = {
     if (m >= 0.42 && A.magNew == null && !A.cancel) A.magNew = this._freshMag();
     out.frame = windowW(m, 0.06, 0.16, 0.8, 0.94);
     // Hände
-    const coverL = { part: 'cover', style: 'pinchSide', offset: [-0.028, 0.02, 0.232] };
-    const coverR = { part: 'cover', style: 'boltKnob', offset: [0.004, 0.03, 0.236] };
+    const coverR = { part: 'cover', style: 'boltKnob', offset: [0.004, 0.03, 0.15] };
     const box = ud.anchors.magGrab ? { anchor: ud.anchors.magGrab, style: 'mag' } : null;
     if (v2) {
       // Schusshand: Deckel auf (0,06–0,22) und zu (0,62–0,8); Stützhand: Gurt + Kasten (0,16–0,7)
-      const wR = Math.max(windowW(m, 0.04, 0.1, 0.18, 0.24), windowW(m, 0.6, 0.65, 0.75, 0.82));
+      const wR = Math.max(windowW(m, 0.04, 0.1, 0.13, 0.17), windowW(m, 0.63, 0.67, 0.75, 0.82));
       if (wR > 0) req(out.right, wR, coverR);
       if (box) req(out.left, windowW(m, 0.16, 0.26, 0.6, 0.7), box);
       if (m > 0.55 && m < 0.72) req(out.left, windowW(m, 0.55, 0.6, 0.64, 0.72), { part: 'belt', style: 'pinchSide', offset: [0, 0.01, 0] });
     } else {
-      if (m < 0.24) req(out.left, windowW(m, 0.06, 0.12, 0.2, 0.26), coverL);
-      else if (m < 0.62) { if (box) req(out.left, windowW(m, 0.2, 0.28, 0.58, 0.64), box); }
-      else if (m < 0.8) req(out.left, windowW(m, 0.6, 0.66, 0.74, 0.82), coverL);
+      // Variante 1: Deckel ebenfalls mit der Schusshand (die Stützhand am Deckel führte den Unterarm quer vor die
+      // Kamera), Stützhand nur am Kasten; Waffe flacher gekippt
+      const wR = Math.max(windowW(m, 0.05, 0.1, 0.13, 0.17), windowW(m, 0.63, 0.67, 0.75, 0.82));
+      if (wR > 0) req(out.right, wR, coverR);
+      if (box) req(out.left, windowW(m, 0.2, 0.28, 0.58, 0.66), box);
     }
     if (empty) {
       const c = (u - 0.86) / 0.14;

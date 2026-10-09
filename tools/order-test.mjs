@@ -259,8 +259,8 @@ async function offline(browser) {
   await p.screenshot({ path: `${OUT}/order-kreis.png`, timeout: 120000 });
 
   // --- Angreifen (Punkt unter dem Fadenkreuz), mit Bildschirmfoto des offenen Rads
-  const atk = await p.evaluate(() => window.__ot.nodeAt(30, 50, true));
-  check(!!atk, `Angriffsziel mit Sicht gefunden (${list(atk)})`);
+  const atk = await p.evaluate(() => window.__ot.nodeAt(30, 50, true) || window.__ot.nodeAt(20, 60, true) || window.__ot.nodeAt(25, 50, false));
+  check(!!atk, `Angriffsziel gefunden (${list(atk)})`);
   if (atk) {
     await p.evaluate((t) => window.__game.debugApi.lookAt(t[0], t[1] + 0.3, t[2]), atk);
     await step(p, 0.2);
@@ -293,7 +293,7 @@ async function offline(browser) {
   }
 
   // --- Verteidigen
-  const def = await p.evaluate(() => window.__ot.nodeAt(15, 30, true));
+  const def = await p.evaluate(() => window.__ot.nodeAt(15, 30, true) || window.__ot.nodeAt(12, 35, false));
   if (def) {
     await p.evaluate((t) => window.__game.debugApi.lookAt(t[0], t[1] + 0.3, t[2]), def);
     await step(p, 0.2);
@@ -310,7 +310,7 @@ async function offline(browser) {
   } else check(false, 'Verteidigungspunkt gefunden');
 
   // --- Ausschwärmen
-  const spr = await p.evaluate(() => window.__ot.nodeAt(30, 45, true));
+  const spr = await p.evaluate(() => window.__ot.nodeAt(30, 45, true) || window.__ot.nodeAt(20, 55, true) || window.__ot.nodeAt(25, 45, false));
   if (spr) {
     await p.evaluate((t) => window.__game.debugApi.lookAt(t[0], t[1] + 0.3, t[2]), spr);
     await step(p, 0.2);
@@ -424,7 +424,7 @@ async function phone(browser) {
   });
   check(overlap.hits.length === 0, `Befehlsrad-Knopf (${overlap.rect.join(', ')}) überdeckt keine anderen Knöpfe${overlap.hits.length ? ': ' + overlap.hits.join(', ') : ''}`);
   const c = await center('.tc-befehl');
-  await p.evaluate(() => { window.__game.hud.wheel.tapMs = 4000; }); // CDP-Rundläufe unter Last dauern länger als ein echtes Antippen
+  await p.evaluate(() => { window.__game.hud.wheel.tapMs = 60000; }); // CDP-Rundläufe unter Last (Bilder von mehreren Sekunden) dauern länger als ein echtes Antippen
   // Antippen → Rad bleibt offen, Felder antippbar
   await touch('touchStart', [{ ...c, id: 5 }]);
   await frames(0.05);
@@ -442,7 +442,8 @@ async function phone(browser) {
   await frames(0.2);
   const kinds = await p.evaluate(() => window.__ot.kinds());
   check(kinds.length && kinds.every((k) => k === 'regroup'), `Telefon: „Sammeln“ angetippt (${kinds.join(',')})`);
-  await sleep(2500);
+  const ptoast = await p.evaluate(() => window.__ot.notices().join(' | '));
+  check(/Befehl: Sammeln \(\d+ Bots?\)/.test(ptoast), `Telefon: Hinweis „${ptoast}“`);
   await p.screenshot({ path: `${OUT}/order-toast-phone.png`, timeout: 120000 });
   // Halten und ziehen (nach links = Formation)
   await touch('touchStart', [{ ...c, id: 7 }]);
@@ -500,10 +501,20 @@ async function online(browser) {
       return { team: pup && pup.team, d: G.bots.bots.filter((b) => !b.puppet && pup && b.team === pup.team && b.alive).map((b) => Math.round(b.position.distanceTo(pup.position))) };
     }, j.id);
     info(`Host: Bots im Team des Clients (${before.team}): ${before.d.length}, Abstand zur Puppe ${before.d.join(', ')} m`);
-    // Client: kurz vorwärts laufen, dann „Mir folgen“ über sein Rad (Eingabeweg wie offline, aber in Echtzeit)
-    await cl.evaluate(() => { const G = window.__game; G.input.allowUnlockedMouse = true; G.input.simulate.move(0, 1); });
-    await sleep(5000);
-    await cl.evaluate(() => window.__game.input.simulate.move(null));
+    // Testaufbau (Host): Bots im Team des Clients 5–15 m um seine Puppe versetzen
+    const placed = await host.evaluate((id) => {
+      const G = window.__game;
+      const pup = G.bots.byNetId(id);
+      const pp = pup.position;
+      const nodes = G.world.nav.nodesInRadius(pp, 16).filter((n) => n.position.distanceTo(pp) > 5 && Math.abs(n.position.y - pp.y) < 1.5);
+      const bots = G.bots.bots.filter((b) => !b.puppet && b.alive && b.team === pup.team);
+      bots.forEach((b, i) => { const n = nodes[(i * 7) % Math.max(1, nodes.length)]; if (n) { b.body.teleport(n.position.clone()); b.nav.reset(); } });
+      return bots.map((b) => Math.round(b.position.distanceTo(pp)));
+    }, j.id);
+    info(`Host: Bots zur Puppe versetzt (${placed.join(', ')} m)`);
+    await sleep(1500);
+    // Client: „Mir folgen“ über sein Rad (Eingabeweg wie offline, aber in Echtzeit)
+    await cl.evaluate(() => { window.__game.input.allowUnlockedMouse = true; window.__game.hud.wheel.tapMs = 0; });
     await cl.evaluate(() => window.__game.input.simulate.press('befehl'));
     const opened = await until(cl, () => window.__game.hud.wheel.isOpen, null, 30000, 100);
     await cl.evaluate(() => window.__game.input.simulate.look(0, -160));

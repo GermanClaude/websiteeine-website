@@ -3142,6 +3142,8 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 }
 .cw-item svg { width: clamp(20px, 6.2vmin, 30px); height: clamp(20px, 6.2vmin, 30px); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .7)); }
 .cw-item.is-sel { color: #fff; }
+.cw-item small { display: block; margin-top: 1px; font-size: .86em; letter-spacing: .06em; color: var(--np-gold); }
+.cw-item.is-sel small { color: #fff; }
 .cw-center {
   position: absolute;
   left: 50%;
@@ -3182,10 +3184,11 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 /* Touch (Antippen): Felder und Mitte bedienbar */
 #hud-top .cw-root.is-tap .cw-seg, #hud-top .cw-root.is-tap .cw-item, #hud-top .cw-root.is-tap .cw-center { pointer-events: auto; cursor: pointer; }
 #hud-top .cw-root.is-tap .cw-seg:active { fill: rgba(255, 91, 31, .48); }
-/* Kurze Telefone: Hinweistext in der Mitte weglassen, Fußzeile neben das Rad */
+/* Kurze Telefone: Rad etwas kleiner, Hinweistext in der Mitte weglassen (Fußzeile bleibt knapp unter dem Rad) */
 @media (max-height: 460px) {
+  .cw-root { --cw: min(400px, 70vmin); }
   .cw-hint { display: none; }
-  .cw-foot { top: auto; bottom: 2px; left: calc(100% + 10px); transform: none; white-space: normal; width: max-content; max-width: 22vw; }
+  .cw-foot { top: calc(100% + 3px); padding: 2px 8px; font-size: 11px; }
 }
 
 .cw-marks { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }

@@ -3,7 +3,7 @@
 // Truppbefehlen (ai/squad.js lässt befehligte Bots in Ruhe, ihr `bot.order` bleibt leer) und Missionszielen. Das Hirn
 // (ai/brain.js) bleibt zuständig für Granaten ausweichen, Zurückschießen und Deckung – der Befehl legt fest, wo der Bot
 // kämpft und wohin er sich bewegt (Zielart 'command', Prüfstand „Befehl“):
-//   follow     „Mir folgen“: lockere Doppelreihe hinter dem Anführer (je Bot ein Platz, vorausberechnet aus seinem Tempo);
+//   follow     „Mir folgen“: lockere Doppelreihe hinter dem Anführer (je Bot ein Platz, 0,4 s vorausberechnet aus seinem Tempo);
 //              im Gefecht frei kämpfen, aber an der Leine (> 12 m vom Platz → feuernd zurück zum Platz)
 //   formation  wie follow, Form Reihe | Keil | Kreis (Kreis: rundum um den Anführer, Blick nach außen, steht er: hocken)
 //   hold       „Position halten“: Stelle beim Befehl (Deckung ≤ 3 m in Blickrichtung des Anführers), geduckt, kämpft von dort
@@ -284,8 +284,8 @@ function desired(bot, c, now) {
   if (LEADER_KINDS.has(c.kind)) {
     const L = leaderState(leader, now);
     const lp = leader.position;
-    // vorausberechnet (0,6 s), damit Folgende nicht hinterherhängen
-    const ax = lp.x + (L.moving ? L.vx * 0.6 : 0), az = lp.z + (L.moving ? L.vz * 0.6 : 0);
+    // vorausberechnet (0,4 s), damit Folgende nicht hinterherhängen (aber hinter dem Anführer bleiben)
+    const ax = lp.x + (L.moving ? L.vx * 0.4 : 0), az = lp.z + (L.moving ? L.vz * 0.4 : 0);
     let cx = ax, cz = az, cy = lp.y;
     if (c.kind === 'regroup') {
       // Sammelpunkt folgt dem Anführer erst, wenn er > 8 m weiterzieht (sonst stehen sie im Ring)
@@ -300,9 +300,13 @@ function desired(bot, c, now) {
     // Platz begehbar und vom Anführer aus sichtbar (nicht hinter einer Wand) – sonst näher heran, notfalls beim Anführer
     let p = walkable(G, _v, 3);
     if (!p || !clear(G, lp, p)) {
-      _v.set(cx + (hx * o.f + rx * o.r) * 0.45, cy, cz + (hz * o.f + rz * o.r) * 0.45);
-      p = walkable(G, _v, 2.5);
-      if (!p || !clear(G, lp, p)) p = walkable(G, lp, 3) || lp;
+      // Kreis/Ring: Platz entlang des Rings verschieben (enge Gassen), sonst näher heran
+      p = o.world ? ringAlt(G, cx, cy, cz, lp, Math.atan2(o.r, o.f), Math.hypot(o.f, o.r)) : null;
+      if (!p) {
+        _v.set(cx + (hx * o.f + rx * o.r) * 0.45, cy, cz + (hz * o.f + rz * o.r) * 0.45);
+        p = walkable(G, _v, 2.5);
+        if (!p || !clear(G, lp, p)) p = walkable(G, lp, 3) || lp;
+      }
     }
     // Weg dorthin gescheitert → 3 s lang direkt zum Anführer
     if (now < c.failAt) p = walkable(G, lp, 3) || lp;
@@ -341,6 +345,20 @@ function desired(bot, c, now) {
   else if (c.point) { c.lookAt.set(c.point.x, c.point.y + 1.2, c.point.z); c.hasLook = true; }
 }
 const _slot = { f: 0, r: 0, world: false };
+const RING_TRY = [0.4, -0.4, 0.8, -0.8, 1.25, -1.25];
+
+/** Ersatzplatz auf dem Ring (Winkel a, Radius R um cx/cz): seitlich verschoben bzw. enger, begehbar und vom Anführer sichtbar. */
+function ringAlt(G, cx, cy, cz, lp, a, R) {
+  for (const k of [1, 0.65]) {
+    for (const d of RING_TRY) {
+      const b = a + d, r = R * k;
+      _v.set(cx + Math.sin(b) * r, cy, cz - Math.cos(b) * r);
+      const p = walkable(G, _v, 2);
+      if (p && flat(p, lp) > 1.5 && clear(G, lp, p)) return p;
+    }
+  }
+  return null;
+}
 
 /**
  * Befehl als Ziel umsetzen (aus ai/brain.js think). rec: sichtbares Ziel (oder null); set: brain.set(goal, kind, now, o).

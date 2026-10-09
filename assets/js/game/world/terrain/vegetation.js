@@ -191,7 +191,7 @@ uniform vec4 uGrassFade;
 uniform vec2 uGrassK;
 ${look ? 'uniform sampler2D tGrassMap;\nuniform float tGrassCal;' : ''}
 ` + sh.vertexShader
-      .replace('#include <color_vertex>', `
+      .replace('#include <color_vertex>', `#include <color_vertex>
         vec3 npTint = vec3(1.0);
         float npGd = 0.0, npH1 = 0.5;
         #ifdef USE_INSTANCING_COLOR
@@ -211,7 +211,7 @@ ${look ? 'uniform sampler2D tGrassMap;\nuniform float tGrassCal;' : ''}
         // aPetal: 0 = Halm/Blatt (Bodenfarbe × relative Farbe), 1 = Blütenblatt (Palette je Instanz), 2 = feste Farbe
         vec3 npPetal = npH3 < 0.45 ? vec3(0.8, 0.8, 0.74) : npH3 < 0.75 ? vec3(0.95, 0.72, 0.1) : npH3 < 0.9 ? vec3(0.34, 0.2, 0.72) : vec3(0.9, 0.6, 0.74);
         vec3 npNear = aPetal < 0.5 ? color.rgb * npVar * uGrassK.x * npGround : aPetal < 1.5 ? npPetal * (0.85 + 0.25 * npH2) : color.rgb;
-        vColor = mix(npNear, npGround * uGrassK.y, npCf);
+        vColor.rgb = mix(npNear, npGround * uGrassK.y, npCf); // vColor ist je nach three-Version vec3 oder vec4
       `)
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
         objectNormal = normalize(mix(objectNormal, vec3(0.0, 1.0, 0.0), max(npCf, 0.2)));`)

@@ -504,7 +504,7 @@ export class ViewModel {
     if (info.empty && h.action === 'pistol') this._slideLocked = true;
     if (h.action === 'revolver') this._cylTarget = (this._cylTarget || 0) + Math.PI / 3;
     if (info.empty && (h.action === 'auto' || h.action === 'semi')) this._boltLocked = true;
-    if (h.action === 'bolt') this._start('boltCycle', Math.max(0.6, Math.min(1.0, (this.def ? 60 / this.def.rpm : 1.3) - 0.35)), { delay: 0.12, ejected: false });
+    if (h.action === 'bolt') this._start('boltCycle', Math.max(0.6, Math.min(1.0, (this.def ? 60 / this.def.rpm : 1.3) - 0.35)), { delay: 0.12, ejected: false, variant: this._pickVariant('bolt', 2) });
     else if (h.action === 'pump') this._start('pumpCycle', Math.max(0.42, Math.min(0.6, (this.def ? 60 / this.def.rpm : 0.8) - 0.25)), { delay: 0.1, ejected: false });
     else this._eject();
   }
@@ -1454,23 +1454,29 @@ export class ViewModel {
     setMagRounds(this.cur.model, n, this._cylTarget || 0);
   }
 
-  _boltMotion(c, out, inReload) {
+  /**
+   * Kammerstängel: hoch, zurück (Hülse fliegt), vor, runter. flick (Repetieren, Variante 2): kürzerer Griff, Waffe
+   * kräftiger gekantet und kurz abgesenkt – der Stängel wird mit Schwung „durchgeschlagen“ (gleiche Dauer).
+   */
+  _boltMotion(c, out, inReload, flick = false) {
     const bg = this.cur.ud.anchors.boltGrab;
     if (!bg) return;
     const rot = bg.userData.rot ?? 1.05, travel = bg.userData.travel?.[2] ?? 0.09;
-    const up = curve(c, [[0.18, 0], [0.3, 1], [0.66, 1], [0.78, 0]]);
-    const back = curve(c, [[0.3, 0], [0.45, 1], [0.52, 1], [0.66, 0]]);
+    const up = flick ? curve(c, [[0.22, 0], [0.3, 1], [0.6, 1], [0.68, 0]]) : curve(c, [[0.18, 0], [0.3, 1], [0.66, 1], [0.78, 0]]);
+    const back = flick ? curve(c, [[0.3, 0], [0.4, 1], [0.46, 1], [0.58, 0]]) : curve(c, [[0.3, 0], [0.45, 1], [0.52, 1], [0.66, 0]]);
     out.parts.boltHandle = [0, 0, travel * back, 0, 0, rot * up];
-    const w = windowW(c, 0.02, 0.17, 0.8, 0.96);
+    const w = flick ? windowW(c, 0.06, 0.2, 0.7, 0.86) : windowW(c, 0.02, 0.17, 0.8, 0.96);
     if (w > 0) req(out.right, w, { anchor: bg, style: 'boltKnob' });
-    const rc = windowW(c, 0.0, 0.18, 0.8, 1.0);
-    out.r[2] += 0.16 * rc; out.r[0] += 0.05 * rc; out.r[1] += 0.06 * rc; out.p[1] += -0.015 * rc;
+    const rc = flick ? windowW(c, 0.0, 0.22, 0.62, 0.92) : windowW(c, 0.0, 0.18, 0.8, 1.0);
+    if (flick) { out.r[2] += 0.32 * rc; out.r[0] -= 0.04 * rc; out.r[1] += 0.1 * rc; out.p[1] += -0.03 * rc; out.p[0] -= 0.01 * rc; }
+    else { out.r[2] += 0.16 * rc; out.r[0] += 0.05 * rc; out.r[1] += 0.06 * rc; out.p[1] += -0.015 * rc; }
+    if (flick && c > 0.58 && this.action && !this.action.flicked) { this.action.flicked = true; this._jolt.kick(0.6, 0.3, 0); }
     if (!inReload && c > 0.47 && this.action && !this.action.ejected) { this.action.ejected = true; this._eject(); }
   }
 
   _actBolt(A, out) {
     const c = clamp(A.t / A.dur, 0, 1);
-    this._boltMotion(c, out, false);
+    this._boltMotion(c, out, false, A.variant === 1);
     return c >= 1;
   }
 
