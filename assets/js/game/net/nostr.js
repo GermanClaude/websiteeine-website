@@ -3,11 +3,15 @@
 // das eigentliche Spiel läuft danach direkt zwischen den Browsern (WebRTC).
 // Mehrere Relays gleichzeitig: Fällt eines aus, laufen die anderen weiter. Ereignisse werden über ihre ID entdoppelt
 // und vor der Weitergabe auf eine gültige Signatur geprüft.
-import { verifyEvent } from './crypto.js';
+import { verifyEvent, netNow } from './crypto.js';
 
 const RETRY_MIN = 1000;
 const RETRY_MAX = 30000;
 const PUBLISH_TIMEOUT = 6000;
+const QUEUE_MAX = 8;          // Ereignisse, die bei getrenntem Relay warten (nicht 50 alte Lebenszeichen auf einmal)
+const QUEUE_MAX_AGE = 30;     // s – ältere werden beim Wiederverbinden verworfen
+const STABLE_MS = 30000;      // Wiederholungsabstand erst nach so langer stabiler Verbindung zurücksetzen
+const MUTE_MS = 10 * 60000;   // gesperrt/gedrosselt → so lange nichts mehr an dieses Relay senden (Abos bleiben)
 
 class Relay {
   constructor(url, pool) {
@@ -18,6 +22,7 @@ class Relay {
     this.retry = RETRY_MIN;
     this.queue = [];
     this.closed = false;
+    this.mutedUntil = 0;
     this.connect();
   }
 
@@ -29,14 +34,28 @@ class Relay {
     this.ws = ws;
     ws.onopen = () => {
       this.state = 'offen';
-      this.retry = RETRY_MIN;
+      clearTimeout(this._stableTimer);
+      this._stableTimer = setTimeout(() => { if (this.ws === ws) this.retry = RETRY_MIN; }, STABLE_MS);
       for (const [id, sub] of this.pool.subs) this.send(['REQ', id, ...sub.filters]);
-      const q = this.queue; this.queue = [];
+      // Wartende Ereignisse: zu alte verwerfen, von ersetzbaren nur das neueste je (Art, d) senden
+      const fresh = netNow() - QUEUE_MAX_AGE;
+      const seen = new Set();
+      const q = this.queue.filter((m) => m[1] && m[1].created_at >= fresh).reverse().filter((m) => {
+        const ev = m[1];
+        if (ev.kind < 30000 || ev.kind >= 40000) return true;
+        const d = ((ev.tags || []).find((t) => t[0] === 'd') || [])[1] || '';
+        const k = ev.kind + ':' + d;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      }).reverse();
+      this.queue = [];
       for (const msg of q) this.send(msg);
       this.pool.status();
     };
     ws.onmessage = (e) => this.pool.onMessage(this, e.data);
     ws.onclose = () => {
+      clearTimeout(this._stableTimer);
       if (this.ws !== ws) return;
       this.ws = null;
       this.state = 'getrennt';
@@ -54,10 +73,14 @@ class Relay {
   }
 
   send(msg) {
+    if (msg[0] === 'EVENT' && this.mutedUntil > Date.now()) return false; // Relay hat uns gesperrt/gedrosselt
     if (this.ws && this.ws.readyState === 1) {
       try { this.ws.send(JSON.stringify(msg)); return true; } catch { /* fällt in die Warteschlange */ }
     }
-    if (msg[0] === 'EVENT' && this.queue.length < 50) this.queue.push(msg);
+    if (msg[0] === 'EVENT') {
+      this.queue.push(msg);
+      if (this.queue.length > QUEUE_MAX) this.queue.shift(); // die neuesten behalten
+    }
     return false;
   }
 
@@ -171,12 +194,24 @@ export class RelayPool {
       // Ablehnungen (Drosselung, Sperre, Richtlinie) einmal je Relay und Grund melden – Hilfe bei Verbindungsproblemen
       if (msg[2] !== true) {
         const why = String(msg[3] || '').split(':')[0].slice(0, 40);
+        // Drosselung/Sperre/Spam-Urteil: eine Weile nichts mehr senden (weiteres Senden verlängert Sperren)
+        // (nie so viele, dass weniger als 3 Relays zum Senden bleiben)
+        if (/rate|ban|block|spam|policy|trust/i.test(String(msg[3] || ''))) {
+          const t = Date.now();
+          const usable = this.relays.filter((r) => r !== relay && r.mutedUntil <= t).length;
+          if (usable >= 3) relay.mutedUntil = t + MUTE_MS;
+        }
         const k = relay.url + '|' + why;
         if (!this.rejected) this.rejected = new Set();
         if (!this.rejected.has(k)) { this.rejected.add(k); console.info('[net] Relay', relay.url, 'lehnt ab:', String(msg[3] || '').slice(0, 120)); }
       }
     } else if (msg[0] === 'NOTICE' || msg[0] === 'CLOSED') {
       console.info('[net] Relay', relay.url, msg[0], msg[2] || msg[1]);
+      // Relay hat ein noch aktives Abo geschlossen → nach kurzer Pause neu anmelden
+      if (msg[0] === 'CLOSED' && this.subs.has(msg[1])) {
+        const id = msg[1];
+        setTimeout(() => { const sub = this.subs.get(id); if (sub && relay.state === 'offen') relay.send(['REQ', id, ...sub.filters]); }, 6000);
+      }
     }
   }
 

@@ -46,6 +46,7 @@ export const NET_ERROR_TEXT = Object.freeze({
   'kein-relay': 'Keine Verbindung zu den Vermittlungsservern (Relays).',
   'kein-host': 'Kein offener Raum mit diesem Code gefunden.',
   'keine-antwort': 'Der Host antwortet nicht.',
+  'keine-begruessung': 'Verbunden, aber der Host hat den Beitritt nicht bestätigt.',
   'abgelehnt:voll': 'Der Raum ist voll.',
   'abgelehnt:version': 'Anderer Spielstand – bitte beide die Seite neu laden.',
   'abgelehnt:gekickt': 'Du wurdest aus diesem Raum entfernt.',
@@ -945,7 +946,7 @@ export class NetSystem {
       const lo = this._localLoadout();
       return await new Promise((resolve, reject) => {
         const offs = [];
-        const timer = setTimeout(() => done(netError('keine-antwort')), WELCOME_WAIT_MS);
+        const timer = setTimeout(() => done(netError('keine-begruessung')), WELCOME_WAIT_MS);
         const done = (err, m) => {
           clearTimeout(timer);
           while (offs.length) offs.pop()();

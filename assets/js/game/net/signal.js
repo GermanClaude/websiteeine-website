@@ -11,7 +11,7 @@
 // Öffentliche Spiele: Der Host legt zusätzlich einen Eintrag in die öffentliche Spieleliste (ersetzbares Ereignis
 // mit Ablaufzeit), den jeder lesen kann – inkl. Raumcode, damit man beitreten kann.
 // Das Raum-Thema ist ein Hash des Codes: Wer den Code nicht kennt, sieht nur zufällige Zeichen.
-import { newKeys, signEvent, sharedKey, roomKey, seal, unseal, sha256, hex, randomBytes } from './crypto.js';
+import { newKeys, signEvent, sharedKey, roomKey, seal, unseal, sha256, hex, randomBytes, netNow, syncClock } from './crypto.js';
 import { RelayPool } from './nostr.js';
 
 export const PROTOCOL = 1;
@@ -20,7 +20,7 @@ export const KIND_LOBBY = 30650;    // ersetzbar je Host-Sitzung (d-Tag), mit Ab
 export const KIND_ROOM = 30651;     // Lebenszeichen privater Räume: ersetzbar je Raum-Thema (d-Tag), mit Ablaufzeit
 export const LOBBY_TOPIC = 'nullpunkt-lobby-v1';
 const BEACON_MS = 30000;
-const BEACON_TTL = 120;
+const BEACON_TTL = 75;   // kurz: abgestürzter Host verschwindet bald aus der Suche (Erneuerung alle 30 s)
 const LISTING_MS = 45000;
 const LISTING_TTL = 150;
 const META_MIN_MS = 8000;   // Meta-Änderungen (Spielerzahl …) höchstens so oft veröffentlichen (Relay-Drosselung)
@@ -29,7 +29,8 @@ const OFFER_RETRY_MS = 6000;
 /** Öffentliche Relays (Port 443, ohne Konto). Reihenfolge = Vorrang. */
 // Geprüft 09.10.2026 (Live-Test mit mehreren Beitritten über 4 Minuten): nehmen kurzlebige (25050) und ersetzbare
 // Ereignisse (30650/30651 mit Ablaufzeit) an und liefern sie aus. offchain.pub entfernt (lehnt unbekannte Schlüssel ab,
-// „web of trust“); relay.damus.io drosselt/sperrt bei hoher Rate (deshalb seltene Lebenszeichen) und steht hinten.
+// „web of trust“), ebenso nostr.bitcoiner.social (lehnte Host-Antworten ab); relay.damus.io drosselt/sperrt bei hoher
+// Rate pro IP (deshalb seltene Lebenszeichen) und steht hinten.
 export const DEFAULT_RELAYS = [
   'wss://nos.lol',
   'wss://relay.primal.net',
@@ -37,7 +38,6 @@ export const DEFAULT_RELAYS = [
   'wss://nostr-pub.wellorder.net',
   'wss://relay.snort.social',
   'wss://nostr.oxtr.dev',
-  'wss://nostr.bitcoiner.social',
   'wss://relay.damus.io',
 ];
 
@@ -68,7 +68,7 @@ async function roomTopic(code) {
   return 'np1-' + hex(await sha256('nullpunkt/v1/thema/' + code)).slice(0, 32);
 }
 
-const now = () => Math.floor(Date.now() / 1000);
+const now = netNow; // Serverzeit (Uhrabgleich in crypto.js)
 
 /**
  * Host-Seite der Vermittlung.
@@ -91,6 +91,7 @@ export class HostSignal {
   }
 
   async start() {
+    await syncClock();
     this.topic = await roomTopic(this.code);
     this.rkey = await roomKey(this.code);
     this.sub = this.pool.subscribe(
@@ -114,7 +115,10 @@ export class HostSignal {
   /** Meta-Daten (Spielerzahl, Karte …) für Lebenszeichen und öffentliche Liste aktualisieren – gebündelt, höchstens
    *  alle META_MIN_MS (sonst drosseln/sperren öffentliche Relays den Host). */
   setMeta(meta) {
-    this.meta = { ...this.meta, ...meta };
+    const next = { ...this.meta, ...meta };
+    // nur echte Änderungen veröffentlichen (Ping-Rauschen o. ä. darf keine Ereignisse auslösen)
+    if (JSON.stringify(next) === JSON.stringify(this.meta)) return;
+    this.meta = next;
     if (this._metaTimer) return;
     const wait = Math.max(0, this._lastMeta + META_MIN_MS - Date.now());
     this._metaTimer = setTimeout(() => {
@@ -193,6 +197,7 @@ export class HostSignal {
  * ('kein-relay' | 'kein-host' | 'keine-antwort' | 'abgelehnt:<grund>').
  */
 export async function joinRoom({ relays, code, hello, makeOffer, onStatus, timeout = 20000 }) {
+  await syncClock();
   const pool = new RelayPool(relays || DEFAULT_RELAYS, { onStatus });
   const keys = newKeys();
   const topic = await roomTopic(code);
@@ -206,12 +211,12 @@ export async function joinRoom({ relays, code, hello, makeOffer, onStatus, timeo
       const timer = setTimeout(() => { sub.close(); reject(fail('kein-host')); }, timeout);
       const sub = pool.subscribe([
         { kinds: [KIND_ROOM], '#d': [topic] },
-        { kinds: [KIND_SIGNAL], '#t': [topic], since: now() - 10 },
+        { kinds: [KIND_SIGNAL], '#t': [topic], since: now() - 60 },
       ], async (ev) => {
         if (ev.kind === KIND_ROOM) {
           // abgelaufen (eigene Uhr, 60 s Spielraum für Uhrabweichungen) → toter Raum
           const exp = Number((ev.tags.find((t) => t[0] === 'expiration') || [])[1] || 0);
-          if (exp && exp + 60 < now()) return;
+          if (exp && exp + 20 < now()) return;
         }
         const msg = await unseal(rkey, ev.content);
         if (!msg || msg.t !== 'host' || msg.ended) return;

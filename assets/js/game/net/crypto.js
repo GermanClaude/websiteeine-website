@@ -40,8 +40,36 @@ export function newKeys() {
   return { sk, pk: hex(secp.schnorr.getPublicKey(sk)) };
 }
 
+/** Versatz der Geräteuhr zur Serverzeit (ms). Relays verwerfen Ereignisse mit falscher Zeit (kurzlebige > 60 s alt,
+ *  Abos mit since filtern auch Live-Ereignisse) – eine falsch gehende Handy-Uhr hätte sonst den Beitritt verhindert. */
+let clockOffset = 0;
+let clockSynced = null;
+export const netNow = () => Math.floor((Date.now() + clockOffset) / 1000);
+
+/** Uhr einmal abgleichen: Date-Kopf der eigenen Seite (gleicher Ursprung, kein Fremddienst). Höchstens ~1,5 s warten. */
+export function syncClock() {
+  if (clockSynced) return clockSynced;
+  clockSynced = (async () => {
+    if (typeof fetch !== 'function' || typeof location === 'undefined' || !/^https?:/.test(location.protocol)) return clockOffset;
+    try {
+      const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+      const t = setTimeout(() => ctl && ctl.abort(), 1500);
+      const t0 = Date.now();
+      const res = await fetch(location.href, { method: 'HEAD', cache: 'no-store', signal: ctl ? ctl.signal : undefined });
+      clearTimeout(t);
+      const d = Date.parse(res.headers.get('date') || '');
+      const t1 = Date.now();
+      // Date-Kopf hat Sekundenauflösung → nur Abweichungen über 3 s korrigieren
+      if (Number.isFinite(d)) { const off = d + 500 - (t0 + t1) / 2; if (Math.abs(off) > 3000) clockOffset = off; }
+    } catch { /* ohne Abgleich weiter */ }
+    return clockOffset;
+  })();
+  return clockSynced;
+}
+export const clockSkew = () => clockOffset;
+
 /** Signiertes Nostr-Ereignis (NIP-01). */
-export async function signEvent(keys, kind, tags, content, createdAt = Math.floor(Date.now() / 1000)) {
+export async function signEvent(keys, kind, tags, content, createdAt = netNow()) {
   const ev = { pubkey: keys.pk, created_at: createdAt, kind, tags, content };
   const id = await sha256(JSON.stringify([0, ev.pubkey, ev.created_at, ev.kind, ev.tags, ev.content]));
   ev.id = hex(id);
