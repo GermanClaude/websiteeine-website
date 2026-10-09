@@ -48,6 +48,10 @@ export const DEFAULTS = Object.freeze({
   glocke: true,
   // Leichen (bots/corpses.js): 'bleiben' | '10min' | '2min'; zusätzlich Obergrenze je Grafikstufe (älteste zuerst weg)
   leichen: 'bleiben',
+  // VR-Modus (Beta, engine/xr/): nur mit Einstellung + laufender WebXR-Sitzung wirksam; Bedeutung in docs/planung/vr.md
+  vrEnabled: false, vrHand: 'rechts', vrTurn: 'schritt', vrTurnStep: '30', vrTurnSpeed: 120, vrMoveDir: 'kopf',
+  vrVignette: true, vrVignetteStrength: 0.6, vrSeated: false, vrPhysical: true, vrHeight: 0,
+  vrQuality: 'auto', vrScale: 'auto', vrLaser: true,
 });
 
 const HOLD_TOGGLE = Object.freeze({ options: ['hold', 'toggle'], labels: { hold: 'Halten', toggle: 'Umschalten' } });
@@ -245,6 +249,27 @@ export const SETTINGS_SCHEMA = Object.freeze({
     type: 'enum', label: 'Vollbild', group: 'spiel',
     options: ['auto', 'off'], labels: { auto: 'Automatisch', off: 'Nur per Knopf/Taste' },
   },
+  // VR-Modus (Beta): Gruppe 'vr' – nur im Spiel unter Steuerung → VR (nicht auf der Website)
+  vrEnabled: { type: 'boolean', label: 'VR-Modus (Beta)', group: 'vr' },
+  vrHand: { type: 'enum', label: 'Haupthand (Waffe)', group: 'vr', options: ['rechts', 'links'], labels: { rechts: 'Rechts', links: 'Links' } },
+  vrTurn: { type: 'enum', label: 'Drehen', group: 'vr', options: ['schritt', 'fluessig'], labels: { schritt: 'In Schritten', fluessig: 'Flüssig' } },
+  vrTurnStep: { type: 'enum', label: 'Schrittwinkel', group: 'vr', options: ['15', '30', '45'], labels: { 15: '15°', 30: '30°', 45: '45°' } },
+  vrTurnSpeed: { type: 'number', min: 45, max: 240, step: 15, integer: true, unit: '°/s', label: 'Drehgeschwindigkeit (flüssig)', group: 'vr' },
+  vrMoveDir: { type: 'enum', label: 'Laufrichtung', group: 'vr', options: ['kopf', 'controller'], labels: { kopf: 'Blickrichtung', controller: 'Controller-Richtung' } },
+  vrVignette: { type: 'boolean', label: 'Rand abdunkeln beim Bewegen (Vignette)', group: 'vr' },
+  vrVignetteStrength: { type: 'number', min: 0.1, max: 1, step: 0.05, label: 'Stärke der Vignette', group: 'vr' },
+  vrSeated: { type: 'boolean', label: 'Sitzend spielen', group: 'vr' },
+  vrPhysical: { type: 'boolean', label: 'Echtes Ducken, Hinlegen und Lehnen (Kopfbewegung)', group: 'vr' },
+  vrHeight: { type: 'number', min: 0, max: 2.5, step: 0.001, unit: 'm', label: 'Kalibrierte Kopfhöhe (0 = beim VR-Start messen)', group: 'intern' },
+  vrQuality: {
+    type: 'enum', label: 'VR-Grafik', group: 'vr',
+    options: ['auto', 'niedrig', 'wie'], labels: { auto: 'Automatisch', niedrig: 'Niedrig (Quest-Brille)', wie: 'Wie am Bildschirm' },
+  },
+  vrScale: {
+    type: 'enum', label: 'VR-Auflösung', group: 'vr',
+    options: ['auto', '0.6', '0.7', '0.8', '0.9', '1'], labels: { auto: 'Automatisch', 0.6: '60 %', 0.7: '70 %', 0.8: '80 %', 0.9: '90 %', 1: '100 %' },
+  },
+  vrLaser: { type: 'boolean', label: 'Zielpunkt der Waffe anzeigen', group: 'vr' },
 });
 
 /**
