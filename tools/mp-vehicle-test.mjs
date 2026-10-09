@@ -223,8 +223,10 @@ try {
               const hit = V._rc ? V._rc.orig.call(G.world, o, d, 40) : G.world.raycast(o, d, 40);
               if (hit && hit.distance < len) len = hit.distance;
             }
+            // Bahn auch befahrbar: fester, ebener Boden (kein Wasser, keine Kante) alle 8 m bis 32 m
+            if (len >= 30) for (const dd of [8, 16, 24, 32]) { if (!V._clear(spot.position.clone().addScaledVector(d, dd), yaw, v.def)) { len = Math.min(len, dd - 8); break; } }
             if (len > bestLen) { bestLen = len; best = yaw; }
-            if (len >= 40) break;
+            if (len >= 30) break;
           }
           if (bestLen >= 30) pick = { pos: spot.position, yaw: best, len: bestLen };
           else rejected.push(spot.position);
@@ -245,6 +247,9 @@ try {
   });
 
   await hidePage(host, true);
+  // Spielzeit des Hosts: unter Fremdlast schafft auch der verborgene Host oft nur 1–2 Bilder/s (je Bild ≤ 0,05 s Spielzeit) –
+  // Zeitfaktor 1,6 hält jeden Schritt unter der Fahrzeug-Obergrenze (5 × 1/60 s), die Prüfung braucht so weniger Echtzeit
+  await ev(host, () => window.__game.debugApi.setTimeScale(1.6));
   const hostHz = await (async () => { const a = await ev(host, () => window.__game.time.frame); await sleep(3000); const b = await ev(host, () => window.__game.time.frame); return (b - a) / 3; })();
   info(`Host-Seite verborgen (Simulation im Worker-Takt): ${hostHz.toFixed(1)} Bilder/s`);
 
@@ -311,7 +316,7 @@ try {
     const v = window.__game.vehicles.list.find((x) => x.netId === vid), p = v.body.pos;
     const d = Math.hypot(p.x - a[0], p.z - a[2]);
     return d >= 20 ? d : null;
-  }, [tA.vid, p0], 240000, 500);
+  }, [tA.vid, p0], 600000, 500);
   await ev(anna, () => { const S = window.__game.input.simulate; S.release('move_forward'); S.press('jump'); });
   // runter bis N (so oft S tippen, wie der Gang hoch ist), dabei bremsen bis Stillstand
   const gNow = await ev(host, (vid) => window.__game.vehicles.list.find((x) => x.netId === vid).body.drive.targetGear, tA.vid);
@@ -344,7 +349,7 @@ try {
     const fwd = new T(0, 0, -1).applyQuaternion(a.body.quat);
     const a0 = Math.atan2(fwd.z, fwd.x);
     const order = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8];
-    for (const strict of [true, false]) for (const dist of [40, 30, 25, 20, 50]) {
+    for (const strict of [true]) for (const dist of [40, 30, 25, 20, 50, 60, 15]) {
       for (const k of order) {
         const ang = a0 + (k / 16) * Math.PI * 2;
         const x = P.x + Math.cos(ang) * dist, z = P.z + Math.sin(ang) * dist;
@@ -394,7 +399,11 @@ try {
     const v = window.__game.vehicles.list.find((x) => x.netId === vid), s = v.seats[1];
     return s.actor && s.actor.netId === id && s.aimError < 0.012 && v.gun.step === 'geladen' ? s.aimError : null;
   }, [tA.vid, B], 180000, 500);
-  check(aligned != null, `Host: Turm folgt Berts Zielrichtung (Fehler ${aligned != null ? (aligned * 1000).toFixed(1) : '–'} mrad), Kanone geladen`);
+  const aimDiag = aligned != null ? '' : JSON.stringify(await ev(host, (vid) => {
+    const v = window.__game.vehicles.list.find((x) => x.netId === vid), s = v.seats[1], d = s.intent.aimDir;
+    return { err: +(s.aimError || 0).toFixed(3), ty: +v.mount.turretYaw.toFixed(3), gp: +v.mount.gunPitch.toFixed(3), aim: d ? [+d.x.toFixed(3), +d.y.toFixed(3), +d.z.toFixed(3)] : null, step: v.gun.step, actor: s.actor && s.actor.netId, up: v.body.up(new (v.body.pos.constructor)()).y.toFixed(3), hp: Math.round(v.health) };
+  }, tA.vid));
+  check(aligned != null, `Host: Turm folgt Berts Zielrichtung (Fehler ${aligned != null ? (aligned * 1000).toFixed(1) : '–'} mrad), Kanone geladen ${aimDiag}`);
   const hpB0 = (await vehs(host)).find((v) => v.vid === tB.vid).hp;
   const vh0 = await ev(bert, () => window.__mv.vh);
   await ev(bert, () => window.__game.input.simulate.tap('fire'));
@@ -466,11 +475,11 @@ try {
     const bot = G.bots.bots.find((b) => !b.isRemoteHuman && b.team === 'B' && b.alive);
     if (!bot) return 0;
     bot.invulnerable = false;
-    G.vehicles.enter(bot, v, 0);
+    if (!v.alive || G.vehicles.enter(bot, v, 0) < 0) return -1;
     v.health = 6; v.zones.hull.hp = 6;
     return bot.netId;
   }, tB.vid);
-  info(`Bot ${botId} sitzt im Feindpanzer, HP 6`);
+  check(botId > 0, `Bot ${botId} sitzt im Feindpanzer, HP 6`);
   await aimAt(target.pos);
   const aligned2 = await until(host, ([vid, id]) => {
     const v = window.__game.vehicles.list.find((x) => x.netId === vid), s = v.seats[1];
@@ -487,7 +496,7 @@ try {
   check(kfAll.every((w) => w === 'mbt_ap') && !!kfName, `Abschussliste: Ursache mbt_ap überall (${kfAll.join('/')}), Name „${kfName}“`);
   await shot(anna, '6-wrack');
   // Wrack sofort räumen, Wiedererscheinen in 1 s
-  await ev(host, (vid) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); v.wreckLeft = 0.2; }, tB.vid);
+  await ev(host, (vid) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); if (v) v.wreckLeft = 0.2; }, tB.vid);
   await until(host, (vid) => !window.__game.vehicles.list.some((x) => x.netId === vid), tB.vid, 30000, 300);
   await ev(host, () => { const G = window.__game; for (const sp of G.vehicles.spawns) if (!sp.vehicle && sp.respawnAt != null) sp.respawnAt = G.time.elapsed + 0.5; });
   const newB = await until(host, (old) => { const v = window.__game.vehicles.list.find((x) => x.type === 'mbt' && x.spawnTeam === 'B' && x.alive); return v && v.netId !== old ? v.netId : null; }, tB.vid, 60000, 300);

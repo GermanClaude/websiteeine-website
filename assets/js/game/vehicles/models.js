@@ -834,8 +834,8 @@ function inward(geom) {
 /** Granate (Spitze zeigt nach −Z, Boden bei z = 0) mit Vertex-Farben. full: ganze Patrone (in der Hand),
  * sonst nur der sichtbare Vorderteil im Gestell. Farben: PG schwarz/gold, SG oliv/gelb. */
 const SHELL_COL = {
-  mbt_ap: { body: 0x17181a, band: 0xc19a3a, nose: 0x1d1e20, tip: 0x6a5524, len: 0.2, tipR: 0.008 },
-  mbt_he: { body: 0x4b5233, band: 0xd9b52a, nose: 0x4b5233, tip: 0x6f6a58, len: 0.15, tipR: 0.022 },
+  mbt_ap: { body: 0x17181a, band: 0xc19a3a, nose: 0x1d1e20, tip: 0x6a5524, len: 0.2 },
+  mbt_he: { body: 0x4b5233, band: 0xd9b52a, nose: 0x4b5233, tip: 0x6f6a58, len: 0.15 },
 };
 const _col = new THREE.Color();
 function shellGeometry(type, n, { full = false, band = true, body = true } = {}) {
@@ -867,7 +867,8 @@ function shellGeometry(type, n, { full = false, band = true, body = true } = {})
   if (body) part(new THREE.CylinderGeometry(R, R, 0.06, n, 1, true), C.body, C.body, z - 0.03);
   if (band) part(new THREE.CylinderGeometry(R + 0.002, R + 0.002, 0.025, n, 1, true), C.band, C.band, z - 0.0725);
   const zb = z - (band ? 0.085 : body ? 0.06 : 0);
-  part(new THREE.CylinderGeometry(C.tipR, R, C.len, n, 1, true), band ? C.nose : C.band, C.tip, zb - C.len / 2);
+  // ohne Ring: Haube von Grundfarbe (Boden) zur Ringfarbe (Spitze) – PG schwarz→gold, SG oliv→gelb
+  part(new THREE.CylinderGeometry(0, R, C.len, n, 1, true), C.nose, band ? C.tip : C.band, zb - C.len / 2);
   const g = mergeGeometries(parts, false);
   for (const p of parts) p.dispose();
   return g;

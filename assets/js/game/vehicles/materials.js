@@ -207,7 +207,7 @@ export function vehicleMaterials() {
     // Turm-Innenraum (nur für den lokalen Insassen): Wandfarbe leicht selbstleuchtend (Innenlampe), Granaten mit Vertex-Farben
     cabin: new THREE.MeshStandardMaterial({ name: 'veh:cabin', color: 0x4d5446, roughness: 0.82, metalness: 0.12, emissive: 0x1b1d16, emissiveIntensity: 1 }),
     shell: new THREE.MeshStandardMaterial({ name: 'veh:shell', vertexColors: true, roughness: 0.5, metalness: 0.35, emissive: 0x0b0a08, emissiveIntensity: 1 }),
-    steel: new THREE.MeshStandardMaterial({ name: 'veh:steel', color: 0x4f5458, roughness: 0.42, metalness: 0.6, envMapIntensity: 0.6, emissive: 0x0b0c0d, emissiveIntensity: 1 }),
+    steel: new THREE.MeshStandardMaterial({ name: 'veh:steel', color: 0x44484c, roughness: 0.5, metalness: 0.45, envMapIntensity: 0.45, emissive: 0x08090a, emissiveIntensity: 1 }),
     lensOn: new THREE.MeshStandardMaterial({ name: 'veh:lensOn', color: 0xfff6e0, emissive: 0xffe9c0, emissiveIntensity: 6, roughness: 0.2 }),
     lensOff: new THREE.MeshStandardMaterial({ name: 'veh:lensOff', color: 0xb9b6ad, emissive: 0x332f26, emissiveIntensity: 0.4, roughness: 0.15, metalness: 0.3 }),
     rearLamp: new THREE.MeshStandardMaterial({ name: 'veh:rear', color: 0x5a0d08, emissive: 0x6a0904, emissiveIntensity: 1.2, roughness: 0.3 }),
