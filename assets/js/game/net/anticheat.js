@@ -273,7 +273,8 @@ export class AntiCheat {
    * Zustand eines Clients prüfen. state: {x,y,z,flags} (decodeState().entity) oder {pos:[x,y,z], flags}.
    * ctx: { alive?: bool (Puppe lebt beim Host), clientAlive?: bool (Client meldet „lebt“), rtt?: s,
    *   hostGap?: s (Zeit seit dem letzten Bildbeginn des Hosts – hing er, kommen die Zustände gebündelt),
-   *   ct?: s (Sendestempel des Zustands, Host-Zeit laut Client – decodeState().clientTime) }.
+   *   ct?: s (Sendestempel des Zustands, Host-Zeit laut Client – decodeState().clientTime),
+   *   carry?: m/s (Zusatztempo: steht auf/neben einem fahrenden Fahrzeug – Deck, ≤ 4 m; sync-host _carrySpeed) }.
    *   alive === false → nicht geprüft, neuer Anker beim nächsten Spawn/Zustand.
    *   clientAlive === false bei lebender Puppe (Spawn unterwegs) → verworfen, Anker bleibt.
    * → { ok, reason, correct?: [x,y,z] (Rücksetzposition, Host schickt 'correct'), kick: grund|null }
@@ -332,8 +333,10 @@ export class AntiCheat {
     // Budget nach dem gemeldeten Zustand; der einzelne Schritt darf bei Übergängen (Sprint → Rutschen, Rutschen →
     // Sprung) das schnellere der beiden Zustandstempi nutzen
     const speed = this._speedFor(flags);
-    const vMax = speed * o.boost * (1 + o.tolerance);
-    const vStep = Math.max(speed, this._speedFor(p.flags)) * o.boost * (1 + o.tolerance);
+    // Fahrzeug unter/neben dem Spieler: dessen Tempo kommt hinzu (Mitfahren auf dem Deck)
+    const carry = num(ctx.carry) ? Math.min(40, Math.max(0, ctx.carry)) * (1 + o.tolerance) : 0;
+    const vMax = speed * o.boost * (1 + o.tolerance) + carry;
+    const vStep = Math.max(speed, this._speedFor(p.flags)) * o.boost * (1 + o.tolerance) + carry;
     // Obergrenze des Budgets: budgetWindow – hing der Host länger (langes Bild, die Zustände der Lücke kommen danach
     // gebündelt an), gilt für dieses Bündel (0,25 s Host-Zeit) die ganze Lücke (höchstens win, s. o.)
     const climb = o.climb * (1 + o.tolerance);
@@ -341,7 +344,7 @@ export class AntiCheat {
     const gap = Math.min(dtHost, win);
     if (vMax * gap + o.slack > this._capH(speed)) { p.capH = vMax * gap + o.slack; p.capUp = climb * gap + o.stepUp; p.capUntil = nowSec + 0.25; }
     const burst = nowSec <= (p.capUntil || -1);
-    const capH = burst ? Math.max(this._capH(speed), p.capH) : this._capH(speed);
+    const capH = (burst ? Math.max(this._capH(speed), p.capH) : this._capH(speed)) + carry * o.budgetWindow;
     const budgetH = Math.min(capH, p.budgetH + vMax * dt);
     const budgetUp = Math.min(burst ? Math.max(this._capUp(), p.capUp) : this._capUp(), p.budgetUp + climb * dt);
     const hd = distH(pos, p.pos);

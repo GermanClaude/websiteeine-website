@@ -2,6 +2,8 @@
 // Akteure). Treffer: Fahrzeuge → Schaden nach Trefferseite (vorn ×0,6, Seite ×1, hinten ×2, oben ×1,6) mit
 // Abprallern bei flachem Auftreffwinkel (> 70°), Akteure → Volltreffer, überall Splash über combat.explode.
 // Darstellung: kleiner additiver Leuchtspur-Körper je Granate (Pool, höchstens MAX gleichzeitig).
+// Online-Clients (Abbild): fire(…, { display: true }) – dieselbe Flugbahn, beim Aufschlag nur Funken/Staub/Abpraller;
+// Schaden und Explosion rechnet der Host (die Explosion kommt als 'ex').
 import * as THREE from 'three';
 
 const MAX = 24;
@@ -21,14 +23,14 @@ export class ShellPool {
 
   attach(scene) { if (!this.group.parent) scene.add(this.group); }
 
-  fire(def, origin, dir, shooter, vehicle) {
+  fire(def, origin, dir, shooter, vehicle, { display = false } = {}) {
     if (this.list.length >= MAX) this._remove(this.list[0]);
     let mesh = this.free.pop();
     if (!mesh) { mesh = new THREE.Mesh(this.geo, this.mat); mesh.frustumCulled = false; mesh.renderOrder = 6; }
     this.group.add(mesh);
     const vel = dir.clone().multiplyScalar(def.speed);
     if (vehicle) vel.add(vehicle.body.vel);
-    const s = { def, pos: origin.clone(), vel, shooter, vehicle, age: 0, mesh, ricochets: 0 };
+    const s = { def, pos: origin.clone(), vel, shooter, vehicle, age: 0, mesh, ricochets: 0, display };
     mesh.position.copy(s.pos);
     this.list.push(s);
     return s;
@@ -90,10 +92,12 @@ export class ShellPool {
         G.events.emit('vehicle:ricochet', { vehicle: v, attacker, weaponId: def.id, point: p.clone() });
         return false;
       }
+      if (s.display) return this._displayImpact(hit, dir);
       const mult = (FACE_MULT[hit.face] || 1) * (v.def.armored ? 1 : 1.35);
       const dealt = v.applyDamage(def.vehicleDamage * mult, { attacker, weaponId: def.id, zone: hit.zone, kind: 'shell', point: p, dir });
       if (dealt > 0) G.events.emit('vehicle:hit', { vehicle: v, attacker, amount: dealt, weaponId: def.id, face: hit.face, zone: hit.zone });
-    } else if (hit.actor) {
+    } else if (s.display) return this._displayImpact(hit, dir);
+    else if (hit.actor) {
       G.combat.damage(hit.actor, { amount: def.actorDamage, attacker, weaponId: def.id, explosive: true, point: p, dir, zone: 'body' });
     }
     // Splash (Infanterie) – leicht vor der Oberfläche, damit die Sichtprüfung nicht in der Wand startet
@@ -109,6 +113,14 @@ export class ShellPool {
       const dmg = sp.maxDamage * Math.pow(1 - d / sp.radius, 1.2) * v.def.explosiveMult;
       v.applyDamage(dmg, { attacker, weaponId: def.id, kind: 'explosive', zone: 'hull', point: at });
     }
+    return true;
+  }
+
+  /** Darstellungsgranate (Abbild) schlägt ein: Funken/Staub; die Explosion kommt vom Host. → true (verbraucht) */
+  _displayImpact(hit, dir) {
+    const G = this.sys.G;
+    const n = hit.normal || _d.copy(dir).negate();
+    G.effects?.impact?.(hit.point, n, hit.vehicle ? 'metal' : hit.surface || 'concrete', { big: true });
     return true;
   }
 

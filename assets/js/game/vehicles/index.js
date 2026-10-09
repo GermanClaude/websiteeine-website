@@ -15,8 +15,9 @@ import { viewsOf, viewOf, fpViewOf, isTp, viewExposed, opticIndex, firstFp, view
 import { WHY_TEXT, loaderHint, isHuman, SHORT } from './crew.js';
 import { VehicleHUD, projectToScreen } from './hud.js';
 import { VehicleAudio } from './audio.js';
-import { upgradeVehicleMaterials, vehicleMaterials } from './materials.js';
-import { prepareVehicleModels } from './models.js';
+import * as MATS from './materials.js';
+import { prepareVehicleModels, createVehicleModel } from './models.js';
+import { VehicleNet } from './net.js';
 import { groundRay } from './sim.js';
 import { collisionRay, canOccupy } from '../engine/physics.js';
 import { falloff } from '../combat.js';
@@ -70,12 +71,17 @@ export class VehicleSystem {
 
   /* =============================================================== Lebenszyklus */
 
-  attach(G = this.G) {
+  /**
+   * opts.replica (online-Client): Abbild ohne Sim/Schaden/Spawns – Fahrzeuge, Lage und Zustand kommen vom Host
+   * (vehicles/net.js, panzer-mp.md §C.2). Online (Host und Client) vermittelt this.net.
+   */
+  attach(G = this.G, { replica = false } = {}) {
     if (this.attached) this.detach();
     this.G = G;
     this.world = G.world;
     if (!this.world) return;
     this.attached = true;
+    this.replica = !!replica;
     this.quality = (G.renderer && G.renderer.quality) || 'high';
     this.group = new THREE.Group();
     this.group.name = 'vehicles';
@@ -100,16 +106,32 @@ export class VehicleSystem {
       this.spot.name = 'vehicle-headlight';
       this.group.add(this.spot, this.spot.target);
     }
-    this._setupSpawns();
-    if (this.list.length || this.spawns.length) {
-      upgradeVehicleMaterials(G.renderer && G.renderer.renderer, this.quality);
+    // Netz: Host vergibt Ids ab dem ersten Spawn (vor _setupSpawns), Client vermittelt Anfragen (sys.remote)
+    const online = !!(G.match && G.match.netRole && G.net);
+    this.net = online ? new VehicleNet(this, { replica: this.replica }) : null;
+    this.remote = this.replica ? this.net : null;
+    if (!this.replica) this._setupSpawns();
+    else prepareVehicleModels(['mbt', 'jeep'].filter((t) => VEHICLES[t]), ['A', 'B'], this.quality);
+    if (this.list.length || this.spawns.length || this.replica) {
+      MATS.upgradeVehicleMaterials(G.renderer && G.renderer.renderer, this.quality);
       // Shader vorwärmen (main.warmUp kompiliert sichtbare Szenenobjekte): Granate, Scheinwerfer an, Lichtkegel, Wrack
-      const S = vehicleMaterials();
+      // (+ Innenraum usw., falls materials.js die Liste liefert)
+      const S = MATS.vehicleMaterials();
       const warm = new THREE.Group();
       warm.name = 'vehicle-warmup';
       warm.position.set(0, -9999, 0);
       const g = new THREE.BoxGeometry(0.01, 0.01, 0.01);
-      for (const m of [this.shells.mat, S.lensOn, S.cone, S.wreck]) warm.add(new THREE.Mesh(g, m));
+      const extra = typeof MATS.vehicleWarmMaterials === 'function' ? (MATS.vehicleWarmMaterials(this.quality) || []) : [];
+      for (const m of new Set([this.shells.mat, S.lensOn, S.cone, S.wreck, ...extra])) if (m) warm.add(new THREE.Mesh(g, m));
+      // Abbild: Fahrzeuge kommen erst mit der Liste des Hosts – Modelle beider Teams einmal mitkompilieren, nach dem
+      // Countdown wieder weg (update)
+      if (this.replica) {
+        this._warmModels = [];
+        for (const type of ['mbt', 'jeep']) for (const team of ['A', 'B']) {
+          if (!VEHICLES[type]) continue;
+          try { const md = createVehicleModel(type, { team, quality: this.quality }); warm.add(md.root); this._warmModels.push(md); } catch (err) { console.warn('[vehicles] Vorwärmen', err); }
+        }
+      }
       this.group.add(warm);
     }
   }
@@ -117,6 +139,9 @@ export class VehicleSystem {
   detach() {
     if (!this.attached) return;
     const G = this.G;
+    if (this.net) { this.net.dispose(); this.net = null; }
+    this.remote = null;
+    if (this._warmModels) { for (const md of this._warmModels) { md.root.removeFromParent(); md.dispose(); } this._warmModels = null; }
     for (const v of this.list) for (const s of v.seats) if (s.actor) this.removeFromSeat(s.actor, { teleport: false });
     for (const v of this.list) v.dispose();
     this.list.length = 0;
@@ -131,6 +156,7 @@ export class VehicleSystem {
     this.audio.stopAll();
     this._near = null;
     this.attached = false;
+    this.replica = false;
     this.world = null;
     void G;
   }
@@ -707,8 +733,10 @@ export class VehicleSystem {
     if (!this.attached) return;
     const G = this.G, world = this.world;
     const t0 = performance.now();
-    this.live = !!G.match && G.match.state === 'playing';
+    // online läuft das Spiel im Pausenmenü weiter (netLive)
+    this.live = !!G.match && (G.match.state === 'playing' || !!G.match.netLive);
     const now = G.time.elapsed;
+    if (this.replica) { this._updateReplica(dt); this._stats.ms = performance.now() - t0; return; }
     // Wiedererscheinen
     for (const sp of this.spawns) {
       if (sp.vehicle || sp.respawnAt == null || now < sp.respawnAt) continue;
@@ -727,6 +755,28 @@ export class VehicleSystem {
     this._updatePlayer(dt);
     this.audio.update(dt, this.list, G.player && G.player.vehicle);
     this._stats.ms = performance.now() - t0;
+  }
+
+  /**
+   * Abbild (online-Client, panzer-mp.md §C.2): keine Spawns, keine Physik/Waffen/Schäden, kein Entfernen aus Wrackzeit
+   * (nur per Liste), keine Fahrzeug-Fahrzeug-Stöße; Lage/Zustand interpoliert net.tickReplica. Granaten nur Darstellung.
+   */
+  _updateReplica(dt) {
+    const G = this.G;
+    if (this._warmModels && G.match && G.match.state === 'playing') {
+      for (const md of this._warmModels) { md.root.removeFromParent(); md.dispose(); }
+      this._warmModels = null;
+    }
+    const net = this.net;
+    if (net) {
+      net.replicaFrame();
+      for (const v of this.list) net.tickReplica(v, dt);
+    }
+    this._collideActors(dt);
+    this.shells.update(dt);
+    for (const v of this.list) { v.sync(dt); this._pinOccupants(v); }
+    this._updatePlayer(dt);
+    this.audio.update(dt, this.list, G.player && G.player.vehicle);
   }
 
   /**
@@ -939,6 +989,7 @@ export class VehicleSystem {
     if (!this.list.length) return;
     for (const actor of G.actors) {
       if (!actor.alive || actor.vehicle || !actor.body) continue;
+      if (this.replica && !actor.isPlayer) continue; // Abbild: nur der eigene Spieler (Puppen setzt das Netz)
       const p = actor.body.position;
       const r = 0.36;
       const h = actor.body.height || STAND_H;
@@ -970,7 +1021,7 @@ export class VehicleSystem {
         _n.copy(_b).multiplyScalar(1 / pushLen);
         // Überfahren: Annäherung des Fahrzeugs an den Akteur
         const closing = v.body.pointVelocity(p, _c).dot(_n);
-        if (closing > 5 && v.alive && (actor._roadkillT ?? -1) < G.time.elapsed) {
+        if (closing > 5 && v.alive && !this.replica && (actor._roadkillT ?? -1) < G.time.elapsed) {
           actor._roadkillT = G.time.elapsed + 0.6;
           const dmg = Math.min(400, (v.body.mass / 1000) * closing * closing * 0.6);
           if (actor.body.velocity) actor.body.velocity.addScaledVector(_n, closing * 0.9).add(_c.set(0, 3, 0));
@@ -991,7 +1042,7 @@ export class VehicleSystem {
     const G = this.G, def = w.def, actor = seat.actor;
     const isPlayer = !!(actor && actor.isPlayer);
     if (actor) {
-      actor._shotSerial = (actor._shotSerial || 0) + 1;
+      // kein actor._shotSerial++: der Zähler steht für Infanterieschüsse (Clients spielen ihn an der Puppe ab)
       if (actor.stats) actor.stats.shotsFired = (actor.stats.shotsFired || 0) + 1;
       actor.lastFiredTime = G.time.elapsed;
     }
@@ -1097,6 +1148,8 @@ export class VehicleSystem {
     G.effects?._cancelDecal?.(e.point); // kein Einschussloch in der Luft, wenn das Fahrzeug wegfährt
     const v = h.vehicle, shooter = e.shooter;
     if (!v || !v.alive || !shooter) return;
+    // Abbild: Schaden rechnet der Host – eigene Treffer melden ('vhit')
+    if (this.replica) { if (this.net) this.net.claimHit(v, { shooter, weaponId: e.weaponId, zone: h.zone, point: e.point }); return; }
     const W = (G.data && G.data.WEAPONS) || {};
     const def = W[e.weaponId] || VEHICLE_WEAPONS[e.weaponId];
     if (!def || !def.damage) return;
@@ -1113,6 +1166,7 @@ export class VehicleSystem {
 
   _onExplosion(e) {
     if (this._own > 0 || !e || !e.position || !this.list.length || e.nonLethal) return;   // Blend/Rauch (arsenal): kein Schaden
+    if (this.replica) return; // Abbild: Explosionen ('ex' des Hosts) sind nur Darstellung
     const EQ = (this.G.data && this.G.data.EQUIPMENT) || {};
     const eq = EQ[e.type] || EQ[e.weaponId];
     const max = eq && eq.maxDamage ? eq.maxDamage : (e.weaponId === 'strike' || e.type === 'airstrike') ? 240 : 120;
@@ -1132,7 +1186,9 @@ export class VehicleSystem {
   }
 
   _onKill(e) {
-    if (e && e.victim && e.victim.vehicle) this.removeFromSeat(e.victim, { teleport: false });
+    if (!e || !e.victim || !e.victim.vehicle) return;
+    if (this.replica) this.clearSeat(e.victim, { net: true }); // Abbild: nur Sitz-Buchhaltung (Liste folgt)
+    else this.removeFromSeat(e.victim, { teleport: false });
   }
 
   /* =============================================================== Bot-/Modus-API */
@@ -1183,6 +1239,7 @@ export class VehicleSystem {
     return {
       vehicles: this.list.length, alive: this.list.filter((v) => v.alive).length, sleeping: this.list.filter((v) => v.body.sleeping).length,
       shells: this.shells.list.length, spawns: this.spawns.length, ms: +this._stats.ms.toFixed(3), engines: this.audio.voices.size,
+      replica: !!this.replica, net: this.net ? { ...this.net.stats } : null,
     };
   }
 }

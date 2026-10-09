@@ -15,6 +15,9 @@
 //   • Positionsverlauf (G.net.history) jedes Bild für die Trefferprüfung.
 //   • VR: Zustände eines VR-Clients tragen den VR-Zusatz (Kopf/Hände/Schussrichtung, protocol.js) → puppet.netPose.vr und
 //     unverändert in die Schnappschüsse; der Host-Spieler in VR schickt seinen eigenen (sync-common vrPoseOf).
+//   • Fahrzeuge (Raum-Einstellung „Fahrzeuge“, panzer-mp.md §C): G.vehicles.net (vehicles/net.js) – Liste bei Änderung,
+//     Block-Anhang je Empfänger im Schnappschuss, Sitz-Absicht aus dem Zustand; eine sitzende Puppe prüft der Anti-Cheat
+//     nicht (der Host heftet sie an den Sitz).
 import * as THREE from 'three';
 import { WEAPONS, EQUIPMENT } from '../../shared/weapons.data.js';
 import { netPoseOf } from '../bots/bot.js';
@@ -202,11 +205,19 @@ export class HostSync {
     if (this._holds.size) this._tickHolds(now);
     if (now >= this._rebalanceAt) { this._rebalanceAt = now + 2; this._rebalance(); }
     if (this._actorsDirty) this._sendActors();
+    const vn = this._vn();
+    if (vn) vn.hostTick();
     this._sendMode(false);
     if (now - this._snapAt >= 1 / SNAPSHOT_HZ - 0.002 && this._ready.size) {
       this._snapAt = now;
       this._sendSnapshot(t);
     }
+  }
+
+  /** Fahrzeug-Vermittler des Hosts (vehicles/net.js) oder null (keine Fahrzeuge in diesem Match). */
+  _vn() {
+    const V = this.G.vehicles;
+    return V && V.attached && V.net && V.net.host ? V.net : null;
   }
 
   _sendSnapshot(t) {
@@ -226,26 +237,35 @@ export class HostSync {
     }
     const tick = ++this._tick;
     const st = this.snapStats;
-    if (!this.interest || ents.length < INTEREST_MIN) {
-      const buf = encodeSnapshot(tick, t, ents);
-      for (const id of this._ready) if (this.net.sendFast(id, buf)) { st.sent++; st.bytes += buf.byteLength; st.ents += ents.length; st.full++; }
+    // Fahrzeugblöcke (einmal je Takt gebaut; Rate je Empfänger unabhängig von INTEREST_MIN – vehicles/net.js blocksFor)
+    const vn = this._vn();
+    const vall = vn ? vn.blocks(tick) : null;
+    if (!this.interest || (ents.length < INTEREST_MIN && !vall)) {
+      const buf = encodeSnapshot(tick, t, ents, vall);
+      const vb = vall ? 2 + vall.length * 60 : 0;
+      for (const id of this._ready) if (this.net.sendFast(id, buf)) { st.sent++; st.bytes += buf.byteLength; st.ents += ents.length; st.full++; st.vbytes = (st.vbytes || 0) + vb; }
       return;
     }
     // Interessenfilter je Empfänger: nah + eigener Eintrag jeden Takt, fern/tot nur im eigenen Fünftel-Takt
     const far2 = FAR_DIST * FAR_DIST;
     const list = [];
+    const filter = ents.length >= INTEREST_MIN;
     for (const id of this._ready) {
       const me = this._puppet(id);
       const mp = me && me.position;
       list.length = 0;
       for (const e of ents) {
-        if (e.id === id || !mp || (tick + e.id) % FAR_EVERY === 0) { list.push(e); continue; }
+        if (!filter || e.id === id || !mp || (tick + e.id) % FAR_EVERY === 0) { list.push(e); continue; }
         if ((e.flags & FLAGS.ALIVE) === 0) continue;
         const dx = e.x - mp.x, dz = e.z - mp.z;
         if (dx * dx + dz * dz <= far2) list.push(e);
       }
-      const buf = encodeSnapshot(tick, t, list);
-      if (this.net.sendFast(id, buf)) { st.sent++; st.bytes += buf.byteLength; st.ents += list.length; if (list.length === ents.length) st.full++; }
+      const vl = vall ? vn.blocksFor(id, me, tick, vall, this.interest) : null;
+      const buf = encodeSnapshot(tick, t, list, vl);
+      if (this.net.sendFast(id, buf)) {
+        st.sent++; st.bytes += buf.byteLength; st.ents += list.length; if (list.length === ents.length) st.full++;
+        if (vl) { st.vbytes = (st.vbytes || 0) + 2 + vl.length * 60; st.vblocks = (st.vblocks || 0) + vl.length; }
+      }
     }
   }
 
@@ -312,6 +332,8 @@ export class HostSync {
     this._ready.add(id);
     this._sendActors(id);
     this._sendActors();
+    const vn = this._vn();
+    if (vn) vn.onAdmit(id); // volle Fahrzeugliste + 1 s alle Blöcke
     this._rebalance();
     if (!p.alive && p.respawnAt == null) G.spawnActor(p);
     this._modeKey = '';
@@ -327,6 +349,8 @@ export class HostSync {
     this._lastOrder.delete(id);
     this._lastEnv.delete(id);
     this._hitSerial.delete(id);
+    const vn = this._vn();
+    if (vn) vn.onDrop(id);
     if (!this.active) return;
     const p = this._puppet(id);
     if (p) {
@@ -448,9 +472,16 @@ export class HostSync {
     p._netSeq = d.seq;
     const e = d.entity;
     const clientAlive = (e.flags & FLAGS.ALIVE) !== 0;
+    // Fahrzeug: Sitz-Absicht übernehmen (nur wenn die Puppe dort sitzt); sitzend prüft der Anti-Cheat die Lage nicht –
+    // der Host heftet die Puppe an den Sitz (Aussteigen setzt den Anker neu: vehicles/net.js 'vo')
+    if (p.vehicle) {
+      const vn = this._vn();
+      if (vn && e.veh) vn.applyInput(p, e.veh);
+    }
     // Anker nur bei Tod der Puppe neu setzen – meldet der Client „tot“, während sie lebt (Spawn unterwegs), bleibt er
-    const r = this.net.checkState(from, { x: e.x, y: e.y, z: e.z, flags: e.flags }, {
+    const r = p.vehicle ? { ok: true, reason: 'fahrzeug' } : this.net.checkState(from, { x: e.x, y: e.y, z: e.z, flags: e.flags }, {
       alive: p.alive, clientAlive, rtt: this.net.peerRtt(from) / 1000, hostGap: this._frameAt != null ? nowSec() - this._frameAt : 0, ct: d.clientTime,
+      carry: this._carrySpeed(p),
     });
     if (!p.alive || !clientAlive || !r || !r.ok) return; // Rücksetzung/veraltet: Puppe bleibt an der letzten gültigen Stelle
     const np = p._ownPose || (p._ownPose = { pos: [0, 0, 0], vel: [0, 0, 0] });
@@ -464,6 +495,24 @@ export class HostSync {
     // VR-Zusatz (rein darstellend, durch die Kodierung begrenzt: Hände ≤ 1,27 m vom Kopf) – geht so an alle Clients weiter
     np.vr = e.vr || null;
     p.netPose = np;
+  }
+
+  /**
+   * Zusatztempo auf/neben fahrenden Fahrzeugen (Deck, ≤ 4 m von der Wanne): Fahrzeugtempo (m/s) – wer mitfährt, bewegt
+   * sich schneller als zu Fuß (Anti-Cheat ctx.carry). 0 ohne Fahrzeuge.
+   */
+  _carrySpeed(p) {
+    const V = this.G.vehicles;
+    if (!V || !V.attached || !V.list.length || !p.position) return 0;
+    let best = 0;
+    for (const v of V.list) {
+      const sp = v.body.vel.length();
+      if (sp < 0.5 || sp <= best) continue;
+      if (v.body.pos.distanceToSquared(p.position) > 100) continue;
+      if (typeof V._boxDistance === 'function' && V._boxDistance(v, p.position, 0.9) > 4) continue;
+      best = sp;
+    }
+    return best;
   }
 
   /** Waffen, die der Mensch hinter der Puppe tragen darf (Roster, gemeldete/aktuelle Ausrüstung, Messer). */

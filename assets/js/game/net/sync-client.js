@@ -18,6 +18,8 @@
 //   • Würfe/Raketen: localThrow/localRocket → 'throw' an den Host + Darstellungs-Geschoss; Zündung kommt als 'ev'.
 //   • 'hit'/'kill' → lokale Ereignisse (Blut, Trefferrichtung, Abschussliste, Todesbildschirm), 'ev' → Granaten, Raketen,
 //     Explosionen, eigene Punkte/Medaillen; 'end' → Endbildschirm mit Ergebnis + Zusammenfassung des Hosts.
+//   • Fahrzeuge (panzer-mp.md §C): Fahrzeug-Anhang der Schnappschüsse → G.vehicles.net (Abbild, gleiche Abspieluhr),
+//     eigene Sitz-Absicht als Anhang des Zustands; die Liste 'vehicles' wird gepuffert, bis das Abbild steht.
 import * as THREE from 'three';
 import { WEAPONS } from '../../shared/weapons.data.js';
 import { netPoseOf } from '../bots/bot.js';
@@ -88,6 +90,8 @@ export class ClientSync {
       net.on('ev', (m) => this._onEv(m)),
       net.on('end', (m) => this._onEnd(m)),
       net.on('correct', (m) => this._onCorrect(m)),
+      // Fahrzeugliste (vehicles/net.js wertet sie aus; vor dem Anschluss des Abbilds hier gepuffert)
+      net.on('vehicles', (m, from) => { if (from === HOST_ID && m && Array.isArray(m.list)) this.lastVehicles = m; }),
       net.onFast((buf) => this._onFast(buf)),
     ];
     // Wiedereinstieg anhalten („Ausrüsten“ im Todesbildschirm) bzw. „Einsatz“: der Host hält die Puppe genauso an
@@ -212,7 +216,16 @@ export class ClientSync {
     s.lean = np.lean; s.shots = np.shots; s.proneBlend = np.proneBlend;
     // VR: Kopf/Hände/Schussrichtung als Zusatzblock (sonst null – Paket wie ohne VR)
     s.vr = vrPoseOf(this.G, p, this._vr || (this._vr = newVrPose()));
+    // Fahrzeug: eigene Sitz-Absicht (sonst null – Paket wie ohne Fahrzeug)
+    const vn = this._vn();
+    s.veh = vn ? vn.inputState() : null;
     this.net.sendFast(HOST_ID, encodeState(++this._seq, this.net.serverTime(), s));
+  }
+
+  /** Fahrzeug-Abbild (vehicles/net.js) oder null. */
+  _vn() {
+    const V = this.G.vehicles;
+    return V && V.attached && V.net && V.net.replica ? V.net : null;
   }
 
   /* ================================================================ Schnappschüsse */
@@ -240,6 +253,7 @@ export class ClientSync {
       c.jit = c.jit * 0.92 + Math.min(0.5, c.off - o) * 0.08;
     }
     c.lastArr = now;
+    if (d.vehicles && d.vehicles.length) { const vn = this._vn(); if (vn) vn.onSnapshot(t, d.vehicles); }
     for (const e of d.entities) {
       if (e.id === this.selfId) { this.self = { t, e }; continue; }
       let list = this.buf.get(e.id);
@@ -542,8 +556,10 @@ export class ClientSync {
     }
     if (target.alive && Number.isFinite(m.hp)) target.health = m.hp;
     target.lastDamageTime = G.time.elapsed;
-    // eigene Treffer wurden schon vorhergesagt angezeigt (claimDamage) – nur die Körperreaktion fehlt noch
-    if (attacker !== p) G.events.emit('actor:hit', payload);
+    // eigene Treffer wurden schon vorhergesagt angezeigt (claimDamage) – nur die Körperreaktion fehlt noch; Treffer der
+    // eigenen Fahrzeugwaffe (MG/Kanone, Überfahren) rechnet nur der Host → hier anzeigen
+    const vehWeapon = !!(m.weapon && G.vehicles && typeof G.vehicles.weaponName === 'function' && G.vehicles.weaponName(m.weapon));
+    if (attacker !== p || vehWeapon) G.events.emit('actor:hit', payload);
     if (typeof target.onDamaged === 'function' && target.alive) target.onDamaged(payload);
   }
 
