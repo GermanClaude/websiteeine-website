@@ -253,7 +253,7 @@ const GRASS_FALLBACK = [0.16, 0.2, 0.07];
  *  near = Trabanten-Flecken je Zelle nah an der Kamera, flowers = Blumen-Anteil je Zelle (eigenes InstancedMesh). */
 const GRASS_LOOK = {
   low: { flowers: 0, near: 0 },
-  medium: { blades: 16, far: 6, lod: 0.5, flowers: 0.07, near: 1 },
+  medium: { blades: 18, far: 6, lod: 0.5, flowers: 0.07, near: 2 },
   high: { blades: 22, far: 7, lod: 0.5, flowers: 0.1, near: 3 },
   ultra: { blades: 24, far: 8, lod: 0.5, flowers: 0.11, near: 3 },
 };
