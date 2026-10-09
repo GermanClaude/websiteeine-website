@@ -94,7 +94,11 @@ function installPlasterStyle(b) {
       const dec = (u, v, sw, sh, cell, opacity) => b.decal(fx + tx * u, y + v, fz + tz * u, sw, sh, cell, { normal: [nx, 0, nz], tangent: [tx * side, 0, tz * side], opacity });
       if (ground) {
         // Feuchtesockel: durchgehend über dem Steinsockel (0,55 m), gleiche Art an jedem Pfeiler
-        if (w >= 0.9) { const sh = 0.5 + R() * 0.22; dec(0, 0.48 + sh / 2, Math.min(w - 0.1, 7), sh, 'damp', 0.42 + R() * 0.14); }
+        if (w >= 0.9) {
+          // lange Wände in Abschnitten ≤ 4 m (ein gestrecktes Decal würde verschmieren)
+          const n = Math.ceil((w - 0.1) / 4), sw = (w - 0.1) / n;
+          for (let i = 0; i < n; i++) { const sh = 0.5 + R() * 0.22; dec(-w / 2 + 0.05 + (i + 0.5) * sw, 0.48 + sh / 2, sw + 0.02, sh, 'damp', 0.42 + R() * 0.14); }
+        }
         // Abplatzung an der Pfeilerkante (Ecke/Laibung) direkt über dem Sockel – Bruchstein darunter
         if (w >= 1.3 && R() < 0.38) {
           const sw = Math.min(w * 0.42, 0.5 + R() * 0.4), sh = sw * (0.55 + R() * 0.2), e = R() < 0.5 ? -1 : 1;
