@@ -1329,7 +1329,7 @@ export class Animator {
     NZ[0] = crouch * 0.02 - crouch * 0.1; NZ[1] = -crouch * 0.02 + crouch * 0.12;
     // Abweichung je Fuß → ggf. Schritt starten
     let worst = -1, worstScore = 0, busy = -1;
-    for (let f = 0; f < 2; f++) {
+    for (let f = 0; f < 2 && P.on; f++) { // beim Lösen (Anlaufen) keine neuen Schritte/Neupflanzungen
       const F = P.f[f];
       if (F.t >= 0) { busy = f; continue; }
       const dx = F.x - rx, dz = F.z - rz;

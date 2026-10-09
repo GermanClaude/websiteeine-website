@@ -61,11 +61,11 @@ function grassGeometry(blades = 0) {
   const P = [], C = [], N = [], r = rng(5);
   for (let k = 0; k < 7; k++) {
     const a = r() * Math.PI * 2, d = Math.sqrt(r()) * 0.22, x = Math.cos(a) * d, z = Math.sin(a) * d;
-    const h = 0.3 + r() * 0.38, w = 0.03 + r() * 0.02, lean = (r() - 0.5) * 0.35, ang = r() * Math.PI;
+    const h = 0.32 + r() * 0.42, w = 0.03 + r() * 0.02, lean = (r() - 0.5) * 0.35, ang = r() * Math.PI;
     const cx = Math.cos(ang) * w, cz = Math.sin(ang) * w, lx = Math.cos(a) * lean * h, lz = Math.sin(a) * lean * h;
     const dry = k === 2 || k === 5;
     P.push(x - cx, 0, z - cz, x + cx, 0, z + cz, x + lx, h, z + lz);
-    C.push(0.5, 0.5, 0.46, 0.5, 0.5, 0.46, ...(dry ? [1.32, 1.18, 0.74] : [1.12, 1.12, 1.0]));
+    C.push(0.66, 0.7, 0.58, 0.66, 0.7, 0.58, ...(dry ? [1.38, 1.22, 0.74] : [1.12, 1.16, 0.98]));
     N.push(Math.cos(a) * 0.3, 0.95, Math.sin(a) * 0.3, Math.cos(a) * 0.3, 0.95, Math.sin(a) * 0.3, Math.cos(a) * 0.3, 0.95, Math.sin(a) * 0.3);
   }
   return finishGrass(P, C, N);
@@ -86,27 +86,38 @@ function finishGrass(P, C, N, petal = null) {
   return g;
 }
 
-/** Horst (medium+): n Halme, außen niedriger und stärker nach außen gebogen, wenige hohe Halme in der Mitte;
- * Breite 1,4–3 cm, Höhe 0,18–0,8 m; Farbe je Halm: frisch, trockene Spitze (≈ 25 %) oder abgestorben (≈ 6 %). */
-function grassClumpGeometry(n) {
-  const P = [], C = [], N = [], r = rng(11);
+/** Grasfleck (medium+): n Halme auf einer Scheibe (Radius rad), zu 70 % in drei Büscheln, sonst einzeln verstreut
+ * (gleichmäßige Bedeckung statt einzelner Horste mit Lücken); Höhe 0,12–0,85 m (Büschel höher, Streuhalme kurz, wenige
+ * hohe Rispenhalme), Breite 1,2–3 cm (wide: ferne Stufe mit wenigen, breiteren Halmen); je Halm frisch, trockene
+ * Spitze (≈ 25 %) oder abgestorben (≈ 6 %). */
+function grassClumpGeometry(n, rad = 0.42, seed = 11, wide = 1) {
+  const P = [], C = [], N = [], r = rng(seed);
   const push = (v, c, nn) => { P.push(v[0], v[1], v[2]); C.push(c[0], c[1], c[2]); N.push(nn[0], nn[1], nn[2]); };
+  const tufts = [0, 1, 2].map(k => { const a = k * 2.1 + r() * 0.8, d = rad * (0.25 + r() * 0.45); return [Math.cos(a) * d, Math.sin(a) * d, 0.8 + r() * 0.45]; });
   for (let k = 0; k < n; k++) {
-    const a = r() * Math.PI * 2, d = Math.pow(r(), 0.7) * 0.2, x = Math.cos(a) * d, z = Math.sin(a) * d;
-    const tall = r() < 0.18;
-    const h = tall ? 0.6 + r() * 0.22 : (0.18 + r() * 0.42) * (1 - d * 1.6), w = (tall ? 0.011 : 0.014) + r() * 0.016;
-    const lean = (tall ? 0.06 : 0.14) + r() * 0.32 * (0.5 + d * 3), la = a + (r() - 0.5) * 1.2; // nach außen gebogen
+    let x, z, a, hs, inTuft = r() < 0.7;
+    if (inTuft) {
+      const t = tufts[k % 3], ta = r() * Math.PI * 2, td = Math.pow(r(), 0.8) * 0.13;
+      x = t[0] + Math.cos(ta) * td; z = t[1] + Math.sin(ta) * td; a = ta; hs = t[2] * (1 - td * 2.2);
+    } else {
+      // Streuhalme gleichmäßig (Sonnenblumen-Muster) über die ganze Scheibe
+      const d = rad * Math.sqrt((k + 0.5) / n) * (0.8 + r() * 0.35);
+      a = k * 2.39996 + r() * 0.6; x = Math.cos(a) * d; z = Math.sin(a) * d; hs = 0.55;
+    }
+    const tall = r() < 0.12;
+    const h = tall ? 0.7 + r() * 0.28 : (0.24 + r() * 0.46) * hs, w = ((tall ? 0.01 : 0.014) + r() * 0.019) * wide;
+    const lean = (tall ? 0.05 : 0.12) + r() * (inTuft ? 0.3 : 0.45), la = a + (r() - 0.5) * 1.3; // nach außen gebogen
     const ang = la + Math.PI / 2, cx = Math.cos(ang) * w, cz = Math.sin(ang) * w;
     const ox = Math.cos(la), oz = Math.sin(la);
     const mh = h * (0.5 + r() * 0.1), ml = lean * 0.3 * h, tl = lean * h;
     const bL = [x - cx, 0, z - cz], bR = [x + cx, 0, z + cz];
     const mL = [x - cx * 0.75 + ox * ml, mh, z - cz * 0.75 + oz * ml], mR = [x + cx * 0.75 + ox * ml, mh, z + cz * 0.75 + oz * ml];
     const tip = [x + ox * tl, h * (1 - lean * 0.25), z + oz * tl];
-    // relative Farben: Fuß dunkel (innen dunkler – Selbstschatten im Horst), Mitte, Spitze; trocken/abgestorben
-    const q = r(), kind = q < 0.06 ? 2 : q < 0.31 ? 1 : 0, br = 0.9 + r() * 0.2, ao = 0.36 + d * 0.7;
-    const cB = kind === 2 ? [0.62, 0.52, 0.36] : [ao, ao * 1.02, ao * 0.92];
-    const cM = kind === 2 ? [1.15, 0.98, 0.66] : kind === 1 ? [1.02, 1.0, 0.82] : [0.88, 0.92, 0.84];
-    const cT = kind === 2 ? [1.45, 1.22, 0.82] : kind === 1 ? [1.5, 1.28, 0.7] : [1.12, 1.1, 0.92];
+    // relative Farben (× Bodenfarbe im Shader): Fuß dunkel (Selbstschatten), frisch grüner, trockene/abgestorbene Halme
+    const q = r(), kind = q < 0.06 ? 2 : q < 0.31 ? 1 : 0, br = 0.88 + r() * 0.24, ao = inTuft ? 0.28 + r() * 0.1 : 0.4 + r() * 0.1;
+    const cB = kind === 2 ? [0.55, 0.46, 0.32] : [ao * 0.85, ao, ao * 0.75];
+    const cM = kind === 2 ? [1.05, 0.9, 0.6] : kind === 1 ? [0.95, 0.92, 0.66] : [0.74, 0.86, 0.6];
+    const cT = kind === 2 ? [1.3, 1.1, 0.72] : kind === 1 ? [1.35, 1.18, 0.62] : [0.95, 1.02, 0.78];
     const sc = (c) => c.map(v => v * br);
     // Normale: Blattfläche zeigt in Biegerichtung, nach oben geneigt (weiches Licht); Spitze fast senkrecht nach oben
     const fn = [ox * 0.5, 0.86, oz * 0.5], nT = [ox * 0.25, 0.97, oz * 0.25];
@@ -142,8 +153,8 @@ function flowerGeometry() {
     }
   };
   // Margeriten (gelbe Mitte), Hahnenfuß (Mitte in Blütenfarbe, kleiner)
-  for (const [x, z, h, rad] of [[0.06, -0.04, 0.36, 0.034], [-0.09, 0.05, 0.28, 0.03]]) head(stem(x, z, h, 0.006, [(r() - 0.5) * 0.06, (r() - 0.5) * 0.06]), rad, 7, 0.3, [1.0, 0.78, 0.12]);
-  head(stem(0.02, 0.11, 0.22, 0.005, [0.03, -0.02]), 0.02, 5, 0.2, [0.95, 0.9, 0.6]);
+  for (const [x, z, h, rad] of [[0.06, -0.04, 0.52, 0.05], [-0.09, 0.05, 0.42, 0.045]]) head(stem(x, z, h, 0.006, [(r() - 0.5) * 0.06, (r() - 0.5) * 0.06]), rad, 7, 0.3, [1.0, 0.78, 0.12]);
+  head(stem(0.02, 0.11, 0.34, 0.005, [0.03, -0.02]), 0.032, 5, 0.2, [0.95, 0.9, 0.6]);
   // Kleerosette: vier flache Blätter knapp über dem Boden (dunkles, sattes Grün)
   const CL = [0.62, 0.78, 0.5], CLd = [0.42, 0.52, 0.34];
   for (let k = 0; k < 4; k++) {
@@ -170,7 +181,7 @@ function flowerGeometry() {
  * Beide Blattseiten werden gleich beleuchtet (dünne, durchscheinende Halme statt dunkler Rückseiten).
  */
 function grassMaterial(fade) {
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
   m.name = 'vegetation-gras'; m.userData.disposable = true; m.userData.surface = 'grass';
   const look = terrainLook.ready && !!terrainLook.grassMap?.value;
   const u = {
@@ -221,21 +232,25 @@ ${look ? 'uniform sampler2D tGrassMap;\nuniform float tGrassCal;' : ''}
     sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
       #ifdef DOUBLE_SIDED
         normal *= faceDirection; // Rückseite wie Vorderseite (dünne Halme, keine schwarzen Rückseiten)
-      #endif`);
+      #endif`).replace('#include <aomap_fragment>', `#include <aomap_fragment>
+      // Halme glänzen schwach (sonst grauer Schleier im Gegenlicht – die Normale zeigt fast nach oben)
+      reflectedLight.directSpecular *= 0.35; reflectedLight.indirectSpecular *= 0.5;`);
   };
-  m.customProgramCacheKey = () => `np-gras-v3-${look ? 1 : 0}`;
+  m.customProgramCacheKey = () => `np-gras-v4-${look ? 1 : 0}`;
   return m;
 }
 /** Halm-Helligkeit (× relative Vertexfarbe) und Fern-Helligkeit (Halme = Boden). */
-const GRASS_K = { blade: 1.3, far: 0.95 };
+const GRASS_K = { blade: 1.0, far: 0.95 };
 /** Grundfarbe ohne Gelände-Material (linear, ≈ Mittel der Gras-Fotoscan-Albedo). */
 const GRASS_FALLBACK = [0.16, 0.2, 0.07];
-/** Sichtbare Grasdetails je Stufe (nur Optik): Blumen-Anteil je Zelle, Trabanten-Horste nah an der Kamera. */
+/** Sichtbare Grasdetails je Stufe (nur Optik, keine Kollision): blades = Halme je Fleck nah (ohne Angabe: tier.grassBlades;
+ *  0 = einfache 7-Halm-Büschel), far = Halme je Fleck der fernen Stufe (ab lod × Radius, eigenes InstancedMesh),
+ *  near = Trabanten-Flecken je Zelle nah an der Kamera, flowers = Blumen-Anteil je Zelle (eigenes InstancedMesh). */
 const GRASS_LOOK = {
   low: { flowers: 0, near: 0 },
-  medium: { flowers: 0.05, near: 1 },
-  high: { flowers: 0.07, near: 3 },
-  ultra: { flowers: 0.08, near: 3 },
+  medium: { blades: 16, far: 6, lod: 0.5, flowers: 0.07, near: 1 },
+  high: { blades: 22, far: 7, lod: 0.5, flowers: 0.1, near: 3 },
+  ultra: { blades: 24, far: 8, lod: 0.5, flowers: 0.11, near: 3 },
 };
 
 function merge(geoms) {
@@ -593,9 +608,15 @@ export class Vegetation {
       const R = t.grass, look = GRASS_LOOK[q] || GRASS_LOOK.high;
       // gl-ground: Farbe ab 40 % des Radius zum Boden, Höhe ab 62 % weich auf 0 (Rand je Horst ±10 % versetzt)
       const gm = grassMaterial([R * 0.4, R * 0.82, R * 0.62, R * 0.95]);
-      const gg = grassGeometry(t.grassBlades || 0);
+      const blades = look.blades ?? (t.grassBlades || 0);
+      const gg = grassGeometry(blades);
       this._geoms.push(gg); this._own.push(gm);
       this.grass = make(gg, gm, t.grassCap, 'veg-gras', false);
+      // ferne Stufe (medium+): wenige, breitere Halme je Fleck – dort zählt die Bedeckung, nicht der einzelne Halm
+      if (look.far && blades > 0) {
+        const fg = grassClumpGeometry(look.far, 0.42, 29, 1.7); this._geoms.push(fg);
+        this.grassFar = make(fg, gm, t.grassCap, 'veg-gras-fern', false);
+      }
       // Wiesenblumen/Klee/Rispen (medium+): eigenes InstancedMesh mit demselben Material (+1 Draw Call)
       if (look.flowers > 0) {
         const fg = flowerGeometry(); this._geoms.push(fg);
@@ -687,51 +708,57 @@ export class Vegetation {
   _updateGrass(p) {
     const hf = this.hf, t = this.tier, R = t.grass, st = t.grassStep, g = this.grass, cap = g.instanceMatrix.count;
     const look = GRASS_LOOK[this.quality] || GRASS_LOOK.high;
+    const gf = this.grassFar || null, fcapG = gf ? gf.instanceMatrix.count : 0;
     const fl = this.flowers || null, fcap = fl ? fl.instanceMatrix.count : 0;
     const y0 = hf.heightAt(p.x, p.z);
     if (p.y - y0 > R * 1.5) {
-      g.count = 0; g.visible = false; this.stats.grass = 0;
-      if (fl) { fl.count = 0; fl.visible = false; this.stats.flowers = 0; }
+      for (const m of [g, gf, fl]) if (m) { m.count = 0; m.visible = false; }
+      this.stats.grass = 0; this.stats.flowers = 0;
       return;
     }
     const i0 = Math.floor((p.x - R) / st), i1 = Math.floor((p.x + R) / st), j0 = Math.floor((p.z - R) / st), j1 = Math.floor((p.z + R) / st);
     const L = [0, 0, 0, 0, 0], N2 = [0, 0], N3 = [0, 0], T = [1, 1, 1], nrm = { x: 0, y: 1, z: 0 };
     const R2 = R * R, nearR = t.grassNear || R * 0.35, nearR2 = nearR * nearR, flR2 = (R * 0.8) ** 2, wy = hf.waterY + 0.1;
-    let k = 0, f = 0;
+    const lodR = gf ? R * (look.lod || 0.5) : Infinity;
+    let k = 0, kf = 0, f = 0;
     const arr = g.instanceMatrix.array, col = g.instanceColor.array;
     const put = (A, Cc, n, x, y, z, s, h, ry) => {
       _q.setFromAxisAngle(_up, ry); _s.set(s, h, s); _p.set(x, y, z);
       _m.compose(_p, _q, _s); _m.toArray(A, n * 16);
       Cc[n * 3] = T[0]; Cc[n * 3 + 1] = T[1]; Cc[n * 3 + 2] = T[2];
     };
-    for (let j = j0; j <= j1 && k < cap; j++) for (let i = i0; i <= i1 && k < cap; i++) {
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       const x = (i + hash2(i, j, 1)) * st, z = (j + hash2(i, j, 2)) * st;
       const dx = x - p.x, dz = z - p.z, d2 = dx * dx + dz * dz;
       if (d2 > R2) continue;
+      // Stufe je Zelle (Grenze je Zelle ±15 % versetzt – kein sichtbarer Ring)
+      const far = d2 > (lodR * (0.85 + 0.3 * hash2(i, j, 8))) ** 2;
+      if (far ? kf >= fcapG : k >= cap) continue;
       if (!hf.contains(x, z) || this.blocked(x, z) || hf.maskAt(x, z)) continue;
       hf.layersAt(x, z, L);
       const g0 = L[0];
       if (g0 < 0.3) continue;
       const y = hf.heightAt(x, z);
       if (y < wy) continue;
-      // Dichtefeld (≈ 1–9 m und 0,2–1,5 m): dichte, hohe Flecken und lückige, kurze Stellen
+      // Dichtefeld (≈ 1–9 m und 0,2–1,5 m): dichte, hohe Flecken und lückige, kurze Stellen; fern etwas lichter
       terrainNoise(x, z, 2, N2); terrainNoise(x, z, 3, N3);
-      const dens = N2[0] * 0.65 + N3[0] * 0.35, gw = smoothstep(0.3, 0.8, g0);
-      if (hash2(i, j, 7) > gw * (0.25 + 0.95 * dens)) continue;
+      const dens = N2[0] * 0.65 + N3[0] * 0.35, gw = smoothstep(0.3, 0.8, g0), d = Math.sqrt(d2);
+      if (hash2(i, j, 7) > gw * (0.62 + 0.7 * dens) * (1 - 0.3 * smoothstep(R * 0.6, R, d))) continue;
       if (this._underRock(x, z)) continue;
       const slope = 1 - hf.normalAt(x, z, nrm).y;
-      const hgt = (0.55 + 0.75 * dens) * (0.75 + 0.5 * hash2(i, j, 5)) * Math.max(0.45, 1 - slope * 2) * (0.55 + 0.45 * gw);
-      const s = (0.8 + 0.4 * hash2(i, j, 3)) * (0.75 + 0.25 * gw);
+      const hgt = (0.65 + 0.6 * dens) * (0.75 + 0.5 * hash2(i, j, 5)) * Math.max(0.45, 1 - slope * 2) * (0.55 + 0.45 * gw);
+      const s = (0.85 + 0.3 * hash2(i, j, 3)) * (0.75 + 0.25 * gw);
       meadowTintAt(x, z, y, slope * 1.4, T);
+      if (far) { put(gf.instanceMatrix.array, gf.instanceColor.array, kf++, x, y - 0.03, z, s, s * hgt, hash2(i, j, 4) * 6.283); continue; }
       put(arr, col, k++, x, y - 0.03, z, s, s * hgt, hash2(i, j, 4) * 6.283);
-      // Trabanten nah an der Kamera: einer dicht daneben (Horstgruppe), weitere über die Zelle – nur im dichten Teil
+      // Trabanten nah an der Kamera: einer dicht daneben (Gruppe), weitere über die Zelle – nur im dichten Teil
       if (look.near && d2 < nearR2) {
         for (let e = 0; e < look.near && k < cap; e++) {
           if (hash2(i, j, 11 + e) > 0.3 + dens * 0.8) continue;
-          const sp = e === 0 ? 0.55 : 1.3;
+          const sp = e === 0 ? 0.6 : 1.3;
           const ex = x + (hash2(i, j, 21 + e) - 0.5) * st * sp, ez = z + (hash2(i, j, 41 + e) - 0.5) * st * sp;
           if (this.blocked(ex, ez) || hf.maskAt(ex, ez) || this._underRock(ex, ez)) continue;
-          const es = s * (0.55 + 0.4 * hash2(i, j, 31 + e));
+          const es = s * (0.6 + 0.35 * hash2(i, j, 31 + e));
           put(arr, col, k++, ex, hf.heightAt(ex, ez) - 0.03, ez, es, es * hgt * (0.7 + 0.5 * hash2(i, j, 51 + e)), hash2(i, j, 61 + e) * 6.283);
         }
       }
@@ -744,12 +771,13 @@ export class Vegetation {
         }
       }
     }
-    for (const [mesh, n] of [[g, k], [fl, f]]) {
+    for (const [mesh, n] of [[g, k], [gf, kf], [fl, f]]) {
       if (!mesh) continue;
       mesh.count = n; mesh.visible = n > 0;
       if (n) { mesh.instanceMatrix.clearUpdateRanges(); mesh.instanceMatrix.addUpdateRange(0, n * 16); mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.clearUpdateRanges(); mesh.instanceColor.addUpdateRange(0, n * 3); mesh.instanceColor.needsUpdate = true; }
     }
-    this.stats.grass = k;
+    this.stats.grass = k + kf;
+    this.stats.grassFar = kf;
     this.stats.flowers = f;
   }
 

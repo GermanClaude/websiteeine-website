@@ -345,6 +345,23 @@ async function offline(browser) {
   });
   check(cancel.open && cancel.closed && cancel.kinds.every((k) => k === '-'), `Rad ohne Auswahl losgelassen: geschlossen, kein Befehl (${cancel.kinds.join(',')})`);
 
+  // --- Feuern: frei möglich; bei offenem Rad bestätigt die Feuertaste (Mir folgen), es fällt kein Schuss
+  const fire = await p.evaluate(() => {
+    const G = window.__game, T = window.__ot;
+    const s0 = G.player.stats.shotsFired;
+    G.input.simulate.press('fire'); T.step(0.6); G.input.simulate.release('fire'); T.step(0.2);
+    const s1 = G.player.stats.shotsFired;
+    G.input.simulate.press('befehl'); T.step(0.1);
+    G.input.simulate.look(0, -160); T.step(0.1);
+    G.input.simulate.press('fire'); T.step(0.1);
+    const confirmed = !G.hud.wheel.isOpen;
+    T.step(0.5);
+    const s2 = G.player.stats.shotsFired;
+    G.input.simulate.release('fire'); G.input.simulate.release('befehl'); T.step(0.1);
+    return { free: s1 - s0, during: s2 - s1, confirmed, kinds: T.kinds() };
+  });
+  check(fire.free > 0 && fire.during === 0 && fire.confirmed, `Feuern ohne Rad: ${fire.free} Schüsse; Rad offen + Feuertaste: bestätigt (${fire.kinds.join(',')}), ${fire.during} Schüsse`);
+
   // --- Gefecht: Folgende wehren sich (Gegner taucht 14–28 m vor ihnen auf)
   await p.evaluate(() => window.__ot.gather());
   await step(p, 0.3);
@@ -531,7 +548,12 @@ async function online(browser) {
     }, j.id, 30000, 300);
     check(!!got, `Host: ${got || 0} Bots folgen der Puppe des Clients (Befehl über das Netz)`);
     if (got) {
-      await cl.evaluate(() => window.__game.input.simulate.move(0, 1));
+      const pupAt = (id) => host.evaluate((i) => { const q = window.__game.bots.byNetId(i).position; return [q.x, q.y, q.z]; }, id);
+      const p0 = await pupAt(j.id);
+      // Client läuft (Echtzeit) einen Navigationspfad zu einem Knoten 20–35 m entfernt ab
+      await instrument(cl);
+      const goal = await cl.evaluate(() => window.__ot.nodeAt(20, 35));
+      await cl.evaluate((t) => { const T = window.__ot; T.walk(t); T._iv = setInterval(() => { if (T.walkStep) T.walkStep(); else clearInterval(T._iv); }, 50); }, goal);
       const samples = [];
       for (let k = 0; k < 12; k++) {
         await sleep(1000);
@@ -543,7 +565,9 @@ async function online(browser) {
         }, j.id);
         if (d !== null) samples.push(d);
       }
-      await cl.evaluate(() => window.__game.input.simulate.move(null));
+      await cl.evaluate(() => { const T = window.__ot; clearInterval(T._iv); T.walkStep = null; window.__game.input.simulate.move(null); });
+      const p1 = await pupAt(j.id);
+      info(`Puppe des Clients beim Host ${r1(Math.hypot(p1[0] - p0[0], p1[2] - p0[2]))} m weit gelaufen`);
       let close = null;
       for (let k = 0; k < 30 && !close; k++) {
         await sleep(1000);

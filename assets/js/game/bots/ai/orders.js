@@ -3,7 +3,7 @@
 // Truppbefehlen (ai/squad.js lässt befehligte Bots in Ruhe, ihr `bot.order` bleibt leer) und Missionszielen. Das Hirn
 // (ai/brain.js) bleibt zuständig für Granaten ausweichen, Zurückschießen und Deckung – der Befehl legt fest, wo der Bot
 // kämpft und wohin er sich bewegt (Zielart 'command', Prüfstand „Befehl“):
-//   follow     „Mir folgen“: lockere Doppelreihe hinter dem Anführer (je Bot ein Platz, 0,4 s vorausberechnet aus seinem Tempo);
+//   follow     „Mir folgen“: lockere Doppelreihe hinter dem Anführer (je Bot ein Platz, 0,5 s vorausberechnet aus seinem Tempo);
 //              im Gefecht frei kämpfen, aber an der Leine (> 12 m vom Platz → feuernd zurück zum Platz)
 //   formation  wie follow, Form Reihe | Keil | Kreis (Kreis: rundum um den Anführer, Blick nach außen, steht er: hocken)
 //   hold       „Position halten“: Stelle beim Befehl (Deckung ≤ 3 m in Blickrichtung des Anführers), geduckt, kämpft von dort
@@ -284,8 +284,8 @@ function desired(bot, c, now) {
   if (LEADER_KINDS.has(c.kind)) {
     const L = leaderState(leader, now);
     const lp = leader.position;
-    // vorausberechnet (0,4 s), damit Folgende nicht hinterherhängen (aber hinter dem Anführer bleiben)
-    const ax = lp.x + (L.moving ? L.vx * 0.4 : 0), az = lp.z + (L.moving ? L.vz * 0.4 : 0);
+    // vorausberechnet (0,5 s), damit Folgende nicht hinterherhängen (aber hinter dem Anführer bleiben)
+    const ax = lp.x + (L.moving ? L.vx * 0.5 : 0), az = lp.z + (L.moving ? L.vz * 0.5 : 0);
     let cx = ax, cz = az, cy = lp.y;
     if (c.kind === 'regroup') {
       // Sammelpunkt folgt dem Anführer erst, wenn er > 8 m weiterzieht (sonst stehen sie im Ring)
@@ -417,7 +417,7 @@ export function commandStep(bot, c, now, rec, set) {
   let tol = 1.2;
   if (LEADER_KINDS.has(c.kind)) {
     const L = leaderState(leader, now);
-    speed = d > (L.moving ? 6 : 11) ? 'sprint' : d > 3.5 || L.moving ? 'run' : 'walk';
+    speed = d > (L.moving ? 5 : 11) ? 'sprint' : d > 3.5 || L.moving ? 'run' : 'walk';
     tol = c.kind === 'regroup' ? 1 : 1.4;
   } else if (ANCHOR_KINDS.has(c.kind)) {
     speed = d > 12 ? 'sprint' : 'run';
