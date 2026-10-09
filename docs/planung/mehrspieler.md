@@ -268,21 +268,30 @@ Ohne Parameter: `NetSystem.chaos = null`, Verbindungen unverändert. Werkzeuge: 
 8. Kleinere: eigene Lebenspunkte flackerten (älterer Schnappschuss nach 'hit' setzte sie zurück – 'hit' trägt jetzt `st`);
    Restzeit des Modus um die Laufzeit korrigiert ('mode' trägt `st`); Puppen der Clients im Bild des Hosts zwischen zwei
    30-Hz-Zuständen bis 50 ms fortgeschrieben (kein Treppchen-Ruckeln); Empfehlung rechnete mit n statt mit allen Akteuren.
+9. *Puppe lief kurz rückwärts, wenn der Host langsamer als Echtzeit läuft* (mp-test ideal: Host 1,5 Bilder/s, je Bild ≤ 50 ms
+   Spielzeit = Zeitlupe): die Schnappschüsse melden das Spieltempo (4,5 m/s), die Positionen kommen aber nur mit 0,34 m/s
+   Host-Zeit voran – das Fortschreiben (bis 0,25 s) lief über das nächste Paket hinaus, die Glättung zog zurück. Jetzt
+   skaliert der Client Fortschreiben und erwartete Bewegung mit (Tempo laut Positionen ÷ gemeldetes Tempo, ≤ 1). Prüfstand:
+   „Host-Zeitlupe“ vorher 533 Rückwärtsschritte, jetzt 0. Außerdem ändert sich der Zusatzverzug seltener gesendeter Akteure
+   (Interessenfilter) stetig mit höchstens 12 % statt an einer Schwelle um bis zu 0,4 s zu springen.
 
 **Interessenfilter** (`sync-host.js`, ab 12 Akteuren): je Empfänger nah (≤ 60 m vom eigenen Körper) + eigener Eintrag mit 20 Hz,
 ferne und tote Akteure mit 5 Hz (je Akteur versetzt). Der Client legt seltener gesendete Akteure entsprechend weiter zurück.
 
 **Interpolation, deterministisch** (`node tools/net-interp-test.mjs`, `dev/net-interp.html`: echter ClientSync-Code, virtuelle
-Uhr, 20-Hz-Schnappschüsse einer bekannten Bahn, Client 60 Bilder/s; Kennzahlen neu | alt):
+Uhr, 20-Hz-Schnappschüsse einer bekannten Bahn, Client 60 Bilder/s; Kennzahlen neu | alt – „alt“ = alte Wiedergabezeit
+`serverTime − max(0,1, 2,2 × Paketabstand)` ohne Glättung, mit derselben Abtastung):
 
 | Fall | Darstellungsverzug | Schwankung des Verzugs | Rückwärtsschritte | größte Abweichung je Bild |
 |---|---|---|---|---|
 | ideal | 100 ms \| 110 ms | 0 \| 0 ms | 0 \| 0 | 0 \| 0 cm |
-| 150 ± 30 ms, 5 % Verlust | 264 \| 115 ms | 25 \| 30 ms | **0 \| 1** | **1 \| 15 cm** |
-| 300 ms, 15 % Verlust | 400 \| 124 ms | 6 \| 56 ms | 0 \| 0 | **0 \| 24 cm** |
-| 150 ± 60 ms, 5 % | 292 \| 143 ms | 49 \| 79 ms | **0 \| 5** | **1 \| 20 cm** |
-| Host 10 Hz, 150 ± 30 ms | 325 \| 220 ms | 59 \| 70 ms | **0 \| 3** | **1 \| 30 cm** |
-| Wende bei 8 m/s, 150 ± 30 ms | 266 \| 111 ms | 26 \| 29 ms | 0 \| 0 | 6 \| 36 cm, Überschwingen **0 \| 18 cm** |
+| 150 ± 30 ms, 5 % Verlust | 264 \| 115 ms | 27 \| 30 ms | **0 \| 1** | **2 \| 15 cm** |
+| 300 ms, 15 % Verlust | 401 \| 124 ms | 11 \| 56 ms | 0 \| 0 | **1 \| 24 cm** |
+| 150 ± 60 ms, 5 % | 295 \| 143 ms | 54 \| 79 ms | **0 \| 5** | **2 \| 20 cm** |
+| Host 10 Hz, 150 ± 30 ms | 326 \| 220 ms | 53 \| 70 ms | **0 \| 3** | **2 \| 30 cm** |
+| Wende bei 8 m/s, 150 ± 30 ms | 266 \| 111 ms | 27 \| 29 ms | 0 \| 0 | 4 \| 36 cm, Überschwingen **0 \| 18 cm** |
+| Host ≈ 1,5 Hz unregelmäßig (Abstände 0,2–1,6 s) | 553 \| 400 ms | 792 \| 862 ms | 0 \| 0 | 414 \| 432 cm (Stillstand nach 0,25 s Fortschreiben) |
+| Host-Zeitlupe (Positionen 0,45 m/s, gemeldet 4,5 m/s) | 453 \| 400 ms | 336 \| 219 ms | **0** \| 0 (vor Korrektur 9: **533**) | 4 \| 13 cm |
 
 Der neue Puffer zeigt die Puppen um die Laufzeit später (der alte schrieb diese Zeit ständig fort), dafür ohne Zurückspringen,
 Ruckeln und Überschwingen. Die Treffermeldung trägt diesen Verzug (`ip`), der Host prüft entsprechend weit zurück.
@@ -350,7 +359,7 @@ Bots / 6 bei 32 Akteuren; 200 000 B/s → 17 / 11; 400 000 B/s → 25 / 22 (1 KB
 - `mp-test --params="netlag=300&netloss=15"` (verschlechtert): 66/66 – Positionen ≤ 0,29 m, Halt 3,00/2,95 s stabil,
   „Einsatz“, Teleport, Sturz, Rutschen 5,6 m ohne Verstoß; keine hängenden Zustände, keine Seitenfehler.
 - `mp-load-test`: 13/13 (Tabelle oben); `mp-fight-rate`: regulär 2,2 KB/s, Veteran 0,9 KB/s Kampfverkehr je Client.
-- `net-proto-test` 113/113, `net-test`, `net-room-test` 60/60, `net-interp-test` 7/7, `check.sh`, `preload --check`,
+- `net-proto-test` 113/113, `net-test`, `net-room-test` 60/60, `net-interp-test` 9/9, `check.sh`, `preload --check`,
   `smoke --quality=low --params="mode=tdm&map=hafen" --end --seconds=20` (offline, ohne Fehler, Endbildschirm).
 
 

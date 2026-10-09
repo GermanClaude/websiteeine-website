@@ -19,7 +19,11 @@ try {
   for (const r of res) {
     // Schwankung des Darstellungsverzugs = Ruckeln (bei 4,5 m/s: 50 ms ≙ 22 cm)
     const spreadMax = r.lag >= 300 ? 120 : r.jitter >= 60 ? 150 : 60;
-    const okNew = r.frames > 400 && r.spreadMs <= spreadMax && r.back === 0 && r.maxJumpCm <= 15 && (r.overshootCm == null || r.overshootCm <= 30);
+    // langsamer, unregelmäßiger Host: Fortschreiben endet nach 0,25 s, dann steht die Puppe bis zum nächsten Schnappschuss –
+    // Sprünge sind dort unvermeidlich, aber sie darf nie rückwärts laufen
+    const okNew = r.lowRate
+      ? r.frames > 400 && r.back === 0
+      : r.frames > 400 && r.spreadMs <= spreadMax && r.back === 0 && r.maxJumpCm <= 15 && (r.overshootCm == null || r.overshootCm <= 30);
     check(okNew, `${r.name}: neu ${f(r)} | alt ${f(r.old)}`);
   }
   check(!errors.length, `keine Seitenfehler${errors.length ? ': ' + errors.join(' | ') : ''}`);

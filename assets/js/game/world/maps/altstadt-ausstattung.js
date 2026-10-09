@@ -262,7 +262,7 @@ function rippleMaterial(uT, spots, bright) {
         if (a < 0.01) discard;
         gl_FragColor = vec4(vec3(0.92, 0.97, 1.0) * uBright, a);
       }`,
-    transparent: true, depthWrite: false,
+    transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
   });
   m.name = 'brunnen-wellen';
   m.userData.disposable = true;
@@ -564,14 +564,14 @@ export function pendant(b, x, yC, z, o = {}) {
   b.cyl(x, yS + 0.17, z, 0.008, drop - 0.2, 'black', { seg: 4, ...VG, ao: false, bullet: false });
   b.cyl(x, yS, z, r, 0.2, 'metal_painted', { r1: 0.05, seg: 12, tint: o.tint || '#2f5f4a', ...VG });
   b.cyl(x, yS - 0.06, z, 0.055, 0.07, 'lamp_warm', { seg: 8, ...VG, ao: false, cast: false });
-  if (o.light !== false) b.light('point', x, yS - 0.2, z, { color: '#ffd29a', intensity: o.intensity ?? 7, distance: o.distance ?? 8, realtime: o.realtime === true && LOOK.rt, priority: 1, group: 0 });
+  if (o.light !== false) b.light('point', x, yS - 0.2, z, { color: '#ffd29a', intensity: o.intensity ?? 11, distance: o.distance ?? 9, realtime: o.realtime === true && LOOK.rt, priority: 1, group: 0 });
 }
 
 /** Deckenleuchte flach (Glasschale) mit gebackenem Licht. */
 export function ceilingLamp(b, x, yC, z, o = {}) {
   b.cyl(x, yC - 0.05, z, 0.16, 0.05, 'metal_painted', { tint: '#d8d0c0', seg: 10, ...VG, ao: false });
   b.cyl(x, yC - 0.13, z, 0.15, 0.08, 'lamp_warm', { r1: 0.2, seg: 12, ...VG, ao: false, cast: false });
-  if (o.light !== false) b.light('point', x, yC - 0.4, z, { color: '#ffdcae', intensity: o.intensity ?? 6, distance: o.distance ?? 8, realtime: false, priority: 1, group: 0 });
+  if (o.light !== false) b.light('point', x, yC - 0.4, z, { color: '#ffdcae', intensity: o.intensity ?? 9, distance: o.distance ?? 9, realtime: false, priority: 1, group: 0 });
 }
 
 /** Teppich (flach, ohne Kollision). */

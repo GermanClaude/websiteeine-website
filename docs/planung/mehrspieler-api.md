@@ -320,4 +320,6 @@ Host, Sturz nach Host-Spawn in der Luft, Rutschen ohne Verstoß, verborgener Hos
 `tools/mp-fight-rate.mjs [--diff=regulaer] [--game=90]` (Kampfrate einer Bot-Runde ohne Zeichnen → `tools/out/mp-fight.json`);
 `dev/fake-client.html` (`window.__fake`: join(code), leave(), stats()); `tools/net-interp-test.mjs` + `dev/net-interp.html`
 (Interpolation mit virtueller Uhr, `window.__interp`). `ClientSync._puppetPose(id, list, rt, dt, out)` = Interpolation +
-Glättung einer Puppe (für den Prüfstand herausgelöst).
+Glättung einer Puppe (für den Prüfstand herausgelöst); Zusatzverzug seltener gesendeter Akteure `list.extra` ändert sich
+höchstens mit `CLOCK_STEER`; `_sample` skaliert Fortschreiben und `out.vel` waagerecht mit Tempo laut Positionen ÷ gemeldetem
+Tempo (≤ 1 – Host in Zeitlupe).

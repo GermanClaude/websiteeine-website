@@ -12,7 +12,7 @@ import {
 import { craneClock, createTrack, partBuilder, partGroup, place, inView } from '../crane-anim.js';
 import {
   stahlTreppe, coilLager, pendel, leuchtband, flutMast, schiebetuer, mgNest, schreibtisch, stuhl, aktenschrank,
-  regal, tisch, kaffeeEcke, stab, modell, ersatzQuader,
+  regal, tisch, kaffeeEcke, stab, modell, ersatzQuader, zylKoerper,
 } from './werk-ausstattung.js';
 
 const HX = 22, HZ = 30;           // Halle: x −22..22, z −30..30
@@ -181,6 +181,8 @@ function defineSigns(b) {
   b.defineSign('trafo', { style: 'warning', text: 'HOCHSPANNUNG', sub: '10 kV · Lebensgefahr' });
   b.defineSign('graffiti1', { style: 'neon', text: 'SCHICHTENDE', bg: 'rgba(0,0,0,0)', fg: '#3ad0ff' });
   b.defineSign('graffiti2', { style: 'neon', text: 'NULLPUNKT', bg: 'rgba(0,0,0,0)', fg: '#ff5b1f' });
+  b.defineSign('schicht', { style: 'plate', text: 'SCHICHTPLAN', sub: 'Früh 6–14 · Spät 14–22 · Nacht 22–6', bg: '#e8e4dc', fg: '#1f2a33' });
+  b.defineSign('pforte', { style: 'plate', text: 'PFORTE', sub: 'Besucher bitte melden', bg: '#1f2a33', fg: '#e8e4dc' });
 }
 
 function mirror(s) {
@@ -565,7 +567,22 @@ function controlBooth(b, x, z, s) {
   const pz = s > 0 ? z0 + 0.6 : z1 - 0.6;
   b.box(x + 0.3, 0.12, pz, 4.2, 0.85, 0.7, 'metal_painted', { tint: '#4a5058', minimap: 'cover' });
   for (let i = 0; i < 6; i++) b.box(x - 1.4 + i * 0.68, 0.97, pz, 0.5, 0.04, 0.4, i % 2 ? 'lamp_green' : 'lamp_red', { collide: false, minimap: false, ao: false, cast: false, tint: '#606060' });
-  for (const ox of [-1, 1]) b.box(x + ox * 1.1, 1.0, pz + s * 0.25, 0.7, 0.45, 0.05, 'glass', { tint: '#20303a', collide: false, minimap: false, ao: false });
+  // Bildschirme mit Gehäuse und Standfuß auf dem Pult (schwebten vorher 3 cm darüber)
+  for (const ox of [-1, 1]) {
+    b.box(x + ox * 1.1, 0.97, pz + s * 0.27, 0.22, 0.04, 0.16, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
+    b.box(x + ox * 1.1, 1.01, pz + s * 0.29, 0.05, 0.08, 0.05, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
+    b.box(x + ox * 1.1, 1.06, pz + s * 0.29, 0.74, 0.48, 0.08, 'polymer', { tint: '#2b2d30', collide: false, minimap: false, grad: false });
+    b.box(x + ox * 1.1, 1.09, pz + s * 0.335, 0.66, 0.4, 0.01, 'glass', { tint: '#20303a', collide: false, minimap: false, ao: false });
+  }
+  // Einrichtung (Leitstand mit Pausenecke): Spinde an der Rückwand, Tisch mit Kaffeeecke und Stuhl, Schichtplan,
+  // Langfeldleuchte an der Decke (gebacken; Tür und Weg zum Pult bleiben frei)
+  const back = s > 0 ? z1 - 0.075 : z0 + 0.075, inward = -s; // Innenfläche der Rückwand, Richtung in den Raum
+  lockers(b, x + 1.85, back + inward * 0.27, { n: 3, y: 0.12, ry: s > 0 ? Math.PI : 0, tint: '#7a8a8a' });
+  tisch(b, x - 1.6, 0.12, back + inward * 0.36, 0, 0.9, 0.6);
+  kaffeeEcke(b, x - 1.75, 0.12 + 0.755, back + inward * 0.3, s > 0 ? Math.PI : 0);
+  stuhl(b, x - 1.6, 0.12, back + inward * 1.0, s > 0 ? 0 : Math.PI);
+  b.sign(x + 0.2, 1.25, back + inward * 0.01, 0.8, 0.56, 'schicht', { ry: s > 0 ? Math.PI : 0, depth: 0.01 });
+  leuchtband(b, x, h, z, 0, 1.25, { kind: 'cool', light: { intensity: 5, distance: 6 } });
   b.noNav(x0 - 0.2, z0 - 0.2, x1 + 0.2, z1 + 0.2, 2, 30);
 }
 
@@ -707,7 +724,7 @@ function boilerHouse(b) {
     b.cyl(39.5, 12.55, s * 10.6, 0.3, 0.12, 'metal_galvanized', { r1: 0.1, tint: '#9a9a94', collide: false, minimap: false, seg: 12, ao: false });
     b.cyl(39.5, 12.75, s * 10.6, 0.42, 0.08, 'metal_painted', { r1: 0.1, tint: '#4a4f55', collide: false, minimap: false, seg: 12, ao: false });
     for (const k of [0, 2.1, 4.2]) b.box(39.5 + Math.cos(k) * 0.2, 12.55, s * 10.6 + Math.sin(k) * 0.2, 0.03, 0.22, 0.03, 'metal_galvanized', { collide: false, minimap: false, grad: false, ao: false });
-    b.box(39.5, 8.1, s * 10.95, 0.08, 0.4, 0.5, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
+    b.box(39.5, 8.95, s * 11.19, 0.1, 0.12, 0.84, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
   }
   // Manometer / Ventilräder am Westgang
   for (const s of [-1, 1]) for (const k of [0, 1]) {
@@ -755,29 +772,44 @@ function pipeBridge(b) {
   // Laufsteg-Brücke auf Höhe 5,0..5,2
   catwalk(b, HX, 0, 30, 0, CW - 0.1, { w: 1.6, supports: true, supportSpacing: 8, railTint: RAIL });
   b.navLine(HX - 1.8, CW + 0.2, 0, 31.6, 5.2, 0, 1.0);
-  // Rohrtrasse (Portale + Rohre) längs der Gasse x 23..29
+  // Rohrtrasse (Portale + Rohre) längs der Gasse x 23..29. Zwei Ebenen: untere Rohre liegen auf dem unteren Riegel
+  // (8,25 m), der obere Riegel sitzt darüber (vorher lief er auf 8,7 m mitten durch die unteren Rohre), das obere Rohr
+  // liegt auf ihm (vorher 20 cm darüber in der Luft). Letztes Portal an der Werksmauer (z ±47,6).
+  const portal = z => {
+    for (const xx of [23.2, 28.8]) b.box(xx, 0, z, 0.35, 9.3, 0.35, 'metal_painted', { tint: '#5a646c', minimap: 'pillar' });
+    b.box(26, 7.9, z, 6.0, 0.35, 0.4, 'metal_painted', { tint: '#5a646c', collide: false, minimap: false, grad: false });
+    b.box(26, 9.05, z, 6.0, 0.22, 0.3, 'metal_painted', { tint: '#5a646c', collide: false, minimap: false, grad: false });
+  };
   for (let z = -40; z <= 40; z += 8) {
     if (Math.abs(z) < 2 || Math.abs(z) === 24) continue;
-    for (const xx of [23.2, 28.8]) b.box(xx, 0, z, 0.35, 8.7, 0.35, 'metal_painted', { tint: '#5a646c', minimap: 'pillar' });
-    b.box(26, 7.9, z, 6.0, 0.35, 0.4, 'metal_painted', { tint: '#5a646c', collide: false, minimap: false, grad: false });
-    b.box(26, 8.7, z, 6.0, 0.25, 0.3, 'metal_painted', { tint: '#5a646c', collide: false, minimap: false, grad: false });
+    portal(z);
   }
-  const runs = [[24.0, 8.3, 0.32, '#8a8f94'], [25.0, 8.35, 0.26, '#b05a3a'], [26.0, 8.3, 0.36, '#5a7a5a'], [27.2, 8.4, 0.22, '#c9a227'], [28.0, 8.3, 0.2, '#8a8f94'], [25.5, 9.15, 0.18, '#3a6a8a']];
+  for (const s of [-1, 1]) portal(s * 47.6);
+  const runs = [[24.0, 8.25, 0.32, '#8a8f94'], [25.0, 8.25, 0.26, '#b05a3a'], [26.0, 8.25, 0.36, '#5a7a5a'], [27.2, 8.25, 0.22, '#c9a227'], [28.0, 8.25, 0.2, '#8a8f94'], [25.5, 9.27, 0.18, '#3a6a8a']];
   for (const [x, y, r, tint] of runs) {
     b.cyl(x, y + r, -24, r, 32, 'metal_painted', { axis: 'z', tint, collide: false, minimap: false, seg: 10 });
     b.cyl(x, y + r, 24, r, 32, 'metal_painted', { axis: 'z', tint, collide: false, minimap: false, seg: 10 });
     b.cyl(x, y + r, 0, r, 16, 'metal_painted', { axis: 'z', tint, collide: false, minimap: false, seg: 10 });
+    // Enden: über die Werksmauer hinaus und hinter ihr in den Boden (vorher offen in der Luft bei z ±40)
+    for (const s of [-1, 1]) {
+      const zd = s * (y > 9 ? 51.4 : 50.4);
+      pipe(b, [[x, y + r, s * 40], [x, y + r, zd], [x, -0.3, zd]], { r, tint, collide: false });
+    }
   }
-  // Rohrbogen hinunter ins Kesselhaus und zur Halle
-  pipe(b, [[26, 8.66, -6], [29.8, 8.66, -6]], { r: 0.36, tint: '#5a7a5a', flanges: false });
-  pipe(b, [[24, 8.62, 6], [22.3, 8.62, 6]], { r: 0.32, tint: '#8a8f94', flanges: false });
+  // Abzweige: Grünes Rohr über die Nachbarrohre hinweg ins Kesselhaus, graues Rohr in die Hallen-Ostwand – je mit
+  // Wanddurchführung (Kragen); vorher endeten beide 0,2–0,3 m vor der Wand, das grüne lief durch zwei Rohre hindurch
+  pipe(b, [[26.15, 8.7, -6], [26.15, 9.1, -6], [30.15, 9.1, -6]], { r: 0.36, tint: '#5a7a5a', flanges: false });
+  b.cyl(29.97, 9.1, -6, 0.5, 0.06, 'metal_painted', { axis: 'x', tint: '#4a4f55', collide: false, minimap: false, seg: 12, ao: false });
+  pipe(b, [[24, 8.57, 6.6], [21.85, 8.57, 6.6]], { r: 0.32, tint: '#8a8f94', flanges: false });
+  b.cyl(22.03, 8.57, 6.6, 0.45, 0.06, 'metal_painted', { axis: 'x', tint: '#4a4f55', collide: false, minimap: false, seg: 12, ao: false });
 }
 
 /** Ziegelschornstein mit Sockel, Bändern und Steigleiter. */
 function chimney(b, x, z) {
   b.box(x, 0, z, 6.0, 3.0, 6.0, 'concrete', { tint: '#8a8680', minimap: 'building' });
+  // Kollision als Kegelstumpf (achteckig) statt 3,6-m-Säule: am Fuß stand der Schaft 0,9 m über den Quader hinaus
   b.cyl(x, 3.0, z, 2.7, 39, 'brick', { r1: 1.7, tint: '#9a5a48', seg: 18, minimap: false, collide: false, uv: 'keep' });
-  b.solid(x, 2.5, z, 3.6, 40, 3.6, { minimap: false });
+  b.cyl(x, 3.0, z, 2.75, 39, 'black', { r1: 1.75, visual: false, minimap: false });
   for (const y of [9, 17, 25, 33, 41]) {
     const r = 2.7 - (y - 3) / 39 * 1.0 + 0.06;
     b.cyl(x, y, z, r, 0.4, 'metal_painted', { tint: '#3d4247', seg: 18, collide: false, minimap: false, ao: false });
@@ -836,12 +868,25 @@ function half(b, M, ctx) {
   lampPost(b, -51.0, Z(37.0), { h: 7, arm: 1.5, ry: 0, kind: 'sodium', glow: true });
   lampPool(b, -49.5, Z(37.0), 7.5);
   // Westgrenze: Ziegelmauer mit Stacheldraht
-  // maps-expand: drei Durchbrüche ins Außenlager (z 0..4 · 18..24 · 32..38), Mauerreste als Deckung
+  // maps-expand: drei Durchbrüche ins Außenlager (z 0..4 · 18..24 · 32..38). Die Mauerenden an den Durchbrüchen
+  // sind abgetreppt ausgebrochen (statt glatt geschnitten), Ziegelbrocken am Boden; der einzelne niedrige Ziegelblock
+  // („Mauerrest“) neben zwei Durchbrüchen ist entfernt
   for (const [a, c] of [[4, 18], [24, 32], [38, 48]]) {
-    b.boxMM(-52.6, 0, Math.min(Z(a), Z(c)), -52.0, 3.6, Math.max(Z(a), Z(c)), 'brick', { tint: '#8a5a4a', minimap: 'wall' });
-    b.boxMM(-52.7, 3.6, Math.min(Z(a), Z(c)), -51.9, 3.75, Math.max(Z(a), Z(c)), 'concrete', { tint: '#8a8680', collide: false, minimap: false, grad: false });
+    const ea = 0.9, ec = c === 48 ? 0 : 0.9; // Ausbruch an beiden Enden (außer an der Torecke)
+    const seg = (p, q, h, mm = 'wall') => b.boxMM(-52.6, 0, Math.min(Z(p), Z(q)), -52.0, h, Math.max(Z(p), Z(q)), 'brick', { tint: '#8a5a4a', minimap: mm });
+    seg(a + ea, c - ec, 3.6);
+    b.boxMM(-52.7, 3.6, Math.min(Z(a + ea), Z(c - ec)), -51.9, 3.75, Math.max(Z(a + ea), Z(c - ec)), 'concrete', { tint: '#8a8680', collide: false, minimap: false, grad: false });
+    for (const [e, dir] of [[a, 1], ...(ec ? [[c, -1]] : [])]) {
+      const h1 = 1.6 + hash01(e, s, 61) * 0.6, h2 = 2.5 + hash01(s, e, 62) * 0.6;
+      seg(e, e + dir * 0.45, h1);
+      seg(e + dir * 0.45, e + dir * 0.9, h2);
+      // Ziegelbrocken vor dem Ausbruch (ohne Kollision)
+      for (let k = 0; k < 5; k++) {
+        const bx = -52.3 + (hash01(e + k, s, 63) - 0.5) * 1.6, bz = Z(e - dir * (0.2 + hash01(e, k + s, 64) * 0.9));
+        b.box(bx, 0, bz, 0.24, 0.07 + hash01(k, e, 65) * 0.06, 0.12, 'brick', { ry: hash01(e, k, 66) * 3, tint: '#7a4a3a', collide: false, minimap: false, ao: false });
+      }
+    }
   }
-  for (const [a, c] of [[18, 18.9], [32, 32.9]]) b.boxMM(-52.6, 0, Math.min(Z(a), Z(c)), -52.0, 1.1, Math.max(Z(a), Z(c)), 'brick', { tint: '#7a4a3a', minimap: 'cover' });
   for (let i = 0; i < 10; i++) {
     const x = b.rnd(-50, -29), z = Z(b.rnd(2, 45)), k = b.rand();
     b.decal(x, 0.012, z, b.rnd(1.5, 3.5), b.rnd(1.5, 3.5), k < 0.4 ? 'oil' : k < 0.7 ? 'puddle' : k < 0.85 ? 'tire' : 'cracks', { opacity: 0.7 });
@@ -850,12 +895,13 @@ function half(b, M, ctx) {
 
   // ===== Vorplatz Halle (z 30..48) ========================================
   slabStack(b, -8.5, Z(34.5), 0.2, 4);
-  coilRow(b, 9.0, Z(35.0), 0.2 * s, 3);
+  coilLager(b, 9.0, Z(35.0), 0.2 * s, 3);
   crateStack(b, -15.5, Z(36.0), { ry: 0.4 * s });
   jersey(b, 3.0, Z(37.5), { len: 3, ry: 0.1 * s, stripes: true });
   for (const xx of [-6, 6]) b.cyl(xx, 0, Z(31.0), 0.13, 1.0, 'metal_painted', { tint: YEL, seg: 8, minimap: 'prop' });
   cone(b, -2.4, Z(32.6)); cone(b, -1.6, Z(33.1));
-  floodMast(b, 18.0, Z(33.5), { h: 12, ry: M.ry(Math.PI), kind: 'sodium', glow: true });
+  // Flutlicht: Strahler auf den Vorplatz vor dem Hallentor geneigt (vorher 23° nach oben in den Himmel gekippt)
+  flutMast(b, 18.0, Z(33.5), { h: 12, tx: 2.0, tz: Z(37.0), kind: 'sodium', pool: 10, spot: true });
 
   // ===== Ostgasse + Kesselhof ===============================================
   // Tanks mit Auffangwanne
@@ -872,7 +918,7 @@ function half(b, M, ctx) {
   barrelGroup(b, 50.5, Z(17.5), { n: 3 });
   dumpster(b, 48.8, Z(23.0), { ry: Math.PI / 2, color: '#4a5a4a' });
   gasBottles(b, 45.0, Z(4.5), { n: 3 });
-  pipe(b, [[44.3, 0.6, Z(6)], [44.3, 0.6, Z(20)], [44.3, 3.5, Z(20)]], { r: 0.14, tint: '#8a8f94', collide: true });
+  // (Heizölleitung Tank → Kesselhaus: tankBund)
   // Ostgrenze
   b.boxMM(52.0, 0, Math.min(0, Z(48)), 52.6, 3.6, Math.max(0, Z(48)), 'brick', { tint: '#8a5a4a', minimap: 'wall' });
   lampPost(b, 51.2, Z(32.0), { h: 6.5, arm: 1.3, ry: Math.PI, kind: 'sodium', glow: true });
@@ -903,7 +949,8 @@ function half(b, M, ctx) {
     b.box(14.0, 0, Z(46.2), 3.0, 2.4, 2.0, 'metal_painted', { tint: '#5a6a62', minimap: 'cover' });
   }
   sandbags(b, -14.8, Z(39.0), -12.0, Z(39.0), { rows: 5 });
-  sandbags(b, 11.6, Z(40.0), 14.4, Z(40.0), { rows: 5 });
+  // MG-Nest (Sandsackring, hinten offen, MG auf Dreibein Richtung Hallentor) statt der geraden Sandsackreihe
+  mgNest(b, 13.0, Z(40.6), M.ry(Math.PI));
   // Zusatzdeckung Vorplatz (maps-expand): Lücken zwischen Hallenecke und Startbereich schließen
   crateStack(b, -25.6, Z(36.5), { ry: 0.25 * s, pattern: [[0, 0, 0, 1.2], [1.25, 0, 0.05, 1.1], [0.55, 1, 0.02, 1.0]] });
   crateStack(b, 21.8, Z(37.6), { ry: -0.3 * s });
@@ -927,8 +974,23 @@ function outerYard(b) {
     b.box(-57, 4.75, z, 3.6, 0.25, 0.25, 'metal_painted', { tint: '#5a646c', collide: false, minimap: false, grad: false });
     b.box(-57, 0, z, 3.6, 0.12, 0.6, 'concrete', { tint: '#8f8b84', collide: false, minimap: false, grad: false });
   }
-  for (const [x, r, t] of [[-58.0, 0.3, '#8a8f94'], [-57.1, 0.22, '#a0663a'], [-56.3, 0.18, '#6f8a7a']]) pipe(b, [[x, 5.0 + r, -44], [x, 5.0 + r, 44]], { r, tint: t, collide: false });
-  pipe(b, [[-55.8, 5.2, -35], [-55.8, 5.2, -30], [-53.2, 5.2, -30], [-53.2, 3.9, -30]], { r: 0.16, tint: '#a0663a' });
+  // Rohre über die Werksmauer (Auflager auf der Mauerkrone) und dahinter in den Boden – vorher endeten sie 2 m hinter
+  // der letzten Stütze offen in der Luft
+  for (const [x, r, t] of [[-58.0, 0.3, '#8a8f94'], [-57.1, 0.22, '#a0663a'], [-56.3, 0.18, '#6f8a7a']]) {
+    pipe(b, [[x, -0.3, -50.4], [x, 5.0 + r, -50.4], [x, 5.0 + r, 50.4], [x, -0.3, 50.4]], { r, tint: t, collide: false });
+  }
+  for (const s of [-1, 1]) {
+    for (const x of [-58.6, -55.4]) b.box(x, 4.35, s * 48.2, 0.2, 0.4, 0.2, 'metal_painted', { tint: '#5a646c', collide: false, minimap: false, grad: false });
+    b.box(-57, 4.75, s * 48.2, 3.6, 0.25, 0.25, 'metal_painted', { tint: '#5a646c', collide: false, minimap: false, grad: false });
+  }
+  // Abzweig: T-Stück aus der Leitung, über die Hofmauer, an der Mauer hinunter zum Absperrschieber und in den Boden
+  // (vorher begann er frei neben dem Bündel und endete 3,9 m hoch in der Luft)
+  pipe(b, [[-56.3, 5.18, -30], [-51.45, 5.18, -30], [-51.45, -0.05, -30]], { r: 0.16, tint: '#a0663a', collide: true });
+  b.cyl(-51.45, 0, -30, 0.26, 0.06, 'metal_painted', { tint: '#4a4f55', collide: false, minimap: false, seg: 10, ao: false });
+  b.box(-51.45, 0.95, -30, 0.3, 0.3, 0.3, 'metal_painted', { tint: '#4a4f55', collide: false, minimap: false, grad: false });
+  stab(b, [-51.45, 1.1, -30], [-51.0, 1.1, -30], 0.025, 'metal_galvanized');
+  b.cyl(-50.98, 1.1, -30, 0.2, 0.04, 'metal_painted', { axis: 'x', tint: '#c8402f', collide: false, minimap: false, seg: 12, ao: false });
+  for (const yy of [2.2, 3.4]) b.box(-51.75, yy, -30, 0.45, 0.06, 0.12, 'metal_painted', { tint: '#4a4f55', collide: false, minimap: false, grad: false, ao: false });
   halle9(b);
   for (const s of [1, -1]) {
     const Z = z => z * s, south = s > 0;
@@ -945,7 +1007,7 @@ function outerYard(b) {
     }
     // Deckung (Brust-/Kniehöhe), versetzt angeordnet
     jersey(b, -62.6, Z(13.0), { len: 3, ry: 0.1 * s, stripes: true });
-    coilRow(b, -72.5, Z(15.0), 0, 3, { top: south });
+    coilLager(b, -72.5, Z(15.0), 0, 3, { top: south });
     slabStack(b, -65.0, Z(21.5), 0.2 * s, 4);
     crateStack(b, -75.4, Z(21.0), { ry: 0.2 * s, pattern: [[0, 0, 0, 1.2], [1.25, 0, 0.05, 1.1], [0.55, 1, 0.02, 1.0]] });
     sandbags(b, -62.0, Z(37.4), -59.4, Z(37.9), { rows: 5 });
@@ -987,14 +1049,18 @@ function halle9(b) {
   rollDoor(b, x + w / 2 + 0.05, 0, 4.6, 4.4, 3.3, Math.PI / 2);
   workbench(b, -72.6, -4.0, { ry: Math.PI / 2 });
   lockers(b, -73.4, -0.6, { ry: Math.PI / 2 });
-  coilRow(b, -67.5, 4.6, 0, 2);
+  coilLager(b, -67.5, 4.6, 0, 2);
   slabStack(b, -66.5, -4.6, 0, 3);
   crateStack(b, -70.5, 6.4, { ry: 0.1 });
   barrelGroup(b, -64.0, -6.6, { n: 3 });
+  // Leuchtbänder bündig unter dem Dach (Gehäuse bis zur Decke y 5,75 – vorher hingen sie 11 cm darunter in der Luft)
   for (const lz of [-4.5, 4.5]) {
-    b.box(x, H6 - 0.42, lz, 3.4, 0.06, 0.4, 'lamp_cool', { collide: false, minimap: false, ao: false, cast: false });
+    b.box(x, H6 - 0.35, lz, 3.5, 0.1, 0.46, 'metal_painted', { tint: '#d8d8d2', collide: false, minimap: false, grad: false, ao: false });
+    b.box(x, H6 - 0.38, lz, 3.4, 0.03, 0.36, 'lamp_cool', { collide: false, minimap: false, ao: false, cast: false });
     b.light('point', x, H6 - 1.0, lz, { color: '#e6f0ff', intensity: 16, distance: 14, realtime: false });
   }
+  // Werkstatt-Wand: Stahlregal an der Westwand neben der Werkbank (Fenster bei z −3,5 bleibt frei)
+  regal(b, -73.45, 0.12, -6.6, Math.PI / 2);
   b.glow(x, H6 - 0.5, 0, { color: '#d8e6ff', size: 1.6, intensity: 0.6 });
   b.noNav(x - w / 2 - 0.5, z - d / 2 - 0.5, x + w / 2 + 0.5, z + d / 2 + 0.5, H6 - 0.4, 20);
 }
@@ -1006,10 +1072,21 @@ function tankBund(b, x, z, label, s) {
   for (const zz of zs) wall(b, { x0: x - hw, z0: zz, x1: x + hw, z1: zz, h, t: 0.35, mat: 'concrete', tint: '#9a968e', minimap: 'cover', openings: [{ at: 3.0, w: 2.0, h: 2, kind: 'gap', frame: false }, { at: 9.0, w: 2.0, h: 2, kind: 'gap', frame: false }] });
   for (const xx of [x - hw, x + hw]) wall(b, { x0: xx, z0: z - hd, x1: xx, z1: z + hd, h, t: 0.35, mat: 'concrete', tint: '#9a968e', minimap: 'cover', openings: [{ at: hd, w: 2.2, h: 2, kind: 'gap', frame: false }] });
   tank(b, x, z, { r: 3.6, h: 8.5, legs: 0.4, tint: '#c8c4bc' });
-  b.sign(x, 4.6, z + s * 3.62, 3.2, 1.1, label, { ry: s > 0 ? 0 : Math.PI, back: false, depth: 0 });
+  // Beschriftung schmaler (ebene Tafel an runder Wand: bei 3,2 m standen die Ränder 0,37 m vom Tank ab)
+  b.sign(x, 4.8, z + s * 3.605, 1.5, 0.62, label, { ry: s > 0 ? 0 : Math.PI, back: false, depth: 0 });
   // Leiter + Geländer oben
   for (let y = 0.6; y < 9; y += 0.45) b.box(x - 3.66, y, z, 0.06, 0.04, 0.5, 'metal_galvanized', { collide: false, minimap: false, ao: false });
-  pipe(b, [[x + 3.6, 0.8, z], [x + 5.5, 0.8, z], [x + 5.5, 0.8, z - s * 5]], { r: 0.16, tint: '#8a8f94' });
+  // Heizölleitung zum Kesselhaus: aus dem Tank, durch die Wannenwand, auf Rohrböcken an der Kesselhaus-Ostwand
+  // entlang und in die Wand (vorher endete sie offen in der Wanne; die zweite Leitung stand am Hinterhof in der Luft)
+  const zz = k => z - s * k;
+  pipe(b, [[x + 3.55, 0.8, z], [x + 5.5, 0.8, z], [x + 5.5, 0.8, zz(9)], [x + 4.5, 0.8, zz(9)], [x + 4.5, 0.8, zz(18.5)], [x + 3.9, 0.8, zz(18.5)]], { r: 0.16, tint: '#8a8f94', collide: true });
+  for (const k of [3.5, 7.5, 11.5, 15.5]) {
+    const px = k < 9 ? x + 5.5 : x + 4.5;
+    b.box(px, 0, zz(k), 0.1, 0.64, 0.1, 'metal_painted', { tint: '#4a4f55', collide: false, minimap: false, grad: false });
+    b.box(px, 0.58, zz(k), 0.42, 0.06, 0.12, 'metal_painted', { tint: '#4a4f55', collide: false, minimap: false, grad: false, ao: false });
+  }
+  b.cyl(x + 4.02, 0.8, zz(18.5), 0.26, 0.05, 'metal_painted', { axis: 'x', tint: '#4a4f55', collide: false, minimap: false, seg: 10, ao: false });
+  b.cyl(x + 3.62, 0.8, z, 0.26, 0.05, 'metal_painted', { axis: 'x', tint: '#4a4f55', collide: false, minimap: false, seg: 10, ao: false });
   b.noNav(x - 3.8, z - 3.8, x + 3.8, z + 3.8, 0.8, 40);
 }
 
@@ -1040,6 +1117,8 @@ function valveStation(b, x, z, s) {
     b.cyl(x + ox, 1.6, z, 0.3, 0.06, 'metal_painted', { tint: '#c8402f', seg: 12, collide: false, minimap: false, ao: false });
   }
   b.cyl(x, 1.0, z, 0.2, 2.2, 'metal_painted', { axis: 'x', tint: '#b05a3a', collide: false, minimap: false, seg: 10 });
+  // Blindflansche an den offenen Enden der Sammelleitung
+  for (const sx of [-1, 1]) b.cyl(x + sx * 1.1, 1.0, z, 0.27, 0.06, 'metal_painted', { axis: 'x', tint: '#8a4a32', collide: false, minimap: false, seg: 10, ao: false });
   b.box(x, 0, z, 2.6, 1.2, 1.0, 'black', { visual: false, minimap: 'cover' });
   void s;
 }
@@ -1098,7 +1177,15 @@ function gatehouse(b, x, z) {
     ],
     roof: { edge: true, mat: 'concrete' },
   });
-  b.box(x - 1.2, 0.12, z + 1.2, 2.0, 0.8, 0.6, 'wood_planks', { tint: '#6a5440', minimap: false });
+  // Einrichtung (statt eines Holzklotzes): Pförtnerpult am Westfenster mit Blick aufs Tor, Stuhl, Aktenschrank,
+  // Regal mit Ordnern, Langfeldleuchte; Weg von der Tür frei. Schild „PFORTE“ neben der Tür.
+  const fy = 0.12, ix0 = x - 2.6 + 0.25, ix1 = x + 2.6 - 0.25, iz1 = z + 2.0 - 0.25;
+  schreibtisch(b, ix0 + 0.485, fy, z, Math.PI / 2);
+  stuhl(b, ix0 + 1.35, fy, z + 0.1, -Math.PI / 2);
+  regal(b, x + 0.6, fy, iz1 - 0.26, Math.PI);
+  aktenschrank(b, ix1 - 0.32, fy, iz1 - 0.75, -Math.PI / 2);
+  leuchtband(b, x, 2.75, z, 0, 1.25, { kind: 'cool', light: { intensity: 5, distance: 6 } });
+  b.sign(x + 0.25, 1.75, z - 2.0 - 0.01, 0.9, 0.48, 'pforte', { ry: Math.PI, depth: 0.01 });
   b.noNav(x - 3, z - 2.5, x + 3, z + 2.5, 2.5, 6);
 }
 
@@ -1116,8 +1203,11 @@ function wagon(b, x, z, kind, color) {
   for (const dx of [-4.5, 4.5]) for (const k of [-0.9, 0.9]) for (const dz of [-0.72, 0.72]) b.cyl(x + dx + k, 0.45, z + dz, 0.45, 0.12, 'metal_painted', { axis: 'z', tint: '#2b2d30', collide: false, minimap: false, seg: 12 });
   if (kind === 'box') {
     b.box(x, 1.15, z, L, 2.9, W, 'metal_corrugated', { tint: color, collide: false, minimap: false, grad: false, uv: 'local' });
-    b.cyl(x, 4.05, z, W / 2, L, 'metal_painted', { axis: 'x', arc: Math.PI, tint: color, collide: false, minimap: false, seg: 12, rx: Math.PI / 2 });
-    b.box(x, 1.4, z + W / 2 + 0.03, 3.0, 2.4, 0.06, 'metal_painted', { tint: color, collide: false, minimap: false, grad: false });
+    // flach gewölbtes Dach (Halbzylinder nach oben, auf 0,37 m Stich gestaucht) – der Bogen zeigte vorher nach unten
+    // in den Wagenkasten und war unsichtbar
+    b.cyl(x, 4.04, z, W / 2 + 0.04, L + 0.1, 'metal_painted', { axis: 'x', arc: Math.PI, tint: color, collide: false, minimap: false, seg: 12, rx: -Math.PI / 2, sz: 0.25 });
+    // Schiebetüren auf beiden Wagenseiten: Laufschiene, Führung, Griffbügel, Riegelhebel (statisch, nicht öffnbar)
+    for (const nz of [-1, 1]) schiebetuer(b, x, 1.4, z + nz * W / 2, nz, 3.0, 2.4, color);
   } else {
     b.box(x, 1.15, z, L, 1.6, W, 'metal_rust', { tint: color, collide: false, minimap: false, grad: false });
     b.box(x, 2.6, z, L - 0.3, 0.12, W - 0.3, 'gravel', { tint: '#4a3a32', collide: false, minimap: false, grad: false, ao: false });

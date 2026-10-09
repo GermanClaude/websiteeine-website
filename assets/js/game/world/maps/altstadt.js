@@ -22,6 +22,8 @@ const SHUTTERS = ['#2f6f9a', '#3c7a5a', '#2a5d7c', '#6f8f3a', '#9a4b2a', '#35626
 const IRON = '#2b2d30';
 const STONE = '#e3d6bd';
 const CAPLESS = [0, 0, 0, 0, 1, 1];   // Quader ohne Deck-/Bodenfläche (verdeckte Stäbe, Bretter)
+// Innenräume (Geschosshöhe 3,2 m): Fußboden EG / Decke EG / Fußboden OG / Decke OG
+const G0 = 0.12, C0 = 2.95, G1 = 3.22, C1 = 6.15;
 
 export default {
   id: 'altstadt',
@@ -345,6 +347,9 @@ function dressFacade(b, M, h, o) {
     const col = b.pick(['#8a8f94', '#b8694c', '#6f7a72']);
     b.cyl(cx, 0, cz, 0.055, h.roofY - 0.1, 'metal_painted', { tint: col, seg: 6, collide: false, minimap: false, ao: false });
     b.cyl(cx, h.roofY - 0.25, cz, 0.08, 0.25, 'metal_painted', { tint: col, seg: 6, collide: false, minimap: false, ao: false });
+    // Rohrschellen zur Wand (Kartenrunde 2: das Rohr stand vorher frei 4 cm vor der Fassade)
+    const wz = cz < h.z ? h.z0 : h.z1;
+    for (const yy of [0.9, h.roofY * 0.5, h.roofY - 0.7]) b.box(cx, yy, (cz + wz) / 2, 0.04, 0.035, Math.abs(cz - wz) + 0.02, 'metal_painted', { tint: col, collide: false, minimap: false, grad: false, ao: false });
   }
 }
 
@@ -652,7 +657,7 @@ function well(b, x, z, ctx) {
   const p = g.attributes.position, uv = g.attributes.uv;
   for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / 2.5, -p.getZ(i) / 2.5);
   w.mesh.geometry.dispose(); w.mesh.geometry = g;
-  const bowlY = 2.125;
+  const bowlY = 2.135; // 1,5 cm über der Schalenoberkante (2,12) – kein Flimmern auf Distanz
   const w2 = ctx.water({ x0: x - 1, z0: z - 1, x1: x + 1, z1: z + 1, y: bowlY, color: '#2f6a6e', scale: 2.0 });
   const g2 = new THREE.CircleGeometry(0.94, 20);
   g2.rotateX(-Math.PI / 2); g2.translate(x, bowlY, z);
@@ -949,7 +954,16 @@ function workshop(b) {
   barrelGroup(b, 37.2, 6.9, { n: 3, y: 0.12, colors: ['#c8402f', '#3a6f8a'] });
   b.sign(34.97, 2.75, 0, 3.2, 0.7, 'werkstatt', { ry: -Math.PI / 2, depth: 0.03 });
   b.light('point', 41, 2.7, 0, { color: '#ffe2b0', intensity: 10, distance: 10 });
-  b.box(41, 3.08, 0, 1.4, 0.06, 0.25, 'lamp_warm', { collide: false, minimap: false, ao: false, cast: false });
+  // Leuchtbalken an der Decke (Unterseite 3,15 m): Mitte mit Echtzeitlicht, vorn/hinten gebacken (Kartenrunde 2)
+  for (const zz of [-5.2, 0, 5.2]) {
+    b.box(41, 3.06, zz, 1.5, 0.09, 0.3, 'metal_painted', { tint: '#d8d4cc', collide: false, minimap: false, grad: false, ao: false });
+    b.box(41, 3.03, zz, 1.4, 0.04, 0.22, 'lamp_warm', { collide: false, minimap: false, ao: false, cast: false });
+    if (zz) b.light('point', 41, 2.6, zz, { color: '#ffe2b0', intensity: 7, distance: 9, realtime: false });
+  }
+  withRng(b, 0x525c, () => {
+    shelf(b, 38.4, G0, -8.49, 0, { w: 2.0, d: 0.4, goods: 'tools', tint: '#5a5f66' });
+    shelf(b, 38.4, G0, 8.49, Math.PI, { w: 2.0, d: 0.4, goods: 'boxes', tint: '#5a5f66' });
+  });
   // Dach: Solarwarmwasser, Wassertank
   waterTank(b, 43.5, 3.425, -5);
   waterTank(b, 43.5, 3.425, 5);
@@ -1072,16 +1086,30 @@ function half(b, M) {
     balconies: [{ side: 'e', at: 1.0, floor: 1, w: 2.0 }],
     ac: [{ side: 's', at: 2.2, y: 4.2 }],
   });
-  // Möblierung WM1 (Wohnküche)
+  // Möblierung WM1 (Kartenrunde 2): Wohnküche im EG, Schlafzimmer im OG – Möbel an den Wänden, Türachsen frei
   {
-    const [tx, tz] = [-22.5, Z(11.5)];
-    b.box(tx, 0.12, tz, 1.8, 0.76, 0.95, 'wood_planks', { tint: '#9a7a52', minimap: 'cover' });
-    for (const [cx, cz] of [[-0.6, -0.8], [0.6, -0.8], [-0.6, 0.8], [0.6, 0.8]]) chair(b, tx + cx, tz + cz * s, { y: 0.12, ry: cz * s > 0 ? Math.PI : 0, tint: '#7a5a3a' });
-    b.box(-26.1, 0.12, Z(14.6), 1.1, 0.9, 2.6, 'wood_dark', { tint: '#7a5a40', minimap: 'cover' });
-    b.box(-26.4, 1.5, Z(14.6), 0.5, 0.8, 2.4, 'wood_dark', { tint: '#7a5a40', minimap: false });
-    b.box(-21, 3.2, Z(9.0), 2.0, 0.55, 0.9, 'tarp', { tint: '#c8b89a', minimap: 'cover' });
-    b.box(-24.9, 3.2, Z(12.2), 1.0, 1.9, 0.5, 'wood_dark', { tint: '#6a4a32', minimap: 'cover' });
-    crateStack(b, -18.0, Z(9.2), { y: 3.2, ry: 0.3, pattern: [[0, 0, 0, 0.8], [0.85, 0, 0, 0.7]] });
+    crateStack(b, -17.6, Z(16.5), { y: G1, ry: 0.3, pattern: [[0, 0, 0, 0.8], [0.85, 0, 0, 0.7]] }); // Abstellecke OG (Kartenzufall wie bisher)
+    withRng(b, 0x51a1 + (south ? 0 : 7), () => {
+      kitchen(b, -26.4, G0, Z(14.65), M.ry(Math.PI / 2), { len: 2.4 });
+      ceilingLamp(b, -24.9, C0, Z(14.6));
+      rug(b, -22.5, G0, Z(11.5), 2.8, 2.0, 0, south ? '#8a3a2a' : '#2f4f6e');
+      table(b, -22.5, G0, Z(11.5), { w: 1.8, d: 0.95, cloth: '#efe6d4' });
+      tableChairs(b, -22.5, G0, Z(11.5), { w: 1.8, d: 0.95, n: 2 });
+      pendant(b, -22.5, C0, Z(11.5), { tint: '#2f5f4a' });
+      dresser(b, -19.6, G0, Z(7.54), M.ry(0), { w: 1.3 });
+      picture(b, -19.6, 1.45, Z(7.3), M.ry(0), 0.8, 0.55, '#6a8a9a');
+      shelf(b, -25.8, G0, Z(7.49), M.ry(0), { w: 1.0, d: 0.36, h: 1.7, goods: 'jars' });
+      // OG: Bett am Nordgiebel, Schrank an der Westwand, Tisch am Ostfenster, Bücherregal neben dem Treppenaustritt
+      bed(b, -23.0, G1, Z(8.35), M.ry(0), { w: 1.4, tint: south ? '#6f86a8' : '#a8776f' });
+      nightstand(b, -24.05, G1, Z(7.52), M.ry(0)); nightstand(b, -21.95, G1, Z(7.52), M.ry(0));
+      wardrobe(b, -26.41, G1, Z(12.0), M.ry(Math.PI / 2), { w: 1.2 });
+      table(b, -17.3, G1, Z(11.8), { w: 0.9, d: 0.7, ry: Math.PI / 2 });
+      tableChairs(b, -17.3, G1, Z(11.8), { w: 0.9, d: 0.7, n: 1, sides: [-1], ry: Math.PI / 2 });
+      shelf(b, -25.9, G1, Z(18.42), M.ry(Math.PI), { w: 1.2, goods: 'books' });
+      armchair(b, -25.5, G1, Z(16.0), M.ry(Math.PI / 2 + 0.7), south ? '#7a3a2a' : '#2f5f4a');
+      rug(b, -22.2, G1, Z(12.6), 2.4, 1.6, 0, '#2f4f6e');
+      pendant(b, -21.8, C1, Z(12.0), { tint: '#8a3a2a' });
+    });
   }
   // Gasse zwischen WM1 und WM2 (z 19..22.5): Wäsche, Kabel
   laundry(b, -26.8, 5.4, Z(19.1), -16.2, 5.6, Z(22.4), { n: 5 });
@@ -1107,6 +1135,10 @@ function half(b, M) {
   crateStack(b, -24.6, Z(26.0), { y: 0.12, ry: 0.15 });
   palletStackSmall(b, -18.4, Z(31.6));
   b.box(-25.8, 0.12, Z(31.8), 1.4, 1.2, 0.8, 'wood_planks', { tint: '#8a6a4a', minimap: 'cover' });
+  withRng(b, 0x5207 + (south ? 0 : 7), () => {
+    shelf(b, -21.0, G0, Z(33.51), M.ry(Math.PI), { w: 2.0, goods: 'boxes' });
+    ceilingLamp(b, -21.5, C0, Z(25.8)); ceilingLamp(b, -21.5, C0, Z(31.0));
+  });
   extStairs(b, M, { x: -17.5, z: 34.75, dir: 'w', y1: wm2.roofY, w: 1.2, open: 'left', run: 8.2, wallGap: 0.15 });
   terraceDeco(b, M, wm2, { pots: [[-17.2, 23.4], [-26.2, 24.0]], laundry: [[-25.5, 26.5, -25.5, 31.5]], tank: [-17.8, 28.5], chairs: [[-20.5, 31.8]] });
   // Hof südlich von WM2 (x −27..−16, z 34..42): Mauer, Olivenbaum, Brunnentrog
@@ -1178,9 +1210,11 @@ function half(b, M) {
   if (south) { scooter(b, 4.4, Z(17.5), 0.3, '#2f6f9a'); handcart(b, -3.6, Z(38.6), 0.15, { goods: ['#e6c53a', '#e8862a'] }); barrelGroup(b, 4.6, Z(36.4), { n: 3, colors: ['#3a6f8a', '#3a6f8a', '#8a3a2a'] }); }
   else { trike(b, 3.4, Z(19.0), Math.PI + 0.12, '#e8e4dc'); crateStack(b, -4.2, Z(37.6), { ry: 0.5 }); planter(b, 4.2, Z(38.2), 1.0, 2.4, { h: 0.75 }); }
   pot(b, -5.6, 0, Z(21.0), { r: 0.32 }); pot(b, 5.6, 0, Z(15.4), { r: 0.28, plant: 'flowers' });
-  // Laternen + Straßenschilder
-  lampPost(b, -6.4, Z(33.2), { h: 4.6, arm: 0.9, ry: s > 0 ? -Math.PI / 2 : -Math.PI / 2, kind: 'warm', tint: IRON });
-  lampPost(b, 14.4, Z(25.0), { h: 4.6, arm: 0.9, ry: Math.PI, kind: 'warm', tint: IRON });
+  // Laternen (Kartenrunde 2: Ausleger zur Gasse – im Süden steckte der Leuchtenkopf vorher in der Hauswand; abends an)
+  for (const [lx, lz, lry] of [[-6.4, Z(33.2), south ? Math.PI / 2 : -Math.PI / 2], [14.4, Z(25.0), Math.PI]]) {
+    const [hx, hz] = lampPost(b, lx, lz, { h: 4.6, arm: 0.9, ry: lry, kind: 'warm', tint: IRON, glow: isNight(), glowSize: 2.0 });
+    lampLight(b, hx, 4.35, hz, { glow: false, intensity: 12, distance: 12, pool: 3.0 });
+  }
 
   // ===== Ostmitte (x 15..31) =============================================
   // EM1: begehbar mit Obergeschoss (Fenster zur Kirchgasse und Gasse)
@@ -1202,12 +1236,29 @@ function half(b, M) {
     stairsIn: { x: 29.4, z: 22.1, dir: 'w', w: 1.1, open: 'right' },
     vines: [{ side: 'w', at: 3.6, n: 3 }],
   });
+  // Möblierung EM1 (Kartenrunde 2): Küche + Esstisch im EG, Schlafzimmer + Schreibtisch im OG
   {
-    b.box(23.0, 0.12, Z(16.4), 2.2, 0.76, 1.0, 'wood_planks', { tint: '#9a7a52', minimap: 'cover' });
-    b.box(20.0, 0.12, Z(21.8), 1.1, 0.9, 1.9, 'wood_dark', { tint: '#6a4a32', minimap: 'cover' });
-    b.box(26.5, 3.2, Z(14.3), 2.4, 0.5, 1.0, 'tarp', { tint: '#b8a888', minimap: 'cover' });
-    b.box(20.6, 3.2, Z(17.6), 0.6, 1.8, 1.4, 'wood_dark', { tint: '#6a4a32', minimap: 'cover' });
-    crateStack(b, 24.4, Z(20.4), { y: 3.2, ry: -0.2, pattern: [[0, 0, 0, 0.8], [0.85, 0, 0.05, 0.8]] });
+    crateStack(b, 20.1, Z(20.7), { y: G1, ry: -0.2, pattern: [[0, 0, 0, 0.8], [0.85, 0, 0.05, 0.8]] }); // Abstellecke OG (Kartenzufall wie bisher)
+    withRng(b, 0x51b2 + (south ? 0 : 7), () => {
+      kitchen(b, 21.6, G0, Z(22.4), M.ry(Math.PI), { len: 2.4 });
+      ceilingLamp(b, 21.6, C0, Z(21.2));
+      table(b, 22.4, G0, Z(19.6), { w: 1.8, d: 0.9, cloth: '#e8dcc4' });
+      tableChairs(b, 22.4, G0, Z(19.6), { w: 1.8, d: 0.9, n: 2 });
+      pendant(b, 22.4, C0, Z(19.6), { tint: '#b08a3a' });
+      dresser(b, 25.3, G0, Z(13.54), M.ry(0), { w: 1.4 });
+      picture(b, 25.3, 1.45, Z(13.3), M.ry(0), 0.9, 0.6, '#8a6a3a');
+      shelf(b, 19.49, G0, Z(14.4), M.ry(Math.PI / 2), { w: 1.4, goods: 'books' });
+      ceilingLamp(b, 26.0, C0, Z(17.0));
+      // OG
+      bed(b, 27.2, G1, Z(14.35), M.ry(0), { w: 1.4, tint: south ? '#7a8a5a' : '#6f86a8' });
+      nightstand(b, 28.2, G1, Z(13.52), M.ry(0));
+      wardrobe(b, 19.59, G1, Z(16.2), M.ry(Math.PI / 2), { w: 1.2 });
+      table(b, 30.4, G1, Z(18.0), { w: 1.2, d: 0.6, ry: Math.PI / 2 });
+      tableChairs(b, 30.4, G1, Z(18.0), { w: 1.2, d: 0.6, n: 1, sides: [-1], ry: Math.PI / 2 });
+      shelf(b, 21.0, G1, Z(22.51), M.ry(Math.PI), { w: 1.2, goods: 'books' });
+      rug(b, 26.2, G1, Z(17.2), 2.2, 1.6, 0, '#7a4a3a');
+      pendant(b, 25.6, C1, Z(17.4), { tint: '#2f5f4a' });
+    });
   }
   // Gasse EM1/EM2 (z 23..26)
   laundry(b, 19.2, 5.2, Z(22.9), 30.8, 5.5, Z(26.1), { n: 6 });
@@ -1225,8 +1276,15 @@ function half(b, M) {
     ],
     gaps: [{ side: 'e', a: 29.3, b: 30.9 }],
   });
-  b.box(24.0, 0.12, Z(31.5), 2.6, 0.8, 1.0, 'wood_planks', { tint: '#8a6a4a', minimap: 'cover' });
-  b.box(29.6, 0.12, Z(28.0), 1.0, 1.6, 2.0, 'wood_dark', { tint: '#6a4a32', minimap: 'cover' });
+  // EM2 EG (Kartenrunde 2): Vorratskammer – Arbeitstisch, Vorratsschrank, Regal, Weinfässer, Säcke
+  withRng(b, 0x51e5 + (south ? 0 : 7), () => {
+    table(b, 24.0, G0, Z(31.5), { w: 2.4, d: 1.0, h: 0.86, tint: '#9a7a52' });
+    wardrobe(b, 30.41, G0, Z(27.2), M.ry(-Math.PI / 2), { w: 1.6, h: 1.9, tint: '#5a4030' });
+    shelf(b, 19.49, G0, Z(28.5), M.ry(Math.PI / 2), { w: 1.6, goods: 'jars' });
+    barrelRack(b, 30.27, G0, Z(35.8), M.ry(-Math.PI / 2), 2);
+    sacks(b, 20.4, G0, Z(36.6), 0, 6, '#d8ccb0');
+    ceilingLamp(b, 24.0, C0, Z(29.5)); ceilingLamp(b, 26.0, C0, Z(35.0));
+  });
   terraceDeco(b, M, em2, { pots: [[19.9, 26.9], [30.1, 37.1], [19.9, 37.1]], parasol: [24.5, 33.5], chairs: [[23.4, 34.5], [25.6, 34.3]], laundry: [[21.0, 28.0, 21.0, 35.0]] });
   // Hof südlich EM2 (x 15..31, z 38..42)
   tree(b, 17.0, Z(40.0), { kind: 'olive', h: 2.6 });
@@ -1265,12 +1323,27 @@ function half(b, M) {
     stairsIn: { x: 44.4, z: 20.1, dir: 'w', w: 1.1, open: 'right' },
     gaps: [{ side: 's', a: 35.6, b: 45.4 }, { side: 'n', a: 40.0, b: 41.6 }],
   });
-  {
-    b.box(38.0, 0.12, Z(12.0), 1.0, 0.95, 2.2, 'wood_dark', { tint: '#6a4a32', minimap: 'cover' });
-    b.box(42.5, 0.12, Z(14.0), 1.8, 0.76, 1.0, 'wood_planks', { tint: '#9a7a52', minimap: 'cover' });
-    b.box(39.5, 3.2, Z(12.4), 2.0, 0.55, 0.9, 'tarp', { tint: '#b8a888', minimap: 'cover' });
-    b.box(44.6, 3.2, Z(11.0), 1.4, 1.8, 0.5, 'wood_dark', { tint: '#6a4a32', minimap: 'cover' });
-  }
+  // Möblierung EP1 (Kartenrunde 2): Wohnküche im EG (Durchgang West–Ost frei), Schlafzimmer im OG
+  withRng(b, 0x51c3 + (south ? 0 : 7), () => {
+    kitchen(b, 40.5, G0, Z(9.6), M.ry(0), { len: 2.4 });
+    ceilingLamp(b, 40.5, C0, Z(10.7));
+    table(b, 41.0, G0, Z(12.3), { w: 1.6, d: 0.9, cloth: '#efe6d4' });
+    tableChairs(b, 41.0, G0, Z(12.3), { w: 1.6, d: 0.9, n: 2 });
+    pendant(b, 41.0, C0, Z(12.3), { tint: '#8a3a2a' });
+    dresser(b, 35.54, G0, Z(10.1), M.ry(Math.PI / 2), { w: 1.2 });
+    shelf(b, 37.2, G0, Z(20.49), M.ry(Math.PI), { w: 1.4, goods: 'jars' });
+    armchair(b, 36.3, G0, Z(18.7), M.ry(Math.PI / 2 + 0.6), '#3c6a5a');
+    ceilingLamp(b, 38.5, C0, Z(17.0));
+    // OG
+    bed(b, 41.2, G1, Z(10.35), M.ry(0), { w: 1.4, tint: '#a8806f' });
+    nightstand(b, 39.95, G1, Z(9.52), M.ry(0)); nightstand(b, 42.45, G1, Z(9.52), M.ry(0));
+    wardrobe(b, 45.41, G1, Z(12.0), M.ry(-Math.PI / 2), { w: 1.2 });
+    table(b, 35.6, G1, Z(14.8), { w: 1.2, d: 0.6, ry: Math.PI / 2 });
+    tableChairs(b, 35.6, G1, Z(14.8), { w: 1.2, d: 0.6, n: 1, sides: [1], ry: Math.PI / 2 });
+    shelf(b, 37.0, G1, Z(20.51), M.ry(Math.PI), { w: 1.2, goods: 'books' });
+    rug(b, 40.6, G1, Z(14.6), 2.4, 1.6, 0, '#6a4a6a');
+    pendant(b, 40.8, C1, Z(14.2), { tint: '#2f5f4a' });
+  });
   // Absprung-Kante zum Werkstattdach
   b.navPoint(40.8, 3.8, Z(7.6));
   const ep2 = house(b, M, {
@@ -1283,8 +1356,15 @@ function half(b, M) {
     gaps: [{ side: 'n', a: 35.6, b: 45.4 }, { side: 'w', a: 29.3, b: 30.9 }, { side: 's', a: 39.05, b: 40.35 }],
     ac: [{ side: 'w', at: 4.6, y: 5.2 }],
   });
-  b.box(41.0, 0.12, Z(24.5), 2.6, 0.9, 1.0, 'wood_planks', { tint: '#8a6a4a', minimap: 'cover' });
   crateStack(b, 43.8, Z(30.6), { y: 0.12, ry: 0.2 });
+  // EP2 EG (Kartenrunde 2): Lager des Krämers – Packtisch, Regale mit Kisten und Gläsern, Säcke
+  withRng(b, 0x51f6 + (south ? 0 : 7), () => {
+    table(b, 41.0, G0, Z(24.5), { w: 2.4, d: 0.95, h: 0.9, tint: '#8a6a4a' });
+    shelf(b, 45.51, G0, Z(25.5), M.ry(-Math.PI / 2), { w: 1.8, goods: 'boxes' });
+    shelf(b, 38.6, G0, Z(21.49), M.ry(0), { w: 1.8, goods: 'jars' });
+    sacks(b, 37.0, G0, Z(31.6), 0, 6, '#cbb894');
+    ceilingLamp(b, 40.0, C0, Z(25.0)); ceilingLamp(b, 41.0, C0, Z(30.5));
+  });
   // EP3: eingeschossig, Dachterrasse per Außentreppe vom Startbereich
   const ep3 = house(b, M, {
     x0: 35, x1: 46, z0: 33, z1: 42, floors: 1, fh: 3.4, roof: 'terrace', color: south ? '#f0dcc2' : '#ecd3c4', closed: true,
@@ -1448,6 +1528,15 @@ function shopInterior(b, M, kind) {
   // Hinterzimmer
   crateStack(b, -44.6, Z(19.0), { y: 0.12, ry: 0.1, pattern: [[0, 0, 0, 0.9], [0, 0, 1.0, 0.9], [0, 1, 0.5, 0.8]] });
   b.box(-44.8, 0.12, Z(25.6), 1.2, 0.9, 1.6, 'wood_planks', { tint: '#8a6a4a', minimap: 'cover' });
+  // Kartenrunde 2: Ladenleuchten, Regal + Säcke im Hinterzimmer
+  withRng(b, 0x5218 + (M.s > 0 ? 0 : 7), () => {
+    const lt = kind === 'spice' ? '#9a4b2a' : '#2a5d7c';
+    pendant(b, -40.3, C0, Z(19.2), { tint: lt }); pendant(b, -40.3, C0, Z(24.6), { tint: lt });
+    ceilingLamp(b, -44.2, C0, Z(22.0));
+    shelf(b, -45.51, G0, Z(22.0), M.ry(Math.PI / 2), { w: 1.6, goods: kind === 'spice' ? 'jars' : 'cloth' });
+    if (kind === 'spice') sacks(b, -43.3, G0, Z(17.1), 0, 4, '#c9a878');
+    else rug(b, -40.2, G0, Z(21.6), 2.2, 1.3, 0, '#9a2a2a');
+  });
 }
 
 function cafe(b, M, h) {
@@ -1464,6 +1553,13 @@ function cafe(b, M, h) {
   b.sign(-11.0, 2.7, Z(13) - 0.03 * M.s, 3.6, 0.6, 'cafe', { ry: M.ry(Math.PI), depth: 0.03 });
   b.sign(-6.0 + 0.03, 1.2, Z(19.5), 0.9, 1.1, 'menu', { ry: Math.PI / 2, depth: 0.02 });
   b.light('point', -11.0, 2.6, Z(18.5), { color: '#ffd6a0', intensity: 9, distance: 9 });
+  // Kartenrunde 2: Leuchte zum Echtzeitlicht + Pendelleuchten über den Tischen (gebacken), Bild, Pflanze
+  withRng(b, 0x5229, () => {
+    ceilingLamp(b, -11.0, C0, Z(18.5), { light: false });
+    for (const [x, z] of [[-10.6, 16.0], [-8.2, 19.6]]) pendant(b, x, C0, Z(z), { tint: '#1f5f8a', intensity: 7, drop: 0.85 });
+    picture(b, -6.31, 1.4, Z(16.2), -Math.PI / 2, 0.9, 0.6, '#b8783a');
+    pot(b, -6.75, G0, Z(23.2), { r: 0.32, h: 0.5 });
+  });
   // Terrasse auf dem Platz mit Sonnenschirmen + Pflanzkübeln (Deckung)
   awning(b, -11.0, 3.0, Z(13.0) - 0.1 * M.s, 9.0, 2.6, { ry: M.ry(Math.PI), design: 1, drop: 0.6 });
   for (const [x, z] of [[-13.6, 10.6], [-10.2, 10.2], [-6.8, 10.8]]) cafeTable(b, x, Z(z), { chairs: 3, chairTint: '#2f6f9a', chairModel: true });
@@ -1477,8 +1573,17 @@ function pension(b, M, h) {
   b.box(-14.8, 0.12, Z(17.0), 0.9, 1.05, 3.0, 'wood_dark', { tint: '#4a3426', minimap: 'cover' });
   b.box(-15.6, 1.2, Z(17.0), 0.1, 1.2, 1.6, 'wood_dark', { tint: '#6a4a32', collide: false, minimap: false, grad: false });
   for (let i = 0; i < 8; i++) b.box(-15.54, 1.3 + Math.floor(i / 4) * 0.5, Z(16.4 + (i % 4) * 0.4), 0.02, 0.08, 0.05, 'metal_painted', { tint: '#b08a3a', collide: false, minimap: false, ao: false });
-  b.box(-9.0, 0.12, Z(21.8), 2.6, 0.85, 0.9, 'tarp', { tint: '#8a4a3a', minimap: 'cover' });
   b.box(-11.2, 0.12, Z(16.5), 1.2, 0.5, 1.2, 'wood_planks', { tint: '#9a7a52', minimap: 'cover' });
+  // Kartenrunde 2: Sitzecke (zwei Sessel + Tischchen) statt des Polsterklotzes, Leuchten, Teppich, Bild
+  withRng(b, 0x523a, () => {
+    rug(b, -10.6, G0, Z(22.7), 3.0, 1.6, 0, '#6a2a2a');
+    armchair(b, -11.7, G0, Z(22.9), M.ry(Math.PI / 2), '#8a4a3a');
+    armchair(b, -9.5, G0, Z(22.9), M.ry(-Math.PI / 2), '#8a4a3a');
+    table(b, -10.6, G0, Z(22.9), { w: 0.6, d: 0.6, h: 0.45, tint: '#6a4a32' });
+    pendant(b, -10.6, C0, Z(22.6), { tint: '#b08a3a', intensity: 8 });
+    ceilingLamp(b, -12.5, C0, Z(17.2));
+    picture(b, -6.31, 1.45, Z(16.5), -Math.PI / 2, 0.8, 0.55, '#3c6a8a');
+  });
   pot(b, -7.0, 0.12, Z(14.0), { r: 0.35, h: 0.6 });
   b.sign(-11.0, 2.7, Z(13) - 0.03 * M.s, 3.6, 0.6, 'pension', { ry: M.ry(Math.PI), depth: 0.03 });
   awning(b, -13.6, 2.9, Z(13.0) - 0.1 * M.s, 3.2, 1.4, { ry: M.ry(Math.PI), design: 2 });
@@ -1495,9 +1600,12 @@ function bakery(b, M, h, south) {
   const Z = M.z;
   b.box(10.0, 0.12, Z(16.6), 3.4, 1.0, 0.8, 'wood_dark', { tint: '#6a4a32', minimap: 'cover' });
   b.box(10.0, 1.12, Z(16.6), 3.5, 0.05, 0.9, 'stone_wall', { tint: '#efe8da', collide: false, minimap: false, grad: false });
-  // Regal + Brote / Medizinschrank
-  b.box(10.4, 0.12, Z(22.4), 4.2, 2.1, 0.6, 'wood_dark', { tint: '#7a5a40', minimap: 'cover' });
-  for (let i = 0; i < 16; i++) b.geom(lowSphereGeom(), 8.6 + (i % 8) * 0.5, 0.75 + Math.floor(i / 8) * 0.6, Z(22.2), 'wood_crate', { sx: 0.2, sy: 0.12, sz: 0.14, tint: south ? '#c98a4a' : '#e8e4dc', collide: false, minimap: false, ao: false, bullet: false });
+  // Regal mit Broten / Arzneischrank (Kartenrunde 2: offenes Regal an der Rückwand statt Klotz mit davorschwebenden Broten)
+  withRng(b, 0x524b, () => {
+    shelf(b, 10.4, G0, Z(23.42), M.ry(Math.PI), { w: 4.0, h: 2.1, d: 0.56, n: 5, goods: south ? 'bread' : 'pharma', tint: south ? '#7a5a40' : '#e8e4dc' });
+    pendant(b, 10.0, C0, Z(17.6), { tint: south ? '#9a4b2a' : '#1f7a46' }); pendant(b, 10.6, C0, Z(21.2), { tint: south ? '#9a4b2a' : '#1f7a46' });
+    if (south) sacks(b, 13.9, G0, Z(21.7), 0, 4, '#ece6da');
+  });
   if (south) {
     // Ofen
     b.box(13.8, 0.12, Z(19.0), 1.6, 1.8, 2.2, 'brick', { tint: '#c8a080', minimap: 'cover' });
@@ -1565,14 +1673,16 @@ function cityWall(b, M) {
 
 function spawnDeco(b, M) {
   const Z = M.z, south = M.s > 0;
+  // Kartenrunde 2: Bäume weiter von der Stadtmauer (Kronen ragten durch Mauer und Zinnen) und zwischen die Startplätze
   if (south) {
-    for (const x of [-34, -10, 10, 22]) palm(b, x, Z(50.4), { h: 6.5 + b.rand() * 1.5 });
+    // feste Kronengröße (s): die frühere Zufallszahl dafür wird verworfen → übriger Kartenzufall unverändert
+    for (const x of [-37, -18.8, 9, 27]) { palm(b, x, Z(47.7), { h: 6.5 + b.rand() * 1.5, s: 0.82 }); b.rand(); }
     car(b, -20.5, Z(45.6), { style: 'sedan', ry: Math.PI / 2 + 0.05, color: '#2f4f6e' });
     jerseyLike(b, 8.4, Z(44.6), 0.2);
     crateStack(b, 33.5, Z(45.2), { ry: 0.4 });
     parkBench(b, -4.0, Z(50.4), { ry: M.ry(Math.PI) });
   } else {
-    for (const x of [-26, -8, 8, 30]) tree(b, x, Z(50.4), { kind: 'olive', h: 2.8 });
+    for (const x of [-26, -8, 8, 27]) { tree(b, x, Z(48.4), { kind: 'olive', h: 2.8, s: 0.82 }); b.rand(); }
     van(b, 20.5, Z(46.0), { ry: Math.PI / 2 - 0.05, color: '#e8e4dc' });
     jerseyLike(b, -9.0, Z(44.6), -0.2);
     crateStack(b, -33.5, Z(45.2), { ry: -0.4 });
@@ -1612,9 +1722,31 @@ function eastBlock(b, M) {
     ],
     stairsIn: { x: 60.6, z: 18.6, dir: 'w', w: 1.1, open: 'right' },
   });
-  b.box(55.0, 0.12, Z(15.6), 1.8, 0.76, 1.0, 'wood_planks', { tint: '#9a7a52', minimap: 'cover' });
-  b.box(53.0, 0.12, Z(11.2), 1.0, 0.95, 2.0, 'wood_dark', { tint: '#6a4a32', minimap: 'cover' });
-  b.box(58.6, 3.32, Z(11.0), 2.0, 0.55, 0.9, 'tarp', { tint: '#b8a888', minimap: 'cover' });
+  // Dachterrasse des Eckhauses hat keinen Zugang → keine Navigationspunkte (vorher: „nicht erreichbare Fläche“ bei 52,8 / 6,4)
+  b.noNav(51.5, Math.min(Z(9), Z(19.5)), 62, Math.max(Z(9), Z(19.5)), h1.roofY - 0.6, 40);
+  // Kartenrunde 2: EG Weinstube (Theke, Flaschenregal, Fässer, zwei Tische), OG Schlafzimmer – vorher schwebte im OG
+  // ein „Bett“ 10 cm über dem Boden
+  withRng(b, 0x526d + (south ? 0 : 7), () => {
+    b.box(60.35, G0, Z(11.6), 0.6, 1.02, 2.6, 'wood_dark', { tint: '#4a3426', minimap: 'cover' });
+    b.box(60.35, G0 + 1.02, Z(11.6), 0.72, 0.05, 2.72, 'stone_wall', { tint: '#e6dcc8', collide: false, minimap: false, grad: false });
+    shelf(b, 61.51, G0, Z(11.6), M.ry(-Math.PI / 2), { w: 1.8, h: 2.0, n: 5, goods: 'bottles' });
+    barrelRack(b, 57.0, G0, Z(9.75), M.ry(0), 3);
+    for (const [tx, tz] of [[54.4, 15.8], [57.8, 15.6]]) {
+      table(b, tx, G0, Z(tz), { w: 0.85, d: 0.85, cloth: '#c8402f' });
+      tableChairs(b, tx, G0, Z(tz), { w: 0.85, d: 0.85, n: 1 });
+      pendant(b, tx, C0, Z(tz), { tint: '#b08a3a', intensity: 8 });
+    }
+    ceilingLamp(b, 58.6, C0, Z(11.8));
+    picture(b, 51.81, 1.45, Z(15.6), Math.PI / 2, 0.9, 0.6, '#6a3a2a');
+    // OG
+    bed(b, 52.83, G1, Z(14.05), Math.PI / 2, { w: 1.4, tint: south ? '#6f86a8' : '#8a6aa8' });
+    nightstand(b, 52.0, G1, Z(12.85), Math.PI / 2); nightstand(b, 52.0, G1, Z(15.25), Math.PI / 2);
+    wardrobe(b, 56.8, G1, Z(9.59), M.ry(0), { w: 1.4 });
+    shelf(b, 61.51, G1, Z(13.0), M.ry(-Math.PI / 2), { w: 1.2, goods: 'books' });
+    armchair(b, 60.6, G1, Z(15.6), M.ry(-Math.PI / 2 - 0.5), '#7a3a2a');
+    rug(b, 55.6, G1, Z(14.2), 2.2, 1.6, 0, '#3a5a7a');
+    pendant(b, 56.2, C1, Z(13.8), { tint: '#2f5f4a' });
+  });
   // Durchgang Hof ↔ Hintergasse (z 19,5..21,5) + Hof mit Mäuerchen, Olivenbaum, Trog, Karren
   lowWall(b, 51.5, Z(21.5), 51.5, Z(24.0), { h: 1.1 });
   lowWall(b, 51.5, Z(26.6), 51.5, Z(29.2), { h: 1.1 });
@@ -1657,18 +1789,42 @@ function eastBlock(b, M) {
   crateStack(b, 66.4, Z(43.2), { ry: 0.3 * M.s });
   if (south) car(b, 62.0, Z(45.0), { style: 'sedan', ry: Math.PI / 2 + 0.05, color: '#b98b3a' });
   else { b.box(61.6, 0, Z(45.0), 2.6, 0.75, 1.0, 'stone_wall', { tint: '#d8ccb2', minimap: 'cover' }); handcart(b, 64.6, Z(45.2), M.ry(1.2)); }
-  for (const x of [52, 65]) (south ? palm(b, x, Z(50.4), { h: 6.2 }) : tree(b, x, Z(50.4), { kind: 'olive', h: 2.8 }));
+  for (const x of [52, 65]) { (south ? palm(b, x, Z(47.8), { h: 6.2, s: 0.82 }) : tree(b, x, Z(48.4), { kind: 'olive', h: 2.8, s: 0.82 })); b.rand(); }
   return h2;
 }
 
 /** Ölbaumplatz (x 50..69, z −8..8): Brunnen, Pflanztröge, Bänke, Café-Tische – Deckung in Brust- und Kniehöhe. */
-function eastSquare(b) {
+function eastSquare(b, ctx) {
   b.boxMM(68.6, 0, -8, 69.4, 6.4, 8, 'stone_wall', { tint: '#d9c9a8', minimap: 'wall' });
   arch(b, 68.55, 2.4, 0, 3.4, 0.9, 1.0, 0.3, 'stone_wall', { ry: Math.PI / 2, tint: '#cdbd9c' });
-  b.cyl(59.5, 0, 0, 1.9, 0.75, 'stone_wall', { seg: 16, tint: '#dccdb2', minimap: 'cover' });
-  b.cyl(59.5, 0.6, 0, 1.6, 0.06, 'metal_painted', { seg: 16, tint: '#35606a', collide: false, minimap: false, ao: false });
-  b.cyl(59.5, 0, 0, 0.35, 1.7, 'stone_wall', { seg: 10, tint: '#e3d6bd', minimap: false });
-  b.cyl(59.5, 1.7, 0, 0.6, 0.18, 'stone_wall', { seg: 10, tint: '#e3d6bd', collide: false, minimap: false });
+  // Brunnen (Kartenrunde 2): offenes Becken mit Wasser – vorher lag die „Wasserscheibe“ im Vollzylinder verborgen.
+  // Kollision unverändert (Vollzylinder 1,9 × 0,75 m), Wasser fällt in vier Bahnen von der Schale am Aufsatz.
+  const FX = 59.5, RB = 1.9, TB = 0.26, HB = 0.75, WY = 0.62;
+  b.cyl(FX, 0, 0, RB, HB, 'black', { seg: 16, visual: false, minimap: 'cover' });
+  const sideB = 2 * RB * Math.tan(Math.PI / 16);
+  for (let i = 0; i < 16; i++) {
+    const a = (i * Math.PI) / 8, ry = Math.atan2(-Math.cos(a), -Math.sin(a));
+    b.box(FX + Math.cos(a) * (RB - TB / 2), 0, Math.sin(a) * (RB - TB / 2), sideB + 0.02, HB - 0.07, TB, 'stone_wall', { ry, tint: '#dccdb2', collide: false, minimap: false, uv: 'local' });
+    b.box(FX + Math.cos(a) * (RB - TB / 2 + 0.02), HB - 0.07, Math.sin(a) * (RB - TB / 2 + 0.02), sideB + 0.08, 0.07, TB + 0.1, 'stone_wall', { ry, tint: '#ece3d0', collide: false, minimap: false, grad: false });
+  }
+  b.cyl(FX, 0, 0, RB - TB + 0.02, 0.35, 'stone_wall', { seg: 16, tint: '#6f7a72', collide: false, minimap: false });
+  const wq = ctx.water({ x0: FX - 1, z0: -1, x1: FX + 1, z1: 1, y: WY, color: '#2f6a6e', scale: 2.5 });
+  const gq = new THREE.CircleGeometry(RB - TB + 0.02, 24);
+  gq.rotateX(-Math.PI / 2); gq.translate(FX, WY, 0);
+  const pq = gq.attributes.position, uq = gq.attributes.uv;
+  for (let i = 0; i < pq.count; i++) uq.setXY(i, pq.getX(i) / 2.5, -pq.getZ(i) / 2.5);
+  wq.mesh.geometry.dispose(); wq.mesh.geometry = gq;
+  b.cyl(FX, 0, 0, 0.35, 1.7, 'stone_wall', { seg: 10, tint: '#e3d6bd', minimap: false });
+  b.cyl(FX, 1.7, 0, 0.6, 0.18, 'stone_wall', { seg: 10, tint: '#e3d6bd', collide: false, minimap: false });
+  b.cyl(FX, 1.88, 0, 0.12, 0.26, 'stone_wall', { seg: 8, r1: 0.08, tint: '#e3d6bd', collide: false, minimap: false });
+  b.geom(sphereGeom(), FX, 2.2, 0, 'stone_wall', { sx: 0.13, sy: 0.15, sz: 0.13, tint: '#e3d6bd', collide: false, minimap: false, ao: false });
+  const sheets = [], jets = [];
+  for (let i = 0; i < 4; i++) {
+    const am = (i * Math.PI) / 2 + Math.PI / 4;
+    sheets.push({ x: FX, z: 0, r0: 0.61, y0: 1.875, yEnd: WY, v: 0.26, a0: am - 0.28, a1: am + 0.28 });
+    jets.push({ from: [FX + Math.sin(am) * 0.12, 2.12, Math.cos(am) * 0.12], dir: [Math.sin(am), Math.cos(am)], v: 0.9, vy: 0.45, yEnd: 1.885, r0: 0.01, r1: 0.016, strands: 2, splash: 0 });
+  }
+  const water = fountainWater(b, { jets, sheets, pools: [{ x: FX, z: 0, y: WY + 0.004, r: RB - TB, seg: 24 }] });
   for (const s of [1, -1]) {
     planter(b, 53.6, 5.4 * s, 2.4, 1.0, { tree: s > 0 ? 'olive' : undefined });
     planter(b, 66.4, 4.6 * s, 1.0, 2.4, {});
@@ -1678,17 +1834,18 @@ function eastSquare(b) {
   cafeTable(b, 64.3, 1.6, {}); cafeTable(b, 64.6, -1.8, {});
   parasol(b, 64.4, -0.1, {});
   marketStall(b, 52.4, 0, { ry: Math.PI / 2 });
-  ornateLamp(b, 62.5, 5.6);
-  ornateLamp(b, 56.0, -5.6);
+  ornateLamp(b, 62.5, 5.6, { realtime: 'ultra' });
+  ornateLamp(b, 56.0, -5.6, { realtime: 'ultra' });
   b.sign(68.58, 2.6, 0, 1.5, 0.42, 'st_dach', { ry: -Math.PI / 2, depth: 0.02 });
+  return water;
 }
 
 function jerseyLike(b, x, z, ry) {
-  // Steinbank / Pflanztrog als Deckung im Startbereich
-  b.box(x, 0, z, 3.0, 0.8, 0.8, 'stone_wall', { ry, tint: '#ddd0b4', minimap: 'cover' });
-  b.box(x, 0.8, z, 3.1, 0.06, 0.9, 'plaster_white', { ry, tint: '#f2ece0', collide: false, minimap: false, grad: false });
-  const f = frame(b, x, 0.75, z, ry);
-  for (const lx of [-1, 0, 1]) { const [px, pz] = f.P(lx, 0); b.plant('bush', px, 0.75, pz, { s: 0.7 }); }
+  // Pflanztrog als Deckung im Startbereich (Kartenrunde 2: Erde + Blüten wie die Blumenbeete; Kollision unverändert
+  // 3,0 × 0,8 × 0,8 m; drei Sträucher verbrauchen den Kartenzufall wie bisher)
+  flowerBed(b, x, z, 3.0, 0.8, { h: 0.8, ry, tint: '#ddd0b4', mainLoop: false });
+  const f = frame(b, x, 0.73, z, ry);
+  for (const lx of [-1, 0, 1]) { const [px, pz] = f.P(lx, 0); b.plant('bush', px, 0.71, pz, { s: 0.5 }); }
 }
 
 // ---------------------------------------------------------------------------

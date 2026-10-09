@@ -38,7 +38,7 @@ const HOST_OFF = 37.5; // Host-Zeit = lokale Zeit + HOST_OFF (s)
  * Ein Durchlauf. path(t) → x (m) mit Ableitung vel(t); lag/jitter in ms (je Richtung), loss 0..1, hostHz Schnappschüsse/s.
  * → Kennzahlen neue/alte Rechnung.
  */
-function run({ name, lag = 0, jitter = 0, loss = 0, hostHz = 20, seconds = 12, path, vel, turnAt = null }) {
+function run({ name, lag = 0, jitter = 0, loss = 0, hostHz = 20, seconds = 12, path, vel, velRep = null, turnAt = null, gaps = null, lowRate = false }) {
   seed = 4242;
   VT = 10000;
   const net = { on: () => () => {}, onFast: () => () => {}, timeSynced: true, selfId: 2, online: true, peerRtt: () => 2 * lag, serverTime: () => VT / 1000 + HOST_OFF };
@@ -48,12 +48,16 @@ function run({ name, lag = 0, jitter = 0, loss = 0, hostHz = 20, seconds = 12, p
   // Pakete erzeugen (Host-Zeit), Ankunft lokal
   const pk = [];
   const t0 = VT / 1000;
-  for (let k = 0; k * (1 / hostHz) < seconds; k++) {
-    const ht = t0 + HOST_OFF + k / hostHz;
+  // Schnappschuss-Zeitpunkte: fester Takt oder (gaps) unregelmäßige Abstände – langsamer Host, Bilder 0,2–1,6 s
+  const stamps = [];
+  if (gaps) for (let tt = 0; tt < seconds; tt += gaps(rand())) stamps.push(tt);
+  else for (let k = 0; k / hostHz < seconds; k++) stamps.push(k / hostHz);
+  for (let k = 0; k < stamps.length; k++) {
+    const ht = t0 + HOST_OFF + stamps[k];
     if (rand() < loss) continue;
     const arrive = (ht - HOST_OFF) + (lag + (jitter ? (rand() * 2 - 1) * jitter : 0)) / 1000;
     const tt = ht - t0 - HOST_OFF;
-    const ent = { id: 1000, x: path(tt), y: 0, z: 0, yaw: 0, pitch: 0, vx: vel(tt), vy: 0, vz: 0, flags: FLAGS.ALIVE | FLAGS.ON_GROUND, weapon: 'ar_m17', hp: 100, lean: 0, shots: 0, proneBlend: 0 };
+    const ent = { id: 1000, x: path(tt), y: 0, z: 0, yaw: 0, pitch: 0, vx: (velRep || vel)(tt), vy: 0, vz: 0, flags: FLAGS.ALIVE | FLAGS.ON_GROUND, weapon: 'ar_m17', hp: 100, lean: 0, shots: 0, proneBlend: 0 };
     pk.push({ arrive, buf: encodeSnapshot(k + 1, ht, [ent]), ht });
   }
   pk.sort((a, b) => a.arrive - b.arrive);
@@ -92,7 +96,7 @@ function run({ name, lag = 0, jitter = 0, loss = 0, hostHz = 20, seconds = 12, p
   }
   // nur solange Pakete kommen (danach steht die Puppe absichtlich still)
   const live = rows.filter((r) => r.hostT < seconds - 0.6);
-  return { name, lag, jitter, loss, hostHz, ...metrics(live, path, vel, turnAt, 'x'), old: metrics(live, path, vel, turnAt, 'xo'), viewDelay: sync.viewDelay() };
+  return { name, lag, jitter, loss, hostHz, lowRate, ...metrics(live, path, vel, turnAt, 'x'), old: metrics(live, path, vel, turnAt, 'xo'), viewDelay: sync.viewDelay() };
 }
 
 function decodeEnt(buf) {
@@ -142,6 +146,10 @@ const cases = [
   { name: '150±60 ms, 5 %', lag: 150, jitter: 60, loss: 0.05, ...straight },
   { name: 'Host 10 Hz, 150±30 ms', lag: 150, jitter: 30, loss: 0.05, hostHz: 10, ...straight },
   { name: 'Wende 8 m/s, 150±30 ms, 5 %', lag: 150, jitter: 30, loss: 0.05, ...turn },
+  // Host im Hintergrund-Takt unter Last (mp-test: 1–2 Schnappschüsse/s, unregelmäßig): nur „nie rückwärts“ zählt
+  { name: 'Host ≈ 1,5 Hz unregelmäßig (0,2–1,6 s)', lag: 20, jitter: 10, seconds: 40, gaps: (r) => 0.2 + r * r * 1.4, lowRate: true, ...straight },
+  // Host langsamer als Echtzeit (≈ 1,5 Bilder/s × 50 ms Spielzeit): Positionen kommen mit 10 % des gemeldeten Tempos voran
+  { name: 'Host-Zeitlupe (Positionen 0,45 m/s, gemeldet 4,5 m/s)', lag: 20, jitter: 10, seconds: 40, gaps: (r) => 0.5 + r * 0.4, lowRate: true, path: (t) => 0.45 * t, vel: () => 0.45, velRep: () => 4.5 },
 ];
 const results = cases.map((c) => run(c));
 const fmt = (m) => `${m.delayMs} ms / ${m.spreadMs} ms / ${m.back} / ${m.maxJumpCm} cm${m.overshootCm != null ? ` / ${m.overshootCm} cm` : ''}`;

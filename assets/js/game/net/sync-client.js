@@ -250,8 +250,16 @@ export class ClientSync {
 
   /** Pose einer Puppe für dieses Bild (Wiedergabezeit rt, reale Bildzeit dt) → out; false = nichts Gültiges im Puffer. */
   _puppetPose(id, list, rt, dt, out) {
-    // seltener gesendete (ferne) Akteure etwas weiter zurück, damit auch sie zwischen zwei Einträgen liegen
-    const rtA = list.gap > this._snapGap * 1.5 ? rt - Math.min(0.4, (list.gap - this._snapGap) * 1.1) : rt;
+    // seltener gesendete (ferne) Akteure etwas weiter zurück, damit auch sie zwischen zwei Einträgen liegen. Der Zusatz
+    // ändert sich stetig und höchstens mit CLOCK_STEER (wie die Wiedergabe-Uhr) – sprang er vorher an einer Schwelle um bis
+    // zu 0,4 s, lief die Puppe bei unregelmäßigen Schnappschüssen (Host < 2 Hz) kurz rückwärts
+    const want = Math.min(0.4, Math.max(0, (list.gap || 0) - this._snapGap) * 1.1);
+    if (list.extra == null) list.extra = want;
+    else {
+      const step = CLOCK_STEER * Math.max(0, dt);
+      list.extra += Math.max(-step, Math.min(step, want - list.extra));
+    }
+    const rtA = rt - list.extra;
     if (!this._sample(list, rtA, out, this.spawnSt.get(id))) return false;
     this._smoothPose(id, out, dt);
     return true;
@@ -270,13 +278,14 @@ export class ClientSync {
     for (let k = 0; k < list.length; k++) if (list[k].t >= minT && (list[k].e.flags & FLAGS.ALIVE) === 0) { deadT = list[k].t; break; }
     const ok = (s) => s.t >= minT && s.t < deadT && (s.e.flags & FLAGS.ALIVE) !== 0;
     while (i >= 0 && list[i].t > rt) i--;
+    let ia = i;
     let a = i >= 0 ? list[i] : null;
     let b = i + 1 < list.length ? list[i + 1] : null;
     if (a && !ok(a)) a = null;
     if (b && !ok(b)) b = null;
     if (!a && !b) {
       // nichts Gültiges um rt: jüngsten gültigen Eintrag nehmen
-      for (let k = list.length - 1; k >= 0; k--) if (ok(list[k])) { a = list[k]; break; }
+      for (let k = list.length - 1; k >= 0; k--) if (ok(list[k])) { a = list[k]; ia = k; break; }
       if (!a) return false;
     }
     let e0 = a ? a.e : b.e;
@@ -286,17 +295,28 @@ export class ClientSync {
       e1 = b.e;
       f = Math.max(0, Math.min(1, (rt - a.t) / Math.max(1e-3, b.t - a.t)));
     }
+    // Tempo laut Positionen (Host-Zeit) ÷ gemeldetes Tempo, höchstens 1: läuft der Host langsamer als Echtzeit (< 20 Bilder/s,
+    // je Bild ≤ 50 ms Spielzeit), kommen die Positionen langsamer voran als vx/vz angeben – das Fortschreiben lief dann über
+    // das nächste Paket hinaus und die Puppe sprang zurück (mp-test, Host 1,5 Bilder/s). Sonst ≈ 1.
+    let vs = 1;
+    let s0 = a && b ? a : null;
+    if (a && !b) for (let k = ia - 1; k >= 0; k--) if (ok(list[k])) { s0 = list[k]; break; }
+    const s1 = a && b ? b : a;
+    if (s0 && s1 && s1 !== s0 && s1.t - s0.t > 1e-3 && s1.t - s0.t < 2) {
+      const rep = (Math.hypot(s0.e.vx, s0.e.vz) + Math.hypot(s1.e.vx, s1.e.vz)) / 2;
+      if (rep > 0.5) vs = Math.min(1, Math.hypot(s1.e.x - s0.e.x, s1.e.z - s0.e.z) / (s1.t - s0.t) / rep);
+    }
     let dx = 0, dy = 0, dz = 0;
     if (a && !b) {
       // fortschreiben (höchstens EXTRAPOLATE s)
       const ex = Math.max(0, Math.min(EXTRAPOLATE, rt - a.t));
-      dx = e0.vx * ex; dz = e0.vz * ex;
+      dx = e0.vx * ex * vs; dz = e0.vz * ex * vs;
       dy = (e0.flags & FLAGS.ON_GROUND) !== 0 ? 0 : e0.vy * ex;
     } else if (!a) e0 = e1 = b.e;
     out.pos[0] = lerp(e0.x, e1.x, f) + dx;
     out.pos[1] = lerp(e0.y, e1.y, f) + dy;
     out.pos[2] = lerp(e0.z, e1.z, f) + dz;
-    out.vel[0] = lerp(e0.vx, e1.vx, f); out.vel[1] = lerp(e0.vy, e1.vy, f); out.vel[2] = lerp(e0.vz, e1.vz, f);
+    out.vel[0] = lerp(e0.vx, e1.vx, f) * vs; out.vel[1] = lerp(e0.vy, e1.vy, f); out.vel[2] = lerp(e0.vz, e1.vz, f) * vs;
     out.yaw = e0.yaw + wrapAngle(e1.yaw - e0.yaw) * f;
     out.pitch = lerp(e0.pitch, e1.pitch, f);
     out.flags = (f < 0.5 ? e0 : e1).flags;
