@@ -30,6 +30,70 @@ let DET = 2;
 /** Optisch 7 Laufrollen je Seite (ab medium) – die Federung rechnet weiter mit den 5 Federstrahlen aus data.js. */
 const ROAD7 = [-2.65, -1.767, -0.883, 0, 0.883, 1.767, 2.65];
 
+/** LOD-Stufe, die gerade gebaut wird (Kantenabnutzung nur in den Nahstufen). */
+let CUR_LOD = 0;
+
+/**
+ * env-look: Kantenabstand je Ecke (Attribut aVehE) für die Kantenabnutzung im Lack-Shader. Je Dreieck und Kante:
+ * Abstand der gegenüberliegenden Ecke zur Kante (linear interpoliert = Abstand zur Kante), wenn die Kante eine harte,
+ * konvexe Außenkante ist (Nachbardreieck mit anderer Normale, liegt „hinter“ der eigenen Ebene); sonst groß.
+ * Glatte Übergänge (Zylindermantel, Torus), innere Diagonalen und offene Ränder bleiben ohne Abnutzung.
+ */
+const EDGE_FAR = 9;
+function edgeAttribute(g) {
+  const P = g.attributes.position.array, N = g.attributes.normal ? g.attributes.normal.array : null;
+  const nt = P.length / 9, out = new Float32Array(P.length).fill(EDGE_FAR);
+  if (!N || CUR_LOD > 1) return out;
+  const key = (v) => `${Math.round(P[v * 3] * 400)},${Math.round(P[v * 3 + 1] * 400)},${Math.round(P[v * 3 + 2] * 400)}`;
+  const vk = new Array(nt * 3);
+  for (let v = 0; v < nt * 3; v++) vk[v] = key(v);
+  const edges = new Map();
+  const ek = (a, b) => (vk[a] < vk[b] ? `${vk[a]}|${vk[b]}` : `${vk[b]}|${vk[a]}`);
+  for (let t = 0; t < nt; t++) for (let k = 0; k < 3; k++) {
+    const a = t * 3 + ((k + 1) % 3), b = t * 3 + ((k + 2) % 3), kk = ek(a, b);
+    let list = edges.get(kk);
+    if (!list) edges.set(kk, (list = []));
+    list.push(t);
+  }
+  const cen = (t, o) => { o[0] = (P[t * 9] + P[t * 9 + 3] + P[t * 9 + 6]) / 3; o[1] = (P[t * 9 + 1] + P[t * 9 + 4] + P[t * 9 + 7]) / 3; o[2] = (P[t * 9 + 2] + P[t * 9 + 5] + P[t * 9 + 8]) / 3; return o; };
+  const c1 = [0, 0, 0], c2 = [0, 0, 0];
+  // Normale derselben Lage in Dreieck t (Ecke mit gleichem Schlüssel)
+  const normAt = (t, k) => { for (let j = 0; j < 3; j++) if (vk[t * 3 + j] === k) return t * 3 + j; return -1; };
+  for (let t = 0; t < nt; t++) {
+    const i0 = t * 9;
+    // Flächennormale
+    const ux = P[i0 + 3] - P[i0], uy = P[i0 + 4] - P[i0 + 1], uz = P[i0 + 5] - P[i0 + 2];
+    const wx = P[i0 + 6] - P[i0], wy = P[i0 + 7] - P[i0 + 1], wz = P[i0 + 8] - P[i0 + 2];
+    let fx = uy * wz - uz * wy, fy = uz * wx - ux * wz, fz = ux * wy - uy * wx;
+    const area2 = Math.hypot(fx, fy, fz);
+    if (area2 < 1e-9) continue;
+    fx /= area2; fy /= area2; fz /= area2;
+    cen(t, c1);
+    for (let k = 0; k < 3; k++) {
+      const a = t * 3 + ((k + 1) % 3), b = t * 3 + ((k + 2) % 3);
+      const list = edges.get(ek(a, b));
+      let wear = false;
+      if (list) for (const t2 of list) {
+        if (t2 === t) continue;
+        const a2 = normAt(t2, vk[a]), b2 = normAt(t2, vk[b]);
+        if (a2 < 0 || b2 < 0) continue;
+        const smooth = N[a * 3] * N[a2 * 3] + N[a * 3 + 1] * N[a2 * 3 + 1] + N[a * 3 + 2] * N[a2 * 3 + 2] > 0.985
+          && N[b * 3] * N[b2 * 3] + N[b * 3 + 1] * N[b2 * 3 + 1] + N[b * 3 + 2] * N[b2 * 3 + 2] > 0.985;
+        if (smooth) { wear = false; break; }
+        cen(t2, c2);
+        if (fx * (c2[0] - c1[0]) + fy * (c2[1] - c1[1]) + fz * (c2[2] - c1[2]) < -1e-5) wear = true;
+      }
+      if (!wear) continue;
+      const lab = Math.hypot(P[b * 3] - P[a * 3], P[b * 3 + 1] - P[a * 3 + 1], P[b * 3 + 2] - P[a * 3 + 2]);
+      const h = lab > 1e-9 ? area2 / lab : 0; // Höhe der Ecke k über der Kante
+      out[(t * 3 + k) * 3 + k] = h;
+      out[a * 3 + k] = 0;
+      out[b * 3 + k] = 0;
+    }
+  }
+  return out;
+}
+
 /** Sammelt Geometrien je Material und verschmilzt sie. */
 class Bucket {
   constructor() { this.map = new Map(); this.tag = new Map(); }
@@ -58,6 +122,7 @@ class Bucket {
         const ox = off ? off[0] : 0, oy = off ? off[1] : 0, oz = off ? off[2] : 0;
         for (let i = 0; i < P.count; i++) { A[i * 3] = P.getX(i) + ox; A[i * 3 + 1] = P.getY(i) + oy; A[i * 3 + 2] = P.getZ(i) + oz; }
         merged.setAttribute('aVeh', new THREE.BufferAttribute(A, 3));
+        if (mat.userData && mat.userData.vehPaint) merged.setAttribute('aVehE', new THREE.BufferAttribute(edgeAttribute(merged), 3));
       }
       merged.computeBoundingSphere();
       const mesh = new THREE.Mesh(merged, mat);
@@ -376,6 +441,7 @@ function gunDetail(Gb, S, paint, lod, seg) {
 }
 
 function buildMBT(lod, S, team) {
+  CUR_LOD = lod;
   const D = VEHICLES.mbt;
   const seg = [20, 12, 7][lod];
   const paint = S.paint[team] || S.paint.null;
@@ -551,7 +617,8 @@ function treadTire(r, w) {
 }
 
 /** env-look: Geländewagen – Seilwinde, Abschleppösen, Blinker, Scheinwerferringe, Wischer, Außenspiegel, Antenne,
- * Trittbretter, Kotflügelverbreiterungen. Nur HQ (medium+). */
+ * Trittbretter, Kotflügelverbreiterungen, Rammschutz, Planenrolle, Schmutzfänger; high: Munitionskisten, Spaten,
+ * Anhängerkupplung, Scheinwerfergitter. Nur HQ (medium+). */
 function jeepDetail(B, S, paint, lod, seg) {
   const D = VEHICLES.jeep;
   if (lod < 2) {
@@ -574,9 +641,30 @@ function jeepDetail(B, S, paint, lod, seg) {
     B.add(cyl(0.008, 0.008, 1.8, 4), S.dark, [-0.86, 2.0, 2.1]);                     // Antenne
     B.add(cyl(0.03, 0.035, 0.08, 6), S.dark, [-0.86, 1.1, 2.1]);
   }
+  // Rammschutz vor dem Grill, Planenrolle auf der Heckwand, Schmutzfänger hinten
+  if (lod < 2) {
+    const rs = lod === 0 ? 8 : 5;
+    for (const sx of [-1, 1]) B.add(cyl(0.025, 0.025, 0.62, rs), S.dark, [sx * 0.42, 0.9, -2.6]);
+    for (const y of [0.74, 1.18]) B.add(cyl(0.025, 0.025, 0.9, rs), S.dark, [0, y, -2.6], [0, 0, HP]);
+    B.add(cyl(0.085, 0.085, 1.5, lod === 0 ? 10 : 6), S.canvas, [0, 1.43, 2.1], [0, 0, HP]);
+    for (const sx of [-1, 1]) B.add(box(0.32, 0.34, 0.02), S.rubber, [sx * 0.86, 0.56, 1.92]);
+  }
+  if (lod === 0 && DET === 2) {
+    // Gurte der Planenrolle, Munitionskisten neben dem MG-Sockel, Spaten am Seitenblech, Anhängerkupplung,
+    // Schutzgitter der Scheinwerfer, Haubenverschlüsse
+    for (const x of [-0.5, 0.5]) B.add(box(0.04, 0.19, 0.19), S.dark, [x, 1.43, 2.1]);
+    for (const sx of [-1, 1]) { B.add(box(0.3, 0.2, 0.18), S.dark, [sx * 0.42, 1.02, 0.95]); B.add(box(0.06, 0.03, 0.12), S.dark, [sx * 0.42, 1.135, 0.95]); }
+    B.add(cyl(0.016, 0.016, 0.9, 6), S.canvas, [0.97, 1.16, 0.75], [HP, 0, 0]);
+    B.add(box(0.02, 0.2, 0.16), S.dark, [0.97, 1.16, 1.26]);
+    B.add(box(0.14, 0.08, 0.16), S.dark, [0, 0.56, 2.4]);
+    B.add(new THREE.TorusGeometry(0.045, 0.014, 4, 8), S.dark, [0, 0.56, 2.5], [HP, 0, 0]);
+    for (const L of D.lights) for (const dx of [-0.07, 0, 0.07]) B.add(box(0.012, 0.24, 0.012), S.dark, [L[0] + dx, L[1], L[2] - 0.1]);
+    for (const sx of [-1, 1]) B.add(box(0.05, 0.06, 0.08), S.dark, [sx * 0.82, 1.12, -1.7]);
+  }
 }
 
 function buildJeep(lod, S, team) {
+  CUR_LOD = lod;
   const D = VEHICLES.jeep;
   const seg = [18, 11, 6][lod];
   const paint = S.paint[team] || S.paint.null;

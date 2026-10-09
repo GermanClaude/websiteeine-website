@@ -659,8 +659,7 @@ export class VehicleNet {
         G.events.emit('vehicle:fire', { vehicle: v || null, seat: m.s | 0, actor: shooter, weaponId: def.id, origin: o, dir: d, net: true });
         return;
       }
-      case 'vh':
-        sys.hud && sys.hud.hit && sys.hud.hit();
+      case 'vh': // Treffermarker: index.js zeigt ihn für vehicle:hit mit dem eigenen Spieler als Angreifer
         G.events.emit('vehicle:hit', { vehicle: this._byVid.get(m.v) || null, attacker: G.player, amount: Number(m.d) || 0, zone: m.z || 'hull', net: true });
         return;
       case 'vn':

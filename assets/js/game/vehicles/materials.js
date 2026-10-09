@@ -67,6 +67,14 @@ function trackTextureHQ() {
     // Bolzen + Gummipolster
     for (const y of [16, 104]) { g.fillStyle = '#6b665c'; g.beginPath(); g.arc(x + 10, y, 4, 0, 7); g.arc(x + 48, y, 4, 0, 7); g.fill(); h.fillStyle = '#9a9a9a'; h.beginPath(); h.arc(x + 10, y, 4, 0, 7); h.arc(x + 48, y, 4, 0, 7); h.fill(); }
     g.fillStyle = '#141311'; g.fillRect(x + 58, 0, 6, H);
+    // Endverbinder an beiden Kettenrändern (auch auf der Flanke sichtbar: v 0 … 0,08) mit Keilschraube
+    for (const y of [0, 117]) {
+      g.fillStyle = '#4d4941'; g.fillRect(x + 2, y, 54, 11);
+      g.fillStyle = 'rgba(160,152,138,0.45)'; g.fillRect(x + 2, y + (y ? 0 : 9), 54, 2);
+      g.fillStyle = '#26241f'; g.beginPath(); g.arc(x + 29, y + 5.5, 3.2, 0, 7); g.fill();
+      h.fillStyle = '#c8c8c8'; h.fillRect(x + 2, y, 54, 11);
+      h.fillStyle = '#e8e8e8'; h.beginPath(); h.arc(x + 29, y + 5.5, 3.2, 0, 7); h.fill();
+    }
     // blanker Verschleiß an den Stegkanten
     g.fillStyle = 'rgba(150,145,135,0.35)'; g.fillRect(x + 22, 6, 2, 116); g.fillRect(x + 32, 6, 2, 116);
   }
@@ -113,11 +121,11 @@ function paintLookPatch(team) {
   return (sh) => {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec3 aVeh;\nvarying vec3 vVeh;\nvarying vec3 vVehN;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvVeh = aVeh;\nvVehN = objectNormal;');
+      .replace('#include <common>', '#include <common>\nattribute vec3 aVeh;\nattribute vec3 aVehE;\nvarying vec3 vVeh;\nvarying vec3 vVehN;\nvarying vec3 vVehE;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvVeh = aVeh;\nvVehN = objectNormal;\nvVehE = aVehE;');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
-        varying vec3 vVeh; varying vec3 vVehN;
+        varying vec3 vVeh; varying vec3 vVehN; varying vec3 vVehE;
         uniform vec3 uCamo2, uCamo3, uMud, uDust;
         float npVh( vec3 p ) { p = fract( p * 0.3183099 + 0.1 ); p *= 17.0; return fract( p.x * p.y * p.z * ( p.x + p.y + p.z ) ); }
         float npVn( vec3 x ) { vec3 i = floor( x ), f = fract( x ); f = f * f * ( 3.0 - 2.0 * f );
@@ -129,17 +137,24 @@ function paintLookPatch(team) {
         float npT2 = smoothstep( 0.55, 0.59, npC1 ), npT3 = smoothstep( 0.58, 0.62, npC2 ) * ( 1.0 - npT2 );
         diffuseColor.rgb *= mix( vec3( 1.0 ), uCamo2, npT2 ) * mix( vec3( 1.0 ), uCamo3, npT3 );
         float npMn = npVn( vVeh * vec3( 2.2, 0.8, 2.2 ) );
-        float npVMud = 1.0 - smoothstep( 0.22 + npMn * 0.3, 0.85 + npMn * 0.5, vVeh.y );
-        npVMud = max( npVMud, smoothstep( 0.8, 0.86, npVn( vVeh * 6.0 ) ) * ( 1.0 - smoothstep( 0.6, 1.6, vVeh.y ) ) * 0.75 );
-        diffuseColor.rgb = mix( diffuseColor.rgb, uMud * ( 0.75 + 0.5 * npMn ), npVMud * 0.85 );
+        float npVMud = 1.0 - smoothstep( 0.3 + npMn * 0.3, 1.05 + npMn * 0.5, vVeh.y );
+        npVMud = max( npVMud, smoothstep( 0.78, 0.85, npVn( vVeh * 6.0 ) ) * ( 1.0 - smoothstep( 0.6, 1.7, vVeh.y ) ) * 0.8 );
+        diffuseColor.rgb = mix( diffuseColor.rgb, uMud * ( 0.75 + 0.5 * npMn ), npVMud * 0.9 );
         float npUp = clamp( normalize( vVehN ).y, 0.0, 1.0 );
         diffuseColor.rgb = mix( diffuseColor.rgb, uDust, smoothstep( 0.6, 0.95, npUp ) * ( 0.18 + 0.34 * npVn( vVeh * 1.3 + 5.0 ) ) * ( 1.0 - npVMud ) );
         float npVCh = smoothstep( 0.8, 0.86, npVn( vVeh * 11.0 + 2.0 ) ) * ( 0.3 + 0.7 * smoothstep( 0.35, 0.9, npVn( vVeh * 1.1 ) ) ) * ( 1.0 - npVMud );
-        diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.05, 0.047, 0.043 ), npVCh * 0.8 );`)
+        diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.05, 0.047, 0.043 ), npVCh * 0.8 );
+        // Kantenabnutzung: helle, abgeschabte Außenkanten (Abstand aus aVehE), fleckig, unter Schlamm schwächer;
+        // schmaler als ~1 Pixel ausgeblendet (kein Flimmern in der Ferne)
+        float npEd = min( min( vVehE.x, vVehE.y ), vVehE.z );
+        float npEW = 0.007 + 0.02 * npVn( vVeh * 5.0 + 9.1 );
+        float npEw = ( 1.0 - smoothstep( npEW * 0.3, npEW, npEd ) ) * smoothstep( 0.32, 0.6, npVn( vVeh * 17.0 + 4.3 ) ) * ( 1.0 - npVMud * 0.85 );
+        npEw *= step( 1e-4, vVehE.x + vVehE.y + vVehE.z ) * ( 1.0 - smoothstep( npEW * 0.6, npEW * 1.8, fwidth( npEd ) ) );
+        diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 1.5 + vec3( 0.075, 0.072, 0.064 ), npEw * 0.8 );`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix( mix( roughnessFactor, 0.97, npVMud ), 0.42, npVCh );`)
+        roughnessFactor = mix( mix( mix( roughnessFactor, 0.97, npVMud ), 0.42, npVCh ), 0.5, npEw * 0.7 );`)
       .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
-        metalnessFactor = mix( mix( metalnessFactor, 0.0, npVMud ), 0.85, npVCh );`);
+        metalnessFactor = mix( mix( mix( metalnessFactor, 0.0, npVMud ), 0.85, npVCh ), 0.7, npEw * 0.6 );`);
   };
 }
 
@@ -175,7 +190,11 @@ export function markingMaterial(team) {
  */
 export function vehicleMaterials() {
   if (SET) return SET;
-  const paint = (team) => fromBase('metal_painted', { color: TEAM_TINT[team], metalness: 0.25, roughness: 0.72, envMapIntensity: 0.8 });
+  const paint = (team) => {
+    const m = fromBase('metal_painted', { color: TEAM_TINT[team], metalness: 0.25, roughness: 0.72, envMapIntensity: 0.8 });
+    m.userData.vehPaint = true; // models.js: Kantenabstand (aVehE) für die Kantenabnutzung
+    return m;
+  };
   SET = {
     paint: { A: paint('A'), B: paint('B'), null: paint(null) },
     dark: fromBase('gunmetal', { color: 0x3a3a38, metalness: 0.6, roughness: 0.55 }),
