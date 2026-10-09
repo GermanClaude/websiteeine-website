@@ -239,6 +239,60 @@ const stallRun = (withGap) => {
 const stallOk = stallRun(true);
 const stallSilent = stallRun(false);
 check(stallOk === 0 && stallSilent > 0, `Host hängt 9 s: mit Host-Lücke ${stallOk} Verstöße; dieselbe Lücke ohne Host-Lücke (Client schweigt) → ${stallSilent} (höchstens 3 s gutgeschrieben)`);
+// Stau außerhalb des Host-Bildes (Lasttest unter Fremdlast: Netz/Sender hängen ≈ 7 s, Host läuft weiter, hostGap klein):
+// die Zustände kommen gebündelt – mit Sendestempeln (ctx.ct) ohne Verstoß, ohne Stempel (nur Host-Zeit) mit Verstößen
+const delayRun = (withCt) => {
+  const ac = new AntiCheat();
+  ac.onSpawn(52, [3, 0, 0], 0);
+  let bad = 0;
+  for (let k = 1; k <= 30 * 20; k++) {
+    const tc = k / 30;
+    const a = (tc * 4.2) / 3;
+    const sent = tc;
+    // normal 50 ms unterwegs, zwischen 5 s und 12 s gesendete Zustände kommen erst bei 12,05 s an (Host bearbeitet sofort)
+    const arrive = sent >= 5 && sent < 12 ? 12.05 + k * 1e-5 : sent + 0.05;
+    const r = ac.onState(52, { x: 3 * Math.cos(a), y: 0, z: 3 * Math.sin(a), flags: GROUND }, arrive, { alive: true, rtt: 0.1, hostGap: 0.02, ct: withCt ? sent : undefined });
+    if (!r.ok) bad++;
+  }
+  return bad;
+};
+const delayCt = delayRun(true);
+const delayHost = delayRun(false);
+check(delayCt === 0 && delayHost > 0, `Stau 7 s unterwegs (Host läuft): mit Sendestempeln ${delayCt} Verstöße, nur Host-Zeit ${delayHost}`);
+// Tempo-Hack mit ehrlichen Stempeln (2× Sprint) und mit „schnellen“ Stempeln (Client-Uhr läuft doppelt) – beides erkannt
+const hackRun = (stampRate) => {
+  const ac = new AntiCheat();
+  ac.onSpawn(53, [0, 0, 0], 0);
+  let first = null;
+  for (let k = 1; k <= 30 * 6; k++) {
+    const t = k / 30;
+    const r = ac.onState(53, { x: t * 20.8, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }, t + 0.05, { alive: true, rtt: 0.1, ct: t * stampRate });
+    if (!r.ok && first == null) first = t;
+  }
+  return first;
+};
+const hackHonest = hackRun(1);
+const hackFast = hackRun(2);
+check(hackHonest != null && hackHonest < 3 && hackFast != null && hackFast < 3,
+  `Tempo-Hack 2× Sprint mit Stempeln erkannt nach ${hackHonest && hackHonest.toFixed(2)} s, mit doppelt laufender Client-Uhr nach ${hackFast && hackFast.toFixed(2)} s`);
+// Zeit „ansparen“: Client steht 20 s und lässt die Stempel halb so schnell laufen, dann Sprint-Sprung nach vorn mit großen
+// Stempel-Schritten – gutgeschrieben wird höchstens lagMax (8 s) Rückstand: der Vorstoß endet vor 8 s × Sprinttempo + Puffer
+{
+  const ac = new AntiCheat();
+  ac.onSpawn(54, [0, 0, 0], 0);
+  let t = 0;
+  let ct = 0;
+  for (let k = 0; k < 600; k++) { t += 1 / 30; ct += 0.5 / 30; ac.onState(54, { x: 0, y: 0, z: 0, flags: GROUND }, t, { alive: true, rtt: 0.1, ct }); }
+  let x = 0;
+  let caught = null;
+  for (let k = 0; k < 60 && caught == null; k++) {
+    t += 1 / 30; ct += 2; x += 14;
+    const r = ac.onState(54, { x, y: 0, z: 0, flags: GROUND | FLAGS.SPRINT }, t, { alive: true, rtt: 0.1, ct });
+    if (!r.ok) caught = x;
+  }
+  const bound = 8 * 8.2 * 1.25 * 1.35 + 2 * 15;
+  check(caught != null && caught <= bound, `angesparte Zeit: Vorstoß mit 14 m je Zustand gestoppt bei ${caught} m (Grenze lagMax × Sprint + Puffer ≈ ${Math.round(bound)} m)`);
+}
 // Langsamer Client (ein Zustand alle 2 s): 20 m Sprung bleibt ein Teleport (Schrittgrenze ≤ 1 s × vMax)
 const acSlow = new AntiCheat();
 acSlow.onSpawn(49, [0, 0, 0], 0);
@@ -390,10 +444,13 @@ check(near(bandwidthFor(8), 7 * perClient(8), 1e-6) && bandwidthFor(1) === 0,
   `Bandbreite 8 Menschen ohne Bots: (n−1) × [20 Hz × (71 + n × 31) + ${RELIABLE_BASE} + ${RELIABLE_PER_HUMAN}·n + ${RELIABLE_PER_ACTOR}·n] = ${Math.round(bandwidthFor(8))} B/s`);
 check(near(bandwidthFor(13, { actors: 32 }), 12 * perClient(32, 13), 1e-6) && near(clientBytes(32, { humans: 13 }), perClient(32, 13), 1e-6) && clientBytes(32) > clientBytes(32, { humans: 13 }),
   `13 Menschen + Bots (32 Akteure, Interessenfilter ${INTEREST_SHARE}): je Client ${(clientBytes(32, { humans: 13 }) / 1024).toFixed(1)} KB/s, gesamt ${(bandwidthFor(13, { actors: 32 }) / 1024).toFixed(0)} KB/s`);
-// Lasttest (§13, auf 20 Hz hochgerechnet): 32 Akteure, 13 Menschen – Schnappschuss Ø 436 B → (436 + 60) × 20 = 9920 B/s,
-// Modus + Roster 1109 B/s, Kampf (Bot-Runde) 2188 B/s = 13 217 B/s je Client; die Formel liegt darüber, aber < +25 %
-check(clientBytes(32, { humans: 13 }) >= 13217 && clientBytes(32, { humans: 13 }) <= 13217 * 1.25,
-  `Formel deckt den Lasttest (13 217 B/s je Client): ${Math.round(clientBytes(32, { humans: 13 }))} B/s (+${Math.round((clientBytes(32, { humans: 13 }) / 13217 - 1) * 100)} %)`);
+// Lasttest (§13, auf 20 Hz hochgerechnet, 32 Akteure, 13 Menschen): Schnappschuss Ø 436 B (Anteil 0,43) → 9920 B/s bzw.
+// Ø 538 B (Anteil 0,53) → 11 960 B/s; + Modus/Roster 1109 bzw. 876 B/s + Kampf (Bot-Runde) 2188 B/s = 13 217 bzw.
+// 15 024 B/s je Client. Die Formel deckt beide, aber höchstens +25 % über dem kleineren
+{
+  const f = clientBytes(32, { humans: 13 });
+  check(f >= 15024 && f <= 13217 * 1.25, `Formel deckt die Lasttests (13 217 / 15 024 B/s je Client): ${Math.round(f)} B/s`);
+}
 check(maxPlayersForUpload(bandwidthFor(10, { actors: 24 }) / 0.8, { actors: 24 }) === 10, 'Spieler je Upload mit Bot-Auffüllung (24 Akteure)');
 check(maxPlayersForUpload(bandwidthFor(10) / 0.8) === 10 && maxPlayersForUpload(0) === 2 && maxPlayersForUpload(1e9) === 32, 'Spieler je Upload');
 let rec = recommend({ cores: 8, memory: 8, fps: 120, upload: null });

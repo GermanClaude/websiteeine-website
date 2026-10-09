@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { building, wall, stairs, railing, pitchedRoof } from '../arch.js';
 import {
-  frame, crate, crateStack, barrel, barrelGroup, pallet, sandbags, car, van, lampPost, acUnit, cable,
+  frame, crate, crateStack, barrel, barrelGroup, pallet, sandbags, car, van, acUnit, cable,
   cafeTable, parasol, awning, marketStall, palm, tree, pot, laundry, electricBox, pipe, sphereGeom, lowSphereGeom, dumpster, chair, dress,
 } from '../props.js';
 import { createBell } from './altstadt-glocke.js';
@@ -151,7 +151,7 @@ function dressing(b) {
   for (const s of [1, -1]) {
     const R = s > 0 ? 0 : Math.PI;
     // Marktgasse (West): Müll, Kartons, Zementsäcke an den Hauswänden (x −37,4)
-    list.push(['trashbag', -36.9, 0, s * 24.4], ['trashbag', -36.95, 0, s * 25.0], ['cardboard_box_01', -36.9, 0, s * 9.0, 0.3]);
+    list.push(['trashbag', -36.9, 0, s * 27.7], ['trashbag', -36.95, 0, s * 28.3], ['cardboard_box_01', -36.9, 0, s * 9.0, 0.3]);
     list.push(['cement_bag', -36.85, 0, s * 14.4, 0.1 + R], ['cement_bag', -36.9, 0.18, s * 14.5, 1.5]);
     list.push(['metal_jerrycan_green', -36.95, 0, s * 7.6, 0.6]);
     // Ostgasse (x 31,4 … 35,0)
@@ -572,6 +572,23 @@ function wallLamp(b, x, y, z, ry) {
   lampLight(b, gx, y, gz, { glow: 1.25, intensity: 6, distance: 8, pool: 1.9, poolAt: f.P(0, 1.0), poolI: 0.2 });
 }
 
+/**
+ * Mastleuchte wie props.lampPost (gleiche Maße + Kollision: Sockel 0,14 m, Mast 0,07 m), aber mit Laternenglas der
+ * Tageszeit: tagsüber mattweiß, abends leuchtend mit Lichthof. → [x, z] des Leuchtenkopfs
+ */
+function streetLamp(b, x, z, o = {}) {
+  const h = o.h ?? 4.6, ry = o.ry || 0, f = frame(b, x, 0, z, ry), arm = o.arm ?? 0.9;
+  const V = { tint: IRON, collide: false, minimap: false, grad: false };
+  b.cyl(x, 0, z, 0.14, 0.35, 'concrete', { seg: 10, minimap: 'prop', tint: '#bdb8ad' });
+  b.cyl(x, 0.35, z, 0.07, h - 0.35, 'metal_painted', { r1: 0.05, tint: IRON, seg: 8, collide: true, minimap: false });
+  f.box(arm / 2, h - 0.08, 0, arm, 0.08, 0.08, 'metal_painted', V);
+  f.box(arm, h - 0.2, 0, 0.6, 0.16, 0.3, 'metal_painted', V);
+  f.box(arm, h - 0.23, 0, 0.5, 0.03, 0.24, lampGlass(), { tint: '#efe6d2', collide: false, minimap: false, ao: false, cast: false });
+  const [lx, lz] = f.P(arm, 0);
+  if (isNight()) b.glow(lx, h - 0.3, lz, { color: '#ffd090', size: 2.0 });
+  return [lx, lz];
+}
+
 function streetSign(b, x, y, z, ry, key) { b.sign(x, y, z, 1.5, 0.42, key, { ry, depth: 0.02 }); }
 
 // ---------------------------------------------------------------------------
@@ -687,6 +704,7 @@ function well(b, x, z, ctx) {
   }
   const water = fountainWater(b, { jets, sheets, pools: [{ x, z, y: wy + 0.004, r: (R - t + 0.02) / Math.cos(Math.PI / 8), seg: 8, rot: Math.PI / 8 }, { x, z, y: bowlY + 0.004, r: 0.93, seg: 20 }] });
   b.navPoint(x + 3.2, 0.2, z); b.navPoint(x - 3.2, 0.2, z); b.navPoint(x, 0.2, z + 3.2); b.navPoint(x, 0.2, z - 3.2);
+  b.noNav(x - 1.85, z - 1.85, x + 1.85, z + 1.85, -1, 3);
   return water;
 }
 
@@ -1058,7 +1076,10 @@ function half(b, M) {
   crateStack(b, -28.4, Z(16.4), { ry: -0.15, pattern: [[0, 0, 0, 0.8], [0, 1, 0, 0.7]] });
   if (south) trike(b, -33.2, Z(40.0), Math.PI * 0.95, '#3a7aa8');
   else trike(b, -31.4, Z(40.5), 0.15, '#c8402f');
-  barrel(b, -37.2, 0, Z(24.6), { color: '#3a6f8a' }); barrel(b, -37.4, 0, Z(25.4), { color: '#8a3a2a' });
+  // Fässer neben (nicht mehr vor) dem 2,6 m breiten Ladeneingang (z 22,2 … 24,8)
+  barrel(b, -37.2, 0, Z(26.1), { color: '#3a6f8a' }); barrel(b, -37.4, 0, Z(26.9), { color: '#8a3a2a' });
+  // Wandlaternen der Marktgasse (abends an): je Seite zwei, zwischen Türen, Fenstern, Balkonen und Markisen
+  for (const [lx, lz, lry] of [[-37.98, 6.2, Math.PI / 2], [-37.98, 34.0, Math.PI / 2], [-27.02, 10.0, -Math.PI / 2], [-27.02, 28.0, -Math.PI / 2]]) wallLamp(b, lx, 2.9, Z(lz), lry);
   for (let i = 0; i < 10; i++) {
     const x = b.rnd(-37, -28), z = Z(b.rnd(1, 41)), k = b.rand();
     b.decal(x, 0.012, z, b.rnd(0.6, 1.6), b.rnd(0.6, 1.6), k < 0.5 ? 'leaves' : k < 0.8 ? 'paper' : 'stain', { opacity: 0.85 });
@@ -1211,8 +1232,9 @@ function half(b, M) {
   else { trike(b, 3.4, Z(19.0), Math.PI + 0.12, '#e8e4dc'); crateStack(b, -4.2, Z(37.6), { ry: 0.5 }); planter(b, 4.2, Z(38.2), 1.0, 2.4, { h: 0.75 }); }
   pot(b, -5.6, 0, Z(21.0), { r: 0.32 }); pot(b, 5.6, 0, Z(15.4), { r: 0.28, plant: 'flowers' });
   // Laternen (Kartenrunde 2: Ausleger zur Gasse – im Süden steckte der Leuchtenkopf vorher in der Hauswand; abends an)
-  for (const [lx, lz, lry] of [[-6.4, Z(33.2), south ? Math.PI / 2 : -Math.PI / 2], [14.4, Z(25.0), Math.PI]]) {
-    const [hx, hz] = lampPost(b, lx, lz, { h: 4.6, arm: 0.9, ry: lry, kind: 'warm', tint: IRON, glow: isNight(), glowSize: 2.0 });
+  // (Mast 1 m weiter zur Straße: stand vorher mitten in der Kletterpflanze an der Hausecke)
+  for (const [lx, lz, lry] of [[-5.5, Z(33.4), south ? Math.PI / 2 : -Math.PI / 2], [14.4, Z(25.0), Math.PI]]) {
+    const [hx, hz] = streetLamp(b, lx, lz, { h: 4.6, arm: 0.9, ry: lry });
     lampLight(b, hx, 4.35, hz, { glow: false, intensity: 12, distance: 12, pool: 3.0 });
   }
 
@@ -1553,7 +1575,7 @@ function cafe(b, M, h) {
   // Tische drinnen
   for (const [x, z] of [[-10.6, 16.0], [-8.2, 19.6], [-11.2, 20.6]]) cafeTable(b, x, Z(z), { y: 0.12, chairs: 2, chairTint: '#2f2f2f' });
   // Schild über dem Geschossband links vom Balkon (vorher hinter der Markise verborgen)
-  b.sign(-14.0, 3.32, Z(13) - 0.03 * M.s, 2.5, 0.48, 'cafe', { ry: M.ry(Math.PI), depth: 0.03 });
+  b.sign(-14.0, 3.31, Z(13) - 0.03 * M.s, 2.3, 0.44, 'cafe', { ry: M.ry(Math.PI), depth: 0.03 });
   b.sign(-6.0 + 0.03, 1.2, Z(19.5), 0.9, 1.1, 'menu', { ry: Math.PI / 2, depth: 0.02 });
   b.light('point', -11.0, 2.6, Z(18.5), { color: '#ffd6a0', intensity: 9, distance: 9 });
   // Kartenrunde 2: Leuchte zum Echtzeitlicht + Pendelleuchten über den Tischen (gebacken), Bild, Pflanze
@@ -1588,7 +1610,7 @@ function pension(b, M, h) {
     picture(b, -6.31, 1.45, Z(16.5), -Math.PI / 2, 0.8, 0.55, '#3c6a8a');
   });
   pot(b, -7.0, 0.12, Z(14.0), { r: 0.35, h: 0.6 });
-  b.sign(-14.0, 3.32, Z(13) - 0.03 * M.s, 2.5, 0.48, 'pension', { ry: M.ry(Math.PI), depth: 0.03 });
+  b.sign(-14.0, 3.31, Z(13) - 0.03 * M.s, 2.3, 0.44, 'pension', { ry: M.ry(Math.PI), depth: 0.03 });
   awning(b, -13.6, 2.9, Z(13.0) - 0.1 * M.s, 3.2, 1.4, { ry: M.ry(Math.PI), design: 2 });
   // Vorplatz: Zeitungskiosk + Moped + Kübel
   b.box(-12.4, 0, Z(9.4), 1.6, 2.2, 1.4, 'metal_painted', { tint: '#2f5f4a', minimap: 'cover' });
@@ -1615,7 +1637,7 @@ function bakery(b, M, h, south) {
     b.box(13.0, 0.7, Z(19.0), 0.05, 0.5, 0.9, 'black', { collide: false, minimap: false, ao: false });
     b.box(13.0, 0.75, Z(19.0), 0.06, 0.4, 0.8, 'lamp_sodium', { collide: false, minimap: false, ao: false, cast: false });
   } else b.box(13.6, 0.12, Z(19.0), 1.4, 1.0, 2.2, 'metal_painted', { tint: '#e8e8e2', minimap: 'cover' });
-  b.sign(10.5, 3.32, Z(13) - 0.03 * M.s, 3.2, 0.56, south ? 'bakery' : 'pharmacy', { ry: M.ry(Math.PI), depth: 0.03 });
+  b.sign(10.5, 3.31, Z(13) - 0.03 * M.s, 2.6, 0.46, south ? 'bakery' : 'pharmacy', { ry: M.ry(Math.PI), depth: 0.03 });
   awning(b, 8.6, 2.95, Z(13.0) - 0.1 * M.s, 3.2, 1.3, { ry: M.ry(Math.PI), design: south ? 3 : 1 });
   // Brotkörbe / Bank vor dem Laden
   if (south) basketRow(b, 13.6, Z(11.6), 0, 2);
@@ -1666,6 +1688,8 @@ function cityWall(b, M) {
   // Seitenmauern am Startbereich
   for (const sx of [-1, 1]) b.boxMM(sx < 0 ? -46.6 : 68.4, 0, Math.min(Z(42), zc), sx < 0 ? -45.4 : 69.6, H, Math.max(Z(42), zc), mat, { tint, minimap: 'wall' });
   b.sign(0, 5.0, zi + s * 0.02, 4.4, 1.0, south ? 'gate_s' : 'gate_n', { ry: M.ry(Math.PI), back: false, depth: 0 });
+  // Torlaternen beidseits des Tors (Innenseite, abends an)
+  for (const x of [-3.7, 3.7]) wallLamp(b, x, 3.3, zi - s * 0.02, M.ry(Math.PI));
   // Strebepfeiler + Wappen
   for (const x of [-30, -14, 14, 30, 54]) b.box(x, 0, zi - s * 0.35, 1.2, 5.2, 0.7, mat, { tint: '#cdbd9c', minimap: 'cover' });
   // Kulisse jenseits der Mauer (Türme)
@@ -1829,6 +1853,7 @@ function eastSquare(b, ctx) {
     jets.push({ from: [FX + Math.sin(am) * 0.12, 2.12, Math.cos(am) * 0.12], dir: [Math.sin(am), Math.cos(am)], v: 0.9, vy: 0.45, yEnd: 1.885, r0: 0.01, r1: 0.016, strands: 2, splash: 0 });
   }
   const water = fountainWater(b, { jets, sheets, pools: [{ x: FX, z: 0, y: WY + 0.004, r: RB - TB, seg: 24 }] });
+  b.noNav(FX - 1.6, -1.6, FX + 1.6, 1.6, -1, 3);
   for (const s of [1, -1]) {
     planter(b, 53.6, 5.4 * s, 2.4, 1.0, { tree: s > 0 ? 'olive' : undefined });
     planter(b, 66.4, 4.6 * s, 1.0, 2.4, {});

@@ -285,7 +285,8 @@ die Warteschlange. Abgearbeitet per Zeitgeber + jedes Bild (`preUpdate`). Prüfw
 **Anti-Cheat** – `onState(peer, state, now, ctx)`: ctx `{alive (Puppe beim Host), clientAlive (Client meldet lebt), rtt (s)}`.
 Schrittgrenze je Zustand `max(teleport 6 m, vMax × min(Δt, stepWindow 1 s) + slack)` (vMax des schnelleren Zustands vorher/jetzt),
 Budget-Nachfüllung nach einem hängenden Host für das ankommende Bündel bis `burstWindow` 3 s (mit `ctx.hostGap` – Zeit seit dem
-letzten Bildbeginn des Hosts, `HostSync._frameAt` – bis `stallWindow` 15 s),
+letzten Bildbeginn des Hosts, `HostSync._frameAt` – bis `stallWindow` 15 s); Zeit zwischen zwei Zuständen nach Sendestempel
+`ctx.ct` (= `decodeState().clientTime`), solange die Client-Uhr höchstens `leadMax` 0,25 s vor- und `lagMax` 8 s nachläuft,
 nach oben `max(teleportUp 3,5 m, Steigtempo × Δt + Stufe + slack)`, Budget wie bisher (Tempo-Hacks). `clientAlive === false`
 bei lebender Puppe → `{ok:false, reason:'tot-client'}`, Anker bleibt. Schonfristen `spawnGrace` (1,5 s) und `correctGrace`
 (0,75 s) jeweils + rtt. Treffer: `ctx.interp` (s, Standard 0,45), `opts.maxRewind` 2 s; `PositionHistory` des Hosts 2,5 s.

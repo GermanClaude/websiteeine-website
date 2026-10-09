@@ -47,6 +47,11 @@ export const AC_DEFAULTS = Object.freeze({
   stepWindow: 1.0, // s: höchstens so viel Host-Zeit erklärt einen einzelnen Schritt (Paketverlust) – Sprint ≤ 14,6 m
   burstWindow: 3.0, // s: so lange Lücke darf das Budget für das danach ankommende Bündel nachfüllen (Funkloch, Aussetzer)
   stallWindow: 15, // s: hing der Host selbst (ctx.hostGap: Zeit seit seinem letzten Bildbeginn), zählt seine Lücke bis hierhin
+  // Sendezeitstempel des Clients (ctx.ct): Zeit zwischen zwei Zuständen nach Client-Uhr, solange die Stempel der Host-Zeit
+  // insgesamt höchstens leadMax vorauslaufen und höchstens lagMax zurückliegen (Stau unterwegs: Funkloch, Mobilfunk-Puffer,
+  // überlasteter Sender/Empfänger – die Zustände kommen dann gebündelt, liegen aber 33 ms auseinander)
+  leadMax: 0.25,
+  lagMax: 8,
   // Höchsttempo (m/s) je Zustand – player.js: Gehen 5,4 · Sprint 8,2 · Ducken 2,6 · Liegen 1,05 · Rutschen +2,9
   // (Hang ≤ 11,8); in der Luft bleibt der Schwung (Rutschsprung ≈ 11 m/s)
   speeds: Object.freeze({ walk: 5.4, sprint: 8.2, crouch: 2.6, prone: 1.05, slide: 11.1, air: 9.5, swim: 4.5 }),
@@ -224,6 +229,8 @@ export class AntiCheat {
     p.spawnPos = v;
     p.spawnAt = nowSec;
     p.correctPos = null;
+    p.ct = null; // erster Zustand nach dem Spawn: Host-Zeit, danach Client-Stempel
+    p.lead = 0;
     p.flags = 0; // erster Schritt nach dem Spawn: großzügigstes Tempo (Luft)
     p.budgetH = this._capH(this.opts.speeds.sprint);
     p.budgetUp = this.opts.stepUp;
@@ -265,7 +272,8 @@ export class AntiCheat {
   /**
    * Zustand eines Clients prüfen. state: {x,y,z,flags} (decodeState().entity) oder {pos:[x,y,z], flags}.
    * ctx: { alive?: bool (Puppe lebt beim Host), clientAlive?: bool (Client meldet „lebt“), rtt?: s,
-   *   hostGap?: s (Zeit seit dem letzten Bildbeginn des Hosts – hing er, kommen die Zustände gebündelt) }.
+   *   hostGap?: s (Zeit seit dem letzten Bildbeginn des Hosts – hing er, kommen die Zustände gebündelt),
+   *   ct?: s (Sendestempel des Zustands, Host-Zeit laut Client – decodeState().clientTime) }.
    *   alive === false → nicht geprüft, neuer Anker beim nächsten Spawn/Zustand.
    *   clientAlive === false bei lebender Puppe (Spawn unterwegs) → verworfen, Anker bleibt.
    * → { ok, reason, correct?: [x,y,z] (Rücksetzposition, Host schickt 'correct'), kick: grund|null }
@@ -279,7 +287,7 @@ export class AntiCheat {
     if (ctx.clientAlive === false) return { ok: false, reason: 'tot-client', kick: null };
     const flags = typeof state.flags === 'number' ? state.flags : 0;
     if (!p.pos) {
-      p.pos = pos; p.t = nowSec; p.flags = flags;
+      p.pos = pos; p.t = nowSec; p.flags = flags; p.ct = num(ctx.ct) ? ctx.ct : null; p.lead = 0;
       p.budgetH = this._capH(o.speeds.sprint); p.budgetUp = o.stepUp;
       return { ok: true, reason: 'anker', kick: null };
     }
@@ -292,7 +300,7 @@ export class AntiCheat {
     // Rücksetzung unterwegs: abwarten, bis der Client sie übernommen hat
     if (p.correctPos) {
       if (dist3(pos, p.correctPos) <= o.correctRadius) {
-        p.pos = pos; p.t = nowSec; p.correctPos = null; p.flags = flags;
+        p.pos = pos; p.t = nowSec; p.correctPos = null; p.flags = flags; p.ct = num(ctx.ct) ? ctx.ct : null; p.lead = 0;
         p.budgetH = 0; p.budgetUp = o.stepUp;
         return { ok: true, reason: 'korrigiert', kick: null };
       }
@@ -306,7 +314,21 @@ export class AntiCheat {
     // („Lag-Switch“), bekommt so höchstens burstWindow gutgeschrieben.
     const hostGap = num(ctx.hostGap) ? Math.max(0, ctx.hostGap) : 0;
     const win = Math.max(o.burstWindow, Math.min(o.stallWindow, hostGap + 0.5));
-    const dt = Math.min(Math.max(2, win), Math.max(0, nowSec - p.t));
+    const dtHost = Math.min(Math.max(2, win), Math.max(0, nowSec - p.t));
+    // Zeit nach Client-Uhr (Sendestempel, Host-Zeitbasis): gebündelt zugestellte Zustände liegen 33 ms auseinander statt 0 –
+    // das Budget wächst dann wie die Bewegung (Lasttest: Stau außerhalb des Host-Bildes, bis ≈ 7 s). lead = Summe(Client-Δt)
+    // − Summe(Host-Δt): läuft die Client-Uhr insgesamt mehr als leadMax vor („Zeit erschreiben“), gilt die Host-Zeit;
+    // Rückstand zählt bis lagMax – so verschiebt auch ein absichtlich zurückgehaltener Client höchstens lagMax Bewegung.
+    let dt = dtHost;
+    let fromClient = false;
+    const ct = num(ctx.ct) ? ctx.ct : null;
+    let lead = num(p.lead) ? p.lead : 0;
+    if (ct != null && num(p.ct)) {
+      const dtc = ct - p.ct;
+      const next = lead + dtc - dtHost;
+      if (dtc >= 0 && dtc <= Math.max(2, win) && next <= o.leadMax) { dt = dtc; fromClient = dtc > dtHost; }
+      lead = Math.max(-o.lagMax, Math.min(o.leadMax, next));
+    }
     // Budget nach dem gemeldeten Zustand; der einzelne Schritt darf bei Übergängen (Sprint → Rutschen, Rutschen →
     // Sprung) das schnellere der beiden Zustandstempi nutzen
     const speed = this._speedFor(flags);
@@ -315,7 +337,8 @@ export class AntiCheat {
     // Obergrenze des Budgets: budgetWindow – hing der Host länger (langes Bild, die Zustände der Lücke kommen danach
     // gebündelt an), gilt für dieses Bündel (0,25 s Host-Zeit) die ganze Lücke (höchstens win, s. o.)
     const climb = o.climb * (1 + o.tolerance);
-    const gap = Math.min(dt, win);
+    // höhere Budget-Obergrenze nur nach einer Lücke, die der Host selbst sah (Client-Stempel füllen nur bis budgetWindow)
+    const gap = Math.min(dtHost, win);
     if (vMax * gap + o.slack > this._capH(speed)) { p.capH = vMax * gap + o.slack; p.capUp = climb * gap + o.stepUp; p.capUntil = nowSec + 0.25; }
     const burst = nowSec <= (p.capUntil || -1);
     const capH = burst ? Math.max(this._capH(speed), p.capH) : this._capH(speed);
@@ -339,17 +362,21 @@ export class AntiCheat {
       p.correctPos = p.pos.slice();
       p.correctAt = nowSec;
       p.t = nowSec;
+      p.ct = ct;
+      p.lead = 0;
       p.budgetH = Math.max(0, budgetH);
       p.budgetUp = Math.max(0, budgetUp);
-      const s = this.strike(id, reason, nowSec, { dist: Math.round(Math.hypot(hd, dy) * 100) / 100, dt: Math.round(dt * 1000) / 1000, hg: Math.round(hostGap * 100) / 100 });
+      const s = this.strike(id, reason, nowSec, { dist: Math.round(Math.hypot(hd, dy) * 100) / 100, dt: Math.round(dt * 1000) / 1000, hg: Math.round(hostGap * 100) / 100, dth: Math.round(dtHost * 1000) / 1000, lead: Math.round(lead * 100) / 100 });
       return { ok: false, reason, correct: p.correctPos.slice(), kick: s.kick };
     }
     p.budgetH = afterH;
     p.budgetUp = afterUp;
     p.pos = pos;
     p.t = nowSec;
+    p.ct = ct;
+    p.lead = lead;
     p.flags = flags;
-    return { ok: true, reason: 'ok', kick: null };
+    return { ok: true, reason: 'ok', kick: null, stamp: fromClient };
   }
 
   /* ------------------------------------------------------------ Feuerrate */

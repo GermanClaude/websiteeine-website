@@ -6,12 +6,12 @@
 // Bandbreite (Lasttest tools/mp-load-test.mjs + Kampfrate tools/mp-fight-rate.mjs, §13): der Host schickt jedem der n − 1
 // Clients
 //   Schnappschüsse (20 Hz): 11 Byte Kopf + 60 Byte Paketkopf (IP/UDP/DTLS/SCTP) + Akteure × 31 Byte × Anteil
-//   (Interessenfilter ab 12 Akteuren: ferne/tote nur 5 Hz → gemessen 0,43–0,47 der Akteure je Schnappschuss, gerechnet 0,5)
+//   (Interessenfilter ab 12 Akteuren: ferne/tote nur 5 Hz → gemessen 0,43–0,53 der Akteure je Schnappschuss, gerechnet 0,55)
 //   + zuverlässige Nachrichten: Modus (≈ 1 Hz) RELIABLE_BASE + Roster RELIABLE_PER_HUMAN je Mensch + Kampf (Treffer,
 //   Abschüsse, Spawns, Granaten an alle) RELIABLE_PER_ACTOR je Akteur.
 //   upload(n, A) = (n − 1) × [20 × (71 + A × 31 × anteil(A)) + 570 + 44 × n + 70 × A], A = Akteure im Match (mit
-//   Bot-Auffüllung 2 × teamSize, sonst n). Beispiel 13 Menschen, 32 Akteure: je Client 11 340 + 3 382 ≈ 14,4 KB/s,
-//   gesamt 12 × ≈ 173 KB/s; 8 Menschen ohne Bots: je Client ≈ 7,7 KB/s, gesamt ≈ 54 KB/s (1 KB = 1024 Byte).
+//   Bot-Auffüllung 2 × teamSize, sonst n). Beispiel 13 Menschen, 32 Akteure: je Client 12 332 + 3 382 ≈ 15,3 KB/s,
+//   gesamt 12 × ≈ 184 KB/s; 8 Menschen ohne Bots: je Client ≈ 7,7 KB/s, gesamt ≈ 54 KB/s (1 KB = 1024 Byte).
 // Reine Logik – UploadMeter misst, recommend() rechnet; beides ohne DOM prüfbar.
 
 export const SNAPSHOT_HZ = 20;
@@ -20,7 +20,7 @@ export const ENTITY_BYTES = 31;
 export const PACKET_OVERHEAD = 60;
 /** Interessenfilter (sync-host.js): ab so vielen Akteuren; gemessener Anteil der Akteure je Schnappschuss (Hafen, 32). */
 export const INTEREST_MIN = 12;
-export const INTEREST_SHARE = 0.5;
+export const INTEREST_SHARE = 0.55;
 /** Gemessen (§13): zuverlässige Nachrichten je Client (Byte/s inkl. Paketkopf) – Modus (≈ 1 Hz, Lasttest 560–586 B/s),
  *  Roster (≈ 42–45 B/s je Mensch), Kampf (Bot-Runde Hafen „regulär“: 7,6 Treffer, 0,96 Abschüsse, 0,93 Spawns je s
  *  bei 32 Akteuren ≈ 2,2 KB/s → je Akteur ≈ 70 B/s; „Veteran“ kämpft vorsichtiger: 0,9 KB/s). */

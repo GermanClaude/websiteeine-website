@@ -252,7 +252,13 @@ Ohne Parameter: `NetSystem.chaos = null`, Verbindungen unverändert. Werkzeuge: 
    seinem letzten Bildbeginn – bis 15 s; die Schrittgrenze bleibt bei 1 s; vorher 8 falsche 'tempo' im Lasttest, im Endlauf noch 3
    nach einem ≈ 9-s-Hänger beim Beitritt neuer Clients unter Fremdlast; ein Client, der selbst schweigt, bekommt nur 3 s
    gutgeschrieben); (f) Schussursprung gegen den zuletzt gemeldeten Zustand statt gegen den Puppenkörper (der ein Bild
-   nachhinkt – vorher 12 falsche 'herkunft' im Lasttest).
+   nachhinkt – vorher 12 falsche 'herkunft' im Lasttest); (g) Stau *außerhalb* des Host-Bildes (Lasttest bei Last 12,6:
+   Netz/Sender hängen mehrere Sekunden, der Host läuft weiter – 24 falsche 'tempo' bei `hostGap` 0,4–1,6 s): das Budget
+   rechnet jetzt mit den Sendestempeln der Zustände (Client-Zeit zwischen zwei Zuständen, gebündelte Zustände liegen 33 ms
+   auseinander). Die Client-Uhr darf der Host-Zeit insgesamt höchstens 0,25 s vorauslaufen (sonst gilt Host-Zeit – „Zeit
+   erschreiben“ wirkt nicht: Tempo-Hack mit doppelt laufender Uhr nach 2,4 s erkannt) und höchstens 8 s zurückliegen
+   (angesparte Zeit: ein Vorstoß nach 20 s Stillstand mit lahmen Stempeln endet nach 70 m); die erhöhte Budget-Obergrenze
+   gilt weiter nur für Lücken, die der Host selbst sah.
 4. *„Ausrüsten“/„Einsatz“ auf Clients wirkungslos*: Client meldet den Halt jetzt ('hold'), der Host hält die Puppe wie offline an
    (Restzeit steht auf beiden Seiten, höchstens 30 s), „Einsatz“ gibt frei; die im Todesbildschirm gewählte Ausrüstung geht als
    'loadout' an den Host (vorher spawnte die Puppe mit der alten Klasse/Ausrüstung).
@@ -296,10 +302,10 @@ Uhr, 20-Hz-Schnappschüsse einer bekannten Bahn, Client 60 Bilder/s; Kennzahlen 
 Der neue Puffer zeigt die Puppen um die Laufzeit später (der alte schrieb diese Zeit ständig fort), dafür ohne Zurückspringen,
 Ruckeln und Überschwingen. Die Treffermeldung trägt diesen Verzug (`ip`), der Host prüft entsprechend weit zurück.
 
-**Anti-Cheat** (`node tools/net-proto-test.mjs`, 113 Prüfungen, davon 20 neu): ohne Verstoß – Sprint mit allen Zuschlägen
+**Anti-Cheat** (`node tools/net-proto-test.mjs`, 116 Prüfungen, davon 23 neu): ohne Verstoß – Sprint mit allen Zuschlägen
 10,4 m/s, Rutschen 13,3 m/s, Rutschsprung 11 m/s (je mit ±60 ms Ankunftsschwankung und 5 % Verlust), Hangrutschen 11,8 m/s
 4 s, Sprungserie im Sprint, Spawn in 40 m Höhe + freier Fall bis 44 m/s, Host hängt 1 s bzw. alle 2,5 s / 2,95 s (Bündel; mit der alten 2-s-Grenze 48 falsche Verstöße bei 2,95 s) bzw. einmal 9 s
-(mit `hostGap` 0 Verstöße, ohne – Client schweigt – 12), 0,7 s
+(mit `hostGap` 0 Verstöße, ohne – Client schweigt – 12), 7 s Stau unterwegs bei laufendem Host (mit Sendestempeln 0), 0,7 s
 Funkloch (7,3 m Schritt), Klettern 1,3 m, Spawn bei rtt 0,8 s; erkannt – 7 m und 14 m Sprung (vorher erlaubt), 20 m bei einem
 Zustand alle 2 s, 5 m senkrecht, „tot melden + 40 m weiter auftauchen“, Tempo-Hack 2× Sprint nach 3,4 s, 3× nach 1,3 s.
 Im echten Spiel (`mp-test`): Rutschen eines Clients (17 Zustände mit Rutsch-Bit) und Sturz aus 9 m nach Host-Spawn ohne
@@ -309,25 +315,25 @@ Verstoß, 20-m-Teleport → 'teleport' + 'correct'; Lasttest (12 Clients, Kreisb
 `dev/fake-client.html` in einem zweiten Browser, 30-Hz-Zustände im Kreis mit 4,2 m/s ab dem Spawnpunkt, ab und zu 1–3
 Treffermeldungen auf den nächsten Gegner aus dem Schnappschuss):
 
-| | ohne Interessenfilter | mit Filter (1. Lauf) | Endstand (mit Filter) |
-|---|---|---|---|
-| Host allein (32 Akteure: Host + 31 Bots) | 1,8 FPS, Bildzeit Ø 551 / p95 900 ms | 1,6 FPS, Ø 643 / p95 1067 ms | 0,7 FPS, Ø 1505 / p95 2283 ms |
-| Host mit 12 Clients (32 Akteure: 13 Menschen + 19 Bots) | 1,6 FPS, Ø 627 / p95 1750 ms | 1,4 FPS, Ø 707 / p95 1367 ms | 1,3 FPS, Ø 794 / p95 1567 / max 1700 ms |
-| Last (loadavg) während der Messung | 6,3 | 5,9 | 9,9 |
-| Schnappschuss je Client | 1003 Byte (32 Akteure) | 464 Byte (Ø 14,6 von 32 = 46 %) | 436 Byte (Ø 13,7 von 32 = 43 %) |
-| Schnappschüsse je Client bei 20 Hz (+ 60 Byte Paketkopf) | 20,8 KB/s | 10,2 KB/s | 9,7 KB/s |
-| zuverlässig je Client (gemessen, Echtzeit) | – | 2,1 KB/s | 1,7 KB/s: Modus 560, Roster 549, Treffer der Last-Clients 530, Abschüsse 109, Punkte/Medaillen 17 B/s |
-| Anti-Cheat | 0 Bewegung; 12 'herkunft' (Fehler 3f), 7 'sicht' | 0 Bewegung, 0 'herkunft'; 9 'sicht' | 0 Bewegung, 0 'herkunft'; 6 'sicht'; 'correct' an Clients 0 |
-| Treffermeldungen | 175 gesendet, 125 bestätigt | 146 gesendet, 134 bestätigt | 148 gesendet, 129 bestätigt |
-| Tod + Wiedereinstieg unter Last | – | – | 3 Clients abgeschossen, alle am neuen Spawnpunkt weiter, danach 0 Verstöße |
-| Roster/Bots | 13 Menschen (A 7/B 6), Bots 19 (9/10), 32 Akteure | gleich; 4 gehen → Bots 19 → 23 (11/12) | gleich; 4 gehen → Bots 19 → 23 (11/12), 32 Akteure; Matchende: alle 8 Clients 'end' |
-| Empfehlung | `measured: true`, bis 8 („Bildrate 2 FPS“) | `measured: true`, bis 8 („Bildrate 2 FPS“) | `measured: true`, bis 8 („Bildrate 1 FPS“) |
-| Seiten-/Konsolenfehler | 0 | 0 | 0 |
+| | ohne Interessenfilter | mit Filter (1. Lauf) | mit Filter, Lauf B | Endstand (alle Korrekturen) |
+|---|---|---|---|---|
+| Host allein (32 Akteure: Host + 31 Bots) | 1,8 FPS, Bildzeit Ø 551 / p95 900 ms | 1,6 FPS, Ø 643 / p95 1067 ms | 0,7 FPS, Ø 1505 / p95 2283 ms | 0,7 FPS, Ø 1476 / p95 3733 ms |
+| Host mit 12 Clients (32 Akteure: 13 Menschen + 19 Bots) | 1,6 FPS, Ø 627 / p95 1750 ms | 1,4 FPS, Ø 707 / p95 1367 ms | 1,3 FPS, Ø 794 / p95 1567 / max 1700 ms | 0,5 FPS, Ø 1823 / p95 4167 ms |
+| Last (loadavg) während der Messung | 6,3 | 5,9 | 9,9 | 14,1 |
+| Schnappschuss je Client | 1003 Byte (32 Akteure) | 464 Byte (Ø 14,6 von 32 = 46 %) | 436 Byte (Ø 13,7 von 32 = 43 %) | 538 Byte (Ø 17,0 von 32 = 53 %) |
+| Schnappschüsse je Client bei 20 Hz (+ 60 Byte Paketkopf) | 20,8 KB/s | 10,2 KB/s | 9,7 KB/s | 11,7 KB/s |
+| zuverlässig je Client (gemessen, Echtzeit) | – | 2,1 KB/s | 1,7 KB/s: Modus 560, Roster 549, Treffer der Last-Clients 530, Abschüsse 109, Punkte/Medaillen 17 B/s | 1,2 KB/s: Modus 309, Roster 567, Treffer 284, Abschüsse 48, Punkte/Medaillen 8 B/s (Host 0,5 FPS) |
+| Anti-Cheat | 0 Bewegung; 12 'herkunft' (Fehler 3f), 7 'sicht' | 0 Bewegung, 0 'herkunft'; 9 'sicht' | 0 Bewegung, 0 'herkunft'; 6 'sicht'; 'correct' 0 | 0 Bewegung (Zwischenläufe: 3 bzw. 24 falsche 'tempo' → Fehler 3e/3g), 1 'sicht'; 'correct' 0 |
+| Treffermeldungen | 175 gesendet, 125 bestätigt | 146 gesendet, 134 bestätigt | 148 gesendet, 129 bestätigt | 59 gesendet, 54 bestätigt |
+| Tod + Wiedereinstieg unter Last | – | – | 3 Clients abgeschossen, alle am neuen Spawnpunkt weiter, danach 0 Verstöße | ebenso |
+| Roster/Bots | 13 Menschen (A 7/B 6), Bots 19 (9/10), 32 Akteure | gleich; 4 gehen → Bots 19 → 23 (11/12) | gleich; Matchende: alle 8 Clients 'end' | gleich; 4 gehen → Bots 19 → 23 (11/12), 32 Akteure; alle 8 'end' |
+| Empfehlung | `measured: true`, bis 8 („Bildrate 2 FPS“) | `measured: true`, bis 8 („Bildrate 2 FPS“) | `measured: true`, bis 8 („Bildrate 1 FPS“) | `measured: true`, bis 8 („Bildrate 1 FPS“) |
+| Seiten-/Konsolenfehler | 0 | 0 | 0 | 0 |
 
 'sicht' sind erwartet: die Last-Clients kennen keine Welt und melden auch Treffer durch Wände (weiche Prüfung, Gewicht 2).
 Die Bildrate des Hosts (0,7–1,8 FPS) hängt auf dem Prüfrechner an SwiftShader und an der Fremdlast (andere Prüfläufe
 parallel, loadavg 6–10) – „vorher/nachher“ ist darum nur grob vergleichbar: die 12 Clients kosten den Host messbar wenig
-(Netz + 12 Puppen; im Endstand lag „mit Clients“ sogar über „allein“, weil die Fremdlast schwankte). Die Netzlast hängt am
+(Netz + 12 Puppen; in Lauf B lag „mit Clients“ sogar über „allein“, weil die Fremdlast schwankte). Die Netzlast hängt am
 Schnappschuss (ein Schnappschuss je Bild, höchstens 20/s) und ist auf 20 Hz hochgerechnet. Ohne Filter lag ein Client bei 32
 Akteuren über 20 KB/s (20,8 KB/s nur Schnappschüsse) → Interessenfilter eingebaut (halbiert den Schnappschuss).
 
@@ -339,13 +345,14 @@ Granaten-/Raketen-Ereignisse je Sekunde × gemessene Nachrichtengrößen (Treffe
 Paketkopf, Ereignis ≈ 170 geschätzt) = **2,2 KB/s je Client**; „Veteran“ (vorsichtiger) 2,9 Treffer/s = 0,9 KB/s.
 
 **Empfehlung (recommend.js, kalibriert)**: Upload des Hosts je Client bei A Akteuren, davon n Menschen:
-`20 × (11 + 60 + A × 31 × anteil) + 570 + 44 × n + 70 × A` – anteil = 0,5 ab 12 Akteuren (gemessen 0,43–0,47), sonst 1;
+`20 × (11 + 60 + A × 31 × anteil) + 570 + 44 × n + 70 × A` – anteil = 0,55 ab 12 Akteuren (gemessen 0,43–0,53), sonst 1;
 570 B/s Modus (≈ 1 Hz), 44 B/s je Mensch (Roster), 70 B/s je Akteur (Kampf, 2,2 KB/s bei 32). Gesamt `(n − 1) ×` das,
 A = 2 × teamSize bei Bot-Auffüllung (sonst n); höchstens 80 % des gemessenen Uploads. Beispiele: 13 Menschen, 32 Akteure: je
-Client 11 340 + 3 382 = 14 722 B/s ≈ 14,4 KB/s, gesamt ≈ 173 KB/s (Lasttest hochgerechnet: 9 920 + 1 109 + 2 188 =
-13 217 B/s je Client – die Formel liegt 11 % darüber); 8 Menschen ohne Bots: ≈ 7,7 KB/s je Client, gesamt ≈ 54 KB/s. Daraus bei
+Client 12 332 + 3 382 = 15 714 B/s ≈ 15,3 KB/s, gesamt ≈ 184 KB/s (Lasttests hochgerechnet: 9 920 + 1 109 + 2 188 =
+13 217 bzw. 11 960 + 876 + 2 188 = 15 024 B/s je Client – die Formel liegt 5–19 % darüber); 8 Menschen ohne Bots: ≈ 7,7 KB/s
+je Client, gesamt ≈ 54 KB/s. Daraus bei
 einer Upload-Grenze (Stau gemessen; ohne Stau rechnet recommend() das Gemessene × 2 hoch) von 100 000 B/s → 9 Menschen ohne
-Bots / 6 bei 32 Akteuren; 200 000 B/s → 17 / 11; 400 000 B/s → 25 / 22 (1 KB = 1024 Byte). Die Upload-Messung nimmt nur Fenster ≥ 3 s (Bündel aus langen Bildern zählten vorher × 10).
+Bots / 6 bei 32 Akteuren; 200 000 B/s → 17 / 11; 400 000 B/s → 24 / 20 (1 KB = 1024 Byte). Die Upload-Messung nimmt nur Fenster ≥ 3 s (Bündel aus langen Bildern zählten vorher × 10).
 
 **Läufe** (Prüfrechner, 4 Kerne, Fremdlast 6–10; ein mp-test-Lauf ≈ 13–18 min), Endstand:
 - `mp-test` ideal: 66/66 – Positionen Anna→Host 0,16 m / Anna→Bert 0,22 m, Halt 2,95 → 2,95 s auf beiden Seiten, „Einsatz“
@@ -359,7 +366,7 @@ Bots / 6 bei 32 Akteuren; 200 000 B/s → 17 / 11; 400 000 B/s → 25 / 22 (1 KB
 - `mp-test --params="netlag=300&netloss=15"` (verschlechtert): 66/66 – Positionen ≤ 0,29 m, Halt 3,00/2,95 s stabil,
   „Einsatz“, Teleport, Sturz, Rutschen 5,6 m ohne Verstoß; keine hängenden Zustände, keine Seitenfehler.
 - `mp-load-test`: 13/13 (Tabelle oben); `mp-fight-rate`: regulär 2,2 KB/s, Veteran 0,9 KB/s Kampfverkehr je Client.
-- `net-proto-test` 113/113, `net-test`, `net-room-test` 60/60, `net-interp-test` 9/9, `check.sh`, `preload --check`,
+- `net-proto-test` 116/116, `net-test`, `net-room-test` 60/60, `net-interp-test` 9/9, `check.sh`, `preload --check`,
   `smoke --quality=low --params="mode=tdm&map=hafen" --end --seconds=20` (offline, ohne Fehler, Endbildschirm).
 
 
@@ -367,7 +374,7 @@ Bots / 6 bei 32 Akteuren; 200 000 B/s → 17 / 11; 400 000 B/s → 25 / 22 (1 KB
 0,25 s, daher dauert der Matchstart dort Minuten (kein Fehler des Spiels, mp-test wartet bis 10 min). Die Glätte im echten Spiel
 lässt sich dort nur grob messen (Host schafft im Hintergrund-Takt dann < 8 Bilder/s → nur Info); die Interpolation selbst ist
 deterministisch belegt (oben). Unter 300 ms / 15 % Verlust: siehe Läufe. Weitere offene Punkte: (1) Treffer/Abschüsse gehen
-zuverlässig an alle Clients, auch ferne – bei 32 Akteuren ≈ 2,2 KB/s je Client (15 % des Uploads); ferne Bot-gegen-Bot-
+zuverlässig an alle Clients, auch ferne – bei 32 Akteuren ≈ 2,2 KB/s je Client (≈ 14 % des Uploads je Client); ferne Bot-gegen-Bot-
 Treffer könnten entfallen oder gebündelt werden (Stufe 2). (2) Die Größe der Granaten-/Raketen-Ereignisse ist geschätzt
 (≈ 170 Byte), ihr Anteil klein (0,3/s). (3) Die 12 Last-Clients sind reine Netz-Clients (kein WebGL); echte Client-Seiten
 wurden mit höchstens 2 gleichzeitig geprüft (mp-test). (4) Bildrate des Hosts unter echten 12 Clients auf echter Hardware

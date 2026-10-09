@@ -19,10 +19,12 @@ import { craneClock } from '../crane-anim.js';
 const IRON = '#2b2d30';
 const VIS = { collide: false, minimap: false };            // nur Optik (Kugeln treffen trotzdem)
 const VG = { collide: false, minimap: false, grad: false };
-// Draw Calls sparen: Möbel nutzen nur Materialien, die in jedem Häuserblock ohnehin vorkommen (Holz, Metall, Stoff, Weiß,
-// Terrakotta, Glas) – Fugen/Kabel aus dunkel getöntem Holz/Metall statt „black“; Kleinteile ohne Rück- und Bodenfläche
+// Draw Calls sparen: Möbel nutzen nur Materialien, die ohnehin vorkommen (Holz, Metall, Stoff, Terrakotta, Glas), und
+// verteilen sich so, dass kein Material die Teilungsgrenze des MapBuilders (24 000 Dreiecke → ein Mesh je Chunk) neu
+// überschreitet: Fugen/Griffe/Kabel aus dunklem Metall, Regale und Küchenfronten aus wood_planks, Blüten aus Stoff.
+// Kleinteile ohne Rück- und Bodenfläche.
 const SMALL = [0, 0, 0, 1, 0, 1];
-const SEAM = { collide: false, minimap: false, grad: false, ao: false, tint: '#21170f', skip: SMALL };
+const SEAM = { collide: false, minimap: false, grad: false, ao: false, tint: '#1e1a16', skip: SMALL };
 
 /** Zufallsfolge aus Positionswerten (mulberry32) – auf allen Rechnern bitgleich, verbraucht keinen Kartenzufall. */
 export function hrng(a, b2 = 0, c = 0) {
@@ -205,9 +207,9 @@ function flowerClump(b, x, y, z, pal, R, s) {
   b.plant('bush', x, y - 0.03, z, { s: s * 0.7, ry: R() * 6.283 });
   const n = (LOOK.lite ? 2 : 4) + Math.floor(R() * 3), col = pal[Math.floor(R() * pal.length)];
   for (let i = 0; i < n; i++) {
-    const a = R() * 6.283, r = R() * s * 0.7, hs = 0.055 + R() * 0.035;
-    b.geom(flowerHead(), x + Math.cos(a) * r, y + s * (0.75 + R() * 0.5), z + Math.sin(a) * r, 'white', {
-      sx: hs, sy: hs * 0.55, sz: hs, ry: R() * 3, tint: R() < 0.8 ? col : pal[(pal.indexOf(col) + 1) % pal.length],
+    const a = R() * 6.283, r = R() * s * 0.7, hs = 0.045 + R() * 0.025;
+    b.geom(flowerHead(), x + Math.cos(a) * r, y + s * (0.75 + R() * 0.5), z + Math.sin(a) * r, 'tarp', {
+      sx: hs, sy: hs * 0.8, sz: hs, ry: R() * 3, tint: R() < 0.8 ? col : pal[(pal.indexOf(col) + 1) % pal.length],
       collide: false, minimap: false, ao: false, cast: false, bullet: false, grad: false,
     });
   }
@@ -441,7 +443,7 @@ export function wardrobe(b, x, y, z, ry, o = {}) {
   f.box(0, 0, 0.02, w - 0.06, 0.07, d - 0.06, 'wood_dark', { tint: '#3a2a1e', ...VIS });
   f.box(0, h, 0, w + 0.06, 0.05, d + 0.05, 'wood_dark', { tint, ...VG });
   const nd = o.doors ?? (w > 0.8 ? 2 : 1);
-  for (let i = 1; i < nd; i++) f.box(-w / 2 + (i * w) / nd, 0.12, d / 2 + 0.002, 0.012, h - 0.2, 0.006, 'wood_dark', SEAM);
+  for (let i = 1; i < nd; i++) f.box(-w / 2 + (i * w) / nd, 0.12, d / 2 + 0.002, 0.012, h - 0.2, 0.006, 'metal_painted', SEAM);
   for (let i = 0; i < nd; i++) {
     const cx = -w / 2 + ((i + 0.5) * w) / nd + (nd > 1 ? (i ? -1 : 1) * (w / nd / 2 - 0.07) : w / 2 - 0.1);
     f.box(cx, h * 0.48, d / 2 + 0.012, 0.022, 0.14, 0.02, 'metal_painted', { tint: '#b08a3a', ...VG, ao: false });
@@ -455,7 +457,7 @@ export function dresser(b, x, y, z, ry, o = {}) {
   f.box(0, 0.06, 0, w, h - 0.06, d, 'wood_dark', { tint, ...VIS });
   f.box(0, h, 0, w + 0.04, 0.035, d + 0.03, 'wood_planks', { tint: '#9a7452', ...VG });
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.box(sx * (w / 2 - 0.05), 0, sz * (d / 2 - 0.05), 0.05, 0.06, 0.05, 'wood_dark', { tint: '#3a2a1e', ...VIS });
-  for (let k = 1; k < 3; k++) f.box(0, 0.06 + (k * (h - 0.06)) / 3, d / 2 + 0.002, w - 0.06, 0.012, 0.006, 'wood_dark', SEAM);
+  for (let k = 1; k < 3; k++) f.box(0, 0.06 + (k * (h - 0.06)) / 3, d / 2 + 0.002, w - 0.06, 0.012, 0.006, 'metal_painted', SEAM);
   for (let k = 0; k < 3; k++) for (const sx of [-0.25, 0.25]) f.box(sx * w, 0.06 + ((k + 0.5) * (h - 0.06)) / 3, d / 2 + 0.012, 0.09, 0.018, 0.018, 'metal_painted', { tint: '#b08a3a', ...VG, ao: false });
   f.solid(0, 0, 0, w, h, d, { minimap: 'cover' });
   return f;
@@ -486,10 +488,10 @@ const GOODS_COLORS = {
 /** Offenes Regal (Front +z) mit Waren je Fach. goods: Schlüssel aus GOODS_COLORS (Kleinteile ohne Kollision). */
 export function shelf(b, x, y, z, ry, o = {}) {
   const f = frame(b, x, y, z, ry), w = o.w ?? 1.2, d = o.d ?? 0.38, h = o.h ?? 1.9, n = o.n ?? 4, tint = o.tint || '#7a5a40';
-  for (const sx of [-1, 1]) f.box(sx * (w / 2 - 0.02), 0, 0, 0.04, h, d, 'wood_dark', { tint, ...VIS });
-  f.box(0, 0, -d / 2 + 0.01, w - 0.06, h, 0.02, 'wood_dark', { tint: '#4a3426', ...VIS });
+  for (const sx of [-1, 1]) f.box(sx * (w / 2 - 0.02), 0, 0, 0.04, h, d, 'wood_planks', { tint, ...VIS });
+  f.box(0, 0, -d / 2 + 0.01, w - 0.06, h, 0.02, 'wood_planks', { tint: '#4a3426', ...VIS, skip: [0, 0, 0, 1, 1, 1] });
   const levels = [];
-  for (let k = 0; k < n; k++) { const yy = 0.06 + (k * (h - 0.1)) / (n - 1); levels.push(yy); f.box(0, yy, 0.01, w - 0.06, 0.03, d - 0.02, 'wood_dark', { tint, ...VG }); }
+  for (let k = 0; k < n; k++) { const yy = 0.06 + (k * (h - 0.1)) / (n - 1); levels.push(yy); f.box(0, yy, 0.01, w - 0.06, 0.03, d - 0.02, 'wood_planks', { tint, ...VG, skip: [0, 0, 0, 1, 0, 0] }); }
   const kind = o.goods || 'books', cols = GOODS_COLORS[kind] || GOODS_COLORS.books, R = hrng(x, z, 77 + y);
   for (let k = 0; k < n - 1; k++) {
     if ((o.skipLow && k === 0) || (LOOK.lite && k % 2)) continue;
@@ -531,11 +533,11 @@ export function shelf(b, x, y, z, ry, o = {}) {
 /** Küchenzeile entlang lokal x (Front +z, Rückseite an der Wand): Unterschränke, Arbeitsplatte, Spüle, Herd, Fliesen, Hängeschränke. */
 export function kitchen(b, x, y, z, ry, o = {}) {
   const f = frame(b, x, y, z, ry), L = o.len ?? 2.4, d = 0.6, h = 0.86, tint = o.tint || '#e2dccb';
-  f.box(0, 0.09, 0, L, h - 0.09, d, 'white', { tint, ...VIS });
+  f.box(0, 0.09, 0, L, h - 0.09, d, 'wood_planks', { tint, ...VIS });
   f.box(0, 0, 0.03, L - 0.02, 0.09, d - 0.08, 'wood_dark', { tint: '#3a2e24', ...VIS });
   f.box(0, h, 0.01, L + 0.02, 0.04, d + 0.03, 'stone_wall', { tint: '#d8d0bf', ...VG });
   const nd = Math.max(2, Math.round(L / 0.6));
-  for (let i = 1; i < nd; i++) f.box(-L / 2 + (i * L) / nd, 0.13, d / 2 + 0.002, 0.01, h - 0.17, 0.006, 'wood_dark', SEAM);
+  for (let i = 1; i < nd; i++) f.box(-L / 2 + (i * L) / nd, 0.13, d / 2 + 0.002, 0.01, h - 0.17, 0.006, 'metal_painted', SEAM);
   for (let i = 0; i < nd; i++) f.box(-L / 2 + ((i + 0.5) * L) / nd, h - 0.13, d / 2 + 0.012, 0.13, 0.018, 0.018, 'metal_galvanized', { ...VG, ao: false });
   // Spüle mit Hahn (links), Herd mit vier Kochstellen (rechts)
   f.box(-L / 2 + 0.42, h + 0.035, 0.03, 0.52, 0.012, 0.4, 'metal_galvanized', { ...VG, ao: false });
@@ -548,8 +550,8 @@ export function kitchen(b, x, y, z, ry, o = {}) {
   // Fliesenspiegel + Hängeschränke
   f.box(0, h + 0.04, -d / 2 + 0.012, L, 0.6, 0.02, 'tiles_terracotta', { tint: '#f0e6d6', ...VG, ao: false, skip: SMALL });
   if (o.upper !== false) {
-    f.box(0, h + 0.66, -d / 2 + 0.17, L, 0.62, 0.34, 'white', { tint, ...VIS });
-    for (let i = 1; i < nd; i++) f.box(-L / 2 + (i * L) / nd, h + 0.69, -d / 2 + 0.342, 0.01, 0.56, 0.006, 'wood_dark', SEAM);
+    f.box(0, h + 0.66, -d / 2 + 0.17, L, 0.62, 0.34, 'wood_planks', { tint, ...VIS });
+    for (let i = 1; i < nd; i++) f.box(-L / 2 + (i * L) / nd, h + 0.69, -d / 2 + 0.342, 0.01, 0.56, 0.006, 'metal_painted', SEAM);
   }
   f.solid(0, 0, 0, L, h + 0.04, d, { minimap: 'cover' });
 }
