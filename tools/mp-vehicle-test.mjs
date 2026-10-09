@@ -188,6 +188,7 @@ try {
   const fps = await Promise.all([host, anna, bert].map((p) => ev(p, () => window.__game.renderer.info().fps)));
   info(`Bildrate (SwiftShader, drei Seiten): Host ${fps[0]}, Anna ${fps[1]}, Bert ${fps[2]} FPS`);
   // Host: Feind-Bots ruhen (kein Beschuss, keine Werfer), Menschen unverwundbar – geprüft wird das Netz, nicht das Gefecht
+  await ev(host, async () => { window.__groundRay = (await import('./assets/js/game/vehicles/sim.js')).groundRay; });
   await ev(host, () => {
     const G = window.__game;
     G.player.godMode = true;
@@ -227,8 +228,14 @@ try {
               const hit = V._rc ? V._rc.orig.call(G.world, o, d, 40) : G.world.raycast(o, d, 40);
               if (hit && hit.distance < len) len = hit.distance;
             }
-            // Bahn auch befahrbar: fester, ebener Boden (kein Wasser, keine Kante) alle 8 m bis 32 m
-            if (len >= 30) for (const dd of [8, 16, 24, 32]) { if (!V._clear(spot.position.clone().addScaledVector(d, dd), yaw, v.def)) { len = Math.min(len, dd - 8); break; } }
+            // Bahn auch befahrbar: fester Boden (Fahrzeug-Bodenstrahl, kein Wasser) ohne Stufe alle 6 m bis 30 m
+            if (len >= 30 && window.__groundRay) {
+              for (const dd of [6, 12, 18, 24, 30]) {
+                const o = spot.position.clone().addScaledVector(d, dd); o.y += 3;
+                const g = window.__groundRay(G.world, o, new T(0, -1, 0), 8, {});
+                if (!g || Math.abs(3 - g.distance) > 1.5) { len = Math.min(len, dd - 6); break; }
+              }
+            }
             if (len > bestLen) { bestLen = len; best = yaw; }
             if (len >= 30) break;
           }
