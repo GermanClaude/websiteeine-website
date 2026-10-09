@@ -221,6 +221,7 @@ export class MapBuilder {
     this.interiorScale = null; // 0..1: Anteil des gebackenen Innenraumlichts (null = voll; mit Sonden-Gitter gesetzt)
     this.lib = null;      // Set verfügbarer Modell-IDs (Bibliothek nutzbar) oder null (nur prozedural)
     this.library = null;  // async ({ names, models }, onProgress) → { models: Map id → Vorlage|null } (loadWorld)
+    this.timeOfDay = null; // Tageszeit-Id ('morgen' … 'abend'; Kartenzeit, falls nicht gewählt) – props.js lampsOn
     this.stats = { prims: 0 };
     this._m = new THREE.Matrix4();
     this._q = new THREE.Quaternion();
@@ -377,6 +378,11 @@ export class MapBuilder {
       const oo = uvMode === 'local' && !o.uvOffset ? { ...o, uv: 'local', uvOffset: [x * 0.37 % 1, z * 0.53 % 1] } : { ...o, uv: uvMode };
       this._emit(prim, m, mat, oo, [x, y, z]);
       if (mat.startsWith('plaster') && o.damage !== false && !rotated && h >= 1.8 && w >= 1.2 && d <= 0.6) this._plasterDamage(x, y, z, w, h, d, o);
+      // wandartige Quader merken (Putzschäden: Geschoss darunter? Sockelhöhe?) – nur für den Standard-Stil
+      if (!rotated && h >= 0.2 && Math.min(w, d) <= 0.8 && this._plasterDamage === MapBuilder.prototype._plasterDamage) {
+        const L = this._wallish || (this._wallish = new FBuf(4096));
+        L.ensure(7); L.a[L.n] = x; L.a[L.n + 1] = y; L.a[L.n + 2] = z; L.a[L.n + 3] = w; L.a[L.n + 4] = h; L.a[L.n + 5] = d; L.a[L.n + 6] = o.ry || 0; L.n += 7;
+      }
     }
     if (o.collide !== false) {
       this._collTris(collBox(w, h, d), m);
@@ -550,29 +556,92 @@ export class MapBuilder {
   }
 
   /**
-   * Putzschäden an Putzwänden (F41: statt identischer Flecken alle 3 m in der Kacheltextur): je Wandseite
-   * 0–2 Stellen pro 4 m, weltweit zufällig (eigener, positionsabhängiger Zufall – der Karten-Zufall bleibt
-   * unberührt): ausgebrochener Putz mit Bruchstein/Ziegel, ausgebesserte Stellen, aufsteigende Feuchte.
+   * Putzschäden an Putzwänden – ein einheitlicher Stil für alle Karten (wie die Altstadt seit Kartenrunde 2): auf der
+   * Außenseite ein durchgehender Feuchtesockel über dem Sockel (bzw. dem Boden) und vereinzelt eine Abplatzung an der
+   * Wandkante mit Bruchstein darunter; Obergeschosse nur selten eine Abplatzung unter dem Gesims. Nie auf der
+   * Raumseite (Innenraum-Volumen, Gebäude-/Dach-Grundriss vor der Wand): dort wirkten die früheren zufälligen
+   * Stein-/Ziegel-/Flickstellen wie Blutflecken (Grenzland: über dem Altarkreuz der Kapelle, am Flaschenregal im
+   * Gasthaus). Hier nur vormerken – aufgelöst in build() (_resolvePlasterDamage), wenn alle Innenräume, Sockel und
+   * Geschosse bekannt sind. Eigener, positionsabhängiger Zufall (der Karten-Zufall bleibt unberührt).
+   * Karten können den Stil je Aufbau ersetzen (b._plasterDamage = …, siehe maps/altstadt-ausstattung.js).
    */
   _plasterDamage(x, y, z, w, h, d, o) {
-    let seed = (Math.imul(Math.round(x * 100), 73856093) ^ Math.imul(Math.round(z * 100), 19349663) ^ Math.imul(Math.round(y * 100) + 7, 83492791)) >>> 0;
-    const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-    const ry = o.ry || 0, c = Math.cos(ry), sn = Math.sin(ry);
-    const tx = c, tz = -sn, nzx = sn, nzz = c; // lokale +x (Wandlänge) und +z (Wandnormale) in Welt
-    for (const side of [1, -1]) {
-      const n = Math.min(Math.floor(rnd() * 1.8 * (w / 4) + rnd() * 0.6), Math.ceil(w / 4) * 2);
-      for (let i = 0; i < n; i++) {
-        const k = rnd();
-        const cell = k < 0.42 ? 'chip_stone' : k < 0.6 ? 'chip_brick' : k < 0.85 ? 'plaster_patch' : 'damp';
-        const sw = cell === 'damp' ? 1.2 + rnd() * 1.6 : 0.45 + rnd() * 0.85, sh = cell === 'damp' ? 0.6 + rnd() * 0.5 : sw * (0.55 + rnd() * 0.35);
-        if (sw > w - 0.3 || sh > h - 0.5) continue;
-        const u = (rnd() - 0.5) * (w - sw - 0.2);
-        const v = cell === 'damp' ? sh / 2 + 0.02 : 0.3 + sh / 2 + rnd() * Math.max(0, h - 0.6 - sh);
-        const off = side * (d / 2);
-        this.decal(x + tx * u + nzx * off, y + v, z + tz * u + nzz * off, sw, sh, cell, {
-          normal: [nzx * side, 0, nzz * side], tangent: [tx * side, 0, tz * side],
-          tint: cell === 'plaster_patch' ? o.tint : undefined, opacity: cell === 'damp' ? 0.8 : 1,
-        });
+    (this._plasterQ || (this._plasterQ = [])).push({ x, y, z, w, h, d, ry: o.ry || 0 });
+  }
+
+  /** Vorgemerkte Putzschäden als Wand-Decals anlegen (siehe _plasterDamage). */
+  _resolvePlasterDamage() {
+    const Q = this._plasterQ, WL = this._wallish;
+    this._plasterQ = null; this._wallish = null;
+    if (!Q || !Q.length) return;
+    // Raster (4 m) über die wandartigen Quader [x, y, z, w, h, d, ry]
+    const A = WL ? WL.a : new Float32Array(0), nW = WL ? WL.n / 7 : 0, cs = 4, cells = new Map();
+    for (let i = 0; i < nW; i++) {
+      const k = i * 7, r = Math.hypot(A[k + 3], A[k + 5]) / 2;
+      for (let gx = Math.floor((A[k] - r) / cs); gx <= Math.floor((A[k] + r) / cs); gx++) {
+        for (let gz = Math.floor((A[k + 2] - r) / cs); gz <= Math.floor((A[k + 2] + r) / cs); gz++) {
+          const key = gx * 8192 + gz;
+          let c = cells.get(key);
+          if (!c) cells.set(key, c = []);
+          c.push(i);
+        }
+      }
+    }
+    // erster wandartiger Quader, der den Punkt enthält und test(i) erfüllt (lokal: Länge x, Dicke z, Höhe ab Unterkante)
+    const find = (px, py, pz, test) => {
+      const list = cells.get(Math.floor(px / cs) * 8192 + Math.floor(pz / cs));
+      if (!list) return -1;
+      for (const i of list) {
+        const k = i * 7, c = Math.cos(A[k + 6]), sn = Math.sin(A[k + 6]), dx = px - A[k], dz = pz - A[k + 2];
+        const lx = dx * c - dz * sn, lz = dx * sn + dz * c;
+        if (Math.abs(lx) <= A[k + 3] / 2 + 0.02 && Math.abs(lz) <= A[k + 5] / 2 + 0.02 && py >= A[k + 1] - 0.02 && py <= A[k + 1] + A[k + 4] + 0.02 && (!test || test(k))) return i;
+      }
+      return -1;
+    };
+    // Raumseite? Innenraum-Volumen oder unter einem Gebäude-/Dach-Grundriss (auch Bauten ohne Innenraum-Volumen)
+    const roofs = this.footprints.filter(f => f.kind === 'building' || f.kind === 'roof');
+    const indoor = (px, py, pz) => {
+      if (this.interiors.length && this._interiorAt(px, py, pz)) return true;
+      for (const f of roofs) {
+        const c = Math.cos(f.ry || 0), sn = Math.sin(f.ry || 0), dx = px - f.x, dz = pz - f.z;
+        if (Math.abs(dx * c - dz * sn) > f.hw || Math.abs(dx * sn + dz * c) > f.hd) continue;
+        if (f.kind === 'building' ? (py >= f.y0 && py <= f.y1) : (f.y0 > py && f.y0 - py < 8)) return true;
+      }
+      return false;
+    };
+    for (const q of Q) {
+      const { x, y, z, w, h, d } = q;
+      let seed = (Math.imul(Math.round(x * 100), 73856093) ^ Math.imul(Math.round(z * 100), 19349663) ^ Math.imul(Math.round(y * 100) + 7, 83492791)) >>> 0;
+      const R = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+      const c = Math.cos(q.ry), sn = Math.sin(q.ry);
+      const tx = c, tz = -sn, nx0 = sn, nz0 = c; // lokale +x (Wandlänge) und +z (Wandnormale) in Welt
+      // Erdgeschoss: steht die Wand auf keinem anderen Wandquader (Geschoss/Sturz darunter)?
+      let ground = true;
+      for (const u of [-w / 2 + 0.3, 0, w / 2 - 0.3]) if (find(x + tx * u, y - 0.15, z + tz * u) >= 0) { ground = false; break; }
+      for (const side of [1, -1]) {
+        const off = side * (d / 2), nx = nx0 * side, nz = nz0 * side;
+        const fx = x + nx0 * off, fz = z + nz0 * off;
+        if (indoor(fx + nx * 0.25, y + 1.0, fz + nz * 0.25)) continue; // Raumseite: glatt verputzt
+        const dec = (u, v, sw, sh, cell, opacity) => this.decal(fx + tx * u, y + v, fz + tz * u, sw, sh, cell, { normal: [nx, 0, nz], tangent: [tx * side, 0, tz * side], opacity });
+        if (ground) {
+          // Sockel (niedriger Quader an derselben Unterkante, z. B. Steinsockel aus arch.wall plinth) → Feuchte darüber
+          const bi = find(fx + nx * 0.01, y + 0.1, fz + nz * 0.01, (k) => Math.abs(A[k + 1] - y) < 0.06 && A[k + 4] <= 0.95);
+          const base = bi >= 0 ? A[bi * 7 + 4] : 0, b0 = Math.max(0, base - 0.07);
+          if (w >= 0.9) {
+            // Feuchtesockel durchgehend, lange Wände in Abschnitten ≤ 4 m (ein gestrecktes Decal würde verschmieren)
+            const n = Math.ceil((w - 0.1) / 4), sw = (w - 0.1) / n;
+            for (let i = 0; i < n; i++) { const sh = 0.5 + R() * 0.22; if (b0 + sh < h - 0.3) dec(-w / 2 + 0.05 + (i + 0.5) * sw, b0 + sh / 2, sw + 0.02, sh, 'damp', 0.42 + R() * 0.14); }
+          }
+          // Abplatzung an der Kante (Ecke/Laibung) direkt über dem Sockel – Bruchstein darunter
+          if (w >= 1.3 && R() < 0.38) {
+            const sw = Math.min(w * 0.42, 0.5 + R() * 0.4), sh = sw * (0.55 + R() * 0.2), e = R() < 0.5 ? -1 : 1;
+            dec(e * (w / 2 - sw / 2 - 0.03), base + 0.03 + sh / 2, sw, sh, 'chip_stone', 1);
+          }
+        } else if (w >= 1.3 && h >= 2 && R() < 0.16) {
+          // Obergeschoss: vereinzelt unter dem Gesims an der Kante
+          const sw = 0.42 + R() * 0.3, sh = sw * (0.55 + R() * 0.2), e = R() < 0.5 ? -1 : 1;
+          dec(e * (w / 2 - sw / 2 - 0.03), h - 0.32 - sh / 2, sw, sh, 'chip_stone', 1);
+        }
       }
     }
   }
@@ -791,7 +860,8 @@ export class MapBuilder {
     }
     await step(0.62, 'Details');
 
-    // Decals, Schilder, Foliage
+    // Decals, Schilder, Foliage (Putzschäden erst jetzt: alle Innenräume/Sockel/Geschosse sind bekannt)
+    this._resolvePlasterDamage();
     const decalMeshes = this._buildDecals(group);
     const signMesh = this._buildSigns(group, meshes);
     const foliage = createFoliage(this.plants, quality);

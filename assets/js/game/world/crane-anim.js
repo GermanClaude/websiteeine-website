@@ -193,6 +193,7 @@ export function createTrack(o) {
 export function partBuilder(b) {
   const pb = new MapBuilder({ bounds: { minX: -1e5, maxX: 1e5, minZ: -1e5, maxZ: 1e5 }, seed: 1, chunkSize: 1e6 });
   pb.lookQuality = b.lookQuality;
+  pb.timeOfDay = b.timeOfDay;
   return pb;
 }
 

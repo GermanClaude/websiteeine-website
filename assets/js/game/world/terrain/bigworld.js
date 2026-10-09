@@ -36,7 +36,8 @@ const BIG_MAPS = {
 };
 export const BIG_MAP_IDS = Object.keys(BIG_MAPS);
 
-/** Budgets je Qualitätsstufe (GROSSKAMPF_PLAN §3.4; Handy = low). */
+/** Budgets je Qualitätsstufe (GROSSKAMPF_PLAN §3.4; Handy = low). density: Anteil der kollisionslosen Büsche/Schilf –
+ * Bäume und Felsen (Kollision) stehen auf jeder Stufe vollständig (Mehrspieler, terrain/vegetation.js). */
 export const BIG_TIERS = {
   low: { view: 340, steps: [2, 4, 8, 16], dists: [56, 150, 260], treeNear: 55, treeFar: 330, grass: 12, grassStep: 1.7, grassCap: 220, treeShadow: false, density: 0.55, far: 700, mapPx: 512, siteCull: 210, shadow: 24 },
   medium: { view: 600, steps: [1, 2, 4, 8], dists: [48, 150, 330], treeNear: 90, treeFar: 580, grass: 25, grassStep: 1.4, grassCap: 1600, grassBlades: 10, treeShadow: false, density: 0.8, far: 900, mapPx: 1024, siteCull: 520, shadow: 40 },
@@ -166,6 +167,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
       const vb = { minX: s.bounds.minX - 12, maxX: s.bounds.maxX + 12, minZ: s.bounds.minZ - 12, maxZ: s.bounds.maxZ + 12 };
       const b = new MapBuilder({ bounds: vb, seed: (def.seed || 1) + k * 101, chunkSize: s.chunkSize || (quality === 'low' ? 64 : 48), groundNoise: s.groundNoise ?? 0.12, interiorTint: s.interiorTint });
       b.lookQuality = quality; // env-look: Detailformen ab medium
+      b.timeOfDay = conditions.time || meta.timeDefault || null; // props.js lampsOn (Laternen nur abends)
       if (libOk) {
         b.lib = lib.modelIds();
         b.library = async (req, onProg) => { const r = await lib.load({ ...req, plan: libPlan }, onProg); resolveLibraryMaterials(r.sets); return r; };
@@ -195,6 +197,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
     const vb = { minX: s.bounds.minX - 12, maxX: s.bounds.maxX + 12, minZ: s.bounds.minZ - 12, maxZ: s.bounds.maxZ + 12 };
     const b = new MapBuilder({ bounds: vb, seed: (def.seed || 1) + 7919 + k * 101, chunkSize: s.chunkSize || 64, groundNoise: 0, interiorTint: s.interiorTint });
     b.lookQuality = quality;
+    b.timeOfDay = conditions.time || meta.timeDefault || null;
     if (libOk) {
       b.lib = lib.modelIds();
       b.library = async (req, onProg) => { const r = await lib.load({ ...req, plan: libPlan }, onProg); resolveLibraryMaterials(r.sets); return r; };

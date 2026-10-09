@@ -218,6 +218,8 @@ export async function loadWorld(G, mapId, opts = {}) {
     water: o => { const w = createWater(o); waters.push(w); return w; },
   };
   b.lookQuality = quality; // env-look: Detailformen (Sandsäcke) ab medium
+  // Tageszeit für Requisiten (props.js lampsOn: Laternen leuchten nur abends) – gewählte bzw. aufgelöste Zeit, sonst Kartenzeit
+  b.timeOfDay = conditions.time || meta?.timeDefault || null;
   // Texturen, die Requisiten direkt anfordern (Kran, Wasser …), nicht sofort im Hauptthread erzeugen:
   // Platzhalter jetzt, Daten gesammelt im Worker-Pool während b.build() (preloadMaterials)
   deferTextureGeneration(true);

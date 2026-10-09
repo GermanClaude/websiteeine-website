@@ -7,8 +7,9 @@ import { building, wall, stairs, railing, catwalk } from '../arch.js';
 import {
   frame, container, crateStack, barrel, barrelGroup, palletStack, sandbags, jersey, cone,
   forklift, truck, van, car, lampPost, fence, tires, cableReel, gasBottles, electricBox, pipe,
-  workbench, lockers, dumpster, tank, roofVent, dress, hash01,
+  workbench, lockers, dumpster, tank, roofVent, dress, hash01, lampsOn,
 } from '../props.js';
+import { offenerContainer } from './hafen-ausstattung.js';
 import { craneClock, createTrack, partBuilder, partGroup, place, inView } from '../crane-anim.js';
 import {
   stahlTreppe, coilLager, pendel, leuchtband, flutMast, schiebetuer, mgNest, schreibtisch, stuhl, aktenschrank,
@@ -311,7 +312,8 @@ function furnace(b, x0, z0, x1, z1, s) {
 
 /** Warmer Lichtkegel einer Natriumlampe auf dem Boden (additives Decal, auf allen Stufen, ohne Lichtkosten). */
 function lampPool(b, x, z, size) {
-  // feste Drehung: der Karten-Zufall (Requisiten danach) bleibt unverändert
+  // nur abends (wie das Leuchten der Laterne, props.js lampsOn); feste Drehung: der Karten-Zufall bleibt unverändert
+  if (!lampsOn(b)) return;
   b.decal(x, 0.016, z, size, size * 0.92, 'puddle', { kind: 'light', tint: '#ff9a3c', opacity: 0.3, ry: x * 0.7 });
   b.decal(x, 0.017, z, size * 0.45, size * 0.42, 'puddle', { kind: 'light', tint: '#ffb060', opacity: 0.22, ry: z * 0.9 });
 }
@@ -845,12 +847,15 @@ function half(b, M, ctx) {
   b.wedge(-HX + 0.5 + 2.0, 0, Z(12), 4.0, 1.2, 4.0, 'concrete', { ry: -Math.PI / 2, tint: '#7f7b74', uv: 'world', minimap: 'stairs' });
   b.navLine(-HX - 2.5, 1.4, Z(12), -HX + 4.6, 0.2, Z(12), 1.0);
   if (south) { b.wedge(-HX + 0.5 + 2.0, 0, 0, 4.0, 1.2, 4.0, 'concrete', { ry: -Math.PI / 2, tint: '#7f7b74', uv: 'world', minimap: 'stairs' }); b.navLine(-HX - 2.5, 1.4, 0, -HX + 4.6, 0.2, 0, 1.0); }
-  // Angedockter Sattelzug + Container
-  truck(b, -34.3, Z(12), { ry: -Math.PI / 2, trailer: south ? 'box' : 'container', color: south ? '#2d5f94' : '#c8402f', boxColor: '#d8d8d2', containerColor: '#3e7a4c', logo: south ? 'title' : undefined });
+  // Angedockter Sattelzug + Container (x so, dass das Auflieger-Heck wie bisher an der Rampe steht: der Auflieger
+  // sitzt seit der Korrektur in props.js truck() 1,1 m weiter hinten – vorher ragte er in die Kabine)
+  truck(b, -35.4, Z(12), { ry: -Math.PI / 2, trailer: south ? 'box' : 'container', color: south ? '#2d5f94' : '#c8402f', boxColor: '#d8d8d2', containerColor: '#3e7a4c', logo: south ? 'title' : undefined });
   container(b, -45.5, 0, Z(19.5), { len: 12.19, ry: Math.PI / 2, color: south ? '#8d9399' : '#2d5f94' });
   container(b, -45.5, 2.59, Z(19.5), { len: 6.06, ry: Math.PI / 2 + 0.03, color: south ? '#c8402f' : '#d9762a' });
   b.noNav(-47, Z(13), -44, Z(26), 2, 30);
-  container(b, -38.5, 0, Z(33.0), { len: 6.06, ry: 0.15 * s, color: '#3e7a4c', openDoors: south });
+  // Süd: offener, begehbarer Container (hohle Hülle, Holzboden, Ladung hinten – wie im Hafen), Nord: geschlossen
+  if (south) offenerContainer(b, -38.5, Z(33.0), { len: 6.06, ry: 0.15 * s, color: '#3e7a4c' });
+  else container(b, -38.5, 0, Z(33.0), { len: 6.06, ry: 0.15 * s, color: '#3e7a4c' });
   // Bunker (Erzbunker) auf Stützen nahe der Hofmitte (nur Süd) / Waage (Nord)
   if (south) hopper(b, -44.5, 3.0); else weighbridge(b, -42, -4.5);
   forklift(b, -32.4, Z(1.0), { ry: M.ry(-Math.PI / 2 + 0.3), load: 'boxes' });

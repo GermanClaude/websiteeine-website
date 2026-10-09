@@ -221,12 +221,15 @@ export function deckenleuchte(b, x, yDecke, z, ry, len = 1.25, o = {}) {
  * ISO-Container mit geöffneten Türen (Türseite lokal +x), begehbar: Holzboden 0,16 m (Stufe), Kollision als hohle
  * Hülle (Wände 6 cm, Dach, Türrahmen), Türflügel ~100° aufgeklappt, hinten etwas Ladung (Kisten mit Kollision,
  * Kartons ohne). Dachfläche ohne Navigation, innen eine Navigationslinie (Bots können hinein und wieder heraus).
- * ry nur in 90°-Schritten (Innenraum-Abdunklung achsenparallel). o: { len (6,06|12,19), ry, color, cargo }
+ * ry beliebig (auch Werk-Hof: 0,15); Innenraum-Abdunklung (achsenparallel) nur bei 90°-Schritten, sonst dunklere
+ * Innenhaut. o: { len (6,06|12,19), ry, color, cargo, nav }
  */
 export function offenerContainer(b, x, z, o = {}) {
   const len = o.len ?? 6.06, H = CONTAINER_H, W = CONTAINER_W, ry = o.ry || 0, color = o.color || '#2d5f94';
   const f = frame(b, x, 0, z, ry);
-  const dark = shade(color, 0.72), innen = shade(color, 0.55);
+  // Innenraum-Volumen sind achsenparallel: nur bei 90°-Drehungen eines anlegen, sonst die Innenhaut gleich dunkler
+  const axis = Math.abs(Math.sin(2 * ry)) < 1e-3;
+  const dark = shade(color, 0.72), innen = shade(color, axis ? 0.55 : 0.36);
   const L2 = len / 2, W2 = W / 2, t = 0.06, fl = 0.16;
   const V = { ...KEIN, uv: 'local' };
   // Außenhaut + dunklere Innenhaut (Seiten, Stirnwand, Dach)
@@ -277,7 +280,7 @@ export function offenerContainer(b, x, z, o = {}) {
   b.footprints.push({ x, z, hw: len / 2, hd: W2, ry, y0: 0, y1: H, kind: 'container' });
   // Innenraum dunkler (achsenparallel; Türseite offen)
   const c = Math.abs(Math.cos(ry)) > 0.5, ix = (c ? len / 2 : W2) - t - 0.02, iz = (c ? W2 : len / 2) - t - 0.02;
-  b.interior(x - ix, z - iz, x + ix, z + iz, fl - 0.05, H - t - 0.02, 0.58);
+  if (axis) b.interior(x - ix, z - iz, x + ix, z + iz, fl - 0.05, H - t - 0.02, 0.58);
   // Ladung hinten: Kisten (Kollision), Palette mit Säcken, Kartons (ohne)
   if (o.cargo !== false) {
     const back = -L2 + t + 0.02, rot = ry + Math.PI / 2;
@@ -300,7 +303,9 @@ export function offenerContainer(b, x, z, o = {}) {
     }
   }
   // Navigation: Dach ausgeschlossen, Linie von draußen vor der Tür bis vor die Ladung
-  const hx = (c ? len / 2 : W2) + 0.4, hz = (c ? W2 : len / 2) + 0.4;
+  // (gedrehte Hülle: Ausdehnung der Ecken; bei 90°-Schritten wie bisher)
+  const ac = Math.abs(Math.cos(ry)), as = Math.abs(Math.sin(ry));
+  const hx = ac * len / 2 + as * W2 + 0.4, hz = as * len / 2 + ac * W2 + 0.4;
   b.noNav(x - hx, z - hz, x + hx, z + hz, 1.2, 30);
   if (o.nav !== false) {
     const [ax, az] = f.P(L2 + 1.5, 0), [ex, ez] = f.P(-L2 + (len > 8 ? 3.6 : 2.3), 0);

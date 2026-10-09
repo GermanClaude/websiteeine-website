@@ -4,7 +4,8 @@
 // Bei Abweichungen: Orte (2-m-Raster) mit den meisten nur auf einer Stufe vorhandenen Dreiecken.
 //
 //   node tools/collision-hash.mjs [--maps=hafen,altstadt,werk,range,grenzland] [--qualities=low,medium,high] [--top=12] [--out=datei.json]
-//   Jede weitere Stufe wird mit der ersten verglichen. Ergebnis zusätzlich in tools/out/collision-hash.json (bzw. --out).
+//   Jede weitere Stufe wird mit der ersten verglichen; „<stufe>-nolib“ (z. B. low-nolib) lädt ohne Asset-Bibliothek
+//   (lib=0, wie Geräte ohne komprimierte Texturen) – prüft, dass keine Kollision vom Laden der Modelle abhängt. Ergebnis zusätzlich in tools/out/collision-hash.json (bzw. --out).
 //   Exit-Code 1 bei Abweichung.
 //   --no-veg: Großkarte ohne Vegetations-Kollision (Stämme/Felsen) – prüft nur Orte, Requisiten und Gelände.
 // Server: NP_BASE (Standard :8765). Rechenintensiv (SwiftShader): nur eine Seite gleichzeitig.
@@ -35,7 +36,9 @@ async function measure(map, quality) {
     });
   }
   const t0 = Date.now();
-  await page.goto(`${BASE}dev/world.html?map=${map}&quality=${quality}&debug=0`, { waitUntil: 'load' });
+  // Variante „<stufe>-nolib“: ohne Asset-Bibliothek (lib=0 – wie Geräte ohne komprimierte Texturen/Transcoder)
+  const [qual, variant] = quality.split('-');
+  await page.goto(`${BASE}dev/world.html?map=${map}&quality=${qual}&debug=0${variant === 'nolib' ? '&lib=0' : ''}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__dev && window.__dev.ready, null, { timeout: 420000 });
   const r = await page.evaluate(() => {
     window.__dev.paused = true; // Bildschleife anhalten (Rechenzeit)

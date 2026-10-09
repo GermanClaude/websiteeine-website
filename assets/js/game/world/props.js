@@ -326,9 +326,15 @@ export function cone(b, x, z, o = {}) {
 // ---------------------------------------------------------------------------
 // Fahrzeuge
 // ---------------------------------------------------------------------------
+/**
+ * Rad: Achse quer zur Fahrzeuglänge (lokal x, wie rad() in maps/hafen-fahrzeuge.js), (lx, ly, lz) = Radmitte –
+ * mit ly = r steht der Reifen auf dem Boden. Felge leicht nach außen versetzt. (Früher drehte ry: π/2 die Achse
+ * in Längsrichtung: Räder standen quer zur Fahrtrichtung.)
+ */
 function wheel(f, lx, ly, lz, r, w) {
-  f.cyl(lx, ly, lz, r, w, 'rubber', { axis: 'x', ry: Math.PI / 2, collide: false, minimap: false, seg: 14 });
-  f.cyl(lx + 0, ly, lz, r * 0.55, w + 0.02, 'metal_galvanized', { axis: 'x', ry: Math.PI / 2, collide: false, minimap: false, seg: 10 });
+  const side = Math.sign(lx) || 1;
+  f.cyl(lx, ly, lz, r, w, 'rubber', { axis: 'x', collide: false, minimap: false, seg: 14, grad: false });
+  f.cyl(lx + side * 0.012, ly, lz, r * 0.55, w + 0.012, 'metal_galvanized', { axis: 'x', collide: false, minimap: false, seg: 10, ao: false });
 }
 
 /** PKW (lokal z = Länge). style: 'sedan'|'hatch'|'wreck' */
@@ -399,8 +405,9 @@ export function truck(b, x, z, o = {}) {
   for (const sx of [-1, 1]) { wheel(f, sx * 1.05, 0.52, cabZ + 0.2, 0.52, 0.35); wheel(f, sx * 1.05, 0.52, cabZ - 2.6, 0.52, 0.4); }
   f.solid(0, 0, cabZ, 2.5, 3.4, 2.4, { minimap: 'vehicle' });
   if (o.trailer === null) return;
-  // Auflieger
-  const tl = 12.2, tz = cabZ - 1.7 - tl / 2 + 1.2;
+  // Auflieger: Vorderkante 0,5 m hinter der Kabine (Kabine bis cabZ − 1,1; vorher ragte er 0,6 m hinein – wie lkw()
+  // in maps/hafen-fahrzeuge.js)
+  const tl = 12.2, tz = cabZ - 1.6 - tl / 2;
   const tt = o.trailer || 'box';
   f.box(0, 1.05, tz, 2.5, 0.25, tl, 'metal_painted', { tint: '#3a3d40', collide: false, minimap: false, grad: false });
   for (const sx of [-1, 1]) for (const k of [0, 1, 2]) wheel(f, sx * 1.05, 0.52, tz - tl / 2 + 1.2 + k * 1.3, 0.52, 0.4);
@@ -510,7 +517,19 @@ export function cable(b, a, c, o = {}) {
   }
 }
 
-/** Straßenlaterne / Mastleuchte. kind: 'sodium'|'cool'|'warm'. light: echtes Punktlicht */
+/**
+ * Leuchten an? Nur abends (oder dunkler): Tageszeit der Karte bzw. die gewählte/aufgelöste Zeit (MapBuilder.timeOfDay,
+ * gesetzt von world/index.js und terrain/bigworld.js; online gleich für alle, „Echtzeit“ löst der Host auf).
+ */
+export function lampsOn(b) {
+  const t = b.timeOfDay;
+  return t === 'abend' || t === 'nacht';
+}
+
+/**
+ * Straßenlaterne / Mastleuchte. kind: 'sodium'|'cool'|'warm'. light: echtes Punktlicht, glow: Lichthof. Tagsüber
+ * (lampsOn = false) mattes Glas ohne Leuchten, Lichthof und Licht – wie streetLamp in maps/altstadt.js.
+ */
 export function lampPost(b, x, z, o = {}) {
   const y = o.y ?? 0, h = o.h ?? 6, ry = o.ry || 0, f = frame(b, x, y, z, ry);
   const tint = o.tint || '#3a3e43';
@@ -519,24 +538,25 @@ export function lampPost(b, x, z, o = {}) {
   const arm = o.arm ?? 1.3;
   f.box(arm / 2, h - 0.08, 0, arm, 0.08, 0.08, 'metal_painted', { tint, collide: false, minimap: false, grad: false });
   f.box(arm, h - 0.2, 0, 0.6, 0.16, 0.3, 'metal_painted', { tint, collide: false, minimap: false, grad: false });
-  const lampMat = o.kind === 'cool' ? 'lamp_cool' : o.kind === 'warm' ? 'lamp_warm' : 'lamp_sodium';
-  f.box(arm, h - 0.23, 0, 0.5, 0.03, 0.24, lampMat, { collide: false, minimap: false, ao: false, cast: false });
+  const on = lampsOn(b);
+  const lampMat = !on ? 'white' : o.kind === 'cool' ? 'lamp_cool' : o.kind === 'warm' ? 'lamp_warm' : 'lamp_sodium';
+  f.box(arm, h - 0.23, 0, 0.5, 0.03, 0.24, lampMat, { tint: on ? undefined : '#e4e2dc', collide: false, minimap: false, ao: false, cast: false });
   const [lx, lz] = f.P(arm, 0);
-  if (o.light) b.light('point', lx, y + h - 0.45, lz, { color: o.kind === 'cool' ? '#dfe9ff' : o.kind === 'warm' ? '#ffd59a' : '#ffad55', intensity: o.intensity ?? 18, distance: o.distance ?? 16, priority: o.priority ?? 1 });
-  if (o.glow) b.glow(lx, y + h - 0.3, lz, { color: o.kind === 'cool' ? '#cfe0ff' : o.kind === 'warm' ? '#ffd090' : '#ffa040', size: o.glowSize ?? 2.4, intensity: o.glow === true ? 1 : o.glow });
+  if (on && o.light) b.light('point', lx, y + h - 0.45, lz, { color: o.kind === 'cool' ? '#dfe9ff' : o.kind === 'warm' ? '#ffd59a' : '#ffad55', intensity: o.intensity ?? 18, distance: o.distance ?? 16, priority: o.priority ?? 1 });
+  if (on && o.glow) b.glow(lx, y + h - 0.3, lz, { color: o.kind === 'cool' ? '#cfe0ff' : o.kind === 'warm' ? '#ffd090' : '#ffa040', size: o.glowSize ?? 2.4, intensity: o.glow === true ? 1 : o.glow });
   return [lx, lz];
 }
 
-/** Flutlicht-Mast (mehrere Strahler). */
+/** Flutlicht-Mast (mehrere Strahler). Wie lampPost: Strahlerglas leuchtet (+ Lichthof) nur abends (lampsOn). */
 export function floodMast(b, x, z, o = {}) {
-  const y = o.y ?? 0, h = o.h ?? 10, ry = o.ry || 0, f = frame(b, x, y, z, ry);
+  const y = o.y ?? 0, h = o.h ?? 10, ry = o.ry || 0, f = frame(b, x, y, z, ry), on = lampsOn(b);
   b.cyl(x, y, z, 0.22, 0.6, 'concrete', { seg: 10, minimap: 'pillar' });
   b.cyl(x, y + 0.6, z, 0.12, h - 0.6, 'metal_galvanized', { r1: 0.08, seg: 8, minimap: false });
   f.box(0, h, 0, 2.0, 0.1, 0.1, 'metal_galvanized', { collide: false, minimap: false, grad: false });
   for (const sx of [-0.7, 0, 0.7]) {
     f.box(sx, h + 0.1, 0.05, 0.5, 0.4, 0.25, 'metal_painted', { tint: '#2f3236', collide: false, minimap: false, grad: false, rx: -0.4 });
-    f.box(sx, h + 0.16, 0.19, 0.42, 0.3, 0.02, o.kind === 'sodium' ? 'lamp_sodium' : 'lamp_cool', { collide: false, minimap: false, ao: false, rx: -0.4, cast: false });
-    if (o.glow) { const [gx, gz] = f.P(sx, 0.35); b.glow(gx, y + h + 0.3, gz, { color: o.kind === 'sodium' ? '#ffa040' : '#d8e6ff', size: o.glowSize ?? 2.6 }); }
+    f.box(sx, h + 0.16, 0.19, 0.42, 0.3, 0.02, !on ? 'white' : o.kind === 'sodium' ? 'lamp_sodium' : 'lamp_cool', { tint: on ? undefined : '#dcdad4', collide: false, minimap: false, ao: false, rx: -0.4, cast: false });
+    if (on && o.glow) { const [gx, gz] = f.P(sx, 0.35); b.glow(gx, y + h + 0.3, gz, { color: o.kind === 'sodium' ? '#ffa040' : '#d8e6ff', size: o.glowSize ?? 2.6 }); }
   }
 }
 
@@ -631,11 +651,19 @@ export function electricBox(b, x, y, z, o = {}) {
 // ---------------------------------------------------------------------------
 // Stadtmöbel
 // ---------------------------------------------------------------------------
+/** Bank (lokal: Sitzende blicken nach +z, Lehne hinten). Lehne an Stützen, die aus den hinteren Beinen aufsteigen
+ *  (vorher schwebten die Lehnenlatten hinter den Beinen, wie die Parkbank in maps/altstadt-ausstattung.js). */
 export function bench(b, x, z, o = {}) {
   const f = frame(b, x, o.y ?? 0, z, o.ry || 0);
-  for (const sx of [-0.7, 0.7]) f.box(sx, 0, 0, 0.08, 0.42, 0.45, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false });
+  const IRON = { tint: '#2b2d30', collide: false, minimap: false };
+  for (const sx of [-0.7, 0.7]) {
+    f.box(sx, 0, 0, 0.08, 0.42, 0.45, 'metal_painted', IRON);
+    // Lehnenstütze: Verlängerung des hinteren Beins über die Sitzfläche (leicht nach hinten geneigt)
+    if (o.back !== false) f.box(sx, 0.4, -0.2, 0.06, 0.5, 0.05, 'metal_painted', { ...IRON, grad: false, rx: -0.1 });
+  }
   for (let i = 0; i < 3; i++) f.box(0, 0.42, -0.15 + i * 0.15, 1.7, 0.04, 0.12, 'wood_planks', { tint: '#b58a5a', collide: false, minimap: false, grad: false });
-  if (o.back !== false) for (let i = 0; i < 2; i++) f.box(0, 0.6 + i * 0.16, -0.24, 1.7, 0.1, 0.04, 'wood_planks', { tint: '#b58a5a', collide: false, minimap: false, grad: false });
+  // Lehnenlatten vorn an den Stützen (Neigung wie die Stützen: je 0,1 m Höhe ≈ 1 cm nach hinten)
+  if (o.back !== false) for (let i = 0; i < 2; i++) { const yl = 0.58 + i * 0.16; f.box(0, yl, -0.155 - (yl + 0.05 - 0.4) * 0.1, 1.7, 0.1, 0.04, 'wood_planks', { tint: '#b58a5a', collide: false, minimap: false, grad: false, rx: -0.1 }); }
   f.solid(0, 0, 0, 1.75, 0.5, 0.5, { minimap: 'prop' });
 }
 

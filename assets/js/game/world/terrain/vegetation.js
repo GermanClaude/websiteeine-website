@@ -2,6 +2,12 @@
 // um die Kamera. Je Art ein InstancedMesh für die Nähe (Karten mit Laub-Atlas, Wind) und eines für die Ferne
 // (Einfachmodell bis zur Nebelkante); Instanzen werden nach Kamerabewegung kompakt umsortiert (wenige Draw Calls).
 // Stämme und Felsen liefern Kollisions-/Kugel-Dreiecke; Laub blockiert keine Kugeln.
+//
+// Mehrspieler: Alles mit Kollision (Bäume = Stamm-Prismen, Felsen) wird auf JEDER Grafikstufe mit voller Dichte und
+// denselben Zufallsströmen gesetzt – sonst stünden auf „niedrig“ andere Stämme als beim Gegner auf „hoch“ (unsichtbare
+// bzw. fehlende Hindernisse, verschiedene Kugeldeckung). Nur Kollisionsloses (Büsche, Schilf, Grasring) dünnt die
+// Stufe nachträglich per Positions-Hash aus (tier.density). Jeder kollidierende Baum wird auf jeder Stufe gezeichnet:
+// nah mit Laubkarten, sonst als Fernmodell (Kegel/Ikosaeder + Stamm) bis treeFar.
 import * as THREE from 'three';
 import { createFoliage, foliageUniforms, WIND_VERTEX, setWindAttribute, setFoliageQuality } from '../atlas.js';
 import { rng, hash2, createSimplex, smoothstep } from './noise.js';
@@ -132,16 +138,17 @@ function merge(geoms) {
   return out;
 }
 
-/** Ferne Fichte: Kegel + Stammstumpf. */
-function farSpruce() {
-  const cone = new THREE.ConeGeometry(2.6, 9.4, 7, 1, true); cone.translate(0, 1.5 + 4.7, 0);
-  const trunk = new THREE.CylinderGeometry(0.2, 0.25, 1.6, 4, 1, true); trunk.translate(0, 0.8, 0);
+/** Ferne Fichte: Kegel + Stammstumpf. lite (Stufe „niedrig“, zeigt seit dem Mehrspieler-Abgleich alle Bäume statt
+ *  55 %): 5 statt 7 Kegelsegmente, dreiseitiger Stamm – 16 statt 22 Dreiecke je Baum. */
+function farSpruce(lite = false) {
+  const cone = new THREE.ConeGeometry(2.6, 9.4, lite ? 5 : 7, 1, true); cone.translate(0, 1.5 + 4.7, 0);
+  const trunk = new THREE.CylinderGeometry(0.2, 0.25, 1.6, lite ? 3 : 4, 1, true); trunk.translate(0, 0.8, 0);
   return merge([cone, trunk]);
 }
-/** Ferner Laubbaum: abgeflachter Ikosaeder + Stamm. */
-function farBroadleaf() {
+/** Ferner Laubbaum: abgeflachter Ikosaeder + Stamm (lite: dreiseitig). */
+function farBroadleaf(lite = false) {
   const crown = new THREE.IcosahedronGeometry(2.9, 0); crown.scale(1, 0.82, 1); crown.translate(0, 5.0, 0);
-  const trunk = new THREE.CylinderGeometry(0.2, 0.28, 3.2, 4, 1, true); trunk.translate(0, 1.6, 0);
+  const trunk = new THREE.CylinderGeometry(0.2, 0.28, 3.2, lite ? 3 : 4, 1, true); trunk.translate(0, 1.6, 0);
   return merge([crown, trunk]);
 }
 /** Fels: verformter Ikosaeder. */
@@ -186,7 +193,9 @@ export class Vegetation {
 
   /** Deterministische Verteilung (Wälder, Randwald, Einzelbäume, Hecken, Büsche, Schilf, Felsen). */
   _place() {
-    const hf = this.hf, spec = this.spec, dens = this.tier.density ?? 1;
+    // dens: Platzierungsdichte – fest 1 (Kollision gleich auf allen Stufen); thin: Anteil der kollisionslosen
+    // Büsche/Schilf, die die Stufe zeigt (wird erst nach der Platzierung angewandt, verbraucht keinen Zufall)
+    const hf = this.hf, spec = this.spec, dens = 1, thin = this.tier.density ?? 1;
     const seed = spec.seed || 99;
     // je Abschnitt ein eigener Zufallsstrom: Änderungen an einem Abschnitt verschieben die übrigen nicht
     const r = rng(seed), noise = createSimplex(seed + 5);
@@ -341,6 +350,18 @@ export class Vegetation {
         }
       }
     }
+    // Kollisionslose Arten je Stufe ausdünnen (Positions-Hash: dieselben Büsche fallen auf jedem Rechner weg)
+    if (thin < 1) {
+      for (const kind of ['busch', 'schilf']) {
+        const sp = this.species[kind];
+        if (!sp) continue;
+        const L = sp.list, keep = [];
+        for (let i = 0; i < L.length; i += 5) {
+          if (hash2(Math.round(L[i] * 10), Math.round(L[i + 2] * 10), 29) < thin) keep.push(L[i], L[i + 1], L[i + 2], L[i + 3], L[i + 4]);
+        }
+        sp.list = keep;
+      }
+    }
     // Matrizen vorberechnen
     for (const [kind, sp] of Object.entries(this.species)) {
       const L = sp.list, n = L.length / 5;
@@ -424,12 +445,12 @@ export class Vegetation {
     const nearCap = (kind) => Math.min(sp[kind]?.count || 0, kind === 'busch' ? 3000 : 2400);
     if (sp.fichte) {
       sp.fichte.near = make(spruceGeo, foliageMat, nearCap('fichte'), 'veg-fichte', t.treeShadow);
-      const fg = farSpruce(); this._geoms.push(fg);
+      const fg = farSpruce(q === 'low'); this._geoms.push(fg);
       sp.fichte.far = make(fg, farMat, sp.fichte.count, 'veg-fichte-fern', false);
     }
     if (sp.laub) {
       sp.laub.near = make(tp.geometry, foliageMat, nearCap('laub'), 'veg-laub', t.treeShadow);
-      const fg = farBroadleaf(); this._geoms.push(fg);
+      const fg = farBroadleaf(q === 'low'); this._geoms.push(fg);
       sp.laub.far = make(fg, farMat, sp.laub.count, 'veg-laub-fern', false);
     }
     const trunkCap = nearCap('fichte') + nearCap('laub');
