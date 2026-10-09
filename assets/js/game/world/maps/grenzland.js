@@ -314,13 +314,15 @@ function bruecke(b) {
   for (const t of [-0.5, 0.5]) b.box(cx + ux * L * t, -3, cz + uz * L * t, 9, 3.0, 2.5, 'concrete', { ry, tint: '#a8a296', minimap: false });
   // Brückenköpfe: Sandsäcke, Wrack, Kisten
   const Y = 0.6; // Brückenköpfe sind auf Deckhöhe eingeebnet (Plateaus in terrain.pads)
-  sandbags(b, 28, -4, 33, -6, { rows: 4, y: Y }); sandbags(b, 41, -5, 45, -2, { rows: 4, y: Y });
+  // Straßensperre auf der Rampe: Fahrbahn liegt hier 0,75–0,9 m hoch (vorher y 0,6 → Säcke halb im Boden)
+  sandbags(b, 28, -4, 33, -6, { rows: 4, y: 0.8 }); sandbags(b, 41, -5, 45, -2, { rows: 4, y: Y });
   sandbags(b, 39, -54, 43, -56, { rows: 4, y: Y }); sandbags(b, 51, -52, 55, -49, { rows: 4, y: Y });
   car(b, 41.5, -24, { ry: ry + 0.35, color: '#5a5f63', y: Y, model: false });
-  crateStack(b, 26, 1, { ry: 0.5, y: Y });
+  // Kistenstapel neben die Rampe auf den ebenen Brückenkopf (stand bei 26/1 auf der 1,4 m hohen Rampe → 0,8 m im Boden)
+  crateStack(b, 42, 1.5, { ry: 0.5, y: Y });
   // MG-Stellungen an beiden Brückenköpfen, Blick über die Brücke (Engstelle)
   mgNest(b, 55.5, -55.5, { y: Y, ry: Math.atan2(40 - 55.5, -30 + 55.5) });
-  mgNest(b, 24.5, -3.2, { y: Y, ry: Math.atan2(40 - 24.5, -30 + 3.2) });
+  mgNest(b, 24.0, -4.6, { y: Y, ry: Math.atan2(40 - 24.0, -30 + 4.6) });
   b.noNav(-1e4, -1e4, 1e4, 1e4, -20, -1.85);
   return {};
 }
