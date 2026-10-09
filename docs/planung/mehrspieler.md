@@ -383,3 +383,4 @@ Treffer könnten entfallen oder gebündelt werden (Stufe 2). (2) Die Größe der
 wurden mit höchstens 2 gleichzeitig geprüft (mp-test). (4) Bildrate des Hosts unter echten 12 Clients auf echter Hardware
 ist ungemessen – recommend() begrenzt dort über die gemessene Bildrate (< 30 FPS → 8, < 45 → 12).
 
+- Stand 09.10. ~9:30: 24 % Wochenlimit verbraucht (nach Mehrspieler, Härtetest, Kartenrunden 1+2, VR). Rest bis zur Grenze: Abschlusskorrekturen, Regressionstest, Grenzland-Gras, Veröffentlichung, Fehler aus dem Freitagabend-Test.
