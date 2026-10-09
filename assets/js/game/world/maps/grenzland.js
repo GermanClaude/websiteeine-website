@@ -216,7 +216,7 @@ function dorf(b) {
 }
 
 /**
- * Bauernmarkt an der Kapelle (Wunsch Nathanael): drei Gemüsestände in einer Reihe westlich der Kapelle (Front zur
+ * Bauernmarkt an der Kapelle (Spielerwunsch): drei Gemüsestände in einer Reihe westlich der Kapelle (Front zur
  * Kapellenwand, 4,5 m Gang davor), zwei Stände beidseits des Wegs zum Kapellenportal (Weg 6,8 m frei), Tafel zum
  * Dorfplatz. Theken = Hockdeckung mit Kollision, Markisen kugeldurchlässig; Lücken ≥ 2,4 m für Wege/Navigation.
  * Am Ende von dorf() gebaut und ohne b.rand → übrige Dorf-Platzierung unverändert.
