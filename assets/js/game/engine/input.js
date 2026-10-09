@@ -304,6 +304,8 @@ export class Input {
     on = !!on;
     if (on === this.enabled) return;
     this.enabled = on;
+    // VR: beim Fortsetzen gehaltene Tasten (Abzug/A, mit denen im VR-Menü „Weiter“ gewählt wurde) nicht als Druck werten
+    if (on) this._xrAbsorb = true;
     this.releaseAll();
     this._pressed.clear();
     this._released.clear();
@@ -881,9 +883,12 @@ export class Input {
     }
     xs.active = true;
     let activity = false;
+    const absorb = !!this._xrAbsorb;
+    this._xrAbsorb = false;
     const edge = (code, on) => {
       if (!!this._xrPrev.get(code) === on) return;
       this._xrPrev.set(code, on);
+      if (absorb && on) return; // nach dem Fortsetzen: erst Loslassen + erneutes Drücken zählt
       activity = true;
       if (on) this._codeDown('xr', 'xr', code); else this._codeUp('xr', code);
     };

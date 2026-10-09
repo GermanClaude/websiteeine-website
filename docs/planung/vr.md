@@ -106,8 +106,12 @@ eigenes leeres `navigator.xr`). Nie unter `assets/` ausliefern.
 Geprüft (alles mit niedriger Qualität, 800 × 450): Unterstützung erkannt → Knopf → XR-Sitzung (local-floor) und Bilder
 ohne Konsolenfehler · linker Stick läuft · Schrittdrehung genau −30° · Abzug → `weapon:fire` · Handgelenk zeigt und
 aktualisiert die Munition · Headset 0,95 m → Ducken, zurück → Stehen · Kopf 30 cm seitlich bzw. 30° geneigt → Lehnen ·
-Y → Pause + VR-Menü · Stick + A „VR beenden“ → Sitzung zu, 2D-Pausenmenü, normale Schleife zeichnet wieder.
-Bildschirmfotos: `tools/out/vr/vr-ansicht.png`, `vr-feuer.png`, `vr-menue.png`, `nach-vr.png`.
+Treffer → roter Rand · Tod → Abblenden, Wiedereinstieg → Aufblenden mit Blick in Spawnrichtung · Y → Pause + VR-Menü ·
+Stick + A „VR beenden“ → Sitzung zu, 2D-Pausenmenü, Stufe wie vorher, normale Schleife zeichnet wieder · zweite
+Sitzung: Matchende → Ergebnistafel in der Brille, VR endet von selbst, Endbildschirm 2D.
+Bildschirmfotos: `tools/out/vr/vr-ansicht.png`, `vr-feuer.png`, `vr-menue.png`, `nach-vr.png`, `vr-ergebnis.png`.
+Optionen: `--quality=medium --vrq=wie` (Aussehen mit Bildschirmstufe), `--aa` (VR-Modus schon beim Laden an → MSAA-Kontext).
+Bisherige Läufe: Hafen low, Altstadt medium (+ `--aa`, mit und ohne `--vrq=wie`) – alle Prüfungen grün.
 
 Grenzen der Emulation: keine echte Bildrate/Wärme, kein echtes Handgefühl (Ausrichtung Lauf ↔ Controller), keine
 Projektions-Ebenen (IWER nutzt XRWebGLLayer), kein Systemmenü. **Der echte Test ist Nathanaels Quest 3.**

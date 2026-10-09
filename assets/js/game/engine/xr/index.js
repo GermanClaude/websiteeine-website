@@ -131,6 +131,7 @@ export class XRSystem {
     this.aimDist = AIM_RANGE;
     this._aimFrame = -1;
     this._posedFrame = -1;
+    this._poseKey = new Float64Array(7);
     this._dotT = 0;
     this._dotKind = '';
     this._menuPrev = { trig: false, a: false, nav: 0 };
@@ -560,9 +561,17 @@ export class XRSystem {
     if (p.alive) this._drop = Math.min(0, (p._eye ?? EYE.stand) - this._physEye);
     const vOff = EYE.stand - this.calib + this._drop + (Number.isFinite(p._stepSmooth) ? p._stepSmooth : 0);
     const rig = this.rig;
+    const b = p.body.position;
+    // player._updateCamera ruft je Bild bis zu dreimal: ohne Änderung (Körper, Drehung, Höhe) nur die Kamera setzen
+    const k = this._poseKey;
+    if (this._posedFrame === G.time.frame && k[0] === b.x && k[1] === b.y && k[2] === b.z && k[3] === vOff && k[4] === this.rigYaw &&
+      k[5] === this.center.x && k[6] === this.center.y) {
+      if (cam) { cam.position.copy(this.eye); cam.quaternion.copy(this.headQuat); cam.updateMatrixWorld(); }
+      return true;
+    }
+    k[0] = b.x; k[1] = b.y; k[2] = b.z; k[3] = vOff; k[4] = this.rigYaw; k[5] = this.center.x; k[6] = this.center.y;
     rig.rotation.set(0, this.rigYaw, 0);
     _v.set(this.center.x, 0, this.center.y).applyAxisAngle(UP, this.rigYaw);
-    const b = p.body.position;
     rig.position.set(b.x - _v.x, b.y + vOff, b.z - _v.z);
     rig.updateMatrixWorld(true);
     // Kopf in der Welt, 12 cm Abstand zu Wänden/Decken (das Rig weicht aus)
@@ -704,10 +713,10 @@ export class XRSystem {
     const show = alive && this.G.settings.get('vrLaser') && this.hands.main.rayW.ok && !this.menu.open && !!(vm && vm.scene && vm.scene.visible !== false);
     d.visible = show;
     if (!show) return;
-    // 2,5 mrad scheinbare Größe (beim Treffer größer), knapp vor der Fläche, zum Kopf gedreht
+    // ≈ 0,3° scheinbarer Radius (Quest 3 ≈ 7 Pixel; beim Treffer doppelt), knapp vor der Fläche, zum Kopf gedreht
     const dist = Math.max(0.5, this.eye.distanceTo(this.aimPoint));
     d.position.copy(this.aimPoint).addScaledVector(this.hands.main.rayW.dir, -0.02);
-    d.scale.setScalar(dist * (this._dotT > 0 ? 0.0055 : 0.0028));
+    d.scale.setScalar(dist * (this._dotT > 0 ? 0.01 : 0.005));
     _m.lookAt(this.eye, d.position, UP);
     d.quaternion.setFromRotationMatrix(_m);
     d.material.color.set(this._dotT > 0 ? (this._dotKind === 'kill' ? 0xff3b1f : this._dotKind === 'head' ? 0xffc23d : 0xff8a4f) : 0xffffff);

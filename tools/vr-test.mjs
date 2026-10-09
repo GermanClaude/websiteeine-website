@@ -11,6 +11,7 @@
 //                          [--timeout=240] [--aa] [--rebuild]
 //   --quality  Grafikstufe am Bildschirm (Standard low); IWER meldet den Quest-Browser → VR-Grafik „Niedrig“, danach zurück
 //   --aa       VR-Modus schon vor dem Laden an (Kontext mit MSAA wie nach dem Neuladen), sonst wird er im Match eingeschaltet
+//   --vrq=wie  Einstellung „VR-Grafik“ (auto | niedrig | wie) – „wie“ behält die Bildschirmstufe (Aussehen prüfen)
 // Emulator: npm i --prefix tools/out/vr iwer esbuild (einmalig; tools/out ist nicht im Repo). Das Bündel
 // tools/out/vr/iwer.iife.js entsteht beim ersten Lauf aus tools/vr-iwer-entry.mjs (nur Test, nie ausgeliefert).
 import { chromium, BASE as DEFAULT_BASE, GL_ARGS } from './pw.mjs';
@@ -102,7 +103,7 @@ async function frames(n) {
 }
 const shot = async (name) => {
   const p = join(OUT, `${name}.png`);
-  try { await page.screenshot({ path: p }); summary.screenshots.push(p); } catch (e) { summary.warnings.push(`Bildschirmfoto ${name}: ${e.message}`); }
+  try { await page.screenshot({ path: p, timeout: 120000 }); summary.screenshots.push(p); } catch (e) { summary.warnings.push(`Bildschirmfoto ${name}: ${e.message}`); }
 };
 
 try {
@@ -112,7 +113,7 @@ try {
   const q2d = await G(() => __game.renderer.quality);
 
   // VR-Einstellung, Emulator meldet Quest 3
-  await G(() => { __game.player.godMode = true; __game.settings.set('vrEnabled', true); });
+  await G((vrq) => { __game.player.godMode = true; __game.settings.set('vrEnabled', true); if (vrq) __game.settings.set('vrQuality', vrq); }, opt.vrq ? String(opt.vrq) : null);
   if (await until('VR unterstützt', () => window.__game.xr && window.__game.xr.supported === true, null, 30000)) pass('VR unterstützt', 'navigator.xr meldet immersive-vr (IWER Quest 3)');
   if (await until('Knopf „VR starten“', () => { const b = document.querySelector('.xr-start'); return b && !b.hidden; }, null, 30000)) pass('Knopf „VR starten“');
 
@@ -193,6 +194,26 @@ try {
   await G(() => { __iwer.quaternion.set(0, 0, 0, 1); });
   await until('Neigen zurück', () => Math.abs(window.__game.player.lean) < 0.15, null, 60000);
 
+  // Treffer → roter Rand; Tod → Abblenden; Wiedereinstieg → Aufblenden, Blick in Spawnrichtung
+  await G(() => {
+    const p = __game.player;
+    p.godMode = false;
+    const foe = __game.actors.find((a) => a !== p && a.alive && __game.combat.isHostile(p, a)) || null;
+    __game.combat.damage(p, { amount: 30, attacker: foe, weaponId: 'ar_m17', zone: 'body', dir: new __game.THREE.Vector3(1, 0, 0) });
+  });
+  const hurt = await G(() => __game.xr.overlay.hurt);
+  if (hurt > 0.2) pass('Trefferrand', `Stärke ${hurt.toFixed(2)}`); else fail('Trefferrand', `Stärke ${hurt}`);
+  await G(() => __game.combat.damage(__game.player, { amount: 999, attacker: null, weaponId: 'world', zone: 'body' }));
+  if (await until('Tod: Abblenden', () => !window.__game.player.alive && window.__game.xr.overlay.fade > 0.4, null, 60000)) pass('Tod: Abblenden', await G(() => `fade ${__game.xr.overlay.fade.toFixed(2)}`));
+  if (await until('Wiedereinstieg', () => window.__game.player.alive && window.__game.xr.overlay.fade < 0.6, null, 180000)) {
+    pass('Wiedereinstieg', await G(() => {
+      const f = __game.xr.headFwd;
+      const yaw = Math.atan2(-f.x, -f.z);
+      return `fade ${__game.xr.overlay.fade.toFixed(2)}, Blick ${(yaw * 180 / Math.PI).toFixed(0)}° / Spieler ${(__game.player.yaw * 180 / Math.PI).toFixed(0)}°`;
+    }));
+  }
+  await G(() => { __game.player.godMode = true; });
+
   // VR-Menü: Y (linke Hand) → Pause + Menü in der Brille
   await G(() => __iwer.controllers.left.updateButtonValue('y-button', 1));
   await frames(2);
@@ -222,12 +243,27 @@ try {
   // Fortsetzen (2D): die normale rAF-Schleife simuliert und zeichnet wieder (das unscharfe Pausenmenü bremst SwiftShader stark)
   await G(() => __game.debugApi.resume());
   await until('weiter im 2D-Spiel', () => window.__game.match.state === 'playing', null, 30000);
+  // (nach dem Zurückschalten der Stufe kompiliert SwiftShader die Shader der Nachbearbeitung neu – erstes Bild dauert)
   const g0 = await G(() => __game.time.frame);
-  await sleep(4000);
-  const g1 = await G(() => __game.time.frame);
-  if (g1 > g0) pass('normale Schleife läuft wieder', `${g1 - g0} Bilder in 4 s, renderer.xr.isPresenting ${await G(() => __game.renderer.renderer.xr.isPresenting)}`);
-  else fail('normale Schleife läuft wieder', 'keine Bilder');
+  const t0 = Date.now();
+  if (await until('normale Schleife läuft wieder', (f) => window.__game.time.frame >= f + 3, g0, 120000)) {
+    pass('normale Schleife läuft wieder', `3 Bilder nach ${((Date.now() - t0) / 1000).toFixed(1)} s, renderer.xr.isPresenting ${await G(() => __game.renderer.renderer.xr.isPresenting)}`);
+  }
   await shot('nach-vr');
+
+  // Zweite Sitzung: Matchende in VR → Ergebnistafel, VR endet von selbst, Endbildschirm 2D
+  if (await until('Knopf „VR starten“ (2. Mal)', () => { const b = document.querySelector('.xr-start'); return b && !b.hidden; }, null, 30000)) {
+    await page.click('.xr-start');
+    if (await until('XR-Sitzung (2. Mal)', () => window.__game.xr.presenting && window.__game.xr.ready, null, 120000)) {
+      await G(() => __game.debugApi.endMatch());
+      if (await until('Ergebnistafel in VR', () => window.__game.xr.menu.open && window.__game.xr.menu.kind === 'result', null, 60000)) {
+        pass('Ergebnistafel in VR', await G(() => __game.xr.menu.title));
+        await frames(2);
+        await shot('vr-ergebnis');
+      }
+      if (await until('VR endet nach dem Match', () => !window.__game.xr.presenting, null, 120000)) pass('VR endet nach dem Match', await G(() => `Zustand ${__game.match.state}`));
+    }
+  }
 } catch (err) {
   fail('Ablauf', err && err.message ? err.message : String(err));
 }
