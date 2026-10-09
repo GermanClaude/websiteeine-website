@@ -29,8 +29,12 @@ const TOUCH_RAD_PER_PX = 0.0054;
 const MIRROR_PAIR = { leanL: 'leanR', leanR: 'leanL' };
 const PAD_YAW_RATE = 3.4; // rad/s bei Vollausschlag
 const PAD_PITCH_RATE = 2.3;
-const SOURCES = ['key', 'mouse', 'pad', 'touch', 'auto', 'sim'];
-const DIGITAL = ['key', 'mouse', 'pad', 'sim'];
+// xr: VR-Controller-Tasten (Belegung, Gerät 'xr'); xrpose: aus der Haltung abgeleitete Aktionen (Waffe am Auge = Zielen, engine/xr)
+const SOURCES = ['key', 'mouse', 'pad', 'touch', 'auto', 'sim', 'xr', 'xrpose'];
+const DIGITAL = ['key', 'mouse', 'pad', 'sim', 'xr'];
+// VR-Codes je Hand (Haupthand H, Nebenhand N; xr-standard-Tasten 0–6) – einmal erzeugt, keine Zeichenketten je Bild
+const XR_BTN = { H: [0, 1, 2, 3, 4, 5, 6].map((i) => `XrH${i}`), N: [0, 1, 2, 3, 4, 5, 6].map((i) => `XrN${i}`) };
+const XR_STICK_DZ = 0.15;
 /** Aktionen, die input.js bei „Umschalten“ selbst einrastet (Sprint/Ducken entscheidet der Spieler). */
 const LATCHABLE = new Set(['ads', 'lean_left', 'lean_right']);
 const EMPTY = Object.freeze([]);
@@ -153,8 +157,11 @@ export class Input {
     this._pressed = new Set();
     this._released = new Set();
     this._latched = new Set();
-    this._maps = { kb: codeMap(this.bindings, 'kb'), pad: codeMap(this.bindings, 'pad') };
-    this._codes = { kb: new Map(), pad: new Map() }; // gehaltene Codes → { src, acts }
+    this._maps = { kb: codeMap(this.bindings, 'kb'), pad: codeMap(this.bindings, 'pad'), xr: codeMap(this.bindings, 'xr') };
+    this._codes = { kb: new Map(), pad: new Map(), xr: new Map() }; // gehaltene Codes → { src, acts }
+    /** VR (engine/xr): Sticks der Controller – move (Nebenhand, wie move), turn (Haupthand x, −1 … 1); active während der Sitzung. */
+    this.xr = { active: false, move: { x: 0, y: 0 }, turn: 0, stickY: 0 };
+    this._xrPrev = new Map();
     this._kbLayout = null;
     this._capture = null;
     this._mouseDX = 0;
@@ -202,9 +209,9 @@ export class Input {
       clear: () => { this._held.sim.clear(); this._simMove = null; },
       /** Physische Taste über die Belegung (Tests): code wie „KeyQ“, „Mouse0“, „Pad6+Pad10“ wird zerlegt. */
       code: (code, down = true) => {
-        const dev = code.startsWith('Pad') ? 'pad' : 'kb';
+        const dev = code.startsWith('Pad') ? 'pad' : code.startsWith('Xr') ? 'xr' : 'kb';
         const parts = code.split('+');
-        if (down) for (const c of parts) this._codeDown(dev === 'pad' ? 'pad' : c.startsWith('Mouse') ? 'mouse' : 'key', dev, c);
+        if (down) for (const c of parts) this._codeDown(dev === 'pad' ? 'pad' : dev === 'xr' ? 'xr' : c.startsWith('Mouse') ? 'mouse' : 'key', dev, c);
         else for (const c of parts.reverse()) this._codeUp(dev, c);
       },
       gyro: (dxRad, dyRad) => { this._gyroDX += dxRad; this._gyroDY += dyRad; },
@@ -215,7 +222,8 @@ export class Input {
 
   down(action) {
     const h = this._held;
-    return h.key.has(action) || h.mouse.has(action) || h.pad.has(action) || h.touch.has(action) || h.auto.has(action) || h.sim.has(action);
+    return h.key.has(action) || h.mouse.has(action) || h.pad.has(action) || h.touch.has(action) || h.auto.has(action) || h.sim.has(action) ||
+      h.xr.has(action) || h.xrpose.has(action);
   }
   pressed(action) { return this._pressed.has(action); }
   released(action) { return this._released.has(action); }
@@ -238,7 +246,7 @@ export class Input {
   active(action) {
     if (LATCHABLE.has(action) && this.behavior(action) === 'toggle') {
       const h = this._held;
-      return this._latched.has(action) || h.touch.has(action) || h.sim.has(action) || h.auto.has(action);
+      return this._latched.has(action) || h.touch.has(action) || h.sim.has(action) || h.auto.has(action) || h.xrpose.has(action);
     }
     return this.down(action);
   }
@@ -262,7 +270,7 @@ export class Input {
     this._held[src].add(action);
     if (!was) this._pressed.add(action);
     // Umschalten: Flanke eines physischen Geräts schaltet den eingerasteten Zustand
-    if (!was && LATCHABLE.has(action) && (src === 'key' || src === 'mouse' || src === 'pad') && this.behavior(action) === 'toggle') {
+    if (!was && LATCHABLE.has(action) && (src === 'key' || src === 'mouse' || src === 'pad' || src === 'xr') && this.behavior(action) === 'toggle') {
       this.setActive(action, !this._latched.has(action));
     }
   }
@@ -276,12 +284,14 @@ export class Input {
     for (const a of [...this._held[src]]) this._release(a, src);
     if (src === 'key' || src === 'mouse') { for (const [c, r] of [...this._codes.kb]) if (r.src === src) this._codes.kb.delete(c); }
     if (src === 'pad') this._codes.pad.clear(); // _padPrev bleibt: gehaltene Tasten lösen nicht erneut aus
+    if (src === 'xr') this._codes.xr.clear(); // _xrPrev bleibt (wie beim Gamepad)
   }
 
   releaseAll() {
     for (const s of SOURCES) this._releaseSource(s);
     this._codes.kb.clear();
     this._codes.pad.clear();
+    this._codes.xr.clear();
     this._latched.clear();
     this._wheelTaps.length = 0;
     this._mouseDX = this._mouseDY = this._touchDX = this._touchDY = this._gyroDX = this._gyroDY = 0;
@@ -356,10 +366,13 @@ export class Input {
     this.conflicts = findConflicts(this.bindings);
     this._maps.kb = codeMap(this.bindings, 'kb');
     this._maps.pad = codeMap(this.bindings, 'pad');
+    this._maps.xr = codeMap(this.bindings, 'xr');
     // Gehaltene Tasten mit alter Bedeutung lösen
-    for (const src of ['key', 'mouse', 'pad']) for (const a of [...this._held[src]]) this._release(a, src);
+    for (const src of ['key', 'mouse', 'pad', 'xr']) for (const a of [...this._held[src]]) this._release(a, src);
     this._codes.kb.clear();
     this._codes.pad.clear();
+    this._codes.xr.clear();
+    this._xrPrev.clear();
     // Akkord-Auslöser der Tastatur auch dann verfolgen, wenn der Modifikator selbst nichts auslöst
     this._kbMods = new Set();
     for (const list of this._maps.kb.chords.values()) for (const ch of list) this._kbMods.add(ch.mod);
@@ -370,7 +383,7 @@ export class Input {
    * (Standard: zuletzt benutztes Gerät; Touch → ''). all: alle Belegungen mit „/“ verbunden.
    */
   label(action, device = null, { all = false, long = false } = {}) {
-    const dev = device || (this.mode === 'touch' ? 'touch' : this.lastDevice === 'gamepad' ? 'pad' : 'kb');
+    const dev = device || (this.mode === 'touch' ? 'touch' : this.lastDevice === 'gamepad' ? 'pad' : this.lastDevice === 'xr' ? 'xr' : 'kb');
     if (dev === 'touch') return '';
     const list = (this.bindings[dev] && this.bindings[dev][action]) || EMPTY;
     const opts = { long, layout: this._kbLayout };
@@ -668,6 +681,7 @@ export class Input {
     const G = this.G;
     const s = G.settings;
     this._pollGamepad(dt);
+    this._pollXr();
 
     // Bewegung: digitale Tasten (frei belegt), Gamepad-Stick, Touch-Stick, Tests – der stärkste Ausschlag gewinnt
     let mx = (this._digital('move_right') ? 1 : 0) - (this._digital('move_left') ? 1 : 0);
@@ -677,6 +691,7 @@ export class Input {
     let bx = mx, by = my, bm = Math.hypot(mx, my);
     const cand = (x, y) => { const m = Math.hypot(x, y); if (m > bm) { bx = x; by = y; bm = m; } };
     cand(this._padMove.x, this._padMove.y);
+    if (this.xr.active) cand(this.xr.move.x, this.xr.move.y);
     if (this._touch) { const t = this._touch.moveVector(); cand(t[0], t[1]); }
     if (this._simMove) cand(this._simMove.x, this._simMove.y);
     this.move.x = this.enabled ? bx : 0;
@@ -828,6 +843,83 @@ export class Input {
     }
   }
 
+  /* ---------------------------------------------------------- VR-Controller */
+
+  /**
+   * VR-Sitzung an/aus (engine/xr): an = Zeiger-Sperre aus, zuletzt benutztes Gerät 'xr'; aus = alle VR-Tasten lösen.
+   * Die Controller liefern ihre Gamepads nur über die XR-Sitzung (nicht navigator.getGamepads).
+   */
+  setXr(on) {
+    if (on) { this.lastDevice = 'xr'; return; }
+    this._releaseSource('xr');
+    this._releaseSource('xrpose');
+    this._xrPrev.clear();
+    this.xr.active = false;
+    this.xr.move.x = this.xr.move.y = this.xr.turn = this.xr.stickY = 0;
+    if (this.lastDevice === 'xr') this.lastDevice = this.mode === 'touch' ? 'touch' : 'keyboard';
+  }
+
+  /** Aus der Haltung abgeleitete Aktion (z. B. 'ads', wenn die Waffe am Auge ist) – zählt wie gehalten. */
+  setXrPose(action, on) {
+    const h = this._held.xrpose;
+    if (on && !h.has(action)) this._press(action, 'xrpose');
+    else if (!on && h.has(action)) this._release(action, 'xrpose');
+  }
+
+  /**
+   * VR-Controller abfragen (xr-standard): Tasten 0–6 je Hand → Codes XrH0…6 bzw. XrN0…6 über die Belegung (Abzug/Griff analog mit
+   * Hysterese 0,55/0,35), Stick der Haupthand hoch/runter → XrHUp/XrHDown, Stick der Nebenhand → Laufen (radiale
+   * Totzone), Stick der Haupthand waagerecht → xr.turn (Drehen entscheidet engine/xr: Schritte oder flüssig).
+   */
+  _pollXr() {
+    const X = this.G.xr;
+    const pads = X && X.presenting ? X.gamepads : null;
+    const xs = this.xr;
+    if (!pads) {
+      if (xs.active) this.setXr(false);
+      return;
+    }
+    xs.active = true;
+    let activity = false;
+    const edge = (code, on) => {
+      if (!!this._xrPrev.get(code) === on) return;
+      this._xrPrev.set(code, on);
+      activity = true;
+      if (on) this._codeDown('xr', 'xr', code); else this._codeUp('xr', code);
+    };
+    for (const hand of ['H', 'N']) {
+      const gp = hand === 'H' ? pads.main : pads.off;
+      const b = gp && gp.buttons ? gp.buttons : EMPTY;
+      const codes = XR_BTN[hand];
+      for (let i = 0; i < 7; i++) {
+        const bt = b[i];
+        const v = bt ? (typeof bt === 'object' ? (bt.pressed ? Math.max(bt.value || 0, 0.6) : bt.value || 0) : bt) : 0;
+        const was = !!this._xrPrev.get(codes[i]);
+        edge(codes[i], was ? v > 0.35 : v > 0.55);
+      }
+    }
+    const ax = (gp, i) => (gp && gp.axes && Number.isFinite(gp.axes[i]) ? gp.axes[i] : 0);
+    // Nebenhand: Laufen (y negativ = vorn)
+    const lx = ax(pads.off, 2), ly = ax(pads.off, 3);
+    const lm = Math.hypot(lx, ly);
+    if (lm > XR_STICK_DZ) {
+      const k = Math.min(1, (lm - XR_STICK_DZ) / (1 - XR_STICK_DZ)) / lm;
+      xs.move.x = lx * k;
+      xs.move.y = -ly * k;
+      activity = true;
+    } else xs.move.x = xs.move.y = 0;
+    // Haupthand: waagerecht drehen, senkrecht als Tasten (nur deutlich senkrecht, mit Hysterese)
+    const rx = ax(pads.main, 2), ry = ax(pads.main, 3);
+    xs.turn = rx;
+    xs.stickY = ry;
+    const vert = Math.abs(rx) < 0.5;
+    const up = this._xrPrev.get('XrHUp') ? ry < -0.4 : vert && ry < -0.7;
+    const down = this._xrPrev.get('XrHDown') ? ry > 0.4 : vert && ry > 0.7;
+    edge('XrHUp', !!up);
+    edge('XrHDown', !!down);
+    if (activity || Math.abs(rx) > 0.3) this.lastDevice = 'xr';
+  }
+
   /** Gamepad-Erfassung: erste Taste merken, zweite Taste bei gehaltener erster = Akkord; fertig beim Loslassen. */
   _padCapture(cap, i, on) {
     if (cap.ignore && cap.ignore.has(i)) { if (!on) cap.ignore.delete(i); return; }
@@ -944,7 +1036,8 @@ export class Input {
     const G = this.G;
     const player = G.player;
     this.aimTarget = null;
-    if (!player || !player.alive || !this.enabled || !G.actors || !G.combat) { this._releaseSource('auto'); this._track = null; this._afTarget = null; return; }
+    // VR: keine Zielhilfe/kein Auto-Feuer (die Hand zielt; Blick dreht nur der Kopf)
+    if (!player || !player.alive || !this.enabled || !G.actors || !G.combat || this.xr.active) { this._releaseSource('auto'); this._track = null; this._afTarget = null; return; }
 
     // Stufen aus den Einstellungen (0 = aus), gedeckelt für Online (G.match.assistCap); Geräte: Touch / Controller / Maus
     const lv = assistLevels((k) => G.settings.get(k), G.match && G.match.assistCap);

@@ -21,6 +21,7 @@ export function fmtValue(key, v, def) {
     if (PCT.has(key)) return `${Math.round(v * 100)} %`;
     if (key === 'fov') return `${Math.round(v)}°`;
     if (MULT.has(key)) return `${num(v, 2)}×`;
+    if (def.integer && def.unit) return `${Math.round(v)} ${def.unit}`; // z. B. VR-Drehgeschwindigkeit „120 °/s“
     return num(v, 2);
   }
   if (def.type === 'enum') return (def.labels && def.labels[v]) || String(v);

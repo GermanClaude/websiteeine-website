@@ -18,6 +18,9 @@ import { LoadoutPanel } from './loadout-panel.js';
 import { drawMapArt, rememberMinimap } from './mapart.js';
 import { NetMenus } from './net-menus.js';
 
+// VR-Brille (Knopf „VR starten“ im Pausenmenü; Symbole in icons.js gehören zu einem anderen Bereich)
+const VR_ICON = '<svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M6 16h36v16a3 3 0 0 1-3 3H31l-4-6h-6l-4 6H9a3 3 0 0 1-3-3z"/><circle cx="16" cy="24" r="3"/><circle cx="32" cy="24" r="3"/></svg>';
+
 const TIPS = [
   'Sprinte und ducke dich, um zu rutschen. Ideal für Ecken und Türen.',
   'Gesundheit kehrt nach 3,5 Sekunden ohne Treffer zurück.',
@@ -249,6 +252,7 @@ export class Menus {
         </div>
         <nav class="ps-menu" aria-label="Pausenmenü">
           <button type="button" class="m-btn m-primary" data-act="resume">${ICON.play}<span>Fortsetzen</span><kbd>Esc</kbd></button>
+          ${G.xr && G.xr.available && !G.xr.presenting ? `<button type="button" class="m-btn" data-act="vr">${VR_ICON}<span>VR starten</span></button>` : ''}
           ${training ? `<button type="button" class="m-btn" data-act="armory">${ICON.target}<span>Waffenkammer</span></button>` : ''}
           ${!training && mode && !mode.lockLoadout ? `<button type="button" class="m-btn" data-act="equip">${ICON.target}<span>Ausrüstung</span></button>` : ''}
           <button type="button" class="m-btn" data-act="settings">${ICON.gear}<span>Einstellungen</span></button>
@@ -267,6 +271,12 @@ export class Menus {
       if (!b) return;
       const act = b.dataset.act;
       if (act === 'resume') { this.sound('confirm'); this._resume(); }
+      else if (act === 'vr') {
+        // VR (engine/xr): direkt in der Klick-Geste starten; läuft die Sitzung, setzt main das Match fort
+        this.sound('confirm');
+        b.disabled = true;
+        G.xr.start().then((ok) => { if (!ok && this.current === 'pause' && G.match.state === 'paused') this.showPause(); });
+      }
       else if (act === 'settings') this.showSettings('pause');
       else if (act === 'controls') this.showControls('pause');
       else if (act === 'install') {

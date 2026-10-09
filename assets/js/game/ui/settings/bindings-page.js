@@ -1,18 +1,21 @@
 // NULLPUNKT — Reiter „Belegung“ (Realismus-Plan S1/S3/S7): Tastatur & Maus und Controller frei belegen
 // („Taste drücken …“ über input.capture), Konflikte markieren und beim Belegen tauschen (mit „Rückgängig“),
 // Halten/Umschalten je Aktion, Standard je Aktion bzw. Gerät; Touch: Vorlagen, Stick, zusätzliche Knöpfe,
-// Einstieg in den Layout-Editor.
+// Einstieg in den Layout-Editor. VR-Controller (engine/xr): Auswahlliste statt Tastenerfassung (die Controller
+// liefern Tasten nur in der VR-Sitzung); der Reiter erscheint mit VR-fähigem Browser oder eingeschaltetem VR-Modus.
 
 import { esc } from '../dom.js';
 import { ICON } from '../icons.js';
 import {
   ACTION_DEFS, ACTION_GROUPS, DEFAULT_BINDINGS, MAX_SLOTS, TOUCH_PRESETS, TOUCH_BUTTONS,
   resolveBindings, setBinding, resetBindings, conflictsOf, codeWarning, resolveTouchLayout, sanitizeTouchLayout,
+  isFixed, XR_CODES,
 } from '../../../shared/bindings.data.js';
 import { keyHtml, keyText, padStyle, touchAspect, editTouch, seedAspect } from './keys.js';
 import { rowHtml, bindRows, syncRows } from './rows.js';
 
-const DEVICES = [['kb', 'Tastatur & Maus', ICON.keyboard], ['pad', 'Controller', ICON.pad], ['touch', 'Touch', ICON.touch]];
+const DEVICES = [['kb', 'Tastatur & Maus', ICON.keyboard], ['pad', 'Controller', ICON.pad], ['xr', 'VR-Controller', ICON.pad], ['touch', 'Touch', ICON.touch]];
+const DEV_NAME = { kb: 'Tastatur', pad: 'Controller', xr: 'VR-Controller' };
 const MODE_LABEL = { hold: 'Halten', toggle: 'Umschalten' };
 // Zusätzliche Touch-Knöpfe: optional (aus) bzw. automatisch (sobald es die Funktion gibt)
 const EXTRA = [
@@ -36,15 +39,20 @@ export function bindingsPage(P) {
   let capturing = null; // { action, slot, btn }
   let toastT = 0;
   const state = P.state.belegung || (P.state.belegung = {
-    device: G.input && G.input.mode === 'touch' ? 'touch' : G.input && G.input.lastDevice === 'gamepad' ? 'pad' : 'kb',
+    device: G.input && G.input.mode === 'touch' ? 'touch' : G.input && G.input.lastDevice === 'gamepad' ? 'pad' : G.input && G.input.lastDevice === 'xr' ? 'xr' : 'kb',
   });
+  // VR-Reiter nur mit VR-fähigem Browser bzw. eingeschaltetem VR-Modus
+  const xrTab = () => !!(G.xr && (G.xr.supported === true || S.get('vrEnabled')));
+  if (state.device === 'xr' && !xrTab()) state.device = 'kb';
 
   const resolved = () => resolveBindings(S.get('bindings'));
   const actionName = (id) => { const a = ACTION_DEFS.find((x) => x.id === id); return a ? a.short || a.label : id; };
 
   /* ---------------------------------------------------------- Tastatur / Controller */
 
-  function rowHtmlFor(a, res, dev) {
+  function rowHtmlFor(a0, res, dev) {
+    // Pause ist auf Tastatur/Gamepad fest (Esc/Menü), in VR frei belegbar (isFixed)
+    const a = a0.fixed && !isFixed(a0.id, dev) ? { ...a0, fixed: false } : a0;
     const list = res[dev][a.id] || [];
     const def = DEFAULT_BINDINGS[dev][a.id] || [];
     const changed = list.length !== def.length || list.some((c, i) => c !== def[i]);
@@ -77,10 +85,11 @@ export function bindingsPage(P) {
     let html = '';
     for (const [g, label] of Object.entries(ACTION_GROUPS)) {
       let acts = ACTION_DEFS.filter((a) => a.group === g);
-      if (dev === 'pad') acts = acts.filter((a) => !a.id.startsWith('move_'));
+      if (dev === 'pad' || dev === 'xr') acts = acts.filter((a) => !a.id.startsWith('move_'));
       if (!acts.length) continue;
       html += `<h3 class="m-h2 sp-sub">${esc(label)}</h3>`;
       if (dev === 'pad' && g === 'bewegung') html += '<p class="sp-tip">Bewegen und Umsehen: linker und rechter Stick (tauschbar unter Steuerung → Controller).</p>';
+      if (dev === 'xr' && g === 'bewegung') html += '<p class="sp-tip">Laufen: Stick der Nebenhand. Drehen: Stick der Haupthand nach links/rechts. Haupthand, Drehen und Komfort unter Steuerung → VR. Ducken, Hinlegen und Lehnen gehen auch mit dem Körper.</p>';
       html += acts.map((a) => rowHtmlFor(a, res, dev)).join('');
     }
     return html;
@@ -131,9 +140,11 @@ export function bindingsPage(P) {
     const style = padStyle(G);
     const tools = dev === 'pad'
       ? `<div class="bd-tools">${rowHtml(P, 'padIcons', { label: 'Symbole', control: 'seg' })}</div>`
-      : dev === 'kb' ? '<p class="sp-tip bd-tip">Feld anklicken, dann Taste oder Maustaste drücken. Esc bricht ab. Bis zu drei Belegungen je Aktion.</p>' : '';
+      : dev === 'kb' ? '<p class="sp-tip bd-tip">Feld anklicken, dann Taste oder Maustaste drücken. Esc bricht ab. Bis zu drei Belegungen je Aktion.</p>'
+        : dev === 'xr' ? '<p class="sp-tip bd-tip">Feld anklicken und eine Taste aus der Liste wählen. H = Haupthand (Waffe), N = Nebenhand. A/X ist die untere, B/Y die obere Taste.</p>' : '';
+    const devs = DEVICES.filter(([id]) => id !== 'xr' || xrTab());
     host.innerHTML = `
-      <nav class="sp-jump bd-devs" role="tablist" aria-label="Gerät">${DEVICES.map(([id, l, ic]) => `<button type="button" class="sp-chip" role="tab" data-dev="${id}" aria-selected="${id === dev}">${ic}<span>${l}</span></button>`).join('')}</nav>
+      <nav class="sp-jump bd-devs" role="tablist" aria-label="Gerät">${devs.map(([id, l, ic]) => `<button type="button" class="sp-chip" role="tab" data-dev="${id}" aria-selected="${id === dev}">${ic}<span>${l}</span></button>`).join('')}</nav>
       <div class="bd" data-dev-pane="${dev}" data-style="${style}">
         ${tools}
         ${dev === 'touch' ? touchHtml() : listHtml(dev)}
@@ -211,6 +222,46 @@ export function bindingsPage(P) {
     focusSlot(action, slot);
   }
 
+  /** VR-Controller: Taste aus einer Liste wählen (statt Erfassung) – im Overlay der Tastenerfassung. */
+  function pickXr(action, slot, btn) {
+    capturing = { action, slot, btn, pick: true };
+    const cap = host.querySelector('.bd-cap');
+    host.querySelector('.bd-cap-a').textContent = actionName(action);
+    host.querySelector('.bd-cap-k').textContent = 'VR-Taste wählen';
+    // zwei Spalten (Haupthand | Nebenhand), kurze Beschriftungen ohne Hand-Vorsilbe
+    const col = (hand, title) => `<span style="display:flex;flex-direction:column;gap:6px"><b>${title}</b>${XR_CODES.filter((c) => c.startsWith(`Xr${hand}`))
+      .map((c) => `<button type="button" class="m-btn" style="min-height:0;padding:7px 12px" data-xr="${esc(c)}">${esc(keyText(G, c, { long: true }).replace(/^[^:]+:\s*/, ''))}</button>`).join('')}</span>`;
+    host.querySelector('.bd-cap-h').innerHTML = `<span style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;text-align:center">${col('H', 'Haupthand (Waffe)')}${col('N', 'Nebenhand')}</span>`;
+    host.querySelector('.bd-cap-t').textContent = '';
+    host.querySelector('.bd-cap-x').hidden = false;
+    cap.hidden = false;
+    btn.classList.add('is-capturing');
+    P.sound('click');
+    const first = host.querySelector('[data-xr]');
+    if (first) try { first.focus({ preventScroll: true }); } catch { /* */ }
+  }
+
+  function closePick(code) {
+    const c = capturing;
+    capturing = null;
+    if (!host || !c) return;
+    host.querySelector('.bd-cap').hidden = true;
+    host.querySelector('.bd-cap-h').textContent = '';
+    c.btn.classList.remove('is-capturing');
+    if (!code) { P.sound('back'); refreshList(); focusSlot(c.action, c.slot); return; }
+    const before = S.get('bindings');
+    const res = setBinding(before, 'xr', c.action, c.slot, code, { conflict: 'swap' });
+    if (!res.ok) { toast('Diese Taste lässt sich nicht belegen.', 'warn'); refreshList(); return; }
+    S.set('bindings', res.overrides);
+    P.sound('confirm');
+    if (res.displaced.length) {
+      const d = res.displaced[0];
+      toast(`„${keyText(G, code)}“ war „${actionName(d.action)}“ zugewiesen – ${d.replacement ? `jetzt „${keyText(G, d.replacement)}“` : 'dort jetzt frei'}.`, 'info', () => S.set('bindings', before));
+    }
+    refreshList();
+    focusSlot(c.action, c.slot);
+  }
+
   function focusSlot(action, slot) {
     const b = host && host.querySelector(`.bd-row[data-a="${action}"] [data-slot="${slot}"]`);
     if (b) try { b.focus({ preventScroll: true }); } catch { /* */ }
@@ -262,13 +313,23 @@ export function bindingsPage(P) {
       if (f) f.focus({ preventScroll: true });
       return;
     }
+    if (capturing && capturing.pick) {
+      const xb = t.closest('[data-xr]');
+      if (xb) { closePick(xb.dataset.xr); return; }
+      if (t.closest('.bd-cap-x')) { closePick(null); return; }
+      return;
+    }
     if (t.closest('.bd-cap-x')) { if (G.input) G.input.cancelCapture(); return; }
     if (capturing) return;
     const row = t.closest('.bd-row');
     if (row) {
       const a = row.dataset.a;
       const slotB = t.closest('[data-slot]');
-      if (slotB && slotB.tagName === 'BUTTON') { capture(a, Number(slotB.dataset.slot), slotB, !!(P.pointer && P.pointer() !== 'mouse')); return; }
+      if (slotB && slotB.tagName === 'BUTTON') {
+        if (state.device === 'xr') pickXr(a, Number(slotB.dataset.slot), slotB);
+        else capture(a, Number(slotB.dataset.slot), slotB, !!(P.pointer && P.pointer() !== 'mouse'));
+        return;
+      }
       const clr = t.closest('[data-clear]');
       if (clr) { clearSlot(a, Number(clr.dataset.clear)); return; }
       if (t.closest('[data-reset]')) { resetAction(a); return; }
@@ -336,7 +397,7 @@ export function bindingsPage(P) {
 
   return {
     keys: ['bindings', 'touchLayout', 'padIcons', 'touchOpacity', 'touchButtonScale'],
-    get resetLabel() { return state.device === 'touch' ? 'Touch-Layout' : state.device === 'pad' ? 'Controller-Belegung' : 'Tastenbelegung'; },
+    get resetLabel() { return state.device === 'touch' ? 'Touch-Layout' : state.device === 'pad' ? 'Controller-Belegung' : state.device === 'xr' ? 'VR-Belegung' : 'Tastenbelegung'; },
     mount(h) {
       host = h;
       render();
@@ -344,7 +405,7 @@ export function bindingsPage(P) {
       offRows = bindRows(host, P);
     },
     unmount() {
-      if (capturing && G.input) G.input.cancelCapture();
+      if (capturing && !capturing.pick && G.input) G.input.cancelCapture();
       capturing = null;
       clearTimeout(toastT);
       if (host) host.removeEventListener('click', onClick);
@@ -368,7 +429,7 @@ export function bindingsPage(P) {
       } else {
         const before = S.get('bindings');
         S.set('bindings', resetBindings(before, dev));
-        toast(`${dev === 'pad' ? 'Controller' : 'Tastatur'} auf Standardbelegung.`, 'info', () => S.set('bindings', before));
+        toast(`${DEV_NAME[dev] || 'Tastatur'} auf Standardbelegung.`, 'info', () => S.set('bindings', before));
       }
       render();
     },

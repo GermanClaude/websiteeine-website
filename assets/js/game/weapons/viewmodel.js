@@ -205,6 +205,7 @@ export class ViewModel {
     this._boltT = 1; this._slideLocked = false; this._hammerT = 1;
     this._ctrlReload = false;
     this._visible = true;
+    this._vrOn = false; // VR (engine/xr): Wurzel in der Hand, siehe _xrRoot()
     this._shotCount = 0;
     this._led = 0;
 
@@ -519,6 +520,7 @@ export class ViewModel {
     const main = this.G.camera, vm = this.camera;
     _pv.copy(local);
     this.root.localToWorld(_pv);
+    if (this._vrOn) return out.copy(_pv); // VR: die Wurzel liegt schon in Weltkoordinaten
     _pv.applyMatrix4(vm.matrixWorldInverse);
     const depth = Math.max(0.05, -_pv.z);
     _pv.applyMatrix4(vm.projectionMatrix);
@@ -530,7 +532,7 @@ export class ViewModel {
     const fx = this.G?.effects, main = this.G?.camera;
     if (!fx || !main || typeof fx.dropCasing !== 'function') return;
     const wp = this._vmToWorld(pos, _pv2.set(0, 0, 0));
-    main.getWorldQuaternion(_q);
+    if (this._vrOn) this.root.getWorldQuaternion(_q); else main.getWorldQuaternion(_q);
     const wv = _s1.copy(vel).applyQuaternion(_q);
     const bv = this.G.player?.body?.velocity;
     if (bv) wv.add(bv);
@@ -551,7 +553,7 @@ export class ViewModel {
     this.root.worldToLocal(_v);
     const wp = this._vmToWorld(_v, _pv2.set(0, 0, 0)).clone();
     const main = this.G.camera;
-    main.getWorldQuaternion(_q);
+    if (this._vrOn) this.root.getWorldQuaternion(_q); else main.getWorldQuaternion(_q);
     const wv = _s1.set((Math.random() - 0.5) * 0.4, -0.9 - Math.random() * 0.3, 0.1).applyQuaternion(_q);
     const bv = this.G.player?.body?.velocity;
     if (bv) wv.add(bv);
@@ -704,10 +706,13 @@ export class ViewModel {
   }
 
   _updateLights(dt) {
-    // Hauptkamera-Drehung → Licht-/Umgebungsrichtung im Kameraraum
+    // Hauptkamera-Drehung → Licht-/Umgebungsrichtung im Kameraraum (VR: die Wurzel liegt in Weltkoordinaten in der
+    // Hand – Lichter relativ zur Wurzel drehen, Umgebung ohne Drehung)
     const cam = this.G?.camera;
     const q = this._mainQuat;
-    if (cam) cam.getWorldQuaternion(q); else q.identity();
+    const vr = this._vrOn;
+    if (vr) this.root.getWorldQuaternion(q);
+    else if (cam) cam.getWorldQuaternion(q); else q.identity();
     // Schatten/Innenraum: Licht der Umgebung folgen (sonst wirken Arme und Waffe wie aufgeklebt)
     this._updateProbe(dt, cam);
     this._applyIntensities();
@@ -716,9 +721,56 @@ export class ViewModel {
     this.sun.position.copy(_v).multiplyScalar(5);
     this.hemi.position.set(0, 1, 0).applyQuaternion(inv);
     if (this.scene.environment) {
-      _e.setFromQuaternion(q, 'XYZ');
-      this.scene.environmentRotation.set(-_e.x, -_e.y, -_e.z, 'XYZ');
+      if (vr) this.scene.environmentRotation.set(0, 0, 0);
+      else {
+        _e.setFromQuaternion(q, 'XYZ');
+        this.scene.environmentRotation.set(-_e.x, -_e.y, -_e.z, 'XYZ');
+      }
     }
+  }
+
+  // ---------------------------------------------------------------- VR (engine/xr)
+
+  /** VR aktiv und Haupthand verfolgt: Wurzel = Griff (Position) + Zielstrahl (Drehung) in Weltkoordinaten. */
+  _xrRoot() {
+    const xr = this.G?.xr;
+    this._vrOn = !!(xr && xr.presenting && typeof xr.gunPose === 'function' && xr.gunPose(this.root.position, this.root.quaternion));
+    return this._vrOn;
+  }
+
+  /** Lage des Pistolengriffs (rightHandGrip) im Raum der Waffengruppe – je Modell einmal. */
+  _gripOffset(entry) {
+    if (entry.xrGrip) return entry.xrGrip;
+    const out = new THREE.Vector3();
+    const rg = entry.ud.rightHandGrip;
+    if (rg) {
+      const m = new THREE.Matrix4();
+      for (let o = rg; o && o !== this.gun; o = o.parent) { o.updateMatrix(); m.premultiply(o.matrix); }
+      out.setFromMatrixPosition(m);
+    }
+    entry.xrGrip = out;
+    return out;
+  }
+
+  /**
+   * VR-Pose der Waffe (Kameraraum = Raum der Hand): Pistolengriff in der Handfläche, Lauf entlang des Zielstrahls.
+   * Rückstoß (Federn + Hochklettern), Ziehen/Wegstecken (halb so weit) und Aktionen (Nachladen, Nahkampf …) bleiben.
+   */
+  _xrGunPose(P, R, rp, rr, act, eq) {
+    const g = this._gripOffset(this.cur);
+    P.set(-g.x, -g.y, -g.z);
+    R.set(0, 0, 0);
+    P.x += rp.x; P.y += rp.y; P.z += rp.z + this._climb * 0.03;
+    R.x += rr.x + this._climb * 0.5; R.y += rr.y; R.z += rr.z;
+    if (eq > 0) { P.y -= 0.12 * eq; P.z += 0.04 * eq; R.x -= 0.6 * eq; R.z += 0.3 * eq; }
+    if (act) { P.x += act.p[0]; P.y += act.p[1]; P.z += act.p[2]; R.x += act.r[0]; R.y += act.r[1]; R.z += act.r[2]; }
+  }
+
+  /** VR, Simulation steht (Pause, Matchende): Waffe der Hand nachführen, ohne Animationen fortzuschreiben. */
+  syncXr() {
+    if (!this.cur || !this._xrRoot()) return;
+    this.root.updateMatrixWorld(true);
+    this._rootInv.copy(this.root.matrixWorld).invert();
   }
 
   // ---------------------------------------------------------------- Haltung, Handhabung, Komfort
@@ -804,9 +856,13 @@ export class ViewModel {
     else if (this.G?.world?.lighting && this.G.world.lighting !== this._lighting) this.setLighting(this.G.world.lighting);
     dt = Math.min(Math.max(dt || 0, 0), 0.05);
     this._time += dt;
-    // Wurzel folgt der Viewmodel-Kamera
-    this.camera.updateMatrixWorld();
-    this.camera.matrixWorld.decompose(this.root.position, this.root.quaternion, _s1);
+    // Wurzel folgt der Viewmodel-Kamera – in VR (engine/xr) dem Griff der Haupthand (Welt, Lauf entlang des Zielstrahls)
+    const vr = this._xrRoot();
+    if (!vr) {
+      this.camera.updateMatrixWorld();
+      this.camera.matrixWorld.decompose(this.root.position, this.root.quaternion, _s1);
+    }
+    if (vr !== !!this._armsHiddenVr) { this._armsHiddenVr = vr; this.arms.group.visible = !vr; } // VR: die echten Hände halten die Waffe
     if (this._pending && (!this.cur || !this._lowering)) this._swapNow();
     if (!this.cur) return;
     const h = this.h;
@@ -1049,12 +1105,14 @@ export class ViewModel {
     // Nachladen einrahmen (hands): die Arbeitsstelle der Stützhand (Magazinschacht, Ladeöffnung, Trommel, Rohrmündung)
     // wird während der Aktion ins untere Bilddrittel gehoben/geschoben – wie bei echten Ego-Shootern dreht und hebt
     // man die Waffe zur Kamera, statt unter dem Bildrand zu hantieren. Nur anheben/wegschieben, höchstens 0,22 m.
-    if (act && act.frame > 1e-3 && this.cur.workRest) this._frameWork(P, R, act.frame);
+    if (act && act.frame > 1e-3 && this.cur.workRest && !vr) this._frameWork(P, R, act.frame);
+    // VR: Hand = Waffe – statt Hüft-/Anschlagpose, Wippen, Nachlauf und Ausweichen nur Rückstoß, Ziehen und Aktionen
+    if (vr) this._xrGunPose(P, R, rp, rr, act, eq);
     this.gun.position.copy(P);
     this.gun.rotation.set(R.x, R.y, R.z, 'YXZ');
     // Drehung um das Auge: freies Zielen (Waffe zeigt in die Laufrichtung, Visierlinie bleibt am Auge) und der
     // Nachlauf im Anschlag – so wandert das ganze Visierbild, statt dass Kimme und Korn auseinanderlaufen.
-    const fa = s.freeAim;
+    const fa = vr ? null : s.freeAim;
     let faX = 0, faY = 0;
     if (fa && (fa.x || fa.y)) {
       // gleicher Bildpunkt wie das Fadenkreuz (projizierter Laufpunkt der Hauptkamera): Winkel ins Viewmodel-FOV umrechnen
@@ -1063,7 +1121,7 @@ export class ViewModel {
       faX = Math.atan(Math.tan(fa.x || 0) * kf);
       faY = Math.atan(Math.tan(fa.y || 0) * kf);
     }
-    const eyeYaw = -faX + lagY * a, eyePitch = faY + lagP * a;
+    const eyeYaw = vr ? 0 : -faX + lagY * a, eyePitch = vr ? 0 : faY + lagP * a;
     if (eyeYaw || eyePitch) {
       this._eyeQ.setFromEuler(_e.set(eyePitch, eyeYaw, 0, 'YXZ'));
       this.gun.position.applyQuaternion(this._eyeQ);
@@ -1073,8 +1131,8 @@ export class ViewModel {
     // ---- Bewegliche Teile: Verschluss/Schlitten/Hahn
     this._animParts(dt, act);
 
-    // ---- Zielfernrohr: voll im Anschlag → Overlay, Waffe ausblenden
-    const scoped = this._scopeOverlay === 'sniper' && a > 0.96 && (!this.action || this.action.type === 'boltCycle');
+    // ---- Zielfernrohr: voll im Anschlag → Overlay, Waffe ausblenden (nicht in VR: dort gibt es kein Bildschirm-Overlay)
+    const scoped = !vr && this._scopeOverlay === 'sniper' && a > 0.96 && (!this.action || this.action.type === 'boltCycle');
     this.showScopeOverlay = scoped;
     this.root.visible = this._visible && !scoped;
     if (scoped) this.flash.hide();
@@ -1092,7 +1150,7 @@ export class ViewModel {
     // Hitzeflimmern über dem Lauf (high/ultra): ab ~⅓ Erwärmung, im Anschlag halb so stark
     {
       const hz = smooth(clamp((this._heat - 0.3) / 0.6, 0, 1)) * (1 - 0.5 * a);
-      if (hz > 0.01 && this.haze.enabled && !this.showScopeOverlay && this._visible) {
+      if (hz > 0.01 && this.haze.enabled && !vr && !this.showScopeOverlay && this._visible) { // VR: kein Hitzeflimmern (Bildkopie)
         const mz = this.cur.ud.muzzle;
         mz.getWorldPosition(_s1);
         this.root.worldToLocal(_s1);
@@ -1731,7 +1789,7 @@ export class ViewModel {
     if (!this.cur) return main ? main.getWorldPosition(out) : out.set(0, 0, 0);
     this.root.updateMatrixWorld(true);
     this.cur.ud.muzzle.getWorldPosition(out);
-    if (!main) return out;
+    if (!main || this._vrOn) return out; // VR: Viewmodel liegt in Weltkoordinaten (Hand)
     // Bildschirmposition im Viewmodel → gleiche Bildposition + Tiefe in der Hauptkamera
     const vm = this.camera;
     vm.updateMatrixWorld();

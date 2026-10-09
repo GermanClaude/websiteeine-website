@@ -56,6 +56,8 @@ const MODULES = {
   net: ['./net/index.js', ['NetSystem']],
   netHost: ['./net/sync-host.js', ['HostSync']],
   netClient: ['./net/sync-client.js', ['ClientSync']],
+  // VR-Modus (Beta, WebXR): G.xr – Sitzung, Rig, Steuerung, Overlay (engine/xr/, docs/planung/vr.md)
+  xr: ['./engine/xr/index.js', ['XRSystem']],
 };
 /** Ohne diese Module bleibt das Spiel spielbar (Ersatz) – Wert: Hinweis für die Konsole. */
 const OPTIONAL = new Map([
@@ -65,6 +67,7 @@ const OPTIONAL = new Map([
   ['net', 'kein Mehrspieler (Einzelspieler läuft normal).'],
   ['netHost', 'kein Mehrspieler als Host.'],
   ['netClient', 'kein Mehrspieler als Client.'],
+  ['xr', 'kein VR-Modus.'],
 ]);
 
 /** Stummer Ersatz für die AudioEngine, falls das Audiomodul nicht lädt oder nicht startet. */
@@ -128,6 +131,7 @@ const G = {
   hud: null,
   menus: null,
   net: null, // Mehrspieler: NetSystem (net/index.js), G.net.sync = HostSync | ClientSync während eines Online-Matches
+  xr: null, // VR (engine/xr/index.js): XRSystem; presenting = Sitzung läuft (dann taktet renderer.setAnimationLoop)
   actors: [],
   match: {
     state: 'boot', modeId: null, mapId: null, difficulty: null, allies: 0, enemies: 0, loadout: null,
@@ -660,6 +664,7 @@ function deploy() {
 }
 
 G.requestLoadout = requestLoadout;
+G.pause = () => pause(); // engine/xr: Sitzung verdeckt (Systemmenü der Brille) → Pause
 G.holdRespawn = holdRespawn;
 G.deploy = deploy;
 G.respawnRemaining = respawnRemaining;
@@ -1160,6 +1165,7 @@ function showEndScreen() {
  */
 async function teardownMatch({ keepWorld = false } = {}) {
   G._endScreenAt = null;
+  if (G.xr && G.xr.presenting) safe('xr.end', () => G.xr.end()); // Lobby/Laden sind 2D
   const banner = $('match-banner');
   if (banner) banner.hidden = true;
   // Mehrspieler: zuerst die Synchronisation (Host meldet ein abgebrochenes Match an die Clients)
@@ -1267,7 +1273,8 @@ function pause() {
 }
 
 /** Desktop braucht den Pointer-Lock zum Zielen: erst mit Sperre wird weitergespielt. */
-const lockRequired = () => G.input.mode === 'desktop' && !G.input.allowUnlockedMouse && typeof G.canvas.requestPointerLock === 'function';
+const lockRequired = () => G.input.mode === 'desktop' && !G.input.allowUnlockedMouse && typeof G.canvas.requestPointerLock === 'function' &&
+  !(G.xr && G.xr.presenting); // VR: Blick über das Headset, keine Zeiger-Sperre
 
 /**
  * Fortsetzen (Menü-Knopf, Esc im Pausenmenü, Gamepad). Auf dem Desktop bleibt das Match pausiert, bis der
@@ -1504,11 +1511,17 @@ let capAt = 0;
  * Ein Bild. bg = Takt aus dem Hintergrund-Zeitgeber (Mehrspieler-Host im verborgenen Tab: requestAnimationFrame ruht,
  * die Simulation muss für die Clients weiterlaufen) – dann ohne Zeichnen und ohne neues rAF.
  */
-function frame(now, bg = false) {
-  if (bg !== true) requestAnimationFrame(frame);
-  else if (!document.hidden) return;
+function frame(now, bg = false, xrFrame = null) {
+  // VR (bg === 'xr'): Bilder kommen aus renderer.setAnimationLoop (engine/xr) mit XRFrame; die rAF-Schleife läuft
+  // weiter, setzt aber aus, solange die Sitzung läuft (sonst doppelte Simulation)
+  const xr = bg === 'xr';
+  if (!xr) {
+    if (bg !== true) requestAnimationFrame(frame);
+    else if (!document.hidden) return;
+    if (G.xr && G.xr.presenting) return;
+  }
   // Bildratenbegrenzung (Einstellung fpsLimit): Bilder auslassen; die Zeit läuft im nächsten Bild weiter
-  const cap = bg === true ? 0 : fpsLimitValue(settings.get('fpsLimit'));
+  const cap = bg === true || xr ? 0 : fpsLimitValue(settings.get('fpsLimit'));
   if (cap) {
     if (now < capAt - 1.5) return;
     capAt += 1000 / cap; // Takt halten (bei 144 Hz und 60er-Grenze im Mittel 60 Bilder)
@@ -1525,12 +1538,14 @@ function frame(now, bg = false) {
   // Mehrspieler: im Pausenmenü läuft die Simulation weiter (der Host hält sonst alle an)
   const netPaused = st === 'paused' && !!G.match.netRole;
   const sim = st === 'countdown' || st === 'playing' || netPaused;
+  if (xr) step('xr:begin', () => G.xr.beginFrame(dt, xrFrame)); // Kopf-/Handposen dieses Bildes
 
   if (sim) {
     G.time.elapsed += dt;
     if (G.timeScale !== 1 || (G.player && G.player.godMode)) G.match.unranked = true;
     if (st === 'countdown' || (netPaused && G.match.pausedFrom === 'countdown')) tickCountdown(Math.min(raw, 0.25) * G.timeScale); // Echtzeit, nicht Simulationszeit
     step('input', () => G.input.update(dt));
+    if (xr) step('xr:pre', () => G.xr.preUpdate(dt)); // Drehen, Laufrichtung, Zielen am Auge, Haltung, Lehnen, Raumbewegung
     if (G.input.pressed('pause') && G.match.state !== 'paused') pause();
     const net = G.match.netRole && G.net ? G.net : null;
     if (net) step('net:pre', () => net.preUpdate(dt)); // Host: Zustände der Clients → Puppen; Client: Schnappschüsse → Puppen
@@ -1552,15 +1567,16 @@ function frame(now, bg = false) {
     if (G.mode && G.mode.isOver && (G.match.state === 'playing' || G.match.netLive)) G.events.emit('match:end', { result: G.mode.result });
   }
   if (G._endScreenAt && G.time.real >= G._endScreenAt) showEndScreen();
+  if (xr) step('xr:end', () => G.xr.endFrame(dt, sim)); // Kamera/Hände auch in der Pause, Overlay, Handgelenk, Menü
 
-  // Pausiert/Ende: Bild steht still → nur ~4×/s neu zeichnen (Akku auf Mobilgeräten)
-  if (bg !== true && G.world && G.camera && st !== 'loading' && (sim || now - idleRenderAt > 250)) {
+  // Pausiert/Ende: Bild steht still → nur ~4×/s neu zeichnen (Akku auf Mobilgeräten); VR zeichnet jedes Bild
+  if (bg !== true && G.world && G.camera && st !== 'loading' && (sim || xr || now - idleRenderAt > 250)) {
     idleRenderAt = now;
-    step('render', () => G.renderer.render(G.scene, G.camera, G.viewmodel.scene, G.viewmodel.camera));
+    step('render', () => G.renderer.render(G.scene, xr ? G.xr.camera : G.camera, G.viewmodel.scene, G.viewmodel.camera));
   }
   if (sim) G.input.endFrame();
   updateStats(now);
-  if (st === 'playing' && G.match.state === 'playing') updatePerf(G.time.real, performance.now() - t0, raw * 1000);
+  if (!xr && st === 'playing' && G.match.state === 'playing') updatePerf(G.time.real, performance.now() - t0, raw * 1000);
 }
 
 /**
@@ -1756,7 +1772,7 @@ function wireGlobal() {
     const st = G.match.state;
     if (locked && G.match.awaitingLock && st === 'paused') { finishResume(); return; }
     // Nur ein echter Verlust der Sperre pausiert (nicht eine abgelehnte Anfrage, z. B. Chrome-Wartezeit nach Esc)
-    if (!locked && !error && G.input.everLocked && G.input.mode === 'desktop' && (st === 'playing' || st === 'countdown')) pause();
+    if (!locked && !error && G.input.everLocked && G.input.mode === 'desktop' && (st === 'playing' || st === 'countdown') && !(G.xr && G.xr.presenting)) pause();
   });
   G.events.on('input:mode', () => {
     updateLockHint();
@@ -1792,7 +1808,8 @@ function wireGlobal() {
     }
   });
 
-  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); updateBackgroundTicker(); });
+  // VR: die Sitzung meldet ihre Sichtbarkeit selbst (engine/xr → Pause), der Tab gilt dort nicht als Signal
+  document.addEventListener('visibilitychange', () => { if (document.hidden && !(G.xr && G.xr.presenting)) pause(); updateBackgroundTicker(); });
   G.events.on('match:state', () => updateBackgroundTicker());
   const onPortrait = () => { if (portraitMQ.matches) pause(); };
   if (portraitMQ.addEventListener) portraitMQ.addEventListener('change', onPortrait);
@@ -1875,6 +1892,13 @@ async function bootstrap() {
     G.net = (netMod && safe('net', () => new netMod.NetSystem(G))) || null;
     const fsUi = G.modules.fullscreenUi;
     G.fullscreenUi = (fsUi && safe('fullscreenUi', () => new fsUi.FullscreenUI(G, { autoShow: !AUTOSTART, fs: basicFullscreen }))) || null;
+    // VR (optional): Start aus „VR starten“ (Pausenmenü/Knopf im Match), Ende → Pause im 2D-Menü
+    const xrMod = G.modules.xr;
+    G.xr = (xrMod && safe('xr', () => new xrMod.XRSystem(G, {
+      onFrame: (t, f) => frame(t, 'xr', f),
+      onStart: () => { if (G.match.state === 'paused') resume(); },
+      onEnd: () => pause(),
+    }))) || null;
     wireGlobal();
 
     setBoot(0.92, 'Bereite Grafik vor …');

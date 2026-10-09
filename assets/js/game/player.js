@@ -234,6 +234,9 @@ export class Player {
     this.leanOffset = new THREE.Vector3();
     /** Kamera-Rollwinkel durch Lehnen (rad, ohne Komfortfaktor). */
     this.leanRoll = 0;
+    /** VR (engine/xr): System während einer Sitzung (setzt es selbst) und Lehnwunsch aus dem Kopfversatz (−1 … 1). */
+    this.xr = null;
+    this.xrLean = 0;
 
     // Freies Zielen (F4)
     /** Laufrichtung relativ zur Sicht (rad): x > 0 rechts, y > 0 oben. */
@@ -432,6 +435,8 @@ export class Player {
   /* ------------------------------------------------------- Actor-API */
 
   getEyePosition(out = new THREE.Vector3()) {
+    const xr = this.xr;
+    if (xr && xr.presenting && xr.ready) return out.copy(xr.eye); // VR: echter Kopf (engine/xr)
     const p = this.body.position;
     const lo = this.leanOffset;
     return out.set(p.x + lo.x, p.y + this._eye + this._stepSmooth + lo.y, p.z + lo.z);
@@ -439,6 +444,9 @@ export class Player {
 
   /** Laufrichtung (Schüsse): Sicht + Rückstoß + Zucken, dazu die Auslenkung des freien Zielens. */
   getAimDirection(out = new THREE.Vector3()) {
+    const xr = this.xr;
+    // VR: Auge → Punkt, auf den der Lauf zeigt (engine/xr), Rückstoß/Zucken kippen diese Richtung
+    if (xr && xr.presenting && xr.ready) return xr.aimDirection(out, this.recoilYaw + this._flinchY, this.recoilPitch + this._flinchP);
     const yaw = this.yaw + this.recoilYaw + this._flinchY;
     const pitch = clamp(this.pitch + this.recoilPitch + this._flinchP, -PITCH_LIMIT, PITCH_LIMIT);
     const ox = this.aimOffset.x, oy = this.aimOffset.y;
@@ -920,6 +928,8 @@ export class Player {
       if (input.pressed('lean_right')) this._leanLast = 1;
       const L = input.active('lean_left'), R = input.active('lean_right');
       want = L && R ? this._leanLast : L ? -1 : R ? 1 : 0;
+      // VR: seitlicher Kopfversatz zur Körpermitte (engine/xr, −1 … 1) – Tasten haben Vorrang
+      if (!want && this.xr && this.xr.presenting && this.xrLean) want = clamp(this.xrLean, -1, 1);
     }
     // Sprint, Rutschen und Klettern beenden das Lehnen (eingerastetes Lehnen wird gelöst)
     if (want && (this.sprinting || this.sliding || this.mantling || this._stanceBusy())) {
@@ -999,7 +1009,7 @@ export class Player {
       else this.crouching = true;
     }
     // Controller/Touch: Ducken halten → Hinlegen (Konsole/CoD Mobile), nur im Umschalt-Modus
-    const longOk = !crouchHold && (input.mode === 'touch' || input.lastDevice === 'gamepad');
+    const longOk = !crouchHold && (input.mode === 'touch' || input.lastDevice === 'gamepad' || input.lastDevice === 'xr');
     if (longOk && input.down('crouch') && !this.prone && !this.sliding && !this._proneHoldUsed && !busy) {
       this._crouchHeld += dt;
       if (this._crouchHeld >= PRONE_HOLD) { this._proneHoldUsed = true; this._enterProne(); }
@@ -1846,5 +1856,7 @@ export class Player {
       cam.updateProjectionMatrix();
     }
     cam.updateMatrixWorld();
+    // VR: Kamera = echter Kopf über dem Körper (engine/xr: Rig, Wandabstand, Hände, Zielpunkt); Federn/Rückstoß oben laufen weiter
+    if (this.xr && this.xr.presenting) this.xr.poseCamera(cam);
   }
 }

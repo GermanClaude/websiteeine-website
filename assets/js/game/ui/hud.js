@@ -896,6 +896,13 @@ export class HUD {
   update(simDt) {
     if (!this.root || !this._visible) return;
     const G = this.G;
+    // VR (engine/xr): die Seite ist in der Brille unsichtbar (Anzeige am Handgelenk) – HUD nur ~10×/s fortschreiben
+    // (Einsatzkarte, Hinweise, Zeitgeber laufen in Echtzeit weiter), spart Hauptthread-Zeit auf der Quest
+    if (G.xr && G.xr.presenting) {
+      this._xrSkip = (this._xrSkip || 0) + (simDt || 0);
+      if (this._xrSkip < 0.1) return;
+      this._xrSkip = 0;
+    }
     // UI-Zeitgeber laufen in Echtzeit (auch bei Zeitlupe/niedrigen FPS)
     const real = G.time.real || 0;
     const dt = this._realAt != null ? Math.min(0.5, Math.max(0, real - this._realAt)) : simDt;

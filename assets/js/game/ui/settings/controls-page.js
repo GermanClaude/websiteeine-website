@@ -6,6 +6,7 @@ import { esc, num } from '../dom.js';
 import { ICON } from '../icons.js';
 import { rowHtml, headHtml, bindRows, syncRows, setRowDisabled } from './rows.js';
 import { HINTS } from './schema-page.js';
+import { VR_KEYS, vrSectionHtml, vrSectionSync } from './vr-section.js';
 
 const SECTIONS = {
   touch: { label: 'Touch', keys: ['touchSensitivity', 'touchOpacity', 'touchButtonScale'] },
@@ -22,11 +23,14 @@ const SECTIONS = {
     label: 'Controller',
     keys: ['padSensitivity', 'padCurve', 'padDeadzone', 'padOuterDeadzone', 'padSwapSticks', 'padVibration'],
   },
+  // VR-Modus (Beta, engine/xr): Schalter nur mit VR-fähigem Browser, sonst Hinweis (ui/settings/vr-section.js)
+  vr: { label: 'VR (Beta)', keys: VR_KEYS },
 };
+// VR steht vorn, sobald eine Brille erkannt wurde (Quest-Browser, PC mit Air Link), sonst am Ende
 const ORDER = {
-  touch: ['touch', 'zielhilfe', 'gyro', 'zielen', 'modus', 'pad', 'maus'],
-  pad: ['pad', 'zielhilfe', 'zielen', 'modus', 'maus', 'touch', 'gyro'],
-  desktop: ['maus', 'zielen', 'modus', 'zielhilfe', 'pad', 'touch', 'gyro'],
+  touch: ['touch', 'zielhilfe', 'gyro', 'zielen', 'modus', 'pad', 'maus', 'vr'],
+  pad: ['pad', 'zielhilfe', 'zielen', 'modus', 'maus', 'touch', 'gyro', 'vr'],
+  desktop: ['maus', 'zielen', 'modus', 'zielhilfe', 'pad', 'touch', 'gyro', 'vr'],
 };
 const LABELS = { adsSensitivity: 'Im Anschlag · 1×', adsSensitivityMid: 'Im Anschlag · 2–4×', adsSensitivityHigh: 'Im Anschlag · ab 6×' };
 
@@ -125,6 +129,7 @@ export function controlsPage(P) {
 
   function sectionHtml(id) {
     const sec = SECTIONS[id];
+    if (id === 'vr') return `${headHtml(sec.label, id)}<div data-vr-sec>${vrSectionHtml(P)}</div>`;
     const rows = sec.keys.map((k) => rowHtml(P, k, { hint: HINTS[k], label: LABELS[k] })).join('');
     let extra = '';
     if (id === 'pad') extra = padCard();
@@ -303,7 +308,8 @@ export function controlsPage(P) {
     resetLabel: 'Steuerung',
     mount(h) {
       host = h;
-      const order = ORDER[device()];
+      const vrFirst = !!(G.xr && G.xr.supported === true);
+      const order = vrFirst ? ['vr', ...ORDER[device()].filter((id) => id !== 'vr')] : ORDER[device()];
       host.innerHTML = `
         <nav class="sp-jump" aria-label="Abschnitte">${order.map((id, i) => `<button type="button" class="sp-chip${i === 0 ? ' is-on' : ''}" data-jump="${id}">${esc(SECTIONS[id].label)}</button>`).join('')}</nav>
         ${order.map((id) => `<section class="sp-sec" data-sec-id="${id}">${sectionHtml(id)}</section>`).join('')}`;
@@ -312,6 +318,7 @@ export function controlsPage(P) {
       updateCurve();
       refreshGyro();
       syncModeHint();
+      vrSectionSync(host, P);
       startMotion();
       raf = requestAnimationFrame(frame);
       // Sprungmarke des Abschnitts, der gerade oben im Rollbereich steht, hervorheben (einmal je Bild beim Scrollen)
@@ -336,6 +343,11 @@ export function controlsPage(P) {
         io = { disconnect: () => scroller.removeEventListener('scroll', onScroll) };
       }
       this._offGyro = G.events ? G.events.on('input:gyro', () => { startMotion(); refreshGyro(); }) : null;
+      // VR-Unterstützung wird beim Start asynchron geprüft (navigator.xr) – Abschnitt neu aufbauen, sobald bekannt
+      this._offXr = G.events ? G.events.on('xr:support', () => {
+        const box = host && host.querySelector('[data-vr-sec]');
+        if (box) { box.innerHTML = vrSectionHtml(P); vrSectionSync(host, P); }
+      }) : null;
     },
     unmount() {
       cancelAnimationFrame(raf);
@@ -345,6 +357,8 @@ export function controlsPage(P) {
       if (io) io.disconnect();
       io = null;
       if (this._offGyro) this._offGyro();
+      if (this._offXr) this._offXr();
+      this._offXr = null;
       if (off) off();
       if (host) host.removeEventListener('click', onClick);
       host = null;
@@ -354,10 +368,11 @@ export function controlsPage(P) {
       syncRows(host, P, key);
       if (key === 'padCurve' || key === 'padDeadzone' || key === 'padOuterDeadzone') updateCurve();
       if (key.startsWith('gyroBias')) refreshGyro();
+      if (key.startsWith('vr')) vrSectionSync(host, P);
     },
     reset() {
       const patch = {};
-      for (const k of this.keys) patch[k] = S.defaults[k];
+      for (const k of this.keys) if (k !== 'vrEnabled') patch[k] = S.defaults[k]; // VR-Modus bleibt an/aus
       Object.assign(patch, { gyroBiasX: 0, gyroBiasY: 0, gyroBiasZ: 0 });
       S.patch(patch);
     },
