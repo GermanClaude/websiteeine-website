@@ -168,6 +168,7 @@ export class Vegetation {
     this.hf = o.hf; this.spec = o.spec || {}; this.quality = o.quality; this.tier = o.tier;
     this.blocked = o.blocked || (() => false);
     this.bounds = o.bounds;
+    this.fields = o.fields || [];
     this.group = new THREE.Group();
     this.group.name = 'vegetation';
     this.species = {};
@@ -186,18 +187,39 @@ export class Vegetation {
   /** Deterministische Verteilung (Wälder, Randwald, Einzelbäume, Hecken, Büsche, Schilf, Felsen). */
   _place() {
     const hf = this.hf, spec = this.spec, dens = this.tier.density ?? 1;
-    const r = rng(spec.seed || 99), noise = createSimplex((spec.seed || 99) + 5);
+    const seed = spec.seed || 99;
+    // je Abschnitt ein eigener Zufallsstrom: Änderungen an einem Abschnitt verschieben die übrigen nicht
+    const r = rng(seed), noise = createSimplex(seed + 5);
     const n3 = { x: 0, y: 1, z: 0 };
+    // Lesesteinmauern/Felsgruppen (werden erst unten gesetzt) freihalten: kein Baum in oder auf einer Mauer
+    const rk0 = spec.rocks || {};
+    const wallSegs = [];
+    for (const w of rk0.walls || []) for (let k = 0; k + 1 < w.length; k++) wallSegs.push([w[k][0], w[k][1], w[k + 1][0], w[k + 1][1]]);
+    const nearRocks = (x, z) => {
+      for (const [ax, az, bx, bz] of wallSegs) {
+        const ex = bx - ax, ez = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / (ex * ex + ez * ez)));
+        if (Math.hypot(x - ax - ex * t, z - az - ez * t) < 2.2) return true;
+      }
+      for (const [cx, cz, , rad] of rk0.clusters || []) if (Math.hypot(x - cx, z - cz) < rad + 2) return true;
+      return false;
+    };
+    // Äcker/Stoppelfelder (gedrehte Rechtecke + 2 m Rand): keine Einzelbäume mitten im Feld
+    const inField = (x, z) => this.fields.some(f => {
+      const c = Math.cos(f.ry || 0), sn = Math.sin(f.ry || 0), dx = x - f.x, dz = z - f.z;
+      const lx = dx * c - dz * sn, lz = dx * sn + dz * c;
+      return Math.abs(lx) < f.w / 2 + 2 && Math.abs(lz) < f.d / 2 + 2;
+    });
     const okTree = (x, z) => {
-      if (!hf.contains(x, z) || this.blocked(x, z)) return false;
+      if (!hf.contains(x, z) || this.blocked(x, z) || nearRocks(x, z)) return false;
       const y = hf.heightAt(x, z);
       if (y < hf.waterY + 0.5) return false;
       return hf.normalAt(x, z, n3).y > 0.8;
     };
-    const tree = (x, z, spruceShare) => {
-      if (!okTree(x, z)) return;
-      const kind = r() < spruceShare ? 'fichte' : 'laub';
-      this._add(kind, x, z, (kind === 'fichte' ? 0.75 : 0.85) + r() * 0.55, r() * Math.PI * 2);
+    const tree = (x, z, spruceShare, rr = r) => {
+      if (!okTree(x, z)) return false;
+      const kind = rr() < spruceShare ? 'fichte' : 'laub';
+      this._add(kind, x, z, (kind === 'fichte' ? 0.75 : 0.85) + rr() * 0.55, rr() * Math.PI * 2);
+      return true;
     };
     // Wälder (Kreise mit verrauschtem Rand)
     for (const f of spec.forests || []) {
@@ -207,76 +229,96 @@ export class Vegetation {
         const d = Math.hypot(jx - f.x, jz - f.z) / f.r + noise(jx / 30, jz / 30) * 0.22;
         if (d > 1) continue;
         const p = (f.density ?? 0.7) * dens * (1 - smoothstep(0.75, 1, d) * 0.6);
-        if (r() > p) { if (d > 0.7 && r() < 0.35 * dens) this._add('busch', jx, jz, 0.8 + r() * 0.6, r() * 6.28); continue; }
+        if (r() > p) { if (d > 0.7 && r() < 0.35 * dens && okTree(jx, jz)) this._add('busch', jx, jz, 0.8 + r() * 0.6, r() * 6.28); continue; }
         tree(jx, jz, f.spruce ?? 0.6);
       }
     }
     // Randwald hinter der Spielfläche (Rahmen, verdeckt den Horizont)
     const ring = spec.ring;
     if (ring) {
-      const b = this.bounds, step = ring.step ?? 6.5;
+      const rr = rng(seed * 3 + 1), b = this.bounds, step = ring.step ?? 6.5;
       for (let z = hf.minZ + 4; z < hf.maxZ - 4; z += step) for (let x = hf.minX + 4; x < hf.maxX - 4; x += step) {
         const out = Math.max(b.minX - x, x - b.maxX, b.minZ - z, z - b.maxZ);
         if (out < (ring.inset ?? -6)) continue;
-        const jx = x + (r() - 0.5) * step, jz = z + (r() - 0.5) * step;
+        const jx = x + (rr() - 0.5) * step, jz = z + (rr() - 0.5) * step;
         const p = (ring.density ?? 0.6) * dens * (0.55 + 0.45 * smoothstep(-0.3, 0.4, noise(jx / 55, jz / 55)));
-        if (r() < p) tree(jx, jz, ring.spruce ?? 0.75);
+        if (rr() < p) tree(jx, jz, ring.spruce ?? 0.75, rr);
       }
     }
-    // Einzelbäume auf Wiesen
+    // Wiesenbäume: natürliche Feldgehölze (3–7 Bäume eng beieinander, Büsche am Rand) und wenige Solitärbäume statt
+    // gleichmäßiger Streuung – ähnliche Baumzahl, aber offene Sichtachsen zwischen dichten Deckungsinseln; nie auf
+    // Äckern, Straßen, Mauern, Spawns
     const sc = spec.scatter;
     if (sc) {
-      const b = this.bounds;
-      const count = Math.round((sc.count ?? 120) * dens);
-      for (let k = 0; k < count * 3 && (this.species.laub?.list.length || 0) / 5 < 1e5; k++) {
-        const x = b.minX + r() * (b.maxX - b.minX), z = b.minZ + r() * (b.maxZ - b.minZ);
-        if (noise(x / 70, z / 70) < 0.1) continue;
-        if (r() < 0.34) tree(x, z, 0.25);
+      const rs = rng(seed * 7 + 13), b = this.bounds, count = (sc.count ?? 120) * dens;
+      const groups = Math.round(sc.groups ?? count / 10), solo = Math.round(sc.solo ?? count * 0.12);
+      const okWiese = (x, z) => !inField(x, z) && okTree(x, z);
+      for (let g = 0, tries = 0; g < groups && tries < groups * 25; tries++) {
+        const cx = b.minX + 25 + rs() * (b.maxX - b.minX - 50), cz = b.minZ + 25 + rs() * (b.maxZ - b.minZ - 50);
+        if (noise(cx / 70, cz / 70) < 0.05 || !okWiese(cx, cz)) continue;
+        g++;
+        const n = 3 + Math.floor(rs() * 5), rad = 3.5 + rs() * 4.5, share = rs() < 0.3 ? 0.55 : 0.15;
+        for (let k = 0; k < n; k++) {
+          const a = rs() * 6.283, d = Math.sqrt(rs()) * rad, x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
+          if (okWiese(x, z)) tree(x, z, share, rs);
+        }
+        for (let k = 0; k < 4; k++) {
+          const a = rs() * 6.283, d = rad + 0.5 + rs() * 2.5, x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d, sz = 0.8 + rs() * 0.6, ry = rs() * 6.28;
+          if (okWiese(x, z)) this._add('busch', x, z, sz, ry);
+        }
+      }
+      for (let k = 0, made = 0; k < solo * 20 && made < solo; k++) {
+        const x = b.minX + rs() * (b.maxX - b.minX), z = b.minZ + rs() * (b.maxZ - b.minZ);
+        if (noise(x / 70, z / 70) < 0.1 || !okWiese(x, z)) continue;
+        if (tree(x, z, 0.2, rs)) made++;
       }
     }
     // Hecken/Baumreihen entlang Linien
+    const rh = rng(seed * 11 + 3);
     for (const h of spec.hedges || []) {
       const pts = h.pts;
       for (let k = 0; k < pts.length - 1; k++) {
         const [ax, az] = pts[k], [bx, bz] = pts[k + 1], L = Math.hypot(bx - ax, bz - az);
         for (let d = 0; d < L; d += h.step ?? 3) {
-          const t = d / L, x = ax + (bx - ax) * t + (r() - 0.5) * 1.2, z = az + (bz - az) * t + (r() - 0.5) * 1.2;
+          const t = d / L, x = ax + (bx - ax) * t + (rh() - 0.5) * 1.2, z = az + (bz - az) * t + (rh() - 0.5) * 1.2;
           if (!okTree(x, z)) continue;
-          if (h.trees && r() < h.trees) this._add(r() < 0.3 ? 'fichte' : 'laub', x, z, 0.75 + r() * 0.4, r() * 6.28);
-          else this._add('busch', x, z, 0.9 + r() * 0.7, r() * 6.28);
+          if (h.trees && rh() < h.trees) this._add(rh() < 0.3 ? 'fichte' : 'laub', x, z, 0.75 + rh() * 0.4, rh() * 6.28);
+          else this._add('busch', x, z, 0.9 + rh() * 0.7, rh() * 6.28);
         }
       }
     }
     // Schilf am Ufer
     if (spec.reeds && hf.riverLine) {
+      const rq = rng(seed * 13 + 5);
       const line = hf.riverLine;
       for (let k = 0; k < line.length - 1; k++) {
         const [ax, az] = line[k], [bx, bz] = line[k + 1];
         const L = Math.hypot(bx - ax, bz - az) || 1, nx = -(bz - az) / L, nz = (bx - ax) / L;
         for (let m = 0; m < 3 * dens; m++) {
-          const t = r(), side = r() < 0.5 ? -1 : 1, off = (spec.reeds.offset ?? 8.5) + (r() - 0.5) * 4;
+          const t = rq(), side = rq() < 0.5 ? -1 : 1, off = (spec.reeds.offset ?? 8.5) + (rq() - 0.5) * 4;
           const x = ax + (bx - ax) * t + nx * off * side, z = az + (bz - az) * t + nz * off * side;
           if (!hf.contains(x, z) || this.blocked(x, z)) continue;
           const y = hf.heightAt(x, z);
           if (y < hf.waterY - 0.25 || y > hf.waterY + 0.9) continue;
-          this._add('schilf', x, z, 0.8 + r() * 0.6, r() * 6.28);
+          this._add('schilf', x, z, 0.8 + rq() * 0.6, rq() * 6.28);
         }
       }
     }
     // Felsen (steile Hänge, Kuppen) – Kollision + Deckung
     const rk = spec.rocks;
     if (rk) {
+      const rr = rng(seed * 17 + 7);
       const b = this.bounds;
       for (let k = 0, made = 0; k < (rk.count ?? 100) * 12 && made < (rk.count ?? 100); k++) {
-        const x = b.minX - 30 + r() * (b.maxX - b.minX + 60), z = b.minZ - 30 + r() * (b.maxZ - b.minZ + 60);
+        const x = b.minX - 30 + rr() * (b.maxX - b.minX + 60), z = b.minZ - 30 + rr() * (b.maxZ - b.minZ + 60);
         if (!hf.contains(x, z) || this.blocked(x, z)) continue;
         const ny = hf.normalAt(x, z, n3).y;
-        if (ny > 0.95 && r() > 0.12) continue;
+        if (ny > 0.95 && rr() > 0.12) continue;
         if (hf.heightAt(x, z) < hf.waterY + 0.3) continue;
-        this.rocks.push({ x, y: hf.heightAt(x, z) - 0.25, z, s: 0.6 + r() * r() * 2.2, ry: r() * 6.28, v: k % 3 });
+        this.rocks.push({ x, y: hf.heightAt(x, z) - 0.25, z, s: 0.6 + rr() * rr() * 2.2, ry: rr() * 6.28, v: k % 3 });
         made++;
       }
-      for (const p of rk.extra || []) this.rocks.push({ x: p[0], y: hf.heightAt(p[0], p[1]) - 0.3, z: p[1], s: p[2] ?? 1.5, ry: r() * 6.28, v: 0 });
+      for (const p of rk.extra || []) this.rocks.push({ x: p[0], y: hf.heightAt(p[0], p[1]) - 0.3, z: p[1], s: p[2] ?? 1.5, ry: rr() * 6.28, v: 0 });
       // maps-expand: Deckung im offenen Gelände – Lesesteinmauern (flache, gestreckte Felsen entlang Linien, ≈ 0,6–0,95 m
       // hoch = Hockdeckung) und Felsgruppen; nur auf trockenem, flachem, freiem Boden (nicht in Orten/Straßen/Flaggen)
       const okRock = (x, z) => hf.contains(x, z) && !this.blocked(x, z) && hf.heightAt(x, z) > hf.waterY + 0.3 && hf.normalAt(x, z, n3).y > 0.85;
@@ -284,8 +326,8 @@ export class Vegetation {
         for (let k = 0; k < w.length - 1; k++) {
           const [ax, az] = w[k], [bx, bz] = w[k + 1], L = Math.hypot(bx - ax, bz - az), yaw = Math.atan2(-(bz - az), bx - ax);
           for (let d = 0.9; d < L; d += 1.9) {
-            const t = d / L, x = ax + (bx - ax) * t + (r() - 0.5) * 0.3, z = az + (bz - az) * t + (r() - 0.5) * 0.3;
-            const sx = 0.95 + r() * 0.25, sy = 1.45 + r() * 0.35, sz = 0.5 + r() * 0.12, ry = yaw + (r() - 0.5) * 0.25, v = (k + Math.round(d)) % 3;
+            const t = d / L, x = ax + (bx - ax) * t + (rr() - 0.5) * 0.3, z = az + (bz - az) * t + (rr() - 0.5) * 0.3;
+            const sx = 0.95 + rr() * 0.25, sy = 1.45 + rr() * 0.35, sz = 0.5 + rr() * 0.12, ry = yaw + (rr() - 0.5) * 0.25, v = (k + Math.round(d)) % 3;
             if (!okRock(x, z)) continue;
             this.rocks.push({ x, y: hf.heightAt(x, z) - 0.2, z, s: 1, sx, sy, sz, ry, v });
           }
@@ -293,7 +335,7 @@ export class Vegetation {
       }
       for (const [cx, cz, n, rad] of rk.clusters || []) {
         for (let k = 0; k < n; k++) {
-          const a = r() * 6.28, d = r() * rad, x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d, s = 0.85 + r() * 0.8, ry = r() * 6.28;
+          const a = rr() * 6.28, d = rr() * rad, x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d, s = 0.85 + rr() * 0.8, ry = rr() * 6.28;
           if (!okRock(x, z)) continue;
           this.rocks.push({ x, y: hf.heightAt(x, z) - 0.25, z, s, ry, v: k % 3 });
         }

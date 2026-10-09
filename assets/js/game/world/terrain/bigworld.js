@@ -186,6 +186,23 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   const terr = await terrainP;
   const hf = Heightfield.fromData(terr.data);
   hf.riverLine = terr.river;
+  // 3b) Ortschaften, die Geländehöhen brauchen (z. B. Grenzanlage entlang der Kartengrenze): def.lateSites – wie
+  // def.sites, build(b, ctx) bekommt zusätzlich ctx.hf (Höhenfeld) und ctx.roads (Gelände-Straßen mit samples);
+  // Rückgabe { clearLines: [{ pts, r }] } hält Bäume/Gras aus Streifen fern. Ohne Navigation (nav: false).
+  for (let k = 0; k < (def.lateSites || []).length; k++) {
+    const s = def.lateSites[k];
+    progress(0.52, s.name);
+    const vb = { minX: s.bounds.minX - 12, maxX: s.bounds.maxX + 12, minZ: s.bounds.minZ - 12, maxZ: s.bounds.maxZ + 12 };
+    const b = new MapBuilder({ bounds: vb, seed: (def.seed || 1) + 7919 + k * 101, chunkSize: s.chunkSize || 64, groundNoise: 0, interiorTint: s.interiorTint });
+    b.lookQuality = quality;
+    if (libOk) {
+      b.lib = lib.modelIds();
+      b.library = async (req, onProg) => { const r = await lib.load({ ...req, plan: libPlan }, onProg); resolveLibraryMaterials(r.sets); return r; };
+    }
+    const res = s.build(b, { ...ctx, hf, roads: terr.roads }) || {};
+    const built = await b.build({ quality, anisotropy: Math.min(G.renderer?.preset?.anisotropy || 4, maxAniso), onProgress: (p, l) => progress(0.52, `${s.name}: ${l}`) });
+    sites.push({ def: { ...s, nav: false }, b, res, built });
+  }
   const pb = def.bounds;
   const group = new THREE.Group();
   group.name = 'world:' + id;
@@ -228,11 +245,20 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   for (const f of [...(def.flags?.cq || []), ...(def.flags?.dom || [])]) mark(f.x, f.z, 5);
   for (const v of def.vehicles || []) mark(v.x, v.z, 7);
   for (const c of def.clearings || []) mark(c[0], c[1], c[2]);
+  // Startpunkte (kein Baum auf dem Spawn) und Streifen späterer Ortschaften (Kontrollstreifen der Grenzanlage)
+  for (const t of ['A', 'B', 'ffa']) for (const p of def.spawns?.[t] || []) mark(p[0], p[1], 3);
+  for (const t of ['A', 'B']) for (const p of def.spawns?.hq?.[t] || []) mark(p[0], p[1], 3);
+  for (const s of sites) for (const L of s.res?.clearLines || []) {
+    for (let k = 0; k + 1 < L.pts.length; k++) {
+      const [ax, az] = L.pts[k], [bx, bz] = L.pts[k + 1], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / BR));
+      for (let i = 0; i <= n; i++) mark(ax + (bx - ax) * i / n, az + (bz - az) * i / n, L.r);
+    }
+  }
   const blocked = (x, z) => {
     const i = Math.round((x - hf.minX) / BR), j = Math.round((z - hf.minZ) / BR);
     return i < 0 || j < 0 || i >= bn || j >= bn ? false : block[j * bn + i] === 1;
   };
-  const veg = new Vegetation({ hf, spec: def.vegetation, quality, tier, blocked, bounds: pb });
+  const veg = new Vegetation({ hf, spec: def.vegetation, quality, tier, blocked, bounds: pb, fields: def.terrain?.fields || [] });
   const vegCol = veg.colliders();
   group.add(veg.build(getMaterial));
   ms.vegetation = Math.round(performance.now() - tV);

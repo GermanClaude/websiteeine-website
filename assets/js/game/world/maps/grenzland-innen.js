@@ -5,7 +5,7 @@
 // Regeln: Platzierung nur aus festen Koordinaten bzw. hash01 (kein b.rand → übrige Karten-Platzierung unverändert);
 // Kollision unabhängig von der Grafikstufe; große Möbel mit Kollision (Kugeln treffen sie), Kleinkram ohne; Türen
 // und Wege bleiben frei (Durchgänge ≥ 0,9 m, Türbereiche ≥ 1,5 m). Möbel ohne Minikarten-Eintrag.
-import { frame, hash01 } from '../props.js';
+import { frame, hash01, workbench, lockers, rack } from '../props.js';
 import { railing } from '../arch.js';
 
 const NOMAP = { minimap: false };
@@ -392,4 +392,195 @@ export function lochgelaender(b, hole, y, room = 's', open = 'e') {
   const zr = room === 's' ? z1 + 0.05 : z0 - 0.05, xe = open === 'e' ? x0 - 0.05 : x1 + 0.05;
   railing(b, xe, zr, open === 'e' ? x1 : x0, zr, y, o);
   railing(b, xe, room === 's' ? z0 : z1, xe, zr, y, o);
+}
+
+// ---------------------------------------------------------------------------
+// Einrichtung je Gebäude. R = Innenmaß { x0, x1, z0, z1 } + yF/yC (EG-Boden/-Decke), yF2/yC2 (OG), hole (Treppenloch)
+// Fenster/Türen der Häuser: siehe grenzland.js openings() (Fensterachsen alle 2,8 m um die Wandmitte).
+// ---------------------------------------------------------------------------
+const PI = Math.PI, E = PI / 2, W = -PI / 2;
+
+/** Gasthaus „Zum Grenzstein“: Gaststube (Theke, Stammtisch, Tische, Kachelofen), oben Gästezimmer. */
+export function gasthausInnen(b, R) {
+  const { yF, yC, yF2, yC2 } = R;
+  // Gaststube: Theke an der Nordwand östlich der Treppe (Gang dahinter 1,15 m), Rückregal mit Flaschen
+  theke(b, -24.0, yF, 55.65, 0, { len: 4.0, back: 1.65 });
+  essplatz(b, -29.6, yF, 59.0, { w: 2.0, d: 0.9, n: 6, ry: E, cloth: '#e2d8c4' });      // Stammtisch
+  essplatz(b, -26.8, yF, 61.1, { w: 0.8, d: 0.8, n: 2 });
+  essplatz(b, -21.2, yF, 61.2, { w: 0.8, d: 0.8, n: 2, ry: E });
+  kachelofen(b, R.x0 + 0.48, yF, R.z1 - 0.48, 0);
+  bild(b, R.x0 + 0.02, yF + 1.45, 58.0, E, { w: 0.7, h: 0.5, tint: '#6a7a5a' });
+  bild(b, R.x1 - 0.02, yF + 1.5, 61.0, W, { w: 0.5, h: 0.6, tint: '#8a6a4a' });
+  deckenlampe(b, -29.6, yC, 59.0, yF, { real: true });
+  deckenlampe(b, -24.0, yC, 57.4, yF);
+  deckenlampe(b, -21.4, yC, 60.6, yF, { pool: 2.6 });
+  // Gästezimmer (offen, ohne Zwischenwände: Spielfluss) – Betten an West-/Südwand, Schrank, Tisch, Waschtisch
+  bett(b, R.x0 + 1.0, yF2, 57.9, E, { blanket: '#6a3a2e' });
+  bett(b, R.x0 + 1.0, yF2, 61.0, E, { blanket: '#3a4a6a' });
+  bett(b, -28.8, yF2, R.z1 - 1.0, PI, { blanket: '#5a6a3a' });
+  truhe(b, -28.8, yF2, 59.8, 0);
+  schrank(b, R.x1 - 0.29, yF2, 61.4, W);
+  essplatz(b, -23.8, yF2, 58.2, { w: 0.9, d: 0.7, n: 2 });
+  waschtisch(b, -23.2, yF2, R.z0 + 0.24, 0);
+  teppich(b, -25.0, yF2, 59.4, 2.4, 1.6, 0, '#6a2e26');
+  deckenlampe(b, -24.6, yC2, 58.6, yF2);
+  deckenlampe(b, -30.2, yC2, 59.6, yF2, { pool: 2.6 });
+}
+
+/** Haus am Dorfplatz (18/64): Wohnküche unten, Schlafzimmer oben. */
+export function haus18Innen(b, R) {
+  const { yF, yC, yF2, yC2 } = R;
+  kueche(b, R.x1 - 0.3, yF, 64.0, W, { len: 4.0, hang: [-0.8, 0.8] });
+  essplatz(b, 18.0, yF, 64.9, { w: 1.2, d: 0.8, n: 4, cloth: '#c8d4dc' });
+  kommode(b, 18.0, yF, R.z1 - 0.25, PI, { w: 1.4, aufsatz: true });
+  bild(b, R.x0 + 0.02, yF + 1.5, 66.3, E, { w: 0.6, h: 0.45 });
+  teppich(b, 18.0, yF, 64.9, 2.6, 1.9, 0, '#4a5a6a');
+  deckenlampe(b, 18.0, yC, 64.9, yF);
+  bett(b, 18.0, yF2, R.z1 - 1.0, PI, { w: 1.6, blanket: '#7a4a3a' });
+  truhe(b, 18.0, yF2, 65.3, 0);
+  schrank(b, R.x1 - 0.29, yF2, 64.0, W, { w: 1.2 });
+  bett(b, R.x0 + 1.0, yF2, 64.0, E, { blanket: '#3a5a4a' });
+  teppich(b, 18.4, yF2, 63.4, 1.8, 1.2, 0, '#7a3a2e');
+  deckenlampe(b, 18.2, yC2, 64.2, yF2);
+}
+
+/** Einstöckiges Haus (−30/95): Küche, Esstisch, Bett, Schrank. */
+export function haus30Innen(b, R) {
+  const { yF, yC } = R;
+  kueche(b, R.x0 + 0.3, yF, 95.0, E, { len: 3.6 });
+  essplatz(b, -31.9, yF, 95.2, { w: 0.8, d: 1.1, n: 2 });
+  bett(b, R.x1 - 1.0, yF, 96.4, W, { blanket: '#6a5a3a' });
+  schrank(b, -26.6, yF, R.z0 + 0.29, 0);
+  kommode(b, -33.4, yF, R.z1 - 0.25, PI);
+  teppich(b, -29.4, yF, 95.2, 1.8, 1.2, PI / 2, '#5a3a2e');
+  deckenlampe(b, -30.4, yC, 95.0, yF);
+}
+
+/** Haus (24/96): Küche mit Kachelofen, Regal; oben Kinderzimmer mit zwei Betten, Schreibtisch. */
+export function haus24Innen(b, R) {
+  const { yF, yC, yF2, yC2 } = R;
+  kueche(b, R.x1 - 0.3, yF, 96.6, W, { len: 4.0 });
+  kachelofen(b, R.x1 - 0.48, yF, R.z0 + 0.48, 0, { tint: '#7a5a46' });
+  essplatz(b, 24.6, yF, 95.6, { w: 1.2, d: 0.8, n: 4 });
+  regal(b, 20.2, yF, R.z0 + 0.18, 0, { w: 1.0 });
+  deckenlampe(b, 24.6, yC, 95.6, yF);
+  bett(b, 22.6, yF2, R.z0 + 1.0, 0, { blanket: '#3a5a8a' });
+  bett(b, 25.4, yF2, R.z0 + 1.0, 0, { blanket: '#8a3a3a' });
+  truhe(b, 24.0, yF2, R.z0 + 0.3, 0);
+  schrank(b, R.x0 + 0.29, yF2, 96.0, E, { w: 1.2 });
+  tisch(b, R.x1 - 0.3, yF2, 96.0, { w: 1.0, d: 0.55, ry: W });
+  stuhl(b, R.x1 - 0.95, yF2, 96.0, E);
+  teppich(b, 24.2, yF2, 95.9, 2.2, 1.3, 0, '#4a6a5a');
+  deckenlampe(b, 24.4, yC2, 95.6, yF2);
+}
+
+/** Haus (−8/40) am Ortseingang: Küche, Esstisch, Regal, Kommode; oben Schlafzimmer mit Schreibtisch. */
+export function haus8Innen(b, R) {
+  const { yF, yC, yF2, yC2 } = R;
+  kueche(b, -10.2, yF, R.z1 - 0.3, PI, { len: 3.6 });
+  essplatz(b, -7.4, yF, 40.4, { w: 1.2, d: 0.8, n: 4 });
+  regal(b, R.x0 + 0.18, yF, 40.0, E, { w: 1.0 });
+  kommode(b, R.x1 - 0.25, yF, 42.6, W);
+  deckenlampe(b, -7.4, yC, 40.4, yF);
+  bett(b, -8.0, yF2, R.z1 - 1.0, PI, { w: 1.6, blanket: '#5a4a6a' });
+  schrank(b, R.x0 + 0.29, yF2, 40.0, E, { w: 1.2 });
+  tisch(b, R.x1 - 0.3, yF2, 40.0, { w: 1.0, d: 0.55, ry: W });
+  stuhl(b, R.x1 - 0.95, yF2, 40.0, E);
+  teppich(b, -8.0, yF2, 40.2, 2.0, 1.4, 0, '#6a4a2e');
+  deckenlampe(b, -8.0, yC2, 40.2, yF2);
+}
+
+/** Einstöckiges Haus (35/40) mit Durchgang West–Ost: Bett und Schrank nördlich, Küche und Tisch südlich. */
+export function haus35Innen(b, R) {
+  const { yF, yC } = R;
+  bett(b, 35.0, yF, R.z0 + 1.0, 0, { blanket: '#7a6a4a' });
+  schrank(b, R.x0 + 0.29, yF, 37.0, E);
+  kueche(b, 32.9, yF, R.z1 - 0.3, PI, { len: 3.0 });
+  essplatz(b, 36.6, yF, 42.3, { w: 0.9, d: 0.8, n: 2, ry: E });
+  kachelofen(b, R.x1 - 0.48, yF, R.z1 - 0.48, 0, { tint: '#8a5a3a' });
+  deckenlampe(b, 35.0, yC, 40.0, yF);
+}
+
+/** Kapelle: Kirchenbänke links/rechts des Mittelgangs, Altar auf der Stufe mit Wandkreuz, Ambo, Kreuzweg-Bilder, zwei Pendelleuchten. */
+export function kapelleInnen(b, R) {
+  const { yF, yC } = R;
+  for (const z of [98.2, 99.5, 100.8, 102.1, 103.4]) for (const x of [-9.65, -6.35]) kirchenbank(b, x, yF, z, PI, { len: 2.3 });
+  altar(b, -8.0, yF, R.z0 + 1.3, 0, { wall: 1.3, stufe: [6.3, 2.2] });
+  ambo(b, -10.3, yF + 0.16, R.z0 + 1.55, 0.35);
+  for (const z of [99.5, 104.5]) { bild(b, R.x0 + 0.02, yF + 1.9, z, E, { w: 0.36, h: 0.46, tint: '#8a7a5a' }); bild(b, R.x1 - 0.02, yF + 1.9, z, W, { w: 0.36, h: 0.46, tint: '#8a7a5a' }); }
+  deckenlampe(b, -8.0, yC, 99.4, yF, { drop: 1.9, r: 0.3, shade: '#2e2a26', real: true, pool: 4.2 });
+  deckenlampe(b, -8.0, yC, 102.8, yF, { drop: 1.9, r: 0.3, shade: '#2e2a26', pool: 4.2 });
+}
+
+/** Bauernhaus: Stube mit großem Tisch, Kachelofen, Küche, Regal; oben Elternbett, Kinderbett, Schrank. */
+export function bauernhausInnen(b, R) {
+  const { yF, yC, yF2, yC2 } = R;
+  kueche(b, -165.3, yF, R.z1 - 0.3, PI, { len: 3.6 });
+  essplatz(b, -163.0, yF, 96.4, { w: 1.6, d: 0.9, n: 6, cloth: '#e8e0c8' });
+  kachelofen(b, R.x1 - 0.48, yF, R.z0 + 0.48, 0);
+  regal(b, -160.5, yF, R.z0 + 0.18, 0, { w: 1.2 });
+  bild(b, R.x0 + 0.02, yF + 1.5, 96.0, E, { w: 0.6, h: 0.45, tint: '#7a8a5a' });
+  deckenlampe(b, -163.0, yC, 96.4, yF, { real: true });
+  bett(b, R.x1 - 1.0, yF2, 96.0, W, { w: 1.6, blanket: '#7a3a2e' });
+  truhe(b, -159.2, yF2, 96.0, E);
+  bett(b, -163.5, yF2, R.z1 - 1.0, PI, { blanket: '#3a5a6a' });
+  schrank(b, R.x0 + 0.29, yF2, 96.0, E, { w: 1.2 });
+  waschtisch(b, -157.7, yF2, R.z0 + 0.24, 0);
+  teppich(b, -161.5, yF2, 96.4, 2.2, 1.5, 0, '#5a6a3a');
+  deckenlampe(b, -161.5, yC2, 96.2, yF2);
+}
+
+/** Scheune (Erdgeschoss): Heuballen unter dem Heuboden, Werkbank, Werkzeugwand, Milchkannen, Stroh, Hängelampe. */
+export function scheuneInnen(b, R) {
+  const { yF } = R;
+  for (const [x, z] of [[-129.5, 113.3], [-130.75, 113.3], [-129.5, 114.15], [-130.75, 114.15]]) { quaderballen(b, x, yF, z, 0); quaderballen(b, x, yF + 0.6, z, 0); }
+  quaderballen(b, -132.2, yF, 113.4, 0.25);
+  stroh(b, -132.2, yF, 115.6, 2.6, 1.8, 0.3);
+  workbench(b, R.x0 + 0.45, 114.4, { ry: E, y: yF, w: 2.0 });
+  werkzeugwand(b, R.x1 - 0.02, yF, 119.0, W);
+  milchkannen(b, -138.6, yF, 122.5);
+  deckenlampe(b, -136.0, 5.35, 120.2, yF, { drop: 1.0, r: 0.32, shade: '#3a3c3a', pool: 4.0 });
+}
+
+/** Stall: Futtertrog an der Westwand, Boxenwände, Stroh, Werkzeug, Milchkannen, zwei Korblampen. */
+export function stallInnen(b, R) {
+  const { yF, yC } = R;
+  futtertrog(b, R.x0 + 0.3, yF, 92.0, E, 11.0);
+  for (const z of [88.3, 90.3, 92.3, 94.3, 96.3]) boxenwand(b, -179.25, yF, z, 0, 1.8);
+  for (const z of [89.3, 93.3, 95.3]) stroh(b, -179.3, yF, z, 1.6, 1.6);
+  werkzeugwand(b, R.x1 - 0.02, yF, 92.0, W);
+  milchkannen(b, -176.0, yF, R.z0 + 0.6);
+  kafiglampe(b, -177.5, yC, 89.5, yF);
+  kafiglampe(b, -177.5, yC, 94.5, yF);
+}
+
+/** Schuppen mit Traktor: Werkbank und Werkzeugwand an der Nordwand, Korblampe. */
+export function schuppenInnen(b, R) {
+  const { yF, yC } = R;
+  workbench(b, -49.2, R.z0 + 0.45, { ry: 0, y: yF, w: 2.0 });
+  werkzeugwand(b, -46.0, yF, R.z0 + 0.02, 0);
+  kafiglampe(b, -48.0, yC, 72.4, yF, { pool: 3.4 });
+}
+
+/** Bunker auf dem Funkhügel: Stockbett, Funktisch, Kartentisch, Munitionskisten, Lagekarte, Korblampe. */
+export function bunkerInnen(b, R) {
+  const { yF, yC } = R;
+  stockbett(b, -119.2, yF, R.z0 + 0.45, 0);
+  funktisch(b, R.x1 - 0.3, yF, -133.6, W);
+  tisch(b, -117.0, yF, -134.9, { w: 1.0, d: 0.7, tint: '#7a7a6a' });
+  stuhl(b, -117.0, yF, -134.25, PI, '#6a6a5a');
+  stuhl(b, -117.0, yF, -135.55, 0, '#6a6a5a');
+  munitionskisten(b, R.x1 - 0.21, yF, -136.8, W, 3);
+  bild(b, R.x0 + 0.02, yF + 1.0, -133.4, E, { w: 0.9, h: 0.6, tint: '#c8c0a0' });
+  kafiglampe(b, -117.0, yC, -135.0, yF, { real: true });
+}
+
+/** Kieswerkhalle: Werkbank und Spinde an der Nordwand, Palettenregal an der Westwand, zwei Hallenleuchten. */
+export function kieswerkInnen(b, R) {
+  const { yF, yC } = R;
+  workbench(b, 162.8, R.z0 + 0.45, { y: yF, w: 2.0 });
+  lockers(b, 173.4, R.z0 + 0.25, { y: yF, n: 4 });
+  rack(b, R.x0 + 0.6, -118.0, { ry: E, bays: 2, y: yF });
+  deckenlampe(b, 168.0, yC, -124.5, yF, { drop: 1.6, r: 0.42, shade: '#5a6068', cool: true, pool: 5.5, glow: 1.6 });
+  deckenlampe(b, 168.0, yC, -111.5, yF, { drop: 1.6, r: 0.42, shade: '#5a6068', cool: true, pool: 5.5, glow: 1.6 });
 }

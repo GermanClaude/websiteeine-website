@@ -936,6 +936,11 @@ export class MapBuilder {
           this._noCollide = (this._noCollide || 0) + 1;
           try { o.fallback(this); } finally { this._noCollide--; }
           fallbacks++;
+        } else if (o.collide !== false && !o.part && Array.isArray(ms) && ms.length === 3) {
+          // ohne Ersatzform: schlichter Quader in Manifest-Maßen, damit die (überall gleiche) Kollision sichtbar ist
+          const k = o.s ?? 1, sx = ms[0] * (o.sx ?? 1) * k, sy = ms[1] * (o.sy ?? 1) * k, sz = ms[2] * (o.sz ?? 1) * k;
+          this.box(x, o.pivot === 'center' ? y - sy / 2 : y, z, sx, sy, sz, 'metal_painted', { ry: o.ry || 0, tint: o.tint || '#7d8388', collide: false, minimap: false });
+          fallbacks++;
         }
         continue;
       }

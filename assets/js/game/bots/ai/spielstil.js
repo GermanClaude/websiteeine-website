@@ -12,6 +12,14 @@
 // verschoben. Bots nutzen kein Live-Wissen über den Spieler, nur das gelernte Modell + ihre eigene Wahrnehmung.
 // Einstellung „Lernende Bots“ (adaptiveBots, Standard an): aus = weder lernen noch anpassen.
 // Prüfstand: ?botlearn=off|fresh|camper|sniper|close (synthetisches Modell, wird nicht gespeichert).
+//
+// Verbündete lernen mit (Nutzerwunsch 08.10.): Sie „wachsen“ über Match und Sitzung – Erfahrung (Abschüsse der
+// Verbündeten, Abschüsse des Spielers, Einsatzzeit; gespeichert in store.ally.xp mit Zerfall je Match) ergibt eine
+// Wachstumsstufe 0…1 (ALLY_MAX je Schwierigkeit). Damit werden die Verbündeten schrittweise besser im Zielen
+// (Reaktion, Streuung, Nachführen, Rückstoß, Vorhalt, Entdecken – für Verbündete ist das fair, sie spielen mit dem
+// Spieler), übernehmen seine Kampfweise (Fernkämpfer → mehr Deckung/Halten, Nahkämpfer → nachsetzen/flankieren) und
+// besetzen seine Erfolgs-Positionen (Platz-Karte: wo er Gegner ausschaltet, mit seiner Schussrichtung). Online aus
+// (wie das Gegner-Lernen).
 import * as THREE from 'three';
 import { analyze, perchNear } from './tactics.js';
 
@@ -22,6 +30,13 @@ const CELL = 6; // m, Rasterweite der Platz-Karten
 const MAX_CELLS = 64;
 /** Anpassungsstärke je Schwierigkeit: Rekrut keine, Regulär leicht, Veteran mittel, Elite stark. */
 export const ADAPT_LEVEL = Object.freeze({ rekrut: 0, regulaer: 0.35, veteran: 0.65, elite: 1 });
+/** Höchste Wachstumsstufe der Verbündeten je Schwierigkeit (Anteil von allyTune). */
+export const ALLY_MAX = Object.freeze({ rekrut: 0.6, regulaer: 0.8, veteran: 1, elite: 1 });
+/** Erfahrung der Verbündeten: je Abschuss eines Verbündeten, je Abschuss des Spielers, je Einsatzminute; Zerfall je Match. */
+const ALLY_XP = Object.freeze({ allyKill: 0.5, playerKill: 0.25, minute: 0.3, decay: 0.85, scale: 60 });
+/** Wachstumsstufe aus Erfahrung (0…1, sättigend). */
+export const allyGrowth = (xp) => 1 - Math.exp(-Math.max(0, xp || 0) / ALLY_XP.scale);
+
 /** Werte, die die Anpassung nie verändert (Fairness). */
 export const FROZEN = Object.freeze(['reaction', 'aimError', 'tracking', 'burst', 'headshotChance', 'spotRate', 'viewDistance', 'fov', 'damageScale', 'prediction', 'recoilComp', 'senseHz', 'thinkInterval', 'falloff']);
 
@@ -83,9 +98,12 @@ export function loadStore() {
   try {
     const raw = globalThis.localStorage && localStorage.getItem(STORE_KEY);
     const o = raw ? JSON.parse(raw) : null;
-    if (o && o.v === VERSION && o.g && o.maps) return o;
+    if (o && o.v === VERSION && o.g && o.maps) {
+      if (!o.ally || !Number.isFinite(o.ally.xp)) o.ally = { xp: 0 }; // Verbündete (ältere Speicherstände ohne)
+      return o;
+    }
   } catch { /* gesperrt/kaputt → neu */ }
-  return { v: VERSION, g: emptyStats(), maps: {} };
+  return { v: VERSION, g: emptyStats(), maps: {}, ally: { xp: 0 } };
 }
 function saveStore(o) { try { localStorage.setItem(STORE_KEY, JSON.stringify(o)); } catch { /* voll/gesperrt */ } }
 export function clearStore() { try { localStorage.removeItem(STORE_KEY); } catch { /* egal */ } }
@@ -155,6 +173,29 @@ export function tuneDiff(base, T, s) {
   return o;
 }
 
+/**
+ * Verbündete: Zielen und Taktik mit Wachstum g (0…1) verbessern, Kampfweise des Spielers (Eigenschaften T)
+ * übernehmen. Gedeckelt (g = 1: Reaktion −20 %, Streuung −25 %, Nachführen +15 % …). → nur die geänderten Felder.
+ */
+export function allyTune(base, T, g) {
+  const o = {};
+  if (!(g > 0)) return o;
+  const lr = T ? T.longRange : 0, cr = T ? T.closeRange : 0;
+  o.reaction = base.reaction * (1 - 0.2 * g);
+  o.aimError = base.aimError * (1 - 0.25 * g);
+  o.tracking = base.tracking * (1 + 0.15 * g);
+  o.recoilComp = base.recoilComp * (1 + 0.2 * g);
+  o.prediction = Math.min(1, base.prediction + 0.2 * g);
+  o.spotRate = base.spotRate * (1 + 0.15 * g);
+  o.headshotChance = Math.min(0.6, base.headshotChance * (1 + 0.25 * g));
+  o.cover = Math.min(0.98, base.cover + 0.12 * g + 0.08 * g * lr);
+  o.peekChance = Math.min(0.9, base.peekChance + 0.1 * g);
+  o.flank = Math.min(0.7, base.flank + 0.1 * g * cr);
+  o.strafeChance = Math.min(0.9, base.strafeChance + 0.08 * g * cr);
+  o.chaseTime = base.chaseTime * (1 + 0.3 * g * cr - 0.25 * g * lr);
+  return o;
+}
+
 /** Synthetisches Modell (Prüfstand, ?botlearn=camper|sniper|close). */
 export function synthModel(preset, world, mapId, playerTeam = 'A') {
   const A = analyze(world);
@@ -217,6 +258,14 @@ export class BotAdapt {
     this._anchorSet = false;
     this._anchorT = 0;
     this.camping = false;
+    // Verbündete (wachsen mit): gespeicherte + laufende Erfahrung, Stufe, eigener Datensatz
+    this.allyXp = 0;
+    this.allyCurXp = 0;
+    this.allyMax = 0;
+    this.allyG = 0;
+    this._allyDiff = null;
+    this._allyBase = null;
+    this._allyT = 0;
     this._react = new Map();
     this._dirty = false;
     this._retuneAt = 0;
@@ -264,7 +313,9 @@ export class BotAdapt {
     this.level = this.active ? ADAPT_LEVEL[diff && diff.id] ?? 0.35 : 0;
     this.preset = param && param !== 'off' && param !== 'fresh' ? param : null;
     const team = G.player && G.player.team;
-    this.store = this.preset ? synthModel(this.preset, G.world, mapId, team || 'A') : param === 'fresh' ? { v: VERSION, g: emptyStats(), maps: {} } : loadStore();
+    this.store = this.preset ? synthModel(this.preset, G.world, mapId, team || 'A') : param === 'fresh' ? { v: VERSION, g: emptyStats(), maps: {}, ally: { xp: 0 } } : loadStore();
+    this.allyXp = (this.store.ally && this.store.ally.xp) || 0;
+    this.allyMax = this.active ? ALLY_MAX[diff && diff.id] ?? 0.8 : 0;
     // Spurgrenzen (seitlicher Abstand, wie tactics.analyze)
     const A = analyze(G.world);
     if (A) {
@@ -277,14 +328,36 @@ export class BotAdapt {
     this.retune(G.time.elapsed, true);
   }
 
-  /** Eigener Schwierigkeitsdatensatz der gegnerischen Bots (gemeinsam, wird live angepasst). */
+  /**
+   * Eigener Schwierigkeitsdatensatz der gegnerischen Bots (gemeinsam, wird live angepasst) bzw. der Verbündeten
+   * (wachsen mit, ebenfalls gemeinsam und live).
+   */
   diffFor(base, team, ffa) {
     const G = this.G;
     const pt = G.player && G.player.team;
-    if (!(ffa || !team || (pt && team !== pt) || (!pt && team === 'B'))) return base;
+    if (!(ffa || !team || (pt && team !== pt) || (!pt && team === 'B'))) {
+      if (!this.active) return base;
+      if (!this._allyDiff || this._allyBase !== base) { this._allyBase = base; this._allyDiff = { ...base }; }
+      this._applyAllyTune();
+      return this._allyDiff;
+    }
     if (!this._diff || this._base !== base) { this._base = base; this._diff = { ...base }; }
     this._applyTune();
     return this._diff;
+  }
+
+  /** Verbündeter des Spielers und Mitlernen aktiv? */
+  allyOn(bot) {
+    if (!this.active || !(this.allyMax > 0) || !bot || !bot.team) return false;
+    const pt = this.G.player && this.G.player.team;
+    return pt ? bot.team === pt : bot.team === 'A';
+  }
+
+  /** Wachstumsstufe der Verbündeten neu berechnen und auf ihren Datensatz legen. */
+  _applyAllyTune() {
+    this.allyG = allyGrowth(this.allyXp + this.allyCurXp);
+    if (!this._allyDiff || !this._allyBase) return;
+    Object.assign(this._allyDiff, this._allyBase, allyTune(this._allyBase, this.traits, this.active ? this.allyG * this.allyMax : 0));
   }
 
   /** Gegner des Spielers und Anpassung aktiv? */
@@ -325,6 +398,10 @@ export class BotAdapt {
     if (!p || !p.alive || !G.match || G.match.state !== 'playing') { this._anchorSet = false; this.camping = false; return; }
     const c = this.cur, pos = p.position;
     c.t += dt;
+    // Verbündete: Einsatzzeit zählt als Erfahrung; Stufe alle 5 s nachführen
+    this.allyCurXp += (dt / 60) * ALLY_XP.minute;
+    this._allyT += dt;
+    if (this._allyT >= 5) { this._allyT = 0; this._applyAllyTune(); }
     const v = p.body && p.body.velocity;
     const hs = v ? Math.hypot(v.x, v.z) : 0;
     if (p.vehicle) c.veh += dt;
@@ -356,6 +433,9 @@ export class BotAdapt {
     if (!this.active) return;
     const G = this.G, P = G.player, c = this.cur;
     if (!P || !victim) return;
+    // Verbündete lernen aus eigenen Abschüssen und aus denen des Spielers
+    if (killer && killer !== P && victim !== killer && killer.isBot && this.allyOn(killer) && victim.team !== killer.team) this.allyCurXp += ALLY_XP.allyKill;
+    else if (killer === P && victim !== P && this.allyMax > 0) this.allyCurXp += ALLY_XP.playerKill;
     if (killer === P && victim !== P) {
       c.k++;
       if (headshot) c.hs++;
@@ -418,6 +498,7 @@ export class BotAdapt {
     for (const k in M.danger) this.dangerMax = Math.max(this.dangerMax, M.danger[k][0]);
     this.plan = planOf(this.traits, this.level, this.spots);
     this._applyTune();
+    this._applyAllyTune();
     if (this.active) {
       const T = this.traits, r = (x) => Math.round(x * 100) / 100;
       this.G.events.emit('bot:adapt', {
@@ -527,6 +608,41 @@ export class BotAdapt {
   }
 
   /**
+   * Verbündete: Erfolgs-Position des Spielers besetzen (Platz-Karte: wo er Gegner ausschaltet bzw. sich hält) und in
+   * seine gelernte Schussrichtung sichern. Häufigkeit wächst mit der Stufe; nie direkt neben dem Spieler, jeder Platz
+   * nur von einem Verbündeten. → { move, watch, hold, node } oder null
+   */
+  allyGoal(bot, now, A) {
+    if (!this.allyOn(bot) || !A || !A.nav || now < (bot._allyGoalAt || 0)) return null;
+    const t0 = performance.now();
+    bot._allyGoalAt = now + rnd(16, 26);
+    const g = this.allyG * this.allyMax;
+    let out = null;
+    if (g > 0.05 && this.spots.length && Math.random() < Math.min(0.5, 0.15 + 0.5 * g)) {
+      const P = this.G.player;
+      let best = null, bs = -Infinity;
+      for (const s of this.spots) {
+        if (!s.facing) continue;
+        if (P && P.alive && s.pos.distanceTo(P.position) < 10) continue;
+        const d = s.pos.distanceTo(bot.position);
+        if (d < 4 || d > 80) continue;
+        const sc = s.norm * 2 - d / 50 - (now < (s.allyClaim || 0) ? 2 : 0) + Math.random() * 0.5;
+        if (sc > bs) { bs = sc; best = s; }
+      }
+      const n = best && A.nav.nearest(best.pos);
+      if (n && n.position.distanceTo(best.pos) < 4) {
+        best.allyClaim = now + 14;
+        const watch = best.pos.clone().addScaledVector(best.facing, 20);
+        watch.y += 1.2;
+        this.note(bot, 'ally_spot');
+        out = { move: n.position.clone(), watch, hold: rnd(8, 14), node: n };
+      }
+    }
+    this._time(t0);
+    return out;
+  }
+
+  /**
    * Nach jeder Entscheidung (bot.js): Lieblingsplätze vorzielen, Camper mit Blend/Splitter ausräuchern,
    * Rauch zwischen sich und einen Fernkämpfer legen.
    */
@@ -621,6 +737,12 @@ export class BotAdapt {
     for (const k of NUM) st.g[k] = Math.round(st.g[k] * 100) / 100;
     for (const c in st.g.cls) st.g.cls[c] = Math.round(st.g.cls[c] * 100) / 100;
     st.maps[this.mapId].lanes = st.maps[this.mapId].lanes.map((x) => Math.round(x));
+    // Verbündete: Erfahrung mit Zerfall übernehmen (sättigt bei ≈ Matcherfahrung / (1 − Zerfall))
+    if (this.allyMax > 0) {
+      st.ally = { xp: Math.round((ALLY_XP.decay * ((st.ally && st.ally.xp) || 0) + this.allyCurXp) * 100) / 100 };
+      this.allyXp = st.ally.xp;
+      this.allyCurXp = 0;
+    }
     this.store = st;
     this.cur = emptyStats();
     this.curMap = emptyMap();
@@ -628,8 +750,21 @@ export class BotAdapt {
     this.retune(this.G.time.elapsed);
   }
 
-  /** Eine Zeile für den Endbildschirm (leer bei Rekrut, aus oder Training). */
+  /** Eine Zeile für den Endbildschirm (leer bei aus oder Training; Rekrut: nur die Verbündeten). */
   summaryLine() {
+    return [this._enemyLine(), this.allyLine()].filter(Boolean).join(' ');
+  }
+
+  /** Verbündete: ab spürbarem Wachstum ein Satz (Erfahrung in Prozent). */
+  allyLine() {
+    const g = this.allyG * this.allyMax;
+    if (!this.active || !(g >= 0.1)) return '';
+    const T = this.traits;
+    const how = T.longRange > 0.3 ? 'halten wie du lange Sichtlinien' : T.closeRange > 0.3 ? 'setzen wie du im Nahkampf nach' : 'besetzen deine erfolgreichen Positionen';
+    return `Deine Verbündeten lernen mit (Erfahrung ${Math.round(g * 100)} %): Sie zielen sicherer und ${how}.`;
+  }
+
+  _enemyLine() {
     if (!this.active || !(this.level > 0)) return '';
     const T = this.traits, P = this.plan;
     const items = [];
@@ -649,6 +784,12 @@ export class BotAdapt {
     return `Die Bots haben sich auf deinen Stil eingestellt: ${txt.join('; ')}.`;
   }
 
+  _allySnapshot(r) {
+    const AD = this._allyDiff, AB = this._allyBase;
+    const tuned = AD && AB ? Object.fromEntries(['reaction', 'aimError', 'tracking', 'headshotChance', 'cover', 'chaseTime'].map((k) => [k, [r(AB[k]), r(AD[k])]])) : null;
+    return { max: this.allyMax, g: r(this.allyG), xp: r(this.allyXp), cur: r(this.allyCurXp), tuned };
+  }
+
   /** Zustand für Prüfstand/Entwicklerwerkzeuge. */
   snapshot() {
     const r = (x) => Math.round(x * 100) / 100;
@@ -657,6 +798,6 @@ export class BotAdapt {
     const D = this._diff, B = this._base;
     const frozenOk = !D || !B || FROZEN.every((k) => JSON.stringify(D[k]) === JSON.stringify(B[k]));
     const tuned = D && B ? Object.fromEntries(['flank', 'cover', 'grenadeChance', 'strafeChance', 'peekChance', 'prone', 'chaseTime'].map((k) => [k, [r(B[k]), r(D[k])]])) : null;
-    return { ms: +this.ms.toFixed(1), msMax: +this.msMax.toFixed(2), active: this.active, level: this.level, preset: this.preset, traits: T, plan: { ...this.plan }, spots: this.spots.map((s) => [r(s.pos.x), r(s.pos.z), r(s.w)]), counts: { ...this.counts }, frozenOk, tuned, camping: this.camping, cur: { t: r(this.cur.t), camp: r(this.cur.camp), k: this.cur.k, d: this.cur.d } };
+    return { ms: +this.ms.toFixed(1), msMax: +this.msMax.toFixed(2), active: this.active, level: this.level, preset: this.preset, traits: T, plan: { ...this.plan }, spots: this.spots.map((s) => [r(s.pos.x), r(s.pos.z), r(s.w)]), counts: { ...this.counts }, frozenOk, tuned, ally: this._allySnapshot(r), camping: this.camping, cur: { t: r(this.cur.t), camp: r(this.cur.camp), k: this.cur.k, d: this.cur.d } };
   }
 }

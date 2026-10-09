@@ -37,7 +37,11 @@ export function grenzanlage(b, o) {
     const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(L / sp)), ux = (bx - ax) / L, uz = (bz - az) / L;
     let nx = -uz, nz = ux;
     if (nx * -(ax + bx) + nz * -(az + bz) < 0) { nx = -nx; nz = -nz; }
-    for (let i = 0; i < n; i++) { const x = ax + ux * (L * i) / n, z = az + uz * (L * i) / n; posts.push({ x, z, y: gy(x, z), ux, uz, nx, nz, e }); }
+    for (let i = 0; i < n; i++) {
+      const x = ax + ux * (L * i) / n, z = az + uz * (L * i) / n, y = gy(x, z);
+      // im Fluss steht der Zaun von der Sohle bis 1,8 m über den Wasserspiegel
+      posts.push({ x, z, y, top: Math.max(y + H, wy + 1.8), ux, uz, nx, nz, e });
+    }
   }
   const N = posts.length;
 
@@ -83,17 +87,17 @@ export function grenzanlage(b, o) {
     const A = posts[i], B = posts[(i + 1) % N];
     const L = Math.hypot(B.x - A.x, B.z - A.z);
     // Kollision je Feld (auch im Tor und im Wasser), Enden 0,15 m überlappend
-    const yl = Math.min(A.y, B.y) - 0.6, yh = Math.max(A.y, B.y) + COL_H;
+    const yl = Math.min(A.y, B.y) - 0.6, yh = Math.max(A.top, B.top) + COL_H - H;
     b.box((A.x + B.x) / 2, yl, (A.z + B.z) / 2, L + 0.3, yh - yl, 0.24, 'black', { ry: Math.atan2(-(B.z - A.z), B.x - A.x), visual: false, minimap: false, bullet: false });
     if (gateAt.has(i)) { run += L; continue; }
     const n = [A.nx, 0, A.nz], u0 = run, u1 = run + L;
-    quad(mesh, [A.x, A.y + 0.05, A.z], [B.x, B.y + 0.05, B.z], [B.x, B.y + H, B.z], [A.x, A.y + H, A.z], n, [[u0, 0], [u1, 0], [u1, H], [u0, H]]);
+    quad(mesh, [A.x, A.y + 0.05, A.z], [B.x, B.y + 0.05, B.z], [B.x, B.top, B.z], [A.x, A.top, A.z], n, [[u0, 0], [u1, 0], [u1, B.top - B.y], [u0, A.top - A.y]]);
     // Übersteigschutz: 0,55 m schräg nach außen
     const ox = -A.nx * 0.42, oz = -A.nz * 0.42;
-    quad(mesh, [A.x, A.y + H, A.z], [B.x, B.y + H, B.z], [B.x + ox, B.y + H + 0.38, B.z + oz], [A.x + ox, A.y + H + 0.38, A.z + oz], [A.nx * 0.7, 0.7, A.nz * 0.7], [[u0, 0], [u1, 0], [u1, 0.55], [u0, 0.55]]);
+    quad(mesh, [A.x, A.top, A.z], [B.x, B.top, B.z], [B.x + ox, B.top + 0.38, B.z + oz], [A.x + ox, A.top + 0.38, A.z + oz], [A.nx * 0.7, 0.7, A.nz * 0.7], [[u0, 0], [u1, 0], [u1, 0.55], [u0, 0.55]]);
     for (const t of [0.35, 0.7, 1.0]) {
-      const dx = ox * t, dz = oz * t, yy = H + 0.38 * t;
-      quad(wire, [A.x + dx, A.y + yy - 0.008, A.z + dz], [B.x + dx, B.y + yy - 0.008, B.z + dz], [B.x + dx, B.y + yy + 0.008, B.z + dz], [A.x + dx, A.y + yy + 0.008, A.z + dz], n, [[u0, 0], [u1, 0], [u1, 0.02], [u0, 0.02]]);
+      const dx = ox * t, dz = oz * t, yy = 0.38 * t;
+      quad(wire, [A.x + dx, A.top + yy - 0.008, A.z + dz], [B.x + dx, B.top + yy - 0.008, B.z + dz], [B.x + dx, B.top + yy + 0.008, B.z + dz], [A.x + dx, A.top + yy + 0.008, A.z + dz], n, [[u0, 0], [u1, 0], [u1, 0.02], [u0, 0.02]]);
     }
     // Spanndraht unten
     quad(wire, [A.x, A.y + 0.12, A.z], [B.x, B.y + 0.12, B.z], [B.x, B.y + 0.135, B.z], [A.x, A.y + 0.135, A.z], n, [[u0, 0], [u1, 0], [u1, 0.02], [u0, 0.02]]);
@@ -114,9 +118,9 @@ export function grenzanlage(b, o) {
     const p = posts[i];
     if (gateAt.has(i) && gateAt.has((i - 1 + N) % N)) continue; // innere Torpfosten entfallen
     const ry = Math.atan2(-p.uz, p.ux);
-    b.box(p.x, p.y - 0.4, p.z, 0.14, H + 0.5, 0.14, 'concrete', { ry, tint: '#bdb8ad', collide: false, minimap: false, grad: false, interior: false });
+    b.box(p.x, p.y - 0.4, p.z, 0.14, p.top - p.y + 0.5, 0.14, 'concrete', { ry, tint: '#bdb8ad', collide: false, minimap: false, grad: false, interior: false });
     // Ausleger (Winkelstahl) schräg nach außen bis zum obersten Stacheldraht
-    strut(b, p.x, p.y + H - 0.05, p.z, p.x - p.nx * 0.44, p.y + H + 0.42, p.z - p.nz * 0.44, 0.03, 'metal_galvanized');
+    strut(b, p.x, p.top - 0.05, p.z, p.x - p.nx * 0.44, p.top + 0.42, p.z - p.nz * 0.44, 0.03, 'metal_galvanized');
   }
 
   // Warnschilder alle ≈ 80 m (abwechselnd), innen am Zaun

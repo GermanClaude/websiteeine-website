@@ -197,6 +197,14 @@ export function think(bot, now) {
       goal.data = perchData(chk.node, null, chk.watch, chk.hold);
       return;
     }
+    // ai-adapt (Verbündete lernen mit): Erfolgs-Positionen des Spielers besetzen und in seine Schussrichtung sichern
+    const ad = !adapt && bot.manager.adapt;
+    const ally = ad && ad.allyOn(bot) ? ad.allyGoal(bot, now, A) : null;
+    if (ally) {
+      set(goal, 'check', now, { move: ally.move, speed: 'run', look: 'point', lookAt: ally.watch, tolerance: 0.9 });
+      goal.data = perchData(ally.node, null, ally.watch, ally.hold);
+      return;
+    }
     const node = pickRoamGoal(bot, A, bot.manager.roamClaims(bot));
     if (node) {
       bot.lastGoal = node.position.clone();

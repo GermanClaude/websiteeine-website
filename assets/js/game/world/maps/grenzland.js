@@ -3,9 +3,13 @@
 // Scheune, Kieswerk, Funkhügel mit Bunker, Mühlenruine; Felder, Hecken, Wälder, Randgebirge.
 // Flaggen (Eroberung): A Gehöft · B Dorf · C Brücke · D Kieswerk · E Funkhügel; HQ A im Süden, HQ B im Norden.
 // Geladen von world/terrain/bigworld.js (Ortschaften je eigener MapBuilder, Boden y = 0 bzw. Plateauhöhe).
+import * as THREE from 'three';
 import { building, wall, stairs, railing, catwalk, slab, pitchedRoof } from '../arch.js';
 import { container, crateStack, barrelGroup, palletStack, sandbags, car, truck, fence, lampPost, floodMast, tires, bench, dumpster } from '../props.js';
 import { gemueseStand, aufsteller, traktor, durchlass } from './grenzland-ausstattung.js';
+import * as Innen from './grenzland-innen.js';
+import { mgNest } from './grenzland-stellungen.js';
+import { grenzanlage, grenzLinie } from './grenzland-grenze.js';
 
 const DIRV = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
 const PLASTER = ['#efe6d6', '#e8dcc4', '#f2ede2', '#e3d3b8', '#dfe0d6', '#eadbc8'];
@@ -61,10 +65,19 @@ function haus(b, o) {
   pitchedRoof(b, { x, z, w: w + 0.02, d: d + 0.02, y: B.roofY - 0.02, ridge: o.ridge || (w >= d ? 'x' : 'z'), pitch: o.pitch ?? 0.78, over: 0.5, gableMat: o.mat || 'plaster_white', gableTint: color, tint: o.roofTint || b.pick(ROOF) });
   b.noNav(x - w / 2 - 0.6, z - d / 2 - 0.6, x + w / 2 + 0.6, z + d / 2 + 0.6, B.roofY - 0.6, y + 40);
   if (st) {
-    stairs(b, { x: st.x, z: st.z, dir: st.dir, y0: y + 0.12, y1: y + fh, w: st.w, run: st.run, style: 'solid', mat: 'wood_planks', tint: '#a07c58', rail: 'left' });
+    // Handlauf auf der Raumseite (unten 1,4 m seitlich betretbar), Geländer um das Treppenloch oben (Ankunft offen)
+    const room = st.wall === 'n' ? 's' : 'n';
+    stairs(b, { x: st.x, z: st.z, dir: st.dir, y0: y + 0.12, y1: y + fh, w: st.w, run: st.run, style: 'solid', mat: 'wood_planks', tint: '#a07c58', rail: room === 's' ? 'right' : 'left', railFrom: 1.4, railTint: '#5a4636' });
     b.navPoint(st.x, y + 0.2, st.z);
+    Innen.lochgelaender(b, holes[0], y + fh + 0.02, room, 'e');
   }
-  return B;
+  const t = 0.3;
+  return { ...B, x0: x - w / 2 + t, x1: x + w / 2 - t, z0: z - d / 2 + t, z1: z + d / 2 - t, yF: y + 0.12, yC: y + fh - 0.25, yF2: y + fh + 0.02, yC2: y + 2 * fh - 0.25, hole: holes[0] || null };
+}
+
+/** Innenmaß eines building() (Wandstärke t, Decke = Dachplatte bzw. nächste Geschossdecke). */
+function innen(B, t = 0.3, y = 0) {
+  return { x0: B.x0 + t, x1: B.x1 - t, z0: B.z0 + t, z1: B.z1 - t, yF: y + 0.12, yC: B.levels.length > 1 ? B.levels[1] - 0.25 : B.roofY - 0.25 };
 }
 
 /** Niedrige Bruchsteinmauer. */
@@ -136,7 +149,8 @@ function hq(b, o) {
   b.box(x + 0.9, 7.6, z + 19 * s, 1.8, 1.1, 0.04, 'fabric_camo_a', { tint: col, collide: false, minimap: false, grad: false });
   floodMast(b, x + 31 * s, z - 14 * s, { h: 9 });
   floodMast(b, x - 31 * s, z - 14 * s, { h: 9 });
-  b.sign(x - 26 * s, 2.0, z + 11.5 * s - 1.24 * s, 3.2, 0.8, side === 'A' ? 'hq_a' : 'hq_b', { ry: side === 'A' ? 0 : Math.PI });
+  // Schild an der Längsseite des Containers zum Platz hin (stand vorher 0,8 m im Container und war unsichtbar)
+  b.sign(x - 26 * s + 1.25 * s, 1.35, z + 8 * s, 3.2, 0.8, side === 'A' ? 'hq_a' : 'hq_b', { ry: s * Math.PI / 2 });
 }
 
 // ---------------------------------------------------------------------------
@@ -150,31 +164,31 @@ function dorf(b) {
   b.cyl(-14, 0, 81, 0.95, 0.85, 'stone_wall', { tint: '#c8beac', seg: 14, minimap: 'cover' });
   b.cyl(-14, 0.85, 81, 0.75, 0.05, 'metal_painted', { tint: '#3a5560', seg: 14, collide: false, minimap: false });
   // Gasthaus „Zum Grenzstein“
-  haus(b, { x: -26, z: 58, w: 13, d: 9, floors: 2, color: '#efe2c4', roofTint: '#8a4232', doors: [{ side: 's', at: 2 }, { side: 'e', at: 0 }], stairs: { x: -31.6, z: 54.4, dir: 'e', wall: 'n' } });
+  const gasthaus = haus(b, { x: -26, z: 58, w: 13, d: 9, floors: 2, color: '#efe2c4', roofTint: '#8a4232', doors: [{ side: 's', at: 2 }, { side: 'e', at: 0 }], stairs: { x: -31.6, z: 54.4, dir: 'e', wall: 'n' } });
   b.sign(-26, 3.2, 62.6, 4.2, 0.7, 'gasthaus', { ry: 0 });
   bench(b, -21, 64.2, { ry: 0 }); bench(b, -31, 64.2, { ry: 0 });
   // Wohnhäuser
-  haus(b, { x: 18, z: 64, w: 9, d: 8, floors: 2, doors: [{ side: 'w', at: 0 }], stairs: { x: 14.2, z: 61.0, dir: 'e', wall: 'n' } });
-  haus(b, { x: -30, z: 95, w: 9, d: 8, floors: 1, doors: [{ side: 'n', at: 0 }, { side: 's', at: 1.5 }] });
-  haus(b, { x: 24, z: 96, w: 10, d: 7, floors: 2, doors: [{ side: 'w', at: 0 }, { side: 'n', at: -2 }], stairs: { x: 19.7, z: 98.6, dir: 'e', wall: 's' } });
-  haus(b, { x: -8, z: 40, w: 9, d: 8, floors: 2, doors: [{ side: 'e', at: 0 }], stairs: { x: -11.8, z: 37.0, dir: 'e', wall: 'n' } });
-  haus(b, { x: 35, z: 40, w: 8, d: 8, floors: 1, doors: [{ side: 'w', at: 0 }, { side: 'e', at: 0 }] });
-  // Schuppen (Holz)
-  building(b, { x: -48, z: 72, w: 7, d: 9, floors: 1, fh: 3.2, mat: 'wood_planks', tint: '#8a6a4a', openings: [{ side: 'e', at: 0, w: 2.6, h: 2.6, kind: 'gap', frame: false }, { side: 'w', at: 1, w: 1, h: 1, sill: 1.2, kind: 'window' }], roof: { edge: false, mat: 'wood_planks', tint: '#6a5038' }, floorMat: 'wood_planks' });
-  pitchedRoof(b, { x: -48, z: 72, w: 7.02, d: 9.02, y: 3.18, ridge: 'z', pitch: 0.55, over: 0.4, gableMat: 'wood_planks', gableTint: '#8a6a4a', tint: '#5d5a52' });
+  const h18 = haus(b, { x: 18, z: 64, w: 9, d: 8, floors: 2, doors: [{ side: 'w', at: 0 }], stairs: { x: 14.2, z: 61.0, dir: 'e', wall: 'n' } });
+  const h30 = haus(b, { x: -30, z: 95, w: 9, d: 8, floors: 1, doors: [{ side: 'n', at: 0 }, { side: 's', at: 1.5 }] });
+  const h24 = haus(b, { x: 24, z: 96, w: 10, d: 7, floors: 2, doors: [{ side: 'w', at: 0 }, { side: 'n', at: -2 }], stairs: { x: 19.7, z: 98.6, dir: 'e', wall: 's' } });
+  const h8 = haus(b, { x: -8, z: 40, w: 9, d: 8, floors: 2, doors: [{ side: 'e', at: 0 }], stairs: { x: -11.8, z: 37.0, dir: 'e', wall: 'n' } });
+  const h35 = haus(b, { x: 35, z: 40, w: 8, d: 8, floors: 1, doors: [{ side: 'w', at: 0 }, { side: 'e', at: 0 }] });
+  // Schuppen (Holz; Bretter heller getönt – die Schattenseite war mit #8a6a4a fast schwarz)
+  const schuppen = building(b, { x: -48, z: 72, w: 7, d: 9, floors: 1, fh: 3.2, mat: 'wood_planks', tint: '#a8845e', openings: [{ side: 'e', at: 0, w: 2.6, h: 2.6, kind: 'gap', frame: false }, { side: 'w', at: 1, w: 1, h: 1, sill: 1.2, kind: 'window' }], roof: { edge: false, mat: 'wood_planks', tint: '#6a5038' }, floorMat: 'wood_planks' });
+  pitchedRoof(b, { x: -48, z: 72, w: 7.02, d: 9.02, y: 3.18, ridge: 'z', pitch: 0.55, over: 0.4, gableMat: 'wood_planks', gableTint: '#a8845e', tint: '#5d5a52' });
   b.noNav(-52, 67, -44, 77, 2.6, 40);
   palletStack(b, -46, 70, { n: 5 }); crateStack(b, -49.5, 75.5, { ry: 0.3 });
   // Traktor im Schuppen (rot, Blick zum Tor im Osten; auf dem Hallenboden y 0,12; ohne b.rand → Dorf-Zufall unverändert)
   traktor(b, -48.6, 72.2, { ry: Math.PI / 2, y: 0.12, color: '#a8322a', rim: '#d8d4c8' });
   // Kapelle mit Turm (Wahrzeichen)
-  building(b, { x: -8, z: 100, w: 7, d: 13, floors: 1, fh: 5.2, mat: 'plaster_white', tint: '#f3eee4', openings: [{ side: 's', at: 0, w: 1.6, h: 2.8, kind: 'door', leaf: 'open' }, { side: 'e', at: -3, w: 0.9, h: 2.2, sill: 1.8, kind: 'window', glass: true }, { side: 'e', at: 2, w: 0.9, h: 2.2, sill: 1.8, kind: 'window', glass: true }, { side: 'w', at: -3, w: 0.9, h: 2.2, sill: 1.8, kind: 'window', glass: true }, { side: 'w', at: 2, w: 0.9, h: 2.2, sill: 1.8, kind: 'window', glass: true }], roof: { edge: false, mat: 'concrete', tint: '#b9ab94' }, floorMat: 'paving', interiorFactor: 0.5 });
+  const kapelle = building(b, { x: -8, z: 100, w: 7, d: 13, floors: 1, fh: 5.2, mat: 'plaster_white', tint: '#f3eee4', openings: [{ side: 's', at: 0, w: 1.6, h: 2.8, kind: 'door', leaf: 'open' }, { side: 'e', at: -3, w: 0.9, h: 2.2, sill: 1.8, kind: 'window', glass: true }, { side: 'e', at: 2, w: 0.9, h: 2.2, sill: 1.8, kind: 'window', glass: true }, { side: 'w', at: -3, w: 0.9, h: 2.2, sill: 1.8, kind: 'window', glass: true }, { side: 'w', at: 2, w: 0.9, h: 2.2, sill: 1.8, kind: 'window', glass: true }], roof: { edge: false, mat: 'concrete', tint: '#b9ab94' }, floorMat: 'paving', interiorFactor: 0.5 });
   pitchedRoof(b, { x: -8, z: 100, w: 7.02, d: 13.02, y: 5.18, ridge: 'z', pitch: 1.0, over: 0.45, gableMat: 'plaster_white', gableTint: '#f3eee4', tint: '#5f5e5a' });
   b.box(-8, 0, 91.6, 4.2, 15, 4.2, 'plaster_white', { tint: '#f3eee4', minimap: 'building' });
   b.box(-8, 15, 91.6, 4.4, 0.25, 4.4, 'stone_wall', { tint: '#cfc6b6', collide: false, minimap: false });
   pitchedRoof(b, { x: -8, z: 91.6, w: 4.4, d: 4.4, y: 15.2, ridge: 'x', pitch: 2.2, over: 0.15, gableMat: 'plaster_white', gableTint: '#f3eee4', tint: '#4a5048' });
   for (const [ox, oz] of [[0, -2.12], [2.12, 0], [-2.12, 0]]) b.box(-8 + ox, 11.2, 91.6 + oz, ox ? 0.06 : 1.2, 2.0, ox ? 1.2 : 0.06, 'black', { tint: '#151515', collide: false, minimap: false, grad: false });
   b.noNav(-12, 84, -4, 108, 4.5, 60);
-  for (let k = 0; k < 4; k++) bench(b, -8, 103 - k * 2.4, { ry: Math.PI });
+  // (Parkbänke in der Kapelle → Kirchenbänke mit Mittelgang, Altar: Innen.kapelleInnen)
   // Gärten: Bruchsteinmauern, Zäune, Hecken
   stoneWall(b, -38, 102, -22, 102); stoneWall(b, -38, 102, -38, 88);
   stoneWall(b, 14, 104, 32, 104); stoneWall(b, 32, 104, 32, 90);
@@ -192,6 +206,12 @@ function dorf(b) {
   // Pfosten unter dem Ortsschild (stand vorher frei in der Luft)
   for (const lx of [-1.1, 1.1]) { const c = Math.cos(Math.PI * 0.9), s = Math.sin(Math.PI * 0.9); b.cyl(-5 + lx * c - 0.07 * s, -0.15, 116 - lx * s - 0.07 * c, 0.045, 3.27, 'metal_galvanized', { seg: 8, minimap: false }); }
   bauernmarkt(b);
+  // Inneneinrichtung + Innenbeleuchtung (am Ende, ohne b.rand → übrige Dorf-Platzierung unverändert)
+  Innen.gasthausInnen(b, gasthaus); Innen.haus18Innen(b, h18); Innen.haus30Innen(b, h30); Innen.haus24Innen(b, h24);
+  Innen.haus8Innen(b, h8); Innen.haus35Innen(b, h35);
+  Innen.kapelleInnen(b, innen(kapelle)); Innen.schuppenInnen(b, innen(schuppen));
+  // MG-Stellung am nördlichen Ortsrand: deckt die Landstraße dort, wo sie die Hecke Richtung Brücke durchquert
+  mgNest(b, 8.0, 30.0, { ry: Math.atan2(20 - 8, 18 - 30) });
   return {};
 }
 
@@ -226,11 +246,11 @@ function gehoeft(b) {
   b.defineSign('gertrud', { style: 'stencil', text: 'GERTRUD', bg: '#6a5038', fg: '#f0e6d0' });
   b.groundTiled(-160, 100, -124, 112, 'gravel', { cell: 2 });
   // Bauernhaus
-  haus(b, { x: -162, z: 96, w: 11, d: 8, floors: 2, color: '#e8dcc4', roofTint: '#7e3d30', doors: [{ side: 's', at: 2 }, { side: 'e', at: 0 }], stairs: { x: -166.9, z: 93.0, dir: 'e', wall: 'n' } });
+  const bauernhaus = haus(b, { x: -162, z: 96, w: 11, d: 8, floors: 2, color: '#e8dcc4', roofTint: '#7e3d30', doors: [{ side: 's', at: 2 }, { side: 'e', at: 0 }], stairs: { x: -166.9, z: 93.0, dir: 'e', wall: 'n' } });
   // Scheune mit Heuboden und Geheimkammer
   const sx = -136, sz = 118, w = 16, d = 11, x0 = sx - w / 2, x1 = sx + w / 2, z0 = sz - d / 2, z1 = sz + d / 2;
-  building(b, { x: sx, z: sz, w, d, floors: 1, fh: 5.6, mat: 'wood_planks', tint: '#8a6a4a', openings: [{ side: 's', at: 1.5, w: 4.8, h: 4.2, kind: 'gap', frame: false }, { side: 'n', at: -5, w: 1.2, h: 2.1, kind: 'door', leaf: 'open' }, { side: 'e', at: 2.5, w: 1.0, h: 0.9, sill: 1.6, kind: 'window' }, { side: 'w', at: 0, w: 1.0, h: 0.9, sill: 1.6, kind: 'window' }], roof: { edge: false, mat: 'wood_planks', tint: '#6a5038' }, floorMat: 'wood_planks', floorTint: '#9a8064', interiorFactor: 0.5 });
-  pitchedRoof(b, { x: sx, z: sz, w: w + 0.02, d: d + 0.02, y: 5.58, ridge: 'x', pitch: 0.7, over: 0.5, gableMat: 'wood_planks', gableTint: '#8a6a4a', tint: '#6c4a3a' });
+  const scheune = building(b, { x: sx, z: sz, w, d, floors: 1, fh: 5.6, mat: 'wood_planks', tint: '#a8845e', openings: [{ side: 's', at: 1.5, w: 4.8, h: 4.2, kind: 'gap', frame: false }, { side: 'n', at: -5, w: 1.2, h: 2.1, kind: 'door', leaf: 'open' }, { side: 'e', at: 2.5, w: 1.0, h: 0.9, sill: 1.6, kind: 'window' }, { side: 'w', at: 0, w: 1.0, h: 0.9, sill: 1.6, kind: 'window' }], roof: { edge: false, mat: 'wood_planks', tint: '#6a5038' }, floorMat: 'wood_planks', floorTint: '#9a8064', interiorFactor: 0.5 });
+  pitchedRoof(b, { x: sx, z: sz, w: w + 0.02, d: d + 0.02, y: 5.58, ridge: 'x', pitch: 0.7, over: 0.5, gableMat: 'wood_planks', gableTint: '#a8845e', tint: '#6c4a3a' });
   b.noNav(x0 - 0.6, z0 - 0.6, x1 + 0.6, z1 + 0.6, 5.0, 40);
   // Heuboden (hintere Hälfte, y 3,2) + Treppe
   slab(b, x0 + 0.3, z0 + 0.3, x1 - 0.3, z0 + 4.8, 3.0, 0.2, 'wood_planks', [], { tint: '#9a8064' });
@@ -252,7 +272,7 @@ function gehoeft(b) {
   b.sign(sx + 1.5, 3.2, z0 + 0.34, 2.0, 0.5, 'gertrud', { ry: 0 });
   crateStack(b, x0 + 3.5, z1 - 1.4, { ry: 0.1 }); tires(b, x1 - 1.4, z1 - 1.6, { n: 3 });
   // Stall, Silo, Strohrollen, Zäune
-  building(b, { x: -178, z: 92, w: 6, d: 12, floors: 1, fh: 3.0, mat: 'brick', tint: '#c2a08a', openings: [{ side: 'e', at: -2.5, w: 1.3, h: 2.1, kind: 'door', leaf: 'open' }, { side: 'e', at: 2.5, w: 1.3, h: 2.1, kind: 'door', leaf: 'open' }, { side: 'w', at: 0, w: 1.0, h: 0.8, sill: 1.5, kind: 'window' }], roof: { edge: false, mat: 'concrete', tint: '#9a8c78' }, floorMat: 'concrete' });
+  const stall = building(b, { x: -178, z: 92, w: 6, d: 12, floors: 1, fh: 3.0, mat: 'brick', tint: '#c2a08a', openings: [{ side: 'e', at: -2.5, w: 1.3, h: 2.1, kind: 'door', leaf: 'open' }, { side: 'e', at: 2.5, w: 1.3, h: 2.1, kind: 'door', leaf: 'open' }, { side: 'w', at: 0, w: 1.0, h: 0.8, sill: 1.5, kind: 'window' }], roof: { edge: false, mat: 'concrete', tint: '#9a8c78' }, floorMat: 'concrete' });
   pitchedRoof(b, { x: -178, z: 92, w: 6.02, d: 12.02, y: 2.98, ridge: 'z', pitch: 0.6, over: 0.4, gableMat: 'brick', gableTint: '#c2a08a', tint: '#6f6a5e' });
   b.noNav(-182, 85, -174, 99, 2.4, 40);
   b.cyl(-124, 0, 90, 2.3, 9.5, 'metal_galvanized', { seg: 18, minimap: 'pillar' });
@@ -262,13 +282,18 @@ function gehoeft(b) {
   woodFence(b, -116, 98, -116, 132);
   car(b, -152, 92, { ry: 0.4, color: '#3b3d40' });
   barrelGroup(b, -170, 104, { n: 3 }); palletStack(b, -128, 104, { n: 4 });
-  sandbags(b, -146, 111, -140, 112, { rows: 3 }); sandbags(b, -156, 99, -152, 101, { rows: 3 });
+  // Sandsackreihe nordwestlich der Scheune (lag vorher quer vor der Nordtür (−141/112,5) → Bots blieben hängen);
+  // Türvorplatz x −143,5…−138,5 bleibt frei
+  sandbags(b, -150.5, 110.6, -145.5, 109.8, { rows: 3 }); sandbags(b, -156, 99, -152, 101, { rows: 3 });
   // maps-expand: Rundballen und Quaderballen rund um die Flagge (Hock-/Brustdeckung), ausgebranntes Auto
   for (const [x, z, r] of [[-131, 104, 0.3], [-129.4, 105.6, 1.2], [-158, 112, 0.9], [-156.4, 113.6, 0.2], [-140, 96, 1.5], [-166, 118, 0.6]]) hayRoll(b, x, z, r);
   for (const [x, y, z, r] of [[-143, 0, 101, 0.1], [-143, 0, 102, 0.05], [-143, 0.6, 101.5, 0.15]]) hayBale(b, x, y, z, r);
   car(b, -170, 111, { ry: 0.9, color: '#5a4a3a', style: 'wreck', model: false });
   // Traktor „Gertrud“ auf ihrem Stellplatz (Ölfleck, Schild) – statisch, Blick zum Scheunentor (Süden)
   traktor(b, -134.5, 119.5, { ry: 0, y: 0.12 });
+  // Inneneinrichtung (Bauernstube, Scheune, Stall) + MG-Stellung an der Zufahrt von der Furt (Norden)
+  Innen.bauernhausInnen(b, bauernhaus); Innen.scheuneInnen(b, innen(scheune)); Innen.stallInnen(b, innen(stall));
+  mgNest(b, -144.0, 84.5, { ry: Math.atan2(-162 + 144, 40 - 84.5) });
   return {};
 }
 
@@ -293,6 +318,9 @@ function bruecke(b) {
   sandbags(b, 39, -54, 43, -56, { rows: 4, y: Y }); sandbags(b, 51, -52, 55, -49, { rows: 4, y: Y });
   car(b, 41.5, -24, { ry: ry + 0.35, color: '#5a5f63', y: Y, model: false });
   crateStack(b, 26, 1, { ry: 0.5, y: Y });
+  // MG-Stellungen an beiden Brückenköpfen, Blick über die Brücke (Engstelle)
+  mgNest(b, 55.5, -55.5, { y: Y, ry: Math.atan2(40 - 55.5, -30 + 55.5) });
+  mgNest(b, 24.5, -3.2, { y: Y, ry: Math.atan2(40 - 24.5, -30 + 3.2) });
   b.noNav(-1e4, -1e4, 1e4, 1e4, -20, -1.85);
   return {};
 }
@@ -301,7 +329,7 @@ function kieswerk(b) {
   b.groundTiled(118, -146, 186, -78, 'gravel', { cell: 2 });
   // Halle mit Laufsteg
   const hx = 168, hz = -118, w = 15, d = 26;
-  building(b, { x: hx, z: hz, w, d, floors: 1, fh: 7.5, mat: 'metal_corrugated', tint: '#8c9488', openings: [{ side: 'n', at: 0, w: 5, h: 5, kind: 'gap', frame: false }, { side: 's', at: 0, w: 5, h: 5, kind: 'gap', frame: false }, { side: 'w', at: -6, w: 1.2, h: 2.2, kind: 'door', leaf: 'open' }, { side: 'w', at: 6, w: 1.2, h: 2.2, kind: 'door', leaf: 'open' }, { side: 'e', at: 0, w: 1.2, h: 2.2, kind: 'door', leaf: 'open' }, { side: 'w', at: 0, w: 6, h: 1.2, sill: 5.2, kind: 'window', glass: true }, { side: 'e', at: -7, w: 6, h: 1.2, sill: 5.2, kind: 'window', glass: true }], roof: { edge: true, mat: 'metal_corrugated', tint: '#7a8076' }, floorMat: 'concrete', interiorFactor: 0.58 });
+  const halle = building(b, { x: hx, z: hz, w, d, floors: 1, fh: 7.5, mat: 'metal_corrugated', tint: '#8c9488', openings: [{ side: 'n', at: 0, w: 5, h: 5, kind: 'gap', frame: false }, { side: 's', at: 0, w: 5, h: 5, kind: 'gap', frame: false }, { side: 'w', at: -6, w: 1.2, h: 2.2, kind: 'door', leaf: 'open' }, { side: 'w', at: 6, w: 1.2, h: 2.2, kind: 'door', leaf: 'open' }, { side: 'e', at: 0, w: 1.2, h: 2.2, kind: 'door', leaf: 'open' }, { side: 'w', at: 0, w: 6, h: 1.2, sill: 5.2, kind: 'window', glass: true }, { side: 'e', at: -7, w: 6, h: 1.2, sill: 5.2, kind: 'window', glass: true }], roof: { edge: true, mat: 'metal_corrugated', tint: '#7a8076' }, floorMat: 'concrete', interiorFactor: 0.58 });
   catwalk(b, hx + 5.6, hz - 10, hx + 5.6, hz + 4, 3.6, { w: 1.6 });
   stairs(b, { x: hx + 5.6, z: hz + 9.8, dir: 'n', y0: 0.12, y1: 3.6, w: 1.1, run: 5.6, style: 'steel', mat: 'metal_tread', rail: true });
   b.navLine(hx + 5.6, 3.65, hz - 9.5, hx + 5.6, 3.65, hz + 3.5, 1.2);
@@ -313,8 +341,9 @@ function kieswerk(b) {
   }
   b.cyl(178, 0, -90, 2.8, 12, 'metal_galvanized', { seg: 16, minimap: 'pillar' });
   b.cyl(178, 12, -90, 2.9, 1.8, 'metal_galvanized', { r1: 0.4, seg: 16, collide: false, minimap: false });
-  b.box(156, 4.4, -93, 1.2, 0.3, 26, 'metal_painted', { ry: Math.PI / 2 + 0.08, rx: 0.3, tint: '#3d4247', collide: false, minimap: false });
-  for (const t of [0.25, 0.6]) b.cyl(146 + t * 26, 0, -94 + t * 4, 0.12, 2 + t * 6, 'metal_painted', { tint: '#3d4247', seg: 6, minimap: false });
+  // Förderband vom Aufgabetrichter hinauf über die Spitze des großen Kieshaufens (vorher: Band stieg nach Westen ins
+  // Leere, eine Stütze ragte durch das Band, die andere erreichte es nicht)
+  foerderband(b, [157, 0.9, -95.4], [135.2, 5.7, -96.0]);
   // Container, Lkw, Zäune, Licht
   container(b, 138, 0, -142, { ry: 0.05, color: '#b8862e' }); container(b, 138, 0, -134, { ry: -0.05, color: '#4a5a66' });
   container(b, 186, 0, -142, { ry: Math.PI / 2, color: '#6e2c22' });
@@ -327,7 +356,28 @@ function kieswerk(b) {
   // maps-expand: Schützenloch (Sandsack-U) + Wrack bei Flagge D
   sandbags(b, 145, -124, 149, -126, { rows: 4 }); sandbags(b, 145, -124, 144, -120, { rows: 4 }); sandbags(b, 149, -126, 150, -122, { rows: 4 });
   car(b, 140, -114, { ry: 0.8, color: '#4a4f52', style: 'wreck', model: false });
+  // Hallen-Ausstattung + MG-Stellung an der Einfahrt (Blick auf die Landstraße von der Brücke)
+  Innen.kieswerkInnen(b, innen(halle));
+  mgNest(b, 122.5, -117.0, { ry: Math.atan2(100 - 122.5, -96 + 117) });
   return {};
+}
+
+/** Förderband von A (unten, Trichter) nach B (oben, Abwurf) mit Bandrahmen, Gurt, Stützböcken, Trichter, Kollision. */
+function foerderband(b, A, B) {
+  const dx = B[0] - A[0], dy = B[1] - A[1], dz = B[2] - A[2], Lh = Math.hypot(dx, dz), L = Math.hypot(Lh, dy);
+  const ry = Math.atan2(-dz, dx), rz = Math.atan2(dy, Lh), nx = -dz / Lh, nz = dx / Lh;
+  const at = (t) => [A[0] + dx * t, A[1] + dy * t, A[2] + dz * t];
+  const [mx, my, mz] = at(0.5);
+  b.box(mx, my - 0.15, mz, L, 0.22, 0.9, 'metal_painted', { ry, rz, tint: '#3d4247', minimap: false, grad: false });
+  b.box(mx, my + 0.07, mz, L, 0.03, 0.7, 'rubber', { ry, rz, collide: false, minimap: false, grad: false, ao: false });
+  for (const t of [0.22, 0.52, 0.8]) {
+    const [px, py, pz] = at(t);
+    for (const sd of [-0.42, 0.42]) b.box(px + nx * sd, 0, pz + nz * sd, 0.12, py - 0.15, 0.12, 'metal_painted', { tint: '#3d4247', minimap: sd < 0 ? 'pillar' : false });
+    b.box(px, py - 0.35, pz, 0.1, 0.1, 0.95, 'metal_painted', { ry, tint: '#3d4247', collide: false, minimap: false, grad: false });
+  }
+  // Aufgabetrichter am unteren Ende
+  b.box(A[0] + 0.4, 0, A[2], 1.4, 0.75, 1.4, 'metal_painted', { tint: '#b8862e', minimap: 'cover' });
+  b.cyl(A[0] + 0.4, 0.75, A[2], 0.75, 0.6, 'metal_painted', { r1: 1.05, seg: 4, ry: Math.PI / 4, tint: '#b8862e', collide: false, minimap: false });
 }
 
 function muehle(b) {
@@ -340,16 +390,43 @@ function muehle(b) {
   sw(x0, z1, x0, z0, 1.6, [{ at: 4.5, w: 1.6, h: 1.6, kind: 'gap', frame: false }]);
   b.groundTiled(x0 + 0.3, z0 + 0.3, x1 - 0.3, z1 - 0.3, 'paving', { cell: 1 });
   for (const [px, pz, r] of [[x - 2, z + 1, 0.4], [x + 3, z - 2, 1.1], [x0 + 1.5, z1 + 2, 0.2]]) b.box(px, 0, pz, 1.4, 0.7, 0.9, 'stone_wall', { ry: r, tint: '#b0a796', minimap: 'cover' });
-  b.cyl(x - 3, 2.6, z0 - 1.2, 2.5, 0.6, 'wood_dark', { axis: 'z', tint: '#5a4636', seg: 16, minimap: false });
+  muehlrad(b, x - 3, 2.6, z0 - 1.2);
   sandbags(b, x - 9, z + 9, x - 4, z + 10, { rows: 3 }); sandbags(b, x + 5, z + 8, x + 9, z + 6, { rows: 3 });
   crateStack(b, x + 9, z - 3, { ry: 0.7 });
   return {};
 }
 
+/**
+ * Mühlrad (Achse entlang z, an der Nordwand): zwei Felgenkränze, je 8 Speichen, 16 Schaufeln, Nabe und Welle in die
+ * Mauer – vorher eine geschlossene, fast schwarze Scheibe. Kollision: Achteck aus zwei gedrehten Quadern (Laufen),
+ * Kugeln treffen nur die sichtbaren Hölzer.
+ */
+function muehlrad(b, cx, cy, cz, R = 2.5) {
+  const wood = { tint: '#6e5c48', collide: false, minimap: false, grad: false };
+  for (const zz of [cz - 0.26, cz + 0.26]) {
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2;
+      b.box(cx + Math.cos(a) * R, cy + Math.sin(a) * R - 0.07, zz, 2 * Math.PI * R / 16 + 0.04, 0.14, 0.1, 'wood_planks', { ...wood, rz: a + Math.PI / 2 });
+    }
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 + 0.2;
+      b.box(cx + Math.cos(a) * R / 2, cy + Math.sin(a) * R / 2 - 0.05, zz, R - 0.25, 0.1, 0.09, 'wood_planks', { ...wood, rz: a });
+    }
+  }
+  for (let k = 0; k < 16; k++) {
+    const a = (k / 16) * Math.PI * 2 + 0.1;
+    b.box(cx + Math.cos(a) * (R - 0.22), cy + Math.sin(a) * (R - 0.22) - 0.02, cz, 0.42, 0.04, 0.5, 'wood_planks', { ...wood, rz: a, tint: '#5e4e3c' });
+  }
+  b.cyl(cx, cy, cz, 0.32, 0.7, 'wood_dark', { axis: 'z', tint: '#4a3a2c', seg: 10, collide: false, minimap: false });
+  b.cyl(cx, cy, cz + 0.9, 0.09, 1.6, 'metal_rust', { axis: 'z', seg: 8, collide: false, minimap: false });
+  const box = new THREE.BoxGeometry(R * 1.85, R * 1.85, 0.66);
+  for (const rz of [0, Math.PI / 4]) b.geom(box, cx, cy, cz, 'black', { rz, visual: false, collide: 'mesh' });
+}
+
 function funkhuegel(b, Y) {
   b.groundTiled(-132, -152, -108, -128, 'gravel', { cell: 2, y: Y });
   // Bunker (betretbar, Dach mit Brüstung, Außentreppe)
-  building(b, { x: -117, z: -135, w: 7, d: 5.5, floors: 1, fh: 2.7, y: Y, mat: 'concrete', tint: '#a8a49a', openings: [{ side: 's', at: -1.5, w: 1.1, h: 2.1, kind: 'door', leaf: 'open' }, { side: 'n', at: 0, w: 2.0, h: 0.4, sill: 1.35, kind: 'window' }, { side: 'w', at: 0, w: 1.4, h: 0.4, sill: 1.35, kind: 'window' }, { side: 'e', at: -0.8, w: 1.4, h: 0.4, sill: 1.35, kind: 'window' }], roof: { parapet: 0.9, mat: 'concrete', tint: '#9c988e' }, floorMat: 'concrete', interiorFactor: 0.45 });
+  const bunker = building(b, { x: -117, z: -135, w: 7, d: 5.5, floors: 1, fh: 2.7, y: Y, mat: 'concrete', tint: '#a8a49a', openings: [{ side: 's', at: -1.5, w: 1.1, h: 2.1, kind: 'door', leaf: 'open' }, { side: 'n', at: 0, w: 2.0, h: 0.4, sill: 1.35, kind: 'window' }, { side: 'w', at: 0, w: 1.4, h: 0.4, sill: 1.35, kind: 'window' }, { side: 'e', at: -0.8, w: 1.4, h: 0.4, sill: 1.35, kind: 'window' }], roof: { parapet: 0.9, mat: 'concrete', tint: '#9c988e' }, floorMat: 'concrete', interiorFactor: 0.45 });
   b.noNav(-121, -138.5, -113, -131.5, Y + 2.2, Y + 20);
   mast(b, -128, Y, -146, 26);
   b.box(-126, Y, -141, 1.4, 1.8, 0.9, 'metal_painted', { tint: '#4b5a46', minimap: 'cover' });
@@ -358,6 +435,9 @@ function funkhuegel(b, Y) {
   // maps-expand: zweites Schützenloch (Sandsack-U) südöstlich der Flagge E
   sandbags(b, -122, -152, -117, -153, { rows: 4, y: Y }); sandbags(b, -122, -152, -123, -148, { rows: 4, y: Y });
   crateStack(b, -110, -141, { ry: 0.4, y: Y });
+  // Bunker-Einrichtung + MG-Stellung am Aufgang (Furtweg von Süden)
+  Innen.bunkerInnen(b, innen(bunker, 0.3, Y));
+  mgNest(b, -117.0, -126.5, { y: Y, ry: Math.atan2(-138 + 117, -86 + 126.5) });
   return {};
 }
 
@@ -503,6 +583,11 @@ export default {
     { id: 'hq_b', name: 'Hauptquartier B', bounds: { minX: -56, maxX: 16, minZ: -246, maxZ: -198 }, nav: true, build: (b) => hq(b, { x: -20, z: -222, side: 'B', pads: [[-38, -213, 'tank'], [-38, -229, 'tank'], [2, -212, 'jeep'], [2, -222, 'jeep'], [2, -232, 'jeep']] }), seeds: [[-20, -215]], spacing: 2.2 },
     // zuletzt angehängt: Builder-Zufall der übrigen Ortschaften bleibt gleich (seed + k·101)
     { id: 'damm', name: 'Erdbrücke', bounds: { minX: -30, maxX: -6, minZ: -34, maxZ: -2 }, clear: { minX: -28, maxX: -8, minZ: -31, maxZ: -12.5 }, build: (b) => damm(b), seeds: [[-18, -9, 0.8], [-18, -27, 1.2]], height: 8, spacing: 1.5 },
+  ],
+  // Nach dem Gelände gebaut (brauchen Geländehöhen): Grenzanlage als sichtbare, begehbare Kartengrenze 18 m hinter der
+  // Spielfläche (statt unsichtbarer Wand; die alte Wand bei wallMargin bleibt als Sicherheitsnetz dahinter)
+  lateSites: [
+    { id: 'grenze', name: 'Grenzanlage', bounds: { minX: -280, maxX: 280, minZ: -280, maxZ: 280 }, chunkSize: 80, build: (b, ctx) => grenzanlage(b, { hf: ctx.hf, roads: ctx.roads, line: grenzLinie(268, 24) }) },
   ],
 
   // Flaggen: Eroberung A–E, Herrschaft A–C (Dorf, Mühle, Brücke)

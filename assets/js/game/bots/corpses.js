@@ -3,7 +3,7 @@
 // Kommt eine Ragdoll zur Ruhe (oder kurz bevor sie sich früher aufgelöst hätte), friert der Bot sie hier ein: die
 // Endpose (Knochenmatrizen) wird kopiert, der Soldat selbst sofort wieder frei (Wiederverwendung beim Respawn).
 // Eingefrorene Leichen kosten keine Animation und kein Skinning-Update je Bild:
-//   • je Schema (Material) und 24-m-Zelle EIN SkinnedMesh („Paket“, höchstens 16 Leichen): Geometrie der Detailstufe
+//   • je Schema (Material) und 32-m-Zelle EIN SkinnedMesh („Paket“, höchstens 16 Leichen): Geometrie der Detailstufe
 //     hintereinander kopiert (Bindepose bleibt → Tarnmuster/Shader unverändert), skinIndex je Leiche verschoben,
 //   • ein gemeinsames Skelett je Paket mit festen Matrizen; skeleton.update() ist abgeschaltet → die Knochentextur
 //     wird einmal hochgeladen, danach nie wieder (kein CPU-/GPU-Aufwand je Bild außer dem Zeichnen),
@@ -15,16 +15,20 @@ import * as THREE from 'three';
 import { BONE_COUNT } from './soldier/rig.js';
 import { soldierMaterial, releaseSoldierMaterial } from './soldier/materials.js';
 
-/** Obergrenze je Grafikstufe (gemessen: tools/out/corpses-*.json, siehe Changelog). */
+/**
+ * Obergrenze je Grafikstufe. Gemessen (Hafen, 09.10.): je Leiche niedrig 727 Dreiecke/48 KB (ferne Stufe), sonst
+ * ≈ 2 800 Dreiecke/150 KB (mittlere Stufe); Neubau eines Pakets ≤ 5 ms; je Bild keine Kosten außer Culling/Zeichnen.
+ * → low 24 (17 k Dreiecke, 1,2 MB), medium 48 (134 k, 7 MB), high 96 (270 k, 14 MB), ultra 160 (445 k, 24 MB).
+ */
 export const CORPSE_CAP = Object.freeze({ low: 24, medium: 48, high: 96, ultra: 160 });
 /** Waffen am Boden (statische Kopien, je 2–4 Draw Calls): nur für die jüngsten Leichen. */
-export const GUN_CAP = Object.freeze({ low: 6, medium: 12, high: 24, ultra: 40 });
+export const GUN_CAP = Object.freeze({ low: 4, medium: 8, high: 16, ultra: 24 });
 /** Einstellung „Leichen“ → Lebensdauer in Sekunden. */
 export const CORPSE_LIFE = Object.freeze({ bleiben: Infinity, '10min': 600, '2min': 120 });
 
-const CELL = 24; // m, Zellgröße der Pakete (Frustum-Culling)
+const CELL = 32; // m, Zellgröße der Pakete (Frustum-Culling vs. Draw Calls)
 const PACK_MAX = 16; // Leichen je Paket (Neubau ≈ 16 × Detailstufe – selten, nie mehrere je Bild)
-const REBUILDS_PER_FRAME = 2;
+const REBUILDS_PER_FRAME = 1; // Neubau ≤ 5 ms (16 Leichen, Mittelstufe; gemessen unter Last) – höchstens einer je Bild
 const GRACE = 20; // s: abgelaufene Leichen im Blick verschwinden erst so viel später (kein Wegploppen vor den Augen)
 
 const DUMMY_BONE = new THREE.Bone();
@@ -47,7 +51,7 @@ export class CorpseStore {
     this.guns = []; // Leichen mit Waffenkopie (älteste zuerst)
     this._dirty = new Set();
     this._checkT = 0;
-    this.counts = { added: 0, removedCap: 0, removedTime: 0, rebuilds: 0, gunsDropped: 0 };
+    this.counts = { added: 0, removedCap: 0, removedTime: 0, rebuilds: 0, gunsDropped: 0, buildMsMax: 0 };
   }
 
   get tier() { const t = this.mgr && this.mgr.tier; return CORPSE_CAP[t] ? t : 'high'; }
@@ -181,6 +185,7 @@ export class CorpseStore {
       return;
     }
     this.counts.rebuilds++;
+    const t0 = performance.now();
     let nV = 0, nI = 0;
     for (const c of list) { const n = c.geo.attributes.position.count; nV += n; nI += c.geo.index ? c.geo.index.count : n; }
     const geo = new THREE.BufferGeometry();
@@ -237,6 +242,7 @@ export class CorpseStore {
     mesh.updateMatrixWorld(true);
     pack.mesh = mesh;
     pack.skeleton = skeleton;
+    this.counts.buildMsMax = Math.max(this.counts.buildMsMax, +(performance.now() - t0).toFixed(2));
   }
 
   /** Eigenes Material (Pool) je Paket: Randlicht/Mindesthelligkeit der Lebenden gedämpft (Tote leuchten nicht nach). */
@@ -267,7 +273,7 @@ export class CorpseStore {
     if (pack.skeleton) { pack.skeleton.dispose(); pack.skeleton = null; }
   }
 
-  /** Je Bild (BotManager.update): Pakete nachbauen (höchstens 2), Lebensdauer prüfen (1×/s). frustum: Kamera oder null. */
+  /** Je Bild (BotManager.update): Pakete nachbauen (höchstens einer), Lebensdauer prüfen (1×/s). frustum: Kamera oder null. */
   update(dt, frustum = null) {
     if (this._dirty.size) {
       let n = 0;
