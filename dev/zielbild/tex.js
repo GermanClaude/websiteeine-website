@@ -323,9 +323,10 @@ export function weaveTile(size = 256, threads = 32, { twill = false } = {}) {
     const over = twill ? ((iu + iv) % 4) < 2 : ((iu + iv) & 1) === 0;
     const warp = Math.sin(fu * Math.PI), weft = Math.sin(fv * Math.PI);
     const n = vn(u * 2.0, v * 0.5, threads * 2) * 0.25 + vn(u * 0.5, v * 2.0, threads * 2) * 0.25;
-    H[y * w + x] = (over ? warp * (0.6 + 0.4 * weft) : weft * (0.6 + 0.4 * warp)) + n;
+    const hv = (over ? warp * (0.6 + 0.4 * weft) : weft * (0.6 + 0.4 * warp)) + n;
+    H[y * w + x] = hv;
     const k = (y * w + x) * 4;
-    d[k] = 128 + (n - 0.25) * 200; d[k + 1] = 128; d[k + 2] = 128; d[k + 3] = 255;
+    d[k] = Math.max(0, Math.min(255, hv / 1.3 * 255)); d[k + 1] = 128 + (n - 0.25) * 200; d[k + 2] = 128; d[k + 3] = 255;
   }
   return { normal: makeTex(normalFromHeight(H, w, h, 1.6, true), w, h, { repeat: true }), var: makeTex(d, w, h, { repeat: true }) };
 }

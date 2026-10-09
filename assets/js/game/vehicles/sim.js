@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { collisionRay } from '../engine/physics.js';
 import { mountY, staticComp, VEHICLE_GRAVITY } from './data.js';
+import { Drivetrain } from './drivetrain.js';
 
 export const STEP = 1 / 60;
 export const GRAVITY = VEHICLE_GRAVITY;
@@ -80,6 +81,8 @@ export class VehicleBody {
     this.trackSpeed = [0, 0]; // Ketten links/rechts (m/s, für Texturlauf und Klang)
     this.slip = 0;         // Querrutschen (Reifenquietschen/Staub)
     this.rpm = 0;          // 0..1 (Klang)
+    this.drivetrain = new Drivetrain(def); // Triebwerk/Getriebe (drivetrain.js)
+    this.drive = this.drivetrain.state;    // Gang, Drehzahl, Last … (HUD, Klang, Netz)
 
     const w = def.wheels, my = mountY(def);
     this.suspLen = w.rest + w.radius;

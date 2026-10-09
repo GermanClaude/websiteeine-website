@@ -9,8 +9,10 @@
 //   Scheinwerfer: light (T / Steuerkreuz ▼)
 // Gamepad, Sitz ohne Waffe (Fahrer Geländewagen): RT = Gas, LT = Bremse/rückwärts (wie in BF).
 // Touch-Knöpfe (vehicles/hud.js, data-action): v_enter, v_exit, v_camera, v_seat, v_gas, v_brake, v_light.
+import { readDriveControls } from './drive-input.js';
+
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-const wrap = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
+const wrap =(a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
 const SEAT_ACTIONS = ['slot1', 'slot2', 'streak1', 'streak2', 'streak3'];
 
 /**
@@ -44,21 +46,8 @@ export function readPlayerControls(input, vehicle, seat, dt, { frozen = false } 
     it.throttle = 0; it.steer = 0; it.handbrake = true; it.fire = false; it.firePressed = false;
     return out;
   }
-  // Fahren
-  if (seat.def.drive) {
-    let thr = input.move.y || 0;
-    if (input.down('v_gas')) thr = 1;
-    if (input.down('v_brake')) thr = -1;
-    if (pad && noWeapons) {
-      if (input.down('fire')) thr = Math.max(thr, 1);
-      if (input.down('ads')) thr = Math.min(thr, -1);
-    }
-    it.throttle = clamp(thr, -1, 1);
-    it.steer = clamp(input.move.x || 0, -1, 1);
-    it.handbrake = input.down('jump') || input.down('v_handbrake');
-    it.brake = 0;
-    if (Math.abs(it.throttle) > 0.05 || Math.abs(it.steer) > 0.05) { it.path = null; it.moveTo = null; }
-  }
+  // Fahren (drive-input.js)
+  if (seat.def.drive) readDriveControls(input, vehicle, seat, dt);
   // Waffen
   if (!noWeapons) {
     it.fire = input.down('fire') || input.pressed('fire');

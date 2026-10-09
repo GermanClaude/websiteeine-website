@@ -3,6 +3,7 @@
 // zeigt), Treffer-/Schadensblitz, Warnungen und die Touch-Knöpfe fürs Fahren. Eigene Styles (kein game.css-Eingriff).
 // DOM-Schreibzugriffe nur bei Änderung (zwischengespeicherte Werte) – kein Layout je Bild.
 import * as THREE from 'three';
+import { DriveHUD } from './hud-drive.js';
 
 const CSS = `
 .vh-root{position:absolute;inset:0;pointer-events:none;font-family:var(--font-hud,system-ui,sans-serif);color:var(--np-ink,#e9e6df);z-index:4}
@@ -145,6 +146,7 @@ export class VehicleHUD {
         this.touch.push(b);
       }
     }
+    this.drive = new DriveHUD(this); // Antriebsanzeige (hud-drive.js)
   }
 
   _set(key, el, prop, val) {
@@ -198,6 +200,7 @@ export class VehicleHUD {
       this._set('zoomH', el.zoom, 'hidden', true);
       this._set('warnH', el.warn, 'hidden', true);
       this._set('scopeH', el.scope, 'hidden', true);
+      this.drive?.update(dt, s);
       return;
     }
     const v = s.vehicle, seat = s.seat;
@@ -268,9 +271,11 @@ export class VehicleHUD {
       this._set('gunC', el.gun, 'class', `vh-gun${w.def.kind === 'mg' ? ' is-mg' : ''}${g.ready ? '' : ' is-off'}`);
       this._set('gunT', el.gun, 'transform', `translate3d(${Math.round(g.x)}px,${Math.round(g.y)}px,0)`);
     } else this._set('gunH', el.gun, 'hidden', true);
+    this.drive?.update(dt, s);
   }
 
   dispose() {
+    this.drive?.dispose();
     this._body('vehicle', null);
     this._body('vehicleNear', null);
     this._body('vehicleArms', null);

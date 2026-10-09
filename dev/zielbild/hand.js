@@ -122,7 +122,7 @@ export function buildHand(frame) {
     return d - (vn(u * 900, w * 900 + v * 300) - 0.5) * 0.0004;
   };
   // Gitter
-  const o = new V3(-0.06, -0.12, -0.055), size = new V3(0.2, 0.24, 0.13), h = 0.0011;
+  const o = new V3(-0.06, -0.15, -0.055), size = new V3(0.2, 0.27, 0.14), h = 0.0011;
   const nx = Math.ceil(size.x / h) + 1, ny = Math.ceil(size.y / h) + 1, nz = Math.ceil(size.z / h) + 1;
   const f = new Float32Array(nx * ny * nz);
   for (let z = 0; z < nz; z++) for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) f[x + nx * (y + ny * z)] = sdf(o.x + x * h, o.y + y * h, o.z + z * h);

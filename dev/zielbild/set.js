@@ -186,11 +186,10 @@ vec4 Y; float wetE;`)
       #include <opaque_fragment>`);
   };
   mat.customProgramCacheKey = () => 'zb-ground';
-  const geo = new THREE.PlaneGeometry(260, 260, 1, 1);
+  const geo = new THREE.PlaneGeometry(260, 134, 1, 1);
   geo.rotateX(-Math.PI / 2);
+  geo.translate(0, 0, -37);
   // UV = Weltmeter / 4 (Kachel 4 m)
-  { const p = geo.attributes.position, uv = geo.attributes.uv; for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / 4, -p.getZ(i) / 4); }
-  geo.translate(0, 0, -100);
   { const p = geo.attributes.position, uv = geo.attributes.uv; for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / 4, -p.getZ(i) / 4); }
   const m = new THREE.Mesh(geo, mat);
   m.receiveShadow = true;
@@ -315,9 +314,12 @@ export function farStuff() {
     if (R() < 0.25) { const c = new THREE.CylinderGeometry(1.5, 2, h + 30 + R() * 30, 8); c.translate(-900 + i * 26, (h + 30) / 2, -770 - R() * 100); sil.push(c); }
   }
   const s = new THREE.Mesh(mergeGeometries(sil), hazeMat(0x4c4a48)); G.add(s);
+  // Pier rechts (für die fernen Brücken)
+  { const pg = new THREE.PlaneGeometry(380, 120); pg.rotateX(-Math.PI / 2); const pm = new THREE.Mesh(pg, hazeMat(0x5a5650)); pm.position.set(230, 0.02, -165); pm.receiveShadow = true; G.add(pm);
+    const pw = new THREE.Mesh(mbox(380, 1.8, 1), hazeMat(0x6d6a64)); pw.position.set(230, -0.9, -105.5); G.add(pw); }
   // ferne Containerbrücken (vereinfacht)
   const far = [];
-  for (const [x, z, rot] of [[60, -140, 0], [110, -150, 0], [165, -160, 0], [-140, -170, 0], [-420, -420, 0.3], [260, -520, -0.2]]) {
+  for (const [x, z, rot] of [[62, -140, 0], [112, -150, 0], [168, -160, 0], [-420, -700, 0.3], [260, -720, -0.2]]) {
     const parts = [];
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.push(beamGeo(new THREE.Vector3(sx * 8, 0, sz * 12), new THREE.Vector3(sx * 8, 31, sz * 12), 1.3, 1.3));
     for (const sz of [-1, 1]) parts.push(beamGeo(new THREE.Vector3(-8, 31, sz * 12), new THREE.Vector3(8, 31, sz * 12), 1.6, 2.4));
@@ -329,7 +331,7 @@ export function farStuff() {
   const fm = new THREE.Mesh(mergeGeometries(far), hazeMat(0x7a3b26)); fm.castShadow = true; G.add(fm);
   // Lichtmasten
   const mast = [];
-  for (const [x, z] of [[16, -34], [-22, -92], [30, -88]]) {
+  for (const [x, z] of [[9.8, -40], [-22, -92], [30, -88]]) {
     mast.push(beamGeo(new THREE.Vector3(x, 0, z), new THREE.Vector3(x, 30, z), 0.5, 0.5));
     const hd = mbox(3.2, 1.0, 0.6); hd.translate(x, 30.4, z); mast.push(hd);
   }
@@ -394,7 +396,7 @@ export function clutter() {
     }
     const m = new THREE.Mesh(mergeGeometries(parts), wood); m.position.set(x, 0, z); m.rotation.y = rot; m.castShadow = m.receiveShadow = true; G.add(m);
   };
-  pallet(-5.2, -10.5, 6, 0.1); pallet(-6.6, -10.2, 4, -0.05); pallet(-13, -33, 8, 0.4); pallet(9.6, -24, 5, 0.2);
+  pallet(-5.2, -10.5, 6, 0.1); pallet(-6.6, -10.2, 4, -0.05); pallet(-13, -33, 8, 0.4); pallet(8.9, -28.5, 5, 0.2);
   // Plane über Kisten
   const crate = mbox(1.6, 1.3, 1.2); crate.translate(0, 0.65, 0);
   const c = new THREE.Mesh(crate, tarp); c.position.set(-7.5, 0, -30); c.rotation.y = 0.3; c.castShadow = c.receiveShadow = true; G.add(c);

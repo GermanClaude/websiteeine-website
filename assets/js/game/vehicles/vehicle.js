@@ -29,6 +29,10 @@ export function newIntent() {
     arrived: false, stuck: false, blocked: false,
     aimDir: null, aimAt: null, fire: false, firePressed: false, weapon: null, cycleWeapon: false, reload: false,
     fireWhenAligned: false, zoom: 0,
+    // Getriebe (Antrieb): 'hold' | 'auto', ausstehende Schaltflanken (A setzt nach Verbrauch auf 0)
+    gearbox: 'auto', shiftUp: 0, shiftDown: 0,
+    // gewünschter Sichtindex (Netz/Host → sys.setSeatView)
+    view: 0,
   };
 }
 
@@ -86,6 +90,8 @@ export class Vehicle {
       weapons: sd.weapons.map((id) => ({ def: VEHICLE_WEAPONS[id], mag: VEHICLE_WEAPONS[id].mag, reloadT: 0, cooldown: 0, shots: 0 })),
       weaponIndex: 0, aimError: 0, zoomIndex: 0,
       look: { yaw, pitch: 0, relYaw: 0, relPitch: 0, idle: 0 },
+      // Besatzung (§3.3): Sicht, Luke, Wechselsperre, gewünschte Lafettenrichtung, Bot-Stellvertreter
+      view: 0, hatchOpen: false, hatchT: 0, readyAt: 0, aimWant: new THREE.Vector3(), proxy: null,
     }));
     this._aimDir = new THREE.Vector3();
   }

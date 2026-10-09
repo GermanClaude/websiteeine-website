@@ -66,13 +66,17 @@ function ensureNoise() {
   return data;
 }
 
-function noiseTexture() {
-  if (noiseTex) return noiseTex;
+/** aniso: anisotrope Filterung (low 1 – jede Zusatzabtastung kostet auf schwachen GPUs/Software-Renderern). */
+function noiseTexture(aniso = 4) {
+  if (noiseTex) {
+    if (noiseTex.anisotropy !== aniso) { noiseTex.anisotropy = aniso; noiseTex.needsUpdate = true; }
+    return noiseTex;
+  }
   const t = new THREE.DataTexture(ensureNoise(), NS, NS, THREE.RGBAFormat, THREE.UnsignedByteType);
   t.colorSpace = THREE.NoColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
-  t.anisotropy = 4;
+  t.anisotropy = aniso;
   t.name = 'terrain:noise';
   t.needsUpdate = true;
   noiseTex = t;
@@ -213,7 +217,7 @@ export async function createTerrainMaterial(o) {
     tRough: { value: TERRAIN_LAYERS.map(l => l.rough) },
     tCal: { value: cal },
     // RG: feine Detailnormalen nah an der Kamera (Kopie der geteilten Karte aus engine/textures.js), BA: Gelände-Rauschen
-    tNoise: { value: noiseTexture() },
+    tNoise: { value: noiseTexture(low ? 1 : 4) },
   };
   TERRAIN_LAYERS.forEach((l, k) => { uniforms['tMap' + k] = { value: maps[k] }; });
   const nList = TERRAIN_LAYERS.filter(l => l.normal >= 0);
@@ -246,14 +250,17 @@ export async function createTerrainMaterial(o) {
       ${TERRAIN_NOISE_GLSL}
       // Gegen-Kachelung: zweite, gedrehte und gröbere Abtastung; Überblendung nach Helligkeit (Höhen-Überblendung:
       // der hellere/„höhere“ Texel setzt sich durch) statt linear – kein Kontrastverlust in der Mischzone
-      vec3 tSample(sampler2D t, vec2 uv, float k) {
-        vec3 a = texture2D(t, uv).rgb;
+      // far (> 135 m, räumlich zusammenhängend → kein Divergenz-Problem): nur die gröbere Abtastung (k ist dort 1)
+      vec3 tSample(sampler2D t, vec2 uv, float k, bool far) {
         #if TERR_ANTITILE
-        vec3 b = texture2D(t, vec2(0.8 * uv.x - 0.6 * uv.y, 0.6 * uv.x + 0.8 * uv.y) * 0.53 + vec2(0.31, 0.17)).rgb;
+        vec2 uvB = vec2(0.8 * uv.x - 0.6 * uv.y, 0.6 * uv.x + 0.8 * uv.y) * 0.53 + vec2(0.31, 0.17);
+        if (far) return texture2D(t, uvB).rgb;
+        vec3 a = texture2D(t, uv).rgb, b = texture2D(t, uvB).rgb;
         float s = clamp((k - 0.5) * 3.0 + (dot(b, vec3(0.3, 0.59, 0.11)) - dot(a, vec3(0.3, 0.59, 0.11))) * 2.5 + 0.5, 0.0, 1.0);
-        a = mix(a, b, s);
+        return mix(a, b, s);
+        #else
+        return texture2D(t, uv).rgb;
         #endif
-        return a;
       }
     `;
     sh.fragmentShader = decl + sh.fragmentShader
@@ -268,9 +275,17 @@ export async function createTerrainMaterial(o) {
         c = mix(vec4(0.12, 0.0, smoothstep(0.14, 0.32, steepS), 0.0), c, inside);
         float camD = length(vTW - cameraPosition);
         float hw = vTW.y - tWaterY;
-        vec2 n1 = terrN1(vTW.xz), n2 = terrN2(vTW.xz);
+        vec2 n1 = terrN1(vTW.xz);
+        // Mitte (1–9 m): ab 150 m ausgeblendet, ab 220 m (Nebel) gar nicht mehr abgefragt; Flecken (0,2–1,5 m): ab 45 m
+        // ausgeblendet (dort mittelt die Mipmap ohnehin auf 0,5), ab 70 m nicht mehr abgefragt – Entfernung ist räumlich
+        // zusammenhängend, die Verzweigung kostet nichts und spart in der Ferne Abfragen
+        float n2f = 1.0 - smoothstep(150.0, 220.0, camD);
+        vec2 n2 = vec2(0.5);
+        if (n2f > 0.0) n2 = mix(vec2(0.5), terrN2(vTW.xz), n2f);
         #if TERR_ANTITILE
-        vec2 n3 = terrN3(vTW.xz);
+        float n3f = 1.0 - smoothstep(45.0, 70.0, camD);
+        vec2 n3 = vec2(0.5);
+        if (n3f > 0.0) n3 = mix(vec2(0.5), terrN3(vTW.xz), n3f);
         float eN = n3.y - 0.5;
         #else
         vec2 n3 = vec2(0.5);
@@ -285,8 +300,9 @@ export async function createTerrainMaterial(o) {
         float wG = clamp(1.0 - wv.x - wv.y - wv.z - wv.w, 0.0, 1.0);
         // Gegen-Kachelung: Flecken ≈ 1–9 m; fern ganz die gröbere Abtastung (Wiederholung fällt aus der Distanz auf)
         float kA = max(smoothstep(0.42, 0.58, n2.y), smoothstep(45.0, 130.0, camD));
+        bool tFar = camD > 135.0;
         vec2 tW = (n2 - 0.5) * 0.9; // weiche UV-Verzerrung
-        vec3 aG = tSample(tMap0, vTW.xz * tScale[0] + tW, kA) * tCal[0];
+        vec3 aG = tSample(tMap0, vTW.xz * tScale[0] + tW, kA, tFar) * tCal[0];
         // Wiesenfarbe: saftig ↔ trocken (großräumig, trockener an Hängen), feucht am Ufer
         aG *= terrMeadowTint(n1, n2, hw, steepS * 1.4);
         #if TERR_ANTITILE
@@ -296,9 +312,9 @@ export async function createTerrainMaterial(o) {
         // zertretenes Gras an Wegrändern und um Erdflecken: heller, bräunlich
         float worn = smoothstep(0.03, 0.2, c.r) * (1.0 - smoothstep(0.3, 0.7, c.r));
         aG = mix(aG, aG * vec3(1.08, 0.97, 0.74), worn * 0.8);
-        vec3 aD = tSample(tMap1, vTW.xz * tScale[1] + tW, kA) * tCal[1] * mix(vec3(0.9, 0.9, 0.94), vec3(1.08, 1.03, 0.92), n1.y);
-        vec3 aK = tSample(tMap2, vTW.xz * tScale[2] + tW, kA) * tCal[2];
-        vec3 aF = tSample(tMap3, vTW.xz * tScale[3] + tW, kA) * vec3(0.62, 0.6, 0.56) * tCal[3]; // Fels/Geröll dunkler (kein Schnee-Eindruck)
+        vec3 aD = tSample(tMap1, vTW.xz * tScale[1] + tW, kA, tFar) * tCal[1] * mix(vec3(0.9, 0.9, 0.94), vec3(1.08, 1.03, 0.92), n1.y);
+        vec3 aK = tSample(tMap2, vTW.xz * tScale[2] + tW, kA, tFar) * tCal[2];
+        vec3 aF = tSample(tMap3, vTW.xz * tScale[3] + tW, kA, tFar) * vec3(0.62, 0.6, 0.56) * tCal[3]; // Fels/Geröll dunkler (kein Schnee-Eindruck)
         vec3 aM = texture2D(tMap4, vTW.xz * tScale[4] + tW).rgb * tCal[4];
         float sum = wG + wv.x + wv.y + wv.z + wv.w + 1e-4;
         vec3 alb = (aG * wG + aD * wv.x + aK * wv.y + aF * wv.z + aM * wv.w) / sum;
@@ -310,13 +326,17 @@ export async function createTerrainMaterial(o) {
         gTerrRough = mix(gTerrRough, 0.35, wet);
         diffuseColor.rgb *= alb;
         #if TERR_NORMALS
-        vec2 uG = vTW.xz * tScale[0] + tW, uD = vTW.xz * tScale[1] + tW, uF = vTW.xz * tScale[3] + tW;
-        vec3 nG = texture2D(tNor0, uG).xyz * 2.0 - 1.0, nD = texture2D(tNor1, uD).xyz * 2.0 - 1.0, nF = texture2D(tNor2, uF).xyz * 2.0 - 1.0;
-        // Stärke je Schicht: Gras flach (Fotoscan-Relief wirkt sonst wie Plastik), Erde mittel, Fels kräftig
-        nG.xy *= 0.6; nF.xy *= 1.15;
-        gTerrN = normalize(nG * wG + nD * (wv.x + wv.y + wv.w) + nF * wv.z + vec3(0.0, 0.0, 0.05));
         float fade = 1.0 - smoothstep(40.0, 140.0, camD);
-        gTerrN = normalize(mix(vec3(0.0, 0.0, 1.0), gTerrN, 0.9 * fade * (1.0 - wet * 0.6)));
+        gTerrN = vec3(0.0, 0.0, 1.0);
+        // ab 140 m flach (wie vorher) – dort die drei Normalen-Abfragen ganz sparen (Entfernung: räumlich zusammenhängend)
+        if (fade > 0.0) {
+          vec2 uG = vTW.xz * tScale[0] + tW, uD = vTW.xz * tScale[1] + tW, uF = vTW.xz * tScale[3] + tW;
+          vec3 nG = texture2D(tNor0, uG).xyz * 2.0 - 1.0, nD = texture2D(tNor1, uD).xyz * 2.0 - 1.0, nF = texture2D(tNor2, uF).xyz * 2.0 - 1.0;
+          // Stärke je Schicht: Gras flach (Fotoscan-Relief wirkt sonst wie Plastik), Erde mittel, Fels kräftig
+          nG.xy *= 0.6; nF.xy *= 1.15;
+          vec3 nB = normalize(nG * wG + nD * (wv.x + wv.y + wv.w) + nF * wv.z + vec3(0.0, 0.0, 0.05));
+          gTerrN = normalize(mix(vec3(0.0, 0.0, 1.0), nB, 0.9 * fade * (1.0 - wet * 0.6)));
+        }
         float dFade = 1.0 - smoothstep(4.0, 26.0, camD);
         if (dFade > 0.01) {
           vec2 dn = texture2D(tNoise, vTW.xz * 1.15).xy * 2.0 - 1.0;
@@ -352,7 +372,7 @@ export async function createTerrainMaterial(o) {
         #endif
       `);
   };
-  mat.customProgramCacheKey = () => `terrain-v4-${haveNormals ? 1 : 0}-${low ? 0 : 1}`;
+  mat.customProgramCacheKey = () => `terrain-v6-${haveNormals ? 1 : 0}-${low ? 0 : 1}`;
   return {
     material: mat, uniforms, libIds, source,
     dispose() { ctrl.dispose(); mat.dispose(); noiseTex?.dispose(); },
