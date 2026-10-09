@@ -19,6 +19,8 @@ Mehrspieler bauen. Code-Landkarte mit Datei/Zeilen-Verweisen: `docs/planung/mehr
   **Scorestreaks online aus** (Stufe 2). **Fahrzeuge online** über die Raum-Einstellung „Fahrzeuge“ (Standard
   `VEHICLES_ONLINE_DEFAULT` in `net/index.js`; aus = wie früher, Host spawnt keine) – Host simuliert, Clients führen ein
   Abbild (§14).
+  **Scorestreaks online:** nur die **FPV-Drohne** (09.10., `ONLINE_STREAKS`, s. §4 „Serienprämien“); Aufklärer, Präzisionsschlag,
+  Wachgeschütz folgen in Stufe 2. **Fahrzeuge online aus** (Host spawnt keine).
 - **Karten:** alle; Weltgeometrie ist über `def.seed` deterministisch, Wetter/Tageszeit löst der Host auf und schickt sie mit.
   Bewegungskollision ist auf jeder Grafikstufe und mit/ohne Asset-Bibliothek gleich (Großkarte: Bäume/Felsen immer mit voller
   Dichte, nur Büsche/Schilf/Gras dünnen aus; Bibliotheksmodelle kollidieren nur über feste Quader) – Prüfung:
@@ -84,8 +86,14 @@ Client → Host
 - `melee` {target, weapon, serial}
 - `throw` {kind:'grenade'|'rocket', type, origin, dir, vel, cook} – Host erzeugt das Geschoss
 - `dev` {d:'pc'|'mobile'|'vr'} – Gerät gewechselt (VR-Sitzung beginnt/endet, Touch ↔ Maus); Host setzt `device` im Roster
+- `cheat` {on} – Nur Messer: Cheat-Menü aktiv (mindestens ein Schalter, `cheats.js`); Host setzt `cheat` im Roster (Symbol in
+  der Punktetabelle), bei Matchstart/-ende für alle zurück; nie weitergeleitet (RESERVED)
 - `hold` {on, p} – Wiedereinstieg anhalten („Ausrüsten“ im Todesbildschirm, p = Restzeit steht) bzw. freigeben („Einsatz“);
   der Host hält die Puppe höchstens 30 s an
+- `streak` {id, p:[x,y,z], y, pi} – Serienprämie einsetzen (online nur 'drohne'; p/y/pi = vorgeschlagener Startpunkt und Blick
+  der Drohne). Antwort 'ev' sa (s. u.)
+- `drone` {a, d, …} – eigene FPV-Drohne (d = Netz-Id aus 'sa'): a 'p' Lage {p:[x,y,z], y, pi} 15 Hz, 'x' Sprengung {p},
+  'e' Ende {why: abbruch|aufprall|akku|signal}; a 'h' Treffer auf eine fremde Drohne {d, w (Waffe), dmg, s (Schussnummer)}
 - `plate` {chain} | {cancel:true} – Panzerplatte einsetzen (chain = mehrere nacheinander) bzw. abbrechen; der Host setzt sie
   an der Puppe ein (`combat.insertPlate`/`cancelPlate`), das Ergebnis kommt als 'hit' `ar` bzw. 'ev' `ap` zurück
 - `leave` {}
@@ -104,9 +112,33 @@ Host → Client
 - `kill` {victim, killer, assister, weapon, zone, head, pen, streak} – Abschuss
 - `mode` {s} – Modus-Zustand (`mode.netState()`), bei Änderung und spätestens jede Sekunde
 - `ev` {e, …} – Effekte/Ereignisse zum Nachspielen: gr/gb Granate geworfen/gezündet, rk/rb/rd Rakete, ex Explosion; nur an den
-  betroffenen Client: sc Punkte, md Medaille, ap Panzerung nach Aufnahme/Platte
+  betroffenen Client: sc Punkte, md Medaille, ap Panzerung nach Aufnahme/Platte. Serienprämien (09.10.): sk {k, rd, er} eigener
+  Fortschritt (Abschüsse im Leben, bereit, verdient), sa {id, ok, d, p, pi, bt} Antwort auf 'streak' (d = Netz-Id der Drohne,
+  bt = Akku s), sv {o, id} Prämie eines anderen (Hinweis/Klang); an alle: dr {l:[[d, o, x, y, z, yaw, pitch], …]} Lage aller
+  Drohnen (12 Hz, solange welche fliegen), de {d, o, why, b, p} Ende einer Drohne (b = Schütze bei 'abschuss')
 - `end` {result, summary} – Spielende (summary = playerSummary für genau diesen Client)
 - `kick` {reason} / `host-away` {away:bool} / `correct` {pos:[x,y,z]} (Anti-Cheat-Rücksetzung)
+
+### Serienprämien online: FPV-Drohne (09.10.)
+
+- Fortschritt läuft nur auf dem Host (`mode.streaks` mit `only: ONLINE_STREAKS`); der Client führt `mode.streaks` als Abbild
+  (`replica`): Stand aus 'ev' sk, Taste 6 / Touch → 'streak' an den Host, der `activate(puppe, 'drohne')` prüft (bereit, lebt,
+  Startpunkt ≤ 4 m vor dem Kopf mit freier Sicht) und mit 'ev' sa antwortet. Erst dann fliegt die Drohne beim Client (lokal,
+  flüssig), Lage 15 Hz an den Host ('drone' p; Weg-Budget Schub 26 m/s × 1,5, höchstens ≈ 47 m angespart, Reichweite 160 m –
+  sonst verworfen + Anti-Cheat 'drohne'). Weg durch eine Wand (Strahl hin und zurück, Hindernis > 0,12 m stark): Lage bleibt
+  0,3 m davor stehen, kein Verstoß; hängt sie 1,5 s fest (Grenzfall Ecke), gilt die Meldung wieder.
+- Sprengung ('drone' x): Host prüft (Echtzeit) Drohne aktiv, Zeit seit Start ≤ Akku × 2,2 + 3 s (`netTimeFactor`; auf
+  langsamen Geräten läuft die Spielzeit und damit der Akku langsamer), Punkt ≤ Schub × Zeit seit der letzten angenommenen Lage
+  (höchstens 1 s – Lage zurückhalten bringt keinen Sprung) × 1,25 + 4 m entfernt, ≤ Reichweite + 5 m vom Startpunkt →
+  `combat.explode` (Angreifer = Puppe, Ursache 'drohne'; Abschuss/Punkte wie jeder Treffer), keine Wand zwischen letzter Lage
+  und Sprengpunkt. Sonst Ende 'abgelehnt' ohne Wirkung + Anti-Cheat 'drohne' (nicht bei 'akku': sehr langsame Geräte; nicht
+  bei 'wand'). Der Client hat die Drohne beim Sprengen schon beendet; 'ev' de 'abgelehnt' reicht den Hinweis nach.
+- Treffer auf Drohnen: Host/Bots direkt (world.raycast, Explosionen); Clients melden eigene Treffer ('drone' h), der Host prüft
+  Waffe (Ausrüstung), Feuerrate (je Schuss höchstens `pellets`), Reichweite (Nahkampf: Klinge + 1,75 m) und Sicht zu einer
+  Lage der letzten 0,6 s, rechnet den Schaden selbst (Abfall, höchstens die Meldung). 40 LP → Ende 'abschuss', Punkte
+  'drone' für den Schützen. Anti-Cheat 'ausruestung' nur bei unbekannter bzw. nicht getragener Waffe (Projektile: kein Verstoß).
+- Darstellung: Host sendet alle Drohnen (auch eigene/Bots) als 'ev' dr, Clients zeigen fremde als geglättetes Abbild
+  (`Drone` Rolle 'replica'), eigene nie doppelt. Ende immer als 'ev' de.
 
 ## 5. Binärpakete (schnell, `net/protocol.js`)
 
@@ -134,7 +166,7 @@ eigenen, `sync-common vrPoseOf`); Clients interpolieren ihn wie die Pose (Kopf, 
 
 `room.settings` = { name, mode, map, time, weather, difficulty, maxPlayers (2–32), botFill (bool), teamSize (je Team inkl.
 Menschen, 1–16), pvp ('pvp' = Menschen auf beide Teams verteilt | 'coop' = alle Menschen Team A gegen Bots), public (bool),
-style, scoreLimit, timeLimit, stamina (bool, Standard true), killAmmo (bool, Standard true) }.
+style, scoreLimit, timeLimit, stamina (bool, Standard true), killAmmo (bool, Standard true), cheatMenu (bool, Standard true) }.
 - `time`: 'standard' (Kartenzeit) | 'zufall' | **'echtzeit'** | eine Tageszeit der Karte (`MAPS[map].times`); `weather`:
   'standard' | 'zufall' | ein Wetter der Karte.
 - `stamina` („Ausdauer“, 09.10.): false = unbegrenzte Ausdauer für alle (Spieler und Bots, auf Host und Clients).
@@ -142,10 +174,13 @@ style, scoreLimit, timeLimit, stamina (bool, Standard true), killAmmo (bool, Sta
   direkt in den Gurt; Regeln `killAmmoFor` in shared/weapons.data.js). Munition ist Zustand des jeweiligen Geräts: der Host
   schreibt sie nur seinem eigenen Spieler gut (`combat.js` 'kill'), jeder Client sich selbst beim 'kill' des Hosts mit ihm als
   Schützen (`net/sync-client.js` → 'kill' → `weapons/index.js _killAmmo`); Puppen und Bots nie, kein neues Netzpaket.
+- `cheatMenu` („Cheat-Menü (Nur Messer)“, 09.10., Host-Schalter nur bei Modus 'messer' sichtbar): false = das Cheat-Menü des
+  Modus öffnet sich bei niemandem („vom Host deaktiviert“); mitten im Match verboten → alle Schalter aus (`cheats.js` liest
+  `G.net.room.settings`, sonst `cfg.net.cheatMenu`). Nur Messer ist online noch nicht wählbar (`ONLINE_MODES`).
 
 `startMatch()` erzeugt cfg = Lobby-Konfiguration + { allies/enemies so, dass Bots + Menschen = teamSize, `timeOfDay`/`weather`
 aufgelöst } und je Empfänger `cfg.net` = { role, roomCode, selfId, team, teamSize, pvp, botFill, maxPlayers, botsA, botsB,
-humans:{A,B}, ffa, conditions:{weather, time}, startedAt, stamina, killAmmo }.
+humans:{A,B}, ffa, conditions:{weather, time}, startedAt, stamina, killAmmo, cheatMenu }.
 - **Wetter/Zeit löst nur der Host auf** (`world.resolveConditions`): nie 'zufall' oder 'echtzeit' in cfg. **'echtzeit'**
   nimmt die Tageszeit der Karte (Kartenzeit oder eine aus `times`), die der **Uhr des Hosts** am nächsten liegt
   (`weather.js realTimePreset`, Stunden aus `TIME_HOURS`: Morgen 7, Vormittag 10, Mittag 12,5, Nachmittag 15,5, Abend 19 Uhr;
@@ -208,7 +243,7 @@ verborgener Host-Tab; ≈ 13 min).
 - `runStart`: cfg mit `net` (und aktiver Sitzung derselben Rolle) → `G.net.sync = new HostSync|ClientSync(G, net, cfg.net)`
   (je Match neu, vor dem ersten `await` – Nachrichten während des Ladens werden gepuffert). `G.match.net/netRole` gelten bis zum
   Abbau. Online: Bots je Team = `cfg.net.botsA/botsB` (absolute Teams, ohne `limitsFor`), Spielerteam = `cfg.net.team`,
-  `opts.streaks = false`, keine Fahrzeuge, `lastMode/lastMap` der Einzelspieler-Lobby bleiben. Client: Modus als Abbild
+  `opts.streakIds = ONLINE_STREAKS` (nur die FPV-Drohne), keine Fahrzeuge, `lastMode/lastMap` der Einzelspieler-Lobby bleiben. Client: Modus als Abbild
   (`opts.replica`), keine `spawnBots`, Spieler wartet ohne Körper an einem Teamspawn (`placeSpectator`). Nach `warmUp`:
   Client meldet seine tatsächliche Ausrüstung (`G.net.setLoadout`), dann `G.net.onMatchStart(cfg)` (Client → 'ready').
 - Bild: `G.net.preUpdate` nach Eingabe/Pausenprüfung, vor Spieler/Bots; `G.net.postUpdate` nach den Respawns. Respawns nur

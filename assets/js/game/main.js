@@ -663,8 +663,18 @@ function deploy() {
   return true;
 }
 
+/**
+ * Fenster im laufenden Match hält die Maus frei (Nur Messer: Cheat-Menü, ui/cheat-menu.js): solange verliert das Spiel
+ * die Zeiger-Sperre, ohne zu pausieren, und der Hinweis „Klicken, um weiterzuspielen“ bleibt aus.
+ */
+function holdUi(on) {
+  G.match.uiHold = !!on;
+  updateLockHint();
+}
+
 G.requestLoadout = requestLoadout;
 G.pause = () => pause(); // engine/xr: Sitzung verdeckt (Systemmenü der Brille) → Pause
+G.holdUi = holdUi;
 G.holdRespawn = holdRespawn;
 G.deploy = deploy;
 G.respawnRemaining = respawnRemaining;
@@ -959,8 +969,9 @@ async function runStart(config, gen) {
       time: cfg.timeLimit ?? undefined, score: cfg.scoreLimit ?? undefined,
       difficulty: cfg.difficulty, allies: cfg.allies, enemies: cfg.enemies, mapId: cfg.mapId,
     };
-    // Mehrspieler: Serienprämien online aus (Stufe 2); Client führt den Modus als Abbild (Zustand vom Host)
-    if (netCfg) { opts.streaks = false; opts.replica = netCfg.role === 'client'; }
+    // Mehrspieler: von den Serienprämien online nur die FPV-Drohne (ONLINE_STREAKS, Einsatz bestätigt der Host –
+    // net/sync-host.js); Client führt den Modus als Abbild (Zustand vom Host)
+    if (netCfg) { opts.streakIds = modesData.ONLINE_STREAKS || []; opts.replica = netCfg.role === 'client'; }
     G.mode = G.modules.modes.createMode(G, cfg.modeId, opts);
     G.mode.attach(G);
     if (!(await nextStep(0.87))) { await teardownMatch({ keepWorld: true }); return; }
@@ -1552,6 +1563,7 @@ function frame(now, bg = false, xrFrame = null) {
     if (G.input.pressed('pause') && G.match.state !== 'paused') pause();
     const net = G.match.netRole && G.net ? G.net : null;
     if (net) step('net:pre', () => net.preUpdate(dt)); // Host: Zustände der Clients → Puppen; Client: Schnappschüsse → Puppen
+    if (G.mode && G.mode.preUpdate) step('mode:pre', () => G.mode.preUpdate(dt)); // Nur Messer: Cheat-Menü (cheats.js) – Blick/Bewegung/Nahkampf vor dem Spieler
     step('player', () => (G.player.vehicle ? G.vehicles.updateOccupant(G.player, dt) : G.player.update(dt))); // vehicles: Sitz statt Laufen
     step('bots', () => G.bots.update(dt));
     const live = G.match.state === 'playing' || G.match.netLive;
@@ -1665,7 +1677,7 @@ function updateLockHint() {
   const el = $('lock-hint');
   if (!el || !G.input) return;
   const st = G.match.state;
-  const lost = G.input.mode === 'desktop' && (st === 'playing' || st === 'countdown') && !G.input.locked && G.input.everLocked && !G.input.allowUnlockedMouse;
+  const lost = G.input.mode === 'desktop' && (st === 'playing' || st === 'countdown') && !G.input.locked && G.input.everLocked && !G.input.allowUnlockedMouse && !G.match.uiHold;
   el.hidden = !(lost || (G.match.awaitingLock && st === 'paused'));
 }
 
@@ -1697,6 +1709,16 @@ G.debugApi = {
     return n;
   },
   setTimeScale(s) { G.timeScale = clampTimeScale(s); return G.timeScale; },
+  /** Serienprämie sofort bereit (offline/Host; Tests): id z. B. 'drohne'. */
+  giveStreak(id = 'drohne') {
+    const st = G.mode && G.mode.streaks;
+    if (!st || st.replica || !st.byId[id] || !G.player) return false;
+    const s = st._st(G.player);
+    s.earned.add(id);
+    if (!s.ready.includes(id)) { s.ready.push(id); G.events.emit('streak:ready', { actor: G.player, streakId: id }); }
+    G.match.unranked = true;
+    return true;
+  },
   endMatch() {
     const m = G.mode;
     if (!m) return false;
@@ -1774,8 +1796,9 @@ function wireGlobal() {
     updateLockHint();
     const st = G.match.state;
     if (locked && G.match.awaitingLock && st === 'paused') { finishResume(); return; }
-    // Nur ein echter Verlust der Sperre pausiert (nicht eine abgelehnte Anfrage, z. B. Chrome-Wartezeit nach Esc)
-    if (!locked && !error && G.input.everLocked && G.input.mode === 'desktop' && (st === 'playing' || st === 'countdown') && !(G.xr && G.xr.presenting)) pause();
+    // Nur ein echter Verlust der Sperre pausiert (nicht eine abgelehnte Anfrage, z. B. Chrome-Wartezeit nach Esc; nicht, solange
+    // ein Fenster im Match die Maus hält – holdUi)
+    if (!locked && !error && !G.match.uiHold && G.input.everLocked && G.input.mode === 'desktop' && (st === 'playing' || st === 'countdown') && !(G.xr && G.xr.presenting)) pause();
   });
   G.events.on('input:mode', () => {
     updateLockHint();

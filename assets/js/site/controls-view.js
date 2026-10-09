@@ -21,16 +21,17 @@ export const TOUCH = [
   ['grenade', 71.5, 84.8, 'GRANATE', 'Halten kocht vor, loslassen wirft in Blickrichtung.'],
   ['melee', 79.1, 89.5, 'MESSER', 'Nahkampf mit dem Kampfmesser.'],
   ['swap', 50, 91.7, 'WAFFE', 'Wechselt zwischen Primär- und Zweitwaffe; zeigt die andere Waffe.'],
-  ['streak1', 84.1, 21.3, '4', 'Aufklärer nach 4 Abschüssen ohne Tod. Leuchtet golden, sobald bereit; antippen setzt ihn ein.', 'sm', 'streak'],
-  ['streak2', 89.7, 21.3, '6', 'Präzisionsschlag nach 6 Abschüssen ohne Tod. Antippen öffnet die Zielkarte.', 'sm', 'streak'],
-  ['streak3', 95.4, 21.3, '8', 'Wachgeschütz nach 8 Abschüssen ohne Tod. Leuchtet golden, sobald bereit.', 'sm', 'streak'],
+  ['streak1', 78.5, 21.3, '4', 'Aufklärer nach 4 Abschüssen ohne Tod. Leuchtet golden, sobald bereit; antippen setzt ihn ein.', 'sm', 'streak'],
+  ['streak2', 84.1, 21.3, '6', 'Präzisionsschlag nach 6 Abschüssen ohne Tod. Antippen öffnet die Zielkarte.', 'sm', 'streak'],
+  ['streak3', 89.7, 21.3, '8', 'Wachgeschütz nach 8 Abschüssen ohne Tod. Leuchtet golden, sobald bereit.', 'sm', 'streak'],
+  ['streak4', 95.4, 21.3, '5', 'FPV-Drohne nach 5 Abschüssen ohne Tod. Stick fliegt, Wischen schaut; Knöpfe Hoch, Runter, Schub, Sprengen, Abbrechen.', 'sm', 'streak'],
   ['score', 89.8, 8.3, 'PUNKTE', 'Punktetabelle ein- und ausblenden.', 'sm'],
   ['pause', 95.4, 8.3, 'PAUSE', 'Pause, Einstellungen und Match verlassen.', 'sm'],
   ['map', 6.7, 14.4, 'KARTE', 'Minikarte: Verbündete, Ziele, feuernde Gegner.'],
 ];
 /** Wortleiste unter schmalen Telefonbildern: ein Eintrag je Gruppe. */
 const GROUP_WORD = { streak: 'SERIEN' };
-const GROUP_TEXT = { streak: 'Serienprämien: Aufklärer nach 4, Präzisionsschlag nach 6, Wachgeschütz nach 8 Abschüssen ohne Tod. Leuchten golden, sobald bereit.' };
+const GROUP_TEXT = { streak: 'Serienprämien: Aufklärer nach 4, FPV-Drohne nach 5, Präzisionsschlag nach 6, Wachgeschütz nach 8 Abschüssen ohne Tod. Leuchten golden, sobald bereit.' };
 
 /*
  * Tastatur & Maus wie engine/input.js (KEY_ACTIONS, MOVE_KEYS, MOUSE_ACTIONS; Mausrad = Waffe wechseln) und die
@@ -49,7 +50,7 @@ export const KEYS = [
   ['V / Maus\u00a04', 'Messer', 'MESSER', ['KeyV'], [3]],
   ['G / Q', 'Granate (halten: vorkochen)', 'GRANATE', ['KeyG', 'KeyQ']],
   ['1 / 2 / Mausrad / Maus\u00a05', 'Waffe wechseln', 'WAFFE WECHSELN', ['Digit1', 'Digit2'], [4]],
-  ['3 / 4 / 5', 'Serienprämien', 'SERIENPRÄMIEN', ['Digit3', 'Digit4', 'Digit5']],
+  ['3 / 4 / 5 / 6', 'Serienprämien (6: FPV-Drohne)', 'SERIENPRÄMIEN', ['Digit3', 'Digit4', 'Digit5', 'Digit6']],
   ['F / E', 'Interagieren (Parcours im Schießstand)', 'INTERAGIEREN', ['KeyF', 'KeyE']],
   ['Tab', 'Punktetabelle', 'PUNKTETABELLE', ['Tab']],
   ['Esc', 'Pause', 'PAUSE', ['Escape']],
@@ -66,7 +67,7 @@ export const PAD = [
   [7, 'RT', 'Feuern'], [6, 'LT', 'Zielen'], [0, 'A', 'Springen'], [1, 'B', 'Ducken, im Sprint rutschen'], [2, 'X', 'Nachladen'],
   [3, 'Y', 'Waffe wechseln'], [4, 'LB', 'Granate (halten: vorkochen)'], [5, 'RB', 'Messer'],
   [10, 'L-Stick', 'Bewegen · drücken: Sprinten, im Zielfernrohr Atem anhalten'], [11, 'R-Stick', 'Umsehen · drücken: Messer'],
-  [[12, 14, 15], 'Steuerkreuz ▲\u00a0◀\u00a0▶', 'Serienprämien'], [8, 'Ansicht', 'Punktetabelle'], [9, 'Menü', 'Pause'],
+  [[12, 14, 15], 'Steuerkreuz ▲\u00a0◀\u00a0▶', 'Serienprämien (LT + ▼: FPV-Drohne)'], [8, 'Ansicht', 'Punktetabelle'], [9, 'Menü', 'Pause'],
 ];
 
 export async function init(sec, D, ctx = {}) {
@@ -90,7 +91,7 @@ export async function init(sec, D, ctx = {}) {
   const phone = h('div.phone', { role: 'group', 'aria-label': 'Touch-Belegung im Querformat' });
   const legend = h('div.touch-legend', { role: 'group', 'aria-label': 'Touch-Belegung' });
   const btns = [];
-  const NAME = { fireL: 'FEUER LINKS', fire: 'FEUER RECHTS', streak1: '4 · AUFKLÄRER', streak2: '6 · PRÄZISIONSSCHLAG', streak3: '8 · WACHGESCHÜTZ' };
+  const NAME = { fireL: 'FEUER LINKS', fire: 'FEUER RECHTS', streak1: '4 · AUFKLÄRER', streak2: '6 · PRÄZISIONSSCHLAG', streak3: '8 · WACHGESCHÜTZ', streak4: '5 · FPV-DROHNE' };
   // Ein Eintrag (Telefon) oder eine ganze Gruppe (Wortleiste, z. B. alle drei Serienprämien) auswählen
   const choose = (item, group) => {
     for (const b of btns) b.el.setAttribute('aria-pressed', String(group ? b.item[6] === group : b.item === item));

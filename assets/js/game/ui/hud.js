@@ -6,7 +6,8 @@
 // Punktetabelle (Tab/Touch), Start-Countdown-Banner, Todes-/Wiedereinstiegsbanner, Hinweise (Serien, Flaggen,
 // Verlängerung, Führung), Schießstand-Panel (Statistik, Parcours) und die Zielkarte des Präzisionsschlags.
 // Interaktive Teile liegen in #hud-top (über der Touch-Steuerung, unter den Menüs), dort auch das Befehlsrad für
-// verbündete Bots samt Weltmarkierungen (ui/command-wheel.js).
+// verbündete Bots samt Weltmarkierungen (ui/command-wheel.js). FPV-Drohne: eigenes Kamerabild-HUD (ui/drone-hud.js),
+// solange sie fliegt, ist das normale HUD weitgehend ausgeblendet (body[data-drone]).
 // HUD-Stil (Einstellung hudStyle, Realismus-Plan §5.3/§11.1): „voll“, „reduziert“ (ohne Minikarte/Kompass, Munition als
 // Balken, Leben nur nach Treffern) und „aus“ = Realismus wie Bodycam (kein Fadenkreuz, keine Treffermarker, keine
 // Munitions-/Lebensanzeige; Punktetabelle halten zeigt Minikarte, Stand und Flaggen wie ein Taktik-Tablet).
@@ -24,6 +25,7 @@ import { StrikeTargeting } from './strike-target.js';
 import { actionKey } from './settings/keys.js';
 import { DeployScreen } from './deploy.js';
 import { CommandWheel } from './command-wheel.js';
+import { DroneHud } from './drone-hud.js';
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
@@ -257,6 +259,8 @@ export class HUD {
     this.topUi.appendChild(this.orderBtn);
     // Befehlsrad (verbündete Bots): Rad + Weltmarkierungen, Rückmeldung als Hinweis
     this.wheel = new CommandWheel(this.G, top, { notice: (text, tone) => this._notice(text, tone, null, NOTICE_LIFE, 'befehl') });
+    // FPV-Drohne: Kamerabild-HUD (Anzeige in #hud, Touch-Knöpfe in #hud-top)
+    this.droneHud = new DroneHud(this.G, r, top, (a) => this._keyFor(a));
   }
 
   /* ================================================================ Lebenszyklus */
@@ -325,7 +329,13 @@ export class HUD {
     s.on('streak:denied', ({ streakId, need }) => this._notice(`${this._streakName(streakId)}: noch ${need} ${need === 1 ? 'Abschuss' : 'Abschüsse'}.`, 'dim'));
     s.on('streak:activate', (e) => this._onStreakActivate(e));
     s.on('streak:destroyed', (e) => this._onStreakDestroyed(e));
-    s.on('streak:expired', ({ owner }) => { if (owner === P()) this._notice('Wachgeschütz abgebaut.', 'dim'); });
+    s.on('streak:expired', ({ owner, streakId }) => { if (owner === P() && streakId !== 'drohne') this._notice('Wachgeschütz abgebaut.', 'dim'); });
+    s.on('streak:refused', ({ actor, streakId, reason }) => {
+      if (actor !== P()) return;
+      const name = this._streakName(streakId);
+      this._notice(reason === 'vr' ? `${name} gibt es in VR nicht.` : reason === 'busy' ? `${name}: gerade nicht möglich.` : `${name}: vom Host abgelehnt.`, 'dim');
+    });
+    s.on('drone:end', (e) => this._onDroneEnd(e));
     s.on('uav:state', (e) => this._onUav(e));
     s.on('objective:captured', (e) => this._onFlag(e, 'captured'));
     s.on('objective:neutral', (e) => this._onFlag(e, 'neutral'));
@@ -382,6 +392,7 @@ export class HUD {
     if (this._onResize) window.removeEventListener('resize', this._onResize);
     this._onResize = null;
     if (this.targeting) this.targeting.close(true);
+    if (this.droneHud) this.droneHud.reset();
     if (this.feed) this.feed.clear();
     this._setPostDesat(0);
     if (this.topUi) this.topUi.hidden = true;
@@ -456,6 +467,7 @@ export class HUD {
     this._visible = false;
     this._setDead(false);
     if (this.targeting) this.targeting.close(true);
+    if (this.droneHud) this.droneHud.reset();
   }
 
   /** body[data-player-dead]: game.css blendet damit die Touch-Steuerung über dem Todesbildschirm aus. */
@@ -540,11 +552,12 @@ export class HUD {
     const st = G.mode && G.mode.streaks;
     this.el.streaks.hidden = !st;
     if (!st) { this.el.streaks.innerHTML = ''; this.el.streakSlots = []; return; }
-    this.el.streaks.innerHTML = st.defs.map((d, i) => `
+    // nach Abschüssen geordnet; die Taste gehört zum festen Platz der Prämie (st.order = streak1 …)
+    this.el.streaks.innerHTML = st.defs.map((d) => `
       <div class="h-streak" data-id="${esc(d.id)}">
         <div class="h-streak-ico">${d.icon || ICON.star}</div>
         <div class="h-streak-pips">${'<i></i>'.repeat(Math.min(10, d.kills))}</div>
-        <kbd>${esc(this._keyFor(`streak${i + 1}`) || '')}</kbd>
+        <kbd>${esc(this._keyFor(`streak${st.order.indexOf(d.id) + 1}`) || '')}</kbd>
         <span class="h-streak-n">${d.kills}</span>
       </div>`).join('');
     this.el.streakSlots = [...this.el.streaks.querySelectorAll('.h-streak')].map((n) => ({ n, pips: [...n.querySelectorAll('.h-streak-pips i')], id: n.dataset.id }));
@@ -858,23 +871,34 @@ export class HUD {
     const name = this._streakName(streakId);
     if (own) {
       this._dropNotice(`ready:${streakId}`);
-      if (streakId !== 'uav') this._notice(streakId === 'strike' ? 'Präzisionsschlag angefordert.' : 'Wachgeschütz aufgestellt.', 'ally');
+      if (streakId === 'strike' || streakId === 'sentry') this._notice(streakId === 'strike' ? 'Präzisionsschlag angefordert.' : 'Wachgeschütz aufgestellt.', 'ally');
     } else if (ally) {
       this._notice(`${actor.name}: ${name}.`, 'ally');
     } else if (streakId === 'strike') {
       this._notice('Gegnerischer Präzisionsschlag im Anflug.', 'enemy', null, 3.2);
     } else if (streakId === 'sentry') {
       this._notice('Gegnerisches Wachgeschütz.', 'enemy');
+    } else if (streakId === 'drohne') {
+      this._notice('Gegnerische FPV-Drohne in der Luft.', 'enemy', null, 3.2);
     }
     this._slowT = 0;
   }
 
-  _onStreakDestroyed({ owner, by }) {
+  _onStreakDestroyed({ owner, by, streakId }) {
     const p = this.G.player;
     const byName = by ? by.name : 'Unbekannt';
-    this.feed.pushText(`<span class="kf-name kf-${this.feed.side(by)}">${esc(byName)}</span><span class="kf-w">${ICON.explosion}</span><span class="kf-name kf-${this.feed.side(owner)}">Wachgeschütz</span>`);
-    if (owner === p) this._notice('Dein Wachgeschütz wurde zerstört.', 'enemy');
-    else if (by === p) this._notice('Wachgeschütz zerstört.', 'gold');
+    const drone = streakId === 'drohne';
+    const what = drone ? 'FPV-Drohne' : 'Wachgeschütz';
+    this.feed.pushText(`<span class="kf-name kf-${this.feed.side(by)}">${esc(byName)}</span><span class="kf-w">${ICON.explosion}</span><span class="kf-name kf-${this.feed.side(owner)}">${what}</span>`);
+    if (owner === p) this._notice(drone ? 'Deine Drohne wurde abgeschossen.' : 'Dein Wachgeschütz wurde zerstört.', 'enemy');
+    else if (by === p) this._notice(drone ? 'Drohne abgeschossen.' : 'Wachgeschütz zerstört.', 'gold');
+  }
+
+  /** Ende der eigenen FPV-Drohne (Sprengung und Abschuss sprechen für sich; Tod: Todesbildschirm). */
+  _onDroneEnd({ drone, why }) {
+    if (!drone || drone.owner !== this.G.player) return;
+    const T = { abbruch: 'Drohne abgestürzt.', aufprall: 'Drohne zerschellt.', akku: 'Akku leer – Drohne abgestürzt.', signal: 'Signal verloren.', abgelehnt: 'Sprengung vom Host abgelehnt.' };
+    if (T[why]) this._notice(T[why], why === 'abgelehnt' ? 'enemy' : 'dim');
   }
 
   _onUav({ team, active, owner }) {
@@ -974,6 +998,8 @@ export class HUD {
     const now = G.time.elapsed;
     const vw = this._vw || window.innerWidth;
     const vh = this._vh || window.innerHeight;
+    // FPV-Drohne: Kamerabild-HUD, solange die eigene Drohne fliegt
+    if (this.droneHud) this.droneHud.update(dt, G.mode && G.mode.streaks ? G.mode.streaks.pilot : null);
     if (this.root.dataset.input !== (touch ? 'touch' : 'desktop')) {
       this.root.dataset.input = touch ? 'touch' : 'desktop';
       this._syncFeedMax();
@@ -1431,6 +1457,9 @@ export class HUD {
       for (const b of btns) {
         const id = b.dataset.streak;
         const d = id && st.byId[id];
+        // in diesem Spiel nicht verfügbare Prämie (online nur die Drohne): Knopf ausblenden
+        const off = id && !d ? '1' : '';
+        if ((b.dataset.off || '') !== off) { if (off) b.dataset.off = off; else delete b.dataset.off; }
         if (!d) continue;
         const earned = prog.earned.includes(id) || prog.ready.includes(id);
         const r = earned ? 1 : clamp(prog.kills / d.kills, 0, 1);

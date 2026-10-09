@@ -474,12 +474,14 @@ export class Combat {
    * Explosion mit Sichtlinienprüfung (Kopf/Brust/Füße), Eigenschaden an, Teamschaden aus.
    * { position, radius, maxDamage, attacker, weaponId, type, innerRadius?, minDamage?, source? }
    * source ('grenade'|'rocket', Mehrspieler): Herkunft im 'explosion'-Ereignis – der Host spielt sie über die Granate/Rakete nach.
+   * concuss false: kein Gehör-Effekt beim Hörer (FPV-Drohne: der Hörer saß bis eben in der Drohne).
    */
-  explode({ position, radius = 6, maxDamage = 150, attacker = null, weaponId = null, type = 'frag', innerRadius, minDamage, source }) {
+  explode({ position, radius = 6, maxDamage = 150, attacker = null, weaponId = null, type = 'frag', innerRadius, minDamage, source, concuss }) {
     const G = this.G;
     const pos = position.clone ? position.clone() : new THREE.Vector3(position.x, position.y, position.z);
     const ev = { position: pos, radius, attacker, type, weaponId };
     if (source) ev.source = source;
+    if (concuss === false) ev.concuss = false;
     G.events.emit('explosion', ev);
     const from = _v1.copy(pos);
     from.y += 0.15;

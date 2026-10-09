@@ -21,6 +21,10 @@
 // ein Abbild (vehicles/net.js); thirdPerson = Außenansicht in Fahrzeugen erlaubt; vehReload 'manuell' | 'automatisch'.
 // killAmmo false (Raum-Einstellung „Munition pro Abschuss“ aus): kein Munitionsgewinn je Abschuss – jedes Gerät liest
 // cfg.net.killAmmo selbst (weapons/index.js killAmmoEnabled, Gutschrift beim eigenen Spieler).
+// cheatMenu false (Raum-Einstellung „Cheat-Menü (Nur Messer)“ verboten): das Cheat-Menü des Modus öffnet sich nicht
+// (cheats.js liest G.net.room.settings bzw. cfg.net.cheatMenu). Roster-Feld cheat (true = Cheat-Menü aktiv, Symbol in der
+// Punktetabelle): Client meldet 'cheat' {on} (setCheat), der Host vermerkt es und verteilt das Roster; bei jedem
+// Matchstart/-ende zurückgesetzt.
 import { HostSignal, joinRoom, watchLobby, relaysFromUrl, DEFAULT_RELAYS, newRoomCode, normCode, isValidCode } from './signal.js';
 import { PeerLink, ICE_SERVERS } from './peer.js';
 import { hex, randomBytes } from './crypto.js';
@@ -37,7 +41,7 @@ import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
  *  2: Fahrzeuge online (Snapshot-Anhang, Fahrzeug-Absicht, 'veh'/'vhit'/'vehicles' – panzer-mp.md §C). */
 export const NET_VERSION = 2;
 /** Stufe 1: nur diese Modi online (cq/gun/inf/training folgen in Stufe 2). */
-export const ONLINE_MODES = Object.freeze(['tdm', 'ffa', 'dom', 'kc']);
+export const ONLINE_MODES = Object.freeze(['tdm', 'ffa', 'dom', 'kc', 'messer']);
 export const HOST_ID = 1;
 export const FIRST_CLIENT_ID = 2;
 export const FIRST_BOT_ID = 1000;
@@ -73,6 +77,7 @@ export const DEFAULT_ROOM = Object.freeze({
   // Fahrzeuge (Panzer + Geländewagen für beide Teams), Außenansicht in Fahrzeugen, Nachladen der Panzerkanone
   vehicles: VEHICLES_ONLINE_DEFAULT, thirdPerson: true, vehReload: 'manuell',
   killAmmo: true, // Munition pro Abschuss an (jedes Gerät schreibt sie seinem Spieler selbst gut)
+  cheatMenu: true, // Nur Messer: Cheat-Menü erlaubt (aus = vom Host deaktiviert; Aktive tragen ein Symbol in der Punktetabelle)
 });
 
 const TIME_SYNC_MS = 2000;
@@ -89,9 +94,10 @@ const LOCAL_RELAY = /^wss?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?(\/|$)/;
 
 /** Typen, die NetSystem selbst kennt: Clients dürfen sie nicht an andere Clients weiterleiten lassen ('order': Befehlsrad
  *  eines Clients an die Bots um seine Puppe – nur der Host wertet ihn aus, net/sync-host.js; 'veh'/'vhit': Fahrzeug-
- *  Anfragen und -Treffer an den Host, 'actors'/'vehicles': Listen des Hosts). */
+ *  Anfragen und -Treffer an den Host, 'actors'/'vehicles': Listen des Hosts; 'streak'/'drone': Serienprämie bzw.
+ *  FPV-Drohne eines Clients – nur der Host wertet sie aus; 'cheat': Cheat-Menü aktiv – nur der Host vermerkt es). */
 const RESERVED = new Set([
-  'join', 'ready', 'loadout', 'hit', 'melee', 'throw', 'leave', 'hold', 'plate', 'dev', 'order', 'veh', 'vhit',
+  'join', 'ready', 'loadout', 'hit', 'melee', 'throw', 'leave', 'hold', 'plate', 'dev', 'order', 'veh', 'vhit', 'streak', 'drone', 'cheat',
   'welcome', 'room', 'roster', 'start', 'spawn', 'kill', 'mode', 'ev', 'end', 'kick', 'host-away', 'correct', 'reject', 'actors', 'vehicles',
 ]);
 /** Nur der Host darf sie senden (der Host verwirft sie von Clients). */
@@ -156,6 +162,7 @@ export function normalizeSettings(partial = {}, base = DEFAULT_ROOM, hostName = 
     thirdPerson: pick('thirdPerson') !== false,
     vehReload: pick('vehReload') === 'automatisch' ? 'automatisch' : 'manuell',
     killAmmo: pick('killAmmo') !== false,
+    cheatMenu: pick('cheatMenu') !== false,
   };
 }
 
@@ -408,6 +415,20 @@ export class NetSystem {
   }
 
   /**
+   * Nur Messer: Cheat-Menü aktiv (cheats.js) → Host: eigener Roster-Eintrag; Client: 'cheat' {on} an den Host (der verteilt
+   * das Roster). → true, wenn gemeldet.
+   */
+  setCheat(on) {
+    on = !!on;
+    if (!this.online) return false;
+    if (this.role === 'client') return this.send(HOST_ID, { t: 'cheat', on }) > 0;
+    const me = this.role === 'host' ? this.roster.find((r) => r.id === HOST_ID) : null;
+    if (!me) return false;
+    if (!!me.cheat !== on) { me.cheat = on; this._rosterChanged(); }
+    return true;
+  }
+
+  /**
    * Raumregeln, die nicht über die Spielstil-Flags kommen, auf das laufende Match legen (Host und Clients gleich, aus
    * cfg.net = G.match.net). main.applyStyle setzt G.match.styleFlags vor setState('loading') neu – daher bei jedem
    * Zustandswechsel (idempotent). Ausdauer aus → staminaMult 0 (stamina.js: unbegrenzt, Spieler und Bots).
@@ -591,6 +612,12 @@ export class NetSystem {
       case 'dev': {
         const d = normDevice(m.d);
         if (entry.device !== d) { entry.device = d; this._rosterChanged(); }
+        break;
+      }
+      case 'cheat': { // Nur Messer: Cheat-Menü aktiv (Symbol in der Punktetabelle)
+        const on = m.on === true;
+        if (!!entry.cheat !== on) { entry.cheat = on; this._rosterChanged(); }
+        m = { t: 'cheat', on };
         break;
       }
       case 'loadout': {
@@ -825,6 +852,7 @@ export class NetSystem {
         // Fahrzeuge (panzer-mp.md §C.1): an/aus, Außenansicht erlaubt, Nachladen der Panzerkanone
         vehicles: s.vehicles === true, thirdPerson: s.thirdPerson !== false, vehReload: s.vehReload === 'automatisch' ? 'automatisch' : 'manuell',
         killAmmo: s.killAmmo !== false, // Raum-Einstellung „Munition pro Abschuss“ (weapons/index.js)
+        cheatMenu: s.cheatMenu !== false, // Raum-Einstellung „Cheat-Menü (Nur Messer)“ (cheats.js)
       },
     };
     if (s.timeLimit != null) cfg.timeLimit = s.timeLimit;
@@ -853,7 +881,7 @@ export class NetSystem {
     this._matchCfg = this._buildBaseCfg();
     this.room.state = 'match';
     this._readySent = false;
-    for (const r of this.roster) r.ready = false;
+    for (const r of this.roster) { r.ready = false; r.cheat = false; }
     if (this.anticheat) {
       this.anticheat.reset();
       const st = GAME_STYLES[this.room.settings.style];
@@ -899,7 +927,7 @@ export class NetSystem {
     if (this.role !== 'host' || !this.room || this.room.state !== 'match') return;
     this.room.state = 'lobby';
     this._matchCfg = null;
-    for (const r of this.roster) r.ready = false;
+    for (const r of this.roster) { r.ready = false; r.cheat = false; }
     this._roomChanged();
     this._rosterChanged();
   }

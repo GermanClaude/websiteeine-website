@@ -120,7 +120,8 @@ export function netPoseOf(actor, out = {}) {
   const vel = out.vel || (out.vel = [0, 0, 0]);
   pos[0] = p ? p.x : 0; pos[1] = p ? p.y : 0; pos[2] = p ? p.z : 0;
   vel[0] = v ? v.x : 0; vel[1] = v ? v.y : 0; vel[2] = v ? v.z : 0;
-  out.yaw = actor.yaw || 0;
+  // Nur Messer, Spinbot (cheats.js): nur die übertragene, für andere sichtbare Gierung dreht sich – nie Sicht oder Laufrichtung
+  out.yaw = Number.isFinite(actor.spinYaw) ? actor.spinYaw : actor.yaw || 0;
   out.pitch = actor.pitch || 0;
   const w = actor.weapon;
   const np = actor.puppet ? actor.netPose : null;

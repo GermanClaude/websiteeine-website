@@ -273,8 +273,8 @@ export async function init(sec, D, ctx = {}) {
   const box = $('#streaks', sec);
   const notes = $('#streak-notes', sec);
   if (box && M.STREAK_ORDER?.length) {
-    const items = M.STREAK_ORDER.map((sid) => M.STREAKS[sid]).filter(Boolean);
     const n = (x) => x.kills ?? x.cost ?? '';
+    const items = M.STREAK_ORDER.map((sid) => M.STREAKS[sid]).filter(Boolean).sort((a, b) => (Number(n(a)) || 0) - (Number(n(b)) || 0));
     box.replaceChildren(...items.map((x) => h('li', {},
       h('span.sn', {}, String(n(x))), h('span.sdash', { 'aria-hidden': 'true' }, '\u00a0— '), h('span.snm', {}, `${x.name}.`),
       h('span.sr-only', {}, ` ${n(x)} Abschüsse ohne Tod.`))));

@@ -3,6 +3,7 @@
 // Mehrspieler (optional je Zeile): ping (ms), isHost, isHuman, device ('pc'|'mobile'|'vr') – sobald eine Zeile ein Feld
 // „ping“ hat (oder opts.online gesetzt ist), erscheint die Ping-Spalte; Menschen bekommen das Symbol ihres Geräts
 // (PC/Handy/VR-Brille), der Host ein Abzeichen. Offline wie bisher.
+// Nur Messer: cheat = Cheat-Menü aktiv (modes/knife.js, cheats.js) → kleines Symbol hinter dem Namen (Stil: ui/cheat-menu.js).
 
 import { esc, kd } from './dom.js';
 import { ICON, deviceOf } from './icons.js';
@@ -26,7 +27,7 @@ export function scoreboardHtml(rows, opts = {}) {
   const head = `<tr><th class="sb-rank">#</th><th class="sb-name">Name</th><th>Punkte</th><th title="Abschüsse">A</th><th title="Tode">T</th><th title="Unterstützungen">U</th><th class="sb-kd">K/D</th>${extraLabel ? `<th class="sb-extra">${esc(extraLabel)}</th>` : ''}${online ? '<th class="sb-ping" title="Ping in Millisekunden">Ping</th>' : ''}</tr>`;
   const mySq = opts.squads ? (rows.find((r) => r.isPlayer) || {}).squad : null;
   const row = (r, i) => {
-    const cls = ['sb-row', r.isPlayer ? 'is-me' : '', r.alive === false ? 'is-dead' : '', r.mvp ? 'is-mvp' : '', mySq && r.squad === mySq ? 'is-mysq' : '', online && r.isHuman && !r.isPlayer ? 'is-human' : ''].join(' ');
+    const cls = ['sb-row', r.isPlayer ? 'is-me' : '', r.alive === false ? 'is-dead' : '', r.mvp ? 'is-mvp' : '', mySq && r.squad === mySq ? 'is-mysq' : '', online && r.isHuman && !r.isPlayer ? 'is-human' : '', r.cheat ? 'is-cheat' : ''].join(' ');
     const sq = opts.squads && r.squad ? `<span class="sb-sq">${esc(r.squad)}</span>` : '';
     const badge = r.mvp ? `<span class="sb-mvp" title="MVP">${ICON.crown}</span>` : r.teamMvp ? `<span class="sb-mvp sb-tmvp" title="Bester im Team">${ICON.star}</span>` : '';
     const dead = r.alive === false && opts.live ? `<span class="sb-dead">${ICON.skull}</span>` : '';
@@ -36,7 +37,8 @@ export function scoreboardHtml(rows, opts = {}) {
     const human = online && r.isHuman && (dev || !r.isPlayer)
       ? `<span class="sb-human"${dev ? ` data-dev="${esc(r.device)}"` : ''} title="${dev ? `${who} · ${esc(dev.label)}` : who}">${dev ? dev.icon : ICON.user}</span>` : '';
     const hostTag = online && r.isHost ? '<span class="sb-host" title="Host">Host</span>' : '';
-    return `<tr class="${cls}"><td class="sb-rank">${i + 1}</td><td class="sb-name">${sq}${human}<span class="sb-n">${esc(r.name)}</span>${r.isPlayer ? '<span class="sb-you">Du</span>' : ''}${hostTag}${badge}${dead}</td>` +
+    const cheat = r.cheat ? `<span class="sb-cheat" title="Cheat-Menü aktiv" aria-label="Cheat-Menü aktiv">${ICON.crosshair}</span>` : '';
+    return `<tr class="${cls}"><td class="sb-rank">${i + 1}</td><td class="sb-name">${sq}${human}<span class="sb-n">${esc(r.name)}</span>${r.isPlayer ? '<span class="sb-you">Du</span>' : ''}${hostTag}${cheat}${badge}${dead}</td>` +
       `<td class="sb-score">${r.score}</td><td>${r.kills}</td><td>${r.deaths}</td><td>${r.assists}</td><td class="sb-kd">${kd(r.kills, r.deaths)}</td>` +
       `${extraLabel ? `<td class="sb-extra">${r.extra ? r.extra.value : '–'}</td>` : ''}${online ? pingCell(r) : ''}</tr>`;
   };

@@ -488,6 +488,8 @@ export function useStreaks(bot, now) {
         const t = typeof st.suggestStrikeTarget === 'function' ? st.suggestStrikeTarget(bot) : null;
         if (t && st.activate(bot, 'strike', { target: t })) return;
       } else if (id === 'sentry' && !fighting) { if (st.activate(bot, 'sentry')) return; }
+      // FPV-Drohne: Autopilot zum nächsten Gegner (modes/drone.js) – nur mit einem Gegner in Reichweite, nicht im Feuergefecht
+      else if (id === 'drohne' && !fighting && typeof st.droneTargetFor === 'function' && st.droneTargetFor(bot)) { if (st.activate(bot, 'drohne')) return; }
     } catch (err) { /* Modus lehnt ab → später erneut */ void err; }
   }
 }

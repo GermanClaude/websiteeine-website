@@ -132,6 +132,7 @@ export class CommandWheel {
     const G = this.G;
     const p = G.player;
     if (!p || !p.alive || !p.team || !G.mode || !G.mode.teams) return false;
+    if (p.piloting) return false; // FPV-Drohne im Flug: Feuern sprengt, kein Rad
     if (G.match.state !== 'playing' || (G.xr && G.xr.presenting)) return false;
     if (G.hud && G.hud.targeting && G.hud.targeting.open) return false;
     return true;

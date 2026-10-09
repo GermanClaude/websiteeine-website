@@ -26,7 +26,7 @@ import { FLAGS } from './protocol.js';
 /** Gewicht je Verstoß (Summe ≥ threshold → Kick). */
 export const AC_WEIGHTS = Object.freeze({
   tempo: 2, teleport: 3, steigen: 2, korrektur: 2, feuerrate: 2, schaden: 5, reichweite: 3, position: 2, herkunft: 2,
-  waffe: 4, ausruestung: 4, doppelt: 3, team: 1, sicht: 2, ungueltig: 1, flut: 1,
+  waffe: 4, ausruestung: 4, doppelt: 3, team: 1, sicht: 2, ungueltig: 1, flut: 1, drohne: 2,
 });
 
 /** Lesbare Gründe (Protokoll im Host-Menü, Kick-Grund). */
@@ -36,6 +36,7 @@ export const AC_TEXT = Object.freeze({
   position: 'Ziel nicht am Trefferpunkt', herkunft: 'Schuss nicht von der eigenen Position', waffe: 'Unbekannte Waffe',
   ausruestung: 'Waffe nicht in der Ausrüstung', doppelt: 'Doppelte Treffermeldung', team: 'Treffer auf eigenes Team',
   sicht: 'Treffer ohne Sichtlinie (gehäuft)', ungueltig: 'Ungültige Meldung', flut: 'Nachrichtenflut',
+  drohne: 'Drohne unplausibel (Lage/Sprengung)',
 });
 
 export const AC_DEFAULTS = Object.freeze({

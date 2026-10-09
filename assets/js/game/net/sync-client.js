@@ -20,6 +20,9 @@
 //     Explosionen, eigene Punkte/Medaillen; 'end' → Endbildschirm mit Ergebnis + Zusammenfassung des Hosts.
 //   • Fahrzeuge (panzer-mp.md §C): Fahrzeug-Anhang der Schnappschüsse → G.vehicles.net (Abbild, gleiche Abspieluhr),
 //     eigene Sitz-Absicht als Anhang des Zustands; die Liste 'vehicles' wird gepuffert, bis das Abbild steht.
+//   • Serienprämien (online nur die FPV-Drohne; mode.streaks als Abbild, modes/streaks.js): 'ev' sk eigener Fortschritt,
+//     sa Antwort auf die eigene Anfrage (sendStreak), sv Prämie eines anderen, dr Lage fremder Drohnen, de Ende einer Drohne;
+//     die eigene Drohne fliegt lokal und meldet Lage/Sprengung/Ende über sendDrone.
 import * as THREE from 'three';
 import { WEAPONS } from '../../shared/weapons.data.js';
 import { netPoseOf } from '../bots/bot.js';
@@ -671,6 +674,18 @@ export class ClientSync {
       case 'ap':
         this._applyArmor(m.ar);
         return;
+      case 'sk': case 'sa': case 'sv': case 'dr': case 'de': {
+        // Serienprämien/FPV-Drohne (mode.streaks läuft auf dem Client als Abbild)
+        const st = G.mode && G.mode.streaks;
+        if (!st || typeof st.applyNetProgress !== 'function') return;
+        const find = (id) => this._actor(id);
+        if (m.e === 'sk') st.applyNetProgress(m);
+        else if (m.e === 'sa') st.applyNetActivate(m);
+        else if (m.e === 'sv') st.applyNetOther(m, find);
+        else if (m.e === 'dr') st.applyNetDrones(m.l, find);
+        else st.applyNetDroneEnd(m, find);
+        return;
+      }
       case 'sc':
         if (Number.isFinite(m.p)) G.events.emit('score', { actor: G.player, points: m.p, reason: m.r || 'kill', net: true });
         return;
@@ -787,6 +802,18 @@ export class ClientSync {
     });
     if (opts.inHand || !G.weapons) return null;
     return G.weapons.grenadeSystem.throw(actor, type, { ...opts, remote: true, cid });
+  }
+
+  /** Serienprämie beim Host anfragen ('streak' {id, p, y, pi}) – Antwort kommt als 'ev' sa. */
+  sendStreak(msg) {
+    if (!this.active || this.ended || !msg || typeof msg.id !== 'string') return;
+    this.net.send(HOST_ID, { ...msg, t: 'streak' });
+  }
+
+  /** Eigene FPV-Drohne an den Host ('drone' {a: 'p' Lage | 'x' Sprengung | 'e' Ende | 'h' Treffer auf eine Drohne, d, …}). */
+  sendDrone(msg) {
+    if (!this.active || !msg || typeof msg.a !== 'string') return;
+    this.net.send(HOST_ID, { ...msg, t: 'drone' });
   }
 
   /** Eigener Raketenschuss (WeaponSystem.fireProjectile): Meldung an den Host + Darstellungs-Rakete. */

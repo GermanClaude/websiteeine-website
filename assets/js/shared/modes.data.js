@@ -327,7 +327,14 @@ export const MODES = {
 
 /* ------------------------------------------------------- Serienprämien */
 
-export const STREAK_ORDER = ['uav', 'strike', 'sentry'];
+/**
+ * Plätze der Serienprämien = Tasten streak1…streak4 (3/4/5/6, Steuerkreuz ▲ ◀ ▶, LT + ▼, Touch-Knöpfe von links). Die
+ * Reihenfolge ist fest (neue Prämien kommen hinten dazu, damit gewohnte Tasten bleiben); HUD und Fortschritt ordnen nach
+ * Abschüssen (kills).
+ */
+export const STREAK_ORDER = ['uav', 'strike', 'sentry', 'drohne'];
+/** Online verfügbare Prämien (Mehrspieler Stufe 1: nur die FPV-Drohne – Einsatz, Lage und Sprengung prüft der Host). */
+export const ONLINE_STREAKS = ['drohne'];
 
 export const STREAKS = {
   uav: {
@@ -365,6 +372,23 @@ export const STREAKS = {
     // range (m), Kadenz (rpm), Schaden pro Kugel, Lebenspunkte, Drehgeschwindigkeit (rad/s), Zielfehler (rad).
     params: { range: 45, rpm: 540, damage: 20, health: 350, turnSpeed: 3.5, aimError: 0.02, reactionTime: 0.4 },
     icon: icon('<rect x="6" y="8" width="9" height="5.5" rx="1"/><path d="M15 10.75h6"/><path d="M10.5 13.5v3"/><path d="M6 21l4.5-4.5L15 21"/><path d="M8 8V6h5v2"/>'),
+  },
+  drohne: {
+    id: 'drohne',
+    name: 'FPV-Drohne',
+    description: 'Du steuerst eine kleine Kamikaze-Drohne aus der Ich-Sicht: Feuern sprengt sie, Interagieren bricht ab. Dein Körper bleibt so lange stehen und ist verwundbar.',
+    kills: 5,
+    cost: 5,
+    duration: 25,
+    sound: 'drohne',
+    // speed/boost m/s (Schub boostTime s, lädt mit boostRecharge/s nach), climb m/s, accel/brake 1/s (Trägheit),
+    // battery s, range m (Signal ab signalFade schwächer), Sprengung radius/innerRadius m, maxDamage/minDamage,
+    // health LP (kleine Trefferkugel hitRadius m), crashSpeed m/s (härterer Aufprall = Absturz ohne Sprengung).
+    params: {
+      speed: 18, boost: 26, boostTime: 2.2, boostRecharge: 0.35, climb: 7, accel: 2.6, brake: 2.2, battery: 25, range: 150, signalFade: 110,
+      radius: 4.5, innerRadius: 1.2, maxDamage: 180, minDamage: 25, health: 40, hitRadius: 0.36, crashSpeed: 8,
+    },
+    icon: icon('<path d="M9 9l6 6M15 9l-6 6"/><circle cx="6.5" cy="6.5" r="2.6"/><circle cx="17.5" cy="6.5" r="2.6"/><circle cx="6.5" cy="17.5" r="2.6"/><circle cx="17.5" cy="17.5" r="2.6"/><rect x="10" y="10" width="4" height="4" rx="1"/>'),
   },
 };
 
@@ -461,7 +485,7 @@ export const MEDALS = {
   praemie: { id: 'praemie', label: 'Prämienjäger', description: 'Abschuss mit einer Serienprämie.', xp: 50, tier: 'bronze' },
   unaufhaltsam: { id: 'unaufhaltsam', label: 'Unaufhaltsam', description: 'Match ohne einen einzigen Tod beendet (mindestens fünf Abschüsse).', xp: 300, tier: 'gold' },
   mvp: { id: 'mvp', label: 'MVP', description: 'Die höchste Punktzahl des Matches.', xp: 150, tier: 'gold' },
-  abwehr: { id: 'abwehr', label: 'Abwehr', description: 'Ein gegnerisches Wachgeschütz zerstört.', xp: 50, tier: 'bronze' },
+  abwehr: { id: 'abwehr', label: 'Abwehr', description: 'Ein gegnerisches Wachgeschütz oder eine gegnerische FPV-Drohne zerstört.', xp: 50, tier: 'bronze' },
   panzerknacker: { id: 'panzerknacker', label: 'Panzerknacker', description: 'Ein gegnerisches Fahrzeug zerstört.', xp: 100, tier: 'silber' },
   flaggenstuermer: { id: 'flaggenstuermer', label: 'Flaggenstürmer', description: 'Drei Flaggen in einem Leben eingenommen.', xp: 150, tier: 'gold' },
   truppfuehrer: { id: 'truppfuehrer', label: 'Truppführer', description: 'Dein Trupp hat deinen Befehl ausgeführt.', xp: 75, tier: 'silber' },
@@ -517,6 +541,7 @@ export const SCORE_RULES = {
   revenge: 25,
   neutralize: 50, // gegnerische Flagge neutralisiert (Herrschaft)
   destroy: 50, // gegnerisches Wachgeschütz zerstört
+  drone: 50, // gegnerische FPV-Drohne abgeschossen
   vehicle: 200, // gegnerisches Fahrzeug zerstört (Eroberung: je Typ VEHICLE_POINTS)
   squad: 50, // Trupp-Befehl erfüllt
   confirm: 100, // Erkennungsmarke eines Gegners eingesammelt (Abschuss bestätigt)
@@ -541,6 +566,7 @@ export const SCORE_LABELS = {
   revenge: 'Rache',
   neutralize: 'Flagge neutralisiert',
   destroy: 'Geschütz zerstört',
+  drone: 'Drohne abgeschossen',
   vehicle: 'Fahrzeug zerstört',
   squad: 'Befehl ausgeführt',
   confirm: 'Abschuss bestätigt',

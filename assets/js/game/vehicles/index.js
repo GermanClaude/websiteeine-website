@@ -893,7 +893,8 @@ export class VehicleSystem {
     } else {
       if (this.spot) this.spot.intensity = 0;
       // Einsteigen in Reichweite?
-      this._near = p.alive ? this._nearestEnterable(p) : null;
+      // nicht im Drohnenflug (Interagieren bricht dort die FPV-Drohne ab, modes/drone.js)
+      this._near = p.alive && !p.piloting ? this._nearestEnterable(p) : null;
       if (this._near) {
         const v = this._near;
         const idx = v.seats.findIndex((s) => !s.actor);

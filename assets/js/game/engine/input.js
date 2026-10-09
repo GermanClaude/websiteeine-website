@@ -40,7 +40,7 @@ const XR_STICK_DZ = 0.15;
 /** Aktionen, die input.js bei „Umschalten“ selbst einrastet (Sprint/Ducken entscheidet der Spieler). */
 const LATCHABLE = new Set(['ads', 'lean_left', 'lean_right']);
 /** Ruhen, solange das Befehlsrad offen ist (Feuern bestätigt stattdessen die Auswahl). */
-const WHEEL_MASK = new Set(['fire', 'grenade', 'tactical', 'melee', 'swap', 'slot1', 'slot2', 'inspect', 'streak1', 'streak2', 'streak3', 'gadget', 'plate']);
+const WHEEL_MASK = new Set(['fire', 'grenade', 'tactical', 'melee', 'swap', 'slot1', 'slot2', 'inspect', 'streak1', 'streak2', 'streak3', 'streak4', 'gadget', 'plate']);
 const WHEEL_MOUSE_PX = 150; // Mausweg (px) bis zum Rand des Rads
 const WHEEL_TOUCH_PX = 70; // Ziehweg am Touch-Knopf bis zum Rand
 const EMPTY = Object.freeze([]);
@@ -500,6 +500,16 @@ export class Input {
     if (this._capture) this._capture.done(null);
   }
 
+  /**
+   * Serien-Akkord ruht (z. B. Gamepad LT + ▼ = Serie 4), solange keine seiner Prämien jetzt einsetzbar ist
+   * (mode.streaks.chordReady): dann gilt die einfache Belegung der Taste – ▼ bleibt beim Zielen Lampe/Platte wie bisher.
+   */
+  _chordIdle(acts) {
+    if (!acts.length || !acts.every((a) => /^streak\d$/.test(a))) return false;
+    const st = this.G.mode && this.G.mode.streaks;
+    return !(st && typeof st.chordReady === 'function' && st.chordReady(acts));
+  }
+
   /** Code gedrückt (Tastatur/Maus/Gamepad): Akkorde zuerst, dann einfache Belegung. */
   _codeDown(src, device, code) {
     const rec = this._codes[device];
@@ -507,8 +517,16 @@ export class Input {
     const map = this._maps[device];
     let acts = null;
     const chords = map.chords.get(code);
-    if (chords) for (const ch of chords) if (rec.has(ch.mod)) { acts = ch.actions; break; }
-    if (!acts) acts = map.plain.get(code) || EMPTY;
+    const plain = map.plain.get(code);
+    if (chords) {
+      for (const ch of chords) {
+        if (!rec.has(ch.mod)) continue;
+        if (plain && plain.length && this._chordIdle(ch.actions)) continue;
+        acts = ch.actions;
+        break;
+      }
+    }
+    if (!acts) acts = plain || EMPTY;
     rec.set(code, { src, acts });
     for (const a of acts) this._press(a, src);
   }
@@ -1110,7 +1128,8 @@ export class Input {
     const player = G.player;
     this.aimTarget = null;
     // VR: keine Zielhilfe/kein Auto-Feuer (die Hand zielt; Blick dreht nur der Kopf)
-    if (!player || !player.alive || !this.enabled || !G.actors || !G.combat || this.xr.active) { this._releaseSource('auto'); this._track = null; this._afTarget = null; return; }
+    // FPV-Drohne (player.piloting): keine Zielhilfe/kein Auto-Feuer – Feuern sprengt dort die Drohne
+    if (!player || !player.alive || !this.enabled || !G.actors || !G.combat || this.xr.active || player.piloting) { this._releaseSource('auto'); this._track = null; this._afTarget = null; return; }
 
     // Stufen aus den Einstellungen (0 = aus), gedeckelt für Online (G.match.assistCap); Geräte: Touch / Controller / Maus
     const lv = assistLevels((k) => G.settings.get(k), G.match && G.match.assistCap);
@@ -1357,7 +1376,7 @@ function isScrollable(el) {
  *  - übrige Fläche: Blick ziehen (mit Beschleunigungskurve)
  *  - großer Feuerknopf: halten = feuern, gleichzeitig ziehen = zielen
  *  - Knöpfe: linker Feuerknopf, ADS (Umschalter), Zielen+Feuern, Nachladen, Springen, Ducken/Rutschen,
- *    Granate, taktische Granate, Messer, Lehnen links/rechts, Lampe, Waffenwechsel, Serien 1–3, Tabelle, Pause
+ *    Granate, taktische Granate, Messer, Lehnen links/rechts, Lampe, Waffenwechsel, Serien 1–4, Tabelle, Pause
  *  - Lage/Größe/Deckkraft/Sichtbarkeit je Knopf aus settings.touchLayout (applyLayout)
  * ==================================================================== */
 
@@ -1416,6 +1435,7 @@ class TouchUI {
         <div class="tc-btn tc-streak" data-action="streak1" role="button" aria-label="Serie 1">${ICONS.streak}</div>
         <div class="tc-btn tc-streak" data-action="streak2" role="button" aria-label="Serie 2">${ICONS.streak}</div>
         <div class="tc-btn tc-streak" data-action="streak3" role="button" aria-label="Serie 3">${ICONS.streak}</div>
+        <div class="tc-btn tc-streak" data-action="streak4" role="button" aria-label="Serie 4">${ICONS.streak}</div>
       </div>
       <div class="tc-btn tc-score" data-action="scoreboard" data-toggle="1" role="button" aria-label="Punktetabelle">${ICONS.score}</div>
       <div class="tc-btn tc-pause" data-action="pause" role="button" aria-label="Pause">${ICONS.pause}</div>
@@ -1449,9 +1469,12 @@ class TouchUI {
 
   _applyStreakIcons() {
     const data = this.input.G.data;
-    const streaks = data && data.STREAKS ? Object.values(data.STREAKS) : [];
+    const S = (data && data.STREAKS) || {};
+    // Platz je Knopf aus der Aktion (streak1 … streak4 = STREAK_ORDER), nicht aus der Reihenfolge der Daten
+    const order = data && Array.isArray(data.STREAK_ORDER) ? data.STREAK_ORDER : Object.keys(S);
     this.el.streaks.forEach((btn, i) => {
-      const s = streaks[i];
+      const m = /^streak(\d)$/.exec(btn.dataset.action || '');
+      const s = S[order[m ? Number(m[1]) - 1 : i]];
       if (!s) return;
       btn.dataset.streak = s.id;
       btn.setAttribute('aria-label', s.name || `Serie ${i + 1}`);

@@ -638,7 +638,7 @@ export class Lobby {
     const p = d.W[c.primary];
     const s = d.W[c.secondary];
     const g = d.EQ[c.lethal];
-    const streaks = (d.MODES[c.modeId] || {}).streaks ? Object.values(d.STREAKS) : [];
+    const streaks = (d.MODES[c.modeId] || {}).streaks ? Object.values(d.STREAKS).sort((a, b) => a.kills - b.kills) : [];
     this.el.kit.innerHTML = `
       <div class="lb-kit-row"><small>Primär</small><span class="ico">${p && p.icon ? p.icon : ''}</span><b>${esc(p ? p.name : '—')}</b></div>
       <div class="lb-kit-row"><small>Sekundär</small><span class="ico">${s && s.icon ? s.icon : ''}</span><b>${esc(s ? s.name : '—')}</b></div>

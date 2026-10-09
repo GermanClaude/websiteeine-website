@@ -9,7 +9,7 @@ import { chooseSpawn } from './spawns.js';
 import { MedalTracker } from './medals.js';
 import { StreakManager } from './streaks.js';
 
-const STREAK_WEAPONS = new Set(['strike', 'sentry', 'uav']);
+const STREAK_WEAPONS = new Set(['strike', 'sentry', 'uav', 'drohne']);
 export const OVERTIME_SECONDS = 60;
 
 const num = (...vals) => {
@@ -51,9 +51,11 @@ export class BaseMode {
     this.endReason = null;
     this.medals = new MedalTracker(this);
     // Mehrspieler: replica = Abbild auf dem Client (Zustand vom Host, keine eigene Wertung, kein eigenes Ende);
-    // opts.streaks === false schaltet Serienprämien ab (online Stufe 1)
+    // opts.streaks === false schaltet Serienprämien ab, opts.streakIds erlaubt nur diese (online: FPV-Drohne) – auf dem Client
+    // läuft der StreakManager dann als Abbild (Fortschritt/Einsatz entscheidet der Host)
     this.replica = !!opts.replica;
-    this.streaks = this.def.streaks && opts.streaks !== false && !this.replica ? new StreakManager(G, this) : null;
+    const streaksOn = this.def.streaks && opts.streaks !== false && (!this.replica || Array.isArray(opts.streakIds));
+    this.streaks = streaksOn ? new StreakManager(G, this, { only: opts.streakIds || null, replica: this.replica }) : null;
     this._subs = null;
     this._warmup = null;
     this._life = new Map(); // actor → { kills, all, deathsInRow }
@@ -73,6 +75,7 @@ export class BaseMode {
       s.on('weapon:fire', (e) => { if (e.actor && e.actor.isPlayer) e.actor._firedSinceSpawn = true; });
       s.on('actor:spawn', ({ actor }) => { this._applyPending(actor); this.onSpawn(actor); });
       s.on('match:start', () => this.onMatchStart());
+      if (this.streaks) this.streaks.attach(s);
       this._addWarmup(G);
       this.onAttach(s);
       return;
@@ -159,6 +162,7 @@ export class BaseMode {
       // Abbild: Restzeit zwischen den Zuständen des Hosts weiterzählen (ohne Ende), Darstellung der Modusobjekte
       if (playing && Number.isFinite(this.timeLeft)) { this.elapsed += dt; this.timeLeft = Math.max(0, this.timeLeft - dt); }
       this.replicaTick(dt);
+      if (this.streaks) this.streaks.update(dt, playing);
       return;
     }
     if (playing) {

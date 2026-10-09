@@ -22,7 +22,7 @@ Alles ist statisch, aus HTML, CSS und JavaScript (ES-Module), ohne Build-Schritt
 | Waffenspiel | 18 Waffenstufen, jeder Abschuss bringt die nächste Waffe; ein Messerabschuss wirft das Opfer zurück |
 | Schießstand | Training mit Klappzielen, Trefferstatistik und Parcours auf Zeit |
 
-**Abschussserien:** *Aufklärer* (4 Abschüsse) zeigt Gegner auf der Minikarte. *Präzisionsschlag* (6) ist ein Luftschlag auf einen Punkt, den man auf der Karte wählt. *Wachgeschütz* (8) ist ein automatisches Geschütz für 45 Sekunden.
+**Abschussserien:** *Aufklärer* (4 Abschüsse) zeigt Gegner auf der Minikarte. *FPV-Drohne* (5) ist eine kleine Kamikaze-Drohne, die man selbst steuert: Der Körper bleibt verwundbar stehen, die Sicht wechselt in die Drohne (Akku 25 Sekunden, Reichweite 150 m); Feuern sprengt sie, Interagieren bricht ab. *Präzisionsschlag* (6) ist ein Luftschlag auf einen Punkt, den man auf der Karte wählt. *Wachgeschütz* (8) ist ein automatisches Geschütz für 45 Sekunden. Online gibt es vorerst nur die FPV-Drohne; der Host bestätigt Einsatz und Sprengung.
 
 **Schwierigkeit der Bots:** Rekrut, Regulär, Veteran, Elite.
 
@@ -52,7 +52,8 @@ KV-47 und M-17 Falke (Sturmgewehre), VP-9 Viper und QX-90 (MPs), HM-60 Hammer (L
 | Messer | V oder Maustaste 4 | RB / R1 oder rechten Stick drücken |
 | Granate (halten zum Kochen) | G oder Q | LB / L1 |
 | Waffe wechseln | 1 / 2, Mausrad oder Maustaste 5 | Y / △ |
-| Abschussserien | 3 / 4 / 5 | Steuerkreuz ▲ ◀ ▶ |
+| Abschussserien | 3 / 4 / 5 / 6 (Drohne) | Steuerkreuz ▲ ◀ ▶, LT + ▼ (Drohne) |
+| Drohne fliegen | Maus = Blick, W A S D, Leertaste steigen, C sinken, Umschalt Schub, Feuern sprengt, F bricht ab | Sticks, A steigen, B sinken, L3 Schub, RT sprengt, X bricht ab |
 | Atem anhalten (Zielfernrohr) | Umschalt beim Zielen | linker Stick drücken |
 | Punktetabelle | Tab | Ansicht / Share |
 | Pause | Esc | Menü / Options |

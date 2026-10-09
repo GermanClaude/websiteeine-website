@@ -3243,3 +3243,94 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 @media (prefers-reduced-motion: reduce) {
   .cw-root, .cw-mark-d::after { animation: none; }
 }
+
+/* =====================================================================
+   FPV-Drohne (Serienprämie 'drohne', ui/drone-hud.js): Kamerabild über dem Spielbild. Solange sie fliegt
+   (body[data-drone="1"]), ruhen das normale HUD (Fadenkreuz, Waffe, Leben, Serien, Kompass …) und die Touch-Knöpfe
+   (außer Pause und Punktetabelle oben rechts); Minikarte, Abschussliste, Hinweise und Punktestand bleiben. Die Ebene
+   liegt unter allen übrigen HUD-Teilen.
+   ===================================================================== */
+body[data-drone="1"] .h-root > :is(.h-aim, .h-weapon, .h-health, .h-stam, .h-armor, .h-stance, .h-streaks, .h-ammo-hint, .h-cook, .h-readout, .h-capture, .h-acog, .h-scope, .h-zone, .h-stamp, .h-dmgnums, .h-hitdirs),
+body[data-drone="1"] .h-root .h-compass,
+body[data-drone="1"] #hud-top :is(.ht-prompt, .ht-order),
+body[data-drone="1"] #touch-ui :is(.tc-btn:not(.tc-pause):not(.tc-score), .tc-streaks) { display: none !important; }
+
+.dr-hud { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; contain: strict; color: #e8efe6; font-family: var(--font-hud); text-shadow: 0 1px 2px rgba(0, 0, 0, .85); }
+.dr-hud[hidden], .dr-noise[hidden] { display: none; }
+.dr-noise { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; opacity: .2; }
+.dr-vig { position: absolute; inset: 0; background: radial-gradient(ellipse 72% 68% at 50% 50%, transparent 58%, rgba(4, 6, 8, .62) 100%); }
+.dr-frame i { position: absolute; width: 46px; height: 34px; border: 2px solid rgba(232, 239, 230, .78); }
+.dr-frame .a { left: 5%; top: 9%; border-right: 0; border-bottom: 0; }
+.dr-frame .b { right: 5%; top: 9%; border-left: 0; border-bottom: 0; }
+.dr-frame .c { left: 5%; bottom: 9%; border-right: 0; border-top: 0; }
+.dr-frame .d { right: 5%; bottom: 9%; border-left: 0; border-top: 0; }
+.dr-hor { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.dr-hor i { position: absolute; left: -17vw; width: 34vw; height: 0; border-top: 1.5px solid rgba(232, 239, 230, .35); }
+.dr-hor i::before, .dr-hor i::after { content: ""; position: absolute; top: -1.5px; width: 9vw; height: 0; border-top: 1.5px solid rgba(232, 239, 230, .7); }
+.dr-hor i::before { left: 0; }
+.dr-hor i::after { right: 0; }
+.dr-cross { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.dr-cross b { position: absolute; left: -17px; top: -17px; width: 34px; height: 34px; border: 1.5px solid rgba(232, 239, 230, .9); border-radius: 50%; }
+.dr-cross i { position: absolute; background: rgba(232, 239, 230, .95); box-shadow: 0 0 2px rgba(0, 0, 0, .8); }
+.dr-cross .l, .dr-cross .r { top: -1px; width: 12px; height: 2px; }
+.dr-cross .t, .dr-cross .b { left: -1px; width: 2px; height: 12px; }
+.dr-cross .l { left: -32px; }
+.dr-cross .r { left: 20px; }
+.dr-cross .t { top: -32px; }
+.dr-cross i.b { top: 20px; }
+.dr-tl, .dr-tr { position: absolute; top: calc(9% + 8px); display: flex; align-items: center; gap: 10px; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; }
+.dr-tl { left: calc(var(--pad-l, 16px) + var(--mm, 172px) + 22px); } /* rechts neben der Minikarte */
+.dr-tr { left: 50%; top: calc(var(--top-h, 64px) + 42px); transform: translateX(-50%); font-size: 13px; } /* unter dem Akku (oben rechts: Abschussliste) */
+.dr-rec { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: #ff5b5b; }
+.dr-rec i { width: 9px; height: 9px; border-radius: 50%; background: #ff3b3b; animation: dr-blink 1s steps(2, start) infinite; }
+.dr-ttl { opacity: .8; }
+@media (max-width: 1099px) { .dr-ttl { display: none; } } /* schmal: sonst unter der Punkteanzeige */
+.dr-sig { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; }
+.dr-sig i { width: 4px; background: rgba(232, 239, 230, .2); }
+.dr-sig i:nth-child(1) { height: 20%; } .dr-sig i:nth-child(2) { height: 40%; } .dr-sig i:nth-child(3) { height: 60%; } .dr-sig i:nth-child(4) { height: 80%; } .dr-sig i:nth-child(5) { height: 100%; }
+.dr-sig i.is-on { background: #e8efe6; }
+.dr-bat { position: absolute; left: 50%; top: calc(var(--top-h, 64px) + 16px); transform: translateX(-50%); display: flex; align-items: center; gap: 10px; font-size: 14px; letter-spacing: .12em; text-transform: uppercase; }
+.dr-bat i { position: relative; width: 180px; height: 8px; border: 1.5px solid rgba(232, 239, 230, .8); }
+.dr-bat u { position: absolute; inset: 1px; background: var(--np-ok); transform-origin: left center; }
+.dr-bat b { min-width: 3.2em; font-size: 18px; font-weight: 700; text-transform: none; }
+.dr-bat.is-low u { background: var(--np-enemy); }
+.dr-bat.is-low { color: #ff8a7a; animation: dr-blink .8s steps(2, start) infinite; }
+.dr-stats { position: absolute; left: calc(5% + 14px); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 12px; }
+.dr-stats small { display: block; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; opacity: .75; }
+.dr-stats b { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.dr-boost { position: absolute; right: calc(5% + 14px); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; opacity: .75; }
+.dr-boost i { position: relative; width: 8px; height: 90px; border: 1.5px solid rgba(232, 239, 230, .7); }
+.dr-boost u { position: absolute; inset: 1px; background: var(--np-signal); transform-origin: center bottom; transform: scaleY(1); }
+.dr-boost.is-on { opacity: 1; color: var(--np-signal); }
+.dr-warn { position: absolute; left: 50%; top: calc(50% + 46px); transform: translateX(-50%); padding: 3px 12px; font-size: 16px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--np-gold); background: rgba(10, 11, 13, .55); opacity: 0; white-space: nowrap; }
+.dr-warn.is-on { opacity: 1; animation: dr-blink 1s steps(2, start) infinite; }
+.dr-warn.is-hurt { color: #ff6a5a; }
+.dr-hint { position: absolute; left: 50%; bottom: calc(9% + 10px); transform: translateX(-50%); display: flex; gap: 18px; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; opacity: .92; }
+.dr-hint kbd { margin: 0 4px 0 0; font-size: 12px; }
+@keyframes dr-blink { 50% { opacity: .35; } }
+
+/* Touch-Knöpfe der Drohne (#hud-top, über der Touch-Steuerung; der Stick links bleibt frei) */
+#hud-top .dr-touch { position: absolute; inset: 0; pointer-events: none; }
+#hud-top .dr-touch[hidden] { display: none; }
+.dr-tb {
+  position: absolute; pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none;
+  display: grid; place-items: center; align-content: center; gap: 2px; border-radius: 50%;
+  width: 62px; height: 62px; padding: 0; border: 1.5px solid rgba(233, 230, 223, .55); background: rgba(10, 11, 13, .45);
+  color: var(--np-ink); font: 700 12px / 1 var(--font-hud); letter-spacing: .08em; text-transform: uppercase;
+}
+.dr-tb span { font-size: 10px; }
+.dr-tb.is-down { background: rgba(233, 230, 223, .85); color: var(--np-black); }
+.dr-up { right: calc(20% + env(safe-area-inset-right)); bottom: calc(40% + env(safe-area-inset-bottom)); font-size: 18px; }
+.dr-down { right: calc(20% + env(safe-area-inset-right)); bottom: calc(16% + env(safe-area-inset-bottom)); font-size: 18px; }
+.dr-boostb { right: calc(4% + env(safe-area-inset-right)); bottom: calc(52% + env(safe-area-inset-bottom)); width: 56px; height: 56px; color: var(--np-signal); border-color: rgba(255, 91, 31, .7); }
+.dr-boom { right: calc(4% + env(safe-area-inset-right)); bottom: calc(16% + env(safe-area-inset-bottom)); width: 92px; height: 92px; font-size: 14px; background: rgba(255, 59, 59, .3); border: 2px solid var(--np-enemy); }
+.dr-boom.is-down { background: var(--np-enemy); color: #fff; }
+.dr-abort { right: calc(3% + env(safe-area-inset-right)); top: calc(23% + env(safe-area-inset-top)); width: auto; height: 38px; padding: 0 16px; border-radius: 999px; }
+@media (prefers-reduced-motion: reduce) {
+  .dr-rec i, .dr-bat.is-low, .dr-warn.is-on { animation: none; }
+}
+#touch-ui .tc-streak[data-off="1"] { display: none !important; }
+.h-root[data-input="touch"] .dr-ttl, .h-root[data-input="touch"] .dr-hint { display: none; } /* Touch: Abschussliste neben der Minikarte, Knöpfe statt Tasten */
+.h-root[data-input="touch"] .dr-stats { top: auto; bottom: 30%; transform: none; gap: 6px; }
+.h-root[data-input="touch"] .dr-stats b { font-size: 17px; }
+.h-root[data-input="touch"] .dr-boost { display: none; }

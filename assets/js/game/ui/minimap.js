@@ -71,12 +71,15 @@ export class Minimap {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, W);
     if (!p || !mm) return;
-    const yaw = p.yaw || 0;
+    // FPV-Drohne: Karte folgt der eigenen Drohne (Mitte, Blickrichtung), der Körper erscheint als Pfeil
+    const st0 = G.mode && G.mode.streaks;
+    const view = st0 && st0.pilot && st0.pilot.alive ? st0.pilot : null;
+    const yaw = (view ? view.yaw : p.yaw) || 0;
     const cos = Math.cos(yaw);
     const sin = Math.sin(yaw);
     const scale = rad / this.range; // px pro m
-    const px = p.position.x;
-    const pz = p.position.z;
+    const px = view ? view.position.x : p.position.x;
+    const pz = view ? view.position.z : p.position.z;
     const toScreen = (x, z, out) => {
       const dx = (x - px) * scale;
       const dz = (z - pz) * scale;
@@ -159,12 +162,13 @@ export class Minimap {
       ctx.restore();
     }
 
-    // Wachgeschütze
+    // Wachgeschütze und Drohnen (gegnerische Drohnen bleiben unsichtbar, die eigene steht in der Mitte)
     if (streaks) {
       for (const s of streaks.entities) {
-        if (!s.alive) continue;
-        toScreen(s.position.x, s.position.z, pt);
+        if (!s.alive || s === view) continue;
         const ally = s.owner === p || (p.team != null && s.team === p.team && mode.teams);
+        toScreen(s.position.x, s.position.z, pt);
+        if (s.kind === 'drohne') { if (ally) drone(ctx, pt.x, pt.y, 4.2 * d, s.owner === p ? COL.me : COL.ally); continue; }
         const r = 4 * d;
         ctx.fillStyle = ally ? COL.ally : COL.enemy;
         ctx.strokeStyle = 'rgba(0,0,0,.6)';
@@ -220,8 +224,12 @@ export class Minimap {
       }
     }
 
-    // Spieler
-    arrow(ctx, half, half, 0, 6.5 * d, COL.me, true);
+    // Spieler (im Drohnenflug: Drohne in der Mitte, der stehende Körper als Pfeil)
+    if (view) {
+      toScreen(p.position.x, p.position.z, pt);
+      arrow(ctx, pt.x, pt.y, yaw - (p.yaw || 0), 5.5 * d, COL.me, true);
+      drone(ctx, half, half, 6 * d, COL.me);
+    } else arrow(ctx, half, half, 0, 6.5 * d, COL.me, true);
 
     // Rand + Nordmarke
     ctx.beginPath();
@@ -243,6 +251,23 @@ export class Minimap {
     ctx.fill();
     drawGlyph(ctx, 'N', this.font, COL.signal, nx, ny + 0.5 * d);
   }
+}
+
+/** Drohne: kleines X mit vier Rotorpunkten. */
+function drone(ctx, x, y, s, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = 'rgba(0,0,0,.6)';
+  ctx.lineWidth = s * 0.55;
+  ctx.beginPath();
+  ctx.moveTo(-s, -s); ctx.lineTo(s, s); ctx.moveTo(s, -s); ctx.lineTo(-s, s);
+  ctx.stroke();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = s * 0.3;
+  ctx.stroke();
+  ctx.fillStyle = color;
+  for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.beginPath(); ctx.arc(a * s, b * s, s * 0.42, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
 }
 
 function dot(ctx, x, y, r, color, alpha = 1) {

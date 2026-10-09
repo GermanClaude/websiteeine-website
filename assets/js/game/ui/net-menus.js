@@ -16,7 +16,7 @@ const devBadge = (r) => { const d = deviceOf(r.device); return `<em class="nr-ba
 const devIcon = (r) => { const d = deviceOf(r.device); return `<span class="sb-human" data-dev="${esc(r.device || 'pc')}" title="${esc(d.label)}">${d.icon}</span>`; };
 
 /** Stufe 1: nur diese Modi online (Spiegel von net/index.js – ohne Import, damit die Lobby keine Netz-Module lädt). */
-export const ONLINE_MODES = Object.freeze(['tdm', 'ffa', 'dom', 'kc']);
+export const ONLINE_MODES = Object.freeze(['tdm', 'ffa', 'dom', 'kc', 'messer']);
 /** Raumcodes (= net/signal.js): 6 Zeichen ohne I, O, 0, 1. */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const CODE_LENGTH = 6;
@@ -858,6 +858,7 @@ export class NetMenus {
       ${item('Ausdauer', s.stamina === false ? 'unbegrenzt' : 'normal')}${item('Munition pro Abschuss', s.killAmmo === false ? 'aus' : 'an')}
       ${item('Fahrzeuge', vehOn(s) ? 'Panzer + Geländewagen' : 'aus')}
       ${vehOn(s) ? `${item('Außenansicht (Fahrzeuge)', s.thirdPerson === false ? 'aus' : 'erlaubt')}${item('Panzer nachladen', s.vehReload === 'automatisch' ? 'automatisch' : 'manuell')}` : ''}
+      ${s.mode === 'messer' ? item('Cheat-Menü', s.cheatMenu === false ? 'verboten' : 'erlaubt') : ''}
     </div>`;
   }
 
@@ -928,6 +929,9 @@ export class NetMenus {
         ${vehOn(s) ? `<div class="nr-two">
           ${sw('thirdPerson', 'Außenansicht (Fahrzeuge)', '3P-Kamera in Fahrzeugen erlaubt', s.thirdPerson !== false)}
           ${seg('vehReload', [['manuell', 'Manuell', 'Ladeschütze lädt von Hand'], ['automatisch', 'Automatisch', 'Nachladen nach Zeit']], s.vehReload === 'automatisch' ? 'automatisch' : 'manuell', 'Panzer nachladen')}
+        </div>` : ''}
+        ${s.mode === 'messer' ? `<div class="nr-two">
+          ${sw('cheatMenu', 'Cheat-Menü (Nur Messer)', s.cheatMenu === false ? 'Verboten: das Menü öffnet sich bei niemandem' : 'Erlaubt: wer es nutzt, trägt ein Symbol in der Punktetabelle', s.cheatMenu !== false)}
         </div>` : ''}
         <div class="nr-field nr-namefield">
           <h3 class="nr-lab">Raumname</h3>
@@ -1029,8 +1033,8 @@ export class NetMenus {
     }
     if (ds.toggle) {
       const s = net.room.settings;
-      // Standard an (fehlt der Wert, gilt an): botFill, stamina, killAmmo, thirdPerson, vehicles (solange VEH_DEFAULT_ON)
-      const defOn = ['botFill', 'stamina', 'killAmmo', 'thirdPerson'];
+      // Standard an (fehlt der Wert, gilt an): botFill, stamina, killAmmo, cheatMenu, thirdPerson, vehicles (solange VEH_DEFAULT_ON)
+      const defOn = ['botFill', 'stamina', 'killAmmo', 'cheatMenu', 'thirdPerson'];
       if (VEH_DEFAULT_ON) defOn.push('vehicles');
       this._update({ [ds.toggle]: defOn.includes(ds.toggle) ? s[ds.toggle] === false : !s[ds.toggle] }, 'toggle');
     }

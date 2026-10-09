@@ -18,6 +18,12 @@
 //   • Fahrzeuge (Raum-Einstellung „Fahrzeuge“, panzer-mp.md §C): G.vehicles.net (vehicles/net.js) – Liste bei Änderung,
 //     Block-Anhang je Empfänger im Schnappschuss, Sitz-Absicht aus dem Zustand; eine sitzende Puppe prüft der Anti-Cheat
 //     nicht (der Host heftet sie an den Sitz).
+//   • Serienprämien (online nur die FPV-Drohne, modes/streaks.js): Fortschritt jedes Clients läuft hier (Puppe), der Client
+//     bekommt ihn als 'ev' sk; Anfrage 'streak' {id, p, y, pi} → mode.streaks.activate (Host bestätigt) → 'ev' sa an ihn,
+//     'ev' sv an alle anderen. Drohne eines Clients: 'drone' {a:'p'} Lage (geprüft: Weg-Budget, Reichweite), {a:'x'}
+//     Sprengung (geprüft: aktiv, Akku, erreichbar, Reichweite → combat.explode mit der Puppe als Angreifer), {a:'e'} Ende,
+//     {a:'h'} Treffer eines Clients auf eine Drohne (Waffe, Feuerrate, Reichweite, Sicht). Alle Drohnen gehen mit 12 Hz als
+//     'ev' dr an alle, ihr Ende als 'ev' de.
 import * as THREE from 'three';
 import { WEAPONS, EQUIPMENT } from '../../shared/weapons.data.js';
 import { netPoseOf } from '../bots/bot.js';
@@ -33,6 +39,8 @@ const _v = new THREE.Vector3();
 const armorOf = (a) => [rnd(a.armor.hp, 1), rnd(a.armor.helmetHp, 1), a.armor.carry | 0];
 const THROW_GAP = 0.3; // s zwischen zwei Würfen eines Clients
 const ORDER_GAP = 0.4; // s zwischen zwei Befehlen eines Clients (Befehlsrad)
+const STREAK_GAP = 0.5; // s zwischen zwei Prämien-Anfragen eines Clients
+const DRONE_HZ = 12; // Weitergabe der Drohnenlagen ('ev' dr)
 const ENV_GAP = 0.4; // s zwischen zwei Sturz-/Weltmeldungen
 const HOLD_MAX = 30; // s: so lange hält der Host den Wiedereinstieg eines Clients höchstens an (Ausrüsten)
 const EXTRAPOLATE_OWN = 0.05; // s: Puppe eines Clients zwischen zwei Zuständen höchstens so weit fortschreiben
@@ -61,6 +69,8 @@ export class HostSync {
     this._pendingReady = new Set(); // 'ready' vor dem eigenen Matchstart
     this._lastThrow = new Map();
     this._lastOrder = new Map();
+    this._lastStreak = new Map();
+    this._droneAt = 0;
     this._lastEnv = new Map();
     this._hitSerial = new Map(); // Client → letzte Schussnummer mit Treffer (Trefferstatistik)
     this._holds = new Map(); // Client → {pause, since}: Wiedereinstieg angehalten (Ausrüsten im Todesbildschirm)
@@ -86,6 +96,8 @@ export class HostSync {
       net.on('plate', (m, from) => this._onPlate(m, from)),
       net.on('hold', (m, from) => this._onHold(m, from)),
       net.on('order', (m, from) => this._onOrder(m, from)),
+      net.on('streak', (m, from) => this._onStreak(m, from)),
+      net.on('drone', (m, from) => this._onDrone(m, from)),
       net.onFast((buf, from) => this._onFast(buf, from)),
     ];
     if (G.events) {
@@ -165,6 +177,11 @@ export class HostSync {
     // Panzerung (Großkarten): Reserveplatte nach Abschuss an den betroffenen Client
     s.on('armor:pickup', (e) => { if (e && e.actor && e.actor.isRemoteHuman && e.actor.armor) this._toActor(e.actor, { t: 'ev', e: 'ap', ar: armorOf(e.actor) }); });
     s.on('armor:plate', (e) => { if (e && e.actor && e.actor.isRemoteHuman && e.phase === 'end' && e.actor.armor) this._toActor(e.actor, { t: 'ev', e: 'ap', ar: armorOf(e.actor) }); });
+    // Serienprämien (FPV-Drohne): Fortschritt an den Client, Einsatz/Ende an alle
+    s.on('streak:progress', (e) => this._sendStreakState(e && e.actor));
+    s.on('streak:ready', (e) => this._sendStreakState(e && e.actor));
+    s.on('streak:activate', (e) => this._relayStreak(e));
+    s.on('drone:end', (e) => this._relayDroneEnd(e));
   }
 
   _unsubscribe() {
@@ -208,6 +225,7 @@ export class HostSync {
     const vn = this._vn();
     if (vn) vn.hostTick();
     this._sendMode(false);
+    this._relayDrones(now);
     if (now - this._snapAt >= 1 / SNAPSHOT_HZ - 0.002 && this._ready.size) {
       this._snapAt = now;
       this._sendSnapshot(t);
@@ -338,6 +356,7 @@ export class HostSync {
     if (!p.alive && p.respawnAt == null) G.spawnActor(p);
     this._modeKey = '';
     this._sendMode(true);
+    this._sendStreakState(p);
   }
 
   /** Mensch hat den Raum verlassen (Austritt, Kick, Verbindungsabbruch): Puppe entfernen, Bots ausgleichen. */
@@ -347,6 +366,7 @@ export class HostSync {
     this._pendingReady.delete(id);
     this._lastThrow.delete(id);
     this._lastOrder.delete(id);
+    this._lastStreak.delete(id);
     this._lastEnv.delete(id);
     this._hitSerial.delete(id);
     const vn = this._vn();
@@ -661,6 +681,94 @@ export class HostSync {
     if (m.inHand) { G.weapons.explodeInHand(p, eq.id); return; }
     const cook = Math.max(0, Math.min(Number(m.cook) || 0, (eq.fuse || 3) - 0.05));
     G.weapons.throwGrenade(p, eq.id, { cook, drop: !!m.drop, origin, dir: dir || undefined, cid });
+  }
+
+  /**
+   * Prämie anfragen ('streak' {id, p, y, pi}): der Host setzt sie für die Puppe ein, wenn sie bereit ist (Fortschritt läuft
+   * hier) – Drohne mit dem vorgeschlagenen Startpunkt (geprüft in StreakManager._launchDrone). Antwort 'ev' sa an den Client.
+   */
+  _onStreak(m, from) {
+    const G = this.G;
+    if (!this.active || this.ended || !m || typeof m.id !== 'string') return;
+    const p = this._puppet(from);
+    const st = G.mode && G.mode.streaks;
+    if (!p || !st) return;
+    const t = nowSec();
+    if (t - (this._lastStreak.get(from) || 0) < STREAK_GAP) return;
+    this._lastStreak.set(from, t);
+    let ok = false;
+    let d = null;
+    if (st.byId[m.id] && p.alive) {
+      const opts = {};
+      if (m.id === 'drohne') { opts.position = vec3(m.p); opts.yaw = Number(m.y); opts.pitch = Number(m.pi); }
+      try { ok = !!st.activate(p, m.id, opts); } catch (err) { ok = false; console.error('[net] Prämie', err); }
+      if (ok && m.id === 'drohne') d = st.droneOf(p);
+    }
+    this.net.send(from, {
+      t: 'ev', e: 'sa', id: m.id.slice(0, 16), ok: ok ? 1 : 0, d: d ? d.netId : 0,
+      p: d ? arr3(d.position, 2) : undefined, pi: d ? rnd(d.pitch, 3) : undefined, bt: d ? rnd(d.battery, 2) : undefined,
+    });
+    if (!ok) this._sendStreakState(p);
+  }
+
+  /** Drohne eines Clients ('drone' {a: 'p'|'x'|'e'|'h', d, …}): Prüfung und Wirkung in mode.streaks (net*-Methoden). */
+  _onDrone(m, from) {
+    const G = this.G;
+    if (!this.active || this.ended || !m || typeof m.a !== 'string') return;
+    const p = this._puppet(from);
+    const st = G.mode && G.mode.streaks;
+    if (!p || !st || typeof st.netPose !== 'function') return;
+    const ac = this.net.anticheat;
+    const t = this.net.serverTime();
+    if (m.a === 'p') {
+      const r = st.netPose(p, m);
+      if (!r.ok && r.reason === 'tempo' && ac) ac.strike(from, 'drohne', t, { dist: r.dist });
+    } else if (m.a === 'x') {
+      const r = st.netDetonate(p, m);
+      // 'akku' ist kein Verstoß: auf sehr langsamen Geräten läuft die Spielzeit (und damit der Akku) langsamer als die Echtzeit;
+      // 'wand' (Sprengpunkt hinter einer Wand) auch nicht – Toleranz für Ecken, die Sprengung wirkt ohnehin nicht
+      if (!r.ok && r.reason !== 'inaktiv' && r.reason !== 'akku' && r.reason !== 'wand' && ac) ac.strike(from, 'drohne', t, { why: r.reason, dist: r.dist });
+      this.lastDroneCheck = { from, ok: r.ok, reason: r.reason || null };
+    } else if (m.a === 'e') st.netEnd(p, m);
+    else if (m.a === 'h') {
+      const r = st.netHit(p, m, this._weaponsOf(p, from));
+      if (!r.ok && r.reason === 'waffe' && ac) ac.strike(from, 'ausruestung', t, typeof m.w === 'string' ? m.w.slice(0, 24) : null);
+    }
+  }
+
+  /** Fortschritt der Serienprämien an den Client hinter einer Puppe ('ev' sk). */
+  _sendStreakState(actor) {
+    const st = this.G.mode && this.G.mode.streaks;
+    if (!actor || !actor.isRemoteHuman || !st || !this.net.online) return;
+    const pr = st.progress(actor);
+    this._toActor(actor, { t: 'ev', e: 'sk', k: pr.kills | 0, rd: pr.ready, er: pr.earned });
+  }
+
+  /** Prämie eingesetzt: Stand an den Auslöser (Client), Hinweis an alle anderen ('ev' sv). */
+  _relayStreak(e) {
+    const a = e && e.actor;
+    if (!a || !Number.isInteger(a.netId) || !this.net.online || typeof e.streakId !== 'string') return;
+    this._sendStreakState(a);
+    this.net.send('others', { t: 'ev', e: 'sv', o: a.netId, id: e.streakId }, a.isRemoteHuman ? a.netId : null);
+  }
+
+  /** Ende einer Drohne an alle ('ev' de: Netz-Id, Besitzer, Grund, Schütze beim Abschuss). */
+  _relayDroneEnd(e) {
+    const d = e && e.drone;
+    if (!d || !d.netId || !this.net.online) return;
+    const o = d.owner && Number.isInteger(d.owner.netId) ? d.owner.netId : 0;
+    const b = e.by && Number.isInteger(e.by.netId) ? e.by.netId : 0;
+    this.net.send('all', { t: 'ev', e: 'de', d: d.netId, o, why: e.why || 'ende', b, p: arr3(d.position, 2) });
+  }
+
+  /** Lage aller Drohnen (12 Hz, nur solange welche fliegen). */
+  _relayDrones(now) {
+    const st = this.G.mode && this.G.mode.streaks;
+    if (!st || typeof st.netDroneList !== 'function' || !this._ready.size || now - this._droneAt < 1 / DRONE_HZ - 0.002) return;
+    const list = st.netDroneList();
+    if (!list.length) return;
+    this._droneAt = now;
+    this.net.send('all', { t: 'ev', e: 'dr', l: list });
   }
 
   /* ================================================================ Ausgang: Ereignisse */
