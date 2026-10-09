@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { createFoliage, foliageUniforms, WIND_VERTEX, setWindAttribute, setFoliageQuality } from '../atlas.js';
 import { rng, hash2, createSimplex, smoothstep } from './noise.js';
+import { terrainLook, terrainNoise, meadowTintAt } from './splat.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
 const _c = new THREE.Color();
@@ -51,78 +52,191 @@ function spruceGeometry() {
   return g;
 }
 
-/** Grasbüschel aus 7 schmalen Halmen (Vertexfarbe: dunkler Fuß → helle Spitze), ohne Textur/Alpha-Test.
- * blades > 0 (env-look, medium+): dichter Horst aus gebogenen Halmen mit Knick (3 Dreiecke je Halm), Farbe je Halm
- * leicht verschieden (grün/strohig), Normalen zwischen Halmfläche und oben (weiches, aber plastisches Licht). */
+/** Grasbüschel aus 7 schmalen Halmen (je 1 Dreieck), ohne Textur/Alpha-Test – Stufe „niedrig“.
+ * blades > 0 (medium+): Horst aus gebogenen Halmen mit Knick (3 Dreiecke je Halm), siehe grassClumpGeometry.
+ * gl-ground: Vertexfarben sind RELATIV (Fuß dunkel = Selbstschatten, Spitze hell/trocken); die eigentliche Farbe
+ * (Wiesenfarbe des Bodens × Gras-Albedo) setzt der Shader (grassMaterial). aPetal = 0 (nur Blüten nutzen es). */
 function grassGeometry(blades = 0) {
   if (blades > 0) return grassClumpGeometry(blades);
   const P = [], C = [], N = [], r = rng(5);
   for (let k = 0; k < 7; k++) {
     const a = r() * Math.PI * 2, d = Math.sqrt(r()) * 0.22, x = Math.cos(a) * d, z = Math.sin(a) * d;
-    const h = 0.32 + r() * 0.34, w = 0.035 + r() * 0.02, lean = (r() - 0.5) * 0.35, ang = r() * Math.PI;
+    const h = 0.3 + r() * 0.38, w = 0.03 + r() * 0.02, lean = (r() - 0.5) * 0.35, ang = r() * Math.PI;
     const cx = Math.cos(ang) * w, cz = Math.sin(ang) * w, lx = Math.cos(a) * lean * h, lz = Math.sin(a) * lean * h;
+    const dry = k === 2 || k === 5;
     P.push(x - cx, 0, z - cz, x + cx, 0, z + cz, x + lx, h, z + lz);
-    C.push(0.42, 0.45, 0.32, 0.42, 0.45, 0.32, 1, 1, 0.92);
-    N.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
+    C.push(0.5, 0.5, 0.46, 0.5, 0.5, 0.46, ...(dry ? [1.32, 1.18, 0.74] : [1.12, 1.12, 1.0]));
+    N.push(Math.cos(a) * 0.3, 0.95, Math.sin(a) * 0.3, Math.cos(a) * 0.3, 0.95, Math.sin(a) * 0.3, Math.cos(a) * 0.3, 0.95, Math.sin(a) * 0.3);
   }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
-  g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
-  setWindAttribute(g, GRASS_WIND);
-  g.computeBoundingSphere();
-  return g;
+  return finishGrass(P, C, N);
 }
 
 /** Wind der Halme: Fuß fest, Spitze ≈ 0,14 m Biegung (quadratisch mit der Höhe) + leichtes Flattern. */
 const GRASS_WIND = (x, y) => { const t = Math.min(1, Math.max(0, y / 0.65)); return [0.14 * t * t, 0.025 * t]; };
 
+function finishGrass(P, C, N, petal = null) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+  // aPetal immer explizit (fehlende Attribute lesen sonst einen zufälligen Restwert der Attribut-Stelle)
+  g.setAttribute('aPetal', new THREE.Float32BufferAttribute(petal || new Float32Array(P.length / 3), 1));
+  setWindAttribute(g, GRASS_WIND);
+  g.computeBoundingSphere();
+  return g;
+}
+
+/** Horst (medium+): n Halme, außen niedriger und stärker nach außen gebogen, wenige hohe Halme in der Mitte;
+ * Breite 1,4–3 cm, Höhe 0,18–0,8 m; Farbe je Halm: frisch, trockene Spitze (≈ 25 %) oder abgestorben (≈ 6 %). */
 function grassClumpGeometry(n) {
   const P = [], C = [], N = [], r = rng(11);
   const push = (v, c, nn) => { P.push(v[0], v[1], v[2]); C.push(c[0], c[1], c[2]); N.push(nn[0], nn[1], nn[2]); };
   for (let k = 0; k < n; k++) {
     const a = r() * Math.PI * 2, d = Math.pow(r(), 0.7) * 0.2, x = Math.cos(a) * d, z = Math.sin(a) * d;
-    const h = 0.28 + r() * 0.42 * (1 - d * 1.5), w = 0.016 + r() * 0.014;
-    const lean = 0.12 + r() * 0.32, la = a + (r() - 0.5) * 1.2; // nach außen gebogen
+    const tall = r() < 0.18;
+    const h = tall ? 0.6 + r() * 0.22 : (0.18 + r() * 0.42) * (1 - d * 1.6), w = (tall ? 0.011 : 0.014) + r() * 0.016;
+    const lean = (tall ? 0.06 : 0.14) + r() * 0.32 * (0.5 + d * 3), la = a + (r() - 0.5) * 1.2; // nach außen gebogen
     const ang = la + Math.PI / 2, cx = Math.cos(ang) * w, cz = Math.sin(ang) * w;
     const ox = Math.cos(la), oz = Math.sin(la);
     const mh = h * (0.5 + r() * 0.1), ml = lean * 0.3 * h, tl = lean * h;
     const bL = [x - cx, 0, z - cz], bR = [x + cx, 0, z + cz];
     const mL = [x - cx * 0.75 + ox * ml, mh, z - cz * 0.75 + oz * ml], mR = [x + cx * 0.75 + ox * ml, mh, z + cz * 0.75 + oz * ml];
     const tip = [x + ox * tl, h * (1 - lean * 0.25), z + oz * tl];
-    // Farbe je Halm: grün ↔ strohig, Fuß dunkel (Selbstschatten im Horst)
-    const dry = r() < 0.22 ? 0.5 + r() * 0.5 : r() * 0.15, br = 0.85 + r() * 0.3;
-    const mix3 = (g, y) => [g[0] + (y[0] - g[0]) * dry, g[1] + (y[1] - g[1]) * dry, g[2] + (y[2] - g[2]) * dry].map(v => v * br);
-    const cB = mix3([0.3, 0.36, 0.24], [0.42, 0.4, 0.28]), cM = mix3([0.68, 0.76, 0.52], [0.9, 0.82, 0.56]), cT = mix3([1, 1, 0.82], [1.1, 0.98, 0.7]);
-    const fn = [-oz * 0.45, 0.85, ox * 0.45]; // zur Biegung geneigte Normale
-    const nl = Math.hypot(fn[0], fn[1], fn[2]); fn[0] /= nl; fn[1] /= nl; fn[2] /= nl;
-    const nT = [ox * 0.3, 0.95, oz * 0.3];
-    push(bL, cB, fn); push(bR, cB, fn); push(mR, cM, fn);
-    push(bL, cB, fn); push(mR, cM, fn); push(mL, cM, fn);
-    push(mL, cM, fn); push(mR, cM, fn); push(tip, cT, nT);
+    // relative Farben: Fuß dunkel (innen dunkler – Selbstschatten im Horst), Mitte, Spitze; trocken/abgestorben
+    const q = r(), kind = q < 0.06 ? 2 : q < 0.31 ? 1 : 0, br = 0.9 + r() * 0.2, ao = 0.36 + d * 0.7;
+    const cB = kind === 2 ? [0.62, 0.52, 0.36] : [ao, ao * 1.02, ao * 0.92];
+    const cM = kind === 2 ? [1.15, 0.98, 0.66] : kind === 1 ? [1.02, 1.0, 0.82] : [0.88, 0.92, 0.84];
+    const cT = kind === 2 ? [1.45, 1.22, 0.82] : kind === 1 ? [1.5, 1.28, 0.7] : [1.12, 1.1, 0.92];
+    const sc = (c) => c.map(v => v * br);
+    // Normale: Blattfläche zeigt in Biegerichtung, nach oben geneigt (weiches Licht); Spitze fast senkrecht nach oben
+    const fn = [ox * 0.5, 0.86, oz * 0.5], nT = [ox * 0.25, 0.97, oz * 0.25];
+    push(bL, sc(cB), fn); push(bR, sc(cB), fn); push(mR, sc(cM), fn);
+    push(bL, sc(cB), fn); push(mR, sc(cM), fn); push(mL, sc(cM), fn);
+    push(mL, sc(cM), fn); push(mR, sc(cM), fn); push(tip, sc(cT), nT);
   }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
-  g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
-  setWindAttribute(g, GRASS_WIND);
-  g.computeBoundingSphere();
-  return g;
+  return finishGrass(P, C, N);
 }
 
-/** Material der Grashalme: Vertexfarbe × Instanzfarbe, beidseitig, Wind wie das Laub (atlas.js WIND_VERTEX). */
-function grassMaterial() {
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
+/** Wiesenblumen-Gruppe (medium+, eigenes InstancedMesh, spärlich): zwei Margeriten, ein Hahnenfuß (Blütenblätter
+ * aPetal = 1 → Farbe je Instanz aus einer Palette im Shader, Mitte aPetal = 2 → feste Vertexfarbe), eine Kleerosette am Boden und ein
+ * Rispenhalm mit Samenstand. ≈ 36 Dreiecke. */
+function flowerGeometry() {
+  const P = [], C = [], N = [], A = [], r = rng(23);
+  const tri = (a, b, c, ca, cb, cc, n, pa = 0, pb = 0, pc = 0) => {
+    for (const [v, col, pp] of [[a, ca, pa], [b, cb, pb], [c, cc, pc]]) { P.push(v[0], v[1], v[2]); C.push(col[0], col[1], col[2]); N.push(n[0], n[1], n[2]); A.push(pp); }
+  };
+  const STEM = [0.55, 0.62, 0.42], STEM_T = [0.9, 1.0, 0.72], UP = [0, 1, 0];
+  const stem = (x, z, h, w, bend) => {
+    const tx = x + bend[0], tz = z + bend[1];
+    tri([x - w, 0, z], [x + w, 0, z], [tx, h, tz], STEM, STEM, STEM_T, [0, 0.4, 1]);
+    tri([x, 0, z - w], [x, 0, z + w], [tx, h, tz], STEM, STEM, STEM_T, [1, 0.4, 0]);
+    return [tx, h, tz];
+  };
+  const head = (c, rad, petals, tilt, center) => {
+    const tn = [Math.sin(tilt) * 0.4, 1, 0];
+    for (let k = 0; k < petals; k++) {
+      const a0 = (k / petals) * Math.PI * 2, a1 = ((k + 1) / petals) * Math.PI * 2;
+      const p0 = [c[0] + Math.cos(a0) * rad, c[1] + Math.sin(tilt) * Math.cos(a0) * rad * 0.5, c[2] + Math.sin(a0) * rad];
+      const p1 = [c[0] + Math.cos(a1) * rad, c[1] + Math.sin(tilt) * Math.cos(a1) * rad * 0.5, c[2] + Math.sin(a1) * rad];
+      tri([c[0], c[1] + 0.006, c[2]], p0, p1, center, [1, 1, 1], [1, 1, 1], tn, 2, 1, 1);
+    }
+  };
+  // Margeriten (gelbe Mitte), Hahnenfuß (Mitte in Blütenfarbe, kleiner)
+  for (const [x, z, h, rad] of [[0.06, -0.04, 0.36, 0.034], [-0.09, 0.05, 0.28, 0.03]]) head(stem(x, z, h, 0.006, [(r() - 0.5) * 0.06, (r() - 0.5) * 0.06]), rad, 7, 0.3, [1.0, 0.78, 0.12]);
+  head(stem(0.02, 0.11, 0.22, 0.005, [0.03, -0.02]), 0.02, 5, 0.2, [0.95, 0.9, 0.6]);
+  // Kleerosette: vier flache Blätter knapp über dem Boden (dunkles, sattes Grün)
+  const CL = [0.62, 0.78, 0.5], CLd = [0.42, 0.52, 0.34];
+  for (let k = 0; k < 4; k++) {
+    const a = k * Math.PI / 2 + 0.4, ca = Math.cos(a), sa = Math.sin(a), cx = -0.1, cz = -0.1;
+    const base = [cx, 0.02, cz], tip = [cx + ca * 0.09, 0.07, cz + sa * 0.09];
+    const l = [cx + ca * 0.05 - sa * 0.035, 0.055, cz + sa * 0.05 + ca * 0.035], rr = [cx + ca * 0.05 + sa * 0.035, 0.055, cz + sa * 0.05 - ca * 0.035];
+    tri(base, l, tip, CLd, CL, CL, UP); tri(base, tip, rr, CLd, CL, CL, UP);
+  }
+  // Rispenhalm: dünner hoher Halm, oben ein gestreckter Samenstand (strohfarben)
+  const top = stem(0.12, 0.08, 0.62, 0.004, [0.05, 0.02]);
+  const SEED = [1.35, 1.12, 0.7];
+  tri([top[0] - 0.012, top[1] - 0.1, top[2]], [top[0] + 0.012, top[1] - 0.1, top[2]], [top[0] + 0.01, top[1] + 0.06, top[2] + 0.005], SEED, SEED, SEED, [0, 0.4, 1]);
+  tri([top[0], top[1] - 0.1, top[2] - 0.012], [top[0], top[1] - 0.1, top[2] + 0.012], [top[0] + 0.01, top[1] + 0.06, top[2] + 0.005], SEED, SEED, SEED, [1, 0.4, 0]);
+  return finishGrass(P, C, N, A);
+}
+
+/**
+ * Material der Grashalme und Blumen: Wind wie das Laub (atlas.js WIND_VERTEX). Farbe im Vertex-Shader:
+ *   Boden = Gras-Albedo des Geländes (Mittelwert, textureLod) × Wiesenfarbe an der Instanz (instanceColor, CPU aus
+ *   splat.js meadowTintAt – dieselben Rauschfelder wie der Gelände-Shader);
+ *   nah = Boden × relative Halmfarbe (Vertexfarbe) × Streuung je Horst; Blütenblätter (aPetal) aus einer Palette;
+ *   fern = Boden (Halme gehen farblich in den Boden über, Normale → oben wie das Gelände) und schrumpfen weich
+ *   (uGrassFade, Rand je Horst unregelmäßig) – kein harter Ring.
+ * Beide Blattseiten werden gleich beleuchtet (dünne, durchscheinende Halme statt dunkler Rückseiten).
+ */
+function grassMaterial(fade) {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
   m.name = 'vegetation-gras'; m.userData.disposable = true; m.userData.surface = 'grass';
+  const look = terrainLook.ready && !!terrainLook.grassMap?.value;
+  const u = {
+    uGrassFade: { value: new THREE.Vector4(fade[0], fade[1], fade[2], fade[3]) },
+    uGrassK: { value: new THREE.Vector2(GRASS_K.blade, GRASS_K.far) },
+    tGrassMap: terrainLook.grassMap, tGrassCal: terrainLook.grassCal,
+  };
+  m.userData.grassFade = u.uGrassFade.value;
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = foliageUniforms.uTime;
     sh.uniforms.uWind = foliageUniforms.uWind;
-    sh.vertexShader = 'uniform float uTime;\nuniform vec4 uWind;\nattribute vec2 aWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-      ${WIND_VERTEX}`);
+    Object.assign(sh.uniforms, look ? u : { uGrassFade: u.uGrassFade, uGrassK: u.uGrassK });
+    sh.vertexShader = `uniform float uTime;
+uniform vec4 uWind;
+attribute vec2 aWind;
+attribute float aPetal;
+uniform vec4 uGrassFade;
+uniform vec2 uGrassK;
+${look ? 'uniform sampler2D tGrassMap;\nuniform float tGrassCal;' : ''}
+` + sh.vertexShader
+      .replace('#include <color_vertex>', `
+        vec3 npTint = vec3(1.0);
+        float npGd = 0.0, npH1 = 0.5;
+        #ifdef USE_INSTANCING_COLOR
+          npTint = instanceColor.xyz;
+        #endif
+        #ifdef USE_INSTANCING
+          vec3 npIp = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz;
+          npH1 = fract(sin(dot(npIp.xz, vec2(41.3, 289.1))) * 43758.5453);
+          npGd = length(npIp.xz - cameraPosition.xz) * (0.9 + 0.2 * npH1);
+        #endif
+        float npH2 = fract(npH1 * 7.31 + 0.13), npH3 = fract(npH1 * 13.7 + 0.41);
+        float npCf = smoothstep(uGrassFade.x, uGrassFade.y, npGd);       // Farbe → Boden
+        float npSf = 1.0 - smoothstep(uGrassFade.z, uGrassFade.w, npGd); // Höhe → 0
+        vec3 npGround = ${look ? 'textureLod(tGrassMap, vec2(0.5), 12.0).rgb * tGrassCal' : `vec3(${GRASS_FALLBACK.join(', ')})`} * npTint;
+        // Streuung je Horst: Helligkeit, jeder fünfte gelblicher
+        vec3 npVar = (0.86 + 0.28 * npH2) * mix(vec3(1.0), vec3(1.1, 1.04, 0.8), step(0.8, npH3));
+        // aPetal: 0 = Halm/Blatt (Bodenfarbe × relative Farbe), 1 = Blütenblatt (Palette je Instanz), 2 = feste Farbe
+        vec3 npPetal = npH3 < 0.45 ? vec3(0.8, 0.8, 0.74) : npH3 < 0.75 ? vec3(0.95, 0.72, 0.1) : npH3 < 0.9 ? vec3(0.34, 0.2, 0.72) : vec3(0.9, 0.6, 0.74);
+        vec3 npNear = aPetal < 0.5 ? color.rgb * npVar * uGrassK.x * npGround : aPetal < 1.5 ? npPetal * (0.85 + 0.25 * npH2) : color.rgb;
+        vColor = mix(npNear, npGround * uGrassK.y, npCf);
+      `)
+      .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+        objectNormal = normalize(mix(objectNormal, vec3(0.0, 1.0, 0.0), max(npCf, 0.2)));`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+      ${WIND_VERTEX}
+        transformed.y *= npSf; transformed.xz *= mix(0.45, 1.0, npSf);`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
+      #ifdef DOUBLE_SIDED
+        normal *= faceDirection; // Rückseite wie Vorderseite (dünne Halme, keine schwarzen Rückseiten)
+      #endif`);
   };
-  m.customProgramCacheKey = () => 'np-gras-v2-wind';
+  m.customProgramCacheKey = () => `np-gras-v3-${look ? 1 : 0}`;
   return m;
 }
+/** Halm-Helligkeit (× relative Vertexfarbe) und Fern-Helligkeit (Halme = Boden). */
+const GRASS_K = { blade: 1.3, far: 0.95 };
+/** Grundfarbe ohne Gelände-Material (linear, ≈ Mittel der Gras-Fotoscan-Albedo). */
+const GRASS_FALLBACK = [0.16, 0.2, 0.07];
+/** Sichtbare Grasdetails je Stufe (nur Optik): Blumen-Anteil je Zelle, Trabanten-Horste nah an der Kamera. */
+const GRASS_LOOK = {
+  low: { flowers: 0, near: 0 },
+  medium: { flowers: 0.05, near: 1 },
+  high: { flowers: 0.07, near: 3 },
+  ultra: { flowers: 0.08, near: 3 },
+};
 
 function merge(geoms) {
   const parts = geoms.map(g => g.index ? g.toNonIndexed() : g);
@@ -180,7 +294,7 @@ export class Vegetation {
     this.group.name = 'vegetation';
     this.species = {};
     this.rocks = [];
-    this.stats = { trees: 0, bushes: 0, rocks: 0, reeds: 0, grass: 0, near: 0, far: 0 };
+    this.stats = { trees: 0, bushes: 0, rocks: 0, reeds: 0, grass: 0, flowers: 0, near: 0, far: 0 };
     this._last = new THREE.Vector3(1e9, 0, 1e9);
     this._lastGrass = new THREE.Vector3(1e9, 0, 1e9);
     this._place();
@@ -476,9 +590,17 @@ export class Vegetation {
     }
     // Grasring (eigene Halme statt Laub-Atlas: liest sich auf Wiesen besser und braucht keinen Alpha-Test)
     if (t.grass > 0) {
-      const gg = grassGeometry(t.grassBlades || 0), gm = grassMaterial();
+      const R = t.grass, look = GRASS_LOOK[q] || GRASS_LOOK.high;
+      // gl-ground: Farbe ab 40 % des Radius zum Boden, Höhe ab 62 % weich auf 0 (Rand je Horst ±10 % versetzt)
+      const gm = grassMaterial([R * 0.4, R * 0.82, R * 0.62, R * 0.95]);
+      const gg = grassGeometry(t.grassBlades || 0);
       this._geoms.push(gg); this._own.push(gm);
       this.grass = make(gg, gm, t.grassCap, 'veg-gras', false);
+      // Wiesenblumen/Klee/Rispen (medium+): eigenes InstancedMesh mit demselben Material (+1 Draw Call)
+      if (look.flowers > 0) {
+        const fg = flowerGeometry(); this._geoms.push(fg);
+        this.flowers = make(fg, gm, Math.ceil(t.grassCap * look.flowers * 2), 'veg-blumen', false);
+      }
     }
     return this.group;
   }
@@ -527,50 +649,108 @@ export class Vegetation {
     }
     if (this.grass && (force || this._lastGrass.distanceToSquared(p) > 2.25)) {
       this._lastGrass.copy(p);
+      const t0 = performance.now();
       this._updateGrass(p);
+      this.stats.grassMs = Math.round((performance.now() - t0) * 100) / 100; // Diagnose: CPU je Neuaufbau
     }
   }
 
-  _updateGrass(p) {
-    const hf = this.hf, t = this.tier, R = t.grass, st = t.grassStep, g = this.grass, cap = g.instanceMatrix.count;
-    const y0 = hf.heightAt(p.x, p.z);
-    if (p.y - y0 > R * 1.5) { g.count = 0; g.visible = false; this.stats.grass = 0; return; }
-    const i0 = Math.floor((p.x - R) / st), i1 = Math.floor((p.x + R) / st), j0 = Math.floor((p.z - R) / st), j1 = Math.floor((p.z + R) / st);
-    const L = [0, 0, 0, 0, 0];
-    let k = 0;
-    const arr = g.instanceMatrix.array, col = g.instanceColor.array;
-    for (let j = j0; j <= j1 && k < cap; j++) for (let i = i0; i <= i1 && k < cap; i++) {
-      const x = (i + hash2(i, j, 1)) * st, z = (j + hash2(i, j, 2)) * st;
-      const d = Math.hypot(x - p.x, z - p.z);
-      if (d > R) continue;
-      if (!hf.contains(x, z) || this.blocked(x, z)) continue;
-      hf.layersAt(x, z, L);
-      if (L[0] < 0.55 || hf.maskAt(x, z)) continue;
-      const y = hf.heightAt(x, z);
-      if (y < hf.waterY + 0.1) continue;
-      const s = (0.75 + 0.6 * hash2(i, j, 3)) * smoothstep(R, R * 0.72, d) * (0.6 + L[0] * 0.5);
-      if (s < 0.08) continue;
-      _q.setFromAxisAngle(_up, hash2(i, j, 4) * 6.283); _s.set(s, s * (0.8 + hash2(i, j, 5) * 0.5), s); _p.set(x, y - 0.03, z);
-      _m.compose(_p, _q, _s); _m.toArray(arr, k * 16);
-      _c.set(GRASS_TINT[(hash2(i, j, 6) * GRASS_TINT.length) | 0]).toArray(col, k * 3);
-      k++;
-      // env-look (high+): nah an der Kamera dichter (3 weitere Horste je Zelle, versetzt und kleiner)
-      if (t.grassNear && d < t.grassNear) {
-        for (let e = 0; e < 3 && k < cap; e++) {
-          const ex = (i + (hash2(i, j, 11 + e) + (e === 0 ? 0.5 : 0)) % 1) * st, ez = (j + (hash2(i, j, 21 + e) + (e === 1 ? 0.5 : 0)) % 1) * st;
-          if (this.blocked(ex, ez) || hf.maskAt(ex, ez)) continue;
-          const es = s * (0.55 + 0.4 * hash2(i, j, 31 + e)) * smoothstep(t.grassNear, t.grassNear * 0.7, d);
-          if (es < 0.08) continue;
-          _q.setFromAxisAngle(_up, hash2(i, j, 41 + e) * 6.283); _s.set(es, es * (0.8 + hash2(i, j, 51 + e) * 0.6), es); _p.set(ex, hf.heightAt(ex, ez) - 0.03, ez);
-          _m.compose(_p, _q, _s); _m.toArray(arr, k * 16);
-          _c.set(GRASS_TINT[(hash2(i, j, 61 + e) * GRASS_TINT.length) | 0]).toArray(col, k * 3);
-          k++;
+  /** Felsen-Raster (4 m) für das Gras: kein Halm in einem Felsen (nur lesend – Felsen/Kollision unverändert). */
+  _underRock(x, z) {
+    let G = this._rockGrid;
+    if (!G) {
+      G = this._rockGrid = new Map();
+      for (const rk of this.rocks) {
+        // Ikosaeder-Radius ≤ 1,2 · 1,15 (x) bzw. 1,2 (z) × Maßstab, um ry gedreht → Kreis
+        const r = 1.2 * Math.max((rk.sx ?? rk.s) * 1.15, rk.sz ?? rk.s);
+        for (let j = Math.floor((rk.z - r) / 4); j <= Math.floor((rk.z + r) / 4); j++) for (let i = Math.floor((rk.x - r) / 4); i <= Math.floor((rk.x + r) / 4); i++) {
+          const key = (i + 2048) * 4096 + (j + 2048);
+          let L = G.get(key);
+          if (!L) G.set(key, L = []);
+          L.push(rk.x, rk.z, r * r);
         }
       }
     }
-    g.count = k; g.visible = k > 0;
-    if (k) { g.instanceMatrix.clearUpdateRanges(); g.instanceMatrix.addUpdateRange(0, k * 16); g.instanceMatrix.needsUpdate = true; g.instanceColor.clearUpdateRanges(); g.instanceColor.addUpdateRange(0, k * 3); g.instanceColor.needsUpdate = true; }
+    const L = G.get((Math.floor(x / 4) + 2048) * 4096 + (Math.floor(z / 4) + 2048));
+    if (!L) return false;
+    for (let k = 0; k < L.length; k += 3) { const dx = x - L[k], dz = z - L[k + 1]; if (dx * dx + dz * dz < L[k + 2]) return true; }
+    return false;
+  }
+
+  /**
+   * Grasring um die Kamera (gl-ground): Horste auf einem gejitterten Zellraster, ausgedünnt nach einem Dichtefeld
+   * (Wiesenflecken dicht und hoch, dazwischen lückig und kurz), nach Grasanteil der Splat-Karte (dünner und kürzer zu
+   * Wegen hin), Hangneigung (kürzer) und Felsen (frei). Farbe je Horst = Wiesenfarbe des Bodens (splat.js
+   * meadowTintAt); Ausblenden übernimmt der Shader (uGrassFade). Nah an der Kamera Trabanten-Horste (Gruppen), dazu
+   * spärliche Blumen in Flecken. Alles aus Positions-Hashes – kein Zufallsstrom, nichts mit Kollision.
+   */
+  _updateGrass(p) {
+    const hf = this.hf, t = this.tier, R = t.grass, st = t.grassStep, g = this.grass, cap = g.instanceMatrix.count;
+    const look = GRASS_LOOK[this.quality] || GRASS_LOOK.high;
+    const fl = this.flowers || null, fcap = fl ? fl.instanceMatrix.count : 0;
+    const y0 = hf.heightAt(p.x, p.z);
+    if (p.y - y0 > R * 1.5) {
+      g.count = 0; g.visible = false; this.stats.grass = 0;
+      if (fl) { fl.count = 0; fl.visible = false; this.stats.flowers = 0; }
+      return;
+    }
+    const i0 = Math.floor((p.x - R) / st), i1 = Math.floor((p.x + R) / st), j0 = Math.floor((p.z - R) / st), j1 = Math.floor((p.z + R) / st);
+    const L = [0, 0, 0, 0, 0], N2 = [0, 0], N3 = [0, 0], T = [1, 1, 1], nrm = { x: 0, y: 1, z: 0 };
+    const R2 = R * R, nearR = t.grassNear || R * 0.35, nearR2 = nearR * nearR, flR2 = (R * 0.8) ** 2, wy = hf.waterY + 0.1;
+    let k = 0, f = 0;
+    const arr = g.instanceMatrix.array, col = g.instanceColor.array;
+    const put = (A, Cc, n, x, y, z, s, h, ry) => {
+      _q.setFromAxisAngle(_up, ry); _s.set(s, h, s); _p.set(x, y, z);
+      _m.compose(_p, _q, _s); _m.toArray(A, n * 16);
+      Cc[n * 3] = T[0]; Cc[n * 3 + 1] = T[1]; Cc[n * 3 + 2] = T[2];
+    };
+    for (let j = j0; j <= j1 && k < cap; j++) for (let i = i0; i <= i1 && k < cap; i++) {
+      const x = (i + hash2(i, j, 1)) * st, z = (j + hash2(i, j, 2)) * st;
+      const dx = x - p.x, dz = z - p.z, d2 = dx * dx + dz * dz;
+      if (d2 > R2) continue;
+      if (!hf.contains(x, z) || this.blocked(x, z) || hf.maskAt(x, z)) continue;
+      hf.layersAt(x, z, L);
+      const g0 = L[0];
+      if (g0 < 0.3) continue;
+      const y = hf.heightAt(x, z);
+      if (y < wy) continue;
+      // Dichtefeld (≈ 1–9 m und 0,2–1,5 m): dichte, hohe Flecken und lückige, kurze Stellen
+      terrainNoise(x, z, 2, N2); terrainNoise(x, z, 3, N3);
+      const dens = N2[0] * 0.65 + N3[0] * 0.35, gw = smoothstep(0.3, 0.8, g0);
+      if (hash2(i, j, 7) > gw * (0.25 + 0.95 * dens)) continue;
+      if (this._underRock(x, z)) continue;
+      const slope = 1 - hf.normalAt(x, z, nrm).y;
+      const hgt = (0.55 + 0.75 * dens) * (0.75 + 0.5 * hash2(i, j, 5)) * Math.max(0.45, 1 - slope * 2) * (0.55 + 0.45 * gw);
+      const s = (0.8 + 0.4 * hash2(i, j, 3)) * (0.75 + 0.25 * gw);
+      meadowTintAt(x, z, y, slope * 1.4, T);
+      put(arr, col, k++, x, y - 0.03, z, s, s * hgt, hash2(i, j, 4) * 6.283);
+      // Trabanten nah an der Kamera: einer dicht daneben (Horstgruppe), weitere über die Zelle – nur im dichten Teil
+      if (look.near && d2 < nearR2) {
+        for (let e = 0; e < look.near && k < cap; e++) {
+          if (hash2(i, j, 11 + e) > 0.3 + dens * 0.8) continue;
+          const sp = e === 0 ? 0.55 : 1.3;
+          const ex = x + (hash2(i, j, 21 + e) - 0.5) * st * sp, ez = z + (hash2(i, j, 41 + e) - 0.5) * st * sp;
+          if (this.blocked(ex, ez) || hf.maskAt(ex, ez) || this._underRock(ex, ez)) continue;
+          const es = s * (0.55 + 0.4 * hash2(i, j, 31 + e));
+          put(arr, col, k++, ex, hf.heightAt(ex, ez) - 0.03, ez, es, es * hgt * (0.7 + 0.5 * hash2(i, j, 51 + e)), hash2(i, j, 61 + e) * 6.283);
+        }
+      }
+      // Wiesenblumen: spärlich, in Flecken, nur auf vollem Gras
+      if (fl && f < fcap && g0 > 0.7 && d2 < flR2 && hash2(i, j, 9) < look.flowers * 2.2 * smoothstep(0.55, 0.85, N2[1])) {
+        const fx = x + (hash2(i, j, 13) - 0.5) * st * 0.8, fz = z + (hash2(i, j, 14) - 0.5) * st * 0.8;
+        if (!this.blocked(fx, fz) && !this._underRock(fx, fz)) {
+          const fs = 0.8 + 0.45 * hash2(i, j, 15);
+          put(fl.instanceMatrix.array, fl.instanceColor.array, f++, fx, hf.heightAt(fx, fz) - 0.02, fz, fs, fs * (0.8 + 0.4 * dens), hash2(i, j, 16) * 6.283);
+        }
+      }
+    }
+    for (const [mesh, n] of [[g, k], [fl, f]]) {
+      if (!mesh) continue;
+      mesh.count = n; mesh.visible = n > 0;
+      if (n) { mesh.instanceMatrix.clearUpdateRanges(); mesh.instanceMatrix.addUpdateRange(0, n * 16); mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.clearUpdateRanges(); mesh.instanceColor.addUpdateRange(0, n * 3); mesh.instanceColor.needsUpdate = true; }
+    }
     this.stats.grass = k;
+    this.stats.flowers = f;
   }
 
   dispose() {
@@ -588,5 +768,4 @@ const TINTS = {
   busch: ['#87a06a', '#9fb27a', '#7c955f'],
   schilf: ['#c2bc88', '#aab07a', '#b8b880'],
 };
-const GRASS_TINT = ['#8fa25a', '#9aab62', '#a7b26c', '#86994f', '#b3b878'];
 const TRUNK_COL = { fichte: new Float32Array([0.62, 0.55, 0.5]), laub: new Float32Array([0.85, 0.8, 0.72]) };

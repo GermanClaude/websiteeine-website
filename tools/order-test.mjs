@@ -190,11 +190,17 @@ async function offline(browser) {
   const walk = await p.evaluate(() => {
     const T = window.__ot, G = window.__game;
     const s = [];
-    const p0 = G.player.position.clone();
-    T.step(40, 1 / 30, (i) => { if (i % 15 === 0 && T.walking) { const d = T.dists(); if (d.length) s.push(d.reduce((a, b) => a + b, 0) / d.length); } });
-    return { s, moved: G.player.position.distanceTo(p0), walking: T.walking };
+    const p0 = G.player.position.clone(), last = p0.clone();
+    let trav = 0;
+    T.step(40, 1 / 30, (i) => {
+      trav += Math.hypot(G.player.position.x - last.x, G.player.position.z - last.z);
+      last.copy(G.player.position);
+      if (i % 15 === 0 && T.walking) { const d = T.dists(); if (d.length) s.push(d.reduce((a, b) => a + b, 0) / d.length); }
+    });
+    return { s, moved: G.player.position.distanceTo(p0), trav, walking: T.walking };
   });
-  info(`Spieler läuft ${r1(len)} m Pfad (Eingabe vorwärts), Luftlinie ${r1(walk.moved)} m${walk.walking ? ' – Pfad nicht beendet' : ''}`);
+  info(`Spieler läuft ${r1(len)} m Pfad (Eingabe vorwärts): zurückgelegt ${r1(walk.trav)} m, Luftlinie ${r1(walk.moved)} m${walk.walking ? ' – Pfad nicht beendet' : ''}`);
+  check(walk.trav >= 30, `Spieler bewegt sich beim Folgen-Test (${r1(walk.trav)} m ≥ 30)`);
   const meanFollow = walk.s.length ? walk.s.reduce((a, b) => a + b, 0) / walk.s.length : 99;
   check(meanFollow <= 8, `Mir folgen: mittlerer Abstand beim Laufen ${r1(meanFollow)} m (≤ 8), höchstens ${r1(Math.max(...walk.s))} m (${walk.s.length} Proben)`);
   await step(p, 3);
@@ -262,6 +268,8 @@ async function offline(browser) {
     await big(true);
     r = await order(p, 'attack', true);
     await sleep(2500);
+    const seg = await p.evaluate(() => { const w = window.__game.hud.wheel; const g = w.segs[w.sel]; return g ? { cls: g.getAttribute('class'), fill: getComputedStyle(g).fill } : null; });
+    check(!!seg && /is-sel/.test(seg.cls) && /255, 91, 31/.test(seg.fill), `gewähltes Feld hervorgehoben (${seg && seg.cls}: ${seg && seg.fill})`);
     await p.screenshot({ path: `${OUT}/order-wheel-desktop.png`, timeout: 120000 });
     await p.evaluate(() => { window.__game.input.simulate.release('befehl'); window.__ot.step(0.1); });
     kinds = await p.evaluate(() => window.__ot.kinds());
@@ -337,7 +345,9 @@ async function offline(browser) {
   });
   check(cancel.open && cancel.closed && cancel.kinds.every((k) => k === '-'), `Rad ohne Auswahl losgelassen: geschlossen, kein Befehl (${cancel.kinds.join(',')})`);
 
-  // --- Gefecht: Folgende wehren sich (Gegner taucht 14–24 m vor ihnen auf)
+  // --- Gefecht: Folgende wehren sich (Gegner taucht 14–28 m vor ihnen auf)
+  await p.evaluate(() => window.__ot.gather());
+  await step(p, 0.3);
   await order(p, 'follow');
   await step(p, 3);
   const fight = await p.evaluate(() => {
@@ -345,10 +355,16 @@ async function offline(browser) {
     const e = G.actors.find((a) => a !== G.player && G.combat.isHostile(G.player, a));
     const b = T.alive()[0];
     if (!e || !b) return null;
-    const eye = b.getEyePosition(new T.V());
-    const near = G.world.nav.nodesInRadius(b.position, 24).filter((n) => n.position.distanceTo(b.position) > 14);
-    const n = near.find((x) => { const q = x.position.clone(); q.y += 1.4; return G.world.lineOfSight(eye, q); }) || near[0];
+    // Knoten 14–28 m vom Spieler mit Sicht (Auge des Spielers und eines Folgenden); Spieler blickt hin, die Folgenden
+    // sichern in seine Blickrichtung
+    const pp = G.player.position;
+    const peye = G.player.getEyePosition(new T.V());
+    const beye = b.getEyePosition(new T.V());
+    const near = G.world.nav.nodesInRadius(pp, 28).filter((x) => x.position.distanceTo(pp) > 14 && Math.abs(x.position.y - pp.y) < 2);
+    const n = near.find((x) => { const q = x.position.clone(); q.y += 1.4; return G.world.lineOfSight(peye, q) && G.world.lineOfSight(beye, q); });
     if (!n) return null;
+    G.player.yaw = Math.atan2(-(n.position.x - pp.x), -(n.position.z - pp.z));
+    T.step(1.5);
     G.spawnActor(e, { position: n.position.clone(), yaw: 0 });
     if (!e.alive) return null;
     const t0 = G.time.elapsed;

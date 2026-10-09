@@ -1,5 +1,5 @@
 // Ego-Ansicht – zusätzliche Choreografien (Welle 2, Arsenal): Nachladen Revolver (Schnelllader) und vorn geladene
-// Rakete, Spannhebel-Zyklus, Inspektions-Bausteine (Revolver, MG-Deckel, Panzerfaust, Messer), Schutzplatte einsetzen
+// Rakete, Spannhebel-Zyklus, Inspektions-Bausteine (Revolver, Panzerfaust, Messer), Schutzplatte einsetzen
 // und Messerhiebe je Klinge (als Hauptwaffe). Magazinwechsel und Inspektions-Varianten: anim/reloads.js, anim/inspects.js.
 // Wird in viewmodel.js in ViewModel.prototype gemischt; alle Methoden arbeiten mit denselben Ausgaben wie die Basisaktionen: out.p/out.r (Waffe, Kameraraum),
 // out.left/out.right (Handanfragen), out.parts (Teilversätze [dx, dy, dz, rx, ry, rz] im Elternraum, _vis).
@@ -113,19 +113,10 @@ export const EXTRA_ACTIONS = {
     return u >= 1;
   },
 
-  /** Inspizieren: Revolver, MG-Deckel, Panzerfaust, Messer (von anim/inspects.js als Varianten genutzt). */
+  /** Inspizieren: Revolver, Panzerfaust, Messer (von anim/inspects.js als Varianten genutzt). */
   _actInspectStyle(A, out, style) {
     const u = clamp(A.t / A.dur, 0, 1), ud = this.cur.ud, an = ud.anchors;
     switch (style) {
-      case 'belt': {
-        curve(u, [[0, ZERO3], [0.12, [0.08, 0.26, 0.3]], [0.62, [0.1, 0.28, 0.34]], [0.74, [0.02, -0.12, -0.36]], [0.9, [0.02, -0.12, -0.38]], [1, ZERO3]], out.r);
-        curve(u, [[0, ZERO3], [0.12, [0, -0.03, -0.01]], [0.9, [0, -0.03, -0.01]], [1, ZERO3]], out.p);
-        out.parts.cover = [0, 0, 0, curve(u, [[0.2, 0], [0.3, -0.55], [0.5, -0.55], [0.58, 0]]), 0, 0];
-        if (u > 0.58 && !A.slapped) { A.slapped = true; this._jolt.kick(1.0, 0, 0); }
-        const w = windowW(u, 0.12, 0.2, 0.56, 0.64);
-        if (w > 0 && this._part('cover')) req(out.left, w, { part: 'cover', style: 'pinchSide', offset: [-0.028, 0.02, 0.232] });
-        return u >= 1;
-      }
       case 'revolver': {
         curve(u, [[0, ZERO3], [0.12, [0.15, 0.2, 0.45]], [0.66, [0.18, 0.22, 0.5]], [0.76, [0.02, -0.25, -0.4]], [0.9, [0.02, -0.26, -0.42]], [1, ZERO3]], out.r);
         curve(u, [[0, ZERO3], [0.12, [-0.02, 0.05, 0.05]], [0.9, [-0.02, 0.05, 0.05]], [1, ZERO3]], out.p);

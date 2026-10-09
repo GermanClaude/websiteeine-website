@@ -4,13 +4,14 @@
 //
 // Aufruf (Server auf :8765):
 //   node tools/anim-sheet.mjs --weapons=ar_m17,pi_p9 --acts=reload,reloadEmpty,inspect [--frames=12] [--size=640x360]
-//        [--variant=1] [--cols=6] [--pose=bodycam] [--fps] [--debug=90,10,0.8] [--focus=magWell|ejection|mag|gun]
+//        [--variants=0,1,2,3 | --variant=1] [--cols=6] [--pose=bodycam] [--fps] [--debug=90,10,0.8] [--focus=magWell|ejection|mag|gun]
 //        [--from=0.2 --to=0.6]  (nur dieses Zeitfenster der Aktion, Anteil 0..1)
 // --debug = Außenkamera (Gierwinkel°, Nickwinkel°, Abstand m) um die Waffe; mit --focus folgt sie dem Anker/Teil
 // (Nahaufnahme z. B. des Magazinschachts). Je Bild wird geprüft, ob das Magazin im Schacht nur entlang der
 // Einführachse läuft (anim/magwell.js): Abweichung quer/Drehung solange s < Freigang → Zeile „Schacht“ in der Ausgabe.
-// Aktionen: siehe ACTS unten (reload, reloadEmpty, inspect, inspectN, equip, ready, holster, melee, grenade, grenadeLow,
-//           sprint, jump, slide, crouch, prone, mantle, fidget, fire …). --variant erzwingt eine Variante (sonst Standard 0).
+// Aktionen: siehe ACTS unten (reload, reloadEmpty, inspect, inspectEmpty, equip, ready, holster, melee, slash, grenade,
+//           grenadeLow, sprint, jump, slide, crouch, prone, mantle, fidget, fire …). --variant(s) erzwingt Varianten (sonst die
+//           des Viewmodels: Nachladen zufällig, Inspizieren im Durchlauf).
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 import { writeFileSync, mkdirSync } from 'node:fs';
 

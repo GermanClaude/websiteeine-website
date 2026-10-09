@@ -9,6 +9,10 @@
 //    (Griffstile under/flat/pump/post/pistol), Anschlag (ADS) mit Wangenauflage, Sprinthaltung,
 //    Rückstoß-Feder, Nachladen (Magazin raus → Weste → rein, Ladehebel), Schrot Patrone für Patrone,
 //    Repetieren (Kammerstängel/Pumpe), Granatwurf (Splint, Ausholen, Wurf), Messerstoß, Treffer-Zucken.
+//  • Waffenhandhabung (actions.js): Nachladen je Waffenart mit Magazin in der Hand (exakt entlang der Schachtachse),
+//    bewegliche Teile (Schlitten, Ladehebel, Kammerstängel, Pumpe, Gurtdeckel, Trommel), Varianten je Vorgang.
+//  • Stand: Füße fest in der Welt, Nachsetzschritte (_plantFeet), Leerlauf-Gesten (Bots), Hinlegen über die Knie,
+//    Kriechen, Hürdenhaltung beim Sprung nach vorn, Rutschen (Puppen), Wurf-/Nahkampf-Varianten.
 //  • Ergebnis: lokale Knochen-Quaternionen + Modellraum-Gelenke (für Trefferzonen/Ragdoll) +
 //    Waffentransformation.
 import * as THREE from 'three';

@@ -186,8 +186,9 @@ export const INSPECT_ACTIONS = {
     const open = curve(u, [[0.24, 0], [0.34, 1], [0.58, 1], [0.66, 0]]);
     let R = RIGHT_R, P = RIGHT_P;
     if (h.action === 'pistol') { R = [0.55, -0.55, 0.35]; P = [-0.08, 0.07, 0.05]; }   // Mündung hoch: Oberseite + rechts zur Kamera
-    else if (h.action === 'bolt' || h.action === 'pump') { R = [0.3, -0.5, 1.15]; P = [-0.09, 0.05, 0.03]; }   // aufgerollt: Stützhand bleibt nah
-    else if (h.reload === 'top') { R = [-0.2, -0.6, 2.4]; P = [-0.08, 0.07, 0.03]; }  // QX-90: Auswurf unten → umdrehen
+    else if (h.action === 'pump') { R = [0.3, -0.5, 1.15]; P = [-0.09, 0.05, 0.03]; }   // aufgerollt: Stützhand bleibt an der Pumpe
+    else if (h.action === 'bolt') { R = [0.35, -0.2, 1.3]; P = [-0.07, 0.05, 0.02]; }   // Mündung bleibt vorn: Stützhand am Vorderschaft
+    else if (h.reload === 'top') { R = [0.5, 0.1, -1.6]; P = [-0.05, 0.03, -0.08]; }  // QX-90: Auswurf unten → Unterseite zur Kamera
     curve(u, [[0, Z3], [0.16, R], [0.74, R.map(v => v * 1.05)], [0.9, Z3]], out.r);
     curve(u, [[0, Z3], [0.16, P], [0.74, P], [0.9, Z3]], out.p);
     if (h.action === 'pistol' && an.slideGrab) {
@@ -201,9 +202,6 @@ export const INSPECT_ACTIONS = {
       out.parts.boltHandle = [0, 0, travel * back, 0, 0, rot * up];
       const w = windowW(u, 0.1, 0.2, 0.68, 0.78);
       if (w > 0) req(out.right, w, { anchor: bg, style: 'boltKnob' });
-      // Stützhand hält die Waffe am Magazinschacht (sonst greift der Unterarm quer vor die Kamera zum Vorderschaft)
-      const wl = windowW(u, 0.06, 0.18, 0.72, 0.86);
-      if (wl > 0 && an.magGrab) req(out.left, wl, { anchor: an.magGrab, style: 'mag' });
     } else if (h.action === 'pump' && an.pumpGrab) {
       const travel = an.pumpGrab.userData.travel?.[2] ?? 0.085;
       out.parts.pump = [0, 0, travel * 0.32 * open];
@@ -233,22 +231,37 @@ export const INSPECT_ACTIONS = {
     return u >= 1;
   },
 
-  /** Flinte: Waffe auf die Seite, Ladeöffnung zur Kamera, Daumen am Zubringer – die nächste Patrone liegt im Fenster. */
+  /**
+   * Flinte (Röhrenmagazin): Waffe gekantet und angehoben, Stützhand gleitet von der Pumpe nach vorn an die Kappe des
+   * Röhrenmagazins und prüft die Federspannung (Schätzung „Röhre: …“), dann zurück an die Pumpe.
+   */
   _inspTube(A, out, u) {
-    const ud = this.cur.ud, an = ud.anchors;
-    curve(u, [[0, Z3], [0.18, [0.15, 0.1, -2.1]], [0.7, [0.17, 0.1, -2.18]], [0.9, Z3]], out.r);
-    curve(u, [[0, Z3], [0.18, [-0.05, 0.06, 0.04]], [0.7, [-0.05, 0.06, 0.04]], [0.9, Z3]], out.p);
-    out.frame = 0.6 * windowW(u, 0.1, 0.22, 0.66, 0.84);
-    const w = windowW(u, 0.14, 0.26, 0.6, 0.72);
-    if (w > 0 && an.shellPort) req(out.left, w, { anchor: an.shellPort, style: 'pinchSide', dy: -0.006 });
-    // nächste Patrone der Röhre im Ladefenster (eine im Lager + mindestens eine in der Röhre)
-    if ((this._magRaw ?? 2) >= 2 && this._part('shell')) {
-      const vv = out.parts._vis || (out.parts._vis = {});
-      vv.shell = u > 0.2 && u < 0.7;
-      out.parts.shell = [0, -0.004 * windowW(u, 0.3, 0.36, 0.5, 0.56), 0.006, 0, 0, 0];
-    }
-    if (u > 0.36) this._setReadout(A, 'tube');
+    curve(u, [[0, Z3], [0.18, [0.22, 0.2, -0.55]], [0.7, [0.24, 0.22, -0.6]], [0.9, Z3]], out.r);
+    curve(u, [[0, Z3], [0.18, [-0.04, 0.04, 0.0]], [0.7, [-0.04, 0.04, 0.0]], [0.9, Z3]], out.p);
+    const cap = this._tubeCap();
+    const w = windowW(u, 0.14, 0.3, 0.6, 0.76);
+    if (w > 0 && cap) req(out.left, w, { anchor: cap, style: 'under', data: cap.userData });
+    if (u > 0.42 && !A.tapped) { A.tapped = true; this._jolt.kick(0.35, 0, 0); }
+    if (u > 0.4) this._setReadout(A, 'tube');
     return u >= 1;
+  },
+
+  /** Anker an der Kappe des Röhrenmagazins (vorderes Ende unter dem Lauf, aus Mündung und Pumpengriff abgeleitet). */
+  _tubeCap() {
+    const e = this.cur;
+    if (e.tubeCap !== undefined) return e.tubeCap;
+    const an = e.ud.anchors, mz = e.ud.muzzle, pg = an.pumpGrab;
+    if (!pg || !mz) return (e.tubeCap = null);
+    e.model.updateMatrixWorld(true);
+    const inv = _m.copy(e.model.matrixWorld).invert();
+    const m = mz.getWorldPosition(_v).applyMatrix4(inv), p = pg.getWorldPosition(_v2).applyMatrix4(inv);
+    const o = new THREE.Object3D();
+    o.name = 'tubeCap';
+    // Röhre: Mitte zwischen Lauf und Pumpengriff, Kappe 6 cm hinter der Mündung; Anker an der Unterseite (Griff 'under')
+    o.position.set(0, p.y + (m.y - p.y) * 0.45 - 0.0125, m.z + 0.06);
+    o.userData = { r: 0.0125 };
+    e.model.add(o);
+    return (e.tubeCap = o);
   },
 
   /** MG: Zuführdeckel mit der Schusshand lüften (Gurt sichtbar), schließen (Ruck); Waffe zur Kamera gedreht. */
