@@ -107,7 +107,7 @@ varying float vEdge; varying vec3 vOP; varying vec3 vON; uniform sampler2D tDet;
         vec4 dt2 = texture2D(tDet, P.zy * 0.23 + 0.5) * bw.x + texture2D(tDet, P.xz * 0.23) * bw.y + texture2D(tDet, P.xy * 0.23 + 0.2) * bw.z;
         float w = smoothstep(0.42, 0.62, vEdge * (0.45 + dt2.b * 1.1)) * uWear;
         w = max(w, dt.a * 0.85 * uWear);
-        roughnessFactor = clamp(roughnessFactor + (dt.b - 0.5) * 0.12 - dt.r * 0.32 * uFP - dt2.g * 0.18 * uFP, 0.08, 1.0);
+        roughnessFactor = clamp(roughnessFactor + (dt.b - 0.5) * 0.1 - dt.r * 0.22 * uFP - dt2.g * 0.1 * uFP, 0.2, 1.0);
         diffuseColor.rgb *= 0.9 + 0.2 * dt2.b;
         diffuseColor.rgb = mix(diffuseColor.rgb, uEdgeCol, w);
         metalnessFactor = mix(metalnessFactor, uEdgeMetal, w);
@@ -149,8 +149,8 @@ export function buildRifle() {
   P.poly.push(side([[0.046, -0.248], [0.124, -0.248], [0.128, -0.262], [0.044, -0.262]], 0.027, 0.003));
   for (let k = 0; k < 4; k++) { const y = -0.2 - k * 0.011; P.poly.push(side([[0.055 + k * 0.0018, y], [0.107 + k * 0.002, y], [0.107 + k * 0.002, y - 0.004], [0.055 + k * 0.0018, y - 0.004]], 0.0245, 0.001)); }
   // --- Pufferrohr + Schaft
-  P.recv.push(lathe([[-0.098, 0.0], [-0.098, 0.017], [-0.102, 0.0175], [-0.104, 0.0155], [-0.33, 0.0155], [-0.33, 0]], 40, { y: 0.026 }));
-  P.poly.push(side([[-0.2, 0.048], [-0.335, 0.05], [-0.345, 0.04], [-0.345, -0.085], [-0.31, -0.08], [-0.25, -0.01], [-0.2, 0.0]], 0.042, 0.005, { curve: 10, seg: 3 }));
+  P.recv.push(lathe([[-0.098, 0.0], [-0.098, 0.017], [-0.102, 0.0175], [-0.104, 0.0155], [-0.2, 0.0155], [-0.2, 0]], 40, { y: 0.026 }));
+  // Schaftkappe liegt außerhalb des Bildes (dicht vor der Kamera) – weggelassen
   // --- Handschutz (Achteck aus Platten mit M-LOK-Schlitzen)
   const hg0 = 0.166, hg1 = 0.5;
   const slots = (y0, y1) => { const hs = []; for (let s = 0.195; s < hg1 - 0.03; s += 0.042) hs.push(rrPath(s, y0, s + 0.032, y1, 0.0034)); return hs; };
@@ -228,8 +228,8 @@ export function buildRifle() {
   }
   // --- Materialien
   const M = {
-    recv: gunMat({ color: '#1c1d1e', rough: 0.55, metal: 0.15, edge: '#8d8a83', wear: 0.8, fp: 1, scale: 9 }),          // Cerakote Graphit
-    poly: gunMat({ color: '#56493a', rough: 0.72, metal: 0.0, edge: '#8c7a60', edgeMetal: 0, wear: 0.6, fp: 0.6, scale: 11 }), // FDE-Polymer
+    recv: gunMat({ color: '#0d0e0f', rough: 0.66, metal: 0.05, edge: '#8d8a83', wear: 0.8, fp: 1, scale: 9 }),          // Cerakote Graphit
+    poly: gunMat({ color: '#4a3f33', rough: 0.78, metal: 0.0, edge: '#8c7a60', edgeMetal: 0, wear: 0.6, fp: 0.6, scale: 11 }), // FDE-Polymer
     optic: gunMat({ color: '#0f1011', rough: 0.4, metal: 0.35, edge: '#8f8b84', wear: 0.8, fp: 1.2, scale: 10 }),    // eloxiert
     steel: gunMat({ color: '#3c3c3b', rough: 0.36, metal: 0.9, edge: '#b8b4ac', wear: 0.5, fp: 0.8, scale: 12 }),
     dark: gunMat({ color: '#121212', rough: 0.45, metal: 0.6, edge: '#5a5853', wear: 0.4, fp: 0.3, scale: 12 }),

@@ -173,7 +173,7 @@ export function buildHand(frame) {
   g.applyMatrix4(M);
   // Material
   const W = weaveTile(256, 40);
-  const mat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0, sheen: 0.6, sheenRoughness: 0.55, sheenColor: new THREE.Color(0x6a6458) });
+  const mat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0, sheen: 0.25, sheenRoughness: 0.6, sheenColor: new THREE.Color(0x3a3833) });
   const U = { tW: { value: W.normal }, tV: { value: W.var } };
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
@@ -203,8 +203,8 @@ float gHeight;`)
         float wv = 0.0; { vec3 q = fract(Pw) - 0.5; wv = (abs(q.x) + abs(q.y) + abs(q.z)) ; }
         float grain = vnoise(vOP * 2600.0) * 0.6 + vnoise(vOP * 700.0) * 0.4;
         float crease = vnoise(vOP * 160.0 + 3.0);
-        vec3 fabric = vec3(0.105, 0.098, 0.085) * (0.85 + 0.3 * weave);
-        vec3 leather = vec3(0.32, 0.25, 0.17) * (0.8 + 0.25 * grain) * (0.85 + 0.3 * crease);
+        vec3 fabric = vec3(0.05, 0.047, 0.042) * (0.8 + 0.4 * weave);
+        vec3 leather = vec3(0.16, 0.115, 0.075) * (0.8 + 0.25 * grain) * (0.85 + 0.3 * crease);
         vec3 tpr = vec3(0.035, 0.035, 0.034);
         vec3 cuff = vec3(0.07, 0.068, 0.062) * (0.9 + 0.2 * weave);
         vec3 col = mix(fabric, leather, lea);
@@ -262,7 +262,7 @@ export function buildSleeve(a, b, r0 = 0.036, r1 = 0.05) {
   const camo = camoTile(512);
   const W = weaveTile(256, 48, { twill: true });
   W.normal.repeat.set(30, 30);
-  const mat = new THREE.MeshPhysicalMaterial({ map: camo, normalMap: W.normal, normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.88, sheen: 0.5, sheenRoughness: 0.6, sheenColor: new THREE.Color(0x8a826c) });
+  const mat = new THREE.MeshPhysicalMaterial({ map: camo, normalMap: W.normal, normalScale: new THREE.Vector2(0.8, 0.8), roughness: 0.9, sheen: 0.3, sheenRoughness: 0.6, sheenColor: new THREE.Color(0x4a4638) });
   // Dichter Stoffvorderseite prüfen: Wicklung (Außenseite sichtbar)
   const m = new THREE.Mesh(g, mat);
   m.castShadow = m.receiveShadow = true;

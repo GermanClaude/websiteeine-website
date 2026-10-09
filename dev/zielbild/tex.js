@@ -103,7 +103,7 @@ export function paintedSteel({ W, H, ppm = 200, color = '#a33a22', seed = 1, kin
   const w = Math.max(8, Math.round(W * ppm)), h = Math.max(8, Math.round(H * ppm));
   const N = w * h;
   const base = hex(color);
-  const rustD = hex('#2e1a10'), rustO = hex('#7a3a17'), rustL = hex('#9a5524'), primer = hex('#6f625a'), dirt = hex('#4a4136'), steel = hex('#8c8a86');
+  const rustD = hex('#2e1a10'), rustO = hex('#7a3a17'), rustL = hex('#9a5524'), primer = hex('#5a4a40'), dirt = hex('#4a4136'), steel = hex('#8c8a86');
   const R = rng(seed);
   const ox = R() * 200, oy = R() * 200;
   const P = tile ? (v) => Math.round(v) : () => 0; // Kachelperiode je Frequenz
@@ -122,12 +122,12 @@ export function paintedSteel({ W, H, ppm = 200, color = '#a33a22', seed = 1, kin
       let edge = 0;
       if (!tile) {
         const ed = Math.min(Y, H - Y, X, W - X);
-        edge = Math.exp(-ed / 0.18) * 0.32;
+        edge = Math.exp(-ed / 0.14) * (kind === 'end' ? 0.16 : 0.24);
       }
       const bottom = kind === 'crane' ? 0 : Math.pow(clamp(1 - Y / H), 4) * 0.18;
       const v = n2 + edge + bottom + (n1 - 0.5) * 0.45 + (n3 - 0.5) * 0.05 + (age - 0.5) * 0.2;
-      chip[i] = sstep(0.69, 0.705, v);     // Lack weg (Grundierung)
-      rust[i] = sstep(0.72, 0.75, v);      // bis zum Rost
+      chip[i] = sstep(0.712, 0.722, v);    // Lack weg (schmaler Grundierungsrand)
+      rust[i] = sstep(0.722, 0.75, v);     // bis zum Rost
       const pit = fbm(X * f3, Y * f3, 3, tile ? W * f3 : 0);
       Hgt[i] = 1 - chip[i] * 0.35 - rust[i] * 0.25 * (0.5 + pit) + (vn(X * fq(3), Y * fq(3), tile ? W * fq(3) : 0) - 0.5) * 0.4; // Lackkante + Narben + Beulen
     }

@@ -138,8 +138,10 @@ const LensShader = {
     // Vignette (natürlicher cos^4-Abfall, sanft)
     float v = 1.0 - uVig * smoothstep(0.15, 1.1, r2 * 1.25);
     col *= v;
-    // leichte Abstimmung: Schatten minimal kühl, Lichter warm
+    // Abstimmung: etwas Kontrast (S-Kurve) + Sättigung, Schatten minimal kühl, Lichter warm
+    col = mix(col, col * col * (3.0 - 2.0 * col), 0.35);
     float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
+    col = mix(vec3(l), col, 1.12);
     col = mix(col, col * vec3(0.97, 1.0, 1.04), (1.0 - smoothstep(0.0, 0.35, l)) * 0.5);
     col = mix(col, col * vec3(1.03, 1.0, 0.96), smoothstep(0.5, 1.0, l) * 0.5);
     // Filmkorn (2-px-Körnung, überlebt das Verkleinern), luminanzabhängig

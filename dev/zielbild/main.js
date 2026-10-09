@@ -122,7 +122,7 @@ try {
 /* ------------------------------------------------------------------ Ego-Waffe (eigene Szene + eigene Sonne) */
 const vmScene = new THREE.Scene();
 vmScene.environment = scene.environment;
-vmScene.environmentIntensity = scene.environmentIntensity;
+vmScene.environmentIntensity = scene.environmentIntensity * 0.6;
 const vm = new THREE.Group();
 const rifle = buildRifle();
 vm.add(rifle);
@@ -141,9 +141,9 @@ lap('Gewehr');
   vm.add(buildSleeve(wrist, elbow, 0.031, 0.05));
 }
 lap('Hand/Ärmel');
-vm.position.set(Number(q.get('vx') || 0.18), Number(q.get('vy') || -0.165), Number(q.get('vz') || -0.52));
+vm.position.set(Number(q.get('vx') || 0.19), Number(q.get('vy') || -0.128), Number(q.get('vz') || -0.5));
 vm.rotation.order = 'YXZ';
-vm.rotation.set(Number(q.get('vp') || 0.1), Number(q.get('vyaw') || 0.08), Number(q.get('vr') || 0.1));
+vm.rotation.set(Number(q.get('vp') || 0.07), Number(q.get('vyaw') || 0.09), Number(q.get('vr') || 0.22));
 const vmPivot = new THREE.Group();
 vmPivot.add(vm);
 vmPivot.position.copy(camera.position); vmPivot.quaternion.copy(camera.quaternion);
@@ -154,7 +154,7 @@ const vsun = new THREE.DirectionalLight(sunCol, sun.intensity);
 vsun.position.copy(vmCenter).addScaledVector(sunDir, 2);
 vsun.target.position.copy(vmCenter);
 vsun.castShadow = true;
-vsun.shadow.mapSize.set(2048, 2048);
+vsun.shadow.mapSize.set(4096, 4096);
 Object.assign(vsun.shadow.camera, { left: -0.45, right: 0.45, top: 0.45, bottom: -0.45, near: 1, far: 3 });
 vsun.shadow.camera.updateProjectionMatrix();
 vsun.shadow.bias = -0.0004; vsun.shadow.normalBias = 0.0006;
