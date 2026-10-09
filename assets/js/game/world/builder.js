@@ -678,7 +678,9 @@ export class MapBuilder {
   /**
    * Requisite aus der Asset-Bibliothek (glb, instanziert, LOD nach Abstand). (x, y, z) = Unterkante-Mitte des
    * Hüllquaders (o.pivot 'center': Mitte), Drehung ry/rx/rz um diesen Punkt, Skalierung s bzw. sx/sy/sz.
-   * o: { part (Teil/Variante, z. B. 'exterior_aircon_unit_rusted'), collide (true; ab 0,25 m Höhe Quader-Kollision),
+   * o: { part (Teil/Variante, z. B. 'exterior_aircon_unit_rusted'), collide (Standard false; nur ausdrücklich true:
+   *      Quader in Manifest-Maßen ab 0,25 m Höhe – Mehrspieler: fehlt ohne Bibliothek (lib=0, „niedrig“ ohne
+   *      komprimierte Texturen), daher Kollision lieber als fester Quader daneben setzen, vgl. props.js dress solid),
    *      shrink (Kollisionsquader waagerecht verkleinern, 0..1), bullet (true: Dreiecke der gröbsten Stufe), minimap,
    *      surface, tint (Instanzfarbe), interior (false: kein gebackenes Innenraumlicht), maxDist, castShadow,
    *      fallback: (b) => … prozeduraler Ersatz, falls das Modell nicht lädt }
@@ -983,6 +985,8 @@ export class MapBuilder {
    * Manifest-Maßen (`size`, gleich für alle Texturstufen) – geladen oder nicht –, und der Ersatz ist reine Optik
    * (seine eigenen Kollisionsaufrufe werden verworfen). Teil-Auswahl (o.part) hat keine Manifest-Maße → keine
    * automatische Kollision (die Karte setzt dann einen festen Quader, vgl. festesModell in hafen-ausstattung.js).
+   * Seit dem Mehrspieler-Abgleich nur noch auf ausdrücklichen Wunsch (o.collide === true): Ohne Bibliothek gibt es
+   * weder Modell noch Manifest – alle Karten setzen ihre Kollision daher als feste Quader neben das Modell.
    */
   _resolveModels(templates) {
     if (!this.models.length) return;
@@ -997,7 +1001,7 @@ export class MapBuilder {
       const tpl = templates.get(id);
       // Kollision (unabhängig vom Laden): Hüllquader in Manifest-Maßen, Unterkante-Mitte im Ursprung
       const ms = manifest && manifest[id] && manifest[id].size;
-      if (o.collide !== false && !o.part && Array.isArray(ms) && ms.length === 3) {
+      if (o.collide === true && !o.part && Array.isArray(ms) && ms.length === 3) {
         sizeBox.min.set(-ms[0] / 2, 0, -ms[2] / 2); sizeBox.max.set(ms[0] / 2, ms[1], ms[2] / 2);
         this._modelCollision(sizeBox, x, y, z, o, tmpBox, v, mCol, tr);
       }
@@ -1006,7 +1010,7 @@ export class MapBuilder {
           this._noCollide = (this._noCollide || 0) + 1;
           try { o.fallback(this); } finally { this._noCollide--; }
           fallbacks++;
-        } else if (o.collide !== false && !o.part && Array.isArray(ms) && ms.length === 3) {
+        } else if (o.collide === true && !o.part && Array.isArray(ms) && ms.length === 3) {
           // ohne Ersatzform: schlichter Quader in Manifest-Maßen, damit die (überall gleiche) Kollision sichtbar ist
           const k = o.s ?? 1, sx = ms[0] * (o.sx ?? 1) * k, sy = ms[1] * (o.sy ?? 1) * k, sz = ms[2] * (o.sz ?? 1) * k;
           this.box(x, o.pivot === 'center' ? y - sy / 2 : y, z, sx, sy, sz, 'metal_painted', { ry: o.ry || 0, tint: o.tint || '#7d8388', collide: false, minimap: false });
@@ -1027,7 +1031,7 @@ export class MapBuilder {
       }
       const g = props.add(tpl, parts, M, color, o);
       // ohne Manifest-Maße (sollte nicht vorkommen): wie bisher aus der geladenen Vorlage
-      if (o.collide !== false && !o.part && !(Array.isArray(ms) && ms.length === 3)) this._modelCollision(box, x, y, z, o, tmpBox, v, mCol, tr);
+      if (o.collide === true && !o.part && !(Array.isArray(ms) && ms.length === 3)) this._modelCollision(box, x, y, z, o, tmpBox, v, mCol, tr);
       if (o.bullet !== false) {
         const sid = SURF_INDEX[o.surface || MODEL_SURFACE[id] || 'metal'] ?? 1;
         forEachBulletTri(tpl, parts, M, (...t) => {

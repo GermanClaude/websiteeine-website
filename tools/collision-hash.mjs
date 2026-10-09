@@ -52,9 +52,10 @@ async function measure(map, quality) {
       let h = 0x811c9dc5;
       for (let k = 0; k < 9; k++) { h ^= q(tri[i * 9 + k]); h = Math.imul(h, 0x01000193); }
       out[i * 4] = h >>> 0;
-      out[i * 4 + 1] = Math.round((tri[i * 9] + tri[i * 9 + 3] + tri[i * 9 + 6]) / 3 * 10) / 10;
-      out[i * 4 + 2] = Math.round((tri[i * 9 + 1] + tri[i * 9 + 4] + tri[i * 9 + 7]) / 3 * 10) / 10;
-      out[i * 4 + 3] = Math.round((tri[i * 9 + 2] + tri[i * 9 + 5] + tri[i * 9 + 8]) / 3 * 10) / 10;
+      // Schwerpunkt: die BVH speichert Ecke v0 + zwei Kantenvektoren (bvh.js) → v0 + (e1 + e2) / 3
+      out[i * 4 + 1] = Math.round((tri[i * 9] + (tri[i * 9 + 3] + tri[i * 9 + 6]) / 3) * 10) / 10;
+      out[i * 4 + 2] = Math.round((tri[i * 9 + 1] + (tri[i * 9 + 4] + tri[i * 9 + 7]) / 3) * 10) / 10;
+      out[i * 4 + 3] = Math.round((tri[i * 9 + 2] + (tri[i * 9 + 5] + tri[i * 9 + 8]) / 3) * 10) / 10;
     }
     // Großkarte: Höhenfeld (Gelände-Kollision) mitprüfen
     let hf = null;

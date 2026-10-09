@@ -158,9 +158,11 @@ function dressing(b) {
     list.push(['trashbag', 34.6, 0, s * 21.2], ['cardboard_box_01', 31.8, 0, s * 18.6, 0.8]);
     // Torvorplatz (Sand): Kisten, Müll an der Stadtmauer (Kartenrunde 2: Sofa + Fernseher entfernt – lagen auf der Straße)
     list.push(['trashbag', -27.9, 0, s * 50.7], ['cardboard_box_01', 18.6, 0, s * 50.6, 0.4], ['cardboard_box_01', 19.2, 0, s * 50.75, 1.3]);
-    // Kiste mit Kollision: auf jedem Rechner gleich – ohne Bibliothek steht dieselbe Kiste prozedural (Maß wie das Modell)
+    // Kiste mit Kollision: auf jedem Rechner gleich – fester Quader in Manifest-Maßen (auch ohne Bibliothek; vorher
+    // kam die Kollision aus dem Modell und fehlte ohne Bibliothek), ohne Bibliothek dieselbe Kiste prozedural
     const cx = 36.2, cz = s * 50.6, cry = R + 0.05;
-    b.model('wooden_military_crate', cx, 0, cz, { ry: cry, collide: true, minimap: 'cover', fallback: (bb) => bb.box(cx, 0, cz, 1.24, 0.46, 0.52, 'wood_crate', { ry: cry, uv: 'fit', tint: '#8a7a52', minimap: 'cover' }) });
+    b.box(cx, 0, cz, 1.242, 0.464, 0.52, 'black', { ry: cry, visual: false, minimap: 'cover' });
+    b.model('wooden_military_crate', cx, 0, cz, { ry: cry, collide: false, fallback: (bb) => bb.box(cx, 0, cz, 1.24, 0.46, 0.52, 'wood_crate', { ry: cry, uv: 'fit', tint: '#8a7a52', collide: false, minimap: false }) });
     list.push(['metal_jerrycan_green', 9.4, 0, s * 50.8, 2.0], ['cement_bag', -9.6, 0, s * 50.7, 0.3]);
   }
   dress(b, list);

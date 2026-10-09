@@ -30,15 +30,19 @@ function cached(key, fn) { if (!geoCache.has(key)) geoCache.set(key, fn()); retu
 
 /**
  * Ausstattung aus der Asset-Bibliothek (Kleinteile, Möbel, Technik): Liste [id, x, y, z, ry?, opts?]
- * (Positionen = Unterkante-Mitte). Standard ohne Bewegungskollision (Kugeln treffen trotzdem); opts.collide für
- * Möbel/Geräte, die wie Deckung wirken. Ohne Bibliothek (KTX2/Transcoder fehlt) entfällt die Ausstattung – die
- * Karte ist ohne sie vollständig.
+ * (Positionen = Unterkante-Mitte). Ohne Bewegungskollision (Kugeln treffen das Modell trotzdem). Ohne Bibliothek
+ * (KTX2/Transcoder fehlt, „niedrig“ ohne komprimierte Texturen) entfällt die Ausstattung – die Karte ist ohne sie
+ * vollständig. Mehrspieler: Möbel/Kisten, die wie Deckung wirken, bekommen opts.solid = [w, h, d] (Manifest-Maße):
+ * ein fester Kollisionsquader, der auf JEDEM Rechner steht – auch ohne Bibliothek (früher opts.collide: Quader nur,
+ * wenn die Bibliothek lud → unsichtbare/fehlende Hindernisse je nach Gerät).
  */
 export function dress(b, list) {
-  if (!b.lib) return;
   for (const [id, x, y, z, ry, o] of list) {
-    if (!b.lib.has(id)) continue;
-    b.model(id, x, y, z, { ry: ry ?? hash01(x, z, 9) * Math.PI * 2, collide: false, ...(o || {}) });
+    const rr = ry ?? hash01(x, z, 9) * Math.PI * 2;
+    const { solid, minimap, ...mo } = o || {};
+    if (solid) b.box(x, y, z, solid[0], solid[1], solid[2], 'black', { ry: rr, visual: false, minimap: minimap ?? 'cover' });
+    if (!b.lib || !b.lib.has(id)) continue;
+    b.model(id, x, y, z, { ry: rr, ...mo, minimap: minimap ?? false, collide: false });
   }
 }
 
@@ -450,14 +454,17 @@ export function forklift(b, x, z, o = {}) {
 // ---------------------------------------------------------------------------
 /** Klimagerät an Wand (Normale ry zeigt nach außen) oder auf Dach. */
 export function acUnit(b, x, y, z, o = {}) {
+  // Mehrspieler: Kollision (o.collide) als fester Quader – gleich mit und ohne Bibliothek (das Modell wird als Teil
+  // gewählt und bekäme keine automatische Kollision; in der Ersatzform verwirft der Builder Kollision ohnehin)
+  if (o.collide) frame(b, x, y, z, o.ry || 0).solid(0, 0, 0, 0.95, 0.65, 0.38, { minimap: false });
   if (b.hasModel('exterior_aircon_unit') && o.model !== false) {
     // Fotoscan-Klimagerät (zwei Varianten: neu/verrostet); Halterung und Kondensatleitung sind im Modell
     const part = hash01(x, z, 7) < 0.55 ? 'exterior_aircon_unit_rusted' : 'exterior_aircon_unit';
-    b.model('exterior_aircon_unit', x, y - (o.bracket === false ? 0 : 0.1), z, { part, ry: o.ry || 0, s: o.s ?? 0.95, collide: o.collide ?? false, minimap: false, fallback: (bb) => acUnit(bb, x, y, z, { ...o, model: false }) });
+    b.model('exterior_aircon_unit', x, y - (o.bracket === false ? 0 : 0.1), z, { part, ry: o.ry || 0, s: o.s ?? 0.95, collide: false, minimap: false, fallback: (bb) => acUnit(bb, x, y, z, { ...o, model: false }) });
     return;
   }
   const f = frame(b, x, y, z, o.ry || 0);
-  f.box(0, 0, 0, 0.95, 0.65, 0.38, 'metal_painted', { tint: o.tint || '#d8d9d4', collide: o.collide ?? false, minimap: false, grad: false });
+  f.box(0, 0, 0, 0.95, 0.65, 0.38, 'metal_painted', { tint: o.tint || '#d8d9d4', collide: false, minimap: false, grad: false });
   f.cyl(0.18, 0.33, 0.2, 0.22, 0.02, 'black', { axis: 'z', collide: false, minimap: false, seg: 14 });
   for (let i = 0; i < 5; i++) f.box(0.18, 0.13 + i * 0.09, 0.205, 0.44, 0.012, 0.012, 'metal_galvanized', { collide: false, minimap: false, ao: false });
   f.box(-0.3, 0.1, 0.2, 0.22, 0.45, 0.01, 'metal_galvanized', { collide: false, minimap: false, ao: false });
@@ -596,25 +603,22 @@ export function dumpster(b, x, z, o = {}) {
   f.solid(0, 0, 0, 1.95, 1.25, 1.15, { minimap: 'cover' });
 }
 
-/** Reifenstapel */
+/** Reifenstapel. Mehrspieler: Kollision immer derselbe Zylinder (n × 0,2 m – Reifenhöhe des Fotoscans); der
+ *  prozedurale Stapel (ohne Bibliothek) hat dieselbe Reifenhöhe (vorher 0,24 m → Stapel ohne Bibliothek höher). */
 export function tires(b, x, z, o = {}) {
-  const n = o.n ?? 4, y = o.y ?? 0;
-  if (b.hasModel('old_tyre')) {
-    // gestapelte Altreifen (liegend), Kollision als ein Zylinder wie bisher
-    for (let i = 0; i < n; i++) {
-      const ox = (b.rand() - 0.5) * 0.08, oz = (b.rand() - 0.5) * 0.08;
-      b.model('old_tyre', x + ox, y + i * 0.2 + 0.1, z + oz, { pivot: 'center', rx: Math.PI / 2, ry: hash01(x, z, i) * 6.28, s: 1.18, collide: false,
-        fallback: (bb) => { bb.cyl(x + ox, y + i * 0.24, z + oz, 0.36, 0.24, 'rubber', { seg: 14, collide: false, minimap: false, grad: i === 0 }); } });
-    }
-    b.cyl(x, y, z, 0.37, n * 0.2, 'black', { visual: false, minimap: 'cover' });
-    return;
-  }
+  const n = o.n ?? 4, y = o.y ?? 0, th = 0.2;
+  const proc = (bb, i, ox, oz) => {
+    bb.cyl(x + ox, y + i * th, z + oz, 0.36, th, 'rubber', { seg: 14, collide: false, minimap: false, grad: i === 0 });
+    bb.cyl(x + ox, y + i * th + 0.005, z + oz, 0.2, th - 0.005, 'black', { seg: 10, collide: false, minimap: false, ao: false });
+  };
+  const lib = b.hasModel('old_tyre');
   for (let i = 0; i < n; i++) {
     const ox = (b.rand() - 0.5) * 0.08, oz = (b.rand() - 0.5) * 0.08;
-    b.cyl(x + ox, y + i * 0.24, z + oz, 0.36, 0.24, 'rubber', { seg: 14, collide: false, minimap: false, grad: i === 0 });
-    b.cyl(x + ox, y + i * 0.24 + 0.005, z + oz, 0.2, 0.235, 'black', { seg: 10, collide: false, minimap: false, ao: false });
+    // gestapelte Altreifen (liegend)
+    if (lib) b.model('old_tyre', x + ox, y + i * th + th / 2, z + oz, { pivot: 'center', rx: Math.PI / 2, ry: hash01(x, z, i) * 6.28, s: 1.18, collide: false, fallback: (bb) => proc(bb, i, ox, oz) });
+    else proc(b, i, ox, oz);
   }
-  b.cyl(x, y, z, 0.37, n * 0.24, 'black', { visual: false, minimap: 'cover' });
+  b.cyl(x, y, z, 0.37, n * th, 'black', { visual: false, minimap: 'cover' });
 }
 
 /** Kabeltrommel */

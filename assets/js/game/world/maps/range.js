@@ -285,8 +285,9 @@ function dressing(b) {
   for (let k = 0; k < LANES; k++) list.push(['ammo_box', laneX(k) + 0.35, 1.05, z0 + 0.62, hash01(k, 3) * 0.6 - 0.3]);
   // Waffenkammer: Munition auf den Werkbänken, Kisten, Kanister
   list.push(['ammo_box', 16.6, 0.92, 48.4, 0.1], ['ammo_box', 17.15, 0.92, 48.6, 0.5], ['ammo_box', 23.2, 0.92, 48.5, -0.2]);
-  list.push(['wooden_military_crate', 25.6, 0.12, 50.4, Math.PI / 2 + 0.06, { collide: true }]);
-  list.push(['old_military_crate', 14.0, 0.12, 49.6, Math.PI / 2, { collide: true }]);
+  // Kisten als Deckung: fester Quader in Manifest-Maßen (props.js dress, solid) – auch ohne Bibliothek gleich
+  list.push(['wooden_military_crate', 25.6, 0.12, 50.4, Math.PI / 2 + 0.06, { solid: [1.242, 0.464, 0.52] }]);
+  list.push(['old_military_crate', 14.0, 0.12, 49.6, Math.PI / 2, { solid: [1.808, 0.299, 0.968] }]);
   list.push(['metal_jerrycan_green', 26.6, 0.12, 47.2, 0.3], ['metal_jerrycan_green', 26.95, 0.12, 47.55, 1.2]);
   // Steine und ein Totholzstamm im Randstreifen neben den Bahnen
   for (const [x, z, sc] of [[-24.6, -60, 3.2], [25.2, -46, 2.6], [-26.0, -28, 3.6], [24.4, -8, 2.8], [-23.8, 12, 2.4], [26.6, 20, 3.0], [-27.2, -66, 3.8], [27.0, -18, 3.4]]) {
