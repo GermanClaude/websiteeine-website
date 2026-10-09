@@ -492,3 +492,8 @@ Panzer, Einsteigen/Sitzwechsel/Aussteigen über den Host, Fahren aus Annas Absic
 mit neuer vid, Anti-Cheat-Ablehnungen, Seite schließen → Sitz frei). Unter SwiftShader-Fremdlast (Last 8–16) läuft der Test mit
 verborgenem Host (Worker-Takt) und Zeitfaktor 1,6 und braucht 25–35 min (`--limit`). Beim Schließen der Seite meldet ein Client
 seinen Austritt jetzt über `pagehide` (sonst erst nach dem Verbindungs-Zeitlimit ≈ 20 s).
+Stand 09.10. abends (Last 10–16): `mp-vehicle-test` 40/42 – die zwei Ausfälle waren Zeitmessung des Tests (Ablehnung
+„schritt“ kam erst nach > 15 s an, Sitz frei 6,3 s ab dem Playwright-Aufruf); der Test wartet seitdem länger bzw. misst ab dem
+Ereignis in der Seite (noch nicht erneut gelaufen). `mp-test` mit Fahrzeugen (Standard an): 66/67 – einzig „Puppe läuft nie
+rückwärts“ (1 Rückschritt bei Host 1,2 Bilder/s, bekannte Unter-Last-Grenze, s. Korrektur 9); `net-proto-test` 175/175,
+`net-room-test` 65/65, `net-interp-test` 9/9.
