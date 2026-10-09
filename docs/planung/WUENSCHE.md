@@ -268,3 +268,4 @@ B) SPÄTER nach der verbindlichen Reihenfolge (Schritt 2–4): Battle Royale, Co
   - Andere sehen die VR-Bewegungen: Kopf, Zielrichtung der Hand, Lehnen; Arme/Hände, so weit die Puppen-Animation es erlaubt.
   - Geräte-Symbol (PC/Handy/VR) in der Anzeigetafel.
 - LEICHEN (Nutzer): sollen liegen bleiben; Verschwinden optional (Einstellung, Standard „bleiben liegen“). Leistungsschutz: Obergrenze je Grafikstufe, die ältesten verschwinden erst ab der Grenze, eingefrorene Leichen ohne Animationskosten. Gag: VR-Spieler können sich tot stellen.
+- GRENZLAND BODEN/GRAS (Nutzer 09.10. ~9 Uhr): Boden besser, Gras realistischer – kommt noch vor die Live-Beta (nach der Baum-Kollisions-Korrektur in vegetation.js, nur Optik, keine Kollision).
