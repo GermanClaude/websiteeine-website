@@ -109,10 +109,11 @@ const _n1 = [0, 0], _n2 = [0, 0];
 /**
  * Wiesenfarbe (Faktor auf die Gras-Albedo) wie im Gelände-Shader (terrMeadowTint + Uferfeuchte): großräumig saftig ↔
  * trocken/strohig, feucht-dunkelgrün und dunkler am Ufer, Helligkeit großräumig. y = Bodenhöhe, dryBias: zusätzliche Trockenheit
- * (Hangneigung). → out [r, g, b]
+ * (Hangneigung), n2: schon abgetastetes terrainNoise(x, z, 2) (spart zwei Abfragen). → out [r, g, b]
  */
-export function meadowTintAt(x, z, y, dryBias = 0, out = [1, 1, 1]) {
-  terrainNoise(x, z, 1, _n1); terrainNoise(x, z, 2, _n2);
+export function meadowTintAt(x, z, y, dryBias = 0, out = [1, 1, 1], n2 = null) {
+  terrainNoise(x, z, 1, _n1);
+  if (n2) { _n2[0] = n2[0]; _n2[1] = n2[1]; } else terrainNoise(x, z, 2, _n2);
   const hw = y - terrainLook.waterY;
   const moist = 1 - sstep(0.5, 3.4, hw + (_n2[0] - 0.5) * 1.8);
   const dry = sstep(0.5, 0.82, _n1[0] * 0.6 + _n2[0] * 0.4 + dryBias) * (1 - moist);

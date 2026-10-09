@@ -427,3 +427,4 @@ wurden mit höchstens 2 gleichzeitig geprüft (mp-test). (4) Bildrate des Hosts 
 ist ungemessen – recommend() begrenzt dort über die gemessene Bildrate (< 30 FPS → 8, < 45 → 12).
 
 - Stand 09.10. ~9:30: 24 % Wochenlimit verbraucht (nach Mehrspieler, Härtetest, Kartenrunden 1+2, VR). Rest bis zur Grenze: Abschlusskorrekturen, Regressionstest, Grenzland-Gras, Veröffentlichung, Fehler aus dem Freitagabend-Test.
+- Stand 09.10. ~13:20: 35 % Wochenlimit. Ab jetzt sparsam: Abschlusstest als Skript (keine großen Agenten), Veröffentlichung, danach nur noch Fehlerbehebung aus dem Abendtest. Ziel: unter 45 % bleiben.

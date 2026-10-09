@@ -753,7 +753,7 @@ export class Vegetation {
       const slope = 1 - hf.normalAt(x, z, nrm).y;
       const hgt = (0.65 + 0.6 * dens) * (0.75 + 0.5 * hash2(i, j, 5)) * Math.max(0.45, 1 - slope * 2) * (0.55 + 0.45 * gw);
       const s = (0.85 + 0.3 * hash2(i, j, 3)) * (0.75 + 0.25 * gw);
-      meadowTintAt(x, z, y, slope * 1.4, T);
+      meadowTintAt(x, z, y, slope * 1.4, T, N2);
       if (far) { put(gf.instanceMatrix.array, gf.instanceColor.array, kf++, x, y - 0.03, z, s, s * hgt, hash2(i, j, 4) * 6.283); continue; }
       put(arr, col, k++, x, y - 0.03, z, s, s * hgt, hash2(i, j, 4) * 6.283);
       // Trabanten nah an der Kamera: einer dicht daneben (Gruppe), weitere über die Zelle – nur im dichten Teil
