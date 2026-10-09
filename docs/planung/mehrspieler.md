@@ -354,21 +354,21 @@ je Client, gesamt ≈ 54 KB/s. Daraus bei
 einer Upload-Grenze (Stau gemessen; ohne Stau rechnet recommend() das Gemessene × 2 hoch) von 100 000 B/s → 9 Menschen ohne
 Bots / 6 bei 32 Akteuren; 200 000 B/s → 17 / 11; 400 000 B/s → 24 / 20 (1 KB = 1024 Byte). Die Upload-Messung nimmt nur Fenster ≥ 3 s (Bündel aus langen Bildern zählten vorher × 10).
 
-**Läufe** (Prüfrechner, 4 Kerne, Fremdlast 6–10; ein mp-test-Lauf ≈ 13–18 min), Endstand:
-- `mp-test` ideal: 66/66 – Positionen Anna→Host 0,16 m / Anna→Bert 0,22 m, Halt 2,95 → 2,95 s auf beiden Seiten, „Einsatz“
-  mit smg_vp9 auf beiden Seiten, 20-m-Teleport → 'teleport' + 'correct' (0,0 m zurück), Sturz 9 m, Rutschen 5,6 m (17
-  Zustände mit Rutsch-Bit) ohne Verstoß, verborgener Host-Tab simuliert weiter, keine Seitenfehler.
-- `mp-test --params="netlag=150&netjitter=30&netloss=5"`: 66/66 – Positionen ≤ 0,01 m nach 8 s, Halt 3,00 → 3,00 s,
-  Teleport erkannt, Rutschen 4,1 m (14 Zustände) ohne Verstoß, Online-Pause: Zeit läuft weiter. Vorläufe: 2× je 1 Fehlschlag
-  im Prüfskript (das Rutschen begann, bevor der um die Laufzeit verspätete Host-Spawn in der Luft ankam – der Spawn brach es
-  nach 0 m ab; Prüfung wartet jetzt auf den Spawn), 1× Abbruch beim Beitritt ('keine-antwort': Host unter Fremdlast > 12 s
-  blockiert → 'welcome'-Frist 20 s, Prüfung versucht einmal neu).
-- `mp-test --params="netlag=300&netloss=15"` (verschlechtert): 66/66 – Positionen ≤ 0,29 m, Halt 3,00/2,95 s stabil,
-  „Einsatz“, Teleport, Sturz, Rutschen 5,6 m ohne Verstoß; keine hängenden Zustände, keine Seitenfehler.
-- `mp-load-test`: 13/13 (Tabelle oben); `mp-fight-rate`: regulär 2,2 KB/s, Veteran 0,9 KB/s Kampfverkehr je Client.
+**Läufe** (Prüfrechner, 4 Kerne, Fremdlast 6–14; ein mp-test-Lauf ≈ 13–18 min), Endstand mit allen Korrekturen:
+- `mp-test` ideal: 66/66 – Positionen Anna→Host 0,00 m / Anna→Bert 0,22 m / Host→Bert 0,08 m, Puppe läuft nie rückwärts
+  (Host 1,2 Bilder/s), Halt 3,00 → 3,00 s auf beiden Seiten, „Einsatz“ mit smg_vp9 auf beiden Seiten, 20-m-Teleport →
+  'teleport' + 'correct' (0,0 m zurück), Sturz 9 m, Rutschen 5,6 m (17 Zustände mit Rutsch-Bit) ohne Verstoß, verborgener
+  Host-Tab simuliert weiter, keine Seitenfehler. (Ein Vorlauf: 1× „rückwärts“ bei Host 1,5 Bilder/s → Korrektur 9.)
+- `mp-test --params="netlag=150&netjitter=30&netloss=5"`: 66/66 – Positionen ≤ 0,22 m, nie rückwärts, Halt 3,00/2,93 s
+  stabil, Teleport erkannt, Rutschen 5,6 m (16 Zustände) ohne Verstoß, Online-Pause: Zeit läuft weiter. Vorläufe: 2× je 1
+  Fehlschlag im Prüfskript (das Rutschen begann, bevor der um die Laufzeit verspätete Host-Spawn in der Luft ankam – der Spawn
+  brach es nach 0 m ab; Prüfung wartet jetzt auf den Spawn), 1× Abbruch beim Beitritt ('keine-antwort': Host unter
+  Fremdlast > 12 s blockiert → 'welcome'-Frist 20 s, Prüfung versucht einmal neu).
+- `mp-test --params="netlag=300&netloss=15"` (verschlechtert): {{LAUF300}}
+- `mp-load-test`: 13/13 (Tabelle oben, Endstand bei Last 14); `mp-fight-rate`: regulär 2,2 KB/s, Veteran 0,9 KB/s
+  Kampfverkehr je Client.
 - `net-proto-test` 116/116, `net-test`, `net-room-test` 60/60, `net-interp-test` 9/9, `check.sh`, `preload --check`,
   `smoke --quality=low --params="mode=tdm&map=hafen" --end --seconds=20` (offline, ohne Fehler, Endbildschirm).
-
 
 **Offen**: SwiftShader-Seiten zeichnen auf dem Prüfrechner unter Last nur 0,1–2 Bilder/s – der Countdown zählt je Bild höchstens
 0,25 s, daher dauert der Matchstart dort Minuten (kein Fehler des Spiels, mp-test wartet bis 10 min). Die Glätte im echten Spiel

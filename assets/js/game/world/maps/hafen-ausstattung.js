@@ -26,6 +26,15 @@ function modell(b, id, x, y, z, ry, size, ersatz, o = {}) {
   if (o.solid) block(b, x, y, z, size[0], size[1], size[2], ry, o.minimap ?? (size[1] > 1 ? 'cover' : 'prop'));
 }
 
+/**
+ * Bibliotheksmodell mit Ersatzquader in denselben Maßen und fester Kollision (size [w, h, d] des sichtbaren Teils) –
+ * auf jedem Rechner gleich, auch wenn die Bibliothek nicht lädt. o: { part, mat, tint, minimap }
+ */
+export function festesModell(b, id, x, y, z, ry, size, o = {}) {
+  const ersatz = (bb) => bb.box(x, y, z, size[0], size[1], size[2], o.mat || 'metal_painted', { ry, tint: o.tint || '#6f7a80', ...KEIN });
+  modell(b, id, x, y, z, ry, size, ersatz, { solid: true, model: o.part ? { part: o.part } : undefined, minimap: o.minimap });
+}
+
 // ---------------------------------------------------------------------------
 // Büromöbel
 // ---------------------------------------------------------------------------
@@ -128,7 +137,8 @@ export function kuechenzeile(b, x, y, z, ry, w = 1.8) {
   for (let i = 0; i < nt; i++) f.box(-w / 2 + ((i + 0.5) * w) / nt, 0.76, 0.27, 0.12, 0.02, 0.02, 'metal_galvanized', { ...VG, ao: false });
   f.box(-w / 2 + 0.4, 0.905, 0, 0.45, 0.02, 0.38, 'metal_galvanized', { ...VG, ao: false });
   f.cyl(-w / 2 + 0.4, 0.92, -0.2, 0.015, 0.22, 'metal_galvanized', { ...KEIN, seg: 6, ao: false });
-  kaffeeEcke(b, ...f.P(w / 2 - 0.45, -0.05), y + 0.92, ry);
+  const [kx, kz] = f.P(w / 2 - 0.45, -0.05);
+  kaffeeEcke(b, kx, y + 0.92, kz, ry);
   block(b, x, y, z, w, 0.92, 0.6, ry, 'prop');
 }
 
@@ -169,14 +179,6 @@ export function pinnwand(b, x, y, z, ry, w = 1.0, h = 0.7) {
     const u = (hash01(x + i, z, 31) - 0.5) * (w - 0.3), v = 0.12 + hash01(x, z + i, 32) * (h - 0.42);
     f.box(u, v, 0.03, 0.18, 0.24, 0.003, 'white', { tint: tints[i % tints.length], ...VG, ao: false, rz: (hash01(x, i, 33) - 0.5) * 0.2 });
   }
-}
-
-/** Topfpflanze (Bibliothek: potted_plant_02) bzw. Kübel mit Busch; Kleinteil ohne Kollision. */
-export function pflanze(b, x, y, z) {
-  b.model('potted_plant_02', x, y, z, { ry: hash01(x, z, 7) * 6.28, collide: false, fallback: (bb) => {
-    bb.cyl(x, y, z, 0.2, 0.4, 'polymer', { r1: 0.24, tint: '#5a4636', ...KEIN, seg: 10 });
-    bb.geom(new THREE.IcosahedronGeometry(0.32, 0), x, y + 0.66, z, 'grass', { tint: '#4c6a3a', ...KEIN, sy: 1.2 });
-  } });
 }
 
 /** Spinde (n Türen à 0,42 m), Front lokal +z, mit Lüftungsschlitzen und Namensschildern. */
@@ -236,7 +238,7 @@ export function offenerContainer(b, x, z, o = {}) {
   f.box(-L2 + t + 0.01, fl, 0, 0.012, H - fl - 0.12, W - 2 * t, 'container', { tint: innen, ...V, grad: false });
   f.box(0, H - 0.07, 0, len - 0.12, 0.04, W - 0.08, 'container', { tint: color, ...V, grad: false });
   f.box(-0.03, H - 0.1, 0, len - 0.3, 0.012, W - 2 * t, 'container', { tint: innen, ...V, grad: false });
-  // Holzboden mit Querfugen
+  // Holzboden (Oberkante fl)
   f.box(0, 0.02, 0, len - 0.2, fl - 0.02, W - 2 * t, 'wood_planks', { tint: '#7a5a3c', ...VG });
   // Eckpfosten, Ober-/Untergurte, Türrahmen (Kopfträger + Schwelle)
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.box(sx * (L2 - 0.09), 0, sz * (W2 - 0.09), 0.18, H, 0.18, 'container', { tint: dark, ...V, grad: false });
@@ -292,7 +294,7 @@ export function offenerContainer(b, x, z, o = {}) {
     }
     // lose Kartons (ohne Kollision)
     const kx = back + (len > 8 ? 3.1 : 1.55);
-    for (const [lx, lz, ly, s] of [[kx, 0.7, 0, 0.45], [kx + 0.1, 0.25, 0, 0.4], [kx + 0.05, 0.5, 0.42, 0.38]]) {
+    for (const [lx, lz, ly, s] of [[kx, 0.7, 0, 0.45], [kx + 0.1, 0.25, 0, 0.4], [kx + 0.05, 0.5, 0.405, 0.38]]) {
       const [px, pz] = f.P(lx, lz);
       b.box(px, fl + ly, pz, s, s * 0.9, s * 1.1, 'cardboard', { ry: ry + hash01(px, pz, 2) * 0.6, uv: 'fit', ...VG });
     }
@@ -329,7 +331,7 @@ export function kaiAbsperrung(b, x, z0, z1, o = {}) {
 
 /**
  * Geschlossenes Schiebetor (Laufschiene außen vor der Zaunlinie) zwischen x0 und x1 bei z. Rahmen aus Vierkantrohr,
- * Maschendraht-Füllung, Laufrollen; Kollision bleibt der Grenzkollider der Karte. Mit Schild „TOR 2“ in Torhöhe.
+ * Maschendraht-Füllung, Laufrollen; Kollision bleibt der Grenzkollider der Karte. Optional Schild zur Terminalseite.
  */
 export function schiebetor(b, x0, x1, z, o = {}) {
   const L = x1 - x0, cx = (x0 + x1) / 2, h = o.h ?? 2.3, m = 'metal_galvanized';
@@ -346,8 +348,8 @@ export function schiebetor(b, x0, x1, z, o = {}) {
   // Laufschiene am Boden + Laufrollen
   b.box(cx, 0, z, L + 3, 0.04, 0.12, 'metal_painted', { tint: '#3a3d40', ...VG, ao: false });
   for (const fx of [0.12, 0.88]) b.cyl(x0 + L * fx, 0.07, z, 0.07, 0.08, 'metal_painted', { axis: 'x', ry: Math.PI / 2, tint: '#2b2d30', ...KEIN, seg: 10 });
-  // Schild in der Tormitte (beidseitig)
-  if (o.sign) b.sign(cx, 1.25, z - 0.06, 1.6, 0.6, o.sign, { ry: 0, depth: 0.02 });
+  // Schild in der Tormitte, lesbar von der Terminalseite (−z)
+  if (o.sign) b.sign(cx, 1.25, z - 0.06, 1.6, 0.6, o.sign, { ry: Math.PI, depth: 0.02 });
 }
 
 /**

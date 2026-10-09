@@ -4,11 +4,18 @@
 import * as THREE from 'three';
 import { building, wall, stairs, railing, catwalk, slab } from '../arch.js';
 import {
-  container, CONTAINER_H, crate, crateStack, barrel, barrelGroup, pallet, palletStack, sandbags, jersey, bollard, cone,
-  forklift, truck, van, car, lampPost, floodMast, fence, tires, cableReel, gasBottles, electricBox, acUnit, pipe, cable,
-  rack, workbench, lockers, dumpster, frame, roofVent, dress,
+  container, CONTAINER_H, crateStack, barrelGroup, pallet, palletStack, sandbags, jersey, bollard, cone,
+  lampPost, floodMast, fence, tires, cableReel, gasBottles, electricBox, acUnit, pipe, cable,
+  rack, workbench, dumpster, frame, roofVent, dress,
 } from '../props.js';
 import { craneClock, createTrack, partBuilder, partGroup, place, inView } from '../crane-anim.js';
+// Kartenrunde 2: Fahrzeuge mit richtig gedrehten Rädern, Innenausstattung, begehbare Container, Kartengrenzen
+import { stapler as forklift, lkw as truck, transporter as van, pkw as car } from './hafen-fahrzeuge.js';
+import {
+  schreibtisch, stuhl, aktenschrank, regal, tisch, besprechung, kaffeeEcke, kuechenzeile, kuehlschrank, minikuehlschrank,
+  wasserspender, pinnwand, spinde, deckenleuchte, offenerContainer, kaiAbsperrung, schiebetor, steigleiter,
+  festesModell,
+} from './hafen-ausstattung.js';
 
 const H = CONTAINER_H;
 const QUAY_X = -44;
@@ -67,8 +74,9 @@ export default {
     b.decal(QUAY_X + 0.9, 0.01, 0, 0.4, 104, 'line', { ry: 0, tint: '#e8c22c', kind: 'paint', opacity: 0.85 });
     for (let z = -100; z <= 50; z += 6) b.cyl(QUAY_X - 0.75, -2.6, z, 0.32, 2.4, 'rubber', { seg: 10, collide: false, minimap: false, grad: false });
     for (let z = -46; z <= 48; z += 11.5) bollard(b, QUAY_X + 0.9, z, { mooring: true });
-    // Unsichtbare Kaikante (kein Sturz ins Wasser)
+    // Kaikante (kein Sturz ins Wasser): Kollision an der Mauer, sichtbar gemacht durch Pfosten mit Kette auf der Kante
     b.collider(QUAY_X - 0.2, -3, 0, 0.4, 12, 112);
+    kaiAbsperrung(b, QUAY_X + 0.28, -51.6, 51.6);
     const water = ctx.water({ x0: -700, z0: -700, x1: QUAY_X - 0.6, z1: 700, y: -1.7, color: '#24505c', scale: 10 });
     void water;
     // Kranschienen (nach Norden bis hinter den zweiten Kulissenkran, z −176..52: dessen Fahrbereich)
@@ -115,7 +123,7 @@ export default {
     barrelGroup(b, -40.8, -16.5, { n: 4, colors: ['#2d5f94', '#2d5f94', '#c8402f'] });
     jersey(b, -35.5, 6.5, { len: 3, ry: 0.15 });
     jersey(b, -36.8, -6.5, { len: 3, ry: -0.2 });
-    tires(b, -29.4, 11.2, { n: 3 }); tires(b, -28.6, 11.9, { n: 2 });
+    tires(b, -29.4, 11.2, { n: 3 }); tires(b, -30.0, 11.95, { n: 2 });
     // Kaibüros (begehbar)
     kiosk(b, -31.5, 21.5, Math.PI);
     kiosk(b, -31.5, -21.5, 0);
@@ -123,17 +131,17 @@ export default {
     floodMast(b, -29, -34, { h: 14, ry: -Math.PI / 2, kind: 'sodium' });
     for (const z of [-48, -12, 12, 48]) lampPost(b, -28.3, z, { h: 7, arm: 1.4, ry: Math.PI, kind: 'sodium' });
     // Rettungsring-Ständer
-    for (const z of [-33, 9, 44]) lifebuoy(b, QUAY_X + 1.6, z);
+    for (const z of [-33, 14, 44]) lifebuoy(b, QUAY_X + 1.6, z);
 
     // -----------------------------------------------------------------------
     // Mittelbahn: Containerlabyrinth + Kranplatz
     // -----------------------------------------------------------------------
     // Westlicher Rand (x ≈ −24.4)
     stackAt(b, -24.4, -40, 12.19, 'z', ['#2d5f94', '#8d9399']);
-    stackAt(b, -24.4, -27, 6.06, 'z', ['#c8402f']);
+    offenerContainer(b, -24.4, -27, { len: 6.06, ry: -Math.PI / 2, color: '#c8402f' });
     stackAt(b, -24.4, -14, 6.06, 'z', ['#3e7a4c', '#c9a227']);
     stackAt(b, -24.4, 40, 12.19, 'z', ['#c8402f', '#2d5f94']);
-    stackAt(b, -24.4, 27, 6.06, 'z', ['#d9762a']);
+    offenerContainer(b, -24.4, 27, { len: 6.06, ry: Math.PI / 2, color: '#d9762a' });
     stackAt(b, -24.4, 14, 6.06, 'z', ['#6b3f7a', '#3e7a4c']);
     container(b, -25.6, 0, 1.5, { len: 6.06, ry: Math.PI / 2 + 0.28, color: '#1f6f6a' });
     // Reihe 2 (doppelt, x ≈ −15.6)
@@ -177,13 +185,14 @@ export default {
     crateStack(b, -13.2, -5.4, { ry: 0.25 });
     crateStack(b, -2.9, 5.8, { ry: -0.6 });
     jersey(b, -8.2, -6.2, { len: 3, ry: 0.05 });
-    sandbags(b, -12.6, 6.2, -10.4, 7.0, { rows: 5 });
+    sandbags(b, -13.2, 6.0, -11.2, 6.9, { rows: 5 });
     barrelGroup(b, -1.6, -4.8, { n: 3 });
     palletStack(b, -19.4, -3.5, { n: 6, ry: 0.15 });
     palletStack(b, -19.6, 4.2, { n: 3, ry: -0.3, load: 'boxes' });
     cone(b, -7.1, 7.3); cone(b, -6.2, 7.5); cone(b, -11.9, -7.6);
     floodMast(b, -9.4, -30.2, { h: 18, ry: Math.PI / 2, kind: 'sodium' });
     floodMast(b, -9.4, 30.2, { h: 18, ry: -Math.PI / 2, kind: 'sodium' });
+    for (const s of [-1, 1]) b.box(-9.24, 9.3, s * 30.2, 0.14, 0.3, 0.16, 'metal_painted', { tint: '#3a3d40', collide: false, minimap: false, grad: false }); // Kabelschelle
     // Querschläge
     crateStack(b, -10, -32, { ry: 1.2, pattern: [[0, 0, 0, 1.1], [1.15, 0, 0, 1.1]] });
     crateStack(b, -9, 32.5, { ry: -1.0, pattern: [[0, 0, 0, 1.1], [0, 0, 1.15, 1.0], [0, 1, 0.55, 1.0]] });
@@ -227,11 +236,15 @@ export default {
     fence(b, 31.5, 52.4, 74.4, 52.4, { h: 2.6, style: 'chain', barbed: true });
     b.collider(26, 0, 52.6, 11, 6, 0.4, {});
     for (const x of [21.5, 30.5]) { b.box(x, 0, 52.2, 0.5, 1.1, 0.5, 'concrete', { tint: '#e8e2d4', minimap: 'cover' }); }
+    schiebetor(b, 20.6, 31.4, 52.62, { sign: 'gate_closed' });
     barrier(b, 26, 49.4);
+    // Tempo 10 an der Torausfahrt (rechts in Fahrtrichtung Süd, Blick zum Terminal)
+    b.cyl(20.7, 0, 50.4, 0.04, 2.2, 'metal_galvanized', { seg: 6, minimap: 'prop' });
+    b.sign(20.7, 1.7, 50.35, 0.6, 0.6, 'speed', { ry: Math.PI, depth: 0.02 });
     truck(b, 38.2, 44, { ry: Math.PI / 2, trailer: 'container', color: '#e0e0da', containerColor: '#2d5f94', logo: 'logo_kairos' });
     stackAt(b, -30.4, 46.3, 6.06, 'x', ['#c9a227']);
-    jersey(b, -12, 44.8, { len: 3, ry: 0.3, stripes: true });
-    jersey(b, 6, 45.2, { len: 3, ry: -0.2, stripes: true });
+    jersey(b, -10.2, 44.8, { len: 3, ry: 0.3, stripes: true });
+    jersey(b, 9.5, 44.6, { len: 3, ry: -0.2, stripes: true });
     cone(b, 18, 47); cone(b, 19.2, 47.8); cone(b, 20.3, 48.4);
 
     // -----------------------------------------------------------------------
@@ -239,10 +252,10 @@ export default {
     // -----------------------------------------------------------------------
     officeNorth(b, 27, -45);
     stackAt(b, -30.4, -46.3, 6.06, 'x', ['#2d5f94']);
-    jersey(b, -12, -44.8, { len: 3, ry: -0.3, stripes: true });
-    jersey(b, 6, -45.2, { len: 3, ry: 0.2, stripes: true });
+    jersey(b, -10.2, -44.8, { len: 3, ry: -0.3, stripes: true });
+    jersey(b, 9.5, -44.6, { len: 3, ry: 0.2, stripes: true });
     car(b, 9, -49.6, { ry: Math.PI / 2, color: '#c7c7c2' });
-    car(b, 13.2, -49.6, { ry: Math.PI / 2 + 0.05, color: '#2f4f6e' });
+    car(b, 13.8, -49.6, { ry: Math.PI / 2 + 0.05, color: '#2f4f6e' });
     // Nordgrenze: Containerwand (3 hoch) + Kulisse
     for (let x = -42; x <= 15; x += 12.4) stackAt(b, x + 6, -54.6, 12.19, 'x', [b.pick(['#8d9399', '#2d5f94', '#c8402f']), b.pick(['#3e7a4c', '#d9762a', '#e3e1da']), b.pick(['#2d5f94', '#9a3328'])]);
     fence(b, QUAY_X + 1, -52.6, -42, -52.6, { h: 2.6 });
@@ -282,29 +295,31 @@ function dressing(b) {
   dress(b, [
     // Kaikante: Kanister, Kunststoffkisten, Zementsäcke, Gasflaschen, Hydranten
     ['industrial_pastic_container', -40.5, 0, 13.3, 0.3], ['industrial_pastic_container', -39.8, 0, 12.6, 1.25],
-    ['metal_jerrycan', -37.5, 0, 24.5, 0.4], ['metal_jerrycan', -37.0, 0, 24.85, 1.9], ['metal_jerrycan', -34.3, 0, -28.3, 2.6],
+    ['metal_jerrycan', -36.6, 0, 25.4, 0.4], ['metal_jerrycan', -37.0, 0, 24.85, 1.9], // nicht auf der Staplerpalette ['metal_jerrycan', -34.3, 0, -28.3, 2.6],
     ['cement_bag', -33.1, 0, 30.7, 0.1], ['cement_bag', -32.7, 0, 31.4, 0.2], ['cement_bag', -32.9, 0.18, 31.0, 1.6],
     ['propane_tank', -21.9, 0, -30.3], ['propane_tank', -22.4, 0, -31.0],
-    ['fire_hydrant', -28.6, 0, -16.4, Q, { part: 'fire_hydrant', collide: true }],
-    ['fire_hydrant', 48.5, 0, 21.0, -Q, { part: 'fire_hydrant_aged', collide: true }],
     // Containergassen: Kartons, Müllsäcke
     ['cardboard_box_01', -22.6, 0, -6.8, 0.2], ['cardboard_box_01', -22.25, 0, -7.45, 0.9], ['cardboard_box_01', -22.45, 0.34, -7.1, 0.35],
     ['trashbag', -20.3, 0, 33.4], ['trashbag', -19.7, 0, 33.0], ['trashbag', -21.0, 0, 33.6],
     ['metal_trash_can', 1.9, 0, 33.4, 0.3, { part: 'metal_trash_can_rust' }],
     // Lagerhalle 3: Werkzeug, Generator, Kartons, Warnschild
-    ['metal_tool_chest', 41.35, wf, -1.7, -Q, { collide: true }],
-    ['tool_cart', 38.7, wf, -11.6, 0.35, { collide: true }],
-    ['portable_generator', 39.5, wf, 13.4, 1.1, { collide: true }],
-    ['hand_truck', 33.9, wf, 15.7, 2.6],
+    ['hand_truck', 34.3, wf, 15.4, 2.6],
     ['cardboard_box_01', 16.9, wf, -18.4, 0.1], ['cardboard_box_01', 17.45, wf, -18.65, 1.4], ['cardboard_box_01', 17.1, wf + 0.34, -18.5, 0.3],
     ['industrial_pastic_container', 23.4, wf, -15.6, 0.2],
     ['wetfloorsign_01', 31.2, wf, 2.3, 0.6],
-    ['metal_trash_can', 29.6, wf, -10.35, 0.2, { part: 'metal_trash_can_handle_left' }],
+    ['metal_trash_can', 31.3, wf, -10.5, 0, { part: 'metal_trash_can_handle_left' }],
     // Terminalbüro und Pforte
     ['metal_trash_can', 18.3, 0, -40.6, 0.5, { part: 'metal_trash_can_rust' }], ['trashbag', 18.9, 0, -40.1],
-    ['utility_box_01', 18.65, 0, -44.6, -Q, { collide: true }],
     ['metal_trash_can', 29.55, 0, 46.7, 1.2, { part: 'metal_trash_can_handle_left' }],
   ]);
+  // Teile mit Kollision: fester Quader in Modellmaßen + Ersatzquader (vorher Kollision nur mit geladener Bibliothek –
+  // im Mehrspieler auf jedem Rechner gleich nötig)
+  festesModell(b, 'fire_hydrant', -28.6, 0, -16.4, Q, [0.4, 0.8, 0.32], { part: 'fire_hydrant', tint: '#b8392c' });
+  festesModell(b, 'fire_hydrant', 48.5, 0, 21.0, -Q, [0.4, 0.8, 0.32], { part: 'fire_hydrant_aged', tint: '#9a3328' });
+  festesModell(b, 'metal_tool_chest', 41.35, wf, -1.7, -Q, [0.684, 0.652, 0.407], { tint: '#b8392c' });
+  festesModell(b, 'tool_cart', 40.95, wf, 4.55, Q, [1.272, 0.962, 0.747], { tint: '#3a5f8a' });
+  festesModell(b, 'portable_generator', 39.5, wf, 13.4, 1.1, [0.817, 0.575, 0.562], { tint: '#c9a227' });
+  festesModell(b, 'utility_box_01', 18.65, 0, -46.3, -Q, [0.52, 1.12, 0.432], { tint: '#8f9a90' });
 }
 
 // ---------------------------------------------------------------------------
@@ -327,6 +342,8 @@ function signs(b) {
   b.defineSign('speed', { style: 'number', text: '10', sub: 'km/h', bg: '#ffffff', fg: '#c8302a' });
   b.defineSign('yard_a', { style: 'plate', text: 'BLOCK A', bg: '#e8c22c', fg: '#16191d', border: false });
   b.defineSign('yard_b', { style: 'plate', text: 'BLOCK B', bg: '#e8c22c', fg: '#16191d', border: false });
+  b.defineSign('gate_closed', { style: 'plate', text: 'TOR 2 · GESCHLOSSEN', sub: 'Ausfahrt über Tor 1', bg: '#f2f0ea', fg: '#c8302a' });
+  b.defineSign('shed4', { style: 'stencil', text: 'SCHUPPEN 4', fg: '#f2f0ea' });
 }
 
 // ---------------------------------------------------------------------------
@@ -337,7 +354,12 @@ function stackAt(b, x, z, len, along, colors, o = {}) {
   const ry = along === 'z' ? Math.PI / 2 : 0;
   const hx = (along === 'z' ? 2.44 : len) / 2 + 0.2, hz = (along === 'z' ? len : 2.44) / 2 + 0.2;
   if (!o.reachable) b.noNav(x - hx, z - hz, x + hx, z + hz, (colors.length - 1) * H + 1, 30);
-  colors.forEach((c, i) => container(b, x + (i ? (b.rand() - 0.5) * 0.08 : 0), i * H, z + (i ? (b.rand() - 0.5) * 0.08 : 0), { len, ry: ry + (i ? (b.rand() - 0.5) * 0.012 : 0), color: c, logo: i === 0 ? o.logo : undefined, openDoors: o.open }));
+  // obere Lagen leicht versetzt – nur entlang der Längsachse und kaum verdreht: Doppelstapel stehen Wand an Wand
+  // (vorher bis 4 cm quer → Eckpfosten der Nachbarn steckten ineinander). Gleich viele Zufallszahlen wie zuvor.
+  colors.forEach((c, i) => {
+    const ox = i ? (b.rand() - 0.5) * 0.08 : 0, oz = i ? (b.rand() - 0.5) * 0.08 : 0, r = i ? (b.rand() - 0.5) * 0.003 : 0;
+    container(b, x + (along === 'x' ? ox : 0), i * H, z + (along === 'z' ? oz : 0), { len, ry: ry + r, color: c, logo: i === 0 ? o.logo : undefined });
+  });
 }
 
 /** Stahltreppe an einem Container hoch (parallel zur Längsseite), Podest bis zur Containerkante faceX. */
@@ -374,8 +396,8 @@ function gantryCrane(b, zc, o = {}) {
   craneSteel(b, zc, { collide: true });
   b.sign(-23, 27, zc + 3.22, 5.2, 1.6, o.label || 'crane_grete', { ry: 0, back: false, depth: 0 });
   b.sign(-23, 27, zc - 3.22, 5.2, 1.6, o.label || 'crane_grete', { ry: Math.PI, back: false, depth: 0 });
-  // Treppenturm-Andeutung an einem Bein
-  for (let k = 0; k < 7; k++) b.box(-30.8 + 0.95, 2 + k * 3, zc + 8, 0.8, 0.06, 1.2, 'metal_grate', { collide: false, minimap: false, grad: false, ao: false });
+  // Steigleiter mit Rückenschutz am landseitigen Bein (bis über den oberen Riegel, Oberkante 24,1)
+  steigleiter(b, -30.0, zc + 8, 0, 25.0, -30.25);
   craneTrolley(b, zc, o.clock);
 }
 
@@ -543,12 +565,22 @@ function kiosk(b, x, z, ry) {
   side(-w / 2 + t / 2, -d / 2 + t, -w / 2 + t / 2, d / 2 - t, []);
   side(w / 2 - t / 2, d / 2 - t, w / 2 - t / 2, -d / 2 + t, [{ at: 1.5, w: 1.2, h: 0.9, kind: 'window', sill: 1.1, glass: false }]);
   f.box(0, h, 0, w + 0.3, 0.16, d + 0.3, 'metal_painted', { tint: '#5a5f66', minimap: 'roof', grad: false });
-  // Einrichtung
-  f.box(-1.3, 0.12, -1.2, 1.4, 0.75, 0.7, 'wood_planks', { tint: '#8a6a4a', minimap: false, grad: false });
-  f.box(1.4, 0.12, -1.3, 0.6, 1.8, 0.45, 'metal_painted', { tint: '#6f7f8a', minimap: false });
+  // Einrichtung (Innenmaß lokal x ±1,92, z ±1,52; Tür lokal x −1,5..−0,5 an der Front): Schreibtisch unter dem
+  // Rückfenster mit Stuhl, Spind in der Ecke, Regal an der fensterlosen Seitenwand, Kühlschrank mit Kaffee unter dem
+  // Seitenfenster, Pinnwand, Langfeldleuchte an der Decke (gebacken)
+  const at = (lx, y, lz) => { const [wx, wz] = f.P(lx, lz); return [wx, y, wz]; }; // lokal → Welt (x, y, z)
+  schreibtisch(b, ...at(0.05, 0.12, -1.04), ry);
+  stuhl(b, ...at(0.25, 0.12, -0.3), ry + Math.PI + 0.25);
+  f.box(1.42, 0.12, -1.28, 0.55, 1.8, 0.45, 'metal_painted', { tint: '#6f7f8a', minimap: false });
+  regal(b, ...at(-1.66, 0.12, 0.12), ry + Math.PI / 2);
+  minikuehlschrank(b, ...at(1.62, 0.12, 0.3), ry - Math.PI / 2);
+  pinnwand(b, ...at(-1.5, 1.3, -1.5), ry, 0.6, 0.5);
+  deckenleuchte(b, ...at(0, h, 0.05), ry, 1.25, { intensity: 6, distance: 6 });
   const [sx, sz] = f.P(0, d / 2 + 0.01);
   b.sign(sx, 2.25, sz, 2.6, 0.45, 'kiosk', { ry, back: false, depth: 0.02 });
-  acUnit(b, ...f.P(-1.6, -d / 2 - 0.2).slice(0, 1), 1.8, f.P(-1.6, -d / 2 - 0.2)[1], { ry: ry + Math.PI });
+  // Klimagerät an der fensterlosen Seitenwand (vorher vor dem Rückfenster)
+  const [ax, az] = f.P(-w / 2 - 0.2, -0.2);
+  acUnit(b, ax, 1.8, az, { ry: ry - Math.PI / 2 });
   b.noNav(cx - 2.4, cz - 2.0, cx + 2.4, cz + 2.0, 2.5, 4);
 }
 
@@ -600,8 +632,25 @@ function gatehouse(b, x, z) {
   b.box(x, B.roofY, z, 7.6, 0.18, 6, 'metal_painted', { tint: '#14304a', grad: false, minimap: false, collide: false });
   b.sign(x, B.roofY + 0.25, z + 2.95, 5.2, 0.9, 'title', { ry: 0, depth: 0.04 });
   b.sign(x - 3.02, 1.9, z - 1.0, 2.0, 0.55, 'gate', { ry: -Math.PI / 2, depth: 0.02 });
+  // Einrichtung (Innenmaß x ±2,7, z ±1,9; Tür West bei z +0,8): Theke unter dem Südfenster mit zwei Bildschirmen und
+  // Stuhl, Spinde in der Nordwestecke, Tisch mit Kaffee in der Nordostecke, Schlüsselkasten, Pinnwand, Deckenleuchte
+  const y0 = B.levels[0];
   b.box(x + 0.6, 0.12, z + 1.4, 2.4, 0.8, 0.6, 'wood_planks', { tint: '#8a6a4a', minimap: false, grad: false });
-  acUnit(b, x + 3.2, 1.6, z - 1, { ry: Math.PI / 2 });
+  for (const dx of [0.05, 0.85]) {
+    b.box(x + dx, 0.92, z + 1.52, 0.18, 0.015, 0.14, 'polymer', { tint: '#1e2023', collide: false, minimap: false, grad: false, ao: false });
+    b.box(x + dx, 1.03, z + 1.55, 0.5, 0.3, 0.03, 'polymer', { tint: '#1e2023', collide: false, minimap: false, grad: false, ry: dx > 0.5 ? -0.25 : 0.2 });
+  }
+  b.box(x + 0.45, 0.92, z + 1.25, 0.44, 0.02, 0.15, 'polymer', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
+  b.box(x + 1.5, 0.92, z + 1.3, 0.2, 0.07, 0.22, 'polymer', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
+  stuhl(b, x + 0.5, y0, z + 0.65, 0.15);
+  spinde(b, x - 2.45, y0, z - 1.4, Math.PI / 2, 2);
+  tisch(b, x + 2.3, y0, z - 1.45, 0, 0.7, 0.6);
+  kaffeeEcke(b, x + 2.3, y0 + 0.755, z - 1.5, Math.PI);
+  b.box(x + 2.66, 1.4, z + 1.55, 0.06, 0.45, 0.35, 'metal_painted', { tint: '#5a5f66', collide: false, minimap: false, grad: false }); // Schlüsselkasten
+  pinnwand(b, x - 2.68, 1.25, z - 0.2, Math.PI / 2, 0.8, 0.55);
+  deckenleuchte(b, x, B.roofY - 0.25, z, 0, 1.25, { intensity: 7, distance: 7, real: true });
+  // Klimagerät auf dem Dach (vorher an der Ostwand vor dem Fenster)
+  acUnit(b, x - 1.8, B.roofY + 0.18, z - 1.6, { ry: Math.PI, bracket: false });
   b.noNav(x - 4, z - 3.2, x + 4, z + 3.2, 2.5, 5);
 }
 
@@ -625,13 +674,30 @@ function officeNorth(b, x, z) {
     roof: { parapet: 0.6, mat: 'concrete' },
     plinth: { h: 0.4, mat: 'concrete_dark' },
   });
-  // Innen: Trennwand + Möbel
+  // Innen: Trennwand (x − 1) zwischen Disposition (West) und Zoll (Ost), Flur im Süden (z + 1,2 … + 3,7)
   wall(b, { x0: x - 1, z0: z - 3.7, x1: x - 1, z1: z + 1.2, y: 0.12, h: 3.15, t: 0.12, mat: 'plaster_white', tint: '#e6e2da' });
-  b.box(x + 3, 0.12, z - 1.8, 2.4, 0.76, 1.0, 'wood_planks', { tint: '#8a6a4a', minimap: 'cover' });
-  b.box(x + 6.6, 0.12, z - 3.2, 1.2, 1.9, 0.5, 'metal_painted', { tint: '#6f7f8a', minimap: 'cover' });
-  b.box(x - 5, 0.12, z - 2.8, 2.0, 0.76, 1.2, 'wood_planks', { tint: '#8a6a4a', minimap: 'cover' });
-  lockers(b, x - 6.6, z + 0.5, { n: 3, ry: Math.PI / 2 });
-  b.sign(x, 3.0, z + 4.02, 5.6, 0.9, 'office', { ry: 0, depth: 0.03 });
+  const y0 = B.levels[0], yD = B.levels[0] + B.fh - 0.25 - 0.12; // Fußboden, Deckenunterseite (3,15)
+  // Disposition: zwei Arbeitsplätze an der Nordwand, Pinnwand darüber, Regal an der Westwand, Spinde an der Trennwand
+  // (vorher standen die Spinde direkt hinter der Westtür)
+  for (const dx of [-6.0, -3.1]) { schreibtisch(b, x + dx, y0, z - 3.22, 0); stuhl(b, x + dx + 0.15, y0, z - 2.35, Math.PI + 0.2); }
+  pinnwand(b, x - 4.55, 1.35, z - 3.69, 0, 1.0, 0.7);
+  regal(b, x - 7.45, y0, z - 1.45, Math.PI / 2);
+  spinde(b, x - 1.31, y0, z - 0.4, -Math.PI / 2, 3);
+  // Zoll: Schreibtisch, zwei Aktenschränke, Besprechungstisch, Küchenzeile mit Kühlschrank an der Trennwand
+  schreibtisch(b, x + 4.2, y0, z - 3.22, 0);
+  stuhl(b, x + 4.3, y0, z - 2.35, Math.PI - 0.15);
+  for (const dz of [-2.9, -2.38]) aktenschrank(b, x + 7.39, y0, z + dz, -Math.PI / 2);
+  besprechung(b, x + 3.0, y0, z - 0.6, 0, 1.6, 0.9, 2);
+  kuechenzeile(b, x - 0.64, y0, z - 2.7, Math.PI / 2, 1.8);
+  kuehlschrank(b, x - 0.63, y0, z - 1.42, Math.PI / 2);
+  // Flur: Wasserspender
+  wasserspender(b, x - 1.5, y0, z + 3.5, Math.PI);
+  // Deckenleuchten (gebacken; eine echte ab „hoch“)
+  for (const [lx, lz, real] of [[-5.2, -1.6, false], [-2.2, -1.6, false], [2.2, -1.6, true], [5.4, -1.6, false], [-4.5, 2.45, false], [3.5, 2.45, false]]) {
+    deckenleuchte(b, x + lx, yD, z + lz, 0, 1.25, { intensity: real ? 9 : 7, distance: 8, real, light: lz < 0 || lx < 0 });
+  }
+  // Schild über dem Eingang (vorher mitten im Geschossband)
+  b.sign(x - 4.5, 2.5, z + 4.02, 3.4, 0.6, 'office', { ry: 0, depth: 0.03 });
   for (const ax of [-5, 0, 5]) acUnit(b, x + ax, B.roofY, z - 1, { ry: 0, bracket: false });
   b.noNav(x - 8.5, z - 4.5, x + 8.5, z + 4.5, 3.2, 9);
 }
@@ -647,11 +713,11 @@ function warehouse(b) {
     { at: 10, w: 4.2, h: 4.6, kind: 'gap', frameMat: 'hazard' }, { at: 20, w: 4.2, h: 4.6, kind: 'gap' }, { at: 30, w: 4.2, h: 4.6, kind: 'gap' }] });
   // Süd: großes Tor + Tür
   wall(b, { ...wmat, x0: x1, z0: z1 - t / 2, x1: x0, z1: z1 - t / 2, openings: [
-    { at: 8, w: 5, h: 5, kind: 'gap' }, { at: 20, w: 1.2, h: 2.2, kind: 'door' }] });
+    { at: 7.6, w: 5, h: 5, kind: 'gap' }, { at: 20, w: 1.2, h: 2.2, kind: 'door' }] });
   // Nord: Tür (Büro) + Fenster der Empore
   wall(b, { ...wmat, x0: x0, z0: z0 + t / 2, x1: x1, z1: z0 + t / 2, openings: [
     { at: 8, w: 1.2, h: 2.2, kind: 'door' }, { at: 22, w: 1.2, h: 2.2, kind: 'door' },
-    { at: 4, w: 2.4, h: 1.2, kind: 'window', sill: 4.6, glass: false }, { at: 12, w: 2.4, h: 1.2, kind: 'window', sill: 4.6, glass: false }, { at: 22, w: 3, h: 1.3, kind: 'window', sill: 4.6, glass: true }] });
+    { at: 5.1, w: 2.0, h: 1.2, kind: 'window', sill: 4.6, glass: false }, { at: 12, w: 2.4, h: 1.2, kind: 'window', sill: 4.6, glass: false }, { at: 22, w: 3, h: 1.3, kind: 'window', sill: 4.6, glass: true }] });
   // Ost: zwei Türen
   wall(b, { ...wmat, x0: x1 - t / 2, z0: z0, x1: x1 - t / 2, z1: z1, openings: [
     { at: 12, w: 1.3, h: 2.3, kind: 'door' }, { at: 30, w: 3.6, h: 4.2, kind: 'gap' }] });
@@ -676,7 +742,8 @@ function warehouse(b) {
   }
   // Hallenlampen + Lichter
   for (const [lx, lz] of [[21, -2], [35, 6], [28, 14]]) {
-    b.cyl(lx, H8 - 2.2, lz, 0.02, 1.4, 'metal_galvanized', { collide: false, seg: 4, ao: false });
+    b.cyl(lx, H8 - 2.2, lz, 0.02, 2.2, 'metal_galvanized', { collide: false, seg: 4, ao: false });
+    b.cyl(lx, H8 - 0.05, lz, 0.1, 0.05, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, seg: 8, ao: false });
     b.cyl(lx, H8 - 2.6, lz, 0.55, 0.4, 'metal_painted', { r1: 0.15, tint: '#2b2d30', collide: false, seg: 12, ao: false });
     b.cyl(lx, H8 - 2.62, lz, 0.5, 0.02, 'lamp_warm', { collide: false, seg: 12, ao: false, cast: false });
     b.light('point', lx, H8 - 3.0, lz, { color: '#ffd29a', intensity: 30, distance: 18 });
@@ -700,40 +767,54 @@ function warehouse(b) {
   for (const xx of [18, 24]) b.box(xx, 0.12, oz1 - 0.2, 0.25, fy - 0.32, 0.25, 'metal_painted', { tint: '#4b5560', minimap: 'pillar', aoFloor: 0.12 });
   // Treppe zur Empore (an der Bürowand, steigt nach Norden)
   stairs(b, { x: ox0 - 0.95, z: oz1 + (fy - 0.12) / 0.62, y0: 0.12, y1: fy, w: 1.3, dir: 'n', style: 'steel', rail: 'left', railTint: '#e8c22c' });
-  // Büroeinrichtung
-  b.box(36, 0.12, -17.2, 2.6, 0.76, 1.1, 'wood_planks', { tint: '#8a6a4a', minimap: 'cover' });
-  lockers(b, 40.8, -15, { n: 4, ry: -Math.PI / 2 });
-  b.box(35, fy, -17, 2.4, 0.76, 1.0, 'wood_planks', { tint: '#8a6a4a', minimap: 'cover', aoFloor: fy });
+  // Büroeinrichtung Erdgeschoss (Innenmaß x 30,1…41,7, z −19,7…−11,1; Türen Süd x 33 und Nord x 36 frei):
+  // Schreibtisch unter dem Hallenfenster (Westwand), zweiter an der Südwand unter dem Fenster, Regale an der Nordwand
+  // neben der Tür, Spinde und Aktenschrank an der Ostwand (vorher stand ein Tisch direkt hinter der Nordtür)
+  schreibtisch(b, 30.6, 0.12, -16.2, Math.PI / 2); stuhl(b, 31.45, 0.12, -16.0, -Math.PI / 2 + 0.2);
+  schreibtisch(b, 37.5, 0.12, -11.6, Math.PI); stuhl(b, 37.4, 0.12, -12.45, 0.15);
+  regal(b, 32.4, 0.12, -19.43, 0); regal(b, 39.6, 0.12, -19.43, 0);
+  spinde(b, 41.44, 0.12, -16.0, -Math.PI / 2, 4);
+  aktenschrank(b, 41.38, 0.12, -18.85, -Math.PI / 2);
+  pinnwand(b, 34.0, 1.3, -19.68, 0, 1.0, 0.7);
+  // Obergeschoss (offen zur Empore): Schreibtisch mit Stuhl, Schrank, Regal
+  schreibtisch(b, 35, fy, -17.6, 0); stuhl(b, 35.2, fy, -16.75, Math.PI + 0.3);
   b.box(39.6, fy, -14, 1.0, 1.6, 2.2, 'metal_painted', { tint: '#6f7f8a', minimap: 'cover', aoFloor: fy });
+  regal(b, 33.0, fy, -19.43, 0);
   crateStack(b, 20, -16.6, { y: fy, ry: 0.2, pattern: [[0, 0, 0, 1.0], [1.05, 0, 0, 0.9]] });
   // Regale in der Halle
-  rack(b, 21, 6, { bays: 3, levels: 2, levelH: 1.7, ry: Math.PI / 2 });
-  rack(b, 27, 6, { bays: 3, levels: 2, levelH: 1.7, ry: Math.PI / 2 });
-  rack(b, 35.5, 9, { bays: 3, levels: 2, levelH: 1.7, ry: Math.PI / 2 });
-  rack(b, 21, -5.5, { bays: 1, levels: 2, levelH: 1.7, ry: Math.PI / 2 });
+  // (Hallenboden = Epoxidplatte 0,12 m: alles steht auf yf statt 12 cm im Boden)
+  const yf = 0.12;
+  rack(b, 21, 6, { y: yf, bays: 3, levels: 2, levelH: 1.7, ry: Math.PI / 2 });
+  rack(b, 27, 6, { y: yf, bays: 3, levels: 2, levelH: 1.7, ry: Math.PI / 2 });
+  rack(b, 35.5, 9, { y: yf, bays: 3, levels: 2, levelH: 1.7, ry: Math.PI / 2 });
+  rack(b, 21, -5.5, { y: yf, bays: 1, levels: 2, levelH: 1.7, ry: Math.PI / 2 });
   // Hallenboden-Deckung
-  palletStack(b, 31.5, -4, { n: 3, load: 'wrapped', ry: 0.2 });
-  crateStack(b, 26, -7.5, { ry: 0.6 });
-  pallet(b, 33.5, 0, 16.5, { load: 'boxes', ry: 0.3 });
-  pallet(b, 17.5, 0, 17.6, { load: 'sacks', ry: -0.1 });
-  forklift(b, 37.5, -6, { ry: -2.1, color: '#e0a02a' });
-  workbench(b, 40.4, 2, { ry: -Math.PI / 2 });
-  gasBottles(b, 40.6, 16.8, { n: 4 });
+  palletStack(b, 31.5, -4, { y: yf, n: 3, load: 'wrapped', ry: 0.2 });
+  crateStack(b, 26, -7.5, { y: yf, ry: 0.6 });
+  pallet(b, 33.5, yf, 16.5, { load: 'boxes', ry: 0.3 });
+  pallet(b, 17.5, yf, 17.6, { load: 'sacks', ry: -0.1 });
+  forklift(b, 37.5, -6, { y: yf, ry: -2.1, color: '#e0a02a' });
+  workbench(b, 40.4, 2, { y: yf, ry: -Math.PI / 2 });
+  gasBottles(b, 40.6, 16.8, { y: yf, n: 4 });
   // Bodenmarkierungen innen
   for (const xx of [18.2, 24.2, 30.2]) b.decal(xx, 0.13, 0, 0.12, 30, 'line', { ry: 0, tint: '#e8c22c', kind: 'paint', opacity: 0.85 });
   b.decal(28, 0.13, 17.2, 26, 0.12, 'line', { ry: 0, tint: '#e8c22c', kind: 'paint', opacity: 0.85 });
   // Außen: Beschriftung, Rampe, Technik
-  b.sign(x0 - 0.02, 5.6, 0, 7.5, 2.0, 'hall3', { ry: -Math.PI / 2, back: false, depth: 0 });
-  for (const [k, zz] of [[1, -10], [2, 0], [3, 10]]) b.sign(x0 - 0.05, 4.95, zz, 0.9, 0.9, 'dock' + k, { ry: -Math.PI / 2, depth: 0.03 });
+  b.sign(x0 - 0.02, 6.0, 0, 7.5, 2.0, 'hall3', { ry: -Math.PI / 2, back: false, depth: 0 });
+  for (const [k, zz] of [[1, -10], [2, 0], [3, 10]]) b.sign(x0 - 0.05, 5.26, zz, 0.68, 0.68, 'dock' + k, { ry: -Math.PI / 2, depth: 0.03 });
   b.sign(x1 + 0.02, 5.6, 0, 7.5, 2.0, 'hall3', { ry: Math.PI / 2, back: false, depth: 0 });
   b.sign(28, 5.4, z1 + 0.02, 8, 2.0, 'logo_nordstern', { ry: 0, back: false, depth: 0 });
   for (const zz of [-6, 6]) b.sign(x0 - 0.02, 2.2, zz, 1.6, 0.9, 'warn_forklift', { ry: -Math.PI / 2, depth: 0.02 });
-  pipe(b, [[x1 + 0.3, 0.2, -18], [x1 + 0.3, 6.5, -18], [x1 + 0.3, 6.5, -4]], { r: 0.14, tint: '#8a9aa2' });
-  pipe(b, [[x1 + 0.3, 6.5, -4], [x1 + 0.3, 0.2, -4]], { r: 0.14, tint: '#8a9aa2', flanges: false });
+  pipe(b, [[x1 + 0.3, -0.2, -18], [x1 + 0.3, 6.5, -18], [x1 + 0.3, 6.5, -4.8], [x1 - 0.1, 6.5, -4.8]], { r: 0.14, tint: '#8a9aa2' });
+  b.box(x1 + 0.3, 0, -18, 0.5, 0.06, 0.5, 'concrete', { tint: '#b9b4a8', collide: false, minimap: false, grad: false }); // Fundamentplatte
+  for (const zz of [-15, -11, -7.5]) b.box(x1 + 0.15, 6.32, zz, 0.3, 0.06, 0.08, 'metal_painted', { tint: '#3a3d40', collide: false, minimap: false, grad: false, ao: false });
+  for (const yy of [2.2, 4.4]) b.box(x1 + 0.15, yy, -18, 0.3, 0.06, 0.08, 'metal_painted', { tint: '#3a3d40', collide: false, minimap: false, grad: false, ao: false });
   for (const zz of [-14, -6, 6, 14]) acUnit(b, x1 + 0.25, 2.6, zz, { ry: Math.PI / 2, pipe: 2.2 });
   for (const xx of [20, 36]) roofVent(b, xx, H8 + 0.35, 8, {});
-  cable(b, [x0 - 0.2, 7.4, -19.5], [-2, 9.5, -31], { sag: 1.2 });
-  cable(b, [x0 - 0.2, 7.2, 19.5], [-2, 9.5, 31], { sag: 1.4 });
+  // Einspeisung der Flutlichtmasten am Kranplatz (vorher endeten die Kabel bei x −2 in der Luft): Schelle am Mast
+  cable(b, [x0 - 0.2, 7.4, -19.5], [-9.17, 9.45, -30.2], { sag: 1.2 });
+  cable(b, [x0 - 0.2, 7.2, 19.5], [-9.17, 9.45, 30.2], { sag: 1.4 });
+  for (const zz of [-19.5, 19.5]) b.box(x0 - 0.1, 7.1, zz, 0.2, 0.4, 0.2, 'metal_painted', { tint: '#5a5f66', collide: false, minimap: false, grad: false }); // Wanddurchführung
   electricBox(b, x0 - 0.35, 0, -14, { ry: -Math.PI / 2, w: 1.0, h: 1.6, d: 0.5 });
 }
 
@@ -755,7 +836,7 @@ function eastYard(b) {
     stackAt(b, 69.5, Z(14.5), 6.06, 'z', south ? ['#2d5f94', '#c8402f'] : ['#3e7a4c', '#8d9399']);
     stackAt(b, 69.5, Z(30), 12.19, 'z', south ? ['#d9762a'] : ['#c9a227']);
     stackAt(b, 60.2, Z(22), 6.06, 'z', south ? ['#8d9399', '#3e7a4c'] : ['#c8402f', '#2d5f94']);
-    stackAt(b, 62.6, Z(39.5), 6.06, 'x', south ? ['#9a3328'] : ['#1f6f6a']);
+    offenerContainer(b, 62.6, Z(39.5), { len: 6.06, ry: Math.PI, color: south ? '#9a3328' : '#1f6f6a' });
     container(b, 68.8, 0, Z(44.0), { len: 6.06, ry: Math.PI / 2 + 0.12 * s, color: south ? '#e3e1da' : '#6b3f7a' });
     // Kranfundament (Brusthöhe) mit Turmstumpf (über Kopfhöhe) – bricht die Längssicht in der Hofmitte
     craneBase(b, 64.5, Z(29.5), s);
@@ -769,7 +850,7 @@ function eastYard(b) {
     cableReel(b, 72.2, Z(22.6), { ry: 0.4 * s });
     dumpster(b, 72.3, Z(38.2), { ry: Math.PI / 2, color: south ? '#2f5e3e' : '#2d4a6e' });
     crateStack(b, 54.4, Z(41.0), { ry: -0.25 * s, pattern: [[0, 0, 0, 1.2], [1.25, 0, 0.1, 1.1], [0.6, 1, 0.05, 1.0]] });
-    barrelGroup(b, 66.8, Z(46.6), { n: 3, colors: ['#c8402f', '#c9a227', '#c8402f'] });
+    barrelGroup(b, 65.9, Z(46.9), { n: 3, colors: ['#c8402f', '#c9a227', '#c8402f'] });
     jersey(b, 58.5, Z(47.5), { len: 3, ry: 0.2 * s, stripes: true });
     gasBottles(b, 72.6, Z(8.6), { n: 4 });
     car(b, 52.4, Z(36.0), { ry: 0.06 * s, color: south ? '#6b7a52' : '#3b3d40' });
@@ -797,17 +878,20 @@ function schuppen4(b) {
       { side: 's', at: -3.0, w: 2.0, h: 1.0, sill: 1.6, kind: 'window' },
     ],
   });
-  b.sign(x - w / 2 - 0.02, 4.4, -4.3, 2.6, 0.9, 'dock3', { ry: -Math.PI / 2, depth: 0.02 });
+  // Name über dem Tor (vorher „D3“ wie Tor 3 der Halle, halb über der Dachkante)
+  b.sign(x - w / 2 - 0.02, 4.38, 0, 3.4, 0.62, 'shed4', { ry: -Math.PI / 2, back: false, depth: 0 });
   // Innen: Regalreihe (Deckung + Sichtschutz), Paletten, Gabelstapler
-  rack(b, 61.0, -3.8, { ry: 0, bays: 2, levels: 2 });
-  crateStack(b, 65.4, 3.9, { ry: 0.1, pattern: [[0, 0, 0, 1.2], [1.25, 0, 0, 1.2], [-1.25, 0, 0.05, 1.1], [0.6, 1, 0, 1.1]] });
-  crateStack(b, 59.0, 4.4, { ry: 0.1 });
-  crateStack(b, 67.4, -4.2, { ry: -0.2, pattern: [[0, 0, 0, 1.1], [0, 0, 1.15, 1.0]] });
-  forklift(b, 60.4, 0.4, { ry: Math.PI / 2 + 0.2, color: '#e0a02a' });
-  for (const lz of [-3.5, 3.5]) {
-    b.box(63, H5 - 0.42, lz, 3.2, 0.06, 0.4, 'lamp_cool', { collide: false, minimap: false, ao: false, cast: false });
-    b.light('point', 63, H5 - 0.9, lz, { color: '#e6f0ff', intensity: 16, distance: 13 });
-  }
+  rack(b, 61.0, -3.8, { y: 0.12, ry: 0, bays: 2, levels: 2 });
+  crateStack(b, 65.4, 3.9, { y: 0.12, ry: 0.1, pattern: [[0, 0, 0, 1.2], [1.25, 0, 0, 1.2], [-1.25, 0, 0.05, 1.1], [0.6, 1, 0, 1.1]] });
+  crateStack(b, 59.0, 4.4, { y: 0.12, ry: 0.1 });
+  crateStack(b, 67.4, -4.2, { y: 0.12, ry: -0.2, pattern: [[0, 0, 0, 1.1], [0, 0, 1.15, 1.0]] });
+  forklift(b, 60.4, 0.4, { y: 0.12, ry: Math.PI / 2 + 0.2, color: '#e0a02a' });
+  // Langfeldleuchten bündig unter der Dachplatte (Unterseite 4,95; vorher 11 cm darunter schwebend)
+  for (const lz of [-3.5, 3.5]) deckenleuchte(b, 63, H5 - 0.25, lz, 0, 3.2, { light: false, glowI: 0.35 });
+  for (const lz of [-3.5, 3.5]) b.light('point', 63, H5 - 0.9, lz, { color: '#e6f0ff', intensity: 16, distance: 13 });
+  // Werkbank und Werkzeugregal an der Ostwand (Tür Ost bei z −1 bleibt frei)
+  workbench(b, 68.25, 3.6, { y: 0.12, ry: -Math.PI / 2 });
+  regal(b, 68.44, 0.12, -3.1, -Math.PI / 2);
   b.noNav(x - w / 2 - 0.5, z - d / 2 - 0.5, x + w / 2 + 0.5, z + d / 2 + 0.5, H5 - 0.4, 20);
   // Außen: Rampe/Leitwand vor dem Tor, Technik an der Ostwand
   jersey(b, 54.6, -1.5, { len: 3, ry: Math.PI / 2 + 0.08 });
