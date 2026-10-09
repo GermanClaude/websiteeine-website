@@ -57,12 +57,20 @@ export function redDot(b, u0, railTop, o = {}) {
     return axis;
   }
   b.box('alu', 0.026, 0.008, 0.05, 0, railTop + 0.004, u0 + 0.025, { c: 0.002 });
-  b.lathe('alu', [[0, 0.0], [0, 0.0158], [0.004, 0.0158], [0.006, 0.0148], [0.034, 0.0148], [0.036, 0.0162], [0.042, 0.0162], [0.042, 0.0135]], 0, axis, u0 + 0.004, { seg: b.seg(20, 8), open: true });
-  b.box('alu', 0.014, 0.016, 0.02, 0, railTop + 0.012, u0 + 0.024, { c: 0.002 });
+  // Röhre hinten offen (nur Ringkante, Durchblick r = 0,0138) – ein geschlossener Boden wirkte beim Zielen wie eine
+  // Schutzklappe vor dem Glas. Fernstufe ('third'): Boden zu, dort fehlen Innenwand und Linsen (LOD_SKIP).
+  const rIn = 0.0138;
+  b.lathe('alu', [[0, b.hi ? rIn : 0], [0, 0.0158], [0.004, 0.0158], [0.006, 0.0148], [0.034, 0.0148], [0.036, 0.0162], [0.042, 0.0162], [0.042, rIn]], 0, axis, u0 + 0.004, { seg: b.seg(20, 8) });
+  // Sockel endet unter der Röhrenwand (ragte vorher in den Durchblick)
+  b.box('alu', 0.014, 0.01, 0.02, 0, railTop + 0.009, u0 + 0.024, { c: 0.002 });
   if (b.hi) {
+    // Innenwand (nach innen gerichtet, matt schwarz): Röhrenblick beim Zielen
+    b.lathe('cavity', [[0.042, rIn], [0, rIn]], 0, axis, u0 + 0.004, { seg: b.seg(20, 8) });
     b.cyl('knurl', 0.0062, 0.0062, 0.008, 0.019, axis, u0 + 0.024, { axis: 'x', seg: 12 });
     b.cyl('knurl', 0.0062, 0.0062, 0.008, 0, axis + 0.019, u0 + 0.024, { axis: 'v', seg: 12 });
+    // Linsen vorn + hinten: leicht getönt und spiegelnd, aber durchsichtig
     b.circle('lensClear', 0.0136, 0, axis, u0 + 0.0455, { renderOrder: 1 });
+    b.circle('lensClear', rIn, 0, axis, u0 + 0.0055, { renderOrder: 1 });
     b.plane('reticleDot', 0.02, 0.02, 0, axis, u0 + 0.008, { renderOrder: 3 });
   }
   b.anchor('sight', 0, axis, u0, { data: { type: 'reddot', eyeRelief: 0.2 } });
