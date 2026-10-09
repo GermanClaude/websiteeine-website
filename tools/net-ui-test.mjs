@@ -289,8 +289,8 @@ try {
     window.__board = true;
   });
   await host.waitForSelector('.h-board:not([hidden]) th.sb-ping', { timeout: 120000 });
-  await host.waitForFunction(() => document.querySelectorAll('.h-board .sb-human').length >= 3, null, { timeout: 120000 }).catch(() => {});
-  const sb = await host.evaluate(() => ({ ping: !!document.querySelector('.h-board th.sb-ping'), humans: document.querySelectorAll('.h-board .sb-human').length, host: document.querySelectorAll('.h-board .sb-host').length, cells: [...document.querySelectorAll('.h-board td.sb-ping')].map((t) => t.textContent).join(' ') }));
+  await host.waitForFunction(() => document.querySelectorAll('.h-board tr:not(.is-me) .sb-human').length >= 3, null, { timeout: 120000 }).catch(() => {});
+  const sb = await host.evaluate(() => ({ ping: !!document.querySelector('.h-board th.sb-ping'), humans: document.querySelectorAll('.h-board tr:not(.is-me) .sb-human').length, host: document.querySelectorAll('.h-board .sb-host').length, cells: [...document.querySelectorAll('.h-board td.sb-ping')].map((t) => t.textContent).join(' ') }));
   check(sb.ping && sb.humans === 3 && sb.host === 1, `Punktetabelle: Ping-Spalte, ${sb.humans} Mitspieler, Host-Abzeichen · ${sb.cells}`);
   await shot(host, 'mp-ui-scoreboard-desktop.png');
   await host.evaluate(() => { window.__board = false; });
@@ -342,7 +342,7 @@ try {
     window.__board = true;
   });
   await ph2.waitForSelector('.h-board:not([hidden]) th.sb-ping', { timeout: 120000 });
-  await ph2.waitForFunction(() => document.querySelectorAll('.h-board .sb-human').length >= 3, null, { timeout: 120000 }).catch(() => {});
+  await ph2.waitForFunction(() => document.querySelectorAll('.h-board tr:not(.is-me) .sb-human').length >= 3, null, { timeout: 120000 }).catch(() => {});
   await shot(ph2, 'mp-ui-scoreboard-phone.png');
   await ph2.evaluate(() => { window.__board = false; window.__game.debugApi.pause(); });
   await ph2.waitForSelector('.m-pause');
