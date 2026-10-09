@@ -279,3 +279,6 @@ B) SPÄTER nach der verbindlichen Reihenfolge (Schritt 2–4): Battle Royale, Co
 - LIVE-TEST 09.10. ~19 Uhr: nur Host + 1 Spieler konnten beitreten („Host antwortet nicht“) → Ursache Relay-Drosselung/-Sperre (Lebenszeichen alle 2,5 s); Hotfix 1 (19:10) + Hotfix 2 (19:45) live.
 - K-36 KURZER (Nutzer 09.10. ~19:50): Zielfernrohr/Rotpunkt wirkt blockiert („als wäre da eine Klappe drauf“) → beheben (heute).
 - MUNITION PRO ABSCHUSS (Nutzer 09.10. ~19:50): Munition durch Abschüsse (oder von Gegnern aufheben); pro Kill ein Magazin, beim HM-60 Hammer ~20 Schuss; Vorrat füllt sich auf (heute).
+- NUTZER 09.10. ~20:30 (spielt gerade mit ~8 Leuten): ALLES ANDERE STOPPEN (Panzer-Workflow gestoppt), nur noch Zurufe umsetzen; „um 12 Uhr machst du weiter“ (danach Panzer/Listen fortsetzen).
+  - MODUS „NUR MESSER“ (heute).
+  - DROHNE als Abschussserie, die man selbst steuern kann (Wunsch der Mitspieler, heute).
