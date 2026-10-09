@@ -19,6 +19,8 @@
 // Matchstart (match:state) setzt NetSystem G.match.styleFlags.staminaMult = 0 (stamina.js: 0 = unbegrenzt).
 // vehicles (Raum-Einstellung „Fahrzeuge“, Standard VEHICLES_ONLINE_DEFAULT): Host simuliert die Fahrzeuge, Clients führen
 // ein Abbild (vehicles/net.js); thirdPerson = Außenansicht in Fahrzeugen erlaubt; vehReload 'manuell' | 'automatisch'.
+// killAmmo false (Raum-Einstellung „Munition pro Abschuss“ aus): kein Munitionsgewinn je Abschuss – jedes Gerät liest
+// cfg.net.killAmmo selbst (weapons/index.js killAmmoEnabled, Gutschrift beim eigenen Spieler).
 import { HostSignal, joinRoom, watchLobby, relaysFromUrl, DEFAULT_RELAYS, newRoomCode, normCode, isValidCode } from './signal.js';
 import { PeerLink, ICE_SERVERS } from './peer.js';
 import { hex, randomBytes } from './crypto.js';
@@ -70,6 +72,7 @@ export const DEFAULT_ROOM = Object.freeze({
   stamina: true, // Ausdauer an (aus = unbegrenzte Ausdauer für alle)
   // Fahrzeuge (Panzer + Geländewagen für beide Teams), Außenansicht in Fahrzeugen, Nachladen der Panzerkanone
   vehicles: VEHICLES_ONLINE_DEFAULT, thirdPerson: true, vehReload: 'manuell',
+  killAmmo: true, // Munition pro Abschuss an (jedes Gerät schreibt sie seinem Spieler selbst gut)
 });
 
 const TIME_SYNC_MS = 2000;
@@ -152,6 +155,7 @@ export function normalizeSettings(partial = {}, base = DEFAULT_ROOM, hostName = 
     vehicles: pick('vehicles') === true,
     thirdPerson: pick('thirdPerson') !== false,
     vehReload: pick('vehReload') === 'automatisch' ? 'automatisch' : 'manuell',
+    killAmmo: pick('killAmmo') !== false,
   };
 }
 
@@ -820,6 +824,7 @@ export class NetSystem {
         stamina: s.stamina !== false, // Raum-Einstellung „Ausdauer“ (aus = unbegrenzt für alle, _applyMatchRules)
         // Fahrzeuge (panzer-mp.md §C.1): an/aus, Außenansicht erlaubt, Nachladen der Panzerkanone
         vehicles: s.vehicles === true, thirdPerson: s.thirdPerson !== false, vehReload: s.vehReload === 'automatisch' ? 'automatisch' : 'manuell',
+        killAmmo: s.killAmmo !== false, // Raum-Einstellung „Munition pro Abschuss“ (weapons/index.js)
       },
     };
     if (s.timeLimit != null) cfg.timeLimit = s.timeLimit;

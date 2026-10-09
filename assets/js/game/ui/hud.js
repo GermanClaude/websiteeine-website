@@ -53,6 +53,12 @@ const ANIM = {
     calm: [{ opacity: 0 }, { opacity: 1, offset: 0.15 }, { opacity: 0 }],
     o: { duration: 900 },
   },
+  // Munition pro Abschuss: „+30“ blinkt am Zähler auf und verblasst
+  again: {
+    k: [{ opacity: 0, transform: 'translateX(8px) scale(1.25)', easing: EASE }, { opacity: 1, transform: 'none', offset: 0.12 }, { opacity: 0.55, offset: 0.24 }, { opacity: 1, offset: 0.36 }, { opacity: 1, offset: 0.75, easing: EASE }, { opacity: 0, transform: 'translateY(-6px)' }],
+    calm: [{ opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 1, offset: 0.75 }, { opacity: 0 }],
+    o: { duration: 1400 },
+  },
 };
 // Medienabfrage einmal auswerten und per 'change' nachführen (matches() erzwingt in iframes ein Layout des Elterndokuments)
 const RM = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
@@ -156,7 +162,7 @@ export class HUD {
       <div class="h-armor" hidden><span class="h-armico">${ICON.plate}</span><div class="h-plates"></div><b class="h-carry"></b><i class="h-ins"><u></u></i></div>
       <div class="h-stance" data-st="stand" aria-hidden="true"></div>
       <div class="h-zone" hidden><b></b><span></span></div>
-      <div class="h-weapon"><div class="h-wname"><span class="n"></span><span class="m"></span></div><div class="h-ammo"><b>0</b><span>/ 0</span></div><div class="h-magbar"><u></u></div><div class="h-equip"></div><div class="h-next"></div></div>
+      <div class="h-weapon"><div class="h-wname"><span class="n"></span><span class="m"></span></div><div class="h-ammo"><b>0</b><span>/ 0</span><em class="h-again" aria-hidden="true"></em></div><div class="h-magbar"><u></u></div><div class="h-equip"></div><div class="h-next"></div></div>
       <div class="h-streaks"></div>
       <div class="h-train" hidden></div>
       <div class="h-board" hidden data-scrollable></div>`;
@@ -178,7 +184,7 @@ export class HUD {
       death: q('.h-death'), deathBy: q('.h-death .by'), deathInfo: q('.h-death .info'), deathRe: q('.h-death .re span'), deathBar: q('.h-death .re u'),
       health: q('.h-health'), hpN: q('.h-health b'), hpBar: q('.h-health u'), hpLag: q('.h-health s'),
       stam: q('.h-stam'), stamBar: q('.h-stam u'), stamMark: q('.h-stam em'),
-      weapon: q('.h-weapon'), wName: q('.h-wname .n'), wMode: q('.h-wname .m'), mag: q('.h-ammo b'), reserve: q('.h-ammo span'), equip: q('.h-equip'), next: q('.h-next'),
+      weapon: q('.h-weapon'), wName: q('.h-wname .n'), wMode: q('.h-wname .m'), mag: q('.h-ammo b'), reserve: q('.h-ammo span'), again: q('.h-again'), equip: q('.h-equip'), next: q('.h-next'),
       streaks: q('.h-streaks'), train: q('.h-train'), board: q('.h-board'),
       armor: q('.h-armor'), plates: q('.h-plates'), carry: q('.h-carry'), ins: q('.h-ins'), insBar: q('.h-ins u'), stance: q('.h-stance'),
       zone: q('.h-zone'), zoneT: q('.h-zone b'), zoneS: q('.h-zone span'),
@@ -309,6 +315,7 @@ export class HUD {
     s.on('kill', (e) => this._onKill(e));
     s.on('score', (e) => { if (e.actor === P()) this._scorePopup(e); });
     s.on('medal', (e) => { if (e.actor === P()) this._medalToast(e); });
+    s.on('ammo:pickup', (e) => { if (e.actor === P()) this._ammoGain(e); });
     s.on('player:damaged', (e) => this._damageDir(e));
     s.on('match:countdown', (e) => this._countdown(e.value));
     s.on('match:start', () => this._matchStart());
@@ -765,6 +772,22 @@ export class HUD {
     if (!m) { this.el.medal.innerHTML = ''; return; }
     this._medalT = 1.7;
     this.el.medal.innerHTML = `<div class="h-medal-in tier-${m.tier}">${medalBadge(m.label, m.tier)}<div><b>${esc(m.label)}</b><small>${esc(m.desc)}</small></div></div>`;
+  }
+
+  /**
+   * Munition pro Abschuss (weapons/index.js 'ammo:pickup'): „+30“ blinkt links am Zähler auf (andere Waffe: mit Namen).
+   * Ohne Munitionszahlen (HUD reduziert/Realismus, Spielstil Realistisch) nur ein dezenter Hinweis ohne Zahl.
+   */
+  _ammoGain(e) {
+    const n = Math.round(e.amount) || 0;
+    if (n <= 0) return;
+    const g = this.el.again;
+    if (this.style === 'voll' && !this._realAmmo && g) {
+      const w = this.G.player && this.G.player.weapon;
+      const cur = w && w.currentDef ? w.currentDef.id : null;
+      setText(g, e.weaponId && cur && e.weaponId !== cur ? `+${n} ${weaponName(this.G, e.weaponId)}` : `+${n}`);
+      this._play(g, 'again');
+    } else if (!this._notices.length) this._notice('Munition aufgenommen', 'dim', null, 1.6, 'ammo'); // wichtigere Hinweise nicht verdrängen
   }
 
   _notice(text, tone = '', key = null, life = NOTICE_LIFE, id = null) {

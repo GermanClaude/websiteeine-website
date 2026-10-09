@@ -134,14 +134,18 @@ eigenen, `sync-common vrPoseOf`); Clients interpolieren ihn wie die Pose (Kopf, 
 
 `room.settings` = { name, mode, map, time, weather, difficulty, maxPlayers (2–32), botFill (bool), teamSize (je Team inkl.
 Menschen, 1–16), pvp ('pvp' = Menschen auf beide Teams verteilt | 'coop' = alle Menschen Team A gegen Bots), public (bool),
-style, scoreLimit, timeLimit, stamina (bool, Standard true) }.
+style, scoreLimit, timeLimit, stamina (bool, Standard true), killAmmo (bool, Standard true) }.
 - `time`: 'standard' (Kartenzeit) | 'zufall' | **'echtzeit'** | eine Tageszeit der Karte (`MAPS[map].times`); `weather`:
   'standard' | 'zufall' | ein Wetter der Karte.
 - `stamina` („Ausdauer“, 09.10.): false = unbegrenzte Ausdauer für alle (Spieler und Bots, auf Host und Clients).
+- `killAmmo` („Munition pro Abschuss“, 09.10.): true = jeder Abschuss bringt dem Schützen Munition (ein Magazin, MG 20 Schuss
+  direkt in den Gurt; Regeln `killAmmoFor` in shared/weapons.data.js). Munition ist Zustand des jeweiligen Geräts: der Host
+  schreibt sie nur seinem eigenen Spieler gut (`combat.js` 'kill'), jeder Client sich selbst beim 'kill' des Hosts mit ihm als
+  Schützen (`net/sync-client.js` → 'kill' → `weapons/index.js _killAmmo`); Puppen und Bots nie, kein neues Netzpaket.
 
 `startMatch()` erzeugt cfg = Lobby-Konfiguration + { allies/enemies so, dass Bots + Menschen = teamSize, `timeOfDay`/`weather`
 aufgelöst } und je Empfänger `cfg.net` = { role, roomCode, selfId, team, teamSize, pvp, botFill, maxPlayers, botsA, botsB,
-humans:{A,B}, ffa, conditions:{weather, time}, startedAt, stamina }.
+humans:{A,B}, ffa, conditions:{weather, time}, startedAt, stamina, killAmmo }.
 - **Wetter/Zeit löst nur der Host auf** (`world.resolveConditions`): nie 'zufall' oder 'echtzeit' in cfg. **'echtzeit'**
   nimmt die Tageszeit der Karte (Kartenzeit oder eine aus `times`), die der **Uhr des Hosts** am nächsten liegt
   (`weather.js realTimePreset`, Stunden aus `TIME_HOURS`: Morgen 7, Vormittag 10, Mittag 12,5, Nachmittag 15,5, Abend 19 Uhr;

@@ -1,11 +1,12 @@
 // NULLPUNKT — WeaponSystem (§7): erzeugt die WeaponController aller Akteure, simuliert Granaten,
-// hilft Bots beim Granatwurf (Wurfwinkel, Gefahrenabfrage) und räumt beim Matchende auf.
+// hilft Bots beim Granatwurf (Wurfwinkel, Gefahrenabfrage), schreibt dem Spieler Munition pro Abschuss gut
+// und räumt beim Matchende auf.
 
 import * as THREE from 'three';
 import { WeaponController } from './controller.js';
 import { GrenadeSystem, GRENADE_GRAVITY } from './grenades.js';
 import { RocketSystem } from './ballistics/rockets.js';
-import { EQUIPMENT as DATA_EQUIPMENT } from '../../shared/weapons.data.js';
+import { EQUIPMENT as DATA_EQUIPMENT, killAmmoFor } from '../../shared/weapons.data.js';
 import { clamp } from './ballistics/math.js';
 
 export { WeaponController } from './controller.js';
@@ -22,6 +23,7 @@ export class WeaponSystem {
     this.smokes = [];
     this._subs = null;
     this._visWorld = null;
+    this._killAmmoSeen = new WeakSet(); // Opfer, deren Tod schon Munition gebracht hat (bis zum Wiedereinstieg)
   }
 
   /** Aktive Granaten (nur lesen): [{ type, actor, position, velocity, fuse, radius, stuckTo, rest }] */
@@ -155,6 +157,10 @@ export class WeaponSystem {
       const w = victim && victim.weapon;
       if (w && typeof w.onDeath === 'function') w.onDeath();
     });
+    // Munition pro Abschuss (nur der eigene Spieler, jedes Gerät für sich); ein Tod zählt bis zum Wiedereinstieg einmal
+    this._killAmmoSeen = new WeakSet();
+    this._subs.on('kill', (e) => this._killAmmo(e));
+    this._subs.on('actor:spawn', ({ actor } = {}) => { if (actor) this._killAmmoSeen.delete(actor); });
     // Rüstung (core-mechanics): Platte einsetzen → Ego-Animation + Sperre im Controller
     this._subs.on('armor:plate', (e = {}) => {
       const w = e.actor && e.actor.weapon;
@@ -167,11 +173,62 @@ export class WeaponSystem {
   detach(disposeControllers = true) {
     if (this._subs) this._subs.dispose();
     this._subs = null;
+    this._killAmmoSeen = new WeakSet();
     this.grenadeSystem.clear();
     this.rocketSystem.clear();
     this.smokes.length = 0;
     this._uninstallVisibility();
     if (disposeControllers) for (const c of [...this.controllers]) c.dispose();
+  }
+
+  /* ------------------------------------------------------------ Munition pro Abschuss */
+
+  /**
+   * Gilt „Munition pro Abschuss“ im laufenden Match? Online entscheidet die Raum-Einstellung des Hosts (cfg.net.killAmmo,
+   * Standard an), offline die Spieleinstellung killAmmo (Standard an). Schießstand/Waffenspiel und Modi mit
+   * unendlicher Munition: nie.
+   */
+  killAmmoEnabled() {
+    const G = this.G;
+    const M = G.match;
+    if (!M || M.modeId === 'training' || M.modeId === 'gun') return false;
+    const m = G.mode;
+    if (m && m.def && m.def.infiniteAmmo) return false;
+    if (M.net) return M.net.killAmmo !== false;
+    return !(G.settings && typeof G.settings.get === 'function' && G.settings.get('killAmmo') === false);
+  }
+
+  /**
+   * Abschuss des eigenen Spielers → Munition für die Waffe des Abschusses (sonst die gehaltene bzw. erste Schusswaffe:
+   * Messer, Granaten, Werfer, Fahrzeuge, Serien). Menge/Obergrenze: killAmmoFor(def) (shared/weapons.data.js).
+   * Offline und Host: 'kill' aus combat.js; Client: 'kill' des Hosts (net/sync-client.js) mit dem eigenen Spieler als
+   * Schütze – jedes Gerät schreibt nur sich selbst gut, Bots und Puppen nie. Kein Teamabschuss/Selbstmord; ein Tod zählt
+   * bis zum Wiedereinstieg des Opfers nur einmal (doppelt zugestellte Meldung). Meldet 'ammo:pickup'
+   * { actor, weaponId, amount, mag, reserve, source: 'kill' } (HUD „+30“) und spielt ein leises Aufnahme-Geräusch.
+   */
+  _killAmmo(e) {
+    const G = this.G;
+    const p = G.player;
+    const v = e && e.victim;
+    // Abschuss durch eigenes Wachgeschütz o. ä. zählt als eigener (Schütze = Besitzer der Serien-Entität)
+    const killer = e.killer && e.killer.isStreakEntity ? e.killer.owner : e.killer;
+    if (!p || !v || v === p || killer !== p || e.suicide || !p.alive) return;
+    if (G.combat && typeof G.combat.isHostile === 'function' && !G.combat.isHostile(p, v)) return;
+    if (!this.killAmmoEnabled()) return;
+    const w = p.weapon;
+    if (!w || !Array.isArray(w.slots) || typeof w.grantAmmo !== 'function') return;
+    if (this._killAmmoSeen.has(v)) return;
+    this._killAmmoSeen.add(v);
+    const ok = (s) => !!s && !!s.def && killAmmoFor(s.def).amount > 0;
+    let st = e.weaponId ? w.slots.find((s) => s.id === e.weaponId) : null;
+    if (!ok(st)) st = ok(w.current) ? w.current : w.slots.find(ok);
+    if (!st) return;
+    const k = killAmmoFor(st.def);
+    const got = w.grantAmmo(st, k.amount, { belt: k.belt, cap: k.cap });
+    if (!got) return;
+    G.events.emit('ammo:pickup', { actor: p, weaponId: st.id, amount: got.mag + got.reserve, mag: got.mag, reserve: got.reserve, source: 'kill' });
+    const au = G.audio;
+    if (au && typeof au.play === 'function') { try { au.play('reload_mag_in', { player: true, volume: 0.3, pitch: 1.18 }); } catch { /* Klang ist Beiwerk */ } }
   }
 
   createController(actor, loadout) {

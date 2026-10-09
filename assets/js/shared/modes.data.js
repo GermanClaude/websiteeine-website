@@ -15,7 +15,7 @@ const icon = (body) =>
 
 /* ------------------------------------------------------------------ Modi */
 
-export const MODE_ORDER = ['tdm', 'dom', 'cq', 'kc', 'ffa', 'inf', 'gun', 'training'];
+export const MODE_ORDER = ['tdm', 'dom', 'cq', 'kc', 'ffa', 'inf', 'messer', 'gun', 'training'];
 
 export const MODES = {
   tdm: {
@@ -290,6 +290,37 @@ export const MODES = {
     objective: { surviveTick: 20, infectedLoadout: { primary: 'knife', secondary: null, lethal: 'semtex' } },
     recommendedMaps: ['werk', 'altstadt', 'hafen'],
     icon: icon('<circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>'),
+  },
+
+  messer: {
+    id: 'messer',
+    name: 'Nur Messer',
+    short: 'MES',
+    tagline: 'Keine Waffen. Nur Klingen. Wer zuerst 30 erreicht, gewinnt.',
+    description:
+      'Zwei Teams, nur Messer: keine Schusswaffen, keine Granaten, keine Serienprämien. Wer schneller um die Ecke ist, gewinnt das Duell – Flanken und Überraschung entscheiden.',
+    sizeRule: '{team} gegen {enemies} – {mates}',
+    rules: [
+      'Alle tragen nur das Messer',
+      'Keine Schusswaffen, Granaten oder Serienprämien',
+      'Erstes Team mit 30 Abschüssen gewinnt',
+      'Zeitlimit: 8 Minuten',
+      'Wiedereinstieg nach 2 Sekunden',
+    ],
+    hudObjective: 'Nur Messer – schalte das gegnerische Team aus',
+    scoreUnit: 'Abschüsse',
+    scoreLimit: 30,
+    timeLimit: 480,
+    teams: true,
+    defaultAllies: 5,
+    defaultEnemies: 6,
+    limits: { allies: [0, 11], enemies: [1, 12] },
+    respawnDelay: 2,
+    streaks: false,
+    lethals: false,
+    objective: { loadout: { primary: 'knife', secondary: null, lethal: null, tactical: null } },
+    recommendedMaps: ['werk', 'altstadt', 'hafen'],
+    icon: icon('<path d="M4 20l7.5-7.5"/><path d="M11.5 12.5L19.5 4.5c.6 2.8-.2 5.6-2.6 8l-2.4 2.4"/><path d="M9.5 10.5l4 4"/>'),
   },
 
 };

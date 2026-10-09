@@ -815,6 +815,20 @@ export class WeaponController {
     else if (st.reserve < (st.def.mag || 1)) st.reserve = st.def.reserve || st.reserve;
   }
 
+  /**
+   * Munition gutschreiben (Munition pro Abschuss, weapons/index.js): n Schuss für den Platz `st` (Eintrag aus slots).
+   * belt = Gurt/Trommel zuerst direkt auffüllen (bis mag), der Rest geht in den Vorrat, höchstens bis cap. Lädt nie
+   * selbst nach. → { mag, reserve } (tatsächlich gutgeschrieben) oder null, wenn nichts mehr hineinpasst.
+   */
+  grantAmmo(st, n, { belt = false, cap = Infinity } = {}) {
+    if (!st || !st.def || !(n > 0) || !this.slots.includes(st)) return null;
+    const toMag = belt ? Math.min(n, Math.max(0, (st.def.mag || 0) - st.mag)) : 0;
+    st.mag += toMag;
+    const toRes = Math.min(n - toMag, Math.max(0, cap - st.reserve));
+    st.reserve += toRes;
+    return toMag || toRes ? { mag: toMag, reserve: toRes } : null;
+  }
+
   /** cause (nur bei Abbruch, optional): 'sprint' – Audio pumpt dann eine leer nachgeladene Flinte wie die Ego-Animation. */
   _finishReload(interrupted, emit = true, cause = null) {
     const r = this._reload;

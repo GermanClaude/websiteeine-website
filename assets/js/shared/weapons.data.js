@@ -41,6 +41,10 @@
  *                  reach     Tiefe der vordersten Waffenkante vor dem Auge in Metern (Hüfte/Anschlag, gemessen am
  *                            Modell; Wandkollision: ab dieser Wandtiefe wird die Waffe angezogen bzw. abgesenkt)
  *  sound         { profile, pitch } – profile ist ein Audio-Profil aus §7.
+ *  killAmmo      optional: Schuss je Abschuss (Raum-/Spieleinstellung „Munition pro Abschuss“, weapons/index.js).
+ *                Fehlt der Wert, gilt die Standardregel aus killAmmoFor(def): ein Magazin; Gurt-/Trommel-MGs (lmg,
+ *                mag ≥ 60) 20 Schuss direkt in Gurt/Trommel (Rest in den Vorrat); Werfer und Nahkampf 0 (dann geht
+ *                die Munition an die gehaltene bzw. erste Schusswaffe). Vorrat höchstens reserve + mag.
  *  stats         0–100-Balken für Website/Lobby, abgeleitet per computeStats() (Formel unten).
  *  icon          SVG-Strichzeichnung (viewBox 0 0 96 32, stroke=currentColor) – Fallback ohne WebGL,
  *                Killfeed, Lobby.
@@ -300,6 +304,21 @@ export function weaponHandling(def) {
   return h ? { ...base, ...h } : base;
 }
 
+/** Munition pro Abschuss: Schuss für Gurt-/Trommel-MGs (lmg, mag ≥ 60), wenn die Waffe kein eigenes killAmmo hat. */
+export const KILL_AMMO_BELT = 20;
+
+/**
+ * Munition pro Abschuss einer Waffe (Feld killAmmo, sonst Standardregel – siehe Kopfkommentar).
+ * → { amount (Schuss, 0 = keine), belt (zuerst direkt in Gurt/Trommel), cap (Obergrenze des Vorrats) }
+ */
+export function killAmmoFor(def) {
+  if (!def || def.cls === 'melee' || !(def.mag > 0)) return { amount: 0, belt: false, cap: 0 };
+  const belt = def.cls === 'lmg' && def.mag >= 60;
+  const own = Number.isFinite(def.killAmmo) ? Math.max(0, Math.round(def.killAmmo)) : null;
+  const amount = own != null ? own : def.cls === 'launcher' ? 0 : belt ? KILL_AMMO_BELT : def.mag;
+  return { amount, belt, cap: (def.reserve || 0) + def.mag };
+}
+
 /** Entfernung (m), bis zu der die Nahbereichs-Schusszahl hält (Reichweite der „besten“ TTK). */
 export function effectiveRange(def) {
   const base = shotsToKill(def, 0);
@@ -456,7 +475,7 @@ const RAW = {
     id: 'lmg_hm60', name: 'HM-60 Hammer', cls: 'lmg', slot: 'primary', unlockLevel: 12,
     description: 'Gurtgespeist, mit Zweibein und hundert Schuss Geduld. Der Hammer hält ganze Korridore dicht – solange ihn niemand beim langsamen Anlegen überrascht.',
     damage: { max: 28, min: 24, rangeStart: 32, rangeEnd: 65 }, headMult: 1.35, limbMult: 0.9, pellets: 1,
-    rpm: 600, fireMode: 'auto', burstCount: 1, mag: 100, reserve: 200,
+    rpm: 600, fireMode: 'auto', burstCount: 1, mag: 100, reserve: 200, killAmmo: 20,
     reloadTime: 6.2, reloadEmptyTime: 7.4, perShellReload: false,
     equipTime: 0.95, adsTime: 0.45, adsZoom: 1.3, sight: 'iron', scope: null, sprintToFire: 0.38,
     moveSpeedMult: 0.85, adsMoveMult: 0.45, hipSpread: 0.075, adsSpread: 0.003, moveSpreadMult: 1.7, jumpSpreadMult: 3.0,

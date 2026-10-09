@@ -910,6 +910,9 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-ammo span { font-size: 21px; color: var(--np-ink-2); margin-left: 4px; }
 .h-weapon.is-low .h-ammo b { color: var(--np-gold); }
 .h-weapon.is-empty .h-ammo b { color: var(--np-enemy); }
+/* Munition pro Abschuss: „+30“ links am Zähler (hud.js _ammoGain, Animation ANIM.again) */
+.h-ammo { position: relative; }
+.h-again { position: absolute; right: 100%; bottom: 6px; margin-right: 12px; font-size: 24px; font-weight: 700; font-style: normal; line-height: 1; white-space: nowrap; color: var(--np-ink); text-shadow: 0 0 10px rgba(233, 230, 223, .35), 0 1px 3px rgba(0, 0, 0, .7); opacity: 0; pointer-events: none; }
 .h-equip { display: flex; align-items: center; gap: 6px; min-height: 22px; }
 .h-equip .eq { display: inline-flex; align-items: center; gap: 3px; font-size: 16px; }
 .h-equip .eq svg { width: 20px; height: 20px; }
@@ -1127,6 +1130,7 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-root[data-input="touch"] .h-wname, .h-root[data-input="touch"] .h-equip { display: none; }
 .h-root[data-input="touch"] .h-ammo b { font-size: 30px; }
 .h-root[data-input="touch"] .h-ammo span { font-size: 15px; }
+.h-root[data-input="touch"] .h-again { font-size: 16px; bottom: 3px; margin-right: 8px; }
 .h-root[data-input="touch"] .h-next { font-size: 11px; }
 .h-root[data-input="touch"] .h-health {
   left: var(--pad-l);

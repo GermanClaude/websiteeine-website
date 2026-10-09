@@ -36,7 +36,7 @@ const info = (text) => console.log(`${ts()}      ${text}`);
 const deg = (r) => `${(r * 180 / Math.PI).toFixed(0)}°`;
 
 // Rechner teilt sich Prüfläufe: bei hoher Last warten (höchstens 10 min)
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < 0; i++) {
   let l1 = 0;
   try { l1 = Number(readFileSync('/proc/loadavg', 'utf8').split(' ')[0]); } catch { break; }
   if (!(l1 > 5)) break;
@@ -134,7 +134,7 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 try {
   // ================================================================== Raum, Beitritt, Start
   const host = await open('Hosti', false);
-  const cl = await open('Vera', true);
+  const cl = await open('Vera', process.env.DIAG_VR === '1');
   info(`zwei Seiten geladen (${QUALITY}, ${W}×${H}, Karte ${MAP}${EXTRA ? `, ${EXTRA.slice(1)}` : ''})`);
   const code = await ev(host, (map) => window.__game.net.host({
     name: 'VR-MP', mode: 'tdm', map, maxPlayers: 2, teamSize: 1, pvp: 'pvp', botFill: false, difficulty: 'rekrut',
@@ -154,7 +154,18 @@ try {
   check(hostDev === 'pc', `Roster beim Client: Gerät des Hosts = ${hostDev}`);
   const cfg = await ev(host, () => { const c = window.__game.net.startMatch(); return c && { mode: c.modeId, map: c.mapId }; });
   check(!!cfg, `Host startet ${cfg && cfg.mode}/${cfg && cfg.map} (1 gegen 1, ohne Bots)`);
-  const inMatch = await Promise.all([host, cl].map((p) => until(p, () => window.__game.match.state === 'playing' && window.__game.player.alive, null, 1800000, 1000)));
+  for (let k = 0; k < 40; k++) {
+    await sleep(15000);
+    const st = await Promise.all([host, cl].map((p) => ev(p, () => {
+      const G = window.__game;
+      return { st: G.match && G.match.state, alive: G.player && G.player.alive, role: G.net.role, mode: G.match && G.match.modeId,
+        actors: G.actors && G.actors.length, spawnAt: G.player && G.player.respawnAt, load: document.querySelector('.m-loading, .loading') ? (document.querySelector('.m-loading, .loading').textContent || '').slice(0, 80) : null,
+        errs: (window.__errs || []).slice(-3) };
+    }).catch((e) => ({ err: String(e).slice(0, 120) }))));
+    info(`Diag ${k}: Host ${JSON.stringify(st[0])} | Client ${JSON.stringify(st[1])}`);
+    if (st.every((x) => x.st === 'playing' && x.alive)) { info('beide spielen'); break; }
+  }
+  throw new Error('Diag fertig');
   check(inMatch.every(Boolean), 'Host + Client im Match, eigene Spieler leben');
   if (!inMatch.every(Boolean)) throw new Error('Match nicht erreicht');
   await ev(host, () => { window.__game.player.godMode = true; });

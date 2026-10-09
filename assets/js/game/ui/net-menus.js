@@ -855,7 +855,7 @@ export class NetMenus {
       ${teams ? item('Spielart', s.pvp === 'coop' ? 'Gemeinsam gegen Bots' : 'Gegeneinander') : ''}
       ${item(teams ? 'Teamgröße' : 'Teilnehmer', teams ? `${size} gegen ${size}` : `${size * 2}`)}
       ${item('Bots', s.botFill ? 'füllen auf' : 'keine')}${item('Max. Spieler', String(s.maxPlayers || '–'))}
-      ${item('Ausdauer', s.stamina === false ? 'unbegrenzt' : 'normal')}
+      ${item('Ausdauer', s.stamina === false ? 'unbegrenzt' : 'normal')}${item('Munition pro Abschuss', s.killAmmo === false ? 'aus' : 'an')}
       ${item('Fahrzeuge', vehOn(s) ? 'Panzer + Geländewagen' : 'aus')}
       ${vehOn(s) ? `${item('Außenansicht (Fahrzeuge)', s.thirdPerson === false ? 'aus' : 'erlaubt')}${item('Panzer nachladen', s.vehReload === 'automatisch' ? 'automatisch' : 'manuell')}` : ''}
     </div>`;
@@ -923,6 +923,7 @@ export class NetMenus {
         <div class="nr-two">
           ${sw('stamina', 'Ausdauer', s.stamina === false ? 'Aus: unbegrenzt sprinten, rutschen, springen – für alle' : 'Sprinten, Rutschen und Springen kosten Ausdauer', s.stamina !== false)}
           ${sw('vehicles', 'Fahrzeuge', 'Panzer und Geländewagen für beide Teams', vehOn(s))}
+          ${sw('killAmmo', 'Munition pro Abschuss', s.killAmmo === false ? 'Aus: nur die Startmunition' : 'Jeder Abschuss bringt ein Magazin (MG: 20 Schuss)', s.killAmmo !== false)}
         </div>
         ${vehOn(s) ? `<div class="nr-two">
           ${sw('thirdPerson', 'Außenansicht (Fahrzeuge)', '3P-Kamera in Fahrzeugen erlaubt', s.thirdPerson !== false)}
@@ -1028,8 +1029,8 @@ export class NetMenus {
     }
     if (ds.toggle) {
       const s = net.room.settings;
-      // Standard an (fehlt der Wert, gilt an): botFill, stamina, thirdPerson, vehicles (solange VEH_DEFAULT_ON)
-      const defOn = ['botFill', 'stamina', 'thirdPerson'];
+      // Standard an (fehlt der Wert, gilt an): botFill, stamina, killAmmo, thirdPerson, vehicles (solange VEH_DEFAULT_ON)
+      const defOn = ['botFill', 'stamina', 'killAmmo', 'thirdPerson'];
       if (VEH_DEFAULT_ON) defOn.push('vehicles');
       this._update({ [ds.toggle]: defOn.includes(ds.toggle) ? s[ds.toggle] === false : !s[ds.toggle] }, 'toggle');
     }

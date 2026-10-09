@@ -12,6 +12,7 @@ export const HINTS = {
   reducedMotion: 'Weniger Wackeln, Verzeichnung und Animationen. Folgt auch der Systemeinstellung.',
   difficulty: 'Vorgabe für die Lobby.',
   adaptiveBots: 'Gegnerische Bots lernen deinen Stil (Plätze, Distanzen, Routen) und passen ihre Taktik an – leicht ab Regulär, stark auf Elite. Zielen und Reaktion bleiben unverändert.',
+  killAmmo: 'Jeder Abschuss bringt Munition für die Waffe, mit der er gelang: ein Magazin, beim Maschinengewehr 20 Schuss direkt in den Gurt. Der Vorrat wächst höchstens ein Magazin über den Startwert. Online entscheidet der Host.',
   playerName: 'Erscheint in Tabelle und Abschussmeldungen.',
   sensitivity: 'Rohe Mausbewegung (ohne Beschleunigung des Systems).',
   sensitivityY: 'Faktor für die senkrechte Achse – gilt für Maus, Controller, Touch und Gyro.',

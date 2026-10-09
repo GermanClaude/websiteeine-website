@@ -21,7 +21,7 @@ export const MAPS = {
     // atmosphere-weather: wählbares Wetter (ohne Niederschlag) + Tageszeiten; Standard = Kartenwetter/-zeit (unverändert)
     weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'klar',
     timeDefault: 'abend', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'mittag', name: 'Mittag' }],
-    modes: ['tdm', 'ffa', 'dom', 'gun', 'kc', 'inf'],
+    modes: ['tdm', 'ffa', 'dom', 'gun', 'kc', 'inf', 'messer'],
     palette: ['#f2a65a', '#c8402f', '#2d5f94', '#1f4a57', '#3b3f44'],
     features: ['Kletterbare Containerstapel', 'Portalkran als Wahrzeichen', 'Lagerhalle mit Büro-Empore', 'Kaikante mit Wasser', 'Osthof mit Schuppen 4 und Kranfundamenten'],
     lanes: ['Kaikante (West)', 'Containerlabyrinth (Mitte)', 'Lagerhalle (Ost)'],
@@ -90,7 +90,7 @@ export const MAPS = {
     // atmosphere-weather: wählbares Wetter (ohne Niederschlag) + Tageszeiten; Standard = Kartenwetter/-zeit (unverändert)
     weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'klar',
     timeDefault: 'mittag', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'nachmittag', name: 'Nachmittag' }, { id: 'abend', name: 'Abend' }],
-    modes: ['tdm', 'ffa', 'dom', 'gun', 'kc', 'inf'],
+    modes: ['tdm', 'ffa', 'dom', 'gun', 'kc', 'inf', 'messer'],
     palette: ['#ede6d6', '#2f6f9a', '#b65a37', '#d9b26a', '#7fa0c8'],
     features: ['Begehbare Häuser und Dachterrassen', 'Markt mit Sonnensegeln', 'Brunnenplatz mit Glockenturm', 'Enge Gassen und Torbögen', 'Ostviertel mit Ölbaumplatz, Hof und Dachhaus'],
     lanes: ['Marktgasse (West)', 'Brunnenplatz (Mitte)', 'Gassen & Dächer (Ost)'],
@@ -158,7 +158,7 @@ export const MAPS = {
     // atmosphere-weather: wählbares Wetter (ohne Niederschlag) + Tageszeiten; Standard = Kartenwetter/-zeit (unverändert)
     weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'dunst',
     timeDefault: 'abend', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'mittag', name: 'Mittag' }],
-    modes: ['tdm', 'ffa', 'dom', 'gun', 'kc', 'inf'],
+    modes: ['tdm', 'ffa', 'dom', 'gun', 'kc', 'inf', 'messer'],
     palette: ['#ffae4a', '#4b5560', '#7d8a84', '#2a3036', '#a35d2c'],
     features: ['Große Halle mit Laufstegen', 'Maschinen und Rohrbrücken', 'Ladebuchten und Lkw-Hof', 'Warmes Natriumlicht gegen kalte Dämmerung', 'Außenlager mit Rohrbrücke, Halle 9 und Abstellgleis'],
     lanes: ['Lkw-Hof (West)', 'Walzhalle (Mitte)', 'Kesselhaus (Ost)'],
