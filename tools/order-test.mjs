@@ -550,12 +550,19 @@ async function online(browser) {
     if (got) {
       const pupAt = (id) => host.evaluate((i) => { const q = window.__game.bots.byNetId(i).position; return [q.x, q.y, q.z]; }, id);
       const p0 = await pupAt(j.id);
-      // Client läuft (Echtzeit) einen Navigationspfad zu einem Knoten 20–35 m entfernt ab
-      await instrument(cl);
-      const goal = await cl.evaluate(() => window.__ot.nodeAt(20, 35));
-      await cl.evaluate((t) => { const T = window.__ot; T.walk(t); T._iv = setInterval(() => { if (T.walkStep) T.walkStep(); else clearInterval(T._iv); }, 50); }, goal);
+      // Client läuft (Echtzeit, Eingabe vorwärts); kommt er kaum voran (Wand), dreht er um 90°
+      await cl.evaluate(() => {
+        const G = window.__game;
+        const W = (window.__walk = { last: G.player.position.clone(), at: G.time.elapsed });
+        G.input.simulate.move(0, 1);
+        W.iv = setInterval(() => {
+          if (G.time.elapsed - W.at < 0.6) return;
+          if (G.player.position.distanceTo(W.last) < 0.8) G.player.yaw += Math.PI / 2;
+          W.last.copy(G.player.position); W.at = G.time.elapsed;
+        }, 200);
+      });
       const samples = [];
-      for (let k = 0; k < 12; k++) {
+      for (let k = 0; k < 20; k++) {
         await sleep(1000);
         const d = await host.evaluate((id) => {
           const G = window.__game;
@@ -565,9 +572,12 @@ async function online(browser) {
         }, j.id);
         if (d !== null) samples.push(d);
       }
-      await cl.evaluate(() => { const T = window.__ot; clearInterval(T._iv); T.walkStep = null; window.__game.input.simulate.move(null); });
+      await cl.evaluate(() => { clearInterval(window.__walk.iv); window.__game.input.simulate.move(null); });
       const p1 = await pupAt(j.id);
-      info(`Puppe des Clients beim Host ${r1(Math.hypot(p1[0] - p0[0], p1[2] - p0[2]))} m weit gelaufen`);
+      const moved = Math.hypot(p1[0] - p0[0], p1[2] - p0[2]);
+      // Hinweis: unter SwiftShader-Last (≈ 1 Bild/s, Spielzeit 0,05 s je Bild) kommt der Client in 20 s nur wenige Meter weit;
+      // das Folgen eines laufenden Anführers prüft der Offline-Teil – hier zählt der Weg Client → Host → Bots
+      info(`Puppe des Clients beim Host ${r1(moved)} m weit gelaufen`);
       let close = null;
       for (let k = 0; k < 30 && !close; k++) {
         await sleep(1000);
