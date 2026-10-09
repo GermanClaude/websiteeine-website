@@ -64,6 +64,7 @@ export class Vehicle {
     this.def = def;
     this.type = type;
     this.id = `${type}-${++SERIAL}`;
+    this.netId = null; // Netz-Id 1…255 (nur Host vergibt, Abbild übernimmt; offline null)
     this.name = def.name;
     this.spawnTeam = team;
     this.spawn = spawn;

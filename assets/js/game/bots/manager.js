@@ -265,6 +265,7 @@ export class BotManager {
     const G = this.G, w = G.world;
     const param = G.params && typeof G.params.get === 'function' ? G.params.get('vehicles') : null;
     if (param === '0') return false;
+    if (G.match && G.match.net && G.match.vehicles === false) return false; // online: Raum-Einstellung „Fahrzeuge“ aus
     return !!((w && Array.isArray(w.vehicleSpawns) && w.vehicleSpawns.length) || param === '1' || (G.match && G.match.vehicles));
   }
 

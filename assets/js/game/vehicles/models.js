@@ -691,6 +691,14 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
       if (model.trackMats[i].normalMap) model.trackMats[i].normalMap.offset.x = t.offset.x;
     }
   };
+  // Besatzungs-API (§3.7) – zunächst ohne Wirkung
+  model.hatches = {};
+  model.interior = null;
+  model.setHatch = () => {};
+  model.setInterior = () => {};
+  model.setBreech = () => {};
+  model.setRack = () => {};
+  model.setHeld = () => {};
   model.dispose = () => {
     root.removeFromParent();
     for (const m of model.trackMats) { m.map.dispose(); m.normalMap?.dispose(); m.dispose(); }

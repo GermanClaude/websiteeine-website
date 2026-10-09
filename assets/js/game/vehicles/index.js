@@ -285,8 +285,8 @@ export class VehicleSystem {
    */
   get rules() {
     const G = this.G, f = G.time ? G.time.frame : 0;
-    if (this._rules && this._rulesF === f) return this._rules;
     const net = G.match && G.match.net;
+    if (this._rules && this._rulesF === f && this._rulesNet === net) return this._rules;
     let r;
     if (net) r = { thirdPerson: net.thirdPerson !== false, reload: net.vehReload === 'automatisch' ? 'automatisch' : 'manuell' };
     else {
@@ -296,6 +296,7 @@ export class VehicleSystem {
     }
     this._rules = r;
     this._rulesF = f;
+    this._rulesNet = net;
     return r;
   }
 

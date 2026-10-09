@@ -202,6 +202,12 @@ export function vehicleMaterials() {
   return SET;
 }
 
+/** Vorzuwärmende Fahrzeugmaterialien (Shader, die nicht sofort sichtbar sind): Scheinwerfer an, Lichtkegel, Wrack. */
+export function vehicleWarmMaterials() {
+  const S = vehicleMaterials();
+  return [S.lensOn, S.cone, S.wreck];
+}
+
 /** Kettenmaterial je Fahrzeugseite (eigene Texturkopie → eigener Versatz für den Kettenlauf). */
 export function trackMaterial(hq = false) {
   const S = vehicleMaterials();

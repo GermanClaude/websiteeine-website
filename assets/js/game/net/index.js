@@ -14,9 +14,11 @@
 // Spielstart: startMatch() (Host) baut die Konfiguration (§6), schickt 'start' {cfg} an alle Clients und startet
 // selbst über this.startGame(cfg) – Standard: G.menus.onStart(cfg) (= main.startMatch). Clients starten bei 'start'
 // bzw. beim Einstieg ins laufende Spiel (welcome.cfg) genauso. cfg.net = {role, roomCode, selfId, team, teamSize, pvp,
-// botFill, maxPlayers, botsA, botsB, humans:{A,B}, stamina}; Wetter/Zeit sind aufgelöst (nie 'zufall'/'echtzeit').
-// stamina false (Raum-Einstellung „Ausdauer“ aus) = unbegrenzte Ausdauer für alle: beim Matchstart (match:state)
-// setzt NetSystem G.match.styleFlags.staminaMult = 0 (stamina.js: 0 = unbegrenzt).
+// botFill, maxPlayers, botsA, botsB, humans:{A,B}, stamina, vehicles, thirdPerson, vehReload}; Wetter/Zeit sind aufgelöst
+// (nie 'zufall'/'echtzeit'). stamina false (Raum-Einstellung „Ausdauer“ aus) = unbegrenzte Ausdauer für alle: beim
+// Matchstart (match:state) setzt NetSystem G.match.styleFlags.staminaMult = 0 (stamina.js: 0 = unbegrenzt).
+// vehicles (Raum-Einstellung „Fahrzeuge“, Standard VEHICLES_ONLINE_DEFAULT): Host simuliert die Fahrzeuge, Clients führen
+// ein Abbild (vehicles/net.js); thirdPerson = Außenansicht in Fahrzeugen erlaubt; vehReload 'manuell' | 'automatisch'.
 import { HostSignal, joinRoom, watchLobby, relaysFromUrl, DEFAULT_RELAYS, newRoomCode, normCode, isValidCode } from './signal.js';
 import { PeerLink, ICE_SERVERS } from './peer.js';
 import { hex, randomBytes } from './crypto.js';
@@ -29,8 +31,9 @@ import { AntiCheat, PositionHistory } from './anticheat.js';
 import { recommend, UploadMeter } from './recommend.js';
 import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
 
-/** Spielprotokoll (Nachrichten/Pakete). Muss bei Host und Client gleich sein – zusätzlich zur Fassung (BUILD). */
-export const NET_VERSION = 1;
+/** Spielprotokoll (Nachrichten/Pakete). Muss bei Host und Client gleich sein – zusätzlich zur Fassung (BUILD).
+ *  2: Fahrzeuge online (Snapshot-Anhang, Fahrzeug-Absicht, 'veh'/'vhit'/'vehicles' – panzer-mp.md §C). */
+export const NET_VERSION = 2;
 /** Stufe 1: nur diese Modi online (cq/gun/inf/training folgen in Stufe 2). */
 export const ONLINE_MODES = Object.freeze(['tdm', 'ffa', 'dom', 'kc']);
 export const HOST_ID = 1;
@@ -53,11 +56,19 @@ export const NET_ERROR_TEXT = Object.freeze({
   abgebrochen: 'Beitritt abgebrochen.',
 });
 
+/**
+ * Fahrzeuge online (panzer-mp.md §C.1): Standard der Raum-Einstellung „Fahrzeuge“. Freigabe-Schalter – false: online
+ * verhält sich alles wie ohne Fahrzeuge (Host kann sie je Raum trotzdem einschalten).
+ */
+export const VEHICLES_ONLINE_DEFAULT = true;
+
 /** Raum-Einstellungen (§6) – Standardwerte. */
 export const DEFAULT_ROOM = Object.freeze({
   name: '', mode: 'tdm', map: 'hafen', time: 'standard', weather: 'standard', difficulty: 'regulaer',
   maxPlayers: 8, botFill: true, teamSize: 6, pvp: 'pvp', public: false, style: 'arcade', scoreLimit: null, timeLimit: null,
   stamina: true, // Ausdauer an (aus = unbegrenzte Ausdauer für alle)
+  // Fahrzeuge (Panzer + Geländewagen für beide Teams), Außenansicht in Fahrzeugen, Nachladen der Panzerkanone
+  vehicles: VEHICLES_ONLINE_DEFAULT, thirdPerson: true, vehReload: 'manuell',
 });
 
 const TIME_SYNC_MS = 2000;
@@ -73,13 +84,14 @@ const BYTE_OVERHEAD = 60; // grobe Kopfdaten je Paket (IP/UDP/DTLS/SCTP) für di
 const LOCAL_RELAY = /^wss?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?(\/|$)/;
 
 /** Typen, die NetSystem selbst kennt: Clients dürfen sie nicht an andere Clients weiterleiten lassen ('order': Befehlsrad
- *  eines Clients an die Bots um seine Puppe – nur der Host wertet ihn aus, net/sync-host.js). */
+ *  eines Clients an die Bots um seine Puppe – nur der Host wertet ihn aus, net/sync-host.js; 'veh'/'vhit': Fahrzeug-
+ *  Anfragen und -Treffer an den Host, 'actors'/'vehicles': Listen des Hosts). */
 const RESERVED = new Set([
-  'join', 'ready', 'loadout', 'hit', 'melee', 'throw', 'leave', 'hold', 'plate', 'dev', 'order',
-  'welcome', 'room', 'roster', 'start', 'spawn', 'kill', 'mode', 'ev', 'end', 'kick', 'host-away', 'correct', 'reject',
+  'join', 'ready', 'loadout', 'hit', 'melee', 'throw', 'leave', 'hold', 'plate', 'dev', 'order', 'veh', 'vhit',
+  'welcome', 'room', 'roster', 'start', 'spawn', 'kill', 'mode', 'ev', 'end', 'kick', 'host-away', 'correct', 'reject', 'actors', 'vehicles',
 ]);
 /** Nur der Host darf sie senden (der Host verwirft sie von Clients). */
-const HOST_ONLY = new Set(['welcome', 'room', 'roster', 'start', 'spawn', 'kill', 'mode', 'ev', 'end', 'kick', 'host-away', 'correct', 'reject']);
+const HOST_ONLY = new Set(['welcome', 'room', 'roster', 'start', 'spawn', 'kill', 'mode', 'ev', 'end', 'kick', 'host-away', 'correct', 'reject', 'actors', 'vehicles']);
 
 /** Gerät eines Menschen im Roster (Symbol in Punktetabelle und Spielerliste): PC, Handy/Tablet (Touch), VR-Brille. */
 export const DEVICES = Object.freeze(['pc', 'mobile', 'vr']);
@@ -135,6 +147,10 @@ export function normalizeSettings(partial = {}, base = DEFAULT_ROOM, hostName = 
     scoreLimit: limit(pick('scoreLimit'), 1, 9999),
     timeLimit: limit(pick('timeLimit'), 30, 7200),
     stamina: pick('stamina') !== false,
+    // Fahrzeuge: fehlt der Wert (alter Raum) → Standard; Außenansicht nur ausdrücklich aus; Nachladen 'manuell' | 'automatisch'
+    vehicles: pick('vehicles') === true,
+    thirdPerson: pick('thirdPerson') !== false,
+    vehReload: pick('vehReload') === 'automatisch' ? 'automatisch' : 'manuell',
   };
 }
 
@@ -793,6 +809,8 @@ export class NetSystem {
         roomCode: this.room.code, teamSize: s.teamSize, pvp: s.pvp, botFill: s.botFill, maxPlayers: s.maxPlayers,
         botsA, botsB, humans, ffa, conditions: cond, startedAt: this.serverTime(),
         stamina: s.stamina !== false, // Raum-Einstellung „Ausdauer“ (aus = unbegrenzt für alle, _applyMatchRules)
+        // Fahrzeuge (panzer-mp.md §C.1): an/aus, Außenansicht erlaubt, Nachladen der Panzerkanone
+        vehicles: s.vehicles === true, thirdPerson: s.thirdPerson !== false, vehReload: s.vehReload === 'automatisch' ? 'automatisch' : 'manuell',
       },
     };
     if (s.timeLimit != null) cfg.timeLimit = s.timeLimit;

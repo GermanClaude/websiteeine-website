@@ -82,6 +82,8 @@ body[data-vehicle][data-vehicle-arms="0"] .tc-fire-r,body[data-vehicle][data-veh
 body[data-vehicle]:not([data-vehicle-loader="1"]) .vc-btn.vc-load,body[data-vehicle]:not([data-vehicle-loader="1"]) .vc-btn.vc-ammo{display:none}
 body[data-vehicle][data-vehicle-loader="1"] .tc-swap{display:none!important}
 body[data-input-mode="touch"] .vh-gunst{font-size:12px;padding:2px 5px}body[data-input-mode="touch"] .vh-rack{font-size:11px}
+body[data-input-mode="touch"][data-vehicle-sight="1"] .vh-panel{width:200px;left:calc(50% - 100px);padding:4px 7px;background:rgba(10,11,13,.5)}
+body[data-input-mode="touch"][data-vehicle-sight="1"] :is(.vh-head,.vh-hp,.vh-hpn,.vh-rack,.vh-seats,.vh-zones){display:none}
 ` + VIEW_CSS;
 
 const TANK_RET = `<svg viewBox="-160 -160 320 320" fill="none" stroke="#f2efe6" stroke-width="1.6">
@@ -223,6 +225,7 @@ export class VehicleHUD {
       this._body('vehicle', null);
       this._body('vehicleArms', null);
       this._body('vehicleLoader', null);
+      this._body('vehicleSight', null);
       this._set('panelH', el.panel, 'hidden', true);
       this._set('retH', el.ret, 'hidden', true);
       this._set('gunH', el.gun, 'hidden', true);
@@ -332,6 +335,7 @@ export class VehicleHUD {
     const swapLabel = w ? (w.def.kind === 'mg' ? w.def.short : w.def.short || w.def.name.replace(/^\d+ mm /, '')) : '';
     if (this._swapEl && this._c.swapL !== swapLabel) { this._c.swapL = swapLabel; this._swapEl.dataset.vehWeapon = swapLabel; }
     const ov = s.sight && view ? view.overlay : null;
+    this._body('vehicleSight', ov && ov !== 'loader' ? '1' : null); // Touch: Tafel in Optiken verkleinern
     const ownRet = ov === 'optic' || ov === 'peri' || ov === 'wide' || ov === 'slit' || (ov === 'binocular' && s.zoom >= 1.5);
     const ret = !mount || ownRet ? '' : s.sight ? (w.def.kind === 'shell' ? TANK_RET : MG_RET) : TP_RET;
     this._set('ret', el.ret, 'html', ret);
@@ -356,6 +360,7 @@ export class VehicleHUD {
     this.drive?.dispose();
     this.view.dispose();
     this._body('vehicleLoader', null);
+    this._body('vehicleSight', null);
     this._body('vehicle', null);
     this._body('vehicleNear', null);
     this._body('vehicleArms', null);

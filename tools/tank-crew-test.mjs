@@ -337,6 +337,25 @@ try {
   check(!r.err && Math.abs(r.yaw) > 0.3, 'Bot-Fahrer dreht den Turm (stellvertretender Richtschütze)', `Δ ${r.yaw} rad, Stellvertreter ${r.proxy}`);
   check(!!r.fired, 'Bot feuert die Kanone (Automatik lädt)', `${r.fired} (Kanone ${r.gun})`);
 
+  // 10b) Geländewagen: Sichten aus fp/tp, offene Sitze verwundbar, MG feuert
+  r = await page.evaluate(() => {
+    const D = window.__dev, C = window.__crew, sys = D.sys, p = D.player, j = D.other;
+    if (p.vehicle) sys.exit(p);
+    const seat = sys.enter(p, j, 1);
+    C.step(0.2);
+    const s = C.seat();
+    const ids = sys.allowedViews(s).map((i) => s.def.views[i].id).join(',');
+    sys.setSeatView(p, 0); C.step(0.1);
+    const exposed = !p.invulnerable && s.hatchT === 1;
+    const n0 = C.shots.length;
+    D.input.simulate.press('fire'); C.step(0.5); D.input.simulate.release('fire'); C.step(0.05);
+    const shots = C.shots.slice(n0).filter((x) => x.w === 'jeep_mg').length;
+    sys.exit(p); C.step(0.1);
+    return { type: j.type, seat, ids, exposed, shots, out: !p.vehicle };
+  });
+  check(r.type === 'jeep' && r.seat === 1 && r.ids === 'mg,aussen', 'GW-4: Sichten MG/Außen', `${r.type} ${r.ids}`);
+  check(r.exposed && r.shots >= 2 && r.out, 'GW-4: offener Sitz verwundbar, MG feuert, Aussteigen', JSON.stringify(r));
+
   // 11) VR-Rückfall: Sicht luke, Turm folgt player.yaw
   r = await page.evaluate(() => {
     const D = window.__dev, C = window.__crew, G = D.G, sys = D.sys, v = D.main, p = D.player;
@@ -348,7 +367,7 @@ try {
     const gun = sys.camera.view && sys.camera.view.id;
     const want = v.yaw + 1.0;
     p.yaw = want; p.pitch = 0;
-    for (let i = 0; i < 120; i++) { p.yaw = want; p.pitch = 0; C.step(1 / 60); }
+    for (let i = 0; i < 330; i++) { p.yaw = want; p.pitch = 0; C.step(1 / 60); } // bis 180° bei 40°/s
     const err = Math.abs(((v.yaw + v.mount.turretYaw - want + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
     sys.requestSeat(p, 2); C.step(1.4);
     const cmd = sys.camera.view && sys.camera.view.id;

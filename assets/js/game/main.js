@@ -908,6 +908,7 @@ async function runStart(config, gen) {
       style: cfg.style, crosshair: cfg.crosshair, matchLength: cfg.matchLength, timeOfDay: cfg.timeOfDay, cls: cfg.loadout.cls || null, // modes-ui
       weather: cfg.weather, conditions: cond, // atmosphere-weather (Anfrage; aufgelöst: conditions = G.world.weather)
       net: netCfg, netRole: netCfg ? netCfg.role : null, netLive: false, // Mehrspieler
+      vehicles: netCfg ? !!netCfg.vehicles : undefined, // online: Raum-Einstellung „Fahrzeuge“ (vor spawnBots – Werfer der Bots)
     });
     // Online: Modus/Karte/Schwierigkeit gehören dem Raum – die Lobby-Vorauswahl für Einzelspieler bleibt
     if (netCfg) settings.patch({ lastLoadout: cfg.loadout, lastClass: cfg.loadout.cls || 'sturm' });
@@ -986,8 +987,10 @@ async function runStart(config, gen) {
     }
     if (!(await nextStep(0.9))) { await teardownMatch({ keepWorld: true }); return; }
 
-    // vehicles: Spawns aus world.vehicleSpawns bzw. ?vehicles=1 – online keine Fahrzeuge (Stufe 2)
+    // vehicles: Spawns aus world.vehicleSpawns bzw. ?vehicles=1; online nur mit Raum-Einstellung „Fahrzeuge“ – der Host
+    // simuliert, Clients führen ein Abbild (vehicles/net.js, panzer-mp.md §C)
     if (!netCfg) safe('vehicles.attach', () => G.vehicles.attach(G));
+    else if (netCfg.vehicles) safe('vehicles.attach', () => G.vehicles.attach(G, { replica: netCfg.role === 'client' }));
     G.hud.attach(G);
     safe('audio.startAmbience', () => G.audio.startAmbience(G.world.ambience));
     G.mode.start();

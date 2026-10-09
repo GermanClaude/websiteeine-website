@@ -293,6 +293,8 @@ export class ViewOverlay {
     if (marks) {
       const a = s.ammo;
       this._set('ammoT', el.ammo, 'text', `${a.short} · Entfernung × 100 m`);
+      // Beschriftung nur, wo die Marken weit genug auseinanderliegen (geringe Vergrößerung: Marken dicht an der Mitte)
+      let lastY = -1e9;
       for (let i = 0; i < MARK_D.length; i++) {
         const d = MARK_D[i];
         const lob = s.lob(a.speed, a.gravity, d, 0);
@@ -300,9 +302,11 @@ export class ViewOverlay {
         _v.copy(s.camPos).addScaledVector(_d, d);
         const sc = s.project(_v);
         const m = this.marks[i];
-        const key = 'mk' + i;
         const tf = sc.on ? `translate3d(${sc.x.toFixed(1)}px,${sc.y.toFixed(1)}px,0)` : 'translate3d(-999px,-999px,0)';
-        this._set(key, m, 'transform', tf);
+        this._set('mk' + i, m, 'transform', tf);
+        const lab = sc.on && sc.y - lastY >= 13;
+        if (lab) lastY = sc.y;
+        this._set('ml' + i, m.firstChild, 'hidden', !lab);
       }
     }
     this._set('rangeH', el.range, 'hidden', !(ov === 'optic' && s.range));

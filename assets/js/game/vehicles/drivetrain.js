@@ -279,8 +279,11 @@ export class Drivetrain {
   _autoShift(h, thr, n, nWheel, maxG, cut) {
     const E = this.E, s = this.state;
     this.autoHold = Math.max(0, this.autoHold - h);
-    if (s.shifting || !s.gear || this.autoHold > 0) return;
+    if (s.shifting || !s.gear) return;
     const g = s.gear, dir = Math.sign(g);
+    // fast stehend (Kurve auf der Stelle, Anhalten): zurück in den 1. Gang bzw. R1, wie eine Wandlerautomatik
+    if (Math.abs(g) > 1 && Math.abs(this.vF) < 1.0) { this.setGear(dir); return; }
+    if (this.autoHold > 0) return;
     const up = g + dir, down = g - dir;
     const conv = E.converter, couple = conv ? conv.coupleRpm : 0;
     const kick = E.kickRpm || (E.idleRpm + (E.ratedRpm - E.idleRpm) * 0.42);
