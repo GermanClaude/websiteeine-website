@@ -1390,8 +1390,10 @@ export class NetSystem {
     // Akteure im Match: mit Bot-Auffüllung 2 × teamSize (Schnappschüsse tragen auch die Bots), sonst nur die Menschen
     const st = this.room && this.room.settings ? this.room.settings : DEFAULT_ROOM;
     const actors = st.botFill !== false ? Math.min(MAX_PLAYERS, 2 * (st.teamSize || DEFAULT_ROOM.teamSize)) : 0;
+    // Fahrzeuge der Karte (Grenzland: je Team 2 Panzer + 3 Geländewagen, sonst je Team 1 + 1)
+    const vehicles = st.vehicles ? (st.map === 'grenzland' ? 10 : 4) : 0;
     return recommend({
-      actors,
+      actors, vehicles,
       cores: Number.isFinite(nav.hardwareConcurrency) ? nav.hardwareConcurrency : null,
       memory: Number.isFinite(nav.deviceMemory) ? nav.deviceMemory : null,
       fps: this._fps,

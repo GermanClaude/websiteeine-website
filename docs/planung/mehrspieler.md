@@ -16,7 +16,9 @@ Mehrspieler bauen. Code-Landkarte mit Datei/Zeilen-Verweisen: `docs/planung/mehr
   nur Zustand aus dem Netz + `_animate`). Auf dem Host: Puppen für entfernte Menschen. Auf Clients: Puppen für alle
   anderen (Bots des Hosts, Host-Spieler, andere Clients).
 - **Stufe 1 Modi:** `tdm`, `ffa`, `dom`, `kc`. Nicht online (ausgegraut, „folgt in Stufe 2“): `cq` (Fahrzeuge), `gun`, `inf`, `training`.
-  **Scorestreaks online aus** (Stufe 2). **Fahrzeuge online aus** (Host spawnt keine).
+  **Scorestreaks online aus** (Stufe 2). **Fahrzeuge online** über die Raum-Einstellung „Fahrzeuge“ (Standard
+  `VEHICLES_ONLINE_DEFAULT` in `net/index.js`; aus = wie früher, Host spawnt keine) – Host simuliert, Clients führen ein
+  Abbild (§14).
 - **Karten:** alle; Weltgeometrie ist über `def.seed` deterministisch, Wetter/Tageszeit löst der Host auf und schickt sie mit.
   Bewegungskollision ist auf jeder Grafikstufe und mit/ohne Asset-Bibliothek gleich (Großkarte: Bäume/Felsen immer mit voller
   Dichte, nur Büsche/Schilf/Gras dünnen aus; Bibliotheksmodelle kollidieren nur über feste Quader) – Prüfung:
@@ -428,3 +430,53 @@ ist ungemessen – recommend() begrenzt dort über die gemessene Bildrate (< 30 
 
 - Stand 09.10. ~9:30: 24 % Wochenlimit verbraucht (nach Mehrspieler, Härtetest, Kartenrunden 1+2, VR). Rest bis zur Grenze: Abschlusskorrekturen, Regressionstest, Grenzland-Gras, Veröffentlichung, Fehler aus dem Freitagabend-Test.
 - Stand 09.10. ~13:20: 35 % Wochenlimit. Ab jetzt sparsam: Abschlusstest als Skript (keine großen Agenten), Veröffentlichung, danach nur noch Fehlerbehebung aus dem Abendtest. Ziel: unter 45 % bleiben.
+
+## 14. Fahrzeuge online (09.10., Spezifikation `docs/planung/panzer-mp.md` §C)
+
+**Schalter**: Raum-Einstellung „Fahrzeuge“ (`room.settings.vehicles`, Standard `VEHICLES_ONLINE_DEFAULT` in `net/index.js`),
+dazu „Außenansicht (Fahrzeuge)“ (`thirdPerson`, Standard an) und „Panzer nachladen“ (`vehReload` `'manuell'` | `'automatisch'`).
+Alle drei gehen mit `cfg.net` an Host und Clients (`G.match.net`, `G.vehicles.rules`). Aus = Online-Spiel exakt wie vorher
+(kein `attach`, kein Fahrzeugverkehr; nur `NET_VERSION` ist 2). `G.match.vehicles` steht vor `spawnBots` (Werfer der Bots).
+
+**Rollen** (`vehicles/net.js`, `VehicleNet`):
+- **Host** = Offline-Sim (Physik, Getriebe, Schaden, Brand, Wrack, Wiedererscheinen, Granaten, Laden) + Vermittler: Netz-Ids
+  1…255 beim `vehicle:spawn`, Liste `{t:'vehicles', list:[[vid, typ, team 0|1|2, [netId|0 je Sitz]]]}` bei Änderung an alle und
+  voll an neue Clients (`_admit`, dazu 1 s lang alle Blöcke jeden Takt).
+- **Client** = Abbild (`attach(G, {replica: true})`, `sys.replica`, `sys.remote = net`): keine Spawns/Physik/Waffen/Schäden;
+  Liste → `spawnVehicle` (Modell nach Typ + Team) bzw. Entfernen, Sitze über `placeInSeat`/`clearSeat`; Lage und Zustand aus
+  den Schnappschüssen (`tickReplica` statt `Vehicle.update`); `_collideActors` nur für den eigenen Spieler ohne Überfahren;
+  Granaten nur Darstellung (`shells.fire(…, {display: true})`), Explosionen kommen als 'ex'. Modelle beider Teams werden beim
+  Laden mitkompiliert (Vorwärmen, nach dem Countdown wieder entfernt).
+
+**Schnappschuss-Anhang** (`protocol.js`): hinter Akteuren + VR-Blöcken `u8 0x56, u8 nv, nv × 60 Byte` (Lage f32, Quaternion
+i16, Geschwindigkeit cm/s, Gierrate, 4 Lafettenwinkel, HP, Zonen, Gang, Drehzahl, Getriebe-Bits + Motorlast (bits 4–7 von
+`drive`), MG-Schusszähler je Sitz, Kanone/Ladeschritt/Fortschritt, Gestell, Magazine, Waffenwahl, Automatik-Restzeit).
+Ohne Fahrzeuge kein Anhang (Byte für Byte wie vorher). Rate je Empfänger (`blocksFor`, unabhängig von INTEREST_MIN):
+eigenes Fahrzeug und ≤ 160 m jeden Takt (20 Hz), übrige 5 Hz, parkende unbesetzte 1 Hz, ruhende Wracks 2 Hz;
+`?netinterest=0` → alles jeden Takt. **Client-Absicht**: `FLAGS.VEHICLE` (Bit 12) im 30-Hz-Zustand, 16 Byte (vid, Sitz, Gas,
+Lenkung, Bits Feuer/Bremse/Handbremse/Licht/Gang halten, Zähler hoch/runter/Schuss/MG-Nachladen/Waffenwechsel, Sicht,
+Zielrichtung aus `seat.aimWant`, Blick `look.relYaw`). Der Host übernimmt sie nur, wenn die Puppe in genau diesem Sitz sitzt;
+Zählerdifferenzen ≤ 7; Werte begrenzt.
+
+**Anfragen** (zuverlässig, `veh` {a: enter | exit | seat | load}): Host prüft Leben, Abstand (`_boxDistance` ≤ 1,7 + 1,0 m),
+Team, Sitz frei, 0,25 s Abstand je Client, Ladeschütze + Reihenfolge/Blick/Mindestzeiten (`loadAction(…, {net: true})`, Blick
+zum Zeitpunkt der Handlung mitgeschickt). Antworten als 'ev': `vs` (Kanonenschuss → Darstellungsgranate, Mündungsfeuer,
+Klang, Rückstoß bei allen), `vh` (Treffer an den Schützen), `vn` {why} (Ablehnung: besetzt, weit, feind, blockiert, tot,
+sperre, schritt, blick, sitz), `vo` {pos, vel} (Ausstieg, vor der Liste; Client räumt den Sitz und setzt sich dorthin).
+`vhit`: Infanterietreffer eines Clients auf ein Abbild-Fahrzeug (Waffe aus der Ausrüstung, Ursprung ≤ 3,5 m vom Auge, Punkt
+≤ Wanne + 2 m, Reichweite, grobe Feuerrate) → Schaden wie offline. MG-Feuer läuft über die Schusszähler (Mündungsfeuer,
+Klang, Leuchtspur lokal). `VehicleSystem.fire` zählt `_shotSerial` nicht mehr (sonst spielten Clients Infanterieschüsse).
+
+**Anti-Cheat**: Sitzende Puppen prüft `checkState` nicht (der Host heftet sie an den Sitz); Aussteigen setzt den Anker neu
+(`anticheat.onTeleport`, 'vo'). Auf/neben fahrenden Fahrzeugen (≤ 4 m) zählt deren Tempo als Zuschlag (`ctx.carry`). Sitze,
+Feuerrate, Munition und Ladezustand entscheidet allein die Host-Sim. `actors`/`vehicles` sind jetzt Host-Nachrichten
+(`RESERVED` + `HOST_ONLY`) – ein Client kann sie weder senden noch weiterleiten lassen.
+
+**Beide Teams**: Grenzland je Team 2 KP-1 + 3 GW-4 (Kartendaten, unverändert); Reihum-Anmeldung, und ein Stellplatz, der
+wegen der Stufen-Obergrenze nie ein Fahrzeug bekam, bleibt leer (low: je Team 2 Panzer + 1 Geländewagen, auch nach Wracks).
+Andere Karten mit „Fahrzeuge“ an: `autoSpawns` je Team 1 KP-1 + 1 GW-4 (nur Host). Teamfarbe nach `spawnTeam` (Abbild aus
+der Liste).
+
+**Budget** (§9, `recommend.js`: + 20 Hz × (2 + V × 60 × 0,5) je Client, V = 10 Grenzland bzw. 4): typisch Grenzland ≈ 3,4 KB/s
+je Client zusätzlich, höchstens ≈ 12 KB/s (10 Fahrzeuge nah und aktiv); Hafen (4) ≈ 1,5–2,5 KB/s. Liste ≈ 150 B je Änderung,
+'vs' ≈ 120 B je Kanonenschuss; aufwärts je sitzendem Client 16 B × 30 Hz ≈ 0,5 KB/s.

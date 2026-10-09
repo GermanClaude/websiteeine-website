@@ -21,6 +21,9 @@ export const ONLINE_MODES = Object.freeze(['tdm', 'ffa', 'dom', 'kc']);
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const CODE_LENGTH = 6;
 const MAX_PLAYERS = 32;
+/** Raum-Einstellung „Fahrzeuge“: Standard an (wie net/index.js VEHICLES_ONLINE_DEFAULT – fehlt der Wert, gilt er). */
+const VEH_DEFAULT_ON = true;
+const vehOn = (s) => (s.vehicles === undefined ? VEH_DEFAULT_ON : s.vehicles === true);
 const MAX_TEAM = 16;
 const DIFF_ORDER = ['rekrut', 'regulaer', 'veteran', 'elite'];
 const IN_MATCH = ['loading', 'countdown', 'playing', 'paused'];
@@ -851,6 +854,8 @@ export class NetMenus {
       ${item(teams ? 'Teamgröße' : 'Teilnehmer', teams ? `${size} gegen ${size}` : `${size * 2}`)}
       ${item('Bots', s.botFill ? 'füllen auf' : 'keine')}${item('Max. Spieler', String(s.maxPlayers || '–'))}
       ${item('Ausdauer', s.stamina === false ? 'unbegrenzt' : 'normal')}
+      ${item('Fahrzeuge', vehOn(s) ? 'Panzer + Geländewagen' : 'aus')}
+      ${vehOn(s) ? `${item('Außenansicht (Fahrzeuge)', s.thirdPerson === false ? 'aus' : 'erlaubt')}${item('Panzer nachladen', s.vehReload === 'automatisch' ? 'automatisch' : 'manuell')}` : ''}
     </div>`;
   }
 
@@ -915,7 +920,12 @@ export class NetMenus {
         </div>
         <div class="nr-two">
           ${sw('stamina', 'Ausdauer', s.stamina === false ? 'Aus: unbegrenzt sprinten, rutschen, springen – für alle' : 'Sprinten, Rutschen und Springen kosten Ausdauer', s.stamina !== false)}
+          ${sw('vehicles', 'Fahrzeuge', 'Panzer und Geländewagen für beide Teams', vehOn(s))}
         </div>
+        ${vehOn(s) ? `<div class="nr-two">
+          ${sw('thirdPerson', 'Außenansicht (Fahrzeuge)', '3P-Kamera in Fahrzeugen erlaubt', s.thirdPerson !== false)}
+          ${seg('vehReload', [['manuell', 'Manuell', 'Ladeschütze lädt von Hand'], ['automatisch', 'Automatisch', 'Nachladen nach Zeit']], s.vehReload === 'automatisch' ? 'automatisch' : 'manuell', 'Panzer nachladen')}
+        </div>` : ''}
         <div class="nr-field nr-namefield">
           <h3 class="nr-lab">Raumname</h3>
           <input type="text" class="m-input" data-room-name data-fk="room-name" maxlength="24" spellcheck="false" aria-label="Raumname" value="${esc(s.name || '')}">
@@ -1016,8 +1026,10 @@ export class NetMenus {
     }
     if (ds.toggle) {
       const s = net.room.settings;
-      // Standard an (fehlt der Wert, gilt an): botFill, stamina
-      this._update({ [ds.toggle]: ds.toggle === 'botFill' || ds.toggle === 'stamina' ? s[ds.toggle] === false : !s[ds.toggle] }, 'toggle');
+      // Standard an (fehlt der Wert, gilt an): botFill, stamina, thirdPerson, vehicles (solange VEH_DEFAULT_ON)
+      const defOn = ['botFill', 'stamina', 'thirdPerson'];
+      if (VEH_DEFAULT_ON) defOn.push('vehicles');
+      this._update({ [ds.toggle]: defOn.includes(ds.toggle) ? s[ds.toggle] === false : !s[ds.toggle] }, 'toggle');
     }
   }
 

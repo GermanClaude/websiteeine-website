@@ -12,6 +12,8 @@
 //   upload(n, A) = (n − 1) × [20 × (71 + A × 31 × anteil(A)) + 570 + 44 × n + 70 × A], A = Akteure im Match (mit
 //   Bot-Auffüllung 2 × teamSize, sonst n). Beispiel 13 Menschen, 32 Akteure: je Client 12 332 + 3 382 ≈ 15,3 KB/s,
 //   gesamt 12 × ≈ 184 KB/s; 8 Menschen ohne Bots: je Client ≈ 7,7 KB/s, gesamt ≈ 54 KB/s (1 KB = 1024 Byte).
+//   Fahrzeuge (Raum-Einstellung „Fahrzeuge“, panzer-mp.md §C.4): + 20 × V × VEH_BYTES × VEH_SHARE je Client (Anhang 60 Byte
+//   je Fahrzeug; nahe/eigene 20 Hz, ferne 5 Hz, parkende 1 Hz → gerechnet die Hälfte), V = Fahrzeuge der Karte.
 // Reine Logik – UploadMeter misst, recommend() rechnet; beides ohne DOM prüfbar.
 
 export const SNAPSHOT_HZ = 20;
@@ -27,6 +29,9 @@ export const INTEREST_SHARE = 0.55;
 export const RELIABLE_BASE = 570;
 export const RELIABLE_PER_HUMAN = 44;
 export const RELIABLE_PER_ACTOR = 70;
+/** Fahrzeug-Anhang: Byte je Fahrzeug und Schnappschuss, gerechneter Anteil der Fahrzeuge je Schnappschuss. */
+export const VEH_BYTES = 60;
+export const VEH_SHARE = 0.5;
 /** Mittlere Byte je Akteur und Schnappschuss (Kopf umgelegt) – nur noch zur Anzeige/Kompatibilität. */
 export const BYTES_PER_ENTITY = 40;
 export const MIN_PLAYERS = 2;
@@ -41,26 +46,27 @@ export function reliableBytes(actors, humans = actors) {
   return RELIABLE_BASE + RELIABLE_PER_HUMAN * Math.max(0, humans) + RELIABLE_PER_ACTOR * Math.max(0, actors);
 }
 
-/** Upload des Hosts je Client (Byte/s) bei `actors` Akteuren im Match, davon `humans` Menschen. */
-export function clientBytes(actors, { hz = SNAPSHOT_HZ, humans = actors } = {}) {
+/** Upload des Hosts je Client (Byte/s) bei `actors` Akteuren im Match, davon `humans` Menschen, `vehicles` Fahrzeuge. */
+export function clientBytes(actors, { hz = SNAPSHOT_HZ, humans = actors, vehicles = 0 } = {}) {
   const a = Math.max(0, actors);
   const share = a >= INTEREST_MIN ? INTEREST_SHARE : 1;
-  return hz * (SNAPSHOT_HEADER + PACKET_OVERHEAD + a * ENTITY_BYTES * share) + reliableBytes(a, Math.min(a, humans));
+  const veh = vehicles > 0 ? 2 + vehicles * VEH_BYTES * VEH_SHARE : 0;
+  return hz * (SNAPSHOT_HEADER + PACKET_OVERHEAD + a * ENTITY_BYTES * share + veh) + reliableBytes(a, Math.min(a, humans));
 }
 
 /** Benötigter Upload des Hosts (Byte/s) bei n Spielern; actors = Akteure im Match (mindestens n, Bots füllen auf). */
-export function bandwidthFor(n, { hz = SNAPSHOT_HZ, actors = n, entities = null } = {}) {
+export function bandwidthFor(n, { hz = SNAPSHOT_HZ, actors = n, entities = null, vehicles = 0 } = {}) {
   const a = Math.max(n, Number.isFinite(entities) ? entities : actors || 0);
-  return Math.max(0, n - 1) * clientBytes(a, { hz, humans: n });
+  return Math.max(0, n - 1) * clientBytes(a, { hz, humans: n, vehicles });
 }
 
 /** Größte Spielerzahl, deren Bandbreite in `bytesPerSec` passt (mindestens 2). actors = Akteure im Match (Bots). */
-export function maxPlayersForUpload(bytesPerSec, { headroom = HEADROOM, actors = 0, entitiesFor = null } = {}) {
+export function maxPlayersForUpload(bytesPerSec, { headroom = HEADROOM, actors = 0, entitiesFor = null, vehicles = 0 } = {}) {
   const budget = Math.max(0, bytesPerSec) * headroom;
   let n = MIN_PLAYERS;
   for (let k = MIN_PLAYERS + 1; k <= MAX_PLAYERS; k++) {
     const a = entitiesFor ? entitiesFor(k) : Math.max(k, actors || 0);
-    if (bandwidthFor(k, { actors: a }) <= budget + 1e-6) n = k; else break;
+    if (bandwidthFor(k, { actors: a, vehicles }) <= budget + 1e-6) n = k; else break;
   }
   return n;
 }
@@ -94,7 +100,7 @@ export function maxPlayersForDevice({ cores = null, memory = null, fps = null } 
  * actors: Akteure im Match (Bot-Auffüllung 2 × teamSize; 0 = nur Menschen).
  * → {max, reason, upload (Byte/s|null), fps, cores, memory, measured}
  */
-export function recommend({ cores = null, memory = null, fps = null, upload = null, connection = null, actors = 0 } = {}) {
+export function recommend({ cores = null, memory = null, fps = null, upload = null, connection = null, actors = 0, vehicles = 0 } = {}) {
   const dev = maxPlayersForDevice({ cores, memory, fps });
   let max = dev.max;
   let reason = dev.why ? `Begrenzt durch ${dev.why}` : 'Gerät leistungsstark genug';
@@ -108,8 +114,8 @@ export function recommend({ cores = null, memory = null, fps = null, upload = nu
     // vorsichtig hochrechnen (×2), aber nie unter den Startwert 8 oder die Spielerzahl, die ohne Stau lief (wenig
     // Verkehr beweist keine Grenze).
     let net;
-    if (upload.congested) net = maxPlayersForUpload(upload.rate, { actors });
-    else net = Math.max(UNMEASURED_MAX, maxPlayersForUpload(upload.rate * 2, { actors }), Number.isFinite(upload.players) ? upload.players : 0);
+    if (upload.congested) net = maxPlayersForUpload(upload.rate, { actors, vehicles });
+    else net = Math.max(UNMEASURED_MAX, maxPlayersForUpload(upload.rate * 2, { actors, vehicles }), Number.isFinite(upload.players) ? upload.players : 0);
     if (net < max) {
       max = net;
       const kbit = Math.round((upload.rate * 8) / 1000);

@@ -4,7 +4,7 @@
 import {
   encodeSnapshot, decodeSnapshot, encodeState, decodeState, packetType, WEAPON_INDEX, weaponIndexOf, weaponByIndex,
   NO_WEAPON, FLAGS, packFlags, unpackFlags, PKT_SNAPSHOT, PKT_STATE, SNAPSHOT_HEADER, SNAPSHOT_ENTITY, STATE_SIZE,
-  VR_BLOCK, VR_REACH,
+  VR_BLOCK, VR_REACH, VEH_TAG, VEH_BLOCK, VEH_INPUT,
 } from '../assets/js/game/net/protocol.js';
 import { AntiCheat, PositionHistory, AC_TEXT } from '../assets/js/game/net/anticheat.js';
 import { recommend, bandwidthFor, maxPlayersForUpload, clientBytes, UploadMeter, UNMEASURED_MAX, INTEREST_MIN, INTEREST_SHARE, RELIABLE_BASE, RELIABLE_PER_HUMAN, RELIABLE_PER_ACTOR } from '../assets/js/game/net/recommend.js';
@@ -139,6 +139,81 @@ check(unpackFlags(FLAGS.VR).vr && packFlags({ vr: true }) === 2048, 'Flag-Bit 11
   const li = lerpVrPose(A1, B1, 0.4, newVrPose());
   check(near(li.aimYaw, 3 + (2 * Math.PI - 6) * 0.4, 1e-9) && near(li.aimPitch, 0.08, 1e-9) && near(li.main[0], 0.08, 1e-9) && li.off === null, 'lerpVrPose: Gierung über ±π, Hände linear, fehlende Hand vom näheren Eintrag');
   check(lerpVrPose(null, B1, 0.3) === null && lerpVrPose(null, B1, 0.7).main[0] === 0.2 && lerpVrPose(A1, null, 0.2).aimYaw === 3 && lerpVrPose(null, null, 0.5) === null, 'lerpVrPose: VR beginnt/endet zwischen zwei Einträgen → näherer Eintrag');
+}
+
+/* ------------------------------------------------------------------ Fahrzeuge (panzer-mp.md §C.4/§C.5) */
+{
+  check(VEH_TAG === 0x56 && VEH_BLOCK === 60 && VEH_INPUT === 16 && FLAGS.VEHICLE === 1 << 12, 'Fahrzeug-Konstanten (0x56, 60, 16, Bit 12)');
+  // Quaternion: 30° um Y + leichte Neigung, absichtlich mit qw < 0 (muss negiert werden)
+  const qy = Math.sin(Math.PI / 12), qw0 = Math.cos(Math.PI / 12);
+  const qx0 = 0.05, ql = Math.hypot(qx0, qy, qw0);
+  const q = [-qx0 / ql, -qy / ql, 0, -qw0 / ql];
+  const veh = (vid, over = {}) => ({
+    vid, kind: 0 | (1 << 4), bits: 0b10101001, seats: 0b00100101, x: 1234.567, y: -12.25, z: 98765.4321, qx: q[0], qy: q[1], qz: q[2], qw: q[3],
+    vx: 18.93, vy: -0.42, vz: -7.77, wy: 0.765, a: [3.0, -0.157, -2.5, 0.85], hp: 873.6, zones: [255, 12, 200], gear: -2, rpm: 1.06, drive: 0b10111011,
+    shots: [3, 260, 0, 255], gun: 1 | (2 << 2) | (2 << 4) | 128, busy: 0.5, rackAP: 21, rackHE: 18, mag0: 200, mag1: 99, sel: 0b11010110, aux: 2 | (20 << 2), ...over,
+  });
+  const vs = [veh(7), veh(255, { kind: 1 | (2 << 4), qx: 0, qy: 0, qz: 0, qw: 0, a: [Math.PI * 3, 0, 0, 0], gear: 4, rpm: 0, hp: 70000 })];
+  // 3 Akteure, einer davon mit VR-Block, dazu 2 Fahrzeuge
+  const ents3 = [
+    { id: 1, x: 1, y: 2, z: 3, yaw: 0, pitch: 0, vx: 0, vy: 0, vz: 0, flags: FLAGS.ALIVE | FLAGS.VEHICLE, weapon: 'ar_m17', hp: 100, lean: 0, shots: 0, proneBlend: 0 },
+    { id: 2, x: 4, y: 5, z: 6, yaw: 0, pitch: 0, vx: 0, vy: 0, vz: 0, flags: FLAGS.ALIVE, weapon: 'ar_m17', hp: 50, lean: 0, shots: 0, proneBlend: 0, vr: { aimYaw: 0.5, aimPitch: 0.1, main: [0.2, -0.3, 0.4], off: null } },
+    { id: 1001, x: 7, y: 8, z: 9, yaw: 0, pitch: 0, vx: 0, vy: 0, vz: 0, flags: FLAGS.ALIVE, weapon: 'ar_m17', hp: 20, lean: 0, shots: 0, proneBlend: 0 },
+  ];
+  const sv = encodeSnapshot(9, 77.5, ents3, vs);
+  check(sv.byteLength === SNAPSHOT_HEADER + 3 * SNAPSHOT_ENTITY + VR_BLOCK + 2 + 2 * VEH_BLOCK, `Snapshot mit Fahrzeugen ${sv.byteLength} B = 11 + n·31 + nvr·11 + 2 + nv·60`);
+  const plain = encodeSnapshot(9, 77.5, ents3);
+  const plainNull = encodeSnapshot(9, 77.5, ents3, []);
+  check(plain.byteLength === SNAPSHOT_HEADER + 3 * SNAPSHOT_ENTITY + VR_BLOCK && plainNull.byteLength === plain.byteLength
+    && Buffer.compare(Buffer.from(plain), Buffer.from(plainNull)) === 0, 'ohne Fahrzeuge (null/leer): kein Anhang, Byte für Byte gleich');
+  check(Buffer.compare(Buffer.from(plain), Buffer.from(sv.slice(0, plain.byteLength))) === 0, 'Anhang verändert die Akteursbytes nicht');
+  const dsv = decodeSnapshot(sv);
+  check(dsv && dsv.entities.length === 3 && dsv.vehicles.length === 2 && dsv.entities[1].vr && near(dsv.entities[1].vr.aimYaw, 0.5, 1e-4), 'Dekodierung: Akteure + VR + 2 Fahrzeuge');
+  check((dsv.entities[0].flags & FLAGS.VEHICLE) === 0, 'Fahrzeug-Bit im Snapshot gelöscht (nur im Zustand)');
+  check(Array.isArray(decodeSnapshot(plain).vehicles) && decodeSnapshot(plain).vehicles.length === 0, 'Paket ohne Anhang → vehicles: []');
+  const V = dsv.vehicles[0], src = vs[0];
+  check(V.vid === 7 && V.kind === src.kind && V.bits === src.bits && V.seats === src.seats, 'vid/kind/bits/seats');
+  check(V.x === Math.fround(src.x) && V.y === Math.fround(src.y) && V.z === Math.fround(src.z), 'Position exakt f32');
+  const qn = [-q[0], -q[1], -q[2], -q[3]]; // qw ≥ 0
+  check(V.qw >= 0 && near(V.qx, qn[0], 2e-4) && near(V.qy, qn[1], 2e-4) && near(V.qz, qn[2], 2e-4) && near(V.qw, qn[3], 2e-4), 'Quaternion ≤ 2e-4 (qw ≥ 0, Vorzeichen gedreht)');
+  check(near(Math.hypot(V.qx, V.qy, V.qz, V.qw), 1, 1e-9), 'Quaternion beim Lesen normiert');
+  check(near(V.vx, src.vx, 0.0051) && near(V.vy, src.vy, 0.0051) && near(V.vz, src.vz, 0.0051), 'Geschwindigkeit 1 cm/s');
+  check(near(V.wy, src.wy, 5e-4), 'Gierrate rad/s ×1000');
+  check(V.a.every((x, i) => near(x, src.a[i], 1e-4)), 'Lafettenwinkel ≤ 1e-4');
+  check(V.hp === 874 && V.zones.join() === '255,12,200' && V.gear === -2 && near(V.rpm, 1.06, 0.005) && V.drive === src.drive, 'hp gerundet, Zonen, Gang i8, rpm ×200, drive');
+  check(V.shots.join() === '3,4,0,255' && V.gun === src.gun && near(V.busy, 0.5, 0.003) && V.rackAP === 21 && V.rackHE === 18, 'Schusszähler mod 256, Kanone, Fortschritt, Gestell');
+  check(V.mag0 === 200 && V.mag1 === 99 && V.sel === src.sel && V.aux === src.aux, 'Magazine, sel, aux');
+  const V2 = dsv.vehicles[1];
+  check(V2.vid === 255 && V2.qw === 1 && V2.qx === 0 && near(Math.abs(V2.a[0]), Math.PI, 1e-3) && V2.hp === 65535 && V2.rpm === 0 && V2.gear === 4, 'Nullquaternion → Einheit, Winkel umgebrochen, hp u16 begrenzt');
+  // abgeschnitten: 1,5 Fahrzeugblöcke → nur der vollständige
+  const cut = decodeSnapshot(sv.slice(0, sv.byteLength - 30));
+  check(cut && cut.vehicles.length === 1 && cut.vehicles[0].vid === 7 && cut.entities.length === 3, 'abgeschnittener Anhang → nur vollständige Blöcke');
+  const cut2 = decodeSnapshot(sv.slice(0, SNAPSHOT_HEADER + 3 * SNAPSHOT_ENTITY + VR_BLOCK + 1));
+  check(cut2 && cut2.vehicles.length === 0, 'nur das Kennbyte → keine Fahrzeuge');
+  const cut3 = decodeSnapshot(sv.slice(0, SNAPSHOT_HEADER + 3 * SNAPSHOT_ENTITY + 5));
+  check(cut3 && cut3.vehicles.length === 0 && cut3.entities[1].vr === null, 'VR-Block abgeschnitten → kein Anhang gelesen');
+  // 0 Akteure, nur Fahrzeuge
+  const only = encodeSnapshot(1, 1, [], [vs[0]]);
+  check(only.byteLength === SNAPSHOT_HEADER + 2 + VEH_BLOCK && decodeSnapshot(only).vehicles.length === 1, 'nur Fahrzeuge (0 Akteure)');
+
+  // Zustand + Fahrzeug-Absicht (mit und ohne VR)
+  const base = { x: 1, y: 2, z: 3, yaw: 0.3, pitch: 0.1, vx: 0, vy: 0, vz: 0, flags: FLAGS.ALIVE, weapon: 'ar_m17', lean: 0, shots: 4, proneBlend: 0 };
+  const vin = { vid: 12, seat: 3, throttle: -0.5, steer: 1.4, bits: 0b10110, shift: 3 | (9 << 4), fireSeq: 257, act: 5 | (15 << 4), weapon: 2, view: 1, aimYaw: -2.9, aimPitch: 0.3, lookYaw: 3.1 };
+  const st0 = encodeState(1, 2, base);
+  const st1 = encodeState(1, 2, { ...base, veh: vin });
+  const st2 = encodeState(1, 2, { ...base, veh: vin, vr: { aimYaw: 0.2, aimPitch: 0, main: null, off: null } });
+  check(st0.byteLength === STATE_SIZE && st1.byteLength === STATE_SIZE + VEH_INPUT && st2.byteLength === STATE_SIZE + VR_BLOCK + VEH_INPUT, `Zustand 37 / 37+16 / 37+11+16 Byte (${st0.byteLength}/${st1.byteLength}/${st2.byteLength})`);
+  const ds0 = decodeState(st0), ds1 = decodeState(st1), ds2 = decodeState(st2);
+  check(ds0.entity.veh === null && (ds0.entity.flags & FLAGS.VEHICLE) === 0, 'ohne Fahrzeug: kein Bit, veh null');
+  const e1 = ds1.entity.veh;
+  check(e1 && (ds1.entity.flags & FLAGS.VEHICLE) && e1.vid === 12 && e1.seat === 3 && near(e1.throttle, -0.5, 0.005) && near(e1.steer, 1, 1e-9), 'Absicht: vid/seat/throttle/steer (begrenzt)');
+  check(e1.bits === vin.bits && e1.shift === vin.shift && e1.fireSeq === 1 && e1.act === vin.act && e1.weapon === 2 && e1.view === 1, 'Absicht: Bits, Zähler (mod 256), Waffe, Sicht');
+  check(near(e1.aimYaw, -2.9, 1e-4) && near(e1.aimPitch, 0.3, 1e-4) && near(e1.lookYaw, 3.1, 1e-4), 'Absicht: Winkel ≤ 1e-4');
+  check(ds2.entity.vr && near(ds2.entity.vr.aimYaw, 0.2, 1e-4) && ds2.entity.veh && ds2.entity.veh.vid === 12 && near(ds2.entity.veh.lookYaw, 3.1, 1e-4), 'VR-Block + Absicht dahinter');
+  check(decodeState(st1.slice(0, STATE_SIZE + 8)).entity.veh === null, 'abgeschnittene Absicht → null');
+  check(encodeState(1, 2, { ...base, veh: { vid: 0 } }).byteLength === STATE_SIZE && encodeState(1, 2, { ...base, veh: { vid: 300 } }).byteLength === STATE_SIZE, 'ungültige vid → keine Absicht');
+  const nw = decodeState(encodeState(1, 2, { ...base, veh: { ...vin, weapon: null } })).entity.veh;
+  check(nw.weapon === 255, 'keine Waffenwahl → 255');
 }
 
 /* ------------------------------------------------------------------ anticheat */

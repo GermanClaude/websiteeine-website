@@ -73,6 +73,24 @@ try {
   check(gotRoom && s1.weather === 'dunst' && s1.teamSize === 5 && s1.mode === 'tdm', `Einstellungen an Clients verteilt (Karte ${s1.map}, ${s1.maxPlayers} Spieler, Modus „gun“ online abgelehnt → ${s1.mode})`);
   check(await ev(c1, () => window.__room.events.some((e) => e.name === 'net:room' && e.p.room.settings.map === 'altstadt')), 'Client: net:room-Ereignis');
   await ev(host, () => window.__room.net.updateSettings({ teamSize: 4 }));
+  // Fahrzeuge (panzer-mp.md §C.1): Standard = VEHICLES_ONLINE_DEFAULT, Außenansicht an, Nachladen manuell; Normalisierung
+  const vdef = await ev(host, async () => (await import('../assets/js/game/net/index.js')).VEHICLES_ONLINE_DEFAULT);
+  check(typeof vdef === 'boolean' && s1.vehicles === vdef && s1.thirdPerson === true && s1.vehReload === 'manuell', `Fahrzeug-Standard: vehicles ${s1.vehicles} (= ${vdef}), thirdPerson an, vehReload manuell`);
+  const norm = await ev(host, async () => {
+    const m = await import('../assets/js/game/net/index.js');
+    const n = m.normalizeSettings;
+    return {
+      missing: n({ mode: 'tdm' }, { mode: 'tdm' }).vehicles, onOff: [n({ vehicles: true }).vehicles, n({ vehicles: false }).vehicles, n({ vehicles: 'ja' }).vehicles],
+      keep: n({ teamSize: 3 }, { ...m.DEFAULT_ROOM, vehicles: !m.VEHICLES_ONLINE_DEFAULT }).vehicles,
+      tp: [n({}).thirdPerson, n({ thirdPerson: false }).thirdPerson, n({ thirdPerson: 0 }).thirdPerson],
+      rl: [n({ vehReload: 'automatisch' }).vehReload, n({ vehReload: 'quatsch' }).vehReload, n({}).vehReload], def: m.VEHICLES_ONLINE_DEFAULT,
+    };
+  });
+  check(norm.missing === norm.def && norm.onOff.join() === 'true,false,false' && norm.keep === !norm.def, `normalizeSettings vehicles: fehlt → Standard, sonst Wahrheitswert, Basis bleibt (${JSON.stringify(norm.onOff)})`);
+  check(norm.tp.join() === 'true,false,true' && norm.rl.join() === 'automatisch,manuell,manuell', `normalizeSettings thirdPerson (nur false = aus) / vehReload (${norm.rl.join(', ')})`);
+  await ev(host, () => window.__room.net.updateSettings({ vehicles: true, thirdPerson: false, vehReload: 'automatisch' }));
+  const gotVeh = await waitFor(c2, () => window.__room.net.room.settings.thirdPerson === false && window.__room.net.room.settings.vehReload === 'automatisch');
+  check(gotVeh, 'Fahrzeug-Einstellungen an Clients verteilt (thirdPerson aus, Nachladen automatisch)');
 
   const j3b = await join(c3, code, 'Cleo');
   check(j3b.ok && j3b.id === 4, `nach Erhöhung tritt Cleo bei (id ${j3b.id}, Team ${j3b.team})`);
@@ -147,6 +165,7 @@ try {
   check(starts.every((s) => s.cfg && s.cfg.net.role === 'client' && s.cfg.net.selfId === s.self && s.cfg.mapId === 'altstadt' && s.cfg.weather === hostCfg.weather && s.cfg.timeOfDay === hostCfg.timeOfDay && s.cfg.net.roomCode === code && s.state === 'match'),
     "'start' {cfg} bei allen Clients (Rolle client, eigene netId, gleiche Karte/Wetter/Zeit)");
   check(starts.every((s) => s.cfg.net.team === s.roster.find((r) => r.id === s.self).team), 'cfg.net.team = eigenes Team laut Roster');
+  check([hostCfg, ...starts.map((s) => s.cfg)].every((c) => c.net.vehicles === true && c.net.thirdPerson === false && c.net.vehReload === 'automatisch'), 'cfg.net.vehicles/thirdPerson/vehReload bei Host und Clients');
   check(starts[1].cfg.loadout && starts[1].cfg.loadout.primary === 'smg_vp9' && starts[0].cfg.loadout.primary === 'ar_m17', 'Clients starten mit eigener Ausrüstung');
   // bereit
   await Promise.all([c1, c2].map((p) => ev(p, () => window.__room.net.onMatchStart(window.__room.started[0]))));

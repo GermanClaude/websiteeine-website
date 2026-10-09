@@ -173,9 +173,16 @@ export class VehicleSystem {
   }
 
   _spawnAt(sp) {
-    if (this.list.length >= (CAP[this.quality] || 16)) { sp.respawnAt = this.G.time.elapsed + 5; return null; }
+    if (this.list.length >= (CAP[this.quality] || 16)) {
+      // Stufen-Obergrenze: ein Stellplatz, der nie ein Fahrzeug bekam, bleibt leer – sonst nähme er beim ersten Wrack den
+      // Platz eines anderen Teams/Typs ein (Grenzland low: je Team 2 Panzer + 1 Geländewagen bleiben so erhalten)
+      if (!sp.spawned) { sp.capped = true; sp.respawnAt = null; return null; }
+      sp.respawnAt = this.G.time.elapsed + 5;
+      return null;
+    }
     const v = this.spawnVehicle(sp.type, sp.position, sp.yaw, sp.team, { spawn: sp });
     sp.vehicle = v;
+    sp.spawned = true;
     sp.respawnAt = null;
     return v;
   }

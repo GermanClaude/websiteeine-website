@@ -183,6 +183,11 @@ export function vehicleMaterials() {
     canvas: fromBase('tarp', { color: 0x6b6345, metalness: 0, roughness: 0.95 }),
     interior: new THREE.MeshStandardMaterial({ name: 'veh:interior', color: 0x2c2d28, roughness: 0.9, metalness: 0.1 }),
     glass: new THREE.MeshStandardMaterial({ name: 'veh:glass', color: 0x1c2428, roughness: 0.06, metalness: 0.2, transparent: true, opacity: 0.32, depthWrite: false, envMapIntensity: 1.6 }),
+    // Optikglas der Panzer (Winkelspiegel, Zieloptik, Periskop): vergütet, undurchsichtig, spiegelnd
+    optic: new THREE.MeshStandardMaterial({ name: 'veh:optic', color: 0x0d1a1f, roughness: 0.05, metalness: 0.85, envMapIntensity: 2.2, emissive: 0x06161a, emissiveIntensity: 0.6 }),
+    // Turm-Innenraum (nur für den lokalen Insassen): Wandfarbe leicht selbstleuchtend (Innenlampe), Granaten mit Vertex-Farben
+    cabin: new THREE.MeshStandardMaterial({ name: 'veh:cabin', color: 0x4d5446, roughness: 0.82, metalness: 0.12, emissive: 0x1b1d16, emissiveIntensity: 1 }),
+    shell: new THREE.MeshStandardMaterial({ name: 'veh:shell', vertexColors: true, roughness: 0.42, metalness: 0.55, emissive: 0x0b0a08, emissiveIntensity: 1 }),
     lensOn: new THREE.MeshStandardMaterial({ name: 'veh:lensOn', color: 0xfff6e0, emissive: 0xffe9c0, emissiveIntensity: 6, roughness: 0.2 }),
     lensOff: new THREE.MeshStandardMaterial({ name: 'veh:lensOff', color: 0xb9b6ad, emissive: 0x332f26, emissiveIntensity: 0.4, roughness: 0.15, metalness: 0.3 }),
     rearLamp: new THREE.MeshStandardMaterial({ name: 'veh:rear', color: 0x5a0d08, emissive: 0x6a0904, emissiveIntensity: 1.2, roughness: 0.3 }),
@@ -202,10 +207,13 @@ export function vehicleMaterials() {
   return SET;
 }
 
-/** Vorzuwärmende Fahrzeugmaterialien (Shader, die nicht sofort sichtbar sind): Scheinwerfer an, Lichtkegel, Wrack. */
+/**
+ * Vorzuwärmende Fahrzeugmaterialien (Shader, die nicht sofort sichtbar sind): Scheinwerfer an, Lichtkegel, Wrack,
+ * Optikglas, Turm-Innenraum (Wände, Granaten) – index.js kompiliert sie beim Anschluss mit (panzer-mp.md §D.3).
+ */
 export function vehicleWarmMaterials() {
   const S = vehicleMaterials();
-  return [S.lensOn, S.cone, S.wreck];
+  return [S.lensOn, S.cone, S.wreck, S.optic, S.cabin, S.shell];
 }
 
 /** Kettenmaterial je Fahrzeugseite (eigene Texturkopie → eigener Versatz für den Kettenlauf). */

@@ -12,6 +12,7 @@
 //   • Herrschaft: Flaggenzustand synchron; Einstieg ins laufende Match (welcome.cfg); Kick mitten im Match.
 // Voraussetzung: Server auf 8765 (npx http-server -p 8765 -s -c-1 .) und node tools/nostr-relay.mjs 7777.
 // Aufruf: node tools/mp-test.mjs [--size=640x360] [--quality=low] [--keep] [--skip-dom] [--params="netlag=150&netjitter=30&netloss=5"]
+//   [--vehicles=0|1] (Raum-Einstellung „Fahrzeuge“; ohne Angabe gilt der Standard VEHICLES_ONLINE_DEFAULT)
 //   --params: zusätzliche URL-Parameter für alle Seiten (z. B. Netz-Chaos ?netlag/netjitter/netloss, net/index.js).
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 import { readFileSync, mkdirSync } from 'node:fs';
@@ -147,11 +148,13 @@ try {
   const c1 = await open('Anna');
   const c2 = await open('Bert');
   info(`drei Seiten geladen (${QUALITY}, ${W}×${H}${EXTRA ? `, ${EXTRA.slice(1)}` : ''})`);
-  const code = await ev(host, () => window.__game.net.host({
+  const VEH = opt.vehicles === undefined ? null : opt.vehicles !== '0' && opt.vehicles !== 'false';
+  const code = await ev(host, (veh) => window.__game.net.host({
     name: 'MP-Test', mode: 'tdm', map: 'hafen', maxPlayers: 4, teamSize: 3, pvp: 'pvp', botFill: true, difficulty: 'rekrut',
-    weather: 'standard', time: 'standard', style: 'arcade',
-  }).then((r) => r.code, (e) => 'FEHLER:' + e.code));
+    weather: 'standard', time: 'standard', style: 'arcade', ...(veh == null ? {} : { vehicles: veh }),
+  }).then((r) => r.code, (e) => 'FEHLER:' + e.code), VEH);
   check(/^[A-Z2-9]{6}$/.test(code), `Host öffnet Raum ${code}`);
+  info(`Fahrzeuge: ${await ev(host, () => (window.__game.net.room.settings.vehicles ? 'an' : 'aus'))}`);
   const joinOnce = (p, n) => ev(p, ([c, nm]) => window.__game.net.join(c, { name: nm }).then((r) => ({ ok: true, id: r.id, team: r.team }), (e) => ({ ok: false, code: e.code })), [code, n]);
   // Ein zweiter Versuch bei 'keine-antwort'/'verbindung-fehlgeschlagen' (SwiftShader-Host blockiert unter Fremdlast teils
   // > 20 s – wie ein Spieler, der erneut auf „Beitreten“ tippt); wird protokolliert

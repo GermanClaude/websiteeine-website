@@ -7,8 +7,12 @@
 //
 // createVehicleModel(type, { team, quality }) → {
 //   root, turret, gun, cmg, mg, wheels:[{pivot, spin, steer, side, local}], trackMats:[L, R], trackLoop (m),
-//   lenses:[Mesh], cones:[Mesh], setLights(on), setWreck(on), dispose()
+//   lenses:[Mesh], cones:[Mesh], setLights(on), setWreck(on), dispose(),
+//   // Besatzung (panzer-mp.md §3.7/§D.2, nur KP-1; beim Geländewagen hatches = {} und interior = null):
+//   hatches:{driver, commander, loader} (Drehpunkt an der Scharnierkante), setHatch(id, t 0…1),
+//   interior (Turmraum, unsichtbar), setInterior(on), setBreech(t 0…1), setRack({mbt_ap, mbt_he}), setHeld(type|null)
 // }
+// Luken und Innenraum liegen außerhalb der LOD-Stufen (eigene Netze; der Innenraum nur für den lokalen Insassen).
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { boxUV } from '../engine/textures.js';
@@ -21,6 +25,10 @@ const LOD_DIST = { low: [0, 18, 50], medium: [0, 28, 75], high: [0, 40, 110], ul
 /** env-look: Detailteile (Rückrollen, Zähne, Schürzensegmente, Seile, Staukästen, Profilreifen …) nur ab medium –
  * low behält exakt die bisherige Geometrie (Dreiecke ≤ vorher). Wird je Vorlage in template() gesetzt. */
 let HQ = true;
+/** Detailstufe der Vorlage: 0 = low (Bestand), 1 = medium, 2 = high/ultra (Budget panzer-mp.md §D.3). */
+let DET = 2;
+/** Optisch 7 Laufrollen je Seite (ab medium) – die Federung rechnet weiter mit den 5 Federstrahlen aus data.js. */
+const ROAD7 = [-2.65, -1.767, -0.883, 0, 0.883, 1.767, 2.65];
 
 /** Sammelt Geometrien je Material und verschmilzt sie. */
 class Bucket {
@@ -167,14 +175,49 @@ function addRoadWheel(B, S, x, y, z, r, seg, lod) {
   }
 }
 
-/** env-look: Laufwerk und Wanne – Rückrollen, Triebradzähne, Nabenschrauben, Schürzensegmente mit Schrauben,
- * Schmutzfänger, Fahrer-Winkelspiegel, Kanister und Schanzzeug. Nur HQ (medium+). */
+/** env-look (medium+): Laufrolle mit Gummibandage, lackierter Radscheibe, Nabe und (high) Radmuttern. */
+function addRoadWheelHQ(B, S, paint, x, y, z, r, seg, lod) {
+  const sx = Math.sign(x) || 1;
+  B.add(cyl(r, r, 0.42, seg), S.rubber, [x, y, z], [0, 0, HP]);
+  B.add(cyl(r * 0.78, r * 0.78, 0.44, seg), paint, [x, y, z], [0, 0, HP]);
+  B.add(cyl(r * 0.24, r * 0.26, 0.5, Math.max(6, seg >> 1)), S.dark, [x, y, z], [0, 0, HP]);
+  if (lod === 0 && DET === 2) for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * PI * 2;
+    B.add(box(0.03, 0.03, 0.03), S.dark, [x + sx * 0.225, y + Math.sin(a) * 0.15, z + Math.cos(a) * 0.15]);
+  }
+}
+
+/** Keilförmiger Panzerblock: Grundriss (x, v = vorwärts) als Prisma ab y0, Oberseite fällt von hBack (hinten) nach
+ * hFront (vorn) ab – Zusatzpanzerung am Turm. */
+function wedge(pts, y0, hBack, hFront) {
+  const g = topExtrude(pts, 1);
+  const P = g.attributes.position;
+  let zf = Infinity, zb = -Infinity;
+  for (let i = 0; i < P.count; i++) { zf = Math.min(zf, P.getZ(i)); zb = Math.max(zb, P.getZ(i)); }
+  for (let i = 0; i < P.count; i++) {
+    const k = (P.getZ(i) - zf) / Math.max(1e-6, zb - zf); // 0 = vorn … 1 = hinten
+    P.setY(i, y0 + (P.getY(i) > 0.5 ? hFront + (hBack - hFront) * k : 0));
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/** env-look: Laufwerk und Wanne – Rückrollen, Triebrad mit Zahnkränzen, Leitrad mit Speichen, Schürzensegmente mit
+ * Gummiunterkante, Zusatzpanzerung am Glacis, Scheinwerferschutzbügel, Abschleppösen, Heckgitter, Auspuffgitter,
+ * Seitenkästen, Winkelspiegel, Kanister und Schanzzeug. Nur HQ (medium+); DET 2 (high/ultra) mit Kleinteilen. */
 function mbtDetail(B, S, paint, lod, seg) {
   const W = VEHICLES.mbt.wheels;
+  const hi = DET === 2;
   for (const sx of [-1, 1]) {
     if (lod < 2) for (const z of [-1.95, 0, 1.95]) {
       B.add(cyl(0.1, 0.1, 0.2, Math.max(8, seg >> 1)), S.rubber, [sx * W.x, 0.78, z], [0, 0, HP]);
       B.add(cyl(0.045, 0.045, 0.34, 6), S.dark, [sx * (W.x - 0.12), 0.78, z], [0, 0, HP]);
+    }
+    if (lod === 0 || (lod === 1 && hi)) {
+      // Triebrad: lackierte Scheibe + Nabe; Leitrad: Nabe (Speichen s. u.)
+      B.add(cyl(0.25, 0.25, 0.52, seg), paint, [sx * W.x, 0.55, 3.05], [0, 0, HP]);
+      B.add(cyl(0.1, 0.11, 0.56, Math.max(6, seg >> 1)), S.dark, [sx * W.x, 0.55, 3.05], [0, 0, HP]);
+      B.add(cyl(0.09, 0.1, 0.5, Math.max(6, seg >> 1)), S.dark, [sx * W.x, 0.56, -3.12], [0, 0, HP]);
     }
     if (lod === 0) {
       // Triebrad (hinten): zwei Zahnkränze
@@ -182,55 +225,107 @@ function mbtDetail(B, S, paint, lod, seg) {
         const a = (i / 12) * PI * 2;
         B.add(box(0.07, 0.075, 0.07), S.dark, [sx * W.x + dx, 0.55 + Math.sin(a) * 0.34, 3.05 + Math.cos(a) * 0.34], [a, 0, 0]);
       }
-      // Nabenschrauben der Laufrollen
-      for (const z of W.z) for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * PI * 2;
-        B.add(box(0.03, 0.032, 0.032), S.dark, [sx * (W.x + 0.25), W.radius + Math.sin(a) * 0.1, z + Math.cos(a) * 0.1]);
+      // Leitrad (vorn): Speichen auf der Außenseite
+      if (hi) for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * PI * 2 + 0.3;
+        B.add(box(0.05, 0.05, 0.2), paint, [sx * (W.x + 0.235), 0.56 + Math.sin(a) * 0.15, -3.12 + Math.cos(a) * 0.15], [a, 0, 0]);
       }
-      // Schürze in Segmenten (leicht versetzt) mit Schraubenreihe, Gummi-Schmutzfänger vorn/hinten
+      // Schürze in Segmenten mit Gummiunterkante; die beiden vorderen als dicke Panzerschürze; (high) Schrauben
       for (let i = 0; i < 6; i++) {
         const z = -2.55 + i * 1.04;
-        B.add(box(0.014, 0.46, 0.98), paint, [sx * 1.828, 0.73, z], [0, 0, sx * 0.035]);
-        for (let j = 0; j < 4; j++) B.add(box(0.02, 0.026, 0.026), S.dark, [sx * 1.842, 0.92, z - 0.36 + j * 0.24]);
+        B.add(box(i < 2 ? 0.07 : 0.014, 0.46, 0.98), paint, [sx * (i < 2 ? 1.855 : 1.828), 0.73, z], [0, 0, sx * 0.035]);
+        B.add(box(0.025, 0.14, 0.96), S.rubber, [sx * 1.82, 0.44, z]);
+        if (hi) for (let j = 0; j < 4; j++) B.add(box(0.02, 0.026, 0.026), S.dark, [sx * (i < 2 ? 1.896 : 1.842), 0.92, z - 0.36 + j * 0.24]);
       }
       B.add(box(0.04, 0.4, 0.14), S.rubber, [sx * 1.78, 0.56, -3.2]);
       B.add(box(0.5, 0.42, 0.03), S.rubber, [sx * 1.42, 0.55, 3.66]);
     }
+    if (lod < 2) {
+      // Seitenkästen über den Ketten (vorn, vor dem Turm) und Heckgitter-Lüfter seitlich
+      B.add(box(0.3, 0.22, 1.05), paint, [sx * 1.57, 1.74, -1.45]);
+      if (lod === 0 && hi) {
+        B.add(box(0.31, 0.02, 1.07), S.dark, [sx * 1.57, 1.83, -1.45]);
+        for (const dz of [-0.3, 0.3]) B.add(box(0.03, 0.06, 0.05), S.dark, [sx * 1.725, 1.76, -1.45 + dz]);
+      }
+    }
+    if (lod === 0 && hi) {
+      // Auspuffgitter seitlich hinten (Lamellen)
+      B.add(box(0.03, 0.26, 0.62), S.dark, [sx * 1.765, 1.3, 3.0]);
+      for (let j = 0; j < 4; j++) B.add(box(0.04, 0.03, 0.6), paint, [sx * 1.775, 1.2 + j * 0.065, 3.0], [sx * 0.5, 0, 0]);
+      // Scheinwerferschutzbügel
+      const L = VEHICLES.mbt.lights[sx < 0 ? 0 : 1];
+      B.add(box(0.4, 0.03, 0.03), S.dark, [L[0], L[1] + 0.17, L[2] - 0.14]);
+      for (const dx of [-0.19, 0.19]) B.add(box(0.03, 0.2, 0.03), S.dark, [L[0] + dx, L[1] + 0.08, L[2] - 0.14]);
+      // Abschleppösen vorn/hinten
+      B.add(new THREE.TorusGeometry(0.075, 0.024, 4, 8), S.dark, [sx * 0.9, 0.86, -3.66], [0, HP, 0]);
+      B.add(new THREE.TorusGeometry(0.075, 0.024, 4, 8), S.dark, [sx * 0.6, 0.95, 3.66], [0, HP, 0]);
+    }
   }
   if (lod < 2) {
-    // Fahrer-Winkelspiegel um die Luke
-    for (let i = -1; i <= 1; i++) B.add(box(0.14, 0.08, 0.1), S.glass, [-0.55 + i * 0.2, 1.66, -2.66 + Math.abs(i) * 0.06], [0, -i * 0.35, 0]);
+    // geteiltes Glacis: zwei aufgesetzte Zusatzpanzerplatten (Spalt in der Mitte)
+    for (const sx of [-1, 1]) {
+      B.add(box(1.2, 0.06, 0.9), paint, [sx * 0.68, 1.31, -3.05], [-0.49, 0, 0]);
+      if (lod === 0 && hi) for (let j = 0; j < 4; j++) B.add(box(0.04, 0.03, 0.04), S.dark, [sx * (0.2 + j * 0.32), 1.53, -2.68], [-0.49, 0, 0]);
+    }
+    // Fahrer-Winkelspiegel vor der Luke
+    for (let i = -1; i <= 1; i++) B.add(box(0.14, 0.08, 0.1), S.optic, [-0.55 + i * 0.2, 1.66, -2.66 + Math.abs(i) * 0.06], [0, -i * 0.35, 0]);
     // Kanister auf dem Motordeck
     for (const sx of [-1, 1]) {
       B.add(box(0.17, 0.46, 0.34), paint, [sx * 1.45, 1.86, 2.75]);
       if (lod === 0) B.add(box(0.05, 0.05, 0.12), S.dark, [sx * 1.45, 2.11, 2.68]);
     }
+    // Heckplatte: Lüftergitter zwischen den Auspuffkästen
+    B.add(box(1.1, 0.34, 0.03), S.dark, [0, 1.15, 3.6]);
+    if (lod === 0 && hi) for (let j = 0; j < 5; j++) B.add(box(1.06, 0.03, 0.05), paint, [0, 1.03 + j * 0.06, 3.62], [0.6, 0, 0]);
   }
   if (lod === 0) {
     // Schaufel + Brechstange neben der Fahrerluke
     B.add(cyl(0.018, 0.018, 1.1, 6), S.canvas, [0.35, 1.65, -1.75], [HP, 0, 0]);
     B.add(box(0.22, 0.02, 0.28), S.dark, [0.35, 1.65, -1.08]);
     B.add(cyl(0.014, 0.014, 1.2, 6), S.dark, [0.62, 1.65, -1.6], [HP, 0, 0]);
-    // Schweißnähte/Plattenkanten am Glacis
-    B.add(box(3.3, 0.02, 0.02), S.dark, [0, 1.3, -3.02], [-0.5, 0, 0]);
+    if (hi) {
+      // Vorschlaghammer auf dem Motordeck, Deckel-Fugen
+      B.add(cyl(0.02, 0.02, 0.9, 6), S.canvas, [-0.9, 1.7, 1.5], [HP, 0, 0]);
+      B.add(box(0.1, 0.08, 0.18), S.dark, [-0.9, 1.7, 1.02]);
+      for (const z of [1.2, 2.8]) B.add(box(2.62, 0.012, 0.02), S.dark, [0, 1.668, z]);
+    }
   }
 }
 
-/** env-look: Turm – Zusatzpanzerung an den Wangen, Staukästen, Winkelspiegel der Ladeluke, Hebeösen, Windsensor,
- * zweite Antenne, Dachnähte. Nur HQ (medium+). */
+/** env-look: Turm – Keil-Zusatzpanzerung vorn, Seitenmodule, Staukästen, Rauchwurfbecher (2×4), Optikkopf mit Klappen,
+ * Rundblickperiskop, Winkelspiegel der Ladeluke, Lukenring mit MG-Lafette, Staukorb mit Gepäck und Ersatzkettengliedern,
+ * Hebeösen, Windsensor, Antennen, Dachnähte. Nur HQ (medium+); DET 2 (high/ultra) mit Kleinteilen. */
 function turretDetail(T, S, paint, lod, seg) {
+  const hi = DET === 2;
   if (lod < 2) {
     for (const sx of [-1, 1]) {
-      // Wangenpanzer (schräg, auf Abstand) + Staukasten seitlich hinten
-      T.add(box(0.12, 0.62, 0.95), paint, [sx * 1.08, 0.4, -1.42], [0, sx * 0.58, 0]);
+      // Keilpanzer vor den Wangen (Oberseite fällt nach vorn ab)
+      const P = [[0.66, 1.9], [1.1, 2.42], [1.36, 0.93]].map(([x, v]) => [sx * x, v]);
+      T.add(wedge(sx < 0 ? P.reverse() : P, 0.1, 0.66, 0.4), paint);
+      // Seitenmodul (Abstandspanzer) + Staukasten seitlich hinten
+      T.add(box(0.07, 0.56, 1.1), paint, [sx * 1.39, 0.4, -0.4]);
       T.add(box(0.3, 0.44, 0.92), paint, [sx * 1.505, 0.46, 1.05]);
+      // Rauchwurfbecher: Block mit 4 Bechern je Seite
+      T.add(box(0.42, 0.07, 0.22), S.dark, [sx * 1.11, 0.815, -0.7]);
+      for (let i = 0; i < 4; i++) T.add(cyl(0.05, 0.05, 0.26, lod === 0 ? 8 : 6, lod > 0), S.dark, [sx * (0.98 + i * 0.087), 0.92, -0.76], [-0.75, 0, sx * 0.3]);
       if (lod === 0) {
         T.add(box(0.31, 0.02, 0.94), S.dark, [sx * 1.505, 0.69, 1.05]);
-        for (let j = 0; j < 4; j++) T.add(box(0.03, 0.03, 0.03), S.dark, [sx * (1.08 + 0.07), 0.62 - (j % 2) * 0.42, -1.42 + (j < 2 ? -0.3 : 0.3)], [0, sx * 0.58, 0]);
+        if (hi) for (let j = 0; j < 6; j++) T.add(box(0.03, 0.035, 0.035), S.dark, [sx * 1.43, 0.22 + (j % 2) * 0.36, -0.85 + (j >> 1) * 0.45]);
       }
     }
+    // Richtschützen-Optikkopf: Schutzhaube (Klappen s. u.)
+    T.add(box(0.48, 0.05, 0.6), paint, [0.62, 1.165, -0.98]);
+    // Rundblickperiskop des Kommandanten (fest, links vorn)
+    T.add(cyl(0.12, 0.14, 0.12, Math.max(8, seg >> 1)), paint, [-1.0, 0.84, -0.3]);
+    T.add(box(0.28, 0.24, 0.28), paint, [-1.0, 1.02, -0.3]);
+    T.add(box(0.2, 0.1, 0.02), S.optic, [-1.0, 1.03, -0.445]);
+    // Kommandantenkuppel: Öffnung unter dem Deckel
+    T.add(cyl(0.34, 0.34, 0.012, seg), S.dark, [-0.62, 1.024, 0.62]);
+    // Staukorb: Seitenholme, Planenrolle
+    for (const sx of [-1, 1]) T.add(box(0.04, 0.04, 0.5), S.dark, [sx * 1.18, 0.5, 2.25]);
+    T.add(cyl(0.12, 0.12, 1.5, Math.max(8, seg >> 1)), S.canvas, [0.1, 0.5, 2.3], [0, 0, HP]);
     // Winkelspiegel an der Ladeluke
-    for (let i = 0; i < 3; i++) { const a = -0.9 + i * 0.9; T.add(box(0.12, 0.07, 0.06), S.glass, [0.6 + Math.sin(a) * 0.36, 0.83, 0.55 - Math.cos(a) * 0.36], [0, a, 0]); }
+    for (let i = 0; i < 3; i++) { const a = -0.9 + i * 0.9; T.add(box(0.12, 0.07, 0.06), S.optic, [0.6 + Math.sin(a) * 0.36, 0.83, 0.55 - Math.cos(a) * 0.36], [0, a, 0]); }
   }
   if (lod === 0) {
     for (const [x, z] of [[-1.15, -0.8], [1.15, -0.8], [-1.0, 1.7], [1.0, 1.7]]) T.add(new THREE.TorusGeometry(0.05, 0.014, 4, 8), S.dark, [x, 0.8, z], [0, x > 0 ? HP : -HP, 0]);
@@ -239,6 +334,44 @@ function turretDetail(T, S, paint, lod, seg) {
     T.add(cyl(0.012, 0.012, 1.9, 4), S.dark, [-0.95, 1.73, 1.55]);
     T.add(cyl(0.05, 0.06, 0.08, 8), S.dark, [-0.95, 0.82, 1.55]);
     for (const z of [-0.6, 0.6]) T.add(box(2.2, 0.012, 0.02), S.dark, [0, 0.785, z]);
+    if (hi) {
+      // Optikkopf: aufgeklappte Panzerklappen; Periskop: Haube + Rückfenster
+      for (const sx of [-1, 1]) T.add(box(0.025, 0.24, 0.16), paint, [0.62 + sx * 0.25, 0.98, -1.3], [0, sx * 0.5, 0]);
+      T.add(box(0.32, 0.03, 0.34), paint, [-1.0, 1.155, -0.32]);
+      T.add(box(0.2, 0.1, 0.02), S.optic, [-1.0, 1.03, -0.155]);
+      // Lukenring der Ladeschützenluke mit MG-Lafette (Zapfen, Waffe, Gurtkasten)
+      T.add(new THREE.TorusGeometry(0.37, 0.022, 4, 18), S.dark, [0.6, 0.81, 0.55], [HP, 0, 0]);
+      T.add(cyl(0.02, 0.02, 0.3, 6), S.dark, [0.6, 0.97, 0.17]);
+      T.add(box(0.08, 0.1, 0.42), S.dark, [0.6, 1.14, 0.08]);
+      T.add(cyl(0.016, 0.016, 0.5, 6), S.dark, [0.6, 1.16, -0.36], [HP, 0, 0]);
+      T.add(box(0.1, 0.1, 0.14), paint, [0.67, 1.1, 0.12]);
+      // Antennenfuß, Ersatzkettenglieder am Staukorb-Heck, Gepäck
+      T.add(cyl(0.05, 0.06, 0.08, 8), S.dark, [0.95, 0.82, 1.55]);
+      for (let i = 0; i < 3; i++) {
+        const x = -0.75 + i * 0.68;
+        T.add(box(0.62, 0.15, 0.035), S.dark, [x, 0.3, 2.52]);
+        for (const dx of [-0.32, 0.32]) T.add(box(0.04, 0.07, 0.06), S.dark, [x + dx, 0.3, 2.53]);
+      }
+      for (let i = 0; i < 5; i++) T.add(box(0.025, 0.4, 0.025), S.dark, [-0.95 + i * 0.475, 0.29, 2.48]);
+      T.add(box(0.36, 0.22, 0.24), S.dark, [0.75, 0.21, 2.2]);
+      T.add(box(0.16, 0.34, 0.3), paint, [-1.0, 0.27, 2.25]);
+    }
+  }
+}
+
+/** env-look: Rohr – Mantelblende mit Stirnplatte und Kragen, Rauchabsauger mit Übergängen, Wärmeschutzhülle in
+ * Segmenten (Spannbänder), Mündungsreferenz mit Spiegelgehäuse. Nur HQ. */
+function gunDetail(Gb, S, paint, lod, seg) {
+  if (lod > 1) return;
+  Gb.add(box(0.98, 0.6, 0.1), paint, [0, 0, -0.3]);
+  for (const sx of [-1, 1]) Gb.add(box(0.08, 0.6, 0.38), paint, [sx * 0.52, 0, -0.1], [0, sx * 0.35, 0]);
+  Gb.add(cyl(0.17, 0.2, 0.12, seg), paint, [0, 0, -0.41], [HP, 0, 0]);
+  for (const [z, a, b] of [[-2.65, 0.088, 0.145], [-3.55, 0.145, 0.088]]) Gb.add(cyl(a, b, 0.1, seg, true), paint, [0, 0, z], [HP, 0, 0]);
+  if (lod === 0 && DET === 2) {
+    for (const z of [-0.95, -2.2, -3.95, -4.85]) Gb.add(cyl(0.095, 0.095, 0.04, 14), S.dark, [0, 0, z], [HP, 0, 0]);
+    for (let i = 0; i < 6; i++) Gb.add(box(0.035, 0.035, 0.035), S.dark, [-0.4 + i * 0.16, 0.26, -0.36]);
+    Gb.add(box(0.1, 0.08, 0.1), S.dark, [0, 0.14, -5.47]);
+    Gb.add(box(0.02, 0.1, 0.02), S.dark, [0, 0.12, -5.38]);
   }
 }
 
@@ -273,7 +406,7 @@ function buildMBT(lod, S, team) {
   for (const L of D.lights) B.add(box(0.34, 0.24, 0.2), S.dark, [L[0], L[1], L[2] + 0.1]);
   if (lod === 0) {
     for (const sx of [-1, 1]) B.add(box(0.14, 0.14, 0.3), S.dark, [sx * 0.9, 0.78, -3.5]);
-    for (let i = 0; i < 5; i++) B.add(box(0.5, 0.05, 0.16), S.dark, [0.6, 1.28 - i * 0.05, -3.12 + i * 0.09], [-0.5, 0, 0]);
+    if (!HQ) for (let i = 0; i < 5; i++) B.add(box(0.5, 0.05, 0.16), S.dark, [0.6, 1.28 - i * 0.05, -3.12 + i * 0.09], [-0.5, 0, 0]);
     // Werkzeug an der Flanke
     B.add(box(0.06, 0.08, 1.4), S.canvas, [1.74, 1.05, 1.2]);
     B.add(box(0.05, 0.1, 1.1), S.dark, [-1.74, 1.05, 1.3]);
@@ -284,21 +417,20 @@ function buildMBT(lod, S, team) {
   const W = D.wheels;
   for (const sx of [-1, 1]) {
     const x = sx * W.x;
-    if (lod < 2) for (const z of W.z) addRoadWheel(B, S, x, W.radius, z, W.radius, seg, lod);
+    if (lod < 2 && HQ) { const rs = lod === 0 ? (DET === 2 ? 18 : 14) : (DET === 2 ? 10 : 8); for (const z of ROAD7) addRoadWheelHQ(B, S, paint, x, W.radius, z, W.radius, rs, lod); }
+    else if (lod < 2) for (const z of W.z) addRoadWheel(B, S, x, W.radius, z, W.radius, seg, lod);
     B.add(cyl(0.32, 0.32, 0.5, seg), S.dark, [x, 0.55, 3.05], [0, 0, HP]);
     B.add(cyl(0.3, 0.3, 0.46, seg), S.dark, [x, 0.56, -3.12], [0, 0, HP]);
   }
-  B.build(hull, { shadow: true });
   if (HQ && lod < 2) {
-    // Abschleppseile an den Wannenflanken (durchhängend, Ösen an den Enden) – eigenes Bucket, Rohr-UVs bleiben
-    const TB = new Bucket();
+    // Abschleppseile an den Wannenflanken (durchhängend, Ösen an den Enden) – im selben Bucket (ein Draw Call)
     for (const sx of [-1, 1]) {
       const x = sx * 1.785, curve = new THREE.CatmullRomCurve3([[x, 1.42, -2.3], [x, 1.36, -1.2], [x, 1.34, 0], [x, 1.36, 1.2], [x, 1.42, 2.3]].map((p) => new THREE.Vector3(...p)));
-      TB.add(new THREE.TubeGeometry(curve, lod === 0 ? 40 : 16, 0.022, lod === 0 ? 6 : 4, false), S.dark);
-      if (lod === 0) for (const z of [-2.36, 2.36]) TB.add(new THREE.TorusGeometry(0.055, 0.018, 5, 10), S.dark, [x, 1.43, z], [0, HP, 0]);
+      B.add(new THREE.TubeGeometry(curve, lod === 0 ? 40 : 16, 0.022, lod === 0 ? 6 : 4, false), S.dark);
+      if (lod === 0) for (const z of [-2.36, 2.36]) B.add(new THREE.TorusGeometry(0.055, 0.018, 5, 10), S.dark, [x, 1.43, z], [0, HP, 0]);
     }
-    TB.build(hull, { shadow: lod === 0 });
   }
+  B.build(hull, { shadow: true });
   // Ketten (eigenes Material je Seite → Texturlauf)
   const path = mbtTrackPath(lod);
   for (const [i, sx] of [[0, -1], [1, 1]]) {
@@ -322,19 +454,20 @@ function buildMBT(lod, S, team) {
   T.add(cyl(1.02, 1.05, 0.14, seg + 4), S.dark, [0, -0.03, 0.1]);
   // Richtschützen-Optik, Kommandantenkuppel
   T.add(box(0.42, 0.36, 0.55), paint, [0.62, 0.96, -0.95]);
-  T.add(box(0.34, 0.24, 0.04), S.glass, [0.62, 0.98, -1.23]);
+  T.add(box(0.34, 0.24, 0.04), S.optic, [0.62, 0.98, -1.23]);
   T.add(cyl(0.42, 0.44, 0.24, seg), paint, [-0.62, 0.9, 0.62]);
   if (lod === 0) {
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * PI * 2;
-      T.add(box(0.12, 0.08, 0.06), S.glass, [-0.62 + Math.sin(a) * 0.43, 0.98, 0.62 + Math.cos(a) * 0.43], [0, a, 0]);
+    const nv = DET === 2 ? 8 : 6;
+    for (let i = 0; i < nv; i++) {
+      const a = (i / nv) * PI * 2;
+      T.add(box(0.12, 0.08, 0.06), S.optic, [-0.62 + Math.sin(a) * 0.43, 0.98, 0.62 + Math.cos(a) * 0.43], [0, a, 0]);
     }
     // Ladeschützenluke, Antenne
     T.add(cyl(0.3, 0.3, 0.05, seg), S.dark, [0.6, 0.8, 0.55]);
     T.add(cyl(0.012, 0.012, 2.3, 4), S.dark, [0.95, 1.9, 1.55]);
   }
-  // Nebelwurfbecher
-  if (lod < 2) {
+  // Nebelwurfbecher (ab medium: 2×4 im Block, turretDetail)
+  if (lod < 2 && !HQ) {
     for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) {
       T.add(cyl(0.055, 0.055, 0.3, 8), S.dark, [sx * (1.1 + i * 0.06), 0.62, -0.75 - i * 0.08], [-0.6, 0, sx * 0.4]);
     }
@@ -371,6 +504,7 @@ function buildMBT(lod, S, team) {
     Gb.add(box(0.06, 0.06, 0.12), S.dark, [0, 0.1, -5.45]);
   }
   Gb.add(box(0.12, 0.1, 0.22), S.dark, [D.coax[0], D.coax[1], -0.28]);
+  if (HQ) gunDetail(Gb, S, paint, lod, seg);
   const gunLod = new THREE.Group();
   Gb.build(gunLod, { off: [D.turretPivot[0] + D.gunPivot[0], D.turretPivot[1] + D.gunPivot[1], D.turretPivot[2] + D.gunPivot[2]] });
   gun.add(gunLod);
@@ -381,7 +515,7 @@ function buildMBT(lod, S, team) {
   C.add(box(0.3, 0.2, 0.34), paint, [0, -0.05, 0.1]);
   C.add(box(0.14, 0.16, 0.62), S.dark, [0, 0.08, -0.15]);
   C.add(cyl(0.024, 0.024, 0.85, 8), S.dark, [0, 0.08, -0.8], [HP, 0, 0]);
-  if (lod < 2) { C.add(box(0.12, 0.16, 0.24), S.dark, [0.16, 0.02, 0.02]); C.add(box(0.16, 0.12, 0.16), S.glass, [-0.17, 0.08, -0.05]); }
+  if (lod < 2) { C.add(box(0.12, 0.16, 0.24), S.dark, [0.16, 0.02, 0.02]); C.add(box(0.16, 0.12, 0.16), S.optic, [-0.17, 0.08, -0.05]); }
   const cmgLod = new THREE.Group();
   C.build(cmgLod, { shadow: lod < 2, off: [D.turretPivot[0] + D.cmgPivot[0], D.turretPivot[1] + D.cmgPivot[1], D.turretPivot[2] + D.cmgPivot[2]] });
   cmg.add(cmgLod);
@@ -558,6 +692,212 @@ function buildJeep(lod, S, team) {
   return { hull, mg, wheels };
 }
 
+/* -------------------------------------------------------------- Besatzung: Luken, Turm-Innenraum */
+
+// Rückfall, falls data.js (noch) keine Lage liefert (panzer-mp.md §B.1)
+const HATCH_DEF = {
+  driver: { space: 'hull', pos: [-0.55, 1.65, -2.35], r: 0.34 },
+  commander: { space: 'turret', pos: [-0.62, 1.03, 0.62], r: 0.38 },
+  loader: { space: 'turret', pos: [0.6, 0.83, 0.55], r: 0.3 },
+};
+const INTERIOR_DEF = { breech: [0, 0.42, -0.55], rack: [0, 0.45, 1.55], loaderEye: [0.55, 0.62, 0.35] };
+/** Scharnier je Luke: Achse und Drehsinn (offen = +HATCH_OPEN um die Achse). Fahrer und Kommandant hinten
+ * (Deckel stellt sich hinter dem Kopf auf), Ladeschütze außen rechts. */
+const HATCH_HINGE = { driver: { axis: 'x', sign: 1, side: [0, 0, 1] }, commander: { axis: 'x', sign: 1, side: [0, 0, 1] }, loader: { axis: 'z', sign: -1, side: [1, 0, 0] } };
+const HATCH_OPEN = 1.8; // ≈ 103°
+const HATCH_LIFT = 0.01; // Deckel liegt 1 cm über dem festen Deckel bzw. Lukenring (kein Z-Fighting)
+
+/** Bewegliche Luke: Gruppe am Scharnier (Drehpunkt), ein Netz (Lack). ≤ 100 Dreiecke. */
+function buildHatch(id, def, S, paint, base = null) {
+  const H = HATCH_HINGE[id], r = def.r, h = 0.05, seg = DET === 2 ? 16 : 12;
+  const pivot = new THREE.Group();
+  pivot.name = `hatch:${id}`;
+  // Scharnierkante: Lukenmitte + r in Richtung side, auf der Unterkante des Deckels
+  pivot.position.set(def.pos[0] + H.side[0] * r, def.pos[1] + HATCH_LIFT, def.pos[2] + H.side[2] * r);
+  const c = [-H.side[0] * r, h / 2, -H.side[2] * r]; // Deckelmitte relativ zum Scharnier
+  const B = new Bucket();
+  B.add(cyl(r, r * 0.96, h, seg), paint, c);
+  // Scharnierblock, Griff, (high) Versteifungsrippe quer zum Scharnier
+  const along = H.axis === 'x';
+  B.add(box(along ? r * 0.7 : 0.08, 0.06, along ? 0.08 : r * 0.7), paint, [H.side[0] * 0.02, 0.03, H.side[2] * 0.02]);
+  B.add(box(along ? 0.16 : 0.03, 0.03, along ? 0.03 : 0.16), paint, [c[0] * 1.55, h + 0.015, c[2] * 1.55]);
+  if (DET === 2) B.add(box(along ? 0.05 : r * 1.5, 0.025, along ? r * 1.5 : 0.05), paint, [c[0], h + 0.012, c[2]]);
+  B.build(pivot, { shadow: true, off: [pivot.position.x + (base ? base[0] : 0), pivot.position.y + (base ? base[1] : 0), pivot.position.z + (base ? base[2] : 0)] });
+  pivot.userData.hatch = { id, axis: H.axis, sign: H.sign };
+  return pivot;
+}
+
+/** Geschlossene Körper nach innen kehren (Wicklung + Normalen) – Innenraum-Hülle mit Vorderseiten-Material. */
+function inward(geom) {
+  const g = geom.index ? geom.toNonIndexed() : geom;
+  if (g !== geom) geom.dispose();
+  for (const name of Object.keys(g.attributes)) {
+    const A = g.attributes[name], n = A.itemSize, a = A.array;
+    for (let t = 0; t < A.count; t += 3) for (let k = 0; k < n; k++) {
+      const i1 = (t + 1) * n + k, i2 = (t + 2) * n + k, tmp = a[i1];
+      a[i1] = a[i2]; a[i2] = tmp;
+    }
+  }
+  const N = g.attributes.normal;
+  if (N) for (let i = 0; i < N.array.length; i++) N.array[i] = -N.array[i];
+  return g;
+}
+
+/** Granate (Spitze zeigt nach −Z, Boden bei z = 0) mit Vertex-Farben. full: ganze Patrone (in der Hand),
+ * sonst nur der sichtbare Vorderteil im Gestell. Farben: PG schwarz/gold, SG oliv/gelb. */
+const SHELL_COL = {
+  mbt_ap: { body: 0x17181a, band: 0xc19a3a, nose: 0x1d1e20, tip: 0xc19a3a, len: 0.2, tipR: 0.008 },
+  mbt_he: { body: 0x4b5233, band: 0xd9b52a, nose: 0x4b5233, tip: 0x6f6a58, len: 0.15, tipR: 0.022 },
+};
+const _col = new THREE.Color();
+function shellGeometry(type, n, { full = false, band = true, body = true } = {}) {
+  const C = SHELL_COL[type] || SHELL_COL.mbt_ap, R = 0.06, parts = [];
+  const part = (g, hexA, hexB = hexA, z0 = 0) => {
+    // Zylinder liegt entlang Y → nach −Z drehen; Farbe unten (Boden) hexA, oben (Spitze) hexB
+    g.rotateX(-HP);
+    g.translate(0, 0, z0);
+    const P = g.attributes.position, col = new Float32Array(P.count * 3);
+    let zmin = Infinity, zmax = -Infinity;
+    for (let i = 0; i < P.count; i++) { zmin = Math.min(zmin, P.getZ(i)); zmax = Math.max(zmax, P.getZ(i)); }
+    const a = new THREE.Color().setHex(hexA), b = new THREE.Color().setHex(hexB);
+    for (let i = 0; i < P.count; i++) {
+      const k = zmax > zmin ? (zmax - P.getZ(i)) / (zmax - zmin) : 0;
+      _col.copy(a).lerp(b, k);
+      col[i * 3] = _col.r; col[i * 3 + 1] = _col.g; col[i * 3 + 2] = _col.b;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.deleteAttribute('uv');
+    parts.push(g.index ? g.toNonIndexed() : g);
+  };
+  let z = 0;
+  if (full) {
+    if (DET > 0) part(new THREE.CylinderGeometry(R + 0.006, R + 0.006, 0.03, n), 0xa98a45, 0xa98a45, -0.015); // Bodenstück (Messing)
+    part(new THREE.CylinderGeometry(R + 0.002, R + 0.002, 0.55, n), 0x8b7c57, 0x8b7c57, -0.305); // Treibladung (Hülse)
+    z = -0.58;
+  }
+  // Geschossrumpf, Ring, Haube (offen – der Boden steckt im Gestell bzw. in der Hülse)
+  if (body) part(new THREE.CylinderGeometry(R, R, 0.06, n, 1, true), C.body, C.body, z - 0.03);
+  if (band) part(new THREE.CylinderGeometry(R + 0.002, R + 0.002, 0.025, n, 1, true), C.band, C.band, z - 0.0725);
+  const zb = z - (band ? 0.085 : body ? 0.06 : 0);
+  part(new THREE.CylinderGeometry(C.tipR, R, C.len, n, 1, true), band ? C.nose : C.band, C.tip, zb - C.len / 2);
+  const g = mergeGeometries(parts, false);
+  for (const p of parts) p.dispose();
+  return g;
+}
+
+/**
+ * Turm-Innenraum (Ladeschützen-Sicht, panzer-mp.md §D.2): Hülle nach innen gekehrt, Bodenplatte, Munitionsgestell im
+ * Turmheck (je Sorte ein Netz, Sichtbarkeit über drawRange), Granate in der Hand, Lampe, Haltegriffe; Verschluss mit
+ * Keil als eigene Gruppe am Rohr. Alles unsichtbar, keine Schatten.
+ */
+function buildInterior(S, D) {
+  const I = Object.assign({}, INTERIOR_DEF, D.interior || {});
+  const ammo = Object.assign({ mbt_ap: 22, mbt_he: 18 }, D.ammo || {});
+  const n = DET === 2 ? 8 : DET === 1 ? 6 : 5;
+  const grp = new THREE.Group();
+  grp.name = 'interior';
+  grp.visible = false;
+  // Hülle: Grundriss des Turms nach innen versetzt (Stirn dick gepanzert), Boden 6 cm über dem Turmring
+  const B = new Bucket();
+  const foot = [[-0.9, 1.15], [0.9, 1.15], [1.24, 0.8], [1.25, -1.45], [0.9, -1.92], [-0.9, -1.92], [-1.25, -1.45], [-1.24, 0.8]];
+  B.add(inward(topExtrude(foot, 0.69)), S.cabin, [0, 0.06, 0]);
+  B.add(box(1.5, 0.02, 1.3), S.dark, [0.15, 0.07, 0.3]);                          // Bodenplatte
+  B.add(box(0.74, 0.62, 0.03), S.dark, [0, 0.42, -1.135]);                         // Rahmen der Rohrdurchführung
+  // Richtschützenplatz (rechts vorn), Kommandantenplatz (links), Funkgerät (links hinten)
+  B.add(box(0.36, 0.3, 0.32), S.dark, [0.8, 0.5, -0.85]);
+  B.add(box(0.2, 0.28, 0.46), S.dark, [-1.12, 0.48, 0.95]);
+  if (DET > 0) {
+    B.add(box(0.12, 0.1, 0.16), S.rubber, [0.8, 0.6, -0.65]);
+    B.add(box(0.4, 0.06, 0.38), S.canvas, [-0.62, 0.3, 0.55]);
+    B.add(box(0.4, 0.36, 0.06), S.canvas, [-0.62, 0.5, 0.8], [-0.12, 0, 0]);
+  }
+  // Munitionsgestell: Rahmen um die Granatenböden
+  const rk = I.rack, rw = 1.62, rz0 = rk[2] - 0.36;
+  B.add(box(rw, 0.035, 0.76), S.dark, [rk[0], rk[1] - 0.29, rk[2]]);
+  B.add(box(rw, 0.035, 0.76), S.dark, [rk[0], rk[1] + 0.29, rk[2]]);
+  for (const sx of [-1, 1]) B.add(box(0.035, 0.6, 0.76), S.dark, [rk[0] + sx * rw / 2, rk[1], rk[2]]);
+  B.add(box(rw, 0.56, 0.02), S.cabin, [rk[0], rk[1], rz0 + 0.02]);                  // Lochplatte (Granaten stecken darin)
+  // Lampe (leuchtet, kein echtes Licht) + Haltegriffe am Dach
+  B.add(box(0.16, 0.04, 0.08), S.dark, [0.15, 0.735, 0.1]);
+  B.add(box(0.12, 0.02, 0.05), S.lensOn, [0.15, 0.71, 0.1]);
+  for (const [x, z] of DET === 2 ? [[0.55, -0.15], [0.95, 0.4], [-0.25, 0.95]] : DET === 1 ? [[0.55, -0.15], [0.95, 0.4]] : [[0.95, 0.4]]) {
+    B.add(box(0.03, 0.03, 0.26), S.dark, [x, 0.67, z]);
+    if (DET === 2) for (const dz of [-0.12, 0.12]) B.add(box(0.025, 0.07, 0.025), S.dark, [x, 0.715, z + dz]);
+  }
+  B.build(grp, { shadow: false });
+  // Granaten im Gestell: Spalten von links (PG) nach rechts (SG), je Spalte von unten nach oben
+  const rows = DET === 0 ? 3 : 4, cols = DET === 0 ? 8 : 10;
+  const dx = DET === 0 ? 0.19 : 0.155, dy = DET === 0 ? 0.17 : 0.135;
+  const slots = [];
+  for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) slots.push([rk[0] + (c - (cols - 1) / 2) * dx, rk[1] + (r - (rows - 1) / 2) * dy, rz0]);
+  const nAp = Math.min(ammo.mbt_ap, Math.round(slots.length * ammo.mbt_ap / (ammo.mbt_ap + ammo.mbt_he)));
+  const sets = { mbt_ap: slots.slice(0, nAp), mbt_he: slots.slice(nAp) };
+  for (const type of ['mbt_ap', 'mbt_he']) {
+    const list = sets[type];
+    if (!list.length) continue;
+    const proto = shellGeometry(type, n, { band: DET === 2, body: DET > 0 });
+    const per = proto.attributes.position.count;
+    const geoms = list.map((p) => proto.clone().translate(p[0], p[1], p[2]));
+    proto.dispose();
+    const g = mergeGeometries(geoms, false);
+    for (const x of geoms) x.dispose();
+    g.computeBoundingSphere();
+    const mesh = new THREE.Mesh(g, S.shell);
+    mesh.name = `rack:${type}`;
+    mesh.castShadow = false; mesh.receiveShadow = false;
+    mesh.userData.rack = type; mesh.userData.per = per; mesh.userData.slots = list.length; mesh.userData.shown = list.length;
+    grp.add(mesh);
+  }
+  // Granate in den Händen: vor der Ladeschützen-Kamera, leicht unten, Spitze Richtung Verschluss
+  const held = new THREE.Group();
+  held.name = 'held';
+  held.visible = false;
+  const eye = I.loaderEye;
+  held.position.set(eye[0] - 0.12, eye[1] - 0.36, eye[2] - 0.15);
+  held.rotation.set(-0.12, 0.08, 0);
+  for (const type of ['mbt_ap', 'mbt_he']) {
+    const g = shellGeometry(type, n, { full: true, band: DET > 0 });
+    g.translate(0, 0, 0.4);
+    g.computeBoundingSphere();
+    const m = new THREE.Mesh(g, S.shell);
+    m.name = `held:${type}`;
+    m.castShadow = false; m.receiveShadow = false;
+    held.add(m);
+  }
+  grp.add(held);
+  grp.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+
+  // Verschluss (Kind des Rohrs, folgt der Rohrerhöhung): Bodenstück, Keil (fährt nach unten), Rücklaufschutz
+  const br = new THREE.Group();
+  br.name = 'breech';
+  br.visible = false;
+  br.position.set(I.breech[0] - D.gunPivot[0], I.breech[1] - D.gunPivot[1], I.breech[2] - D.gunPivot[2]);
+  const V = new Bucket();
+  V.add(box(0.5, 0.48, 0.42), S.dark, [0, 0, 0]);                                  // Bodenstück
+  V.add(box(0.58, 0.5, 0.36), S.dark, [0, 0.02, -0.42]);                            // Wiege
+  V.add(cyl(0.085, 0.085, 0.03, DET === 2 ? 12 : 8, true), S.rubber, [0, 0, 0.205], [HP, 0, 0]); // Ladeöffnung (dunkel)
+  V.add(box(0.15, 0.15, 0.01), S.rubber, [0, 0, 0.214]);
+  if (DET > 0) {
+    for (const sx of [-1, 1]) {
+      V.add(box(0.035, 0.035, 0.75), S.dark, [sx * 0.33, -0.12, 0.5]);             // Rücklaufschutz
+      if (DET === 2) V.add(cyl(0.045, 0.045, 0.6, 8, true), S.dark, [sx * 0.2, 0.3, -0.3], [HP, 0, 0]); // Rohrbremsen
+    }
+    V.add(box(0.7, 0.035, 0.035), S.dark, [0, -0.12, 0.86]);
+    V.add(box(0.66, 0.3, 0.02), S.cabin, [0, -0.29, 0.86]);                         // Hülsenfangblech
+  }
+  V.build(br, { shadow: false });
+  const keil = new THREE.Group();
+  keil.name = 'breech:keil';
+  keil.position.set(0, 0, 0.235);
+  const K = new Bucket();
+  K.add(box(0.42, 0.44, 0.06), S.dark, [0, 0, 0]);
+  K.add(box(0.06, 0.04, 0.1), S.rubber, [0.16, 0.12, 0.06]);                        // Griff
+  K.build(keil, { shadow: false });
+  br.add(keil);
+  br.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+  return { interior: grp, breech: br };
+}
+
 /* -------------------------------------------------------------- Vorlagen */
 
 const TEMPLATES = new Map();
@@ -573,6 +913,7 @@ function template(type, team, quality) {
   if (TEMPLATES.has(key)) return TEMPLATES.get(key);
   const S = vehicleMaterials();
   HQ = quality !== 'low';
+  DET = quality === 'low' ? 0 : quality === 'medium' ? 1 : 2;
   applyVehicleLook(quality); // Tarnung/Schlamm/Staub (nur medium+; low entfernt den Haken)
   const dists = LOD_DIST[quality] || LOD_DIST.high;
   const root = new THREE.Group();
@@ -593,6 +934,17 @@ function template(type, team, quality) {
     cmg.add(lodOf(lv.map((x) => x.cmg), dists));
     tur.add(cmg);
     root.add(tur);
+    // Besatzung: bewegliche Luken (außerhalb der LOD-Stufen), Innenraum + Verschluss (unsichtbar)
+    const paint = S.paint[team] || S.paint.null;
+    for (const id of ['driver', 'commander', 'loader']) {
+      const d = (D.hatches && D.hatches[id]) || {};
+      const def = { space: d.space || HATCH_DEF[id].space, pos: d.pos || HATCH_DEF[id].pos, r: d.r || HATCH_DEF[id].r };
+      const inTur = def.space === 'turret';
+      (inTur ? tur : root).add(buildHatch(id, def, S, paint, inTur ? D.turretPivot : null));
+    }
+    const crew = buildInterior(S, D);
+    tur.add(crew.interior);
+    gun.add(crew.breech);
   } else {
     const D = VEHICLES.jeep;
     const lv = [0, 1, 2].map((l) => buildJeep(l, S, team));
@@ -676,11 +1028,16 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
       if (o.userData.cone) continue;
       const base = o.userData.baseMat;
       if (on) {
-        if (base === S.glass || o.userData.lens) { o.visible = false; continue; }
+        if (base === S.glass || base === S.optic || o.userData.lens) { o.visible = false; continue; }
         o.material = S.wreck;
       } else { o.visible = true; o.material = base; }
     }
-    if (on) model.setLights(false);
+    if (on) {
+      model.setLights(false);
+      for (const id of Object.keys(model.hatches)) model.setHatch(id, 0);
+      model.setInterior(false);
+      model.setHeld(null);
+    } else applyRack();
   };
   /** Kettenlauf: Geschwindigkeit links/rechts (m/s) über dt. */
   model.scrollTracks = (vl, vr, dt) => {
@@ -691,16 +1048,59 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
       if (model.trackMats[i].normalMap) model.trackMats[i].normalMap.offset.x = t.offset.x;
     }
   };
-  // Besatzungs-API (§3.7) – zunächst ohne Wirkung
+  // Besatzung (panzer-mp.md §3.7): Luken, Innenraum, Verschluss, Gestell, Granate in der Hand – nur KP-1
   model.hatches = {};
-  model.interior = null;
-  model.setHatch = () => {};
-  model.setInterior = () => {};
-  model.setBreech = () => {};
-  model.setRack = () => {};
-  model.setHeld = () => {};
+  for (const id of ['driver', 'commander', 'loader']) { const h = root.getObjectByName(`hatch:${id}`); if (h) model.hatches[id] = h; }
+  model.interior = (model.turret && model.turret.getObjectByName('interior')) || null;
+  model.breech = (model.gun && model.gun.getObjectByName('breech')) || null;
+  const keil = model.breech ? model.breech.getObjectByName('breech:keil') : null;
+  const held = model.interior ? model.interior.getObjectByName('held') : null;
+  const racks = [];
+  if (model.interior) model.interior.traverse((o) => { if (o.isMesh && o.userData.rack) racks.push({ mesh: o, type: o.userData.rack, per: o.userData.per, slots: o.userData.slots, own: false }); });
+  const want = { mbt_ap: Infinity, mbt_he: Infinity };
+  const clamp01 = (t) => Math.max(0, Math.min(1, Number(t) || 0));
+  /** Sichtbare Granaten anwenden – eigene Geometriekopie erst, wenn weniger als alle gezeigt werden und der
+   * Innenraum sichtbar ist (fremde Panzer teilen weiter die Vorlage). */
+  const applyRack = () => {
+    for (const R of racks) {
+      const n = Math.max(0, Math.min(R.slots, Math.floor(want[R.type] ?? R.slots)));
+      R.mesh.userData.shown = n;
+      R.mesh.visible = n > 0;
+      if (n < R.slots && !R.own) {
+        if (!model.interior.visible) continue;
+        R.mesh.geometry = R.mesh.geometry.clone();
+        R.own = true;
+      }
+      if (R.own) R.mesh.geometry.setDrawRange(0, n * R.per);
+    }
+  };
+  model.setHatch = (id, t) => {
+    const h = model.hatches[id];
+    if (!h) return;
+    const H = h.userData.hatch, a = (model.wrecked ? 0 : clamp01(t)) * HATCH_OPEN * H.sign;
+    h.rotation.set(H.axis === 'x' ? a : 0, 0, H.axis === 'z' ? a : 0);
+  };
+  model.setInterior = (on) => {
+    if (!model.interior) return;
+    const v = !!on && !model.wrecked;
+    model.interior.visible = v;
+    if (model.breech) model.breech.visible = v;
+    if (v) applyRack();
+  };
+  model.setBreech = (t) => { if (keil) keil.position.y = -0.3 * clamp01(t); };
+  model.setRack = (counts) => {
+    if (!racks.length || !counts) return;
+    for (const k of ['mbt_ap', 'mbt_he']) if (counts[k] != null) want[k] = Number(counts[k]) || 0;
+    applyRack();
+  };
+  model.setHeld = (type) => {
+    if (!held) return;
+    held.visible = !!type;
+    for (const c of held.children) c.visible = c.name === `held:${type}`;
+  };
   model.dispose = () => {
     root.removeFromParent();
+    for (const R of racks) if (R.own) { R.mesh.geometry.dispose(); R.own = false; }
     for (const m of model.trackMats) { m.map.dispose(); m.normalMap?.dispose(); m.dispose(); }
     model.trackMats = [];
   };
@@ -723,4 +1123,17 @@ export function vehicleTriangles(type, quality = 'high') {
     }));
   });
   return out.map(Math.round);
+}
+
+/** Dreiecke der Besatzungsteile außerhalb der LOD-Stufen (Prüfung/Budget §D.3): Luken, Innenraum inkl. Verschluss. */
+export function vehicleExtraTriangles(type, quality = 'high') {
+  const tpl = template(type, 'A', quality);
+  const out = { hatches: 0, interior: 0 };
+  const count = (o) => { let n = 0; o.traverse((m) => { if (m.isMesh) n += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; }); return n; };
+  tpl.traverse((o) => {
+    if (o.name.startsWith('hatch:')) out.hatches += count(o);
+    else if (o.name === 'interior' || o.name === 'breech') out.interior += count(o);
+  });
+  out.hatches = Math.round(out.hatches); out.interior = Math.round(out.interior);
+  return out;
 }
