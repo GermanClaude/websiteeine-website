@@ -1,8 +1,13 @@
 // NULLPUNKT – Mehrspieler: Vermittlung über Nostr-Relays.
 // Ablauf privater Raum (Raumcode):
-//   Host:   veröffentlicht alle BEACON_MS ein Lebenszeichen im Raum-Thema (verschlüsselt mit dem Raumcode-Schlüssel)
-//   Client: hört das Raum-Thema ab, findet so den Schlüssel des Hosts, schickt sein Verbindungsangebot
-//           (verschlüsselt nur für den Host, ECDH) und erhält die Antwort (verschlüsselt nur für ihn).
+//   Host:   legt ein gespeichertes Lebenszeichen ins Raum-Thema (ersetzbares Ereignis mit Ablaufzeit, verschlüsselt mit
+//           dem Raumcode-Schlüssel) und erneuert es alle BEACON_MS – selten genug, dass öffentliche Relays den Host
+//           nicht drosseln/sperren (alle 2,5 s führte nach ~10 s zu „rate-limited“ und Sperren → neue Spieler bekamen
+//           keine Antwort mehr). Ein neuer Client bekommt das gespeicherte Lebenszeichen sofort beim Abonnieren.
+//   Client: liest das Lebenszeichen, findet so den Schlüssel des Hosts, schickt sein Verbindungsangebot
+//           (verschlüsselt nur für den Host, ECDH) und erhält die Antwort (verschlüsselt nur für ihn). Kommt keine
+//           Antwort, wird das Angebot wiederholt (gleiche Kennung n – der Host beantwortet es nur einmal und schickt
+//           bei Wiederholungen dieselbe Antwort erneut).
 // Öffentliche Spiele: Der Host legt zusätzlich einen Eintrag in die öffentliche Spieleliste (ersetzbares Ereignis
 // mit Ablaufzeit), den jeder lesen kann – inkl. Raumcode, damit man beitreten kann.
 // Das Raum-Thema ist ein Hash des Codes: Wer den Code nicht kennt, sieht nur zufällige Zeichen.
@@ -12,20 +17,28 @@ import { RelayPool } from './nostr.js';
 export const PROTOCOL = 1;
 export const KIND_SIGNAL = 25050;   // kurzlebig (wird von Relays nicht gespeichert)
 export const KIND_LOBBY = 30650;    // ersetzbar je Host-Sitzung (d-Tag), mit Ablaufzeit
+export const KIND_ROOM = 30651;     // Lebenszeichen privater Räume: ersetzbar je Raum-Thema (d-Tag), mit Ablaufzeit
 export const LOBBY_TOPIC = 'nullpunkt-lobby-v1';
-const BEACON_MS = 2500;
-const LISTING_MS = 15000;
-const LISTING_TTL = 60;
+const BEACON_MS = 30000;
+const BEACON_TTL = 120;
+const LISTING_MS = 45000;
+const LISTING_TTL = 150;
+const META_MIN_MS = 8000;   // Meta-Änderungen (Spielerzahl …) höchstens so oft veröffentlichen (Relay-Drosselung)
+const OFFER_RETRY_MS = 6000;
 
 /** Öffentliche Relays (Port 443, ohne Konto). Reihenfolge = Vorrang. */
-// Geprüft 08.10.2026: nehmen kurzlebige (25050) und ersetzbare Ereignisse (30650 mit Ablaufzeit) an und liefern sie aus.
+// Geprüft 09.10.2026 (Live-Test mit mehreren Beitritten über 4 Minuten): nehmen kurzlebige (25050) und ersetzbare
+// Ereignisse (30650/30651 mit Ablaufzeit) an und liefern sie aus. offchain.pub entfernt (lehnt unbekannte Schlüssel ab,
+// „web of trust“); relay.damus.io drosselt/sperrt bei hoher Rate (deshalb seltene Lebenszeichen) und steht hinten.
 export const DEFAULT_RELAYS = [
-  'wss://relay.damus.io',
   'wss://nos.lol',
   'wss://relay.primal.net',
-  'wss://offchain.pub',
   'wss://nostr.mom',
   'wss://nostr-pub.wellorder.net',
+  'wss://relay.snort.social',
+  'wss://nostr.oxtr.dev',
+  'wss://nostr.bitcoiner.social',
+  'wss://relay.damus.io',
 ];
 
 /** Relays aus der Adresse (?relays=ws://…,ws://…) – für Tests mit lokalem Relay. */
@@ -71,15 +84,19 @@ export class HostSignal {
     this.session = hex(randomBytes(8));
     this.listing = null;
     this.handled = new Set();
+    this.replies = new Map(); // `${clientPk}:${n}` → Promise<Antwort-Inhalt> (Wiederholungen nur einmal beantworten)
     this.timers = [];
     this.sub = null;
+    this._lastMeta = 0;
   }
 
   async start() {
     this.topic = await roomTopic(this.code);
     this.rkey = await roomKey(this.code);
     this.sub = this.pool.subscribe(
-      [{ kinds: [KIND_SIGNAL], '#t': [this.topic], '#p': [this.keys.pk], since: now() - 30 }],
+      // since großzügig: kurzlebige Ereignisse speichert ohnehin kein Relay; knapp bemessen würde es Clients mit
+      // nachgehender Uhr aussperren
+      [{ kinds: [KIND_SIGNAL], '#t': [this.topic], '#p': [this.keys.pk], since: now() - 3600 }],
       (ev) => this._onEvent(ev));
     const beacon = () => this._beacon();
     beacon();
@@ -87,16 +104,25 @@ export class HostSignal {
     return this.pool.waitOpen();
   }
 
-  async _beacon() {
-    const content = await seal(this.rkey, { t: 'host', v: PROTOCOL, s: this.session, meta: this.meta });
-    const ev = await signEvent(this.keys, KIND_SIGNAL, [['t', this.topic]], content);
+  async _beacon(ended = false) {
+    const content = await seal(this.rkey, { t: 'host', v: PROTOCOL, s: this.session, meta: this.meta, ended });
+    const ev = await signEvent(this.keys, KIND_ROOM,
+      [['d', this.topic], ['t', this.topic], ['expiration', String(now() + (ended ? 1 : BEACON_TTL))]], content);
     this.pool.publish(ev);
   }
 
-  /** Meta-Daten (Spielerzahl, Karte …) für Lebenszeichen und öffentliche Liste aktualisieren. */
+  /** Meta-Daten (Spielerzahl, Karte …) für Lebenszeichen und öffentliche Liste aktualisieren – gebündelt, höchstens
+   *  alle META_MIN_MS (sonst drosseln/sperren öffentliche Relays den Host). */
   setMeta(meta) {
     this.meta = { ...this.meta, ...meta };
-    if (this.listing) this._publishListing();
+    if (this._metaTimer) return;
+    const wait = Math.max(0, this._lastMeta + META_MIN_MS - Date.now());
+    this._metaTimer = setTimeout(() => {
+      this._metaTimer = null;
+      this._lastMeta = Date.now();
+      this._beacon();
+      if (this.listing) this._publishListing();
+    }, wait);
   }
 
   /** Öffentliche Spieleliste an/aus. info: frei lesbare Angaben (Name, Karte, Modus, Spieler …). */
@@ -125,14 +151,25 @@ export class HostSignal {
     const key = await sharedKey(this.keys, ev.pubkey);
     const msg = await unseal(key, ev.content);
     if (!msg || msg.t !== 'offer' || typeof msg.sdp !== 'string') return;
-    let reply;
-    try {
-      reply = msg.v !== PROTOCOL ? { reject: 'version' } : await this.onOffer(ev.pubkey, msg.hello || {}, msg.sdp);
-    } catch (err) {
-      console.warn('[net] Angebot konnte nicht beantwortet werden', err);
-      reply = { reject: 'fehler' };
+    // Wiederholtes Angebot (gleiche Kennung): nicht erneut verbinden, nur dieselbe Antwort noch einmal senden
+    const rk = ev.pubkey + ':' + String(msg.n);
+    let reply = this.replies.get(rk);
+    const repeat = !!reply;
+    if (!reply) {
+      reply = (async () => {
+        try {
+          return msg.v !== PROTOCOL ? { reject: 'version' } : await this.onOffer(ev.pubkey, msg.hello || {}, msg.sdp);
+        } catch (err) {
+          console.warn('[net] Angebot konnte nicht beantwortet werden', err);
+          return { reject: 'fehler' };
+        }
+      })();
+      this.replies.set(rk, reply);
+      if (this.replies.size > 200) this.replies.delete(this.replies.keys().next().value);
     }
-    const content = await seal(key, { t: 'answer', v: PROTOCOL, n: msg.n, ...reply });
+    const r = await reply;
+    if (repeat && !r) return;
+    const content = await seal(key, { t: 'answer', v: PROTOCOL, n: msg.n, ...r });
     const out = await signEvent(this.keys, KIND_SIGNAL, [['t', this.topic], ['p', ev.pubkey]], content);
     this.pool.publish(out);
   }
@@ -140,6 +177,9 @@ export class HostSignal {
   stop() {
     for (const t of this.timers) clearInterval(t);
     clearInterval(this.listingTimer);
+    clearTimeout(this._metaTimer);
+    // Gespeichertes Lebenszeichen als beendet überschreiben (sonst fänden Clients bis zum Ablauf einen toten Raum)
+    if (this.rkey) this._beacon(true);
     if (this.listing) this._publishListing(true);
     if (this.sub) this.sub.close();
     // Kurz warten, damit das „beendet“ noch rausgeht.
@@ -161,12 +201,20 @@ export async function joinRoom({ relays, code, hello, makeOffer, onStatus, timeo
   let offered = null;
   try {
     if (!(await pool.waitOpen())) throw fail('kein-relay');
-    // 1) Host-Lebenszeichen abwarten
+    // 1) Host-Lebenszeichen: gespeichertes (KIND_ROOM, kommt sofort) oder kurzlebiges (ältere Hosts)
     const host = await new Promise((resolve, reject) => {
       const timer = setTimeout(() => { sub.close(); reject(fail('kein-host')); }, timeout);
-      const sub = pool.subscribe([{ kinds: [KIND_SIGNAL], '#t': [topic], since: now() - 10 }], async (ev) => {
+      const sub = pool.subscribe([
+        { kinds: [KIND_ROOM], '#d': [topic] },
+        { kinds: [KIND_SIGNAL], '#t': [topic], since: now() - 10 },
+      ], async (ev) => {
+        if (ev.kind === KIND_ROOM) {
+          // abgelaufen (eigene Uhr, 60 s Spielraum für Uhrabweichungen) → toter Raum
+          const exp = Number((ev.tags.find((t) => t[0] === 'expiration') || [])[1] || 0);
+          if (exp && exp + 60 < now()) return;
+        }
         const msg = await unseal(rkey, ev.content);
-        if (!msg || msg.t !== 'host') return;
+        if (!msg || msg.t !== 'host' || msg.ended) return;
         clearTimeout(timer);
         sub.close();
         resolve({ pk: ev.pubkey, meta: msg.meta || {}, v: msg.v });
@@ -179,17 +227,24 @@ export async function joinRoom({ relays, code, hello, makeOffer, onStatus, timeo
     const key = await sharedKey(keys, host.pk);
     const nonce = hex(randomBytes(6));
     const answer = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { sub.close(); reject(fail('keine-antwort')); }, timeout);
-      const sub = pool.subscribe([{ kinds: [KIND_SIGNAL], '#t': [topic], '#p': [keys.pk], authors: [host.pk], since: now() - 10 }], async (ev) => {
+      let retry = null;
+      const timer = setTimeout(() => { clearInterval(retry); sub.close(); reject(fail('keine-antwort')); }, timeout);
+      // since großzügig (Uhrabweichung zwischen Geräten); Zuordnung über Absender, Empfänger und Kennung n
+      const sub = pool.subscribe([{ kinds: [KIND_SIGNAL], '#t': [topic], '#p': [keys.pk], authors: [host.pk], since: now() - 600 }], async (ev) => {
         const msg = await unseal(key, ev.content);
         if (!msg || msg.t !== 'answer' || msg.n !== nonce) return;
         clearTimeout(timer);
+        clearInterval(retry);
         sub.close();
         resolve(msg);
       });
-      seal(key, { t: 'offer', v: PROTOCOL, n: nonce, hello, sdp })
+      const send = () => seal(key, { t: 'offer', v: PROTOCOL, n: nonce, hello, sdp })
         .then((content) => signEvent(keys, KIND_SIGNAL, [['t', topic], ['p', host.pk]], content))
-        .then((ev) => pool.publish(ev));
+        .then((ev) => pool.publish(ev))
+        .catch(() => { /* nächster Versuch */ });
+      send();
+      // Antwort verloren (Relay gedrosselt/getrennt)? Angebot wiederholen – der Host antwortet nur einmal je Kennung.
+      retry = setInterval(send, OFFER_RETRY_MS);
     });
     if (answer.reject) { link.close('abgelehnt'); throw fail('abgelehnt:' + answer.reject); }
     try { await link.accept(answer.sdp); } catch { throw fail('verbindung-fehlgeschlagen'); }

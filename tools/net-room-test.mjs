@@ -205,8 +205,10 @@ try {
   // ------------------------------------------------------------------ Öffentliche Liste + schnelles Spiel (laufendes Spiel)
   const c4 = await open('Dora');
   const seen = await ev(c4, (c) => new Promise((resolve) => {
-    const stop = window.__room.net.watchPublic((list) => { const g = list.find((x) => x.code === c); if (g) { stop(); resolve(g); } });
-    setTimeout(() => { stop(); resolve(null); }, 12000);
+    // Meta-Änderungen veröffentlicht der Host gedrosselt (höchstens alle 8 s) → auf den Stand „match“ warten
+    let last = null;
+    const stop = window.__room.net.watchPublic((list) => { const g = list.find((x) => x.code === c); if (g) last = g; if (g && g.state === 'match') { stop(); resolve(g); } });
+    setTimeout(() => { stop(); resolve(last); }, 25000);
   }), code);
   check(seen && seen.name === 'Prüfraum' && seen.map === 'altstadt' && seen.mode === 'tdm' && seen.max === 4 && seen.compatible && seen.state === 'match',
     `öffentliche Liste: ${seen ? `${seen.name}, ${seen.map}, ${seen.players}/${seen.max}, Level ${seen.level}, ${seen.state}` : 'nicht gefunden'}`);

@@ -168,6 +168,13 @@ export class RelayPool {
     } else if (msg[0] === 'OK') {
       const cb = this.pendingOk.get(msg[1]);
       if (cb) cb(msg[2] === true);
+      // Ablehnungen (Drosselung, Sperre, Richtlinie) einmal je Relay und Grund melden – Hilfe bei Verbindungsproblemen
+      if (msg[2] !== true) {
+        const why = String(msg[3] || '').split(':')[0].slice(0, 40);
+        const k = relay.url + '|' + why;
+        if (!this.rejected) this.rejected = new Set();
+        if (!this.rejected.has(k)) { this.rejected.add(k); console.info('[net] Relay', relay.url, 'lehnt ab:', String(msg[3] || '').slice(0, 120)); }
+      }
     } else if (msg[0] === 'NOTICE' || msg[0] === 'CLOSED') {
       console.info('[net] Relay', relay.url, msg[0], msg[2] || msg[1]);
     }
