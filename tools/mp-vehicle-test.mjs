@@ -13,7 +13,7 @@
 //      aus → Lage = 'vo' ± 0,5 m, keine Verstöße; Einsteigen aus > 40 m → 'vn' weit.
 //   8. thirdPerson aus → Clients bieten keine Außenansicht an; Bert schließt die Seite im Panzer → Sitz frei ≤ 5 s.
 // Voraussetzung: Server auf 8765 (npx http-server -p 8765 -s -c-1 .) und node tools/nostr-relay.mjs 7777.
-// Aufruf: node tools/mp-vehicle-test.mjs [--size=640x360] [--quality=low] [--params="netlag=80"]
+// Aufruf: node tools/mp-vehicle-test.mjs [--size=640x360] [--quality=low] [--params="netlag=80"] [--limit=20 (min)]
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 import { readFileSync, mkdirSync } from 'node:fs';
 
@@ -27,7 +27,7 @@ mkdirSync(OUT, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const T0 = Date.now();
 const ts = () => `${((Date.now() - T0) / 1000).toFixed(0).padStart(4)} s`;
-const LIMIT = 20 * 60 * 1000;
+const LIMIT = (Number(opt.limit) || 20) * 60 * 1000; // ohne Lastwartezeit vor dem Start
 
 let fail = 0;
 let count = 0;
@@ -114,6 +114,37 @@ const hidePage = (p, on) => ev(p, (h) => {
     for (const cb of window.__rafHeld.splice(0)) window.requestAnimationFrame(cb);
   }
 }, on);
+/**
+ * Einsteigen anfragen (wie ein Spieler, der bei Ablehnung erneut F drückt: höchstens 3 Versuche) und warten, bis der Host
+ * den Menschen im Sitz hat. → { ok, tries, vn: [Ablehnungen] }
+ */
+async function enterSeat(host, page, id, vid, seat = null) {
+  const vn0 = await ev(page, () => window.__mv.vn.length);
+  for (let k = 1; k <= 3; k++) {
+    await ev(page, ([v, s]) => { const G = window.__game; G.vehicles.requestEnter(G.player, G.vehicles.list.find((x) => x.netId === v), s); }, [vid, seat]);
+    const ok = await until(host, ([v, i]) => { const x = window.__game.vehicles.list.find((y) => y.netId === v); return !!x && x.seats.some((s) => s.actor && s.actor.netId === i); }, [vid, id], 20000, 300);
+    if (ok) return { ok: true, tries: k, vn: await ev(page, (n) => window.__mv.vn.slice(n), vn0) };
+  }
+  const diag = await ev(host, ([v, i]) => {
+    const G = window.__game, V = G.vehicles, x = V.list.find((y) => y.netId === v), a = G.net.actorById(i);
+    return { box: x && a ? +V._boxDistance(x, a.position, 0.9).toFixed(2) : null, alive: a && a.alive, inVeh: a && !!a.vehicle, live: V.live, state: G.match.state, netLive: G.match.netLive, rejects: V.net && V.net.stats.rejects };
+  }, [vid, id]);
+  return { ok: false, tries: 3, vn: await ev(page, (n) => window.__mv.vn.slice(n), vn0), diag };
+}
+/**
+ * Fahrzeug (optional) umstellen und den Menschen an den Ausstiegspunkt seines Sitzes setzen; kommt die Rücksetzung nicht an
+ * (Nachricht während eines langen Bildes), erneut senden. → Ergebnis von __placeNear (+ ok)
+ */
+async function placeActor(host, page, id, vid, seat, moveVehicle) {
+  const r = await ev(host, ([v, i, s, m]) => window.__placeNear(v, i, s, m), [vid, id, seat, moveVehicle]);
+  if (!r) return null;
+  for (let k = 0; k < 4; k++) {
+    const here = await until(page, (pp) => { const p = window.__game.player.position; return Math.hypot(p.x - pp[0], p.z - pp[2]) < 0.6; }, r.pos, 12000, 300);
+    if (here && await hostSees(host, id, r.pos, 0.8, 15000)) return { ...r, ok: true, tries: k + 1 };
+    await ev(host, ([i, pos]) => { const G = window.__game; G.net.anticheat.onTeleport(i, pos, G.net.serverTime()); G.net.send(i, { t: 'correct', pos: [pos[0], pos[1] + 0.05, pos[2]] }); }, [id, r.pos]);
+  }
+  return { ...r, ok: false };
+}
 /** Host sieht die Puppe (Zustand angekommen) nahe pos? */
 const hostSees = (host, id, pos, r = 0.8, timeout = 30000) => until(host, ([i, pp, rr]) => {
   const a = window.__game.net.actorById(i);
@@ -173,9 +204,34 @@ try {
       const a = actorId === G.net.selfId ? G.player : G.net.actorById(actorId);
       if (!v || !a) return null;
       if (moveVehicle) {
-        const spot = V.findSpot(a.position, v.type, { avoid: V.list.filter((o) => o !== v).map((o) => o.body.pos), maxR: 45 });
-        if (!spot) return null;
-        v.body.setPose(spot.position, spot.yaw);
+        // Stellplatz mit freier Bahn nach vorn (≥ 30 m in Brust- und Dachhöhe, drei Spuren) – die Fahrprüfung braucht 20 m
+        // geradeaus; zu enge Plätze werden ausgeschlossen und weiter gesucht
+        const others = V.list.filter((o) => o !== v).map((o) => o.body.pos);
+        const rejected = [];
+        let pick = null;
+        for (let n = 0; n < 14 && !pick; n++) {
+          const spot = V.findSpot(a.position, v.type, { avoid: [...others, ...rejected], maxR: 90 });
+          if (!spot) break;
+          const T = spot.position.constructor;
+          let best = spot.yaw, bestLen = -1;
+          for (let k = 0; k < 16; k++) {
+            const yaw = (k / 16) * Math.PI * 2;
+            const d = new T(-Math.sin(yaw), 0, -Math.cos(yaw));
+            let len = 40;
+            for (const h of [0.8, 2.0]) for (const side of [-1.4, 0, 1.4]) {
+              const o = spot.position.clone().add(new T(Math.cos(yaw) * side, h, -Math.sin(yaw) * side));
+              const hit = V._rc ? V._rc.orig.call(G.world, o, d, 40) : G.world.raycast(o, d, 40);
+              if (hit && hit.distance < len) len = hit.distance;
+            }
+            if (len > bestLen) { bestLen = len; best = yaw; }
+            if (len >= 40) break;
+          }
+          if (bestLen >= 30) pick = { pos: spot.position, yaw: best, len: bestLen };
+          else rejected.push(spot.position);
+        }
+        if (!pick) return null;
+        v.body.setPose(pick.pos, pick.yaw);
+        window.__freeAhead = pick.len;
       }
       const ex = V._findExit(v, seat);
       if (!ex) return null;
@@ -215,12 +271,12 @@ try {
   const tA = tanks.find((v) => v.team === 'A'), tB = tanks.find((v) => v.team === 'B');
 
   // ================================================================== 2. Einsteigen
-  const placed = await ev(host, ([vid, id]) => window.__placeNear(vid, id), [tA.vid, A]);
-  info(`Panzer A (vid ${tA.vid}) neben Anna gestellt: ${placed ? `Abstand ${placed.box.toFixed(2)} m` : 'kein Platz!'}`);
-  await until(anna, (pp) => { const p = window.__game.player.position; return Math.hypot(p.x - pp[0], p.z - pp[2]) < 0.6; }, placed ? placed.pos : [0, 0, 0], 15000);
-  await hostSees(host, A, placed ? placed.pos : [0, 0, 0]);
-  await ev(anna, (vid) => { const G = window.__game; G.vehicles.requestEnter(G.player, G.vehicles.list.find((v) => v.netId === vid)); }, tA.vid);
-  const annaIn = await until(host, ([vid, id]) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return v && v.seats[0].actor && v.seats[0].actor.netId === id; }, [tA.vid, A], 20000);
+  const placed = await placeActor(host, anna, A, tA.vid, 0, true);
+  info(`Panzer A (vid ${tA.vid}) neben Anna gestellt: ${placed ? `Abstand ${placed.box.toFixed(2)} m, freie Bahn ${(await ev(host, () => window.__freeAhead)).toFixed(0)} m` : 'kein Platz!'}`);
+  if (placed && placed.tries > 1) info(`Anna: Rücksetzung ${placed.tries}× gesendet (${placed.ok ? 'angekommen' : 'nicht angekommen'})`);
+  const eA = await enterSeat(host, anna, A, tA.vid, null);
+  if (!eA.ok || eA.tries > 1) info(`Anna einsteigen: ${JSON.stringify(eA)}`);
+  const annaIn = await until(host, ([vid, id]) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return v && v.seats[0].actor && v.seats[0].actor.netId === id; }, [tA.vid, A], 5000);
   const annaInAll = await Promise.all([anna, bert].map((p) => until(p, ([vid, id]) => {
     const G = window.__game, v = G.vehicles.list.find((x) => x.netId === vid);
     const a = v && v.seats[0].actor;
@@ -229,11 +285,10 @@ try {
   check(annaIn && annaInAll.every(Boolean), 'Anna sitzt am Steuer – beim Host, bei Anna und bei Bert');
   check(await ev(anna, () => !!window.__game.player.vehicle && window.__game.vehicles.camera && !window.__game.vehicles.allowedViews(window.__game.player.vehicleSeat).some((i) => window.__game.player.vehicleSeat.def.views[i].tp)),
     'Anna: Außenansicht nicht angeboten (Raum-Einstellung aus)');
-  const placedB = await ev(host, ([vid, id]) => window.__placeNear(vid, id, 1, false), [tA.vid, B]);
+  const placedB = await placeActor(host, bert, B, tA.vid, 1, false);
   info(`Bert an den Panzer gesetzt: ${placedB ? `Abstand ${placedB.box.toFixed(2)} m` : 'kein Ausstiegspunkt!'}`);
-  await until(bert, (pp) => { const p = window.__game.player.position; return Math.hypot(p.x - pp[0], p.z - pp[2]) < 0.6; }, placedB ? placedB.pos : [0, 0, 0], 15000);
-  await hostSees(host, B, placedB ? placedB.pos : [0, 0, 0]);
-  await ev(bert, (vid) => { const G = window.__game; G.vehicles.requestEnter(G.player, G.vehicles.list.find((v) => v.netId === vid), 1); }, tA.vid);
+  const eB = await enterSeat(host, bert, B, tA.vid, 1);
+  if (!eB.ok || eB.tries > 1) info(`Bert einsteigen: ${JSON.stringify(eB)}`);
   const bertIn = await Promise.all([host, anna, bert].map((p) => until(p, ([vid, id]) => {
     const G = window.__game, v = G.vehicles.list.find((x) => x.netId === vid), a = v && v.seats[1].actor;
     return !!a && (a.isPlayer ? G.net.selfId : a.netId) === id;
@@ -261,7 +316,11 @@ try {
   // runter bis N (so oft S tippen, wie der Gang hoch ist), dabei bremsen bis Stillstand
   const gNow = await ev(host, (vid) => window.__game.vehicles.list.find((x) => x.netId === vid).body.drive.targetGear, tA.vid);
   for (let i = 0; i < gNow; i++) { await ev(anna, () => window.__game.input.simulate.press('move_back')); await sleep(500); await ev(anna, () => window.__game.input.simulate.release('move_back')); await sleep(500); }
-  check(!!moved, `Anna fährt ${moved ? moved.toFixed(1) : '–'} m (Host-Sim, Gang/Gas aus Annas Absicht)`);
+  const drv = await ev(host, ([vid, a]) => {
+    const G = window.__game, v = G.vehicles.list.find((x) => x.netId === vid), p = v.body.pos, D = v.body.drive;
+    return { d: Math.hypot(p.x - a[0], p.z - a[2]), kmh: v.body.speed * 3.6, gear: D.gear, rpm: Math.round(D.rpm), thr: +(v.body.controls.throttle || 0).toFixed(2), fps: G.time.frame, t: G.time.elapsed };
+  }, [tA.vid, p0]);
+  check(!!moved, `Anna fährt ${moved ? moved.toFixed(1) : '–'} m (Host-Sim, Gang/Gas aus Annas Absicht; ${JSON.stringify(drv)})`);
   const stopped = await until(host, (vid) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return Math.abs(v.body.speed) < 0.15 && v.body.drive.gear === 0 ? true : null; }, tA.vid, 120000, 500);
   await ev(anna, () => window.__game.input.simulate.release('jump'));
   info(`Host: Panzer steht${stopped ? '' : ' NICHT'} (Gang N)`);
@@ -285,14 +344,14 @@ try {
     const fwd = new T(0, 0, -1).applyQuaternion(a.body.quat);
     const a0 = Math.atan2(fwd.z, fwd.x);
     const order = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8];
-    for (const dist of [45, 35, 28, 60]) {
+    for (const strict of [true, false]) for (const dist of [40, 30, 25, 20, 50]) {
       for (const k of order) {
         const ang = a0 + (k / 16) * Math.PI * 2;
         const x = P.x + Math.cos(ang) * dist, z = P.z + Math.sin(ang) * dist;
-        const hit = G.world.raycast(new T(x, P.y + 10, z), new T(0, -1, 0), 25);
+        const hit = V._rc ? V._rc.orig.call(G.world, new T(x, P.y + 10, z), new T(0, -1, 0), 25) : G.world.raycast(new T(x, P.y + 10, z), new T(0, -1, 0), 25);
         if (!hit || Math.abs(hit.point.y - (P.y - 1)) > 3) continue;
         const pos = new T(x, hit.point.y, z);
-        if (!V._clear(pos, ang, b.def)) continue;
+        if (strict && !V._clear(pos, ang, b.def)) continue;
         // Sicht vom Turm zur Mitte des Ziels frei (Welt ohne Fahrzeuge)
         const from = new T(P.x, P.y + 1.6, P.z), to = new T(x, hit.point.y + 1.2, z);
         const d = to.clone().sub(from), len = d.length();
@@ -304,7 +363,7 @@ try {
     }
     return null;
   }, [tA.vid, tB.vid]);
-  check(!!target, `Feindpanzer (vid ${tB.vid}) in ${target ? target.dist : '–'} m frei vor den eigenen gestellt`);
+  if (!check(!!target, `Feindpanzer (vid ${tB.vid}) in ${target ? target.dist : '–'} m frei vor den eigenen gestellt`)) throw new Error('kein Platz für den Feindpanzer');
   await sleep(1500);
   const aimAt = async (pt) => ev(bert, (p) => {
     const G = window.__game, v = G.player.vehicle, seat = v && v.seats[v.seatOf(G.player)];
@@ -468,10 +527,9 @@ try {
   check(notIn, 'Bert sitzt nicht im fernen Panzer');
 
   // ================================================================== 8. Seite schließen im Panzer
-  const placedB2 = await ev(host, ([vid, id]) => window.__placeNear(vid, id, 2, false), [tA.vid, B]);
-  await until(bert, (pp) => { const p = window.__game.player.position; return Math.hypot(p.x - pp[0], p.z - pp[2]) < 0.6; }, placedB2 ? placedB2.pos : [0, 0, 0], 15000);
-  await hostSees(host, B, placedB2 ? placedB2.pos : [0, 0, 0]);
-  await ev(bert, (vid) => { const G = window.__game; G.vehicles.requestEnter(G.player, G.vehicles.list.find((v) => v.netId === vid), 2); }, tA.vid);
+  await placeActor(host, bert, B, tA.vid, 2, false);
+  const eB2 = await enterSeat(host, bert, B, tA.vid, 2);
+  if (!eB2.ok || eB2.tries > 1) info(`Bert einsteigen (2): ${JSON.stringify(eB2)}`);
   const bertIn2 = await until(host, ([vid, id]) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return v.seats.findIndex((s) => s.actor && s.actor.netId === id); }, [tA.vid, B], 20000);
   check(bertIn2 != null && bertIn2 >= 0, `Bert steigt wieder ein (Sitz ${bertIn2 != null ? bertIn2 + 1 : '–'})`);
   const tClose = Date.now();

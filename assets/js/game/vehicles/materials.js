@@ -206,7 +206,8 @@ export function vehicleMaterials() {
     optic: new THREE.MeshStandardMaterial({ name: 'veh:optic', color: 0x0d1a1f, roughness: 0.05, metalness: 0.85, envMapIntensity: 2.2, emissive: 0x06161a, emissiveIntensity: 0.6 }),
     // Turm-Innenraum (nur für den lokalen Insassen): Wandfarbe leicht selbstleuchtend (Innenlampe), Granaten mit Vertex-Farben
     cabin: new THREE.MeshStandardMaterial({ name: 'veh:cabin', color: 0x4d5446, roughness: 0.82, metalness: 0.12, emissive: 0x1b1d16, emissiveIntensity: 1 }),
-    shell: new THREE.MeshStandardMaterial({ name: 'veh:shell', vertexColors: true, roughness: 0.42, metalness: 0.55, emissive: 0x0b0a08, emissiveIntensity: 1 }),
+    shell: new THREE.MeshStandardMaterial({ name: 'veh:shell', vertexColors: true, roughness: 0.5, metalness: 0.35, emissive: 0x0b0a08, emissiveIntensity: 1 }),
+    steel: new THREE.MeshStandardMaterial({ name: 'veh:steel', color: 0x4f5458, roughness: 0.42, metalness: 0.6, envMapIntensity: 0.6, emissive: 0x0b0c0d, emissiveIntensity: 1 }),
     lensOn: new THREE.MeshStandardMaterial({ name: 'veh:lensOn', color: 0xfff6e0, emissive: 0xffe9c0, emissiveIntensity: 6, roughness: 0.2 }),
     lensOff: new THREE.MeshStandardMaterial({ name: 'veh:lensOff', color: 0xb9b6ad, emissive: 0x332f26, emissiveIntensity: 0.4, roughness: 0.15, metalness: 0.3 }),
     rearLamp: new THREE.MeshStandardMaterial({ name: 'veh:rear', color: 0x5a0d08, emissive: 0x6a0904, emissiveIntensity: 1.2, roughness: 0.3 }),
@@ -228,11 +229,11 @@ export function vehicleMaterials() {
 
 /**
  * Vorzuwärmende Fahrzeugmaterialien (Shader, die nicht sofort sichtbar sind): Scheinwerfer an, Lichtkegel, Wrack,
- * Optikglas, Turm-Innenraum (Wände, Granaten) – index.js kompiliert sie beim Anschluss mit (panzer-mp.md §D.3).
+ * Optikglas, Turm-Innenraum (Wände, Granaten, Verschluss) – index.js kompiliert sie beim Anschluss mit (§D.3).
  */
 export function vehicleWarmMaterials() {
   const S = vehicleMaterials();
-  return [S.lensOn, S.cone, S.wreck, S.optic, S.cabin, S.shell];
+  return [S.lensOn, S.cone, S.wreck, S.optic, S.cabin, S.shell, S.steel];
 }
 
 /** Kettenmaterial je Fahrzeugseite (eigene Texturkopie → eigener Versatz für den Kettenlauf). */

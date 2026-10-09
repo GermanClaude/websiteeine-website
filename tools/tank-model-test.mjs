@@ -2,7 +2,7 @@
 // Prüft Dreiecke je Grafikstufe (low exakt wie vorher), Draw Calls, benannte Teile (Luken, Innenraum, Verschluss),
 // die Modell-API (setHatch/setRack/setHeld/setBreech/setInterior), Wrack-Umschaltung und den Geländewagen.
 // Bilder (vorher/nachher, low und high, beide Teamfarben) nach tools/out/panzer/ (wird nicht eingecheckt).
-// Aufruf: node tools/tank-model-test.mjs [--shots=vorher|nachher] [--q=low,high] [--only-shots]   (Exit-Code ≠ 0 bei Fehlern)
+// Aufruf: node tools/tank-model-test.mjs [--shots=vorher|nachher] [--q=low,high] [--motive=a,b] [--only-shots]   (Exit-Code ≠ 0 bei Fehlern)
 import { mkdirSync, readFileSync } from 'node:fs';
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 
@@ -101,12 +101,15 @@ async function shots(quality, wait) {
     ['laufwerk', 'Laufwerk nah', (v) => ({ p: [v.x - 4.6, v.y + 1.05, v.z - 1.9], t: [v.x - 1.5, v.y + 0.7, v.z + 0.6], fov: 55 })],
     ['turm-oben', 'Turm von oben', (v) => ({ p: [v.x + 1.4, v.y + 8.2, v.z + 3.6], t: [v.x, v.y + 2.2, v.z + 0.1] })],
     ['luken', 'Luken offen', (v) => ({ p: [v.x - 3.4, v.y + 4.4, v.z + 2.6], t: [v.x - 0.1, v.y + 2.3, v.z - 0.8], fov: 55 }), 'luken'],
+    ['fahrerluke', 'Fahrerluke offen (nah)', (v) => ({ p: [v.x - 2.6, v.y + 2.9, v.z - 4.6], t: [v.x - 0.5, v.y + 1.9, v.z - 2.1], fov: 45 }), 'luken'],
     ['luken-vorn', 'Luken offen (Fahrer, Kommandant, Ladeschütze), vorn links oben', (v) => ({ p: [v.x - 4.4, v.y + 4.3, v.z - 5.8], t: [v.x - 0.3, v.y + 1.9, v.z - 1.0] }), 'luken'],
     ['team-b', 'B: 3/4 vorn, Halbtotale beider Teams', (v) => ({ p: [v.x - 2.5, v.y + 5.5, v.z - 19], t: [v.x - 5.5, v.y + 1.2, v.z] })],
     ['innen-verschluss', 'Innenraum: Blick zum Verschluss', null, 'innen-vorn'],
     ['innen-gestell', 'Innenraum: Blick zum Gestell (Granate in der Hand)', null, 'innen-hinten'],
   ];
+  const only = arg('motive') ? arg('motive').split(',') : null;
   for (const [name, label, pose, special] of motive) {
+    if (only && !only.includes(name)) continue;
     const r = await page.evaluate(({ pose, special }) => {
       const D = window.__dev, M = window.__mt, v = D.main, md = v.model, THREE = D.G.THREE;
       for (const id of ['driver', 'commander', 'loader']) md.setHatch?.(id, special === 'luken' ? 1 : 0);
@@ -132,6 +135,7 @@ async function shots(quality, wait) {
     console.log(`     Bild ${label}: ${file}`);
   }
   // Geländewagen 3/4 vorn
+  if (only && !only.includes('gw4')) return;
   await page.evaluate(() => {
     const D = window.__dev, M = window.__mt, v = D.other.position;
     for (const id of ['driver', 'commander', 'loader']) D.main.model.setHatch?.(id, 0);

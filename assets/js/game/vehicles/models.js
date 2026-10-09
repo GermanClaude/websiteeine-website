@@ -306,7 +306,7 @@ function mbtDetail(B, S, paint, lod, seg) {
       B.add(box(0.5, 0.42, 0.03), S.rubber, [sx * 1.42, 0.55, 3.66]);
     }
     if (lod < 2) {
-      // Seitenkästen über den Ketten (vorn, vor dem Turm) und Heckgitter-Lüfter seitlich
+      // Seitenkästen über den Ketten (vorn, neben dem Turm)
       B.add(box(0.3, 0.22, 1.05), paint, [sx * 1.57, 1.74, -1.45]);
       if (lod === 0 && hi) {
         B.add(box(0.31, 0.02, 1.07), S.dark, [sx * 1.57, 1.83, -1.45]);
@@ -316,7 +316,7 @@ function mbtDetail(B, S, paint, lod, seg) {
     if (lod === 0 && hi) {
       // Auspuffgitter seitlich hinten (Lamellen)
       B.add(box(0.03, 0.26, 0.62), S.dark, [sx * 1.765, 1.3, 3.0]);
-      for (let j = 0; j < 4; j++) B.add(box(0.04, 0.03, 0.6), paint, [sx * 1.775, 1.2 + j * 0.065, 3.0], [sx * 0.5, 0, 0]);
+      for (let j = 0; j < 4; j++) B.add(box(0.04, 0.03, 0.6), paint, [sx * 1.775, 1.2 + j * 0.065, 3.0], [0, 0, sx * 0.5]);
       // Scheinwerferschutzbügel
       const L = VEHICLES.mbt.lights[sx < 0 ? 0 : 1];
       B.add(box(0.4, 0.03, 0.03), S.dark, [L[0], L[1] + 0.17, L[2] - 0.14]);
@@ -834,7 +834,7 @@ function inward(geom) {
 /** Granate (Spitze zeigt nach −Z, Boden bei z = 0) mit Vertex-Farben. full: ganze Patrone (in der Hand),
  * sonst nur der sichtbare Vorderteil im Gestell. Farben: PG schwarz/gold, SG oliv/gelb. */
 const SHELL_COL = {
-  mbt_ap: { body: 0x17181a, band: 0xc19a3a, nose: 0x1d1e20, tip: 0xc19a3a, len: 0.2, tipR: 0.008 },
+  mbt_ap: { body: 0x17181a, band: 0xc19a3a, nose: 0x1d1e20, tip: 0x6a5524, len: 0.2, tipR: 0.008 },
   mbt_he: { body: 0x4b5233, band: 0xd9b52a, nose: 0x4b5233, tip: 0x6f6a58, len: 0.15, tipR: 0.022 },
 };
 const _col = new THREE.Color();
@@ -897,14 +897,14 @@ function buildInterior(S, D) {
   if (DET > 0) {
     B.add(box(0.12, 0.1, 0.16), S.rubber, [0.8, 0.6, -0.65]);
     B.add(box(0.4, 0.06, 0.38), S.canvas, [-0.62, 0.3, 0.55]);
-    B.add(box(0.4, 0.36, 0.06), S.canvas, [-0.62, 0.5, 0.8], [-0.12, 0, 0]);
+    B.add(box(0.4, 0.24, 0.05), S.canvas, [-0.62, 0.45, 0.76], [-0.12, 0, 0]);
   }
   // Munitionsgestell: Rahmen um die Granatenböden
   const rk = I.rack, rw = 1.62, rz0 = rk[2] - 0.36;
   B.add(box(rw, 0.035, 0.76), S.dark, [rk[0], rk[1] - 0.29, rk[2]]);
   B.add(box(rw, 0.035, 0.76), S.dark, [rk[0], rk[1] + 0.29, rk[2]]);
   for (const sx of [-1, 1]) B.add(box(0.035, 0.6, 0.76), S.dark, [rk[0] + sx * rw / 2, rk[1], rk[2]]);
-  B.add(box(rw, 0.56, 0.02), S.cabin, [rk[0], rk[1], rz0 + 0.02]);                  // Lochplatte (Granaten stecken darin)
+  B.add(box(rw, 0.56, 0.02), S.dark, [rk[0], rk[1], rz0 + 0.02]);                   // Lochplatte (Granaten stecken darin)
   // Lampe (leuchtet, kein echtes Licht) + Haltegriffe am Dach
   B.add(box(0.16, 0.04, 0.08), S.dark, [0.15, 0.735, 0.1]);
   B.add(box(0.12, 0.02, 0.05), S.lensOn, [0.15, 0.71, 0.1]);
@@ -961,16 +961,17 @@ function buildInterior(S, D) {
   br.visible = false;
   br.position.set(I.breech[0] - D.gunPivot[0], I.breech[1] - D.gunPivot[1], I.breech[2] - D.gunPivot[2]);
   const V = new Bucket();
-  V.add(box(0.5, 0.48, 0.42), S.dark, [0, 0, 0]);                                  // Bodenstück
-  V.add(box(0.58, 0.5, 0.36), S.dark, [0, 0.02, -0.42]);                            // Wiege
+  V.add(box(0.5, 0.48, 0.42), S.steel, [0, 0, 0]);                                 // Bodenstück
+  V.add(box(0.58, 0.5, 0.36), S.cabin, [0, 0.02, -0.42]);                           // Wiege
+  if (DET === 2) V.add(cyl(0.2, 0.22, 0.2, 12, true), S.steel, [0, 0, -0.3], [HP, 0, 0]); // Verschlussring
   V.add(cyl(0.085, 0.085, 0.03, DET === 2 ? 12 : 8, true), S.rubber, [0, 0, 0.205], [HP, 0, 0]); // Ladeöffnung (dunkel)
   V.add(box(0.15, 0.15, 0.01), S.rubber, [0, 0, 0.214]);
   if (DET > 0) {
     for (const sx of [-1, 1]) {
-      V.add(box(0.035, 0.035, 0.75), S.dark, [sx * 0.33, -0.12, 0.5]);             // Rücklaufschutz
+      V.add(box(0.035, 0.035, 0.75), S.cabin, [sx * 0.33, -0.12, 0.5]);            // Rücklaufschutz
       if (DET === 2) V.add(cyl(0.045, 0.045, 0.6, 8, true), S.dark, [sx * 0.2, 0.3, -0.3], [HP, 0, 0]); // Rohrbremsen
     }
-    V.add(box(0.7, 0.035, 0.035), S.dark, [0, -0.12, 0.86]);
+    V.add(box(0.7, 0.035, 0.035), S.cabin, [0, -0.12, 0.86]);
     V.add(box(0.66, 0.3, 0.02), S.cabin, [0, -0.29, 0.86]);                         // Hülsenfangblech
   }
   V.build(br, { shadow: false });
@@ -978,7 +979,7 @@ function buildInterior(S, D) {
   keil.name = 'breech:keil';
   keil.position.set(0, 0, 0.235);
   const K = new Bucket();
-  K.add(box(0.42, 0.44, 0.06), S.dark, [0, 0, 0]);
+  K.add(box(0.42, 0.44, 0.06), S.steel, [0, 0, 0]);
   K.add(box(0.06, 0.04, 0.1), S.rubber, [0.16, 0.12, 0.06]);                        // Griff
   K.build(keil, { shadow: false });
   br.add(keil);
@@ -1022,7 +1023,8 @@ function template(type, team, quality) {
     cmg.add(lodOf(lv.map((x) => x.cmg), dists));
     tur.add(cmg);
     root.add(tur);
-    // Besatzung: bewegliche Luken (außerhalb der LOD-Stufen), Innenraum + Verschluss (unsichtbar)
+    // Besatzung: bewegliche Luken (außerhalb der LOD-Stufen, Nahstufen-Details), Innenraum + Verschluss (unsichtbar)
+    CUR_LOD = 0;
     const paint = S.paint[team] || S.paint.null;
     for (const id of ['driver', 'commander', 'loader']) {
       const d = (D.hatches && D.hatches[id]) || {};
