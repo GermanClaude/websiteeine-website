@@ -1287,7 +1287,9 @@ function half(b, M) {
   });
   terraceDeco(b, M, em2, { pots: [[19.9, 26.9], [30.1, 37.1], [19.9, 37.1]], parasol: [24.5, 33.5], chairs: [[23.4, 34.5], [25.6, 34.3]], laundry: [[21.0, 28.0, 21.0, 35.0]] });
   // Hof südlich EM2 (x 15..31, z 38..42)
-  tree(b, 17.0, Z(40.0), { kind: 'olive', h: 2.6 });
+  // Olivenbaum etwas kleiner und von den Hauswänden weg (Krone ragte in die Ostwand des Nachbarhauses); feste Größe →
+  // die frühere Zufallszahl der Größe wird verworfen, der übrige Kartenzufall bleibt gleich
+  tree(b, 17.2, Z(40.4), { kind: 'olive', h: 2.6, s: 0.68 }); b.rand();
   lowWall(b, 19.0, Z(39.6), 23.5, Z(39.6), { h: 0.95 });
   dumpster(b, 29.6, Z(40.3), { ry: Math.PI / 2, color: '#3a6a4a' });
   // Kirchgasse (z 8..13): Stufen, Bank, Wäsche
@@ -1550,7 +1552,8 @@ function cafe(b, M, h) {
   b.box(-14.6, 1.22, Z(17.2), 0.5, 0.4, 0.4, 'metal_galvanized', { collide: false, minimap: false, grad: false });
   // Tische drinnen
   for (const [x, z] of [[-10.6, 16.0], [-8.2, 19.6], [-11.2, 20.6]]) cafeTable(b, x, Z(z), { y: 0.12, chairs: 2, chairTint: '#2f2f2f' });
-  b.sign(-11.0, 2.7, Z(13) - 0.03 * M.s, 3.6, 0.6, 'cafe', { ry: M.ry(Math.PI), depth: 0.03 });
+  // Schild über dem Geschossband links vom Balkon (vorher hinter der Markise verborgen)
+  b.sign(-14.0, 3.32, Z(13) - 0.03 * M.s, 2.5, 0.48, 'cafe', { ry: M.ry(Math.PI), depth: 0.03 });
   b.sign(-6.0 + 0.03, 1.2, Z(19.5), 0.9, 1.1, 'menu', { ry: Math.PI / 2, depth: 0.02 });
   b.light('point', -11.0, 2.6, Z(18.5), { color: '#ffd6a0', intensity: 9, distance: 9 });
   // Kartenrunde 2: Leuchte zum Echtzeitlicht + Pendelleuchten über den Tischen (gebacken), Bild, Pflanze
@@ -1585,7 +1588,7 @@ function pension(b, M, h) {
     picture(b, -6.31, 1.45, Z(16.5), -Math.PI / 2, 0.8, 0.55, '#3c6a8a');
   });
   pot(b, -7.0, 0.12, Z(14.0), { r: 0.35, h: 0.6 });
-  b.sign(-11.0, 2.7, Z(13) - 0.03 * M.s, 3.6, 0.6, 'pension', { ry: M.ry(Math.PI), depth: 0.03 });
+  b.sign(-14.0, 3.32, Z(13) - 0.03 * M.s, 2.5, 0.48, 'pension', { ry: M.ry(Math.PI), depth: 0.03 });
   awning(b, -13.6, 2.9, Z(13.0) - 0.1 * M.s, 3.2, 1.4, { ry: M.ry(Math.PI), design: 2 });
   // Vorplatz: Zeitungskiosk + Moped + Kübel
   b.box(-12.4, 0, Z(9.4), 1.6, 2.2, 1.4, 'metal_painted', { tint: '#2f5f4a', minimap: 'cover' });
@@ -1612,7 +1615,7 @@ function bakery(b, M, h, south) {
     b.box(13.0, 0.7, Z(19.0), 0.05, 0.5, 0.9, 'black', { collide: false, minimap: false, ao: false });
     b.box(13.0, 0.75, Z(19.0), 0.06, 0.4, 0.8, 'lamp_sodium', { collide: false, minimap: false, ao: false, cast: false });
   } else b.box(13.6, 0.12, Z(19.0), 1.4, 1.0, 2.2, 'metal_painted', { tint: '#e8e8e2', minimap: 'cover' });
-  b.sign(10.5, 2.7, Z(13) - 0.03 * M.s, 3.4, 0.6, south ? 'bakery' : 'pharmacy', { ry: M.ry(Math.PI), depth: 0.03 });
+  b.sign(10.5, 3.32, Z(13) - 0.03 * M.s, 3.2, 0.56, south ? 'bakery' : 'pharmacy', { ry: M.ry(Math.PI), depth: 0.03 });
   awning(b, 8.6, 2.95, Z(13.0) - 0.1 * M.s, 3.2, 1.3, { ry: M.ry(Math.PI), design: south ? 3 : 1 });
   // Brotkörbe / Bank vor dem Laden
   if (south) basketRow(b, 13.6, Z(11.6), 0, 2);
@@ -1637,7 +1640,8 @@ function squareCover(b, M, south) {
   sandbags(b, -15.6, Z(23.0), -15.6, Z(25.7), { rows: 4 });
   barrelGroup(b, 12.8, Z(32.4), { n: 3, colors: ['#8a3a2a', '#3a6f8a'] });
   planter(b, 3.4, Z(32.6), 2.4, 1.0, { h: 0.8 });
-  palm(b, -14.6, Z(32.6), { h: 6.5 });
+  // Palme mit Abstand zu WM2 und zum Haus am Startbereich (Wedel steckten in Wand, Brüstung und Dach)
+  palm(b, -12.6, Z(30.2), { h: 6.5, s: 0.85 }); b.rand();
   for (let i = 0; i < 6; i++) b.decal(b.rnd(-15, 14), 0.012, Z(b.rnd(24.5, 33.5)), b.rnd(1, 2.5), b.rnd(1, 2.5), b.pick(['stain', 'leaves', 'cracks']), { opacity: 0.7 });
   b.decal(-5, 0.013, Z(29), 3.0, 2.0, 'sanddrift', { opacity: 0.6 });
 }
@@ -1798,16 +1802,16 @@ function eastSquare(b, ctx) {
   b.boxMM(68.6, 0, -8, 69.4, 6.4, 8, 'stone_wall', { tint: '#d9c9a8', minimap: 'wall' });
   arch(b, 68.55, 2.4, 0, 3.4, 0.9, 1.0, 0.3, 'stone_wall', { ry: Math.PI / 2, tint: '#cdbd9c' });
   // Brunnen (Kartenrunde 2): offenes Becken mit Wasser – vorher lag die „Wasserscheibe“ im Vollzylinder verborgen.
-  // Kollision unverändert (Vollzylinder 1,9 × 0,75 m), Wasser fällt in vier Bahnen von der Schale am Aufsatz.
+  // Beckenrand 0,75 m (Deckung wie bisher) mit Kollision wie sichtbar, Beckenboden 0,35 m; Wasser fällt in vier Bahnen
+  // von der Schale am Aufsatz.
   const FX = 59.5, RB = 1.9, TB = 0.26, HB = 0.75, WY = 0.62;
-  b.cyl(FX, 0, 0, RB, HB, 'black', { seg: 16, visual: false, minimap: 'cover' });
   const sideB = 2 * RB * Math.tan(Math.PI / 16);
   for (let i = 0; i < 16; i++) {
     const a = (i * Math.PI) / 8, ry = Math.atan2(-Math.cos(a), -Math.sin(a));
-    b.box(FX + Math.cos(a) * (RB - TB / 2), 0, Math.sin(a) * (RB - TB / 2), sideB + 0.02, HB - 0.07, TB, 'stone_wall', { ry, tint: '#dccdb2', collide: false, minimap: false, uv: 'local' });
-    b.box(FX + Math.cos(a) * (RB - TB / 2 + 0.02), HB - 0.07, Math.sin(a) * (RB - TB / 2 + 0.02), sideB + 0.08, 0.07, TB + 0.1, 'stone_wall', { ry, tint: '#ece3d0', collide: false, minimap: false, grad: false });
+    b.box(FX + Math.cos(a) * (RB - TB / 2), 0, Math.sin(a) * (RB - TB / 2), sideB + 0.02, HB - 0.07, TB, 'stone_wall', { ry, tint: '#dccdb2', minimap: 'cover', uv: 'local' });
+    b.box(FX + Math.cos(a) * (RB - TB / 2 + 0.02), HB - 0.07, Math.sin(a) * (RB - TB / 2 + 0.02), sideB + 0.08, 0.07, TB + 0.1, 'stone_wall', { ry, tint: '#ece3d0', minimap: false, grad: false });
   }
-  b.cyl(FX, 0, 0, RB - TB + 0.02, 0.35, 'stone_wall', { seg: 16, tint: '#6f7a72', collide: false, minimap: false });
+  b.cyl(FX, 0, 0, RB - TB + 0.02, 0.35, 'stone_wall', { seg: 16, tint: '#6f7a72', minimap: false });
   const wq = ctx.water({ x0: FX - 1, z0: -1, x1: FX + 1, z1: 1, y: WY, color: '#2f6a6e', scale: 2.5 });
   const gq = new THREE.CircleGeometry(RB - TB + 0.02, 24);
   gq.rotateX(-Math.PI / 2); gq.translate(FX, WY, 0);
@@ -1845,7 +1849,7 @@ function jerseyLike(b, x, z, ry) {
   // 3,0 × 0,8 × 0,8 m; drei Sträucher verbrauchen den Kartenzufall wie bisher)
   flowerBed(b, x, z, 3.0, 0.8, { h: 0.8, ry, tint: '#ddd0b4', mainLoop: false });
   const f = frame(b, x, 0.73, z, ry);
-  for (const lx of [-1, 0, 1]) { const [px, pz] = f.P(lx, 0); b.plant('bush', px, 0.71, pz, { s: 0.5 }); }
+  for (const lx of [-1, 0, 1]) { const [px, pz] = f.P(lx, 0); b.plant('bush', px, 0.71, pz, { s: 0.38 }); }
 }
 
 // ---------------------------------------------------------------------------

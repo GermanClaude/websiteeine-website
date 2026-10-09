@@ -19,6 +19,10 @@ import { craneClock } from '../crane-anim.js';
 const IRON = '#2b2d30';
 const VIS = { collide: false, minimap: false };            // nur Optik (Kugeln treffen trotzdem)
 const VG = { collide: false, minimap: false, grad: false };
+// Draw Calls sparen: Möbel nutzen nur Materialien, die in jedem Häuserblock ohnehin vorkommen (Holz, Metall, Stoff, Weiß,
+// Terrakotta, Glas) – Fugen/Kabel aus dunkel getöntem Holz/Metall statt „black“; Kleinteile ohne Rück- und Bodenfläche
+const SMALL = [0, 0, 0, 1, 0, 1];
+const SEAM = { collide: false, minimap: false, grad: false, ao: false, tint: '#21170f', skip: SMALL };
 
 /** Zufallsfolge aus Positionswerten (mulberry32) – auf allen Rechnern bitgleich, verbraucht keinen Kartenzufall. */
 export function hrng(a, b2 = 0, c = 0) {
@@ -29,7 +33,7 @@ export function hrng(a, b2 = 0, c = 0) {
 // ---------------------------------------------------------------------------
 // Tageszeit, Lampen
 // ---------------------------------------------------------------------------
-const LOOK = { night: false, rt: false, ultra: false };
+const LOOK = { night: false, rt: false, ultra: false, lite: false };
 
 /**
  * Zu Beginn von build(): Tageszeit (Kartenbedingungen) und Grafikstufe merken, Putzschäden der Altstadt einhängen.
@@ -39,6 +43,7 @@ export function setupLook(b, { time, quality }) {
   LOOK.night = time === 'abend' || time === 'nacht';
   LOOK.rt = quality === 'high' || quality === 'ultra';
   LOOK.ultra = quality === 'ultra';
+  LOOK.lite = quality === 'low'; // Telefon: Kleinkram (Regalwaren, Blütenköpfe) ausgedünnt – nur Optik, Kollision gleich
   installPlasterStyle(b);
   return LOOK;
 }
@@ -181,7 +186,7 @@ export function flowerBed(b, x, z, w, d, o = {}) {
     const s = 0.6 + b.rand() * 0.4;
     const [px, pz] = f.P(u * Math.max(0.1, iw - 0.45), v * Math.max(0.1, id - 0.45));
     if (isFlower) { b.rand(); flowerClump(b, px, soil, pz, pal, R, 0.22 + s * 0.12); }  // Drehung wie früher verbraucht
-    else b.plant('bush', px, soil - 0.02, pz, { s: s * 0.55 });                         // Strauch (Drehung aus dem Kartenzufall)
+    else b.plant('bush', px, soil - 0.02, pz, { s: s * 0.45 });                         // Strauch (Drehung aus dem Kartenzufall)
   }
   // Randbepflanzung: Blütenreihe an den Längsseiten, Grünpolster dazwischen
   const along = w >= d, Lr = along ? iw : id, Lq = along ? id : iw;
@@ -189,19 +194,19 @@ export function flowerBed(b, x, z, w, d, o = {}) {
   for (const e of [-1, 1]) for (let i = 0; i < k; i++) {
     const a = -Lr / 2 + 0.17 + (i * (Lr - 0.34)) / (k - 1), q = e * (Lq / 2 - 0.13);
     const [px, pz] = along ? f.P(a, q) : f.P(q, a);
-    if (i % 2) b.plant('bush', px, soil - 0.03, pz, { s: 0.2 + R() * 0.06, ry: R() * 6.283 });
-    else flowerClump(b, px, soil, pz, pal, R, 0.18 + R() * 0.06);
+    if (i % 3 === 1) b.plant('bush', px, soil - 0.03, pz, { s: 0.16 + R() * 0.05, ry: R() * 6.283 });
+    else flowerClump(b, px, soil, pz, pal, R, 0.2 + R() * 0.06);
   }
   if (o.tree) tree(b, x, z, { y: soil - 0.03, kind: o.tree, h: 2.4 });
 }
 
 /** Blütenbüschel: Grünpolster + 3–5 Blütenköpfe in Palettenfarben (ohne Kollision, ohne Schatten). */
 function flowerClump(b, x, y, z, pal, R, s) {
-  b.plant('bush', x, y - 0.03, z, { s: s * 0.9, ry: R() * 6.283 });
-  const n = 3 + Math.floor(R() * 3), col = pal[Math.floor(R() * pal.length)];
+  b.plant('bush', x, y - 0.03, z, { s: s * 0.7, ry: R() * 6.283 });
+  const n = (LOOK.lite ? 2 : 4) + Math.floor(R() * 3), col = pal[Math.floor(R() * pal.length)];
   for (let i = 0; i < n; i++) {
-    const a = R() * 6.283, r = R() * s * 0.55, hs = 0.045 + R() * 0.03;
-    b.geom(flowerHead(), x + Math.cos(a) * r, y + s * (0.45 + R() * 0.45), z + Math.sin(a) * r, 'white', {
+    const a = R() * 6.283, r = R() * s * 0.7, hs = 0.055 + R() * 0.035;
+    b.geom(flowerHead(), x + Math.cos(a) * r, y + s * (0.75 + R() * 0.5), z + Math.sin(a) * r, 'white', {
       sx: hs, sy: hs * 0.55, sz: hs, ry: R() * 3, tint: R() < 0.8 ? col : pal[(pal.indexOf(col) + 1) % pal.length],
       collide: false, minimap: false, ao: false, cast: false, bullet: false, grad: false,
     });
@@ -256,7 +261,7 @@ function rippleMaterial(uT, spots, bright) {
           float d = distance(vRW.xz, s.xy);
           float ph = fract(d * 5.0 - uWaterT * 1.2 + s.x * 3.1);
           float ring = smoothstep(0.0, 0.12, ph) * smoothstep(0.42, 0.14, ph);
-          a += s.z * (ring * exp(-d * 4.2) * 0.75 + exp(-d * d * 260.0) * 0.6);
+          a += s.z * (ring * exp(-d * 4.6) * 0.55 + exp(-d * d * 260.0) * 0.5);
         }
         a = clamp(a, 0.0, 0.85);
         if (a < 0.01) discard;
@@ -436,7 +441,7 @@ export function wardrobe(b, x, y, z, ry, o = {}) {
   f.box(0, 0, 0.02, w - 0.06, 0.07, d - 0.06, 'wood_dark', { tint: '#3a2a1e', ...VIS });
   f.box(0, h, 0, w + 0.06, 0.05, d + 0.05, 'wood_dark', { tint, ...VG });
   const nd = o.doors ?? (w > 0.8 ? 2 : 1);
-  for (let i = 1; i < nd; i++) f.box(-w / 2 + (i * w) / nd, 0.12, d / 2 + 0.002, 0.012, h - 0.2, 0.006, 'black', { ...VG, ao: false });
+  for (let i = 1; i < nd; i++) f.box(-w / 2 + (i * w) / nd, 0.12, d / 2 + 0.002, 0.012, h - 0.2, 0.006, 'wood_dark', SEAM);
   for (let i = 0; i < nd; i++) {
     const cx = -w / 2 + ((i + 0.5) * w) / nd + (nd > 1 ? (i ? -1 : 1) * (w / nd / 2 - 0.07) : w / 2 - 0.1);
     f.box(cx, h * 0.48, d / 2 + 0.012, 0.022, 0.14, 0.02, 'metal_painted', { tint: '#b08a3a', ...VG, ao: false });
@@ -450,7 +455,7 @@ export function dresser(b, x, y, z, ry, o = {}) {
   f.box(0, 0.06, 0, w, h - 0.06, d, 'wood_dark', { tint, ...VIS });
   f.box(0, h, 0, w + 0.04, 0.035, d + 0.03, 'wood_planks', { tint: '#9a7452', ...VG });
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.box(sx * (w / 2 - 0.05), 0, sz * (d / 2 - 0.05), 0.05, 0.06, 0.05, 'wood_dark', { tint: '#3a2a1e', ...VIS });
-  for (let k = 1; k < 3; k++) f.box(0, 0.06 + (k * (h - 0.06)) / 3, d / 2 + 0.002, w - 0.06, 0.012, 0.006, 'black', { ...VG, ao: false });
+  for (let k = 1; k < 3; k++) f.box(0, 0.06 + (k * (h - 0.06)) / 3, d / 2 + 0.002, w - 0.06, 0.012, 0.006, 'wood_dark', SEAM);
   for (let k = 0; k < 3; k++) for (const sx of [-0.25, 0.25]) f.box(sx * w, 0.06 + ((k + 0.5) * (h - 0.06)) / 3, d / 2 + 0.012, 0.09, 0.018, 0.018, 'metal_painted', { tint: '#b08a3a', ...VG, ao: false });
   f.solid(0, 0, 0, w, h, d, { minimap: 'cover' });
   return f;
@@ -487,33 +492,35 @@ export function shelf(b, x, y, z, ry, o = {}) {
   for (let k = 0; k < n; k++) { const yy = 0.06 + (k * (h - 0.1)) / (n - 1); levels.push(yy); f.box(0, yy, 0.01, w - 0.06, 0.03, d - 0.02, 'wood_dark', { tint, ...VG }); }
   const kind = o.goods || 'books', cols = GOODS_COLORS[kind] || GOODS_COLORS.books, R = hrng(x, z, 77 + y);
   for (let k = 0; k < n - 1; k++) {
-    if (o.skipLow && k === 0) continue;
+    if ((o.skipLow && k === 0) || (LOOK.lite && k % 2)) continue;
     const yb = levels[k] + 0.03, gap = levels[k + 1] - yb - 0.04;
     let lx = -w / 2 + 0.06;
     while (lx < w / 2 - 0.12) {
+      if (R() < 0.18) { lx += 0.12 + R() * 0.2; continue; } // Lücke im Fach
       const c = cols[Math.floor(R() * cols.length)];
       if (kind === 'books') {
-        const bw = 0.03 + R() * 0.04, bh = Math.min(gap, 0.2 + R() * 0.1);
-        f.box(lx + bw / 2, yb, 0.02, bw, bh, d * 0.7, 'tarp', { tint: c, ...VG, ao: false, bullet: false });
-        lx += bw + 0.004 + (R() < 0.1 ? 0.12 : 0);
+        const bw = 0.045 + R() * 0.05, bh = Math.min(gap, 0.2 + R() * 0.1);
+        f.box(lx + bw / 2, yb, 0.02, bw, bh, d * 0.7, 'tarp', { tint: c, ...VG, ao: false, bullet: false, skip: SMALL });
+        lx += bw + 0.004 + (R() < 0.14 ? 0.16 : 0);
       } else if (kind === 'jars' || kind === 'pharma') {
-        const r = 0.045 + R() * 0.02;
-        f.cyl(lx + r, yb, 0.02, r, Math.min(gap, 0.1 + R() * 0.06), kind === 'pharma' ? 'white' : 'glass', { tint: c, seg: 8, ...VG, ao: false, bullet: false });
-        lx += 2 * r + 0.03;
+        // Dosen/Gläser bzw. Arzneischachteln als flache Quader (8 Dreiecke statt eines Zylinders)
+        const r = 0.045 + R() * 0.025;
+        f.box(lx + r, yb, 0.02, 2 * r, Math.min(gap, 0.1 + R() * 0.08), 0.12 + R() * 0.06, kind === 'pharma' ? 'white' : 'glass', { tint: c, ...VG, ao: false, bullet: false, skip: SMALL });
+        lx += 2 * r + 0.025;
       } else if (kind === 'bottles') {
-        f.cyl(lx + 0.04, yb, 0.02, 0.035, Math.min(gap, 0.28), 'glass', { tint: c, seg: 6, ...VG, ao: false, bullet: false });
+        f.cyl(lx + 0.04, yb, 0.02, 0.035, Math.min(gap, 0.28), 'glass', { tint: c, seg: 5, caps: false, ...VG, ao: false, bullet: false });
         lx += 0.09;
       } else if (kind === 'bread') {
         const s = 0.09 + R() * 0.04;
-        f.cyl(lx + s, yb, 0.02, s, 0.07, 'wood_crate', { r1: s * 0.8, tint: c, seg: 8, ...VG, ao: false, bullet: false });
+        f.cyl(lx + s, yb, 0.02, s, 0.07, 'wood_crate', { r1: s * 0.8, tint: c, seg: 6, ...VG, ao: false, bullet: false });
         lx += 2 * s + 0.03;
       } else if (kind === 'cloth') {
         const bw = 0.3 + R() * 0.12, bh = Math.min(gap, 0.12 + R() * 0.12);
-        f.box(lx + bw / 2, yb, 0.02, bw, bh, d * 0.8, 'tarp', { tint: c, ...VG, ao: false, bullet: false });
+        f.box(lx + bw / 2, yb, 0.02, bw, bh, d * 0.8, 'tarp', { tint: c, ...VG, ao: false, bullet: false, skip: SMALL });
         lx += bw + 0.03;
       } else {
         const bw = 0.2 + R() * 0.14, bh = Math.min(gap, 0.14 + R() * 0.14);
-        f.box(lx + bw / 2, yb, 0.02, bw, bh, d * 0.8, kind === 'tools' ? 'metal_painted' : 'cardboard', { tint: c, ...VG, ao: false, bullet: false });
+        f.box(lx + bw / 2, yb, 0.02, bw, bh, d * 0.8, kind === 'tools' ? 'metal_painted' : 'wood_crate', { tint: c, ...VG, ao: false, bullet: false, skip: SMALL, uv: 'fit' });
         lx += bw + 0.04;
       }
     }
@@ -524,25 +531,25 @@ export function shelf(b, x, y, z, ry, o = {}) {
 /** Küchenzeile entlang lokal x (Front +z, Rückseite an der Wand): Unterschränke, Arbeitsplatte, Spüle, Herd, Fliesen, Hängeschränke. */
 export function kitchen(b, x, y, z, ry, o = {}) {
   const f = frame(b, x, y, z, ry), L = o.len ?? 2.4, d = 0.6, h = 0.86, tint = o.tint || '#e2dccb';
-  f.box(0, 0.09, 0, L, h - 0.09, d, 'wood_painted', { tint, ...VIS });
+  f.box(0, 0.09, 0, L, h - 0.09, d, 'white', { tint, ...VIS });
   f.box(0, 0, 0.03, L - 0.02, 0.09, d - 0.08, 'wood_dark', { tint: '#3a2e24', ...VIS });
   f.box(0, h, 0.01, L + 0.02, 0.04, d + 0.03, 'stone_wall', { tint: '#d8d0bf', ...VG });
   const nd = Math.max(2, Math.round(L / 0.6));
-  for (let i = 1; i < nd; i++) f.box(-L / 2 + (i * L) / nd, 0.13, d / 2 + 0.002, 0.01, h - 0.17, 0.006, 'black', { ...VG, ao: false });
+  for (let i = 1; i < nd; i++) f.box(-L / 2 + (i * L) / nd, 0.13, d / 2 + 0.002, 0.01, h - 0.17, 0.006, 'wood_dark', SEAM);
   for (let i = 0; i < nd; i++) f.box(-L / 2 + ((i + 0.5) * L) / nd, h - 0.13, d / 2 + 0.012, 0.13, 0.018, 0.018, 'metal_galvanized', { ...VG, ao: false });
   // Spüle mit Hahn (links), Herd mit vier Kochstellen (rechts)
   f.box(-L / 2 + 0.42, h + 0.035, 0.03, 0.52, 0.012, 0.4, 'metal_galvanized', { ...VG, ao: false });
   f.cyl(-L / 2 + 0.42, h + 0.04, -0.22, 0.018, 0.26, 'metal_galvanized', { seg: 6, ...VG, ao: false });
   f.box(-L / 2 + 0.42, h + 0.27, -0.16, 0.025, 0.025, 0.14, 'metal_galvanized', { ...VG, ao: false });
-  f.box(L / 2 - 0.4, h + 0.04, 0.03, 0.58, 0.02, 0.5, 'black', { ...VG, ao: false });
+  f.box(L / 2 - 0.4, h + 0.04, 0.03, 0.58, 0.02, 0.5, 'metal_painted', { tint: '#1c1c1e', ...VG, ao: false });
   for (const sx of [-0.13, 0.13]) for (const sz of [-0.11, 0.15]) f.cyl(L / 2 - 0.4 + sx, h + 0.06, sz, 0.075, 0.012, 'metal_galvanized', { seg: 10, ...VG, ao: false });
   // Topf auf dem Herd
   f.cyl(L / 2 - 0.27, h + 0.072, 0.15, 0.1, 0.13, 'metal_galvanized', { seg: 10, ...VG, ao: false, bullet: false });
   // Fliesenspiegel + Hängeschränke
-  f.box(0, h + 0.04, -d / 2 + 0.012, L, 0.6, 0.02, 'tiles', { tint: '#e3ecee', ...VG, ao: false });
+  f.box(0, h + 0.04, -d / 2 + 0.012, L, 0.6, 0.02, 'tiles_terracotta', { tint: '#f0e6d6', ...VG, ao: false, skip: SMALL });
   if (o.upper !== false) {
-    f.box(0, h + 0.66, -d / 2 + 0.17, L, 0.62, 0.34, 'wood_painted', { tint, ...VIS });
-    for (let i = 1; i < nd; i++) f.box(-L / 2 + (i * L) / nd, h + 0.69, -d / 2 + 0.342, 0.01, 0.56, 0.006, 'black', { ...VG, ao: false });
+    f.box(0, h + 0.66, -d / 2 + 0.17, L, 0.62, 0.34, 'white', { tint, ...VIS });
+    for (let i = 1; i < nd; i++) f.box(-L / 2 + (i * L) / nd, h + 0.69, -d / 2 + 0.342, 0.01, 0.56, 0.006, 'wood_dark', SEAM);
   }
   f.solid(0, 0, 0, L, h + 0.04, d, { minimap: 'cover' });
 }
@@ -560,10 +567,10 @@ export function armchair(b, x, y, z, ry, tint = '#7a3a2a') {
 /** Pendelleuchte unter der Decke (yC = Deckenunterseite) mit gebackenem Licht (kostenlos zur Laufzeit). */
 export function pendant(b, x, yC, z, o = {}) {
   const drop = o.drop ?? 0.75, yS = yC - drop, r = o.r ?? 0.22;
-  b.cyl(x, yC - 0.035, z, 0.07, 0.035, 'metal_painted', { tint: IRON, seg: 8, ...VG, ao: false });
-  b.cyl(x, yS + 0.17, z, 0.008, drop - 0.2, 'black', { seg: 4, ...VG, ao: false, bullet: false });
-  b.cyl(x, yS, z, r, 0.2, 'metal_painted', { r1: 0.05, seg: 12, tint: o.tint || '#2f5f4a', ...VG });
-  b.cyl(x, yS - 0.06, z, 0.055, 0.07, 'lamp_warm', { seg: 8, ...VG, ao: false, cast: false });
+  b.cyl(x, yC - 0.035, z, 0.07, 0.035, 'metal_painted', { tint: IRON, seg: 6, ...VG, ao: false });
+  b.cyl(x, yS + 0.17, z, 0.008, drop - 0.2, 'metal_painted', { seg: 4, tint: IRON, ...VG, ao: false, bullet: false, caps: false });
+  b.cyl(x, yS, z, r, 0.2, 'metal_painted', { r1: 0.05, seg: 10, tint: o.tint || '#2f5f4a', ...VG });
+  b.cyl(x, yS - 0.06, z, 0.055, 0.07, 'lamp_warm', { seg: 6, ...VG, ao: false, cast: false });
   if (o.light !== false) b.light('point', x, yS - 0.2, z, { color: '#ffd29a', intensity: o.intensity ?? 11, distance: o.distance ?? 9, realtime: o.realtime === true && LOOK.rt, priority: 1, group: 0 });
 }
 
