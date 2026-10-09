@@ -132,6 +132,7 @@ export class HUD {
       <div class="h-stamp" hidden aria-hidden="true"><b></b><span><i></i> <em></em></span></div>
       <div class="h-cook"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19"/></svg><b></b></div>
       <div class="h-ammo-hint"><span class="t"></span><kbd></kbd><i class="bar"></i></div>
+      <div class="h-readout" aria-live="polite"><b></b><span></span></div>
       <div class="h-tl"><div class="h-mm"></div><div class="h-uav" hidden>${ICON.radar}<span></span></div></div>
       <div class="h-feed" aria-live="off"></div>
       <div class="h-top">
@@ -166,6 +167,7 @@ export class HUD {
       dirs: [...r.querySelectorAll('.h-hitdir')], aim: q('.h-aim'), cross: q('.h-cross'), hit: q('.h-hit'), killico: q('.h-killico'), cook: q('.h-cook'), cookFg: q('.h-cook .fg'), cookT: q('.h-cook b'),
       stamp: q('.h-stamp'), stampId: q('.h-stamp b'), stampD: q('.h-stamp i'), stampT: q('.h-stamp em'), magbar: q('.h-magbar u'),
       ammoHint: q('.h-ammo-hint'), ammoHintT: q('.h-ammo-hint .t'), ammoHintK: q('.h-ammo-hint kbd'), ammoHintBar: q('.h-ammo-hint .bar'),
+      readout: q('.h-readout'), readoutT: q('.h-readout b'), readoutS: q('.h-readout span'),
       mm: q('.h-mm'), uav: q('.h-uav'), uavT: q('.h-uav span'), feed: q('.h-feed'), top: q('.h-top'), mtag: q('.h-mtag'),
       sA: q('.h-s-a'), sAv: q('.h-s-a b'), sAbar: q('.h-s-a u'), sAs: q('.h-s-a small'), sB: q('.h-s-b'), sBv: q('.h-s-b b'), sBbar: q('.h-s-b u'), sBs: q('.h-s-b small'),
       time: q('.h-time'), timeT: q('.h-time span'), timeS: q('.h-time small'), sub: q('.h-sub'),
@@ -571,6 +573,28 @@ export class HUD {
     return actionKey(G, action === 'breath' ? 'sprint' : action);
   }
 
+  /**
+   * Ablesung beim Inspizieren (nur bei verdeckter Munition): Viewmodel meldet rig.readout { kind, rounds, cap,
+   * chambered, reserve, seq } in dem Moment, in dem die Patronen sichtbar sind → ehrliche Schätzung für 2,8 s.
+   */
+  _updateReadout(dt, w, def, show) {
+    const el = this.el.readout;
+    if (!el) return;
+    const ro = this._realAmmo && w && w.viewModel ? w.viewModel.readout : null;
+    if (ro && ro.seq !== this._roSeq) {
+      this._roSeq = ro.seq;
+      if (def && ro.weaponId === def.id) {
+        const [t, sub] = readoutText(ro);
+        setText(this.el.readoutT, t);
+        setText(this.el.readoutS, sub);
+        this._roT = 2.8;
+      }
+    }
+    if (this._roT > 0) this._roT -= dt;
+    if (w && w.isReloading) this._roT = 0;
+    toggle(el, 'is-on', show && this._roT > 0);
+  }
+
   /** HUD-Stil + Bodycam-Einblendung aus den Einstellungen übernehmen. */
   _applyStyle() {
     if (!this.root) return;
@@ -584,6 +608,12 @@ export class HUD {
     const changed = this.style !== st;
     this.style = st;
     if (this.root.dataset.hud !== st) this.root.dataset.hud = st;
+    // Munition verdeckt (Spielstil Realistisch bzw. HUD „aus“): kein Zähler, kein Vorrat, kein Füllbalken – den Stand
+    // zeigt nur das Inspizieren (Magazin-/Kammer-Check im Viewmodel, Schätzung in .h-readout). Touch (kein Inspizieren):
+    // grober Füllbalken ohne Zahlen bleibt (game.css)
+    this._realAmmo = fl.id === 'realistisch' || st === 'aus';
+    const am = this._realAmmo ? 'verdeckt' : '';
+    if (this.root.dataset.ammo !== am) this.root.dataset.ammo = am;
     const stamp = !!S.get('bodycamStamp');
     this.el.stamp.hidden = !stamp;
     toggle(this.root, 'has-stamp', stamp);
@@ -1064,7 +1094,7 @@ export class HUD {
           cls = 'is-empty';
         }
         else if (def.mag > 0 && st.mag === 0) { hint = 'Nachladen'; key = this._keyFor('reload'); cls = 'is-empty'; }
-        else if (lowMag && def.mag > 5 && this.style !== 'aus') { hint = 'Munition niedrig'; key = this._keyFor('reload'); cls = 'is-low'; }
+        else if (lowMag && def.mag > 5 && this.style !== 'aus' && !this._realAmmo) { hint = 'Munition niedrig'; key = this._keyFor('reload'); cls = 'is-low'; }
       }
       setText(this.el.ammoHintT, hint);
       setText(this.el.ammoHintK, key);
@@ -1073,6 +1103,9 @@ export class HUD {
       toggle(this.el.ammoHint, 'is-on', !!hint && !hide);
       setStyle(this.el.ammoHintBar, 'transform', `scaleX(${w.isReloading ? clamp(w.reloadProgress || 0, 0, 1).toFixed(3) : '0'})`);
     }
+
+    /* ---------- Munition schätzen (Realistisch): Ablesung beim Inspizieren (weapons/anim/inspects.js) */
+    this._updateReadout(dt, w, def, alive && !scoped);
 
     /* ---------- langsame Teile (≈ 8 Hz) */
     this._slowT -= dt;
@@ -1690,4 +1723,40 @@ function avoidZones(x, y, zones, b, prev = null) {
     }
   }
   return [x, y];
+}
+
+// ---------------------------------------------------------------- Munition schätzen (Realistisch)
+
+/** Füllstand in Worten – bewusst grob (so viel sieht/fühlt man beim kurzen Blick ins Magazin). */
+function fillWords(n, cap) {
+  if (!(cap > 0)) return n > 0 ? 'geladen' : 'leer';
+  if (n <= 0) return 'leer';
+  const r = n / cap;
+  if (r >= 0.95) return 'voll';
+  if (r >= 0.65) return 'fast voll';
+  if (r >= 0.35) return 'etwa halb';
+  if (r > 0.12) return 'fast leer';
+  return 'nur noch wenige';
+}
+
+/** Ablesung → [Zeile, Unterzeile]. Vorrat: volle Ersatzmagazine (+ angebrochenes), lose Patronen gerundet. */
+export function readoutText(ro) {
+  const cap = ro.cap | 0, n = ro.rounds | 0;
+  let t;
+  if (ro.kind === 'chamber') t = ro.chambered ? 'Patrone im Lauf' : 'Lauf leer';
+  else if (ro.kind === 'cylinder') t = `Trommel: ${n} von ${cap}`;
+  else if (ro.kind === 'tube') t = `Röhre: ${fillWords(Math.max(0, n - 1), Math.max(1, cap - 1))}`;
+  else t = `${ro.kind === 'belt' ? 'Gurt' : ro.kind === 'drum' ? 'Trommel' : 'Magazin'}: ${fillWords(n, cap)}`;
+  let sub = '';
+  if (ro.infinite) sub = 'Vorrat: unbegrenzt';
+  else if (Number.isFinite(ro.reserve)) {
+    const r = Math.max(0, ro.reserve | 0);
+    if (ro.perShell || ro.cylinder) sub = r <= 0 ? 'Keine Patronen mehr dabei' : `Patronen dabei: ${r <= 10 ? r : 'etwa ' + Math.round(r / 5) * 5}`;
+    else if (cap > 0) {
+      const full = Math.floor(r / cap), part = r % cap > 0;
+      const what = ro.belt ? 'Ersatzgurte' : 'Ersatzmagazine';
+      sub = full + (part ? 1 : 0) === 0 ? `Keine ${what} mehr` : `${what}: ${full}${part ? (full ? ' + 1 angebrochenes' : ' (1 angebrochenes)') : ''}`;
+    }
+  }
+  return [t, sub];
 }

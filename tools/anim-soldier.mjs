@@ -58,12 +58,14 @@ if (opt.seed) await page.evaluate((seed) => { let s = seed >>> 0; Math.random = 
 if (!opt.benchOnly) for (const wid of weapons) {
   for (const anim of anims) {
     await waitForLoad();
-    const res = await page.evaluate(async ({ wid, anim, frames, cols, dt, SIZE, cam, CAM, dur, from }) => {
+    const res = await page.evaluate(async ({ variant, wid, anim, frames, cols, dt, SIZE, cam, CAM, dur, from }) => {
       const B = window.__bots;
       const { WEAPONS } = await import('../assets/js/shared/weapons.data.js');
       const { createWeaponModel } = await import('../assets/js/game/weapons/models.js');
       const THREE = await import('three');
       const def = WEAPONS[wid] || WEAPONS.ar_m17;
+      const { Handling } = await import('../assets/js/game/bots/soldier/actions.js');
+      Handling.force = variant == null ? null : Number(variant);
       const gal = B.gal;
       gal.anim = anim;
       gal.t = 0;
@@ -81,8 +83,10 @@ if (!opt.benchOnly) for (const wid of weapons) {
       // Dauer je Animation
       let D = dur;
       if (!D) {
-        if (anim === 'reload') D = def.perShellReload ? 3.2 : (def.reloadTime || 2) + 0.5;
-        else if (anim === 'reloadEmpty') D = def.perShellReload ? 4.2 : (def.reloadEmptyTime || 2.6) + 0.5;
+        const tm = def.shellTiming || { start: 0.3, insert: 0.48, end: 0.42 };
+        const shells = (n, e) => tm.start + tm.insert * n + tm.end + (e ? 0.45 : 0);
+        if (anim === 'reload') D = (def.perShellReload ? shells(Math.max(1, Math.round((def.mag || 6) / 2)), false) : def.reloadTime || 2) + 0.4;
+        else if (anim === 'reloadEmpty') D = (def.perShellReload ? shells(def.mag || 6, true) : def.reloadEmptyTime || 2.6) + 0.4;
         else if (anim === 'throw') D = 1.6;
         else if (anim === 'melee') D = 1.2;
         else if (anim === 'death') D = 4.0;
@@ -115,15 +119,17 @@ if (!opt.benchOnly) for (const wid of weapons) {
         // Prüfwerte je Bild: tiefster Punkt aller Gelenke (Boden durchdrungen?), Abstand Hand ↔ Griff
         let minY = Infinity;
         for (let i = 0; i < a.wp.length; i++) minY = Math.min(minY, a.wp[i].y);
-        notes.push({ t: +at.toFixed(2), minY: +minY.toFixed(3), state: s0.state });
+        notes.push({ t: +at.toFixed(2), minY: +minY.toFixed(3), state: s0.state, gap: +(a.lGap || 0).toFixed(3), hold: +((a.hd && a.hd.lhold) || 0).toFixed(2) });
       }
       void THREE;
       return { url: sheet.toDataURL('image/png'), notes };
-    }, { wid, anim, frames, cols, dt, SIZE, cam: opt.cam ? (String(opt.cam).includes(',') ? String(opt.cam).split(',').map(Number) : String(opt.cam)) : (/^(crouchwalk|walk|run|sprint|air|prone|proneIdle|crawl|jump|vault|start|stop)$/.test(anim) ? 'side' : anim === 'death' ? 'wide' : /^(reload|reloadEmpty|throw|melee)/.test(anim) ? 'upper' : 'close'), CAM, dur: opt.dur ? Number(opt.dur) : 0, from: opt.from ? Number(opt.from) : 0 });
-    const file = `${OUT}/anim-${anim}-${wid}${opt.tag ? '-' + opt.tag : ''}.png`;
+    }, { variant: opt.variant != null && /^\d+$/.test(String(opt.variant)) ? Number(opt.variant) : (opt.v != null ? Number(opt.v) : null), wid, anim, frames, cols, dt, SIZE, cam: opt.cam ? (String(opt.cam).includes(',') ? String(opt.cam).split(',').map(Number) : String(opt.cam)) : (/^(crouchwalk|walk|run|sprint|air|prone|proneIdle|crawl|jump|vault|start|stop)$/.test(anim) ? 'side' : anim === 'death' ? 'wide' : /^(reload|reloadEmpty|throw|melee)/.test(anim) ? 'upper' : 'close'), CAM, dur: opt.dur ? Number(opt.dur) : 0, from: opt.from ? Number(opt.from) : 0 });
+    const file = `${OUT}/anim-${anim}-${wid}${opt.v != null ? '-v' + opt.v : ''}${opt.tag ? '-' + opt.tag : ''}.png`;
     writeFileSync(file, Buffer.from(res.url.split(',')[1], 'base64'));
     const low = Math.min(...res.notes.map((n) => n.minY));
-    console.log(`Bild: ${file}  (tiefstes Gelenk ${low.toFixed(3)} m)`);
+    const gapHold = Math.max(0, ...res.notes.filter((n) => n.hold > 0.9).map((n) => n.gap));
+    const gapAll = Math.max(0, ...res.notes.map((n) => n.gap));
+    console.log(`Bild: ${file}  (tiefstes Gelenk ${low.toFixed(3)} m, Hand↔Ziel max ${gapAll.toFixed(3)} m, beim Halten ${gapHold.toFixed(3)} m)`);
   }
 }
 

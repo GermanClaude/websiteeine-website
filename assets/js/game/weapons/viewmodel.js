@@ -9,9 +9,12 @@
 //
 // API (Vertrag §7, Erweiterungen siehe docs/ARCHITECTURE.md Changelog):
 //   new ViewModel(G)          G.viewmodel.{scene,camera} (werden angelegt, falls nicht vorhanden)
-//   setWeapon(weaponId, def?) update(dt, s) onShot(strength?, info?) playReload(empty) playMelee()
-//   playGrenade(type?, opts?) releaseGrenade() playInspect() cancelAction() getMuzzleWorldPosition(out)
-//   setVisible(bool) setLighting(lighting) showScopeOverlay warmup(renderer) dispose()
+//   setWeapon(weaponId, def?) update(dt, s) onShot(strength?, info?) playReload(empty, variant?) playMelee(opts?)
+//   playGrenade(type?, opts?) releaseGrenade() playInspect(variant?) playReady() playFidget() cancelAction()
+//   getMuzzleWorldPosition(out) setVisible(bool) setLighting(lighting) showScopeOverlay warmup(renderer) dispose()
+//   readout   letzte Munitions-Ablesung beim Inspizieren { kind, rounds, cap, chambered, reserve, seq } (ui/hud.js)
+// Animationen 09.10. (anim/): Nachlade-Varianten mit Magazin entlang der Schachtachse (magwell.js, reloads.js), vier
+// Inspektionen je Mechanik + Kammer-Patrone (inspects.js), Ziehen je Klasse, Bereitmachen, Gesten, Posen (moves.js).
 import * as THREE from 'three';
 import { createWeaponModel, setMagRounds } from './models.js';
 import { WEAPONS, weaponHandling } from '../../shared/weapons.data.js';
@@ -19,6 +22,9 @@ import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES }
 import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE, MELEE_STYLES } from './gunsmith/handling.js';
 import { EXTRA_ACTIONS } from './gunsmith/actions2.js';
 import { RELOAD_ACTIONS } from './anim/reloads.js';
+import { INSPECT_ACTIONS } from './anim/inspects.js';
+import { MOVE_ACTIONS, GRENADE_LOW } from './anim/moves.js';
+import { COSMETIC } from './anim/reloads.js';
 import { GunCollider, MultiCollider } from './gunsmith/contact.js';
 import { applyCamo } from './gunsmith/camos.js';
 import { CLASS_LOOKS, SKIN_TIERS, classLookId } from '../../shared/weapons.data.js';
@@ -344,14 +350,23 @@ export class ViewModel {
     this._start('reload', dur, { empty, style, variant: v });
   }
 
-  /** Nahkampf. opts: { style ('slash'|'hook'|'chop'|'overhead'|'stab'), backstab, duration } – Standard aus der Nahkampfwaffe. */
+  /**
+   * Nahkampf. opts: { style ('slash'|'hook'|'chop'|'overhead'|'stab'|'backhand'), backstab, duration, variant } – Standard
+   * aus der Nahkampfwaffe. Optische Varianten (zufällig, Treffermoment gleich): mit Schusswaffe 0 = Hieb der Klinge,
+   * 1 = Stich, 2 = Stoß mit der Waffe selbst; Messer als Hauptwaffe 0 = Hieb der Klinge, 1 = Rückhand, 2 = Stich.
+   */
   playMelee(opts = {}) {
     if (!this.cur) return;
-    const md = this.h.action === 'knife' ? this.def : this._defFor(this._meleeId);
+    const knife = this.h.action === 'knife';
+    const md = knife ? this.def : this._defFor(this._meleeId);
     const spec = md?.melee || WEAPONS.knife?.melee || {};
-    const style = opts.backstab ? 'stab' : opts.style || spec.style || 'slash';
     const dur = opts.duration ?? spec.swingTime ?? 0.75;
-    this._start(this.h.action === 'knife' ? 'slash' : 'melee', dur, { hit: false, style });
+    const v = opts.backstab || opts.style ? 0 : this._pickVariant(knife ? 'slash' : 'melee', 3, opts.variant);
+    let style = opts.backstab ? 'stab' : opts.style || spec.style || 'slash';
+    if (v === 1) style = knife ? 'backhand' : 'stab';
+    else if (v === 2 && knife) style = 'stab';
+    const type = knife ? 'slash' : v === 2 ? 'strike' : 'melee';
+    this._start(type, dur, { hit: false, style, variant: v });
   }
 
   /** Nahkampfwaffe für Hiebe mit Schusswaffe in der Hand (Requisit der linken Hand). */
@@ -420,15 +435,12 @@ export class ViewModel {
   /** Granatwurf. type: 'frag' | 'semtex'. opts.hold = true hält nach dem Abziehen (Vorkochen) bis releaseGrenade(). */
   playGrenade(type = 'frag', opts = {}) {
     if (!this.cur) return;
-    this._start('grenade', 1.0, { gtype: this.props[type] ? type : 'frag', hold: !!opts.hold, released: false });
+    // Variante: über Kopf (0) bzw. von unten (1) – aus der Hocke/im Liegen automatisch von unten (anim/moves.js)
+    const low = opts.variant != null ? opts.variant === 1 : this._crouch > 0.5 || (this._prone || 0) > 0.4;
+    this._start('grenade', 1.0, { gtype: this.props[type] ? type : 'frag', hold: !!opts.hold, released: false, low, variant: low ? 1 : 0 });
   }
 
   releaseGrenade() { if (this.action?.type === 'grenade') this.action.hold = false; }
-
-  playInspect() {
-    if (!this.cur || this.action) return;
-    this._start('inspect', this.h.inspect, { style: this.h.inspectStyle || 'rifle' });
-  }
 
   /** Schutzplatte einsetzen (Rüstung): Dauer in s (Standard 1,6). Bricht laufende Aktionen ab. */
   playPlate(duration = 1.6) {
@@ -441,7 +453,8 @@ export class ViewModel {
     if (this.action && !this.action.cancel) { this.action.cancel = true; }
   }
 
-  get isBusy() { return !!this.action || this._equipT < 1 || this._lowering; }
+  // Kosmetische Aktionen (Bereitmachen, Leerlauf-Geste) blockieren nichts (anim/moves.js)
+  get isBusy() { return (!!this.action && !COSMETIC.has(this.action.type)) || this._equipT < 1 || this._lowering; }
   get actionName() { return this.action ? this.action.type : null; }
 
   /**
@@ -899,7 +912,7 @@ export class ViewModel {
     if (typeof s.mag === 'number' && (h.action === 'auto' || h.action === 'semi') && !inReload) this._boltLocked = s.mag === 0;
 
     // ---- Zustände glätten
-    const busy = this.action && ['reload', 'shells', 'melee', 'grenade', 'slash', 'inspect'].includes(this.action.type);
+    const busy = this.action && ['reload', 'shells', 'melee', 'strike', 'grenade', 'slash', 'inspect'].includes(this.action.type);
     if (typeof s.adsProgress === 'number') this._ads = clamp(s.adsProgress, 0, 1);
     else {
       const adsTime = this.def?.adsTime ?? 0.25;
@@ -909,7 +922,7 @@ export class ViewModel {
     }
     const a = this._ads;
     const na = 1 - a;
-    const sprintWant = s.sprinting && a < 0.2 && !(this.action && ['reload', 'shells', 'grenade', 'melee', 'slash'].includes(this.action.type)) ? 1 : 0;
+    const sprintWant = s.sprinting && a < 0.2 && !(this.action && ['reload', 'shells', 'grenade', 'melee', 'strike', 'slash'].includes(this.action.type)) ? 1 : 0;
     this._sprint = damp(this._sprint, sprintWant, sprintWant ? 7 : 10, dt);
     this._crouch = damp(this._crouch, s.crouching ? 1 : 0, 8, dt);
     const onGround = s.onGround !== false;
@@ -1058,12 +1071,11 @@ export class ViewModel {
       P.x += 0.03 * m; P.y -= 0.13 * m; P.z += 0.04 * m;
       R.x -= 0.55 * m; R.y += 0.15 * m; R.z += 0.35 * m;
     }
-    // Ziehen / Wegstecken
+    // Ziehen / Wegstecken je Waffenklasse (anim/moves.js); eq bleibt für VR (halb so weit, _xrGunPose)
     const eq = this._lowering ? 1 - smooth(1 - this._lowerT) : 1 - easeOut(this._equipT);
-    if (eq > 0) {
-      P.x += 0.02 * eq; P.y += -0.3 * eq; P.z += 0.08 * eq;
-      R.x += -0.95 * eq; R.y += 0.25 * eq; R.z += 0.55 * eq;
-    }
+    if (!vr) this._drawPose(P, R);
+    // Rutschen, Hinlegen-Übergang, Ducken-Ruck, Bereitmachen nach dem Spawn, Leerlauf-Gesten
+    this._moveExtras(P, R, s, dt, na);
 
     // ---- Aktion (Nachladen, Nahkampf, Granate …)
     const act = this._evalAction(dt, s);
@@ -1146,7 +1158,7 @@ export class ViewModel {
     // ---- Hände
     this.root.updateMatrixWorld(true);
     this._rootInv.copy(this.root.matrixWorld).invert();
-    this._solveHands(act);
+    this._solveHands(act || this._mantleAct());
 
     // ---- Effekte
     this.cur.ud.muzzle.getWorldPosition(_v);
@@ -1395,8 +1407,11 @@ export class ViewModel {
       case 'melee': done = this._actMelee(A, out); break;
       case 'slash': done = this._actSlash(A, out); break;
       case 'grenade': done = this._actGrenade(A, out); break;
-      case 'inspect': done = A.style && A.style !== 'rifle' ? this._actInspectStyle(A, out, A.style) : this._actInspect(A, out); break;
+      case 'inspect': done = this._actInspectV(A, out); break;
       case 'plate': done = this._actPlate(A, out); break;
+      case 'ready': done = this._actReady(A, out); break;
+      case 'fidget': done = this._actFidget(A, out); break;
+      case 'strike': done = this._actGunStrike(A, out); break;
       default: done = true;
     }
     const f = A.cancel ? Math.max(0, A.fade) : 1;
@@ -1413,16 +1428,8 @@ export class ViewModel {
 
   _hideProps() {
     for (const p of Object.values(this.props)) p.visible = false;
-  }
-
-  /**
-   * Altes Magazin fällt bei t ≥ from in die Welt (einmal je Nachladen); bis `to` (neues Magazin) ausgeblendet.
-   * Ab `from` zeigt das Magazin-Teil den Füllstand des neuen Magazins (A.magNew), vorher den alten.
-   */
-  _magWindow(A, out, t, from, to) {
-    if (t >= from && !A.dropped && !A.cancel) { A.dropped = true; this._dropMag(); }
-    if (t >= from && A.magNew == null && !A.cancel) A.magNew = this._freshMag();
-    if (A.dropped && t >= from && t < to && this._worldFx()) (out.parts._vis || (out.parts._vis = {})).mag = false;
+    const ch = this.cur?.chamber;
+    if (ch) ch.mesh.visible = false;   // Kammer-Patrone (Inspizieren, anim/inspects.js)
   }
 
   /** Füllstand des neuen Magazins – wie WeaponController._addAmmo (reicht der Vorrat nicht, ist es nicht voll). */
@@ -1533,9 +1540,16 @@ export class ViewModel {
     out.r[0] = -0.85 * gw; out.r[1] = 0.2 * gw; out.r[2] = 0.35 * gw;
     // Rechte Hand: Granate halten, ausholen, werfen
     const rw = windowW(u, 0.05, 0.2, 0.8, 0.96);
-    const rp = curve(u, [[0.05, [0.2, -0.4, -0.2]], [0.2, [0.09, -0.12, -0.3]], [0.47, [0.07, -0.1, -0.29]], [0.58, [0.22, -0.02, -0.2]], [0.68, [0.03, 0.04, -0.48]], [0.8, [-0.06, -0.32, -0.36]], [0.96, [0.0, -0.45, -0.25]]]);
-    const rF = curve(u, [[0.05, [-0.4, 0.6, -0.6]], [0.2, [-0.45, 0.55, -0.55]], [0.47, [-0.45, 0.55, -0.55]], [0.58, [-0.1, 0.9, 0.2]], [0.68, [0.0, 0.3, -0.95]], [0.8, [-0.1, -0.6, -0.7]]]);
-    req(out.right, rw, { free: [rp, rF, [0.75, 0.2, 0.45], 'ball'] });
+    let rp, rF, rB;
+    if (A.low) {
+      // von unten: tief nach hinten ausholen, flach nach vorn oben loslassen (gleiche Zeitpunkte)
+      rp = curve(u, GRENADE_LOW.pos); rF = curve(u, GRENADE_LOW.F); rB = curve(u, GRENADE_LOW.B);
+    } else {
+      rp = curve(u, [[0.05, [0.2, -0.4, -0.2]], [0.2, [0.09, -0.12, -0.3]], [0.47, [0.07, -0.1, -0.29]], [0.58, [0.22, -0.02, -0.2]], [0.68, [0.03, 0.04, -0.48]], [0.8, [-0.06, -0.32, -0.36]], [0.96, [0.0, -0.45, -0.25]]]);
+      rF = curve(u, [[0.05, [-0.4, 0.6, -0.6]], [0.2, [-0.45, 0.55, -0.55]], [0.47, [-0.45, 0.55, -0.55]], [0.58, [-0.1, 0.9, 0.2]], [0.68, [0.0, 0.3, -0.95]], [0.8, [-0.1, -0.6, -0.7]]]);
+      rB = [0.75, 0.2, 0.45];
+    }
+    req(out.right, rw, { free: [rp, rF, rB, 'ball'] });
     this._attachProp(g, this.arms.right.handBone, 'grenade', 1);
     g.visible = u > 0.06 && u < 0.67;
     // Linke Hand: Splint ziehen
@@ -1554,18 +1568,6 @@ export class ViewModel {
       pin.visible = u < 0.52;
     }
     if (u >= 0.66 && !A.released) { A.released = true; this.onGrenadeRelease?.(A.gtype); }
-    return u >= 1;
-  }
-
-  _actInspect(A, out) {
-    const u = clamp(A.t / A.dur, 0, 1);
-    // Linke Seite (Waffe im Uhrzeigersinn gerollt), dann rechte Seite mit Auswurffenster
-    curve(u, [[0, ZERO3], [0.14, [-0.05, 0.035, 0.04]], [0.42, [-0.05, 0.04, 0.04]], [0.56, [-0.07, 0.03, 0.03]], [0.84, [-0.07, 0.035, 0.03]], [1, ZERO3]], out.p);
-    curve(u, [[0, ZERO3], [0.14, [0.2, -0.12, -0.62]], [0.42, [0.22, -0.15, -0.66]], [0.56, [-0.05, 0.7, 0.75]], [0.84, [-0.08, 0.75, 0.8]], [1, ZERO3]], out.r);
-    // Stützhand wechselt in der ersten Phase ans Magazin
-    const mg = this.cur.ud.anchors.magGrab;
-    const wm = windowW(u, 0.04, 0.16, 0.4, 0.54);
-    if (mg && wm > 0 && this.h.reload !== 'top' && this.h.reload !== 'belt') req(out.left, wm, { anchor: mg, style: 'mag' });
     return u >= 1;
   }
 
@@ -1666,8 +1668,10 @@ export class ViewModel {
 ViewModel.FOV = 54;
 
 // Welle 2 (Arsenal): zusätzliche Choreografien (Nachladen je Mechanik, Inspizieren je Klasse, Platte, Klingenhiebe);
-// Animationen 09.10.: Nachladen mit Varianten, Magazin entlang der Schachtachse (anim/reloads.js, anim/magwell.js)
-Object.assign(ViewModel.prototype, EXTRA_ACTIONS, RELOAD_ACTIONS);
+// Animationen 09.10.: Nachladen mit Varianten, Magazin entlang der Schachtachse (anim/reloads.js, anim/magwell.js),
+// vier Inspektionen je Mechanik mit Munitionsschätzung (anim/inspects.js), Ziehen je Klasse, Bereitmachen,
+// Leerlauf-Gesten, Bewegungsposen, Nahkampf-/Wurfvarianten (anim/moves.js)
+Object.assign(ViewModel.prototype, EXTRA_ACTIONS, RELOAD_ACTIONS, INSPECT_ACTIONS, MOVE_ACTIONS);
 
 // Zubehör der Klassen-Arme (Binde, Stulpen, Wickel, Band) – Materialien modulweit, überdauern Matches
 let _accMats = null;

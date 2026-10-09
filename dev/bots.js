@@ -104,6 +104,8 @@ const ANIMS = {
   turn: 'Drehen im Stand', aimUp: 'Ziel hoch', aimDown: 'Ziel tief', reload: 'Nachladen', reloadEmpty: 'Nachladen (leer)',
   throw: 'Granatwurf', melee: 'Nahkampf', hit: 'Treffer', hitLeg: 'Treffer Bein', hitArm: 'Treffer Arm', stagger: 'Taumeln (Explosion)',
   flash: 'Geblendet', leanL: 'Lehnen links', leanR: 'Lehnen rechts', prone: 'Liegen (Anschlag)', proneIdle: 'Liegen', wall: 'Waffe an der Wand', death: 'Tod (Ragdoll)',
+  fidget: 'Leerlauf-Gesten', startStop: 'Anlaufen + Anhalten', turnStep: 'Drehen im Stand (90°)', crawl: 'Kriechen', jump: 'Sprung über Hindernis',
+  slide: 'Rutschen (Puppe)',
 };
 const flatWorld = { groundHeight: () => 0, raycast: () => null };
 
@@ -180,6 +182,12 @@ function galleryParams(s, i, t, dt) {
   const a = gal.anim;
   const p = { velocity: _vel.set(0, 0, 0), aimYaw: 0, aimPitch: 0, crouch: false, sprint: false, ads: 0, onGround: true, idleLook: false };
   const fwd = (v) => p.velocity.set(0, 0, -v);
+  // Wurzel bewegt sich mit (gepflanzte Füße, Kriechen, Sprung): Position je Soldat fortschreiben
+  const travel = () => {
+    if (!s._gp) s._gp = s.home.clone();
+    s._gp.addScaledVector(p.velocity, dt);
+    p.position = s._gp;
+  };
   switch (a) {
     case 'idle': p.idleLook = true; break;
     case 'ads': p.ads = 1; break;
@@ -204,12 +212,23 @@ function galleryParams(s, i, t, dt) {
     case 'aimUp': p.aimPitch = 0.75; p.ads = 1; break;
     case 'aimDown': p.aimPitch = -0.6; p.ads = 1; break;
     case 'reload': case 'reloadEmpty': {
-      const dur = (a === 'reload' ? def.reloadTime : def.reloadEmptyTime) || 2.4;
-      const cyc = dur + 0.8;
-      const r = (t % cyc) / dur;
+      // wie weapons/controller.js: Magazin = Nachladezeit der Waffe; Patrone für Patrone = Start + n × Einführen + Ende
+      const empty = a === 'reloadEmpty';
+      let dur = (empty ? def.reloadEmptyTime : def.reloadTime) || 2.4;
+      let phase = null;
+      const cyc0 = () => dur + 0.8;
+      if (def.perShellReload) {
+        const tm = def.shellTiming || { start: 0.3, insert: 0.48, end: 0.42 };
+        const need = empty ? def.mag || 6 : Math.max(1, Math.round((def.mag || 6) / 2));
+        dur = tm.start + tm.insert * need + tm.end + (empty ? 0.45 : 0);
+        const tt = t % cyc0();
+        phase = tt < tm.start ? 'start' : tt < tm.start + tm.insert * need ? 'insert' : 'end';
+      }
+      const r = (t % cyc0()) / dur;
       p.reloading = r < 1;
-      p.reloadProgress = Math.min(1, r);
-      p.reloadEmpty = a === 'reloadEmpty';
+      p.reloadProgress = Math.min(def.perShellReload ? 0.99 : 1, r);
+      p.reloadEmpty = empty;
+      p.reloadPhase = phase;
       p.perShell = !!def.perShellReload;
       break;
     }
@@ -230,9 +249,33 @@ function galleryParams(s, i, t, dt) {
     case 'prone': p.prone = true; p.proneYaw = 0; p.ads = 1; break; // bots-scale: liegend im Anschlag
     case 'proneIdle': p.prone = true; p.proneYaw = 0; break;
     case 'wall': p.obstruct = 1; break; // Waffe an der Wand (hochgenommen)
+    // Leerlauf-Gesten (Bots im Stand): Gewicht verlagern, Ausrüstung, Helm, Waffe prüfen, Nacken, Schulterblick
+    case 'fidget': p.idleLook = true; break;
+    // Anlaufen und Anhalten mit gepflanzten Füßen (Zyklus 3,6 s: stehen, 1,6 s gehen, stehen)
+    case 'startStop': { const c = t % 3.6; if (c > 0.4 && c < 2.0) fwd(1.7); break; }
+    // Drehen im Stand in 90°-Schritten (Füße bleiben stehen, Nachsetzschritte)
+    case 'turnStep': { const c = Math.floor(t / 1.6) % 4; p.aimYaw = [0, 1.57, 0, -1.57][c]; break; }
+    // Kriechen: liegend 1,05 m/s vorwärts (Zyklus 3,2 s: 2,4 s kriechen, 0,8 s liegen)
+    case 'crawl': p.prone = true; p.proneYaw = 0; if (t % 3.2 < 2.4) fwd(1.05); break;
+    // Sprung nach vorn über ein Hindernis (Anlauf 4,5 m/s, 0,7 s Luft) – Zyklus 2,4 s
+    case 'jump': {
+      const c = t % 2.4;
+      fwd(c < 1.5 ? 4.5 : 0);
+      const ta = c - 0.5;
+      p.onGround = !(ta > 0 && ta < 0.7);
+      p.velocity.y = ta > 0 && ta < 0.7 ? 6.2 - 17.7 * ta : 0;
+      break;
+    }
+    // Rutschen (Mehrspieler-Puppe): Anlauf, 0,9 s rutschen, aufstehen – Zyklus 2,6 s
+    case 'slide': { const c = t % 2.6; const sl = c > 0.6 && c < 1.5; fwd(c < 0.6 ? 7 : sl ? 7 - (c - 0.6) * 6 : 0); p.sliding = sl; p.crouch = sl; p.sprint = c < 0.6; break; }
     default: break;
   }
-  p.position = s.home;
+  if (/^(startStop|crawl|jump|slide)$/.test(a)) travel(); else p.position = s.home;
+  if (a === 'jump' && p.position) {
+    // Höhe der Wurzel (Parabel) für die Ansicht
+    const ta = (t % 2.4) - 0.5;
+    p.position.y = ta > 0 && ta < 0.7 ? 6.2 * ta - 8.85 * ta * ta : 0;
+  }
   return p;
 }
 
@@ -269,7 +312,7 @@ function galleryUi() {
   const an = $('anim');
   for (const [id, label] of Object.entries(ANIMS)) an.add(new Option(label, id));
   an.value = gal.anim;
-  an.onchange = () => { gal.anim = an.value; gal.t = 0; for (const s of gal.soldiers) if (s.state !== 'alive') s.reset(s.home, 0); };
+  an.onchange = () => { gal.anim = an.value; gal.t = 0; for (const s of gal.soldiers) { s._gp = null; if (s.state !== 'alive') s.reset(s.home, 0); } };
   $('lod').value = gal.lod;
   $('lod').onchange = () => { gal.lod = $('lod').value; };
   $('cam').value = gal.cam;

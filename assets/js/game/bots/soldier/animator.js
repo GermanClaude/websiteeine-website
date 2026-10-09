@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import { BONES, BONE, BONE_COUNT, DIM } from './rig.js';
 import { quatFromYZ, quatFromXY, twoBone, clamp, lerp, smooth, damp, wrap, ramp, spring, qrot } from './ik.js';
+import { Handling } from './actions.js';
 
 const V = () => new THREE.Vector3();
 const Qn = () => new THREE.Quaternion();
@@ -28,9 +29,18 @@ const PRONE_ANKLE_Y = 0.1; // m über der Standfläche (Liegen)
 const PRONE_CHAINS = [[BONE.thighL, BONE.shinL, BONE.footL], [BONE.thighR, BONE.shinR, BONE.footR]];
 // feste Zwischenspeicher (keine Allokationen pro Bild)
 const S_R = V(), S_BP = V(), S_G = V(), S_L = V(), S_T = V(), S_M = V();
-const S_GRIP = V(), S_WELL = V(), S_WD = V(), S_PORT = V(), S_END = V();
+// (Griff-/Schacht-Zwischenspeicher des früheren Nachladens: jetzt in actions.js)
 const S_LQ = Qn();
+// Wurfbahnen der rechten Hand (Anschlagrahmen, relativ zur Schulter): Ausholen, Abwurf (0,66 s), Nachschwung
+const THROW_OVER = [[0.1, 0.25, 0.18], [0.02, 0.12, -0.52], [-0.1, -0.25, -0.38]];
+const THROW_UNDER = [[0.12, -0.5, 0.2], [0.02, -0.12, -0.5], [-0.04, 0.1, -0.42]];
+const THROW_SIDE = [[0.42, -0.04, 0.1], [0.0, 0.02, -0.52], [-0.32, -0.1, -0.3]];
 const PARENT = BONES.map((b) => b[1]); // Elternknochen je Index
+const win = (r, a, b, c, d) => ramp(r, a, b) * (1 - ramp(r, c, d)); // Fenster: ein a→b, aus c→d
+/** Prüfstand: feste Leerlauf-Geste statt Zufall (dev/bots.html, tools/anim-soldier.mjs); null = zufällig. */
+export const Fidget = { force: null };
+/** Prüfstand: feste Wurf-/Nahkampf-Variante ('over'|'under'|'side', 'stab'|'slash'|'butt'); null = zufällig. */
+export const Gesture = { throw: null, melee: null };
 
 /** Haltungen je Waffenart (Position des Griffs im Anschlagrahmen, Drehung Pitch/Yaw/Roll). */
 const POSES = {
@@ -83,6 +93,7 @@ export class Animator {
     this.headCenter = V();
     this.handRGrip = V(); // Griffpunkt der rechten Hand (Modellraum)
     this.handLGrip = V();
+    this.hd = new Handling(this); // Waffenhandhabung: Nachladen je Waffenart, bewegliche Teile (actions.js)
     this.reset();
   }
 
@@ -122,9 +133,17 @@ export class Animator {
     this.leanX = 0; // −1…1 (− = links), geglättet vom Bot
     this._springs = [this.land, this.recoil, this.recoilP, this.flinchP, this.flinchR, this.flinchH, this.twist, this.shoveX, this.shoveZ, this.buckleL, this.buckleR, this.jerkP, this.jerkY];
     this.lean = 0;
-    this.stepping = 0; // Nachsetzschritt im Stand
+    this.stepping = 0; // Drehen im Stand läuft
+    this.turnV = 0; // Winkelgeschwindigkeit beim Drehen im Stand
+    this.vy = 0; // senkrechte Geschwindigkeit (Luftphase: steigend/fallend)
+    this.hurdle = 0; // Sprung nach vorn (über ein Hindernis): Hürdenhaltung 0..1
+    this.slide = 0; // Rutschen (Mehrspieler-Puppen) 0..1
+    this.crawlW = 0; this.crawlPh = 0; // Kriechen (liegend in Bewegung)
     this.stepYaw = yaw;
-    this.idleFeet = null; // gepflanzte Fußpositionen (Welt) im Stand
+    // Stand: Füße stehen fest in der Welt (x, z, Gierung), Nachsetzschritte (t ≥ 0) – siehe _plantFeet
+    this.plant = { on: false, w: 0, f: [0, 1].map(() => ({ x: 0, z: 0, yaw: 0, t: -1, dur: 0.28, sx: 0, sz: 0, syaw: 0, h0: 0, lift: 0 })) };
+    this.rootX = NaN; this.rootZ = NaN;
+    this._dt = 0;
     this.throwT = -1;
     this.meleeT = -1;
     this.boltT = 1e3;
@@ -136,13 +155,24 @@ export class Animator {
     this.lastFootT = [0, 0];
     this.events = { footstep: -1 };
     this.glance = { yaw: 0, pitch: 0, until: 0, tYaw: 0, tPitch: 0 };
+    // Leerlauf-Gesten (nur Bots im Stand, rein optisch): Gewicht verlagern, Ausrüstung richten, Helm, Waffe prüfen,
+    // Nacken lockern, über die Schulter schauen
+    this.fid = { kind: null, t: 0, dur: 0, side: 1, next: 2 + Math.random() * 5, allow: 0, w: 0, hand: 0 };
+    if (this.hd) { this.hd.restore(); this.hd.on = false; this.hd.r = 0; this.hd.tl = null; }
     this.pose(true);
+  }
+
+  /** Bewegliche Teile der Waffe in Ruhelage (Tod: Waffe fällt mit eingesetztem Magazin; Respawn; Waffenwechsel). */
+  restWeapon() {
+    if (this.hd) { this.hd.restore(); this.hd.on = false; this.hd.tl = null; }
+    this.reloadW = 0;
   }
 
   /* ================================================================ Waffe */
 
   /** Waffe setzen: Anker im Waffenraum vermessen. */
   setWeapon(gun, def) {
+    this.hd.restore(); // vorherige Waffe: Teile in Ruhelage, bevor neu vermessen wird
     this.gun = gun || null;
     this.def = def || null;
     const cls = def ? def.cls : 'ar';
@@ -170,10 +200,12 @@ export class Animator {
       if (ud.muzzle) A.muzzle.copy(pos(ud.muzzle));
       const info = ud.info || {};
       if (info.max) A.maxZ = info.max[2];
-      this.magazine = ud.magazine && ud.magazine !== gun ? ud.magazine : null;
+      // Magazin (für Aufrufer, z. B. Leichen): nur echte Magazine – die Schrotpatrone ('shell') bleibt versteckt
+      this.magazine = ud.magazine && ud.magazine !== gun && ud.magazine.name === 'mag' ? ud.magazine : null;
+      this.hd.setWeapon(gun, def, A); // Teile vermessen (Waffe steht in Grundstellung)
       gun.position.copy(prevPos); gun.quaternion.copy(prevQuat); gun.scale.copy(prevScale);
       if (prevParent) prevParent.add(gun);
-    } else this.magazine = null;
+    } else { this.magazine = null; this.hd.setWeapon(null, null, A); }
     if (this.kind === 'pistol') A.style = 'pistol';
     if (this.kind === 'rifle' && A.style === 'pistol') A.style = 'under';
     // Haltung an Schaftlänge/Visierhöhe anpassen
@@ -284,6 +316,9 @@ export class Animator {
    */
   update(dt, p) {
     this.time += dt;
+    this._dt = dt;
+    this.rootX = Number.isFinite(p.rootX) ? p.rootX : NaN;
+    this.rootZ = Number.isFinite(p.rootZ) ? p.rootZ : NaN;
     const sp = Math.hypot(p.velocity.x, p.velocity.z);
     this.speed += (sp - this.speed) * damp(12, dt);
     this.localVel.lerp(p.velocity, damp(10, dt));
@@ -298,33 +333,50 @@ export class Animator {
     const airTarget = airborne && this.airTime > 0.08 ? 1 : 0;
     if (!airTarget && this.air > 0.5 && p.onGround) this.land.v -= 1.6 * this.air; // Landung
     this.air += (airTarget - this.air) * damp(airTarget ? 8 : 14, dt);
+    this.vy = Number.isFinite(p.vy) ? p.vy : 0;
+    // Sprung nach vorn (Hindernis überwinden): Hürdenhaltung, solange in der Luft
+    const fwdV = -this.localVel.z;
+    this.hurdle += ((this.air > 0.3 ? clamp((fwdV - 1.5) / 2, 0, 1) : 0) - this.hurdle) * damp(10, dt);
+    this.slide += ((p.sliding ? 1 : 0) - this.slide) * damp(p.sliding ? 10 : 6, dt);
+    if (this.slide < 1e-3) this.slide = 0;
 
     // Körper-Gierung: folgt dem Ziel im Lauf eng, im Stand mit Totzone + Nachsetzschritt
     const want = this.prone > 0.05 && Number.isFinite(p.proneYaw) ? p.proneYaw : p.aimYaw;
     const diff = wrap(want - this.bodyYaw);
     if (this.speed > 0.6 || this.air > 0.5) {
       this.bodyYaw = wrap(this.bodyYaw + diff * damp(9, dt));
+      this.turnV = 0;
     } else if (Math.abs(diff) > 0.85 || this.turning) {
-      this.turning = Math.abs(diff) > 0.12;
-      const step = clamp(diff, -6 * dt, 6 * dt);
-      this.bodyYaw = wrap(this.bodyYaw + step);
+      // Drehen im Stand: Winkelgeschwindigkeit mit Anlauf/Abbremsen (kein ruckartiges Mitdrehen); die Füße bleiben stehen
+      // und setzen nach (_plantFeet)
+      this.turning = Math.abs(diff) > 0.1;
+      const target = clamp(diff * 7, -4.8, 4.8);
+      this.turnV += (target - this.turnV) * damp(12, dt);
+      if (Math.abs(this.turnV * dt) > Math.abs(diff)) this.turnV = diff / Math.max(dt, 1e-4);
+      this.bodyYaw = wrap(this.bodyYaw + this.turnV * dt);
       this.stepping = Math.min(1, this.stepping + dt * 4);
     } else {
+      this.turnV *= 1 - damp(10, dt);
       this.stepping = Math.max(0, this.stepping - dt * 2.5);
     }
 
-    // Gang
+    // Gang (im Stand übernimmt _plantFeet die Füße – der Schrittzyklus läuft nur bei echter Bewegung)
     const crouch = this.crouch;
     const s = this.speed;
-    const moving = s > 0.25 || this.stepping > 0.05;
-    const sEff = Math.max(s, this.stepping * 1.4);
+    const moving = s > 0.25;
+    const sEff = s;
     const duty = s < 1.5 ? 0.62 : s < 5 ? lerp(0.62, 0.34, (s - 1.5) / 3.5) : lerp(0.34, 0.24, clamp((s - 5) / 3.2, 0, 1));
-    const reach = lerp(0.86, 1.0, crouch);
-    const cycle = clamp(0.55 + 0.5 * sEff, 0.6, reach / duty);
+    // Schrittlänge: geduckt kurze, schnelle Schritte (Knie bleibt über dem Boden), sonst wie gehabt
+    const reach = lerp(0.86, 0.6, crouch);
+    const cycle = clamp(lerp(0.55 + 0.5 * sEff, 0.42 + 0.3 * sEff, crouch), lerp(0.6, 0.5, crouch), reach / duty);
     this.duty += (duty - this.duty) * damp(6, dt);
     this.cycle += (cycle - this.cycle) * damp(6, dt);
     const prevPhase = this.phase;
-    if (moving && this.air < 0.5) this.phase = (this.phase + (sEff / this.cycle) * dt) % 1;
+    if (moving && this.air < 0.5 && this.slide < 0.5) this.phase = (this.phase + (sEff / this.cycle) * dt) % 1;
+    // Kriechen: Zugphase läuft mit der Geschwindigkeit (≈ 0,9 m je Doppelzug, links/rechts im Wechsel)
+    const crawlT = this.prone > 0.6 ? clamp((s - 0.08) / 0.45, 0, 1) : 0;
+    this.crawlW += (crawlT - this.crawlW) * damp(5, dt);
+    if (this.crawlW > 0.01) this.crawlPh = (this.crawlPh + (s / 0.9) * dt) % 1;
     // Fußaufsetzen (Schrittgeräusch)
     this.events.footstep = -1;
     for (let f = 0; f < 2; f++) {
@@ -365,25 +417,42 @@ export class Animator {
     const leanT = clamp(p.lean || 0, -1, 1);
     this.leanX += (leanT - this.leanX) * damp(30, dt); // Bot glättet selbst (LEAN_RATE) – hier nur gegen Sprünge
 
-    // Gesten-Zeitgeber
+    // Gesten-Zeitgeber (Varianten je Wurf/Stoß rein optisch, je Client zufällig; Zeitpunkte bleiben die des Spiels)
     if (p.throwing) {
-      if (this.throwT < 0) this.throwT = 0;
+      if (this.throwT < 0) {
+        this.throwT = 0;
+        const low = p.crouch || p.prone;
+        const r = Math.random();
+        this.throwVar = Gesture.throw || (low ? (r < 0.65 ? 'under' : 'side') : r < 0.6 ? 'over' : r < 0.8 ? 'side' : 'under');
+      }
       this.throwT += dt;
       if (p.cooking && this.throwT > 0.47) this.throwT = 0.47;
     } else if (this.throwT >= 0) {
       this.throwT = this.throwT < 0.9 && this.throwT > 0 ? this.throwT + dt : -1;
       if (this.throwT > 1.0) this.throwT = -1;
     }
-    if (p.meleeing) { if (this.meleeT < 0) this.meleeT = 0; this.meleeT += dt; } else if (this.meleeT >= 0) { this.meleeT += dt; if (this.meleeT > 0.75) this.meleeT = -1; }
+    if (p.meleeing) {
+      if (this.meleeT < 0) {
+        this.meleeT = 0;
+        const r = Math.random();
+        // Schusswaffe: Messerstoß, Messerschnitt, Stoß mit der Waffe; Messer in der Hand: Stich oder Schnitt
+        this.meleeVar = Gesture.melee || (this.kind === 'knife' ? (r < 0.55 ? 'stab' : 'slash') : r < 0.45 ? 'stab' : r < 0.8 ? 'slash' : 'butt');
+      }
+      this.meleeT += dt;
+    } else if (this.meleeT >= 0) { this.meleeT += dt; if (this.meleeT > 0.75) this.meleeT = -1; }
     this.boltT += dt;
     const reloading = !!p.reloading;
+    const hd = this.hd;
+    // Leer nachgeladene Pumpflinte: nach der letzten Patrone repetieren (wie der Ton in audio.js)
+    if (!reloading && hd.on && hd.empty && hd.tl && hd.tl.kind === 'shell' && hd.r > 0.75 && this.fireMode === 'pump') this.boltT = 0;
+    hd.update(dt, reloading, p.reloadProgress, p.reloadEmpty, p.reloadPhase);
     this.reloadW += ((reloading ? 1 : 0) - this.reloadW) * damp(reloading ? 10 : 7, dt);
-    this.reloadP = p.reloadProgress || 0;
-    this.reloadEmpty = !!p.reloadEmpty;
+    if (this.reloadW < 1e-3) this.reloadW = 0;
+    this.reloadP = hd.r;
+    this.reloadEmpty = hd.empty;
     this.perShell = !!p.perShell;
-    if (reloading && this.perShell) this.shellT += dt; else this.shellT = 0;
     const throwing = this.throwT >= 0;
-    const meleeOff = this.meleeT >= 0 && this.kind !== 'knife';
+    const meleeOff = this.meleeT >= 0 && this.kind !== 'knife' && this.meleeVar !== 'butt';
     this.lowered += ((throwing || meleeOff ? 1 : this.cower * 0.85) - this.lowered) * damp(14, dt);
 
     // Blick umherschweifen lassen (nur im Leerlauf)
@@ -395,11 +464,54 @@ export class Animator {
     } else if (!p.idleLook) { g.tYaw = 0; g.tPitch = 0; }
     g.yaw += (g.tYaw - g.yaw) * damp(3, dt);
     g.pitch += (g.tPitch - g.pitch) * damp(3, dt);
+    this._fidget(dt, p);
 
     this.aimPitch = clamp(p.aimPitch || 0, -1.3, 1.3);
     this.aimRel = clamp(wrap(want - this.bodyYaw), -1.4, 1.4);
     this.pose(false, p);
     return this.bodyYaw;
+  }
+
+  /**
+   * Leerlauf-Gesten: starten nur im ruhigen Stand (Bot, kein Anschlag/Nachladen/Wurf/Nahkampf/Drehen), werden bei jeder
+   * Störung sofort weich ausgeblendet. Ergebnis: this.fid.w (Hülle 0..1) + this.fid.hand (linke Hand frei 0..1).
+   */
+  _fidget(dt, p) {
+    const F = this.fid;
+    const ok = !!p.idleLook && this.speed < 0.3 && this.reloadW < 0.05 && this.throwT < 0 && this.meleeT < 0 && this.ads < 0.2 &&
+      this.sprint < 0.1 && this.cower < 0.05 && this.prone < 0.1 && this.air < 0.1 && !this.turning && this.obstruct < 0.1;
+    F.allow += ((ok ? 1 : 0) - F.allow) * damp(ok ? 4 : 12, dt);
+    if (F.kind) {
+      F.t += dt;
+      if (F.t >= F.dur || F.allow < 0.02) { F.kind = null; F.next = this.time + 3 + Math.random() * 6; }
+    } else if (ok && this.time > F.next) {
+      const KINDS = ['weight', 'weight', 'gear', 'helmet', 'check', 'stretch', 'look'];
+      F.kind = KINDS[(Math.random() * KINDS.length) | 0];
+      if (Fidget.force) F.kind = Fidget.force;
+      F.t = 0;
+      F.side = Math.random() < 0.5 ? -1 : 1;
+      F.dur = F.kind === 'weight' ? 3 + Math.random() * 3 : F.kind === 'check' ? 2.2 : F.kind === 'look' ? 2.4 : F.kind === 'gear' ? 1.8 : 1.6;
+    }
+    if (!F.kind) { F.w = 0; F.hand = 0; return; }
+    const t = F.t, d = F.dur;
+    F.w = win(t, 0, F.kind === 'weight' ? 0.7 : 0.35, d - (F.kind === 'weight' ? 0.8 : 0.4), d) * F.allow;
+    F.hand = F.kind === 'gear' || F.kind === 'helmet' ? win(t, 0.12, 0.45, d - 0.45, d - 0.1) * F.allow : 0;
+  }
+
+  /** Blick/Rumpf der Leerlauf-Gesten (y/p Hals+Kopf, r Kopf rollen, sy Rumpf gieren, cp Brust neigen). */
+  _fidLook() {
+    const o = this._fl || (this._fl = { y: 0, p: 0, r: 0, sy: 0, cp: 0 });
+    o.y = o.p = o.r = o.sy = o.cp = 0;
+    const F = this.fid;
+    if (!F.kind || F.w <= 1e-3) return o;
+    const w = F.w, t = F.t, sd = F.side;
+    if (F.kind === 'check') { o.y = 0.28 * w; o.p = -0.32 * w; }
+    else if (F.kind === 'look') { const k = win(t, 0.2, 0.7, 1.6, 2.1); o.y = sd * 0.75 * k * F.allow; o.sy = sd * 0.22 * k * F.allow; o.p = -0.05 * w; }
+    else if (F.kind === 'stretch') { const k = Math.sin(Math.PI * 2 * clamp((t - 0.25) / 1.0, 0, 1)); o.r = 0.32 * k * sd * w; o.p = -0.15 * w; o.cp = -0.06 * w; }
+    else if (F.kind === 'helmet') { o.r = 0.16 * sd * w; o.y = -0.12 * w; }
+    else if (F.kind === 'gear') { o.p = -0.22 * w; o.y = -0.1 * w; }
+    else if (F.kind === 'weight') { o.y = 0.08 * sd * w; }
+    return o;
   }
 
   /* ================================================================ Pose */
@@ -425,16 +537,24 @@ export class Animator {
     // Lehnen (C6): Gewicht aufs äußere Bein (Becken seitlich), Oberkörper rollt zur Seite → Kopf ≈ 0,34 m versetzt
     const leanX = this.leanX;
     const leanRoll = -leanX * 0.38;
-    this.hipsPos.set(sway * 0.5 + leanX * 0.13 + clamp(this.shoveX.x, -0.3, 0.3) * 0.6, hipY, crouch * 0.04 + clamp(this.shoveZ.x, -0.3, 0.3) * 0.6);
+    // Leerlauf: Gewicht auf ein Bein (Becken seitlich, freie Hüfte sinkt → Knie gibt nach), Oberkörper gleicht aus
+    const fd = this.fid;
+    const wShift = fd.kind === 'weight' ? fd.w * fd.side : 0;
+    hipY -= Math.abs(wShift) * 0.012;
+    this.hipsPos.set(sway * 0.5 + leanX * 0.13 + clamp(this.shoveX.x, -0.3, 0.3) * 0.6 + (this.plantShift || 0) + wShift * 0.045, hipY, crouch * 0.04 + clamp(this.shoveZ.x, -0.3, 0.3) * 0.6);
     const twist = s > 0.3 ? Math.sin(ph) * lerp(0.08, 0.16, run) * (1 - crouch * 0.5) : 0;
-    const pelvisPitch = -crouch * 0.18 - sprint * 0.12;
-    _e.set(pelvisPitch, this.hipYaw + twist, sway * 1.4 + (bL - bR) * 0.26 + leanRoll * 0.15, 'YXZ');
+    const slide = this.slide;
+    const pelvisPitch = -crouch * 0.18 - sprint * 0.12 + slide * 0.38;
+    if (slide > 0) this.hipsPos.y = lerp(this.hipsPos.y, 0.5, slide); // Rutschen: Becken tief, Oberkörper zurück
+    _e.set(pelvisPitch, this.hipYaw + twist + wShift * 0.06, sway * 1.4 + (bL - bR) * 0.26 + leanRoll * 0.15 + wShift * 0.075, 'YXZ');
     wq[0].setFromEuler(_e);
     const pr = this.prone;
     if (pr > 0) {
       // Liegen: Becken flach (Wirbelsäule zeigt nach vorn, Beine nach hinten), knapp über dem Boden, Körper hinter den Füßen
-      this.hipsPos.set(this.hipsPos.x * (1 - pr), lerp(this.hipsPos.y, 0.2, pr), lerp(this.hipsPos.z, 0.66, pr));
-      _e.set(-1.47, this.hipYaw * 0.3, sway * 0.5, 'YXZ');
+      // Kriechen: Becken pendelt seitlich und dreht im Wechsel mit dem ziehenden Knie
+      const cw = this.crawlW * pr, cph = this.crawlPh * Math.PI * 2;
+      this.hipsPos.set(this.hipsPos.x * (1 - pr) + Math.sin(cph) * 0.035 * cw, lerp(this.hipsPos.y, 0.2, pr), lerp(this.hipsPos.z, 0.66, pr));
+      _e.set(-1.47, this.hipYaw * 0.3 + Math.sin(cph) * 0.13 * cw, sway * 0.5 + Math.sin(cph) * 0.05 * cw, 'YXZ');
       _q.setFromEuler(_e);
       wq[0].slerp(_q, pr);
     }
@@ -446,7 +566,7 @@ export class Animator {
     const pitch = this.aimPitch || 0;
     const ads = this.ads;
     const yawRest = aimRel - (this.hipYaw + twist); // durch Rumpf auszugleichen
-    const lean = 0.04 + run * 0.06 + sprint * 0.22 + crouch * 0.12;
+    const lean = 0.04 + run * 0.06 + sprint * 0.22 + crouch * 0.12 * (1 - slide) - slide * 0.42;
     const fP = this.flinchP.x, fR = this.flinchR.x;
     const tw = clamp(this.twist.x, -0.7, 0.7);
     const breatheP = Math.sin(t * 1.7 + 0.6) * 0.012;
@@ -454,10 +574,28 @@ export class Animator {
     const cwY = cower * 0.55, cwP = cower * 0.3;
     // Wirbelsäule, Brust, Hals, Kopf: (Gierung, Neigung, Rollen)
     const gl = this.glance;
-    this._rotFk(1, yawRest * 0.35 + tw * 0.5, pr * 0.16 + pitch * 0.18 - lean * 0.5 - pelvisPitch * 0.4 + fP * 0.5 + cower * 0.12, -sway * 1.2 + fR * 0.5 + leanRoll * 0.4);
-    this._rotFk(2, yawRest * 0.4 + tw * 0.35, pr * 0.36 + pitch * 0.32 - lean * 0.45 - pelvisPitch * 0.6 + breatheP + fP * 0.5 + this.recoilP.x * 0.04 + cower * 0.1, fR * 0.4 + leanRoll * 0.4);
-    this._rotFk(3, yawRest * 0.12 + gl.yaw * 0.4 - tw * 0.3 + cwY * 0.4, pr * 0.42 + pitch * 0.2 + lean * 0.4 - ads * 0.22 + gl.pitch * 0.4 + cwP * 0.4, -ads * 0.06 + leanRoll * 0.08);
-    this._rotFk(4, yawRest * 0.13 + gl.yaw * 0.6 - tw * 0.2 + cwY * 0.6, pr * 0.4 + pitch * 0.3 + lean * 0.55 + ads * 0.12 + this.flinchH.x * 0.3 + gl.pitch * 0.6 + cwP * 0.6, -ads * 0.2 - fR * 0.2 - leanRoll * 0.1);
+    // Handhabung (Nachladen): Waffenhaltung + Blick zur Waffe/Tasche – reine Funktion des Fortschritts, vor der Wirbelsäule
+    this.hd.gunPose(this.reloadW);
+    const fl = this._fidLook();
+    // Wurf: Oberkörper dreht beim Ausholen nach rechts, beim Abwurf nach links (unten: weniger, seitlich: mehr)
+    if (this.throwT >= 0) {
+      const tt = this.throwT, k = this.throwVar === 'under' ? 0.5 : this.throwVar === 'side' ? 1.3 : 1;
+      const twistT = (-0.32 * ramp(tt, 0.3, 0.47) + 0.62 * ramp(tt, 0.56, 0.68) - 0.3 * ramp(tt, 0.74, 0.96)) * k;
+      fl.sy += twistT * 0.5;
+      fl.cp += (this.throwVar === 'under' ? -0.12 : 0.1) * win(tt, 0.52, 0.66, 0.74, 0.92);
+    }
+    if (this.crawlW > 0.01 && pr > 0) fl.sy -= Math.sin(this.crawlPh * Math.PI * 2) * 0.1 * this.crawlW * pr;
+    // Nahkampf: Schnitt dreht den Rumpf mit, Stoß mit der Waffe lehnt nach vorn
+    if (this.meleeT >= 0 && this.meleeVar !== 'stab') {
+      const m = this.meleeT;
+      if (this.meleeVar === 'slash') fl.sy += (-0.18 * ramp(m, 0, 0.08) + 0.4 * ramp(m, 0.08, 0.2)) * (1 - ramp(m, 0.3, 0.7));
+      else fl.cp += 0.14 * win(m, 0.06, 0.16, 0.3, 0.6);
+    }
+    const lkY = gl.yaw + this.hd.lookY + fl.y, lkP = gl.pitch + this.hd.lookP + fl.p;
+    this._rotFk(1, yawRest * 0.35 + tw * 0.5 + fl.sy, pr * 0.16 + pitch * 0.18 - lean * 0.5 - pelvisPitch * 0.4 + fP * 0.5 + cower * 0.12, -sway * 1.2 + fR * 0.5 + leanRoll * 0.4 - wShift * 0.05);
+    this._rotFk(2, yawRest * 0.4 + tw * 0.35 + fl.sy, pr * 0.36 + pitch * 0.32 - lean * 0.45 - pelvisPitch * 0.6 + breatheP + fP * 0.5 + this.recoilP.x * 0.04 + cower * 0.1 + this.hd.lookP * 0.15 + fl.cp, fR * 0.4 + leanRoll * 0.4 - wShift * 0.04);
+    this._rotFk(3, yawRest * 0.12 + lkY * 0.4 - tw * 0.3 + cwY * 0.4, pr * 0.42 + pitch * 0.2 + lean * 0.4 - ads * 0.22 + lkP * 0.4 + cwP * 0.4, -ads * 0.06 + leanRoll * 0.08 + fl.r * 0.4);
+    this._rotFk(4, yawRest * 0.13 + lkY * 0.6 - tw * 0.2 + cwY * 0.6, pr * 0.4 + pitch * 0.3 + lean * 0.55 + ads * 0.12 + this.flinchH.x * 0.3 + lkP * 0.6 + cwP * 0.6, -ads * 0.2 - fR * 0.2 - leanRoll * 0.1 + fl.r * 0.6);
 
     /* ---------- Anschlagrahmen + Waffe */
     const chest = BONE.chest;
@@ -488,6 +626,22 @@ export class Animator {
       _q.setFromEuler(_e);
       this.lq[i].slerp(_q, pr);
       this._fk(i);
+    }
+    // Kriechen: abwechselnd ein Knie seitlich nach vorn ziehen (abspreizen, auswärts drehen, Knie beugen – der
+    // Unterschenkel bleibt flach am Boden), das andere Bein schiebt gestreckt nach
+    const cw = this.crawlW * pr;
+    if (cw > 0.01) {
+      for (let f = 0; f < 2; f++) {
+        const side = f === 0 ? -1 : 1;
+        const kk = Math.max(0, Math.sin((this.crawlPh + f * 0.5) * Math.PI * 2)) * cw;
+        if (kk < 1e-3) continue;
+        const [th, sh, ft] = PRONE_CHAINS[f];
+        _e.set(0.22 * kk, -side * 0.9 * kk, side * 0.75 * kk, 'YXZ');
+        this.lq[th].multiply(_q.setFromEuler(_e));
+        _e.set(-1.25 * kk, 0, 0, 'YXZ');
+        this.lq[sh].multiply(_q.setFromEuler(_e));
+        this._fk(th); this._fk(sh); this._fk(ft);
+      }
     }
     // Knöchel nicht unter den Boden (Modellraum y = 0 = Standfläche): Oberschenkel so weit anheben, dass das
     // Fußgelenk ≥ PRONE_ANKLE_Y liegt – nur die Fußspitzen berühren den Boden
@@ -552,23 +706,57 @@ export class Animator {
     blend(P.sprint, sprint * (1 - this.reloadW));
     blend(P.reload, this.reloadW * (this.perShell ? 0.6 : 1));
     blend(P.lowered, this.lowered);
-    // Nachladen: Waffe dreht sich zum Magazin
-    if (this.reloadW > 0.01 && !this.perShell) {
-      const r = this.reloadP;
-      const tilt = ramp(r, 0.05, 0.2) * (1 - ramp(r, 0.8, 0.96));
-      rz -= 0.25 * tilt * this.reloadW;
-      pos.y += 0.02 * Math.sin(Math.PI * ramp(r, 0.7, 0.85)) * this.reloadW; // Einsetzen: kleiner Stoß
-      if (this.reloadEmpty && this.kind === 'pistol') rx += 0.25 * ramp(r, 0.85, 0.93) * (1 - ramp(r, 0.93, 1));
+    // Nachladen: Haltung je Waffenart und Phase (actions.js: Schacht zur Hand, Einsetz-Stoß, Ladehebel, Trommel …)
+    if (this.reloadW > 1e-3) {
+      const g = this.hd.g;
+      rx += g.rx; ry += g.ry; rz += g.rz;
+      pos.x += g.x; pos.y += g.y; pos.z += g.z;
     }
-    // Messerstoß (Messer als Waffe)
+    // Messerstoß / -schnitt (Messer als Waffe)
     if (this.kind === 'knife' && this.meleeT >= 0) {
       const m = this.meleeT;
-      const k = ramp(m, 0.0, 0.08) * (1 - ramp(m, 0.08, 0.2));
-      const thrust = ramp(m, 0.08, 0.18) * (1 - ramp(m, 0.3, 0.6));
-      pos.z += 0.12 * k - 0.38 * thrust;
-      pos.y += 0.1 * thrust;
-      pos.x -= 0.1 * thrust;
-      rx -= 0.6 * thrust;
+      if (this.meleeVar === 'slash') {
+        // Schnitt von rechts außen nach links vorn (Klinge quer), Treffer ≈ 0,14 s
+        const wind = ramp(m, 0, 0.08) * (1 - ramp(m, 0.08, 0.16));
+        const cut = ramp(m, 0.08, 0.2) * (1 - ramp(m, 0.34, 0.62));
+        pos.x += 0.14 * wind - 0.3 * cut;
+        pos.z += 0.05 * wind - 0.22 * cut;
+        pos.y += 0.04 * cut;
+        ry += 0.5 * wind - 0.9 * cut;
+        rz -= 1.2 * Math.max(wind, cut);
+      } else {
+        const k = ramp(m, 0.0, 0.08) * (1 - ramp(m, 0.08, 0.2));
+        const thrust = ramp(m, 0.08, 0.18) * (1 - ramp(m, 0.3, 0.6));
+        pos.z += 0.12 * k - 0.38 * thrust;
+        pos.y += 0.1 * thrust;
+        pos.x -= 0.1 * thrust;
+        rx -= 0.6 * thrust;
+      }
+    } else if (this.meleeT >= 0 && this.meleeVar === 'butt') {
+      // Stoß mit der Waffe (beide Hände bleiben dran): kurz zurück, dann kräftig nach vorn, Mündung hoch; Pistole schlägt
+      const m = this.meleeT;
+      const wind = ramp(m, 0, 0.07) * (1 - ramp(m, 0.07, 0.15));
+      const hit = ramp(m, 0.07, 0.16) * (1 - ramp(m, 0.3, 0.62));
+      if (this.kind === 'pistol') { rx += 0.7 * wind - 0.5 * hit; pos.y += 0.08 * wind; pos.z -= 0.16 * hit; }
+      else { pos.z += 0.08 * wind - 0.3 * hit; pos.y += 0.04 * hit; rx += 0.25 * hit; ry -= 0.25 * hit; pos.x -= 0.06 * hit; }
+    }
+    // Landung: Waffe sackt mit dem Körper kurz ab; Kriechen: Waffe wandert im Takt der Ellbogen vor und zurück
+    pos.y += this.land.x * 0.05;
+    rx += this.land.x * 0.12;
+    if (this.crawlW > 0.01 && this.prone > 0.5) {
+      const cw = this.crawlW * this.prone, cph = this.crawlPh * Math.PI * 2;
+      pos.z += Math.sin(cph + 0.6) * 0.045 * cw;
+      pos.x += Math.cos(cph) * 0.02 * cw;
+      rz += Math.sin(cph) * 0.06 * cw;
+    }
+    // Leerlauf-Gesten: Waffe kurz prüfen (gekippt, näher), einhändig gehalten (Ausrüstung/Helm: Waffe sinkt etwas)
+    const fd = this.fid;
+    if (fd.kind && fd.w > 1e-3) {
+      if (fd.kind === 'check') {
+        const k = fd.w, roll = Math.sin(Math.PI * clamp((fd.t - 0.3) / 1.6, 0, 1));
+        rz -= (0.45 + 0.25 * roll) * k; ry += 0.3 * k; rx += 0.08 * k;
+        pos.x -= 0.04 * k; pos.z += 0.07 * k; pos.y += 0.02 * k;
+      } else if (fd.hand > 0) blend(P.lowered, fd.hand * 0.4);
     }
     // Rückstoß
     pos.z -= this.recoil.x * 0.06;
@@ -614,21 +802,39 @@ export class Animator {
     const rTarget = this._gunToModel(_v2.set(0, 0, 0), S_R);
     const rQuat = this._handOnGrip(_q2, 'R');
     let rFree = 0;
-    // Kammerstängel / Pumpe (Repetierer)
-    if (this.boltT < 0.75 && this.fireMode === 'bolt' && A.bolt) {
-      const b = Math.sin(Math.PI * ramp(this.boltT, 0.1, 0.72));
-      const bp = this._gunToModel(_v3.copy(A.bolt).add(_v4.set(0.03, 0.0, 0.07 * ramp(this.boltT, 0.3, 0.45) * (1 - ramp(this.boltT, 0.5, 0.65)))), S_BP);
-      rTarget.lerp(bp, b);
+    // Nachladen zuerst planen (linke Hand, actions.js) – kann die rechte Hand beanspruchen (Ladehebel rechts, Kammerstängel)
+    const hd = this.hd;
+    const relW = hd.on || this.reloadW > 0.01 ? hd.left(S_T) * (hd.on ? 1 : this.reloadW) : 0;
+    // Kammerstängel (Repetierer): nach dem Schuss bzw. beim leeren Nachladen – Hand am Knauf, der Stängel dreht hoch,
+    // fährt zurück und wieder vor (Teil bewegt sich mit, die Hand rutscht nicht ab)
+    let boltW = 0, boltU = 0;
+    if (this.fireMode === 'bolt' && hd.rig && hd.rig.bolt) {
+      if (this.boltT < 0.76) { boltW = ramp(this.boltT, 0, 0.1) * (1 - ramp(this.boltT, 0.62, 0.75)); boltU = clamp((this.boltT - 0.1) / 0.52, 0, 1); }
+      const tl = hd.tl;
+      if (relW > 0 && tl && tl.charge === 'bolt') {
+        const r = hd.r;
+        const w = win(r, 0.6, 0.66, 0.9, 0.96) * relW;
+        if (w > boltW) { boltW = w; boltU = clamp((r - 0.66) / 0.24, 0, 1); }
+      }
     }
+    if (boltW > 1e-3) {
+      const bp = hd.boltPoint(boltU, S_BP);
+      if (bp) { rTarget.lerp(bp, boltW); rFree = Math.max(rFree, boltW * 0.5); }
+    }
+    // Ladehebel rechts (leeres Nachladen): rechte Hand zieht, die linke hält die Waffe
+    if (hd.rw > 0 && relW > 0) { rTarget.lerp(hd.rTarget, hd.rw * relW); rFree = Math.max(rFree, hd.rw * relW); }
     // Granatwurf
     let grenadeVisible = false;
     if (this.throwT >= 0) {
       const tt = this.throwT;
       const shoulder = _a.set(DIM.shoulderX, DIM.shoulderY, 0).applyQuaternion(this.wq[chest]).add(wp[chest]);
       const chestP = _v3.set(0.05, 0.05, -0.2).applyQuaternion(this.wq[chest]).add(wp[chest]);
-      const back = _v4.set(0.1, 0.25, 0.18).applyQuaternion(this.aimQuat).add(shoulder);
-      const fwd = _b.set(0.02, 0.12, -0.52).applyQuaternion(this.aimQuat).add(shoulder);
-      const follow = _c.set(-0.1, -0.25, -0.38).applyQuaternion(this.aimQuat).add(shoulder);
+      // Überkopf (Standard), von unten (Lob, geduckt/liegend bevorzugt), seitlich (flach)
+      const tv = this.throwVar;
+      const K = tv === 'under' ? THROW_UNDER : tv === 'side' ? THROW_SIDE : THROW_OVER;
+      const back = _v4.fromArray(K[0]).applyQuaternion(this.aimQuat).add(shoulder);
+      const fwd = _b.fromArray(K[1]).applyQuaternion(this.aimQuat).add(shoulder);
+      const follow = _c.fromArray(K[2]).applyQuaternion(this.aimQuat).add(shoulder);
       const g = S_G;
       if (tt < 0.3) g.copy(rTarget).lerp(chestP, ramp(tt, 0, 0.22));
       else if (tt < 0.5) g.copy(chestP).lerp(back, ramp(tt, 0.3, 0.47));
@@ -667,10 +873,30 @@ export class Animator {
       lTarget.lerp(swing, this.sprint);
       lFree = Math.max(lFree, this.sprint);
     }
-    // Nachladen
-    if (this.reloadW > 0.01) {
-      const tgt = this._reloadLeft(S_T);
-      if (tgt) { lTarget.lerp(tgt, this.reloadW); lFree = Math.max(lFree, this.reloadW * 0.6); }
+    // Nachladen: Hand folgt Magazin/Hebel/Patrone (Zielpunkt aus hd.left oben)
+    let holdW = 0;
+    if (relW > 0) {
+      lTarget.lerp(S_T, relW);
+      lFree = Math.max(lFree, relW * (1 - hd.lgrip));
+      holdW = relW * hd.lhold;
+    }
+    // Sprung über ein Hindernis: linke Hand löst sich steigend kurz von der Waffe und stützt seitlich ab
+    const hw = this.hurdle * this.air * clamp(this.vy / 2.5, 0, 1) * (kind === 'knife' ? 0 : 1);
+    if (hw > 0.01) {
+      const tg = qrot(_v3.set(-0.3, -0.02, -0.28), this.wq[0]).add(wp[0]);
+      lTarget.lerp(tg, hw);
+      lFree = Math.max(lFree, hw);
+    }
+    // Leerlauf: linke Hand richtet Ausrüstung (Schultergurt, kurzer Zug) bzw. den Helm
+    const fd = this.fid;
+    if (fd.hand > 0.01) {
+      let tg;
+      if (fd.kind === 'helmet') tg = qrot(_v3.set(-0.115, 0.07, -0.02), this.wq[BONE.head]).add(this.wp[BONE.head]);
+      else {
+        tg = qrot(_v3.set(-0.1, 0.16 + Math.sin(Math.max(0, fd.t - 0.45) * 13) * 0.012 * fd.hand, -0.17), this.wq[chest]).add(wp[chest]);
+      }
+      lTarget.lerp(tg, fd.hand);
+      lFree = Math.max(lFree, fd.hand);
     }
     // Schutzhaltung (Blendung/Explosion): linke Hand vor die Augen
     if (this.cower > 0.01) {
@@ -679,31 +905,42 @@ export class Animator {
       lTarget.lerp(face, this.cower);
       lFree = Math.max(lFree, this.cower);
     }
-    // Pumpe nach dem Schuss
-    if (this.boltT < 0.6 && this.fireMode === 'pump' && A.pump) {
+    // Pumpe nach dem Schuss: Hand und Vorderschaft fahren gemeinsam zurück (Weg aus dem Modell)
+    hd.pumpK = 0;
+    if (this.boltT < 0.6 && this.fireMode === 'pump' && (A.pump || (hd.rig && hd.rig.pump))) {
       const b = Math.sin(Math.PI * ramp(this.boltT, 0.08, 0.55));
-      lTarget.add(_v3.set(0, 0, 0.09 * b).applyQuaternion(this.gunQuat));
+      const tz = hd.rig && hd.rig.pump ? hd.rig.pump.travel.z : 0.085;
+      lTarget.add(_v3.set(0, 0, tz * b).applyQuaternion(this.gunQuat));
+      hd.pumpK = b;
     }
     // Messer mit der Linken (Nahkampf mit Schusswaffe)
     let knifeVisible = false;
     if (this.meleeT >= 0 && kind !== 'knife') {
       const m = this.meleeT;
       const shoulder = _a.set(-DIM.shoulderX, DIM.shoulderY, 0).applyQuaternion(this.wq[chest]).add(wp[chest]);
-      const wind = _v3.set(-0.05, -0.05, -0.12).applyQuaternion(this.aimQuat).add(shoulder);
-      const stab = _v4.set(0.12, 0.05, -0.55).applyQuaternion(this.aimQuat).add(shoulder);
-      const g = S_M.copy(lTarget).lerp(wind, ramp(m, 0, 0.08)).lerp(stab, ramp(m, 0.08, 0.17));
-      g.lerp(lTarget, ramp(m, 0.35, 0.7));
-      const w = ramp(m, 0, 0.05) * (1 - ramp(m, 0.6, 0.72));
-      lTarget.lerp(g, w);
-      lFree = Math.max(lFree, w);
-      knifeVisible = m > 0.03 && m < 0.62;
+      const slash = this.meleeVar === 'slash';
+      // Stich: von der Schulter gerade nach vorn; Schnitt: von rechts vor der Brust quer nach links vorn
+      const wind = (slash ? _v3.set(0.28, 0.02, -0.22) : _v3.set(-0.05, -0.05, -0.12)).applyQuaternion(this.aimQuat).add(shoulder);
+      const stab = (slash ? _v4.set(-0.22, -0.02, -0.5) : _v4.set(0.12, 0.05, -0.55)).applyQuaternion(this.aimQuat).add(shoulder);
+      const w = this.meleeVar === 'butt' ? 0 : ramp(m, 0, 0.05) * (1 - ramp(m, 0.6, 0.72));
+      if (w > 0) {
+        const g = S_M.copy(lTarget).lerp(wind, ramp(m, 0, 0.08)).lerp(stab, ramp(m, 0.08, slash ? 0.2 : 0.17));
+        g.lerp(lTarget, ramp(m, 0.35, 0.7));
+        lTarget.lerp(g, w);
+        lFree = Math.max(lFree, w);
+      }
+      knifeVisible = w > 0 && m > 0.03 && m < 0.62;
     }
     this.knifeVisible = knifeVisible;
     let lq = lQuat;
     if (lFree > 0.01) lq = lQuat.slerp(this._freeHandQuat(_q, 'L', lTarget), lFree);
+    if (holdW > 0.01) lq.slerp(hd.lq, holdW); // hält Magazin/Patrone: Orientierung am Teil
     this._armIK('L', lTarget, lq, this._poleWorld(this.poleL, lFree > 0.6 ? _v.set(-0.4, -0.5, 0.6) : null));
     qrot(this.handRGrip.copy(GRIP_R), this.wq[BONE.handR]).add(this.wp[BONE.handR]);
     qrot(this.handLGrip.copy(GRIP_L), this.wq[BONE.handL]).add(this.wp[BONE.handL]);
+    this.lGap = this.handLGrip.distanceTo(lTarget); // Prüfwert: Hand erreicht ihr Ziel (Magazin/Hebel)?
+    // Teile der Waffe in ihre aktuelle Lage (Magazin in der Hand, Schlitten, Ladehebel, Deckel, Trommel, Stängel, Pumpe)
+    hd.parts(this.reloadW);
   }
 
   /** Pol im Anschlagrahmen → Modellraum. */
@@ -766,33 +1003,6 @@ export class Animator {
     this._setWorld(hd, handQ);
   }
 
-  /** Linke Hand beim Nachladen: Zielpunkt im Modellraum (oder null). */
-  _reloadLeft(out) {
-    const A = this.anchors;
-    const r = this.reloadP;
-    const chest = BONE.chest;
-    const grip = this._gunToModel(A.left, S_GRIP);
-    const well = A.well ? this._gunToModel(A.well, S_WELL) : this._gunToModel(_v3.set(0, -0.06, -0.08), S_WELL);
-    const wellDown = S_WD.copy(well).add(_v3.set(0, -0.16, 0.04).applyQuaternion(this.gunQuat));
-    const pouch = _v4.set(-0.07, -0.12, -0.2).applyQuaternion(this.wq[chest]).add(this.wp[chest]);
-    if (this.perShell) {
-      // Patrone für Patrone: Gürtel ↔ Ladeöffnung im Takt
-      const port = A.shell ? this._gunToModel(A.shell, S_PORT) : well;
-      const belt = _v3.set(-0.15, -0.05, -0.08).applyQuaternion(this.wq[0]).add(this.wp[0]);
-      const k = 0.5 - 0.5 * Math.cos(this.shellT * Math.PI * 2 / 0.48);
-      return out.copy(port).lerp(belt, k * (1 - ramp(r, 0.92, 1)));
-    }
-    if (this.kind === 'pistol') {
-      const keys = [[0, grip], [0.15, well], [0.3, wellDown], [0.45, pouch], [0.6, pouch], [0.72, wellDown], [0.8, well], [0.92, grip], [1, grip]];
-      return this._keys(out, keys, r);
-    }
-    const end = this.reloadEmpty && A.charge ? this._gunToModel(A.charge, S_END) : grip;
-    const keys = [[0, grip], [0.12, well], [0.27, wellDown], [0.42, pouch], [0.56, pouch], [0.72, wellDown], [0.8, well], [0.88, end], [0.95, grip], [1, grip]];
-    // Magazin sichtbar? (raus zwischen 0,25 und 0,74)
-    if (this.magazine) this.magazine.visible = !(r > 0.26 && r < 0.73);
-    return this._keys(out, keys, r);
-  }
-
   _keys(out, keys, r) {
     for (let i = 0; i < keys.length - 1; i++) {
       const [t0, a] = keys[i], [t1, b] = keys[i + 1];
@@ -819,7 +1029,7 @@ export class Animator {
     if (lvl > 0.05) { dx = lv.x / lvl; dz = lv.z / lvl; }
     // in Hüftraum drehen
     const hdx = dx * cy + dz * sy, hdz = -dx * sy + dz * cy;
-    const moving = s > 0.25 || this.stepping > 0.05;
+    const moving = s > 0.25;
     const amp = moving ? 1 : 0;
     const lift = (0.07 + 0.035 * Math.min(s, 8.5)) * (1 - crouch * 0.35);
     const stanceLen = S * duty;
@@ -853,14 +1063,28 @@ export class Animator {
       feet[f].set(mx, up, mz);
       pitches[f] = fp * amp;
     }
-    // Luftphase: Beine anziehen
+    // Luftphase: Beine anziehen; nach vorn (Hindernis) wie beim Hürdenlauf – vorderes Bein gestreckt, hinteres seitlich
+    // angewinkelt; fallend strecken sich die Beine dem Boden entgegen
     if (air > 0.01) {
-      feet[0].lerp(_v.set(-0.11, 0.32, -0.12), air * 0.8);
-      feet[1].lerp(_v.set(0.11, 0.22, 0.12), air * 0.8);
+      const h = this.hurdle, fall = clamp(-this.vy / 4, 0, 1) * 0.55;
+      _v.set(lerp(-0.11, -0.09, h), lerp(0.32, 0.36, h), lerp(-0.12, -0.42, h));
+      _v2.set(lerp(0.11, 0.21, h), lerp(0.22, 0.4, h), lerp(0.12, 0.15, h));
+      _v.y *= 1 - fall; _v2.y *= 1 - fall;
+      feet[0].lerp(_v, air * 0.85);
+      feet[1].lerp(_v2, air * 0.85);
+    }
+    // Rutschen: vorderes Bein lang nach vorn, hinteres unter dem Körper angewinkelt
+    if (this.slide > 0.01) {
+      feet[0].lerp(_v.set(-0.1, 0.05, -0.72), this.slide);
+      feet[1].lerp(_v.set(0.15, 0.0, -0.06), this.slide);
     }
     // Bodenanpassung (Treppen) aus Soldier
     const gOff = this.groundOff;
     if (gOff) { feet[0].y += gOff[0]; feet[1].y += gOff[1]; }
+    // Fuß-Gierung (Modellraum): Hüfte + leicht auswärts; im Stand aus den gepflanzten Füßen
+    const fy = this._fy || (this._fy = [0, 0]);
+    fy[0] = this.hipYaw + 0.08; fy[1] = this.hipYaw - 0.08;
+    this._plantFeet(feet, fy);
 
     for (let f = 0; f < 2; f++) {
       const side = f === 0 ? -1 : 1;
@@ -869,8 +1093,8 @@ export class Animator {
       const H = qrot(_a.copy(this.off[th]), wq[0]).add(wp[0]);
       const foot = feet[f];
       const ankle = _b.set(foot.x, foot.y + DIM.ankle, foot.z + 0.0);
-      // Knie zeigt nach vorn (Hüftausrichtung) und leicht nach außen
-      _pole.set(side * 0.18, 0.1, -1).applyAxisAngle(UP, this.hipYaw).normalize();
+      // Knie zeigt nach vorn (zwischen Hüft- und Fußrichtung) und leicht nach außen
+      _pole.set(side * 0.18, 0.1, -1).applyAxisAngle(UP, this.hipYaw + wrap(fy[f] + side * 0.08 - this.hipYaw) * 0.6).normalize();
       const K = _c, T = _v4;
       twoBone(H, ankle, DIM.thigh, DIM.shin, _pole, K, T);
       _v.subVectors(H, K);
@@ -879,11 +1103,104 @@ export class Animator {
       _v.subVectors(K, T);
       quatFromYZ(_q, _v, _v2.copy(_pole).negate());
       this._setWorld(sh, _q);
-      // Fuß: flach (Gierung der Hüfte + leicht auswärts), Neigung aus dem Gang
-      _e.set(pitches[f], this.hipYaw - side * 0.08, 0, 'YXZ');
+      // Fuß: flach (Gierung der Hüfte bzw. gepflanzt + leicht auswärts), Neigung aus dem Gang
+      _e.set(pitches[f], fy[f], 0, 'YXZ');
       _q.setFromEuler(_e);
       this._setWorld(ft, _q);
     }
+  }
+
+  /**
+   * Stand: Füße stehen fest in der Welt (kein Gleiten beim Drehen, Anhalten oder leichten Schieben). Weicht ein Fuß zu weit
+   * von seiner Grundstellung ab (Abstand + Verdrehung), setzt er mit einem kleinen Bogenschritt nach – immer nur einer, bei
+   * großer Drehung überlappend. Anlaufen blendet in den Schrittzyklus über; beim Anhalten wird die aktuelle Fußlage
+   * übernommen (ein fliegender Fuß setzt als Schritt auf). Benötigt die Weltlage der Wurzel (rootX/Z, sonst aus).
+   */
+  _plantFeet(feet, fy) {
+    const P = this.plant;
+    const dt = this._dt;
+    const gOff = this.groundOff;
+    const rest = this.speed < 0.3 && this.air < 0.2 && this.prone < 0.3 && Number.isFinite(this.rootX);
+    const by = this.bodyYaw;
+    const c = Math.cos(by), sn = Math.sin(by);
+    const rx = this.rootX, rz = this.rootZ;
+    this.plantShift = 0;
+    if (!rest) {
+      // Anlaufen/Springen: gepflanzte Lage kurz ausblenden (der erste Schritt löst sich vom Boden)
+      P.on = false;
+      P.w = Math.max(0, P.w - dt * 7);
+      if (P.w <= 0 || !Number.isFinite(rx)) { P.w = 0; return; }
+    } else if (!P.on) {
+      P.on = true;
+      P.w = 1;
+      for (let f = 0; f < 2; f++) {
+        const F = P.f[f], m = feet[f];
+        F.x = m.x * c + m.z * sn + rx;
+        F.z = -m.x * sn + m.z * c + rz;
+        F.yaw = fy[f] + by;
+        F.t = -1;
+        const h = m.y - (gOff ? gOff[f] : 0);
+        if (h > 0.012) { F.t = 0; F.dur = 0.18; F.sx = F.x; F.sz = F.z; F.syaw = F.yaw; F.h0 = h; }
+      }
+    }
+    const crouch = this.crouch;
+    // Grundstellung (Modellraum) wie der Schrittzyklus ohne Bewegung
+    const nx = (f) => (f === 0 ? -1 : 1) * (0.1 + crouch * 0.05);
+    const nz = (f) => -crouch * 0.02 * (f === 0 ? -1 : 1) + (crouch > 0.01 ? crouch * (f === 0 ? -0.1 : 0.12) : 0);
+    // Abweichung je Fuß → ggf. Schritt starten
+    let worst = -1, worstScore = 0, busy = -1;
+    for (let f = 0; f < 2; f++) {
+      const F = P.f[f];
+      if (F.t >= 0) { busy = f; continue; }
+      const dx = F.x - rx, dz = F.z - rz;
+      const mx = dx * c - dz * sn, mz = dx * sn + dz * c;
+      const dev = Math.hypot(mx - nx(f), mz - nz(f));
+      if (dev > 0.9 && !this._replant) {
+        // Sprung der Wurzel (Teleport, Respawn): aktuelle Lage neu übernehmen
+        this._replant = true; P.on = false;
+        this._plantFeet(feet, fy);
+        this._replant = false;
+        return;
+      }
+      const yd = Math.abs(wrap(F.yaw - by - (f === 0 ? 0.08 : -0.08)));
+      const score = dev + yd * 0.22;
+      if (score > worstScore) { worstScore = score; worst = f; }
+    }
+    const thr = 0.12 + crouch * 0.03;
+    const other = busy >= 0 ? P.f[busy] : null;
+    const free = !other || (other.t / other.dur > 0.55 && worstScore > thr * 2);
+    if (P.on && worst >= 0 && worstScore > thr && free) {
+      const F = P.f[worst];
+      F.t = 0; F.dur = 0.26 + crouch * 0.08; F.sx = F.x; F.sz = F.z; F.syaw = F.yaw; F.h0 = 0;
+    }
+    // Schritte fortschreiben, Füße setzen
+    const w = P.w;
+    let shift = 0;
+    for (let f = 0; f < 2; f++) {
+      const F = P.f[f];
+      let lift = 0;
+      if (F.t >= 0) {
+        F.t += dt;
+        const k = Math.min(1, F.t / F.dur), e = smooth(k);
+        // Ziel: Grundstellung in der Welt (folgt dem Körper weiter, falls er sich noch dreht)
+        const tx = nx(f) * c + nz(f) * sn + rx, tz = -nx(f) * sn + nz(f) * c + rz;
+        const tyaw = by + (f === 0 ? 0.08 : -0.08);
+        F.x = F.sx + (tx - F.sx) * e;
+        F.z = F.sz + (tz - F.sz) * e;
+        F.yaw = F.syaw + wrap(tyaw - F.syaw) * e;
+        lift = F.h0 * (1 - e) + Math.sin(Math.PI * k) * (0.035 + 0.025 * (1 - crouch * 0.5));
+        if (k >= 1) F.t = -1;
+      }
+      const dx = F.x - rx, dz = F.z - rz;
+      const mx = dx * c - dz * sn, mz = dx * sn + dz * c;
+      const m = feet[f];
+      const y = (gOff ? gOff[f] : 0) + lift;
+      m.set(m.x + (mx - m.x) * w, m.y + (y - m.y) * w, m.z + (mz - m.z) * w);
+      fy[f] += wrap(F.yaw - by - fy[f]) * w;
+      shift += (mx - nx(f)) * 0.5;
+    }
+    // Becken folgt den Füßen ein Stück (Gewicht zwischen den Füßen)
+    this.plantShift = clamp(shift * 0.35 * w, -0.05, 0.05);
   }
 }
 

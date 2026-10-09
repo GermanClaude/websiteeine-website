@@ -1,7 +1,7 @@
-// Ego-Ansicht – zusätzliche Choreografien (Welle 2, Arsenal): Nachladen je Mechanik (Magazin im Griff, Bullpup,
-// Trommelmagazin, Revolver mit Schnelllader, vorn geladene Rakete), Inspizieren je Waffenklasse, Schutzplatte
-// einsetzen und Messerhiebe je Klinge (als Hauptwaffe). Wird in viewmodel.js in ViewModel.prototype gemischt;
-// alle Methoden arbeiten mit denselben Ausgaben wie die Basisaktionen: out.p/out.r (Waffe, Kameraraum),
+// Ego-Ansicht – zusätzliche Choreografien (Welle 2, Arsenal): Nachladen Revolver (Schnelllader) und vorn geladene
+// Rakete, Spannhebel-Zyklus, Inspektions-Bausteine (Revolver, MG-Deckel, Panzerfaust, Messer), Schutzplatte einsetzen
+// und Messerhiebe je Klinge (als Hauptwaffe). Magazinwechsel und Inspektions-Varianten: anim/reloads.js, anim/inspects.js.
+// Wird in viewmodel.js in ViewModel.prototype gemischt; alle Methoden arbeiten mit denselben Ausgaben wie die Basisaktionen: out.p/out.r (Waffe, Kameraraum),
 // out.left/out.right (Handanfragen), out.parts (Teilversätze [dx, dy, dz, rx, ry, rz] im Elternraum, _vis).
 import * as THREE from 'three';
 import { curve, windowW, clamp, smooth } from './anim.js';
@@ -113,50 +113,10 @@ export const EXTRA_ACTIONS = {
     return u >= 1;
   },
 
-  /** Inspizieren je Waffenklasse (handling.inspectStyle); 'rifle' bleibt die Basisaktion. */
+  /** Inspizieren: Revolver, MG-Deckel, Panzerfaust, Messer (von anim/inspects.js als Varianten genutzt). */
   _actInspectStyle(A, out, style) {
     const u = clamp(A.t / A.dur, 0, 1), ud = this.cur.ud, an = ud.anchors;
     switch (style) {
-      case 'magcheck': {
-        curve(u, [[0, ZERO3], [0.12, [0.16, 0.14, -0.42]], [0.5, [0.18, 0.18, -0.46]], [0.62, [0.0, -0.2, 0.55]], [0.86, [-0.02, -0.24, 0.6]], [1, ZERO3]], out.r);
-        curve(u, [[0, ZERO3], [0.12, [-0.04, 0.04, 0.05]], [0.5, [-0.04, 0.045, 0.05]], [0.62, [-0.06, 0.03, 0.03]], [0.86, [-0.06, 0.03, 0.03]], [1, ZERO3]], out.p);
-        const drop = curve(u, [[0.18, 0], [0.26, 1], [0.44, 1], [0.52, 0]]);
-        out.parts.mag = [0, -0.035 * drop, 0.006 * drop, 0.12 * drop, 0, 0];
-        if (u > 0.52 && !A.slapped) { A.slapped = true; this._jolt.kick(1.0, 0, 0); }
-        const wm = windowW(u, 0.06, 0.16, 0.52, 0.62);
-        if (an.magGrab && wm > 0) req(out.left, wm, { anchor: an.magGrab, style: this.h.reload === 'gripmag' ? 'mag' : 'mag' });
-        return u >= 1;
-      }
-      case 'pistol': {
-        curve(u, [[0, ZERO3], [0.15, [0.12, -0.3, 0.7]], [0.45, [0.14, -0.32, 0.74]], [0.6, [0.02, 0.45, -0.6]], [0.86, [0.02, 0.48, -0.64]], [1, ZERO3]], out.r);
-        curve(u, [[0, ZERO3], [0.15, [-0.04, 0.05, 0.06]], [0.86, [-0.04, 0.05, 0.06]], [1, ZERO3]], out.p);
-        const press = curve(u, [[0.22, 0], [0.3, 1], [0.38, 1], [0.44, 0]]);
-        const travel = an.slideGrab?.userData.travel?.[2] ?? 0.03;
-        if (this._part('slide')) out.parts.slide = [0, 0, travel * 0.38 * press];
-        const w = windowW(u, 0.16, 0.22, 0.42, 0.5);
-        if (w > 0 && an.slideGrab) req(out.left, w, { anchor: an.slideGrab, style: 'pinchSide' });
-        return u >= 1;
-      }
-      case 'bolt': {
-        curve(u, [[0, ZERO3], [0.15, [0.1, 0.12, 0.3]], [0.6, [0.12, 0.14, 0.34]], [0.72, [0.05, -0.15, -0.5]], [0.9, [0.05, -0.16, -0.52]], [1, ZERO3]], out.r);
-        curve(u, [[0, ZERO3], [0.15, [-0.03, 0.03, 0.04]], [0.9, [-0.03, 0.03, 0.04]], [1, ZERO3]], out.p);
-        const bg = an.boltGrab;
-        if (bg) {
-          const lift = curve(u, [[0.18, 0], [0.26, 1], [0.5, 1], [0.58, 0]]), back = curve(u, [[0.26, 0], [0.32, 0.3], [0.44, 0.3], [0.5, 0]]);
-          out.parts.boltHandle = [0, 0, (bg.userData.travel?.[2] ?? 0.09) * back, 0, 0, (bg.userData.rot ?? 1.05) * lift];
-          const w = windowW(u, 0.1, 0.18, 0.58, 0.66);
-          if (w > 0) req(out.right, w, { anchor: bg, style: 'boltKnob' });
-        }
-        return u >= 1;
-      }
-      case 'pump': {
-        curve(u, [[0, ZERO3], [0.14, [0.08, 0.1, -0.45]], [0.5, [0.1, 0.12, -0.48]], [0.64, [0.02, -0.1, 0.5]], [0.88, [0.02, -0.12, 0.52]], [1, ZERO3]], out.r);
-        curve(u, [[0, ZERO3], [0.14, [-0.03, 0.03, 0.04]], [0.88, [-0.03, 0.03, 0.04]], [1, ZERO3]], out.p);
-        const travel = an.pumpGrab?.userData.travel?.[2] ?? 0.085;
-        out.parts.pump = [0, 0, travel * 0.35 * curve(u, [[0.2, 0], [0.28, 1], [0.44, 1], [0.5, 0]])];
-        if (u > 0.5 && !A.slapped) { A.slapped = true; this._jolt.kick(0.7, 0, 0); }
-        return u >= 1;
-      }
       case 'belt': {
         curve(u, [[0, ZERO3], [0.12, [0.08, 0.26, 0.3]], [0.62, [0.1, 0.28, 0.34]], [0.74, [0.02, -0.12, -0.36]], [0.9, [0.02, -0.12, -0.38]], [1, ZERO3]], out.r);
         curve(u, [[0, ZERO3], [0.12, [0, -0.03, -0.01]], [0.9, [0, -0.03, -0.01]], [1, ZERO3]], out.p);
@@ -202,6 +162,8 @@ export const EXTRA_ACTIONS = {
       hook: { p: [[0, ZERO3], [0.08, [0.08, 0.02, 0.04]], [0.22, [-0.26, -0.06, -0.12]], [0.38, [-0.2, -0.1, -0.05]], [0.8, ZERO3]], r: [[0, ZERO3], [0.08, [0.1, -0.7, -0.3]], [0.22, [-0.1, 0.9, 0.5]], [0.38, [-0.15, 0.85, 0.45]], [0.8, ZERO3]], hit: 0.16 },
       chop: { p: [[0, ZERO3], [0.12, [0.06, 0.12, 0.06]], [0.28, [-0.22, -0.14, -0.12]], [0.44, [-0.18, -0.16, -0.05]], [0.86, ZERO3]], r: [[0, ZERO3], [0.12, [0.6, -0.45, -0.6]], [0.28, [-0.5, 0.7, 0.95]], [0.44, [-0.55, 0.65, 0.9]], [0.86, ZERO3]], hit: 0.22 },
       overhead: { p: [[0, ZERO3], [0.14, [0.0, 0.16, 0.08]], [0.3, [-0.08, -0.16, -0.14]], [0.46, [-0.08, -0.18, -0.06]], [0.88, ZERO3]], r: [[0, ZERO3], [0.14, [1.0, -0.1, -0.2]], [0.3, [-0.9, 0.15, 0.2]], [0.46, [-0.95, 0.1, 0.2]], [0.88, ZERO3]], hit: 0.26 },
+      // Rückhand: spiegelbildlich von links oben nach rechts unten
+      backhand: { p: [[0, ZERO3], [0.08, [-0.08, 0.07, 0.04]], [0.24, [0.12, -0.08, -0.1]], [0.4, [0.1, -0.12, -0.04]], [0.85, ZERO3]], r: [[0, ZERO3], [0.08, [0.3, 0.55, 0.55]], [0.24, [-0.25, -0.6, -0.75]], [0.4, [-0.3, -0.55, -0.65]], [0.85, ZERO3]], hit: 0.18 },
       stab: { p: [[0, ZERO3], [0.12, [-0.02, -0.02, 0.06]], [0.26, [-0.08, 0.0, -0.2]], [0.4, [-0.07, 0.0, -0.18]], [0.8, ZERO3]], r: [[0, ZERO3], [0.12, [-0.3, 0.2, 0.0]], [0.26, [-0.55, 0.3, 0.1]], [0.4, [-0.55, 0.3, 0.1]], [0.8, ZERO3]], hit: 0.22 },
     }[style];
     if (!K) return null;

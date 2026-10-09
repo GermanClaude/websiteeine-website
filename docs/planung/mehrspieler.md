@@ -18,6 +18,9 @@ Mehrspieler bauen. Code-Landkarte mit Datei/Zeilen-Verweisen: `docs/planung/mehr
 - **Stufe 1 Modi:** `tdm`, `ffa`, `dom`, `kc`. Nicht online (ausgegraut, „folgt in Stufe 2“): `cq` (Fahrzeuge), `gun`, `inf`, `training`.
   **Scorestreaks online aus** (Stufe 2). **Fahrzeuge online aus** (Host spawnt keine).
 - **Karten:** alle; Weltgeometrie ist über `def.seed` deterministisch, Wetter/Tageszeit löst der Host auf und schickt sie mit.
+  Bewegungskollision ist auf jeder Grafikstufe und mit/ohne Asset-Bibliothek gleich (Großkarte: Bäume/Felsen immer mit voller
+  Dichte, nur Büsche/Schilf/Gras dünnen aus; Bibliotheksmodelle kollidieren nur über feste Quader) – Prüfung:
+  `node tools/collision-hash.mjs --qualities=low,medium,high,ultra,low-nolib` (alle fünf Karten gleich, 09.10.).
 
 ## 2. Netz-IDs
 
@@ -35,7 +38,8 @@ class NetSystem {
   role        // 'host' | 'client' | null
   selfId      // eigene netId (Host 1)
   room        // { code, public, state: 'lobby'|'match', settings, hostName }
-  roster      // [{ id, name, team, isHost, isBot:false, level, ping, ready, cls, loadout, kd }] – nur Menschen
+  roster      // [{ id, name, team, isHost, isBot:false, level, ping, ready, cls, loadout, kd, device }] – nur Menschen;
+              // device 'pc' | 'mobile' (Touch) | 'vr' (VR-Sitzung) – Symbol in Spielerliste/Punktetabelle (DEVICES)
   // Lobby / Sitzung (UI ruft das auf)
   async host(settings)          // Raum öffnen → {code}; settings siehe §6
   async join(code, {name})      // beitreten → wirft Error mit .code ('kein-relay'|'kein-host'|'keine-antwort'|'abgelehnt:voll'|'abgelehnt:version'|'abgelehnt:gekickt'|'verbindung-fehlgeschlagen')
@@ -47,6 +51,7 @@ class NetSystem {
   watchPublic(cb) → stop()      // öffentliche Spiele beobachten
   async quickPlay({name})       // bestes öffentliches Spiel beitreten oder null
   recommendation()              // {max, reason, upload, fps, cores, memory, measured:bool}
+  localDevice()                 // eigenes Gerät: 'vr' bei G.xr.presenting, 'mobile' bei G.input.mode 'touch', sonst 'pc'
   // Nachrichten (für sync-Module)
   send(to, msg)                 // to: netId | 'all' | 'others'; msg: {t:'…', …} zuverlässig (JSON)
   sendFast(to, arrayBuffer)     // schnell/unzuverlässig
@@ -63,26 +68,41 @@ class NetSystem {
 Ereignisse auf `G.events`: `net:status` {online, role, relays, state}, `net:roster` {roster}, `net:room` {room},
 `net:error` {code, text}, `net:kicked` {reason}, `net:peer` {id, name, joined:bool}, `net:recommend` {…}.
 
+Gerät (09.10.): NetSystem hört auf `xr:start`/`xr:end`/`input:mode`; ändert sich `localDevice()`, setzt der Host seinen
+Roster-Eintrag (→ 'roster' an alle), ein Client schickt 'dev' (§4) und der Host verteilt das Roster. Beim Beitritt trägt
+'join' das Gerät (`dev`). Ausdauer-Regel (§6): `match:state` → `_applyMatchRules()` auf Host und Clients.
+
 ## 4. Nachrichten (zuverlässig, JSON, Feld `t`)
 
 Client → Host
-- `join` {name, level, kd, ver, build, cls, loadout} – direkt nach Verbindungsaufbau
+- `join` {name, level, kd, ver, build, cls, loadout, dev} – direkt nach Verbindungsaufbau (`dev` = Gerät, Roster-Feld `device`)
 - `ready` {} – Welt geladen, bereit zum Spawnen
 - `loadout` {cls, loadout} – Ausrüstung geändert (gilt ab nächstem Spawn)
 - `hit` {target, zone, dmg, weapon, dist, origin:[x,y,z], point:[x,y,z], serial, pellet} – Treffermeldung
 - `melee` {target, weapon, serial}
 - `throw` {kind:'grenade'|'rocket', type, origin, dir, vel, cook} – Host erzeugt das Geschoss
+- `dev` {d:'pc'|'mobile'|'vr'} – Gerät gewechselt (VR-Sitzung beginnt/endet, Touch ↔ Maus); Host setzt `device` im Roster
+- `hold` {on, p} – Wiedereinstieg anhalten („Ausrüsten“ im Todesbildschirm, p = Restzeit steht) bzw. freigeben („Einsatz“);
+  der Host hält die Puppe höchstens 30 s an
+- `plate` {chain} | {cancel:true} – Panzerplatte einsetzen (chain = mehrere nacheinander) bzw. abbrechen; der Host setzt sie
+  an der Puppe ein (`combat.insertPlate`/`cancelPlate`), das Ergebnis kommt als 'hit' `ar` bzw. 'ev' `ap` zurück
 - `leave` {}
 
 Host → Client
 - `welcome` {id, team, room, roster, cfg|null} – cfg ≠ null, wenn ein Spiel läuft (Einstieg ins laufende Spiel)
 - `room` {room} / `roster` {roster}
 - `start` {cfg} – Spiel starten (alle laden dieselbe Karte)
-- `spawn` {id, pos:[x,y,z], yaw, cls, loadout, hp} – Akteur (auch der lokale Spieler) spawnt
-- `hit` {target, attacker, dmg, zone, hp, armor, weapon, dir:[x,y,z]} – Schaden (Treffermarker, Blut, eigene Lebenspunkte)
+- `actors` {list:[{id, n, t, h, c, lo, v?, sc?}]} – Akteursliste (Identität, kein Zustand): id = netId, n Name, t Team
+  ('A'|'B'|null), h 1 = Mensch, c Klasse, lo Ausrüstung, bei KI-Bots v Körpervariante und sc Tarnschema. Bei Änderung an alle
+  (dieselbe Liste wird nicht wiederholt), vollständig an einen Client, sobald er bereit ist ('ready'/Einstieg), und an alle
+  vor dem 'spawn' eines nachgefüllten Bots; fehlt ein Akteur in der neuen Liste, entfernt der Client seine Puppe
+- `spawn` {id, pos:[x,y,z], yaw, cls, loadout, hp, st} – Akteur (auch der lokale Spieler) spawnt (st = Host-Zeit)
+- `hit` {target, attacker, dmg, zone, hp, weapon, dir:[x,y,z], point, exp, killed, ar?, st?} – Schaden (Treffermarker, Blut,
+  eigene Lebenspunkte; `ar` [Westen-LP, Helm-LP, Reserveplatten] bei Panzerung, `st` Host-Zeit, wenn ein Mensch getroffen ist)
 - `kill` {victim, killer, assister, weapon, zone, head, pen, streak} – Abschuss
 - `mode` {s} – Modus-Zustand (`mode.netState()`), bei Änderung und spätestens jede Sekunde
-- `ev` {e:'explosion'|'grenade'|'rocket'|'impact'|'medal'|…, …} – Effekte/Ereignisse zum Nachspielen
+- `ev` {e, …} – Effekte/Ereignisse zum Nachspielen: gr/gb Granate geworfen/gezündet, rk/rb/rd Rakete, ex Explosion; nur an den
+  betroffenen Client: sc Punkte, md Medaille, ap Panzerung nach Aufnahme/Platte
 - `end` {result, summary} – Spielende (summary = playerSummary für genau diesen Client)
 - `kick` {reason} / `host-away` {away:bool} / `correct` {pos:[x,y,z]} (Anti-Cheat-Rücksetzung)
 
@@ -92,18 +112,41 @@ Alle Zahlen little-endian. Winkel als Int16 = rad × 10000. Geschwindigkeiten In
 
 **Snapshot (Host → Client, 20 Hz)**: `u8 typ=1, u32 tick, f32 serverTime, u16 n`, dann n × Akteur:
 `u16 id, f32 x, f32 y, f32 z, i16 yaw, i16 pitch, i16 vx, i16 vy, i16 vz, u16 flags, u8 weapon, u8 hp, i8 lean, u8 shots, u8 proneBlend(0–255)`
-Flags: bit0 alive, 1 crouch, 2 prone, 3 sprint, 4 ads, 5 reloading, 6 onGround, 7 sliding, 8 throwing, 9 meleeing, 10 swimming.
+Flags: bit0 alive, 1 crouch, 2 prone, 3 sprint, 4 ads, 5 reloading, 6 onGround, 7 sliding, 8 throwing, 9 meleeing, 10 swimming,
+11 **vr** (Spieler in einer VR-Sitzung – ein VR-Zusatzblock folgt, s. u.; `encode` setzt/löscht das Bit selbst nach `vr`).
 `weapon` = Index in `WEAPON_INDEX` (aus weapons.data.js, stabil sortiert nach id). `shots` zählt Schüsse modulo 256 (Puppe feuert, wenn sich der Wert ändert).
 
-**Zustand (Client → Host, 30 Hz)**: `u8 typ=2, u32 seq, f32 clientTime`, dann ein Akteur-Block wie oben (ohne id/hp).
+**Zustand (Client → Host, 30 Hz)**: `u8 typ=2, u32 seq, f32 clientTime`, dann ein Akteur-Block wie oben (ohne id/hp) = 37 Byte.
+
+**VR-Zusatz** (09.10., `VR_BLOCK` = 11 Byte je Akteur mit Bit 11): `u8 bits` (bit0 Haupthand verfolgt, bit1 Nebenhand verfolgt),
+`i16 aimYaw, i16 aimPitch` (Schussrichtung Auge → Punkt, auf den der Lauf zeigt; rad × 10000), `i8 hx, hy, hz` (Griff der
+Haupthand), `i8 ox, oy, oz` (Nebenhand) – Hände relativ zum Auge im Blickrahmen (Gierung = yaw des Akteurs; x rechts, y oben,
+z vorn) in cm, höchstens ±1,27 m (`VR_REACH`). Im Schnappschuss stehen die Blöcke hinter dem letzten Akteur, in der Reihenfolge
+der Akteure mit gesetztem VR-Bit (ohne id); im Zustand folgt der Block direkt auf die 37 Byte. Ohne VR-Spieler sind die Pakete
+Byte für Byte wie vorher; ältere Dekodierer lesen die festen 31/37 Byte und übergehen den Anhang. Akteur-Objekt
+(`encode`/`decode`): Feld `vr` = null | {aimYaw, aimPitch, main:[x,y,z]|null, off:[x,y,z]|null}. Der Host übernimmt den
+Zusatz eines VR-Clients in `puppet.netPose.vr` und unverändert in die Schnappschüsse (der Host-Spieler in VR schickt seinen
+eigenen, `sync-common vrPoseOf`); Clients interpolieren ihn wie die Pose (Kopf, Waffe, Arme der Puppe).
 
 ## 6. Raum-Einstellungen und Spielkonfiguration
 
 `room.settings` = { name, mode, map, time, weather, difficulty, maxPlayers (2–32), botFill (bool), teamSize (je Team inkl.
 Menschen, 1–16), pvp ('pvp' = Menschen auf beide Teams verteilt | 'coop' = alle Menschen Team A gegen Bots), public (bool),
-style, scoreLimit, timeLimit }.
-`startMatch()` erzeugt cfg = Lobby-Konfiguration + { net:{role, roomCode}, weather/time aufgelöst (keine 'zufall'),
-allies/enemies so, dass Bots + Menschen = teamSize }.
+style, scoreLimit, timeLimit, stamina (bool, Standard true) }.
+- `time`: 'standard' (Kartenzeit) | 'zufall' | **'echtzeit'** | eine Tageszeit der Karte (`MAPS[map].times`); `weather`:
+  'standard' | 'zufall' | ein Wetter der Karte.
+- `stamina` („Ausdauer“, 09.10.): false = unbegrenzte Ausdauer für alle (Spieler und Bots, auf Host und Clients).
+
+`startMatch()` erzeugt cfg = Lobby-Konfiguration + { allies/enemies so, dass Bots + Menschen = teamSize, `timeOfDay`/`weather`
+aufgelöst } und je Empfänger `cfg.net` = { role, roomCode, selfId, team, teamSize, pvp, botFill, maxPlayers, botsA, botsB,
+humans:{A,B}, ffa, conditions:{weather, time}, startedAt, stamina }.
+- **Wetter/Zeit löst nur der Host auf** (`world.resolveConditions`): nie 'zufall' oder 'echtzeit' in cfg. **'echtzeit'**
+  nimmt die Tageszeit der Karte (Kartenzeit oder eine aus `times`), die der **Uhr des Hosts** am nächsten liegt
+  (`weather.js realTimePreset`, Stunden aus `TIME_HOURS`: Morgen 7, Vormittag 10, Mittag 12,5, Nachmittag 15,5, Abend 19 Uhr;
+  nachts über Mitternacht gerechnet) – alle Clients spielen dieselbe Zeit, egal in welcher Zeitzone. `cfg.timeOfDay` ist dann
+  die aufgelöste Zeit (oder 'standard'), `cfg.net.conditions` das Ergebnis.
+- **`cfg.net.stamina`**: false → NetSystem setzt bei jedem `match:state` `G.match.styleFlags.staminaMult = 0` (`stamina.js`:
+  0 = unbegrenzt; idempotent, weil `main.applyStyle` die Stil-Flags vor 'loading' neu setzt).
 
 ## 7. Spielablauf
 

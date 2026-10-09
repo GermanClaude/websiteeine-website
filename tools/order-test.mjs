@@ -1,7 +1,7 @@
 // NULLPUNKT — Befehlsrad-Test (ui/command-wheel.js, bots/ai/orders.js) in Headless-Chromium (spielen.html, SwiftShader).
 //   Offline (TDM Hafen, 5 Verbündete, Gegner tot und ohne Wiedereinstieg): jeder Befehl über den Eingabeweg (Taste
 //   „befehl“ halten, Maus in Richtung des Felds, loslassen) und Prüfung des Verhaltens:
-//     • Mir folgen: Spieler läuft einen Navigationspfad ab (4,5 m/s Spielzeit) – Folgende im Mittel ≤ 8 m entfernt
+//     • Mir folgen: Spieler läuft einen Navigationspfad ab (Eingabe vorwärts, 5,4 m/s) – Folgende im Mittel ≤ 8 m entfernt
 //     • Position halten: Spieler geht weg – Bots bleiben ≤ 3 m an ihrer Stellung
 //     • Sammeln: alle ≤ 6 m beim Spieler · Formation Keil/Kreis: Kreis rundum ≤ 7,5 m
 //     • Angreifen: Punkt unter dem Fadenkreuz, Bots rücken an (≤ 10 m oder Abstand −60 %), Weltmarkierung sichtbar
@@ -17,7 +17,7 @@ import { readFileSync, mkdirSync } from 'node:fs';
 const opt = Object.fromEntries(process.argv.slice(2).map((a) => { const [k, ...v] = a.replace(/^--/, '').split('='); return [k, v.length ? v.join('=') : true]; }));
 const ONLY = opt.only ? String(opt.only).split(',') : ['offline', 'phone', 'online'];
 const QUALITY = String(opt.quality || 'low');
-const [W, H] = String(opt.size || '1280x720').split('x').map(Number);
+const [W, H] = String(opt.size || '1280x720').split('x').map(Number); // Bildschirmfotos (Verhalten läuft in 640×360)
 const RELAY = process.env.NP_RELAY || 'ws://127.0.0.1:7777';
 const OUT = 'tools/out';
 mkdirSync(OUT, { recursive: true });
@@ -67,28 +67,30 @@ async function instrument(p) {
     T.alive = () => T.allies().filter((b) => b.alive);
     T.dists = (to) => T.alive().map((b) => b.position.distanceTo(to || G.player.position));
     T.kinds = () => T.alive().map((b) => (b.command ? b.command.kind : '-'));
-    // Spieler einen Navigationspfad entlang führen (Spielzeit, m/s)
-    T.walk = (to, speed = 4.5) => {
+    // Spieler einen Navigationspfad entlang steuern (echte Bewegung über die Eingabe: vorwärts + Blick zum nächsten Wegpunkt,
+    // Laufen 5,4 m/s); festgefahren (3 s Spielzeit ohne 1 m Fortschritt) → Wegpunkt überspringen
+    T.walk = (to) => {
       const nav = G.world.nav;
       const path = nav.findPath(G.player.position, to) || [];
       if (!path.length) return 0;
       const pts = [G.player.position.clone(), ...path];
-      let i = 1, last = G.time.elapsed;
+      let i = 1;
+      let best = Infinity, bestAt = G.time.elapsed;
       clearInterval(T._walk);
       T.walking = true;
+      const stop = () => { clearInterval(T._walk); G.input.simulate.move(null); T.walking = false; };
       T._walk = setInterval(() => {
-        const now = G.time.elapsed;
-        let step = (now - last) * speed;
-        last = now;
-        const p = G.player.position.clone();
-        while (step > 0 && i < pts.length) {
-          const d = p.distanceTo(pts[i]);
-          if (d <= step) { p.copy(pts[i]); step -= d; i++; } else { p.lerp(pts[i], step / d); step = 0; }
-        }
-        if (i < pts.length) { const dx = pts[i].x - p.x, dz = pts[i].z - p.z; if (dx * dx + dz * dz > 0.01) G.player.yaw = Math.atan2(-dx, -dz); }
-        G.player.body.teleport(p.clone().setY(p.y + 0.05));
-        if (i >= pts.length) { clearInterval(T._walk); T.walking = false; }
-      }, 40);
+        const p = G.player.position;
+        while (i < pts.length && Math.hypot(pts[i].x - p.x, pts[i].z - p.z) < 1.3) { i++; best = Infinity; }
+        if (i >= pts.length || !G.player.alive) { stop(); return; }
+        const dx = pts[i].x - p.x, dz = pts[i].z - p.z;
+        const d = Math.hypot(dx, dz);
+        if (d < best - 1) { best = d; bestAt = G.time.elapsed; }
+        else if (G.time.elapsed - bestAt > 3) { i++; best = Infinity; bestAt = G.time.elapsed; }
+        G.player.yaw = Math.atan2(-dx, -dz);
+        G.player.pitch = 0;
+        G.input.simulate.move(0, 1);
+      }, 30);
       let len = 0;
       for (let k = 1; k < pts.length; k++) len += pts[k].distanceTo(pts[k - 1]);
       return len;
@@ -108,6 +110,14 @@ async function instrument(p) {
       return null;
     };
     T.notices = () => [...document.querySelectorAll('.h-notice')].map((n) => n.textContent);
+    // Testaufbau: Verbündete 5–15 m um den Spieler versetzen (Knoten auf Spielerhöhe)
+    T.gather = () => {
+      const nav = G.world.nav;
+      const pp = G.player.position;
+      const nodes = nav.nodesInRadius(pp, 16).filter((n) => n.position.distanceTo(pp) > 5 && Math.abs(n.position.y - pp.y) < 1.5);
+      T.alive().forEach((b, i) => { const n = nodes[(i * 7) % Math.max(1, nodes.length)]; if (n) { b.body.teleport(n.position.clone()); b.nav.reset(); } });
+      return nodes.length;
+    };
     T.enemiesOff = () => {
       for (const a of G.actors) {
         if (a === G.player || !G.combat.isHostile(G.player, a)) continue;
@@ -137,8 +147,9 @@ async function order(p, id, { keep = false } = {}) {
 // =================================================================== Offline
 async function offline(browser) {
   info('— Offline (Desktop) —');
-  const ctx = await browser.newContext({ viewport: { width: W, height: H } });
+  const ctx = await browser.newContext({ viewport: { width: 640, height: 360 } });
   const p = await ctx.newPage();
+  const big = async (on) => { await p.setViewportSize(on ? { width: W, height: H } : { width: 640, height: 360 }); await sleep(on ? 1500 : 300); };
   const errs = [];
   p.on('pageerror', (e) => errs.push(e.message));
   p.on('console', (m) => { if (m.type() === 'error' && !/favicon|Failed to load resource|WebGL|GL_|AudioContext/i.test(m.text())) errs.push(m.text()); });
@@ -153,7 +164,9 @@ async function offline(browser) {
   const nAllies = await p.evaluate(() => window.__ot.alive().length);
   info(`${nAllies} verbündete Bots leben`);
 
-  // --- Mir folgen
+  // --- Mir folgen (Testaufbau: Verbündete um den Spieler)
+  await p.evaluate(() => window.__ot.gather());
+  await gameWait(p, 0.5);
   await order(p, 'follow');
   let kinds = await p.evaluate(() => window.__ot.kinds());
   check(kinds.filter((k) => k === 'follow').length >= Math.min(3, nAllies), `Mir folgen: ${kinds.filter((k) => k === 'follow').length}/${kinds.length} Bots (${kinds.join(',')})`);
@@ -162,7 +175,7 @@ async function offline(browser) {
   await gameWait(p, 3);
   const target = await p.evaluate(() => window.__ot.nodeAt(45, 70));
   const len = await p.evaluate((t) => window.__ot.walk(new window.__game.player.position.constructor(...t)), target);
-  info(`Spieler läuft ${r1(len)} m (4,5 m/s)`);
+  info(`Spieler läuft ${r1(len)} m (Eingabe vorwärts, 5,4 m/s) – ${await p.evaluate(() => window.__game.renderer.info().fps)} FPS`);
   const samples = [];
   for (let k = 0; k < 80; k++) {
     await gameWait(p, 0.5);
@@ -231,9 +244,10 @@ async function offline(browser) {
     await p.evaluate((t) => window.__game.debugApi.lookAt(t[0], t[1] + 0.3, t[2]), atk);
     await gameWait(p, 0.4);
     const d0 = await p.evaluate((t) => window.__ot.dists(new window.__game.player.position.constructor(...t)), atk);
+    await big(true);
     await order(p, 'attack', { keep: true });
-    await sleep(500);
-    await p.screenshot({ path: `${OUT}/order-wheel-desktop.png` });
+    await sleep(800);
+    await p.screenshot({ path: `${OUT}/order-wheel-desktop.png`, timeout: 120000 });
     await p.evaluate(() => window.__game.input.simulate.release('befehl'));
     await until(p, () => !window.__game.hud.wheel.isOpen, null, 8000, 50);
     kinds = await p.evaluate(() => window.__ot.kinds());
@@ -243,7 +257,8 @@ async function offline(browser) {
     const mark = await p.evaluate(() => { const m = document.querySelector('.cw-mark'); return m ? m.textContent : null; });
     check(!!mark, `Weltmarkierung: „${mark}“`);
     await gameWait(p, 2);
-    await p.screenshot({ path: `${OUT}/order-marker-desktop.png` });
+    await p.screenshot({ path: `${OUT}/order-marker-desktop.png`, timeout: 120000 });
+    await big(false);
     let best = null;
     for (let k = 0; k < 30; k++) {
       await gameWait(p, 0.5);

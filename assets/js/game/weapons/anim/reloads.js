@@ -14,11 +14,16 @@
 //
 // Ausgaben wie die Basisaktionen: out.p/out.r (Waffe, Kameraraum), out.left/out.right (Handanfragen),
 // out.parts (Teilversätze [dx, dy, dz, rx, ry, rz] im Elternraum, _vis), out.frame (Arbeitsstelle ins Bild).
+import * as THREE from 'three';
 import { curve, windowW, clamp, smooth } from '../gunsmith/anim.js';
 import { magWellOf, magOffset } from './magwell.js';
 
 const Z3 = [0, 0, 0];
 const _f = [0, 0, 0, 0, 0, 0];
+const _v3 = new THREE.Vector3();
+
+/** Kosmetische Aktionen (anim/moves.js): zählen nicht als „beschäftigt“, jede echte Aktion ersetzt sie. */
+export const COSMETIC = new Set(['ready', 'fidget']);
 
 // Handanfrage anhängen (wie viewmodel.js req)
 export function req(list, w, o) {
@@ -83,21 +88,21 @@ export const MAG_RELOADS = {
   gripmag: [
     { ...BASE_PULL, name: 'ziehen', grab: [0.1, 0.2], out: [0.2, 0.3], away: 0.33, back: 0.39, align: 0.5, seat: 0.6, rel: [0.64, 0.8],
       r: [[0, Z3], [0.12, [0.32, 0.24, -0.34]], [0.8, [0.34, 0.26, -0.36]], [0.95, Z3]],
-      p: [[0, Z3], [0.12, [-0.03, 0.055, 0.04]], [0.8, [-0.03, 0.056, 0.04]], [0.95, Z3]], frame: [0.06, 0.16, 0.66, 0.84],
+      p: [[0, Z3], [0.12, [-0.03, 0.045, -0.02]], [0.8, [-0.03, 0.046, -0.02]], [0.95, Z3]], frame: [0.06, 0.16, 0.66, 0.84],
       fAway: [-0.03, -0.1, 0.04, 0.3, 0, 0.1], fNew: [-0.04, -0.1, 0.03, 0.3, 0, 0.1] },
     { ...BASE_FALL, name: 'fallen', press: 0.12, out: [0.13, 0.22], away: 0.24, back: 0.32, align: 0.46, seat: 0.56, rel: [0.6, 0.76], hand: [0.04, 0.14], take: [0.26, 0.34],
       r: [[0, Z3], [0.1, [0.4, 0.1, -0.2]], [0.76, [0.42, 0.12, -0.22]], [0.92, Z3]],
-      p: [[0, Z3], [0.1, [-0.025, 0.06, 0.04]], [0.76, [-0.025, 0.062, 0.04]], [0.92, Z3]], frame: [0.05, 0.14, 0.62, 0.8],
+      p: [[0, Z3], [0.1, [-0.025, 0.05, -0.02]], [0.76, [-0.025, 0.052, -0.02]], [0.92, Z3]], frame: [0.05, 0.14, 0.62, 0.8],
       fAway: [0, -0.06, 0.02, 0.2, 0, 0], fNew: [-0.04, -0.1, 0.04, 0.3, 0, 0.1] },
   ],
   pistol: [
     { ...BASE_PULL, name: 'ziehen', grab: [0.1, 0.2], out: [0.18, 0.28], away: 0.3, back: 0.36, align: 0.47, seat: 0.58, rel: [0.62, 0.8],
       r: [[0, Z3], [0.12, [0.36, 0.22, -0.42]], [0.8, [0.38, 0.24, -0.45]], [0.95, Z3]],
-      p: [[0, Z3], [0.12, [-0.035, 0.06, 0.04]], [0.8, [-0.035, 0.062, 0.04]], [0.95, Z3]], frame: [0.06, 0.16, 0.66, 0.84],
+      p: [[0, Z3], [0.12, [-0.035, 0.055, 0.0]], [0.8, [-0.035, 0.056, 0.0]], [0.95, Z3]], frame: [0.06, 0.16, 0.66, 0.84],
       fAway: [-0.03, -0.08, 0.03, 0.3, 0, 0.1], fNew: [-0.05, -0.1, 0.03, 0.35, 0, 0.12] },
     { ...BASE_FALL, name: 'fallen', press: 0.1, out: [0.11, 0.2], away: 0.22, back: 0.3, align: 0.44, seat: 0.54, rel: [0.58, 0.76], hand: [0.04, 0.12], take: [0.24, 0.32],
       r: [[0, Z3], [0.1, [0.5, 0.06, -0.12]], [0.76, [0.52, 0.08, -0.14]], [0.92, Z3]],
-      p: [[0, Z3], [0.1, [-0.04, 0.07, 0.05]], [0.76, [-0.04, 0.072, 0.05]], [0.92, Z3]], frame: [0.05, 0.14, 0.62, 0.8],
+      p: [[0, Z3], [0.1, [-0.04, 0.06, 0.0]], [0.76, [-0.04, 0.062, 0.0]], [0.92, Z3]], frame: [0.05, 0.14, 0.62, 0.8],
       fAway: [0, -0.05, 0.02, 0.15, 0, 0], fNew: [-0.05, -0.1, 0.04, 0.35, 0, 0.12] },
   ],
   top: [
@@ -105,11 +110,11 @@ export const MAG_RELOADS = {
     // nach vorn unter die Brücke schieben und einrasten
     { ...BASE_PULL, name: 'schieben', grab: [0.12, 0.22], out: [0.24, 0.36], away: 0.41, back: 0.47, align: 0.56, seat: 0.67, rel: [0.7, 0.82], sAway: 0.04,
       r: [[0, Z3], [0.14, [0.1, 0.24, 0.42]], [0.8, [0.1, 0.24, 0.44]], [0.95, Z3]],
-      p: [[0, Z3], [0.14, [-0.01, -0.05, -0.03]], [0.8, [-0.01, -0.05, -0.03]], [0.95, Z3]], frame: [0.08, 0.22, 0.72, 0.88],
+      p: [[0, Z3], [0.14, [-0.01, -0.05, -0.1]], [0.8, [-0.01, -0.05, -0.1]], [0.95, Z3]], frame: [0.08, 0.22, 0.72, 0.88],
       fAway: [-0.12, 0.08, 0.02, 0, 0, 0.4], fNew: [-0.12, 0.1, 0.0, 0, 0, 0.35] },
     { ...BASE_PULL, name: 'kippen', grab: [0.12, 0.22], out: [0.24, 0.36], away: 0.41, back: 0.47, align: 0.56, seat: 0.67, rel: [0.7, 0.82], sAway: 0.04,
       r: [[0, Z3], [0.14, [0.3, 0.36, 0.2]], [0.8, [0.32, 0.38, 0.22]], [0.95, Z3]],
-      p: [[0, Z3], [0.14, [-0.03, -0.03, -0.02]], [0.8, [-0.03, -0.03, -0.02]], [0.95, Z3]], frame: [0.08, 0.22, 0.72, 0.88],
+      p: [[0, Z3], [0.14, [-0.03, -0.03, -0.09]], [0.8, [-0.03, -0.03, -0.09]], [0.95, Z3]], frame: [0.08, 0.22, 0.72, 0.88],
       fAway: [-0.1, 0.1, 0.03, 0.3, 0, 0.3], fNew: [-0.11, 0.12, 0.02, 0.25, 0, 0.3] },
   ],
 };
@@ -282,11 +287,26 @@ export const RELOAD_ACTIONS = {
       return;
     }
     this._chargeCycle(A, out, c);
+    this._chargeReach(out, windowW(c, 0.0, 0.2, 0.62, 0.95));
     if (A.variant === 1) {
       // Variante 2: kräftiger gekantet (Hebelseite steiler zur Kamera), kurzer Ruck nach dem Loslassen
       const rc = windowW(c, 0.0, 0.2, 0.62, 0.95);
       out.r[2] += (st === 'right' ? 0.16 : 0.12) * rc; out.r[0] += 0.04 * rc; out.p[1] += 0.01 * rc;
     }
+  },
+
+  /**
+   * Liegt der Spannhebel hinter dem Pistolengriff (KM-7, QX-90 …), greift die Hand dicht vor der Kamera – die Waffe
+   * wird dafür nach vorn unten geschoben (w = Gewicht des Griffs zum Hebel).
+   */
+  _chargeReach(out, w) {
+    if (w <= 0) return;
+    const ch = this.cur.ud.anchors.chargeGrab;
+    if (!ch) return;
+    const z = this.cur.chargeZ ?? (this.cur.chargeZ = this.cur.model.worldToLocal(ch.getWorldPosition(_v3)).z);
+    const k = clamp((z + 0.06) / 0.1, 0, 1) * w;   // ab 6 cm vor dem Griff zunehmend
+    if (k <= 0) return;
+    out.p[2] -= 0.1 * k; out.p[1] -= 0.02 * k; out.p[0] -= 0.02 * k;
   },
 
   /** HK-Spannhebel (Variante 2 leer): zuerst zurückziehen und oben einrasten, nach dem Magazin herunterschlagen. */
@@ -338,7 +358,7 @@ export const RELOAD_ACTIONS = {
     const w = windowW(c, 0.0, 0.25, 0.42, 0.62);
     if (w > 0) req(out.left, w, { anchor: sg, style: 'rack', dy: 0.006 });
     const rc = windowW(c, 0.0, 0.22, 0.45, 0.8);
-    out.r[2] += 0.25 * rc; out.r[0] += 0.08 * rc; out.p[0] -= 0.015 * rc;
+    out.r[2] += 0.55 * rc; out.r[0] += 0.2 * rc; out.r[1] -= 0.12 * rc; out.p[0] -= 0.05 * rc; out.p[1] += 0.02 * rc; out.p[2] += 0.03 * rc;
   },
 
   /**

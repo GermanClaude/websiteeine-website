@@ -1507,6 +1507,7 @@ export class Bot {
     p.reloading = w ? w.isReloading : false;
     p.reloadProgress = w ? w.reloadProgress : 0;
     p.reloadEmpty = w ? w.reloadEmpty : false;
+    p.reloadPhase = w ? w.reloadPhase : null;
     p.perShell = !!(def && def.perShellReload);
     p.throwing = w ? w.isThrowing : false;
     p.cooking = w ? w.cooking : false;
@@ -1516,6 +1517,7 @@ export class Bot {
     p.lean = this.lean;
     p.prone = this.stance === 'prone';
     p.proneYaw = this.proneYaw;
+    p.sliding = !!(this.puppet && this.sliding); // Puppe: Rutschen aus dem Netz (Bots rutschen nicht)
     p.obstruct = this._obstructAmount(now);
     p.position = this.body.position;
     if (this.puppet) this._vrLook(s, p, vr);

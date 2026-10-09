@@ -161,6 +161,7 @@ export function createFpBench(renderer, params) {
       vm.update(dt, {
         ads: sim.ads, moving: speed > 0, speed, sprinting: sim.sprint && sim.walk, crouching: sim.crouch, onGround: sim.onGround,
         lookDX: sim.lookDX, lookDY: sim.lookDY, firing: wantFire, mag: sim.mag,
+        mantling: !!(G.player && G.player.mantling),
       });
     },
 

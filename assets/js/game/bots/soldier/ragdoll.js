@@ -18,6 +18,8 @@ const LINKS = [
   [5, 7, 0.55, 3], [6, 8, 0.45, 4], [10, 12, 0.3, 6], [4, 6, 0.7, 2], [4, 8, 0.7, 2],
 ];
 const GRAVITY = -17;
+// Rumpf-Boden-Korrektur: Partikel (Index, Anteil) – Schultern/Kopf voll, Becken halb
+const TORSO_PUSH = [[2, 1], [3, 1], [4, 0.9], [0, 0.45], [1, 0.45]];
 
 const _d = new THREE.Vector3();
 const _v = new THREE.Vector3();
@@ -49,27 +51,70 @@ export class Ragdoll {
   /**
    * Start aus der aktuellen Pose. joints(i) liefert Weltposition des Partikels i.
    * vel: Körpergeschwindigkeit (Welt), dir: Schussrichtung (Welt, normiert), strength 0..2, zone.
+   * style (Todesart, rein optisch): 'back' (in Schussrichtung umgeworfen), 'crumple' (sackt in sich zusammen),
+   * 'forward' (stolpert nach vorn aufs Gesicht), 'twist' (dreht sich weg und fällt seitlich), 'knees' (auf die Knie,
+   * dann vornüber). depth: { front, back } – Dicke von Weste/Rucksack ab Rumpfmitte (Boden-Kollision des Rumpfs).
    */
-  start(joints, vel, dir, strength = 1, zone = 'body', explosive = false) {
+  start(joints, vel, dir, strength = 1, zone = 'body', explosive = false, style = 'back', depth = null) {
     for (let i = 0; i < 13; i++) {
       joints(i, this.p[i]);
       this.groundXZ[i].set(1e9, 1e9);
     }
     for (let k = 0; k < LINKS.length; k++) this.rest[k] = this.p[LINKS[k][0]].distanceTo(this.p[LINKS[k][1]]);
+    this.front = depth && Number.isFinite(depth.front) ? depth.front : 0.2;
+    this.back = depth && Number.isFinite(depth.back) ? depth.back : 0.2;
+    this.style = explosive ? 'back' : style || 'back';
     const dt = 1 / 60;
     const imp = _d.copy(dir || _v.set(0, 0, 1));
     imp.y = Math.max(imp.y, -0.2);
     imp.normalize();
+    // Blickrichtung des Körpers (waagrecht): oben × rechts
+    const fwd = _x.subVectors(this.p[3], this.p[2]);
+    fwd.set(-fwd.z, 0, fwd.x); // (0,1,0) × (x,y,z) = (z, 0, −x) → vorn = −(…): Rechtsvektor um 90° nach vorn gedreht
+    if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1); else fwd.normalize();
+    fwd.negate();
+    const side = Math.random() < 0.5 ? -1 : 1; // Drehrichtung (Wegdrehen)
+    const st = this.style;
     const hitIdx = zone === 'head' ? [4] : zone === 'limb' ? [5, 7, 9, 11] : [2, 3];
     for (let i = 0; i < 13; i++) {
-      // Grundgeschwindigkeit + Impuls (Oberkörper stärker → kippt in Schussrichtung)
       const upper = i <= 4 || i >= 9;
-      let k = (upper ? 1.6 : 0.35) * strength;
-      if (hitIdx.includes(i)) k *= 1.5;
-      _v.copy(vel || _w.set(0, 0, 0)).multiplyScalar(0.85).addScaledVector(imp, k);
+      _v.copy(vel || _w.set(0, 0, 0)).multiplyScalar(0.85);
+      if (st === 'crumple') {
+        // Beine geben nach: Becken fällt, Knie nach vorn unten, Oberkörper sackt hinterher (wenig Schussimpuls)
+        _v.addScaledVector(imp, (upper ? 0.45 : 0.12) * strength);
+        if (i === 0 || i === 1) _v.y -= 1.5;
+        if (i === 5 || i === 7) _v.addScaledVector(fwd, 1.0).y -= 1.1;
+        if (i === 2 || i === 3 || i === 4) _v.addScaledVector(fwd, 0.3).y -= 0.4;
+      } else if (st === 'forward') {
+        // nach vorn: Oberkörper kippt in Blickrichtung, Füße bleiben hängen
+        _v.addScaledVector(imp, (upper ? 0.5 : 0.15) * strength);
+        if (upper) _v.addScaledVector(fwd, 1.5 * Math.min(1.3, strength));
+        if (i === 6 || i === 8) _v.addScaledVector(fwd, -0.4);
+        if (i === 5 || i === 7) _v.addScaledVector(fwd, 0.5).y -= 0.5;
+      } else if (st === 'twist') {
+        // Wegdrehen um die Hochachse (Schultern gegenläufig) und seitlich fallen
+        let k = (upper ? 0.9 : 0.25) * strength;
+        if (hitIdx.includes(i)) k *= 1.3;
+        _v.addScaledVector(imp, k);
+        const left = i === 2 || i === 9 || i === 10 ? 1 : i === 3 || i === 11 || i === 12 ? -1 : 0;
+        if (left) _v.addScaledVector(fwd, left * side * 1.5);
+        if (i === 4) _v.addScaledVector(_w.set(fwd.z, 0, -fwd.x), side * 0.6);
+        if (i === 5 || i === 7) _v.addScaledVector(fwd, 0.4).y -= 0.6;
+      } else if (st === 'knees') {
+        // auf die Knie: Becken sackt senkrecht, Knie nach vorn; Oberkörper kippt verzögert vornüber
+        _v.addScaledVector(imp, (upper ? 0.3 : 0.1) * strength);
+        if (i === 0 || i === 1) _v.y -= 2.0;
+        if (i === 5 || i === 7) _v.addScaledVector(fwd, 0.7).y -= 1.7;
+        if (i === 2 || i === 3 || i === 4) _v.addScaledVector(fwd, 0.45);
+      } else {
+        // Grundgeschwindigkeit + Impuls (Oberkörper stärker → kippt in Schussrichtung)
+        let k = (upper ? 1.6 : 0.35) * strength;
+        if (hitIdx.includes(i)) k *= 1.5;
+        _v.addScaledVector(imp, k);
+        // Knie knicken nach vorn ein
+        if (i === 5 || i === 7) _v.addScaledVector(imp, -0.6).y -= 0.4;
+      }
       if (explosive) _v.y += 3.2 * strength * (upper ? 1 : 0.8);
-      // Knie knicken nach vorn ein
-      if (i === 5 || i === 7) _v.addScaledVector(imp, -0.6).y -= 0.4;
       this.o[i].copy(this.p[i]).addScaledVector(_v, -dt);
     }
     this.active = true;
@@ -118,7 +163,31 @@ export class Ragdoll {
     if (this.calm > 0.4 || this.t > 4) this.asleep = true;
   }
 
+  /**
+   * Rumpf gegen den Boden: Weste vorn und Rucksack hinten ragen weit über die Partikelradien hinaus (bis 0,37 m ab
+   * Rumpfmitte). Liegt die Leiche auf Brust oder Rücken, hebt das den Oberkörper an, statt Weste/Rucksack im Boden
+   * versinken zu lassen (Leichen bleiben liegen – die Endlage muss stimmen).
+   */
+  _torso() {
+    const p = this.p, o = this.o, g = this.ground;
+    const S = _mid.addVectors(p[2], p[3]).multiplyScalar(0.5);
+    const H = _mid2.addVectors(p[0], p[1]).multiplyScalar(0.5);
+    _y.subVectors(S, H);
+    _x.subVectors(p[3], p[2]);
+    _z.crossVectors(_y, _x); // vorn (Brust)
+    if (_z.lengthSq() < 1e-8) return;
+    _z.normalize();
+    const cy = H.y + (S.y - H.y) * 0.68;
+    const gy = (g[2] + g[3]) * 0.34 + (g[0] + g[1]) * 0.16;
+    const low = Math.min(cy + _z.y * this.front, cy - _z.y * this.back);
+    const pen = gy + 0.012 - low;
+    if (!(pen > 0)) return;
+    const push = Math.min(pen, 0.08); // je Iteration begrenzt (kein Hochschnellen)
+    for (const [i, k] of TORSO_PUSH) { p[i].y += push * k; o[i].y += push * k; }
+  }
+
   _collide(world, walls) {
+    if (walls && this.front) this._torso();
     for (let i = 0; i < 13; i++) {
       const p = this.p[i], o = this.o[i], r = RADIUS[i];
       // Wände (nur Rumpf/Kopf, letzte Iteration)
@@ -185,21 +254,56 @@ export class Ragdoll {
     _q.copy(_q2).slerp(_q3, 0.5);
     anim._setWorld(BONE.neck, _q);
     anim._setWorld(BONE.head, _q3);
-    // Gliedmaßen
+    // Gliedmaßen (Hände/Füße: nicht in den Boden – die Leiche bleibt so liegen)
     limb(anim, m, BONE.upperArmL, P.shL, P.elbowL, P.wristL, false);
     anim._setWorld(BONE.handL, wq[BONE.foreArmL]);
+    this._aboveGround(anim, m, BONE.handL, P.wristL, HAND_TIP, null);
     limb(anim, m, BONE.upperArmR, P.shR, P.elbowR, P.wristR, false);
     anim._setWorld(BONE.handR, wq[BONE.foreArmR]);
+    this._aboveGround(anim, m, BONE.handR, P.wristR, HAND_TIP, null);
     limb(anim, m, BONE.thighL, P.hipL, P.kneeL, P.ankleL, true);
     limb(anim, m, BONE.thighR, P.hipR, P.kneeR, P.ankleR, true);
     _q2.multiplyQuaternions(wq[BONE.footL - 1], _qFoot);
     anim._setWorld(BONE.footL, _q2);
+    this._aboveGround(anim, m, BONE.footL, P.ankleL, TOE, HEEL);
     _q2.multiplyQuaternions(wq[BONE.footR - 1], _qFoot);
     anim._setWorld(BONE.footR, _q2);
+    this._aboveGround(anim, m, BONE.footR, P.ankleR, TOE, HEEL);
     anim.headCenter.fromArray(DIM.headCenter).applyQuaternion(wq[BONE.head]).add(wp[BONE.head]);
     void clamp;
   }
 }
+
+/** Hand-/Fußspitze relativ zum Gelenk (Knochenraum): Fingerspitzen, Zehenspitze (Sohle), Ferse (Sohle). */
+const HAND_TIP = new THREE.Vector3(0, -0.1, 0);
+const TOE = new THREE.Vector3(0, -0.07, -0.165);
+const HEEL = new THREE.Vector3(0, -0.08, 0.07);
+const _t = new THREE.Vector3();
+const _n = new THREE.Vector3();
+
+/**
+ * Endknochen (Hand/Fuß) so drehen, dass seine Spitze(n) nicht unter dem Boden liegen: Bodenhöhe im Modellraum aus dem
+ * Partikel des Gelenks; die Spitze wird um das Gelenk auf Bodenhöhe gehoben (kürzeste Drehung).
+ */
+Ragdoll.prototype._aboveGround = function (anim, m, bone, pi, tipA, tipB) {
+  const gm = m[pi].y - (this.p[pi].y - this.ground[pi]) + 0.008;
+  const wq = anim.wq, wp = anim.wp;
+  for (const tip of tipB ? [tipA, tipB] : [tipA]) {
+    _t.copy(tip).applyQuaternion(wq[bone]);
+    const len = _t.length();
+    const need = gm - wp[bone].y; // minimale Höhe der Spitze relativ zum Gelenk
+    if (_t.y >= need || len < 1e-4) continue;
+    const ny = clamp(need / len, -0.95, 0.95);
+    _n.copy(_t).multiplyScalar(1 / len);
+    const h = Math.hypot(_n.x, _n.z);
+    const nh = Math.sqrt(1 - ny * ny);
+    if (h > 1e-4) { _n.x *= nh / h; _n.z *= nh / h; } else _n.x = nh;
+    _n.y = ny;
+    _q3.setFromUnitVectors(_t.multiplyScalar(1 / len), _n);
+    _q2.multiplyQuaternions(_q3, wq[bone]);
+    anim._setWorld(bone, _q2);
+  }
+};
 
 /** Gliedmaße aus drei Partikeln: bone = oberer Knochen; a = oberes, b = mittleres, c = unteres Gelenk. */
 function limb(anim, m, bone, a, b, c, knee) {

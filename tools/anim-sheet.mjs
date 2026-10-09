@@ -21,7 +21,7 @@ const acts = arg('acts', 'reload').split(',');
 const frames = +arg('frames', 12);
 const cols = +arg('cols', 6);
 const [W, H] = arg('size', '640x360').split('x').map(Number);
-const variant = arg('variant', null);
+const variants = arg('variants', arg('variant', null));
 const pose = arg('pose', 'standard');
 const debug = arg('debug', null);
 const scale = +arg('scale', 0.5);
@@ -35,10 +35,12 @@ const ACTS = {
   reload: { start: 'F.sim.mag = 9; V.playReload(false, VAR)' },
   reloadEmpty: { start: 'F.sim.mag = 0; V.update(0, { mag: 0 }); V.playReload(true, VAR)' },
   inspect: { start: 'V.playInspect(VAR)' },
-  equip: { start: 'V._pending = { id: F.sim.id, def: F.def ? F.def() : null }; V._swapNow()', dur: 1.2 },
+  inspectEmpty: { start: 'F.sim.mag = 0; V.update(0, { mag: 0 }); V.playInspect(VAR)' },
+  equip: { start: 'V._pending = { id: F.sim.id, def: null }; V._swapNow()', dur: 0.7 },
   ready: { start: 'V.playReady ? V.playReady(VAR) : 0', dur: 1.8 },
   holster: { start: 'V.setWeapon(F.sim.id === "pi_p9" ? "ar_m17" : "pi_p9")', dur: 1.2 },
   melee: { start: 'V.playMelee({ variant: VAR })' },
+  slash: { start: 'V.playMelee({ variant: VAR })' },
   meleeStab: { start: 'V.playMelee({ backstab: true })' },
   grenade: { start: 'V.playGrenade("frag", { variant: VAR })' },
   grenadeLow: { start: 'S.crouch = true; V.playGrenade("frag", { variant: VAR })', pre: 0.6, preStart: 'S.crouch = true' },
@@ -67,7 +69,7 @@ await page.waitForFunction(() => window.__bench && window.__bench.fp, null, { ti
 await page.addStyleTag({ content: 'aside,#controls,header,#info,#cross{display:none!important}' });
 
 for (const weapon of weapons) {
-  for (const act of acts) {
+  for (const act of acts) for (const variant of (variants == null ? [null] : variants.split(','))) {
     const A = ACTS[act];
     if (!A) { console.log('unbekannte Aktion', act); continue; }
     const res = await page.evaluate(async ({ weapon, A, frames, cols, variant, pose, debug, scale, fps, focus, from, to }) => {

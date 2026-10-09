@@ -607,6 +607,31 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-ammo-hint .bar { display: block; width: 86px; height: 3px; background: var(--np-ink); transform-origin: left; transform: scaleX(0); box-shadow: 0 0 0 1px rgba(0, 0, 0, .4); }
 .h-ammo-hint:not([data-kind="is-reload"]) .bar { display: none; }
 @keyframes h-blink { 50% { opacity: .35; } }
+/* Munition verdeckt (Spielstil Realistisch / HUD aus): Schätzung beim Inspizieren statt Zähler. Touch hat kein
+   Inspizieren – dort bleibt der grobe Füllbalken (ohne Zahlen) */
+.h-root[data-ammo="verdeckt"] .h-ammo, .h-root[data-ammo="verdeckt"]:not([data-input="touch"]) .h-magbar { display: none; }
+.h-readout {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 96px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-size: 16px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
+  opacity: 0;
+  transition: opacity .25s;
+  pointer-events: none;
+}
+.h-readout.is-on { opacity: 1; }
+.h-readout b { font-weight: 600; }
+.h-readout span { font-size: 12px; color: var(--np-ink-2); letter-spacing: .1em; }
+.h-readout span:empty { display: none; }
 
 /* --------------------------------------------- Minikarte */
 .h-tl { position: absolute; left: var(--pad-l); top: var(--pad-t); width: var(--mm); }

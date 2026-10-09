@@ -399,7 +399,7 @@ export function commandStep(bot, c, now, rec, set) {
   let tol = 1.2;
   if (LEADER_KINDS.has(c.kind)) {
     const L = leaderState(leader, now);
-    speed = d > 11 ? 'sprint' : d > 4 || L.moving ? 'run' : 'walk';
+    speed = d > (L.moving ? 6 : 11) ? 'sprint' : d > 3.5 || L.moving ? 'run' : 'walk';
     tol = c.kind === 'regroup' ? 1 : 1.4;
   } else if (ANCHOR_KINDS.has(c.kind)) {
     speed = d > 12 ? 'sprint' : 'run';

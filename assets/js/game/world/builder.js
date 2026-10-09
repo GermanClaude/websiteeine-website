@@ -973,6 +973,7 @@ export class MapBuilder {
     this.interiors = [];
     this.navBlockers = [];
     this.decals = [];
+    this._plasterQ = null; this._wallish = null;
     this.signs = [];
     this.signDefs = {};
     this.plants = [];
