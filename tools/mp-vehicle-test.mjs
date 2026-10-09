@@ -95,6 +95,30 @@ async function until(p, fn, arg, timeout = 60000, every = 400) {
 }
 const shot = async (p, name) => { try { await p.screenshot({ path: `${OUT}/mpv-${name}.png` }); } catch { /* */ } };
 const d3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+/**
+ * Host-Seite verbergen wie ein Hintergrund-Tab (mp-test): ohne Zeichnen simuliert der Host im 20-Hz-Takt des Workers –
+ * unter SwiftShader-Last zeichnet eine sichtbare Seite oft nur 0,2–1 Bilder/s (Spielzeit 0,05 s je Bild).
+ */
+const hidePage = (p, on) => ev(p, (h) => {
+  if (h && !window.__rafOrig) {
+    window.__rafOrig = window.requestAnimationFrame;
+    window.__rafHeld = [];
+    window.requestAnimationFrame = (cb) => { window.__rafHeld.push(cb); return 0; };
+  }
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') });
+  document.dispatchEvent(new Event('visibilitychange'));
+  if (!h && window.__rafOrig) {
+    window.requestAnimationFrame = window.__rafOrig;
+    window.__rafOrig = null;
+    for (const cb of window.__rafHeld.splice(0)) window.requestAnimationFrame(cb);
+  }
+}, on);
+/** Host sieht die Puppe (Zustand angekommen) nahe pos? */
+const hostSees = (host, id, pos, r = 0.8, timeout = 30000) => until(host, ([i, pp, rr]) => {
+  const a = window.__game.net.actorById(i);
+  return !!a && Math.hypot(a.position.x - pp[0], a.position.z - pp[2]) < rr;
+}, [id, pos, r], timeout, 300);
 
 /** Fahrzeuge einer Seite: vid, Typ, Team, Lage, HP, Sitze (netId je Sitz). */
 const vehs = (p) => ev(p, () => {
@@ -164,6 +188,10 @@ try {
     };
   });
 
+  await hidePage(host, true);
+  const hostHz = await (async () => { const a = await ev(host, () => window.__game.time.frame); await sleep(3000); const b = await ev(host, () => window.__game.time.frame); return (b - a) / 3; })();
+  info(`Host-Seite verborgen (Simulation im Worker-Takt): ${hostHz.toFixed(1)} Bilder/s`);
+
   // ================================================================== 1. Fahrzeuge, beide Teams
   const hv = await until(host, () => { const L = window.__game.vehicles.list; return L.length >= 4 ? L.length : null; }, null, 30000);
   const hostV = await vehs(host);
@@ -190,7 +218,7 @@ try {
   const placed = await ev(host, ([vid, id]) => window.__placeNear(vid, id), [tA.vid, A]);
   info(`Panzer A (vid ${tA.vid}) neben Anna gestellt: ${placed ? `Abstand ${placed.box.toFixed(2)} m` : 'kein Platz!'}`);
   await until(anna, (pp) => { const p = window.__game.player.position; return Math.hypot(p.x - pp[0], p.z - pp[2]) < 0.6; }, placed ? placed.pos : [0, 0, 0], 15000);
-  await sleep(1500);
+  await hostSees(host, A, placed ? placed.pos : [0, 0, 0]);
   await ev(anna, (vid) => { const G = window.__game; G.vehicles.requestEnter(G.player, G.vehicles.list.find((v) => v.netId === vid)); }, tA.vid);
   const annaIn = await until(host, ([vid, id]) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return v && v.seats[0].actor && v.seats[0].actor.netId === id; }, [tA.vid, A], 20000);
   const annaInAll = await Promise.all([anna, bert].map((p) => until(p, ([vid, id]) => {
@@ -204,6 +232,7 @@ try {
   const placedB = await ev(host, ([vid, id]) => window.__placeNear(vid, id, 1, false), [tA.vid, B]);
   info(`Bert an den Panzer gesetzt: ${placedB ? `Abstand ${placedB.box.toFixed(2)} m` : 'kein Ausstiegspunkt!'}`);
   await until(bert, (pp) => { const p = window.__game.player.position; return Math.hypot(p.x - pp[0], p.z - pp[2]) < 0.6; }, placedB ? placedB.pos : [0, 0, 0], 15000);
+  await hostSees(host, B, placedB ? placedB.pos : [0, 0, 0]);
   await ev(bert, (vid) => { const G = window.__game; G.vehicles.requestEnter(G.player, G.vehicles.list.find((v) => v.netId === vid), 1); }, tA.vid);
   const bertIn = await Promise.all([host, anna, bert].map((p) => until(p, ([vid, id]) => {
     const G = window.__game, v = G.vehicles.list.find((x) => x.netId === vid), a = v && v.seats[1].actor;
@@ -253,9 +282,12 @@ try {
     const a = V.list.find((x) => x.netId === va), b = V.list.find((x) => x.netId === vb);
     const P = a.body.pos;
     const T = P.constructor;
+    const fwd = new T(0, 0, -1).applyQuaternion(a.body.quat);
+    const a0 = Math.atan2(fwd.z, fwd.x);
+    const order = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8];
     for (const dist of [45, 35, 28, 60]) {
-      for (let k = 0; k < 16; k++) {
-        const ang = (k / 16) * Math.PI * 2;
+      for (const k of order) {
+        const ang = a0 + (k / 16) * Math.PI * 2;
         const x = P.x + Math.cos(ang) * dist, z = P.z + Math.sin(ang) * dist;
         const hit = G.world.raycast(new T(x, P.y + 10, z), new T(0, -1, 0), 25);
         if (!hit || Math.abs(hit.point.y - (P.y - 1)) > 3) continue;
@@ -438,7 +470,7 @@ try {
   // ================================================================== 8. Seite schließen im Panzer
   const placedB2 = await ev(host, ([vid, id]) => window.__placeNear(vid, id, 2, false), [tA.vid, B]);
   await until(bert, (pp) => { const p = window.__game.player.position; return Math.hypot(p.x - pp[0], p.z - pp[2]) < 0.6; }, placedB2 ? placedB2.pos : [0, 0, 0], 15000);
-  await sleep(1500);
+  await hostSees(host, B, placedB2 ? placedB2.pos : [0, 0, 0]);
   await ev(bert, (vid) => { const G = window.__game; G.vehicles.requestEnter(G.player, G.vehicles.list.find((v) => v.netId === vid), 2); }, tA.vid);
   const bertIn2 = await until(host, ([vid, id]) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return v.seats.findIndex((s) => s.actor && s.actor.netId === id); }, [tA.vid, B], 20000);
   check(bertIn2 != null && bertIn2 >= 0, `Bert steigt wieder ein (Sitz ${bertIn2 != null ? bertIn2 + 1 : '–'})`);

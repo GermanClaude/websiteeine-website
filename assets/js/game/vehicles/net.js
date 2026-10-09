@@ -28,6 +28,7 @@ const SNAP = 5; // m: Sprung → setzen statt glätten
 const SMOOTH_K = 10; // 1/s Abklingen des Glättungsversatzes
 const CLOCK_STEER = 0.12;
 const OWN_SOFT = 0.15; // rad: eigene Lafette weicht erst ab dieser Abweichung zum Host-Wert
+const OWN_AHEAD = 0.1; // s: eigenes Fahrzeug so viel näher an der Host-Zeit abspielen (höchstens der Puffer)
 const VHIT_GAP = 0.05; // s: Mindestabstand zweier Fahrzeugtreffer-Meldungen eines Clients (Feuerrate grob)
 const AMMO = [null, 'mbt_ap', 'mbt_he'];
 const STEPS = ['leer', 'gegriffen', 'eingeschoben', 'geladen'];
@@ -705,7 +706,10 @@ export class VehicleNet {
       const want = Math.min(0.4, Math.max(0, (L.gap || 0) - snapGap) * 1.1);
       if (st.extra == null) st.extra = want;
       else { const step = CLOCK_STEER * Math.max(0, dt); st.extra += clamp(want - st.extra, -step, step); }
-      const t = rt - st.extra;
+      // eigenes Fahrzeug: bis zu 0,1 s weiter vorn abspielen (weniger Verzug beim Fahren; fortgeschrieben ≤ 0,25 s)
+      const p0 = this.G.player;
+      const ahead = p0 && p0.vehicle === v ? Math.min(OWN_AHEAD, sync && sync.clock ? sync.clock.buf || 0 : 0) : 0;
+      const t = rt - st.extra + ahead;
       let i = L.length - 1;
       while (i >= 0 && L[i].t > t) i--;
       const A = i >= 0 ? L[i] : null;

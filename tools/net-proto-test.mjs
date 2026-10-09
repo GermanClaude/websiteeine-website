@@ -7,7 +7,7 @@ import {
   VR_BLOCK, VR_REACH, VEH_TAG, VEH_BLOCK, VEH_INPUT,
 } from '../assets/js/game/net/protocol.js';
 import { AntiCheat, PositionHistory, AC_TEXT } from '../assets/js/game/net/anticheat.js';
-import { recommend, bandwidthFor, maxPlayersForUpload, clientBytes, UploadMeter, UNMEASURED_MAX, INTEREST_MIN, INTEREST_SHARE, RELIABLE_BASE, RELIABLE_PER_HUMAN, RELIABLE_PER_ACTOR } from '../assets/js/game/net/recommend.js';
+import { recommend, bandwidthFor, maxPlayersForUpload, clientBytes, UploadMeter, UNMEASURED_MAX, INTEREST_MIN, INTEREST_SHARE, RELIABLE_BASE, RELIABLE_PER_HUMAN, RELIABLE_PER_ACTOR, VEH_BYTES, VEH_SHARE } from '../assets/js/game/net/recommend.js';
 import { WEAPONS, WEAPON_IDS } from '../assets/js/shared/weapons.data.js';
 import { register } from 'node:module';
 import { pathToFileURL } from 'node:url';
@@ -645,6 +645,14 @@ const quiet = new UploadMeter();
 quiet.sample(0, 0);
 for (let i = 1; i < 10; i++) { quiet.add(500); quiet.sample(0, i); }
 check(!quiet.measured, 'Lobby-Verkehr (500 B/s) zählt nicht als Messung');
+
+// Fahrzeugterm (panzer-mp.md §C.4): + 20 Hz × (2 + V × 60 × 0,5) je Client
+{
+  const d10 = clientBytes(12, { vehicles: 10 }) - clientBytes(12);
+  check(VEH_BYTES === 60 && VEH_SHARE === 0.5 && Math.abs(d10 - 20 * (2 + 10 * 60 * 0.5)) < 1e-6, `Fahrzeugterm: Grenzland (10) + ${Math.round(d10)} B/s je Client`);
+  check(clientBytes(12, { vehicles: 0 }) === clientBytes(12) && bandwidthFor(8, { actors: 12, vehicles: 4 }) > bandwidthFor(8, { actors: 12 }), 'ohne Fahrzeuge unverändert, mit Fahrzeugen mehr Upload');
+  check(maxPlayersForUpload(120000, { actors: 12, vehicles: 10 }) <= maxPlayersForUpload(120000, { actors: 12 }), 'Empfehlung mit Fahrzeugen nicht höher');
+}
 
 console.log(fail ? `${fail} von ${count} Prüfungen fehlgeschlagen` : `Alle ${count} Prüfungen bestanden`);
 process.exit(fail ? 1 : 0);

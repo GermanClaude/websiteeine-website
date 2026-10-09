@@ -2,7 +2,7 @@
 // Prüft Dreiecke je Grafikstufe (low exakt wie vorher), Draw Calls, benannte Teile (Luken, Innenraum, Verschluss),
 // die Modell-API (setHatch/setRack/setHeld/setBreech/setInterior), Wrack-Umschaltung und den Geländewagen.
 // Bilder (vorher/nachher, low und high, beide Teamfarben) nach tools/out/panzer/ (wird nicht eingecheckt).
-// Aufruf: node tools/tank-model-test.mjs [--shots=vorher|nachher] [--only-shots]   (Exit-Code ≠ 0 bei Fehlern)
+// Aufruf: node tools/tank-model-test.mjs [--shots=vorher|nachher] [--q=low,high] [--only-shots]   (Exit-Code ≠ 0 bei Fehlern)
 import { mkdirSync, readFileSync } from 'node:fs';
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 
@@ -82,8 +82,8 @@ async function open(type, quality, lite) {
   });
 }
 
-async function shots(quality) {
-  await waitForLoad();
+async function shots(quality, wait) {
+  if (wait) await waitForLoad();
   await open('mbt', quality, false);
   const pre = SHOTS;
   // Fotoscan-Materialien abwarten (gleiches Bild vorher/nachher)
@@ -128,7 +128,7 @@ async function shots(quality) {
     void r;
     await page.evaluate(() => window.__mt.frames(3));
     const file = `${OUT}${pre}-${quality}-${name}.png`;
-    await page.screenshot({ path: file });
+    await page.screenshot({ path: file, timeout: 180000 });
     console.log(`     Bild ${label}: ${file}`);
   }
   // Geländewagen 3/4 vorn
@@ -139,7 +139,7 @@ async function shots(quality) {
     M.look([v.x - 5.0, v.y + 2.3, v.z - 6.2], [v.x, v.y + 1.0, v.z + 0.2], 50);
   });
   await page.evaluate(() => window.__mt.frames(3));
-  await page.screenshot({ path: `${OUT}${pre}-${quality}-gw4.png` });
+  await page.screenshot({ path: `${OUT}${pre}-${quality}-gw4.png`, timeout: 180000 });
   console.log(`     Bild GW-4 3/4 vorn: ${OUT}${pre}-${quality}-gw4.png`);
   const st = await page.evaluate(() => {
     const D = window.__dev, M = window.__mt;
@@ -151,12 +151,13 @@ async function shots(quality) {
 try {
   mkdirSync(OUT, { recursive: true });
   if (SHOTS) {
-    for (const q of ['low', 'high']) await shots(q);
+    const qs = (arg('q') || 'low,high').split(',');
+    for (const q of qs) await shots(q, q !== qs[0]);
     if (ONLY_SHOTS) throw 'fertig';
   }
 
-  // 1) Dreiecke je Stufe (Vorlagen, unabhängig von der Seitenstufe)
-  await waitForLoad();
+  // 1) Dreiecke je Stufe (Vorlagen, unabhängig von der Seitenstufe) – Last wurde zu Beginn geprüft (ein Browser)
+  if (SHOTS) await waitForLoad();
   await open('mbt', 'low', true);
   const tri = await page.evaluate(() => {
     const M = window.__mt.models, out = {};
@@ -256,7 +257,6 @@ try {
   await page.evaluate(() => window.__mt.frames(2));
 
   // 3) Stufe high: Draw Calls, Teile
-  await waitForLoad();
   await open('mbt', 'high', true);
   r = await page.evaluate(async () => {
     const D = window.__dev, M = window.__mt, md = D.main.model;
@@ -271,7 +271,6 @@ try {
   check(r.hatches === 3, 'high: drei Luken');
 
   // 4) Geländewagen rendert fehlerfrei
-  await waitForLoad();
   await open('jeep', 'high', true);
   r = await page.evaluate(async () => { const D = window.__dev, M = window.__mt; await M.frames(2); return { type: D.main.type, hatches: Object.keys(D.main.model.hatches || {}).length, interior: D.main.model.interior }; });
   check(r.type === 'jeep' && r.hatches === 0 && r.interior === null, 'GW-4: Prüfstand lädt (ohne Luken/Innenraum)');
