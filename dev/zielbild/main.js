@@ -20,14 +20,14 @@ renderer.setPixelRatio(1);
 renderer.setSize(W, H, false);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.AgXToneMapping;
-renderer.toneMappingExposure = Number(q.get('exp') || 1.0);
+renderer.toneMappingExposure = Number(q.get('exp') || 0.8);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 
 /* ------------------------------------------------------------------ Sonne / Kamera */
-const sunAz = THREE.MathUtils.degToRad(Number(q.get('az') || -25)), sunEl = THREE.MathUtils.degToRad(Number(q.get('el') || 13));
+const sunAz = THREE.MathUtils.degToRad(Number(q.get('az') || -25)), sunEl = THREE.MathUtils.degToRad(Number(q.get('el') || 7));
 const sunDir = new THREE.Vector3(Math.sin(sunAz) * Math.cos(sunEl), Math.sin(sunEl), -Math.cos(sunAz) * Math.cos(sunEl)).normalize();
-const sunCol = new THREE.Color(1.0, 0.7, 0.44);
+const sunCol = new THREE.Color(1.0, 0.62, 0.36);
 const hazeCol = new THREE.Color(q.get('haze') || '#c99a74').multiplyScalar(Number(q.get('hazek') || 1));
 
 const camera = new THREE.PerspectiveCamera(Number(q.get('fov') || 56), W / H, 0.03, 4000);
@@ -52,11 +52,11 @@ const pmrem = new THREE.PMREMGenerator(renderer);
   const g = new THREE.Mesh(new THREE.CircleGeometry(2000, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.075, 0.062, 0.05) }));
   g.rotation.x = -Math.PI / 2; g.position.y = -2; es.add(g);
   scene.environment = pmrem.fromScene(es, 0.0, 0.1, 5000).texture;
-  scene.environmentIntensity = Number(q.get('envk') || 1.0);
+  scene.environmentIntensity = Number(q.get('envk') || 0.5);
 }
 lap('Himmel/IBL');
 
-const sun = new THREE.DirectionalLight(sunCol, Number(q.get('sun') || 3.2));
+const sun = new THREE.DirectionalLight(sunCol, Number(q.get('sun') || 6));
 const focus = new THREE.Vector3(-8, 0, -40);
 sun.position.copy(focus).addScaledVector(sunDir, 200);
 sun.target.position.copy(focus);
@@ -91,7 +91,7 @@ world.add(stacks([
   { x: -30, z: -84, nx: 5, nz: 2, h0: 1, h1: 2, ppm: 32 },
 ]));
 lap('Stapel');
-const cr = crane({ x0: -37.6, z0: -63.4 }); world.add(cr);
+const cr = crane({ x0: -45, z0: -80 }); world.add(cr);
 world.add(farStuff());
 world.add(clutter());
 lap('Kran/Ferne');
@@ -108,8 +108,10 @@ try {
     for (let i = 0; i < 90; i++) s.animate(1 / 60, { ...params, position: pos });
     s.updateLod(4); s.updateLod(4);
     s.setShadows(true);
+    s.root.visible = true;
     s.root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     world.add(s.root);
+    (window.__sold ||= []).push(s);
     return s;
   };
   mk(new THREE.Vector3(0.6, 0, -23), -1.2, { speed: 5.2, sprint: false, aimYaw: -0.9, aimPitch: 0.0 }, 'urban');
@@ -139,9 +141,9 @@ lap('Gewehr');
   vm.add(buildSleeve(wrist, elbow, 0.031, 0.05));
 }
 lap('Hand/Ärmel');
-vm.position.set(Number(q.get('vx') || 0.155), Number(q.get('vy') || -0.142), Number(q.get('vz') || -0.4));
+vm.position.set(Number(q.get('vx') || 0.18), Number(q.get('vy') || -0.165), Number(q.get('vz') || -0.52));
 vm.rotation.order = 'YXZ';
-vm.rotation.set(Number(q.get('vp') || 0.06), Number(q.get('vyaw') || 0.1), Number(q.get('vr') || 0.08));
+vm.rotation.set(Number(q.get('vp') || 0.1), Number(q.get('vyaw') || 0.08), Number(q.get('vr') || 0.1));
 const vmPivot = new THREE.Group();
 vmPivot.add(vm);
 vmPivot.position.copy(camera.position); vmPivot.quaternion.copy(camera.quaternion);
@@ -161,9 +163,10 @@ vmScene.add(vsun, vsun.target);
 
 /* ------------------------------------------------------------------ Nachbearbeitung + Spiegelung */
 const post = buildPost(renderer, { scene, vmScene, camera, sky, w: W, h: H, sunDir, sunCol, hazeCol });
-post.haze.uniforms.uDensity.value = Number(q.get('fog') || 0.006);
-post.haze.uniforms.uRays.value = Number(q.get('rays') || 1.0);
-post.bloom.strength = Number(q.get('bloom') || 0.3);
+post.haze.uniforms.uDensity.value = Number(q.get('fog') || 0.0045);
+post.haze.uniforms.uRays.value = Number(q.get('rays') ?? 0.35);
+post.bloom.strength = Number(q.get('bloom') ?? 0.05);
+post.haze.uniforms.uDbg.value = Number(q.get('dbg') || 0);
 
 function renderReflection() {
   // Welt an y = 0 spiegeln (Sonne/Himmel inklusive), Boden ausblenden
@@ -184,12 +187,15 @@ window.zielbild = {
     renderReflection();
     lap('Spiegelung');
     post.update();
-    post.composer.render();
+    if (q.get('raw')) {
+      renderer.setRenderTarget(null); renderer.autoClear = true; renderer.render(scene, camera);
+      renderer.autoClear = false; renderer.clearDepth(); renderer.render(vmScene, camera); renderer.autoClear = true;
+    } else post.composer.render();
     lap('Bild');
     const gl = renderer.getContext(); gl.finish();
     return { ms: Math.round(performance.now() - t), url: canvas.toDataURL('image/png') };
   },
-  info() { return { tris: renderer.info.render.triangles, calls: renderer.info.render.calls, sunUV: post.haze.uniforms.uSunUV.value.toArray() }; },
+  info() { const S = (window.__sold || []).map((s) => ({ p: s.root.position.toArray(), lod: s.lod, vis: s.meshes.map((m) => m.visible), st: s.state, hips: s.bones[0].position.toArray() })); return { S, tris: renderer.info.render.triangles, calls: renderer.info.render.calls, sunUV: post.haze.uniforms.uSunUV.value.toArray() }; },
 };
 lap('bereit');
 document.title = 'Zielbild bereit';

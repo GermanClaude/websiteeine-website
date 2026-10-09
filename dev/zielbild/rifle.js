@@ -17,10 +17,11 @@ function shapeFrom(pts) {
 }
 function finish(g, edge = true, crease = 35) {
   g = g.index ? g.toNonIndexed() : g;
-  g = toCreasedNormals(g, (crease * Math.PI) / 180);
+  g.computeVertexNormals(); // flach je Dreieck → Kantenmaß ohne Verschmieren über Deckflächen
   const n = g.attributes.normal, c = n.count;
   const e = new Float32Array(c);
   if (edge) for (let i = 0; i < c; i++) { const nz = Math.abs(n.getZ(i)), nxy = Math.hypot(n.getX(i), n.getY(i)); e[i] = Math.min(1, Math.min(nz, nxy) * 2.6); }
+  g = toCreasedNormals(g, (crease * Math.PI) / 180);
   g.setAttribute('aEdge', new THREE.BufferAttribute(e, 1));
   if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(c * 2), 2));
   return g;
@@ -65,11 +66,11 @@ function lathe(prof, seg = 40, { x = 0, y = 0 } = {}) {
   g.translate(x, y, 0);
   g = g.toNonIndexed();
   g.computeVertexNormals();
-  g = toCreasedNormals(g, (40 * Math.PI) / 180);
   const c = g.attributes.position.count;
-  // Kanten: Normalen mit großer s-Komponente → Stirnflächen-Ränder
+  // Kanten: schräge Flächen (Fasen an Stirnseiten), flach je Dreieck bestimmt
   const n = g.attributes.normal, e = new Float32Array(c);
   for (let i = 0; i < c; i++) { const nz = Math.abs(n.getZ(i)); e[i] = nz > 0.3 && nz < 0.95 ? 0.8 : 0; }
+  g = toCreasedNormals(g, (40 * Math.PI) / 180);
   g.setAttribute('aEdge', new THREE.BufferAttribute(e, 1));
   return g;
 }
@@ -86,10 +87,12 @@ function cyl(r, h, seg = 20, { axis = 'x', pos = [0, 0, 0], r2 = r } = {}) {
 
 /* ------------------------------------------------------------------ Material (Dreifach-Detail + Kantenabrieb) */
 let DET = null;
+const QW = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
+const WEARK = Number(QW.get('wear') ?? 1);
 export function gunMat({ color, rough = 0.55, metal = 0.2, edge = '#9a958c', edgeMetal = 0.9, wear = 1, fp = 1, clear = 0, sheen = 0, scale = 9 }) {
   if (!DET) DET = gunDetailTile(1024);
   const m = new THREE.MeshPhysicalMaterial({ color, roughness: rough, metalness: metal, clearcoat: clear, clearcoatRoughness: 0.4, sheen, sheenRoughness: 0.5, sheenColor: new THREE.Color(color).multiplyScalar(1.5) });
-  const U = { tDet: { value: DET }, uDS: { value: scale }, uEdgeCol: { value: new THREE.Color(edge) }, uEdgeMetal: { value: edgeMetal }, uWear: { value: wear }, uFP: { value: fp } };
+  const U = { tDet: { value: DET }, uDS: { value: scale }, uEdgeCol: { value: new THREE.Color(edge) }, uEdgeMetal: { value: edgeMetal }, uWear: { value: wear * WEARK }, uFP: { value: fp } };
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aEdge; varying float vEdge; varying vec3 vOP; varying vec3 vON;')
@@ -225,9 +228,9 @@ export function buildRifle() {
   }
   // --- Materialien
   const M = {
-    recv: gunMat({ color: '#2b2c2c', rough: 0.5, metal: 0.35, edge: '#a7a39a', wear: 1, fp: 1, scale: 9 }),          // Cerakote Graphit
-    poly: gunMat({ color: '#6b5b45', rough: 0.68, metal: 0.0, edge: '#8c7a60', edgeMetal: 0, wear: 0.6, fp: 0.6, scale: 11 }), // FDE-Polymer
-    optic: gunMat({ color: '#141516', rough: 0.36, metal: 0.55, edge: '#8f8b84', wear: 0.8, fp: 1.2, scale: 10 }),    // eloxiert
+    recv: gunMat({ color: '#1c1d1e', rough: 0.55, metal: 0.15, edge: '#8d8a83', wear: 0.8, fp: 1, scale: 9 }),          // Cerakote Graphit
+    poly: gunMat({ color: '#56493a', rough: 0.72, metal: 0.0, edge: '#8c7a60', edgeMetal: 0, wear: 0.6, fp: 0.6, scale: 11 }), // FDE-Polymer
+    optic: gunMat({ color: '#0f1011', rough: 0.4, metal: 0.35, edge: '#8f8b84', wear: 0.8, fp: 1.2, scale: 10 }),    // eloxiert
     steel: gunMat({ color: '#3c3c3b', rough: 0.36, metal: 0.9, edge: '#b8b4ac', wear: 0.5, fp: 0.8, scale: 12 }),
     dark: gunMat({ color: '#121212', rough: 0.45, metal: 0.6, edge: '#5a5853', wear: 0.4, fp: 0.3, scale: 12 }),
   };

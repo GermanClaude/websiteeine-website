@@ -31,20 +31,23 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export function groundRay(world, origin, dir, maxDist, out = {}) {
   let res = world ? collisionRay(world, origin, dir, maxDist, out) : null;
   if (world && typeof world.heightAt === 'function' && dir.y < -0.5) {
-    // Höhenfeld: einfache Schnittsuche entlang des (fast senkrechten) Strahls
-    const h0 = world.heightAt(origin.x, origin.z);
-    if (Number.isFinite(h0)) {
-      const t0 = (origin.y - h0) / -dir.y;
-      if (t0 >= 0 && t0 <= maxDist && (!res || t0 < res.distance)) {
-        const x = origin.x + dir.x * t0, z = origin.z + dir.z * t0;
-        const h = world.heightAt(x, z);
-        const t = Number.isFinite(h) ? (origin.y - h) / -dir.y : t0;
-        if (t >= 0 && t <= maxDist && (!res || t < res.distance)) {
-          out.distance = t;
-          if (typeof world.normalAt === 'function') { world.normalAt(x, z, _tmp2); out.nx = _tmp2.x; out.ny = _tmp2.y; out.nz = _tmp2.z; }
-          else { out.nx = 0; out.ny = 1; out.nz = 0; }
-          res = out;
-        }
+    // Höhenfeld: Schnitt entlang des Strahls per Sekantenverfahren (auch schräge Federstrahlen am steilen Hang;
+    // die senkrechte Schätzung allein schießt dort über maxDist hinaus und das Rad verlöre den Boden)
+    const f = (t) => { const hh = world.heightAt(origin.x + dir.x * t, origin.z + dir.z * t); return Number.isFinite(hh) ? origin.y + dir.y * t - hh : NaN; };
+    let ta = 0, fa = f(0);
+    if (Number.isFinite(fa) && fa >= 0) {
+      let tb = fa / -dir.y, fb = f(tb);
+      for (let k = 0; k < 4 && Number.isFinite(fb) && Math.abs(fb) > 1e-4 && fb !== fa; k++) {
+        const tc = tb - fb * (tb - ta) / (fb - fa);
+        ta = tb; fa = fb; tb = tc; fb = f(tc);
+      }
+      const t = tb;
+      if (Number.isFinite(t) && t >= 0 && t <= maxDist && (!res || t < res.distance)) {
+        const x = origin.x + dir.x * t, z = origin.z + dir.z * t;
+        out.distance = t;
+        if (typeof world.normalAt === 'function') { world.normalAt(x, z, _tmp2); out.nx = _tmp2.x; out.ny = _tmp2.y; out.nz = _tmp2.z; }
+        else { out.nx = 0; out.ny = 1; out.nz = 0; }
+        res = out;
       }
     }
   }
@@ -68,8 +71,10 @@ export class VehicleBody {
     this.prevQuat = new THREE.Quaternion();
     this.renderPos = new THREE.Vector3();
     this.renderQuat = new THREE.Quaternion();
-    this.controls = { throttle: 0, steer: 0, brake: 0, handbrake: false };
-    this.mods = { speedMult: 1, immobile: false, turnMult: 1 };
+    // Steuerung (vehicle.js aus der Fahrer-Absicht): throttle 'auto' −1 … 1 bzw. 'hold' 0 … 1 (Vollgas-Anteil)
+    this.controls = { throttle: 0, steer: 0, brake: 0, handbrake: false, gearbox: 'auto' };
+    // Fahrleistung aus Schäden (vehicle.js): Motormoment-Faktor, höchster Gang, Abregeldrehzahl (Notlauf)
+    this.mods = { torque: 1, maxGear: 5, immobile: false, turnMult: 1, cutRpm: null };
     this.acc = 0;
     this.sleeping = false;
     this._still = 0;
@@ -80,9 +85,11 @@ export class VehicleBody {
     this.upsideDown = 0;   // Sekunden auf dem Dach/Seite
     this.trackSpeed = [0, 0]; // Ketten links/rechts (m/s, für Texturlauf und Klang)
     this.slip = 0;         // Querrutschen (Reifenquietschen/Staub)
-    this.rpm = 0;          // 0..1 (Klang)
     this.drivetrain = new Drivetrain(def); // Triebwerk/Getriebe (drivetrain.js)
-    this.drive = this.drivetrain.state;    // Gang, Drehzahl, Last … (HUD, Klang, Netz)
+    this.drive = this.drivetrain.state;    // Gang, Drehzahl, Last … (HUD, Klang, Netz); body.rpm = drive.rpmNorm
+    this.surface = 'default'; // Oberfläche unter der Wanne (Reibwert, Rollwiderstand), ≤ 4× je Sekunde abgefragt
+    this._surfT = 0;
+    this._aLong = 0;       // Längsbeschleunigung des letzten Schritts (Drehmassen)
 
     const w = def.wheels, my = mountY(def);
     this.suspLen = w.rest + w.radius;
@@ -130,6 +137,10 @@ export class VehicleBody {
 
   wake() { this.sleeping = false; this._still = 0; }
 
+  /** Alter Name (0 … ~1,06, Klang/Netz): normierte Motordrehzahl. */
+  get rpm() { return this.drive.rpmNorm; }
+  set rpm(v) { /* nur lesen – Drehzahl schreibt das Triebwerk (bzw. auf Abbildern das Netz in drive.*) */ }
+
   /** Lokaler Punkt → Welt (aktueller Simulationszustand). */
   toWorld(local, out) { return out.copy(local).sub(this.com).applyQuaternion(this.quat).add(this.pos); }
   /** Lokaler Punkt → Welt (interpolierte Darstellung). */
@@ -167,8 +178,8 @@ export class VehicleBody {
    * @returns {number} Anzahl Schritte
    */
   update(dt, world) {
-    const c = this.controls;
-    if (Math.abs(c.throttle) > 0.01 || Math.abs(c.steer) > 0.01) this.wake();
+    const c = this.controls, D = this.drive;
+    if (Math.abs(c.throttle) > 0.01 || Math.abs(c.steer) > 0.01 || D.gear !== 0 || D.targetGear !== 0) this.wake();
     if (this.sleeping) { this.renderPos.copy(this.pos); this.renderQuat.copy(this.quat); return 0; }
     this.acc = Math.min(this.acc + dt, STEP * MAX_STEPS);
     let n = 0;
@@ -181,9 +192,9 @@ export class VehicleBody {
     const a = this.acc / STEP;
     this.renderPos.lerpVectors(this.prevPos, this.pos, a);
     this.renderQuat.slerpQuaternions(this.prevQuat, this.quat, a);
-    // Schlaf: steht, keine Eingabe
+    // Schlaf: steht in N, keine Eingabe (im eingelegten Gang hält der Regler das Fahrzeug wach)
     const still = this.grounded > 0.5 && this.vel.lengthSq() < 0.0025 && this.angVel.lengthSq() < 0.0025
-      && Math.abs(c.throttle) < 0.01 && Math.abs(c.steer) < 0.01;
+      && Math.abs(c.throttle) < 0.01 && Math.abs(c.steer) < 0.01 && D.gear === 0 && D.targetGear === 0;
     this._still = still ? this._still + dt : 0;
     if (this._still > 1.2) { this.sleeping = true; this.vel.set(0, 0, 0); this.angVel.set(0, 0, 0); this.renderPos.copy(this.pos); this.renderQuat.copy(this.quat); }
     return n;
@@ -218,48 +229,50 @@ export class VehicleBody {
     this.grounded = contacts / this.wheels.length;
     const vF = this.vel.dot(fwd);
     this.speed = vF;
-    const cap = (vF >= -0.3 ? E.maxSpeed : E.reverseSpeed) * mods.speedMult;
 
-    // --- Antrieb (Gesamtkraft, auf Antriebsräder mit Kontakt verteilt)
-    let throttle = mods.immobile ? 0 : clamp(c.throttle, -1, 1);
-    let driveTotal = 0;
-    if (throttle > 0.01) {
-      const r = vF > 0 ? clamp(vF / cap, 0, 1) : 0;
-      driveTotal = E.force * throttle * (1 - r * r * r);
-    } else if (throttle < -0.01) {
-      if (vF > 1.2 && !this.tracked) driveTotal = 0; // Rad: erst bremsen (siehe unten)
-      else {
-        const r = vF < 0 ? clamp(-vF / (E.reverseSpeed * mods.speedMult), 0, 1) : 0;
-        driveTotal = E.force * throttle * (1 - r * r * r);
-      }
-    }
-    // „S“ bei Vorwärtsfahrt bremst (Rad) – Ketten kehren nur langsam um (Motorbremse + Gegenschub)
-    let brake = clamp(c.brake, 0, 1);
-    if (!this.tracked && throttle < -0.01 && vF > 1.2) brake = Math.max(brake, -throttle);
-    if (this.tracked && throttle < -0.01 && vF > 0.8) brake = Math.max(brake, -throttle * 0.6);
-    if (mods.immobile) brake = Math.max(brake, 0.6);
-    let drivers = 0;
-    for (const w of this.wheels) if (w.contact && w.drive) drivers++;
-    const drivePer = drivers ? driveTotal / drivers : 0;
-    const mEff = m / Math.max(1, contacts);
-    const steerIn = clamp(c.steer, -1, 1);
-    const steerA = this.tracked ? 0 : steerIn * (W.maxSteer || 0.5) / (1 + Math.abs(vF) / 9);
-    const turning = this.tracked && Math.abs(steerIn) > 0.1;
-    let slip = 0;
-    this.rpm += ((Math.abs(throttle) * 0.55 + Math.min(1, Math.abs(vF) / (E.maxSpeed || 10)) * 0.6) - this.rpm) * Math.min(1, h * 4);
-
+    // --- Federkräfte und Radlasten (Antrieb verteilt sich nach Last – die Kette koppelt alle Laufrollen)
+    let loadSum = 0, driveLoad = 0;
     for (const w of this.wheels) {
-      w.steerAngle = w.steer ? steerA : 0;
-      if (!w.contact) { w.load = 0; continue; }
-      // Federkraft
+      if (!w.contact) { w.load = 0; w.Fs = 0; continue; }
       const cvel = clamp((w.comp - w.prevComp) / h, -6, 6);
       let Fs = W.stiffness * w.comp + W.damping * cvel;
       if (w.comp > W.rest * 0.92) Fs += W.stiffness * 6 * (w.comp - W.rest * 0.92); // Anschlag
       Fs = clamp(Fs, 0, m * GRAVITY * 3);
-      const nUp = Math.max(0, w.normal.dot(up));
-      const N = Fs * nUp;
-      w.load = N;
-      _tmp.copy(w.normal).multiplyScalar(Fs);
+      w.Fs = Fs;
+      w.load = Fs * Math.max(0, w.normal.dot(up));
+      loadSum += w.load;
+      if (w.drive) driveLoad += w.load;
+    }
+
+    // --- Oberfläche (zwischengespeichert) → Reibwert längs, Rollwiderstand
+    this._surfT -= h;
+    if (this._surfT <= 0) {
+      this._surfT = 0.25;
+      let sf = null;
+      if (world && typeof world.surfaceAt === 'function') { try { sf = world.surfaceAt(this.origin(_tmp2)); } catch { sf = null; } }
+      this.surface = sf || 'default';
+    }
+    const surf = this.surface;
+    const trac = E.traction ? (E.traction[surf] ?? E.traction.default ?? 1) : 1;
+    const crr = E.rollRes ? (E.rollRes[surf] ?? E.rollRes.default ?? 0.03) : 0.03;
+    const muLong = this.tracked ? trac : (grip.long || 1) * trac;
+
+    // --- Triebwerk: Zugkraft am Triebrad (Reibungsgrenze je Rad unten), Bremse
+    const out = this.drivetrain.step(h, vF, c, mods, surf);
+    const driveTotal = contacts ? out.force : 0;
+    let brake = clamp(Math.max(c.brake || 0, out.brake || 0), 0, 1);
+    if (mods.immobile) brake = Math.max(brake, 0.6);
+    const mEff = m / Math.max(1, contacts);
+    const steerIn = clamp(c.steer, -1, 1);
+    const steerA = this.tracked ? 0 : steerIn * (W.maxSteer || 0.5) / (1 + Math.abs(vF) / 9);
+    const turning = this.tracked && Math.abs(steerIn) > 0.1;
+    let slip = 0, tSlip = 0;
+
+    for (const w of this.wheels) {
+      w.steerAngle = w.steer ? steerA : 0;
+      if (!w.contact) continue;
+      const N = w.load;
+      _tmp.copy(w.normal).multiplyScalar(w.Fs);
       _F.add(_tmp);
       _r.copy(w.point).sub(this.pos);
       _T.add(_tmp2.crossVectors(_r, _tmp));
@@ -274,18 +287,20 @@ export class VehicleBody {
       let latGrip = grip.lat;
       if (turning) latGrip = grip.latTurning;
       if (c.handbrake && w.rear) latGrip = grip.handbrakeLat ?? latGrip * 0.4;
-      const latMax = latGrip * N, longMax = grip.long * N;
+      const latMax = latGrip * N, longMax = muLong * N;
       let Flat = clamp(-vLat * mEff / h * 0.55, -latMax * 1.6, latMax * 1.6);
-      let Flong = w.drive ? drivePer : 0;
-      // Bremse / Handbremse / Motorbremse
+      let Flong = w.drive && driveLoad > 0 ? driveTotal * (N / driveLoad) : 0;
+      const Fdrive = Flong;
+      // Bremse / Handbremse (geschwindigkeitsbegrenzt: hält im Stand, kehrt nicht um)
       let bk = brake;
       if (c.handbrake && (w.rear || this.tracked)) bk = 1;
       if (bk > 0) Flong += -Math.sign(vLong) * Math.min(E.brake / this.wheels.length * bk, Math.abs(vLong) * mEff / h);
-      if (Math.abs(throttle) < 0.01) Flong += clamp(-vLong * mEff * (this.tracked ? 1.4 : 0.35), -longMax, longMax);
-      Flong += -vLong * 0.015 * N;
+      // Rollwiderstand (weich um den Stillstand)
+      Flong -= clamp(vLong / 0.25, -1, 1) * crr * N;
       // Reibungskreis
       const k = Math.hypot(Flat / Math.max(1, latMax), Flong / Math.max(1, longMax));
       if (k > 1) { Flat /= k; Flong /= k; slip = Math.max(slip, Math.min(1, k - 1)); }
+      if (Fdrive) tSlip = Math.max(tSlip, clamp(Math.abs(Fdrive) / Math.max(1, longMax) - 1, 0, 1), k > 1 ? Math.min(1, k - 1) : 0);
       slip = Math.max(slip, Math.min(1, Math.abs(vLat) / 6));
       _tmp.copy(_f).multiplyScalar(Flong).addScaledVector(_s, Flat);
       // Angriffspunkt Richtung Schwerpunkthöhe angehoben (weniger Wanken)
@@ -296,21 +311,36 @@ export class VehicleBody {
       w.spin += (vLong / W.radius) * h;
     }
     this.slip = slip;
+    const D = this.drive;
+    D.slip += (tSlip - D.slip) * Math.min(1, h / 0.15);
 
-    // --- Ketten: Gier-Regler (Differentiallenkung, auch auf der Stelle)
+    // --- Luftwiderstand (entlang der Fahrt)
+    const sp = this.vel.length();
+    if (sp > 0.01 && E.airRes) _F.addScaledVector(this.vel, -E.airRes * sp);
+
+    // --- Drehmassen (Motor, Getriebe, Ketten): wirken wie zusätzliche Masse in Fahrtrichtung
+    const lam = (E.rotInertia || 1) - 1;
+    // (Rückkopplung über den vorigen Schritt: a = (F − λ'·m·a) / m → F / (m·(1 + λ')); stabil, da λ' < 1)
+    if (contacts && lam > 0) _F.addScaledVector(fwd, -lam * m * this._aLong);
+    this._aLong = contacts ? clamp(_F.dot(fwd) / m, -20, 20) : 0;
+
+    // --- Ketten: Gier-Regler (Differentiallenkung, auch auf der Stelle = Neutrallenkung in N)
     if (this.tracked) {
-      const rev = vF < -0.5 || (throttle < -0.1 && vF < 0.5);
-      const rate = (Math.abs(vF) < 2 ? E.turnRate : E.turnRateMoving) * mods.turnMult * (mods.immobile ? 0 : 1);
+      const gdir = Math.sign(D.shifting ? D.targetGear : D.gear);
+      const rev = vF < -0.5 || (gdir < 0 && vF < 0.5) || (c.throttle < -0.1 && vF < 0.5);
+      const av = Math.abs(vF);
+      const rate = (av < 2 ? E.turnRate : Math.min(E.turnRateMoving, (E.latAccMax || 99) / av)) * mods.turnMult * (mods.immobile ? 0 : 1);
       const target = -steerIn * rate * (rev ? -1 : 1);
       const wy = this.angVel.dot(up);
       if (contacts) {
-        const tq = (target - wy) * this.inertia.y * 9 * this.grounded;
+        const tq = (target - wy) * this.inertia.y * 22 * this.grounded; // straff: Seitenführung der Ketten bremst die Drehung
         _T.addScaledVector(up, tq);
       }
-      // Kettenlauf für Darstellung/Klang
+      // Kettenlauf für Darstellung/Klang (Durchdrehen sichtbar)
       const diff = (target) * (W.x || 1.4);
-      this.trackSpeed[0] = vF - diff; // links
-      this.trackSpeed[1] = vF + diff; // rechts
+      const spin = D.slip * Math.sign(driveTotal) * 2.5;
+      this.trackSpeed[0] = vF - diff + spin; // links
+      this.trackSpeed[1] = vF + diff + spin; // rechts
     } else {
       this.trackSpeed[0] = this.trackSpeed[1] = vF;
     }
@@ -320,8 +350,6 @@ export class VehicleBody {
     this._applyAngular(_T, h);
     const damp = def.angularDamp * (contacts ? 1 : 0.25);
     this.angVel.multiplyScalar(1 / (1 + damp * h));
-    const sp = this.vel.length();
-    if (sp > 0) this.vel.multiplyScalar(1 / (1 + (def.drag || 0.5) * 0.01 * sp * h));
     // Selbstaufrichtung in der Luft/auf der Seite (sanft)
     const tilt = up.dot(UP);
     if (tilt < 0.6) {

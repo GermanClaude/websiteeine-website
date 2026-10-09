@@ -1,7 +1,7 @@
 // NULLPUNKT — Fahrzeug-Prüfstand (dev/vehicles.html): Testgelände mit Rampe, Hang, Hügel, Mauer, Blöcken und
 // Bordsteinen; echte VehicleSystem/Combat-Klassen, schlanke Ersatz-Eingabe (Tastatur/Maus, Pointer-Lock),
 // Zielpuppen (feindliche Akteure) und Skript-Hooks (window.__dev) für automatisierte Fahrtests.
-// URL: ?type=mbt|jeep&cam=tp|fp&quality=high&seat=0&auto=1&dummies=1&enemy=1
+// URL: ?type=mbt|jeep&cam=tp|fp&quality=high&seat=0&auto=1&dummies=1&enemy=1&gearbox=halten|automatik
 import * as THREE from 'three';
 import { EventBus } from '../assets/js/game/engine/events.js';
 import { CapsuleBody } from '../assets/js/game/engine/physics.js';
@@ -14,6 +14,7 @@ import { DEFAULT_BINDINGS, codeLabel } from '../assets/js/shared/bindings.data.j
 import * as WD from '../assets/js/shared/weapons.data.js';
 import { VehicleSystem } from '../assets/js/game/vehicles/index.js';
 import { vehicleTriangles } from '../assets/js/game/vehicles/models.js';
+import { gearName } from '../assets/js/game/vehicles/drivetrain.js';
 
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('view');
@@ -292,6 +293,10 @@ document.getElementById('auto').onclick = () => autopilotLap(sys.nearest(player.
 document.getElementById('enemy').onclick = addEnemy;
 document.getElementById('quality').value = G.renderer.quality;
 document.getElementById('quality').onchange = (e) => { const u = new URL(location.href); u.searchParams.set('quality', e.target.value); location.href = u.href; };
+// Panzer-Getriebe (Spieleinstellung vehGearbox): „Gang halten“ (W/S tippen) oder Automatik
+const gbSel = document.getElementById('gearbox');
+if (params.get('gearbox')) settings.set('vehGearbox', params.get('gearbox') === 'automatik' ? 'automatik' : 'halten');
+if (gbSel) { gbSel.value = settings.get('vehGearbox') || 'halten'; gbSel.onchange = (e) => settings.set('vehGearbox', e.target.value); }
 window.__dev = { G, sys, world, player, input, spawn, addDummies, addEnemy, autopilotLap, get main() { return main; }, get enemy() { return enemy; }, other, vehicleTriangles };
 
 function resize() {
@@ -329,6 +334,7 @@ function frame(now) {
     statsEl.textContent = `FPS ${fps.toFixed(0)} · Draw ${renderer.info.render.calls} · Tris ${(renderer.info.render.triangles / 1000).toFixed(1)}k\n`
       + `${v.name}: ${(Math.abs(v.body.speed) * 3.6).toFixed(0)} km/h · HP ${Math.ceil(v.health)}\n`
       + `Boden ${(v.body.grounded * 100).toFixed(0)} % · schläft ${v.body.sleeping ? 'ja' : 'nein'}\n`
+      + `Gang ${gearName(v.def, v.body.drive.gear)}${v.body.drive.shifting || v.body.drive.targetGear !== v.body.drive.gear ? '→' + gearName(v.def, v.body.drive.targetGear) : ''} · ${Math.round(v.body.drive.rpm)}/min · Last ${(v.body.drive.throttle * 100).toFixed(0)} % · ${v.body.drive.gearbox === 'hold' ? 'Gang halten' : 'Automatik'}${v.body.drive.lugging ? ' · zu niedrig!' : ''}\n`
       + `Fahrzeuge ${s.vehicles} · Granaten ${s.shells} · ${s.ms.toFixed(2)} ms`;
   }
 }

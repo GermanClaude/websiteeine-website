@@ -1,9 +1,12 @@
 // NULLPUNKT — Fahrzeug-HUD (deutsch, minimal): Einsteige-Hinweis, Fahrzeugtafel (Zustand, Zonen, Tempo, Waffen mit
-// Munition/Nachladebalken, Sitzliste), Optik-Strichplatte mit Vergrößerung, Rohr-Marker (wohin das Rohr wirklich
-// zeigt), Treffer-/Schadensblitz, Warnungen und die Touch-Knöpfe fürs Fahren. Eigene Styles (kein game.css-Eingriff).
-// DOM-Schreibzugriffe nur bei Änderung (zwischengespeicherte Werte) – kein Layout je Bild.
+// Munition/Nachladebalken, Kanonenstatus + Gestell, Sitzliste mit Wechselstatus), Sicht-Overlays (views.js:
+// Winkelspiegel, Hauptzieloptik mit Entfernungsmarken, Periskop, Fernglas, Ladeschützen-Schritte), Rohr-Marker (wohin
+// das Rohr wirklich zeigt), Treffer-/Schadensblitz, Warnungen, Aussteige-Ring (Pad/VR halten) und die Touch-Knöpfe.
+// Eigene Styles (kein game.css-Eingriff). DOM-Schreibzugriffe nur bei Änderung (zwischengespeicherte Werte).
 import * as THREE from 'three';
 import { DriveHUD } from './hud-drive.js';
+import { ViewOverlay, VIEW_CSS } from './views.js';
+import { SHORT, loaderSeat } from './crew.js';
 
 const CSS = `
 .vh-root{position:absolute;inset:0;pointer-events:none;font-family:var(--font-hud,system-ui,sans-serif);color:var(--np-ink,#e9e6df);z-index:4}
@@ -64,7 +67,22 @@ body[data-vehicle-near]:not([data-vehicle]) .vc-enter{display:grid}
 .vc-brake{--s:56;left:calc(3% + env(safe-area-inset-left) + var(--tc-u) * 70);bottom:calc(60% + env(safe-area-inset-bottom));border-radius:14px}
 body[data-vehicle] .tc-jump,body[data-vehicle] .tc-crouch,body[data-vehicle] .tc-grenade,body[data-vehicle] .tc-tactical,body[data-vehicle] .tc-melee,body[data-vehicle] .tc-reload,body[data-vehicle] .tc-lean-l,body[data-vehicle] .tc-lean-r,body[data-vehicle] .tc-light,body[data-vehicle] .tc-streaks,body[data-vehicle] .tc-adsfire,body[data-vehicle] .tc-fire-l{display:none!important}
 body[data-vehicle][data-vehicle-arms="0"] .tc-fire-r,body[data-vehicle][data-vehicle-arms="0"] .tc-ads,body[data-vehicle][data-vehicle-arms="0"] .tc-swap{display:none!important}
-`;
+.vh-gunst{position:relative;display:flex;justify-content:space-between;gap:6px;margin-top:5px;padding:3px 6px;border-radius:3px;font-size:13px;font-weight:600;background:rgba(233,230,223,.08);overflow:hidden}
+.vh-gunst.is-ok{color:#bfe8a8}.vh-gunst.is-empty{color:#ffc23d}
+.vh-gunst i{position:absolute;left:0;bottom:0;height:2px;width:100%;background:#ffc23d;transform-origin:left;transform:scaleX(0)}
+.vh-rack{margin-top:2px;font-size:12px;opacity:.85;font-variant-numeric:tabular-nums}.vh-rack em{font-style:normal;color:#bfe8a8}
+.vh-seats .is-wait{opacity:.6}
+.vh-note{position:absolute;left:50%;top:30%;transform:translateX(-50%);padding:4px 12px;border-radius:4px;background:rgba(10,11,13,.6);font-size:16px;font-weight:700;letter-spacing:.06em;white-space:nowrap}
+.vh-note.is-warn{background:rgba(160,30,15,.62)}
+.vh-exit{position:absolute;left:50%;top:58%;width:64px;height:64px;margin-left:-32px;border-radius:50%;background:conic-gradient(#ffc23d calc(var(--p,0)*360deg),rgba(233,230,223,.18) 0);-webkit-mask:radial-gradient(circle,transparent 24px,#000 25px);mask:radial-gradient(circle,transparent 24px,#000 25px)}
+.vh-exitl{position:absolute;left:50%;top:calc(58% + 70px);transform:translateX(-50%);font-size:13px;font-weight:700;letter-spacing:.08em;text-shadow:0 1px 2px #000}
+.vh-note[hidden],.vh-exit[hidden],.vh-exitl[hidden],.vh-gunst[hidden],.vh-rack[hidden]{display:none}
+.vc-load{--s:66;right:calc(2.2% + env(safe-area-inset-right) + var(--tc-u) * 86);bottom:calc(30% + env(safe-area-inset-bottom));border-color:rgba(255,194,61,.85);background:rgba(255,194,61,.18)}
+.vc-ammo{--s:50;right:calc(2.2% + env(safe-area-inset-right) + var(--tc-u) * 160);bottom:calc(18% + env(safe-area-inset-bottom))}
+body[data-vehicle]:not([data-vehicle-loader="1"]) .vc-btn.vc-load,body[data-vehicle]:not([data-vehicle-loader="1"]) .vc-btn.vc-ammo{display:none}
+body[data-vehicle][data-vehicle-loader="1"] .tc-swap{display:none!important}
+body[data-input-mode="touch"] .vh-gunst{font-size:12px;padding:2px 5px}body[data-input-mode="touch"] .vh-rack{font-size:11px}
+` + VIEW_CSS;
 
 const TANK_RET = `<svg viewBox="-160 -160 320 320" fill="none" stroke="#f2efe6" stroke-width="1.6">
 <path d="M-150 0H-26M26 0H150M0 26V120"/><path d="M-10 14L0 4L10 14" stroke-width="2"/>
@@ -80,11 +98,13 @@ const TP_RET = `<svg viewBox="-160 -160 320 320" fill="none" stroke="#f2efe6" st
 const TOUCH = [
   ['vc-enter', 'v_enter', 'Ein-<br>steigen', false],
   ['vc-exit', 'v_exit', 'Aus-<br>steigen', true],
-  ['vc-cam', 'v_camera', 'Kamera', true],
+  ['vc-cam', 'v_camera', 'Sicht', true],
   ['vc-seat', 'v_seat', 'Sitz', true],
   ['vc-light', 'v_light', 'Licht', true],
   ['vc-gas', 'v_gas', 'Gas', true],
   ['vc-brake', 'v_brake', 'Brem-<br>se', true],
+  ['vc-load', 'v_load', 'Laden', true],
+  ['vc-ammo', 'v_ammo', 'PG/SG', true],
 ];
 
 const _v = new THREE.Vector3();
@@ -120,9 +140,13 @@ export class VehicleHUD {
         <div class="vh-hp"><i></i></div><div class="vh-hpn"></div>
         <div class="vh-zones"></div>
         <div class="vh-weps"></div>
+        <div class="vh-gunst" hidden><b></b><span></span><i></i></div>
+        <div class="vh-rack" hidden></div>
         <div class="vh-seats"></div>
         <div class="vh-hint"></div>
-      </div>`;
+      </div>
+      <div class="vh-note" hidden></div>
+      <div class="vh-exit" hidden></div><div class="vh-exitl" hidden>Aussteigen …</div>`;
     host.appendChild(root);
     this.root = root;
     const q = (s) => root.querySelector(s);
@@ -130,7 +154,11 @@ export class VehicleHUD {
       scope: q('.vh-scope'), dmg: q('.vh-dmg'), ret: q('.vh-ret'), gun: q('.vh-gun'), hit: q('.vh-hit'), zoom: q('.vh-zoom'),
       warn: q('.vh-warn'), prompt: q('.vh-prompt'), panel: q('.vh-panel'), name: q('.vh-name'), speed: q('.vh-speed'),
       hp: q('.vh-hp'), hpBar: q('.vh-hp i'), hpn: q('.vh-hpn'), zones: q('.vh-zones'), weps: q('.vh-weps'), seats: q('.vh-seats'), hint: q('.vh-hint'),
+      gunst: q('.vh-gunst'), gunstB: q('.vh-gunst b'), gunstS: q('.vh-gunst span'), gunstI: q('.vh-gunst i'), rack: q('.vh-rack'),
+      note: q('.vh-note'), exit: q('.vh-exit'), exitl: q('.vh-exitl'),
     };
+    // Sicht-Overlays (unter allen anderen HUD-Elementen)
+    this.view = new ViewOverlay(root);
     // Touch-Knöpfe (input.js verarbeitet .tc-btn[data-action] selbst)
     this.touch = [];
     const tui = document.getElementById('touch-ui');
@@ -194,18 +222,25 @@ export class VehicleHUD {
     if (!s.seated) {
       this._body('vehicle', null);
       this._body('vehicleArms', null);
+      this._body('vehicleLoader', null);
       this._set('panelH', el.panel, 'hidden', true);
       this._set('retH', el.ret, 'hidden', true);
       this._set('gunH', el.gun, 'hidden', true);
       this._set('zoomH', el.zoom, 'hidden', true);
       this._set('warnH', el.warn, 'hidden', true);
       this._set('scopeH', el.scope, 'hidden', true);
+      this._set('noteH', el.note, 'hidden', true);
+      this._set('exitH', el.exit, 'hidden', true);
+      this._set('exitlH', el.exitl, 'hidden', true);
+      this.view.hideAll();
       this.drive?.update(dt, s);
       return;
     }
     const v = s.vehicle, seat = s.seat;
+    const loader = !!seat.def.loader;
     this._body('vehicle', v.type);
-    this._body('vehicleArms', seat.weapons.length ? '1' : '0');
+    this._body('vehicleArms', seat.weapons.length || loader ? '1' : '0');
+    this._body('vehicleLoader', loader ? '1' : null);
     this._set('panelH', el.panel, 'hidden', false);
     this._set('name', el.name, 'text', v.name);
     this._set('speed', el.speed, 'html', `${Math.round(Math.abs(v.body.speed) * 3.6)}<small>km/h</small>`);
@@ -219,30 +254,58 @@ export class VehicleHUD {
       zh += `<span class="vh-zone${f <= 0 ? ' is-broken' : f < 0.6 ? ' is-hit' : ''}">${esc(z.label)}</span>`;
     }
     this._set('zones', el.zones, 'html', zh);
-    // Waffen
+    const gs = v.gun;
+    // Waffen (Granaten: Bestand im Gestell, die geladene markiert)
     let wh = '';
     seat.weapons.forEach((w, i) => {
       const sel = i === seat.weaponIndex;
-      let txt;
-      if (w.reloadT > 0) txt = `lädt ${fmt1(w.reloadT)} s`;
-      else if (w.def.kind === 'shell') txt = 'geladen';
-      else txt = `${w.mag}/${w.def.mag}`;
-      const prog = w.reloadT > 0 ? (Math.round((1 - w.reloadT / w.def.reload) * 20) / 20).toFixed(2) : '0';
+      let txt, prog = '0';
+      if (w.def.kind === 'shell') {
+        const n = gs ? gs.rack[w.def.id] ?? 0 : 0;
+        txt = `${gs && gs.loaded === w.def.id ? '● ' : ''}${n}`;
+      } else if (w.reloadT > 0) {
+        txt = `lädt ${fmt1(w.reloadT)} s`;
+        prog = (Math.round((1 - w.reloadT / w.def.reload) * 20) / 20).toFixed(2);
+      } else txt = `${w.mag}/${w.def.mag}`;
       wh += `<div class="vh-wep${sel ? ' is-sel' : ''}"><b>${esc(w.def.name)}</b><span>${txt}</span><i style="transform:scaleX(${prog})"></i></div>`;
     });
-    if (!seat.weapons.length) wh = `<div class="vh-wep is-sel"><b>${esc(seat.def.label)}</b><span>keine Waffe</span></div>`;
+    if (!seat.weapons.length) wh = `<div class="vh-wep is-sel"><b>${esc(seat.def.label)}</b><span>${loader ? 'lädt die Kanone' : 'keine Waffe'}</span></div>`;
     this._set('weps', el.weps, 'html', wh);
-    // Sitze
+    // Kanonenstatus + Gestell (für die ganze Besatzung)
+    this._set('gunstH', el.gunst, 'hidden', !gs);
+    this._set('rackH', el.rack, 'hidden', !gs);
+    if (gs) {
+      const ls = loaderSeat(v);
+      let st, cls, prog = 0;
+      if (gs.step === 'geladen') { st = `geladen ${SHORT[gs.loaded] || ''}`; cls = 'is-ok'; }
+      else if (gs.auto) { st = `Automatik ${fmt1(Math.max(0, gs.autoT))} s`; cls = 'is-empty'; prog = gs.autoMax > 0 ? 1 - gs.autoT / gs.autoMax : 0; }
+      else if (ls && ls.actor) { st = gs.held ? `leer – ${SHORT[gs.held]} in der Hand` : 'leer – Ladeschütze lädt'; cls = 'is-empty'; }
+      else { st = `leer – kein Ladeschütze (Sitz ${(ls ? ls.index : 3) + 1})`; cls = 'is-empty'; }
+      this._set('gunstC', el.gunst, 'class', `vh-gunst ${cls}`);
+      this._set('gunstB', el.gunstB, 'text', 'Kanone');
+      this._set('gunstS', el.gunstS, 'text', st);
+      this._set('gunstI', el.gunstI, 'width', (Math.round(prog * 20) / 20).toFixed(2));
+      this._set('rack', el.rack, 'html', `Gestell PG ${gs.rack.mbt_ap ?? 0} · SG ${gs.rack.mbt_he ?? 0}${gs.refilling ? ' · <em>Munition wird aufgefüllt</em>' : ''}`);
+    }
+    // Sitze (mit Wechselstatus)
+    const now = this.G.time.elapsed;
     let sh = '';
     v.seats.forEach((st, i) => {
-      const who = st.actor ? (st.actor === this.G.player ? 'Du' : esc(st.actor.name || 'besetzt')) : 'frei';
-      sh += `<div class="${st.actor === this.G.player ? 'is-me' : ''}">${i + 1} · ${esc(st.def.label)} – ${who}</div>`;
+      const me = st.actor === this.G.player;
+      const who = st.actor ? (me ? 'Du' : esc(st.actor.name || 'besetzt')) : st.proxy ? '(Fahrer bedient)' : 'frei';
+      const wait = st.actor && now < (st.readyAt || 0);
+      sh += `<div class="${me ? 'is-me' : ''}${wait ? ' is-wait' : ''}">${i + 1} · ${esc(st.def.label)} – ${who}${wait ? ' (Wechsel …)' : ''}</div>`;
     });
     this._set('seats', el.seats, 'html', sh);
     const k = s.keyFor;
-    const hint = [`${k('interact') || 'F'} Aussteigen`, `${k('crouch') || 'C'} Kamera`];
-    if (seat.weapons.length > 1) hint.push(`${k('swap') || 'Mausrad'} Waffe`);
-    if (seat.def.drive) hint.push(`${k('jump') || 'Leertaste'} Handbremse`, `${k('light') || 'T'} Licht`);
+    const view = s.view;
+    const hint = [`${k('interact') || 'F'} Aussteigen`, `${k('crouch') || 'C'} Sicht${view && view.label ? ': ' + view.label : ''}`];
+    if (v.seats.length > 1) hint.push(`1–${Math.min(4, v.seats.length)} Sitz`);
+    if (seat.weapons.length > 1) hint.push(`${k('swap') || 'Mausrad'} ${seat.weapons.some((w) => w.def.kind === 'shell') ? 'Munition/Waffe' : 'Waffe'}`);
+    if (view && (view.zoom || []).length > 1) hint.push(`${k('ads') || 'RMT'} Zoom`);
+    if (seat.def.mount === 'gun') hint.push(`${k('light') || 'T'} Entfernung`);
+    if (loader) hint.push(`${k('reload') || 'R'} Greifen/Schließen`, `${k('fire') || 'LMT'} Einschieben`, `${k('swap') || 'Mausrad'} Sorte`);
+    if (seat.def.drive) hint.push(`${k('light') || 'T'} Licht`);
     this._set('hint', el.hint, 'text', hint.join(' · '));
     // Warnungen
     let warn = '';
@@ -252,30 +315,47 @@ export class VehicleHUD {
     else if (v.zones.turret && v.zones.turret.hp <= 0) warn = 'Turm beschädigt – Schwenken verlangsamt';
     this._set('warn', el.warn, 'text', warn);
     this._set('warnH', el.warn, 'hidden', !warn);
-    // Strichplatte
+    // Meldungen der Besatzung („Geladen – PG“, „Granate fallen gelassen“)
+    const msg = s.gunMsg;
+    this._set('noteH', el.note, 'hidden', !msg);
+    if (msg) { this._set('note', el.note, 'text', msg.text); this._set('noteC', el.note, 'class', `vh-note${msg.warn ? ' is-warn' : ''}`); }
+    // Aussteigen per Halten (Pad/VR)
+    const eh = s.exitHold || 0;
+    this._set('exitH', el.exit, 'hidden', !(eh > 0.02));
+    this._set('exitlH', el.exitl, 'hidden', !(eh > 0.02));
+    if (eh > 0.02) { const pv = eh.toFixed(2); if (this._c.exitP !== pv) { this._c.exitP = pv; el.exit.style.setProperty('--p', pv); } }
+    // Strichplatte / Overlays
     const w = seat.weapons[seat.weaponIndex];
     const mount = !!seat.def.mount && !!w;
     // Touch-Waffenknopf zeigt die Fahrzeugwaffe statt der Infanteriewaffe
     if (!this._swapEl) this._swapEl = document.querySelector('#touch-ui .tc-swap');
-    const swapLabel = w ? (w.def.kind === 'mg' ? w.def.short : w.def.name.replace(/^\d+ mm /, '')) : '';
+    const swapLabel = w ? (w.def.kind === 'mg' ? w.def.short : w.def.short || w.def.name.replace(/^\d+ mm /, '')) : '';
     if (this._swapEl && this._c.swapL !== swapLabel) { this._c.swapL = swapLabel; this._swapEl.dataset.vehWeapon = swapLabel; }
-    const ret = !mount ? '' : s.sight ? (w.def.kind === 'shell' ? TANK_RET : MG_RET) : TP_RET;
+    const ov = s.sight && view ? view.overlay : null;
+    const ownRet = ov === 'optic' || ov === 'peri' || ov === 'wide' || ov === 'slit' || (ov === 'binocular' && s.zoom >= 1.5);
+    const ret = !mount || ownRet ? '' : s.sight ? (w.def.kind === 'shell' ? TANK_RET : MG_RET) : TP_RET;
     this._set('ret', el.ret, 'html', ret);
     this._set('retH', el.ret, 'hidden', !ret);
-    this._set('scopeH', el.scope, 'hidden', !(mount && s.zoom > 1.3));
-    this._set('zoomH', el.zoom, 'hidden', !(mount && s.zoom > 1.05));
+    this._set('scopeH', el.scope, 'hidden', !(mount && !ov && s.zoom > 1.3));
+    this._set('zoomH', el.zoom, 'hidden', !(s.sight && (mount || seat.zoomIndex > 0) && s.zoom > 1.05));
     this._set('zoomT', el.zoom, 'text', `${fmt1(s.zoom)}×`);
     const g = s.gunScreen;
-    if (mount && g && g.on) {
+    if (mount && g && g.on && ov !== 'slit') {
       this._set('gunH', el.gun, 'hidden', false);
       this._set('gunC', el.gun, 'class', `vh-gun${w.def.kind === 'mg' ? ' is-mg' : ''}${g.ready ? '' : ' is-off'}`);
       this._set('gunT', el.gun, 'transform', `translate3d(${Math.round(g.x)}px,${Math.round(g.y)}px,0)`);
     } else this._set('gunH', el.gun, 'hidden', true);
+    this.view.update({
+      view, sight: s.sight, zoom: s.zoom, vehicle: v, mount: !!seat.def.mount, ammo: s.ammo, project: s.project, camPos: s.camPos,
+      lookYaw: s.lookYaw, lookPitch: s.lookPitch, lob: s.lob, range: s.range, load: s.loader, label: s.viewLabel, fade: s.fade, fadeText: s.fadeText,
+    });
     this.drive?.update(dt, s);
   }
 
   dispose() {
     this.drive?.dispose();
+    this.view.dispose();
+    this._body('vehicleLoader', null);
     this._body('vehicle', null);
     this._body('vehicleNear', null);
     this._body('vehicleArms', null);

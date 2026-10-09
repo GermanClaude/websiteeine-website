@@ -10,7 +10,9 @@ import { VEHICLES, VEHICLE_WEAPONS, VEHICLE_CAUSES, VEHICLE_IDS, respawnFor } fr
 import { Vehicle, newIntent } from './vehicle.js';
 import { ShellPool, raycastActors } from './projectiles.js';
 import { VehicleCamera, dirFromYawPitch } from './camera.js';
-import { readPlayerControls } from './controls.js';
+import { readPlayerControls, resetControlHolds } from './controls.js';
+import { viewsOf, viewOf, fpViewOf, isTp, viewExposed, opticIndex, firstFp, viewAnchor, pinWorld, viewLookDir, worldToRel } from './views.js';
+import { WHY_TEXT, loaderHint, isHuman, SHORT } from './crew.js';
 import { VehicleHUD, projectToScreen } from './hud.js';
 import { VehicleAudio } from './audio.js';
 import { upgradeVehicleMaterials, vehicleMaterials } from './materials.js';
@@ -45,8 +47,11 @@ export class VehicleSystem {
     this.attached = false;
     this.live = false;
     this.world = null;
-    this.camera = new VehicleCamera();
+    this.camera = new VehicleCamera(this);
     this.camMode = 'tp';
+    this.viewPref = new Map(); // gemerkte Sicht je Fahrzeugtyp+Sitz (Sitzung): 'mbt:1' → 'optik'
+    if (this.remote === undefined) this.remote = null;   // Netz (C): Vermittler auf Clients
+    if (this.replica === undefined) this.replica = false;
     this.shells = new ShellPool(this);
     this.hud = null;
     this.audio = new VehicleAudio(G);
@@ -274,7 +279,90 @@ export class VehicleSystem {
 
   /* =============================================================== Sitze */
 
-  /** Einsteigen. → Sitzindex | −1 */
+  /**
+   * Raumregeln für Fahrzeuge (panzer-mp.md §B.3/§B.5): Außenansicht erlaubt, Nachladen 'manuell'|'automatisch'.
+   * Online aus den Raumeinstellungen des Hosts (G.match.net), offline aus den Spieleinstellungen.
+   */
+  get rules() {
+    const G = this.G, f = G.time ? G.time.frame : 0;
+    if (this._rules && this._rulesF === f) return this._rules;
+    const net = G.match && G.match.net;
+    let r;
+    if (net) r = { thirdPerson: net.thirdPerson !== false, reload: net.vehReload === 'automatisch' ? 'automatisch' : 'manuell' };
+    else {
+      let s = null;
+      try { s = G.settings && typeof G.settings.get === 'function' ? G.settings.get('vehReload') : null; } catch { s = null; }
+      r = { thirdPerson: true, reload: s === 'automatisch' ? 'automatisch' : 'manuell' };
+    }
+    this._rules = r;
+    this._rulesF = f;
+    return r;
+  }
+
+  /** Erlaubte Sichten eines Sitzes (Indizes in seat.def.views); 'aussen' nur bei rules.thirdPerson. */
+  allowedViews(seat) {
+    const list = viewsOf(seat.def), tp = this.rules.thirdPerson, out = [];
+    for (let i = 0; i < list.length; i++) if (tp || !list[i].tp) out.push(i);
+    return out.length ? out : [0];
+  }
+
+  /** Sicht eines Insassen setzen (lokal sofort; Host übernimmt die Sicht eines Clients aus dem Netz). → bool */
+  setSeatView(actor, viewIndex) {
+    const v = actor && actor.vehicle;
+    const seat = v ? v.seats[v.seatOf(actor)] : null;
+    if (!seat) return false;
+    const allowed = this.allowedViews(seat);
+    let idx = viewIndex | 0;
+    if (!allowed.includes(idx)) idx = allowed[0];
+    this._applyView(seat, idx);
+    if (actor.isPlayer) this.viewPref.set(`${v.type}:${seat.index}`, viewsOf(seat.def)[idx].id);
+    this.G.events.emit('vehicle:view', { vehicle: v, seat: seat.index, actor, view: idx });
+    return true;
+  }
+
+  /** Sicht anwenden: Luke (offen = verwundbar, wirksam ab hatchT ≥ 0,5), Zoom zurück. */
+  _applyView(seat, idx) {
+    const list = viewsOf(seat.def);
+    seat.view = idx;
+    seat.intent.view = idx;
+    if (!list[idx].tp) seat._fpView = idx;
+    seat.hatchOpen = viewExposed(seat);
+    if (!fpViewOf(seat).hatch) seat.hatchT = seat.hatchOpen ? 1 : 0; // ohne Luke (Geländewagen): sofort
+    seat.zoomIndex = 0;
+    seat._zoomHi = false;
+  }
+
+  /** Startsicht: gemerkte (Spieler), sonst bei camMode 'tp' die Außenansicht, sonst die erste 1P-Sicht. */
+  _startView(actor, v, seat) {
+    const list = viewsOf(seat.def), allowed = this.allowedViews(seat);
+    let idx = -1;
+    if (actor.isPlayer) {
+      const pref = this.viewPref.get(`${v.type}:${seat.index}`);
+      if (pref) idx = list.findIndex((x) => x.id === pref);
+      if ((idx < 0 || !allowed.includes(idx)) && this.camMode === 'tp') idx = list.findIndex((x) => x.tp);
+    }
+    if (idx < 0 || !allowed.includes(idx)) idx = allowed.find((i) => !list[i].tp) ?? allowed[0];
+    this._applyView(seat, idx);
+  }
+
+  /** Schutz je Sicht: offene Luke → Trefferzonen + verwundbar (Körperhöhe SEAT_H); zu → unverwundbar, NULL_HITBOX. */
+  _protect(actor, seat) {
+    const exp = seat.hatchT >= 0.5;
+    if (actor._vehExp === exp) return;
+    actor._vehExp = exp;
+    const sv = actor._veh;
+    if (!sv) return;
+    if (exp) {
+      actor.invulnerable = sv.inv;
+      if (sv.hb === undefined) delete actor.raycastHitboxes; else actor.raycastHitboxes = sv.hb;
+      actor.body && actor.body.setHeight && actor.body.setHeight(SEAT_H);
+    } else {
+      actor.invulnerable = true;
+      actor.raycastHitboxes = NULL_HITBOX;
+    }
+  }
+
+  /** Einsteigen (Regeln: lebt, frei, Team). → Sitzindex | −1 */
   enter(actor, v, seatIdx = null) {
     if (!actor || !actor.alive || !v || !v.alive || actor.vehicle || !this.attached) return -1;
     if (v.isOccupied && v.team != null && actor.team != null && v.team !== actor.team) return -1;
@@ -293,26 +381,22 @@ export class VehicleSystem {
   _seat(actor, v, idx) {
     const seat = v.seats[idx];
     seat.actor = actor;
+    seat.proxy = null;
     seat.intent = newIntent();
-    seat.intent.fireWhenAligned = !actor.isPlayer;
+    seat.intent.fireWhenAligned = !isHuman(actor);
     seat.zoomIndex = 0;
     actor.vehicle = v;
     actor.seat = idx;
     actor.vehicleSeat = seat;
-    // Schutz: geschützte Sitze unverwundbar und ohne Trefferzonen (Kugeln treffen die Wanne); offene Sitze geduckt
     if (!actor._veh) {
       actor._veh = {
         inv: actor.invulnerable, hb: Object.prototype.hasOwnProperty.call(actor, 'raycastHitboxes') ? actor.raycastHitboxes : undefined,
       };
     }
-    if (seat.def.exposed) {
-      actor.invulnerable = actor._veh.inv;
-      if (actor._veh.hb === undefined) delete actor.raycastHitboxes; else actor.raycastHitboxes = actor._veh.hb;
-      actor.body && actor.body.setHeight && actor.body.setHeight(SEAT_H);
-    } else {
-      actor.invulnerable = true;
-      actor.raycastHitboxes = NULL_HITBOX;
-    }
+    this._startView(actor, v, seat);
+    if (fpViewOf(seat).hatch) seat.hatchT = 0; // Luke öffnet erst (0,6 s)
+    actor._vehExp = undefined;
+    this._protect(actor, seat);
     if (actor.body && actor.body.velocity) actor.body.velocity.set(0, 0, 0);
     const L = seat.look;
     L.yaw = Number.isFinite(actor.yaw) ? actor.yaw : v.yaw;
@@ -320,11 +404,21 @@ export class VehicleSystem {
     L.relYaw = 0; L.relPitch = -0.05; L.idle = 0;
   }
 
+  /** Sitzzustand nach dem Verlassen zurücksetzen (Luke zu, Sicht 0). */
+  _clearSeatState(seat) {
+    seat.actor = null;
+    seat.intent = newIntent();
+    seat.hatchOpen = false;
+    seat.view = 0;
+    seat.readyAt = 0;
+    seat.zoomIndex = 0;
+  }
+
   _unseat(actor) {
     const v = actor.vehicle;
     if (v) {
       const i = v.seatOf(actor);
-      if (i >= 0) { v.seats[i].actor = null; v.seats[i].intent = newIntent(); }
+      if (i >= 0) this._clearSeatState(v.seats[i]);
     }
     actor.vehicle = null;
     actor.seat = null;
@@ -335,6 +429,8 @@ export class VehicleSystem {
       if (sv.hb === undefined) delete actor.raycastHitboxes; else actor.raycastHitboxes = sv.hb;
       actor._veh = null;
     }
+    actor._vehExp = undefined;
+    if (actor._vehHidden) { actor._vehHidden = false; const r = actor.soldier && actor.soldier.root; if (r && actor.soldier.state !== 'hidden') r.visible = true; }
     if (actor.body && actor.body.setHeight) actor.body.setHeight(STAND_H);
   }
 
@@ -361,17 +457,81 @@ export class VehicleSystem {
     return true;
   }
 
-  /** Sitz wechseln (1–6). → bool */
+  /** Sitz wechseln: sofort umbuchen, der neue Sitz ist erst nach crew.switchTime (KP-1: 1,2 s) bedienbar. → bool */
   switchSeat(actor, idx) {
     const v = actor && actor.vehicle;
     if (!v || idx < 0 || idx >= v.seats.length || v.seats[idx].actor) return false;
     const from = v.seatOf(actor);
     if (from === idx) return false;
-    v.seats[from].actor = null;
-    v.seats[from].intent = newIntent();
+    this._clearSeatState(v.seats[from]);
     this._seat(actor, v, idx);
-    if (actor.isPlayer) { this.camera.reset(); this._enterT = this.G.time.elapsed; }
+    const now = this.G.time.elapsed;
+    const sw = (v.def.crew && v.def.crew.switchTime) || 0;
+    v.seats[idx].readyAt = now + sw;
+    if (actor.isPlayer) this._playerSwitched(v, idx, now + sw);
     this.G.events.emit('vehicle:seat', { vehicle: v, actor, from, seat: idx });
+    return true;
+  }
+
+  _playerSwitched(v, idx, until) {
+    const now = this.G.time.elapsed;
+    this.camera.reset();
+    this._enterT = now;
+    this._switch = { at: now, until: Math.max(until, now + 0.5), label: v.seats[idx].def.label };
+    resetControlHolds();
+  }
+
+  /* ----------------------------------------------- Anfragen (offline/Host direkt, Client über das Netz) */
+
+  /** Einsteigen anfragen. Client: −1 (ausstehend, Ablehnung meldet das Netz). */
+  requestEnter(actor, v, seatIdx = null) {
+    if (this.remote) return this.remote.enter(v, seatIdx);
+    return this.enter(actor, v, seatIdx);
+  }
+  requestExit(actor) {
+    if (this.remote) return this.remote.exit();
+    return this.exit(actor);
+  }
+  requestSeat(actor, idx) {
+    if (this.remote) return this.remote.seat(idx);
+    return this.switchSeat(actor, idx);
+  }
+  /** Ladeschritt anfragen. → { ok, why } (Client: false = ausstehend) */
+  requestLoad(actor, v, action, ammo = null) {
+    if (this.remote) return this.remote.load(action, ammo);
+    const seat = v && actor ? v.seats[v.seatOf(actor)] : null;
+    return v && seat && typeof v.loadAction === 'function' ? v.loadAction(seat, action, ammo) : { ok: false, why: 'sitz' };
+  }
+
+  /** Abbild (Netz): Besetzung buchen – ohne Regeln, ohne Teleport. */
+  placeInSeat(actor, v, idx, { net = true } = {}) {
+    if (!actor || !v || !v.seats[idx]) return false;
+    if (actor.vehicle === v && v.seatOf(actor) === idx) return true;
+    const cur = v.seats[idx].actor;
+    if (cur && cur !== actor) this.clearSeat(cur, { net });
+    if (actor.vehicle === v) {
+      const from = v.seatOf(actor);
+      this._clearSeatState(v.seats[from]);
+      this._seat(actor, v, idx);
+      if (actor.isPlayer) this._playerSwitched(v, idx, this.G.time.elapsed + ((v.def.crew && v.def.crew.switchTime) || 0));
+      this.G.events.emit('vehicle:seat', { vehicle: v, actor, from, seat: idx, net });
+      return true;
+    }
+    if (actor.vehicle) this.clearSeat(actor, { net });
+    this._seat(actor, v, idx);
+    if (actor.isPlayer) this._playerEnter(actor, v);
+    this.G.events.emit('vehicle:enter', { vehicle: v, actor, seat: idx, net });
+    return true;
+  }
+
+  /** Abbild (Netz): Sitz freigeben – ohne Ausstiegssuche (Lage kommt per 'vo' bzw. Schnappschuss). */
+  clearSeat(actor, { net = true } = {}) {
+    const v = actor && actor.vehicle;
+    if (!v) return false;
+    const idx = v.seatOf(actor);
+    this._unseat(actor);
+    if (actor.isPlayer) this._playerExit(actor, v);
+    this.G.events.emit('vehicle:exit', { vehicle: v, actor, seat: idx, net });
     return true;
   }
 
@@ -416,8 +576,9 @@ export class VehicleSystem {
     // Infanteriewaffe ruht: kein hängender Zielzustand (Empfindlichkeit/HUD lesen adsProgress)
     try { if (player.weapon && 'adsProgress' in player.weapon) player.weapon.adsProgress = 0; } catch { /* nur Getter */ }
     this.camera.reset();
-    this.camera.mode = this.camMode;
     this._enterT = G.time.elapsed;
+    this._switch = null;
+    resetControlHolds();
     void v;
   }
 
@@ -430,8 +591,12 @@ export class VehicleSystem {
       player.pitch = clamp(Math.asin(clamp(d.y, -1, 1)), -1.2, 1.2);
     }
     this.camera.reset();
+    this.camera.view = null;
     if (this.spot) this.spot.intensity = 0;
     this._exitT = G.time.elapsed;
+    this._switch = null;
+    this._eff = null;
+    if (v && v.model && v._modelState && v._modelState.interior) { v._modelState.interior = false; v.model.setInterior?.(false); }
     void v;
   }
 
@@ -444,12 +609,34 @@ export class VehicleSystem {
     const idx = v.seatOf(player);
     if (idx < 0) { this._unseat(player); player.update(dt); return; }
     const seat = v.seats[idx];
-    const frozen = !G.match || G.match.state !== 'playing';
-    const act = readPlayerControls(G.input, v, seat, dt, { frozen });
-    // Zielen: Optik → Blickrichtung; 3P → Bildmitte-Strahl (Rohr konvergiert auf den Zielpunkt)
+    const now = G.time.elapsed;
+    const frozen = !G.match || !(G.match.state === 'playing' || G.match.netLive);
+    const xr = !!(G.xr && G.xr.presenting);
+    // VR: feste Sicht (Luke, sonst erste 1P-Sicht), kein Zoom/keine Außenansicht; Blick kommt aus dem Kopf
+    if (xr) {
+      const list = viewsOf(seat.def);
+      let vi = list.findIndex((x) => x.id === 'luke');
+      if (vi < 0) vi = firstFp(seat.def);
+      if (seat.view !== vi) this.setSeatView(player, vi);
+    } else if (isTp(viewOf(seat)) && !this.rules.thirdPerson) this.setSeatView(player, firstFp(seat.def)); // Regel geändert
+    const act = readPlayerControls(G.input, v, seat, dt, { frozen, view: viewOf(seat), xr });
+    if (xr) {
+      seat.zoomIndex = 0;
+      const vw = viewOf(seat);
+      if (vw.look === 'mount' || (!vw.look && seat.def.mount)) { seat.look.yaw = player.yaw; seat.look.pitch = clamp(player.pitch, -0.75, 0.9); }
+      else worldToRel(v, vw.look || 'rel', dirFromYawPitch(player.yaw, player.pitch, _n), seat.look);
+    }
+    // Wirksame Sicht: Außenansicht + Zielen mit Lafette → vorübergehend die erste Optik
+    let eff = viewOf(seat);
+    if (eff.tp && seat.def.mount && act.ads && !xr) {
+      eff = viewsOf(seat.def)[opticIndex(seat.def)];
+      seat.zoomIndex = seat._zoomHi && (eff.zoom || []).length > 1 ? 1 : 0;
+    }
+    this._eff = { seat, view: eff };
+    // Zielen: 1P/Optik → Blickrichtung (Strichplatte); Außenansicht → Bildmitte-Strahl (Rohr konvergiert, Ballistik)
     if (seat.def.mount) {
-      const dir = dirFromYawPitch(seat.look.yaw, seat.look.pitch, _d);
-      if (this.camera.sight || !this.camera.ready) {
+      const dir = viewLookDir(v, seat, eff, _d);
+      if (!eff.tp || !this.camera.ready) {
         seat.intent.aimDir = (seat.intent.aimDir || new THREE.Vector3()).copy(dir);
         seat.intent.aimAt = null;
       } else {
@@ -463,22 +650,51 @@ export class VehicleSystem {
       }
     }
     // Lebensregeneration wie zu Fuß (3,5 s nach Schaden, 55 HP/s)
-    if (player.alive && player.health < player.maxHealth && G.time.elapsed - (player.lastDamageTime ?? -1e9) > 3.5) {
+    if (player.alive && player.health < player.maxHealth && now - (player.lastDamageTime ?? -1e9) > 3.5) {
       player.health = Math.min(player.maxHealth, player.health + 55 * dt);
     }
+    this._exitHold = act.exitHold || 0;
     if (frozen) return;
-    if (act.exit && G.time.elapsed - this._enterT > 0.35) {
-      if (!this.exit(player)) this._flash('Ausstieg blockiert');
+    if (act.exit && now - this._enterT > 0.35) {
+      const r = this.requestExit(player);
+      if (r === false && !this.remote) this._flash('Ausstieg blockiert');
       return;
     }
-    if (act.camera) { this.camMode = this.camera.mode = this.camera.mode === 'tp' ? 'fp' : 'tp'; }
-    if (act.lights && seat.def.drive) v.lights = !v.lights;
-    if (G.time.elapsed - this._seatT > 0.4) {
-      let to = act.seatTo;
-      if (to == null && act.nextSeat) {
-        for (let k = 1; k <= v.seats.length; k++) { const j = (idx + k) % v.seats.length; if (!v.seats[j].actor) { to = j; break; } }
+    if (act.camera && !xr) {
+      const allowed = this.allowedViews(seat);
+      const next = allowed[(allowed.indexOf(seat.view) + 1) % allowed.length];
+      this.setSeatView(player, next);
+      this.camMode = isTp(viewOf(seat)) ? 'tp' : 'fp';
+      this._viewLabel = { text: viewOf(seat).label || '', until: now + 1.4 };
+    }
+    if (act.lights) {
+      if (seat.def.drive) v.lights = !v.lights;
+      else if (seat.def.mount === 'gun' && !eff.tp) {
+        // Laser-Entfernungsmesser des Richtschützen
+        this._ignore = v;
+        const h = this.world.raycast(G.camera.position, viewLookDir(v, seat, eff, _d), 4000);
+        this._ignore = null;
+        this._range = { text: h ? `E ${Math.round(h.distance)} m` : 'E ––– m', until: now + 4 };
       }
-      if (to != null && to !== idx) { if (this.switchSeat(player, to)) this._seatT = G.time.elapsed; else this._flash('Sitz besetzt'); }
+    }
+    // Sitzwechsel (Sperre 0,4 s): Taste 1–4, Pad ◀/▶, Touch „Sitz“, VR
+    if (now - this._seatT > 0.4) {
+      let to = act.seatTo;
+      const step = act.seatStep || (act.nextSeat ? 1 : 0);
+      if (to == null && step) {
+        const n = v.seats.length;
+        for (let k = 1; k < n; k++) { const j = (((idx + step * k) % n) + n) % n; if (!v.seats[j].actor) { to = j; break; } }
+        if (to == null) this._flash('Kein Sitz frei');
+      }
+      if (to != null && to !== idx && to < v.seats.length) {
+        if (v.seats[to].actor) this._flash('Sitz besetzt');
+        else { this.requestSeat(player, to); this._seatT = now; }
+      }
+    }
+    // Ladeschütze: Handgriffe (Host prüft Reihenfolge, Blick, Mindestzeiten)
+    if (act.load && seat.def.loader && now >= (seat.readyAt || 0)) {
+      const r = this.requestLoad(player, v, act.load, act.ammo);
+      if (r && r.ok === false && r.why && !(act.load === 'munition' && r.why === 'schritt')) this._flash(WHY_TEXT[r.why] || r.why);
     }
   }
 
@@ -512,17 +728,41 @@ export class VehicleSystem {
     this._stats.ms = performance.now() - t0;
   }
 
+  /**
+   * Insassen an ihre Plätze heften (auch im Abbild): offene Luke → Pin der Sicht (Turmraum dreht mit), geduckt,
+   * sichtbar; geschlossen → Sitzpunkt im Wannenraum, Soldatenmodell ausgeblendet. Schutz je Lukenstellung.
+   * VR-Spieler: Pin so, dass die Kamera (Rig auf Körper + Augenhöhe) an der Sichtposition liegt.
+   */
   _pinOccupants(v) {
+    const G = this.G;
+    const xr = !!(G.xr && G.xr.presenting);
     for (const s of v.seats) {
       const a = s.actor;
       if (!a || !a.body) continue;
-      v.seatPosition(s.index, a.body.position, true);
+      const pos = a.body.position;
+      const fv = fpViewOf(s);
+      const open = s.hatchT >= 0.5;
+      if (a.isPlayer && xr) {
+        viewAnchor(v, fv, pos);
+        if (!fv.exposed) pos.y += 0.25; // Kopf über der Optik
+        const xp = G.xr;
+        pos.y -= 1.65 + Math.min(0, (a._eye ?? 1.65) - (xp._physEye ?? 1.65));
+      } else if (open && fv.pin) pinWorld(v, fv, fv.pin, pos, true);
+      else v.seatPosition(s.index, pos, true);
       if (a.body.velocity) a.body.velocity.set(0, 0, 0);
       a.body.onGround = true;
+      this._protect(a, s);
       if (!a.isPlayer) {
-        // Blickrichtung der Bots: Lafette bzw. Fahrtrichtung
+        // Blickrichtung der Bots/Puppen: Lafette bzw. Fahrtrichtung
         const yaw = s.def.mount ? v.yaw + (s.def.mount === 'gun' ? v.mount.turretYaw : s.def.mount === 'cmg' ? v.mount.turretYaw + v.mount.cmgYaw : v.mount.mgYaw) : v.yaw;
         a.yaw = wrap(yaw);
+        if (fv.hatch) a.crouching = open; // aus der Luke: nur Oberkörper draußen
+        const sol = a.soldier;
+        if (sol && sol.root && sol.state !== 'hidden') {
+          if (sol.root.visible !== open) sol.root.visible = open;
+          a._vehHidden = !open;
+          if (open) sol.place?.(pos, a.yaw);
+        }
       }
     }
   }
@@ -531,11 +771,13 @@ export class VehicleSystem {
     const G = this.G, p = G.player;
     if (!p) return;
     const seated = !!p.vehicle;
+    const now = G.time.elapsed;
     let state = { seated, visible: !!G.match && (G.match.state === 'playing' || G.match.state === 'countdown') && p.alive, keyFor: (a) => this._key(a) };
     if (seated) {
       const v = p.vehicle, seat = v.seats[v.seatOf(p)];
       if (!seat) return;
-      const r = this.camera.update(G.camera, v, seat, dt, this.world, p.baseFov || 70);
+      const eff = this._eff && this._eff.seat === seat ? this._eff.view : viewOf(seat);
+      const r = this.camera.update(G.camera, v, seat, dt, this.world, p.baseFov || 70, eff);
       const d = this.camera.dir;
       p.yaw = Math.atan2(-d.x, -d.z);
       p.pitch = Math.asin(clamp(d.y, -1, 1));
@@ -550,7 +792,7 @@ export class VehicleSystem {
         this._ignore = null;
         _c.copy(_a).addScaledVector(_b, h ? h.distance : range);
         gun = projectToScreen(G, _c, this._gunScr);
-        gun.ready = w.mag > 0 && w.reloadT <= 0;
+        gun.ready = v.canFire(seat.index);
       }
       // Scheinwerfer folgt dem Fahrzeug des Spielers
       if (this.spot) {
@@ -562,7 +804,34 @@ export class VehicleSystem {
           this.spot.target.updateMatrixWorld();
         }
       }
-      Object.assign(state, { vehicle: v, seat, sight: r.sight, zoom: r.zoom, gunScreen: gun });
+      // Sitzwechsel: Abblende 0,25 s aus/ein + „Wechsel zu: …“
+      let fade = 0, fadeText = '';
+      const sw = this._switch;
+      if (sw) {
+        if (now >= sw.until) this._switch = null;
+        else {
+          fade = Math.min(1, (now - sw.at) / 0.25, (sw.until - now) / 0.25) * 0.92;
+          fadeText = `Wechsel zu: ${sw.label} …`;
+        }
+      }
+      if (this._range && now > this._range.until) this._range = null;
+      if (this._viewLabel && now > this._viewLabel.until) this._viewLabel = null;
+      const g = v.gun;
+      const touch = G.input && G.input.mode === 'touch';
+      Object.assign(state, {
+        vehicle: v, seat, sight: r.sight, zoom: r.zoom, gunScreen: gun, view: r.view, rules: this.rules,
+        exitHold: this._exitHold || 0, fade, fadeText, viewLabel: this._viewLabel ? this._viewLabel.text : '',
+        range: this._range ? this._range.text : '', camPos: G.camera.position, lookYaw: null, lookPitch: 0,
+        lob: Vehicle.lobAngle, project: (pt) => projectToScreen(G, pt, this._markScr || (this._markScr = { x: 0, y: 0, on: false })),
+        loader: seat.def.loader && g ? loaderHint(v, seat, (a) => this._key(a), touch) : null,
+        gunMsg: g && g._msg && now < g._msg.until ? g._msg : null, ready: now >= (seat.readyAt || 0),
+      });
+      if (r.view && r.view.look === 'mount') { state.lookYaw = seat.look.yaw; state.lookPitch = seat.look.pitch; }
+      else { const ld = viewLookDir(v, seat, r.view, _n); state.lookYaw = Math.atan2(-ld.x, -ld.z); state.lookPitch = Math.asin(clamp(ld.y, -1, 1)); }
+      // Optik: Ballistik der geladenen bzw. gewählten Granate
+      const w = seat.weapons[seat.weaponIndex];
+      const am = (g && g.loaded && VEHICLE_WEAPONS[g.loaded]) || (w && w.def.kind === 'shell' ? w.def : null);
+      state.ammo = am ? { short: am.short || SHORT[am.id] || '', speed: am.speed, gravity: am.gravity } : null;
     } else {
       if (this.spot) this.spot.intensity = 0;
       // Einsteigen in Reichweite?
@@ -573,10 +842,13 @@ export class VehicleSystem {
         state.near = { vehicle: v, seatLabel: v.seats[idx].def.label };
         const input = G.input;
         // nicht im selben Tastendruck wieder einsteigen, mit dem gerade ausgestiegen wurde
-        if (this.live && input && G.time.elapsed - this._exitT > 0.4 && (input.pressed('interact') || input.pressed('v_enter'))) this.enter(p, v);
+        if (this.live && input && now - this._exitT > 0.4 && now - (this._reqT || -1e9) > 0.3 && (input.pressed('interact') || input.pressed('v_enter'))) {
+          this._reqT = now;
+          this.requestEnter(p, v);
+        }
       }
     }
-    if (this._msg && G.time.elapsed > this._msg.until) this._msg = null;
+    if (this._msg && now > this._msg.until) this._msg = null;
     if (this.hud) {
       this.hud.update(dt, state);
       if (this._msg && this.hud.el) { this.hud._set('warn', this.hud.el.warn, 'text', this._msg.text); this.hud._set('warnH', this.hud.el.warn, 'hidden', false); }

@@ -65,25 +65,27 @@ const HazeShader = {
     uNear: { value: 0.05 }, uFar: { value: 4000 },
     uProjInv: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() }, uCamPos: { value: new THREE.Vector3() },
     uSunDir: { value: new THREE.Vector3() }, uSunUV: { value: new THREE.Vector2() }, uSunCol: { value: new THREE.Color() },
-    uHazeCol: { value: new THREE.Color() }, uDensity: { value: 0.0045 }, uFalloff: { value: 0.045 }, uRays: { value: 1 }, uAspect: { value: 16 / 9 },
+    uHazeCol: { value: new THREE.Color() }, uDensity: { value: 0.0045 }, uFalloff: { value: 0.045 }, uRays: { value: 1 }, uAspect: { value: 16 / 9 }, uClampMax: { value: 4 }, uDbg: { value: 0 },
   },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
   fragmentShader: `
   #include <packing>
   varying vec2 vUv;
   uniform sampler2D tDiffuse; uniform sampler2D tDepth;
-  uniform float uNear, uFar, uDensity, uFalloff, uRays, uAspect;
+  uniform float uNear, uFar, uDensity, uFalloff, uRays, uAspect, uClampMax, uDbg;
   uniform mat4 uProjInv, uCamWorld; uniform vec3 uCamPos, uSunDir, uSunCol, uHazeCol; uniform vec2 uSunUV;
   float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
   void main(){
     vec4 col = texture2D(tDiffuse, vUv);
+    { float l = max(max(col.r, col.g), col.b); const float T = 2.0;
+      if (l > T) col.rgb *= (T + (l - T) / (1.0 + (l - T) / uClampMax)) / l; }
     float d = texture2D(tDepth, vUv).x;
     vec4 ndc = vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
     vec4 vp = uProjInv * ndc; vp /= vp.w;
     vec3 wdir = normalize((uCamWorld * vec4(vp.xyz, 0.0)).xyz);
     float dist = length(vp.xyz);
     float mu = max(dot(wdir, uSunDir), 0.0);
-    vec3 hz = uHazeCol * (1.0 + 0.6 * pow(mu, 3.0)) + uSunCol * (pow(mu, 12.0) * 1.6 + pow(mu, 80.0) * 3.0);
+    vec3 hz = uHazeCol * (1.0 + 0.5 * pow(mu, 3.0)) + uSunCol * (pow(mu, 12.0) * 0.5 + pow(mu, 80.0) * 1.2);
     if (d < 0.99999) {
       // exponentielle Höhennebel-Integration
       float b = uFalloff;
@@ -105,8 +107,8 @@ const HazeShader = {
         if (sd >= 0.99999 && p.x > 0.0 && p.x < 1.0 && p.y > 0.0 && p.y < 1.0) {
           vec3 c = texture2D(tDiffuse, p).rgb;
           vec2 q = (p - uSunUV) * vec2(uAspect, 1.0);
-          float nr = exp(-dot(q, q) * 9.0);
-          acc += min(c, vec3(6.0)) * nr * w;
+          float nr = exp(-dot(q, q) * 40.0);
+          acc += min(max(c - vec3(0.8), vec3(0.0)), vec3(5.0)) * nr * w;
         }
         w *= 0.985;
         p += st;
@@ -114,12 +116,13 @@ const HazeShader = {
       vec2 q0 = (vUv - uSunUV) * vec2(uAspect, 1.0);
       col.rgb += acc / float(N) * uRays * uSunCol * (0.6 + 0.4 * exp(-dot(q0, q0) * 2.0));
     }
+    if (uDbg > 0.5) col.rgb = vec3(d > 0.99999 ? 1.0 : 0.0, fract(d * 200.0), 0.0);
     gl_FragColor = col;
   }`,
 };
 
 const LensShader = {
-  uniforms: { tDiffuse: { value: null }, uRes: { value: new THREE.Vector2() }, uCA: { value: 1.6 }, uVig: { value: 0.32 }, uGrain: { value: 0.035 }, uSeed: { value: 0.37 } },
+  uniforms: { tDiffuse: { value: null }, uRes: { value: new THREE.Vector2() }, uCA: { value: 3.0 }, uVig: { value: 0.32 }, uGrain: { value: 0.035 }, uSeed: { value: 0.37 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
   fragmentShader: `
   varying vec2 vUv; uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uCA, uVig, uGrain, uSeed;
@@ -127,7 +130,7 @@ const LensShader = {
   void main(){
     vec2 c = vUv - 0.5;
     float r2 = dot(c * vec2(uRes.x / uRes.y, 1.0), c * vec2(uRes.x / uRes.y, 1.0));
-    vec2 off = c * r2 * uCA * 2.0 / uRes.y * 60.0;
+    vec2 off = c * r2 * uCA / uRes.x;
     vec3 col;
     col.r = texture2D(tDiffuse, vUv - off).r;
     col.g = texture2D(tDiffuse, vUv).g;
@@ -164,7 +167,7 @@ export function buildPost(renderer, { scene, vmScene, camera, sky, w, h, sunDir,
   composer.addPass(haze);
   const vm = new RenderPass(vmScene, camera); vm.clear = false; vm.clearDepth = true;
   composer.addPass(vm);
-  const bloom = new UnrealBloomPass(new THREE.Vector2(w / 2, h / 2), 0.32, 0.75, 1.6);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(w / 2, h / 2), 0.05, 0.35, 2.5);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   const lens = new ShaderPass(LensShader);

@@ -76,7 +76,7 @@ function containerSkins(color, seed, L, ppm, age) {
   const code = ['NLPU', 'KRGU', 'HAFU', 'TGHU', 'MSBU'][seed % 5] + ' ' + String(100000 + ((seed * 7919) % 899999)) + ' ' + (seed % 10);
   const side = paintedSteel({ W: L, H: CH, ppm, color, seed, kind: 'side', pitch: 0.278, age, code, iso: L > 7 ? '45G1' : '22G1' });
   const end = paintedSteel({ W: CW, H: CH, ppm: Math.min(320, ppm * 1.5), color, seed: seed + 11, kind: 'end', pitch: 0.46, age, code, iso: L > 7 ? '45G1' : '22G1' });
-  const frame = paintedSteel({ W: 1.5, H: 1.5, ppm: Math.min(240, ppm), color, seed: seed + 5, kind: 'frame', age: age + 0.15, tile: true });
+  const frame = paintedSteel({ W: 1.5, H: 1.5, ppm: Math.min(240, ppm), color, seed: seed + 5, kind: 'frame', age: age + 0.02, tile: true });
   const s = { side: steelMat(side), end: steelMat(end), frame: steelMat(frame, { repeat: 1 / 1.5 }) };
   skinCache.set(key, s);
   return s;
@@ -372,9 +372,9 @@ export function sky(sunDir) {
   s.material.vertexShader = s.material.vertexShader.replace('vWorldPosition = worldPosition.xyz;', 'vWorldPosition = cameraPosition + normalize(position) * 1000.0;');
   s.scale.setScalar(3000);
   const u = s.material.uniforms;
-  u.turbidity.value = 7.5; u.rayleigh.value = 1.6; u.mieCoefficient.value = 0.006; u.mieDirectionalG.value = 0.86;
+  u.turbidity.value = 10; u.rayleigh.value = 3; u.mieCoefficient.value = 0.005; u.mieDirectionalG.value = 0.82;
   u.sunPosition.value.copy(sunDir);
-  u.cloudCoverage.value = 0.42; u.cloudDensity.value = 0.55; u.cloudElevation.value = 0.55; u.cloudScale.value = 0.00022;
+  u.cloudCoverage.value = 0.55; u.cloudDensity.value = 0.6; u.cloudElevation.value = 0.55; u.cloudScale.value = Number(new URLSearchParams(location.search).get('cs') || 0.001);
   u.time.value = 37;
   s.frustumCulled = false;
   s.name = 'himmel';

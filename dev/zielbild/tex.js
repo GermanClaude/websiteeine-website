@@ -21,7 +21,10 @@ export function vn(x, y, p = 0) {
 }
 export function fbm(x, y, oct = 4, p = 0, lac = 2, gain = 0.5) {
   let s = 0, a = 0.5, n = 0, f = 1;
-  for (let i = 0; i < oct; i++) { s += a * vn(x * f + i * 31.7, y * f + i * 17.3, p ? p * f : 0); n += a; a *= gain; f *= lac; }
+  if (p) { for (let i = 0; i < oct; i++) { s += a * vn(x * f + i * 31.7, y * f + i * 17.3, p * f); n += a; a *= gain; f *= lac; } return s / n; }
+  // nicht kachelnd: Oktaven gedreht (keine Gitter-Artefakte)
+  let X = x, Y = y;
+  for (let i = 0; i < oct; i++) { s += a * vn(X + i * 31.7, Y + i * 17.3); n += a; a *= gain; const t = X; X = (0.8 * t - 0.6 * Y) * lac; Y = (0.6 * t + 0.8 * Y) * lac; }
   return s / n;
 }
 /** Kammrauschen (Risse/Adern) 0…1, 1 = auf der Linie. */
@@ -107,13 +110,14 @@ export function paintedSteel({ W, H, ppm = 200, color = '#a33a22', seed = 1, kin
   const fq = (f) => (tile ? Math.max(1, Math.round(W * f)) / W : f); // Frequenz an Kachel anpassen
   // Stufe 1: Masken
   const rust = new Float32Array(N), chip = new Float32Array(N), Hgt = new Float32Array(N);
-  const f1 = fq(0.9), f2 = fq(5.5), f3 = fq(22), f4 = fq(70);
+  const f1 = fq(1.1), f2 = fq(13), f3 = fq(22), f4 = fq(70);
   for (let y = 0; y < h; y++) {
     const Y = y / ppm;
     for (let x = 0; x < w; x++) {
       const X = x / ppm, i = y * w + x;
       const n1 = fbm((X) * f1 + (tile ? 0 : ox), Y * f1 + (tile ? 0 : oy), 3, tile ? W * f1 : 0);
-      const n2 = fbm(X * f2 + (tile ? 0 : ox), Y * f2 + (tile ? 0 : oy), 5, tile ? W * f2 : 0);
+      const wx = tile ? 0 : (vn(X * 4.1 + 7, Y * 4.1) - 0.5) * 0.09, wy = tile ? 0 : (vn(X * 4.1, Y * 4.1 + 13) - 0.5) * 0.09;
+      const n2 = fbm((X + wx) * f2 + (tile ? 0 : ox), (Y + wy) * f2 + (tile ? 0 : oy), 5, tile ? W * f2 : 0);
       const n3 = vn(X * f4, Y * f4, tile ? W * f4 : 0);
       let edge = 0;
       if (!tile) {
@@ -121,9 +125,9 @@ export function paintedSteel({ W, H, ppm = 200, color = '#a33a22', seed = 1, kin
         edge = Math.exp(-ed / 0.18) * 0.32;
       }
       const bottom = kind === 'crane' ? 0 : Math.pow(clamp(1 - Y / H), 4) * 0.18;
-      const v = n2 + edge + bottom + (n1 - 0.5) * 0.35 + (n3 - 0.5) * 0.06 + (age - 0.5) * 0.25;
-      chip[i] = sstep(0.6, 0.63, v);       // Lack weg (Grundierung)
-      rust[i] = sstep(0.655, 0.69, v);     // bis zum Rost
+      const v = n2 + edge + bottom + (n1 - 0.5) * 0.45 + (n3 - 0.5) * 0.05 + (age - 0.5) * 0.2;
+      chip[i] = sstep(0.69, 0.705, v);     // Lack weg (Grundierung)
+      rust[i] = sstep(0.72, 0.75, v);      // bis zum Rost
       const pit = fbm(X * f3, Y * f3, 3, tile ? W * f3 : 0);
       Hgt[i] = 1 - chip[i] * 0.35 - rust[i] * 0.25 * (0.5 + pit) + (vn(X * fq(3), Y * fq(3), tile ? W * fq(3) : 0) - 0.5) * 0.4; // Lackkante + Narben + Beulen
     }
@@ -134,7 +138,7 @@ export function paintedSteel({ W, H, ppm = 200, color = '#a33a22', seed = 1, kin
     const X = x / ppm;
     const col = vn(X * fq(38) + ox, 3.3, tile ? W * fq(38) : 0), col2 = vn(X * fq(9) + ox, 7.7, tile ? W * fq(9) : 0);
     const decay = 1 - (0.004 + 0.02 * (1 - col)) * (200 / ppm);
-    let s = tile ? 0 : (kind === 'crane' ? 0 : sstep(0.45, 0.8, col2) * 0.8 * age * 1.6);
+    let s = tile ? 0 : (kind === 'crane' ? 0 : sstep(0.55, 0.85, col2) * 0.55 * age);
     for (let y = h - 1; y >= 0; y--) {
       const i = y * w + x;
       s = Math.max(rust[i] * (0.4 + col * 0.8), s * decay);
@@ -244,8 +248,8 @@ export function asphaltTile(size = 1024, metres = 4) {
     const n2 = fbm(X * per(6) / metres, Y * per(6) / metres, 4, per(6));
     const cr = ridge(X * per(1.2) / metres + 0.3, Y * per(1.2) / metres, 4, per(1.2));
     const crack = sstep(0.93, 0.985, cr) * sstep(0.45, 0.6, n1);
-    const binder = 0.035 + 0.02 * n2;
-    let v = binder + stone * (0.09 + 0.06 * wo[2]) * (0.5 + n1) + fine * 0.03;
+    const binder = 0.028 + 0.016 * n2;
+    let v = binder + stone * (0.05 + 0.05 * wo[2]) * (0.4 + n1) + fine * 0.02;
     const worn = sstep(0.5, 0.75, n1); // Ausgefahren: Splitt liegt frei, heller
     v = v * (1 + worn * 0.5);
     v *= 1 - crack * 0.7;

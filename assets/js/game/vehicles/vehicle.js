@@ -13,6 +13,8 @@ import { VEHICLES, VEHICLE_WEAPONS } from './data.js';
 import { VehicleBody } from './sim.js';
 import { createVehicleModel } from './models.js';
 import { updateAutopilot, resetAutopilot } from './autopilot.js';
+import { createGun, loadAction as crewLoad, onGunFired, updateGun, dropShell, gunSeat, isHuman } from './crew.js';
+import { viewOf, viewAnchor, fpViewOf, viewsOf } from './views.js';
 
 let SERIAL = 0;
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
@@ -94,6 +96,9 @@ export class Vehicle {
       view: 0, hatchOpen: false, hatchT: 0, readyAt: 0, aimWant: new THREE.Vector3(), proxy: null,
     }));
     this._aimDir = new THREE.Vector3();
+    // Hauptkanone mit Ladezustand + Gestell (crew.js; nur Fahrzeuge mit Granatwaffe)
+    this.gun = createGun(this);
+    this._modelState = {};
   }
 
   /* --------------------------------------------------------------- Abfragen */
@@ -159,7 +164,39 @@ export class Vehicle {
   canFire(seatIndex) {
     const s = this.seats[seatIndex];
     const w = s && s.weapons[s.weaponIndex];
-    return !!(w && this.alive && w.mag > 0 && w.reloadT <= 0 && w.cooldown <= 0);
+    if (!w || !this.alive || this.G.time.elapsed < (s.readyAt || 0)) return false;
+    if (w.def.kind === 'shell') return !!(this.gun && this.gun.step === 'geladen' && w.cooldown <= 0);
+    return w.mag > 0 && w.reloadT <= 0 && w.cooldown <= 0;
+  }
+
+  /** Ladeschritt des Ladeschützen (Host/offline; crew.js). → { ok, why? } */
+  loadAction(seat, action, ammo = null, opts = {}) {
+    if (typeof seat === 'number') seat = this.seats[seat];
+    return crewLoad(this, seat, action, ammo, opts);
+  }
+
+  /** Bot-Einzelbesatzung (§B.8): Bot-Fahrer bedient den leeren Richtschützensitz stellvertretend. */
+  _proxyGunner() {
+    const gs = gunSeat(this);
+    if (!gs) return;
+    const ds = this.seats.find((s) => s.def.drive);
+    const bot = ds && ds.actor && !isHuman(ds.actor) ? ds.actor : null;
+    const want = !gs.actor && bot && this.G.time.elapsed >= (ds.readyAt || 0) ? bot : null;
+    if (gs.proxy !== want) {
+      gs.proxy = want;
+      if (want) { gs.intent = newIntent(); gs.intent.fireWhenAligned = true; }
+    }
+    if (!want) return;
+    // Schützenfelder der Fahrer-Absicht auf den Richtschützensitz umleiten (einmalige Felder dort verbrauchen)
+    const src = ds.intent, dst = gs.intent;
+    dst.aimAt = src.aimAt ? (dst.aimAt || new THREE.Vector3()).copy(src.aimAt) : null;
+    dst.aimDir = src.aimDir ? (dst.aimDir || new THREE.Vector3()).copy(src.aimDir) : null;
+    dst.fire = !!src.fire;
+    dst.fireWhenAligned = src.fireWhenAligned !== false;
+    if (src.firePressed) { dst.firePressed = true; src.firePressed = false; }
+    if (src.weapon != null) { dst.weapon = src.weapon; src.weapon = null; }
+    if (src.cycleWeapon) { dst.cycleWeapon = true; src.cycleWeapon = false; }
+    if (src.reload) { dst.reload = true; src.reload = false; }
   }
 
   /* --------------------------------------------------------------- Lafetten */
@@ -212,29 +249,11 @@ export class Vehicle {
   }
 
   /** Kamera-Anker eines Sitzes (Welt, Darstellungslage) + Blickquaternion der Lafette (für die Optik). */
-  sightPose(seatIndex, outPos, outQuat) {
-    const s = this.seats[seatIndex], d = this.def, m = this.mount, fp = s.def.fp;
-    const p = _b.fromArray(fp.pos);
-    if (fp.space === 'turret') {
-      _q.setFromAxisAngle(Y, m.turretYaw);
-      p.applyQuaternion(_q).add(_c.fromArray(d.turretPivot));
-      _q2.setFromAxisAngle(X, m.gunPitch);
-      outQuat.copy(this.body.renderQuat).multiply(_q).multiply(_q2);
-    } else if (fp.space === 'cmg') {
-      _q.setFromAxisAngle(Y, m.turretYaw);
-      p.add(_c.fromArray(d.cmgPivot)).applyQuaternion(_q).add(_c.fromArray(d.turretPivot));
-      _q.setFromAxisAngle(Y, m.turretYaw + m.cmgYaw);
-      _q2.setFromAxisAngle(X, m.cmgPitch);
-      outQuat.copy(this.body.renderQuat).multiply(_q).multiply(_q2);
-    } else if (fp.space === 'mg') {
-      _q.setFromAxisAngle(Y, m.mgYaw);
-      p.applyQuaternion(_q).add(_c.fromArray(d.mgPivot));
-      _q2.setFromAxisAngle(X, m.mgPitch);
-      outQuat.copy(this.body.renderQuat).multiply(_q).multiply(_q2);
-    } else {
-      outQuat.copy(this.body.renderQuat);
-    }
-    return this.body.toWorldRender(p, outPos);
+  sightPose(seatIndex, outPos, outQuat, view = null) {
+    const s = this.seats[seatIndex];
+    view = view || viewOf(s);
+    if (view.tp) view = fpViewOf(s);
+    return viewAnchor(this, view, outPos, outQuat);
   }
 
   /** Ballistische Erhöhung (rad) für Mündungsgeschwindigkeit v auf Ziel (dx horizontal, dy Höhe). */
@@ -254,8 +273,10 @@ export class Vehicle {
       this.muzzle(seat.index, _ro, _rd);
       _a.copy(it.aimAt).sub(_ro);
       if (w && w.def.kind === 'shell') {
+        // Ballistik der geladenen Granate (sonst der gewählten)
+        const bd = (this.gun && this.gun.loaded && VEHICLE_WEAPONS[this.gun.loaded]) || w.def;
         const dx = Math.hypot(_a.x, _a.z);
-        const el = Vehicle.lobAngle(w.def.speed, w.def.gravity, dx, _a.y);
+        const el = Vehicle.lobAngle(bd.speed, bd.gravity, dx, _a.y);
         const yaw = Math.atan2(-_a.x, -_a.z);
         _a.set(-Math.sin(yaw) * Math.cos(el), Math.sin(el), -Math.cos(yaw) * Math.cos(el));
       }
@@ -263,6 +284,7 @@ export class Vehicle {
     } else if (it.aimDir) want = _a.copy(it.aimDir).normalize();
     if (!want) return;
     this._aimDir.copy(want);
+    seat.aimWant.copy(want); // gewünschte Lafettenrichtung (Netz: Client → Host)
     _iq.copy(this.body.quat).invert();
     _b.copy(want).applyQuaternion(_iq);
     const yawH = Math.atan2(-_b.x, -_b.z);
@@ -303,21 +325,36 @@ export class Vehicle {
       }
     }
     const w = seat.weapons[seat.weaponIndex];
-    if (it.reload && w.mag < w.def.mag && w.reloadT <= 0) { w.reloadT = w.def.reload; this.G.events.emit('vehicle:reload', { vehicle: this, seat: seat.index, weaponId: w.def.id }); }
+    const shell = w.def.kind === 'shell';
+    // MG: Magazin nachladen (R); Kanone: Ladeschütze/Automatik (crew.js)
+    if (it.reload && !shell && w.mag < w.def.mag && w.reloadT <= 0) { w.reloadT = w.def.reload; this.G.events.emit('vehicle:reload', { vehicle: this, seat: seat.index, weaponId: w.def.id }); }
     it.reload = false;
     const frozen = !this.sys.live;
-    const wants = w.def.kind === 'shell' ? (it.firePressed || (it.fire && seat.actor && !seat.actor.isPlayer)) : it.fire;
+    const shooter = seat.actor || seat.proxy;
+    // Kanone: Menschen (Spieler, entfernte Spieler) nur auf Druck, Bots auch gehalten
+    const wants = shell ? (it.firePressed || (it.fire && shooter && !isHuman(shooter))) : it.fire;
     it.firePressed = false;
     if (frozen || !wants || !this.alive) return;
     if (it.fireWhenAligned && seat.aimError > 0.026) return;
-    if (w.mag <= 0 || w.reloadT > 0 || w.cooldown > 0) return;
+    let fw = w;
+    if (shell) {
+      // gefeuert wird die geladene Granate, egal welche Sorte gewählt ist
+      if (!this.gun || this.gun.step !== 'geladen' || !this.gun.loaded || w.cooldown > 0) return;
+      fw = seat.weapons.find((x) => x.def.id === this.gun.loaded) || { def: VEHICLE_WEAPONS[this.gun.loaded], mag: 1, reloadT: 0, cooldown: 0, shots: 0 };
+    } else if (w.mag <= 0 || w.reloadT > 0 || w.cooldown > 0) return;
     this.muzzle(seat.index, _ro, _rd);
-    this.sys.fire(this, seat, w, _ro.clone(), _rd.clone());
-    w.mag -= 1;
-    w.shots += 1;
-    w.cooldown = w.def.kind === 'mg' ? 60 / w.def.rpm : 0.25;
-    if (w.mag <= 0) { w.reloadT = w.def.reload; this.G.events.emit('vehicle:reload', { vehicle: this, seat: seat.index, weaponId: w.def.id }); }
-    if (w.def.kind === 'shell') {
+    const fseat = seat.actor ? seat : Object.create(seat, { actor: { value: shooter } });
+    this.sys.fire(this, fseat, fw, _ro.clone(), _rd.clone());
+    fw.shots += 1;
+    if (shell) {
+      w.cooldown = fw.cooldown = 0.25;
+      onGunFired(this);
+    } else {
+      w.mag -= 1;
+      w.cooldown = 60 / w.def.rpm;
+      if (w.mag <= 0) { w.reloadT = w.def.reload; this.G.events.emit('vehicle:reload', { vehicle: this, seat: seat.index, weaponId: w.def.id }); }
+    }
+    if (shell) {
       this.recoil = 1;
       // Rückstoß auf die Wanne
       _a.copy(_rd).multiplyScalar(-this.def.mass * 0.25);
@@ -400,6 +437,7 @@ export class Vehicle {
       if (was > 0 && z.hp <= 0) this._zoneBroken(zone);
     }
     this.zones.hull.hp = this.health;
+    if (dealt >= 60 && this.gun) dropShell(this); // schwerer Treffer: Ladeschütze lässt die Granate fallen
     if (info.kind !== 'fire') { this.lastHitTime = now; }
     if (attacker) { this.lastAttacker = attacker; this.lastWeaponId = info.weaponId || null; }
     this.body.wake();
@@ -462,6 +500,7 @@ export class Vehicle {
     this.body.applyImpulse(_a.copy(center).add(_b.set((Math.random() - 0.5) * 1.5, 0, (Math.random() - 0.5) * 2)), _c.set(0, this.def.mass * kick, 0));
     this.body.controls.throttle = this.body.controls.steer = 0;
     this.body.controls.handbrake = true;
+    this.body.drivetrain?.setGear(0);
     G.events.emit('vehicle:destroyed', { vehicle: this, by, weaponId: weaponId || null });
   }
 
@@ -469,14 +508,25 @@ export class Vehicle {
 
   update(dt, world) {
     const G = this.G, def = this.def, b = this.body, now = G.time.elapsed;
-    // Fahrer → Steuerung
+    // Fahrer → Steuerung (Getriebe: Mensch nach Einstellung, Bots/Autopilot Automatik; drivetrain.js)
     const ds = this.seats.find((s) => s.def.drive);
-    const c = b.controls;
-    if (this.alive && ds && ds.actor && this.sys.live) {
+    const c = b.controls, dtn = b.drivetrain;
+    if (dtn && !dtn.onGear) dtn.onGear = (gear, blocked) => G.events.emit('vehicle:gear', { vehicle: this, gear, blocked: !!blocked });
+    if (this.alive && ds && ds.actor && this.sys.live && !(ds.readyAt > now)) {
       const it = ds.intent;
+      const human = !!(ds.actor.isPlayer || ds.actor.isRemoteHuman);
       const manual = Math.abs(it.throttle) > 0.01 || Math.abs(it.steer) > 0.01 || it.handbrake || it.brake > 0;
-      if ((it.path || it.moveTo) && it.autopilot !== false && !(ds.actor.isPlayer && manual)) updateAutopilot(this, it, dt, world);
-      c.throttle = clamp(it.throttle, -1, 1);
+      if ((it.path || it.moveTo) && it.autopilot !== false && !(human && manual)) updateAutopilot(this, it, dt, world);
+      const autoDrive = !human || ((it.path || it.moveTo) && it.autopilot !== false && !manual);
+      c.gearbox = !autoDrive && b.tracked && it.gearbox === 'hold' ? 'hold' : 'auto';
+      dtn?.run();
+      const up = +it.shiftUp || 0, down = +it.shiftDown || 0;
+      if (up || down) {
+        if (c.gearbox === 'hold' && dtn) { if (up) dtn.shift(Math.min(up, 7)); if (down) dtn.shift(-Math.min(down, 7)); }
+        it.shiftUp = 0; it.shiftDown = 0;
+        b.wake();
+      }
+      c.throttle = c.gearbox === 'hold' ? clamp(it.throttle, 0, 1) : clamp(it.throttle, -1, 1);
       // Lenkung geglättet (Tastatur) – Ketten direkt
       const st = clamp(it.steer, -1, 1);
       c.steer = b.tracked ? st : c.steer + clamp(st - c.steer, -dt * 4.5, dt * 4.5);
@@ -485,26 +535,34 @@ export class Vehicle {
     } else {
       c.throttle = 0; c.steer = 0; c.brake = 0;
       c.handbrake = true;
+      if (ds && ds.intent) { ds.intent.shiftUp = 0; ds.intent.shiftDown = 0; }
+      dtn?.park(dt);
     }
-    // Komponenten → Fahrleistung
-    let speedMult = 1, immobile = false;
-    if (this.zones.engine && this.zones.engine.hp <= 0) speedMult *= 0.6;
+    // Komponenten → Fahrleistung (Motor: Notlauf, Kette: erst bewegungsunfähig, dann max. 2. Gang; panzer-mp.md §A.9)
+    const E = def.engine;
+    let torque = 1, maxGear = 5, immobile = false, cutRpm = null;
+    if (this.zones.engine && this.zones.engine.hp <= 0) { torque *= 0.5; cutRpm = Math.round(E.idleRpm + (E.ratedRpm - E.idleRpm) * 0.68); }
     if (this.zones.tracks && this.zones.tracks.hp <= 0) {
-      if (now < this.trackDownUntil) immobile = true; else speedMult *= 0.3;
+      if (now < this.trackDownUntil) immobile = true; else { torque *= 0.6; maxGear = 2; }
     }
-    if (this.disabled) speedMult = Math.min(speedMult, 0.3);
+    if (this.disabled) torque *= 0.35;
     if (!this.alive) immobile = true;
-    b.mods.speedMult = speedMult;
+    b.mods.torque = torque;
+    b.mods.maxGear = maxGear;
+    b.mods.cutRpm = cutRpm;
     b.mods.immobile = immobile;
     b.mods.turnMult = immobile ? 0 : 1;
 
-    // Lafetten + Waffen
+    // Lafetten + Waffen (Sitz mit Insasse oder Bot-Stellvertreter; nach einem Sitzwechsel bis readyAt inaktiv)
     if (this.alive) {
+      this._proxyGunner();
       for (const s of this.seats) {
-        if (!s.actor) { s.intent.fire = false; continue; }
+        if (!s.actor && !s.proxy) { s.intent.fire = false; continue; }
+        if (now < (s.readyAt || 0)) { s.intent.fire = s.intent.firePressed = false; s.intent.reload = false; continue; }
         this._aimSeat(s, dt);
         this._updateWeapons(s, dt);
       }
+      if (this.gun && this.sys.live) updateGun(this, dt);
     }
 
     // Physik
@@ -573,6 +631,33 @@ export class Vehicle {
     }
     if (M.trackMats.length) M.scrollTracks(b.trackSpeed[0], b.trackSpeed[1], dt);
     if (M.lightsOn !== this.lights) M.setLights(this.lights);
+    this._syncCrew(dt);
+  }
+
+  /**
+   * Besatzungsdarstellung (läuft auch im Abbild, liest nur Zustand): Luken glätten (0,6 s, Schutz ab hatchT ≥ 0,5),
+   * Innenraum für den lokalen Insassen, Verschlusskeil, Gestell, Granate in der Hand. Modell-API immer mit ?.
+   */
+  _syncCrew(dt) {
+    const M = this.model, st = this._modelState;
+    for (const s of this.seats) {
+      const want = this.alive && s.hatchOpen ? 1 : 0;
+      if (s.hatchT !== want) s.hatchT = want > s.hatchT ? Math.min(want, s.hatchT + dt / 0.6) : Math.max(want, s.hatchT - dt / 0.6);
+      if (s._hatchId === undefined) s._hatchId = (viewsOf(s.def).find((v) => v.hatch) || {}).hatch || null;
+      if (s._hatchId && st['h' + s.index] !== s.hatchT) { st['h' + s.index] = s.hatchT; M.setHatch?.(s._hatchId, s.hatchT); }
+    }
+    const p = this.G.player;
+    const cv = this.sys && this.sys.camera ? this.sys.camera.view : null;
+    const inside = !!(p && p.vehicle === this && cv && cv.interior && this.alive);
+    if (st.interior !== inside) { st.interior = inside; M.setInterior?.(inside); }
+    const g = this.gun;
+    if (!g) return;
+    const bw = g.breechOpen ? 1 : 0;
+    st.breech = st.breech == null ? bw : bw > st.breech ? Math.min(1, st.breech + dt * 4) : Math.max(0, st.breech - dt * 4);
+    if (st.breechSent !== st.breech) { st.breechSent = st.breech; M.setBreech?.(st.breech); }
+    const rk = `${g.rack.mbt_ap}|${g.rack.mbt_he}`;
+    if (st.rack !== rk) { st.rack = rk; M.setRack?.(g.rack); }
+    if (st.held !== g.held) { st.held = g.held; M.setHeld?.(g.held); }
   }
 
   dispose() {

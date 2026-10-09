@@ -1215,7 +1215,7 @@ export class Bot {
     const p = v.position;
     const d = p.distanceTo(eye);
     const t = d / 120; // Flugzeit grob (70 → 150 m/s)
-    const vel = v.body && v.body.velocity;
+    const vel = v.body && v.body.vel; // Fahrzeugkörper (sim.js): Geschwindigkeit heißt vel
     _v.set(p.x + (vel ? vel.x * t : 0), p.y + 1.1 + d * 0.004, p.z + (vel ? vel.z * t : 0)).sub(eye);
     const yaw = Math.atan2(-_v.x, -_v.z);
     const pitch = Math.atan2(_v.y, Math.hypot(_v.x, _v.z));

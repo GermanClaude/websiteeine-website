@@ -1,14 +1,20 @@
-// NULLPUNKT — Fahrzeugkameras (GROSSKAMPF_PLAN §6.5): 1P (Optik/Sitz) und 3P (Verfolger mit Federarm und
-// Kollisionsstrahlen). Die Hauptkamera bleibt G.camera (= Spielerkamera) → der Objektiv-Nachbearbeitungsstapel
-// (renderer.lens) wirkt unverändert; HUD-Projektionen laufen über lens.toScreen.
+// NULLPUNKT — Fahrzeugkameras (GROSSKAMPF_PLAN §6.5, panzer-mp.md §B.3): mehrere Sichten je Sitz (1P-Anker im
+// Wannen-/Turm-/Rohr-/Kuppel-/MG-Raum, Winkelspiegel, Optiken mit Vergrößerungsstufen) und die Außenansicht 'aussen'
+// (Verfolger mit Federarm und Kollisionsstrahlen). Die Hauptkamera bleibt G.camera (= Spielerkamera) → der
+// Objektiv-Nachbearbeitungsstapel (renderer.lens) wirkt unverändert; HUD-Projektionen laufen über lens.toScreen.
 //
-// Blickzustand je Sitz (seat.look):
-//   Lafetten-Sitze (gun/cmg/mg): yaw/pitch = gewünschte Zielrichtung in Welt (Turm folgt mit Richtgeschwindigkeit)
-//   freie Sitze (Fahrer Geländewagen, Mitfahrer): relYaw/relPitch relativ zur Wanne
+// Blickzustand je Sitz (seat.look), Art aus der Sicht (view.look):
+//   'mount'     yaw/pitch = gewünschte Zielrichtung in Welt (Lafette folgt mit Richtgeschwindigkeit)
+//   'rel'       relYaw/relPitch relativ zur Wanne (Fahrer, Mitfahrer)
+//   'relTurret' relYaw/relPitch relativ zum Turm (Ladeschütze)
+// Welche Sicht gilt, entscheidet VehicleSystem (seat.view, erlaubte Sichten); update() bekommt die wirksame Sicht.
 import * as THREE from 'three';
 import { collisionRay, keepClear } from '../engine/physics.js';
+import { dirFromYawPitch, viewOf, viewAnchor, viewLookDir, viewZoom, isTp, viewsOf, firstFp } from './views.js';
 
-const _p = new THREE.Vector3(), _d = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
+export { dirFromYawPitch };
+
+const _p = new THREE.Vector3(), _d = new THREE.Vector3(), _q = new THREE.Quaternion();
 const _piv = new THREE.Vector3(), _t = new THREE.Vector3(), _hit = {};
 const _r = new THREE.Vector3(), _u = new THREE.Vector3(), _o = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 // walls: Federarm – Strahlenbündel (Mitte + 4 Versätze ≈ Kamerakugel), Polster zur Wand, Mindestabstand der Nahebene
@@ -16,60 +22,73 @@ const ARM_RAYS = [[0, 0], [0.32, 0], [-0.32, 0], [0, 0.24], [0, -0.24]];
 const ARM_PAD = 0.35, CAM_CLEAR = 0.2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
-export function dirFromYawPitch(yaw, pitch, out) {
-  const c = Math.cos(pitch);
-  return out.set(-Math.sin(yaw) * c, Math.sin(pitch), -Math.cos(yaw) * c);
-}
-
 export class VehicleCamera {
-  constructor() {
-    this.mode = 'tp';          // Spielerwahl 'fp' | 'tp' (Zielen schaltet immer in die Optik)
+  constructor(sys = null) {
+    this.sys = sys;            // VehicleSystem (Setter mode → Sicht des Spielersitzes)
     this.pos = new THREE.Vector3();
     this.ready = false;
     this.zoom = 1;
-    this.sight = false;        // aktuell in der Optik/1P
+    this.sight = false;        // aktuell 1P (Optik/Sitz)
+    this.view = null;          // wirksame Sicht des letzten Bildes
     this.dir = new THREE.Vector3(0, 0, -1); // Blickrichtung der Kamera (Welt)
+    this._mode = 'tp';
+  }
+
+  /** Verträglichkeit (dev/vehicles.js): 'fp' → erste 1P-Sicht des Sitzes, 'tp' → Außenansicht (falls erlaubt). */
+  get mode() {
+    const p = this.sys && this.sys.G && this.sys.G.player;
+    const seat = p && p.vehicleSeat;
+    return seat ? (isTp(viewOf(seat)) ? 'tp' : 'fp') : this._mode;
+  }
+  set mode(m) {
+    this._mode = m === 'fp' ? 'fp' : 'tp';
+    const sys = this.sys, p = sys && sys.G && sys.G.player;
+    const seat = p && p.vehicleSeat;
+    if (!seat || typeof sys.setSeatView !== 'function') return;
+    const list = viewsOf(seat.def);
+    const allowed = sys.allowedViews ? sys.allowedViews(seat) : list.map((_, i) => i);
+    let idx = this._mode === 'tp' ? list.findIndex((v) => isTp(v)) : firstFp(seat.def);
+    if (!allowed.includes(idx)) idx = allowed[0] ?? 0;
+    sys.setSeatView(p, idx);
   }
 
   reset() { this.ready = false; this.zoom = 1; this.arm = 0; }
 
-  /** Weltrichtung des Blicks eines Sitzes. */
-  lookDir(vehicle, seat, out) {
-    const L = seat.look;
-    if (seat.def.mount) return dirFromYawPitch(L.yaw, L.pitch, out);
-    _e.set(L.relPitch, L.relYaw, 0, 'YXZ');
-    _q.setFromEuler(_e);
-    return out.set(0, 0, -1).applyQuaternion(_q).applyQuaternion(vehicle.body.renderQuat);
-  }
+  /** Weltrichtung des Blicks eines Sitzes (aktuelle bzw. angegebene Sicht). */
+  lookDir(vehicle, seat, out, view = null) { return viewLookDir(vehicle, seat, view || viewOf(seat), out); }
 
   /**
-   * Kamera setzen. baseFov = vertikales Grund-FOV (Grad). Rückgabe: { sight, zoom }.
+   * Kamera setzen. baseFov = vertikales Grund-FOV (Grad); view = wirksame Sicht (sonst seat.view).
+   * Rückgabe: { sight, zoom, view }.
    */
-  update(camera, vehicle, seat, dt, world, baseFov = 70) {
-    const fp = seat.def.fp, tp = seat.def.tp;
-    const zooms = fp.zoom || [1];
-    const zi = Math.min(seat.zoomIndex || 0, zooms.length - 1);
-    const wantZoom = zooms[zi] || 1;
-    this.sight = this.mode === 'fp' || zi > 0;
+  update(camera, vehicle, seat, dt, world, baseFov = 70, view = null) {
+    view = view || viewOf(seat);
+    const tp = view.tp;
+    const wantZoom = viewZoom(view, seat.zoomIndex || 0);
+    const switched = this.view !== view;
+    this.view = view;
+    this.sight = !tp;
     const k = 1 - Math.exp(-dt * 14);
+    // Sichtwechsel: Vergrößerung springt (Optik → Außen sonst langsames Herauszoomen)
+    if (switched) this.zoom = wantZoom;
     this.zoom += (wantZoom - this.zoom) * (Math.abs(wantZoom - this.zoom) < 0.01 ? 1 : 1 - Math.exp(-dt * 18));
-    const dir = this.lookDir(vehicle, seat, this.dir);
+    const dir = this.lookDir(vehicle, seat, this.dir, view);
     if (this.sight) {
-      if (seat.def.mount) vehicle.sightPose(seat.index, _p, _q);
-      else vehicle.body.toWorldRender(_t.fromArray(fp.pos), _p);
+      viewAnchor(vehicle, view, _p, null);
       this.pos.copy(_p);
       this.ready = true;
     } else {
       // Verfolger: Drehpunkt über der Wanne, Arm entgegen der Blickrichtung
       vehicle.body.toWorldRender(_t.set(0, tp.pivot, 0), _piv);
       let d = dir;
-      if (!seat.def.mount) {
+      if (view.look !== 'mount') {
         // freie Sitze: Kamera schaut leicht abwärts über das Fahrzeug
         _d.copy(dir); _d.y -= 0.22; d = _d.normalize();
       }
       const dist = tp.dist;
       _p.copy(_piv).addScaledVector(d, -dist);
       _p.y += tp.height - tp.pivot;
+      if (switched) this.ready = false;
       // Kollision (walls): Federarm vom Drehpunkt – kürzer sofort, länger mit Feder; nach dem Nachführen nochmals
       // begrenzen (der geglättete Weg darf nicht durch eine Ecke schneiden), danach Mindestabstand zur Geometrie
       _t.copy(_p).sub(_piv);
@@ -107,11 +126,12 @@ export class VehicleCamera {
       }
     }
     camera.position.copy(this.pos);
-    _t.copy(this.pos).add(_d.copy(this.sight ? dir : (seat.def.mount ? dir : _d.copy(dir).setY(dir.y - 0.08).normalize())));
+    _t.copy(this.pos).add(_d.copy(this.sight || view.look === 'mount' ? dir : _d.copy(dir).setY(dir.y - 0.08).normalize()));
     camera.up.set(0, 1, 0);
     camera.lookAt(_t);
-    const fov = clamp((2 * Math.atan(Math.tan((baseFov * Math.PI) / 360) / this.zoom) * 180) / Math.PI, 4, 120);
+    const fov = clamp((2 * Math.atan(Math.tan((baseFov * Math.PI) / 360) / this.zoom) * 180) / Math.PI, 3, 120);
     if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
-    return { sight: this.sight, zoom: this.zoom };
+    void _q;
+    return { sight: this.sight, zoom: this.zoom, view };
   }
 }

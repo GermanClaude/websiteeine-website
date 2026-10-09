@@ -65,14 +65,19 @@ class EngineVoice {
   set(vehicle, listenerInside, dt) {
     const ctx = this.ctx, t = ctx.currentTime, p = this.p;
     const b = vehicle.body;
-    const rpm = vehicle.alive ? Math.max(0.06, Math.min(1.2, b.rpm)) : 0;
+    // Triebwerkszustand (drivetrain.js; auf Abbildern schreibt ihn das Netz): Drehzahl → Tonhöhe, Last → Klangfarbe
+    const D = b.drive;
+    const on = vehicle.alive && (!D || D.rpm > 0 || D.rpmNorm > 0);
+    const rpm = on ? Math.max(0, Math.min(1.15, D ? D.rpmNorm : b.rpm)) : 0;
+    const load = on ? Math.max(0, Math.min(1, D ? D.throttle : Math.abs((b.controls && b.controls.throttle) || 0))) : 0;
+    const dip = D && D.shifting ? 0.72 : 1; // Schaltpause: kurzer Einbruch (Zugkraftunterbrechung)
     const f = p.base + p.span * rpm;
     this.saw.frequency.setTargetAtTime(f, t, 0.06);
     this.sq.frequency.setTargetAtTime(f * 0.5, t, 0.06);
-    this.lp.frequency.setTargetAtTime((p.cut + p.cutSpan * rpm) * (listenerInside ? 0.55 : 1), t, 0.08);
-    this.gn.gain.setTargetAtTime(p.noise * (0.15 + rpm * 0.6), t, 0.1);
-    const vol = vehicle.alive ? p.vol * (listenerInside ? 0.55 : 1) * (0.55 + rpm * 0.6) : 0;
-    this.out.gain.setTargetAtTime(vol, t, 0.12);
+    this.lp.frequency.setTargetAtTime((p.cut + p.cutSpan * (rpm * 0.6 + load * 0.4)) * dip * (listenerInside ? 0.55 : 1), t, 0.08);
+    this.gn.gain.setTargetAtTime(p.noise * (0.12 + rpm * 0.4 + load * 0.35) * dip, t, 0.1);
+    const vol = on ? p.vol * (listenerInside ? 0.55 : 1) * (0.5 + rpm * 0.4 + load * 0.25) * dip : 0;
+    this.out.gain.setTargetAtTime(vol, t, D && D.shifting ? 0.05 : 0.12);
     if (this.clank) {
       const sp = Math.abs(b.trackSpeed[0]) + Math.abs(b.trackSpeed[1]);
       this.lfo.frequency.setTargetAtTime(3 + sp * 1.6, t, 0.1);

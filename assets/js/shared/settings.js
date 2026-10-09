@@ -48,6 +48,9 @@ export const DEFAULTS = Object.freeze({
   glocke: true,
   // Leichen (bots/corpses.js): 'bleiben' | '10min' | '2min'; zusätzlich Obergrenze je Grafikstufe (älteste zuerst weg)
   leichen: 'bleiben',
+  // Fahrzeuge (panzer-mp.md §A.5/§B.5): Panzer-Getriebe „Gang halten“ (W/S tippen, wie Squad 44) oder Automatik;
+  // Panzer nachladen offline (online entscheidet die Raumeinstellung des Hosts)
+  vehGearbox: 'halten', vehReload: 'manuell',
   // VR-Modus (Beta, engine/xr/): nur mit Einstellung + laufender WebXR-Sitzung wirksam; Bedeutung in docs/planung/vr.md
   vrEnabled: false, vrHand: 'rechts', vrTurn: 'schritt', vrTurnStep: '30', vrTurnSpeed: 120, vrMoveDir: 'kopf',
   vrVignette: true, vrVignetteStrength: 0.6, vrSeated: false, vrPhysical: true, vrHeight: 0,
@@ -244,6 +247,14 @@ export const SETTINGS_SCHEMA = Object.freeze({
   leichen: {
     type: 'enum', label: 'Leichen', group: 'spiel',
     options: ['bleiben', '10min', '2min'], labels: { bleiben: 'Bleiben liegen', '10min': '10 Minuten', '2min': '2 Minuten' },
+  },
+  vehGearbox: {
+    type: 'enum', label: 'Panzer-Getriebe', group: 'steuerung',
+    options: ['halten', 'automatik'], labels: { halten: 'Gang halten (wie Squad 44)', automatik: 'Automatik (W/S halten)' },
+  },
+  vehReload: {
+    type: 'enum', label: 'Panzer nachladen', group: 'spiel',
+    options: ['manuell', 'automatisch'], labels: { manuell: 'Manuell (Ladeschütze)', automatisch: 'Automatisch' },
   },
   fullscreen: {
     type: 'enum', label: 'Vollbild', group: 'spiel',

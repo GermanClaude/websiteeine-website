@@ -18,7 +18,7 @@ export const MAX_SLOTS = 3;
 export const DEVICES = Object.freeze(['kb', 'pad', 'xr']);
 
 /**
- * Alle Aktionen. group: bewegung | kampf | serien | sonstiges. modes: Halten/Umschalten wählbar
+ * Alle Aktionen. group: bewegung | kampf | serien | sonstiges | fahrzeug. modes: Halten/Umschalten wählbar
  * (Einstellung `<modeKey>`), fixed: nicht änderbar (Pause bleibt Esc/Menü).
  */
 export const ACTION_DEFS = Object.freeze([
@@ -55,10 +55,15 @@ export const ACTION_DEFS = Object.freeze([
   { id: 'scoreboard', label: 'Punktetabelle', group: 'sonstiges' },
   { id: 'fullscreen', label: 'Vollbild umschalten (auch Alt + Eingabe)', short: 'Vollbild', group: 'sonstiges' },
   { id: 'pause', label: 'Pause', group: 'sonstiges', fixed: true },
+  // Fahrzeuge (panzer-mp.md §A.5/§B.2): Tastatur schaltet mit W/S tippen und wechselt Sitze mit 1–4
+  { id: 'gear_up', label: 'Hochschalten (Panzer)', short: 'Gang hoch', group: 'fahrzeug' },
+  { id: 'gear_down', label: 'Herunterschalten (Panzer)', short: 'Gang runter', group: 'fahrzeug' },
+  { id: 'seat_next', label: 'Nächster Sitz (Fahrzeug)', short: 'Sitz vor', group: 'fahrzeug' },
+  { id: 'seat_prev', label: 'Vorheriger Sitz (Fahrzeug)', short: 'Sitz zurück', group: 'fahrzeug' },
 ]);
 export const ACTION_IDS = Object.freeze(ACTION_DEFS.map((a) => a.id));
 export const ACTION_BY_ID = Object.freeze(Object.fromEntries(ACTION_DEFS.map((a) => [a.id, a])));
-export const ACTION_GROUPS = Object.freeze({ bewegung: 'Bewegung', kampf: 'Kampf', serien: 'Serienprämien', sonstiges: 'Sonstiges' });
+export const ACTION_GROUPS = Object.freeze({ bewegung: 'Bewegung', kampf: 'Kampf', serien: 'Serienprämien', sonstiges: 'Sonstiges', fahrzeug: 'Fahrzeug' });
 export const MOVE_ACTIONS = Object.freeze(['move_forward', 'move_back', 'move_left', 'move_right']);
 
 /**
@@ -76,6 +81,7 @@ export const DEFAULT_BINDINGS = deepFreeze({
     streak1: ['Digit3'], streak2: ['Digit4'], streak3: ['Digit5'], interact: ['KeyF'], scoreboard: ['Tab'], pause: ['Escape'], fullscreen: ['F11'],
     prone: ['KeyZ'], plate: ['Digit4'], gadget: ['KeyB'], inspect: ['KeyI'], loadout: ['KeyL'], squad_order: ['Mouse1', 'KeyH'],
     befehl: ['KeyY'],
+    gear_up: [], gear_down: [], seat_next: [], seat_prev: [],
   },
   pad: {
     move_forward: [], move_back: [], move_left: [], move_right: [],
@@ -84,6 +90,7 @@ export const DEFAULT_BINDINGS = deepFreeze({
     swap: ['Pad3'], slot1: [], slot2: [], light: ['Pad13'],
     streak1: ['Pad12'], streak2: ['Pad14'], streak3: ['Pad15'], interact: ['Pad2'], scoreboard: ['Pad8'], pause: ['Pad9'], fullscreen: [],
     prone: [], plate: ['Pad13'], gadget: ['Pad6+Pad3'], inspect: [], loadout: ['Pad3'], squad_order: [], befehl: ['Pad6+Pad12'],
+    gear_up: ['Pad5'], gear_down: ['Pad4'], seat_next: ['Pad15'], seat_prev: ['Pad14'],
   },
   // VR-Controller (wie gängige VR-Shooter, Haupthand rechts): Abzug feuern, Griff anlegen (zusätzlich: Waffe ans Auge),
   // A springen, B ducken (halten: hinlegen), Stick drücken Nahkampf, Stick hoch Waffe wechseln, Stick runter Platte;
@@ -96,6 +103,7 @@ export const DEFAULT_BINDINGS = deepFreeze({
     swap: ['XrHUp'], slot1: [], slot2: [], light: [],
     streak1: [], streak2: [], streak3: [], interact: ['XrN4'], scoreboard: [], pause: ['XrN5'], fullscreen: [],
     prone: [], plate: ['XrHDown'], gadget: [], inspect: [], loadout: [], squad_order: [], befehl: [],
+    gear_up: [], gear_down: [], seat_next: ['XrH3'], seat_prev: [],
   },
 });
 
@@ -108,7 +116,9 @@ export function isFixed(action, device) {
 /** Aktionspaare, die sich eine Taste teilen dürfen (kein Konflikt): X = Nachladen + Interagieren wie in CoD. */
 // Platte teilt sich 4 mit Serie 2 bzw. ▼ mit der Lampe: player.js entscheidet (Serie bereit → Serie; Platte nötig → Platte).
 // Ausrüsten teilt Y mit dem Waffenwechsel (nur nach dem Tod/in Menüs wirksam).
-export const ALLOWED_SHARES = Object.freeze([['reload', 'interact'], ['plate', 'streak2'], ['plate', 'light'], ['loadout', 'swap']]);
+// Fahrzeugaktionen teilen sich Tasten mit Infanterie-Aktionen, die im Fahrzeug ruhen (RB/LB, Steuerkreuz ◀/▶, VR-Stick).
+export const ALLOWED_SHARES = Object.freeze([['reload', 'interact'], ['plate', 'streak2'], ['plate', 'light'], ['loadout', 'swap'],
+  ['gear_up', 'tactical'], ['gear_down', 'grenade'], ['seat_next', 'streak3'], ['seat_next', 'melee'], ['seat_prev', 'streak2']]);
 const shareOk = (a, b) => ALLOWED_SHARES.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
 
 /** Nicht belegbar: Esc (verlässt den Pointer-Lock), Browser-/Systemtasten, Home-Taste des Gamepads. */
