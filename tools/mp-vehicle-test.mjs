@@ -209,9 +209,13 @@ try {
         const others = V.list.filter((o) => o !== v).map((o) => o.body.pos);
         const rejected = [];
         let pick = null;
-        for (let n = 0; n < 14 && !pick; n++) {
-          const spot = V.findSpot(a.position, v.type, { avoid: [...others, ...rejected], maxR: 90 });
-          if (!spot) break;
+        // nahe dem Menschen, sonst nahe dem Panzer selbst bzw. der Kartenmitte (der Mensch wird ohnehin dorthin gesetzt)
+        const centers = [a.position.clone(), v.body.pos.clone()];
+        if (G.world.bounds) { const mc = G.world.bounds.getCenter(a.position.clone()); mc.y = v.body.pos.y - 1; centers.push(mc); }
+        for (let n = 0; n < 30 && !pick; n++) {
+          const c = centers[Math.min(centers.length - 1, Math.floor(n / 10))];
+          const spot = V.findSpot(c, v.type, { avoid: [...others, ...rejected], maxR: 90 });
+          if (!spot) { n = Math.floor(n / 10) * 10 + 9; continue; }
           const T = spot.position.constructor;
           let best = spot.yaw, bestLen = -1;
           for (let k = 0; k < 16; k++) {
@@ -545,6 +549,8 @@ try {
   const bertIn2 = await until(host, ([vid, id]) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return v.seats.findIndex((s) => s.actor && s.actor.netId === id); }, [tA.vid, B], 20000);
   check(bertIn2 != null && bertIn2 >= 0, `Bert steigt wieder ein (Sitz ${bertIn2 != null ? bertIn2 + 1 : '–'})`);
   const tClose = Date.now();
+  // wie ein echter Browser beim Schließen des Tabs: pagehide (persisted false), dann zu – Playwright löst es selbst nicht aus
+  await ev(bert, () => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: false }))).catch(() => {});
   await bert.close();
   delete pages.Bert;
   const freed = await until(host, ([vid, id]) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return !v.seats.some((s) => s.actor && s.actor.netId === id); }, [tA.vid, B], 15000, 200);
