@@ -1340,6 +1340,7 @@ body[data-input-mode="touch"] .m-btn kbd { display: none; }
   touch-action: manipulation;
 }
 .m-tab svg { width: 18px; height: 18px; }
+.m-tab-beta { font-style: normal; font-size: 0.62em; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 5px; margin-left: 6px; border: 1px solid var(--np-signal); color: var(--np-signal); border-radius: 2px; vertical-align: 2px; }
 .m-tab:hover { color: var(--np-ink); }
 .m-tab[aria-selected="true"] { color: var(--np-ink); border-bottom-color: var(--np-signal); }
 
