@@ -282,3 +282,4 @@ B) SPÄTER nach der verbindlichen Reihenfolge (Schritt 2–4): Battle Royale, Co
 - NUTZER 09.10. ~20:30 (spielt gerade mit ~8 Leuten): ALLES ANDERE STOPPEN (Panzer-Workflow gestoppt), nur noch Zurufe umsetzen; „um 12 Uhr machst du weiter“ (danach Panzer/Listen fortsetzen).
   - MODUS „NUR MESSER“ (heute).
   - DROHNE als Abschussserie, die man selbst steuern kann (Wunsch der Mitspieler, heute).
+  - CHEAT-MENÜ im Modus „Nur Messer“ (Nutzer ~20:50, ausdrücklich freigegeben): Numpad 1-2-3-4 + Code NULLPUNKT (groß, ohne Punkt); Aimbot, Spinbot, Auto-Messer (perfekte Distanz), Ausweichen wenn jemand zielt, Gegner markieren; kein Godmode. Dazu (angekündigt): Host-Schalter „Cheat-Menü erlaubt“ (Standard an) + Symbol in der Punktetabelle.
