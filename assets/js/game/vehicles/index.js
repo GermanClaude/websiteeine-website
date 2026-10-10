@@ -418,6 +418,7 @@ export class VehicleSystem {
     seat.proxy = null;
     seat.intent = newIntent();
     seat.intent.fireWhenAligned = !isHuman(actor);
+    seat.aimError = Math.PI; // Lafette noch nicht nachgeführt (sonst zählte der Startwert 0 als „ausgerichtet“)
     seat.zoomIndex = 0;
     actor.vehicle = v;
     actor.seat = idx;

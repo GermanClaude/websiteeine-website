@@ -23,7 +23,9 @@ export const CODE_LENGTH = 6;
 const MAX_PLAYERS = 32;
 /** Raum-Einstellung „Fahrzeuge“: Standard an (wie net/index.js VEHICLES_ONLINE_DEFAULT – fehlt der Wert, gilt er). */
 const VEH_DEFAULT_ON = true;
-const vehOn = (s) => (s.vehicles === undefined ? VEH_DEFAULT_ON : s.vehicles === true);
+/** Modi mit Fahrzeugen online (Spiegel von net/index.js VEHICLE_MODES). */
+const VEH_MODES = new Set(['tdm', 'ffa', 'dom', 'kc']);
+const vehOn = (s) => VEH_MODES.has(s.mode) && (s.vehicles === undefined ? VEH_DEFAULT_ON : s.vehicles === true);
 const MAX_TEAM = 16;
 const DIFF_ORDER = ['rekrut', 'regulaer', 'veteran', 'elite'];
 const IN_MATCH = ['loading', 'countdown', 'playing', 'paused'];
@@ -923,7 +925,7 @@ export class NetMenus {
         </div>
         <div class="nr-two">
           ${sw('stamina', 'Ausdauer', s.stamina === false ? 'Aus: unbegrenzt sprinten, rutschen, springen – für alle' : 'Sprinten, Rutschen und Springen kosten Ausdauer', s.stamina !== false)}
-          ${sw('vehicles', 'Fahrzeuge', 'Panzer und Geländewagen für beide Teams', vehOn(s))}
+          ${VEH_MODES.has(s.mode) ? sw('vehicles', 'Fahrzeuge', 'Panzer und Geländewagen für beide Teams', vehOn(s)) : ''}
           ${sw('killAmmo', 'Munition pro Abschuss', s.killAmmo === false ? 'Aus: nur die Startmunition' : 'Jeder Abschuss bringt ein Magazin (MG: 20 Schuss)', s.killAmmo !== false)}
         </div>
         ${vehOn(s) ? `<div class="nr-two">

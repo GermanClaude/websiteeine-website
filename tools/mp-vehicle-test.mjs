@@ -197,6 +197,11 @@ try {
     setInterval(window.__freeze, 500);
     window.__hv = { hits: [], seat: [], gun: [] };
     G.events.on('vehicle:hit', (e) => window.__hv.hits.push({ vid: e.vehicle.netId, amt: e.amount, by: e.attacker && e.attacker.netId, w: e.weaponId }));
+    // Diagnose: Abpraller, Schüsse (Ursprung/Richtung), Austritt eines Clients und frei gewordene Sitze (Host-Zeit)
+    window.__hv.rico = []; window.__hv.fires = []; window.__hv.left = {}; window.__hv.freed = {};
+    G.events.on('vehicle:ricochet', (e) => window.__hv.rico.push({ vid: e.vehicle.netId, by: e.attacker && e.attacker.netId, w: e.weaponId }));
+    G.events.on('vehicle:fire', (e) => { if (e.weaponId && e.weaponId.startsWith('mbt_') && e.weaponId !== 'mbt_coax') window.__hv.fires.push({ vid: e.vehicle.netId, by: e.actor && e.actor.netId, w: e.weaponId, o: e.origin && [e.origin.x, e.origin.y, e.origin.z].map((x) => +x.toFixed(2)), d: e.dir && [e.dir.x, e.dir.y, e.dir.z].map((x) => +x.toFixed(3)) }); });
+    G.events.on('net:peer', (e) => { if (e && e.joined === false) window.__hv.left[e.id] = performance.now(); });
     G.events.on('vehicle:seat', (e) => window.__hv.seat.push({ vid: e.vehicle.netId, seat: e.seat, by: e.actor && e.actor.netId, t: G.time.elapsed, ready: e.vehicle.seats[e.seat].readyAt }));
     // Fahrzeug auf einen freien Stellplatz nahe eines Menschen stellen (moveVehicle) und den Menschen an den Ausstiegspunkt
     // seines Sitzes setzen – wie ein Modus-Teleport des Hosts: Anti-Cheat-Anker neu + 'correct' an den Client
@@ -421,7 +426,16 @@ try {
   const vh0 = await ev(bert, () => window.__mv.vh);
   await ev(bert, () => window.__game.input.simulate.tap('fire'));
   const hit1 = await until(host, ([vid, id]) => window.__hv.hits.find((h) => h.vid === vid && h.by === id && h.w && h.w.startsWith('mbt_')), [tB.vid, B], 60000, 300);
-  check(!!hit1, `Host: Treffer auf den Feindpanzer durch Berts Puppe (${hit1 ? `${Math.round(hit1.amt)} Schaden, ${hit1.w}` : 'kein Treffer'})`);
+  if (!check(!!hit1, `Host: Treffer auf den Feindpanzer durch Berts Puppe (${hit1 ? `${Math.round(hit1.amt)} Schaden, ${hit1.w}` : 'kein Treffer'})`)) {
+    info(`Diagnose Bert: ${JSON.stringify(await ev(bert, (vid) => {
+      const G = window.__game, v = G.vehicles.list.find((x) => x.netId === vid), si = v.seatOf(G.player), st = v.seats[si];
+      const r3 = (o) => (o ? [o.x, o.y, o.z].map((x) => +(+x).toFixed(3)) : null);
+      const m = new (v.body.pos.constructor)(), d = m.clone();
+      v.muzzle(st.index, m, d, true);
+      return { si, view: st.view, eff: G.vehicles._eff && G.vehicles._eff.view && G.vehicles._eff.view.id, look: { yaw: +st.look.yaw.toFixed(3), pitch: +st.look.pitch.toFixed(3), relYaw: st.look.relYaw }, aimWant: r3(st.aimWant), aimDir: r3(st.intent.aimDir), aimAt: r3(st.intent.aimAt), ready: st.readyAt, now: G.time.elapsed, pos: r3(v.body.pos), muzzle: r3(m), mdir: r3(d), aimPt: window.__aimPt, sent: G.vehicles.net && G.vehicles.net._in ? { y: G.vehicles.net._in.aimYaw, p: G.vehicles.net._in.aimPitch } : null };
+    }, tA.vid))}`);
+    info(`Diagnose Schuss: ${JSON.stringify(await ev(host, (vid) => { const b = window.__game.vehicles.list.find((x) => x.netId === vid); return { fires: window.__hv.fires, rico: window.__hv.rico, hits: window.__hv.hits, target: b && [b.body.pos.x, b.body.pos.y, b.body.pos.z].map((x) => +x.toFixed(2)), hp: b && b.health, team: b && b.team }; }, tB.vid))}`);
+  }
   const vhOk = await until(bert, (n) => window.__mv.vh > n, vh0, 15000);
   check(!!vhOk, "Bert bekommt 'vh' (Treffermarker)");
   const vsSeen = await Promise.all([anna, bert].map((p) => ev(p, () => window.__mv.vs)));
@@ -569,7 +583,10 @@ try {
   const freed = await until(host, ([vid, id]) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return !v.seats.some((s) => s.actor && s.actor.netId === id); }, [tA.vid, B], 15000, 200);
   const freedS = (Date.now() - tClose) / 1000;
   const freedAnna = await until(anna, ([vid, id]) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return !v.seats.some((s) => s.actor && s.actor.netId === id); }, [tA.vid, B], 8000, 200);
-  check(!!freed && freedS <= 5 && !!freedAnna, `Bert schließt die Seite im Panzer → Sitz frei nach ${freedS.toFixed(1)} s (Host + Anna)`);
+  // Spiellogik des Hosts: Austritt erhalten → Sitz frei (Host-Uhr); die Wanduhr enthält unter SwiftShader (≈ 1 Bild/s je
+  // Seite) zusätzlich Sekunden für Seitenaufrufe und Bildtakt
+  const hostLat = freed ? await ev(host, (id) => { const t0 = window.__hv.left[id]; return t0 ? (performance.now() - t0) / 1000 : null; }, B) : null;
+  check(!!freed && !!freedAnna && (freedS <= 5 || (hostLat != null && hostLat <= 5)), `Bert schließt die Seite im Panzer → Sitz frei nach ${freedS.toFixed(1)} s Wanduhr, Host ab Austritt ≤ ${hostLat != null ? hostLat.toFixed(1) : '–'} s (Host + Anna)`);
 
   // Bandbreite (Host): Fahrzeug-Anhang je Client
   const bw = await ev(host, () => { const s = window.__game.net.sync.snapStats; return { sent: s.sent, bytes: s.bytes, vbytes: s.vbytes || 0, vblocks: s.vblocks || 0 }; });

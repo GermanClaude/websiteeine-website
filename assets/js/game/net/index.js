@@ -42,6 +42,8 @@ import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
 export const NET_VERSION = 2;
 /** Online wählbare Modi (Eroberung folgt mit den Fahrzeugen online, Training bleibt offline). */
 export const ONLINE_MODES = Object.freeze(['tdm', 'ffa', 'dom', 'kc', 'messer', 'inf', 'gun']);
+/** Modi mit Fahrzeugen online (Nur Messer, Waffenspiel und Infiziert bleiben ohne – Ausrüstung kommt dort vom Modus). */
+export const VEHICLE_MODES = Object.freeze(new Set(['tdm', 'ffa', 'dom', 'kc']));
 export const HOST_ID = 1;
 export const FIRST_CLIENT_ID = 2;
 export const FIRST_BOT_ID = 1000;
@@ -850,7 +852,7 @@ export class NetSystem {
         botsA, botsB, humans, ffa, conditions: cond, startedAt: this.serverTime(),
         stamina: s.stamina !== false, // Raum-Einstellung „Ausdauer“ (aus = unbegrenzt für alle, _applyMatchRules)
         // Fahrzeuge (panzer-mp.md §C.1): an/aus, Außenansicht erlaubt, Nachladen der Panzerkanone
-        vehicles: s.vehicles === true, thirdPerson: s.thirdPerson !== false, vehReload: s.vehReload === 'automatisch' ? 'automatisch' : 'manuell',
+        vehicles: s.vehicles === true && VEHICLE_MODES.has(s.mode), thirdPerson: s.thirdPerson !== false, vehReload: s.vehReload === 'automatisch' ? 'automatisch' : 'manuell',
         killAmmo: s.killAmmo !== false, // Raum-Einstellung „Munition pro Abschuss“ (weapons/index.js)
         cheatMenu: s.cheatMenu !== false, // Raum-Einstellung „Cheat-Menü“ (cheats.js)
       },
