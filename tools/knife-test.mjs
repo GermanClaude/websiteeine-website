@@ -27,6 +27,8 @@ let i = await info();
 check(i.mode === 'messer' && i.lock, `Modus messer, Ausrüstung gesperrt (${i.mode}, ${i.lock})`);
 const bad = i.actors.filter((a) => a.slots.some((s) => s !== 'knife') || a.eq.some(Boolean));
 check(i.actors.length > 2 && bad.length === 0, `alle ${i.actors.length} Akteure nur Messer, keine Granaten${bad.length ? ': ' + JSON.stringify(bad.slice(0, 3)) : ''}`);
+// Zeitraffer ×4: Messer brauchen seit 10.10. zwei Stiche, SwiftShader unter Last läuft mit ~1 Bild/s
+await page.evaluate(() => { window.__game.timeScale = 4; });
 for (let t = 0; t < 30 && i.kills < 2; t++) { await page.waitForTimeout(10000); i = await info(); }
 check(i.kills >= 2, `Abschüsse im Match: ${i.kills} (Teams ${JSON.stringify(i.scores)})`);
 const bad2 = i.actors.filter((a) => a.slots.some((s) => s !== 'knife') || a.eq.some(Boolean));
