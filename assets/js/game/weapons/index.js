@@ -215,6 +215,8 @@ export class WeaponSystem {
     if (!p || !v || v === p || killer !== p || e.suicide || !p.alive) return;
     if (G.combat && typeof G.combat.isHostile === 'function' && !G.combat.isHostile(p, v)) return;
     if (!this.killAmmoEnabled()) return;
+    // Spielstil Realistisch: Munition nicht automatisch – an der Leiche aufsammeln (mappoints.js, Beute)
+    if (G.match && G.match.style === 'realistisch') return;
     const w = p.weapon;
     if (!w || !Array.isArray(w.slots) || typeof w.grantAmmo !== 'function') return;
     if (this._killAmmoSeen.has(v)) return;

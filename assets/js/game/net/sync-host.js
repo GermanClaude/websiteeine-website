@@ -27,6 +27,7 @@
 import * as THREE from 'three';
 import { WEAPONS, EQUIPMENT } from '../../shared/weapons.data.js';
 import { ABILITIES } from '../../shared/classes.data.js';
+import { MOUNT_WEAPON } from '../mappoints.js';
 import { netPoseOf } from '../bots/bot.js';
 import { PKT_STATE, decodeState, encodeSnapshot, packetType, FLAGS } from './protocol.js';
 import { HOST_ID, FIRST_BOT_ID, sanitizeLoadout, loadoutWeapons } from './index.js';
@@ -101,6 +102,9 @@ export class HostSync {
       net.on('order', (m, from) => this._onOrder(m, from)),
       net.on('streak', (m, from) => this._onStreak(m, from)),
       net.on('ability', (m, from) => this._onAbility(m, from)),
+      net.on('loot', (m, from) => this._onLoot(m, from)),
+      net.on('door', (m, from) => { const p = this._puppet(from); if (this.active && !this.ended && p && this.G.doors) this.G.doors.netRequest(p, m); }),
+      net.on('build', (m, from) => { const p = this._puppet(from); if (this.active && !this.ended && p && this.G.building) this.G.building.netRequest(p, m); }),
       net.on('point', (m, from) => { const p = this._puppet(from); if (this.active && !this.ended && p && m && this.G.points) this.G.points.netUse(p, m.i, from); }),
       net.on('drone', (m, from) => this._onDrone(m, from)),
       net.onFast((buf, from) => this._onFast(buf, from)),
@@ -226,7 +230,7 @@ export class HostSync {
     if (net.history) for (const a of G.actors) if (Number.isInteger(a.netId) && a.position) net.history.record(a.netId, t, a.position.x, a.position.y, a.position.z);
     const now = nowSec();
     if (this._holds.size) this._tickHolds(now);
-    if (this._regens.size) this._tickRegens(now);
+    if (this._regens.size) this._tickRegens();
     if (now >= this._rebalanceAt) { this._rebalanceAt = now + 2; this._rebalance(); }
     if (this._actorsDirty) this._sendActors();
     const vn = this._vn();
@@ -364,7 +368,19 @@ export class HostSync {
     this._modeKey = '';
     this._sendMode(true);
     this._sendStreakState(p);
+    // Bauwerke (building.js) des laufenden Matches nachreichen
+    if (G.building) for (const b of G.building.snapshot()) this.net.send(id, { t: 'ev', e: 'bs', ...b });
+    if (G.doors) for (const d of G.doors.snapshot()) this.net.send(id, { t: 'ev', e: 'dr', ...d }); // Türen/Tore (doors.js)
   }
+
+  /** Bauwerk an alle Clients ('ev' bs, building.js spawn). */
+  relayBuild(msg) { if (this.active && this.net.online) this.net.send('all', { t: 'ev', e: 'bs', ...msg }); }
+
+  /** Tür/Tor geändert ('ev' dr, doors.js). */
+  relayDoor(msg) { if (this.active && this.net.online) this.net.send('all', { t: 'ev', e: 'dr', ...msg }); }
+
+  /** Bauwerk entfernt/zerstört ('ev' bd). */
+  relayBuildEnd(id) { if (this.active && this.net.online) this.net.send('all', { t: 'ev', e: 'bd', id }); }
 
   /** Mensch hat den Raum verlassen (Austritt, Kick, Verbindungsabbruch): Puppe entfernen, Bots ausgleichen. */
   _drop(id) {
@@ -571,6 +587,10 @@ export class HostSync {
     const lw = loadoutWeapons(this.net.rosterEntry(id) && this.net.rosterEntry(id).loadout);
     if (lw) for (const w of lw) out.add(w);
     if (p.weapon && Array.isArray(p.weapon.slots)) for (const s of p.weapon.slots) if (s && s.id) out.add(s.id);
+    if (p._lootWeapons) for (const w of p._lootWeapons) out.add(w); // von Leichen aufgehoben (_onLoot)
+    // an einer MG-Stellung (mappoints.js mount): deren Waffe
+    const em = this.G.world && this.G.world.emplacements;
+    if (em && p.position && em.some((e) => Math.hypot(e.x - p.position.x, e.z - p.position.z) < 3)) out.add(MOUNT_WEAPON);
     for (const id2 of Object.keys(WEAPONS)) if (WEAPONS[id2].cls === 'melee') out.add(id2); // Nahkampfwaffe gehört zur Klasse
     // Modus-Ausrüstung mit Übergang (Waffenspiel: Nachbarstufen, solange der Client die neue Stufe noch nicht hat)
     const mode = this.G.mode;
@@ -762,14 +782,31 @@ export class HostSync {
     const t = nowSec();
     if (t < (this._abilityAt.get(from) || 0)) return;
     this._abilityAt.set(from, t + ab.cooldown * 0.9);
-    if (ab.regen) this._regens.set(from, { until: t + ab.duration, rate: ab.regen });
+    if (ab.regen) this._regens.set(from, { until: this.G.time.elapsed + ab.duration, rate: ab.regen }); // Spielzeit (wie die Heilung)
   }
 
-  _tickRegens(now) {
-    const dt = this.G.time.dt;
+  /**
+   * Waffe von einer Leiche ('loot' {w, v}): Raum erlaubt es, der Gefallene (Netz-Id v) ist tot, liegt höchstens 6 m
+   * von der Puppe und trug diese Waffe → für die Puppe bis zu ihrem Tod erlaubt (_weaponsOf).
+   */
+  _onLoot(m, from) {
+    const G = this.G;
+    const p = this._puppet(from);
+    if (!this.active || this.ended || !p || !p.alive || !m || typeof m.w !== 'string' || !WEAPONS[m.w]) return;
+    if (this.net.room && this.net.room.settings && this.net.room.settings.lootWeapons === false) return;
+    const v = G.actors.find((a) => a.netId === m.v);
+    if (!v || v.alive || !v.position || v.position.distanceTo(p.position) > 6) return;
+    const vw = [v.weapon && v.weapon.currentDef && v.weapon.currentDef.id, v.loadout && v.loadout.primary, v.loadout && v.loadout.secondary];
+    if (!vw.includes(m.w)) return;
+    if (!p._lootWeapons) p._lootWeapons = new Set();
+    p._lootWeapons.add(m.w);
+  }
+
+  _tickRegens() {
+    const { dt, elapsed } = this.G.time;
     for (const [id, r] of this._regens) {
       const p = this._puppet(id);
-      if (!p || !p.alive || now >= r.until) { this._regens.delete(id); continue; }
+      if (!p || !p.alive || elapsed >= r.until) { this._regens.delete(id); continue; }
       if (p.health < p.maxHealth) p.health = Math.min(p.maxHealth, p.health + r.rate * dt);
     }
   }

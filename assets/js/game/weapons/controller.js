@@ -160,7 +160,7 @@ export class WeaponController {
   get currentDef() { const s = this.slots[this.index]; return s ? s.def : null; }
   /** { mag, reserve, magSize } der aktuellen Waffe (HUD-Komfort). */
   get ammo() { const s = this.current; return s ? { mag: s.mag, reserve: s.reserve, magSize: s.def.mag || 0 } : null; }
-  get infiniteAmmo() { const m = this.G.mode; return !!(this.actor.isBot || (m && m.def && m.def.infiniteAmmo)); }
+  get infiniteAmmo() { const m = this.G.mode; return !!(this.actor.isBot || this.actor.mounted || (m && m.def && m.def.infiniteAmmo)); }
   /** Außer Atem nach dem Atemanhalten im Zielfernrohr (HUD-Anzeige). */
   get exhausted() { return this._exhausted > 0; }
 
@@ -659,7 +659,7 @@ export class WeaponController {
     if (it.crouching && !it.moving) k *= 0.85;
     if (it.airborne) k *= 1.2;
     if (actor.isPlayer && G.input && G.input.mode === 'touch') k *= 0.72; // Touch: wie COD Mobile deutlich ruhiger
-    k *= this._rush('rushRecoil');
+    k *= this._rush('rushRecoil') * (actor.mounted ? 0.35 : 1); // MG-Stellung (mappoints.js): Waffe liegt auf der Lafette
     const pitch = r.vertical * e[1] * first * k * (0.94 + Math.random() * 0.12);
     const yaw = r.horizontal * (e[0] + (Math.random() * 0.7 - 0.35)) * k;
     // Freies Zielen (core, nur an der Hüfte): ein Teil des Stoßes bewegt den Lauf innerhalb der Totzone statt der
@@ -1045,6 +1045,22 @@ export class WeaponController {
       const wid = (m.def && m.def.id) || 'knife';
       const dealt = G.combat.damage(target, { amount: dmg, attacker: a, weaponId: wid, zone: 'body', dir, point, distance: point.distanceTo(_eye) });
       G.events.emit('weapon:meleeHit', { actor: a, target, backstab, killed: !target.alive, damage: dealt, weaponId: wid });
+      // Spezial „Spaltschlag“ (Machete): jeder weitere Gegner im Bogen wird ebenfalls getroffen
+      if (spec.cleave) {
+        for (const t of G.actors) {
+          if (t === target || t === a || !t.alive || !G.combat.isHostile(a, t)) continue;
+          _to.copy(t.position);
+          _to.y += (t.body ? t.body.height : 1.8) * 0.6;
+          _to.sub(_eye);
+          const d = _to.length();
+          if (d > (spec.range || 2.4) + 0.45 || d < 1e-3) continue;
+          if (Math.acos(clamp(_to.dot(_aim) / d, -1, 1)) > (spec.arc || 0.6) + 0.25) continue;
+          const pt = new THREE.Vector3().copy(t.position);
+          pt.y += (t.body ? t.body.height : 1.8) * 0.62;
+          const dd = G.combat.damage(t, { amount: ((m.def && m.def.damage && m.def.damage.max) || 60) * scale, attacker: a, weaponId: wid, zone: 'body', dir: pt.clone().sub(_eye).normalize(), point: pt, distance: d });
+          G.events.emit('weapon:meleeHit', { actor: a, target: t, backstab: false, killed: !t.alive, damage: dd, weaponId: wid, cleave: true });
+        }
+      }
       return;
     }
     // Daneben: Einschlag an Wand/Ziel (Funken/Staub, Schießstand-Klappziele)

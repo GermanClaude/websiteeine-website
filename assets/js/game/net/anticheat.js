@@ -555,6 +555,6 @@ export class AntiCheat {
     }
     const cap = this._damageCap(def, ctx);
     const want = num(claim.dmg) ? claim.dmg : def.damage.max * cap.mult;
-    return { ok: true, dmg: Math.max(0, Math.min(want, cap.abs)), reason: 'ok', kick: null };
+    return { ok: true, dmg: Math.max(0, Math.min(want, cap.abs * 2)), reason: 'ok', kick: null }; // ×2: Rückenstich
   }
 }

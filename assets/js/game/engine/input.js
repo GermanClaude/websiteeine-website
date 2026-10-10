@@ -40,7 +40,7 @@ const XR_STICK_DZ = 0.15;
 /** Aktionen, die input.js bei „Umschalten“ selbst einrastet (Sprint/Ducken entscheidet der Spieler). */
 const LATCHABLE = new Set(['ads', 'lean_left', 'lean_right']);
 /** Ruhen, solange das Befehlsrad offen ist (Feuern bestätigt stattdessen die Auswahl). */
-const WHEEL_MASK = new Set(['fire', 'grenade', 'tactical', 'melee', 'swap', 'slot1', 'slot2', 'inspect', 'streak1', 'streak2', 'streak3', 'streak4', 'gadget', 'faehigkeit', 'plate']);
+const WHEEL_MASK = new Set(['fire', 'grenade', 'tactical', 'melee', 'swap', 'slot1', 'slot2', 'inspect', 'streak1', 'streak2', 'streak3', 'streak4', 'gadget', 'faehigkeit', 'bauen', 'plate']);
 const WHEEL_MOUSE_PX = 150; // Mausweg (px) bis zum Rand des Rads
 const WHEEL_TOUCH_PX = 70; // Ziehweg am Touch-Knopf bis zum Rand
 const EMPTY = Object.freeze([]);
@@ -131,6 +131,7 @@ const ICONS = {
   prone: I('<circle cx="35" cy="22" r="4"/><path d="M8 31h20l5-4M14 31l-3-5M26 31l3 4"/><path d="M6 38h36" opacity=".45"/>'),
   plate: I('<path d="M24 7l14 5v11c0 9-6 15-14 18-8-3-14-9-14-18V12z"/><path d="M24 17v14M17 24h14"/>'),
   gadget: I('<rect x="10" y="16" width="28" height="22" rx="3"/><path d="M19 16v-5h10v5M24 21v12M18 27h12"/>'),
+  bauen: I('<path d="M10 38l16-16M22 14l8-6 10 10-6 8z"/><path d="M8 40h14"/>'),
   faehigkeit: I('<path d="M27 6L13 27h10l-3 15 15-22H25z"/>'),
   befehl: I('<circle cx="24" cy="24" r="16"/><path d="M12.7 12.7l5.7 5.7M35.3 12.7l-5.7 5.7M12.7 35.3l5.7-5.7M35.3 35.3l-5.7-5.7" opacity=".55"/><path d="M19 12l5-4 5 4"/><circle cx="24" cy="24" r="3.5" fill="currentColor" stroke="none"/>'),
 };
@@ -1431,6 +1432,7 @@ class TouchUI {
       ${BTN_HTML('tc-befehl', 'befehl', 'Befehlsrad', ICONS.befehl)}
       <div class="tc-btn tc-plate" data-action="plate" role="button" aria-label="Panzerplatte einsetzen">${ICONS.plate}<span class="tc-badge">0</span></div>
       <div class="tc-btn tc-gadget" data-action="gadget" role="button" aria-label="Klassen-Ausrüstung">${ICONS.gadget}<span class="tc-badge">0</span></div>
+      ${BTN_HTML('tc-bauen', 'bauen', 'Bauen', ICONS.bauen)}
       <div class="tc-btn tc-faehigkeit" data-action="faehigkeit" role="button" aria-label="Klassen-Fähigkeit">${ICONS.faehigkeit}<span class="tc-badge" hidden></span></div>
       <div class="tc-btn tc-swap" data-action="swap" role="button" aria-label="Waffe wechseln">${ICONS.swap}<span class="tc-swap-name">—</span></div>
       <div class="tc-streaks">
@@ -1457,6 +1459,7 @@ class TouchUI {
       plateBadge: r.querySelector('.tc-plate .tc-badge'),
       gadget: r.querySelector('.tc-gadget'),
       gadgetBadge: r.querySelector('.tc-gadget .tc-badge'),
+      bauen: r.querySelector('.tc-bauen'),
       faehigkeit: r.querySelector('.tc-faehigkeit'),
       faehigkeitBadge: r.querySelector('.tc-faehigkeit .tc-badge'),
       prone: r.querySelector('.tc-prone'),
@@ -1751,6 +1754,7 @@ class TouchUI {
     if (kind === 'armor') return !!(p && p.armor && p.armor.slots > 0);
     if (kind === 'gadget') return !!(p && p.gadget);
     if (kind === 'faehigkeit') return !!(p && p.ability);
+    if (kind === 'bauen') return !!(G.building && p && G.building.kindsFor(p).length);
     if (kind === 'allies') {
       // verbündete Bots (offline/Host: KI-Bots, Client: Puppen der Host-Bots) – sonst hat das Befehlsrad nichts zu tun
       if (!p || !p.team || (G.xr && G.xr.presenting)) return false;

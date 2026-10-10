@@ -8,7 +8,7 @@
 // (teardownMatch räumt sie mit weg; Geometrie und Materialien werden über Matches hinweg wiederverwendet).
 import * as THREE from 'three';
 import { MAPS } from '../shared/maps.data.js';
-import { EQUIPMENT } from '../shared/weapons.data.js';
+import { EQUIPMENT, WEAPONS, killAmmoFor } from '../shared/weapons.data.js';
 
 export const POINT_KINDS = Object.freeze({
   munition: { name: 'Munitionskiste', act: 'Munition auffüllen', effect: 'ammo', cooldown: 30, color: 0xc8a64a },
@@ -34,6 +34,10 @@ export const POINT_LAYOUT = Object.freeze({
 });
 
 const REACH = 1.9; // m vom Punkt (waagerecht)
+export const MOUNT_WEAPON = 'lmg_hm60'; // Waffe einer MG-Stellung (unendlich Munition, ruhiger Rückstoß)
+const MOUNT_REACH = 1.5; // m vom Platz des Schützen
+const LOOT_REACH = 2.3; // m von der Stelle, an der jemand gefallen ist (Körper rutscht/kippt etwas)
+const LOOT_LIFE = 120; // s bleibt Beute liegen
 let SHARED = null; // Geometrie/Materialien (einmal je Seite)
 function shared() {
   if (SHARED) return SHARED;
@@ -74,13 +78,82 @@ export class MapPoints {
       else { const f = (data.flags || []).find((x) => x.id === ref[1]); if (f) { bx = f.x; bz = f.z; } }
       if (bx == null || !def) continue;
       const x = bx + dx, z = bz + dz;
-      const gy = world && typeof world.groundHeight === 'function' ? world.groundHeight(x, z, 60) : null;
-      const pos = new THREE.Vector3(x, Number.isFinite(gy) ? gy : 0, z);
+      const pos = new THREE.Vector3(x, floorAt(world, x, z), z);
       const p = { i: this.points.length, kind, def, position: pos, readyAt: 0, mesh: this._mesh(def, pos) };
       this.points.push(p);
       this.group.add(p.mesh);
     }
     if (G.scene) G.scene.add(this.group);
+    // Beute an Gefallenen: Munition (Spielstil Realistisch statt Munition pro Abschuss) und Waffe (Einstellung „Waffen von Leichen“)
+    this.loot = [];
+    this._offKill = G.events.on('kill', (e) => this._onKill(e));
+  }
+
+  /** Waffen von Leichen erlaubt? Online Raum-Einstellung des Hosts, offline Spieleinstellung (Standard an). */
+  lootWeaponsAllowed() {
+    const G = this.G;
+    const M = G.match;
+    if (!M || M.modeId === 'gun' || M.modeId === 'messer' || M.modeId === 'training') return false;
+    if (M.net) return M.net.lootWeapons !== false;
+    return !(G.settings && typeof G.settings.get === 'function' && G.settings.get('lootWeapons') === false);
+  }
+
+  _onKill(e) {
+    const G = this.G;
+    const v = e && e.victim;
+    if (!v || v === G.player || !v.position || v.isStreakEntity || v.vehicle) return;
+    const W = G.weapons;
+    const ammo = !!(G.match && G.match.style === 'realistisch' && W && typeof W.killAmmoEnabled === 'function' && W.killAmmoEnabled());
+    const wid = victimWeapon(v);
+    const weapon = wid && this.lootWeaponsAllowed() ? wid : null;
+    if (!ammo && !weapon) return;
+    const now = G.time.elapsed;
+    this.loot = this.loot.filter((l) => l.until > now && l.victim !== v);
+    this.loot.push({ victim: v, netId: v.netId, name: v.name || 'Gefallener', position: v.position.clone(), ammo, weapon, until: now + LOOT_LIFE });
+    if (this.loot.length > 40) this.loot.shift();
+  }
+
+  /** Beute aufnehmen: zuerst Munition (falls vorhanden), beim nächsten Druck die Waffe. → bool */
+  _takeLoot(l) {
+    const G = this.G;
+    const P = G.player;
+    const w = P.weapon;
+    if (l.ammo) {
+      l.ammo = false;
+      let got = 0;
+      for (const st of (w && w.slots) || []) {
+        if (!st || !st.def || !(st.def.mag > 0) || st.def.cls === 'melee') continue;
+        const k = killAmmoFor(st.def);
+        const r = w.grantAmmo(st, k.amount, { belt: k.belt, cap: k.cap });
+        if (r) got += r.mag + r.reserve;
+      }
+      const eq = w && w.equipment;
+      if (eq && eq.lethal && eq.lethal.id && eq.lethal.count < 1) { eq.lethal.count = 1; got++; }
+      G.events.emit('loot:take', { actor: P, kind: 'ammo', amount: got, name: l.name });
+      if (got) this._sound('reload_mag_in', l);
+      if (!l.weapon) this.loot.splice(this.loot.indexOf(l), 1);
+      return true;
+    }
+    if (l.weapon) {
+      const def = WEAPONS[l.weapon];
+      if (!def || !w || typeof w.setLoadout !== 'function') return false;
+      const cur = w.slots.map((s) => s.id);
+      const lo = { primary: cur[0], secondary: cur[1] === undefined ? null : cur[1] };
+      if (def.slot === 'secondary') lo.secondary = def.id;
+      else lo.primary = def.id;
+      if (lo.primary === lo.secondary) lo.secondary = null;
+      const was = def.slot === 'secondary' ? cur[1] : cur[0];
+      w.setLoadout(lo);
+      const idx = w.slots.findIndex((s) => s.id === def.id);
+      if (idx >= 0 && idx !== w.index && typeof w.switchTo === 'function') w.switchTo(idx);
+      const sync = G.net && G.net.sync;
+      if (sync && typeof sync.sendLoot === 'function') sync.sendLoot(def.id, l.netId);
+      G.events.emit('loot:take', { actor: P, kind: 'weapon', weaponId: def.id, dropped: was, name: l.name });
+      this._sound('equip', l);
+      this.loot.splice(this.loot.indexOf(l), 1);
+      return true;
+    }
+    return false;
   }
 
   _mesh(def, pos) {
@@ -111,11 +184,34 @@ export class MapPoints {
       c.scale.setScalar(s);
     }
     this.near = null;
+    if (P && P.mounted) { this._updateMounted(P); return; }
     if (!P || !P.alive || P.vehicle || P.piloting || G.match.state !== 'playing') return;
+    // MG-Stellung (world.emplacements): hinter der Waffe stehen → bedienen
+    const em = (G.world && G.world.emplacements) || [];
+    for (const e of em) {
+      if (Math.hypot(e.x - P.position.x, e.z - P.position.z) > MOUNT_REACH || Math.abs(e.y - P.position.y) > 1.2) continue;
+      if (G.actors.some((a) => a !== P && a.alive && a.mounted && a.mounted.emp === e)) continue;
+      this.near = { mount: e, left: 0, text: 'MG bedienen (unendlich Munition, 250°)' };
+      if (G.input && G.input.pressed('interact')) { G.input.consume && G.input.consume('interact'); this.mount(e); }
+      return;
+    }
     let best = null, bd = REACH;
     for (const p of this.points) {
       const d = Math.hypot(p.position.x - P.position.x, p.position.z - P.position.z);
       if (d < bd && Math.abs(p.position.y - P.position.y) < 2.5) { bd = d; best = p; }
+    }
+    if (!best && this.loot.length) {
+      let bl = null, bld = LOOT_REACH;
+      for (const l of this.loot) {
+        if (l.until <= now) continue;
+        const d = Math.hypot(l.position.x - P.position.x, l.position.z - P.position.z);
+        if (d < bld && Math.abs(l.position.y - P.position.y) < 2) { bld = d; bl = l; }
+      }
+      if (bl) {
+        this.near = { loot: bl, left: 0, text: bl.ammo ? `Munition aufnehmen · ${bl.name}` : `${(WEAPONS[bl.weapon] || {}).name || bl.weapon} aufheben` };
+        if (G.input && G.input.pressed('interact') && !(G.mode && G.mode.id === 'training')) this.use();
+        return;
+      }
     }
     if (!best) return;
     this.near = { point: best, left: Math.max(0, Math.ceil(best.readyAt - now)) };
@@ -128,6 +224,9 @@ export class MapPoints {
     const P = G.player;
     const n = this.near;
     if (!n || !P || !P.alive) return false;
+    if (n.loot) { const ok = this._takeLoot(n.loot); this.near = null; return ok; }
+    if (n.mount) return this.mount(n.mount);
+    if (n.unmount) { this.unmount(); return true; }
     const p = n.point;
     const def = p.def;
     const now = G.time.elapsed;
@@ -154,6 +253,61 @@ export class MapPoints {
     return true;
   }
 
+  /**
+   * MG-Stellung bedienen: Spieler steht auf dem Platz des Schützen, Blick in Feuerrichtung, Drehbereich e.arc (250°),
+   * Waffe MOUNT_WEAPON mit unendlich Munition (controller.infiniteAmmo liest player.mounted) und ruhigem Rückstoß.
+   * Die eigene Ausrüstung samt Munitionsstand kommt beim Verlassen (F, Springen, Tod) zurück.
+   */
+  mount(e) {
+    const G = this.G;
+    const P = G.player;
+    const w = P && P.weapon;
+    if (!w || !P.alive || P.mounted || typeof w.setLoadout !== 'function') return false;
+    const saved = {
+      lo: { primary: w.slots[0] ? w.slots[0].id : null, secondary: w.slots[1] ? w.slots[1].id : null },
+      ammo: w.slots.map((s) => ({ id: s.id, mag: s.mag, reserve: s.reserve })),
+      index: w.index,
+    };
+    if (P.prone && typeof P._leaveProne === 'function') P._leaveProne('stand');
+    P.crouching = false;
+    P.mounted = { emp: e, yaw0: Math.atan2(-e.dx, -e.dz), arc: e.arc, saved };
+    P.position.set(e.x, e.y, e.z);
+    if (P.body && P.body.velocity) P.body.velocity.set(0, 0, 0);
+    P.yaw = P.mounted.yaw0;
+    P.pitch = 0;
+    w.setLoadout({ primary: MOUNT_WEAPON, secondary: null });
+    G.events.emit('mount:enter', { actor: P, emplacement: e });
+    return true;
+  }
+
+  unmount() {
+    const G = this.G;
+    const P = G.player;
+    const m = P && P.mounted;
+    if (!m) return;
+    P.mounted = null;
+    const w = P.weapon;
+    if (w && typeof w.setLoadout === 'function' && m.saved.lo.primary) {
+      w.setLoadout(m.saved.lo);
+      for (const a of m.saved.ammo) { const st = w.slots.find((s) => s.id === a.id); if (st) { st.mag = a.mag; st.reserve = a.reserve; } }
+      if (m.saved.index < w.slots.length && m.saved.index !== w.index && typeof w.switchTo === 'function') w.switchTo(m.saved.index);
+    }
+    G.events.emit('mount:exit', { actor: P, emplacement: m.emp });
+  }
+
+  _updateMounted(P) {
+    const G = this.G;
+    const m = P.mounted;
+    const e = m.emp;
+    if (!P.alive || G.match.state !== 'playing') { this.unmount(); return; }
+    // fest auf dem Platz (kein Laufen; Blickgrenzen in player.js)
+    P.position.set(e.x, e.y, e.z);
+    if (P.body && P.body.velocity) P.body.velocity.set(0, 0, 0);
+    this.near = { unmount: true, left: 0, text: 'MG verlassen' };
+    const input = G.input;
+    if (input && (input.pressed('interact') || input.pressed('jump'))) { if (input.consume) { input.consume('interact'); input.consume('jump'); } this.unmount(); }
+  }
+
   /** Host: Heilung eines Clients an Punkt i (Abstand der Puppe ≤ Reichweite + 1,5 m, Abklingzeit je Client). → bool */
   netUse(actor, i, from) {
     const p = this.points[i | 0];
@@ -169,15 +323,44 @@ export class MapPoints {
   }
 
   _sound(name, p) {
+    if (!p || !p.position) return;
     const au = this.G.audio;
     if (au && typeof au.play === 'function') { try { au.play(name, { position: p.position, volume: 0.8 }); } catch { /* Klang ist Beiwerk */ } }
   }
 
   dispose() {
+    if (this.G.player && this.G.player.mounted) this.G.player.mounted = null;
+    if (this._offKill) { this._offKill(); this._offKill = null; }
+    this.loot.length = 0;
     if (this.group.parent) this.group.parent.remove(this.group);
     this.points.length = 0;
     this.near = null;
   }
+}
+
+/** Schusswaffe eines Gefallenen (Bot/Puppe: gehaltene Waffe, sonst Hauptwaffe der Ausrüstung) – keine Nahkampfwaffen/Werfer. */
+function victimWeapon(v) {
+  const ids = [v.weapon && v.weapon.currentDef && v.weapon.currentDef.id, v.weaponId, v.loadout && v.loadout.primary];
+  for (const id of ids) {
+    const d = id && WEAPONS[id];
+    if (d && (d.slot === 'primary' || d.slot === 'secondary') && d.cls !== 'melee' && d.cls !== 'launcher') return id;
+  }
+  return null;
+}
+
+/** Unterster begehbarer Boden unter (x, z): von oben nach unten durch Dächer/Stege bis zum Grund (Flaggen/Startbereiche liegen ebenerdig). */
+function floorAt(world, x, z) {
+  if (!world || typeof world.groundHeight !== 'function') return 0;
+  let y = world.groundHeight(x, z, 60);
+  if (!Number.isFinite(y)) return 0;
+  let from = y - 0.05;
+  for (let i = 0; i < 12; i++) {
+    const h = world.groundHeight(x, z, from);
+    if (!Number.isFinite(h)) break;
+    if (h < y - 1) y = h; // tiefer liegender Boden (sonst Unterseite derselben Platte – darunter weitersuchen)
+    from = h - 0.05;
+  }
+  return y;
 }
 
 /** Reservemunition aller Waffen und Granaten auffüllen. → Anzahl aufgefüllter Plätze */

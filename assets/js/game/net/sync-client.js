@@ -634,6 +634,9 @@ export class ClientSync {
     const W = G.weapons;
     const owner = this._actor(m.o);
     switch (m.e) {
+      case 'bs': if (G.building) G.building.applyNet(m, (id) => (id === this.selfId ? G.player : this._actor(id))); return; // Bauwerk (building.js)
+      case 'bd': if (G.building) G.building.remove(m.id); return;
+      case 'dr': if (G.doors) G.doors.applyNet(m); return; // Tür/Tor (doors.js)
       case 'gr': {
         if (!W) return;
         const gs = W.grenadeSystem;
@@ -817,6 +820,25 @@ export class ClientSync {
   sendAbility(id) {
     if (!this.active || this.ended || typeof id !== 'string') return;
     this.net.send(HOST_ID, { t: 'ability', id: id.slice(0, 24) });
+  }
+
+  /** Tür/Tor ('door' {i, a: t|k|h, d}): der Host schaltet bzw. verrechnet den Treffer und verteilt 'ev' dr. */
+  sendDoor(i, a, d = 0) {
+    if (!this.active || this.ended || !Number.isInteger(i)) return;
+    this.net.send(HOST_ID, { t: 'door', i, a: a === 'k' || a === 'h' ? a : 't', d: Math.round(d) });
+  }
+
+  /** Bauwunsch ('build' {k, p, ry}): der Host prüft und verteilt das Bauwerk ('ev' bs). */
+  sendBuild(k, p, ry) {
+    if (!this.active || this.ended || typeof k !== 'string' || !p) return;
+    const r2 = (v) => Math.round(v * 100) / 100;
+    this.net.send(HOST_ID, { t: 'build', k: k.slice(0, 16), p: [r2(p.x), r2(p.y), r2(p.z)], ry: Math.round(ry * 1000) / 1000 });
+  }
+
+  /** Waffe von einer Leiche aufgehoben ('loot' {w, v}): der Host erlaubt sie danach für die Puppe (Anti-Cheat). */
+  sendLoot(w, v) {
+    if (!this.active || this.ended || typeof w !== 'string') return;
+    this.net.send(HOST_ID, { t: 'loot', w: w.slice(0, 24), v: Number.isInteger(v) ? v : -1 });
   }
 
   /** Heilung an einem Kartenpunkt ('point' {i}, mappoints.js): der Host heilt die Puppe. */

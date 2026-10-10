@@ -13,9 +13,10 @@ import { TrainingMode } from './training.js';
 import { ConquestMode } from './conquest.js';
 import { KillConfirmedMode } from './killconfirmed.js';
 import { InfectedMode } from './infected.js';
+import { UltimateMode } from './ultimate.js';
 import { KnifeMode } from './knife.js';
 
-export const MODE_CLASSES = { tdm: TdmMode, ffa: FfaMode, dom: DomMode, gun: GunMode, training: TrainingMode, cq: ConquestMode, kc: KillConfirmedMode, inf: InfectedMode, messer: KnifeMode };
+export const MODE_CLASSES = { tdm: TdmMode, ffa: FfaMode, dom: DomMode, gun: GunMode, training: TrainingMode, cq: ConquestMode, kc: KillConfirmedMode, inf: InfectedMode, messer: KnifeMode, ult: UltimateMode };
 
 export function createMode(G, modeId, opts = {}) {
   const Cls = MODE_CLASSES[modeId];

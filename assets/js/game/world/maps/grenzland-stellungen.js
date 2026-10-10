@@ -49,4 +49,15 @@ export function mgNest(b, x, z, o = {}) {
   f.box(0.55, 0, zr - 0.7, 0.3, 0.19, 0.14, 'metal_painted', { ...gm, tint: '#4b5a3a', ry: 0.4 });
   f.box(0.62, 0.19, zr - 0.72, 0.3, 0.19, 0.14, 'metal_painted', { ...gm, tint: '#56653f', ry: 0.25 });
   f.solid(0, 0, zr + 0.15, 0.62, gy + 0.12, 1.5, { minimap: false, bullet: false });
+  addEmplacement(b, f, y, zr, gy);
+}
+
+/**
+ * Benutzbare MG-Stellung melden (game/mappoints.js): Platz des Schützen hinter der Waffe, Feuerrichtung, Höhe der Waffe.
+ * b.emplacements sammelt sie je Bauabschnitt; loadWorld/bigworld hängen sie als world.emplacements an.
+ */
+export function addEmplacement(b, f, y, zr, gy) {
+  const [ox, oz] = f.P(0, zr - 0.9), [gx, gz] = f.P(0, zr), [hx, hz] = f.P(0, zr + 1);
+  const L = Math.hypot(hx - gx, hz - gz) || 1;
+  (b.emplacements || (b.emplacements = [])).push({ kind: 'mg', x: ox, y, z: oz, gx, gz, gunY: y + gy, dx: (hx - gx) / L, dz: (hz - gz) / L, arc: (250 * Math.PI) / 180 });
 }

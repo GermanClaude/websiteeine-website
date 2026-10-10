@@ -70,7 +70,7 @@ export class Lobby {
       mapId: pick(S.get('lastMap'), d.MAPS, d.MAP_ORDER[0] || 'hafen'),
       difficulty: DIFF_ORDER.includes(S.get('difficulty')) ? S.get('difficulty') : 'regulaer',
       allies: null, enemies: null, balance: true,
-      primary: last.primary, secondary: last.secondary, lethal: last.lethal,
+      primary: last.primary, secondary: last.secondary, lethal: last.lethal, melee: last.melee,
       style: GAME_STYLES[S.get('gameStyle')] ? S.get('gameStyle') : 'arcade', cls: CLASSES[S.get('lastClass')] ? S.get('lastClass') : 'sturm',
       matchLength: 'standard',
       // atmosphere-weather: Wetter/Tageszeit wie die übrigen Lobby-Optionen gemerkt ('standard' = Kartenvorgabe)
@@ -104,6 +104,7 @@ export class Lobby {
     if (!okW(base.primary, 'primary')) base.primary = def.primary;
     if (!okW(base.secondary, 'secondary')) base.secondary = def.secondary;
     if (!base.lethal || !d.EQ[base.lethal] || !this.unlocked(base.lethal)) base.lethal = def.lethal;
+    if (!okW(base.melee, 'melee')) base.melee = 'knife';
     this.cfg = base;
     this._fixMode();
   }
@@ -181,7 +182,7 @@ export class Lobby {
       modeId: c.modeId, mapId: c.mapId, difficulty: c.difficulty, allies: c.allies, enemies: c.enemies,
       style: c.style, crosshair: c.style === 'realistisch' ? !!this.G.settings.get('realisticCrosshair') : null,
       matchLength: c.matchLength, timeOfDay: this._todFor(c) || 'standard', weather: c.weather && c.weather !== 'standard' ? c.weather : null,
-      loadout: { primary: c.primary, secondary: c.secondary, lethal: c.lethal, cls: c.cls, camo, ...(skin ? { skin } : {}) },
+      loadout: { primary: c.primary, secondary: c.secondary, lethal: c.lethal, melee: c.melee || 'knife', cls: c.cls, camo, ...(skin ? { skin } : {}) },
       ...(c.limits && c.limits.modeId === c.modeId ? { timeLimit: c.limits.timeLimit, scoreLimit: c.limits.scoreLimit } : {}),
     };
   }
@@ -230,6 +231,9 @@ export class Lobby {
       summary: screen.querySelector('.lb-summary'), side: screen.querySelector('.lb-side'), profile: screen.querySelector('.lb-profile'),
     };
     screen.addEventListener('click', (e) => this._click(e));
+    screen.addEventListener('pointerover', (e) => this._camoHover(e, true));
+    screen.addEventListener('pointerout', (e) => this._camoHover(e, false));
+    screen.addEventListener('focusin', (e) => this._camoHover(e, true));
     this._renderProfile();
     // Rufzeichen/Stufe live (Einstellungen hier, auf der Website oder in einem anderen Tab)
     this._offs.push(
@@ -459,7 +463,7 @@ export class Lobby {
     const d = this._data();
     const c = this.cfg;
     const lvl = this.level();
-    const slots = [['primary', 'Primär', d.W[c.primary]], ['secondary', 'Sekundär', d.W[c.secondary]], ['lethal', 'Granate', d.EQ[c.lethal]]];
+    const slots = [['primary', 'Primär', d.W[c.primary]], ['secondary', 'Sekundär', d.W[c.secondary]], ['melee', 'Messer', d.W[c.melee || 'knife']], ['lethal', 'Granate', d.EQ[c.lethal]]];
     let list = '';
     if (this.slot === 'lethal') {
       list = Object.values(d.EQ).filter((x) => !x.kind || x.kind === 'lethal').map((x) => this._item(x, x.id === c.lethal, lvl, 'Ausrüstung')).join('');
@@ -539,7 +543,15 @@ export class Lobby {
       const ttk15 = typeof d.ttk === 'function' && def.cls !== 'melee' ? d.ttk(def, 15) : null;
       const stk15 = typeof d.shotsToKill === 'function' && def.cls !== 'melee' ? d.shotsToKill(def, 15) : null;
       const eff = typeof d.effectiveRange === 'function' && def.cls !== 'melee' ? d.effectiveRange(def) : null;
-      body = `
+      if (def.cls === 'melee') {
+        const ms = def.melee || {};
+        const hits = Math.max(1, Math.ceil(100 / Math.max(1, def.damage.max)));
+        const spec = { flink: 'Flink: 12 % schneller unterwegs', spaltschlag: 'Spaltschlag: trifft jeden Gegner im Bogen', sprung: 'Sprung: weitester Ausfallschritt' }[def.special] || '—';
+        body = `<div class="lo-stats">${bars}</div><div class="lo-facts">
+          ${fact('Schaden', num(def.damage.max))}${fact('Treffer bis Abschuss', hits === 1 ? '1' : `${hits} (von hinten 1)`)}
+          ${fact('Reichweite', meters(ms.range || def.range, 1))}${fact('Ausfallschritt', meters(ms.lungeRange || 4.5, 1))}
+          ${fact('Hiebdauer', secs(ms.swingTime || 0.75, 2))}${fact('Spezial', spec)}</div>`;
+      } else body = `
         <div class="lo-stats">${bars}</div>
         ${cs ? `<div class="lo-cmp">Vergleich mit <b>${esc(cur.name)}</b></div>` : ''}
         <div class="lo-facts">
@@ -570,7 +582,7 @@ export class Lobby {
     if (d.W[id] && !classAllows(c.cls, d.W[id].cls)) { this.menus.sound('error'); this._renderLoadout(); this._showView(); return; }
     if (this.unlocked(id)) {
       const slot = d.EQ[id] ? 'lethal' : def.slot;
-      if (slot === 'primary' || slot === 'secondary' || slot === 'lethal') c[slot] = id;
+      if (slot === 'primary' || slot === 'secondary' || slot === 'melee' || slot === 'lethal') c[slot] = id;
       this.menus.sound('confirm');
     } else this.menus.sound('error');
     this._renderLoadout();
@@ -600,7 +612,13 @@ export class Lobby {
   _setCamo(camoId, btn) {
     const D = this.G.data || {};
     const wid = this.view || this.cfg[this.slot];
-    if (btn && btn.getAttribute('aria-disabled') === 'true') { this.menus.sound('error'); return; }
+    if (btn && btn.getAttribute('aria-disabled') === 'true') {
+      // gesperrt: nur ansehen (3D-Vorschau), nicht ausrüsten
+      const pv0 = this.menus.preview;
+      if (pv0 && typeof pv0.setCamo === 'function') pv0.setCamo(camoId);
+      this.menus.sound('error');
+      return;
+    }
     const cm = D.CAMOS && D.CAMOS[camoId];
     try { this.G.profile.equipCosmetic('weapon', wid, cm && cm.unlock && cm.unlock.type === 'default' ? null : camoId); } catch { /* */ }
     this.menus.sound('confirm');
@@ -653,7 +671,21 @@ export class Lobby {
     const def = d.W[wid];
     const pv = this.menus.preview;
     if (this.el.stageName) this.el.stageName.innerHTML = def ? `<small>${esc(d.CLASSES[def.cls] || '')}</small><b>${esc(def.name)}</b>` : (d.EQ[wid] ? `<small>Granate</small><b>${esc(d.EQ[wid].name)}</b>` : '');
+    if (pv && typeof pv.setCamo === 'function') pv.camo = def ? equippedCamo(this.G, wid) || null : null; // vor setWeapon: neues Modell gleich mit Tarnung
     if (pv && (def || d.EQ[wid])) pv.setWeapon(wid);
+    if (pv && typeof pv.setCamo === 'function' && def) pv.setCamo(equippedCamo(this.G, wid) || null);
+  }
+
+  /** Tarnung beim Überfahren/Fokussieren in der 3D-Vorschau zeigen (auch gesperrte), beim Verlassen zurück. */
+  _camoHover(e, on) {
+    const pv = this.menus.preview;
+    if (!pv || typeof pv.setCamo !== 'function' || this.tab !== 'loadout') return;
+    const b = e.target.closest && e.target.closest('[data-camo]');
+    if (on && b) { pv.setCamo(b.dataset.camo); return; }
+    if (!on && b && !(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('[data-camo]'))) {
+      const wid = this.view || this.cfg[this.slot];
+      pv.setCamo(equippedCamo(this.G, wid) || null);
+    }
   }
 
   unmount() {

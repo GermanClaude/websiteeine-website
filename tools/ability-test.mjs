@@ -163,10 +163,13 @@ async function online() {
     // Puppe beim Host auf Sanitäter stellen (wie nach einem Ausrüstungswechsel), Client ebenso
     await host.evaluate((id) => { const pup = window.__game.actors.find((a) => a.netId === id); pup.cls = 'sanitaeter'; pup.health = 30; pup.lastDamageTime = 1e9; }, j.id);
     await setClass(cl, 'sanitaeter');
-    const h0 = await host.evaluate((id) => window.__game.actors.find((a) => a.netId === id).health, j.id);
-    await cl.evaluate(() => window.__game.player.useAbility());
+    const h0 = await host.evaluate((id) => { const G = window.__game; G.net.on('ability', (m) => { window.__abMsg = m; }); return G.actors.find((a) => a.netId === id).health; }, j.id);
+    const used = await cl.evaluate(() => { const P = window.__game.player; return { ok: P.useAbility(), ab: P.ability && P.ability.id, sync: !!(window.__game.net.sync && window.__game.net.sync.sendAbility) }; });
+    info(`Client: ${JSON.stringify(used)}`);
     const up = await until(host, (a) => { const pup = window.__game.actors.find((x) => x.netId === a.id); return pup.health >= a.h0 + 20 && pup.health; }, { id: j.id, h0 }, 30000, 300);
-    check(!!up, `Host: Leben der Puppe ${h0.toFixed(0)} → ${up ? up.toFixed(0) : '?'} (Regeneration)`);
+    if (!check(!!up, `Host: Leben der Puppe ${h0.toFixed(0)} → ${up ? up.toFixed(0) : '?'} (Regeneration)`)) {
+      info(`Diagnose Host: ${JSON.stringify(await host.evaluate((id) => { const G = window.__game; const s = G.net.sync; const pup = G.actors.find((a) => a.netId === id); return { msg: window.__abMsg || null, cls: pup.cls, hp: pup.health, alive: pup.alive, regens: s._regens ? s._regens.size : -1, at: s._abilityAt ? [...s._abilityAt] : null }; }, j.id))}`);
+    }
     const ac = await host.evaluate((id) => { const a = window.__game.net.anticheat; return a ? a.log.filter((e) => e.peer === id).map((e) => e.reason) : []; }, j.id);
     check(!ac.length, `Anti-Cheat: keine Verstöße (${ac.join(', ') || 'keine'})`);
   } finally {
@@ -175,7 +178,7 @@ async function online() {
 }
 
 try {
-  await offline();
+  if (opt.only !== 'online') await offline();
   if (opt.online) await online();
 } catch (err) {
   console.log('FEHL Abbruch:', (err && err.stack) || err);

@@ -120,8 +120,18 @@ export class WeaponPreview {
     wrap.rotation.y = Math.PI / 2;
     this.pivot.add(wrap);
     this.model = wrap;
+    if (this.camo && typeof models.applyCamo === 'function') { try { models.applyCamo(wrap, this.camo); } catch { /* */ } }
     this._ownedGeometry = G.moduleStatus && G.moduleStatus.models !== 'real';
     this._pop = 0;
+    this.render();
+  }
+
+  /** Tarnung auf das angezeigte Modell legen (null/'werk' = Werkszustand) – Vorschau in der Ausrüstung. */
+  setCamo(id) {
+    this.camo = id || null;
+    const models = this.G.modules && this.G.modules.models;
+    if (!this.model || !models || typeof models.applyCamo !== 'function') return;
+    try { models.applyCamo(this.model, this.camo); } catch { /* Vorschau ist Beiwerk */ }
     this.render();
   }
 

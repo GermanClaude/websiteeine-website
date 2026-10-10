@@ -15,7 +15,7 @@ const icon = (body) =>
 
 /* ------------------------------------------------------------------ Modi */
 
-export const MODE_ORDER = ['tdm', 'dom', 'cq', 'kc', 'ffa', 'inf', 'messer', 'gun', 'training'];
+export const MODE_ORDER = ['tdm', 'ult', 'dom', 'cq', 'kc', 'ffa', 'inf', 'messer', 'gun', 'training'];
 
 export const MODES = {
   tdm: {
@@ -290,6 +290,36 @@ export const MODES = {
     objective: { surviveTick: 20, infectedLoadout: { primary: 'knife', secondary: null, lethal: 'semtex' } },
     recommendedMaps: ['werk', 'altstadt', 'hafen'],
     icon: icon('<circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>'),
+  },
+
+  ult: {
+    id: 'ult',
+    name: 'TDM Ultimate',
+    short: 'ULT',
+    tagline: 'Ein Leben pro Runde. Fünf Runden. Das letzte Team gewinnt.',
+    description:
+      'Team-Deathmatch ohne Wiedereinstieg: Wer fällt, schaut bis zur nächsten Runde zu. Eine Runde gewinnt das Team, das als letztes noch steht. Wer zuerst drei von fünf Runden holt, gewinnt das Match.',
+    sizeRule: '{team} gegen {enemies} – {mates}',
+    rules: [
+      'Höchstens 8 Spieler (4 gegen 4)',
+      'Ein Leben pro Runde – kein Wiedereinstieg',
+      'Letztes Team mit Lebenden gewinnt die Runde',
+      'Bis zu 5 Runden, 3 Rundensiege gewinnen',
+      'Rundenzeit: 2 Minuten (danach zählen die Lebenden)',
+    ],
+    hudObjective: 'Überlebe die Runde – schalte das gegnerische Team aus',
+    scoreUnit: 'Runden',
+    scoreLimit: 3,
+    timeLimit: 120,
+    teams: true,
+    defaultAllies: 3,
+    defaultEnemies: 4,
+    limits: { allies: [0, 3], enemies: [1, 4] },
+    respawnDelay: 5,
+    streaks: false,
+    lethals: true,
+    recommendedMaps: ['werk', 'altstadt', 'hafen'],
+    icon: icon('<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>'),
   },
 
   messer: {

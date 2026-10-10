@@ -411,6 +411,8 @@ export async function loadWorld(G, mapId, opts = {}) {
     spawns,
     objectives,
     nav,
+    emplacements: b.emplacements || [], // benutzbare MG-Stellungen (game/mappoints.js)
+    doors: b.doors || [], gates: b.gates || [], // bewegliche Türen und Tore (game/doors.js)
     lighting: light.lighting,
     /** Farbstimmung/Belichtung für core-render (`renderer.setMood(world.grade || mapId)`): Karten-`grade` über der Stimmung der Karte. */
     grade: def.grade ? { mood: id, ...def.grade } : undefined,

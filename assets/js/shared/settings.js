@@ -46,6 +46,7 @@ export const DEFAULTS = Object.freeze({
   adaptiveBots: true,
   // Munition pro Abschuss (weapons/index.js, offline; online gilt die Raum-Einstellung des Hosts)
   killAmmo: true,
+  lootWeapons: true,
   // Kirchenglocke der Altstadt (world/maps/altstadt-glocke.js): Stundenschlag zur echten Uhrzeit an/aus
   glocke: true,
   // Leichen (bots/corpses.js): 'bleiben' | '10min' | '2min'; zusätzlich Obergrenze je Grafikstufe (älteste zuerst weg)
@@ -245,7 +246,8 @@ export const SETTINGS_SCHEMA = Object.freeze({
     options: ['touch', 'alle'], labels: { touch: 'Nur Touch', alle: 'Alle Geräte (auch Maus & Controller)' },
   },
   adaptiveBots: { type: 'boolean', label: 'Lernende Bots', group: 'spiel' },
-  killAmmo: { type: 'boolean', label: 'Munition pro Abschuss', group: 'spiel' },
+  killAmmo: { type: 'boolean', label: 'Munition pro Abschuss (Realistisch: an der Leiche aufsammeln)', group: 'spiel' },
+  lootWeapons: { type: 'boolean', label: 'Waffen von Leichen aufheben', group: 'spiel' },
   glocke: { type: 'boolean', label: 'Kirchenglocke (Altstadt)', group: 'audio' },
   leichen: {
     type: 'enum', label: 'Leichen', group: 'spiel',
@@ -323,7 +325,7 @@ export function assistAppliesTo(devices, device) {
 
 const ID_RE = /^[a-z0-9_-]{1,32}$/;
 // Ausrüstungsfelder (additiv: cls/armor/helmet/tactical für Klassen und Panzerung, core-mechanics)
-const LOADOUT_FIELDS = ['id', 'primary', 'secondary', 'lethal', 'tactical', 'cls', 'armor', 'helmet'];
+const LOADOUT_FIELDS = ['id', 'primary', 'secondary', 'lethal', 'tactical', 'melee', 'cls', 'armor', 'helmet'];
 function validateLoadout(value) {
   if (!value || typeof value !== 'object') return undefined;
   const out = {};

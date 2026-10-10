@@ -339,6 +339,16 @@ export class HUD {
       if (actor !== P()) return;
       this._notice(reason === 'voll' ? 'Munition ist schon voll.' : reason === 'gesund' ? 'Du bist unverletzt.' : `${point.def.name}: noch ${Math.ceil(left)} s.`, 'dim', null, NOTICE_LIFE, 'point');
     });
+    s.on('loot:take', ({ actor, kind, amount, weaponId }) => {
+      if (actor !== P()) return;
+      const w = weaponId && this.G.data && this.G.data.WEAPONS ? this.G.data.WEAPONS[weaponId] : null;
+      this._notice(kind === 'ammo' ? (amount ? `Munition aufgenommen (+${amount}).` : 'Keine passende Munition.') : `${w ? w.name : 'Waffe'} aufgehoben.`, kind === 'ammo' && !amount ? 'dim' : 'gold', null, NOTICE_LIFE, 'point');
+    });
+    // Bauen (building.js)
+    s.on('build:start', ({ actor, name }) => { if (actor === P()) this._notice(`${name} wird gebaut …`, 'gold', null, NOTICE_LIFE, 'build'); });
+    s.on('build:done', ({ actor, name }) => { if (actor === P()) this._notice(`${name} fertig.`, 'gold', null, NOTICE_LIFE, 'build'); });
+    s.on('build:destroyed', ({ owner, name }) => { if (owner === P()) this._notice(`${name} zerstört!`, 'dim', null, NOTICE_LIFE, 'build'); });
+    s.on('build:denied', ({ actor }) => { if (actor === P()) this._notice('Hier ist kein Platz zum Bauen.', 'dim', null, NOTICE_LIFE, 'build'); });
     // Klassen-Fähigkeit (Taste J): Einsatz, Abklingzeit, wieder bereit
     const abName = (id) => (P() && P().ability && P().ability.id === id ? P().ability.name : 'Fähigkeit');
     s.on('ability:ready', ({ actor, id }) => { if (actor === P()) this._notice(`${abName(id)} bereit.`, 'gold', this._keyFor('faehigkeit'), NOTICE_LIFE, 'ability'); });
@@ -360,6 +370,7 @@ export class HUD {
     s.on('objective:captured', (e) => this._onFlag(e, 'captured'));
     s.on('objective:neutral', (e) => this._onFlag(e, 'neutral'));
     s.on('mode:overtime', () => this._notice(this._overtimeText(), 'signal', null, 4));
+    s.on('mode:notice', ({ text, tone } = {}) => { if (text) this._notice(text, tone || 'signal', null, 4, 'mode'); }); // z. B. TDM Ultimate (Runden)
     s.on('gun:promote', (e) => this._onGunPromote(e));
     s.on('gun:demote', (e) => { if (e.actor === P()) this._notice(e.by ? `Zurückgestuft von ${e.by.name}.` : 'Zurückgestuft.', 'enemy'); });
     s.on('training:parcours', (e) => this._onParcours(e));
@@ -1494,13 +1505,18 @@ export class HUD {
     const G = this.G;
     const mode = G.mode;
     let pr = null;
-    if (mode && mode.id === 'training' && G.player && G.player.alive && mode.targets && mode.targets.length) {
+    const B = G.building && G.building.mode;
+    if (B) {
+      pr = { text: `Bauen: ${B.ok ? '' : '(kein Platz) '}${B.name} · Klick setzt · ${this._keyFor('bauen') || 'K'} weiter`, key: this._keyFor('interact'), action: () => G.building.close() };
+    } else if (mode && mode.id === 'training' && G.player && G.player.alive && mode.targets && mode.targets.length) {
       const P = mode.parcours;
       const running = P.state === 'running' || P.state === 'countdown';
       pr = { text: running ? 'Parcours abbrechen' : 'Parcours starten', key: this._keyFor('interact'), action: () => mode.interact() };
+    } else if (G.doors && G.doors.near && !(G.points && G.points.near)) {
+      pr = { text: G.doors.near.text, key: this._keyFor('interact'), action: () => G.doors.request(G.doors.near.i, 't') };
     } else if (G.points && G.points.near) {
-      const { point, left } = G.points.near;
-      pr = { text: `${point.def.name} · ${left > 0 ? `noch ${left} s` : point.def.act}`, key: this._keyFor('interact'), action: () => G.points.use() };
+      const { point, left, text } = G.points.near;
+      pr = { text: text || `${point.def.name} · ${left > 0 ? `noch ${left} s` : point.def.act}`, key: this._keyFor('interact'), action: () => G.points.use() };
     }
     this._prompt = pr;
     const b = this.promptBtn;

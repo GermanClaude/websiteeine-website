@@ -221,6 +221,8 @@ export class Player {
     this._heal = 0;
     this._busyUntil = 0;
     this._repairing = false;
+    this.mounted = null; // MG-Stellung (mappoints.js)
+    this.building = false; // Baumodus (building.js)
     // Klassen-Fähigkeit (Taste J): Abklingzeit läuft über den Tod hinweg weiter
     this.ability = null;
     this.abilityReadyAt = 0;
@@ -396,6 +398,7 @@ export class Player {
     this._busyUntil = 0;
     this._repairing = false;
     this.abilityUntil = this.rushUntil = 0;
+    this.mounted = null;
     this.repairTarget = this.spotTarget = null;
     this.applyClass();
     this._eye = STAND_EYE;
@@ -596,6 +599,15 @@ export class Player {
 
     // Blick (auch im Countdown) – beim freien Zielen bewegt sich zuerst die Waffe, die Sicht folgt am Rand der Totzone
     if (!piloting) this._applyLook(input.look.dx, input.look.dy, dt, touch, w);
+    // MG-Stellung (mappoints.js mount): Drehbereich um die Feuerrichtung, Höhe −20°…+25°
+    if (this.mounted) {
+      const m = this.mounted;
+      let d = this.yaw - m.yaw0;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      const lim = m.arc / 2;
+      if (d > lim) this.yaw = m.yaw0 + lim; else if (d < -lim) this.yaw = m.yaw0 - lim;
+      this.pitch = clamp(this.pitch, -0.35, 0.44);
+    }
     // Liegen: Blickgrenzen, Körper reicht nach hinten (Wand schiebt nach vorn, sonst kein Drehen)
     if (this.proneBlend > 0) {
       const b = this.proneBlend;
@@ -603,8 +615,8 @@ export class Player {
     }
     this._proneConstraint(world, dt);
 
-    const mx = frozen || this.mantling ? 0 : input.move.x;
-    const my = frozen || this.mantling ? 0 : input.move.y;
+    const mx = frozen || this.mantling || this.mounted ? 0 : input.move.x;
+    const my = frozen || this.mantling || this.mounted ? 0 : input.move.y;
     const moveMag = Math.min(1, Math.hypot(mx, my));
     let adsHeld = !frozen && !this.mantling && input.active('ads');
     const fireHeld = !frozen && (input.down('fire') || input.pressed('fire'));
@@ -855,7 +867,7 @@ export class Player {
       // Waffe gesenkt: Hinlegen/Aufstehen, Platte einsetzen, Spritze/Verbandskasten/Reparatur; Realistisch: kein Schuss beim Kriechen
       const busy = this._busy(now);
       const crawlBlock = this.crawling && !!(fl && fl.id === 'realistisch');
-      const blocked = frozen || this.mantling || !!busy || crawlBlock;
+      const blocked = frozen || this.mantling || !!busy || crawlBlock || this.building; // Baumodus: Linksklick setzt (building.js)
       // nach dem Sprengen der Drohne: gehaltene Feuertaste erst loslassen
       if (this._fireGate && !input.down('fire')) this._fireGate = false;
       it.fire = !blocked && !this._fireGate && input.down('fire');

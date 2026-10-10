@@ -102,7 +102,18 @@ function openingDetails(b, o, op, g) {
       b.box(x0 + ux * sx + ox * off, y + sill, z0 + uz * sx + oz * off, sw, top - sill, 0.04, 'wood_painted', { ry, tint: op.shutters === true ? (o.shutterTint || '#2f6f9a') : op.shutters, collide: false, minimap: false, grad: false });
     }
   }
-  if (kind === 'door' && op.leaf) {
+  if (kind === 'door' && op.leaf && b.dynamicDoors !== false) {
+    // bewegliche Tür (game/doors.js): F öffnet/schließt, im Sprint auframmen, zerschießbar – keine feste Geometrie
+    const sg = o.outside === 'right' ? -1 : 1;
+    const ox = uz * sg, oz = -ux * sg;
+    const lw = op.w - fw * 2;
+    const right = op.leafSide === 'right';
+    const hs = right ? e - fw : a + fw, toward = right ? -1 : 1;
+    (b.doors || (b.doors = [])).push({
+      hx: x0 + ux * hs - ox * (t / 2 - 0.03), hz: z0 + uz * hs - oz * (t / 2 - 0.03), y: y + 0.01, h: top - fw - 0.02, w: lw,
+      dc: [ux * toward, uz * toward], dopen: [-ox, -oz], open: op.leaf !== 'closed', tint: op.leafTint || null,
+    });
+  } else if (kind === 'door' && op.leaf) {
     const sg = o.outside === 'right' ? -1 : 1;
     const ox = uz * sg, oz = -ux * sg;
     const lw = op.w - fw * 2;

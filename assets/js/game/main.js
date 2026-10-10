@@ -30,6 +30,9 @@ import { renderScaleValue, fpsLimitValue } from '../shared/graphics.data.js'; //
 import { Player } from './player.js';
 import { Combat } from './combat.js';
 import { MapPoints } from './mappoints.js'; // Interaktionspunkte der Karten (Taste F)
+import { Building } from './building.js'; // Bauen (Taste K)
+import { Doors } from './doors.js'; // bewegliche Türen und Tore (Taste F)
+import { WallHoles } from './wallholes.js'; // durchlöcherte Wände
 
 const VERSION = '1.1.0';
 
@@ -431,6 +434,7 @@ function normalizeConfig(cfg = {}) {
     primary: [lo.primary, last.primary].find((id) => okW(id, 'primary')) || def.primary,
     secondary: [lo.secondary, last.secondary].find((id) => okW(id, 'secondary')) || def.secondary,
     lethal: [lo.lethal, last.lethal].find(okEq) || def.lethal,
+    melee: [lo.melee, last.melee].find((id) => okW(id, 'melee')) || 'knife', // Messer-Wahl (Lobby)
   };
   // modes-ui: Klasse, Tarnungen, Outfit, Spielstil, Matchlänge, Tageszeit (Lobby bzw. URL style=/cls=)
   const CL = classesData.CLASSES; // core-mechanics: Klassen/Spielstile aus shared/classes.data.js
@@ -1004,6 +1008,9 @@ async function runStart(config, gen) {
     if (!netCfg) safe('vehicles.attach', () => G.vehicles.attach(G));
     else if (netCfg.vehicles) safe('vehicles.attach', () => G.vehicles.attach(G, { replica: netCfg.role === 'client' }));
     safe('points', () => { G.points = new MapPoints(G, cfg.mapId); });
+    safe('building', () => { G.building = new Building(G); });
+    safe('doors', () => { G.doors = new Doors(G); });
+    safe('holes', () => { G.holes = new WallHoles(G); });
     G.hud.attach(G);
     safe('audio.startAmbience', () => G.audio.startAmbience(G.world.ambience));
     G.mode.start();
@@ -1210,6 +1217,9 @@ async function teardownMatch({ keepWorld = false } = {}) {
   }
   G.actors.length = 0;
   if (G.points) { safe('points', () => G.points.dispose()); G.points = null; }
+  if (G.doors) { safe('doors', () => G.doors.dispose()); G.doors = null; }
+  if (G.holes) { safe('holes', () => G.holes.dispose()); G.holes = null; }
+  if (G.building) { safe('building', () => G.building.dispose()); G.building = null; }
   G.match.net = null;
   G.match.netRole = null;
   if (sceneBase) {
@@ -1573,6 +1583,8 @@ function frame(now, bg = false, xrFrame = null) {
     if (live) step('separate', () => separateActors(G.actors));
     step('vehicles', () => G.vehicles.update(dt));
     if (G.points) step('points', () => G.points.update(dt));
+    if (G.building) step('building', () => G.building.update(dt));
+    if (G.doors) step('doors', () => G.doors.update(dt));
     step('armor', () => G.combat.tickArmor(G.actors)); // core-mechanics: Platten fertig einsetzen, Bots setzen selbst ein
     step('weapons', () => G.weapons.update(dt));
     step('mode', () => { if (G.mode) G.mode.update(dt); });

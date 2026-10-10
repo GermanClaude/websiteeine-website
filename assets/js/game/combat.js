@@ -172,6 +172,9 @@ function closestOnSegment(ro, rd, t, a, b, out) {
 
 // Wie leicht eine Oberfläche zu durchschlagen ist (max. Dicke in m bei penetration = 1).
 const PENETRABLE = { wood: 0.45, glass: 0.6, fabric: 0.6, metal: 0.22, tile: 0.12, plaster: 0.18 };
+// Massive Baustoffe (Wände, Sandsäcke, Erde) nur mit starkem Kaliber (penetration ab 0,75: MG, DMR, Scharfschütze –
+// ab dort wachsend bis zur vollen Dicke bei 1,0); Panzerbüchsen (antiMateriel) schaffen fast doppelt so viel.
+const HARD = { concrete: 0.3, dirt: 0.35, sand: 0.3 };
 const ASSIST_WINDOW = 6;
 const ASSIST_MIN = 25;
 
@@ -230,10 +233,14 @@ export class Combat {
     let actorHit = this._raycastActors(shooter, _ray, limit);
     let penetrated = false;
     let penFactor = 1;
+    // durchlöcherte Wände (wallholes.js): jeder Treffer auf feste Geometrie zählt, ab der Schwelle entsteht ein Loch
+    if (worldHit && !actorHit && G.holes) G.holes.hit(worldHit, def, _dir);
+    // bewegliche Festkörper (Türen, doors.js) nehmen Schaden – auch wenn die Kugel durchgeht
+    if (worldHit && !actorHit && worldHit.solid && typeof worldHit.solid.onHit === 'function') worldHit.solid.onHit(falloff(def, worldHit.distance) * damageScale, shooter, def);
 
     // Durchschlag: Kugel geht durch dünne, durchlässige Deckung und trifft dahinter.
-    if (!actorHit && worldHit && (def.penetration || 0) > 0) {
-      const exit = this._penetrate(worldHit, _dir, def.penetration);
+    if (!actorHit && worldHit && ((def.penetration || 0) > 0 || (G.holes && G.holes.at(worldHit.point)))) {
+      const exit = this._penetrate(worldHit, _dir, def.penetration || 0.3, def);
       if (exit) {
         const remaining = maxRange - exit.distance;
         if (remaining > 0.1) {
@@ -245,8 +252,9 @@ export class Combat {
             hit.distance += exit.distance + 0.02;
             actorHit = hit;
             penetrated = true;
-            penFactor = def.penetration;
+            penFactor = def.penetration * (1 - 0.5 * exit.thickness / Math.max(0.02, exit.max)); // dickere Deckung bremst stärker
             G.events.emit('impact', { point: worldHit.point.clone(), normal: worldHit.normal.clone(), surface: worldHit.surface, shooter, weaponId: def.id, penetrated: true });
+            G.events.emit('impact', { point: exit.point.clone(), normal: _dir.clone(), surface: worldHit.surface, shooter, weaponId: def.id, penetrated: true, exit: true }); // Austrittsloch
           }
           _ray.origin.copy(_origin);
         }
@@ -297,11 +305,17 @@ export class Combat {
     return best;
   }
 
-  _penetrate(hit, dir, power) {
+  _penetrate(hit, dir, power, def = {}) {
     const G = this.G;
-    const k = PENETRABLE[hit.surface];
+    let k = PENETRABLE[hit.surface];
+    let f = Math.min(1, power);
+    if (!k && HARD[hit.surface] && power >= 0.75) { k = HARD[hit.surface]; f = Math.pow(Math.min(1, (power - 0.7) / 0.3), 1.2); }
+    // durch ein Einschussloch (wallholes.js) geht jedes Kaliber; Panzerbüchse (.50) kommt durch fast jede Wand
+    if (G.holes && G.holes.at(hit.point)) { k = 1.2; f = 1; }
+    if (!k && def.antiMateriel && HARD[hit.surface]) { k = HARD[hit.surface]; f = 1; }
     if (!k) return null;
-    const maxThick = k * Math.min(1, power);
+    if (def.antiMateriel) f *= 2.6;
+    const maxThick = k * f;
     if (maxThick < 0.02) return null;
     // Von hinten zurück auf die Austrittsfläche messen.
     const probe = _v2.copy(hit.point).addScaledVector(dir, maxThick + 0.02);
@@ -309,7 +323,7 @@ export class Combat {
     if (!back) return null;
     const thickness = maxThick + 0.02 - back.distance;
     if (thickness > maxThick || thickness <= 0) return null;
-    return { point: back.point.clone(), distance: hit.distance + thickness, thickness };
+    return { point: back.point.clone(), distance: hit.distance + thickness, thickness, max: maxThick };
   }
 
   /** Meldet nahe vorbeifliegende Kugeln am Spieler ('bullet:whiz'). */
