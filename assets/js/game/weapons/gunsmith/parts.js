@@ -233,6 +233,37 @@ export function slots(b, x, v, u0, n, pitch, l = 0.018, h = 0.006, rz = 0) {
 }
 
 // Kimme/Korn-Leuchtpunkte
+/**
+ * Gravierte Beschriftung (Typenbezeichnung, Kaliber, Seriennummer) auf einer Seitenfläche bei x: je Zeile ein Text, je
+ * Zeichen ein feiner heller Strich in Buchstabengröße (aus der Nähe liest es sich als Gravur auf brüniertem Metall),
+ * Leerzeichen = Lücke. Zeilen von oben nach unten. Nur Nah-Stufe.
+ */
+export function engrave(b, x, v, u0, rows, o = {}) {
+  if (!b.hi) return;
+  const h = o.h ?? 0.0017, cw = o.cw ?? 0.00105, gap = o.gap ?? 0.00042, line = o.line ?? 0.0029, mat = o.mat ?? 'stainless';
+  const dir = o.dir ?? 1; // Schreibrichtung entlang u (+1 zur Mündung)
+  rows.forEach((text, i) => {
+    let u = u0;
+    for (const ch of String(text)) {
+      if (ch === ' ') { u += dir * (cw + gap) * 1.2; continue; }
+      const narrow = ch === '-' || ch === '.' || ch === ',' || ch === '1' || ch === 'I';
+      const w = narrow ? cw * 0.45 : cw;
+      const hh = ch === '-' ? h * 0.25 : ch === '.' || ch === ',' ? h * 0.3 : h;
+      const vv = ch === '.' || ch === ',' ? v - i * line - h * 0.35 : v - i * line;
+      b.box(mat, 0.0003, hh, w, x, vv, u + dir * w / 2, { part: o.part, c: 0 });
+      u += dir * (w + gap);
+    }
+  });
+}
+
+/** QD-Riemenaufnahme (Stahlring mit Bohrung) auf einer Seitenfläche bei x (Vorzeichen = Seite). */
+export function qdCup(b, x, v, u, r = 0.0058, o = {}) {
+  if (!b.hi) return;
+  const s = Math.sign(x) || 1;
+  b.cyl('steel', r, r, 0.003, x + s * 0.0012, v, u, { axis: 'x', seg: 14, part: o.part });
+  b.cyl('cavity', r * 0.55, r * 0.55, 0.0032, x + s * 0.0014, v, u, { axis: 'x', seg: 10, part: o.part });
+}
+
 export function dot(b, mat, x, v, u, r = 0.0013) {
   if (!b.hi) return;
   b.circle(mat, r, x, v, u, { seg: 10 });

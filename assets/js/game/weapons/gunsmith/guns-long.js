@@ -1,5 +1,5 @@
 // Langwaffen: Brecher .338 (Repetier-Scharfschützengewehr) und Bulldog 12 (Vorderschaftrepetierflinte)
-import { sniperScope, brake, ejectionPort, roundRect } from './parts.js';
+import { sniperScope, brake, ejectionPort, roundRect, engrave, qdCup } from './parts.js';
 import { magRounds } from './magfill.js';
 
 export function brecher(b) {
@@ -20,6 +20,11 @@ export function brecher(b) {
     for (let i = 0; i < 4; i++) for (const s of [-1, 1]) b.box('cavity', 0.0015, 0.016, 0.04, s * 0.0262, 0.025, 0.17 + i * 0.05, { c: 0 });
   }
   b.box('rubber', 0.056, 0.17, 0.018, 0, 0.008, -0.478, { c: 0.005 });
+  if (b.hi) {
+    // Distanzplatten zwischen Schaft und Kappe, QD-Riemenaufnahmen an Schaft und Vorderschaft
+    b.box('polymerGrey', 0.054, 0.166, 0.004, 0, 0.008, -0.4685, { c: 0.001 });
+    for (const s of [-1, 1]) { qdCup(b, s * 0.026, -0.035, -0.4); qdCup(b, s * 0.026, 0.028, 0.355); }
+  }
   // Verstellbare Wangenauflage mit Rändelknöpfen
   b.box('polymerOD', 0.046, 0.016, 0.15, 0, 0.115, -0.3, { c: 0.004 });
   if (b.hi) for (const du of [-0.24, -0.36]) { b.cyl('steel', 0.003, 0.003, 0.03, 0, 0.098, du, { axis: 'v', seg: 8 }); b.cyl('knurl', 0.008, 0.008, 0.006, 0.03, 0.06, du, { axis: 'x', seg: 12 }); }
@@ -37,10 +42,14 @@ export function brecher(b) {
   b.cyl('steel', 0.0045, 0.0055, 0.05, 0.035, axis - 0.012, -0.045, { part: 'boltHandle', rz: 1.2, ry: -0.2, seg: b.seg(10, 5) });
   b.sphere('polymer', 0.011, 0.058, axis - 0.022, -0.05, { part: 'boltHandle', sx: 1, sy: 1, sz: 1.15 });
   b.anchor('boltGrab', 0.062, axis - 0.024, -0.05, { part: 'boltHandle', data: { travel: [0, 0, 0.1], rot: 1.05, style: 'bolt' } });
+  // Spannanzeige (rot) hinten am Schlösschen, Prägung links am System
+  if (b.hi) b.box('paintSignal', 0.005, 0.004, 0.003, 0, axis + 0.004, -0.1015, { part: 'boltHandle', c: 0.0005 });
+  engrave(b, -0.0176, axis + 0.004, 0.17, ['BRECHER .338', 'NP 50217'], { dir: -1 });
   // Magazin (Box)
   b.part('mag', 0, 0.0, 0.1);
   b.box('steel', 0.032, 0.07, 0.07, 0, 0.0, 0.1, { part: 'mag', c: 0.002 });
   b.box('polymer', 0.036, 0.01, 0.074, 0, -0.035, 0.1, { part: 'mag', c: 0.002 });
+  if (b.hi) b.box('steel', 0.016, 0.012, 0.0045, 0, 0.012, 0.139, { c: 0.001 });   // Magazinhalter vorn
   // Patronen (.338, gestaucht): versetzt gestapelt, oberste an den Lippen bzw. leerer Zubringer
   magRounds(b, { cal: 'r338', fit: 0.062, width: 0.029, depth: 0.068, pitch: 0.0085, path: [[0, 0.0405, 0.1], [0, -0.018, 0.1]] });
   b.anchor('magGrab', 0, -0.0, 0.1, { part: 'mag', data: { w: 0.016, d: 0.035 } });

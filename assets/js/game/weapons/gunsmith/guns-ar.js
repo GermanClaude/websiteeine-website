@@ -1,5 +1,5 @@
 // Sturmgewehre & Präzisionsgewehr: M-17 Falke (M4-artig, Holo), KV-47 (AK-artig, Holz), SK-14 (DMR, ACOG)
-import { holoSight, acog, birdcage, akBrake, brake, ejectionPort, triggerGuard, arGrip, slots, roundRect, ellipsePts } from './parts.js';
+import { holoSight, acog, birdcage, akBrake, brake, ejectionPort, triggerGuard, arGrip, slots, roundRect, ellipsePts, engrave, qdCup } from './parts.js';
 import { magRounds } from './magfill.js';
 
 // Achteckiger Querschnitt um (0, axis)
@@ -56,6 +56,12 @@ export function arLower(b, { lowerMat = 'alu', upperMat = 'alu', gripMat = 'grip
     b.box('steel', 0.004, 0.018, 0.008, -0.013, 0.06, 0.06, { c: 0.001 });                   // Verschlussfang
     b.box('steel', 0.004, 0.005, 0.018, -0.0125, 0.056, -0.012, { rx: 0.4, c: 0.001 });       // Sicherung
     for (const [u, v] of [[0.0, 0.05], [0.06, 0.06], [-0.045, 0.06], [0.108, 0.095]]) { b.screw('steel', 0.0118, v, u, 'x', 0.0026); b.screw('steel', -0.0118, v, u, 'x', 0.0026); }
+    // Wahlhebel-Markierungen links (Sicher / Einzel / Dauer) um den Drehpunkt
+    for (const [v, u] of [[0.0665, -0.012], [0.0635, -0.0025], [0.0565, 0.0015]]) b.box('paintWhite', 0.0004, 0.0018, 0.0018, -0.0113, v, u, { c: 0 });
+    // Prägung links am Magazinschacht: Typenbezeichnung, Kaliber, Seriennummer
+    engrave(b, -0.0136, 0.041, 0.112, ['M-17 FALKE', 'KAL 5,56', 'NP 104729'], { dir: -1 });
+    // Riegel am Ladehebel (links)
+    b.box(upperMat, 0.006, 0.0055, 0.012, -0.0235, 0.108, -0.079, { part: 'charge', c: 0.001 });
   }
   b.anchor('rightHandGrip', 0, 0.0, 0, { data: { rake: 0.32, gw: 0.015, gd: 0.023, gu: 0.0, ho: 0.018, tu: 0.034 } });
   b.anchor('magWell', 0, 0.0, 0.088);
@@ -105,12 +111,29 @@ export function m17(b) {
   b.anchor('muzzle', 0, axis, end + 0.002);
   // Klappkorn (eingeklappt) vorn auf der Schiene
   if (b.hi) b.box('alu', 0.016, 0.008, 0.024, 0, axis + 0.034, 0.345, { c: 0.002 });
+  if (b.hi) {
+    // Klappkimme (eingeklappt) hinten auf der Schiene: Fuß + umgelegte Lochplatte mit Rändel
+    b.box('alu', 0.018, 0.007, 0.022, 0, 0.1275, -0.05, { c: 0.0015 });
+    b.box('alu', 0.015, 0.003, 0.019, 0, 0.1325, -0.047, { c: 0.001 });
+    for (const s of [-1, 1]) b.cyl('knurl', 0.0032, 0.0032, 0.004, s * 0.0105, 0.127, -0.054, { axis: 'x', seg: 10 });
+    // Handschutz: Schrauben am Übergang, QD-Riemenaufnahmen vorn beidseitig
+    for (const s of [-1, 1]) {
+      for (const dv of [0.011, -0.011]) b.screw('steel', s * 0.0224, axis + dv, 0.128, 'x', 0.0019);
+      qdCup(b, s * 0.0222, axis, 0.352);
+    }
+  }
   // Teleskopschaft (FDE)
   b.side('polymerTan', [
     [-0.165, 0.112], [-0.2, 0.122], [-0.276, 0.127], [-0.29, 0.122], [-0.29, 0.002], [-0.282, -0.006], [-0.264, -0.002],
     [-0.242, 0.036], [-0.212, 0.068], [-0.178, 0.074], [-0.165, 0.08],
   ], 0.036, 0, { bevel: 0.004, bevelSeg: 2 });
   b.box('rubber', 0.04, 0.134, 0.014, 0, 0.06, -0.297, { c: 0.004 });
+  // Schaftkappe gerillt (Seiten + Rückseite)
+  if (b.hi) for (let i = 0; i < 9; i++) {
+    const v = 0.004 + i * 0.0135;
+    for (const s of [-1, 1]) b.box('cavity', 0.0006, 0.0016, 0.011, s * 0.0201, v, -0.297, { c: 0 });
+    b.box('cavity', 0.034, 0.0016, 0.0006, 0, v, -0.3041, { c: 0 });
+  }
   if (b.hi) {
     b.box('polymer', 0.012, 0.01, 0.05, 0, 0.074, -0.205, { c: 0.002 });              // Verstellhebel
     b.cyl('steel', 0.006, 0.006, 0.04, 0, 0.012, -0.27, { axis: 'x', seg: 10 });      // Riemenbügel
@@ -228,6 +251,21 @@ export function kv47(b) {
   b.cyl('steel', 0.0012, 0.0016, 0.028, 0, axis + 0.034, 0.631, { axis: 'v', seg: 6 });
   // Putzstock unter dem Lauf
   b.cyl('steel', 0.0032, 0.0032, 0.22, 0, axis - 0.017, 0.52, { seg: 6 });
+  if (b.hi) {
+    // Entlüftungsbohrungen vorn am Gasrohr, Bajonetthaft unter dem Kornfuß, vordere Riemenöse am Halteband
+    for (const u of [0.372, 0.386, 0.4]) for (const s of [-1, 1]) b.box('cavity', 0.0012, 0.0042, 0.0042, s * 0.0091, axis + 0.026, u, { c: 0 });
+    b.box('steel', 0.009, 0.011, 0.022, 0, axis - 0.012, 0.632, { c: 0.0012 });
+    b.box('steel', 0.016, 0.003, 0.012, 0, axis - 0.0285, 0.405, { c: 0.0008 });
+    for (const s of [-1, 1]) b.box('steel', 0.003, 0.012, 0.004, s * 0.0065, axis - 0.0355, 0.405, { c: 0.0006 });
+    b.box('steel', 0.016, 0.003, 0.004, 0, axis - 0.042, 0.405, { c: 0.0006 });
+    // Skala auf der Visierklappe
+    for (let i = 0; i < 5; i++) b.box('cavity', 0.016, 0.0006, 0.0009, 0, 0.1124, 0.208 + i * 0.006, { c: 0 });
+    // Magazinhalter (Paddel) vor dem Abzugsbügel
+    b.box('steel', 0.013, 0.014, 0.005, 0, 0.026, 0.108, { rx: 0.25, c: 0.0012 });
+    for (let i = 0; i < 3; i++) b.box('cavity', 0.011, 0.0007, 0.0006, 0, 0.02 + i * 0.004, 0.1052, { rx: 0.25, c: 0 });
+    // Prägung links am Gehäuse (Typ, Seriennummer)
+    engrave(b, -0.0174, 0.068, 0.15, ['KV-47', '7,62x39', 'NP 3381'], { dir: -1 });
+  }
   const end = akBrake(b, 0.65, axis);
   b.anchor('muzzle', 0, axis, end + 0.002);
   // Holzschaft

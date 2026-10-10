@@ -1,5 +1,5 @@
 // Pistolen: P-9 Kompakt (Polymer, Schlagbolzen) und Adler .50 (schwere Edelstahlpistole mit Dreieckslauf)
-import { slots } from './parts.js';
+import { slots, engrave } from './parts.js';
 import { magRounds } from './magfill.js';
 
 const RAKE = 0.3;
@@ -60,6 +60,16 @@ export function p9(b) {
     [-0.04, 0.022], [-0.045, 0.031], [-0.046, 0.038],
   ], 0.029, 0, { bevel: 0.006, bevelSeg: 2 });
   if (b.hi) b.box('polymer', 0.004, 0.006, 0.006, -0.0132, 0.045, 0.006, { c: 0.001 });   // Schlittenfang
+  if (b.hi) {
+    // Zerlegehebel (beidseitig, gerillt), Rahmenstifte, Magazinknopf links, Auszieher rechts am Schlitten
+    b.box('steel', 0.0246, 0.0042, 0.009, 0, 0.0475, 0.05, { c: 0.0008 });
+    for (const s of [-1, 1]) for (let i = 0; i < 3; i++) b.box('cavity', 0.0004, 0.0032, 0.0007, s * 0.0124, 0.0475, 0.0472 + i * 0.0028, { c: 0 });
+    for (const [v, u] of [[0.0455, 0.024], [0.0455, -0.026]]) b.cyl('steel', 0.0011, 0.0011, 0.0242, 0, v, u, { axis: 'x', seg: 8 });
+    b.box('polymer', 0.0032, 0.0085, 0.0065, -0.0124, 0.031, 0.006, { c: 0.001 });
+    b.box('steelBright', 0.0014, 0.0034, 0.015, 0.0131, 0.0795, 0.026, { part: 'slide', c: 0.0004 });
+  }
+  // Prägung links am Schlitten (Typ, Kaliber)
+  engrave(b, -0.0131, 0.0735, 0.098, ['P-9 KOMPAKT', '9 MM'], { part: 'slide', dir: -1, h: 0.0015, cw: 0.0009, line: 0.0026 });
   gripMag(b, { u: -0.026, v: -0.056, w: 0.021, len: 0.085, depth: 0.03 });
   b.anchor('ejection', 0.006, 0.084, 0.04, { rz: 0.5 });
   b.anchor('muzzle', 0, axis, 0.147);
