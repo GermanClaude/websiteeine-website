@@ -22,6 +22,7 @@ const MAP_MODULES = {
   hafen: () => import('./maps/hafen.js'),
   altstadt: () => import('./maps/altstadt.js'),
   werk: () => import('./maps/werk.js'),
+  bibliothek: () => import('./maps/bibliothek.js'),
   range: () => import('./maps/range.js'),
 };
 

@@ -215,6 +215,27 @@ export const MAPS = {
     flags: [{ id: 'A', x: -36, z: 27 }, { id: 'B', x: 0, z: 0 }, { id: 'C', x: -36, z: -27 }],
     spawns: { A: [1.5, 43], B: [1.5, -43] },
   },
+  bibliothek: {
+    id: 'bibliothek',
+    name: 'Bibliothek',
+    subtitle: 'Die verbotene Sammlung',
+    description: 'Eine uralte Zauberbibliothek in einer gewaltigen Steinhalle: endlose Regalgassen, Galerien unter dem Gewölbe und zwei Holzbrücken quer über den Saal. Bücher fliegen über den Regalen, Kerzen schweben im Halbdunkel, in der Rotunde dreht sich ein leuchtender Himmelsglobus. Im Süden wartet hinter Eisengittern die Verbotene Abteilung.',
+    short: 'Riesige Zauberbibliothek mit Regalgassen, Galerien, Brücken und fliegenden Büchern.',
+    size: 'mittel',
+    dimensions: { x: 110, z: 80 },
+    timeOfDay: 'Kerzenschein',
+    weather: 'Drinnen, staubiges Halbdunkel',
+    weathers: ['klar', 'dunst'], weatherDefault: 'dunst',
+    modes: ['tdm', 'ult', 'ffa', 'dom', 'gun', 'kc', 'inf', 'messer'],
+    palette: ['#ffc27a', '#5a3b24', '#9a8f7d', '#2a3d6a', '#7a1f1f'],
+    features: ['Regalgassen mit hohen und niedrigen Regalen', 'Galerien an beiden Längswänden', 'Zwei Holzbrücken quer über die Halle', 'Rotunde mit schwebendem Himmelsglobus', 'Fliegende Bücher und schwebende Kerzen', 'Verbotene Abteilung hinter Eisengittern'],
+    lanes: ['Galerie West', 'Mittelgang mit Rotunde', 'Galerie Ost'],
+    ambience: 'industrial',
+    bounds: { minX: -55, maxX: 55, minZ: -40, maxZ: 40 },
+    layout: [[0,-40,110,0.8,"wall"],[0,40,110,0.8,"wall"],[-55,0,0.8,80,"wall"],[55,0,0.8,80,"wall"],[-10,-20.0,0.7,8,"wall"],[-10,-6.0,0.7,8,"wall"],[-10,6.0,0.7,8,"wall"],[-10,20.0,0.7,8,"wall"],[-15,-20.0,0.7,8,"wall"],[-15,-6.0,0.7,8,"wall"],[-15,6.0,0.7,8,"wall"],[-15,20.0,0.7,8,"wall"],[-20,-20.0,0.7,8,"wall"],[-20,-6.0,0.7,8,"wall"],[-20,6.0,0.7,8,"wall"],[-20,20.0,0.7,8,"wall"],[-25,-20.0,0.7,8,"wall"],[-25,-6.0,0.7,8,"wall"],[-25,20.0,0.7,8,"wall"],[-30,-20.0,0.7,8,"wall"],[-30,-6.0,0.7,8,"wall"],[-30,6.0,0.7,8,"wall"],[-30,20.0,0.7,8,"wall"],[-35,-20.0,0.7,8,"wall"],[-35,-6.0,0.7,8,"wall"],[-35,6.0,0.7,8,"wall"],[-40,-20.0,0.7,8,"wall"],[-40,-6.0,0.7,8,"wall"],[-40,6.0,0.7,8,"wall"],[-40,20.0,0.7,8,"wall"],[-51.55,0,6.1,52,"catwalk"],[10,-20.0,0.7,8,"wall"],[10,-6.0,0.7,8,"wall"],[10,6.0,0.7,8,"wall"],[10,20.0,0.7,8,"wall"],[15,-20.0,0.7,8,"wall"],[15,-6.0,0.7,8,"wall"],[15,6.0,0.7,8,"wall"],[15,20.0,0.7,8,"wall"],[20,-20.0,0.7,8,"wall"],[20,-6.0,0.7,8,"wall"],[20,6.0,0.7,8,"wall"],[20,20.0,0.7,8,"wall"],[25,-20.0,0.7,8,"wall"],[25,6.0,0.7,8,"wall"],[25,20.0,0.7,8,"wall"],[30,-20.0,0.7,8,"wall"],[30,-6.0,0.7,8,"wall"],[30,6.0,0.7,8,"wall"],[30,20.0,0.7,8,"wall"],[35,-20.0,0.7,8,"wall"],[35,-6.0,0.7,8,"wall"],[35,6.0,0.7,8,"wall"],[40,-20.0,0.7,8,"wall"],[40,-6.0,0.7,8,"wall"],[40,6.0,0.7,8,"wall"],[40,20.0,0.7,8,"wall"],[51.55,0,6.1,52,"catwalk"],[0,-13,97,3,"catwalk"],[0,13,97,3,"catwalk"],[-6,-28,1.1,1.1,"cover"],[6,-28,1.1,1.1,"cover"],[-6,-20,1.1,1.1,"cover"],[6,-20,1.1,1.1,"cover"],[-6,-12,1.1,1.1,"cover"],[6,-12,1.1,1.1,"cover"],[-6,-4,1.1,1.1,"cover"],[6,-4,1.1,1.1,"cover"],[-6,4,1.1,1.1,"cover"],[6,4,1.1,1.1,"cover"],[-6,12,1.1,1.1,"cover"],[6,12,1.1,1.1,"cover"],[-6,20,1.1,1.1,"cover"],[6,20,1.1,1.1,"cover"],[-6,28,1.1,1.1,"cover"],[6,28,1.1,1.1,"cover"],[0,0,15,15,"cover"],[-40,-38.9,6,0.7,"wall"],[-30,-38.9,6,0.7,"wall"],[-20,-38.9,6,0.7,"wall"],[-10,-38.9,6,0.7,"wall"],[10,-38.9,6,0.7,"wall"],[20,-38.9,6,0.7,"wall"],[30,-38.9,6,0.7,"wall"],[40,-38.9,6,0.7,"wall"],[-25,-27,42,0.3,"wall"],[25,-27,42,0.3,"wall"],[-25,6,1.1,3.2,"cover"],[25,-6,1.1,3.2,"cover"],[-35,20,1.1,3.2,"cover"],[35,20,1.1,3.2,"cover"]],
+    flags: [{ id: 'A', x: -25, z: 6 }, { id: 'B', x: 0, z: 0 }, { id: 'C', x: 25, z: -6 }],
+    spawns: { A: [0, 35], B: [0, -33] },
+  },
   range: {
     id: 'range',
     name: 'Schießstand',
@@ -317,4 +338,4 @@ export const WEATHERS = {
 };
 export const WEATHER_ORDER = ['klar', 'dunst', 'morgennebel', 'bewoelkt'];
 
-export const MAP_ORDER = ['hafen', 'altstadt', 'werk', 'range', 'grenzland'];
+export const MAP_ORDER = ['hafen', 'altstadt', 'werk', 'bibliothek', 'range', 'grenzland'];
