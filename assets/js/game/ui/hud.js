@@ -328,6 +328,26 @@ export class HUD {
     s.on('streak:ready', ({ actor, streakId }) => { if (actor === P()) this._notice(`${this._streakName(streakId)} bereit.`, 'gold', this._keyFor(`streak${this._streakIndex(streakId) + 1}`), NOTICE_LIFE, `ready:${streakId}`); });
     s.on('streak:denied', ({ streakId, need }) => this._notice(`${this._streakName(streakId)}: noch ${need} ${need === 1 ? 'Abschuss' : 'Abschüsse'}.`, 'dim'));
     s.on('streak:activate', (e) => this._onStreakActivate(e));
+    // Interaktionspunkte der Karte (mappoints.js)
+    s.on('point:use', ({ actor, point, count }) => {
+      if (actor !== P()) return;
+      const e = point.def.effect;
+      const text = e === 'ammo' ? 'Munition aufgefüllt.' : e === 'heal' ? 'Vollständig geheilt.' : `${point.def.name}: ${count} Gegner markiert.`;
+      this._notice(text, 'gold', null, NOTICE_LIFE, 'point');
+    });
+    s.on('point:denied', ({ actor, point, reason, left }) => {
+      if (actor !== P()) return;
+      this._notice(reason === 'voll' ? 'Munition ist schon voll.' : reason === 'gesund' ? 'Du bist unverletzt.' : `${point.def.name}: noch ${Math.ceil(left)} s.`, 'dim', null, NOTICE_LIFE, 'point');
+    });
+    // Klassen-Fähigkeit (Taste J): Einsatz, Abklingzeit, wieder bereit
+    const abName = (id) => (P() && P().ability && P().ability.id === id ? P().ability.name : 'Fähigkeit');
+    s.on('ability:ready', ({ actor, id }) => { if (actor === P()) this._notice(`${abName(id)} bereit.`, 'gold', this._keyFor('faehigkeit'), NOTICE_LIFE, 'ability'); });
+    s.on('ability:denied', ({ actor, id, left, reason }) => { if (actor === P()) this._notice(reason === 'voll' ? 'Munition ist schon voll.' : `${abName(id)}: noch ${Math.ceil(left)} s.`, 'dim', null, NOTICE_LIFE, 'ability'); });
+    s.on('ability:use', ({ actor, id, count }) => {
+      if (actor !== P()) return;
+      const text = id === 'aufklaerungspuls' ? `Aufklärungspuls: ${count} Gegner markiert.` : id === 'nachschub' ? 'Nachschub: Munition aufgefüllt.' : `${abName(id)} aktiv!`;
+      this._notice(text, 'gold', null, NOTICE_LIFE, 'ability');
+    });
     s.on('streak:destroyed', (e) => this._onStreakDestroyed(e));
     s.on('streak:expired', ({ owner, streakId }) => { if (owner === P() && streakId !== 'drohne') this._notice('Wachgeschütz abgebaut.', 'dim'); });
     s.on('streak:refused', ({ actor, streakId, reason }) => {
@@ -1457,7 +1477,7 @@ export class HUD {
       for (const b of btns) {
         const id = b.dataset.streak;
         const d = id && st.byId[id];
-        // in diesem Spiel nicht verfügbare Prämie (online nur die Drohne): Knopf ausblenden
+        // in diesem Spiel nicht verfügbare Prämie (online ohne Wachgeschütz): Knopf ausblenden
         const off = id && !d ? '1' : '';
         if ((b.dataset.off || '') !== off) { if (off) b.dataset.off = off; else delete b.dataset.off; }
         if (!d) continue;
@@ -1478,6 +1498,9 @@ export class HUD {
       const P = mode.parcours;
       const running = P.state === 'running' || P.state === 'countdown';
       pr = { text: running ? 'Parcours abbrechen' : 'Parcours starten', key: this._keyFor('interact'), action: () => mode.interact() };
+    } else if (G.points && G.points.near) {
+      const { point, left } = G.points.near;
+      pr = { text: `${point.def.name} · ${left > 0 ? `noch ${left} s` : point.def.act}`, key: this._keyFor('interact'), action: () => G.points.use() };
     }
     this._prompt = pr;
     const b = this.promptBtn;

@@ -97,9 +97,10 @@ const LOCAL_RELAY = /^wss?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?(\/|$)/;
 /** Typen, die NetSystem selbst kennt: Clients dürfen sie nicht an andere Clients weiterleiten lassen ('order': Befehlsrad
  *  eines Clients an die Bots um seine Puppe – nur der Host wertet ihn aus, net/sync-host.js; 'veh'/'vhit': Fahrzeug-
  *  Anfragen und -Treffer an den Host, 'actors'/'vehicles': Listen des Hosts; 'streak'/'drone': Serienprämie bzw.
- *  FPV-Drohne eines Clients – nur der Host wertet sie aus; 'cheat': Cheat-Menü aktiv – nur der Host vermerkt es). */
+ *  FPV-Drohne eines Clients – nur der Host wertet sie aus; 'cheat': Cheat-Menü aktiv – nur der Host vermerkt es;
+ *  'ability'/'point': Klassen-Fähigkeit bzw. Heilung an einem Kartenpunkt eines Clients – nur der Host wertet sie aus). */
 const RESERVED = new Set([
-  'join', 'ready', 'loadout', 'hit', 'melee', 'throw', 'leave', 'hold', 'plate', 'dev', 'order', 'veh', 'vhit', 'streak', 'drone', 'cheat',
+  'join', 'ready', 'loadout', 'hit', 'melee', 'throw', 'leave', 'hold', 'plate', 'dev', 'order', 'veh', 'vhit', 'streak', 'drone', 'cheat', 'ability', 'point',
   'welcome', 'room', 'roster', 'start', 'spawn', 'kill', 'mode', 'ev', 'end', 'kick', 'host-away', 'correct', 'reject', 'actors', 'vehicles',
 ]);
 /** Nur der Host darf sie senden (der Host verwirft sie von Clients). */

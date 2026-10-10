@@ -195,9 +195,18 @@ export class Minimap {
       }
       if (noEnemies) continue; // Spielstil „Realistisch“: keine Gegnerpunkte
       const fired = now - (a.lastFiredTime ?? -1e9) < FIRE_SHOW && !a._suppressedShot;
-      if (fired) {
+      // markiert (Aufklärer: Markieren/Aufklärungspuls) – nur für das eigene Team (FFA: für den, der markiert hat)
+      const spotted = (a.spottedUntil || 0) > now && a.spottedBy != null && (a.spottedBy === p.team || a.spottedBy === p);
+      if (fired || spotted) {
         toScreen(a.position.x, a.position.z, pt);
-        dot(ctx, pt.x, pt.y, 4.2 * d, COL.enemy, 1 - (now - a.lastFiredTime) / FIRE_SHOW * 0.5);
+        dot(ctx, pt.x, pt.y, 4.2 * d, COL.enemy, spotted ? 1 : 1 - (now - a.lastFiredTime) / FIRE_SHOW * 0.5);
+        if (spotted) {
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 7 * d, 0, Math.PI * 2);
+          ctx.lineWidth = 1.2 * d;
+          ctx.strokeStyle = COL.enemy;
+          ctx.stroke();
+        }
       }
     }
     if (blips) {

@@ -26,6 +26,7 @@
 //     'ev' dr an alle, ihr Ende als 'ev' de.
 import * as THREE from 'three';
 import { WEAPONS, EQUIPMENT } from '../../shared/weapons.data.js';
+import { ABILITIES } from '../../shared/classes.data.js';
 import { netPoseOf } from '../bots/bot.js';
 import { PKT_STATE, decodeState, encodeSnapshot, packetType, FLAGS } from './protocol.js';
 import { HOST_ID, FIRST_BOT_ID, sanitizeLoadout, loadoutWeapons } from './index.js';
@@ -70,6 +71,8 @@ export class HostSync {
     this._lastThrow = new Map();
     this._lastOrder = new Map();
     this._lastStreak = new Map();
+    this._abilityAt = new Map(); // Client → nächste erlaubte Klassen-Fähigkeit (Echtzeit)
+    this._regens = new Map(); // Client → {until, rate}: Regeneration der Puppe (Klassen-Fähigkeit)
     this._droneAt = 0;
     this._lastEnv = new Map();
     this._hitSerial = new Map(); // Client → letzte Schussnummer mit Treffer (Trefferstatistik)
@@ -97,6 +100,8 @@ export class HostSync {
       net.on('hold', (m, from) => this._onHold(m, from)),
       net.on('order', (m, from) => this._onOrder(m, from)),
       net.on('streak', (m, from) => this._onStreak(m, from)),
+      net.on('ability', (m, from) => this._onAbility(m, from)),
+      net.on('point', (m, from) => { const p = this._puppet(from); if (this.active && !this.ended && p && m && this.G.points) this.G.points.netUse(p, m.i, from); }),
       net.on('drone', (m, from) => this._onDrone(m, from)),
       net.onFast((buf, from) => this._onFast(buf, from)),
     ];
@@ -221,6 +226,7 @@ export class HostSync {
     if (net.history) for (const a of G.actors) if (Number.isInteger(a.netId) && a.position) net.history.record(a.netId, t, a.position.x, a.position.y, a.position.z);
     const now = nowSec();
     if (this._holds.size) this._tickHolds(now);
+    if (this._regens.size) this._tickRegens(now);
     if (now >= this._rebalanceAt) { this._rebalanceAt = now + 2; this._rebalance(); }
     if (this._actorsDirty) this._sendActors();
     const vn = this._vn();
@@ -641,7 +647,7 @@ export class HostSync {
     // Cheat-Menü „Messer ohne Abklingzeit“: bei erlaubtem Menü (Raum-Einstellung) und gemeldetem Cheat keine Feuerrate
     const room = this.net.room && this.net.room.settings;
     const entry = this.net.rosterEntry(from);
-    if (!(room && room.cheatMenu === false) && entry && entry.cheat === true) ctx.noRate = true;
+    if (!(room && room.cheatMenu === false) && entry && entry.cheat === true) { ctx.noRate = true; ctx.meleeReach = 2.6; }
     const r = this.net.checkHit(from, { ...m, t: 'melee' }, ctx);
     if (!r || !r.ok || !(r.dmg > 0)) return;
     p.getEyePosition(_eye);
@@ -730,14 +736,42 @@ export class HostSync {
     if (st.byId[m.id] && p.alive) {
       const opts = {};
       if (m.id === 'drohne') { opts.position = vec3(m.p); opts.yaw = Number(m.y); opts.pitch = Number(m.pi); }
+      // Luftschlag: Ziel des Clients (Zielkarte), höchstens 500 m von der Puppe – sonst wählt der Host
+      if (m.id === 'strike') { const tp = vec3(m.t); if (tp && tp.distanceTo(p.position) < 500) opts.target = tp; }
       try { ok = !!st.activate(p, m.id, opts); } catch (err) { ok = false; console.error('[net] Prämie', err); }
       if (ok && m.id === 'drohne') d = st.droneOf(p);
     }
+    const uavLeft = ok && m.id === 'uav' ? this._uavLeft(p) : undefined;
     this.net.send(from, {
-      t: 'ev', e: 'sa', id: m.id.slice(0, 16), ok: ok ? 1 : 0, d: d ? d.netId : 0,
+      t: 'ev', e: 'sa', id: m.id.slice(0, 16), ok: ok ? 1 : 0, d: d ? d.netId : 0, r: uavLeft,
       p: d ? arr3(d.position, 2) : undefined, pi: d ? rnd(d.pitch, 3) : undefined, bt: d ? rnd(d.battery, 2) : undefined,
     });
     if (!ok) this._sendStreakState(p);
+  }
+
+  /**
+   * Klassen-Fähigkeit eines Clients ('ability' {id}): passt sie zur Klasse der Puppe und ist sie wieder bereit (Echtzeit,
+   * 10 % Spielraum für langsame Geräte), heilt der Host die Puppe bei Regeneration (_tickRegens). Kampfrausch,
+   * Nachschub und Aufklärungspuls wirken nur beim Client selbst (Nachladen, Rückstoß, Munition, eigene Minikarte).
+   */
+  _onAbility(m, from) {
+    if (!this.active || this.ended || !m || typeof m.id !== 'string') return;
+    const p = this._puppet(from);
+    const ab = ABILITIES[m.id];
+    if (!p || !p.alive || !ab || ab.cls !== (p.cls || (p.loadout && p.loadout.cls))) return;
+    const t = nowSec();
+    if (t < (this._abilityAt.get(from) || 0)) return;
+    this._abilityAt.set(from, t + ab.cooldown * 0.9);
+    if (ab.regen) this._regens.set(from, { until: t + ab.duration, rate: ab.regen });
+  }
+
+  _tickRegens(now) {
+    const dt = this.G.time.dt;
+    for (const [id, r] of this._regens) {
+      const p = this._puppet(id);
+      if (!p || !p.alive || now >= r.until) { this._regens.delete(id); continue; }
+      if (p.health < p.maxHealth) p.health = Math.min(p.maxHealth, p.health + r.rate * dt);
+    }
   }
 
   /** Drohne eines Clients ('drone' {a: 'p'|'x'|'e'|'h', d, …}): Prüfung und Wirkung in mode.streaks (net*-Methoden). */
@@ -778,7 +812,17 @@ export class HostSync {
     const a = e && e.actor;
     if (!a || !Number.isInteger(a.netId) || !this.net.online || typeof e.streakId !== 'string') return;
     this._sendStreakState(a);
-    this.net.send('others', { t: 'ev', e: 'sv', o: a.netId, id: e.streakId }, a.isRemoteHuman ? a.netId : null);
+    const msg = { t: 'ev', e: 'sv', o: a.netId, id: e.streakId };
+    if (e.streakId === 'uav') msg.r = this._uavLeft(a); // Aufklärer: Restdauer → Abbild zeigt die Gegner seiner Seite
+    if (e.streakId === 'strike' && e.target) msg.p = arr3(e.target, 1);
+    this.net.send('others', msg, a.isRemoteHuman ? a.netId : null);
+  }
+
+  /** Restdauer (s) des Aufklärers der Seite von a (Host-Zeit), sonst undefined. */
+  _uavLeft(a) {
+    const st = this.G.mode && this.G.mode.streaks;
+    const u = st && st.uav ? st.uav.get(st._uavKey(a)) : null;
+    return u ? rnd(Math.max(0, u.until - this.G.time.elapsed), 1) : undefined;
   }
 
   /** Ende einer Drohne an alle ('ev' de: Netz-Id, Besitzer, Grund, Schütze beim Abschuss). */

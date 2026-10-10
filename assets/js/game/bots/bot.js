@@ -674,7 +674,8 @@ export class Bot {
     const base = prone ? SPEED.crawl : this.crouching ? SPEED.crouch : this.sprinting ? SPEED.sprint : SPEED[speedKind === 'sprint' ? 'run' : speedKind] || SPEED.run;
     const arm = this.armor;
     const armMult = arm ? (this.sprinting ? arm.sprintMult || arm.speedMult || 1 : arm.speedMult || 1) : 1;
-    const mult = (def && def.moveSpeedMult ? def.moveSpeedMult : 1) * (1 + ((def && def.adsMoveMult ? def.adsMoveMult : 0.6) - 1) * ads) * (limping ? 0.62 : 1) * armMult;
+    const netted = now < (this.netUntil || 0); // Wurfnetz (weapons/grenades.js)
+    const mult = (def && def.moveSpeedMult ? def.moveSpeedMult : 1) * (1 + ((def && def.adsMoveMult ? def.adsMoveMult : 0.6) - 1) * ads) * (limping ? 0.62 : 1) * armMult * (netted ? this.netSlow ?? 0.15 : 1);
     const tx = mx * base * mult, tz = mz * base * mult;
 
     // Physik

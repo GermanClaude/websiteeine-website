@@ -214,6 +214,7 @@ export class GrenadeSystem {
 
   update(dt) {
     if (this.fires.length) this._updateFires(dt);
+    if (this.nets && this.nets.length) this._updateNets(dt);
     const list = this.list;
     if (!list.length) return;
     const G = this.G;
@@ -438,6 +439,7 @@ export class GrenadeSystem {
     if (eq.fire) return this._ignite(p, eq, actor);
     if (eq.flash) return this._flashBang(p, eq, actor);
     if (eq.smoke) return this._smoke(p, eq, actor);
+    if (eq.net) return this._netTrap(p, eq, actor);
     if (!G.combat) return;
     // Schwierigkeit (Bots): derselbe Schadensfaktor wie bei Kugeln und Messer
     const scale = actor && Number.isFinite(actor.damageScale) ? actor.damageScale : 1;
@@ -491,6 +493,76 @@ export class GrenadeSystem {
         if (v.body.pos.distanceTo(f.position) > f.radius + 1.5) continue;
         v.applyDamage(amount * f.vehicleMult * 4, { attacker: f.attacker, weaponId: f.weaponId, kind: 'fire', zone: 'hull', point: f.position.clone() });
       }
+    }
+  }
+
+  /**
+   * Wurfnetz: beschwertes Netz über `net.radius` m – Gegner des Werfers darunter (Höhe −1,2…+1,8 m, Sichtlinie vom Zentrum)
+   * sind `net.duration` s gefangen: actor.netUntil / actor.netSlow (player.js, bots/bot.js: Tempo, kein Sprint/Sprung).
+   * Läuft auf jedem Gerät (online über remoteBoom) – jedes bremst seine eigenen Figuren.
+   */
+  _netTrap(p, eq, actor) {
+    const G = this.G;
+    const N = eq.net;
+    const now = G.time.elapsed;
+    G.events.emit('net:deploy', { position: p.clone(), radius: N.radius, attacker: actor || null });
+    const ground = G.world && G.world.raycast ? G.world.raycast(_p.set(p.x, p.y + 0.6, p.z), _ray.direction.set(0, -1, 0), 4) : null;
+    const base = ground ? ground.point.y : p.y;
+    for (const a of G.actors) {
+      if (!a || !a.alive || !a.position) continue;
+      if (actor && (a === actor || (G.combat && !G.combat.isHostile(actor, a)))) continue;
+      const dx = a.position.x - p.x, dz = a.position.z - p.z, dy = a.position.y - base;
+      if (dx * dx + dz * dz > N.radius * N.radius || dy < -1.2 || dy > 1.8) continue;
+      a.netUntil = Math.max(a.netUntil || 0, now + N.duration);
+      a.netSlow = N.slow;
+      G.events.emit('actor:netted', { actor: a, attacker: actor || null, duration: N.duration });
+      if (a.isPlayer && G.hud && typeof G.hud._notice === 'function') { try { G.hud._notice('Im Netz gefangen!', 'enemy', null, 1.6); } catch { /* */ } }
+    }
+    if (G.scene) this._spawnNetMesh(new THREE.Vector3(p.x, base, p.z), N);
+  }
+
+  /** Netz-Darstellung: Kuppel aus Speichen und Ringen (Linien) + Gewichte am Rand; fällt kurz, blendet am Ende aus. */
+  _spawnNetMesh(c, N) {
+    const G = this.G;
+    if (!this.nets) this.nets = [];
+    const R = N.radius, H = 1.55, rings = 6, spokes = 18;
+    const h = (r) => H * Math.pow(Math.max(0, 1 - (r / R) * (r / R)), 0.7) + 0.03;
+    const pts = [];
+    const at = (r, a) => [Math.cos(a) * r, h(r), Math.sin(a) * r];
+    for (let s = 0; s < spokes; s++) {
+      const a = (s / spokes) * Math.PI * 2;
+      for (let k = 0; k < rings; k++) pts.push(...at((k / rings) * R, a), ...at(((k + 1) / rings) * R, a));
+    }
+    for (let k = 1; k <= rings; k++) {
+      const r = (k / rings) * R;
+      for (let s = 0; s < spokes; s++) pts.push(...at(r, (s / spokes) * Math.PI * 2), ...at(r, ((s + 1) / spokes) * Math.PI * 2));
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    const mat = new THREE.LineBasicMaterial({ color: 0x8a7650, transparent: true, opacity: 0.95 });
+    const group = new THREE.Group();
+    group.add(new THREE.LineSegments(geo, mat));
+    const wgeo = new THREE.SphereGeometry(0.06, 6, 4);
+    const wmat = new THREE.MeshStandardMaterial({ color: 0x3a3b3f, metalness: 0.6, roughness: 0.5, transparent: true, opacity: 1 });
+    for (let s = 0; s < spokes; s += 2) { const m = new THREE.Mesh(wgeo, wmat); const [x, y, z] = at(R, (s / spokes) * Math.PI * 2); m.position.set(x, y, z); group.add(m); }
+    group.position.copy(c);
+    group.scale.set(1, 0.2, 1);
+    G.scene.add(group);
+    this.nets.push({ group, mats: [mat, wmat], geos: [geo, wgeo], t: 0, life: N.duration });
+  }
+
+  _updateNets(dt) {
+    for (let i = this.nets.length - 1; i >= 0; i--) {
+      const n = this.nets[i];
+      n.t += dt;
+      n.group.scale.y = Math.min(1, 0.2 + n.t * 3.2);
+      const fade = clamp((n.life + 0.6 - n.t) / 0.6, 0, 1);
+      for (const m of n.mats) m.opacity = (m.type === 'LineBasicMaterial' ? 0.95 : 1) * fade;
+      if (n.t < n.life + 0.6) continue;
+      n.group.removeFromParent();
+      for (const g of n.geos) g.dispose();
+      for (const m of n.mats) m.dispose();
+      this.nets.splice(i, 1);
     }
   }
 

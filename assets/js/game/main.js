@@ -29,6 +29,7 @@ import { DynamicResolution } from './engine/dynres.js';
 import { renderScaleValue, fpsLimitValue } from '../shared/graphics.data.js'; // Erweitert-Grafik (S9, ui-controls)
 import { Player } from './player.js';
 import { Combat } from './combat.js';
+import { MapPoints } from './mappoints.js'; // Interaktionspunkte der Karten (Taste F)
 
 const VERSION = '1.1.0';
 
@@ -969,7 +970,7 @@ async function runStart(config, gen) {
       time: cfg.timeLimit ?? undefined, score: cfg.scoreLimit ?? undefined,
       difficulty: cfg.difficulty, allies: cfg.allies, enemies: cfg.enemies, mapId: cfg.mapId,
     };
-    // Mehrspieler: von den Serienprämien online nur die FPV-Drohne (ONLINE_STREAKS, Einsatz bestätigt der Host –
+    // Mehrspieler: von den Serienprämien online Aufklärer, FPV-Drohne und Präzisionsschlag (ONLINE_STREAKS, Einsatz bestätigt der Host –
     // net/sync-host.js); Client führt den Modus als Abbild (Zustand vom Host)
     if (netCfg) { opts.streakIds = modesData.ONLINE_STREAKS || []; opts.replica = netCfg.role === 'client'; }
     G.mode = G.modules.modes.createMode(G, cfg.modeId, opts);
@@ -1002,6 +1003,7 @@ async function runStart(config, gen) {
     // simuliert, Clients führen ein Abbild (vehicles/net.js, panzer-mp.md §C)
     if (!netCfg) safe('vehicles.attach', () => G.vehicles.attach(G));
     else if (netCfg.vehicles) safe('vehicles.attach', () => G.vehicles.attach(G, { replica: netCfg.role === 'client' }));
+    safe('points', () => { G.points = new MapPoints(G, cfg.mapId); });
     G.hud.attach(G);
     safe('audio.startAmbience', () => G.audio.startAmbience(G.world.ambience));
     G.mode.start();
@@ -1207,6 +1209,7 @@ async function teardownMatch({ keepWorld = false } = {}) {
     G.world = null;
   }
   G.actors.length = 0;
+  if (G.points) { safe('points', () => G.points.dispose()); G.points = null; }
   G.match.net = null;
   G.match.netRole = null;
   if (sceneBase) {
@@ -1569,6 +1572,7 @@ function frame(now, bg = false, xrFrame = null) {
     const live = G.match.state === 'playing' || G.match.netLive;
     if (live) step('separate', () => separateActors(G.actors));
     step('vehicles', () => G.vehicles.update(dt));
+    if (G.points) step('points', () => G.points.update(dt));
     step('armor', () => G.combat.tickArmor(G.actors)); // core-mechanics: Platten fertig einsetzen, Bots setzen selbst ein
     step('weapons', () => G.weapons.update(dt));
     step('mode', () => { if (G.mode) G.mode.update(dt); });

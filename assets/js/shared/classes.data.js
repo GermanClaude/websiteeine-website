@@ -160,6 +160,30 @@ export const GADGETS = deepFreeze({
   },
 });
 
+/* ============================================== Klassen-Fähigkeiten (Taste J) */
+
+// Je Klasse eine aktive Fähigkeit mit Abklingzeit (neben der Ausrüstung). Online setzt der Host die Wirkung auf die Leben
+// der Puppe um (Regeneration, net/sync-host.js _onAbility); Nachladen, Rückstoß, Munition und Aufklärung wirken lokal.
+export const ABILITIES = deepFreeze({
+  kampfrausch: {
+    id: 'kampfrausch', name: 'Kampfrausch', cls: 'sturm', cooldown: 40, duration: 8, reloadMult: 1.45, recoilMult: 0.65,
+    desc: '8 s lang 45 % schneller nachladen und 35 % weniger Rückstoß.',
+  },
+  regeneration: {
+    id: 'regeneration', name: 'Regeneration', cls: 'sanitaeter', cooldown: 45, duration: 8, regen: 12,
+    desc: '8 s lang 12 Leben pro Sekunde.',
+  },
+  nachschub: {
+    id: 'nachschub', name: 'Nachschub', cls: 'pionier', cooldown: 50,
+    desc: 'Füllt die Reservemunition aller Waffen auf.',
+  },
+  aufklaerungspuls: {
+    id: 'aufklaerungspuls', name: 'Aufklärungspuls', cls: 'aufklaerer', cooldown: 35, duration: 6, radius: 90,
+    desc: 'Markiert 6 s lang alle Gegner im Umkreis von 90 m (Minikarte und Marker).',
+  },
+});
+export const abilityOfClass = (cls) => Object.values(ABILITIES).find((a) => a.cls === cls) || null;
+
 /* ================================================================ Klassen */
 
 // Alle Schusswaffen stehen allen Klassen offen (wie Battlefield 6); Werfer nur dem Pionier.

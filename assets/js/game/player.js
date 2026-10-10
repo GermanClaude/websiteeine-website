@@ -13,7 +13,8 @@
 import * as THREE from 'three';
 import { CapsuleBody, collisionRay, probeLedge, keepClear, canOccupy } from './engine/physics.js';
 import { raycastHumanoid, PRONE } from './combat.js';
-import { canInsertPlate, plateCount, classDef, gadgetDef, GADGETS } from '../shared/classes.data.js';
+import { canInsertPlate, plateCount, classDef, gadgetDef, GADGETS, abilityOfClass } from '../shared/classes.data.js';
+import { refillAmmo, markAround } from './mappoints.js';
 import { Stamina, STAMINA_COST, RECOVER } from './stamina.js';
 import { slideAllowed, slideBegin, slideStep } from './slide.js';
 
@@ -220,6 +221,15 @@ export class Player {
     this._heal = 0;
     this._busyUntil = 0;
     this._repairing = false;
+    // Klassen-Fähigkeit (Taste J): Abklingzeit läuft über den Tod hinweg weiter
+    this.ability = null;
+    this.abilityReadyAt = 0;
+    this.abilityUntil = 0;
+    this.rushUntil = 0;
+    this.rushReload = 1;
+    this.rushRecoil = 1;
+    this._abilityPress = false;
+    this._abilityReadyNotified = true;
     this.repairTarget = null;
     this.spotTarget = null;
 
@@ -311,6 +321,7 @@ export class Player {
     if (!this.cls) this.cls = this.classDef.id;
     const g = gadgetDef(this.classDef.gadget);
     this.gadget = g ? { id: g.id, charges: g.charges, max: g.charges, cooldownUntil: 0, active: false } : null;
+    this.ability = abilityOfClass(this.classDef.id);
   }
 
   _onWhiz(e) {
@@ -384,6 +395,7 @@ export class Player {
     this._heal = 0;
     this._busyUntil = 0;
     this._repairing = false;
+    this.abilityUntil = this.rushUntil = 0;
     this.repairTarget = this.spotTarget = null;
     this.applyClass();
     this._eye = STAND_EYE;
@@ -619,6 +631,7 @@ export class Player {
       if (this.prone && !stanceBusy) this._leaveProne('stand'); // Springen aus dem Liegen = aufstehen
       input.consume('jump');
     }
+    if (!frozen && input.pressed('jump') && now < (this.netUntil || 0)) input.consume('jump'); // im Netz kein Sprung
     if (!frozen && input.pressed('jump')) this._jumpBuffer = 0.3;
     if (!frozen && this._jumpBuffer > 0 && this._tryMantle(world, mx, my)) {
       this._jumpBuffer = 0;
@@ -659,7 +672,7 @@ export class Player {
     if (blockSprint) this._sprintLatch = false;
     // Ausdauer: erschöpft kein Sprint – die Absicht (Latch/Touch-Sperre) bleibt und setzt ab 30 % wieder ein
     if (!frozen && this._sprintLatch && !this.stamina.canSprint && (input.pressed('sprint') || lockEdge || this.sprinting)) this.stamina.deny();
-    let sprint = this._sprintLatch && (body.onGround || this.sprinting) && this.stamina.canSprint;
+    let sprint = this._sprintLatch && !(now < (this.netUntil || 0)) && (body.onGround || this.sprinting) && this.stamina.canSprint;
     if (sprint && this.crouching) {
       if (body.canStand(world)) this.crouching = false; else sprint = false;
     }
@@ -685,6 +698,7 @@ export class Player {
     const ar = this.armor;
     let gear = ar ? (this.sprinting ? ar.sprintMult : ar.speedMult) : 1;
     if (now < this.boostUntil) gear *= this._boostMult;
+    if (now < (this.netUntil || 0)) gear *= this.netSlow ?? 0.15; // Wurfnetz (weapons/grenades.js)
     if (stanceBusy && !this._dive) gear *= 0.25;
     if (this.plating) gear *= 0.8;
     // Gelände: bergauf langsamer (bis −30 %), bergab etwas schneller; nach Stufen und harten Landungen kurz gebremst
@@ -820,6 +834,7 @@ export class Player {
     this._updateStance(dt);
     this._updateArmor(now, frozen, input);
     this._updateGadget(dt, now, frozen, input);
+    this._updateAbility(dt, now, frozen, input);
 
     // Regeneration (COD): Spielstil (Realistisch langsamer) × Klasse (Sanitäter schneller)
     const fl = G.match && G.match.styleFlags;
@@ -1354,6 +1369,52 @@ export class Player {
     G.events.emit('gadget:use', { actor: this, id: g.id, charges: g.charges });
   }
 
+  /** Klassen-Fähigkeit auslösen (UI/Touch/Tests). */
+  useAbility() {
+    const input = this.G.input;
+    if (!input) return false;
+    const before = this.abilityReadyAt;
+    this._abilityPress = true;
+    this._updateAbility(0, this.G.time.elapsed, false, input);
+    return this.abilityReadyAt !== before;
+  }
+
+  /**
+   * Klassen-Fähigkeit (classes.data.js ABILITIES): Kampfrausch (Nachladen/Rückstoß, weapons/controller.js liest rushUntil),
+   * Regeneration (Leben pro Sekunde), Nachschub (Reservemunition), Aufklärungspuls (markiert Gegner im Umkreis).
+   * Online meldet der Client den Einsatz an den Host, der die Regeneration auf die Leben der Puppe überträgt.
+   */
+  _updateAbility(dt, now, frozen, input) {
+    const G = this.G;
+    const ab = this.ability;
+    if (ab && ab.regen && now < this.abilityUntil && dt > 0 && this.health < this.maxHealth) this.health = Math.min(this.maxHealth, this.health + ab.regen * dt);
+    if (ab && !this._abilityReadyNotified && now >= this.abilityReadyAt) {
+      this._abilityReadyNotified = true;
+      G.events.emit('ability:ready', { actor: this, id: ab.id });
+    }
+    const press = this._abilityPress || input.pressed('faehigkeit');
+    this._abilityPress = false;
+    if (!press || !ab || frozen || !this.alive) return;
+    if (now < this.abilityReadyAt) { G.events.emit('ability:denied', { actor: this, id: ab.id, left: this.abilityReadyAt - now }); return; }
+    let count = 0;
+    if (ab.id === 'kampfrausch') {
+      this.rushUntil = now + ab.duration;
+      this.rushReload = ab.reloadMult;
+      this.rushRecoil = ab.recoilMult;
+    } else if (ab.id === 'nachschub') {
+      count = refillAmmo(this);
+      if (!count) { G.events.emit('ability:denied', { actor: this, id: ab.id, reason: 'voll' }); return; }
+    } else if (ab.id === 'aufklaerungspuls') {
+      count = markAround(G, this, this.position, ab.radius, now + ab.duration);
+    }
+    this.abilityUntil = ab.duration ? now + ab.duration : 0;
+    this.abilityReadyAt = now + ab.cooldown;
+    this._abilityReadyNotified = false;
+    const sync = G.net && G.net.sync;
+    if (sync && typeof sync.sendAbility === 'function') sync.sendAbility(ab.id);
+    G.events.emit('ability:use', { actor: this, id: ab.id, count });
+  }
+
   /** Nächstes beschädigtes eigenes/neutrales Fahrzeug in Reichweite des Reparaturwerkzeugs. */
   _repairCandidate(def) {
     const V = this.G.vehicles;
@@ -1400,7 +1461,7 @@ export class Player {
     if (!best) { G.events.emit('gadget:use', { actor: this, id: g.id, charges: g.charges, target: null }); return; }
     const until = now + (((this.classDef && this.classDef.perks) || {}).spotDuration || def.duration);
     best.spottedUntil = until;
-    best.spottedBy = this.team;
+    best.spottedBy = this.team ?? this;
     G.events.emit('spot', { actor: this, target: best, until, team: this.team });
     G.events.emit('gadget:use', { actor: this, id: g.id, charges: g.charges, target: best });
   }

@@ -334,7 +334,7 @@ export const MODES = {
  */
 export const STREAK_ORDER = ['uav', 'strike', 'sentry', 'drohne'];
 /** Online verfügbare Prämien (Mehrspieler Stufe 1: nur die FPV-Drohne – Einsatz, Lage und Sprengung prüft der Host). */
-export const ONLINE_STREAKS = ['drohne'];
+export const ONLINE_STREAKS = ['uav', 'drohne', 'strike'];
 
 export const STREAKS = {
   uav: {

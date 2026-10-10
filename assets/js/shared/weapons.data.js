@@ -197,6 +197,9 @@ const ICONS = {
   smoke: smallIcon(
     '<rect x="7.5" y="9" width="9" height="13" rx="1.5"/><path d="M9.5 9V6.5H14.5V9 M7.5 12H16.5 M7.5 19H16.5"/>' +
     '<path d="M14 5Q17 2 20 4Q23 3 22 7Q20 9 17 7" opacity=".7"/>'),
+  netz: smallIcon(
+    '<path d="M3 20Q12 2 21 20 M6 14H18 M4.5 17H19.5 M8.5 9.5H15.5 M12 4V20 M8 7L5 20 M16 7L19 20"/>' +
+    '<circle cx="3" cy="20" r="1.2"/><circle cx="21" cy="20" r="1.2"/><circle cx="12" cy="21" r="1.2"/>'),
 };
 
 /* ------------------------------------------------------------ Hilfsfunktionen */
@@ -790,9 +793,18 @@ export const EQUIPMENT = {
     throwSpeed: 18, throwPitch: 0.17, bounciness: 0.3, friction: 0.7, sticky: false,
     model: 'smoke', sound: 'smoke_hiss', icon: ICONS.smoke,
   },
+  netz: {
+    id: 'netz', name: 'Wurfnetz', short: 'Netz', kind: 'tactical', unlockLevel: 1,
+    description: 'Kanister mit Fangnetz: Beim Aufschlag spannt sich ein beschwertes Netz über drei Meter. Wer darunter steht, kommt vier Sekunden kaum vom Fleck – kein Sprint, kein Sprung.',
+    // net: Radius (m), Dauer (s), Tempo-Anteil im Netz; trifft nur Gegner des Werfers
+    count: 1, fuse: 3, cookable: false, impact: true, armTime: 0.05, radius: 0.6, innerRadius: 0, maxDamage: 0, minDamage: 0, nonLethal: true,
+    net: { radius: 3.2, duration: 4, slow: 0.15 },
+    throwSpeed: 17, throwPitch: 0.2, bounciness: 0, friction: 1, sticky: false,
+    model: 'smoke', sound: 'smoke_hiss', icon: ICONS.netz,
+  },
 };
 
-export const EQUIPMENT_IDS = ['frag', 'semtex', 'impact', 'molotov', 'flash', 'smoke'];
+export const EQUIPMENT_IDS = ['frag', 'semtex', 'impact', 'molotov', 'flash', 'smoke', 'netz'];
 /** Tödliche Wurfmittel (Taste Granate) und taktische (Taste Taktisch, `loadout.tactical`). */
 export const LETHAL_IDS = EQUIPMENT_IDS.filter((id) => EQUIPMENT[id].kind === 'lethal');
 export const TACTICAL_IDS = EQUIPMENT_IDS.filter((id) => EQUIPMENT[id].kind === 'tactical');

@@ -325,7 +325,7 @@ async function offline(browser) {
     const C = window.__ct;
     const sys = C.sys();
     const b = C.enemies().find((x) => x.alive && x._ctFrozen) || C.enemies()[0];
-    const s = C.spot(4.2, 0);
+    const s = C.spot(5.4, 0); // jenseits der Ausfallschritt-Reichweite (4,5 m)
     if (!b || !s) return null;
     C.place(b, s);
     const s0 = sys.stats.stabs;
@@ -334,7 +334,7 @@ async function offline(browser) {
     sys.set('automesser', false);
     return r;
   });
-  check(!!far && far.stabs === 0 && far.alive, `Auto-Messer: Gegner in 4,2 m (außer Reichweite) → kein Stich (${far && far.stabs})`);
+  check(!!far && far.stabs === 0 && far.alive, `Auto-Messer: Gegner in 5,4 m (außer Ausfallschritt-Reichweite) → kein Stich (${far && far.stabs})`);
 
   // --- Messer ohne Abklingzeit: der Hieb sperrt nicht (normal ≈ 0,75 s)
   const turbo = await p.evaluate(async () => {

@@ -549,7 +549,8 @@ export class AntiCheat {
       if (samples.length) {
         let best = Infinity;
         for (const s of samples) best = Math.min(best, distH(shooterPos, readPos(s)));
-        if (best > (def.range || 2.5) + o.meleeSlack) return this._reject(id, 'reichweite', nowSec, Math.round(best * 10) / 10);
+        // ctx.meleeReach: Zusatzreichweite bei erlaubtem Cheat-Menü („Messer ohne Abklingzeit“ trifft auf Ausfallschritt-Distanz)
+        if (best > (def.range || 2.5) + o.meleeSlack + (num(ctx.meleeReach) ? ctx.meleeReach : 0)) return this._reject(id, 'reichweite', nowSec, Math.round(best * 10) / 10);
       }
     }
     const cap = this._damageCap(def, ctx);

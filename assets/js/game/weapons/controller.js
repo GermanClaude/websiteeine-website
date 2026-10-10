@@ -659,6 +659,7 @@ export class WeaponController {
     if (it.crouching && !it.moving) k *= 0.85;
     if (it.airborne) k *= 1.2;
     if (actor.isPlayer && G.input && G.input.mode === 'touch') k *= 0.72; // Touch: wie COD Mobile deutlich ruhiger
+    k *= this._rush('rushRecoil');
     const pitch = r.vertical * e[1] * first * k * (0.94 + Math.random() * 0.12);
     const yaw = r.horizontal * (e[0] + (Math.random() * 0.7 - 0.35)) * k;
     // Freies Zielen (core, nur an der Hüfte): ein Teil des Stoßes bewegt den Lauf innerhalb der Totzone statt der
@@ -765,6 +766,12 @@ export class WeaponController {
     return true;
   }
 
+  /** Faktor der Klassen-Fähigkeit Kampfrausch (player.rushUntil/rushReload/rushRecoil), sonst 1. */
+  _rush(key) {
+    const a = this.actor;
+    return a && a.rushUntil > 0 && this.G.time && this.G.time.elapsed < a.rushUntil && a[key] > 0 ? a[key] : 1;
+  }
+
   /** Nachladen abbrechen (bereits eingesetzte Munition bleibt). */
   cancelReload() {
     if (this._reload) this._finishReload(true);
@@ -773,6 +780,7 @@ export class WeaponController {
   _updateReload(dt, it) {
     const st = this.current;
     const def = st.def;
+    dt *= this._rush('rushReload'); // Klassen-Fähigkeit Kampfrausch: schneller nachladen (Ego-Bild folgt reloadProgress)
     if (!this._reload) {
       if (it.reload) this.reload();
       this.reloadProgress = 0;
@@ -916,15 +924,15 @@ export class WeaponController {
     const target = this._findMeleeTarget(spec);
     let lunge = false;
     let dist = 0;
+    // Cheat-Menü „Messer ohne Abklingzeit“ (cheats.js): Treffer sofort auf Ausfallschritt-Distanz, ohne Anlauf
+    const fast = !!actor.cheatFastKnife;
     if (target) {
       dist = this._meleeDistance(target);
-      lunge = dist > (spec.range || 2.4) * 0.85;
+      lunge = !fast && dist > (spec.range || 2.4) * 0.85;
     }
     const lungeSpeed = spec.lungeSpeed || 10;
     const travel = lunge ? Math.max(0, dist - (spec.range || 2.4) * 0.7) : 0;
     const arrive = lunge ? travel / lungeSpeed : 0;
-    // Cheat-Menü „Messer ohne Abklingzeit“ (cheats.js): Treffer sofort, kein Nachlauf – direkt wieder zustechen
-    const fast = !!actor.cheatFastKnife;
     const swing = fast ? FAST_SWING : spec.swingTime || 0.75;
     this._melee = {
       t: 0, target, lunge, hit: false, arrive, maxLunge: arrive + 0.18,
@@ -1018,7 +1026,7 @@ export class WeaponController {
     const G = this.G;
     const a = this.actor;
     const spec = m.spec;
-    const range = (spec.range || 2.4) + 0.45;
+    const range = m.fast ? (spec.lungeRange || 4.5) + 0.6 : (spec.range || 2.4) + 0.45;
     let target = m.target && m.target.alive ? m.target : null;
     if (target && this._meleeDistance(target) > range) target = null;
     if (!target) target = this._findMeleeTarget({ ...spec, lungeRange: range - 0.35 });

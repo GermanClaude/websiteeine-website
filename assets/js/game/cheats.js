@@ -63,7 +63,9 @@ const GUN_RANGE_MAX = 400; // … höchstens (sonst Reichweite der Waffe)
 const AIM_RATE = 30; // 1/s: Annäherung an das Ziel (≈ 40 % je Bild bei 60 Hz – nach 0,15 s praktisch drauf)
 const CHEST = 0.62; // Anteil der Körperhöhe (wie der Ausfallschritt des Messers)
 const SPIN_RATE = 4 * Math.PI; // rad/s – zwei Umdrehungen je Sekunde
-const KNIFE_REACH = 0.95; // Anteil der Messer-Reichweite: knapp unter dem Maximum
+const KNIFE_REACH = 0.95; // Anteil der Ausfallschritt-Reichweite (melee.lungeRange): sticht, sobald der Ausfallschritt trifft
+const TURBO_REACH = 0.25; // m über die Ausfallschritt-Reichweite hinaus (Messer ohne Abklingzeit: Sofort-Treffer)
+const THREAT_PREF = 0.4; // Aimbot: Gegner, der gerade auf mich zielt, zählt so viel näher
 const STAB_GAP = 0.15; // s zwischen zwei Auslösungen (der Hieb selbst sperrt ohnehin bis zum Ende)
 const TURBO_GAP = 0.06; // s – Messer ohne Abklingzeit
 const FIRE_SLACK = 0.1; // m seitlicher Fehler am Ziel, ab dem Auto-Feuer abdrückt (Kopfradius 0,15)
@@ -324,6 +326,7 @@ export class CheatSystem {
       const ang = Math.acos(clamp(_to.dot(_aim) / d, -1, 1));
       let score = d * (1 + 0.5 * ang);
       if (a === this.target) score *= 0.6; // nicht zwischen zwei Gegnern hin und her springen
+      if (this._aimsAtMe(p, a)) score *= THREAT_PREF; // wer auf mich zielt, zuerst
       if (score >= bestScore) continue;
       if (!this._visiblePoint(a, _eye, now, _pt, head)) continue;
       best = a;
@@ -331,6 +334,19 @@ export class CheatSystem {
       _best.copy(_pt);
     }
     return best ? { actor: best, point: _best } : null;
+  }
+
+  /** Zielt Gegner a gerade auf mich (Laufrichtung ≤ 8° + Körperbreite an meiner Brust vorbei)? */
+  _aimsAtMe(p, a) {
+    if (typeof a.getAimDirection !== 'function' || typeof a.getEyePosition !== 'function') return false;
+    a.getEyePosition(_oe);
+    _me.copy(p.position);
+    _me.y += (p.body ? p.body.height : 1.8) * 0.65;
+    _ray.subVectors(_me, _oe);
+    const d = _ray.length();
+    if (d < 0.5) return true;
+    a.getAimDirection(_od);
+    return Math.acos(clamp(_ray.dot(_od) / d, -1, 1)) < 8 * D2R + Math.atan(0.4 / d);
   }
 
   /** Auto-Feuer: Laufrichtung (nach dem Ausrichten) geht höchstens FIRE_SLACK seitlich am Zielpunkt vorbei. */
@@ -352,7 +368,10 @@ export class CheatSystem {
     const def = cur.cls === 'melee' ? cur : typeof w._knife === 'function' ? w._knife().def : null;
     if (!def) return null;
     const spec = def.melee || {};
-    const reach = (spec.range || def.range || 2.4) * KNIFE_REACH;
+    // Ausfallschritt-Reichweite statt Stoßreichweite: sticht deutlich früher als Gegner (Bots stechen ab ~2,4 m bzw. im
+    // Ausfallschritt); ohne Abklingzeit trifft der Stich auf diese Distanz sofort (weapons/controller.js fast)
+    const lunge = spec.lungeRange || 4.5;
+    const reach = this.on.turbomesser ? lunge + TURBO_REACH : lunge * KNIFE_REACH;
     let best = null;
     let bestD = reach;
     for (const a of this.G.actors) {

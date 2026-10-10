@@ -813,6 +813,18 @@ export class ClientSync {
     return G.weapons.grenadeSystem.throw(actor, type, { ...opts, remote: true, cid });
   }
 
+  /** Klassen-Fähigkeit eingesetzt ('ability' {id}): der Host überträgt die Regeneration auf die Leben der Puppe. */
+  sendAbility(id) {
+    if (!this.active || this.ended || typeof id !== 'string') return;
+    this.net.send(HOST_ID, { t: 'ability', id: id.slice(0, 24) });
+  }
+
+  /** Heilung an einem Kartenpunkt ('point' {i}, mappoints.js): der Host heilt die Puppe. */
+  sendPoint(i) {
+    if (!this.active || this.ended || !Number.isInteger(i)) return;
+    this.net.send(HOST_ID, { t: 'point', i });
+  }
+
   /** Serienprämie beim Host anfragen ('streak' {id, p, y, pi}) – Antwort kommt als 'ev' sa. */
   sendStreak(msg) {
     if (!this.active || this.ended || !msg || typeof msg.id !== 'string') return;

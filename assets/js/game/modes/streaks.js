@@ -7,7 +7,7 @@
 //   drohne FPV-Drohne: der Spieler steuert eine Kamikaze-Drohne (drone.js), Bots fliegen sie per Autopilot
 // Plätze/Tasten: this.order = STREAK_ORDER (streak1 … streak4, fest); this.defs = verfügbare Prämien nach Abschüssen.
 // Treffer auf Geschütze/Drohnen (this.entities): world.raycast wird solange um sie erweitert; 'impact' → Schaden.
-// Mehrspieler (opts): only = erlaubte Prämien (online nur 'drohne'); replica = Client – Fortschritt und Einsatz entscheidet
+// Mehrspieler (opts): only = erlaubte Prämien (online uav, drohne, strike – Wachgeschütz folgt); replica = Client – Fortschritt und Einsatz entscheidet
 // der Host ('ev' sk/sa, Anfrage 'streak'), die eigene Drohne fliegt lokal und meldet sich ('drone' p/x/e), fremde Drohnen
 // kommen als Abbild ('ev' dr/de), eigene Treffer auf fremde Drohnen gehen als Meldung an den Host ('drone' h). Der Host
 // prüft Lage, Sprengung und Treffer (net*-Methoden, aufgerufen von net/sync-host.js).
@@ -217,10 +217,12 @@ export class StreakManager {
     const G = this.G;
     const p = G.player;
     if (id === 'drohne' && !this._droneAllowed(p)) return false;
-    if (this.replica) return this._request(id);
+    if (this.replica && id !== 'strike') return this._request(id);
     if (id !== 'strike') return this.activate(p, id);
+    // Luftschlag: Zielkarte (online schickt der Client das Ziel an den Host)
+    const fire = (pos) => (this.replica ? this._request('strike', pos) : this.activate(p, 'strike', { target: pos }));
     const hud = G.hud;
-    if (!hud || typeof hud.openStrikeTargeting !== 'function' || !G.world || !G.world.minimap) return this.activate(p, id, { target: this._aimPoint(p) });
+    if (!hud || typeof hud.openStrikeTargeting !== 'function' || !G.world || !G.world.minimap) return fire(this._aimPoint(p));
     const session = { done: false };
     this.targeting = session;
     G.input.setEnabled(false);
@@ -234,7 +236,7 @@ export class StreakManager {
     const ok = hud.openStrikeTargeting({
       radius: this.byId.strike.params ? this.byId.strike.params.radius || 7 : 7,
       spacing: this.byId.strike.params ? this.byId.strike.params.spacing || 6 : 6,
-      onConfirm: (pos) => { close(); this.activate(p, 'strike', { target: pos }); },
+      onConfirm: (pos) => { close(); fire(pos); },
       onCancel: () => close(),
     });
     session.close = () => { close(); if (hud.closeStrikeTargeting) hud.closeStrikeTargeting(); };
@@ -369,7 +371,7 @@ export class StreakManager {
         if (!G.input.pressed(`streak${i + 1}`)) continue;
         const id = this.order[i];
         const d = this.byId[id];
-        if (!d) continue; // in diesem Spiel nicht verfügbar (online nur die Drohne)
+        if (!d) continue; // in diesem Spiel nicht verfügbar (online ohne Wachgeschütz)
         if (this.isReady(p, id)) this._playerActivate(id);
         else {
           const s = this._st(p);
@@ -723,12 +725,13 @@ export class StreakManager {
   }
 
   /** Prämie beim Host anfragen (Drohne: mit Startpunkt vor dem eigenen Kopf). */
-  _request(id) {
+  _request(id, target = null) {
     const G = this.G;
     const p = G.player;
     const sync = G.net && G.net.sync;
     if (this._pending || !sync || typeof sync.sendStreak !== 'function') return false;
     const msg = { id };
+    if (target && Number.isFinite(target.x)) msg.t = [r2(target.x), r2(target.y), r2(target.z)];
     if (id === 'drohne') {
       const spot = launchSpot(G.world, p, _e);
       msg.p = [r2(spot.x), r2(spot.y), r2(spot.z)];
@@ -785,14 +788,31 @@ export class StreakManager {
       if (!d) { this._sendDrone({ a: 'e', d: m.d | 0, why: 'abbruch' }); return; }
       d._sendAt = -1; // sofort die erste Lage melden
     }
+    if (m.id === 'uav' && Number.isFinite(m.r)) this._netUav(p, m.r);
     G.events.emit('streak:activate', { actor: p, streakId: m.id, target: null, net: true });
+  }
+
+  /** Abbild: Aufklärer der Seite von owner für r Sekunden (laut Host) – Sweeps laufen lokal in update(). */
+  _netUav(owner, r) {
+    const G = this.G;
+    const now = G.time.elapsed;
+    const key = this._uavKey(owner);
+    const def = this.byId.uav;
+    const cur = this.uav.get(key);
+    const entry = cur && cur.until > now ? cur : { key, owner, until: now, nextSweep: now, sweepAt: now, blips: [], interval: (def && def.params && def.params.sweepInterval) || 2 };
+    entry.owner = owner;
+    entry.until = now + Math.max(0, Math.min(120, r));
+    entry.nextSweep = Math.min(entry.nextSweep, now);
+    this.uav.set(key, entry);
+    G.events.emit('uav:state', { team: key, active: true, until: entry.until, owner });
   }
 
   /** 'ev' sv: Prämie eines anderen (Hinweis, Klang). */
   applyNetOther(m, byNetId) {
     const a = m && typeof byNetId === 'function' ? byNetId(m.o) : null;
     if (!a || a === this.G.player || typeof m.id !== 'string') return;
-    this.G.events.emit('streak:activate', { actor: a, streakId: m.id, target: null, net: true });
+    if (m.id === 'uav' && Number.isFinite(m.r)) this._netUav(a, m.r);
+    this.G.events.emit('streak:activate', { actor: a, streakId: m.id, target: m.id === 'strike' ? vec(m.p) : null, net: true });
   }
 
   /** 'ev' dr: Lage aller Drohnen [[netId, Besitzer-netId, x, y, z, yaw, pitch], …] (eigene fliegt lokal). */

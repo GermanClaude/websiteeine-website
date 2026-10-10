@@ -19,7 +19,7 @@ Mehrspieler bauen. Code-Landkarte mit Datei/Zeilen-Verweisen: `docs/planung/mehr
   **Scorestreaks online aus** (Stufe 2). **Fahrzeuge online** über die Raum-Einstellung „Fahrzeuge“ (Standard
   `VEHICLES_ONLINE_DEFAULT` in `net/index.js`; aus = wie früher, Host spawnt keine) – Host simuliert, Clients führen ein
   Abbild (§14).
-  **Scorestreaks online:** nur die **FPV-Drohne** (09.10., `ONLINE_STREAKS`, s. §4 „Serienprämien“); Aufklärer, Präzisionsschlag,
+  **Scorestreaks online:** **Aufklärer, FPV-Drohne, Präzisionsschlag** (10.10., `ONLINE_STREAKS`; Host setzt ein, verteilt 'sv' mit Restdauer r bzw. Ziel p, Client legt den Aufklärer-Eintrag an und schickt beim Schlag sein Kartenziel t), s. §4 „Serienprämien“; noch offline:
   Wachgeschütz folgen in Stufe 2. **Fahrzeuge online aus** (Host spawnt keine).
 - **Karten:** alle; Weltgeometrie ist über `def.seed` deterministisch, Wetter/Tageszeit löst der Host auf und schickt sie mit.
   Bewegungskollision ist auf jeder Grafikstufe und mit/ohne Asset-Bibliothek gleich (Großkarte: Bäume/Felsen immer mit voller
@@ -90,8 +90,11 @@ Client → Host
   der Punktetabelle), bei Matchstart/-ende für alle zurück; nie weitergeleitet (RESERVED)
 - `hold` {on, p} – Wiedereinstieg anhalten („Ausrüsten“ im Todesbildschirm, p = Restzeit steht) bzw. freigeben („Einsatz“);
   der Host hält die Puppe höchstens 30 s an
-- `streak` {id, p:[x,y,z], y, pi} – Serienprämie einsetzen (online nur 'drohne'; p/y/pi = vorgeschlagener Startpunkt und Blick
+- `streak` {id, p:[x,y,z], y, pi, t:[x,y,z]} – Serienprämie einsetzen (online uav/drohne/strike; t = Ziel des Präzisionsschlags; p/y/pi = vorgeschlagener Startpunkt und Blick
   der Drohne). Antwort 'ev' sa (s. u.)
+- `ability` {id} – Klassen-Fähigkeit eingesetzt (Taste J): der Host prüft Klasse der Puppe und Abklingzeit (Echtzeit, 10 % Spielraum)
+  und heilt bei „Regeneration“ die Puppe; Kampfrausch, Nachschub und Aufklärungspuls wirken nur beim Client.
+- `point` {i} – Heilung an Kartenpunkt i (mappoints.js, Sanitätsstation/Brunnen): Host prüft Abstand und Abklingzeit, heilt die Puppe.
 - `drone` {a, d, …} – eigene FPV-Drohne (d = Netz-Id aus 'sa'): a 'p' Lage {p:[x,y,z], y, pi} 15 Hz, 'x' Sprengung {p},
   'e' Ende {why: abbruch|aufprall|akku|signal}; a 'h' Treffer auf eine fremde Drohne {d, w (Waffe), dmg, s (Schussnummer)}
 - `plate` {chain} | {cancel:true} – Panzerplatte einsetzen (chain = mehrere nacheinander) bzw. abbrechen; der Host setzt sie
