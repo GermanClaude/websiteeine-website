@@ -1,6 +1,9 @@
 // NULLPUNKT — Waffenspiel: 18 Stufen (GUN_GAME_STEPS), jeder Abschuss = nächste Waffe, letzte Stufe Messer.
 // Messerabschuss stuft das Opfer zurück (Medaille „Demütigung“), Selbsttötung ebenfalls. Gewinner: wer mit der
 // letzten Stufe trifft; bei Zeitende höchste Stufe (dann Abschüsse), Gleichstand → Verlängerung.
+// Online: der Host führt die Stufen (Modus-Zustand gl = [[netId, Stufe] …]); das Abbild übernimmt sie, wechselt nur die
+// Waffe des eigenen Spielers und meldet gun:promote/gun:demote fürs HUD. Anti-Cheat des Hosts: netWeaponsOf erlaubt die
+// Nachbarstufen, bis der Client die neue Stufe hat.
 
 import { WEAPONS, GUN_GAME_STEPS } from '../../shared/weapons.data.js';
 import { BaseMode } from './base.js';
@@ -23,6 +26,10 @@ export class GunMode extends BaseMode {
 
   /** Waffenwechsel erst im nächsten Modus-Takt (nicht mitten im Schuss des Controllers). */
   tick() {
+    if (this._pending.size) this._flush();
+  }
+
+  replicaTick() {
     if (this._pending.size) this._flush();
   }
 
@@ -54,6 +61,7 @@ export class GunMode extends BaseMode {
   }
 
   _applyLoadout(actor) {
+    if (this.replica && !actor.isPlayer) return; // Abbild: Puppen tragen, was der Host schickt
     const id = this.weaponFor(this.levelOf(actor));
     const w = actor.weapon;
     const lo = { primary: id, secondary: null, lethal: null };
@@ -112,6 +120,33 @@ export class GunMode extends BaseMode {
 
   resultExtra() {
     return { steps: this.steps.slice() };
+  }
+
+  /* ------------------------------------------------------------ Mehrspieler */
+
+  netExtra(s) {
+    s.gl = [];
+    for (const a of this.G.actors) if (Number.isInteger(a.netId) && !a.isStreakEntity) s.gl.push([a.netId, this.levelOf(a)]);
+  }
+
+  applyNetExtra(s, find) {
+    if (!Array.isArray(s.gl)) return;
+    for (const [id, l] of s.gl) {
+      const a = find(id);
+      if (!a || !Number.isInteger(l)) continue;
+      const prev = this.levelOf(a);
+      if (l === prev && this.level.has(a)) continue;
+      this._setLevel(a, l);
+      if (!this.started) continue;
+      if (l > prev) this.G.events.emit('gun:promote', { actor: a, level: l, weaponId: l < this.steps.length ? this.weaponFor(l) : null, final: l >= this.steps.length - 1 });
+      else if (l < prev) this.G.events.emit('gun:demote', { actor: a, by: null, level: l });
+    }
+  }
+
+  /** Host (Anti-Cheat): Waffen der aktuellen und der Nachbarstufen – der Client wechselt erst mit dem nächsten Zustand. */
+  netWeaponsOf(actor) {
+    const l = this.levelOf(actor);
+    return [l - 1, l, l + 1].filter((x) => x >= 0 && x < this.steps.length).map((x) => this.weaponFor(x));
   }
 
   onDetach() {

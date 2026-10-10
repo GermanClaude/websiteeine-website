@@ -450,10 +450,19 @@ export class ClientSync {
     this.ids = next;
     if (!this.active) return;
     for (const [id, e] of next) {
-      if (id === this.selfId) continue;
+      if (id === this.selfId) { this._syncTeam(this.G.player, e.t); continue; }
       const a = this._ensurePuppet(id);
       if (a && e.n && a.name !== e.n) a.name = e.n;
+      if (a) this._syncTeam(a, e.t);
     }
+  }
+
+  /** Team laut Host übernehmen (Infiziert: Überlebende laufen über) und als 'team:change' melden. */
+  _syncTeam(a, t) {
+    if (!a || (t !== 'A' && t !== 'B') || a.team === t) return;
+    const from = a.team;
+    a.team = t;
+    this.G.events.emit('team:change', { actor: a, from, to: t });
   }
 
   /** Puppe zu einer Netz-Id (anlegen, sobald die Identität bekannt ist). */

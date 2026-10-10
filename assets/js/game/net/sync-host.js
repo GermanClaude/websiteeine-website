@@ -164,6 +164,7 @@ export class HostSync {
     const s = (this._scope = G.events.scope());
     s.on('actor:hit', (e) => this._relayHit(e));
     s.on('kill', (e) => this._relayKill(e));
+    s.on('team:change', () => { this._actorsDirty = true; }); // Infiziert: neues Team an alle (identityOf.t)
     s.on('actor:spawn', (e) => this._relaySpawn(e));
     s.on('explosion', (e) => this._relayExplosion(e));
     s.on('grenade:throw', (e) => this._relayGrenade(e));
@@ -443,6 +444,26 @@ export class HostSync {
     const fill = c.botFill !== false;
     const roster = this.net.roster;
     const ffa = !!(c.ffa || (G.match && G.match.ffa));
+    // Teamwechsel-Modi (Infiziert): nur die Gesamtzahl auffüllen – die Teams verwaltet der Modus (neue Bots: Überlebende)
+    if (G.mode.netTeamShift) {
+      const total = fill ? Math.max(2 * size, roster.length) : roster.length;
+      const bots = G.bots.bots.filter((b) => !b.isRemoteHuman);
+      let extra = bots.length - Math.max(0, total - roster.length);
+      if (extra > 0) {
+        const order = [...bots].sort((x, y) => (x.alive ? 1 : 0) - (y.alive ? 1 : 0) || (x.team === 'B' ? 1 : 0) - (y.team === 'B' ? 1 : 0));
+        for (const b of order) { if (extra <= 0) break; G.bots.removeBot(b); extra--; this._actorsDirty = true; }
+      } else if (extra < 0 && !G.mode.started) {
+        for (let i = 0; i < -extra; i++) {
+          const b = G.bots.addBot({ team: 'A' });
+          if (!b) break;
+          b.netId = this._nextBotId++;
+          this._actorsDirty = true;
+          this._sendActors();
+          G.spawnActor(b);
+        }
+      }
+      return;
+    }
     const want = new Map();
     if (ffa) want.set(null, fill ? Math.max(0, 2 * size - roster.length) : 0);
     else if (c.pvp === 'coop') { want.set('A', fill ? Math.max(0, size - roster.length) : 0); want.set('B', size); }
@@ -545,6 +566,9 @@ export class HostSync {
     if (lw) for (const w of lw) out.add(w);
     if (p.weapon && Array.isArray(p.weapon.slots)) for (const s of p.weapon.slots) if (s && s.id) out.add(s.id);
     for (const id2 of Object.keys(WEAPONS)) if (WEAPONS[id2].cls === 'melee') out.add(id2); // Nahkampfwaffe gehört zur Klasse
+    // Modus-Ausrüstung mit Übergang (Waffenspiel: Nachbarstufen, solange der Client die neue Stufe noch nicht hat)
+    const mode = this.G.mode;
+    if (mode && typeof mode.netWeaponsOf === 'function') { try { for (const w of mode.netWeaponsOf(p)) if (WEAPONS[w]) out.add(w); } catch { /* */ } }
     return [...out];
   }
 

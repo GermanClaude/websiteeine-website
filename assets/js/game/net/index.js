@@ -40,8 +40,8 @@ import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
 /** Spielprotokoll (Nachrichten/Pakete). Muss bei Host und Client gleich sein – zusätzlich zur Fassung (BUILD).
  *  2: Fahrzeuge online (Snapshot-Anhang, Fahrzeug-Absicht, 'veh'/'vhit'/'vehicles' – panzer-mp.md §C). */
 export const NET_VERSION = 2;
-/** Stufe 1: nur diese Modi online (cq/gun/inf/training folgen in Stufe 2). */
-export const ONLINE_MODES = Object.freeze(['tdm', 'ffa', 'dom', 'kc', 'messer']);
+/** Online wählbare Modi (Eroberung folgt mit den Fahrzeugen online, Training bleibt offline). */
+export const ONLINE_MODES = Object.freeze(['tdm', 'ffa', 'dom', 'kc', 'messer', 'inf', 'gun']);
 export const HOST_ID = 1;
 export const FIRST_CLIENT_ID = 2;
 export const FIRST_BOT_ID = 1000;
