@@ -413,10 +413,17 @@ try {
     }, 100);
   });
   await aimAt(target.pos);
-  const aligned = await until(host, ([vid, id]) => {
+  // Rohr des Hosts zeigt wirklich auf das Ziel (nicht nur auf Berts letzte, evtl. noch alte Absicht): sonst schießt der
+  // Test, während der Turm noch schwenkt (bei 1–2 Bildern/s dauert eine Vierteldrehung über 20 s)
+  const aligned = await until(host, ([vid, id, pt]) => {
     const v = window.__game.vehicles.list.find((x) => x.netId === vid), s = v.seats[1];
-    return s.actor && s.actor.netId === id && s.aimError < 0.012 && v.gun.step === 'geladen' ? { err: s.aimError } : null;
-  }, [tA.vid, B], 180000, 500);
+    if (!s.actor || s.actor.netId !== id || v.gun.step !== 'geladen') return null;
+    const m = new (v.body.pos.constructor)(), d = m.clone();
+    v.muzzle(1, m, d);
+    const to = new (v.body.pos.constructor)(pt[0], pt[1], pt[2]).sub(m).normalize();
+    const err = Math.acos(Math.max(-1, Math.min(1, to.dot(d))));
+    return s.aimError < 0.012 && err < 0.02 ? { err } : null;
+  }, [tA.vid, B, target.pos], 240000, 500);
   const aimDiag = aligned ? '' : JSON.stringify(await ev(host, (vid) => {
     const v = window.__game.vehicles.list.find((x) => x.netId === vid), s = v.seats[1], d = s.intent.aimDir;
     return { err: +(s.aimError || 0).toFixed(3), ty: +v.mount.turretYaw.toFixed(3), gp: +v.mount.gunPitch.toFixed(3), aim: d ? [+d.x.toFixed(3), +d.y.toFixed(3), +d.z.toFixed(3)] : null, step: v.gun.step, actor: s.actor && s.actor.netId, up: v.body.up(new (v.body.pos.constructor)()).y.toFixed(3), hp: Math.round(v.health) };
@@ -512,10 +519,14 @@ try {
   }, tB.vid);
   check(botId > 0, `Bot ${botId} sitzt im Feindpanzer, HP 6`);
   await aimAt(target.pos);
-  const aligned2 = await until(host, ([vid, id]) => {
+  const aligned2 = await until(host, ([vid, id, pt]) => {
     const v = window.__game.vehicles.list.find((x) => x.netId === vid), s = v.seats[1];
-    return s.actor && s.actor.netId === id && s.aimError < 0.012 ? { err: s.aimError } : null;
-  }, [tA.vid, B], 120000, 500);
+    if (!s.actor || s.actor.netId !== id) return null;
+    const m = new (v.body.pos.constructor)(), d = m.clone();
+    v.muzzle(1, m, d);
+    const to = new (v.body.pos.constructor)(pt[0], pt[1], pt[2]).sub(m).normalize();
+    return s.aimError < 0.012 && Math.acos(Math.max(-1, Math.min(1, to.dot(d)))) < 0.02 ? { err: s.aimError } : null;
+  }, [tA.vid, B, target.pos], 240000, 500);
   check(!!aligned2, 'zurück im Richtschützensitz, Turm ausgerichtet');
   await ev(bert, () => window.__game.input.simulate.tap('fire'));
   const dead = await until(host, (vid) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return v && !v.alive; }, tB.vid, 60000, 300);
@@ -573,6 +584,16 @@ try {
   if (!eB2.ok || eB2.tries > 1) info(`Bert einsteigen (2): ${JSON.stringify(eB2)}`);
   const bertIn2 = await until(host, ([vid, id]) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return v.seats.findIndex((s) => s.actor && s.actor.netId === id); }, [tA.vid, B], 20000);
   check(bertIn2 != null && bertIn2 >= 0, `Bert steigt wieder ein (Sitz ${bertIn2 != null ? bertIn2 + 1 : '–'})`);
+  // Host: Zeitpunkt, an dem Berts Sitz frei wird, je Fahrzeug-Takt (die verborgene Host-Seite drosselt Zeitgeber)
+  await ev(host, ([vid, id]) => {
+    const G = window.__game, sys = G.vehicles, orig = sys.update;
+    window.__hv.freedAt = 0;
+    sys.update = function (dt) {
+      const r = orig.call(this, dt);
+      if (!window.__hv.freedAt) { const v = sys.list.find((x) => x.netId === vid); if (v && !v.seats.some((st) => st.actor && st.actor.netId === id)) window.__hv.freedAt = performance.now(); }
+      return r;
+    };
+  }, [tA.vid, B]);
   let tClose = Date.now();
   // wie ein echter Browser beim Schließen des Tabs: pagehide (persisted false), dann zu – Playwright löst es selbst nicht aus.
   // Zeit ab dem Ereignis in der Seite (nicht ab dem Playwright-Aufruf: unter Fremdlast braucht schon der Seitenaufruf Sekunden)
@@ -585,8 +606,8 @@ try {
   const freedAnna = await until(anna, ([vid, id]) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return !v.seats.some((s) => s.actor && s.actor.netId === id); }, [tA.vid, B], 8000, 200);
   // Spiellogik des Hosts: Austritt erhalten → Sitz frei (Host-Uhr); die Wanduhr enthält unter SwiftShader (≈ 1 Bild/s je
   // Seite) zusätzlich Sekunden für Seitenaufrufe und Bildtakt
-  const hostLat = freed ? await ev(host, (id) => { const t0 = window.__hv.left[id]; return t0 ? (performance.now() - t0) / 1000 : null; }, B) : null;
-  check(!!freed && !!freedAnna && (freedS <= 5 || (hostLat != null && hostLat <= 5)), `Bert schließt die Seite im Panzer → Sitz frei nach ${freedS.toFixed(1)} s Wanduhr, Host ab Austritt ≤ ${hostLat != null ? hostLat.toFixed(1) : '–'} s (Host + Anna)`);
+  const hostLat = freed ? await ev(host, (id) => { const t0 = window.__hv.left[id], t1 = window.__hv.freedAt; return t0 && t1 ? Math.max(0, t1 - t0) / 1000 : null; }, B) : null;
+  check(!!freed && !!freedAnna && (freedS <= 5 || (hostLat != null && hostLat <= 5)), `Bert schließt die Seite im Panzer → Sitz frei nach ${freedS.toFixed(1)} s Wanduhr, Host vom Austritt bis Sitz frei ${hostLat != null ? hostLat.toFixed(2) : '–'} s (Host + Anna)`);
 
   // Bandbreite (Host): Fahrzeug-Anhang je Client
   const bw = await ev(host, () => { const s = window.__game.net.sync.snapStats; return { sent: s.sent, bytes: s.bytes, vbytes: s.vbytes || 0, vblocks: s.vblocks || 0 }; });
