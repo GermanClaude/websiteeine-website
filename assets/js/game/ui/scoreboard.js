@@ -3,7 +3,7 @@
 // Mehrspieler (optional je Zeile): ping (ms), isHost, isHuman, device ('pc'|'mobile'|'vr') – sobald eine Zeile ein Feld
 // „ping“ hat (oder opts.online gesetzt ist), erscheint die Ping-Spalte; Menschen bekommen das Symbol ihres Geräts
 // (PC/Handy/VR-Brille), der Host ein Abzeichen. Offline wie bisher.
-// Nur Messer: cheat = Cheat-Menü aktiv (modes/knife.js, cheats.js) → kleines Symbol hinter dem Namen (Stil: ui/cheat-menu.js).
+// cheat = Cheat-Menü aktiv (modes/base.js, cheats.js) → kleines Symbol hinter dem Namen (Stil: ui/cheat-menu.js).
 
 import { esc, kd } from './dom.js';
 import { ICON, deviceOf } from './icons.js';

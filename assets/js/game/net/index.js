@@ -21,7 +21,7 @@
 // ein Abbild (vehicles/net.js); thirdPerson = Außenansicht in Fahrzeugen erlaubt; vehReload 'manuell' | 'automatisch'.
 // killAmmo false (Raum-Einstellung „Munition pro Abschuss“ aus): kein Munitionsgewinn je Abschuss – jedes Gerät liest
 // cfg.net.killAmmo selbst (weapons/index.js killAmmoEnabled, Gutschrift beim eigenen Spieler).
-// cheatMenu false (Raum-Einstellung „Cheat-Menü (Nur Messer)“ verboten): das Cheat-Menü des Modus öffnet sich nicht
+// cheatMenu false (Raum-Einstellung „Cheat-Menü“, alle Modi, verboten): das Cheat-Menü des Modus öffnet sich nicht
 // (cheats.js liest G.net.room.settings bzw. cfg.net.cheatMenu). Roster-Feld cheat (true = Cheat-Menü aktiv, Symbol in der
 // Punktetabelle): Client meldet 'cheat' {on} (setCheat), der Host vermerkt es und verteilt das Roster; bei jedem
 // Matchstart/-ende zurückgesetzt.
@@ -77,7 +77,7 @@ export const DEFAULT_ROOM = Object.freeze({
   // Fahrzeuge (Panzer + Geländewagen für beide Teams), Außenansicht in Fahrzeugen, Nachladen der Panzerkanone
   vehicles: VEHICLES_ONLINE_DEFAULT, thirdPerson: true, vehReload: 'manuell',
   killAmmo: true, // Munition pro Abschuss an (jedes Gerät schreibt sie seinem Spieler selbst gut)
-  cheatMenu: true, // Nur Messer: Cheat-Menü erlaubt (aus = vom Host deaktiviert; Aktive tragen ein Symbol in der Punktetabelle)
+  cheatMenu: true, // Cheat-Menü erlaubt (alle Modi) (aus = vom Host deaktiviert; Aktive tragen ein Symbol in der Punktetabelle)
 });
 
 const TIME_SYNC_MS = 2000;
@@ -415,7 +415,7 @@ export class NetSystem {
   }
 
   /**
-   * Nur Messer: Cheat-Menü aktiv (cheats.js) → Host: eigener Roster-Eintrag; Client: 'cheat' {on} an den Host (der verteilt
+   * Cheat-Menü aktiv (cheats.js) → Host: eigener Roster-Eintrag; Client: 'cheat' {on} an den Host (der verteilt
    * das Roster). → true, wenn gemeldet.
    */
   setCheat(on) {
@@ -614,7 +614,7 @@ export class NetSystem {
         if (entry.device !== d) { entry.device = d; this._rosterChanged(); }
         break;
       }
-      case 'cheat': { // Nur Messer: Cheat-Menü aktiv (Symbol in der Punktetabelle)
+      case 'cheat': { // Cheat-Menü aktiv (Symbol in der Punktetabelle)
         const on = m.on === true;
         if (!!entry.cheat !== on) { entry.cheat = on; this._rosterChanged(); }
         m = { t: 'cheat', on };
@@ -852,7 +852,7 @@ export class NetSystem {
         // Fahrzeuge (panzer-mp.md §C.1): an/aus, Außenansicht erlaubt, Nachladen der Panzerkanone
         vehicles: s.vehicles === true, thirdPerson: s.thirdPerson !== false, vehReload: s.vehReload === 'automatisch' ? 'automatisch' : 'manuell',
         killAmmo: s.killAmmo !== false, // Raum-Einstellung „Munition pro Abschuss“ (weapons/index.js)
-        cheatMenu: s.cheatMenu !== false, // Raum-Einstellung „Cheat-Menü (Nur Messer)“ (cheats.js)
+        cheatMenu: s.cheatMenu !== false, // Raum-Einstellung „Cheat-Menü“ (cheats.js)
       },
     };
     if (s.timeLimit != null) cfg.timeLimit = s.timeLimit;

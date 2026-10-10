@@ -1,4 +1,4 @@
-// NULLPUNKT — Nur Messer: Oberfläche des Cheat-Menüs (Logik: ../cheats.js).
+// NULLPUNKT — Oberfläche des Cheat-Menüs (alle Modi) (Logik: ../cheats.js).
 //
 // • Tastenfolge Ziffernblock 1 → 2 → 3 → 4 (KeyboardEvent.code, auch ohne Num-Lock) innerhalb von 3 s, nur im laufenden
 //   Match. Online prüft sie zuerst die Raum-Einstellung des Hosts („vom Host deaktiviert“).
@@ -29,6 +29,13 @@ const CSS = `
 .cm-mk { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--np-enemy); font: 700 12px/1 var(--font-hud); letter-spacing: .04em; text-shadow: 0 1px 2px rgba(0, 0, 0, .85); will-change: transform; }
 .cm-mk i { display: block; width: 10px; height: 10px; border: 2px solid currentColor; background: rgba(255, 59, 59, .28); transform: rotate(45deg); box-shadow: 0 0 6px rgba(255, 59, 59, .55); }
 .cm-mk span { color: #ffd2cd; font-variant-numeric: tabular-nums; }
+.cm-esp { position: absolute; left: 0; top: 0; color: var(--np-enemy); font: 700 11px/1 var(--font-hud); letter-spacing: .03em; text-shadow: 0 1px 2px rgba(0, 0, 0, .9); will-change: transform; }
+.cm-esp-box { position: absolute; inset: 0; border: 1.5px solid currentColor; box-shadow: 0 0 0 1px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(0, 0, 0, .35); }
+.cm-esp-name, .cm-esp-d { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+.cm-esp-name { bottom: calc(100% + 4px); color: #ffe3df; }
+.cm-esp-d { top: calc(100% + 4px); color: #ffd2cd; font-variant-numeric: tabular-nums; }
+.cm-esp-hp { position: absolute; left: -7px; top: 0; bottom: 0; width: 3px; background: rgba(0, 0, 0, .6); }
+.cm-esp-hp i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--np-ok); }
 .cm-dlg { position: absolute; z-index: 28; right: max(16px, env(safe-area-inset-right)); top: 50%; transform: translateY(-50%); width: min(400px, calc(100vw - 32px)); max-height: calc(100% - 24px); overflow: auto; padding: 11px 14px; border: 1px solid var(--np-line-strong); border-left: 3px solid var(--np-signal); background: rgba(10, 11, 13, .92); color: var(--np-ink); font-family: var(--font-hud); pointer-events: auto; box-shadow: 0 8px 28px rgba(0, 0, 0, .45); animation: cm-in .22s var(--ease-out); user-select: none; -webkit-user-select: none; }
 @keyframes cm-in { from { opacity: 0; transform: translate(8px, -50%); } }
 .cm-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
@@ -82,6 +89,7 @@ export class CheatMenu {
     this.dlg = null;
     this._seq = null; // { n, t0 }
     this._marks = []; // Pool { n, d, dist, x, y }
+    this._esp = []; // Pool { n, box, name, hp, d, key, hidden }
     this._onKey = (e) => this._key(e);
   }
 
@@ -103,6 +111,7 @@ export class CheatMenu {
     if (this.layer) this.layer.remove();
     this.layer = null;
     this._marks.length = 0;
+    this._esp.length = 0;
   }
 
   /* ------------------------------------------------------------ Tastenfolge */
@@ -164,13 +173,13 @@ export class CheatMenu {
     d.dataset.cheat = view;
     if (view === 'code') {
       d.setAttribute('aria-label', 'Code eingeben');
-      d.innerHTML = `<div class="cm-head"><div><b>Code<em>.</em></b><small>Nur Messer · Cheat-Menü</small></div>` +
+      d.innerHTML = `<div class="cm-head"><div><b>Code<em>.</em></b><small>Cheat-Menü · alle Modi</small></div>` +
         `<button type="button" class="cm-x" data-cm-close aria-label="Schließen">${ICON.close}</button></div>` +
         '<input type="text" data-cm-code maxlength="16" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Code">' +
         '<p class="cm-caps" data-cm-caps>Eingabe bestätigen · Esc bricht ab</p>';
     } else {
       d.setAttribute('aria-label', 'Cheat-Menü');
-      d.innerHTML = `<div class="cm-head"><div><b>Cheat-Menü<em>.</em></b><small>Nur Messer · gilt für dieses Match</small></div>` +
+      d.innerHTML = `<div class="cm-head"><div><b>Cheat-Menü<em>.</em></b><small>Gilt für dieses Match</small></div>` +
         `<button type="button" class="cm-x" data-cm-close aria-label="Schließen">${ICON.close}</button></div>` +
         this.sys.list.map((c) => `<div class="cm-row"><span><b>${esc(c.label)}</b><small>${esc(c.sub)}</small></span>` +
           `<button type="button" class="cm-sw" role="switch" data-cheat-id="${esc(c.id)}" aria-checked="${!!this.sys.on[c.id]}" aria-label="${esc(c.label)}"><i></i></button></div>`).join('') +
@@ -311,6 +320,84 @@ export class CheatMenu {
       const m = this._marks[i];
       if (!m.hidden) { m.hidden = true; m.n.hidden = true; }
     }
+  }
+
+  /* ------------------------------------------------------------ ESP */
+
+  hideEsp() {
+    for (const e of this._esp) if (!e.hidden) { e.hidden = true; e.n.hidden = true; }
+  }
+
+  /** Rahmen um den Körper (Füße bis Kopf, projiziert), Name, Lebensbalken, Entfernung – für jeden Akteur der Liste. */
+  updateEsp(list, p) {
+    const G = this.G;
+    const cam = G.camera;
+    this._root();
+    if (!cam) { this.hideEsp(); return; }
+    cam.updateMatrixWorld();
+    const lens = G.renderer && G.renderer.lens;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const toPx = (v) => {
+      v.project(cam);
+      if (lens && typeof lens.toScreen === 'function') lens.toScreen(v);
+      return { x: (v.x * 0.5 + 0.5) * vw, y: (-v.y * 0.5 + 0.5) * vh };
+    };
+    let used = 0;
+    for (const a of list) {
+      const h = a.body ? a.body.height : 1.8;
+      _v.copy(a.position);
+      _v.y += h * 0.5;
+      _w.copy(_v).applyMatrix4(cam.matrixWorldInverse);
+      if (_w.z > -0.2) continue; // hinter der Kamera
+      _v.copy(a.position);
+      const foot = toPx(_v);
+      _v.copy(a.position);
+      _v.y += h + 0.12;
+      const top = toPx(_v);
+      if (![foot.x, foot.y, top.x, top.y].every(Number.isFinite)) continue;
+      const bh = Math.max(8, foot.y - top.y);
+      const bw = Math.max(5, bh * 0.42);
+      const cx = (foot.x + top.x) * 0.5;
+      if (cx + bw < 0 || cx - bw > vw || foot.y < 0 || top.y > vh) continue;
+      let e = this._esp[used];
+      if (!e) {
+        const n = document.createElement('div');
+        n.className = 'cm-esp';
+        n.innerHTML = '<div class="cm-esp-box"></div><div class="cm-esp-hp"><i></i></div><span class="cm-esp-name"></span><span class="cm-esp-d"></span>';
+        this.layer.appendChild(n);
+        e = this._esp[used] = { n, hp: n.querySelector('.cm-esp-hp i'), name: n.querySelector('.cm-esp-name'), d: n.querySelector('.cm-esp-d'), key: '', hidden: false, nm: null, dist: -1, frac: -1 };
+      }
+      used++;
+      if (e.hidden) { e.hidden = false; e.n.hidden = false; }
+      const x = Math.round(cx - bw * 0.5);
+      const y = Math.round(top.y);
+      const key = `${x},${y},${Math.round(bw)},${Math.round(bh)}`;
+      if (key !== e.key) {
+        e.key = key;
+        e.n.style.transform = `translate(${x}px, ${y}px)`;
+        e.n.style.width = `${Math.round(bw)}px`;
+        e.n.style.height = `${Math.round(bh)}px`;
+      }
+      const nm = a.name || '';
+      if (nm !== e.nm) { e.nm = nm; e.name.textContent = nm; }
+      const dist = Math.round(p.position.distanceTo(a.position));
+      if (dist !== e.dist) { e.dist = dist; e.d.textContent = `${dist} m`; }
+      const max = Number.isFinite(a.maxHealth) && a.maxHealth > 0 ? a.maxHealth : 100;
+      const frac = Number.isFinite(a.health) ? Math.max(0, Math.min(1, a.health / max)) : 1;
+      const fr = Math.round(frac * 100);
+      if (fr !== e.frac) { e.frac = fr; e.hp.style.height = `${fr}%`; e.hp.style.background = fr > 60 ? '' : fr > 30 ? 'var(--np-gold)' : 'var(--np-enemy)'; }
+      e.n.dataset.actor = a.id || '';
+    }
+    for (let i = used; i < this._esp.length; i++) {
+      const e = this._esp[i];
+      if (!e.hidden) { e.hidden = true; e.n.hidden = true; }
+    }
+  }
+
+  /** Sichtbare ESP-Rahmen (Tests): [{ id, name, dist, w, h, hp }]. */
+  visibleEsp() {
+    return this._esp.filter((e) => !e.hidden).map((e) => ({ id: e.n.dataset.actor, name: e.name.textContent, dist: e.d.textContent, w: parseFloat(e.n.style.width), h: parseFloat(e.n.style.height), hp: e.frac }));
   }
 
   /** Sichtbare Markierungen (Tests): [{ id, x, y, text }]. */

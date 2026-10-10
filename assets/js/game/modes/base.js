@@ -8,6 +8,7 @@ import { WEAPONS } from '../../shared/weapons.data.js';
 import { chooseSpawn } from './spawns.js';
 import { MedalTracker } from './medals.js';
 import { StreakManager } from './streaks.js';
+import { CheatSystem } from '../cheats.js';
 
 const STREAK_WEAPONS = new Set(['strike', 'sentry', 'uav', 'drohne']);
 export const OVERTIME_SECONDS = 60;
@@ -22,6 +23,7 @@ const num = (...vals) => {
 
 export class BaseMode {
   constructor(G, modeId, opts = {}) {
+    this.cheats = null; // Cheat-Menü (attach → _attachCheats)
     this.G = G;
     this.id = modeId;
     this.opts = opts;
@@ -78,6 +80,7 @@ export class BaseMode {
       if (this.streaks) this.streaks.attach(s);
       this._addWarmup(G);
       this.onAttach(s);
+      this._attachCheats(s);
       return;
     }
     s.on('kill', (e) => { if (!this.isOver) this._onKill(e); });
@@ -91,6 +94,7 @@ export class BaseMode {
     if (this.streaks) this.streaks.attach(s);
     this._addWarmup(G);
     this.onAttach(s);
+    this._attachCheats(s);
   }
 
   detach() {
@@ -98,7 +102,22 @@ export class BaseMode {
     this._subs = null;
     this._removeWarmup();
     if (this.streaks) this.streaks.dispose();
+    if (this.cheats) { try { this.cheats.dispose(); } catch (err) { console.error('[NULLPUNKT] Cheat-Menü:', err); } }
+    this.cheats = null;
     this.onDetach();
+  }
+
+  /** Cheat-Menü (../cheats.js) in jedem Modus: nur der eigene Spieler, je Match neu. */
+  _attachCheats(s) {
+    try {
+      this.cheats = new CheatSystem(this.G, this);
+      this.cheats.attach(s);
+    } catch (err) { console.error('[NULLPUNKT] Cheat-Menü:', err); this.cheats = null; }
+  }
+
+  /** main.js: nach der Eingabe, vor dem Spieler – Blick, Bewegung, Schuss und Nahkampf des Cheat-Menüs für dieses Bild. */
+  preUpdate(dt) {
+    if (this.cheats) this.cheats.preUpdate(dt);
   }
 
   /**
@@ -154,6 +173,7 @@ export class BaseMode {
 
   update(dt) {
     if (this._warmup) this._removeWarmup();
+    if (this.cheats) this.cheats.update(dt); // Markierungen, Host-Verbot (nach dem Spieler)
     if (this.isOver || !this.started) return;
     const G = this.G;
     // Online im Pausenmenü (Host) läuft das Match weiter
@@ -502,8 +522,23 @@ export class BaseMode {
         squad: a.squad ? a.squad.label : null,
       });
     }
+    this._markCheats(rows);
     rows.sort((x, y) => this.compareRows(x, y));
     return rows;
+  }
+
+  /** cheat = Cheat-Menü aktiv (Symbol): eigener Spieler lokal, alle anderen Menschen laut Roster des Hosts. */
+  _markCheats(rows) {
+    const net = this.G.net && this.G.net.online && typeof this.G.net.rosterEntry === 'function' ? this.G.net : null;
+    for (const r of rows) {
+      const a = r.actor;
+      if (!a) continue;
+      if (a.isPlayer) { if (this.cheats && this.cheats.active) r.cheat = true; continue; }
+      if (net && Number.isInteger(a.netId)) {
+        const e = net.rosterEntry(a.netId);
+        if (e && e.cheat === true) r.cheat = true;
+      }
+    }
   }
 
   compareRows(x, y) {

@@ -613,7 +613,12 @@ export class HostSync {
     const p = this._puppet(from);
     const target = this.net.actorById(Number(m.target));
     if (!p || !target || target === p) return;
-    const r = this.net.checkHit(from, { ...m, t: 'melee' }, this._ctxFor(p, from, target, m));
+    const ctx = this._ctxFor(p, from, target, m);
+    // Cheat-Menü „Messer ohne Abklingzeit“: bei erlaubtem Menü (Raum-Einstellung) und gemeldetem Cheat keine Feuerrate
+    const room = this.net.room && this.net.room.settings;
+    const entry = this.net.rosterEntry(from);
+    if (!(room && room.cheatMenu === false) && entry && entry.cheat === true) ctx.noRate = true;
+    const r = this.net.checkHit(from, { ...m, t: 'melee' }, ctx);
     if (!r || !r.ok || !(r.dmg > 0)) return;
     p.getEyePosition(_eye);
     const point = target.position.clone();

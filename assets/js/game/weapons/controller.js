@@ -33,6 +33,8 @@ const AUTO_RANGE = { shotgun: 13, smg: 30, pistol: 28, ar: 48, lmg: 52, marksman
 const BREATH_HOLD = 4.5; // s Atem anhalten
 const BREATH_RECOVER = 2.8; // s bis voll erholt
 const EXHAUST = 1.6; // s außer Atem
+const FAST_SWING = 0.3; // s Hieb-Animation bei „Messer ohne Abklingzeit“ (Cheat-Menü)
+const FAST_GAP = 0.05; // s nach dem Treffer bis zum nächsten Hieb (gehaltene Taste: höchstens 20 je Sekunde)
 // Wandkollision (F3): ab diesem Anteil (0..1, wie weit die Waffe angezogen ist) kein Anschlag bzw. kein Schuss –
 // mit Hysterese, damit es an der Grenze nicht flackert
 const OBSTRUCT_ADS = [0.3, 0.2]; // walls: Reichweite = echte Vorderkante → Anschlag endet, bevor die Visierlinie anstößt
@@ -623,7 +625,9 @@ export class WeaponController {
     const combat = G.combat;
     const r = def.recoil || FALLBACK.recoil;
     // Erster Schuss aus der Ruhe: eigener Streufaktor (Rückstoß 2.0, Daten recoil.firstShotSpread)
-    const spread = this.fireSpread * (this.shotIndex === 0 && Number.isFinite(r.firstShotSpread) ? r.firstShotSpread : 1);
+    // Cheat-Menü Aimbot mit erfasstem Ziel (cheats.js player.cheatPrecise): Einzelkugeln ohne Streuung
+    const precise = !!actor.cheatPrecise && pellets === 1;
+    const spread = precise ? 0 : this.fireSpread * (this.shotIndex === 0 && Number.isFinite(r.firstShotSpread) ? r.firstShotSpread : 1);
     const rot = Math.random() * Math.PI * 2;
     const scale = Number.isFinite(actor.damageScale) ? actor.damageScale : 1;
     const range = def.range || 100;
@@ -919,14 +923,17 @@ export class WeaponController {
     const lungeSpeed = spec.lungeSpeed || 10;
     const travel = lunge ? Math.max(0, dist - (spec.range || 2.4) * 0.7) : 0;
     const arrive = lunge ? travel / lungeSpeed : 0;
+    // Cheat-Menü „Messer ohne Abklingzeit“ (cheats.js): Treffer sofort, kein Nachlauf – direkt wieder zustechen
+    const fast = !!actor.cheatFastKnife;
+    const swing = fast ? FAST_SWING : spec.swingTime || 0.75;
     this._melee = {
       t: 0, target, lunge, hit: false, arrive, maxLunge: arrive + 0.18,
-      hitAt: lunge ? arrive : spec.hitDelay || 0.14,
-      animAt: lunge ? Math.max(0, arrive - (spec.swingTime || 0.75) * 0.2) : 0, anim: false,
-      end: arrive + (spec.swingTime || 0.75), spec, def: kdef,
+      hitAt: lunge ? arrive : fast ? 0 : spec.hitDelay || 0.14,
+      animAt: lunge ? Math.max(0, arrive - swing * 0.2) : 0, anim: false,
+      end: fast ? arrive : arrive + swing, swing, fast, spec, def: kdef,
     };
     this._melee.backstab = !!(target && this._isBehind(target));
-    if (this._melee.animAt <= 0) { this._melee.anim = true; this._vm('playMelee', { backstab: this._melee.backstab, duration: spec.swingTime }); }
+    if (this._melee.animAt <= 0) { this._melee.anim = true; this._vm('playMelee', { backstab: this._melee.backstab, duration: swing }); }
     G.events.emit('weapon:melee', { actor, phase: 'swing', lunge, target: target || null });
     return true;
   }
@@ -972,7 +979,7 @@ export class WeaponController {
     const a = this.actor;
     m.t += dt;
     const spec = m.spec; // gameplay-hunt: vor der ersten Verwendung (vorher TDZ-Fehler bei Ausfallschritt → Messer hing endlos)
-    if (!m.anim && m.t >= m.animAt) { m.anim = true; this._vm('playMelee', { backstab: m.backstab, duration: spec.swingTime }); }
+    if (!m.anim && m.t >= m.animAt) { m.anim = true; this._vm('playMelee', { backstab: m.backstab, duration: m.swing }); }
     const range = spec.range || 2.4;
     // Ausfallschritt: auf das Ziel zu, Blick rastet ein
     if (m.lunge && !m.hit && m.target && m.target.alive) {
@@ -999,11 +1006,12 @@ export class WeaponController {
     }
     if (!m.hit && m.t >= m.hitAt) {
       m.hit = true;
-      if (!m.anim) { m.anim = true; this._vm('playMelee', { backstab: m.backstab, duration: spec.swingTime }); }
+      if (!m.anim) { m.anim = true; this._vm('playMelee', { backstab: m.backstab, duration: m.swing }); }
       if (m.lunge && a.body) { a.body.velocity.x *= 0.25; a.body.velocity.z *= 0.25; }
+      if (m.fast) m.end = m.t + FAST_GAP; // ohne Abklingzeit: nur ein Bildbruchteil bis zum nächsten Hieb
       this._resolveMelee(m);
     }
-    if (m.t >= m.end) this._melee = null;
+    if (m.hit && m.t >= m.end) this._melee = null;
   }
 
   _resolveMelee(m) {

@@ -1,19 +1,29 @@
-// NULLPUNKT — Nur Messer: Cheat-Menü (Wunsch des Entwicklers: „damit es für manche Leute ein bisschen fairer ist“).
+// NULLPUNKT — Cheat-Menü (Wunsch des Entwicklers: „damit es für manche Leute ein bisschen fairer ist“; seit 10.10. in allen
+// Modi, mit echtem Aimbot für Schusswaffen – „es ist mein Spiel“).
 //
-// Nur im Modus „Nur Messer“ (modes/knife.js erzeugt das System je Match), nur für den eigenen Spieler – Bots bekommen
-// nichts davon. Freischalten (ui/cheat-menu.js): Ziffernblock 1 → 2 → 3 → 4 (KeyboardEvent.code) innerhalb von 3 s während
-// des Matches, dann Code „NULLPUNKT“ (Großbuchstaben, ohne Punkt). Danach öffnet dieselbe Folge das Menü ohne Code – bis zum
-// Matchende. Touch/VR: kein Ziffernblock, nichts zu tun.
+// In jedem Modus (modes/base.js erzeugt das System je Match), nur für den eigenen Spieler – Bots bekommen nichts davon.
+// Freischalten (ui/cheat-menu.js): Ziffernblock 1 → 2 → 3 → 4 (KeyboardEvent.code) innerhalb von 3 s während des Matches,
+// dann Code „NULLPUNKT“ (Großbuchstaben, ohne Punkt). Danach öffnet dieselbe Folge das Menü ohne Code – bis zum Matchende.
+// Touch/VR: kein Ziffernblock, nichts zu tun.
 //
 // Schalter (Standard aus, je Match zurückgesetzt):
-//   aimbot      Blick sehr schnell auf den nächsten sichtbaren Gegner (Brust, sonst Kopf; ≤ 35 m, Sichtkegel 75°)
+//   aimbot      rundum (360°): Blick auf den nächsten sichtbaren Gegner. Messer: schnell nachgeführt auf die Brust (≤ 35 m);
+//               Schusswaffe: sofort und genau auf den Kopf (sonst Brust), bis zur Reichweite der Waffe, Rückstoß herausgerechnet;
+//               solange ein Ziel erfasst ist, fliegen Einzelkugeln ohne Streuung (player.cheatPrecise → weapons/controller.js)
+//   autofeuer   Schusswaffe: drückt ab, solange der Aimbot einen Gegner genau im Visier hat (normale Feuertaste/Feuerrate)
 //   spinbot     sichtbare Gierung dreht sich (player.spinYaw → bots/bot.js netPoseOf: Schnappschuss des Hosts bzw. Zustand des
 //               Clients); Kamera, Laufrichtung und Treffer bleiben unberührt
-//   automesser  sticht über die normale Nahkampf-Aktion, sobald ein Gegner knapp unter der Messer-Reichweite (melee.range der
-//               Waffendefinition × 0,95) in Sicht ist – vorher genau ausrichten; online prüft der Host wie immer (anticheat.js)
+//   spin360     echter Spin: die eigene Gierung (Kamera, Laufrichtung) dreht sich ständig im Kreis; ein erfasstes Ziel des
+//               Aimbots hat Vorrang (Schusswaffe: Blick springt je Bild aufs Ziel zurück)
+//   automesser  sticht über die normale Nahkampf-Aktion (mit Schusswaffe in der Hand: Schnellangriff mit dem Messer), sobald
+//               ein Gegner knapp unter der Messer-Reichweite (melee.range × 0,95) in Sicht ist – rundum, vorher genau
+//               ausrichten; online prüft der Host wie immer
+//   turbomesser Messer ohne Abklingzeit: der Hieb trifft sofort und sperrt nicht (player.cheatFastKnife → weapons/controller.js);
+//               online lässt der Host bei erlaubtem Menü die Feuerrate des Nahkampfs offen (net/sync-host.js)
 //   ausweichen  zielt ein Gegner (Bot oder Puppe) auf dich (≤ 6° + Körperbreite, Sichtlinie, < 30 m): kurzer Seitschritt über
 //               die normale Bewegungseingabe (input.move, |v| ≤ 1), mitunter mit Sprung – kein Teleport, kein Zusatztempo
 //   markieren   alle Gegner mit Raute und Entfernung, auch durch Wände (HUD-Projektion wie die Ziel-Marker)
+//   esp         alle Gegner mit Rahmen um den Körper, Name, Lebensbalken und Entfernung, auch durch Wände
 //   bunnyhop    Sprungtaste gehalten: bei jeder Landung sofort wieder springen
 // Kein Gottmodus, kein Schaden-/Tempo-Bonus, kein Teleport.
 //
@@ -22,19 +32,24 @@
 // aktiv“) – online meldet der eigene Spieler das dem Host (net/index.js setCheat → 'cheat' {on}), der es im Roster vermerkt
 // und an alle verteilt.
 //
-// Ablauf je Bild: main.js ruft mode.preUpdate(dt) nach der Eingabe und vor dem Spieler (Blick, Bewegung, Nahkampf dieses
-// Bildes), mode.update(dt) danach (Markierungen). Matchende/Lobby/Revanche: Schalter aus, Meldung zurück, Listener ab.
+// Ablauf je Bild: main.js ruft mode.preUpdate(dt) nach der Eingabe und vor dem Spieler (Blick, Bewegung, Schuss/Nahkampf
+// dieses Bildes), mode.update(dt) danach (Markierungen). Matchende/Lobby/Revanche: Schalter aus, Meldung zurück, Listener ab.
 
 import * as THREE from 'three';
 import { CheatMenu } from './ui/cheat-menu.js';
+import { HUMANOID } from './combat.js';
 
 /** Schalter in Menü-Reihenfolge (Standard aus). */
 export const CHEATS = Object.freeze([
-  { id: 'aimbot', label: 'Aimbot', sub: 'Blick rastet auf den nächsten sichtbaren Gegner ein (bis 35 m)' },
+  { id: 'aimbot', label: 'Aimbot', sub: 'Rundum 360°: Schusswaffe sofort auf den Kopf (ohne Streuung), Messer auf die Brust' },
+  { id: 'autofeuer', label: 'Auto-Feuer', sub: 'Schießt selbst, solange der Aimbot einen Gegner im Visier hat' },
   { id: 'spinbot', label: 'Spinbot', sub: 'Dein Körper dreht sich für andere im Kreis – deine Sicht bleibt normal' },
+  { id: 'spin360', label: 'Echter Spin (360°)', sub: 'Du drehst dich selbst samt Sicht ständig im Kreis' },
   { id: 'automesser', label: 'Auto-Messer', sub: 'Sticht selbst zu, sobald ein Gegner in optimaler Reichweite ist' },
+  { id: 'turbomesser', label: 'Messer ohne Abklingzeit', sub: 'Der Hieb trifft sofort – direkt danach wieder zustechen' },
   { id: 'ausweichen', label: 'Ausweichen', sub: 'Zielt ein Gegner auf dich, weichst du seitlich aus' },
   { id: 'markieren', label: 'Gegner markieren', sub: 'Alle Gegner mit Entfernung, auch durch Wände' },
+  { id: 'esp', label: 'ESP', sub: 'Rahmen, Name, Leben und Entfernung jedes Gegners – auch durch Wände' },
   { id: 'bunnyhop', label: 'Auto-Sprung', sub: 'Sprungtaste halten: bei jeder Landung sofort wieder springen' },
 ]);
 export const CHEAT_IDS = Object.freeze(CHEATS.map((c) => c.id));
@@ -42,14 +57,16 @@ export const CHEAT_IDS = Object.freeze(CHEATS.map((c) => c.id));
 export const CHEAT_CODE = 'NULLPUNKT';
 
 const D2R = Math.PI / 180;
-const AIM_RANGE = 35; // m
-const AIM_CONE = 75 * D2R; // halber Öffnungswinkel um die Laufrichtung
+const AIM_RANGE = 35; // m (Messer)
+const GUN_RANGE_MIN = 60; // m: Schusswaffen-Aimbot mindestens …
+const GUN_RANGE_MAX = 400; // … höchstens (sonst Reichweite der Waffe)
 const AIM_RATE = 30; // 1/s: Annäherung an das Ziel (≈ 40 % je Bild bei 60 Hz – nach 0,15 s praktisch drauf)
 const CHEST = 0.62; // Anteil der Körperhöhe (wie der Ausfallschritt des Messers)
-const HEAD = 0.9;
 const SPIN_RATE = 4 * Math.PI; // rad/s – zwei Umdrehungen je Sekunde
 const KNIFE_REACH = 0.95; // Anteil der Messer-Reichweite: knapp unter dem Maximum
 const STAB_GAP = 0.15; // s zwischen zwei Auslösungen (der Hieb selbst sperrt ohnehin bis zum Ende)
+const TURBO_GAP = 0.06; // s – Messer ohne Abklingzeit
+const FIRE_SLACK = 0.1; // m seitlicher Fehler am Ziel, ab dem Auto-Feuer abdrückt (Kopfradius 0,15)
 const DODGE_RANGE = 30; // m
 const DODGE_CONE = 6 * D2R;
 const DODGE_TIME = 0.42; // s Seitschritt
@@ -67,6 +84,9 @@ const _me = new THREE.Vector3();
 const _oe = new THREE.Vector3();
 const _od = new THREE.Vector3();
 const _ray = new THREE.Vector3();
+
+const PARTS_CHEST = Object.freeze(['chest', 'head']);
+const PARTS_HEAD = Object.freeze(['head', 'chest']);
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -94,7 +114,8 @@ export class CheatSystem {
     this._spin = 0;
     this._stabAt = -1;
     this._dodge = { t: 0, cool: 0, dx: 0, dz: 0, side: 0 };
-    this._los = new Map(); // Akteur → { t, v }
+    this._los = new Map(); // Akteur → { t, chest, head } (-1 ungeprüft, 0 verdeckt, 1 frei)
+    this._seen = new Map(); // Gegner-ID → { t, v } (Sicht des Gegners auf mich, Ausweichen)
     this._marks = [];
     this.list = CHEATS;
     this.ui = new CheatMenu(this);
@@ -116,6 +137,7 @@ export class CheatSystem {
     this.reset();
     this.ui.dispose();
     this._los.clear();
+    this._seen.clear();
   }
 
   /** Alle Schalter aus (Matchende, Host verbietet) – das Freischalten bleibt für dieses Match. */
@@ -155,9 +177,12 @@ export class CheatSystem {
     const G = this.G;
     const p = G.player;
     if (!this.on.spinbot && p && p.spinYaw != null) p.spinYaw = null;
+    if (p) p.cheatFastKnife = !!this.on.turbomesser;
+    if (p && !this.on.aimbot) p.cheatPrecise = false;
     if (!this.on.aimbot && !this.on.automesser) this.target = null;
     if (!this.on.ausweichen) { this.threat = null; this._dodge.t = 0; }
     if (!this.on.markieren) this.ui.hideMarkers();
+    if (!this.on.esp) this.ui.hideEsp();
     this.ui.sync();
     // Online: „Cheat-Menü aktiv“ an den Host (der vermerkt es im Roster und verteilt es)
     const active = this.active;
@@ -183,6 +208,7 @@ export class CheatSystem {
       p.spinYaw = this._spin;
     }
     const live = G.match.state === 'playing' || !!G.match.netLive;
+    p.cheatPrecise = false;
     if (!live || !p.alive || p.piloting || p.vehicle || p.mantling || (G.xr && G.xr.presenting) || !G.combat) {
       this._dodge.t = 0;
       this.target = null;
@@ -191,18 +217,28 @@ export class CheatSystem {
     // Pausenmenü online (Simulation läuft weiter): keine Eingaben – nur der Spinbot dreht weiter
     if (!input.enabled) return;
     const now = G.time.elapsed;
+    if (this.on.spin360) p.yaw = wrap(p.yaw + SPIN_RATE * dt); // echter Spin (Kamera dreht mit); Aimbot danach hat Vorrang
     p.getEyePosition(_eye);
     p.getAimDirection(_aim);
 
-    // Auto-Messer hat Vorrang beim Ausrichten (genau, in einem Bild); sonst der Aimbot (schnell, aber nachgeführt)
+    // Auto-Messer hat Vorrang beim Ausrichten (genau, in einem Bild); sonst der Aimbot (Messer: schnell nachgeführt,
+    // Schusswaffe: sofort genau auf den Kopf)
+    const w = p.weapon;
+    const def = w && w.currentDef;
+    const gun = !!(def && def.cls !== 'melee' && !w.isThrowing);
     const stab = this.on.automesser ? this._stabTarget(p, now) : null;
-    const aim = stab || (this.on.aimbot ? this._aimTarget(p, now) : null);
+    const aim = stab || (this.on.aimbot ? this._aimTarget(p, now, gun ? def : null) : null);
     this.target = aim ? aim.actor : null;
-    if (aim) this._lookAt(p, aim.point, stab ? 1 : 1 - Math.exp(-AIM_RATE * dt));
-    if (stab && now - this._stabAt >= STAB_GAP) {
+    if (aim) this._lookAt(p, aim.point, stab || gun ? 1 : 1 - Math.exp(-AIM_RATE * dt));
+    p.cheatPrecise = !!(aim && gun && !stab);
+    if (stab && now - this._stabAt >= (this.on.turbomesser ? TURBO_GAP : STAB_GAP)) {
       this._stabAt = now;
       this.stats.stabs++;
       tap(input, 'melee');
+    }
+    if (this.on.autofeuer && gun && aim && !stab && !w.isSwitching && !w.isMeleeing && this._onTarget(p, aim.point)) {
+      this.stats.shots = (this.stats.shots || 0) + 1;
+      tap(input, 'fire');
     }
 
     if (this.on.ausweichen) this._evade(p, input, dt, now);
@@ -217,17 +253,18 @@ export class CheatSystem {
       this.ui.close();
       this.ui.notice('Cheat-Menü vom Host deaktiviert', 'enemy');
     }
-    if (!this.on.markieren) return;
+    if (!this.on.markieren && !this.on.esp) return;
     const p = G.player;
     const live = G.match.state === 'playing' || !!G.match.netLive;
-    if (!p || !live || !G.camera || !G.combat || (G.xr && G.xr.presenting)) { this.ui.hideMarkers(); return; }
+    if (!p || !live || !G.camera || !G.combat || (G.xr && G.xr.presenting)) { this.ui.hideMarkers(); this.ui.hideEsp(); return; }
     const list = this._marks;
     list.length = 0;
     for (const a of G.actors) {
       if (!this._hostile(p, a)) continue;
       list.push(a);
     }
-    this.ui.updateMarkers(list, p);
+    if (this.on.markieren) this.ui.updateMarkers(list, p);
+    if (this.on.esp) this.ui.updateEsp(list, p);
   }
 
   /* ------------------------------------------------------------ Hilfen */
@@ -236,32 +273,44 @@ export class CheatSystem {
     return !!(a && a !== p && a.alive && !a.isStreakEntity && a.position && this.G.combat.isHostile(p, a));
   }
 
-  /** Sichtbarer Zielpunkt eines Akteurs von `eye` aus (Brust, sonst Kopf) → out oder null. Sicht je Akteur kurz zwischengespeichert. */
-  _visiblePoint(a, eye, now, out) {
-    const h = a.body ? a.body.height : 1.8;
-    const c = this._los.get(a);
-    const fresh = c && now - c.t < LOS_TTL;
-    const w = this.G.world;
+  /** Zielpunkt eines Akteurs: 'head' = Kopfkugel wie combat.js (inkl. Lehnen), sonst Brust. → out */
+  _partPoint(a, part, out) {
+    const h = a.body ? a.body.height : HUMANOID.standHeight;
     out.copy(a.position);
-    out.y += h * CHEST;
-    if (fresh) {
-      if (c.v === 0) return null;
-      if (c.v === 2) out.y = a.position.y + h * HEAD;
-      return out;
-    }
-    let v = 1;
-    if (w && w.lineOfSight && !w.lineOfSight(eye, out)) {
-      out.y = a.position.y + h * HEAD;
-      v = w.lineOfSight(eye, out) ? 2 : 0;
-    }
-    this._los.set(a, { t: now, v });
-    if (this._los.size > 64) this._los.clear();
-    return v ? out : null;
+    if (part !== 'head') { out.y += h * CHEST; return out; }
+    const lo = a.leanOffset;
+    if (lo) { out.x += lo.x || 0; out.z += lo.z || 0; out.y += Math.min(0, lo.y || 0); }
+    out.y += h - HUMANOID.headFromTop;
+    return out;
   }
 
-  /** Aimbot: nächster sichtbarer Gegner im Kegel (Abstand × Winkel; das bisherige Ziel wird bevorzugt). */
-  _aimTarget(p, now) {
+  /**
+   * Sichtbarer Zielpunkt eines Akteurs von `eye` aus (Brust, sonst Kopf – mit `head` umgekehrt) → out oder null. Sicht je
+   * Akteur und Körperteil kurz zwischengespeichert.
+   */
+  _visiblePoint(a, eye, now, out, head = false) {
+    const w = this.G.world;
+    let c = this._los.get(a);
+    if (!c || now - c.t >= LOS_TTL) {
+      if (this._los.size > 64) this._los.clear();
+      this._los.set(a, (c = { t: now, chest: -1, head: -1 }));
+    }
+    for (const part of head ? PARTS_HEAD : PARTS_CHEST) {
+      this._partPoint(a, part, out);
+      if (c[part] < 0) c[part] = !w || !w.lineOfSight || w.lineOfSight(eye, out) ? 1 : 0;
+      if (c[part]) return out;
+    }
+    return null;
+  }
+
+  /**
+   * Aimbot: nächster sichtbarer Gegner rundum (360°; Abstand, leicht nach Winkel gewichtet; das bisherige Ziel wird
+   * bevorzugt). `gunDef` = gehaltene Schusswaffe → Reichweite der Waffe und Kopf zuerst.
+   */
+  _aimTarget(p, now, gunDef = null) {
     const G = this.G;
+    const range = gunDef ? clamp(gunDef.range || GUN_RANGE_MIN, GUN_RANGE_MIN, GUN_RANGE_MAX) : AIM_RANGE;
+    const head = !!gunDef && gunDef.cls !== 'launcher';
     let best = null;
     let bestScore = Infinity;
     for (const a of G.actors) {
@@ -271,13 +320,12 @@ export class CheatSystem {
       _to.y += h * CHEST;
       _to.sub(_eye);
       const d = _to.length();
-      if (d > AIM_RANGE || d < 0.3) continue;
+      if (d > range || d < 0.3) continue;
       const ang = Math.acos(clamp(_to.dot(_aim) / d, -1, 1));
-      if (ang > AIM_CONE) continue;
-      let score = d * (1 + 2 * ang);
+      let score = d * (1 + 0.5 * ang);
       if (a === this.target) score *= 0.6; // nicht zwischen zwei Gegnern hin und her springen
       if (score >= bestScore) continue;
-      if (!this._visiblePoint(a, _eye, now, _pt)) continue;
+      if (!this._visiblePoint(a, _eye, now, _pt, head)) continue;
       best = a;
       bestScore = score;
       _best.copy(_pt);
@@ -285,11 +333,24 @@ export class CheatSystem {
     return best ? { actor: best, point: _best } : null;
   }
 
-  /** Auto-Messer: nächster sichtbarer Gegner knapp unter der Messer-Reichweite (Abstand wie weapons/controller.js). */
+  /** Auto-Feuer: Laufrichtung (nach dem Ausrichten) geht höchstens FIRE_SLACK seitlich am Zielpunkt vorbei. */
+  _onTarget(p, point) {
+    p.getEyePosition(_eye);
+    p.getAimDirection(_dir);
+    _to.subVectors(point, _eye);
+    const along = _to.dot(_dir);
+    if (along <= 0) return false;
+    return _to.addScaledVector(_dir, -along).length() <= FIRE_SLACK;
+  }
+
+  /** Auto-Messer: nächster sichtbarer Gegner knapp unter der Messer-Reichweite (Abstand wie weapons/controller.js), jede Waffe. */
   _stabTarget(p, now) {
     const w = p.weapon;
-    const def = w && w.currentDef;
-    if (!def || def.cls !== 'melee' || w.isMeleeing || w.isSwitching || w.isThrowing) return null;
+    const cur = w && w.currentDef;
+    if (!cur || w.isMeleeing || w.isSwitching || w.isThrowing || w.isReloading) return null;
+    // Messer in der Hand – sonst die ausgerüstete Nahkampfwaffe (Schnellangriff, weapons/controller.js _knife)
+    const def = cur.cls === 'melee' ? cur : typeof w._knife === 'function' ? w._knife().def : null;
+    if (!def) return null;
     const spec = def.melee || {};
     const reach = (spec.range || def.range || 2.4) * KNIFE_REACH;
     let best = null;
@@ -342,12 +403,13 @@ export class CheatSystem {
       if (ang > DODGE_CONE + Math.atan(0.4 / d)) continue;
       // Sicht des Gegners auf mich (zwischengespeichert, eigener Schlüssel je Gegner)
       const key = a.id || a;
-      const c = this._los.get(key);
+      const c = this._seen.get(key);
       let v;
       if (c && now - c.t < LOS_TTL) v = c.v;
       else {
         v = !G.world || !G.world.lineOfSight || G.world.lineOfSight(_oe, _me) ? 1 : 0;
-        this._los.set(key, { t: now, v });
+        if (this._seen.size > 64) this._seen.clear();
+        this._seen.set(key, { t: now, v });
       }
       if (!v) continue;
       best = a;

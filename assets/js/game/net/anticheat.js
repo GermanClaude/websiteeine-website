@@ -465,7 +465,8 @@ export class AntiCheat {
       if (!p.serials.has(shotKey)) {
         p.serials.add(shotKey);
         p.serialOrder.push(shotKey);
-        if (!this._bucket(p.hitBuckets, def, nowSec)) return this._reject(id, 'feuerrate', nowSec, def.id);
+        // ctx.noRate: Nahkampf mit erlaubtem Cheat-Menü „Messer ohne Abklingzeit“ (net/sync-host.js _onMelee)
+        if (!ctx.noRate && !this._bucket(p.hitBuckets, def, nowSec)) return this._reject(id, 'feuerrate', nowSec, def.id);
       }
     }
     return null;

@@ -664,7 +664,7 @@ function deploy() {
 }
 
 /**
- * Fenster im laufenden Match hält die Maus frei (Nur Messer: Cheat-Menü, ui/cheat-menu.js): solange verliert das Spiel
+ * Fenster im laufenden Match hält die Maus frei (Cheat-Menü, ui/cheat-menu.js): solange verliert das Spiel
  * die Zeiger-Sperre, ohne zu pausieren, und der Hinweis „Klicken, um weiterzuspielen“ bleibt aus.
  */
 function holdUi(on) {
@@ -1563,7 +1563,7 @@ function frame(now, bg = false, xrFrame = null) {
     if (G.input.pressed('pause') && G.match.state !== 'paused') pause();
     const net = G.match.netRole && G.net ? G.net : null;
     if (net) step('net:pre', () => net.preUpdate(dt)); // Host: Zustände der Clients → Puppen; Client: Schnappschüsse → Puppen
-    if (G.mode && G.mode.preUpdate) step('mode:pre', () => G.mode.preUpdate(dt)); // Nur Messer: Cheat-Menü (cheats.js) – Blick/Bewegung/Nahkampf vor dem Spieler
+    if (G.mode && G.mode.preUpdate) step('mode:pre', () => G.mode.preUpdate(dt)); // Cheat-Menü (cheats.js) – Blick/Bewegung/Schuss/Nahkampf vor dem Spieler
     step('player', () => (G.player.vehicle ? G.vehicles.updateOccupant(G.player, dt) : G.player.update(dt))); // vehicles: Sitz statt Laufen
     step('bots', () => G.bots.update(dt));
     const live = G.match.state === 'playing' || G.match.netLive;

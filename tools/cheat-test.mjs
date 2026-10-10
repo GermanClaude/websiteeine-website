@@ -1,21 +1,24 @@
-// NULLPUNKT – Cheat-Menü im Modus „Nur Messer“ (cheats.js, ui/cheat-menu.js, modes/knife.js) in Headless-Chromium
+// NULLPUNKT – Cheat-Menü (cheats.js, ui/cheat-menu.js, modes/base.js – seit 10.10. in allen Modi) in Headless-Chromium
 // (spielen.html, SwiftShader).
 //   Offline (Nur Messer, Werk, Spieler im Gottmodus): Tastenfolge Ziffernblock 1-2-3-4 → Code-Feld (Spiel läuft weiter);
 //     falscher Code → Meldung, kein Menü; „NULLPUNKT“ → Menü; Esc schließt ohne Pause; Folge öffnet danach ohne Code;
-//     falsche oder zu langsame Folge (über 3 s) → nichts. Aimbot richtet auf einen sichtbaren (angehaltenen) Bot aus
-//     (Winkelfehler < 3°); Markierungen sichtbar (mit Entfernung, auch ohne Sichtlinie); Auto-Messer sticht einen nahen Bot ab (normale Nahkampf-Aktion);
-//     Ausweichen bewegt den Spieler, wenn ein Bot auf ihn zielt (normales Tempo, kein Sprung in der Lage); Spinbot dreht nur
-//     die übertragene Gierung (netPoseOf), Kamera bleibt; Auto-Sprung; Symbol in der Punktetabelle; Matchende setzt zurück;
-//     neues Match (TDM) → die Folge reagiert nicht, keine Reste (Fenster, Haltemaus, Spinbot).
-//   Online (--online, Host + 1 Client über das lokale Relay, Raum-Modus „messer“ direkt gesetzt – Nur Messer ist online noch
-//     nicht wählbar): Host-Schalter „Cheat-Menü (Nur Messer)“ sichtbar (Standard erlaubt); Client schaltet frei und aktiviert
-//     → Host-Roster cheat, Symbol in der Punktetabelle des Hosts; Ausweichen (angehaltener Host-Bot zielt auf die Puppe),
-//     Auto-Messer (Abschuss beim Host gewertet) und Spinbot (Puppe dreht sich, Sicht des Clients nicht) ohne Verstoß oder
-//     Rücksetzung durch das Anti-Cheat des Hosts; Host verbietet → Schalter des Clients aus, Roster zurück, Folge öffnet
-//     nichts („vom Host deaktiviert“).
+//     falsche oder zu langsame Folge (über 3 s) → nichts. Aimbot rundum (360°): richtet auf einen sichtbaren (angehaltenen)
+//     Bot HINTER dem Spieler aus (Winkelfehler < 3°); Markierungen sichtbar (mit Entfernung, auch ohne Sichtlinie);
+//     Auto-Messer sticht einen nahen Bot ab (normale Nahkampf-Aktion); Messer ohne Abklingzeit (Hieb sperrt nicht, normal
+//     schon); ESP (Rahmen, Name, Leben, Entfernung); Echter Spin (eigene Sicht dreht sich); Ausweichen bewegt den Spieler, wenn ein Bot auf ihn zielt (normales Tempo, kein Sprung in der Lage); Spinbot
+//     dreht nur die übertragene Gierung (netPoseOf), Kamera bleibt; Auto-Sprung; Symbol in der Punktetabelle; Matchende
+//     setzt zurück; neues Match (TDM): neues System ohne Reste (Fenster, Haltemaus, Spinbot), die Folge verlangt wieder den
+//     Code; Schusswaffen-Aimbot + Auto-Feuer erledigen einen Bot hinter dem Spieler (Kopftreffer).
+//   Online (--online, Host + 1 Client über das lokale Relay, Online-Team-Deathmatch): Host-Schalter
+//     „Cheat-Menü“ sichtbar (Standard erlaubt); Client schaltet frei und aktiviert → Host-Roster cheat, Symbol in der
+//     Punktetabelle des Hosts; Ausweichen (angehaltener Host-Bot zielt auf die Puppe), Auto-Messer (Abschuss beim Host
+//     gewertet; Schnellangriff mit der Schusswaffe in der Hand), Schusswaffen-Aimbot + Auto-Feuer (Abschuss beim Host),
+//     Messer ohne Abklingzeit (Stiche beim Host angenommen; Prüfung: ohne Ausnahme Feuerrate-Verstoß, mit keiner)
+//     und Spinbot (Puppe dreht sich, Sicht des Clients nicht) ohne Verstoß oder Rücksetzung durch das Anti-Cheat des Hosts;
+//     Host verbietet → Schalter des Clients aus, Roster zurück, Folge öffnet nichts („vom Host deaktiviert“).
 // Tastenfolge über CDP (Zeitstempel = Absendezeit, siehe sequence) – page.keyboard.press wartet je Taste auf ein Bild.
 // Bilder: tools/out/cheat-code.png, cheat-menu.png, cheat-aimbot.png, cheat-markers.png, cheat-scoreboard.png,
-//   cheat-host-setting.png, cheat-online-host.png
+//   cheat-host-setting.png, cheat-online-host.png, cheat-gun.png, cheat-esp.png
 // Voraussetzung: Server (NP_BASE, Standard http://localhost:8765/); online zusätzlich node tools/nostr-relay.mjs 7777.
 // Aufruf: node tools/cheat-test.mjs [--only=offline,online] [--online] [--quality=low] [--size=800x450]
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
@@ -218,7 +221,7 @@ async function offline(browser) {
   await sleep(300);
   v = await dlg(p);
   const right = await p.evaluate(() => ({ unlocked: window.__ct.sys().unlocked, rows: document.querySelectorAll('.cm-dlg [data-cheat-id]').length }));
-  check(v === 'menu' && right.unlocked && right.rows === 6, `„NULLPUNKT“ → Cheat-Menü (${right.rows} Schalter)`);
+  check(v === 'menu' && right.unlocked && right.rows === 10, `„NULLPUNKT“ → Cheat-Menü (${right.rows} Schalter)`);
   await p.click('[data-cheat-id="aimbot"]');
   await p.click('[data-cheat-id="markieren"]');
   await sleep(200);
@@ -234,25 +237,25 @@ async function offline(browser) {
   if (await dlg(p)) { await p.keyboard.press('Escape'); await sleep(200); } // ohne offenes Fenster wäre Esc die Pause
   check(await p.evaluate(() => window.__game.match.state === 'playing'), 'Match läuft weiter');
 
-  // --- Aimbot: angehaltener Bot seitlich vor dem Spieler
+  // --- Aimbot rundum (360°): angehaltener Bot schräg HINTER dem Spieler
   const aim = await p.evaluate(async () => {
     const G = window.__game;
     const C = window.__ct;
     const sys = C.sys();
     C.freezeAll();
     const b = C.enemies()[0];
-    const s = C.spot(8, 0.45);
+    const s = C.spot(8, 2.7);
     if (!b || !s) return { err: !b ? 'kein Gegner' : 'kein freier Platz' };
     C.place(b, s);
     C.banish(b);
     const y0 = G.player.yaw;
-    await C.simWait(0.6);
+    await C.simWait(1.0);
     const pt = b.position.clone(); pt.y += b.body.height * 0.62;
     const head = b.position.clone(); head.y += b.body.height * 0.9;
     return { err: null, deg: Math.min(C.err(pt), C.err(head)), turned: Math.abs(Math.atan2(Math.sin(G.player.yaw - y0), Math.cos(G.player.yaw - y0))) * 180 / Math.PI, target: sys.target === b, name: b.name, d: G.player.position.distanceTo(b.position) };
   });
   if (aim.err) check(false, `Aimbot-Aufbau: ${aim.err}`);
-  else check(aim.target && aim.deg < 3, `Aimbot: Blick auf ${aim.name} (${f1(aim.d)} m, gedreht ${f1(aim.turned)}°) – Winkelfehler ${aim.deg.toFixed(2)}°`);
+  else check(aim.target && aim.deg < 3 && aim.turned > 100, `Aimbot rundum: Blick auf ${aim.name} (${f1(aim.d)} m, gedreht ${f1(aim.turned)}°) – Winkelfehler ${aim.deg.toFixed(2)}°`);
   await shot(p, 'cheat-aimbot.png');
 
   // --- Markierungen
@@ -332,6 +335,73 @@ async function offline(browser) {
     return r;
   });
   check(!!far && far.stabs === 0 && far.alive, `Auto-Messer: Gegner in 4,2 m (außer Reichweite) → kein Stich (${far && far.stabs})`);
+
+  // --- Messer ohne Abklingzeit: der Hieb sperrt nicht (normal ≈ 0,75 s)
+  const turbo = await p.evaluate(async () => {
+    const G = window.__game;
+    const C = window.__ct;
+    const sys = C.sys();
+    const w = G.player.weapon;
+    C.banish(null);
+    await C.simWait(1.2, 240000, () => !w.isMeleeing);
+    const normal = w.melee();
+    await C.simWait(0.2);
+    const normalBusy = w.isMeleeing;
+    await C.simWait(1.2, 240000, () => !w.isMeleeing);
+    sys.set('turbomesser', true);
+    const flag = G.player.cheatFastKnife === true;
+    const fast = w.melee();
+    await C.simWait(0.2);
+    const fastBusy = w.isMeleeing;
+    const again = w.melee();
+    await C.simWait(0.2);
+    sys.set('turbomesser', false);
+    return { normal, normalBusy, flag, fast, fastBusy, again, off: G.player.cheatFastKnife === false };
+  });
+  check(turbo.normal && turbo.normalBusy && turbo.flag && turbo.fast && !turbo.fastBusy && turbo.again && turbo.off,
+    `Messer ohne Abklingzeit: normal nach 0,2 s noch im Hieb (${turbo.normalBusy}), mit Schalter frei (${!turbo.fastBusy}), sofort neuer Hieb (${turbo.again})`);
+
+  // --- ESP: Rahmen, Name, Leben, Entfernung (Bot vor dem Spieler)
+  const esp = await p.evaluate(async () => {
+    const G = window.__game;
+    const C = window.__ct;
+    const sys = C.sys();
+    const b = C.enemies().find((x) => x.alive) || C.enemies()[0];
+    const s = C.spot(9, 0);
+    if (!b || !s) return { err: !b ? 'kein Gegner' : 'kein freier Platz' };
+    C.place(b, s);
+    b.health = Math.round(b.maxHealth * 0.5);
+    sys.set('esp', true);
+    await C.simWait(0.15);
+    const list = sys.ui.visibleEsp();
+    const me = list.find((e) => String(e.id) === String(b.id));
+    return { err: null, n: list.length, me, name: b.name };
+  });
+  if (esp.err) check(false, `ESP-Aufbau: ${esp.err}`);
+  else check(!!esp.me && esp.me.name === esp.name && /^\d+ m$/.test(esp.me.dist) && esp.me.h > esp.me.w && esp.me.hp === 50, `ESP: Rahmen um ${esp.name} (${esp.me ? `${esp.me.w}×${esp.me.h} px, ${esp.me.dist}, Leben ${esp.me.hp} %` : 'fehlt'}), sichtbar ${esp.n}`);
+  await shot(p, 'cheat-esp.png');
+  await p.evaluate(() => window.__ct.sys().set('esp', false));
+
+  // --- Echter Spin: die eigene Sicht dreht sich (kein Ziel erfasst)
+  const real = await p.evaluate(async () => {
+    const G = window.__game;
+    const C = window.__ct;
+    const sys = C.sys();
+    C.banish(null);
+    sys.set('spin360', true);
+    let turn = 0;
+    let prev = G.player.yaw;
+    const t0 = G.time.elapsed;
+    while (G.time.elapsed - t0 < 0.6) {
+      await new Promise((r) => setTimeout(r, 25));
+      const y = G.player.yaw;
+      turn += Math.abs(Math.atan2(Math.sin(y - prev), Math.cos(y - prev)));
+      prev = y;
+    }
+    sys.set('spin360', false);
+    return { deg: turn * 180 / Math.PI, sim: G.time.elapsed - t0 };
+  });
+  check(real.deg > 300, `Echter Spin: Sicht ${Math.round(real.deg)}° in ${f1(real.sim)} s gedreht`);
 
   // --- Ausweichen: Bot zielt auf den Spieler
   const dodge = await p.evaluate(async () => {
@@ -472,20 +542,58 @@ async function offline(browser) {
   const tdm = await until(p, () => window.__game.match.state === 'playing' && window.__game.mode && window.__game.mode.id === 'tdm' && window.__game.player.alive, null, 300000, 1000);
   if (check(!!tdm, 'neues Match TDM läuft')) {
     await p.evaluate(() => { window.__game.input.allowUnlockedMouse = true; });
+    await instrument(p);
     await sequence(p);
     const t = await p.evaluate(() => {
       const G = window.__game;
       const old = window.__ct.old;
-      return { dlg: !!document.querySelector('.cm-dlg'), layer: !!(old && old.ui.layer), cheats: !!G.mode.cheats, hold: !!G.match.uiHold, spin: G.player.spinYaw, st: G.match.state };
+      const s = G.mode.cheats;
+      return { dlg: document.querySelector('.cm-dlg') && document.querySelector('.cm-dlg').dataset.cheat, fresh: !!s && s !== old && !s.unlocked, layer: !!(old && old.ui.layer), hold: !!G.match.uiHold, spin: G.player.spinYaw, st: G.match.state };
     });
-    check(!t.dlg && !t.cheats && !t.layer && !t.hold && t.spin == null && t.st === 'playing', `TDM: Folge reagiert nicht, keine Reste (Fenster ${t.dlg}, Ebene ${t.layer}, Haltemaus ${t.hold})`);
+    check(t.dlg === 'code' && t.fresh && !t.layer && t.spin == null && t.st === 'playing', `TDM: neues Cheat-System, Folge verlangt wieder den Code (${t.dlg}), keine Reste (alte Ebene ${t.layer}, Spinbot ${t.spin})`);
+    if (t.dlg === 'code') {
+      await p.keyboard.type('NULLPUNKT');
+      await p.keyboard.press('Enter');
+      await sleep(300);
+      check((await dlg(p)) === 'menu', 'TDM: Code → Menü');
+      await p.keyboard.press('Escape');
+      await sleep(250);
+    }
+    // Schusswaffen-Aimbot + Auto-Feuer: angehaltener Bot hinter dem Spieler, Kopftreffer
+    const gun = await p.evaluate(async () => {
+      const G = window.__game;
+      const C = window.__ct;
+      const sys = C.sys();
+      G.debugApi.godMode(true);
+      C.freezeAll();
+      const b = C.enemies()[0];
+      const s = C.spot(14, Math.PI);
+      if (!b || !s) return { err: !b ? 'kein Gegner' : 'kein freier Platz' };
+      C.place(b, s);
+      C.banish(b);
+      let head = 0, hits = 0;
+      const off = G.events.on('actor:hit', (e) => { if (e && e.attacker === G.player && e.target === b) { hits++; if (e.zone === 'head') head++; } });
+      const y0 = G.player.yaw;
+      const k0 = G.player.stats.kills;
+      sys.set('aimbot', true);
+      sys.set('autofeuer', true);
+      const on = sys.on.aimbot && sys.on.autofeuer;
+      const sim = await C.simWait(4, 240000, () => !b.alive);
+      const turned = Math.abs(Math.atan2(Math.sin(G.player.yaw - y0), Math.cos(G.player.yaw - y0))) * 180 / Math.PI;
+      if (typeof off === 'function') off();
+      return { err: null, on, dead: !b.alive, kills: G.player.stats.kills - k0, shots: sys.stats.shots || 0, hits, head, turned, sim, w: G.player.weapon.currentDef.id, d: s.pos.distanceTo(G.player.position) };
+    });
+    if (gun.err) check(false, `Schusswaffen-Aimbot-Aufbau: ${gun.err}`);
+    else check(gun.on && gun.dead && gun.kills >= 1 && gun.head >= 1 && gun.turned > 100, `Schusswaffen-Aimbot + Auto-Feuer (${gun.w}, ${f1(gun.d)} m hinter dem Spieler): gedreht ${f1(gun.turned)}°, ${gun.shots} Abzug-Bilder, Treffer ${gun.hits} (Kopf ${gun.head}), Abschuss ${gun.kills} (${f1(gun.sim)} s)`);
+    await shot(p, 'cheat-gun.png');
+    await p.evaluate(() => { const s = window.__ct.sys(); s.set('aimbot', false); s.set('autofeuer', false); });
   }
   check(!errs.length, `keine Seiten-/Konsolenfehler${errs.length ? `: ${errs.slice(0, 3).join(' | ')}` : ''}`);
   await ctx.close();
 }
 
 async function online(browser) {
-  info('— Online (Host + 1 Client, Nur Messer) —');
+  info('— Online (Host + 1 Client, Team-Deathmatch) —');
   await waitForLoad();
   const pages = [];
   const errs = {};
@@ -505,11 +613,9 @@ async function online(browser) {
     const cl = await open('Anna');
     const code = await host.evaluate(() => window.__game.net.host({ name: 'Messer', mode: 'tdm', map: 'werk', maxPlayers: 4, teamSize: 3, pvp: 'pvp', botFill: true, difficulty: 'rekrut', style: 'arcade' }).then((r) => r.code, (e) => 'FEHLER:' + e.code));
     check(/^[A-Z2-9]{6}$/.test(code), `Host öffnet Raum ${code}`);
-    // Nur Messer ist online (noch) nicht wählbar (ONLINE_MODES) – für den Test den Raum-Modus direkt setzen
+    // Online-Team-Deathmatch (Cheat-Menü gilt seit 10.10. in allen Modi)
     const room = await host.evaluate(() => {
       const N = window.__game.net;
-      N.room.settings.mode = 'messer';
-      N._roomChanged();
       window.__game.menus.net.showRoom();
       return { cheat: N.room.settings.cheatMenu, mode: N.room.settings.mode };
     });
@@ -528,7 +634,7 @@ async function online(browser) {
     await until(host, () => window.__game.net.roster.length === 2, null, 20000);
     await host.evaluate(() => window.__game.net.startMatch());
     const inMatch = await Promise.all([host, cl].map((p) => until(p, () => window.__game.match.state === 'playing' && window.__game.player.alive && window.__game.mode && window.__game.mode.id, null, 600000, 1000)));
-    if (!check(inMatch.every((m) => m === 'messer'), `Host + Client im Match (${inMatch.join(', ')})`)) return;
+    if (!check(inMatch.every((m) => m === 'tdm'), `Host + Client im Online-Match (${inMatch.join(', ')})`)) return;
     await instrument(host);
     await instrument(cl);
     // Host-Bots angehalten (nur für den Test): der Client bleibt am Leben, Ausweichen/Auto-Messer unten gezielt aufgebaut
@@ -670,6 +776,66 @@ async function online(browser) {
         const hostDead = await until(host, () => !window.__ct.foe.alive, null, 30000, 300);
         const hk1 = await hostKills();
         check(stab.stabs >= 1 && !!hostDead && hk1 > hk0, `Client: Auto-Messer online – ${stab.stabs} Stich(e), Bot beim Host ${hostDead ? 'abgestochen' : 'lebt'}, Abschuss für den Client beim Host ${hk0} → ${hk1} (${f1(stab.sim)} s)`);
+        // Messer ohne Abklingzeit online: Bot mit sehr viel Gesundheit neben der Puppe, Client sticht schnell hintereinander
+        const tough = await host.evaluate(() => {
+          const G = window.__game;
+          const T = G.THREE;
+          const C = window.__ct;
+          const pup = C.pup;
+          const b = C.foe;
+          C.turboHits = 0;
+          C.foeMax = C.foeMax || b.maxHealth;
+          if (!C.turboListen) { C.turboListen = true; G.events.on('weapon:meleeHit', (e) => { if (e.actor === C.pup && e.target === C.foe) C.turboHits++; }); }
+          for (let k = 0; k < 16; k++) {
+            const a = (k / 16) * Math.PI * 2;
+            const q = pup.position.clone().add(new T.Vector3(Math.cos(a) * 1.5, 0, Math.sin(a) * 1.5));
+            const e = pup.position.clone(); e.y += 1.2;
+            const t = q.clone(); t.y += 1.1;
+            if (!G.world.lineOfSight(e, t)) continue;
+            const g = G.world.raycast(q.clone().setY(q.y + 0.8), new T.Vector3(0, -1, 0), 3);
+            if (!g || Math.abs(g.point.y - pup.position.y) > 0.4) continue;
+            C.place(b, { pos: g.point.clone() });
+            b.maxHealth = b.health = 1e6;
+            return true;
+          }
+          return false;
+        });
+        if (!tough) info('Messer ohne Abklingzeit online nicht geprüft: kein Platz neben der Puppe');
+        else {
+          const tb = await cl.evaluate(async () => {
+            const G = window.__game;
+            const C = window.__ct;
+            const sys = C.sys();
+            sys.set('turbomesser', true);
+            sys.set('automesser', true);
+            const s0 = sys.stats.stabs;
+            const sim = await C.simWait(3, 240000, () => sys.stats.stabs - s0 >= 12);
+            sys.set('automesser', false);
+            sys.set('turbomesser', false);
+            return { stabs: sys.stats.stabs - s0, sim };
+          });
+          const got = await until(host, (n) => window.__ct.turboHits >= Math.min(n, 4) && window.__ct.turboHits, tb.stabs, 20000, 300);
+          check(tb.stabs >= 4 && got >= 4, `Client: Messer ohne Abklingzeit online – ${tb.stabs} Stiche in ${f1(tb.sim)} s, beim Host angenommen ${got || 0}`);
+        }
+        // Prüfregel direkt: 20 Stiche in derselben Sekunde – ohne Ausnahme Feuerrate-Verstoß, mit ctx.noRate keiner
+        const rule = await host.evaluate(async () => {
+          const N = window.__game.net;
+          const AC = N.anticheat.constructor;
+          const { WEAPONS } = await import(new URL('assets/js/shared/weapons.data.js', location.href).href);
+          const run = (noRate) => {
+            const ac = new AC({ onKick: () => {} });
+            const out = [];
+            for (let i = 0; i < 20; i++) {
+              const r = ac.validateMelee(77, { target: 5, weapon: 'knife', serial: i + 1, dmg: 135 }, { now: 100, noRate, weapons: WEAPONS, shooter: { alive: true, team: 'A', weapons: ['knife'] }, target: { alive: true, team: 'B' } });
+              out.push(r.reason);
+            }
+            return out;
+          };
+          const a = run(false);
+          const b = run(true);
+          return { without: a.filter((x) => x === 'feuerrate').length, with: b.filter((x) => x === 'feuerrate').length, okWith: b.filter((x) => x === 'ok').length };
+        });
+        check(rule.without > 0 && rule.with === 0 && rule.okWith === 20, `Anti-Cheat-Regel: 20 Stiche/Sekunde ohne Ausnahme ${rule.without}× Feuerrate, mit Ausnahme ${rule.with}× (angenommen ${rule.okWith})`);
       }
       // Spinbot: Gierung der Puppe beim Host dreht sich, die eigene Sicht des Clients bleibt
       const yaw0 = await cl.evaluate(() => { window.__ct.sys().set('spinbot', true); return window.__game.player.yaw; });
@@ -689,6 +855,52 @@ async function online(browser) {
       const yaw1 = await cl.evaluate(() => { window.__ct.sys().set('spinbot', false); return window.__game.player.yaw; });
       const own = Math.abs(Math.atan2(Math.sin(yaw1 - yaw0), Math.cos(yaw1 - yaw0))) * 180 / Math.PI;
       check(spun > 180 && own < 0.5, `Spinbot online: Puppe beim Host ${Math.round(spun)}° gedreht, eigene Sicht des Clients ${own.toFixed(2)}°`);
+      // Schusswaffen-Aimbot + Auto-Feuer online: angehaltener Host-Bot ~12 m von der Puppe, der Host wertet den Abschuss
+      const far = await host.evaluate(() => {
+        const G = window.__game;
+        const T = G.THREE;
+        const C = window.__ct;
+        const pup = C.pup;
+        const b = C.foe;
+        const e = pup.position.clone(); e.y += 1.5;
+        for (let k = 0; k < 24; k++) {
+          const a = (k / 24) * Math.PI * 2;
+          const q = pup.position.clone().add(new T.Vector3(Math.cos(a) * 12, 0, Math.sin(a) * 12));
+          const t = q.clone(); t.y += 1.3;
+          if (!G.world.lineOfSight(e, t)) continue;
+          const g = G.world.raycast(q.clone().setY(q.y + 1.5), new T.Vector3(0, -1, 0), 4);
+          if (!g || Math.abs(g.point.y - pup.position.y) > 0.8) continue;
+          t.copy(g.point); t.y += 1.5;
+          if (!G.world.lineOfSight(e, t)) continue;
+          if (!b.alive) G.spawnActor(b);
+          C.place(b, { pos: g.point.clone() });
+          b.maxHealth = C.foeMax || 100;
+          b.health = b.maxHealth;
+          return { ok: true, d: pup.position.distanceTo(g.point) };
+        }
+        return { ok: false };
+      });
+      if (!far.ok) info('Schusswaffen-Aimbot online nicht geprüft: kein freier Platz in 12 m');
+      else {
+        const hostKills = () => host.evaluate((id) => { const r = window.__game.mode.scoreboard().find((x) => x.actor && x.actor.netId === id); return r ? r.kills : -1; }, j.id);
+        const gk0 = await hostKills();
+        const shoot = await cl.evaluate(async () => {
+          const G = window.__game;
+          const C = window.__ct;
+          const sys = C.sys();
+          const w = G.player.weapon;
+          sys.set('aimbot', true);
+          sys.set('autofeuer', true);
+          const k0 = G.player.stats.kills;
+          const sim = await C.simWait(6, 240000, () => G.player.stats.kills > k0);
+          sys.set('aimbot', false);
+          sys.set('autofeuer', false);
+          return { shots: sys.stats.shots || 0, kills: G.player.stats.kills - k0, sim, w: w.currentDef.id };
+        });
+        const foeDead = await until(host, () => !window.__ct.foe.alive, null, 30000, 300);
+        const gk1 = await hostKills();
+        check(!!foeDead && gk1 > gk0 && shoot.shots > 0, `Client: Schusswaffen-Aimbot + Auto-Feuer online (${shoot.w}, ${f1(far.d)} m) – ${shoot.shots} Abzug-Bilder, Bot beim Host ${foeDead ? 'erledigt' : 'lebt'}, Abschuss für den Client beim Host ${gk0} → ${gk1} (${f1(shoot.sim)} s)`);
+      }
       const ac1 = await acCount();
       const corr = await cl.evaluate(() => window.__ct.corrects);
       const fresh = ac0 && ac1 ? ac1.slice(ac0.length) : null;

@@ -858,7 +858,7 @@ export class NetMenus {
       ${item('Ausdauer', s.stamina === false ? 'unbegrenzt' : 'normal')}${item('Munition pro Abschuss', s.killAmmo === false ? 'aus' : 'an')}
       ${item('Fahrzeuge', vehOn(s) ? 'Panzer + Geländewagen' : 'aus')}
       ${vehOn(s) ? `${item('Außenansicht (Fahrzeuge)', s.thirdPerson === false ? 'aus' : 'erlaubt')}${item('Panzer nachladen', s.vehReload === 'automatisch' ? 'automatisch' : 'manuell')}` : ''}
-      ${s.mode === 'messer' ? item('Cheat-Menü', s.cheatMenu === false ? 'verboten' : 'erlaubt') : ''}
+      ${item('Cheat-Menü', s.cheatMenu === false ? 'verboten' : 'erlaubt')}
     </div>`;
   }
 
@@ -930,9 +930,9 @@ export class NetMenus {
           ${sw('thirdPerson', 'Außenansicht (Fahrzeuge)', '3P-Kamera in Fahrzeugen erlaubt', s.thirdPerson !== false)}
           ${seg('vehReload', [['manuell', 'Manuell', 'Ladeschütze lädt von Hand'], ['automatisch', 'Automatisch', 'Nachladen nach Zeit']], s.vehReload === 'automatisch' ? 'automatisch' : 'manuell', 'Panzer nachladen')}
         </div>` : ''}
-        ${s.mode === 'messer' ? `<div class="nr-two">
-          ${sw('cheatMenu', 'Cheat-Menü (Nur Messer)', s.cheatMenu === false ? 'Verboten: das Menü öffnet sich bei niemandem' : 'Erlaubt: wer es nutzt, trägt ein Symbol in der Punktetabelle', s.cheatMenu !== false)}
-        </div>` : ''}
+        <div class="nr-two">
+          ${sw('cheatMenu', 'Cheat-Menü', s.cheatMenu === false ? 'Verboten: das Menü öffnet sich bei niemandem' : 'Erlaubt (alle Modi): wer es nutzt, trägt ein Symbol in der Punktetabelle', s.cheatMenu !== false)}
+        </div>
         <div class="nr-field nr-namefield">
           <h3 class="nr-lab">Raumname</h3>
           <input type="text" class="m-input" data-room-name data-fk="room-name" maxlength="24" spellcheck="false" aria-label="Raumname" value="${esc(s.name || '')}">
