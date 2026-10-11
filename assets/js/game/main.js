@@ -1,3 +1,5 @@
+/* NULLPUNKT – © 2026 German Legend. Alle Rechte vorbehalten. Nutzung, Kopie oder Übernahme nur mit vorheriger
+ * schriftlicher Erlaubnis (Discord German_Legend_26201, legendgerman749@gmail.com). Siehe LICENSE. */
 // NULLPUNKT — Spielstart, Spielschleife und Match-Lebenszyklus (§2).
 //
 // Lebenszyklus (ohne Neuladen der Seite, ohne Lecks):

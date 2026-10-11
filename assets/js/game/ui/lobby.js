@@ -224,6 +224,7 @@ export class Lobby {
           </aside>
         </div>
         <footer class="lb-foot">
+          <small class="lb-copy">© 2026 German Legend · Alle Rechte vorbehalten</small>
           <div class="lb-summary"></div>
           <button type="button" class="m-btn m-primary lb-start" data-act="start">${ICON.play}<span>Einsatz starten<em>.</em></span></button>
         </footer>

@@ -1,0 +1,37 @@
+NULLPUNKT
+Copyright (c) 2026 German Legend. Alle Rechte vorbehalten. / All rights reserved.
+
+Kontakt / Contact: Discord German_Legend_26201 · legendgerman749@gmail.com
+
+DEUTSCH
+
+Sämtliche Rechte an NULLPUNKT liegen bei German Legend. Das umfasst insbesondere den Quellcode, Karten, Modelle,
+Grafiken, Texturen, Klänge, Texte, die Spielidee, das Konzept, Spielmodi, Spielmechaniken, Waffen, Fahrzeuge und Namen.
+
+Es wird keine Lizenz erteilt. Ohne vorherige schriftliche Erlaubnis von German Legend ist es nicht gestattet,
+NULLPUNKT oder Teile davon zu kopieren, zu vervielfältigen, weiterzugeben, öffentlich zugänglich zu machen, zu verändern,
+zu bearbeiten, nachzubauen, in andere Projekte zu übernehmen oder gewerblich zu nutzen.
+
+Erlaubt ist, das Spiel auf der offiziellen Seite (https://germanclaude.github.io/FreeGames-Website/) im Browser zu spielen
+sowie Screenshots, Videos und Streams vom Spiel zu zeigen, wenn „NULLPUNKT von German Legend“ genannt wird.
+
+Dass der Quellcode auf GitHub öffentlich einsehbar ist, bedeutet keine Erlaubnis, ihn zu verwenden. Die durch die
+Nutzungsbedingungen von GitHub zwingend eingeräumten Rechte (Ansehen und Forken innerhalb von GitHub) bleiben unberührt;
+darüber hinaus werden keine Rechte eingeräumt.
+
+Bei Verstößen behält sich German Legend rechtliche Schritte vor, insbesondere Unterlassung, Beseitigung und
+Schadensersatz. Es gilt deutsches Recht.
+
+Ausgenommen sind eingebundene Fremdbestandteile, die unter ihren eigenen Lizenzen stehen:
+- three.js: MIT-Lizenz (assets/vendor/three/LICENSE)
+- Schriften Archivo, JetBrains Mono, Rajdhani: SIL Open Font License 1.1 (assets/fonts/OFL-*.txt)
+- Texturen, HDRIs und Modelle von Poly Haven und ambientCG: CC0 1.0 (siehe CREDITS.md)
+
+ENGLISH (short version)
+
+All rights to NULLPUNKT, including its code, maps, models, graphics, textures, sounds, texts, game concept, modes,
+mechanics and names, are reserved by German Legend. No license is granted. Copying, redistributing, publishing,
+modifying, recreating, incorporating into other projects or any commercial use requires prior written permission.
+Playing the game on the official site and sharing screenshots, videos and streams with credit
+("NULLPUNKT by German Legend") is permitted. Public visibility of the source code on GitHub grants no further rights
+beyond those GitHub's Terms of Service require. Third-party components listed above remain under their own licenses.

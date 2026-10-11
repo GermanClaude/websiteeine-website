@@ -123,6 +123,8 @@ node tools/shot.mjs http://localhost:8765/index.html tools/out/site.png --mobile
 
 ## Rechte
 
+Vollständiger Text: [`LICENSE`](LICENSE). Nutzungsbedingungen auch auf der Startseite unter „Über“.
+
 © 2026 German Legend (Discord: `German_Legend_26201`, E-Mail: legendgerman749@gmail.com). Alle Rechte vorbehalten.
 Spielidee, Konzept, Spielmodi, Spielmechaniken, Karten, Modelle, Grafiken, Texte und Code von NULLPUNKT liegen bei German Legend.
 Wer Inhalte, Ideen, Mechaniken oder sonstige Teile übernehmen, kopieren, verändern oder weiterverwenden möchte, muss vorher um

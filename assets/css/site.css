@@ -983,6 +983,9 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .impressum { margin-bottom: 40px; }
 .impressum p, .impressum address { font-style: normal; font-size: var(--fs-small); line-height: 1.6; }
 .rights p + p { margin-top: 10px; }
+.rights + .rights { margin-top: 28px; }
+.rights-list { margin: 8px 0 10px 1.1em; padding: 0; font-size: var(--fs-small); line-height: 1.6; list-style: square; }
+.rights-list li + li { margin-top: 4px; }
 .rights code { font-size: .95em; }
 .dlg-text { max-width: 44ch; margin: 16px 0 24px; }
 .dlg-actions { display: flex; justify-content: flex-end; gap: 24px; align-items: center; }
