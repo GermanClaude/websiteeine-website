@@ -109,8 +109,12 @@ export function spaceLocal(vehicle, space, pos, outPos, outQuat) {
 }
 
 /** Kamera-Anker einer Sicht in Weltkoordinaten (Darstellungslage) + Ausrichtung des Raums. */
+const _shift = [0, 0, 0];
 export function viewAnchor(vehicle, view, outPos, outQuat = null) {
-  spaceLocal(vehicle, view.space || 'hull', view.pos || [0, 1.6, 0], _p, outQuat);
+  let pos = view.pos || [0, 1.6, 0];
+  // Ladeschütze im Turm (Nutzer 11.10.): geht zum Gestell bzw. zum Verschluss (vehicle._loaderShift −1 … +1)
+  if (view.interior && vehicle._loaderShift) { _shift[0] = pos[0] - 0.12 * Math.abs(vehicle._loaderShift); _shift[1] = pos[1] - 0.04 * Math.abs(vehicle._loaderShift); _shift[2] = pos[2] + 0.42 * vehicle._loaderShift; pos = _shift; }
+  spaceLocal(vehicle, view.space || 'hull', pos, _p, outQuat);
   if (outQuat) outQuat.premultiply(vehicle.body.renderQuat);
   return vehicle.body.toWorldRender(_p, outPos);
 }

@@ -18,7 +18,8 @@ const BUDGET = {
   mbt: { medium: [11000, 4000, 1000], high: [18000, 5000, 1000], ultra: [18000, 5000, 1000] },
   jeep: { medium: [10000, 2500, 1300], high: [10000, 2500, 1300], ultra: [10000, 2500, 1300] },
 };
-const EXTRA = { low: { hatches: 300, interior: 600 }, medium: { hatches: 450, interior: 1500 }, high: { hatches: 450, interior: 3000 }, ultra: { hatches: 450, interior: 3000 } };
+// Innenraum: seit 11.10. auch auf „low“ mindestens mittlere Detailstufe + Ausstattung und Arme (sieht nur der Ladeschütze)
+const EXTRA = { low: { hatches: 300, interior: 2100 }, medium: { hatches: 450, interior: 2100 }, high: { hatches: 450, interior: 3300 }, ultra: { hatches: 450, interior: 3300 } };
 // Draw Calls (Nahstufe, ohne Schattenpass) vor der Detaillierung – höchstens +4
 const BASE_CALLS = { mbt: { low: 19, high: 22 }, jeep: { low: 23, high: 26 } };
 

@@ -27,6 +27,7 @@ const LOD_DIST = { low: [0, 18, 50], medium: [0, 28, 75], high: [0, 40, 110], ul
 let HQ = true;
 /** Detailstufe der Vorlage: 0 = low (Bestand), 1 = medium, 2 = high/ultra (Budget panzer-mp.md §D.3). */
 let DET = 2;
+const detNow = () => DET;
 /** Optisch 7 Laufrollen je Seite (ab medium) – die Federung rechnet weiter mit den 5 Federstrahlen aus data.js. */
 const ROAD7 = [-2.65, -1.767, -0.883, 0, 0.883, 1.767, 2.65];
 
@@ -139,6 +140,18 @@ class Bucket {
 }
 
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+// Ladeschützen-Arm (Ärmel + Handschuh) von elbow nach hand (lokale Punkte), in einen Bucket
+const _aq = new THREE.Quaternion(), _ae = new THREE.Euler(), _ad = new THREE.Vector3(), _aY = new THREE.Vector3(0, 1, 0);
+function loaderArm(B, S, elbow, hand, r = 0.045) {
+  _ad.set(hand[0] - elbow[0], hand[1] - elbow[1], hand[2] - elbow[2]);
+  const len = _ad.length();
+  _ae.setFromQuaternion(_aq.setFromUnitVectors(_aY, _ad.normalize()));
+  const mid = [(hand[0] + elbow[0]) / 2, (hand[1] + elbow[1]) / 2, (hand[2] + elbow[2]) / 2];
+  B.add(new THREE.CylinderGeometry(r * 0.85, r, len, 8), S.sleeve, mid, [_ae.x, _ae.y, _ae.z]);
+  B.add(new THREE.CylinderGeometry(r * 0.78, r * 0.78, 0.05, 8), S.rubber, [hand[0] - _ad.x * 0.05, hand[1] - _ad.y * 0.05, hand[2] - _ad.z * 0.05], [_ae.x, _ae.y, _ae.z]); // Bündchen
+  B.add(box(0.075, 0.035, 0.1), S.rubber, hand, [_ae.x, _ae.y, _ae.z]);                                // Handschuh
+  B.add(box(0.07, 0.022, 0.05), S.rubber, [hand[0] + _ad.x * 0.06, hand[1] + _ad.y * 0.06 + 0.012, hand[2] + _ad.z * 0.06], [_ae.x, _ae.y, _ae.z]); // Finger
+}
 const cyl = (r1, r2, h, seg, open = false) => new THREE.CylinderGeometry(r1, r2, h, Math.max(3, seg | 0), 1, open);
 
 /** Seitenprofil (u = vorwärts, y) als Extrusion entlang X (Breite w, mittig). */
@@ -880,6 +893,7 @@ function shellGeometry(type, n, { full = false, band = true, body = true } = {})
  * Keil als eigene Gruppe am Rohr. Alles unsichtbar, keine Schatten.
  */
 function buildInterior(S, D) {
+  const DET = Math.max(detNow(), 1); // Innenraum sieht nur der Ladeschütze aus der Nähe: mindestens mittlere Stufe
   const I = Object.assign({}, INTERIOR_DEF, D.interior || {});
   const ammo = Object.assign({ mbt_ap: 22, mbt_he: 18 }, D.ammo || {});
   const n = DET === 2 ? 8 : DET === 1 ? 6 : 5;
@@ -913,6 +927,18 @@ function buildInterior(S, D) {
     B.add(box(0.03, 0.03, 0.26), S.dark, [x, 0.67, z]);
     if (DET === 2) for (const dz of [-0.12, 0.12]) B.add(box(0.025, 0.07, 0.025), S.dark, [x, 0.715, z + dz]);
   }
+  // mehr Ausstattung (Nutzer 11.10.): Leitungen, Kabelkanäle, Feuerlöscher, Ladeschützensitz, Winkelspiegel, Kästen
+  for (const [x, y, z, l, ry] of [[-1.15, 0.62, -0.2, 1.9, 0], [1.16, 0.6, -0.3, 1.7, 0], [0, 0.7, -0.95, 1.6, Math.PI / 2], [0.4, 0.69, 0.9, 1.2, Math.PI / 2]]) {
+    B.add(cyl(0.018, 0.018, l, 6), S.steel, [x, y, z], [Math.PI / 2, ry, 0]);
+    B.add(cyl(0.012, 0.012, l, 5), S.rubber, [x, y - 0.04, z], [Math.PI / 2, ry, 0]);
+  }
+  B.add(cyl(0.065, 0.065, 0.42, 12), S.red, [1.1, 0.33, 0.95]);                      // Feuerlöscher
+  B.add(cyl(0.03, 0.04, 0.08, 8), S.dark, [1.1, 0.58, 0.95]);
+  B.add(box(0.38, 0.05, 0.34), S.canvas, [0.6, 0.28, 0.55]); B.add(box(0.06, 0.25, 0.06), S.steel, [0.6, 0.14, 0.55]); // Sitz
+  B.add(box(0.36, 0.3, 0.05), S.canvas, [0.6, 0.45, 0.76], [-0.15, 0, 0]);
+  for (const [x, z, ry] of [[0.65, 0.2, 0.3], [0.85, 0.75, -0.6], [-0.65, -0.5, 0.2]]) B.add(box(0.16, 0.12, 0.1), S.dark, [x, 0.66, z], [0, ry, 0]); // Winkelspiegel
+  for (const [x, z, w, d] of [[-1.05, 0.1, 0.22, 0.4], [-0.95, -0.6, 0.3, 0.25], [1.05, -0.6, 0.25, 0.3]]) { B.add(box(w, 0.2, d), S.dark, [x, 0.28, z]); B.add(box(w * 0.6, 0.03, 0.02), S.lensOn, [x, 0.36, z + d / 2 + 0.005]); } // Kästen mit Anzeige
+  for (let i = 0; i < 6; i++) B.add(box(0.02, 0.012, 0.012), i % 2 ? S.lensOn : S.rubber, [-1.13, 0.5 + (i % 3) * 0.035, 0.85 + Math.floor(i / 3) * 0.05]); // Funkgerät-Lämpchen
   B.build(grp, { shadow: false });
   // Granaten im Gestell: Spalten von links (PG) nach rechts (SG), je Spalte von unten nach oben
   const rows = DET === 0 ? 3 : 4, cols = DET === 0 ? 8 : 10;
@@ -942,18 +968,45 @@ function buildInterior(S, D) {
   held.name = 'held';
   held.visible = false;
   const eye = I.loaderEye;
-  held.position.set(eye[0] - 0.12, eye[1] - 0.36, eye[2] - 0.15);
-  held.rotation.set(-0.12, 0.08, 0);
+  // Tragehaltung: schräg vor der Brust, ganz im unteren Bildteil (Spitze vorn links, Boden rechts hinten)
+  held.position.set(eye[0] + 0.02, eye[1] - 0.27, eye[2] - 0.62);
+  held.rotation.set(-0.12, 0.62, 0);
   for (const type of ['mbt_ap', 'mbt_he']) {
     const g = shellGeometry(type, n, { full: true, band: DET > 0 });
-    g.translate(0, 0, 0.4);
+    g.computeBoundingBox();
+    g.translate(0, 0, -(g.boundingBox.min.z + g.boundingBox.max.z) / 2); // Ursprung = Granatenmitte
     g.computeBoundingSphere();
     const m = new THREE.Mesh(g, S.shell);
     m.name = `held:${type}`;
     m.castShadow = false; m.receiveShadow = false;
     held.add(m);
   }
+  // Arme halten die Granate (sichtbar mit ihr; Nutzer 11.10.: „die Granate wirklich in die Hand nehmen“)
+  const arms = new THREE.Group();
+  arms.name = 'arms';
+  const AB = new Bucket();
+  loaderArm(AB, S, [-0.3, -0.14, 0.15], [-0.05, -0.06, -0.2]);   // linke Hand vorn unter der Granate
+  loaderArm(AB, S, [0.3, -0.12, 0.55], [0.05, -0.05, 0.28]);      // rechte Hand am Boden
+  AB.build(arms, { shadow: false });
+  held.add(arms);
+  held.userData.home = { rx: held.rotation.x, ry: held.rotation.y, eye: eye.slice(), off: [0.02, -0.27, -0.62] }; // nur Zahlen: userData wird beim Klonen als JSON kopiert
   grp.add(held);
+  // Freie rechte Hand zum Schließen des Keils
+  const push = new THREE.Group();
+  push.name = 'pushArm';
+  push.visible = false;
+  const PB = new Bucket();
+  loaderArm(PB, S, [0.16, -0.18, 0.36], [0, 0, 0]);
+  PB.build(push, { shadow: false });
+  grp.add(push);
+  // Gestell-Mitte je Sorte (Start der Greif-Bewegung)
+  grp.userData.rackPos = {};
+  for (const type of ['mbt_ap', 'mbt_he']) {
+    const list = sets[type];
+    if (!list.length) continue;
+    const c = list.reduce((a, q) => [a[0] + q[0], a[1] + q[1], a[2] + q[2]], [0, 0, 0]).map((v) => v / list.length);
+    grp.userData.rackPos[type] = c;
+  }
   grp.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
 
   // Verschluss (Kind des Rohrs, folgt der Rohrerhöhung): Bodenstück, Keil (fährt nach unten), Rücklaufschutz
@@ -1187,7 +1240,50 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
   model.setHeld = (type) => {
     if (!held) return;
     held.visible = !!type;
-    for (const c of held.children) c.visible = c.name === `held:${type}`;
+    for (const c of held.children) c.visible = c.name === 'arms' || c.name === `held:${type}`;
+  };
+  // Lade-Ablauf (vehicle._syncCrew): kind 'greifen' | 'einschieben' | 'schliessen' | null, t 0…1, type Sorte
+  const pushArm = model.interior ? model.interior.getObjectByName('pushArm') : null;
+  const _lv = new THREE.Vector3(), _lh = new THREE.Vector3();
+  const ease = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+  const _home = new THREE.Vector3();
+  model.setLoadAnim = (kind, t, type, shift = 0, yaw = 0) => {
+    if (!held || !held.userData.home || !model.interior) return;
+    const H = held.userData.home, I = model.interior;
+    // Tragehaltung vor der Kamera: Auge (mit Schritt im Turm, views.js viewAnchor) + Versatz in Blickrichtung (Gier im Turm)
+    const ex = H.eye[0] - 0.12 * Math.abs(shift), ey = H.eye[1] - 0.04 * Math.abs(shift), ez = H.eye[2] + 0.42 * shift;
+    const c = Math.cos(yaw), sn = Math.sin(yaw), o = H.off;
+    _home.set(ex + o[0] * c + o[2] * sn, ey + o[1], ez - o[0] * sn + o[2] * c);
+    const homeRotY = yaw + H.ry;
+    if (pushArm) pushArm.visible = false;
+    held.position.copy(_home); held.rotation.set(H.rx, homeRotY, 0);
+    if (!kind) return;
+    if (kind === 'greifen') {
+      const rp = I.userData.rackPos && I.userData.rackPos[type];
+      held.visible = true;
+      for (const c of held.children) c.visible = c.name === 'arms' || c.name === `held:${type}`;
+      if (rp) {
+        const e = ease(t);
+        _lv.set(rp[0], rp[1], rp[2] - 0.55);
+        held.position.lerpVectors(_lv, _home, e);
+        held.rotation.y = Math.PI + (homeRotY - Math.PI) * ease((t - 0.25) / 0.75); // Spitze zeigt im Gestell zum Ladeschützen
+        held.rotation.x = H.rx * e;
+      }
+    } else if (kind === 'einschieben' && model.breech) {
+      model.breech.getWorldPosition(_lv); I.worldToLocal(_lv);
+      _lv.z += 0.72;                                       // Granatenmitte vor der Ladeöffnung (Spitze an der Öffnung)
+      if (t < 0.55) held.position.lerpVectors(_home, _lv, ease(t / 0.55));
+      else { held.position.copy(_lv); held.position.z -= 0.95 * ease((t - 0.55) / 0.45); } // ins Rohr schieben
+      held.rotation.set(H.rx * (1 - ease(t / 0.55)), homeRotY * (1 - ease(t / 0.55)), 0);
+    } else if (kind === 'schliessen' && model.breech && pushArm) {
+      model.breech.getWorldPosition(_lh); I.worldToLocal(_lh);
+      _lh.x += 0.16; _lh.y += 0.12; _lh.z += 0.3;          // Griff am Keil
+      _lv.set(_home.x + 0.15, _home.y + 0.05, _home.z + 0.2);
+      pushArm.visible = true;
+      const e = ease(Math.min(1, t * 2));
+      pushArm.position.lerpVectors(_lv, _lh, e);
+      if (t > 0.5) pushArm.position.y += 0.18 * ease((t - 0.5) * 2);  // Keil hochdrücken
+    }
   };
   model.dispose = () => {
     root.removeFromParent();

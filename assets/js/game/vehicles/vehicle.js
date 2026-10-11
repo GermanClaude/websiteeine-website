@@ -656,6 +656,18 @@ export class Vehicle {
     if (st.sightHidden !== sight) { st.sightHidden = sight; if (M.root) M.root.visible = !sight; }
     const g = this.gun;
     if (!g) return;
+    // Ladeschütze: Schritt zum Gestell (Blick nach hinten) bzw. zum Verschluss (nach vorn), weich
+    if (inside) {
+      const ls = this.seats.find((x) => x.def.loader && x.actor === p);
+      const ry = ls ? ls.look.relYaw || 0 : 0;
+      this._loaderYaw = ry;
+      const want = Math.abs(ry) > 1.9 ? 0.5 : Math.abs(ry) < 0.9 ? -0.55 : 0;
+      this._loaderShift = (this._loaderShift || 0) + (want - (this._loaderShift || 0)) * Math.min(1, dt * 4);
+    } else this._loaderShift = 0;
+    // Lade-Ablauf sichtbar (Arme, Granate wandert Gestell → Hände → Verschluss, Hand schließt den Keil)
+    const busyK = g.busy > 0 ? g.busyKind : null;
+    const prog = busyK && g._busyMax > 0 ? 1 - g.busy / g._busyMax : 0;
+    if (inside || st.anim) { st.anim = busyK; M.setLoadAnim?.(busyK, prog, g.held || g.select, this._loaderShift || 0, this._loaderYaw || 0); }
     const bw = g.breechOpen ? 1 : 0;
     st.breech = st.breech == null ? bw : bw > st.breech ? Math.min(1, st.breech + dt * 4) : Math.max(0, st.breech - dt * 4);
     if (st.breechSent !== st.breech) { st.breechSent = st.breech; M.setBreech?.(st.breech); }

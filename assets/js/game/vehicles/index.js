@@ -100,6 +100,9 @@ export class VehicleSystem {
       ev.on('actor:spawn', (e) => { if (e && e.actor && e.actor.vehicle) this.removeFromSeat(e.actor, { teleport: false }); }),
       ev.on('vehicle:damaged', (e) => { if (e.vehicle === (G.player && G.player.vehicle) && e.kind !== 'fire') this.hud && this.hud.damaged(); }),
       ev.on('vehicle:hit', (e) => { if (e.attacker && e.attacker === G.player) this.hud && this.hud.hit(); }),
+      // Ladeklänge (Greifen, Einschieben, Keil, Sortenwechsel, geladen): im eigenen Turm laut, daneben leise
+      ev.on('vehicle:load', (e) => this._loadSound(e && e.vehicle, e && e.step)),
+      ev.on('vehicle:loaded', (e) => this._loadSound(e && e.vehicle, 'geladen')),
     ];
     try { this.hud = new VehicleHUD(G); } catch (err) { this.hud = null; console.warn('[vehicles] HUD nicht verfügbar', err); }
     this.camera.reset();
@@ -138,6 +141,15 @@ export class VehicleSystem {
       }
       this.group.add(warm);
     }
+  }
+
+  _loadSound(v, step) {
+    if (!v || !['greifen', 'einschieben', 'schliessen', 'munition', 'geladen'].includes(step)) return;
+    const p = this.G.player;
+    const own = p && p.vehicle === v;
+    const d = p && v.body ? v.body.pos.distanceTo(p.position) : 99;
+    if (!own && d > 14) return;
+    this.audio.loadSound(step, own ? 1 : 0.25);
   }
 
   detach() {

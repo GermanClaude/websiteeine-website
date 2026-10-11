@@ -153,6 +153,57 @@ export class VehicleAudio {
     try { return A.play(name, opts); } catch { return null; }
   }
 
+  /**
+   * Ladeklänge im Turm (Nutzer 11.10.), live synthetisiert: 'greifen' (Granate aus dem Gestell: Schaben + Klacken),
+   * 'einschieben' (Gleiten ins Rohr + dumpfer Anschlag), 'schliessen' (Keil fährt zu: metallisches Klirren), 'munition'
+   * (Umschalten: Klicken), 'geladen' (Bereit-Klacken). vol: 1 im eigenen Turm, leiser für Nachbarn.
+   */
+  loadSound(kind, vol = 1) {
+    const dest = this._dest();
+    if (!dest) return;
+    const ctx = this._ctx, t0 = ctx.currentTime, out = ctx.createGain();
+    out.gain.value = 0.55 * vol;
+    out.connect(dest);
+    const burst = (at, dur, f, q, g, type = 'bandpass') => {
+      const n = ctx.createBufferSource(); n.buffer = this._noise;
+      const bf = ctx.createBiquadFilter(); bf.type = type; bf.frequency.value = f; bf.Q.value = q;
+      const gg = ctx.createGain(); gg.gain.setValueAtTime(0, t0 + at); gg.gain.linearRampToValueAtTime(g, t0 + at + 0.008); gg.gain.exponentialRampToValueAtTime(0.0008, t0 + at + dur);
+      n.connect(bf); bf.connect(gg); gg.connect(out);
+      n.start(t0 + at, Math.random() * 1.5); n.stop(t0 + at + dur + 0.05);
+    };
+    const ring = (at, freqs, dur, g) => {
+      for (const [f, k] of freqs) {
+        const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f * (0.98 + Math.random() * 0.04);
+        const gg = ctx.createGain(); gg.gain.setValueAtTime(0, t0 + at); gg.gain.linearRampToValueAtTime(g * k, t0 + at + 0.004); gg.gain.exponentialRampToValueAtTime(0.0006, t0 + at + dur * k);
+        o.connect(gg); gg.connect(out); o.start(t0 + at); o.stop(t0 + at + dur + 0.05);
+      }
+    };
+    const thump = (at, f, dur, g) => {
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(f * 1.8, t0 + at); o.frequency.exponentialRampToValueAtTime(f, t0 + at + 0.06);
+      const gg = ctx.createGain(); gg.gain.setValueAtTime(0, t0 + at); gg.gain.linearRampToValueAtTime(g, t0 + at + 0.005); gg.gain.exponentialRampToValueAtTime(0.0008, t0 + at + dur);
+      o.connect(gg); gg.connect(out); o.start(t0 + at); o.stop(t0 + at + dur + 0.05);
+    };
+    if (kind === 'greifen') {
+      burst(0, 0.12, 2400, 3, 0.35);                 // Riegel des Gestells
+      burst(0.08, 0.45, 900, 1.2, 0.22);             // Hülse schabt aus dem Rohr
+      thump(0.5, 70, 0.25, 0.5); ring(0.5, [[620, 1], [1580, 0.6]], 0.35, 0.12);
+    } else if (kind === 'einschieben') {
+      burst(0, 0.5, 600, 0.9, 0.25, 'lowpass');      // Gleiten
+      burst(0.1, 0.4, 1800, 2, 0.12);
+      thump(0.52, 55, 0.4, 0.9); ring(0.52, [[340, 1], [910, 0.7], [2210, 0.35]], 0.5, 0.2); burst(0.52, 0.12, 3000, 2, 0.4);
+    } else if (kind === 'schliessen') {
+      burst(0, 0.08, 4200, 4, 0.35);                 // Hebel
+      thump(0.06, 80, 0.3, 0.8);
+      ring(0.06, [[430, 1], [1130, 0.75], [2350, 0.45], [3720, 0.25]], 0.7, 0.24);
+      burst(0.06, 0.1, 2600, 2, 0.5);
+    } else if (kind === 'munition') {
+      burst(0, 0.05, 3500, 5, 0.3); burst(0.07, 0.05, 2800, 5, 0.25);
+    } else if (kind === 'geladen') {
+      burst(0, 0.06, 3000, 4, 0.3); ring(0.02, [[880, 1]], 0.15, 0.05);
+    }
+    setTimeout(() => { try { out.disconnect(); } catch { /* */ } }, 2000);
+  }
+
   stopAll() {
     for (const voice of this.voices.values()) voice.stop();
     this.voices.clear();
