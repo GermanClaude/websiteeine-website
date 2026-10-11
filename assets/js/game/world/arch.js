@@ -14,8 +14,19 @@ export function wall(b, o) {
   if (L < 0.01) return;
   const ux = dx / L, uz = dz / L, ry = Math.atan2(-dz, dx);
   const common = { ry, tint: o.tint, interior: o.interior, aoFloor: o.aoFloor ?? y, grad: o.grad, minimap: o.minimap ?? 'wall', uv: o.uv };
+  // destructible: Wand aus Paneelen (≈ 1,5 m), die Explosionen und schwere Treffer herausbrechen (game/destruction.js)
+  const wid = o.destructible ? (b._destrWall = (b._destrWall || 0) + 1) : 0;
   const seg = (s0, s1, yy, hh, extra = {}) => {
     if (s1 - s0 < 0.005 || hh < 0.005) return;
+    if (wid) {
+      const nc = Math.max(1, Math.round((s1 - s0) / 1.5)), nr = Math.max(1, Math.round(hh / 1.5));
+      const cw = (s1 - s0) / nc, rh = hh / nr;
+      for (let ci = 0; ci < nc; ci++) for (let ri = 0; ri < nr; ri++) {
+        const c = s0 + (ci + 0.5) * cw;
+        b.box(x0 + ux * c, yy + ri * rh, z0 + uz * c, cw, rh, t, mat, { ...common, ...extra, uv: 'world', destructible: { wall: wid, col: Math.round((s0 + ci * cw) * 10), row: Math.round((yy - y + ri * rh) * 10) } });
+      }
+      return;
+    }
     const c = (s0 + s1) / 2;
     b.box(x0 + ux * c, yy, z0 + uz * c, s1 - s0, hh, t, mat, { ...common, ...extra });
   };
@@ -33,7 +44,7 @@ export function wall(b, o) {
   }
   seg(s, L, y, h);
   // Gesims/Abschluss oben (unterbrochen an Öffnungen bis zur Oberkante, z. B. Brüstungslücken)
-  if (o.cap) {
+  if (o.cap && !wid) { // zerstörbare Wand: ohne Abdeckung (sie bliebe sonst in der Luft hängen)
     const ch = o.cap.h ?? 0.12, ov = o.cap.over ?? 0.06;
     const cuts = ops.filter(op => (op.sill ?? (op.kind === 'window' ? 0.95 : 0)) + op.h >= h - 0.005).map(op => [op.at - op.w / 2, op.at + op.w / 2]);
     let c0 = -ov;
@@ -45,7 +56,7 @@ export function wall(b, o) {
     capSeg(c0, L + ov);
   }
   // Sockel
-  if (o.plinth) {
+  if (o.plinth && !wid) {
     const ph = o.plinth.h ?? 0.45, ov = o.plinth.over ?? 0.03;
     let s2 = 0;
     for (const op of ops) {

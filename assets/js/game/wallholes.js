@@ -8,7 +8,7 @@ import * as THREE from 'three';
 const CELL = 0.3;
 const MAX_HOLES = 80;
 // Beschädigung bis zum ersten Loch je Oberfläche (Treffer zählen Schaden × (0,3 + Durchschlag) der Waffe)
-const THRESHOLD = { wood: 110, glass: 30, metal: 380, tile: 300, plaster: 260, concrete: 1300, dirt: 700, sand: 650 };
+const THRESHOLD = { wood: 110, glass: 30, metal: 380, tile: 300, plaster: 260, concrete: 1300, dirt: 700, sand: 650, vehicle: 60 };
 
 let MAT = null;
 let GEO = null;

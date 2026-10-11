@@ -42,6 +42,7 @@ const SURF = {
   tile: { dust: lin('#d4ccbe'), chip: lin('#9c907f'), decal: [DECAL.PLASTER], size: 0.18, kind: 'hard' },
   plaster: { dust: lin('#e8decd'), chip: lin('#c9bca6'), decal: [DECAL.PLASTER], size: 0.2, kind: 'hard' },
   metal: { dust: lin('#8b8b88'), chip: lin('#55585d'), decal: [DECAL.METAL], size: 0.12, kind: 'metal' },
+  vehicle: { dust: lin('#8b8b88'), chip: lin('#55585d'), decal: [DECAL.METAL], size: 0.11, kind: 'metal' },
   wood: { dust: lin('#b39672'), chip: lin('#6c4d30'), decal: [DECAL.WOOD], size: 0.15, kind: 'wood' },
   dirt: { dust: lin('#86705a'), chip: lin('#46372a'), decal: [DECAL.SOFT], size: 0.24, kind: 'soft' },
   grass: { dust: lin('#7a7556'), chip: lin('#3d4729'), decal: [DECAL.SOFT], size: 0.22, kind: 'soft' },
@@ -292,6 +293,26 @@ export class Effects {
    * Einschlag auf einer Oberfläche (öffentlich).
    * opts: { melee (kein Loch), penetrated, weaponId, scale }
    */
+  /** Herausbrechendes Wandstück (game/destruction.js): große Staubwolke, Brocken fallen beidseitig herunter. */
+  rubble(point, normal, surface = 'concrete', size = 1.5) {
+    if (!this._built || !this._subs) return;
+    const S = SURF[surface] || SURF.concrete;
+    const lod = this._lod(point.x, point.y, point.z);
+    if (lod <= 0) return;
+    const n = Math.round((lod >= 2 ? 14 : 7) * Math.min(1.6, size));
+    for (let i = 0; i < n; i++) {
+      const side = i % 2 ? 1 : -1, ox = rnd(-0.5, 0.5) * size, oy = rnd(-0.5, 0.5) * size;
+      this._puff(point.x + ox * normal.z, point.y + oy, point.z - ox * normal.x, normal.x * side * rnd(0.6, 1.8), rnd(0.1, 0.9), normal.z * side * rnd(0.6, 1.8),
+        rnd(1.2, 2.4), 0.3 * size, rnd(1.2, 2.2) * size, i % 3 ? S.dust : S.dustDark, 0.85, 1.6, 0.15);
+    }
+    const nc = (lod >= 2 ? 22 : 10);
+    for (let i = 0; i < nc; i++) {
+      const side = i % 2 ? 1 : -1;
+      this._chip(point.x + rnd(-0.5, 0.5) * size * normal.z, point.y + rnd(-0.5, 0.5) * size, point.z - rnd(-0.5, 0.5) * size * normal.x,
+        normal.x * side * rnd(0.5, 3) + rnd(-1, 1), rnd(0, 3), normal.z * side * rnd(0.5, 3) + rnd(-1, 1), rnd(1.4, 2.6), rnd(0.04, 0.12), S.chip, 14);
+    }
+  }
+
   impact(point, normal, surface = 'concrete', opts = {}) {
     if (!this._built || !this._subs) return;
     this.stats.impacts++;

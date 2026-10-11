@@ -1074,8 +1074,8 @@ function halle9(b) {
 function tankBund(b, x, z, label, s) {
   const hw = 6, hd = 5.6, h = 1.1;
   const zs = [z - hd, z + hd];
-  for (const zz of zs) wall(b, { x0: x - hw, z0: zz, x1: x + hw, z1: zz, h, t: 0.35, mat: 'concrete', tint: '#9a968e', minimap: 'cover', openings: [{ at: 3.0, w: 2.0, h: 2, kind: 'gap', frame: false }, { at: 9.0, w: 2.0, h: 2, kind: 'gap', frame: false }] });
-  for (const xx of [x - hw, x + hw]) wall(b, { x0: xx, z0: z - hd, x1: xx, z1: z + hd, h, t: 0.35, mat: 'concrete', tint: '#9a968e', minimap: 'cover', openings: [{ at: hd, w: 2.2, h: 2, kind: 'gap', frame: false }] });
+  for (const zz of zs) wall(b, { x0: x - hw, z0: zz, x1: x + hw, z1: zz, h, t: 0.35, mat: 'concrete', tint: '#9a968e', minimap: 'cover', destructible: true, openings: [{ at: 3.0, w: 2.0, h: 2, kind: 'gap', frame: false }, { at: 9.0, w: 2.0, h: 2, kind: 'gap', frame: false }] });
+  for (const xx of [x - hw, x + hw]) wall(b, { x0: xx, z0: z - hd, x1: xx, z1: z + hd, h, t: 0.35, mat: 'concrete', tint: '#9a968e', minimap: 'cover', destructible: true, openings: [{ at: hd, w: 2.2, h: 2, kind: 'gap', frame: false }] });
   tank(b, x, z, { r: 3.6, h: 8.5, legs: 0.4, tint: '#c8c4bc' });
   // Beschriftung schmaler (ebene Tafel an runder Wand: bei 3,2 m standen die Ränder 0,37 m vom Tank ab)
   b.sign(x, 4.8, z + s * 3.605, 1.5, 0.62, label, { ry: s > 0 ? 0 : Math.PI, back: false, depth: 0 });

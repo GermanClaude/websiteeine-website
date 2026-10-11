@@ -21,7 +21,7 @@ export const PROBE_TIERS = Object.freeze({
 });
 
 /** Schallabsorption je Oberfläche (Index wie builder.SURFACES). */
-const ABSORB = [0.05, 0.04, 0.18, 0.35, 0.4, 0.5, 0.03, 0.02, 0.03, 0.6, 0.5];
+const ABSORB = [0.05, 0.04, 0.18, 0.35, 0.4, 0.5, 0.03, 0.02, 0.03, 0.6, 0.5, 0.04];
 const GLASS = 6;
 const MAX_D = 40;          // Strahlenreichweite (m) – darüber „frei“ (Akustik: spätere Reflexionen zählen kaum)
 const B_SCALE = 0.5;       // Rückprall-Codierung: gespeichert sqrt(B / B_SCALE), B in Anteilen der Sonnenbestrahlung

@@ -6,10 +6,10 @@ import { createDecalMaterials, createSignAtlas, createFoliage, DECAL_CELLS, DECA
 import { PropInstances, placementMatrix, forEachBulletTri, MODEL_SURFACE } from './libprops.js';
 import { assets } from '../../../lib/loader.js';
 
-export const SURFACES = ['concrete', 'metal', 'wood', 'dirt', 'sand', 'grass', 'glass', 'water', 'tile', 'fabric', 'flesh'];
+export const SURFACES = ['concrete', 'metal', 'wood', 'dirt', 'sand', 'grass', 'glass', 'water', 'tile', 'fabric', 'flesh', 'vehicle']; // vehicle = Fahrzeugblech (Durchschuss)
 const SURF_INDEX = Object.fromEntries(SURFACES.map((s, i) => [s, i]));
 /** Mittlere Albedo der Bibliotheks-Requisiten je Oberfläche (Sonden-Rückprall). */
-const PROP_ALBEDO = { concrete: 0.4, metal: 0.3, wood: 0.32, dirt: 0.3, sand: 0.45, grass: 0.25, glass: 0.2, water: 0.1, tile: 0.4, fabric: 0.3, flesh: 0.35 };
+const PROP_ALBEDO = { concrete: 0.4, metal: 0.3, wood: 0.32, dirt: 0.3, sand: 0.45, grass: 0.25, glass: 0.2, water: 0.1, tile: 0.4, fabric: 0.3, flesh: 0.35, vehicle: 0.3 };
 
 // ---------------------------------------------------------------------------
 // Wachsende Typed Arrays
@@ -369,6 +369,15 @@ export class MapBuilder {
    * o: mat-Optionen siehe _emit + { collide=true, minimap ('auto'|false|kind), skip:[6 bools], visual=true }
    */
   box(x, y, z, w, h, d, mat, o = {}) {
+    // Zerstörbares Wandpaneel (arch.wall destructible, game/destruction.js): eigenes Mesh, keine feste Kollision/Kugel-BVH
+    if (o.destructible) {
+      const list = this.destructibles || (this.destructibles = []);
+      const id = list.length, dd = o.destructible;
+      list.push({ id, x, y, z, w, h, d, ry: o.ry || 0, mat, wall: dd.wall ?? 0, col: dd.col ?? 0, row: dd.row ?? 0, mesh: null });
+      this.box(x, y, z, w, h, d, mat, { ...o, destructible: null, chunk: 'D' + id, collide: false, damage: false });
+      if (o.minimap !== false) this._footprint(x, z, w, d, o.ry, y, y + h, o.minimap);
+      return this;
+    }
     const m = this._matrix(x, y, z, o);
     const rotated = !!(o.rx || o.rz);
     if (o.visual !== false) {
@@ -822,6 +831,7 @@ export class MapBuilder {
         if (fl & F_NOISE) k *= 1 - this.groundNoise * 0.5 + this._noise(x, z) * this.groundNoise;
         if (k !== 1) { C[i * 3] *= k; C[i * 3 + 1] *= k; C[i * 3 + 2] *= k; }
       }
+      if (typeof bk.chunk === 'string' && bk.chunk[0] === 'D') { (this._destrBuckets || (this._destrBuckets = [])).push(bk); continue; }
       const key = bk.mat + (bk.matOpts ? JSON.stringify(bk.matOpts) : '');
       if (!perMat.has(key)) perMat.set(key, []);
       perMat.get(key).push(bk);
@@ -867,6 +877,16 @@ export class MapBuilder {
       }
       await breathe();
     }
+    // zerstörbare Paneele: je eines ein Mesh, nicht in der Kugel-BVH (Kollision/Treffer über game/destruction.js)
+    for (const bk of this._destrBuckets || []) {
+      const mesh = makeMesh([bk], bk.mat, bk.matOpts, bk.cast);
+      meshes.pop();
+      delete mesh.userData.bullet;
+      const id = +bk.chunk.slice(1);
+      mesh.userData.destructible = id;
+      if (this.destructibles && this.destructibles[id]) this.destructibles[id].mesh = mesh;
+    }
+    this._destrBuckets = null;
     await step(0.62, 'Details');
 
     // Decals, Schilder, Foliage (Putzschäden erst jetzt: alle Innenräume/Sockel/Geschosse sind bekannt)

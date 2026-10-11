@@ -39,7 +39,7 @@ const SUPERSONIC = { ar: 1, ar_heavy: 1, lmg: 1, sniper: 1, pistol_heavy: 1 };
 /** Mündungsgeschwindigkeit (m/s) → Ankunft des Geschosses / Überschallknalls vor dem Mündungsknall. */
 const BULLET_SPEED = { ar: 900, ar_heavy: 720, lmg: 820, sniper: 880, pistol_heavy: 450, smg: 380, pistol: 360, shotgun: 400 };
 const STREAK_SOUND = { uav: 'uav', strike: 'airstrike', airstrike: 'airstrike', sentry: 'sentry', drohne: 'uav' };
-const SURFACE_ALIAS = { asphalt: 'concrete', stone: 'concrete', plaster: 'concrete', brick: 'concrete', rubber: 'fabric', sandbag: 'sand', mud: 'dirt', gravel: 'dirt', ceramic: 'tile', carpet: 'fabric', snow: 'grass' };
+const SURFACE_ALIAS = { vehicle: 'metal', asphalt: 'concrete', stone: 'concrete', plaster: 'concrete', brick: 'concrete', rubber: 'fabric', sandbag: 'sand', mud: 'dirt', gravel: 'dirt', ceramic: 'tile', carpet: 'fabric', snow: 'grass' };
 const GESTURES = ['pointerdown', 'keydown', 'touchend', 'mousedown'];
 const AC = typeof window !== 'undefined' ? (window.AudioContext || window.webkitAudioContext) : null;
 

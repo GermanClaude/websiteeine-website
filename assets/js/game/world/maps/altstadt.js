@@ -517,7 +517,7 @@ function sail(b, x, y, z, w, d, design, o = {}) {
 // --- Kleinteile ------------------------------------------------------------------
 function lowWall(b, x0, z0, x1, z1, o = {}) {
   const h = o.h ?? 1.0, t = o.t ?? 0.35;
-  wall(b, { x0, z0, x1, z1, h, t, mat: 'stone_wall', tint: o.tint || '#dccdb2', cap: { mat: 'plaster_white', tint: '#f2ece0', h: 0.08, over: 0.05 }, minimap: 'cover', openings: o.openings || [] });
+  wall(b, { x0, z0, x1, z1, h, t, mat: 'stone_wall', destructible: o.destructible !== false, tint: o.tint || '#dccdb2', cap: { mat: 'plaster_white', tint: '#f2ece0', h: 0.08, over: 0.05 }, minimap: 'cover', openings: o.openings || [] });
 }
 
 /** Blumenbeet (Kartenrunde 2: Trog mit Deckplatten, sichtbarer Erde und gemischten Blüten – altstadt-ausstattung.js). */

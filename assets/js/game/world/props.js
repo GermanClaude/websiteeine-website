@@ -12,7 +12,7 @@ export function frame(b, x, y, z, ry = 0) {
     cyl(lx, ly, lz, r, h, mat, o = {}) { const [wx, wz] = P(lx, lz); b.cyl(wx, y + ly, wz, r, h, mat, { ...o, ry: ry + (o.ry || 0) }); },
     wedge(lx, ly, lz, w, h, d, mat, o = {}) { const [wx, wz] = P(lx, lz); b.wedge(wx, y + ly, wz, w, h, d, mat, { ...o, ry: ry + (o.ry || 0) }); },
     geom(g, lx, ly, lz, mat, o = {}) { const [wx, wz] = P(lx, lz); b.geom(g, wx, y + ly, wz, mat, { ...o, ry: ry + (o.ry || 0) }); },
-    solid(lx, ly, lz, w, h, d, o = {}) { const [wx, wz] = P(lx, lz); b.box(wx, y + ly, wz, w, h, d, 'black', { ...o, ry: ry + (o.ry || 0), visual: false }); },
+    solid(lx, ly, lz, w, h, d, o = {}) { const [wx, wz] = P(lx, lz); b.box(wx, y + ly, wz, w, h, d, o.mat || 'black', { ...o, ry: ry + (o.ry || 0), visual: false }); },
   };
 }
 
@@ -347,13 +347,13 @@ export function car(b, x, z, o = {}) {
   if (b.hasModel('covered_car') && o.model !== false) {
     // abgedecktes Auto (Fotoscan, Plane über der Karosserie) – Maße wie das prozedurale (1,8 × 1,42 × 4,3 m)
     b.model('covered_car', x, o.y ?? 0, z, { ry: o.ry || 0, collide: false, fallback: (bb) => car(bb, x, z, { ...o, color: col, model: false }) });
-    f.solid(0, 0, 0, 1.8, 1.42, 4.3, { minimap: 'vehicle' });
+    f.solid(0, 0, 0, 1.8, 1.42, 4.3, { minimap: 'vehicle', mat: 'hull' });
     b.decal(x, (o.y ?? 0) + 0.01, z, 2.6, 4.6, 'oil', { ry: o.ry || 0, opacity: 0.5 });
     return;
   }
   const L = 4.3, W = 1.8, hatch = o.style === 'hatch';
   const wreck = o.style === 'wreck';
-  const pm = 'metal_painted';
+  const pm = 'car_paint';
   f.box(0, 0.32, 0, W, 0.52, L, pm, { tint: col, collide: false, minimap: false, grad: false });
   f.box(0, 0.24, 0, W - 0.1, 0.1, L - 0.4, 'rubber', { collide: false, minimap: false, grad: false });
   // Motorhaube/Heck leicht geneigt
@@ -372,7 +372,7 @@ export function car(b, x, z, o = {}) {
     f.box(sx * 0.66, 0.66, -L / 2 - 0.005, 0.26, 0.1, 0.04, wreck ? 'glass' : 'lamp_red', { collide: false, minimap: false, ao: false });
   }
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) wheel(f, sx * (W / 2 - 0.12), wreck && sz > 0 ? 0.22 : 0.33, sz * 1.35, wreck && sz > 0 ? 0.24 : 0.33, 0.24);
-  f.solid(0, 0, 0, W, 1.42, L, { minimap: 'vehicle' });
+  f.solid(0, 0, 0, W, 1.42, L, { minimap: 'vehicle', mat: 'hull' });
   b.decal(x, (o.y ?? 0) + 0.01, z, 2.6, 4.6, 'oil', { ry: o.ry || 0, opacity: 0.6 });
 }
 
@@ -380,15 +380,15 @@ export function car(b, x, z, o = {}) {
 export function van(b, x, z, o = {}) {
   const f = frame(b, x, o.y ?? 0, z, o.ry || 0), col = o.color || '#e8e6e0';
   const L = 5.2, W = 2.0;
-  f.box(0, 0.38, -0.35, W, 2.0, L - 0.8, 'metal_painted', { tint: col, collide: false, minimap: false, grad: false });
-  f.box(0, 0.38, L / 2 - 0.6, W - 0.02, 1.05, 1.2, 'metal_painted', { tint: col, collide: false, minimap: false, grad: false });
+  f.box(0, 0.38, -0.35, W, 2.0, L - 0.8, 'car_paint', { tint: col, collide: false, minimap: false, grad: false });
+  f.box(0, 0.38, L / 2 - 0.6, W - 0.02, 1.05, 1.2, 'car_paint', { tint: col, collide: false, minimap: false, grad: false });
   f.wedge(0, 1.43, L / 2 - 0.85, W - 0.04, 0.8, 0.72, 'glass', { ry: Math.PI, collide: false, minimap: false });
   for (const sx of [-1, 1]) f.box(sx * (W / 2 + 0.005), 1.45, L / 2 - 1.55, 0.02, 0.6, 0.8, 'glass', { collide: false, minimap: false, ao: false });
   f.box(0, 0.25, 0, W - 0.1, 0.15, L - 0.4, 'rubber', { collide: false, minimap: false, grad: false });
   f.box(0, 0.32, L / 2 + 0.03, W, 0.2, 0.1, 'polymer', { collide: false, minimap: false, grad: false });
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) wheel(f, sx * (W / 2 - 0.12), 0.36, sz * 1.7, 0.36, 0.26);
   if (o.logo) { const [lx, lz] = f.P(W / 2 + 0.01, -0.6); b.sign(lx, (o.y ?? 0) + 1.0, lz, 2.4, 0.8, o.logo, { ry: (o.ry || 0) + Math.PI / 2, back: false, depth: 0 }); }
-  f.solid(0, 0, 0, W, 2.4, L, { minimap: 'vehicle' });
+  f.solid(0, 0, 0, W, 2.4, L, { minimap: 'vehicle', mat: 'hull' });
 }
 
 /** Sattelzug / Lkw. trailer: 'container'|'box'|'flatbed'|'tank'|null. Lokal z = Länge, Kabine bei +z. */

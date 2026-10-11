@@ -144,9 +144,9 @@ export function transporter(b, x, z, o = {}) {
   const y = o.y ?? 0, f = frame(b, x, y, z, o.ry || 0), col = o.color || '#e8e6e0';
   const L = 5.2, W = 2.0;
   // Aufbau mit Radausschnitten: Unterkante 0,45 (über den Reifen), Schweller tiefer zwischen den Achsen
-  f.box(0, 0.45, -0.35, W, 1.95, L - 0.8, 'metal_painted', { tint: col, ...KEIN, grad: false });
-  f.box(0, 0.45, L / 2 - 0.6, W - 0.02, 0.98, 1.2, 'metal_painted', { tint: col, ...KEIN, grad: false });
-  f.box(0, 0.28, 0, W - 0.06, 0.2, 2.2, 'metal_painted', { tint: shade(col, 0.8), ...KEIN, grad: false });
+  f.box(0, 0.45, -0.35, W, 1.95, L - 0.8, 'car_paint', { tint: col, ...KEIN, grad: false });
+  f.box(0, 0.45, L / 2 - 0.6, W - 0.02, 0.98, 1.2, 'car_paint', { tint: col, ...KEIN, grad: false });
+  f.box(0, 0.28, 0, W - 0.06, 0.2, 2.2, 'car_paint', { tint: shade(col, 0.8), ...KEIN, grad: false });
   f.wedge(0, 1.43, L / 2 - 0.85, W - 0.04, 0.8, 0.72, 'glass', { ry: Math.PI, ...KEIN });
   for (const sx of [-1, 1]) f.box(sx * (W / 2 + 0.005), 1.45, L / 2 - 1.55, 0.02, 0.6, 0.8, 'glass', { ...KEIN, ao: false });
   f.box(0, 0.32, L / 2 + 0.03, W, 0.22, 0.1, 'polymer', { ...KEIN, grad: false });
@@ -164,7 +164,7 @@ export function transporter(b, x, z, o = {}) {
 export function pkw(b, x, z, o = {}) {
   const y = o.y ?? 0, col = o.color || '#3b3d40';
   const proc = (bb) => {
-    const f = frame(bb, x, y, z, o.ry || 0), L = 4.3, W = 1.8, pm = 'metal_painted';
+    const f = frame(bb, x, y, z, o.ry || 0), L = 4.3, W = 1.8, pm = 'car_paint';
     f.box(0, 0.32, 0, W, 0.52, L, pm, { tint: col, ...KEIN, grad: false });
     f.wedge(0, 0.84, L / 2 - 0.65, W - 0.04, 0.08, 1.2, pm, { ry: Math.PI, tint: col, ...KEIN });
     f.box(0, 0.84, -0.15, W - 0.16, 0.5, 2.1, 'glass', { ...KEIN, grad: false });
