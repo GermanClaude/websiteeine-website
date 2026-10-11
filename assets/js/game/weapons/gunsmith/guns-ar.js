@@ -94,23 +94,31 @@ export function arMag(b, mat, o = {}) {
 export function m17(b) {
   const axis = 0.093;
   arLower(b, { lowerMat: 'alu', upperMat: 'alu', gripMat: 'gripTan', axis });
-  // Freischwebender M-LOK-Handschutz (achteckig) mit Schiene
-  b.front('alu', octagon(0.024, axis), 0.245, 0.118, { bevel: 0.002 });
-  b.rail('alu', 0, axis + 0.0222, 0.12, 0.36);
-  for (const s of [-1, 1]) slots(b, s * 0.0222, axis, 0.15, 6, 0.033, 0.02, 0.007);
-  slots(b, 0, axis - 0.0222, 0.15, 6, 0.033, 0.02, 0.007, Math.PI / 2);
+  // Freischwebender 13-Zoll-M-LOK-Handschutz (achteckig, wie beim modernen M4) mit durchgehender Schiene; M-LOK-
+  // Schlitze auf allen acht Flächen außer oben, Lauf schaut nur kurz vorn heraus
+  const HG = 0.325, r8 = 0.0235;
+  b.front('alu', octagon(r8, axis), HG, 0.118, { bevel: 0.002 });
+  b.rail('alu', 0, axis + r8 - 0.0013, 0.12, 0.118 + HG - 0.004);
+  for (const s of [-1, 1]) {
+    slots(b, s * (r8 - 0.0013), axis, 0.148, 8, 0.034, 0.02, 0.007);
+    const d = (r8 - 0.0013) * Math.SQRT1_2;
+    slots(b, s * d, axis - d, 0.165, 7, 0.034, 0.02, 0.006, -s * Math.PI / 4);
+    slots(b, s * d, axis + d, 0.165, 7, 0.034, 0.02, 0.006, s * Math.PI / 4);
+  }
+  slots(b, 0, axis - r8 + 0.0013, 0.148, 8, 0.034, 0.02, 0.007, Math.PI / 2);
   if (b.hi) {
     b.box('alu', 0.03, 0.004, 0.012, 0, axis - 0.024, 0.118, { c: 0.001 });      // Ring am Übergang
     // Handstopp unten
-    b.side('polymer', [[0.29, axis - 0.022], [0.335, axis - 0.022], [0.33, axis - 0.034], [0.318, axis - 0.036]], 0.016, 0, { bevel: 0.002 });
+    b.side('polymer', [[0.3, axis - 0.022], [0.345, axis - 0.022], [0.34, axis - 0.034], [0.328, axis - 0.036]], 0.016, 0, { bevel: 0.002 });
+    // Stirnring des Handschutzes (Laufdurchtritt)
+    b.cyl('cavity', 0.012, 0.012, 0.002, 0, axis, 0.118 + HG + 0.0005, { seg: 14 });
   }
-  // Lauf + Gasblock + Mündungsfeuerdämpfer
-  b.cyl('steelDark', 0.0098, 0.0098, 0.1, 0, axis, 0.41, { seg: b.seg(14, 6) });
-  b.cyl('steelDark', 0.0118, 0.0118, 0.012, 0, axis, 0.372, { seg: b.seg(14, 6) });
-  const end = birdcage(b, 0.457, axis, 0.0108);
+  // Lauf (Bleistiftprofil, nur vorn sichtbar) + Mündungsfeuerdämpfer
+  b.cyl('steelDark', 0.0094, 0.0094, 0.05, 0, axis, 0.118 + HG + 0.02, { seg: b.seg(14, 6) });
+  const end = birdcage(b, 0.118 + HG + 0.044, axis, 0.0108);
   b.anchor('muzzle', 0, axis, end + 0.002);
-  // Klappkorn (eingeklappt) vorn auf der Schiene
-  if (b.hi) b.box('alu', 0.016, 0.008, 0.024, 0, axis + 0.034, 0.345, { c: 0.002 });
+  // Klappkorn (eingeklappt) vorn am Schienenende
+  if (b.hi) b.box('alu', 0.016, 0.008, 0.024, 0, axis + r8 + 0.011, 0.118 + HG - 0.018, { c: 0.002 });
   if (b.hi) {
     // Klappkimme (eingeklappt) hinten auf der Schiene: Fuß + umgelegte Lochplatte mit Rändel
     b.box('alu', 0.018, 0.007, 0.022, 0, 0.1275, -0.05, { c: 0.0015 });
@@ -119,7 +127,7 @@ export function m17(b) {
     // Handschutz: Schrauben am Übergang, QD-Riemenaufnahmen vorn beidseitig
     for (const s of [-1, 1]) {
       for (const dv of [0.011, -0.011]) b.screw('steel', s * 0.0224, axis + dv, 0.128, 'x', 0.0019);
-      qdCup(b, s * 0.0222, axis, 0.352);
+      qdCup(b, s * (r8 - 0.0013), axis, 0.118 + HG - 0.03);
     }
   }
   // Teleskopschaft (FDE)

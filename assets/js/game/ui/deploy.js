@@ -84,7 +84,7 @@ export class DeployScreen {
 
   _isDeployMode() {
     const m = this.mode;
-    return !!(m && m.def && m.def.deploy && typeof m.deployPoints === 'function');
+    return !!(m && ((m.def && m.def.deploy) || m.deployMap) && typeof m.deployPoints === 'function');
   }
 
   /* ------------------------------------------------------------ Öffnen / Schließen */
@@ -296,6 +296,8 @@ export class DeployScreen {
       info = left > 0.05 ? `${esc(where)} · bereit in <b>${secs(left)}</b>` : `${esc(where)} · <b>bereit</b>`;
       if (this.armed && left > 0.05) info += ' · Einsatz vorgemerkt';
     } else info = left > 0.05 ? `Wiedereinstieg angehalten · <b>${secs(left)}</b> Rest` : 'Bereit zum Einsatz';
+    const med = G.injuries && G.injuries.medicInfo();
+    if (med) info = `Sanitäter ${esc(med.name)} kommt · <b>${med.dist} m</b> – warten oder „Einsatz“ (aufgeben)`;
     if (this._infoHtml !== info) { this._infoHtml = info; this.el.info.innerHTML = info; }
     const k = this.el.go.querySelector('kbd');
     const touch = G.input && G.input.mode === 'touch';
@@ -350,6 +352,7 @@ export class DeployScreen {
     const m = this.mode;
     const p = this.G.player;
     if (!m || !p) return;
+    if (this.G.injuries && this.G.injuries.medicInfo()) this.G.injuries.giveUp(); // „Einsatz“ = nicht auf den Sanitäter warten
     const left = typeof m.respawnLeft === 'function' ? m.respawnLeft(p) : 0;
     if (this.kind === 'deploy' && left > 0.05) {
       this.armed = true;

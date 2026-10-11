@@ -627,7 +627,8 @@ export class WeaponController {
     // Erster Schuss aus der Ruhe: eigener Streufaktor (Rückstoß 2.0, Daten recoil.firstShotSpread)
     // Cheat-Menü Aimbot mit erfasstem Ziel (cheats.js player.cheatPrecise): Einzelkugeln ohne Streuung
     const precise = !!actor.cheatPrecise && pellets === 1;
-    const spread = precise ? 0 : this.fireSpread * (this.shotIndex === 0 && Number.isFinite(r.firstShotSpread) ? r.firstShotSpread : 1);
+    const armHit = !!(actor.injury && actor.injury.arm); // Armtreffer (injuries.js): Waffe zittert
+    const spread = precise ? 0 : this.fireSpread * (this.shotIndex === 0 && Number.isFinite(r.firstShotSpread) ? r.firstShotSpread : 1) * (armHit ? 1.35 : 1);
     const rot = Math.random() * Math.PI * 2;
     const scale = Number.isFinite(actor.damageScale) ? actor.damageScale : 1;
     const range = def.range || 100;
@@ -659,7 +660,7 @@ export class WeaponController {
     if (it.crouching && !it.moving) k *= 0.85;
     if (it.airborne) k *= 1.2;
     if (actor.isPlayer && G.input && G.input.mode === 'touch') k *= 0.72; // Touch: wie COD Mobile deutlich ruhiger
-    k *= this._rush('rushRecoil') * (actor.mounted ? 0.35 : 1); // MG-Stellung (mappoints.js): Waffe liegt auf der Lafette
+    k *= this._rush('rushRecoil') * (actor.mounted ? 0.35 : 1) * (armHit ? 1.45 : 1); // MG-Stellung (mappoints.js): Waffe liegt auf der Lafette
     const pitch = r.vertical * e[1] * first * k * (0.94 + Math.random() * 0.12);
     const yaw = r.horizontal * (e[0] + (Math.random() * 0.7 - 0.35)) * k;
     // Freies Zielen (core, nur an der Hüfte): ein Teil des Stoßes bewegt den Lauf innerhalb der Totzone statt der
@@ -754,7 +755,7 @@ export class WeaponController {
         total: tm.start + tm.insert * need + tm.end + (empty ? 0.45 : 0),
       };
     } else {
-      const dur = empty ? (def.reloadEmptyTime || 2.6) : (def.reloadTime || 2);
+      const dur = (empty ? (def.reloadEmptyTime || 2.6) : (def.reloadTime || 2)) * (this.actor.injury && this.actor.injury.arm ? 1.3 : 1);
       this._reload = { shells: false, empty, t: 0, dur, insertAt: dur * (empty ? 0.64 : 0.76), inserted: false };
     }
     this.reloadEmpty = empty;

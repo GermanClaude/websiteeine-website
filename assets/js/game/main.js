@@ -31,6 +31,7 @@ import { Player } from './player.js';
 import { Combat } from './combat.js';
 import { MapPoints } from './mappoints.js'; // Interaktionspunkte der Karten (Taste F)
 import { Building } from './building.js'; // Bauen (Taste K)
+import { Injuries } from './injuries.js'; // Verletzungen, Blutung, Verband (Taste N), Wiederbeleben
 import { Doors } from './doors.js'; // bewegliche Türen und Tore (Taste F)
 import { WallHoles } from './wallholes.js'; // durchlöcherte Wände
 
@@ -1009,6 +1010,7 @@ async function runStart(config, gen) {
     else if (netCfg.vehicles) safe('vehicles.attach', () => G.vehicles.attach(G, { replica: netCfg.role === 'client' }));
     safe('points', () => { G.points = new MapPoints(G, cfg.mapId); });
     safe('building', () => { G.building = new Building(G); });
+    safe('injuries', () => { G.injuries = new Injuries(G); });
     safe('doors', () => { G.doors = new Doors(G); });
     safe('holes', () => { G.holes = new WallHoles(G); });
     G.hud.attach(G);
@@ -1220,6 +1222,7 @@ async function teardownMatch({ keepWorld = false } = {}) {
   if (G.doors) { safe('doors', () => G.doors.dispose()); G.doors = null; }
   if (G.holes) { safe('holes', () => G.holes.dispose()); G.holes = null; }
   if (G.building) { safe('building', () => G.building.dispose()); G.building = null; }
+  if (G.injuries) { safe('injuries', () => G.injuries.dispose()); G.injuries = null; }
   G.match.net = null;
   G.match.netRole = null;
   if (sceneBase) {
@@ -1585,6 +1588,7 @@ function frame(now, bg = false, xrFrame = null) {
     if (G.points) step('points', () => G.points.update(dt));
     if (G.building) step('building', () => G.building.update(dt));
     if (G.doors) step('doors', () => G.doors.update(dt));
+    if (G.injuries) step('injuries', () => G.injuries.update(dt));
     step('armor', () => G.combat.tickArmor(G.actors)); // core-mechanics: Platten fertig einsetzen, Bots setzen selbst ein
     step('weapons', () => G.weapons.update(dt));
     step('mode', () => { if (G.mode) G.mode.update(dt); });

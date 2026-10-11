@@ -345,6 +345,7 @@ export class HUD {
       this._notice(kind === 'ammo' ? (amount ? `Munition aufgenommen (+${amount}).` : 'Keine passende Munition.') : `${w ? w.name : 'Waffe'} aufgehoben.`, kind === 'ammo' && !amount ? 'dim' : 'gold', null, NOTICE_LIFE, 'point');
     });
     // Bauen (building.js)
+    s.on('injury:notice', ({ text, tone, key }) => this._notice(text, tone || 'dim', key ? this._keyFor(key) : null, NOTICE_LIFE, 'injury'));
     s.on('build:start', ({ actor, name }) => { if (actor === P()) this._notice(`${name} wird gebaut …`, 'gold', null, NOTICE_LIFE, 'build'); });
     s.on('build:done', ({ actor, name }) => { if (actor === P()) this._notice(`${name} fertig.`, 'gold', null, NOTICE_LIFE, 'build'); });
     s.on('build:destroyed', ({ owner, name }) => { if (owner === P()) this._notice(`${name} zerstört!`, 'dim', null, NOTICE_LIFE, 'build'); });
@@ -1506,17 +1507,29 @@ export class HUD {
     const mode = G.mode;
     let pr = null;
     const B = G.building && G.building.mode;
-    if (B) {
+    const med = G.injuries && G.injuries.medicInfo();
+    if (med) {
+      pr = { text: `Sanitäter ${med.name} kommt · ${med.dist} m · Aufgeben`, key: this._keyFor('interact'), action: () => G.injuries.giveUp() };
+    } else if (B) {
       pr = { text: `Bauen: ${B.ok ? '' : '(kein Platz) '}${B.name} · Klick setzt · ${this._keyFor('bauen') || 'K'} weiter`, key: this._keyFor('interact'), action: () => G.building.close() };
     } else if (mode && mode.id === 'training' && G.player && G.player.alive && mode.targets && mode.targets.length) {
       const P = mode.parcours;
       const running = P.state === 'running' || P.state === 'countdown';
       pr = { text: running ? 'Parcours abbrechen' : 'Parcours starten', key: this._keyFor('interact'), action: () => mode.interact() };
+    } else if (G.injuries && G.injuries.progress()) {
+      const a = G.injuries.progress();
+      pr = { text: `${a.kind === 'revive' ? 'Wiederbeleben' : 'Verband anlegen'} … ${Math.round(a.p * 100)} %`, key: '', action: () => {} };
+    } else if (G.injuries && G.injuries.near) {
+      pr = { text: G.injuries.near.text, key: this._keyFor('interact'), action: () => G.injuries.revive() };
     } else if (G.doors && G.doors.near && !(G.points && G.points.near)) {
       pr = { text: G.doors.near.text, key: this._keyFor('interact'), action: () => G.doors.request(G.doors.near.i, 't') };
     } else if (G.points && G.points.near) {
       const { point, left, text } = G.points.near;
       pr = { text: text || `${point.def.name} · ${left > 0 ? `noch ${left} s` : point.def.act}`, key: this._keyFor('interact'), action: () => G.points.use() };
+    } else if (G.injuries && G.player && G.player.alive && G.player.injury) {
+      // Verwundet: Hinweis mit Verband-Taste (auf Touch antippbar)
+      const j = G.player.injury, w = [j.bleed > 0 ? 'Blutung' : '', j.arm ? 'Arm verletzt' : '', j.leg ? 'Bein verletzt' : ''].filter(Boolean);
+      if (w.length) pr = { text: `${w.join(' · ')} – Verband (${j.bandages})`, key: this._keyFor('verband'), action: () => G.injuries.bandage() };
     }
     this._prompt = pr;
     const b = this.promptBtn;

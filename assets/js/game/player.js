@@ -680,7 +680,7 @@ export class Player {
       if (!frozen && input.pressed('sprint')) this._sprintLatch = true;
       if (!frozen && input.down('sprint') && my > 0.35) this._sprintLatch = true;
     }
-    const blockSprint = frozen || my < 0.35 || adsHeld || fireHeld || this.sliding || this.prone || stanceBusy || this.plating || (w && w.canSprint === false);
+    const blockSprint = frozen || (this.injury && this.injury.leg) || my < 0.35 || adsHeld || fireHeld || this.sliding || this.prone || stanceBusy || this.plating || (w && w.canSprint === false);
     if (blockSprint) this._sprintLatch = false;
     // Ausdauer: erschöpft kein Sprint – die Absicht (Latch/Touch-Sperre) bleibt und setzt ab 30 % wieder ein
     if (!frozen && this._sprintLatch && !this.stamina.canSprint && (input.pressed('sprint') || lockEdge || this.sprinting)) this.stamina.deny();
@@ -711,6 +711,7 @@ export class Player {
     let gear = ar ? (this.sprinting ? ar.sprintMult : ar.speedMult) : 1;
     if (now < this.boostUntil) gear *= this._boostMult;
     if (now < (this.netUntil || 0)) gear *= this.netSlow ?? 0.15; // Wurfnetz (weapons/grenades.js)
+    if (this.injury && this.injury.leg) gear *= 0.72; // Beintreffer: humpeln (injuries.js)
     if (stanceBusy && !this._dive) gear *= 0.25;
     if (this.plating) gear *= 0.8;
     // Gelände: bergauf langsamer (bis −30 %), bergab etwas schneller; nach Stufen und harten Landungen kurz gebremst

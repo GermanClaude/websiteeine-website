@@ -10,6 +10,9 @@ import { MedalTracker } from './medals.js';
 import { StreakManager } from './streaks.js';
 import { CheatSystem } from '../cheats.js';
 
+/** Karten mit Einsatzkarte nach dem Tod (Draufsicht, Einstieg bei Kameraden). */
+const DEPLOY_MAPS = new Set(['grenzland', 'bibliothek']);
+
 const STREAK_WEAPONS = new Set(['strike', 'sentry', 'uav', 'drohne']);
 export const OVERTIME_SECONDS = 60;
 
@@ -225,6 +228,60 @@ export class BaseMode {
     this.holdRespawn(actor, false);
     if (typeof G.deploy === 'function') { try { G.deploy(); return; } catch (err) { console.error('[NULLPUNKT] deploy:', err); } }
     if (!actor.alive && actor.respawnAt != null) actor.respawnAt = Math.min(actor.respawnAt, G.time.elapsed);
+  }
+
+  /* ------------------------------------------------------------ Einsatzkarte auf großen Karten */
+
+  /**
+   * Draufsicht mit Basis und Verbündeten nach dem Tod (Grenzland, Bibliothek; Eroberung hat ihre eigene): Einstieg in
+   * der Basis oder bei einem lebenden Kameraden, solange er nicht im Gefecht ist (ui/deploy.js).
+   */
+  get deployMap() {
+    const G = this.G;
+    return this.teams && !(this.def && this.def.deploy) && !['inf', 'training', 'ult'].includes(this.id) && !this.replica && DEPLOY_MAPS.has(G.match && G.match.mapId) && !(G.match && G.match.netRole === 'client');
+  }
+
+  deployPoints(actor = this.G.player) {
+    const G = this.G;
+    const team = actor && actor.team;
+    if (team !== 'A' && team !== 'B') return [];
+    const sp = (G.world && G.world.spawns && G.world.spawns[team]) || [];
+    const c = new THREE.Vector3();
+    for (const s of sp) c.add(s.position);
+    if (sp.length) c.multiplyScalar(1 / sp.length);
+    const out = [{ kind: 'hq', id: 'hq', label: 'Basis', sub: 'Startpunkt des Teams', position: c, available: true }];
+    for (const a of G.actors) {
+      if (a === actor || a.team !== team || a.isStreakEntity) continue;
+      const safe = a.alive && this._allySafe(a);
+      out.push({ kind: 'squad', id: a.id, label: a.name || 'Kamerad', sub: a.isBot ? 'Bot' : 'Spieler', position: a.position, available: safe,
+        reason: !a.alive ? 'Ausgeschaltet' : safe ? '' : 'Im Gefecht' });
+    }
+    return out;
+  }
+
+  setDeploy(choice) { this.deployChoice = choice && choice.kind ? { kind: choice.kind, id: choice.id } : null; }
+
+  _allySafe(a) {
+    const G = this.G;
+    if (a.vehicle || G.time.elapsed - (a.lastDamageTime ?? -1e9) < 5) return false;
+    for (const h of G.actors) if (h.alive && G.combat && G.combat.isHostile(a, h) && h.position.distanceTo(a.position) < 18) return false;
+    return true;
+  }
+
+  /** Einstieg beim gewählten Kameraden (knapp hinter ihm), sonst null → normale Startpunkte. */
+  _deploySpawn(actor) {
+    const ch = actor.isPlayer && this.deployMap ? this.deployChoice : null;
+    if (!ch || ch.kind !== 'squad') return null;
+    const a = this.G.actors.find((x) => String(x.id) === String(ch.id));
+    if (!a || !a.alive || a.team !== actor.team || !this._allySafe(a)) return null;
+    const yaw = a.yaw || 0;
+    const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)); // hinter dem Kameraden (Blick −z bei yaw 0)
+    const pos = a.position.clone().addScaledVector(back, 1.2);
+    const W = this.G.world;
+    const eye = a.position.clone(); eye.y += 1.2;
+    const to = pos.clone(); to.y += 1.2;
+    if (W && W.raycast && W.raycast(eye, to.clone().sub(eye).normalize(), 1.3)) pos.copy(a.position);
+    return { position: pos, yaw };
   }
 
   /** Verbleibende Wartezeit bis zum Wiedereinstieg (s). */
@@ -720,6 +777,8 @@ export class BaseMode {
   /* ------------------------------------------------------------ Spawns */
 
   chooseSpawn(actor) {
+    const dep = this._deploySpawn(actor);
+    if (dep) return dep;
     const threats = this.streaks ? this.streaks.entities : [];
     const zones = this.streaks ? this.streaks.dangerZones() : [];
     return chooseSpawn(this.G, actor, { teams: this.teams, recent: this._recentSpawns, threats, zones, attract: this.spawnAttract(actor) });
