@@ -40,7 +40,10 @@ export function wall(b, o) {
     if (sill > 0) seg(a, e, y, sill);
     if (top < h - 0.005) seg(a, e, y + top, h - top, { grad: false, minimap: false });
     s = e;
-    openingDetails(b, o, op, { x0, z0, ux, uz, ry, y, t, sill, top });
+    // Fenster ohne Angabe bekommen eine Scheibe (zerschießbar/zu öffnen, game/doors.js) – nicht vergittert, nicht mit
+    // geschlossenen Läden, nicht in Ruinen (o.ruin) und nicht, wenn die Karte glass:false sagt
+    const op2 = op.kind === 'window' && op.glass === undefined && !op.bars && !op.closed && !o.ruin && o.glass !== false && op.frame !== false ? { ...op, glass: true } : op;
+    openingDetails(b, o, op2, { x0, z0, ux, uz, ry, y, t, sill, top });
   }
   seg(s, L, y, h);
   // Gesims/Abschluss oben (unterbrochen an Öffnungen bis zur Oberkante, z. B. Brüstungslücken)
@@ -87,7 +90,16 @@ function openingDetails(b, o, op, g) {
       at(op.at, y + sill - 0.05, op.w + 0.16, 0.06, t + 0.2, o.sillMat || 'concrete', { tint: o.sillTint, collide: false });
     }
   }
-  if (op.glass) {
+  if (op.glass && kind === 'window' && b.dynamicDoors !== false) {
+    // bewegliches Fenster (game/doors.js): Flügel mit Scheibe, F öffnet nach innen, Schuss/Messer/Explosion zerbricht ihn
+    const sg = o.outside === 'right' ? -1 : 1;
+    const ox = uz * sg, oz = -ux * sg;
+    const hs = a + fw;
+    (b.windows || (b.windows = [])).push({
+      hx: x0 + ux * hs - ox * 0.02, hz: z0 + uz * hs - oz * 0.02, y: y + sill + 0.02, h: top - sill - fw - 0.02, w: op.w - fw * 2,
+      dc: [ux, uz], dopen: [-ox, -oz], open: op.open === true, transom: top - sill > 1.3,
+    });
+  } else if (op.glass) {
     // Scheibe mit Sprossen
     at(op.at, y + sill + 0.02, op.w - fw * 2, top - sill - fw - 0.02, 0.04, 'glass', { collide: true, interior: false });
     if (op.mullion !== false) {

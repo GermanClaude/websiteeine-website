@@ -54,6 +54,30 @@ try {
   await p.evaluate(() => { const G = window.__game; delete G.input.active; });
   await gameWait(p, 0.8);
   await p.screenshot({ path: 'tools/out/attach-hip.png' });
+  // Im Match bearbeiten (Pause → Ausrüstung): Optik tauschen gilt sofort, Munition bleibt; Messer-Reiter vorhanden
+  await p.evaluate(() => { const G = window.__game; G.player.weapon.slots[0].mag = 7; G.menus.showEquip(); });
+  await sleep(500);
+  const e1 = await p.evaluate(() => {
+    const root = document.querySelector('.eq-host');
+    const sel = root && root.querySelector('select[data-att-w="ar_m17"][data-att-slot="optik"]');
+    const stats = root ? root.querySelectorAll('.lp-attstats span').length : 0;
+    const tab = root && root.querySelector('[data-lslot="melee"]');
+    if (sel) { sel.value = 'holo'; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+    return { sel: !!sel, stats, tab: !!tab };
+  });
+  check(e1.sel && e1.stats >= 4, `Pausemenü: Aufsätze im Match wählbar, Werte-Vergleich (${e1.stats} Werte)`);
+  check(e1.tab, 'Pausemenü: Reiter „Messer“');
+  await p.evaluate(() => { const t = document.querySelector('.eq-host [data-lslot="melee"]'); if (t) t.click(); });
+  await sleep(300);
+  const e2 = await p.evaluate(() => document.querySelectorAll('.eq-host .lp-item').length);
+  check(e2 >= 4, `Messer-Auswahl im Match (${e2} Nahkampfwaffen)`);
+  await p.evaluate(() => { const b = document.querySelector('[data-act="apply"]'); if (b) b.click(); });
+  await sleep(300);
+  await p.evaluate(() => { const G = window.__game; if (G.menus && typeof G.menus._resume === 'function') G.menus._resume(); });
+  await gameWait(p, 0.6);
+  const e3 = await p.evaluate(() => { const w = window.__game.player.weapon; return { optik: w.currentDef.att && w.currentDef.att.optik, mag: w.slots[0].mag, vm: w.viewModel.cur.att, sight: w.viewModel.cur.ud.info.sight }; });
+  check(e3.optik === 'holo' && e3.vm.includes('holo') && e3.sight === 'holo', `Optik sofort getauscht (${e3.optik}, Modell ${e3.sight})`);
+  check(e3.mag <= 7, `Munition bleibt (Magazin ${e3.mag})`);
   check(errors.length === 0, `keine Seitenfehler${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
 } catch (err) {
   check(false, `Ausnahme: ${err.message}`);

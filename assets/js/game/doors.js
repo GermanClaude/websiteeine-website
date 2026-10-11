@@ -4,6 +4,9 @@
 // genug Treffern; Explosionen reißen sie heraus. Tore: Schaltpult innen und außen (F) fährt das Tor hoch bzw. runter.
 // Kollision/Kugeln über die beweglichen Festkörper von building.js (addSolid). Online entscheidet der Host:
 // Client → 'door' {i, a: 't' (umschalten) | 'k' (auframmen) | 'h' (Treffer), d}; Host → 'ev' dr {i, s, b, k} an alle.
+// Fenster (world.windows, arch.js glass): Flügel mit Scheibe, F öffnet nach innen; Kugel, Messerhieb oder Explosion
+// zerbricht die Scheibe (Splitter, Klirren) – danach offen zum Durchsteigen/-schießen. Gezeichnet gebündelt (zwei
+// InstancedMesh für alle Scheiben und Rahmen), Reihenfolge der Einträge: Türen, Fenster, Tore (gleich auf allen Geräten).
 import * as THREE from 'three';
 import { worldPartsFrom } from './building.js';
 
@@ -11,6 +14,8 @@ const DOOR_HP = 140;
 const DOOR_T = 0.06;
 const OPEN_TIME = 0.55, KICK_TIME = 0.14, GATE_TIME = 3.2;
 const USE_REACH = 1.6, PANEL_REACH = 1.4;
+const WIN_T = 0.05, WIN_BAR = 0.055;
+const _wm = new THREE.Matrix4(), _wz = new THREE.Matrix4().makeScale(0, 0, 0);
 
 let MATS = null;
 function mats() {
@@ -22,6 +27,8 @@ function mats() {
     green: new THREE.MeshStandardMaterial({ color: 0x2fae4a, emissive: 0x2fae4a, emissiveIntensity: 0.8 }),
     red: new THREE.MeshStandardMaterial({ color: 0xc8352a, emissive: 0xc8352a, emissiveIntensity: 0.8 }),
     box: new THREE.BoxGeometry(1, 1, 1),
+    glass: new THREE.MeshStandardMaterial({ color: 0xa9c3cf, roughness: 0.06, metalness: 0.2, transparent: true, opacity: 0.32, depthWrite: false }),
+    frame: new THREE.MeshStandardMaterial({ color: 0x5a4430, roughness: 0.7 }),
     tints: new Map(),
   };
   return MATS;
@@ -62,6 +69,31 @@ export class Doors {
       it.solid = { id: `door${this.items.length}`, def: { surface: 'wood' }, mesh: pivot, parts: [], onHit: (dmg, by) => this._hit(it, dmg, by) };
       this.items.push(it);
     }
+    // Fenster: Flügel-Teile als Instanzen (Scheibe + Rahmenleisten), Lage über einen unsichtbaren Drehpunkt
+    const wins = (W && W.windows) || [];
+    if (wins.length) {
+      const bars = wins.reduce((n, w) => n + (w.transom ? 6 : 5), 0);
+      this.winGlass = new THREE.InstancedMesh(M.box, M.glass, wins.length);
+      this.winFrame = new THREE.InstancedMesh(M.box, M.frame, bars);
+      this.winGlass.name = 'fenster:scheiben'; this.winFrame.name = 'fenster:rahmen';
+      this.winFrame.castShadow = true;
+      this.winGlass.renderOrder = 2;
+      this.winGlass.frustumCulled = this.winFrame.frustumCulled = false;
+      this.group.add(this.winFrame, this.winGlass);
+    }
+    let bar = 0;
+    wins.forEach((d, k) => {
+      const pivot = new THREE.Object3D();
+      pivot.position.set(d.hx, d.y, d.hz);
+      const B = WIN_BAR, L = (x, y, w, h, t) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, 0), new THREE.Quaternion(), new THREE.Vector3(w, h, t));
+      const parts = [L(B / 2, d.h / 2, B, d.h, WIN_T), L(d.w - B / 2, d.h / 2, B, d.h, WIN_T), L(d.w / 2, B / 2, d.w, B, WIN_T), L(d.w / 2, d.h - B / 2, d.w, B, WIN_T), L(d.w / 2, d.h / 2, B * 0.8, d.h, WIN_T * 0.9)];
+      if (d.transom) parts.push(L(d.w / 2, d.h * 0.62, d.w, B * 0.8, WIN_T * 0.9));
+      const it = { type: 'window', d, mesh: pivot, t: d.open ? 1 : 0, target: d.open ? 1 : 0, speed: 1 / OPEN_TIME, hp: 1, broken: false, solid: null,
+        glass: k, glassM: L(d.w / 2, d.h / 2, d.w - B, d.h - B, 0.012), bars: parts.map((m, j) => ({ i: bar + j, m })) };
+      bar += parts.length;
+      it.solid = { id: `win${k}`, def: { surface: 'glass' }, mesh: pivot, parts: [], onHit: (dmg, by) => this._hit(it, dmg, by) };
+      this.items.push(it);
+    });
     for (const g of (W && W.gates) || []) {
       const mesh = new THREE.Mesh(M.box, M.gate);
       mesh.castShadow = mesh.receiveShadow = true;
@@ -92,7 +124,7 @@ export class Doors {
     }
     if (G.scene) G.scene.add(this.group);
     for (const it of this.items) { this._pose(it); if (G.building) G.building.addSolid(it.solid); }
-    this._offs = [G.events.on('explosion', (e) => this._onExplosion(e))];
+    this._offs = [G.events.on('explosion', (e) => this._onExplosion(e)), G.events.on('impact', (e) => this._melee(e))];
   }
 
   get replica() { return this.G.match && this.G.match.netRole === 'client'; }
@@ -104,6 +136,15 @@ export class Doors {
       const a = lerpAng(ang(d.dc), ang(d.dopen), it.t);
       it.mesh.rotation.y = a;
       it.solid.parts = it.broken ? [] : worldPartsFrom([[d.w / 2, d.h / 2, 0, d.w / 2, d.h / 2, DOOR_T / 2, 0]], d.hx, d.y, d.hz, a);
+    } else if (it.type === 'window') {
+      const d = it.d;
+      const a = lerpAng(ang(d.dc), ang(d.dopen), it.t);
+      it.mesh.rotation.y = a;
+      it.mesh.updateMatrix();
+      this.winGlass.setMatrixAt(it.glass, it.broken ? _wz : _wm.multiplyMatrices(it.mesh.matrix, it.glassM));
+      for (const b of it.bars) this.winFrame.setMatrixAt(b.i, it.broken ? _wz : _wm.multiplyMatrices(it.mesh.matrix, b.m));
+      this.winGlass.instanceMatrix.needsUpdate = this.winFrame.instanceMatrix.needsUpdate = true;
+      it.solid.parts = it.broken ? [] : worldPartsFrom([[d.w / 2, d.h / 2, 0, d.w / 2, d.h / 2, WIN_T / 2, 0]], d.hx, d.y, d.hz, a);
     } else {
       const g = it.d;
       const h = Math.max(0.02, it.top - (g.y + it.bottom));
@@ -120,7 +161,7 @@ export class Doors {
     const G = this.G;
     const P = G.player;
     for (const it of this.items) {
-      if (it.type === 'door') {
+      if (it.type === 'door' || it.type === 'window') {
         if (it.t !== it.target) {
           const step = dt * it.speed;
           it.t = it.t < it.target ? Math.min(it.target, it.t + step) : Math.max(it.target, it.t - step);
@@ -151,12 +192,13 @@ export class Doors {
       if (it.broken) continue;
       let dd = Infinity;
       if (it.type === 'door') { if (Math.abs(P.position.y - it.d.y) < 1.2) dd = this._doorDist(it, P.position) - USE_REACH; }
+      else if (it.type === 'window') { if (P.position.y > it.d.y - 1.6 && P.position.y < it.d.y + 0.6) dd = this._winDist(it, P.position) - USE_REACH; }
       else for (const [px, pz] of it.d.panels || []) dd = Math.min(dd, Math.hypot(px - P.position.x, pz - P.position.z) - PANEL_REACH);
       if (dd < 0 && dd < bd) { bd = dd; best = i; }
     }
     if (best < 0) return;
     const it = this.items[best];
-    this.near = { i: best, text: it.type === 'door' ? (it.target > 0.5 ? 'Tür schließen' : 'Tür öffnen') : (it.target > 1 ? 'Tor schließen (Schaltpult)' : 'Tor öffnen (Schaltpult)') };
+    this.near = { i: best, text: it.type === 'window' ? (it.target > 0.5 ? 'Fenster schließen' : 'Fenster öffnen') : it.type === 'door' ? (it.target > 0.5 ? 'Tür schließen' : 'Tür öffnen') : (it.target > 1 ? 'Tor schließen (Schaltpult)' : 'Tor öffnen (Schaltpult)') };
     if (G.input && G.input.pressed('interact') && !(G.mode && G.mode.id === 'training')) { G.input.consume('interact'); this.request(best, 't'); }
   }
 
@@ -169,6 +211,13 @@ export class Doors {
     return Math.hypot(px - dx * along, pz - dz * along);
   }
 
+  /** Fenster: Abstand zur Fensteröffnung (geschlossene Lage), damit F auch am offenen Flügel greift. */
+  _winDist(it, p) {
+    const d = it.d, px = p.x - d.hx, pz = p.z - d.hz;
+    const along = Math.max(0, Math.min(d.w, px * d.dc[0] + pz * d.dc[1]));
+    return Math.hypot(px - d.dc[0] * along, pz - d.dc[1] * along);
+  }
+
   /** Bots (offline/Host) öffnen Türen und Tore, vor denen sie stehen. */
   _botsOpen() {
     const G = this.G;
@@ -176,7 +225,7 @@ export class Doors {
     if (this._botT % 10) return;
     for (let i = 0; i < this.items.length; i++) {
       const it = this.items[i];
-      if (it.broken) continue;
+      if (it.broken || it.type === 'window') continue;
       const closed = it.type === 'door' ? it.target < 0.5 && it.t < 0.5 : it.target < 1 && it.bottom < 2;
       if (!closed) continue;
       for (const a of G.actors) {
@@ -210,11 +259,11 @@ export class Doors {
     if (!it || it.broken) return false;
     if (a === 'h') { this._hit(it, dmg, actor); return true; }
     if (actor && actor.position) {
-      const far = it.type === 'door' ? this._doorDist(it, actor.position) > USE_REACH + 1 : !(it.d.panels || []).some(([px, pz]) => Math.hypot(px - actor.position.x, pz - actor.position.z) < PANEL_REACH + 1.5);
+      const far = it.type === 'window' ? this._winDist(it, actor.position) > USE_REACH + 1 : it.type === 'door' ? this._doorDist(it, actor.position) > USE_REACH + 1 : !(it.d.panels || []).some(([px, pz]) => Math.hypot(px - actor.position.x, pz - actor.position.z) < PANEL_REACH + 1.5);
       if (far) return false;
     }
     if (it.type === 'gate') return this._apply(i, it.target > 1 ? 0 : it.top - it.d.y - 0.3, false);
-    if (a === 'k') return this._apply(i, 1, true);
+    if (a === 'k') return it.type === 'window' ? false : this._apply(i, 1, true);
     return this._apply(i, it.target > 0.5 ? 0 : 1, false);
   }
 
@@ -222,7 +271,7 @@ export class Doors {
   _apply(i, s, kick, broken = false, fromNet = false) {
     const it = this.items[i];
     if (!it) return false;
-    if (it.type === 'door') {
+    if (it.type === 'door' || it.type === 'window') {
       it.target = s;
       it.speed = 1 / (kick ? KICK_TIME : OPEN_TIME);
       if (kick) this._kickFx(it);
@@ -247,7 +296,7 @@ export class Doors {
   snapshot() {
     const out = [];
     this.items.forEach((it, i) => {
-      const def = it.type === 'door' ? (it.d.open ? 1 : 0) : it.d.bottom ?? 0;
+      const def = it.type === 'door' || it.type === 'window' ? (it.d.open ? 1 : 0) : it.d.bottom ?? 0;
       if (it.broken || it.target !== def) out.push(this._msg(i));
     });
     return out;
@@ -286,6 +335,7 @@ export class Doors {
   }
 
   _break(it) {
+    if (it.type === 'window') return this._shatter(it);
     it.broken = true;
     it.hp = 0;
     it.mesh.visible = false;
@@ -303,6 +353,40 @@ export class Doors {
     this.G.events.emit('door:broken', { door: it });
   }
 
+  /** Fensterscheibe zerspringt: Flügel weg, Splitter auf beiden Seiten, Klirren. */
+  _shatter(it) {
+    it.broken = true;
+    it.hp = 0;
+    this._pose(it);
+    if (this.G.building) this.G.building.removeSolid(it.solid);
+    const d = it.d;
+    const a = it.mesh.rotation.y, dx = Math.cos(a), dz = -Math.sin(a);
+    const n = new THREE.Vector3(-dz, 0, dx);
+    for (let k = 0; k < 6; k++) {
+      const s = 0.12 + ((k % 3) / 2) * (d.w - 0.24);
+      const p = new THREE.Vector3(d.hx + dx * s, d.y + 0.2 + (k < 3 ? 0.25 : 0.7) * d.h, d.hz + dz * s);
+      this.G.events.emit('impact', { point: p, normal: k % 2 ? n.clone() : n.clone().negate(), surface: 'glass', shooter: null, weaponId: null, fx: true });
+    }
+    this._sound(it, 'impact_glass', 1.4);
+    this.G.events.emit('window:broken', { window: it });
+  }
+
+  /** Messerhieb/Kolben gegen eine Scheibe (Nahkampf trifft die Fläche, 'impact' melee). */
+  _melee(e) {
+    if (!e || !e.melee || !e.point || e.surface !== 'glass' || e.fx) return;
+    const G = this.G;
+    if (this.replica && e.shooter !== G.player) return;
+    for (let i = 0; i < this.items.length; i++) {
+      const it = this.items[i];
+      if (it.type !== 'window' || it.broken) continue;
+      const d = it.d;
+      if (e.point.y < d.y - 0.1 || e.point.y > d.y + d.h + 0.1 || (it.t > 0.05 ? this._doorDist(it, e.point) : this._winDist(it, e.point)) > 0.25) continue;
+      if (this.replica) this.request(i, 'h', 50);
+      else this._hit(it, 50, e.shooter);
+      return;
+    }
+  }
+
   _kickFx(it) {
     this._sound(it, 'melee_hit', 1);
     this.G.events.emit('door:kick', { door: it });
@@ -312,14 +396,15 @@ export class Doors {
     if (!e || e.net || e.nonLethal || this.replica || !e.position) return;
     for (let i = 0; i < this.items.length; i++) {
       const it = this.items[i];
-      if (it.type !== 'door' || it.broken) continue;
-      if (Math.hypot(it.d.hx - e.position.x, it.d.y + 1 - e.position.y, it.d.hz - e.position.z) < (e.radius || 4) * 0.8 + 1) this._hit(it, 999, e.attacker);
+      if ((it.type !== 'door' && it.type !== 'window') || it.broken) continue;
+      const reach = it.type === 'window' ? (e.radius || 4) * 1.4 + 2 : (e.radius || 4) * 0.8 + 1; // Glas springt weiter
+      if (Math.hypot(it.d.hx - e.position.x, it.d.y + 1 - e.position.y, it.d.hz - e.position.z) < reach) this._hit(it, 999, e.attacker);
     }
   }
 
   _sound(it, name, volume) {
     const au = this.G.audio;
-    const p = it.type === 'door' ? new THREE.Vector3(it.d.hx, it.d.y + 1, it.d.hz) : new THREE.Vector3(it.d.x, it.d.y + 1.5, it.d.z);
+    const p = it.type === 'door' || it.type === 'window' ? new THREE.Vector3(it.d.hx, it.d.y + 1, it.d.hz) : new THREE.Vector3(it.d.x, it.d.y + 1.5, it.d.z);
     if (au && typeof au.play === 'function') { try { au.play(name, { position: p, volume }); } catch { /* Klang ist Beiwerk */ } }
   }
 
@@ -328,6 +413,7 @@ export class Doors {
     this._offs.length = 0;
     if (this.G.building) for (const it of this.items) this.G.building.removeSolid(it.solid);
     this.items.length = 0;
+    for (const m of [this.winGlass, this.winFrame]) if (m) m.dispose();
     if (this.group.parent) this.group.parent.remove(this.group);
   }
 }

@@ -2623,6 +2623,12 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 .lp-att select { min-height: 40px; width: 100%; padding: 4px 8px; border: 1px solid var(--np-line-strong); border-radius: 2px; background: rgba(0, 0, 0, .35); color: var(--np-ink); font: 500 13px var(--font-ui, inherit); }
 .lp-att select:focus-visible { outline: 2px solid var(--np-signal); outline-offset: 1px; }
 .lp-att small { font-size: 10.5px; color: var(--np-dim); min-height: 1.2em; line-height: 1.25; }
+.lp-attstats { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 2px; }
+.lp-attstats span { padding: 3px 8px; border: 1px solid var(--np-line); border-radius: 2px; font-size: 11.5px; color: var(--np-dim); }
+.lp-attstats span b { font-weight: 600; margin-left: 3px; }
+.lp-attstats .up b { color: #6fd38a; }
+.lp-attstats .down b { color: #ff7a6a; }
+.lp-attnone { margin: 2px 0 0; font-size: 11.5px; color: var(--np-dim); }
 .lp-skins { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .lp-skin { display: flex; flex-direction: column; align-items: flex-start; min-height: 44px; padding: 4px 10px; border: 1px solid var(--np-line); border-radius: 2px; background: transparent; color: var(--np-ink); text-align: left; cursor: pointer; }
 .lp-skin b { font-size: 13.5px; }

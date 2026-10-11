@@ -7,10 +7,10 @@ import { CLASSES, SOLDIER_CLASS_ORDER, resolveClassLoadout, classAllows, classPr
 import { OPERATOR_TIERS } from '../../shared/modes.data.js';
 import { esc } from './dom.js';
 import { ICON } from './icons.js';
-import { ATT_SLOTS, ATTACHMENTS, attachmentsFor, loadAttachments, saveAttachment } from '../../shared/attachments.data.js';
+import { ATT_SLOTS, ATTACHMENTS, attachmentsFor, loadAttachments, saveAttachment, applyAttachments } from '../../shared/attachments.data.js';
 import { getWeaponModelInfo } from '../weapons/models.js';
 
-const SLOTS = [['primary', 'Primär'], ['secondary', 'Sekundär'], ['lethal', 'Granate']];
+const SLOTS = [['primary', 'Primär'], ['secondary', 'Sekundär'], ['melee', 'Messer'], ['lethal', 'Granate']];
 
 export class LoadoutPanel {
   constructor(G) {
@@ -20,6 +20,15 @@ export class LoadoutPanel {
     this.slot = 'primary';
     this.onChange = null;
     this._click = (e) => this._onClick(e);
+    // Aufsatz geändert: speichern, Tafel neu (Werte-Vergleich), Rückmeldung an den Besitzer (Pausemenü/Einsatzkarte)
+    this._change = (e) => {
+      if (!onAttChange(e)) return;
+      const slot = e.target.dataset.attSlot;
+      this.render();
+      const n = this.host && this.host.querySelector(`[data-att-slot="${slot}"]`);
+      if (n) n.focus({ preventScroll: true });
+      if (typeof this.onChange === 'function') this.onChange(this.value());
+    };
   }
 
   _d() {
@@ -45,12 +54,12 @@ export class LoadoutPanel {
     this.lo.camo = { ...(base.camo || {}), ...eq.weapon };
     this.lo.skin = eq.operator[cls] || base.skin || null;
     host.addEventListener('click', this._click);
-    host.addEventListener('change', onAttChange);
+    host.addEventListener('change', this._change);
     this.render();
   }
 
   unmount() {
-    if (this.host) { this.host.removeEventListener('click', this._click); this.host.innerHTML = ''; }
+    if (this.host) { this.host.removeEventListener('click', this._click); this.host.removeEventListener('change', this._change); this.host.innerHTML = ''; }
     this.host = null;
   }
 
@@ -60,7 +69,7 @@ export class LoadoutPanel {
 
   value() {
     const lo = this.lo || {};
-    return { primary: lo.primary, secondary: lo.secondary, lethal: lo.lethal, cls: lo.cls, camo: { ...(lo.camo || {}) }, skin: lo.skin || null };
+    return { primary: lo.primary, secondary: lo.secondary, lethal: lo.lethal, melee: lo.melee || 'knife', cls: lo.cls, camo: { ...(lo.camo || {}) }, skin: lo.skin || null };
   }
 
   /** Klassenausrüstung merken (settings.classLoadouts / lastClass, core-mechanics). */
@@ -69,10 +78,10 @@ export class LoadoutPanel {
     const v = this.value();
     try {
       const all = { ...(S.get('classLoadouts') || {}) };
-      all[v.cls] = { primary: v.primary, secondary: v.secondary, lethal: v.lethal, cls: v.cls };
+      all[v.cls] = { primary: v.primary, secondary: v.secondary, lethal: v.lethal, melee: v.melee, cls: v.cls };
       S.set('classLoadouts', all);
       S.set('lastClass', v.cls);
-      S.set('lastLoadout', { primary: v.primary, secondary: v.secondary, lethal: v.lethal, cls: v.cls });
+      S.set('lastLoadout', { primary: v.primary, secondary: v.secondary, lethal: v.lethal, melee: v.melee, cls: v.cls });
     } catch { /* Einstellungen gesperrt */ }
   }
 
@@ -89,7 +98,7 @@ export class LoadoutPanel {
     }).join('');
     const c = CLASSES[lo.cls];
     const slots = SLOTS.map(([k, label]) => {
-      const def = k === 'lethal' ? d.EQ[lo[k]] : d.W[lo[k]];
+      const def = k === 'lethal' ? d.EQ[lo[k]] : d.W[k === 'melee' ? lo.melee || 'knife' : lo[k]];
       return `<button type="button" class="m-tab lp-slot" role="tab" data-lslot="${k}" aria-selected="${k === this.slot}"><small>${label}</small><span>${esc(def ? def.name : '—')}</span></button>`;
     }).join('');
     let items = '';
@@ -98,11 +107,12 @@ export class LoadoutPanel {
     } else {
       for (const w of Object.values(d.W)) {
         if (w.slot !== this.slot) continue;
-        const ok = classAllows(lo.cls, w.cls);
-        items += this._item(w, w.id === lo[this.slot], ok, ok ? (d.WC[w.cls] || w.cls) : `Nicht für ${c.name}`);
+        const ok = this.slot === 'melee' || classAllows(lo.cls, w.cls);
+        const on = w.id === (this.slot === 'melee' ? lo.melee || 'knife' : lo[this.slot]);
+        items += this._item(w, on, ok, ok ? (this.slot === 'melee' ? (w.special ? 'Nahkampf' : 'Messer') : d.WC[w.cls] || w.cls) : `Nicht für ${c.name}`);
       }
     }
-    const wid = this.slot === 'lethal' ? null : lo[this.slot];
+    const wid = this.slot === 'lethal' ? null : this.slot === 'melee' ? lo.melee || 'knife' : lo[this.slot];
     this.host.innerHTML = `
       <div class="lp">
         <div class="lp-classes" role="group" aria-label="Klasse">${classes}</div>
@@ -160,7 +170,7 @@ export class LoadoutPanel {
     else if (ds.item) {
       if (b.getAttribute('aria-disabled') === 'true') { snd('error'); return; }
       const slot = this.slot;
-      this.lo[slot] = ds.item;
+      this.lo[slot] = ds.item;   // 'melee': Messer/Nahkampfwaffe
       snd('confirm');
     } else if (ds.camo) {
       if (b.getAttribute('aria-disabled') === 'true') { snd('error'); return; }
@@ -241,16 +251,42 @@ export function attRowHtml(G, wid) {
   }).join('');
   if (!rows) return '';
   const n = Object.keys(cur).filter((k) => fit[k] && fit[k].includes(cur[k])).length;
-  return `<div class="lp-row lp-atts"><span class="lp-lab">Aufsätze <b>${n}</b><small>wirken ab dem nächsten Einsatz</small></span><div class="lp-attgrid">${rows}</div></div>`;
+  return `<div class="lp-row lp-atts"><span class="lp-lab">Aufsätze <b>${n}</b><small>im Match sofort (Pause → Ausrüstung)</small></span><div class="lp-attgrid">${rows}</div>${attStatsHtml(def, applyAttachments(def, cur, info))}</div>`;
+}
+
+/** Werte mit Aufsätzen gegen die Grundwaffe (nur Änderungen; grün = besser, rot = schlechter). */
+export function attStatsHtml(base, mod) {
+  if (!base || !mod || mod === base) return '<p class="lp-attnone">Werkszustand – Aufsätze ändern Schaden, Rückstoß, Anschlag, Streuung, Magazin, Nachladen, Reichweite und Durchschlag.</p>';
+  const pct = (a, b) => `${b > a ? '+' : '−'}${Math.round(Math.abs(b / a - 1) * 100)} %`;
+  const num = (v, k = 0) => v.toLocaleString('de-DE', { maximumFractionDigits: k, minimumFractionDigits: k });
+  const rows = [];
+  const add = (label, a, b, better, fmt) => { if (!Number.isFinite(a) || !Number.isFinite(b) || Math.abs(b - a) < 1e-9) return; rows.push(`<span class="${(better ? b > a : b < a) ? 'up' : 'down'}">${esc(label)} <b>${fmt(a, b)}</b></span>`); };
+  add('Schaden', base.damage.max, mod.damage.max, true, (a, b) => `${a} → ${b}`);
+  if (mod.pellets !== base.pellets) rows.push(`<span class="up">Geschoss <b>${base.pellets} Schrot → 1 Kugel</b></span>`);
+  add('Reichweite', base.damage.rangeEnd, mod.damage.rangeEnd, true, (a, b) => `${num(a)} → ${num(b)} m`);
+  add('Hochschlag', base.recoil.vertical, mod.recoil.vertical, false, pct);
+  add('Seitenrückstoß', base.recoil.horizontal, mod.recoil.horizontal, false, pct);
+  add('Anschlag', base.adsTime, mod.adsTime, false, (a, b) => `${num(a, 2)} → ${num(b, 2)} s`);
+  add('Hüftstreuung', base.hipSpread, mod.hipSpread, false, pct);
+  add('Magazin', base.mag, mod.mag, true, (a, b) => `${a} → ${b}`);
+  add('Nachladen', base.reloadTime, mod.reloadTime, false, (a, b) => `${num(a, 1)} → ${num(b, 1)} s`);
+  add('Durchschlag', base.penetration || 0, mod.penetration || 0, true, (a, b) => `${num(a, 2)} → ${num(b, 2)}`);
+  add('Laufen', base.moveSpeedMult, mod.moveSpeedMult, true, pct);
+  add('Aus dem Sprint', base.sprintToFire, mod.sprintToFire, false, pct);
+  add('Zoom', base.adsZoom, mod.adsZoom, true, (a, b) => `${num(a, 2)}× → ${num(b, 2)}×`);
+  if (mod.suppressed && !base.suppressed) rows.push(`<span class="up">Gedämpft <b>leise, nicht auf der Karte</b></span>`);
+  if (mod.bipod) rows.push(`<span class="up">Zweibein <b>geduckt −${Math.round((1 - mod.bipod) * 100)} % Rückstoß</b></span>`);
+  return rows.length ? `<div class="lp-attstats">${rows.join('')}</div>` : '';
 }
 
 /** Auswahl geändert (delegiert an Tafel/Lobby). */
 export function onAttChange(e) {
   const el = e.target;
-  if (!el || !el.dataset || !el.dataset.attSlot) return;
+  if (!el || !el.dataset || !el.dataset.attSlot) return false;
   saveAttachment(el.dataset.attW, el.dataset.attSlot, el.value || null);
   const a = ATTACHMENTS[el.value];
   const sm = el.parentElement && el.parentElement.querySelector('small');
   if (sm) sm.textContent = a ? a.kurz : '';
   el.title = a ? a.kurz : 'Werkszustand';
+  return true;
 }

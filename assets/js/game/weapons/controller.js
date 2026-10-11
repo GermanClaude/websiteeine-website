@@ -239,7 +239,10 @@ export class WeaponController {
     }
     const mk = (def) => {
       const o = old.get(def.id);
-      return o && (o.def.attKey || '') === (def.attKey || '') ? o : { id: def.id, def, mag: def.mag || 0, reserve: def.reserve || 0 };
+      if (o && (o.def.attKey || '') === (def.attKey || '')) return o;
+      // gleiche Waffe, andere Aufsätze (Pausemenü im Match): Munition bleibt (kein geschenktes volles Magazin)
+      if (o) return { id: def.id, def, mag: Math.min(o.mag, def.mag || 0), reserve: o.reserve };
+      return { id: def.id, def, mag: def.mag || 0, reserve: def.reserve || 0 };
     };
     this.slots = secondary ? [mk(primary), mk(secondary)] : [mk(primary)];
     // Ausrüstung

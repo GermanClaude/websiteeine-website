@@ -41,8 +41,9 @@ import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
 /** Spielprotokoll (Nachrichten/Pakete). Muss bei Host und Client gleich sein – zusätzlich zur Fassung (BUILD).
  *  2: Fahrzeuge online (Snapshot-Anhang, Fahrzeug-Absicht, 'veh'/'vhit'/'vehicles' – panzer-mp.md §C).
  *  3: Fähigkeiten, Kartenpunkte, Beute, Bauwerke, Türen/Tore ('ability'/'point'/'loot'/'build'/'door', 'ev' bs/bd/dr), TDM Ultimate.
- *  4: Graben mit dem Klappspaten ('dig' {x, z}, 'ev' dg), Karte Niemandsland. */
-export const NET_VERSION = 4;
+ *  4: Graben mit dem Klappspaten ('dig' {x, z}, 'ev' dg), Karte Niemandsland.
+ *  5: Fenster (Einträge zwischen Türen und Toren – Indizes von 'door'/'ev' dr verschoben). */
+export const NET_VERSION = 5;
 /** Online wählbare Modi (Eroberung folgt mit den Fahrzeugen online, Training bleibt offline). */
 export const ONLINE_MODES = Object.freeze(['tdm', 'ult', 'ffa', 'dom', 'kc', 'messer', 'inf', 'gun']);
 /** Modi mit Fahrzeugen online (Nur Messer, Waffenspiel und Infiziert bleiben ohne – Ausrüstung kommt dort vom Modus). */

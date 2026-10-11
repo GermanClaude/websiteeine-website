@@ -183,14 +183,15 @@ export default {
   defaultSurface: 'dirt',
   wallMargin: 40,
   lighting: {
-    sun: { elevation: 22, azimuth: 200, color: '#e8dccb', intensity: 1.6 },
-    sky: { turbidity: 9, rayleigh: 1.1, mieCoefficient: 0.012, mieDirectionalG: 0.75, exposure: 0.42, clouds: { coverage: 0.9, density: 0.7, scale: 0.00018, elevation: 0.5 }, hazeHigh: 0.25, hazeAmount: 1.2 },
+    // bedeckt: Sonne hoch und schwach, kein Hof um die Sonne (blendete tief im Gegenlicht – Nutzer 11.10.)
+    sun: { elevation: 42, azimuth: 200, color: '#ddd6ca', intensity: 1.25 },
+    sky: { turbidity: 6, rayleigh: 1.2, mieCoefficient: 0.004, mieDirectionalG: 0.55, exposure: 0.36, tint: '#bdbab2', clouds: { coverage: 0.92, density: 0.72, scale: 0.00018, elevation: 0.5 }, hazeHigh: 0.25, hazeAmount: 1.1, hdri: false },
     hemi: { sky: '#a6a59c', ground: '#4a4034', intensity: 0.85 },
     env: { intensity: 0.9, ground: '#4a4034', groundIntensity: 0.5, tint: '#e2ddd2' },
-    fog: { color: '#8f8a80', nearFactor: 0.12, density: 0.006, falloff: 0.03, start: 18, max: 0.92, sun: 0.35, sunExp: 4 },
+    fog: { color: '#8f8a80', nearFactor: 0.12, density: 0.006, falloff: 0.03, start: 18, max: 0.92, sun: 0.06, sunExp: 10 },
     shadow: { size: 60, bias: -0.0004, normalBias: 0.04, near: 40, farMaxY: 40 },
     exposure: 1.0,
-    atmos: { beams: 0.01, beamG: 0.4, dust: 1.6, dustSize: 0.018 },
+    atmos: { beams: 0, beamG: 0.4, dust: 1.2, dustSize: 0.018 },
   },
   water: { color: '#3b3a30' },
 

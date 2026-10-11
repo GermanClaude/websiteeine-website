@@ -232,7 +232,14 @@ export class Lobby {
       summary: screen.querySelector('.lb-summary'), side: screen.querySelector('.lb-side'), profile: screen.querySelector('.lb-profile'),
     };
     screen.addEventListener('click', (e) => this._click(e));
-    screen.addEventListener('change', (e) => { onAttChange(e); if (e.target && e.target.dataset && e.target.dataset.attSlot) this._showView(e.target.dataset.attW); });
+    screen.addEventListener('change', (e) => {
+      if (!onAttChange(e)) return;
+      const { attW, attSlot } = e.target.dataset;
+      this._renderDetail();   // Werte-Vergleich neu
+      const n = screen.querySelector(`[data-att-slot="${attSlot}"]`);
+      if (n) n.focus({ preventScroll: true });
+      this._showView(attW);
+    });
     screen.addEventListener('pointerover', (e) => this._camoHover(e, true));
     screen.addEventListener('pointerout', (e) => this._camoHover(e, false));
     screen.addEventListener('focusin', (e) => this._camoHover(e, true));

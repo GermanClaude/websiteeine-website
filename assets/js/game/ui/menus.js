@@ -361,7 +361,7 @@ export class Menus {
     const s = this._screen('equip', 'm-sub', `
       <div class="sub sub-wide">
         <header class="sub-head"><button type="button" class="m-icon" data-act="back" aria-label="Zurück">${ICON.back}</button><div><div class="m-kicker">Pause</div><h1 class="m-title">Ausrüstung<em>.</em></h1></div></header>
-        <p class="sub-lead">Gilt sofort, wenn du gerade erst eingesetzt wurdest – sonst ab dem nächsten Einsatz.</p>
+        <p class="sub-lead">Aufsätze und Messer gelten sofort. Waffen und Klasse sofort, wenn du gerade erst eingesetzt wurdest – sonst ab dem nächsten Einsatz.</p>
         <div class="sub-body m-scroll eq-host" data-scrollable></div>
         <div class="m-actions eq-actions"><button type="button" class="m-btn m-primary" data-act="apply">${ICON.check}<span>Übernehmen</span></button><button type="button" class="m-btn" data-act="back">${ICON.back}<span>Abbrechen</span></button></div>
       </div>`);
@@ -375,6 +375,12 @@ export class Menus {
         const lo = panel.value();
         panel.save();
         const when = G.mode && typeof G.mode.setLoadout === 'function' ? G.mode.setLoadout(lo) : 'next';
+        // Aufsätze und Messer gelten sofort (Waffen/Klasse wie bisher erst beim nächsten Einsatz, außer frisch gespawnt)
+        const p = G.player;
+        if (when !== 'now' && p && p.alive && p.weapon && typeof p.weapon.setLoadout === 'function') {
+          p.loadout = { ...(p.loadout || {}), melee: lo.melee || (p.loadout || {}).melee };
+          try { p.weapon.setLoadout(p.loadout); } catch (err) { console.error('[NULLPUNKT] Aufsätze übernehmen:', err); }
+        }
         G.events.emit('loadout:change', { actor: G.player, loadout: lo, when });
         // Mehrspieler: Ausrüstung dem Host melden (gilt ab dem nächsten Einsatz)
         if (G.net && G.net.online && typeof G.net.setLoadout === 'function') { try { G.net.setLoadout({ cls: lo.cls, loadout: lo }); } catch { /* */ } }
@@ -382,7 +388,7 @@ export class Menus {
         panel.unmount();
         this.showPause();
         const n = this.root.querySelector('.ps-info');
-        if (n) n.insertAdjacentHTML('beforeend', `<p class="ps-note">${when === 'now' ? 'Ausrüstung übernommen.' : 'Ausrüstung gilt ab dem nächsten Einsatz.'}</p>`);
+        if (n) n.insertAdjacentHTML('beforeend', `<p class="ps-note">${when === 'now' ? 'Ausrüstung übernommen.' : 'Aufsätze und Messer übernommen – Waffen/Klasse ab dem nächsten Einsatz.'}</p>`);
       }
     });
     this.parent = 'pause';
