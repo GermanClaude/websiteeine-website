@@ -377,12 +377,10 @@ function turretDetail(T, S, paint, lod, seg) {
   const hi = DET === 2;
   if (lod < 2) {
     for (const sx of [-1, 1]) {
-      // Keilpanzer vor den Wangen (Oberseite fällt nach vorn ab)
-      const P = [[0.66, 1.9], [1.1, 2.42], [1.36, 0.93]].map(([x, v]) => [sx * x, v]);
-      T.add(wedge(sx < 0 ? P.reverse() : P, 0.1, 0.66, 0.4), paint);
-      // Seitenmodul (Abstandspanzer) + Staukasten seitlich hinten
-      T.add(box(0.07, 0.56, 1.1), paint, [sx * 1.39, 0.4, -0.4]);
+      // Vorbild (amerikanischer Kampfpanzer): flache, schräge Wangen ohne Keilpanzer – Abdeckplatten der Verbundpanzerung
+      // mit Schraubenreihe – und Staukästen seitlich am Turmheck
       T.add(box(0.3, 0.44, 0.92), paint, [sx * 1.505, 0.46, 1.05]);
+      if (lod === 0) for (let j = 0; j < (hi ? 4 : 0); j++) { const t = 0.15 + j * 0.23; T.add(box(0.04, 0.04, 0.04), S.dark, [sx * (0.72 + t * 0.6 + 0.02), 0.62, -1.86 + t * 0.91 - 0.012]); }
       // Rauchwurfbecher: Block mit 4 Bechern je Seite
       T.add(box(0.42, 0.07, 0.22), S.dark, [sx * 1.11, 0.815, -0.7]);
       for (let i = 0; i < 4; i++) T.add(cyl(0.05, 0.05, 0.26, lod === 0 ? 8 : 6, lod > 0), S.dark, [sx * (0.98 + i * 0.087), 0.92, -0.76], [-0.75, 0, sx * 0.3]);
@@ -393,10 +391,10 @@ function turretDetail(T, S, paint, lod, seg) {
     }
     // Richtschützen-Optikkopf: Schutzhaube (Klappen s. u.)
     T.add(box(0.48, 0.05, 0.6), paint, [0.62, 1.165, -0.98]);
-    // Rundblickperiskop des Kommandanten (fest, links vorn)
-    T.add(cyl(0.12, 0.14, 0.12, Math.max(8, seg >> 1)), paint, [-1.0, 0.84, -0.3]);
-    T.add(box(0.28, 0.24, 0.28), paint, [-1.0, 1.02, -0.3]);
-    T.add(box(0.2, 0.1, 0.02), S.optic, [-1.0, 1.03, -0.445]);
+    // Unabhängige Wärmebildoptik des Kommandanten (links vorn): Sockel, Kopf mit großem Fenster
+    T.add(cyl(0.13, 0.15, 0.14, Math.max(8, seg >> 1)), paint, [-0.9, 0.85, -0.3]);
+    T.add(box(0.36, 0.26, 0.32), paint, [-0.9, 1.05, -0.3]);
+    T.add(box(0.28, 0.15, 0.02), S.optic, [-0.9, 1.06, -0.465]);
     // Kommandantenkuppel: Öffnung unter dem Deckel
     T.add(cyl(0.34, 0.34, 0.012, seg), S.dark, [-0.62, 1.024, 0.62]);
     // Staukorb: Seitenholme, Planenrolle
@@ -409,14 +407,16 @@ function turretDetail(T, S, paint, lod, seg) {
     for (const [x, z] of [[-1.15, -0.8], [1.15, -0.8], [-1.0, 1.7], [1.0, 1.7]]) T.add(new THREE.TorusGeometry(0.05, 0.014, 4, 8), S.dark, [x, 0.8, z], [0, x > 0 ? HP : -HP, 0]);
     T.add(cyl(0.015, 0.015, 0.42, 5), S.dark, [0.15, 0.99, 1.65]);
     T.add(box(0.08, 0.06, 0.16), S.dark, [0.15, 1.2, 1.65]);
+    T.add(box(0.36, 0.02, 0.02), S.dark, [0.15, 1.25, 1.65]);                                 // Windsensor (Querträger, Fühler)
+    for (const dx of [-0.18, 0.18]) T.add(cyl(0.03, 0.03, 0.06, 6), S.dark, [0.15 + dx, 1.28, 1.65]);
     T.add(cyl(0.012, 0.012, 1.9, 4), S.dark, [-0.95, 1.73, 1.55]);
     T.add(cyl(0.05, 0.06, 0.08, 8), S.dark, [-0.95, 0.82, 1.55]);
     for (const z of [-0.6, 0.6]) T.add(box(2.2, 0.012, 0.02), S.dark, [0, 0.785, z]);
     if (hi) {
       // Optikkopf: aufgeklappte Panzerklappen; Periskop: Haube + Rückfenster
       for (const sx of [-1, 1]) T.add(box(0.025, 0.24, 0.16), paint, [0.62 + sx * 0.25, 0.98, -1.3], [0, sx * 0.5, 0]);
-      T.add(box(0.32, 0.03, 0.34), paint, [-1.0, 1.155, -0.32]);
-      T.add(box(0.2, 0.1, 0.02), S.optic, [-1.0, 1.03, -0.155]);
+      T.add(box(0.4, 0.03, 0.38), paint, [-0.9, 1.19, -0.3], [-0.12, 0, 0]);
+      T.add(box(0.1, 0.08, 0.1), S.dark, [-0.9, 0.95, -0.08]);
       // Lukenring der Ladeschützenluke mit MG-Lafette (Zapfen, Waffe, Gurtkasten)
       T.add(new THREE.TorusGeometry(0.37, 0.022, 4, 18), S.dark, [0.6, 0.81, 0.55], [HP, 0, 0]);
       T.add(cyl(0.02, 0.02, 0.3, 6), S.dark, [0.6, 0.97, 0.17]);
@@ -687,6 +687,18 @@ function buildWK2(lod, S, team) {
   }
   for (const sx of [-1, 1]) B.add(cyl(0.22, 0.22, 0.02, seg), mark, [sx * 1.37, 1.2, 0.75], [0, 0, HP]);
   B.add(cyl(0.16, 0.16, 0.02, seg), mark, [0, 1.26, 2.79], [0.82, 0, 0]);
+  if (lod === 0 && DET > 0) {
+    // Lüfterhaube zwischen den Bugluken, Sirene, Schutzbügel um die Scheinwerfer, Anhängerkupplung, Tankdeckel
+    B.add(sph(0.13, 10), paint, [0.02, 1.5, -1.95], null, [1, 0.45, 1]);
+    B.add(cyl(0.06, 0.06, 0.14, 8), S.dark, [-1.25, 1.1, -2.95], [HP, 0, 0]);
+    for (const L of D.lights) for (const dx of [-0.13, 0.13]) B.add(box(0.025, 0.2, 0.025), S.dark, [L[0] + dx, L[1] + 0.04, L[2] - 0.02]);
+    B.add(box(0.14, 0.14, 0.14), S.dark, [0, 0.75, 2.86]);
+    for (const x of [-0.3, 0.3]) B.add(cyl(0.06, 0.06, 0.03, 8), S.dark, [x, 1.53, 0.95]);
+    if (DET === 2) {
+      // Werkzeug auf dem Heckdeck: Axt, Spaten, Vorschlaghammer (Stiel + Kopf), Kettenwerkzeug
+      for (const [x, z, k] of [[-0.9, 2.35, 0.22], [0.9, 2.35, 0.18], [0.0, 2.55, 0.14]]) { B.add(box(0.04, 0.035, 0.85), S.wood, [x, 1.54, z]); B.add(box(k, 0.05, 0.08), S.dark, [x, 1.545, z - 0.42]); }
+    }
+  }
   // Laufwerk: drei Federböcke je Seite mit je zwei Laufrollen, Stützrolle oben; Triebrad vorn, Leitrad hinten
   for (const sx of [-1, 1]) {
     const x = sx * W.x;
@@ -695,8 +707,16 @@ function buildWK2(lod, S, team) {
         if (HQ) addRoadWheelHQ(B, S, paint, x, 0.29, zb + dz, 0.255, lod === 0 ? 12 : 8, lod);
         else addRoadWheel(B, S, x, 0.29, zb + dz, 0.255, lod === 0 ? 12 : 6, lod);
       }
-      if (lod < 2) B.add(box(0.2, 0.36, 0.5), paint, [x - sx * 0.04, 0.5, zb]); // Bock mit Spiralfedern
-      if (lod < 2) B.add(cyl(0.08, 0.08, 0.2, 8), S.rubber, [x, 0.8, zb + 0.12], [0, 0, HP]);
+      if (lod < 2) {
+        // Federbock: Gehäuse mit Spiralfedern (oben schmaler), Stützrolle hinten oben auf eigenem Ausleger
+        B.add(sideExtrude([[0.3, 0.4], [0.17, 0.7], [-0.2, 0.7], [-0.3, 0.4]], 0.24), paint, [x - sx * 0.04, 0, zb]);
+        B.add(cyl(0.08, 0.08, 0.2, 8), S.rubber, [x, 0.8, zb + 0.26], [0, 0, HP]);
+        if (lod === 0) {
+          B.add(box(0.28, 0.05, 0.46), paint, [x - sx * 0.04, 0.72, zb]);                       // Kopfplatte am Wannenboden
+          B.add(box(0.1, 0.05, 0.24), S.dark, [x - sx * 0.04, 0.76, zb + 0.17]);                // Ausleger der Stützrolle
+          B.add(box(0.05, 0.1, 0.12), S.dark, [x + sx * 0.1, 0.62, zb - 0.06]);                 // Gleitschuh (Kettenführung)
+        }
+      }
     }
     B.add(cyl(0.29, 0.29, 0.44, seg), S.dark, [x, 0.6, -2.62], [0, 0, HP]);
     if (lod === 0) for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2; B.add(box(0.46, 0.06, 0.06), S.dark, [x, 0.6 + Math.sin(a) * 0.3, -2.62 + Math.cos(a) * 0.3], [a, 0, 0]); }
@@ -731,6 +751,10 @@ function buildWK2(lod, S, team) {
     T.add(box(0.11, 0.12, 0.38), S.dark, [-0.05, 1.08, 0.78]);
     T.add(cyl(0.022, 0.022, 1.05, 6), S.dark, [-0.05, 1.1, 0.08], [HP, 0, 0]);
     T.add(cyl(0.13, 0.13, 1.2, Math.max(8, seg)), S.canvas, [0, 0.42, 1.3], [0, 0, HP]);
+    if (lod === 0) {
+      T.add(box(0.1, 0.12, 0.16), S.dark, [0.06, 1.06, 0.8]);                               // Gurtkasten am schweren MG
+      T.add(cyl(0.08, 0.09, 0.05, 10), paint, [-0.94, 0.36, 0.55], [0, 0, HP]);             // Pistolenluke links
+    }
   }
   const turLod = new THREE.Group();
   T.build(turLod, { off: D.turretPivot });
@@ -742,6 +766,11 @@ function buildWK2(lod, S, team) {
   Gb.add(box(0.95, 0.5, 0.2), paint, [0, 0, -0.08]);
   if (lod < 2) Gb.add(cyl(0.22, 0.24, 0.2, seg), paint, [0, 0, -0.26], [HP, 0, 0]);
   if (lod === 0) Gb.add(box(0.06, 0.06, 0.04), S.optic, [-0.3, 0.12, -0.19]);
+  if (lod < 2) Gb.add(cyl(0.1, 0.1, 0.34, seg), paint, [0, 0, -0.36], [HP, 0, 0]);          // Rohrschutzhülse der Blende
+  if (lod === 0) {
+    for (const sx of [-1, 1]) Gb.add(box(0.12, 0.42, 0.1), paint, [sx * 0.52, 0, -0.04]); // seitliche Blendenwangen
+    Gb.add(box(0.07, 0.05, 0.04), S.dark, [0.3, 0.02, -0.19]);                            // Öffnung Koaxial-MG
+  }
   Gb.add(cyl(0.056, 0.05, 3.05, seg), paint, [0, 0, -1.86], [HP, 0, 0]);
   Gb.add(cyl(0.066, 0.066, 0.1, seg), S.dark, [0, 0, -3.33], [HP, 0, 0]);
   Gb.add(cyl(0.022, 0.022, 0.25, 6), S.dark, [D.coax[0], D.coax[1], -0.25], [HP, 0, 0]);
@@ -801,6 +830,22 @@ function buildWK1(lod, S, team) {
     // Werkzeug, Seil auf dem Dach
     B.add(box(0.06, 0.06, 1.4), S.canvas, [1.2, 2.48, 1.4]);
     B.add(box(0.05, 0.08, 1.2), S.dark, [-1.2, 2.48, 1.6]);
+    // Wassergekühlte Maschinengewehre: je zwei in den Seitenpforten, zwei am Heck (Mantel + Mündung)
+    for (const sx of [-1, 1]) for (const z of [-0.4, 1.1]) {
+      B.add(cyl(0.05, 0.05, 0.34, 8), S.dark, [sx * 1.76, 1.62, z], [0, 0, HP]);
+      if (lod === 0) B.add(cyl(0.016, 0.016, 0.14, 6), S.dark, [sx * 1.99, 1.62, z], [0, 0, HP]);
+    }
+    for (const x of [-0.75, 1.15]) {
+      B.add(box(0.36, 0.3, 0.05), paint, [x, 1.65, 3.62]);
+      B.add(cyl(0.05, 0.05, 0.34, 8), S.dark, [x, 1.65, 3.8], [HP, 0, 0]);
+    }
+    if (lod === 0 && DET > 0) {
+      // Plattenstöße mit Laschen an den Seiten, Griffstangen am Dach, Dachluke des Beobachtungsstands
+      for (const sx of [-1, 1]) for (const z of [-2.65, -1.15, 0.75, 2.3]) B.add(box(0.03, 1.75, 0.07), S.dark, [sx * 1.565, 1.42, z]);
+      for (const sx of [-1, 1]) { B.add(cyl(0.02, 0.02, 4.4, 6), S.dark, [sx * 1.42, 2.56, 0.3], [HP, 0, 0]); for (const z of [-1.7, 0.3, 2.3]) B.add(box(0.03, 0.11, 0.03), S.dark, [sx * 1.42, 2.5, z]); }
+      B.add(box(0.6, 0.04, 0.6), paint, [0.2, 3.12, -0.3]);
+      if (DET === 2) for (const sx of [-1, 1]) for (const z of [-2.65, -1.15, 0.75, 2.3]) for (let i = 0; i < 5; i++) B.add(box(0.03, 0.03, 0.03), S.steel, [sx * 1.585, 0.75 + i * 0.36, z]);
+    }
   }
   if (lod === 0 && DET === 2) {
     // Nietreihen an den Kanten der Seitenplatten
@@ -924,13 +969,28 @@ function buildWK2H(lod, S, team) {
   }
   for (const sx of [-1, 1]) B.add(cyl(0.22, 0.22, 0.02, seg), mark, [sx * 1.71, 1.26, -1.5], [0, 0, HP]);
   B.add(cyl(0.18, 0.18, 0.02, seg), mark, [0, 1.62, 3.03], [HP, 0, 0]);
+  if (lod === 0 && DET > 0) {
+    // Luftfilter-Rohre zum Motordeck, Lüfterabdeckungen mit Gitterkreuz, Löcher der Fahrer-Doppelsehrohre über der Sehklappe
+    for (const sx of [-1, 1]) {
+      B.add(cyl(0.05, 0.05, 0.6, 8), S.dark, [sx * 1.12, 1.66, 3.07], [0.3, 0, 0]);
+      for (const r of [0, HP]) B.add(box(0.66, 0.025, 0.04), S.dark, [sx * 0.95, 1.915, 1.95], [0, r, 0]);
+    }
+    for (const x of [-0.66, -0.44]) B.add(cyl(0.035, 0.035, 0.03, 8), S.dark, [x, 1.79, -3.16], [HP, 0, 0]);
+    if (DET === 2) {
+      // verzahnte Plattenstöße an den Bugecken, Lamellen der Ansauggitter, Werkzeug (Axt, Spaten) vorn rechts
+      for (const sx of [-1, 1]) for (let i = 0; i < 5; i++) B.add(box(0.07, 0.09, 0.05), paint, [sx * (1.68 - (i % 2) * 0.05), 1.12 + i * 0.17, -3.17]);
+      for (const sx of [-1, 1]) for (let i = 0; i < 5; i++) B.add(box(0.5, 0.03, 0.035), paint, [sx * 0.95, 1.905, 0.73 + i * 0.16]);
+      B.add(box(0.05, 0.035, 0.9), S.wood, [1.25, 1.88, -2.0]); B.add(box(0.22, 0.04, 0.08), S.dark, [1.25, 1.885, -2.45]);
+      B.add(box(0.05, 0.035, 0.9), S.wood, [1.05, 1.88, -2.0]); B.add(box(0.16, 0.04, 0.2), S.dark, [1.05, 1.885, -2.5]);
+    }
+  }
   // Schachtellaufwerk: acht Achsen, Rollen abwechselnd außen/innen (überlappend), Triebrad vorn hoch, Leitrad hinten
   for (const sx of [-1, 1]) {
     const x = sx * W.x;
     if (lod < 2) for (let i = 0; i < 8; i++) {
       const z = -2.38 + i * 0.68, outer = i % 2 === 0;
-      addDiscWheel(B, S, paint, x + sx * (outer ? 0.2 : 0.02), 0.44, z, 0.4, 0.12, lod === 0 ? 14 : 6, lod);
-      if (lod === 0 && !outer) addDiscWheel(B, S, paint, x - sx * 0.2, 0.44, z, 0.4, 0.12, 10, 2);
+      addDiscWheel(B, S, paint, x + sx * (outer ? 0.2 : 0.02), 0.44, z, 0.4, 0.12, lod === 0 ? 14 : 6, lod === 1 && !outer ? 2 : lod);
+      if (lod === 0 && !outer && DET > 0) addDiscWheel(B, S, paint, x - sx * 0.2, 0.44, z, 0.4, 0.12, 10, 2); // innerste Reihe (kaum sichtbar)
     } else for (const z of [-1.7, 0, 1.7]) B.add(cyl(0.4, 0.4, 0.7, seg), S.rubber, [x, 0.44, z], [0, 0, HP]);
     B.add(cyl(0.34, 0.34, 0.6, seg), S.dark, [x, 0.52, -2.95], [0, 0, HP]);
     if (lod === 0) for (let i = 0; i < 9; i++) { const a = (i / 9) * PI * 2; B.add(box(0.62, 0.07, 0.07), S.dark, [x, 0.52 + Math.sin(a) * 0.35, -2.95 + Math.cos(a) * 0.35], [a, 0, 0]); }
@@ -949,8 +1009,9 @@ function buildWK2H(lod, S, team) {
   T.add(cyl(0.36, 0.37, 0.2, seg), paint, [-0.5, 0.91, 0.7]);
   T.add(cyl(0.26, 0.26, 0.04, seg), S.dark, [0.5, 0.84, 0.3]);
   if (lod < 2) {
-    T.add(box(1.5, 0.48, 0.48), paint, [0, 0.42, 1.6]);
-    if (lod === 0) T.add(box(1.52, 0.03, 0.5), S.dark, [0, 0.64, 1.6]);
+    // Staukasten am Turmheck: folgt der Rundung des Turms
+    T.add(topExtrude([[-0.8, -1.2], [0.8, -1.2], [0.78, -1.55], [0.55, -1.8], [0, -1.88], [-0.55, -1.8], [-0.78, -1.55]], 0.46, lod === 0 && DET > 0), paint, [0, 0.2, 0]);
+    if (lod === 0) T.add(box(0.08, 0.07, 0.04), S.dark, [0, 0.55, 1.9]);
     for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) T.add(cyl(0.045, 0.045, 0.24, 8), S.dark, [sx * (1.16 + i * 0.01), 0.7, -0.75 + i * 0.12], [-0.7, 0, sx * 0.5]);
     T.add(cyl(0.2, 0.2, 0.02, seg), paint, [1.11, 0.42, 0.45], [0, 0, HP]);
   }
@@ -960,6 +1021,8 @@ function buildWK2H(lod, S, team) {
     T.add(cyl(0.11, 0.12, 0.06, 8), S.dark, [0.45, 0.84, -0.55]);
     for (let i = 0; i < 4; i++) T.add(box(0.04, 0.32, 0.2), S.dark, [-1.13, 0.42, 0.05 + i * 0.22]);
     for (const sx of [-1, 1]) T.add(new THREE.TorusGeometry(0.06, 0.018, 4, 8), S.dark, [sx * 0.9, 0.86, -0.85]);
+    T.add(cyl(0.39, 0.39, 0.025, seg), S.dark, [-0.5, 1.0, 0.7]);                          // Regenrinne der Kuppel
+    if (DET === 2) for (const [x, z] of [[-0.85, -0.7], [0.85, -0.7], [0.95, 0.25], [-0.95, 0.15], [0, 1.25]]) T.add(cyl(0.05, 0.055, 0.14, 8), S.dark, [x, 0.89, z]); // Minenwerfer
   }
   for (const sx of [-1, 1]) T.add(cyl(0.16, 0.16, 0.02, seg), mark, [sx * 1.125, 0.45, -0.35], [0, 0, HP]);
   const turLod = new THREE.Group();
@@ -969,10 +1032,14 @@ function buildWK2H(lod, S, team) {
   // Kanone: breite Walzenblende mit Optik- und MG-Öffnung, Rohrwiege, langes Rohr, Doppelkammer-Mündungsbremse
   const gun = new THREE.Group();
   const Gb = new Bucket();
-  Gb.add(box(1.3, 0.7, 0.22), paint, [0, 0, -0.1]);
+  // Walzenblende: gewölbte Stirnplatte (Zylinderausschnitt quer zum Rohr)
+  Gb.add(new THREE.CylinderGeometry(0.55, 0.55, 1.3, lod === 0 ? 10 : 6, 1, false, PI - 0.7, 1.4), paint, [0, 0, 0.35], [0, 0, HP]);
   if (lod < 2) Gb.add(cyl(0.16, 0.18, 0.5, seg), paint, [0, 0, -0.45], [HP, 0, 0]);
   if (lod === 0) for (const x of [-0.3, -0.18]) Gb.add(box(0.06, 0.06, 0.04), S.optic, [x, 0.1, -0.215]);
-  Gb.add(cyl(0.09, 0.075, 3.6, seg), paint, [0, 0, -2.45], [HP, 0, 0]);
+  // Rohr mit Absatz (dickes hinteres, schlankeres vorderes Stück)
+  Gb.add(cyl(0.095, 0.088, 1.5, seg), paint, [0, 0, -1.4], [HP, 0, 0]);
+  Gb.add(cyl(0.078, 0.072, 2.15, seg), paint, [0, 0, -3.2], [HP, 0, 0]);
+  if (lod < 2 && DET > 0) Gb.add(cyl(0.093, 0.093, 0.06, seg), paint, [0, 0, -2.15], [HP, 0, 0]);
   Gb.add(cyl(0.115, 0.115, 0.28, seg), S.dark, [0, 0, -4.15], [HP, 0, 0]);
   if (lod === 0) for (const z of [-4.07, -4.23]) Gb.add(box(0.26, 0.26, 0.035), S.dark, [0, 0, z]);
   if (lod < 2) Gb.add(cyl(0.022, 0.022, 0.2, 6), S.dark, [D.coax[0], D.coax[1], -0.25], [HP, 0, 0]);
@@ -1026,7 +1093,16 @@ function buildWK1L(lod, S, team) {
     B.add(box(0.75, 0.04, 0.2), S.dark, [0, 0.52, 2.74], [0.3, 0, 0]);
     // Werkzeug, Nieten an den Seitenträgern
     B.add(box(0.05, 0.06, 0.9), S.canvas, [-0.5, 1.4, 0.5]);
-    if (lod === 0) for (const sx of [-1, 1]) for (let i = 0; i < 8; i++) B.add(box(0.03, 0.03, 0.03), S.dark, [sx * (W.x + 0.23), 0.8, -1.3 + i * 0.37]);
+    if (lod === 0) for (const sx of [-1, 1]) for (const y of DET === 2 ? [0.8, 0.34] : [0.8]) for (let i = 0; i < 8; i++) B.add(box(0.03, 0.03, 0.03), S.dark, [sx * (W.x + 0.23), y, -1.3 + i * 0.37]);
+    // Spannfeder der Kette zwischen Leitrad und Träger, Lüftungsschlitze am Motorraum, Fahrerklappen (Fuge, Scharniere, Sehschlitze)
+    for (const sx of [-1, 1]) B.add(cyl(0.05, 0.05, 0.42, 8), S.dark, [sx * W.x, 0.98, -1.42], [HP, 0, 0]);
+    if (lod === 0) {
+      for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) B.add(box(0.02, 0.025, 0.5), S.dark, [sx * 0.495, 1.0 + i * 0.06, 1.05]);
+      B.add(box(0.02, 0.3, 0.02), S.dark, [0, 1.05, -2.0]);
+      for (const sx of [-1, 1]) B.add(cyl(0.02, 0.02, 0.28, 6), S.dark, [sx * 0.36, 1.05, -2.0]);
+      for (const x of [-0.15, 0, 0.15]) B.add(box(0.08, 0.02, 0.03), S.optic, [x, 1.4, -1.84], [0.72, 0, 0]);
+      if (DET === 2) for (const sx of [-1, 1]) for (let i = 0; i < 8; i++) B.add(box(0.025, 0.025, 0.025), S.dark, [sx * 0.495, 1.5, -1.5 + i * 0.2]); // Nieten der Dachkante
+    }
   }
   for (const sx of [-1, 1]) B.add(cyl(0.16, 0.16, 0.02, seg), mark, [sx * 0.5, 1.25, 0.55], [0, 0, HP]);
   // Laufwerk: viele kleine Rollen (hinter den Trägern), großes Leitrad vorn (Speichen aus Holz), Triebrad hinten
