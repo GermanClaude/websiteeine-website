@@ -7,6 +7,8 @@ import { CLASSES, SOLDIER_CLASS_ORDER, resolveClassLoadout, classAllows, classPr
 import { OPERATOR_TIERS } from '../../shared/modes.data.js';
 import { esc } from './dom.js';
 import { ICON } from './icons.js';
+import { ATT_SLOTS, ATTACHMENTS, attachmentsFor, loadAttachments, saveAttachment } from '../../shared/attachments.data.js';
+import { getWeaponModelInfo } from '../weapons/models.js';
 
 const SLOTS = [['primary', 'Primär'], ['secondary', 'Sekundär'], ['lethal', 'Granate']];
 
@@ -43,6 +45,7 @@ export class LoadoutPanel {
     this.lo.camo = { ...(base.camo || {}), ...eq.weapon };
     this.lo.skin = eq.operator[cls] || base.skin || null;
     host.addEventListener('click', this._click);
+    host.addEventListener('change', onAttChange);
     this.render();
   }
 
@@ -106,7 +109,7 @@ export class LoadoutPanel {
         <p class="lp-role"><b>${esc(c.name)}</b> · ${esc(c.role)} <span class="lp-armor">${ICON.plate}${esc(prof.armorLabel || '')} · ${prof.plates || 0} Platten</span></p>
         <div class="lp-slots m-tabs" role="tablist">${slots}</div>
         <div class="lp-items m-scroll" data-scrollable role="listbox">${items}</div>
-        ${wid ? this._camoRow(wid) : ''}
+        ${wid ? this._camoRow(wid) : ''}${wid ? attRowHtml(this.G, wid) : ''}
         ${this._skinRow()}
       </div>`;
   }
@@ -221,4 +224,33 @@ export function swatch(cm) {
   if (cm.pattern === 'stripes' || cm.pattern === 'tiger') return `repeating-linear-gradient(115deg, ${c.map((x, i) => `${x} ${i * 9}px ${(i + 1) * 9}px`).join(', ')})`;
   if (cm.pattern === 'digital' || cm.pattern === 'hex' || cm.pattern === 'carbon') return `conic-gradient(${c.map((x, i) => `${x} ${i * step}% ${(i + 1) * step}%`).join(', ')})`;
   return `radial-gradient(circle at 30% 35%, ${c[0]} 0 26%, transparent 27%), radial-gradient(circle at 72% 68%, ${c[2 % c.length]} 0 22%, transparent 23%), linear-gradient(135deg, ${c[1]}, ${c[c.length - 1]})`;
+}
+
+/** Aufsätze einer Waffe (shared/attachments.data.js): je passendem Platz eine Auswahl; gespeichert im Browser. */
+export function attRowHtml(G, wid) {
+  const def = G.data && G.data.WEAPONS && G.data.WEAPONS[wid];
+  if (!def) return '';
+  let info = null;
+  try { info = getWeaponModelInfo(def.model || wid); } catch { /* */ }
+  const fit = attachmentsFor(def, info);
+  const cur = loadAttachments()[wid] || {};
+  const rows = ATT_SLOTS.filter((s) => fit[s.id]).map((s) => {
+    const opts = [`<option value="">Standard</option>`, ...fit[s.id].map((id) => `<option value="${esc(id)}"${cur[s.id] === id ? ' selected' : ''}>${esc(ATTACHMENTS[id].name)}</option>`)].join('');
+    const a = ATTACHMENTS[cur[s.id]];
+    return `<label class="lp-att"><span>${esc(s.name)}</span><select data-att-w="${esc(wid)}" data-att-slot="${esc(s.id)}" title="${esc(a ? a.kurz : 'Werkszustand')}">${opts}</select><small>${esc(a ? a.kurz : '')}</small></label>`;
+  }).join('');
+  if (!rows) return '';
+  const n = Object.keys(cur).filter((k) => fit[k] && fit[k].includes(cur[k])).length;
+  return `<div class="lp-row lp-atts"><span class="lp-lab">Aufsätze <b>${n}</b><small>wirken ab dem nächsten Einsatz</small></span><div class="lp-attgrid">${rows}</div></div>`;
+}
+
+/** Auswahl geändert (delegiert an Tafel/Lobby). */
+export function onAttChange(e) {
+  const el = e.target;
+  if (!el || !el.dataset || !el.dataset.attSlot) return;
+  saveAttachment(el.dataset.attW, el.dataset.attSlot, el.value || null);
+  const a = ATTACHMENTS[el.value];
+  const sm = el.parentElement && el.parentElement.querySelector('small');
+  if (sm) sm.textContent = a ? a.kurz : '';
+  el.title = a ? a.kurz : 'Werkszustand';
 }

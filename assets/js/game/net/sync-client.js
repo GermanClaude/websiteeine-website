@@ -29,6 +29,7 @@ import { netPoseOf } from '../bots/bot.js';
 import { PKT_SNAPSHOT, decodeSnapshot, encodeState, packetType, FLAGS } from './protocol.js';
 import { HOST_ID } from './index.js';
 import { STATE_HZ, INTERP_MIN, INTERP_MAX, STALE_SEC, rnd, arr3, vec3, wrapAngle, vrPoseOf, newVrPose, lerpVrPose } from './sync-common.js';
+import { loadAttachments } from '../../shared/attachments.data.js';
 
 const nowSec = () => performance.now() / 1000;
 const ENV_GAP = 0.4;
@@ -106,6 +107,7 @@ export class ClientSync {
     if (G.events) this._offs.push(G.events.on('loadout:change', (e) => {
       if (!this.active || this.ended || !e || e.actor !== G.player || !e.loadout) return;
       const lo = { ...e.loadout };
+      if (!lo.att) { const all = loadAttachments(); lo.att = {}; for (const k of [lo.primary, lo.secondary]) if (k && all[k]) lo.att[k] = all[k]; }
       const key = JSON.stringify(lo);
       if (key === this._loKey) return;
       this._loKey = key;

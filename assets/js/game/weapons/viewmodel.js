@@ -238,10 +238,12 @@ export class ViewModel {
     return this.G?.data?.WEAPONS?.[id] || WEAPONS[id] || null;
   }
 
-  _getModel(id, key) {
-    let entry = this._models.get(id);
+  _getModel(id, key, att = null) {
+    const ak = att ? Object.values(att).join('+') : '';
+    const mk = ak ? id + '#' + ak : id;   // Aufsätze: eigenes Modell je Kombination
+    let entry = this._models.get(mk);
     if (entry) return entry;
-    const model = createWeaponModel(key, { lod: 'first' });
+    const model = createWeaponModel(key, { lod: 'first', att: ak ? att : null });
     model.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; o.frustumCulled = false; } });
     if (this._camos.get(id)) applyCamo(model, this._camos.get(id));
     const ud = model.userData;
@@ -250,7 +252,7 @@ export class ViewModel {
     if (rg && trg && !rg.userData.trigger) rg.userData.trigger = rg.worldToLocal(trg.getWorldPosition(new THREE.Vector3())).add(new THREE.Vector3(0, 0, -0.0045)).toArray().map(v => Math.round(v * 1e4) / 1e4);   // Vorderseite des Abzugs
     const rest = new Map();
     for (const [n, p] of Object.entries(ud.parts)) rest.set(n, { pos: p.position.clone(), quat: p.quaternion.clone(), vis: p.visible });
-    entry = { id, key, model, ud, rest };
+    entry = { id, key, model, ud, rest, att: ak };
     // Arbeitsstelle der Stützhand beim Nachladen (Modellraum, Ruhelage) für _frameWork
     const h0 = handlingFor(key), an = ud.anchors;
     const work = h0.reload === 'revolver' ? an.cylGrab : h0.reload === 'rocket' ? (an.rocketGrab || ud.muzzle) : h0.reload === 'shell' ? an.shellPort : (an.magGrab || ud.magazine);
@@ -258,7 +260,7 @@ export class ViewModel {
     // Kontaktgitter (hands): Hände legen sich an die echte Oberfläche statt in die Waffe (Arm.contact)
     try { entry.collider = new GunCollider(model); } catch (err) { console.warn('[gunsmith] Kontaktgitter', err); entry.collider = null; }
     entry.contactMemo = new Map();
-    this._models.set(id, entry);
+    this._models.set(mk, entry);
     this._prepareGrips(entry);
     magWellOf(entry);   // Schachtachse + Freigang vorab (anim/magwell.js, wenige ms je Modell)
     return entry;
@@ -284,7 +286,7 @@ export class ViewModel {
   setWeapon(weaponId, def) {
     if (!weaponId) return;
     const d = def || this._defFor(weaponId);
-    if (this.cur && this.cur.id === weaponId && !this._pending) { this.def = d || this.def; return; }
+    if (this.cur && this.cur.id === weaponId && this.cur.att === ((d && d.att && Object.values(d.att).join('+')) || '') && !this._pending) { this.def = d || this.def; return; }
     this._pending = { id: weaponId, def: d };
     if (!this.cur || this._equipT < 0.35) this._swapNow();
     else { this._lowering = true; this.action = null; }
@@ -295,7 +297,7 @@ export class ViewModel {
     this._pending = null;
     this._lowering = false; this._lowerT = 0;
     const key = def?.model || ID_TO_MODEL[id] || id;
-    const entry = this._getModel(id, key);
+    const entry = this._getModel(id, key, def?.att || null);
     if (this.cur) this.gun.remove(this.cur.model);
     this.cur = entry;
     this.def = def;
@@ -389,8 +391,7 @@ export class ViewModel {
   setCamo(weaponId, camoId) {
     if (!weaponId) return;
     this._camos.set(weaponId, camoId || null);
-    const e = this._models.get(weaponId);
-    if (e) applyCamo(e.model, camoId || null);
+    for (const e of this._models.values()) if (e.id === weaponId) applyCamo(e.model, camoId || null);
     if (weaponId === this._meleeId) applyCamo(this.props.knife, camoId || null);
   }
 
@@ -492,7 +493,7 @@ export class ViewModel {
     this._heat = Math.min(1, this._heat + (h.heat ?? HEAT_PER_SHOT[h.action] ?? 0.02));
     this._shotCount++;
     const suppressed = info.suppressed ?? this.def?.suppressed;
-    if (!this.showScopeOverlay) this.flash.fire(h.flash, h.flashLen, { suppressed });
+    if (!this.showScopeOverlay) this.flash.fire(h.flash * (this.def?.flashScale || 1), h.flashLen, { suppressed });
     if (!suppressed) {
       this.cur.ud.muzzle.getWorldPosition(_v);
       this.root.worldToLocal(_v);

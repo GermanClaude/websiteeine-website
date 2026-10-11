@@ -27,6 +27,9 @@ export { setMagRounds } from './gunsmith/magfill.js';
 import { disposeMaterials } from './gunsmith/materials.js';
 import { disposeTextures } from './gunsmith/textures.js';
 import { magFillFor, attachMagFill, disposeMagFill } from './gunsmith/magfill.js';
+import { attachToBuilder, attachToRoot } from './gunsmith/attach.js';
+import { OPTIC_TYPE } from './gunsmith/parts.js';
+import { attKey } from '../../shared/attachments.data.js';
 
 const BUILDERS = {
   kv47, m17, vp9, qx90, hm60, sk14, brecher, bulldog, p9, adler, knife, frag, semtex,
@@ -49,12 +52,20 @@ const PART_NAMES = ['mag', 'bolt', 'charge', 'pump', 'slide', 'boltHandle', 'ham
 
 const cache = new Map();
 
-function buildTemplate(key, lod) {
+function buildTemplate(key, lod, att = null) {
   const make = BUILDERS[key];
   if (!make) throw new Error(`Unbekanntes Waffenmodell: ${key}`);
   const b = new Builder(lod === 'third' ? 'third' : 'first');
+  b.att = att;
   make(b);
+  const leftGrip = (b.anchors.find((a) => a.name === 'leftHandGrip') || {}).data?.style || null;
+  if (att) {
+    const iron = !b._opticDone && att.optik && (b.meta.sight === 'iron' || b.meta.sight === 'none');
+    attachToBuilder(b, att, iron ? mountFor(key) : null);
+    if (att.optik && b._opticDone) b.meta.sight = OPTIC_TYPE[att.optik] || b.meta.sight;
+  }
   const root = b.build(key);
+  if (att) attachToRoot(root, att);
   // Magazininhalt (magfill.js): Patronen + Zubringer nur in Ego/Vitrine; die Plätze reisen in den Metadaten mit
   // (Weltmagazine der Bot-Detailstufe zeigen damit die obersten Patronen bzw. den leeren Zubringer)
   const magFill = magFillFor(b, key);
@@ -75,7 +86,7 @@ function buildTemplate(key, lod) {
     adsOffset: [-sp.x, -sp.y, -eye - sp.z],
     magFill,
     info: {
-      sight: b.meta.sight || 'none', kind: b.meta.kind || 'gear', axis: b.meta.axis ?? 0,
+      sight: b.meta.sight || 'none', kind: b.meta.kind || 'gear', axis: b.meta.axis ?? 0, leftGrip,
       triangles: root.userData.stats.triangles, meshes: root.userData.stats.meshes,
       size: size.toArray(), center: box.getCenter(new THREE.Vector3()).toArray(), min: box.min.toArray(), max: box.max.toArray(),
     },
@@ -109,19 +120,43 @@ function cloneTemplate(tpl) {
   return bindUserData(c, meta);
 }
 
-function getTemplate(key, lod) {
-  const k = key + ':' + lod;
+function getTemplate(key, lod, att = null) {
+  const ak = attKey(att);
+  const k = key + ':' + lod + (ak ? '|' + ak : '');
   let t = cache.get(k);
-  if (!t) { t = buildTemplate(key, lod); cache.set(k, t); }
+  if (!t) { t = buildTemplate(key, lod, ak ? att : null); cache.set(k, t); }
   return t;
+}
+
+// Optik-Montage für Waffen mit Kimme und Korn: vor der Kimme, Oberseite des Werksmodells per Strahl von oben abgetastet
+// (Kornsäule/Kimme über der Visierlinie zählen nicht). { u0, base (Oberkante Waffe), railTop (Optikschiene) }
+const mounts = new Map();
+const _rc = new THREE.Raycaster();
+function mountFor(key) {
+  if (mounts.has(key)) return mounts.get(key);
+  const tpl = getTemplate(key, 'first');
+  tpl.updateMatrixWorld(true);
+  const sp = tpl.getObjectByName('sight').getWorldPosition(new THREE.Vector3());
+  const u0 = -sp.z + 0.03;
+  const tops = [];
+  for (let u = u0; u <= u0 + 0.16; u += 0.02) {
+    _rc.set(new THREE.Vector3(0, sp.y + 0.3, -u), new THREE.Vector3(0, -1, 0));
+    const hit = _rc.intersectObject(tpl, true).find((h) => h.object.isMesh && h.point.y < sp.y + 0.004);
+    if (hit) tops.push(hit.point.y);
+  }
+  const top = tops.length ? Math.max(...tops) : sp.y - 0.02;
+  const m = { u0, base: Math.max(top - 0.004, sp.y - 0.06), railTop: Math.max(top, sp.y - 0.012) + 0.004 };
+  mounts.set(key, m);
+  return m;
 }
 
 /**
  * Erzeugt ein Waffenmodell. Gebaute Modelle werden pro Schlüssel + LOD gecacht;
  * Rückgabe ist ein günstiger Klon (geteilte Geometrien und Materialien).
  */
-export function createWeaponModel(key, { lod = 'first', camo = null } = {}) {
-  if (camo && camo !== 'werk') return applyCamo(createWeaponModel(key, { lod }), camo);
+export function createWeaponModel(key, { lod = 'first', camo = null, att = null } = {}) {
+  if (camo && camo !== 'werk') return applyCamo(createWeaponModel(key, { lod, att }), camo);
+  if (att && attKey(att) && lod !== 'showcase') return cloneTemplate(getTemplate(key, lod === 'third' ? 'third' : 'first', att));
   if (lod === 'showcase') {
     const inner = cloneTemplate(getTemplate(key, 'first'));
     const info = inner.userData.info;
@@ -140,8 +175,8 @@ export function createWeaponModel(key, { lod = 'first', camo = null } = {}) {
 }
 
 /** Metadaten ohne Instanz (Dreiecke, Größe, Visier, Art). */
-export function getWeaponModelInfo(key, lod = 'first') {
-  return { ...getTemplate(key, lod === 'third' ? 'third' : 'first').userData.__meta.info };
+export function getWeaponModelInfo(key, lod = 'first', att = null) {
+  return { ...getTemplate(key, lod === 'third' ? 'third' : 'first', att).userData.__meta.info };
 }
 
 /** Baut alle Modelle vorab (z. B. während des Ladebildschirms), damit später keine Ruckler entstehen. */
@@ -153,6 +188,7 @@ export function preloadWeaponModels(keys = MODEL_KEYS, lods = ['first', 'third']
 export function disposeWeaponModels() {
   for (const t of cache.values()) t.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
   cache.clear();
+  mounts.clear();
   disposeMagFill();
   disposeCamos();
   disposeMaterials();

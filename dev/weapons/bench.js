@@ -27,6 +27,8 @@ const NAMES = {
 };
 // ?camo=<id> legt ein Tarnmuster auf Galerie/Übersicht/Ego-Prüfung (Arsenal); ?set=2 zeigt die Waffen der Welle 2
 const CAMO = params.get('camo') || null;
+// Aufsätze zum Ansehen: ?att=optik:acog,muendung:daempfer,unterlauf:griff
+const ATT = Object.fromEntries((new URLSearchParams(location.search).get('att') || '').split(',').filter(Boolean).map((p) => p.split(':')));
 
 // ---------- Galerie-Szene ----------
 const gScene = new THREE.Scene();
@@ -72,7 +74,7 @@ function wireMat(m) {
 
 function showModel() {
   if (current) { gScene.remove(current); current = null; }
-  current = createWeaponModel(state.model, { lod: state.lod, camo: CAMO });
+  current = createWeaponModel(state.model, { lod: state.lod, camo: CAMO, att: Object.keys(ATT).length ? ATT : null });
   const info = current.userData.info;
   const size = state.lod === 'showcase' ? 1 : Math.max(...info.size);
   if (state.lod === 'showcase') current.position.y = 0.0;

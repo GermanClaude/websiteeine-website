@@ -7,6 +7,7 @@ import { roundRect, ellipsePts } from './builder.js';
 // Holografisches Visier (EOTech-artig) auf Schiene mit Oberkante railTop.
 // Liefert Höhe der optischen Achse.
 export function holoSight(b, u0, railTop, o = {}) {
+  const sw = swapOptic(b, 'holo', u0, railTop); if (sw !== null) return sw;
   const L = 0.092, W = 0.036;
   const baseH = 0.017, axis = railTop + baseH + 0.019;
   // Montagebasis mit Klemme
@@ -41,6 +42,7 @@ export function holoSight(b, u0, railTop, o = {}) {
 
 // Kompaktes Rotpunktvisier (Röhre) – type 'tube' – oder offenes Ringvisier – type 'ring'
 export function redDot(b, u0, railTop, o = {}) {
+  const sw = swapOptic(b, o.style === 'ring' ? 'ring' : 'rotpunkt', u0, railTop); if (sw !== null) return sw;
   const ring = o.style === 'ring';
   const axis = railTop + (ring ? 0.03 : 0.028);
   if (ring) {
@@ -79,6 +81,7 @@ export function redDot(b, u0, railTop, o = {}) {
 
 // 4×-Kampfvisier (ACOG-artig) mit beleuchtetem Chevron und Glasfaser oben
 export function acog(b, u0, railTop) {
+  const sw = swapOptic(b, 'acog', u0, railTop); if (sw !== null) return sw;
   const axis = railTop + 0.036;
   const L = 0.15;
   // Montage
@@ -115,6 +118,7 @@ export function acog(b, u0, railTop) {
 
 // Zielfernrohr (Scharfschütze): Objektivglocke, Türme, Okular, Montageringe
 export function sniperScope(b, u0, railTop, o = {}) {
+  const sw = swapOptic(b, 'zielfernrohr', u0, railTop); if (sw !== null) return sw;
   const axis = railTop + 0.046;
   const L = 0.35;
   b.lathe('alu', [
@@ -147,10 +151,90 @@ export function sniperScope(b, u0, railTop, o = {}) {
   return axis;
 }
 
+// ---------- Aufsätze (attachments.data.js): Optik tauschen, Mündungsgeräte ----------
+
+// Optik-Aufsatz statt der Werksoptik (b.att.optik); null = Werksoptik bauen
+const OPTICS = {
+  rotpunkt: { fn: (b, u, r) => redDot(b, u, r), len: 0.05 },
+  ring: { fn: (b, u, r) => redDot(b, u, r, { style: 'ring' }), len: 0.05 },
+  holo: { fn: (b, u, r) => holoSight(b, u, r), len: 0.092 },
+  acog: { fn: (b, u, r) => acog(b, u, r), len: 0.15 },
+  zielfernrohr: { fn: (b, u, r) => sniperScope(b, u, r), len: 0.35 },
+};
+export const OPTIC_TYPE = { rotpunkt: 'reddot', ring: 'reddot', holo: 'holo', acog: 'acog', zielfernrohr: 'sniper' };
+export function swapOptic(b, own, u0, railTop) {
+  const want = b.att && b.att.optik;
+  if (!want || b._inOpt || !OPTICS[want]) return null;
+  b._opticDone = true;
+  if (want === own) return null;
+  // Zielfernrohr sitzt weit hinten: kürzere Optiken rücken nach vorn auf die Schiene
+  const u = own === 'zielfernrohr' ? u0 + 0.1 : u0;
+  b._inOpt = true;
+  const axis = OPTICS[want].fn(b, u, railTop);
+  b._inOpt = false;
+  return axis;
+}
+
+/** Optik auf einer Erhöhung über der Kimme (Waffen ohne Schiene; Lage aus dem Werksmodell, models.js mountFor). */
+export function mountOptic(b, want, m) {
+  const o = OPTICS[want];
+  if (!o || !m) return;
+  b.anchors = b.anchors.filter((a) => a.name !== 'sight');
+  const L = want === 'zielfernrohr' ? 0.17 : Math.min(o.len + 0.01, 0.15);
+  const u = want === 'zielfernrohr' ? m.u0 + 0.06 : m.u0;
+  const h = Math.max(0.004, m.railTop - m.base);
+  b.box('alu', 0.024, h, L, 0, m.base + h / 2, u + L / 2, { c: 0.002 });
+  if (b.hi) for (let i = 0; i < Math.floor(L / 0.012); i++) b.box('alu', 0.026, 0.003, 0.006, 0, m.railTop - 0.0015, u + 0.006 + i * 0.012, { c: 0.0005 });
+  b._inOpt = true;
+  o.fn(b, m.u0, m.railTop);
+  b._inOpt = false;
+  b._opticDone = true;
+}
+
+/** Mündungsaufsatz ab u0 (Laufende) auf Achsenhöhe axis, Laufaußenradius ≈ r; liefert das vordere Ende. */
+export function muzzleDevice(b, kind, u0, axis, r = 0.011) {
+  b._barrelEnd = u0;
+  if (kind === 'daempfer') {
+    const R = Math.min(0.024, Math.max(0.016, r * 1.65)), L = 0.15 + (R - 0.016) * 4;
+    b.cyl('knurl', R * 0.78, R * 0.78, 0.022, 0, axis, u0 + 0.008, { seg: b.seg(16, 6) });
+    b.lathe('steelDark', [[0, R * 0.8], [0.006, R], [L - 0.006, R], [L, R * 0.88], [L, r * 0.5]], 0, axis, u0 + 0.016, { seg: b.seg(22, 8) });
+    if (b.hi) for (let i = 0; i < 3; i++) b.cyl('steel', R * 1.004, R * 1.004, 0.0025, 0, axis, u0 + 0.05 + i * 0.04, { seg: 22 });
+    b.circle('cavity', r * 0.48, 0, axis, u0 + 0.0165 + L);
+    return u0 + 0.016 + L;
+  }
+  if (kind === 'kompensator') {
+    const R = Math.max(0.0115, r * 1.12), L = 0.055;
+    b.lathe('steelDark', [[0, 0], [0, R * 0.92], [0.004, R], [L - 0.004, R], [L, R * 0.9], [L, R * 0.5]], 0, axis, u0, { seg: b.seg(16, 6) });
+    if (b.hi) {
+      for (let i = 0; i < 3; i++) b.box('cavity', 0.0045, 0.002, 0.007, 0, axis + R - 0.0008, u0 + 0.014 + i * 0.013, { c: 0 });
+      for (const s of [-1, 1]) b.box('cavity', 0.002, R * 0.9, 0.012, s * (R - 0.0008), axis, u0 + 0.03, { c: 0 });
+    }
+    b.circle('cavity', R * 0.45, 0, axis, u0 + L + 0.0005);
+    return u0 + L;
+  }
+  if (kind === 'bremse') {
+    const R = Math.max(0.0135, r * 1.35), L = 0.072;
+    b.lathe('steelDark', [[0, 0], [0, R * 0.9], [0.005, R], [L - 0.004, R], [L, R * 0.9], [L, R * 0.45]], 0, axis, u0, { seg: b.seg(16, 6) });
+    if (b.hi) for (const s of [-1, 1]) for (let i = 0; i < 4; i++) b.box('cavity', 0.004, R * 1.3, 0.008, s * (R - 0.0012), axis, u0 + 0.014 + i * 0.015, { c: 0 });
+    b.circle('cavity', R * 0.42, 0, axis, u0 + L + 0.0005);
+    return u0 + L;
+  }
+  // Mündungsfeuerdämpfer: geschlitzte Hülse (4 Zinken)
+  const R = Math.max(0.0105, r * 1.02), L = 0.06;
+  b.lathe('steelDark', [[0, 0], [0, R * 0.9], [0.004, R], [L, R], [L, R * 0.78]], 0, axis, u0, { seg: b.seg(16, 6) });
+  if (b.hi) for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2;
+    b.box('cavity', 0.003, 0.003, 0.03, Math.cos(a) * R * 0.98, axis + Math.sin(a) * R * 0.98, u0 + L - 0.016, { rz: a, c: 0 });
+  }
+  b.circle('cavity', R * 0.7, 0, axis, u0 + L + 0.0005);
+  return u0 + L;
+}
+
 // ---------- Mündungen ----------
 
 // Vogelkäfig-Mündungsfeuerdämpfer (AR)
 export function birdcage(b, u0, axis, r = 0.0105) {
+  if (b.att && b.att.muendung) return muzzleDevice(b, b.att.muendung, u0, axis, r);
   b.lathe('steelDark', [[0, 0], [0, r * 0.9], [0.004, r], [0.044, r], [0.046, r * 0.85], [0.046, r * 0.55]], 0, axis, u0, { seg: b.seg(14, 6) });
   if (b.hi) for (let i = 0; i < 4; i++) {
     const a = Math.PI / 4 + i * Math.PI / 2;
@@ -163,6 +247,7 @@ export function birdcage(b, u0, axis, r = 0.0105) {
 
 // Schräger Mündungskompensator (KV-47)
 export function akBrake(b, u0, axis) {
+  if (b.att && b.att.muendung) return muzzleDevice(b, b.att.muendung, u0, axis, 0.0112);
   b.lathe('steelDark', [[0, 0], [0, 0.0105], [0.004, 0.0115], [0.03, 0.0115], [0.034, 0.0105], [0.036, 0.0095], [0.036, 0.0055]], 0, axis, u0, { seg: b.seg(14, 6) });
   if (b.hi) {
     b.box('steelDark', 0.016, 0.007, 0.012, 0.004, axis + 0.009, u0 + 0.041, { rx: -0.35, c: 0.0015 });
@@ -173,6 +258,7 @@ export function akBrake(b, u0, axis) {
 
 // Großer Mündungsbremse mit Seitenschlitzen
 export function brake(b, u0, axis, r = 0.0125, len = 0.06) {
+  if (b.att && b.att.muendung) return muzzleDevice(b, b.att.muendung, u0, axis, r);
   b.lathe('steelDark', [[0, 0], [0, r * 0.95], [0.004, r], [len - 0.004, r], [len, r * 0.9], [len, r * 0.45]], 0, axis, u0, { seg: b.seg(16, 6) });
   if (b.hi) {
     for (const s of [-1, 1]) for (let i = 0; i < 3; i++) {

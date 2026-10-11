@@ -1,0 +1,87 @@
+// Aufsätze am Modell (shared/attachments.data.js): nach dem Bau der Werkswaffe (vor b.build) ergänzt –
+// Mündungsgerät an Waffen ohne Mündungshelfer, Optik auf Erhöhung bei Kimme-und-Korn-Waffen, Vordergriff/Winkelgriff/
+// Zweibein/Handstopp unter dem Handschutz (Vordergriff: linke Hand greift ihn, Griffart 'post'), Laser-Modul;
+// nach dem Bau: Magazin länger bzw. Trommel. Optik- und Mündungstausch der Werksteile: parts.js (swapOptic/muzzleDevice).
+import * as THREE from 'three';
+import { muzzleDevice, mountOptic } from './parts.js';
+
+const R_BY_KIND = { pistol: 0.0105, smg: 0.0115, rifle: 0.0115, lmg: 0.0135, sniper: 0.016, shotgun: 0.0145 };
+
+export function attachToBuilder(b, att, mount) {
+  if (!att) return;
+  const A = (n) => b.anchors.find((a) => a.name === n);
+  const mz = A('muzzle'), lh = A('leftHandGrip');
+  // Laufende (vor einem neuen Mündungsgerät) für Laser/Zweibein
+  const muzzleU = b._barrelEnd ?? (mz ? -mz.pos.z : 0.4);
+  // Optik bei Waffen ohne Werksoptik
+  if (att.optik && !b._opticDone && mount) mountOptic(b, att.optik, mount);
+  // Mündung bei Waffen ohne Mündungshelfer: Gerät an der Mündung, Anker nach vorn
+  if (att.muendung && !b._muzzleDone && mz && b._barrelEnd === undefined) {
+    const kind = (b.meta && b.meta.kind) || 'rifle';
+    const end = muzzleDevice(b, att.muendung, -mz.pos.z - 0.004, mz.pos.y, R_BY_KIND[kind] || 0.0115);
+    mz.pos.z = -(end + 0.002);
+  }
+  const style = lh && lh.data && lh.data.style;
+  const under = lh && (style === 'under' || style === 'flat');
+  const vb = under ? lh.pos.y : 0, uL = under ? -lh.pos.z : 0, x0 = under ? lh.pos.x : 0;
+  const hw = under ? (lh.data.w ?? lh.data.r ?? 0.024) : 0.024;
+  if (under && att.unterlauf === 'griff') {
+    const uG = uL + 0.02;
+    b.box('polymer', 0.022, 0.012, 0.05, x0, vb - 0.005, uG, { c: 0.002 });
+    b.cyl('polymer', 0.0145, 0.0158, 0.078, x0, vb - 0.048, uG, { axis: 'v', seg: b.seg(14, 6) });
+    b.cyl('rubber', 0.0165, 0.0165, 0.007, x0, vb - 0.089, uG, { axis: 'v', seg: b.seg(14, 6) });
+    if (b.hi) for (let i = 0; i < 4; i++) b.cyl('rubber', 0.0152, 0.0152, 0.004, x0, vb - 0.03 - i * 0.014, uG, { axis: 'v', seg: 14 });
+    lh.pos.set(x0, vb - 0.014, -uG);
+    lh.data = { style: 'post', rake: 0.02, gw: 0.0145, gd: 0.0158, gu: 0, ho: 0.02 };
+  } else if (under && att.unterlauf === 'winkel') {
+    b.side('polymer', [[uL + 0.035, vb + 0.002], [uL + 0.105, vb + 0.002], [uL + 0.094, vb - 0.02], [uL + 0.074, vb - 0.027], [uL + 0.048, vb - 0.012]], 0.02, x0, { bevel: 0.002 });
+  } else if (under && att.unterlauf === 'handstopp') {
+    b.box('polymer', 0.015, 0.018, 0.022, x0, vb - 0.007, uL + 0.065, { c: 0.003 });
+  } else if (under && att.unterlauf === 'zweibein') {
+    const uB = Math.min(uL + 0.13, muzzleU - 0.19);
+    b.box('steelDark', 0.03, 0.014, 0.032, x0, vb - 0.006, uB, { c: 0.002 });
+    b.cyl('steelDark', 0.004, 0.004, 0.036, x0, vb - 0.014, uB, { axis: 'x', seg: 8 });
+    for (const s of [-1, 1]) {
+      b.cyl('alu', 0.0048, 0.0042, 0.17, x0 + s * 0.0115, vb - 0.016, uB + 0.088, { seg: b.seg(10, 5) });
+      b.box('rubber', 0.009, 0.009, 0.014, x0 + s * 0.0115, vb - 0.016, uB + 0.176, { c: 0.002 });
+    }
+  }
+  if (att.taktisch === 'laser') {
+    if (style === 'pistol' || !under) {
+      const v = (mz ? mz.pos.y : 0.03) - 0.03, u = muzzleU - (style === 'pistol' ? 0.045 : 0.14);
+      b.box('polymer', 0.022, 0.018, 0.04, 0, v, u, { c: 0.003 });
+      b.circle('glowRed', 0.0028, 0, v + 0.002, u + 0.0205);
+    } else {
+      const x = x0 + hw + 0.011, v = vb + (lh.data.h ?? lh.data.r ?? 0.024), u = Math.min(uL + 0.1, muzzleU - 0.06);
+      b.box('polymer', 0.017, 0.02, 0.044, x, v, u, { c: 0.003 });
+      b.box('alu', 0.006, 0.012, 0.03, x - 0.0105, v, u, { c: 0.001 });
+      b.circle('glowRed', 0.003, x, v + 0.003, u + 0.0225);
+    }
+  }
+}
+
+/** Nach dem Bau: Magazin länger (Erweitert) oder mit Trommel. */
+export function attachToRoot(root, att) {
+  if (!att || !att.magazin) return;
+  const mag = root.getObjectByName('mag');
+  if (!mag || mag === root) return;
+  if (att.magazin === 'erweitert') { mag.scale.y = 1.3; return; }
+  if (att.magazin !== 'trommel') return;
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3();
+  mag.traverse((o) => { if (o.isMesh && o.name !== 'rounds') box.expandByObject(o); });
+  if (box.isEmpty()) return;
+  const src = mag.children.find((o) => o.isMesh && !o.material.transparent) || mag.children.find((o) => o.isMesh);
+  if (!src) return;
+  mag.scale.y = 0.72;
+  const w = new THREE.Vector3();
+  mag.getWorldPosition(w);
+  const R = 0.052;
+  const drum = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 0.062, 28).rotateZ(Math.PI / 2), src.material);
+  drum.name = 'mag:trommel';
+  // Trommel unter dem gekürzten Magazin (Magazinraum, Skalierung ausgeglichen)
+  drum.position.set((box.min.x + box.max.x) / 2 - w.x, box.min.y - w.y - (R * 0.55) / 0.72, (box.min.z + box.max.z) / 2 - w.z);
+  drum.scale.y = 1 / 0.72;
+  drum.castShadow = true;
+  mag.add(drum);
+}

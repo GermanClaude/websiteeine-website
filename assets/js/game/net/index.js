@@ -33,6 +33,7 @@ import { MAPS, MAP_ORDER } from '../../shared/maps.data.js';
 import { MODES, DIFFICULTY_ORDER } from '../../shared/modes.data.js';
 import { GAME_STYLES, CLASSES, ARMOR_TIERS, HELMETS } from '../../shared/classes.data.js';
 import { WEAPONS, EQUIPMENT, CAMOS } from '../../shared/weapons.data.js';
+import { ATTACHMENTS } from '../../shared/attachments.data.js';
 import { AntiCheat, PositionHistory } from './anticheat.js';
 import { recommend, UploadMeter } from './recommend.js';
 import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
@@ -194,6 +195,17 @@ export function sanitizeLoadout(lo) {
     const camo = {};
     for (const [k, v] of Object.entries(lo.camo).slice(0, 8)) if (WEAPONS[k] && typeof v === 'string' && CAMOS[v]) camo[k] = v;
     if (Object.keys(camo).length) out.camo = camo;
+  }
+  // Aufsätze { [weaponId]: { slot: id } } (shared/attachments.data.js) – nur bekannte Waffen/Aufsätze
+  if (lo.att && typeof lo.att === 'object') {
+    const att = {};
+    for (const [k, v] of Object.entries(lo.att).slice(0, 4)) {
+      if (!WEAPONS[k] || !v || typeof v !== 'object') continue;
+      const one = {};
+      for (const [slot, id] of Object.entries(v).slice(0, 8)) if (typeof id === 'string' && ATTACHMENTS[id] && ATTACHMENTS[id].slot === slot) one[slot] = id;
+      if (Object.keys(one).length) att[k] = one;
+    }
+    if (Object.keys(att).length) out.att = att;
   }
   return out;
 }

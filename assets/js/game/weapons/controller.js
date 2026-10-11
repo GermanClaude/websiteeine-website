@@ -12,6 +12,8 @@
 import * as THREE from 'three';
 import { WEAPONS as DATA_WEAPONS, EQUIPMENT as DATA_EQUIPMENT, effectiveRange, weaponHandling } from '../../shared/weapons.data.js';
 import { clamp, damp, smooth01, easeInOut, wrapAngle, samplePellet, sampleCone, patternAt } from './ballistics/math.js';
+import { applyAttachments, loadAttachments } from '../../shared/attachments.data.js';
+import { getWeaponModelInfo } from './models.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const _eye = new THREE.Vector3();
@@ -217,15 +219,28 @@ export class WeaponController {
   setLoadout(loadout = {}) {
     const W = this._weapons();
     const prevId = this.currentDef ? this.currentDef.id : null;
+    const prevAtt = (this.currentDef && this.currentDef.attKey) || '';
     const old = new Map(this.slots.map((s) => [s.id, s]));
-    const primary = this._def(loadout.primary) || this._def('ar_m17') || FALLBACK;
+    // Aufsätze (shared/attachments.data.js): loadout.att { [weaponId]: { slot: id } }, Spieler sonst aus dem Browser
+    const attAll = this.actor && this.actor.isPlayer ? loadAttachments() : loadout.att && typeof loadout.att === 'object' ? loadout.att : null;
+    const withAtt = (d) => {
+      const a = d && attAll && attAll[d.id];
+      if (!a) return d;
+      let info = null;
+      try { info = getWeaponModelInfo(d.model || d.id); } catch { /* ohne Modell (Bots/Tests): Unterlauf nach Klasse */ }
+      return applyAttachments(d, a, info);
+    };
+    const primary = withAtt(this._def(loadout.primary) || this._def('ar_m17') || FALLBACK);
     let secondary = null;
     if (loadout.secondary !== null) {
       const sid = loadout.secondary === undefined ? 'pi_p9' : loadout.secondary;
       const d = this._def(sid);
-      if (d && d.id !== primary.id && d.cls !== 'melee') secondary = d;
+      if (d && d.id !== primary.id && d.cls !== 'melee') secondary = withAtt(d);
     }
-    const mk = (def) => old.get(def.id) || { id: def.id, def, mag: def.mag || 0, reserve: def.reserve || 0 };
+    const mk = (def) => {
+      const o = old.get(def.id);
+      return o && (o.def.attKey || '') === (def.attKey || '') ? o : { id: def.id, def, mag: def.mag || 0, reserve: def.reserve || 0 };
+    };
     this.slots = secondary ? [mk(primary), mk(secondary)] : [mk(primary)];
     // Ausrüstung
     const EQ = this._equipmentDefs();
@@ -252,7 +267,7 @@ export class WeaponController {
     this._bloomHip = this._bloomAds = 0;
     this._refreshStatic();
     const def = this.currentDef;
-    if (def.id !== prevId) {
+    if (def.id !== prevId || (def.attKey || '') !== prevAtt) {
       this._vm('setWeapon', def.id, def);
       // Ziehen: kurz gesperrt (bei Spielbeginn ohne Verzögerung)
       if (prevId) this._switch = { t: SWITCH_LOWER, lower: SWITCH_LOWER, raise: Math.max(0.15, def.equipTime || 0.5), to: this.index, swapped: true, from: prevId };
@@ -657,7 +672,7 @@ export class WeaponController {
     const first = this.shotIndex === 0 ? (r.firstShotMult || 1) : 1;
     const a = smooth01(this.adsProgress);
     let k = 1 - 0.18 * a;
-    if (it.crouching && !it.moving) k *= 0.85;
+    if (it.crouching && !it.moving) k *= def.bipod || 0.85; // Zweibein (Aufsatz): geduckt/liegend aufgestützt
     if (it.airborne) k *= 1.2;
     if (actor.isPlayer && G.input && G.input.mode === 'touch') k *= 0.72; // Touch: wie COD Mobile deutlich ruhiger
     k *= this._rush('rushRecoil') * (actor.mounted ? 0.35 : 1) * (armHit ? 1.45 : 1); // MG-Stellung (mappoints.js): Waffe liegt auf der Lafette

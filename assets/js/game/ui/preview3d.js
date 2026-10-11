@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { cleanAttachments, loadAttachments } from '../../shared/attachments.data.js';
 
 export class WeaponPreview {
   constructor(G) {
@@ -97,15 +98,25 @@ export class WeaponPreview {
   /** Waffe anzeigen (Waffen-Id aus WEAPONS). */
   setWeapon(id) {
     if (!this._init()) return;
-    if (id === this.modelId && this.model) return;
     const G = this.G;
     const def = (G.data.WEAPONS && G.data.WEAPONS[id]) || (G.data.EQUIPMENT && G.data.EQUIPMENT[id]);
     const models = G.modules && G.modules.models;
+    // Aufsätze (gespeicherte Auswahl) gleich mit anzeigen
+    let att = null;
+    if (def && def.cls && models) {
+      let info = null;
+      try { info = typeof models.getWeaponModelInfo === 'function' ? models.getWeaponModelInfo(def.model) : null; } catch { /* */ }
+      att = cleanAttachments(def, loadAttachments()[id], info);
+      if (!Object.keys(att).length) att = null;
+    }
+    const ak = att ? JSON.stringify(att) : '';
+    if (id === this.modelId && ak === this.modelAtt && this.model) return;
     this._clearModel();
     this.modelId = id;
+    this.modelAtt = ak;
     if (!def || !models || typeof models.createWeaponModel !== 'function') return;
     let m = null;
-    try { m = models.createWeaponModel(def.model, { lod: 'showcase' }); } catch { m = null; }
+    try { m = models.createWeaponModel(def.model, att ? { lod: 'first', att } : { lod: 'showcase' }); } catch { m = null; }
     if (!m) return;
     // auf längste Kante 1 normieren (Stub-Modelle sind nicht normiert)
     const box = new THREE.Box3().setFromObject(m);
