@@ -1,13 +1,13 @@
 // NULLPUNKT — Feedback an den Entwickler (Nutzer 11.10.): ab 20 Minuten Spielzeit (laufende Runden, sichtbarer Tab)
 // freigeschaltet. Bewertung (Sterne), Ankreuzfragen, Fehlerbericht → per E-Mail (öffnet das eigene Mailprogramm mit
 // fertigem Text) oder als Text für Discord (wird kopiert). Automatisch verschickt wird nichts.
-// Nach dem Absenden mit mindestens 3 Sternen: Freischaltung „Wie NULLPUNKT entstanden ist“ auf der Startseite
+// Nach jedem abgeschickten Feedback (auch bei schlechter Bewertung): Freischaltung „Wie NULLPUNKT entstanden ist“ auf der Startseite
 // (Experiment: Merkt man einem Spiel an, dass es mit KI entstanden ist?).
 // Gemeinsam für Spiel (spielen.html) und Startseite (index.html): nur DOM + lokaler Speicher, eigene Stile.
 import { BUILD } from './build.js';
 
 export const FEEDBACK_MIN_SEC = 20 * 60;
-export const REVEAL_MIN_STARS = 3;
+export const REVEAL_MIN_STARS = 1; // jede Bewertung schaltet frei (Nutzer 11.10.: auch wer das Spiel eher negativ sieht)
 export const CONTACT = Object.freeze({ email: 'legendgerman749@gmail.com', discord: 'German_Legend_26201' });
 const KEY = 'nullpunkt:feedback';
 const ASK_PAUSE_MS = 30 * 60 * 1000; // nach „Später“ frühestens nach 30 Minuten wieder (außer beim Verlassen)
@@ -252,7 +252,7 @@ export function openFeedback({ page = 'Spiel', onDone = null, onRevealed = null 
       <textarea readonly rows="6" data-out>${esc(composeFeedback(data))}</textarea>
       ${newly ? `<p><strong>Du hast etwas freigeschaltet:</strong> Auf der Startseite unter „Über“ erfährst du jetzt, wie NULLPUNKT entstanden ist.</p>
         ${onSite ? '' : '<p><a href="index.html#ueber" target="_blank" rel="noopener">Startseite in neuem Tab öffnen</a></p>'}` : ''}
-      ${!newly && data.stars < REVEAL_MIN_STARS ? '<p>Danke für deine ehrliche Bewertung, gerade Kritik hilft, das Spiel besser zu machen.</p>' : ''}
+      ${data.stars <= 2 ? '<p>Danke für deine ehrliche Bewertung, gerade Kritik hilft, das Spiel besser zu machen.</p>' : ''}
       <div class="npfb-row"><button type="button" class="npfb-btn pri" data-a="ok" autofocus>Schließen</button>
       ${how === 'discord' ? '<a class="npfb-btn" href="https://discord.com/app" target="_blank" rel="noopener">Discord öffnen</a>' : ''}</div>`;
     const ok = box.querySelector('[data-a="ok"]');

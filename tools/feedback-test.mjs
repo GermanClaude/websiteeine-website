@@ -1,6 +1,6 @@
 // NULLPUNKT – Feedback an den Entwickler (Nutzer 11.10.): Spielzeit-Zähler (ab 20 Minuten), Hinweis beim Verlassen,
 // Formular (Sterne, Ankreuzfragen, Fehlerbericht), Discord-Kopie/E-Mail-Text, Freischaltung „Wie NULLPUNKT entstanden ist“
-// auf der Startseite nur ab 3 Sternen. Aufruf: node tools/feedback-test.mjs   (Exit-Code ≠ 0 bei Fehlern)
+// auf der Startseite nach jedem abgeschickten Feedback (auch bei wenigen Sternen). Aufruf: node tools/feedback-test.mjs   (Exit-Code ≠ 0 bei Fehlern)
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 
 let fail = 0, count = 0;
@@ -66,7 +66,7 @@ try {
   await p.screenshot({ path: 'tools/out/feedback-reveal.png' });
   await ctx.close();
 
-  // 4) Unter 3 Sternen: gesendet, aber keine Freischaltung; E-Mail-Adresse und Betreff stimmen
+  // 4) Auch mit 2 Sternen: gesendet und freigeschaltet (plus Dank für Kritik); E-Mail-Adresse und Betreff stimmen
   ctx = await browser.newContext({ ...ctxOpts });
   p = watch(await ctx.newPage());
   await p.goto(BASE + 'index.html', { waitUntil: 'load' });
@@ -84,9 +84,9 @@ try {
   await p.waitForSelector('.npfb [data-a="ok"]', { timeout: 10000 });
   const t2 = await p.textContent('.npfb');
   st = await fbState(p);
-  check(st.sent === 1 && st.reveal === false && !/freigeschaltet/.test(t2) && /ehrliche Bewertung/.test(t2), '2 Sterne: gesendet, keine Freischaltung');
+  check(st.sent === 1 && st.reveal === true && /freigeschaltet/.test(t2) && /ehrliche Bewertung/.test(t2), '2 Sterne: gesendet, freigeschaltet, Dank für Kritik');
   await p.click('.npfb [data-a="ok"]');
-  check(await p.evaluate(() => document.getElementById('entstehung').hidden), 'Startseite nach 2 Sternen: Abschnitt bleibt verborgen');
+  check(await p.evaluate(() => !document.getElementById('entstehung').hidden), 'Startseite nach 2 Sternen: Abschnitt sofort sichtbar');
   await ctx.close();
 
   // 5) Test-Abkürzung: ?fbtest=1 schaltet sofort frei, ?fbtest=reset setzt zurück
