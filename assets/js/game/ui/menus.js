@@ -17,6 +17,7 @@ import { EndScreen } from './endscreen.js';
 import { LoadoutPanel } from './loadout-panel.js';
 import { drawMapArt, rememberMinimap } from './mapart.js';
 import { NetMenus } from './net-menus.js';
+import { openFeedback } from '../../shared/feedback.js';
 
 // VR-Brille (Knopf „VR starten“ im Pausenmenü; Symbole in icons.js gehören zu einem anderen Bereich)
 const VR_ICON = '<svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M6 16h36v16a3 3 0 0 1-3 3H31l-4-6h-6l-4 6H9a3 3 0 0 1-3-3z"/><circle cx="16" cy="24" r="3"/><circle cx="32" cy="24" r="3"/></svg>';
@@ -143,6 +144,7 @@ export class Menus {
       else if (act === 'settings') this.showSettings('lobby');
       else if (act === 'profile') { this.settingsPanel.group = 'profil'; this.showSettings('lobby'); }
       else if (act === 'controls') this.showControls('lobby');
+      else if (act === 'feedback') { this.sound('confirm'); openFeedback({ page: 'Spiel' }); }
       else if (act === 'exit') { this.sound('back'); if (this.onExit) this.onExit(); }
     });
     const stage = s.querySelector('.lb-stage');

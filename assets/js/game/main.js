@@ -40,6 +40,7 @@ import { CarDeform } from './deform.js'; // verformbare Autos
 import { Digging } from './digging.js'; // Graben mit dem Klappspaten (Großkarten)
 import { Doors } from './doors.js'; // bewegliche Türen und Tore (Taste F)
 import { WallHoles } from './wallholes.js'; // durchlöcherte Wände
+import * as Feedback from '../shared/feedback.js'; // Feedback an den Entwickler ab 20 Minuten Spielzeit (Nutzer 11.10.)
 
 const VERSION = '1.1.0';
 
@@ -1193,6 +1194,8 @@ function showEndScreen() {
   const banner = $('match-banner');
   if (banner) banner.hidden = true;
   safe('menus.showEnd', () => G.menus.showEnd(G.lastResult, G.lastProgression));
+  // Ab 20 Minuten Spielzeit: einmal fragen, ob man dem Entwickler Feedback geben mag (nicht mitten in der Runde)
+  if (!AUTOSTART && Feedback.shouldPrompt('ende')) setTimeout(() => { if (G.match.state === 'ended' && !Feedback.isFeedbackOpen()) Feedback.promptFeedback({ context: 'ende' }); }, 2500);
 }
 
 /**
@@ -1580,6 +1583,10 @@ function frame(now, bg = false, xrFrame = null) {
   G.time.dt = dt;
   G.time.frame += 1;
   const st = G.match.state;
+  // Spielzeit fürs Feedback: nur laufende Runden im sichtbaren Tab; beim Erreichen der 20 Minuten kurzer Hinweis
+  if (st === 'playing' && !document.hidden && Feedback.addPlayTime(Math.min(raw, 0.25))) {
+    safe('feedback:hinweis', () => G.hud && G.hud._notice && G.hud._notice('Feedback freigeschaltet: Nach der Runde kannst du dem Entwickler Rückmeldung geben.', 'gold'));
+  }
   // Mehrspieler: im Pausenmenü läuft die Simulation weiter (der Host hält sonst alle an)
   const netPaused = st === 'paused' && !!G.match.netRole;
   const sim = st === 'countdown' || st === 'playing' || netPaused;
@@ -1812,7 +1819,10 @@ function wireGlobal() {
   menus.onResume = () => resume();
   menus.onRestart = () => restart();
   menus.onQuit = () => toLobby();
-  menus.onExit = () => { location.href = 'index.html'; };
+  menus.onExit = () => {
+    const go = () => { Feedback.flushPlayTime(); location.href = 'index.html'; };
+    if (Feedback.shouldPrompt('exit')) Feedback.promptFeedback({ context: 'exit', onDone: go }); else go(); // beim Verlassen nachfragen
+  };
 
   G.events.on('match:end', ({ result } = {}) => endMatch(result));
   G.events.on('kill', ({ victim }) => {
@@ -1878,6 +1888,7 @@ function wireGlobal() {
   const onPortrait = () => { if (portraitMQ.matches) pause(); };
   if (portraitMQ.addEventListener) portraitMQ.addEventListener('change', onPortrait);
   wireRotateOverlay();
+  window.addEventListener('pagehide', () => Feedback.flushPlayTime()); // Spielzeit fürs Feedback sichern
   window.addEventListener('beforeunload', (e) => {
     const st = G.match.state;
     if (st === 'playing' || st === 'paused' || st === 'countdown') { e.preventDefault(); e.returnValue = ''; }

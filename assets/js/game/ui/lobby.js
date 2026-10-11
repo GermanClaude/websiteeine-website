@@ -14,6 +14,7 @@ import { drawMapArt } from './mapart.js';
 import { camoRowHtml, equippedCamo, attRowHtml, onAttChange } from './loadout-panel.js';
 import { loadAttachments } from '../../shared/attachments.data.js';
 import { ProgressView } from './progress.js';
+import { eligible as feedbackUnlocked } from '../../shared/feedback.js';
 
 const DIFF_ORDER = ['rekrut', 'regulaer', 'veteran', 'elite'];
 const STAT_LABELS = [['damage', 'Schaden'], ['fireRate', 'Kadenz'], ['range', 'Reichweite'], ['accuracy', 'Präzision'], ['mobility', 'Mobilität'], ['control', 'Kontrolle']];
@@ -210,6 +211,7 @@ export class Lobby {
           <div class="lb-tools">
             <button type="button" class="m-icon" data-act="settings" aria-label="Einstellungen" title="Einstellungen">${ICON.gear}</button>
             <button type="button" class="m-icon" data-act="controls" aria-label="Steuerung" title="Steuerung">${ICON.pad}</button>
+            <button type="button" class="m-icon" data-act="feedback" aria-label="Feedback an den Entwickler" title="Feedback an den Entwickler"${feedbackUnlocked() ? '' : ' hidden'}>${ICON.star}</button>
             <button type="button" class="m-icon" data-act="exit" aria-label="Zur Website" title="Zur Website">${ICON.exit}</button>
           </div>
         </header>
