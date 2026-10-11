@@ -47,7 +47,9 @@ const AC = typeof window !== 'undefined' ? (window.AudioContext || window.webkit
 /** Aufnahme klingt schlechter als die Synthese → nie verwenden. */
 const PREFER_PROC = new Set(['impact_metal']);
 /** Synthese bleibt als leise Schicht unter der Aufnahme (ab „medium“) → nicht freigeben. */
-const PROC_LAYER = new Set(['impact_concrete', 'impact_wood', 'impact_dirt', 'impact_glass']);
+const PROC_LAYER = new Set(['impact_concrete', 'impact_wood', 'impact_dirt', 'impact_glass', 'step_metal', 'step_wood', 'step_grass', 'step_dirt']);
+/** Schritte: Material-Schicht (Synthese) unter der Aufnahme – Blech klingt, Dielen poltern, Gras raschelt (Anteil je Fläche). */
+const STEP_LAYER = { metal: 0.6, wood: 0.5, grass: 0.45, dirt: 0.3, gravel: 0.35 };
 /** Aufnahme und Synthese abwechselnd (Anteil Aufnahme) → mehr hörbare Varianten. */
 const MIXED_REC = { hit_flesh: 0.6, bullet_whiz: 0.35, land: 0.5 };
 /** Mechanik-Schicht (Aufnahme) unter dem eigenen Schuss. Repetierer/Pumpen haben ihre eigenen Klänge. */
@@ -391,6 +393,7 @@ export class AudioEngine {
     if (!e || e.sampleOnly) return [];
     const n = this._variants(e), keys = []; for (let v = 0; v < n; v++) keys.push(bank.request(e.name, v, this._rate(e), prio)); return keys;
   }
+  _procReady(e) { for (let v = 0, n = this._variants(e); v < n; v++) if (bank.has(this._key(e, v))) return true; return false; }
   _anyReady(e) {
     if (!e) return false;
     if (this._recName(e.name, true)) return true;
@@ -1273,6 +1276,12 @@ export class AudioEngine {
     if (o.actor) this._surf.set(o.actor, s);
     const vol = o.volume ?? (o.crouch ? 0.45 : o.sprint ? 1 : 0.75);
     const v = this.play(name, { ...o, volume: vol, lowpass: o.crouch ? 1900 : o.lowpass, footstep: true, pitch: (o.pitch ?? 1) * (o.sprint ? 1.04 : 1) });
+    // Aufnahmen ähneln sich je Fläche stark → Material-Schicht aus der Synthese darunter (nur wenn schon gerendert,
+    // sonst käme der Beton-Ersatz), nah am Hörer
+    const lay = STEP_LAYER[raw] ?? STEP_LAYER[s], le = lay && CATALOG[`step_${s}`];
+    if (v?.recorded && le && (o.player || this._dist(xyz(o.position)) < 14) && this._procReady(le)) {
+      this.play(`step_${s}`, { ...o, volume: vol * lay, proc: true, footstep: true, priority: 0, delay: (o.delay || 0) + 0.004, lowpass: o.crouch ? 2400 : o.lowpass });
+    }
     // Ausrüstung klappert nach Tempo (Plan §10 A7): gehen leise, sprinten deutlich, geduckt kaum
     const gear = o.sprint ? 0.6 : o.crouch ? 0.08 : 0.24;
     if (gear > 0.1 && (o.player || o.sprint || this._dist(xyz(o.position)) < 10)) this.play('gear', { ...o, volume: vol * gear, footstep: true, delay: (o.delay || 0) + 0.01 });

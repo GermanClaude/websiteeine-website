@@ -20,15 +20,19 @@ const STEP = {
   metal(d, sr, R) {
     thud(d, sr, 0, R.range(105, 125), 0.014, 0.35);
     click(d, sr, 0, { dur: 0.005, tau: 0.0014, hp: 1600, amp: 0.65, R });
-    modal(d, sr, 0, metalModes(R.range(280, 420), R, { count: 6, decay: 0.07 }), 0.22, R);
-    modal(d, sr, 0.004, metalModes(R.range(900, 1400), R, { count: 4, decay: 0.03 }), 0.18, R);
+    modal(d, sr, 0, metalModes(R.range(280, 420), R, { count: 6, decay: 0.13 }), 0.3, R);
+    modal(d, sr, 0.004, metalModes(R.range(900, 1400), R, { count: 4, decay: 0.05 }), 0.22, R);
+    // Blech/Gitterrost: kurzes Nachscheppern
+    if (R.chance(0.5)) modal(d, sr, R.range(0.03, 0.06), metalModes(R.range(600, 900), R, { count: 3, decay: 0.03 }), 0.1, R);
     burst(d, sr, 0.003, { dur: 0.05, type: 'bandpass', freq: 2600, q: 1, envFn: ad(0.001, 0.01), R, amp: 0.3 });
   },
   wood(d, sr, R) {
     burst(d, sr, 0, { dur: 0.1, type: 'bandpass', freq: R.range(560, 760), q: 3, envFn: ad(0.001, 0.028), R, amp: 1.1 });
     thud(d, sr, 0, R.range(110, 130), 0.02, 0.45);
     click(d, sr, 0, { dur: 0.004, tau: 0.0015, hp: 1600, amp: 0.45, R });
-    if (R.chance(0.35)) sine(d, sr, 0.03, 0.12, t => 380 - 60 * t + 18 * Math.sin(t * 160), t => bell(0.12, 0.3)(t) * 0.04);
+    // hohle Diele: tiefer Resonanzkörper, öfter ein Knarzen
+    modal(d, sr, 0.002, [[R.range(170, 230), 1, 0.05], [R.range(420, 520), 0.5, 0.025]], 0.3, R);
+    if (R.chance(0.55)) sine(d, sr, 0.03, 0.14, t => 380 - 60 * t + 18 * Math.sin(t * 160), t => bell(0.14, 0.3)(t) * 0.07);
   },
   dirt(d, sr, R) {
     burst(d, sr, 0, { dur: 0.08, type: 'lowpass', freq: 480, envFn: ad(0.002, 0.026), R, amp: 0.8 });
@@ -71,7 +75,7 @@ const STEP = {
 };
 
 export const footstep = surface => (sr, R) => {
-  const d = buf(sr, 0.28);
+  const d = buf(sr, surface === 'metal' ? 0.45 : 0.28);
   (STEP[surface] || STEP.concrete)(d, sr, R);
   // Abrollen (Ferse → Ballen)
   const toe = buf(sr, 0.15); (STEP[surface] || STEP.concrete)(toe, sr, R);

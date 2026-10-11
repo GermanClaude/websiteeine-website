@@ -1,7 +1,8 @@
 // NULLPUNKT — „Physics-lite“-Ragdoll: 13 Verlet-Partikel (Hüften, Schultern, Kopf, Knie, Knöchel,
 // Ellbogen, Handgelenke) mit Abstands- und Bereichs-Bedingungen. Kollision: Boden über
 // world.groundHeight (Treppen, Kisten, Dächer), Wände über world.raycast für Rumpf + Kopf.
-// Kommt zur Ruhe (schläft) und wird zurück auf das Skelett abgebildet.
+// Scharniere: Knie nur nach vorn, Ellbogen nur nach hinten; Kopf nickt. Gliedmaßen stoßen an Wände.
+// Kommt am Boden zur Ruhe (schläft) und wird zurück auf das Skelett abgebildet.
 import * as THREE from 'three';
 import { BONE, DIM } from './rig.js';
 import { quatFromYZ, quatFromXY, clamp } from './ik.js';
@@ -12,7 +13,7 @@ const HEAVY = [true, true, true, true, true, false, false, false, false, false, 
 // [a, b, minFactor, maxFactor] — Faktor bezogen auf den Startabstand
 const LINKS = [
   [0, 1, 1, 1], [2, 3, 1, 1], [0, 2, 1, 1], [1, 3, 1, 1], [0, 3, 1, 1], [1, 2, 1, 1],
-  [4, 2, 1, 1], [4, 3, 1, 1], [4, 0, 0.9, 1.04], [4, 1, 0.9, 1.04],
+  [4, 2, 0.86, 1.04], [4, 3, 0.86, 1.04], [4, 0, 0.88, 1.04], [4, 1, 0.88, 1.04], // Kopf kann nicken/abknicken
   [0, 5, 1, 1], [5, 6, 1, 1], [1, 7, 1, 1], [7, 8, 1, 1], [0, 6, 0.42, 1], [1, 8, 0.42, 1],
   [2, 9, 1, 1], [9, 10, 1, 1], [3, 11, 1, 1], [11, 12, 1, 1], [2, 10, 0.3, 1], [3, 12, 0.3, 1],
   [5, 7, 0.55, 3], [6, 8, 0.45, 4], [10, 12, 0.3, 6], [4, 6, 0.7, 2], [4, 8, 0.7, 2],
@@ -112,7 +113,11 @@ export class Ragdoll {
         // Knie knicken nach vorn ein
         if (i === 5 || i === 7) _v.addScaledVector(imp, -0.6).y -= 0.4;
       }
-      if (explosive) _v.y += 3.2 * strength * (upper ? 1 : 0.8);
+      // Kopftreffer: Kopf schnappt in Schussrichtung zurück
+      if (zone === 'head' && i === 4) _v.addScaledVector(imp, 1.4 * strength);
+      // Gliedmaßen nie exakt gleich (keine zwei Tode sehen gleich aus)
+      if (!HEAVY[i]) { _v.x += (Math.random() - 0.5) * 0.6; _v.z += (Math.random() - 0.5) * 0.6; _v.y += Math.random() * 0.3; }
+      if (explosive) _v.y += 3.2 * strength * (upper ? 1 : 0.8) + (HEAVY[i] ? 0 : Math.random() * 1.5);
       this.o[i].copy(this.p[i]).addScaledVector(_v, -dt);
     }
     this.active = true;
@@ -152,13 +157,40 @@ export class Ragdoll {
           pa.addScaledVector(_d, diff * wa);
           pb.addScaledVector(_d, -diff * (1 - wa));
         }
+        this._hinges();
         this._collide(world, it === 4);
       }
       for (let i = 0; i < 13; i++) maxMove = Math.max(maxMove, this.p[i].distanceToSquared(this.o[i]));
     }
     // Ruhe
     if (Math.sqrt(maxMove) < 0.0025 && this.t > 0.6) this.calm += dt; else this.calm = 0;
-    if (this.calm > 0.4 || this.t > 4) this.asleep = true;
+    // Schlafen erst am Boden – wer von einer Galerie/Treppe fällt, darf nicht in der Luft erstarren
+    if (this.calm > 0.4 || this.t > 12 || (this.t > 4 && this._grounded())) this.asleep = true;
+  }
+
+  _grounded() {
+    for (let i = 0; i < 5; i++) if (this.p[i].y - this.ground[i] > 0.55) return false;
+    return true;
+  }
+
+  /**
+   * Scharniergelenke: Knie knicken nur nach vorn, Ellbogen nur nach hinten (keine überstreckten, verdrehten Glieder).
+   * „Vorn“ = Brustrichtung aus Schultern und Hüften; Korrektur fast nur am Mittelgelenk.
+   */
+  _hinges() {
+    const p = this.p;
+    _mid.addVectors(p[2], p[3]).multiplyScalar(0.5);
+    _mid2.addVectors(p[0], p[1]).multiplyScalar(0.5);
+    _y.subVectors(_mid, _mid2);
+    _x.subVectors(p[3], p[2]);
+    _z.crossVectors(_y, _x);
+    const l = _z.length();
+    if (l < 1e-6) return;
+    _z.multiplyScalar(1 / l);
+    hinge(p, 0, 5, 6, _z, 1, 0.02);
+    hinge(p, 1, 7, 8, _z, 1, 0.02);
+    hinge(p, 2, 9, 10, _z, -1, 0.01);
+    hinge(p, 3, 11, 12, _z, -1, 0.01);
   }
 
   /**
@@ -188,8 +220,8 @@ export class Ragdoll {
     const R = this.front ? this._torsoRadii() : RADIUS;
     for (let i = 0; i < 13; i++) {
       const p = this.p[i], o = this.o[i], r = R[i];
-      // Wände (nur Rumpf/Kopf, letzte Iteration)
-      if (walls && HEAVY[i] && world && world.raycast) {
+      // Wände (letzte Iteration; auch Arme/Beine – sonst stecken Hände und Füße in der Wand)
+      if (walls && world && world.raycast) {
         _d.subVectors(p, o);
         const len = _d.length();
         if (len > 1e-4) {
@@ -302,6 +334,26 @@ Ragdoll.prototype._aboveGround = function (anim, m, bone, pi, tipA, tipB) {
     anim._setWorld(bone, _q2);
   }
 };
+
+const _h = new THREE.Vector3();
+const _hm = new THREE.Vector3();
+/** Mittelgelenk b muss auf der Seite sgn·F der Linie a–c liegen (mindestens margin); F senkrecht zur Linie genommen. */
+function hinge(p, a, b, c, F, sgn, margin) {
+  _h.subVectors(p[c], p[a]);
+  const L = _h.length();
+  if (L < 1e-4) return;
+  _h.multiplyScalar(1 / L);
+  _hm.copy(F).addScaledVector(_h, -F.dot(_h));
+  const nl = _hm.length();
+  if (nl < 0.25) return; // Glied zeigt fast nach vorn → Richtung unbestimmt
+  _hm.multiplyScalar(1 / nl);
+  const off = sgn * ((p[b].x - (p[a].x + p[c].x) * 0.5) * _hm.x + (p[b].y - (p[a].y + p[c].y) * 0.5) * _hm.y + (p[b].z - (p[a].z + p[c].z) * 0.5) * _hm.z);
+  if (off >= margin) return;
+  const k = (margin - off) * sgn;
+  p[b].addScaledVector(_hm, k * 0.8);
+  p[a].addScaledVector(_hm, -k * 0.1);
+  p[c].addScaledVector(_hm, -k * 0.1);
+}
 
 /** Gliedmaße aus drei Partikeln: bone = oberer Knochen; a = oberes, b = mittleres, c = unteres Gelenk. */
 function limb(anim, m, bone, a, b, c, knee) {
