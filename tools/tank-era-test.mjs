@@ -23,10 +23,12 @@ try {
   let r = await p.evaluate(() => {
     const V = window.__game.vehicles;
     const tanks = V.list.filter((v) => v.def.drive === 'tracked');
-    const v = tanks[0];
-    return { n: tanks.length, types: [...new Set(tanks.map((x) => x.type))], seats: v ? v.seats.map((s) => s.def.id) : [], gun: v ? v.seats[1].weapons[0].def.name : '', mech: v ? v.seats.some((s) => s.def.mechanic) : false, limits: v && v.def.turretLimits };
+    const v = tanks.find((x) => x.type === 'wk1'), l = tanks.find((x) => x.type === 'wk1l');
+    return { n: tanks.length, types: [...new Set(tanks.map((x) => `${x.type}:${x.spawnTeam}`))].sort(), seats: v ? v.seats.map((s) => s.def.id) : [], gun: v ? v.seats[1].weapons[0].def.name : '', mech: v ? v.seats.some((s) => s.def.mechanic) : false, limits: v && v.def.turretLimits,
+      light: l ? { seats: l.seats.length, gun: l.seats[1].weapons[0].def.name, limits: l.def.turretLimits || null, auto: l.seats.some((s) => s.def.loader) } : null };
   });
-  check(r.n >= 4 && r.types.join() === 'wk1', `Niemandsland: ${r.n} Panzer vom Typ ${r.types.join(',')}`);
+  check(r.n >= 4 && r.types.join() === 'wk1:B,wk1l:A', `Niemandsland: ${r.n} Panzer, je Team eigenes Vorbild (${r.types.join(', ')})`);
+  check(r.light && r.light.seats === 2 && /37 mm/.test(r.light.gun) && !r.light.limits && !r.light.auto, `1. WK Team A: leichter Drehturm-Panzer, 2 Mann, ${r.light ? r.light.gun : '?'}`);
   check(r.seats.length === 6 && r.mech, `1. WK: 6 Mann (${r.seats.join(', ')})`);
   check(/57 mm/.test(r.gun) && Array.isArray(r.limits), `1. WK: ${r.gun}, Schwenkbereich ±${r.limits ? r.limits[1] : '?'}`);
   await p.close();
@@ -36,6 +38,7 @@ try {
   r = await p.evaluate(() => {
     const G = window.__game, V = G.vehicles;
     const types = V.list.map((v) => v.type);
+    const h = V.list.find((x) => x.type === 'wk2h');
     const v = V.list.find((x) => x.type === 'wk2');
     // Spieler als Bug-MG-Schütze: Wanne-MG schwenkt nur ±0,45 rad
     let mg = null;
@@ -46,9 +49,10 @@ try {
       for (let k = 0; k < 300; k++) v._aimSeat(s, 1 / 60);
       mg = { yaw: v.mount.cmgYaw, w: s.weapons[0].def.id };
     }
-    return { types, thermal: v ? !!v.def.noThermal : null, mg, seats: v ? v.seats.length : 0 };
+    return { types, thermal: v ? !!v.def.noThermal : null, mg, seats: v ? v.seats.length : 0, heavy: h ? { team: h.spawnTeam, gun: h.seats[1].weapons[0].def.name, hp: h.maxHealth } : null };
   });
-  check(r.types.includes('wk2') && !r.types.includes('mbt') && r.types.includes('jeep'), `Hafen ?panzer=wk2: ${r.types.join(', ')}`);
+  check(r.types.includes('wk2') && r.types.includes('wk2h') && !r.types.includes('mbt') && r.types.includes('jeep'), `Hafen ?panzer=wk2: ${r.types.join(', ')}`);
+  check(r.heavy && r.heavy.team === 'B' && /88 mm/.test(r.heavy.gun), `2. WK Team B: schwerer Panzer (${r.heavy ? r.heavy.gun + ', ' + r.heavy.hp + ' LP' : '?'})`);
   check(r.seats === 5 && r.thermal === true, `2. WK: 5 Mann, kein Wärmebild`);
   check(r.mg && r.mg.w === 'wk2_mg' && Math.abs(r.mg.yaw + 0.45) < 0.02, `Bug-MG im Kugelstand begrenzt (${r.mg ? r.mg.yaw.toFixed(2) : '?'} rad)`);
   await p.close();

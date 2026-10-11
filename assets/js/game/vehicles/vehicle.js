@@ -489,9 +489,9 @@ export class Vehicle {
     }
     const g = this.gun, rackN = g ? (g.rack.mbt_ap || 0) + (g.rack.mbt_he || 0) : 0;
     if (rackN > 0 && this.def.turretPivot && this.health > 0) {
-      const I = this.def.interior || {}, rk = I.rack || [0, 0.45, 1.55], sh = I.shift || [0, 0, 0];
+      const I = this.def.interior || {}, rk = I.rack || [0, 0.45, 1.55], sh = I.shift || [0, 0, 0], sc = I.scale || 1;
       _q.setFromAxisAngle(Y, this.mount.turretYaw);
-      _b.set(rk[0] + sh[0], rk[1] + sh[1], rk[2] + sh[2]).applyQuaternion(_q).add(_c.fromArray(this.def.turretPivot));
+      _b.set(rk[0] * sc + sh[0], rk[1] * sc + sh[1], rk[2] * sc + sh[2]).applyQuaternion(_q).add(_c.fromArray(this.def.turretPivot));
       this.body.toWorld(_b, _b);
       if (_b.distanceTo(P) < 1.4 && Math.random() < (ap ? 0.5 : 0.15) * Math.min(1, 0.4 + rackN / 12)) {
         if (I.blastDoor && g.step !== 'offen' && g.busyKind !== 'tuer' && g.busyKind !== 'greifen') {

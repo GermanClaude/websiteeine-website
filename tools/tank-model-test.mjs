@@ -8,6 +8,7 @@ import { chromium, BASE, GL_ARGS } from './pw.mjs';
 
 const arg = (k) => { const a = process.argv.find((x) => x.startsWith(`--${k}=`)); return a ? a.split('=')[1] : null; };
 const SHOTS = arg('shots'); // 'vorher' | 'nachher' | null
+const TYPE = arg('type') || 'mbt', TYPE_B = arg('typeb') || TYPE; // Bilder anderer Panzer: --type=wk2 --typeb=wk2h
 const ONLY_SHOTS = process.argv.includes('--only-shots');
 const OUT = new URL('./out/panzer/', import.meta.url).pathname;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -85,14 +86,15 @@ async function open(type, quality, lite) {
 
 async function shots(quality, wait) {
   if (wait) await waitForLoad();
-  await open('mbt', quality, false);
-  const pre = SHOTS;
+  await open(TYPE, quality, false);
+  const pre = TYPE === 'mbt' ? SHOTS : `${SHOTS}-${TYPE}`;
   // Fotoscan-Materialien abwarten (gleiches Bild vorher/nachher)
   await page.evaluate(async () => { const M = window.__mt.mats; if (M && M.upgradeVehicleMaterials) await Promise.race([M.upgradeVehicleMaterials(window.__dev.G.renderer.renderer, window.__dev.G.renderer.quality), new Promise((r) => setTimeout(r, 30000))]); });
   // zweiter Panzer (Team B) und Geländewagen stehen daneben; Sim danach anhalten (Modellzustand gehört dem Test)
+  await page.evaluate((tb) => { window.__typeB = tb; }, TYPE_B);
   await page.evaluate(() => {
     const D = window.__dev, M = window.__mt;
-    D.__b = D.spawn('mbt', new D.G.THREE.Vector3(-11, 0.05, 28), 0.5, 'B');
+    D.__b = D.spawn(window.__typeB || 'mbt', new D.G.THREE.Vector3(-11, 0.05, 28), 0.5, 'B');
     M.step(3);
     D.sys.update = () => {};
   });
@@ -168,7 +170,8 @@ try {
     const M = window.__mt.models, out = {};
     for (const q of ['low', 'medium', 'high', 'ultra']) {
       out[q] = { mbt: M.vehicleTriangles('mbt', q), jeep: M.vehicleTriangles('jeep', q), extra: M.vehicleExtraTriangles ? M.vehicleExtraTriangles('mbt', q) : null,
-        wk2: M.vehicleTriangles('wk2', q), wk1: M.vehicleTriangles('wk1', q), ex2: M.vehicleExtraTriangles('wk2', q), ex1: M.vehicleExtraTriangles('wk1', q) };
+        wk2: M.vehicleTriangles('wk2', q), wk1: M.vehicleTriangles('wk1', q), ex2: M.vehicleExtraTriangles('wk2', q), ex1: M.vehicleExtraTriangles('wk1', q),
+        wk2h: M.vehicleTriangles('wk2h', q), wk1l: M.vehicleTriangles('wk1l', q), ex2h: M.vehicleExtraTriangles('wk2h', q), ex1l: M.vehicleExtraTriangles('wk1l', q) };
     }
     M.vehicleTriangles('mbt', 'low'); // Lack-Haken wieder auf die Seitenstufe
     return out;
@@ -183,11 +186,12 @@ try {
       check(t.jeep.every((n, i) => n <= BUDGET.jeep[q][i]), `GW-4 ${q}: LOD-Dreiecke im Budget ${BUDGET.jeep[q].join('/')}`, t.jeep.join('/'));
     }
     // Panzergenerationen (2. WK / 1. WK): höchstens das Budget des KP-1, low ≤ 7000 in der Nahstufe
-    for (const [k, n] of [['wk2', 'MK-4'], ['wk1', 'SK-18']]) {
+    for (const [k, n] of [['wk2', 'MP-4'], ['wk1', 'SK-18'], ['wk2h', 'SP-6'], ['wk1l', 'LK-17']]) {
       const lim = q === 'low' ? [7000, 3000, 1000] : BUDGET.mbt[q];
       check(t[k].every((x, i) => x > 0 && x <= lim[i]), `${n} ${q}: LOD-Dreiecke im Budget ${lim.join('/')}`, t[k].join('/'));
     }
-    check(t.ex2.hatches > 0 && t.ex2.interior > 0 && t.ex2.interior <= EXTRA[q].interior && t.ex1.hatches === 0 && t.ex1.interior > 0, `MK-4/SK-18 ${q}: Luken und Innenraum`, `MK-4 ${t.ex2.hatches}/${t.ex2.interior}, SK-18 ${t.ex1.hatches}/${t.ex1.interior}`);
+    check(t.ex2.hatches > 0 && t.ex2.interior > 0 && t.ex2.interior <= EXTRA[q].interior && t.ex1.hatches === 0 && t.ex1.interior > 0, `MP-4/SK-18 ${q}: Luken und Innenraum`, `MP-4 ${t.ex2.hatches}/${t.ex2.interior}, SK-18 ${t.ex1.hatches}/${t.ex1.interior}`);
+    check(t.ex2h.hatches > 0 && t.ex2h.interior > 0 && t.ex2h.interior <= EXTRA[q].interior && t.ex1l.hatches === 0 && t.ex1l.interior > 0 && t.ex1l.interior <= EXTRA[q].interior, `SP-6/LK-17 ${q}: Luken und Innenraum`, `SP-6 ${t.ex2h.hatches}/${t.ex2h.interior}, LK-17 ${t.ex1l.hatches}/${t.ex1l.interior}`);
     const E = EXTRA[q];
     check(!!t.extra && t.extra.hatches > 0 && t.extra.hatches <= E.hatches, `KP-1 ${q}: Luken ≤ ${E.hatches}`, t.extra ? t.extra.hatches : 'fehlt');
     check(!!t.extra && t.extra.interior > 0 && t.extra.interior <= E.interior, `KP-1 ${q}: Innenraum ≤ ${E.interior}`, t.extra ? t.extra.interior : 'fehlt');

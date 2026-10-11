@@ -960,7 +960,7 @@ export class NetMenus {
           ${sw('thirdPerson', 'Außenansicht (Fahrzeuge)', '3P-Kamera in Fahrzeugen erlaubt', s.thirdPerson !== false)}
           ${seg('vehReload', [['manuell', 'Manuell', 'Ladeschütze lädt von Hand'], ['automatisch', 'Automatisch', 'Nachladen nach Zeit']], s.vehReload === 'automatisch' ? 'automatisch' : 'manuell', 'Panzer nachladen')}
         </div>
-        <div class="nr-two">${seg('tankEra', [['karte', 'Karte', 'Je nach Karte (Niemandsland: 1. Weltkrieg, sonst modern)'], ['modern', 'Modern', 'KP-1 Mammut: Kampfpanzer mit Wärmebild, 4 Mann'], ['wk2', '2. WK', 'MK-4 Luchs: 75-mm-Kanone, Bug-MG, 5 Mann'], ['wk1', '1. WK', 'SK-18 Koloss: Bugkanone, MG-Stand, 6 Mann inkl. Mechaniker']], s.tankEra || 'karte', 'Panzer-Generation')}</div>` : ''}
+        <div class="nr-two">${seg('tankEra', [['karte', 'Karte', 'Je nach Karte (Niemandsland: 1. Weltkrieg, sonst modern)'], ['modern', 'Modern', 'KP-1 Mammut: Kampfpanzer mit Wärmebild und Munitionsbunker, 4 Mann'], ['wk2', '2. WK', 'Team A: MP-4 Bison (mittel, 75 mm, schnell) – Team B: SP-6 Moloch (schwer, 88 mm)'], ['wk1', '1. WK', 'Team A: LK-17 Libelle (leicht, Drehturm, 2 Mann) – Team B: SK-18 Koloss (Sturmpanzer, 6 Mann)']], s.tankEra || 'karte', 'Panzer-Generation')}</div>` : ''}
         <div class="nr-two">
           ${sw('cheatMenu', 'Cheat-Menü', s.cheatMenu === false ? 'Verboten: das Menü öffnet sich bei niemandem' : 'Erlaubt (alle Modi): wer es nutzt, trägt ein Symbol in der Punktetabelle', s.cheatMenu !== false)}
         </div>

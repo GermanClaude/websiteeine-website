@@ -45,7 +45,8 @@ export function autoReload(v) {
   if (rule === 'automatisch') return true;
   if (!v.seats.some((s) => isHuman(s.actor))) return true;
   const ls = loaderSeat(v);
-  return !!(ls && ls.actor && !isHuman(ls.actor));
+  if (!ls) return true; // ohne Ladeschützensitz (leichter Panzer, 2 Mann): der Kommandant lädt selbst (reloadNoLoader)
+  return !!(ls.actor && !isHuman(ls.actor));
 }
 
 /** Blickt der Ladeschütze (Gier im Turmraum) auf den Punkt interior[which]? */

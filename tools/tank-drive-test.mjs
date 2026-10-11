@@ -273,8 +273,8 @@ const flat = makeWorld(0);
 }
 
 /* ------------------------------------------------------------------ Panzergenerationen (Nutzer 11.10.): 2. WK / 1. WK */
-const NAME = { mbt: 'KP-1', jeep: 'GW-4', wk2: 'MK-4 (2. WK)', wk1: 'SK-18 (1. WK)' };
-for (const [type, lo, hi, t20] of [['wk2', 36, 44, 9], ['wk1', 13, 17.5, null]]) {
+const NAME = { mbt: 'KP-1', jeep: 'GW-4', wk2: 'MP-4 (2. WK)', wk1: 'SK-18 (1. WK)', wk2h: 'SP-6 (2. WK, schwer)', wk1l: 'LK-17 (1. WK, leicht)' };
+for (const [type, lo, hi, t20] of [['wk2', 36, 44, 9], ['wk1', 13, 17.5, null], ['wk2h', 28, 40, 14], ['wk1l', 14, 19, null]]) {
   const b = makeBody(type, flat);
   b.controls.gearbox = 'auto';
   b.controls.throttle = 1;
@@ -300,7 +300,7 @@ for (const [type, lo, hi, t20] of [['wk2', 36, 44, 9], ['wk1', 13, 17.5, null]])
 /* ------------------------------------------------------------------ Autopilot-Runde (Bots: Automatik, wie dev/vehicles.js autopilotLap) */
 {
   const { updateAutopilot } = await import('../assets/js/game/vehicles/autopilot.js');
-  for (const type of ['mbt', 'jeep', 'wk2', 'wk1']) {
+  for (const type of ['mbt', 'jeep', 'wk2', 'wk1', 'wk2h', 'wk1l']) {
     const b = makeBody(type, flat);
     b.setPose(new THREE.Vector3(0, 0.05, 28), 0);
     for (let i = 0; i < 30; i++) b.update(STEP, flat);

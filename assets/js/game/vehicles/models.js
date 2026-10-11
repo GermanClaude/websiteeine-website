@@ -544,6 +544,8 @@ function buildMBT(lod, S, team) {
     // Ladeschützenluke, Antenne
     T.add(cyl(0.3, 0.3, 0.05, seg), S.dark, [0.6, 0.8, 0.55]);
     T.add(cyl(0.012, 0.012, 2.3, 4), S.dark, [0.95, 1.9, 1.55]);
+    // Abblasplatten im Dach über dem Munitionsbunker (geben bei einer Munitionsexplosion nach oben nach)
+    if (HQ) for (const sx of [-1, 1]) T.add(box(0.6, 0.012, 0.68), S.dark, [sx * 0.42, 0.786, 1.45]);
   }
   // Nebelwurfbecher (ab medium: 2×4 im Block, turretDetail)
   if (lod < 2 && !HQ) {
@@ -636,9 +638,10 @@ function addLenses(hull, D, seg, r = 0.09) {
 const sph = (r, seg) => new THREE.SphereGeometry(r, Math.max(6, seg | 0), Math.max(4, (seg / 2) | 0));
 
 /**
- * 2. Weltkrieg – „MK-4 Luchs“ (frei erfunden): Wanne mit senkrechter Bugplatte und Kugelblende fürs Bug-MG,
- * Seitenschürzen, Motordeck mit Lüftungsklappen und Topfauspuff, kantiger Turm mit Kommandantenkuppel, Staukasten
- * am Turmheck, 75-mm-Kanone mit Doppelkammer-Mündungsbremse.
+ * 2. Weltkrieg, Team A – „MP-4 Bison“ (frei erfunden, Vorbild: amerikanischer mittlerer Panzer 1944): hohe Wanne mit
+ * schräger Bugplatte, gegossenes, dreiteiliges Getriebegehäuse an der Nase, Bug-MG rechts in der Bugplatte, Laufwerk mit
+ * drei Federböcken je Seite (je zwei Laufrollen, Stützrolle oben), Triebrad vorn, runder Gussturm mit Kommandantenkuppel und
+ * schwerem MG auf dem Dach, kurze 75-mm-Kanone ohne Mündungsbremse.
  */
 function buildWK2(lod, S, team) {
   CUR_LOD = lod;
@@ -648,82 +651,99 @@ function buildWK2(lod, S, team) {
   const mark = S.mark[team] || S.mark.null;
   const hull = new THREE.Group();
   const B = new Bucket();
-  // Wanne unten (Bugnase), Aufbau über den Ketten (senkrechte Bugplatte, schräges Heck)
-  B.add(sideExtrude([[2.72, 0.42], [2.98, 0.95], [-2.8, 0.95], [-2.68, 0.42]], 1.82), paint);
-  B.add(sideExtrude([[2.98, 0.95], [2.92, 1.5], [-2.62, 1.5], [-2.95, 1.28], [-2.95, 0.95]], 2.82, lod === 0), paint);
-  // Fahrersehklappe, Kugelblende (Bug-MG), Fahrerluke, Scheinwerfer
-  B.add(box(0.36, 0.16, 0.08), paint, [-0.5, 1.33, -2.95]);
-  B.add(box(0.24, 0.035, 0.03), S.optic, [-0.5, 1.33, -3.0]);
-  B.add(cyl(0.17, 0.19, 0.12, seg), paint, [D.cmgPivot[0], D.cmgPivot[1], -2.94], [HP, 0, 0]);
+  // Wanne unten (zwischen den Ketten), Aufbau über den Ketten: schräge Bugplatte (~56°), flaches Deck, leicht schräges Heck
+  B.add(sideExtrude([[2.6, 0.42], [2.75, 0.62], [2.75, 0.95], [-2.8, 0.95], [-2.68, 0.42]], 1.82), paint);
+  B.add(sideExtrude([[2.95, 0.95], [2.15, 1.5], [-2.5, 1.5], [-2.62, 1.42], [-2.92, 1.1], [-2.92, 0.95]], 2.72, lod === 0), paint);
+  // Getriebegehäuse an der Nase (gegossen, gerundet) mit Flanschen der drei Teile
+  B.add(cyl(0.36, 0.36, 1.84, seg), paint, [0, 0.8, -2.68], [0, 0, HP]);
+  if (lod === 0) for (const x of [-0.6, 0.6]) B.add(cyl(0.375, 0.375, 0.04, seg), S.dark, [x, 0.8, -2.68], [0, 0, HP]);
+  // Kugelblende des Bug-MG, Winkelspiegel vor den Luken, Luke des Funkers (die des Fahrers ist beweglich)
+  B.add(sph(0.17, seg), paint, [D.cmgPivot[0], D.cmgPivot[1], D.cmgPivot[2] + 0.02]);
+  if (lod < 2) for (const x of [-0.5, 0.55]) B.add(box(0.18, 0.08, 0.12), S.dark, [x, 1.54, -2.12]);
+  if (lod < 2) B.add(cyl(0.27, 0.27, 0.05, seg), S.dark, [0.55, 1.52, -2.0]);
   B.add(cyl(0.28, 0.28, 0.05, seg), S.dark, [-0.5, 1.525, -2.0]);
-  for (const L of D.lights) B.add(box(0.2, 0.16, 0.2), S.dark, [L[0], L[1], L[2] + 0.1]);
+  // Kotflügel vorn mit Scheinwerfern im Schutzbügel
+  for (const sx of [-1, 1]) B.add(box(0.5, 0.035, 0.38), paint, [sx * 1.12, 1.0, -2.88]);
+  for (const L of D.lights) {
+    B.add(cyl(0.09, 0.1, 0.14, lod < 2 ? Math.max(8, seg) : seg), S.dark, [L[0], L[1], L[2] + 0.08], [HP, 0, 0]);
+    if (lod < 2) B.add(box(0.26, 0.025, 0.025), S.dark, [L[0], L[1] + 0.13, L[2] - 0.02]);
+  }
   if (lod < 2) {
-    // Motordeck: Lüftungsklappen, Topfauspuff + Rohr am Heck, Rücklichter, Kennung
-    for (const sx of [-1, 1]) B.add(box(0.9, 0.05, 1.1), S.dark, [sx * 0.62, 1.525, 1.95]);
-    if (lod === 0) for (let i = 0; i < 6; i++) B.add(box(2.2, 0.04, 0.05), paint, [0, 1.55, 1.5 + i * 0.18]);
-    B.add(cyl(0.16, 0.16, 0.9, seg), S.dark, [0.3, 1.05, 3.04], [0, 0, HP]);
-    B.add(cyl(0.05, 0.05, 0.3, 8), S.dark, [0.82, 1.12, 3.06], [0, 0, 0.6]);
-    for (const sx of [-1, 1]) B.add(box(0.1, 0.07, 0.04), S.rearLamp, [sx * 1.2, 1.32, 2.97]);
-    // Werkzeug, Ersatzkettenglieder an der Bugplatte, Abschleppösen
-    B.add(box(0.06, 0.06, 1.3), S.canvas, [1.36, 1.53, 0.6]);
-    B.add(box(0.05, 0.08, 1.1), S.dark, [-1.36, 1.53, 0.4]);
+    // Motordeck: Gitter und Klappen, Auspuffumlenkblech am Heck, Rücklichter, Werkzeug, Hebeösen
+    for (const sx of [-1, 1]) B.add(box(0.95, 0.05, 1.1), S.dark, [sx * 0.6, 1.525, 1.7]);
+    if (lod === 0) for (let i = 0; i < 5; i++) B.add(box(2.0, 0.035, 0.05), paint, [0, 1.55, 1.25 + i * 0.2]);
+    B.add(box(1.7, 0.36, 0.05), S.dark, [0, 1.0, 2.96], [-0.35, 0, 0]);
+    for (const sx of [-1, 1]) B.add(box(0.1, 0.07, 0.04), S.rearLamp, [sx * 1.15, 1.04, 2.93]);
+    B.add(box(0.06, 0.06, 1.3), S.canvas, [1.25, 1.53, 0.9]);
+    B.add(box(0.05, 0.08, 1.1), S.dark, [-1.25, 1.53, 0.8]);
+    B.add(box(0.05, 0.05, 1.4), S.dark, [-1.05, 1.53, 1.0]);
+    // Zusatzpanzer an den Seiten über den Munitionskammern (zwei rechts, eine links), Ersatzkettenglieder auf der Bugplatte
+    for (const [sx, z] of [[1, -0.95], [1, 0.05], [-1, -0.6]]) B.add(box(0.04, 0.42, 0.62), paint, [sx * 1.38, 1.22, z]);
     if (lod === 0) {
-      for (let i = 0; i < 6; i++) B.add(box(0.13, 0.04, 0.3), S.dark, [-1.15 + i * 0.16 + (i > 2 ? 0.95 : 0), 1.12, -2.98]);
-      for (const sx of [-1, 1]) B.add(new THREE.TorusGeometry(0.07, 0.022, 4, 8), S.dark, [sx * 0.7, 0.62, -2.82], [0, HP, 0]);
-    }
-    // Seitenschürzen (Platten in Halterungen, leicht abstehend)
-    for (const sx of [-1, 1]) {
-      for (let i = 0; i < 5; i++) B.add(box(0.025, 0.62, 1.04), paint, [sx * 1.5, 1.16, -2.08 + i * 1.06], [0, 0, sx * 0.04]);
-      if (lod === 0) for (let i = 0; i < 6; i++) B.add(box(0.12, 0.03, 0.04), S.dark, [sx * 1.43, 1.47, -2.6 + i * 1.04]);
+      for (let i = 0; i < 5; i++) B.add(box(0.15, 0.04, 0.32), S.dark, [-0.36 + i * 0.18, 1.32, -2.45], [-0.6, 0, 0]);
+      for (const sx of [-1, 1]) B.add(new THREE.TorusGeometry(0.07, 0.022, 4, 8), S.dark, [sx * 0.7, 0.55, -2.98], [0, HP, 0]);
+      for (const [x, z] of [[-1.2, -2.3], [1.2, -2.3], [-1.2, 2.6], [1.2, 2.6]]) B.add(new THREE.TorusGeometry(0.05, 0.016, 4, 8), S.dark, [x, 1.56, z]);
     }
   }
-  B.add(cyl(0.16, 0.16, 0.02, seg), mark, [0, 1.15, 2.97], [HP, 0, 0]);
-  // Laufwerk: Laufrollen paarweise, Triebrad vorn, Leitrad hinten, Stützrollen
+  for (const sx of [-1, 1]) B.add(cyl(0.22, 0.22, 0.02, seg), mark, [sx * 1.37, 1.2, 0.75], [0, 0, HP]);
+  B.add(cyl(0.16, 0.16, 0.02, seg), mark, [0, 1.26, 2.79], [0.82, 0, 0]);
+  // Laufwerk: drei Federböcke je Seite mit je zwei Laufrollen, Stützrolle oben; Triebrad vorn, Leitrad hinten
   for (const sx of [-1, 1]) {
     const x = sx * W.x;
-    if (lod < 2) for (const z of W.z) for (const dz of lod === 0 && HQ ? [-0.2, 0.2] : [0]) {
-      if (HQ) addRoadWheelHQ(B, S, paint, x, W.radius, z + dz, lod === 0 ? 0.27 : W.radius, lod === 0 ? 12 : 8, lod);
-      else addRoadWheel(B, S, x, W.radius, z + dz, W.radius, lod === 0 ? 12 : 8, lod);
+    for (const zb of [-1.5, 0.02, 1.54]) {
+      if (lod < 2) for (const dz of [-0.36, 0.36]) {
+        if (HQ) addRoadWheelHQ(B, S, paint, x, 0.29, zb + dz, 0.255, lod === 0 ? 12 : 8, lod);
+        else addRoadWheel(B, S, x, 0.29, zb + dz, 0.255, lod === 0 ? 12 : 6, lod);
+      }
+      if (lod < 2) B.add(box(0.2, 0.36, 0.5), paint, [x - sx * 0.04, 0.5, zb]); // Bock mit Spiralfedern
+      if (lod < 2) B.add(cyl(0.08, 0.08, 0.2, 8), S.rubber, [x, 0.8, zb + 0.12], [0, 0, HP]);
     }
     B.add(cyl(0.29, 0.29, 0.44, seg), S.dark, [x, 0.6, -2.62], [0, 0, HP]);
+    if (lod === 0) for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2; B.add(box(0.46, 0.06, 0.06), S.dark, [x, 0.6 + Math.sin(a) * 0.3, -2.62 + Math.cos(a) * 0.3], [a, 0, 0]); }
     B.add(cyl(0.25, 0.25, 0.4, seg), S.dark, [x, 0.55, 2.62], [0, 0, HP]);
-    if (lod === 0) for (const z of [-1.6, -0.55, 0.55, 1.6]) B.add(cyl(0.08, 0.08, 0.2, 8), S.rubber, [x, 0.8, z], [0, 0, HP]);
   }
   B.build(hull, { shadow: true });
-  addTracks(hull, trackPathFor(lod, -2.2, 2.2, [-2.62, 0.6, 0.29], [2.62, 0.55, 0.25]), W.x, 0.44);
-  addLenses(hull, D, seg, 0.07);
+  addTracks(hull, trackPathFor(lod, -2.2, 2.2, [-2.62, 0.6, 0.29], [2.62, 0.55, 0.25]), W.x, 0.42);
+  addLenses(hull, D, seg, 0.075);
 
-  // Turm (Turmraum, Drehpunkt D.turretPivot)
+  // Turm: runder Guss (Drehkörper, nach hinten zum Heckwulst gestreckt)
   const tur = new THREE.Group();
   const T = new Bucket();
-  T.add(topExtrude([[-0.56, 1.1], [0.56, 1.1], [0.95, 0.6], [0.98, -0.95], [0.78, -1.3], [-0.78, -1.3], [-0.98, -0.95], [-0.95, 0.6]], 0.8, lod === 0), paint);
-  T.add(cyl(0.92, 0.94, 0.1, seg + 4), S.dark, [0, -0.03, 0]);
-  // Kommandantenkuppel mit Sehschlitzen, Ladeschützenluke, Seitenluken, Staukasten am Heck
+  const prof = [[0.96, 0], [0.99, 0.18], [0.96, 0.42], [0.86, 0.62], [0.6, 0.76], [0.001, 0.8]].map(([r, y]) => new THREE.Vector2(r, y));
+  const shell = new THREE.LatheGeometry(prof, seg + 4);
+  shell.scale(1, 1, 1.18); shell.translate(0, 0, 0.12);
+  T.add(shell, paint);
+  T.add(cyl(0.92, 0.94, 0.1, lod < 2 ? seg + 4 : seg), S.dark, [0, -0.03, 0]);
+  // Kommandantenkuppel mit Sichtblöcken, Ladeschützenluke, schweres MG auf dem Dach, Lüfterhaube, Winkelspiegel
   T.add(cyl(0.34, 0.36, 0.2, seg), paint, [-0.45, 0.88, 0.45]);
   if (lod === 0) {
-    const nv = DET === 2 ? 7 : 5;
-    for (let i = 0; i < nv; i++) { const a = (i / nv) * PI * 2; T.add(box(0.1, 0.045, 0.04), S.optic, [-0.45 + Math.sin(a) * 0.355, 0.9, 0.45 + Math.cos(a) * 0.355], [0, a, 0]); }
-    for (const sx of [-1, 1]) T.add(box(0.03, 0.42, 0.5), paint, [sx * 0.99, 0.42, 0.1]);
-    T.add(cyl(0.01, 0.01, 1.9, 4), S.dark, [0.75, 1.75, 1.0]);
+    const nv = DET === 2 ? 6 : 4;
+    for (let i = 0; i < nv; i++) { const a = (i / nv) * PI * 2; T.add(box(0.12, 0.07, 0.05), S.optic, [-0.45 + Math.sin(a) * 0.35, 0.92, 0.45 + Math.cos(a) * 0.35], [0, a, 0]); }
+    T.add(sph(0.09, 8), paint, [0.3, 0.8, -0.15]);
+    for (const [x, z] of [[0.42, -0.55], [0.75, 0.15]]) T.add(box(0.14, 0.09, 0.1), S.dark, [x, 0.8, z]);
+    T.add(cyl(0.01, 0.01, 1.9, 4), S.dark, [0.6, 1.6, 1.05]);
+    for (const sx of [-1, 1]) T.add(new THREE.TorusGeometry(0.05, 0.016, 4, 8), S.dark, [sx * 0.8, 0.66, 0.25], [0, HP, 0]);
   }
   T.add(cyl(0.28, 0.28, 0.04, seg), S.dark, [0.5, 0.81, 0.45]);
   if (lod < 2) {
-    T.add(box(1.4, 0.48, 0.5), paint, [0, 0.36, 1.52]);
-    if (lod === 0) T.add(box(1.42, 0.03, 0.52), S.dark, [0, 0.61, 1.52]);
+    // schweres MG auf Lafette hinter der Kuppel (nur Ausstattung), Plane am Heckwulst
+    T.add(cyl(0.025, 0.03, 0.3, 6), S.dark, [-0.05, 0.9, 0.85]);
+    T.add(box(0.11, 0.12, 0.38), S.dark, [-0.05, 1.08, 0.78]);
+    T.add(cyl(0.022, 0.022, 1.05, 6), S.dark, [-0.05, 1.1, 0.08], [HP, 0, 0]);
+    T.add(cyl(0.13, 0.13, 1.2, Math.max(8, seg)), S.canvas, [0, 0.42, 1.3], [0, 0, HP]);
   }
-  for (const sx of [-1, 1]) T.add(cyl(0.15, 0.15, 0.02, seg), mark, [sx * 0.995, 0.5, -0.45], [0, 0, HP]);
   const turLod = new THREE.Group();
   T.build(turLod, { off: D.turretPivot });
   tur.add(turLod);
 
-  // Kanone: Blende, Rohr, Doppelkammer-Mündungsbremse, Koaxial-MG
+  // Kanone: breite Blende mit Rotorschild, kurzes Rohr mit Gegengewicht an der Mündung, Koaxial-MG
   const gun = new THREE.Group();
   const Gb = new Bucket();
-  Gb.add(box(0.8, 0.46, 0.22), paint, [0, 0, -0.08]);
-  if (lod < 2) Gb.add(cyl(0.2, 0.22, 0.22, seg), paint, [0, 0, -0.28], [HP, 0, 0]);
-  Gb.add(cyl(0.052, 0.058, 2.95, seg), paint, [0, 0, -1.85], [HP, 0, 0]);
-  Gb.add(cyl(0.085, 0.085, 0.2, seg), S.dark, [0, 0, -3.35], [HP, 0, 0]);
-  if (lod === 0) for (const z of [-3.3, -3.42]) Gb.add(box(0.2, 0.06, 0.03), S.dark, [0, 0, z]);
+  Gb.add(box(0.95, 0.5, 0.2), paint, [0, 0, -0.08]);
+  if (lod < 2) Gb.add(cyl(0.22, 0.24, 0.2, seg), paint, [0, 0, -0.26], [HP, 0, 0]);
+  if (lod === 0) Gb.add(box(0.06, 0.06, 0.04), S.optic, [-0.3, 0.12, -0.19]);
+  Gb.add(cyl(0.056, 0.05, 3.05, seg), paint, [0, 0, -1.86], [HP, 0, 0]);
+  Gb.add(cyl(0.066, 0.066, 0.1, seg), S.dark, [0, 0, -3.33], [HP, 0, 0]);
   Gb.add(cyl(0.022, 0.022, 0.25, 6), S.dark, [D.coax[0], D.coax[1], -0.25], [HP, 0, 0]);
   const gunLod = new THREE.Group();
   Gb.build(gunLod, { off: [D.turretPivot[0] + D.gunPivot[0], D.turretPivot[1] + D.gunPivot[1], D.turretPivot[2] + D.gunPivot[2]] });
@@ -732,9 +752,9 @@ function buildWK2(lod, S, team) {
   // Bug-MG in der Kugelblende (Wannenraum): Kugel dreht mit
   const cmg = new THREE.Group();
   const C = new Bucket();
-  C.add(sph(0.13, seg), paint, [0, 0, -0.08]);
-  C.add(cyl(0.035, 0.035, 0.32, 8), S.dark, [0, 0, -0.32], [HP, 0, 0]);
-  C.add(cyl(0.016, 0.016, 0.62, 6), S.dark, [0, 0, -0.42], [HP, 0, 0]);
+  C.add(sph(0.12, seg), paint, [0, 0, -0.06]);
+  C.add(cyl(0.032, 0.032, 0.3, 8), S.dark, [0, 0, -0.28], [HP, 0, 0]);
+  if (lod < 2) C.add(cyl(0.015, 0.015, 0.55, 6), S.dark, [0, 0, -0.4], [HP, 0, 0]);
   const cmgLod = new THREE.Group();
   C.build(cmgLod, { shadow: lod < 2, off: D.cmgPivot });
   cmg.add(cmgLod);
@@ -742,7 +762,7 @@ function buildWK2(lod, S, team) {
 }
 
 /**
- * 1. Weltkrieg – „SK-18 Koloss“ (frei erfunden): genieteter Kastenaufbau, der tief über dem Laufwerk hängt, schräge
+ * 1. Weltkrieg, Team B – „SK-18 Koloss“ (frei erfunden, Vorbild: deutscher Sturmpanzerwagen 1918): genieteter Kastenaufbau, der tief über dem Laufwerk hängt, schräge
  * Bug- und Heckplatten, Beobachtungsstand mit Sehschlitzen auf dem Dach, Bugkanone in einer drehbaren Schildlafette
  * (eigene Gruppe „Turm“, ±40°), MG im Kugelstand vorn links, Seitenpforten, Auspuff und Grabenbalken am Heck.
  */
@@ -838,7 +858,226 @@ function buildWK1(lod, S, team) {
   return { hull, tur, gun, cmg };
 }
 
-const TANK_BUILDERS = { mbt: buildMBT, wk2: buildWK2, wk1: buildWK1 };
+/** Schachtellaufwerk-Rolle: schmale Gummibandage, gewölbte Scheibe, Nabe (Achse quer). */
+function addDiscWheel(B, S, paint, x, y, z, r, w, seg, lod) {
+  B.add(cyl(r, r, w, seg), S.rubber, [x, y, z], [0, 0, HP]);
+  if (lod < 2) {
+    B.add(cyl(r * 0.8, r * 0.8, w + 0.02, seg), paint, [x, y, z], [0, 0, HP]);
+    if (lod === 0) B.add(cyl(r * 0.22, r * 0.26, w + 0.08, Math.max(6, seg >> 1)), S.dark, [x, y, z], [0, 0, HP]);
+  }
+}
+
+/**
+ * 2. Weltkrieg, Team B – „SP-6 Moloch“ (frei erfunden, Vorbild: deutscher schwerer Panzer 1942): kastenförmige Wanne mit
+ * senkrechter, dicker Bugplatte (Fahrersehklappe, Kugelblende rechts, Scheinwerfer oben auf den Ecken), Aufbau über den
+ * breiten Ketten, Schachtellaufwerk mit acht großen, verschachtelten Laufrollen je Seite, Motordeck mit Lüftern, zwei
+ * Auspufftöpfe mit Blechschutz und Luftfilter am Heck; hufeisenförmiger Turm mit Kommandantenkuppel, Staukasten,
+ * Nebelwurfbechern und Ersatzkettengliedern, lange 88-mm-Kanone mit Doppelkammer-Mündungsbremse.
+ */
+function buildWK2H(lod, S, team) {
+  CUR_LOD = lod;
+  const D = VEHICLES.wk2h, W = D.wheels;
+  const seg = [18, 10, 6][lod];
+  const paint = S.paint[team] || S.paint.null;
+  const mark = S.mark[team] || S.mark.null;
+  const hull = new THREE.Group();
+  const B = new Bucket();
+  // Wanne unten (zwischen den Ketten, schräge Bugnase), Aufbau über den Ketten (Kasten mit senkrechter Bug- und Heckplatte)
+  B.add(sideExtrude([[2.55, 0.48], [3.2, 1.04], [-3.05, 1.04], [-2.9, 0.48]], 1.86), paint);
+  B.add(sideExtrude([[3.15, 1.02], [3.15, 1.86], [-3.02, 1.86], [-3.02, 1.02]], 3.4, lod === 0), paint);
+  // Bug: Fahrersehklappe, Kugelblende (Bug-MG), Scheinwerfer, Abschleppösen; Luke des Funkers, Lüfter dazwischen
+  B.add(box(0.46, 0.2, 0.12), paint, [-0.55, 1.62, -3.2]);
+  if (lod < 2) B.add(box(0.26, 0.035, 0.03), S.optic, [-0.55, 1.62, -3.265]);
+  B.add(cyl(0.2, 0.22, 0.1, seg), paint, [D.cmgPivot[0], D.cmgPivot[1], -3.17], [HP, 0, 0]);
+  for (const L of D.lights) B.add(cyl(0.09, 0.1, 0.18, lod < 2 ? Math.max(8, seg) : seg), S.dark, [L[0], L[1], L[2] + 0.1], [HP, 0, 0]);
+  if (lod < 2) for (const x of [-0.55, 0.6]) B.add(cyl(0.27, 0.27, 0.05, seg), S.dark, [x, 1.885, -2.35]);
+  if (lod < 2) {
+    B.add(cyl(0.1, 0.12, 0.08, 8), S.dark, [0.02, 1.9, -2.4]);
+    for (const sx of [-1, 1]) {
+      B.add(box(0.14, 0.26, 0.16), S.dark, [sx * 0.75, 0.78, -3.0], [0.75, 0, 0]);
+      B.add(box(0.72, 0.03, 0.55), paint, [sx * 1.33, 1.03, -3.15]);            // Kotflügel vorn
+    }
+    // Motordeck: zwei Lüfterabdeckungen, Gitter, Mittelklappe; Heck: Auspuffe mit Schutzblech, Luftfilter, Wagenheber
+    for (const sx of [-1, 1]) {
+      B.add(cyl(0.34, 0.34, 0.05, seg), S.dark, [sx * 0.95, 1.885, 1.95]);
+      B.add(box(0.5, 0.04, 0.8), S.dark, [sx * 0.95, 1.88, 1.05]);
+      B.add(cyl(0.08, 0.08, 0.55, 8), S.dark, [sx * 0.42, 1.78, 3.08]);
+      B.add(box(0.26, 0.42, 0.06), S.dark, [sx * 0.42, 1.68, 3.14]);
+      B.add(cyl(0.15, 0.15, 0.42, Math.max(8, seg)), S.dark, [sx * 1.2, 1.35, 3.14], [0, 0, HP]);
+      B.add(box(0.1, 0.07, 0.04), S.rearLamp, [sx * 0.9, 1.75, 3.04]);
+    }
+    B.add(box(1.0, 0.04, 1.0), S.dark, [0, 1.88, 1.6]);
+    B.add(cyl(0.08, 0.08, 0.5, 8), S.dark, [0, 1.25, 3.1], [0, 0, HP]);
+    // Seiten: Abschleppseile, Werkzeug, Kettenspanner; Antenne hinten rechts
+    for (const sx of [-1, 1]) {
+      B.add(cyl(0.025, 0.025, 4.2, 6), S.dark, [sx * 1.72, 1.62, 0.1], [HP, 0, 0]);
+      B.add(cyl(0.025, 0.025, 4.2, 6), S.dark, [sx * 1.72, 1.52, 0.1], [HP, 0, 0]);
+    }
+    B.add(box(0.06, 0.06, 1.4), S.canvas, [1.45, 1.89, 0.4]);
+    B.add(box(0.05, 0.1, 1.2), S.dark, [-1.45, 1.89, 0.6]);
+    B.add(cyl(0.012, 0.012, 2.0, 4), S.dark, [1.4, 2.86, 2.7]);
+    if (lod === 0) {
+      // Ersatzkettenglieder an der Bugplatte, Hebeösen, Nieten der Lukenringe
+      for (let i = 0; i < 6; i++) B.add(box(0.16, 0.3, 0.04), S.dark, [-1.45 + i * 0.18 + (i > 2 ? 1.88 : 0), 1.3, -3.18]);
+      for (const [x, z] of [[-1.55, -2.9], [1.55, -2.9], [-1.55, 2.8], [1.55, 2.8]]) B.add(new THREE.TorusGeometry(0.06, 0.02, 4, 8), S.dark, [x, 1.9, z]);
+    }
+  }
+  for (const sx of [-1, 1]) B.add(cyl(0.22, 0.22, 0.02, seg), mark, [sx * 1.71, 1.26, -1.5], [0, 0, HP]);
+  B.add(cyl(0.18, 0.18, 0.02, seg), mark, [0, 1.62, 3.03], [HP, 0, 0]);
+  // Schachtellaufwerk: acht Achsen, Rollen abwechselnd außen/innen (überlappend), Triebrad vorn hoch, Leitrad hinten
+  for (const sx of [-1, 1]) {
+    const x = sx * W.x;
+    if (lod < 2) for (let i = 0; i < 8; i++) {
+      const z = -2.38 + i * 0.68, outer = i % 2 === 0;
+      addDiscWheel(B, S, paint, x + sx * (outer ? 0.2 : 0.02), 0.44, z, 0.4, 0.12, lod === 0 ? 14 : 6, lod);
+      if (lod === 0 && !outer) addDiscWheel(B, S, paint, x - sx * 0.2, 0.44, z, 0.4, 0.12, 10, 2);
+    } else for (const z of [-1.7, 0, 1.7]) B.add(cyl(0.4, 0.4, 0.7, seg), S.rubber, [x, 0.44, z], [0, 0, HP]);
+    B.add(cyl(0.34, 0.34, 0.6, seg), S.dark, [x, 0.52, -2.95], [0, 0, HP]);
+    if (lod === 0) for (let i = 0; i < 9; i++) { const a = (i / 9) * PI * 2; B.add(box(0.62, 0.07, 0.07), S.dark, [x, 0.52 + Math.sin(a) * 0.35, -2.95 + Math.cos(a) * 0.35], [a, 0, 0]); }
+    B.add(cyl(0.32, 0.32, 0.56, seg), S.dark, [x, 0.48, 2.95], [0, 0, HP]);
+  }
+  B.build(hull, { shadow: true });
+  addTracks(hull, trackPathFor(lod, -2.45, 2.45, [-2.95, 0.52, 0.34], [2.95, 0.48, 0.32]), W.x, 0.72);
+  addLenses(hull, D, seg, 0.08);
+
+  // Turm: Hufeisen (senkrechte Wände, flaches Dach), Stirnplatte vorn – Drehpunkt D.turretPivot
+  const tur = new THREE.Group();
+  const T = new Bucket();
+  T.add(topExtrude([[-0.98, 1.2], [0.98, 1.2], [1.1, 0.8], [1.12, 0.0], [1.08, -0.6], [0.95, -1.0], [0.7, -1.25], [0.35, -1.38], [0, -1.42], [-0.35, -1.38], [-0.7, -1.25], [-0.95, -1.0], [-1.08, -0.6], [-1.12, 0.0], [-1.1, 0.8]], 0.82, lod === 0), paint);
+  T.add(cyl(1.05, 1.08, 0.1, lod < 2 ? seg + 4 : seg), S.dark, [0, -0.03, 0]);
+  // Kommandantenkuppel (Trommel mit Sehschlitzen), Ladeschützenluke, Lüfter, Fluchtluke rechts, Staukasten, Nebelwurfbecher
+  T.add(cyl(0.36, 0.37, 0.2, seg), paint, [-0.5, 0.91, 0.7]);
+  T.add(cyl(0.26, 0.26, 0.04, seg), S.dark, [0.5, 0.84, 0.3]);
+  if (lod < 2) {
+    T.add(box(1.5, 0.48, 0.48), paint, [0, 0.42, 1.6]);
+    if (lod === 0) T.add(box(1.52, 0.03, 0.5), S.dark, [0, 0.64, 1.6]);
+    for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) T.add(cyl(0.045, 0.045, 0.24, 8), S.dark, [sx * (1.16 + i * 0.01), 0.7, -0.75 + i * 0.12], [-0.7, 0, sx * 0.5]);
+    T.add(cyl(0.2, 0.2, 0.02, seg), paint, [1.11, 0.42, 0.45], [0, 0, HP]);
+  }
+  if (lod === 0) {
+    const nv = DET === 2 ? 6 : 4;
+    for (let i = 0; i < nv; i++) { const a = (i / nv) * PI * 2; T.add(box(0.12, 0.05, 0.04), S.optic, [-0.5 + Math.sin(a) * 0.365, 0.94, 0.7 + Math.cos(a) * 0.365], [0, a, 0]); }
+    T.add(cyl(0.11, 0.12, 0.06, 8), S.dark, [0.45, 0.84, -0.55]);
+    for (let i = 0; i < 4; i++) T.add(box(0.04, 0.32, 0.2), S.dark, [-1.13, 0.42, 0.05 + i * 0.22]);
+    for (const sx of [-1, 1]) T.add(new THREE.TorusGeometry(0.06, 0.018, 4, 8), S.dark, [sx * 0.9, 0.86, -0.85]);
+  }
+  for (const sx of [-1, 1]) T.add(cyl(0.16, 0.16, 0.02, seg), mark, [sx * 1.125, 0.45, -0.35], [0, 0, HP]);
+  const turLod = new THREE.Group();
+  T.build(turLod, { off: D.turretPivot });
+  tur.add(turLod);
+
+  // Kanone: breite Walzenblende mit Optik- und MG-Öffnung, Rohrwiege, langes Rohr, Doppelkammer-Mündungsbremse
+  const gun = new THREE.Group();
+  const Gb = new Bucket();
+  Gb.add(box(1.3, 0.7, 0.22), paint, [0, 0, -0.1]);
+  if (lod < 2) Gb.add(cyl(0.16, 0.18, 0.5, seg), paint, [0, 0, -0.45], [HP, 0, 0]);
+  if (lod === 0) for (const x of [-0.3, -0.18]) Gb.add(box(0.06, 0.06, 0.04), S.optic, [x, 0.1, -0.215]);
+  Gb.add(cyl(0.09, 0.075, 3.6, seg), paint, [0, 0, -2.45], [HP, 0, 0]);
+  Gb.add(cyl(0.115, 0.115, 0.28, seg), S.dark, [0, 0, -4.15], [HP, 0, 0]);
+  if (lod === 0) for (const z of [-4.07, -4.23]) Gb.add(box(0.26, 0.26, 0.035), S.dark, [0, 0, z]);
+  if (lod < 2) Gb.add(cyl(0.022, 0.022, 0.2, 6), S.dark, [D.coax[0], D.coax[1], -0.25], [HP, 0, 0]);
+  const gunLod = new THREE.Group();
+  Gb.build(gunLod, { off: [D.turretPivot[0] + D.gunPivot[0], D.turretPivot[1] + D.gunPivot[1], D.turretPivot[2] + D.gunPivot[2]] });
+  gun.add(gunLod);
+
+  // Bug-MG in der Kugelblende (Wannenraum)
+  const cmg = new THREE.Group();
+  const C = new Bucket();
+  C.add(sph(0.13, seg), paint, [0, 0, -0.06]);
+  C.add(cyl(0.032, 0.032, 0.36, 8), S.dark, [0, 0, -0.3], [HP, 0, 0]);
+  if (lod < 2) C.add(cyl(0.015, 0.015, 0.6, 6), S.dark, [0, 0, -0.42], [HP, 0, 0]);
+  const cmgLod = new THREE.Group();
+  C.build(cmgLod, { shadow: lod < 2, off: D.cmgPivot });
+  cmg.add(cmgLod);
+  return { hull, tur, gun, cmg };
+}
+
+/**
+ * 1. Weltkrieg, Team A – „LK-17 Libelle“ (frei erfunden, Vorbild: französischer leichter Panzer 1917): schmale Wanne mit
+ * Fahrerklappen vorn, hohes Leitrad vorn (Grabenüberschreitung), Laufwerk hinter Seitenträgern, Grabenschwanz am Heck,
+ * Motordeck mit Lüftungsschlitzen, Schalldämpfer rechts; genieteter Achteckturm mit Sehschlitzen, Pilz-Lüfterhaube und
+ * Hecktür, kurze 37-mm-Kanone in Kugelblende.
+ */
+function buildWK1L(lod, S, team) {
+  CUR_LOD = lod;
+  const D = VEHICLES.wk1l, W = D.wheels;
+  const seg = [16, 10, 6][lod];
+  const paint = S.paint[team] || S.paint.null;
+  const mark = S.mark[team] || S.mark.null;
+  const hull = new THREE.Group();
+  const B = new Bucket();
+  // Wanne (Seitenprofil): Bug mit Fahrerklappen, flaches Dach unter dem Turm, schräges Motordeck nach hinten
+  B.add(sideExtrude([[1.55, 0.4], [1.98, 0.9], [1.98, 1.18], [1.62, 1.55], [-0.05, 1.55], [-1.75, 1.2], [-1.95, 0.75], [-1.7, 0.4]], 0.98, lod === 0), paint);
+  // Seitenträger des Laufwerks (verdecken die kleinen Rollen; Kette läuft oben darüber)
+  for (const sx of [-1, 1]) B.add(sideExtrude([[1.45, 0.26], [1.72, 0.55], [1.5, 0.86], [-1.45, 0.86], [-1.7, 0.55], [-1.45, 0.26]], 0.05), paint, [sx * (W.x + 0.2), 0, 0]);
+  // Fahrerklappen (zweiteilig) mit Sehschlitzen, Scheinwerfer
+  B.add(box(0.7, 0.3, 0.04), S.dark, [0, 1.05, -1.99]);
+  B.add(box(0.7, 0.04, 0.42), paint, [0, 1.38, -1.82], [0.72, 0, 0]);
+  if (lod < 2) for (const x of [-0.18, 0.18]) B.add(box(0.16, 0.025, 0.03), S.optic, [x, 1.1, -2.02]);
+  for (const L of D.lights) B.add(cyl(0.06, 0.07, 0.1, Math.max(8, seg)), S.dark, [L[0], L[1], L[2] + 0.06], [HP, 0, 0]);
+  if (lod < 2) {
+    // Motordeck: Lüftungsschlitze, Klappen; Schalldämpfer rechts, Rücklicht
+    for (let i = 0; i < 5; i++) B.add(box(0.8, 0.03, 0.06), S.dark, [0, 1.47 - i * 0.065, 0.35 + i * 0.32], [-0.2, 0, 0]);
+    B.add(cyl(0.09, 0.09, 1.0, 8), S.dark, [0.56, 1.25, 0.9], [HP, 0, 0]);
+    B.add(box(0.08, 0.06, 0.04), S.rearLamp, [-0.3, 0.9, 1.94]);
+    // Grabenschwanz: zwei Holme mit Querrohr und Kufe
+    for (const sx of [-1, 1]) B.add(box(0.06, 0.08, 0.95), S.dark, [sx * 0.34, 0.75, 2.3], [-0.45, 0, 0]);
+    B.add(cyl(0.035, 0.035, 0.74, 6), S.dark, [0, 0.55, 2.7], [0, 0, HP]);
+    B.add(box(0.75, 0.04, 0.2), S.dark, [0, 0.52, 2.74], [0.3, 0, 0]);
+    // Werkzeug, Nieten an den Seitenträgern
+    B.add(box(0.05, 0.06, 0.9), S.canvas, [-0.5, 1.4, 0.5]);
+    if (lod === 0) for (const sx of [-1, 1]) for (let i = 0; i < 8; i++) B.add(box(0.03, 0.03, 0.03), S.dark, [sx * (W.x + 0.23), 0.8, -1.3 + i * 0.37]);
+  }
+  for (const sx of [-1, 1]) B.add(cyl(0.16, 0.16, 0.02, seg), mark, [sx * 0.5, 1.25, 0.55], [0, 0, HP]);
+  // Laufwerk: viele kleine Rollen (hinter den Trägern), großes Leitrad vorn (Speichen aus Holz), Triebrad hinten
+  for (const sx of [-1, 1]) {
+    const x = sx * W.x;
+    if (lod < 2) for (let i = 0; i < 9; i++) B.add(cyl(0.13, 0.13, 0.3, lod === 0 ? 10 : 6), S.dark, [x, 0.165, -1.25 + i * 0.32], [0, 0, HP]);
+    B.add(cyl(0.42, 0.42, 0.32, seg + 2), S.dark, [x, 0.78, -1.85], [0, 0, HP]);
+    B.add(cyl(0.36, 0.36, 0.34, seg + 2), S.wood, [x, 0.78, -1.85], [0, 0, HP]);
+    if (lod === 0) for (let i = 0; i < 6; i++) { const a = (i / 6) * PI; B.add(box(0.36, 0.05, 0.66), S.dark, [x, 0.78, -1.85], [a, 0, 0]); }
+    B.add(cyl(0.3, 0.3, 0.32, seg), S.dark, [x, 0.48, 1.75], [0, 0, HP]);
+  }
+  B.build(hull, { shadow: true });
+  addTracks(hull, trackPathFor(lod, -1.3, 1.45, [-1.85, 0.78, 0.42], [1.75, 0.48, 0.3]), W.x, 0.32);
+  addLenses(hull, D, seg, 0.05);
+
+  // Turm: genietetes Achteck, Pilz-Lüfterhaube oben, Sehschlitze, Hecktür
+  const tur = new THREE.Group();
+  const T = new Bucket();
+  const oct = [];
+  for (let i = 0; i < 8; i++) { const a = (i + 0.5) / 8 * PI * 2; oct.push([Math.sin(a) * 0.56, Math.cos(a) * 0.56]); }
+  T.add(topExtrude(oct, 0.62, lod === 0), paint);
+  T.add(cyl(0.52, 0.54, 0.06, seg), S.dark, [0, -0.02, 0]);
+  T.add(cyl(0.2, 0.24, 0.08, seg), paint, [0, 0.66, 0.05]);
+  T.add(new THREE.SphereGeometry(0.25, Math.max(8, seg), 4, 0, PI * 2, 0, HP * 0.7), paint, [0, 0.62, 0.05]);
+  if (lod < 2) {
+    for (const k of [0, 1, 7, 2, 6]) { const a = k * PI / 4; T.add(box(0.14, 0.025, 0.03), S.optic, [Math.sin(a) * 0.525, 0.46, -Math.cos(a) * 0.525], [0, -a, 0]); }
+    T.add(box(0.36, 0.42, 0.03), S.dark, [0, 0.3, 0.53]);
+  }
+  if (lod === 0 && DET > 0) for (let i = 0; i < 8; i++) for (const y of [0.08, 0.56]) { const a = i / 8 * PI * 2; T.add(box(0.025, 0.025, 0.025), S.dark, [Math.sin(a) * 0.52, y, Math.cos(a) * 0.52]); }
+  const turLod = new THREE.Group();
+  T.build(turLod, { off: D.turretPivot });
+  tur.add(turLod);
+
+  // Kanone: Kugelblende, kurzes 37-mm-Rohr mit Mündungsring, Rohrbremse darunter, Zielfernrohr rechts
+  const gun = new THREE.Group();
+  const Gb = new Bucket();
+  Gb.add(sph(0.16, seg), paint, [0, 0, -0.02]);
+  Gb.add(cyl(0.038, 0.032, 0.66, seg), S.dark, [0, 0, -0.44], [HP, 0, 0]);
+  Gb.add(cyl(0.045, 0.045, 0.05, seg), S.dark, [0, 0, -0.75], [HP, 0, 0]);
+  if (lod < 2) {
+    Gb.add(cyl(0.03, 0.03, 0.32, 8), S.dark, [0, -0.07, -0.26], [HP, 0, 0]);
+    Gb.add(cyl(0.022, 0.022, 0.22, 6), S.dark, [0.13, 0.06, -0.2], [HP, 0, 0]);
+  }
+  const gunLod = new THREE.Group();
+  Gb.build(gunLod, { off: [D.turretPivot[0] + D.gunPivot[0], D.turretPivot[1] + D.gunPivot[1], D.turretPivot[2] + D.gunPivot[2]] });
+  gun.add(gunLod);
+  // kein zweites MG (Kanonenausführung) – leere Gruppe hält den Aufbau gleich
+  return { hull, tur, gun, cmg: new THREE.Group() };
+}
+
+const TANK_BUILDERS = { mbt: buildMBT, wk2: buildWK2, wk1: buildWK1, wk2h: buildWK2H, wk1l: buildWK1L };
 
 function tireGeometry(r, w, seg, tread = false) {
   if (tread) return treadTire(r, w);
@@ -1139,8 +1378,10 @@ function buildInterior(S, D) {
   grp.name = 'interior';
   grp.visible = false;
   // Panzergenerationen: Aufbau des KP-1, im Turmraum um interior.shift verschoben (Verschluss hinter dem eigenen Rohr)
-  const sh = I.shift || [0, 0, 0];
+  const sh = I.shift || [0, 0, 0], sc = I.scale || 1; // sc: kleiner Kampfraum (leichter Panzer)
   grp.position.fromArray(sh);
+  grp.scale.setScalar(sc);
+  const rackRight = I.rack && I.rack[0] > 0.5; // Gestell in der rechten Seitenkammer: Sitz und Löscher wandern nach links
   // Hülle: Grundriss des Turms nach innen versetzt (Stirn dick gepanzert), Boden 6 cm über dem Turmring
   const B = new Bucket();
   // Generation (Nutzer 11.10.): modern grün mit Anzeigen, 2. WK elfenbeinfarben mit Röhrenfunkgerät, 1. WK roher Stahl, Nieten,
@@ -1152,26 +1393,28 @@ function buildInterior(S, D) {
   B.add(box(1.5, 0.02, 1.3), S.dark, [0.15, 0.07, 0.3]);                          // Bodenplatte
   B.add(box(0.74, 0.62, 0.03), S.dark, [0, 0.42, -1.135]);                         // Rahmen der Rohrdurchführung
   // Richtschützenplatz (rechts vorn), Kommandantenplatz (links), Funkgerät (links hinten)
-  B.add(box(0.36, 0.3, 0.32), S.dark, [0.8, 0.5, -0.85]);
+  if (!rackRight) B.add(box(0.36, 0.3, 0.32), S.dark, [0.8, 0.5, -0.85]);
   B.add(box(0.2, 0.28, 0.46), S.dark, [-1.12, 0.48, 0.95]);
   if (DET > 0) {
-    B.add(box(0.12, 0.1, 0.16), S.rubber, [0.8, 0.6, -0.65]);
+    if (!rackRight) B.add(box(0.12, 0.1, 0.16), S.rubber, [0.8, 0.6, -0.65]);
     B.add(box(0.4, 0.06, 0.38), S.canvas, [-0.62, 0.3, 0.55]);
     B.add(box(0.4, 0.24, 0.05), S.canvas, [-0.62, 0.45, 0.76], [-0.12, 0, 0]);
   }
   // Munitionsgestell: eigene Gruppe (Lage I.rack, Drehung I.rackRot [x, y]) – je Panzer an anderer Stelle (Nutzer 11.10.):
   // modern im Turmheck-Bunker hinter einer Schiebetür, 2. WK im Wannenboden (Nasslagerung), 1. WK an der linken Wand
-  const rk = I.rack, rw = 1.62, rz0 = -0.36, rr = I.rackRot || [0, 0];
+  // rackGrid [Spalten, Reihen]: kleinerer Behälter (Seitenkammer des schweren Panzers), sonst 10×4 (low 8×3)
+  const grid = I.rackGrid || null;
+  const rk = I.rack, rw = grid ? grid[0] * 0.155 + 0.07 : 1.62, rh = grid ? grid[1] * 0.135 + 0.06 : 0.6, rz0 = -0.36, rr = I.rackRot || [0, 0];
   const rackGrp = new THREE.Group();
   rackGrp.name = 'rackGrp';
   rackGrp.position.fromArray(rk);
   rackGrp.rotation.set(rr[0], rr[1], 0, 'YXZ');
   grp.add(rackGrp);
   const RB = new Bucket();
-  RB.add(box(rw, 0.035, 0.76), S.dark, [0, -0.29, 0]);
-  RB.add(box(rw, 0.035, 0.76), S.dark, [0, 0.29, 0]);
-  for (const sx of [-1, 1]) RB.add(box(0.035, 0.6, 0.76), S.dark, [sx * rw / 2, 0, 0]);
-  RB.add(box(rw, 0.56, 0.02), S.dark, [0, 0, rz0 + 0.02]);                     // Lochplatte (Granaten stecken darin)
+  RB.add(box(rw, 0.035, 0.76), S.dark, [0, -rh / 2 + 0.01, 0]);
+  RB.add(box(rw, 0.035, 0.76), S.dark, [0, rh / 2 - 0.01, 0]);
+  for (const sx of [-1, 1]) RB.add(box(0.035, rh, 0.76), S.dark, [sx * rw / 2, 0, 0]);
+  RB.add(box(rw, rh - 0.04, 0.02), S.dark, [0, 0, rz0 + 0.02]);                     // Lochplatte (Granaten stecken darin)
   if (I.blastDoor) {
     // Bunker: Trennwand mit Führungsschienen oben/unten – die Schiebetür (eigene Gruppe) fährt seitlich weg
     for (const sy of [-1, 1]) RB.add(box(rw + 0.12, 0.03, 0.06), S.steel, [0, sy * 0.33, rz0 - 0.3]);
@@ -1190,11 +1433,15 @@ function buildInterior(S, D) {
     B.add(cyl(0.018, 0.018, l, 6), S.steel, [x, y, z], [Math.PI / 2, ry, 0]);
     B.add(cyl(0.012, 0.012, l, 5), S.rubber, [x, y - 0.04, z], [Math.PI / 2, ry, 0]);
   }
-  B.add(cyl(0.065, 0.065, 0.42, 12), S.red, [1.1, 0.33, 0.95]);                      // Feuerlöscher
-  B.add(cyl(0.03, 0.04, 0.08, 8), S.dark, [1.1, 0.58, 0.95]);
-  // Ladeschützensitz an der rechten Wand (hochgeklappt – versperrt den Weg zum Gestell nicht)
-  B.add(box(0.05, 0.32, 0.36), era === 'wk1' ? S.wood : S.canvas, [1.12, 0.36, 0.25]); B.add(box(0.04, 0.04, 0.3), S.steel, [1.16, 0.2, 0.25]);
-  B.add(box(0.04, 0.3, 0.34), era === 'wk1' ? S.wood : S.canvas, [1.2, 0.46, 0.25]);
+  const fx = rackRight ? -1.1 : 1.1, fz = rackRight ? 0.3 : 0.95;
+  B.add(cyl(0.065, 0.065, 0.42, 12), S.red, [fx, 0.33, fz]);                          // Feuerlöscher
+  B.add(cyl(0.03, 0.04, 0.08, 8), S.dark, [fx, 0.58, fz]);
+  // Ladeschützensitz an der rechten Wand (hochgeklappt – versperrt den Weg zum Gestell nicht); Gestell rechts: Sitz an der Rückwand
+  if (rackRight) { B.add(box(0.36, 0.05, 0.32), S.canvas, [0.6, 0.3, 1.35]); B.add(box(0.04, 0.24, 0.04), S.steel, [0.6, 0.16, 1.35]); }
+  else {
+    B.add(box(0.05, 0.32, 0.36), era === 'wk1' ? S.wood : S.canvas, [1.12, 0.36, 0.25]); B.add(box(0.04, 0.04, 0.3), S.steel, [1.16, 0.2, 0.25]);
+    B.add(box(0.04, 0.3, 0.34), era === 'wk1' ? S.wood : S.canvas, [1.2, 0.46, 0.25]);
+  }
   for (const [x, z, ry] of [[0.65, 0.2, 0.3], [0.85, 0.75, -0.6], [-0.65, -0.5, 0.2]]) B.add(box(0.16, 0.12, 0.1), S.dark, [x, 0.66, z], [0, ry, 0]); // Winkelspiegel
   if (era === 'modern') {
     for (const [x, z, w, d] of [[-1.05, 0.1, 0.22, 0.4], [-0.95, -0.6, 0.3, 0.25], [1.05, -0.6, 0.25, 0.3]]) { B.add(box(w, 0.2, d), S.dark, [x, 0.28, z]); B.add(box(w * 0.6, 0.03, 0.02), S.lensOn, [x, 0.36, z + d / 2 + 0.005]); } // Kästen mit Anzeige
@@ -1204,13 +1451,13 @@ function buildInterior(S, D) {
     B.add(box(0.24, 0.3, 0.44), S.dark, [-1.08, 0.36, 0.85]);
     for (let i = 0; i < 3; i++) B.add(cyl(0.035, 0.035, 0.02, 6), S.lamp, [-0.955, 0.42, 0.7 + i * 0.13], [0, 0, Math.PI / 2]);
     for (let i = 0; i < 3; i++) B.add(cyl(0.018, 0.018, 0.03, 6), S.brass, [-0.955, 0.3, 0.68 + i * 0.1], [0, 0, Math.PI / 2]);
-    for (const [x, z] of [[-1.0, -0.6], [1.0, -0.65]]) B.add(box(0.12, 0.16, 0.1), S.dark, [x, 0.5, z]);
+    for (const [x, z] of rackRight ? [[-1.0, -0.6]] : [[-1.0, -0.6], [1.0, -0.65]]) B.add(box(0.12, 0.16, 0.1), S.dark, [x, 0.5, z]);
     B.add(box(0.3, 0.02, 0.24), S.wood, [-0.85, 0.42, -0.1], [0, 0, 0.2]);
     for (let i = 0; i < 2; i++) B.add(box(0.12, 0.16, 0.08), S.canvas, [-1.08, 0.18, -0.3 + i * 0.1]);
     for (const [x, z] of [[0.62, -1.05], [-0.62, -1.05]]) B.add(cyl(0.05, 0.05, 0.02, 8), S.dark, [x, 0.52, z], [Math.PI / 2, 0, 0]);
   } else {
     // 1. WK: Nieten an den Wänden, Holzkisten mit Granaten, Werkzeugkiste, Öllampe am Haken, Sprachrohr zum Fahrer
-    for (const [x, z] of [[-1.2, -1.2], [-1.2, 0.5], [1.2, -1.2], [1.2, 0.6]]) for (let i = 0; i < 3; i++) B.add(box(0.025, 0.025, 0.025), S.steel, [x, 0.15 + i * 0.2, z]);
+    for (const [x, z] of [[-1.2, -1.2], [-1.2, 0.5], [1.2, -1.2], [1.2, 0.6]]) for (let i = 0; i < 2; i++) B.add(box(0.025, 0.025, 0.025), S.steel, [x, 0.2 + i * 0.3, z]);
     for (let i = 0; i < 4; i++) B.add(box(0.025, 0.025, 0.025), S.steel, [-0.66 + i * 0.44, 0.12, -1.9]);
     for (const [x, z, ry] of [[0.95, -0.7, 0]]) { B.add(box(0.36, 0.22, 0.42), S.wood, [x, 0.17, z], [0, ry, 0]); B.add(box(0.37, 0.03, 0.43), S.steel, [x, 0.27, z], [0, ry, 0]); }
     B.add(box(0.3, 0.14, 0.18), S.dark, [-0.95, 0.07, -0.55]);
@@ -1219,8 +1466,8 @@ function buildInterior(S, D) {
   }
   B.build(grp, { shadow: false });
   // Granaten im Gestell: Spalten von links (PG) nach rechts (SG), je Spalte von unten nach oben
-  const rows = DET === 0 ? 3 : 4, cols = DET === 0 ? 8 : 10;
-  const dx = DET === 0 ? 0.19 : 0.155, dy = DET === 0 ? 0.17 : 0.135;
+  const rows = grid ? grid[1] : DET === 0 ? 3 : 4, cols = grid ? grid[0] : DET === 0 ? 8 : 10;
+  const dx = DET === 0 && !grid ? 0.19 : 0.155, dy = DET === 0 && !grid ? 0.17 : 0.135;
   const slots = [];
   for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) slots.push([(c - (cols - 1) / 2) * dx, (r - (rows - 1) / 2) * dy, rz0]);
   const nAp = Math.min(ammo.mbt_ap, Math.round(slots.length * ammo.mbt_ap / (ammo.mbt_ap + ammo.mbt_he)));
@@ -1306,7 +1553,8 @@ function buildInterior(S, D) {
   const br = new THREE.Group();
   br.name = 'breech';
   br.visible = false;
-  br.position.set(I.breech[0] + sh[0] - D.gunPivot[0], I.breech[1] + sh[1] - D.gunPivot[1], I.breech[2] + sh[2] - D.gunPivot[2]);
+  br.position.set(I.breech[0] * sc + sh[0] - D.gunPivot[0], I.breech[1] * sc + sh[1] - D.gunPivot[1], I.breech[2] * sc + sh[2] - D.gunPivot[2]);
+  br.scale.setScalar(sc * (I.breechScale || 1)); // 37 mm: Verschluss kleiner
   const V = new Bucket();
   V.add(box(0.5, 0.48, 0.42), S.steel, [0, 0, 0]);                                 // Bodenstück
   V.add(box(0.58, 0.5, 0.36), S.cabin, [0, 0.02, -0.42]);                           // Wiege
