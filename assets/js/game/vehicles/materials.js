@@ -113,11 +113,30 @@ function markingTexture(team) {
 // Oberseiten, Lackabplatzer – alles im Fahrzeugraum (Attribut aVeh aus models.js), keine Textur, nur medium+.
 const CAMO = { A: [0x39452e, 0x5c4f37], B: [0x6b5d43, 0xa69c80], null: [0x4a4f45, 0x6c6a5c] };
 const _ca = new THREE.Color(), _cb = new THREE.Color();
+const LOOK_U = {}; // Tarn-Uniforms je Team (Panzer-Tarnungen, setVehicleSkin)
+
+/**
+ * Panzer-Tarnung (vehicles/skins.js) für die Fahrzeuge eines Teams: Grundlack + zwei Tarntöne; skin = null → Teamstandard.
+ * Wirkt auf die geteilten Lackmaterialien (alle Fahrzeuge des Teams auf diesem Gerät).
+ */
+export function setVehicleSkin(team, skin) {
+  const k = team ?? 'null', m = vehicleMaterials().paint[k];
+  if (!m) return;
+  const custom = !!(skin && skin.base != null);
+  const base = custom ? skin.base : TEAM_TINT[k] ?? TEAM_TINT.null;
+  m.color.setHex(base);
+  const u = LOOK_U[k];
+  if (!u) return;
+  const [t2, t3] = custom ? [skin.c2, skin.c3] : CAMO[k] || CAMO.null;
+  _ca.setHex(base);
+  for (const [uk, hex] of [['uCamo2', t2], ['uCamo3', t3]]) { _cb.setHex(hex); u[uk].value.set(_cb.r / Math.max(1e-4, _ca.r), _cb.g / Math.max(1e-4, _ca.g), _cb.b / Math.max(1e-4, _ca.b)); }
+}
 function paintLookPatch(team) {
   const base = _ca.set(TEAM_TINT[team] ?? TEAM_TINT.null);
   const ratio = (hex) => { _cb.set(hex); return new THREE.Vector3(_cb.r / Math.max(1e-4, base.r), _cb.g / Math.max(1e-4, base.g), _cb.b / Math.max(1e-4, base.b)); };
   const [t2, t3] = CAMO[team] || CAMO.null;
   const u = { uCamo2: { value: ratio(t2) }, uCamo3: { value: ratio(t3) }, uMud: { value: new THREE.Color(0x4a3e2f) }, uDust: { value: new THREE.Color(0x9a8f78) } };
+  LOOK_U[team ?? 'null'] = u;
   return (sh) => {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = sh.vertexShader

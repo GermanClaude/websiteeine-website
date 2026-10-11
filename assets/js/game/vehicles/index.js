@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { VEHICLES, VEHICLE_WEAPONS, VEHICLE_CAUSES, VEHICLE_IDS, respawnFor, vehicleWeapon, tankTypeFor } from './data.js';
 import { Vehicle, newIntent } from './vehicle.js';
+import { TankProgress, tankSkin, skinUnlocked } from './skins.js';
 import { ShellPool, raycastActors } from './projectiles.js';
 import { VehicleCamera, dirFromYawPitch } from './camera.js';
 import { readPlayerControls, resetControlHolds } from './controls.js';
@@ -117,6 +118,9 @@ export class VehicleSystem {
     const online = !!(G.match && G.match.netRole && G.net);
     this.net = online ? new VehicleNet(this, { replica: this.replica }) : null;
     this.remote = this.replica ? this.net : null;
+    // Panzer-Tarnungen (skins.js): Erfahrung sammeln, gewählte Tarnung auf die Fahrzeuge des eigenen Teams
+    this.tankProgress = new TankProgress(G);
+    this._skinTeam = undefined; // update(): sobald das eigene Team feststeht
     if (!this.replica) this._setupSpawns();
     else prepareVehicleModels([this.tankType, 'jeep'].filter((t) => VEHICLES[t]), ['A', 'B'], this.quality);
     if (this.list.length || this.spawns.length || this.replica) {
@@ -153,6 +157,8 @@ export class VehicleSystem {
   }
 
   detach() {
+    if (this.tankProgress) { this.tankProgress.dispose(); this.tankProgress = null; }
+    for (const t of ['A', 'B', null]) MATS.setVehicleSkin(t, null); // Teamstandard (Vorschau/nächstes Match)
     if (!this.attached) return;
     const G = this.G;
     if (this.thermal) { this.thermal.dispose(); this.thermal = null; }
@@ -796,6 +802,15 @@ export class VehicleSystem {
   /* =============================================================== Takt */
 
   update(dt) {
+    if (this.tankProgress) {
+      this.tankProgress.update(dt);
+      const own = this.G.player ? this.G.player.team ?? null : null;
+      if (own !== this._skinTeam) {
+        this._skinTeam = own;
+        const P = this.tankProgress.p, sk = tankSkin(P.skin);
+        for (const t of ['A', 'B', null]) MATS.setVehicleSkin(t, t === own && skinUnlocked(P, sk) ? sk : null);
+      }
+    }
     if (!this.attached) return;
     const G = this.G, world = this.world;
     const t0 = performance.now();
