@@ -28,7 +28,17 @@ function load() {
     never: o.never === true,                    // „Nicht mehr fragen“
     lastAsk: Number(o.lastAsk) || 0,
   };
+  testParam(S);
   return S;
+}
+/** Test-Abkürzung über die Adresse: ?fbtest=1 = 20 Minuten gutschreiben, ?fbtest=reset = alles zurücksetzen. */
+function testParam(s) {
+  let v = null;
+  try { v = new URLSearchParams(location.search).get('fbtest'); } catch { v = null; }
+  if (v === 'reset') Object.assign(s, { play: 0, sent: 0, stars: 0, reveal: false, guess: '', never: false, lastAsk: 0 });
+  else if (v === '1') { s.play = Math.max(s.play, FEEDBACK_MIN_SEC); s.lastAsk = 0; s.never = false; }
+  else return;
+  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* */ }
 }
 function save() {
   dirty = 0;
@@ -298,5 +308,21 @@ export function revealHtml() {
     <p><strong>Die erste Frage hinter dem Experiment:</strong> Merkt man einem Spiel heute noch an, ob es mit KI entstanden ist?</p>
     <p><strong>Die zweite:</strong> Kann KI etwas Gutes sein? NULLPUNKT soll zeigen, dass sie kleinen Entwicklern ohne Studio und
     Budget die schwere Arbeit abnehmen kann, damit aus einer Idee ein Spiel wird. Die Ideen und die Richtung bleiben beim
-    Menschen.</p>`;
+    Menschen.</p>
+    <h4 class="reveal-h">Die Geschichte</h4>
+    <ol class="reveal-time">
+      ${HISTORY.map(([when, title, text]) => `<li><span class="reveal-when">${when}</span><strong>${title}</strong> ${text}</li>`).join('')}
+    </ol>`;
 }
+
+/** Zeitleiste der Entstehung (aus der Projektgeschichte, Stand 11.10.2026). */
+const HISTORY = [
+  ['4. Oktober 2026', 'Ein Missverständnis.', 'German Legend wollte eigentlich eine Seite mit vielen kleinen Browserspielen bauen, wie es sie in der Corona-Zeit überall gab. Die KI hat den Auftrag anders verstanden und einen einzigen großen 3D-Shooter angefangen. Das gefiel so gut, dass daraus NULLPUNKT wurde. Am ersten Abend entstanden das Grundgerüst, die Klang-Engine, die Altstadt und die ersten Waffen. (Bei GTA war es übrigens ähnlich: Es sollte zuerst ein Rennspiel werden.)'],
+  ['5. Oktober', 'Die Welt wächst.', 'Hafen und Werk kommen dazu, Bots mit eigener Taktik, freie Texturen und echte Tonaufnahmen, dazu die große Karte Grenzland mit Fahrzeugen.'],
+  ['6. Oktober', 'Die ersten Tester.', 'Spieler aus der SCP:SL-Community schicken eine lange Fehlerliste. Die Karten werden größer, Bots lernen von Spielern und kämpfen 32 gegen 32, Grafik und Waffen bekommen eine Realismus-Runde.'],
+  ['7. und 8. Oktober', 'Der Plan für den Mehrspieler.', 'Ohne eigenen Spielserver: Die Browser der Spieler verbinden sich direkt miteinander. Dazu kommt ein VR-Modus für die Meta Quest 3.'],
+  ['9. Oktober', 'Live.', 'Die Mehrspieler-Beta geht online, am Abend spielen die ersten acht Leute zusammen. Noch am selben Abend kommen der Modus „Nur Messer“ und eine steuerbare Drohne.'],
+  ['10. Oktober', 'Mehr Modi, mehr Karten.', 'Infiziert und Waffenspiel online, Klassen-Fähigkeiten, Munition von Gefallenen im Realismus-Modus und die Zauberbibliothek als neue Karte.'],
+  ['11. Oktober', 'Der große Test.', 'Zehn Spieler aus der UGN-Community spielen gleichzeitig: ein voller Erfolg. Am selben Tag folgen Verletzungen und Nahkampfwaffen, zerstörbare Fassaden und verformbare Autos, die Stellungskriegskarte Niemandsland mit Gräben und Panzer aus drei Epochen nach echten Vorbildern, mit Innenraum und Ladeschützen.'],
+  ['Bis heute', 'In Zahlen.', 'Eine Woche, fast 300 gespeicherte Arbeitsschritte, rund 140.000 Zeilen Code in über 400 Dateien. Die Ideen kamen von einer Person, den Code schrieb eine KI.'],
+];

@@ -60,6 +60,7 @@ try {
   const rev = await p.evaluate(() => { const b = document.getElementById('entstehung'); return { hidden: b.hidden, text: b.textContent }; });
   check(!rev.hidden && /Claude/.test(rev.text) && /German Legend/.test(rev.text) && /Gut erkannt/.test(rev.text), 'Startseite: „Wie NULLPUNKT entstanden ist“ sichtbar, mit Vermutung');
   check(await p.evaluate(() => !document.getElementById('fb-cta').hidden), 'Startseite: Feedback-Knopf sichtbar');
+  check(await p.evaluate(() => { const b = document.getElementById('entstehung'); return /Die Geschichte/.test(b.textContent) && b.querySelectorAll('.reveal-time li').length >= 7; }), 'Freigeschaltet: Geschichtsteil mit Zeitleiste');
   await p.evaluate(() => document.getElementById('entstehung').scrollIntoView({ block: 'start' }));
   await p.waitForTimeout(500);
   await p.screenshot({ path: 'tools/out/feedback-reveal.png' });
@@ -86,6 +87,19 @@ try {
   check(st.sent === 1 && st.reveal === false && !/freigeschaltet/.test(t2) && /ehrliche Bewertung/.test(t2), '2 Sterne: gesendet, keine Freischaltung');
   await p.click('.npfb [data-a="ok"]');
   check(await p.evaluate(() => document.getElementById('entstehung').hidden), 'Startseite nach 2 Sternen: Abschnitt bleibt verborgen');
+  await ctx.close();
+
+  // 5) Test-Abkürzung: ?fbtest=1 schaltet sofort frei, ?fbtest=reset setzt zurück
+  ctx = await browser.newContext({ ...ctxOpts });
+  p = watch(await ctx.newPage());
+  await p.goto(BASE + 'index.html?fbtest=1#ueber', { waitUntil: 'load' });
+  await p.waitForTimeout(2500);
+  st = await fbState(p);
+  check(st.play >= 1200 && await p.evaluate(() => !document.getElementById('fb-cta').hidden), '?fbtest=1: sofort 20 Minuten, Feedback-Knopf da');
+  await p.goto(BASE + 'index.html?fbtest=reset#ueber', { waitUntil: 'load' });
+  await p.waitForTimeout(2500);
+  st = await fbState(p);
+  check(st.play === 0 && st.sent === 0 && await p.evaluate(() => document.getElementById('fb-cta').hidden), '?fbtest=reset: zurückgesetzt');
   await ctx.close();
   check(errors.length === 0, `keine Seitenfehler${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
 } catch (err) {

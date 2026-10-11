@@ -988,6 +988,11 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .reveal p { font-size: var(--fs-small); line-height: 1.65; margin: 10px 0 0; }
 .reveal .reveal-tag { margin: 0 0 8px; font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: #ffb21f; }
 .reveal .reveal-guess { color: var(--ink-2); }
+.reveal .reveal-h { margin: 26px 0 4px; font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: #ffb21f; font-weight: 600; }
+.reveal-time { list-style: none; margin: 8px 0 0; padding: 0 0 0 16px; border-left: 1px solid var(--line); }
+.reveal-time li { position: relative; font-size: var(--fs-small); line-height: 1.6; margin: 0 0 14px; }
+.reveal-time li::before { content: ''; position: absolute; left: -21px; top: .55em; width: 9px; height: 9px; border-radius: 50%; background: #ff5a1f; }
+.reveal-when { display: block; font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: .06em; color: var(--ink-2); }
 .rights-list { margin: 8px 0 10px 1.1em; padding: 0; font-size: var(--fs-small); line-height: 1.6; list-style: square; }
 .rights-list li + li { margin-top: 4px; }
 .rights code { font-size: .95em; }
