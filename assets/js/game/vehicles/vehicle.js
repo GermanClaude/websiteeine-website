@@ -651,6 +651,9 @@ export class Vehicle {
     const cv = this.sys && this.sys.camera ? this.sys.camera.view : null;
     const inside = !!(p && p.vehicle === this && cv && cv.interior && this.alive);
     if (st.interior !== inside) { st.interior = inside; M.setInterior?.(inside); }
+    // Optik/Periskop/Winkelspiegel: eigener Panzer ausgeblendet (kein Rohr/Turmteil verdeckt das Bild, Nutzer 11.10.)
+    const sight = !!(p && p.vehicle === this && cv && !cv.tp && ['optic', 'wide', 'peri', 'slit'].includes(cv.overlay));
+    if (st.sightHidden !== sight) { st.sightHidden = sight; if (M.root) M.root.visible = !sight; }
     const g = this.gun;
     if (!g) return;
     const bw = g.breechOpen ? 1 : 0;

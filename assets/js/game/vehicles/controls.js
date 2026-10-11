@@ -112,6 +112,7 @@ export function readPlayerControls(input, vehicle, seat, dt, { frozen = false, v
   out.camera = input.pressed('crouch') || input.pressed('v_camera');
   out.nextSeat = input.pressed('v_seat');
   out.lights = input.pressed('light') || input.pressed('v_light');
+  out.thermal = input.pressed('v_thermal') || (!seat.def.drive && input.pressed('grenade'));
   if (input.pressed('seat_next')) out.seatStep = 1;
   else if (input.pressed('seat_prev')) out.seatStep = -1;
   if (!pad && !vr) for (let i = 0; i < SEAT_ACTIONS.length; i++) if (input.pressed(SEAT_ACTIONS[i])) out.seatTo = i;

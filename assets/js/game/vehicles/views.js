@@ -154,6 +154,7 @@ export const VIEW_CSS = `
 .vo{position:absolute;inset:0;pointer-events:none}
 .vo[hidden],.vo>*[hidden]{display:none}
 .vo-slit,.vo-bino{position:absolute;inset:0;width:100%;height:100%}
+.vo-slit svg,.vo-bino svg{position:absolute;inset:0;width:100%;height:100%;display:block}
 .vo-optic{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 41vmin,rgba(0,0,0,.94) 43vmin,#000 70vmin)}
 .vo-optic::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,rgba(40,70,40,.0) 0,rgba(30,45,30,.18) 41vmin,transparent 42vmin)}
 .vo-ret{position:absolute;left:50%;top:50%;width:0;height:0}

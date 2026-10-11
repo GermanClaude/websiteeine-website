@@ -78,6 +78,8 @@ body[data-vehicle][data-vehicle-arms="0"] .tc-fire-r,body[data-vehicle][data-veh
 .vh-exitl{position:absolute;left:50%;top:calc(58% + 70px);transform:translateX(-50%);font-size:13px;font-weight:700;letter-spacing:.08em;text-shadow:0 1px 2px #000}
 .vh-note[hidden],.vh-exit[hidden],.vh-exitl[hidden],.vh-gunst[hidden],.vh-rack[hidden]{display:none}
 .vc-load{--s:66;right:calc(2.2% + env(safe-area-inset-right) + var(--tc-u) * 86);bottom:calc(30% + env(safe-area-inset-bottom));border-color:rgba(255,194,61,.85);background:rgba(255,194,61,.18)}
+.vc-wb{--s:46;right:calc(2.2% + env(safe-area-inset-right) + var(--tc-u) * 86);bottom:calc(46% + env(safe-area-inset-bottom))}
+body[data-vehicle]:not([data-vehicle-optic="1"]) .vc-btn.vc-wb{display:none}
 .vc-ammo{--s:50;right:calc(2.2% + env(safe-area-inset-right) + var(--tc-u) * 160);bottom:calc(18% + env(safe-area-inset-bottom))}
 body[data-vehicle]:not([data-vehicle-loader="1"]) .vc-btn.vc-load,body[data-vehicle]:not([data-vehicle-loader="1"]) .vc-btn.vc-ammo{display:none}
 body[data-vehicle][data-vehicle-loader="1"] .tc-swap{display:none!important}
@@ -107,6 +109,7 @@ const TOUCH = [
   ['vc-brake', 'v_brake', 'Brem-<br>se', true],
   ['vc-load', 'v_load', 'Laden', true],
   ['vc-ammo', 'v_ammo', 'PG/SG', true],
+  ['vc-wb', 'v_thermal', 'Wärme-<br>bild', true],
 ];
 
 const _v = new THREE.Vector3();
@@ -225,6 +228,7 @@ export class VehicleHUD {
       this._body('vehicle', null);
       this._body('vehicleArms', null);
       this._body('vehicleLoader', null);
+      this._body('vehicleOptic', null);
       this._body('vehicleSight', null);
       this._set('panelH', el.panel, 'hidden', true);
       this._set('retH', el.ret, 'hidden', true);
@@ -244,6 +248,7 @@ export class VehicleHUD {
     this._body('vehicle', v.type);
     this._body('vehicleArms', seat.weapons.length || loader ? '1' : '0');
     this._body('vehicleLoader', loader ? '1' : null);
+    this._body('vehicleOptic', s.view && !s.view.tp && ['optic', 'wide', 'peri'].includes(s.view.overlay) ? '1' : null);
     this._set('panelH', el.panel, 'hidden', false);
     this._set('name', el.name, 'text', v.name);
     this._set('speed', el.speed, 'html', `${Math.round(Math.abs(v.body.speed) * 3.6)}<small>km/h</small>`);
@@ -307,6 +312,7 @@ export class VehicleHUD {
     if (seat.weapons.length > 1) hint.push(`${k('swap') || 'Mausrad'} ${seat.weapons.some((w) => w.def.kind === 'shell') ? 'Munition/Waffe' : 'Waffe'}`);
     if (view && (view.zoom || []).length > 1) hint.push(`${k('ads') || 'RMT'} Zoom`);
     if (seat.def.mount === 'gun') hint.push(`${k('light') || 'T'} Entfernung`);
+    if (view && !view.tp && ['optic', 'wide', 'peri'].includes(view.overlay)) hint.push(`${k('grenade') || 'G'} Wärmebild`);
     if (loader) hint.push(`${k('reload') || 'R'} Greifen/Schließen`, `${k('fire') || 'LMT'} Einschieben`, `${k('swap') || 'Mausrad'} Sorte`);
     if (seat.def.drive) hint.push(`${k('light') || 'T'} Licht`);
     this._set('hint', el.hint, 'text', hint.join(' · '));
@@ -360,6 +366,7 @@ export class VehicleHUD {
     this.drive?.dispose();
     this.view.dispose();
     this._body('vehicleLoader', null);
+    this._body('vehicleOptic', null);
     this._body('vehicleSight', null);
     this._body('vehicle', null);
     this._body('vehicleNear', null);

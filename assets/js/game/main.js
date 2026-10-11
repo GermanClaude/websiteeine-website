@@ -1010,7 +1010,7 @@ async function runStart(config, gen) {
 
     // vehicles: Spawns aus world.vehicleSpawns bzw. ?vehicles=1; online nur mit Raum-Einstellung „Fahrzeuge“ – der Host
     // simuliert, Clients führen ein Abbild (vehicles/net.js, panzer-mp.md §C)
-    if (!netCfg) safe('vehicles.attach', () => G.vehicles.attach(G));
+    if (!netCfg) { if (cfg.vehicles !== false) safe('vehicles.attach', () => G.vehicles.attach(G)); } // Lobby „Panzer & Fahrzeuge: Aus“
     else if (netCfg.vehicles) safe('vehicles.attach', () => G.vehicles.attach(G, { replica: netCfg.role === 'client' }));
     safe('points', () => { G.points = new MapPoints(G, cfg.mapId); });
     safe('building', () => { G.building = new Building(G); });

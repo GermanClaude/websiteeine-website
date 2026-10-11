@@ -21,6 +21,10 @@ import { VehicleNet } from './net.js';
 import { groundRay } from './sim.js';
 import { collisionRay, canOccupy } from '../engine/physics.js';
 import { falloff } from '../combat.js';
+import { Thermal } from './thermal.js';
+
+// Sichten mit Wärmebild-Umschalter; in Optiken ist der eigene Panzer ausgeblendet (Periskop/Zieloptik, kein Rohr im Bild)
+const THERMAL_VIEWS = new Set(['optic', 'wide', 'peri']);
 
 export { VEHICLES, VEHICLE_WEAPONS, VEHICLE_IDS, Vehicle };
 
@@ -139,6 +143,7 @@ export class VehicleSystem {
   detach() {
     if (!this.attached) return;
     const G = this.G;
+    if (this.thermal) { this.thermal.dispose(); this.thermal = null; }
     if (this.net) { this.net.dispose(); this.net = null; }
     this.remote = null;
     if (this._warmModels) { for (const md of this._warmModels) { md.root.removeFromParent(); md.dispose(); } this._warmModels = null; }
@@ -627,6 +632,7 @@ export class VehicleSystem {
     }
     this.camera.reset();
     this.camera.view = null;
+    if (this.thermal) this.thermal.set(false);
     if (this.spot) this.spot.intensity = 0;
     this._exitT = G.time.elapsed;
     this._switch = null;
@@ -668,6 +674,11 @@ export class VehicleSystem {
       seat.zoomIndex = seat._zoomHi && (eff.zoom || []).length > 1 ? 1 : 0;
     }
     this._eff = { seat, view: eff };
+    // Wärmebild (G) in Hauptzieloptik, Weitwinkel und Rundblickperiskop
+    const thermalOk = !!(eff && !eff.tp && THERMAL_VIEWS.has(eff.overlay));
+    if (!this.thermal) this.thermal = new Thermal(G);
+    if (act.thermal && thermalOk) { this.thermal.toggle(); this._viewLabel = { text: this.thermal.on ? 'Wärmebild an' : 'Wärmebild aus', until: now + 1.2 }; }
+    this.thermal.update(dt, thermalOk);
     // Zielen: 1P/Optik → Blickrichtung (Strichplatte); Außenansicht → Bildmitte-Strahl (Rohr konvergiert, Ballistik)
     if (seat.def.mount) {
       const dir = viewLookDir(v, seat, eff, _d);

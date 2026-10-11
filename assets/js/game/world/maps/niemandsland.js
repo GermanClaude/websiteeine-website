@@ -266,6 +266,10 @@ export default {
       B: [[30, -HQZ + 6, Math.PI], [20, -HQZ + 8, Math.PI], [8, -HQZ + 6, Math.PI], [-4, -HQZ + 8, Math.PI], [-12, -HQZ + 6, Math.PI], [-26, -HQZ + 8, Math.PI], [-34, -HQZ + 6, Math.PI], [0, -HQZ - 8, Math.PI]],
     },
   },
-  vehicles: [],
+  // Panzer je Team am Hauptquartier (Nutzer 11.10.); Art/Generation über die Lobby (vehicles/data.js)
+  vehicles: [
+    { id: 'A-panzer-1', team: 'A', kind: 'tank', x: 70, z: HQZ - 4, yaw: 0 }, { id: 'A-panzer-2', team: 'A', kind: 'tank', x: -70, z: HQZ - 4, yaw: 0 },
+    { id: 'B-panzer-1', team: 'B', kind: 'tank', x: -70, z: -HQZ + 4, yaw: Math.PI }, { id: 'B-panzer-2', team: 'B', kind: 'tank', x: 70, z: -HQZ + 4, yaw: Math.PI },
+  ],
   secrets: [],
 };
