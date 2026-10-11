@@ -723,7 +723,7 @@ const RAW = {
   },
   spaten: {
     id: 'spaten', name: 'Klappspaten Maulwurf', cls: 'melee', slot: 'melee', unlockLevel: 3,
-    description: 'Der Feldspaten des Grabenkämpfers: zwei Hiebe mit der geschärften Kante. Spezial „Graben“: auf Großkarten hebt jeder Schlag in den Erdboden Erde aus – eigene Schützenlöcher und Gräben, bis 2,4 m tief.',
+    description: 'Der Feldspaten des Grabenkämpfers: zwei Hiebe mit der geschärften Kante. Spezial „Graben“: auf Großkarten hebt jeder Schlag in den Erdboden Erde aus – eigene Schützenlöcher, Gräben und Schächte, so tief man will. Der Pionier trägt ihn zusätzlich als eigene Waffe (Mausrad).',
     damage: { max: 60, min: 60, rangeStart: 0, rangeEnd: 2.4 }, headMult: 1, limbMult: 1, pellets: 1,
     rpm: 90, special: 'graben', fireMode: 'semi', burstCount: 1, mag: 0, reserve: 0,
     reloadTime: 0, reloadEmptyTime: 0, perShellReload: false,
@@ -1060,6 +1060,7 @@ export const CLASS_LOOKS = {
   sanitaeter: { id: 'sanitaeter', name: 'Sanitäter', glove: '#c9b48d', sleeve: '#ffffff', accessory: 'armband' },
   pionier: { id: 'pionier', name: 'Pionier', glove: '#7a5a3c', sleeve: '#c9c2b0', sleeveCamo: 'neutral', accessory: 'cuffs' },
   aufklaerer: { id: 'aufklaerer', name: 'Aufklärer', glove: '#59614a', sleeve: '#b9c4a6', sleeveCamo: 'wood', accessory: 'wraps' },
+  besatzung: { id: 'besatzung', name: 'Besatzung', glove: '#2b2a27', sleeve: '#5a5c4c', accessory: 'none' },
   unterstuetzung: { id: 'unterstuetzung', name: 'Unterstützung', glove: '#3f4434', sleeve: '#e0dccd', accessory: 'pads' },
 };
 /**

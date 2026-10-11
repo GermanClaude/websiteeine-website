@@ -55,7 +55,7 @@ const SIM_LOD = [
   { every: 4, sense: 0.15, think: 4 }, // sehr fern, nicht im Bild (≈ 1 Hz Entscheidungen)
 ];
 // Aussehen je Klasse (Varianten aus soldier/gear.js); Truppführer tragen das Funkgerät
-const CLASS_LOOKS = { sturm: ['sturm', 'grenadier', 'schatten'], sanitaeter: ['sanitaeter'], pionier: ['pionier', 'bastion'], aufklaerer: ['spaeher', 'kundschafter'] };
+const CLASS_LOOKS = { sturm: ['sturm', 'grenadier', 'schatten'], sanitaeter: ['sanitaeter'], pionier: ['pionier', 'bastion'], besatzung: ['pionier'], aufklaerer: ['spaeher', 'kundschafter'] };
 const pick = (a) => a[(Math.random() * a.length) | 0];
 
 /** Reihenfolge der Namensschilder: höheres Ziel zuerst, dann näher. */

@@ -227,6 +227,29 @@ export class VehicleSystem {
     this.G.events.emit('vehicle:removed', { vehicle: v });
   }
 
+  /** Notreparatur (Fähigkeit der Besatzung): eigenes Fahrzeug, in dem der Akteur sitzt, sonst das nächste eigene ≤ range. */
+  emergencyCandidate(actor, range = 6) {
+    if (!actor) return null;
+    if (actor.vehicle && actor.vehicle.alive) return actor.vehicle;
+    let best = null, bd = range;
+    for (const v of this.list) {
+      if (!v.alive || (v.team != null && actor.team != null && v.team !== actor.team)) continue;
+      const d = this._boxDistance(v, actor.position, 1);
+      if (d < bd) { bd = d; best = v; }
+    }
+    return best;
+  }
+
+  /** Notreparatur ausführen (offline/Host): +amount Leben, ausgefallene Module auf 60 %, Kette sofort wieder. → Wert > 0 */
+  emergencyRepair(actor, amount, range = 6) {
+    const v = this.emergencyCandidate(actor, range);
+    if (!v) return 0;
+    let n = v.health < v.maxHealth ? v.repair(amount, actor) || 0 : 0;
+    for (const z of Object.values(v.zones || {})) if (z.max && z.hp < z.max * 0.6) { z.hp = z.max * 0.6; n++; }
+    v.trackDownUntil = 0;
+    return Math.max(1, Math.round(n));
+  }
+
   /** Panzer dieser Runde: Einstellung „Panzer-Generation“ (online Raum, offline Lobby; ?panzer=… für Tests). */
   get tankType() {
     const G = this.G, M = G.match || {};
@@ -529,7 +552,8 @@ export class VehicleSystem {
     this._clearSeatState(v.seats[from]);
     this._seat(actor, v, idx);
     const now = this.G.time.elapsed;
-    const sw = (v.def.crew && v.def.crew.switchTime) || 0;
+    const pk = (actor.classDef && actor.classDef.perks) || {};
+    const sw = ((v.def.crew && v.def.crew.switchTime) || 0) * (pk.crewSwitchMult || 1); // Besatzung: halbe Wechselzeit
     v.seats[idx].readyAt = now + sw;
     if (actor.isPlayer) this._playerSwitched(v, idx, now + sw);
     this.G.events.emit('vehicle:seat', { vehicle: v, actor, from, seat: idx });

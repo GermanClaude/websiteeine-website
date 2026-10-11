@@ -1,12 +1,12 @@
 // NULLPUNKT — Graben mit dem Klappspaten (Wunschliste 10.10., Stellungskrieg): Ein Spatenhieb, der keinen Gegner
-// trifft, aber den Erdboden einer Großkarte (Gelände-Höhenfeld), hebt dort Erde aus – je Hieb bis 0,4 m, höchstens
-// 2,4 m tief. So entstehen eigene Schützenlöcher und Gräben (mit Sandsäcken/Bunker aus dem Bauen darüber: gedeckte
+// trifft, aber den Erdboden einer Großkarte (Gelände-Höhenfeld), hebt dort Erde aus – je Hieb bis 0,4 m, so tief man
+// will (Nutzer 11.10.; Grenze 60 m nur gegen Zahlenüberlauf). So entstehen eigene Schützenlöcher und Gräben (mit Sandsäcken/Bunker aus dem Bauen darüber: gedeckte
 // Stellungen). Kollision, Kugeln und Bodenhöhe lesen das Höhenfeld direkt; die Geländekachel wird neu aufgebaut.
 // Online entscheidet der Host: Client → 'dig' {x, z}, Host prüft Abstand und verteilt 'ev' dg an alle.
 // (Echte Tunnel unter der Erde kann ein Höhenfeld nicht darstellen – gegraben wird von oben.)
 import * as THREE from 'three';
 
-const R = 1.6, DY = 0.4, MAX = 2.4, REACH = 3.4;
+const R = 1.6, DY = 0.4, MAX = 60, REACH = 3.4;
 const _n = new THREE.Vector3(0, 1, 0);
 
 export class Digging {

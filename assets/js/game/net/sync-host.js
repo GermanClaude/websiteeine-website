@@ -787,6 +787,7 @@ export class HostSync {
     if (t < (this._abilityAt.get(from) || 0)) return;
     this._abilityAt.set(from, t + ab.cooldown * 0.9);
     if (ab.regen) this._regens.set(from, { until: this.G.time.elapsed + ab.duration, rate: ab.regen }); // Spielzeit (wie die Heilung)
+    if (ab.repair && this.G.vehicles && typeof this.G.vehicles.emergencyRepair === 'function') this.G.vehicles.emergencyRepair(p, ab.repair, ab.range); // Besatzung
   }
 
   /**

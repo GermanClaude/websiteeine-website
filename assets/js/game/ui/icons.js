@@ -59,6 +59,7 @@ export const ICON = {
   sanitaeter: svg('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/>'),
   pionier: svg('<path d="M14.5 5.5l4 4-9 9h-4v-4z"/><path d="M12.5 7.5l4 4"/>'),
   aufklaerer: svg('<circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/><circle cx="12" cy="12" r="1"/>'),
+  besatzung: svg('<rect x="3" y="13" width="18" height="6" rx="3"/><path d="M7 13v-2a5 5 0 0110 0v2M12 6V4"/>'),
   hq: svg('<path d="M4 20V9l8-5 8 5v11z"/><path d="M9 20v-6h6v6"/>'),
   tank: svg('<rect x="3" y="12" width="18" height="6" rx="3"/><path d="M7 12V9h8v3M15 10.5h6"/>'),
   squad: svg('<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M3 20c0-3 2.2-5 5-5s5 2 5 5M11 20c0-3 2.2-5 5-5s5 2 5 5"/>'),

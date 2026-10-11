@@ -1340,6 +1340,15 @@ export class Player {
     if (!g || frozen || this.mantling) { this._repairing = false; return; }
     const def = GADGETS[g.id];
     if (!def) return;
+    if (g.id === 'fernglas') { // Besatzung: Fernglas halten – 6×, Waffe gesenkt, markiert alle 0,6 s die Bildmitte
+      const on = (input.down('gadget') || press) && !this.sprinting && !this.vehicle && this.alive;
+      this._setBino(on);
+      if (on) {
+        this._busyUntil = Math.max(this._busyUntil, now + 0.15);
+        if (now >= g.cooldownUntil) this._spot(def, now);
+      }
+      return;
+    }
     if (def.hold) { // Reparaturwerkzeug: halten
       const v = (input.down('gadget') || press) && !this.sprinting ? this._repairCandidate(def) : null;
       if (v) {
@@ -1419,6 +1428,12 @@ export class Player {
       if (!count) { G.events.emit('ability:denied', { actor: this, id: ab.id, reason: 'voll' }); return; }
     } else if (ab.id === 'aufklaerungspuls') {
       count = markAround(G, this, this.position, ab.radius, now + ab.duration);
+    } else if (ab.id === 'notreparatur') {
+      // Besatzung: eigenes Fahrzeug (drinnen oder ≤ 6 m) – offline/Host sofort, online repariert der Host (sync-host)
+      const V = G.vehicles;
+      const v = V && typeof V.emergencyCandidate === 'function' ? V.emergencyCandidate(this, ab.range) : null;
+      if (!v) { G.events.emit('ability:denied', { actor: this, id: ab.id, reason: 'kein' }); return; }
+      count = V.replica ? 1 : V.emergencyRepair(this, ab.repair, ab.range);
     }
     this.abilityUntil = ab.duration ? now + ab.duration : 0;
     this.abilityReadyAt = now + ab.cooldown;
@@ -1445,6 +1460,25 @@ export class Player {
   }
 
   /** Aufklärer: Gegner im Visier (≤ 350 m, freie Sicht) für das Team markieren. */
+  /** Fernglas an/aus: Vergrößerung (FOV in _updateCamera) und Doppelkreis-Maske (DOM, einmal angelegt). */
+  _setBino(on) {
+    if (!!this.binoOn === !!on) return;
+    this.binoOn = !!on;
+    if (typeof document === 'undefined' || !this.isPlayer) return;
+    let el = document.getElementById('np-bino');
+    if (!el && on) {
+      el = document.createElement('div');
+      el.id = 'np-bino';
+      el.innerHTML = '<svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice"><defs><mask id="np-bino-m"><rect width="160" height="90" fill="#fff"/><circle cx="63" cy="45" r="34" fill="#000"/><circle cx="97" cy="45" r="34" fill="#000"/></mask></defs><rect width="160" height="90" fill="#050505" mask="url(#np-bino-m)"/><path d="M70 45h20M80 39v12M74 47.5h12" stroke="#000" stroke-width=".35" fill="none" opacity=".7"/></svg>';
+      el.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5;display:none';
+      el.firstChild.style.cssText = 'width:100%;height:100%;display:block';
+      document.body.appendChild(el);
+    }
+    if (el) el.style.display = on ? 'block' : 'none';
+    const vm = this.weapon && this.weapon.viewModel;
+    if (vm && typeof vm.setVisible === 'function' && (on || !this.vehicle)) vm.setVisible(!on); // Waffe weg, solange das Fernglas vor den Augen ist
+  }
+
   _spot(def, now) {
     const G = this.G;
     const g = this.gadget;
@@ -1934,7 +1968,8 @@ export class Player {
     const adsFov = this._adsFov(zoomDef);
     this.adsZoom = Math.tan((this.baseFov * Math.PI) / 360) / Math.tan((adsFov * Math.PI) / 360);
     const hipFov = this.baseFov + (this._sprintBlend * 3.5 + this._slideBlend * 6) * (reduced ? 0.3 : 1);
-    const fov = hipFov + (adsFov - hipFov) * ads;
+    let fov = hipFov + (adsFov - hipFov) * ads;
+    if (this.binoOn) fov = zoomFov(this.baseFov, (GADGETS.fernglas && GADGETS.fernglas.zoom) || 6); // Fernglas (Besatzung)
     if (Math.abs(cam.fov - fov) > 0.01) {
       cam.fov = fov;
       cam.updateProjectionMatrix();

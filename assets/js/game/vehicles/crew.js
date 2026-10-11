@@ -105,7 +105,8 @@ export function loadAction(v, seat, action, ammo = null, { net = false } = {}) {
     default:
       return { ok: false, why: 'schritt' };
   }
-  g.busy = LOAD_TIMES[action];
+  const pk = (actor && actor.classDef && actor.classDef.perks) || {};
+  g.busy = LOAD_TIMES[action] * (pk.crewLoadMult || 1); // Besatzung lädt 25 % schneller
   g.busyKind = action;
   g._busyMax = g.busy;
   v.G.events.emit('vehicle:load', { vehicle: v, actor, step: action, ammo: g.held || g.select });

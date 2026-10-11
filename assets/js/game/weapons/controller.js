@@ -14,6 +14,7 @@ import { WEAPONS as DATA_WEAPONS, EQUIPMENT as DATA_EQUIPMENT, effectiveRange, w
 import { clamp, damp, smooth01, easeInOut, wrapAngle, samplePellet, sampleCone, patternAt } from './ballistics/math.js';
 import { applyAttachments, loadAttachments } from '../../shared/attachments.data.js';
 import { getWeaponModelInfo } from './models.js';
+import { classDef } from '../../shared/classes.data.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const _eye = new THREE.Vector3();
@@ -245,6 +246,10 @@ export class WeaponController {
       return { id: def.id, def, mag: def.mag || 0, reserve: def.reserve || 0 };
     };
     this.slots = secondary ? [mk(primary), mk(secondary)] : [mk(primary)];
+    // Klassenwerkzeug als eigene Waffe (Pionier: Klappspaten, Mausrad/Wechseln) – nur der Spieler, Bots wie bisher
+    const toolId = loadout.tool !== undefined ? loadout.tool : this.actor && this.actor.isPlayer ? classDef(loadout.cls || this.actor.cls).tool : null;
+    const td = toolId ? this._def(toolId) : null;
+    if (td && td.cls === 'melee' && !this.slots.some((x) => x.id === td.id)) this.slots.push(mk(td));
     // Ausrüstung
     const EQ = this._equipmentDefs();
     const lethal = loadout.lethal === null ? null : loadout.lethal === undefined ? (this.equipment.lethal.id || 'frag') : loadout.lethal;

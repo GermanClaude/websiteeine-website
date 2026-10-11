@@ -154,6 +154,11 @@ export const GADGETS = deepFreeze({
     id: 'repair', name: 'Reparaturwerkzeug', cls: 'pionier', charges: 0, hold: true, rate: 55, range: 3.2,
     desc: 'Gedrückt halten an einem beschädigten eigenen Fahrzeug: 55 Strukturpunkte pro Sekunde.',
   },
+  // Besatzung (Nutzer 11.10.): Fernglas halten (Taste Ausrüstung) – 6×, markiert Gegner in der Bildmitte
+  fernglas: {
+    id: 'fernglas', name: 'Fernglas', cls: 'besatzung', charges: 0, zoom: 6, cooldown: 0.6, range: 500, cone: 0.035, duration: 8,
+    desc: 'Halten: 6-fach vergrößert beobachten, Gegner in der Bildmitte werden für das Team markiert.',
+  },
   spot: {
     id: 'spot', name: 'Markieren', cls: 'aufklaerer', charges: 0, cooldown: 1.2, range: 350, cone: 0.06, duration: 8,
     desc: 'Markiert den Gegner im Visier 8 s lang für dein Team (Minikarte und Marker).',
@@ -165,6 +170,10 @@ export const GADGETS = deepFreeze({
 // Je Klasse eine aktive Fähigkeit mit Abklingzeit (neben der Ausrüstung). Online setzt der Host die Wirkung auf die Leben
 // der Puppe um (Regeneration, net/sync-host.js _onAbility); Nachladen, Rückstoß, Munition und Aufklärung wirken lokal.
 export const ABILITIES = deepFreeze({
+  notreparatur: {
+    id: 'notreparatur', name: 'Notreparatur', cls: 'besatzung', cooldown: 45, repair: 300, range: 6,
+    desc: 'Eigenes Fahrzeug (drinnen oder ≤ 6 m): +300 Leben, ausgefallene Kette/Motor/Turm laufen wieder.',
+  },
   kampfrausch: {
     id: 'kampfrausch', name: 'Kampfrausch', cls: 'sturm', cooldown: 40, duration: 8, reloadMult: 1.45, recoilMult: 0.65,
     desc: '8 s lang 45 % schneller nachladen und 35 % weniger Rückstoß.',
@@ -186,8 +195,10 @@ export const abilityOfClass = (cls) => Object.values(ABILITIES).find((a) => a.cl
 
 /* ================================================================ Klassen */
 
-// Alle Schusswaffen stehen allen Klassen offen (wie Battlefield 6); Werfer nur dem Pionier.
-const ALL_WEAPONS = Object.freeze(['ar', 'carbine', 'smg', 'lmg', 'marksman', 'sniper', 'shotgun', 'pistol', 'melee']);
+// Waffen je Klasse (Nutzer 11.10.: nicht jede Waffe in jeder Klasse) – Pistolen und Nahkampf haben alle, Werfer nur
+// der Pionier. Sturm: Sturmgewehre/Karabiner/Schrotflinten · Sanitäter: MPs/Karabiner · Pionier: MGs/Schrotflinten/MPs ·
+// Aufklärer: Präzisions- und Scharfschützengewehre · Besatzung: MPs.
+const SIDEARMS = ['pistol', 'melee'];
 
 /**
  * prefer.* = Wunschreihenfolge je Platz; resolveClassLoadout() nimmt die erste existierende, freigeschaltete Waffe.
@@ -199,7 +210,7 @@ export const CLASSES = deepFreeze({
     id: 'sturm', name: 'Sturm', short: 'STU', icon: 'sturm',
     role: 'Speerspitze im Angriff: mittlere Weste, Sturmgewehr und eine Adrenalinspritze für den letzten Meter.',
     armor: 'mittel', helmet: 'standard', gadget: 'adrenalin',
-    weaponClasses: ALL_WEAPONS,
+    weaponClasses: ['ar', 'carbine', 'shotgun', ...SIDEARMS],
     signature: ['ar', 'carbine'],
     prefer: { primary: ['ar_m17', 'ar_kv47'], secondary: ['pi_p9', 'pi_adler'], lethal: ['frag', 'semtex'] },
     perks: { sprintAfterKill: 1.1, sprintAfterKillTime: 5 },
@@ -210,7 +221,7 @@ export const CLASSES = deepFreeze({
     id: 'sanitaeter', name: 'Sanitäter', short: 'SAN', icon: 'sanitaeter',
     role: 'Hält den Trupp am Leben: heilt schneller, belebt in 1,5 s wieder und trägt einen Verbandskasten für alle.',
     armor: 'leicht', helmet: 'standard', gadget: 'medkit',
-    weaponClasses: ALL_WEAPONS,
+    weaponClasses: ['smg', 'carbine', ...SIDEARMS],
     signature: ['smg'],
     prefer: { primary: ['smg_vp9', 'smg_qx90', 'ar_m17'], secondary: ['pi_p9', 'pi_adler'], lethal: ['frag', 'semtex'] },
     perks: { regenDelayMult: 0.7, regenRateMult: 1.35, reviveTime: 1.5, reviveHealth: 60 },
@@ -221,7 +232,8 @@ export const CLASSES = deepFreeze({
     id: 'pionier', name: 'Pionier', short: 'PIO', icon: 'pionier',
     role: 'Gegen Panzer und für Fahrzeuge: schwere Weste mit vier Platten, Werfer, Reparaturwerkzeug und 20 % weniger Explosionsschaden.',
     armor: 'schwer', helmet: 'schwer', gadget: 'repair',
-    weaponClasses: [...ALL_WEAPONS, 'launcher'],
+    weaponClasses: ['lmg', 'shotgun', 'smg', ...SIDEARMS, 'launcher'],
+    tool: 'spaten', // Klappspaten als eigene Waffe (Mausrad), gräbt beliebig tief (digging.js)
     signature: ['lmg', 'shotgun'],
     prefer: { primary: ['lmg_hm60', 'sg_bulldog', 'ar_kv47', 'ar_m17'], secondary: ['pi_adler', 'pi_p9'], lethal: ['semtex', 'frag'] },
     launcher: ['at_donner', 'pf3', 'pf3_faust', 'lr2', 'lr2_degen'],
@@ -233,16 +245,27 @@ export const CLASSES = deepFreeze({
     id: 'aufklaerer', name: 'Aufklärer', short: 'AUF', icon: 'aufklaerer',
     role: 'Augen des Teams: Präzisionswaffen, leichte Weste, markiert Gegner 8 s lang und hält länger den Atem an.',
     armor: 'leicht', helmet: 'keine', gadget: 'spot',
-    weaponClasses: ALL_WEAPONS,
+    weaponClasses: ['sniper', 'marksman', ...SIDEARMS],
     signature: ['sniper', 'marksman'],
     prefer: { primary: ['sr_brecher', 'mr_sk14', 'ar_kv47', 'ar_m17'], secondary: ['pi_p9', 'pi_adler'], lethal: ['frag', 'semtex'] },
     perks: { spotDuration: 8, holdBreathMult: 1.5, footstepVolume: 0.8 },
     look: { id: 'aufklaerer', variant: 'kundschafter', camo: 'ghillie', sleeve: '#4c5a3a', glove: '#33352a', vest: 'brustgurt', helmet: 'boonie', pack: 'funk', patch: 'auge', accent: '#7e9b5a' },
     bot: { weight: 0.15, aggression: 0.35 },
   },
+  besatzung: {
+    id: 'besatzung', name: 'Besatzung', short: 'BES', icon: 'besatzung',
+    role: 'Panzerbesatzung: leichte Weste, MP und Pistole, Rauch- und Splittergranate, Fernglas; wechselt im Panzer doppelt so schnell den Sitz, lädt 25 % schneller und repariert das eigene Fahrzeug im Notfall.',
+    armor: 'leicht', helmet: 'standard', gadget: 'fernglas', tactical: 'smoke',
+    weaponClasses: ['smg', ...SIDEARMS],
+    signature: ['smg'],
+    prefer: { primary: ['smg_vp9', 'smg_qx90'], secondary: ['pi_p9', 'pi_adler'], lethal: ['frag'] },
+    perks: { crewSwitchMult: 0.5, crewLoadMult: 0.75 },
+    look: { id: 'besatzung', variant: 'funker', camo: 'oliv', sleeve: '#3d4034', glove: '#232320', vest: 'brustgurt', helmet: 'gefechtshelm', pack: 'funk', patch: 'zahnrad', accent: '#9a8a5a' },
+    bot: { weight: 0, aggression: 0.4 },
+  },
 });
 // Eigener Name: G.data.CLASS_ORDER ist die Waffenklassen-Reihenfolge (weapons.data.js).
-export const SOLDIER_CLASS_ORDER = Object.freeze(['sturm', 'sanitaeter', 'pionier', 'aufklaerer']);
+export const SOLDIER_CLASS_ORDER = Object.freeze(['sturm', 'sanitaeter', 'pionier', 'aufklaerer', 'besatzung']);
 export const DEFAULT_CLASS = 'sturm';
 
 export const classDef = (id) => CLASSES[id] || CLASSES[DEFAULT_CLASS];
@@ -282,6 +305,7 @@ export function resolveClassLoadout(clsId, { weapons = {}, equipment = {}, isUnl
     helmet: HELMETS[b.helmet] ? b.helmet : c.helmet,
     gadget: c.gadget,
     launcher,
+    ...(c.tactical && !(b.tactical && equipment[b.tactical]) ? { tactical: c.tactical } : {}),
   };
 }
 
