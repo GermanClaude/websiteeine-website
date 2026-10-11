@@ -121,6 +121,13 @@ node tools/shot.mjs http://localhost:8765/index.html tools/out/site.png --mobile
 
 `spielen.html` versteht URL-Parameter für Tests und Direktlinks: `mode`, `map`, `diff`, `allies`, `enemies`, `autostart=1`, `quality`, `time`, `score`, `primary`, `secondary`, `lethal`, `debug=1`.
 
+## Rechte
+
+© 2026 German Legend (Discord: `German_Legend_26201`, E-Mail: legendgerman749@gmail.com). Alle Rechte vorbehalten.
+Spielidee, Konzept, Spielmodi, Spielmechaniken, Karten, Modelle, Grafiken, Texte und Code von NULLPUNKT liegen bei German Legend.
+Wer Inhalte, Ideen, Mechaniken oder sonstige Teile übernehmen, kopieren, verändern oder weiterverwenden möchte, muss vorher um
+Erlaubnis fragen. Ausgenommen sind die Fremdbestandteile unten, die unter ihren eigenen Lizenzen stehen.
+
 ## Lizenzen
 
 - Three.js: MIT-Lizenz (`assets/vendor/three/LICENSE`)

@@ -982,6 +982,8 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .keys dd { color: var(--ink-2); font-size: var(--fs-small); }
 .impressum { margin-bottom: 40px; }
 .impressum p, .impressum address { font-style: normal; font-size: var(--fs-small); line-height: 1.6; }
+.rights p + p { margin-top: 10px; }
+.rights code { font-size: .95em; }
 .dlg-text { max-width: 44ch; margin: 16px 0 24px; }
 .dlg-actions { display: flex; justify-content: flex-end; gap: 24px; align-items: center; }
 .dlg-go { font-size: 22px; font-weight: 800; min-height: 44px; padding: 0 4px; }
