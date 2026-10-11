@@ -988,6 +988,7 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .reveal p { font-size: var(--fs-small); line-height: 1.65; margin: 10px 0 0; }
 .reveal .reveal-tag { margin: 0 0 8px; font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: #ffb21f; }
 .reveal .reveal-guess { color: var(--ink-2); }
+.reveal .reveal-sign { font-style: italic; color: var(--ink-2); margin-top: 6px; }
 .reveal .reveal-h { margin: 26px 0 4px; font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: #ffb21f; font-weight: 600; }
 .reveal-time { list-style: none; margin: 8px 0 0; padding: 0 0 0 16px; border-left: 1px solid var(--line); }
 .reveal-time li { position: relative; font-size: var(--fs-small); line-height: 1.6; margin: 0 0 14px; }

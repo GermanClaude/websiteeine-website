@@ -286,43 +286,47 @@ export function openFeedback({ page = 'Spiel', onDone = null, onRevealed = null 
 
 const GUESS_REPLY = {
   'Mit Hilfe von KI': 'Gut erkannt!',
-  'Eine Person allein': 'Fast: eine Person mit einer KI.',
-  'Kleines Team': 'Eher nicht: ein Mensch und eine KI.',
+  'Eine Person allein': 'Fast: ich, zusammen mit einer KI.',
+  'Kleines Team': 'Eher nicht: nur ich und eine KI.',
   'Großes Studio': 'Weit gefehlt, und genau das ist das Spannende.',
   'Weiß nicht': 'Jetzt weißt du es.',
 };
-/** HTML des freigeschalteten Abschnitts (Startseite, §08 Über). */
+/** HTML des freigeschalteten Abschnitts (Startseite, §08 Über) – aus der Sicht von German Legend geschrieben. */
 export function revealHtml() {
   const g = load().guess;
-  const guess = g ? `<p class="reveal-guess">Deine Vermutung im Feedback: <strong>${esc(g)}</strong>. ${esc(GUESS_REPLY[g] || '')}</p>` : '';
+  const guess = g ? `<p class="reveal-guess">Du hast im Feedback getippt: <strong>${esc(g)}</strong>. ${esc(GUESS_REPLY[g] || '')}</p>` : '';
   return `
     <p class="reveal-tag">Freigeschaltet · Danke für dein Feedback</p>
     <h3 class="mono-h" id="h-entstehung">Wie NULLPUNKT entstanden ist</h3>
-    <p>NULLPUNKT ist ein Experiment. Die Idee, das Konzept, die Spielmodi, die Wünsche zu Karten, Waffen und Fahrzeugen, die
-    Geschichten dahinter, das Testen mit der Community und jede Entscheidung, wie das Spiel sein soll, kommen von
-    <strong>German Legend</strong>.</p>
+    <p>NULLPUNKT ist ein Experiment, und du hast gerade den Teil gefunden, der es auflöst. Die Idee, das Konzept, die Spielmodi,
+    die Wünsche zu Karten, Waffen und Fahrzeugen, die Geschichten dahinter und jede Entscheidung, wie das Spiel sein soll,
+    kommen von mir. Getestet habe ich es mit meinen Freunden.</p>
     <p>Den Code hat eine künstliche Intelligenz geschrieben: <strong>Claude</strong> von Anthropic. Weil in NULLPUNKT fast alles
-    aus Code entsteht, gilt das auch für Modelle, Karten, Klänge und Effekte. Sie wurden nach seinen Vorgaben gebaut und so
-    lange überarbeitet, bis es passte. Dazu kommen freie Texturen und Umgebungslicht von Poly Haven und ambientCG.</p>
+    aus Code entsteht, gilt das auch für Modelle, Karten, Klänge und Effekte. Sie sind nach meinen Vorgaben entstanden und
+    wurden so lange überarbeitet, bis sie gepasst haben. Dazu kommen freie Texturen und Umgebungslicht von Poly Haven und
+    ambientCG.</p>
     ${guess}
-    <p><strong>Die erste Frage hinter dem Experiment:</strong> Merkt man einem Spiel heute noch an, ob es mit KI entstanden ist?</p>
-    <p><strong>Die zweite:</strong> Kann KI etwas Gutes sein? NULLPUNKT soll zeigen, dass sie kleinen Entwicklern ohne Studio und
-    Budget die schwere Arbeit abnehmen kann, damit aus einer Idee ein Spiel wird. Die Ideen und die Richtung bleiben beim
+    <p>Mich interessieren dabei zwei Fragen. <strong>Erstens:</strong> Merkt man einem Spiel heute noch an, ob es mit KI
+    entstanden ist? <strong>Zweitens:</strong> Kann KI etwas Gutes sein? Ich glaube ja. Sie kann kleinen Entwicklern ohne Studio
+    und Budget die schwere Arbeit abnehmen, damit aus einer Idee ein Spiel wird. Die Ideen und die Richtung bleiben beim
     Menschen.</p>
     <h4 class="reveal-h">Die Geschichte</h4>
     <ol class="reveal-time">
       ${HISTORY.map(([when, title, text]) => `<li><span class="reveal-when">${when}</span><strong>${title}</strong> ${text}</li>`).join('')}
-    </ol>`;
+    </ol>
+    <p>Danke an meine Freunde fürs Testen und an dich fürs Spielen und für dein Feedback.</p>
+    <p class="reveal-sign">— German Legend</p>`;
 }
 
-/** Zeitleiste der Entstehung (aus der Projektgeschichte, Stand 11.10.2026). */
+/** Zeitleiste der Entstehung (aus der Projektgeschichte, Stand 11.10.2026), in der Ich-Form von German Legend. */
 const HISTORY = [
-  ['4. Oktober 2026', 'Ein Missverständnis.', 'German Legend wollte eigentlich eine Seite mit vielen kleinen Browserspielen bauen, wie es sie in der Corona-Zeit überall gab. Die KI hat den Auftrag anders verstanden und einen einzigen großen 3D-Shooter angefangen. Das gefiel so gut, dass daraus NULLPUNKT wurde. Am ersten Abend entstanden das Grundgerüst, die Klang-Engine, die Altstadt und die ersten Waffen. (Bei GTA war es übrigens ähnlich: Es sollte zuerst ein Rennspiel werden.)'],
-  ['5. Oktober', 'Die Welt wächst.', 'Hafen und Werk kommen dazu, Bots mit eigener Taktik, freie Texturen und echte Tonaufnahmen, dazu die große Karte Grenzland mit Fahrzeugen.'],
-  ['6. Oktober', 'Die ersten Tester.', 'Spieler aus der SCP:SL-Community schicken eine lange Fehlerliste. Die Karten werden größer, Bots lernen von Spielern und kämpfen 32 gegen 32, Grafik und Waffen bekommen eine Realismus-Runde.'],
-  ['7. und 8. Oktober', 'Der Plan für den Mehrspieler.', 'Ohne eigenen Spielserver: Die Browser der Spieler verbinden sich direkt miteinander. Dazu kommt ein VR-Modus für die Meta Quest 3.'],
-  ['9. Oktober', 'Live.', 'Die Mehrspieler-Beta geht online, am Abend spielen die ersten acht Leute zusammen. Noch am selben Abend kommen der Modus „Nur Messer“ und eine steuerbare Drohne.'],
-  ['10. Oktober', 'Mehr Modi, mehr Karten.', 'Infiziert und Waffenspiel online, Klassen-Fähigkeiten, Munition von Gefallenen im Realismus-Modus und die Zauberbibliothek als neue Karte.'],
-  ['11. Oktober', 'Der große Test.', 'Zehn Spieler aus der UGN-Community spielen gleichzeitig: ein voller Erfolg. Am selben Tag folgen Verletzungen und Nahkampfwaffen, zerstörbare Fassaden und verformbare Autos, die Stellungskriegskarte Niemandsland mit Gräben und Panzer aus drei Epochen nach echten Vorbildern, mit Innenraum und Ladeschützen.'],
-  ['Bis heute', 'In Zahlen.', 'Eine Woche, fast 300 gespeicherte Arbeitsschritte, rund 140.000 Zeilen Code in über 400 Dateien. Die Ideen kamen von einer Person, den Code schrieb eine KI.'],
+  ['4. Oktober 2026', 'Ein Missverständnis.', 'Eigentlich wollte ich eine Seite mit vielen kleinen Browserspielen bauen, so wie es sie in der Corona-Zeit überall gab. Die KI hat meinen Auftrag anders verstanden und einfach einen einzigen großen 3D-Shooter angefangen. Ich habe ihn mir angeschaut und gedacht: Das ist besser als mein Plan. Deshalb heißt das Projekt auf GitHub bis heute „FreeGames-Website“. Bei GTA war es übrigens ähnlich, das sollte zuerst ein Rennspiel werden. Am ersten Abend standen schon das Grundgerüst, eine eigene Klang-Engine, die erste Karte Altstadt und die ersten Waffen.'],
+  ['5. Oktober', 'Die Welt wächst.', 'Mein Ziel war von Anfang an: so realistisch wie möglich, irgendwo zwischen CS:GO, Battlefield und Bodycam. An diesem Tag kamen der Hafen und das Werk dazu, Bots, die Deckung suchen und flankieren, Fotoscan-Texturen und echte Tonaufnahmen für die Waffen. Weil ich auch Fahrzeuge wollte, entstand die große Karte Grenzland mit Dorf, Bauernhof, Industrie und einer Brücke, samt ein paar versteckten Geheimnissen.'],
+  ['6. Oktober', 'Meine Freunde testen.', 'Zum ersten Mal habe ich das Spiel Freunden gezeigt. Zurück kam eine lange Fehlerliste: eine unsichtbare Wand an einer Treppe, schwebende Lampen und eine Waffe, die an Wänden nach oben klappt. Alles wurde abgearbeitet. Die Karten wurden um ein Viertel größer und bekamen mehr Deckung, die Bots lernen seitdem von den Spielern und kämpfen bis zu 32 gegen 32. Ich wollte Grafik wie in der Unreal Engine 5. Die KI hat mir ehrlich gesagt, dass das im Browser so nicht geht, und dann herausgeholt, was möglich ist.'],
+  ['7. und 8. Oktober', 'Der Plan für den Mehrspieler.', 'Ab jetzt sollte man zusammen spielen können, und zwar ohne teuren Spielserver: Die Browser der Spieler verbinden sich direkt miteinander, ein Raumcode reicht. Bis zu 32 Spieler, Bots füllen auf, und ein Anti-Cheat prüft die Treffer. Weil ich mir gerade eine VR-Brille geholt hatte, kam auch noch ein VR-Modus für die Meta Quest 3 dazu.'],
+  ['9. Oktober', 'Live.', 'Die Mehrspieler-Beta ging online. Am Abend habe ich mit etwa acht Freunden gespielt, und es lief. Aus der Runde kamen sofort neue Wünsche: ein Modus nur mit Messern und eine Drohne, die man selbst steuert. Beides war noch in derselben Nacht drin, dazu ein Befehlsrad, mit dem man verbündeten Bots Befehle gibt.'],
+  ['10. Oktober', 'Mehr Modi, mehr Karten.', 'Infiziert und Waffenspiel gingen online, jede Klasse bekam eine eigene Fähigkeit, im Realismus-Modus muss man Munition bei Gefallenen aufsammeln, und Pioniere können Sandsäcke, MG-Nester und Bunker bauen. Die Waffen bekamen mehr Details. Dazu kam eine neue Karte: eine Zauberbibliothek in einer Steinhalle mit verwinkelten Regalgassen, Galerien und Brücken.'],
+  ['Am Wochenende', 'Der große Test.', 'Zehn Freunde gleichzeitig in einem Match, und alles hat gehalten: ein voller Erfolg. Danach ging es direkt weiter: Verletzungen mit Verband und Wiederbeleben, neue Nahkampfwaffen wie Axt und Schlagstock, Fassaden, die nach Explosionen herausbrechen, Autos, die sich verformen, Fenster zum Zerschießen, über 20 Waffenaufsätze und die Stellungskriegskarte Niemandsland mit Gräben, die man mit dem Spaten selbst tiefer graben kann.'],
+  ['11. Oktober', 'Panzer.', 'Ich wollte Panzer mit richtig vielen Details. Jetzt gibt es Panzer aus drei Epochen, nach echten Vorbildern gebaut: einen modernen Kampfpanzer, im Zweiten Weltkrieg einen mittleren und einen schweren Panzer, im Ersten Weltkrieg einen leichten Panzer mit dem ersten voll drehbaren Turm und einen schweren Sturmpanzer. Dazu Innenräume, einen Ladeschützen mit Armen und echtem Ladeablauf, Munition, die in jedem Panzer woanders liegt (im modernen hinter einer Schiebetür), ein Schadensmodell mit Besatzung und Munitionslager, Tarnungen zum Freispielen und eine neue Klasse: die Panzerbesatzung.'],
+  ['Bis heute', 'In Zahlen.', 'Eine Woche. Fast 300 gespeicherte Arbeitsschritte, rund 140.000 Zeilen Code in über 400 Dateien. Sechs Karten und ein Schießstand, neun Spielmodi, 22 Schusswaffen und Werfer, acht Nahkampfwaffen, fünf Panzer und ein Geländewagen. Alle Ideen von mir, getestet mit meinen Freunden, der Code von einer KI.'],
 ];
