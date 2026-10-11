@@ -1202,16 +1202,16 @@ function buildInterior(S, D) {
   } else if (era === 'wk2') {
     // Röhrenfunkgerät mit Skalen, Bordsprechkästen, Kartenbrett, Patronensäcke fürs MG, Sehklappen-Handräder
     B.add(box(0.24, 0.3, 0.44), S.dark, [-1.08, 0.36, 0.85]);
-    for (let i = 0; i < 3; i++) B.add(cyl(0.035, 0.035, 0.02, 10), S.lamp, [-0.955, 0.42, 0.7 + i * 0.13], [0, 0, Math.PI / 2]);
-    for (let i = 0; i < 4; i++) B.add(cyl(0.018, 0.018, 0.03, 8), S.brass, [-0.955, 0.3, 0.68 + i * 0.1], [0, 0, Math.PI / 2]);
+    for (let i = 0; i < 3; i++) B.add(cyl(0.035, 0.035, 0.02, 6), S.lamp, [-0.955, 0.42, 0.7 + i * 0.13], [0, 0, Math.PI / 2]);
+    for (let i = 0; i < 3; i++) B.add(cyl(0.018, 0.018, 0.03, 6), S.brass, [-0.955, 0.3, 0.68 + i * 0.1], [0, 0, Math.PI / 2]);
     for (const [x, z] of [[-1.0, -0.6], [1.0, -0.65]]) B.add(box(0.12, 0.16, 0.1), S.dark, [x, 0.5, z]);
     B.add(box(0.3, 0.02, 0.24), S.wood, [-0.85, 0.42, -0.1], [0, 0, 0.2]);
-    for (let i = 0; i < 3; i++) B.add(box(0.12, 0.16, 0.08), S.canvas, [-1.08, 0.18, -0.3 + i * 0.1]);
-    for (const [x, z] of [[0.62, -1.05], [-0.62, -1.05]]) B.add(cyl(0.05, 0.05, 0.02, 12), S.dark, [x, 0.52, z], [Math.PI / 2, 0, 0]);
+    for (let i = 0; i < 2; i++) B.add(box(0.12, 0.16, 0.08), S.canvas, [-1.08, 0.18, -0.3 + i * 0.1]);
+    for (const [x, z] of [[0.62, -1.05], [-0.62, -1.05]]) B.add(cyl(0.05, 0.05, 0.02, 8), S.dark, [x, 0.52, z], [Math.PI / 2, 0, 0]);
   } else {
     // 1. WK: Nieten an den Wänden, Holzkisten mit Granaten, Werkzeugkiste, Öllampe am Haken, Sprachrohr zum Fahrer
-    for (const [x, z] of [[-1.2, -1.2], [-1.2, 0.5], [1.2, -1.2], [1.2, 0.6]]) for (let i = 0; i < 6; i++) B.add(box(0.025, 0.025, 0.025), S.steel, [x, 0.12 + i * 0.1, z]);
-    for (let i = 0; i < 8; i++) B.add(box(0.025, 0.025, 0.025), S.steel, [-0.8 + i * 0.22, 0.12, -1.9]);
+    for (const [x, z] of [[-1.2, -1.2], [-1.2, 0.5], [1.2, -1.2], [1.2, 0.6]]) for (let i = 0; i < 3; i++) B.add(box(0.025, 0.025, 0.025), S.steel, [x, 0.15 + i * 0.2, z]);
+    for (let i = 0; i < 4; i++) B.add(box(0.025, 0.025, 0.025), S.steel, [-0.66 + i * 0.44, 0.12, -1.9]);
     for (const [x, z, ry] of [[0.95, -0.7, 0]]) { B.add(box(0.36, 0.22, 0.42), S.wood, [x, 0.17, z], [0, ry, 0]); B.add(box(0.37, 0.03, 0.43), S.steel, [x, 0.27, z], [0, ry, 0]); }
     B.add(box(0.3, 0.14, 0.18), S.dark, [-0.95, 0.07, -0.55]);
     B.add(cyl(0.05, 0.06, 0.12, 10), S.brass, [0.2, 0.58, 0.95]); B.add(cyl(0.035, 0.035, 0.07, 8), S.lamp, [0.2, 0.5, 0.95]);
