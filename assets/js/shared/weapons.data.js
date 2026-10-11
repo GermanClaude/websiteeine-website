@@ -432,6 +432,8 @@ const FEEL = {
   sg_hagel: { handling: { mass: 3.9, inertia: 1.1, swayScale: 1.05, aimDrift: 0.0005, reach: 1.17 }, recoil: { visual: 1.05, firstShotSpread: 1 } },
   pi_kobra: { handling: { mass: 1.3, inertia: 0.65, swayScale: 0.88, aimDrift: 0.0007, reach: 0.64 }, recoil: { visual: 1.25, firstShotSpread: 0.75 } },
   at_donner: { handling: { mass: 7.0, inertia: 1.45, swayScale: 1.2, aimDrift: 0.0008, reach: 1.26 }, recoil: { visual: 1.0, firstShotSpread: 1 } },
+  gl_hammer: { handling: { mass: 2.8, inertia: 0.95, swayScale: 1.0, aimDrift: 0.0006, reach: 0.8 }, recoil: { visual: 1.1, firstShotSpread: 1 } },
+  gl_trommel: { handling: { mass: 5.6, inertia: 1.25, swayScale: 1.1, aimDrift: 0.0007, reach: 1.0 }, recoil: { visual: 1.1, firstShotSpread: 1 } },
   karambit: { handling: { mass: 0.2, inertia: 0.35, swayScale: 0.65, aimDrift: 0, reach: 0 } },
   machete: { handling: { mass: 0.6, inertia: 0.5, swayScale: 0.75, aimDrift: 0, reach: 0 } },
   tomahawk: { handling: { mass: 0.7, inertia: 0.55, swayScale: 0.78, aimDrift: 0, reach: 0 } },
@@ -685,6 +687,31 @@ const RAW = {
     },
     range: 300, penetration: 0, suppressed: false, sound: { profile: 'sniper', pitch: 0.55, alt: 'launcher' }, model: 'donner',
   },
+  // Granatwerfer (Nutzer 11.10.: mehr Explosivwaffen) – 40-mm-Splittergranaten im Bogen (ballistics/rockets.js, ohne Schub)
+  gl_hammer: {
+    id: 'gl_hammer', name: 'GW-40 Hammer', cls: 'launcher', slot: 'secondary', unlockLevel: 6,
+    description: 'Einschüssiger 40-mm-Granatwerfer: Splittergranate im hohen Bogen, scharf ab 12 m. Räumt Fenster, Gräben und Stellungen.',
+    damage: { max: 120, min: 120, rangeStart: 0, rangeEnd: 150 }, headMult: 1, limbMult: 1, pellets: 1,
+    rpm: 40, fireMode: 'single', burstCount: 1, mag: 1, reserve: 6,
+    reloadTime: 2.4, reloadEmptyTime: 2.4, perShellReload: false,
+    equipTime: 0.6, adsTime: 0.32, adsZoom: 1.3, sight: 'iron', scope: null, sprintToFire: 0.3,
+    moveSpeedMult: 0.95, adsMoveMult: 0.6, hipSpread: 0.04, adsSpread: 0.006, moveSpreadMult: 1.5, jumpSpreadMult: 2.6,
+    recoil: { vertical: 0.06, horizontal: 0.012, recovery: 4, firstShotMult: 1.0 },
+    projectile: { kind: 'rocket', grenade: true, speed: 76, cruise: 76, boost: 0, gravity: 9.81, life: 6, armDistance: 12, vehicleDamage: 70, actorDamage: 120, splash: { radius: 5.5, innerRadius: 1.4, maxDamage: 115, minDamage: 15 } },
+    range: 150, penetration: 0, suppressed: false, sound: { profile: 'shotgun', pitch: 0.55, alt: 'launcher' }, model: 'hammer',
+  },
+  gl_trommel: {
+    id: 'gl_trommel', name: 'GW-6 Trommel', cls: 'launcher', slot: 'primary', unlockLevel: 8,
+    description: 'Halbautomatischer 40-mm-Granatwerfer mit Trommelmagazin für fünf Granaten – Sperrfeuer für den Pionier.',
+    damage: { max: 110, min: 110, rangeStart: 0, rangeEnd: 150 }, headMult: 1, limbMult: 1, pellets: 1,
+    rpm: 95, fireMode: 'single', burstCount: 1, mag: 5, reserve: 10,
+    reloadTime: 3.4, reloadEmptyTime: 3.9, perShellReload: false,
+    equipTime: 0.8, adsTime: 0.36, adsZoom: 1.3, sight: 'iron', scope: null, sprintToFire: 0.34,
+    moveSpeedMult: 0.92, adsMoveMult: 0.55, hipSpread: 0.045, adsSpread: 0.007, moveSpreadMult: 1.5, jumpSpreadMult: 2.6,
+    recoil: { vertical: 0.055, horizontal: 0.014, recovery: 4.5, firstShotMult: 1.0 },
+    projectile: { kind: 'rocket', grenade: true, speed: 72, cruise: 72, boost: 0, gravity: 9.81, life: 6, armDistance: 12, vehicleDamage: 60, actorDamage: 110, splash: { radius: 5, innerRadius: 1.3, maxDamage: 100, minDamage: 12 } },
+    range: 150, penetration: 0, suppressed: false, sound: { profile: 'shotgun', pitch: 0.6, alt: 'launcher' }, model: 'trommel',
+  },
   karambit: {
     id: 'karambit', name: 'Karambit Kralle', cls: 'melee', slot: 'melee', unlockLevel: 9,
     description: 'Gebogene Klinge mit Fingerring: der schnellste Hieb im Arsenal (zwei Treffer, von hinten einer). Spezial „Flink“: 12 % schneller unterwegs. Wer nah genug ist, ist zu nah.',
@@ -777,6 +804,7 @@ export const WEAPON_IDS = [
   // Welle 2 (Arsenal): Karabiner, Bullpup, Kampfgewehr, Kompakt-/Schwere MP, Trommel-LMG, Anti-Material, Selbstlade-Flinte,
   // Revolver, Panzerabwehr (Pionier) + Nahkampfwaffen
   'ar_k36', 'ar_bx20', 'ar_g7', 'smg_wespe', 'smg_keiler', 'lmg_lm8', 'sr_titan', 'sg_hagel', 'pi_kobra', 'at_donner',
+  'gl_hammer', 'gl_trommel', // Granatwerfer (Pionier)
   'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock', 'spaten',
 ];
 /** Nahkampfwaffen (Slot „melee“, Ausrüstung `loadout.melee`; 'knife' ist der Standard). */

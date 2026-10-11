@@ -64,6 +64,7 @@ export class RocketSystem {
     }
     const vel = dir.clone().normalize().multiplyScalar(P.speed || 70);
     const mesh = this._mesh();
+    mesh.scale.setScalar(P.grenade ? 0.45 : 1); // 40-mm-Granate: kleiner, ohne Rauchspur
     mesh.position.copy(pos);
     mesh.quaternion.setFromUnitVectors(_z, _d.copy(vel).normalize());
     G.scene.add(mesh);
@@ -150,7 +151,7 @@ export class RocketSystem {
       r.mesh.position.copy(r.pos);
       r.mesh.quaternion.setFromUnitVectors(_z, _d);
       r.trailT -= dt;
-      if (r.trailT <= 0 && G.effects && typeof G.effects.rocketTrail === 'function') { r.trailT = 0.016; G.effects.rocketTrail(r.pos, _d); }
+      if (!P.grenade && r.trailT <= 0 && G.effects && typeof G.effects.rocketTrail === 'function') { r.trailT = 0.016; G.effects.rocketTrail(r.pos, _d); }
       const bounds = G.world && G.world.bounds;
       if (r.age > (P.life || 4.5) || (bounds && r.pos.y < bounds.min.y - 10)) { if (r.remote) this._remove(r); else this._detonate(r, r.pos, null, true); }
     }

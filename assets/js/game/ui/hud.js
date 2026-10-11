@@ -1145,8 +1145,9 @@ export class HUD {
 
     /* ---------- Munition */
     if (w && w.current && def) {
-      const st = w.current;
-      setText(this.el.wName, def.name);
+      const ub = w.underOn && w.current.under; // Unterlauf aktiv: dessen Munition und Name
+      const st = ub || w.current;
+      setText(this.el.wName, ub ? `${def.name} · Unterlauf` : def.name);
       const FM = G.data.FIRE_MODES || {};
       setText(this.el.wMode, melee ? 'Nahkampf' : FM[def.fireMode] || '');
       const infinite = G.mode && G.mode.def && G.mode.def.infiniteAmmo;

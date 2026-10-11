@@ -26,6 +26,7 @@
 //     'ev' dr an alle, ihr Ende als 'ev' de.
 import * as THREE from 'three';
 import { WEAPONS, EQUIPMENT } from '../../shared/weapons.data.js';
+import { UNDER_WEAPONS } from '../../shared/attachments.data.js';
 import { ABILITIES } from '../../shared/classes.data.js';
 import { MOUNT_WEAPON } from '../mappoints.js';
 import { netPoseOf } from '../bots/bot.js';
@@ -596,6 +597,7 @@ export class HostSync {
     const em = this.G.world && this.G.world.emplacements;
     if (em && p.position && em.some((e) => Math.hypot(e.x - p.position.x, e.z - p.position.z) < 3)) out.add(MOUNT_WEAPON);
     for (const id2 of Object.keys(WEAPONS)) if (WEAPONS[id2].cls === 'melee') out.add(id2); // Nahkampfwaffe gehört zur Klasse
+    for (const id2 of Object.keys(UNDER_WEAPONS)) out.add(id2); // Unterlauf-Aufsätze (Granatwerfer/Schrot)
     // Modus-Ausrüstung mit Übergang (Waffenspiel: Nachbarstufen, solange der Client die neue Stufe noch nicht hat)
     const mode = this.G.mode;
     if (mode && typeof mode.netWeaponsOf === 'function') { try { for (const w of mode.netWeaponsOf(p)) if (WEAPONS[w]) out.add(w); } catch { /* */ } }
@@ -643,7 +645,7 @@ export class HostSync {
     if (!target || target === p) return;
     const r = this.net.checkHit(from, m, this._ctxFor(p, from, target, m));
     if (!r || !r.ok || !(r.dmg > 0)) return;
-    const def = WEAPONS[m.weapon];
+    const def = WEAPONS[m.weapon] || UNDER_WEAPONS[m.weapon];
     // Treffer je Schuss einmal zählen (Schrot) – wie combat.fireHitscan
     if (p.stats && Number.isFinite(m.serial) && this._hitSerial.get(from) !== m.serial) {
       this._hitSerial.set(from, m.serial);
@@ -728,7 +730,7 @@ export class HostSync {
     if (dir) { if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1); else dir.normalize(); }
     const cid = Number.isFinite(m.cid) ? m.cid : null;
     if (m.kind === 'rocket') {
-      const def = WEAPONS[m.type];
+      const def = WEAPONS[m.type] || UNDER_WEAPONS[m.type];
       if (!def || !def.projectile || !dir) return;
       const own = this._weaponsOf(p, from).includes(def.id) || p.cls === 'pionier';
       if (!own) { if (this.net.anticheat) this.net.anticheat.strike(from, 'ausruestung', this.net.serverTime(), def.id); return; }

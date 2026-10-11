@@ -263,3 +263,77 @@ export function rocket(b) {
   b.anchor('muzzle', 0, 0, -0.12);
   b.meta = { sight: 'none', kind: 'gear' };
 }
+
+/** GW-40 „Hammer“ (Nutzer 11.10.): einschüssiger 40-mm-Granatwerfer – kurzes dickes Rohr, Kipplauf-Gelenk, Pistolengriff,
+ * Klappschaft, Leitervisier; geladene Granate (Teil 'rocket') schaut vorn aus dem Rohr (Nachladen wie die Panzerfaust). */
+export function hammer(b) {
+  const axis = 0.075;
+  b.cyl('steelDark', 0.027, 0.027, 0.32, 0, axis, 0.25, { seg: b.seg(20, 8) });
+  b.cyl('steel', 0.029, 0.029, 0.02, 0, axis, 0.4, { seg: b.seg(20, 8) });
+  b.circle('cavity', 0.022, 0, axis, 0.4105);
+  b.anchor('muzzle', 0, axis, 0.412);
+  if (b.hi) for (let i = 0; i < 5; i++) b.box('cavity', 0.002, 0.004, 0.18, Math.cos(i * 1.25) * 0.0272, axis + Math.sin(i * 1.25) * 0.0272, 0.25, { c: 0 });
+  // Gelenk + Gehäuse, Griff, Abzugsbügel, Klappschaft
+  b.box('steel', 0.05, 0.05, 0.12, 0, axis - 0.012, 0.04, { c: 0.006 });
+  b.cyl('steelBright', 0.008, 0.008, 0.056, 0, axis - 0.03, 0.095, { axis: 'x', seg: b.seg(12, 5) });
+  arGrip(b, 'grip', { top: 0.045, w: 0.03 });
+  triggerGuard(b, 'steel', 0.022, 0.07, 0.035, 0.03, { t: 0.005, w: 0.013, trigPos: 0.3 });
+  b.box('alu', 0.012, 0.012, 0.22, 0, axis - 0.01, -0.13, { c: 0.002 });
+  b.box('rubber', 0.04, 0.11, 0.016, 0, axis - 0.03, -0.245, { c: 0.004 });
+  // Vorderschaft unter dem Rohr
+  b.box('polymer', 0.046, 0.026, 0.16, 0, axis - 0.034, 0.24, { c: 0.006 });
+  // Leitervisier + Korn
+  const sv = axis + 0.05;
+  b.box('steel', 0.026, 0.012, 0.024, 0, axis + 0.032, 0.05, { c: 0.002 });
+  b.front('steel', [[-0.012, axis + 0.036], [0.012, axis + 0.036], [0.012, sv + 0.008], [-0.012, sv + 0.008]], 0.003, -0.048, {
+    holes: [[[-0.003, sv - 0.006], [0.003, sv - 0.006], [0.003, sv + 0.003], [-0.003, sv + 0.003]]], bevel: 0.0006,
+  });
+  b.box('steel', 0.004, sv - axis - 0.022, 0.006, 0, (sv + axis) / 2 + 0.012, 0.37, { c: 0.001 });
+  // Geladene Granate (sichtbar an der Mündung)
+  b.part('rocket', 0, axis, 0.41);
+  b.cyl('brass', 0.0215, 0.0215, 0.03, 0, axis, 0.405, { part: 'rocket', seg: b.seg(16, 6) });
+  b.cyl('paintSignal', 0.0205, 0.012, 0.03, 0, axis, 0.43, { part: 'rocket', seg: b.seg(16, 6) });
+  b.anchor('rocketGrab', -0.02, axis - 0.03, 0.46, { part: 'rocket', data: { w: 0.03, d: 0.034 } });
+  b.anchor('magGrab', -0.02, axis - 0.03, 0.46, { part: 'rocket', data: { w: 0.03, d: 0.034 } });
+  b.anchor('magWell', 0, axis, 0.41);
+  b.anchor('ejection', 0, axis, 0.09);
+  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.3, gw: 0.016, gd: 0.022, gu: 0.002, ho: 0.03, tu: 0.034 } });
+  b.anchor('sight', 0, sv, -0.048, { data: { type: 'iron', eyeRelief: 0.14 } });
+  b.anchor('leftHandGrip', 0, axis - 0.034, 0.24, { data: { style: 'under', w: 0.023, h: 0.013 } });
+  b.meta = { sight: 'iron', axis, kind: 'launcher' };
+}
+
+/** GW-6 „Trommel“: halbautomatischer 40-mm-Werfer mit Trommelmagazin (Teil 'mag') unter dem Gehäuse, Ladehebel rechts. */
+export function trommel(b) {
+  const axis = 0.072;
+  b.front('steel', roundRect(-0.026, 0.026, 0.026, 0.1, 0.008, b.hi ? 3 : 1), 0.3, -0.09, { bevel: 0.002 });
+  b.rail('steel', 0, 0.1, -0.06, 0.2);
+  b.side('polymer', [[0.21, 0.1], [0.4, 0.1], [0.41, 0.09], [0.41, 0.03], [0.4, 0.022], [0.22, 0.022], [0.21, 0.03]], 0.064, 0, { bevel: 0.006, bevelSeg: 2 });
+  b.cyl('steelDark', 0.026, 0.026, 0.32, 0, axis, 0.5, { seg: b.seg(20, 8) });
+  b.cyl('steel', 0.028, 0.028, 0.02, 0, axis, 0.65, { seg: b.seg(20, 8) });
+  b.circle('cavity', 0.021, 0, axis, 0.6605);
+  b.anchor('muzzle', 0, axis, 0.662);
+  const sv = 0.128;
+  b.box('steel', 0.03, 0.014, 0.03, 0, 0.106, -0.04, { c: 0.002 });
+  b.torus('steel', 0.0095, 0.0032, 0, sv, -0.04, { seg: b.seg(8, 4), tseg: b.seg(20, 8) });
+  b.box('steel', 0.012, sv - axis - 0.024, 0.016, 0, (sv + axis) / 2 + 0.008, 0.62, { c: 0.0015 });
+  b.part('charge', 0.03, 0.06, 0.14);
+  b.box('steel', 0.01, 0.012, 0.036, 0.03, 0.06, 0.14, { part: 'charge', c: 0.002 });
+  b.anchor('chargeGrab', 0.042, 0.06, 0.148, { part: 'charge', data: { travel: [0, 0, 0.09], style: 'right' } });
+  ejectionPort(b, 0.0262, 0.07, 0.06, 0.08, 0.03);
+  arGrip(b, 'grip', { top: 0.026, w: 0.034 });
+  triggerGuard(b, 'steel', 0.02, 0.072, 0.028, 0.03, { t: 0.005, w: 0.013, trigPos: 0.3 });
+  b.side('polymer', [[-0.09, 0.098], [-0.36, 0.1], [-0.372, 0.092], [-0.372, -0.03], [-0.36, -0.04], [-0.3, -0.03], [-0.18, 0.0], [-0.11, 0.024], [-0.09, 0.03]], 0.044, 0, { bevel: 0.006, bevelSeg: 2 });
+  b.box('rubber', 0.048, 0.135, 0.016, 0, 0.03, -0.378, { c: 0.004 });
+  // Trommelmagazin (5 Granaten)
+  b.part('mag', 0, 0.02, 0.12);
+  b.cyl('polymer', 0.07, 0.07, 0.07, 0, -0.06, 0.13, { part: 'mag', axis: 'x', seg: b.seg(24, 10) });
+  b.cyl('steel', 0.022, 0.022, 0.074, 0, -0.06, 0.13, { part: 'mag', axis: 'x', seg: b.seg(14, 6) });
+  b.box('polymer', 0.05, 0.04, 0.05, 0, 0.0, 0.13, { part: 'mag', c: 0.004 });
+  b.anchor('magGrab', 0, -0.1, 0.13, { part: 'mag', data: { w: 0.03, d: 0.06 } });
+  b.anchor('magWell', 0, 0.02, 0.12);
+  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.32, gw: 0.016, gd: 0.022, gu: 0.004, ho: 0.03, tu: 0.034 } });
+  b.anchor('sight', 0, sv, -0.04, { data: { type: 'iron', eyeRelief: 0.18 } });
+  b.anchor('leftHandGrip', 0, 0.022, 0.32, { data: { style: 'under', w: 0.032, h: 0.022 } });
+  b.meta = { sight: 'iron', axis, kind: 'shotgun' };
+}

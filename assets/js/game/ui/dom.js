@@ -1,3 +1,4 @@
+import { UNDER_WEAPONS } from '../../shared/attachments.data.js';
 // NULLPUNKT — kleine DOM-/Format-Helfer für HUD und Menüs (deutsche Zahlen, Zeiten, Escaping).
 
 export function esc(s) {
@@ -123,6 +124,7 @@ export function weaponName(G, id) {
   const EQ = (G.data && G.data.EQUIPMENT) || {};
   const S = (G.data && G.data.STREAKS) || {};
   if (W[id]) return W[id].name;
+  if (UNDER_WEAPONS[id]) return UNDER_WEAPONS[id].name; // Unterlauf-Aufsatz
   if (EQ[id]) return EQ[id].name;
   if (S[id]) return S[id].name;
   const vn = G.vehicles && G.vehicles.weaponName ? G.vehicles.weaponName(id) : null; // vehicles: Fahrzeugwaffen/-ursachen

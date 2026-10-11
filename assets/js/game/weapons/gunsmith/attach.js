@@ -46,6 +46,22 @@ export function attachToBuilder(b, att, mount) {
       b.box('rubber', 0.009, 0.009, 0.014, x0 + s * 0.0115, vb - 0.016, uB + 0.176, { c: 0.002 });
     }
   }
+  if (under && (att.unterlauf === 'granatwerfer' || att.unterlauf === 'schrotlauf')) {
+    // Unterlauf-Waffe (Alt-Feuer): Rohr unter dem Handschutz, Abzugsgehäuse; die linke Hand greift das Rohr
+    const gl = att.unterlauf === 'granatwerfer', r = gl ? 0.024 : 0.014, u0 = uL - 0.03;
+    const len = Math.max(0.12, Math.min(gl ? 0.24 : 0.27, muzzleU - u0 - 0.03)), y = vb - (gl ? 0.03 : 0.022);
+    b.box('polymer', gl ? 0.034 : 0.026, 0.02, len * 0.6, x0, vb - 0.006, u0 + len * 0.3, { c: 0.003 });
+    b.cyl('steelDark', r, r, len, x0, y, u0 + len / 2, { seg: b.seg(gl ? 18 : 14, 7) });
+    b.circle('cavity', r * 0.8, x0, y, u0 + len + 0.001);
+    if (gl) b.cyl('steel', r + 0.002, r + 0.002, 0.014, x0, y, u0 + len - 0.01, { seg: b.seg(18, 7) });
+    else {
+      b.cyl('steel', 0.01, 0.01, len * 0.85, x0, y - 0.022, u0 + len * 0.45, { seg: b.seg(10, 5) }); // Röhrenmagazin
+      b.box('polymer', 0.03, 0.03, 0.07, x0, y - 0.01, u0 + len * 0.55, { c: 0.004 });             // Pumpe
+    }
+    b.box('steel', 0.012, 0.03, 0.02, x0, y - r - 0.012, u0 + 0.015, { c: 0.002 }); // Abzug
+    lh.pos.set(x0, y - r * 0.4, -(u0 + len * 0.55));
+    lh.data = { style: 'under', w: r + 0.004, h: r };
+  }
   if (att.taktisch === 'laser') {
     if (style === 'pistol' || !under) {
       const v = (mz ? mz.pos.y : 0.03) - 0.03, u = muzzleU - (style === 'pistol' ? 0.045 : 0.14);

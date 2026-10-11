@@ -5,7 +5,7 @@ export const ID_TO_MODEL = {
   ar_kv47: 'kv47', ar_m17: 'm17', smg_vp9: 'vp9', smg_qx90: 'qx90', lmg_hm60: 'hm60', mr_sk14: 'sk14',
   sr_brecher: 'brecher', sg_bulldog: 'bulldog', pi_p9: 'p9', pi_adler: 'adler', knife: 'knife',
   ar_k36: 'k36', ar_bx20: 'bx20', ar_g7: 'g7', smg_wespe: 'wespe', smg_keiler: 'keiler', lmg_lm8: 'lm8',
-  sr_titan: 'titan', sg_hagel: 'hagel', pi_kobra: 'kobra', at_donner: 'donner',
+  sr_titan: 'titan', sg_hagel: 'hagel', pi_kobra: 'kobra', at_donner: 'donner', gl_hammer: 'hammer', gl_trommel: 'trommel',
   karambit: 'karambit', machete: 'machete', tomahawk: 'tomahawk', kampfaxt: 'kampfaxt', schlagstock: 'schlagstock', kampfstock: 'kampfstock', spaten: 'spaten',
 };
 
@@ -77,6 +77,9 @@ export const HANDLING = {
     shoulderR: [0.19, -0.3, 0.1], shoulderL: [-0.2, -0.38, -0.06],
   },
 };
+// Granatwerfer (Nutzer 11.10.): Einzellader wie das Panzerabwehrrohr (Granate vorn einsetzen), Trommel wie die Selbstladeflinte
+HANDLING.hammer = { ...HANDLING.donner, hip: [0.11, -0.13, -0.34], weight: 1.0, reloadTime: 2.4, emptyTime: 2.4, equipTime: 0.6, flash: 1.0, shoulderR: undefined, shoulderL: undefined };
+HANDLING.trommel = { ...HANDLING.hagel, kick: { back: 0.06, up: 0.09, side: 0.012, roll: 0.05, kickRot: 0.07 }, shell: 'big', weight: 1.5, flash: 1.0, reloadTime: 3.4, emptyTime: 3.9, equipTime: 0.8, inspectStyle: 'magcheck' };
 // Nahkampfwaffen (Hauptwaffe in der Hand): wie das Messer, eigene Haltung je Klinge
 HANDLING.karambit = { ...HANDLING.knife, hip: [0.13, -0.13, -0.33], hipRot: [0.35, 0.3, -2.75], inspect: 2.4 };
 HANDLING.machete = { ...HANDLING.knife, hip: [0.15, -0.16, -0.36], hipRot: [0.55, 0.42, -2.95], weight: 0.7, inspect: 2.8 };

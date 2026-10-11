@@ -9,6 +9,7 @@
 //   sfx ← q (leise Klänge: Schritte, Foley …, HDR-Fenster) ;  amb → Duck → HDR
 //   sfx/amb → world → muffle(Tiefpass: Pause, Tod, Gehör, wenig Leben) ┐
 //   fb/ui/music ──────────────────────────────────────────────────────── master → EQ(Profil) → Glue → Makeup → Limiter → Softclip
+import { UNDER_WEAPONS } from '../../shared/attachments.data.js';
 import { CATALOG, SOUND_GROUPS, GUN_PROFILES, SURFACES, AMBIENCES, STEM_IDS, REC_ONLY, EXTRA_VOICES, entryOf } from './audio/catalog.js';
 import { bank, PRIO, makeBuffer } from './audio/bank.js';
 import { makeRng, hashString, clamp, lerp } from './audio/dsp.js';
@@ -1133,7 +1134,7 @@ export class AudioEngine {
   _feet(a) { const p = a?.position || a?.body?.position; return p ? xyz(p) : null; }
   _voicePitch(a) { return a ? 0.88 + ((hashString(String(a.id ?? a.name ?? 'x')) % 1000) / 1000) * 0.26 : 1; }
 
-  weaponDef(id) { return (WEAPONS && id && WEAPONS[id]) || null; }
+  weaponDef(id) { return (WEAPONS && id && WEAPONS[id]) || (id && UNDER_WEAPONS[id]) || null; } // + Unterlauf-Waffen der Aufsätze
   profileFor(id, def = this.weaponDef(id)) {
     const p = def?.sound?.profile;
     if (p && GUN_PROFILES[p]) return p;

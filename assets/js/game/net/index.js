@@ -33,7 +33,8 @@ import { MAPS, MAP_ORDER } from '../../shared/maps.data.js';
 import { MODES, DIFFICULTY_ORDER } from '../../shared/modes.data.js';
 import { GAME_STYLES, CLASSES, ARMOR_TIERS, HELMETS } from '../../shared/classes.data.js';
 import { WEAPONS, EQUIPMENT, CAMOS } from '../../shared/weapons.data.js';
-import { ATTACHMENTS } from '../../shared/attachments.data.js';
+import { ATTACHMENTS, UNDER_WEAPONS } from '../../shared/attachments.data.js';
+const WEAPONS_ALL = { ...WEAPONS, ...UNDER_WEAPONS }; // Trefferprüfung: Waffen + Unterlauf-Aufsätze
 import { AntiCheat, PositionHistory } from './anticheat.js';
 import { recommend, UploadMeter } from './recommend.js';
 import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
@@ -43,8 +44,9 @@ import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
  *  3: Fähigkeiten, Kartenpunkte, Beute, Bauwerke, Türen/Tore ('ability'/'point'/'loot'/'build'/'door', 'ev' bs/bd/dr), TDM Ultimate.
  *  4: Graben mit dem Klappspaten ('dig' {x, z}, 'ev' dg), Karte Niemandsland.
  *  5: Fenster (Einträge zwischen Türen und Toren – Indizes von 'door'/'ev' dr verschoben).
- *  6: Panzergenerationen (Fahrzeugblock 64 Byte: Sitze 5–6; neue Fahrzeugtypen wk2/wk1, Raum-Einstellung tankEra). */
-export const NET_VERSION = 6;
+ *  6: Panzergenerationen (Fahrzeugblock 64 Byte: Sitze 5–6; neue Fahrzeugtypen wk2/wk1, Raum-Einstellung tankEra).
+ *  7: Granatwerfer (Waffenliste länger → Waffenindizes verschoben), Unterlauf-Aufsätze (ub_gl40/ub_schrot). */
+export const NET_VERSION = 7;
 /** Online wählbare Modi (Eroberung folgt mit den Fahrzeugen online, Training bleibt offline). */
 export const ONLINE_MODES = Object.freeze(['tdm', 'ult', 'ffa', 'dom', 'kc', 'messer', 'inf', 'gun']);
 /** Modi mit Fahrzeugen online (Nur Messer, Waffenspiel und Infiziert bleiben ohne – Ausrüstung kommt dort vom Modus). */
@@ -1361,7 +1363,7 @@ export class NetSystem {
     if (this.role !== 'host' || !this.anticheat) return { ok: true, dmg: claim ? claim.dmg || 0 : 0, reason: 'offline', kick: null };
     const r = this.roster.find((e) => e.id === id);
     const full = {
-      now: this.serverTime(), rtt: this.peerRtt(id) / 1000, weapons: WEAPONS, history: this.history,
+      now: this.serverTime(), rtt: this.peerRtt(id) / 1000, weapons: WEAPONS_ALL, history: this.history,
       ffa: !!(this._matchCfg && this._matchCfg.net && this._matchCfg.net.ffa), ...ctx,
     };
     const lw = r ? loadoutWeapons(r.loadout) : null;

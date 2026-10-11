@@ -236,7 +236,7 @@ export const CLASSES = deepFreeze({
     tool: 'spaten', // Klappspaten als eigene Waffe (Mausrad), gräbt beliebig tief (digging.js)
     signature: ['lmg', 'shotgun'],
     prefer: { primary: ['lmg_hm60', 'sg_bulldog', 'ar_kv47', 'ar_m17'], secondary: ['pi_adler', 'pi_p9'], lethal: ['semtex', 'frag'] },
-    launcher: ['at_donner', 'pf3', 'pf3_faust', 'lr2', 'lr2_degen'],
+    launcher: ['at_donner', 'gl_hammer', 'pf3', 'pf3_faust', 'lr2', 'lr2_degen'],
     perks: { explosiveResist: 0.2, repairMult: 1.25 },
     look: { id: 'pionier', variant: 'pionier', camo: 'oliv', sleeve: '#4f5038', glove: '#262420', vest: 'schwerer_traeger', helmet: 'schwerer_helm', pack: 'werfer', patch: 'zahnrad', accent: '#b5651d' },
     bot: { weight: 0.2, aggression: 0.6 },

@@ -55,6 +55,11 @@ export const ATTACHMENTS = {
     ok: (d, i) => ['ar', 'lmg', 'marksman', 'sniper'].includes(d.cls) && underOk(i, false), apply: (d) => { d.bipod = 0.5; d.adsTime *= 1.08; d.moveSpeedMult *= 0.98; } },
   handstopp: { slot: 'unterlauf', name: 'Handstopp', kurz: 'genauer aus der Hüfte, schneller aus dem Sprint',
     ok: (d, i) => LONG.has(d.cls) && underOk(i, false), apply: (d) => { d.hipSpread *= 0.9; d.sprintToFire *= 0.88; } },
+  // Unterlauf-Waffen (Nutzer 11.10.): Alt-Feuer, umschalten mit Taste „Unterlauf“ (U) – eigene Munition (UNDER_WEAPONS)
+  granatwerfer: { slot: 'unterlauf', name: '40-mm-Granatwerfer', kurz: 'Taste U: Splittergranate im Bogen (1 + 3); schwerer, langsamer im Anschlag',
+    ok: (d, i) => ['ar', 'carbine'].includes(d.cls) && underOk(i, false), apply: (d) => { d.under = 'ub_gl40'; d.adsTime *= 1.12; d.moveSpeedMult *= 0.97; d.equipTime = (d.equipTime || 0.5) * 1.12; } },
+  schrotlauf: { slot: 'unterlauf', name: 'Unterlauf-Schrotflinte', kurz: 'Taste U: vier Schrotpatronen für den Nahkampf; etwas schwerer',
+    ok: (d, i) => ['ar', 'carbine', 'lmg'].includes(d.cls) && underOk(i, false), apply: (d) => { d.under = 'ub_schrot'; d.adsTime *= 1.07; d.moveSpeedMult *= 0.98; } },
   // ---------------------------------------------------------------- Magazin
   erweitert: { slot: 'magazin', name: 'Erweitertes Magazin', kurz: '+50 % Patronen, langsamer nachladen',
     ok: (d) => magOk(d), apply: (d) => { d.mag = Math.round(d.mag * 1.5); d.reserve = Math.round(d.reserve * 1.25); mulReload(d, 1.1); d.adsTime *= 1.04; } },
@@ -133,6 +138,25 @@ export function attKey(att) {
 }
 
 /** Abgeleitete Definition (Kopie) mit allen Aufsätzen; ohne Aufsätze die Grundwaffe selbst. */
+/** Unterlauf-Waffen der Aufsätze (Alt-Feuer, nicht in WEAPONS – keine eigene Auswahl/kein eigenes Modell). */
+export const UNDER_WEAPONS = {
+  ub_gl40: {
+    id: 'ub_gl40', name: '40-mm-Unterlaufwerfer', cls: 'under', slot: 'under', kind: 'gl',
+    damage: { max: 120, min: 120, rangeStart: 0, rangeEnd: 150 }, headMult: 1, limbMult: 1, pellets: 1,
+    rpm: 40, fireMode: 'single', mag: 1, reserve: 3, reloadTime: 2.2, range: 150,
+    recoil: { vertical: 0.05, horizontal: 0.012, recovery: 4, firstShotMult: 1 },
+    projectile: { kind: 'rocket', grenade: true, speed: 76, cruise: 76, boost: 0, gravity: 9.81, life: 6, armDistance: 12, vehicleDamage: 70, actorDamage: 120, splash: { radius: 5.5, innerRadius: 1.4, maxDamage: 115, minDamage: 15 } },
+    suppressed: false, sound: { profile: 'shotgun', pitch: 0.55, alt: 'launcher' },
+  },
+  ub_schrot: {
+    id: 'ub_schrot', name: 'Unterlauf-Schrotflinte', cls: 'under', slot: 'under', kind: 'shotgun',
+    damage: { max: 17, min: 4, rangeStart: 5, rangeEnd: 18 }, headMult: 1.15, limbMult: 0.9, pellets: 8,
+    rpm: 70, fireMode: 'single', mag: 4, reserve: 12, reloadTime: 2.4, range: 32, penetration: 0.1,
+    hipSpread: 0.06, adsSpread: 0.045, recoil: { vertical: 0.045, horizontal: 0.014, recovery: 6, firstShotMult: 1 },
+    suppressed: false, sound: { profile: 'shotgun', pitch: 1.08 },
+  },
+};
+
 export function applyAttachments(def, att, info = null) {
   const clean = cleanAttachments(def, att, info);
   const key = attKey(clean);

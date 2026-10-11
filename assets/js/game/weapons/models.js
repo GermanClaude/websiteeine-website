@@ -20,7 +20,7 @@ import { brecher, bulldog } from './gunsmith/guns-long.js';
 import { p9, adler } from './gunsmith/guns-pistol.js';
 import { knife, frag, semtex } from './gunsmith/gear.js';
 import { k36, bx20, g7, wespe, keiler, lm8 } from './gunsmith/guns-wave2.js';
-import { titan, hagel, kobra, donner, rocket } from './gunsmith/guns-heavy.js';
+import { titan, hagel, kobra, donner, rocket, hammer, trommel } from './gunsmith/guns-heavy.js';
 import { karambit, machete, tomahawk, kampfaxt, schlagstock, kampfstock, spaten, flash, smoke, impact, molotov, plate } from './gunsmith/gear2.js';
 import { applyCamo, disposeCamos } from './gunsmith/camos.js';
 export { setMagRounds } from './gunsmith/magfill.js';
@@ -33,13 +33,13 @@ import { attKey } from '../../shared/attachments.data.js';
 
 const BUILDERS = {
   kv47, m17, vp9, qx90, hm60, sk14, brecher, bulldog, p9, adler, knife, frag, semtex,
-  k36, bx20, g7, wespe, keiler, lm8, titan, hagel, kobra, donner,
+  k36, bx20, g7, wespe, keiler, lm8, titan, hagel, kobra, donner, hammer, trommel,
   karambit, machete, tomahawk, kampfaxt, schlagstock, kampfstock, spaten, flash, smoke, impact, molotov, plate, rocket,
 };
 
 export const MODEL_KEYS = Object.keys(BUILDERS);
 export const GUN_KEYS = ['kv47', 'm17', 'vp9', 'qx90', 'hm60', 'sk14', 'brecher', 'bulldog', 'p9', 'adler',
-  'k36', 'bx20', 'g7', 'wespe', 'keiler', 'lm8', 'titan', 'hagel', 'kobra', 'donner'];
+  'k36', 'bx20', 'g7', 'wespe', 'keiler', 'lm8', 'titan', 'hagel', 'kobra', 'donner', 'hammer', 'trommel'];
 export const MELEE_KEYS = ['knife', 'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock', 'spaten'];
 export const THROWABLE_KEYS = ['frag', 'semtex', 'impact', 'molotov', 'flash', 'smoke'];
 export { applyCamo };

@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { WEAPONS as DATA_WEAPONS, EQUIPMENT as DATA_EQUIPMENT, effectiveRange, weaponHandling } from '../../shared/weapons.data.js';
 import { clamp, damp, smooth01, easeInOut, wrapAngle, samplePellet, sampleCone, patternAt } from './ballistics/math.js';
-import { applyAttachments, loadAttachments } from '../../shared/attachments.data.js';
+import { applyAttachments, loadAttachments, UNDER_WEAPONS } from '../../shared/attachments.data.js';
 import { getWeaponModelInfo } from './models.js';
 import { classDef } from '../../shared/classes.data.js';
 
@@ -239,6 +239,14 @@ export class WeaponController {
       if (d && d.id !== primary.id && d.cls !== 'melee') secondary = withAtt(d);
     }
     const mk = (def) => {
+      const s = mk0(def);
+      // Unterlauf-Waffe (Aufsatz Granatwerfer/Schrotflinte): eigene Munition je Waffe
+      const U = def.under && UNDER_WEAPONS[def.under];
+      if (U && (!s.under || s.under.id !== U.id)) s.under = { id: U.id, mag: U.mag, reserve: U.reserve };
+      if (!U) delete s.under;
+      return s;
+    };
+    const mk0 = (def) => {
       const o = old.get(def.id);
       if (o && (o.def.attKey || '') === (def.attKey || '')) return o;
       // gleiche Waffe, andere Aufsätze (Pausemenü im Match): Munition bleibt (kein geschenktes volles Magazin)
@@ -564,6 +572,15 @@ export class WeaponController {
       if (it.firePressed || (it.fire && !this._melee)) this.melee();
       return;
     }
+    // Unterlauf (Nutzer 11.10.): Taste „Unterlauf“ schaltet um, dann schießt die Waffe darunter (eigene Munition)
+    const U = def.under && st.under ? UNDER_WEAPONS[def.under] : null;
+    if (!U) this.underOn = false;
+    else if (this.actor.isPlayer && !this._switch && !this._reload && this.G.input && typeof this.G.input.pressed === 'function' && this.G.input.pressed('unterlauf')) {
+      this.underOn = !this.underOn;
+      this.G.events.emit('weapon:under', { actor: this.actor, on: this.underOn, weaponId: U.id });
+      this.G.events.emit('injury:notice', { text: this.underOn ? `${U.name}: ${st.under.mag} | ${st.under.reserve}` : def.name, tone: 'ally' });
+    }
+    if (this.underOn && U) { this._fireUnder(it, U, st.under); return; }
     const mode = def.fireMode || 'auto';
     if (it.firePressed) this._fireBuffer = Math.max(this._fireBuffer, 0.16 + (it.sprinting || this._sprintRecover > 0 ? (def.sprintToFire || 0.2) : 0));
     const trigger = mode === 'auto' ? (it.fire || this._fireBuffer > 0) : (this._fireBuffer > 0 || this._burstLeft > 0);
@@ -617,6 +634,30 @@ export class WeaponController {
         break;
       }
     }
+  }
+
+  /** Unterlauf-Waffe abfeuern bzw. nachladen (einfacher Zeitgeber, Taste Nachladen oder automatisch, wenn leer). */
+  _fireUnder(it, U, s) {
+    const now = this.G.time.elapsed;
+    if (this._underReloadAt) {
+      if (now < this._underReloadAt) return;
+      const n = Math.min(U.mag - s.mag, this.infiniteAmmo ? U.mag : s.reserve);
+      s.mag += n; if (!this.infiniteAmmo) s.reserve -= n;
+      this._underReloadAt = 0;
+      this.G.events.emit('injury:notice', { text: `${U.name}: ${s.mag} | ${s.reserve}`, tone: 'dim' });
+    }
+    const reload = () => {
+      if (s.mag >= U.mag || (s.reserve <= 0 && !this.infiniteAmmo)) return;
+      this._underReloadAt = now + (U.reloadTime || 2.2);
+      this.G.events.emit('weapon:reload', { actor: this.actor, weaponId: this.currentDef.id, empty: s.mag === 0 });
+    };
+    if (it.reload) { reload(); return; }
+    if (!(it.firePressed || this._fireBuffer > 0)) return;
+    this._fireBuffer = 0;
+    if (this._switch || this._throw || this._melee || it.sprinting || this._obsFire || it.mantling || this._cooldown > 0) return;
+    if (s.mag <= 0) { this.G.events.emit('weapon:dryfire', { actor: this.actor, weaponId: U.id }); reload(); return; }
+    this._fire(it, U, s, 'single');
+    if (s.mag <= 0) reload();
   }
 
   _fire(it, def, st, mode) {
@@ -802,6 +843,7 @@ export class WeaponController {
   }
 
   _updateReload(dt, it) {
+    if (this.underOn) return; // Unterlauf lädt in _fireUnder
     const st = this.current;
     const def = st.def;
     dt *= this._rush('rushReload'); // Klassen-Fähigkeit Kampfrausch: schneller nachladen (Ego-Bild folgt reloadProgress)
@@ -916,6 +958,7 @@ export class WeaponController {
   /** Zu Slot-Index wechseln (0 = primär, 1 = sekundär). */
   switchTo(to) {
     if (to === this.index || !this.slots[to] || this._melee || this._throw) return false;
+    this.underOn = false; this._underReloadAt = 0;
     if (this._switch) {
       // Schnelles Zurückwechseln während des Wegsteckens
       if (!this._switch.swapped) { this._switch.to = to; return true; }
