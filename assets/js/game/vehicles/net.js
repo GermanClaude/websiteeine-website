@@ -31,7 +31,7 @@ const OWN_SOFT = 0.15; // rad: eigene Lafette weicht erst ab dieser Abweichung z
 const OWN_AHEAD = 0.1; // s: eigenes Fahrzeug so viel näher an der Host-Zeit abspielen (höchstens der Puffer)
 const VHIT_GAP = 0.05; // s: Mindestabstand zweier Fahrzeugtreffer-Meldungen eines Clients (Feuerrate grob)
 const AMMO = [null, 'mbt_ap', 'mbt_he'];
-const STEPS = ['leer', 'gegriffen', 'eingeschoben', 'geladen'];
+const STEPS = ['leer', 'gegriffen', 'eingeschoben', 'geladen', 'offen']; // offen: Munitionsbunker auf (modern)
 const BUSY_OF = { leer: 'greifen', gegriffen: 'einschieben', eingeschoben: 'schliessen' };
 const LOAD_ACTIONS = new Set(['greifen', 'einschieben', 'schliessen', 'munition', 'weiter']);
 

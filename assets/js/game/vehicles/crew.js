@@ -10,7 +10,7 @@
 import { VEHICLE_WEAPONS, vehicleWeapon } from './data.js';
 
 const wrap = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
-export const LOAD_TIMES = { greifen: 1.0, einschieben: 0.8, schliessen: 0.4 };
+export const LOAD_TIMES = { tuer: 0.55, greifen: 1.0, einschieben: 0.8, schliessen: 0.4 }; // tuer: Schiebetür des Munitionsbunkers (modern)
 export const SHORT = { mbt_ap: 'PG', mbt_he: 'SG' };
 const REFILL_DIST = 25, REFILL_EVERY = 2;
 
@@ -76,7 +76,10 @@ export function loadAction(v, seat, action, ammo = null, { net = false } = {}) {
   const now = v.G.time.elapsed;
   if (now < (seat.readyAt || 0)) return { ok: false, why: 'sitz' };
   if (g.busy > 0) return { ok: false, why: 'busy' };
-  if (action === 'weiter') action = g.step === 'eingeschoben' ? 'schliessen' : g.step === 'gegriffen' ? 'einschieben' : g.step === 'leer' ? 'greifen' : null;
+  if (action === 'weiter') action = g.step === 'eingeschoben' ? 'schliessen' : g.step === 'gegriffen' ? 'einschieben' : g.step === 'leer' || g.step === 'offen' ? 'greifen' : null;
+  // Munitionsbunker (Turmheck, modern): erst die Schiebetür öffnen – „Greifen“ bei geschlossenem Bunker öffnet sie
+  const bunker = !!(v.def.interior && v.def.interior.blastDoor);
+  if (bunker && action === 'greifen' && g.step === 'leer') action = 'tuer';
   if (!action) return { ok: false, why: 'schritt' };
   if (g.auto && action !== 'munition') return { ok: false, why: 'schritt' };
   const tol = ((v.def.crew && v.def.crew.faceTol) || 0.6) + (net ? 0.2 : 0);
@@ -90,8 +93,12 @@ export function loadAction(v, seat, action, ammo = null, { net = false } = {}) {
       if (t !== g.select) { g.select = t; v.G.events.emit('vehicle:load', { vehicle: v, actor, step: 'munition', ammo: t }); }
       return { ok: true };
     }
+    case 'tuer':
+      if (!bunker || g.step !== 'leer' || g.held) return { ok: false, why: 'schritt' };
+      if (!facing(v, seat, 'rack', tol)) return { ok: false, why: 'blick' };
+      break;
     case 'greifen':
-      if (g.step !== 'leer' || g.held) return { ok: false, why: 'schritt' };
+      if (g.step !== (bunker ? 'offen' : 'leer') || g.held) return { ok: false, why: 'schritt' };
       if (!facing(v, seat, 'rack', tol)) return { ok: false, why: 'blick' };
       if (!(g.rack[g.select] > 0)) return { ok: false, why: 'leer' };
       break;
@@ -194,7 +201,8 @@ export function updateGun(v, dt) {
       if (g.busy <= 0) {
         const k = g.busyKind;
         g.busy = 0; g.busyKind = null;
-        if (k === 'greifen') { g.held = g.select; g.rack[g.select] = Math.max(0, (g.rack[g.select] || 0) - 1); g.step = 'gegriffen'; }
+        if (k === 'tuer') g.step = 'offen';
+        else if (k === 'greifen') { g.held = g.select; g.rack[g.select] = Math.max(0, (g.rack[g.select] || 0) - 1); g.step = 'gegriffen'; } // Bunker schließt hinter der Granate
         else if (k === 'einschieben') { g.loaded = g.held; g.held = null; g.step = 'eingeschoben'; }
         else if (k === 'schliessen') finishLoad(v, g.loaded);
         if (k !== 'schliessen') G.events.emit('vehicle:load', { vehicle: v, actor: ls.actor, step: g.step, ammo: g.held || g.loaded });
@@ -258,8 +266,8 @@ export function loaderHint(v, seat, keyFor, touch = false) {
     return out;
   }
   if (g.busy > 0) {
-    out.stepText = { greifen: 'Schritt 2/4', einschieben: 'Schritt 3/4', schliessen: 'Schritt 4/4' }[g.busyKind] || '';
-    out.doHtml = { greifen: 'Granate greifen …', einschieben: 'Einschieben …', schliessen: 'Verschluss schließen …' }[g.busyKind] || '';
+    out.stepText = { tuer: 'Schritt 1/5', greifen: 'Schritt 2/4', einschieben: 'Schritt 3/4', schliessen: 'Schritt 4/4' }[g.busyKind] || '';
+    out.doHtml = { tuer: 'Schiebetür öffnen …', greifen: 'Granate greifen …', einschieben: 'Einschieben …', schliessen: 'Verschluss schließen …' }[g.busyKind] || '';
     out.progress = g._busyMax > 0 ? 1 - g.busy / g._busyMax : 0;
     return out;
   }
@@ -270,12 +278,21 @@ export function loaderHint(v, seat, keyFor, touch = false) {
       out.progress = 1;
       break;
     case 'leer':
+    case 'offen': {
       if (!(g.rack[g.select] > 0) && !Object.values(g.rack).some((n) => n > 0)) { out.stepText = 'Gestell leer'; out.doHtml = 'Zum eigenen Stellplatz fahren'; break; }
+      const bunker = !!(v.def.interior && v.def.interior.blastDoor);
       out.turn = turnTo('rack');
-      out.stepText = 'Schritt 1/4 · Gestell';
+      if (bunker && g.step === 'leer') {
+        out.stepText = 'Schritt 1/5 · Munitionsbunker';
+        out.doHtml = out.turn ? 'Zum Munitionsbunker drehen' : `${key('reload', 'R')} Schiebetür öffnen`;
+        out.next = out.turn ? null : 'greifen';
+        break;
+      }
+      out.stepText = bunker ? 'Schritt 2/5 · Bunker offen' : 'Schritt 1/4 · Gestell';
       out.doHtml = out.turn ? 'Zum Munitionsgestell drehen' : `${key('reload', 'R')} Granate greifen (${SHORT[g.select]})`;
       out.next = out.turn ? null : 'greifen';
       break;
+    }
     case 'gegriffen':
       out.turn = turnTo('breech');
       out.stepText = `Schritt 3/4 · ${SHORT[g.held] || ''} in der Hand`;

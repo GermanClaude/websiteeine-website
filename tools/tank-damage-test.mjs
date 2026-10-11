@@ -31,22 +31,31 @@ try {
     v.applyDamage(150, { attacker: enemy, weaponId: 'mbt_ap', zone: 'hull', kind: 'shell', point: P });
     const h1 = D.player.health, alive1 = D.player.alive;
     // Munitionslager: viele Versuche am Gestell bis zur Zündung
-    let boom = false;
+    let boom = false, held = 0;
     const I = v.def.interior;
-    for (let i = 0; i < 40 && v.alive; i++) {
+    const hitRack = () => {
       v.health = v.maxHealth; v.zones.hull.hp = v.maxHealth;
       const q = new v.body.quat.constructor().setFromAxisAngle(new v.body.pos.constructor(0, 1, 0), v.mount.turretYaw);
       const L = new v.body.pos.constructor().fromArray(I.rack).applyQuaternion(q).add(new v.body.pos.constructor().fromArray(v.def.turretPivot));
-      const W = v.body.toWorld(L, new v.body.pos.constructor());
-      v.applyDamage(60, { attacker: enemy, weaponId: 'mbt_ap', zone: 'turret', kind: 'shell', point: W });
+      v.applyDamage(60, { attacker: enemy, weaponId: 'mbt_ap', zone: 'turret', kind: 'shell', point: v.body.toWorld(L, new v.body.pos.constructor()) });
+    };
+    // Bunker zu: Sprengklappen halten (Munition weg, Panzer lebt)
+    for (let i = 0; i < 40 && v.alive && !crits.some((t) => /Sprengklappen/.test(t)); i++) { v.gun.rack.mbt_ap = 20; v.gun.step = 'leer'; hitRack(); }
+    held = v.alive && crits.some((t) => /Sprengklappen/.test(t)) ? 1 : 0;
+    const rackAfter = v.gun.rack.mbt_ap;
+    // Bunker offen (Ladeschütze greift gerade): Treffer zündet
+    for (let i = 0; i < 40 && v.alive; i++) {
+      v.gun.rack.mbt_ap = 20; v.gun.step = 'offen';
+      hitRack();
       if (!v.alive) boom = true;
     }
-    return { views, interiorOn, h0, h1, alive1, crits, boom, ammo: !!v._ammoRack, turY: v.model.turret ? v.model.turret.position.y : 0, pivotY: v.def.turretPivot[1] };
+    return { views, interiorOn, h0, h1, alive1, crits, boom, held, rackAfter, ammo: !!v._ammoRack, turY: v.model.turret ? v.model.turret.position.y : 0, pivotY: v.def.turretPivot[1] };
   });
   check(r.views.includes('innen') && r.interiorOn, `Richtschütze: Sicht „Turm innen“ (${r.views.join(', ')}), Innenraum sichtbar`);
   check(r.h1 < r.h0, `Durchschlag verwundet den Richtschützen (${r.h0} → ${r.h1}${r.alive1 ? '' : ', ausgefallen'})`);
   check(r.crits.some((t) => /Richtschütze/.test(t)), `Trefferbericht: ${r.crits[0] || '–'}`);
-  check(r.boom && r.ammo && r.crits.some((t) => /Munitionslager/.test(t)), 'Treffer am Gestell zündet das Munitionslager');
+  check(r.held === 1 && r.rackAfter === 0, `Bunker zu: Sprengklappen halten, Munition weg (${r.rackAfter}), Panzer lebt`);
+  check(r.boom && r.ammo && r.crits.some((t) => /offen getroffen/.test(t)), 'Bunker offen: Treffer zündet die Munition');
   check(r.turY > r.pivotY + 1, `Turm abgesprengt (y ${r.turY.toFixed(2)})`);
   check(errors.length === 0, `keine Seitenfehler${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
 } catch (err) {

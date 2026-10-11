@@ -155,6 +155,7 @@ export class VehicleSystem {
   }
 
   _loadSound(v, step) {
+    if (step === 'tuer' || step === 'offen') step = step === 'tuer' ? 'einschieben' : 'schliessen'; // Schiebetür: Gleiten, Anschlag
     if (!v || !['greifen', 'einschieben', 'schliessen', 'munition', 'geladen'].includes(step)) return;
     const p = this.G.player;
     const own = p && p.vehicle === v;

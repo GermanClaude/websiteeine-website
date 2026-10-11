@@ -45,8 +45,9 @@ import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
  *  4: Graben mit dem Klappspaten ('dig' {x, z}, 'ev' dg), Karte Niemandsland.
  *  5: Fenster (Einträge zwischen Türen und Toren – Indizes von 'door'/'ev' dr verschoben).
  *  6: Panzergenerationen (Fahrzeugblock 64 Byte: Sitze 5–6; neue Fahrzeugtypen wk2/wk1, Raum-Einstellung tankEra).
- *  7: Granatwerfer (Waffenliste länger → Waffenindizes verschoben), Unterlauf-Aufsätze (ub_gl40/ub_schrot). */
-export const NET_VERSION = 7;
+ *  7: Granatwerfer (Waffenliste länger → Waffenindizes verschoben), Unterlauf-Aufsätze (ub_gl40/ub_schrot).
+ *  8: Ladeschritt „offen“ (Munitionsbunker mit Schiebetür, Kanonenzustand im Fahrzeugblock). */
+export const NET_VERSION = 8;
 /** Online wählbare Modi (Eroberung folgt mit den Fahrzeugen online, Training bleibt offline). */
 export const ONLINE_MODES = Object.freeze(['tdm', 'ult', 'ffa', 'dom', 'kc', 'messer', 'inf', 'gun']);
 /** Modi mit Fahrzeugen online (Nur Messer, Waffenspiel und Infiziert bleiben ohne – Ausrüstung kommt dort vom Modus). */

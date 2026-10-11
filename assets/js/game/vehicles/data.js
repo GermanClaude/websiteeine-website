@@ -158,7 +158,8 @@ export const VEHICLES = {
       commander: { space: 'turret', pos: [-0.62, 1.03, 0.62], r: 0.38 },
       loader: { space: 'turret', pos: [0.6, 0.83, 0.55], r: 0.3 },
     },
-    interior: { breech: [0, 0.42, -0.55], rack: [0, 0.45, 1.55], loaderEye: [0.55, 0.62, 0.35] },
+    // Munitionsbunker im Turmheck hinter einer Schiebetür (Vorbild: moderne Kampfpanzer mit Sprengklappen)
+    interior: { breech: [0, 0.42, -0.55], rack: [0, 0.45, 1.55], loaderEye: [0.55, 0.62, 0.35], blastDoor: true },
     crew: { switchTime: 1.2, faceTol: 0.6 /* rad */ },
     ammo: { mbt_ap: 22, mbt_he: 18 },
     lights: [[-1.25, 1.32, -3.62], [1.25, 1.32, -3.62]],
@@ -318,7 +319,8 @@ export const VEHICLES = {
       loader: { space: 'turret', pos: [0.5, 0.82, 0.45], r: 0.27 },
     },
     // Innenraum: Aufbau des KP-1 (Lage im Turmraum um shift verschoben → Verschluss 0,7 m hinter dem Schildzapfen)
-    interior: { shift: [0, -0.04, 0.2] },
+    // Munition im Wannenboden unter dem Turmkorb (Nasslagerung, Vorbild 2. WK), Spitzen nach oben
+    interior: { shift: [0, -0.04, 0.2], breech: [0, 0.42, -0.55], loaderEye: [0.55, 0.62, 0.35], rack: [0.15, -0.3, 0.75], rackRot: [Math.PI / 2, 0] },
     crew: { switchTime: 1.3, faceTol: 0.6 },
     ammo: { mbt_ap: 26, mbt_he: 26 },
     lights: [[-0.9, 1.42, -2.92], [0.9, 1.42, -2.92]],
@@ -424,7 +426,8 @@ export const VEHICLES = {
     ],
     hatches: {},
     // Innenraum: Aufbau des KP-1 hinter die Bugkanone verschoben (Verschluss 0,6 m hinter dem Schildzapfen)
-    interior: { shift: [0, -0.42, 0.98] },
+    // Granatgestell an der linken Seitenwand des Kampfraums (1. WK)
+    interior: { shift: [0, -0.42, 0.98], breech: [0, 0.42, -0.55], loaderEye: [0.55, 0.62, 0.35], rack: [-0.95, 0.45, 0.35], rackRot: [0, -Math.PI / 2] },
     crew: { switchTime: 1.6, faceTol: 0.6 },
     ammo: { mbt_ap: 20, mbt_he: 40 },
     lights: [[-0.75, 1.95, -3.62], [0.75, 1.95, -3.62]],

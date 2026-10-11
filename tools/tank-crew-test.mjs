@@ -194,6 +194,8 @@ try {
     seat.look.relYaw = yawTo(I.rack);
     const t0 = G.time.elapsed;
     let act = 0;
+    // Munitionsbunker (modern): „Greifen“ öffnet zuerst die Schiebetür (Schritt „offen“), dann wird gegriffen
+    const door = sys.requestLoad(p, v, 'greifen'); act += g.busy; C.step(0.6); out.door = { ok: door.ok, step: g.step, model: v.model.interior.getObjectByName('rackDoor').position.x };
     out.grab = sys.requestLoad(p, v, 'greifen');
     act += g.busy;
     out.busy = sys.requestLoad(p, v, 'einschieben');
@@ -217,6 +219,7 @@ try {
     seat.look.relYaw = 0;
     const s3 = C.seat();
     s3.look.relYaw = yawTo(I.rack);
+    D.input.simulate.tap('reload'); C.step(0.6); // Schiebetür
     D.input.simulate.tap('reload'); C.step(1.1);
     out.keyGrab = g.step;
     s3.look.relYaw = yawTo(I.breech);
@@ -230,13 +233,14 @@ try {
   check(r.start === 'leer', 'Ladeschütze: Kanone leer nach dem Schuss', r.start);
   check(r.wrong && r.wrong.ok === false && r.wrong.why === 'schritt', 'Falsche Reihenfolge abgelehnt', JSON.stringify(r.wrong));
   check(r.blick && r.blick.ok === false && r.blick.why === 'blick', 'Greifen ohne Blick aufs Gestell abgelehnt', JSON.stringify(r.blick));
+  check(r.door && r.door.ok && r.door.step === 'offen' && r.door.model < -1, 'Munitionsbunker: Schiebetür öffnet zuerst (Schritt „offen“)', JSON.stringify(r.door));
   check(r.grab && r.grab.ok && r.busy && r.busy.why === 'busy', 'Greifen läuft (1,0 s), währenddessen gesperrt', JSON.stringify(r.busy));
   check(r.held.step === 'gegriffen' && r.held.held === 'mbt_ap' && r.held.rack === r.held.rack0 - 1, 'Granate in der Hand, Gestell zählt runter', JSON.stringify(r.held));
   check(r.blick2 && r.blick2.why === 'blick', 'Einschieben ohne Blick zum Verschluss abgelehnt', JSON.stringify(r.blick2));
   check(r.push && r.push.ok && r.pushed.step === 'eingeschoben', 'Einschieben (0,8 s)', JSON.stringify(r.pushed));
   check(r.close && r.close.ok && r.done.step === 'geladen' && r.done.loaded === 'mbt_ap' && !r.done.breech, 'Verschluss zu → geladen', JSON.stringify(r.done));
-  check(r.done.act >= 2.2 - 1e-6, 'Handlungszeit ≥ 2,2 s', `${r.done.act} s (gesamt ${r.done.t} s)`);
-  check(r.shot2 === 'leer' && r.keyGrab === 'gegriffen' && r.keyPush === 'eingeschoben' && r.keyClose === 'geladen', 'Tastenfolge R → LMT → R lädt', `${r.keyGrab}/${r.keyPush}/${r.keyClose}`);
+  check(r.done.act >= 2.75 - 1e-6, 'Handlungszeit ≥ 2,75 s (mit Schiebetür)', `${r.done.act} s (gesamt ${r.done.t} s)`);
+  check(r.shot2 === 'leer' && r.keyGrab === 'gegriffen' && r.keyPush === 'eingeschoben' && r.keyClose === 'geladen', 'Tastenfolge R → R → LMT → R lädt (Tür, Greifen, Einschieben, Schließen)', `${r.keyGrab}/${r.keyPush}/${r.keyClose}`);
 
   // 8) Munitionswunsch SG, Gestell, Automatik 8 s / 5 s, Auffüllen, Störung
   r = await page.evaluate(() => {
@@ -287,6 +291,7 @@ try {
     const ls = C.seat(), I = v.def.interior, eye = I.loaderEye;
     ls.look.relYaw = Math.atan2(-(I.rack[0] - eye[0]), -(I.rack[2] - eye[2]));
     sys.requestLoad(p, v, 'munition', 'mbt_ap');
+    sys.requestLoad(p, v, 'greifen'); C.step(0.6);
     sys.requestLoad(p, v, 'greifen'); C.step(1.1);
     const rk = g.rack.mbt_ap;
     out.beforeDrop = g.step;

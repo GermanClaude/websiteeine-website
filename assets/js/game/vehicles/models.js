@@ -1143,8 +1143,12 @@ function buildInterior(S, D) {
   grp.position.fromArray(sh);
   // Hülle: Grundriss des Turms nach innen versetzt (Stirn dick gepanzert), Boden 6 cm über dem Turmring
   const B = new Bucket();
+  // Generation (Nutzer 11.10.): modern grün mit Anzeigen, 2. WK elfenbeinfarben mit Röhrenfunkgerät, 1. WK roher Stahl, Nieten,
+  // Holzkisten und Öllampe
+  const era = D.era || 'modern', CAB = era === 'wk2' ? S.cabinWk2 : era === 'wk1' ? S.cabinWk1 : S.cabin;
+  const LIT = era === 'modern' ? S.lensOn : S.lamp;
   const foot = [[-0.9, 1.15], [0.9, 1.15], [1.24, 0.8], [1.25, -1.45], [0.9, -1.92], [-0.9, -1.92], [-1.25, -1.45], [-1.24, 0.8]];
-  B.add(inward(topExtrude(foot, 0.69)), S.cabin, [0, 0.06, 0]);
+  B.add(inward(topExtrude(foot, 0.69)), CAB, [0, 0.06, 0]);
   B.add(box(1.5, 0.02, 1.3), S.dark, [0.15, 0.07, 0.3]);                          // Bodenplatte
   B.add(box(0.74, 0.62, 0.03), S.dark, [0, 0.42, -1.135]);                         // Rahmen der Rohrdurchführung
   // Richtschützenplatz (rechts vorn), Kommandantenplatz (links), Funkgerät (links hinten)
@@ -1155,15 +1159,28 @@ function buildInterior(S, D) {
     B.add(box(0.4, 0.06, 0.38), S.canvas, [-0.62, 0.3, 0.55]);
     B.add(box(0.4, 0.24, 0.05), S.canvas, [-0.62, 0.45, 0.76], [-0.12, 0, 0]);
   }
-  // Munitionsgestell: Rahmen um die Granatenböden
-  const rk = I.rack, rw = 1.62, rz0 = rk[2] - 0.36;
-  B.add(box(rw, 0.035, 0.76), S.dark, [rk[0], rk[1] - 0.29, rk[2]]);
-  B.add(box(rw, 0.035, 0.76), S.dark, [rk[0], rk[1] + 0.29, rk[2]]);
-  for (const sx of [-1, 1]) B.add(box(0.035, 0.6, 0.76), S.dark, [rk[0] + sx * rw / 2, rk[1], rk[2]]);
-  B.add(box(rw, 0.56, 0.02), S.dark, [rk[0], rk[1], rz0 + 0.02]);                   // Lochplatte (Granaten stecken darin)
+  // Munitionsgestell: eigene Gruppe (Lage I.rack, Drehung I.rackRot [x, y]) – je Panzer an anderer Stelle (Nutzer 11.10.):
+  // modern im Turmheck-Bunker hinter einer Schiebetür, 2. WK im Wannenboden (Nasslagerung), 1. WK an der linken Wand
+  const rk = I.rack, rw = 1.62, rz0 = -0.36, rr = I.rackRot || [0, 0];
+  const rackGrp = new THREE.Group();
+  rackGrp.name = 'rackGrp';
+  rackGrp.position.fromArray(rk);
+  rackGrp.rotation.set(rr[0], rr[1], 0, 'YXZ');
+  grp.add(rackGrp);
+  const RB = new Bucket();
+  RB.add(box(rw, 0.035, 0.76), S.dark, [0, -0.29, 0]);
+  RB.add(box(rw, 0.035, 0.76), S.dark, [0, 0.29, 0]);
+  for (const sx of [-1, 1]) RB.add(box(0.035, 0.6, 0.76), S.dark, [sx * rw / 2, 0, 0]);
+  RB.add(box(rw, 0.56, 0.02), S.dark, [0, 0, rz0 + 0.02]);                     // Lochplatte (Granaten stecken darin)
+  if (I.blastDoor) {
+    // Bunker: Trennwand mit Führungsschienen oben/unten – die Schiebetür (eigene Gruppe) fährt seitlich weg
+    for (const sy of [-1, 1]) RB.add(box(rw + 0.12, 0.03, 0.06), S.steel, [0, sy * 0.33, rz0 - 0.3]);
+    RB.add(box(0.06, 0.7, 0.06), S.steel, [-rw / 2 - 0.06, 0, rz0 - 0.3]);
+  }
+  RB.build(rackGrp, { shadow: false });
   // Lampe (leuchtet, kein echtes Licht) + Haltegriffe am Dach
   B.add(box(0.16, 0.04, 0.08), S.dark, [0.15, 0.735, 0.1]);
-  B.add(box(0.12, 0.02, 0.05), S.lensOn, [0.15, 0.71, 0.1]);
+  B.add(box(0.12, 0.02, 0.05), LIT, [0.15, 0.71, 0.1]);
   for (const [x, z] of DET === 2 ? [[0.55, -0.15], [0.95, 0.4], [-0.25, 0.95]] : DET === 1 ? [[0.55, -0.15], [0.95, 0.4]] : [[0.95, 0.4]]) {
     B.add(box(0.03, 0.03, 0.26), S.dark, [x, 0.67, z]);
     if (DET === 2) for (const dz of [-0.12, 0.12]) B.add(box(0.025, 0.07, 0.025), S.dark, [x, 0.715, z + dz]);
@@ -1175,17 +1192,37 @@ function buildInterior(S, D) {
   }
   B.add(cyl(0.065, 0.065, 0.42, 12), S.red, [1.1, 0.33, 0.95]);                      // Feuerlöscher
   B.add(cyl(0.03, 0.04, 0.08, 8), S.dark, [1.1, 0.58, 0.95]);
-  B.add(box(0.38, 0.05, 0.34), S.canvas, [0.6, 0.28, 0.55]); B.add(box(0.06, 0.25, 0.06), S.steel, [0.6, 0.14, 0.55]); // Sitz
-  B.add(box(0.36, 0.3, 0.05), S.canvas, [0.6, 0.45, 0.76], [-0.15, 0, 0]);
+  // Ladeschützensitz an der rechten Wand (hochgeklappt – versperrt den Weg zum Gestell nicht)
+  B.add(box(0.05, 0.32, 0.36), era === 'wk1' ? S.wood : S.canvas, [1.12, 0.36, 0.25]); B.add(box(0.04, 0.04, 0.3), S.steel, [1.16, 0.2, 0.25]);
+  B.add(box(0.04, 0.3, 0.34), era === 'wk1' ? S.wood : S.canvas, [1.2, 0.46, 0.25]);
   for (const [x, z, ry] of [[0.65, 0.2, 0.3], [0.85, 0.75, -0.6], [-0.65, -0.5, 0.2]]) B.add(box(0.16, 0.12, 0.1), S.dark, [x, 0.66, z], [0, ry, 0]); // Winkelspiegel
-  for (const [x, z, w, d] of [[-1.05, 0.1, 0.22, 0.4], [-0.95, -0.6, 0.3, 0.25], [1.05, -0.6, 0.25, 0.3]]) { B.add(box(w, 0.2, d), S.dark, [x, 0.28, z]); B.add(box(w * 0.6, 0.03, 0.02), S.lensOn, [x, 0.36, z + d / 2 + 0.005]); } // Kästen mit Anzeige
-  for (let i = 0; i < 6; i++) B.add(box(0.02, 0.012, 0.012), i % 2 ? S.lensOn : S.rubber, [-1.13, 0.5 + (i % 3) * 0.035, 0.85 + Math.floor(i / 3) * 0.05]); // Funkgerät-Lämpchen
+  if (era === 'modern') {
+    for (const [x, z, w, d] of [[-1.05, 0.1, 0.22, 0.4], [-0.95, -0.6, 0.3, 0.25], [1.05, -0.6, 0.25, 0.3]]) { B.add(box(w, 0.2, d), S.dark, [x, 0.28, z]); B.add(box(w * 0.6, 0.03, 0.02), S.lensOn, [x, 0.36, z + d / 2 + 0.005]); } // Kästen mit Anzeige
+    for (let i = 0; i < 6; i++) B.add(box(0.02, 0.012, 0.012), i % 2 ? S.lensOn : S.rubber, [-1.13, 0.5 + (i % 3) * 0.035, 0.85 + Math.floor(i / 3) * 0.05]); // Funkgerät-Lämpchen
+  } else if (era === 'wk2') {
+    // Röhrenfunkgerät mit Skalen, Bordsprechkästen, Kartenbrett, Patronensäcke fürs MG, Sehklappen-Handräder
+    B.add(box(0.24, 0.3, 0.44), S.dark, [-1.08, 0.36, 0.85]);
+    for (let i = 0; i < 3; i++) B.add(cyl(0.035, 0.035, 0.02, 10), S.lamp, [-0.955, 0.42, 0.7 + i * 0.13], [0, 0, Math.PI / 2]);
+    for (let i = 0; i < 4; i++) B.add(cyl(0.018, 0.018, 0.03, 8), S.brass, [-0.955, 0.3, 0.68 + i * 0.1], [0, 0, Math.PI / 2]);
+    for (const [x, z] of [[-1.0, -0.6], [1.0, -0.65]]) B.add(box(0.12, 0.16, 0.1), S.dark, [x, 0.5, z]);
+    B.add(box(0.3, 0.02, 0.24), S.wood, [-0.85, 0.42, -0.1], [0, 0, 0.2]);
+    for (let i = 0; i < 3; i++) B.add(box(0.12, 0.16, 0.08), S.canvas, [-1.08, 0.18, -0.3 + i * 0.1]);
+    for (const [x, z] of [[0.62, -1.05], [-0.62, -1.05]]) B.add(cyl(0.05, 0.05, 0.02, 12), S.dark, [x, 0.52, z], [Math.PI / 2, 0, 0]);
+  } else {
+    // 1. WK: Nieten an den Wänden, Holzkisten mit Granaten, Werkzeugkiste, Öllampe am Haken, Sprachrohr zum Fahrer
+    for (const [x, z] of [[-1.2, -1.2], [-1.2, 0.5], [1.2, -1.2], [1.2, 0.6]]) for (let i = 0; i < 6; i++) B.add(box(0.025, 0.025, 0.025), S.steel, [x, 0.12 + i * 0.1, z]);
+    for (let i = 0; i < 8; i++) B.add(box(0.025, 0.025, 0.025), S.steel, [-0.8 + i * 0.22, 0.12, -1.9]);
+    for (const [x, z, ry] of [[0.95, -0.7, 0]]) { B.add(box(0.36, 0.22, 0.42), S.wood, [x, 0.17, z], [0, ry, 0]); B.add(box(0.37, 0.03, 0.43), S.steel, [x, 0.27, z], [0, ry, 0]); }
+    B.add(box(0.3, 0.14, 0.18), S.dark, [-0.95, 0.07, -0.55]);
+    B.add(cyl(0.05, 0.06, 0.12, 10), S.brass, [0.2, 0.58, 0.95]); B.add(cyl(0.035, 0.035, 0.07, 8), S.lamp, [0.2, 0.5, 0.95]);
+    B.add(cyl(0.025, 0.025, 1.1, 8), S.brass, [-0.7, 0.62, -0.5], [Math.PI / 2, 0.3, 0]);
+  }
   B.build(grp, { shadow: false });
   // Granaten im Gestell: Spalten von links (PG) nach rechts (SG), je Spalte von unten nach oben
   const rows = DET === 0 ? 3 : 4, cols = DET === 0 ? 8 : 10;
   const dx = DET === 0 ? 0.19 : 0.155, dy = DET === 0 ? 0.17 : 0.135;
   const slots = [];
-  for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) slots.push([rk[0] + (c - (cols - 1) / 2) * dx, rk[1] + (r - (rows - 1) / 2) * dy, rz0]);
+  for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) slots.push([(c - (cols - 1) / 2) * dx, (r - (rows - 1) / 2) * dy, rz0]);
   const nAp = Math.min(ammo.mbt_ap, Math.round(slots.length * ammo.mbt_ap / (ammo.mbt_ap + ammo.mbt_he)));
   const sets = { mbt_ap: slots.slice(0, nAp), mbt_he: slots.slice(nAp) };
   for (const type of ['mbt_ap', 'mbt_he']) {
@@ -1202,7 +1239,19 @@ function buildInterior(S, D) {
     mesh.name = `rack:${type}`;
     mesh.castShadow = false; mesh.receiveShadow = false;
     mesh.userData.rack = type; mesh.userData.per = per; mesh.userData.slots = list.length; mesh.userData.shown = list.length;
-    grp.add(mesh);
+    rackGrp.add(mesh);
+  }
+  if (I.blastDoor) {
+    const door = new THREE.Group();
+    door.name = 'rackDoor';
+    door.position.set(0, 0, rz0 - 0.3);
+    const DB = new Bucket();
+    DB.add(box(rw + 0.04, 0.64, 0.035), S.steel, [0, 0, 0]);
+    DB.add(box(0.05, 0.14, 0.05), S.dark, [rw / 2 - 0.12, 0, -0.035]);           // Griff
+    for (let i = 0; i < 4; i++) DB.add(box(rw * 0.9, 0.02, 0.012), S.dark, [0, -0.24 + i * 0.16, -0.022]); // Versteifungen
+    DB.add(box(0.3, 0.06, 0.012), S.red, [0, 0.27, -0.022]);                     // Warnstreifen
+    DB.build(door, { shadow: false });
+    rackGrp.add(door);
   }
   // Granate in den Händen: vor der Ladeschützen-Kamera, leicht unten, Spitze Richtung Verschluss
   const held = new THREE.Group();
@@ -1240,14 +1289,17 @@ function buildInterior(S, D) {
   loaderArm(PB, S, [0.16, -0.18, 0.36], [0, 0, 0]);
   PB.build(push, { shadow: false });
   grp.add(push);
-  // Gestell-Mitte je Sorte (Start der Greif-Bewegung)
+  // Gestell-Mitte je Sorte (Start der Greif-Bewegung) und Anfahrrichtung, im Innenraum-Raum (nur Zahlen: Klon per JSON)
+  rackGrp.updateMatrix();
   grp.userData.rackPos = {};
   for (const type of ['mbt_ap', 'mbt_he']) {
     const list = sets[type];
     if (!list.length) continue;
     const c = list.reduce((a, q) => [a[0] + q[0], a[1] + q[1], a[2] + q[2]], [0, 0, 0]).map((v) => v / list.length);
-    grp.userData.rackPos[type] = c;
+    grp.userData.rackPos[type] = new THREE.Vector3(c[0], c[1], c[2]).applyMatrix4(rackGrp.matrix).toArray();
   }
+  grp.userData.rackOff = new THREE.Vector3(0, 0, -0.55).applyEuler(rackGrp.rotation).toArray();
+  grp.userData.rackRot = [rr[0], rr[1]];
   grp.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
 
   // Verschluss (Kind des Rohrs, folgt der Rohrerhöhung): Bodenstück, Keil (fährt nach unten), Rücklaufschutz
@@ -1478,6 +1530,9 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
     if (model.breech) model.breech.visible = v;
     if (v) applyRack();
   };
+  const rackDoor = model.interior ? model.interior.getObjectByName('rackDoor') : null;
+  /** Schiebetür des Munitionsbunkers: t 0 zu … 1 offen (fährt nach links weg). */
+  model.setRackDoor = (t) => { if (rackDoor) rackDoor.position.x = -1.7 * clamp01(t); };
   model.setBreech = (t) => { if (keil) keil.position.y = -0.3 * clamp01(t); };
   model.setRack = (counts) => {
     if (!racks.length || !counts) return;
@@ -1511,10 +1566,12 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
       for (const c of held.children) c.visible = c.name === 'arms' || c.name === `held:${type}`;
       if (rp) {
         const e = ease(t);
-        _lv.set(rp[0], rp[1], rp[2] - 0.55);
+        const ro = I.userData.rackOff || [0, 0, -0.55], rrot = I.userData.rackRot || [0, 0];
+        _lv.set(rp[0] + ro[0], rp[1] + ro[1], rp[2] + ro[2]);
         held.position.lerpVectors(_lv, _home, e);
-        held.rotation.y = Math.PI + (homeRotY - Math.PI) * ease((t - 0.25) / 0.75); // Spitze zeigt im Gestell zum Ladeschützen
-        held.rotation.x = H.rx * e;
+        const y0 = Math.PI + rrot[1];
+        held.rotation.y = y0 + (homeRotY - y0) * ease((t - 0.25) / 0.75); // Spitze zeigt im Gestell zum Ladeschützen
+        held.rotation.x = rrot[0] + (H.rx - rrot[0]) * e;
       }
     } else if (kind === 'einschieben' && model.breech) {
       model.breech.getWorldPosition(_lv); I.worldToLocal(_lv);

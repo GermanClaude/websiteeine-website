@@ -231,6 +231,12 @@ export function vehicleMaterials() {
     // Innenraum (Nutzer 11.10.): Feuerlöscher, Ärmel des Ladeschützen
     red: new THREE.MeshStandardMaterial({ name: 'veh:rot', color: 0xb3241c, roughness: 0.45, metalness: 0.2 }),
     sleeve: new THREE.MeshStandardMaterial({ name: 'veh:aermel', color: 0x4b5236, roughness: 0.92 }),
+    // Innenraum je Generation: 2. WK elfenbeinfarben gestrichen, 1. WK roher Stahl; Holz (Kisten, Bänke), Messing, Öllampe
+    cabinWk2: new THREE.MeshStandardMaterial({ name: 'veh:cabin2', color: 0xd6cdb0, roughness: 0.78, metalness: 0.08, emissive: 0x2c291f, emissiveIntensity: 1 }),
+    cabinWk1: new THREE.MeshStandardMaterial({ name: 'veh:cabin1', color: 0x625c50, roughness: 0.7, metalness: 0.35, emissive: 0x19160f, emissiveIntensity: 1 }),
+    wood: new THREE.MeshStandardMaterial({ name: 'veh:holz', color: 0x6e4c2c, roughness: 0.85, emissive: 0x150d06, emissiveIntensity: 1 }),
+    brass: new THREE.MeshStandardMaterial({ name: 'veh:messing', color: 0xb08a3e, roughness: 0.35, metalness: 0.85, emissive: 0x1a1206, emissiveIntensity: 1 }),
+    lamp: new THREE.MeshStandardMaterial({ name: 'veh:lampe', color: 0xffd9a0, emissive: 0xffa040, emissiveIntensity: 4, roughness: 0.3 }),
     lensOff: new THREE.MeshStandardMaterial({ name: 'veh:lensOff', color: 0xb9b6ad, emissive: 0x332f26, emissiveIntensity: 0.4, roughness: 0.15, metalness: 0.3 }),
     rearLamp: new THREE.MeshStandardMaterial({ name: 'veh:rear', color: 0x5a0d08, emissive: 0x6a0904, emissiveIntensity: 1.2, roughness: 0.3 }),
     mark: {
@@ -255,7 +261,7 @@ export function vehicleMaterials() {
  */
 export function vehicleWarmMaterials() {
   const S = vehicleMaterials();
-  return [S.lensOn, S.cone, S.wreck, S.optic, S.cabin, S.shell, S.steel, S.red, S.sleeve];
+  return [S.lensOn, S.cone, S.wreck, S.optic, S.cabin, S.shell, S.steel, S.red, S.sleeve, S.cabinWk2, S.cabinWk1, S.wood, S.brass, S.lamp];
 }
 
 /** Kettenmaterial je Fahrzeugseite (eigene Texturkopie → eigener Versatz für den Kettenlauf). */
