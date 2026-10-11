@@ -6,7 +6,7 @@ export const ID_TO_MODEL = {
   sr_brecher: 'brecher', sg_bulldog: 'bulldog', pi_p9: 'p9', pi_adler: 'adler', knife: 'knife',
   ar_k36: 'k36', ar_bx20: 'bx20', ar_g7: 'g7', smg_wespe: 'wespe', smg_keiler: 'keiler', lmg_lm8: 'lm8',
   sr_titan: 'titan', sg_hagel: 'hagel', pi_kobra: 'kobra', at_donner: 'donner',
-  karambit: 'karambit', machete: 'machete', tomahawk: 'tomahawk', kampfaxt: 'kampfaxt', schlagstock: 'schlagstock', kampfstock: 'kampfstock',
+  karambit: 'karambit', machete: 'machete', tomahawk: 'tomahawk', kampfaxt: 'kampfaxt', schlagstock: 'schlagstock', kampfstock: 'kampfstock', spaten: 'spaten',
 };
 
 // Hüfte (wie CoD Mobile): Waffe etwas höher und mittiger, rechte Hand mit Daumen und Fingern am Pistolengriff
@@ -82,6 +82,7 @@ HANDLING.karambit = { ...HANDLING.knife, hip: [0.13, -0.13, -0.33], hipRot: [0.3
 HANDLING.machete = { ...HANDLING.knife, hip: [0.15, -0.16, -0.36], hipRot: [0.55, 0.42, -2.95], weight: 0.7, inspect: 2.8 };
 HANDLING.tomahawk = { ...HANDLING.knife, hip: [0.14, -0.15, -0.36], hipRot: [0.62, 0.3, -2.9], weight: 0.8, inspect: 2.8 };
 HANDLING.kampfaxt = { ...HANDLING.tomahawk, weight: 0.95 };
+HANDLING.spaten = { ...HANDLING.tomahawk, weight: 0.95 };
 HANDLING.schlagstock = { ...HANDLING.machete, weight: 0.6 };
 HANDLING.kampfstock = { ...HANDLING.machete, weight: 0.55 };
 for (const k of ['m17', 'kv47', 'vp9', 'qx90']) HANDLING[k].inspectStyle = k === 'vp9' ? 'magcheck' : 'rifle';

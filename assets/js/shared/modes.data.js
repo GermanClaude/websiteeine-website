@@ -225,7 +225,7 @@ export const MODES = {
       points: { capture: 200, neutralize: 100, defend: 50 },
     },
     matchLengths: { kurz: 0.6, standard: 1, lang: 1.7 },
-    recommendedMaps: ['grenzland'],
+    recommendedMaps: ['grenzland', 'niemandsland'],
     icon: icon('<path d="M4 21V4"/><path d="M4 5h8l-2 3 2 3H4"/><path d="M14 21V10"/><path d="M14 11h6l-1.5 2.25L20 15.5h-6"/>'),
   },
 
@@ -720,7 +720,7 @@ export const SQUAD_SIZE = 4;
 
 /* ------------------------------------------------------------ Teamgrößen je Karte und Gerät (GROSSKAMPF §3.2) */
 
-const BIG_MAPS = new Set(['grenzland', 'talsperre', 'nordkueste']);
+const BIG_MAPS = new Set(['grenzland', 'talsperre', 'nordkueste', 'niemandsland']);
 export function mapScaleOf(map) {
   if (map && typeof map === 'object') return map.scale === 'gross' ? 'gross' : 'arena';
   return BIG_MAPS.has(map) ? 'gross' : 'arena';

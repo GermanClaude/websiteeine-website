@@ -88,6 +88,19 @@ export function schlagstock(b) {
   b.meta = { sight: 'none', kind: 'melee' };
 }
 
+export function spaten(b) {
+  // Klappspaten: Holzstiel mit Griffband, Stahlblatt (spitz zulaufend, geschärfte Kanten) nach vorn
+  b.cyl('woodWarm', 0.0145, 0.0145, 0.42, 0, 0, 0.1, { seg: b.seg(12, 6) });
+  b.cyl('rubber', 0.0158, 0.0158, 0.12, 0, 0, -0.06, { seg: b.seg(12, 6) });
+  b.box('steel', 0.034, 0.03, 0.05, 0, 0, 0.33, { c: 0.004 }); // Klappgelenk
+  b.part('blade', 0, 0, 0.34);
+  b.side('steel', [[0.355, 0.0], [0.37, 0.075], [0.5, 0.08], [0.56, 0.0], [0.5, -0.08], [0.37, -0.075]], 0.004, 0, { part: 'blade', bevel: 0.0012 });
+  if (b.hi) b.side('blade', [[0.5, 0.078], [0.56, 0.0], [0.5, -0.078], [0.498, -0.07], [0.552, 0.0], [0.498, 0.07]], 0.0042, 0, { part: 'blade', bevel: 0.0005 });
+  b.anchor('muzzle', 0, 0, 0.56);
+  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0 } });
+  b.meta = { sight: 'none', kind: 'melee' };
+}
+
 export function kampfstock(b) {
   // Rattan-Kampfstock (Escrima): gebrannte Musterung, Griffband, abgerundete Enden
   b.cyl('woodWarm', 0.0135, 0.0135, 0.66, 0, 0, 0.23, { seg: b.seg(12, 6) });

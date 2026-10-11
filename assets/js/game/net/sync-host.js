@@ -104,6 +104,7 @@ export class HostSync {
       net.on('ability', (m, from) => this._onAbility(m, from)),
       net.on('loot', (m, from) => this._onLoot(m, from)),
       net.on('door', (m, from) => { const p = this._puppet(from); if (this.active && !this.ended && p && this.G.doors) this.G.doors.netRequest(p, m); }),
+      net.on('dig', (m, from) => { const p = this._puppet(from); if (this.active && !this.ended && p && this.G.digging) this.G.digging.netRequest(p, m); }),
       net.on('build', (m, from) => { const p = this._puppet(from); if (this.active && !this.ended && p && this.G.building) this.G.building.netRequest(p, m); }),
       net.on('point', (m, from) => { const p = this._puppet(from); if (this.active && !this.ended && p && m && this.G.points) this.G.points.netUse(p, m.i, from); }),
       net.on('drone', (m, from) => this._onDrone(m, from)),
@@ -375,6 +376,9 @@ export class HostSync {
 
   /** Bauwerk an alle Clients ('ev' bs, building.js spawn). */
   relayBuild(msg) { if (this.active && this.net.online) this.net.send('all', { t: 'ev', e: 'bs', ...msg }); }
+
+  /** Gegraben ('ev' dg, digging.js). */
+  relayDig(x, z) { if (this.active && this.net.online) this.net.send('all', { t: 'ev', e: 'dg', x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100 }); }
 
   /** Tür/Tor geändert ('ev' dr, doors.js). */
   relayDoor(msg) { if (this.active && this.net.online) this.net.send('all', { t: 'ev', e: 'dr', ...msg }); }

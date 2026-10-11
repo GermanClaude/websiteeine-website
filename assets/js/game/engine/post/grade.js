@@ -81,7 +81,7 @@ export const MOODS = Object.freeze({
 });
 
 /** Karten-ID → Stimmung (Karten ohne eigenen Eintrag nehmen `neutral`; „nachtschicht“/„innenraum“ → `nacht`). */
-export const MOOD_FOR_MAP = Object.freeze({ hafen: 'hafen', altstadt: 'altstadt', werk: 'werk', range: 'range', grenzland: 'grenzland', nachtschicht: 'nacht', innenraum: 'nacht' });
+export const MOOD_FOR_MAP = Object.freeze({ hafen: 'hafen', altstadt: 'altstadt', werk: 'werk', range: 'range', grenzland: 'grenzland', niemandsland: 'grenzland', nachtschicht: 'nacht', innenraum: 'nacht' });
 
 /** Stimmung auflösen: id | { mood, lut, exposure, bloom } → vollständiges Objekt (Kopie). */
 export function resolveMood(spec) {

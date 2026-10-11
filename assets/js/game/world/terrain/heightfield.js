@@ -52,6 +52,47 @@ export class Heightfield {
     this.maxH = gMax; this.minH = gMin;
   }
 
+  /**
+   * Graben (Klappspaten, game/digging.js): senkt das Gelände um (x, z) im Radius r um bis zu dy (weich auslaufend),
+   * höchstens maxDepth unter die ursprüngliche Höhe. Blockgrenzen werden nachgeführt (Kollision/Strahlen sofort aktuell).
+   * → { minX, minZ, maxX, maxZ } (berührter Bereich) oder null.
+   */
+  dig(x, z, r = 1.1, dy = 0.4, maxDepth = 2.4) {
+    const n = this.n, res = this.res, H = this.heights;
+    if (!this._orig) this._orig = Float32Array.from(H);
+    let i0 = Math.max(0, Math.floor((x - r - this.minX) / res)), i1 = Math.min(n - 1, Math.ceil((x + r - this.minX) / res));
+    let j0 = Math.max(0, Math.floor((z - r - this.minZ) / res)), j1 = Math.min(n - 1, Math.ceil((z + r - this.minZ) / res));
+    if (i0 > i1 || j0 > j1) return null;
+    let changed = false;
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const d = Math.hypot(this.minX + i * res - x, this.minZ + j * res - z);
+      if (d > r) continue;
+      const q = d / r, w = q < 0.45 ? 1 : 1 - ((q - 0.45) / 0.55) ** 2, o = j * n + i; // flacher Boden, Rand weich
+      const nh = Math.max(this._orig[o] - maxDepth, H[o] - dy * w);
+      if (nh < H[o] - 1e-4) { H[o] = nh; changed = true; }
+    }
+    if (!changed) return null;
+    // Wände nicht steiler als ≈ 50°: Nachbarpunkte höchstens maxStep auseinander (sonst rutscht die Kapsel durch)
+    const maxStep = 1.2 * res;
+    const a0 = Math.max(1, i0 - 3), a1 = Math.min(n - 2, i1 + 3), b0 = Math.max(1, j0 - 3), b1 = Math.min(n - 2, j1 + 3);
+    for (let it = 0; it < 4; it++) for (let j = b0; j <= b1; j++) for (let i = a0; i <= a1; i++) {
+      const o = j * n + i;
+      const lo = Math.min(H[o - 1], H[o + 1], H[o - n], H[o + n]);
+      if (H[o] - lo > maxStep) { const nh = lo + maxStep; if (nh < H[o]) H[o] = Math.max(this._orig[o] - maxDepth - 0.3, nh); }
+    }
+    i0 = a0; i1 = a1; j0 = b0; j1 = b1;
+    // Blockgrenzen der berührten Blöcke neu bestimmen
+    const nb = this.nb;
+    for (let bj = Math.floor(j0 / BLOCK); bj <= Math.min(nb - 1, Math.floor(j1 / BLOCK)); bj++) for (let bi = Math.floor(i0 / BLOCK); bi <= Math.min(nb - 1, Math.floor(i1 / BLOCK)); bi++) {
+      let mx = -Infinity, mn = Infinity;
+      const a0 = bi * BLOCK, b0 = bj * BLOCK, a1 = Math.min(n - 1, a0 + BLOCK), b1 = Math.min(n - 1, b0 + BLOCK);
+      for (let j = b0; j <= b1; j++) for (let i = a0; i <= a1; i++) { const h = H[j * n + i]; if (h > mx) mx = h; if (h < mn) mn = h; }
+      this.bmax[bj * nb + bi] = mx; this.bmin[bj * nb + bi] = mn;
+      if (mn < this.minH) this.minH = mn;
+    }
+    return { minX: x - r - 4 * res, minZ: z - r - 4 * res, maxX: x + r + 4 * res, maxZ: z + r + 4 * res };
+  }
+
   /** Höhe am Stützpunkt (geklemmt). */
   h(i, j) {
     const n = this.n;

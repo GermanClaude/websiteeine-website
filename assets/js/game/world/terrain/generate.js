@@ -7,7 +7,8 @@
 //   pads [{ x, z, w, d, y, blend, worn }] (eingeebnete Bauflächen), dams [{ a: [x, z], b: [x, z], y, crown, slope,
 //   culverts [{ at: [x, z], half, out }] }] (Erddämme, nur Aufschüttung), roads [{ id, kind 'asphalt'|'gravel'|'dirt',
 //   width, shoulder, pts, bridge? { a: [x, z], b: [x, z], y } }], fields [{ x, z, w, d, ry, kind 'acker'|'wiese' }],
-//   forests [{ x, z, r }]
+//   forests [{ x, z, r }], trenches [{ pts, width, depth, ramps }], craters { list: [[x, z, r, depth]], count, seed, area, r, depth, avoid },
+//   wasteland { dirt, mud } (Ödland statt Wiese)
 // Reihenfolge: Grundform → Details → Fluss → Bauflächen → Dämme → Straßen (planieren) → Felder → Splat/Maske.
 import { createSimplex, fbm, ridged, smoothstep, lerp } from './noise.js';
 import { Heightfield } from './heightfield.js';
@@ -295,6 +296,55 @@ export async function generateTerrain(spec, { onProgress } = {}) {
   }
   await breathe();
 
+  // 5b) Schützengräben (Stellungskrieg): Sohle `depth` unter dem Gelände, fast senkrechte Wände (Wand, nur über Rampen
+  //     oder Klettern zu verlassen), Brustwehr aus Aushub davor/dahinter, Ausstiegsrampen `ramps` [[x, z], …] (r 3 m)
+  const H0 = spec.trenches?.length || spec.craters ? Float32Array.from(H) : null;
+  for (const tr of spec.trenches || []) {
+    const line = sampleSpline(tr.pts, 1.5), hw = (tr.width ?? 2.2) / 2, depth = tr.depth ?? 2.0, wallW = 0.45, par = 1.6;
+    polyField(hf, line, hw + wallW + par + 0.5, dist, along);
+    for (let o = 0; o < N; o++) {
+      const d = dist[o];
+      if (d === Infinity) continue;
+      const i = o % n, j = (o / n) | 0, x = minX + i * res, z = minZ + j * res;
+      let dep = depth;
+      for (const [rx, rz] of tr.ramps || []) { const rd = Math.hypot(x - rx, z - rz); if (rd < 3.2) dep = Math.min(dep, depth * smoothstep(0.4, 3.2, rd)); }
+      const base = H0[o];
+      let h;
+      if (d < hw) h = base - dep;
+      else if (d < hw + wallW) h = lerp(base - dep, base + 0.3, (d - hw) / wallW);
+      else h = base + 0.45 * Math.sin(Math.min(1, (d - hw - wallW) / par) * Math.PI) * (dep / depth); // Brustwehr
+      if (d < hw + wallW) H[o] = Math.min(H[o], h); else H[o] = Math.max(H[o], h);
+      if (d < hw + wallW + 0.6) splat[o * 4 + 3] = Math.max(splat[o * 4 + 3], d < hw ? 230 : 160);
+    }
+    await breathe();
+  }
+  // 5c) Granattrichter: Mulde mit aufgeworfenem Rand; explizite Liste [x, z, r, depth] + Zufallsfeld { count, area, r, depth }
+  const crList = [...(spec.craters?.list || [])];
+  if (spec.craters?.count) {
+    let sd = (spec.craters.seed || 99) >>> 0;
+    const rnd = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const A = spec.craters.area, R = spec.craters.r || [1.5, 5], D = spec.craters.depth || [0.5, 1.6];
+    const avoid = spec.craters.avoid || [];
+    for (let k = 0; k < spec.craters.count; k++) {
+      const x = A.minX + rnd() * (A.maxX - A.minX), z = A.minZ + rnd() * (A.maxZ - A.minZ);
+      const r = R[0] + Math.pow(rnd(), 1.8) * (R[1] - R[0]);
+      if (avoid.some((q) => Math.abs(z - q[0]) < q[1] + r)) continue; // Abstand zu Grabenlinien (z, halbe Breite)
+      crList.push([x, z, r, D[0] + rnd() * (D[1] - D[0]) * (r / R[1] + 0.3)]);
+    }
+  }
+  for (const [cxp, czp, r, dep] of crList) {
+    const ext = r * 1.45;
+    const i0 = Math.max(0, Math.floor((cxp - ext - minX) / res)), i1 = Math.min(n - 1, Math.ceil((cxp + ext - minX) / res));
+    const j0 = Math.max(0, Math.floor((czp - ext - minZ) / res)), j1 = Math.min(n - 1, Math.ceil((czp + ext - minZ) / res));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const x = minX + i * res, z = minZ + j * res, o = j * n + i;
+      const d = Math.hypot(x - cxp, z - czp) + noise(x / 2.3, z / 2.3) * r * 0.08;
+      if (d < r) { const q = d / r; H[o] -= dep * (1 - q * q); splat[o * 4 + 3] = Math.max(splat[o * 4 + 3], Math.round(200 * (1 - q))); }
+      else if (d < ext) { H[o] += dep * 0.28 * Math.sin(((d - r) / (ext - r)) * Math.PI); splat[o * 4] = Math.max(splat[o * 4], 180); }
+    }
+  }
+  if (crList.length) await breathe();
+
   // 6) Splat: Fels nach Steilheit/Höhe, Erdflecken, Waldboden, Ufer; Summe ≤ 1
   const nrm = [0, 1, 0];
   const forests = spec.forests || [];
@@ -318,6 +368,10 @@ export async function generateTerrain(spec, { onProgress } = {}) {
       let gravel = splat[s4 + 1] / 255;
       if (h < waterY - 0.3) gravel = Math.max(gravel, 0.45);
       let dr = Math.max(splat[s4] / 255, dirt);
+      if (spec.wasteland) { // Ödland: zerwühlte Erde statt Wiese, Schlammflecken
+        dr = Math.max(dr, spec.wasteland.dirt - 0.12 * Math.max(0, noise(x / 31, z / 31))); // kaum Grasreste
+        mud = Math.max(mud, spec.wasteland.mud * smoothstep(0.35, 0.8, fbm(noise2, x / 22, z / 22, 3)));
+      }
       if (mask[o]) { rock = 0; mud = 0; }
       const sum = dr + gravel + rock + mud;
       const k = sum > 1 ? 1 / sum : 1;

@@ -186,6 +186,8 @@ const ICONS = {
     'M8 14H30Q32 14 32 16V18Q32 20 30 20H8Q6 20 6 17Q6 14 8 14Z M32 12V22 M32 14H80Q90 14 92 18Q86 21 78 21H32'),
   tomahawk: gunIcon(
     'M8 16H66V19H8Z M8 15V20 M66 10Q70 6 74 6V29Q70 29 66 25Z M62 11L66 13 M62 24L66 22 M66 15H58V20H66'),
+  spaten: gunIcon(
+    'M6 16H58V20H6Z M6 14V22 M58 11H74Q84 11 88 18Q84 25 74 25H58Z'),
   kampfaxt: gunIcon(
     'M8 16H70V20H8Z M8 15V21 M62 9H72Q80 9 84 4V31Q80 26 72 26H62Z M62 13H58V23H62'),
   schlagstock: gunIcon(
@@ -433,6 +435,7 @@ const FEEL = {
   karambit: { handling: { mass: 0.2, inertia: 0.35, swayScale: 0.65, aimDrift: 0, reach: 0 } },
   machete: { handling: { mass: 0.6, inertia: 0.5, swayScale: 0.75, aimDrift: 0, reach: 0 } },
   tomahawk: { handling: { mass: 0.7, inertia: 0.55, swayScale: 0.78, aimDrift: 0, reach: 0 } },
+  spaten: { handling: { mass: 0.9, inertia: 0.6, swayScale: 0.8, aimDrift: 0, reach: 0 } },
   kampfaxt: { handling: { mass: 0.9, inertia: 0.6, swayScale: 0.8, aimDrift: 0, reach: 0 } },
   schlagstock: { handling: { mass: 0.4, inertia: 0.4, swayScale: 0.7, aimDrift: 0, reach: 0 } },
   kampfstock: { handling: { mass: 0.35, inertia: 0.4, swayScale: 0.7, aimDrift: 0, reach: 0 } },
@@ -718,6 +721,18 @@ const RAW = {
     melee: { range: 2.5, lungeRange: 6.5, lungeSpeed: 13, arc: 0.6, swingTime: 0.85, hitDelay: 0.22, style: 'overhead' },
     range: 2.5, penetration: 0, suppressed: true, sound: { profile: 'melee_swing', pitch: 0.78 }, model: 'tomahawk',
   },
+  spaten: {
+    id: 'spaten', name: 'Klappspaten Maulwurf', cls: 'melee', slot: 'melee', unlockLevel: 3,
+    description: 'Der Feldspaten des Grabenkämpfers: zwei Hiebe mit der geschärften Kante. Spezial „Graben“: auf Großkarten hebt jeder Schlag in den Erdboden Erde aus – eigene Schützenlöcher und Gräben, bis 2,4 m tief.',
+    damage: { max: 60, min: 60, rangeStart: 0, rangeEnd: 2.4 }, headMult: 1, limbMult: 1, pellets: 1,
+    rpm: 90, special: 'graben', fireMode: 'semi', burstCount: 1, mag: 0, reserve: 0,
+    reloadTime: 0, reloadEmptyTime: 0, perShellReload: false,
+    equipTime: 0.3, adsTime: 0, adsZoom: 1, sight: 'none', scope: null, sprintToFire: 0.06,
+    moveSpeedMult: 1.04, adsMoveMult: 1, hipSpread: 0, adsSpread: 0, moveSpreadMult: 1, jumpSpreadMult: 1,
+    recoil: { vertical: 0, horizontal: 0, recovery: 10, firstShotMult: 1 },
+    melee: { range: 2.4, lungeRange: 4.4, lungeSpeed: 10, arc: 0.6, swingTime: 0.62, hitDelay: 0.16, style: 'chop' },
+    range: 2.4, penetration: 0, suppressed: true, sound: { profile: 'melee_swing', pitch: 0.8 }, model: 'spaten',
+  },
   kampfaxt: {
     id: 'kampfaxt', name: 'Kampfaxt Eisenzahn', cls: 'melee', slot: 'melee', unlockLevel: 44,
     description: 'Kurze Axt mit breitem Bart: ein Hieb genügt, und er geht durch Helm und Weste. Spezial „Wucht“: der Getroffene taumelt, Umstehende im Bogen bekommen den halben Schaden. Langsam, schwer, unaufhaltsam.',
@@ -762,10 +777,10 @@ export const WEAPON_IDS = [
   // Welle 2 (Arsenal): Karabiner, Bullpup, Kampfgewehr, Kompakt-/Schwere MP, Trommel-LMG, Anti-Material, Selbstlade-Flinte,
   // Revolver, Panzerabwehr (Pionier) + Nahkampfwaffen
   'ar_k36', 'ar_bx20', 'ar_g7', 'smg_wespe', 'smg_keiler', 'lmg_lm8', 'sr_titan', 'sg_hagel', 'pi_kobra', 'at_donner',
-  'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock',
+  'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock', 'spaten',
 ];
 /** Nahkampfwaffen (Slot „melee“, Ausrüstung `loadout.melee`; 'knife' ist der Standard). */
-export const MELEE_IDS = ['knife', 'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock'];
+export const MELEE_IDS = ['knife', 'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock', 'spaten'];
 
 export const WEAPONS = {};
 for (const id of WEAPON_IDS) {

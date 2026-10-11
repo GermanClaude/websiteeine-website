@@ -327,6 +327,32 @@ export const MAPS = {
     hq: { A: [60, 219], B: [-20, -222] },
     spawns: { A: [4, 124], B: [46, -72] },
   },
+  niemandsland: {
+    id: 'niemandsland',
+    name: 'Niemandsland',
+    subtitle: 'Stellungskrieg 1916',
+    description: 'Ein zerschossenes Ödland unter grauem Himmel, größer als das Grenzland: Beide Seiten halten eine gezackte Frontlinie aus zwei Meter tiefen Schützengräben mit Bretterwänden, Lattenrosten und Sandsäcken, dahinter Unterstützungslinien und Laufgräben. Dazwischen das Niemandsland – Hunderte Granattrichter, manche voll Wasser, Stacheldrahtgürtel, zersplitterte Baumstümpfe, eine Dorf- und eine Kapellenruine mit Mauern, die unter Beschuss einstürzen, und ein liegengebliebener Panzer.',
+    short: 'Großkarte: Schützengräben, Granattrichter, Stacheldraht, Ruinen – fünf Flaggen.',
+    size: 'groß',
+    scale: 'gross',
+    viewDistance: { low: 340, medium: 600, high: 850, ultra: 850 },
+    dimensions: { x: 600, z: 600 },
+    timeOfDay: 'Grauer Vormittag',
+    weather: 'Bedeckt, Dunst über dem Schlamm',
+    weathers: ['bewoelkt', 'dunst', 'morgennebel', 'klar'], weatherDefault: 'bewoelkt',
+    timeDefault: 'vormittag', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'abend', name: 'Abend' }],
+    modes: ['cq', 'tdm', 'dom', 'ffa'],
+    palette: ['#5b5246', '#8f8a80', '#3b3a30', '#6b5a44', '#a8a092'],
+    features: ['Schützengräben mit Feuerbuchten, Rampen und Laufgräben', 'Hunderte Granattrichter, die tiefsten voll Wasser', 'Stacheldrahtgürtel vor beiden Fronten', 'Dorf- und Kapellenruine mit einstürzenden Mauern', 'Fünf Eroberungsflaggen A–E', 'Einsatzkarte: bei Kameraden einsteigen'],
+    lanes: ['Westen: Dorfruine', 'Mitte: Trichterfeld mit Panzerwrack', 'Osten: Kapellenruine'],
+    ambience: 'range',
+    bounds: { minX: -300, maxX: 300, minZ: -300, maxZ: 300 },
+    layout: [],
+    flags: [{ id: 'A', x: -120, z: 0 }, { id: 'B', x: 0, z: 0 }, { id: 'C', x: 125, z: -6 }],
+    cq: [{ id: 'A', name: 'Stellung Süd', x: -150, z: 119 }, { id: 'B', name: 'Dorfruine', x: -120, z: 0 }, { id: 'C', name: 'Trichterfeld', x: 0, z: 0 }, { id: 'D', name: 'Kapellenruine', x: 125, z: -6 }, { id: 'E', name: 'Stellung Nord', x: 150, z: -119 }],
+    hq: { A: [0, 238], B: [0, -238] },
+    spawns: { A: [0, 162], B: [0, -162] },
+  },
 };
 
 /** Wetter ohne Niederschlag (atmosphere-weather; Wirkung in world/weather.js). Lobby: „Wetter“ (Standard = Kartenwetter, Zufall). */
@@ -338,4 +364,4 @@ export const WEATHERS = {
 };
 export const WEATHER_ORDER = ['klar', 'dunst', 'morgennebel', 'bewoelkt'];
 
-export const MAP_ORDER = ['hafen', 'altstadt', 'werk', 'bibliothek', 'range', 'grenzland'];
+export const MAP_ORDER = ['hafen', 'altstadt', 'werk', 'bibliothek', 'range', 'grenzland', 'niemandsland'];

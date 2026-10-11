@@ -637,6 +637,7 @@ export class ClientSync {
       case 'bs': if (G.building) G.building.applyNet(m, (id) => (id === this.selfId ? G.player : this._actor(id))); return; // Bauwerk (building.js)
       case 'bd': if (G.building) G.building.remove(m.id); return;
       case 'dr': if (G.doors) G.doors.applyNet(m); return; // Tür/Tor (doors.js)
+      case 'dg': if (G.digging && Number.isFinite(m.x) && Number.isFinite(m.z)) G.digging.apply(m.x, m.z, true); return; // Graben (digging.js)
       case 'gr': {
         if (!W) return;
         const gs = W.grenadeSystem;
@@ -826,6 +827,12 @@ export class ClientSync {
   sendDoor(i, a, d = 0) {
     if (!this.active || this.ended || !Number.isInteger(i)) return;
     this.net.send(HOST_ID, { t: 'door', i, a: a === 'k' || a === 'h' ? a : 't', d: Math.round(d) });
+  }
+
+  /** Grabwunsch ('dig' {x, z}): der Host prüft und verteilt ('ev' dg, digging.js). */
+  sendDig(x, z) {
+    if (!this.active || this.ended) return;
+    this.net.send(HOST_ID, { t: 'dig', x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100 });
   }
 
   /** Bauwunsch ('build' {k, p, ry}): der Host prüft und verteilt das Bauwerk ('ev' bs). */

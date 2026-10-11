@@ -34,6 +34,7 @@ import { Building } from './building.js'; // Bauen (Taste K)
 import { Injuries } from './injuries.js'; // Verletzungen, Blutung, Verband (Taste N), Wiederbeleben
 import { Gore } from './gore.js'; // Blutlachen + Spritzer
 import { Destruction } from './destruction.js'; // zerstörbare Fassaden
+import { Digging } from './digging.js'; // Graben mit dem Klappspaten (Großkarten)
 import { Doors } from './doors.js'; // bewegliche Türen und Tore (Taste F)
 import { WallHoles } from './wallholes.js'; // durchlöcherte Wände
 
@@ -1015,6 +1016,7 @@ async function runStart(config, gen) {
     safe('injuries', () => { G.injuries = new Injuries(G); });
     safe('gore', () => { G.gore = new Gore(G); });
     safe('destruction', () => { G.destruction = new Destruction(G); });
+    safe('digging', () => { G.digging = new Digging(G); });
     safe('doors', () => { G.doors = new Doors(G); });
     safe('holes', () => { G.holes = new WallHoles(G); });
     G.hud.attach(G);
@@ -1229,6 +1231,7 @@ async function teardownMatch({ keepWorld = false } = {}) {
   if (G.injuries) { safe('injuries', () => G.injuries.dispose()); G.injuries = null; }
   if (G.gore) { safe('gore', () => G.gore.dispose()); G.gore = null; }
   if (G.destruction) { safe('destruction', () => G.destruction.dispose()); G.destruction = null; }
+  if (G.digging) { safe('digging', () => G.digging.dispose()); G.digging = null; }
   G.match.net = null;
   G.match.netRole = null;
   if (sceneBase) {

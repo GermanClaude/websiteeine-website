@@ -140,6 +140,19 @@ export class TerrainChunks {
     this.stats.triangles = tris;
   }
 
+  /** Gelände geändert (Graben): betroffene Kacheln neu aufbauen – aktuelle Stufe sofort, übrige bei Bedarf. */
+  refresh(minX, minZ, maxX, maxZ) {
+    for (const c of this.chunks) {
+      if (c.max.x < minX || c.min.x > maxX || c.max.z < minZ || c.min.z > maxZ) continue;
+      for (let lv = 0; lv < c.geos.length; lv++) if (c.geos[lv] && lv !== c.lv) { c.geos[lv].dispose(); c.geos[lv] = null; }
+      const old = c.geos[c.lv];
+      c.geos[c.lv] = this._geometry(c.ci, c.cj, c.lv);
+      c.mesh.geometry = c.geos[c.lv];
+      if (old) old.dispose();
+      c.min.y = Math.min(c.min.y, c.geos[c.lv].boundingBox.min.y);
+    }
+  }
+
   /** Feine Stufen um einen Punkt vorab bauen (Startpunkt, Ladebildschirm). */
   prewarm(x, z, radius = 160) {
     for (const c of this.chunks) {

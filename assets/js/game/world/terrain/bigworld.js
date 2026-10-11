@@ -33,6 +33,7 @@ import { terrainJob, worldJob } from './bigjob.js';
 
 const BIG_MAPS = {
   grenzland: () => import('../maps/grenzland.js'),
+  niemandsland: () => import('../maps/niemandsland.js'),
 };
 export const BIG_MAP_IDS = Object.keys(BIG_MAPS);
 
@@ -426,6 +427,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
     roads, vehicleSpawns, vehicleSpots, secrets, secretsAuto: true,
     emplacements: sites.flatMap((st) => st.b.emplacements || []), // benutzbare MG-Stellungen (game/mappoints.js)
     doors: sites.flatMap((st) => st.b.doors || []), gates: sites.flatMap((st) => st.b.gates || []), // game/doors.js
+    destructibles: sites.flatMap((st) => (st.b.destructibles || []).filter((d) => d.mesh)), // game/destruction.js
     viewDistance: tier.view,
     mapImage: minimap.canvas,
     stats: {
