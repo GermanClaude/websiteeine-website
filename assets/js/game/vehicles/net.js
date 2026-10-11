@@ -12,7 +12,7 @@
 //   (placeInSeat/clearSeat), Schnappschüsse puffern und mit der Abspieluhr der Puppen interpolieren (tickReplica), eigene
 //   Sitz-Absicht als VEH_INPUT im 30-Hz-Zustand (inputState), Anfragen über enter/exit/seat/load.
 import * as THREE from 'three';
-import { VEHICLES, VEHICLE_IDS, VEHICLE_WEAPONS, staticComp } from './data.js';
+import { VEHICLES, VEHICLE_IDS, VEHICLE_WEAPONS, staticComp, vehicleWeapon } from './data.js';
 import { WHY_TEXT, LOAD_TIMES, autoReload } from './crew.js';
 import { falloff } from '../combat.js';
 
@@ -196,7 +196,7 @@ export class VehicleNet {
     for (const v of L) {
       if (!Number.isInteger(v.netId)) continue;
       if (!v._netBlock) {
-        v._netBlock = { a: [0, 0, 0, 0], zones: [0, 0, 0], shots: [0, 0, 0, 0] };
+        v._netBlock = { a: [0, 0, 0, 0], zones: [0, 0, 0], shots: [0, 0, 0, 0, 0, 0] };
         Object.defineProperty(v._netBlock, '_v', { value: v, enumerable: false });
       }
       out.push(this._block(v, v._netBlock));
@@ -234,9 +234,12 @@ export class VehicleNet {
     const zdead = (k) => !!(Z[k] && Z[k].hp <= 0);
     o.bits = (v.alive ? 1 : 0) | (v.wreck ? 2 : 0) | (v.disabled ? 4 : 0) | (v.lights ? 8 : 0) | (b.sleeping ? 16 : 0)
       | (zdead('tracks') && now < v.trackDownUntil ? 32 : 0) | (zdead('engine') ? 64 : 0) | (zdead('turret') ? 128 : 0);
-    let seats = 0;
-    v.seats.forEach((s, i) => { if (i < 4) { if (s.hatchOpen) seats |= 1 << i; if (now < (s.readyAt || 0)) seats |= 16 << i; } });
-    o.seats = seats;
+    let seats = 0, seats2 = 0;
+    v.seats.forEach((s, i) => {
+      if (i < 4) { if (s.hatchOpen) seats |= 1 << i; if (now < (s.readyAt || 0)) seats |= 16 << i; }
+      else if (i < 6) { if (s.hatchOpen) seats2 |= 1 << (i - 4); if (now < (s.readyAt || 0)) seats2 |= 16 << (i - 4); }
+    });
+    o.seats = seats; o.seats2 = seats2;
     o.x = b.pos.x; o.y = b.pos.y; o.z = b.pos.z;
     o.qx = b.quat.x; o.qy = b.quat.y; o.qz = b.quat.z; o.qw = b.quat.w;
     o.vx = b.vel.x; o.vy = b.vel.y; o.vz = b.vel.z;
@@ -251,7 +254,7 @@ export class VehicleNet {
     // drive: 0 Schaltpause, 1 Bremse, 2 Drehzahl zu niedrig, 3 Gang halten; bits4–7 Motorlast ×15 (Klang)
     o.drive = (D.shifting ? 1 : 0) | (b.controls && b.controls.brake > 0 ? 2 : 0) | (D.lugging ? 4 : 0) | (D.gearbox === 'hold' ? 8 : 0)
       | (Math.round(clamp(D.throttle || 0, 0, 1) * 15) << 4);
-    for (let i = 0; i < 4; i++) o.shots[i] = v.seats[i] ? mgShots(v.seats[i]) : 0;
+    for (let i = 0; i < 6; i++) o.shots[i] = v.seats[i] ? mgShots(v.seats[i]) : 0;
     const g = v.gun;
     if (g) {
       o.gun = ammoIdx(g.loaded) | (ammoIdx(g.held) << 2) | (Math.max(0, STEPS.indexOf(g.step)) << 4) | (g.breechOpen ? 128 : 0);
@@ -489,7 +492,7 @@ export class VehicleNet {
     const v = sys.spawnVehicle(type, pos, yaw, team);
     if (!v) return null;
     v.netId = vid;
-    v._net = { gotSample: false, extra: null, fxT: 0, shots: [0, 0, 0, 0], shotsInit: false, hp: v.health };
+    v._net = { gotSample: false, extra: null, fxT: 0, shots: [0, 0, 0, 0, 0, 0], shotsInit: false, hp: v.health };
     if (!s) v.model.root.visible = false; // erst mit dem ersten Block zeigen
     // Räder: Anzeige ohne Federsim (Ruhelage)
     const c0 = staticComp(v.def);
@@ -646,7 +649,7 @@ export class VehicleNet {
     switch (m.e) {
       case 'vs': {
         const v = this._byVid.get(m.v);
-        const def = VEHICLE_WEAPONS[m.w];
+        const def = v ? vehicleWeapon(v.type, m.w) : VEHICLE_WEAPONS[m.w];
         const o = v3(m.o), d = v3(m.d);
         if (!def || !o || !d) return;
         d.normalize();
@@ -701,7 +704,7 @@ export class VehicleNet {
   tickReplica(v, dt) {
     const L = this._samples.get(v.netId);
     const rt = this._rt();
-    const st = v._net || (v._net = { gotSample: false, extra: null, fxT: 0, shots: [0, 0, 0, 0], shotsInit: false, hp: v.health });
+    const st = v._net || (v._net = { gotSample: false, extra: null, fxT: 0, shots: [0, 0, 0, 0, 0, 0], shotsInit: false, hp: v.health });
     const b = v.body;
     if (L && L.length && rt != null) {
       const sync = this.G.net && this.G.net.sync;
@@ -837,9 +840,10 @@ export class VehicleNet {
     if ((s.bits & 2) !== 0) v.wreck = true;
     // Sitze: Luke (fremde Sitze; die eigene Luke folgt der eigenen Sicht), Wechselsperre
     v.seats.forEach((seat, i) => {
-      if (i >= 4) return;
-      if (i !== ownIdx) seat.hatchOpen = (s.seats & (1 << i)) !== 0;
-      const sw = (s.seats & (16 << i)) !== 0;
+      if (i >= 6) return;
+      const bits = i < 4 ? s.seats : (s.seats2 | 0), j = i < 4 ? i : i - 4;
+      if (i !== ownIdx) seat.hatchOpen = (bits & (1 << j)) !== 0;
+      const sw = (bits & (16 << j)) !== 0;
       if (sw) seat.readyAt = Math.max(seat.readyAt || 0, now + 0.05);
       else if ((seat.readyAt || 0) > now && i !== ownIdx) seat.readyAt = now;
     });
@@ -889,8 +893,8 @@ export class VehicleNet {
     setMag(mg[0], s.mag0, (s.sel & 16) !== 0);
     setMag(mg[1], s.mag1, (s.sel & 32) !== 0);
     // MG-Schüsse: Zuwachs der Zähler → Mündungsfeuer, Klang, Leuchtspur (nur Darstellung)
-    for (let i = 0; i < 4 && i < v.seats.length; i++) {
-      const n = s.shots[i];
+    for (let i = 0; i < 6 && i < v.seats.length; i++) {
+      const n = s.shots[i] | 0;
       if (!st.shotsInit) { st.shots[i] = n; continue; }
       const d = Math.min(6, (n - st.shots[i]) & 255);
       st.shots[i] = n;
@@ -944,7 +948,7 @@ export class VehicleNet {
     st.fxT -= dt;
     if ((v.disabled || v.wreck) && st.fxT <= 0 && G.effects) {
       st.fxT = v.wreck ? 0.22 : 0.3;
-      const p = _a.copy(v.body.renderPos); p.y += v.type === 'mbt' ? 1.2 : 0.8;
+      const p = _a.copy(v.body.renderPos); p.y += v.def.drive === 'tracked' ? 1.2 : 0.8;
       const fresh = v.wreck && v.wreckLeft > v.def.wreckTime - 9;
       G.effects.smoke?.(p, { count: fresh ? 3 : 2, color: 0x1c1a18, size: fresh ? 2.2 : 1.5, life: 3.5, rise: 2.2, alpha: 0.55 });
       if (fresh || (v.disabled && !v.wreck)) G.effects.smoke?.(p, { count: 1, color: 0xff7a2a, size: 0.8, life: 0.6, rise: 2.5, alpha: 0.45 });

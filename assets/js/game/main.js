@@ -929,6 +929,7 @@ async function runStart(config, gen) {
       weather: cfg.weather, conditions: cond, // atmosphere-weather (Anfrage; aufgelöst: conditions = G.world.weather)
       net: netCfg, netRole: netCfg ? netCfg.role : null, netLive: false, // Mehrspieler
       vehicles: netCfg ? !!netCfg.vehicles : undefined, // online: Raum-Einstellung „Fahrzeuge“ (vor spawnBots – Werfer der Bots)
+      tankEra: (netCfg ? netCfg.tankEra : cfg.tankEra) || 'karte', // Panzer-Generation (vehicles/index.js tankType)
     });
     // Online: Modus/Karte/Schwierigkeit gehören dem Raum – die Lobby-Vorauswahl für Einzelspieler bleibt
     if (netCfg) settings.patch({ lastLoadout: cfg.loadout, lastClass: cfg.loadout.cls || 'sturm' });

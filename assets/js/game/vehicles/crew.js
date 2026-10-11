@@ -7,7 +7,7 @@
 // Ladefolge (Ladeschütze, Sicht 'innen', Blick nur über die Gier im Turmraum geprüft):
 //   'munition' (Sorte wählen) → Blick aufs Gestell → 'greifen' 1,0 s → Blick zum Verschluss → 'einschieben' 0,8 s
 //   → 'schliessen' 0,4 s → geladen. Automatik: 5,0 s mit besetztem Ladeschützensitz, sonst 8,0 s.
-import { VEHICLE_WEAPONS } from './data.js';
+import { VEHICLE_WEAPONS, vehicleWeapon } from './data.js';
 
 const wrap = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
 export const LOAD_TIMES = { greifen: 1.0, einschieben: 0.8, schliessen: 0.4 };
@@ -131,7 +131,7 @@ function startAuto(v) {
   g.busy = 0; g.busyKind = null;
   if (g.step === 'eingeschoben' && g.loaded) { g.auto = true; g.autoT = g.autoMax = 0.4; return; }
   const ls = loaderSeat(v);
-  const w = VEHICLE_WEAPONS[ammoWish(v)] || VEHICLE_WEAPONS[g.select];
+  const w = vehicleWeapon(v.type, ammoWish(v)) || vehicleWeapon(v.type, g.select);
   g.autoT = g.autoMax = ls && ls.actor ? (w.reload || 5) : (w.reloadNoLoader || 8);
   g.auto = true;
 }

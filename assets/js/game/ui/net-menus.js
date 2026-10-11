@@ -874,7 +874,7 @@ export class NetMenus {
       ${item('Ausdauer', s.stamina === false ? 'unbegrenzt' : 'normal')}${item('Munition pro Abschuss', s.killAmmo === false ? 'aus' : s.style === 'realistisch' ? 'an der Leiche' : 'an')}
       ${item('Waffen von Leichen', s.lootWeapons === false ? 'aus' : 'erlaubt')}
       ${item('Fahrzeuge', vehOn(s) ? 'Panzer + Geländewagen' : 'aus')}
-      ${vehOn(s) ? `${item('Außenansicht (Fahrzeuge)', s.thirdPerson === false ? 'aus' : 'erlaubt')}${item('Panzer nachladen', s.vehReload === 'automatisch' ? 'automatisch' : 'manuell')}` : ''}
+      ${vehOn(s) ? `${item('Außenansicht (Fahrzeuge)', s.thirdPerson === false ? 'aus' : 'erlaubt')}${item('Panzer nachladen', s.vehReload === 'automatisch' ? 'automatisch' : 'manuell')}${item('Panzer-Generation', ({ karte: 'je Karte', modern: 'modern', wk2: '2. Weltkrieg', wk1: '1. Weltkrieg' })[s.tankEra] || 'je Karte')}` : ''}
       ${item('Cheat-Menü', s.cheatMenu === false ? 'verboten' : 'erlaubt')}
     </div>`;
   }
@@ -959,7 +959,8 @@ export class NetMenus {
         ${vehOn(s) ? `<div class="nr-two">
           ${sw('thirdPerson', 'Außenansicht (Fahrzeuge)', '3P-Kamera in Fahrzeugen erlaubt', s.thirdPerson !== false)}
           ${seg('vehReload', [['manuell', 'Manuell', 'Ladeschütze lädt von Hand'], ['automatisch', 'Automatisch', 'Nachladen nach Zeit']], s.vehReload === 'automatisch' ? 'automatisch' : 'manuell', 'Panzer nachladen')}
-        </div>` : ''}
+        </div>
+        <div class="nr-two">${seg('tankEra', [['karte', 'Karte', 'Je nach Karte (Niemandsland: 1. Weltkrieg, sonst modern)'], ['modern', 'Modern', 'KP-1 Mammut: Kampfpanzer mit Wärmebild, 4 Mann'], ['wk2', '2. WK', 'MK-4 Luchs: 75-mm-Kanone, Bug-MG, 5 Mann'], ['wk1', '1. WK', 'SK-18 Koloss: Bugkanone, MG-Stand, 6 Mann inkl. Mechaniker']], s.tankEra || 'karte', 'Panzer-Generation')}</div>` : ''}
         <div class="nr-two">
           ${sw('cheatMenu', 'Cheat-Menü', s.cheatMenu === false ? 'Verboten: das Menü öffnet sich bei niemandem' : 'Erlaubt (alle Modi): wer es nutzt, trägt ein Symbol in der Punktetabelle', s.cheatMenu !== false)}
         </div>

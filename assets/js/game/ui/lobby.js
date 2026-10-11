@@ -78,6 +78,7 @@ export class Lobby {
       timeOfDay: S.get('lastTime') && S.get('lastTime') !== 'standard' ? S.get('lastTime') : null,
       weather: S.get('lastWeather') || 'standard',
       vehicles: S.get('lastVehicles') === 'aus' ? 'aus' : 'an', // Panzer/Fahrzeuge offline an/aus (Raum: net-menus „Fahrzeuge“)
+      tankEra: ['karte', 'modern', 'wk2', 'wk1'].includes(S.get('lastTankEra')) ? S.get('lastTankEra') : 'karte', // Panzer-Generation
     };
     if (prm) {
       if (d.MODES[prm.get('mode')]) base.modeId = prm.get('mode');
@@ -183,7 +184,7 @@ export class Lobby {
     return {
       modeId: c.modeId, mapId: c.mapId, difficulty: c.difficulty, allies: c.allies, enemies: c.enemies,
       style: c.style, crosshair: c.style === 'realistisch' ? !!this.G.settings.get('realisticCrosshair') : null,
-      matchLength: c.matchLength, timeOfDay: this._todFor(c) || 'standard', vehicles: c.vehicles !== 'aus', weather: c.weather && c.weather !== 'standard' ? c.weather : null,
+      matchLength: c.matchLength, timeOfDay: this._todFor(c) || 'standard', vehicles: c.vehicles !== 'aus', tankEra: c.tankEra || 'karte', weather: c.weather && c.weather !== 'standard' ? c.weather : null,
       loadout: { primary: c.primary, secondary: c.secondary, lethal: c.lethal, melee: c.melee || 'knife', cls: c.cls, camo, att: pickAtt(c), ...(skin ? { skin } : {}) },
       ...(c.limits && c.limits.modeId === c.modeId ? { timeLimit: c.limits.timeLimit, scoreLimit: c.limits.scoreLimit } : {}),
     };
@@ -285,6 +286,7 @@ export class Lobby {
     if (ds.xhair != null) { try { this.G.settings.set('realisticCrosshair', !this.G.settings.get('realisticCrosshair')); } catch { /* */ } this._renderDeploy(); this.menus.sound('toggle'); return; }
     if (ds.len) { c.matchLength = ds.len; this._renderDeploy(); this.menus.sound('click'); return; }
     if (ds.tod != null) { c.timeOfDay = ds.tod || null; try { this.G.settings.set('lastTime', ds.tod || 'standard'); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
+    if (ds.era != null) { c.tankEra = ds.era || 'karte'; try { this.G.settings.set('lastTankEra', c.tankEra); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
     if (ds.veh != null) { c.vehicles = ds.veh === 'aus' ? 'aus' : 'an'; try { this.G.settings.set('lastVehicles', c.vehicles); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
     if (ds.wx != null) { c.weather = ds.wx || 'standard'; this._wxAutoTime(c); try { this.G.settings.set('lastWeather', c.weather); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
     if (ds.cls) { this._setClass(ds.cls); return; }
@@ -374,6 +376,7 @@ export class Lobby {
     const extra = `${m.matchLengths ? `<div><h2 class="m-h2">Matchlänge</h2><div class="m-seg" role="radiogroup" aria-label="Matchlänge">${LENGTHS.map(([id, l]) => `<button type="button" role="radio" data-len="${id}" aria-checked="${id === c.matchLength}">${l}</button>`).join('')}</div></div>` : ''}
       ${times.length ? `<div><h2 class="m-h2">Tageszeit</h2><div class="m-seg" role="radiogroup" aria-label="Tageszeit"><button type="button" role="radio" data-tod="" aria-checked="${!todSel}">${esc(map.timeOfDay || 'Standard')}</button>${times.map((t) => `<button type="button" role="radio" data-tod="${esc(t.id)}" aria-checked="${t.id === todSel}">${esc(t.name || t.label || t.id)}</button>`).join('')}<button type="button" role="radio" data-tod="echtzeit" aria-checked="${todSel === 'echtzeit'}" title="Passend zur echten Uhrzeit">Echtzeit</button><button type="button" role="radio" data-tod="zufall" aria-checked="${todSel === 'zufall'}">Zufall</button></div>${rtNote}</div>` : ''}
       ${c.modeId !== 'training' ? `<div><h2 class="m-h2">Panzer &amp; Fahrzeuge</h2><div class="m-seg" role="radiogroup" aria-label="Panzer und Fahrzeuge">${[['an', 'An', 'Panzer und Geländewagen der Karte'], ['aus', 'Aus', 'Nur Infanterie']].map(([id, l, t]) => `<button type="button" role="radio" data-veh="${id}" aria-checked="${id === c.vehicles}" title="${t}">${l}</button>`).join('')}</div></div>` : ''}
+      ${c.modeId !== 'training' && c.vehicles !== 'aus' ? `<div><h2 class="m-h2">Panzer-Generation</h2><div class="m-seg" role="radiogroup" aria-label="Panzer-Generation">${[['karte', 'Karte', 'Je nach Karte (Niemandsland: 1. Weltkrieg, sonst modern)'], ['modern', 'Modern', 'KP-1 Mammut: Kampfpanzer mit Wärmebild, 4 Mann'], ['wk2', '2. WK', 'MK-4 Luchs: 75-mm-Kanone, Bug-MG, 5 Mann'], ['wk1', '1. WK', 'SK-18 Koloss: Bugkanone, MG-Stand, 6 Mann inkl. Mechaniker']].map(([id, l, t]) => `<button type="button" role="radio" data-era="${id}" aria-checked="${id === (c.tankEra || 'karte')}" title="${t}">${l}</button>`).join('')}</div></div>` : ''}
       ${wxs.length ? `<div><h2 class="m-h2">Wetter</h2><div class="m-seg" role="radiogroup" aria-label="Wetter">${[['standard', 'Standard', map.weather || ''], ...wxs.map((w) => [w, WEATHERS[w].name, WEATHERS[w].short || '']), ['zufall', 'Zufall', 'Zufälliges Wetter beim Start']].map(([id, l, t]) => `<button type="button" role="radio" data-wx="${id}" aria-checked="${id === wxSel}"${t ? ` title="${esc(t)}"` : ''}>${esc(l)}</button>`).join('')}</div></div>` : ''}`;
     this.el.deploy.innerHTML = `
       <section class="lb-sec"><h2 class="m-h2">Modus</h2><div class="lb-modes" role="group" aria-label="Modus">${modes}</div>

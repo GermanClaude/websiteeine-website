@@ -6,7 +6,7 @@
 // Lebenszyklus: new VehicleSystem(G) beim Start; attach(G) je Match (nach Welt/Bots), update(dt) je Frame
 // (nach bots, vor weapons), updateOccupant(player, dt) statt player.update, solange der Spieler sitzt; detach().
 import * as THREE from 'three';
-import { VEHICLES, VEHICLE_WEAPONS, VEHICLE_CAUSES, VEHICLE_IDS, respawnFor } from './data.js';
+import { VEHICLES, VEHICLE_WEAPONS, VEHICLE_CAUSES, VEHICLE_IDS, respawnFor, vehicleWeapon, tankTypeFor } from './data.js';
 import { Vehicle, newIntent } from './vehicle.js';
 import { ShellPool, raycastActors } from './projectiles.js';
 import { VehicleCamera, dirFromYawPitch } from './camera.js';
@@ -118,7 +118,7 @@ export class VehicleSystem {
     this.net = online ? new VehicleNet(this, { replica: this.replica }) : null;
     this.remote = this.replica ? this.net : null;
     if (!this.replica) this._setupSpawns();
-    else prepareVehicleModels(['mbt', 'jeep'].filter((t) => VEHICLES[t]), ['A', 'B'], this.quality);
+    else prepareVehicleModels([this.tankType, 'jeep'].filter((t) => VEHICLES[t]), ['A', 'B'], this.quality);
     if (this.list.length || this.spawns.length || this.replica) {
       MATS.upgradeVehicleMaterials(G.renderer && G.renderer.renderer, this.quality);
       // Shader vorwärmen (main.warmUp kompiliert sichtbare Szenenobjekte): Granate, Scheinwerfer an, Lichtkegel, Wrack
@@ -134,7 +134,7 @@ export class VehicleSystem {
       // Countdown wieder weg (update)
       if (this.replica) {
         this._warmModels = [];
-        for (const type of ['mbt', 'jeep']) for (const team of ['A', 'B']) {
+        for (const type of [this.tankType, 'jeep']) for (const team of ['A', 'B']) {
           if (!VEHICLES[type]) continue;
           try { const md = createVehicleModel(type, { team, quality: this.quality }); warm.add(md.root); this._warmModels.push(md); } catch (err) { console.warn('[vehicles] Vorwärmen', err); }
         }
@@ -227,6 +227,15 @@ export class VehicleSystem {
     this.G.events.emit('vehicle:removed', { vehicle: v });
   }
 
+  /** Panzer dieser Runde: Einstellung „Panzer-Generation“ (online Raum, offline Lobby; ?panzer=… für Tests). */
+  get tankType() {
+    const G = this.G, M = G.match || {};
+    let era = null;
+    try { era = G.params && typeof G.params.get === 'function' ? G.params.get('panzer') : null; } catch { era = null; }
+    if (!era) era = (M.net && M.net.tankEra) || M.tankEra || 'karte';
+    return tankTypeFor(era, M.mapId || (this.world && this.world.id));
+  }
+
   _setupSpawns() {
     const G = this.G, w = this.world;
     const param = G.params && typeof G.params.get === 'function' ? G.params.get('vehicles') : null;
@@ -234,7 +243,9 @@ export class VehicleSystem {
     if (param === '0') entries = null;
     else if (!entries && (param === '1' || (G.match && G.match.vehicles))) entries = this.autoSpawns();
     if (!entries || !entries.length) return;
-    entries = entries.filter((e) => e && VEHICLES[e.type] && !e.secret);
+    // Panzergeneration (Raum/Lobby „Panzer“): Kampfpanzer-Plätze der Karte bekommen den Panzer der gewählten Epoche
+    const tank = this.tankType;
+    entries = entries.filter((e) => e && VEHICLES[e.type] && !e.secret).map((e) => (e.type === 'mbt' && tank !== 'mbt' ? { ...e, type: tank } : e));
     // Reihum je Team anmelden: bei der Stufen-Obergrenze (Handy) bekommen beide Seiten gleich viele Fahrzeuge
     const byTeam = new Map();
     for (const e of entries) { const k = e.team ?? null; if (!byTeam.has(k)) byTeam.set(k, []); byTeam.get(k).push(e); }
@@ -687,7 +698,7 @@ export class VehicleSystem {
     }
     this._eff = { seat, view: eff };
     // Wärmebild (G) in Hauptzieloptik, Weitwinkel und Rundblickperiskop
-    const thermalOk = !!(eff && !eff.tp && THERMAL_VIEWS.has(eff.overlay));
+    const thermalOk = !!(eff && !eff.tp && THERMAL_VIEWS.has(eff.overlay) && !v.def.noThermal); // Wärmebild nur moderne Panzer
     if (!this.thermal) this.thermal = new Thermal(G);
     if (act.thermal && thermalOk) { this.thermal.toggle(); this._viewLabel = { text: this.thermal.on ? 'Wärmebild an' : 'Wärmebild aus', until: now + 1.2 }; }
     this.thermal.update(dt, thermalOk);
@@ -836,7 +847,7 @@ export class VehicleSystem {
       this._protect(a, s);
       if (!a.isPlayer) {
         // Blickrichtung der Bots/Puppen: Lafette bzw. Fahrtrichtung
-        const yaw = s.def.mount ? v.yaw + (s.def.mount === 'gun' ? v.mount.turretYaw : s.def.mount === 'cmg' ? v.mount.turretYaw + v.mount.cmgYaw : v.mount.mgYaw) : v.yaw;
+        const yaw = s.def.mount ? v.yaw + (s.def.mount === 'gun' ? v.mount.turretYaw : s.def.mount === 'cmg' ? (v.def.cmgHull ? 0 : v.mount.turretYaw) + v.mount.cmgYaw : v.mount.mgYaw) : v.yaw;
         a.yaw = wrap(yaw);
         if (fv.hatch) a.crouching = open; // aus der Luke: nur Oberkörper draußen
         const sol = a.soldier;
@@ -912,7 +923,7 @@ export class VehicleSystem {
       else { const ld = viewLookDir(v, seat, r.view, _n); state.lookYaw = Math.atan2(-ld.x, -ld.z); state.lookPitch = Math.asin(clamp(ld.y, -1, 1)); }
       // Optik: Ballistik der geladenen bzw. gewählten Granate
       const w = seat.weapons[seat.weaponIndex];
-      const am = (g && g.loaded && VEHICLE_WEAPONS[g.loaded]) || (w && w.def.kind === 'shell' ? w.def : null);
+      const am = (g && g.loaded && vehicleWeapon(v.type, g.loaded)) || (w && w.def.kind === 'shell' ? w.def : null);
       state.ammo = am ? { short: am.short || SHORT[am.id] || '', speed: am.speed, gravity: am.gravity } : null;
     } else {
       if (this.spot) this.spot.intensity = 0;
@@ -1258,7 +1269,11 @@ export class VehicleSystem {
   }
 
   /** Killfeed-Hilfen (ui): Name/Symbol für Fahrzeugwaffen und -ursachen. */
-  weaponName(id) { return (VEHICLE_WEAPONS[id] && VEHICLE_WEAPONS[id].name) || VEHICLE_CAUSES[id] || null; }
+  weaponName(id) {
+    const w = VEHICLE_WEAPONS[id];
+    if (w && w.kind === 'shell') return w.short === 'SG' ? 'Sprenggranate' : 'Panzergranate'; // Kaliber je Panzergeneration verschieden
+    return (w && w.name) || VEHICLE_CAUSES[id] || null;
+  }
   weaponIcon(id) {
     const w = VEHICLE_WEAPONS[id];
     if (w) return ICONS[w.icon] || ICONS.shell;

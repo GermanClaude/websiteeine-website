@@ -167,7 +167,8 @@ try {
   const tri = await page.evaluate(() => {
     const M = window.__mt.models, out = {};
     for (const q of ['low', 'medium', 'high', 'ultra']) {
-      out[q] = { mbt: M.vehicleTriangles('mbt', q), jeep: M.vehicleTriangles('jeep', q), extra: M.vehicleExtraTriangles ? M.vehicleExtraTriangles('mbt', q) : null };
+      out[q] = { mbt: M.vehicleTriangles('mbt', q), jeep: M.vehicleTriangles('jeep', q), extra: M.vehicleExtraTriangles ? M.vehicleExtraTriangles('mbt', q) : null,
+        wk2: M.vehicleTriangles('wk2', q), wk1: M.vehicleTriangles('wk1', q), ex2: M.vehicleExtraTriangles('wk2', q), ex1: M.vehicleExtraTriangles('wk1', q) };
     }
     M.vehicleTriangles('mbt', 'low'); // Lack-Haken wieder auf die Seitenstufe
     return out;
@@ -181,6 +182,12 @@ try {
       check(t.mbt.every((n, i) => n <= BUDGET.mbt[q][i]), `KP-1 ${q}: LOD-Dreiecke im Budget ${BUDGET.mbt[q].join('/')}`, t.mbt.join('/'));
       check(t.jeep.every((n, i) => n <= BUDGET.jeep[q][i]), `GW-4 ${q}: LOD-Dreiecke im Budget ${BUDGET.jeep[q].join('/')}`, t.jeep.join('/'));
     }
+    // Panzergenerationen (2. WK / 1. WK): höchstens das Budget des KP-1, low ≤ 7000 in der Nahstufe
+    for (const [k, n] of [['wk2', 'MK-4'], ['wk1', 'SK-18']]) {
+      const lim = q === 'low' ? [7000, 3000, 1000] : BUDGET.mbt[q];
+      check(t[k].every((x, i) => x > 0 && x <= lim[i]), `${n} ${q}: LOD-Dreiecke im Budget ${lim.join('/')}`, t[k].join('/'));
+    }
+    check(t.ex2.hatches > 0 && t.ex2.interior > 0 && t.ex2.interior <= EXTRA[q].interior && t.ex1.hatches === 0 && t.ex1.interior > 0, `MK-4/SK-18 ${q}: Luken und Innenraum`, `MK-4 ${t.ex2.hatches}/${t.ex2.interior}, SK-18 ${t.ex1.hatches}/${t.ex1.interior}`);
     const E = EXTRA[q];
     check(!!t.extra && t.extra.hatches > 0 && t.extra.hatches <= E.hatches, `KP-1 ${q}: Luken ≤ ${E.hatches}`, t.extra ? t.extra.hatches : 'fehlt');
     check(!!t.extra && t.extra.interior > 0 && t.extra.interior <= E.interior, `KP-1 ${q}: Innenraum ≤ ${E.interior}`, t.extra ? t.extra.interior : 'fehlt');

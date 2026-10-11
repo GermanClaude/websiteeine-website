@@ -143,7 +143,7 @@ check(unpackFlags(FLAGS.VR).vr && packFlags({ vr: true }) === 2048, 'Flag-Bit 11
 
 /* ------------------------------------------------------------------ Fahrzeuge (panzer-mp.md §C.4/§C.5) */
 {
-  check(VEH_TAG === 0x56 && VEH_BLOCK === 60 && VEH_INPUT === 16 && FLAGS.VEHICLE === 1 << 12, 'Fahrzeug-Konstanten (0x56, 60, 16, Bit 12)');
+  check(VEH_TAG === 0x56 && VEH_BLOCK === 64 && VEH_INPUT === 16 && FLAGS.VEHICLE === 1 << 12, 'Fahrzeug-Konstanten (0x56, 64, 16, Bit 12)');
   // Quaternion: 30° um Y + leichte Neigung, absichtlich mit qw < 0 (muss negiert werden)
   const qy = Math.sin(Math.PI / 12), qw0 = Math.cos(Math.PI / 12);
   const qx0 = 0.05, ql = Math.hypot(qx0, qy, qw0);
@@ -151,7 +151,7 @@ check(unpackFlags(FLAGS.VR).vr && packFlags({ vr: true }) === 2048, 'Flag-Bit 11
   const veh = (vid, over = {}) => ({
     vid, kind: 0 | (1 << 4), bits: 0b10101001, seats: 0b00100101, x: 1234.567, y: -12.25, z: 98765.4321, qx: q[0], qy: q[1], qz: q[2], qw: q[3],
     vx: 18.93, vy: -0.42, vz: -7.77, wy: 0.765, a: [3.0, -0.157, -2.5, 0.85], hp: 873.6, zones: [255, 12, 200], gear: -2, rpm: 1.06, drive: 0b10111011,
-    shots: [3, 260, 0, 255], gun: 1 | (2 << 2) | (2 << 4) | 128, busy: 0.5, rackAP: 21, rackHE: 18, mag0: 200, mag1: 99, sel: 0b11010110, aux: 2 | (20 << 2), ...over,
+    shots: [3, 260, 0, 255, 9, 300], seats2: 0b00100010, gun: 1 | (2 << 2) | (2 << 4) | 128, busy: 0.5, rackAP: 21, rackHE: 18, mag0: 200, mag1: 99, sel: 0b11010110, aux: 2 | (20 << 2), ...over,
   });
   const vs = [veh(7), veh(255, { kind: 1 | (2 << 4), qx: 0, qy: 0, qz: 0, qw: 0, a: [Math.PI * 3, 0, 0, 0], gear: 4, rpm: 0, hp: 70000 })];
   // 3 Akteure, einer davon mit VR-Block, dazu 2 Fahrzeuge
@@ -161,7 +161,7 @@ check(unpackFlags(FLAGS.VR).vr && packFlags({ vr: true }) === 2048, 'Flag-Bit 11
     { id: 1001, x: 7, y: 8, z: 9, yaw: 0, pitch: 0, vx: 0, vy: 0, vz: 0, flags: FLAGS.ALIVE, weapon: 'ar_m17', hp: 20, lean: 0, shots: 0, proneBlend: 0 },
   ];
   const sv = encodeSnapshot(9, 77.5, ents3, vs);
-  check(sv.byteLength === SNAPSHOT_HEADER + 3 * SNAPSHOT_ENTITY + VR_BLOCK + 2 + 2 * VEH_BLOCK, `Snapshot mit Fahrzeugen ${sv.byteLength} B = 11 + n·31 + nvr·11 + 2 + nv·60`);
+  check(sv.byteLength === SNAPSHOT_HEADER + 3 * SNAPSHOT_ENTITY + VR_BLOCK + 2 + 2 * VEH_BLOCK, `Snapshot mit Fahrzeugen ${sv.byteLength} B = 11 + n·31 + nvr·11 + 2 + nv·64`);
   const plain = encodeSnapshot(9, 77.5, ents3);
   const plainNull = encodeSnapshot(9, 77.5, ents3, []);
   check(plain.byteLength === SNAPSHOT_HEADER + 3 * SNAPSHOT_ENTITY + VR_BLOCK && plainNull.byteLength === plain.byteLength
@@ -181,7 +181,7 @@ check(unpackFlags(FLAGS.VR).vr && packFlags({ vr: true }) === 2048, 'Flag-Bit 11
   check(near(V.wy, src.wy, 5e-4), 'Gierrate rad/s ×1000');
   check(V.a.every((x, i) => near(x, src.a[i], 1e-4)), 'Lafettenwinkel ≤ 1e-4');
   check(V.hp === 874 && V.zones.join() === '255,12,200' && V.gear === -2 && near(V.rpm, 1.06, 0.005) && V.drive === src.drive, 'hp gerundet, Zonen, Gang i8, rpm ×200, drive');
-  check(V.shots.join() === '3,4,0,255' && V.gun === src.gun && near(V.busy, 0.5, 0.003) && V.rackAP === 21 && V.rackHE === 18, 'Schusszähler mod 256, Kanone, Fortschritt, Gestell');
+  check(V.shots.join() === '3,4,0,255,9,44' && V.seats2 === 0b00100010 && V.gun === src.gun && near(V.busy, 0.5, 0.003) && V.rackAP === 21 && V.rackHE === 18, 'Schusszähler mod 256 (6 Sitze), Sitze 5–6, Kanone, Fortschritt, Gestell');
   check(V.mag0 === 200 && V.mag1 === 99 && V.sel === src.sel && V.aux === src.aux, 'Magazine, sel, aux');
   const V2 = dsv.vehicles[1];
   check(V2.vid === 255 && V2.qw === 1 && V2.qx === 0 && near(Math.abs(V2.a[0]), Math.PI, 1e-3) && V2.hp === 65535 && V2.rpm === 0 && V2.gear === 4, 'Nullquaternion → Einheit, Winkel umgebrochen, hp u16 begrenzt');

@@ -93,7 +93,7 @@ export const VR_BLOCK = 11;
 export const VR_REACH = 1.27;
 /** Fahrzeug-Anhang im Snapshot: Kennbyte, Block je Fahrzeug (Byte), Fahrzeug-Absicht im Zustand (Byte). */
 export const VEH_TAG = 0x56;
-export const VEH_BLOCK = 60;
+export const VEH_BLOCK = 64;
 export const VEH_INPUT = 16;
 /** Höchstzahl Fahrzeuge je Snapshot (u8). */
 export const MAX_VEHICLES = 255;
@@ -195,8 +195,9 @@ function hasVeh(e) {
 }
 
 /**
- * Fahrzeugblock schreiben (60 Byte). v: { vid, kind, bits, seats, x, y, z, qx, qy, qz, qw, vx, vy, vz, wy, a:[4], hp,
- * zones:[3] (0…255), gear, rpm (0…1,27), drive, shots:[4], gun, busy (0…1), rackAP, rackHE, mag0, mag1, sel, aux }.
+ * Fahrzeugblock schreiben (64 Byte). v: { vid, kind, bits, seats, x, y, z, qx, qy, qz, qw, vx, vy, vz, wy, a:[4], hp,
+ * zones:[3] (0…255), gear, rpm (0…1,27), drive, shots:[6], gun, busy (0…1), rackAP, rackHE, mag0, mag1, sel, aux, seats2 }.
+ * shots[4…5]/seats2: Sitze 5–6 (Panzer 1./2. Weltkrieg mit größerer Besatzung; seats2 bits0–1 Luke, bits4–5 bereit).
  */
 function writeVehicle(dv, o, v) {
   dv.setUint8(o, u8(v.vid));
@@ -230,6 +231,8 @@ function writeVehicle(dv, o, v) {
   dv.setUint8(o + 54, u8(v.rackAP)); dv.setUint8(o + 55, u8(v.rackHE));
   dv.setUint8(o + 56, u8(v.mag0)); dv.setUint8(o + 57, u8(v.mag1));
   dv.setUint8(o + 58, u8(v.sel)); dv.setUint8(o + 59, u8(v.aux));
+  dv.setUint8(o + 60, (fin(sh[4]) | 0) & 255); dv.setUint8(o + 61, (fin(sh[5]) | 0) & 255);
+  dv.setUint8(o + 62, u8(v.seats2)); dv.setUint8(o + 63, 0);
   return o + VEH_BLOCK;
 }
 
@@ -247,9 +250,9 @@ function readVehicle(dv, o) {
     wy: dv.getInt16(o + 30, true) / 1000, a,
     hp: dv.getUint16(o + 40, true), zones: [dv.getUint8(o + 42), dv.getUint8(o + 43), dv.getUint8(o + 44)],
     gear: dv.getInt8(o + 45), rpm: dv.getUint8(o + 46) / 200, drive: dv.getUint8(o + 47),
-    shots: [dv.getUint8(o + 48), dv.getUint8(o + 49), dv.getUint8(o + 50), dv.getUint8(o + 51)],
+    shots: [dv.getUint8(o + 48), dv.getUint8(o + 49), dv.getUint8(o + 50), dv.getUint8(o + 51), dv.getUint8(o + 60), dv.getUint8(o + 61)],
     gun: dv.getUint8(o + 52), busy: dv.getUint8(o + 53) / 255, rackAP: dv.getUint8(o + 54), rackHE: dv.getUint8(o + 55),
-    mag0: dv.getUint8(o + 56), mag1: dv.getUint8(o + 57), sel: dv.getUint8(o + 58), aux: dv.getUint8(o + 59),
+    mag0: dv.getUint8(o + 56), mag1: dv.getUint8(o + 57), sel: dv.getUint8(o + 58), aux: dv.getUint8(o + 59), seats2: dv.getUint8(o + 62),
   };
 }
 

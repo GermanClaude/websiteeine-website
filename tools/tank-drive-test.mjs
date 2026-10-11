@@ -272,10 +272,35 @@ const flat = makeWorld(0);
   check(Math.abs(kmh(d.speed)) < 0.5, 'bewegungsunfähig: steht', `${f1(kmh(d.speed))} km/h`);
 }
 
+/* ------------------------------------------------------------------ Panzergenerationen (Nutzer 11.10.): 2. WK / 1. WK */
+const NAME = { mbt: 'KP-1', jeep: 'GW-4', wk2: 'MK-4 (2. WK)', wk1: 'SK-18 (1. WK)' };
+for (const [type, lo, hi, t20] of [['wk2', 36, 44, 9], ['wk1', 13, 17.5, null]]) {
+  const b = makeBody(type, flat);
+  b.controls.gearbox = 'auto';
+  b.controls.throttle = 1;
+  let tq = null, vmax = 0;
+  run(b, flat, 60, (bb, t) => { if (tq === null && kmh(bb.speed) >= (t20 ? 20 : 10)) tq = t; vmax = Math.max(vmax, kmh(bb.speed)); });
+  check(vmax >= lo && vmax <= hi, `${NAME[type]} Spitze eben ${lo}–${hi} km/h`, `${f1(vmax)} km/h, Gang ${gearName(b.def, b.drive.gear)}, ${Math.round(b.drive.rpm)}/min`);
+  check(tq !== null && tq <= (t20 || 12), `${NAME[type]} 0→${t20 ? 20 : 10} km/h ≤ ${t20 || 12} s`, tq === null ? 'nie' : `${f1(tq)} s`);
+  const s15 = makeWorld(15);
+  const h = makeBody(type, s15, 15);
+  h.controls.gearbox = 'auto';
+  h.controls.throttle = 1;
+  const z0 = h.pos.z;
+  run(h, s15, 20);
+  check(z0 - h.pos.z > 8, `${NAME[type]} fährt 15°-Hang hinauf`, `${f1(z0 - h.pos.z)} m in 20 s, ${f1(kmh(h.speed))} km/h`);
+  const r = makeBody(type, flat);
+  r.controls.gearbox = 'auto';
+  r.controls.steer = 1;
+  let wmax = 0;
+  run(r, flat, 6, null, (bb) => { wmax = Math.max(wmax, Math.abs(yawRate(bb))); });
+  check(wmax > 0.15, `${NAME[type]} dreht auf der Stelle`, `${f1(wmax * 180 / Math.PI)} °/s`);
+}
+
 /* ------------------------------------------------------------------ Autopilot-Runde (Bots: Automatik, wie dev/vehicles.js autopilotLap) */
 {
   const { updateAutopilot } = await import('../assets/js/game/vehicles/autopilot.js');
-  for (const type of ['mbt', 'jeep']) {
+  for (const type of ['mbt', 'jeep', 'wk2', 'wk1']) {
     const b = makeBody(type, flat);
     b.setPose(new THREE.Vector3(0, 0.05, 28), 0);
     for (let i = 0; i < 30; i++) b.update(STEP, flat);
@@ -291,7 +316,7 @@ const flat = makeWorld(0);
       vmax = Math.max(vmax, kmh(Math.abs(b.speed)));
       t += STEP;
     }
-    check(!!it.arrived && !(it.stuckCount > 2), `Autopilot-Runde ${type === 'mbt' ? 'KP-1' : 'GW-4'} (Automatik) kommt an`, `${it.arrived ? f1(t) + ' s' : 'nicht angekommen'}, max ${f1(vmax)} km/h, festgefahren ${it.stuckCount || 0}×`);
+    check(!!it.arrived && !(it.stuckCount > 2), `Autopilot-Runde ${NAME[type]} (Automatik) kommt an`, `${it.arrived ? f1(t) + ' s' : 'nicht angekommen'}, max ${f1(vmax)} km/h, festgefahren ${it.stuckCount || 0}×`);
   }
 }
 

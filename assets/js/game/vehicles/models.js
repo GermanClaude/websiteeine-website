@@ -602,6 +602,244 @@ function buildMBT(lod, S, team) {
   return { hull, tur, gun, cmg };
 }
 
+/* -------------------------------------------------------------- Panzergenerationen (Nutzer 11.10.) */
+
+/** Kettenmittellinie aus Laufstrecke (z0…z1 am Boden) und Rad vorn/hinten [z, y, r] (Seitenansicht, vorn = −z). */
+function trackPathFor(lod, z0, z1, front, back) {
+  const steps = [6, 4, 2][lod], t = 0.035, pts = [];
+  pts.push([z0, t]);
+  pts.push([z1, t]);
+  arc(back[0], back[1], back[2] + t, -PI * 0.62, HP, steps + 2, pts);
+  arc(front[0], front[1], front[2] + t, HP, PI * 1.38, steps + 2, pts);
+  return pts;
+}
+
+/** Ketten beider Seiten (eigenes Material je Seite → Texturlauf) an hull hängen. */
+function addTracks(hull, path, x, w) {
+  for (const [i, sx] of [[0, -1], [1, 1]]) {
+    const { geometry, k, length } = trackLoop(path, w, 0.06);
+    geometry.translate(sx * x, 0, 0);
+    geometry.computeBoundingSphere();
+    const mesh = new THREE.Mesh(geometry, vehicleMaterials().paint.null);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    mesh.userData.track = i; mesh.userData.trackK = k; mesh.userData.trackLen = length;
+    hull.add(mesh);
+  }
+}
+
+function addLenses(hull, D, seg, r = 0.09) {
+  const LB = new Bucket();
+  for (const L of D.lights) LB.add(cyl(r, r, 0.04, seg), vehicleMaterials().lensOff, [L[0], L[1], L[2] - 0.01], [HP, 0, 0], null, { tag: { lens: true } });
+  LB.build(hull, { shadow: false });
+}
+
+const sph = (r, seg) => new THREE.SphereGeometry(r, Math.max(6, seg | 0), Math.max(4, (seg / 2) | 0));
+
+/**
+ * 2. Weltkrieg – „MK-4 Luchs“ (frei erfunden): Wanne mit senkrechter Bugplatte und Kugelblende fürs Bug-MG,
+ * Seitenschürzen, Motordeck mit Lüftungsklappen und Topfauspuff, kantiger Turm mit Kommandantenkuppel, Staukasten
+ * am Turmheck, 75-mm-Kanone mit Doppelkammer-Mündungsbremse.
+ */
+function buildWK2(lod, S, team) {
+  CUR_LOD = lod;
+  const D = VEHICLES.wk2, W = D.wheels;
+  const seg = [18, 10, 6][lod];
+  const paint = S.paint[team] || S.paint.null;
+  const mark = S.mark[team] || S.mark.null;
+  const hull = new THREE.Group();
+  const B = new Bucket();
+  // Wanne unten (Bugnase), Aufbau über den Ketten (senkrechte Bugplatte, schräges Heck)
+  B.add(sideExtrude([[2.72, 0.42], [2.98, 0.95], [-2.8, 0.95], [-2.68, 0.42]], 1.82), paint);
+  B.add(sideExtrude([[2.98, 0.95], [2.92, 1.5], [-2.62, 1.5], [-2.95, 1.28], [-2.95, 0.95]], 2.82, lod === 0), paint);
+  // Fahrersehklappe, Kugelblende (Bug-MG), Fahrerluke, Scheinwerfer
+  B.add(box(0.36, 0.16, 0.08), paint, [-0.5, 1.33, -2.95]);
+  B.add(box(0.24, 0.035, 0.03), S.optic, [-0.5, 1.33, -3.0]);
+  B.add(cyl(0.17, 0.19, 0.12, seg), paint, [D.cmgPivot[0], D.cmgPivot[1], -2.94], [HP, 0, 0]);
+  B.add(cyl(0.28, 0.28, 0.05, seg), S.dark, [-0.5, 1.525, -2.0]);
+  for (const L of D.lights) B.add(box(0.2, 0.16, 0.2), S.dark, [L[0], L[1], L[2] + 0.1]);
+  if (lod < 2) {
+    // Motordeck: Lüftungsklappen, Topfauspuff + Rohr am Heck, Rücklichter, Kennung
+    for (const sx of [-1, 1]) B.add(box(0.9, 0.05, 1.1), S.dark, [sx * 0.62, 1.525, 1.95]);
+    if (lod === 0) for (let i = 0; i < 6; i++) B.add(box(2.2, 0.04, 0.05), paint, [0, 1.55, 1.5 + i * 0.18]);
+    B.add(cyl(0.16, 0.16, 0.9, seg), S.dark, [0.3, 1.05, 3.04], [0, 0, HP]);
+    B.add(cyl(0.05, 0.05, 0.3, 8), S.dark, [0.82, 1.12, 3.06], [0, 0, 0.6]);
+    for (const sx of [-1, 1]) B.add(box(0.1, 0.07, 0.04), S.rearLamp, [sx * 1.2, 1.32, 2.97]);
+    // Werkzeug, Ersatzkettenglieder an der Bugplatte, Abschleppösen
+    B.add(box(0.06, 0.06, 1.3), S.canvas, [1.36, 1.53, 0.6]);
+    B.add(box(0.05, 0.08, 1.1), S.dark, [-1.36, 1.53, 0.4]);
+    if (lod === 0) {
+      for (let i = 0; i < 6; i++) B.add(box(0.13, 0.04, 0.3), S.dark, [-1.15 + i * 0.16 + (i > 2 ? 0.95 : 0), 1.12, -2.98]);
+      for (const sx of [-1, 1]) B.add(new THREE.TorusGeometry(0.07, 0.022, 4, 8), S.dark, [sx * 0.7, 0.62, -2.82], [0, HP, 0]);
+    }
+    // Seitenschürzen (Platten in Halterungen, leicht abstehend)
+    for (const sx of [-1, 1]) {
+      for (let i = 0; i < 5; i++) B.add(box(0.025, 0.62, 1.04), paint, [sx * 1.5, 1.16, -2.08 + i * 1.06], [0, 0, sx * 0.04]);
+      if (lod === 0) for (let i = 0; i < 6; i++) B.add(box(0.12, 0.03, 0.04), S.dark, [sx * 1.43, 1.47, -2.6 + i * 1.04]);
+    }
+  }
+  B.add(cyl(0.16, 0.16, 0.02, seg), mark, [0, 1.15, 2.97], [HP, 0, 0]);
+  // Laufwerk: Laufrollen paarweise, Triebrad vorn, Leitrad hinten, Stützrollen
+  for (const sx of [-1, 1]) {
+    const x = sx * W.x;
+    if (lod < 2) for (const z of W.z) for (const dz of lod === 0 && HQ ? [-0.2, 0.2] : [0]) {
+      if (HQ) addRoadWheelHQ(B, S, paint, x, W.radius, z + dz, lod === 0 ? 0.27 : W.radius, lod === 0 ? 12 : 8, lod);
+      else addRoadWheel(B, S, x, W.radius, z + dz, W.radius, lod === 0 ? 12 : 8, lod);
+    }
+    B.add(cyl(0.29, 0.29, 0.44, seg), S.dark, [x, 0.6, -2.62], [0, 0, HP]);
+    B.add(cyl(0.25, 0.25, 0.4, seg), S.dark, [x, 0.55, 2.62], [0, 0, HP]);
+    if (lod === 0) for (const z of [-1.6, -0.55, 0.55, 1.6]) B.add(cyl(0.08, 0.08, 0.2, 8), S.rubber, [x, 0.8, z], [0, 0, HP]);
+  }
+  B.build(hull, { shadow: true });
+  addTracks(hull, trackPathFor(lod, -2.2, 2.2, [-2.62, 0.6, 0.29], [2.62, 0.55, 0.25]), W.x, 0.44);
+  addLenses(hull, D, seg, 0.07);
+
+  // Turm (Turmraum, Drehpunkt D.turretPivot)
+  const tur = new THREE.Group();
+  const T = new Bucket();
+  T.add(topExtrude([[-0.56, 1.1], [0.56, 1.1], [0.95, 0.6], [0.98, -0.95], [0.78, -1.3], [-0.78, -1.3], [-0.98, -0.95], [-0.95, 0.6]], 0.8, lod === 0), paint);
+  T.add(cyl(0.92, 0.94, 0.1, seg + 4), S.dark, [0, -0.03, 0]);
+  // Kommandantenkuppel mit Sehschlitzen, Ladeschützenluke, Seitenluken, Staukasten am Heck
+  T.add(cyl(0.34, 0.36, 0.2, seg), paint, [-0.45, 0.88, 0.45]);
+  if (lod === 0) {
+    const nv = DET === 2 ? 7 : 5;
+    for (let i = 0; i < nv; i++) { const a = (i / nv) * PI * 2; T.add(box(0.1, 0.045, 0.04), S.optic, [-0.45 + Math.sin(a) * 0.355, 0.9, 0.45 + Math.cos(a) * 0.355], [0, a, 0]); }
+    for (const sx of [-1, 1]) T.add(box(0.03, 0.42, 0.5), paint, [sx * 0.99, 0.42, 0.1]);
+    T.add(cyl(0.01, 0.01, 1.9, 4), S.dark, [0.75, 1.75, 1.0]);
+  }
+  T.add(cyl(0.28, 0.28, 0.04, seg), S.dark, [0.5, 0.81, 0.45]);
+  if (lod < 2) {
+    T.add(box(1.4, 0.48, 0.5), paint, [0, 0.36, 1.52]);
+    if (lod === 0) T.add(box(1.42, 0.03, 0.52), S.dark, [0, 0.61, 1.52]);
+  }
+  for (const sx of [-1, 1]) T.add(cyl(0.15, 0.15, 0.02, seg), mark, [sx * 0.995, 0.5, -0.45], [0, 0, HP]);
+  const turLod = new THREE.Group();
+  T.build(turLod, { off: D.turretPivot });
+  tur.add(turLod);
+
+  // Kanone: Blende, Rohr, Doppelkammer-Mündungsbremse, Koaxial-MG
+  const gun = new THREE.Group();
+  const Gb = new Bucket();
+  Gb.add(box(0.8, 0.46, 0.22), paint, [0, 0, -0.08]);
+  if (lod < 2) Gb.add(cyl(0.2, 0.22, 0.22, seg), paint, [0, 0, -0.28], [HP, 0, 0]);
+  Gb.add(cyl(0.052, 0.058, 2.95, seg), paint, [0, 0, -1.85], [HP, 0, 0]);
+  Gb.add(cyl(0.085, 0.085, 0.2, seg), S.dark, [0, 0, -3.35], [HP, 0, 0]);
+  if (lod === 0) for (const z of [-3.3, -3.42]) Gb.add(box(0.2, 0.06, 0.03), S.dark, [0, 0, z]);
+  Gb.add(cyl(0.022, 0.022, 0.25, 6), S.dark, [D.coax[0], D.coax[1], -0.25], [HP, 0, 0]);
+  const gunLod = new THREE.Group();
+  Gb.build(gunLod, { off: [D.turretPivot[0] + D.gunPivot[0], D.turretPivot[1] + D.gunPivot[1], D.turretPivot[2] + D.gunPivot[2]] });
+  gun.add(gunLod);
+
+  // Bug-MG in der Kugelblende (Wannenraum): Kugel dreht mit
+  const cmg = new THREE.Group();
+  const C = new Bucket();
+  C.add(sph(0.13, seg), paint, [0, 0, -0.08]);
+  C.add(cyl(0.035, 0.035, 0.32, 8), S.dark, [0, 0, -0.32], [HP, 0, 0]);
+  C.add(cyl(0.016, 0.016, 0.62, 6), S.dark, [0, 0, -0.42], [HP, 0, 0]);
+  const cmgLod = new THREE.Group();
+  C.build(cmgLod, { shadow: lod < 2, off: D.cmgPivot });
+  cmg.add(cmgLod);
+  return { hull, tur, gun, cmg };
+}
+
+/**
+ * 1. Weltkrieg – „SK-18 Koloss“ (frei erfunden): genieteter Kastenaufbau, der tief über dem Laufwerk hängt, schräge
+ * Bug- und Heckplatten, Beobachtungsstand mit Sehschlitzen auf dem Dach, Bugkanone in einer drehbaren Schildlafette
+ * (eigene Gruppe „Turm“, ±40°), MG im Kugelstand vorn links, Seitenpforten, Auspuff und Grabenbalken am Heck.
+ */
+function buildWK1(lod, S, team) {
+  CUR_LOD = lod;
+  const D = VEHICLES.wk1, W = D.wheels;
+  const seg = [16, 10, 6][lod];
+  const paint = S.paint[team] || S.paint.null;
+  const mark = S.mark[team] || S.mark.null;
+  const hull = new THREE.Group();
+  const B = new Bucket();
+  // Kastenaufbau (Seitenprofil, vorn/hinten überhängend und abgeschrägt)
+  B.add(sideExtrude([[3.15, 0.36], [3.62, 1.2], [3.62, 1.96], [3.28, 2.45], [-3.28, 2.45], [-3.6, 1.96], [-3.6, 1.1], [-3.15, 0.36]], 3.1, lod === 0), paint);
+  // Beobachtungsstand auf dem Dach mit Sehschlitzen rundum
+  B.add(topExtrude([[-0.72, 1.75], [0.72, 1.75], [0.85, 1.55], [0.85, -0.05], [0.72, -0.18], [-0.72, -0.18], [-0.85, -0.05], [-0.85, 1.55]], 0.62, lod === 0), paint, [0, 2.44, 0]);
+  B.add(box(1.5, 0.05, 1.8), S.dark, [0, 3.08, -0.79]);
+  if (lod < 2) {
+    for (const x of [-0.45, 0, 0.45]) B.add(box(0.26, 0.04, 0.03), S.optic, [x, 2.82, -1.76]);
+    for (const sx of [-1, 1]) for (const z of [-1.3, -0.5]) B.add(box(0.03, 0.04, 0.24), S.optic, [sx * 0.86, 2.82, z]);
+    B.add(box(0.3, 0.04, 0.03), S.optic, [0, 2.82, 0.19]);
+  }
+  // Kugelstand vorn links (MG), Schildlafette der Kanone sitzt in der Bugplatte
+  B.add(cyl(0.2, 0.22, 0.14, seg), paint, [D.cmgPivot[0], D.cmgPivot[1], -3.62], [HP, 0, 0]);
+  B.add(box(1.0, 0.85, 0.06), S.dark, [0, D.turretPivot[1], -3.6]);
+  for (const L of D.lights) B.add(box(0.18, 0.16, 0.14), S.dark, [L[0], L[1], L[2] + 0.07]);
+  if (lod < 2) {
+    // Seitenpforten (geschlossene MG-Klappen), Tür hinten, Auspuff, Grabenbalken, Rücklichter
+    for (const sx of [-1, 1]) for (const z of [-1.9, -0.4, 1.1]) {
+      B.add(box(0.05, 0.36, 0.4), paint, [sx * 1.57, 1.62, z]);
+      if (lod === 0) B.add(box(0.06, 0.05, 0.16), S.dark, [sx * 1.585, 1.62, z]);
+    }
+    B.add(box(0.7, 1.0, 0.05), paint, [0.4, 1.45, 3.62]);
+    for (const sx of [-1, 1]) B.add(cyl(0.07, 0.07, 1.2, 8), S.dark, [sx * 1.1, 2.6, 2.3], [HP, 0, 0]);
+    B.add(cyl(0.14, 0.14, 2.6, 8), S.canvas, [0, 2.58, 3.05], [0, 0, HP]);
+    for (const sx of [-1, 1]) B.add(box(0.1, 0.06, 0.04), S.rearLamp, [sx * 1.2, 1.9, 3.62]);
+    // Werkzeug, Seil auf dem Dach
+    B.add(box(0.06, 0.06, 1.4), S.canvas, [1.2, 2.48, 1.4]);
+    B.add(box(0.05, 0.08, 1.2), S.dark, [-1.2, 2.48, 1.6]);
+  }
+  if (lod === 0 && DET === 2) {
+    // Nietreihen an den Kanten der Seitenplatten
+    for (const sx of [-1, 1]) for (const y of [0.55, 2.38]) for (let i = 0; i < 14; i++) B.add(box(0.03, 0.03, 0.03), S.dark, [sx * 1.565, y, -3.0 + i * 0.46]);
+    for (let i = 0; i < 8; i++) B.add(box(0.03, 0.03, 0.03), S.dark, [-1.4 + i * 0.4, 2.0, -3.63]);
+  }
+  for (const sx of [-1, 1]) B.add(cyl(0.22, 0.22, 0.02, seg), mark, [sx * 1.565, 2.0, 0.4], [0, 0, HP]);
+  // Laufwerk (tief unter dem Aufbau): viele kleine Laufrollen, Leiträder vorn/hinten
+  for (const sx of [-1, 1]) {
+    const x = sx * W.x;
+    if (lod < 2) {
+      const zs = lod === 0 ? [-2.6, -1.95, -1.3, -0.65, 0, 0.65, 1.3, 1.95, 2.6] : W.z;
+      for (const z of zs) addRoadWheel(B, S, x, W.radius, z, W.radius, lod === 0 ? 10 : 8, lod);
+    }
+    B.add(cyl(0.27, 0.27, 0.48, seg), S.dark, [x, 0.42, -3.12], [0, 0, HP]);
+    B.add(cyl(0.27, 0.27, 0.48, seg), S.dark, [x, 0.42, 3.12], [0, 0, HP]);
+  }
+  B.build(hull, { shadow: true });
+  addTracks(hull, trackPathFor(lod, -2.75, 2.75, [-3.12, 0.42, 0.27], [3.12, 0.42, 0.27]), W.x, 0.5);
+  addLenses(hull, D, seg, 0.065);
+
+  // „Turm“ = drehbare Schildlafette der Bugkanone (Drehpunkt in der Bugplatte)
+  const tur = new THREE.Group();
+  const T = new Bucket();
+  // nur die vordere Hälfte (der Ladeschütze sieht von innen sonst die Rückseite des Schilds)
+  T.add(new THREE.CylinderGeometry(0.42, 0.42, 0.72, seg, 1, false, HP, PI), paint, [0, 0, 0]);
+  T.add(new THREE.CylinderGeometry(0.44, 0.44, 0.05, seg, 1, false, HP, PI), S.dark, [0, 0.37, 0]);
+  T.add(new THREE.CylinderGeometry(0.44, 0.44, 0.05, seg, 1, false, HP, PI), S.dark, [0, -0.37, 0]);
+  if (lod === 0) for (let i = 0; i < 8; i++) { const a = -0.9 + (i / 7) * 1.8; T.add(box(0.03, 0.03, 0.03), S.dark, [Math.sin(a) * 0.425, 0.3, -Math.cos(a) * 0.425]); }
+  const turLod = new THREE.Group();
+  T.build(turLod, { off: D.turretPivot });
+  tur.add(turLod);
+
+  // Kanone: Schutzschild, kurzes Rohr, Rohrvorholer darüber
+  const gun = new THREE.Group();
+  const Gb = new Bucket();
+  Gb.add(box(0.62, 0.5, 0.06), paint, [0, 0, -0.42]);
+  Gb.add(cyl(0.06, 0.07, 0.5, seg), S.dark, [0, 0, -0.3], [HP, 0, 0]);
+  Gb.add(cyl(0.045, 0.05, 1.12, seg), paint, [0, 0, -1.0], [HP, 0, 0]);
+  Gb.add(cyl(0.058, 0.058, 0.08, seg), S.dark, [0, 0, -1.52], [HP, 0, 0]);
+  if (lod < 2) Gb.add(cyl(0.04, 0.04, 0.55, 8), S.dark, [0, 0.11, -0.62], [HP, 0, 0]);
+  const gunLod = new THREE.Group();
+  Gb.build(gunLod, { off: [D.turretPivot[0] + D.gunPivot[0], D.turretPivot[1] + D.gunPivot[1], D.turretPivot[2] + D.gunPivot[2]] });
+  gun.add(gunLod);
+
+  // Wassergekühltes MG im Kugelstand (Wannenraum)
+  const cmg = new THREE.Group();
+  const C = new Bucket();
+  C.add(sph(0.15, seg), paint, [0, 0, -0.06]);
+  C.add(cyl(0.055, 0.055, 0.5, 10), S.dark, [0, 0, -0.38], [HP, 0, 0]);
+  C.add(cyl(0.02, 0.02, 0.2, 6), S.dark, [0, 0, -0.72], [HP, 0, 0]);
+  const cmgLod = new THREE.Group();
+  C.build(cmgLod, { shadow: lod < 2, off: D.cmgPivot });
+  cmg.add(cmgLod);
+  return { hull, tur, gun, cmg };
+}
+
+const TANK_BUILDERS = { mbt: buildMBT, wk2: buildWK2, wk1: buildWK1 };
+
 function tireGeometry(r, w, seg, tread = false) {
   if (tread) return treadTire(r, w);
   const pts = [[r * 0.62, -w / 2], [r * 0.86, -w * 0.52], [r * 0.97, -w * 0.4], [r, 0], [r * 0.97, w * 0.4], [r * 0.86, w * 0.52], [r * 0.62, w / 2]]
@@ -900,6 +1138,9 @@ function buildInterior(S, D) {
   const grp = new THREE.Group();
   grp.name = 'interior';
   grp.visible = false;
+  // Panzergenerationen: Aufbau des KP-1, im Turmraum um interior.shift verschoben (Verschluss hinter dem eigenen Rohr)
+  const sh = I.shift || [0, 0, 0];
+  grp.position.fromArray(sh);
   // Hülle: Grundriss des Turms nach innen versetzt (Stirn dick gepanzert), Boden 6 cm über dem Turmring
   const B = new Bucket();
   const foot = [[-0.9, 1.15], [0.9, 1.15], [1.24, 0.8], [1.25, -1.45], [0.9, -1.92], [-0.9, -1.92], [-1.25, -1.45], [-1.24, 0.8]];
@@ -1013,7 +1254,7 @@ function buildInterior(S, D) {
   const br = new THREE.Group();
   br.name = 'breech';
   br.visible = false;
-  br.position.set(I.breech[0] - D.gunPivot[0], I.breech[1] - D.gunPivot[1], I.breech[2] - D.gunPivot[2]);
+  br.position.set(I.breech[0] + sh[0] - D.gunPivot[0], I.breech[1] + sh[1] - D.gunPivot[1], I.breech[2] + sh[2] - D.gunPivot[2]);
   const V = new Bucket();
   V.add(box(0.5, 0.48, 0.42), S.steel, [0, 0, 0]);                                 // Bodenstück
   V.add(box(0.58, 0.5, 0.36), S.cabin, [0, 0.02, -0.42]);                           // Wiege
@@ -1061,9 +1302,11 @@ function template(type, team, quality) {
   const dists = LOD_DIST[quality] || LOD_DIST.high;
   const root = new THREE.Group();
   root.name = `vehicle:${type}`;
-  if (type === 'mbt') {
-    const D = VEHICLES.mbt;
-    const lv = [0, 1, 2].map((l) => buildMBT(l, S, team));
+  const DT = VEHICLES[type];
+  if (DT && DT.drive === 'tracked') {
+    // Kettenfahrzeuge (KP-1 und Panzergenerationen 1./2. WK): Wanne, Turm (bzw. Schildlafette), Rohr, zweites MG
+    const D = DT;
+    const lv = [0, 1, 2].map((l) => (TANK_BUILDERS[D.model] || buildMBT)(l, S, team));
     root.add(lodOf(lv.map((x) => x.hull), dists));
     const tur = new THREE.Group(); tur.name = 'turret';
     tur.position.fromArray(D.turretPivot);
@@ -1075,12 +1318,13 @@ function template(type, team, quality) {
     const cmg = new THREE.Group(); cmg.name = 'cmg';
     cmg.position.fromArray(D.cmgPivot);
     cmg.add(lodOf(lv.map((x) => x.cmg), dists));
-    tur.add(cmg);
+    (D.cmgHull ? root : tur).add(cmg); // Bug-MG im Kugelstand hängt an der Wanne
     root.add(tur);
     // Besatzung: bewegliche Luken (außerhalb der LOD-Stufen, Nahstufen-Details), Innenraum + Verschluss (unsichtbar)
     CUR_LOD = 0;
     const paint = S.paint[team] || S.paint.null;
-    for (const id of ['driver', 'commander', 'loader']) {
+    for (const id of Object.keys(D.hatches || HATCH_DEF)) {
+      if (!HATCH_DEF[id]) continue;
       const d = (D.hatches && D.hatches[id]) || {};
       const def = { space: d.space || HATCH_DEF[id].space, pos: d.pos || HATCH_DEF[id].pos, r: d.r || HATCH_DEF[id].r };
       const inTur = def.space === 'turret';
@@ -1158,7 +1402,7 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
     }
     if (o.name && o.name.startsWith('wheel')) model.wheels.push({ pivot: o, spin: o.getObjectByName('spin'), axle: o.userData.axle, side: o.userData.side });
   });
-  if (type === 'mbt') model.trackMats = tm;
+  if (VEHICLES[type] && VEHICLES[type].drive === 'tracked') model.trackMats = tm;
   else for (const m of tm) { m.map.dispose(); m.normalMap?.dispose(); m.dispose(); }
 
   model.setLights = (on) => {
@@ -1192,7 +1436,7 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
       if (model.trackMats[i].normalMap) model.trackMats[i].normalMap.offset.x = t.offset.x;
     }
   };
-  // Besatzung (panzer-mp.md §3.7): Luken, Innenraum, Verschluss, Gestell, Granate in der Hand – nur KP-1
+  // Besatzung (panzer-mp.md §3.7): Luken, Innenraum, Verschluss, Gestell, Granate in der Hand – Kettenfahrzeuge
   model.hatches = {};
   for (const id of ['driver', 'commander', 'loader']) { const h = root.getObjectByName(`hatch:${id}`); if (h) model.hatches[id] = h; }
   model.interior = (model.turret && model.turret.getObjectByName('interior')) || null;
@@ -1224,10 +1468,13 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
     const H = h.userData.hatch, a = (model.wrecked ? 0 : clamp01(t)) * HATCH_OPEN * H.sign;
     h.rotation.set(H.axis === 'x' ? a : 0, 0, H.axis === 'z' ? a : 0);
   };
+  // Turm-Außenhülle (LOD): innen ausgeblendet – beim kleineren Turm (2. WK) ragten Kennung/Seitenluken in den Innenraum
+  const turShell = model.turret ? model.turret.children.find((c) => c.isLOD) : null;
   model.setInterior = (on) => {
     if (!model.interior) return;
     const v = !!on && !model.wrecked;
     model.interior.visible = v;
+    if (turShell) turShell.visible = !v;
     if (model.breech) model.breech.visible = v;
     if (v) applyRack();
   };

@@ -91,6 +91,12 @@ export function spaceLocal(vehicle, space, pos, outPos, outQuat) {
       return outPos;
     }
     case 'cupola': {
+      if (d.cmgHull) { // Bug-MG im Kugelstand: Auge dreht mit dem MG, Raum = Wanne
+        _q.setFromAxisAngle(Y, m.cmgYaw);
+        outPos.applyQuaternion(_q).add(_c.fromArray(d.cmgPivot || [0, 0, 0]));
+        if (outQuat) outQuat.copy(_q).multiply(_q2.setFromAxisAngle(X, m.cmgPitch));
+        return outPos;
+      }
       _q.setFromAxisAngle(Y, m.turretYaw);
       outPos.add(_c.fromArray(d.cmgPivot || [0, 0, 0])).applyQuaternion(_q).add(_c.fromArray(d.turretPivot || [0, 0, 0]));
       if (outQuat) outQuat.setFromAxisAngle(Y, m.turretYaw + m.cmgYaw).multiply(_q2.setFromAxisAngle(X, m.cmgPitch));

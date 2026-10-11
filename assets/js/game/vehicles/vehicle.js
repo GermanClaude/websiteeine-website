@@ -9,7 +9,7 @@
 //             fire (gehalten), firePressed (Flanke), weapon (Index wählen), cycleWeapon (bool, einmalig),
 //             fireWhenAligned (Standard true für Bots: erst ab Zielfehler ≤ 1,5°), reload (bool)
 import * as THREE from 'three';
-import { VEHICLES, VEHICLE_WEAPONS } from './data.js';
+import { VEHICLES, vehicleWeapon } from './data.js';
 import { VehicleBody } from './sim.js';
 import { createVehicleModel } from './models.js';
 import { updateAutopilot, resetAutopilot } from './autopilot.js';
@@ -90,7 +90,7 @@ export class Vehicle {
     this._burnAcc = 0;
     this.seats = def.seats.map((sd, i) => ({
       index: i, def: sd, actor: null, intent: newIntent(),
-      weapons: sd.weapons.map((id) => ({ def: VEHICLE_WEAPONS[id], mag: VEHICLE_WEAPONS[id].mag, reloadT: 0, cooldown: 0, shots: 0 })),
+      weapons: sd.weapons.map((id) => { const wd = vehicleWeapon(type, id); return { def: wd, mag: wd.mag, reloadT: 0, cooldown: 0, shots: 0 }; }),
       weaponIndex: 0, aimError: 0, zoomIndex: 0,
       look: { yaw, pitch: 0, relYaw: 0, relPitch: 0, idle: 0 },
       // Besatzung (§3.3): Sicht, Luke, Wechselsperre, gewünschte Lafettenrichtung, Bot-Stellvertreter
@@ -217,12 +217,16 @@ export class Vehicle {
         return;
       }
       case 'cmg': {
-        _q.setFromAxisAngle(Y, m.turretYaw + m.cmgYaw);
+        const base = d.cmgHull ? 0 : m.turretYaw; // Bug-MG im Kugelstand (Wanne) bzw. Kommandanten-MG auf dem Turm
+        _q.setFromAxisAngle(Y, base + m.cmgYaw);
         _q2.setFromAxisAngle(X, m.cmgPitch);
         _q.multiply(_q2);
         outPos.fromArray(d.cmgMuzzle).applyQuaternion(_q);
-        _q2.setFromAxisAngle(Y, m.turretYaw);
-        outPos.add(_c.fromArray(d.cmgPivot).applyQuaternion(_q2)).add(_c.fromArray(d.turretPivot));
+        if (d.cmgHull) outPos.add(_c.fromArray(d.cmgPivot));
+        else {
+          _q2.setFromAxisAngle(Y, m.turretYaw);
+          outPos.add(_c.fromArray(d.cmgPivot).applyQuaternion(_q2)).add(_c.fromArray(d.turretPivot));
+        }
         outDir.set(0, 0, -1).applyQuaternion(_q);
         return;
       }
@@ -275,7 +279,7 @@ export class Vehicle {
       _a.copy(it.aimAt).sub(_ro);
       if (w && w.def.kind === 'shell') {
         // Ballistik der geladenen Granate (sonst der gewählten)
-        const bd = (this.gun && this.gun.loaded && VEHICLE_WEAPONS[this.gun.loaded]) || w.def;
+        const bd = (this.gun && this.gun.loaded && vehicleWeapon(this.type, this.gun.loaded)) || w.def;
         const dx = Math.hypot(_a.x, _a.z);
         const el = Vehicle.lobAngle(bd.speed, bd.gravity, dx, _a.y);
         const yaw = Math.atan2(-_a.x, -_a.z);
@@ -292,8 +296,14 @@ export class Vehicle {
     const pitchH = Math.asin(clamp(_b.y, -1, 1));
     const turretMult = this.zones.turret && this.zones.turret.hp <= 0 ? 0.5 : 1;
     if (seat.def.mount === 'gun') {
-      m.turretYaw = wrap(approach(m.turretYaw, yawH, def.traverse * turretMult * dt));
+      // Kanone mit begrenztem Schwenkbereich (1. WK: Bugkanone) – Ziel in den Bereich klemmen, kein Umlauf
+      if (def.turretLimits) m.turretYaw = clamp(approach(m.turretYaw, clamp(yawH, def.turretLimits[0], def.turretLimits[1]), def.traverse * turretMult * dt), def.turretLimits[0], def.turretLimits[1]);
+      else m.turretYaw = wrap(approach(m.turretYaw, yawH, def.traverse * turretMult * dt));
       m.gunPitch = approach(m.gunPitch, clamp(pitchH, def.gunLimits.min, def.gunLimits.max), def.elevate * dt);
+    } else if (seat.def.mount === 'cmg' && def.cmgHull) {
+      const L = def.cmgLimits || { yaw: [-0.5, 0.5], pitch: [-0.17, 0.35] };
+      m.cmgYaw = clamp(approach(m.cmgYaw, clamp(yawH, L.yaw[0], L.yaw[1]), 2.2 * dt), L.yaw[0], L.yaw[1]);
+      m.cmgPitch = approach(m.cmgPitch, clamp(pitchH, L.pitch[0], L.pitch[1]), 1.8 * dt);
     } else if (seat.def.mount === 'cmg') {
       m.cmgYaw = wrap(approach(m.cmgYaw, wrap(yawH - m.turretYaw), 2.6 * dt));
       m.cmgPitch = approach(m.cmgPitch, clamp(pitchH, -0.17, 0.85), 2.0 * dt);
@@ -341,7 +351,7 @@ export class Vehicle {
     if (shell) {
       // gefeuert wird die geladene Granate, egal welche Sorte gewählt ist
       if (!this.gun || this.gun.step !== 'geladen' || !this.gun.loaded || w.cooldown > 0) return;
-      fw = seat.weapons.find((x) => x.def.id === this.gun.loaded) || { def: VEHICLE_WEAPONS[this.gun.loaded], mag: 1, reloadT: 0, cooldown: 0, shots: 0 };
+      fw = seat.weapons.find((x) => x.def.id === this.gun.loaded) || { def: vehicleWeapon(this.type, this.gun.loaded), mag: 1, reloadT: 0, cooldown: 0, shots: 0 };
     } else if (w.mag <= 0 || w.reloadT > 0 || w.cooldown > 0) return;
     this.muzzle(seat.index, _ro, _rd);
     const fseat = seat.actor ? seat : Object.create(seat, { actor: { value: shooter } });
@@ -369,8 +379,9 @@ export class Vehicle {
   zoneAt(local, turretHit = false) {
     if (turretHit && this.zones.turret) return 'turret';
     const hb = this.def.hullBox;
-    if (Math.abs(local.x) > hb[3] - 0.45 && local.y < (this.type === 'mbt' ? 1.0 : 0.95)) return 'tracks';
-    if (this.type === 'mbt' ? local.z > 1.7 : local.z < -1.0) return 'engine';
+    const tracked = this.def.drive === 'tracked';
+    if (Math.abs(local.x) > hb[3] - 0.45 && local.y < (tracked ? hb[1] - hb[4] + 0.65 : 0.95)) return 'tracks';
+    if (tracked ? local.z > hb[2] + hb[5] * 0.47 : local.z < -1.0) return 'engine'; // Panzer: Motor im Heck
     return 'hull';
   }
 
@@ -488,7 +499,7 @@ export class Vehicle {
       if (by && G.combat.isHostile(by, a)) dealt = G.combat.damage(a, { amount: 999, attacker: by, weaponId: weaponId || 'vehicle_explosion', explosive: true, point: center, zone: 'body' });
       if (a.alive && !dealt) G.combat.damage(a, { amount: 999, attacker: null, weaponId: 'vehicle_explosion', explosive: true, point: center, zone: 'body' });
     }
-    this.sys.ownExplosion(() => G.combat.explode({ position: center, radius: this.type === 'mbt' ? 7 : 6, maxDamage: 110, attacker: by, weaponId: 'vehicle_explosion', type: 'frag' }));
+    this.sys.ownExplosion(() => G.combat.explode({ position: center, radius: this.def.drive === 'tracked' ? 7 : 6, maxDamage: 110, attacker: by, weaponId: 'vehicle_explosion', type: 'frag' }));
     // Wrack: Turm springt, leichte Fahrzeuge hüpfen
     this.model.setWreck(true);
     if (this.model.turret) {
@@ -497,7 +508,7 @@ export class Vehicle {
       this.mount.turretYaw += (Math.random() - 0.5) * 1.2;
       this.mount.gunPitch = -0.12;
     }
-    const kick = this.type === 'mbt' ? 1.5 : 6.5;
+    const kick = this.def.drive === 'tracked' ? 1.5 : 6.5;
     this.body.applyImpulse(_a.copy(center).add(_b.set((Math.random() - 0.5) * 1.5, 0, (Math.random() - 0.5) * 2)), _c.set(0, this.def.mass * kick, 0));
     this.body.controls.throttle = this.body.controls.steer = 0;
     this.body.controls.handbrake = true;
@@ -586,16 +597,19 @@ export class Vehicle {
         this._burnAcc -= n;
         this.applyDamage(n, { kind: 'fire', attacker: this.lastAttacker, weaponId: this.lastWeaponId || 'vehicle_explosion' });
       }
-    } else if (this.alive && def.armored && now - this.lastHitTime > 10 && this.health < this.maxHealth * 0.4) {
-      this.repair(Math.min(this.maxHealth * 0.4 - this.health, 12 * dt));
+    } else if (this.alive && def.armored) {
+      // Selbstreparatur bis 40 %; mit Mechaniker an Bord (1. WK) früher, schneller und bis 70 %, Kette nach 3 s statt 8 s
+      const mech = this.seats.some((s) => s.def.mechanic && s.actor);
+      const cap = this.maxHealth * (mech ? 0.7 : 0.4);
+      if (now - this.lastHitTime > (mech ? 6 : 10) && this.health < cap) this.repair(Math.min(cap - this.health, (mech ? 20 : 12) * dt));
     }
-    if (this.zones.tracks && this.zones.tracks.hp <= 0 && now > this.trackDownUntil + 8) this.zones.tracks.hp = this.zones.tracks.max * 0.3; // Notreparatur
+    if (this.zones.tracks && this.zones.tracks.hp <= 0 && now > this.trackDownUntil + (this.seats.some((s) => s.def.mechanic && s.actor) ? 3 : 8)) this.zones.tracks.hp = this.zones.tracks.max * 0.3; // Notreparatur
 
     // Wrack-/Brandeffekte
     this._fxT -= dt;
     if ((this.disabled || this.wreck) && this._fxT <= 0 && G.effects) {
       this._fxT = this.wreck ? 0.22 : 0.3;
-      const p = _a.copy(b.renderPos); p.y += this.type === 'mbt' ? 1.2 : 0.8;
+      const p = _a.copy(b.renderPos); p.y += this.def.drive === 'tracked' ? 1.2 : 0.8;
       const fresh = this.wreck && this.wreckLeft > def.wreckTime - 9;
       G.effects.smoke?.(p, { count: fresh ? 3 : 2, color: 0x1c1a18, size: fresh ? 2.2 : 1.5, life: 3.5, rise: 2.2, alpha: 0.55 });
       if (fresh || (this.disabled && !this.wreck)) G.effects.smoke?.(p, { count: 1, color: 0xff7a2a, size: 0.8, life: 0.6, rise: 2.5, alpha: 0.45 });

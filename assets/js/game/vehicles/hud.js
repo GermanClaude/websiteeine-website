@@ -248,7 +248,7 @@ export class VehicleHUD {
     this._body('vehicle', v.type);
     this._body('vehicleArms', seat.weapons.length || loader ? '1' : '0');
     this._body('vehicleLoader', loader ? '1' : null);
-    this._body('vehicleOptic', s.view && !s.view.tp && ['optic', 'wide', 'peri'].includes(s.view.overlay) ? '1' : null);
+    this._body('vehicleOptic', !v.def.noThermal && s.view && !s.view.tp && ['optic', 'wide', 'peri'].includes(s.view.overlay) ? '1' : null);
     this._set('panelH', el.panel, 'hidden', false);
     this._set('name', el.name, 'text', v.name);
     this._set('speed', el.speed, 'html', `${Math.round(Math.abs(v.body.speed) * 3.6)}<small>km/h</small>`);
@@ -312,14 +312,14 @@ export class VehicleHUD {
     if (seat.weapons.length > 1) hint.push(`${k('swap') || 'Mausrad'} ${seat.weapons.some((w) => w.def.kind === 'shell') ? 'Munition/Waffe' : 'Waffe'}`);
     if (view && (view.zoom || []).length > 1) hint.push(`${k('ads') || 'RMT'} Zoom`);
     if (seat.def.mount === 'gun') hint.push(`${k('light') || 'T'} Entfernung`);
-    if (view && !view.tp && ['optic', 'wide', 'peri'].includes(view.overlay)) hint.push(`${k('grenade') || 'G'} Wärmebild`);
+    if (!v.def.noThermal && view && !view.tp && ['optic', 'wide', 'peri'].includes(view.overlay)) hint.push(`${k('grenade') || 'G'} Wärmebild`);
     if (loader) hint.push(`${k('reload') || 'R'} Greifen/Schließen`, `${k('fire') || 'LMT'} Einschieben`, `${k('swap') || 'Mausrad'} Sorte`);
     if (seat.def.drive) hint.push(`${k('light') || 'T'} Licht`);
     this._set('hint', el.hint, 'text', hint.join(' · '));
     // Warnungen
     let warn = '';
     if (v.disabled) warn = 'Fahrzeug brennt – Aussteigen!';
-    else if (v.zones.tracks && v.zones.tracks.hp <= 0) warn = v.body.mods.immobile ? (v.type === 'mbt' ? 'Kette zerstört – bewegungsunfähig' : 'Räder zerstört – bewegungsunfähig') : 'Fahrwerk beschädigt';
+    else if (v.zones.tracks && v.zones.tracks.hp <= 0) warn = v.body.mods.immobile ? (v.def.drive === 'tracked' ? 'Kette zerstört – bewegungsunfähig' : 'Räder zerstört – bewegungsunfähig') : 'Fahrwerk beschädigt';
     else if (v.zones.engine && v.zones.engine.hp <= 0) warn = 'Motor beschädigt';
     else if (v.zones.turret && v.zones.turret.hp <= 0) warn = 'Turm beschädigt – Schwenken verlangsamt';
     this._set('warn', el.warn, 'text', warn);

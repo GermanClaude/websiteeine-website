@@ -42,8 +42,9 @@ import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
  *  2: Fahrzeuge online (Snapshot-Anhang, Fahrzeug-Absicht, 'veh'/'vhit'/'vehicles' – panzer-mp.md §C).
  *  3: Fähigkeiten, Kartenpunkte, Beute, Bauwerke, Türen/Tore ('ability'/'point'/'loot'/'build'/'door', 'ev' bs/bd/dr), TDM Ultimate.
  *  4: Graben mit dem Klappspaten ('dig' {x, z}, 'ev' dg), Karte Niemandsland.
- *  5: Fenster (Einträge zwischen Türen und Toren – Indizes von 'door'/'ev' dr verschoben). */
-export const NET_VERSION = 5;
+ *  5: Fenster (Einträge zwischen Türen und Toren – Indizes von 'door'/'ev' dr verschoben).
+ *  6: Panzergenerationen (Fahrzeugblock 64 Byte: Sitze 5–6; neue Fahrzeugtypen wk2/wk1, Raum-Einstellung tankEra). */
+export const NET_VERSION = 6;
 /** Online wählbare Modi (Eroberung folgt mit den Fahrzeugen online, Training bleibt offline). */
 export const ONLINE_MODES = Object.freeze(['tdm', 'ult', 'ffa', 'dom', 'kc', 'messer', 'inf', 'gun']);
 /** Modi mit Fahrzeugen online (Nur Messer, Waffenspiel und Infiziert bleiben ohne – Ausrüstung kommt dort vom Modus). */
@@ -81,7 +82,7 @@ export const DEFAULT_ROOM = Object.freeze({
   maxPlayers: 8, botFill: true, teamSize: 6, pvp: 'pvp', public: false, style: 'arcade', scoreLimit: null, timeLimit: null,
   stamina: true, // Ausdauer an (aus = unbegrenzte Ausdauer für alle)
   // Fahrzeuge (Panzer + Geländewagen für beide Teams), Außenansicht in Fahrzeugen, Nachladen der Panzerkanone
-  vehicles: VEHICLES_ONLINE_DEFAULT, thirdPerson: true, vehReload: 'manuell',
+  vehicles: VEHICLES_ONLINE_DEFAULT, thirdPerson: true, vehReload: 'manuell', tankEra: 'karte', // tankEra: Panzer-Generation
   killAmmo: true, // Munition pro Abschuss an (jedes Gerät schreibt sie seinem Spieler selbst gut)
   lootWeapons: true, // Waffen von Leichen aufheben (der Host erlaubt die Waffe danach für die Puppe)
   cheatMenu: true, // Cheat-Menü erlaubt (alle Modi) (aus = vom Host deaktiviert; Aktive tragen ein Symbol in der Punktetabelle)
@@ -171,6 +172,7 @@ export function normalizeSettings(partial = {}, base = DEFAULT_ROOM, hostName = 
     vehicles: pick('vehicles') === true,
     thirdPerson: pick('thirdPerson') !== false,
     vehReload: pick('vehReload') === 'automatisch' ? 'automatisch' : 'manuell',
+    tankEra: ['karte', 'modern', 'wk2', 'wk1'].includes(pick('tankEra')) ? pick('tankEra') : 'karte',
     killAmmo: pick('killAmmo') !== false,
     cheatMenu: pick('cheatMenu') !== false,
   };
@@ -871,7 +873,7 @@ export class NetSystem {
         botsA, botsB, humans, ffa, conditions: cond, startedAt: this.serverTime(),
         stamina: s.stamina !== false, // Raum-Einstellung „Ausdauer“ (aus = unbegrenzt für alle, _applyMatchRules)
         // Fahrzeuge (panzer-mp.md §C.1): an/aus, Außenansicht erlaubt, Nachladen der Panzerkanone
-        vehicles: s.vehicles === true && VEHICLE_MODES.has(s.mode), thirdPerson: s.thirdPerson !== false, vehReload: s.vehReload === 'automatisch' ? 'automatisch' : 'manuell',
+        vehicles: s.vehicles === true && VEHICLE_MODES.has(s.mode), thirdPerson: s.thirdPerson !== false, vehReload: s.vehReload === 'automatisch' ? 'automatisch' : 'manuell', tankEra: s.tankEra || 'karte',
         killAmmo: s.killAmmo !== false, // Raum-Einstellung „Munition pro Abschuss“ (weapons/index.js)
         lootWeapons: s.lootWeapons !== false, // Raum-Einstellung „Waffen von Leichen“ (mappoints.js)
         cheatMenu: s.cheatMenu !== false, // Raum-Einstellung „Cheat-Menü“ (cheats.js)
