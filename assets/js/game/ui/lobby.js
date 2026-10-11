@@ -546,7 +546,7 @@ export class Lobby {
       if (def.cls === 'melee') {
         const ms = def.melee || {};
         const hits = Math.max(1, Math.ceil(100 / Math.max(1, def.damage.max)));
-        const spec = { flink: 'Flink: 12 % schneller unterwegs', spaltschlag: 'Spaltschlag: trifft jeden Gegner im Bogen', sprung: 'Sprung: weitester Ausfallschritt' }[def.special] || '—';
+        const spec = { flink: 'Flink: 12 % schneller unterwegs', spaltschlag: 'Spaltschlag: trifft jeden Gegner im Bogen', sprung: 'Sprung: weitester Ausfallschritt', wucht: 'Wucht: Taumeln, halber Schaden im Bogen', betaeuben: 'Betäuben: Gegner 1,5 s verlangsamt', reichweite: 'Reichweite: trifft noch auf 3 m' }[def.special] || '—';
         body = `<div class="lo-stats">${bars}</div><div class="lo-facts">
           ${fact('Schaden', num(def.damage.max))}${fact('Treffer bis Abschuss', hits === 1 ? '1' : `${hits} (von hinten 1)`)}
           ${fact('Reichweite', meters(ms.range || def.range, 1))}${fact('Ausfallschritt', meters(ms.lungeRange || 4.5, 1))}

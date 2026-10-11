@@ -1046,6 +1046,8 @@ export class WeaponController {
       const wid = (m.def && m.def.id) || 'knife';
       const dealt = G.combat.damage(target, { amount: dmg, attacker: a, weaponId: wid, zone: 'body', dir, point, distance: point.distanceTo(_eye) });
       G.events.emit('weapon:meleeHit', { actor: a, target, backstab, killed: !target.alive, damage: dealt, weaponId: wid });
+      // Spezial „Betäuben“/„Wucht“ (Schlagstock, Kampfaxt): Getroffener kommt kurz kaum voran (wie das Wurfnetz)
+      if (spec.stun && target.alive) { target.netUntil = Math.max(target.netUntil || 0, G.time.elapsed + spec.stun); target.netSlow = 0.4; }
       // Spezial „Spaltschlag“ (Machete): jeder weitere Gegner im Bogen wird ebenfalls getroffen
       if (spec.cleave) {
         for (const t of G.actors) {
@@ -1058,7 +1060,7 @@ export class WeaponController {
           if (Math.acos(clamp(_to.dot(_aim) / d, -1, 1)) > (spec.arc || 0.6) + 0.25) continue;
           const pt = new THREE.Vector3().copy(t.position);
           pt.y += (t.body ? t.body.height : 1.8) * 0.62;
-          const dd = G.combat.damage(t, { amount: ((m.def && m.def.damage && m.def.damage.max) || 60) * scale, attacker: a, weaponId: wid, zone: 'body', dir: pt.clone().sub(_eye).normalize(), point: pt, distance: d });
+          const dd = G.combat.damage(t, { amount: ((m.def && m.def.damage && m.def.damage.max) || 60) * scale * (typeof spec.cleave === 'number' ? spec.cleave : 1), attacker: a, weaponId: wid, zone: 'body', dir: pt.clone().sub(_eye).normalize(), point: pt, distance: d });
           G.events.emit('weapon:meleeHit', { actor: a, target: t, backstab: false, killed: !t.alive, damage: dd, weaponId: wid, cleave: true });
         }
       }

@@ -186,6 +186,12 @@ const ICONS = {
     'M8 14H30Q32 14 32 16V18Q32 20 30 20H8Q6 20 6 17Q6 14 8 14Z M32 12V22 M32 14H80Q90 14 92 18Q86 21 78 21H32'),
   tomahawk: gunIcon(
     'M8 16H66V19H8Z M8 15V20 M66 10Q70 6 74 6V29Q70 29 66 25Z M62 11L66 13 M62 24L66 22 M66 15H58V20H66'),
+  kampfaxt: gunIcon(
+    'M8 16H70V20H8Z M8 15V21 M62 9H72Q80 9 84 4V31Q80 26 72 26H62Z M62 13H58V23H62'),
+  schlagstock: gunIcon(
+    'M6 15H30V21H6Z M30 16H58V20H30Z M58 16.5H88V19.5H58Z M88 16Q91 18 88 20'),
+  kampfstock: gunIcon(
+    'M6 16H90Q92 18 90 20H6Q4 18 6 16Z M14 16V20 M18 16V20 M22 16V20 M80 16V20'),
   impact: smallIcon(
     '<rect x="7" y="9" width="10" height="12" rx="2"/><path d="M9 9V6H15V9 M7 13H17 M7 17H17 M12 21V23 M9 23H15"/>'),
   molotov: smallIcon(
@@ -427,6 +433,9 @@ const FEEL = {
   karambit: { handling: { mass: 0.2, inertia: 0.35, swayScale: 0.65, aimDrift: 0, reach: 0 } },
   machete: { handling: { mass: 0.6, inertia: 0.5, swayScale: 0.75, aimDrift: 0, reach: 0 } },
   tomahawk: { handling: { mass: 0.7, inertia: 0.55, swayScale: 0.78, aimDrift: 0, reach: 0 } },
+  kampfaxt: { handling: { mass: 0.9, inertia: 0.6, swayScale: 0.8, aimDrift: 0, reach: 0 } },
+  schlagstock: { handling: { mass: 0.4, inertia: 0.4, swayScale: 0.7, aimDrift: 0, reach: 0 } },
+  kampfstock: { handling: { mass: 0.35, inertia: 0.4, swayScale: 0.7, aimDrift: 0, reach: 0 } },
 };
 
 const RAW = {
@@ -709,6 +718,42 @@ const RAW = {
     melee: { range: 2.5, lungeRange: 6.5, lungeSpeed: 13, arc: 0.6, swingTime: 0.85, hitDelay: 0.22, style: 'overhead' },
     range: 2.5, penetration: 0, suppressed: true, sound: { profile: 'melee_swing', pitch: 0.78 }, model: 'tomahawk',
   },
+  kampfaxt: {
+    id: 'kampfaxt', name: 'Kampfaxt Eisenzahn', cls: 'melee', slot: 'melee', unlockLevel: 44,
+    description: 'Kurze Axt mit breitem Bart: ein Hieb genügt, und er geht durch Helm und Weste. Spezial „Wucht“: der Getroffene taumelt, Umstehende im Bogen bekommen den halben Schaden. Langsam, schwer, unaufhaltsam.',
+    damage: { max: 140, min: 140, rangeStart: 0, rangeEnd: 2.6 }, headMult: 1, limbMult: 1, pellets: 1,
+    rpm: 62, special: 'wucht', fireMode: 'semi', burstCount: 1, mag: 0, reserve: 0,
+    reloadTime: 0, reloadEmptyTime: 0, perShellReload: false,
+    equipTime: 0.3, adsTime: 0, adsZoom: 1, sight: 'none', scope: null, sprintToFire: 0.06,
+    moveSpeedMult: 1.02, adsMoveMult: 1, hipSpread: 0, adsSpread: 0, moveSpreadMult: 1, jumpSpreadMult: 1,
+    recoil: { vertical: 0, horizontal: 0, recovery: 10, firstShotMult: 1 },
+    melee: { range: 2.6, lungeRange: 5, lungeSpeed: 10, arc: 0.75, swingTime: 0.95, hitDelay: 0.24, style: 'overhead', cleave: 0.5, stun: 0.8 },
+    range: 2.6, penetration: 0, suppressed: true, sound: { profile: 'melee_swing', pitch: 0.7 }, model: 'kampfaxt',
+  },
+  schlagstock: {
+    id: 'schlagstock', name: 'Schlagstock Wächter', cls: 'melee', slot: 'melee', unlockLevel: 15,
+    description: 'Teleskop-Schlagstock aus Stahl: zwei schnelle Schläge. Spezial „Betäuben“: jeder Treffer lässt den Gegner 1,5 s lang schwer vorankommen.',
+    damage: { max: 52, min: 52, rangeStart: 0, rangeEnd: 2.4 }, headMult: 1, limbMult: 1, pellets: 1,
+    rpm: 130, special: 'betaeuben', fireMode: 'semi', burstCount: 1, mag: 0, reserve: 0,
+    reloadTime: 0, reloadEmptyTime: 0, perShellReload: false,
+    equipTime: 0.3, adsTime: 0, adsZoom: 1, sight: 'none', scope: null, sprintToFire: 0.06,
+    moveSpeedMult: 1.1, adsMoveMult: 1, hipSpread: 0, adsSpread: 0, moveSpreadMult: 1, jumpSpreadMult: 1,
+    recoil: { vertical: 0, horizontal: 0, recovery: 10, firstShotMult: 1 },
+    melee: { range: 2.4, lungeRange: 4.2, lungeSpeed: 11, arc: 0.6, swingTime: 0.42, hitDelay: 0.1, style: 'chop', stun: 1.5 },
+    range: 2.4, penetration: 0, suppressed: true, sound: { profile: 'melee_swing', pitch: 1.2 }, model: 'schlagstock',
+  },
+  kampfstock: {
+    id: 'kampfstock', name: 'Kampfstock Rabe', cls: 'melee', slot: 'melee', unlockLevel: 28,
+    description: 'Rattan-Kampfstock: der längste Arm im Nahkampf und der schnellste Schlag. Spezial „Reichweite“: trifft noch auf 3 m, drei Schläge.',
+    damage: { max: 40, min: 40, rangeStart: 0, rangeEnd: 3.0 }, headMult: 1, limbMult: 1, pellets: 1,
+    rpm: 160, special: 'reichweite', fireMode: 'semi', burstCount: 1, mag: 0, reserve: 0,
+    reloadTime: 0, reloadEmptyTime: 0, perShellReload: false,
+    equipTime: 0.3, adsTime: 0, adsZoom: 1, sight: 'none', scope: null, sprintToFire: 0.06,
+    moveSpeedMult: 1.12, adsMoveMult: 1, hipSpread: 0, adsSpread: 0, moveSpreadMult: 1, jumpSpreadMult: 1,
+    recoil: { vertical: 0, horizontal: 0, recovery: 10, firstShotMult: 1 },
+    melee: { range: 3.0, lungeRange: 4.6, lungeSpeed: 12, arc: 0.65, swingTime: 0.34, hitDelay: 0.08, style: 'backhand' },
+    range: 3.0, penetration: 0, suppressed: true, sound: { profile: 'melee_swing', pitch: 1.35 }, model: 'kampfstock',
+  },
 };
 
 /** Reihenfolge = Roster-Tabelle des Vertrags. */
@@ -717,10 +762,10 @@ export const WEAPON_IDS = [
   // Welle 2 (Arsenal): Karabiner, Bullpup, Kampfgewehr, Kompakt-/Schwere MP, Trommel-LMG, Anti-Material, Selbstlade-Flinte,
   // Revolver, Panzerabwehr (Pionier) + Nahkampfwaffen
   'ar_k36', 'ar_bx20', 'ar_g7', 'smg_wespe', 'smg_keiler', 'lmg_lm8', 'sr_titan', 'sg_hagel', 'pi_kobra', 'at_donner',
-  'karambit', 'machete', 'tomahawk',
+  'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock',
 ];
 /** Nahkampfwaffen (Slot „melee“, Ausrüstung `loadout.melee`; 'knife' ist der Standard). */
-export const MELEE_IDS = ['knife', 'karambit', 'machete', 'tomahawk'];
+export const MELEE_IDS = ['knife', 'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock'];
 
 export const WEAPONS = {};
 for (const id of WEAPON_IDS) {

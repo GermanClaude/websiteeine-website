@@ -60,6 +60,46 @@ export function tomahawk(b) {
   b.meta = { sight: 'none', kind: 'melee' };
 }
 
+export function kampfaxt(b) {
+  // Hickory-Stiel mit Gummigriff, geschmiedeter Kopf mit breitem Bart (Schneide oben/vorn), Hammerrücken unten
+  handle(b, 'grip', -0.07, 0.13, 0.015, 6);
+  b.box('woodWarm', 0.024, 0.03, 0.24, 0, 0.0, 0.18, { c: 0.006 });
+  b.part('blade', 0, 0, 0.3);
+  b.side('bladeCoat', [[0.27, 0.016], [0.32, 0.016], [0.35, 0.05], [0.4, 0.11], [0.37, 0.125], [0.3, 0.13], [0.255, 0.115], [0.28, 0.05]], 0.009, 0, { part: 'blade', bevel: 0.002 });
+  b.side('blade', [[0.375, 0.118], [0.405, 0.11], [0.385, 0.128], [0.3, 0.136], [0.252, 0.12], [0.258, 0.114], [0.3, 0.13]], 0.004, 0, { part: 'blade', bevel: 0.0008 });
+  b.box('bladeCoat', 0.03, 0.034, 0.055, 0, 0.0, 0.3, { part: 'blade', c: 0.004 });
+  b.box('steel', 0.026, 0.03, 0.03, 0, -0.03, 0.3, { part: 'blade', c: 0.004 }); // Hammerrücken
+  if (b.hi) for (const s of [-1, 1]) b.screw('steel', s * 0.0152, 0.0, 0.3, 'x', 0.0035, { part: 'blade' });
+  b.anchor('muzzle', 0, 0.12, 0.33);
+  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0 } });
+  b.meta = { sight: 'none', kind: 'melee' };
+}
+
+export function schlagstock(b) {
+  // Teleskop-Schlagstock (ausgefahren): Schaumgriff, drei Stahlsegmente, Kugelspitze
+  handle(b, 'rubber', -0.07, 0.17, 0.0135, 8);
+  b.cyl('steelDark', 0.0105, 0.0105, 0.15, 0, 0, 0.175, { seg: b.seg(14, 6) });
+  b.cyl('steelDark', 0.0085, 0.0085, 0.14, 0, 0, 0.32, { seg: b.seg(14, 6) });
+  b.cyl('steelBright', 0.0068, 0.0068, 0.13, 0, 0, 0.455, { seg: b.seg(12, 6) });
+  b.sphere('steelBright', 0.011, 0, 0, 0.525);
+  if (b.hi) for (const u of [0.25, 0.39]) b.cyl('steel', 0.0112, 0.0112, 0.006, 0, 0, u, { seg: 14 });
+  b.anchor('muzzle', 0, 0, 0.53);
+  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0 } });
+  b.meta = { sight: 'none', kind: 'melee' };
+}
+
+export function kampfstock(b) {
+  // Rattan-Kampfstock (Escrima): gebrannte Musterung, Griffband, abgerundete Enden
+  b.cyl('woodWarm', 0.0135, 0.0135, 0.66, 0, 0, 0.23, { seg: b.seg(12, 6) });
+  b.sphere('woodWarm', 0.0135, 0, 0, -0.1);
+  b.sphere('woodWarm', 0.0135, 0, 0, 0.56);
+  b.cyl('rubber', 0.0148, 0.0148, 0.16, 0, 0, -0.005, { seg: b.seg(12, 6) });
+  if (b.hi) for (let i = 0; i < 9; i++) b.cyl('woodWalnut', 0.0139, 0.0139, 0.012, 0, 0, 0.12 + i * 0.048, { seg: 12 });
+  b.anchor('muzzle', 0, 0, 0.56);
+  b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0 } });
+  b.meta = { sight: 'none', kind: 'melee' };
+}
+
 // Zylindrischer Granatkörper mit Zünderkopf, Löffel und Splint (gemeinsam für Blend/Rauch/Aufschlag)
 function canister(b, body, band, r, h, o = {}) {
   b.cyl(body, r, r, h, 0, 0, 0, { axis: 'v', seg: b.seg(18, 7) });
