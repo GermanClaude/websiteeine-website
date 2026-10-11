@@ -153,7 +153,7 @@ try {
     delete G.match.net;
     return { res, allowed, sawTp };
   });
-  const want = { driver: 'spiegel,luke,aussen', gunner: 'optik,weit,aussen', commander: 'periskop,luke,aussen', loader: 'innen,luke,aussen' };
+  const want = { driver: 'spiegel,luke,aussen', gunner: 'optik,weit,innen,aussen', commander: 'periskop,luke,innen,aussen', loader: 'innen,luke,aussen' };
   for (const [k, ids] of Object.entries(want)) check(r.res[k] && r.res[k].ids.join(',') === ids && r.res[k].cycled, `Sichten ${k} schaltbar (Taste C)`, r.res[k] && r.res[k].ids.join(','));
   check(!r.allowed.includes('aussen') && !r.sawTp, 'thirdPerson: false → keine Außenansicht', r.allowed.join(','));
 

@@ -98,6 +98,13 @@ export class VehicleSystem {
       ev.on('impact', (e) => this._onImpact(e)),
       ev.on('explosion', (e) => this._onExplosion(e)),
       ev.on('kill', (e) => this._onKill(e)),
+      // Trefferbericht (Schadensmodell): Schütze und eigene Besatzung bekommen eine Meldung
+      ev.on('vehicle:crit', (e) => {
+        const P = G.player;
+        if (!e || !P || !e.notes || !e.notes.length) return;
+        if (e.attacker === P) ev.emit('injury:notice', { text: `Durchschlag: ${e.notes.join(' · ')}`, tone: 'gold' });
+        else if (P.vehicle === e.vehicle) ev.emit('injury:notice', { text: `Wir sind getroffen: ${e.notes.join(' · ')}`, tone: 'enemy' });
+      }),
       ev.on('actor:spawn', (e) => { if (e && e.actor && e.actor.vehicle) this.removeFromSeat(e.actor, { teleport: false }); }),
       ev.on('vehicle:damaged', (e) => { if (e.vehicle === (G.player && G.player.vehicle) && e.kind !== 'fire') this.hud && this.hud.damaged(); }),
       ev.on('vehicle:hit', (e) => { if (e.attacker && e.attacker === G.player) this.hud && this.hud.hit(); }),

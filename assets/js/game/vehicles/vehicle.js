@@ -454,12 +454,53 @@ export class Vehicle {
     if (attacker) { this.lastAttacker = attacker; this.lastWeaponId = info.weaponId || null; }
     this.body.wake();
     this.G.events.emit('vehicle:damaged', { vehicle: this, amount: dealt, attacker, zone, weaponId: info.weaponId || null, kind: info.kind || 'bullet', health: this.health, point: info.point || null });
+    // Schadensmodell wie War Thunder (Nutzer 11.10.): Durchschlag trifft Besatzung und Munitionslager
+    if (info.kind === 'shell' && info.point && this.def.armored && dealt > 0) this._penetration(info, dealt);
     if (this.health <= 0) { this.destroy(attacker || this.lastAttacker, info.weaponId || this.lastWeaponId); return dealt; }
     if (!this.disabled && this.health < this.maxHealth * 0.2) {
       this.disabled = true;
       this.G.events.emit('vehicle:disabled', { vehicle: this, attacker });
     }
     return dealt;
+  }
+
+  /**
+   * Durchschlag (Panzergranate/Rakete, Wirkung im Innenraum): Besatzungsmitglieder nahe der Einschlagstelle werden
+   * verwundet oder fallen aus (Panzergranate 2,1 m Wirkradius, Sprenggranate 1,3 m bei schwerem Treffer), ein Treffer am
+   * Munitionsgestell kann das Lager zünden – der Panzer fliegt auseinander, der Turm wird abgesprengt. Meldung 'vehicle:crit'.
+   */
+  _penetration(info, dealt) {
+    const G = this.G, wd = vehicleWeapon(this.type, info.weaponId);
+    const ap = wd ? !!wd.penetrating : true; // Raketen (Hohlladung) wie Panzergranaten
+    if (!ap && dealt < 80) return;
+    const P = _a.copy(info.point), notes = [];
+    const R = ap ? 2.1 : 1.3, maxD = ap ? 170 : 90;
+    for (const s of this.seats) {
+      const a = s.actor;
+      if (!a || !a.alive || !G.combat) continue;
+      this.body.toWorld(_b.fromArray(s.def.pos).add(_c.set(0, 0.7, 0)), _b);
+      const d = _b.distanceTo(P);
+      if (d > R) continue;
+      const inv = a.invulnerable;
+      a.invulnerable = false;
+      G.combat.damage(a, { amount: Math.round(maxD * (1 - d / R) + 20), attacker: info.attacker || null, weaponId: info.weaponId, explosive: true, point: P.clone(), zone: 'body' });
+      if (a.alive) a.invulnerable = inv;
+      notes.push(`${s.def.label} ${a.alive ? 'verwundet' : 'ausgefallen'}`);
+    }
+    const g = this.gun, rackN = g ? (g.rack.mbt_ap || 0) + (g.rack.mbt_he || 0) : 0;
+    if (rackN > 0 && this.def.turretPivot && this.health > 0) {
+      const I = this.def.interior || {}, rk = I.rack || [0, 0.45, 1.55], sh = I.shift || [0, 0, 0];
+      _q.setFromAxisAngle(Y, this.mount.turretYaw);
+      _b.set(rk[0] + sh[0], rk[1] + sh[1], rk[2] + sh[2]).applyQuaternion(_q).add(_c.fromArray(this.def.turretPivot));
+      this.body.toWorld(_b, _b);
+      if (_b.distanceTo(P) < 1.4 && Math.random() < (ap ? 0.5 : 0.15) * Math.min(1, 0.4 + rackN / 12)) {
+        notes.push('Munitionslager gezündet!');
+        this._ammoRack = true;
+        this.health = 0;
+        this.zones.hull.hp = 0;
+      }
+    }
+    if (notes.length) G.events.emit('vehicle:crit', { vehicle: this, attacker: info.attacker || null, notes });
   }
 
   _zoneBroken(zone) {
@@ -502,6 +543,10 @@ export class Vehicle {
     this.sys.ownExplosion(() => G.combat.explode({ position: center, radius: this.def.drive === 'tracked' ? 7 : 6, maxDamage: 110, attacker: by, weaponId: 'vehicle_explosion', type: 'frag' }));
     // Wrack: Turm springt, leichte Fahrzeuge hüpfen
     this.model.setWreck(true);
+    if (this._ammoRack && this.model.turret) { // Munitionslager: Turm abgesprengt
+      this.model.turret.position.y += 1.4;
+      this.model.turret.rotation.x = (Math.random() - 0.5) * 0.9;
+    }
     if (this.model.turret) {
       this.model.turret.position.y += 0.18;
       this.model.turret.rotation.z = (Math.random() - 0.5) * 0.25;
@@ -671,9 +716,9 @@ export class Vehicle {
     const g = this.gun;
     if (!g) return;
     // Ladeschütze: Schritt zum Gestell (Blick nach hinten) bzw. zum Verschluss (nach vorn), weich
-    if (inside) {
-      const ls = this.seats.find((x) => x.def.loader && x.actor === p);
-      const ry = ls ? ls.look.relYaw || 0 : 0;
+    const ls = inside ? this.seats.find((x) => x.def.loader && x.actor === p) : null; // nur der Ladeschütze geht im Turm
+    if (ls) {
+      const ry = ls.look.relYaw || 0;
       this._loaderYaw = ry;
       const want = Math.abs(ry) > 1.9 ? 0.5 : Math.abs(ry) < 0.9 ? -0.55 : 0;
       this._loaderShift = (this._loaderShift || 0) + (want - (this._loaderShift || 0)) * Math.min(1, dt * 4);

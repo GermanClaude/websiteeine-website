@@ -128,6 +128,7 @@ export const VEHICLES = {
         views: [
           { id: 'optik', label: 'Hauptzieloptik', space: 'gun', pos: [0.48, 0.66, -1.3], look: 'mount', zoom: [3, 8, 12], overlay: 'optic' },
           { id: 'weit', label: 'Weitwinkel', space: 'gun', pos: [0.48, 0.66, -1.3], look: 'mount', zoom: [1.2, 2.5], overlay: 'wide' },
+          { id: 'innen', label: 'Turm innen', space: 'turret', pos: [0.62, 0.6, -0.55], look: 'relTurret', yaw: [-Math.PI, Math.PI], pitch: [-0.9, 0.5], zoom: [1], interior: true },
           { id: 'aussen', label: 'Außenansicht', look: 'mount', zoom: [1], tp: { dist: 11, height: 4.7, pivot: 2.6 } },
         ],
       },
@@ -137,6 +138,7 @@ export const VEHICLES = {
         views: [
           { id: 'periskop', label: 'Rundblickperiskop', space: 'cupola', pos: [0, 0.32, 0.55], look: 'mount', zoom: [1.5, 4, 8], overlay: 'peri' },
           { id: 'luke', label: 'Luke offen', space: 'turret', pos: [-0.62, 1.45, 0.75], look: 'mount', zoom: [1, 4, 7], overlay: 'binocular', exposed: true, hatch: 'commander', pin: [-0.62, 0.27, 0.62] },
+          { id: 'innen', label: 'Turm innen', space: 'turret', pos: [-0.62, 0.62, 0.45], look: 'relTurret', yaw: [-Math.PI, Math.PI], pitch: [-0.9, 0.5], zoom: [1], interior: true },
           { id: 'aussen', label: 'Außenansicht', look: 'mount', zoom: [1], tp: { dist: 10, height: 4.8, pivot: 2.8 } },
         ],
       },
@@ -278,6 +280,7 @@ export const VEHICLES = {
         views: [
           { id: 'optik', label: 'Zielfernrohr', space: 'gun', pos: [0.32, 0.44, -1.0], look: 'mount', zoom: [2.5, 5], overlay: 'optic' },
           { id: 'weit', label: 'Weitwinkel', space: 'gun', pos: [0.32, 0.44, -1.0], look: 'mount', zoom: [1.2], overlay: 'wide' },
+          { id: 'innen', label: 'Turm innen', space: 'turret', pos: [0.4, 0.5, -0.6], look: 'relTurret', yaw: [-Math.PI, Math.PI], pitch: [-0.9, 0.5], zoom: [1], interior: true },
           { id: 'aussen', label: 'Außenansicht', look: 'mount', zoom: [1], tp: { dist: 9.5, height: 4.1, pivot: 2.3 } },
         ],
       },
@@ -295,6 +298,7 @@ export const VEHICLES = {
         views: [
           { id: 'kuppel', label: 'Kommandantenkuppel', space: 'turret', pos: [-0.45, 0.98, 0.45], look: 'relTurret', yaw: [-Math.PI, Math.PI], pitch: [-0.35, 0.4], zoom: [1, 2], overlay: 'peri' },
           { id: 'luke', label: 'Luke offen', space: 'turret', pos: [-0.45, 1.45, 0.5], look: 'relTurret', yaw: [-Math.PI, Math.PI], pitch: [-0.6, 0.8], zoom: [1, 4, 7], overlay: 'binocular', exposed: true, hatch: 'commander', pin: [-0.45, 0.3, 0.45] },
+          { id: 'innen', label: 'Turm innen', space: 'turret', pos: [-0.45, 0.56, 0.45], look: 'relTurret', yaw: [-Math.PI, Math.PI], pitch: [-0.9, 0.5], zoom: [1], interior: true },
           { id: 'aussen', label: 'Außenansicht', look: 'relTurret', yaw: [-Math.PI, Math.PI], pitch: [-0.7, 0.75], zoom: [1], tp: { dist: 9.5, height: 4.2, pivot: 2.4 } },
         ],
       },
@@ -380,6 +384,7 @@ export const VEHICLES = {
         views: [
           { id: 'optik', label: 'Zielfernrohr', space: 'gun', pos: [0.26, 0.16, 0.3], look: 'mount', zoom: [1.8, 3], overlay: 'optic' },
           { id: 'weit', label: 'Visier', space: 'gun', pos: [0.26, 0.16, 0.3], look: 'mount', zoom: [1.1], overlay: 'wide' },
+          { id: 'innen', label: 'Kampfraum', space: 'turret', pos: [0.3, 0.12, 0.8], look: 'relTurret', yaw: [-Math.PI, Math.PI], pitch: [-0.9, 0.5], zoom: [1], interior: true },
           { id: 'aussen', label: 'Außenansicht', look: 'mount', zoom: [1], tp: { dist: 12, height: 5.4, pivot: 3.0 } },
         ],
       },
@@ -388,6 +393,7 @@ export const VEHICLES = {
         pos: [-1.0, 0.75, -2.9], exit: [[-2.5, 0, -2.2], [2.5, 0, -2.2], [0, 0, -4.7]],
         views: [
           { id: 'kugel', label: 'Kugelstand', space: 'cupola', pos: [0, 0.12, 0.48], look: 'mount', zoom: [1.1, 1.8], overlay: 'wide' },
+          { id: 'innen', label: 'Kampfraum', space: 'turret', pos: [-0.85, 0.12, 0.65], look: 'relTurret', yaw: [-Math.PI, Math.PI], pitch: [-0.9, 0.5], zoom: [1], interior: true },
           { id: 'aussen', label: 'Außenansicht', look: 'mount', zoom: [1], tp: { dist: 11, height: 5.0, pivot: 2.8 } },
         ],
       },
