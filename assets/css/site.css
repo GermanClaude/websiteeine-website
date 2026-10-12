@@ -985,7 +985,7 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .impressum p, .impressum address { font-style: normal; font-size: var(--fs-small); line-height: 1.6; }
 .rights p + p { margin-top: 10px; }
 .rights + .rights { margin-top: 28px; }
-.reveal { margin: 32px 0 8px; padding: 22px 24px; border: 1px solid var(--line); border-left: 3px solid #ff5a1f; max-width: 72ch; }
+.reveal { margin: 0 0 40px; padding: 22px 24px; border: 1px solid var(--line); border-left: 3px solid #ff5a1f; max-width: 72ch; }
 .reveal p { font-size: var(--fs-small); line-height: 1.65; margin: 10px 0 0; }
 .reveal .reveal-tag { margin: 0 0 8px; font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: #ffb21f; }
 .reveal .reveal-guess { color: var(--ink-2); }

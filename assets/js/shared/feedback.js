@@ -1,8 +1,8 @@
 // NULLPUNKT — Feedback an den Entwickler (Nutzer 11.10.): ab 20 Minuten Spielzeit (laufende Runden, sichtbarer Tab)
 // freigeschaltet. Bewertung (Sterne), Ankreuzfragen, Fehlerbericht → per E-Mail (öffnet das eigene Mailprogramm mit
 // fertigem Text) oder als Text für Discord (wird kopiert). Automatisch verschickt wird nichts.
-// Nach jedem abgeschickten Feedback (auch bei schlechter Bewertung): Freischaltung „Wie NULLPUNKT entstanden ist“ auf der Startseite
-// (Experiment: Merkt man einem Spiel an, dass es mit KI entstanden ist?).
+// „Wie NULLPUNKT entstanden ist“ (Startseite, §08 Über, über „Kontakt & Rechte“) ist seit 12.10. für alle sichtbar (Nutzer);
+// vorher erst nach abgeschicktem Feedback. Die Vermutung aus dem Feedback („Wie entstanden?“) bekommt dort eine Antwort.
 // Gemeinsam für Spiel (spielen.html) und Startseite (index.html): nur DOM + lokaler Speicher, eigene Stile.
 import { BUILD } from './build.js';
 
@@ -250,14 +250,13 @@ export function openFeedback({ page = 'Spiel', onDone = null, onRevealed = null 
       <h2 id="npfb-h">Danke!</h2>
       ${sentLine}
       <textarea readonly rows="6" data-out>${esc(composeFeedback(data))}</textarea>
-      ${newly ? `<p><strong>Du hast etwas freigeschaltet:</strong> Auf der Startseite unter „Über“ erfährst du jetzt, wie NULLPUNKT entstanden ist.</p>
-        ${onSite ? '' : '<p><a href="index.html#ueber" target="_blank" rel="noopener">Startseite in neuem Tab öffnen</a></p>'}` : ''}
+      <p>Wie NULLPUNKT entstanden ist, steht auf der Startseite ganz unten unter „Über“.${onSite ? '' : ' <a href="index.html#entstehung" target="_blank" rel="noopener">In neuem Tab lesen</a>'}</p>
       ${data.stars <= 2 ? '<p>Danke für deine ehrliche Bewertung, gerade Kritik hilft, das Spiel besser zu machen.</p>' : ''}
       <div class="npfb-row"><button type="button" class="npfb-btn pri" data-a="ok" autofocus>Schließen</button>
       ${how === 'discord' ? '<a class="npfb-btn" href="https://discord.com/app" target="_blank" rel="noopener">Discord öffnen</a>' : ''}</div>`;
     const ok = box.querySelector('[data-a="ok"]');
     if (ok) ok.focus();
-    if (newly && onRevealed) onRevealed();
+    if (onRevealed) onRevealed(); // Startseite: Abschnitt mit der Antwort auf die Vermutung neu zeichnen
   };
   back.addEventListener('click', async (e) => {
     const st = e.target.closest('[data-star]');
@@ -282,7 +281,7 @@ export function openFeedback({ page = 'Spiel', onDone = null, onRevealed = null 
   });
 }
 
-/* ------------------------------------------------------------------ Freischaltung auf der Startseite */
+/* ------------------------------------------------------------------ „Wie NULLPUNKT entstanden ist“ (Startseite) */
 
 const GUESS_REPLY = {
   'Mit Hilfe von KI': 'Gut erkannt!',
@@ -291,14 +290,14 @@ const GUESS_REPLY = {
   'Großes Studio': 'Weit gefehlt, und genau das ist das Spannende.',
   'Weiß nicht': 'Jetzt weißt du es.',
 };
-/** HTML des freigeschalteten Abschnitts (Startseite, §08 Über) – aus der Sicht von German Legend geschrieben. */
+/** HTML des Abschnitts (Startseite, §08 Über, für alle sichtbar) – aus der Sicht von German Legend geschrieben. */
 export function revealHtml() {
   const g = load().guess;
   const guess = g ? `<p class="reveal-guess">Du hast im Feedback getippt: <strong>${esc(g)}</strong>. ${esc(GUESS_REPLY[g] || '')}</p>` : '';
   return `
-    <p class="reveal-tag">Freigeschaltet · Danke für dein Feedback</p>
+    <p class="reveal-tag">Hinter den Kulissen</p>
     <h3 class="mono-h" id="h-entstehung">Wie NULLPUNKT entstanden ist</h3>
-    <p>NULLPUNKT ist ein Experiment, und du hast gerade den Teil gefunden, der es auflöst. Die Idee, das Konzept, die Spielmodi,
+    <p>NULLPUNKT ist auch ein Experiment, und hier löse ich es auf. Die Idee, das Konzept, die Spielmodi,
     die Wünsche zu Karten, Waffen und Fahrzeugen, die Geschichten dahinter und jede Entscheidung, wie das Spiel sein soll,
     kommen von mir. Getestet habe ich es mit meinen Freunden.</p>
     <p>Den Code hat eine künstliche Intelligenz geschrieben: <strong>Claude</strong> von Anthropic. Weil in NULLPUNKT fast alles
@@ -314,7 +313,7 @@ export function revealHtml() {
     <ol class="reveal-time">
       ${HISTORY.map(([when, title, text]) => `<li><span class="reveal-when">${when}</span><strong>${title}</strong> ${text}</li>`).join('')}
     </ol>
-    <p>Danke an meine Freunde fürs Testen und an dich fürs Spielen und für dein Feedback.</p>
+    <p>Danke an meine Freunde fürs Testen und an dich fürs Spielen. Über dein Feedback freue ich mich.</p>
     <p class="reveal-sign">— German Legend</p>`;
 }
 

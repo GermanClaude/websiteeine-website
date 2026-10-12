@@ -1,6 +1,6 @@
 // NULLPUNKT – Feedback an den Entwickler (Nutzer 11.10.): Spielzeit-Zähler (ab 20 Minuten), Hinweis beim Verlassen,
-// Formular (Sterne, Ankreuzfragen, Fehlerbericht), Discord-Kopie/E-Mail-Text, Freischaltung „Wie NULLPUNKT entstanden ist“
-// auf der Startseite nach jedem abgeschickten Feedback (auch bei wenigen Sternen). Aufruf: node tools/feedback-test.mjs   (Exit-Code ≠ 0 bei Fehlern)
+// Formular (Sterne, Ankreuzfragen, Fehlerbericht), Discord-Kopie/E-Mail-Text; „Wie NULLPUNKT entstanden ist“ steht seit 12.10.
+// für alle sichtbar auf der Startseite direkt über „Kontakt & Rechte“, nach dem Feedback mit Antwort auf die Vermutung. Aufruf: node tools/feedback-test.mjs   (Exit-Code ≠ 0 bei Fehlern)
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 
 let fail = 0, count = 0;
@@ -49,7 +49,7 @@ try {
   await p.waitForSelector('.npfb [data-a="ok"]', { timeout: 10000 });
   const thanks = await p.textContent('.npfb');
   const clip = await p.evaluate(() => navigator.clipboard.readText().catch(() => ''));
-  check(/freigeschaltet/.test(thanks), 'Nach 4 Sternen: Freischaltung angekündigt');
+  check(/entstanden ist/.test(thanks), 'Nach dem Senden: Hinweis auf die Geschichte unter „Über“');
   check(/Bewertung: ★★★★☆ \(4\/5\)/.test(clip) && /Allein gegen Bots/.test(clip) && /Mit Hilfe von KI/.test(clip) && /Testfehler/.test(clip) && /Spielzeit 20 min/.test(clip), 'Text für Discord kopiert (Sterne, Antworten, Fehler, Spielzeit)', clip.split('\n')[1] || '(leer)');
   st = await fbState(p);
   check(st.sent === 1 && st.stars === 4 && st.reveal === true && st.guess === 'Mit Hilfe von KI', 'Zustand: gesendet, 4 Sterne, freigeschaltet, Vermutung gemerkt');
@@ -73,7 +73,7 @@ try {
   await p.evaluate(() => localStorage.setItem('nullpunkt:feedback', JSON.stringify({ play: 1500 })));
   await p.goto(BASE + 'index.html#ueber', { waitUntil: 'load' });
   await p.waitForTimeout(2500);
-  check(await p.evaluate(() => document.getElementById('entstehung').hidden), 'Startseite vor dem Feedback: Abschnitt noch verborgen');
+  check(await p.evaluate(() => { const b = document.getElementById('entstehung'); return !b.hidden && /Die Geschichte/.test(b.textContent) && !/Du hast im Feedback getippt/.test(b.textContent) && b.nextElementSibling?.id === 'rechte'; }), 'Startseite ohne Feedback: Geschichte für alle sichtbar, direkt über „Kontakt & Rechte“');
   await p.click('#fb-open');
   await p.waitForSelector('.npfb [data-send="mail"]');
   await p.screenshot({ path: 'tools/out/feedback-form.png' });
@@ -84,7 +84,7 @@ try {
   await p.waitForSelector('.npfb [data-a="ok"]', { timeout: 10000 });
   const t2 = await p.textContent('.npfb');
   st = await fbState(p);
-  check(st.sent === 1 && st.reveal === true && /freigeschaltet/.test(t2) && /ehrliche Bewertung/.test(t2), '2 Sterne: gesendet, freigeschaltet, Dank für Kritik');
+  check(st.sent === 1 && /entstanden ist/.test(t2) && /ehrliche Bewertung/.test(t2), '2 Sterne: gesendet, Hinweis auf die Geschichte, Dank für Kritik');
   await p.click('.npfb [data-a="ok"]');
   check(await p.evaluate(() => !document.getElementById('entstehung').hidden), 'Startseite nach 2 Sternen: Abschnitt sofort sichtbar');
   await ctx.close();
