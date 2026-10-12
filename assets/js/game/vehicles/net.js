@@ -912,7 +912,7 @@ export class VehicleNet {
     v.muzzle(si, _a, _b, true, wi);
     G.effects?.muzzleFlash?.(_a, _b, { cls: 'lmg', actor: seat.actor || null, scale: 1.25 });
     const own = !!(G.player && G.player.vehicle === v && v.seatOf(G.player) === si);
-    sys.audio.play(def.profile || 'lmg', { position: own ? null : _a, player: own, actor: seat.actor || null });
+    sys.audio.play(def.profile || 'lmg', { position: own ? null : _a, player: own, actor: seat.actor || null, weapon: def.id });
     if (own) G.player.shake?.(0.05);
     // Leuchtspur jede tracerEvery-te Kugel (Zählerstand des Hosts)
     const every = def.tracerEvery || 3;

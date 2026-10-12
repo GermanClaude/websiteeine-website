@@ -1165,7 +1165,7 @@ export class VehicleSystem {
       this._ignore = null;
       if (w.shots % (def.tracerEvery || 3) === 0 && res && res.point) G.events.emit('tracer', { from: origin.clone(), to: res.point.clone ? res.point.clone() : res.point, actor, weaponId: def.id });
       G.effects?.muzzleFlash?.(origin, _d, { cls: 'lmg', actor, scale: 1.25 });
-      this.audio.play(def.profile || 'lmg', { position: isPlayer ? null : origin, player: isPlayer, actor });
+      this.audio.play(def.profile || 'lmg', { position: isPlayer ? null : origin, player: isPlayer, actor, weapon: def.id });
       if (isPlayer) actor.shake?.(0.05);
     }
     G.events.emit('vehicle:fire', { vehicle: v, seat: seat.index, actor, weaponId: def.id, origin, dir });

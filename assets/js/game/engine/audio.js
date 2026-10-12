@@ -10,6 +10,7 @@
 //   sfx/amb → world → muffle(Tiefpass: Pause, Tod, Gehör, wenig Leben) ┐
 //   fb/ui/music ──────────────────────────────────────────────────────── master → EQ(Profil) → Glue → Makeup → Limiter → Softclip
 import { UNDER_WEAPONS } from '../../shared/attachments.data.js';
+import { WEAPON_SOUND, caliberOf } from '../../shared/calibers.data.js';
 import { CATALOG, SOUND_GROUPS, GUN_PROFILES, SURFACES, AMBIENCES, STEM_IDS, REC_ONLY, EXTRA_VOICES, entryOf } from './audio/catalog.js';
 import { bank, PRIO, makeBuffer } from './audio/bank.js';
 import { makeRng, hashString, clamp, lerp } from './audio/dsp.js';
@@ -54,7 +55,7 @@ const STEP_LAYER = { metal: 0.6, wood: 0.5, grass: 0.45, dirt: 0.3, gravel: 0.35
 /** Aufnahme und Synthese abwechselnd (Anteil Aufnahme) → mehr hörbare Varianten. */
 const MIXED_REC = { hit_flesh: 0.6, bullet_whiz: 0.35, land: 0.5 };
 /** Mechanik-Schicht (Aufnahme) unter dem eigenen Schuss. Repetierer/Pumpen haben ihre eigenen Klänge. */
-const MECH_OF = { ar: 'mech_rifle', ar_heavy: 'mech_rifle', smg: 'mech_rifle', lmg: 'mech_rifle', pistol: 'mech_pistol', pistol_heavy: 'mech_pistol', dmr: 'mech_rifle' };
+const MECH_OF = { ar: 'mech_rifle', ar_heavy: 'mech_rifle', smg: 'mech_rifle', lmg: 'mech_rifle', pistol: 'mech_pistol', pistol_heavy: 'mech_pistol', dmr: 'mech_rifle', blk: 'mech_rifle', ppsh: 'mech_rifle', bersa: 'mech_pistol' };
 const TAIL_DB = -8, MECH_DB = -14;
 /**
  * Pegelabgleich der Aufnahmen durch die komplette Kette (tools/out/audio-hybrid/loudness*.mjs: lauteste 400 ms am Ausgang,
@@ -68,6 +69,11 @@ const REC_TRIM = {
 };
 /** Eigener Schuss: Aufnahme mit echtem Crest-Faktor läuft in den Limiter → etwas mehr Pegel für gleiche Lautheit. */
 const PLAYER_NEAR_DB = 2.5, FAR_DB = 2;
+/**
+ * Pegelabgleich je Aufnahme-Stimme (dB, gemessen 12.10.: Gegner in 15 m, neutral, Mittel über 2 Varianten, Bezug 'ar').
+ * Gilt nur mit Waffen-Signatur – danach bestimmt allein das Kaliber (shared/calibers.data.js) die Lautstärke.
+ */
+const VOICE_TRIM = { ar: 0, ar_heavy: -0.9, smg: 2.1, lmg: -1.8, sniper: -3.4, shotgun: -2.6, pistol: 1.1, pistol_heavy: -1, dmr: 8.1, lever: 5.2, sniper_heavy: -3.6, blk: -0.6, ppsh: 1.9, springfield: -2.9, model12: -3.3, bersa: -2.9, revolver: 1.7 };
 /** Feinabgleich je Profil (eigener Schuss, nach „Körperkamera-Mikro“-Sättigung gemessen). */
 const PLAYER_TRIM = { ar: 0.5, ar_heavy: 1.5, smg: 1.5, lmg: 2, sniper: 0.5, shotgun: 1.5, pistol: 2, pistol_heavy: 0 };
 /** Hülsen je Untergrund (weiche Böden: fast lautlos → aus). */
@@ -127,7 +133,7 @@ export class AudioEngine {
     this._warm = false; this._bankLow = null; this._pinAt = new WeakMap(); this._slideVoice = null;
     this._occl = new Map(); this._lastFire = new WeakMap(); this._reloads = new Map(); this._reloadSeq = new Map();
     this._lastVar = new Map(); this._objOwners = new Map(); this._actorPain = new WeakMap();
-    this._tails = new Map(); this._shellAt = new WeakMap(); this._surf = new WeakMap(); this._shots = new WeakMap();
+    this._tails = new Map(); this._sigs = new Map(); this._shellAt = new WeakMap(); this._surf = new WeakMap(); this._shots = new WeakMap();
     this._pass = new Map(); this._whiz = new Map(); this._passQueued = false; this._combatWhiz = false; this._casingEvents = false;
     this._wanted = new Set(); this._taps = []; this._erT = 0; this._hdrDb = 0; this._dif = new Map(); this._difT = -9;
     this._foley = { yaw: null, rustleT: 0, sprintT: 0, breaths: 0, breathT: 0, breathIn: true };
@@ -704,7 +710,7 @@ export class AudioEngine {
     let pos = o.position ? xyz(o.position) : null;
     if (pos && !L.valid && o.distance == null) pos = null;     // ohne Hörer: 2D
     const dist = o.distance ?? (pos ? this._dist(pos) : 0);
-    if (pos && dist > e.maxDist) { this.stats.dropped++; return null; }
+    if (pos && dist > (o.maxDist ?? e.maxDist)) { this.stats.dropped++; return null; }
     // Quelle: Aufnahme (falls geladen) oder Synthese-Puffer
     let buffer = null, offset = 0, recGain = 1, recorded = false;
     const rn = o.proc ? null : this._recName(e.name);
@@ -745,6 +751,19 @@ export class AudioEngine {
     if (o.highpass) {
       const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = o.highpass; hp.Q.value = 0.6;
       head.connect(hp); head = hp; nodes.push(hp);
+    }
+    // Klangsignatur (Kaliber/Waffe): Tiefen, Höhen, eigene Resonanz
+    if (o.shelf && Math.abs(o.shelf) > 0.3) {
+      const f = ctx.createBiquadFilter(); f.type = 'lowshelf'; f.frequency.value = 110; f.gain.value = o.shelf;
+      head.connect(f); head = f; nodes.push(f);
+    }
+    if (o.hshelf && Math.abs(o.hshelf) > 0.3) {
+      const f = ctx.createBiquadFilter(); f.type = 'highshelf'; f.frequency.value = 4500; f.gain.value = o.hshelf;
+      head.connect(f); head = f; nodes.push(f);
+    }
+    if (o.tone) for (const t of Array.isArray(o.tone[0]) ? o.tone : [o.tone]) { // [f, dB] oder [[f, dB], …]
+      const f = ctx.createBiquadFilter(); f.type = 'peaking'; f.frequency.value = t[0]; f.Q.value = 1.3; f.gain.value = t[1];
+      head.connect(f); head = f; nodes.push(f);
     }
     // Distanz-/Verdeckungsfilter
     const occluded = pos && !o.player && o.occlusion !== false && e.bus !== 'amb' ? this._occluded(pos, o.actor, o.footstep) : false;
@@ -802,8 +821,8 @@ export class AudioEngine {
     // HDR-Fenster: geschätzter Pegel am Hörer
     const loud = o.loud ?? e.loud;
     if (loud != null) {
-      const att = pos ? e.ref / (e.ref + e.roll * Math.max(0, dist - e.ref)) : 1;
-      this.hdr.push(loud + 20 * Math.log10(Math.max(1e-4, (o.volume ?? 1) * att * (occluded ? 0.55 : 1))));
+      const ref = o.ref || e.ref, att = pos ? ref / (ref + e.roll * Math.max(0, dist - ref)) : 1;
+      this.hdr.push(loud + (o.loudAdd || 0) + 20 * Math.log10(Math.max(1e-4, (o.volume ?? 1) * att * (occluded ? 0.55 : 1))));
       this._applyHdr(true);
     }
     const when = now + Math.max(0, o.delay || 0) + (dif ? dif.extra : 0);
@@ -1148,12 +1167,47 @@ export class AudioEngine {
    * Präzisionsgewehre → 'dmr' (SKS-Aufnahme), sonst das Klangprofil. Fehlt die Stimme, gilt das Profil.
    */
   voiceFor(id, def = this.weaponDef(id), profile = this.profileFor(id, def)) {
-    const v = def?.sound?.voice;
+    const v = WEAPON_SOUND[id]?.voice || def?.sound?.voice;
     if (v && (GUN_PROFILES[v] || EXTRA_VOICES[v])) return v;
     if (def?.cls === 'marksman') return 'dmr';
     return profile;
   }
   _isKnife(id, def) { return id === 'knife' || def?.cls === 'melee'; }
+
+  /**
+   * Klangsignatur einer Waffe (Nutzer 12.10., shared/calibers.data.js): Pegel/Hörweite nach Kaliber, Wucht → Bass
+   * (Tiefenregler), Sub-Druckstoß, längerer und tieferer Nachhall; kleine Kaliber: Bass weg (Hochpass), heller, kurz.
+   * Dazu eine eigene Klangfarbe je Waffe (tone) und die Tonlage. Auch für Fahrzeug-MGs/Geschütze (Ids ohne WEAPONS).
+   */
+  _shotSig(id, def = this.weaponDef(id)) {
+    if (!id) return null;
+    let s = this._sigs.get(id);
+    if (s) return s;
+    const ws = WEAPON_SOUND[id] || {}, cal = caliberOf(id, def), w = cal.weight, db = cal.db + (ws.db || 0);
+    const voice = ws.voice && (GUN_PROFILES[ws.voice] || EXTRA_VOICES[ws.voice]) ? ws.voice : null;
+    s = {
+      cal: cal.id, db, k: dbg(db), hear: cal.hear, weight: w, voice, pcal: ws.pcal || 0,
+      pitch: ws.pitch ?? def?.sound?.pitch ?? 1,
+      shelf: (w - 0.4) * 14,                       // 110 Hz: 9 mm −3 dB … .50 BMG +8 dB
+      hp: w < 0.3 ? Math.round(60 + (0.3 - w) * 800) : 0, // dünn: tiefer Körper weg (4,6 mm ≈ 250 Hz)
+      hshelf: cal.subsonic ? -3 : (0.4 - w) * 5,  // klein: knackiger, schwer/Unterschall: Wucht statt Zischen
+      tone: ws.tone || null,
+      tail: 0.55 + w * 1.1, tailPitch: 1.06 - w * 0.12,
+      sub: w >= 0.5 ? Math.min(1, (w - 0.45) / 0.55) : 0,
+    };
+    this._sigs.set(id, s);
+    return s;
+  }
+  /**
+   * Pegel des eigenen Schusses nach Kaliber (dB). Summenkompressor und Körperkamera-Sättigung stauchen Unterschiede auf
+   * etwa die Hälfte → kleine Kaliber kräftiger absenken (9 mm ≈ −8 dB vor der Kette), schwere bis +8 dB anheben (Sättigung und Begrenzer schützen die Ohren).
+   */
+  _playerDb(sig) { return sig.db < 0 ? Math.max(-10, sig.db * 1.35) : Math.min(8, sig.db * 0.85); }
+  /** Filter-Optionen für _spawn aus der Signatur (Handy: nur Bass/Hochpass). */
+  _sigFx(sig, low, far = false) {
+    if (!sig) return {};
+    return { shelf: sig.shelf, highpass: sig.hp, hshelf: low || far ? 0 : sig.hshelf, tone: low || far ? null : sig.tone };
+  }
 
   /** Nahschuss-Aufnahme für Stimme/Profil (geladen) oder null. */
   _nearRec(voice, profile) { return this._recName(`gun_${voice}`) || (voice !== profile ? this._recName(`gun_${profile}`) : null); }
@@ -1167,10 +1221,13 @@ export class AudioEngine {
    */
   _gunshot(profile, o = {}) {
     const isPlayer = o.player || this._isPlayer(o.actor) || (!o.position && o.distance == null);
+    const sig = o.sig || (o.weapon ? this._shotSig(o.weapon) : null);
+    if (sig && o.voice == null && sig.voice) o = { ...o, voice: sig.voice };
+    if (sig && o.pitch == null) o = { ...o, pitch: sig.pitch };
     const voice = o.voice && (GUN_PROFILES[o.voice] || EXTRA_VOICES[o.voice]) ? o.voice : profile;
     const nearName = this._nearRec(voice, profile);
     if (!this.G.events?.on && this._recOn() && !nearName) library.request([`gun_${voice}`, `gun_${profile}`], PRIO.urgent); // Website: beim ersten Schuss nachladen
-    if (!nearName) return this._gunshotProc(profile, o, isPlayer);
+    if (!nearName) return this._gunshotProc(profile, o, isPlayer, sig);
     const low = this._quality() === 'low', sup = !!o.suppressed, vol = o.volume ?? 1, pitch = o.pitch ?? 1;
     const pistol = profile === 'pistol' || profile === 'pistol_heavy';
     const supName = sup && pistol ? this._recName('gunsup_pistol') : null;
@@ -1179,50 +1236,73 @@ export class AudioEngine {
     const nearGain = nearE.gain * this._recGain(supName || nearName);
     const tailName = this._recName(`guntail_${voice}`) || this._recName(`guntail_${profile}`);
     const P = this._preset || MIX_PRESETS.kopfhoerer;
+    const vt = sig ? dbg(VOICE_TRIM[nearName.slice(4)] || 0) : 1; // Aufnahme auf gemeinsamen Pegel, dann zählt das Kaliber
 
     if (isPlayer) {
       const room = this._roomOf(null, o), ind = room.ind;
+      // Kaliber: eigener Schuss etwas gedämpfter gestaffelt als beim Gegner (Körperkamera-Sättigung gleicht ohnehin an)
+      const kp = (sig ? dbg(this._playerDb(sig) + sig.pcal) : 1) * vt, fx = this._sigFx(sig, low);
       const v = this._spawn(nearE, {
-        ...o, position: null, player: true, priority: 3, pitch, eq: !low && this.layers.eq, volume: vol * dbg(PLAYER_NEAR_DB + (PLAYER_TRIM[profile] || 0)) * (supRifle ? 0.18 : 1),
-        lowpass: supRifle ? 3400 : 0, highpass: supRifle ? 220 : 0, env: (o.env ?? 1) * 0.4, echo: 0.5,
-        er: supRifle || supName ? 0.45 : 1, loud: sup ? -14 : -3, drive: !sup,
+        ...o, ...fx, position: null, player: true, priority: 3, pitch, eq: !low && this.layers.eq, volume: vol * kp * dbg(PLAYER_NEAR_DB + (PLAYER_TRIM[profile] || 0)) * (supRifle ? 0.18 : 1),
+        lowpass: supRifle ? 3400 : 0, highpass: Math.max(supRifle ? 220 : 0, fx.highpass || 0), env: (o.env ?? 1) * 0.4, echo: 0.5,
+        er: supRifle || supName ? 0.45 : 1, loud: (sup ? -14 : -3) + (sig ? sig.db * 0.5 : 0), drive: !sup,
       });
+      // Schwere Kaliber: Sub-Druckstoß (Wucht im Bauch; Handy-Lautsprecher kaum)
+      if (sig && sig.sub > 0.02 && !sup && this.layers.fp) this._spawn(CATALOG.gun_sub, { player: true, priority: 3, volume: vol * sig.sub * (0.3 + 0.7 * P.sub), pitch: 1.06 - sig.weight * 0.16, _deferred: true });
       // Mechanik am Ohr (Aufnahme, unter dem Schuss; mit Schalldämpfer hört man sie deutlich)
       const mech = MECH_OF[voice] || MECH_OF[profile];
       if (mech && !low && this.layers.mech) this.play(mech, { player: true, priority: 3, volume: vol * nearGain * dbg(MECH_DB) * (sup ? 1.8 : 1), pitch: pitch * this._rand.range(0.97, 1.03), env: 0, _deferred: true });
       // Ich-Perspektive (Synthese): Druckstoß auf den Brustkorb + Verschluss – je Wiedergabeprofil (Handy kaum Bass)
       const fp = CATALOG[`gunfp_${profile}`];
-      if (fp && P.sub > 0.05 && this.layers.fp) this._spawn(fp, { player: true, priority: 3, volume: vol * P.sub * (sup ? 0.55 : 1) * (low ? 0.8 : 1), pitch, _deferred: true }); // Schichten nie verspätet
+      if (fp && P.sub > 0.05 && this.layers.fp) this._spawn(fp, { player: true, priority: 3, volume: vol * P.sub * (sup ? 0.55 : 1) * (low ? 0.8 : 1) * (sig ? dbg(this._playerDb(sig)) : 1), pitch, highpass: sig?.hp || 0, _deferred: true }); // Schichten nie verspätet; Druckstoß nach Kaliber
       // Außen-Nachhall (Aufnahme), Pegel an den Nahschuss gekoppelt; innen übernimmt die Faltung
-      if (tailName && ind < 0.95 && this.layers.tail) this._tail(tailName, o.actor || 'player', nearGain * vol * dbg(TAIL_DB) * (1 - ind) * (sup ? 0.3 : 1), 0.004, pitch);
-      // Gehör: Schüsse in engen Räumen (Plan §10 A6)
+      if (tailName && ind < 0.95 && this.layers.tail) this._tail(tailName, o.actor || 'player', nearGain * vol * kp * dbg(TAIL_DB) * (1 - ind) * (sup ? 0.3 : 1) * (sig ? sig.tail : 1), 0.004, pitch * (sig ? sig.tailPitch : 1));
+      // Gehör: Schüsse in engen Räumen (Plan §10 A6) – schwere Kaliber setzen dem Gehör mehr zu
       const small = clamp((10 - room.size) / 7);
-      this.hearing.expose((SHOT_DOSE[profile] || 0.03) * (sup ? 0.15 : 1) * (0.06 + 0.94 * ind * small));
+      this.hearing.expose((SHOT_DOSE[profile] || 0.03) * (sup ? 0.15 : 1) * (sig ? clamp(sig.k, 0.4, 2.5) : 1) * (0.06 + 0.94 * ind * small));
       return v;
     }
 
     const pos = xyz(o.position), dist = o.distance ?? this._dist(pos);
-    const x = smooth(16, 60, dist), near = Math.cos(x * Math.PI / 2), far = Math.sin(x * Math.PI / 2);
-    const delay = (o.delay || 0) + Math.min(1.5, dist / 343);
-    const lpFar = dist > 150 ? Math.max(900, 4200 - (dist - 150) * 9) : 0;
-    const base = { ...o, position: pos, delay, pitch, lowpass: supRifle ? 2600 : lpFar };
+    // Kaliber (Nutzer 12.10.): lautere Waffen tragen weiter – Nah/Fern-Übergang, Abstandsmodell, Hörweite
+    const R = this._sigRange(sig, dist);
+    if (!R) { this.stats.dropped++; return null; }
+    R.g *= vt;
+    const x = smooth(16 * R.s, 60 * R.s, dist), near = Math.cos(x * Math.PI / 2), far = Math.sin(x * Math.PI / 2);
+    const delay = (o.delay || 0) + Math.min(4.5, dist / 343);
+    const dl = dist / R.s, lpFar = dl > 150 ? Math.max(900, 4200 - (dl - 150) * 9) : 0;
+    const base = { ...o, position: pos, delay, pitch, lowpass: supRifle ? 2600 : lpFar, ref: 7 * R.sq, maxDist: R.max, loudAdd: R.db };
+    const fx = this._sigFx(sig, low), fxFar = this._sigFx(sig, low, true);
     let v = null;
-    if (near > 0.05) v = this._spawn(nearE, { ...base, volume: vol * near * (supRifle ? 0.35 : 1), eq: dist < 25 && !low && this.layers.eq, highpass: supRifle ? 200 : 0, echo: 0.6 });
+    if (near > 0.05) v = this._spawn(nearE, { ...base, ...fx, volume: vol * near * R.g * (supRifle ? 0.35 : 1), eq: dist < 25 && !low && this.layers.eq, highpass: Math.max(supRifle ? 200 : 0, fx.highpass || 0), echo: 0.6 });
     if (far > 0.05) {
       const farName = this._recName(`gunfar_${voice}`) || this._recName(`gunfar_${profile}`);
       const fe = farName ? entryOf(farName) : CATALOG[`gunfar_${profile}`];
-      v = this._spawn(fe, { ...base, proc: !farName, volume: vol * far * 1.15 * (farName ? dbg(FAR_DB) : 1) * (sup ? 0.4 : 1), echo: 0.5 }) || v;
+      v = this._spawn(fe, { ...base, ...fxFar, proc: !farName, volume: vol * far * R.g * 1.15 * (farName ? dbg(FAR_DB) : 1) * (sup ? 0.4 : 1), echo: 0.5 }) || v;
     }
+    // Schwere Kaliber in der Nähe: Sub-Druckstoß (positional)
+    if (sig && sig.sub > 0.05 && !sup && dist < 140 * R.s && !low) this._spawn(CATALOG.gun_sub, { position: pos, actor: o.actor, delay, ref: 9 * R.sq, maxDist: 160 * R.s, volume: vol * sig.sub * R.g * 0.8, pitch: 1.06 - sig.weight * 0.16, _deferred: true });
     // Nahe Gegner draußen: diffuse Aufnahme-Fahne (2D, verzögert wie der Direktschall)
     if (tailName && near > 0.3 && !sup && dist < 40 && this.layers.tail && !low) { // Handy: Stimmenbudget → nur eigene Fahne
       const room = this._roomOf(pos, o);
       if (room.ind < 0.7) {
         const wd = 7 / (7 + 0.3 * Math.max(0, dist - 7));
-        this._tail(tailName, o.actor || pos, nearGain * vol * dbg(TAIL_DB) * (1 - room.ind) * near * wd * 0.8, delay + 0.004, pitch);
+        this._tail(tailName, o.actor || pos, nearGain * vol * R.g * dbg(TAIL_DB) * (1 - room.ind) * near * wd * 0.8 * (sig ? sig.tail : 1), delay + 0.004, pitch * (sig ? sig.tailPitch : 1));
       }
       if (dist < 4 && room.ind > 0.4) this.hearing.expose((SHOT_DOSE[profile] || 0.03) * 0.5 * (1 - dist / 4) * room.ind);
     }
     return v;
+  }
+
+  /**
+   * Abstandsverhalten nach Kaliber: g = Pegelfaktor (√k), sq = √k für Referenzabstand (zusammen fern ∝ k), s = Dehnung
+   * des Nah/Fern-Übergangs, max = Hörweite; ab 70 % der Hörweite ausgeblendet, dahinter null (nicht hörbar).
+   */
+  _sigRange(sig, dist) {
+    if (!sig) return { g: 1, sq: 1, s: 1, max: undefined, db: 0 };
+    if (dist > sig.hear) return null;
+    const sq = Math.sqrt(sig.k);
+    return { g: sq * (1 - smooth(sig.hear * 0.7, sig.hear, dist)), sq, s: clamp(sq, 0.6, 2), max: sig.hear + 5, db: sig.db };
   }
 
   /** Nachhall-Fahne je Schütze nachtriggern (alte kurz ausblenden) → höchstens 2 Fahnen je Schütze. Außen ≤ 1,5 s. */
@@ -1235,21 +1315,27 @@ export class AudioEngine {
   }
 
   /** Bisheriger Synthese-Schuss (ohne Aufnahmen). */
-  _gunshotProc(profile, o, isPlayer) {
+  _gunshotProc(profile, o, isPlayer, sig = null) {
     const vol = (o.volume ?? 1) * (o.suppressed ? 0.42 : 1), pitch = o.pitch ?? 1, lp = o.suppressed ? 2400 : 0;
+    const low = this._quality() === 'low', fx = this._sigFx(sig, low);
     if (isPlayer) {
-      const v = this._spawn(CATALOG[`gun_${profile}`], { ...o, proc: true, position: null, priority: 3, env: (o.env ?? 1) * 0.4, volume: vol, pitch, lowpass: lp, loud: o.suppressed ? -14 : -3 });
+      const kp = sig ? dbg(this._playerDb(sig)) : 1;
+      const v = this._spawn(CATALOG[`gun_${profile}`], { ...o, ...fx, proc: true, position: null, priority: 3, env: (o.env ?? 1) * 0.4, volume: vol * kp, pitch, lowpass: lp, loud: (o.suppressed ? -14 : -3) + (sig ? sig.db * 0.5 : 0) });
+      if (sig && sig.sub > 0.02 && !o.suppressed && this.layers.fp) this._spawn(CATALOG.gun_sub, { player: true, priority: 3, volume: vol * sig.sub * 0.8, pitch: 1.06 - sig.weight * 0.16, _deferred: true });
       const room = this._roomOf(null, o);
-      this.hearing.expose((SHOT_DOSE[profile] || 0.03) * (o.suppressed ? 0.15 : 1) * (0.06 + 0.94 * room.ind * clamp((10 - room.size) / 7)));
+      this.hearing.expose((SHOT_DOSE[profile] || 0.03) * (o.suppressed ? 0.15 : 1) * (sig ? clamp(sig.k, 0.4, 2.5) : 1) * (0.06 + 0.94 * room.ind * clamp((10 - room.size) / 7)));
       return v;
     }
     const pos = xyz(o.position), dist = o.distance ?? this._dist(pos);
-    const x = smooth(16, 60, dist), near = Math.cos(x * Math.PI / 2), far = Math.sin(x * Math.PI / 2);
-    const delay = (o.delay || 0) + Math.min(1.5, dist / 343);
-    const base = { ...o, proc: true, position: pos, delay, pitch, lowpass: lp };
+    const R = this._sigRange(sig, dist);
+    if (!R) { this.stats.dropped++; return null; }
+    const x = smooth(16 * R.s, 60 * R.s, dist), near = Math.cos(x * Math.PI / 2), far = Math.sin(x * Math.PI / 2);
+    const delay = (o.delay || 0) + Math.min(4.5, dist / 343);
+    const base = { ...o, proc: true, position: pos, delay, pitch, lowpass: lp, ref: 7 * R.sq, maxDist: R.max, loudAdd: R.db };
     let v = null;
-    if (near > 0.05) v = this._spawn(CATALOG[`gun_${profile}`], { ...base, volume: vol * near });
-    if (far > 0.05) v = this._spawn(CATALOG[`gunfar_${profile}`], { ...base, volume: vol * far * 1.15 }) || v;
+    if (near > 0.05) v = this._spawn(CATALOG[`gun_${profile}`], { ...base, ...fx, volume: vol * near * R.g });
+    if (far > 0.05) v = this._spawn(CATALOG[`gunfar_${profile}`], { ...base, ...this._sigFx(sig, low, true), volume: vol * far * R.g * 1.15 }) || v;
+    if (sig && sig.sub > 0.05 && !o.suppressed && dist < 140 * R.s && !low) this._spawn(CATALOG.gun_sub, { position: pos, actor: o.actor, delay, ref: 9 * R.sq, maxDist: 160 * R.s, volume: vol * sig.sub * R.g * 0.8, pitch: 1.06 - sig.weight * 0.16, _deferred: true });
     return v;
   }
 
@@ -1526,7 +1612,8 @@ export class AudioEngine {
       this._cancelReload(a);
       const prof = this.profileFor(p.weaponId, def), pos = pl ? null : xyz(p.origin) || this._eye(a);
       if (a) this._shots.set(a, { profile: prof, origin: xyz(p.origin) || this._eye(a) });
-      this.play(prof, { player: pl, position: pos, actor: a, suppressed: !!p.suppressed, pitch: def?.sound?.pitch || 1, voice: this.voiceFor(p.weaponId, def, prof) });
+      const sig = this._shotSig(p.weaponId, def);
+      this.play(prof, { player: pl, position: pos, actor: a, suppressed: !!p.suppressed, pitch: sig?.pitch ?? (def?.sound?.pitch || 1), voice: this.voiceFor(p.weaponId, def, prof), sig });
       const fm = def?.fireMode || (prof === 'shotgun' ? 'pump' : prof === 'sniper' ? 'bolt' : null);
       let cycle = 0;
       if (fm === 'pump' || fm === 'bolt') {

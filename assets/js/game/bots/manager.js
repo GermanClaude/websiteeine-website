@@ -21,6 +21,7 @@ import { Nameplate } from './nameplates.js';
 import { VARIANTS, schemeForTeam, ffaSchemes } from './character.js';
 import { upgradeSoldierMaterials, soldierDetailInfo } from './soldier/materials.js';
 import { analyze } from './ai/tactics.js';
+import { botHearRange } from '../../shared/calibers.data.js';
 import { TeamTactics, planRoles } from './ai/squad.js';
 import { issueCommand, isCommanded, ORDER_DEFS, ORDER_RADIUS, ORDER_MAX } from './ai/orders.js';
 import { BotAdapt } from './ai/spielstil.js';
@@ -985,10 +986,11 @@ export class BotManager {
     }
   }
 
-  _onFire({ actor, suppressed } = {}) {
+  _onFire({ actor, suppressed, weaponId } = {}) {
     if (!actor || !actor.position || actor.isStreakEntity) return;
     const now = this.G.time.elapsed;
-    this._hear(actor, suppressed ? 14 : 75, 1.5, now);
+    // Hörweite nach Kaliber (shared/calibers.data.js): 9 mm ≈ 34 m, 5,56 ≈ 78 m, .338 ≈ 160 m, .50 BMG 240 m
+    this._hear(actor, suppressed ? 14 : botHearRange(weaponId, ((this.G.data && this.G.data.WEAPONS) || {})[weaponId]), 1.5, now);
     if (!suppressed && now - (actor._actT || -1e9) > 0.8) {
       actor._actT = now;
       const a = this.activity;

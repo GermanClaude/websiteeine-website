@@ -149,7 +149,8 @@ export const sound = {
     const profile = typeof p === 'string' ? p : p?.sound?.profile || 'ar';
     const pt = typeof p === 'object' ? p?.sound?.pitch || pitch : pitch;
     const e = getEngine();
-    if (e) { e.play(profile, { pitch: pt, player: true }); return; }
+    // Waffe bekannt → eigene Klangsignatur (Kaliber, Aufnahme, Tonlage); sonst nur das Profil
+    if (e) { e.play(profile, typeof p === 'object' && p?.id ? { player: true, weapon: p.id } : { pitch: pt, player: true }); return; }
     synth?.shot();
   },
 

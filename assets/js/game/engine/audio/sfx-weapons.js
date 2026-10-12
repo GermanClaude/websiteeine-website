@@ -398,6 +398,20 @@ export function gunFP(P) {
   };
 }
 
+/**
+ * Schweres Kaliber (Nutzer 12.10.): kurzer Sub-Druckstoß (≈ 70 → 34 Hz) mit tiefem Grollen, unter den Schuss gemischt –
+ * Pegel nach Wucht des Kalibers (.50 BMG voll, 7,62×51 knapp die Hälfte). Kleine Kaliber bekommen ihn nicht.
+ */
+export function gunSub(sr, R) {
+  const d = buf(sr, 0.9);
+  sine(d, sr, 0, 0.9, expGlide(R.range(64, 76), R.range(32, 38), 0.16), ad(0.0025, R.range(0.11, 0.15)));
+  sine(d, sr, 0, 0.3, expGlide(R.range(130, 150), 60, 0.06), t => ad(0.0015, 0.045)(t) * 0.5);
+  const rum = brown(len(sr, 0.8), R); filt(rum, sr, 'lowpass', 110, 0.7, 2); env(rum, sr, ad(0.02, 0.22));
+  mix(d, rum, 0, 0.55);
+  drive(d, 1.6); dcBlock(d, sr, 20);
+  return trim(normalize(d, 0.95), sr);
+}
+
 /** Explosion: Sub-Druckstoß + Grollen unter der Aufnahme (Erschütterung, Kopfhörer). */
 export function boomSub(sr, R) {
   const d = buf(sr, 2.2);

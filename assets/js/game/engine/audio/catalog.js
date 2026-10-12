@@ -9,7 +9,7 @@
 // er: Anteil an den frühen Reflexionen (reflect.js) · loud: Nennpegel (dB, 0 ≈ eigener Schuss) für das HDR-Fenster
 // (laute Klänge dämpfen leise) · quiet: wird vom HDR-Fenster gedämpft
 // REC_ONLY: nur als Aufnahme vorhandene Klänge (assets/lib/audio, samples.js) mit denselben Mischfeldern, ohne Rezept.
-import { GUN_PROFILES, gunNear, gunFar, HANDLING, explosionNear, explosionFar, bulletWhiz, bulletCrack, gunFP, boomSub, debrisFall, flashBang, smokeHiss, ricochet, shellDrop } from './sfx-weapons.js';
+import { GUN_PROFILES, gunNear, gunFar, HANDLING, explosionNear, explosionFar, bulletWhiz, bulletCrack, gunFP, gunSub, boomSub, debrisFall, flashBang, smokeHiss, ricochet, shellDrop } from './sfx-weapons.js';
 import { SURFACES, footstep, gearRattle, jump, land, slide, impact, hitFlesh, hitHelmet, pain, death, heartbeat, breathIn, breathOut, rustle } from './sfx-foley.js';
 import { UI_RECIPES, FEEDBACK } from './sfx-ui.js';
 import { AMB_EVENTS, AMBIENCES, ambienceBed, BED_RATE, EVENT_RATE } from './ambience.js';
@@ -59,6 +59,8 @@ H('low_ammo', { gain: 0.3, tier: 2 });
 def('explosion', explosionNear, { variants: 2, ref: 14, roll: 1, maxDist: 800, group: 'boom', cap: 4, prio: 2, env: 0.7, pitchJit: 0.05, tier: 1, alt: ['explosion_far'], er: 0.9, loud: 6 });
 def('explosion_far', explosionFar, { variants: 2, ref: 14, roll: 1, maxDist: 1200, group: 'boom', cap: 4, prio: 2, env: 0.8, pitchJit: 0.05, tier: 1, rate: 16000, alt: ['explosion'], er: 0.3, loud: 0 });
 // Hybrid-Schichten zur Explosions-Aufnahme: Sub-Druck (Erschütterung) und nachrieselnde Trümmer
+// Schwere Kaliber (Nutzer 12.10.): kurzer Sub-Druckstoß unter dem Schuss (Wucht), eigene Gruppe – stiehlt Explosionen nichts
+def('gun_sub', gunSub, { variants: 3, variantsLow: 2, gain: 0.6, ref: 9, roll: 1, maxDist: 400, group: 'gunsub', cap: 8, prio: 2, env: 0, pitchJit: 0.05, gainJit: 0.08, tier: 1, rate: 16000, rateLow: 16000 });
 def('boom_sub', boomSub, { variants: 2, variantsLow: 1, gain: 0.5, ref: 14, roll: 1, maxDist: 300, group: 'boom', cap: 4, prio: 2, env: 0, pitchJit: 0.06, tier: 1, rate: 16000, rateLow: 16000 });
 def('debris', debrisFall, { variants: 2, variantsLow: 1, gain: 0.5, ref: 6, roll: 1.2, maxDist: 60, group: 'impact', cap: 12, prio: 1, env: 0.2, pitchJit: 0.06, tier: 2, rate: 32000, rateLow: 24000, quiet: true });
 // Taktische Granaten (Plan §11.2): Blendgranate, Rauchgranate (Zischen, Schleife)
@@ -141,7 +143,12 @@ for (const e of Object.values(CATALOG)) if (QUIET_GROUPS.has(e.group)) e.quiet =
 export const REC_ONLY = Object.create(null);
 const rec = (name, base, o = {}) => (REC_ONLY[name] = { ...BASE, ...(base ? CATALOG[base] || REC_ONLY[base] : {}), name, render: null, sampleOnly: true, alt: null, variants: 1, variantsLow: 0, tier: 9, ...o });
 /** Aufnahme-Stimmen über die 8 Profile hinaus (Waffendaten: `sound.voice`) → prozeduraler Rückfall. */
-export const EXTRA_VOICES = { dmr: 'ar_heavy', lever: 'sniper', sniper_heavy: 'sniper' };
+// Seit 12.10. je Waffe eine echte Quelle (shared/calibers.data.js): gemischte Stimmen aufgeteilt (AR-15/.300 BLK, M45/PPSh,
+// Tikka/1917, Nova/Model 12, PPQ/Bersa, 1911/S&W-Revolver)
+export const EXTRA_VOICES = {
+  dmr: 'ar_heavy', lever: 'sniper', sniper_heavy: 'sniper',
+  blk: 'ar', ppsh: 'smg', springfield: 'sniper', model12: 'shotgun', bersa: 'pistol', revolver: 'pistol_heavy',
+};
 for (const [v, base] of Object.entries(EXTRA_VOICES)) {
   rec(`gun_${v}`, `gun_${base}`);
   rec(`gunfar_${v}`, `gunfar_${base}`);

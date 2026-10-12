@@ -31,9 +31,23 @@
      "lufsM": -22,
      "onsetMs": 1,
      "gainDb": -0.9
-    },
+    }
+   ],
+   "mix": {
+    "matchDb": 7.5
+   },
+   "note": "Nah/Spieler: AR-15 (5,56)"
+  },
+  "gun_blk": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_blk",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
     {
-     "v": 3,
+     "v": 1,
      "file": "gun/gun_ar_3.mp3",
      "src": "ffsl:Savage 10 .300 Blackout/T_27P.wav",
      "at": 0.948,
@@ -45,7 +59,7 @@
      "gainDb": -1.2
     },
     {
-     "v": 4,
+     "v": 2,
      "file": "gun/gun_ar_4.mp3",
      "src": "ffsl:Savage 10 .300 Blackout/T_27P.wav",
      "at": 4.966,
@@ -60,7 +74,7 @@
    "mix": {
     "matchDb": 7.5
    },
-   "note": "Nah/Spieler: AR-15 (5,56) + Savage 10 (.300 BLK)"
+   "note": "Nah/Spieler: Savage 10 (.300 BLK) – BX-20"
   },
   "gunfar_ar": {
    "group": "gun",
@@ -307,9 +321,23 @@
      "lufsM": -22.6,
      "onsetMs": 0,
      "gainDb": -1.1
-    },
+    }
+   ],
+   "mix": {
+    "matchDb": 9
+   },
+   "note": "Nah/Spieler: Carl Gustav M45 (9 mm)"
+  },
+  "gun_ppsh": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_ppsh",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
     {
-     "v": 3,
+     "v": 1,
      "file": "gun/gun_smg_3.mp3",
      "src": "ffsl:PPSh/P_30P.wav",
      "at": 0.967,
@@ -321,7 +349,7 @@
      "gainDb": -1.1
     },
     {
-     "v": 4,
+     "v": 2,
      "file": "gun/gun_smg_4.mp3",
      "src": "ffsl:PPSh/P_30P.wav",
      "at": 4.385,
@@ -336,7 +364,7 @@
    "mix": {
     "matchDb": 9
    },
-   "note": "Nah/Spieler: Carl Gustav M45 (9 mm) + PPSh (7,62×25)"
+   "note": "Nah/Spieler: PPSh (7,62×25) – QX-90"
   },
   "gunfar_smg": {
    "group": "gun",
@@ -571,9 +599,23 @@
      "lufsM": -23,
      "onsetMs": 3,
      "gainDb": -1.3
-    },
+    }
+   ],
+   "mix": {
+    "matchDb": 10
+   },
+   "note": "Nah/Spieler: Tikka T3"
+  },
+  "gun_springfield": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_springfield",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
     {
-     "v": 3,
+     "v": 1,
      "file": "gun/gun_sniper_3.mp3",
      "src": "ffsl:1917/B_24P.wav",
      "at": 1.306,
@@ -585,7 +627,7 @@
      "gainDb": -1.1
     },
     {
-     "v": 4,
+     "v": 2,
      "file": "gun/gun_sniper_4.mp3",
      "src": "ffsl:1917/B_24P.wav",
      "at": 6.729,
@@ -600,7 +642,7 @@
    "mix": {
     "matchDb": 10
    },
-   "note": "Nah/Spieler: Tikka T3 + Springfield 1917 (.30-06)"
+   "note": "Nah/Spieler: Springfield 1917 (.30-06) – Brecher"
   },
   "gunfar_sniper": {
    "group": "gun",
@@ -709,9 +751,23 @@
      "lufsM": -21.7,
      "onsetMs": 0,
      "gainDb": -1.1
-    },
+    }
+   ],
+   "mix": {
+    "matchDb": 8.5
+   },
+   "note": "Nah/Spieler: Benelli Nova (12 ga)"
+  },
+  "gun_model12": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_model12",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
     {
-     "v": 3,
+     "v": 1,
      "file": "gun/gun_shotgun_3.mp3",
      "src": "ffsl:Model 12/K_22P.wav",
      "at": 0.84,
@@ -723,7 +779,7 @@
      "gainDb": -1.2
     },
     {
-     "v": 4,
+     "v": 2,
      "file": "gun/gun_shotgun_4.mp3",
      "src": "ffsl:Model 12/K_22P.wav",
      "at": 7.443,
@@ -738,7 +794,7 @@
    "mix": {
     "matchDb": 8.5
    },
-   "note": "Nah/Spieler: Benelli Nova + Winchester Model 12 (12 ga)"
+   "note": "Nah/Spieler: Winchester Model 12 (12 ga) – Bulldog"
   },
   "gunfar_shotgun": {
    "group": "gun",
@@ -859,9 +915,23 @@
      "lufsM": -22.6,
      "onsetMs": 1,
      "gainDb": -0.7
-    },
+    }
+   ],
+   "mix": {
+    "matchDb": 9.5
+   },
+   "note": "Nah/Spieler: Walther PPQ (9 mm)"
+  },
+  "gun_bersa": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_bersa",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
     {
-     "v": 4,
+     "v": 1,
      "file": "gun/gun_pistol_4.mp3",
      "src": "ffsl:Bersa/F_47P.wav",
      "at": 0.332,
@@ -876,7 +946,7 @@
    "mix": {
     "matchDb": 9.5
    },
-   "note": "Nah/Spieler: Walther PPQ (9 mm) + Bersa (.380)"
+   "note": "Nah/Spieler: Bersa (.380) – KM-7 Wespe"
   },
   "gunfar_pistol": {
    "group": "gun",
@@ -985,9 +1055,23 @@
      "lufsM": -20.7,
      "onsetMs": 1,
      "gainDb": -1.1
-    },
+    }
+   ],
+   "mix": {
+    "matchDb": 7
+   },
+   "note": "Nah/Spieler: 1911 (.45 ACP)"
+  },
+  "gun_revolver": {
+   "group": "gun",
+   "layer": "near",
+   "catalog": "gun_revolver",
+   "rate": 44100,
+   "ch": 2,
+   "kbps": 160,
+   "variants": [
     {
-     "v": 3,
+     "v": 1,
      "file": "gun/gun_pistol_heavy_3.mp3",
      "src": "ffsl:Smith & Wesson 642/V_27P.wav",
      "at": 0.803,
@@ -999,7 +1083,7 @@
      "gainDb": -1
     },
     {
-     "v": 4,
+     "v": 2,
      "file": "gun/gun_pistol_heavy_4.mp3",
      "src": "ffsl:Smith & Wesson 642/V_27P.wav",
      "at": 6.217,
@@ -1014,7 +1098,7 @@
    "mix": {
     "matchDb": 7
    },
-   "note": "Nah/Spieler: 1911 (.45 ACP) + S&W 642 (.38 Special)"
+   "note": "Nah/Spieler: S&W 642 Revolver (.38 Special) – R-6 Kobra"
   },
   "gunfar_pistol_heavy": {
    "group": "gun",
