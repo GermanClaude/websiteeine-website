@@ -8,6 +8,18 @@ Auftrag (Nutzer, 12.10.): Das von ihm mit Gemini erzeugte 10-Sekunden-Video ist 
 - Texturen wie im Video,
 - das Ganze auf **jeder Karte**.
 
+## Präzisierung des Nutzers (12.10., verbindlich)
+- **Zuerst der Computer.** Das Handy darf im Notfall ungefähr so bleiben, wie es jetzt ist.
+- **Auch schwächere PCs mit älteren Grafikkarten** sollen es schaffen: Die neue Grafik muss auf einer eigenen, gut
+  optimierten PC-Stufe flüssig laufen (Messung auf „mittel/hoch“, nicht nur auf „ultra“); teure Effekte gestaffelt.
+- **Grafik und Texturen vom Video 1:1 übernehmen** – nicht den Inhalt/Aufbau der Szenen, sondern den Look: Materialien,
+  Texturen, Farben, Licht, Schatten, Soldaten-Skin.
+- **Karten, die im Video nicht vorkommen** (Grenzland, Bibliothek, Niemandsland, Schießstand; Altstadt nur der Platz):
+  so umsetzen, wie das Video sie zeigen würde – dieselbe Material- und Lichtbehandlung, dieselben Farbtöne, dieselbe
+  Sauberkeit. **Keine eigene, abweichende Stilidee**, sondern strikt aus den Bildern ableiten. Vor jeder Karte festhalten,
+  welches Videobild als Bezug dient (z. B. Ziegel der Werk-Gasse → Ziegel in Altstadt/Bibliothek-Mauern,
+  Beton/Wellblech des Hafens → Industrie im Grenzland, Platz-Kopfsteinpflaster → Dorfstraßen).
+
 ## Was das Video zeigt (Schnitte bei 1,5 s · 3,0 s · 7,5 s)
 | Zeit | Inhalt | Merkmale |
 |---|---|---|
@@ -46,6 +58,7 @@ Grafikkarte kommt man nah heran, auf Handys bleibt „niedrig“ deutlich einfac
    Ducken, Liegen, Zielen, Nachladen, Werfen, Lehnen, Messer), Zielen (ADS) wechselt in die Ego-Optik.
    Online: Host-Schalter „Third Person erlaubt“ (Standard an?) – Netzprotokoll prüfen (NET_VERSION).
 6. **Je Karte nachziehen:** Hafen, Werk, Altstadt, Grenzland, Bibliothek, Niemandsland, Schießstand.
-7. **Leistung:** Budgets je Stufe messen (Bildrate, Speicher), Handy „niedrig“ darf nicht langsamer werden.
+7. **Leistung:** Budgets je Stufe messen (Bildrate, Speicher). Ziel: flüssig auch auf älteren PC-Grafikkarten (eigene
+   Stufe mit dem Video-Look ohne die teuersten Effekte). Handy darf bleiben wie es ist, aber nicht langsamer werden.
 8. **Tests:** Vergleichsbilder vorher/nachher, smoke.mjs (Desktop + Handy), check.sh, preload, Kollisions-Hash,
    Third-Person-Test (Kamera kollidiert nicht, Treffer gehen dorthin, wo das Fadenkreuz zeigt).
