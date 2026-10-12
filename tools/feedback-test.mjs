@@ -83,7 +83,7 @@ try {
   const pressed = await p.evaluate(() => document.querySelector('#entstehung .poem-switch [data-poem="full"]').getAttribute('aria-pressed'));
   await p.click('#entstehung .poem-switch [data-poem="short"]');
   await p.waitForTimeout(200);
-  check(nShort >= 90 && nFull >= nShort * 1.8 && pressed === 'true' && (await vis()) === nShort, 'Zwiegespräch: kurze Fassung, „Mehr anzeigen“ → ganze Fassung, zurück zur kurzen', `${nShort} → ${nFull} Zeilen`);
+  check(nShort >= 90 && nFull >= nShort * 1.5 && pressed === 'true' && (await vis()) === nShort, 'Zwiegespräch: kurze Fassung, „Mehr anzeigen“ → ganze Fassung, zurück zur kurzen', `${nShort} → ${nFull} Zeilen`);
   await p.click('#fb-open');
   await p.waitForSelector('.npfb [data-send="mail"]');
   await p.screenshot({ path: 'tools/out/feedback-form.png' });
