@@ -1,8 +1,9 @@
 // NULLPUNKT — Feedback an den Entwickler (Nutzer 11.10.): ab 20 Minuten Spielzeit (laufende Runden, sichtbarer Tab)
 // freigeschaltet. Bewertung (Sterne), Ankreuzfragen, Fehlerbericht → per E-Mail (öffnet das eigene Mailprogramm mit
 // fertigem Text) oder als Text für Discord (wird kopiert). Automatisch verschickt wird nichts.
-// „Wie NULLPUNKT entstanden ist“ (Startseite, §08 Über, über „Kontakt & Rechte“) ist seit 12.10. für alle sichtbar (Nutzer);
-// vorher erst nach abgeschicktem Feedback. Die Vermutung aus dem Feedback („Wie entstanden?“) bekommt dort eine Antwort.
+// „Wie NULLPUNKT entstanden ist“ (Startseite, §08 Über, direkt über „Kontakt & Rechte“): ab 20 Minuten Spielzeit lesbar,
+// ohne Hinweis darauf – man findet es nur beim Herunterscrollen (Nutzer 12.10.). Wer im Feedback getippt hat, wie das Spiel
+// entstanden ist, bekommt dort eine Antwort.
 // Gemeinsam für Spiel (spielen.html) und Startseite (index.html): nur DOM + lokaler Speicher, eigene Stile.
 import { BUILD } from './build.js';
 
@@ -27,7 +28,17 @@ function load() {
     guess: typeof o.guess === 'string' ? o.guess : '', // Vermutung zur Entstehung (aus dem Fragebogen)
     never: o.never === true,                    // „Nicht mehr fragen“
     lastAsk: Number(o.lastAsk) || 0,
+    imported: o.imported === true,              // Spielzeit aus dem Profil übernommen (einmalig)
   };
+  // Wer schon vor dem Feedback-Zähler (11.10.) gespielt hat: gesamte Spielzeit aus dem Profil einmalig übernehmen
+  // (Nutzer 12.10.: „wer vorher schon über 20 Minuten gespielt hat, bekommt die Geschichte automatisch“)
+  if (!S.imported) {
+    let prior = 0;
+    try { prior = Number(JSON.parse(localStorage.getItem('nullpunkt:profile') || '{}')?.playtime) || 0; } catch { prior = 0; }
+    S.play = Math.max(S.play, Math.min(prior, 1e7));
+    S.imported = true;
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* */ }
+  }
   testParam(S);
   return S;
 }
@@ -35,7 +46,7 @@ function load() {
 function testParam(s) {
   let v = null;
   try { v = new URLSearchParams(location.search).get('fbtest'); } catch { v = null; }
-  if (v === 'reset') Object.assign(s, { play: 0, sent: 0, stars: 0, reveal: false, guess: '', never: false, lastAsk: 0 });
+  if (v === 'reset') Object.assign(s, { play: 0, sent: 0, stars: 0, reveal: false, guess: '', never: false, lastAsk: 0, imported: true });
   else if (v === '1') { s.play = Math.max(s.play, FEEDBACK_MIN_SEC); s.lastAsk = 0; s.never = false; }
   else return;
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* */ }
@@ -242,7 +253,6 @@ export function openFeedback({ page = 'Spiel', onDone = null, onRevealed = null 
     save();
     result = { sent: true, stars: data.stars, revealed: s.reveal, newly };
     const box = back.querySelector('.npfb');
-    const onSite = page === 'Startseite';
     const sentLine = how === 'mail'
       ? '<p>Dein Mailprogramm sollte sich mit dem fertigen Text geöffnet haben. Falls nicht, kopiere ihn hier:</p>'
       : copied ? `<p>Der Text ist kopiert. Öffne Discord und schick ihn an <code>${CONTACT.discord}</code>.</p>` : '<p>Kopieren hat nicht geklappt, markiere den Text hier und kopiere ihn selbst:</p>';
@@ -250,7 +260,6 @@ export function openFeedback({ page = 'Spiel', onDone = null, onRevealed = null 
       <h2 id="npfb-h">Danke!</h2>
       ${sentLine}
       <textarea readonly rows="6" data-out>${esc(composeFeedback(data))}</textarea>
-      <p>Wie NULLPUNKT entstanden ist, steht auf der Startseite ganz unten unter „Über“.${onSite ? '' : ' <a href="index.html#entstehung" target="_blank" rel="noopener">In neuem Tab lesen</a>'}</p>
       ${data.stars <= 2 ? '<p>Danke für deine ehrliche Bewertung, gerade Kritik hilft, das Spiel besser zu machen.</p>' : ''}
       <div class="npfb-row"><button type="button" class="npfb-btn pri" data-a="ok" autofocus>Schließen</button>
       ${how === 'discord' ? '<a class="npfb-btn" href="https://discord.com/app" target="_blank" rel="noopener">Discord öffnen</a>' : ''}</div>`;
@@ -290,25 +299,48 @@ const GUESS_REPLY = {
   'Großes Studio': 'Weit gefehlt, und genau das ist das Spannende.',
   'Weiß nicht': 'Jetzt weißt du es.',
 };
-/** HTML des Abschnitts (Startseite, §08 Über, für alle sichtbar) – aus der Sicht von German Legend geschrieben. */
+/** HTML des Abschnitts (Startseite, §08 Über, ab 20 Minuten Spielzeit) – aus der Sicht von German Legend geschrieben. */
 export function revealHtml() {
   const g = load().guess;
   const guess = g ? `<p class="reveal-guess">Du hast im Feedback getippt: <strong>${esc(g)}</strong>. ${esc(GUESS_REPLY[g] || '')}</p>` : '';
   return `
     <p class="reveal-tag">Hinter den Kulissen</p>
     <h3 class="mono-h" id="h-entstehung">Wie NULLPUNKT entstanden ist</h3>
-    <p>NULLPUNKT ist auch ein Experiment, und hier löse ich es auf. Die Idee, das Konzept, die Spielmodi,
-    die Wünsche zu Karten, Waffen und Fahrzeugen, die Geschichten dahinter und jede Entscheidung, wie das Spiel sein soll,
-    kommen von mir. Getestet habe ich es mit meinen Freunden.</p>
-    <p>Den Code hat eine künstliche Intelligenz geschrieben: <strong>Claude</strong> von Anthropic. Weil in NULLPUNKT fast alles
-    aus Code entsteht, gilt das auch für Modelle, Karten, Klänge und Effekte. Sie sind nach meinen Vorgaben entstanden und
-    wurden so lange überarbeitet, bis sie gepasst haben. Dazu kommen freie Texturen und Umgebungslicht von Poly Haven und
-    ambientCG.</p>
+    <p>Du hast eine Weile gespielt und bist bis ganz nach unten gescrollt. Dafür bekommst du hier einen Blick hinter die
+    Kulissen, denn NULLPUNKT ist auch ein kleines Experiment.</p>
+    <p>Alles, was NULLPUNKT ausmacht, stammt von mir:</p>
+    <ul class="reveal-list">
+      <li>die Idee, das Konzept und die Richtung: so realistisch wie möglich, irgendwo zwischen CS:GO, Battlefield und Bodycam</li>
+      <li>die Spielmodi und ihre Regeln, die Klassen mit ihren Waffen und Fähigkeiten</li>
+      <li>welche Karten es gibt und was auf ihnen steht, vom Hafen über die Zauberbibliothek bis zum Schützengraben im Niemandsland</li>
+      <li>Waffen, Aufsätze, Nahkampfwaffen und Fahrzeuge, die Panzer nach echten Vorbildern aus drei Epochen und dass die Munition
+      in jedem Panzer woanders liegt</li>
+      <li>Ideen wie Verletzungen mit Verband, zerstörbare Wände, verformbare Autos, Gräben zum Selbstgraben und Schüsse, die man
+      je nach Kaliber unterschiedlich weit hört</li>
+      <li>der Mehrspieler zum Zocken mit Freunden, der VR-Modus, dieses Experiment und die Geschichten dahinter</li>
+      <li>das Testen mit meinen Freunden, die Fehlerlisten und jede Entscheidung, was bleibt, was besser werden muss und was
+      rausfliegt</li>
+    </ul>
+    <p>Geschrieben hat den Code eine künstliche Intelligenz: <strong>Claude</strong> von Anthropic. Lesen und verstehen kann ich
+    Code, ihn selbst zu schreiben liegt mir aber nicht. Diesen Teil hat Claude übernommen und meine Vorstellungen Zeile für Zeile
+    umgesetzt. Da in NULLPUNKT fast alles aus Code entsteht, gilt das auch für Modelle, Karten und Klänge: gebaut nach meinen
+    Vorgaben und so lange nachgebessert, bis sie gepasst haben. Ergänzt wird das durch freie Texturen und Umgebungslicht von
+    Poly Haven und ambientCG.</p>
     ${guess}
-    <p>Mich interessieren dabei zwei Fragen. <strong>Erstens:</strong> Merkt man einem Spiel heute noch an, ob es mit KI
-    entstanden ist? <strong>Zweitens:</strong> Kann KI etwas Gutes sein? Ich glaube ja. Sie kann kleinen Entwicklern ohne Studio
-    und Budget die schwere Arbeit abnehmen, damit aus einer Idee ein Spiel wird. Die Ideen und die Richtung bleiben beim
-    Menschen.</p>
+    <h4 class="reveal-h">Was ich über KI denke</h4>
+    <p>Muss man sich vor KI fürchten? Ich finde nicht. Mit Respekt sollte man ihr aber begegnen: Sie entwickelt sich rasant, und
+    es lohnt sich, wachsam zu bleiben, wohin die Reise in den kommenden Jahren geht. Das ändert nichts daran, dass wir heute
+    leben, und heute kann KI genau die Lücken füllen, die man selbst hat. Bei mir war das das Programmieren.</p>
+    <p>Für kleine Studios und für alle, die gerade erst anfangen, öffnet das eine Tür. Ein Spiel zu entwickeln verschlingt
+    normalerweise viel Geld; selbst das größte Abo bei Claude ist günstiger als das, was die Entwicklung eines Indie-Spiels sonst
+    kostet. Wer selbst programmieren kann, gibt dabei nichts aus der Hand: Er kann weiter eigene Wege gehen und prüfen, was die
+    KI geschrieben hat. Und wer es nicht kann, so wie ich, bekommt überhaupt erst die Chance, aus einer Idee ein fertiges Spiel
+    zu machen.</p>
+    <p>Programmieren ist dabei nur ein Einsatzgebiet. KI kann zum Beispiel auch Musik erzeugen, das sehe ich allerdings
+    kritischer, denn Musik ist für mich echte Kunst. Programmieren ist für mich eher Handwerk: Hobby, Leidenschaft und eine Frage
+    des Könnens. Weil mir genau dieses Können fehlt, habe ich mir Claude an die Seite geholt.</p>
+    <p>Bleibt die Frage, um die es bei dem Experiment eigentlich geht: Merkt man einem Spiel heute noch an, dass eine KI den
+    Code geschrieben hat? Wenn es dir beim Spielen nicht aufgefallen ist, ist das vielleicht schon die Antwort.</p>
     <h4 class="reveal-h">Die Geschichte</h4>
     <ol class="reveal-time">
       ${HISTORY.map(([when, title, text]) => `<li><span class="reveal-when">${when}</span><strong>${title}</strong> ${text}</li>`).join('')}

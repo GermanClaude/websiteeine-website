@@ -35,10 +35,13 @@ function impressum() {
   box.hidden = false;
 }
 
-/** Feedback (ab 20 Minuten Spielzeit) und „Wie NULLPUNKT entstanden ist“ (seit 12.10. für alle sichtbar, über den Rechten). */
+/**
+ * Feedback und „Wie NULLPUNKT entstanden ist“ (über den Rechten): beides ab 20 Minuten Spielzeit. Die Geschichte wird nirgends
+ * angekündigt – man findet sie nur beim Herunterscrollen (Nutzer 12.10.).
+ */
 function feedback() {
   const box = document.getElementById('entstehung');
-  const showReveal = () => { if (box) { box.innerHTML = revealHtml(); box.hidden = false; } };
+  const showReveal = () => { if (box && feedbackUnlocked()) { box.innerHTML = revealHtml(); box.hidden = false; } };
   showReveal();
   const cta = document.getElementById('fb-cta');
   const btn = document.getElementById('fb-open');
@@ -46,7 +49,7 @@ function feedback() {
   cta.hidden = false;
   btn.addEventListener('click', () => openFeedback({
     page: 'Startseite',
-    onRevealed: () => { showReveal(); announce('Danke für dein Feedback'); },
+    onRevealed: () => { showReveal(); announce('Danke für dein Feedback'); }, // Antwort auf die Vermutung nachtragen
   }));
 }
 

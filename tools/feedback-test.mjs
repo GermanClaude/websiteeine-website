@@ -1,6 +1,6 @@
 // NULLPUNKT – Feedback an den Entwickler (Nutzer 11.10.): Spielzeit-Zähler (ab 20 Minuten), Hinweis beim Verlassen,
-// Formular (Sterne, Ankreuzfragen, Fehlerbericht), Discord-Kopie/E-Mail-Text; „Wie NULLPUNKT entstanden ist“ steht seit 12.10.
-// für alle sichtbar auf der Startseite direkt über „Kontakt & Rechte“, nach dem Feedback mit Antwort auf die Vermutung. Aufruf: node tools/feedback-test.mjs   (Exit-Code ≠ 0 bei Fehlern)
+// Formular (Sterne, Ankreuzfragen, Fehlerbericht), Discord-Kopie/E-Mail-Text; „Wie NULLPUNKT entstanden ist“ steht ab 20 Minuten
+// Spielzeit ohne jeden Hinweis auf der Startseite direkt über „Kontakt & Rechte“, nach dem Feedback mit Antwort auf die Vermutung. Aufruf: node tools/feedback-test.mjs   (Exit-Code ≠ 0 bei Fehlern)
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 
 let fail = 0, count = 0;
@@ -49,7 +49,7 @@ try {
   await p.waitForSelector('.npfb [data-a="ok"]', { timeout: 10000 });
   const thanks = await p.textContent('.npfb');
   const clip = await p.evaluate(() => navigator.clipboard.readText().catch(() => ''));
-  check(/entstanden ist/.test(thanks), 'Nach dem Senden: Hinweis auf die Geschichte unter „Über“');
+  check(!/entstanden ist/.test(thanks), 'Nach dem Senden: kein Hinweis auf die Geschichte (nur beim Herunterscrollen zu finden)');
   check(/Bewertung: ★★★★☆ \(4\/5\)/.test(clip) && /Allein gegen Bots/.test(clip) && /Mit Hilfe von KI/.test(clip) && /Testfehler/.test(clip) && /Spielzeit 20 min/.test(clip), 'Text für Discord kopiert (Sterne, Antworten, Fehler, Spielzeit)', clip.split('\n')[1] || '(leer)');
   st = await fbState(p);
   check(st.sent === 1 && st.stars === 4 && st.reveal === true && st.guess === 'Mit Hilfe von KI', 'Zustand: gesendet, 4 Sterne, freigeschaltet, Vermutung gemerkt');
@@ -60,7 +60,7 @@ try {
   const rev = await p.evaluate(() => { const b = document.getElementById('entstehung'); return { hidden: b.hidden, text: b.textContent }; });
   check(!rev.hidden && /Claude/.test(rev.text) && /German Legend/.test(rev.text) && /Gut erkannt/.test(rev.text), 'Startseite: „Wie NULLPUNKT entstanden ist“ sichtbar, mit Vermutung');
   check(await p.evaluate(() => !document.getElementById('fb-cta').hidden), 'Startseite: Feedback-Knopf sichtbar');
-  check(await p.evaluate(() => { const b = document.getElementById('entstehung'); return /Die Geschichte/.test(b.textContent) && b.querySelectorAll('.reveal-time li').length >= 7; }), 'Freigeschaltet: Geschichtsteil mit Zeitleiste');
+  check(await p.evaluate(() => { const b = document.getElementById('entstehung'); return /Die Geschichte/.test(b.textContent) && b.querySelectorAll('.reveal-time li').length >= 7 && b.querySelectorAll('.reveal-list li').length >= 6 && /Respekt/.test(b.textContent) && /Musik/.test(b.textContent); }), 'Abschnitt: Beiträge von mir, Gedanken zu KI, Zeitleiste');
   await p.evaluate(() => document.getElementById('entstehung').scrollIntoView({ block: 'start' }));
   await p.waitForTimeout(500);
   await p.screenshot({ path: 'tools/out/feedback-reveal.png' });
@@ -73,7 +73,7 @@ try {
   await p.evaluate(() => localStorage.setItem('nullpunkt:feedback', JSON.stringify({ play: 1500 })));
   await p.goto(BASE + 'index.html#ueber', { waitUntil: 'load' });
   await p.waitForTimeout(2500);
-  check(await p.evaluate(() => { const b = document.getElementById('entstehung'); return !b.hidden && /Die Geschichte/.test(b.textContent) && !/Du hast im Feedback getippt/.test(b.textContent) && b.nextElementSibling?.id === 'rechte'; }), 'Startseite ohne Feedback: Geschichte für alle sichtbar, direkt über „Kontakt & Rechte“');
+  check(await p.evaluate(() => { const b = document.getElementById('entstehung'); return !b.hidden && /Die Geschichte/.test(b.textContent) && !/Du hast im Feedback getippt/.test(b.textContent) && b.nextElementSibling?.id === 'rechte'; }), 'Ab 20 Minuten (ohne Feedback): Geschichte sichtbar, direkt über „Kontakt & Rechte“');
   await p.click('#fb-open');
   await p.waitForSelector('.npfb [data-send="mail"]');
   await p.screenshot({ path: 'tools/out/feedback-form.png' });
@@ -84,7 +84,7 @@ try {
   await p.waitForSelector('.npfb [data-a="ok"]', { timeout: 10000 });
   const t2 = await p.textContent('.npfb');
   st = await fbState(p);
-  check(st.sent === 1 && /entstanden ist/.test(t2) && /ehrliche Bewertung/.test(t2), '2 Sterne: gesendet, Hinweis auf die Geschichte, Dank für Kritik');
+  check(st.sent === 1 && !/entstanden ist/.test(t2) && /ehrliche Bewertung/.test(t2), '2 Sterne: gesendet, Dank für Kritik, kein Hinweis auf die Geschichte');
   await p.click('.npfb [data-a="ok"]');
   check(await p.evaluate(() => !document.getElementById('entstehung').hidden), 'Startseite nach 2 Sternen: Abschnitt sofort sichtbar');
   await ctx.close();
@@ -95,11 +95,21 @@ try {
   await p.goto(BASE + 'index.html?fbtest=1#ueber', { waitUntil: 'load' });
   await p.waitForTimeout(2500);
   st = await fbState(p);
-  check(st.play >= 1200 && await p.evaluate(() => !document.getElementById('fb-cta').hidden), '?fbtest=1: sofort 20 Minuten, Feedback-Knopf da');
+  check(st.play >= 1200 && await p.evaluate(() => !document.getElementById('fb-cta').hidden && !document.getElementById('entstehung').hidden), '?fbtest=1: sofort 20 Minuten, Feedback-Knopf und Geschichte da');
   await p.goto(BASE + 'index.html?fbtest=reset#ueber', { waitUntil: 'load' });
   await p.waitForTimeout(2500);
   st = await fbState(p);
-  check(st.play === 0 && st.sent === 0 && await p.evaluate(() => document.getElementById('fb-cta').hidden), '?fbtest=reset: zurückgesetzt');
+  check(st.play === 0 && st.sent === 0 && await p.evaluate(() => document.getElementById('fb-cta').hidden && document.getElementById('entstehung').hidden), '?fbtest=reset: zurückgesetzt, unter 20 Minuten keine Geschichte');
+  await ctx.close();
+  // 6) Wer schon vor dem Zähler gespielt hat: Profil-Spielzeit (2 h) wird einmalig übernommen → Geschichte sofort da
+  ctx = await browser.newContext({ ...ctxOpts });
+  p = watch(await ctx.newPage());
+  await p.goto(BASE + 'index.html', { waitUntil: 'load' });
+  await p.evaluate(() => { localStorage.removeItem('nullpunkt:feedback'); localStorage.setItem('nullpunkt:profile', JSON.stringify({ ...JSON.parse(localStorage.getItem('nullpunkt:profile') || '{}'), playtime: 7200 })); });
+  await p.goto(BASE + 'index.html#ueber', { waitUntil: 'load' });
+  await p.waitForTimeout(2500);
+  st = await fbState(p);
+  check(st.play >= 7200 && st.imported === true && await p.evaluate(() => !document.getElementById('entstehung').hidden), 'Frühere Spielzeit (2 h im Profil) übernommen: Geschichte sofort sichtbar', `${Math.round(st.play)} s`);
   await ctx.close();
   check(errors.length === 0, `keine Seitenfehler${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
 } catch (err) {
