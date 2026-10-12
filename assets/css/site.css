@@ -995,6 +995,12 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .reveal-time li { position: relative; font-size: var(--fs-small); line-height: 1.6; margin: 0 0 14px; }
 .reveal-time li::before { content: ''; position: absolute; left: -21px; top: .55em; width: 9px; height: 9px; border-radius: 50%; background: #ff5a1f; }
 .reveal-when { display: block; font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: .06em; color: var(--ink-2); }
+/* Zwiegespräch (zwei Stimmen, Farbe statt Namen) */
+.reveal-poem p { font-size: var(--fs-small); line-height: 1.7; margin: 0 0 6px; max-width: 62ch; }
+.reveal-poem .v-a { color: #ffcf8a; }
+.reveal-poem .v-b { color: #93d8cf; }
+.reveal-poem .poem-gap { height: 12px; margin: 0; }
+.reveal-sep { border: 0; border-top: 1px solid var(--line); margin: 26px 0 22px; }
 .reveal-list { margin: 10px 0 0 1.1em; padding: 0; font-size: var(--fs-small); line-height: 1.6; list-style: square; }
 .reveal-list li + li { margin-top: 5px; }
 .reveal-list li::marker { color: #ff5a1f; }

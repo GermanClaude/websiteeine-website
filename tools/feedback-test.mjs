@@ -60,7 +60,7 @@ try {
   const rev = await p.evaluate(() => { const b = document.getElementById('entstehung'); return { hidden: b.hidden, text: b.textContent }; });
   check(!rev.hidden && /Claude/.test(rev.text) && /German Legend/.test(rev.text) && /Gut erkannt/.test(rev.text), 'Startseite: „Wie NULLPUNKT entstanden ist“ sichtbar, mit Vermutung');
   check(await p.evaluate(() => !document.getElementById('fb-cta').hidden), 'Startseite: Feedback-Knopf sichtbar');
-  check(await p.evaluate(() => { const b = document.getElementById('entstehung'); return /Die Geschichte/.test(b.textContent) && b.querySelectorAll('.reveal-time li').length >= 7 && b.querySelectorAll('.reveal-list li').length >= 6 && /Respekt/.test(b.textContent) && /Musik/.test(b.textContent); }), 'Abschnitt: Beiträge von mir, Gedanken zu KI, Zeitleiste');
+  check(await p.evaluate(() => { const b = document.getElementById('entstehung'); return /Die Geschichte/.test(b.textContent) && b.querySelectorAll('.reveal-time li').length >= 7 && b.querySelectorAll('.reveal-list li').length >= 6 && /Respekt/.test(b.textContent) && /Musik/.test(b.textContent) && b.firstElementChild?.classList.contains('reveal-poem') && b.querySelectorAll('.reveal-poem .v-a, .reveal-poem .v-b').length >= 60; }), 'Abschnitt: Zwiegespräch vorneweg, Beiträge von mir, Gedanken zu KI, Zeitleiste');
   await p.evaluate(() => document.getElementById('entstehung').scrollIntoView({ block: 'start' }));
   await p.waitForTimeout(500);
   await p.screenshot({ path: 'tools/out/feedback-reveal.png' });
