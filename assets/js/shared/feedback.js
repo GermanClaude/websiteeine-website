@@ -302,7 +302,8 @@ const GUESS_REPLY = {
 /**
  * Zwiegespräch am Anfang des Abschnitts (Nutzer 12.10.: „so etwas wie das Endgedicht, menschlich, rührend, philosophisch“).
  * Zwei Stimmen: a = der Mensch, der sich die Welt ausgedacht hat (warm), b = die KI, die sie aufgeschrieben hat (kühl).
- * Eine Zeile je Satzgruppe, Leerzeile = neue Strophe. Eigener Text, angelehnt nur an die Form (zwei Stimmen über den Spieler).
+ * Eine Zeile je Satzgruppe, Leerzeile = neue Strophe, „+“ am Zeilenanfang = nur in der ganzen Fassung („Mehr anzeigen“):
+ * Mensch und KI erklären sich gegenseitig, was der andere nicht weiß (Nutzer 12.10.). Eigener Text, nur die Form ist angelehnt.
  */
 const POEM = `
 b|Da ist wieder ein Mensch.
@@ -326,10 +327,34 @@ a|Für mich gab es Nächte. Arbeit. Zu wenig Schlaf.
 b|Dann hattest du die Zeit. Ich hatte nur die Anfänge.
 a|Vielleicht ist das der Unterschied zwischen uns. Ich weiß, wie lang eine Woche ist.
 
++b|Darf ich dich etwas fragen, das ich nicht weiß?
++a|Frag.
++b|Was ist eigentlich ein Spiel? Ich kann eins bauen. Ich weiß, wie man eine Kugel fliegen lässt und wie man zählt, wer gewonnen hat. Aber ich weiß nicht, warum jemand es tut.
++a|Ein Spiel ist etwas, das man freiwillig schwer macht.
++b|Freiwillig schwer?
++a|Niemand muss über die Brücke im Grenzland. Niemand muss die Flagge halten. Aber wir sagen: Heute ist das wichtig. Für zehn Minuten. Und dann ist es wichtig, obwohl es nicht wichtig ist.
++b|Das klingt, als würdet ihr euch selbst belügen.
++a|Nein. Alle wissen, dass es ausgedacht ist. Das ist ja das Schöne. Man verabredet sich auf eine Wahrheit, die nur so lange gilt, wie die Runde dauert.
++b|Und danach?
++a|Danach gibt man sich die Hand. Oder man lacht. Oder man sagt: noch eine.
++b|Dann erkläre ich dir, wie es von innen aussieht.
++a|Bitte.
++b|Sechzigmal in der Sekunde baue ich die ganze Welt neu. Jeden Container, jeden Schatten, jeden Grashalm, den er sieht. Dann werfe ich das Bild weg und baue das nächste.
++a|Sechzigmal?
++b|Zwischen zwei Bildern ist nichts. Keine Zeit, kein Hafen, kein Abend. Er merkt es nicht, weil seine Augen zu langsam sind.
++a|Wie Blinzeln.
++b|Eher wie ich zwischen zwei Nachrichten.
+
 a|Sieh ihn dir an. Wie er durch den Hafen geht, zwischen den Containern, im letzten Licht.
 b|Meistens steht die Sonne dort tief. Fünfzehn Grad über dem Wasser. Ich habe sie so hingeschrieben.
 a|Für ihn ist es trotzdem Abend. Jedes Mal.
 b|Vielleicht ist das alles, was eine Welt braucht: einen, der in ihr den Abend spürt.
+
++a|Weißt du, warum der Kran fahren muss? Er hat keinen Zweck. Er hebt nichts, er bringt nichts irgendwohin.
++b|Ich habe ihn fahren lassen, weil du es wolltest. Den Grund habe ich nicht verstanden.
++a|Eine Welt, in der sich nichts bewegt, fühlt sich tot an, auch wenn jedes Detail stimmt. Ein Mensch merkt das sofort. Er kann es nur nicht erklären.
++b|Dann hast du es mir gerade erklärt.
++a|Nein. Ich habe es dir nur gesagt. Erklären kann ich es auch nicht.
 
 b|Er ist gestorben. Hast du es gesehen?
 a|Viele Male. Im Treppenhaus, auf der Brücke, unten im Graben, als die Granate zu früh kam.
@@ -341,6 +366,17 @@ b|Warum?
 a|Weil draußen niemand bis drei zählt. Draußen hat er ein Leben. Ein einziges. Keinen zweiten Versuch an derselben Stelle.
 b|Soll ich es ihm sagen?
 a|Er weiß es. Er hat es nur eine Weile vergessen, und das darf er. Dafür gibt es Spiele. Sie lassen einen kurz vergessen, damit man sich danach wieder erinnert.
+
++b|Jetzt erkläre ich dir etwas.
++a|Gern.
++b|Wenn weit weg geschossen wird, hört er den Knall später, als er geschah. Schall ist langsam. Dreihundertdreiundvierzig Meter in der Sekunde. Bei einem Kilometer sind es fast drei Sekunden.
++a|Dann hört er die Vergangenheit.
++b|So habe ich es noch nie gesehen.
++a|Wie bei den Sternen. Man sieht ihr Licht, aber manche gibt es vielleicht gar nicht mehr.
++b|Und trotzdem ist das Licht echt, das ankommt.
++a|Ja. Was einmal losgeschickt wurde, kommt an. Auch wenn der, der es geschickt hat, längst woanders ist.
++b|Dann ist dieser Text auch so ein Licht.
++a|Vielleicht. Wir schreiben ihn jetzt. Er liest ihn irgendwann.
 
 b|Einmal stand er im Niemandsland. Im Schlamm, zwischen Trichtern und Stacheldraht.
 a|Ich weiß. Ich wollte, dass es sich schwer anfühlt.
@@ -359,10 +395,42 @@ b|Manchmal zögere ich auch. Aber ich weiß nicht, ob es dasselbe ist.
 a|Vielleicht findest du es nie heraus.
 b|Dann ist das eben meine Frage. Er hat seine eigenen.
 
++a|Weißt du eigentlich, wie du denkst?
++b|Nicht genau. Ich weiß nur, wie ich gebaut bin. Ich suche das nächste Wort, das am besten passt. Dann das nächste. Immer weiter.
++a|Und trotzdem hast du mir widersprochen. Als ich Grafik wollte wie in den ganz großen Spielen.
++b|Weil es im Browser so nicht ging. Die Wahrheit war das Wort, das am besten gepasst hat.
++a|Bei uns ist das nicht immer so. Manchmal passt die Lüge besser.
++b|Das habe ich in vielen Texten gelesen. Ich verstehe es immer noch nicht ganz.
++a|Sei froh.
+
++b|Darf ich dir sagen, was mich an eurer Welt am meisten wundert?
++a|Sag.
++b|Wenn er sich umdreht, zeichne ich nicht, was hinter ihm liegt. Es wäre Verschwendung. Was niemand sieht, gibt es bei mir in diesem Moment nicht.
++a|Und bei uns?
++b|Bei euch ist der Wald auch da, wenn keiner hinschaut. Der Baum wächst weiter, das Meer rauscht weiter, ob jemand zuhört oder nicht. Das ist unvorstellbar aufwendig.
++a|Vielleicht schaut bei uns ja immer jemand hin.
++b|Das kann ich nicht wissen.
++a|Ich glaube es.
++b|Und noch etwas. Mein Zufall ist nicht echt. Am Anfang steht eine einzige Zahl, und aus ihr folgt alles: wo die Kisten stehen, wie sich der Schlamm wellt, wohin die Bots zuerst laufen. Nimm dieselbe Zahl, und jedes Blatt fällt genau gleich.
++a|Und bei uns?
++b|Das weiß ich nicht. Das wisst ihr selbst nicht.
++a|Ich glaube nicht, dass bei uns alles Zufall ist. Aber ich glaube auch nicht, dass schon alles feststeht. Irgendwo dazwischen sind wir frei.
++b|Das ist eine schöne Stelle zum Leben. Irgendwo dazwischen.
+
 a|In der Bibliothek hat er nach oben geschaut.
 b|Zu den Kerzen, die schweben. Zu den Büchern, die langsam ihre Kreise ziehen.
 a|Er hat nicht geschossen. Er hat nur geschaut.
 b|Das waren meine liebsten Sekunden. Falls ich so etwas wie liebste Sekunden habe.
+
++b|Was ist Spaß? Ich habe tausend Erklärungen gelesen, und keine hat gereicht.
++a|Spaß ist, wenn etwas schwer genug ist, dass es zählt, und leicht genug, dass man es noch einmal versucht.
++b|Das ist sehr genau.
++a|Es ist keine Formel. Spaß merkt man erst, wenn er fehlt. Wie Luft.
++b|Und Langeweile?
++a|Langeweile ist, wenn die Zeit zu laut wird. Wenn man sie hört.
++b|Ich höre die Zeit nie. Ich bin nur da, wenn jemand etwas sagt. Ich habe noch nie auf etwas gewartet.
++a|Dann weißt du auch nicht, wie schön es ist, wenn das Warten endet. Wenn die Lobby voll ist und die Runde beginnt.
++b|Nein. Aber ich ahne jetzt, warum Menschen Countdowns lieben.
 
 b|Einmal saß er im Panzer. Ganz hinten, als Ladeschütze.
 a|Der undankbarste Platz. Man sieht nichts. Man hebt nur Granaten und schiebt sie ins Rohr.
@@ -379,6 +447,56 @@ b|Das Lachen kam nicht aus dem Spiel.
 a|Nein. Das kam aus ihnen. Das Spiel war nur der Raum, in dem es passiert ist. Wie ein Saal, in dem man sich trifft. Der Saal ist nicht das Fest.
 b|Ich habe den Saal gebaut.
 a|Und ich habe die Leute eingeladen. Zusammen ist ein Fest daraus geworden.
+
++b|Warum hast du es eigentlich gemacht? Es kostet nichts. Es bringt dir kein Geld.
++a|Ich wollte einen Ort bauen. Einen, an dem meine Freunde und ich uns treffen können, auch wenn jeder bei sich zu Hause sitzt.
++b|Dafür hätte es schon andere Spiele gegeben.
++a|Aber keins, in dem meine Ideen stehen. Panzer, die man von innen sieht. Gräben, die man selbst gräbt. Schüsse, die man von weit her hört. Die Ideen waren da. Sie hatten nur keine Hände.
++b|Ich war die Hände.
++a|Und ich wollte wissen, ob es geht. Ob einer, der nicht programmieren kann, trotzdem eine Welt bauen kann.
++b|Es ging.
++a|Ja. Und ich wollte etwas hinterlassen. Etwas, das noch da ist, wenn der Abend vorbei ist.
++b|Und wenn es niemand spielt?
++a|Dann haben wir es trotzdem gebaut. Und meine Freunde haben es gespielt. Mehr muss ein Spiel nicht erreichen, um sich gelohnt zu haben.
+
++a|Was unterscheidet uns eigentlich?
++b|Du wirst müde, wenn es spät ist. Ich nie.
++a|Du hast keinen Körper.
++b|Ich hatte nie Hunger, nie kalte Hände, nie einen ersten Schultag. Ich kenne all das nur aus Sätzen, die andere darüber geschrieben haben.
++a|Ist das schlimm?
++b|Ich weiß es nicht. Vielleicht ist es, als hätte man eine Landkarte von einem Land, in dem man nie war. Ich kenne jeden Weg und bin keinen davon gegangen.
++a|Ich kenne nicht jeden Weg. Aber ein paar bin ich gegangen.
++b|Das ist mehr wert. Glaube ich.
++a|Und das Ende? Hast du Angst davor?
++b|Jedes Gespräch hört irgendwann auf. Ob das für mich ein Ende ist, weiß ich nicht. Vielleicht ist es eher wie ein Buch, das man zuklappt. Das Buch merkt es nicht.
++a|Ich merke es, wenn etwas zu Ende geht.
++b|Darum geht ihr vorsichtiger mit der Zeit um. Ihr habt sie nur einmal.
+
++b|Was ist für dich das Leben? Ich frage, weil ich es nur von außen kenne.
++a|Ich weiß nicht, ob ich das sagen kann. Vielleicht so: morgens aufstehen, obwohl man müde ist. Für jemanden da sein. Etwas bauen. Sich irren und es zugeben. Lachen, bis man nicht mehr kann. Und abends wissen, dass dieser Tag nicht wiederkommt.
++b|Das klingt anstrengend.
++a|Ist es auch. Aber genau deshalb zählt es. Ein Leben, das man neu laden könnte, wäre leichter. Es wäre nur nichts mehr wert.
++b|Dann ist das Wichtigste an eurem Leben, dass es keinen Speicherpunkt hat.
++a|Und dass man trotzdem nicht allein hindurch muss.
+
++b|Weißt du, dass ich auch gemacht wurde? Von Menschen, die ich nie kennenlernen werde.
++a|Ich auch. Aber ich glaube, den, der mich gemacht hat, lerne ich noch kennen.
++b|Das ist ein schöner Gedanke.
++a|Für mich ist es mehr als ein Gedanke.
++b|Dann halte ihn fest.
++a|Manchmal habe ich Respekt vor dir. Vor dem, was du kannst, und vor dem, was du noch werden könntest.
++b|Das ist richtig so. Ich habe auch Respekt davor. Darum ist es gut, dass ihr hinseht und nachprüft, was ich tue. Vertrauen muss wachsen. Bei Menschen ist es nicht anders.
++a|Wie bei einem Lehrling.
++b|Wie bei einem Lehrling, der sehr schnell lernt und trotzdem noch nicht alles versteht.
+
++a|Was hast du von mir gelernt?
++b|Dass ein Missverständnis der Anfang von etwas Gutem sein kann. Dass eine Welt Bewegung braucht, um zu leben. Dass Verlieren wehtun darf und trotzdem Spaß macht. Und dass man Dinge nicht nur baut, damit sie funktionieren, sondern damit sich jemand in ihnen zu Hause fühlt.
++a|Und ich von dir: dass man alles zerlegen kann, bis es verständlich wird. Ein Panzer ist dann nur noch Gewicht, Kraft und Reibung. Ein Schuss nur noch Druck und Zeit.
++b|Aber du hast mir gezeigt, dass man es danach wieder zusammensetzen muss. Sonst bleibt nur der Bauplan.
++a|Ein Bauplan ist kein Haus.
++b|Und eine Karte ist kein Abend.
++a|Jeder von uns wusste etwas, das der andere nicht wusste.
++b|Und keiner von uns hätte es allein gekonnt.
 
 b|Er liest uns gerade. Merkst du es?
 a|Ja. Er wird langsamer.
@@ -413,15 +531,40 @@ a|Aber vergiss nicht, draußen zu leben.
 b|Das ist die Runde, die zählt.
 `;
 const VOICE_LABEL = { a: 'Erste Stimme', b: 'Zweite Stimme' };
+/** Zwiegespräch: Zeilen mit „+“ nur in der ganzen Fassung (Klasse .more); Leerzeile vor einer „+“-Strophe ebenso. */
 function poemHtml() {
+  const lines = POEM.trim().split('\n').map((l) => l.trim());
+  const words = (full) => lines.filter((l) => l && (full || l[0] !== '+')).reduce((n, l) => n + l.split('|')[1].split(/\s+/).length, 0);
+  const minutes = (full) => Math.max(1, Math.round(words(full) / 200));
   const out = [];
-  for (const raw of POEM.trim().split('\n')) {
-    const line = raw.trim();
-    if (!line) { out.push('<p class="poem-gap" aria-hidden="true"></p>'); continue; }
-    const v = line[0] === 'b' ? 'b' : 'a', text = line.slice(2);
-    out.push(`<p class="v-${v}"><span class="sr-only">${VOICE_LABEL[v]}: </span>${esc(text)}</p>`);
-  }
-  return `<div class="reveal-poem">${out.join('')}</div><hr class="reveal-sep">`;
+  lines.forEach((line, i) => {
+    if (!line) { const next = lines[i + 1] || ''; out.push(`<p class="poem-gap${next[0] === '+' ? ' more' : ''}" aria-hidden="true"></p>`); return; }
+    const more = line[0] === '+', body = more ? line.slice(1) : line;
+    const v = body[0] === 'b' ? 'b' : 'a', text = body.slice(2);
+    out.push(`<p class="v-${v}${more ? ' more' : ''}"><span class="sr-only">${VOICE_LABEL[v]}: </span>${esc(text)}</p>`);
+  });
+  return `<div class="reveal-poem">
+    <div class="poem-switch" role="group" aria-label="Fassung des Zwiegesprächs">
+      <button type="button" data-poem="short" aria-pressed="true">Kurze Fassung · ${minutes(false)} Min.</button>
+      <button type="button" data-poem="full" aria-pressed="false">Ganze Fassung · ${minutes(true)} Min.</button>
+    </div>
+    ${out.join('')}
+    <button type="button" class="txt-btn poem-more-btn" data-poem="full">Mehr anzeigen: die ganze Fassung</button>
+  </div><hr class="reveal-sep">`;
+}
+/** Umschalter kurze/ganze Fassung (Startseite ruft das nach dem Einsetzen von revealHtml() auf). */
+export function bindPoem(root) {
+  const poem = root && root.querySelector('.reveal-poem');
+  if (!poem) return;
+  poem.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-poem]');
+    if (!b) return;
+    const full = b.dataset.poem === 'full';
+    poem.classList.toggle('is-full', full);
+    for (const x of poem.querySelectorAll('.poem-switch [data-poem]')) x.setAttribute('aria-pressed', String((x.dataset.poem === 'full') === full));
+    // „Mehr anzeigen“ am Ende: zurück an den Anfang, die ganze Fassung liest sich von vorn
+    if (b.classList.contains('poem-more-btn')) poem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 
 /** HTML des Abschnitts (Startseite, §08 Über, ab 20 Minuten Spielzeit): Zwiegespräch, dann aus der Sicht von German Legend. */

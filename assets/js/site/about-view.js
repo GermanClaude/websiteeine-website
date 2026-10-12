@@ -3,7 +3,7 @@ import { $, h } from './dom.js';
 import { IMPRESSUM } from './config.js';
 import { site } from './state.js';
 import { announce } from './live.js';
-import { eligible as feedbackUnlocked, revealHtml, openFeedback } from '../shared/feedback.js';
+import { eligible as feedbackUnlocked, revealHtml, bindPoem, openFeedback } from '../shared/feedback.js';
 
 /** Alle Schlüssel 'nullpunkt:*' und 'nullpunkt.*' (Aufsätze, Panzer) im lokalen bzw. Sitzungsspeicher, dazu 'np-retry'. */
 function ourKeys(store = 'localStorage') {
@@ -41,7 +41,7 @@ function impressum() {
  */
 function feedback() {
   const box = document.getElementById('entstehung');
-  const showReveal = () => { if (box && feedbackUnlocked()) { box.innerHTML = revealHtml(); box.hidden = false; } };
+  const showReveal = () => { if (box && feedbackUnlocked()) { box.innerHTML = revealHtml(); box.hidden = false; bindPoem(box); } };
   showReveal();
   const cta = document.getElementById('fb-cta');
   const btn = document.getElementById('fb-open');

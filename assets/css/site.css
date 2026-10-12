@@ -1000,6 +1000,13 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .reveal-poem .v-a { color: #ffcf8a; }
 .reveal-poem .v-b { color: #93d8cf; }
 .reveal-poem .poem-gap { height: 12px; margin: 0; }
+.reveal-poem .more { display: none; }
+.reveal-poem.is-full .more { display: block; }
+.reveal-poem.is-full .poem-more-btn { display: none; }
+.poem-switch { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.poem-switch button { font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: .06em; text-transform: uppercase; padding: 7px 11px; border: 1px solid var(--line); background: transparent; color: var(--ink-2); cursor: pointer; }
+.poem-switch button[aria-pressed="true"] { color: var(--np-ink); border-color: #ff5a1f; }
+.poem-more-btn { margin-top: 16px; }
 .reveal-sep { border: 0; border-top: 1px solid var(--line); margin: 26px 0 22px; }
 .reveal-list { margin: 10px 0 0 1.1em; padding: 0; font-size: var(--fs-small); line-height: 1.6; list-style: square; }
 .reveal-list li + li { margin-top: 5px; }

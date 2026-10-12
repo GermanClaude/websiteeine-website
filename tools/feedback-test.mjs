@@ -74,6 +74,16 @@ try {
   await p.goto(BASE + 'index.html#ueber', { waitUntil: 'load' });
   await p.waitForTimeout(2500);
   check(await p.evaluate(() => { const b = document.getElementById('entstehung'); return !b.hidden && /Die Geschichte/.test(b.textContent) && !/Du hast im Feedback getippt/.test(b.textContent) && b.nextElementSibling?.id === 'rechte'; }), 'Ab 20 Minuten (ohne Feedback): Geschichte sichtbar, direkt über „Kontakt & Rechte“');
+  // Zwiegespräch: kurze Fassung zuerst, „Mehr anzeigen“ öffnet die ganze Fassung
+  const vis = () => p.evaluate(() => [...document.querySelectorAll('#entstehung .reveal-poem .v-a, #entstehung .reveal-poem .v-b')].filter((e) => e.offsetParent !== null).length);
+  const nShort = await vis();
+  await p.click('#entstehung .poem-more-btn');
+  await p.waitForTimeout(400);
+  const nFull = await vis();
+  const pressed = await p.evaluate(() => document.querySelector('#entstehung .poem-switch [data-poem="full"]').getAttribute('aria-pressed'));
+  await p.click('#entstehung .poem-switch [data-poem="short"]');
+  await p.waitForTimeout(200);
+  check(nShort >= 90 && nFull >= nShort * 1.8 && pressed === 'true' && (await vis()) === nShort, 'Zwiegespräch: kurze Fassung, „Mehr anzeigen“ → ganze Fassung, zurück zur kurzen', `${nShort} → ${nFull} Zeilen`);
   await p.click('#fb-open');
   await p.waitForSelector('.npfb [data-send="mail"]');
   await p.screenshot({ path: 'tools/out/feedback-form.png' });
