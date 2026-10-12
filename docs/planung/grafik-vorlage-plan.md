@@ -55,21 +55,25 @@ Grafikkarte kommt man nah heran, auf Handys bleibt „niedrig“ deutlich einfac
 - Third Person nur in Fahrzeugen (Raum-Einstellung `thirdPerson` = „Außenansicht (Fahrzeuge)“).
 - Soldaten: `bots/character.js` + `bots/soldier/materials.js` (Ausrüstungsvarianten, Teamfarben).
 
-## Reihenfolge
-1. **Vergleichsbilder:** dieselben Blickwinkel wie im Video im Spiel aufnehmen (Hafen Containergasse, Werkhalle innen
-   mit Laufsteg, Ziegelwand mit Tür, Gasse, Altstadt-Platz) → Seite-an-Seite mit `bild-*.jpg` (tools/out/sheet.mjs).
-2. **Licht & Nachbearbeitung:** GTAO ab „hoch“ (halbe Auflösung), weichere Schattenkanten/Kontaktschatten, neutrales
-   Tageslicht wie im Video (heller, weniger orange), leichte Filmkörnung, Lichtstrahlen in Hallen kräftiger.
-3. **Materialien/Texturen:** höher aufgelöste Sätze auf „hoch/ultra“ für Wellblech, Ziegel, Beton, Kopfsteinpflaster,
-   Container (mit Beschriftungs-Decals: Nummern, Warnschilder), Paletten; Rolltore, Laufstege mit gelben Geländern.
-4. **Soldaten-Skin wie im Video:** Helm mit Bezug, Plattenträger, Taschen, Rucksack, Handschuhe, kantiges Splittertarn
-   (Grün/Oliv/Braun/Schwarz) für beide Teams (Unterscheidung über Armbinde/Abzeichen + Namensschild), Ego-Arme passend.
-5. **Third Person für Spieler:** Einstellung + Taste (V) + Touch-Knopf, Schulterkamera mit Kollision (nicht in Wände),
-   Schulter wechseln, Fadenkreuz-Strahl von der Kamera + Mündungskorrektur, Ganzkörper-Animationen (Laufen, Sprinten,
-   Ducken, Liegen, Zielen, Nachladen, Werfen, Lehnen, Messer), Zielen (ADS) wechselt in die Ego-Optik.
-   Online: Host-Schalter „Third Person erlaubt“ (Standard an?) – Netzprotokoll prüfen (NET_VERSION).
-6. **Je Karte nachziehen:** Hafen, Werk, Altstadt, Grenzland, Bibliothek, Niemandsland, Schießstand.
-7. **Leistung:** Budgets je Stufe messen (Bildrate, Speicher). Ziel: flüssig auch auf älteren PC-Grafikkarten (eigene
-   Stufe mit dem Video-Look ohne die teuersten Effekte). Handy darf bleiben wie es ist, aber nicht langsamer werden.
-8. **Tests:** Vergleichsbilder vorher/nachher, smoke.mjs (Desktop + Handy), check.sh, preload, Kollisions-Hash,
-   Third-Person-Test (Kamera kollidiert nicht, Treffer gehen dorthin, wo das Fadenkreuz zeigt).
+## Reihenfolge (Etappen, vom Nutzer am 12.10. festgelegt)
+Jede Etappe einzeln fertigstellen, testen und hochladen. Reicht das Limit nicht, an der nächsten Etappe weitermachen,
+sobald wieder Limit da ist. Vergleichsbilder neben dem Video zeigen (tools/out/sheet.mjs).
+
+0. **Vorbereitung (kurz):** Vergleichsbilder der Video-Blickwinkel im jetzigen Spiel; Inventar aller Materialien,
+   Requisiten und Modelle als Liste (zum Abhaken); Licht/Nachbearbeitung im Video-Look als Grundlage (GTAO ab „hoch“,
+   weichere Schatten, neutrales Tageslicht), weil alles Weitere darauf beurteilt wird.
+1. **Soldatenmodelle zuerst:** Skin wie im Video (Helm mit Bezug, Plattenträger, Taschen, Rucksack, Handschuhe, kantiges
+   grünes Splittertarn), beide Teams (Unterscheidung über Armbinde/Abzeichen + Namensschild), Ego-Arme passend,
+   Bots und Puppen (Mehrspieler) gleich.
+2. **Hafen und Werk** (die Standardkarten, im Video zu sehen): alle Texturen neu, jeder Gegenstand im 3D-Stil.
+3. **Kleinere Karten:** Altstadt, Bibliothek, Schießstand (aus den Videobildern abgeleitet, siehe oben).
+4. **Modelle und Animationen:** Panzer, Geländewagen, Waffen, Granaten, sonstige Modelle im neuen Stil; alle
+   Waffenanimationen (Ego: Nachladen, Repetieren, Inspizieren, Ziehen, Sprinten …) und alle Animationen der Soldaten;
+   **Third Person** für Spieler (Taste V + Touch-Knopf, Schulterkamera mit Kollision, Schulter wechseln, Treffer dort, wo
+   das Fadenkreuz zeigt, Zielen wechselt in die Ego-Optik, Ganzkörper-Animationen; online Host-Schalter, NET_VERSION prüfen).
+5. **Große Karten zuletzt:** Grenzland, Niemandsland.
+6. **Leistung:** Budgets je Stufe messen, eigene PC-Stufe mit dem Video-Look, die auch auf älteren Grafikkarten flüssig
+   läuft (teure Effekte gestaffelt); Handy darf bleiben, wie es ist, aber nicht langsamer werden.
+
+**Tests je Etappe:** Vergleichsbilder vorher/nachher, smoke.mjs (Desktop + Handy), check.sh, preload, Kollisions-Hash,
+vorhandene Tests (tank-model-test, gunsound-test, feedback-test …); ab Etappe 4 zusätzlich ein Third-Person-Test.
