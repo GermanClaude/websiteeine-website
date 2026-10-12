@@ -26,6 +26,8 @@ Ausgenommen sind eingebundene Fremdbestandteile, die unter ihren eigenen Lizenze
 - three.js: MIT-Lizenz (assets/vendor/three/LICENSE)
 - Schriften Archivo, JetBrains Mono, Rajdhani: SIL Open Font License 1.1 (assets/fonts/OFL-*.txt)
 - Texturen, HDRIs und Modelle von Poly Haven und ambientCG: CC0 1.0 (siehe CREDITS.md)
+- Die Figur „Clawd“ (Maskottchen von Claude Code) gehört Anthropic und ist im Spiel nur als kleine Hommage
+  versteckt (assets/js/game/world/clawd.js); daran beansprucht German Legend keine Rechte.
 
 ENGLISH (short version)
 
@@ -34,4 +36,5 @@ mechanics and names, are reserved by German Legend. No license is granted. Copyi
 modifying, recreating, incorporating into other projects or any commercial use requires prior written permission.
 Playing the game on the official site and sharing screenshots, videos and streams with credit
 ("NULLPUNKT by German Legend") is permitted. Public visibility of the source code on GitHub grants no further rights
-beyond those GitHub's Terms of Service require. Third-party components listed above remain under their own licenses.
+beyond those GitHub's Terms of Service require. Third-party components listed above remain under their own licenses; the "Clawd" character belongs to
+Anthropic and appears only as a small tribute.

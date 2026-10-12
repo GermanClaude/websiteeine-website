@@ -217,6 +217,9 @@ export async function loadWorld(G, mapId, opts = {}) {
   const ctx = {
     THREE, quality, debug, getMaterial, lib: libOk,
     water: o => { const w = createWater(o); waters.push(w); return w; },
+    // Geheimnisse in Kartenobjekten (z. B. Clawd, world/clawd.js): Fund wie bei bigworld melden (Profil, HUD-Hinweis)
+    player: () => G.player,
+    secretFound: s => G.events?.emit?.('secret:found', { id: s.id, name: s.name, actor: G.player, map: id }),
   };
   b.lookQuality = quality; // env-look: Detailformen (Sandsäcke) ab medium
   // Tageszeit für Requisiten (props.js lampsOn: Laternen leuchten nur abends) – gewählte bzw. aufgelöste Zeit, sonst Kartenzeit

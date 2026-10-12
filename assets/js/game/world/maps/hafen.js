@@ -8,6 +8,7 @@ import {
   lampPost, floodMast, fence, tires, cableReel, gasBottles, electricBox, acUnit, pipe, cable,
   rack, workbench, dumpster, frame, roofVent, dress,
 } from '../props.js';
+import { clawd } from '../clawd.js';
 import { craneClock, createTrack, partBuilder, partGroup, place, inView } from '../crane-anim.js';
 // Kartenrunde 2: Fahrzeuge mit richtig gedrehten Rädern, Innenausstattung, begehbare Container, Kartengrenzen
 import { stapler as forklift, lkw as truck, transporter as van, pkw as car } from './hafen-fahrzeuge.js';
@@ -204,7 +205,7 @@ export default {
     // -----------------------------------------------------------------------
     // Ostbahn: Laderampe + Lagerhalle 3
     // -----------------------------------------------------------------------
-    warehouse(b);
+    warehouse(b, ctx);
     van(b, 9.8, -16.5, { ry: 0.05, color: '#e8e6e0', logo: 'logo_kurier' });
     van(b, 10.2, 16, { ry: Math.PI - 0.08, color: '#cfd4d8' });
     forklift(b, 11.6, 4.8, { ry: Math.PI / 2 + 0.3, load: 'boxes', color: '#e0a02a' });
@@ -703,7 +704,7 @@ function officeNorth(b, x, z) {
 }
 
 /** Lagerhalle 3: x 14..42, z −20..20, Höhe 8 m, Büros + Empore im Norden. */
-function warehouse(b) {
+function warehouse(b, ctx) {
   const x0 = 14, x1 = 42, z0 = -20, z1 = 20, H8 = 8.2, t = 0.3;
   b.interior(x0, z0, x1, z1, -0.1, H8 - 0.05, 0.6);
   b.boxMM(x0 + t, 0, z0 + t, x1 - t, 0.12, z1 - t, 'epoxy', { grad: false, minimap: false });
@@ -779,6 +780,8 @@ function warehouse(b) {
   pinnwand(b, 34.0, 1.3, -19.68, 0, 1.0, 0.7);
   // Obergeschoss (offen zur Empore): Schreibtisch mit Stuhl, Schrank, Regal
   schreibtisch(b, 35, fy, -17.6, 0); stuhl(b, 35.2, fy, -16.75, Math.PI + 0.3);
+  // Geheimnis (Nutzer 12.10.): Clawd, das Maskottchen von Claude Code, sitzt links neben dem Bildschirm und schaut zum Stuhl
+  clawd(b, ctx, 34.75, fy + 0.787, -17.86, 0.3, { id: 'hafen-clawd', name: 'Clawd' });
   b.box(39.6, fy, -14, 1.0, 1.6, 2.2, 'metal_painted', { tint: '#6f7f8a', minimap: 'cover', aoFloor: fy });
   regal(b, 33.0, fy, -19.43, 0);
   crateStack(b, 20, -16.6, { y: fy, ry: 0.2, pattern: [[0, 0, 0, 1.0], [1.05, 0, 0, 0.9]] });

@@ -942,6 +942,7 @@ export function challengeView(store, kind, now = new Date()) {
 export const SECRETS = [
   { id: 'grenzland-zwerg', map: 'grenzland', name: 'Der Heuboden-Zwerg', hint: 'Grenzland: Wer sich duckt, findet mehr als Stroh.' },
   { id: 'grenzland-gertrud', map: 'grenzland', name: 'Gertrud', hint: 'Grenzland: Die Scheune hat einen Stammgast.' },
+  { id: 'hafen-clawd', map: 'hafen', name: 'Clawd', hint: 'Hafen: Über der Lagerhalle hilft jemand beim Programmieren.' },
 ];
 
 /* ------------------------------------------------------------ Kosmetik: Freischaltregeln (Daten: weapons.data.js CAMOS/SKINS) */
