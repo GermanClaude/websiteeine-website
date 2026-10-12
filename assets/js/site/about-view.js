@@ -5,12 +5,12 @@ import { site } from './state.js';
 import { announce } from './live.js';
 import { eligible as feedbackUnlocked, revealUnlocked, revealHtml, openFeedback } from '../shared/feedback.js';
 
-/** Alle Schlüssel 'nullpunkt:*' im lokalen Speicher. */
-function ourKeys() {
+/** Alle Schlüssel 'nullpunkt:*' und 'nullpunkt.*' (Aufsätze, Panzer) im lokalen bzw. Sitzungsspeicher, dazu 'np-retry'. */
+function ourKeys(store = 'localStorage') {
   const out = [];
   try {
-    const ls = window.localStorage;
-    for (let i = 0; i < ls.length; i++) { const k = ls.key(i); if (k && k.startsWith('nullpunkt:')) out.push(k); }
+    const ls = window[store];
+    for (let i = 0; i < ls.length; i++) { const k = ls.key(i); if (k && (k.startsWith('nullpunkt:') || k.startsWith('nullpunkt.') || k === 'np-retry')) out.push(k); }
   } catch { /* kein Speicher */ }
   return out;
 }
@@ -70,6 +70,7 @@ export async function init(sec, D, ctx = {}) {
     site.wipe();
     // Erst nach den Zurücksetzungen: alles mit unserem Präfix entfernen (die Stores schreiben beim Zurücksetzen neu).
     for (const k of ourKeys()) { try { window.localStorage.removeItem(k); } catch { /* egal */ } }
+    for (const k of ourKeys('sessionStorage')) { try { window.sessionStorage.removeItem(k); } catch { /* egal */ } }
     dlg.close();
     announce('Gelöscht.', { now: true });
   });

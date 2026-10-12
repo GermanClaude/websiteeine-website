@@ -279,21 +279,30 @@
     <div class="content">
       <h2 class="hl" id="h-ueber" data-fit data-fit-slots>ÜBER.</h2>
       <p class="tagline">NULLPUNKT ist ein Ego-Shooter, der vollständig in deinem Browser läuft. Du spielst gegen Bots oder online mit anderen Spielern.</p>
-      <p class="statement"><span>Keine Cookies.</span> <span>Kein Tracking.</span> <span>Kein Spielserver.</span></p>
+      <p class="statement"><span>Kein Tracking.</span> <span>Keine persönlichen Daten.</span> <span>Nur dein Spielstand.</span></p>
       <section class="reveal" id="entstehung" aria-labelledby="h-entstehung" hidden></section>
       <div class="about-cols">
         <div class="about-store" id="datenschutz">
           <h3 class="mono-h">Datenschutz</h3>
-          <p>Gespeichert wird nur, was du hier und im Spiel einstellst, im lokalen Speicher deines Browsers:</p>
+          <p>NULLPUNKT speichert <strong>keine persönlichen Daten</strong>: keinen echten Namen, keine E-Mail-Adresse, keine Anschrift, keinen Standort und keine IP-Adresse. Es gibt kein Konto, keine Werbung und keine Analyse- oder Werbedienste.</p>
+          <p>Damit dein Spiel beim nächsten Besuch weitergeht, legt dein Browser <strong>Spielfortschritt und Einstellungen</strong> im lokalen Speicher ab, wie einen Spielstand (technisch ähnlich wie Cookies). Die Daten bleiben auf deinem Gerät, niemand außer dir kann sie sehen, auch ich nicht:</p>
           <dl class="keys">
-            <div><dt><code>nullpunkt:settings</code></dt><dd>Einstellungen</dd></div>
-            <div><dt><code>nullpunkt:profile</code></dt><dd>Stufe, Statistik, Verlauf</dd></div>
+            <div><dt><code>nullpunkt:settings</code></dt><dd>Einstellungen und dein Spielername (frei gewählt, ein Spitzname reicht)</dd></div>
+            <div><dt><code>nullpunkt:profile</code></dt><dd>Stufe, Statistik, die letzten 25 Runden, Herausforderungen, gefundene Geheimnisse</dd></div>
+            <div><dt><code>nullpunkt.aufsaetze</code></dt><dd>Waffen-Aufsätze</dd></div>
+            <div><dt><code>nullpunkt.panzer</code></dt><dd>Panzer-Tarnung und Panzer-Erfahrung</dd></div>
+            <div><dt><code>nullpunkt:training</code></dt><dd>Bestzeiten auf dem Schießstand</dd></div>
+            <div><dt><code>nullpunkt:botAdapt</code></dt><dd>wie sich die Bots an deine Spielweise anpassen</dd></div>
+            <div><dt><code>nullpunkt:gfxmem</code></dt><dd>gemessener Grafikspeicher (Grafikmenü)</dd></div>
+            <div><dt><code>nullpunkt:fullscreenGuide</code></dt><dd>ob der Vollbild-Hinweis schon gezeigt wurde</dd></div>
             <div><dt><code>nullpunkt:site</code></dt><dd>Website: Streukreis, Mannschaftsstärken je Modus, zuletzt gesehener Einsatz, Ton</dd></div>
             <div><dt><code>nullpunkt:feedback</code></dt><dd>Spielzeit fürs Feedback, ob du Feedback gegeben hast</dd></div>
           </dl>
+          <p>Nur bis zum Schließen des Tabs (Sitzungsspeicher): eine zufällige Kennung für den Mehrspieler-Verbindungsaufbau und ein Merker fürs Neuladen.</p>
           <button class="txt-btn js-only" type="button" id="wipe-open" aria-haspopup="dialog">Lokale Daten löschen</button>
-          <p><strong>Feedback:</strong> Ab 20 Minuten Spielzeit kannst du dem Entwickler eine Rückmeldung geben. Verschickt wird sie nur, wenn du selbst auf „Per E-Mail senden“ klickst (öffnet dein Mailprogramm) oder den Text für Discord kopierst und abschickst.</p>
-          <p><strong>Mehrspieler (Beta):</strong> Nur wenn du einen Raum öffnest oder beitrittst, verlassen Daten das Gerät. Den Verbindungsaufbau vermitteln öffentliche Nostr-Relays (verschlüsselt, ohne Konto), STUN-Server von Google und Cloudflare helfen beim Finden der Verbindung. Danach spielen die Browser direkt miteinander (WebRTC) – dabei sehen die Mitspieler im Raum technisch deine IP-Adresse. Sichtbar sind außerdem dein Spielername, Team, Stufe und Gerät. Öffentliche Spiele stehen mit Raumcode, Name des Hosts und Karte in einer öffentlichen Liste. Einen eigenen Spielserver gibt es nicht.</p>
+          <p><strong>Feedback:</strong> Ab 20 Minuten Spielzeit kannst du dem Entwickler eine Rückmeldung geben. Verschickt wird sie nur, wenn du selbst auf „Per E-Mail senden“ klickst (öffnet dein Mailprogramm) oder den Text für Discord kopierst und abschickst. Was du ins Formular schreibst, auch das freiwillige Kontaktfeld, wird nicht gespeichert.</p>
+          <p><strong>Hosting:</strong> Die Seite liegt auf GitHub Pages. Beim Abruf verarbeitet GitHub technisch deine IP-Adresse (Server-Protokolle); darauf habe ich keinen Zugriff.</p>
+          <p><strong>Mehrspieler (Beta):</strong> Nur wenn du einen Raum öffnest oder beitrittst, verlassen Daten das Gerät; NULLPUNKT selbst speichert davon nichts. Den Verbindungsaufbau vermitteln öffentliche Nostr-Relays (verschlüsselt, ohne Konto), STUN-Server von Google und Cloudflare helfen beim Finden der Verbindung. Danach spielen die Browser direkt miteinander (WebRTC) – dabei sehen die Mitspieler im Raum technisch deine IP-Adresse. Sichtbar sind außerdem dein Spielername, Team, Stufe und Gerät. Öffentliche Spiele stehen mit Raumcode, Name des Hosts und Karte in einer öffentlichen Liste. Einen eigenen Spielserver gibt es nicht.</p>
         </div>
         <div class="about-legal">
           <section class="impressum rights" id="rechte" aria-labelledby="h-rechte">
@@ -356,7 +365,7 @@
 
 <dialog class="wipe-dialog" id="wipe-dialog" aria-labelledby="wipe-h">
   <p class="rail-label" id="wipe-h">Lokale Daten löschen</p>
-  <p class="dlg-text">Alle NULLPUNKT-Daten in diesem Browser löschen? Stufe, Statistik und Einstellungen gehen verloren.</p>
+  <p class="dlg-text">Alle NULLPUNKT-Daten in diesem Browser löschen? Stufe, Statistik, Aufsätze, Panzer-Tarnungen und Einstellungen gehen verloren.</p>
   <div class="dlg-actions">
     <button class="txt-btn" type="button" data-close>Abbrechen</button>
     <button class="dlg-go" type="button" id="wipe-go">Löschen<span class="o">.</span></button>

@@ -5,7 +5,7 @@ Ein Ego-Shooter im Browser im Stil von *Call of Duty: Mobile*, gespielt gegen Bo
 - **Website** (`index.html`): ein Schriftmusterbuch, das zurückschießt (Konzept „Durchschuss“). Die Seite zeigt keine Fotos und keine Kästen, nur Typografie, feine Linien und einen orangen Zielpunkt. Die Breite der Schrift steht für Reichweite, ihre Stärke für Schaden.
 - **Spiel** (`spielen.html`): schnelle Matches gegen Bots in fünf Modi auf vier Karten, mit zehn Waffen, einem Messer und Granaten. Dazu kommen Abschussserien, Medaillen, Erfahrungspunkte (EP) mit einem Rangsystem bis Stufe 55 und Touch-Steuerung wie in COD Mobile.
 
-Alles ist statisch, aus HTML, CSS und JavaScript (ES-Module), ohne Build-Schritt. Es gibt keinen Server, keine Datenbank, keine Cookies, kein Tracking und keine externen Skripte oder Schriften. Grafik, Texturen, Modelle und Klänge entstehen beim Laden im Browser.
+Alles ist statisch, aus HTML, CSS und JavaScript (ES-Module), ohne Build-Schritt. Es gibt keinen Spielserver, keine Datenbank, kein Tracking und keine externen Skripte oder Schriften. Gespeichert wird nur der Spielstand (Fortschritt, Einstellungen) im lokalen Speicher des Browsers, keine persönlichen Daten. Grafik, Texturen, Modelle und Klänge entstehen beim Laden im Browser.
 
 ## Spielen
 

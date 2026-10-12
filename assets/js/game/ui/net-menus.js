@@ -298,7 +298,7 @@ export class NetMenus {
         <section class="lb-sec nm-me">
           <h2 class="m-h2">Rufzeichen</h2>
           <div class="nm-name">
-            <input type="text" class="m-input" data-net-name data-fk="name" maxlength="16" autocomplete="nickname" spellcheck="false" aria-label="Dein Name im Mehrspieler" value="${esc(this._playerName())}">
+            <input type="text" class="m-input" data-net-name data-fk="name" maxlength="16" autocomplete="nickname" spellcheck="false" aria-label="Dein Name im Mehrspieler" title="Ein Spitzname reicht – bitte nicht deinen echten Namen." value="${esc(this._playerName())}">
             <span class="nm-namehint" data-net-me></span>
           </div>
         </section>

@@ -975,6 +975,7 @@ main { position: relative; z-index: 1; padding-bottom: var(--bar-h); }
 .about-cols { display: grid; gap: 64px; }
 @media (min-width: 1024px) { .about-cols { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--gap); } }
 .about-store p { max-width: 62ch; }
+.about-store > p + p, .about-store > .txt-btn + p { margin-top: 14px; }
 .keys { margin: 24px 0; border-top: 1px solid var(--line); }
 .keys > div { display: grid; grid-template-columns: minmax(0, 15em) minmax(0, 1fr); gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
 @media (max-width: 479px) { .keys > div { grid-template-columns: 1fr; gap: 2px; } }
