@@ -20,6 +20,17 @@ Auftrag (Nutzer, 12.10.): Das von ihm mit Gemini erzeugte 10-Sekunden-Video ist 
   welches Videobild als Bezug dient (z. B. Ziegel der Werk-Gasse → Ziegel in Altstadt/Bibliothek-Mauern,
   Beton/Wellblech des Hafens → Industrie im Grenzland, Platz-Kopfsteinpflaster → Dorfstraßen).
 
+- **Keine alten Texturen mehr** (so weit möglich): alle Oberflächen bekommen komplett neue Texturen im Stil des Videos,
+  statt die bisherigen Fotoscan-Sätze nur nachzufärben. Der Stil ist deutlich **„3D-mäßig“**: saubere, leicht
+  stilisierte Oberflächen mit echter Tiefe – gefaste/abgerundete Kanten, Wellblech/Ziegel/Pflaster mit plastischer
+  Struktur (kräftige Normal- und AO-Karten, wo sinnvoll echte Geometrie), wenig Fotorauschen, klare Materialtrennung.
+- **Jeder Gegenstand in diesem Stil:** Requisiten (Kisten, Paletten, Fässer, Container, Möbel, Zäune, Lampen …),
+  Gebäude, Fahrzeuge, Waffen, Soldaten – nichts im alten Look stehen lassen. Vorgehen: Inventar aller Materialien und
+  Requisiten anlegen (Liste), dann abhaken.
+- Weg zu den Texturen: eigene prozedurale Texturen (world/texgen) im Video-Stil und/oder passende freie Quellen, die
+  auf den Look gebracht werden; optional schreibt Claude dem Nutzer Prompts, mit denen er nahtlose Texturen in Gemini
+  erzeugt (dann Herkunft in CREDITS festhalten).
+
 ## Was das Video zeigt (Schnitte bei 1,5 s · 3,0 s · 7,5 s)
 | Zeit | Inhalt | Merkmale |
 |---|---|---|
