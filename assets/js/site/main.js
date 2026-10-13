@@ -10,6 +10,7 @@ import { initDeploy } from './deploy.js';
 import { sound } from './sound.js';
 import { setSettingReduced } from './motion.js';
 import { signalLost } from './dom.js';
+import { startSiteClock } from '../shared/sitetime.js';
 import { initJumps, jumpTo, setEnsureUpTo } from './jump.js';
 
 const html = document.documentElement;
@@ -52,6 +53,7 @@ const touchPlay = document.getElementById('touch-play');
 const showTouch = () => { if (touchPlay) touchPlay.hidden = !coarseMq.matches; };
 showTouch();
 coarseMq.addEventListener?.('change', showTouch);
+startSiteClock(); // Zeit auf der Webseite fürs Zwiegespräch (§08 Über)
 initNav();
 setNavSound(sound);
 initZero({ sound });

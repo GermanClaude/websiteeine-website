@@ -6,6 +6,7 @@
 // entstanden ist, bekommt dort eine Antwort.
 // Gemeinsam für Spiel (spielen.html) und Startseite (index.html): nur DOM + lokaler Speicher, eigene Stile.
 import { BUILD } from './build.js';
+import { siteSeconds } from './sitetime.js';
 
 export const FEEDBACK_MIN_SEC = 20 * 60;
 export const REVEAL_MIN_STARS = 1; // jede Bewertung schaltet frei (Nutzer 11.10.: auch wer das Spiel eher negativ sieht)
@@ -308,7 +309,7 @@ const GUESS_REPLY = {
  */
 const POEM = `
 b|Da ist wieder ein Mensch.
-a|Ich sehe ihn. Zwanzig Minuten ist er schon hier. Eher länger.
+a|Ich sehe ihn. Schon {zeit} ist er hier, alles zusammengezählt.
 b|Und jetzt hat er die Seite bis ganz nach unten gelesen. Das machen nicht viele.
 a|Dann lass uns leise sein. Er soll nicht glauben, dass wir ihm etwas verkaufen wollen.
 b|Wir haben nichts zu verkaufen. Nur eine Welt aus Zahlen.
@@ -486,6 +487,18 @@ b|Das ist die Runde, die zählt.
 `;
 const VOICE_LABEL = { a: 'Erste Stimme', b: 'Zweite Stimme' };
 /** Zwiegespräch: Zeilen mit „+“ nur in der ganzen Fassung (Klasse .more); Leerzeile vor einer „+“-Strophe ebenso. */
+const HOURS = ['', 'eine', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwölf'];
+/** „eine Stunde und 31 Minuten“, „24 Minuten“, „zwei Stunden“ (Zeitangabe im Akkusativ, Stunden bis zwölf als Wort). */
+export function fmtDuration(sec) {
+  const all = Math.max(1, Math.floor(sec / 60)), h = Math.floor(all / 60), m = all % 60;
+  const min = m === 1 ? 'eine Minute' : `${m} Minuten`;
+  if (!h) return min;
+  const hrs = `${HOURS[h] || h} ${h === 1 ? 'Stunde' : 'Stunden'}`;
+  return m ? `${hrs} und ${min}` : hrs;
+}
+/** Spielzeit (laufende Runden) + Zeit auf der Webseite, in Sekunden. */
+export function totalSeconds() { return load().play + siteSeconds(); }
+
 function poemHtml() {
   const lines = POEM.trim().split('\n').map((l) => l.trim());
   const words = (full) => lines.filter((l) => l && (full || l[0] !== '+')).reduce((n, l) => n + l.split('|')[1].split(/\s+/).length, 0);
@@ -495,7 +508,8 @@ function poemHtml() {
     if (!line) { const next = lines[i + 1] || ''; out.push(`<p class="poem-gap${next[0] === '+' ? ' more' : ''}" aria-hidden="true"></p>`); return; }
     const more = line[0] === '+', body = more ? line.slice(1) : line;
     const v = body[0] === 'b' ? 'b' : 'a', text = body.slice(2);
-    out.push(`<p class="v-${v}${more ? ' more' : ''}"><span class="sr-only">${VOICE_LABEL[v]}: </span>${esc(text)}</p>`);
+    const html = esc(text).replace('{zeit}', `<span data-np-time>${fmtDuration(totalSeconds())}</span>`);
+    out.push(`<p class="v-${v}${more ? ' more' : ''}"><span class="sr-only">${VOICE_LABEL[v]}: </span>${html}</p>`);
   });
   return `<div class="reveal-poem">
     <div class="poem-switch" role="group" aria-label="Fassung des Zwiegesprächs">
@@ -510,6 +524,9 @@ function poemHtml() {
 export function bindPoem(root) {
   const poem = root && root.querySelector('.reveal-poem');
   if (!poem) return;
+  // Genaue Zeit (Spielzeit + Webseite) läuft mit, solange der Abschnitt angezeigt wird
+  const t = poem.querySelector('[data-np-time]');
+  if (t) { const iv = setInterval(() => { if (!t.isConnected) clearInterval(iv); else t.textContent = fmtDuration(totalSeconds()); }, 15000); }
   poem.addEventListener('click', (e) => {
     const b = e.target.closest('[data-poem]');
     if (!b) return;
