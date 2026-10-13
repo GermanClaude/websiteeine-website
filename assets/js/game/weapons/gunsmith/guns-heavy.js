@@ -130,7 +130,7 @@ export function hagel(b) {
   b.box('rubber', 0.044, 0.135, 0.014, 0, 0.026, -0.378, { c: 0.004 });
   // Kastenmagazin (8 Patronen Kaliber 12, leicht gebogen)
   b.part('mag', 0, 0.02, 0.12);
-  b.side('polymer', [[0.09, 0.026], [0.092, -0.04], [0.1, -0.13], [0.17, -0.142], [0.164, -0.04], [0.156, 0.026]], 0.036, 0, { part: 'mag', bevel: 0.0025 });
+  b.side('polymer', [[0.09, 0.038], [0.092, -0.04], [0.1, -0.13], [0.17, -0.142], [0.164, -0.04], [0.156, 0.038]], 0.036, 0, { part: 'mag', bevel: 0.0025 }); // reicht ins Gehäuse (sonst Spalt mit Patrone)
   b.box('polymer', 0.04, 0.01, 0.074, 0, -0.14, 0.136, { part: 'mag', rx: -0.17, c: 0.003 });
   if (b.hi) {
     for (const s of [-1, 1]) b.box('polymer', 0.002, 0.11, 0.004, s * 0.0182, -0.05, 0.126, { part: 'mag', rx: -0.1, c: 0 });

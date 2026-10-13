@@ -92,7 +92,7 @@ export function bx20(b) {
   b.side('smokeGrey', [[-0.112, 0.032], [-0.11, -0.02], [-0.1, -0.08], [-0.088, -0.13], [-0.134, -0.142], [-0.148, -0.088], [-0.158, -0.026], [-0.164, 0.032]], 0.022, 0, { part: 'mag', bevel: 0.002 });
   b.box('polymer', 0.027, 0.008, 0.05, 0, -0.139, -0.11, { part: 'mag', rx: -0.25, c: 0.002 });
   if (b.hi) {
-    for (let i = 0; i < 3; i++) for (const s of [-1, 1]) b.box('polymer', 0.0016, 0.004, 0.044, s * 0.0118, -0.06 - i * 0.022, -0.128 + i * 0.006, { part: 'mag', rx: -0.18, c: 0 });
+    for (let i = 0; i < 3; i++) for (const s of [-1, 1]) b.box('smokeGrey', 0.0016, 0.004, 0.044, s * 0.0118, -0.06 - i * 0.022, -0.128 + i * 0.006, { part: 'mag', rx: -0.18, c: 0 }); // durchscheinend wie das Magazin
   }
   magRounds(b, { cal: 'r556', width: 0.019, depth: 0.044, show: 'all', path: [[0, 0.036, -0.138], [0, -0.02, -0.134], [0, -0.08, -0.1235], [0, -0.12, -0.113]] });
   b.anchor('magGrab', 0, -0.07, -0.128, { part: 'mag', data: { w: 0.0113, d: 0.028 } });
@@ -321,9 +321,10 @@ export function lm8(b) {
   ], 0.042, 0, { bevel: 0.006, bevelSeg: 2, holes: [[[-0.19, 0.03], [-0.13, 0.05], [-0.13, 0.08], [-0.19, 0.08]]] });
   b.box('rubber', 0.046, 0.142, 0.012, 0, 0.032, -0.414, { c: 0.004 });
   // Trommelmagazin (75 Schuss): flacher Zylinder unter dem Gehäuse + Zuführhals
-  b.box('steel', 0.036, 0.022, 0.05, 0, 0.026, 0.115, { c: 0.002 });
+  // Schacht und Hals länger als eine Patrone (5,56 ≈ 57 mm) – sonst schauen die Patronen vorn/hinten heraus
+  b.box('steel', 0.036, 0.022, 0.068, 0, 0.026, 0.115, { c: 0.002 });
   b.part('mag', 0, 0.02, 0.115);
-  b.box('polymer', 0.03, 0.05, 0.046, 0, -0.01, 0.118, { part: 'mag', rx: -0.12, c: 0.003 });
+  b.box('polymer', 0.03, 0.05, 0.064, 0, -0.01, 0.118, { part: 'mag', rx: -0.12, c: 0.003 });
   // Trommel: Mantel + rechte Wand undurchsichtig, linke Wand durchsichtig (Fenster: Patronenböden der Spirale
   // sichtbar, wie bei Trommeln mit Klarsichtdeckel). Innen ein nach innen gewandter Mantel + Innenwand rechts.
   b.cyl('polymer', 0.072, 0.072, 0.07, 0, -0.1, 0.13, { part: 'mag', axis: 'x', seg: b.seg(26, 10), open: b.hi });
