@@ -41,6 +41,10 @@ const DEFS = {
   brass: () => std({ color: 0xc09a45, metalness: 1.0, roughness: 0.3, roughnessMap: wearMap() }),
   copper: () => std({ color: 0xb8703f, metalness: 1.0, roughness: 0.32 }),
   // Goldakzente der Waffen der ersten Stunde (UR-1, P-0, Erstlicht): poliert, bleibt unter jeder Tarnung golden
+  // Pistole nach Vorbild (P-9 ≈ Glock 17): nitrierter Schlitten mit Abrieb, seidenmatter Rahmenkunststoff, Laufhaube
+  slideNitride: () => std({ color: 0x323336, metalness: 0.55, roughness: 0.4, roughnessMap: wearMap(), normalMap: grainNormal(), normalScale: new THREE.Vector2(0.1, 0.1) }),
+  polymerSatin: () => std({ color: 0x131416, metalness: 0.0, roughness: 0.62, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.14, 0.14) }),
+  barrelNitride: () => std({ color: 0x3c3d40, metalness: 0.9, roughness: 0.3, roughnessMap: wearMap() }),
   // Trommelmagazin: eigener Kunststoff (keine Tarnung) und Deckel mit eigener Textur
   drumBody: () => std({ color: 0x2a2c30, map: polymerMap(), metalness: 0.0, roughness: 0.66, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.2, 0.2) }),
   drumFace: () => std({ color: 0xffffff, map: drumFaceMap(), normalMap: drumFaceNormal(), normalScale: new THREE.Vector2(0.9, 0.9), metalness: 0.0, roughness: 0.62 }),

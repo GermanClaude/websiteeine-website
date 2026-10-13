@@ -15,7 +15,7 @@ import { onCustomChange } from '../../../shared/customcamo.js';
 const SIZE = 256;
 /** Materialschlüssel (gs:<key>), die ein Tarnmuster erhalten. */
 export const CAMO_TARGETS = new Set(['alu', 'aluTan', 'aluOD', 'polymer', 'polymerTan', 'polymerOD', 'polymerGrey', 'steel', 'stainless',
-  'woodWarm', 'woodWalnut', 'paintOlive', 'bladeCoat', 'canvasOD']);
+  'woodWarm', 'woodWalnut', 'paintOlive', 'bladeCoat', 'canvasOD', 'slideNitride', 'polymerSatin']);
 
 const texCache = new Map();
 const matCache = new Map();

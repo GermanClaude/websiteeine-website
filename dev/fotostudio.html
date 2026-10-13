@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NULLPUNKT · Fotostudio</title>
+<!-- Waffen wie auf einem Produktfoto: Studio-Umgebung (Softbox-Raum) für Spiegelungen, weiche Lichter, Umgebungsverdeckung (GTAO), Kontaktschatten auf
+     hellem Hohlkehlen-Hintergrund, ACES-Tonwerte. Für Vorher/Nachher-Vergleiche der Waffenmodelle (Nutzer 13.10.2026).
+     ?model=p9&yaw=-90&pitch=0&dist=0.4&camo=…&w=1600&h=1000 – window.__studio.ready, wenn das Bild steht. -->
+<style>html,body{margin:0;height:100%;background:#c8ccd0;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { createWeaponModel, applyCamo } from '../assets/js/game/weapons/models.js';
+
+const q = new URLSearchParams(location.search);
+const W = +(q.get('w') || 1600), H = +(q.get('h') || 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = +(q.get('exp') || 1.0);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xc8ccd0);
+const camera = new THREE.PerspectiveCamera(28, W / H, 0.01, 50);
+
+// Hohlkehle: Boden + gebogene Rückwand in einem Stück
+const cyc = new THREE.Mesh(new THREE.PlaneGeometry(6, 6, 1, 1), new THREE.MeshStandardMaterial({ color: 0xc8ccd0, roughness: 0.95 }));
+cyc.rotation.x = -Math.PI / 2;
+cyc.receiveShadow = true;
+scene.add(cyc);
+
+// Licht: Studio-Umgebung (Softbox-Raum) für Spiegelungen, Hauptlicht mit weichem Schatten, Streif- und Aufhelllicht
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(-0.6, 2.0, 0.7);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.radius = 8;
+sun.shadow.camera.left = -0.5; sun.shadow.camera.right = 0.5; sun.shadow.camera.top = 0.5; sun.shadow.camera.bottom = -0.5;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+const rim = new THREE.DirectionalLight(0xdfe8ff, 1.1); rim.position.set(0.9, 0.7, -1.2); scene.add(rim);
+const fill = new THREE.DirectionalLight(0xfff2e2, 0.35); fill.position.set(1.2, 0.4, 0.9); scene.add(fill);
+
+window.__studio = { ready: false };
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.03).texture;
+scene.environmentIntensity = +(q.get('env') || 0.75);
+
+const model = createWeaponModel(q.get('model') || 'p9', { lod: 'first' });
+if (q.get('camo')) applyCamo(model, q.get('camo'));
+model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+// auf den Boden stellen (leicht schräg wie hingelegt geht nicht – Waffen stehen im Labor aufrecht), mittig
+const box = new THREE.Box3().setFromObject(model);
+const c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
+model.position.set(-c.x, -box.min.y + 0.002, -c.z);
+scene.add(model);
+const target = new THREE.Vector3(0, size.y / 2, 0);
+const yaw = (+(q.get('yaw') ?? -90)) * Math.PI / 180, pitch = (+(q.get('pitch') ?? 4)) * Math.PI / 180;
+const dist = +(q.get('dist') || Math.max(size.x, size.z) * 1.9 + 0.08);
+camera.position.set(target.x + Math.sin(yaw) * Math.cos(pitch) * dist, target.y + Math.sin(pitch) * dist, target.z + Math.cos(yaw) * Math.cos(pitch) * dist);
+camera.lookAt(target);
+const composer = new EffectComposer(renderer);
+composer.setSize(W, H);
+composer.addPass(new RenderPass(scene, camera));
+if (q.get('ao') !== '0') { const ao = new GTAOPass(scene, camera, W, H); ao.output = GTAOPass.OUTPUT.Default; composer.addPass(ao); }
+composer.addPass(new OutputPass());
+for (let i = 0; i < 2; i++) composer.render();
+window.__studio.ready = true;
+</script>
+</body>
+</html>
