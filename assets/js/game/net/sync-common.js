@@ -126,11 +126,14 @@ function hand3(a, b, f, d) {
   return n ? copy3(n, d) : null;
 }
 
-/** Kurzform der Ausrüstung für Nachrichten (nur Waffen/Ausrüstung, keine Tarnung). */
+/** Kurzform der Ausrüstung für Nachrichten (Waffen/Ausrüstung, dazu Aufsätze und Tarnung je Waffe – Bots und Puppen
+ *  sehen bei allen gleich aus, auch die Waffe, die nach dem Tod liegen bleibt). */
 export function loadoutOf(actor) {
   const lo = (actor && actor.loadout) || {};
   const out = {};
   for (const k of ['cls', 'primary', 'secondary', 'lethal', 'tactical', 'melee', 'launcher']) if (typeof lo[k] === 'string') out[k] = lo[k];
+  if (lo.att && typeof lo.att === 'object') out.att = lo.att;
+  if (lo.camo && typeof lo.camo === 'object') out.camo = lo.camo;
   if (!out.cls && actor && typeof actor.cls === 'string') out.cls = actor.cls;
   return out;
 }

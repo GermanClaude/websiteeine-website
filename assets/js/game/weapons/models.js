@@ -184,6 +184,18 @@ export function preloadWeaponModels(keys = MODEL_KEYS, lods = ['first', 'third']
   for (const k of keys) for (const l of lods) getTemplate(k, l);
 }
 
+/**
+ * Drittpersonen-Modelle mit Aufsätzen freigeben (Matchende): Bots tragen jede Runde andere Kombinationen – ohne Aufräumen
+ * wüchse der Zwischenspeicher von Runde zu Runde. Die Grundmodelle und Ego-Modelle bleiben.
+ */
+export function disposeAttachmentTemplates() {
+  for (const [k, t] of cache) {
+    if (!k.includes(':third|')) continue;
+    t.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+    cache.delete(k);
+  }
+}
+
 /** Gibt alle gecachten Geometrien, Materialien und Texturen frei. */
 export function disposeWeaponModels() {
   for (const t of cache.values()) t.traverse(o => { if (o.isMesh) o.geometry.dispose(); });

@@ -8,7 +8,9 @@
 // (teardownMatch räumt sie mit weg; Geometrie und Materialien werden über Matches hinweg wiederverwendet).
 import * as THREE from 'three';
 import { MAPS } from '../shared/maps.data.js';
-import { EQUIPMENT, WEAPONS, killAmmoFor } from '../shared/weapons.data.js';
+import { EQUIPMENT, WEAPONS, CAMOS, killAmmoFor } from '../shared/weapons.data.js';
+import { ATTACHMENTS } from '../shared/attachments.data.js';
+import { stepDrop } from './bots/character.js';
 
 export const POINT_KINDS = Object.freeze({
   munition: { name: 'Munitionskiste', act: 'Munition auffüllen', effect: 'ammo', cooldown: 30, color: 0xc8a64a },
@@ -108,9 +110,41 @@ export class MapPoints {
     const weapon = wid && this.lootWeaponsAllowed() ? wid : null;
     if (!ammo && !weapon) return;
     const now = G.time.elapsed;
-    this.loot = this.loot.filter((l) => l.until > now && l.victim !== v);
-    this.loot.push({ victim: v, netId: v.netId, name: v.name || 'Gefallener', position: v.position.clone(), ammo, weapon, until: now + LOOT_LIFE });
-    if (this.loot.length > 40) this.loot.shift();
+    for (let i = this.loot.length - 1; i >= 0; i--) {
+      const l = this.loot[i];
+      if (l.until <= now || l.victim === v) { this._dropGone(l); this.loot.splice(i, 1); }
+    }
+    // Waffe wie in der Hand: Aufsätze (def.att) und Tarnung des Gefallenen; das Modell fällt aus der Hand (character.js)
+    // und wird hier übernommen, sobald es losgelassen ist (_tickLoot) – es bleibt liegen, bis es jemand aufhebt
+    // Liegende Waffe bleibt so lange wie die Leichen (Einstellung „Leichen“, höchstens 40 Stück), Munition 2 min
+    let life = LOOT_LIFE;
+    try { if (weapon && G.bots && G.bots.corpses) life = Math.max(LOOT_LIFE, G.bots.corpses.life()); } catch { /* Standard */ }
+    const cur = v.weapon && v.weapon.currentDef;
+    const att = weapon && cur && (cur.baseId || cur.id) === weapon && cur.att ? { ...cur.att } : null;
+    const camo = weapon && v.loadout && v.loadout.camo && typeof v.loadout.camo[weapon] === 'string' ? v.loadout.camo[weapon] : null;
+    this.loot.push({ victim: v, soldier: weapon ? v.soldier || null : null, drop: null, netId: v.netId, name: v.name || 'Gefallener', position: v.position.clone(), body: v.position.clone(), ammo, weapon, att, camo, until: now + life });
+    if (this.loot.length > 40) this._dropGone(this.loot.shift());
+  }
+
+  /** Liegende Waffen: vom Körper übernehmen, fallen lassen, Beute-Stelle mitführen; Abgelaufenes wegräumen. */
+  _tickLoot() {
+    const G = this.G;
+    const now = G.time.elapsed;
+    const dt = Math.min(0.05, (G.time && G.time.dt) || 0.016);
+    for (let i = this.loot.length - 1; i >= 0; i--) {
+      const l = this.loot[i];
+      if (l.until <= now) { this._dropGone(l); this.loot.splice(i, 1); continue; }
+      if (!l.weapon) continue;
+      if (!l.drop && l.soldier && typeof l.soldier.releaseDrop === 'function') { l.drop = l.soldier.releaseDrop(); if (l.drop) l.soldier = null; }
+      if (l.drop) { stepDrop(l.drop, dt, G.world); if (!l.ammo) l.position.copy(l.drop.gun.position); }
+    }
+  }
+
+  _dropGone(l) {
+    if (!l) return;
+    if (l.drop && l.drop.gun) l.drop.gun.removeFromParent();
+    l.drop = null;
+    l.soldier = null;
   }
 
   /** Beute aufnehmen: zuerst Munition (falls vorhanden), beim nächsten Druck die Waffe. → bool */
@@ -143,7 +177,9 @@ export class MapPoints {
       else lo.primary = def.id;
       if (lo.primary === lo.secondary) lo.secondary = null;
       const was = def.slot === 'secondary' ? cur[1] : cur[0];
-      w.setLoadout(lo);
+      // genau die Waffe vom Boden: Aufsätze und Tarnung des Gefallenen (gilt bis zum nächsten Tod/Ausrüstungswechsel)
+      w.setLoadout({ ...lo, pickup: { id: def.id, att: l.att || null, camo: l.camo || null }, keepPickups: true });
+      this._dropGone(l);
       const idx = w.slots.findIndex((s) => s.id === def.id);
       if (idx >= 0 && idx !== w.index && typeof w.switchTo === 'function') w.switchTo(idx);
       const sync = G.net && G.net.sync;
@@ -177,6 +213,7 @@ export class MapPoints {
     const G = this.G;
     const P = G.player;
     const now = G.time.elapsed;
+    this._tickLoot();
     // Leuchtkappe pulsiert (bereit) bzw. steht still (Abklingzeit)
     for (const p of this.points) {
       const c = p.mesh.userData.cap;
@@ -208,7 +245,8 @@ export class MapPoints {
         if (d < bld && Math.abs(l.position.y - P.position.y) < 2) { bld = d; bl = l; }
       }
       if (bl) {
-        this.near = { loot: bl, left: 0, text: bl.ammo ? `Munition aufnehmen · ${bl.name}` : `${(WEAPONS[bl.weapon] || {}).name || bl.weapon} aufheben` };
+        const extra = [...Object.values(bl.att || {}).map((id) => ATTACHMENTS[id] && ATTACHMENTS[id].name), bl.camo && CAMOS[bl.camo] && CAMOS[bl.camo].name].filter(Boolean);
+        this.near = { loot: bl, left: 0, text: bl.ammo ? `Munition aufnehmen · ${bl.name}` : `${(WEAPONS[bl.weapon] || {}).name || bl.weapon} aufheben${extra.length ? ` · ${extra.slice(0, 3).join(', ')}${extra.length > 3 ? ' …' : ''}` : ''}` };
         if (G.input && G.input.pressed('interact') && !(G.mode && G.mode.id === 'training')) this.use();
         return;
       }
@@ -331,6 +369,7 @@ export class MapPoints {
   dispose() {
     if (this.G.player && this.G.player.mounted) this.G.player.mounted = null;
     if (this._offKill) { this._offKill(); this._offKill = null; }
+    for (const l of this.loot) this._dropGone(l);
     this.loot.length = 0;
     if (this.group.parent) this.group.parent.remove(this.group);
     this.points.length = 0;

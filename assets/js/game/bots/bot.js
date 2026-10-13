@@ -305,6 +305,8 @@ export class Bot {
     if (!this.soldiers[i]) {
       const s = new Soldier({ team: this.team, variant: this.variant, camo: this.scheme, quality: this.manager.tier || this.manager.quality, models: this.manager.models, name: this.name });
       s.guns = new Map();
+      // Waffe bleibt als Beute liegen (mappoints): aus dem Zwischenspeicher nehmen, beim Respawn kommt eine neue
+      s.onGunLost = (g) => { for (const [k, v] of s.guns) if (v === g) s.guns.delete(k); };
       this.manager.scene.add(s.root);
       this.soldiers[i] = s;
     }
@@ -323,11 +325,14 @@ export class Bot {
     const s = this.soldier;
     if (!def || !s) return;
     if (!force && s.def && s.def.id === def.id && s.gun) return;
-    let gun = s.guns.get(def.id);
+    // Aufsätze (def.att) und Tarnung je Waffe wie beim Spieler – Zwischenspeicher je Kombination
+    const camo = (this.loadout && this.loadout.camo && this.loadout.camo[def.baseId || def.id]) || null;
+    const key = `${def.id}|${def.attKey || ''}|${camo || ''}`;
+    let gun = s.guns.get(key);
     if (!gun) {
-      gun = this.manager.makeGun(def);
+      gun = this.manager.makeGun(def, camo);
       if (!gun) return;
-      s.guns.set(def.id, gun);
+      s.guns.set(key, gun);
     }
     s.setWeaponModel(gun, def);
     this._gunId = def.id;

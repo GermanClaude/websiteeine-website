@@ -1233,6 +1233,7 @@ async function teardownMatch({ keepWorld = false } = {}) {
   }
   G.actors.length = 0;
   if (G.points) { safe('points', () => G.points.dispose()); G.points = null; }
+  safe('waffenmodelle', () => { const M = G.modules.models; if (M && M.disposeAttachmentTemplates) M.disposeAttachmentTemplates(); });
   if (G.doors) { safe('doors', () => G.doors.dispose()); G.doors = null; }
   if (G.holes) { safe('holes', () => G.holes.dispose()); G.holes = null; }
   if (G.building) { safe('building', () => G.building.dispose()); G.building = null; }

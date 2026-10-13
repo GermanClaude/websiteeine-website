@@ -27,6 +27,8 @@ import { issueCommand, isCommanded, ORDER_DEFS, ORDER_RADIUS, ORDER_MAX } from '
 import { BotAdapt } from './ai/spielstil.js';
 import { CorpseStore } from './corpses.js';
 import { CLASSES, DEFAULT_CLASS, pickBotClass, resolveClassLoadout } from '../../shared/classes.data.js';
+import { WEAPONS, CAMOS } from '../../shared/weapons.data.js';
+import { attachmentsFor } from '../../shared/attachments.data.js';
 
 const _m = new THREE.Matrix4();
 const _v = new THREE.Vector3();
@@ -199,12 +201,45 @@ export class BotManager {
     return created;
   }
 
+  /**
+   * Zufällige Aufsätze und Tarnung wie bei Spielern (Nutzer 13.10.): Hauptwaffe oft mit 1–3 Aufsätzen, Pistole selten,
+   * etwa jeder Dritte mit Tarnmuster (seltene seltener; nie das Gold der ersten Stunde). → { att, camo }
+   */
+  _botLooks(lo) {
+    const M = this.models || (this.G.modules && this.G.modules.models);
+    const att = {}, camo = {};
+    const CHANCE = { optik: 0.6, muendung: 0.4, unterlauf: 0.3, magazin: 0.25, taktisch: 0.25, schaft: 0.2, munition: 0.12 };
+    for (const [id, pAny, max] of [[lo.primary, 0.6, 3], [lo.secondary, 0.25, 1]]) {
+      const def = id && WEAPONS[id];
+      if (!def || Math.random() > pAny) continue;
+      let info = null;
+      try { info = M && M.getWeaponModelInfo ? M.getWeaponModelInfo(def.model || def.id) : null; } catch { info = null; }
+      const opts = attachmentsFor(def, info), pick = {};
+      for (const [slot, list] of Object.entries(opts)) {
+        if (Object.keys(pick).length >= max) break;
+        if (Math.random() < (CHANCE[slot] ?? 0.2)) pick[slot] = list[(Math.random() * list.length) | 0];
+      }
+      if (Object.keys(pick).length) att[id] = pick;
+    }
+    const W = { standard: 70, selten: 22, episch: 6, legendaer: 2 };
+    const pool = Object.values(CAMOS).filter((c) => c.id !== 'werk' && !(c.unlock && c.unlock.type === 'og'));
+    for (const id of [lo.primary, lo.secondary]) {
+      if (!id || !WEAPONS[id] || Math.random() > 0.33) continue;
+      let r = Math.random() * pool.reduce((n, c) => n + (W[c.rarity] || 5), 0);
+      for (const c of pool) { r -= W[c.rarity] || 5; if (r <= 0) { camo[id] = c.id; break; } }
+    }
+    const out = {};
+    if (Object.keys(att).length) out.att = att;
+    if (Object.keys(camo).length) out.camo = camo;
+    return out;
+  }
+
   /** Neuer KI-Bot (spawnBots/addBot): Schwierigkeit (lernende Anpassung offline), Liste, Akteure, Namensschild. */
   _newBot(team, name, diff, ffa, lo, variant, scheme, modeId, lane) {
     const G = this.G;
     const bot = new Bot(this, {
       team, name, diff: this._online() ? diff : this.adapt.diffFor(diff, team, ffa),
-      loadout: { primary: lo.primary, secondary: lo.secondary, lethal: lo.lethal, tactical: lo.tactical, cls: lo.cls }, variant, scheme, modeId, lane,
+      loadout: { primary: lo.primary, secondary: lo.secondary, lethal: lo.lethal, tactical: lo.tactical, cls: lo.cls, ...this._botLooks(lo) }, variant, scheme, modeId, lane,
     });
     this.bots.push(bot);
     if (!G.actors.includes(bot)) G.actors.push(bot);
@@ -611,11 +646,11 @@ export class BotManager {
     if (d < 2.2 && d > 0.25) G.events.emit('bullet:whiz', { position: _w.clone(), shooter: bot, distance: d, cosmetic: true });
   }
 
-  /** Drittpersonen-Waffenmodell (Klon) für eine Waffe. */
-  makeGun(def) {
+  /** Drittpersonen-Waffenmodell (Klon) für eine Waffe – mit ihren Aufsätzen (def.att) und Tarnung. */
+  makeGun(def, camo = null) {
     const M = this.models || (this.G.modules && this.G.modules.models);
     if (!M || !M.createWeaponModel) return null;
-    try { return M.createWeaponModel(def.model || 'm17', { lod: 'third' }); } catch (err) {
+    try { return M.createWeaponModel(def.model || 'm17', { lod: 'third', att: def.att || null, camo: camo || null }); } catch (err) {
       if (!this._gunErr) { this._gunErr = true; console.warn('[NULLPUNKT] Bot-Waffenmodell:', err); }
       return null;
     }

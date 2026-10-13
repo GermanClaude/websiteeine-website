@@ -222,8 +222,13 @@ export class WeaponController {
     const prevId = this.currentDef ? this.currentDef.id : null;
     const prevAtt = (this.currentDef && this.currentDef.attKey) || '';
     const old = new Map(this.slots.map((s) => [s.id, s]));
+    // Aufgehobene Waffe (mappoints, Leiche): eigene Aufsätze/Tarnung bis zum nächsten Ausrüstungswechsel ohne keepPickups
+    this._pickups = loadout.keepPickups ? (this._pickups || {}) : {};
+    if (loadout.pickup && typeof loadout.pickup.id === 'string') this._pickups[loadout.pickup.id] = loadout.pickup;
+    const pickAtt = {};
+    for (const [k, p] of Object.entries(this._pickups)) pickAtt[k] = p.att || {};
     // Aufsätze (shared/attachments.data.js): loadout.att { [weaponId]: { slot: id } }, Spieler sonst aus dem Browser
-    const attAll = this.actor && this.actor.isPlayer ? loadAttachments() : loadout.att && typeof loadout.att === 'object' ? loadout.att : null;
+    const attAll = this.actor && this.actor.isPlayer ? { ...loadAttachments(), ...pickAtt } : loadout.att && typeof loadout.att === 'object' ? loadout.att : null;
     const withAtt = (d) => {
       const a = d && attAll && attAll[d.id];
       if (!a) return d;
@@ -303,7 +308,8 @@ export class WeaponController {
     // loadout.camo: { [weaponId]: camoId } (Lobby/modes-ui) oder eine Id für alle; loadout.camos wie die Objektform
     const map = loadout.camos || (loadout.camo && typeof loadout.camo === 'object' ? loadout.camo : null);
     const all = typeof loadout.camo === 'string' ? loadout.camo : null;
-    const camoFor = (id) => (map && map[id]) || all || (stored && typeof stored === 'object' ? stored[id] : null) || null;
+    const pk = this._pickups || {};
+    const camoFor = (id) => (pk[id] ? pk[id].camo || null : (map && map[id]) || all || (stored && typeof stored === 'object' ? stored[id] : null) || null);
     for (const s of this.slots) this._vm('setCamo', s.id, camoFor(s.id));
     this._vm('setCamo', this.meleeId, camoFor(this.meleeId));
     this._vm('setMelee', this.meleeId);

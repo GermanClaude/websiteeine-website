@@ -79,6 +79,38 @@ function gearDepth(variantId) {
   return { front, back };
 }
 
+/**
+ * Freier Fall einer fallengelassenen Waffe (d = { gun, vel, spin, rest, ground, t }): Schwerkraft, Drehung, Aufprall mit
+ * Abprallen, am Ende flach auf der Seite (Lauf waagerecht). world.groundHeight(x, z, yMax) = Boden darunter.
+ */
+export function stepDrop(d, dt, world) {
+  if (!d || d.rest) return;
+  d.t += dt;
+  const g = d.gun;
+  d.vel.y -= 16 * dt;
+  g.position.addScaledVector(d.vel, dt);
+  _q.setFromEuler(_e.set(d.spin.x * dt, d.spin.y * dt, d.spin.z * dt));
+  g.quaternion.premultiply(_q);
+  if (d.ground === null || d.t % 0.2 < dt) {
+    const gy = world && world.groundHeight ? world.groundHeight(g.position.x, g.position.z, g.position.y + 0.5) : 0;
+    d.ground = gy == null ? -50 : gy;
+  }
+  if (g.position.y < d.ground + 0.04) {
+    g.position.y = d.ground + 0.04;
+    d.vel.multiplyScalar(0.35);
+    d.vel.y = Math.abs(d.vel.y) * 0.2;
+    d.spin.multiplyScalar(0.4);
+    _v.set(0, 0, -1).applyQuaternion(g.quaternion);
+    _v.y = 0;
+    if (_v.lengthSq() < 1e-4) _v.set(0, 0, -1);
+    _v.normalize();
+    const yaw = Math.atan2(-_v.x, -_v.z);
+    const target = _q2.setFromEuler(_e.set(0, yaw, Math.PI / 2, 'YXZ'));
+    g.quaternion.slerp(target, 0.35);
+    if (d.vel.lengthSq() < 0.05 && d.t > 0.4) { g.quaternion.copy(target); d.rest = true; }
+  }
+}
+
 export class Soldier {
   constructor({ team = null, variant = 0, camo = null, quality = 'high', models = null, name = '' } = {}) {
     this.id = ++serial;
@@ -464,6 +496,11 @@ export class Soldier {
     this._dropGun(dir, info);
   }
 
+  /**
+   * Waffe fällt (Nutzer 13.10.: „je nachdem, wie die Leiche fliegt oder fällt“): Sie bleibt zuerst kurz in der Hand und
+   * folgt dem fallenden Körper (0,1–0,5 s, zufällig), dann fliegt sie mit dem Schwung der Hand weiter. Bei Explosionen
+   * reißt es sie sofort weg.
+   */
   _dropGun(dir, info) {
     const gun = this.gun;
     const scene = info.scene || (this.root.parent || null);
@@ -479,37 +516,44 @@ export class Soldier {
     const vel = new THREE.Vector3().copy(info.velocity || ZERO).multiplyScalar(0.6).addScaledVector(dir, 1.2);
     vel.y += 1.2;
     const spin = new THREE.Vector3((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 8);
-    this._drop = { gun, vel, spin, rest: false, ground: null, t: 0 };
+    const strong = !!info.explosive || (info.strength ?? 1) > 1.6;
+    if (strong) vel.addScaledVector(info.velocity || ZERO, 0.4);
+    const hand = this.joint(BONE.handR, new THREE.Vector3());
+    this._drop = { gun, vel, spin, rest: false, ground: null, t: 0, follow: strong ? 0 : 0.1 + Math.random() * 0.4, off: pos.clone().sub(hand), hand };
   }
 
   _updateDrop(dt, world) {
     const d = this._drop;
     if (!d || d.rest) return;
-    d.t += dt;
-    const g = d.gun;
-    d.vel.y -= 16 * dt;
-    g.position.addScaledVector(d.vel, dt);
-    _q.setFromEuler(_e.set(d.spin.x * dt, d.spin.y * dt, d.spin.z * dt));
-    g.quaternion.premultiply(_q);
-    if (d.ground === null || d.t % 0.2 < dt) {
-      const gy = world && world.groundHeight ? world.groundHeight(g.position.x, g.position.z, g.position.y + 0.5) : 0;
-      d.ground = gy == null ? -50 : gy;
+    if (d.follow > 0) {
+      // Hand folgen: Weg der Hand = Weg der Waffe, Geschwindigkeit daraus (geglättet)
+      const h = this.joint(BONE.handR, _v);
+      const g = d.gun;
+      if (dt > 1e-4) d.vel.lerp(_v2.copy(h).sub(d.hand).divideScalar(dt), 0.5);
+      d.hand.copy(h);
+      g.position.copy(h).add(d.off);
+      _q.setFromEuler(_e.set(d.spin.x * dt * 0.3, d.spin.y * dt * 0.3, d.spin.z * dt * 0.3));
+      g.quaternion.premultiply(_q);
+      d.follow -= dt;
+      if (d.follow <= 0) {
+        // Loslassen: Schwung der Hand (begrenzt, damit sie in der Nähe der Leiche landet), Drehung je nach Tempo
+        if (d.vel.length() > 6) d.vel.setLength(6);
+        d.vel.y += 0.4;
+        d.spin.multiplyScalar(0.6 + d.vel.length() * 0.25);
+      }
+      return;
     }
-    if (g.position.y < d.ground + 0.04) {
-      g.position.y = d.ground + 0.04;
-      d.vel.multiplyScalar(0.35);
-      d.vel.y = Math.abs(d.vel.y) * 0.2;
-      d.spin.multiplyScalar(0.4);
-      // flach auf die Seite legen (Lauf bleibt in der Horizontalen)
-      _v.set(0, 0, -1).applyQuaternion(g.quaternion);
-      _v.y = 0;
-      if (_v.lengthSq() < 1e-4) _v.set(0, 0, -1);
-      _v.normalize();
-      const yaw = Math.atan2(-_v.x, -_v.z);
-      const target = _q2.setFromEuler(_e.set(0, yaw, Math.PI / 2, 'YXZ'));
-      g.quaternion.slerp(target, 0.35);
-      if (d.vel.lengthSq() < 0.05 && d.t > 0.4) { g.quaternion.copy(target); d.rest = true; }
-    }
+    stepDrop(d, dt, world);
+  }
+
+  /** Fallengelassene Waffe abgeben (bleibt als Beute liegen, mappoints): erst nach dem Loslassen. → drop | null */
+  releaseDrop() {
+    const d = this._drop;
+    if (!d || d.follow > 0) return null;
+    this._drop = null;
+    if (this.gun === d.gun) this.gun = null;
+    if (typeof this.onGunLost === 'function') this.onGunLost(d.gun);
+    return d;
   }
 
   /** Leiche: Ragdoll, Waffe, Auflösen. Rückgabe: true solange sichtbar. */
