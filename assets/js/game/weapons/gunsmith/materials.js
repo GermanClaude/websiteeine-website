@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { wearMap, brushedMap, grainNormal, stippleNormal, knurlNormal, woodMap, reticleMap, polymerMap, drumFaceMap, drumFaceNormal } from './textures.js';
 import { p9SlideMaps, p9FrameMaps, SLIDE_CAMO_REPEAT, FRAME_CAMO_REPEAT } from './p9-tex.js';
+import { m17FurnMaps, FURN_CAMO_REPEAT } from './m17-tex.js';
 
 const mats = new Map();
 
@@ -13,6 +14,9 @@ function std(o) {
   return m;
 }
 const solid = (m) => { m.userData.solid = true; return m; };
+
+// Feinere Kachelung der geteilten Detailtexturen (aus der Nähe scharf statt verwaschen); Klone teilen das Bild
+const fine = (t, n) => { const c = t.clone(); c.repeat.set(n, n); c.needsUpdate = true; return c; };
 
 const DEFS = {
   // Parkerisierter Stahl / Gunmetal
@@ -48,8 +52,15 @@ const DEFS = {
   // P-9 nach Foto (p9-tex.js): Nitrid-Schlitten mit Rillen/Gravur/Kratzern, Polymerrahmen mit Würfelraster und Rillen
   // Schlitten: satiniertes Nitrid – echtes Metall (Spiegelung der Umgebung), Glanz längs gezogen (Anisotropie entlang
   // der Atlas-U-Richtung = Schlittenlänge), blank geriebene Kanten aus dem Atlas (Rauheit/Albedo)
-  p9Slide: () => { const t = p9SlideMaps(); const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: t.map, metalness: 0.8, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), anisotropy: 0.25, envMapIntensity: 1.1 }); m.userData.camoRepeat = SLIDE_CAMO_REPEAT; return m; },
+  p9Slide: () => { const t = p9SlideMaps(); const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: t.map, metalness: 0.78, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), envMapIntensity: 1.1 }); m.userData.camoRepeat = SLIDE_CAMO_REPEAT; return m; },
   p9Frame: () => { const t = p9FrameMaps(); const m = std({ color: 0x232427, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FRAME_CAMO_REPEAT; return m; },
+  // M-17 nach Foto: eloxiertes Gehäuse (matt, leichter Glanz), Schienen-Handschutz, phosphatierter Stahl (Lauf,
+  // Kornträger), Polymer-Schaft/-Griff mit eigenem Atlas (m17-tex.js)
+  m17Mag: () => std({ color: 0x5a5d61, metalness: 0.5, roughness: 0.44, roughnessMap: fine(wearMap(), 3), normalMap: fine(grainNormal(), 6), normalScale: new THREE.Vector2(0.1, 0.1) }),
+  m17Rec: () => std({ color: 0x3d4044, metalness: 0.38, roughness: 0.44, roughnessMap: fine(wearMap(), 3), normalMap: fine(grainNormal(), 6), normalScale: new THREE.Vector2(0.12, 0.12) }),
+  m17Ras: () => std({ color: 0x313337, metalness: 0.35, roughness: 0.47, roughnessMap: fine(wearMap(), 3), normalMap: fine(grainNormal(), 6), normalScale: new THREE.Vector2(0.12, 0.12) }),
+  m17Steel: () => std({ color: 0x3a3b3e, metalness: 0.6, roughness: 0.55, roughnessMap: fine(wearMap(), 3), normalMap: fine(grainNormal(), 8), normalScale: new THREE.Vector2(0.2, 0.2) }),
+  m17Furn: () => { const t = m17FurnMaps(); const m = std({ color: 0x303236, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FURN_CAMO_REPEAT; return m; },
   barrelNitride: () => std({ color: 0x38393c, metalness: 0.85, roughness: 0.42, roughnessMap: wearMap() }),
   // Trommelmagazin: eigener Kunststoff (keine Tarnung) und Deckel mit eigener Textur
   drumBody: () => std({ color: 0x2a2c30, map: polymerMap(), metalness: 0.0, roughness: 0.66, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.2, 0.2) }),
@@ -133,6 +144,9 @@ export function getMat(key) {
 }
 
 export function materialKeys() { return Object.keys(DEFS); }
+
+/** Material nachträglich anmelden (z. B. Schriftzüge einzelner Waffen); vorhandene Schlüssel bleiben unverändert. */
+export function defineMat(key, make) { if (!DEFS[key]) DEFS[key] = make; }
 
 // Vorrat für Instanz-Materialien des Viewmodels (Arme, Mündungsfeuer, Rauch, Hülsen). Beim Matchende werden sie
 // hier geparkt statt entsorgt: dispose() gäbe ihre Shaderprogramme frei, und das nächste Match müsste jedes neu

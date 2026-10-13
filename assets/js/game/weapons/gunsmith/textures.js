@@ -43,6 +43,14 @@ export function fbm(w, h, { seed = 1, octaves = 4, period = 8, gain = 0.5, perio
   return out;
 }
 
+/** Rauschfeld n (nw × nh, kachelnd) weich an Stelle (fx, fy) in Feldkoordinaten abtasten (statt Blockpixeln). */
+export function bilinear(n, nw, nh, fx, fy) {
+  const x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+  const xa = ((x0 % nw) + nw) % nw, xb = (xa + 1) % nw, ya = ((y0 % nh) + nh) % nh, yb = (ya + 1) % nh;
+  const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+  return (n[ya * nw + xa] * (1 - sx) + n[ya * nw + xb] * sx) * (1 - sy) + (n[yb * nw + xa] * (1 - sx) + n[yb * nw + xb] * sx) * sy;
+}
+
 export function canvas(w, h) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;

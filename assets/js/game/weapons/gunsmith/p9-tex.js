@@ -4,7 +4,7 @@
 // Querrillen an Vorder- und Rückenteil, Fuge des Rückenteils, Stift, Zierfeld (symmetrisch, damit es rechts nicht
 // spiegelverkehrt steht). Gezeichnet wird direkt in Fotopixeln; slideUV/frameUV bilden Modellpunkte auf den Atlas ab.
 import * as THREE from 'three';
-import { canvas, toTexture, cached, heightToNormal, fbm, rng } from './textures.js';
+import { canvas, toTexture, cached, heightToNormal, fbm, rng, bilinear } from './textures.js';
 import * as R from './p9-ref.js';
 
 // ---------------------------------------------------------------- Atlas-Abbildung
@@ -123,10 +123,10 @@ function drawSlide(g, kind, mirror) {
   // Holsterkratzer und Abrieb (nur Albedo/Rauheit)
   if (kind !== 'h') {
     const r = rng(mirror ? 77 : 41);
-    for (let k = 0; k < 120; k++) {
-      const x = 180 + r() * 1380, y = 305 + r() * 140, len = 6 + r() * 60, a = (r() - 0.5) * 0.25;
-      g.strokeStyle = kind === 'a' ? `rgba(196,200,206,${0.08 + r() * 0.18})` : grey(0.2 + r() * 0.1);
-      g.lineWidth = 0.5 + r() * 0.8;
+    for (let k = 0; k < 70; k++) {
+      const x = 180 + r() * 1380, y = 305 + r() * 140, len = 4 + r() * 34, a = (r() - 0.5) * 0.5;
+      g.strokeStyle = kind === 'a' ? `rgba(196,200,206,${0.05 + r() * 0.1})` : `rgba(60,60,60,${0.3 + r() * 0.3})`;
+      g.lineWidth = 0.35 + r() * 0.4;
       g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); g.stroke();
     }
   }
@@ -134,18 +134,16 @@ function drawSlide(g, kind, mirror) {
 
 function slideBand(kind) {
   const c = canvas(S.W, S.H), g0 = c.getContext('2d', { willReadFrequently: true });
-  const base = { h: grey(0.5), a: '#66686c', r: grey(0.42) }[kind];
+  const base = { h: grey(0.5), a: '#5c5e62', r: grey(0.44) }[kind];
   g0.fillStyle = base; g0.fillRect(0, 0, S.W, S.H);
   if (kind !== 'h') {
     // wolkige Nitrid-Fleckung und feine Längsmaserung über den ganzen Atlas
+    // Nitrid-Fleckung weich (bilinear, keine Blockpixel) + feines Strahlkorn je Pixel (matt, nicht gebürstet)
     const n = fbm(256, 64, { seed: kind === 'a' ? 51 : 53, period: 6, octaves: 4 });
-    const img = g0.getImageData(0, 0, S.W, S.H), d = img.data;
-    const rr = rng(kind === 'a' ? 57 : 59), rows = new Float32Array(S.H).map(() => rr() - 0.5);
-    const lines = fbm(512, 128, { seed: kind === 'a' ? 61 : 63, period: 32, periodY: 64, octaves: 2 });
+    const img = g0.getImageData(0, 0, S.W, S.H), d = img.data, rr = rng(kind === 'a' ? 57 : 59);
     for (let y = 0; y < S.H; y++) for (let x = 0; x < S.W; x++) {
-      const v = n[(y >> 3) * 256 + (x >> 3)] - 0.5, i = (y * S.W + x) * 4;
-      const st = rows[y] * (0.6 + lines[(y >> 2) * 512 + (x >> 2)]);
-      const k = kind === 'a' ? v * 20 + st * 4 : v * 30 + st * 12;
+      const v = bilinear(n, 256, 64, x / 8, y / 8) - 0.5, i = (y * S.W + x) * 4;
+      const k = kind === 'a' ? v * 16 + (rr() - 0.5) * 6 : v * 26 + (rr() - 0.5) * 22;
       d[i] += k; d[i + 1] += k; d[i + 2] += k;
     }
     g0.putImageData(img, 0, 0);
@@ -171,7 +169,9 @@ function slideBand(kind) {
 export function p9SlideMaps() {
   return cached('p9slide', () => {
     const h = slideBand('h');
-    const hh = blur(readHeight(h), S.W, S.H);
+    const hh = readHeight(h), rg = rng(61);
+    for (let i = 0; i < hh.length; i++) hh[i] += (rg() - 0.5) * 0.05;     // Strahlkorn (nach dem Weichzeichnen ≈ 0,1 mm)
+    blur(hh, S.W, S.H);
     return {
       map: toTexture(slideBand('a'), { srgb: true, repeat: false, aniso: 8 }),
       normalMap: heightToNormal(hh, S.W, S.H, 3.2),
@@ -230,7 +230,7 @@ function frameLayer(kind) {
   if (kind !== 'h') {
     const n = fbm(256, 128, { seed: 61, period: 5, octaves: 4 });
     const img = g0.getImageData(0, 0, F.W, F.H), d = img.data;
-    for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) { const v = (n[(y >> 3) * 256 + (x >> 3)] - 0.5) * 40, i = (y * F.W + x) * 4; d[i] += v; d[i + 1] += v; d[i + 2] += v; }
+    for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) { const v = (bilinear(n, 256, 128, x / 8, y / 8) - 0.5) * 40, i = (y * F.W + x) * 4; d[i] += v; d[i + 1] += v; d[i + 2] += v; }
     g0.putImageData(img, 0, 0);
   }
   drawFrame(ctxIn(c, F), kind);
@@ -242,7 +242,7 @@ export function p9FrameMaps() {
     const h = readHeight(frameLayer('h'));
     // feines Spritzgusskorn auf der ganzen Fläche
     const n = fbm(512, 256, { seed: 67, period: 64, octaves: 2, gain: 0.5 });
-    for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) h[y * F.W + x] += (n[(y >> 2) * 512 + (x >> 2)] - 0.5) * 0.035;
+    for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) h[y * F.W + x] += (bilinear(n, 512, 256, x / 4, y / 4) - 0.5) * 0.035;
     blur(h, F.W, F.H);
     return {
       map: toTexture(frameLayer('a'), { srgb: true, repeat: false, aniso: 8 }),

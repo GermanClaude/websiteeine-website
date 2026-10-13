@@ -14,7 +14,8 @@
 //   auf der optischen Achse liegt (inkl. Augenabstand der Visierung).
 import * as THREE from 'three';
 import { Builder } from './gunsmith/builder.js';
-import { m17, kv47, sk14 } from './gunsmith/guns-ar.js';
+import { kv47, sk14 } from './gunsmith/guns-ar.js';
+import { m17 } from './gunsmith/guns-m17.js';
 import { vp9, qx90, hm60 } from './gunsmith/guns-auto.js';
 import { brecher, bulldog } from './gunsmith/guns-long.js';
 import { p9, adler } from './gunsmith/guns-pistol.js';

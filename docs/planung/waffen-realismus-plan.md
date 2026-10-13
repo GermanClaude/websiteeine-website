@@ -74,4 +74,10 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
 - 13.10.: Plan erstellt; erste Ergänzungen an KV-47/AR-Unterteil/P-9 sind live, ersetzen aber nicht den Neubau.
 - 13.10. abends: **P-9 fertig nach Foto** (Glock 17 Gen 4) – Verfahren oben. Mündungsbohrung mit heller Krone an
   allen Waffen (`b.bore`, Test `tools/muzzle-bore-test.mjs`).
-- Nächster Schritt: KV-47 nach demselben Verfahren (Seitenfoto AKM/AK-74), dann M-17.
+- 13.10. spät: **M-17 fertig nach Foto** (PEO-Foto M4-Karabiner mit RAS, gemeinfrei, um −14° gedreht;
+  `m17-ref.js`, `m17-tex.js`, `guns-m17.js`). Schaft/Griff/Unter-/Oberteil/Kornträger als Distanzfelder, Handschutz
+  und Magazin als Profil-Extrusion; ≈ 102 000 Dreiecke (Ego), 584 (Bots), Bau ≈ 0,37 s. Magazin jetzt deckend
+  grau wie im Foto (Füllstand nur noch an der Öffnung sichtbar).
+- Metall aus der Nähe: Fleckenrauschen bilinear statt blockig, feines Strahlkorn je Pixel, keine Anisotropie mehr
+  (die Schlieren wirkten aus der Nähe falsch); Metallteile des M-17 mit fein wiederholten Rauheits-/Kornkarten.
+- Nächster Schritt: KV-47 nach demselben Verfahren (Seitenfoto AKM/AK-74).
