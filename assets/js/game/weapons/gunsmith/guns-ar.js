@@ -62,6 +62,19 @@ export function arLower(b, { lowerMat = 'alu', upperMat = 'alu', gripMat = 'grip
     engrave(b, -0.0136, 0.041, 0.112, ['M-17 FALKE', 'KAL 5,56', 'NP 104729'], { dir: -1 });
     // Riegel am Ladehebel (links)
     b.box(upperMat, 0.006, 0.0055, 0.012, -0.0235, 0.108, -0.079, { part: 'charge', c: 0.001 });
+    // Nach dem AR-15-Vorbild (Nutzer 13.10.2026): Wahlhebel mit runder Nabe, Schutzrippe um den Magazinknopf,
+    // Verschlussfang mit Riffelung, Kerben der Schlossmutter, QD-Aufnahme der Endplatte, Scharnierstange des
+    // Staubschutzdeckels, Abzugsachse
+    b.cyl('steel', 0.0058, 0.0058, 0.003, -0.0126, 0.061, -0.006, { axis: 'x', seg: 16 });
+    b.box('steel', 0.0028, 0.0042, 0.016, -0.0142, 0.064, 0.0, { rx: -0.5, c: 0.001 });
+    b.box('cavity', 0.0006, 0.0012, 0.004, -0.0141, 0.061, -0.006, { c: 0 });
+    b.side(lowerMat, [[0.03, 0.05], [0.058, 0.05], [0.06, 0.066], [0.054, 0.068], [0.034, 0.068], [0.03, 0.064]], 0.0014, 0.0117, { bevel: 0.0005 });
+    for (let i = 0; i < 4; i++) b.box('cavity', 0.0006, 0.0008, 0.006, -0.0151, 0.054 + i * 0.0032, 0.06, { c: 0 });
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; b.box('cavity', 0.0022, 0.0022, 0.0084, Math.cos(a) * 0.0172, axis + Math.sin(a) * 0.0172, -0.074, { c: 0 }); }
+    b.cyl('steel', 0.0198, 0.0198, 0.003, 0, axis, -0.069, { seg: 18 });
+    b.cyl('steelDark', 0.0045, 0.0045, 0.006, -0.018, axis - 0.012, -0.069, { axis: 'x', seg: 12 });
+    b.cyl('steel', 0.0011, 0.0011, 0.052, 0.0172, 0.0795, 0.047, { seg: 6 });
+    for (const s of [-1, 1]) b.screw('steelBright', s * 0.0114, 0.051, 0.022, 'x', 0.0021); // Abzugsachse
   }
   b.anchor('rightHandGrip', 0, 0.0, 0, { data: { rake: 0.32, gw: 0.015, gd: 0.023, gu: 0.0, ho: 0.018, tu: 0.034 } });
   b.anchor('magWell', 0, 0.0, 0.088);
@@ -273,6 +286,31 @@ export function kv47(b) {
     for (let i = 0; i < 3; i++) b.box('cavity', 0.011, 0.0007, 0.0006, 0, 0.02 + i * 0.004, 0.1052, { rx: 0.25, c: 0 });
     // Prägung links am Gehäuse (Typ, Seriennummer)
     engrave(b, -0.0174, 0.068, 0.15, ['KV-47', '7,62x39', 'NP 3381'], { dir: -1 });
+    // Nach dem AKM-Vorbild (Nutzer 13.10.2026: Schalter, Knöpfe, Oberflächen wie beim Original):
+    // Seitenmontage-Schiene links (Schwalbenschwanz mit Rillen + Nieten)
+    b.box('steel', 0.0042, 0.016, 0.1, -0.0192, 0.066, -0.02, { c: 0.0008 });
+    for (let i = 0; i < 6; i++) b.box('cavity', 0.0006, 0.0128, 0.0014, -0.0214, 0.066, -0.06 + i * 0.016, { c: 0 });
+    for (const u of [-0.055, -0.02, 0.015]) b.screw('steelBright', -0.0215, 0.066, u, 'x', 0.0018);
+    // Magazinführungs-Prägungen über dem Schacht (beidseitig), Haltestifte für Abzug/Hahn mit Federbügel
+    for (const s of [-1, 1]) {
+      b.box('steelDark', 0.0008, 0.007, 0.016, s * 0.0172, 0.041, 0.148, { c: 0.002 });
+      for (const u of [0.035, 0.07]) b.cyl('steelBright', 0.0024, 0.0024, 0.0352, 0, 0.058, u, { axis: 'x', seg: 10 });
+    }
+    b.box('steel', 0.0016, 0.004, 0.04, 0.0178, 0.058, 0.052, { c: 0.0006 });
+    // Daumenlasche vorn am Sicherungshebel + Rasten im Gehäuse
+    b.box('steel', 0.006, 0.009, 0.006, 0.021, 0.079, 0.111, { rz: -0.4, c: 0.001 });
+    for (const v of [0.074, 0.067]) b.box('cavity', 0.0006, 0.0022, 0.004, 0.0174, v, 0.118, { c: 0 });
+    // Sperrhebel des Gasrohrs (rechts am Visierblock), Hebel des Handschutz-Haltebands
+    b.box('steel', 0.003, 0.006, 0.024, 0.0132, axis + 0.024, 0.218, { rx: -0.25, c: 0.0008 });
+    b.cyl('steel', 0.0035, 0.0035, 0.004, 0.0132, axis + 0.026, 0.207, { axis: 'x', seg: 10 });
+    b.box('steel', 0.0024, 0.0045, 0.024, 0.0196, axis - 0.004, 0.392, { c: 0.0008 });
+    // Längsrillen am Pistolengriff (beidseitig, der Griffneigung folgend)
+    for (const s of [-1, 1]) for (let i = 0; i < 5; i++) b.box('cavity', 0.0006, 0.07, 0.0014, s * 0.0152, -0.026, -0.006 + i * 0.0052, { rx: -0.25, c: 0 });
+    // Klappe der Schaftkappe (Zubehörfach), Nieten am Abzugsbügel, Putzstock-Kopf
+    b.box('cavity', 0.022, 0.034, 0.0008, 0, 0.0, -0.3784, { c: 0 });
+    b.box('steelBright', 0.008, 0.006, 0.0012, 0, 0.012, -0.3786, { c: 0 });
+    for (const s of [-1, 1]) for (const u of [0.028, 0.094]) b.screw('steelBright', s * 0.0062, 0.024, u, 'x', 0.0016);
+    b.cyl('steel', 0.0048, 0.0048, 0.01, 0, axis - 0.017, 0.632, { seg: 10 });
   }
   const end = akBrake(b, 0.65, axis);
   b.anchor('muzzle', 0, axis, end + 0.002);

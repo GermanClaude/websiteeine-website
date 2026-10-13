@@ -76,6 +76,14 @@ export function p9(b) {
     b.box('steelBright', 0.0042, 0.0016, 0.006, 0, 0.0852, 0.012, { part: 'slide', c: 0.0004 });
     for (let i = 0; i < 4; i++) b.box('polymer', 0.0236, 0.0022, 0.0042, 0, 0.0332, 0.079 + i * 0.012, { c: 0.0004 });
     for (const s of [-1, 1]) b.box('rubber', 0.0012, 0.04, 0.024, s * 0.0146, -0.012, -0.018, { rx: -RAKE, c: 0.002 });
+    // Nach dem Glock-17-Vorbild (Nutzer 13.10.2026): weiße Ringe um die Leuchtpunkte, Fuge Schlitten/Rahmen,
+    // Führungsstange der Schließfeder unter dem Lauf, eingeprägtes Logo am Griff
+    for (const s of [-1, 1]) b.circle('paintWhite', 0.0019, s * 0.0055, 0.0888, -0.03545, { part: 'slide', seg: 10 });
+    b.circle('paintWhite', 0.002, 0, 0.0888, 0.13385, { part: 'slide', seg: 10 });
+    for (const s of [-1, 1]) b.box('cavity', 0.0006, 0.0009, 0.172, s * 0.0129, 0.0524, 0.055, { c: 0 });
+    b.circle('cavity', 0.0044, 0, 0.0585, 0.1452, { part: 'slide', seg: 14 });
+    b.cyl('steelDark', 0.0024, 0.0024, 0.004, 0, 0.0585, 0.1432, { seg: 10 });
+    for (const s of [-1, 1]) b.box('polymer', 0.0006, 0.007, 0.014, s * 0.0147, 0.022, -0.026, { rx: -RAKE, c: 0.001 });
   }
   // Prägung links am Schlitten (Typ, Kaliber)
   engrave(b, -0.0131, 0.0735, 0.098, ['P-9 KOMPAKT', '9 MM'], { part: 'slide', dir: -1, h: 0.0015, cw: 0.0009, line: 0.0026 });
