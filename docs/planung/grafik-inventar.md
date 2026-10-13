@@ -3,6 +3,8 @@
 Gehört zu `grafik-vorlage-plan.md`. Alles, was im neuen Video-Look neu gemacht werden muss. Spalte **Bezug** = welches
 Videobild (`docs/planung/vorlage-video/bild-*.jpg`) als Vorlage dient; „abgeleitet“ = im Video nicht zu sehen, strikt aus
 dem genannten Bild übertragen (keine eigene Stilidee). Haken setzen, wenn der Satz/das Modell im neuen Stil im Spiel ist.
+**Alles** auf dieser Liste wird neu gemacht – auch was im Video nie zu sehen ist (Dächer, Dachaufbauten, Rückseiten,
+Innenräume, Böden, Fahrzeuginnenräume …): so gestaltet, wie es im Video-Stil aussähe (Nutzer 13.10.).
 
 Vergleichsbilder: `node tools/vergleich-video.mjs [--tag=nachher]` → `tools/out/vergleich/<tag>-bogen.png` (Video | Spiel).
 

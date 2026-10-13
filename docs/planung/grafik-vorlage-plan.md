@@ -27,6 +27,10 @@ Auftrag (Nutzer, 12.10.): Das von ihm mit Gemini erzeugte 10-Sekunden-Video ist 
 - **Jeder Gegenstand in diesem Stil:** Requisiten (Kisten, Paletten, Fässer, Container, Möbel, Zäune, Lampen …),
   Gebäude, Fahrzeuge, Waffen, Soldaten – nichts im alten Look stehen lassen. Vorgehen: Inventar aller Materialien und
   Requisiten anlegen (Liste), dann abhaken.
+- **Auch alles, was im Video nicht zu sehen ist** (Nutzer 13.10.): z. B. Dächer, Dachaufbauten, Rückseiten, Innenräume,
+  Böden, Unterseiten, Fahrzeuginnenräume – so gestalten, wie sie in diesem Stil aussehen würden (Material, Farbe, Licht,
+  Kantenbehandlung aus dem nächstverwandten Videobild übertragen), und ebenfalls komplett neu machen. Nichts bleibt im
+  alten Look, nur weil es im Video nicht vorkommt. Leitfrage je Fläche: „Wie sähe das im Video aus, wenn die Kamera hinschaute?“
 - Weg zu den Texturen: eigene prozedurale Texturen (world/texgen) im Video-Stil und/oder passende freie Quellen, die
   auf den Look gebracht werden; optional schreibt Claude dem Nutzer Prompts, mit denen er nahtlose Texturen in Gemini
   erzeugt (dann Herkunft in CREDITS festhalten).
