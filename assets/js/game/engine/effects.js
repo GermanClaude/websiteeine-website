@@ -1132,7 +1132,12 @@ export class Effects {
       if (!a || a === p || !a.alive || !a.weapon || !G.combat.isHostile(a, p)) continue;
       const w = a.weapon;
       const def = w.currentDef;
-      if (!def || !def.scope || def.scope.overlay !== 'sniper' || !(w.adsProgress > 0.35)) continue;
+      // Nur echte Fernrohre (Kampfvisier, Zielfernrohr) – Rotpunkt/Holo funkeln nicht. Stärke nach Vergrößerung
+      // (Nutzer 13.10.): bis 2× praktisch nichts, 2,4× ein Hauch, 6× am stärksten (aber kleiner als früher).
+      const ov = def && def.scope && def.scope.overlay;
+      if ((ov !== 'sniper' && ov !== 'acog') || !(w.adsProgress > 0.35)) continue;
+      const mag = clamp(((def.scope.zoom || def.adsZoom || 1) - 1.8) / 6.4, 0, 1);
+      if (mag < 0.02) continue;
       a.getEyePosition(_t2);
       _dir.subVectors(eye, _t2);
       const dist = _dir.length();
@@ -1151,9 +1156,9 @@ export class Effects {
       if (!c.v) continue;
       const k = clamp((dot - 0.975) / 0.022, 0, 1) * clamp((w.adsProgress - 0.35) / 0.5, 0, 1);
       const pulse = 0.75 + 0.25 * Math.sin(now * 9 + (typeof a.id === 'number' ? a.id : String(a.id).length));
-      const size = (0.2 + dist * 0.032) * (0.65 + 0.35 * k);
+      const size = (0.2 + dist * 0.032) * (0.65 + 0.35 * k) * (0.3 + 0.7 * mag);
       const x = _t2.x + _w.x * 0.32, y = _t2.y + _w.y * 0.32 + 0.03, z = _t2.z + _w.z * 0.32;
-      const I = 6 * k * pulse;
+      const I = 6 * k * pulse * mag;
       const L = this.glints;
       L.spawn(x, y, z, 0, 0, 0, 1, size * 1.3, size * 1.3, C.glint[0] * I, C.glint[1] * I, C.glint[2] * I, 1, CELL.STAR);
       L.spawn(x, y, z, 0, 0, 0, 1, size * 0.5, size * 0.5, 3 * I, 3 * I, 3 * I, 1, CELL.SOFT);
