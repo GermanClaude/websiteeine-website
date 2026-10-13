@@ -198,7 +198,7 @@ export function camoCtx(G, wid) {
   let prof = null;
   try { prof = G.profile.get(); } catch { /* */ }
   const ws = (prof && prof.weaponStats && prof.weaponStats[wid]) || {};
-  const ctx = { level: (prof && prof.level) || 1, kills: ws.kills | 0, headshots: ws.headshots | 0, unlocked: [] };
+  const ctx = { level: (prof && prof.level) || 1, kills: ws.kills | 0, headshots: ws.headshots | 0, og: !!(prof && prof.og), unlocked: [] };
   if (D.CAMOS && typeof D.isCamoUnlocked === 'function') ctx.unlocked = Object.keys(D.CAMOS).filter((id) => D.CAMOS[id].unlock && D.CAMOS[id].unlock.type !== 'mastery' && D.isCamoUnlocked(id, ctx));
   return ctx;
 }
@@ -208,7 +208,7 @@ export function camoRowHtml(G, wid, cur) {
   const D = G.data || {};
   if (!D.CAMOS || !wid) return '';
   const ctx = camoCtx(G, wid);
-  const all = Object.values(D.CAMOS);
+  const all = Object.values(D.CAMOS).filter((cm) => typeof D.camoVisible !== 'function' || D.camoVisible(cm.id, ctx));
   const def = (all.find((x) => !x.unlock || x.unlock.type === 'default') || all[0] || {}).id;
   const sel = (cur && D.CAMOS[cur] && cur) || def;
   const list = all.map((cm) => {

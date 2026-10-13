@@ -153,6 +153,21 @@ const PAINTERS = {
       return t > 0.72 ? cols[2] : mix(cols[1], cols[0], Math.min(1, t * 1.4));
     });
   },
+  // Poliertes Gold mit feinem Schliff, weichen Glanzbahnen und eingestreuten Funken (Gold der ersten Stunde)
+  glitter(ctx, rand, cols) {
+    const rows = new Float32Array(SIZE); for (let i = 0; i < SIZE; i++) rows[i] = rand();
+    const n = fbm(rand, 3, 3);
+    const spark = new Uint8Array(SIZE * SIZE);
+    for (let i = 0; i < SIZE * SIZE * 0.012; i++) spark[(rand() * SIZE * SIZE) | 0] = rand() < 0.75 ? 1 : 2;
+    pixels(ctx, (x, y) => {
+      const band = 0.5 + 0.5 * Math.sin(((x + y * 0.6) / SIZE) * Math.PI * 4 + n(x, y) * 3);
+      let c = mix(cols[1], cols[0], Math.min(1, 0.35 + band * 0.55 + rows[y] * 0.15));
+      const s = spark[y * SIZE + x];
+      if (s === 1) c = mix(c, cols[2], 0.85);
+      else if (s === 2) c = mix(c, cols[3], 0.5);
+      return c;
+    });
+  },
   rust(ctx, rand, cols) {
     const n = fbm(rand, 5, 4), m = fbm(rand, 3, 8);
     pixels(ctx, (x, y) => {

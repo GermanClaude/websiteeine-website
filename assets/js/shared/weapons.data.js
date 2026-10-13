@@ -1005,7 +1005,8 @@ export function isUnlocked(id, level) {
  *  rarity   'standard' | 'selten' | 'episch' | 'legendaer' (Anzeige: RARITY_NAMES)
  *  unlock   { type: 'default' } | { type: 'level', level } | { type: 'kills', count } (Abschüsse mit DIESER Waffe) |
  *           { type: 'headshots', count } (Kopftreffer-Abschüsse mit dieser Waffe) |
- *           { type: 'mastery', camos: [...] } (alle genannten Muster mit dieser Waffe freigeschaltet)
+ *           { type: 'mastery', camos: [...] } (alle genannten Muster mit dieser Waffe freigeschaltet) |
+ *           { type: 'og' } (nur Spieler der ersten Stunde, ctx.og)
  * Profil/UI: isCamoUnlocked(camoId, { level, kills, headshots, unlocked }) – kills/headshots = Werte der Waffe,
  * unlocked = Menge bereits freier Muster dieser Waffe (für 'mastery').
  */
@@ -1038,6 +1039,10 @@ export const CAMOS = {
   polarlicht: { id: 'polarlicht', name: 'Polarlicht', pattern: 'aurora', colors: ['#0b1a2a', '#1fbf8f', '#7a4dd8', '#2fd1e6'], finish: { roughness: 0.25, metalness: 0.6 }, rarity: 'legendaer', unlock: { type: 'level', level: 55 } },
   gold: { id: 'gold', name: 'Gold', pattern: 'brushed', colors: ['#e0b453', '#b8862f', '#f6d98a'], finish: { roughness: 0.24, metalness: 1 }, rarity: 'legendaer',
     unlock: { type: 'mastery', camos: ['tiger', 'kohle', 'zebra', 'rost', 'kirsche', 'roter_tiger', 'damast'] } },
+  // Dank an die Spieler der ersten Stunde (Nutzer 13.10.2026): nur wer bis einschließlich 13.10. gespielt hat
+  // (Profil.og, shared/profile.js) – danach nicht mehr freischaltbar, für alle anderen unsichtbar.
+  og: { id: 'og', name: 'Gold der ersten Stunde', pattern: 'glitter', colors: ['#f4cd5a', '#c38f2a', '#fff4c2', '#7d5412'], finish: { roughness: 0.1, metalness: 1 }, rarity: 'legendaer',
+    unlock: { type: 'og' } },
 };
 export const CAMO_IDS = Object.keys(CAMOS);
 
@@ -1050,7 +1055,14 @@ export function camoUnlockText(id) {
   if (u.type === 'kills') return `${u.count} Abschüsse mit dieser Waffe`;
   if (u.type === 'headshots') return `${u.count} Kopftreffer-Abschüsse mit dieser Waffe`;
   if (u.type === 'mastery') return `Alle seltenen Muster dieser Waffe: ${u.camos.map((k) => CAMOS[k] ? CAMOS[k].name : k).join(', ')}`;
+  if (u.type === 'og') return 'Dank an alle, die bis zum 13.10.2026 gespielt haben – nicht mehr freischaltbar';
   return 'Immer verfügbar';
+}
+
+/** Muster in Listen zeigen? Das Gold der ersten Stunde nur, wer es besitzt (ctx.og). */
+export function camoVisible(id, ctx = {}) {
+  const c = CAMOS[id];
+  return !!c && (!c.unlock || c.unlock.type !== 'og' || !!ctx.og);
 }
 
 /**
@@ -1065,6 +1077,7 @@ export function isCamoUnlocked(id, ctx = {}) {
   if (u.type === 'level') return (ctx.level || 0) >= u.level;
   if (u.type === 'kills') return (ctx.kills || 0) >= u.count;
   if (u.type === 'headshots') return (ctx.headshots || 0) >= u.count;
+  if (u.type === 'og') return !!ctx.og;
   if (u.type === 'mastery') {
     const have = ctx.unlocked instanceof Set ? ctx.unlocked : new Set(ctx.unlocked || []);
     return u.camos.every((k) => have.has(k) || isCamoUnlocked(k, { ...ctx, unlocked: [] }));

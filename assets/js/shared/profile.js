@@ -8,6 +8,12 @@ import { WEAPONS, EQUIPMENT } from './weapons.data.js';
 import { matchBonusXp, medalXp, DIFFICULTIES, XP_RULES, applyChallenges, blankChallenges } from './modes.data.js';
 
 const STORAGE_KEY = 'nullpunkt:profile';
+/**
+ * Gold der ersten Stunde (Tarnung 'og', Nutzer 13.10.2026): wer bis einschließlich 13.10.2026 (Ende des Tages, deutsche
+ * Zeit) gespielt hat, bekommt es für immer, danach niemand mehr. Erkennung: Profil mit Spielstand aus der Zeit vor dieser
+ * Version (ogChecked fehlt) oder ein Match vor OG_CUTOFF. Liegt nur im Browser – wie der ganze Spielstand.
+ */
+export const OG_CUTOFF = Date.UTC(2026, 9, 13, 22, 0, 0); // 14.10.2026 00:00 MESZ
 const VERSION = 1;
 export const MAX_LEVEL = 55;
 const HISTORY_MAX = 25;
@@ -200,6 +206,7 @@ function blank() {
     weaponStats: {}, modeStats: {}, medals: {}, history: [], createdAt: Date.now(), updatedAt: Date.now(),
     // modes-ui (additiv): Kosmetik, Herausforderungen, Geheimnisse, Zähler (Fahrzeuge, Marken, Infektionen …)
     cosmetics: { equipped: { weapon: {}, operator: {} } }, challenges: blankChallenges(), secrets: {}, counters: {},
+    og: false, ogChecked: true,
   };
 }
 
@@ -265,14 +272,29 @@ function sanitize(data) {
   cleanExtras(p, data);
   p.createdAt = int(data.createdAt, 0, 1e15) || Date.now();
   p.updatedAt = int(data.updatedAt, 0, 1e15) || Date.now();
+  p.og = data.og === true;
+  p.ogChecked = data.ogChecked === true;
   return p;
+}
+
+/** Erste Ladung mit dieser Version: Spielstand von vorher (Matches, Spielzeit, EP) → Gold der ersten Stunde. */
+function checkOg(p) {
+  if (p.ogChecked) return false;
+  p.ogChecked = true;
+  let fbPlay = 0;
+  try { fbPlay = Number(JSON.parse(storage.getItem('nullpunkt:feedback') || '{}').play) || 0; } catch { /* */ }
+  if (p.matches > 0 || p.playtime > 0 || p.xp > 0 || fbPlay > 0) p.og = true;
+  return true;
 }
 
 function load() {
   if (!storage) return blank();
   try {
     const raw = storage.getItem(STORAGE_KEY);
-    return raw ? sanitize(JSON.parse(raw)) : blank();
+    if (!raw) return blank();
+    const p = sanitize(JSON.parse(raw));
+    if (checkOg(p)) { try { storage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch { /* gesperrt/voll */ } }
+    return p;
   } catch {
     return blank();
   }
@@ -337,6 +359,7 @@ export const profile = {
   recordMatch(summary) {
     if (!summary || typeof summary !== 'object') return null;
     const s = sanitizeSummary(summary);
+    if (!data.og && Date.now() < OG_CUTOFF) data.og = true; // heute noch gespielt → auch erste Stunde
     const xpBefore = data.xp;
     const levelBefore = data.level;
     const training = s.modeId === 'training';
@@ -484,7 +507,9 @@ export const profile = {
   },
 
   reset() {
+    const og = data.og; // Dank bleibt auch nach „Fortschritt zurücksetzen“
     data = blank();
+    data.og = og;
     save();
     notify();
   },

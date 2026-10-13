@@ -75,9 +75,9 @@ export class ProgressView {
     if (!D.CAMOS) return '<p class="lb-note">Tarnungen sind in dieser Version nicht verfügbar.</p>';
     const W = D.WEAPONS || {};
     const eq = (prof.cosmetics && prof.cosmetics.equipped && prof.cosmetics.equipped.weapon) || {};
-    const all = Object.values(D.CAMOS);
     const rows = Object.values(W).filter((w) => w.slot === 'primary' || w.slot === 'secondary').map((w) => {
       const ctx = camoCtx(this.G, w.id);
+      const all = Object.values(D.CAMOS).filter((cm) => typeof D.camoVisible !== 'function' || D.camoVisible(cm.id, ctx));
       const free = all.filter((cm) => typeof D.isCamoUnlocked !== 'function' || D.isCamoUnlocked(cm.id, ctx));
       const cur = D.CAMOS[eq[w.id]] || all[0];
       const next = all.find((cm) => !free.includes(cm));
