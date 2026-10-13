@@ -86,14 +86,14 @@ function drawSlide(g, kind, mirror) {
       g.fillStyle = gr; g.fillRect(xf, 312, xw - xf, 141);
       g.fillStyle = grey(0.3); g.fillRect(xw, 312, xe - xw, 141);
     } else if (kind === 'a') {
-      g.fillStyle = 'rgba(20,21,24,0.28)'; g.fillRect(xf, 312, xw - xf, 141);
+      g.fillStyle = 'rgba(20,21,24,0.35)'; g.fillRect(xf, 312, xw - xf, 141);
       g.fillStyle = 'rgba(10,10,12,0.6)'; g.fillRect(xw - 0.3, 312, 1.3, 141);
     } else {
-      g.fillStyle = grey(0.7); g.fillRect(xf, 312, xe - xf, 141);
+      g.fillStyle = grey(0.5); g.fillRect(xf, 312, xe - xf, 141);
     }
   }
   // Beschriftung (links: Marke, Typ, Hersteller, Kaliber; rechts: Nummer und Kaliber)
-  g.fillStyle = g.strokeStyle = { h: grey(0.3), a: 'rgba(28,29,32,0.92)', r: grey(0.78) }[kind];
+  g.fillStyle = g.strokeStyle = { h: grey(0.3), a: 'rgba(28,29,32,0.92)', r: grey(0.62) }[kind];
   if (!mirror) {
     const [lx0, ly0, lx1, ly1] = R.MARKS.logo;
     emblem(g, lx0, ly0, lx1, ly1, 3.2);
@@ -105,12 +105,27 @@ function drawSlide(g, kind, mirror) {
     text(g, 'NPK 0471', 330, 404, 18, { weight: '600', mirror: true, family: FONT });
     text(g, '9x19', 640, 404, 18, { weight: '600', mirror: true, family: FONT });
   }
+  // Kantenabrieb (Holster, Hand): blank geriebene, glattere Kanten – Oberkante/Fase, Unterkante vorn, Nase, Heck,
+  // Grate der Sägezahnrillen. Unregelmäßig unterbrochen wie echter Abrieb.
+  if (kind !== 'h') {
+    const rr = rng(mirror ? 91 : 93);
+    const wear = (a) => (kind === 'a' ? `rgba(196,199,204,${a})` : `rgba(40,40,40,${a})`);
+    const streak = (xa, xb, y, h, a) => { for (let x = xa; x < xb;) { const l = 8 + rr() * 70, k = rr(); if (k > 0.25) { g.fillStyle = wear(a * (0.4 + 0.6 * rr())); g.fillRect(x, y, l, h); } x += l + rr() * 30; } };
+    streak(196, 1572, 298, 3, 0.55);          // Kante oben (Fase → Deckfläche)
+    streak(200, 1568, 314, 2.2, 0.5);         // Kante Fase → Seitenfläche
+    streak(186, 900, 447, 2.4, 0.5);          // Unterkante vorn (Holster)
+    let gr = g.createLinearGradient(171, 0, 215, 0); gr.addColorStop(0, wear(0.75)); gr.addColorStop(1, wear(0));
+    g.fillStyle = gr; g.fillRect(171, 297, 44, 155);                       // Nase
+    gr = g.createLinearGradient(1579, 0, 1560, 0); gr.addColorStop(0, wear(0.6)); gr.addColorStop(1, wear(0));
+    g.fillStyle = gr; g.fillRect(1560, 297, 19, 155);                      // Heck
+    for (let i = 0; i <= n; i++) { g.fillStyle = wear(0.7); g.fillRect(x0 + i * pitch - 0.6, 312, 1.6, 140); }   // Rillengrate
+  }
   // Holsterkratzer und Abrieb (nur Albedo/Rauheit)
   if (kind !== 'h') {
     const r = rng(mirror ? 77 : 41);
     for (let k = 0; k < 120; k++) {
       const x = 180 + r() * 1380, y = 305 + r() * 140, len = 6 + r() * 60, a = (r() - 0.5) * 0.25;
-      g.strokeStyle = kind === 'a' ? `rgba(150,154,160,${0.08 + r() * 0.18})` : grey(0.38 + r() * 0.12);
+      g.strokeStyle = kind === 'a' ? `rgba(196,200,206,${0.08 + r() * 0.18})` : grey(0.2 + r() * 0.1);
       g.lineWidth = 0.5 + r() * 0.8;
       g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); g.stroke();
     }
@@ -119,18 +134,30 @@ function drawSlide(g, kind, mirror) {
 
 function slideBand(kind) {
   const c = canvas(S.W, S.H), g0 = c.getContext('2d', { willReadFrequently: true });
-  const base = { h: grey(0.5), a: '#606163', r: grey(0.6) }[kind];
+  const base = { h: grey(0.5), a: '#66686c', r: grey(0.42) }[kind];
   g0.fillStyle = base; g0.fillRect(0, 0, S.W, S.H);
   if (kind !== 'h') {
     // wolkige Nitrid-Fleckung und feine Längsmaserung über den ganzen Atlas
     const n = fbm(256, 64, { seed: kind === 'a' ? 51 : 53, period: 6, octaves: 4 });
     const img = g0.getImageData(0, 0, S.W, S.H), d = img.data;
+    const rr = rng(kind === 'a' ? 57 : 59), rows = new Float32Array(S.H).map(() => rr() - 0.5);
+    const lines = fbm(512, 128, { seed: kind === 'a' ? 61 : 63, period: 32, periodY: 64, octaves: 2 });
     for (let y = 0; y < S.H; y++) for (let x = 0; x < S.W; x++) {
       const v = n[(y >> 3) * 256 + (x >> 3)] - 0.5, i = (y * S.W + x) * 4;
-      const k = kind === 'a' ? v * 22 : v * 34;
+      const st = rows[y] * (0.6 + lines[(y >> 2) * 512 + (x >> 2)]);
+      const k = kind === 'a' ? v * 20 + st * 4 : v * 30 + st * 12;
       d[i] += k; d[i + 1] += k; d[i + 2] += k;
     }
     g0.putImageData(img, 0, 0);
+    // Oberseite: Kanten abgerieben, Stirnfläche (Mündung) und Heck blank
+    const gt = c.getContext('2d');
+    const col = (x) => (x - S.x0) / (S.x1 - S.x0) * S.W;
+    gt.fillStyle = kind === 'a' ? 'rgba(196,199,204,0.45)' : 'rgba(40,40,40,0.5)';
+    gt.fillRect(0, S.top, S.W, 3); gt.fillRect(0, S.H - 3, S.W, 3);
+    gt.fillStyle = kind === 'a' ? 'rgba(196,199,204,0.3)' : 'rgba(40,40,40,0.3)';
+    gt.fillRect(col(160), S.top, col(176) - col(160), S.H - S.top);
+    gt.fillStyle = kind === 'a' ? 'rgba(20,21,24,0.25)' : 'rgba(160,160,160,0.25)';
+    gt.fillRect(col(1574), S.top, col(1600) - col(1574), S.H - S.top);
   }
   for (const mirror of [false, true]) {
     const g = ctxIn(c, S, mirror ? S.band : 0, S.band);
@@ -167,8 +194,8 @@ function backStrapBand() {
 }
 
 function drawFrame(g, kind) {
-  const hi = { h: grey(0.62), r: grey(0.42) }[kind], lo = { h: grey(0.32), r: grey(0.78) }[kind];
-  const rib = { h: grey(0.42), r: grey(0.7) }[kind];
+  const hi = { h: grey(0.62), r: grey(0.34), a: grey(1) }[kind], lo = { h: grey(0.32), r: grey(0.7), a: grey(0.42) }[kind];
+  const rib = { h: grey(0.42), r: grey(0.58), a: grey(0.6) }[kind];
   // Würfelraster (RTF): erhabene Quadrate 1,2 mm im 2,1-mm-Raster, Zierfeld ausgespart
   g.save(); path(g, R.RTF); g.clip();
   const [ex0, ey0, ex1, ey1] = R.EMBLEM;
@@ -199,8 +226,8 @@ function drawFrame(g, kind) {
 
 function frameLayer(kind) {
   const c = canvas(F.W, F.H), g0 = c.getContext('2d', { willReadFrequently: true });
-  g0.fillStyle = { h: grey(0.5), r: grey(0.55) }[kind]; g0.fillRect(0, 0, F.W, F.H);
-  if (kind === 'r') {
+  g0.fillStyle = { h: grey(0.5), r: grey(0.4), a: grey(0.86) }[kind]; g0.fillRect(0, 0, F.W, F.H);
+  if (kind !== 'h') {
     const n = fbm(256, 128, { seed: 61, period: 5, octaves: 4 });
     const img = g0.getImageData(0, 0, F.W, F.H), d = img.data;
     for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) { const v = (n[(y >> 3) * 256 + (x >> 3)] - 0.5) * 40, i = (y * F.W + x) * 4; d[i] += v; d[i + 1] += v; d[i + 2] += v; }
@@ -218,7 +245,8 @@ export function p9FrameMaps() {
     for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) h[y * F.W + x] += (n[(y >> 2) * 512 + (x >> 2)] - 0.5) * 0.035;
     blur(h, F.W, F.H);
     return {
-      normalMap: heightToNormal(h, F.W, F.H, 2.6),
+      map: toTexture(frameLayer('a'), { srgb: true, repeat: false, aniso: 8 }),
+      normalMap: heightToNormal(h, F.W, F.H, 3.0),
       roughnessMap: toTexture(frameLayer('r'), { repeat: false, aniso: 8 }),
     };
   });
