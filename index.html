@@ -297,6 +297,7 @@
             <div><dt><code>nullpunkt:site</code></dt><dd>Website: Streukreis, Mannschaftsstärken je Modus, zuletzt gesehener Einsatz, Ton</dd></div>
             <div><dt><code>nullpunkt:feedback</code></dt><dd>Spielzeit fürs Feedback, ob du Feedback gegeben hast</dd></div>
             <div><dt><code>nullpunkt:webzeit</code></dt><dd>Wie lange du insgesamt auf dieser Webseite warst (nur eine Zahl)</dd></div>
+            <div><dt><code>nullpunkt:og</code></dt><dd>Ob du das Gold der ersten Stunde hast (nur Ja/Nein). Bleibt beim Löschen hier erhalten; ganz weg nur über die Browserdaten dieser Seite</dd></div>
           </dl>
           <p>Nur bis zum Schließen des Tabs (Sitzungsspeicher): eine zufällige Kennung für den Mehrspieler-Verbindungsaufbau und ein Merker fürs Neuladen.</p>
           <button class="txt-btn js-only" type="button" id="wipe-open" aria-haspopup="dialog">Lokale Daten löschen</button>
@@ -366,7 +367,7 @@
 
 <dialog class="wipe-dialog" id="wipe-dialog" aria-labelledby="wipe-h">
   <p class="rail-label" id="wipe-h">Lokale Daten löschen</p>
-  <p class="dlg-text">Alle NULLPUNKT-Daten in diesem Browser löschen? Stufe, Statistik, Aufsätze, Panzer-Tarnungen und Einstellungen gehen verloren.</p>
+  <p class="dlg-text">Alle NULLPUNKT-Daten in diesem Browser löschen? Stufe, Statistik, Aufsätze, Panzer-Tarnungen und Einstellungen gehen verloren. Das Gold der ersten Stunde bleibt dir erhalten.</p>
   <div class="dlg-actions">
     <button class="txt-btn" type="button" data-close>Abbrechen</button>
     <button class="dlg-go" type="button" id="wipe-go">Löschen<span class="o">.</span></button>

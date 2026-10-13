@@ -4,6 +4,7 @@ import { IMPRESSUM } from './config.js';
 import { site } from './state.js';
 import { announce } from './live.js';
 import { eligible as feedbackUnlocked, revealHtml, bindPoem, openFeedback } from '../shared/feedback.js';
+import { OG_KEY, secureOg } from '../shared/og.js';
 
 /** Alle Schlüssel 'nullpunkt:*' und 'nullpunkt.*' (Aufsätze, Panzer) im lokalen bzw. Sitzungsspeicher, dazu 'np-retry'. */
 function ourKeys(store = 'localStorage') {
@@ -68,11 +69,14 @@ export async function init(sec, D, ctx = {}) {
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
   dlg.addEventListener('close', () => { open.focus(); snd?.ui('back'); });
   go.addEventListener('click', () => {
+    // Gold der ersten Stunde vorher sichern – auch wenn das Spiel seit dem Update noch nicht offen war
+    try { secureOg(window.localStorage); } catch { /* egal */ }
     try { D.profile?.reset(); } catch { /* egal */ }
     try { D.settings?.reset(); } catch { /* egal */ }
     site.wipe();
     // Erst nach den Zurücksetzungen: alles mit unserem Präfix entfernen (die Stores schreiben beim Zurücksetzen neu).
-    for (const k of ourKeys()) { try { window.localStorage.removeItem(k); } catch { /* egal */ } }
+    // Ausnahme: das Gold der ersten Stunde (nullpunkt:og, nur Ja/Nein) – ein Dankeschön, das nicht verloren gehen soll.
+    for (const k of ourKeys()) { if (k === OG_KEY) continue; try { window.localStorage.removeItem(k); } catch { /* egal */ } }
     for (const k of ourKeys('sessionStorage')) { try { window.sessionStorage.removeItem(k); } catch { /* egal */ } }
     dlg.close();
     announce('Gelöscht.', { now: true });

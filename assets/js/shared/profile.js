@@ -4,6 +4,7 @@
 // WEAPONS[id].unlockLevel aus weapons.data.js, XP-Regeln aus modes.data.js (beide statisch importiert).
 
 import { settings } from './settings.js';
+import { OG_CUTOFF, ogStored as ogIn, ogKeep as ogPut } from './og.js';
 import { WEAPONS, EQUIPMENT } from './weapons.data.js';
 import { matchBonusXp, medalXp, DIFFICULTIES, XP_RULES, applyChallenges, blankChallenges } from './modes.data.js';
 
@@ -13,7 +14,9 @@ const STORAGE_KEY = 'nullpunkt:profile';
  * Zeit) gespielt hat, bekommt es für immer, danach niemand mehr. Erkennung: Profil mit Spielstand aus der Zeit vor dieser
  * Version (ogChecked fehlt) oder ein Match vor OG_CUTOFF. Liegt nur im Browser – wie der ganze Spielstand.
  */
-export const OG_CUTOFF = Date.UTC(2026, 9, 13, 22, 0, 0); // 14.10.2026 00:00 MESZ
+// Zusätzlich eigener Schlüssel (Nutzer 13.10.: „soll nicht löschbar sein“, shared/og.js): überlebt „Fortschritt
+// zurücksetzen“ und „Lokale Daten löschen“ auf der Startseite; weg nur, wenn man die Browserdaten der Seite löscht.
+export { OG_CUTOFF };
 const VERSION = 1;
 export const MAX_LEVEL = 55;
 const HISTORY_MAX = 25;
@@ -277,6 +280,9 @@ function sanitize(data) {
   return p;
 }
 
+const ogStored = () => ogIn(storage);
+const ogKeep = () => ogPut(storage);
+
 /** Erste Ladung mit dieser Version: Spielstand von vorher (Matches, Spielzeit, EP) → Gold der ersten Stunde. */
 function checkOg(p) {
   if (p.ogChecked) return false;
@@ -291,9 +297,11 @@ function load() {
   if (!storage) return blank();
   try {
     const raw = storage.getItem(STORAGE_KEY);
-    if (!raw) return blank();
+    if (!raw) { const b = blank(); b.og = ogStored(); return b; }
     const p = sanitize(JSON.parse(raw));
     if (checkOg(p)) { try { storage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch { /* gesperrt/voll */ } }
+    if (ogStored()) p.og = true;
+    if (p.og) ogKeep();
     return p;
   } catch {
     return blank();
@@ -360,6 +368,7 @@ export const profile = {
     if (!summary || typeof summary !== 'object') return null;
     const s = sanitizeSummary(summary);
     if (!data.og && Date.now() < OG_CUTOFF) data.og = true; // heute noch gespielt → auch erste Stunde
+    if (data.og) ogKeep();
     const xpBefore = data.xp;
     const levelBefore = data.level;
     const training = s.modeId === 'training';
