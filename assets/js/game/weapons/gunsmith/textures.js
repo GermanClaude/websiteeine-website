@@ -404,3 +404,78 @@ export function disposeTextures() {
   for (const t of cache.values()) t.dispose?.();
   cache.clear();
 }
+
+// Trommelmagazin (attach.js drumMag, Nutzer 13.10.2026): eigene Deckeltextur – gespritzter Kunststoff mit Ringrippen,
+// Speichen, Nabenfeld, Sichtfenster (Patronen dahinter) und Prägung. Ein Zeichengang liefert Farbe und Höhe.
+function drawDrumFace(ctx, S, height) {
+  const c = S / 2, R = S * 0.49;
+  const tone = (v) => (height ? `rgb(${v},${v},${v})` : null);
+  const ring = (r0, r1, col, h) => { ctx.beginPath(); ctx.arc(c, c, r1 * R, 0, Math.PI * 2); ctx.arc(c, c, r0 * R, 0, Math.PI * 2, true); ctx.fillStyle = height ? tone(h) : col; ctx.fill('evenodd'); };
+  ctx.fillStyle = height ? tone(120) : '#24262a';
+  ctx.fillRect(0, 0, S, S);
+  ring(0.93, 1.0, '#2e3035', 190);           // Randwulst
+  ring(0.83, 0.86, '#1b1c20', 70);           // Nut
+  ring(0.47, 0.5, '#2d2f34', 175);           // innere Rippe
+  ring(0.0, 0.27, '#1d1e22', 95);            // Nabenfeld (vertieft)
+  ring(0.27, 0.3, '#303237', 185);
+  // Speichen
+  for (let i = 0; i < 6; i++) {
+    const a = i * Math.PI / 3 + Math.PI / 6;
+    ctx.save(); ctx.translate(c, c); ctx.rotate(a);
+    ctx.fillStyle = height ? tone(175) : '#2b2d32';
+    ctx.fillRect(0.3 * R, -0.022 * R, 0.53 * R, 0.044 * R);
+    ctx.restore();
+  }
+  // Sichtfenster (Bogen) mit Patronenböden dahinter
+  const a0 = -0.15 * Math.PI, a1 = 0.62 * Math.PI;
+  ctx.beginPath(); ctx.arc(c, c, 0.79 * R, a0, a1); ctx.arc(c, c, 0.56 * R, a1, a0, true); ctx.closePath();
+  ctx.fillStyle = height ? tone(60) : '#3a3f42';
+  ctx.fill();
+  if (!height) {
+    for (let k = 0; k < 22; k++) {
+      const a = a0 + (k + 0.5) * (a1 - a0) / 22;
+      ctx.beginPath(); ctx.arc(c + Math.cos(a) * 0.675 * R, c + Math.sin(a) * 0.675 * R, 0.05 * R, 0, Math.PI * 2);
+      ctx.fillStyle = '#9a7a3a'; ctx.fill();
+      ctx.beginPath(); ctx.arc(c + Math.cos(a) * 0.675 * R, c + Math.sin(a) * 0.675 * R, 0.018 * R, 0, Math.PI * 2);
+      ctx.fillStyle = '#5a4520'; ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(40,52,58,0.45)';
+    ctx.beginPath(); ctx.arc(c, c, 0.79 * R, a0, a1); ctx.arc(c, c, 0.56 * R, a1, a0, true); ctx.closePath(); ctx.fill();
+  }
+  // Teilstriche am Fenster + Prägung
+  ctx.strokeStyle = height ? tone(185) : '#55585e'; ctx.lineWidth = S * 0.006;
+  for (let k = 0; k <= 6; k++) {
+    const a = a0 + k * (a1 - a0) / 6;
+    ctx.beginPath(); ctx.moveTo(c + Math.cos(a) * 0.8 * R, c + Math.sin(a) * 0.8 * R); ctx.lineTo(c + Math.cos(a) * 0.86 * R, c + Math.sin(a) * 0.86 * R); ctx.stroke();
+  }
+  ctx.fillStyle = height ? tone(185) : '#4c4f55';
+  ctx.font = `bold ${Math.round(S * 0.07)}px sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('75', c - 0.5 * R, c - 0.42 * R);
+  ctx.font = `bold ${Math.round(S * 0.042)}px sans-serif`;
+  ctx.fillText('NULLPUNKT', c, c - 0.665 * R);
+}
+
+export function drumFaceMap() {
+  return cached('drumFace', () => {
+    const S = 512, cv = canvas(S, S), ctx = cv.getContext('2d');
+    drawDrumFace(ctx, S, false);
+    // feines Spritzgussrauschen
+    const img = ctx.getImageData(0, 0, S, S), d = img.data, n = fbm(S, S, { seed: 41, period: 32, octaves: 3, gain: 0.5 });
+    for (let i = 0; i < S * S; i++) { const k = 0.92 + n[i] * 0.16; d[i * 4] *= k; d[i * 4 + 1] *= k; d[i * 4 + 2] *= k; }
+    ctx.putImageData(img, 0, 0);
+    return toTexture(cv, { srgb: true, repeat: false });
+  });
+}
+
+export function drumFaceNormal() {
+  return cached('drumFaceN', () => {
+    const S = 256, cv = canvas(S, S), ctx = cv.getContext('2d');
+    drawDrumFace(ctx, S, true);
+    const d = ctx.getImageData(0, 0, S, S).data, h = new Float32Array(S * S);
+    for (let i = 0; i < S * S; i++) h[i] = d[i * 4] / 255;
+    const t = heightToNormal(h, S, S, 3);
+    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+    return t;
+  });
+}

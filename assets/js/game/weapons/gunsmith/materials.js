@@ -1,6 +1,6 @@
 // Gemeinsame PBR-Materialien der Waffen (geteilt zwischen allen Modellen, LODs und Klonen).
 import * as THREE from 'three';
-import { wearMap, brushedMap, grainNormal, stippleNormal, knurlNormal, woodMap, reticleMap, polymerMap } from './textures.js';
+import { wearMap, brushedMap, grainNormal, stippleNormal, knurlNormal, woodMap, reticleMap, polymerMap, drumFaceMap, drumFaceNormal } from './textures.js';
 
 const mats = new Map();
 
@@ -41,6 +41,9 @@ const DEFS = {
   brass: () => std({ color: 0xc09a45, metalness: 1.0, roughness: 0.3, roughnessMap: wearMap() }),
   copper: () => std({ color: 0xb8703f, metalness: 1.0, roughness: 0.32 }),
   // Goldakzente der Waffen der ersten Stunde (UR-1, P-0, Erstlicht): poliert, bleibt unter jeder Tarnung golden
+  // Trommelmagazin: eigener Kunststoff (keine Tarnung) und Deckel mit eigener Textur
+  drumBody: () => std({ color: 0x2a2c30, map: polymerMap(), metalness: 0.0, roughness: 0.66, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.2, 0.2) }),
+  drumFace: () => std({ color: 0xffffff, map: drumFaceMap(), normalMap: drumFaceNormal(), normalScale: new THREE.Vector2(0.9, 0.9), metalness: 0.0, roughness: 0.62 }),
   goldTrim: () => std({ color: 0xe9b949, metalness: 1.0, roughness: 0.16, envMapIntensity: 1.5 }),
   shellRed: () => std({ color: 0x8f1f17, metalness: 0.0, roughness: 0.5, roughnessMap: wearMap() }),
   knurl: () => std({ color: 0x2c2d31, metalness: 0.7, roughness: 0.5, normalMap: knurlNormal(), normalScale: new THREE.Vector2(1, 1) }),
