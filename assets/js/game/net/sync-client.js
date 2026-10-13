@@ -24,7 +24,8 @@
 //     sa Antwort auf die eigene Anfrage (sendStreak), sv Prämie eines anderen, dr Lage fremder Drohnen, de Ende einer Drohne;
 //     die eigene Drohne fliegt lokal und meldet Lage/Sprengung/Ende über sendDrone.
 import * as THREE from 'three';
-import { WEAPONS } from '../../shared/weapons.data.js';
+import { WEAPONS, CAMOS } from '../../shared/weapons.data.js';
+import { importCC } from '../../shared/customcamo.js';
 import { netPoseOf } from '../bots/bot.js';
 import { PKT_SNAPSHOT, decodeSnapshot, encodeState, packetType, FLAGS } from './protocol.js';
 import { HOST_ID } from './index.js';
@@ -525,7 +526,9 @@ export class ClientSync {
     if (!pos) return;
     const lo = m.loadout || {};
     const cur = a.loadout || {};
-    if ((lo.primary && lo.primary !== cur.primary) || (lo.secondary && lo.secondary !== cur.secondary) || (lo.cls && lo.cls !== a.cls)) a.setNetLoadout(lo);
+    const looks = (x) => JSON.stringify([x.att || null, x.camo || null]);
+    if ((lo.primary && lo.primary !== cur.primary) || (lo.secondary && lo.secondary !== cur.secondary) || (lo.cls && lo.cls !== a.cls)
+      || ((lo.att || lo.camo) && looks(lo) !== looks(cur))) a.setNetLoadout(lo);
     a.respawn({ position: pos, yaw: Number(m.yaw) || 0 });
     if (Number.isFinite(m.hp)) a.health = m.hp;
     this._mismatch.delete(m.id);
@@ -639,6 +642,15 @@ export class ClientSync {
       case 'bs': if (G.building) G.building.applyNet(m, (id) => (id === this.selfId ? G.player : this._actor(id))); return; // Bauwerk (building.js)
       case 'bd': if (G.building) G.building.remove(m.id); return;
       case 'dr': if (G.doors) G.doors.applyNet(m); return; // Tür/Tor (doors.js)
+      case 'lt': { // Waffe von einer Leiche aufgehoben: vom Boden nehmen, bei der Puppe mit Aufsätzen/Tarnung zeigen
+        if (!Number.isInteger(m.v) || typeof m.w !== 'string' || !WEAPONS[m.w]) return;
+        if (G.points) G.points.takenByNet(m.v, m.w);
+        if (m.o === this.selfId || !owner || typeof owner.setCarry !== 'function') return;
+        if (m.cc) importCC(m.cc);
+        const camo = typeof m.c === 'string' && CAMOS[m.c] ? m.c : null;
+        owner.setCarry(m.w, { camo, att: m.a && typeof m.a === 'object' ? m.a : null });
+        return;
+      }
       case 'dg': if (G.digging && Number.isFinite(m.x) && Number.isFinite(m.z)) G.digging.apply(m.x, m.z, true); return; // Graben (digging.js)
       case 'gr': {
         if (!W) return;

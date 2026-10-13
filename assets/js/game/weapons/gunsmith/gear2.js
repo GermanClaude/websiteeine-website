@@ -12,20 +12,40 @@ function handle(b, mat, u0, len, r, rings = 5) {
 }
 
 export function karambit(b) {
-  // Fingerring hinten, kurzer Griff, sichelförmige Klinge nach vorn unten
+  // Fingerring hinten, kurzer Griff mit Nieten, sichelförmige Klinge, die vorn aus dem Griff wächst und nach unten
+  // krallt (Schneide innen/konkav, blank angeschliffen; Rücken mit Daumenrillen). Klinge und Angel sind ein Stück:
+  // die Wurzel reicht in den Griff hinein (früher schwebte sie vor dem Griff).
   handle(b, 'rubber', -0.05, 0.1, 0.0135, 4);
-  b.torus('steel', 0.017, 0.0042, 0, -0.004, -0.068, { ry: Math.PI / 2, seg: b.seg(8, 4), tseg: b.seg(20, 8) });
-  b.box('steel', 0.012, 0.03, 0.006, 0, 0.0, 0.052, { c: 0.0015 });
+  b.torus('steel', 0.017, 0.0042, 0, -0.004, -0.068, { ry: Math.PI / 2, seg: b.seg(10, 4), tseg: b.seg(24, 8) });
+  b.cyl('steel', 0.0118, 0.0124, 0.007, 0, 0, -0.051, { seg: b.seg(14, 6), sx: 0.8 }); // hintere Zwinge (Ring ↔ Griff)
+  b.cyl('steel', 0.0124, 0.0118, 0.008, 0, 0, 0.049, { seg: b.seg(14, 6), sx: 0.8 }); // vordere Zwinge
+  b.side('steel', [[0.046, 0.012], [0.058, 0.012], [0.06, -0.006], [0.056, -0.026], [0.05, -0.03], [0.046, -0.02]], 0.0105, 0, { bevel: 0.0012 }); // Fingerschutz unten
+  if (b.hi) for (const s of [-1, 1]) for (const u of [-0.028, 0.0, 0.028]) b.screw('steelBright', s * 0.0109, 0, u, 'x', 0.0022);
   b.part('blade', 0, 0, 0);
-  const n = b.hi ? 10 : 4, outer = [], inner = [];
+  // Bogen um C: außen (Rücken) Radius RO, innen (Schneide) RO − Breite; Wurzel bei 90° (über dem Griffende)
+  const C = [0.046, -0.07], RO = 0.08, n = b.hi ? 16 : 6, a0 = Math.PI / 2, a1 = -0.3;
+  const outer = [], mid = [], inner = [];
   for (let i = 0; i <= n; i++) {
-    const t = i / n, a = -0.15 - t * 1.75;
-    outer.push([0.055 + Math.cos(a) * 0.05 + t * 0.05, 0.03 + Math.sin(a) * 0.05]);
-    inner.push([0.055 + Math.cos(a) * 0.026 + t * 0.045, 0.03 + Math.sin(a) * 0.03 + t * 0.004]);
+    const t = i / n, a = a0 + (a1 - a0) * t;
+    const w = 0.025 * Math.pow(1 - t, 0.85) + 0.0004;
+    const e = Math.min(0.0055, w * 0.4);
+    const at = (r) => [C[0] + Math.cos(a) * r, C[1] + Math.sin(a) * r];
+    outer.push(at(RO)); mid.push(at(RO - w + e)); inner.push(at(RO - w));
   }
-  b.side('bladeCoat', [...outer, ...inner.reverse()], 0.005, 0, { part: 'blade', bevel: 0.0014 });
-  if (b.hi) b.side('blade', inner.map(([u, v], i) => [u + 0.001, v - 0.0035 * (1 - i / n)]).concat(inner.slice().reverse().map(([u, v]) => [u, v])), 0.0028, 0, { part: 'blade', bevel: 0.0006 });
-  b.anchor('muzzle', 0, -0.03, 0.15);
+  // Angel: Wurzel ein Stück in den Griff hinein verlängert
+  const root = [[0.03, C[1] + RO - 0.001], [0.03, C[1] + RO - 0.023]];
+  b.side('bladeCoat', [root[1], root[0], ...outer, ...mid.slice().reverse()], 0.0052, 0, { part: 'blade', bevel: 0.0013 });
+  b.side('blade', [...mid, ...inner.slice().reverse()], 0.003, 0, { part: 'blade', bevel: 0.0006 });
+  if (b.hi) {
+    // Daumenrillen auf dem Rücken (am Bogenanfang) und Loch am Rücken
+    for (let i = 0; i < 6; i++) {
+      const a = a0 - 0.12 - i * 0.07;
+      b.box('cavity', 0.0054, 0.0016, 0.0011, 0, C[1] + Math.sin(a) * (RO + 0.0002), C[0] + Math.cos(a) * (RO + 0.0002), { part: 'blade', rx: -(a - Math.PI / 2), c: 0 });
+    }
+    b.cyl('cavity', 0.0034, 0.0034, 0.0056, 0, C[1] + RO - 0.012, C[0] + 0.016, { axis: 'x', seg: 12, part: 'blade' });
+  }
+  const tip = outer[n];
+  b.anchor('muzzle', 0, tip[1], tip[0]);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0 } });
   b.meta = { sight: 'none', kind: 'melee' };
 }
@@ -39,7 +59,13 @@ export function machete(b) {
   const blade = [[0.066, 0.014], [0.36, 0.016], [0.405, 0.03], [0.43, 0.012], [0.4, -0.022], [0.3, -0.026], [0.066, -0.022]];
   b.side('bladeCoat', blade, 0.0045, 0, { part: 'blade', bevel: 0.0012 });
   b.side('blade', [[0.07, -0.014], [0.3, -0.018], [0.4, -0.015], [0.428, 0.011], [0.4, -0.022], [0.3, -0.026], [0.07, -0.022]], 0.003, 0, { part: 'blade', bevel: 0.0008 });
-  if (b.hi) for (let i = 0; i < 9; i++) b.box('bladeCoat', 0.0046, 0.004, 0.006, 0, 0.0165, 0.1 + i * 0.012, { part: 'blade', rx: 0.6, c: 0 });
+  if (b.hi) {
+    for (let i = 0; i < 9; i++) b.box('bladeCoat', 0.0046, 0.004, 0.006, 0, 0.0165, 0.1 + i * 0.012, { part: 'blade', rx: 0.6, c: 0 });
+    // Griffnieten, Hohlkehle, Fingerhaken am Griffende
+    for (const s of [-1, 1]) for (const u of [-0.035, 0.0, 0.035]) b.screw('steelBright', s * 0.0118, 0, u, 'x', 0.0028);
+    for (const s of [-1, 1]) b.box('cavity', 0.0008, 0.004, 0.2, s * 0.0024, 0.004, 0.2, { part: 'blade', c: 0 });
+    b.side('grip', [[-0.062, -0.012], [-0.05, -0.012], [-0.05, -0.024], [-0.058, -0.026], [-0.066, -0.02]], 0.0185, 0, { bevel: 0.002 });
+  }
   b.anchor('muzzle', 0, 0, 0.42);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0 } });
   b.meta = { sight: 'none', kind: 'melee' };

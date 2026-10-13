@@ -387,6 +387,10 @@ export class BotManager {
     const c = CLASSES[cls] ? cls : CLASSES[lo0.cls] ? lo0.cls : DEFAULT_CLASS;
     const lo = { primary: lo0.primary, secondary: lo0.secondary, lethal: lo0.lethal, tactical: lo0.tactical, cls: c };
     if (lo0.melee) lo.melee = lo0.melee;
+    // Aufsätze/Tarnung wie beim Gegenüber (sonst sehen Puppen und ihre liegende Waffe anders aus als beim Besitzer)
+    if (lo0.att && typeof lo0.att === 'object') lo.att = lo0.att;
+    if (lo0.camo && typeof lo0.camo === 'object') lo.camo = lo0.camo;
+    if (lo0.cc && typeof lo0.cc === 'object') lo.cc = lo0.cc;
     if (!W[lo.primary]) lo.primary = this._classLoadout(c, null).primary;
     if (lo.secondary !== null && lo.secondary !== undefined && !W[lo.secondary]) lo.secondary = undefined;
     const t = team === 'A' || team === 'B' ? team : null;

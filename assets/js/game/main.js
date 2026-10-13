@@ -523,6 +523,9 @@ function spawnActor(actor, fixed = null) {
     G.match.pendingLoadout = null;
     actor.loadout = { ...lo };
     if (actor.weapon && typeof actor.weapon.setLoadout === 'function') safe('weapon.setLoadout', () => actor.weapon.setLoadout(actor.loadout));
+  } else if (actor === G.player && actor.weapon && actor.weapon._pickups && Object.keys(actor.weapon._pickups).length) {
+    // Von einer Leiche aufgehobene Waffe gehört einem bis zum Tod (sie fällt dann selbst wieder) – danach die eigene Ausrüstung
+    safe('weapon.setLoadout', () => actor.weapon.setLoadout(actor.loadout));
   }
   if (actor === G.player) G.match.respawnHold = false;
   // Mehrspieler (Host): gemeldete Ausrüstung eines entfernten Menschen gilt ab diesem Spawn

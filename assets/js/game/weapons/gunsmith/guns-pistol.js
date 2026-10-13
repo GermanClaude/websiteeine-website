@@ -68,6 +68,15 @@ export function p9(b) {
     b.box('polymer', 0.0032, 0.0085, 0.0065, -0.0124, 0.031, 0.006, { c: 0.001 });
     b.box('steelBright', 0.0014, 0.0034, 0.015, 0.0131, 0.0795, 0.026, { part: 'slide', c: 0.0004 });
   }
+  if (b.hi) {
+    // Schlittenabdeckung hinten, Kimmen-Rillen (Blendschutz), Ladeanzeige, Schienenrippen,
+    // gestippelte Griffflächen
+    b.box('steelDark', 0.0196, 0.0205, 0.0016, 0, 0.0675, -0.0408, { part: 'slide', c: 0.0004 });
+    for (let i = 0; i < 4; i++) b.box('cavity', 0.016, 0.0004, 0.0006, 0, 0.0882 + i * 0.0012, -0.0357, { part: 'slide', c: 0 });
+    b.box('steelBright', 0.0042, 0.0016, 0.006, 0, 0.0852, 0.012, { part: 'slide', c: 0.0004 });
+    for (let i = 0; i < 4; i++) b.box('polymer', 0.0236, 0.0022, 0.0042, 0, 0.0332, 0.079 + i * 0.012, { c: 0.0004 });
+    for (const s of [-1, 1]) b.box('rubber', 0.0012, 0.04, 0.024, s * 0.0146, -0.012, -0.018, { rx: -RAKE, c: 0.002 });
+  }
   // Prägung links am Schlitten (Typ, Kaliber)
   engrave(b, -0.0131, 0.0735, 0.098, ['P-9 KOMPAKT', '9 MM'], { part: 'slide', dir: -1, h: 0.0015, cw: 0.0009, line: 0.0026 });
   gripMag(b, { u: -0.026, v: -0.056, w: 0.021, len: 0.085, depth: 0.03 });
@@ -134,6 +143,14 @@ export function adler(b) {
   b.part('hammer', 0, 0.066, -0.06);
   b.side('steel', [[-0.058, 0.064], [-0.062, 0.062], [-0.078, 0.082], [-0.076, 0.092], [-0.068, 0.092], [-0.064, 0.082], [-0.056, 0.072]], 0.0085, 0, { part: 'hammer', bevel: 0.001 });
   if (b.hi) b.box('cavity', 0.009, 0.005, 0.005, 0, 0.084, -0.07, { part: 'hammer', rx: -0.7, c: 0 });
+  if (b.hi) {
+    for (const s of [-1, 1]) for (const [v, u] of [[0.022, -0.012], [-0.058, -0.03]]) b.screw('steelBright', s * 0.0186, v, u, 'x', 0.0024);
+    b.box('steel', 0.004, 0.006, 0.026, -0.0168, 0.05, 0.005, { c: 0.001 }); // Schlittenfang links
+    b.box('steel', 0.004, 0.009, 0.007, -0.0145, 0.03, 0.016, { c: 0.001 }); // Magazinknopf
+    b.box('steelBright', 0.003, 0.008, 0.012, 0.0152, 0.05, 0.065, { c: 0.001 }); // Zerlegeknopf
+    for (const u of [0.02, 0.07]) b.cyl('steelBright', 0.0013, 0.0013, 0.0312, 0, 0.049, u, { axis: 'x', seg: 8 }); // Rahmenstifte
+    engrave(b, -0.0156, 0.0705, 0.19, ['ADLER .50'], { dir: -1, h: 0.0019, cw: 0.0012, line: 0.003 });
+  }
   gripMag(b, { u: -0.024, v: -0.086, w: 0.024, len: 0.11, depth: 0.036, plate: 'steel', body: 'steel', cal: 'p50' });
   b.anchor('ejection', 0.018, 0.084, 0.042, { rz: 0.35 });
   const grip = { rake: RAKE, gw: 0.0185, gd: 0.0255, gu: 0.0, ho: 0.0105, tu: 0.056, wrap: 0.38, tf: 0.055 };   // wrap/tf: hands-v3

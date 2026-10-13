@@ -29,6 +29,8 @@ import { targetPoints } from './ai/perception.js';
 import { GADGETS, CLASSES } from '../../shared/classes.data.js';
 import { BONE } from './soldier/rig.js';
 import { importCC } from '../../shared/customcamo.js';
+import { applyAttachments } from '../../shared/attachments.data.js';
+import { getWeaponModelInfo } from '../weapons/models.js';
 import { Stamina, STAMINA_COST, RECOVER } from '../stamina.js';
 
 const STAND_H = 1.8, CROUCH_H = 1.15, PRONE_H = 0.75;
@@ -328,7 +330,9 @@ export class Bot {
     if (!force && s.def && s.def.id === def.id && s.gun) return;
     // Aufsätze (def.att) und Tarnung je Waffe wie beim Spieler – Zwischenspeicher je Kombination
     if (this.loadout && this.loadout.cc) importCC(this.loadout.cc); // eigene Muster anderer Spieler (online)
-    const camo = (this.loadout && this.loadout.camo && this.loadout.camo[def.baseId || def.id]) || null;
+    const wid = def.baseId || def.id;
+    const carry = this._carry && this._carry[wid]; // online von einer Leiche aufgehoben (setCarry)
+    const camo = carry ? carry.camo || null : (this.loadout && this.loadout.camo && this.loadout.camo[wid]) || null;
     const key = `${def.id}|${def.attKey || ''}|${camo || ''}`;
     let gun = s.guns.get(key);
     if (!gun) {
@@ -474,6 +478,7 @@ export class Bot {
   }
 
   respawn(spawn) {
+    this._carry = null; // aufgehobene Waffe gilt nur bis zum Tod
     const pos = spawn && spawn.position ? spawn.position : new THREE.Vector3();
     // Leiche noch sichtbar → andere Instanz verwenden
     const cur = this.soldier;
@@ -1004,6 +1009,29 @@ export class Bot {
     this._syncGun(true);
     if (!silent && from) this.G.events.emit('weapon:switch', { actor: this, weaponId: def.id, from, slot: i, cosmetic: true });
     return true;
+  }
+
+  /**
+   * Puppe: Waffe von einer Leiche aufgehoben (online, 'ev' lt) – deren Aufsätze/Tarnung bis zum Tod. Liegt sie danach
+   * wieder, nimmt mappoints.js das Aussehen von hier.
+   */
+  setCarry(weaponId, looks = {}) {
+    const def = this._netDef(weaponId);
+    const w = this.weapon;
+    if (!def || !w) return;
+    if (!this._carry) this._carry = {};
+    const att = looks.att && typeof looks.att === 'object' ? looks.att : null;
+    this._carry[def.id] = { camo: typeof looks.camo === 'string' ? looks.camo : null, att };
+    let d = def;
+    if (att) { try { d = applyAttachments(def, att, getWeaponModelInfo(def.model || def.id)); } catch { d = def; } }
+    const i = w.slots.findIndex((s) => s && s.id === def.id);
+    if (i >= 0) { w.slots[i].def = d; if (i === w.index && typeof w._refreshStatic === 'function') w._refreshStatic(); }
+    else {
+      const second = def.slot === 'secondary' || def.cls === 'pistol';
+      w.slots[second ? Math.min(1, w.slots.length) : 0] = { id: def.id, def: d, mag: def.mag || 0, reserve: def.reserve || 0 };
+      if (this.loadout) this.loadout[second ? 'secondary' : 'primary'] = def.id;
+    }
+    if (w.currentDef && w.currentDef.id === def.id) this._syncGun(true);
   }
 
   /** Puppe: neue Ausrüstung (Klasse/Waffen, z. B. Spawn mit geänderter Ausrüstung); die Waffe in der Hand folgt der Pose. */

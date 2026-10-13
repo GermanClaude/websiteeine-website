@@ -17,7 +17,15 @@ export function knife(b) {
   b.side('bladeCoat', blade, 0.0055, 0, { part: 'blade', bevel: 0.0016 });
   b.side('blade', [[0.07, -0.0125], [0.17, -0.0125], [0.203, -0.009], [0.236, -0.0045], [0.2455, 0.0], [0.232, -0.0085], [0.205, -0.0155], [0.17, -0.0195], [0.07, -0.0195]], 0.0036, 0, { part: 'blade', bevel: 0.0012 });
   b.side('blade', [[0.18, 0.0132], [0.205, 0.0085], [0.2455, 0.0], [0.205, 0.0105], [0.18, 0.0145]], 0.0028, 0, { part: 'blade', bevel: 0.0008 });
-  if (b.hi) for (const s of [-1, 1]) b.box('cavity', 0.0008, 0.0035, 0.09, s * 0.0029, 0.004, 0.125, { part: 'blade', c: 0 });
+  if (b.hi) {
+    for (const s of [-1, 1]) b.box('cavity', 0.0008, 0.0035, 0.09, s * 0.0029, 0.004, 0.125, { part: 'blade', c: 0 });
+    // Sägerücken (Zähne auf dem Klingenrücken), Parierstangen-Enden, Fangriemenloch im Knauf, Griffnieten
+    for (let i = 0; i < 8; i++) b.box('bladeCoat', 0.0056, 0.0034, 0.0042, 0, 0.0142, 0.082 + i * 0.0105, { part: 'blade', rx: 0.7, c: 0 });
+    for (const s of [-1, 1]) b.sphere('steel', 0.0052, 0, s * 0.03, 0.058);
+    b.cyl('cavity', 0.0032, 0.0032, 0.0236, 0, 0, -0.064, { axis: 'x', seg: 12 });
+    for (const s of [-1, 1]) b.screw('steelBright', s * 0.0118, 0, 0.0, 'x', 0.0026);
+    b.box('steelDark', 0.0082, 0.026, 0.0016, 0, -0.002, 0.0532, { c: 0 }); // Fase der Parierstange
+  }
   b.anchor('muzzle', 0, -0.002, 0.24);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0 } });
   b.meta = { sight: 'none', kind: 'melee' };

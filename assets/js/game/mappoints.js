@@ -119,9 +119,7 @@ export class MapPoints {
     // Liegende Waffe bleibt so lange wie die Leichen (Einstellung „Leichen“, höchstens 40 Stück), Munition 2 min
     let life = LOOT_LIFE;
     try { if (weapon && G.bots && G.bots.corpses) life = Math.max(LOOT_LIFE, G.bots.corpses.life()); } catch { /* Standard */ }
-    const cur = v.weapon && v.weapon.currentDef;
-    const att = weapon && cur && (cur.baseId || cur.id) === weapon && cur.att ? { ...cur.att } : null;
-    const camo = weapon && v.loadout && v.loadout.camo && typeof v.loadout.camo[weapon] === 'string' ? v.loadout.camo[weapon] : null;
+    const { att, camo } = weapon ? looksOf(v, weapon) : { att: null, camo: null };
     this.loot.push({ victim: v, soldier: weapon ? v.soldier || null : null, drop: null, netId: v.netId, name: v.name || 'Gefallener', position: v.position.clone(), body: v.position.clone(), ammo, weapon, att, camo, until: now + life });
     if (this.loot.length > 40) this._dropGone(this.loot.shift());
   }
@@ -138,6 +136,21 @@ export class MapPoints {
       if (!l.drop && l.soldier && typeof l.soldier.releaseDrop === 'function') { l.drop = l.soldier.releaseDrop(); if (l.drop) l.soldier = null; }
       if (l.drop) { stepDrop(l.drop, dt, G.world); if (!l.ammo) l.position.copy(l.drop.gun.position); }
     }
+  }
+
+  /**
+   * Online: jemand anderes hat die Waffe des Gefallenen (Netz-Id) aufgehoben ('ev' lt) – vom Boden nehmen, damit sie
+   * niemand ein zweites Mal aufhebt. → Aussehen der liegenden Waffe { att, camo } | null
+   */
+  takenByNet(victimNetId, weaponId) {
+    const i = this.loot.findIndex((l) => l.netId === victimNetId && l.weapon === weaponId);
+    if (i < 0) return null;
+    const l = this.loot[i];
+    const looks = { att: l.att || null, camo: l.camo || null };
+    if (l.ammo) l.weapon = null; // Munition bleibt liegen
+    else { this._dropGone(l); this.loot.splice(i, 1); }
+    if (l.drop) this._dropGone(l);
+    return looks;
   }
 
   _dropGone(l) {
@@ -177,13 +190,13 @@ export class MapPoints {
       else lo.primary = def.id;
       if (lo.primary === lo.secondary) lo.secondary = null;
       const was = def.slot === 'secondary' ? cur[1] : cur[0];
-      // genau die Waffe vom Boden: Aufsätze und Tarnung des Gefallenen (gilt bis zum nächsten Tod/Ausrüstungswechsel)
+      // genau die Waffe vom Boden: Aufsätze und Tarnung des Gefallenen – gehört einem bis zum eigenen Tod (main.js spawnActor)
       w.setLoadout({ ...lo, pickup: { id: def.id, att: l.att || null, camo: l.camo || null }, keepPickups: true });
       this._dropGone(l);
       const idx = w.slots.findIndex((s) => s.id === def.id);
       if (idx >= 0 && idx !== w.index && typeof w.switchTo === 'function') w.switchTo(idx);
       const sync = G.net && G.net.sync;
-      if (sync && typeof sync.sendLoot === 'function') sync.sendLoot(def.id, l.netId);
+      if (sync && typeof sync.sendLoot === 'function') sync.sendLoot(def.id, l.netId, { att: l.att || null, camo: l.camo || null });
       G.events.emit('loot:take', { actor: P, kind: 'weapon', weaponId: def.id, dropped: was, name: l.name });
       this._sound('equip', l);
       this.loot.splice(this.loot.indexOf(l), 1);
@@ -378,6 +391,21 @@ export class MapPoints {
 }
 
 /** Schusswaffe eines Gefallenen (Bot/Puppe: gehaltene Waffe, sonst Hauptwaffe der Ausrüstung) – keine Nahkampfwaffen/Werfer. */
+/**
+ * Aussehen der Waffe weaponId in der Hand von v: online aufgehoben (Puppe: _carry), sonst Aufsätze der aktuellen Waffe
+ * und Tarnung aus der Ausrüstung. → { att, camo }
+ */
+export function looksOf(v, weaponId) {
+  const carry = v && v._carry && v._carry[weaponId];
+  if (carry) return { att: carry.att ? { ...carry.att } : null, camo: carry.camo || null };
+  const pk = v && v.weapon && v.weapon._pickups && v.weapon._pickups[weaponId]; // Spieler: selbst aufgehoben
+  const cur = v && v.weapon && v.weapon.currentDef;
+  const att = cur && (cur.baseId || cur.id) === weaponId && cur.att ? { ...cur.att } : pk && pk.att ? { ...pk.att } : null;
+  const camo = pk ? pk.camo || null : v && v.loadout && v.loadout.camo && typeof v.loadout.camo[weaponId] === 'string' ? v.loadout.camo[weaponId] : null;
+  return { att, camo };
+}
+
+/** Waffe, die v beim Tod in der Hand hatte (Schusswaffe; Werfer in der Hand → zuletzt die Hauptwaffe). */
 function victimWeapon(v) {
   const ids = [v.weapon && v.weapon.currentDef && v.weapon.currentDef.id, v.weaponId, v.loadout && v.loadout.primary];
   for (const id of ids) {

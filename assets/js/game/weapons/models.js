@@ -67,11 +67,11 @@ function buildTemplate(key, lod, att = null) {
     if (att.optik && b._opticDone) b.meta.sight = OPTIC_TYPE[att.optik] || b.meta.sight;
   }
   const root = b.build(key);
-  if (att) attachToRoot(root, att);
+  if (att) attachToRoot(root, att, lod);
   // Magazininhalt (magfill.js): Patronen + Zubringer nur in Ego/Vitrine; die Plätze reisen in den Metadaten mit
   // (Weltmagazine der Bot-Detailstufe zeigen damit die obersten Patronen bzw. den leeren Zubringer)
   const magFill = magFillFor(b, key);
-  if (magFill && lod !== 'third') attachMagFill(root, magFill);
+  if (magFill && lod !== 'third' && !(att && att.magazin === 'trommel')) attachMagFill(root, magFill); // Trommel: undurchsichtig
   // Fehlende Pflicht-Anker im Ursprung ergänzen (Messer/Granaten haben z. B. keine Mündung)
   for (const n of REF_NAMES) if (!root.getObjectByName(n)) { const o = new THREE.Object3D(); o.name = n; root.add(o); }
   for (const n of b.meta.hidden || []) { const o = root.getObjectByName(n); if (o) o.visible = false; }
