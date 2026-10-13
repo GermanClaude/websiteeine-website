@@ -158,13 +158,13 @@ const PAINTERS = {
     const rows = new Float32Array(SIZE); for (let i = 0; i < SIZE; i++) rows[i] = rand();
     const n = fbm(rand, 3, 3);
     const spark = new Uint8Array(SIZE * SIZE);
-    for (let i = 0; i < SIZE * SIZE * 0.012; i++) spark[(rand() * SIZE * SIZE) | 0] = rand() < 0.75 ? 1 : 2;
+    for (let i = 0; i < SIZE * SIZE * 0.012; i++) spark[(rand() * SIZE * SIZE) | 0] = rand() < 0.85 ? 1 : 2;
     pixels(ctx, (x, y) => {
       const band = 0.5 + 0.5 * Math.sin(((x + y * 0.6) / SIZE) * Math.PI * 4 + n(x, y) * 3);
-      let c = mix(cols[1], cols[0], Math.min(1, 0.35 + band * 0.55 + rows[y] * 0.15));
+      let c = mix(cols[1], cols[0], Math.min(1, 0.55 + band * 0.45 + rows[y] * 0.1));
       const s = spark[y * SIZE + x];
       if (s === 1) c = mix(c, cols[2], 0.85);
-      else if (s === 2) c = mix(c, cols[3], 0.5);
+      else if (s === 2) c = mix(c, cols[3], 0.35);
       return c;
     });
   },
@@ -237,6 +237,30 @@ export function camoSwatch(id, size = 64) {
   return c;
 }
 
+// Gold der ersten Stunde (shimmer): warmer Grundschein, ein Glanzstreifen läuft alle 3 s über die Waffe, dazu
+// funkelnde Punkte. Zeit kommt über onBeforeRender der Meshes (applyCamo), ein gemeinsames Uniform für alle.
+const SHIMMER_TIME = { value: 0 };
+const tickShimmer = () => { SHIMMER_TIME.value = performance.now() / 1000; };
+function shimmer(m) {
+  m.emissive = new THREE.Color(0x6a4710);
+  m.emissiveIntensity = 0.3;
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uOgTime = SHIMMER_TIME;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vOgPos;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOgPos = transformed;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uOgTime;\nvarying vec3 vOgPos;')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        {
+          float c = dot(vOgPos, vec3(0.35, 0.55, 0.76));
+          float band = exp(-pow((c - (fract(uOgTime * 0.33) * 1.3 - 0.65)) / 0.03, 2.0));
+          float h = fract(sin(dot(floor(vOgPos * 350.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+          float tw = step(0.992, h) * max(0.0, sin(uOgTime * 5.0 + h * 80.0));
+          totalEmissiveRadiance += vec3(1.0, 0.8, 0.42) * (band * 1.1 + tw * 1.4);
+        }`);
+  };
+  m.customProgramCacheKey = () => 'camo-og-shimmer-v1';
+}
+
 /** Materialvariante eines Waffenmaterials (Schlüssel aus materials.js) mit Tarnmuster. */
 export function camoMaterial(baseKey, id) {
   const def = CAMOS[id];
@@ -255,7 +279,9 @@ export function camoMaterial(baseKey, id) {
   m.metalness = f.metalness ?? (baseKey === 'lodMetal' ? 0.5 : Math.min(base.metalness ?? 0, 0.35));
   m.roughness = f.roughness ?? Math.max(0.55, base.roughness ?? 0.7);
   if (!metallic) m.metalnessMap = null;
-  m.userData = { camo: id, baseKey };
+  if (f.env) m.envMapIntensity = f.env;
+  if (def.shimmer) shimmer(m);
+  m.userData = { camo: id, baseKey, shimmer: !!def.shimmer };
   m.needsUpdate = true;
   matCache.set(k, m);
   return m;
@@ -284,6 +310,9 @@ export function applyCamo(root, id) {
     if (!target) return;
     if (!o.userData.baseMat) o.userData.baseMat = base;
     o.material = def ? camoMaterial(key, id) : base;
+    // Glanzstreifen braucht die Zeit: nur auf diesen Meshes, beim Wechsel zurück wieder entfernen
+    if (o.material.userData.shimmer) o.onBeforeRender = tickShimmer;
+    else if (o.onBeforeRender === tickShimmer) o.onBeforeRender = THREE.Object3D.prototype.onBeforeRender;
   });
   root.userData.camo = def ? id : null;
   return root;

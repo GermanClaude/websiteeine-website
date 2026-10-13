@@ -1041,7 +1041,8 @@ export const CAMOS = {
     unlock: { type: 'mastery', camos: ['tiger', 'kohle', 'zebra', 'rost', 'kirsche', 'roter_tiger', 'damast'] } },
   // Dank an die Spieler der ersten Stunde (Nutzer 13.10.2026): nur wer bis einschließlich 13.10. gespielt hat
   // (Profil.og, shared/profile.js) – danach nicht mehr freischaltbar, für alle anderen unsichtbar.
-  og: { id: 'og', name: 'Gold der ersten Stunde', pattern: 'glitter', colors: ['#f4cd5a', '#c38f2a', '#fff4c2', '#7d5412'], finish: { roughness: 0.1, metalness: 1 }, rarity: 'legendaer',
+  // shimmer: wandernder Glanzstreifen + funkelnde Punkte (gunsmith/camos.js), env: stärkere Spiegelung der Umgebung
+  og: { id: 'og', name: 'Gold der ersten Stunde', pattern: 'glitter', colors: ['#ffd04d', '#e2a634', '#fff7d6', '#b47b1e'], finish: { roughness: 0.06, metalness: 1, env: 1.7 }, shimmer: true, rarity: 'legendaer',
     unlock: { type: 'og' } },
 };
 export const CAMO_IDS = Object.keys(CAMOS);
