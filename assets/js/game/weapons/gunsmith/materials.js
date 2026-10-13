@@ -63,21 +63,26 @@ function wearPatch(m, { col, metal, rough, k = 1, bump = 0.00012, tone = 0.12, s
         roughnessFactor = clamp(mix(mix(roughnessFactor, ${f(rough)}, wEdge), 0.92, wDirt), 0.04, 1.0);`)
       .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, ${f(metal)}, wEdge);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        vec3 wGrad = vec3(0.0); float wDet = 1.0;
         #ifndef FLAT_SHADED
         {
           // Unebenheiten: Höhe in Metern aus zwei Rauschlagen (Wellen ~2 cm, Korn ~3 mm), als Oberflächengradient
           float hgt = (wn3(vObjP * 55.0) + 0.35 * wn3(vObjP * 330.0 + 5.0)) * ${f(bump)};
           vec3 sp = -vViewPosition, sx = dFdx(sp), sy = dFdy(sp);
           vec3 r1 = cross(sy, normal), r2 = cross(normal, sx);
-          float det = dot(sx, r1);
-          vec3 grad = sign(det) * (dFdx(hgt) * r1 + dFdy(hgt) * r2);
-          normal = normalize(abs(det) * normal - grad);
+          wDet = dot(sx, r1);
+          wGrad = sign(wDet) * (dFdx(hgt) * r1 + dFdy(hgt) * r2);
+          normal = normalize(abs(wDet) * normal - wGrad);
         }
+        #endif`)
+      .replace('#include <clearcoat_normal_fragment_maps>', `#include <clearcoat_normal_fragment_maps>
+        #ifdef USE_CLEARCOAT
+          clearcoatNormal = normalize(abs(wDet) * clearcoatNormal - wGrad * 0.8);   // Glanzschicht folgt den Wellen
         #endif`)
       .replace('#include <aomap_fragment>', `#include <aomap_fragment>
         { float wAO = 1.0 - 0.7 * wDirt; reflectedLight.indirectDiffuse *= wAO; reflectedLight.indirectSpecular *= wAO * wAO; }`);
   };
-  m.customProgramCacheKey = () => `wear3:${col}:${metal}:${rough}:${k}:${bump}:${tone}:${smear}`;
+  m.customProgramCacheKey = () => `wear4:${col}:${metal}:${rough}:${k}:${bump}:${tone}:${smear}`;
   return m;
 }
 const ALU_WEAR = { col: 0x8f9398, metal: 1, rough: 0.3 }, STEEL_WEAR = { col: 0x85878a, metal: 1, rough: 0.34, bump: 0.00008 };
@@ -125,8 +130,8 @@ const DEFS = {
   // M-17 (Nutzer 13.10.2026: realistisch statt „knetig“): anthrazit eloxiert mit seidiger Klarschicht (spiegelt die
   // Umgebung weich), Phosphat-Stahl matt, Magazin grau beschichtet; alle mit Gebrauchsspuren (wearPatch).
   m17Mag: () => wearPatch(std({ color: 0x4a4d51, metalness: 0.4, roughness: 0.52, roughnessMap: fine(finishMaps('alu').rough, 2), normalMap: fine(finishMaps('alu').normal, 2.5), normalScale: new THREE.Vector2(0.18, 0.18) }), { col: 0xaeb2b7, metal: 1, rough: 0.26, k: 1.15 }),
-  m17Rec: () => wearPatch(phys({ color: 0x2d2f32, metalness: 0.3, roughness: 0.5, clearcoat: 0.22, clearcoatRoughness: 0.3, roughnessMap: fine(finishMaps('alu').rough, 2), normalMap: fine(finishMaps('alu').normal, 2.5), normalScale: new THREE.Vector2(0.2, 0.2) }), ALU_WEAR),
-  m17Ras: () => wearPatch(phys({ color: 0x2a2c2f, metalness: 0.3, roughness: 0.54, clearcoat: 0.18, clearcoatRoughness: 0.36, roughnessMap: fine(finishMaps('alu').rough, 2), normalMap: fine(finishMaps('alu').normal, 2.5), normalScale: new THREE.Vector2(0.2, 0.2) }), { ...ALU_WEAR, tone: 0.16 }),
+  m17Rec: () => wearPatch(phys({ color: 0x2b2d30, metalness: 0.3, roughness: 0.52, clearcoat: 0.3, clearcoatRoughness: 0.14, roughnessMap: fine(finishMaps('alu').rough, 2), normalMap: fine(finishMaps('alu').normal, 2.5), normalScale: new THREE.Vector2(0.2, 0.2) }), ALU_WEAR),
+  m17Ras: () => wearPatch(phys({ color: 0x292b2e, metalness: 0.3, roughness: 0.55, clearcoat: 0.24, clearcoatRoughness: 0.18, roughnessMap: fine(finishMaps('alu').rough, 2), normalMap: fine(finishMaps('alu').normal, 2.5), normalScale: new THREE.Vector2(0.2, 0.2) }), { ...ALU_WEAR, tone: 0.16 }),
   m17Steel: () => wearPatch(std({ color: 0x2b2c2d, metalness: 0.45, roughness: 0.6, roughnessMap: fine(finishMaps('steel').rough, 2.5), normalMap: fine(finishMaps('steel').normal, 3), normalScale: new THREE.Vector2(0.3, 0.3) }), STEEL_WEAR),
   m17RecV: () => DEFS.m17Rec(), m17RasV: () => DEFS.m17Ras(), m17SteelV: () => DEFS.m17Steel(), m17FurnV: () => DEFS.m17Furn(),
   m17Furn: () => { const t = m17FurnMaps(); const m = std({ color: 0x26272a, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FURN_CAMO_REPEAT; return wearPatch(m, POLY_WEAR); },
