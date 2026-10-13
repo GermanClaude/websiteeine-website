@@ -591,7 +591,7 @@ export function revealHtml() {
       <li><strong>Jan</strong> für seine vielen Testspiele und Fehlerberichte,</li>
       <li><strong>Waldmeister</strong>,</li>
       <li><strong>James AOK</strong>,</li>
-      <li><strong>Lichter</strong>, <strong>Kaisen</strong>, <strong>Demolouse</strong>, <strong>FlorianPluukilp</strong>, <strong>Bambustal</strong>, <strong>GorillaLDS</strong>, <strong>Spirit.LDS</strong>, <strong>Militärhund</strong>, <strong>Zeno :3</strong>, <strong>Tyson</strong>, <strong>Holzkohle</strong>, <strong>flebubushekjr</strong>, <strong>german_guy</strong>, <strong>S1dneyy</strong>, <strong>Gian</strong> und <strong>Tintenpatrone</strong>,</li>
+      <li><strong>Lichter</strong>, <strong>[Redacted] Kaisen</strong>, <strong>Demolouse</strong>, <strong>FlorianPluukilp</strong>, <strong>Bambustal</strong>, <strong>GorillaLDS</strong>, <strong>Spirit.LDS</strong>, <strong>Militärhund</strong>, <strong>Zeno :3</strong>, <strong>Tyson</strong>, <strong>Holzkohle</strong>, <strong>flebubushekjr</strong>, <strong>german_guy</strong>, <strong>S1dneyy</strong>, <strong>Gian</strong> und <strong>Tintenpatrone</strong>,</li>
       <li>alle, die mit mir den ersten Mehrspieler-Abend gespielt haben,</li>
       <li>und die vielen anderen, die mitgetestet und mir ihre Meinung gesagt haben, ob positiv, kritisch oder auch negativ,
       damit das Spiel besser wird.</li>
