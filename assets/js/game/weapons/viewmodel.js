@@ -313,6 +313,7 @@ export class ViewModel {
     this._equipDur = def?.equipTime ?? this.h.equipTime;
     this._slideLocked = false;
     this._boltLocked = false;
+    this._lid = null;
     this._boltT = 1;
     this.arms.right.shoulder.fromArray(this.h.shoulderR); this.arms.left.shoulder.fromArray(this.h.shoulderL);
     this.arms.right.pole.fromArray(this.h.poleR); this.arms.left.pole.fromArray(this.h.poleL);
@@ -492,6 +493,9 @@ export class ViewModel {
     this._climb = Math.min(0.09, this._climb + k.up * 0.22 * s * (0.4 + 0.6 * Math.max(0.5, this._motionScale())));
     this._heat = Math.min(1, this._heat + (h.heat ?? HEAT_PER_SHOT[h.action] ?? 0.02));
     this._shotCount++;
+    // loser Kastendeckel (MG): Stoß mit Zufallsstärke – mal kaum, mal deutlich (Winkelgeschwindigkeit rad/s)
+    if (this._lid) this._lid.v += (1.2 + Math.random() * Math.random() * 6) * Math.min(1.5, s);
+    else if (this._part('lid')) this._lid = { a: 0, v: 1.2 + Math.random() * 4 };
     const suppressed = info.suppressed ?? this.def?.suppressed;
     if (!this.showScopeOverlay) this.flash.fire(h.flash * (this.def?.flashScale || 1), h.flashLen, { suppressed });
     if (!suppressed) {
@@ -1372,6 +1376,19 @@ export class ViewModel {
       if (r) r.visible = (this._magNow ?? 1) > 0;
     } else if (this._part('bolt') && h.action !== 'bolt' && h.action !== 'pump') {
       this._setPartOffset('bolt', 0, 0, h.boltTravel * (this._boltLocked ? 1 : pulse));
+    }
+    // MG mit Gurtkasten (Nutzer 13.10.2026): Gurt rückt beim Schuss eine Teilung zur Waffe, der lose Kastendeckel
+    // hüpft je Schuss verschieden hoch und prellt nach (Feder mit Anschlag)
+    if (this._part('belt') && !act) this._setPartOffset('belt', 0.0068 * pulse, 0.0082 * pulse, 0); // eine Gliederteilung
+    if (this._part('lid')) {
+      const L = this._lid || (this._lid = { a: 0, v: 0 });
+      const w = 46, z = 0.18, n = Math.max(1, Math.ceil(dt / 0.004)), h2 = dt / n;
+      for (let i = 0; i < n; i++) {
+        L.v += (-w * w * L.a - 2 * z * w * L.v) * h2;
+        L.a += L.v * h2;
+        if (L.a < 0) { L.a = 0; L.v = -L.v * (0.25 + Math.random() * 0.2); }
+      }
+      if (!act) this._setPartOffset('lid', 0, 0, 0, 0, 0, Math.min(0.14, L.a));
     }
     // Aktionsteile (Magazin, Ladehebel, Pumpe, Kammerstängel, Deckel …)
     if (act && act.parts) for (const [n, o] of Object.entries(act.parts)) {

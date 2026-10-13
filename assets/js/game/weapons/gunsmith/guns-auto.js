@@ -222,9 +222,13 @@ export function hm60(b) {
   // Gurtzuführung links + Munitionskasten + Gurt
   b.part('mag', -0.06, 0.0, 0.1);
   b.box('paintOlive', 0.075, 0.1, 0.13, -0.065, -0.012, 0.1, { part: 'mag', c: 0.004 });
+  // Deckel locker auf dem Kasten (Teil 'lid', Scharnier an der Außenkante): hüpft beim Rückstoß unterschiedlich hoch
+  // (viewmodel.js _animLid, Nutzer 13.10.2026)
+  b.part('lid', -0.1045, 0.026, 0.1, 'mag');
+  b.box('paintOlive', 0.079, 0.012, 0.134, -0.065, 0.032, 0.1, { part: 'lid', c: 0.003 });
   if (b.hi) {
-    b.box('paintOlive', 0.079, 0.012, 0.134, -0.065, 0.032, 0.1, { part: 'mag', c: 0.003 });
-    b.box('steel', 0.03, 0.004, 0.012, -0.065, 0.04, 0.1, { part: 'mag', c: 0.001 });
+    b.box('steel', 0.03, 0.004, 0.012, -0.065, 0.04, 0.1, { part: 'lid', c: 0.001 });
+    for (const u of [0.045, 0.155]) b.cyl('steel', 0.003, 0.003, 0.02, -0.1045, 0.027, u, { part: 'lid', seg: 8 }); // Scharnierhülsen
     b.box('paintYellow', 0.0006, 0.018, 0.06, -0.1025, -0.01, 0.1, { part: 'mag', c: 0 });
     for (let i = 0; i < 4; i++) b.box('paintOlive', 0.002, 0.08, 0.004, -0.1035, -0.015, 0.05 + i * 0.033, { part: 'mag', c: 0 });
   }
