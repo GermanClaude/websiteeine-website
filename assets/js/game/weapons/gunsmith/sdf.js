@@ -153,3 +153,61 @@ export function grid2D(f, a0, a1, b0, b1, step) {
     return (g[k] * (1 - x) + g[k + 1] * x) * (1 - y) + (g[k + na] * (1 - x) + g[k + na + 1] * x) * y;
   };
 }
+
+/** Nulllinien eines 2D-Felds f(a, b) (Marching Squares, Sattel nach Zellmitte) als geschlossene, vereinfachte Konturen:
+ *  [{ outer: [[a, b], …], holes: [[[a, b], …], …] }] – Außenkonturen gegen den Uhrzeigersinn, Löcher zugeordnet.
+ *  Für flache Teile, die als Profil extrudiert werden (viel weniger Dreiecke als ein 3D-Netz). */
+export function contours2D(f, a0, a1, b0, b1, step, tol = step * 0.3) {
+  const na = Math.ceil((a1 - a0) / step) + 1, nb = Math.ceil((b1 - b0) / step) + 1;
+  const val = new Float32Array(na * nb);
+  for (let j = 0; j < nb; j++) for (let i = 0; i < na; i++) {
+    let d = f(a0 + i * step, b0 + j * step);
+    if (i === 0 || j === 0 || i === na - 1 || j === nb - 1) d = Math.max(d, 1e-7);
+    val[i + na * j] = d === 0 ? 1e-9 : d;
+  }
+  const V = (i, j) => val[i + na * j];
+  // Kanten-ID: waagrecht (i,j)→(i+1,j) = 2·(i + na·j), senkrecht (i,j)→(i,j+1) = 2·(i + na·j) + 1
+  const pos = new Map();
+  const edgePt = (id) => {
+    if (pos.has(id)) return pos.get(id);
+    const k = id >> 1, i = k % na, j = (k / na) | 0, vert = id & 1;
+    const va = V(i, j), vb = vert ? V(i, j + 1) : V(i + 1, j), t = va / (va - vb);
+    const p = vert ? [a0 + i * step, b0 + (j + t) * step] : [a0 + (i + t) * step, b0 + j * step];
+    pos.set(id, p); return p;
+  };
+  const next = new Map();
+  for (let j = 0; j < nb - 1; j++) for (let i = 0; i < na - 1; i++) {
+    const c = [V(i, j), V(i + 1, j), V(i + 1, j + 1), V(i, j + 1)];
+    if ((c[0] < 0) === (c[1] < 0) && (c[1] < 0) === (c[2] < 0) && (c[2] < 0) === (c[3] < 0)) continue;
+    // Zellrand gegen den Uhrzeigersinn: unten, rechts, oben, links
+    const ids = [2 * (i + na * j), 2 * (i + 1 + na * j) + 1, 2 * (i + na * (j + 1)), 2 * (i + na * j) + 1];
+    const ev = [];
+    for (let e = 0; e < 4; e++) { const s0 = c[e] < 0, s1 = c[(e + 1) % 4] < 0; if (s0 !== s1) ev.push({ id: ids[e], exit: s0 }); }
+    const centerNeg = (c[0] + c[1] + c[2] + c[3]) < 0;
+    for (let k = 0; k < ev.length; k++) {
+      if (!ev[k].exit) continue;
+      const n = ev.length, step2 = centerNeg ? 1 : -1;
+      let m = (k + step2 + n) % n; while (ev[m].exit) m = (m + step2 + n) % n;
+      next.set(ev[k].id, ev[m].id);
+    }
+  }
+  const loops = [];
+  const seen = new Set();
+  for (const start of next.keys()) {
+    if (seen.has(start)) continue;
+    const pts = []; let id = start, guard = 0;
+    while (!seen.has(id) && guard++ < 1e6) { seen.add(id); pts.push(edgePt(id)); id = next.get(id); if (id === undefined) break; }
+    if (pts.length < 4) continue;
+    const sp = simplifyPoly(pts, tol);
+    let area = 0; for (let q = 0, r = sp.length - 1; q < sp.length; r = q++) area += (sp[r][0] * sp[q][1] - sp[q][0] * sp[r][1]) / 2;
+    if (Math.abs(area) < step * step * 2) continue;
+    loops.push({ pts: sp, area });
+  }
+  const outers = loops.filter((l) => l.area > 0).map((l) => ({ outer: l.pts, holes: [], area: l.area }));
+  const inside = (p, poly) => { let c = false; for (let q = 0, r = poly.length - 1; q < poly.length; r = q++) { const [xi, yi] = poly[q], [xj, yj] = poly[r]; if ((yi > p[1]) !== (yj > p[1]) && p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi) c = !c; } return c; };
+  for (const h of loops.filter((l) => l.area < 0)) {
+    const host = outers.filter((o) => inside(h.pts[0], o.outer)).sort((a, b) => a.area - b.area)[0];
+    if (host) host.holes.push(h.pts);
+  }
+  return outers.map(({ outer, holes }) => ({ outer, holes }));
+}

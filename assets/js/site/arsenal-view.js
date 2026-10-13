@@ -337,7 +337,7 @@ export async function init(sec, D, ctx) {
       rows.push(['Anschlag', parts(u(dec(d.adsTime), 's'))]);
       rows.push(['Zeit bis Abschuss', parts(`10${NNBSP}m: ${ttkText(d, 10)}`, `50${NNBSP}m: ${ttkText(d, 50)}`)]);
       rows.push(['Visier', parts(W.SIGHTS?.[d.sight]?.name || '—')]);
-      rows.push(['Feuermodus', parts(W.FIRE_MODES?.[d.fireMode] || d.fireMode)]);
+      rows.push(['Feuermodus', parts(...(W.fireModesOf ? W.fireModesOf(d).map((m) => W.fireModeLabel(d, m)) : [W.FIRE_MODES?.[d.fireMode] || d.fireMode]))]);
     }
     rows.push(['Freischaltung', parts(`ab Stufe ${unlockLevel(d.id)}`)]);
     facts.replaceChildren(...rows.map(([k, v]) => h('div', {}, h('dt', {}, k), h('dd', {}, v))));

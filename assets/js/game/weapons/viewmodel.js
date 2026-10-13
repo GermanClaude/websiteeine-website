@@ -875,6 +875,7 @@ export class ViewModel {
 
   update(dt, s = {}) {
     this._magNow = s.mag ?? 1;
+    this._fireMode = s.fireMode || 'auto';
     this._magRaw = typeof s.mag === 'number' ? s.mag : null;   // Magazininhalt (ohne Controller: voll)
     const player = this.G?.player;
     if (player && (player.team ?? null) !== this._team) this._syncCamo();
@@ -1389,6 +1390,14 @@ export class ViewModel {
         if (L.a < 0) { L.a = 0; L.v = -L.v * (0.25 + Math.random() * 0.2); }
       }
       if (!act) this._setPartOffset('lid', 0, 0, 0, 0, 0, Math.min(0.14, L.a));
+    }
+    // Wahlhebel folgt der Feuerart (Stellungen aus dem Modell, gedreht um die Querachse, kurzer Schnapp)
+    const selA = this.cur.ud.info.selector, selP = this._part('selector');
+    if (selA && selP) {
+      const tgt = selA[this._fireMode] ?? selA.auto ?? 0;
+      if (this._selKey !== this.cur) { this._selKey = this.cur; this._selAng = tgt; }
+      this._selAng += (tgt - this._selAng) * Math.min(1, dt * 22);
+      this._setPartOffset('selector', 0, 0, 0, this._selAng, 0, 0);
     }
     // Aktionsteile (Magazin, Ladehebel, Pumpe, Kammerstängel, Deckel …)
     if (act && act.parts) for (const [n, o] of Object.entries(act.parts)) {

@@ -44,7 +44,7 @@ export class Lobby {
       MODES: D.MODES || {}, ORDER: (D.MODE_ORDER || Object.keys(D.MODES || {})).filter((m) => (D.MODES || {})[m]),
       MAPS: D.MAPS || {}, MAP_ORDER: D.MAP_ORDER || Object.keys(D.MAPS || {}), W: D.WEAPONS || {}, EQ: D.EQUIPMENT || {},
       DIFF: D.DIFFICULTIES || {}, LOADOUTS: D.DEFAULT_LOADOUTS || [], CLASSES: D.WEAPON_CLASSES || {}, CLASS_ORDER: D.CLASS_ORDER || [],
-      SIGHTS: D.SIGHTS || {}, FIRE: D.FIRE_MODES || {}, ttk: D.ttk, shotsToKill: D.shotsToKill, effectiveRange: D.effectiveRange, STREAKS: D.STREAKS || {},
+      SIGHTS: D.SIGHTS || {}, FIRE: D.FIRE_MODES || {}, fireModesOf: D.fireModesOf, fireModeLabel: D.fireModeLabel, ttk: D.ttk, shotsToKill: D.shotsToKill, effectiveRange: D.effectiveRange, STREAKS: D.STREAKS || {},
     };
   }
 
@@ -584,7 +584,7 @@ export class Lobby {
           ${stk15 != null && Number.isFinite(stk15) ? fact('Treffer bis Abschuss', `${stk15} auf 15 m`) : ''}
           ${ttk15 != null && Number.isFinite(ttk15) && ttk15 > 0 ? fact('Zeit bis Abschuss', `${num(Math.round(ttk15))} ms auf 15 m`) : ''}
           ${eff != null && Number.isFinite(eff) ? fact('Wirksam bis', meters(eff)) : ''}
-          ${fact('Visier', (d.SIGHTS[def.sight] && d.SIGHTS[def.sight].name) || '—')}${fact('Feuermodus', d.FIRE[def.fireMode] || def.fireMode)}
+          ${fact('Visier', (d.SIGHTS[def.sight] && d.SIGHTS[def.sight].name) || '—')}${fact('Feuermodus', d.fireModesOf ? d.fireModesOf(def).map((m) => d.fireModeLabel(def, m)).join(' / ') : d.FIRE[def.fireMode] || def.fireMode)}
         </div>`;
     }
     const equipped = c[isEq ? 'lethal' : def.slot] === id;

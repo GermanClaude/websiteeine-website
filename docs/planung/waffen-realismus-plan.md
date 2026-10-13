@@ -80,4 +80,11 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   grau wie im Foto (Füllstand nur noch an der Öffnung sichtbar).
 - Metall aus der Nähe: Fleckenrauschen bilinear statt blockig, feines Strahlkorn je Pixel, keine Anisotropie mehr
   (die Schlieren wirkten aus der Nähe falsch); Metallteile des M-17 mit fein wiederholten Rauheits-/Kornkarten.
-- Nächster Schritt: KV-47 nach demselben Verfahren (Seitenfoto AKM/AK-74).
+- 13.10. nachts: **M-17 von allen Seiten** – linke Seite nach zweitem Foto (Colt M4, gemeinfrei): Trennfuge an der
+  echten Stelle, Gehäusewulst, Verschlussfang mit Lageraugen, drehbarer Wahlhebel, gewölbte Stiftköpfe inkl. Hammer-/
+  Abzugsstift, Gravuren; Schaft mit Batterieröhren, Steg (Rand, Felder, Rippe, Bolzen), durchgehende Riemenschlitze,
+  Hebel + Riemenzapfen, Gummikappe mit Querrillen; Ladehebel mit Klinke, Klappkimme mit Trommel, A2-Feuerdämpfer mit
+  echten Schlitzen, Magazinboden; Ober-/Unter-/Stirnflächen mit eigener Projektion (keine Schlieren). Flache Teile als
+  Profil-Extrusion aus 2D-Konturen (`contours2D` in sdf.js). ≈ 117 000 Dreiecke.
+- Feuermodi je Waffe nach Vorbild (`FIRE_SELECT` in weapons.data.js, Taste M, Touch-Knopf), Test tools/firemode-test.mjs.
+- Maßstab für alle weiteren Waffen (Nutzer 13.10.): P-9 und M-17 + KI-Video; Rest ab Do 15.10. 17:10.

@@ -26,11 +26,15 @@ export const TRIGGER = [[1381, 1281], [1375, 1325], [1385, 1362], [1400, 1388], 
 export const GUARD_Y = 1290, WELL_X0 = 1532, WELL_X1 = 1866, STOCK_SPLIT_Y = 1236;
 // Gehäuse: Teilungsfuge Ober-/Unterteil, Schiene oben, Auswurffenster, Staubschutzdeckel (offen), Hülsenabweiser,
 // Vorderer Hilfsschließer (Rohr schräg hinten rechts), Stifte, Magazinknopf, Wahlhebelachse
+// Unterteil-Nasen über der Linie y = 1197 (Foto): hinten bis zur Fuge y = 1139, vorn die Schwenkstift-Nase
+export const LOWER_LUGS = [[1030, 1139, 1486, 1199], [1846, 1146, 1894, 1199]];
 export const PARTING_Y = 1196, RAIL_TOP_Y = 935, RAIL_BASE_Y = 962, UPPER_X0 = 1000, UPPER_X1 = 1896;
 export const PORT = [1492, 1012, 1830, 1110], DUST_COVER = [1494, 1112, 1832, 1196];
 export const DEFLECTOR = [[1412, 1040], [1420, 1000], [1462, 992], [1492, 1012], [1492, 1086], [1430, 1086]];
 export const FWD_ASSIST = [1040, 1046, 1160, 1104];
-export const PINS = [[1169, 1160, 15], [1850, 1156, 15], [1254, 1216, 17]];
+export const PINS = [[1169, 1160, 15], [1866, 1165, 15], [1254, 1216, 17]];
+// Hammer- und Abzugsstift (kleine Kreise über dem Abzug, Foto)
+export const SMALL_PINS = [[1463, 1207], [1378, 1237]];
 export const MAG_RELEASE = [1521, 1246, 20];
 // Pufferrohr, Schlossmutter, Endplatte
 export const TUBE = [960, 1048], TUBE_R = 0.0146;

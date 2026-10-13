@@ -50,7 +50,7 @@ export { applyCamo };
 const REF_NAMES = ['muzzle', 'ejection', 'sight', 'leftHandGrip', 'rightHandGrip'];
 const ANCHOR_NAMES = ['chargeGrab', 'magGrab', 'magWell', 'trigger', 'pumpGrab', 'boltGrab', 'pinGrab', 'shellPort', 'slideGrab', 'boltCatch',
   'loaderGrab', 'cylGrab', 'ejectorGrab', 'rocketGrab'];
-const PART_NAMES = ['mag', 'bolt', 'charge', 'pump', 'slide', 'boltHandle', 'hammer', 'cover', 'belt', 'lid', 'pin', 'spoon', 'blade', 'shell', 'led',
+const PART_NAMES = ['selector', 'mag', 'bolt', 'charge', 'pump', 'slide', 'boltHandle', 'hammer', 'cover', 'belt', 'lid', 'pin', 'spoon', 'blade', 'shell', 'led',
   'crane', 'cylinder', 'ejector', 'loader', 'rocket'];
 
 const cache = new Map();
@@ -89,7 +89,7 @@ function buildTemplate(key, lod, att = null) {
     adsOffset: [-sp.x, -sp.y, -eye - sp.z],
     magFill,
     info: {
-      sight: b.meta.sight || 'none', kind: b.meta.kind || 'gear', axis: b.meta.axis ?? 0, leftGrip,
+      sight: b.meta.sight || 'none', kind: b.meta.kind || 'gear', axis: b.meta.axis ?? 0, leftGrip, selector: b.meta.selector || null,
       triangles: root.userData.stats.triangles, meshes: root.userData.stats.meshes,
       size: size.toArray(), center: box.getCenter(new THREE.Vector3()).toArray(), min: box.min.toArray(), max: box.max.toArray(),
     },

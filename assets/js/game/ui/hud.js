@@ -1149,7 +1149,7 @@ export class HUD {
       const st = ub || w.current;
       setText(this.el.wName, ub ? `${def.name} · Unterlauf` : def.name);
       const FM = G.data.FIRE_MODES || {};
-      setText(this.el.wMode, melee ? 'Nahkampf' : FM[def.fireMode] || '');
+      setText(this.el.wMode, melee ? 'Nahkampf' : G.data.fireModeLabel ? G.data.fireModeLabel(def, w.fireMode, false) : FM[def.fireMode] || '');
       const infinite = G.mode && G.mode.def && G.mode.def.infiniteAmmo;
       setText(this.el.mag, melee ? '—' : String(st.mag));
       setText(this.el.reserve, melee ? '' : infinite ? '/ ∞' : `/ ${st.reserve}`);

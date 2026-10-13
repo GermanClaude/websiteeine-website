@@ -1240,7 +1240,7 @@ export class Input {
     const delay = 0.32 * Math.pow(1 - F, 1.5);
     if (target && now - this._afSince >= delay) {
       const def = wpn && wpn.currentDef;
-      const auto = def && def.fireMode === 'auto';
+      const auto = def && (wpn.fireMode || def.fireMode) === 'auto';
       if (auto) this._press('fire', 'auto');
       else {
         this._autoPulse -= dt;
@@ -1429,6 +1429,7 @@ class TouchUI {
       ${BTN_HTML('tc-lean tc-lean-l', 'lean_left', 'Links lehnen', ICONS.leanL, ' data-toggle="1"')}
       ${BTN_HTML('tc-lean tc-lean-r', 'lean_right', 'Rechts lehnen', ICONS.leanR, ' data-toggle="1"')}
       ${BTN_HTML('tc-light', 'light', 'Lampe', ICONS.light)}
+      <div class="tc-btn tc-feuermodus" data-action="feuermodus" role="button" aria-label="Feuermodus umschalten"><span class="tc-fm">AUTO</span></div>
       ${BTN_HTML('tc-prone', 'prone', 'Hinlegen', ICONS.prone)}
       ${BTN_HTML('tc-befehl', 'befehl', 'Befehlsrad', ICONS.befehl)}
       <div class="tc-btn tc-plate" data-action="plate" role="button" aria-label="Panzerplatte einsetzen">${ICONS.plate}<span class="tc-badge">0</span></div>
@@ -1469,6 +1470,7 @@ class TouchUI {
       leanL: r.querySelector('.tc-lean-l'),
       leanR: r.querySelector('.tc-lean-r'),
       swapName: r.querySelector('.tc-swap-name'),
+      fm: r.querySelector('.tc-fm'),
       reload: r.querySelector('.tc-reload'),
       streaks: [...r.querySelectorAll('.tc-streak')],
     };
@@ -1754,6 +1756,7 @@ class TouchUI {
     const w = p && p.weapon;
     if (kind === 'tactical') { const t = w && w.equipment && w.equipment.tactical; return !!(t && t.id); }
     if (kind === 'light') return !!(p && (p.flashlight || (w && (w.hasLight || w.light))));
+    if (kind === 'feuermodus') return !!(w && w.currentDef && G.data && G.data.fireModesOf && G.data.fireModesOf(w.currentDef).length > 1);
     if (kind === 'armor') return !!(p && p.armor && p.armor.slots > 0);
     if (kind === 'gadget') return !!(p && p.gadget);
     if (kind === 'verband') { const j = p && p.injury; return !!(j && (j.bleed > 0 || j.arm || j.leg)); }
@@ -1922,6 +1925,8 @@ class TouchUI {
     const slots = w.slots || [];
     const other = slots.find((st) => st && st !== w.current);
     set('swap', other && other.def ? other.def.name : '—', (v) => { this.el.swapName.textContent = v; });
+    const FMS = { auto: 'AUTO', semi: 'EINZEL', burst: 'STOSS', bolt: 'REP', pump: 'PUMP', single: 'EINZEL' };
+    set('fm', w.fireMode || '', (v) => { if (this.el.fm) this.el.fm.textContent = FMS[v] || ''; });
     const cur = w.current;
     const low = !!(cur && cur.def && cur.def.mag > 0 && cur.mag <= Math.ceil(cur.def.mag * 0.25));
     set('low', low, (v) => this.el.reload.classList.toggle('is-alert', v));

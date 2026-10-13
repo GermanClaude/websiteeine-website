@@ -27,9 +27,21 @@ function ctxIn(c) {
 const path = (g, pts) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); };
 // Griffschale: Rautenfeld schräg entlang der Griffachse (aus dem Foto)
 const STIPPLE = [[1142, 1386], [1222, 1420], [1124, 1636], [1000, 1608]];
-const PAD = [228, 990, 282, 1500];          // Gummikappe
-const SLOT1 = [386, 1262, 560, 1288];        // Riemenschlitz quer
-const SLOT2 = [358, 1268, 372, 1400];        // Riemenschlitz längs
+const PAD = [222, 990, 266, 1500];          // Gummikappe (Seite), Naht bei x = 266
+export const SLOTS = [[388, 1222, 577, 1243], [356, 1254, 372, 1323], [359, 1373, 375, 1402]];   // Riemenschlitze (durch)
+// Eigene Felder außerhalb der Teile (Fotopixel): Blankfeld für Ober-/Unter-/Stirnflächen, Kappe von hinten
+const PLAIN = [300, 1000, 1000, 1100], PADR = [1010, 970, 1340, 1290];
+const PAD_U = (PAD[2] + 4 - R.XG) / R.PPM, STOCK_TOP = R.V(990), STOCK_BOT = R.V(1500);
+const at = (px, py) => [(px - F.x0) / (F.x1 - F.x0), 1 - (py - F.y0) / (F.y1 - F.y0)];
+/** Atlas-UV je Dreieck nach Flächenrichtung: Seiten aus dem Foto, Ober-/Unterseiten und Stirnflächen ins Blankfeld
+ *  (statt verschmierter Seitenprojektion), Kappe hinten ins Gummifeld. */
+export function furnUV3(x, v, u, nx, ny, nz) {
+  if (Math.abs(nx) > 0.6) return furnUV(x, v, u);
+  if (Math.abs(nz) > 0.55 && u < PAD_U) return at(PADR[0] + (x + 0.034) / 0.068 * (PADR[2] - PADR[0]), PADR[1] + (STOCK_TOP - v) / (STOCK_TOP - STOCK_BOT) * (PADR[3] - PADR[1]));
+  const fx = (x + 0.034) / 0.068 * (PLAIN[3] - PLAIN[1]);
+  if (Math.abs(ny) >= Math.abs(nz)) { const px = photoX(u); return at(px > PLAIN[2] ? PLAIN[0] + (px - 940) : Math.max(PLAIN[0], px), PLAIN[1] + fx); }
+  return at(PLAIN[0] + 200 + (STOCK_TOP - v) * R.PPM * 0.9, PLAIN[1] + fx);
+}
 
 function drawFurn(g, kind) {
   const lo = { h: grey(0.3), r: grey(0.75), a: grey(0.45) }[kind], hi = { h: grey(0.64), r: grey(0.52), a: grey(1) }[kind];
@@ -44,19 +56,22 @@ function drawFurn(g, kind) {
   g.restore();
   // Rahmen um das Feld (Formkante)
   g.strokeStyle = lo; g.lineWidth = 1.6; path(g, STIPPLE); g.stroke();
-  // Gummikappe: senkrechte Rippen
+  // Gummikappe (Seite): glatter, matter Gummi, punktierte Naht vorn
+  const rub = { h: grey(0.5), r: grey(0.9), a: grey(0.86) }[kind];
   const [px0, py0, px1, py1] = PAD;
-  g.fillStyle = { h: grey(0.5), r: grey(0.86), a: grey(0.82) }[kind]; g.fillRect(px0, py0, px1 - px0, py1 - py0);
-  for (let x = px0 + 6; x < px1 - 4; x += 7) { g.fillStyle = lo; g.fillRect(x, py0 + 8, 2.2, py1 - py0 - 16); }
-  // Riemenschlitze (durchgehend: tief und dunkel)
-  const deep = { h: grey(0.05), r: grey(0.9), a: grey(0.08) }[kind];
-  for (const [x0, y0, x1, y1] of [SLOT1, SLOT2]) {
-    g.fillStyle = deep; g.beginPath(); g.roundRect(x0, y0, x1 - x0, y1 - y0, Math.min(x1 - x0, y1 - y0) / 2); g.fill();
-  }
-  // Eingeformte Schrift auf dem Schaftfuß + Kante der Wangenauflage
-  g.fillStyle = lo; g.font = '600 15px Arial, Helvetica, sans-serif';
-  g.fillText('NULLPUNKT  M-17', 432, 1276); g.fillText('VERSTELLSCHAFT', 440, 1300);
-  g.strokeStyle = lo; g.lineWidth = 1.4; g.beginPath(); g.moveTo(300, 1232); g.lineTo(980, 1232); g.stroke();
+  g.fillStyle = rub; g.fillRect(px0 - 4, py0 - 4, px1 - px0 + 4, py1 - py0 + 8);
+  g.fillStyle = lo; for (let y = py0 + 30; y < py1 - 20; y += 5) g.fillRect(px1 - 3, y, 1.6, 2.6);
+  // Kappe von hinten (eigenes Feld): Gummi mit Querrillen und umlaufendem Rand
+  const [qx0, qy0, qx1, qy1] = PADR;
+  g.fillStyle = rub; g.fillRect(qx0, qy0, qx1 - qx0, qy1 - qy0);
+  for (let y = qy0 + 14; y < qy1 - 12; y += 7) { g.fillStyle = lo; g.fillRect(qx0 + 10, y, qx1 - qx0 - 20, 2.4); }
+  // Batterieröhren-Deckel: runde Fuge hinten am Rohr
+  g.strokeStyle = lo; g.lineWidth = 2; g.beginPath(); g.arc(296, 1149, 40, -Math.PI / 2, Math.PI / 2); g.stroke();
+  // Riemenschlitze (Wände dunkel), eingeformte Schrift im Feld
+  const deep = { h: grey(0.2), r: grey(0.9), a: grey(0.25) }[kind];
+  for (const [x0, y0, x1, y1] of SLOTS) { g.fillStyle = deep; g.beginPath(); g.roundRect(x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 4, Math.min(x1 - x0, y1 - y0) / 2); g.fill(); }
+  g.fillStyle = lo; g.font = '600 10px Arial, Helvetica, sans-serif';
+  g.fillText('NULLPUNKT  M-17', 420, 1260); g.fillText('PAT. ANGEMELDET', 426, 1273);
 }
 
 function furnLayer(kind) {

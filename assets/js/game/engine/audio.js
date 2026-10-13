@@ -1634,6 +1634,7 @@ export class AudioEngine {
     on('bullet:whiz', p => { this._combatWhiz = true; this._passFromWhiz(p); });
     on('weapon:melee', p => this.play('melee_swing', { player: this._isPlayer(p.actor), position: posOf(p.actor), actor: p.actor }));
     on('weapon:dryfire', p => this.play('dryfire', { player: this._isPlayer(p.actor), position: posOf(p.actor), actor: p.actor }));
+    on('weapon:firemode', p => this.play('dryfire', { player: this._isPlayer(p.actor), position: posOf(p.actor), actor: p.actor, variant: 1 }));   // Wahlhebel rastet
     on('weapon:reload', p => this._reload(p));
     on('weapon:switch', p => {
       this._cancelReload(p.actor);

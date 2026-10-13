@@ -90,6 +90,49 @@ export const FIRE_MODES = {
   single: 'Einzellader',
 };
 
+/** Kurzname der Feuerart für Anzeigen (HUD, Umschalt-Hinweis) */
+export const FIRE_MODES_SHORT = { auto: 'Dauerfeuer', semi: 'Einzelfeuer', burst: 'Feuerstoß', bolt: 'Repetierer', pump: 'Vorderschaft', single: 'Einzellader' };
+
+/**
+ * Feuerarten je Waffe wie beim realen Vorbild (Nutzer 13.10.2026: „die Waffenmodi, die eine Waffe hat, zum Beispiel
+ * Semi, vollautomatisch, und die anderen, falls es mehr gibt“). Reihenfolge = Umschaltfolge am Wahlhebel, die erste ist
+ * der Standard (= fireMode). burst = Schuss je Feuerstoß. Umschalten: Aktion „feuermodus“ (Taste M).
+ */
+export const FIRE_SELECT = {
+  ar_kv47: { modes: ['auto', 'semi'] },                     // AKM: Sicher – Dauer – Einzel
+  ar_m17: { modes: ['auto', 'semi'] },                      // M4A1 / HK416: Sicher – Einzel – Dauer
+  smg_vp9: { modes: ['auto', 'burst', 'semi'], burst: 3 },  // MP5 mit Feuerstoß-Griffstück (0 – 1 – 3 – F)
+  smg_qx90: { modes: ['auto', 'semi'] },                    // P90: Drehschalter unter dem Abzug (0 – 1 – A)
+  lmg_hm60: { modes: ['auto'] },                            // M60: nur Dauerfeuer (offener Verschluss)
+  mr_sk14: { modes: ['semi', 'auto'] },                     // M14 / Mk 14: Einzelfeuer, Wahlhebel für Dauerfeuer
+  ar_k36: { modes: ['auto', 'burst', 'semi'], burst: 2 },   // G36C mit Griffstück 0 – E – 2 – F
+  ar_ursprung: { modes: ['auto', 'burst', 'semi'], burst: 2 },
+  ar_bx20: { modes: ['auto', 'semi'] },                     // AUG: Druckpunktabzug (halb = Einzel, ganz = Dauer)
+  ar_g7: { modes: ['auto', 'semi'] },                       // G3: S – E – F
+  smg_wespe: { modes: ['auto', 'burst', 'semi'], burst: 2 },// Vector: Einzel, 2er-Feuerstoß, Dauer
+  smg_keiler: { modes: ['auto', 'burst', 'semi'], burst: 2 },// UMP45 mit Griffstück S – E – 2 – F
+  lmg_lm8: { modes: ['auto', 'semi'] },                     // RPK: wie AK, Dauer – Einzel
+};
+/** Feuerarten einer Waffe (Standard zuerst) */
+export function fireModesOf(def) {
+  if (!def) return ['auto'];
+  const sel = FIRE_SELECT[def.id];
+  const list = sel ? sel.modes : [def.fireMode || 'auto'];
+  return list.includes(def.fireMode) || !def.fireMode ? list : [def.fireMode, ...list.filter((m) => m !== def.fireMode)];
+}
+/** Schuss je Feuerstoß (für mode 'burst') */
+export function burstCountOf(def) {
+  if (!def) return 3;
+  if (def.fireMode === 'burst' && def.burstCount > 1) return def.burstCount;
+  return (FIRE_SELECT[def.id] && FIRE_SELECT[def.id].burst) || 3;
+}
+/** Anzeige einer Feuerart: „Feuerstoß (3)“, „Dauerfeuer“ … */
+export function fireModeLabel(def, mode, short = true) {
+  const m = mode || (def && def.fireMode) || 'auto';
+  const base = (short ? FIRE_MODES_SHORT : FIRE_MODES)[m] || m;
+  return m === 'burst' ? `${base} (${burstCountOf(def)})` : base;
+}
+
 export const SIGHTS = {
   iron: { name: 'Kimme und Korn', overlay: null },
   holo: { name: 'Holo-Visier', overlay: 'holo' },

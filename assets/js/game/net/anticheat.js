@@ -20,7 +20,7 @@
 // Meldet der Client „tot“, während seine Puppe beim Host lebt (Spawn unterwegs), bleibt der Anker unverändert.
 // Verstöße sind gewichtet und klingen mit der Zeit ab; ab `threshold` wird einmalig onKick(peer, grund, text) gerufen
 // (und das Ergebnis trägt `kick`). Protokoll: ac.log = [{t, peer, reason, text, weight, score}] (für das Host-Menü).
-import { damageAt, zoneMult } from '../../shared/weapons.data.js';
+import { damageAt, zoneMult, fireModesOf, burstCountOf } from '../../shared/weapons.data.js';
 import { FLAGS } from './protocol.js';
 
 /** Gewicht je Verstoß (Summe ≥ threshold → Kick). */
@@ -388,7 +388,7 @@ export class AntiCheat {
   _bucket(map, def, nowSec) {
     const o = this.opts;
     const rate = (Math.max(1, def.rpm || 60) * (1 + o.rpmTolerance)) / 60;
-    const cap = o.burst + (def.fireMode === 'burst' && def.burstCount > 1 ? def.burstCount : 0);
+    const cap = o.burst + (fireModesOf(def).includes('burst') ? burstCountOf(def) : 0);
     let b = map.get(def.id);
     if (!b) map.set(def.id, (b = { tokens: cap, t: nowSec }));
     b.tokens = Math.min(cap, b.tokens + Math.max(0, nowSec - b.t) * rate);

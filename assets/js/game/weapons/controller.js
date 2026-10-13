@@ -10,7 +10,7 @@
 // Für den Spieler treibt er den Gunsmith-ViewModel (Waffe, Animationen, Anschlag, Overlay).
 
 import * as THREE from 'three';
-import { WEAPONS as DATA_WEAPONS, EQUIPMENT as DATA_EQUIPMENT, effectiveRange, weaponHandling } from '../../shared/weapons.data.js';
+import { WEAPONS as DATA_WEAPONS, EQUIPMENT as DATA_EQUIPMENT, effectiveRange, weaponHandling, fireModesOf, burstCountOf, fireModeLabel } from '../../shared/weapons.data.js';
 import { clamp, damp, smooth01, easeInOut, wrapAngle, samplePellet, sampleCone, patternAt } from './ballistics/math.js';
 import { applyAttachments, loadAttachments, UNDER_WEAPONS } from '../../shared/attachments.data.js';
 import { getWeaponModelInfo } from './models.js';
@@ -161,6 +161,9 @@ export class WeaponController {
 
   get current() { return this.slots[this.index] || null; }
   get currentDef() { const s = this.slots[this.index]; return s ? s.def : null; }
+  /** Aktuelle Feuerart der Waffe in der Hand (Wahlhebel, je Waffe gemerkt): 'auto' | 'semi' | 'burst' | 'bolt' … */
+  get fireMode() { const s = this.current; return s ? this._modeOf(s) : 'auto'; }
+  _modeOf(s) { const ms = fireModesOf(s.def); return s.mode && ms.includes(s.mode) ? s.mode : ms[0]; }
   /** { mag, reserve, magSize } der aktuellen Waffe (HUD-Komfort). */
   get ammo() { const s = this.current; return s ? { mag: s.mag, reserve: s.reserve, magSize: s.def.mag || 0 } : null; }
   get infiniteAmmo() { const m = this.G.mode; return !!(this.actor.isBot || this.actor.mounted || (m && m.def && m.def.infiniteAmmo)); }
@@ -255,7 +258,7 @@ export class WeaponController {
       const o = old.get(def.id);
       if (o && (o.def.attKey || '') === (def.attKey || '')) return o;
       // gleiche Waffe, andere Aufsätze (Pausemenü im Match): Munition bleibt (kein geschenktes volles Magazin)
-      if (o) return { id: def.id, def, mag: Math.min(o.mag, def.mag || 0), reserve: o.reserve };
+      if (o) return { id: def.id, def, mag: Math.min(o.mag, def.mag || 0), reserve: o.reserve, mode: o.mode };
       return { id: def.id, def, mag: def.mag || 0, reserve: def.reserve || 0 };
     };
     this.slots = secondary ? [mk(primary), mk(secondary)] : [mk(primary)];
@@ -527,6 +530,7 @@ export class WeaponController {
       s.firing = this.isFiring;
       s.timeSinceShot = now - this.lastShotTime;
       s.mag = def.cls === 'melee' ? 1 : cur.mag;
+      s.fireMode = this._modeOf(cur);
       // Waffengefühl: Geschwindigkeit im Blickraum (x rechts, y oben, z vorwärts), Wandkollision, Atemnot,
       // Lehnen und freies Zielen (core, sobald vorhanden)
       const v = s.vel || (s.vel = { x: 0, y: 0, z: 0 });
@@ -587,7 +591,18 @@ export class WeaponController {
       this.G.events.emit('injury:notice', { text: this.underOn ? `${U.name}: ${st.under.mag} | ${st.under.reserve}` : def.name, tone: 'ally' });
     }
     if (this.underOn && U) { this._fireUnder(it, U, st.under); return; }
-    const mode = def.fireMode || 'auto';
+    // Wahlhebel (Nutzer 13.10.2026): Taste „Feuermodus“ schaltet durch die Feuerarten des Vorbilds
+    const modes = fireModesOf(def);
+    const fmKey = this.actor.isPlayer && this.G.input && typeof this.G.input.pressed === 'function' && this.G.input.pressed('feuermodus');
+    if (!fmKey) this._fmLatch = false;   // ein Druck = ein Schritt, auch wenn das Bild in mehreren Teilschritten rechnet
+    if (fmKey && !this._fmLatch && modes.length > 1 && !this._switch) {
+      this._fmLatch = true;
+      st.mode = modes[(modes.indexOf(this._modeOf(st)) + 1) % modes.length];
+      this._burstLeft = 0; this._fireBuffer = 0;
+      this.G.events.emit('weapon:firemode', { actor: this.actor, weaponId: def.id, mode: st.mode });
+      this.G.events.emit('injury:notice', { text: `${def.name}: ${fireModeLabel(def, st.mode)}`, tone: 'dim' });
+    }
+    const mode = this._modeOf(st);
     if (it.firePressed) this._fireBuffer = Math.max(this._fireBuffer, 0.16 + (it.sprinting || this._sprintRecover > 0 ? (def.sprintToFire || 0.2) : 0));
     const trigger = mode === 'auto' ? (it.fire || this._fireBuffer > 0) : (this._fireBuffer > 0 || this._burstLeft > 0);
     // Automatisch nachladen, wenn leer (nach dem letzten Schuss)
@@ -619,7 +634,7 @@ export class WeaponController {
     }
     if (mode === 'burst' && this._burstLeft <= 0) {
       if (this._cooldown > 0) return;
-      this._burstLeft = Math.max(1, def.burstCount || 3);
+      this._burstLeft = Math.max(1, burstCountOf(def));
     }
     let shots = 0;
     while (this._cooldown <= 0 && st.mag > 0 && shots < 3) {
