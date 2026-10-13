@@ -12,7 +12,7 @@ function bigBrake(b, u0, axis) {
     for (const s of [-1, 1]) for (const du of [0.028, 0.075]) b.box('cavity', 0.004, 0.026, 0.03, s * 0.0298, axis, u0 + du, { c: 0 });
     b.box('steelDark', 0.004, 0.034, 0.008, 0, axis, u0 + 0.052, { c: 0 });
   }
-  b.circle('cavity', 0.008, 0, axis, u0 + L + 0.0005);
+  b.bore(0.008, 0, axis, u0 + L + 0.0005);
   return u0 + L;
 }
 
@@ -104,7 +104,7 @@ export function hagel(b) {
   b.cyl('steel', 0.009, 0.009, 0.18, 0, axis + 0.026, 0.4, { seg: b.seg(12, 5) });
   b.cyl('steelDark', 0.0145, 0.0145, 0.05, 0, axis, 0.7, { seg: b.seg(16, 6) });
   if (b.hi) for (let i = 0; i < 4; i++) b.box('cavity', 0.004, 0.004, 0.012, 0, axis + 0.0142, 0.688 + i * 0.008, { c: 0 });
-  b.circle('cavity', 0.0095, 0, axis, 0.7255);
+  b.bore(0.0095, 0, axis, 0.7255);
   b.anchor('muzzle', 0, axis, 0.727);
   // Geisterring-Visier: Ring hinten, Korn vorn (Säule)
   const sv = 0.118;
@@ -157,7 +157,7 @@ export function kobra(b) {
   b.front('stainless', [[-0.0135, 0.052], [0.0135, 0.052], [0.0135, 0.086], [0.009, 0.094], [-0.009, 0.094], [-0.0135, 0.086]], 0.13, 0.1, { bevel: 0.0015 });
   b.front('stainless', [[-0.005, 0.094], [0.005, 0.094], [0.004, 0.101], [-0.004, 0.101]], 0.125, 0.102, { bevel: 0.0008 });
   if (b.hi) for (let i = 0; i < 6; i++) b.box('cavity', 0.008, 0.004, 0.012, 0, 0.0995, 0.115 + i * 0.019, { c: 0 });
-  b.circle('cavity', 0.0058, 0, axis, 0.2305);
+  b.bore(0.0058, 0, axis, 0.2305);
   b.anchor('muzzle', 0, axis, 0.232);
   // Korn (Rampe mit rotem Einsatz) und Kimme (Kerbe in der Brücke)
   b.side('stainless', [[0.208, 0.101], [0.226, 0.101], [0.226, 0.112], [0.22, 0.112]], 0.004, 0, { bevel: 0.0005 });

@@ -43,13 +43,13 @@ export function fbm(w, h, { seed = 1, octaves = 4, period = 8, gain = 0.5, perio
   return out;
 }
 
-function canvas(w, h) {
+export function canvas(w, h) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   return c;
 }
 
-function toTexture(c, { srgb = false, repeat = true, aniso = 4 } = {}) {
+export function toTexture(c, { srgb = false, repeat = true, aniso = 4 } = {}) {
   const t = new THREE.CanvasTexture(c);
   if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
@@ -60,13 +60,13 @@ function toTexture(c, { srgb = false, repeat = true, aniso = 4 } = {}) {
   return t;
 }
 
-function cached(key, make) {
+export function cached(key, make) {
   if (!cache.has(key)) cache.set(key, make());
   return cache.get(key);
 }
 
 // Höhenfeld → Normal-Map (Sobel, kachelnd)
-function heightToNormal(height, w, h, strength = 2) {
+export function heightToNormal(height, w, h, strength = 2) {
   const c = canvas(w, h), ctx = c.getContext('2d');
   const img = ctx.createImageData(w, h), d = img.data;
   const H = (x, y) => height[((y + h) % h) * w + ((x + w) % w)];

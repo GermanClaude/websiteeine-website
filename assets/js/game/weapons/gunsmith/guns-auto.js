@@ -55,7 +55,7 @@ export function vp9(b) {
   b.cyl('steelDark', 0.0085, 0.0085, 0.08, 0, axis, 0.4, { seg: b.seg(14, 6) });
   b.cyl('steelDark', 0.0095, 0.0095, 0.024, 0, axis, 0.43, { seg: b.seg(14, 6) });
   if (b.hi) for (let i = 0; i < 3; i++) { const a = Math.PI / 2 + i * Math.PI * 2 / 3; b.box('steelDark', 0.006, 0.004, 0.01, Math.cos(a) * 0.0105, axis + Math.sin(a) * 0.0105, 0.425, { rz: a - Math.PI / 2, c: 0.0008 }); }
-  b.circle('cavity', 0.0045, 0, axis, 0.4425);
+  b.bore(0.0045, 0, axis, 0.4425);
   b.anchor('muzzle', 0, axis, 0.445);
   // Schlanker Handschutz (Polymer) mit Rillen
   b.side('polymer', [
@@ -180,7 +180,7 @@ export function qx90(b) {
   b.cyl('steelDark', 0.0085, 0.0085, 0.04, 0, axis, 0.262, { seg: b.seg(12, 6) });
   b.lathe('steelDark', [[0, 0], [0, 0.0105], [0.004, 0.011], [0.03, 0.011], [0.032, 0.0088], [0.032, 0.005]], 0, axis, 0.272, { seg: b.seg(12, 6) });
   if (b.hi) for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + Math.PI / 4; b.box('cavity', 0.0025, 0.0025, 0.016, Math.cos(a) * 0.0105, axis + Math.sin(a) * 0.0105, 0.292, { rz: a, c: 0 }); }
-  b.circle('cavity', 0.0045, 0, axis, 0.3045);
+  b.bore(0.0045, 0, axis, 0.3045);
   b.anchor('muzzle', 0, axis, 0.305);
   // Spannhebel beidseitig vorn (animiert)
   b.part('charge', 0, 0.074, 0.18);
@@ -279,7 +279,7 @@ export function hm60(b) {
   b.box('steel', 0.016, 0.012, 0.022, 0, axis + 0.014, 0.83, { c: 0.002 });
   b.lathe('steelDark', [[0, 0], [0, 0.0135], [0.008, 0.0145], [0.065, 0.019], [0.065, 0.014]], 0, axis, 0.88, { seg: b.seg(14, 6) });
   if (b.hi) for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; b.box('cavity', 0.003, 0.003, 0.045, Math.cos(a) * 0.0168, axis + Math.sin(a) * 0.0168, 0.915, { rz: a, c: 0 }); }
-  b.circle('cavity', 0.012, 0, axis, 0.9455);
+  b.bore(0.012, 0, axis, 0.9455);
   b.anchor('muzzle', 0, axis, 0.946);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.32, gw: 0.016, gd: 0.02, gu: 0.006, ho: 0.039, tu: 0.03 } });
   b.anchor('magWell', -0.06, 0.0, 0.1);

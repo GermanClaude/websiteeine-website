@@ -249,6 +249,16 @@ export class Builder {
     return this._push(geo, mat, { ...o, x, v, u }, !!o.keepUV);
   }
 
+  // Laufbohrung an der Mündung (Stirnfläche bei u): schwarzes Loch mit blank polierter, angefaster Krone – auch auf
+  // schwarzem Stahl als Loch lesbar (Nutzer 13.10.2026: „eine Mündung und darin ein schwarzes Loch“).
+  // u = Lage der Lochscheibe, ≈ 0,5 mm vor der Stirnfläche.
+  bore(r, x, v, u, o = {}) {
+    this.circle('cavity', r, x, v, u, o);
+    if (!this.hi) return;
+    const w = Math.max(0.0007, r * 0.3);
+    this.lathe('crown', [[-0.0009, r * 0.98], [-0.0002, r + w]], x, v, u, { ...o, seg: o.seg ?? 24 });
+  }
+
   // Picatinny-Schiene von u0 bis u1 auf Höhe v (Unterkante), optional seitlich/unten via rz
   rail(mat, x, v, u0, u1, o = {}) {
     const w = o.w ?? 0.021, base = o.base ?? 0.0045, len = u1 - u0;

@@ -15,7 +15,7 @@ import { onCustomChange } from '../../../shared/customcamo.js';
 const SIZE = 256;
 /** Materialschlüssel (gs:<key>), die ein Tarnmuster erhalten. */
 export const CAMO_TARGETS = new Set(['alu', 'aluTan', 'aluOD', 'polymer', 'polymerTan', 'polymerOD', 'polymerGrey', 'steel', 'stainless',
-  'woodWarm', 'woodWalnut', 'paintOlive', 'bladeCoat', 'canvasOD', 'slideNitride', 'polymerSatin']);
+  'woodWarm', 'woodWalnut', 'paintOlive', 'bladeCoat', 'canvasOD', 'slideNitride', 'polymerSatin', 'p9Slide', 'p9Frame']);
 
 const texCache = new Map();
 const matCache = new Map();
@@ -288,6 +288,9 @@ export function camoMaterial(baseKey, id) {
   m = base.clone();
   m.name = `gs:${baseKey}:camo:${id}`;
   m.map = camoTexture(id);
+  // Atlas-UVs (P-9): Muster auf das übliche Maß (0,2 m je UV-Einheit) bringen
+  const rep = base.userData.camoRepeat;
+  if (rep) { m.map = m.map.clone(); m.map.repeat.set(rep[0], rep[1]); m.map.needsUpdate = true; }
   m.color = new THREE.Color(0xffffff);
   if (m.vertexColors) m.vertexColors = false;
   const f = def.finish || {};

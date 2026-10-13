@@ -199,7 +199,7 @@ export function muzzleDevice(b, kind, u0, axis, r = 0.011) {
     b.cyl('knurl', R * 0.78, R * 0.78, 0.022, 0, axis, u0 + 0.008, { seg: b.seg(16, 6) });
     b.lathe('steelDark', [[0, R * 0.8], [0.006, R], [L - 0.006, R], [L, R * 0.88], [L, r * 0.5]], 0, axis, u0 + 0.016, { seg: b.seg(22, 8) });
     if (b.hi) for (let i = 0; i < 3; i++) b.cyl('steel', R * 1.004, R * 1.004, 0.0025, 0, axis, u0 + 0.05 + i * 0.04, { seg: 22 });
-    b.circle('cavity', r * 0.48, 0, axis, u0 + 0.0165 + L);
+    b.bore(r * 0.48, 0, axis, u0 + 0.0165 + L);
     return u0 + 0.016 + L;
   }
   if (kind === 'kompensator') {
@@ -209,14 +209,14 @@ export function muzzleDevice(b, kind, u0, axis, r = 0.011) {
       for (let i = 0; i < 3; i++) b.box('cavity', 0.0045, 0.002, 0.007, 0, axis + R - 0.0008, u0 + 0.014 + i * 0.013, { c: 0 });
       for (const s of [-1, 1]) b.box('cavity', 0.002, R * 0.9, 0.012, s * (R - 0.0008), axis, u0 + 0.03, { c: 0 });
     }
-    b.circle('cavity', R * 0.45, 0, axis, u0 + L + 0.0005);
+    b.bore(R * 0.45, 0, axis, u0 + L + 0.0005);
     return u0 + L;
   }
   if (kind === 'bremse') {
     const R = Math.max(0.0135, r * 1.35), L = 0.072;
     b.lathe('steelDark', [[0, 0], [0, R * 0.9], [0.005, R], [L - 0.004, R], [L, R * 0.9], [L, R * 0.45]], 0, axis, u0, { seg: b.seg(16, 6) });
     if (b.hi) for (const s of [-1, 1]) for (let i = 0; i < 4; i++) b.box('cavity', 0.004, R * 1.3, 0.008, s * (R - 0.0012), axis, u0 + 0.014 + i * 0.015, { c: 0 });
-    b.circle('cavity', R * 0.42, 0, axis, u0 + L + 0.0005);
+    b.bore(R * 0.42, 0, axis, u0 + L + 0.0005);
     return u0 + L;
   }
   // Mündungsfeuerdämpfer: geschlitzte Hülse (4 Zinken)
@@ -226,7 +226,7 @@ export function muzzleDevice(b, kind, u0, axis, r = 0.011) {
     const a = i * Math.PI / 2;
     b.box('cavity', 0.003, 0.003, 0.03, Math.cos(a) * R * 0.98, axis + Math.sin(a) * R * 0.98, u0 + L - 0.016, { rz: a, c: 0 });
   }
-  b.circle('cavity', R * 0.7, 0, axis, u0 + L + 0.0005);
+  b.bore(R * 0.7, 0, axis, u0 + L + 0.0005);
   return u0 + L;
 }
 
@@ -241,7 +241,7 @@ export function birdcage(b, u0, axis, r = 0.0105) {
     if (i === 3) continue; // geschlossener Boden (A2)
     b.box('cavity', 0.0035, 0.0035, 0.024, Math.cos(a) * r * 0.98, axis + Math.sin(a) * r * 0.98, u0 + 0.026, { rz: a, c: 0 });
   }
-  b.circle('cavity', r * 0.45, 0, axis, u0 + 0.0465);
+  b.bore(r * 0.45, 0, axis, u0 + 0.0465);
   return u0 + 0.046;
 }
 
@@ -251,7 +251,7 @@ export function akBrake(b, u0, axis) {
   b.lathe('steelDark', [[0, 0], [0, 0.0105], [0.004, 0.0115], [0.03, 0.0115], [0.034, 0.0105], [0.036, 0.0095], [0.036, 0.0055]], 0, axis, u0, { seg: b.seg(14, 6) });
   if (b.hi) {
     b.box('steelDark', 0.016, 0.007, 0.012, 0.004, axis + 0.009, u0 + 0.041, { rx: -0.35, c: 0.0015 });
-    b.circle('cavity', 0.005, 0, axis, u0 + 0.0365);
+    b.bore(0.005, 0, axis, u0 + 0.0365);
   }
   return u0 + 0.045;
 }
@@ -264,7 +264,7 @@ export function brake(b, u0, axis, r = 0.0125, len = 0.06) {
     for (const s of [-1, 1]) for (let i = 0; i < 3; i++) {
       b.box('cavity', 0.004, r * 1.25, 0.0085, s * (r - 0.0012), axis, u0 + 0.012 + i * 0.015, { c: 0 });
     }
-    b.circle('cavity', r * 0.42, 0, axis, u0 + len + 0.0005);
+    b.bore(r * 0.42, 0, axis, u0 + len + 0.0005);
   }
   return u0 + len;
 }

@@ -119,7 +119,7 @@ export function bulldog(b) {
   for (const s of [-1, 1]) b.side('steelDark', [[0.572, axis + 0.034], [0.59, axis + 0.034], [0.588, sl + 0.006], [0.576, sl + 0.006]], 0.0028, s * 0.0075, { bevel: 0.0006 });
   b.box('steelDark', 0.0032, sl - axis - 0.036, 0.004, 0, (sl + axis + 0.036) / 2, 0.582, { c: 0.0006 });
   b.sphere('glowAmber', 0.0012, 0, sl - 0.0005, 0.5795, { seg: 8, hseg: 6 });
-  b.circle('cavity', 0.0095, 0, axis, 0.6225);
+  b.bore(0.0095, 0, axis, 0.6225);
   b.anchor('muzzle', 0, axis, 0.623);
   // Röhrenmagazin + Kappe + Laufschelle
   b.cyl('steel', 0.0112, 0.0112, 0.4, 0, axis - 0.025, 0.352, { seg: b.seg(14, 6) });

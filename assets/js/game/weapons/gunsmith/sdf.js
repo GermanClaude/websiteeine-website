@@ -110,3 +110,46 @@ export function surfaceNets(f, min, max, step) {
   geo.setIndex(idx);
   return geo;
 }
+
+/** Quader um (cx, cv, cu) mit Halbmaßen (hx, hv, hu). */
+export function sdBox(x, v, u, cx, cv, cu, hx, hv, hu) {
+  const qx = Math.abs(x - cx) - hx, qy = Math.abs(v - cv) - hv, qz = Math.abs(u - cu) - hu;
+  return Math.hypot(Math.max(qx, 0), Math.max(qy, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qy, qz), 0);
+}
+
+/** Ellipsoid (Näherung) um (cx, cv, cu) mit Halbachsen (rx, rv, ru). */
+export function sdEllipsoid(x, v, u, cx, cv, cu, rx, rv, ru) {
+  const px = (x - cx) / rx, py = (v - cv) / rv, pz = (u - cu) / ru;
+  const k0 = Math.hypot(px, py, pz), k1 = Math.hypot(px / rx, py / rv, pz / ru);
+  return k1 > 0 ? k0 * (k0 - 1) / k1 : -Math.min(rx, rv, ru);
+}
+
+/** Polygon vereinfachen (Douglas-Peucker, Toleranz in Polygon-Einheiten). */
+export function simplifyPoly(pts, tol) {
+  const rec = (a, b) => {
+    let mx = 0, mi = -1;
+    const [x1, y1] = pts[a], [x2, y2] = pts[b], l = Math.hypot(x2 - x1, y2 - y1) || 1;
+    for (let i = a + 1; i < b; i++) { const d = Math.abs((x2 - x1) * (y1 - pts[i][1]) - (x1 - pts[i][0]) * (y2 - y1)) / l; if (d > mx) { mx = d; mi = i; } }
+    return mx > tol ? [...rec(a, mi).slice(0, -1), ...rec(mi, b)] : [pts[a], pts[b]];
+  };
+  const h = pts.length >> 1;
+  return [...rec(0, h).slice(0, -1), ...rec(h, pts.length - 1).slice(0, -1)];
+}
+
+/**
+ * 2D-Feld f(a, b) einmal auf einem Raster vorberechnen → bilineare Abfrage. Für Profile (Umriss in u/v), die das
+ * 3D-Feld an jedem Gitterpunkt erneut braucht; außerhalb des Rasters wird exakt gerechnet.
+ */
+export function grid2D(f, a0, a1, b0, b1, step) {
+  const na = Math.ceil((a1 - a0) / step) + 1, nb = Math.ceil((b1 - b0) / step) + 1;
+  const g = new Float32Array(na * nb);
+  for (let j = 0; j < nb; j++) for (let i = 0; i < na; i++) g[j * na + i] = f(a0 + i * step, b0 + j * step);
+  return (a, b) => {
+    let x = (a - a0) / step, y = (b - b0) / step;
+    if (x < 0 || y < 0 || x > na - 1 || y > nb - 1) return f(a, b);
+    const i = Math.min(na - 2, x | 0), j = Math.min(nb - 2, y | 0);
+    x -= i; y -= j;
+    const k = j * na + i;
+    return (g[k] * (1 - x) + g[k + 1] * x) * (1 - y) + (g[k + na] * (1 - x) + g[k + na + 1] * x) * y;
+  };
+}

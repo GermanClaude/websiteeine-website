@@ -1,6 +1,7 @@
 // Gemeinsame PBR-Materialien der Waffen (geteilt zwischen allen Modellen, LODs und Klonen).
 import * as THREE from 'three';
 import { wearMap, brushedMap, grainNormal, stippleNormal, knurlNormal, woodMap, reticleMap, polymerMap, drumFaceMap, drumFaceNormal } from './textures.js';
+import { p9SlideMaps, p9FrameMaps, SLIDE_CAMO_REPEAT, FRAME_CAMO_REPEAT } from './p9-tex.js';
 
 const mats = new Map();
 
@@ -44,7 +45,10 @@ const DEFS = {
   // Pistole nach Vorbild (P-9 ≈ Glock 17): nitrierter Schlitten mit Abrieb, seidenmatter Rahmenkunststoff, Laufhaube
   slideNitride: () => std({ color: 0x323336, metalness: 0.55, roughness: 0.4, roughnessMap: wearMap(), normalMap: grainNormal(), normalScale: new THREE.Vector2(0.1, 0.1) }),
   polymerSatin: () => std({ color: 0x131416, metalness: 0.0, roughness: 0.62, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.14, 0.14) }),
-  barrelNitride: () => std({ color: 0x3c3d40, metalness: 0.9, roughness: 0.3, roughnessMap: wearMap() }),
+  // P-9 nach Foto (p9-tex.js): Nitrid-Schlitten mit Rillen/Gravur/Kratzern, Polymerrahmen mit Würfelraster und Rillen
+  p9Slide: () => { const t = p9SlideMaps(); const m = std({ color: 0xffffff, map: t.map, metalness: 0.62, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = SLIDE_CAMO_REPEAT; return m; },
+  p9Frame: () => { const t = p9FrameMaps(); const m = std({ color: 0x18191b, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FRAME_CAMO_REPEAT; return m; },
+  barrelNitride: () => std({ color: 0x38393c, metalness: 0.85, roughness: 0.42, roughnessMap: wearMap() }),
   // Trommelmagazin: eigener Kunststoff (keine Tarnung) und Deckel mit eigener Textur
   drumBody: () => std({ color: 0x2a2c30, map: polymerMap(), metalness: 0.0, roughness: 0.66, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.2, 0.2) }),
   drumFace: () => std({ color: 0xffffff, map: drumFaceMap(), normalMap: drumFaceNormal(), normalScale: new THREE.Vector2(0.9, 0.9), metalness: 0.0, roughness: 0.62 }),
@@ -81,6 +85,8 @@ const DEFS = {
   cord: () => std({ color: 0x3b3f2e, metalness: 0.0, roughness: 0.95, normalMap: knurlNormal(), normalScale: new THREE.Vector2(0.8, 0.8) }),
   // Leere/Innenraum (Auswurföffnung, Laufbohrung)
   cavity: () => new THREE.MeshBasicMaterial({ color: 0x050505 }),
+  // Laufkrone: blank gedrehte Fase um die Bohrung (fängt Spiegelungen, macht das Loch sichtbar)
+  crown: () => std({ color: 0xa9adb2, metalness: 1.0, roughness: 0.2, side: THREE.DoubleSide }),
   // Selbstleuchtend (bloom-freundlich, kein Tonemapping)
   glowRed: () => new THREE.MeshBasicMaterial({ color: new THREE.Color(4, 0.35, 0.15), toneMapped: false }),
   glowGreen: () => new THREE.MeshBasicMaterial({ color: new THREE.Color(0.6, 3.2, 0.5), toneMapped: false }),

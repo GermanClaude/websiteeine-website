@@ -196,7 +196,7 @@ export function wespe(b) {
   // Lauf + Mündungsgewinde, Korn und Kimme (offen)
   b.cyl('steelDark', 0.0082, 0.0082, 0.06, 0, axis, 0.17, { seg: b.seg(12, 6) });
   b.cyl('steelDark', 0.0098, 0.0098, 0.016, 0, axis, 0.204, { seg: b.seg(12, 6) });
-  b.circle('cavity', 0.0042, 0, axis, 0.2122);
+  b.bore(0.0042, 0, axis, 0.2122);
   b.anchor('muzzle', 0, axis, 0.214);
   const sv = 0.104;
   postFront(b, 'polymer', 0.122, sv, 0.086);

@@ -6,7 +6,8 @@
 <title>NULLPUNKT · Fotostudio</title>
 <!-- Waffen wie auf einem Produktfoto: Studio-Umgebung (Softbox-Raum) für Spiegelungen, weiche Lichter, Umgebungsverdeckung (GTAO), Kontaktschatten auf
      hellem Hohlkehlen-Hintergrund, ACES-Tonwerte. Für Vorher/Nachher-Vergleiche der Waffenmodelle (Nutzer 13.10.2026).
-     ?model=p9&yaw=-90&pitch=0&dist=0.4&camo=…&w=1600&h=1000 – window.__studio.ready, wenn das Bild steht. -->
+     ?model=p9&yaw=-90&pitch=0&dist=0.4&camo=…&w=1600&h=1000 – window.__studio.ready, wenn das Bild steht.
+     Fotovergleich: &bg=ffffff&floor=0&fov=4&dist=… (fast parallel), &ty/&tz verschieben den Blickpunkt. -->
 <style>html,body{margin:0;height:100%;background:#c8ccd0;overflow:hidden}canvas{display:block}</style>
 <script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
 </head>
@@ -33,11 +34,13 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xc8ccd0);
-const camera = new THREE.PerspectiveCamera(28, W / H, 0.01, 50);
+const BG = q.get('bg') ? new THREE.Color('#' + q.get('bg')) : new THREE.Color(0xc8ccd0);
+scene.background = BG;
+const camera = new THREE.PerspectiveCamera(+(q.get('fov') || 28), W / H, 0.01, 50);
 
 // Hohlkehle: Boden + gebogene Rückwand in einem Stück
-const cyc = new THREE.Mesh(new THREE.PlaneGeometry(6, 6, 1, 1), new THREE.MeshStandardMaterial({ color: 0xc8ccd0, roughness: 0.95 }));
+const cyc = new THREE.Mesh(new THREE.PlaneGeometry(6, 6, 1, 1), new THREE.MeshStandardMaterial({ color: BG, roughness: 0.95 }));
+cyc.visible = q.get('floor') !== '0';
 cyc.rotation.x = -Math.PI / 2;
 cyc.receiveShadow = true;
 scene.add(cyc);
@@ -59,7 +62,7 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.03).texture;
 scene.environmentIntensity = +(q.get('env') || 0.75);
 
-const model = createWeaponModel(q.get('model') || 'p9', { lod: 'first' });
+const model = createWeaponModel(q.get('model') || 'p9', { lod: 'first', att: q.get('att') ? JSON.parse(q.get('att')) : null });
 if (q.get('camo')) applyCamo(model, q.get('camo'));
 model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
 // auf den Boden stellen (leicht schräg wie hingelegt geht nicht – Waffen stehen im Labor aufrecht), mittig
@@ -67,7 +70,9 @@ const box = new THREE.Box3().setFromObject(model);
 const c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
 model.position.set(-c.x, -box.min.y + 0.002, -c.z);
 scene.add(model);
-const target = new THREE.Vector3(0, size.y / 2, 0);
+const target = new THREE.Vector3(0, size.y / 2 + +(q.get('ty') || 0), +(q.get('tz') || 0));
+// &mu=…&mv=… : Blickpunkt in Modellmaßen (u nach vorn, v hoch)
+if (q.get('mu')) { model.updateMatrixWorld(true); target.copy(model.localToWorld(new THREE.Vector3(0, +q.get('mv'), -q.get('mu')))); }
 const yaw = (+(q.get('yaw') ?? -90)) * Math.PI / 180, pitch = (+(q.get('pitch') ?? 4)) * Math.PI / 180;
 const dist = +(q.get('dist') || Math.max(size.x, size.z) * 1.9 + 0.08);
 camera.position.set(target.x + Math.sin(yaw) * Math.cos(pitch) * dist, target.y + Math.sin(pitch) * dist, target.z + Math.cos(yaw) * Math.cos(pitch) * dist);

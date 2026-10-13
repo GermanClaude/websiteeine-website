@@ -4,7 +4,7 @@
 // Hände, Nachladen und Animationen passen.
 import { redDot, brake } from './parts.js';
 import { arLower, arMag } from './guns-ar.js';
-import { p9 } from './guns-pistol.js';
+import { p9, P9 } from './guns-pistol.js';
 
 /** Nullpunkt-Zeichen seitlich (x = Außenfläche, beide Seiten): Goldscheibe mit dunklem Ring. */
 function emblem(b, x, v, u, r = 0.009, part) {
@@ -46,19 +46,20 @@ export function ursprung(b) {
 
 export function funke(b) {
   p9(b);
-  const axis = 0.068;
+  const { axis, top, bottom, front: uF, hw } = P9;
+  const mid = (top + bottom) / 2;
   // Goldener Kompensator vor dem Schlitten (fest am Rahmen), Mündung nach vorn verlegt
-  b.box('goldTrim', 0.0262, 0.03, 0.026, 0, 0.07, 0.161, { c: 0.003 });
-  if (b.hi) for (const u of [0.153, 0.163]) b.box('cavity', 0.012, 0.001, 0.005, 0, 0.0852, u, { c: 0 });
-  b.circle('cavity', 0.0048, 0, axis, 0.1742);
-  b.anchor('muzzle', 0, axis, 0.176);
+  b.box('goldTrim', hw * 2 + 0.0007, top - bottom + 0.0042, 0.026, 0, mid + 0.0004, uF + 0.0148, { c: 0.003 });
+  if (b.hi) for (const u of [uF + 0.007, uF + 0.017]) b.box('cavity', 0.012, 0.001, 0.005, 0, top + 0.0025, u, { c: 0 });
+  b.bore(0.0048, 0, axis, uF + 0.0281);
+  b.anchor('muzzle', 0, axis, uF + 0.0298);
   // Goldlinie längs am Schlitten, goldenes Korn, Fenster oben im Schlitten
   if (b.hi) {
-    for (const s of [-1, 1]) b.box('goldTrim', 0.0008, 0.0026, 0.1, s * 0.0131, 0.0705, 0.04, { part: 'slide', c: 0 });
-    b.box('goldTrim', 0.003, 0.004, 0.006, 0, 0.0866, 0.132, { part: 'slide', c: 0.0008 });
-    for (let i = 0; i < 3; i++) b.box('cavity', 0.009, 0.001, 0.008, 0, 0.0849, 0.086 + i * 0.013, { part: 'slide', c: 0 });
+    for (const s of [-1, 1]) b.box('goldTrim', 0.0008, 0.0022, 0.1, s * (hw + 0.0003), top - 0.0045, 0.06, { part: 'slide', c: 0 });
+    b.box('goldTrim', 0.0034, 0.0042, 0.0062, 0, top + 0.0021, uF - 0.0128, { part: 'slide', c: 0.0008 });
+    for (let i = 0; i < 3; i++) b.box('cavity', 0.009, 0.001, 0.008, 0, top + 0.0003, 0.074 + i * 0.013, { part: 'slide', c: 0 });
   }
-  emblem(b, 0.0128, 0.062, -0.012, 0.0065, 'slide');
+  emblem(b, hw + 0.0001, mid, 0.014, 0.0062, 'slide');
 }
 
 export function erstlicht(b) {
