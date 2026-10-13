@@ -14,7 +14,7 @@
 //     width  Innenbreite (begrenzt das Versetzen der Doppelreihe), depth Innentiefe (Zubringer)
 //     pitch  fester Abstand (sonst aus Bahnlänge und Kapazität), spread = n Plätze gleichmäßig auf der Bahn (Gurt)
 //     show   'all' (durchsichtig: Rauch-Polymer, Trommelfenster, Gurt) | n oberste Plätze (Stahl: nur an den Lippen)
-//     follower false = kein Zubringer, fol = [Breite, Höhe, Tiefe] (sonst aus width/depth)
+//     follower false = kein Zubringer, fol = [Breite, Höhe, Tiefe] (sonst aus width/depth), folMat = Material (Signalfarbe)
 //     drum   { c: [x, v, u], r0, dr, rmin, a0 } Spirale in der Trommel (Patronen seitlich, Böden zum Fenster)
 //     cyl    { c: [x, v, u], R, n, F, u } Revolvertrommel: Geschossspitzen in den Kammern, Platz 0 unter dem Hahn
 //     link   Gurtglied je Patrone, neck = Plätze im Trommelhals, stagger false = einreihig (Gurt)
@@ -139,7 +139,7 @@ function pathAt(P, cum, s, outP, outT) {
 function computeFill(spec, pivot, cap) {
   const c = calFor(spec), d = 2 * c.r;
   const mats = [], fol = [];
-  const f = { part: spec.part, cal: c, cap, slots: 0, mats: null, fol: null, folDims: null, mirror: false, step: 0, link: !!spec.link, shell: c.kind === 'shell' };
+  const f = { part: spec.part, cal: c, cap, slots: 0, mats: null, fol: null, folDims: null, folMat: spec.folMat || 'follower', mirror: false, step: 0, link: !!spec.link, shell: c.kind === 'shell' };
   const toLocal = ([x, v, u]) => new THREE.Vector3(x, v, -u).sub(pivot);
   const push = (pos, A, up) => { const a = new Float32Array(16); frame(a, 0, pos, A, up); mats.push(a); };
 
@@ -234,7 +234,7 @@ export function attachMagFill(root, fill) {
   mesh.userData.noContact = true;    // contact.js: Hände greifen das Magazin, nicht die Patronen
   host.add(mesh);
   if (fill.fol) {
-    const fo = new THREE.Mesh(new THREE.BoxGeometry(...fill.folDims), getMat('follower'));
+    const fo = new THREE.Mesh(new THREE.BoxGeometry(...fill.folDims), getMat(fill.folMat || 'follower'));
     fo.name = 'follower';
     fo.matrixAutoUpdate = false;
     fo.matrix.fromArray(fill.fol, fill.slots * 16);

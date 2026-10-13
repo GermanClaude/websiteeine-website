@@ -591,9 +591,10 @@ export function revealHtml() {
       <li><strong>Jan</strong> für seine vielen Testspiele und Fehlerberichte,</li>
       <li><strong>Waldmeister</strong>,</li>
       <li><strong>James AOK</strong>,</li>
+      <li><strong>Lichter</strong>, <strong>Kaisen</strong>, <strong>Demolouse</strong>, <strong>FlorianPluukilp</strong>, <strong>Bambustal</strong>, <strong>GorillaLDS</strong>, <strong>Spirit.LDS</strong>, <strong>Militärhund</strong>, <strong>Zeno :3</strong>, <strong>Tyson</strong>, <strong>Holzkohle</strong>, <strong>flebubushekjr</strong>, <strong>german_guy</strong>, <strong>S1dneyy</strong>, <strong>Gian</strong> und <strong>Tintenpatrone</strong>,</li>
       <li>alle, die mit mir den ersten Mehrspieler-Abend gespielt haben,</li>
-      <li>und die vielen anderen, die mir ihre Meinung gesagt haben, ob positiv, kritisch oder auch negativ, und die das Spiel
-      getestet haben, damit es besser wird.</li>
+      <li>und die vielen anderen, die mitgetestet und mir ihre Meinung gesagt haben, ob positiv, kritisch oder auch negativ,
+      damit das Spiel besser wird.</li>
     </ul>
     <p>An euch alle ein riesiges Dankeschön! Als kleines Geschenk bekommt jeder, der bis zum 13. Oktober 2026 gespielt hat,
     die Tarnung <strong>„Gold der ersten Stunde“</strong> für jede Waffe (Ausrüstung → Tarnung). Freischalten kann man sie
