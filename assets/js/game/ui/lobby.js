@@ -12,6 +12,7 @@ import { esc, num, secs, meters } from './dom.js';
 import { ICON } from './icons.js';
 import { drawMapArt } from './mapart.js';
 import { camoRowHtml, equippedCamo, attRowHtml, onAttChange } from './loadout-panel.js';
+import { openCamoEditor } from './camo-editor.js';
 import { loadAttachments } from '../../shared/attachments.data.js';
 import { ProgressView } from './progress.js';
 import { eligible as feedbackUnlocked } from '../../shared/feedback.js';
@@ -295,6 +296,7 @@ export class Lobby {
     if (ds.veh != null) { c.vehicles = ds.veh === 'aus' ? 'aus' : 'an'; try { this.G.settings.set('lastVehicles', c.vehicles); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
     if (ds.wx != null) { c.weather = ds.wx || 'standard'; this._wxAutoTime(c); try { this.G.settings.set('lastWeather', c.weather); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
     if (ds.cls) { this._setClass(ds.cls); return; }
+    if (ds.camoedit) { openCamoEditor({ onClose: (changed) => { if (changed) this._renderDetail(); } }); this.menus.sound('click'); return; }
     if (ds.camo) { this._setCamo(ds.camo, b); return; }
     if (ds.diff) { c.difficulty = ds.diff; this._renderDeploy(); this._renderSummary(); this.menus.sound('click'); return; }
     if (ds.step) { this._step(ds.step, Number(ds.d)); return; }
@@ -532,7 +534,7 @@ export class Lobby {
     }
     const viewing = def.id === this.view;
     return `<button type="button" class="lo-item${equipped ? ' is-eq' : ''}${viewing ? ' is-view' : ''}${locked ? ' is-locked' : ''}" data-weapon="${esc(def.id)}" role="option" aria-selected="${equipped}">
-      <span class="lo-ico">${def.icon || ''}</span><span class="lo-name"><b>${esc(def.name)}</b><small>${locked ? `Ab Stufe ${def.unlockLevel}` : esc(cls || '')}</small></span>
+      <span class="lo-ico">${def.icon || ''}</span><span class="lo-name"><b>${esc(def.name)}</b><small>${locked ? (def.og ? 'Nur erste Stunde' : `Ab Stufe ${def.unlockLevel}`) : esc(cls || '')}</small></span>
       ${locked ? `<span class="lo-lock">${ICON.lock}</span>` : equipped ? `<span class="lo-eq">${ICON.check}</span>` : ''}</button>`;
   }
 
@@ -589,7 +591,7 @@ export class Lobby {
     host.innerHTML = `
       <div class="lo-dhead"><small>${esc(isEq ? 'Granate' : (d.CLASSES[def.cls] || def.cls))}</small><h3>${esc(def.name)}<em>.</em></h3></div>
       <p class="lo-desc">${esc(def.description || '')}</p>
-      ${locked ? `<div class="lo-locked">${ICON.lock}<span>Freischaltung ab <b>Stufe ${def.unlockLevel}</b>. Du bist Stufe ${this.level()}.</span></div>` : equipped ? `<div class="lo-on">${ICON.check}<span>Ausgerüstet</span></div>` : ''}
+      ${locked ? `<div class="lo-locked">${ICON.lock}<span>${def.og ? 'Nur für Spieler der ersten Stunde (bis 13.10.2026) – ein Dankeschön, nicht mehr freischaltbar.' : `Freischaltung ab <b>Stufe ${def.unlockLevel}</b>. Du bist Stufe ${this.level()}.`}</span></div>` : equipped ? `<div class="lo-on">${ICON.check}<span>Ausgerüstet</span></div>` : ''}
       ${body}
       ${!isEq && !locked ? camoRowHtml(this.G, id, equippedCamo(this.G, id)) : ''}${!isEq && !locked ? attRowHtml(this.G, id) : ''}`;
   }

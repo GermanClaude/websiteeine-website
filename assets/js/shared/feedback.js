@@ -596,9 +596,16 @@ export function revealHtml() {
       <li>und die vielen anderen, die mitgetestet und mir ihre Meinung gesagt haben, ob positiv, kritisch oder auch negativ,
       damit das Spiel besser wird.</li>
     </ul>
-    <p>An euch alle ein riesiges Dankeschön! Als kleines Geschenk bekommt jeder, der bis zum 13. Oktober 2026 gespielt hat,
-    die Tarnung <strong>„Gold der ersten Stunde“</strong> für jede Waffe (Ausrüstung → Tarnung). Freischalten kann man sie
-    danach nicht mehr, sie gehört nur euch.</p>
+    <p>An euch alle ein riesiges Dankeschön! Als Geschenk bekommt jeder, der bis zum 13. Oktober 2026 gespielt hat:</p>
+    <ul class="reveal-list">
+      <li><strong>Gold der ersten Stunde</strong>: eine polierte, glänzende Goldtarnung für jede Waffe,</li>
+      <li><strong>UR-1 Ursprung</strong>: ein eigener Karabiner mit goldenen Ringen und dem Nullpunkt-Zeichen,</li>
+      <li><strong>P-0 Funke</strong>: eine eigene Pistole mit goldenem Kompensator,</li>
+      <li><strong>Erstlicht</strong>: ein eigener Dolch mit goldener Parierstange,</li>
+      <li><strong>Eigene Tarnungen</strong>: bis zu drei selbst entworfene Muster (Ausrüstung → Tarnung → „+“).</li>
+    </ul>
+    <p>Die drei Waffen sind nicht stärker als die anderen, nur einzigartig. Freischalten kann man das alles danach nicht mehr.
+    Es gehört nur euch und bleibt auch, wenn ihr euren Fortschritt löscht.</p>
     <p>Und danke an dich fürs Spielen. Über dein Feedback freue ich mich.</p>
     <p class="reveal-sign">— German Legend</p>`;
 }

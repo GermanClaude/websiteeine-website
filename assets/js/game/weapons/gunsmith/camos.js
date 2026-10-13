@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { CAMOS } from '../../../shared/weapons.data.js';
 import { getMat } from './materials.js';
+import { onCustomChange } from '../../../shared/customcamo.js';
 
 const SIZE = 256;
 /** Materialschlüssel (gs:<key>), die ein Tarnmuster erhalten. */
@@ -225,6 +226,21 @@ export function camoTexture(id) {
   }
   return t;
 }
+
+/** Vorschau eines (eigenen) Entwurfs ohne Registrierung: def = { pattern, colors, scale } → Canvas size×size. */
+export function designCanvas(def, size = 160) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  c.getContext('2d').drawImage(paint({ id: 'vorschau', ...def }), 0, 0, size, size);
+  return c;
+}
+
+// Eigenes Muster neu gespeichert/gelöscht: alte Textur und Materialvarianten verwerfen (nächster Aufruf malt neu)
+onCustomChange((id) => {
+  const t = texCache.get(id);
+  if (t) { t.dispose(); texCache.delete(id); }
+  for (const [k, m] of matCache) if (k.endsWith('|' + id)) { m.dispose(); matCache.delete(k); }
+});
 
 /** Kleines Vorschaubild (Canvas) eines Musters für Menüs/Website. */
 export function camoSwatch(id, size = 64) {

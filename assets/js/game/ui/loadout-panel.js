@@ -4,6 +4,7 @@
 // API: new LoadoutPanel(G); mount(host, loadout?) ; value() → loadout ; save() (Klassenausrüstung merken) ; unmount().
 
 import { CLASSES, SOLDIER_CLASS_ORDER, resolveClassLoadout, classAllows, classProfile } from '../../shared/classes.data.js';
+import { openCamoEditor } from './camo-editor.js';
 import { OPERATOR_TIERS } from '../../shared/modes.data.js';
 import { esc } from './dom.js';
 import { ICON } from './icons.js';
@@ -127,7 +128,7 @@ export class LoadoutPanel {
   _item(def, on, ok, sub) {
     const locked = !this.unlocked(def.id);
     const dis = locked || !ok;
-    const why = locked ? `Ab Stufe ${def.unlockLevel || '?'}` : sub;
+    const why = locked ? (def.og ? 'Nur Spieler der ersten Stunde' : `Ab Stufe ${def.unlockLevel || '?'}`) : sub;
     return `<button type="button" class="lp-item${on ? ' is-on' : ''}${dis ? ' is-locked' : ''}" data-item="${esc(def.id)}" role="option" aria-selected="${on}"${dis ? ' aria-disabled="true"' : ''}>
       <span class="ico">${def.icon || ''}</span><b>${esc(def.name)}</b><small>${esc(why || '')}</small>${locked ? `<i class="lk">${ICON.lock}</i>` : on ? `<i class="ok">${ICON.check}</i>` : ''}</button>`;
   }
@@ -172,6 +173,10 @@ export class LoadoutPanel {
       const slot = this.slot;
       this.lo[slot] = ds.item;   // 'melee': Messer/Nahkampfwaffe
       snd('confirm');
+    } else if (ds.camoedit) {
+      openCamoEditor({ onClose: (changed) => { if (changed) { this.render(); if (typeof this.onChange === 'function') this.onChange(this.value()); } } });
+      snd('click');
+      return;
     } else if (ds.camo) {
       if (b.getAttribute('aria-disabled') === 'true') { snd('error'); return; }
       const wid = this.lo[this.slot];
@@ -218,7 +223,9 @@ export function camoRowHtml(G, wid, cur) {
   }).join('');
   const name = (D.CAMOS[sel] && D.CAMOS[sel].name) || '';
   const n = all.filter((cm) => typeof D.isCamoUnlocked !== 'function' || D.isCamoUnlocked(cm.id, ctx)).length;
-  return `<div class="lp-row"><span class="lp-lab">${ICON.palette}Tarnung <b>${esc(name)}</b><small>${n}/${all.length} frei</small></span><div class="lp-camos m-scroll-x" data-scrollable>${list}</div></div>`;
+  // Spieler der ersten Stunde: eigene Muster entwerfen (game/ui/camo-editor.js)
+  const edit = ctx.og ? `<button type="button" class="lp-camo lp-camo-edit" data-camoedit="1" title="Eigene Tarnung entwerfen" aria-label="Eigene Tarnung entwerfen"><i style="background:#1b1e22;display:grid;place-items:center;color:#e9b949;font-weight:700">+</i></button>` : '';
+  return `<div class="lp-row"><span class="lp-lab">${ICON.palette}Tarnung <b>${esc(name)}</b><small>${n}/${all.length} frei</small></span><div class="lp-camos m-scroll-x" data-scrollable>${list}${edit}</div></div>`;
 }
 
 /** Ausgerüstete Tarnung einer Waffe aus dem Profil. */

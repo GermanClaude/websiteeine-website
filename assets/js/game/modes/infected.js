@@ -26,7 +26,7 @@ export class InfectedMode extends BaseMode {
     this._zeroInfects = 0;
     this.netTeamShift = true; // net/sync-host.js: Bots nur nach Gesamtzahl auffüllen
     this._known = new Set(); // Host: Akteure, deren Team der Modus festgelegt hat (Spätstarter → _admit)
-    this._pool = Object.values(WEAPONS).filter((w) => w.slot === 'primary' && w.cls !== 'melee');
+    this._pool = Object.values(WEAPONS).filter((w) => w.slot === 'primary' && w.cls !== 'melee' && !w.og); // nie die Waffen der ersten Stunde
   }
 
   onAttach(s) {

@@ -60,6 +60,9 @@ export const WEAPON_SOUND = {
   gl_trommel: { cal: '40mm',    tone: [340, 2] },
   ub_gl40:    { cal: '40mm',    tone: [300, 2] },
   ub_schrot:  { cal: '12ga',    voice: 'shotgun',      pitch: 1.08, tone: [1700, 2], pcal: 0.1 },
+  // Waffen der ersten Stunde: eigener Ton (heller, sauberer Knall bzw. kurzer Kompensator-Bellton)
+  ar_ursprung: { cal: '5.56',    voice: 'ar',           pitch: 0.97, tone: [[2400, 3], [260, 2]] },
+  pi_funke:    { cal: '9x19',    voice: 'pistol',       pitch: 0.96, tone: [[1500, 3], [4200, 2]], pcal: 0.9 },
   // Geschütze, Fahrzeug-MGs
   sentry:     { cal: '5.56',    voice: 'ar',           pitch: 1.04, tone: [1000, 2] },
   mbt_coax:   { cal: '7.62x51', voice: 'lmg',          pitch: 1.03, tone: [520, 2], pcal: 0.9 },

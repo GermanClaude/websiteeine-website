@@ -7,6 +7,7 @@ export const ID_TO_MODEL = {
   ar_k36: 'k36', ar_bx20: 'bx20', ar_g7: 'g7', smg_wespe: 'wespe', smg_keiler: 'keiler', lmg_lm8: 'lm8',
   sr_titan: 'titan', sg_hagel: 'hagel', pi_kobra: 'kobra', at_donner: 'donner', gl_hammer: 'hammer', gl_trommel: 'trommel',
   karambit: 'karambit', machete: 'machete', tomahawk: 'tomahawk', kampfaxt: 'kampfaxt', schlagstock: 'schlagstock', kampfstock: 'kampfstock', spaten: 'spaten',
+  ar_ursprung: 'ursprung', pi_funke: 'funke', erstlicht: 'erstlicht', // Waffen der ersten Stunde
 };
 
 // Hüfte (wie CoD Mobile): Waffe etwas höher und mittiger, rechte Hand mit Daumen und Fingern am Pistolengriff
@@ -133,6 +134,11 @@ export const KNIFE_MELEE = {
   B: [[0.0, [0.3, 0.2, 0.93]], [0.08, [0.6, 0.15, 0.78]], [0.2, [0.55, 0.05, 0.83]], [0.36, [0.2, 0.15, 0.97]], [0.52, [0.15, 0.2, 0.97]], [0.74, [0.3, 0.3, 0.9]]],
 };
 
+// Waffen der ersten Stunde: Haltung/Abläufe wie ihre Bauarten (Karabiner, Pistole, Messer)
+HANDLING.ursprung = { ...HANDLING.k36 };
+HANDLING.funke = { ...HANDLING.p9 };
+HANDLING.erstlicht = { ...HANDLING.knife };
+
 export function handlingFor(modelKey) {
   return HANDLING[modelKey] || HANDLING.m17;
 }
@@ -161,6 +167,7 @@ export const BODYCAM = {
   brecher: bcRifle('brecher', BC_RIFLE_HIP, BC_RIFLE_ROT),
   bulldog: bcRifle('bulldog', BC_RIFLE_HIP, BC_RIFLE_ROT),
   p9: bcRifle('p9', [0.06, -0.15, -0.34], [0.0, 0.03, 0.0], BC_PISTOL),
+  funke: bcRifle('funke', [0.06, -0.15, -0.34], [0.0, 0.03, 0.0], BC_PISTOL),
   adler: bcRifle('adler', [0.06, -0.15, -0.34], [0.0, 0.03, 0.0], BC_PISTOL),
 };
 

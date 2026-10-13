@@ -480,8 +480,9 @@ export const profile = {
   rankFor,
   rankIcon,
 
-  /** Ist eine Waffe/Ausrüstung auf dem aktuellen (oder angegebenen) Level verfügbar? */
+  /** Ist eine Waffe/Ausrüstung auf dem aktuellen (oder angegebenen) Level verfügbar? Waffen der ersten Stunde nur mit og. */
   isUnlocked(id, level = data.level) {
+    if (WEAPONS[id] && WEAPONS[id].og && !data.og) return false;
     const need = unlockTable[id];
     return need === undefined ? true : need <= level;
   },

@@ -34,6 +34,7 @@ import { MODES, DIFFICULTY_ORDER } from '../../shared/modes.data.js';
 import { GAME_STYLES, CLASSES, ARMOR_TIERS, HELMETS } from '../../shared/classes.data.js';
 import { WEAPONS, EQUIPMENT, CAMOS } from '../../shared/weapons.data.js';
 import { ATTACHMENTS, UNDER_WEAPONS } from '../../shared/attachments.data.js';
+import { exportLoadoutCamos, importCC } from '../../shared/customcamo.js';
 const WEAPONS_ALL = { ...WEAPONS, ...UNDER_WEAPONS }; // Trefferprüfung: Waffen + Unterlauf-Aufsätze
 import { AntiCheat, PositionHistory } from './anticheat.js';
 import { recommend, UploadMeter } from './recommend.js';
@@ -48,7 +49,7 @@ import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
  *  7: Granatwerfer (Waffenliste länger → Waffenindizes verschoben), Unterlauf-Aufsätze (ub_gl40/ub_schrot).
  *  8: Ladeschritt „offen“ (Munitionsbunker mit Schiebetür, Kanonenzustand im Fahrzeugblock).
  *  9: Panzer je Team nach eigenem Vorbild (neue Fahrzeugtypen wk2h/wk1l). */
-export const NET_VERSION = 9;
+export const NET_VERSION = 10; // 10: Waffen der ersten Stunde (Waffen-Indizes verschoben), Aufsätze/Tarnung in Ausrüstungen
 /** Online wählbare Modi (Eroberung folgt mit den Fahrzeugen online, Training bleibt offline). */
 export const ONLINE_MODES = Object.freeze(['tdm', 'ult', 'ffa', 'dom', 'kc', 'messer', 'inf', 'gun']);
 /** Modi mit Fahrzeugen online (Nur Messer, Waffenspiel und Infiziert bleiben ohne – Ausrüstung kommt dort vom Modus). */
@@ -185,6 +186,9 @@ export function normalizeSettings(partial = {}, base = DEFAULT_ROOM, hostName = 
 /** Ausrüstung eines Clients prüfen: nur bekannte Waffen im richtigen Platz, unbekannte Felder fallen weg. */
 export function sanitizeLoadout(lo) {
   if (!lo || typeof lo !== 'object') return null;
+  // eigene Muster: lokale Plätze → Inhalts-Id + Entwurf (cc); fremde Entwürfe registrieren, damit die Prüfung sie kennt
+  lo = exportLoadoutCamos(lo);
+  if (lo.cc) importCC(lo.cc);
   const out = {};
   const w = (id, slot) => (typeof id === 'string' && WEAPONS[id] && WEAPONS[id].slot === slot ? id : undefined);
   const eq = (id, kind) => (typeof id === 'string' && EQUIPMENT[id] && EQUIPMENT[id].kind === kind ? id : undefined);
@@ -202,6 +206,9 @@ export function sanitizeLoadout(lo) {
     const camo = {};
     for (const [k, v] of Object.entries(lo.camo).slice(0, 8)) if (WEAPONS[k] && typeof v === 'string' && CAMOS[v]) camo[k] = v;
     if (Object.keys(camo).length) out.camo = camo;
+    const cc = {};
+    for (const v of Object.values(camo)) if (/^cx/.test(v) && CAMOS[v] && CAMOS[v].design) cc[v] = CAMOS[v].design;
+    if (Object.keys(cc).length) out.cc = cc;
   }
   // Aufsätze { [weaponId]: { slot: id } } (shared/attachments.data.js) – nur bekannte Waffen/Aufsätze
   if (lo.att && typeof lo.att === 'object') {
@@ -824,7 +831,7 @@ export class NetSystem {
 
   /** Eigene Ausrüstung melden (Client → Host 'loadout'; Host: eigener Eintrag). Gilt ab dem nächsten Spawn. */
   setLoadout({ cls = null, loadout = null } = {}) {
-    if (this.role === 'client') return this.send(HOST_ID, { t: 'loadout', cls, loadout }) > 0;
+    if (this.role === 'client') return this.send(HOST_ID, { t: 'loadout', cls, loadout: exportLoadoutCamos(loadout) }) > 0;
     if (this.role !== 'host') return false;
     const me = this.roster.find((r) => r.id === HOST_ID);
     if (!me) return false;

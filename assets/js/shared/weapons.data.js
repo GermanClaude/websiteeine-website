@@ -798,6 +798,42 @@ const RAW = {
   },
 };
 
+/*
+ * Waffen der ersten Stunde (Nutzer 13.10.2026: „eine eigene Waffe nur für sie – einzigartig, aber nicht overpowered“):
+ * nur mit Profil.og (shared/og.js), eigene Modelle (game/weapons/gunsmith/guns-og.js), Werte als Seitenwechsel zu ihren
+ * Bauarten. Andere sehen sie gesperrt; Bots tragen sie nie; von einer Leiche darf man sie aufheben (bis zum eigenen Tod).
+ */
+RAW.ar_ursprung = {
+  ...RAW.ar_k36, id: 'ar_ursprung', name: 'UR-1 Ursprung', unlockLevel: 1, og: true,
+  description: 'Nur für Spieler der ersten Stunde: Karabiner mit goldenen Ringen und dem Nullpunkt-Zeichen. Liegt zwischen M-17 und K-36 – etwas mehr Wucht als der K-36, etwas langsamer – ruhig im Dauerfeuer, keine Wunderwaffe.',
+  damage: { max: 25, min: 18, rangeStart: 20, rangeEnd: 42 }, rpm: 740,
+  reloadTime: 2.0, reloadEmptyTime: 2.55, equipTime: 0.5, adsTime: 0.2, sprintToFire: 0.16,
+  moveSpeedMult: 0.98, adsMoveMult: 0.66, hipSpread: 0.042, adsSpread: 0.0027, moveSpreadMult: 1.38, jumpSpreadMult: 2.3,
+  recoil: { vertical: 0.0056, horizontal: 0.003, recovery: 11, firstShotMult: 1.05, pattern: PATTERN.k36 },
+  range: 100, sound: { profile: 'ar', pitch: 0.98 }, model: 'ursprung',
+};
+RAW.pi_funke = {
+  ...RAW.pi_p9, id: 'pi_funke', name: 'P-0 Funke', unlockLevel: 1, og: true,
+  description: 'Nur für Spieler der ersten Stunde: Pistole mit goldenem Kompensator. Etwas mehr Wucht und weniger Rückstoß als die P-9, dafür ein Schuss weniger im Magazin.',
+  damage: { max: 28, min: 19, rangeStart: 12, rangeEnd: 28 }, rpm: 400, mag: 14, reserve: 56,
+  reloadTime: 1.5, reloadEmptyTime: 1.9, equipTime: 0.33, adsSpread: 0.0029,
+  recoil: { vertical: 0.0095, horizontal: 0.0034, recovery: 13, firstShotMult: 1.0 },
+  range: 72, penetration: 0.32, sound: { profile: 'pistol', pitch: 0.98 }, model: 'funke',
+};
+RAW.erstlicht = {
+  ...RAW.knife, id: 'erstlicht', name: 'Erstlicht', unlockLevel: 1, og: true,
+  description: 'Nur für Spieler der ersten Stunde: zweischneidiger Dolch mit goldener Parierstange. Zwei Stiche wie das Kampfmesser, von hinten einer – etwas schneller im Stoß, dafür kürzer.',
+  damage: { max: 60, min: 60, rangeStart: 0, rangeEnd: 2.2 }, rpm: 92, moveSpeedMult: 1.07,
+  melee: { range: 2.2, lungeRange: 4.3, lungeSpeed: 10.5, arc: 0.55, swingTime: 0.64, hitDelay: 0.12, style: 'stab' },
+  range: 2.2, sound: { profile: 'melee_swing', pitch: 1.08 }, model: 'erstlicht',
+};
+FEEL.ar_ursprung = FEEL.ar_k36;
+FEEL.pi_funke = FEEL.pi_p9;
+FEEL.erstlicht = FEEL.knife;
+ICONS.ursprung = ICONS.k36;
+ICONS.funke = ICONS.p9;
+ICONS.erstlicht = ICONS.knife;
+
 /** Reihenfolge = Roster-Tabelle des Vertrags. */
 export const WEAPON_IDS = [
   'ar_kv47', 'ar_m17', 'smg_vp9', 'smg_qx90', 'lmg_hm60', 'mr_sk14', 'sr_brecher', 'sg_bulldog', 'pi_p9', 'pi_adler', 'knife',
@@ -806,9 +842,12 @@ export const WEAPON_IDS = [
   'ar_k36', 'ar_bx20', 'ar_g7', 'smg_wespe', 'smg_keiler', 'lmg_lm8', 'sr_titan', 'sg_hagel', 'pi_kobra', 'at_donner',
   'gl_hammer', 'gl_trommel', // Granatwerfer (Pionier)
   'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock', 'spaten',
+  'ar_ursprung', 'pi_funke', 'erstlicht', // Waffen der ersten Stunde (nur Profil.og)
 ];
 /** Nahkampfwaffen (Slot „melee“, Ausrüstung `loadout.melee`; 'knife' ist der Standard). */
-export const MELEE_IDS = ['knife', 'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock', 'spaten'];
+export const MELEE_IDS = ['knife', 'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock', 'spaten', 'erstlicht'];
+/** Waffen der ersten Stunde (nur mit Profil.og; Bots nie). */
+export const OG_WEAPON_IDS = ['ar_ursprung', 'pi_funke', 'erstlicht'];
 
 export const WEAPONS = {};
 for (const id of WEAPON_IDS) {
@@ -979,7 +1018,7 @@ export function listBySlot(slot) {
 
 /** Freischaltungen nach Level: [{ level, id, kind: 'weapon'|'equipment', name }] aufsteigend. */
 export const UNLOCKS = [
-  ...WEAPON_IDS.map((id) => ({ level: WEAPONS[id].unlockLevel, id, kind: 'weapon', name: WEAPONS[id].name })),
+  ...WEAPON_IDS.filter((id) => !WEAPONS[id].og).map((id) => ({ level: WEAPONS[id].unlockLevel, id, kind: 'weapon', name: WEAPONS[id].name })),
   ...EQUIPMENT_IDS.map((id) => ({ level: EQUIPMENT[id].unlockLevel, id, kind: 'equipment', name: EQUIPMENT[id].name })),
 ].sort((a, b) => a.level - b.level);
 
@@ -988,10 +1027,16 @@ export function unlocksBetween(levelBefore, levelAfter) {
   return UNLOCKS.filter((u) => u.level > levelBefore && u.level <= levelAfter).map((u) => u.id);
 }
 
-/** Ist eine Waffe/Ausrüstung auf `level` verfügbar? */
-export function isUnlocked(id, level) {
+/** Ist eine Waffe/Ausrüstung auf `level` verfügbar? Waffen der ersten Stunde nur mit og. */
+export function isUnlocked(id, level, og = false) {
   const def = WEAPONS[id] || EQUIPMENT[id];
-  return !!def && def.unlockLevel <= level;
+  return !!def && def.unlockLevel <= level && (!def.og || !!og);
+}
+
+/** Text für gesperrte Waffen (Lobby/Ausrüstung). */
+export function weaponLockText(def) {
+  if (!def) return '';
+  return def.og ? 'Nur Spieler der ersten Stunde' : `Ab Stufe ${def.unlockLevel || '?'}`;
 }
 
 /* ------------------------------------------------------------ Tarnmuster (Waffen-Skins) */
@@ -1060,8 +1105,9 @@ export function camoUnlockText(id) {
   return 'Immer verfügbar';
 }
 
-/** Muster in Listen zeigen? Alle (Nutzer 13.10.: das Gold der ersten Stunde sieht jeder, gesperrt für alle ohne ctx.og). */
-export function camoVisible(id, ctx = {}) { void ctx; return !!CAMOS[id]; }
+/** Muster in Listen zeigen? Alle (Nutzer 13.10.: das Gold der ersten Stunde sieht jeder, gesperrt für alle ohne ctx.og) –
+ *  außer fremden eigenen Mustern anderer Spieler (remote, nur zum Anzeigen/Aufheben). */
+export function camoVisible(id, ctx = {}) { void ctx; return !!CAMOS[id] && !CAMOS[id].remote; }
 
 /**
  * Ist ein Muster für eine Waffe frei? ctx = { level, kills, headshots, unlocked (Set/Array freier Muster-Ids) }.

@@ -28,6 +28,7 @@ import { think, newGoal, useStreaks } from './ai/brain.js';
 import { targetPoints } from './ai/perception.js';
 import { GADGETS, CLASSES } from '../../shared/classes.data.js';
 import { BONE } from './soldier/rig.js';
+import { importCC } from '../../shared/customcamo.js';
 import { Stamina, STAMINA_COST, RECOVER } from '../stamina.js';
 
 const STAND_H = 1.8, CROUCH_H = 1.15, PRONE_H = 0.75;
@@ -326,6 +327,7 @@ export class Bot {
     if (!def || !s) return;
     if (!force && s.def && s.def.id === def.id && s.gun) return;
     // Aufsätze (def.att) und Tarnung je Waffe wie beim Spieler – Zwischenspeicher je Kombination
+    if (this.loadout && this.loadout.cc) importCC(this.loadout.cc); // eigene Muster anderer Spieler (online)
     const camo = (this.loadout && this.loadout.camo && this.loadout.camo[def.baseId || def.id]) || null;
     const key = `${def.id}|${def.attKey || ''}|${camo || ''}`;
     let gun = s.guns.get(key);

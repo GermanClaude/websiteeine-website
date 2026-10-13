@@ -276,8 +276,9 @@ export class BotManager {
     const W = (G.data && G.data.WEAPONS) || {};
     const EQ = (G.data && G.data.EQUIPMENT) || {};
     let r = null;
-    try { r = resolveClassLoadout(cls, { weapons: W, equipment: EQ, isUnlocked: () => true }); } catch { r = null; }
-    const of = (...classes) => Object.keys(W).filter((id) => classes.includes(W[id].cls) && W[id].slot !== 'secondary');
+    // Waffen der ersten Stunde (W[id].og) tragen Bots nie
+    try { r = resolveClassLoadout(cls, { weapons: W, equipment: EQ, isUnlocked: (id) => !(W[id] && W[id].og) }); } catch { r = null; }
+    const of = (...classes) => Object.keys(W).filter((id) => classes.includes(W[id].cls) && W[id].slot !== 'secondary' && !W[id].og);
     let primary = r && r.primary;
     if (role === 'mg') primary = pick(of('lmg')) || primary;
     else if (role === 'marksman') primary = pick(of(cls === 'aufklaerer' ? 'sniper' : 'marksman')) || pick(of('marksman', 'sniper')) || primary;
