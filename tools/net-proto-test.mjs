@@ -565,7 +565,10 @@ check(rapid > 10, `Treffer mit neuen Schussnummern schneller als rpm → feuerra
 check(ac4.log.length > 5 && ac4.log.every((l) => typeof l.t === 'number' && [2, 3, 21, 25].includes(l.peer) && AC_TEXT[l.reason]), `Protokoll mit ${ac4.log.length} Einträgen {t, peer, reason}`);
 // Nahkampf
 r = ac4.validateMelee(2, { target: 10, weapon: 'knife', serial: 50 }, ctxBase({ shooter: { alive: true, team: 'A', pos: [29, 0, 0], weapons: ['knife'] } }));
-check(r.ok && r.dmg === 135, 'Nahkampf in Reichweite');
+const knifeMax = WEAPONS.knife.damage.max; // seit 10.10. zwei Stiche (60), Rückenstich ×2 tötet sofort
+check(r.ok && r.dmg === knifeMax, `Nahkampf in Reichweite (${r.dmg})`);
+r = ac4.validateMelee(2, { target: 10, weapon: 'knife', serial: 52, dmg: knifeMax * 2 }, ctxBase({ shooter: { alive: true, team: 'A', pos: [29, 0, 0], weapons: ['knife'] } }));
+check(r.ok && r.dmg === knifeMax * 2, `Rückenstich (${r.dmg}) erlaubt`);
 r = ac4.validateMelee(2, { target: 10, weapon: 'knife', serial: 51 }, ctxBase({ shooter: { alive: true, team: 'A', pos: [12, 0, 0], weapons: ['knife'] } }));
 check(!r.ok && r.reason === 'reichweite', 'Nahkampf aus 18 m abgelehnt');
 // Weiche Sichtprüfung
