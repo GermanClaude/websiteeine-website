@@ -65,6 +65,10 @@ sobald wieder Limit da ist. Vergleichsbilder neben dem Video zeigen (tools/out/s
    *Stand 13.10. (vorgezogen):* Inventar fertig → `grafik-inventar.md`; Vergleichswerkzeug `tools/vergleich-video.mjs`
    (Video | Spiel aus fünf Video-Blickwinkeln, `--tag=nachher` für spätere Etappen), Vorher-Bilder gemacht.
    Offen für Do: Licht/Nachbearbeitung (Umgebungsverdeckung kostet einen zweiten Szenendurchlauf → nur mit Messung).
+   Befund Vorher-Bilder: Spiel deutlich wärmer/gesättigter (Beige-Orange), Video kühl-neutral grau mit sattem Blau im
+   Himmel; Werkhalle im Spiel dunkel ohne Lichtstrahlen (Video: helle Fensterbahnen, Staub); Altstadt-Pflaster zu
+   orange (Video: graues Kopfsteinpflaster); Video-Oberflächen sauberer, kräftigere Struktur, weniger Fotorauschen.
+   Blickwinkel `hafen-container` und `werk-halle` stehen zu nah an Containern/Presse → vor dem Nachher-Bild nachjustieren.
 1. **Soldatenmodelle zuerst:** Skin wie im Video (Helm mit Bezug, Plattenträger, Taschen, Rucksack, Handschuhe, kantiges
    grünes Splittertarn), beide Teams (Unterscheidung über Armbinde/Abzeichen + Namensschild), Ego-Arme passend,
    Bots und Puppen (Mehrspieler) gleich.
