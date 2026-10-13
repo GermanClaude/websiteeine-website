@@ -40,7 +40,8 @@ export function furnUV3(x, v, u, nx, ny, nz) {
   if (Math.abs(nz) > 0.55 && u < PAD_U) return at(PADR[0] + (x + 0.034) / 0.068 * (PADR[2] - PADR[0]), PADR[1] + (STOCK_TOP - v) / (STOCK_TOP - STOCK_BOT) * (PADR[3] - PADR[1]));
   const fx = (x + 0.034) / 0.068 * (PLAIN[3] - PLAIN[1]);
   if (Math.abs(ny) >= Math.abs(nz)) { const px = photoX(u); return at(px > PLAIN[2] ? PLAIN[0] + (px - 940) : Math.max(PLAIN[0], px), PLAIN[1] + fx); }
-  return at(PLAIN[0] + 200 + (STOCK_TOP - v) * R.PPM * 0.9, PLAIN[1] + fx);
+  const t = ((STOCK_TOP - v) * R.PPM * 0.9) % 1360, tri = 680 - Math.abs(t - 680);   // gespiegelt wiederholt, bleibt im Blankfeld
+  return at(PLAIN[0] + 10 + tri, PLAIN[1] + fx);
 }
 
 function drawFurn(g, kind) {

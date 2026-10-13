@@ -76,7 +76,7 @@ function normalizeGeo(geo, keepUV) {
   let g = geo.index ? geo.toNonIndexed() : geo;
   if (g !== geo) geo.dispose();
   for (const name of Object.keys(g.attributes)) {
-    if (name !== 'position' && name !== 'normal' && !(keepUV && name === 'uv')) g.deleteAttribute(name);
+    if (name !== 'position' && name !== 'normal' && name !== 'wearDirt' && !(keepUV && name === 'uv')) g.deleteAttribute(name);   // wearDirt: Gebrauchsspuren (cavityColors)
   }
   if (!g.attributes.normal) g.computeVertexNormals();
   if (!keepUV || !g.attributes.uv) boxUV(g);
@@ -111,10 +111,15 @@ export function ellipsePts(ca, cb, ra, rb, seg = 16, a0 = 0, a1 = Math.PI * 2) {
   return pts;
 }
 
+// Detailstufe der Ego-Modelle (Nutzer 13.10.2026: „den PC so originalgetreu wie möglich, beim Handy eine abgeschwächte
+// Version“): grobe Zeiger (Touch) → leichte Fassung, sonst volle Auflösung (feinere Distanzfeld-Netze, echte Durchbrüche).
+export const DETAIL = { max: !(typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) };
+
 export class Builder {
   constructor(lod = 'first') {
     this.lod = lod;
     this.hi = lod !== 'third';
+    this.max = this.hi && DETAIL.max;
     this.parts = new Map();
     this.anchors = [];
     this.meta = {};
@@ -275,6 +280,20 @@ export class Builder {
       const [tx, tv] = rot(0, base + 0.0016);
       this.box(mat, w, 0.0032, len, tx, tv, (u0 + u1) / 2, { ...o, rz, c: 0 });
     }
+  }
+
+  // Picatinny-Schiene nach MIL-STD-1913: Schwalbenschwanz mit 45°-Flanken, 21,2 mm breit, Querschlitze 5,2 mm bei
+  // 10 mm Teilung. v = Unterkante, Oberkante bei v + h; rz dreht um die Unterkante (seitliche/untere Schienen).
+  picatinny(mat, x, v, u0, u1, o = {}) {
+    if (!this.hi) return this.rail(mat, x, v, u0, u1, { ...o, flat: true });
+    const h = o.h ?? 0.0077, rz = o.rz || 0, len = u1 - u0, c = Math.cos(rz), sn = Math.sin(rz);
+    const P = (pts) => pts.map(([dx, dt]) => { const dv = h + dt; return [x + dx * c - dv * sn, v + dx * sn + dv * c]; });
+    const spine = [[0.0091, -0.0031], [0.0079, -0.0043], [0.0079, -h], [-0.0079, -h], [-0.0079, -0.0043], [-0.0091, -0.0031]];
+    const tooth = [[-0.0101, 0], [0.0101, 0], [0.0106, -0.0005], [0.0106, -0.0014], [0.009, -0.0031], [-0.009, -0.0031], [-0.0106, -0.0014], [-0.0106, -0.0005]];
+    const { rz: _rz, x: _x, v: _v, ...po } = o;   // Querschnitt ist schon gedreht/verschoben
+    this.front(mat, P(spine), len, u0, { ...po, bevel: 0.0004 });
+    const n = Math.max(1, Math.floor((len + 0.0052) / 0.01)), start = u0 + (len - (n * 0.01 - 0.0052)) / 2;
+    for (let i = 0; i < n; i++) this.front(mat, P(tooth), 0.0048, start + i * 0.01, { ...po, bevel: 0.00035 });
   }
 
   // Kleiner Schraub-/Nietenkopf (nur hohe Detailstufe)

@@ -1,6 +1,6 @@
 // Gemeinsame PBR-Materialien der Waffen (geteilt zwischen allen Modellen, LODs und Klonen).
 import * as THREE from 'three';
-import { wearMap, brushedMap, grainNormal, stippleNormal, knurlNormal, woodMap, reticleMap, polymerMap, drumFaceMap, drumFaceNormal } from './textures.js';
+import { wearMap, brushedMap, grainNormal, stippleNormal, knurlNormal, woodMap, reticleMap, polymerMap, drumFaceMap, drumFaceNormal, finishMaps } from './textures.js';
 import { p9SlideMaps, p9FrameMaps, SLIDE_CAMO_REPEAT, FRAME_CAMO_REPEAT } from './p9-tex.js';
 import { m17FurnMaps, FURN_CAMO_REPEAT } from './m17-tex.js';
 
@@ -17,6 +17,23 @@ const solid = (m) => { m.userData.solid = true; return m; };
 
 // Feinere Kachelung der geteilten Detailtexturen (aus der Nähe scharf statt verwaschen); Klone teilen das Bild
 const fine = (t, n) => { const c = t.clone(); c.repeat.set(n, n); c.needsUpdate = true; return c; };
+
+// Abrieb/Schmutz je Ecke (Attribut wearDirt: x = blank gerieben, y = Schmutz in Kehlen): Farbe, Metall und Rauheit
+// werden im Shader gemischt – abgeriebene Kanten glänzen metallisch, Kehlen sind dunkler und matter.
+function wearPatch(m, { col, metal, rough }) {
+  const wc = new THREE.Color(col);
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uWearCol = { value: wc };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 wearDirt;\nvarying vec2 vWD;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWD = wearDirt;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vWD;\nuniform vec3 uWearCol;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uWearCol, vWD.x) * (1.0 - 0.5 * vWD.y);')
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\nroughnessFactor = mix(mix(roughnessFactor, ${rough.toFixed(3)}, vWD.x), 0.9, vWD.y);`)
+      .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, ${metal.toFixed(3)}, vWD.x);`);
+  };
+  m.customProgramCacheKey = () => `wear:${col}:${metal}:${rough}`;
+  return m;
+}
 
 const DEFS = {
   // Parkerisierter Stahl / Gunmetal
@@ -56,11 +73,18 @@ const DEFS = {
   p9Frame: () => { const t = p9FrameMaps(); const m = std({ color: 0x232427, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FRAME_CAMO_REPEAT; return m; },
   // M-17 nach Foto: eloxiertes Gehäuse (matt, leichter Glanz), Schienen-Handschutz, phosphatierter Stahl (Lauf,
   // Kornträger), Polymer-Schaft/-Griff mit eigenem Atlas (m17-tex.js)
-  m17Mag: () => std({ color: 0x5a5d61, metalness: 0.5, roughness: 0.44, roughnessMap: fine(wearMap(), 3), normalMap: fine(grainNormal(), 6), normalScale: new THREE.Vector2(0.1, 0.1) }),
-  m17Rec: () => std({ color: 0x3d4044, metalness: 0.38, roughness: 0.44, roughnessMap: fine(wearMap(), 3), normalMap: fine(grainNormal(), 6), normalScale: new THREE.Vector2(0.12, 0.12) }),
-  m17Ras: () => std({ color: 0x313337, metalness: 0.35, roughness: 0.47, roughnessMap: fine(wearMap(), 3), normalMap: fine(grainNormal(), 6), normalScale: new THREE.Vector2(0.12, 0.12) }),
-  m17Steel: () => std({ color: 0x3a3b3e, metalness: 0.6, roughness: 0.55, roughnessMap: fine(wearMap(), 3), normalMap: fine(grainNormal(), 8), normalScale: new THREE.Vector2(0.2, 0.2) }),
-  m17Furn: () => { const t = m17FurnMaps(); const m = std({ color: 0x303236, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FURN_CAMO_REPEAT; return m; },
+  // M-17 (Nutzer 13.10.2026: realistisch statt „knetig“): schwarzes Eloxal ist dunkel und fast dielektrisch – es lebt
+  // von Glanzlichtern, Strahlkorn und Kratzern; Phosphat-Stahl matt grauschwarz; Magazin grau beschichtet.
+  m17Mag: () => std({ color: 0x55585b, metalness: 0.22, roughness: 0.6, roughnessMap: fine(finishMaps('alu').rough, 3), normalMap: fine(finishMaps('alu').normal, 4), normalScale: new THREE.Vector2(0.2, 0.2) }),
+  m17Rec: () => std({ color: 0x2f3134, metalness: 0.28, roughness: 0.46, roughnessMap: fine(finishMaps('alu').rough, 3), normalMap: fine(finishMaps('alu').normal, 4), normalScale: new THREE.Vector2(0.22, 0.22) }),
+  m17Ras: () => std({ color: 0x2c2e31, metalness: 0.28, roughness: 0.5, roughnessMap: fine(finishMaps('alu').rough, 3), normalMap: fine(finishMaps('alu').normal, 4), normalScale: new THREE.Vector2(0.22, 0.22) }),
+  m17Steel: () => std({ color: 0x323334, metalness: 0.35, roughness: 0.62, roughnessMap: fine(finishMaps('steel').rough, 3), normalMap: fine(finishMaps('steel').normal, 4), normalScale: new THREE.Vector2(0.32, 0.32) }),
+  // Varianten mit Abrieb (blankes Metall an Außenkanten) und Schmutz in Kehlen – Attribut wearDirt aus cavityColors
+  m17RecV: () => wearPatch(DEFS.m17Rec(), { col: 0xa3a6aa, metal: 1, rough: 0.32 }),
+  m17RasV: () => wearPatch(DEFS.m17Ras(), { col: 0xa3a6aa, metal: 1, rough: 0.32 }),
+  m17SteelV: () => wearPatch(DEFS.m17Steel(), { col: 0x8e8f8e, metal: 1, rough: 0.36 }),
+  m17FurnV: () => wearPatch(DEFS.m17Furn(), { col: 0x3b3c3f, metal: 0, rough: 0.5 }),
+  m17Furn: () => { const t = m17FurnMaps(); const m = std({ color: 0x26272a, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FURN_CAMO_REPEAT; return m; },
   barrelNitride: () => std({ color: 0x38393c, metalness: 0.85, roughness: 0.42, roughnessMap: wearMap() }),
   // Trommelmagazin: eigener Kunststoff (keine Tarnung) und Deckel mit eigener Textur
   drumBody: () => std({ color: 0x2a2c30, map: polymerMap(), metalness: 0.0, roughness: 0.66, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.2, 0.2) }),

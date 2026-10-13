@@ -43,8 +43,22 @@ export function surfaceNets(f, min, max, step) {
   const nx = Math.ceil((max[0] - min[0]) / step) + 1, ny = Math.ceil((max[1] - min[1]) / step) + 1, nz = Math.ceil((max[2] - min[2]) / step) + 1;
   const val = new Float32Array(nx * ny * nz);
   const id = (x, y, z) => x + nx * (y + ny * z);
+  // Zweistufig: erst ein grobes Raster (4 × step); feine Punkte nur dort auswerten, wo die Fläche nahe sein kann (Feld ≈
+  // Abstand, Lipschitz ≤ 1) – weit weg reicht das Vorzeichen des groben Werts. Spart bei feinen Netzen ~90 % der Aufrufe.
+  const K = 4, S = step * K, mx = Math.ceil((nx - 1) / K) + 1, my = Math.ceil((ny - 1) / K) + 1, mz = Math.ceil((nz - 1) / K) + 1;
+  const crs = new Float32Array(mx * my * mz);
+  for (let z = 0; z < mz; z++) for (let y = 0; y < my; y++) for (let x = 0; x < mx; x++) crs[x + mx * (y + my * z)] = f(min[0] + x * S, min[1] + y * S, min[2] + z * S);
+  const far = S * 1.75 + step * 1.5;
+  const cellFar = new Int8Array((mx - 1) * (my - 1) * (mz - 1));   // 1 = weit außen, −1 = weit innen, 0 = nahe
+  for (let z = 0; z < mz - 1; z++) for (let y = 0; y < my - 1; y++) for (let x = 0; x < mx - 1; x++) {
+    let lo = Infinity, hi = -Infinity;
+    for (let k = 0; k < 8; k++) { const v = crs[(x + (k & 1)) + mx * ((y + ((k >> 1) & 1)) + my * (z + (k >> 2)))]; if (v < lo) lo = v; if (v > hi) hi = v; }
+    cellFar[x + (mx - 1) * (y + (my - 1) * z)] = lo > far ? 1 : hi < -far ? -1 : 0;
+  }
   for (let z = 0; z < nz; z++) for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) {
-    val[id(x, y, z)] = f(min[0] + x * step, min[1] + y * step, min[2] + z * step);
+    const qx = Math.min(mx - 2, (x / K) | 0), qy = Math.min(my - 2, (y / K) | 0), qz = Math.min(mz - 2, (z / K) | 0);
+    const c = cellFar[qx + (mx - 1) * (qy + (my - 1) * qz)];
+    val[id(x, y, z)] = c ? c * far : f(min[0] + x * step, min[1] + y * step, min[2] + z * step);
   }
   const cx = nx - 1, cy = ny - 1, cz = nz - 1;
   const cell = new Int32Array(cx * cy * cz).fill(-1);
@@ -210,4 +224,35 @@ export function contours2D(f, a0, a1, b0, b1, step, tol = step * 0.3) {
     if (host) host.holes.push(h.pts);
   }
   return outers.map(({ outer, holes }) => ({ outer, holes }));
+}
+
+// Wertrauschen 3D (Gitterhash, glatt interpoliert) für fleckigen Abrieb
+const hash3 = (x, y, z) => { let h = (x * 374761393 + y * 668265263 + z * 2147483647) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
+function vnoise(x, y, z) {
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z), xf = x - xi, yf = y - yi, zf = z - zi;
+  const s = (t) => t * t * (3 - 2 * t), u = s(xf), v = s(yf), w = s(zf);
+  const L = (a, b, t) => a + (b - a) * t;
+  return L(L(L(hash3(xi, yi, zi), hash3(xi + 1, yi, zi), u), L(hash3(xi, yi + 1, zi), hash3(xi + 1, yi + 1, zi), u), v),
+    L(L(hash3(xi, yi, zi + 1), hash3(xi + 1, yi, zi + 1), u), L(hash3(xi, yi + 1, zi + 1), hash3(xi + 1, yi + 1, zi + 1), u), v), w);
+}
+const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+/** Gebrauchsspuren je Ecke (Attribut wearDirt) aus dem Feld: über eine kleine Kugel gemittelt ist das Feld an
+ *  Außenkanten positiv (dort reibt sich Eloxal/Kunststoff blank – fleckig, nicht überall), in Kehlen negativ (Schmutz).
+ *  geo aus surfaceNets (Ausgabe x, v, −u). o: { r, edge, cavity } */
+export function cavityColors(geo, f, o = {}) {
+  const r = o.r ?? 0.0012, edge = o.edge ?? 0.8, cav = o.cavity ?? 0.6;
+  const p = geo.attributes.position.array, n = p.length / 3, wd = new Float32Array(n * 2);
+  const dirs = [[1, 1, 1], [1, 1, -1], [1, -1, 1], [1, -1, -1], [-1, 1, 1], [-1, 1, -1], [-1, -1, 1], [-1, -1, -1]].map((d) => d.map((c) => c / Math.sqrt(3)));
+  for (let i = 0; i < n; i++) {
+    const x = p[i * 3], y = p[i * 3 + 1], u = -p[i * 3 + 2];
+    let a = 0;
+    for (const d of dirs) a += f(x + d[0] * r, y + d[1] * r, u + d[2] * r);
+    a /= 8 * r;
+    const patch = sstep(0.32, 0.62, vnoise(x * 420, y * 420, u * 420)) * 0.7 + sstep(0.5, 0.8, vnoise(x * 1500 + 7, y * 1500, u * 1500)) * 0.3;
+    wd[i * 2] = sstep(0.14, 0.42, a) * patch * edge;
+    wd[i * 2 + 1] = sstep(0.08, 0.4, -a) * cav * (0.7 + 0.3 * vnoise(x * 300, y * 300 + 3, u * 300));
+  }
+  geo.setAttribute('wearDirt', new THREE.BufferAttribute(wd, 2));
+  return geo;
 }

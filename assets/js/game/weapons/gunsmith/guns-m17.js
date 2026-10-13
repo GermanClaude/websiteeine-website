@@ -6,8 +6,8 @@
 import * as R from './m17-ref.js';
 import { furnUV3, markMat, markAspect, SLOTS } from './m17-tex.js';
 import { atlasUV } from './p9-tex.js';
-import { sdPolygon, extrudeRound, smin, surfaceNets, sdBox, grid2D, simplifyPoly, contours2D } from './sdf.js';
-import { roundRect, shapeFrom } from './builder.js';
+import { sdPolygon, extrudeRound, smin, surfaceNets, sdBox, grid2D, simplifyPoly, contours2D, cavityColors } from './sdf.js';
+import { roundRect, shapeFrom, ellipsePts } from './builder.js';
 import { holoSight, birdcage } from './parts.js';
 import { magRounds } from './magfill.js';
 import * as THREE from 'three';
@@ -31,15 +31,39 @@ function mark(b, text, x, v, u, h, o = {}) {
   b._push(geo, markMat(text, o), { x, v, u, part: o.part }, true);
 }
 
+// Schriftfeld oben auf einer Fläche (von hinten lesbar), z. B. Schienennummern auf den Zähnen
+function markTop(b, text, x, v, u, h, o = {}) {
+  if (!b.max) return;
+  const asp = markAspect(text, o);
+  const geo = new THREE.PlaneGeometry(h * asp, h);
+  geo.rotateX(-Math.PI / 2);
+  b._push(geo, markMat(text, o), { x, v, u }, true);
+}
+// Nummern auf jedem zweiten Zahn einer Picatinny-Schiene (wie b.picatinny verteilt)
+function railNumbers(b, x, top, u0, u1, first, prefix = '') {
+  const len = u1 - u0, n = Math.max(1, Math.floor((len + 0.0052) / 0.01)), start = u0 + (len - (n * 0.01 - 0.0052)) / 2;
+  for (let i = 0; i < n; i += 2) markTop(b, prefix + (first + i), x, top + 0.00008, start + i * 0.01 + 0.0024, 0.0024, { px: 48 });
+}
+
+// Distanzfeld-Netz: am PC (b.max) feiner und mit Kanten-/Muldenfarbe (Abrieb an Außenkanten, Schmutz in Kehlen)
+const ALU = { r: 0.0009, edge: 0.85, cavity: 0.6 };      // Eloxal reibt sich an Kanten blank (Aluminium)
+const STEEL = { r: 0.0008, edge: 0.7, cavity: 0.6 };
+const POLY = { r: 0.0013, edge: 0.45, cavity: 0.5 };      // Kunststoff: Kanten speckig, Kehlen staubig
+function sdfMesh(b, f, lo, hi, step, mat, o = {}) {
+  const g = surfaceNets(f, lo, hi, b.max ? step * (o.fine ?? 0.6) : step);
+  if (b.max) cavityColors(g, f, o.cav);
+  return b._push(o.uv ? atlasUV(g, o.uv) : g, b.max ? mat + 'V' : mat, {}, !!o.uv);
+}
+
 export function m17(b) {
   const axis = AX;
+  const rk = b.max ? 0.45 : 1;   // PC: knappe Kantenrundung (gefräst statt geknetet)
   if (b.hi) {
     m17Stock(b);
     // ---------------------------------------------------------------- Griff (A2, Rautenfeld)
     const gp = R.M(R.GRIP), gD = field2(gp, [], 0.0005);
     const gripF = (x, v, u) => { const d2 = gD(u, v); if (d2 > 0.006) return d2; return extrudeRound(d2, x, 0.0128, 0.0072); };
-    const gg = surfaceNets(gripF, [-0.015, V(1752), U(950)], [0.015, V(1294), U(1350)], 0.0017);
-    b._push(atlasUV(gg, furnUV3), 'm17Furn', {}, true);
+    sdfMesh(b, gripF, [-0.015, V(1752), U(950)], [0.015, V(1294), U(1350)], 0.0017, 'm17Furn', { uv: furnUV3, cav: POLY });
     // ---------------------------------------------------------------- Unterteil (Gehäuse, Abzugsbügel, Magazinschacht)
     const lo = R.M(R.LOWER), op = R.M(R.OPEN), loD0 = field2(lo, [op], 0.0005), upD0 = field2(R.M(R.UPPER), [], 0.0005);
     // Trennfuge wie im Foto: hinten (bis zum Auswurffenster) liegt sie 13 mm höher, vorn ragt die Schwenkstift-Nase hoch
@@ -53,18 +77,17 @@ export function m17(b) {
       const d2 = loD(u, v);
       if (d2 > 0.006) return d2;
       const ax = Math.abs(x);
-      let d = extrudeRound(Math.max(d2, u - uW0 - 0.002, Math.min(vGuard - v, u - uG0)), x, 0.0111, 0.0012);     // Gehäuse
-      d = smin(d, extrudeRound(Math.max(d2, v - vGuard - 0.002, uG0 - u, u - uW0), x, 0.0058, 0.0018), 0.002);   // Abzugsbügel
-      d = smin(d, extrudeRound(Math.max(d2, uW0 - u, v - V(1199)), x, 0.0132, 0.0025), 0.003);                     // Magazinschacht
-      if (v > V(1203)) d = Math.min(d, extrudeRound(d2, x, 0.0111, 0.0012));                                      // Nasen über dem Schacht
+      let d = extrudeRound(Math.max(d2, u - uW0 - 0.002, Math.min(vGuard - v, u - uG0)), x, 0.0111, 0.0012 * rk);     // Gehäuse
+      d = smin(d, extrudeRound(Math.max(d2, v - vGuard - 0.002, uG0 - u, u - uW0), x, 0.0058, 0.0018 * rk), 0.002 * rk);   // Abzugsbügel
+      d = smin(d, extrudeRound(Math.max(d2, uW0 - u, v - V(1199)), x, 0.0132, 0.0025 * rk), 0.003 * rk);                     // Magazinschacht
+      if (v > V(1203)) d = Math.min(d, extrudeRound(d2, x, 0.0111, 0.0012 * rk));                                      // Nasen über dem Schacht
       // Schutzrippe um den Magazinknopf (rechts)
       if (x > 0 && Math.abs(u - mru) < 0.012 && Math.abs(v - mrv) < 0.012) d = smin(d, Math.max(Math.abs(Math.hypot(u - mru, v - mrv) - mrR - 0.0022) - 0.0011, Math.abs(x - 0.0119) - 0.0009), 0.0008);
       // Schacht offen: das Magazin steckt sichtbar darin
       d = Math.max(d, -Math.max(ax - 0.0106, well.u0 - u, u - well.u1, v - well.vTop));
       return d;
     };
-    const lg = surfaceNets(lowerF, [-0.0168, V(1412), U(1026)], [0.0168, V(1133), U(1898)], 0.0016);
-    b._push(lg, 'm17Rec', {});
+    sdfMesh(b, lowerF, [-0.0168, V(1412), U(1026)], [0.0168, V(1133), U(1898)], 0.0016, 'm17Rec', { cav: ALU, fine: 0.45 });
     // ---------------------------------------------------------------- Oberteil (Gehäuse, Auswurffenster, Hülsenabweiser)
     const upD = (u, v) => Math.max(upD0(u, v), -lugD(u, v));
     const [px0, py0, px1, py1] = R.PORT, port = { u0: U(px0), u1: U(px1), v0: V(py1), v1: V(py0) };
@@ -72,21 +95,36 @@ export function m17(b) {
     const upperF = (x, v, u) => {
       const d2 = upD(u, v);
       if (d2 > 0.006) return d2;
-      let d = extrudeRound(d2, x, 0.0112, 0.0016);
+      let d = extrudeRound(d2, x, 0.0112, 0.0016 * rk);
       // Runder Gehäusewulst um den Verschlussträger (links durchgehend, rechts vor dem Fenster)
       if (x < 0 || u > port.u1 + 0.004) d = smin(d, Math.max(Math.hypot(x, v - axis) - 0.0126, d2 + 0.0015, x > 0 ? 0 : x + 0.006), 0.0025);
       d = Math.max(d, -sdBox(x, v, u, 0.012, (port.v0 + port.v1) / 2, (port.u0 + port.u1) / 2, 0.0082, (port.v1 - port.v0) / 2, (port.u1 - port.u0) / 2));
       if (x > 0 && u > dflB[0] && u < dflB[1] && v > dflB[2] && v < dflB[3]) d = smin(d, extrudeRound(sdPolygon(u, v, defl), x - 0.0105, 0.0048, 0.0014), 0.0015);
       return d;
     };
-    const ug = surfaceNets(upperF, [-0.0165, V(1200), U(996)], [0.0165, V(956), U(1900)], 0.0017);
-    b._push(ug, 'm17Rec', {});
+    sdfMesh(b, upperF, [-0.0165, V(1200), U(996)], [0.0165, V(956), U(1900)], 0.0017, 'm17Rec', { cav: ALU, fine: 0.45 });
     // ---------------------------------------------------------------- Schienen-Handschutz: Profil + Lüftungsfenster (dunkle Öffnungen)
     const [ra0, ra1] = R.RAS, ru0 = U(ra0), ru1 = U(ra1), H = R.RAS_HALF;
-    b.front('m17Ras', roundRect(-H, axis - H, H, axis + H, 0.004, 3), ru1 - ru0, ru0, { bevel: 0.0015 });
-    for (const s of [-1, 1]) {
-      for (const x of [2049, 2146, 2243, 2340, 2436, 2533, 2630]) b.circle('cavity', 0.0033, s * (H + 0.0002), axis + 0.0143, U(x), { ry: s * Math.PI / 2, sx: 0.0072 / 0.0033, seg: 20 });
-      for (const x of [2041, 2122, 2211, 2291, 2372, 2453, 2533, 2614]) b.circle('cavity', 0.0018, s * (H + 0.0002), axis - 0.0156, U(x), { ry: s * Math.PI / 2, sx: 0.0046 / 0.0018, seg: 16 });
+    const upH = [2049, 2146, 2243, 2340, 2436, 2533, 2630], loH = [2041, 2122, 2211, 2291, 2372, 2453, 2533, 2614];
+    if (b.max) {
+      // Hohler Handschutz aus Wänden mit echten Lüftungslöchern (Lauf und Gasrohr innen sichtbar), runde Ecken, Endringe
+      const t = 0.0022, rc = 0.004, hw = H - rc;
+      const holes = [...upH.map((x) => ellipsePts(U(x), axis + 0.0143, 0.0072, 0.0033, 22)), ...loH.map((x) => ellipsePts(U(x), axis - 0.0156, 0.0046, 0.0018, 16))];
+      for (const s of [-1, 1]) b.side('m17Ras', [[ru0, axis - hw], [ru1, axis - hw], [ru1, axis + hw], [ru0, axis + hw]], t, s * (H - t / 2), { holes, bevel: 0.0003 });
+      for (const s of [-1, 1]) b.top('m17Ras', [[-hw, ru0], [hw, ru0], [hw, ru1], [-hw, ru1]], t, axis + s * (H - t / 2), { bevel: 0.0003 });
+      for (const [sx, sv] of [[1, 1], [-1, 1], [-1, -1], [1, -1]]) {
+        const arc = (r, rev) => Array.from({ length: 7 }, (_, k) => { const a = (rev ? 6 - k : k) / 6 * Math.PI / 2; return [sx * (hw + Math.cos(a) * r), axis + sv * (hw + Math.sin(a) * r)]; });
+        b.front('m17Ras', [...arc(rc, false), ...arc(rc - t, true)], ru1 - ru0, ru0);
+      }
+      const ringOut = roundRect(-H + 0.0003, axis - H + 0.0003, H - 0.0003, axis + H - 0.0003, rc, 3), bore = ellipsePts(0, axis, 0.0128, 0.0128, 28);
+      b.front('m17Ras', ringOut, 0.0032, ru1 - 0.0032, { holes: [bore], bevel: 0.0006 });
+      b.front('m17Ras', ringOut, 0.003, ru0, { holes: [bore] });
+    } else {
+      b.front('m17Ras', roundRect(-H, axis - H, H, axis + H, 0.004, 3), ru1 - ru0, ru0, { bevel: 0.0015 });
+      for (const s of [-1, 1]) {
+        for (const x of upH) b.circle('cavity', 0.0033, s * (H + 0.0002), axis + 0.0143, U(x), { ry: s * Math.PI / 2, sx: 0.0072 / 0.0033, seg: 20 });
+        for (const x of loH) b.circle('cavity', 0.0018, s * (H + 0.0002), axis - 0.0156, U(x), { ry: s * Math.PI / 2, sx: 0.0046 / 0.0018, seg: 16 });
+      }
     }
     // ---------------------------------------------------------------- Kornträger (A-Rahmen mit Fenster, Bajonetthalter, Riemenbügel)
     const fs = R.M(R.FSB), fh = R.M(R.FSB_HOLE), fD = field2(fs, [fh], 0.0004);
@@ -94,11 +132,11 @@ export function m17(b) {
     const fsbF = (x, v, u) => {
       const d2 = fD(u, v);
       if (d2 > 0.005) return d2;
-      const d = extrudeRound(d2, x, 0.0062, 0.0011);
-      return Math.max(d, -Math.max(Math.abs(v - axis) - 0.0091, Math.min(u - fa, fb - u)));   // Lauf läuft frei durch (außer im Fuß)
+      let d = extrudeRound(d2, x, 0.0062, 0.0011 * rk);
+      d = Math.max(d, -Math.max(Math.abs(v - axis) - 0.0091, Math.min(u - fa, fb - u)));   // Lauf läuft frei durch (außer im Fuß)
+      return Math.max(d, -Math.max(Math.abs(x) - 0.0026, V(862) - v));                     // Schutzohren: oben offen, Korn dazwischen
     };
-    const fg = surfaceNets(fsbF, [-0.0078, V(1262), U(2686)], [0.0078, V(738), U(2944)], 0.0011);
-    b._push(fg, 'm17Steel', {});
+    sdfMesh(b, fsbF, [-0.0078, V(1262), U(2686)], [0.0078, V(738), U(2944)], 0.0011, 'm17Steel', { cav: STEEL, fine: 0.5 });
   } else {
     // Bot-Detailstufe: dieselben Fotoumrisse, stark vereinfacht
     b.side('polymer', simplifyPoly(R.M(R.STOCK), 0.004), 0.052, 0, { bevel: 0.008, bevelSeg: 1 });
@@ -118,7 +156,8 @@ export function m17(b) {
     b.cyl('m17Steel', 0.0045, 0.0045, 0.006, -0.018, axis - 0.012, U(t1) - 0.0012, { axis: 'x', seg: 12 });
   }
   // ---------------------------------------------------------------- Schiene oben, Ladehebel, Verschluss, Staubschutzdeckel
-  b.rail('m17Rec', 0, 0.1163, U(R.UPPER_X0) + 0.002, U(R.UPPER_X1) - 0.002);
+  b.picatinny('m17Rec', 0, 0.1163, U(R.UPPER_X0) + 0.002, U(R.UPPER_X1) - 0.002);
+  railNumbers(b, 0, 0.124, U(R.UPPER_X0) + 0.002, U(R.UPPER_X1) - 0.002, 1, 'T');
   // Ladehebel (T-Griff): Schaft im Kanal, Griffstück rechts, Klinke links mit Gelenkstift, Griffrillen hinten
   const cu = U(1000), cv = 0.1145;
   b.part('charge', 0, cv, cu);
@@ -141,9 +180,13 @@ export function m17(b) {
     b.box('cavity', 0.0004, 0.0016, pl - 0.012, 0.0094, pv - 0.0045, pu, { part: 'bolt', c: 0 });
     // Staubschutzdeckel offen nach unten geklappt, Scharnierstange, Riegelnase
     const [dx0, dy0, dx1, dy1] = R.DUST_COVER;
-    b.box('m17Rec', 0.0013, V(dy0) - V(dy1), U(dx1) - U(dx0), 0.0126, (V(dy0) + V(dy1)) / 2, (U(dx0) + U(dx1)) / 2, { c: 0.0005 });
+    // Staubschutzdeckel als Klappe am Scharnier: im Modell offen (wie im Foto), im Spiel zu, bis der erste Schuss sie
+    // aufschlagen lässt (Viewmodel, Teil dustCover)
+    b.part('dustCover', 0.0122, V(dy0) - 0.0006, (U(dx0) + U(dx1)) / 2);
+    b.box('m17Rec', 0.0013, V(dy0) - V(dy1), U(dx1) - U(dx0), 0.0126, (V(dy0) + V(dy1)) / 2, (U(dx0) + U(dx1)) / 2, { c: 0.0005, part: 'dustCover' });
+    b.box('m17Rec', 0.003, 0.004, 0.006, 0.0137, V(dy0) - 0.006, U(1640), { c: 0.001, part: 'dustCover' });
+    if (b.max) for (const du of [-0.012, 0, 0.012]) b.box('m17Rec', 0.0006, (V(dy0) - V(dy1)) * 0.6, 0.0016, 0.0133, (V(dy0) + V(dy1)) / 2 - 0.001, (U(dx0) + U(dx1)) / 2 + du, { c: 0.0002, part: 'dustCover' });
     b.cyl('steel', 0.0011, 0.0011, U(dx1) - U(dx0) + 0.004, 0.0122, V(dy0) - 0.0006, (U(dx0) + U(dx1)) / 2, { seg: 8 });
-    b.box('m17Rec', 0.003, 0.004, 0.006, 0.0137, V(dy0) - 0.006, U(1640), { c: 0.001 });
     // Vorderer Hilfsschließer (Rohr rechts hinten) mit gerilltem Knopf
     const [fx0, fy0, fx1, fy1] = R.FWD_ASSIST, fu = (U(fx0) + U(fx1)) / 2, fv = (V(fy0) + V(fy1)) / 2;
     b.cyl('m17Rec', 0.0072, 0.0078, U(fx1) - U(fx0), 0.0128, fv, fu, { ry: -0.28, seg: 18 });
@@ -201,10 +244,11 @@ export function m17(b) {
   const bu0 = U(2640), bp = [[0, 0.0089], ...R.BARREL.map(([x, r]) => [U(x) - bu0, r])];
   b.lathe('m17Steel', bp, 0, axis, bu0, { seg: b.seg(22, 7) });
   const [ra0, ra1] = R.RAS, ru0 = U(ra0) + 0.001, ru1 = U(ra1) - 0.001, H = R.RAS_HALF;
-  b.rail('m17Ras', 0, axis + H - 0.0005, ru0, ru1);
+  b.picatinny('m17Ras', 0, axis + H - 0.0005, ru0, ru1);
+  railNumbers(b, 0, axis + H - 0.0005 + 0.0077, ru0, ru1, 22, 'T');
   if (b.hi) {
-    b.rail('m17Ras', 0, axis - H + 0.0005, ru0, ru1, { rz: Math.PI });
-    for (const s of [-1, 1]) b.rail('m17Ras', s * (H - 0.0005), axis, ru0, ru1, { rz: -s * Math.PI / 2 });
+    b.picatinny('m17Ras', 0, axis - H + 0.0005, ru0, ru1, { rz: Math.PI });
+    for (const s of [-1, 1]) b.picatinny('m17Ras', s * (H - 0.0005), axis, ru0, ru1, { rz: -s * Math.PI / 2 });
     // Schienennummern rechts (R14 … R28) zwischen den Zähnen
     [2017, 2106, 2195, 2291, 2380, 2469, 2557, 2646].forEach((x, i) => {
       mark(b, 'R' + (14 + i * 2), H + 0.00465, axis - 0.0012, U(x), 0.0068, { vertical: true, px: 48 });
@@ -212,7 +256,12 @@ export function m17(b) {
     });
   } else b.box('m17Ras', 0.02, 0.008, ru1 - ru0, 0, axis + H + 0.002, (ru0 + ru1) / 2, { c: 0 });
   const [fb0, fb1] = R.FSB_BASE;
-  b.cyl('m17Steel', R.FSB_RING_R, R.FSB_RING_R, U(fb1) - U(fb0), 0, axis, (U(fb0) + U(fb1)) / 2, { seg: b.seg(22, 7) });
+  b.cyl('m17Steel', R.FSB_RING_R, R.FSB_RING_R, U(fb1) - U(fb0), 0, axis, (U(fb0) + U(fb1)) / 2, { seg: b.seg(b.max ? 40 : 22, 7) });
+  if (b.hi) {
+    // Kegelstifte durch den Kornträgerfuß (beidseitig sichtbar), Gasrohr vom Gehäuse bis in den Kornträger
+    for (const px of [2740, 2895]) for (const s of [-1, 1]) b.lathe('m17Steel', [[0, 0], [0, 0.0019], [0.0006, 0.0017], [0.0008, 0]], s * 0.0116, V(1112), U(px), { axis: 'x', ry: s > 0 ? 0 : Math.PI, seg: 14 });
+    b.cyl('m17Steel', 0.0024, 0.0024, U(2772) - U(1900), 0, axis + 0.0137, (U(1900) + U(2772)) / 2, { seg: 14 });
+  }
   if (b.hi) {
     const [qx0, qy0, qx1, qy1] = R.POST;
     b.box('m17Steel', 0.0018, V(qy0) - V(qy1), U(qx1) - U(qx0), 0, (V(qy0) + V(qy1)) / 2, (U(qx0) + U(qx1)) / 2, { c: 0.0003 });
@@ -288,8 +337,7 @@ function m17Stock(b) {
     if (u > uFront) d = Math.max(d, -(Math.hypot(x, v - R.AXIS) - chR));          // Kanal für das Pufferrohr
     return d;
   };
-  const bg = surfaceNets(bodyF, [-0.034, V(1206), U(214)], [0.034, V(984), U(1002)], 0.0019);
-  b._push(atlasUV(bg, furnUV3), 'm17Furn', {}, true);
+  sdfMesh(b, bodyF, [-0.034, V(1206), U(214)], [0.034, V(984), U(1002)], 0.0019, 'm17Furn', { uv: furnUV3, cav: POLY });
   // Steg, Hebel, untere Kappe: flache Teile als Profil-Extrusionen (Konturen aus den 2D-Feldern)
   const vCut = vT + 0.0015, vSplit = V(1205), uPad = U(300), uLev = U(553), vLev = V(1266);
   const rib = [U(322), V(1204), U(479), V(1351)], boss = [U(422), V(1307)];
@@ -311,7 +359,7 @@ function m17Stock(b) {
 }
 // Flaches Polymerteil: Kontur eines 2D-Felds (u, v) quer extrudiert (halbe Breite hw, Fase), Atlas-UVs je Fläche
 function sideFurn(b, f, [u0, u1, v0, v1], hw, bevel, step = 0.00035) {
-  for (const { outer, holes } of contours2D(f, u0, u1, v0, v1, step, 0.00012)) {
+  for (const { outer, holes } of contours2D(f, u0, u1, v0, v1, b.max ? step * 0.7 : step, b.max ? 0.00007 : 0.00012)) {
     const geo = b._extrude(shapeFrom(outer, holes), hw * 2, bevel, { bevelSeg: 2, curveSeg: 1 });
     geo.translate(0, 0, -(hw * 2 - 2 * Math.min(bevel, hw * 0.9)) / 2);
     geo.rotateY(Math.PI / 2);

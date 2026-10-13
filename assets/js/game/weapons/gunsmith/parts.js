@@ -8,6 +8,7 @@ import { roundRect, ellipsePts } from './builder.js';
 // Liefert Höhe der optischen Achse.
 export function holoSight(b, u0, railTop, o = {}) {
   const sw = swapOptic(b, 'holo', u0, railTop); if (sw !== null) return sw;
+  if (b.max) return holoSightMax(b, u0, railTop);
   const L = 0.092, W = 0.036;
   const baseH = 0.017, axis = railTop + baseH + 0.019;
   // Montagebasis mit Klemme
@@ -36,6 +37,43 @@ export function holoSight(b, u0, railTop, o = {}) {
     // Absehen (leuchtend): Ring + Punkt
     b.plane('reticleHolo', 0.02, 0.02, 0, axis, hu + 0.012, { renderOrder: 3 });
   }
+  b.anchor('sight', 0, axis, u0, { data: { type: 'holo', eyeRelief: 0.2 } });
+  return axis;
+}
+
+// Holo-Visier in voller Detailstufe (PC; Vorbild: kompaktes Holografie-Visier mit Querbatterie): gerundeter Körper,
+// Schienenklemme mit Querschraube und Schnellspannhebel, Bedienknöpfe links, Batteriedeckel rechts vorn,
+// Einstellschrauben, Haube mit gefasten Kanten, zweifach getöntes Fenster. Gleiche Maße/Achse wie die einfache Fassung.
+function holoSightMax(b, u0, railTop) {
+  const L = 0.092, W = 0.034, baseH = 0.017, axis = railTop + baseH + 0.019, M = 'm17Rec';
+  // Körper (abgerundet) + vordere Schräge
+  b.box(M, W, baseH, L - 0.006, 0, railTop + baseH / 2, u0 + (L - 0.006) / 2, { r: 0.0032 });
+  // Klemme: Backen bis zur Schienenflanke, Querschraube links (Schlitz), Schnellspannhebel rechts
+  for (const sx of [-1, 1]) b.box(M, 0.003, 0.0086, 0.026, sx * 0.0122, railTop - 0.0028, u0 + 0.034, { r: 0.0008 });
+  b.cyl('m17Steel', 0.0032, 0.0032, 0.0022, -0.0144, railTop - 0.0035, u0 + 0.034, { axis: 'x', seg: 18 });
+  b.box('cavity', 0.0004, 0.0046, 0.0008, -0.0156, railTop - 0.0035, u0 + 0.034, { c: 0 });
+  b.cyl(M, 0.0042, 0.0042, 0.003, 0.0146, railTop - 0.0035, u0 + 0.034, { axis: 'x', seg: 18 });
+  b.box(M, 0.0034, 0.0062, 0.03, 0.0172, railTop - 0.0008, u0 + 0.046, { r: 0.0012, rx: -0.12 });
+  for (let i = 0; i < 5; i++) b.box('cavity', 0.0004, 0.0048, 0.0007, 0.0190, railTop - 0.0002, u0 + 0.052 + i * 0.0018, { rx: -0.12, c: 0 });
+  // Bedienknöpfe links (Gummi, gewölbt) und Beschriftungsfeld
+  for (const [du, dv] of [[0.012, 0.0105], [0.023, 0.0105], [0.0175, 0.005]]) b.box('rubber', 0.0024, 0.0042, 0.0072, -W / 2 - 0.0009, railTop + dv, u0 + du, { r: 0.0011 });
+  // Batteriedeckel rechts vorn (quer, gerändelt) und Einstellschrauben rechts hinten
+  b.cyl(M, 0.0082, 0.0082, 0.0042, W / 2 + 0.0018, railTop + 0.0092, u0 + L - 0.02, { axis: 'x', seg: 28 });
+  for (let i = 0; i < 18; i++) { const a = i * Math.PI / 9; b.box('cavity', 0.0036, 0.0007, 0.0004, W / 2 + 0.0018, railTop + 0.0092 + Math.sin(a) * 0.0082, u0 + L - 0.02 + Math.cos(a) * 0.0082, { rx: -a, c: 0 }); }
+  b.circle('cavity', 0.0024, W / 2 + 0.0040, railTop + 0.0092, u0 + L - 0.02, { ry: Math.PI / 2, seg: 12 });
+  for (const dv of [0.0055, 0.0125]) {
+    b.cyl('m17Steel', 0.0024, 0.0024, 0.0012, W / 2 + 0.0004, railTop + dv, u0 + 0.009, { axis: 'x', seg: 14 });
+    b.box('cavity', 0.0003, 0.0034, 0.0006, W / 2 + 0.0011, railTop + dv, u0 + 0.009, { c: 0 });
+  }
+  // Haube: Rahmen mit Fenster, gefaste Kanten, Grat oben; Fenster vorn/hinten getönt
+  const hoodL = 0.05, hu = u0 + L - hoodL - 0.006;
+  const ow = W / 2 + 0.003, oh0 = railTop + baseH - 0.0015, oh1 = axis + 0.022;
+  const iw = W / 2 - 0.0025, ih0 = railTop + baseH + 0.0015, ih1 = axis + 0.0175;
+  b.front(M, roundRect(-ow, oh0, ow, oh1, 0.008, 5), hoodL, hu, { holes: [roundRect(-iw, ih0, iw, ih1, 0.0045, 4).reverse()], bevel: 0.0018, bevelSeg: 2 });
+  b.box(M, 0.012, 0.0022, hoodL - 0.008, 0, oh1 + 0.0006, hu + hoodL / 2, { r: 0.0009 });
+  b.plane('glass', iw * 2, ih1 - ih0, 0, (ih0 + ih1) / 2, hu + hoodL - 0.005, { renderOrder: 1 });
+  b.plane('glass', iw * 2, ih1 - ih0, 0, (ih0 + ih1) / 2, hu + 0.005, { renderOrder: 1 });
+  b.plane('reticleHolo', 0.02, 0.02, 0, axis, hu + 0.013, { renderOrder: 3 });
   b.anchor('sight', 0, axis, u0, { data: { type: 'holo', eyeRelief: 0.2 } });
   return axis;
 }

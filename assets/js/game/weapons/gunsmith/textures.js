@@ -487,3 +487,48 @@ export function drumFaceNormal() {
     return t;
   });
 }
+
+/**
+ * Eloxal-/Phosphat-Oberfläche in Nahansicht (Nutzer 13.10.2026: „das Metall sieht zu knetig aus … Gebrauchsspuren“):
+ * feines Strahlkorn je Pixel statt wolkiger Beulen, dazu Mikrokratzer (dünne Rillen, blanker = glatter) und ein paar
+ * Griffspuren (matter). Liefert { normal, rough } (512², kachelnd). kind: 'alu' | 'steel' (gröberes Phosphatkorn).
+ */
+export function finishMaps(kind = 'alu') {
+  return cached('finish:' + kind, () => {
+    const S = 512, r = rng(kind === 'alu' ? 101 : 131);
+    const h = new Float32Array(S * S), g = new Float32Array(S * S).fill(kind === 'alu' ? 0.9 : 0.95);
+    const grain = kind === 'alu' ? 0.35 : 0.6;
+    for (let i = 0; i < S * S; i++) { h[i] = (r() - 0.5) * grain; g[i] += (r() - 0.5) * 0.06; }
+    // leicht weichzeichnen (Korn statt Pixelrauschen)
+    const hb = new Float32Array(S * S);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      let s = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) s += h[((y + dy + S) % S) * S + ((x + dx + S) % S)] * (dx || dy ? 1 : 2);
+      hb[y * S + x] = s / 10;
+    }
+    // Mikrokratzer: kurze, gerade bis leicht gebogene Rillen, viele in Griff-/Einführrichtung (waagrecht)
+    const n = kind === 'alu' ? 200 : 120;
+    for (let k = 0; k < n; k++) {
+      let x = r() * S, y = r() * S;
+      const along = r() < 0.6, a0 = along ? (r() - 0.5) * 0.5 : r() * Math.PI, len = 6 + r() * r() * 90, depth = 0.25 + r() * 0.45, bend = (r() - 0.5) * 0.01;
+      let a = a0;
+      for (let t = 0; t < len; t++) {
+        const i = (((y | 0) % S + S) % S) * S + (((x | 0) % S + S) % S);
+        hb[i] -= depth; g[i] = Math.min(g[i], 0.62 + r() * 0.1);
+        x += Math.cos(a); y += Math.sin(a); a += bend;
+      }
+    }
+    // Griffspuren / Fett: weiche, mattere Flecken
+    for (let k = 0; k < 10; k++) {
+      const cx = r() * S, cy = r() * S, rad = 12 + r() * 30;
+      for (let y = -rad; y <= rad; y++) for (let x = -rad; x <= rad; x++) {
+        const d = Math.hypot(x, y) / rad; if (d > 1) continue;
+        const i = ((((cy + y) | 0) % S + S) % S) * S + ((((cx + x) | 0) % S + S) % S);
+        g[i] = Math.min(1, g[i] + (1 - d) * (1 - d) * 0.12);
+      }
+    }
+    const c = canvas(S, S), ctx = c.getContext('2d'), img = ctx.createImageData(S, S), d = img.data;
+    for (let i = 0; i < S * S; i++) { d[i * 4] = 255; d[i * 4 + 1] = Math.max(0, Math.min(255, g[i] * 255)); d[i * 4 + 2] = 255; d[i * 4 + 3] = 255; }
+    ctx.putImageData(img, 0, 0);
+    return { normal: heightToNormal(hb, S, S, kind === 'alu' ? 0.9 : 1.2), rough: toTexture(c, { aniso: 8 }) };
+  });
+}
