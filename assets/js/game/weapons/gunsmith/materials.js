@@ -18,22 +18,71 @@ const solid = (m) => { m.userData.solid = true; return m; };
 // Feinere Kachelung der geteilten Detailtexturen (aus der Nähe scharf statt verwaschen); Klone teilen das Bild
 const fine = (t, n) => { const c = t.clone(); c.repeat.set(n, n); c.needsUpdate = true; return c; };
 
-// Abrieb/Schmutz je Ecke (Attribut wearDirt: x = blank gerieben, y = Schmutz in Kehlen): Farbe, Metall und Rauheit
-// werden im Shader gemischt – abgeriebene Kanten glänzen metallisch, Kehlen sind dunkler und matter.
-function wearPatch(m, { col, metal, rough }) {
+// Gebrauchsspuren im Shader (PC-Detailstufe): Attribut wearDirt (x = Kante/Fase blank, y = Schmutz in Kehlen, aus
+// cavityColors bzw. Builder-Fasen) plus vorzeichenbehaftete Krümmung aus den Bildschirm-Ableitungen (außen = Abrieb,
+// innen = Schmutz/Verdeckung). Abrieb nur fleckweise (Rauschen im Bauteil-Raum), nie als gleichmäßige Umrisslinie.
+// Dazu: Unebenheiten (feine Wellen im Bauteil-Raum als Normalenstörung → Spiegelungen verziehen sich wie an echtem
+// Metall), fleckige Rauheit (Fett/Griffspuren) und leichte Farbschwankung des Eloxals; Kehlen verdecken Umgebungslicht.
+// Fehlt das Attribut (Bot-Detailstufe), liefert WebGL (0, 0) → nur die Krümmungsanteile.
+const WEAR_GLSL = `
+varying vec2 vWD; varying vec3 vObjP; uniform vec3 uWearCol;
+float wh3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float wn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(wh3(i), wh3(i + vec3(1, 0, 0)), f.x), mix(wh3(i + vec3(0, 1, 0)), wh3(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(wh3(i + vec3(0, 0, 1)), wh3(i + vec3(1, 0, 1)), f.x), mix(wh3(i + vec3(0, 1, 1)), wh3(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
+`;
+// Handy (grober Zeiger): ohne Shader-Zusätze (leichte Fassung, Nutzer 13.10.)
+const WEAR_ON = !(typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches);
+function wearPatch(m, { col, metal, rough, k = 1, bump = 0.00012, tone = 0.12, smear = 0.35 }) {
+  if (!WEAR_ON) return m;
   const wc = new THREE.Color(col);
+  const f = (v) => v.toFixed(5);
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uWearCol = { value: wc };
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 wearDirt;\nvarying vec2 vWD;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWD = wearDirt;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vWD;\nuniform vec3 uWearCol;')
-      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uWearCol, vWD.x) * (1.0 - 0.5 * vWD.y);')
-      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\nroughnessFactor = mix(mix(roughnessFactor, ${rough.toFixed(3)}, vWD.x), 0.9, vWD.y);`)
-      .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, ${metal.toFixed(3)}, vWD.x);`);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 wearDirt;\nvarying vec2 vWD;\nvarying vec3 vObjP;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWD = wearDirt; vObjP = transformed;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + WEAR_GLSL)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float wPatch = smoothstep(0.38, 0.62, wn3(vObjP * 160.0)) * 0.7 + smoothstep(0.5, 0.75, wn3(vObjP * 900.0 + 7.0)) * 0.3;
+        float wLow = wn3(vObjP * 38.0 + 3.0), wBig = wn3(vObjP * 7.0 + 11.0);
+        float wConv = 0.0, wConc = 0.0;
+        #ifndef FLAT_SHADED
+        {
+          vec3 wn = normalize(vNormal), wp = -vViewPosition, px = dFdx(wp), py = dFdy(wp);
+          float kx = dot(dFdx(wn), px) / max(dot(px, px), 1e-12), ky = dot(dFdy(wn), py) / max(dot(py, py), 1e-12);
+          wConv = smoothstep(900.0, 2600.0, max(kx, ky));
+          wConc = smoothstep(300.0, 1400.0, -min(kx, ky));
+        }
+        #endif
+        float wEdge = clamp(max(vWD.x, wConv * 0.9) * (0.06 + 0.94 * wPatch) * ${f(k)}, 0.0, 1.0);
+        float wDirt = clamp(max(vWD.y, wConc * 0.7), 0.0, 1.0);
+        diffuseColor.rgb *= 1.0 + ${f(tone)} * (wBig - 0.5) + ${f(tone * 0.5)} * (wLow - 0.5);
+        diffuseColor.rgb = mix(diffuseColor.rgb, uWearCol, wEdge * 0.9) * (1.0 - 0.55 * wDirt);`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        roughnessFactor *= 1.0 + ${f(smear)} * (wLow - 0.5) + ${f(smear * 0.6)} * (wBig - 0.5);
+        roughnessFactor = clamp(mix(mix(roughnessFactor, ${f(rough)}, wEdge), 0.92, wDirt), 0.04, 1.0);`)
+      .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, ${f(metal)}, wEdge);`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        #ifndef FLAT_SHADED
+        {
+          // Unebenheiten: Höhe in Metern aus zwei Rauschlagen (Wellen ~2 cm, Korn ~3 mm), als Oberflächengradient
+          float hgt = (wn3(vObjP * 55.0) + 0.35 * wn3(vObjP * 330.0 + 5.0)) * ${f(bump)};
+          vec3 sp = -vViewPosition, sx = dFdx(sp), sy = dFdy(sp);
+          vec3 r1 = cross(sy, normal), r2 = cross(normal, sx);
+          float det = dot(sx, r1);
+          vec3 grad = sign(det) * (dFdx(hgt) * r1 + dFdy(hgt) * r2);
+          normal = normalize(abs(det) * normal - grad);
+        }
+        #endif`)
+      .replace('#include <aomap_fragment>', `#include <aomap_fragment>
+        { float wAO = 1.0 - 0.7 * wDirt; reflectedLight.indirectDiffuse *= wAO; reflectedLight.indirectSpecular *= wAO * wAO; }`);
   };
-  m.customProgramCacheKey = () => `wear:${col}:${metal}:${rough}`;
+  m.customProgramCacheKey = () => `wear3:${col}:${metal}:${rough}:${k}:${bump}:${tone}:${smear}`;
   return m;
 }
+const ALU_WEAR = { col: 0x8f9398, metal: 1, rough: 0.3 }, STEEL_WEAR = { col: 0x85878a, metal: 1, rough: 0.34, bump: 0.00008 };
+const POLY_WEAR = { col: 0x3d3e41, metal: 0, rough: 0.5, k: 0.7, bump: 0.00006, tone: 0.06, smear: 0.25 };
+function phys(o) { return new THREE.MeshPhysicalMaterial(o); }
 
 const DEFS = {
   // Parkerisierter Stahl / Gunmetal
@@ -69,22 +118,18 @@ const DEFS = {
   // P-9 nach Foto (p9-tex.js): Nitrid-Schlitten mit Rillen/Gravur/Kratzern, Polymerrahmen mit Würfelraster und Rillen
   // Schlitten: satiniertes Nitrid – echtes Metall (Spiegelung der Umgebung), Glanz längs gezogen (Anisotropie entlang
   // der Atlas-U-Richtung = Schlittenlänge), blank geriebene Kanten aus dem Atlas (Rauheit/Albedo)
-  p9Slide: () => { const t = p9SlideMaps(); const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: t.map, metalness: 0.78, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), envMapIntensity: 1.1 }); m.userData.camoRepeat = SLIDE_CAMO_REPEAT; return m; },
-  p9Frame: () => { const t = p9FrameMaps(); const m = std({ color: 0x232427, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FRAME_CAMO_REPEAT; return m; },
+  p9Slide: () => { const t = p9SlideMaps(); const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: t.map, metalness: 0.78, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), envMapIntensity: 1.1 }); m.userData.camoRepeat = SLIDE_CAMO_REPEAT; return wearPatch(m, { col: 0x9a9c9f, metal: 1, rough: 0.28 }); },
+  p9Frame: () => { const t = p9FrameMaps(); const m = std({ color: 0x232427, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FRAME_CAMO_REPEAT; return wearPatch(m, POLY_WEAR); },
   // M-17 nach Foto: eloxiertes Gehäuse (matt, leichter Glanz), Schienen-Handschutz, phosphatierter Stahl (Lauf,
   // Kornträger), Polymer-Schaft/-Griff mit eigenem Atlas (m17-tex.js)
-  // M-17 (Nutzer 13.10.2026: realistisch statt „knetig“): schwarzes Eloxal ist dunkel und fast dielektrisch – es lebt
-  // von Glanzlichtern, Strahlkorn und Kratzern; Phosphat-Stahl matt grauschwarz; Magazin grau beschichtet.
-  m17Mag: () => std({ color: 0x55585b, metalness: 0.22, roughness: 0.6, roughnessMap: fine(finishMaps('alu').rough, 3), normalMap: fine(finishMaps('alu').normal, 4), normalScale: new THREE.Vector2(0.2, 0.2) }),
-  m17Rec: () => std({ color: 0x2f3134, metalness: 0.28, roughness: 0.46, roughnessMap: fine(finishMaps('alu').rough, 3), normalMap: fine(finishMaps('alu').normal, 4), normalScale: new THREE.Vector2(0.22, 0.22) }),
-  m17Ras: () => std({ color: 0x2c2e31, metalness: 0.28, roughness: 0.5, roughnessMap: fine(finishMaps('alu').rough, 3), normalMap: fine(finishMaps('alu').normal, 4), normalScale: new THREE.Vector2(0.22, 0.22) }),
-  m17Steel: () => std({ color: 0x323334, metalness: 0.35, roughness: 0.62, roughnessMap: fine(finishMaps('steel').rough, 3), normalMap: fine(finishMaps('steel').normal, 4), normalScale: new THREE.Vector2(0.32, 0.32) }),
-  // Varianten mit Abrieb (blankes Metall an Außenkanten) und Schmutz in Kehlen – Attribut wearDirt aus cavityColors
-  m17RecV: () => wearPatch(DEFS.m17Rec(), { col: 0xa3a6aa, metal: 1, rough: 0.32 }),
-  m17RasV: () => wearPatch(DEFS.m17Ras(), { col: 0xa3a6aa, metal: 1, rough: 0.32 }),
-  m17SteelV: () => wearPatch(DEFS.m17Steel(), { col: 0x8e8f8e, metal: 1, rough: 0.36 }),
-  m17FurnV: () => wearPatch(DEFS.m17Furn(), { col: 0x3b3c3f, metal: 0, rough: 0.5 }),
-  m17Furn: () => { const t = m17FurnMaps(); const m = std({ color: 0x26272a, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FURN_CAMO_REPEAT; return m; },
+  // M-17 (Nutzer 13.10.2026: realistisch statt „knetig“): anthrazit eloxiert mit seidiger Klarschicht (spiegelt die
+  // Umgebung weich), Phosphat-Stahl matt, Magazin grau beschichtet; alle mit Gebrauchsspuren (wearPatch).
+  m17Mag: () => wearPatch(std({ color: 0x4a4d51, metalness: 0.4, roughness: 0.52, roughnessMap: fine(finishMaps('alu').rough, 2), normalMap: fine(finishMaps('alu').normal, 2.5), normalScale: new THREE.Vector2(0.18, 0.18) }), { col: 0xaeb2b7, metal: 1, rough: 0.26, k: 1.15 }),
+  m17Rec: () => wearPatch(phys({ color: 0x2d2f32, metalness: 0.3, roughness: 0.5, clearcoat: 0.22, clearcoatRoughness: 0.3, roughnessMap: fine(finishMaps('alu').rough, 2), normalMap: fine(finishMaps('alu').normal, 2.5), normalScale: new THREE.Vector2(0.2, 0.2) }), ALU_WEAR),
+  m17Ras: () => wearPatch(phys({ color: 0x2a2c2f, metalness: 0.3, roughness: 0.54, clearcoat: 0.18, clearcoatRoughness: 0.36, roughnessMap: fine(finishMaps('alu').rough, 2), normalMap: fine(finishMaps('alu').normal, 2.5), normalScale: new THREE.Vector2(0.2, 0.2) }), { ...ALU_WEAR, tone: 0.16 }),
+  m17Steel: () => wearPatch(std({ color: 0x2b2c2d, metalness: 0.45, roughness: 0.6, roughnessMap: fine(finishMaps('steel').rough, 2.5), normalMap: fine(finishMaps('steel').normal, 3), normalScale: new THREE.Vector2(0.3, 0.3) }), STEEL_WEAR),
+  m17RecV: () => DEFS.m17Rec(), m17RasV: () => DEFS.m17Ras(), m17SteelV: () => DEFS.m17Steel(), m17FurnV: () => DEFS.m17Furn(),
+  m17Furn: () => { const t = m17FurnMaps(); const m = std({ color: 0x26272a, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FURN_CAMO_REPEAT; return wearPatch(m, POLY_WEAR); },
   barrelNitride: () => std({ color: 0x38393c, metalness: 0.85, roughness: 0.42, roughnessMap: wearMap() }),
   // Trommelmagazin: eigener Kunststoff (keine Tarnung) und Deckel mit eigener Textur
   drumBody: () => std({ color: 0x2a2c30, map: polymerMap(), metalness: 0.0, roughness: 0.66, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.2, 0.2) }),

@@ -505,15 +505,16 @@ export function finishMaps(kind = 'alu') {
       let s = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) s += h[((y + dy + S) % S) * S + ((x + dx + S) % S)] * (dx || dy ? 1 : 2);
       hb[y * S + x] = s / 10;
     }
-    // Mikrokratzer: kurze, gerade bis leicht gebogene Rillen, viele in Griff-/Einführrichtung (waagrecht)
-    const n = kind === 'alu' ? 200 : 120;
+    // Mikrokratzer: wenige, kurze, flache Rillen (zeigen sich vor allem im Glanz, nicht als helle Linien), meist in
+    // Griff-/Einführrichtung (waagrecht); Tiefe und Glanz laufen an den Enden aus
+    const n = kind === 'alu' ? 55 : 40;
     for (let k = 0; k < n; k++) {
       let x = r() * S, y = r() * S;
-      const along = r() < 0.6, a0 = along ? (r() - 0.5) * 0.5 : r() * Math.PI, len = 6 + r() * r() * 90, depth = 0.25 + r() * 0.45, bend = (r() - 0.5) * 0.01;
+      const along = r() < 0.65, a0 = along ? (r() - 0.5) * 0.45 : r() * Math.PI, len = 5 + r() * r() * 70, depth = 0.05 + r() * 0.13, bend = (r() - 0.5) * 0.01;
       let a = a0;
       for (let t = 0; t < len; t++) {
-        const i = (((y | 0) % S + S) % S) * S + (((x | 0) % S + S) % S);
-        hb[i] -= depth; g[i] = Math.min(g[i], 0.62 + r() * 0.1);
+        const i = (((y | 0) % S + S) % S) * S + (((x | 0) % S + S) % S), fade = Math.sin(Math.PI * (t + 0.5) / len);
+        hb[i] -= depth * fade; g[i] = Math.min(g[i], 1 - (0.26 + r() * 0.08) * fade);
         x += Math.cos(a); y += Math.sin(a); a += bend;
       }
     }

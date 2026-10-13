@@ -1,7 +1,7 @@
 // Pistolen: P-9 Kompakt (Polymer, Schlagbolzen) und Adler .50 (schwere Edelstahlpistole mit Dreieckslauf)
 import { slots, engrave } from './parts.js';
 import { magRounds } from './magfill.js';
-import { sdPolygon, extrudeRound, smin, surfaceNets, sdBox, sdEllipsoid, simplifyPoly, grid2D } from './sdf.js';
+import { sdPolygon, extrudeRound, smin, surfaceNets, sdBox, sdEllipsoid, simplifyPoly, grid2D, cavityColors } from './sdf.js';
 import * as R from './p9-ref.js';
 import { slideUV, frameUV, atlasUV } from './p9-tex.js';
 
@@ -48,7 +48,9 @@ export function p9(b) {
       d = Math.max(d, -sdBox(x, v, u, port.cx, (port.v0 + vTop + 0.004) / 2, port.cu, port.hx, (vTop + 0.004 - port.v0) / 2, port.hu));
       return d;
     };
-    const sg = surfaceNets(slideF, [-0.0138, P9.bottom - 0.0012, uB - 0.0012], [0.0138, vTop + 0.0012, uF + 0.0012], 0.00115);
+    // PC (b.max): feineres Netz + Gebrauchsspuren (blanke Kanten am Schlitten, Schmutz in Rillen)
+    const sg = surfaceNets(slideF, [-0.0138, P9.bottom - 0.0012, uB - 0.0012], [0.0138, vTop + 0.0012, uF + 0.0012], b.max ? 0.0007 : 0.00115);
+    if (b.max) cavityColors(sg, slideF, { r: 0.0008, edge: 0.9, cavity: 0.6 });
     b._push(atlasUV(sg, slideUV), 'p9Slide', { part: 'slide' }, true);
     // Lauf: Haube im Auswurffenster, Mündung mit Krone und Bohrung knapp vor der Schlittenfront
     b.box('barrelNitride', 0.0125, vTop - 0.0007 - (axis - 0.002), port.hu * 2 - 0.0008, 0, (vTop - 0.0007 + axis - 0.002) / 2, port.cu, { part: 'slide', c: 0.0005 });
@@ -91,7 +93,8 @@ export function p9(b) {
       if (Math.abs(u - dimple.u) < 0.005 && Math.abs(v - dimple.v) < 0.005) d = Math.max(d, -sdEllipsoid(ax, v, u, 0.0047 + dimple.r - 0.0008, dimple.v, dimple.u, dimple.r, dimple.r, dimple.r));  // Mulde am Bügel
       return d;
     };
-    const fg = surfaceNets(frameF, [-0.0172, R.V(1258), R.U(1698)], [0.0172, R.V(452), R.U(177)], 0.0013);
+    const fg = surfaceNets(frameF, [-0.0172, R.V(1258), R.U(1698)], [0.0172, R.V(452), R.U(177)], b.max ? 0.0008 : 0.0013);
+    if (b.max) cavityColors(fg, frameF, { r: 0.0011, edge: 0.5, cavity: 0.55 });
     b._push(atlasUV(fg, frameUV), 'p9Frame', {}, true);
   } else {
     // Bot-Detailstufe: Profile aus denselben Fotoumrissen, stark vereinfacht

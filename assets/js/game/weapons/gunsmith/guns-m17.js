@@ -52,7 +52,7 @@ const POLY = { r: 0.0013, edge: 0.45, cavity: 0.5 };      // Kunststoff: Kanten 
 function sdfMesh(b, f, lo, hi, step, mat, o = {}) {
   const g = surfaceNets(f, lo, hi, b.max ? step * (o.fine ?? 0.6) : step);
   if (b.max) cavityColors(g, f, o.cav);
-  return b._push(o.uv ? atlasUV(g, o.uv) : g, b.max ? mat + 'V' : mat, {}, !!o.uv);
+  return b._push(o.uv ? atlasUV(g, o.uv) : g, mat, {}, !!o.uv);
 }
 
 export function m17(b) {
@@ -73,6 +73,7 @@ export function m17(b) {
     const vGuard = V(R.GUARD_Y), uG0 = U(1342), uW0 = U(R.WELL_X0);
     const [mrx, mry, mrr] = R.MAG_RELEASE, mru = U(mrx), mrv = V(mry), mrR = mrr / R.PPM;
     const well = { u0: U(1556), u1: U(1846), vTop: V(1250) };
+    const MC = { u: uW0 + 0.0123, v: mrv + 0.0006, hu: 0.0112, hv: 0.0025 };   // Spalt rundum 1,3 mm   // Magazinhalter-Arm links (Schachtwand)
     const lowerF = (x, v, u) => {
       const d2 = loD(u, v);
       if (d2 > 0.006) return d2;
@@ -83,23 +84,39 @@ export function m17(b) {
       if (v > V(1203)) d = Math.min(d, extrudeRound(d2, x, 0.0111, 0.0012 * rk));                                      // Nasen über dem Schacht
       // Schutzrippe um den Magazinknopf (rechts)
       if (x > 0 && Math.abs(u - mru) < 0.012 && Math.abs(v - mrv) < 0.012) d = smin(d, Math.max(Math.abs(Math.hypot(u - mru, v - mrv) - mrR - 0.0022) - 0.0011, Math.abs(x - 0.0119) - 0.0009), 0.0008);
+      if (b.max) {
+        // Lageraugen des Abzugsbügels (vorn am Schacht, hinten am Griff) – breiter als der Bügel, mit Querstiften
+        d = smin(d, extrudeRound(Math.max(d2, v - vGuard + 0.004, Math.min(Math.max(uG0 - u, u - uG0 - 0.0052), Math.max(uW0 - 0.0056 - u, u - uW0 - 0.001))), x, 0.0089, 0.0009), 0.0012);
+        // Ausgestellter Schachtrand unten (Einführtrichter): Wulst außen, innen angefast
+        d = smin(d, extrudeRound(Math.max(d2, uW0 - u, v - V(1430)), x, 0.0141, 0.0011), 0.0016);
+        // Links: Fräsung für den Magazinhalter-Arm (flacher Stahlbalken liegt darin, siehe unten)
+        if (x < -0.009) d = Math.max(d, -Math.max(sdRoundRect(u - MC.u, v - MC.v, MC.hu + 0.0013, MC.hv + 0.0013, MC.hv + 0.0013), -x - 0.0119));
+      }
       // Schacht offen: das Magazin steckt sichtbar darin
-      d = Math.max(d, -Math.max(ax - 0.0106, well.u0 - u, u - well.u1, v - well.vTop));
+      const flare = b.max ? 0.0013 * Math.min(1, Math.max(0, (V(1427) - v) / (V(1427) - V(1442)))) : 0;
+      d = Math.max(d, -Math.max(ax - 0.0106 - flare, well.u0 - u - flare, u - well.u1 - flare, v - well.vTop));
       return d;
     };
     sdfMesh(b, lowerF, [-0.0168, V(1412), U(1026)], [0.0168, V(1133), U(1898)], 0.0016, 'm17Rec', { cav: ALU, fine: 0.45 });
     // ---------------------------------------------------------------- Oberteil (Gehäuse, Auswurffenster, Hülsenabweiser)
     const upD = (u, v) => Math.max(upD0(u, v), -lugD(u, v));
     const [px0, py0, px1, py1] = R.PORT, port = { u0: U(px0), u1: U(px1), v0: V(py1), v1: V(py0) };
-    const defl = R.M(R.DEFLECTOR), dflB = box2(defl);
+    const defl = R.M(R.DEFLECTOR), dflB = box2(defl), bcU = U(1528);
     const upperF = (x, v, u) => {
       const d2 = upD(u, v);
       if (d2 > 0.006) return d2;
       let d = extrudeRound(d2, x, 0.0112, 0.0016 * rk);
-      // Runder Gehäusewulst um den Verschlussträger (links durchgehend, rechts vor dem Fenster)
-      if (x < 0 || u > port.u1 + 0.004) d = smin(d, Math.max(Math.hypot(x, v - axis) - 0.0126, d2 + 0.0015, x > 0 ? 0 : x + 0.006), 0.0025);
+      // Runder Gehäusewulst um den Verschlussträger (links durchgehend, rechts vor dem Fenster). Am PC in Originalmaß:
+      // Trägerrohr ≈ 29 mm außen, steht links gut 3 mm über die gefräste Seitenwand (22 mm wie das Unterteil) hinaus –
+      // mit Schattenkante darunter; rechts flacher, damit der Staubschutzdeckel bündig sitzt
+      const bR = b.max ? (x < 0 ? 0.0143 : 0.0133) : 0.0126;
+      if (x < 0 || u > port.u1 + 0.004) d = smin(d, Math.max(Math.hypot(x, v - axis) - bR, d2 + 0.0015, x > 0 ? 0 : x + 0.006), b.max ? 0.0012 : 0.0025);
       d = Math.max(d, -sdBox(x, v, u, 0.012, (port.v0 + port.v1) / 2, (port.u0 + port.u1) / 2, 0.0082, (port.v1 - port.v0) / 2, (port.u1 - port.u0) / 2));
       if (x > 0 && u > dflB[0] && u < dflB[1] && v > dflB[2] && v < dflB[3]) d = smin(d, extrudeRound(sdPolygon(u, v, defl), x - 0.0105, 0.0048, 0.0014), 0.0015);
+      if (b.max && x < 0) {
+        // Links: Freischnitt über dem Verschlussfang (Paddel taucht ins Oberteil)
+        d = Math.max(d, -sdBox(x, v, u, -0.0128, V(1196) + 0.0012, bcU, 0.0036, 0.0034, 0.0066));
+      }
       return d;
     };
     sdfMesh(b, upperF, [-0.0165, V(1200), U(996)], [0.0165, V(956), U(1900)], 0.0017, 'm17Rec', { cav: ALU, fine: 0.45 });
@@ -174,10 +191,22 @@ export function m17(b) {
   b.anchor('chargeGrab', -0.014, cv, cu - 0.004, { part: 'charge', data: { travel: [0, 0, 0.065], style: 'release' } });
   const [px0, py0, px1, py1] = R.PORT, pu = (U(px0) + U(px1)) / 2, pl = U(px1) - U(px0), pv = (V(py0) + V(py1)) / 2, ph = V(py0) - V(py1);
   b.part('bolt', 0, axis, pu);
-  b.box('m17Steel', 0.006, ph - 0.002, pl - 0.004, 0.0062, pv, pu, { part: 'bolt', c: 0.001 });
+  if (b.max) {
+    // Verschlussträger rund (wie er durchs Auswurffenster zu sehen ist): Träger mit Rastkerben für den Hilfsschließer,
+    // Längsnut, vorn der schlankere Verschluss mit Auszieher und Auszieherstift
+    const cu0 = pu - pl / 2 + 0.001, cu1 = pu + pl / 2 - 0.013;
+    b.cyl('m17Steel', 0.0093, 0.0093, cu1 - cu0, 0, axis, (cu0 + cu1) / 2, { seg: 32, part: 'bolt' });
+    for (let i = 0; i < 9; i++) b.box('cavity', 0.0006, 0.0034, 0.0011, 0.0083, axis + 0.0042, cu0 + 0.008 + i * 0.0024, { part: 'bolt', rz: -0.47, c: 0 });
+    b.box('cavity', 0.0005, 0.0013, cu1 - cu0 - 0.01, 0.0091, axis - 0.0018, (cu0 + cu1) / 2, { part: 'bolt', c: 0 });
+    b.cyl('m17Steel', 0.0068, 0.0068, 0.0126, 0, axis, cu1 + 0.0063, { seg: 28, part: 'bolt' });
+    b.box('m17Steel', 0.0022, 0.0028, 0.0105, 0.0063, axis + 0.0026, cu1 + 0.0062, { part: 'bolt', rz: -0.6, c: 0.0004 });
+    b.cyl('m17Steel', 0.0009, 0.0009, 0.0016, 0.0073, axis + 0.0016, cu1 + 0.0035, { axis: 'x', seg: 10, part: 'bolt' });
+  } else b.box('m17Steel', 0.006, ph - 0.002, pl - 0.004, 0.0062, pv, pu, { part: 'bolt', c: 0.001 });
   if (b.hi) {
-    for (let i = 0; i < 7; i++) b.box('cavity', 0.0004, 0.0042, 0.0016, 0.0094, pv + 0.004, pu - 0.03 + i * 0.0032, { part: 'bolt', c: 0 });   // Verriegelungszähne
-    b.box('cavity', 0.0004, 0.0016, pl - 0.012, 0.0094, pv - 0.0045, pu, { part: 'bolt', c: 0 });
+    if (!b.max) {
+      for (let i = 0; i < 7; i++) b.box('cavity', 0.0004, 0.0042, 0.0016, 0.0094, pv + 0.004, pu - 0.03 + i * 0.0032, { part: 'bolt', c: 0 });   // Verriegelungszähne
+      b.box('cavity', 0.0004, 0.0016, pl - 0.012, 0.0094, pv - 0.0045, pu, { part: 'bolt', c: 0 });
+    }
     // Staubschutzdeckel offen nach unten geklappt, Scharnierstange, Riegelnase
     const [dx0, dy0, dx1, dy1] = R.DUST_COVER;
     // Staubschutzdeckel als Klappe am Scharnier: im Modell offen (wie im Foto), im Spiel zu, bis der erste Schuss sie
@@ -220,6 +249,22 @@ export function m17(b) {
     for (let i = 0; i < 4; i++) b.box('cavity', 0.0003, 0.0006, 0.0062, -0.01425, 0.0644 + i * 0.0012, bcU, { c: 0 });
     b.box('m17Steel', 0.0032, 0.0066, 0.0096, -0.0137, 0.0512, bcU, { rz: -0.32, c: 0.0008 });
     for (let i = 0; i < 3; i++) b.box('cavity', 0.0003, 0.0007, 0.0084, -0.01525 + i * 0.0005, 0.0494 + i * 0.0016, bcU, { rz: -0.32, c: 0 });
+    if (b.max) {
+      // Magazinhalter-Arm links: flacher Stahlbalken in seiner Fräsung, hinten rundes Ende mit Schlitzkopf der Knopfachse
+      const mcu = U(R.WELL_X0) + 0.0123, mcv = V(R.MAG_RELEASE[1]) + 0.0006, mcE = mcu - 0.0112 + 0.0025;
+      b.side('m17Steel', roundRect(mcu - 0.0112, mcv - 0.0025, mcu + 0.0112, mcv + 0.0025, 0.0024, 3), 0.0013, -0.0128, { bevel: 0.0003 });
+      b.lathe('m17Steel', [[0, 0], [0, 0.0019], [0.0003, 0.0018], [0.0005, 0]], -0.0131, mcv, mcE, { axis: 'x', ry: Math.PI, seg: 16 });
+      b.box('cavity', 0.0003, 0.003, 0.0005, -0.01352, mcv, mcE, { c: 0 });
+      // Abzugsbügel: Rastbolzen vorn, Spannstift hinten (beidseitig in den Lageraugen)
+      for (const s of [-1, 1]) {
+        b.lathe('m17Steel', [[0, 0], [0, 0.0016], [0.0003, 0.0015], [0.0004, 0]], s * 0.0088, V(1408), U(1534), { axis: 'x', ry: s > 0 ? 0 : Math.PI, seg: 12 });
+        b.lathe('m17Steel', [[0, 0], [0, 0.0012], [0.0003, 0.0011], [0.0004, 0]], s * 0.0088, V(1398), U(1352), { axis: 'x', ry: s > 0 ? 0 : Math.PI, seg: 12 });
+        b.box('cavity', 0.0003, 0.0018, 0.0004, s * 0.00915, V(1398), U(1352), { c: 0 });   // Schlitz im Spannstift
+      }
+      // Prüf- und Schmiedestempel links vorn am Oberteil, Abnahmestempel am Unterteil
+      mark(b, 'NP', -0.0113, 0.0748, U(1860) - 0.012, 0.0024, { weight: '700' });
+      mark(b, 'MP', -0.0113, 0.0748, U(1860) - 0.0215, 0.0019);
+    }
     // Gravuren: Wahlhebelstellungen beidseitig, Typ/Kaliber/Nummer links am Magazinschacht, Herstellerzeile über dem Abzug
     for (const [k, t] of [['sicher', 'SICHER'], ['einzel', 'EINZEL'], ['dauer', 'DAUER']]) { const [mxp, myp] = R.MARKS[k]; mark(b, t, 0.0113, V(myp), U(mxp), 0.0021); }
     mark(b, 'SICHER', -0.0113, sv, su + 0.0282, 0.0021);
@@ -382,6 +427,8 @@ function m17Mag(b) {
       b.side('m17Mag', [...pl.map(([u, v]) => [u - 0.0011, v]), ...pl.slice().reverse().map(([u, v]) => [u + 0.0011, v])], 0.0234, 0, { part: 'mag', bevel: 0.0004 });
     }
   }
+  // Prägung links zwischen den Rippen (dem Bogen folgend)
+  if (b.max) mark(b, 'NP 5,56 MM · 30 SCHUSS', -0.01117, V(1652), U(1677), 0.0021, { part: 'mag', vertical: true, rx: 0.2 });
   // Bodenplatte: etwas breiter, folgt der Unterkante (aus dem Foto)
   if (b.hi) {
     const fl = [[1913, 1788], [1880, 1813], [1800, 1831], [1720, 1856], [1668, 1865], [1647, 1846]];

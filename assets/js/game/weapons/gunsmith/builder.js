@@ -72,6 +72,28 @@ export function boxUV(geo, scale = UV_SCALE) {
   return geo;
 }
 
+// Gebrauchsspuren an Fasen (PC): Dreiecke, deren Normale im Bauteil-Raum schräg steht, sind Fasen/Rundungen einer
+// Kiste bzw. die Fasen einer Extrusion – dort reibt sich die Oberfläche blank (Attribut wearDirt.x; Fleckigkeit im Shader)
+function edgeWear(geo, kind) {
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  if (g !== geo) geo.dispose();
+  if (!g.attributes.normal) g.computeVertexNormals();
+  const p = g.attributes.position.array, n = p.length / 3, wd = new Float32Array(n * 2);
+  for (let t = 0; t < n; t += 3) {
+    const i = t * 3;
+    const ax = p[i + 3] - p[i], ay = p[i + 4] - p[i + 1], az = p[i + 5] - p[i + 2];
+    const bx = p[i + 6] - p[i], by = p[i + 7] - p[i + 1], bz = p[i + 8] - p[i + 2];
+    let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+    const l = Math.hypot(nx, ny, nz) || 1; nx = Math.abs(nx / l); ny = Math.abs(ny / l); nz = Math.abs(nz / l);
+    let w;
+    if (kind === 'box') w = Math.max(nx, ny, nz) < 0.93 ? 1 : 0;
+    else w = nz > 0.12 && nz < 0.96 ? 1 : 0;   // Extrusion: Deckel z-gerichtet, Wände ⟂ z, Fasen dazwischen
+    for (let k = 0; k < 3; k++) wd[(t + k) * 2] = w;
+  }
+  g.setAttribute('wearDirt', new THREE.BufferAttribute(wd, 2));
+  return g;
+}
+
 function normalizeGeo(geo, keepUV) {
   let g = geo.index ? geo.toNonIndexed() : geo;
   if (g !== geo) geo.dispose();
@@ -144,6 +166,7 @@ export class Builder {
       const sc = Math.max(o.sx ?? 1, o.sy ?? 1, o.sz ?? 1);
       if (LOD_SKIP.has(mat) || Math.max(s.x, s.y, s.z) * sc < 0.009) { geo.dispose(); return null; }
     }
+    if (this.max && o._edge === 'box') geo = edgeWear(geo, 'box');
     _e.set(o.rx || 0, o.ry || 0, o.rz || 0, o.order || 'XYZ');
     _q.setFromEuler(_e);
     _s.set(o.sx ?? 1, o.sy ?? 1, o.sz ?? 1);
@@ -151,7 +174,9 @@ export class Builder {
     _m.compose(_p, _q, _s);
     if (o.pre) geo.applyMatrix4(o.pre);
     geo.applyMatrix4(_m);
-    part.items.push({ geo: normalizeGeo(geo, keepUV), mat, order: o.renderOrder || 0 });
+    const ng = normalizeGeo(geo, keepUV);
+    if (this.max && !ng.attributes.wearDirt) ng.setAttribute('wearDirt', new THREE.BufferAttribute(new Float32Array(ng.attributes.position.count * 2), 2));
+    part.items.push({ geo: ng, mat, order: o.renderOrder || 0 });
     return geo;
   }
 
@@ -161,7 +186,7 @@ export class Builder {
     if (this.hi && o.r) geo = roundedBox(w, h, l, o.r, o.rs ?? 1);
     else if (this.hi && o.c !== 0) geo = chamferBoxGeometry(w, h, l, o.c ?? Math.min(w, h, l) * 0.12);
     else geo = new THREE.BoxGeometry(w, h, l);
-    return this._push(geo, mat, { ...o, x, v, u });
+    return this._push(geo, mat, { ...o, x, v, u, _edge: 'box' });
   }
 
   // Zylinder entlang u (Standard), v oder x. rF = Radius vorne/oben, rB = hinten/unten
@@ -200,6 +225,7 @@ export class Builder {
     const geo = this._extrude(shape, width, bev, o);
     const realBev = this.hi && bev > 0 ? Math.min(bev, width * 0.45) : 0;
     geo.translate(0, 0, -(width - 2 * realBev) / 2);
+    if (this.max) edgeWear(geo, 'extrude');
     geo.rotateY(Math.PI / 2);
     return this._push(geo, mat, { ...o, x, v: o.v || 0, u: o.u || 0 });
   }
@@ -211,6 +237,7 @@ export class Builder {
     const geo = this._extrude(shape, l, bev, o);
     const realBev = this.hi && bev > 0 ? Math.min(bev, l * 0.45) : 0;
     geo.translate(0, 0, -(l - realBev));
+    if (this.max) edgeWear(geo, 'extrude');
     return this._push(geo, mat, { ...o, x: o.x || 0, v: o.v || 0, u });
   }
 
@@ -221,6 +248,7 @@ export class Builder {
     const geo = this._extrude(shape, h, bev, o);
     const realBev = this.hi && bev > 0 ? Math.min(bev, h * 0.45) : 0;
     geo.translate(0, 0, -(h - 2 * realBev) / 2);
+    if (this.max) edgeWear(geo, 'extrude');
     geo.rotateX(-Math.PI / 2);
     return this._push(geo, mat, { ...o, x: o.x || 0, v, u: o.u || 0 });
   }

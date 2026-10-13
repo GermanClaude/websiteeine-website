@@ -87,4 +87,11 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   echten Schlitzen, Magazinboden; Ober-/Unter-/Stirnflächen mit eigener Projektion (keine Schlieren). Flache Teile als
   Profil-Extrusion aus 2D-Konturen (`contours2D` in sdf.js). ≈ 117 000 Dreiecke.
 - Feuermodi je Waffe nach Vorbild (`FIRE_SELECT` in weapons.data.js, Taste M, Touch-Knopf), Test tools/firemode-test.mjs.
+- 13.10. spät: **PC-Detailstufe** (`DETAIL.max`, Handy leicht): Gebrauchsspuren-Shader `wearPatch` (materials.js) für
+  M-17 und P-9 – vorzeichenbehaftete Krümmung aus Bildschirm-Ableitungen (außen fleckiger Abrieb, innen Schmutz und
+  verdecktes Umgebungslicht), Unebenheiten als Normalenstörung im Bauteil-Raum, fleckige Rauheit, Farbschwankung des
+  Eloxals; wenige flache Mikrokratzer statt Linienmuster. M-17 links: Trägerwulst in Originalmaß (≈ 29 mm, Schattenkante),
+  Freischnitt über dem Verschlussfang, Magazinhalter-Arm in Fräsung, Prüfstempel; Schacht mit ausgestelltem Rand,
+  Bügel-Lageraugen mit Stiften, runder Verschlussträger mit Rastkerben und Verschlusskopf im Auswurffenster,
+  Magazinprägung.
 - Maßstab für alle weiteren Waffen (Nutzer 13.10.): P-9 und M-17 + KI-Video; Rest ab Do 15.10. 17:10.
