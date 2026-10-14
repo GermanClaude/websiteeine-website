@@ -14,6 +14,16 @@ import * as THREE from 'three';
 
 const { U, V } = R;
 const AX = R.AXIS;
+// Auswurffenster nach Original (Standard-M4, Nutzer 14.10.2026): Öffnung ≈ 66 × 17 mm mit runden Ecken und Fase im
+// runden Trägergehäuse (r ≈ 14,3 mm), Deckel ≈ 79 × 23,5 mm aus 1 mm Stahlblech im Gehäuseradius gewölbt, Scharnier-
+// stange unten mit Drehfeder und Sicherungsring, Laufverlängerung 1,5 mm vor dem Fenster. Offen hängt der Deckel um
+// 155° nach unten geklappt (frei vom Gehäuse). u vorwärts, v hoch, x rechts (m).
+const EP = (() => {
+  const pu = (U(R.PORT[0]) + U(R.PORT[2])) / 2, pv = (V(R.PORT[1]) + V(R.PORT[3])) / 2;
+  const u = pu + 0.002, hu = 0.033, v = pv - 0.0008, hv = 0.0086, Rm = 0.0149;
+  const thB = Math.asin((v - hv - 0.0018 - AX) / Rm), thT = Math.asin((v + hv + 0.0018 - AX) / Rm), thH = thB - 0.0785, Rh = Rm + 0.0004;
+  return { u, hu, v, hv, r: 0.0024, uBX: u + hu + 0.0015, Rm, thB, thT, cu: u, cl: 0.0395, hx: Rh * Math.cos(thH), hv2: AX + Rh * Math.sin(thH), open: 155 * Math.PI / 180, R: 0.0143 };
+})();
 const box2 = (pts, m = 0.003) => { const us = pts.map((p) => p[0]), vs = pts.map((p) => p[1]); return [Math.min(...us) - m, Math.max(...us) + m, Math.min(...vs) - m, Math.max(...vs) + m]; };
 // Polygon(e) als vorgerechnetes 2D-Feld über ihrem Hüllrechteck (u, v)
 function field2(pts, holes = [], step = 0.0005) {
@@ -109,10 +119,20 @@ export function m17(b) {
       // Runder Gehäusewulst um den Verschlussträger (links durchgehend, rechts vor dem Fenster). Am PC in Originalmaß:
       // Trägerrohr ≈ 29 mm außen, steht links gut 3 mm über die gefräste Seitenwand (22 mm wie das Unterteil) hinaus –
       // mit Schattenkante darunter; rechts flacher, damit der Staubschutzdeckel bündig sitzt
-      const bR = b.max ? (x < 0 ? 0.0143 : 0.0133) : 0.0126;
-      if (x < 0 || u > port.u1 + 0.004) d = smin(d, Math.max(Math.hypot(x, v - axis) - bR, d2 + 0.0015, x > 0 ? 0 : x + 0.006), b.max ? 0.0012 : 0.0025);
-      d = Math.max(d, -sdBox(x, v, u, 0.012, (port.v0 + port.v1) / 2, (port.u0 + port.u1) / 2, 0.0082, (port.v1 - port.v0) / 2, (port.u1 - port.u0) / 2));
-      if (x > 0 && u > dflB[0] && u < dflB[1] && v > dflB[2] && v < dflB[3]) d = smin(d, extrudeRound(sdPolygon(u, v, defl), x - 0.0105, 0.0048, 0.0014), 0.0015);
+      // PC: beidseitig wie das Original (rundes Trägergehäuse auch um das Auswurffenster, Deckel liegt darauf)
+      const bR = b.max ? 0.0143 : 0.0126;
+      if (b.max || x < 0 || u > port.u1 + 0.004) d = smin(d, Math.max(Math.hypot(x, v - axis) - bR, d2 + 0.0015, b.max ? 0.006 - Math.abs(x) : x > 0 ? 0 : x + 0.006), b.max ? 0.0012 : 0.0025);
+      if (b.max) {
+        // Fenster mit runden Ecken und 0,7-mm-Fase außen; dahinter der hohle Trägerkanal (Ø 25,2 mm), in dem der Träger
+        // beim Schuss sichtbar zurückläuft – vorn schließt die Laufverlängerung an
+        if (x > 0.002) {
+          const rr = Math.hypot(x, v - axis);
+          d = Math.max(d, -Math.max(sdRoundRect(u - EP.u, v - EP.v, EP.hu, EP.hv, EP.r) - Math.max(0, rr - (EP.R - 0.0007)), 0.0035 - x));
+        }
+        if (u > EP.u - EP.hu - 0.012 && u < EP.uBX) d = Math.max(d, -(Math.hypot(x, v - axis) - 0.0126));
+      } else d = Math.max(d, -sdBox(x, v, u, 0.012, (port.v0 + port.v1) / 2, (port.u0 + port.u1) / 2, 0.0082, (port.v1 - port.v0) / 2, (port.u1 - port.u0) / 2));
+      // Hülsenabweiser hinter dem Fenster (am PC kräftiger, steht ≈ 3 mm über das Gehäuse)
+      if (x > 0 && u > dflB[0] && u < dflB[1] && v > dflB[2] && v < dflB[3]) d = smin(d, b.max ? extrudeRound(sdPolygon(u, v, defl), x - 0.0118, 0.0054, 0.0014) : extrudeRound(sdPolygon(u, v, defl), x - 0.0105, 0.0048, 0.0014), 0.0015);
       if (b.max && x < 0) {
         // Links: Freischnitt über dem Verschlussfang (Paddel taucht ins Oberteil)
         d = Math.max(d, -sdBox(x, v, u, -0.0128, V(1196) + 0.0012, bcU, 0.0036, 0.0034, 0.0066));
@@ -191,31 +211,23 @@ export function m17(b) {
   b.anchor('chargeGrab', -0.014, cv, cu - 0.004, { part: 'charge', data: { travel: [0, 0, 0.065], style: 'release' } });
   const [px0, py0, px1, py1] = R.PORT, pu = (U(px0) + U(px1)) / 2, pl = U(px1) - U(px0), pv = (V(py0) + V(py1)) / 2, ph = V(py0) - V(py1);
   b.part('bolt', 0, axis, pu);
-  if (b.max) {
-    // Verschlussträger rund (wie er durchs Auswurffenster zu sehen ist): Träger mit Rastkerben für den Hilfsschließer,
-    // Längsnut, vorn der schlankere Verschluss mit Auszieher und Auszieherstift
-    const cu0 = pu - pl / 2 + 0.001, cu1 = pu + pl / 2 - 0.013;
-    b.cyl('m17Steel', 0.0093, 0.0093, cu1 - cu0, 0, axis, (cu0 + cu1) / 2, { seg: 32, part: 'bolt' });
-    for (let i = 0; i < 9; i++) b.box('cavity', 0.0006, 0.0034, 0.0011, 0.0083, axis + 0.0042, cu0 + 0.008 + i * 0.0024, { part: 'bolt', rz: -0.47, c: 0 });
-    b.box('cavity', 0.0005, 0.0013, cu1 - cu0 - 0.01, 0.0091, axis - 0.0018, (cu0 + cu1) / 2, { part: 'bolt', c: 0 });
-    b.cyl('m17Steel', 0.0068, 0.0068, 0.0126, 0, axis, cu1 + 0.0063, { seg: 28, part: 'bolt' });
-    b.box('m17Steel', 0.0022, 0.0028, 0.0105, 0.0063, axis + 0.0026, cu1 + 0.0062, { part: 'bolt', rz: -0.6, c: 0.0004 });
-    b.cyl('m17Steel', 0.0009, 0.0009, 0.0016, 0.0073, axis + 0.0016, cu1 + 0.0035, { axis: 'x', seg: 10, part: 'bolt' });
-  } else b.box('m17Steel', 0.006, ph - 0.002, pl - 0.004, 0.0062, pv, pu, { part: 'bolt', c: 0.001 });
+  if (b.max) m17BoltGroup(b, axis);
+  else b.box('m17Steel', 0.006, ph - 0.002, pl - 0.004, 0.0062, pv, pu, { part: 'bolt', c: 0.001 });
   if (b.hi) {
     if (!b.max) {
       for (let i = 0; i < 7; i++) b.box('cavity', 0.0004, 0.0042, 0.0016, 0.0094, pv + 0.004, pu - 0.03 + i * 0.0032, { part: 'bolt', c: 0 });   // Verriegelungszähne
       b.box('cavity', 0.0004, 0.0016, pl - 0.012, 0.0094, pv - 0.0045, pu, { part: 'bolt', c: 0 });
     }
-    // Staubschutzdeckel offen nach unten geklappt, Scharnierstange, Riegelnase
-    const [dx0, dy0, dx1, dy1] = R.DUST_COVER;
     // Staubschutzdeckel als Klappe am Scharnier: im Modell offen (wie im Foto), im Spiel zu, bis der erste Schuss sie
-    // aufschlagen lässt (Viewmodel, Teil dustCover)
-    b.part('dustCover', 0.0122, V(dy0) - 0.0006, (U(dx0) + U(dx1)) / 2);
-    b.box('m17Rec', 0.0013, V(dy0) - V(dy1), U(dx1) - U(dx0), 0.0126, (V(dy0) + V(dy1)) / 2, (U(dx0) + U(dx1)) / 2, { c: 0.0005, part: 'dustCover' });
-    b.box('m17Rec', 0.003, 0.004, 0.006, 0.0137, V(dy0) - 0.006, U(1640), { c: 0.001, part: 'dustCover' });
-    if (b.max) for (const du of [-0.012, 0, 0.012]) b.box('m17Rec', 0.0006, (V(dy0) - V(dy1)) * 0.6, 0.0016, 0.0133, (V(dy0) + V(dy1)) / 2 - 0.001, (U(dx0) + U(dx1)) / 2 + du, { c: 0.0002, part: 'dustCover' });
-    b.cyl('steel', 0.0011, 0.0011, U(dx1) - U(dx0) + 0.004, 0.0122, V(dy0) - 0.0006, (U(dx0) + U(dx1)) / 2, { seg: 8 });
+    // aufschlagen lässt (Viewmodel, Teil dustCover; Schließwinkel in meta.dustCover)
+    if (b.max) m17DustCover(b, axis);
+    else {
+      const [dx0, dy0, dx1, dy1] = R.DUST_COVER;
+      b.part('dustCover', 0.0122, V(dy0) - 0.0006, (U(dx0) + U(dx1)) / 2);
+      b.box('m17Rec', 0.0013, V(dy0) - V(dy1), U(dx1) - U(dx0), 0.0126, (V(dy0) + V(dy1)) / 2, (U(dx0) + U(dx1)) / 2, { c: 0.0005, part: 'dustCover' });
+      b.box('m17Rec', 0.003, 0.004, 0.006, 0.0137, V(dy0) - 0.006, U(1640), { c: 0.001, part: 'dustCover' });
+      b.cyl('steel', 0.0011, 0.0011, U(dx1) - U(dx0) + 0.004, 0.0122, V(dy0) - 0.0006, (U(dx0) + U(dx1)) / 2, { seg: 8 });
+    }
     // Vorderer Hilfsschließer (Rohr rechts hinten) mit gerilltem Knopf
     const [fx0, fy0, fx1, fy1] = R.FWD_ASSIST, fu = (U(fx0) + U(fx1)) / 2, fv = (V(fy0) + V(fy1)) / 2;
     b.cyl('m17Rec', 0.0072, 0.0078, U(fx1) - U(fx0), 0.0128, fv, fu, { ry: -0.28, seg: 18 });
@@ -338,7 +350,57 @@ export function m17(b) {
   b.anchor('rightHandGrip', 0, 0.0, 0, { data: grip });
   b.anchor('magWell', 0, V(1452), U(1700));
   b.anchor('leftHandGrip', 0, axis - 0.026, 0.255, { data: { style: 'under', r: 0.026 } });
-  b.meta = { sight: 'holo', axis, kind: 'rifle', selector: { semi: Math.PI / 2, auto: Math.PI } };
+  b.meta = { sight: 'holo', axis, kind: 'rifle', selector: { semi: Math.PI / 2, auto: Math.PI }, dustCover: { closed: b.max ? EP.open : Math.PI } };
+}
+
+// Verschlussträgergruppe in voller Länge nach Original: Träger Ø 24,8 mm mit 14 Rastkerben für den Hilfsschließer,
+// Verschluss Ø 13 mm mit sieben Verriegelungswarzen, Auszieher mit Kralle und Stift, Schlagbolzenloch und Auswerfer in
+// der Stirn; Laufverlängerung mit acht Warzen, M4-Zuführrampen und Patronenlager. Der Träger läuft beim Schuss 82 mm
+// zurück (handling boltTravel) – das Fenster zeigt dann Verschlusskopf und offenes Patronenlager. Anker boltFace =
+// Verschlussstirn (dort startet die Hülse, Viewmodel _ejectFromBolt).
+function m17BoltGroup(b, axis) {
+  const uCf = EP.uBX - 0.003, uBF = EP.uBX + 0.0105, L = uBF - uCf, P = { part: 'bolt' };
+  b.lathe('m17Bcg', [[-0.15, 0], [-0.15, 0.0118], [-0.1494, 0.0124], [-0.0013, 0.0124], [0, 0.0114], [0, 0.0068]], 0, axis, uCf, { ...P, seg: 40 });
+  for (let i = 0; i < 14; i++) b.box('cavity', 0.0008, 0.0048, 0.0008, Math.cos(0.12) * 0.0121, axis + Math.sin(0.12) * 0.0121, EP.u - 0.026 + i * 0.0018, { ...P, rz: 0.12, c: 0 });
+  b.lathe('m17Bcg', [[0, 0.0066], [L - 0.0062, 0.0066], [L - 0.0062, 0.0058], [L - 0.0004, 0.0058], [L, 0.0054], [L, 0]], 0, axis, uCf, { ...P, seg: 32 });
+  for (let k = 1; k < 8; k++) { const a = k * Math.PI / 4; b.box('m17Bcg', 0.0022, 0.0026, 0.0048, Math.cos(a) * 0.0069, axis + Math.sin(a) * 0.0069, uBF - 0.003, { ...P, rz: a, c: 0.0003 }); }
+  b.box('m17Bcg', 0.0018, 0.0038, 0.0215, 0.0067, axis, uBF - 0.0108, { ...P, c: 0.0004 });          // Auszieher
+  b.box('m17Bcg', 0.0012, 0.0038, 0.0014, 0.0052, axis, uBF + 0.0004, { ...P, c: 0.0002 });           // Kralle
+  b.cyl('m17Bcg', 0.0008, 0.0008, 0.0046, 0.0067, axis, uBF - 0.017, { ...P, axis: 'v', seg: 10 });   // Auszieherstift
+  b.circle('cavity', 0.001, 0, axis, uBF + 0.0001, { ...P, ry: Math.PI, seg: 12 });                      // Schlagbolzenloch
+  b.circle('cavity', 0.0009, Math.cos(3.5) * 0.0037, axis + Math.sin(3.5) * 0.0037, uBF + 0.0001, { ...P, ry: Math.PI, seg: 10 });   // Auswerfer
+  b.anchor('boltFace', 0, axis, uBF, P);
+  // Laufverlängerung (fest), Warzen innen, Zuführrampen unten, Patronenlager dunkel
+  b.lathe('m17Bcg', [[0, 0.0084], [0, 0.0126], [0.017, 0.0126], [0.017, 0.0072], [0.0012, 0.0072], [0, 0.0084]], 0, axis, EP.uBX, { seg: 40 });
+  for (let k = 0; k < 8; k++) { const a = Math.PI / 8 + k * Math.PI / 4; b.box('m17Bcg', 0.001, 0.0028, 0.0045, Math.cos(a) * 0.0067, axis + Math.sin(a) * 0.0067, EP.uBX + 0.0035, { rz: a, c: 0.0002 }); }
+  for (const a of [-1.95, -1.19]) b.box('cavity', 0.003, 0.0035, 0.003, Math.cos(a) * 0.0088, axis + Math.sin(a) * 0.0088, EP.uBX + 0.001, { rz: a, c: 0 });
+  b.circle('cavity', 0.0072, 0, axis, EP.uBX + 0.0166, { seg: 24 });
+}
+
+// Staubschutzdeckel nach Original: gewölbtes Stahlblech (1,1 mm) mit runden Ecken, an beiden Enden um die Stange
+// gerollte Scharnieraugen, innen die Riegelnase; Scharnierstange mit Lageraugen am Gehäuse, Drehfeder in der Mitte,
+// Sicherungsring vorn. Als Distanzfeld in geschlossener Lage beschrieben, im Modell offen (um EP.open gedreht).
+function m17DustCover(b, axis) {
+  b.part('dustCover', EP.hx, EP.hv2, EP.cu);
+  const co = Math.cos(EP.open), so = Math.sin(EP.open), sC = (EP.thB + EP.thT) / 2, hs = (EP.thT - EP.thB) / 2 * EP.Rm;
+  const lth = EP.thT - 0.16, lr = EP.Rm - 0.001, lx = lr * Math.cos(lth), lv = axis + lr * Math.sin(lth);
+  const closed = (x, v, u) => {
+    const rr = Math.hypot(x, v - axis), s = (Math.atan2(v - axis, x) - sC) * EP.Rm;
+    let d = extrudeRound(sdRoundRect(u - EP.cu, s, EP.cl, hs, 0.0032), rr - EP.Rm, 0.00055, 0.00028);
+    d = smin(d, Math.max(Math.hypot(x - EP.hx, v - EP.hv2) - 0.00125, Math.abs(Math.abs(u - EP.cu) - (EP.cl - 0.0052)) - 0.0046), 0.0005);
+    return Math.min(d, sdBox(x, v, u, lx, lv, EP.cu - EP.cl + 0.0075, 0.0009, 0.0011, 0.0017) - 0.0002);
+  };
+  const f = (x, v, u) => { const dx = x - EP.hx, dv = v - EP.hv2; return closed(EP.hx + dx * co - dv * so, EP.hv2 + dx * so + dv * co, u); };
+  const g = surfaceNets(f, [0.0092, 0.057, EP.cu - EP.cl - 0.002], [0.0285, 0.0885, EP.cu + EP.cl + 0.002], 0.00042);
+  cavityColors(g, f, STEEL);
+  b._push(g, 'm17Steel', { part: 'dustCover' });
+  const rl = 2 * EP.cl + 0.009;
+  b.cyl('m17Steel', 0.0008, 0.0008, rl, EP.hx, EP.hv2, EP.cu, { seg: 12 });
+  for (const s of [-1, 1]) b.cyl('m17Rec', 0.0018, 0.0018, 0.0034, EP.hx - 0.0004, EP.hv2, EP.cu + s * (EP.cl + 0.0024), { seg: 16 });
+  b.torus('m17Steel', 0.00112, 0.00028, EP.hx, EP.hv2, EP.cu + EP.cl + 0.0045, { arc: Math.PI * 1.6, rz: 2.2, seg: 6, tseg: 14 });
+  const coil = [], n = 9 * 14, cl = 0.021;
+  for (let i = 0; i <= n; i++) { const a = i / 14 * Math.PI * 2; coil.push([EP.hx + Math.cos(a) * 0.00118, EP.hv2 + Math.sin(a) * 0.00118, EP.cu - cl / 2 + cl * i / n]); }
+  b.tube('m17Steel', coil, 0.00026, { tubSeg: n * 2, seg: 5 });
 }
 
 // A2-Feuerdämpfer (Vogelkäfig) wie am Vorbild: Bund mit Quetschscheibe, fünf durchgehende Schlitze im Käfig (unten

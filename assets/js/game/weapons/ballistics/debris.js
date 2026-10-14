@@ -37,7 +37,7 @@ const SURF = {
   wood: [0.32, 0.35], dirt: [0.12, 0.7], grass: [0.1, 0.75], sand: [0.08, 0.8], fabric: [0.1, 0.7], flesh: [0.1, 0.7],
 };
 // Halber Durchmesser der Hülsen (Abstand zur Fläche im Liegen) und Gewicht für den Klang
-const CASE_R = { rifle: 0.0057, pistol: 0.0049, big: 0.0074, shotgun: 0.0108 };
+const CASE_R = { rifle: 0.0048, pistol: 0.0049, big: 0.0074, shotgun: 0.0108 };   // rifle = 5,56×45
 // Abkühlen: frisch ausgeworfen heller/wärmer, nach t s Liegen stufenweise matter (Staub, angelaufen).
 // Farbe multipliziert die Vertexfarbe (Messing bzw. rote Hülle der Schrotpatrone).
 const HOT = [1.14, 0.98, 0.84];

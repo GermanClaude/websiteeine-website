@@ -37,6 +37,8 @@ import { camoMap, fabricNormal, tapeMap, watchFaceTexture, flashMap, smokeMap } 
 
 const V3 = () => new THREE.Vector3();
 const _v = V3(), _v2 = V3(), _v3 = V3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m = new THREE.Matrix4(), _e = new THREE.Euler();
+// Hülsenauswurf an der Verschlussstirn: Drall (Viewmodel-Raum), Lage, Drehung Hülsenachse (lokal Y) → Laufachse vorn (−Z)
+const _ejSpin = V3(), _ejQ = new THREE.Quaternion(), _ejRot = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
 const _s1 = V3();
 const _a3 = [0, 0, 0], _b3 = [0, 0, 0], _c3 = [0, 0, 0];
 const ZERO3 = [0, 0, 0];
@@ -528,6 +530,8 @@ export class ViewModel {
   }
 
   _eject() {
+    // Waffen mit Verschlussstirn (M-17): Hülse kommt erst, wenn der Träger weit genug zurückgelaufen ist (_animParts)
+    if (this.cur?.ud.anchors.boltFace && this.h.shell !== 'none') { this._ejPend = true; return; }
     const ej = this.cur?.ud.ejection;
     if (!ej || this.h.shell === 'none') return;
     ej.updateWorldMatrix(true, false);
@@ -543,6 +547,30 @@ export class ViewModel {
     // Übergabe an die Welt, sobald die Hülse die Waffe verlassen hat (ohne Effekte/Welt: bleibt im Viewmodel)
     const world = this._worldFx() ? 0.1 + Math.random() * 0.05 : Infinity;
     this.shells.spawn(this.h.shell, _v, _v3, _q, world);
+  }
+
+  /**
+   * Auswurf wie am Original (Nutzer 14.10.2026): Die Hülse sitzt mit dem Boden an der Verschlussstirn, ist aus dem
+   * Patronenlager gezogen und wird vom Auswerfer nach rechts geschleudert – Mündung voran, mit schnellem Drall um die
+   * Hochachse (Mündung schwenkt nach außen), leicht nach oben und hinten (≈ 4 Uhr). Dazu ein Rauchhauch aus dem Fenster.
+   */
+  _ejectFromBolt() {
+    const bf = this.cur?.ud.anchors.boltFace;
+    if (!bf) return;
+    bf.updateWorldMatrix(true, false);
+    bf.getWorldPosition(_v);
+    this.root.worldToLocal(_v);
+    bf.getWorldQuaternion(_q);
+    this.root.getWorldQuaternion(_q2);
+    _q.premultiply(_q2.invert());                       // Waffenlage im Viewmodel-Raum
+    const r = Math.random;
+    _v.add(_v2.set(0.0024, 0.0006, -0.0224).applyQuaternion(_q));   // Hülsenmitte: halbe Länge vor der Stirn, etwas rechts
+    _v3.set(3.0 + r() * 1.2, 0.9 + r() * 0.6, 0.15 + r() * 0.55).applyQuaternion(_q);
+    _ejSpin.set((r() - 0.5) * 16, -(55 + r() * 30), (r() - 0.5) * 18).applyQuaternion(_q);
+    _ejQ.copy(_q).multiply(_ejRot);                     // Hülsenachse (lokal Y, Mündung oben) entlang der Laufachse nach vorn
+    const world = this._worldFx() ? 0.12 + r() * 0.05 : Infinity;
+    this.shells.spawn(this.h.shell, _v, _v3, _ejQ, world, { raw: true, spin: _ejSpin });
+    this.smoke.puff(_v, _v2.set(1, 0.35, 0).applyQuaternion(_q), 0.45);
   }
 
   /** Effekte der Welt (Hülsen/Magazine) vorhanden? */
@@ -1390,7 +1418,12 @@ export class ViewModel {
       if (r) r.visible = (this._magNow ?? 1) > 0;
     } else if (this._part('bolt') && h.action !== 'bolt' && h.action !== 'pump') {
       this._setPartOffset('bolt', 0, 0, h.boltTravel * (this._boltLocked ? 1 : pulse));
+      // Hülse verlässt das Patronenlager, wenn der Träger gut zwei Drittel seines Wegs zurückgelaufen ist
+      // (Deckel muss schon weitgehend offen sein – beim ersten Schuss schlägt er gerade erst auf)
+      const dcO = !this.cur.dc || this.cur.dc.a < 0.45 * (this.cur.ud.info.dustCover?.closed ?? Math.PI);
+      if (this._ejPend && ((pulse > 0.68 && dcO) || this._boltT >= 0.6 || this._boltLocked)) { this._ejPend = false; this._ejectFromBolt(); }
     }
+    if (this._ejPend && !this._part('bolt')) this._ejPend = false;
     // MG mit Gurtkasten (Nutzer 13.10.2026): Gurt rückt beim Schuss eine Teilung zur Waffe, der lose Kastendeckel
     // hüpft je Schuss verschieden hoch und prellt nach (Feder mit Anschlag)
     if (this._part('belt') && !act) this._setPartOffset('belt', 0.0068 * pulse, 0.0082 * pulse, 0); // eine Gliederteilung
@@ -1407,11 +1440,12 @@ export class ViewModel {
     // Staubschutzdeckel (AR-Bauart): zu, bis der Verschluss beim ersten Schuss zurückläuft – dann schlägt er federnd auf
     // und bleibt offen (wie beim echten Gewehr)
     if (this._part('dustCover')) {
-      const D = this.cur.dc || (this.cur.dc = { a: Math.PI, v: 0, open: false });
-      if (this._boltT < 0.2) D.open = true;
+      const D = this.cur.dc || (this.cur.dc = { a: this.cur.ud.info.dustCover?.closed ?? Math.PI, v: 0, open: false });
+      // Der Träger stößt die Riegelnase frei, die Drehfeder schlägt den Deckel in ≈ 20 ms auf (Anschlag am Gehäuse)
+      if (this._boltT < 0.2 && !D.open) { D.open = true; D.v = -45; }
       if (D.open) {
-        const n = Math.max(1, Math.ceil(dt / 0.004)), h2 = dt / n;
-        for (let i = 0; i < n; i++) { D.v += (-900 * D.a - 18 * D.v) * h2; D.a += D.v * h2; if (D.a < -0.12) { D.a = -0.12; D.v = -D.v * 0.35; } }
+        const n = Math.max(1, Math.ceil(dt / 0.002)), h2 = dt / n;
+        for (let i = 0; i < n; i++) { D.v += (-5200 * D.a - 70 * D.v) * h2; D.a += D.v * h2; if (D.a < -0.1) { D.a = -0.1; D.v = -D.v * 0.3; } }
       }
       this._setPartOffset('dustCover', 0, 0, 0, 0, 0, D.a);
     }

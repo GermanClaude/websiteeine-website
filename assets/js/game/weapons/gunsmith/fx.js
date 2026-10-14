@@ -17,7 +17,7 @@ function makeFlashMaterials() {
 }
 const makeSmokeMaterial = () => new THREE.SpriteMaterial({ name: 'vm:smoke', map: smokeMap(), color: 0xb9b3a8, transparent: true, opacity: 0, depthWrite: false, fog: false });
 const makeShellMaterials = () => ({
-  brass: new THREE.MeshStandardMaterial({ name: 'vm:shell', vertexColors: true, metalness: 0.9, roughness: 0.32 }),
+  brass: new THREE.MeshStandardMaterial({ name: 'vm:shell', vertexColors: true, metalness: 1.0, roughness: 0.26 }),   // poliertes Patronenmessing
   shot: new THREE.MeshStandardMaterial({ name: 'vm:shellShot', vertexColors: true, metalness: 0.35, roughness: 0.45 }),
 });
 
@@ -128,9 +128,31 @@ export class SmokeWisps {
   dispose() { for (const it of this.items) parkMaterials('smoke', it.m.material); }
 }
 
+// Hülsenprofile nach Maß (m, Achse = lokales Y, Boden unten, Mündung oben) mit Vertex-Farbe je Profilpunkt:
+// Zündhütchen mit Schlagbolzendelle, roter Lackring (NATO), Boden/Rand, Auszieherrille, Körper, Schulter und Hals
+// berußt (abgeschossen), Mündung offen mit dunklem Inneren. rifle = 5,56×45 (Hülse 44,7 mm, Rand Ø 9,6 mm,
+// Schulter 23°, Hals Ø 6,43 mm), pistol = 9×19, big = 5,56-Form in .338-Größe.
+const C_PRIMER = 0xcdb07a, C_SEAL = 0x7a1c28, C_HEAD = 0xb8893c, C_GROOVE = 0x9a7332, C_BODY = 0xd3a650, C_SHOULDER = 0xb48a44, C_NECK = 0x7c6034, C_MOUTH = 0x5a4528, C_IN = 0x2a2016;
+function caseProfile(type) {
+  if (type === 'pistol') {
+    const L = 0.0192, y0 = -L / 2;
+    return [[0, y0 + 0.0003, C_PRIMER], [0.0007, y0 + 0.0001, C_PRIMER], [0.0020, y0 + 0.0001, C_PRIMER], [0.0021, y0 + 0.00005, C_SEAL], [0.00225, y0, C_SEAL],
+      [0.0047, y0, C_HEAD], [0.00496, y0 + 0.0002, C_HEAD], [0.00496, y0 + 0.0011, C_HEAD], [0.0046, y0 + 0.0013, C_GROOVE], [0.0042, y0 + 0.0016, C_GROOVE],
+      [0.0042, y0 + 0.0021, C_GROOVE], [0.00493, y0 + 0.0028, C_BODY], [0.00486, y0 + 0.0150, C_BODY], [0.00482, y0 + 0.0188, C_NECK], [0.0047, y0 + L, C_MOUTH],
+      [0.00445, y0 + L, C_IN], [0.00445, y0 + 0.012, C_IN], [0.0043, y0 + 0.004, C_IN], [0, y0 + 0.0035, C_IN]];
+  }
+  const k = type === 'big' ? 1.55 : 1, L = 0.0447 * (type === 'big' ? 1.4 : 1), y0 = -L / 2, Y = (y) => y0 + y * (type === 'big' ? 1.4 : 1);
+  return [[0, Y(0.0003), C_PRIMER], [0.0007 * k, Y(0.0001), C_PRIMER], [0.0020 * k, Y(0.0001), C_PRIMER], [0.0021 * k, Y(0.00005), C_SEAL], [0.00225 * k, y0, C_SEAL],
+    [0.0045 * k, y0, C_HEAD], [0.0048 * k, Y(0.0002), C_HEAD], [0.0048 * k, Y(0.0011), C_HEAD], [0.0046 * k, Y(0.0013), C_GROOVE], [0.0042 * k, Y(0.0015), C_GROOVE],
+    [0.0042 * k, Y(0.0022), C_GROOVE], [0.00478 * k, Y(0.0031), C_BODY], [0.00476 * k, Y(0.008), C_BODY], [0.0045 * k, Y(0.0365), C_SHOULDER], [0.00322 * k, Y(0.0395), C_NECK],
+    [0.00322 * k, Y(0.0444), C_MOUTH], [0.0031 * k, y0 + L, C_MOUTH], [0.00285 * k, y0 + L, C_IN], [0.00285 * k, Y(0.040), C_IN], [0.0041 * k, Y(0.0362), C_IN],
+    [0.0043 * k, Y(0.006), C_IN], [0, Y(0.0045), C_IN]];
+}
+
 /** Hülsen-Geometrie je Art (rifle | pistol | big | shotgun), Achse = lokales Y, Vertex-Farben (Messing/Hülle).
- *  seg: Segmente des Umfangs (Viewmodel 8; liegende Welt-Hülsen weniger – Hunderte gleichzeitig). */
-export function casingGeometry(type, seg = 8) {
+ *  seg: Segmente des Umfangs; detail = volles Profil (Ego-Ansicht), sonst wenige Punkte (liegende Welt-Hülsen –
+ *  Hunderte gleichzeitig). */
+export function casingGeometry(type, seg = 8, detail = false) {
   if (type === 'shotgun') {
     const hull = new THREE.CylinderGeometry(0.0103, 0.0103, 0.05, seg + 2, 1);
     hull.translate(0, 0.006, 0);
@@ -141,9 +163,17 @@ export function casingGeometry(type, seg = 8) {
     hull.dispose(); base.dispose();
     return g;
   }
-  const dims = { rifle: [0.0046, 0.0057, 0.03, 0.0035], pistol: [0.0047, 0.0049, 0.019, 0.0], big: [0.006, 0.0074, 0.05, 0.0045] }[type] || [0.0046, 0.0057, 0.03, 0.0035];
+  if (detail) {
+    const prof = caseProfile(type);
+    const g = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, y)), seg);
+    const n = g.attributes.position.count, a = new Float32Array(n * 3), c = new THREE.Color();
+    for (let i = 0; i < n; i++) c.set(prof[i % prof.length][2]).toArray(a, i * 3);
+    g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+    return g;
+  }
+  const dims = { rifle: [0.0032, 0.0048, 0.0447, 0.0055], pistol: [0.0047, 0.0049, 0.019, 0.0], big: [0.006, 0.0074, 0.05, 0.0045] }[type] || [0.0032, 0.0048, 0.0447, 0.0055];
   const [rNeck, rBody, len, neck] = dims;
-  const pts = [[0, -len / 2], [rBody * 1.02, -len / 2], [rBody * 1.02, -len / 2 + 0.0015], [rBody * 0.9, -len / 2 + 0.002], [rBody, -len / 2 + 0.003], [rBody, len / 2 - neck - 0.003]];
+  const pts = [[0, -len / 2], [rBody * 1.02, -len / 2], [rBody * 1.02, -len / 2 + 0.0015], [rBody * 0.9, -len / 2 + 0.002], [rBody, -len / 2 + 0.003], [rBody * (neck > 0 ? 0.94 : 1), len / 2 - neck - (neck > 0 ? 0.003 : 0)]];
   if (neck > 0) pts.push([rNeck, len / 2 - neck], [rNeck, len / 2]);
   else pts.push([rBody, len / 2]);
   pts.push([rNeck * 0.7, len / 2]);
@@ -174,7 +204,7 @@ export class ShellPool {
   _pool(type) {
     let p = this.pools[type];
     if (p) return p;
-    const geo = casingGeometry(type);
+    const geo = casingGeometry(type, 20, true);
     const mesh = new THREE.InstancedMesh(geo, type === 'shotgun' ? this.matShot : this.mat, this.perType);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.frustumCulled = false;
@@ -194,7 +224,8 @@ export class ShellPool {
 
   setGravity(v) { this.gravity.copy(v); }
 
-  spawn(type, pos, vel, orient, handover = Infinity) {
+  /** opts.raw: orient ist schon die Hülsenlage (Achse = lokales Y); opts.spin: Drehgeschwindigkeit im Elternraum (rad/s) */
+  spawn(type, pos, vel, orient, handover = Infinity, opts = null) {
     if (!type || type === 'none') return;
     const p = this._pool(type);
     const it = p.items[p.next = (p.next + 1) % Math.max(1, Math.min(this.limit, p.items.length))];
@@ -205,9 +236,15 @@ export class ShellPool {
     it.pos.copy(pos);
     it.vel.copy(vel);
     if (orient) it.q.copy(orient); else it.q.identity();
+    if (opts && opts.spin) {
+      it.ws = true;
+      it.w.copy(opts.spin);
+    } else {
+      it.ws = false;
+      it.w.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 12, 18 + Math.random() * 16);
+    }
     // Hülse liegt quer zur Laufachse: lokal Y entlang Waffen-X
-    it.q.multiply(_q.setFromEuler(_e.set(0, 0, Math.PI / 2)));
-    it.w.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 12, 18 + Math.random() * 16);
+    if (!(opts && opts.raw)) it.q.multiply(_q.setFromEuler(_e.set(0, 0, Math.PI / 2)));
     p.mesh.visible = true;
   }
 
@@ -230,8 +267,8 @@ export class ShellPool {
         it.vel.addScaledVector(this.gravity, dt);
         it.vel.multiplyScalar(Math.exp(-0.6 * dt));
         it.pos.addScaledVector(it.vel, dt);
-        _e.set(it.w.x * dt, it.w.y * dt, it.w.z * dt);
-        it.q.multiply(_q.setFromEuler(_e));
+        if (it.ws) { const wl = it.w.length(); if (wl > 1e-6) it.q.premultiply(_q.setFromAxisAngle(_p.copy(it.w).divideScalar(wl), wl * dt)); }
+        else { _e.set(it.w.x * dt, it.w.y * dt, it.w.z * dt); it.q.multiply(_q.setFromEuler(_e)); }
         _s.setScalar(1);
         _m.compose(it.pos, it.q, _s);
         p.mesh.setMatrixAt(i, _m);

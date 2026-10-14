@@ -49,7 +49,7 @@ export { applyCamo };
 
 const REF_NAMES = ['muzzle', 'ejection', 'sight', 'leftHandGrip', 'rightHandGrip'];
 const ANCHOR_NAMES = ['chargeGrab', 'magGrab', 'magWell', 'trigger', 'pumpGrab', 'boltGrab', 'pinGrab', 'shellPort', 'slideGrab', 'boltCatch',
-  'loaderGrab', 'cylGrab', 'ejectorGrab', 'rocketGrab'];
+  'loaderGrab', 'cylGrab', 'ejectorGrab', 'rocketGrab', 'boltFace'];
 const PART_NAMES = ['selector', 'dustCover', 'mag', 'bolt', 'charge', 'pump', 'slide', 'boltHandle', 'hammer', 'cover', 'belt', 'lid', 'pin', 'spoon', 'blade', 'shell', 'led',
   'crane', 'cylinder', 'ejector', 'loader', 'rocket'];
 
@@ -89,7 +89,7 @@ function buildTemplate(key, lod, att = null) {
     adsOffset: [-sp.x, -sp.y, -eye - sp.z],
     magFill,
     info: {
-      sight: b.meta.sight || 'none', kind: b.meta.kind || 'gear', axis: b.meta.axis ?? 0, leftGrip, selector: b.meta.selector || null,
+      sight: b.meta.sight || 'none', kind: b.meta.kind || 'gear', axis: b.meta.axis ?? 0, leftGrip, selector: b.meta.selector || null, dustCover: b.meta.dustCover || null,
       triangles: root.userData.stats.triangles, meshes: root.userData.stats.meshes,
       size: size.toArray(), center: box.getCenter(new THREE.Vector3()).toArray(), min: box.min.toArray(), max: box.max.toArray(),
     },

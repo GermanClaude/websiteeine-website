@@ -41,7 +41,7 @@ const PISTOL = {
 };
 
 export const HANDLING = {
-  m17: { ...RIFLE },
+  m17: { ...RIFLE, boltTravel: 0.082 },   // Trägerhub wie am Original (≈ 3,25″), sichtbar im Auswurffenster
   kv47: { ...RIFLE, hip: [0.132, -0.14, -0.39], kick: { back: 0.03, up: 0.055, side: 0.014, roll: 0.055, kickRot: 0.025 }, flash: 1.15, reloadTime: 2.35, emptyTime: 3.05 },
   sk14: { ...RIFLE, kick: { back: 0.034, up: 0.07, side: 0.01, roll: 0.04, kickRot: 0.035 }, action: 'semi', flash: 1.2, flashLen: 1.2, weight: 1.15 },
   vp9: { ...RIFLE, hip: [0.128, -0.127, -0.36], kick: { back: 0.018, up: 0.032, side: 0.01, roll: 0.035, kickRot: 0.015 }, shell: 'pistol', weight: 0.8, flash: 0.8, flashLen: 0.8, reloadTime: 1.95, emptyTime: 2.5 },
