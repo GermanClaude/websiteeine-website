@@ -282,9 +282,11 @@ export function fabricNormal() {
   });
 }
 
-// Absehen-Texturen (Graustufen-Alpha; Farbe kommt aus dem Material)
-export function reticleMap(type) {
-  return cached('ret:' + type, () => {
+// Absehen-Texturen (Graustufen-Alpha; Farbe kommt aus dem Material). dot = Größe des Leuchtpunkts (Einstellung
+// „Leuchtpunkt-Größe“, 1 = Standard): beim Holo nur der Mittelpunkt, beim Leuchtpunktvisier der ganze Punkt.
+export function reticleMap(type, dot = 1) {
+  dot = Math.round(Math.min(2.5, Math.max(0.4, dot)) * 20) / 20;
+  return cached('ret:' + type + (type === 'holo' || type === 'dot' ? ':' + dot : ''), () => {
     const S = 128, c = canvas(S, S), ctx = c.getContext('2d'), m = S / 2;
     ctx.clearRect(0, 0, S, S);
     ctx.fillStyle = ctx.strokeStyle = '#fff';
@@ -293,12 +295,12 @@ export function reticleMap(type) {
     if (type === 'holo') {
       ctx.lineWidth = 4.5;
       ctx.beginPath(); ctx.arc(m, m, 40, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(m, m, 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(m, m, 4.5 * dot, 0, Math.PI * 2); ctx.fill();
       for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
         ctx.beginPath(); ctx.moveTo(m + Math.cos(a) * 40, m + Math.sin(a) * 40); ctx.lineTo(m + Math.cos(a) * 50, m + Math.sin(a) * 50); ctx.stroke();
       }
     } else if (type === 'dot') {
-      const g = ctx.createRadialGradient(m, m, 0, m, m, 30);
+      const g = ctx.createRadialGradient(m, m, 0, m, m, Math.min(m - 1, 30 * dot));
       g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.18, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.shadowBlur = 0; ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
     } else if (type === 'chevron') {

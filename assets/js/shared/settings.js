@@ -11,7 +11,7 @@ export const DEFAULTS = Object.freeze({
   playerName: 'Operator', sensitivity: 1.0, adsSensitivity: 0.85, touchSensitivity: 1.0,
   invertY: false, fov: 80, quality: 'auto' /* auto|low|medium|high|ultra */,
   masterVolume: 0.8, sfxVolume: 1.0, musicVolume: 0.5, uiVolume: 0.7,
-  crosshairStyle: 'cross' /* cross|dot|circle */, crosshairColor: '#ffffff',
+  crosshairStyle: 'cross' /* cross|dot|circle */, crosshairColor: '#ffffff', reticleSize: 1.0,
   showFps: false, aimAssist: true /* nur Touch */, autoFire: false /* Touch: „einfacher Modus“ */,
   difficulty: 'regulaer', lastMode: 'tdm', lastMap: 'hafen', lastLoadout: null, reducedMotion: false,
   // Steuerung & Komfort (Realismus-Plan F1/F4/F5, S1–S7; core-input)
@@ -87,6 +87,7 @@ export const SETTINGS_SCHEMA = Object.freeze({
     options: ['cross', 'dot', 'circle'], labels: { cross: 'Kreuz', dot: 'Punkt', circle: 'Kreis' },
   },
   crosshairColor: { type: 'color', label: 'Fadenkreuzfarbe', group: 'hud' },
+  reticleSize: { type: 'number', min: 0.4, max: 2.5, step: 0.1, label: 'Leuchtpunkt-Größe (Visier)', group: 'hud' },
   showFps: { type: 'boolean', label: 'FPS anzeigen', group: 'hud' },
   aimAssist: { type: 'boolean', label: 'Zielhilfe', group: 'steuerung' },
   autoFire: { type: 'boolean', label: 'Automatisch feuern', group: 'steuerung' },

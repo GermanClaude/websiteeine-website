@@ -31,7 +31,7 @@ export function hudPage(P) {
   const S = P.settings;
   let host = null;
   let off = null;
-  const ROWS = ['crosshairStyle', 'crosshairColor', 'bodycamStamp', 'showFps'];
+  const ROWS = ['crosshairStyle', 'crosshairColor', 'reticleSize', 'bodycamStamp', 'showFps'];
 
   function sync() {
     if (!host) return;
@@ -61,6 +61,8 @@ export function hudPage(P) {
         <div class="sp-xpreview" aria-hidden="true"><div class="sp-xh"><i class="l"></i><i class="r"></i><i class="t"></i><i class="b"></i><i class="c"></i><i class="o"></i></div><span>Vorschau</span><small data-xh-note hidden>Im Stil „Realismus“ ausgeblendet.</small></div>
         ${rowHtml(P, 'crosshairStyle', { hint: 'Schrotflinten zeigen immer den Streukreis.' })}
         ${rowHtml(P, 'crosshairColor')}
+        ${headHtml('Visier')}
+        ${rowHtml(P, 'reticleSize', { hint: 'Größe des Leuchtpunkts in Leuchtpunkt- und Holo-Visieren (beim Holo nur der Mittelpunkt, der Ring bleibt).' })}
         ${headHtml('Anzeigen')}
         ${rowHtml(P, 'bodycamStamp', { hint: HINTS.bodycamStamp })}
         ${rowHtml(P, 'showFps', { hint: HINTS.showFps })}`;

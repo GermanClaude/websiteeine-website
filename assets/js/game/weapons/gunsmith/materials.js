@@ -181,8 +181,8 @@ const DEFS = {
   glowGreen: () => new THREE.MeshBasicMaterial({ color: new THREE.Color(0.6, 3.2, 0.5), toneMapped: false }),
   glowAmber: () => new THREE.MeshBasicMaterial({ color: new THREE.Color(3.5, 1.4, 0.3), toneMapped: false }),
   // Absehen
-  reticleHolo: () => new THREE.MeshBasicMaterial({ map: reticleMap('holo'), color: new THREE.Color(3.2, 0.55, 0.25), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
-  reticleDot: () => new THREE.MeshBasicMaterial({ map: reticleMap('dot'), color: new THREE.Color(3.5, 0.3, 0.15), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+  reticleHolo: () => new THREE.MeshBasicMaterial({ map: reticleMap('holo', reticleSize), color: new THREE.Color(3.2, 0.55, 0.25), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+  reticleDot: () => new THREE.MeshBasicMaterial({ map: reticleMap('dot', reticleSize), color: new THREE.Color(3.5, 0.3, 0.15), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
   reticleChevron: () => new THREE.MeshBasicMaterial({ map: reticleMap('chevron'), color: new THREE.Color(3.4, 0.7, 0.15), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
   // Bot-Detailstufe: zwei Sammelmaterialien mit Vertex-Farben (ein Draw Call je Gruppe)
   lodMetal: () => std({ color: 0xffffff, vertexColors: true, metalness: 0.75, roughness: 0.45, roughnessMap: wearMap() }),
@@ -220,6 +220,18 @@ export function getMat(key) {
 }
 
 export function materialKeys() { return Object.keys(DEFS); }
+
+// Leuchtpunkt-Größe (Einstellung reticleSize): gilt für alle Leuchtpunkt- und Holo-Visiere, auch schon gebaute
+let reticleSize = 1;
+export function setReticleSize(s) {
+  s = Number.isFinite(s) ? Math.min(2.5, Math.max(0.4, s)) : 1;
+  if (s === reticleSize) return;
+  reticleSize = s;
+  for (const [key, type] of [['reticleHolo', 'holo'], ['reticleDot', 'dot']]) {
+    const m = mats.get(key);
+    if (m) { m.map = reticleMap(type, s); m.needsUpdate = true; }
+  }
+}
 
 /** Material nachträglich anmelden (z. B. Schriftzüge einzelner Waffen); vorhandene Schlüssel bleiben unverändert. */
 export function defineMat(key, make) { if (!DEFS[key]) DEFS[key] = make; }

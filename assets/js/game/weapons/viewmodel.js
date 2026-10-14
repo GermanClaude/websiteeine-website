@@ -29,6 +29,7 @@ import { magWellOf } from './anim/magwell.js';
 import { GunCollider, MultiCollider } from './gunsmith/contact.js';
 import { applyCamo } from './gunsmith/camos.js';
 import { DETAIL } from './gunsmith/builder.js';
+import { setReticleSize } from './gunsmith/materials.js';
 import { CLASS_LOOKS, SKIN_TIERS, classLookId } from '../../shared/weapons.data.js';
 import { MuzzleFlash, ShellPool, SmokeWisps, HeatHaze } from './gunsmith/fx.js';
 import { SCHEMES, schemeForTeam } from '../bots/soldier/materials.js';
@@ -915,6 +916,9 @@ export class ViewModel {
   // ---------------------------------------------------------------- Hauptschleife
 
   update(dt, s = {}) {
+    // Einstellung „Leuchtpunkt-Größe“ sofort übernehmen (geteilte Absehen-Materialien)
+    const rs = this.G?.settings?.get?.('reticleSize');
+    if (rs !== this._reticleSize) { this._reticleSize = rs; setReticleSize(rs); }
     this._magNow = s.mag ?? 1;
     this._fireMode = s.fireMode || 'auto';
     this._magRaw = typeof s.mag === 'number' ? s.mag : null;   // Magazininhalt (ohne Controller: voll)
