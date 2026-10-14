@@ -94,4 +94,11 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   Freischnitt über dem Verschlussfang, Magazinhalter-Arm in Fräsung, Prüfstempel; Schacht mit ausgestelltem Rand,
   Bügel-Lageraugen mit Stiften, runder Verschlussträger mit Rastkerben und Verschlusskopf im Auswurffenster,
   Magazinprägung.
+- 14.10.: **Auswurffenster der M-17 nach Original** (Nutzer: „Hülsen-Teil zu unrealistisch“): Fenster ≈ 66 × 17 mm
+  mit runden Ecken/Fase im runden Trägergehäuse (beidseitig r 14,3 mm), gewölbter Staubschutzdeckel als Distanzfeld
+  (Scharnieraugen, Riegelnase, Stange, Drehfeder, Sicherungsring), Verschlussträger in voller Länge mit Rastkerben,
+  Verschlusskopf mit sieben Warzen und Auszieher, Laufverlängerung mit Zuführrampen und Patronenlager, hohler
+  Trägerkanal. Ablauf: Träger 82 mm Hub, Deckel schlägt in ≈ 20 ms auf, Hülse (5,56×45 nach Maß mit Zündhütchen,
+  Lackring, berußtem Hals) startet an der Verschlussstirn (Anker `boltFace`), Mündung voran, Drall um die Hochachse,
+  ≈ 4 Uhr; Rauch aus dem Fenster. Prüfen: `tools/out/eject-seq.mjs` (Bild-für-Bild-Bogen im Waffenlabor).
 - Maßstab für alle weiteren Waffen (Nutzer 13.10.): P-9 und M-17 + KI-Video; Rest ab Do 15.10. 17:10.

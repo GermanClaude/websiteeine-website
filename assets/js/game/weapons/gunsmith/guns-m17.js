@@ -139,7 +139,7 @@ export function m17(b) {
       }
       return d;
     };
-    sdfMesh(b, upperF, [-0.0165, V(1200), U(996)], [0.0165, V(956), U(1900)], 0.0017, 'm17Rec', { cav: ALU, fine: 0.45 });
+    sdfMesh(b, upperF, [b.max ? -0.0195 : -0.0165, V(1200), U(996)], [b.max ? 0.0195 : 0.0165, V(956), U(1900)], 0.0017, 'm17Rec', { cav: ALU, fine: 0.45 });   // PC: Hülsenabweiser steht weiter vor
     // ---------------------------------------------------------------- Schienen-Handschutz: Profil + Lüftungsfenster (dunkle Öffnungen)
     const [ra0, ra1] = R.RAS, ru0 = U(ra0), ru1 = U(ra1), H = R.RAS_HALF;
     const upH = [2049, 2146, 2243, 2340, 2436, 2533, 2630], loH = [2041, 2122, 2211, 2291, 2372, 2453, 2533, 2614];
