@@ -166,7 +166,7 @@ export function g7(b) {
   b.anchor('magGrab', 0, -0.06, 0.128, { part: 'mag', data: { w: 0.013, d: 0.026 } });
   b.anchor('magWell', 0, 0.02, 0.12);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.3, gw: 0.0175, gd: 0.022, gu: 0.005, ho: 0.044, tu: 0.02 } });
-  b.anchor('sight', 0, sv, -0.08, { data: { type: 'iron', eyeRelief: 0.14 } });
+  b.anchor('sight', 0, sv, -0.08, { data: { type: 'iron', eyeRelief: 0.26 } });
   b.anchor('leftHandGrip', 0, 0.028, 0.33, { data: { style: 'under', w: 0.024, h: 0.026 } });
   b.meta = { sight: 'iron', axis, kind: 'rifle' };
 }
@@ -216,7 +216,7 @@ export function wespe(b) {
   for (const s of [-1, 1]) b.box('steel', 0.004, 0.006, 0.17, s * 0.0155, 0.07, -0.18, { c: 0.001 });
   b.box('rubber', 0.04, 0.07, 0.012, 0, 0.05, -0.268, { c: 0.004 });
   b.anchor('rightHandGrip', 0, -0.012, 0, { data: { rake, gw: 0.016, gd: 0.022, gu: 0.0, ho: 0.03, tu: 0.04 } });
-  b.anchor('sight', 0, sv, -0.07, { data: { type: 'iron', eyeRelief: 0.16 } });
+  b.anchor('sight', 0, sv, -0.07, { data: { type: 'iron', eyeRelief: 0.24 } });
   b.anchor('leftHandGrip', 0, -0.02, 0.115, { data: { style: 'post', rake: 0.05, gw: 0.012, gd: 0.014, gu: 0, ho: 0.01 } });
   b.meta = { sight: 'iron', axis, kind: 'smg' };
 }
@@ -348,7 +348,7 @@ export function lm8(b) {
   b.anchor('magGrab', -0.03, -0.1, 0.13, { part: 'mag', data: { w: 0.036, d: 0.07 } });
   b.anchor('magWell', 0, 0.02, 0.115);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.32, gw: 0.016, gd: 0.022, gu: 0.004, ho: 0.03, tu: 0.034 } });
-  b.anchor('sight', 0, sv, -0.08, { data: { type: 'iron', eyeRelief: 0.2 } });
+  b.anchor('sight', 0, sv, -0.08, { data: { type: 'iron', eyeRelief: 0.25 } });
   b.anchor('leftHandGrip', 0, axis - 0.054, 0.27, { data: { style: 'under', w: 0.026, h: 0.022 } });
   b.meta = { sight: 'iron', axis, kind: 'lmg' };
 }

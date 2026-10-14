@@ -140,7 +140,7 @@ export function bulldog(b) {
   b.cyl('brass', 0.0109, 0.0109, 0.013, 0, 0.012, 0.059, { part: 'shell', seg: b.seg(10, 5) });
   b.anchor('rightHandGrip', 0, -0.014, -0.03, { data: { rake: 0.5, gw: 0.02, gd: 0.022, gu: 0.0, ho: 0.03, tu: 0.04 } });
   b.anchor('trigger', 0, -0.008, 0.02);
-  b.anchor('sight', 0, sl, -0.012, { data: { type: 'iron', eyeRelief: 0.15 } });
+  b.anchor('sight', 0, sl, -0.012, { data: { type: 'iron', eyeRelief: 0.26 } });
   b.anchor('leftHandGrip', 0, axis - 0.048, 0.3, { part: 'pump', data: { style: 'pump', w: 0.0216, h: 0.0254 } });
   b.meta = { sight: 'iron', axis, kind: 'shotgun', hidden: ['shell'] };
 }

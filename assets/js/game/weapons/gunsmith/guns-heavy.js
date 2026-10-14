@@ -140,7 +140,7 @@ export function hagel(b) {
   b.anchor('magGrab', 0, -0.07, 0.13, { part: 'mag', data: { w: 0.019, d: 0.032 } });
   b.anchor('magWell', 0, 0.02, 0.12);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.32, gw: 0.016, gd: 0.022, gu: 0.004, ho: 0.03, tu: 0.034 } });
-  b.anchor('sight', 0, sv, -0.04, { data: { type: 'iron', eyeRelief: 0.18 } });
+  b.anchor('sight', 0, sv, -0.04, { data: { type: 'iron', eyeRelief: 0.27 } });
   b.anchor('leftHandGrip', 0, 0.03, 0.33, { data: { style: 'under', w: 0.025, h: 0.022 } });
   b.meta = { sight: 'iron', axis, kind: 'shotgun' };
 }
@@ -251,7 +251,7 @@ export function donner(b) {
   b.anchor('magWell', 0, axis, 0.52);
   b.anchor('ejection', 0, axis, -0.4);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.28, gw: 0.016, gd: 0.022, gu: 0.0, ho: 0.03, tu: 0.034 } });
-  b.anchor('sight', 0, sv, -0.024, { data: { type: 'iron', eyeRelief: 0.12 } });
+  b.anchor('sight', 0, sv, -0.024, { data: { type: 'iron', eyeRelief: 0.24 } });
   b.anchor('leftHandGrip', 0, 0.01, 0.218, { data: { style: 'post', rake: 0.08, gw: 0.016, gd: 0.02, gu: 0, ho: 0.03 } });
   b.meta = { sight: 'iron', axis, kind: 'launcher' };
 }
@@ -298,7 +298,7 @@ export function hammer(b) {
   b.anchor('magWell', 0, axis, 0.41);
   b.anchor('ejection', 0, axis, 0.09);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.3, gw: 0.016, gd: 0.022, gu: 0.002, ho: 0.03, tu: 0.034 } });
-  b.anchor('sight', 0, sv, -0.048, { data: { type: 'iron', eyeRelief: 0.14 } });
+  b.anchor('sight', 0, sv, -0.048, { data: { type: 'iron', eyeRelief: 0.24 } });
   b.anchor('leftHandGrip', 0, axis - 0.034, 0.24, { data: { style: 'under', w: 0.023, h: 0.013 } });
   b.meta = { sight: 'iron', axis, kind: 'launcher' };
 }
@@ -333,7 +333,7 @@ export function trommel(b) {
   b.anchor('magGrab', 0, -0.1, 0.13, { part: 'mag', data: { w: 0.03, d: 0.06 } });
   b.anchor('magWell', 0, 0.02, 0.12);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.32, gw: 0.016, gd: 0.022, gu: 0.004, ho: 0.03, tu: 0.034 } });
-  b.anchor('sight', 0, sv, -0.04, { data: { type: 'iron', eyeRelief: 0.18 } });
+  b.anchor('sight', 0, sv, -0.04, { data: { type: 'iron', eyeRelief: 0.26 } });
   b.anchor('leftHandGrip', 0, 0.022, 0.32, { data: { style: 'under', w: 0.032, h: 0.022 } });
   b.meta = { sight: 'iron', axis, kind: 'shotgun' };
 }

@@ -103,7 +103,7 @@ export function vp9(b) {
   b.box('steel', 0.046, 0.012, 0.01, 0, 0.0, -0.275, { c: 0.002 });
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.3, gw: 0.017, gd: 0.021, gu: 0.005, ho: 0.044, tu: 0.02 } });
   b.anchor('magWell', 0, 0.02, 0.105);
-  b.anchor('sight', 0, 0.1145, -0.06, { data: { type: 'iron', eyeRelief: 0.13 } });
+  b.anchor('sight', 0, 0.1145, -0.06, { data: { type: 'iron', eyeRelief: 0.2 } });   // Auge über dem Schaft, vor der Schaftkappe
   b.anchor('leftHandGrip', 0, 0.03, 0.29, { data: { style: 'under', w: 0.02, h: 0.022 } });
   b.meta = { sight: 'iron', axis, kind: 'smg' };
 }
@@ -283,7 +283,7 @@ export function hm60(b) {
   b.anchor('muzzle', 0, axis, 0.946);
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.32, gw: 0.016, gd: 0.02, gu: 0.006, ho: 0.039, tu: 0.03 } });
   b.anchor('magWell', -0.06, 0.0, 0.1);
-  b.anchor('sight', 0, 0.1405, -0.08, { data: { type: 'iron', eyeRelief: 0.22 } });
+  b.anchor('sight', 0, 0.1405, -0.08, { data: { type: 'iron', eyeRelief: 0.28 } });
   b.anchor('leftHandGrip', 0, axis - 0.035, 0.32, { data: { style: 'under', r: 0.031 } });
   b.meta = { sight: 'iron', axis, kind: 'lmg' };
 }

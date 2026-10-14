@@ -79,7 +79,7 @@ export const HANDLING = {
   },
 };
 // Granatwerfer (Nutzer 11.10.): Einzellader wie das Panzerabwehrrohr (Granate vorn einsetzen), Trommel wie die Selbstladeflinte
-HANDLING.hammer = { ...HANDLING.donner, hip: [0.11, -0.13, -0.34], weight: 1.0, reloadTime: 2.4, emptyTime: 2.4, equipTime: 0.6, flash: 1.0, shoulderR: undefined, shoulderL: undefined };
+HANDLING.hammer = { ...HANDLING.donner, hip: [0.11, -0.13, -0.34], weight: 1.0, reloadTime: 2.4, emptyTime: 2.4, equipTime: 0.6, flash: 1.0, shoulderR: RIFLE.shoulderR, shoulderL: RIFLE.shoulderL };   // Schultern wie beim Gewehr (undefined ließ das Viewmodel beim Ziehen abstürzen)
 HANDLING.trommel = { ...HANDLING.hagel, kick: { back: 0.06, up: 0.09, side: 0.012, roll: 0.05, kickRot: 0.07 }, shell: 'big', weight: 1.5, flash: 1.0, reloadTime: 3.4, emptyTime: 3.9, equipTime: 0.8, inspectStyle: 'magcheck' };
 // Nahkampfwaffen (Hauptwaffe in der Hand): wie das Messer, eigene Haltung je Klinge
 HANDLING.karambit = { ...HANDLING.knife, hip: [0.13, -0.13, -0.33], hipRot: [0.35, 0.3, -2.75], inspect: 2.4 };
