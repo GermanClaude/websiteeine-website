@@ -1,0 +1,36 @@
+[
+ {
+  "id": "vp_pflaster",
+  "src": "p_pflaster",
+  "crop": [
+   0,
+   40,
+   396,
+   1020
+  ],
+  "size": [
+   3.24,
+   3.24
+  ],
+  "mode": "stones",
+  "cols": 12,
+  "rows": 14,
+  "cellW": 86,
+  "cellH": 74,
+  "joint": 8,
+  "delight": 0.5,
+  "out": 1024,
+  "height": 3.0,
+  "normal": 2.4,
+  "rough": [
+   0.78,
+   0.1
+  ],
+  "cellVar": 1.0,
+  "seed": 2,
+  "ao": 2.0,
+  "stoneJitter": 0.3,
+  "jointDark": 0.55,
+  "stoneThresh": 0.0
+ }
+]

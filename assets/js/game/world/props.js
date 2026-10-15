@@ -68,32 +68,45 @@ function videoTone(hex) {
   return '#' + c.getHexString();
 }
 
+/**
+ * Lackfamilie der Video-Container (Texturen 1:1 aus der Vorlage: blau, rostrot, rotbraun, oliv, grauweiß) aus der
+ * Wunschfarbe der Karte.
+ */
+export function ctrFamily(hex) {
+  const c = new THREE.Color(hex), hsl = {};
+  c.getHSL(hsl);
+  const h = hsl.h * 360;
+  if (hsl.s < 0.18) return 'grau';
+  if (h >= 150 && h < 250) return 'blau';
+  if (h >= 70 && h < 150) return 'gruen';
+  if (h >= 18 && h < 70) return 'rost';
+  return 'rot';
+}
+
 export function container(b, x, y, z, o = {}) {
-  const len = o.len ?? 6.06, H = 2.59, W = 2.44, color = videoTone(o.color || b.pick(CONTAINER_COLORS));
+  const len = o.len ?? 6.06, H = 2.59, W = 2.44, raw = o.color || b.pick(CONTAINER_COLORS), color = videoTone(raw);
+  const fam = ctrFamily(raw), wallMat = 'ctr_' + fam;
   const f = frame(b, x, y, z, o.ry || 0);
   const dark = shade(color, 0.72);
   const ground = Math.abs(y) < 0.05;
-  f.box(0, 0, 0, len - 0.1, H - 0.06, W - 0.08, 'container', { tint: color, uv: 'local', collide: false, aoFloor: ground ? y : undefined, grad: ground });
+  // Wellwand aus dem Video (Kachel 1,05 m, senkrecht genau eine Wandhöhe ab Unterkante)
+  f.box(0, 0, 0, len - 0.1, H - 0.06, W - 0.08, wallMat, { uv: 'local', uvOffset: [0, 0], collide: false, aoFloor: ground ? y : undefined, grad: ground });
   f.solid(0, 0, 0, len, H, W, { minimap: o.minimap ?? 'container' });
   // Eckpfosten
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.box(sx * (len / 2 - 0.09), 0, sz * (W / 2 - 0.09), 0.18, H, 0.18, 'container', { tint: dark, collide: false, minimap: false, grad: ground, uv: 'local' });
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.box(sx * (len / 2 - 0.09), 0, sz * (W / 2 - 0.09), 0.18, H, 0.18, 'metal_painted', { tint: dark, collide: false, minimap: false, grad: ground, uv: 'local' });
   // Ober-/Untergurte
   for (const sz of [-1, 1]) {
-    f.box(0, H - 0.12, sz * (W / 2 - 0.06), len - 0.3, 0.12, 0.12, 'container', { tint: dark, collide: false, minimap: false, grad: false, uv: 'local' });
-    f.box(0, 0, sz * (W / 2 - 0.06), len - 0.3, 0.16, 0.12, 'container', { tint: dark, collide: false, minimap: false, grad: false, uv: 'local' });
+    f.box(0, H - 0.12, sz * (W / 2 - 0.06), len - 0.3, 0.12, 0.12, 'metal_painted', { tint: dark, collide: false, minimap: false, grad: false, uv: 'local' });
+    f.box(0, 0, sz * (W / 2 - 0.06), len - 0.3, 0.16, 0.12, 'metal_painted', { tint: dark, collide: false, minimap: false, grad: false, uv: 'local' });
   }
-  // Türseite (+x): Verriegelungsstangen
+  // Türseite (+x): Türflügel mit Verriegelungsstangen als Videotextur (eine Fläche, UV 0..1)
   const ex = len / 2 + 0.005;
   if (!o.openDoors) {
-    f.box(ex, 0.1, 0, 0.02, H - 0.25, 0.03, 'metal_painted', { tint: '#202224', collide: false, minimap: false, grad: false, ao: false });
-    for (const bz of [-0.85, -0.35, 0.35, 0.85]) {
-      f.cyl(ex + 0.03, 0.12, bz, 0.022, H - 0.3, 'metal_galvanized', { collide: false, seg: 6, minimap: false, ao: false });
-      f.box(ex + 0.05, 1.05, bz + 0.08, 0.04, 0.05, 0.2, 'metal_galvanized', { collide: false, minimap: false, grad: false, ao: false });
-    }
+    f.box(ex - 0.012, 0.06, 0, 0.02, H - 0.12, W - 0.14, wallMat + '_tuer', { uv: 'fit', collide: false, minimap: false, grad: false, ao: false });
   } else {
     // offene Türen (90° aufgeklappt) + dunkles Inneres
     f.box(ex - 0.02, 0.05, 0, 0.02, H - 0.2, W - 0.3, 'black', { collide: false, minimap: false, ao: false });
-    for (const sz of [-1, 1]) f.box(ex + W / 4, 0.05, sz * (W / 2 + 0.02), W / 2 - 0.05, H - 0.18, 0.05, 'container', { tint: color, collide: true, minimap: false, uv: 'local', grad: ground });
+    for (const sz of [-1, 1]) f.box(ex + W / 4, 0.05, sz * (W / 2 + 0.02), W / 2 - 0.05, H - 0.18, 0.05, wallMat, { collide: true, minimap: false, uv: 'local', uvOffset: [0, 0], grad: ground });
   }
   if (o.logo) {
     for (const side of [1, -1]) {

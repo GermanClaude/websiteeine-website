@@ -32,7 +32,8 @@ export default {
   // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
   // Büro-/Pförtnerwände: glatt gestrichener Putz statt Außenputz
   // Grafik-Vorlage Etappe 0: HDRI zwartkops (klarer Tag) statt freight_station (Abendgold; bleibt für „Abend“)
-  assets: { hdri: 'zwartkops_straight_morning', materials: { plaster_white: { id: 'plaster_painted', color: 1.6 } } },
+  // Grafik-Vorlage 15.10.: Boden = Rissbeton 1:1 aus dem Video (Einstellung Containergasse), Kachel 4 m
+  assets: { hdri: 'zwartkops_straight_morning', materials: { plaster_white: { id: 'plaster_painted', color: 1.6 }, concrete: { id: 'vh_kai', color: 0.34, macro: [0.12, 0.06, 0.1] } } },
   defaultSurface: 'concrete',
   lighting: {
     // Grafik-Vorlage Etappe 0 (15.10.): klarer Nachmittag wie im Video statt Goldener Stunde – neutral-weiße Sonne,
@@ -47,7 +48,7 @@ export default {
     hemi: { sky: '#cfd4d8', ground: '#7a756d', intensity: 1.6, hdriIntensity: 1.3 },
     env: { intensity: 1.8, ground: '#77736c', groundIntensity: 0.6, tint: '#f2f1ee', hdriIntensity: 1.5, hdriTint: '#ece4d8' }, // Himmelsblau aus dem Foto dämpfen
     // Höhennebel: kühler grauer Hafendunst über dem Wasser, dichter am Boden (Skalenhöhe ≈ 30 m)
-    fog: { color: '#c4cad1', near: 70, far: 420, density: 0.0042, falloff: 0.033, start: 25, sun: 0.35, sunExp: 6 },
+    fog: { color: '#c4cad1', near: 70, far: 420, density: 0.003, falloff: 0.033, start: 25, sun: 0.35, sunExp: 6 }, // 15.10.: klarer (Video: Hallen in 30–80 m kaum verschleiert)
     shadow: { size: 42, radius: 2.8 }, // Etappe 0: etwas weichere Schattenkanten (Video)
     // Sonden-Gitter (Innenräume, Rückprall), Atmosphäre (Strahlen durch die Hallentore, Staub)
     probes: { bounce: 1.1 },
@@ -66,7 +67,7 @@ export default {
     // Boden & Wasser
     // -----------------------------------------------------------------------
     b.groundTiled(QUAY_X, -52, -27, 52, 'concrete', { cell: 1 });        // Kaiplatte
-    b.groundTiled(-27, -52, 50, 52, 'concrete', { cell: 1, tint: '#d8d6d0' }); // Terminal: Betonplatten wie im Video (vorher Asphalt)
+    b.groundTiled(-27, -52, 50, 52, 'concrete', { cell: 1, tint: '#d4d6d6' }); // Terminal: dunkler, kühler Rissbeton wie im Video (vorher Asphalt)
     zones.push({ x0: QUAY_X, z0: -52, x1: -27, z1: 52, kind: 'dock' });
     zones.push({ x0: -140, z0: -200, x1: QUAY_X, z1: 130, kind: 'water' });
     // Kulissenboden
@@ -90,9 +91,7 @@ export default {
     // Fahrbahnmarkierungen
     for (const z of [-30, 30]) b.decal(-12, 0.01, z, 26, 0.15, 'line', { ry: 0, tint: '#f2f0ea', kind: 'paint', opacity: 0.8 });
     for (let z = -46; z <= 46; z += 4) b.decal(-20.6, 0.01, z, 0.15, 2.2, 'line', { ry: 0, tint: '#e8c22c', kind: 'paint', opacity: 0.8 });
-    for (let z = -46; z <= 46; z += 4) b.decal(10.8, 0.01, z, 0.15, 2.2, 'line', { ry: 0, tint: '#f2f0ea', kind: 'paint', opacity: 0.8 });
-    b.decal(10.8, 0.012, 38, 2.2, 3.2, 'arrow', { ry: Math.PI, tint: '#f2f0ea' });
-    b.decal(10.8, 0.012, -38, 2.2, 3.2, 'arrow', { ry: 0, tint: '#f2f0ea' });
+    // (Mittellinie x 10,8 entfällt seit 15.10.: Video ohne Markierung, Hallen 4/5 stehen auf der Ostbahn)
     // Stellplatz-Raster (Container-Slots)
     for (const z of [-41, -21, 19, 39]) for (const x of [-15.6, 4.8]) b.decal(x, 0.011, z, 5.6, 0.12, 'line', { ry: 0, tint: '#e8c22c', kind: 'paint', opacity: 0.6 });
     // Schmutz, Pfützen, Ölflecken
@@ -144,10 +143,12 @@ export default {
     // -----------------------------------------------------------------------
     // Westlicher Rand (x ≈ −24.4)
     stackAt(b, -24.4, -40, 12.19, 'z', ['#2d5f94', '#8d9399']);
-    offenerContainer(b, -24.4, -27, { len: 6.06, ry: -Math.PI / 2, color: '#c8402f' });
+    offenerContainer(b, -24.4, -22.2, { len: 6.06, ry: -Math.PI / 2, color: '#c8402f' }); // 15.10.: wie Gegenstück (Video-Gasse)
     stackAt(b, -24.4, -14, 6.06, 'z', ['#3e7a4c', '#c9a227']);
     stackAt(b, -24.4, 40, 12.19, 'z', ['#c8402f', '#2d5f94']);
-    offenerContainer(b, -24.4, 27, { len: 6.06, ry: Math.PI / 2, color: '#d9762a' });
+    // Grafik-Vorlage (Video, Containergasse): links ein blauer Container wie im Video (vorher orange)
+    // 15.10.: 4,8 m nach Norden – Stirnseite steht wie im Video auf Höhe des Doppelstapels gegenüber
+    offenerContainer(b, -24.4, 22.2, { len: 6.06, ry: Math.PI / 2, color: '#2d5f94' });
     stackAt(b, -24.4, 14, 6.06, 'z', ['#6b3f7a', '#3e7a4c']);
     container(b, -25.6, 0, 1.5, { len: 6.06, ry: Math.PI / 2 + 0.28, color: '#1f6f6a' });
     // Reihe 2 (doppelt, x ≈ −15.6)
@@ -159,9 +160,9 @@ export default {
     stackAt(b, -14.38, -12.5, 6.06, 'z', ['#9a3328']);
     stackAt(b, -16.82, 40, 12.19, 'z', ['#d9762a']);
     stackAt(b, -14.38, 40, 12.19, 'z', ['#3e7a4c', '#8d9399']);
-    stackAt(b, -16.82, 21.5, 6.06, 'z', ['#2d5f94', '#d9762a']);
-    stackAt(b, -14.38, 21.5, 6.06, 'z', ['#e3e1da', '#c8402f']);
-    stackAt(b, -16.82, 12.5, 6.06, 'z', ['#6b3f7a']);
+    stackAt(b, -16.82, 21.5, 6.06, 'z', ['#2d5f94', '#d9762a'], { flip: true }); // Video-Gasse: Türen zur Gasse (Süd)
+    stackAt(b, -14.38, 21.5, 6.06, 'z', ['#e3e1da', '#c8402f'], { flip: true });
+    stackAt(b, -16.82, 12.5, 6.06, 'z', ['#4d6a3a', '#8e3b2f']); // Video-Gasse: grün unten, rot oben
     stackAt(b, -14.38, 12.5, 6.06, 'z', ['#c9a227']);
     // Reihe 3 (x ≈ −4.8): erhöhte Route
     stackAt(b, -4.8, -43.5, 6.06, 'z', ['#3e7a4c']);
@@ -176,16 +177,15 @@ export default {
     plankBridge(b, -6.0, -14.2, -13.2, -14.2);
     plankBridge(b, -6.0, 14.2, -13.2, 14.2);
     // Reihe 4 (doppelt, x ≈ 4.8)
-    stackAt(b, 3.58, -40, 12.19, 'z', ['#c8402f', '#8d9399']);
-    stackAt(b, 6.02, -40, 12.19, 'z', ['#2d5f94', '#2d5f94']);
+    // (Stapel x 3,58/6,02 bei z ±40 → Hallen 4/5, Grafik-Vorlage 15.10.)
     stackAt(b, 3.58, -22.5, 6.06, 'z', ['#3e7a4c']);
     stackAt(b, 6.02, -22.5, 6.06, 'z', ['#e3e1da', '#c9a227']);
-    stackAt(b, 3.58, 40, 12.19, 'z', ['#3e7a4c', '#c9a227']);
-    stackAt(b, 6.02, 40, 12.19, 'z', ['#d9762a', '#2d5f94']);
     stackAt(b, 3.58, 22.5, 6.06, 'z', ['#c8402f', '#9a3328']);
     stackAt(b, 6.02, 22.5, 6.06, 'z', ['#2d5f94']);
-    stackAt(b, 4.8, -11, 6.06, 'x', ['#8d9399']);
-    stackAt(b, 4.8, 11, 6.06, 'x', ['#c8402f']);
+    // Grafik-Vorlage 15.10. (Video, Einstellung Halle 3): rechts vorn roter, dahinter grüner Container, Langseite zur Kamera
+    stackAt(b, 2.6, -5.4, 6.06, 'x', ['#8e3b2f']);
+    stackAt(b, 3.6, -0.5, 6.06, 'x', ['#3e7a4c']);
+    stackAt(b, 2.6, 5.4, 6.06, 'x', ['#8d9399']);
     // Kranplatz (B): Reachstacker, Kisten, Deckung
     reachStacker(b, -9.8, 3.2, Math.PI * 0.08);
     crateStack(b, -13.2, -5.4, { ry: 0.25 });
@@ -211,11 +211,14 @@ export default {
     // Ostbahn: Laderampe + Lagerhalle 3
     // -----------------------------------------------------------------------
     warehouse(b, ctx);
-    van(b, 9.8, -16.5, { ry: 0.05, color: '#e8e6e0', logo: 'logo_kurier' });
+    // Grafik-Vorlage 15.10. (Nutzer: zweite Halle aus dem Video begehbar): Halle 4 im Süden, gespiegelt Halle 5 im Norden
+    videoHalle(b, 1);
+    videoHalle(b, -1);
+    van(b, 4.6, -24.5, { ry: 0.05, color: '#e8e6e0', logo: 'logo_kurier' }); // 15.10.: aus dem Video-Blick (Halle 3) gerückt
     van(b, 10.2, 16, { ry: Math.PI - 0.08, color: '#cfd4d8' });
-    forklift(b, 11.6, 4.8, { ry: Math.PI / 2 + 0.3, load: 'boxes', color: '#e0a02a' });
+    forklift(b, 6.4, 35.2, { y: 0.12, ry: 0.35, load: 'boxes', color: '#e0a02a' }); // 15.10.: in Halle 4 (Video-Blick frei)
     palletStack(b, 12.2, -5.2, { n: 4, ry: 0.05, load: 'boxes' });
-    pallet(b, 9.8, 0, -1.5, { ry: 1.4, load: 'wrapped' });
+    pallet(b, 7.8, 0, 1.9, { ry: 1.4, load: 'wrapped' }); // Video: folierte Palette links vom grünen Container
     // Straße hinter der Halle
     truck(b, 46.4, -27, { ry: Math.PI, trailer: 'box', color: '#2d5f94', boxColor: '#e2e2dc', logo: 'logo_nordstern' });
     truck(b, 46.6, 30, { ry: 0, trailer: 'container', color: '#c8402f', containerColor: '#3e7a4c' });
@@ -229,8 +232,8 @@ export default {
     crateStack(b, 47.9, -13.0, { ry: -0.15, pattern: [[0, 0, 0, 1.2], [1.25, 0, 0.05, 1.1], [0.55, 1, 0.02, 1.0]] });
     cableReel(b, 44.4, 22.6, { ry: 0.5 });
     sandbags(b, 44.2, -40.6, 46.8, -40.2, { rows: 5 });
-    jersey(b, 10.4, 27.0, { len: 3, ry: Math.PI / 2 + 0.06, stripes: true });
-    jersey(b, 10.6, -27.4, { len: 3, ry: Math.PI / 2 - 0.08, stripes: true });
+    jersey(b, 16.6, 24.2, { len: 3, ry: Math.PI / 2 + 0.06, stripes: true });
+    jersey(b, 16.6, -24.2, { len: 3, ry: Math.PI / 2 - 0.08, stripes: true });
     crateStack(b, -39.6, 2.6, { ry: 0.5, pattern: [[0, 0, 0, 1.1], [1.15, 0, 0.05, 1.0]] });
     barrelGroup(b, -33.4, -2.8, { n: 3, colors: ['#c8402f', '#c9a227', '#c8402f'] }); // nur barrel_01 (Modellbudget „niedrig“)
 
@@ -276,14 +279,18 @@ export default {
     gantryCrane(b, -150, { backdrop: true, clock, seed: 1502, period: 233, range: [-160, -132] });
     ship(b);
     dressing(b);
+    // Grafik-Vorlage (Video, Containergasse): Betonblöcke am Gassenende links, folierte Palette rechts (ohne b.rand)
+    for (const z of [4.6, 7.2]) b.box(-22.3, 0, z, 0.9, 0.95, 2.4, 'concrete_panel', { tint: '#d2cdc3', minimap: 'cover' });
+    pallet(b, -19.0, 0, 16.6, { ry: 0.1 });
+    b.box(-19.0, 0.14, 16.6, 1.1, 0.95, 1.1, 'white', { tint: '#e6e4de', ry: 0.1, minimap: 'cover' });
 
     // -----------------------------------------------------------------------
     // Startpunkte & Flaggen
     // -----------------------------------------------------------------------
     const spawns = { A: [], B: [], ffa: [] };
-    const sA = [[-38, 47], [-31, 43], [-19, 47.5], [-9, 48], [0, 47], [10.5, 47.5], [16, 43], [34, 49.5], [-21, 41.5], [1.5, 41.5], [55.5, 48.5], [64, 49.5], [72.5, 49.5]];
+    const sA = [[-38, 47], [-31, 43], [-19, 47.5], [-9, 48], [0, 47], [10.5, 47.5], [16, 43], [34, 49.5], [-21, 41.5], [1.5, 43.5], [55.5, 48.5], [64, 49.5], [72.5, 49.5]];
     for (const [x, z] of sA) { spawns.A.push({ x, z, yaw: 0 }); spawns.B.push({ x, z: -z, yaw: Math.PI }); }
-    for (const [x, z] of [[-40, 20], [-38, -8], [-34, -40], [-20, -26], [-20, 26], [-10, 18], [-11, -18], [0, -1], [9, -30], [9, 30], [20, -10], [38.5, 8], [24, 14], [38, -14], [30, -40], [-26, -48], [61, -15], [61, 15], [71.5, 0], [52.5, -32], [52.5, 32], [64.5, -44], [64.5, 44]]) spawns.ffa.push({ x, z });
+    for (const [x, z] of [[-40, 20], [-38, -8], [-34, -40], [-20, -26], [-20, 26], [-10, 18], [-11, -18], [0, -1], [10.2, -24.4], [10.2, 24.4], [20, -10], [38.5, 8], [24, 14], [38, -14], [30, -40], [-26, -48], [61, -15], [61, 15], [71.5, 0], [52.5, -32], [52.5, 32], [64.5, -44], [64.5, 44]]) spawns.ffa.push({ x, z });
     return {
       spawns,
       objectives: { dom: [{ id: 'A', x: -5, z: 30.6, radius: 5 }, { id: 'B', x: -14.2, z: -0.8, radius: 6 }, { id: 'C', x: -13.6, z: -30.6, radius: 5 }] },
@@ -337,6 +344,8 @@ function signs(b) {
   b.defineSign('dock1', { style: 'number', text: 'D1', bg: '#e8c22c', fg: '#16191d' });
   b.defineSign('dock2', { style: 'number', text: 'D2', bg: '#e8c22c', fg: '#16191d' });
   b.defineSign('dock3', { style: 'number', text: 'D3', bg: '#e8c22c', fg: '#16191d' });
+  b.defineSign('dock4', { style: 'number', text: 'D4', bg: '#e8c22c', fg: '#16191d' });
+  b.defineSign('dock5', { style: 'number', text: 'D5', bg: '#e8c22c', fg: '#16191d' });
   b.defineSign('logo_nordstern', { style: 'logo', text: 'NORDSTERN', sub: 'Linienreederei', bg: 'rgba(0,0,0,0)', fg: '#f2f0ea', accent: '#f2f0ea' });
   b.defineSign('logo_kairos', { style: 'logo', text: 'KAIROS LINES', bg: 'rgba(0,0,0,0)', fg: '#f2f0ea', accent: '#ff8a2a' });
   b.defineSign('logo_kurier', { style: 'logo', text: 'BLITZKURIER', sub: 'Heute bestellt – morgen da', bg: '#e8e6e0', fg: '#1f3d5c', accent: '#c8402f' });
@@ -364,7 +373,7 @@ function stackAt(b, x, z, len, along, colors, o = {}) {
   // (vorher bis 4 cm quer → Eckpfosten der Nachbarn steckten ineinander). Gleich viele Zufallszahlen wie zuvor.
   colors.forEach((c, i) => {
     const ox = i ? (b.rand() - 0.5) * 0.08 : 0, oz = i ? (b.rand() - 0.5) * 0.08 : 0, r = i ? (b.rand() - 0.5) * 0.003 : 0;
-    container(b, x + (along === 'x' ? ox : 0), i * H, z + (along === 'z' ? oz : 0), { len, ry: ry + r, color: c, logo: i === 0 ? o.logo : undefined });
+    container(b, x + (along === 'x' ? ox : 0), i * H, z + (along === 'z' ? oz : 0), { len, ry: ry + r + (o.flip ? Math.PI : 0), color: c, logo: i === 0 ? o.logo : undefined });
   });
 }
 
@@ -713,7 +722,7 @@ function warehouse(b, ctx) {
   const x0 = 14, x1 = 42, z0 = -20, z1 = 20, H8 = 8.2, t = 0.3;
   b.interior(x0, z0, x1, z1, -0.1, H8 - 0.05, 0.6);
   b.boxMM(x0 + t, 0, z0 + t, x1 - t, 0.12, z1 - t, 'epoxy', { grad: false, minimap: false });
-  const wmat = { mat: 'metal_corrugated', tint: '#b9c3c9', h: H8, t, frameMat: 'metal_painted', frameTint: '#2a2e33', minimap: 'wall', plinth: { h: 1.2, mat: 'concrete', tint: '#c9c4b8', over: 0.04 } };
+  const wmat = { mat: 'metal_corrugated', tint: '#eef0ec', h: H8, t, frameMat: 'metal_painted', frameTint: '#2a2e33', minimap: 'wall', plinth: { h: 1.2, mat: 'concrete_dark', tint: '#707270', over: 0.04 } }; // Sockel dunkel wie im Video
   // West (Rampenseite) mit drei Toren
   wall(b, { ...wmat, x0: x0 + t / 2, z0: z1, x1: x0 + t / 2, z1: z0, openings: [
     { at: 10, w: 4.2, h: 4.6, kind: 'gap', frameMat: 'hazard' }, { at: 20, w: 4.2, h: 4.6, kind: 'gap' }, { at: 30, w: 4.2, h: 4.6, kind: 'gap' }] });
@@ -737,9 +746,9 @@ function warehouse(b, ctx) {
   }
   // Dach (leicht geneigt angedeutet) + Oberlichter
   b.boxMM(x0 - 0.3, H8, z0 - 0.3, x1 + 0.3, H8 + 0.35, z1 + 0.3, 'metal_corrugated', { tint: '#8d969c', minimap: 'roof', grad: false, uv: 'world' });
-  for (const zz of [-12, 0, 12]) b.box(28, H8 - 0.02, zz, 20, 0.04, 1.4, 'lamp_cool', { collide: false, minimap: false, ao: false, cast: false });
-  // Lichtbänder: nur in die Sonden gebacken (indirektes Hallenlicht, kein Echtzeitlicht)
-  for (const zz of [-12, 0, 12]) for (const xx of [20.5, 28, 35.5]) b.light('point', xx, H8 - 0.5, zz, { color: '#e6f0ff', intensity: 26, distance: 22, realtime: false });
+  // Lichtbänder: nur in die Sonden gebacken (indirektes Hallenlicht, kein Echtzeitlicht); 15.10.: ohne Leuchtflächen und
+  // gedämpft – im Video liegt das Halleninnere im Halbdunkel
+  for (const zz of [-12, 0, 12]) for (const xx of [20.5, 28, 35.5]) b.light('point', xx, H8 - 0.5, zz, { color: '#e6f0ff', intensity: 16, distance: 22, realtime: false });
   b.box(28, H8 + 0.35, -20.31, 28.6, 0.6, 0.1, 'metal_painted', { tint: '#14304a', collide: false, minimap: false, grad: false });
   b.noNav(x0 - 1, z0 - 1, x1 + 1, z1 + 1, H8 - 0.5, 20);
   // Binder (Stahlträger unter dem Dach)
@@ -875,7 +884,7 @@ function schuppen4(b) {
   const x = 63, z = 0, w = 12, d = 14, H5 = 5.2;
   building(b, {
     x, z, w, d, floors: 1, fh: H5, mat: 'metal_corrugated', tint: '#a8b0a4', floorMat: 'epoxy', frameMat: 'metal_painted', frameTint: '#2a2e33',
-    plinth: { h: 1.0, mat: 'concrete', tint: '#c9c4b8', over: 0.04 },
+    plinth: { h: 1.0, mat: 'concrete_dark', tint: '#9a9a96', over: 0.04 },
     roof: { mat: 'metal_corrugated', tint: '#7d878c', edge: true },
     openings: [
       { side: 'w', at: 0, w: 4.2, h: 4.2, kind: 'gap' },
@@ -948,6 +957,51 @@ function backdrop(b) {
   for (let x = -40; x <= 76; x += 16) lampPost(b, x, 58, { h: 8, arm: 1.6, ry: Math.PI / 2, kind: 'sodium' });
   // Silos
   for (const [x, z] of [[105, -80], [114, -80], [105, -71]]) b.cyl(x, 0, z, 4, 24, 'concrete', { seg: 18, collide: false, minimap: false, tint: '#cfc8bb' });
+}
+
+/** Grafik-Vorlage 15.10. (Video, Einstellung Halle 3; Nutzer: „die zweite Halle soll man auch begehen können“): Lagerhalle
+ *  vor der Stirnseite von Halle 3 – im Süden (sz = 1, Halle 4, wie im Video hinter Halle 3) und gespiegelt im Norden (sz = −1,
+ *  Halle 5, Ausgleich der Teams). Fassade mit Rolltor, Vordach, Tür und Fensterband zur Kartenmitte, Durchgänge nach Osten
+ *  (Hallenvorfeld), zur Startseite und nach Westen (Containerreihe 3). Innen gedämpftes Licht wie im Video. */
+function videoHalle(b, sz) {
+  const x0 = 1, x1 = 14, zN = 27 * sz, zS = 41 * sz, H = 7.6, t = 0.3, yf = 0.12;
+  const zA = Math.min(zN, zS), zB = Math.max(zN, zS), out = sz > 0 ? Math.PI : 0; // out: Schilder zur Kartenmitte
+  b.interior(x0, zA, x1, zB, -0.1, H - 0.05, 0.6);
+  b.boxMM(x0 + t, 0, zA + t, x1 - t, yf, zB - t, 'epoxy', { grad: false, minimap: false });
+  const wm = { mat: 'metal_corrugated', tint: '#eef0ec', h: H, t, frameMat: 'metal_painted', frameTint: '#2a2e33', minimap: 'wall', plinth: { h: 1.1, mat: 'concrete_dark', tint: '#707270', over: 0.04 } };
+  const zF = zN + sz * t / 2, zR = zS - sz * t / 2;
+  // Fassade (von Ost nach West): Rolltor, Fenster, Tür, Fenster
+  wall(b, { ...wm, x0: x1, z0: zF, x1: x0, z1: zF, openings: [
+    { at: 2.5, w: 3.8, h: 4.2, kind: 'gap', frameMat: 'hazard' }, { at: 6, w: 2.4, h: 1.3, kind: 'window', sill: 4.4, glass: true },
+    { at: 9, w: 1.2, h: 2.2, kind: 'door' }, { at: 11.6, w: 2.0, h: 1.3, kind: 'window', sill: 4.4, glass: true }] });
+  // Ost: Tor zum Hallenvorfeld · Rückseite: Tür + Tor zur Startseite · West: Tür + Fenster
+  wall(b, { ...wm, x0: x1 - t / 2, z0: zN, x1: x1 - t / 2, z1: zS, openings: [{ at: 7, w: 3.6, h: 4.0, kind: 'gap' }] });
+  wall(b, { ...wm, x0: x0, z0: zR, x1: x1, z1: zR, openings: [{ at: 3, w: 1.2, h: 2.2, kind: 'door' }, { at: 9, w: 3.2, h: 3.6, kind: 'gap' }] });
+  wall(b, { ...wm, x0: x0 + t / 2, z0: zS, x1: x0 + t / 2, z1: zN, openings: [
+    { at: 4, w: 2.4, h: 1.2, kind: 'window', sill: 4.4, glass: true }, { at: 11, w: 1.2, h: 2.2, kind: 'door' }] });
+  b.boxMM(x0 - 0.3, H, zA - 0.3, x1 + 0.3, H + 0.3, zB + 0.3, 'metal_corrugated', { tint: '#8d969c', minimap: 'roof', grad: false, uv: 'world' });
+  b.noNav(x0 - 1, zA - 1, x1 + 1, zB + 1, H - 0.5, 20);
+  // Rolltor (beweglich, game/doors.js) mit Vordach und Torschild, Warnschild daneben
+  (b.gates || (b.gates = [])).push({ x: 11.5, z: zN + sz * 0.05, axis: 'x', w: 3.8, h: 4.2, t: 0.12, y: 0, bottom: 2.7, tint: '#d0d4d0',
+    panels: [[9.0, zN + sz * 0.65, sz > 0 ? 0 : Math.PI], [14.0 - 0.6, zN - sz * 0.65, out]] });
+  b.box(11.5, 4.25, zN - sz * 0.3, 4.6, 0.6, 0.6, 'metal_painted', { tint: '#3d4247', minimap: false, grad: false, collide: false });
+  b.sign(11.5, 4.9, zN - sz * 0.62, 0.68, 0.68, sz > 0 ? 'dock4' : 'dock5', { ry: out, depth: 0.03 });
+  b.sign(8.6, 2.2, zN - sz * 0.02, 1.0, 0.9, 'warn_forklift', { ry: out, depth: 0.02 });
+  // gedämpftes Hallenlicht (nur gebacken) + zwei Hängeleuchten ohne Leuchtfläche
+  for (const k of [4.5, 9.5]) {
+    const lz = zN + sz * k;
+    b.light('point', 7.5, H - 0.9, lz, { color: '#e6ecf5', intensity: 12, distance: 14, realtime: false });
+    b.cyl(7.5, H - 1.4, lz, 0.4, 0.3, 'metal_painted', { r1: 0.12, tint: '#2b2d30', collide: false, minimap: false, seg: 10, ao: false });
+    b.cyl(7.5, H - 1.1, lz, 0.015, 1.1, 'metal_galvanized', { collide: false, minimap: false, seg: 4, ao: false });
+  }
+  for (let xx = x0 + 3.25; xx < x1 - 1; xx += 3.25) b.box(xx, H - 0.6, (zA + zB) / 2, 0.25, 0.6, zB - zA - 0.6, 'metal_painted', { tint: '#4b5560', collide: false, minimap: false, grad: false });
+  // Einrichtung wie im Video: Paletten mit Kartons hinter dem Tor, Regale an Rück- und Westwand
+  rack(b, 5.6, zS - sz * 1.0, { y: yf, bays: 2, levels: 3, levelH: 1.6, ry: 0 });
+  rack(b, x0 + 1.0, zN + sz * 8.0, { y: yf, bays: 1, levels: 3, levelH: 1.6, ry: Math.PI / 2 });
+  palletStack(b, 10.2, zN + sz * 3.6, { y: yf, n: 2, load: 'boxes', ry: 0.1 });
+  pallet(b, 12.4, yf, zN + sz * 5.4, { load: 'boxes', ry: -0.15 });
+  pallet(b, 6.2, yf, zN + sz * 3.2, { load: 'wrapped', ry: 0.25 });
+  crateStack(b, 11.4, zS - sz * 4.4, { y: yf, ry: 0.3 });
 }
 
 /** Frachtschiff am Nordkai (Kulisse). */

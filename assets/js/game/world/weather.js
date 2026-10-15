@@ -36,13 +36,13 @@ export const WEATHER_FX = Object.freeze({
   },
   bewoelkt: {
     sun: 0.16, fill: 1.6, fog: 1.6, beams: 0.06, dust: 0.55, shafts: 0.06, inscatter: 0.25, ref: 0.6,
-    sky: { coverage: 0.96, density: 0.82, hazeAmount: 0.95, hazeHigh: 0.22, turbidity: 2.2, exposure: 0.72, tint: '#c4c9cf', elevation: 0.42 },
+    sky: { coverage: 0.96, density: 0.82, hazeAmount: 0.95, hazeHigh: 0.22, turbidity: 2.2, exposure: 0.84, tint: '#cbcfd0', elevation: 0.42 }, // 15.10.: heller, kaum blau (Video Hafen)
     sunColor: { toward: '#e6ebf2', amount: 0.65 },
     fogTint: { toward: '#a9b0b8', amount: 0.45 },
     hemiTint: { toward: '#c5cbd2', amount: 0.6 },
     hdri: 'abandoned_slipway', hdriSky: false, envTint: '#c9cdd3',
     shadowRadius: 7,
-    lut: { contrast: -0.1, saturation: 0.82, temperature: -0.08 },
+    lut: { contrast: -0.03, saturation: 0.9, temperature: -0.06 }, // 15.10.: Video (Hafen bewölkt) kräftiger, tiefere Schwarztöne
   },
 });
 
@@ -103,6 +103,9 @@ export function resolveConditions(meta, req = {}, rnd = Math.random) {
   const w0 = WEATHER_FX[m.weatherDefault] ? m.weatherDefault : allowed[0];
   const times = (Array.isArray(m.times) ? m.times : []).map((t) => t.id).filter((t) => TIME_FX[t]);
   let w = req.weather;
+  // Kartenstandard abweichend vom Bezugswetter (Grafik-Vorlage 15.10.: Hafen „Standard“ = bewölkt wie im Video; die
+  // Kartenbeleuchtung bleibt auf das Bezugswetter weatherDefault abgestimmt)
+  if ((w == null || w === 'standard') && allowed.includes(m.weatherStandard)) w = m.weatherStandard;
   if (w === 'zufall') w = allowed[Math.floor(rnd() * allowed.length)];
   if (!allowed.includes(w)) w = w0;
   let t = req.time;

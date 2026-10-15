@@ -11,8 +11,9 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 // name: [Karte, Videobild, x, y, z, Gierwinkel °, Neigung °, senkrechtes Sichtfeld °] (Gierwinkel 0 = Blick nach −z)
 export const VIEWS = {
-  'hafen-halle':     ['hafen', 'bild-0_3s', 2, 1.7, 3, -90, 2, 50],     // Lagerhalle 3 von der Rampe, Rolltore offen
-  'hafen-container': ['hafen', 'bild-2_0s', -20.6, 1.7, 32, 0, 1, 50],  // Containergasse, Portalkran links (15.10. aus dem Container heraus)
+  // 15.10. abends: Blick wie im Video (Hallenfassade links fluchtend, Tor + Schild, Container rechts)
+  'hafen-halle':     ['hafen', 'bild-0_3s', 9.66, 1.7, -17.8, 190.2, 0, 50], // aus dem Videobild zurückgerechnet (Fluchtpunkt + Torkanten)
+  'hafen-container': ['hafen', 'bild-2_0s', -20.4, 1.7, 30.2, 0, 1, 50],  // Containergasse, Portalkran links (15.10. aus dem Container heraus)
   'werk-halle':      ['werk', 'bild-3_5s', 0, 6.9, -1, 140, -6, 55],    // Walzhalle von der Querbrücke, Fensterband rechts (15.10.)
   'werk-gasse':      ['werk', 'bild-6_5s', 26, 1.7, 22, 0, 2, 55],      // Gasse zwischen Halle und Kesselhaus
   // Video-Platz = Dorfplatz im Grenzland (Nutzer 15.10.: leerer Platz, kein Altstadt-Markt); y als 'g+…' = über Grund

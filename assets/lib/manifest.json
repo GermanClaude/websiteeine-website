@@ -2,7 +2,7 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-15T17:23:29.161Z",
+ "generated": "2026-10-15T19:20:42.370Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
@@ -8017,6 +8017,1404 @@
    "url": "",
    "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
    "maps": []
+  },
+  "vh_wand": {
+   "type": "texture",
+   "name": "Hallen-Wellblech (Video, Hafen)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "sizeM": [
+    2.875,
+    2.875
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#4b544d",
+    "avgRoughness": 0.55,
+    "avgMetalness": 0.6,
+    "avgAO": 0.745,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vh_wand/vh_wand_512_albedo.ktx2",
+     "normal": "textures/vh_wand/vh_wand_512_normal.ktx2",
+     "orm": "textures/vh_wand/vh_wand_512_orm.ktx2",
+     "sizes": {
+      "albedo": 24716,
+      "normal": 27661,
+      "orm": 16147
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 68524,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/vh_wand/vh_wand_1024_albedo.ktx2",
+     "normal": "textures/vh_wand/vh_wand_1024_normal.ktx2",
+     "orm": "textures/vh_wand/vh_wand_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 65461,
+      "normal": 98295,
+      "orm": 52433
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 216189,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "2048": {
+     "albedo": "textures/vh_wand/vh_wand_2048_albedo.ktx2",
+     "normal": "textures/vh_wand/vh_wand_2048_normal.ktx2",
+     "orm": "textures/vh_wand/vh_wand_2048_orm.ktx2",
+     "sizes": {
+      "albedo": 204424,
+      "normal": 327236,
+      "orm": 174120
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "normal": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "orm": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      }
+     },
+     "bytes": 705780,
+     "gpu": {
+      "desktop": 8388609,
+      "mobile": 8388609,
+      "rgba8": 67108863
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vh_wand",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
+  },
+  "vh_ctr_blau_seite": {
+   "type": "texture",
+   "name": "Container blau, Seite (Video)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "sizeM": [
+    1.05,
+    1.05
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#485a5f",
+    "avgRoughness": 0.6,
+    "avgMetalness": 0.4,
+    "avgAO": 0.735,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_512_albedo.ktx2",
+     "normal": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_512_normal.ktx2",
+     "orm": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_512_orm.ktx2",
+     "sizes": {
+      "albedo": 22674,
+      "normal": 16555,
+      "orm": 11975
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 51204,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_1024_albedo.ktx2",
+     "normal": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_1024_normal.ktx2",
+     "orm": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 64906,
+      "normal": 53016,
+      "orm": 36909
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 154831,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vh_ctr_blau_seite",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
+  },
+  "vh_ctr_rost_tuer": {
+   "type": "texture",
+   "name": "Container rostrot, Türseite (Video)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "sizeM": [
+    2.44,
+    2.44
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#846550",
+    "avgRoughness": 0.6,
+    "avgMetalness": 0.4,
+    "avgAO": 0.934,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_albedo.ktx2",
+     "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_normal.ktx2",
+     "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_orm.ktx2",
+     "sizes": {
+      "albedo": 56799,
+      "normal": 93014,
+      "orm": 31763
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 181576,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_albedo.ktx2",
+     "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_normal.ktx2",
+     "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 165171,
+      "normal": 262577,
+      "orm": 99576
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 527324,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vh_ctr_rost_tuer",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
+  },
+  "vh_ctr_rost_seite": {
+   "type": "texture",
+   "name": "Container rostrot, Seite (Video)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "sizeM": [
+    1.05,
+    1.05
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#8e6a51",
+    "avgRoughness": 0.6,
+    "avgMetalness": 0.4,
+    "avgAO": 0.735,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vh_ctr_rost_seite/vh_ctr_rost_seite_512_albedo.ktx2",
+     "normal": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_512_normal.ktx2",
+     "orm": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_512_orm.ktx2",
+     "sizes": {
+      "albedo": 25155,
+      "normal": 16555,
+      "orm": 11975
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 25155,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     },
+     "shared": {
+      "normal": "vh_ctr_blau_seite",
+      "orm": "vh_ctr_blau_seite"
+     }
+    },
+    "1024": {
+     "albedo": "textures/vh_ctr_rost_seite/vh_ctr_rost_seite_1024_albedo.ktx2",
+     "normal": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_1024_normal.ktx2",
+     "orm": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 72424,
+      "normal": 53016,
+      "orm": 36909
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 72424,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     },
+     "shared": {
+      "normal": "vh_ctr_blau_seite",
+      "orm": "vh_ctr_blau_seite"
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vh_ctr_rost_seite",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
+  },
+  "vh_ctr_rot_seite": {
+   "type": "texture",
+   "name": "Container rotbraun, Seite (Video)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "sizeM": [
+    1.05,
+    1.05
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#6a3a32",
+    "avgRoughness": 0.6,
+    "avgMetalness": 0.4,
+    "avgAO": 0.735,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vh_ctr_rot_seite/vh_ctr_rot_seite_512_albedo.ktx2",
+     "normal": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_512_normal.ktx2",
+     "orm": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_512_orm.ktx2",
+     "sizes": {
+      "albedo": 20013,
+      "normal": 16555,
+      "orm": 11975
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 20013,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     },
+     "shared": {
+      "normal": "vh_ctr_blau_seite",
+      "orm": "vh_ctr_blau_seite"
+     }
+    },
+    "1024": {
+     "albedo": "textures/vh_ctr_rot_seite/vh_ctr_rot_seite_1024_albedo.ktx2",
+     "normal": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_1024_normal.ktx2",
+     "orm": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 55315,
+      "normal": 53016,
+      "orm": 36909
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 55315,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     },
+     "shared": {
+      "normal": "vh_ctr_blau_seite",
+      "orm": "vh_ctr_blau_seite"
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vh_ctr_rot_seite",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
+  },
+  "vh_ctr_gruen_seite": {
+   "type": "texture",
+   "name": "Container oliv, Seite (Video)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "sizeM": [
+    1.05,
+    1.05
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#6e6a4a",
+    "avgRoughness": 0.6,
+    "avgMetalness": 0.4,
+    "avgAO": 0.735,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vh_ctr_gruen_seite/vh_ctr_gruen_seite_512_albedo.ktx2",
+     "normal": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_512_normal.ktx2",
+     "orm": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_512_orm.ktx2",
+     "sizes": {
+      "albedo": 24011,
+      "normal": 16555,
+      "orm": 11975
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 24011,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     },
+     "shared": {
+      "normal": "vh_ctr_blau_seite",
+      "orm": "vh_ctr_blau_seite"
+     }
+    },
+    "1024": {
+     "albedo": "textures/vh_ctr_gruen_seite/vh_ctr_gruen_seite_1024_albedo.ktx2",
+     "normal": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_1024_normal.ktx2",
+     "orm": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 68310,
+      "normal": 53016,
+      "orm": 36909
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 68310,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     },
+     "shared": {
+      "normal": "vh_ctr_blau_seite",
+      "orm": "vh_ctr_blau_seite"
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vh_ctr_gruen_seite",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
+  },
+  "vh_ctr_grau_seite": {
+   "type": "texture",
+   "name": "Container grauweiß, Seite (Video)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "sizeM": [
+    1.05,
+    1.05
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#b6af9b",
+    "avgRoughness": 0.6,
+    "avgMetalness": 0.4,
+    "avgAO": 0.735,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vh_ctr_grau_seite/vh_ctr_grau_seite_512_albedo.ktx2",
+     "normal": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_512_normal.ktx2",
+     "orm": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_512_orm.ktx2",
+     "sizes": {
+      "albedo": 30480,
+      "normal": 16555,
+      "orm": 11975
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 30480,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     },
+     "shared": {
+      "normal": "vh_ctr_blau_seite",
+      "orm": "vh_ctr_blau_seite"
+     }
+    },
+    "1024": {
+     "albedo": "textures/vh_ctr_grau_seite/vh_ctr_grau_seite_1024_albedo.ktx2",
+     "normal": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_1024_normal.ktx2",
+     "orm": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 88346,
+      "normal": 53016,
+      "orm": 36909
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 88346,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     },
+     "shared": {
+      "normal": "vh_ctr_blau_seite",
+      "orm": "vh_ctr_blau_seite"
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vh_ctr_grau_seite",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
+  },
+  "vh_ctr_blau_tuer": {
+   "type": "texture",
+   "name": "Container blau, Türseite (Video)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "sizeM": [
+    2.44,
+    2.44
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#516466",
+    "avgRoughness": 0.6,
+    "avgMetalness": 0.4,
+    "avgAO": 0.934,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vh_ctr_blau_tuer/vh_ctr_blau_tuer_512_albedo.ktx2",
+     "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_normal.ktx2",
+     "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_orm.ktx2",
+     "sizes": {
+      "albedo": 53135,
+      "normal": 93014,
+      "orm": 31763
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 53135,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     },
+     "shared": {
+      "normal": "vh_ctr_rost_tuer",
+      "orm": "vh_ctr_rost_tuer"
+     }
+    },
+    "1024": {
+     "albedo": "textures/vh_ctr_blau_tuer/vh_ctr_blau_tuer_1024_albedo.ktx2",
+     "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_normal.ktx2",
+     "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 152558,
+      "normal": 262577,
+      "orm": 99576
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 152558,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     },
+     "shared": {
+      "normal": "vh_ctr_rost_tuer",
+      "orm": "vh_ctr_rost_tuer"
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vh_ctr_blau_tuer",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
+  },
+  "vh_ctr_rot_tuer": {
+   "type": "texture",
+   "name": "Container rotbraun, Türseite (Video)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "sizeM": [
+    2.44,
+    2.44
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#6a3a32",
+    "avgRoughness": 0.6,
+    "avgMetalness": 0.4,
+    "avgAO": 0.934,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vh_ctr_rot_tuer/vh_ctr_rot_tuer_512_albedo.ktx2",
+     "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_normal.ktx2",
+     "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_orm.ktx2",
+     "sizes": {
+      "albedo": 49153,
+      "normal": 93014,
+      "orm": 31763
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 49153,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     },
+     "shared": {
+      "normal": "vh_ctr_rost_tuer",
+      "orm": "vh_ctr_rost_tuer"
+     }
+    },
+    "1024": {
+     "albedo": "textures/vh_ctr_rot_tuer/vh_ctr_rot_tuer_1024_albedo.ktx2",
+     "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_normal.ktx2",
+     "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 135097,
+      "normal": 262577,
+      "orm": 99576
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 135097,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     },
+     "shared": {
+      "normal": "vh_ctr_rost_tuer",
+      "orm": "vh_ctr_rost_tuer"
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vh_ctr_rot_tuer",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
+  },
+  "vh_ctr_gruen_tuer": {
+   "type": "texture",
+   "name": "Container oliv, Türseite (Video)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "sizeM": [
+    2.44,
+    2.44
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#6e6a4a",
+    "avgRoughness": 0.6,
+    "avgMetalness": 0.4,
+    "avgAO": 0.934,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vh_ctr_gruen_tuer/vh_ctr_gruen_tuer_512_albedo.ktx2",
+     "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_normal.ktx2",
+     "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_orm.ktx2",
+     "sizes": {
+      "albedo": 54127,
+      "normal": 93014,
+      "orm": 31763
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 54127,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     },
+     "shared": {
+      "normal": "vh_ctr_rost_tuer",
+      "orm": "vh_ctr_rost_tuer"
+     }
+    },
+    "1024": {
+     "albedo": "textures/vh_ctr_gruen_tuer/vh_ctr_gruen_tuer_1024_albedo.ktx2",
+     "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_normal.ktx2",
+     "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 156753,
+      "normal": 262577,
+      "orm": 99576
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 156753,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     },
+     "shared": {
+      "normal": "vh_ctr_rost_tuer",
+      "orm": "vh_ctr_rost_tuer"
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vh_ctr_gruen_tuer",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
+  },
+  "vh_ctr_grau_tuer": {
+   "type": "texture",
+   "name": "Container grauweiß, Türseite (Video)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "sizeM": [
+    2.44,
+    2.44
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#b6ae9b",
+    "avgRoughness": 0.6,
+    "avgMetalness": 0.4,
+    "avgAO": 0.934,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vh_ctr_grau_tuer/vh_ctr_grau_tuer_512_albedo.ktx2",
+     "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_normal.ktx2",
+     "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_orm.ktx2",
+     "sizes": {
+      "albedo": 61132,
+      "normal": 93014,
+      "orm": 31763
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 61132,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     },
+     "shared": {
+      "normal": "vh_ctr_rost_tuer",
+      "orm": "vh_ctr_rost_tuer"
+     }
+    },
+    "1024": {
+     "albedo": "textures/vh_ctr_grau_tuer/vh_ctr_grau_tuer_1024_albedo.ktx2",
+     "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_normal.ktx2",
+     "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 182571,
+      "normal": 262577,
+      "orm": 99576
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 182571,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     },
+     "shared": {
+      "normal": "vh_ctr_rost_tuer",
+      "orm": "vh_ctr_rost_tuer"
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vh_ctr_grau_tuer",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
+  },
+  "vh_kai": {
+   "type": "texture",
+   "name": "Rissbeton Kai (Video, Hafen)",
+   "category": "concrete",
+   "surface": "concrete",
+   "replaces": [],
+   "sizeM": [
+    4,
+    4
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#646b6b",
+    "avgRoughness": 0.86,
+    "avgMetalness": 0,
+    "avgAO": 0.901,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vh_kai/vh_kai_512_albedo.ktx2",
+     "normal": "textures/vh_kai/vh_kai_512_normal.ktx2",
+     "orm": "textures/vh_kai/vh_kai_512_orm.ktx2",
+     "sizes": {
+      "albedo": 45786,
+      "normal": 102937,
+      "orm": 33754
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 182477,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/vh_kai/vh_kai_1024_albedo.ktx2",
+     "normal": "textures/vh_kai/vh_kai_1024_normal.ktx2",
+     "orm": "textures/vh_kai/vh_kai_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 128164,
+      "normal": 309457,
+      "orm": 117717
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 555338,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "2048": {
+     "albedo": "textures/vh_kai/vh_kai_2048_albedo.ktx2",
+     "normal": "textures/vh_kai/vh_kai_2048_normal.ktx2",
+     "orm": "textures/vh_kai/vh_kai_2048_orm.ktx2",
+     "sizes": {
+      "albedo": 378136,
+      "normal": 1115658,
+      "orm": 403601
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "normal": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "orm": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      }
+     },
+     "bytes": 1897395,
+     "gpu": {
+      "desktop": 8388609,
+      "mobile": 8388609,
+      "rgba8": 67108863
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vh_kai",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
+  },
+  "vp_pflaster": {
+   "type": "texture",
+   "name": "Kopfsteinpflaster Dorfplatz (Video, Platz)",
+   "category": "masonry",
+   "surface": "concrete",
+   "replaces": [],
+   "sizeM": [
+    3.24,
+    3.24
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#8b8578",
+    "avgRoughness": 0.78,
+    "avgMetalness": 0,
+    "avgAO": 0.992,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vp_pflaster/vp_pflaster_512_albedo.ktx2",
+     "normal": "textures/vp_pflaster/vp_pflaster_512_normal.ktx2",
+     "orm": "textures/vp_pflaster/vp_pflaster_512_orm.ktx2",
+     "sizes": {
+      "albedo": 42594,
+      "normal": 63984,
+      "orm": 18820
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 125398,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/vp_pflaster/vp_pflaster_1024_albedo.ktx2",
+     "normal": "textures/vp_pflaster/vp_pflaster_1024_normal.ktx2",
+     "orm": "textures/vp_pflaster/vp_pflaster_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 112364,
+      "normal": 219559,
+      "orm": 52420
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 384343,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "2048": {
+     "albedo": "textures/vp_pflaster/vp_pflaster_2048_albedo.ktx2",
+     "normal": "textures/vp_pflaster/vp_pflaster_2048_normal.ktx2",
+     "orm": "textures/vp_pflaster/vp_pflaster_2048_orm.ktx2",
+     "sizes": {
+      "albedo": 341567,
+      "normal": 674630,
+      "orm": 141581
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "normal": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "orm": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      }
+     },
+     "bytes": 1157778,
+     "gpu": {
+      "desktop": 8388609,
+      "mobile": 8388609,
+      "rgba8": 67108863
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vp_pflaster",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
   }
  },
  "hdris": {
@@ -13887,8 +15285,8 @@
  },
  "totals": {
   "textures": {
-   "files": 486,
-   "bytes": 65373298
+   "files": 541,
+   "bytes": 72810035
   },
   "hdri": {
    "files": 32,
@@ -13899,16 +15297,16 @@
    "bytes": 53609888
   },
   "all": {
-   "files": 629,
-   "bytes": 138192889
+   "files": 684,
+   "bytes": 145629626
   },
   "byTier": {
-   "512": 27478045,
-   "1024": 82525641,
-   "2048": 28189203
+   "512": 28404430,
+   "1024": 85275040,
+   "2048": 31950156
   },
   "counts": {
-   "textures": 76,
+   "textures": 89,
    "hdris": 8,
    "models": 57
   }

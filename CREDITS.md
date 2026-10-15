@@ -9,7 +9,7 @@ und ebenfalls CC0. Quellenliste mit Download-IDs: `tools/assets/sources.json`, P
 Vielen Dank an [Poly Haven](https://polyhaven.com) und [ambientCG](https://ambientcg.com) sowie alle
 Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 
-## Texturen (76)
+## Texturen (89)
 
 | Asset | ID | Urheber:in | Quelle | Lizenz |
 |---|---|---|---|---|
@@ -89,6 +89,19 @@ Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 | Granit-Reihenpflaster (Video-Vorlage) | `v_setts` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Tonziegeldach (Video-Vorlage) | `v_roof` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Kalkputz (Video-Vorlage) | `v_plaster` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Hallen-Wellblech (Video, Hafen) | `vh_wand` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Container blau, Seite (Video) | `vh_ctr_blau_seite` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Container rostrot, Türseite (Video) | `vh_ctr_rost_tuer` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Container rostrot, Seite (Video) | `vh_ctr_rost_seite` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Container rotbraun, Seite (Video) | `vh_ctr_rot_seite` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Container oliv, Seite (Video) | `vh_ctr_gruen_seite` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Container grauweiß, Seite (Video) | `vh_ctr_grau_seite` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Container blau, Türseite (Video) | `vh_ctr_blau_tuer` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Container rotbraun, Türseite (Video) | `vh_ctr_rot_tuer` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Container oliv, Türseite (Video) | `vh_ctr_gruen_tuer` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Container grauweiß, Türseite (Video) | `vh_ctr_grau_tuer` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Rissbeton Kai (Video, Hafen) | `vh_kai` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Kopfsteinpflaster Dorfplatz (Video, Platz) | `vp_pflaster` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 
 ## HDRIs (8)
 

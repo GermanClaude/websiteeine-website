@@ -125,3 +125,20 @@ sobald wieder Limit da ist. Vergleichsbilder neben dem Video zeigen (tools/out/s
 
 **Tests je Etappe:** Vergleichsbilder vorher/nachher, smoke.mjs (Desktop + Handy), check.sh, preload, Kollisions-Hash,
 vorhandene Tests (tank-model-test, gunsound-test, feedback-test …); ab Etappe 4 zusätzlich ein Third-Person-Test.
+
+## Stand 15.10. abends: Texturen 1:1 aus dem Video, Hafen nach Einstellung 1 + 2
+
+- **Werkzeug:** `tools/assets/video_tex.py` (Spezifikation `tools/assets/video-spec/<karte>.json`) verfolgt eine Fläche
+  über viele Videobilder (SIFT + Homographie), entzerrt sie (Wand: Viereck, Boden: Kameramodell f ≈ 772 px, Augenhöhe
+  1,7 m) und mittelt die schärfsten Bilder → `tools/out/video/rect/`. `tools/assets/video_material.py`
+  (`video-spec/<karte>-mat.json`) macht daraus kachelbare Sätze (Licht heraus, Rippen/Risse/Steine aus dem Video) →
+  `tools/assets/video-src/` (nicht im Repo, neu erzeugbar) → `textures.mjs` (Quelle `video`) → KTX2.
+- **Hafen:** Hallen-Wellblech `vh_wand`, Container in fünf Farbfamilien mit Video-Türseite (`vh_ctr_*`), Rissbeton
+  `vh_kai` (dunkel, kühl, Farbe am Video gemessen). Standardwetter „bewölkt“ wie Einstellung 1 (`weatherStandard`,
+  Bezugsbeleuchtung bleibt klar). Kamera der Einstellungen aus Fluchtpunkt und Torkanten zurückgerechnet
+  (`vergleich-video.mjs` hafen-halle / hafen-container); Container, Paletten und Stapler danach gestellt.
+- **Halle 4/5 (Nutzer: zweite Halle begehbar):** Lagerhalle vor der Stirnseite von Halle 3 (Süd, wie im Video) und
+  gespiegelt im Norden; Rolltor, Tür, Fensterband, Regale, Paletten.
+- **Pflaster:** `vp_pflaster` aus echten Video-Steinen im Läuferverband (keine Kreuz-/X-Fugen), Steine ≈ 27 cm.
+- **Offen:** Pflaster unregelmäßiger (Video: gewölbte, ungleich große Steine), Grenzland/Altstadt-Putz und Dächer aus
+  dem Platzbild, Werk (Einstellungen 3–5), danach Licht für die übrigen Tageszeiten/Wetter.

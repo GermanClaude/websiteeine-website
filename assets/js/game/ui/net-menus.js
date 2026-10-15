@@ -852,7 +852,7 @@ export class NetMenus {
     const map = d.MAPS[s.map] || {};
     const times = Array.isArray(map.times) ? map.times : [];
     const t = s.time === 'zufall' ? 'Zufall' : s.time === 'echtzeit' ? 'Echtzeit (Uhr des Hosts)' : s.time && s.time !== 'standard' ? (times.find((x) => x.id === s.time) || {}).name || s.time : `${map.timeOfDay || 'Standard'}`;
-    const wd = WEATHERS[map.weatherDefault];
+    const wd = WEATHERS[map.weatherStandard || map.weatherDefault];
     const w = s.weather === 'zufall' ? 'Zufall' : s.weather && s.weather !== 'standard' ? (WEATHERS[s.weather] || {}).name || s.weather : `Standard${wd ? ` (${wd.name})` : ''}`;
     return { mode, map, time: t, weather: w, diff: (d.DIFF[s.difficulty] || {}).name || s.difficulty, style: (GAME_STYLES[s.style] || GAME_STYLES.arcade || {}).label || s.style };
   }

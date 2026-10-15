@@ -854,7 +854,7 @@ export class NetSystem {
       // Rückfall ohne weather.js: Zufall selbst würfeln, sonst Vorgabe der Karte
       const ws = Array.isArray(meta.weathers) && meta.weathers.length ? meta.weathers : ['klar'];
       const ts = (Array.isArray(meta.times) ? meta.times : []).map((t) => t.id);
-      const w = weather === 'zufall' ? ws[Math.floor(Math.random() * ws.length)] : ws.includes(weather) ? weather : meta.weatherDefault || ws[0];
+      const w = weather === 'zufall' ? ws[Math.floor(Math.random() * ws.length)] : ws.includes(weather) ? weather : meta.weatherStandard || meta.weatherDefault || ws[0];
       const pool = [null, ...ts];
       // ('echtzeit' ohne weather.js: Kartenzeit – der Normalfall löst über realTimePreset nach der Uhr des Hosts auf)
       const t = time === 'zufall' ? pool[Math.floor(Math.random() * pool.length)] : ts.includes(time) ? time : null;

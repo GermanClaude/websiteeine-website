@@ -5,7 +5,7 @@
 // Alles deterministisch (kein Math.random, Varianten nur positionsabhängig über hash01). Kollision hängt weder von der
 // Grafikstufe noch von der Bibliothek ab: Bibliotheksmodelle bekommen feste Quader in Manifest-Maßen.
 import * as THREE from 'three';
-import { frame, hash01, chair, crate, pallet, cable, CONTAINER_H, CONTAINER_W } from '../props.js';
+import { frame, hash01, chair, crate, pallet, cable, CONTAINER_H, CONTAINER_W, ctrFamily } from '../props.js';
 
 const KEIN = { collide: false, minimap: false };
 const VG = { ...KEIN, grad: false };
@@ -232,14 +232,16 @@ export function offenerContainer(b, x, z, o = {}) {
   const dark = shade(color, 0.72), innen = shade(color, axis ? 0.55 : 0.36);
   const L2 = len / 2, W2 = W / 2, t = 0.06, fl = 0.16;
   const V = { ...KEIN, uv: 'local' };
+  // Außenhaut/Türflügel: Videotextur der Lackfamilie (wie props.container), Innenhaut weiter getönt
+  const wall = 'ctr_' + ctrFamily(color), VW = { ...KEIN, uv: 'local', uvOffset: [0, 0] };
   // Außenhaut + dunklere Innenhaut (Seiten, Stirnwand, Dach)
   for (const s of [-1, 1]) {
-    f.box(0, 0.05, s * (W2 - 0.03), len - 0.12, H - 0.11, 0.03, 'container', { tint: color, ...V, aoFloor: 0 });
+    f.box(0, 0.05, s * (W2 - 0.03), len - 0.12, H - 0.11, 0.03, wall, { ...VW, aoFloor: 0 });
     f.box(-0.03, fl, s * (W2 - t + 0.012), len - 0.3, H - fl - 0.12, 0.012, 'container', { tint: innen, ...V, grad: false });
   }
-  f.box(-L2 + 0.04, 0.05, 0, 0.03, H - 0.11, W - 0.1, 'container', { tint: color, ...V, aoFloor: 0 });
+  f.box(-L2 + 0.04, 0.05, 0, 0.03, H - 0.11, W - 0.1, wall, { ...VW, aoFloor: 0 });
   f.box(-L2 + t + 0.01, fl, 0, 0.012, H - fl - 0.12, W - 2 * t, 'container', { tint: innen, ...V, grad: false });
-  f.box(0, H - 0.07, 0, len - 0.12, 0.04, W - 0.08, 'container', { tint: color, ...V, grad: false });
+  f.box(0, H - 0.07, 0, len - 0.12, 0.04, W - 0.08, wall, { ...VW, grad: false });
   f.box(-0.03, H - 0.1, 0, len - 0.3, 0.012, W - 2 * t, 'container', { tint: innen, ...V, grad: false });
   // Holzboden (Oberkante fl)
   f.box(0, 0.02, 0, len - 0.2, fl - 0.02, W - 2 * t, 'wood_planks', { tint: '#7a5a3c', ...VG });
@@ -256,7 +258,7 @@ export function offenerContainer(b, x, z, o = {}) {
   for (const s of [-1, 1]) {
     const hx = L2 + 0.03, hz = s * (W2 + 0.02), dx = Math.cos(phi), dz = s * Math.sin(phi);
     const cx = hx + dx * lw / 2, cz = hz + dz * lw / 2, rr = -s * phi;
-    f.box(cx, 0.06, cz, lw, H - 0.16, 0.05, 'container', { tint: color, ...V, ry: rr, grad: false });
+    f.box(cx, 0.06, cz, lw, H - 0.16, 0.05, wall, { ...VW, ry: rr, grad: false });
     const nx = -Math.sin(phi), nz = s * Math.cos(phi); // Außennormale des Flügels (um 90° + phi gedreht)
     for (const k of [0.3, 0.75]) {
       const px = hx + dx * lw * k + nx * 0.045, pz = hz + dz * lw * k + nz * 0.045;

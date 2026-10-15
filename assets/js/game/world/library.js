@@ -41,7 +41,7 @@ export const LIB_MATERIALS = {
   brick: { id: 'v_brick', color: 1.0 }, // Grafik-Vorlage: vorher brick_factory × 1,55
   brick_dark: { id: 'brick_dark', color: 2.0 },
   stone_wall: { id: 'sandstone_blocks', color: 1.0 },
-  cobble: { id: 'v_setts', color: 1.0 }, // Grafik-Vorlage: helles Granit-Reihenpflaster wie der Video-Platz (vorher cobblestone)
+  cobble: { id: 'vp_pflaster', color: 1.05, macro: [0.1, 0.05, 0.12] }, // Grafik-Vorlage 15.10.: echte Pflastersteine aus dem Video-Platz (Läuferverband, keine Kreuzfugen; vorher v_setts)
   paving: { id: 'paving_flagstone', color: [1.45, 1.6, 1.75] }, // Weißabgleich Richtung Kalkstein
   roof_tiles: { id: 'v_roof', color: 1.0 }, // Grafik-Vorlage: rot-orange Hohlpfannen wie im Video (vorher roof_clay_tiles)
   wood_planks: { id: 'wood_planks', color: [1.2, 1.32, 1.5] }, // etwas entsättigt (Fotoscan sehr orange)
@@ -57,7 +57,7 @@ export const LIB_MATERIALS = {
   metal_painted: { id: 'metal_painted', color: 1.35, macro: [0.1, 0.08, 0.1] },
   car_paint: { id: 'metal_painted', color: 1.35, macro: [0.1, 0.08, 0.1] },
   metal_rust: { id: 'metal_rust_painted', color: 0.75 },
-  metal_corrugated: { id: 'v_cladding', color: 1.0 }, // Grafik-Vorlage: vorher metal_corrugated × 3,0
+  metal_corrugated: { id: 'vh_wand', color: 1.55 }, // Grafik-Vorlage 15.10.: Hallen-Wellblech 1:1 aus dem Video (vorher v_cladding)
   metal_corrugated_rust: { id: 'metal_corrugated_rusty', color: 1.6 },
   metal_cladding: { id: 'metal_cladding_green', color: 1.0 },
   metal_shutter: { id: 'metal_shutter', color: 1.0 },
@@ -72,6 +72,17 @@ export const LIB_MATERIALS = {
   container_green: { id: 'v_container', color: 1.2, macro: [0.1, 0.06, 0.1] },
   container_orange: { id: 'v_container', color: 1.2, macro: [0.1, 0.06, 0.1] },
   container_gray: { id: 'v_container', color: 1.2, macro: [0.1, 0.06, 0.1] },
+  // Grafik-Vorlage 15.10.: Container 1:1 aus dem Video (Wand je Lackfarbe kachelnd, Türseite einmal je Fläche)
+  ctr_blau: { id: 'vh_ctr_blau_seite', color: 1.0, macro: [0.08, 0.05, 0.1] },
+  ctr_rost: { id: 'vh_ctr_rost_seite', color: 1.0, macro: [0.08, 0.05, 0.1] },
+  ctr_rot: { id: 'vh_ctr_rot_seite', color: 1.0, macro: [0.08, 0.05, 0.1] },
+  ctr_gruen: { id: 'vh_ctr_gruen_seite', color: 1.0, macro: [0.08, 0.05, 0.1] },
+  ctr_grau: { id: 'vh_ctr_grau_seite', color: 1.0, macro: [0.08, 0.05, 0.1] },
+  ctr_blau_tuer: { id: 'vh_ctr_blau_tuer', color: 1.0, repeat: 1, macro: false },
+  ctr_rost_tuer: { id: 'vh_ctr_rost_tuer', color: 1.0, repeat: 1, macro: false },
+  ctr_rot_tuer: { id: 'vh_ctr_rot_tuer', color: 1.0, repeat: 1, macro: false },
+  ctr_gruen_tuer: { id: 'vh_ctr_gruen_tuer', color: 1.0, repeat: 1, macro: false },
+  ctr_grau_tuer: { id: 'vh_ctr_grau_tuer', color: 1.0, repeat: 1, macro: false },
   sand: { id: 'sand', color: 1.6, macro: [0.2, 0.1, 0.1] },
   dirt: { id: 'dirt', color: 1.25, macro: [0.2, 0.1, 0.1] },
   mud: { id: 'mud', color: 1.2 },
@@ -110,6 +121,7 @@ export const LIB_LOOK = {
   brick: { ...LOOK_MASONRY, pom: 0.022 }, brick_dark: { ...LOOK_MASONRY, pom: 0.022 }, stone_wall: { ...LOOK_MASONRY, pom: 0.03 },
   cobble: { ...LOOK_MASONRY, detail: 0.2, pom: 0.035 }, paving: { ...LOOK_MASONRY, detail: 0.22, pom: 0.012 }, roof_tiles: { ...LOOK_MASONRY, pom: 0.03 },
   tiles: LOOK_MASONRY, tiles_terracotta: LOOK_MASONRY,
+  ctr_blau: LOOK_METAL, ctr_rost: LOOK_METAL, ctr_rot: LOOK_METAL, ctr_gruen: LOOK_METAL, ctr_grau: LOOK_METAL,
   container: LOOK_METAL, container_red: LOOK_METAL, container_blue: LOOK_METAL, container_green: LOOK_METAL, container_orange: LOOK_METAL, container_gray: LOOK_METAL,
   metal_corrugated: LOOK_METAL, metal_corrugated_rust: LOOK_METAL, metal_cladding: LOOK_METAL, metal_shutter: LOOK_METAL,
   metal_painted: LOOK_METAL, metal_rust: { ...LOOK_METAL, detail: 0.16, anti: 0.35 }, metal_galvanized: LOOK_METAL,

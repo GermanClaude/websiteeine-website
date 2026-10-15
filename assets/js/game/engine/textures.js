@@ -134,6 +134,18 @@ const MATS = {
   container_green:   { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#3e7a4c' } },
   container_orange:  { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#d9762a' } },
   container_gray:    { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#8d9399' } },
+  // Grafik-Vorlage 15.10. (Texturen 1:1 aus dem Video): Containerwand je Lackfarbe + Türseite (UV 0..1, „fit“);
+  // ohne Bibliothek prozeduraler Container in der Videofarbe
+  ctr_blau:          { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#516466' } },
+  ctr_rost:          { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#8e6a51' } },
+  ctr_rot:           { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#6a3a32' } },
+  ctr_gruen:         { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#6e6a4a' } },
+  ctr_grau:          { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#b6af9b' } },
+  ctr_blau_tuer:     { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#516466' } },
+  ctr_rost_tuer:     { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#8e6a51' } },
+  ctr_rot_tuer:      { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#6a3a32' } },
+  ctr_gruen_tuer:    { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#6e6a4a' } },
+  ctr_grau_tuer:     { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#b6af9b' } },
   sand:              { tex: 'sand', tile: 4, surface: 'sand' },
   dirt:              { tex: 'dirt', tile: 3, surface: 'dirt' },
   gravel:            { tex: 'gravel', tile: 2, surface: 'dirt' },

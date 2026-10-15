@@ -2,3 +2,7 @@ node_modules/
 .DS_Store
 tools/out/
 *.log
+
+# Video-Texturen: Zwischenstufe (neu erzeugbar mit tools/assets/video_tex.py + video_material.py aus der Video-Vorlage)
+tools/assets/video-src/
+__pycache__/

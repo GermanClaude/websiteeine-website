@@ -1,0 +1,115 @@
+{
+  "id": "vh_ctr_rot_seite",
+  "recipe": "ca8a62bc3b39",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/vh_ctr_rot_seite/vh_ctr_rot_seite_512_albedo.ktx2",
+          "bytes": 20013,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_512_normal.ktx2",
+          "bytes": 16555,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          },
+          "shared": "vh_ctr_blau_seite"
+        },
+        "orm": {
+          "path": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_512_orm.ktx2",
+          "bytes": 11975,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          },
+          "shared": "vh_ctr_blau_seite"
+        }
+      },
+      "bytes": 20013,
+      "gpu": {
+        "desktop": 524289,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/vh_ctr_rot_seite/vh_ctr_rot_seite_1024_albedo.ktx2",
+          "bytes": 55315,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_1024_normal.ktx2",
+          "bytes": 53016,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          },
+          "shared": "vh_ctr_blau_seite"
+        },
+        "orm": {
+          "path": "textures/vh_ctr_blau_seite/vh_ctr_blau_seite_1024_orm.ktx2",
+          "bytes": 36909,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          },
+          "shared": "vh_ctr_blau_seite"
+        }
+      },
+      "bytes": 55315,
+      "gpu": {
+        "desktop": 2097153,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#6a3a32",
+    "avgRoughness": 0.6,
+    "avgMetalness": 0.4,
+    "avgAO": 0.735,
+    "coverage": 1
+  }
+}

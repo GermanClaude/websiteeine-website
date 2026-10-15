@@ -12,15 +12,16 @@ export const MAPS = {
     id: 'hafen',
     name: 'Hafen',
     subtitle: 'Containerterminal Nordkai',
-    description: 'Klares Nachmittagslicht liegt über dem Nordkai, leichter Dunst zieht vom Wasser herein. Zwischen gestapelten Containern, dem Portalkran „Grete“ und der offenen Lagerhalle 3 entscheidet jeder Meter: lange Sichtlinien an der Kaikante, enge Schluchten im Containerlabyrinth und Nahkampf zwischen Hochregalen. Wer die Containerdächer hält, hält das Terminal.',
-    short: 'Containerlabyrinth, Portalkran und Lagerhalle bei klarem Nachmittagslicht.',
+    description: 'Eine graue Wolkendecke liegt über dem Nordkai, Dunst zieht vom Wasser herein. Zwischen gestapelten Containern, dem Portalkran „Grete“ und der offenen Lagerhalle 3 entscheidet jeder Meter: lange Sichtlinien an der Kaikante, enge Schluchten im Containerlabyrinth und Nahkampf zwischen Hochregalen. Wer die Containerdächer hält, hält das Terminal.',
+    short: 'Containerlabyrinth, Portalkran und Lagerhalle unter grauem Himmel.',
     size: 'mittel',
     dimensions: { x: 120, z: 104 },
     timeOfDay: 'Nachmittag',
-    weather: 'Klar, leichter Dunst',
+    weather: 'Bewölkt, weiches Licht',
     // atmosphere-weather: wählbares Wetter (ohne Niederschlag) + Tageszeiten; Standard = Kartenwetter/-zeit (unverändert)
     // Grafik-Vorlage (15.10.): Kartenzeit Nachmittag wie im Video; die frühere Goldene Stunde ist die Zeit „Abend“
-    weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'klar',
+    // 15.10. abends: „Standard“ = bewölkt wie das Video (weatherStandard); Bezugswetter der Kartenbeleuchtung bleibt klar
+    weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'klar', weatherStandard: 'bewoelkt',
     timeDefault: 'nachmittag', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'mittag', name: 'Mittag' }, { id: 'abend', name: 'Abend' }],
     modes: ['tdm', 'ult', 'ffa', 'dom', 'gun', 'kc', 'inf', 'messer'],
     palette: ['#f2a65a', '#c8402f', '#2d5f94', '#1f4a57', '#3b3f44'],

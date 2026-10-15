@@ -20,7 +20,10 @@ const ids = args._.length ? args._ : src.textures.map((t) => t.id);
 // Rezept = nur verarbeitungsrelevante Felder (Metadaten wie sizeM/replaces ändern keine Dateien)
 // Prozedurale Sätze (source 'procedural', Grafik-Vorlage): Generatorquelltext gehört zum Rezept → Änderung baut neu
 const GEN_HASH = hash(readFileSync(new URL('./lib/vorlage-gen.mjs', import.meta.url), 'utf8'));
-const recipe = (e) => hash({ v: PIPELINE_VERSION, s: e.source, sid: e.sourceId, tiers: e.tiers, recolor: e.recolor || null, alpha: !!e.alpha, base: e.base || null, profiles: 'k5', yflip: 1, gen: e.source === 'procedural' ? GEN_HASH : null });
+// Video-Sätze: Quell-PNGs gehören zum Rezept (neu herausgelöst → neu gebaut)
+const videoDir = (e) => new URL(`./video-src/${e.sourceId}/`, import.meta.url).pathname;
+const videoHash = (e) => hash(['albedo', 'normal', 'orm'].map((k) => { const f = join(videoDir(e), `${k}.png`); return existsSync(f) ? hash(readFileSync(f)) : ''; }).join('|'));
+const recipe = (e) => hash({ v: PIPELINE_VERSION, s: e.source, sid: e.sourceId, tiers: e.tiers, recolor: e.recolor || null, alpha: !!e.alpha, base: e.base || null, share: e.share || null, profiles: 'k5', yflip: 1, gen: e.source === 'procedural' ? GEN_HASH : e.source === 'video' ? videoHash(e) : null });
 
 // ---------------------------------------------------------------------------------------------
 // Prozedurale Tarnmuster (kachelbar): periodisches Value-Noise mit Domain-Warping
@@ -133,6 +136,31 @@ async function buildSet(e) {
       };
       meta.tiers[tier] = files;
       if (tier === 512) meta.stats = stats(set.albedo, set.orm);
+    }
+  } else if (e.source === 'video') {
+    // Video-Vorlage (tools/assets/video_tex.py → video_material.py): PNG-Satz je Material; Umfärbungen teilen sich
+    // Normalen/ORM mit ihrem Grundsatz (share)
+    const dir = videoDir(e);
+    const baseMeta = e.share ? readJSON(join(META, 'textures', `${e.share}.json`), null) : null;
+    if (e.share && !baseMeta) throw new Error(`${e.id}: Grundsatz ${e.share} zuerst bauen`);
+    for (const tier of e.tiers) {
+      const albedo = await loadRGBA(join(dir, 'albedo.png'), tier);
+      for (let i = 3; i < albedo.data.length; i += 4) albedo.data[i] = 255;
+      const files = { albedo: await writeKTX(join(outDir, `${e.id}_${tier}_albedo.ktx2`), albedo, 'albedo', tier) };
+      let orm = null;
+      if (baseMeta) {
+        const bt = baseMeta.tiers[tier];
+        files.normal = { ...bt.files.normal, shared: e.share };
+        files.orm = { ...bt.files.orm, shared: e.share };
+      } else {
+        const normal = renormalize(await loadRGBA(join(dir, 'normal.png'), tier));
+        orm = await loadRGBA(join(dir, 'orm.png'), tier);
+        for (let i = 3; i < orm.data.length; i += 4) orm.data[i] = 255;
+        files.normal = await writeKTX(join(outDir, `${e.id}_${tier}_normal.ktx2`), normal, 'normal', tier);
+        files.orm = await writeKTX(join(outDir, `${e.id}_${tier}_orm.ktx2`), orm, 'orm', tier);
+      }
+      meta.tiers[tier] = files;
+      if (tier === 512) meta.stats = baseMeta ? { ...stats(albedo, null), avgRoughness: baseMeta.stats.avgRoughness, avgMetalness: baseMeta.stats.avgMetalness, avgAO: baseMeta.stats.avgAO } : stats(albedo, orm);
     }
   } else if (e.source === 'derived') {
     const base = byId[e.base];

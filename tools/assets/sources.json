@@ -1687,6 +1687,277 @@
     3,
     3
    ]
+  },
+  {
+   "id": "vh_wand",
+   "source": "video",
+   "sourceId": "vh_wand",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024,
+    2048
+   ],
+   "name": "Hallen-Wellblech (Video, Hafen)",
+   "sizeM": [
+    2.875,
+    2.875
+   ]
+  },
+  {
+   "id": "vh_ctr_blau_seite",
+   "source": "video",
+   "sourceId": "vh_ctr_blau_seite",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Container blau, Seite (Video)",
+   "sizeM": [
+    1.05,
+    1.05
+   ]
+  },
+  {
+   "id": "vh_ctr_rost_tuer",
+   "source": "video",
+   "sourceId": "vh_ctr_rost_tuer",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Container rostrot, Türseite (Video)",
+   "sizeM": [
+    2.44,
+    2.44
+   ]
+  },
+  {
+   "id": "vh_ctr_rost_seite",
+   "source": "video",
+   "sourceId": "vh_ctr_rost_seite",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Container rostrot, Seite (Video)",
+   "sizeM": [
+    1.05,
+    1.05
+   ],
+   "share": "vh_ctr_blau_seite"
+  },
+  {
+   "id": "vh_ctr_rot_seite",
+   "source": "video",
+   "sourceId": "vh_ctr_rot_seite",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Container rotbraun, Seite (Video)",
+   "sizeM": [
+    1.05,
+    1.05
+   ],
+   "share": "vh_ctr_blau_seite"
+  },
+  {
+   "id": "vh_ctr_gruen_seite",
+   "source": "video",
+   "sourceId": "vh_ctr_gruen_seite",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Container oliv, Seite (Video)",
+   "sizeM": [
+    1.05,
+    1.05
+   ],
+   "share": "vh_ctr_blau_seite"
+  },
+  {
+   "id": "vh_ctr_grau_seite",
+   "source": "video",
+   "sourceId": "vh_ctr_grau_seite",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Container grauweiß, Seite (Video)",
+   "sizeM": [
+    1.05,
+    1.05
+   ],
+   "share": "vh_ctr_blau_seite"
+  },
+  {
+   "id": "vh_ctr_blau_tuer",
+   "source": "video",
+   "sourceId": "vh_ctr_blau_tuer",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Container blau, Türseite (Video)",
+   "sizeM": [
+    2.44,
+    2.44
+   ],
+   "share": "vh_ctr_rost_tuer"
+  },
+  {
+   "id": "vh_ctr_rot_tuer",
+   "source": "video",
+   "sourceId": "vh_ctr_rot_tuer",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Container rotbraun, Türseite (Video)",
+   "sizeM": [
+    2.44,
+    2.44
+   ],
+   "share": "vh_ctr_rost_tuer"
+  },
+  {
+   "id": "vh_ctr_gruen_tuer",
+   "source": "video",
+   "sourceId": "vh_ctr_gruen_tuer",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Container oliv, Türseite (Video)",
+   "sizeM": [
+    2.44,
+    2.44
+   ],
+   "share": "vh_ctr_rost_tuer"
+  },
+  {
+   "id": "vh_ctr_grau_tuer",
+   "source": "video",
+   "sourceId": "vh_ctr_grau_tuer",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Container grauweiß, Türseite (Video)",
+   "sizeM": [
+    2.44,
+    2.44
+   ],
+   "share": "vh_ctr_rost_tuer"
+  },
+  {
+   "id": "vh_kai",
+   "source": "video",
+   "sourceId": "vh_kai",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "concrete",
+   "surface": "concrete",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024,
+    2048
+   ],
+   "name": "Rissbeton Kai (Video, Hafen)",
+   "sizeM": [
+    4,
+    4
+   ]
+  },
+  {
+   "id": "vp_pflaster",
+   "source": "video",
+   "sourceId": "vp_pflaster",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "masonry",
+   "surface": "concrete",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024,
+    2048
+   ],
+   "name": "Kopfsteinpflaster Dorfplatz (Video, Platz)",
+   "sizeM": [
+    3.24,
+    3.24
+   ]
   }
  ],
  "hdris": [

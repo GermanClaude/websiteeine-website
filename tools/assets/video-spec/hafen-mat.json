@@ -1,0 +1,313 @@
+[
+ {
+  "id": "vh_kai",
+  "src": "h_boden_kai",
+  "size": [
+   4,
+   4
+  ],
+  "srcPpm": 120,
+  "mode": "cracks",
+  "delight": 1.2,
+  "shadow": true,
+  "out": 1024,
+  "normal": 1.4,
+  "rough": [
+   0.86,
+   0.06
+  ],
+  "color": "#646b6b",
+  "crackCopies": [
+   [
+    0,
+    0.0,
+    0.0
+   ],
+   [
+    1,
+    0.25,
+    0.7
+   ]
+  ],
+  "seed": 5,
+  "crackKernel": 11,
+  "crackThresh": 0.045,
+  "crackWidth": 12,
+  "mottle": 0.22,
+  "crackDark": 0.6
+ },
+ {
+  "id": "vh_wand",
+  "src": "h_wand_halle",
+  "crop": [
+   0,
+   60,
+   165,
+   520
+  ],
+  "size": [
+   1.031,
+   2.875
+  ],
+  "mode": "ribs-x",
+  "rib": {
+   "depth": 1.0,
+   "keep": 0.4
+  },
+  "delight": 0.5,
+  "out": 1024,
+  "normal": 2.0,
+  "rough": [
+   0.55,
+   0.1
+  ],
+  "metal": 0.6,
+  "square": false,
+  "hreps": 3,
+  "panel": true,
+  "srcPpm": 160
+ },
+ {
+  "id": "vh_ctr_rost_tuer",
+  "src": "h_ctr_rost_tuer",
+  "size": [
+   2.44,
+   2.59
+  ],
+  "mode": "fit",
+  "delight": 0,
+  "out": 1024,
+  "normal": 2.5,
+  "rough": [
+   0.6,
+   0.15
+  ],
+  "metal": 0.4
+ },
+ {
+  "id": "vh_ctr_blau_seite",
+  "src": "h_ctr_blau_stirn",
+  "crop": [
+   160,
+   120,
+   370,
+   640
+  ],
+  "size": [
+   0.7,
+   1.733
+  ],
+  "srcPpm": 300,
+  "mode": "ribs-x",
+  "rib": {
+   "depth": 1.2,
+   "keep": 0.55
+  },
+  "hreps": 2,
+  "panel": true,
+  "delight": 0.3,
+  "out": 1024,
+  "normal": 2.2,
+  "rough": [
+   0.6,
+   0.15
+  ],
+  "metal": 0.4
+ },
+ {
+  "id": "vh_ctr_blau_tuer",
+  "src": "h_ctr_rost_tuer",
+  "size": [
+   2.44,
+   2.59
+  ],
+  "mode": "fit",
+  "delight": 0,
+  "out": 1024,
+  "normal": 2.5,
+  "rough": [
+   0.6,
+   0.15
+  ],
+  "metal": 0.4,
+  "recolor": "#516466"
+ },
+ {
+  "id": "vh_ctr_rost_seite",
+  "src": "h_ctr_blau_stirn",
+  "crop": [
+   160,
+   120,
+   370,
+   640
+  ],
+  "size": [
+   0.7,
+   1.733
+  ],
+  "srcPpm": 300,
+  "mode": "ribs-x",
+  "rib": {
+   "depth": 1.2,
+   "keep": 0.55
+  },
+  "hreps": 2,
+  "panel": true,
+  "delight": 0.3,
+  "out": 1024,
+  "normal": 2.2,
+  "rough": [
+   0.6,
+   0.15
+  ],
+  "metal": 0.4,
+  "recolor": "#8e6a51"
+ },
+ {
+  "id": "vh_ctr_rot_tuer",
+  "src": "h_ctr_rost_tuer",
+  "size": [
+   2.44,
+   2.59
+  ],
+  "mode": "fit",
+  "delight": 0,
+  "out": 1024,
+  "normal": 2.5,
+  "rough": [
+   0.6,
+   0.15
+  ],
+  "metal": 0.4,
+  "recolor": "#6a3a32"
+ },
+ {
+  "id": "vh_ctr_rot_seite",
+  "src": "h_ctr_blau_stirn",
+  "crop": [
+   160,
+   120,
+   370,
+   640
+  ],
+  "size": [
+   0.7,
+   1.733
+  ],
+  "srcPpm": 300,
+  "mode": "ribs-x",
+  "rib": {
+   "depth": 1.2,
+   "keep": 0.55
+  },
+  "hreps": 2,
+  "panel": true,
+  "delight": 0.3,
+  "out": 1024,
+  "normal": 2.2,
+  "rough": [
+   0.6,
+   0.15
+  ],
+  "metal": 0.4,
+  "recolor": "#6a3a32"
+ },
+ {
+  "id": "vh_ctr_gruen_tuer",
+  "src": "h_ctr_rost_tuer",
+  "size": [
+   2.44,
+   2.59
+  ],
+  "mode": "fit",
+  "delight": 0,
+  "out": 1024,
+  "normal": 2.5,
+  "rough": [
+   0.6,
+   0.15
+  ],
+  "metal": 0.4,
+  "recolor": "#6e6a4a"
+ },
+ {
+  "id": "vh_ctr_gruen_seite",
+  "src": "h_ctr_blau_stirn",
+  "crop": [
+   160,
+   120,
+   370,
+   640
+  ],
+  "size": [
+   0.7,
+   1.733
+  ],
+  "srcPpm": 300,
+  "mode": "ribs-x",
+  "rib": {
+   "depth": 1.2,
+   "keep": 0.55
+  },
+  "hreps": 2,
+  "panel": true,
+  "delight": 0.3,
+  "out": 1024,
+  "normal": 2.2,
+  "rough": [
+   0.6,
+   0.15
+  ],
+  "metal": 0.4,
+  "recolor": "#6e6a4a"
+ },
+ {
+  "id": "vh_ctr_grau_tuer",
+  "src": "h_ctr_rost_tuer",
+  "size": [
+   2.44,
+   2.59
+  ],
+  "mode": "fit",
+  "delight": 0,
+  "out": 1024,
+  "normal": 2.5,
+  "rough": [
+   0.6,
+   0.15
+  ],
+  "metal": 0.4,
+  "recolor": "#b6af9b"
+ },
+ {
+  "id": "vh_ctr_grau_seite",
+  "src": "h_ctr_blau_stirn",
+  "crop": [
+   160,
+   120,
+   370,
+   640
+  ],
+  "size": [
+   0.7,
+   1.733
+  ],
+  "srcPpm": 300,
+  "mode": "ribs-x",
+  "rib": {
+   "depth": 1.2,
+   "keep": 0.55
+  },
+  "hreps": 2,
+  "panel": true,
+  "delight": 0.3,
+  "out": 1024,
+  "normal": 2.2,
+  "rough": [
+   0.6,
+   0.15
+  ],
+  "metal": 0.4,
+  "recolor": "#b6af9b"
+ }
+]

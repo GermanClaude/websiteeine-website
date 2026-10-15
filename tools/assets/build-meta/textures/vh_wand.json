@@ -1,0 +1,160 @@
+{
+  "id": "vh_wand",
+  "recipe": "81061bd4e55b",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/vh_wand/vh_wand_512_albedo.ktx2",
+          "bytes": 24716,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/vh_wand/vh_wand_512_normal.ktx2",
+          "bytes": 27661,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/vh_wand/vh_wand_512_orm.ktx2",
+          "bytes": 16147,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 68524,
+      "gpu": {
+        "desktop": 524289,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/vh_wand/vh_wand_1024_albedo.ktx2",
+          "bytes": 65461,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/vh_wand/vh_wand_1024_normal.ktx2",
+          "bytes": 98295,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/vh_wand/vh_wand_1024_orm.ktx2",
+          "bytes": 52433,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 216189,
+      "gpu": {
+        "desktop": 2097153,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    },
+    "2048": {
+      "files": {
+        "albedo": {
+          "path": "textures/vh_wand/vh_wand_2048_albedo.ktx2",
+          "bytes": 204424,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 2796203,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        "normal": {
+          "path": "textures/vh_wand/vh_wand_2048_normal.ktx2",
+          "bytes": 327236,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 2796203,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        "orm": {
+          "path": "textures/vh_wand/vh_wand_2048_orm.ktx2",
+          "bytes": 174120,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 2796203,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        }
+      },
+      "bytes": 705780,
+      "gpu": {
+        "desktop": 8388609,
+        "mobile": 8388609,
+        "rgba8": 67108863
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#4b544d",
+    "avgRoughness": 0.55,
+    "avgMetalness": 0.6,
+    "avgAO": 0.745,
+    "coverage": 1
+  }
+}
