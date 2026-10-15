@@ -1979,6 +1979,27 @@
     2.6,
     2.6
    ]
+  },
+  {
+   "id": "vw_blau",
+   "source": "video",
+   "sourceId": "vw_blau",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024,
+    2048
+   ],
+   "name": "Dunkelblaue Blechfassade (Video, Werk)",
+   "sizeM": [
+    3.2,
+    3.2
+   ]
   }
  ],
  "hdris": [

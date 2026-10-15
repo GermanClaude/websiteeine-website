@@ -15,7 +15,7 @@ export const VIEWS = {
   'hafen-halle':     ['hafen', 'bild-0_3s', 9.66, 1.7, -17.8, 190.2, 0, 50], // aus dem Videobild zurückgerechnet (Fluchtpunkt + Torkanten)
   'hafen-container': ['hafen', 'bild-2_0s', -20.4, 1.7, 30.2, 0, 1, 50],  // Containergasse, Portalkran links (15.10. aus dem Container heraus)
   'werk-halle':      ['werk', 'bild-3_5s', 0, 6.9, -1, 140, -6, 55],    // Walzhalle von der Querbrücke, Fensterband rechts (15.10.)
-  'werk-gasse':      ['werk', 'bild-6_5s', 26, 1.7, 22, 0, 2, 55],      // Gasse zwischen Halle und Kesselhaus
+  'werk-gasse':      ['werk', 'bild-6_5s', 26.6, 1.9, 17, 0, 2, 55],    // Gasse zwischen Halle (Ziegel) und Kesselhaus (blaue Blechfassade)
   // Video-Platz = Dorfplatz im Grenzland (Nutzer 15.10.: leerer Platz, kein Altstadt-Markt); y als 'g+…' = über Grund
   'grenzland-platz': ['grenzland', 'bild-7_8s', 2, 'g+2.2', 70, 112, -3, 50], // Kopfsteinplatz mit Marktständen und Häusern
   // Nutzer 15.10.: Video-Blick vermutlich von der Kirche aus (Kirche rechts außerhalb des Bildes) über den Platz

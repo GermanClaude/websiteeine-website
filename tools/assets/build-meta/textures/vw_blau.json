@@ -1,0 +1,160 @@
+{
+  "id": "vw_blau",
+  "recipe": "3460e175ced3",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/vw_blau/vw_blau_512_albedo.ktx2",
+          "bytes": 16419,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/vw_blau/vw_blau_512_normal.ktx2",
+          "bytes": 4884,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/vw_blau/vw_blau_512_orm.ktx2",
+          "bytes": 4237,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 25540,
+      "gpu": {
+        "desktop": 524289,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/vw_blau/vw_blau_1024_albedo.ktx2",
+          "bytes": 46044,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/vw_blau/vw_blau_1024_normal.ktx2",
+          "bytes": 15878,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/vw_blau/vw_blau_1024_orm.ktx2",
+          "bytes": 12749,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 74671,
+      "gpu": {
+        "desktop": 2097153,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    },
+    "2048": {
+      "files": {
+        "albedo": {
+          "path": "textures/vw_blau/vw_blau_2048_albedo.ktx2",
+          "bytes": 133286,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 2796203,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        "normal": {
+          "path": "textures/vw_blau/vw_blau_2048_normal.ktx2",
+          "bytes": 50989,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 2796203,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        "orm": {
+          "path": "textures/vw_blau/vw_blau_2048_orm.ktx2",
+          "bytes": 28221,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 2796203,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        }
+      },
+      "bytes": 212496,
+      "gpu": {
+        "desktop": 8388609,
+        "mobile": 8388609,
+        "rgba8": 67108863
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#263642",
+    "avgRoughness": 0.55,
+    "avgMetalness": 0.298,
+    "avgAO": 0.999,
+    "coverage": 1
+  }
+}

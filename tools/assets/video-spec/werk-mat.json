@@ -36,5 +36,34 @@
   "ao": 1.0,
   "seed": 3,
   "color": "#7a3a2a"
+ },
+ {
+  "id": "vw_blau",
+  "src": "w_blau_gasse",
+  "crop": [
+   0,
+   30,
+   384,
+   414
+  ],
+  "size": [
+   3.2,
+   3.2
+  ],
+  "srcPpm": 120,
+  "mode": "random",
+  "overlap": 0.2,
+  "delight": 0.35,
+  "out": 1024,
+  "albedo": 0.035,
+  "sharpen": 0.3,
+  "height": 0.4,
+  "normal": 0.8,
+  "rough": [
+   0.55,
+   0.08
+  ],
+  "metal": 0.3,
+  "ao": 0.3
  }
 ]

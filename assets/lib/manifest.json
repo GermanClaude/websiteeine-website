@@ -2,7 +2,7 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-15T20:16:14.581Z",
+ "generated": "2026-10-15T20:24:31.708Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
@@ -9543,6 +9543,134 @@
    "url": "",
    "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
    "maps": []
+  },
+  "vw_blau": {
+   "type": "texture",
+   "name": "Dunkelblaue Blechfassade (Video, Werk)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "sizeM": [
+    3.2,
+    3.2
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#263642",
+    "avgRoughness": 0.55,
+    "avgMetalness": 0.298,
+    "avgAO": 0.999,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vw_blau/vw_blau_512_albedo.ktx2",
+     "normal": "textures/vw_blau/vw_blau_512_normal.ktx2",
+     "orm": "textures/vw_blau/vw_blau_512_orm.ktx2",
+     "sizes": {
+      "albedo": 16419,
+      "normal": 4884,
+      "orm": 4237
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 25540,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/vw_blau/vw_blau_1024_albedo.ktx2",
+     "normal": "textures/vw_blau/vw_blau_1024_normal.ktx2",
+     "orm": "textures/vw_blau/vw_blau_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 46044,
+      "normal": 15878,
+      "orm": 12749
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 74671,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "2048": {
+     "albedo": "textures/vw_blau/vw_blau_2048_albedo.ktx2",
+     "normal": "textures/vw_blau/vw_blau_2048_normal.ktx2",
+     "orm": "textures/vw_blau/vw_blau_2048_orm.ktx2",
+     "sizes": {
+      "albedo": 133286,
+      "normal": 50989,
+      "orm": 28221
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "normal": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "orm": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      }
+     },
+     "bytes": 212496,
+     "gpu": {
+      "desktop": 8388609,
+      "mobile": 8388609,
+      "rgba8": 67108863
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vw_blau",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
   }
  },
  "hdris": {
@@ -15413,8 +15541,8 @@
  },
  "totals": {
   "textures": {
-   "files": 550,
-   "bytes": 73863260
+   "files": 559,
+   "bytes": 74175967
   },
   "hdri": {
    "files": 32,
@@ -15425,16 +15553,16 @@
    "bytes": 53609888
   },
   "all": {
-   "files": 693,
-   "bytes": 146682851
+   "files": 702,
+   "bytes": 146995558
   },
   "byTier": {
-   "512": 28510971,
-   "1024": 85548500,
-   "2048": 32623380
+   "512": 28536511,
+   "1024": 85623171,
+   "2048": 32835876
   },
   "counts": {
-   "textures": 90,
+   "textures": 91,
    "hdris": 8,
    "models": 57
   }

@@ -33,7 +33,8 @@ export default {
   // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
   // Grafik-Vorlage Etappe 0 (15.10.): Tag wie im Video (Halle mit hellen Fensterbahnen, Gasse mit klarem Himmel) statt
   // Dämmerung; HDRI zwartkops (klarer Tag) nur als Umgebungslicht, Himmel prozedural mit lockeren Wolken
-  assets: { hdri: 'zwartkops_straight_morning' },
+  // Grafik-Vorlage 15.10.: Boden = dunkler Beton aus dem Video (wie Hafen, Gasse und Hallenboden im Video ähnlich)
+  assets: { hdri: 'zwartkops_straight_morning', materials: { concrete: { id: 'vh_kai', color: 0.42, macro: [0.12, 0.06, 0.1] } } },
   defaultSurface: 'concrete',
   navSpacing: 1.5,
   groundNoise: 0.22,
@@ -673,7 +674,8 @@ function boilerHouse(b) {
   const x0 = 30, x1 = 44, z0 = -12, z1 = 12, fh = 5.0;
   const hole = { floor: 1, x0: 32.4, z0: -9.6, x1: 41.6, z1: 9.6 };
   const B = building(b, {
-    x: (x0 + x1) / 2, z: 0, w: x1 - x0, d: z1 - z0, floors: 2, fh, mat: 'brick', tint: '#d2c2b4', t: 0.4,
+    // Grafik-Vorlage 15.10.: dunkelblaue Blechfassade wie die rechte Wand der Video-Gasse (vorher Ziegel)
+    x: (x0 + x1) / 2, z: 0, w: x1 - x0, d: z1 - z0, floors: 2, fh, mat: 'metal_navy', t: 0.4,
     floorMat: 'concrete', slabMat: 'concrete', upperFloorMat: 'metal_tread', floorTint: '#8a8680', frameMat: 'metal_painted', frameTint: '#2f3438',
     plinth: { h: 0.8, mat: 'concrete', tint: '#8a8680' }, band: { mat: 'concrete', tint: '#8a8680' }, interiorFactor: 0.5,
     holes: [hole],
@@ -917,7 +919,8 @@ function half(b, M, ctx) {
   // Umspannanlage
   substation(b, 26.5, Z(26.0), s);
   // Rohrtrasse: Deckung darunter
-  crateStack(b, 25.6, Z(13.5), { ry: 0.2, pattern: [[0, 0, 0, 1.0], [1.05, 0, 0, 1.0], [0.5, 1, 0, 0.9]] });
+  // 15.10.: an die Hallenwand gerückt (Video-Gasse frei)
+  crateStack(b, 23.5, Z(13.5), { ry: Math.PI / 2 + 0.05, pattern: [[0, 0, 0, 1.0], [1.05, 0, 0, 1.0], [0.5, 1, 0, 0.9]] });
   barrelGroup(b, 27.8, Z(6.0), { n: 3, colors: ['#3a4a5a', '#3a4a5a', '#c8402f'] });
   valveStation(b, 25.2, Z(19.5), s);
   electricBox(b, 29.6, 0, Z(15.6), { ry: -Math.PI / 2, w: 1.2, h: 1.8, d: 0.6, tint: '#7a8a80' });

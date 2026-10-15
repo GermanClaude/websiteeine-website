@@ -60,6 +60,7 @@ export const LIB_MATERIALS = {
   metal_corrugated: { id: 'vh_wand', color: 1.55, normalScale: 0.55 }, // 15.10.: Rippenkontrast wie im Video (gemessen: Std. 6,5 statt 19) // Grafik-Vorlage 15.10.: Hallen-Wellblech 1:1 aus dem Video (vorher v_cladding)
   metal_corrugated_rust: { id: 'metal_corrugated_rusty', color: 1.6 },
   metal_cladding: { id: 'metal_cladding_green', color: 1.0 },
+  metal_navy: { id: 'vw_blau', color: 1.0 }, // Grafik-Vorlage 15.10.: dunkelblaue Blechfassade 1:1 aus dem Video (Werkgasse)
   metal_shutter: { id: 'metal_shutter', color: 1.0 },
   metal_galvanized: { id: 'metal_galvanized', color: 1.1, macro: [0.08, 0.06, 0.1] },
   metal_tread: { id: 'metal_tread', color: 2.4 },
@@ -123,7 +124,7 @@ export const LIB_LOOK = {
   tiles: LOOK_MASONRY, tiles_terracotta: LOOK_MASONRY,
   ctr_blau: LOOK_METAL, ctr_rost: LOOK_METAL, ctr_rot: LOOK_METAL, ctr_gruen: LOOK_METAL, ctr_grau: LOOK_METAL,
   container: LOOK_METAL, container_red: LOOK_METAL, container_blue: LOOK_METAL, container_green: LOOK_METAL, container_orange: LOOK_METAL, container_gray: LOOK_METAL,
-  metal_corrugated: LOOK_METAL, metal_corrugated_rust: LOOK_METAL, metal_cladding: LOOK_METAL, metal_shutter: LOOK_METAL,
+  metal_corrugated: LOOK_METAL, metal_corrugated_rust: LOOK_METAL, metal_cladding: LOOK_METAL, metal_navy: LOOK_METAL, metal_shutter: LOOK_METAL,
   metal_painted: LOOK_METAL, metal_rust: { ...LOOK_METAL, detail: 0.16, anti: 0.35 }, metal_galvanized: LOOK_METAL,
   wood_planks: LOOK_WOOD, wood_dark: LOOK_WOOD, wood_weathered: LOOK_WOOD, wood_peeling: LOOK_WOOD, wood_floor: LOOK_WOOD,
   wood_crate: { ...LOOK_WOOD, detail: 0.14, ds: 2.6 }, // LV-7: Maserung/Dellen in der Nähe
