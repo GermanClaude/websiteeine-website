@@ -26,7 +26,7 @@ export const DEFAULTS = Object.freeze({
   weaponObstruction: 'overlay',
   // Bild: Objektiv, Farbe, Belichtung, Hochskalierung (Realismus-Plan R2/R3/R4/R12; core-render)
   // Standard = Vorlage „Realistisch“ (dezentes Objektiv); kräftiges Fischauge nur über die Vorlage „Bodycam“
-  lensStyle: 'bodycam', lensStrength: 0.15, grain: 0.2, lensArtifacts: 0.05, lensBorder: false,
+  colorLook: 'natuerlich', lensStyle: 'bodycam', lensStrength: 0.15, grain: 0.2, lensArtifacts: 0.05, lensBorder: false,
   autoExposure: true, sharpness: 0.5, upscaler: 'fsr',
   // Klang (Realismus-Plan A1/A6/A8; audio)
   audioMix: 'auto', hearingProtection: false, audioRecordings: true,
@@ -150,6 +150,10 @@ export const SETTINGS_SCHEMA = Object.freeze({
     labels: { overlay: 'Ruhig (Standard)', raise: 'Hochnehmen', tuck: 'An den Körper ziehen', clip: 'Keine Anpassung' },
   },
   // Bild (core-render; Bedeutung im Changelog „core-render“)
+  colorLook: {
+    type: 'enum', label: 'Farbstimmung', group: 'grafik',
+    options: ['natuerlich', 'video'], labels: { natuerlich: 'Natürlich', video: 'Video-Look (grau, wie die Vorlage)' },
+  },
   lensStyle: {
     type: 'enum', label: 'Bildstil', group: 'grafik',
     options: ['bodycam', 'klassisch', 'aus'], labels: { bodycam: 'Bodycam', klassisch: 'Klassisch', aus: 'Aus (klares Bild)' },

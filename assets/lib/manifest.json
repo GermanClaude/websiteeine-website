@@ -2,7 +2,7 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-05T16:51:57.899Z",
+ "generated": "2026-10-15T16:56:36.859Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
@@ -35,9 +35,7 @@
    "name": "Concrete Floor Worn 001",
    "category": "concrete",
    "surface": "concrete",
-   "replaces": [
-    "concrete"
-   ],
+   "replaces": [],
    "sizeM": [
     3,
     3
@@ -1679,9 +1677,7 @@
    "name": "Factory Brick",
    "category": "masonry",
    "surface": "concrete",
-   "replaces": [
-    "brick"
-   ],
+   "replaces": [],
    "sizeM": [
     1.5,
     1.5
@@ -4850,9 +4846,7 @@
    "name": "Corrugated Iron 02",
    "category": "metal",
    "surface": "metal",
-   "replaces": [
-    "metal_corrugated"
-   ],
+   "replaces": [],
    "sizeM": [
     2.7,
     2.7
@@ -5743,14 +5737,7 @@
    "name": "Container Side",
    "category": "metal",
    "surface": "metal",
-   "replaces": [
-    "container",
-    "container_red",
-    "container_blue",
-    "container_green",
-    "container_orange",
-    "container_gray"
-   ],
+   "replaces": [],
    "sizeM": [
     1.94,
     1.94
@@ -7188,6 +7175,531 @@
     "altstadt",
     "ausruestung"
    ]
+  },
+  "v_container": {
+   "type": "texture",
+   "name": "Containerwand (Video-Vorlage)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [
+    "container",
+    "container_red",
+    "container_blue",
+    "container_green",
+    "container_orange",
+    "container_gray"
+   ],
+   "sizeM": [
+    2.24,
+    2.24
+   ],
+   "tintable": true,
+   "alpha": false,
+   "hero": true,
+   "stats": {
+    "avgColor": "#c0beb9",
+    "avgRoughness": 0.532,
+    "avgMetalness": 0,
+    "avgAO": 0.882,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/v_container/v_container_512_albedo.ktx2",
+     "normal": "textures/v_container/v_container_512_normal.ktx2",
+     "orm": "textures/v_container/v_container_512_orm.ktx2",
+     "sizes": {
+      "albedo": 28777,
+      "normal": 14218,
+      "orm": 17507
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 60502,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/v_container/v_container_1024_albedo.ktx2",
+     "normal": "textures/v_container/v_container_1024_normal.ktx2",
+     "orm": "textures/v_container/v_container_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 80294,
+      "normal": 36674,
+      "orm": 58428
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 175396,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "2048": {
+     "albedo": "textures/v_container/v_container_2048_albedo.ktx2",
+     "normal": "textures/v_container/v_container_2048_normal.ktx2",
+     "orm": "textures/v_container/v_container_2048_orm.ktx2",
+     "sizes": {
+      "albedo": 223943,
+      "normal": 99226,
+      "orm": 181178
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "normal": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "orm": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      }
+     },
+     "bytes": 504347,
+     "gpu": {
+      "desktop": 8388609,
+      "mobile": 8388609,
+      "rgba8": 67108863
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "procedural",
+   "sourceId": "container",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "maps": []
+  },
+  "v_concrete_slab": {
+   "type": "texture",
+   "name": "Kaibeton mit Fugen (Video-Vorlage)",
+   "category": "concrete",
+   "surface": "concrete",
+   "replaces": [
+    "concrete"
+   ],
+   "sizeM": [
+    6,
+    6
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": true,
+   "stats": {
+    "avgColor": "#9e9a92",
+    "avgRoughness": 0.9,
+    "avgMetalness": 0,
+    "avgAO": 0.975,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/v_concrete_slab/v_concrete_slab_512_albedo.ktx2",
+     "normal": "textures/v_concrete_slab/v_concrete_slab_512_normal.ktx2",
+     "orm": "textures/v_concrete_slab/v_concrete_slab_512_orm.ktx2",
+     "sizes": {
+      "albedo": 41423,
+      "normal": 16982,
+      "orm": 29166
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 87571,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/v_concrete_slab/v_concrete_slab_1024_albedo.ktx2",
+     "normal": "textures/v_concrete_slab/v_concrete_slab_1024_normal.ktx2",
+     "orm": "textures/v_concrete_slab/v_concrete_slab_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 131495,
+      "normal": 113786,
+      "orm": 103541
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 348822,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "2048": {
+     "albedo": "textures/v_concrete_slab/v_concrete_slab_2048_albedo.ktx2",
+     "normal": "textures/v_concrete_slab/v_concrete_slab_2048_normal.ktx2",
+     "orm": "textures/v_concrete_slab/v_concrete_slab_2048_orm.ktx2",
+     "sizes": {
+      "albedo": 359491,
+      "normal": 439352,
+      "orm": 339931
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "normal": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "orm": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      }
+     },
+     "bytes": 1138774,
+     "gpu": {
+      "desktop": 8388609,
+      "mobile": 8388609,
+      "rgba8": 67108863
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "procedural",
+   "sourceId": "concrete_slab",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "maps": []
+  },
+  "v_cladding": {
+   "type": "texture",
+   "name": "Trapezblech (Video-Vorlage)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [
+    "metal_corrugated"
+   ],
+   "sizeM": [
+    2.7,
+    2.7
+   ],
+   "tintable": true,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#babeba",
+    "avgRoughness": 0.517,
+    "avgMetalness": 0,
+    "avgAO": 0.865,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/v_cladding/v_cladding_512_albedo.ktx2",
+     "normal": "textures/v_cladding/v_cladding_512_normal.ktx2",
+     "orm": "textures/v_cladding/v_cladding_512_orm.ktx2",
+     "sizes": {
+      "albedo": 29607,
+      "normal": 20505,
+      "orm": 19342
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 69454,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/v_cladding/v_cladding_1024_albedo.ktx2",
+     "normal": "textures/v_cladding/v_cladding_1024_normal.ktx2",
+     "orm": "textures/v_cladding/v_cladding_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 85139,
+      "normal": 66155,
+      "orm": 58466
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 209760,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "2048": {
+     "albedo": "textures/v_cladding/v_cladding_2048_albedo.ktx2",
+     "normal": "textures/v_cladding/v_cladding_2048_normal.ktx2",
+     "orm": "textures/v_cladding/v_cladding_2048_orm.ktx2",
+     "sizes": {
+      "albedo": 242359,
+      "normal": 191397,
+      "orm": 178608
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "normal": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "orm": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      }
+     },
+     "bytes": 612364,
+     "gpu": {
+      "desktop": 8388609,
+      "mobile": 8388609,
+      "rgba8": 67108863
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "procedural",
+   "sourceId": "cladding",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "maps": []
+  },
+  "v_brick": {
+   "type": "texture",
+   "name": "Ziegelwand (Video-Vorlage)",
+   "category": "masonry",
+   "surface": "concrete",
+   "replaces": [
+    "brick"
+   ],
+   "sizeM": [
+    1.5,
+    1.5
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": true,
+   "stats": {
+    "avgColor": "#855749",
+    "avgRoughness": 0.851,
+    "avgMetalness": 0,
+    "avgAO": 0.845,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/v_brick/v_brick_512_albedo.ktx2",
+     "normal": "textures/v_brick/v_brick_512_normal.ktx2",
+     "orm": "textures/v_brick/v_brick_512_orm.ktx2",
+     "sizes": {
+      "albedo": 41981,
+      "normal": 52400,
+      "orm": 21395
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 115776,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/v_brick/v_brick_1024_albedo.ktx2",
+     "normal": "textures/v_brick/v_brick_1024_normal.ktx2",
+     "orm": "textures/v_brick/v_brick_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 116528,
+      "normal": 195385,
+      "orm": 63468
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 375381,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "2048": {
+     "albedo": "textures/v_brick/v_brick_2048_albedo.ktx2",
+     "normal": "textures/v_brick/v_brick_2048_normal.ktx2",
+     "orm": "textures/v_brick/v_brick_2048_orm.ktx2",
+     "sizes": {
+      "albedo": 357696,
+      "normal": 678239,
+      "orm": 202459
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "normal": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "orm": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      }
+     },
+     "bytes": 1238394,
+     "gpu": {
+      "desktop": 8388609,
+      "mobile": 8388609,
+      "rgba8": 67108863
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "procedural",
+   "sourceId": "brick",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "maps": []
   }
  },
  "hdris": {
@@ -13058,8 +13570,8 @@
  },
  "totals": {
   "textures": {
-   "files": 429,
-   "bytes": 58050091
+   "files": 465,
+   "bytes": 62986632
   },
   "hdri": {
    "files": 32,
@@ -13070,16 +13582,16 @@
    "bytes": 53609888
   },
   "all": {
-   "files": 572,
-   "bytes": 130869682
+   "files": 608,
+   "bytes": 135806223
   },
   "byTier": {
-   "512": 26900808,
-   "1024": 80572202,
-   "2048": 23396672
+   "512": 27234111,
+   "1024": 81681561,
+   "2048": 26890551
   },
   "counts": {
-   "textures": 69,
+   "textures": 73,
    "hdris": 8,
    "models": 57
   }

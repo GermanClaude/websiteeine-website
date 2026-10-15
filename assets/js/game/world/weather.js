@@ -209,9 +209,10 @@ export function applyConditions(def, cond, mapId) {
   if (tTemp != null || Object.keys(wl).length) {
     g.lut = { ...(def.grade?.lut || {}) };
     if (tTemp != null || wl.temperature) g.lut.temperature = (tTemp ?? baseLut.temperature ?? 0) + (wl.temperature || 0);
-    if (wl.contrast) g.lut.contrast = Math.max(1, (baseLut.contrast ?? 1.08) + wl.contrast);
-    if (wl.saturation) g.lut.saturation = (baseLut.saturation ?? 1) * wl.saturation;
-    if (wl.blackLevel) g.lut.blackLevel = (baseLut.blackLevel ?? 0.012) + wl.blackLevel;
+    // relativ (grade.js resolveMood rechnet sie auf die gewählte Farbstimmung um)
+    if (wl.contrast) g.lut.contrastAdd = wl.contrast;
+    if (wl.saturation) g.lut.satMul = wl.saturation;
+    if (wl.blackLevel) g.lut.blackAdd = wl.blackLevel;
   }
   const ex = { ...(def.grade?.exposure || {}) };
   const refK = r('ref') * (T ? Math.max(0.6, Math.min(2, airmass(T.elevation) / airmass(L0.sun.elevation))) : 1);

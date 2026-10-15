@@ -25,7 +25,8 @@ import { textureAnisotropy } from '../engine/textures.js';
 // Farbe kommt aus Materialparameter bzw. Vertexfarbe. repeat: fester Wert für „fit“-UVs (0..1 je Fläche).
 // macro: [Albedo groß, Albedo mittel, Rauheit] der Weltraum-Variation (false = aus).
 export const LIB_MATERIALS = {
-  concrete: { id: 'concrete_floor_worn', color: 1.45, roughness: 1.4, macro: [0.22, 0.12, 0.16] }, // env-look: vorher 1,7 (flach/hell); textures-2: Rauheit Ø 0,54 → 0,76 (wirkte nass/speckig)
+  // Grafik-Vorlage Etappe 2 (15.10.): eigene prozedurale Sätze im Video-Stil (tools/assets/lib/vorlage-gen.mjs, „v_…“)
+  concrete: { id: 'v_concrete_slab', color: 0.9, macro: [0.16, 0.08, 0.1] }, // vorher concrete_floor_worn × 1,45 (Rauheit × 1,4)
   concrete_dark: { id: 'concrete_wall_dark', color: 1.35 },
   concrete_panel: { id: 'concrete_panels', color: 1.5 },
   concrete_dirty: { id: 'concrete_dirty', color: 1.0 },
@@ -37,7 +38,7 @@ export const LIB_MATERIALS = {
   plaster_blue: { id: 'plaster_blue_weathered', color: 1.05 },
   plaster_damaged: { id: 'plaster_damaged_brick', color: 1.1 },
   plaster_patched: { id: 'plaster_worn_patched', color: 1.3 },
-  brick: { id: 'brick_factory', color: 1.55, normalScale: 1.25, aoMapIntensity: 1.35 }, // env-look: Mörtel lesbarer
+  brick: { id: 'v_brick', color: 1.0 }, // Grafik-Vorlage: vorher brick_factory × 1,55
   brick_dark: { id: 'brick_dark', color: 2.0 },
   stone_wall: { id: 'sandstone_blocks', color: 1.0 },
   cobble: { id: 'cobblestone', color: 0.85, roughness: 1.25 }, // textures-2: Ø 0,58 → 0,72 (abgetreten, nicht nass)
@@ -56,7 +57,7 @@ export const LIB_MATERIALS = {
   metal_painted: { id: 'metal_painted', color: 1.35, macro: [0.1, 0.08, 0.1] },
   car_paint: { id: 'metal_painted', color: 1.35, macro: [0.1, 0.08, 0.1] },
   metal_rust: { id: 'metal_rust_painted', color: 0.75 },
-  metal_corrugated: { id: 'metal_corrugated', color: 3.0 },
+  metal_corrugated: { id: 'v_cladding', color: 1.0 }, // Grafik-Vorlage: vorher metal_corrugated × 3,0
   metal_corrugated_rust: { id: 'metal_corrugated_rusty', color: 1.6 },
   metal_cladding: { id: 'metal_cladding_green', color: 1.0 },
   metal_shutter: { id: 'metal_shutter', color: 1.0 },
@@ -65,12 +66,12 @@ export const LIB_MATERIALS = {
   metal_grate: { id: 'metal_grate', color: 2.4, macro: false },
   chainlink: { id: 'chainlink', color: 1.0, macro: false },
   hazard: { id: 'hazard_stripes', color: 1.3 },
-  container: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1], normalScale: 1.25 },
-  container_red: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1], normalScale: 1.25 },
-  container_blue: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1], normalScale: 1.25 },
-  container_green: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1], normalScale: 1.25 },
-  container_orange: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1], normalScale: 1.25 },
-  container_gray: { id: 'container', color: 1.6, macro: [0.1, 0.06, 0.1], normalScale: 1.25 },
+  container: { id: 'v_container', color: 1.2, macro: [0.1, 0.06, 0.1] },
+  container_red: { id: 'v_container', color: 1.2, macro: [0.1, 0.06, 0.1] },
+  container_blue: { id: 'v_container', color: 1.2, macro: [0.1, 0.06, 0.1] },
+  container_green: { id: 'v_container', color: 1.2, macro: [0.1, 0.06, 0.1] },
+  container_orange: { id: 'v_container', color: 1.2, macro: [0.1, 0.06, 0.1] },
+  container_gray: { id: 'v_container', color: 1.2, macro: [0.1, 0.06, 0.1] },
   sand: { id: 'sand', color: 1.6, macro: [0.2, 0.1, 0.1] },
   dirt: { id: 'dirt', color: 1.25, macro: [0.2, 0.1, 0.1] },
   mud: { id: 'mud', color: 1.2 },

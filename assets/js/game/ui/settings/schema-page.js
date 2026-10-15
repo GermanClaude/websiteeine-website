@@ -10,6 +10,7 @@ export const HINTS = {
   quality: 'Automatisch passt sich dem Gerät an und regelt bei Ruckeln nach.',
   fov: 'Horizontales Sichtfeld, bezogen auf ein 4:3-Bild. Breitere Bildschirme sehen seitlich mehr.',
   reducedMotion: 'Weniger Wackeln, Verzeichnung und Animationen. Folgt auch der Systemeinstellung.',
+  colorLook: 'Natürlich: kräftigere Farben. Video-Look: grau-grün und entsättigt wie die Video-Vorlage. Ab Grafikstufe „Mittel“.',
   difficulty: 'Vorgabe für die Lobby.',
   adaptiveBots: 'Gegnerische Bots lernen deinen Stil (Plätze, Distanzen, Routen) und passen ihre Taktik an – leicht ab Regulär, stark auf Elite. Zielen und Reaktion bleiben unverändert.',
   killAmmo: 'Jeder Abschuss bringt Munition für die Waffe, mit der er gelang: ein Magazin, beim Maschinengewehr 20 Schuss direkt in den Gurt. Der Vorrat wächst höchstens ein Magazin über den Startwert. Online entscheidet der Host.',

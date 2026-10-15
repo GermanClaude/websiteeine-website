@@ -20,7 +20,7 @@ const SECTIONS = [
   ['Auflösung', ['renderScale', 'gfxPixelRatio', 'upscaler', 'sharpness']],
   ['Bildrate', ['fpsLimit', 'showFps']],
   ['Licht und Schatten', ['gfxShadows', 'gfxAO', 'autoExposure']],
-  ['Nachbearbeitung', ['gfxPost', 'gfxAA', 'gfxBloom', 'lensStyle', 'lensStrength', 'grain', 'lensArtifacts', 'lensBorder']],
+  ['Nachbearbeitung', ['gfxPost', 'gfxAA', 'gfxBloom', 'colorLook', 'lensStyle', 'lensStrength', 'grain', 'lensArtifacts', 'lensBorder']],
   ['Effekte', ['gfxEffects']],
 ];
 const LOCAL_HINTS = {
@@ -33,6 +33,7 @@ const LOCAL_HINTS = {
   gfxPost: 'Einfach: alles in einem Durchgang (Handys). Voll: Leuchten, Kantenglättung, Lichtstrahlen.',
   gfxAA: 'FXAA ist billig, SMAA schärfer und ruhiger.',
   gfxBloom: 'Leuchten heller Lichter, mit Linsenschmutz im Bodycam-Stil.',
+  colorLook: 'Natürlich: kräftigere Farben. Video-Look: grau-grün und entsättigt wie die Video-Vorlage. Ab Stufe „Mittel“.',
   gfxEffects: 'Partikelmenge, Rauch, Funken, Hülsen und Zahl der Einschusslöcher.',
 };
 const SEGS = [

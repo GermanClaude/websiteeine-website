@@ -68,7 +68,7 @@ export function displayPage(P) {
     qualitaet: ['quality'],
     sicht: ['fov'],
     komfort: ['cameraMotion', 'weaponSway', 'lensStrength', 'grain', 'reducedMotion'],
-    bild: ['lensStyle', 'lensArtifacts', 'lensBorder', 'autoExposure', 'weaponPose', 'weaponObstruction'],
+    bild: ['colorLook', 'lensStyle', 'lensArtifacts', 'lensBorder', 'autoExposure', 'weaponPose', 'weaponObstruction'],
   };
 
   function syncLooks() {

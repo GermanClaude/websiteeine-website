@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { addGpu, ensureDir, fileSize, GPU0, gpuBytes, hash, loadSources, log, META, OUT, parseArgs, PIPELINE_VERSION, readJSON, rel, writeFileAtomic, writeJSON } from './lib/common.mjs';
 import { encodeKTX2, ktx2Info, loadGray, loadRGBA, neutralize, renormalize } from './lib/ktx.mjs';
 import { fetchTexture } from './lib/sources.mjs';
+import { GENERATORS } from './lib/vorlage-gen.mjs';
 
 const args = parseArgs();
 const src = loadSources();
@@ -17,7 +18,9 @@ const ids = args._.length ? args._ : src.textures.map((t) => t.id);
 
 
 // Rezept = nur verarbeitungsrelevante Felder (Metadaten wie sizeM/replaces ändern keine Dateien)
-const recipe = (e) => hash({ v: PIPELINE_VERSION, s: e.source, sid: e.sourceId, tiers: e.tiers, recolor: e.recolor || null, alpha: !!e.alpha, base: e.base || null, profiles: 'k5', yflip: 1 });
+// Prozedurale Sätze (source 'procedural', Grafik-Vorlage): Generatorquelltext gehört zum Rezept → Änderung baut neu
+const GEN_HASH = hash(readFileSync(new URL('./lib/vorlage-gen.mjs', import.meta.url), 'utf8'));
+const recipe = (e) => hash({ v: PIPELINE_VERSION, s: e.source, sid: e.sourceId, tiers: e.tiers, recolor: e.recolor || null, alpha: !!e.alpha, base: e.base || null, profiles: 'k5', yflip: 1, gen: e.source === 'procedural' ? GEN_HASH : null });
 
 // ---------------------------------------------------------------------------------------------
 // Prozedurale Tarnmuster (kachelbar): periodisches Value-Noise mit Domain-Warping
@@ -118,7 +121,20 @@ async function buildSet(e) {
   }
   const t0 = Date.now();
   const meta = { id: e.id, recipe: r, tiers: {}, stats: null };
-  if (e.source === 'derived') {
+  if (e.source === 'procedural') {
+    const gen = GENERATORS[e.sourceId];
+    if (!gen) throw new Error(`${e.id}: Generator ${e.sourceId} fehlt (lib/vorlage-gen.mjs)`);
+    for (const tier of e.tiers) {
+      const set = gen(tier);
+      const files = {
+        albedo: await writeKTX(join(outDir, `${e.id}_${tier}_albedo.ktx2`), set.albedo, 'albedo', tier),
+        normal: await writeKTX(join(outDir, `${e.id}_${tier}_normal.ktx2`), set.normal, 'normal', tier),
+        orm: await writeKTX(join(outDir, `${e.id}_${tier}_orm.ktx2`), set.orm, 'orm', tier),
+      };
+      meta.tiers[tier] = files;
+      if (tier === 512) meta.stats = stats(set.albedo, set.orm);
+    }
+  } else if (e.source === 'derived') {
     const base = byId[e.base];
     const baseMeta = readJSON(join(META, 'textures', `${e.base}.json`), null);
     if (!baseMeta) throw new Error(`${e.id}: Basis ${e.base} zuerst bauen`);

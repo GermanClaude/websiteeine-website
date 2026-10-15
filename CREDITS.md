@@ -9,7 +9,7 @@ und ebenfalls CC0. Quellenliste mit Download-IDs: `tools/assets/sources.json`, P
 Vielen Dank an [Poly Haven](https://polyhaven.com) und [ambientCG](https://ambientcg.com) sowie alle
 Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 
-## Texturen (69)
+## Texturen (73)
 
 | Asset | ID | Urheber:in | Quelle | Lizenz |
 |---|---|---|---|---|
@@ -82,6 +82,10 @@ Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 | Plastic 006 | `polymer_black` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Plastic006) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Lacquered Cherry Wood | `wood_stock` | Jenelle van Heerden, Rico Cilliers | [Poly Haven](https://polyhaven.com/a/lacquered_cherry_wood) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Rubber 004 | `rubber` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Rubber004) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Containerwand (Video-Vorlage) | `v_container` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Kaibeton mit Fugen (Video-Vorlage) | `v_concrete_slab` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Trapezblech (Video-Vorlage) | `v_cladding` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Ziegelwand (Video-Vorlage) | `v_brick` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 
 ## HDRIs (8)
 

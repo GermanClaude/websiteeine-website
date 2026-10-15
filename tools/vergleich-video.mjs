@@ -3,6 +3,7 @@
 // Aufruf (Server auf :8765):  node tools/vergleich-video.mjs [hafen-halle,werk-gasse,…] [--quality=high] [--tag=vorher]
 //   [--page=post|world]  post (Standard, ab 15.10.): echte Bildkette des Spiels (dev/post.html: Belichtungsautomatik
 //   eingeschwungen, Farbstufe, AO, Lichtstrahlen, Linse); world: nur die Szene ohne Nachbearbeitung (alte Vorher-Bilder)
+//   [--look=natuerlich|video] Farbstimmung, [--weather=…] [--tod=…] Wetter/Tageszeit (world/weather.js)
 //   Ältere Fassung vergleichen: NP_BASE=http://localhost:8768/ (git worktree der Fassung dort ausliefern)
 // Ausgabe: tools/out/vergleich/<tag>-<name>.png (Spielbild) und tools/out/vergleich/<tag>-bogen.png (Video | Spiel je Zeile)
 import { chromium, BASE } from './pw.mjs';
@@ -36,7 +37,7 @@ for (const name of only) {
   const [map, frame, x, y, z, yaw, pitch, fov] = v;
   const page = await (await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1 })).newPage();
   page.on('pageerror', (e) => console.error(name, e.message));
-  await page.goto(`${BASE}dev/${pageKind}.html?map=${map}&quality=${quality}&debug=0&fov=${fov}`, { waitUntil: 'load' });
+  await page.goto(`${BASE}dev/${pageKind}.html?map=${map}&quality=${quality}&debug=0&fov=${fov}${opt.look ? `&colorLook=${opt.look}` : ''}${opt.weather ? `&weather=${opt.weather}` : ''}${opt.tod ? `&tod=${opt.tod}` : ''}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__dev?.ready, null, { timeout: 300000 });
   await page.addStyleTag({ content: '#panel, #mini, #progress, #marks, .xh { display: none !important; }' });
   if (pageKind === 'post') await page.evaluate(() => { for (const id of ['b-marks', 'b-vm']) document.getElementById(id)?.click(); });

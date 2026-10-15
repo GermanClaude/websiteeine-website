@@ -23,6 +23,14 @@ import { FULLSCREEN_VERT, GLSL_COMMON } from './common.js';
 // bloom: threshold (größter Kanal nach Belichtung), strength, dirt (Linsenschmutz im Bodycam-Stil).
 const BASE_EXPOSURE = Object.freeze({ ref: 0.13, strength: 0.72, dead: 0.5, evMin: -1.6, evMax: 1.8, up: 2.6, down: 1.25 });
 
+/**
+ * Farbstimmung (Einstellung colorLook): „natuerlich“ (Standard seit 15.10. abends: Farben kräftiger, Video-Licht
+ * bleibt) oder „video“ (grau-grün und entsättigt wie die Gemini-Vorlage, vom Nutzer als Option gewünscht).
+ * Tagesstimmungen haben dafür `lut` (natürlich) und `lutVideo`; Stimmungen ohne lutVideo (Nacht, Neutral) gelten für beide.
+ */
+export const COLOR_LOOKS = Object.freeze(['natuerlich', 'video']);
+const NATURAL_LUT = Object.freeze({ temperature: 0, tint: -0.1, contrast: 1.1, pivot: 0.42, saturation: 0.86, shadowSat: 0.9,
+  highSat: 0.88, shadowTint: [0.98, 1.0, 1.02], highTint: [1.005, 1.0, 0.99], greenShift: 0.25, blackLevel: 0.014, whiteLevel: 0.985 });
 /** Video-Look (Gemini-Vorlage): Grundwerte der Tagesstimmungen (s. MOODS). */
 const VIDEO_LUT = Object.freeze({ temperature: -0.01, tint: -0.45, contrast: 1.07, pivot: 0.42, saturation: 0.46, shadowSat: 0.88,
   highSat: 0.8, shadowTint: [0.975, 1.008, 1.0], highTint: [1.0, 1.0, 0.985], greenShift: 0.25, blackLevel: 0.02, whiteLevel: 0.975 });
@@ -42,35 +50,35 @@ export const MOODS = Object.freeze({
   // Tageszeit (world/weather.js TIME_FX lut.temperature).
   hafen: { // Klarer Nachmittag am Kai
     label: 'Hafen – Nachmittag',
-    lut: { ...VIDEO_LUT },
+    lut: { ...NATURAL_LUT }, lutVideo: { ...VIDEO_LUT },
     exposure: { ...BASE_EXPOSURE, ref: 0.175 },
     bloom: { threshold: 2.3, strength: 0.3, dirt: 0.55 },
     shafts: 0.45,
   },
   altstadt: { // Mittag: blauer Himmel, graues Pflaster, Dachziegel bleiben etwas kräftiger
     label: 'Altstadt – Mittag',
-    lut: { ...VIDEO_LUT, saturation: 0.52, contrast: 1.1 },
+    lut: { ...NATURAL_LUT, saturation: 0.84, contrast: 1.12 }, lutVideo: { ...VIDEO_LUT, saturation: 0.52, contrast: 1.1 },
     exposure: { ...BASE_EXPOSURE, ref: 0.16 },
     bloom: { threshold: 2.6, strength: 0.28, dirt: 0.5 },
     shafts: 0.3, // atmosphere-weather: 0,22 → 0,3
   },
   werk: { // Walzwerk bei Tag: Ziegel etwas kräftiger (Video-Gasse 0,2), Natriumlicht/Feuer bleiben leicht warm
     label: 'Werk – Tag',
-    lut: { ...VIDEO_LUT, saturation: 0.56, keepWarm: 0.2 },
+    lut: { ...NATURAL_LUT, keepWarm: 0.4 }, lutVideo: { ...VIDEO_LUT, saturation: 0.56, keepWarm: 0.2 },
     exposure: { ...BASE_EXPOSURE, ref: 0.09, strength: 0.85, evMax: 2.4 }, // Halle (L̄ 0,016) ≈ 2 Blenden heller wie im Video
     bloom: { threshold: 2.2, strength: 0.32, dirt: 0.6 },
     shafts: 0.5,
   },
   range: { // Schießstand bei Tageslicht
     label: 'Schießstand – Tag',
-    lut: { ...VIDEO_LUT, saturation: 0.55 },
+    lut: { ...NATURAL_LUT, saturation: 0.9 }, lutVideo: { ...VIDEO_LUT, saturation: 0.55 },
     exposure: { ...BASE_EXPOSURE, ref: 0.18 },
     bloom: { threshold: 2.5, strength: 0.28, dirt: 0.5 },
     shafts: 0.42, // atmosphere-weather: Morgendunst (0,3 → 0,42)
   },
   grenzland: { // Flusstal am Vormittag (Video-Dorfplatz): Grün Richtung Oliv
     label: 'Grenzland – Vormittag',
-    lut: { ...VIDEO_LUT, saturation: 0.55, greenShift: 0.45 },
+    lut: { ...NATURAL_LUT, greenShift: 0.45 }, lutVideo: { ...VIDEO_LUT, saturation: 0.55, greenShift: 0.45 },
     exposure: { ...BASE_EXPOSURE, ref: 0.11 },
     bloom: { threshold: 2.5, strength: 0.28, dirt: 0.5 },
     shafts: 0.45, // atmosphere-weather: Sonne durch Baumkronen (0,35 → 0,45)
@@ -88,8 +96,12 @@ export const MOODS = Object.freeze({
 /** Karten-ID → Stimmung (Karten ohne eigenen Eintrag nehmen `neutral`; „nachtschicht“/„innenraum“ → `nacht`). */
 export const MOOD_FOR_MAP = Object.freeze({ hafen: 'hafen', altstadt: 'altstadt', werk: 'werk', range: 'range', grenzland: 'grenzland', niemandsland: 'grenzland', nachtschicht: 'nacht', innenraum: 'nacht' });
 
-/** Stimmung auflösen: id | { mood, lut, exposure, bloom } → vollständiges Objekt (Kopie). */
-export function resolveMood(spec) {
+/**
+ * Stimmung auflösen: id | { mood, lut, exposure, bloom } → vollständiges Objekt (Kopie). look: Farbstimmung
+ * (COLOR_LOOKS). Relative LUT-Schlüssel aus Wetter/Tageszeit (world/weather.js): satMul (Faktor auf die Sättigung),
+ * contrastAdd, blackAdd – so wirken sie auf beide Farbstimmungen gleich.
+ */
+export function resolveMood(spec, look = 'natuerlich') {
   let base = MOODS.neutral;
   let over = null;
   if (typeof spec === 'string') base = MOODS[spec] || MOODS[MOOD_FOR_MAP[spec]] || MOODS.neutral;
@@ -98,9 +110,14 @@ export function resolveMood(spec) {
     over = spec;
   }
   const id = typeof spec === 'string' ? (MOODS[spec] ? spec : MOOD_FOR_MAP[spec] || 'neutral') : (over && (over.mood || MOOD_FOR_MAP[over.id])) || 'neutral';
+  const baseLut = look === 'video' && base.lutVideo ? base.lutVideo : base.lut;
+  const lut = over && over.lut && !(over.lut instanceof THREE.Data3DTexture) ? { ...baseLut, ...over.lut } : { ...baseLut };
+  if (lut.satMul != null) { lut.saturation = (lut.saturation ?? 1) * lut.satMul; delete lut.satMul; }
+  if (lut.contrastAdd != null) { lut.contrast = Math.max(1, (lut.contrast ?? 1.08) + lut.contrastAdd); delete lut.contrastAdd; }
+  if (lut.blackAdd != null) { lut.blackLevel = (lut.blackLevel ?? 0.012) + lut.blackAdd; delete lut.blackAdd; }
   return {
-    id: over && over.lut instanceof THREE.Data3DTexture ? `${id}+lut` : id + (over && (over.lut || over.exposure || over.bloom) ? '*' : ''),
-    lut: over && over.lut && !(over.lut instanceof THREE.Data3DTexture) ? { ...base.lut, ...over.lut } : { ...base.lut },
+    id: (over && over.lut instanceof THREE.Data3DTexture ? `${id}+lut` : id + (over && (over.lut || over.exposure || over.bloom) ? '*' : '')) + (look === 'video' && base.lutVideo ? ':video' : ''),
+    lut,
     lutTexture: over && over.lut instanceof THREE.Data3DTexture ? over.lut : null,
     exposure: { ...base.exposure, ...(over && over.exposure) },
     bloom: { ...base.bloom, ...(over && over.bloom) },

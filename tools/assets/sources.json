@@ -11,9 +11,7 @@
    "author": "Dimitrios Savva, Rico Cilliers",
    "category": "concrete",
    "surface": "concrete",
-   "replaces": [
-    "concrete"
-   ],
+   "replaces": [],
    "tiers": [
     512,
     1024,
@@ -353,9 +351,7 @@
    "author": "Rob Tuytel",
    "category": "masonry",
    "surface": "concrete",
-   "replaces": [
-    "brick"
-   ],
+   "replaces": [],
    "tiers": [
     512,
     1024,
@@ -1031,9 +1027,7 @@
    "author": "Jenelle van Heerden, Sergej Majboroda",
    "category": "metal",
    "surface": "metal",
-   "replaces": [
-    "metal_corrugated"
-   ],
+   "replaces": [],
    "tiers": [
     512,
     1024
@@ -1223,14 +1217,7 @@
    "author": "Dimitrios Savva",
    "category": "metal",
    "surface": "metal",
-   "replaces": [
-    "container",
-    "container_red",
-    "container_blue",
-    "container_green",
-    "container_orange",
-    "container_gray"
-   ],
+   "replaces": [],
    "tiers": [
     512,
     1024,
@@ -1536,6 +1523,108 @@
    "sizeM": [
     0.75,
     0.75
+   ]
+  },
+  {
+   "id": "v_container",
+   "source": "procedural",
+   "sourceId": "container",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [
+    "container",
+    "container_red",
+    "container_blue",
+    "container_green",
+    "container_orange",
+    "container_gray"
+   ],
+   "tiers": [
+    512,
+    1024,
+    2048
+   ],
+   "hero": true,
+   "tintable": true,
+   "name": "Containerwand (Video-Vorlage)",
+   "sizeM": [
+    2.24,
+    2.24
+   ]
+  },
+  {
+   "id": "v_concrete_slab",
+   "source": "procedural",
+   "sourceId": "concrete_slab",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "category": "concrete",
+   "surface": "concrete",
+   "replaces": [
+    "concrete"
+   ],
+   "tiers": [
+    512,
+    1024,
+    2048
+   ],
+   "hero": true,
+   "name": "Kaibeton mit Fugen (Video-Vorlage)",
+   "sizeM": [
+    6,
+    6
+   ]
+  },
+  {
+   "id": "v_cladding",
+   "source": "procedural",
+   "sourceId": "cladding",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [
+    "metal_corrugated"
+   ],
+   "tiers": [
+    512,
+    1024,
+    2048
+   ],
+   "tintable": true,
+   "name": "Trapezblech (Video-Vorlage)",
+   "sizeM": [
+    2.7,
+    2.7
+   ]
+  },
+  {
+   "id": "v_brick",
+   "source": "procedural",
+   "sourceId": "brick",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "category": "masonry",
+   "surface": "concrete",
+   "replaces": [
+    "brick"
+   ],
+   "tiers": [
+    512,
+    1024,
+    2048
+   ],
+   "hero": true,
+   "name": "Ziegelwand (Video-Vorlage)",
+   "sizeM": [
+    1.5,
+    1.5
    ]
   }
  ],

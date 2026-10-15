@@ -86,6 +86,13 @@ sobald wieder Limit da ist. Vergleichsbilder neben dem Video zeigen (tools/out/s
    Schwärzen), Containerlack gedeckt (`videoTone` in props.js), Hafen-Terminal Beton statt Asphalt. Veröffentlicht als
    Fassung 20261015164134. **Größter Rest-Abstand: Texturen/Modelle** (Container ohne Rippen-Details/Beschriftung,
    Hallenwände, Ziegel, Boden) → Etappe 2 als Nächstes, danach Soldaten (Etappe 1).
+   Nutzer danach: Grau gefällt, aber zu trist als einziger Look → **Einstellung „Farbstimmung“** (Grafik/Bild):
+   „Natürlich“ (Standard, Sättigung ≈ 0,86) oder „Video-Look“ (VIDEO_LUT); Wetter/Tageszeit wirken relativ auf beide
+   (satMul/contrastAdd/blackAdd). Wetter/Tageszeiten weiter in der Lobby wählbar (geprüft: Abend, Bewölkt).
+2. *Stand 15.10. abends – Etappe 2 begonnen:* eigene prozedurale Texturen im Video-Stil (`v_container`, `v_concrete_slab`,
+   `v_cladding`, `v_brick`, je 512/1024/2048, Höhenfeld → Normalen + Hohlraum-AO) statt der Fotoscans für Container,
+   Beton (Platten mit Fugen/Rissen), Trapezblech und Ziegel. Weiter: Asphalt, Putz, Holz/Paletten, Laufstege/Geländer
+   (gelb wie im Video), Rolltore, Containerbeschriftung als Aufkleber/Schablone, dann alle übrigen Sätze laut Inventar.
 1. **Soldatenmodelle zuerst:** Skin wie im Video (Helm mit Bezug, Plattenträger, Taschen, Rucksack, Handschuhe, kantiges
    grünes Splittertarn), beide Teams (Unterscheidung über Armbinde/Abzeichen + Namensschild), Ego-Arme passend,
    Bots und Puppen (Mehrspieler) gleich.

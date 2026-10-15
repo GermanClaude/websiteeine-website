@@ -14,21 +14,25 @@ prozedurale Ersatztexturen (`world/texgen.js` TEX, Handy/Fallback). **Beide** we
 
 | Gruppe | Schlüssel | Bezug |
 |---|---|---|
-| Beton | `[ ]` concrete · `[ ]` concrete_dark · `[ ]` concrete_panel · `[ ]` concrete_dirty · `[ ]` concrete_painted · `[ ]` epoxy · `[ ]` epoxy_blue · `[ ]` panel_wall | bild-2_0s (rissiger Kaibeton), bild-0_3s (Hallenboden) |
+| Beton | `[x]` concrete (v_concrete_slab, 15.10.) · `[ ]` concrete_dark · `[ ]` concrete_panel · `[ ]` concrete_dirty · `[ ]` concrete_painted · `[ ]` epoxy · `[ ]` epoxy_blue · `[ ]` panel_wall | bild-2_0s (rissiger Kaibeton), bild-0_3s (Hallenboden) |
 | Asphalt | `[ ]` asphalt | bild-2_0s |
 | Putz | `[ ]` plaster_warm · `[ ]` plaster_white · `[ ]` plaster_peeling · `[ ]` plaster_blue · `[ ]` plaster_damaged · `[ ]` plaster_patched | bild-7_8s (Häuser am Platz) |
-| Ziegel/Stein | `[ ]` brick · `[ ]` brick_dark · `[ ]` stone_wall | bild-5_0s, bild-6_5s (Werk-Ziegel) |
+| Ziegel/Stein | `[x]` brick (v_brick, 15.10.) · `[ ]` brick_dark · `[ ]` stone_wall | bild-5_0s, bild-6_5s (Werk-Ziegel) |
 | Pflaster | `[ ]` cobble · `[ ]` paving | bild-7_8s |
 | Dach | `[ ]` roof_tiles | bild-7_8s (rote Ziegeldächer) |
 | Holz | `[ ]` wood_planks · `[ ]` wood_dark · `[ ]` wood_crate · `[ ]` wood_weathered · `[ ]` wood_peeling · `[ ]` wood_floor · `[ ]` wood_paint · `[ ]` wood_stock · `[ ]` osb | bild-0_3s (Paletten); Böden/Möbel abgeleitet |
 | Metall | `[ ]` metal_painted · `[ ]` car_paint · `[ ]` metal_rust · `[ ]` metal_galvanized · `[ ]` metal_tread · `[ ]` metal_grate · `[ ]` gunmetal · `[ ]` hazard | bild-3_5s (gelbe Geländer, Laufstege, Kessel) |
-| Blech | `[ ]` metal_corrugated · `[ ]` metal_corrugated_rust · `[ ]` metal_cladding · `[ ]` metal_shutter · `[ ]` chainlink | bild-0_3s (Hallen, Rolltor), bild-6_5s (Blechwand) |
-| Container | `[ ]` container · `[ ]` container_red/blue/green/orange/gray | bild-0_3s, bild-2_0s (Beschriftung/Nummern) |
+| Blech | `[x]` metal_corrugated (v_cladding, 15.10.) · `[ ]` metal_corrugated_rust · `[ ]` metal_cladding · `[ ]` metal_shutter · `[ ]` chainlink | bild-0_3s (Hallen, Rolltor), bild-6_5s (Blechwand) |
+| Container | `[x]` container (v_container, 15.10.) · `[ ]` container_red/blue/green/orange/gray | bild-0_3s, bild-2_0s (Beschriftung/Nummern) |
 | Boden natur | `[ ]` grass · `[ ]` dirt · `[ ]` mud · `[ ]` ground_dry · `[ ]` sand · `[ ]` gravel · `[ ]` rubble | bild-7_8s (Beete, Bäume); Grenzland/Niemandsland abgeleitet |
 | Fliesen/innen | `[ ]` tiles · `[ ]` tiles_terracotta · `[ ]` tiles_pattern · `[ ]` tiles_white · `[ ]` linoleum · `[ ]` rubber_floor | abgeleitet aus bild-3_5s (Sauberkeit, Kanten) |
 | Stoff/Kunststoff | `[ ]` tarp · `[ ]` awning · `[ ]` sandbag · `[ ]` rubber · `[ ]` polymer · `[ ]` fabric_camo_a/b · `[ ]` cardboard | bild-5_0s (Soldat: Stoff, Gurte) |
 | Natur | `[ ]` bark · `[ ]` bark_palm · Laub/Gras-Atlas (`world/atlas.js`) | bild-7_8s (Bäume) |
 | Sonstiges | `[ ]` glass · `[ ]` water · `[ ]` white · `[ ]` skin | abgeleitet |
+
+Neue Sätze entstehen prozedural: `tools/assets/lib/vorlage-gen.mjs` (Generator je Oberfläche, Höhenfeld → Normalen/AO),
+Eintrag in `tools/assets/sources.json` mit `"source": "procedural"`, Bau `node tools/assets/textures.mjs v_…`, Vorschau
+`node tools/assets/vorlage-preview.mjs <name>` → `tools/out/vorlage-tex/`, Zuordnung in `world/library.js` (LIB_MATERIALS).
 
 Nicht mehr gebraucht, sobald alles ersetzt ist: die 66 Fotoscan-Ordner in `assets/lib/textures/` (Größe sparen, CREDITS anpassen).
 
