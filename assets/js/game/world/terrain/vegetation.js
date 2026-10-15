@@ -14,7 +14,7 @@
 // weiches Ausblenden im Shader, spärliche Wiesenblumen (medium+). Alles aus Positions-Hashes – berührt weder die
 // Zufallsströme noch die Kollision (Felsen werden nur gelesen, um Gras aus ihnen herauszuhalten).
 import * as THREE from 'three';
-import { createFoliage, foliageUniforms, WIND_VERTEX, setWindAttribute, setFoliageQuality } from '../atlas.js';
+import { createFoliage, foliageUniforms, WIND_VERTEX, setWindAttribute, setFoliageQuality, LAUBBAUM } from '../atlas.js';
 import { rng, hash2, createSimplex, smoothstep } from './noise.js';
 import { terrainLook, terrainNoise, meadowTintAt } from './splat.js';
 
@@ -279,11 +279,40 @@ function farSpruce(lite = false) {
   const trunk = new THREE.CylinderGeometry(0.2, 0.25, 1.6, lite ? 3 : 4, 1, true); trunk.translate(0, 0.8, 0);
   return merge([cone, trunk]);
 }
-/** Ferner Laubbaum: abgeflachter Ikosaeder + Stamm (lite: dreiseitig). */
+/** Ferner Laubbaum (Umriss wie die nahe Krone aus LAUBBAUM, ≈ 12 m): Hauptkugel + 3 Seitenbüschel (lite: 1) + Stamm. */
 function farBroadleaf(lite = false) {
-  const crown = new THREE.IcosahedronGeometry(2.9, 0); crown.scale(1, 0.82, 1); crown.translate(0, 5.0, 0);
-  const trunk = new THREE.CylinderGeometry(0.2, 0.28, 3.2, lite ? 3 : 4, 1, true); trunk.translate(0, 1.6, 0);
-  return merge([crown, trunk]);
+  const lumps = lite ? [[0, 7.0, 0, 3.8], [1.8, 5.0, 1.0, 2.8]]
+    : [[0, 7.4, 0, 3.4], [2.3, 5.2, 0.8, 2.6], [-2.0, 5.6, -1.1, 2.7], [0.4, 4.9, -2.4, 2.4]];
+  const parts = lumps.map(([x, y, z, r]) => { const g = new THREE.IcosahedronGeometry(r, 0); g.scale(1, 0.85, 1); g.translate(x, y, z); return g; });
+  const trunk = new THREE.CylinderGeometry(0.18, 0.27, 4.6, lite ? 3 : 4, 1, true); trunk.translate(0, 2.3, 0);
+  return merge([...parts, trunk]);
+}
+
+/** Stamm + Hauptäste des Laubbaums (Rinde mit UV): Stamm bis in die Krone, je Kranz-Büschel ein Ast schräg nach außen. */
+function broadleafWood() {
+  const parts = [], up = new THREE.Vector3(0, 1, 0), q = new THREE.Quaternion();
+  const trunk = new THREE.CylinderGeometry(0.14, 0.27, 5.6, 7, 1, true); trunk.translate(0, 2.8, 0);
+  parts.push(trunk);
+  LAUBBAUM.clumps.forEach(([x, y, z], i) => {
+    if (i >= LAUBBAUM.limbs) return; // oberer Kranz, Wipfel, Kern sitzen über dem Stamm
+    const lower = i < 5, start = new THREE.Vector3(0, 2.7 + (i % 5) * 0.3 + (lower ? 0 : 1.6), 0);
+    const dir = new THREE.Vector3(x * 0.8, y - 0.3, z * 0.8).sub(start), len = dir.length();
+    const g = new THREE.CylinderGeometry(0.04, lower ? 0.12 : 0.09, len, 5, 1, true);
+    g.translate(0, len / 2, 0); g.applyQuaternion(q.setFromUnitVectors(up, dir.normalize())); g.translate(start.x, start.y, start.z);
+    parts.push(g);
+  });
+  const flat = parts.map((g) => g.toNonIndexed());
+  let n = 0; for (const g of flat) n += g.attributes.position.count;
+  const P = new Float32Array(n * 3), N = new Float32Array(n * 3), U = new Float32Array(n * 2);
+  let o = 0;
+  for (const g of flat) { P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); U.set(g.attributes.uv.array, o * 2); o += g.attributes.position.count; }
+  for (const g of [...parts, ...flat]) g.dispose();
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(P, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+  out.setAttribute('uv', new THREE.BufferAttribute(U, 2));
+  out.computeBoundingSphere();
+  return out;
 }
 /** Fels: verformter Ikosaeder. */
 function rockGeometry(seed) {
@@ -430,6 +459,9 @@ export class Vegetation {
         }
       }
     }
+    // Einzelbäume an festen Stellen [x, z, Maßstab, Drehung, Art] (Ortschaften: Gärten, Ortsränder) – ohne Zufall und
+    // auch auf Ortsflächen (der Aufrufer hält Häuser/Wege frei)
+    for (const [x, z, s = 1, ry = 0, kind = 'laub'] of spec.trees || []) if (hf.contains(x, z)) this._add(kind, x, z, s, ry);
     // Schilf am Ufer
     if (spec.reeds && hf.riverLine) {
       const rq = rng(seed * 13 + 5);
@@ -564,12 +596,15 @@ export class Vegetation {
       this.group.add(m);
       return m;
     };
-    const tp = proto('tree'), bp = proto('bush'), rp = proto('reeds'), gp = proto('grass');
+    // Laubbaum (Grafik-Vorlage 15.10.): Krone aus Blattbüscheln mit eigenem Atlas + Stamm mit Hauptästen
+    const tp = proto('laubbaum'), bp = proto('bush'), rp = proto('reeds'), gp = proto('grass');
     this._protos = [tp, bp, rp, gp];
-    const foliageMat = tp.material, foliageMatN = gp.material;
+    const foliageMat = bp.material, foliageMatN = gp.material;
     const farMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0 });
     farMat.name = 'vegetation-far'; farMat.userData.disposable = true; farMat.userData.surface = 'wood';
-    farMat.color.setRGB(0.46, 0.5, 0.44); // Instanzfarben sind für das Laub-Atlas gedacht → einfarbige Ferne dunkler
+    // Instanzfarben sind für das Laub-Atlas gedacht → einfarbige Ferne dunkler (15.10.: wie die nahe Krone gemessen –
+    // Atlas-Mittel × Tönung × Selbstverschattung; vorher ≈ 2,5× zu hell, ferne Bäume leuchteten hellgrün)
+    farMat.color.setRGB(0.2, 0.25, 0.17);
     const bark = getMaterial('bark');
     this._own = [farMat];
     const trunkGeo = new THREE.CylinderGeometry(0.16, 0.24, 3.4, 7, 1, true); trunkGeo.translate(0, 1.7, 0);
@@ -583,11 +618,13 @@ export class Vegetation {
       sp.fichte.far = make(fg, farMat, sp.fichte.count, 'veg-fichte-fern', false);
     }
     if (sp.laub) {
-      sp.laub.near = make(tp.geometry, foliageMat, nearCap('laub'), 'veg-laub', t.treeShadow);
+      sp.laub.near = make(tp.geometry, tp.material, nearCap('laub'), 'veg-laub', t.treeShadow);
       const fg = farBroadleaf(q === 'low'); this._geoms.push(fg);
       sp.laub.far = make(fg, farMat, sp.laub.count, 'veg-laub-fern', false);
+      const wg = broadleafWood(); this._geoms.push(wg);
+      this.woods = nearCap('laub') ? make(wg, bark, nearCap('laub'), 'veg-aeste', t.treeShadow) : null;
     }
-    const trunkCap = nearCap('fichte') + nearCap('laub');
+    const trunkCap = nearCap('fichte');
     this.trunks = trunkCap ? make(trunkGeo, bark, trunkCap, 'veg-staemme', t.treeShadow) : null;
     if (sp.busch) sp.busch.near = make(bp.geometry, foliageMat, nearCap('busch'), 'veg-busch', false);
     if (sp.schilf) sp.schilf.near = make(rp.geometry, foliageMatN, sp.schilf.count, 'veg-schilf', false);
@@ -637,22 +674,25 @@ export class Vegetation {
     if (force || this._last.distanceToSquared(p) > 16) {
       this._last.copy(p);
       const near2 = t.treeNear * t.treeNear, far2 = t.treeFar * t.treeFar, bush2 = (t.treeNear * 0.6) ** 2, reed2 = (t.treeNear * 0.5) ** 2;
-      let trunkN = 0, nearAll = 0, farAll = 0;
+      let trunkN = 0, woodN = 0, nearAll = 0, farAll = 0;
       for (const [kind, sp] of Object.entries(this.species)) {
         if (!sp.near && !sp.far) continue;
         let nn = 0, nf = 0;
         const L = sp.list, nearCap = sp.near ? sp.near.instanceMatrix.count : 0;
         const lim2 = kind === 'busch' ? bush2 : kind === 'schilf' ? reed2 : near2;
+        // Stämme: Fichte → einfacher Stamm, Laubbaum → Stamm mit Ästen (eigenes InstancedMesh, gleiche Matrix)
+        const wood = kind === 'fichte' ? this.trunks : kind === 'laub' ? this.woods : null;
         for (let i = 0; i < sp.count; i++) {
           const dx = L[i * 5] - p.x, dz = L[i * 5 + 2] - p.z, d2 = dx * dx + dz * dz;
           if (d2 < lim2 && nn < nearCap) {
             sp.near.instanceMatrix.array.set(sp.mats.subarray(i * 16, i * 16 + 16), nn * 16);
             sp.near.instanceColor.array.set(sp.cols.subarray(i * 3, i * 3 + 3), nn * 3);
             nn++;
-            if (this.trunks && (kind === 'fichte' || kind === 'laub') && trunkN < this.trunks.instanceMatrix.count) {
-              this.trunks.instanceMatrix.array.set(sp.mats.subarray(i * 16, i * 16 + 16), trunkN * 16);
-              this.trunks.instanceColor.array.set(TRUNK_COL[kind], trunkN * 3);
-              trunkN++;
+            const k = kind === 'fichte' ? trunkN : woodN;
+            if (wood && k < wood.instanceMatrix.count) {
+              wood.instanceMatrix.array.set(sp.mats.subarray(i * 16, i * 16 + 16), k * 16);
+              wood.instanceColor.array.set(TRUNK_COL[kind], k * 3);
+              if (kind === 'fichte') trunkN++; else woodN++;
             }
           } else if (sp.far && d2 < far2) {
             sp.far.instanceMatrix.array.set(sp.mats.subarray(i * 16, i * 16 + 16), nf * 16);
@@ -667,9 +707,10 @@ export class Vegetation {
         }
         nearAll += nn; farAll += nf;
       }
-      if (this.trunks) {
-        const tm = this.trunks; tm.count = trunkN; tm.visible = trunkN > 0;
-        if (trunkN) { tm.instanceMatrix.clearUpdateRanges(); tm.instanceMatrix.addUpdateRange(0, trunkN * 16); tm.instanceMatrix.needsUpdate = true; tm.instanceColor.clearUpdateRanges(); tm.instanceColor.addUpdateRange(0, trunkN * 3); tm.instanceColor.needsUpdate = true; }
+      for (const [tm, n] of [[this.trunks, trunkN], [this.woods, woodN]]) {
+        if (!tm) continue;
+        tm.count = n; tm.visible = n > 0;
+        if (n) { tm.instanceMatrix.clearUpdateRanges(); tm.instanceMatrix.addUpdateRange(0, n * 16); tm.instanceMatrix.needsUpdate = true; tm.instanceColor.clearUpdateRanges(); tm.instanceColor.addUpdateRange(0, n * 3); tm.instanceColor.needsUpdate = true; }
       }
       this.stats.near = nearAll; this.stats.far = farAll;
     }

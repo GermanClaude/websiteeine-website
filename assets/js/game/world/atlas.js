@@ -605,14 +605,72 @@ function ensureFoliageAtlas(quality) {
   const old = foliageTex;
   foliageTex = atlasTexture(S, S, (ctx, w) => drawFoliageAtlas(ctx, w), { anisotropy: 4, name: 'foliage' });
   foliageSize = S;
-  for (const m of foliageMats.values()) m.map = foliageTex;
+  for (const [k, m] of foliageMats) if (k !== 't') m.map = foliageTex;
   old?.dispose();
 }
 
-function foliageMaterial(cast) {
-  const key = cast ? 'c' : 'n';
+// Laubbaum-Blätter (Grafik-Vorlage 15.10.: Bäume im Video haben lockere Kronen aus vielen Blattbüscheln mit Lücken
+// und Zweigen statt einer glatten Kugel). Eigener Atlas, 4 Büschel-Varianten (2 × 2 Zellen à 512 px).
+let treeLeafTex = null, treeLeafSize = 0;
+
+function drawTreeLeafAtlas(ctx, S) {
+  ctx.scale(S / 1024, S / 1024);
+  const C = 512;
+  const leaf = (x, y, a, len, wid, col) => {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(len * 0.5, -wid, len, 0); ctx.quadraticCurveTo(len * 0.5, wid, 0, 0); ctx.fill();
+    ctx.restore();
+  };
+  for (let cell = 0; cell < 4; cell++) {
+    const r = rng(9100 + cell * 17);
+    ctx.save(); ctx.translate((cell % 2) * C, Math.floor(cell / 2) * C); ctx.beginPath(); ctx.rect(0, 0, C, C); ctx.clip();
+    // Teilwolken um die Zellmitte: unregelmäßiger Umriss, Lücken zwischen den Wolken (Rand ≤ 240 px → nie abgeschnitten)
+    const n = 6 + Math.floor(r() * 4), subs = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + r() * 0.8, d = i === 0 ? 0 : 60 + r() * 70;
+      subs.push([256 + Math.cos(a) * d, 250 + Math.sin(a) * d * 0.85, 55 + r() * 40]);
+    }
+    // Zweige unter dem Laub (schauen in den Lücken hervor), vom Büschelfuß zu jeder Teilwolke
+    ctx.lineCap = 'round';
+    for (const [sx, sy] of subs) {
+      const x0 = 256 + (r() - 0.5) * 40;
+      ctx.strokeStyle = 'rgb(56,45,34)'; ctx.lineWidth = 3 + r() * 3;
+      ctx.beginPath(); ctx.moveTo(x0, 492); ctx.quadraticCurveTo((x0 + sx) / 2 + (r() - 0.5) * 60, (492 + sy) / 2, sx, sy); ctx.stroke();
+    }
+    // Blätter: dichter Kern, ausfransender Rand; Licht von oben, innen dunkler, wenige gelbgrüne Lichtblätter
+    for (const [sx, sy, R] of subs) {
+      const count = Math.round(R * R * 0.15);
+      for (let k = 0; k < count; k++) {
+        const a = r() * Math.PI * 2, dd = Math.pow(r(), 0.75) * R * 1.12;
+        if (dd > R * 0.85 && r() < 0.45) continue;
+        const x = sx + Math.cos(a) * dd, y = sy + Math.sin(a) * dd * 0.9;
+        const lit = Math.min(1, Math.max(0, 1 - (y - (sy - R)) / (2 * R)));
+        const v = (0.5 + 0.5 * lit) * (0.62 + 0.38 * (dd / (R * 1.12))) * (0.8 + r() * 0.35);
+        const yel = r() < 0.12, g = 118 * v + 18;
+        leaf(x, y, r() * Math.PI * 2, 10 + r() * 7, 4 + r() * 2.5,
+          `rgb(${Math.round(g * (yel ? 0.78 : 0.55) + 6)},${Math.round(g)},${Math.round(g * (yel ? 0.34 : 0.3))})`);
+      }
+    }
+    ctx.restore();
+  }
+}
+
+function ensureTreeLeafAtlas(quality) {
+  const S = Math.round(1024 * atlasScale(quality));
+  if (treeLeafTex && treeLeafSize === S) return;
+  const old = treeLeafTex;
+  treeLeafTex = atlasTexture(S, S, (ctx, w) => drawTreeLeafAtlas(ctx, w), { anisotropy: 4, name: 'foliage-laub' });
+  treeLeafSize = S;
+  if (foliageMats.has('t')) foliageMats.get('t').map = treeLeafTex;
+  old?.dispose();
+}
+
+function foliageMaterial(cast, tree = false) {
+  const key = tree ? 't' : cast ? 'c' : 'n';
   if (foliageMats.has(key)) return foliageMats.get(key);
-  const m = new THREE.MeshStandardMaterial({ map: foliageTex, alphaTest: 0.45, roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
+  // Laubbaum: eigener Blatt-Atlas, Vertexfarbe = Selbstverschattung der Krone (× Instanzfarbe)
+  const m = new THREE.MeshStandardMaterial({ map: tree ? treeLeafTex : foliageTex, alphaTest: 0.45, roughness: 0.82, metalness: 0, side: THREE.DoubleSide, vertexColors: tree });
   m.name = 'foliage';
   m.userData.surface = 'grass';
   m.onBeforeCompile = sh => {
@@ -669,6 +727,58 @@ function clusterGeom(cell, radius, count, seed, yC) {
   return mergeSimple(parts);
 }
 
+/**
+ * Aufbau des Laubbaums (Ursprung = Stammfuß, Maßstab 1 ≈ 12 m hoch, ≈ 10 m breit): Blattbüschel [x, y, z, r] in einem
+ * unteren und einem mittleren Kranz, zwei Wipfelbüschel und ein Kern. Fest (Zufall mit Startwert) – Krone (Atlas) und
+ * Äste (terrain/vegetation.js) lesen dieselbe Liste.
+ */
+export const LAUBBAUM = (() => {
+  const r = rng(2024), clumps = [];
+  // Kränze: [Anzahl, Höhe, Streuung Höhe, Abstand, Streuung Abstand, Radius, Streuung Radius] – breite, tief ansetzende
+  // Krone (Blätter ab ≈ 2,8 m) wie die Bäume im Video, oben schmaler
+  const rings = [[5, 4.5, 0.6, 2.5, 0.8, 2.05, 0.35], [5, 6.6, 0.8, 2.2, 0.6, 1.95, 0.35], [3, 8.7, 0.6, 1.2, 0.5, 1.8, 0.3]];
+  rings.forEach(([n, y, dy, d, dd, R, dR], k) => {
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + k * 0.6 + r() * 0.7, dist = d + r() * dd;
+      clumps.push([Math.cos(a) * dist, y + r() * dy, Math.sin(a) * dist, R + r() * dR]);
+    }
+  });
+  clumps.push([0.1, 10.4, -0.2, 1.7], [0.2, 6.4, -0.1, 2.4]); // Wipfel, Kern
+  return { clumps, top: 12.0, center: [0, 6.8, 0], limbs: 10 };
+})();
+
+/** Laubbaum-Krone: je Büschel zwei gekreuzte senkrechte und eine fast waagerechte Karte (≈ 66 Dreiecke). Normalen von der
+ *  Kronenmitte nach außen (die ganze Krone schattiert wie ein Körper), Vertexfarbe = Selbstverschattung innen/unten. */
+function laubbaumGeom() {
+  const P = [], U = [], N = [], Cl = [], { clumps, center } = LAUBBAUM, r = rng(77);
+  const quad = (c, ux, uy, uz, vx, vy, vz, hw, hh, cell) => {
+    const u0 = (cell % 2) * 0.5 + 0.005, v0 = 0.5 - Math.floor(cell / 2) * 0.5 + 0.005, du = 0.49;
+    const pts = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    const V = pts.map(([a, b]) => [c[0] + (ux * a * hw) + (vx * b * hh), c[1] + (uy * a * hw) + (vy * b * hh), c[2] + (uz * a * hw) + (vz * b * hh)]);
+    for (const k of [0, 1, 2, 0, 2, 3]) {
+      const p = V[k], [a, b] = pts[k];
+      P.push(p[0], p[1], p[2]); U.push(u0 + ((a + 1) / 2) * du, v0 + ((b + 1) / 2) * du);
+      const nx = p[0] - center[0], ny = (p[1] - center[1]) * 0.8 + 1.6, nz = p[2] - center[2], l = Math.hypot(nx, ny, nz) || 1;
+      N.push(nx / l, ny / l, nz / l);
+      const dist = Math.hypot(p[0] - center[0], (p[1] - center[1]) * 0.9, p[2] - center[2]);
+      const ao = (0.55 + 0.45 * Math.min(1, dist / 4.6)) * (0.82 + 0.18 * Math.min(1, Math.max(0, (p[1] - 3.5) / 7)));
+      Cl.push(ao, ao, ao);
+    }
+  };
+  for (const [x, y, z, R] of clumps) {
+    const a = r() * Math.PI, ca = Math.cos(a), sa = Math.sin(a), t = 1.2;
+    quad([x, y, z], ca, 0, sa, 0, 1, 0, R * 1.15, R, (r() * 4) | 0);
+    quad([x, y, z], -sa, 0, ca, 0, 1, 0, R * 1.15, R, (r() * 4) | 0);
+    quad([x, y + R * 0.15, z], ca, 0, sa, -sa * Math.sin(t), Math.cos(t), ca * Math.sin(t), R * 1.1, R * 1.1, (r() * 4) | 0);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(Cl, 3));
+  return g;
+}
+
 /** Palmkrone: hängende Wedel. */
 function palmCrownGeom() {
   const parts = [];
@@ -722,6 +832,8 @@ const KINDS = {
   hedge:   { geom: () => clusterGeom(0, 1.0, 6, 12, 0.7), wind: crown(1.5, 0.04, 0.03), cast: true, tint: ['#7f9a5a', '#90a868'] },
   olive:   { geom: () => clusterGeom(0, 2.6, 14, 13, 3.6), wind: crown(5.5, 0.14, 0.045), cast: true, tint: ['#a9b391', '#9aa884', '#b6bb98'] },
   tree:    { geom: () => clusterGeom(0, 3.0, 16, 14, 4.6), wind: crown(7.0, 0.2, 0.05), cast: true, tint: ['#8ea866', '#7f9c5c', '#a0b070'] },
+  // Laubbaum nach Video-Vorlage (Krone aus Blattbüscheln, eigener Atlas; Stamm/Äste baut der Aufrufer)
+  laubbaum: { geom: () => laubbaumGeom(), wind: crown(LAUBBAUM.top, 0.22, 0.05), cast: true, tree: true, tint: ['#8ea866', '#7f9c5c', '#a0b070'] },
   grass:   { geom: () => crossGeom(1, 0.9, 0.7, 3), wind: tip(0.7, 0.13, 0.03), cast: false, tint: ['#c7c9a0', '#b9c08e', '#d6cfa0'] },
   weeds:   { geom: () => crossGeom(1, 0.7, 0.55, 2), wind: tip(0.55, 0.1, 0.03), cast: false, tint: ['#a8b07c', '#c4b98a', '#9aa070'] },
   reeds:   { geom: () => crossGeom(1, 1.0, 1.6, 3), wind: tip(1.6, 0.26, 0.04), cast: false, tint: ['#c2bc88', '#aab07a'] },
@@ -737,6 +849,7 @@ const KINDS = {
  */
 export function createFoliage(plants, quality = 'high') {
   if (plants.length) ensureFoliageAtlas(quality);
+  if (plants.some((p) => KINDS[p.kind]?.tree)) ensureTreeLeafAtlas(quality);
   setFoliageQuality(quality);
   const byKind = new Map();
   for (const p of plants) {
@@ -753,7 +866,7 @@ export function createFoliage(plants, quality = 'high') {
     const geom = def.geom();
     setWindAttribute(geom, def.wind);
     geom.computeBoundingSphere();
-    const mesh = new THREE.InstancedMesh(geom, foliageMaterial(def.cast), list.length);
+    const mesh = new THREE.InstancedMesh(geom, foliageMaterial(def.cast, !!def.tree), list.length);
     list.forEach((p, i) => {
       q.setFromAxisAngle(up, p.ry);
       s.setScalar(p.s);

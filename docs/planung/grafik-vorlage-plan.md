@@ -103,6 +103,13 @@ sobald wieder Limit da ist. Vergleichsbilder neben dem Video zeigen (tools/out/s
    Altstadt ×1,8, HDRI-Füllicht entbläut (`env.hdriTint`); Boden in der Sonne wärmer (Beton #aba293); Ziegel heller und
    oranger; Hallenblech mittelgrau-grün statt weiß.
    **Später (Nutzer):** im Grenzland-Fluss schwimmen statt durchlaufen, mit Schwimmanimation – nach der Grafik.
+   **Nutzer 15.10. (Dorfplatz):** Dorf dichter wie im Video, Häuser samt Einrichtung, Bäume im Hintergrund wie im Video,
+   Blick vermutlich von der Kirche aus (Mülltonne rechts). Umgesetzt: 10 weitere eingerichtete Häuser (`verdichtung()` in
+   grenzland.js, Möbel in grenzland-innen.js), Pflaster bis an die Häuser, Brunnen mit Säule/Schale/Figur, grüne
+   Mülltonne am Platzrand; neuer Laubbaum (Krone aus 15 Blattbüscheln mit eigenem Blatt-Atlas, Stamm mit Hauptästen,
+   Fernmodell im selben Umriss; `LAUBBAUM` in atlas.js) für alle Laubbäume im Grenzland + 13 feste Dorfbäume
+   (`vegetation.trees`); AO-Vorpass ohne alpha-getestete Karten (sonst graue Rechtecke um Baumkronen am Himmel).
+   Vergleichsblick `grenzland-kirche` in tools/vergleich-video.mjs.
 1. **Soldatenmodelle zuerst:** Skin wie im Video (Helm mit Bezug, Plattenträger, Taschen, Rucksack, Handschuhe, kantiges
    grünes Splittertarn), beide Teams (Unterscheidung über Armbinde/Abzeichen + Namensschild), Ego-Arme passend,
    Bots und Puppen (Mehrspieler) gleich.

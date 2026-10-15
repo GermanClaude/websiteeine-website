@@ -162,9 +162,22 @@ function dorf(b) {
   b.defineSign('gasthaus', { style: 'plate', text: 'GASTHAUS ZUM GRENZSTEIN', bg: '#2d4a3a', fg: '#f1e6c8' });
   b.defineSign('ortsschild', { style: 'plate', text: 'GRENZDORF', sub: 'Landkreis Nullpunkt', bg: '#f2c230', fg: '#1c1c1c' });
   // Platz um die Kreuzung (Kopfsteinpflaster) + Brunnen
-  b.groundTiled(-20, 60, 8, 86, 'cobble', { cell: 1 });
-  b.cyl(-14, 0, 81, 0.95, 0.85, 'stone_wall', { tint: '#c8beac', seg: 14, minimap: 'cover' });
-  b.cyl(-14, 0.85, 81, 0.75, 0.05, 'metal_painted', { tint: '#3a5560', seg: 14, collide: false, minimap: false });
+  // (15.10. Grafik-Vorlage: Pflaster reicht bis an die Häuser ringsum, vorher −20…8 × 60…86 mit Wiese davor)
+  b.groundTiled(-24, 56, 12, 90, 'cobble', { cell: 1 });
+  // Brunnen wie im Video: rundes Becken (Hockdeckung), Wasser, Säule mit Schale und Figur obenauf
+  b.cyl(-14, 0, 81, 2.3, 0.55, 'stone_wall', { tint: '#c8beac', seg: 28, minimap: 'cover' });
+  b.cyl(-14, 0.55, 81, 2.42, 0.08, 'stone_wall', { tint: '#d2c9b8', seg: 28, collide: false, minimap: false, grad: false });
+  b.cyl(-14, 0.5, 81, 2.08, 0.1, 'metal_painted', { tint: '#3a5560', seg: 28, collide: false, minimap: false, grad: false });
+  b.cyl(-14, 0.6, 81, 0.34, 2.0, 'stone_wall', { tint: '#cdc4b4', seg: 12, minimap: false });
+  b.cyl(-14, 2.45, 81, 0.3, 0.32, 'stone_wall', { r1: 0.85, tint: '#cdc4b4', seg: 16, collide: false, minimap: false });
+  b.cyl(-14, 2.72, 81, 0.75, 0.05, 'metal_painted', { tint: '#3a5560', seg: 16, collide: false, minimap: false, grad: false });
+  b.box(-14, 2.6, 81, 0.5, 0.55, 0.5, 'stone_wall', { tint: '#c4bba9', collide: false, minimap: false });
+  // Figur (Steinguss): Gewand, Oberkörper, Kopf, erhobener Arm
+  b.cyl(-14, 3.15, 81, 0.24, 0.85, 'stone_wall', { r1: 0.16, tint: '#a9a397', seg: 10, collide: false, minimap: false, grad: false });
+  b.cyl(-14, 4.0, 81, 0.16, 0.42, 'stone_wall', { r1: 0.13, tint: '#a9a397', seg: 10, collide: false, minimap: false, grad: false });
+  b.cyl(-14, 4.42, 81, 0.07, 0.08, 'stone_wall', { tint: '#a9a397', seg: 8, collide: false, minimap: false, grad: false });
+  b.cyl(-14, 4.5, 81, 0.11, 0.24, 'stone_wall', { r1: 0.09, tint: '#a9a397', seg: 10, collide: false, minimap: false, grad: false });
+  b.box(-13.82, 4.2, 81, 0.09, 0.55, 0.09, 'stone_wall', { tint: '#a9a397', rz: -0.5, collide: false, minimap: false, grad: false });
   // Gasthaus „Zum Grenzstein“
   const gasthaus = haus(b, { x: -26, z: 58, w: 13, d: 9, floors: 2, color: '#efe2c4', roofTint: '#8a4232', doors: [{ side: 's', at: 2 }, { side: 'e', at: 0 }], stairs: { x: -31.6, z: 54.4, dir: 'e', wall: 'n' } });
   b.sign(-26, 3.2, 62.6, 4.2, 0.7, 'gasthaus', { ry: 0 });
@@ -214,7 +227,35 @@ function dorf(b) {
   Innen.kapelleInnen(b, innen(kapelle)); Innen.schuppenInnen(b, innen(schuppen));
   // MG-Stellung am nördlichen Ortsrand: deckt die Landstraße dort, wo sie die Hecke Richtung Brücke durchquert
   mgNest(b, 8.0, 30.0, { ry: Math.atan2(20 - 8, 18 - 30) });
+  verdichtung(b);
   return {};
+}
+
+/**
+ * Verdichtung (Nutzer 15.10.: „das Dorf bei Grenzland generell ein bisschen dichter, wie auf dem Video“): zehn weitere
+ * Wohnhäuser rund um den Dorfplatz und an den Wegen, jedes eingerichtet. Am Ende von dorf() und ohne b.rand (Putz- und
+ * Dachfarben fest) → übrige Dorf-Platzierung unverändert. Frei bleiben: Landstraße (±3,5 m), Dorfweg (±2,25 m),
+ * Mühlweg (±1,6 m), Flaggenkreis A/B-Mitte, Startpunkte; Gassen zwischen Häusern ≥ 2,5 m. Treppen wie h18 (0,4 m vor
+ * der Westwand, 0,7 m vor der Treppenwand, Aufstieg nach Osten), Türen nicht an der Treppenwand.
+ */
+function verdichtung(b) {
+  const GRUEN = '#4f5b3a', GRAU = '#5c6166';
+  // Ostseite des Platzes: Giebelhaus zum Platz, dahinter Haus an der Gasse, Kate hinter h18
+  Innen.platzOstInnen(b, haus(b, { x: 16, z: 79, w: 8, d: 9, floors: 2, ridge: 'x', color: '#e4e2dc', roofTint: '#efe6e0', shutter: GRUEN, doors: [{ side: 'w', at: -1.4 }, { side: 'e', at: 1.4 }], stairs: { x: 12.7, z: 75.5, dir: 'e', wall: 'n' } }));
+  Innen.gasseOstInnen(b, haus(b, { x: 29, z: 78, w: 9, d: 8, floors: 2, color: '#dfe0db', roofTint: '#b08a7c', shutter: GRAU, doors: [{ side: 'w', at: 1.4 }, { side: 'e', at: -1.4 }], stairs: { x: 25.2, z: 75.0, dir: 'e', wall: 'n' } }));
+  Innen.kateInnen(b, haus(b, { x: 33, z: 66, w: 8, d: 8, floors: 1, color: '#ebe8e1', roofTint: '#e6dbd4', shutter: GRUEN, doors: [{ side: 'w', at: 1.4 }, { side: 's', at: -1.4 }] }));
+  // Nordseite: Haus zwischen Platz und h8, Haus an der Landstraße
+  Innen.platzNordInnen(b, haus(b, { x: -9, z: 52, w: 9, d: 7, floors: 2, color: '#e2ddd2', roofTint: '#f2ebe6', shutter: GRUEN, doors: [{ side: 's', at: 1.4 }, { side: 'e', at: 0 }], stairs: { x: -12.8, z: 49.5, dir: 'e', wall: 'n' } }));
+  Innen.strasseNordInnen(b, haus(b, { x: 21, z: 46, w: 8, d: 7, floors: 2, color: '#e6e6e1', roofTint: '#e6dbd4', shutter: GRAU, doors: [{ side: 'w', at: 1.4 }, { side: 's', at: 1.4 }], stairs: { x: 17.7, z: 43.5, dir: 'e', wall: 'n' } }));
+  // Westseite: Haus am Dorfweg gegenüber dem Gasthaus, Haus hinter dem Gasthaus, Haus am Mühlweg
+  Innen.platzWestInnen(b, haus(b, { x: -29, z: 85, w: 9, d: 6, floors: 2, color: '#dfe1dc', roofTint: '#f5eee8', shutter: GRUEN, doors: [{ side: 'n', at: -1.4 }, { side: 'e', at: 0 }], stairs: { x: -32.8, z: 87.0, dir: 'e', wall: 's' } }));
+  Innen.hinterGasthausInnen(b, haus(b, { x: -40, z: 55, w: 7, d: 7, floors: 2, ridge: 'z', color: '#e8e4db', roofTint: '#dccdc4', shutter: GRUEN, doors: [{ side: 's', at: 1.4 }, { side: 'e', at: 1.4 }], stairs: { x: -42.8, z: 52.5, dir: 'e', wall: 'n' } }));
+  Innen.muehlwegInnen(b, haus(b, { x: -25.5, z: 41, w: 8, d: 7, floors: 1, color: '#ebe8e1', roofTint: '#f2ebe6', shutter: GRAU, doors: [{ side: 'e', at: 1.4 }, { side: 's', at: -1.4 }] }));
+  // Ortsränder: Ost hinter der Gasse, West am Dorfweg
+  Innen.ortsrandOstInnen(b, haus(b, { x: 41, z: 84, w: 8, d: 8, floors: 1, color: '#e2ddd2', roofTint: '#b08a7c', shutter: GRAU, doors: [{ side: 'w', at: -1.4 }, { side: 's', at: 1.4 }] }));
+  Innen.dorfwegWestInnen(b, haus(b, { x: -50, z: 93, w: 9, d: 7, floors: 2, color: '#e6e6e1', roofTint: '#e6dbd4', shutter: GRUEN, doors: [{ side: 'n', at: 1.4 }, { side: 's', at: 2.8 }], stairs: { x: -53.8, z: 95.5, dir: 'e', wall: 's' } }));
+  // grüne Mülltonne am Platzrand Richtung Kapelle (Video-Vorlage: Mülltonne rechts vorn); 0,5 m neben der Landstraße
+  dumpster(b, 6.9, 89.8, { ry: 0.35 });
 }
 
 /**
@@ -557,6 +598,13 @@ export default {
       // maps-expand: Heckenreihen neben den neuen Lesesteinmauern (Sichtschutz, keine Kugeldeckung)
       { pts: [[-10, 22], [25, 16]], trees: 0.1 }, { pts: [[72, -57.5], [100, -68]], trees: 0.15 },
       { pts: [[-95, -98], [-70, -83]], trees: 0.1 }, { pts: [[10, 168], [45, 175]], trees: 0.2 },
+    ],
+    // Laubbäume im Dorf (Grafik-Vorlage 15.10.: Bäume zwischen den Häusern und am Ortsrand) [x, z, Maßstab, Drehung];
+    // Stamm ≥ 4,5 m von Hauswänden, ≥ 3,5 m von Wegrändern, nicht auf Startpunkten
+    trees: [
+      [-42, 101, 1.1, 0.4], [38, 97, 1.0, 1.9], [-18.5, 49, 0.9, 2.8], [26.5, 35, 1.0, 4.1], [-48, 62, 1.0, 0.9],
+      [16, 109, 1.15, 3.3], [-33, 108, 1.0, 5.2], [42, 62, 1.1, 2.2], [-56, 74, 1.05, 1.4], [35, 52, 0.95, 0.3],
+      [-20, 113, 1.1, 4.6], [47, 97, 1.0, 5.9], [-58, 104, 1.1, 2.6],
     ],
     reeds: { offset: 8.6 },
     rocks: {

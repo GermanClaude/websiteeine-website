@@ -501,6 +501,170 @@ export function haus35Innen(b, R) {
   deckenlampe(b, 35.0, yC, 40.0, yF);
 }
 
+// --- Verdichtung 15.10. (Grafik-Vorlage: dichteres Dorf): zehn weitere Häuser, Möbel frei von Türen, Treppen und
+// Fenstern (hohe Möbel nur an fensterfreien Wandstücken, Fensterbank 0,95 m)
+
+/** Giebelhaus am Platz (16/79): Wohnküche mit Kachelofen, oben Schlafzimmer mit Schreibtisch. */
+export function platzOstInnen(b, R) {
+  const { yF, yC, yF2, yC2 } = R;
+  kueche(b, 16.0, yF, R.z1 - 0.3, PI, { len: 3.0 });
+  essplatz(b, 16.0, yF, 79.8, { w: 1.2, d: 0.8, n: 4, cloth: '#d8d0bc' });
+  kachelofen(b, R.x0 + 0.48, yF, R.z1 - 0.48, 0);
+  regal(b, R.x1 - 0.18, yF, 75.9, W, { w: 1.0 });
+  bild(b, R.x1 - 0.02, yF + 1.5, 82.4, W, { w: 0.6, h: 0.45 });
+  teppich(b, 16.0, yF, 79.8, 2.4, 1.8, 0, '#5a4a3a');
+  deckenlampe(b, 16.0, yC, 79.8, yF);
+  bett(b, 16.0, yF2, R.z1 - 1.0, PI, { w: 1.6, blanket: '#7a4a3a' });
+  truhe(b, 16.0, yF2, 80.6, 0);
+  schrank(b, R.x0 + 0.29, yF2, 82.2, E);
+  tisch(b, R.x1 - 0.3, yF2, 78.6, { w: 1.0, d: 0.55, ry: W });
+  stuhl(b, R.x1 - 0.95, yF2, 78.6, E);
+  teppich(b, 15.6, yF2, 79.2, 2.0, 1.4, 0, '#6a3a2e');
+  deckenlampe(b, 16.0, yC2, 79.4, yF2);
+}
+
+/** Haus an der Gasse (29/78): Küche, Esstisch, Kachelofen; oben Kinderzimmer mit zwei Betten. */
+export function gasseOstInnen(b, R) {
+  const { yF, yC, yF2, yC2 } = R;
+  kueche(b, 29.0, yF, R.z1 - 0.3, PI, { len: 3.6 });
+  essplatz(b, 29.6, yF, 77.6, { w: 1.4, d: 0.85, n: 4 });
+  kachelofen(b, R.x1 - 0.48, yF, R.z0 + 0.48, 0, { tint: '#7a5a46' });
+  regal(b, R.x1 - 0.18, yF, 80.9, W, { w: 1.0 });
+  teppich(b, 29.6, yF, 77.6, 2.6, 1.8, 0, '#4a5a6a');
+  deckenlampe(b, 29.6, yC, 77.6, yF);
+  bett(b, 26.4, yF2, R.z1 - 1.0, PI, { blanket: '#3a5a8a' });
+  bett(b, 31.6, yF2, R.z1 - 1.0, PI, { blanket: '#8a3a3a' });
+  truhe(b, 29.0, yF2, R.z1 - 0.3, 0);
+  schrank(b, R.x1 - 0.29, yF2, 75.2, W);
+  tisch(b, R.x0 + 0.3, yF2, 78.0, { w: 1.0, d: 0.55, ry: E });
+  stuhl(b, R.x0 + 0.95, yF2, 78.0, W);
+  teppich(b, 29.2, yF2, 78.4, 2.2, 1.4, 0, '#4a6a5a');
+  deckenlampe(b, 29.2, yC2, 78.2, yF2);
+}
+
+/** Einstöckige Kate (33/66): Bett, Schrank, Küche, Esstisch, Kachelofen. */
+export function kateInnen(b, R) {
+  const { yF, yC } = R;
+  bett(b, 34.6, yF, R.z0 + 1.0, 0, { w: 1.6, blanket: '#6a5a3a' });
+  schrank(b, R.x1 - 0.29, yF, 63.2, W);
+  kueche(b, 34.7, yF, R.z1 - 0.3, PI, { len: 3.2 });
+  essplatz(b, 32.4, yF, 65.6, { w: 0.9, d: 0.8, n: 2, ry: E });
+  kachelofen(b, R.x0 + 0.48, yF, R.z1 - 0.48, 0, { tint: '#8a5a3a' });
+  teppich(b, 32.6, yF, 65.6, 1.8, 1.4, PI / 2, '#5a3a2e');
+  deckenlampe(b, 33.0, yC, 66.0, yF);
+}
+
+/** Haus am Platz Nord (−9/52): Küche, Esstisch, Regal, Kachelofen; oben Schlafzimmer. */
+export function platzNordInnen(b, R) {
+  const { yF, yC, yF2, yC2 } = R;
+  kueche(b, -11.0, yF, R.z1 - 0.3, PI, { len: 3.6 });
+  essplatz(b, -9.6, yF, 52.2, { w: 1.2, d: 0.8, n: 4 });
+  regal(b, R.x1 - 0.18, yF, 49.9, W, { w: 1.0 });
+  kachelofen(b, R.x1 - 0.48, yF, R.z1 - 0.48, 0);
+  teppich(b, -9.6, yF, 52.2, 2.4, 1.8, 0, '#6a4a2e');
+  deckenlampe(b, -9.6, yC, 52.2, yF);
+  bett(b, -9.0, yF2, R.z1 - 1.0, PI, { w: 1.6, blanket: '#5a4a6a' });
+  schrank(b, R.x0 + 0.29, yF2, 54.5, E);
+  truhe(b, R.x0 + 0.3, yF2, 52.0, E);
+  tisch(b, R.x1 - 0.3, yF2, 52.0, { w: 1.0, d: 0.55, ry: W });
+  stuhl(b, R.x1 - 0.95, yF2, 52.0, E);
+  teppich(b, -9.0, yF2, 52.0, 2.0, 1.4, 0, '#7a3a2e');
+  deckenlampe(b, -9.0, yC2, 52.2, yF2);
+}
+
+/** Haus an der Landstraße (21/46): Küche, Esstisch, Kommode; oben Schlafzimmer mit Schreibtisch. */
+export function strasseNordInnen(b, R) {
+  const { yF, yC, yF2, yC2 } = R;
+  kueche(b, R.x1 - 0.3, yF, 46.0, W, { len: 3.0 });
+  essplatz(b, 21.2, yF, 46.0, { w: 1.1, d: 0.8, n: 4 });
+  kommode(b, 19.6, yF, R.z1 - 0.25, PI, { w: 1.2 });
+  bild(b, R.x0 + 0.02, yF + 1.5, 44.6, E, { w: 0.5, h: 0.6, tint: '#8a6a4a' });
+  teppich(b, 21.2, yF, 46.0, 2.2, 1.7, 0, '#4a5a6a');
+  deckenlampe(b, 21.2, yC, 46.0, yF);
+  bett(b, 21.8, yF2, R.z1 - 1.0, PI, { w: 1.6, blanket: '#7a6a4a' });
+  schrank(b, R.x1 - 0.29, yF2, 43.5, W);
+  tisch(b, R.x0 + 0.3, yF2, 47.4, { w: 1.0, d: 0.55, ry: E });
+  stuhl(b, R.x0 + 0.95, yF2, 47.4, W);
+  teppich(b, 21.0, yF2, 46.2, 2.0, 1.4, 0, '#6a3a2e');
+  deckenlampe(b, 21.0, yC2, 46.2, yF2);
+}
+
+/** Haus am Dorfweg (−29/85): Küche, Esstisch, Regal, Kachelofen; oben Schlafzimmer. */
+export function platzWestInnen(b, R) {
+  const { yF, yC, yF2, yC2 } = R;
+  kueche(b, R.x0 + 0.3, yF, 84.2, E, { len: 2.4 });
+  essplatz(b, -28.4, yF, 84.0, { w: 1.2, d: 0.8, n: 2, ry: E });
+  regal(b, R.x1 - 0.18, yF, 83.2, W, { w: 1.0 });
+  kachelofen(b, R.x1 - 0.48, yF, R.z1 - 0.48, 0, { tint: '#6a7a6a' });
+  teppich(b, -28.4, yF, 84.0, 1.6, 2.0, 0, '#5a3a2e');
+  deckenlampe(b, -28.4, yC, 84.2, yF);
+  bett(b, -27.0, yF2, R.z0 + 1.0, 0, { w: 1.6, blanket: '#3a4a6a' });
+  schrank(b, R.x0 + 0.29, yF2, 83.4, E);
+  truhe(b, -27.0, yF2, 84.75, 0);
+  tisch(b, R.x1 - 0.3, yF2, 85.6, { w: 0.9, d: 0.55, ry: W });
+  stuhl(b, R.x1 - 0.95, yF2, 85.6, E);
+  teppich(b, -29.4, yF2, 84.4, 1.8, 1.2, 0, '#7a3a2e');
+  deckenlampe(b, -29.2, yC2, 84.4, yF2);
+}
+
+/** Haus hinter dem Gasthaus (−40/55): Küche, Esstisch, Regal, Kachelofen; oben Schlafzimmer mit Waschtisch. */
+export function hinterGasthausInnen(b, R) {
+  const { yF, yC, yF2, yC2 } = R;
+  kueche(b, R.x0 + 0.3, yF, 55.6, E, { len: 2.4 });
+  essplatz(b, -39.8, yF, 55.2, { w: 1.0, d: 0.8, n: 4 });
+  regal(b, R.x1 - 0.18, yF, 52.4, W, { w: 1.0 });
+  kachelofen(b, R.x0 + 0.48, yF, R.z1 - 0.48, 0);
+  teppich(b, -39.8, yF, 55.2, 2.0, 1.6, 0, '#6a4a2e');
+  deckenlampe(b, -39.8, yC, 55.2, yF);
+  bett(b, -40.0, yF2, R.z1 - 1.0, PI, { w: 1.6, blanket: '#6a3a2e' });
+  schrank(b, R.x0 + 0.29, yF2, 55.0, E);
+  waschtisch(b, R.x1 - 0.24, yF2, 55.0, W);
+  teppich(b, -40.0, yF2, 55.4, 1.8, 1.2, 0, '#4a5a6a');
+  deckenlampe(b, -40.0, yC2, 55.4, yF2);
+}
+
+/** Einstöckiges Haus am Ortsrand Ost (41/84): Schlafecke, Schrank, Küche, Esstisch, Kachelofen. */
+export function ortsrandOstInnen(b, R) {
+  const { yF, yC } = R;
+  bett(b, 42.6, yF, R.z0 + 1.0, 0, { w: 1.6, blanket: '#7a4a3a' });
+  schrank(b, R.x1 - 0.29, yF, 83.9, W);
+  kueche(b, 39.4, yF, R.z1 - 0.3, PI, { len: 2.8 });
+  essplatz(b, 39.6, yF, 84.6, { w: 1.1, d: 0.8, n: 4 });
+  kachelofen(b, R.x0 + 0.48, yF, R.z0 + 0.48, 0, { tint: '#7a5a46' });
+  teppich(b, 39.6, yF, 84.6, 2.0, 1.6, 0, '#5a3a2e');
+  deckenlampe(b, 40.6, yC, 84.0, yF);
+}
+
+/** Haus am Dorfweg West (−50/93): Küche, Esstisch, Kommode, Regal; oben Schlafzimmer mit Schreibtisch. */
+export function dorfwegWestInnen(b, R) {
+  const { yF, yC, yF2, yC2 } = R;
+  kueche(b, -52.4, yF, R.z0 + 0.3, 0, { len: 3.0 });
+  essplatz(b, -50.8, yF, 92.6, { w: 1.2, d: 0.8, n: 4 });
+  kommode(b, R.x1 - 0.25, yF, 93.0, W, { w: 1.2 });
+  regal(b, R.x0 + 0.18, yF, 93.0, E, { w: 1.0 });
+  teppich(b, -50.8, yF, 92.6, 2.4, 1.8, 0, '#4a5a6a');
+  deckenlampe(b, -50.8, yC, 92.6, yF);
+  bett(b, -50.2, yF2, R.z0 + 1.0, 0, { w: 1.6, blanket: '#5a6a3a' });
+  schrank(b, R.x1 - 0.29, yF2, 93.0, W);
+  tisch(b, R.x0 + 0.3, yF2, 91.6, { w: 1.0, d: 0.55, ry: E });
+  stuhl(b, R.x0 + 0.95, yF2, 91.6, W);
+  truhe(b, -50.2, yF2, 92.4, 0);
+  teppich(b, -50.4, yF2, 92.8, 2.0, 1.4, 0, '#6a3a2e');
+  deckenlampe(b, -50.4, yC2, 92.6, yF2);
+}
+
+/** Einstöckiges Haus am Mühlweg (−25,5/41): Bett, Schrank, Küche, Esstisch, Kommode. */
+export function muehlwegInnen(b, R) {
+  const { yF, yC } = R;
+  bett(b, -27.4, yF, R.z0 + 1.0, 0, { blanket: '#6a5a3a' });
+  schrank(b, R.x0 + 0.29, yF, 41.0, E);
+  kueche(b, R.x1 - 0.3, yF, 39.0, W, { len: 2.2 });
+  essplatz(b, -24.6, yF, 41.4, { w: 1.0, d: 0.8, n: 2 });
+  kommode(b, -24.1, yF, R.z1 - 0.25, PI, { w: 1.0 });
+  teppich(b, -25.0, yF, 41.2, 1.8, 1.4, 0, '#5a3a2e');
+  deckenlampe(b, -25.2, yC, 41.0, yF);
+}
+
 /** Kapelle: Kirchenbänke links/rechts des Mittelgangs, Altar auf der Stufe mit Wandkreuz, Ambo, Kreuzweg-Bilder, zwei Pendelleuchten. */
 export function kapelleInnen(b, R) {
   const { yF, yC } = R;

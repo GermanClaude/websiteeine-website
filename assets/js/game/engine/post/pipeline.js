@@ -149,14 +149,16 @@ export class PostPipeline {
         this.gtao.blendIntensity = 0.85;
         this.gtao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.5, thickness: 1.0, scale: 1.0, samples: this.aoScale < 1 ? 8 : 12 });
         // Normal-/Tiefen-Vorpass nur für deckende Geometrie: durchsichtige Effekte ohne Tiefenschreiben
-        // (Sonnenstrahlen-Quader, Rauch, Decals, Mündungsfeuer, Sprites) sonst als riesige Verdecker → dunkle Keile
+        // (Sonnenstrahlen-Quader, Rauch, Decals, Mündungsfeuer, Sprites) sonst als riesige Verdecker → dunkle Keile.
+        // Alpha-getestete Karten (Laub, Gras, Schilder) ebenso: der Normalen-Durchlauf (MeshNormalMaterial) kennt keinen
+        // Alpha-Test → ganze Blattkarten als Rechtecke, graue AO-Höfe am Himmel um die Baumkronen (15.10.)
         const gtao = this.gtao;
         gtao._overrideVisibility = function overrideVisibility() {
           const cache = this._visibilityCache;
           this.scene.traverse((o) => {
             if (!o.visible) return;
             const m = o.material;
-            const see = !Array.isArray(m) && m && m.transparent && !m.depthWrite;
+            const see = !Array.isArray(m) && m && ((m.transparent && !m.depthWrite) || (m.alphaTest > 0 && (m.map || m.alphaMap)));
             if (o.isPoints || o.isLine || o.isLine2 || o.isSprite || see || (o.userData && o.userData.noAO)) { o.visible = false; cache.push(o); }
           });
         };

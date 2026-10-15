@@ -17,6 +17,8 @@ export const VIEWS = {
   'werk-gasse':      ['werk', 'bild-6_5s', 26, 1.7, 22, 0, 2, 55],      // Gasse zwischen Halle und Kesselhaus
   // Video-Platz = Dorfplatz im Grenzland (Nutzer 15.10.: leerer Platz, kein Altstadt-Markt); y als 'g+…' = über Grund
   'grenzland-platz': ['grenzland', 'bild-7_8s', 2, 'g+2.2', 70, 112, -3, 50], // Kopfsteinplatz mit Marktständen und Häusern
+  // Nutzer 15.10.: Video-Blick vermutlich von der Kirche aus (Kirche rechts außerhalb des Bildes) über den Platz
+  'grenzland-kirche': ['grenzland', 'bild-7_8s', -1.5, 'g+2.2', 91, 36, -3, 50],
   'altstadt-platz':  ['altstadt', 'bild-7_8s', 0, 2.2, 15, 0, -2, 50],  // Brunnenplatz (nur auf Wunsch: Altstadt ist nicht im Video)
 };
 const args = process.argv.slice(2);
