@@ -33,7 +33,7 @@ export const LIB_MATERIALS = {
   concrete_painted: { id: 'concrete_painted_peeling', color: 1.0 },
   asphalt: { id: 'asphalt_cracked', color: 0.85, macro: [0.18, 0.1, 0.14] },
   plaster_warm: { id: 'plaster_beige', color: [1.95, 2.1, 2.4] }, // textures-2: weniger lachsfarben (Scan Ø #836f56 × 2,1 war R/B 2,4)
-  plaster_white: { id: 'plaster_white', color: 1.7 },
+  plaster_white: { id: 'v_plaster', color: 1.0 }, // Grafik-Vorlage: Video-Putz (vorher plaster_white × 1,7)
   plaster_peeling: { id: 'plaster_white_peeling', color: 1.15, roughness: 1.5 }, // textures-2: Putz matt (Ø 0,52 → 0,78)
   plaster_blue: { id: 'plaster_blue_weathered', color: 1.05 },
   plaster_damaged: { id: 'plaster_damaged_brick', color: 1.1 },
@@ -41,9 +41,9 @@ export const LIB_MATERIALS = {
   brick: { id: 'v_brick', color: 1.0 }, // Grafik-Vorlage: vorher brick_factory × 1,55
   brick_dark: { id: 'brick_dark', color: 2.0 },
   stone_wall: { id: 'sandstone_blocks', color: 1.0 },
-  cobble: { id: 'cobblestone', color: 0.85, roughness: 1.25 }, // textures-2: Ø 0,58 → 0,72 (abgetreten, nicht nass)
+  cobble: { id: 'v_setts', color: 1.0 }, // Grafik-Vorlage: helles Granit-Reihenpflaster wie der Video-Platz (vorher cobblestone)
   paving: { id: 'paving_flagstone', color: [1.45, 1.6, 1.75] }, // Weißabgleich Richtung Kalkstein
-  roof_tiles: { id: 'roof_clay_tiles', color: [0.78, 1.19, 1.71] }, // textures-2: Scan Ø #97532d sehr gesättigt → verwitterter Ton (≈ #895c3e, Helligkeit +9 %)
+  roof_tiles: { id: 'v_roof', color: 1.0 }, // Grafik-Vorlage: rot-orange Hohlpfannen wie im Video (vorher roof_clay_tiles)
   wood_planks: { id: 'wood_planks', color: [1.2, 1.32, 1.5] }, // etwas entsättigt (Fotoscan sehr orange)
   wood_dark: { id: 'wood_planks_dark', color: 0.8 },
   wood_crate: { id: 'wood_crate', color: 0.95, repeat: 0.62, macro: [0.16, 0.1, 0.12], normalScale: 1.35, aoMapIntensity: 1.3 }, // LV-7: Bretter in echter Breite (1,87-m-Satz ≈ 1,16 m je Kistenseite), Kisten nicht mehr gleichfarbig

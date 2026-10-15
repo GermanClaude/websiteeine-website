@@ -183,10 +183,7 @@
    "author": "Dimitrios Savva",
    "category": "plaster",
    "surface": "concrete",
-   "replaces": [
-    "plaster_white",
-    "white"
-   ],
+   "replaces": [],
    "tiers": [
     512,
     1024
@@ -395,9 +392,7 @@
    "author": "Rob Tuytel",
    "category": "masonry",
    "surface": "concrete",
-   "replaces": [
-    "cobble"
-   ],
+   "replaces": [],
    "tiers": [
     512,
     1024
@@ -439,9 +434,7 @@
    "author": "Amal Kumar",
    "category": "masonry",
    "surface": "tile",
-   "replaces": [
-    "roof_tiles"
-   ],
+   "replaces": [],
    "tiers": [
     512,
     1024
@@ -1625,6 +1618,74 @@
    "sizeM": [
     1.5,
     1.5
+   ]
+  },
+  {
+   "id": "v_setts",
+   "source": "procedural",
+   "sourceId": "setts",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "category": "masonry",
+   "surface": "concrete",
+   "replaces": [
+    "cobble"
+   ],
+   "tiers": [
+    512,
+    1024,
+    2048
+   ],
+   "name": "Granit-Reihenpflaster (Video-Vorlage)",
+   "sizeM": [
+    1.6,
+    1.6
+   ]
+  },
+  {
+   "id": "v_roof",
+   "source": "procedural",
+   "sourceId": "roof_tiles",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "category": "masonry",
+   "surface": "concrete",
+   "replaces": [
+    "roof_tiles"
+   ],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Tonziegeldach (Video-Vorlage)",
+   "sizeM": [
+    2,
+    2
+   ]
+  },
+  {
+   "id": "v_plaster",
+   "source": "procedural",
+   "sourceId": "plaster",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "category": "plaster",
+   "surface": "concrete",
+   "replaces": [
+    "plaster_white"
+   ],
+   "tiers": [
+    512,
+    1024
+   ],
+   "tintable": true,
+   "name": "Kalkputz (Video-Vorlage)",
+   "sizeM": [
+    3,
+    3
    ]
   }
  ],

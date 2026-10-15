@@ -216,4 +216,85 @@ export const GENERATORS = {
       p.ao = 1 - (1 - inBrick) * 0.35;
     }, { normal: 7, cav: [0.006, 2.2], aoMin: 0.45 });
   },
+
+  /**
+   * Granitpflaster (Video-Platz bild-7_8s): Reihenpflaster aus fast quadratischen Steinen (≈ 13 × 12 cm), hellgrau mit
+   * Streuung je Stein, gewölbte Köpfe, dunkle Sandfugen, einzelne Abplatzer; 12 × 13 Steine je 1,6-m-Kachel.
+   */
+  setts(size) {
+    const n1 = makeNoise(51), n2 = makeNoise(52), n3 = makeNoise(53);
+    const greys = ['#b4b2ad', '#a9a7a2', '#bdbab3', '#9e9c97', '#c4c1ba', '#8f8d89'].map(hex);
+    const joint = hex('#7a766e');
+    const COLS = 12, ROWS = 13;
+    const hashI = (a, b) => { let h = (a * 374761393 + b * 668265263) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+    return assemble(size, (u, v, p) => {
+      const row = Math.floor(v * ROWS), fv = v * ROWS - row;
+      const off = hashI(row, 7) * 0.8; // Reihen unregelmäßig versetzt
+      const cx = u * COLS + off, col = Math.floor(cx), fu = cx - col, ci = ((col % COLS) + COLS) % COLS;
+      // Steine leicht unterschiedlich groß: Fuge je Stein verschieden breit
+      const jw = 0.035 + 0.03 * hashI(ci, row);
+      const du = Math.min(fu, 1 - fu), dv = Math.min(fv, 1 - fv);
+      const inS = smooth(jw * 0.5, jw * 0.5 + 0.08, du) * smooth(jw * 0.5, jw * 0.5 + 0.08, dv);
+      // gewölbter Kopf: Höhe fällt zu den Kanten ab, leichte Schräglage je Stein
+      const dome = Math.sqrt(clamp01(1 - ((fu - 0.5) ** 2 + (fv - 0.5) ** 2) * 1.6));
+      const tilt = (hashI(ci + 3, row + 9) - 0.5) * 0.25 * (fu - 0.5) + (hashI(ci + 5, row + 1) - 0.5) * 0.25 * (fv - 0.5);
+      const chip = smooth(0.7, 0.78, n1(u, v, 40, 40, 3)) * (1 - smooth(0.05, 0.2, Math.min(du, dv)));
+      const grain = n2(u, v, 220, 220, 2);
+      p.h = inS * (0.65 + 0.3 * dome + tilt + (grain - 0.5) * 0.06 - chip * 0.2) + (1 - inS) * (0.05 + (n3(u, v, 160, 160, 2) - 0.5) * 0.05);
+      const g = greys[Math.floor(hashI(ci + 11, row + 13) * greys.length)];
+      const stone = g.map((c) => c * (0.9 + 0.16 * grain + 0.08 * (n3(u, v, 30, 30, 3) - 0.5)));
+      p.col = mix3(joint.map((c) => c * (0.85 + 0.3 * n3(u, v, 90, 90, 2))), stone, inS);
+      p.rough = mix(0.95, 0.72 + 0.12 * grain, inS);
+      p.ao = 1 - (1 - inS) * 0.4;
+    }, { normal: 7, cav: [0.006, 2.4], aoMin: 0.4 });
+  },
+
+  /**
+   * Tonziegeldach (Video-Platz: rot-orange Hohlpfannen): 7 Reihen × 6 Wellen je 2-m-Kachel, Überdeckung als Stufe je
+   * Reihe, Wellenprofil quer, Farbe je Ziegel gestreut, etwas Moos/Schmutz in den Kehlen; Farbe über tint verstellbar.
+   */
+  roof_tiles(size) {
+    const n1 = makeNoise(61), n2 = makeNoise(62);
+    const clay = ['#b5553a', '#a84b33', '#be6143', '#9e4630', '#b05a40'].map(hex);
+    const moss = hex('#5d5a40'), dirt = hex('#4a3a30');
+    const ROWS = 7, COLS = 6;
+    const hashI = (a, b) => { let h = (a * 374761393 + b * 668265263) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+    return assemble(size, (u, v, p) => {
+      const row = Math.floor(v * ROWS), fv = v * ROWS - row;
+      // Hohlpfannen liegen in geraden Spalten (kein Versatz); Welle quer, Stufe längs: unterer Rand liegt auf der Reihe darunter
+      const cx = u * COLS, col = Math.floor(cx), fu = cx - col, ci = ((col % COLS) + COLS) % COLS;
+      const wave = 0.5 - 0.5 * Math.cos(fu * Math.PI * 2);
+      const lap = smooth(0.0, 0.12, fv); // unten (fv≈0) Schattenkante der überlappenden Reihe
+      const gap = smooth(0.0, 0.03, Math.min(fu, 1 - fu));
+      p.h = 0.25 + wave * 0.45 + fv * 0.25 - (1 - lap) * 0.3 - (1 - gap) * 0.1 + (n1(u, v, 120, 120, 2) - 0.5) * 0.03;
+      const c = clay[Math.floor(hashI(ci, row) * clay.length)].map((x) => x * (0.88 + 0.2 * n2(u, v, 30, 30, 3)));
+      const valley = 1 - wave;
+      let col3 = c.map((x) => x * (0.78 + 0.3 * wave)); // Welle auch in der Farbe lesbar (Licht von oben)
+      col3 = mix3(col3, dirt, (1 - lap) * 0.5);
+      col3 = mix3(col3, moss, smooth(0.62, 0.8, n1(u, v, 8, 8, 4)) * valley * 0.45);
+      p.col = col3;
+      p.rough = 0.72 + 0.15 * valley;
+      p.ao = 1 - (1 - lap) * 0.5;
+    }, { normal: 8, cav: [0.01, 1.5], aoMin: 0.4 });
+  },
+
+  /**
+   * Putz (Video-Häuser): glatter, hellgrauer Kalkputz mit feiner Körnung, schwachen Wolken, Schmutzfahnen von oben
+   * und leichter Verschmutzung unten; Farbe über tint (Hausfarbe).
+   */
+  plaster(size) {
+    const n1 = makeNoise(71), n2 = makeNoise(72), n3 = makeNoise(73);
+    const base = hex('#dcdcd7'), grime = hex('#9a9890');
+    return assemble(size, (u, v, p) => {
+      const grain = n1(u, v, 300, 300, 2), cloud = n2(u, v, 5, 5, 4);
+      const streak = smooth(0.66, 0.9, n3(u, v, 10, 2, 3)) * 0.35;
+      const patch = smooth(0.7, 0.75, n2(u, v, 9, 9, 3)); // ausgebesserte Stellen (leicht erhaben)
+      p.h = (grain - 0.5) * 0.08 + patch * 0.08 + (cloud - 0.5) * 0.04;
+      let c = base.map((x) => x * (0.95 + 0.06 * grain + 0.06 * (cloud - 0.5)));
+      c = mix3(c, grime, streak * 0.5);
+      c = mix3(c, base.map((x) => x * 1.02), patch * 0.5);
+      p.col = c;
+      p.rough = 0.88 + 0.06 * grain;
+    }, { normal: 3, cav: [0.004, 1.5], aoMin: 0.7 });
+  },
 };

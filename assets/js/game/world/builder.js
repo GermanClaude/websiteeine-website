@@ -41,6 +41,16 @@ function linearTint(t) {
   _c.set(t); // sRGB-Hex → linear (ColorManagement)
   return [_c.r, _c.g, _c.b];
 }
+// Grafik-Vorlage (15.10.): Sätze, die ihre Farbe selbst mitbringen (am Video gemessen, z. B. Ziegel), nehmen ältere
+// Karten-Tönungen nur noch abgeschwächt an – Farbstich zu ⅓, Helligkeit zu knapp der Hälfte (sonst wurden Ziegel mit
+// den alten Tönungen wie #8a5a4a fast schwarzrot)
+const TINT_SOFT = { brick: [0.7, 0.55], roof_tiles: [0.6, 0.45], cobble: [0.8, 0.6] };
+function tintFor(mat, t) {
+  const c = linearTint(t), k = TINT_SOFT[mat];
+  if (!k || !t) return c;
+  const L = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  return c.map((v) => { const s = v + (L - v) * k[0]; return s + (1 - s) * k[1]; });
+}
 const smoothstep = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // Flags pro Vertex
@@ -279,7 +289,7 @@ export class MapBuilder {
     bk.pos.ensure(nV * 3); bk.nor.ensure(nV * 3); bk.uv.ensure(nV * 2); bk.col.ensure(nV * 3); bk.flg.ensure(nV); bk.bullet.ensure(nV / 3);
     const P = bk.pos.a, N = bk.nor.a, UV = bk.uv.a, C = bk.col.a, FL = bk.flg.a;
     let pi = bk.pos.n, ui = bk.uv.n, fi = bk.flg.n;
-    const tint = linearTint(o.tint);
+    const tint = tintFor(mat, o.tint);
     const uvMode = o.uv || 'world', uvs = 1 / (o.uvScale || 1), uo = o.uvOffset || [0, 0], uvSwap = !!o.uvSwap;
     const ao = o.ao !== false;
     const floorY = o.aoFloor ?? center[1];

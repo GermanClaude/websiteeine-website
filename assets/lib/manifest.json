@@ -2,7 +2,7 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-15T17:16:30.288Z",
+ "generated": "2026-10-15T17:23:29.161Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
@@ -861,10 +861,7 @@
    "name": "White Stucco 02",
    "category": "plaster",
    "surface": "concrete",
-   "replaces": [
-    "plaster_white",
-    "white"
-   ],
+   "replaces": [],
    "sizeM": [
     1.8,
     1.8
@@ -1907,9 +1904,7 @@
    "name": "Cobblestone Floor 08",
    "category": "masonry",
    "surface": "concrete",
-   "replaces": [
-    "cobble"
-   ],
+   "replaces": [],
    "sizeM": [
     2,
     2
@@ -2105,9 +2100,7 @@
    "name": "Clay Roof Tiles 02",
    "category": "masonry",
    "surface": "tile",
-   "replaces": [
-    "roof_tiles"
-   ],
+   "replaces": [],
    "sizeM": [
     2.5,
     2.5
@@ -7697,6 +7690,330 @@
    "license": "CC0-1.0",
    "source": "procedural",
    "sourceId": "brick",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "maps": []
+  },
+  "v_setts": {
+   "type": "texture",
+   "name": "Granit-Reihenpflaster (Video-Vorlage)",
+   "category": "masonry",
+   "surface": "concrete",
+   "replaces": [
+    "cobble"
+   ],
+   "sizeM": [
+    1.6,
+    1.6
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#9d9a95",
+    "avgRoughness": 0.821,
+    "avgMetalness": 0,
+    "avgAO": 0.856,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/v_setts/v_setts_512_albedo.ktx2",
+     "normal": "textures/v_setts/v_setts_512_normal.ktx2",
+     "orm": "textures/v_setts/v_setts_512_orm.ktx2",
+     "sizes": {
+      "albedo": 48619,
+      "normal": 50850,
+      "orm": 29632
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 129101,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/v_setts/v_setts_1024_albedo.ktx2",
+     "normal": "textures/v_setts/v_setts_1024_normal.ktx2",
+     "orm": "textures/v_setts/v_setts_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 139835,
+      "normal": 188956,
+      "orm": 95694
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 424485,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "2048": {
+     "albedo": "textures/v_setts/v_setts_2048_albedo.ktx2",
+     "normal": "textures/v_setts/v_setts_2048_normal.ktx2",
+     "orm": "textures/v_setts/v_setts_2048_orm.ktx2",
+     "sizes": {
+      "albedo": 422941,
+      "normal": 586000,
+      "orm": 315225
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "normal": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "orm": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      }
+     },
+     "bytes": 1324166,
+     "gpu": {
+      "desktop": 8388609,
+      "mobile": 8388609,
+      "rgba8": 67108863
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "procedural",
+   "sourceId": "setts",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "maps": []
+  },
+  "v_roof": {
+   "type": "texture",
+   "name": "Tonziegeldach (Video-Vorlage)",
+   "category": "masonry",
+   "surface": "concrete",
+   "replaces": [
+    "roof_tiles"
+   ],
+   "sizeM": [
+    2,
+    2
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#a55037",
+    "avgRoughness": 0.795,
+    "avgMetalness": 0,
+    "avgAO": 0.958,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/v_roof/v_roof_512_albedo.ktx2",
+     "normal": "textures/v_roof/v_roof_512_normal.ktx2",
+     "orm": "textures/v_roof/v_roof_512_orm.ktx2",
+     "sizes": {
+      "albedo": 29321,
+      "normal": 17514,
+      "orm": 14405
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 61240,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/v_roof/v_roof_1024_albedo.ktx2",
+     "normal": "textures/v_roof/v_roof_1024_normal.ktx2",
+     "orm": "textures/v_roof/v_roof_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 78046,
+      "normal": 59426,
+      "orm": 43578
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 181050,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "procedural",
+   "sourceId": "roof_tiles",
+   "url": "",
+   "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
+   "maps": []
+  },
+  "v_plaster": {
+   "type": "texture",
+   "name": "Kalkputz (Video-Vorlage)",
+   "category": "plaster",
+   "surface": "concrete",
+   "replaces": [
+    "plaster_white"
+   ],
+   "sizeM": [
+    3,
+    3
+   ],
+   "tintable": true,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#d9d9d4",
+    "avgRoughness": 0.91,
+    "avgMetalness": 0,
+    "avgAO": 0.993,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/v_plaster/v_plaster_512_albedo.ktx2",
+     "normal": "textures/v_plaster/v_plaster_512_normal.ktx2",
+     "orm": "textures/v_plaster/v_plaster_512_orm.ktx2",
+     "sizes": {
+      "albedo": 22564,
+      "normal": 5022,
+      "orm": 27946
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 55532,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/v_plaster/v_plaster_1024_albedo.ktx2",
+     "normal": "textures/v_plaster/v_plaster_1024_normal.ktx2",
+     "orm": "textures/v_plaster/v_plaster_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 73808,
+      "normal": 81111,
+      "orm": 91444
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 246363,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "procedural",
+   "sourceId": "plaster",
    "url": "",
    "author": "NULLPUNKT (prozedural, Grafik-Vorlage)",
    "maps": []
@@ -13570,8 +13887,8 @@
  },
  "totals": {
   "textures": {
-   "files": 465,
-   "bytes": 62951361
+   "files": 486,
+   "bytes": 65373298
   },
   "hdri": {
    "files": 32,
@@ -13582,16 +13899,16 @@
    "bytes": 53609888
   },
   "all": {
-   "files": 608,
-   "bytes": 135770952
+   "files": 629,
+   "bytes": 138192889
   },
   "byTier": {
-   "512": 27232172,
-   "1024": 81673743,
-   "2048": 26865037
+   "512": 27478045,
+   "1024": 82525641,
+   "2048": 28189203
   },
   "counts": {
-   "textures": 73,
+   "textures": 76,
    "hdris": 8,
    "models": 57
   }

@@ -9,7 +9,7 @@ und ebenfalls CC0. Quellenliste mit Download-IDs: `tools/assets/sources.json`, P
 Vielen Dank an [Poly Haven](https://polyhaven.com) und [ambientCG](https://ambientcg.com) sowie alle
 Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 
-## Texturen (73)
+## Texturen (76)
 
 | Asset | ID | Urheber:in | Quelle | Lizenz |
 |---|---|---|---|---|
@@ -86,6 +86,9 @@ Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 | Kaibeton mit Fugen (Video-Vorlage) | `v_concrete_slab` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Trapezblech (Video-Vorlage) | `v_cladding` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Ziegelwand (Video-Vorlage) | `v_brick` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Granit-Reihenpflaster (Video-Vorlage) | `v_setts` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Tonziegeldach (Video-Vorlage) | `v_roof` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Kalkputz (Video-Vorlage) | `v_plaster` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 
 ## HDRIs (8)
 

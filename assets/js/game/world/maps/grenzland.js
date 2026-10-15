@@ -12,8 +12,10 @@ import { mgNest } from './grenzland-stellungen.js';
 import { grenzanlage, grenzLinie } from './grenzland-grenze.js';
 
 const DIRV = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
-const PLASTER = ['#efe6d6', '#e8dcc4', '#f2ede2', '#e3d3b8', '#dfe0d6', '#eadbc8'];
-const ROOF = ['#9a4a36', '#8a4232', '#a3553c', '#7e3d30', '#6f4a3c'];
+// Grafik-Vorlage (Video-Dorfplatz bild-7_8s): hellgrau-weißer Putz, Tonziegel rot-orange (Farbe aus der Textur v_roof,
+// hier nur leichte Streuung, ein dunkleres Dach wie das rechte Haus im Video)
+const PLASTER = ['#e6e6e1', '#dededa', '#ebe8e1', '#e2ddd2', '#dfe1dc', '#e8e4db'];
+const ROOF = ['#f2ebe6', '#e6dbd4', '#f5eee8', '#b08a7c', '#dccdc4'];
 
 // ---------------------------------------------------------------------------
 // Bausteine
@@ -469,9 +471,11 @@ export default {
   wallMargin: 48,
   lighting: {
     sun: { elevation: 36, azimuth: 152, color: '#fff1dc', intensity: 3.6 },
-    sky: { turbidity: 4.2, rayleigh: 1.5, mieCoefficient: 0.005, mieDirectionalG: 0.8, exposure: 0.48, clouds: { coverage: 0.42, density: 0.45, scale: 0.00016, elevation: 0.5 }, hazeHigh: 0.1, hazeAmount: 0.8, hdriIntensity: 0.55 },
-    hemi: { sky: '#cbd9e8', ground: '#5d6046', intensity: 0.7, hdriIntensity: 0.35 },
-    env: { intensity: 1.0, ground: '#6a6c52', groundIntensity: 0.5, tint: '#eef3ff', hdriIntensity: 0.6 },
+    // Grafik-Vorlage (Video-Dorfplatz bild-7_8s, 15.10.): heller Himmel mit Haufenwolken statt tiefblauem Fotohimmel,
+    // Füllicht wie Hafen/Werk am Video gemessen (Schatten ≈ 1/5 der Sonnenseite, neutral grau)
+    sky: { turbidity: 4.8, rayleigh: 1.35, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.5, clouds: { coverage: 0.55, density: 0.5, scale: 0.00016, elevation: 0.5 }, hazeHigh: 0.16, hazeAmount: 1, hdri: false },
+    hemi: { sky: '#d0d6dc', ground: '#6a6b55', intensity: 1.3, hdriIntensity: 1.0 },
+    env: { intensity: 1.6, ground: '#6a6c52', groundIntensity: 0.55, tint: '#f2f1ee', hdriIntensity: 1.3, hdriTint: '#ece4d8' },
     // atmosphere-weather: Höhennebel über dem Tal (baseY = Wasserspiegel, Skalenhöhe ≈ 45 m), Gegenlicht-Einstreuung;
     // lineare Nebelweite bleibt für Materialien ohne Welt-Shading
     fog: { color: '#b9c7d2', nearFactor: 0.18, density: 0.003, falloff: 0.022, start: 25, max: 0.9, sun: 0.7, sunExp: 4 },
