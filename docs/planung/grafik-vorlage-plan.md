@@ -14,7 +14,7 @@ Auftrag (Nutzer, 12.10.): Das von ihm mit Gemini erzeugte 10-Sekunden-Video ist 
   optimierten PC-Stufe flüssig laufen (Messung auf „mittel/hoch“, nicht nur auf „ultra“); teure Effekte gestaffelt.
 - **Grafik und Texturen vom Video 1:1 übernehmen** – nicht den Inhalt/Aufbau der Szenen, sondern den Look: Materialien,
   Texturen, Farben, Licht, Schatten, Soldaten-Skin.
-- **Karten, die im Video nicht vorkommen** (Grenzland, Bibliothek, Niemandsland, Schießstand; Altstadt nur der Platz):
+- **Karten, die im Video nicht vorkommen** (Altstadt, Bibliothek, Niemandsland, Schießstand; vom Grenzland nur der Dorfplatz – Nutzer 15.10.: der Platz im Video ist der leere Grenzland-Dorfplatz, nicht die Altstadt):
   so umsetzen, wie das Video sie zeigen würde – dieselbe Material- und Lichtbehandlung, dieselben Farbtöne, dieselbe
   Sauberkeit. **Keine eigene, abweichende Stilidee**, sondern strikt aus den Bildern ableiten. Vor jeder Karte festhalten,
   welches Videobild als Bezug dient (z. B. Ziegel der Werk-Gasse → Ziegel in Altstadt/Bibliothek-Mauern,
@@ -81,6 +81,11 @@ sobald wieder Limit da ist. Vergleichsbilder neben dem Video zeigen (tools/out/s
    neu gemessen; Schattenkanten weicher (`shadow.radius 2,8`). AO ab „hoch“ in halber Auflösung mit 8 Proben
    (`aoScale`), „ultra“ voll. Lichtbalken nur noch vom Hellen ins Dunkle (Sonden-Himmelssicht), keine Schlitze in
    Werk-Gassen. Bilder: `tools/out/vergleich/vorher-post-bogen.png` ↔ `nachher-bogen.png`.
+   Nutzer danach: „nicht mal annähernd wie das Video“ → Videobilder ausgemessen (HSL-Sättigung Video 0,10–0,14, Spiel
+   0,29–0,37; Video grünlich-grau) → gemeinsame Farbstufe `VIDEO_LUT` (Sättigung ≈ 0,46, Grünstich, angehobene
+   Schwärzen), Containerlack gedeckt (`videoTone` in props.js), Hafen-Terminal Beton statt Asphalt. Veröffentlicht als
+   Fassung 20261015164134. **Größter Rest-Abstand: Texturen/Modelle** (Container ohne Rippen-Details/Beschriftung,
+   Hallenwände, Ziegel, Boden) → Etappe 2 als Nächstes, danach Soldaten (Etappe 1).
 1. **Soldatenmodelle zuerst:** Skin wie im Video (Helm mit Bezug, Plattenträger, Taschen, Rucksack, Handschuhe, kantiges
    grünes Splittertarn), beide Teams (Unterscheidung über Armbinde/Abzeichen + Namensschild), Ego-Arme passend,
    Bots und Puppen (Mehrspieler) gleich.
