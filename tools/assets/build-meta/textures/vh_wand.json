@@ -1,12 +1,12 @@
 {
   "id": "vh_wand",
-  "recipe": "81061bd4e55b",
+  "recipe": "c3d1c0f895fa",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/vh_wand/vh_wand_512_albedo.ktx2",
-          "bytes": 24716,
+          "bytes": 23136,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/vh_wand/vh_wand_512_normal.ktx2",
-          "bytes": 27661,
+          "bytes": 29590,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/vh_wand/vh_wand_512_orm.ktx2",
-          "bytes": 16147,
+          "bytes": 15080,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 68524,
+      "bytes": 67806,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/vh_wand/vh_wand_1024_albedo.ktx2",
-          "bytes": 65461,
+          "bytes": 62917,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/vh_wand/vh_wand_1024_normal.ktx2",
-          "bytes": 98295,
+          "bytes": 105676,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/vh_wand/vh_wand_1024_orm.ktx2",
-          "bytes": 52433,
+          "bytes": 48094,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 216189,
+      "bytes": 216687,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,7 +104,7 @@
       "files": {
         "albedo": {
           "path": "textures/vh_wand/vh_wand_2048_albedo.ktx2",
-          "bytes": 204424,
+          "bytes": 194471,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -117,7 +117,7 @@
         },
         "normal": {
           "path": "textures/vh_wand/vh_wand_2048_normal.ktx2",
-          "bytes": 327236,
+          "bytes": 347088,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -130,7 +130,7 @@
         },
         "orm": {
           "path": "textures/vh_wand/vh_wand_2048_orm.ktx2",
-          "bytes": 174120,
+          "bytes": 137660,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -142,7 +142,7 @@
           }
         }
       },
-      "bytes": 705780,
+      "bytes": 679219,
       "gpu": {
         "desktop": 8388609,
         "mobile": 8388609,
@@ -152,9 +152,9 @@
   },
   "stats": {
     "avgColor": "#4b544d",
-    "avgRoughness": 0.55,
-    "avgMetalness": 0.6,
-    "avgAO": 0.745,
+    "avgRoughness": 0.62,
+    "avgMetalness": 0.149,
+    "avgAO": 0.945,
     "coverage": 1
   }
 }

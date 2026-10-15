@@ -42,7 +42,7 @@ export const WEATHER_FX = Object.freeze({
     hemiTint: { toward: '#c5cbd2', amount: 0.6 },
     hdri: 'abandoned_slipway', hdriSky: false, envTint: '#c9cdd3',
     shadowRadius: 7,
-    lut: { contrast: -0.03, saturation: 0.9, temperature: -0.06 }, // 15.10.: Video (Hafen bewölkt) kräftiger, tiefere Schwarztöne
+    lut: { contrast: -0.03, saturation: 0.9, temperature: -0.02 }, // 15.10.: Video (Hafen bewölkt) kräftiger, tiefere Schwarztöne
   },
 });
 

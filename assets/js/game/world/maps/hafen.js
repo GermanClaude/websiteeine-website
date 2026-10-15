@@ -215,7 +215,7 @@ export default {
     videoHalle(b, 1);
     videoHalle(b, -1);
     van(b, 4.6, -24.5, { ry: 0.05, color: '#e8e6e0', logo: 'logo_kurier' }); // 15.10.: aus dem Video-Blick (Halle 3) gerückt
-    van(b, 10.2, 16, { ry: Math.PI - 0.08, color: '#cfd4d8' });
+    van(b, 46.0, 9.6, { ry: Math.PI - 0.08, color: '#cfd4d8' }); // 15.10.: auf die Straße hinter der Halle (Video-Blick frei)
     forklift(b, 6.4, 35.2, { y: 0.12, ry: 0.35, load: 'boxes', color: '#e0a02a' }); // 15.10.: in Halle 4 (Video-Blick frei)
     palletStack(b, 12.2, -5.2, { n: 4, ry: 0.05, load: 'boxes' });
     pallet(b, 7.8, 0, 1.9, { ry: 1.4, load: 'wrapped' }); // Video: folierte Palette links vom grünen Container
@@ -722,7 +722,7 @@ function warehouse(b, ctx) {
   const x0 = 14, x1 = 42, z0 = -20, z1 = 20, H8 = 8.2, t = 0.3;
   b.interior(x0, z0, x1, z1, -0.1, H8 - 0.05, 0.6);
   b.boxMM(x0 + t, 0, z0 + t, x1 - t, 0.12, z1 - t, 'epoxy', { grad: false, minimap: false });
-  const wmat = { mat: 'metal_corrugated', tint: '#eef0ec', h: H8, t, frameMat: 'metal_painted', frameTint: '#2a2e33', minimap: 'wall', plinth: { h: 1.2, mat: 'concrete_dark', tint: '#707270', over: 0.04 } }; // Sockel dunkel wie im Video
+  const wmat = { mat: 'metal_corrugated', tint: '#c6cac1', h: H8, t, frameMat: 'metal_painted', frameTint: '#2a2e33', minimap: 'wall', plinth: { h: 1.2, mat: 'concrete_dark', tint: '#707270', over: 0.04 } }; // Sockel dunkel wie im Video
   // West (Rampenseite) mit drei Toren
   wall(b, { ...wmat, x0: x0 + t / 2, z0: z1, x1: x0 + t / 2, z1: z0, openings: [
     { at: 10, w: 4.2, h: 4.6, kind: 'gap', frameMat: 'hazard' }, { at: 20, w: 4.2, h: 4.6, kind: 'gap' }, { at: 30, w: 4.2, h: 4.6, kind: 'gap' }] });
@@ -968,7 +968,7 @@ function videoHalle(b, sz) {
   const zA = Math.min(zN, zS), zB = Math.max(zN, zS), out = sz > 0 ? Math.PI : 0; // out: Schilder zur Kartenmitte
   b.interior(x0, zA, x1, zB, -0.1, H - 0.05, 0.6);
   b.boxMM(x0 + t, 0, zA + t, x1 - t, yf, zB - t, 'epoxy', { grad: false, minimap: false });
-  const wm = { mat: 'metal_corrugated', tint: '#eef0ec', h: H, t, frameMat: 'metal_painted', frameTint: '#2a2e33', minimap: 'wall', plinth: { h: 1.1, mat: 'concrete_dark', tint: '#707270', over: 0.04 } };
+  const wm = { mat: 'metal_corrugated', tint: '#c6cac1', h: H, t, frameMat: 'metal_painted', frameTint: '#2a2e33', minimap: 'wall', plinth: { h: 1.1, mat: 'concrete_dark', tint: '#707270', over: 0.04 } };
   const zF = zN + sz * t / 2, zR = zS - sz * t / 2;
   // Fassade (von Ost nach West): Rolltor, Fenster, Tür, Fenster
   wall(b, { ...wm, x0: x1, z0: zF, x1: x0, z1: zF, openings: [

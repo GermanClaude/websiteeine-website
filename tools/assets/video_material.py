@@ -341,39 +341,81 @@ def stones_tile(sp, img, valid):
     lm = np.array([lum(c)[k > 0.5].mean() for c, k in stones])
     tgt = np.median(lm)
     keep = sp.get('cellVar', 0.5)
+    # Verband wie im Video: Reihen mit ungleich langen Steinen (Faktor widthVar), Reihenhöhen leicht verschieden;
+    # Stoßfugen benachbarter Reihen liegen mindestens minStagger × Steinbreite auseinander (keine Kreuz-/X-Fugen)
+    wv, hv, ms = sp.get('widthVar', 0.0), sp.get('heightVar', 0.0), sp.get('minStagger', 0.25)
+    rh = np.ones(ny) if hv <= 0 else 1 + (rng.random(ny) - 0.5) * 2 * hv
+    rh = np.round(rh / rh.sum() * H).astype(int)
+    rh[-1] += H - rh.sum()
+    rows_x, prev = [], None
     for r in range(ny):
-        shift = (cw // 2) if r % 2 else 0
-        for c in range(nx):
+        for _ in range(200):
+            if wv <= 0:
+                xs = [((cw // 2) if r % 2 else 0) + c * cw for c in range(nx)]
+                widths = [cw] * nx
+            else:
+                ws = []
+                while sum(ws) < W - cw * 0.5:
+                    ws.append(cw * (1 + (rng.random() - 0.5) * 2 * wv))
+                ws = np.array(ws) * (W / sum(ws))
+                off = rng.random() * W
+                xs = list((off + np.concatenate([[0], np.cumsum(ws)[:-1]])) % W)
+                widths = list(ws)
+            if prev is None or wv <= 0:
+                break
+            d = np.abs(((np.array(xs)[:, None] - np.array(prev)[None, :]) + W / 2) % W - W / 2)
+            if d.min() >= ms * cw:
+                break
+        rows_x.append((xs, widths))
+        prev = xs
+    y_acc = 0
+    for r in range(ny):
+        xs, widths = rows_x[r]
+        for x_left, wcell in zip(xs, widths):
             k = int(rng.integers(len(stones)))
             crop, mk = stones[k]
             if rng.random() < 0.5:
                 crop, mk = crop[:, ::-1], mk[:, ::-1]
-            sw, sh = cw - jw, ch - jw
+            if rng.random() < 0.5:
+                crop, mk = crop[::-1], mk[::-1]
+            jx = jw * (1 + (rng.random() - 0.5) * sp.get('jointVar', 0.0))
+            jy = jw * (1 + (rng.random() - 0.5) * sp.get('jointVar', 0.0))
+            sw, sh = max(8, int(round(wcell - jx))), max(8, int(round(rh[r] - jy)))
             cr = cv2.resize(crop, (sw, sh), interpolation=cv2.INTER_CUBIC)
             mm = cv2.resize(mk, (sw, sh), interpolation=cv2.INTER_LINEAR)
-            # Steinform: abgerundete Rechteckmaske (Kanten weich) statt der zufälligen Fundform
+            # Steinform: abgerundetes Rechteck, Rand mit leichter Unregelmäßigkeit (behauene Kanten)
             yy, xx = np.mgrid[0:sh, 0:sw]
-            rad = min(sw, sh) * 0.18
+            rad = min(sw, sh) * (0.14 + rng.random() * 0.12)
             dx = np.maximum(0, np.maximum(rad - xx, xx - (sw - 1 - rad)))
             dy = np.maximum(0, np.maximum(rad - yy, yy - (sh - 1 - rad)))
-            shape = np.clip(1.2 - np.hypot(dx, dy) / rad, 0, 1)
+            ir = sp.get('edgeNoise', 0.0)
+            if ir > 0:
+                nz = cv2.resize(rng.random((4, 4)).astype(np.float32), (sw, sh), interpolation=cv2.INTER_CUBIC)
+                edge = np.minimum(np.minimum(xx, sw - 1 - xx), np.minimum(yy, sh - 1 - yy)).astype(np.float32)
+                shape = np.clip((edge - (nz - 0.3) * ir * min(sw, sh) * 0.12) / 2.0, 0, 1) * np.clip(1.2 - np.hypot(dx, dy) / rad, 0, 1)
+            else:
+                shape = np.clip(1.2 - np.hypot(dx, dy) / rad, 0, 1)
             g = (tgt + (lm[k] - tgt) * keep) / max(1e-4, lm[k]) * (1 + (rng.random() - 0.5) * sp.get('stoneJitter', 0.25))
             cr = cr * g
-            # Fülle Lücken in der Fundmaske mit dem Steinmittel (Fugenreste des Vorbilds weg)
             mean = (cr * mm[..., None]).sum(axis=(0, 1)) / max(1e-4, mm.sum())
             cr = cr * mm[..., None] + mean[None, None, :] * (1 - mm[..., None])
-            # Wölbung: Mitte hoch, Kanten fallen ab
-            dome = np.clip(1 - (np.hypot((xx - sw / 2) / (sw / 2), (yy - sh / 2) / (sh / 2)) ** 4) * 0.5, 0, 1) * shape
-            x0 = (c * cw + shift + jw // 2) % W
-            y0 = r * ch + jw // 2
+            # Wölbung: Mitte hoch, Kanten fallen ab (Steine leicht schief: Kippung)
+            tilt = (rng.random(2) - 0.5) * sp.get('tilt', 0.0)
+            dome = np.clip(1 - (np.hypot((xx - sw / 2) / (sw / 2), (yy - sh / 2) / (sh / 2)) ** 4) * 0.5
+                           + tilt[0] * (xx / sw - 0.5) + tilt[1] * (yy / sh - 0.5), 0, 1) * shape
+            x0 = int(round(x_left + jx / 2)) % W
+            y0 = y_acc + int(round(jy / 2))
+            sh_eff = min(sh, H - y0)
             for (xa, xb, sa) in ((x0, min(W, x0 + sw), 0), (0, max(0, x0 + sw - W), W - x0)):
                 if xb <= xa:
                     continue
-                wv = xb - xa
-                seg = slice(sa, sa + wv)
-                region = out[y0:y0 + sh, xa:xb]
-                out[y0:y0 + sh, xa:xb] = region * (1 - shape[:, seg, None]) + cr[:, seg] * shape[:, seg, None]
-                hmap[y0:y0 + sh, xa:xb] = np.maximum(hmap[y0:y0 + sh, xa:xb], dome[:, seg])
+                wv_ = xb - xa
+                seg = slice(sa, sa + wv_)
+                region = out[y0:y0 + sh_eff, xa:xb]
+                shp = shape[:sh_eff, seg, None]
+                out[y0:y0 + sh_eff, xa:xb] = region * (1 - shp) + cr[:sh_eff, seg] * shp
+                hmap[y0:y0 + sh_eff, xa:xb] = np.maximum(hmap[y0:y0 + sh_eff, xa:xb], dome[:sh_eff, seg])
+        y_acc += rh[r]
     print(f"    {len(stones)} Steine aus dem Video, Verband {nx}×{ny}")
     return out, hmap
 
@@ -410,12 +452,16 @@ def normals(hgt, strength):
     return ((n * 0.5 + 0.5) * 255).round().clip(0, 255).astype(np.uint8)
 
 
-def ribs(width_px, period, depth, out_w):
+def ribs(width_px, period, depth, out_w, shape='trapez'):
     """Trapez-/Wellprofil als Höhenfeld (eine Zeile) – scharf statt verwaschen aus dem Video."""
     x = np.arange(out_w) * (width_px / out_w)
     ph = (x / period) % 1.0
-    # Trapezblech: flacher Gurt, schräge Stege, schmale Sicke
-    prof = np.clip(np.abs(ph - 0.5) * 4 - 0.6, 0, 1)
+    if shape == 'sinus':
+        # Wellblech (Hafenhalle im Video: weiche, runde Wellen)
+        prof = 0.5 - 0.5 * np.cos(2 * np.pi * ph)
+    else:
+        # Trapezblech: flacher Gurt, schräge Stege, schmale Sicke
+        prof = np.clip(np.abs(ph - 0.5) * 4 - 0.6, 0, 1)
     return (prof - prof.mean()) * depth
 
 
@@ -540,7 +586,7 @@ def build(sp):
     hgt = height_from(alb, sp) * sp.get('height', 1.0)
     if mode == 'ribs-x':
         w_px = img.shape[1]
-        hrow = ribs(w_px, period, sp.get('rib', {}).get('depth', 6.0), out)
+        hrow = ribs(w_px, period, sp.get('rib', {}).get('depth', 6.0), out, sp.get('rib', {}).get('shape', 'trapez'))
         hgt = hgt * 0.4 + hrow[None, :]
     return write_set(sp, alb, hgt, period)
 

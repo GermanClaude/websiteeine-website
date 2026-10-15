@@ -2,7 +2,7 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-15T19:20:42.370Z",
+ "generated": "2026-10-15T20:02:41.530Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
@@ -8033,9 +8033,9 @@
    "hero": false,
    "stats": {
     "avgColor": "#4b544d",
-    "avgRoughness": 0.55,
-    "avgMetalness": 0.6,
-    "avgAO": 0.745,
+    "avgRoughness": 0.62,
+    "avgMetalness": 0.149,
+    "avgAO": 0.945,
     "coverage": 1
    },
    "tiers": {
@@ -8044,9 +8044,9 @@
      "normal": "textures/vh_wand/vh_wand_512_normal.ktx2",
      "orm": "textures/vh_wand/vh_wand_512_orm.ktx2",
      "sizes": {
-      "albedo": 24716,
-      "normal": 27661,
-      "orm": 16147
+      "albedo": 23136,
+      "normal": 29590,
+      "orm": 15080
      },
      "gpuFiles": {
       "albedo": {
@@ -8065,7 +8065,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 68524,
+     "bytes": 67806,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -8077,9 +8077,9 @@
      "normal": "textures/vh_wand/vh_wand_1024_normal.ktx2",
      "orm": "textures/vh_wand/vh_wand_1024_orm.ktx2",
      "sizes": {
-      "albedo": 65461,
-      "normal": 98295,
-      "orm": 52433
+      "albedo": 62917,
+      "normal": 105676,
+      "orm": 48094
      },
      "gpuFiles": {
       "albedo": {
@@ -8098,7 +8098,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 216189,
+     "bytes": 216687,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -8110,9 +8110,9 @@
      "normal": "textures/vh_wand/vh_wand_2048_normal.ktx2",
      "orm": "textures/vh_wand/vh_wand_2048_orm.ktx2",
      "sizes": {
-      "albedo": 204424,
-      "normal": 327236,
-      "orm": 174120
+      "albedo": 194471,
+      "normal": 347088,
+      "orm": 137660
      },
      "gpuFiles": {
       "albedo": {
@@ -8131,7 +8131,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 705780,
+     "bytes": 679219,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -9177,7 +9177,7 @@
     "avgColor": "#646b6b",
     "avgRoughness": 0.86,
     "avgMetalness": 0,
-    "avgAO": 0.901,
+    "avgAO": 0.914,
     "coverage": 1
    },
    "tiers": {
@@ -9186,9 +9186,9 @@
      "normal": "textures/vh_kai/vh_kai_512_normal.ktx2",
      "orm": "textures/vh_kai/vh_kai_512_orm.ktx2",
      "sizes": {
-      "albedo": 45786,
-      "normal": 102937,
-      "orm": 33754
+      "albedo": 44422,
+      "normal": 101246,
+      "orm": 33120
      },
      "gpuFiles": {
       "albedo": {
@@ -9207,7 +9207,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 182477,
+     "bytes": 178788,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -9219,9 +9219,9 @@
      "normal": "textures/vh_kai/vh_kai_1024_normal.ktx2",
      "orm": "textures/vh_kai/vh_kai_1024_orm.ktx2",
      "sizes": {
-      "albedo": 128164,
-      "normal": 309457,
-      "orm": 117717
+      "albedo": 124873,
+      "normal": 304882,
+      "orm": 115529
      },
      "gpuFiles": {
       "albedo": {
@@ -9240,7 +9240,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 555338,
+     "bytes": 545284,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -9252,9 +9252,9 @@
      "normal": "textures/vh_kai/vh_kai_2048_normal.ktx2",
      "orm": "textures/vh_kai/vh_kai_2048_orm.ktx2",
      "sizes": {
-      "albedo": 378136,
-      "normal": 1115658,
-      "orm": 403601
+      "albedo": 364405,
+      "normal": 1109798,
+      "orm": 391524
      },
      "gpuFiles": {
       "albedo": {
@@ -9273,7 +9273,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 1897395,
+     "bytes": 1865727,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -9295,8 +9295,8 @@
    "surface": "concrete",
    "replaces": [],
    "sizeM": [
-    3.24,
-    3.24
+    4.08,
+    4.08
    ],
    "tintable": false,
    "alpha": false,
@@ -9305,7 +9305,7 @@
     "avgColor": "#8b8578",
     "avgRoughness": 0.78,
     "avgMetalness": 0,
-    "avgAO": 0.992,
+    "avgAO": 0.994,
     "coverage": 1
    },
    "tiers": {
@@ -9314,9 +9314,9 @@
      "normal": "textures/vp_pflaster/vp_pflaster_512_normal.ktx2",
      "orm": "textures/vp_pflaster/vp_pflaster_512_orm.ktx2",
      "sizes": {
-      "albedo": 42594,
-      "normal": 63984,
-      "orm": 18820
+      "albedo": 48471,
+      "normal": 79776,
+      "orm": 19902
      },
      "gpuFiles": {
       "albedo": {
@@ -9335,7 +9335,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 125398,
+     "bytes": 148149,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -9347,9 +9347,9 @@
      "normal": "textures/vp_pflaster/vp_pflaster_1024_normal.ktx2",
      "orm": "textures/vp_pflaster/vp_pflaster_1024_orm.ktx2",
      "sizes": {
-      "albedo": 112364,
-      "normal": 219559,
-      "orm": 52420
+      "albedo": 132957,
+      "normal": 234304,
+      "orm": 53038
      },
      "gpuFiles": {
       "albedo": {
@@ -9368,7 +9368,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 384343,
+     "bytes": 420299,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -9380,9 +9380,9 @@
      "normal": "textures/vp_pflaster/vp_pflaster_2048_normal.ktx2",
      "orm": "textures/vp_pflaster/vp_pflaster_2048_orm.ktx2",
      "sizes": {
-      "albedo": 341567,
-      "normal": 674630,
-      "orm": 141581
+      "albedo": 401201,
+      "normal": 662037,
+      "orm": 145382
      },
      "gpuFiles": {
       "albedo": {
@@ -9401,7 +9401,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 1157778,
+     "bytes": 1208620,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -15286,7 +15286,7 @@
  "totals": {
   "textures": {
    "files": 541,
-   "bytes": 72810035
+   "bytes": 72847392
   },
   "hdri": {
    "files": 32,
@@ -15298,12 +15298,12 @@
   },
   "all": {
    "files": 684,
-   "bytes": 145629626
+   "bytes": 145666983
   },
   "byTier": {
-   "512": 28404430,
-   "1024": 85275040,
-   "2048": 31950156
+   "512": 28422774,
+   "1024": 85301440,
+   "2048": 31942769
   },
   "counts": {
    "textures": 89,

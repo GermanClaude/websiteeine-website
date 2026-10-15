@@ -9,28 +9,34 @@
    1020
   ],
   "size": [
-   3.24,
-   3.24
+   4.08,
+   4.08
   ],
   "mode": "stones",
   "cols": 12,
   "rows": 14,
   "cellW": 86,
   "cellH": 74,
-  "joint": 8,
+  "joint": 4,
   "delight": 0.5,
   "out": 1024,
-  "height": 3.0,
-  "normal": 2.4,
+  "height": 2.0,
+  "normal": 1.8,
   "rough": [
    0.78,
    0.1
   ],
   "cellVar": 1.0,
   "seed": 2,
-  "ao": 2.0,
-  "stoneJitter": 0.3,
-  "jointDark": 0.55,
-  "stoneThresh": 0.0
+  "ao": 1.0,
+  "stoneJitter": 0.45,
+  "jointDark": 0.45,
+  "stoneThresh": 0.0,
+  "widthVar": 0.28,
+  "heightVar": 0.08,
+  "minStagger": 0.22,
+  "jointVar": 0.6,
+  "edgeNoise": 0.6,
+  "tilt": 0.25
  }
 ]

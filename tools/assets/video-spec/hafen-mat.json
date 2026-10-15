@@ -22,11 +22,6 @@
     0,
     0.0,
     0.0
-   ],
-   [
-    1,
-    0.25,
-    0.7
    ]
   ],
   "seed": 5,
@@ -34,7 +29,7 @@
   "crackThresh": 0.045,
   "crackWidth": 12,
   "mottle": 0.22,
-  "crackDark": 0.6
+  "crackDark": 0.5
  },
  {
   "id": "vh_wand",
@@ -52,20 +47,22 @@
   "mode": "ribs-x",
   "rib": {
    "depth": 1.0,
-   "keep": 0.4
+   "keep": 0.12,
+   "shape": "sinus"
   },
   "delight": 0.5,
   "out": 1024,
   "normal": 2.0,
   "rough": [
-   0.55,
-   0.1
+   0.62,
+   0.08
   ],
-  "metal": 0.6,
+  "metal": 0.15,
   "square": false,
   "hreps": 3,
   "panel": true,
-  "srcPpm": 160
+  "srcPpm": 160,
+  "ao": 0.35
  },
  {
   "id": "vh_ctr_rost_tuer",
