@@ -3,15 +3,15 @@
   "id": "vh_kai",
   "src": "h_boden_kai",
   "size": [
-   4,
-   4
+   5,
+   5
   ],
   "srcPpm": 120,
   "mode": "cracks",
   "delight": 1.2,
   "shadow": true,
   "out": 1024,
-  "normal": 1.4,
+  "normal": 1.1,
   "rough": [
    0.86,
    0.06
@@ -26,10 +26,15 @@
   ],
   "seed": 5,
   "crackKernel": 11,
-  "crackThresh": 0.045,
+  "crackThresh": 0.06,
   "crackWidth": 12,
   "mottle": 0.22,
-  "crackDark": 0.5
+  "crackDark": 0.42,
+  "slabJoint": 0.012,
+  "slabJointDark": 0.55,
+  "stains": 0.4,
+  "grainH": 0.035,
+  "waveH": 0.06
  },
  {
   "id": "vh_wand",

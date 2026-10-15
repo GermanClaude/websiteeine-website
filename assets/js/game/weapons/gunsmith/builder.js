@@ -135,13 +135,22 @@ export function ellipsePts(ca, cb, ra, rb, seg = 16, a0 = 0, a1 = Math.PI * 2) {
 
 // Detailstufe der Ego-Modelle (Nutzer 13.10.2026: „den PC so originalgetreu wie möglich, beim Handy eine abgeschwächte
 // Version“): grobe Zeiger (Touch) → leichte Fassung, sonst volle Auflösung (feinere Distanzfeld-Netze, echte Durchbrüche).
-export const DETAIL = { max: !(typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) };
+// 15.10. (Nutzer: Bildeinbrüche, ältere Grafikkarten): volle Fassung nur auf den PC-Stufen hoch/ultra (setWeaponDetail,
+// vom Viewmodel je Match gesetzt); niedrig/mittel am PC bekommen die Standardfassung, Touch eine noch leichtere (lite).
+const PC = !(typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches);
+export const DETAIL = { pc: PC, max: PC, lite: !PC };
+/** Detailstufe der Ego-Modelle nach Grafikstufe (Vitrine/Arsenal ohne Aufruf: volle Fassung am PC). */
+export function setWeaponDetail(quality) {
+  DETAIL.max = PC && (quality === 'high' || quality === 'ultra');
+  DETAIL.lite = !PC;
+}
 
 export class Builder {
   constructor(lod = 'first') {
     this.lod = lod;
     this.hi = lod !== 'third';
     this.max = this.hi && DETAIL.max;
+    this.lite = this.hi && !this.max && DETAIL.lite;
     this.parts = new Map();
     this.anchors = [];
     this.meta = {};

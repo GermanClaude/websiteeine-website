@@ -148,3 +148,14 @@ vorhandene Tests (tank-model-test, gunsound-test, feedback-test …); ab Etappe 
   'splitter'`, Voronoi-Vielecke) in den am Video gemessenen Farben, beide Teams, Unterscheidung über Armbinde.
 - **Offen (Nutzer fragen):** M-17-Optik – Foto-Holo (jetziger Stand, nach den Nutzerfotos) oder Rotpunkt wie im Video;
   Ego-Waffenhaltung wie im Video (größer, weiter rechts).
+- **Nachtrag 15.10. nachts (Nutzer: Boden komisch, Paletten/Kleinkram/Fahrzeuge „absolut undetailliert“, Containertüren
+  fehlen, Lagerhalle statt Kontrollposten):** Kontrollposten mit Schranke entfernt, an seiner Stelle Halle 6
+  (begehbar, zwei Rolltore). Kaibeton `vh_kai` mit Schnittfugen am Plattenrand, Flecken, Korn fast weg (Video-Beton
+  ist glatt; vorher wirkte er wie grober Asphalt). Container tragen Türen an beiden Stirnseiten (Tunnelcontainer).
+  Europalette nach EPAL (3 Bodenbretter, 9 Klötze, 3 Querbretter, 5 Deckbretter, Brandzeichen, Holzton je Palette),
+  Kartons als Fotoscan `cardboard_box_01` (sonst prozedural mit Klebeband), Stretchfolie als gerundeter glänzender
+  Block mit Wickellagen (`stretch_film`), Holzkisten mit Rahmenleisten. Fahrzeuge aus Seitenprofilen
+  (`profilKoerper`, Fase nach innen): Transporter, Sattelzug (Kabine, Grill, Windleitblech, Tanks, Koffer mit
+  Rippen/Verschlussstangen), Gabelstapler (Gussgegengewicht, Gasflasche, Mast mit Ketten), Containerstapler
+  (verglaste Kabine, Teleskopausleger, Hubzylinder, Spreader). Räder als gedrehte Profile mit Felgenschüssel und
+  Radmuttern. Kollision überall unverändert (Hash niedrig = hoch).

@@ -2,7 +2,7 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-15T20:24:31.708Z",
+ "generated": "2026-10-15T21:24:02.353Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
@@ -9167,8 +9167,8 @@
    "surface": "concrete",
    "replaces": [],
    "sizeM": [
-    4,
-    4
+    5,
+    5
    ],
    "tintable": false,
    "alpha": false,
@@ -9177,7 +9177,7 @@
     "avgColor": "#646b6b",
     "avgRoughness": 0.86,
     "avgMetalness": 0,
-    "avgAO": 0.914,
+    "avgAO": 0.941,
     "coverage": 1
    },
    "tiers": {
@@ -9186,9 +9186,9 @@
      "normal": "textures/vh_kai/vh_kai_512_normal.ktx2",
      "orm": "textures/vh_kai/vh_kai_512_orm.ktx2",
      "sizes": {
-      "albedo": 44422,
-      "normal": 101246,
-      "orm": 33120
+      "albedo": 44738,
+      "normal": 86994,
+      "orm": 28875
      },
      "gpuFiles": {
       "albedo": {
@@ -9207,7 +9207,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 178788,
+     "bytes": 160607,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -9219,9 +9219,9 @@
      "normal": "textures/vh_kai/vh_kai_1024_normal.ktx2",
      "orm": "textures/vh_kai/vh_kai_1024_orm.ktx2",
      "sizes": {
-      "albedo": 124873,
-      "normal": 304882,
-      "orm": 115529
+      "albedo": 123579,
+      "normal": 237823,
+      "orm": 89645
      },
      "gpuFiles": {
       "albedo": {
@@ -9240,7 +9240,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 545284,
+     "bytes": 451047,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -9252,9 +9252,9 @@
      "normal": "textures/vh_kai/vh_kai_2048_normal.ktx2",
      "orm": "textures/vh_kai/vh_kai_2048_orm.ktx2",
      "sizes": {
-      "albedo": 364405,
-      "normal": 1109798,
-      "orm": 391524
+      "albedo": 353209,
+      "normal": 820474,
+      "orm": 285168
      },
      "gpuFiles": {
       "albedo": {
@@ -9273,7 +9273,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 1865727,
+     "bytes": 1458851,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -15542,7 +15542,7 @@
  "totals": {
   "textures": {
    "files": 559,
-   "bytes": 74175967
+   "bytes": 73656673
   },
   "hdri": {
    "files": 32,
@@ -15554,12 +15554,12 @@
   },
   "all": {
    "files": 702,
-   "bytes": 146995558
+   "bytes": 146476264
   },
   "byTier": {
-   "512": 28536511,
-   "1024": 85623171,
-   "2048": 32835876
+   "512": 28518330,
+   "1024": 85528934,
+   "2048": 32429000
   },
   "counts": {
    "textures": 91,

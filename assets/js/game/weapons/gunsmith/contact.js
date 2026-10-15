@@ -5,7 +5,9 @@
 // aus der Waffe zu schieben und greifende Finger an die Oberfläche zu legen.
 import * as THREE from 'three';
 
-const CELL = 0.022;                 // m Gitterweite (Teilraum)
+const CELL = 0.012;                 // m Gitterweite (Teilraum; 15.10.: 22 → 12 mm, weniger Dreiecke je Zelle)
+const QUANT = 0.003;                // m Raster der Vereinfachung großer Teile (Kontaktnetz, nicht die Grafik)
+const DECIMATE_FROM = 3000;         // Dreiecke je Teil, ab denen vereinfacht wird
 const TIE = 2e-5;                   // m (Teilraum) gleich nahe Dreiecke (gemeinsame Kante/Ecke)
 const OFF = 1 << 9, SPAN = 1 << 10;
 const key = (x, y, z) => ((x + OFF) * SPAN + (y + OFF)) * SPAN + (z + OFF);
@@ -47,9 +49,15 @@ export class GunCollider {
           tri.push(V[a * 3], V[a * 3 + 1], V[a * 3 + 2], V[b * 3], V[b * 3 + 1], V[b * 3 + 2], V[c * 3], V[c * 3 + 1], V[c * 3 + 2]);
         }
       }
-      const n = tri.length / 9;
+      if (!tri.length) continue;
+      // Leistung (Nutzer 15.10.: Bildeinbrüche beim Schießen/Nachladen): die M-17 in voller Detailstufe hat ~535 000
+      // Dreiecke (Distanzfeld-Netze, Schritt < 1 mm) – jede Fingerabfrage prüfte Hunderte je Zelle. Große Teile werden
+      // fürs Kontaktnetz auf ein Raster von 3 mm zusammengefasst (Ecken je Zelle gemittelt, entartete, doppelte und
+      // umgeklappte Dreiecke fallen weg) – Abweichung ≤ ~1 mm, Fingerkontakt unverändert genau genug.
+      const T = tri.length / 9 > DECIMATE_FROM ? decimate(tri, QUANT) : new Float32Array(tri);
+      const n = T.length / 9;
       if (!n) continue;
-      const T = new Float32Array(tri), N = new Float32Array(n * 3);
+      const N = new Float32Array(n * 3);
       const grid = new Map();
       const box = new THREE.Box3();
       for (let t = 0; t < n; t++) {
@@ -102,10 +110,14 @@ export class GunCollider {
       const md = maxD / g.scale;
       if (g.box.distanceToPoint(_p) > Math.min(md, best)) continue;
       const stamp = ++this._stamp >= 0xffffffff ? (this._stamp = 1) : this._stamp;
-      const r = Math.min(3, Math.ceil(md / CELL));
+      // nur Zellen, die die Suchkugel schneiden (vorher immer der ganze Würfel ±r Zellen, d. h. 27–343 Zellen à 22 mm)
+      const r = Math.min(6, Math.ceil(md / CELL)), rr = Math.min(md, r * CELL);
       const cx = Math.floor(_p.x / CELL), cy = Math.floor(_p.y / CELL), cz = Math.floor(_p.z / CELL);
+      const x0 = Math.max(cx - r, Math.floor((_p.x - rr) / CELL)), x1 = Math.min(cx + r, Math.floor((_p.x + rr) / CELL));
+      const y0 = Math.max(cy - r, Math.floor((_p.y - rr) / CELL)), y1 = Math.min(cy + r, Math.floor((_p.y + rr) / CELL));
+      const z0 = Math.max(cz - r, Math.floor((_p.z - rr) / CELL)), z1 = Math.min(cz + r, Math.floor((_p.z + rr) / CELL));
       const T = g.T, N = g.N, st = g.stamp;
-      for (let x = cx - r; x <= cx + r; x++) for (let y = cy - r; y <= cy + r; y++) for (let z = cz - r; z <= cz + r; z++) {
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) {
         const cell = g.grid.get(key(x, y, z));
         if (!cell) continue;
         for (let i = 0; i < cell.length; i++) {
@@ -157,6 +169,48 @@ GunCollider.prototype.pen = function pen(p, r, out) {
   }
   return -Infinity;
 };
+
+/**
+ * Vertex-Clustering: Ecken auf ein Raster q (m) zusammenfassen (Mittelwert je Zelle), Dreiecke neu verbinden; entartete,
+ * doppelte und gegenüber dem Original umgeklappte Dreiecke entfallen (Vorzeichen innen/außen hängt an den Normalen).
+ */
+function decimate(tri, q) {
+  const n = tri.length / 9, ids = new Map(), sum = [], cnt = [];
+  const vid = new Int32Array(n * 3);
+  for (let i = 0; i < n * 3; i++) {
+    const x = tri[i * 3], y = tri[i * 3 + 1], z = tri[i * 3 + 2];
+    const k = Math.floor(x / q) + ',' + Math.floor(y / q) + ',' + Math.floor(z / q);
+    let id = ids.get(k);
+    if (id === undefined) { id = cnt.length; ids.set(k, id); cnt.push(0); sum.push(0, 0, 0); }
+    vid[i] = id; cnt[id]++; sum[id * 3] += x; sum[id * 3 + 1] += y; sum[id * 3 + 2] += z;
+  }
+  for (let id = 0; id < cnt.length; id++) { sum[id * 3] /= cnt[id]; sum[id * 3 + 1] /= cnt[id]; sum[id * 3 + 2] /= cnt[id]; }
+  const seen = new Set(), out = [];
+  for (let t = 0; t < n; t++) {
+    const a = vid[t * 3], b = vid[t * 3 + 1], c = vid[t * 3 + 2];
+    if (a === b || b === c || a === c) continue;
+    const lo = Math.min(a, b, c), hi = Math.max(a, b, c), mid = a + b + c - lo - hi;
+    const key = lo + ',' + mid + ',' + hi;
+    if (seen.has(key)) continue;
+    // Normale vorher/nachher
+    const o = t * 9;
+    const n0 = triNormal(tri[o], tri[o + 1], tri[o + 2], tri[o + 3], tri[o + 4], tri[o + 5], tri[o + 6], tri[o + 7], tri[o + 8]);
+    const n0x = _n0[0], n0y = _n0[1], n0z = _n0[2];
+    const n1 = triNormal(sum[a * 3], sum[a * 3 + 1], sum[a * 3 + 2], sum[b * 3], sum[b * 3 + 1], sum[b * 3 + 2], sum[c * 3], sum[c * 3 + 1], sum[c * 3 + 2]);
+    if (!n0 || !n1 || n0x * _n0[0] + n0y * _n0[1] + n0z * _n0[2] < 0.3) continue;
+    seen.add(key);
+    out.push(sum[a * 3], sum[a * 3 + 1], sum[a * 3 + 2], sum[b * 3], sum[b * 3 + 1], sum[b * 3 + 2], sum[c * 3], sum[c * 3 + 1], sum[c * 3 + 2]);
+  }
+  return new Float32Array(out);
+}
+const _n0 = new Float64Array(3);
+function triNormal(ax, ay, az, bx, by, bz, cx, cy, cz) {
+  const ux = bx - ax, uy = by - ay, uz = bz - az, vx = cx - ax, vy = cy - ay, vz = cz - az;
+  const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, l = Math.hypot(nx, ny, nz);
+  if (l < 1e-14) return false;
+  _n0[0] = nx / l; _n0[1] = ny / l; _n0[2] = nz / l;
+  return true;
+}
 
 // Nächster Punkt auf Dreieck (Ericson, Real-Time Collision Detection 5.1.5) → CP, Rückgabe Abstand²
 const CP = new Float64Array(3);

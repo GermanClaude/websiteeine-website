@@ -60,7 +60,8 @@ const ALU = { r: 0.0009, edge: 0.85, cavity: 0.6 };      // Eloxal reibt sich an
 const STEEL = { r: 0.0008, edge: 0.7, cavity: 0.6 };
 const POLY = { r: 0.0013, edge: 0.45, cavity: 0.5 };      // Kunststoff: Kanten speckig, Kehlen staubig
 function sdfMesh(b, f, lo, hi, step, mat, o = {}) {
-  const g = surfaceNets(f, lo, hi, b.max ? step * (o.fine ?? 0.6) : step);
+  // Touch (lite): gröberes Netz (~½ der Dreiecke der Standardfassung)
+  const g = surfaceNets(f, lo, hi, b.max ? step * (o.fine ?? 0.6) : b.lite ? step * 1.4 : step);
   if (b.max) cavityColors(g, f, o.cav);
   return b._push(o.uv ? atlasUV(g, o.uv) : g, mat, {}, !!o.uv);
 }

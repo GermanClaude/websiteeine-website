@@ -200,6 +200,7 @@ export async function loadWorld(G, mapId, opts = {}) {
   const pb = def.bounds;
   const cb = def.visualBounds || { minX: pb.minX - 30, maxX: pb.maxX + 30, minZ: pb.minZ - 30, maxZ: pb.maxZ + 30 };
   const b = new MapBuilder({ bounds: cb, seed: def.seed || 1, chunkSize: def.chunkSize || 32, groundNoise: def.groundNoise ?? 0.14, interiorTint: def.interiorTint });
+  b.quality = quality;   // Kartenbau darf Optik nach Stufe sparen (nie die Kollision), z. B. props.js pallet/rad
   // Sonden-Gitter (R5): Innenräume werden über das gebackene Himmels-/Rückprall-Licht dunkel – das alte gebackene
   // Innenraumlicht (Vertexfarbe, dunkelt auch das Sonnenlicht durch Fenster) bleibt nur noch als leichte Tönung
   const probeCfg = def.lighting?.probes || {};

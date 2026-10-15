@@ -7,7 +7,7 @@ export function frame(b, x, y, z, ry = 0) {
   const c = Math.cos(ry), s = Math.sin(ry);
   const P = (lx, lz) => [x + lx * c + lz * s, z - lx * s + lz * c];
   return {
-    P,
+    P, b,
     box(lx, ly, lz, w, h, d, mat, o = {}) { const [wx, wz] = P(lx, lz); b.box(wx, y + ly, wz, w, h, d, mat, { ...o, ry: ry + (o.ry || 0), aoFloor: o.aoFloor ?? (o.grad === false ? undefined : y) }); },
     cyl(lx, ly, lz, r, h, mat, o = {}) { const [wx, wz] = P(lx, lz); b.cyl(wx, y + ly, wz, r, h, mat, { ...o, ry: ry + (o.ry || 0) }); },
     wedge(lx, ly, lz, w, h, d, mat, o = {}) { const [wx, wz] = P(lx, lz); b.wedge(wx, y + ly, wz, w, h, d, mat, { ...o, ry: ry + (o.ry || 0) }); },
@@ -99,8 +99,10 @@ export function container(b, x, y, z, o = {}) {
     f.box(0, H - 0.12, sz * (W / 2 - 0.06), len - 0.3, 0.12, 0.12, 'metal_painted', { tint: dark, collide: false, minimap: false, grad: false, uv: 'local' });
     f.box(0, 0, sz * (W / 2 - 0.06), len - 0.3, 0.16, 0.12, 'metal_painted', { tint: dark, collide: false, minimap: false, grad: false, uv: 'local' });
   }
-  // Türseite (+x): Türflügel mit Verriegelungsstangen als Videotextur (eine Fläche, UV 0..1)
+  // Türseite (+x): Türflügel mit Verriegelungsstangen als Videotextur (eine Fläche, UV 0..1). Nutzer 15.10.: an den
+  // Stapeln fehlten die Türen → auch die Stirnseite (−x) trägt Türen (Tunnelcontainer mit Türen an beiden Enden)
   const ex = len / 2 + 0.005;
+  if (!o.blankEnd) f.box(-(ex - 0.012), 0.06, 0, 0.02, H - 0.12, W - 0.14, wallMat + '_tuer', { uv: 'fit', collide: false, minimap: false, grad: false, ao: false, cast: false });
   if (!o.openDoors) {
     f.box(ex - 0.012, 0.06, 0, 0.02, H - 0.12, W - 0.14, wallMat + '_tuer', { uv: 'fit', collide: false, minimap: false, grad: false, ao: false });
   } else {
@@ -123,6 +125,20 @@ export function container(b, x, y, z, o = {}) {
 export function crate(b, x, y, z, s = 1, o = {}) {
   const w = o.w ?? s, h = o.h ?? s, d = o.d ?? s;
   b.box(x, y, z, w, h, d, o.mat || 'wood_crate', { ry: o.ry || 0, uv: 'fit', tint: o.tint, minimap: o.minimap ?? 'cover', aoFloor: o.aoFloor, grad: o.grad });
+  if (o.frame === false || (o.mat && o.mat !== 'wood_crate')) return;
+  // Nutzer 15.10. („Kisten absolut undetailliert“): Rahmenleisten an allen zwölf Kanten (dunkler, 2 cm vorstehend) und
+  // ein Querriegel je Seite – nur Optik, Kollision bleibt der Quader oben
+  const f = frame(b, x, y, z, o.ry || 0), t = 0.075, e = 0.012, P = { collide: false, minimap: false, grad: false, ao: false, cast: false };
+  const lt = shade(o.tint || '#d8c4a0', 0.8 + hash01(x, z, 21) * 0.08);
+  const ax = w / 2 - t / 2 + e, az = d / 2 - t / 2 + e;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.box(sx * ax, 0, sz * az, t, h, t, 'wood_crate', { tint: lt, ...P });
+  for (const yy of [0, h - t]) {
+    for (const sz of [-1, 1]) f.box(0, yy - (yy ? -e : 0), sz * az, w - 2 * t + 2 * e, t, t, 'wood_crate', { tint: lt, ...P });
+    for (const sx of [-1, 1]) f.box(sx * ax, yy - (yy ? -e : 0), 0, t, t, d - 2 * t + 2 * e, 'wood_crate', { tint: lt, ...P });
+  }
+  if (b.quality === 'low') return;   // Telefone: nur die Kantenleisten
+  for (const sz of [-1, 1]) f.box(0, h / 2 - t / 2, sz * az, w - 2 * t, t, t * 0.6, 'wood_crate', { tint: lt, ...P });
+  for (const sx of [-1, 1]) f.box(sx * ax, h / 2 - t / 2, 0, t * 0.6, t, d - 2 * t, 'wood_crate', { tint: lt, ...P });
 }
 
 /** Kistenstapel: Muster als Liste [lx, ly(Stufe), lz, size] relativ zur Mitte. */
@@ -181,21 +197,41 @@ export function barrelGroup(b, x, z, o = {}) {
   if (o.tipped) barrel(b, x + 0.6, y, z - 0.9, { tipped: true, ry: 0.4, color: o.color });
 }
 
-/** Europalette 1,2 × 0,8 m (lokal x = 1,2). load: 'boxes'|'sacks'|'bricks'|'wrapped'|null */
+/** Europalette 1,2 × 0,8 m (lokal x = 1,2). load: 'boxes'|'sacks'|'bricks'|'wrapped'|null
+ *  Aufbau wie EPAL (Nutzer 15.10.: Paletten „absolut undetailliert“): 3 Bodenbretter, 9 Klötze, 3 Querbretter,
+ *  5 Deckbretter; Holzton je Palette (frisch/hell bis vergraut), je Brett leicht variiert.
+ *  Kartons: Fotoscan cardboard_box_01 (falls geladen), sonst prozedurale Kartons mit Klebeband. Kollision unverändert. */
 export function pallet(b, x, y, z, o = {}) {
   const f = frame(b, x, y, z, o.ry || 0);
-  const tint = o.tint || '#c9b48e', m = 'wood_planks';
-  const grad = Math.abs(y) < 0.05;
-  for (const lz of [-0.35, 0, 0.35]) f.box(0, 0, lz, 1.2, 0.022, 0.1, m, { tint, collide: false, minimap: false, grad });
-  for (const lz of [-0.35, 0, 0.35]) f.box(0, 0.022, lz, 1.2, 0.078, 0.1, m, { tint: shade(tint, 0.85), collide: false, minimap: false, grad });
-  for (let i = 0; i < 7; i++) f.box(-0.55 + i * (1.1 / 6), 0.1, 0, 0.1, 0.022, 0.8, m, { tint, collide: false, minimap: false, grad: false });
-  let h = 0.122;
+  const m = 'wood_crate', grad = Math.abs(y) < 0.05, P = { collide: false, minimap: false };
+  const h0 = hash01(x, z, 11);
+  const tint = o.tint || (h0 < 0.5 ? '#e4dfd6' : h0 < 0.82 ? '#d2cabb' : '#b9b5ad');
+  const tv = (k) => shade(tint, 0.9 + hash01(x + k * 0.37, z - k * 0.21, 12) * 0.16);
+  const zs = [-0.35, 0, 0.35], ws = [0.1, 0.145, 0.1];
+  // Schatten wirft nur das Deck (Bodenbretter/Klötze/Querbretter darunter liegen ohnehin im Schatten – spart den Schattenpass)
+  // „niedrig“ (Telefone): ohne Boden- und Querbretter (Klötze tragen das Deck optisch), 14 statt 20 Quader
+  const lo = b.quality === 'low';
+  if (!lo) zs.forEach((lz, i) => f.box(0, 0, lz, 1.2, 0.022, ws[i], m, { tint: tv(i), ...P, grad, cast: false }));
+  for (const lx of [-0.5275, 0, 0.5275]) zs.forEach((lz, i) => f.box(lx, lo ? 0 : 0.022, lz, 0.145, lo ? 0.122 : 0.078, ws[i], m, { tint: shade(tv(i + 3), 0.9), ...P, grad: false, cast: false }));
+  if (!lo) [-0.5275, 0, 0.5275].forEach((lx, i) => f.box(lx, 0.1, 0, 0.145, 0.022, 0.8, m, { tint: tv(i + 6), ...P, grad: false, cast: false }));
+  [[-0.3275, 0.145], [-0.16375, 0.1], [0, 0.145], [0.16375, 0.1], [0.3275, 0.145]].forEach(([lz, bw], i) => f.box(0, 0.122, lz, 1.2, 0.022, bw, m, { tint: tv(i + 9), ...P, grad: false }));
+  let h = 0.144;
   const L = o.load;
   if (L === 'boxes') {
-    const rows = o.rows ?? 2;
+    // 4 Kartons je Lage (0,58 × 0,39 × 0,38 m), oberste Lage teils lückenhaft; Fotoscan auf diese Maße skaliert
+    // Fotoscan-Karton nur ab „mittel“ (je Karton 420–1200 Dreiecke); auf „niedrig“ prozedurale Kartons
+    const rows = o.rows ?? 2, ry0 = o.ry || 0, lib = b.quality !== 'low' && b.hasModel('cardboard_box_01');
     for (let r = 0; r < rows; r++) for (const [lx, lz] of [[-0.3, -0.2], [0.3, -0.2], [-0.3, 0.2], [0.3, 0.2]]) {
       if (r === rows - 1 && b.rand() < 0.25) continue;
-      f.box(lx, h + r * 0.4, lz, 0.58, 0.39, 0.38, 'cardboard', { uv: 'fit', collide: false, minimap: false, grad: false, ry: (b.rand() - 0.5) * 0.05 });
+      const ry = ry0 + (b.rand() - 0.5) * 0.05, yy = y + h + r * 0.4;
+      const [wx, wz] = f.P(lx, lz);
+      const box = (bb) => {
+        bb.box(wx, yy, wz, 0.58, 0.39, 0.38, 'cardboard', { ry, uv: 'fit', collide: false, minimap: false, grad: false });
+        const [tx, tz] = f.P(lx, lz);
+        bb.box(tx, yy + 0.39, tz, 0.58, 0.003, 0.06, 'polymer', { ry, tint: '#b8955c', collide: false, minimap: false, grad: false, ao: false, cast: false });
+      };
+      if (lib) b.model('cardboard_box_01', wx, yy, wz, { ry: ry + Math.PI / 2, sx: 0.984, sy: 1.14, sz: 1.124, tint: ['#ffffff', '#f1e9dc', '#e4dccd'][Math.floor(hash01(wx, wz, 13) * 3)], collide: false, bullet: false, fallback: box });
+      else box(b);
     }
     h += rows * 0.4;
   } else if (L === 'sacks') {
@@ -203,14 +239,39 @@ export function pallet(b, x, y, z, o = {}) {
     for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) f.geom(sack, -0.4 + k * 0.4, h + r * 0.15, (r % 2 ? 0.08 : -0.08), 'sandbag', { ry: Math.PI / 2, sx: 1.3, sz: 2.2, sy: 1.05, tint: '#e2d6b8', collide: false, minimap: false, grad: false });
     h += 0.45;
   } else if (L === 'wrapped') {
-    f.box(0, h, 0, 1.18, 0.95, 0.78, 'tarp', { tint: o.wrapTint || '#cfd6d8', collide: false, minimap: false, grad: false });
+    // Stretchfolie: gerundeter Block (glänzend), Wickellagen als leicht abgesetzte Bänder, Deckblatt mit Überstand
+    const wt = o.wrapTint || '#ffffff', wg = wrapGeometry();
+    f.geom(wg.body, 0, h - 0.02, 0, 'stretch_film', { tint: wt, ...P, grad: false });
+    for (let k = 0; k < 2; k++) f.geom(wg.band, 0, h + 0.18 + k * 0.42 + hash01(x, z, 14 + k) * 0.06, 0, 'stretch_film', { tint: shade(wt, 0.93), ...P, grad: false, ao: false, cast: false });
+    f.box(0, h + 0.95, 0, 1.12, 0.006, 0.72, 'stretch_film', { tint: shade(wt, 0.97), ...P, grad: false, ao: false, cast: false, ry: 0.01 });
     h += 0.95;
   } else if (L === 'bricks') {
     f.box(0, h, 0, 1.1, 0.7, 0.75, 'brick', { collide: false, minimap: false, grad: false });
     h += 0.7;
   }
-  f.solid(0, 0, 0, 1.2, h, 0.8, { minimap: L ? 'cover' : 'prop' });
-  return h;
+  // Kollision wie bisher (Höhe 0,122 + Ladung): gleiche Maße auf allen Grafikstufen
+  f.solid(0, 0, 0, 1.2, h - 0.022, 0.8, { minimap: L ? 'cover' : 'prop' });
+  return h - 0.022;
+}
+
+let wrapGeo = null;
+/** Folienblock 1,18 × 0,97 × 0,78 m mit runden senkrechten Kanten + flaches Band (Wickellage), gecacht. */
+function wrapGeometry() {
+  if (wrapGeo) return wrapGeo;
+  const rr = (w, d, r) => {
+    const s = new THREE.Shape(), x = w / 2, z = d / 2;
+    s.moveTo(-x + r, -z); s.lineTo(x - r, -z); s.quadraticCurveTo(x, -z, x, -z + r); s.lineTo(x, z - r); s.quadraticCurveTo(x, z, x - r, z);
+    s.lineTo(-x + r, z); s.quadraticCurveTo(-x, z, -x, z - r); s.lineTo(-x, -z + r); s.quadraticCurveTo(-x, -z, -x + r, -z);
+    return s;
+  };
+  // sparsam (≈ 60 Dreiecke je Teil): in den Hallenregalen stehen Dutzende Folienpaletten
+  const ext = (w, d, r, hh, bev) => {
+    const g = new THREE.ExtrudeGeometry(rr(w, d, r), { depth: hh - 2 * bev, bevelEnabled: bev > 0, bevelThickness: bev, bevelSize: bev, bevelOffset: -bev, bevelSegments: 1, curveSegments: 2 });
+    g.rotateX(-Math.PI / 2); g.translate(0, bev, 0);
+    return g;
+  };
+  wrapGeo = { body: ext(1.18, 0.78, 0.06, 0.97, 0), band: ext(1.192, 0.792, 0.066, 0.07, 0) };
+  return wrapGeo;
 }
 
 export function palletStack(b, x, z, o = {}) {

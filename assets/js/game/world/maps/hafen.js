@@ -11,7 +11,7 @@ import {
 import { clawd } from '../clawd.js';
 import { craneClock, createTrack, partBuilder, partGroup, place, inView } from '../crane-anim.js';
 // Kartenrunde 2: Fahrzeuge mit richtig gedrehten Rädern, Innenausstattung, begehbare Container, Kartengrenzen
-import { stapler as forklift, lkw as truck, transporter as van, pkw as car } from './hafen-fahrzeuge.js';
+import { stapler as forklift, lkw as truck, transporter as van, pkw as car, containerstapler } from './hafen-fahrzeuge.js';
 import {
   schreibtisch, stuhl, aktenschrank, regal, tisch, besprechung, kaffeeEcke, kuechenzeile, kuehlschrank, minikuehlschrank,
   wasserspender, pinnwand, spinde, deckenleuchte, offenerContainer, kaiAbsperrung, schiebetor, steigleiter,
@@ -187,7 +187,7 @@ export default {
     stackAt(b, 3.6, -0.5, 6.06, 'x', ['#3e7a4c']);
     stackAt(b, 2.6, 5.4, 6.06, 'x', ['#8d9399']);
     // Kranplatz (B): Reachstacker, Kisten, Deckung
-    reachStacker(b, -9.8, 3.2, Math.PI * 0.08);
+    containerstapler(b, -9.8, 3.2, Math.PI * 0.08);
     crateStack(b, -13.2, -5.4, { ry: 0.25 });
     crateStack(b, -2.9, 5.8, { ry: -0.6 });
     jersey(b, -8.2, -6.2, { len: 3, ry: 0.05 });
@@ -214,7 +214,7 @@ export default {
     // Grafik-Vorlage 15.10. (Nutzer: zweite Halle aus dem Video begehbar): Halle 4 im Süden, gespiegelt Halle 5 im Norden
     videoHalle(b, 1);
     videoHalle(b, -1);
-    van(b, 4.6, -24.5, { ry: 0.05, color: '#e8e6e0', logo: 'logo_kurier' }); // 15.10.: aus dem Video-Blick (Halle 3) gerückt
+    van(b, 45.9, -15.5, { ry: 0.02, color: '#e8e6e0', logo: 'logo_kurier' }); // 15.10.: aus dem Video-Blick auf die Straße hinter Halle 3
     van(b, 46.0, 9.6, { ry: Math.PI - 0.08, color: '#cfd4d8' }); // 15.10.: auf die Straße hinter der Halle (Video-Blick frei)
     forklift(b, 6.4, 35.2, { y: 0.12, ry: 0.35, load: 'boxes', color: '#e0a02a' }); // 15.10.: in Halle 4 (Video-Blick frei)
     palletStack(b, 12.2, -5.2, { n: 4, ry: 0.05, load: 'boxes' });
@@ -240,17 +240,17 @@ export default {
     // -----------------------------------------------------------------------
     // Süd (Team A): Torbereich
     // -----------------------------------------------------------------------
-    gatehouse(b, 26, 45.5);
+    // Nutzer 15.10. abends: Kontrollposten mit Schranke (stand mitten auf der Zufahrt) → Lagerhalle 6 wie die lange Halle
+    // hinter Halle 3 im Video
+    halle6(b);
     fence(b, QUAY_X + 1, 52.4, 20.5, 52.4, { h: 2.6, style: 'chain', barbed: true });
     fence(b, 31.5, 52.4, 74.4, 52.4, { h: 2.6, style: 'chain', barbed: true });
     b.collider(26, 0, 52.6, 11, 6, 0.4, {});
     for (const x of [21.5, 30.5]) { b.box(x, 0, 52.2, 0.5, 1.1, 0.5, 'concrete', { tint: '#e8e2d4', minimap: 'cover' }); }
     schiebetor(b, 20.6, 31.4, 52.62, { sign: 'gate_closed' });
-    barrier(b, 26, 49.4);
     // Tempo 10 an der Torausfahrt (rechts in Fahrtrichtung Süd, Blick zum Terminal)
     b.cyl(20.7, 0, 50.4, 0.04, 2.2, 'metal_galvanized', { seg: 6, minimap: 'prop' });
     b.sign(20.7, 1.7, 50.35, 0.6, 0.6, 'speed', { ry: Math.PI, depth: 0.02 });
-    truck(b, 38.2, 44, { ry: Math.PI / 2, trailer: 'container', color: '#e0e0da', containerColor: '#2d5f94', logo: 'logo_kairos' });
     stackAt(b, -30.4, 46.3, 6.06, 'x', ['#c9a227']);
     jersey(b, -10.2, 44.8, { len: 3, ry: 0.3, stripes: true });
     jersey(b, 9.5, 44.6, { len: 3, ry: -0.2, stripes: true });
@@ -288,7 +288,7 @@ export default {
     // Startpunkte & Flaggen
     // -----------------------------------------------------------------------
     const spawns = { A: [], B: [], ffa: [] };
-    const sA = [[-38, 47], [-31, 43], [-19, 47.5], [-9, 48], [0, 47], [10.5, 47.5], [16, 43], [34, 49.5], [-21, 41.5], [1.5, 43.5], [55.5, 48.5], [64, 49.5], [72.5, 49.5]];
+    const sA = [[-38, 47], [-31, 43], [-19, 47.5], [-9, 48], [0, 47], [10.5, 47.5], [15.5, 44.5], [34, 49.5], [-21, 41.5], [1.5, 43.5], [55.5, 48.5], [64, 49.5], [72.5, 49.5]];
     for (const [x, z] of sA) { spawns.A.push({ x, z, yaw: 0 }); spawns.B.push({ x, z: -z, yaw: Math.PI }); }
     for (const [x, z] of [[-40, 20], [-38, -8], [-34, -40], [-20, -26], [-20, 26], [-10, 18], [-11, -18], [0, -1], [10.2, -24.4], [10.2, 24.4], [20, -10], [38.5, 8], [24, 14], [38, -14], [30, -40], [-26, -48], [61, -15], [61, 15], [71.5, 0], [52.5, -32], [52.5, 32], [64.5, -44], [64.5, 44]]) spawns.ffa.push({ x, z });
     return {
@@ -346,13 +346,15 @@ function signs(b) {
   b.defineSign('dock3', { style: 'number', text: 'D3', bg: '#e8c22c', fg: '#16191d' });
   b.defineSign('dock4', { style: 'number', text: 'D4', bg: '#e8c22c', fg: '#16191d' });
   b.defineSign('dock5', { style: 'number', text: 'D5', bg: '#e8c22c', fg: '#16191d' });
+  b.defineSign('dock6', { style: 'number', text: 'D6', bg: '#e8c22c', fg: '#16191d' });
+  b.defineSign('dock7', { style: 'number', text: 'D7', bg: '#e8c22c', fg: '#16191d' });
+  b.defineSign('hall6', { style: 'stencil', text: 'HALLE 6', fg: '#f2f0ea' });
   b.defineSign('logo_nordstern', { style: 'logo', text: 'NORDSTERN', sub: 'Linienreederei', bg: 'rgba(0,0,0,0)', fg: '#f2f0ea', accent: '#f2f0ea' });
   b.defineSign('logo_kairos', { style: 'logo', text: 'KAIROS LINES', bg: 'rgba(0,0,0,0)', fg: '#f2f0ea', accent: '#ff8a2a' });
   b.defineSign('logo_kurier', { style: 'logo', text: 'BLITZKURIER', sub: 'Heute bestellt – morgen da', bg: '#e8e6e0', fg: '#1f3d5c', accent: '#c8402f' });
   b.defineSign('crane_grete', { style: 'stencil', text: 'GRETE', sub: 'STS 04 · 65 t', fg: '#f2f0ea' });
   b.defineSign('crane_k5', { style: 'stencil', text: 'K5', fg: '#f2f0ea' });
   b.defineSign('kiosk', { style: 'plate', text: 'KAIAUFSICHT', bg: '#14304a', fg: '#f2f0ea' });
-  b.defineSign('gate', { style: 'plate', text: 'TOR 2 · ANMELDUNG', sub: 'Fahrer bitte aussteigen', bg: '#f2f0ea', fg: '#14304a' });
   b.defineSign('office', { style: 'plate', text: 'TERMINALBÜRO', sub: 'Disposition · Zoll', bg: '#14304a', fg: '#f2f0ea' });
   b.defineSign('speed', { style: 'number', text: '10', sub: 'km/h', bg: '#ffffff', fg: '#c8302a' });
   b.defineSign('yard_a', { style: 'plate', text: 'BLOCK A', bg: '#e8c22c', fg: '#16191d', border: false });
@@ -604,69 +606,6 @@ function lifebuoy(b, x, z) {
   const g = new THREE.TorusGeometry(0.32, 0.07, 8, 16);
   g.rotateY(Math.PI / 2);
   b.geom(g, x + 0.08, 1.15, z, 'white', { tint: '#e8562a', collide: false, minimap: false });
-}
-
-/** Reachstacker (Containerstapler) mit knapp über dem Boden gehaltenem Container. */
-function reachStacker(b, x, z, ry) {
-  const f = frame(b, x, 0, z, ry);
-  const yel = '#e0a02a';
-  f.box(0, 0.6, 0, 3.2, 1.5, 7.2, 'metal_painted', { tint: yel, collide: false, minimap: false, grad: false });
-  f.box(0, 0.6, -3.5, 3.0, 2.0, 1.4, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false });
-  f.box(1.0, 2.1, -0.6, 1.4, 1.9, 1.8, 'metal_painted', { tint: yel, collide: false, minimap: false, grad: false });
-  f.box(1.0, 2.5, 0.31, 1.3, 1.1, 0.04, 'glass', { collide: false, minimap: false, ao: false });
-  f.box(1.0, 4.0, -0.6, 1.5, 0.08, 1.9, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false });
-  for (const sx of [-1.35, 1.35]) for (const sz of [-2.3, 2.4]) f.cyl(sx, 0.8, sz, 0.8, 0.85, 'rubber', { axis: 'x', collide: false, minimap: false, seg: 14 });
-  // Ausleger schräg nach vorn-unten
-  f.box(-0.3, 2.3, 1.2, 0.9, 0.9, 7.2, 'metal_painted', { tint: yel, collide: false, minimap: false, rx: 0.18, grad: false });
-  const [cx, cz] = f.P(-0.3, 6.6);
-  b.box(cx, 2.75, cz, 2.6, 0.4, 6.2, 'metal_painted', { ry, tint: '#d9a72a', collide: false, minimap: false, grad: false });
-  container(b, cx, 0.12, cz, { len: 6.06, ry: ry + Math.PI / 2, color: '#c8402f', minimap: 'container' });
-  f.solid(0, 0, -0.5, 3.4, 4.1, 7.6, { minimap: 'vehicle' });
-}
-
-/** Schranke am Tor */
-function barrier(b, x, z) {
-  b.box(x - 4.8, 0, z, 0.5, 1.1, 0.5, 'metal_painted', { tint: '#e8e2d4', minimap: 'prop' });
-  b.box(x - 1.2, 0.95, z, 7.2, 0.1, 0.1, 'white', { tint: '#e8e2d4', collide: false, minimap: false, grad: false });
-  for (let i = 0; i < 6; i++) b.box(x - 4.2 + i * 1.2, 0.944, z, 0.6, 0.112, 0.112, 'white', { tint: '#c8302a', collide: false, minimap: false, grad: false, ao: false });
-}
-
-/** Pförtnerhaus am Tor (begehbar). */
-function gatehouse(b, x, z) {
-  const B = building(b, {
-    x, z, w: 6, d: 4.4, floors: 1, fh: 3.0, mat: 'plaster_white', tint: '#e2ddd2', floorMat: 'tiles', frameMat: 'metal_painted', frameTint: '#2a2e33',
-    openings: [
-      { side: 'w', at: 0.8, w: 1.0, h: 2.1, kind: 'door' },
-      { side: 'n', at: 0, w: 3.6, h: 1.3, kind: 'window', sill: 1.0, glass: false },
-      { side: 's', at: 0.6, w: 2.4, h: 1.2, kind: 'window', sill: 1.0, glass: true },
-      { side: 'e', at: 0, w: 1.6, h: 1.2, kind: 'window', sill: 1.0, glass: false },
-    ],
-    roof: { edge: true, mat: 'concrete' },
-    plinth: { h: 0.35, mat: 'concrete_dark' },
-  });
-  b.box(x, B.roofY, z, 7.6, 0.18, 6, 'metal_painted', { tint: '#14304a', grad: false, minimap: false, collide: false });
-  b.sign(x, B.roofY + 0.25, z + 2.95, 5.2, 0.9, 'title', { ry: 0, depth: 0.04 });
-  b.sign(x - 3.02, 1.9, z - 1.0, 2.0, 0.55, 'gate', { ry: -Math.PI / 2, depth: 0.02 });
-  // Einrichtung (Innenmaß x ±2,7, z ±1,9; Tür West bei z +0,8): Theke unter dem Südfenster mit zwei Bildschirmen und
-  // Stuhl, Spinde in der Nordwestecke, Tisch mit Kaffee in der Nordostecke, Schlüsselkasten, Pinnwand, Deckenleuchte
-  const y0 = B.levels[0];
-  b.box(x + 0.6, 0.12, z + 1.4, 2.4, 0.8, 0.6, 'wood_planks', { tint: '#8a6a4a', minimap: false, grad: false });
-  for (const dx of [0.05, 0.85]) {
-    b.box(x + dx, 0.92, z + 1.52, 0.18, 0.015, 0.14, 'polymer', { tint: '#1e2023', collide: false, minimap: false, grad: false, ao: false });
-    b.box(x + dx, 1.03, z + 1.55, 0.5, 0.3, 0.03, 'polymer', { tint: '#1e2023', collide: false, minimap: false, grad: false, ry: dx > 0.5 ? -0.25 : 0.2 });
-  }
-  b.box(x + 0.45, 0.92, z + 1.25, 0.44, 0.02, 0.15, 'polymer', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
-  b.box(x + 1.5, 0.92, z + 1.3, 0.2, 0.07, 0.22, 'polymer', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
-  stuhl(b, x + 0.5, y0, z + 0.65, 0.15);
-  spinde(b, x - 2.45, y0, z - 1.4, Math.PI / 2, 2);
-  tisch(b, x + 2.3, y0, z - 1.45, 0, 0.7, 0.6);
-  kaffeeEcke(b, x + 2.3, y0 + 0.755, z - 1.5, Math.PI);
-  b.box(x + 2.66, 1.4, z + 1.55, 0.06, 0.45, 0.35, 'metal_painted', { tint: '#5a5f66', collide: false, minimap: false, grad: false }); // Schlüsselkasten
-  pinnwand(b, x - 2.68, 1.25, z - 0.2, Math.PI / 2, 0.8, 0.55);
-  deckenleuchte(b, x, B.roofY - 0.25, z, 0, 1.25, { intensity: 7, distance: 7, real: true });
-  // Klimagerät auf dem Dach (vorher an der Ostwand vor dem Fenster)
-  acUnit(b, x - 1.8, B.roofY + 0.18, z - 1.6, { ry: Math.PI, bracket: false });
-  b.noNav(x - 4, z - 3.2, x + 4, z + 3.2, 2.5, 5);
 }
 
 /** Terminalbüro im Norden (zweigeschossig, Erdgeschoss begehbar). */
@@ -1004,6 +943,52 @@ function videoHalle(b, sz) {
   pallet(b, 12.4, yf, zN + sz * 5.4, { load: 'boxes', ry: -0.15 });
   pallet(b, 6.2, yf, zN + sz * 3.2, { load: 'wrapped', ry: 0.25 });
   crateStack(b, 11.4, zS - sz * 4.4, { y: yf, ry: 0.3 });
+}
+
+/** Nutzer 15.10. abends: Lagerhalle 6 an der Südzufahrt statt Kontrollposten – lange, niedrige Halle wie hinter Halle 3
+ *  im Video: zwei Rolltore mit Vordach und Fensterband zur Kartenmitte, Tor nach Westen (Halle 4), Türen nach Osten
+ *  (Straße) und Süden (Startplätze), innen Regalgassen, Paletten und Kisten. */
+function halle6(b) {
+  const x0 = 17, x1 = 41, z0 = 28, z1 = 46, H = 8.4, t = 0.3, yf = 0.12;
+  b.interior(x0, z0, x1, z1, -0.1, H - 0.05, 0.6);
+  b.boxMM(x0 + t, 0, z0 + t, x1 - t, yf, z1 - t, 'epoxy', { grad: false, minimap: false });
+  const wm = { mat: 'metal_corrugated', tint: '#c6cac1', h: H, t, frameMat: 'metal_painted', frameTint: '#2a2e33', minimap: 'wall', plinth: { h: 1.1, mat: 'concrete_dark', tint: '#707270', over: 0.04 } };
+  // Nordfassade (von Ost nach West, at ab x1): Tor, Fenster, Tor, Tür, Fenster; Fensterband oben durchgehend
+  const band = [1.6, 9.5, 18.2, 22.6].map((at) => ({ at, w: 2.6, h: 1.2, kind: 'window', sill: 5.9, glass: true }));
+  wall(b, { ...wm, x0: x1, z0: z0 + t / 2, x1: x0, z1: z0 + t / 2, openings: [
+    { at: 5, w: 4.6, h: 4.8, kind: 'gap', frameMat: 'hazard' }, { at: 14, w: 4.6, h: 4.8, kind: 'gap' }, { at: 20.4, w: 1.2, h: 2.2, kind: 'door' },
+    ...band] });
+  wall(b, { ...wm, x0: x0 + t / 2, z0: z0, x1: x0 + t / 2, z1: z1, openings: [{ at: 9, w: 4.0, h: 4.2, kind: 'gap' }] });
+  wall(b, { ...wm, x0: x1 - t / 2, z0: z1, x1: x1 - t / 2, z1: z0, openings: [{ at: 9, w: 1.3, h: 2.3, kind: 'door' }, { at: 4, w: 2.4, h: 1.2, kind: 'window', sill: 5.9, glass: true }, { at: 14, w: 2.4, h: 1.2, kind: 'window', sill: 5.9, glass: true }] });
+  wall(b, { ...wm, x0: x0, z0: z1 - t / 2, x1: x1, z1: z1 - t / 2, openings: [{ at: 7, w: 3.6, h: 4.0, kind: 'gap' }, { at: 17, w: 1.2, h: 2.2, kind: 'door' }] });
+  b.boxMM(x0 - 0.3, H, z0 - 0.3, x1 + 0.3, H + 0.35, z1 + 0.3, 'metal_corrugated', { tint: '#8d969c', minimap: 'roof', grad: false, uv: 'world' });
+  b.box((x0 + x1) / 2, H + 0.35, z0 - 0.31, x1 - x0 + 0.6, 0.6, 0.1, 'metal_painted', { tint: '#3d4247', collide: false, minimap: false, grad: false });
+  b.cyl(31, H + 0.35, 37, 0.55, 0.9, 'metal_galvanized', { collide: false, minimap: false, seg: 12 });
+  b.noNav(x0 - 1, z0 - 1, x1 + 1, z1 + 1, H - 0.5, 20);
+  // Rolltore (beweglich) mit Vordach und Torschild
+  for (const [gx, sign] of [[36, 'dock6'], [27, 'dock7']]) {
+    (b.gates || (b.gates = [])).push({ x: gx, z: z0 + 0.05, axis: 'x', w: 4.6, h: 4.8, t: 0.12, y: 0, bottom: gx > 30 ? 3.2 : 2.4, tint: '#d0d4d0',
+      panels: [[gx - 3.0, z0 + 0.65, 0], [gx + 3.0, z0 - 0.65, Math.PI]] });
+    b.box(gx, 4.85, z0 - 0.3, 5.2, 0.6, 0.6, 'metal_painted', { tint: '#3d4247', minimap: false, grad: false, collide: false });
+    b.sign(gx, 5.55, z0 - 0.62, 0.68, 0.68, sign, { ry: Math.PI, depth: 0.03 });
+  }
+  b.sign(31.6, 2.2, z0 - 0.02, 1.0, 0.9, 'warn_forklift', { ry: Math.PI, depth: 0.02 });
+  b.sign(x1 + 0.02, 6.4, 37, 6.5, 1.7, 'hall6', { ry: Math.PI / 2, back: false, depth: 0 });
+  b.sign(29, 6.0, z1 + 0.04, 6.0, 1.05, 'title', { ry: 0, depth: 0.03 }); // Terminal-Schild zur Zufahrt (vorher auf dem Kontrollposten)
+  // Licht (gebacken, gedämpft wie in Halle 3) und Binder
+  for (const lx of [23, 35]) for (const lz of [33, 41]) b.light('point', lx, H - 0.8, lz, { color: '#e6ecf5', intensity: 13, distance: 16, realtime: false });
+  for (let xx = x0 + 4; xx < x1 - 1; xx += 4) b.box(xx, H - 0.7, (z0 + z1) / 2, 0.3, 0.7, z1 - z0 - 0.6, 'metal_painted', { tint: '#4b5560', collide: false, minimap: false, grad: false });
+  // Einrichtung: zwei Regalgassen (Gang zum Westtor frei), Paletten hinter den Toren, Kisten, Gitterbox-Ecke
+  for (const rz of [35.0, 40.6]) {
+    rack(b, 24.4, rz, { y: yf, bays: 2, levels: 3, levelH: 1.7, ry: 0 });
+    rack(b, 34.6, rz, { y: yf, bays: 2, levels: 3, levelH: 1.7, ry: 0 });
+  }
+  palletStack(b, 36.8, 30.6, { y: yf, n: 2, load: 'boxes', ry: 0.08 });
+  palletStack(b, 27.6, 31.0, { y: yf, n: 3, load: 'wrapped', ry: -0.12 });
+  pallet(b, 39.2, yf, 32.4, { load: 'boxes', ry: 0.3 });
+  crateStack(b, 20.0, 31.2, { y: yf, ry: 0.4 });
+  crateStack(b, 38.8, 44.0, { y: yf, ry: -0.2, pattern: [[0, 0, 0, 1.1], [1.15, 0, 0.05, 1.0]] });
+  palletStack(b, 21.0, 44.2, { y: yf, n: 5, ry: 0.05 });
 }
 
 /** Frachtschiff am Nordkai (Kulisse). */

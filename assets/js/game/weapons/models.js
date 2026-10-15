@@ -13,7 +13,7 @@
 //   adsOffset = Position der Gruppe im Kameraraum (Kamera im Ursprung, Blick −Z), bei der das Visier exakt
 //   auf der optischen Achse liegt (inkl. Augenabstand der Visierung).
 import * as THREE from 'three';
-import { Builder } from './gunsmith/builder.js';
+import { Builder, DETAIL } from './gunsmith/builder.js';
 import { kv47, sk14 } from './gunsmith/guns-ar.js';
 import { m17 } from './gunsmith/guns-m17.js';
 import { vp9, qx90, hm60 } from './gunsmith/guns-auto.js';
@@ -125,7 +125,7 @@ function cloneTemplate(tpl) {
 
 function getTemplate(key, lod, att = null) {
   const ak = attKey(att);
-  const k = key + ':' + lod + (ak ? '|' + ak : '');
+  const k = key + ':' + lod + (lod !== 'third' ? (DETAIL.max ? ':max' : DETAIL.lite ? ':lite' : '') : '') + (ak ? '|' + ak : '');
   let t = cache.get(k);
   if (!t) { t = buildTemplate(key, lod, ak ? att : null); cache.set(k, t); }
   return t;

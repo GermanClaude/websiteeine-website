@@ -243,10 +243,29 @@ def crack_tile(sp, img, valid, ppm):
                     cv2.polylines(crack, [q], False, 1.0, thickness=max(1, int(round(w))), lineType=cv2.LINE_AA)
     crack = crack[out:2 * out, out:2 * out]
     crack = np.clip(crack, 0, 1)
+    # Plattenfugen (Video: Schnittfugen im Kaibeton) am Kachelrand, leicht ausgebrochen
+    jw = sp.get('slabJoint', 0)
+    if jw:
+        jm = np.zeros((out, out), np.float32)
+        w = max(1, int(round(jw * opm)))
+        cv2.line(jm, (0, 0), (0, out - 1), 1.0, w); cv2.line(jm, (out - 1, 0), (out - 1, out - 1), 1.0, w)
+        cv2.line(jm, (0, 0), (out - 1, 0), 1.0, w); cv2.line(jm, (0, out - 1), (out - 1, out - 1), 1.0, w)
+        chip = cv2.GaussianBlur((rng.random((out, out)) > 0.985).astype(np.float32), (0, 0), 2.0)
+        edge = cv2.GaussianBlur(jm, (0, 0), w * 1.5)
+        jm = np.clip(jm + (edge > 0.05) * chip * 2.0, 0, 1)
+        crack = np.maximum(crack, jm * sp.get('slabJointDark', 0.8) / max(1e-4, sp.get('crackDark', 0.6)))
+    # Flecken (Öl, Wasser, Abrieb): große weiche dunkle Flächen, gering
+    st = sp.get('stains', 0)
+    if st:
+        sn = cv2.GaussianBlur(rng.random((out // 16, out // 16)).astype(np.float32), (0, 0), 1.5)
+        sn = cv2.resize(sn, (out, out), interpolation=cv2.INTER_CUBIC)
+        sn = (sn - sn.mean()) / max(1e-4, sn.std())
+        base = base * (1 - st * np.clip(sn - 0.8, 0, 2)[..., None] * 0.5)
     soft = cv2.GaussianBlur(crack, (0, 0), 2.0 * out / 1024)
-    shade = 1 - sp.get('crackDark', 0.6) * crack - 0.12 * soft
+    shade = 1 - sp.get('crackDark', 0.6) * np.clip(crack, 0, 1) - 0.12 * soft
     alb = base * shade[..., None]
-    hgt = -(crack * 1.0 + soft * 0.6) + 0.15 * (g1 / max(1e-4, g1.std()))
+    # Höhe: Risse + Korn (grainH; Video-Beton ist glatt) + weiche Wellung (waveH)
+    hgt = -(crack * 1.0 + soft * 0.6) + sp.get('grainH', 0.15) * (g1 / max(1e-4, g1.std())) + sp.get('waveH', 0) * (g2 / max(1e-4, g2.std()))
     return alb, hgt
 
 

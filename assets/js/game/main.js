@@ -1118,7 +1118,9 @@ async function warmUp(live = () => true) {
     if (!live()) return;
     G.menus.showLoading(0.97);
     G.renderer.compilePost?.(); // core-render: Objektiv/Grade/Belichtung (auch EASU für spätere Skalen < 1)
-    G.renderer.render(G.scene, G.camera, G.viewmodel.scene, G.viewmodel.camera);
+    // Mündungsfeuer/Rauch unsichtbar mitzeichnen: ihre Programme entstehen so hier statt beim ersten Schuss
+    const vm = G.player?.weapon?.viewModel;
+    try { vm?.primeEffects?.(true); G.renderer.render(G.scene, G.camera, G.viewmodel.scene, G.viewmodel.camera); } finally { vm?.primeEffects?.(false); }
   } catch (err) {
     console.warn('[NULLPUNKT] Shader-Vorbereitung:', err);
   }

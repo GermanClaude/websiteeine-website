@@ -28,7 +28,7 @@ import { COSMETIC } from './anim/reloads.js';
 import { magWellOf } from './anim/magwell.js';
 import { GunCollider, MultiCollider } from './gunsmith/contact.js';
 import { applyCamo } from './gunsmith/camos.js';
-import { DETAIL } from './gunsmith/builder.js';
+import { DETAIL, setWeaponDetail } from './gunsmith/builder.js';
 import { setReticleSize } from './gunsmith/materials.js';
 import { CLASS_LOOKS, SKIN_TIERS, classLookId } from '../../shared/weapons.data.js';
 import { MuzzleFlash, ShellPool, SmokeWisps, HeatHaze } from './gunsmith/fx.js';
@@ -139,6 +139,8 @@ export class ViewModel {
     // Ärmel im Tarnmuster des eigenen Teams (wie die Mitspieler-Bots); Jeder gegen jeden: neutral
     this._team = G.player ? G.player.team ?? null : 'A';
     this._scheme = schemeForTeam(this._team, G.world) || null;
+    // Detailstufe der Waffenmodelle + Eigenschatten nach Grafikstufe (vor dem ersten Modellbau)
+    setWeaponDetail(G.renderer?.quality || 'high');
     this.arms = new Arms({ camo: sleeveCamo(this._scheme), quality: G.renderer?.quality || 'high' });
     this.root.add(this.arms.group);
     if (DETAIL.max) this.arms.group.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
@@ -752,8 +754,9 @@ export class ViewModel {
     this.arms?.setQuality?.(q);   // Handschuh-/Ärmeltexturen 256² (low) … 1024² (high/ultra)
     this.rim.visible = q !== 'low';
     this.shells.limit = q === 'low' ? 6 : 14;
-    // Hitzeflimmern nur auf high/ultra (Bildkopie + ein Billboard)
-    if (this.haze) this.haze.enabled = q === 'high' || q === 'ultra';
+    // Hitzeflimmern nur auf ultra (Bildkopie mitten im Bild + ein Billboard; 15.10.: auf „hoch“ kostete die Kopie beim
+    // Dauerfeuer auf schwächeren Grafikkarten spürbar – genau dann, wenn der Lauf heiß wird)
+    if (this.haze) this.haze.enabled = q === 'ultra';
   }
 
   _ensureOwnEnv() {
@@ -1282,8 +1285,11 @@ export class ViewModel {
     const rStyle = h.action === 'knife' ? 'knife' : 'pistolGrip';
     this._anchorTarget(ud.rightHandGrip, rStyle, ud.rightHandGrip.userData, R, 1);
     let busyR = act ? this._applyRequests(act.right, R, 1) : 0;
-    // Bewegte Teile unter der Schusshand (Schlitten zurück, Verschluss/Trommel in Bewegung): je Bild statt gemerkt
-    if (busyR <= 1e-3 && (this._slideLocked || this._boltLocked || this._boltT < 1 || (act && (act.parts.slide || act.parts.boltHandle || act.parts.crane || act.parts.cylinder)))) { busyR = 2e-3; this._reqStyle = rStyle; }
+    // Bewegte Teile unter der Schusshand (Schlitten zurück, Trommel in Bewegung): je Bild statt gemerkt. Nur Pistole/
+    // Revolver – beim Gewehr läuft der Verschluss im Gehäuse, nicht unter der Hand am Pistolengriff (Nutzer 15.10.:
+    // starke Bildeinbrüche beim Dauerfeuer mit der M-17 – der volle Kontaktlöser lief nach jedem Schuss jedes Bild)
+    const slideUnderHand = h.action === 'pistol' || h.action === 'revolver';
+    if (busyR <= 1e-3 && (this._slideLocked || (slideUnderHand && (this._boltLocked || this._boltT < 1)) || (act && (act.parts.slide || act.parts.boltHandle || act.parts.crane || act.parts.cylinder)))) { busyR = 2e-3; this._reqStyle = rStyle; }
     // Abzugsfinger beim Patronenladen gestreckt längs des Gehäuses (hands-v3): die Patrone läuft vor dem Abzugsbügel
     // in die Ladeöffnung und ging sonst durch die Zeigefingerkuppe (Bulldog/Hagel 9–11 mm)
     const disc = this._idxDisc = clamp((this._idxDisc || 0) + (act && act.parts && act.parts.shell ? 0.12 : -0.12), 0, 1);
@@ -1740,6 +1746,27 @@ export class ViewModel {
     this.haze.mesh.visible = hazeVis;
     for (const c of [...holder.children]) holder.remove(c);
     this.root.remove(holder);
+  }
+
+  /**
+   * Effekte für ein echtes Vorwärm-Bild sichtbar schalten (main.js warmUp): Mündungsfeuer (Stern + Seitenflammen) und
+   * ein Rauch-Sprite unsichtbar (Deckkraft 0) mitzeichnen – renderer.compile überspringt unsichtbare Objekte, ihre
+   * Programme entstanden sonst erst beim ersten Schuss (Nutzer 15.10.: Ruckler beim Schießen).
+   */
+  primeEffects(on) {
+    const f = this.flash, sm = this.smoke?.items?.[0];
+    if (on) {
+      this._prime = { op: f.starMat.opacity, sv: f.sides.visible, gv: f.group.visible, smv: sm?.m.visible, smo: sm?.m.material.opacity };
+      f.starMat.opacity = f.sideMat.opacity = 0;
+      f.group.visible = true; f.sides.visible = true;
+      if (sm) { sm.m.visible = true; sm.m.material.opacity = 0; }
+    } else if (this._prime) {
+      const P = this._prime;
+      f.starMat.opacity = f.sideMat.opacity = P.op;
+      f.group.visible = P.gv; f.sides.visible = P.sv;
+      if (sm) { sm.m.visible = P.smv; sm.m.material.opacity = P.smo; }
+      this._prime = null;
+    }
   }
 
   dispose() {

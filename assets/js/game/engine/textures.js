@@ -173,9 +173,14 @@ const MATS = {
   lamp_warm:         { tex: null, surface: 'glass', params: { color: '#2a241c', emissive: '#ffd59a', emissiveIntensity: 4, roughness: 0.3 } },
   lamp_cool:         { tex: null, surface: 'glass', params: { color: '#20262a', emissive: '#e6f0ff', emissiveIntensity: 5, roughness: 0.3 } },
   lamp_red:          { tex: null, surface: 'glass', params: { color: '#200808', emissive: '#ff2a1a', emissiveIntensity: 5, roughness: 0.3 } },
+  // Leuchtengläser abgestellter Fahrzeuge (nicht leuchtend): klar, orange, rot
+  lamp_lens:         { tex: null, surface: 'glass', params: { color: '#c9d0d4', roughness: 0.12, metalness: 0.3 } },
+  lamp_orange:       { tex: null, surface: 'glass', params: { color: '#c8741f', roughness: 0.25 } },
+  lamp_redlens:      { tex: null, surface: 'glass', params: { color: '#7a1712', roughness: 0.25 } },
   lamp_green:        { tex: null, surface: 'glass', params: { color: '#082008', emissive: '#3aff6a', emissiveIntensity: 4, roughness: 0.3 } },
   window_lit:        { tex: null, surface: 'glass', params: { color: '#3a3020', emissive: '#ffc070', emissiveIntensity: 1.6, roughness: 0.2 } },
   black:             { tex: null, surface: 'concrete', params: { color: '#0b0b0c', roughness: 0.95 } },
+  stretch_film:      { tex: null, surface: 'fabric', params: { color: '#d6dadc', roughness: 0.34, metalness: 0 } }, // Folie um Palettenladung (glänzend weiß)
   // unsichtbarer Kollisionskörper von Autos/Transportern: Oberfläche Fahrzeugblech (Kugeln gehen durch, combat.js)
   hull:              { tex: null, surface: 'vehicle', params: { color: '#0b0b0c', roughness: 0.95 } },
 };
