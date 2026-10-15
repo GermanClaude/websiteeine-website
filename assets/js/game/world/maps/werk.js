@@ -1,4 +1,4 @@
-// NULLPUNKT — Karte „Werk“: stillgelegtes Walzwerk 7 in der bleigrauen Abenddämmerung. (Owner: world)
+// NULLPUNKT — Karte „Werk“: stillgelegtes Walzwerk 7 bei Tageslicht (bis 15.10. Abenddämmerung). (Owner: world)
 // Drei Bahnen: Lkw-Hof mit Laderampe (West) · Walzhalle mit Laufstegen und Kranbahn (Mitte) ·
 // Kesselhaus mit Rohrbrücke, Tanks und Schornstein (Ost). Team A startet im Süden (Werkstor),
 // Team B im Norden (Gleisanschluss). Nord/Süd spiegelsymmetrisch (z → −z), Details unterschiedlich.
@@ -29,26 +29,26 @@ export default {
   chunkSize: 36,
   ambience: 'industrial',
   // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
-  assets: { hdri: 'abandoned_slipway' },
+  // Grafik-Vorlage Etappe 0 (15.10.): Tag wie im Video (Halle mit hellen Fensterbahnen, Gasse mit klarem Himmel) statt
+  // Dämmerung; HDRI zwartkops (klarer Tag) nur als Umgebungslicht, Himmel prozedural mit lockeren Wolken
+  assets: { hdri: 'zwartkops_straight_morning' },
   defaultSurface: 'concrete',
   navSpacing: 1.5,
   groundNoise: 0.22,
-  interiorTint: [1, 0.93, 0.84],
+  interiorTint: [1, 0.97, 0.93],
   lighting: {
-    sun: { elevation: 8, azimuth: 252, color: '#ffae70', intensity: 2.6 },
-    // HDRI abandoned_slipway (bedeckt) nur als Umgebungslicht, dämmerblau getönt; der Himmel bleibt prozedural (Dämmerung),
-    // das Foto zeigt am Horizont nahe Mauern/Bäume, die über dem Werk riesig wirkten
-    sky: { turbidity: 9, rayleigh: 2.2, mieCoefficient: 0.012, mieDirectionalG: 0.82, exposure: 0.42, tint: '#c8ccd8', clouds: { coverage: 0.82, density: 0.62, scale: 0.00016, elevation: 0.45, speed: 0.00002 }, hazeHigh: 0.2, hazeAmount: 0.95, hdri: false },
-    // Himmels-/Umgebungslicht trägt die Dämmerung (Env-Map ohne Mie-Hotspot, s. lighting.js) → kräftiger
-    hemi: { sky: '#a6b2c6', ground: '#7d7064', intensity: 2.1, hdriIntensity: 1.2 },
-    env: { intensity: 2.2, ground: '#5c554c', groundIntensity: 0.6, tint: '#c4ccdc', hdriIntensity: 1.1, hdriTint: '#8e9ab4' },
-    fog: { color: '#7c8596', near: 45, far: 280, density: 0.0075, falloff: 0.05, start: 15, sun: 0.5, sunExp: 4 },
-    shadow: { size: 40, bias: -0.0005 },
-    exposure: 1.55,
-    // Halle: Abendsonne flach durch die Westfenster, viel Staub; Feuertonnen (Lichtgruppe 2) flackern
-    probes: { bounce: 1.0, flicker: [{ group: 2, amount: 0.35, speed: 11 }] },
-    // atmosphere-weather: Hallenfenster-Strahlen + Staub etwas kräftiger, Lücken zwischen Hallen/Containern (slots)
-    atmos: { beams: 0.027, beamG: 0.42, dust: 1.7, slots: 0.6, outdoor: 0.5 },
+    sun: { elevation: 38, azimuth: 252, color: '#fff1e0', intensity: 3.5 },
+    // Himmel prozedural (das Foto zeigt am Horizont nahe Mauern/Bäume, die über dem Werk riesig wirkten)
+    sky: { turbidity: 4, rayleigh: 1.6, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.5, clouds: { coverage: 0.5, density: 0.45, scale: 0.00018, elevation: 0.5, speed: 0.00002 }, hazeHigh: 0.14, hazeAmount: 0.85, hdri: false },
+    hemi: { sky: '#ced1d5', ground: '#6f6b65', intensity: 0.95, hdriIntensity: 0.55 },
+    env: { intensity: 1.2, ground: '#67635d', groundIntensity: 0.55, tint: '#f2f2f2', hdriIntensity: 0.75 },
+    fog: { color: '#adb4bc', near: 60, far: 340, density: 0.0048, falloff: 0.045, start: 18, sun: 0.35, sunExp: 6 },
+    shadow: { size: 40, bias: -0.0005, radius: 2.8 },
+    // Halle: Sonne durch die Westfenster, viel Staub, kräftiger Rückprall (Video: Ziegelwände deutlich sichtbar);
+    // Feuertonnen (Lichtgruppe 2) flackern
+    probes: { bounce: 2.6, skyMin: 0.05, flicker: [{ group: 2, amount: 0.35, speed: 11 }] },
+    // atmosphere-weather: Hallenfenster-Strahlen + Staub kräftig (Video); Gassen ohne Lichtbalken (Video) → keine Schlitze
+    atmos: { beams: 0.034, beamG: 0.5, dust: 1.7, slots: 0, outdoor: 0.3 },
   },
 
   build(b, ctx) {

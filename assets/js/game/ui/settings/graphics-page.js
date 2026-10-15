@@ -29,7 +29,7 @@ const LOCAL_HINTS = {
   gfxPixelRatio: 'Obergrenze für hochauflösende Bildschirme (Retina). Mehr = schärfer, kostet viel Leistung.',
   fpsLimit: 'Spart Akku und hält Telefone kühler. 30 ist auf Handys ruhiger als schwankende 40–60.',
   gfxShadows: 'Auflösung und Reichweite der Sonnenschatten, Schatten der Figuren.',
-  gfxAO: 'Verdeckung in Ecken und Fugen. Rendert die Szene ein zweites Mal – teuer.',
+  gfxAO: 'Verdeckung in Ecken und Fugen. Rendert die Szene ein zweites Mal (auf „Hoch“ in halber Auflösung) – kostet Leistung.',
   gfxPost: 'Einfach: alles in einem Durchgang (Handys). Voll: Leuchten, Kantenglättung, Lichtstrahlen.',
   gfxAA: 'FXAA ist billig, SMAA schärfer und ruhiger.',
   gfxBloom: 'Leuchten heller Lichter, mit Linsenschmutz im Bodycam-Stil.',

@@ -39,14 +39,15 @@ export default {
   navSpacing: 1.5,
   groundNoise: 0.18,
   lighting: {
-    sun: { elevation: 61, azimuth: 212, color: '#ffeccc', intensity: 4.9 },
+    // Grafik-Vorlage Etappe 0 (15.10.): neutral-weiße Mittagssonne, Füllicht ohne Sandstich (Video: graues Pflaster)
+    sun: { elevation: 61, azimuth: 212, color: '#fff4e6', intensity: 4.9 },
     // HDRI old_outdoor_theater: Umgebungslicht + Foto-Wolken ab ≈ 25° Höhe (darunter Bäume/Mauer des Fotos, die über
     // der Stadt riesig wirkten) – unten bleibt der Preetham-Himmel mit Dunst
     sky: { turbidity: 2.6, rayleigh: 1.05, mieCoefficient: 0.0035, mieDirectionalG: 0.8, exposure: 0.6, clouds: { coverage: 0.1, density: 0.28, scale: 0.00024, elevation: 0.62 }, hazeHigh: 0.11, hazeAmount: 0.75, hdriBlend: [0.42, 0.75] },
-    hemi: { sky: '#d6e0ea', ground: '#e0bd8c', intensity: 0.6, hdriIntensity: 0.45 },
-    env: { intensity: 0.58, ground: '#e0c090', groundIntensity: 0.9, tint: '#fff0dc' },
+    hemi: { sky: '#d3dde8', ground: '#b8ab98', intensity: 0.6, hdriIntensity: 0.45 },
+    env: { intensity: 0.58, ground: '#bdb09c', groundIntensity: 0.9, tint: '#f6f4f0' },
     fog: { color: '#d9e4ec', near: 90, far: 520, density: 0.0026, falloff: 0.03, start: 35, sun: 0.25, sunExp: 6 },
-    shadow: { size: 40 },
+    shadow: { size: 40, radius: 2.8 },
     exposure: 0.94,
     // Gassen: heller Putz und Sand werfen viel Licht zurück (warme Schattenseiten), staubige Luft
     probes: { bounce: 1.25 },
@@ -67,17 +68,18 @@ export default {
     // Boden: Kopfsteinpflaster in den Gassen, Steinplatten auf dem Brunnenplatz
     // -----------------------------------------------------------------------
     const PX0 = -16, PX1 = 15, PZ = 13;
-    const cob = { cell: 1, tint: '#e9d6b4' };
-    b.groundTiled(PX0, -PZ, PX1, PZ, 'paving', { cell: 1, tint: '#f0e0c4' });
+    // Grafik-Vorlage Etappe 0: Pflaster grau statt sandfarben (Video: graues Kopfsteinpflaster); neue Texturen in Etappe 3
+    const cob = { cell: 1, tint: '#d6d3cc' };
+    b.groundTiled(PX0, -PZ, PX1, PZ, 'paving', { cell: 1, tint: '#dcd8d0' });
     b.groundTiled(-46, -52, 46, -PZ, 'cobble', cob);
     b.groundTiled(-46, PZ, 46, 52, 'cobble', cob);
     b.groundTiled(-46, -PZ, PX0, PZ, 'cobble', cob);
     b.groundTiled(PX1, -PZ, 46, PZ, 'cobble', cob);
     // Ostviertel (maps-expand): Gasse + Höfe Kopfstein, Ölbaumplatz Steinplatten
-    b.groundTiled(46, -52, 50.5, 52, 'cobble', { cell: 1, tint: '#e6d2ae' });
-    b.groundTiled(50.5, -52, 69, -8, 'cobble', { cell: 1, tint: '#e6d2ae' });
-    b.groundTiled(50.5, 8, 69, 52, 'cobble', { cell: 1, tint: '#e6d2ae' });
-    b.groundTiled(50.5, -8, 69, 8, 'paving', { cell: 1, tint: '#efdfc2' });
+    b.groundTiled(46, -52, 50.5, 52, 'cobble', { cell: 1, tint: '#d4d0c8' });
+    b.groundTiled(50.5, -52, 69, -8, 'cobble', { cell: 1, tint: '#d4d0c8' });
+    b.groundTiled(50.5, 8, 69, 52, 'cobble', { cell: 1, tint: '#d4d0c8' });
+    b.groundTiled(50.5, -8, 69, 8, 'paving', { cell: 1, tint: '#dad6ce' });
     // Kulissenboden
     b.groundTiled(-180, -190, 180, -52, 'sand', { cell: 6, collide: false, groundAO: false, chunk: 900 });
     b.groundTiled(-180, 52, 180, 190, 'sand', { cell: 6, collide: false, groundAO: false, chunk: 901 });

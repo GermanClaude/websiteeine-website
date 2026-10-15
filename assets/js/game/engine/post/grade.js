@@ -17,10 +17,15 @@ import { FULLSCREEN_VERT, GLSL_COMMON } from './common.js';
 // heller (in dunkle Bereiche) bzw. dunkler (ins Helle: kurzes Ausbrennen wie bei Körperkameras).
 // Gemessene Referenzen (geometrisches Mittel aus Spawn A, Spawn B, Flaggenblick; tools/out/core-render/measure.mjs,
 // Stand mit KTX2-Materialien + HDRI-Himmel): Hafen 0,118 · Altstadt 0,161 · Werk 0,027 · Schießstand 0,180 ·
-// Grenzland 0,108. Ändert world den Licht-Look einer Karte, die Referenz neu messen (dev/post.html zeigt L̄) oder per
+// Grenzland 0,108. Tageslicht nach Video-Vorlage (15.10., high): Hafen 0,176 · Werk draußen ≈ 0,09 (Halle 0,016) ·
+// Altstadt 0,148. Ändert world den Licht-Look einer Karte, die Referenz neu messen (dev/post.html zeigt L̄) oder per
 // world.grade = { exposure: { ref } } überschreiben. Totzone `dead` (± Blenden): typische Ansichten bleiben unverändert.
 // bloom: threshold (größter Kanal nach Belichtung), strength, dirt (Linsenschmutz im Bodycam-Stil).
 const BASE_EXPOSURE = Object.freeze({ ref: 0.13, strength: 0.72, dead: 0.5, evMin: -1.6, evMax: 1.8, up: 2.6, down: 1.25 });
+
+/** Video-Look (Gemini-Vorlage): Grundwerte der Tagesstimmungen (s. MOODS). */
+const VIDEO_LUT = Object.freeze({ temperature: -0.01, tint: -0.45, contrast: 1.07, pivot: 0.42, saturation: 0.46, shadowSat: 0.88,
+  highSat: 0.8, shadowTint: [0.975, 1.008, 1.0], highTint: [1.0, 1.0, 0.985], greenShift: 0.25, blackLevel: 0.02, whiteLevel: 0.975 });
 
 export const MOODS = Object.freeze({
   neutral: {
@@ -30,42 +35,42 @@ export const MOODS = Object.freeze({
     bloom: { threshold: 2.4, strength: 0.3, dirt: 0.55 },
     shafts: 0.3,
   },
-  hafen: { // Goldene Stunde: warme Lichter, leicht petrolfarbene Schatten
-    label: 'Hafen – Abendsonne',
-    lut: { temperature: 0.12, contrast: 1.12, pivot: 0.4, saturation: 0.98, shadowSat: 0.9, highSat: 0.92,
-      shadowTint: [0.965, 1.0, 1.045], highTint: [1.045, 1.0, 0.94], greenShift: 0.25, blackLevel: 0.014, whiteLevel: 0.985 },
-    exposure: { ...BASE_EXPOSURE, ref: 0.12 },
-    bloom: { threshold: 2.2, strength: 0.32, dirt: 0.6 },
-    shafts: 0.55,
+  // Grafik-Vorlage Etappe 0 (15.10.): Farbstufe nach Messung der Videobilder (tools/out/vergleich, HSL-Sättigung im
+  // Mittel: Video 0,10–0,14 draußen, 0,2 in der Ziegelgasse; Spiel vorher 0,29–0,37; Kanäle im Video G ≥ B ≥ R, also
+  // grünlich-grau) → stark entsättigt, leichter Grün-/Petrolstich in den Schatten, angehobene Schwärzen, weiche
+  // Lichter. Gemeinsame Grundlage VIDEO_LUT, je Karte nur kleine Abweichungen. Abend/Morgen färben weiter über die
+  // Tageszeit (world/weather.js TIME_FX lut.temperature).
+  hafen: { // Klarer Nachmittag am Kai
+    label: 'Hafen – Nachmittag',
+    lut: { ...VIDEO_LUT },
+    exposure: { ...BASE_EXPOSURE, ref: 0.175 },
+    bloom: { threshold: 2.3, strength: 0.3, dirt: 0.55 },
+    shafts: 0.45,
   },
-  altstadt: { // Mittag in der Wüstenstadt: harter Kontrast, leicht ausgebleicht
+  altstadt: { // Mittag: blauer Himmel, graues Pflaster, Dachziegel bleiben etwas kräftiger
     label: 'Altstadt – Mittag',
-    lut: { temperature: 0.06, contrast: 1.17, pivot: 0.43, saturation: 0.88, shadowSat: 0.85, highSat: 0.8,
-      shadowTint: [0.98, 1.0, 1.03], highTint: [1.03, 1.0, 0.96], greenShift: 0.35, blackLevel: 0.01, whiteLevel: 0.98 },
+    lut: { ...VIDEO_LUT, saturation: 0.52, contrast: 1.1 },
     exposure: { ...BASE_EXPOSURE, ref: 0.16 },
     bloom: { threshold: 2.6, strength: 0.28, dirt: 0.5 },
     shafts: 0.3, // atmosphere-weather: 0,22 → 0,3
   },
-  werk: { // Bedeckte Dämmerung im Industriegebiet: kühl, entsättigt, Natriumlicht bleibt warm
-    label: 'Werk – Dämmerung',
-    lut: { temperature: -0.12, tint: -0.05, contrast: 1.1, pivot: 0.38, saturation: 0.84, shadowSat: 0.8, highSat: 0.95,
-      keepWarm: 0.7, shadowTint: [0.95, 1.01, 1.04], highTint: [1.03, 1.0, 0.97], greenShift: 0.4, blackLevel: 0.018, whiteLevel: 0.985 },
-    exposure: { ...BASE_EXPOSURE, ref: 0.03, evMax: 2.0 },
-    bloom: { threshold: 1.9, strength: 0.36, dirt: 0.7 },
-    shafts: 0.45,
+  werk: { // Walzwerk bei Tag: Ziegel etwas kräftiger (Video-Gasse 0,2), Natriumlicht/Feuer bleiben leicht warm
+    label: 'Werk – Tag',
+    lut: { ...VIDEO_LUT, saturation: 0.56, keepWarm: 0.2 },
+    exposure: { ...BASE_EXPOSURE, ref: 0.09, strength: 0.85, evMax: 2.4 }, // Halle (L̄ 0,016) ≈ 2 Blenden heller wie im Video
+    bloom: { threshold: 2.2, strength: 0.32, dirt: 0.6 },
+    shafts: 0.5,
   },
-  range: { // Schießstand bei Tageslicht: neutral, sauber
+  range: { // Schießstand bei Tageslicht
     label: 'Schießstand – Tag',
-    lut: { temperature: 0.03, contrast: 1.1, pivot: 0.42, saturation: 0.96, shadowSat: 0.92, highSat: 0.92,
-      greenShift: 0.25, blackLevel: 0.012, whiteLevel: 0.985 },
+    lut: { ...VIDEO_LUT, saturation: 0.55 },
     exposure: { ...BASE_EXPOSURE, ref: 0.18 },
     bloom: { threshold: 2.5, strength: 0.28, dirt: 0.5 },
     shafts: 0.42, // atmosphere-weather: Morgendunst (0,3 → 0,42)
   },
-  grenzland: { // Flusstal am späten Vormittag: leichter Dunst, Grün Richtung Oliv (wie Videokameras), weiche Wärme
+  grenzland: { // Flusstal am Vormittag (Video-Dorfplatz): Grün Richtung Oliv
     label: 'Grenzland – Vormittag',
-    lut: { temperature: 0.05, contrast: 1.12, pivot: 0.42, saturation: 0.92, shadowSat: 0.88, highSat: 0.86,
-      shadowTint: [0.97, 1.0, 1.035], highTint: [1.03, 1.0, 0.95], greenShift: 0.45, blackLevel: 0.012, whiteLevel: 0.985 },
+    lut: { ...VIDEO_LUT, saturation: 0.55, greenShift: 0.45 },
     exposure: { ...BASE_EXPOSURE, ref: 0.11 },
     bloom: { threshold: 2.5, strength: 0.28, dirt: 0.5 },
     shafts: 0.45, // atmosphere-weather: Sonne durch Baumkronen (0,35 → 0,45)

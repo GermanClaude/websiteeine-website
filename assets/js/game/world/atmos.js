@@ -232,6 +232,13 @@ export function createAtmosphere(G, { quality, def, sunDir, openings = [], bvh, 
         if (!occluded(px, py, pz, L.x, L.y, L.z, 120)) lit++;
       }
       if (lit < 2) continue;
+      // Licht fällt vom Freien ins Dunkle: die Sonnenseite braucht deutlich mehr Himmelssicht als die Innenseite. Sonst
+      // (Halle mit Dachlöchern → Fenster auf der Gegenseite) stand ein freistehender Lichtbalken in der Gasse (Werk bei
+      // Tag, 15.10.); Dächer fehlen im Strahl-BVH, deshalb über die Sonden
+      if (!op.virtual && probes) {
+        const sky0 = probes.light(op.x - inX * 2.2, op.y, op.z - inZ * 2.2).sky;
+        if (sky0 < probes.light(op.x + inX * 2.2, op.y, op.z + inZ * 2.2).sky + 0.1) continue;
+      }
       // Innen dunkel? (Sondenhimmel bzw. Decke über der Öffnung) – sonst (Torbogen, Gasse) nur, wenn die Luft
       // neben dem Strahl im Schatten liegt (Lichtschlitz) und die Karte Strahlen im Freien will
       const ix = op.x + inX * 1.6 - L.x * 0.8, iy = op.y - L.y * 0.8, iz = op.z + inZ * 1.6 - L.z * 0.8;
@@ -243,29 +250,33 @@ export function createAtmosphere(G, { quality, def, sunDir, openings = [], bvh, 
         if (!op.virtual && !(occluded(bx + op.ux * sd, by, bz + op.uz * sd, L.x, L.y, L.z, 120) && occluded(bx - op.ux * sd, by, bz - op.uz * sd, L.x, L.y, L.z, 120))) continue;
         kOut = op.virtual ? slotK : outK;
       }
-      // Länge bis zum Boden/zur Wand: Endebene aus dem Mitteltreffer; trifft eine Ecke vorher etwas anderes (Zwischen-
-      // wand, Regal), endet der Körper dort (sonst ragte er in den Nachbarraum)
+      // Länge bis zum Boden/zur Wand: Endebene aus dem längsten von fünf inneren Strahlen (ein Mittelsteg oder eine
+      // Kranbahn direkt vor dem Fenster kappte sonst den ganzen Körper nach wenigen Zentimetern – Werk, 15.10.); trifft
+      // eine Ecke weiter drinnen vorher etwas anderes (Zwischenwand, Regal), endet der Körper dort (sonst ragte er in
+      // den Nachbarraum)
       const ox = op.x + inX * half, oy = op.y, oz = op.z + inZ * half;
-      let maxLen = 0, minHit = Infinity, blocked = false, endN = null, endD = 0;
-      for (const [a, c] of [[0, 0], [-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]]) {
+      let maxLen = 0, minHit = Infinity, blocked = false, endN = null, endD = 0, best = -1;
+      for (const [a, c] of [[0, 0], [0.45, 0], [-0.45, 0], [0, 0.45], [0, -0.45]]) {
+        const px = ox + op.ux * a * op.w / 2, py = oy + c * op.h / 2, pz = oz + op.uz * a * op.w / 2;
+        if (!occluded(px, py, pz, -L.x, -L.y, -L.z, 30) || hit.t <= best) continue;
+        best = hit.t;
+        endN = [hit.nx, hit.ny, hit.nz];
+        const hx = px - L.x * hit.t, hy = py - L.y * hit.t, hz = pz - L.z * hit.t;
+        endD = endN[0] * hx + endN[1] * hy + endN[2] * hz - 0.02;
+      }
+      if (!endN || best < 0.4) continue;
+      maxLen = minHit = best;
+      for (const [a, c] of [[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]]) {
         const px = ox + op.ux * a * op.w / 2, py = oy + c * op.h / 2, pz = oz + op.uz * a * op.w / 2;
         const ok = occluded(px, py, pz, -L.x, -L.y, -L.z, 30);
         const len = ok ? hit.t : 30;
-        if (a === 0 && c === 0) {
-          if (!ok || hit.t < 0.4) { maxLen = -1; break; }
-          endN = [hit.nx, hit.ny, hit.nz];
-          const hx = px - L.x * hit.t, hy = py - L.y * hit.t, hz = pz - L.z * hit.t;
-          endD = endN[0] * hx + endN[1] * hy + endN[2] * hz - 0.02;
-        } else {
-          // erwarteter Abstand bis zur Endebene: n·(p − t·L) = d → t = (n·p − d) / (n·L)
-          const nl = endN[0] * L.x + endN[1] * L.y + endN[2] * L.z;
-          const tPlane = Math.abs(nl) > 1e-3 ? (endN[0] * px + endN[1] * py + endN[2] * pz - endD) / nl : 30;
-          if (len < tPlane - 0.35) blocked = true;
-        }
+        // erwarteter Abstand bis zur Endebene: n·(p − t·L) = d → t = (n·p − d) / (n·L); dünne Hindernisse nahe der
+        // Öffnung (< 2 m: Steg, Träger) zählen nicht als Zwischenwand
+        const nl = endN[0] * L.x + endN[1] * L.y + endN[2] * L.z;
+        const tPlane = Math.abs(nl) > 1e-3 ? (endN[0] * px + endN[1] * py + endN[2] * pz - endD) / nl : 30;
+        if (len < tPlane - 0.35 && len > 2) { blocked = true; minHit = Math.min(minHit, len); }
         maxLen = Math.max(maxLen, len);
-        minHit = Math.min(minHit, len);
       }
-      if (maxLen <= 0 || !endN) continue;
       if (blocked) maxLen = minHit;
       if (maxLen < 0.6) continue;
       const area = op.w * op.h;

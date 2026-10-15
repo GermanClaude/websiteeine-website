@@ -79,7 +79,8 @@ const canvas = document.getElementById('view');
 const quality = params.get('quality') || 'high';
 document.getElementById('quality').value = quality;
 // Mini-Einstellungsspeicher aus URL-Parametern (Stil beim Start bestimmt u. a., ob der Kontext MSAA bekommt)
-const settingsShim = { get: (k) => (k === 'lensStyle' ? params.get('style') || undefined : undefined), onChange: () => () => {} };
+// Erweitert-Grafik per URL (z. B. ?gfxAO=aus für Messungen mit/ohne Umgebungsverdeckung)
+const settingsShim = { get: (k) => (k === 'lensStyle' ? params.get('style') || undefined : params.get(k) ?? undefined), onChange: () => () => {} };
 const R = createRenderer(canvas, { quality, settings: settingsShim });
 R.exposure.track = true;
 const scene = new THREE.Scene();

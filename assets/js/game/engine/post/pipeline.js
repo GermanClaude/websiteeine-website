@@ -78,6 +78,7 @@ export class PostPipeline {
     this.bloom = null;
     this.aa = null; // FXAAPass | SMAAPass
     this.gtao = null;
+    this.aoScale = 1;
     this.shafts = null;
     /** Sonne für Lichtstrahlen: Richtung zur Sonne (Welt) – setSun(). */
     this.sunDir = null;
@@ -138,10 +139,14 @@ export class PostPipeline {
       if (preset.smaa) { this.aa = new SMAAPass(); this.ldr[1] = ldrTarget(this.inner.w, this.inner.h); }
       else if (preset.fxaa) { this.aa = new FXAAPass(); this.ldr[1] = ldrTarget(this.inner.w, this.inner.h); }
       if (preset.ssao) {
-        this.gtao = new GTAOPass(null, new THREE.PerspectiveCamera(70, 1, 0.05, 600), Math.max(1, this.inner.w), Math.max(1, this.inner.h));
+        // Grafik-Vorlage Etappe 0: AO ab „hoch“ – dort in halber Auflösung mit 8 Proben (zweiter Szenendurchlauf nur
+        // für Normalen/Tiefe, ¼ der Pixel), „ultra“ voll mit 12; das Ergebnis wird beim Mischen bilinear hochskaliert
+        this.aoScale = Math.max(0.25, Math.min(1, preset.aoScale ?? (preset.id === 'ultra' ? 1 : 0.5)));
+        const aw = Math.max(1, Math.round(this.inner.w * this.aoScale)), ah = Math.max(1, Math.round(this.inner.h * this.aoScale));
+        this.gtao = new GTAOPass(null, new THREE.PerspectiveCamera(70, 1, 0.05, 600), aw, ah);
         this.gtao.output = GTAOPass.OUTPUT.Off;
         this.gtao.blendIntensity = 0.85;
-        this.gtao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.5, thickness: 1.0, scale: 1.0, samples: 12 });
+        this.gtao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.5, thickness: 1.0, scale: 1.0, samples: this.aoScale < 1 ? 8 : 12 });
         // Normal-/Tiefen-Vorpass nur für deckende Geometrie: durchsichtige Effekte ohne Tiefenschreiben
         // (Sonnenstrahlen-Quader, Rauch, Decals, Mündungsfeuer, Sprites) sonst als riesige Verdecker → dunkle Keile
         const gtao = this.gtao;
@@ -208,7 +213,7 @@ export class PostPipeline {
     for (const t of this.ldr) if (t) t.setSize(w, h);
     if (this.bloom) this.bloom.setSize(this.renderer, w, h);
     if (this.aa) this.aa.setSize(w, h);
-    if (this.gtao) this.gtao.setSize(w, h);
+    if (this.gtao) this.gtao.setSize(Math.max(1, Math.round(w * this.aoScale)), Math.max(1, Math.round(h * this.aoScale)));
     if (this.shafts) this.shafts.setSize(this.renderer, w, h);
   }
 
@@ -461,7 +466,7 @@ export class PostPipeline {
     if (this.bloom) out.push({ name: 'Bloom', bytes: this.bloom.bytes() });
     if (this.shafts) out.push({ name: 'Lichtstrahlen', bytes: this.shafts.bytes() });
     if (this.aa instanceof SMAAPass) out.push({ name: 'SMAA', bytes: this.inner.w * this.inner.h * 8 + 160 * 560 + 64 * 16 });
-    if (this.gtao) out.push({ name: 'GTAO', bytes: this.inner.w * this.inner.h * (8 + 4 + 4 + 4) });
+    if (this.gtao) out.push({ name: 'GTAO', bytes: Math.round(this.inner.w * this.inner.h * this.aoScale * this.aoScale) * (8 + 4 + 4 + 4) });
     if (this.exposure) out.push({ name: 'Belichtung', bytes: this.exposure.bytes() });
     if (this.lut) out.push({ name: 'LUT', bytes: this.lut.image.width ** 3 * 4 });
     return out;

@@ -3,7 +3,7 @@
 //
 // Die Kette selbst steckt in engine/post/pipeline.js (Aufbau je Stufe dort beschrieben):
 //   low     „lite“: Welt + Viewmodel → HDR → EIN Pass (Objektiv, FXAA-Konsole, Belichtung, AgX, LUT, Körnung …)
-//   medium+ Welt → HDR [+ GTAO ultra] → Viewmodel → Belichtung → Bloom → Grade (8 Bit) → [FXAA | SMAA]
+//   medium+ Welt → HDR [+ GTAO ab high, dort halbe Auflösung] → Viewmodel → Belichtung → Bloom → Grade (8 Bit) → [FXAA | SMAA]
 //           → Objektiv (Verzeichnung, Farbsaum, RCAS bzw. FSR-EASU, Körnung, Kompression, Gehäuse) → Bild
 //   direct  low im Stil „Klassisch“ mit MSAA-Kontext: bisheriges direktes Rendern (ACES im Material,
 //           Vignette per CSS über body.np-css-vignette – main fragt `cssVignette`).
@@ -42,12 +42,12 @@ export const QUALITY_PRESETS = Object.freeze({
   high: Object.freeze({
     id: 'high', pixelRatio: 1.5, shadows: true, shadowMapSize: 2048, shadowExtent: null, shadowInterval: 1,
     bloom: true, smaa: true, fxaa: false,
-    ssao: false, grade: true, post: true, maxBotsVisibleShadows: 8, particleScale: 1, decals: 120, anisotropy: 16,
+    ssao: true, aoScale: 0.5, grade: true, post: true, maxBotsVisibleShadows: 8, particleScale: 1, decals: 120, anisotropy: 16,
   }),
   ultra: Object.freeze({
     id: 'ultra', pixelRatio: 2, shadows: true, shadowMapSize: 4096, shadowExtent: null, shadowInterval: 1,
     bloom: true, smaa: true, fxaa: false,
-    ssao: true, grade: true, post: true, maxBotsVisibleShadows: 16, particleScale: 1.25, decals: 120, anisotropy: 16,
+    ssao: true, aoScale: 1, grade: true, post: true, maxBotsVisibleShadows: 16, particleScale: 1.25, decals: 120, anisotropy: 16,
   }),
 });
 

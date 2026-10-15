@@ -53,8 +53,23 @@ export const CONTAINER_H = 2.59, CONTAINER_W = 2.44;
 export const CONTAINER_COLORS = ['#b8392c', '#2d5f94', '#3e7a4c', '#d9762a', '#8d9399', '#c9a227', '#6b3f7a', '#1f6f6a', '#9a3328', '#e3e1da'];
 
 /** ISO-Container. len 6.06 (20 ft) oder 12.19 (40 ft). (x,z) Mitte, y Unterkante. */
+/**
+ * Grafik-Vorlage (15.10.): Containerlack wie im Video – verwittert und gedeckt (Rostrot, verblasstes Blau, Oliv,
+ * Braunorange, Grauweiß) statt Spielzeugfarben; Lila wird Rotbraun, Gelb Ocker. Zufallsfolge (b.pick) bleibt gleich.
+ */
+function videoTone(hex) {
+  const c = new THREE.Color(hex), hsl = {};
+  c.getHSL(hsl);
+  let h = hsl.h * 360;
+  if (h > 255 && h < 330) h = 352;            // Lila → Rotbraun
+  const ochre = h > 38 && h < 62;              // Gelb → Ocker
+  const s = hsl.s * (ochre ? 0.5 : 0.62), l = hsl.l * (ochre ? 0.72 : hsl.l > 0.7 ? 0.86 : 0.9);
+  c.setHSL(h / 360, s, l);
+  return '#' + c.getHexString();
+}
+
 export function container(b, x, y, z, o = {}) {
-  const len = o.len ?? 6.06, H = 2.59, W = 2.44, color = o.color || b.pick(CONTAINER_COLORS);
+  const len = o.len ?? 6.06, H = 2.59, W = 2.44, color = videoTone(o.color || b.pick(CONTAINER_COLORS));
   const f = frame(b, x, y, z, o.ry || 0);
   const dark = shade(color, 0.72);
   const ground = Math.abs(y) < 0.05;

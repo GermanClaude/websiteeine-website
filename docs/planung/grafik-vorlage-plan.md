@@ -73,6 +73,14 @@ sobald wieder Limit da ist. Vergleichsbilder neben dem Video zeigen (tools/out/s
    Himmel; Werkhalle im Spiel dunkel ohne Lichtstrahlen (Video: helle Fensterbahnen, Staub); Altstadt-Pflaster zu
    orange (Video: graues Kopfsteinpflaster); Video-Oberflächen sauberer, kräftigere Struktur, weniger Fotorauschen.
    Blickwinkel `hafen-container` und `werk-halle` stehen zu nah an Containern/Presse → vor dem Nachher-Bild nachjustieren.
+   *Stand 15.10. abends – Etappe 0 fertig:* Vergleichswerkzeug rendert jetzt durch die echte Bildkette (`--page=post`:
+   Belichtungsautomatik eingeschwungen, Farbstufe, AO, Strahlen); Blickwinkel Containergasse/Querbrücke neu. Licht:
+   Hafen Nachmittag (Sonne 34°, neutral-weiß, grauer Dunst, Wolkenhimmel prozedural, HDRI zwartkops), Werk Tag statt
+   Dämmerung (Sonne 38°, Rückprall 2,6, kräftige Fensterstrahlen), Altstadt ohne Sandstich (Pflaster grau); Stimmungen
+   `grade.js` neutral (keine Goldene Stunde/Dämmerung mehr, Abend bleibt als Tageszeit wählbar); Belichtungsreferenzen
+   neu gemessen; Schattenkanten weicher (`shadow.radius 2,8`). AO ab „hoch“ in halber Auflösung mit 8 Proben
+   (`aoScale`), „ultra“ voll. Lichtbalken nur noch vom Hellen ins Dunkle (Sonden-Himmelssicht), keine Schlitze in
+   Werk-Gassen. Bilder: `tools/out/vergleich/vorher-post-bogen.png` ↔ `nachher-bogen.png`.
 1. **Soldatenmodelle zuerst:** Skin wie im Video (Helm mit Bezug, Plattenträger, Taschen, Rucksack, Handschuhe, kantiges
    grünes Splittertarn), beide Teams (Unterscheidung über Armbinde/Abzeichen + Namensschild), Ego-Arme passend,
    Bots und Puppen (Mehrspieler) gleich.

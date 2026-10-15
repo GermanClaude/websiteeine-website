@@ -31,28 +31,31 @@ export default {
   ambience: 'harbor',
   // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
   // Büro-/Pförtnerwände: glatt gestrichener Putz statt Außenputz
-  assets: { hdri: 'freight_station', materials: { plaster_white: { id: 'plaster_painted', color: 1.6 } } },
+  // Grafik-Vorlage Etappe 0: HDRI zwartkops (klarer Tag) statt freight_station (Abendgold; bleibt für „Abend“)
+  assets: { hdri: 'zwartkops_straight_morning', materials: { plaster_white: { id: 'plaster_painted', color: 1.6 } } },
   defaultSurface: 'concrete',
   lighting: {
-    sun: { elevation: 15, azimuth: 247, color: '#ffbf80', intensity: 3.5 },
-    // hdri*: Werte mit HDRI-Umgebung (freight_station, Sonne gedeckelt) – das Foto-Umgebungslicht ist voller als der
-    // prozedurale Himmel, deshalb weniger Füllicht (die Sonne zeichnet harte Schatten wie in Fotos)
-    sky: { turbidity: 7, rayleigh: 2.4, mieCoefficient: 0.009, mieDirectionalG: 0.86, exposure: 0.5, clouds: { coverage: 0.38, density: 0.42, scale: 0.00018, elevation: 0.55 }, hazeHigh: 0.13, hazeAmount: 0.9, hdriIntensity: 0.5 },
+    // Grafik-Vorlage Etappe 0 (15.10.): klarer Nachmittag wie im Video statt Goldener Stunde – neutral-weiße Sonne,
+    // kühler grauer Dunst, blauer Himmel mit lockeren Wolken (Abendsonne weiter als Tageszeit „Abend“ wählbar)
+    sun: { elevation: 34, azimuth: 236, color: '#fff2e2', intensity: 3.7 },
+    // hdri*: Werte mit HDRI-Umgebung (Sonne gedeckelt). Himmel prozedural (Video: blasser Dunsthimmel mit Wolken, das
+    // Foto war zu tiefblau); Füllicht kräftiger als zur Abendzeit, damit Schatten grau statt schwarz bleiben (Video)
+    sky: { turbidity: 5, rayleigh: 1.4, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.5, clouds: { coverage: 0.55, density: 0.45, scale: 0.0002, elevation: 0.55 }, hazeHigh: 0.2, hazeAmount: 1, hdri: false },
     // Umgebung ohne Mie-Hotspot (lighting.js begrenzt die Env-Map) → Füllicht etwas angehoben
-    hemi: { sky: '#d6c2ad', ground: '#6e5a45', intensity: 0.75, hdriIntensity: 0.35 },
-    env: { intensity: 1.15, ground: '#7a6650', groundIntensity: 0.55, tint: '#ffe6cc', hdriIntensity: 0.55 },
-    // Höhennebel: warmer Hafendunst über dem Wasser, dichter am Boden (Skalenhöhe ≈ 30 m), Gegenlicht der tiefen Sonne
-    fog: { color: '#dcb28a', near: 70, far: 420, density: 0.0045, falloff: 0.033, start: 25, sun: 0.6, sunExp: 4 },
-    shadow: { size: 42 },
+    hemi: { sky: '#c9d3de', ground: '#6b6863', intensity: 0.95, hdriIntensity: 0.5 },
+    env: { intensity: 1.2, ground: '#6e6b66', groundIntensity: 0.55, tint: '#eef2f7', hdriIntensity: 0.7 },
+    // Höhennebel: kühler grauer Hafendunst über dem Wasser, dichter am Boden (Skalenhöhe ≈ 30 m)
+    fog: { color: '#c4cad1', near: 70, far: 420, density: 0.0042, falloff: 0.033, start: 25, sun: 0.35, sunExp: 6 },
+    shadow: { size: 42, radius: 2.8 }, // Etappe 0: etwas weichere Schattenkanten (Video)
     // Sonden-Gitter (Innenräume, Rückprall), Atmosphäre (Strahlen durch die Hallentore, Staub)
     probes: { bounce: 1.1 },
-    // atmosphere-weather: Lichtschein – Strahlen durch die Hallentore (kräftiger), tiefe Abendsonne in Schlitzen
-    // zwischen den Containerstapeln (slots) und durch Öffnungen ins Freie (outdoor)
-    atmos: { beams: 0.032, beamG: 0.45, dust: 1.15, slots: 0.75, outdoor: 0.6 },
+    // atmosphere-weather: Lichtschein – Strahlen durch die Hallentore, Sonne in Schlitzen zwischen den
+    // Containerstapeln (slots) und durch Öffnungen ins Freie (outdoor)
+    atmos: { beams: 0.022, beamG: 0.45, dust: 0.9, slots: 0.5, outdoor: 0.5 },
   },
-  // Belichtung (core-render, post/exposure): mit Sonden gemessenes L̄ draußen 0,104 (vorher 0,118) → Referenz neu,
-  // etwas kräftigere Anpassung, damit Halle/Büros (L̄ ≈ 0,032) wie bisher ≈ 1 Blende aufgehellt werden
-  grade: { exposure: { ref: 0.105, strength: 0.78 } },
+  // Belichtung (core-render, post/exposure): L̄ am Tageslicht neu gemessen (15.10., high: Spawn A 0,196 · Spawn B 0,194 ·
+  // Flaggenblick 0,142 → geo 0,176), etwas kräftigere Anpassung, damit Halle/Büros ≈ 1 Blende aufgehellt werden
+  grade: { exposure: { ref: 0.175, strength: 0.78 } },
 
   build(b, ctx) {
     const zones = [];
@@ -61,7 +64,7 @@ export default {
     // Boden & Wasser
     // -----------------------------------------------------------------------
     b.groundTiled(QUAY_X, -52, -27, 52, 'concrete', { cell: 1 });        // Kaiplatte
-    b.groundTiled(-27, -52, 50, 52, 'asphalt', { cell: 1 });             // Terminal
+    b.groundTiled(-27, -52, 50, 52, 'concrete', { cell: 1, tint: '#d8d6d0' }); // Terminal: Betonplatten wie im Video (vorher Asphalt)
     zones.push({ x0: QUAY_X, z0: -52, x1: -27, z1: 52, kind: 'dock' });
     zones.push({ x0: -140, z0: -200, x1: QUAY_X, z1: 130, kind: 'water' });
     // Kulissenboden

@@ -76,7 +76,7 @@ export function applyGraphics(base, src) {
 }
 
 const COMPARE = ['post', 'grade', 'shadows', 'shadowMapSize', 'shadowExtent', 'shadowInterval', 'maxBotsVisibleShadows', 'smaa', 'fxaa',
-  'ssao', 'bloom', 'particleScale', 'decals', 'pixelRatio', 'id'];
+  'ssao', 'aoScale', 'bloom', 'particleScale', 'decals', 'pixelRatio', 'id'];
 /** Gleiche wirksame Vorgabe? (Renderer: Neuaufbau nur bei echter Änderung) */
 export function samePreset(a, b) {
   if (a === b) return true;
@@ -132,7 +132,7 @@ export function modelCost(key, preset, { w = 1280, h = 720, ow = w, oh = h, hdrB
       const s = p.shadowMapSize || 2048;
       return s * s * 8; // Tiefe + Farbe (PCF)
     }
-    case 'gfxAO': return p.post && p.ssao ? px * 20 : 0;
+    case 'gfxAO': return p.post && p.ssao ? Math.round(px * (p.aoScale ?? (p.id === 'ultra' ? 1 : 0.5)) ** 2) * 20 : 0;
     case 'gfxAA': return !p.post ? 0 : p.smaa ? px * 8 + px * 4 + 160 * 560 + 64 * 16 : p.fxaa ? px * 4 : 0;
     case 'gfxBloom': return p.post && p.bloom ? Math.round((px / 4) * 8 * 1.33 * 2) : 0;
     case 'gfxPost': return p.post ? px * (hdrBpp + 4) + px * 4 : px * (hdrBpp + 4);
