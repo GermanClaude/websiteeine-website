@@ -132,7 +132,7 @@ export const GENERATORS = {
    */
   concrete_slab(size) {
     const n1 = makeNoise(21), n2 = makeNoise(22), n3 = makeNoise(23), n4 = makeNoise(24), n5 = makeNoise(25);
-    const base = hex('#a39f97'), dark = hex('#6f6b64'), stain = hex('#8b857a'), oil = hex('#55524d');
+    const base = hex('#aba293'), dark = hex('#706a60'), stain = hex('#8e8677'), oil = hex('#56524b');
     const joint = 0.0028; // ≈ 1,7 cm bei 6 m
     return assemble(size, (u, v, p) => {
       const su = (u * 2) % 1, sv = (v * 2) % 1, slab = Math.floor(u * 2) + 2 * Math.floor(v * 2);
@@ -163,7 +163,8 @@ export const GENERATORS = {
    */
   cladding(size) {
     const n1 = makeNoise(31), n2 = makeNoise(32), n3 = makeNoise(33);
-    const paint = hex('#c4c8c4'), grime = hex('#6d716c'), rust = hex('#6a4a35');
+    // Hallenblech im Video mittelgrau mit Grünstich (Messung bild-0_3s: 69/77/70 bei bedecktem Licht)
+    const paint = hex('#97a199'), grime = hex('#5f655f'), rust = hex('#6a4a35');
     const RIBS = 12;
     return assemble(size, (u, v, p) => {
       const t = (u * RIBS) % 1;
@@ -191,7 +192,8 @@ export const GENERATORS = {
    */
   brick(size) {
     const n1 = makeNoise(41), n2 = makeNoise(42), n3 = makeNoise(43);
-    const reds = ['#8a3f2a', '#93452d', '#7f3a27', '#9a4b31', '#86412c', '#8f4a35'].map(hex);
+    // Farben nach Messung am Video (Gasse/Halle: Rot-Orange, R/G ≈ 1,6, G/B ≈ 1,3)
+    const reds = ['#9a5238', '#a35a3e', '#8f4b33', '#a96044', '#93503a', '#9c5a42'].map(hex);
     const mortar = hex('#8e877d'), soot = hex('#3a2a24');
     const ROWS = 18, COLS = 6, jy = 0.12, jx = 0.04; // Fugen als Anteil der Schicht/des Steins
     const hashI = (a, b) => { let h = (a * 374761393 + b * 668265263) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };

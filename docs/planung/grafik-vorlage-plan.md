@@ -93,6 +93,16 @@ sobald wieder Limit da ist. Vergleichsbilder neben dem Video zeigen (tools/out/s
    `v_cladding`, `v_brick`, je 512/1024/2048, Höhenfeld → Normalen + Hohlraum-AO) statt der Fotoscans für Container,
    Beton (Platten mit Fugen/Rissen), Trapezblech und Ziegel. Weiter: Asphalt, Putz, Holz/Paletten, Laufstege/Geländer
    (gelb wie im Video), Rolltore, Containerbeschriftung als Aufkleber/Schablone, dann alle übrigen Sätze laut Inventar.
+   **Nutzer 15.10. abends:** „1:1 übertragen“ – Boden-/Wand-/Haustexturen aus dem Video kopieren (das Video hat er
+   selbst erstellt, Rechte liegen bei ihm), Häuser außen wie im Video, Innenleben passend selbst bauen, Einrichtung
+   ebenso. Befund: Video nur 1280 × 720 und stark komprimiert – Flächen sind beim Entzerren verwaschen (Ziegel ≈ 12 px
+   hoch, Boden fast ohne Feinstruktur; Werkzeug `tools/assets/lib/video-tex.mjs`: Boden über Kameramodell, Wände über
+   vier Ecken entzerren, Licht herausrechnen, kachelbar machen). Deshalb: Farben/Helligkeiten/Muster werden am Video
+   **gemessen** (`tools/assets/vorlage-measure.mjs`, Video ↔ Spielbild je Ausschnitt) und scharf nachgebaut.
+   Messung 1: Schatten im Video ≈ 1/5 der Sonnenseite und neutral grau (Spiel 1/16, blau) → Füllicht Hafen/Werk ×2,5,
+   Altstadt ×1,8, HDRI-Füllicht entbläut (`env.hdriTint`); Boden in der Sonne wärmer (Beton #aba293); Ziegel heller und
+   oranger; Hallenblech mittelgrau-grün statt weiß.
+   **Später (Nutzer):** im Grenzland-Fluss schwimmen statt durchlaufen, mit Schwimmanimation – nach der Grafik.
 1. **Soldatenmodelle zuerst:** Skin wie im Video (Helm mit Bezug, Plattenträger, Taschen, Rucksack, Handschuhe, kantiges
    grünes Splittertarn), beide Teams (Unterscheidung über Armbinde/Abzeichen + Namensschild), Ego-Arme passend,
    Bots und Puppen (Mehrspieler) gleich.

@@ -1,12 +1,12 @@
 {
   "id": "v_brick",
-  "recipe": "0511bb576a5c",
+  "recipe": "b3e8677bd1cf",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/v_brick/v_brick_512_albedo.ktx2",
-          "bytes": 41981,
+          "bytes": 45887,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 115776,
+      "bytes": 119682,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/v_brick/v_brick_1024_albedo.ktx2",
-          "bytes": 116528,
+          "bytes": 128597,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 375381,
+      "bytes": 387450,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,7 +104,7 @@
       "files": {
         "albedo": {
           "path": "textures/v_brick/v_brick_2048_albedo.ktx2",
-          "bytes": 357696,
+          "bytes": 377304,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -142,7 +142,7 @@
           }
         }
       },
-      "bytes": 1238394,
+      "bytes": 1258002,
       "gpu": {
         "desktop": 8388609,
         "mobile": 8388609,
@@ -151,7 +151,7 @@
     }
   },
   "stats": {
-    "avgColor": "#855749",
+    "avgColor": "#8f604f",
     "avgRoughness": 0.851,
     "avgMetalness": 0,
     "avgAO": 0.845,

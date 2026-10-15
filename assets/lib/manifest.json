@@ -2,7 +2,7 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-15T16:56:36.859Z",
+ "generated": "2026-10-15T17:16:30.288Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
@@ -7327,7 +7327,7 @@
    "alpha": false,
    "hero": true,
    "stats": {
-    "avgColor": "#9e9a92",
+    "avgColor": "#a59d8e",
     "avgRoughness": 0.9,
     "avgMetalness": 0,
     "avgAO": 0.975,
@@ -7339,7 +7339,7 @@
      "normal": "textures/v_concrete_slab/v_concrete_slab_512_normal.ktx2",
      "orm": "textures/v_concrete_slab/v_concrete_slab_512_orm.ktx2",
      "sizes": {
-      "albedo": 41423,
+      "albedo": 38992,
       "normal": 16982,
       "orm": 29166
      },
@@ -7360,7 +7360,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 87571,
+     "bytes": 85140,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -7372,7 +7372,7 @@
      "normal": "textures/v_concrete_slab/v_concrete_slab_1024_normal.ktx2",
      "orm": "textures/v_concrete_slab/v_concrete_slab_1024_orm.ktx2",
      "sizes": {
-      "albedo": 131495,
+      "albedo": 123237,
       "normal": 113786,
       "orm": 103541
      },
@@ -7393,7 +7393,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 348822,
+     "bytes": 340564,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -7405,7 +7405,7 @@
      "normal": "textures/v_concrete_slab/v_concrete_slab_2048_normal.ktx2",
      "orm": "textures/v_concrete_slab/v_concrete_slab_2048_orm.ktx2",
      "sizes": {
-      "albedo": 359491,
+      "albedo": 347571,
       "normal": 439352,
       "orm": 339931
      },
@@ -7426,7 +7426,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 1138774,
+     "bytes": 1126854,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -7457,7 +7457,7 @@
    "alpha": false,
    "hero": false,
    "stats": {
-    "avgColor": "#babeba",
+    "avgColor": "#909991",
     "avgRoughness": 0.517,
     "avgMetalness": 0,
     "avgAO": 0.865,
@@ -7469,7 +7469,7 @@
      "normal": "textures/v_cladding/v_cladding_512_normal.ktx2",
      "orm": "textures/v_cladding/v_cladding_512_orm.ktx2",
      "sizes": {
-      "albedo": 29607,
+      "albedo": 26193,
       "normal": 20505,
       "orm": 19342
      },
@@ -7490,7 +7490,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 69454,
+     "bytes": 66040,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -7502,7 +7502,7 @@
      "normal": "textures/v_cladding/v_cladding_1024_normal.ktx2",
      "orm": "textures/v_cladding/v_cladding_1024_orm.ktx2",
      "sizes": {
-      "albedo": 85139,
+      "albedo": 73510,
       "normal": 66155,
       "orm": 58466
      },
@@ -7523,7 +7523,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 209760,
+     "bytes": 198131,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -7535,7 +7535,7 @@
      "normal": "textures/v_cladding/v_cladding_2048_normal.ktx2",
      "orm": "textures/v_cladding/v_cladding_2048_orm.ktx2",
      "sizes": {
-      "albedo": 242359,
+      "albedo": 209157,
       "normal": 191397,
       "orm": 178608
      },
@@ -7556,7 +7556,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 612364,
+     "bytes": 579162,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -7587,7 +7587,7 @@
    "alpha": false,
    "hero": true,
    "stats": {
-    "avgColor": "#855749",
+    "avgColor": "#8f604f",
     "avgRoughness": 0.851,
     "avgMetalness": 0,
     "avgAO": 0.845,
@@ -7599,7 +7599,7 @@
      "normal": "textures/v_brick/v_brick_512_normal.ktx2",
      "orm": "textures/v_brick/v_brick_512_orm.ktx2",
      "sizes": {
-      "albedo": 41981,
+      "albedo": 45887,
       "normal": 52400,
       "orm": 21395
      },
@@ -7620,7 +7620,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 115776,
+     "bytes": 119682,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -7632,7 +7632,7 @@
      "normal": "textures/v_brick/v_brick_1024_normal.ktx2",
      "orm": "textures/v_brick/v_brick_1024_orm.ktx2",
      "sizes": {
-      "albedo": 116528,
+      "albedo": 128597,
       "normal": 195385,
       "orm": 63468
      },
@@ -7653,7 +7653,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 375381,
+     "bytes": 387450,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -7665,7 +7665,7 @@
      "normal": "textures/v_brick/v_brick_2048_normal.ktx2",
      "orm": "textures/v_brick/v_brick_2048_orm.ktx2",
      "sizes": {
-      "albedo": 357696,
+      "albedo": 377304,
       "normal": 678239,
       "orm": 202459
      },
@@ -7686,7 +7686,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 1238394,
+     "bytes": 1258002,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -13571,7 +13571,7 @@
  "totals": {
   "textures": {
    "files": 465,
-   "bytes": 62986632
+   "bytes": 62951361
   },
   "hdri": {
    "files": 32,
@@ -13583,12 +13583,12 @@
   },
   "all": {
    "files": 608,
-   "bytes": 135806223
+   "bytes": 135770952
   },
   "byTier": {
-   "512": 27234111,
-   "1024": 81681561,
-   "2048": 26890551
+   "512": 27232172,
+   "1024": 81673743,
+   "2048": 26865037
   },
   "counts": {
    "textures": 73,
