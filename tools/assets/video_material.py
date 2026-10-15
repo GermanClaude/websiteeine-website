@@ -312,6 +312,8 @@ def stones_tile(sp, img, valid):
     L = lum(img)
     L = L / max(1e-4, np.median(L[valid]))
     hp = L - blur(L.astype(np.float32), sp.get('stoneBlur', 14))
+    if sp.get('stoneDark'):
+        hp = -hp  # Steine dunkler als die Fugen (Ziegel mit hellem Mörtel)
     m = ((hp > sp.get('stoneThresh', -0.01)) & valid).astype(np.uint8)
     m = cv2.erode(m, np.ones((3, 3), np.uint8))
     n, lab, st, _ = cv2.connectedComponentsWithStats(m, connectivity=4)
@@ -522,6 +524,26 @@ def build(sp):
             t = np.where(t <= 0.04045, t / 12.92, ((t + 0.055) / 1.055) ** 2.4)
             alb = alb / max(1e-4, lum(alb).mean()) * t[None, None, :]
         return write_set(sp, np.clip(alb, 0, 1), hgt, 0)
+    if mode == 'brick':
+        # Mauerwerk: Schichthöhe messen, quadratische Kachel aus n ganzen Schichten (Schnitt auf Fugenmitte),
+        # waagerecht über eine Naht kachelbar (Stoßfugen bleiben, wie sie im Video liegen)
+        prof = lum(img).mean(axis=1)
+        prof = prof - blur(prof.reshape(-1, 1), 10).ravel()
+        ac = np.correlate(prof, prof, 'full')[len(prof) - 1:]
+        ac /= max(1e-6, ac[0])
+        lo, hi = sp.get('course', [6, 60])
+        p = float(lo + np.argmax(ac[lo:hi]))
+        sgn = 1 if sp.get('mortarLight', True) else -1
+        comb = [np.mean([prof[int(round(k + j * p))] for j in range(int((len(prof) - k - 1) // p))]) * sgn for k in range(int(p))]
+        ph = int(np.argmax(comb))
+        ox = sp.get('overlap', 0.12)
+        n = int(min((img.shape[0] - ph) / p, img.shape[1] / (1 + ox) / p))
+        side = int(round(n * p))
+        o = int(round(side * ox))
+        img = img[ph:ph + side, :side + o]
+        img = make_tileable(img, o / (side + o), 0, axes='x')
+        sp['size'] = [round(side / ppm, 3), round(side / ppm, 3)]
+        print(f"    Schicht {p:.1f} px = {p / ppm * 100:.1f} cm, {n} Schichten → Kachel {sp['size'][0]} m")
     if mode == 'quilt':
         tile_px = int(round(sp['size'][0] * ppm))
         img = quilt(img, valid, tile_px, patch=sp.get('patch', 64), ov=sp.get('ov', 16), seed=sp.get('seed', 1), tol=sp.get('tol', 1.25))
@@ -583,7 +605,7 @@ def build(sp):
     if sp.get('sharpen', 0.6):
         alb = alb + sp.get('sharpen', 0.6) * (alb - blur(alb, out / 512))
     alb = np.clip(alb, 0, 1)
-    hgt = height_from(alb, sp) * sp.get('height', 1.0)
+    hgt = height_from(alb, sp) * sp.get('height', 1.0) * sp.get('heightSign', 1)
     if mode == 'ribs-x':
         w_px = img.shape[1]
         hrow = ribs(w_px, period, sp.get('rib', {}).get('depth', 6.0), out, sp.get('rib', {}).get('shape', 'trapez'))

@@ -1958,6 +1958,27 @@
     4.08,
     4.08
    ]
+  },
+  {
+   "id": "vw_ziegel",
+   "source": "video",
+   "sourceId": "vw_ziegel",
+   "license": "CC0-1.0",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "category": "masonry",
+   "surface": "concrete",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024,
+    2048
+   ],
+   "name": "Ziegelmauer (Video, Werk)",
+   "sizeM": [
+    2.6,
+    2.6
+   ]
   }
  ],
  "hdris": [

@@ -2,7 +2,7 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-15T20:02:41.530Z",
+ "generated": "2026-10-15T20:16:14.581Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
@@ -9415,6 +9415,134 @@
    "url": "",
    "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
    "maps": []
+  },
+  "vw_ziegel": {
+   "type": "texture",
+   "name": "Ziegelmauer (Video, Werk)",
+   "category": "masonry",
+   "surface": "concrete",
+   "replaces": [],
+   "sizeM": [
+    2.6,
+    2.6
+   ],
+   "tintable": false,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#7a3a2a",
+    "avgRoughness": 0.88,
+    "avgMetalness": 0,
+    "avgAO": 1,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/vw_ziegel/vw_ziegel_512_albedo.ktx2",
+     "normal": "textures/vw_ziegel/vw_ziegel_512_normal.ktx2",
+     "orm": "textures/vw_ziegel/vw_ziegel_512_orm.ktx2",
+     "sizes": {
+      "albedo": 30124,
+      "normal": 50612,
+      "orm": 7461
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 88197,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/vw_ziegel/vw_ziegel_1024_albedo.ktx2",
+     "normal": "textures/vw_ziegel/vw_ziegel_1024_normal.ktx2",
+     "orm": "textures/vw_ziegel/vw_ziegel_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 76157,
+      "normal": 153281,
+      "orm": 17622
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 247060,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    },
+    "2048": {
+     "albedo": "textures/vw_ziegel/vw_ziegel_2048_albedo.ktx2",
+     "normal": "textures/vw_ziegel/vw_ziegel_2048_normal.ktx2",
+     "orm": "textures/vw_ziegel/vw_ziegel_2048_orm.ktx2",
+     "sizes": {
+      "albedo": 201298,
+      "normal": 438336,
+      "orm": 40977
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "normal": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      },
+      "orm": {
+       "desktop": 2796203,
+       "mobile": 2796203,
+       "rgba8": 22369621
+      }
+     },
+     "bytes": 680611,
+     "gpu": {
+      "desktop": 8388609,
+      "mobile": 8388609,
+      "rgba8": 67108863
+     }
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "video",
+   "sourceId": "vw_ziegel",
+   "url": "",
+   "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
+   "maps": []
   }
  },
  "hdris": {
@@ -15285,8 +15413,8 @@
  },
  "totals": {
   "textures": {
-   "files": 541,
-   "bytes": 72847392
+   "files": 550,
+   "bytes": 73863260
   },
   "hdri": {
    "files": 32,
@@ -15297,16 +15425,16 @@
    "bytes": 53609888
   },
   "all": {
-   "files": 684,
-   "bytes": 145666983
+   "files": 693,
+   "bytes": 146682851
   },
   "byTier": {
-   "512": 28422774,
-   "1024": 85301440,
-   "2048": 31942769
+   "512": 28510971,
+   "1024": 85548500,
+   "2048": 32623380
   },
   "counts": {
-   "textures": 89,
+   "textures": 90,
    "hdris": 8,
    "models": 57
   }

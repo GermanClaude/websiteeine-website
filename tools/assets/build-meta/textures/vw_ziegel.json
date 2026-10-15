@@ -1,0 +1,160 @@
+{
+  "id": "vw_ziegel",
+  "recipe": "5c4064f67e28",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/vw_ziegel/vw_ziegel_512_albedo.ktx2",
+          "bytes": 30124,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/vw_ziegel/vw_ziegel_512_normal.ktx2",
+          "bytes": 50612,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/vw_ziegel/vw_ziegel_512_orm.ktx2",
+          "bytes": 7461,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 88197,
+      "gpu": {
+        "desktop": 524289,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/vw_ziegel/vw_ziegel_1024_albedo.ktx2",
+          "bytes": 76157,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/vw_ziegel/vw_ziegel_1024_normal.ktx2",
+          "bytes": 153281,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/vw_ziegel/vw_ziegel_1024_orm.ktx2",
+          "bytes": 17622,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 247060,
+      "gpu": {
+        "desktop": 2097153,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    },
+    "2048": {
+      "files": {
+        "albedo": {
+          "path": "textures/vw_ziegel/vw_ziegel_2048_albedo.ktx2",
+          "bytes": 201298,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 2796203,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        "normal": {
+          "path": "textures/vw_ziegel/vw_ziegel_2048_normal.ktx2",
+          "bytes": 438336,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 2796203,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        },
+        "orm": {
+          "path": "textures/vw_ziegel/vw_ziegel_2048_orm.ktx2",
+          "bytes": 40977,
+          "width": 2048,
+          "height": 2048,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 2796203,
+            "mobile": 2796203,
+            "rgba8": 22369621
+          }
+        }
+      },
+      "bytes": 680611,
+      "gpu": {
+        "desktop": 8388609,
+        "mobile": 8388609,
+        "rgba8": 67108863
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#7a3a2a",
+    "avgRoughness": 0.88,
+    "avgMetalness": 0,
+    "avgAO": 1,
+    "coverage": 1
+  }
+}

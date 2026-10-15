@@ -38,7 +38,7 @@ export const LIB_MATERIALS = {
   plaster_blue: { id: 'plaster_blue_weathered', color: 1.05 },
   plaster_damaged: { id: 'plaster_damaged_brick', color: 1.1 },
   plaster_patched: { id: 'plaster_worn_patched', color: 1.3 },
-  brick: { id: 'v_brick', color: 1.0 }, // Grafik-Vorlage: vorher brick_factory × 1,55
+  brick: { id: 'vw_ziegel', color: 1.0 }, // Grafik-Vorlage 15.10.: echte Ziegel aus dem Video (Walzhalle), neu verlegt (vorher v_brick)
   brick_dark: { id: 'brick_dark', color: 2.0 },
   stone_wall: { id: 'sandstone_blocks', color: 1.0 },
   cobble: { id: 'vp_pflaster', color: 1.05, macro: [0.1, 0.05, 0.12] }, // Grafik-Vorlage 15.10.: echte Pflastersteine aus dem Video-Platz (Läuferverband, keine Kreuzfugen; vorher v_setts)

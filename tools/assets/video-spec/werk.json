@@ -1,0 +1,56 @@
+[
+ {
+  "id": "w_ziegel_halle",
+  "note": "Ziegelwand der Walzhalle rechts der Tür, frontal (Einstellung 4a, Bezug f125); Tür 2,1 m hoch → ≈ 110 px/m",
+  "shot": [
+   110,
+   144
+  ],
+  "ref": 125,
+  "quad": [
+   [
+    830,
+    60
+   ],
+   [
+    1100,
+    22
+   ],
+   [
+    1100,
+    398
+   ],
+   [
+    830,
+    388
+   ]
+  ],
+  "size": [
+   2.25,
+   2.93
+  ],
+  "ppm": 120,
+  "exclude": [
+   [
+    [
+     150,
+     280
+    ],
+    [
+     620,
+     280
+    ],
+    [
+     620,
+     720
+    ],
+    [
+     150,
+     720
+    ]
+   ]
+  ],
+  "minRes": 0.6,
+  "minCover": 0.85
+ }
+]

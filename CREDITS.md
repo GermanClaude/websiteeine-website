@@ -9,7 +9,7 @@ und ebenfalls CC0. Quellenliste mit Download-IDs: `tools/assets/sources.json`, P
 Vielen Dank an [Poly Haven](https://polyhaven.com) und [ambientCG](https://ambientcg.com) sowie alle
 Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 
-## Texturen (89)
+## Texturen (90)
 
 | Asset | ID | Urheber:in | Quelle | Lizenz |
 |---|---|---|---|---|
@@ -102,6 +102,7 @@ Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 | Container grauweiß, Türseite (Video) | `vh_ctr_grau_tuer` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Rissbeton Kai (Video, Hafen) | `vh_kai` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Kopfsteinpflaster Dorfplatz (Video, Platz) | `vp_pflaster` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Ziegelmauer (Video, Werk) | `vw_ziegel` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 
 ## HDRIs (8)
 

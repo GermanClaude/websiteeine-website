@@ -65,21 +65,22 @@ export default {
     defineSigns(b);
 
     // -----------------------------------------------------------------------
-    // Boden: Kopfsteinpflaster in den Gassen, Steinplatten auf dem Brunnenplatz
+    // Boden: Kopfsteinpflaster (aus dem Video) in den Gassen und auf dem Brunnenplatz
     // -----------------------------------------------------------------------
     const PX0 = -16, PX1 = 15, PZ = 13;
     // Grafik-Vorlage Etappe 0: Pflaster grau statt sandfarben (Video: graues Kopfsteinpflaster); neue Texturen in Etappe 3
     const cob = { cell: 1, tint: '#d6d3cc' };
-    b.groundTiled(PX0, -PZ, PX1, PZ, 'paving', { cell: 1, tint: '#dcd8d0' });
+    // 15.10. (Nutzer: Platten mit X-Fugen gefallen nicht, Boden 1:1 wie im Video): Brunnenplatz ebenfalls Video-Pflaster
+    b.groundTiled(PX0, -PZ, PX1, PZ, 'cobble', { cell: 1, tint: '#e0ddd6' });
     b.groundTiled(-46, -52, 46, -PZ, 'cobble', cob);
     b.groundTiled(-46, PZ, 46, 52, 'cobble', cob);
     b.groundTiled(-46, -PZ, PX0, PZ, 'cobble', cob);
     b.groundTiled(PX1, -PZ, 46, PZ, 'cobble', cob);
-    // Ostviertel (maps-expand): Gasse + Höfe Kopfstein, Ölbaumplatz Steinplatten
+    // Ostviertel (maps-expand): Gasse, Höfe und Ölbaumplatz Kopfstein
     b.groundTiled(46, -52, 50.5, 52, 'cobble', { cell: 1, tint: '#d4d0c8' });
     b.groundTiled(50.5, -52, 69, -8, 'cobble', { cell: 1, tint: '#d4d0c8' });
     b.groundTiled(50.5, 8, 69, 52, 'cobble', { cell: 1, tint: '#d4d0c8' });
-    b.groundTiled(50.5, -8, 69, 8, 'paving', { cell: 1, tint: '#dad6ce' });
+    b.groundTiled(50.5, -8, 69, 8, 'cobble', { cell: 1, tint: '#dedad3' });
     // Kulissenboden
     b.groundTiled(-180, -190, 180, -52, 'sand', { cell: 6, collide: false, groundAO: false, chunk: 900 });
     b.groundTiled(-180, 52, 180, 190, 'sand', { cell: 6, collide: false, groundAO: false, chunk: 901 });

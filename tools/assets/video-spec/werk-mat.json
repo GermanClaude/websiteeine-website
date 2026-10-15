@@ -1,0 +1,40 @@
+[
+ {
+  "id": "vw_ziegel",
+  "src": "w_ziegel_halle",
+  "size": [
+   2.6,
+   2.6
+  ],
+  "srcPpm": 120,
+  "mode": "stones",
+  "stoneDark": true,
+  "stoneBlur": 10,
+  "stoneThresh": 0.0,
+  "cols": 6,
+  "rows": 26,
+  "cellW": 170,
+  "cellH": 39,
+  "joint": 5,
+  "jointDark": 1.5,
+  "widthVar": 0.1,
+  "heightVar": 0.02,
+  "minStagger": 0.3,
+  "jointVar": 0.3,
+  "edgeNoise": 0.2,
+  "tilt": 0.1,
+  "cellVar": 0.6,
+  "stoneJitter": 0.25,
+  "delight": 0.6,
+  "out": 1024,
+  "height": 1.2,
+  "normal": 1.6,
+  "rough": [
+   0.88,
+   0.06
+  ],
+  "ao": 1.0,
+  "seed": 3,
+  "color": "#7a3a2a"
+ }
+]
