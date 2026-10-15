@@ -725,7 +725,9 @@ function warehouse(b, ctx) {
   const wmat = { mat: 'metal_corrugated', tint: '#c6cac1', h: H8, t, frameMat: 'metal_painted', frameTint: '#2a2e33', minimap: 'wall', plinth: { h: 1.2, mat: 'concrete_dark', tint: '#707270', over: 0.04 } }; // Sockel dunkel wie im Video
   // West (Rampenseite) mit drei Toren
   wall(b, { ...wmat, x0: x0 + t / 2, z0: z1, x1: x0 + t / 2, z1: z0, openings: [
-    { at: 10, w: 4.2, h: 4.6, kind: 'gap', frameMat: 'hazard' }, { at: 20, w: 4.2, h: 4.6, kind: 'gap' }, { at: 30, w: 4.2, h: 4.6, kind: 'gap' }] });
+    { at: 10, w: 4.2, h: 4.6, kind: 'gap', frameMat: 'hazard' }, { at: 20, w: 4.2, h: 4.6, kind: 'gap' }, { at: 30, w: 4.2, h: 4.6, kind: 'gap' },
+    // 15.10.: Oberlichtband zwischen den Toren wie im Video (Hallenwand rechts hinten)
+    ...[5, 15, 25].map((at) => ({ at, w: 3.0, h: 1.1, kind: 'window', sill: 5.6, glass: true }))] });
   // Süd: großes Tor + Tür
   wall(b, { ...wmat, x0: x1, z0: z1 - t / 2, x1: x0, z1: z1 - t / 2, openings: [
     { at: 7.6, w: 5, h: 5, kind: 'gap' }, { at: 20, w: 1.2, h: 2.2, kind: 'door' }] });
