@@ -20,15 +20,17 @@ import { assets, tierFor } from '../../../../lib/loader.js';
 // camo: [Grund, dunkel, hell, Akzentfleck]; gear/gear2: Weste/Taschen; accent: Teamfarbe (leuchtet dezent)
 // hostile: aus Spielersicht Gegner (A = eigenes Team) → kräftigerer, getönter Randlicht-Saum
 export const SCHEMES = {
+  // Grafik-Vorlage 15.10.: kantiges grünes Splittertarn wie die Soldaten im Video (Farben am Video gemessen: Oliv,
+  // Dunkelgrün, helles Graugrün, fast Schwarz); beide Teams im Video-Tarn, B etwas brauner, Unterscheidung über Armbinde
   A: {
-    id: 'A', name: 'Nordwind', camo: ['#5d6a62', '#434e48', '#77836f', '#4e5a5f'], pattern: 'multi',
-    gear: '#4a5447', gear2: '#3d4439', strap: '#30362f', helmet: '#525c55', glove: '#262928', boot: '#2b2926',
-    pants: '#5d6a62', accent: '#38b6ff', metal: '#3a3d40', hostile: false,
+    id: 'A', name: 'Nordwind', camo: ['#55553b', '#33382a', '#857d5e', '#22261c'], pattern: 'splitter',
+    gear: '#4a4d37', gear2: '#3a3d2c', strap: '#2f3226', helmet: '#4b4e37', glove: '#24261f', boot: '#2b2926',
+    pants: '#55553b', accent: '#38b6ff', metal: '#3a3d40', hostile: false,
   },
   B: {
-    id: 'B', name: 'Wüstenfuchs', camo: ['#a28d69', '#806a4b', '#bba882', '#8b5d43'], pattern: 'multi',
-    gear: '#8c7451', gear2: '#6d5a3f', strap: '#5a4a35', helmet: '#9b8762', glove: '#4e4232', boot: '#4a3b2c',
-    pants: '#9a8664', accent: '#ff3b3b', metal: '#3d3a36', hostile: true,
+    id: 'B', name: 'Wüstenfuchs', camo: ['#5c5639', '#3d3727', '#8f8360', '#2a2519'], pattern: 'splitter',
+    gear: '#57503a', gear2: '#45402e', strap: '#363226', helmet: '#59533b', glove: '#2e2a20', boot: '#33291f',
+    pants: '#5c5639', accent: '#ff3b3b', metal: '#3d3a36', hostile: true,
   },
   // Wüstenfuchs für helle Karten (Mittagssonne, heller Stein): gleiche Farbfamilie, deutlich dunkler
   Bd: {
@@ -163,6 +165,34 @@ const texCache = new Map();
  * Pixel). Weiche Kanten (Mip-Stufen bleiben ruhig); Farben setzt der Shader aus dem Schema (uCamo). Ein Muster für
  * alle Schemata desselben Stils → wenig Speicher auch im FFA.
  */
+/** Splittertarn: Farbklasse (0 Grund, 1 dunkel, 2 hell, 3 Akzent) der Voronoi-Zelle bei (u, v) im Einheitsquadrat. */
+function splitCell(u, v, seed) {
+  const G = 7;
+  const gx = Math.floor(u * G), gy = Math.floor(v * G);
+  let best = 1e9, id = 0;
+  for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+    const cx = gx + ox, cy = gy + oy;
+    const wx = ((cx % G) + G) % G, wy = ((cy % G) + G) % G;
+    const h = hash2(wx, wy, seed);
+    const px = (cx + 0.15 + 0.7 * h[0]) / G, py = (cy + 0.15 + 0.7 * h[1]) / G;
+    // leicht gestreckte Zellen (Splitter laufen schräg): Abstand in gedrehter, gestauchter Metrik
+    const dx = u - px, dy = v - py;
+    const a = dx * 0.87 + dy * 0.5, b = -dx * 0.5 + dy * 0.87;
+    const dd = a * a * 0.55 + b * b;
+    if (dd < best) { best = dd; id = h[2]; }
+  }
+  return id < 0.34 ? 0 : id < 0.64 ? 1 : id < 0.9 ? 2 : 3;
+}
+function hash2(x, y, seed) {
+  let h = (x * 374761393 + y * 668265263 + seed * 2147483647) | 0;
+  const out = [];
+  for (let k = 0; k < 3; k++) {
+    h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+    out.push(((h >>> 0) % 100000) / 100000);
+  }
+  return out;
+}
+
 export function camoMaskTexture(pattern = 'multi') {
   const key = 'mask:' + pattern;
   if (texCache.has(key)) return texCache.get(key);
@@ -181,6 +211,18 @@ export function camoMaskTexture(pattern = 'multi') {
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
       let u = x / N, v = y / N;
+      if (pattern === 'splitter') {
+        // Splittertarn (Video): kantige Vieleck-Flecken = Voronoi-Zellen eines verwackelten 7×7-Gitters (kachelbar),
+        // jede Zelle eine Farbklasse; 2×2-Überabtastung gegen Treppen an den geraden Kanten
+        let r = 0, g = 0, bl = 0;
+        for (let sy = 0; sy < 2; sy++) for (let sx = 0; sx < 2; sx++) {
+          const cls = splitCell((x + 0.25 + sx * 0.5) / N, (y + 0.25 + sy * 0.5) / N, seed);
+          r += cls === 1 ? 0.25 : 0; g += cls === 2 ? 0.25 : 0; bl += cls === 3 ? 0.25 : 0;
+        }
+        const i = (y * N + x) * 4;
+        d[i] = r * 255; d[i + 1] = g * 255; d[i + 2] = bl * 255; d[i + 3] = 255;
+        continue;
+      }
       if (pattern === 'digital') {
         // Pixelmuster: quantisierte Koordinaten
         const q = 1 / 48;

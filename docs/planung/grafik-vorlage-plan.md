@@ -142,3 +142,9 @@ vorhandene Tests (tank-model-test, gunsound-test, feedback-test …); ab Etappe 
 - **Pflaster:** `vp_pflaster` aus echten Video-Steinen im Läuferverband (keine Kreuz-/X-Fugen), Steine ≈ 27 cm.
 - **Offen:** Pflaster unregelmäßiger (Video: gewölbte, ungleich große Steine), Grenzland/Altstadt-Putz und Dächer aus
   dem Platzbild, Werk (Einstellungen 3–5), danach Licht für die übrigen Tageszeiten/Wetter.
+- **Nachtrag 15.10. spät:** Werk – Ziegel aus der Walzhallenwand (Modus „brick“/Steinmodus mit dunklen Steinen),
+  Kesselhaus mit dunkelblauer Blechfassade aus der Video-Gasse (`vw_blau`, Material `metal_navy`), Werk-Boden =
+  Video-Beton. Altstadt-Platz mit Video-Pflaster (keine Platten mit X-Fugen). Soldaten: Splittertarn (`pattern:
+  'splitter'`, Voronoi-Vielecke) in den am Video gemessenen Farben, beide Teams, Unterscheidung über Armbinde.
+- **Offen (Nutzer fragen):** M-17-Optik – Foto-Holo (jetziger Stand, nach den Nutzerfotos) oder Rotpunkt wie im Video;
+  Ego-Waffenhaltung wie im Video (größer, weiter rechts).
