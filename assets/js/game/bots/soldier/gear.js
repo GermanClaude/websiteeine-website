@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { SkinBuilder, limb, lathe as latheBase, rbox, ellipsoid, cyl, torus, xf } from './builder.js';
 import { SKIN_TONES } from './materials.js';
+import { BONE, DIM } from './rig.js';
 
 export const VARIANTS = [
   { id: 'sturm', name: 'Sturm', head: 'helmet', cover: true, nvg: true, ears: true, face: 'gaiter', eyes: 'shades', vest: 'plate', back: 'assault', knees: true, holster: true, sleeves: 'long', skin: 1, hair: '#2a2119' },
@@ -77,9 +78,34 @@ export function disposeSoldierGeometries() {
 
 /* ======================================================================== Aufbau */
 
+/**
+ * Statur (Nutzer 16.10.: „viel zu dünn – schau dir die Breite an“): die Video-Soldaten sind wuchtig – breiter Rumpf mit
+ * dicker Uniform, Weste und Rucksack, kräftige Arme und Beine. Die Maße unten sind für die schlanke Grundfigur
+ * (Schulter bei x = ±0,19) geschrieben; je Knochen wird quer um die Gliedachse skaliert und die Arme auf die neue
+ * Schulterbreite (DIM.shoulderX) geschoben. Kopf/Helm bleiben gleich groß.
+ */
+const ARM_X0 = 0.19;
+function bulkTable() {
+  const T = {};
+  const set = (name, o) => { T[BONE[name]] = { cx: 0, cz: 0, sx: 1, sz: 1, tx: 0, ...o }; };
+  for (const n of ['hips', 'spine', 'chest']) set(n, { cz: 0.006, sx: 1.24, sz: 1.16 });
+  set('neck', { cz: 0.014, sx: 1.08, sz: 1.06 });
+  for (const [side, k] of [['L', -1], ['R', 1]]) {
+    const arm = { cx: k * ARM_X0, tx: k * (DIM.shoulderX - ARM_X0) };
+    set('upperArm' + side, { ...arm, sx: 1.3, sz: 1.26 });
+    set('foreArm' + side, { ...arm, sx: 1.24, sz: 1.2 });
+    set('hand' + side, { ...arm, sx: 1.06, sz: 1.06 });
+    set('thigh' + side, { cx: k * 0.1, sx: 1.24, sz: 1.18 });
+    set('shin' + side, { cx: k * 0.1, sx: 1.18, sz: 1.14 });
+    set('foot' + side, { cx: k * 0.1, sx: 1.08, sz: 1.04 });
+  }
+  return T;
+}
+const BULK = bulkTable();
+
 function buildSoldier(V, lod) {
   const q = Q[lod];
-  const B = new SkinBuilder({ ao: globalThis.__npNoAO ? null : AO[lod] });
+  const B = new SkinBuilder({ ao: globalThis.__npNoAO ? null : AO[lod], bulk: BULK });
   const L0 = lod === 0, L01 = lod <= 1, FAR = lod === 2;
   const skin = SKIN_TONES[V.skin % SKIN_TONES.length];
 
@@ -88,9 +114,10 @@ function buildSoldier(V, lod) {
     top: { color: '#dadada', camo: 1, detail: 1, cls: 'cloth' },
     pants: { color: '#c6c6c6', camo: 1, detail: 1, cls: 'cloth', wear: 0.3 },
     cover: { color: '#d2d2d2', camo: 1, detail: 1, cls: 'cloth' }, // Helmbezug im Tarnmuster
-    gear: { pal: 'gear', detail: 1, shine: 0.04, cls: 'gear' },
-    gear2: { pal: 'gear2', detail: 1, shine: 0.04, cls: 'gear' },
-    flap: { pal: 'gear2', shade: 0.92, detail: 1, shine: 0.04, cls: 'gear' },
+    // Weste, Taschen, Rucksack im Uniform-Tarn wie im Video (etwas dunkler als der Stoff, damit sich die Teile absetzen)
+    gear: { color: '#c4c4c4', camo: 1, detail: 1, shine: 0.04, cls: 'gear' },
+    gear2: { color: '#b2b2b2', camo: 1, detail: 1, shine: 0.04, cls: 'gear' },
+    flap: { color: '#a8a8a8', camo: 1, detail: 1, shine: 0.04, cls: 'gear' },
     strap: { pal: 'strap', detail: 0.8, cls: 'gear' },
     helmet: { pal: 'helmet', detail: 0.6, shine: 0.16, cls: 'hard' },
     helmetDark: { pal: 'helmet', shade: 0.78, detail: 0.6, shine: 0.16, cls: 'hard' },

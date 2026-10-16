@@ -209,10 +209,13 @@ export function bakeVertexAO(pos, nor, idx, nIdx, { cell = 0.02, dirs = 8, steps
 
 export class SkinBuilder {
   /** opts.ao: Einstellungen für bakeVertexAO (null = keine Verdeckung, z. B. ferne Stufe). */
-  constructor({ ao = null } = {}) {
+  /** opts.bulk: je Knochenindex { cx, cz, sx, sz, tx } – Teile dieses Knochens um die Achse (cx, cz) quer auf
+   *  sx/sz skalieren und um tx verschieben (Statur breiter, ohne alle Maße neu zu schreiben). */
+  constructor({ ao = null, bulk = null } = {}) {
     this.parts = [];
     this.triangles = 0;
     this.ao = ao;
+    this.bulk = bulk;
   }
 
   /**
@@ -280,9 +283,15 @@ export class SkinBuilder {
       const n = g.attributes.position.count;
       const cr = u8(p.r), cg = u8(p.g), cb = u8(p.b);
       const n0 = u8(p.np[0]), n1 = u8(p.np[1]), n2 = u8(p.np[2]), n3 = u8(p.np[3]);
+      const bk = this.bulk ? this.bulk[p.bone] : null;
       for (let i = 0; i < n; i++) {
-        const x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
+        let x = P[i * 3], z = P[i * 3 + 2];
+        const y = P[i * 3 + 1];
         let nx = N[i * 3], ny = N[i * 3 + 1], nz = N[i * 3 + 2];
+        if (bk) {
+          x = bk.cx + bk.tx + (x - bk.cx) * bk.sx; z = bk.cz + (z - bk.cz) * bk.sz;
+          nx /= bk.sx; nz /= bk.sz; // Normalen: inverse Transponierte der Querskalierung
+        }
         const nl = Math.hypot(nx, ny, nz) || 1;
         nx /= nl; ny /= nl; nz /= nl;
         const k = vo + i;

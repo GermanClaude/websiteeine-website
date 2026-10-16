@@ -10,10 +10,10 @@ export const BONES = [
   ['chest', 1, [0, 0.2, 0]],
   ['neck', 2, [0, 0.235, 0.0]],
   ['head', 3, [0, 0.085, 0.005]],
-  ['upperArmL', 2, [-0.19, 0.185, 0.0]],
+  ['upperArmL', 2, [-0.235, 0.185, 0.0]], // 16.10.: breitere Schultern (Statur wie die Video-Soldaten)
   ['foreArmL', 5, [0, -0.28, 0]],
   ['handL', 6, [0, -0.25, 0]],
-  ['upperArmR', 2, [0.19, 0.185, 0.0]],
+  ['upperArmR', 2, [0.235, 0.185, 0.0]],
   ['foreArmR', 8, [0, -0.28, 0]],
   ['handR', 9, [0, -0.25, 0]],
   ['thighL', 0, [-0.1, -0.04, 0]],
@@ -48,7 +48,7 @@ export const DIM = {
   ankle: 0.08, // Knöchelhöhe über der Sohle
   hipWidth: 0.1,
   hipDrop: 0.04,
-  shoulderX: 0.19,
+  shoulderX: 0.235,
   shoulderY: 0.185,
   standHip: 0.935,
   crouchHip: 0.6,
