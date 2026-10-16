@@ -24,12 +24,12 @@ export const SCHEMES = {
   // brauner, Unterscheidung über Armbinde. 16.10. an der sonnigen Schulter nachgemessen: Flecken Oliv, Khaki,
   // Braunoliv, Dunkelgrün – dunkelster Fleck ≈ halb so hell wie der hellste (das fast Schwarz im Video ist Schatten)
   A: {
-    id: 'A', name: 'Nordwind', camo: ['#5e5b3e', '#434832', '#857e5d', '#33392a'], pattern: 'splitter',
+    id: 'A', name: 'Nordwind', camo: ['#6c6646', '#4b4c35', '#958c6a', '#3a3f2d'], pattern: 'splitter',
     gear: '#4a4d37', gear2: '#3a3d2c', strap: '#2f3226', helmet: '#4b4e37', glove: '#24261f', boot: '#2b2926',
     pants: '#55553b', accent: '#38b6ff', metal: '#3a3d40', hostile: false,
   },
   B: {
-    id: 'B', name: 'Wüstenfuchs', camo: ['#655a3c', '#4a4130', '#938563', '#3a3224'], pattern: 'splitter',
+    id: 'B', name: 'Wüstenfuchs', camo: ['#73663f', '#54482f', '#a08f67', '#433827'], pattern: 'splitter',
     gear: '#57503a', gear2: '#45402e', strap: '#363226', helmet: '#59533b', glove: '#2e2a20', boot: '#33291f',
     pants: '#5c5639', accent: '#ff3b3b', metal: '#3d3a36', hostile: true,
   },
@@ -437,6 +437,7 @@ varying vec4 vNp;
 flat varying vec4 vNq;
 varying vec3 vNpPos;
 varying vec2 vNpUv;
+flat varying vec2 vNpUvF;
 varying float vNpAo;
 `;
 const FRAG_HEAD = /* glsl */`
@@ -444,7 +445,9 @@ varying vec4 vNp;
 flat varying vec4 vNq;
 varying vec3 vNpPos;
 varying vec2 vNpUv;
+flat varying vec2 vNpUvF;
 varying float vNpAo;
+uniform float uCamoFacet;
 uniform vec3 uPal[ 9 ];
 uniform vec3 uCamo[ 4 ];
 uniform vec4 uCls[ 6 ];
@@ -475,7 +478,8 @@ const ALBEDO = /* glsl */`
 	vec3 sdAlb = vColor.rgb;
 	if ( sdPal > 0 ) sdAlb = uPal[ sdPal ] * vColor.rgb * 2.0;
 	if ( vNp.x > 0.004 ) {
-		vec3 sdM = texture2D( map, vNpUv * uCamoScale ).rgb;
+		// Video-Look: Tarnfarbe je Fläche (flache UV der Dreiecksecke) gemischt mit dem durchlaufenden Muster
+		vec3 sdM = texture2D( map, mix( vNpUv, vNpUvF, uCamoFacet * step( float( sdCls ), 0.5 ) ) * uCamoScale ).rgb; // nur Stoff (große Kastenflächen der Ausrüstung behalten das Muster)
 		vec3 sdCam = mix( uCamo[ 0 ], uCamo[ 1 ], sdM.r );
 		sdCam = mix( sdCam, uCamo[ 2 ], sdM.g );
 		sdCam = mix( sdCam, uCamo[ 3 ], sdM.b );
@@ -550,6 +554,8 @@ function newMaterial(schemeId, low) {
     roughness: 0.88,
     metalness: 0,
     envMapIntensity: 0.75,
+    // Nutzer 16.10. („nicht mal annähernd wie im Video“): die Video-Soldaten sind kantig flächig schattiert
+    flatShading: true,
   });
   m.name = 'soldier:' + schemeId;
   const { pal, camo } = schemeUniforms(sc);
@@ -557,7 +563,8 @@ function newMaterial(schemeId, low) {
     uPal: { value: pal },
     uCamo: { value: camo },
     uCls: { value: CLASS_PARAMS.map((p) => new THREE.Vector4(p[0], p[1], p[2], p[3])) },
-    uCamoScale: { value: 2.3 }, // Tarnmuster-Kachel ≈ 43 cm
+    uCamoScale: { value: 1.7 }, // Tarnmuster-Kachel ≈ 59 cm (große Splitter wie im Video)
+    uCamoFacet: { value: 0.65 },
     uNpOrm: { value: D.orm },
     uNpDetail: { value: new THREE.Vector3(1 / D.aoMean, 1, D.kind === 'fotoscan' ? 1.0 : 1.0) },
     uNpMacro: { value: wrinkleTexture() },
@@ -587,7 +594,7 @@ function newMaterial(schemeId, low) {
   m.onBeforeCompile = (shader) => {
     for (const k of Object.keys(U)) shader.uniforms[k] = U[k];
     shader.vertexShader = VERT_HEAD + shader.vertexShader
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvNp = aNp;\n\tvNq = aNq;\n\tvNpPos = position;\n\tvNpUv = uv;\n\tvNpAo = aNo;');
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvNp = aNp;\n\tvNq = aNq;\n\tvNpPos = position;\n\tvNpUv = uv;\n\tvNpUvF = uv;\n\tvNpAo = aNo;');
     let fs = FRAG_HEAD + shader.fragmentShader;
     fs = fs.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
 	float sdDis = 0.0;
@@ -613,7 +620,7 @@ function newMaterial(schemeId, low) {
 	#include <opaque_fragment>`);
     shader.fragmentShader = fs;
   };
-  m.customProgramCacheKey = () => 'np-soldier-6' + (low ? 'l' : 'h');
+  m.customProgramCacheKey = () => 'np-soldier-7' + (low ? 'l' : 'h');
   return m;
 }
 

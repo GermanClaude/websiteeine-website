@@ -12,14 +12,16 @@ import { SKIN_TONES } from './materials.js';
 import { BONE, DIM } from './rig.js';
 
 export const VARIANTS = [
-  { id: 'sturm', name: 'Sturm', head: 'helmet', cover: true, nvg: true, ears: true, face: 'gaiter', eyes: 'shades', vest: 'plate', back: 'assault', knees: true, holster: true, sleeves: 'long', skin: 1, hair: '#2a2119' },
-  { id: 'spaeher', name: 'Späher', head: 'boonie', face: 'shemagh', eyes: 'shades', shemagh: true, vest: 'rig', back: 'hydration', knees: false, holster: false, sleeves: 'rolled', skin: 2, hair: '#3b2a1c' },
-  { id: 'funker', name: 'Funker', head: 'cap', ears: true, face: 'gaiter', eyes: 'glasses', vest: 'plate', back: 'radio', knees: false, holster: true, sleeves: 'long', skin: 0, hair: '#5a4026' },
-  { id: 'grenadier', name: 'Grenadier', head: 'helmet', face: 'balaclava', eyes: 'goggles', vest: 'plate', back: 'none', knees: true, dump: true, sleeves: 'long', skin: 3, hair: '#18120d' },
-  { id: 'schatten', name: 'Schatten', head: 'beanie', face: 'balaclava', eyes: null, vest: 'light', back: 'none', knees: false, holster: true, sleeves: 'long', skin: 4, hair: '#141110' },
-  { id: 'bastion', name: 'Bastion', head: 'helmet', face: 'gasmask', eyes: null, vest: 'heavy', back: 'none', knees: true, pauldrons: true, dump: true, sleeves: 'long', skin: 1, hair: '#2a2119' },
-  { id: 'kundschafter', name: 'Kundschafter', head: 'wrap', ears: true, face: 'gaiter', eyes: 'shades', vest: 'rig', back: 'assault', knees: true, sleeves: 'rolled', skin: 5, hair: '#4a3420' },
-  { id: 'pionier', name: 'Pionier', head: 'cap', capBack: true, ears: true, face: 'gaiter', eyes: 'shades', vest: 'plate', back: 'none', knees: true, holster: true, dump: true, sleeves: 'long', skin: 2, hair: '#2e2016' },
+  // Nutzer 16.10.: Grundausführungen wie die Soldaten im Video – Helm mit Tarnbezug (ohne Nachtsicht), dunkle
+  // Sturmhaube/Halstuch, Plattenträger, großer Rucksack; Abwechslung nur noch über Weste, Rucksack und Kleinteile
+  { id: 'sturm', name: 'Sturm', head: 'helmet', cover: true, ears: true, face: 'balaclava', eyes: null, vest: 'plate', back: 'assault', knees: true, holster: true, sleeves: 'long', skin: 1, hair: '#2a2119' },
+  { id: 'spaeher', name: 'Späher', head: 'helmet', cover: true, face: 'gaiter', eyes: null, vest: 'rig', back: 'assault', knees: false, holster: false, sleeves: 'long', skin: 2, hair: '#3b2a1c' },
+  { id: 'funker', name: 'Funker', head: 'helmet', cover: true, ears: true, face: 'balaclava', eyes: null, vest: 'plate', back: 'radio', knees: false, holster: true, sleeves: 'long', skin: 0, hair: '#5a4026' },
+  { id: 'grenadier', name: 'Grenadier', head: 'helmet', cover: true, face: 'balaclava', eyes: null, vest: 'plate', back: 'assault', knees: true, dump: true, sleeves: 'long', skin: 3, hair: '#18120d' },
+  { id: 'schatten', name: 'Schatten', head: 'helmet', cover: true, face: 'balaclava', eyes: null, vest: 'light', back: 'assault', knees: false, holster: true, sleeves: 'long', skin: 4, hair: '#141110' },
+  { id: 'bastion', name: 'Bastion', head: 'helmet', cover: true, face: 'balaclava', eyes: null, vest: 'heavy', back: 'none', knees: true, pauldrons: true, dump: true, sleeves: 'long', skin: 1, hair: '#2a2119' },
+  { id: 'kundschafter', name: 'Kundschafter', head: 'helmet', cover: true, ears: true, face: 'gaiter', eyes: null, vest: 'rig', back: 'assault', knees: true, sleeves: 'long', skin: 5, hair: '#4a3420' },
+  { id: 'pionier', name: 'Pionier', head: 'helmet', cover: true, ears: true, face: 'balaclava', eyes: null, vest: 'plate', back: 'assault', knees: true, holster: true, dump: true, sleeves: 'long', skin: 2, hair: '#2e2016' },
   // Klassen-Ausführungen (bots-scale): Sanitäter (leichte Weste, Armbinde mit rotem Kreuz, Sanitätstasche), Panzerpionier
   // (schwere Weste mit Schulterschutz, Werfer RW-90 auf dem Rücken), Scharfschütze (Tarnüberwurf/„Ghillie“ über Kopf und Schultern)
   { id: 'sanitaeter', name: 'Sanitäter', head: 'helmet', cover: true, ears: true, face: 'gaiter', eyes: 'glasses', vest: 'light', back: 'medbag', armband: 'medic', knees: false, holster: true, sleeves: 'long', skin: 3, hair: '#2a2119' },
@@ -29,8 +31,9 @@ export const VARIANTS = [
 export const VARIANT_IDS = VARIANTS.map((v) => v.id);
 
 // Detailstufen: Profilsegmente (Gliedmaßen/Rumpf), Ringe, Kappenringe, Rundquader, Kugel-Segmente, Zylinder
+// Stufe 0 (16.10.): gröbere Profile – mit flacher Schattierung entstehen große Flächen wie bei den Video-Soldaten
 const Q = [
-  { seg: 10, tseg: 12, rings: 3, cap: 2, rb: 1, sw: 12, sh: 8, cs: 10 },
+  { seg: 8, tseg: 9, rings: 2, cap: 2, rb: 1, sw: 10, sh: 7, cs: 9 },
   { seg: 7, tseg: 9, rings: 2, cap: 1, rb: 0, sw: 9, sh: 6, cs: 7 },
   { seg: 4, tseg: 6, rings: 1, cap: 1, rb: 0, sw: 6, sh: 3, cs: 4 },
 ];
@@ -89,7 +92,7 @@ function bulkTable() {
   const T = {};
   const set = (name, o) => { T[BONE[name]] = { cx: 0, cz: 0, sx: 1, sz: 1, tx: 0, ...o }; };
   for (const n of ['hips', 'spine', 'chest']) set(n, { cz: 0.006, sx: 1.24, sz: 1.16 });
-  set('neck', { cz: 0.014, sx: 1.08, sz: 1.06 });
+  set('neck', { cz: 0.014, sx: 1.22, sz: 1.18 }); // kurzer, dicker Hals (Kragen/Halstuch wie im Video)
   for (const [side, k] of [['L', -1], ['R', 1]]) {
     const arm = { cx: k * ARM_X0, tx: k * (DIM.shoulderX - ARM_X0) };
     set('upperArm' + side, { ...arm, sx: 1.3, sz: 1.26 });
@@ -130,9 +133,10 @@ function buildSoldier(V, lod) {
     plastic: { color: '#1e2022', detail: 0.5, shine: 0.42, cls: 'hard' },
     lens: { color: '#0b1014', detail: 0, shine: 1, cls: 'glass' },
     smoke: { color: '#2b3034', detail: 0, shine: 1, cls: 'glass' }, // Schießbrille (getönt)
-    accent: { pal: 'accent', detail: 0, emis: 0.55, shine: 0.3, cls: 'hard' },
-    // Teamfarben-Bänder (Arm, Helm): großflächig, daher schwächer leuchtend (≈ 0,6 Eigenleuchten)
-    band: { pal: 'accent', detail: 0.3, emis: 0.27, shine: 0.25, cls: 'gear' },
+    accent: { pal: 'accent', shade: 0.6, detail: 0, emis: 0, shine: 0.3, cls: 'hard' },
+    // Teamfarben-Band am Oberarm: gedeckt, ohne Leuchten (16.10.: im Video gibt es keine leuchtenden Bänder;
+    // Teams erkennt man über Namensschild, Randlicht der Gegner und dieses Band)
+    band: { pal: 'accent', shade: 0.46, detail: 0.6, emis: 0, shine: 0.1, cls: 'gear' },
     // Schutzbrille/Maskengläser: hellgrau spiegelnd mit kleinem Glanzlicht → Blickrichtung lesbar
     visor: { color: '#8ea4b0', detail: 0, shine: 1, emis: 0.1, cls: 'glass' },
     mag: { color: '#2a2b2c', detail: 0.4, shine: 0.55, cls: 'hard' },
@@ -265,19 +269,20 @@ function buildSoldier(V, lod) {
 
   /* ------------------------------------------------------------ Rucksäcke */
   if (V.back === 'assault') {
-    add(R(0.27, 0.34, 0.14, 0.048, { p: [0, 1.26, 0.25] }), 'chest', C.gear2);
+    // Video: großer Rucksack im Tarnmuster vom Nacken bis unter die Taille, mit Seitentaschen und Deckel
+    add(R(0.27, 0.42, 0.15, 0.065, { p: [0, 1.22, 0.252] }), 'chest', C.gear2);
+    add(R(0.25, 0.1, 0.165, 0.045, { p: [0, 1.41, 0.256] }), 'chest', C.flap);
     if (!FAR) {
-      add(R(0.23, 0.07, 0.1, 0.03, { p: [0, 1.43, 0.25] }), 'chest', C.gear);
-      if (L01) pair(rbox(0.012, 0.3, 0.025, 0, 0, { p: [-0.137, 1.26, 0.25] }), 'chest', 'chest', C.strap);
-      add(cyl(0.048, 0.048, 0.3, q.cs, { p: [0, 1.49, 0.26], r: [0, 0, Math.PI / 2] }), 'chest', { pal: 'gear', shade: 0.85, detail: 1, cls: 'gear' });
-      if (L0) for (let i = 0; i < 2; i++) add(rbox(0.22, 0.01, 0.005, 0, 0, { p: [0, 1.2 + i * 0.06, 0.322] }), 'chest', C.strap);
+      pair(R(0.045, 0.2, 0.1, 0.02, { p: [-0.145, 1.16, 0.252] }), 'chest', 'chest', C.gear);
+      add(R(0.2, 0.18, 0.045, 0.02, { p: [0, 1.14, 0.335] }), 'chest', C.gear);
+      if (L0) for (let i = 0; i < 2; i++) add(rbox(0.18, 0.012, 0.005, 0, 0, { p: [0, 1.08 + i * 0.07, 0.36] }), 'chest', C.strap);
     }
   } else if (V.back === 'radio') {
-    add(R(0.21, 0.27, 0.11, 0.028, { p: [0, 1.27, 0.235] }), 'chest', C.plastic);
-    if (!FAR) add(R(0.23, 0.29, 0.03, 0.01, { p: [0, 1.27, 0.175] }), 'chest', C.gear);
-    add(cyl(0.006, 0.01, 0.55, 4, { p: [0.075, 1.61, 0.26], r: [-0.12, 0, -0.06] }), 'chest', C.plastic);
-    if (L01) add(cyl(0.022, 0.022, 0.04, q.cs, { p: [-0.06, 1.42, 0.255] }), 'chest', C.metal);
-    if (L0) add(rbox(0.12, 0.05, 0.012, 0, 0, { p: [0, 1.32, 0.292] }), 'chest', C.mag);
+    // Funkgerät in einem Rucksack im Tarnmuster (Video: keine schwarzen Kästen auf dem Rücken), Antenne bleibt sichtbar
+    add(R(0.28, 0.4, 0.16, 0.045, { p: [0, 1.22, 0.255] }), 'chest', C.gear2);
+    if (!FAR) add(R(0.25, 0.11, 0.175, 0.035, { p: [0, 1.41, 0.26] }), 'chest', C.flap);
+    add(cyl(0.006, 0.01, 0.55, 4, { p: [0.085, 1.66, 0.27], r: [-0.12, 0, -0.06] }), 'chest', C.plastic);
+    if (L01) add(cyl(0.022, 0.022, 0.04, q.cs, { p: [-0.07, 1.47, 0.27] }), 'chest', C.metal);
   } else if (V.back === 'medbag') {
     // Sanitätstasche: weißes Feld mit rotem Kreuz (von hinten auf Distanz lesbar)
     add(R(0.25, 0.22, 0.12, 0.03, { p: [0, 1.24, 0.235] }), 'chest', C.gear2);
@@ -325,7 +330,7 @@ function buildSoldier(V, lod) {
     add(E(0.022, 0.016, 0.018, { p: [0, 1.666, -0.1] }, undefined, 8, 6), 'head', lowerMat);
     if (L0) add(torus(0.084, 0.006, 3, 16, { p: [0, 1.673, -0.03], r: [Math.PI / 2 + 0.22, 0, 0], s: [1, 1.0, 1] }, Math.PI), 'head', { ...lowerMat, shade: (lowerMat.shade || 1) * 0.85 });
   }
-  if (covered && !FAR) add(R(0.112, 0.036, 0.03, 0.013, { p: [0, 1.69, -0.088] }), 'head', C.skin); // Augenschlitz
+  if (covered && !FAR) add(R(0.112, 0.036, 0.03, 0.013, { p: [0, 1.69, -0.088] }), 'head', C.socket); // Augenschlitz (im Helmschatten dunkel wie im Video)
   if (L01 && V.face !== 'gasmask') {
     if (!lowerCovered) add(E(0.012, 0.026, 0.018, { p: [0, 1.668, -0.103], r: [-0.3, 0, 0] }, undefined, 6, 5), 'head', C.skin);
     if (!covered) add(E(0.05, 0.012, 0.02, { p: [0, 1.71, -0.084] }, undefined, q.sw / 2 + 2, q.sh / 2), 'head', C.skin); // Brauenbogen
@@ -353,12 +358,13 @@ function buildSoldier(V, lod) {
   if (helmet) {
     // Schale (mit Bezug im Tarnmuster oder lackiert), Rand, Schienen, Nachtsichthalterung, Akku-Tasche, Kinnriemen
     const shellMat = V.cover ? C.cover : C.helmet;
-    add(tiltHelmet(E(0.122, 0.12, 0.134, { p: [0, 1.692, 0.008] }, { thetaLength: Math.PI * 0.55 })), 'head', shellMat);
+    // Video: großer, runder Helm mit Tarnbezug, der bis über die Ohren reicht
+    add(tiltHelmet(E(0.138, 0.132, 0.15, { p: [0, 1.69, 0.01] }, { thetaLength: Math.PI * 0.6 })), 'head', shellMat);
     if (!FAR) {
-      add(tiltHelmet(torus(0.121, 0.008, 3, q.cs + 4, { p: [0, 1.674, 0.008], r: [Math.PI / 2, 0, 0], s: [1, 1.1, 1] })), 'head', C.helmetDark);
-      pair(tiltHelmet(R(0.014, 0.03, 0.13, 0.004, { p: [-0.122, 1.712, 0.008] })), 'head', 'head', C.plastic);
-      add(tiltHelmet(R(0.05, 0.034, 0.026, 0.008, { p: [0, 1.757, -0.126], r: [-0.45, 0, 0] })), 'head', C.metal);
-      add(tiltHelmet(R(0.08, 0.06, 0.04, 0.016, { p: [0, 1.73, 0.138], r: [0.3, 0, 0] })), 'head', C.gear2);
+      add(tiltHelmet(torus(0.136, 0.009, 3, q.cs + 4, { p: [0, 1.661, 0.01], r: [Math.PI / 2, 0, 0], s: [1, 1.1, 1] })), 'head', V.cover ? { ...C.cover, color: '#b8b8b8' } : C.helmetDark);
+      if (!V.cover) pair(tiltHelmet(R(0.014, 0.03, 0.13, 0.004, { p: [-0.137, 1.712, 0.01] })), 'head', 'head', C.plastic);
+      if (V.nvg) add(tiltHelmet(R(0.05, 0.034, 0.026, 0.008, { p: [0, 1.765, -0.14], r: [-0.45, 0, 0] })), 'head', C.metal);
+      add(tiltHelmet(R(0.08, 0.06, 0.04, 0.016, { p: [0, 1.73, 0.152], r: [0.3, 0, 0] })), 'head', C.flap);
       if (L01) pair(tiltHelmet(rbox(0.01, 0.1, 0.006, 0, 0, { p: [-0.098, 1.63, -0.02], r: [0.15, 0, -0.08] })), 'head', 'head', C.strap); // Kinnriemen
       if (L0) add(tiltHelmet(rbox(0.05, 0.03, 0.004, 0, 0, { p: [0, 1.79, 0.1], r: [0.9, 0, 0] })), 'head', C.patch); // Klettfeld hinten
     }
@@ -368,9 +374,8 @@ function buildSoldier(V, lod) {
       add(tiltHelmet(R(0.085, 0.032, 0.046, 0.012, { p: [0, 1.795, -0.152], r: [-0.95, 0, 0] })), 'head', C.plastic);
       if (L01) pair(tiltHelmet(cyl(0.013, 0.013, 0.006, q.cs, { p: [-0.024, 1.812, -0.168], r: [-0.95 + Math.PI / 2, 0, 0] })), 'head', 'head', C.lens);
     }
-    add(tiltHelmet(R(0.026, 0.02, 0.03, 0.006, { p: [0, 1.805, 0.065], r: [0.55, 0, 0] })), 'head', C.accent);
-    // Teamband um die Helmschale (auf jeder Stufe – Erkennung auf Distanz)
-    add(tiltHelmet(torus(0.121, 0.011, 3, q.cs + 4, { p: [0, 1.724, 0.008], r: [Math.PI / 2, 0, 0], s: [1, 1.09, 1] })), 'head', C.band);
+    // kein Teamband mehr um den Helm (Video); nur ein kleines Abzeichen hinten oben
+    add(tiltHelmet(R(0.026, 0.02, 0.03, 0.006, { p: [0, 1.81, 0.075], r: [0.55, 0, 0] })), 'head', C.accent);
   } else if (V.head === 'cap') {
     const back = V.capBack ? -1 : 1;
     const capMat = { pal: 'gear', shade: 1.08, detail: 1, cls: 'cloth' };
