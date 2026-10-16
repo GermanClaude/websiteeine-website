@@ -519,8 +519,12 @@ try {
   const hostStep = (st) => until(host, ([vid, s]) => window.__game.vehicles.list.find((x) => x.netId === vid).gun.step === s, [tA.vid, st], 60000, 300);
   await look('rack');
   await sleep(800);
+  // Munitionsbunker mit Schiebetür (moderner Panzer, crew.js): erstes „Greifen“ öffnet die Tür, zweites greift die Granate
+  const bunker = await ev(host, (vid) => !!window.__game.vehicles.list.find((x) => x.netId === vid).def.interior.blastDoor, tA.vid);
+  let s0 = true;
+  if (bunker) { await step('greifen'); s0 = await hostStep('offen'); }
   await step('greifen');
-  const s1 = await hostStep('gegriffen');
+  const s1 = s0 && await hostStep('gegriffen');
   await look('breech');
   await sleep(800);
   await step('einschieben');
@@ -529,7 +533,7 @@ try {
   const s3 = await hostStep('geladen');
   await ev(bert, () => { window.__lookYaw = null; });
   const vnLoad = await ev(bert, (n) => window.__mv.vn.slice(n), vnAfterWrong);
-  check(!!(s1 && s2 && s3), `richtige Ladefolge → geladen beim Host (gegriffen ${!!s1}, eingeschoben ${!!s2}, geladen ${!!s3}; weitere Ablehnungen: ${vnLoad.join(', ') || '–'})`);
+  check(!!(s1 && s2 && s3), `richtige Ladefolge → geladen beim Host (${bunker ? `Bunker offen ${!!s0}, ` : ''}gegriffen ${!!s1}, eingeschoben ${!!s2}, geladen ${!!s3}; weitere Ablehnungen: ${vnLoad.join(', ') || '–'})`);
   const loadedBert = await until(bert, (vid) => { const g = window.__game.vehicles.list.find((x) => x.netId === vid).gun; return g.step === 'geladen' && g.loaded ? g.loaded : null; }, tA.vid, 8000);
   check(!!loadedBert, `Bert sieht „geladen“ (${loadedBert})`);
   await shot(bert, '5-bert-lader');
