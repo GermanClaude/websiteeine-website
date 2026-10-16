@@ -1,12 +1,12 @@
 {
   "id": "tiles_worn",
-  "recipe": "6e43153d1600",
+  "recipe": "09de2164d756",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/tiles_worn/tiles_worn_512_albedo.ktx2",
-          "bytes": 60411,
+          "bytes": 34782,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/tiles_worn/tiles_worn_512_normal.ktx2",
-          "bytes": 22348,
+          "bytes": 5152,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/tiles_worn/tiles_worn_512_orm.ktx2",
-          "bytes": 34852,
+          "bytes": 12397,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 117611,
+      "bytes": 52331,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/tiles_worn/tiles_worn_1024_albedo.ktx2",
-          "bytes": 199498,
+          "bytes": 87075,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/tiles_worn/tiles_worn_1024_normal.ktx2",
-          "bytes": 129360,
+          "bytes": 12442,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/tiles_worn/tiles_worn_1024_orm.ktx2",
-          "bytes": 134220,
+          "bytes": 29281,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 463078,
+      "bytes": 128798,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -103,9 +103,9 @@
   },
   "stats": {
     "avgColor": "#4c473c",
-    "avgRoughness": 0.58,
-    "avgMetalness": 0.002,
-    "avgAO": 0.924,
+    "avgRoughness": 0.581,
+    "avgMetalness": 0,
+    "avgAO": 0.989,
     "coverage": 1
   }
 }

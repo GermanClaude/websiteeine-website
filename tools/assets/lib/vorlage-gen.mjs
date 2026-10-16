@@ -6,12 +6,12 @@
 // Einfärbbare Sätze (Container, Blech) sind fast neutral hell: die Farbe kommt aus dem Material (tint).
 
 /* ------------------------------------------------------------------ Rauschen (periodisch, deterministisch) */
-function rng(seed) {
+export function rng(seed) {
   let s = seed >>> 0;
   return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 /** Periodisches Value-Noise mit Oktaven: n(u, v, px, py, oct) ∈ [0, 1], px/py = Zellen je Kachel. */
-function makeNoise(seed) {
+export function makeNoise(seed) {
   const rnd = rng(seed), tables = new Map();
   const table = (p, q) => { const k = p * 4096 + q; if (!tables.has(k)) tables.set(k, Float32Array.from({ length: p * q }, rnd)); return tables.get(k); };
   const fade = (t) => t * t * (3 - 2 * t);
@@ -27,16 +27,16 @@ function makeNoise(seed) {
     return sum / norm;
   };
 }
-const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
-const smooth = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
-const mix = (a, b, t) => a + (b - a) * t;
-const hex = (h) => [1, 3, 5].map((i) => toLin(parseInt(h.slice(i, i + 2), 16) / 255));
-function toLin(c) { return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+export const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+export const smooth = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+export const mix = (a, b, t) => a + (b - a) * t;
+export const hex = (h) => [1, 3, 5].map((i) => toLin(parseInt(h.slice(i, i + 2), 16) / 255));
+export function toLin(c) { return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
 const toSrgb8 = (c) => Math.round(255 * clamp01(c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(clamp01(c), 1 / 2.4) - 0.055));
-const mix3 = (a, b, t) => [mix(a[0], b[0], t), mix(a[1], b[1], t), mix(a[2], b[2], t)];
+export const mix3 = (a, b, t) => [mix(a[0], b[0], t), mix(a[1], b[1], t), mix(a[2], b[2], t)];
 
 /* ------------------------------------------------------------------ Höhenfeld → Normalen / Verdeckung */
-function heightToNormal(h, size, strength) {
+export function heightToNormal(h, size, strength) {
   const out = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y++) {
     const ym = ((y - 1 + size) % size) * size, yp = ((y + 1) % size) * size, yc = y * size;
@@ -52,14 +52,14 @@ function heightToNormal(h, size, strength) {
   return out;
 }
 /** Kastenunschärfe (periodisch), r in Pixeln – für Hohlraum-Verdeckung. */
-function blur(src, size, r) {
+export function blur(src, size, r) {
   const tmp = new Float32Array(size * size), out = new Float32Array(size * size), w = 2 * r + 1;
   for (let y = 0; y < size; y++) { let s = 0; for (let k = -r; k <= r; k++) s += src[y * size + ((k + size) % size)]; for (let x = 0; x < size; x++) { tmp[y * size + x] = s / w; s += src[y * size + ((x + r + 1) % size)] - src[y * size + ((x - r + size) % size)]; } }
   for (let x = 0; x < size; x++) { let s = 0; for (let k = -r; k <= r; k++) s += tmp[((k + size) % size) * size + x]; for (let y = 0; y < size; y++) { out[y * size + x] = s / w; s += tmp[((y + r + 1) % size) * size + x] - tmp[((y - r + size) % size) * size + x]; } }
   return out;
 }
 /** Hohlraum: Pixel unterhalb der geglätteten Umgebung werden dunkler (Fugen, Rillen, Risse). */
-function cavity(h, size, radiusFrac, k) {
+export function cavity(h, size, radiusFrac, k) {
   const r = Math.max(1, Math.round(size * radiusFrac));
   const b = blur(h, size, r), ao = new Float32Array(size * size);
   for (let i = 0; i < ao.length; i++) ao[i] = clamp01(1 - Math.max(0, b[i] - h[i]) * k);
@@ -67,22 +67,22 @@ function cavity(h, size, radiusFrac, k) {
 }
 
 /* ------------------------------------------------------------------ Bauen */
-function assemble(size, fn, { normal = 6, cav = [0.01, 2.2], aoMin = 0.35 } = {}) {
-  const n = size * size, H = new Float32Array(n), A = new Float32Array(n * 3), R = new Float32Array(n), M = new Float32Array(n), O = new Float32Array(n).fill(1);
-  const px = { h: 0, col: null, rough: 0.7, metal: 0, ao: 1 };
+export function assemble(size, fn, { normal = 6, cav = [0.01, 2.2], aoMin = 0.35, dirtK = 0.45 } = {}) {
+  const n = size * size, H = new Float32Array(n), A = new Float32Array(n * 3), R = new Float32Array(n), M = new Float32Array(n), O = new Float32Array(n).fill(1), AL = new Float32Array(n).fill(1);
+  const px = { h: 0, col: null, rough: 0.7, metal: 0, ao: 1, alpha: 1 };
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const i = y * size + x;
-    px.h = 0; px.col = null; px.rough = 0.7; px.metal = 0; px.ao = 1;
+    px.h = 0; px.col = null; px.rough = 0.7; px.metal = 0; px.ao = 1; px.alpha = 1;
     fn((x + 0.5) / size, 1 - (y + 0.5) / size, px); // v = 1 oben
-    H[i] = px.h; A[i * 3] = px.col[0]; A[i * 3 + 1] = px.col[1]; A[i * 3 + 2] = px.col[2]; R[i] = px.rough; M[i] = px.metal; O[i] = px.ao;
+    H[i] = px.h; A[i * 3] = px.col[0]; A[i * 3 + 1] = px.col[1]; A[i * 3 + 2] = px.col[2]; R[i] = px.rough; M[i] = px.metal; O[i] = px.ao; AL[i] = px.alpha;
   }
   const ao = cavity(H, size, cav[0], cav[1]);
   const albedo = new Uint8Array(n * 4), orm = new Uint8Array(n * 4);
   for (let i = 0; i < n; i++) {
     const occ = Math.max(aoMin, ao[i] * O[i]);
     // Albedo bekommt einen Teil der Verdeckung (Schmutz sammelt sich in Fugen), der Rest wirkt als AO-Karte
-    const dirt = 0.55 + 0.45 * occ;
-    albedo[i * 4] = toSrgb8(A[i * 3] * dirt); albedo[i * 4 + 1] = toSrgb8(A[i * 3 + 1] * dirt); albedo[i * 4 + 2] = toSrgb8(A[i * 3 + 2] * dirt); albedo[i * 4 + 3] = 255;
+    const dirt = 1 - dirtK + dirtK * occ;
+    albedo[i * 4] = toSrgb8(A[i * 3] * dirt); albedo[i * 4 + 1] = toSrgb8(A[i * 3 + 1] * dirt); albedo[i * 4 + 2] = toSrgb8(A[i * 3 + 2] * dirt); albedo[i * 4 + 3] = Math.round(clamp01(AL[i]) * 255);
     orm[i * 4] = Math.round(occ * 255); orm[i * 4 + 1] = Math.round(clamp01(R[i]) * 255); orm[i * 4 + 2] = Math.round(clamp01(M[i]) * 255); orm[i * 4 + 3] = 255;
   }
   // Normalenstärke bezieht sich auf die Kachel: gleiche Wirkung in jeder Stufe

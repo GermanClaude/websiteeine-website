@@ -1,12 +1,12 @@
 {
   "id": "osb",
-  "recipe": "f4cd42fe0633",
+  "recipe": "8173d69000de",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/osb/osb_512_albedo.ktx2",
-          "bytes": 64450,
+          "bytes": 58115,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/osb/osb_512_normal.ktx2",
-          "bytes": 22788,
+          "bytes": 69491,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/osb/osb_512_orm.ktx2",
-          "bytes": 38271,
+          "bytes": 28482,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 125509,
+      "bytes": 156088,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/osb/osb_1024_albedo.ktx2",
-          "bytes": 218448,
+          "bytes": 163787,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/osb/osb_1024_normal.ktx2",
-          "bytes": 163485,
+          "bytes": 194558,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/osb/osb_1024_orm.ktx2",
-          "bytes": 152288,
+          "bytes": 87925,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 534221,
+      "bytes": 446270,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,8 +104,8 @@
   "stats": {
     "avgColor": "#bc9973",
     "avgRoughness": 0.581,
-    "avgMetalness": 0.002,
-    "avgAO": 0.947,
+    "avgMetalness": 0,
+    "avgAO": 0.964,
     "coverage": 1
   }
 }

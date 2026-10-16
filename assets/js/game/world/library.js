@@ -330,8 +330,8 @@ export function createWorldAssets(G, def, quality) {
         // Drehung: Sonnenazimut des HDRIs auf den der Karte (Schattenrichtung) legen
         const rotation = THREE.MathUtils.degToRad((e.sun?.azimuthDeg ?? 0) - (sun?.azimuth ?? e.sun?.azimuthDeg ?? 0));
         const skyTier = pickTier(e.tiers, SKY_TIER[q] || 1024);
-        // reine Himmelsfotos (…_puresky) haben unten keinen Boden → Bodenfarbe der Karte einsetzen (buildEnvironment)
-        const envGround = def.lighting?.env?.hdriGround ?? (/puresky/.test(cfg.hdri) ? { color: def.lighting?.env?.ground || def.lighting?.hemi?.ground } : null);
+        // reine Himmel (eigene np_sky_…, früher Fotos …_puresky) → Bodenfarbe der Karte einsetzen (buildEnvironment)
+        const envGround = def.lighting?.env?.hdriGround ?? (/puresky|^np_sky_/.test(cfg.hdri) ? { color: def.lighting?.env?.ground || def.lighting?.hemi?.ground } : null);
         const wantSky = def.lighting?.sky?.hdri !== false;
         const [envRT, bg] = await Promise.all([
           buildEnvironment(renderer, e, tier, rotation, def.lighting?.env?.hdriMax, def.lighting?.env?.hdriTint, envGround),

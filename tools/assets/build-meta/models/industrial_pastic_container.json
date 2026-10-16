@@ -1,12 +1,12 @@
 {
   "id": "industrial_pastic_container",
-  "recipe": "16cdbc0cd5d0",
+  "recipe": "5727d1b647ad",
   "size": [
-    0.458,
+    0.457,
     0.419,
     0.631
   ],
-  "radius": 0.443,
+  "radius": 0.442,
   "lodDistances": [
     0,
     6.2,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/industrial_pastic_container/industrial_pastic_container_512.glb",
-      "bytes": 100028,
-      "srcTris": 7118,
+      "bytes": 46700,
+      "srcTris": 8100,
       "lods": [
         {
-          "tris": 1986,
+          "tris": 1996,
           "level": 1
         },
         {
-          "tris": 654,
+          "tris": 698,
           "level": 2
         }
       ],
@@ -42,81 +42,81 @@
           -0.316
         ],
         "max": [
-          0.232,
+          0.231,
           0.419,
           0.315
         ]
       },
       "textures": [
         {
-          "name": "industrial_pastic_container_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 12754,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "industrial_pastic_container_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 23578,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "industrial_pastic_container_arm_1k.ktx2",
+          "name": "crate_blue_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 11897,
+          "bytes": 6361,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "crate_blue_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 2696,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "crate_blue_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 966,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 111980,
+      "geometryBytes": 76640,
       "gpu": {
-        "desktop": 505197,
-        "mobile": 505197,
-        "rgba8": 3257707
+        "desktop": 469857,
+        "mobile": 469857,
+        "rgba8": 3222367
       },
       "materials": [
         {
-          "name": "industrial_pastic_container",
+          "name": "crate_blue",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/industrial_pastic_container/industrial_pastic_container_1024.glb",
-      "bytes": 261060,
-      "srcTris": 7118,
+      "bytes": 123812,
+      "srcTris": 8100,
       "lods": [
         {
-          "tris": 5000,
+          "tris": 4998,
           "level": 0
         },
         {
-          "tris": 1986,
+          "tris": 1996,
           "level": 1
         },
         {
-          "tris": 654,
+          "tris": 698,
           "level": 2
         }
       ],
@@ -143,56 +143,56 @@
       },
       "textures": [
         {
-          "name": "industrial_pastic_container_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 35756,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "industrial_pastic_container_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 54923,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "industrial_pastic_container_arm_1k.ktx2",
+          "name": "crate_blue_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 42256,
+          "bytes": 26745,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "crate_blue_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 11322,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "crate_blue_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 1393,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 330256,
+      "geometryBytes": 196640,
       "gpu": {
-        "desktop": 1903121,
-        "mobile": 1903121,
-        "rgba8": 12913167
+        "desktop": 1769505,
+        "mobile": 1769505,
+        "rgba8": 12779551
       },
       "materials": [
         {
-          "name": "industrial_pastic_container",
+          "name": "crate_blue",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     }

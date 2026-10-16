@@ -1,6 +1,6 @@
 {
   "id": "utility_box_01",
-  "recipe": "101948652674",
+  "recipe": "0eac47a30aea",
   "size": [
     0.52,
     1.12,
@@ -15,20 +15,20 @@
   "tiers": {
     "512": {
       "path": "models/utility_box_01/utility_box_01_512.glb",
-      "bytes": 133580,
-      "srcTris": 4404,
+      "bytes": 81024,
+      "srcTris": 4512,
       "lods": [
         {
-          "tris": 1761,
+          "tris": 1802,
           "level": 1
         },
         {
-          "tris": 615,
+          "tris": 630,
           "level": 2
         }
       ],
       "parts": [
-        "utility_box_01_box"
+        "utility_box_01"
       ],
       "lodShift": true,
       "lodDistances": [
@@ -49,79 +49,167 @@
       },
       "textures": [
         {
-          "name": "utility_box_01_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 33803,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "utility_box_01_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 56650,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "utility_box_01_arm_1k.ktx2",
+          "name": "ubox_paint_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 11199,
+          "bytes": 1967,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "ubox_paint_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 6647,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "ubox_paint_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1503,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "ubox_plinth_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 1865,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "ubox_plinth_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 9933,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "ubox_plinth_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 7702,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "ubox_dark_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 3038,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "ubox_dark_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 3901,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "ubox_dark_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1552,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 75504,
+      "geometryBytes": 76264,
       "gpu": {
-        "desktop": 468721,
-        "mobile": 468721,
-        "rgba8": 3221231
+        "desktop": 1255915,
+        "mobile": 1255915,
+        "rgba8": 9513445
       },
       "materials": [
         {
-          "name": "utility_box_01",
+          "name": "ubox_paint",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "ubox_plinth",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        },
+        {
+          "name": "ubox_dark",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/utility_box_01/utility_box_01_1024.glb",
-      "bytes": 422060,
-      "srcTris": 4404,
+      "bytes": 199704,
+      "srcTris": 4512,
       "lods": [
         {
-          "tris": 4404,
+          "tris": 4512,
           "level": 0
         },
         {
-          "tris": 1761,
+          "tris": 1802,
           "level": 1
         },
         {
-          "tris": 615,
+          "tris": 630,
           "level": 2
         }
       ],
       "parts": [
-        "utility_box_01_box"
+        "utility_box_01"
       ],
       "lodShift": false,
       "lodDistances": [
@@ -143,56 +231,144 @@
       },
       "textures": [
         {
-          "name": "utility_box_01_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 138229,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "utility_box_01_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 177878,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "utility_box_01_arm_1k.ktx2",
+          "name": "ubox_paint_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 37605,
+          "bytes": 3739,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "ubox_paint_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 15343,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "ubox_paint_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 3347,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "ubox_plinth_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 3290,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "ubox_plinth_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 26529,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "ubox_plinth_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 25013,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "ubox_dark_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 9953,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "ubox_dark_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 8233,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "ubox_dark_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 3510,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 181766,
+      "geometryBytes": 219712,
       "gpu": {
-        "desktop": 1754631,
-        "mobile": 1754631,
-        "rgba8": 12764677
+        "desktop": 4938307,
+        "mobile": 4938307,
+        "rgba8": 37968445
       },
       "materials": [
         {
-          "name": "utility_box_01",
+          "name": "ubox_paint",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "ubox_plinth",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        },
+        {
+          "name": "ubox_dark",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     }

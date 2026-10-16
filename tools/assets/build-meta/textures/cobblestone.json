@@ -1,12 +1,12 @@
 {
   "id": "cobblestone",
-  "recipe": "a28811d6d6a1",
+  "recipe": "3b7ab461ce0f",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/cobblestone/cobblestone_512_albedo.ktx2",
-          "bytes": 63384,
+          "bytes": 53494,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/cobblestone/cobblestone_512_normal.ktx2",
-          "bytes": 100924,
+          "bytes": 59007,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/cobblestone/cobblestone_512_orm.ktx2",
-          "bytes": 34195,
+          "bytes": 24560,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 198503,
+      "bytes": 137061,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/cobblestone/cobblestone_1024_albedo.ktx2",
-          "bytes": 207090,
+          "bytes": 151784,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/cobblestone/cobblestone_1024_normal.ktx2",
-          "bytes": 286363,
+          "bytes": 183890,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/cobblestone/cobblestone_1024_orm.ktx2",
-          "bytes": 133905,
+          "bytes": 75036,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 627358,
+      "bytes": 410710,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,8 +104,8 @@
   "stats": {
     "avgColor": "#958f84",
     "avgRoughness": 0.578,
-    "avgMetalness": 0.007,
-    "avgAO": 0.758,
+    "avgMetalness": 0,
+    "avgAO": 0.845,
     "coverage": 1
   }
 }

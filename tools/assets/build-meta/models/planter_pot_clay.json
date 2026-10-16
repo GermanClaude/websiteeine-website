@@ -1,6 +1,6 @@
 {
   "id": "planter_pot_clay",
-  "recipe": "86c60b9ef35d",
+  "recipe": "0ecff34eacce",
   "size": [
     0.266,
     0.222,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/planter_pot_clay/planter_pot_clay_512.glb",
-      "bytes": 148180,
-      "srcTris": 3080,
+      "bytes": 197544,
+      "srcTris": 688,
       "lods": [
         {
-          "tris": 1232,
+          "tris": 302,
           "level": 1
         },
         {
-          "tris": 430,
+          "tris": 122,
           "level": 2
         }
       ],
@@ -49,56 +49,100 @@
       },
       "textures": [
         {
-          "name": "planter_pot_clay_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 63077,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "planter_pot_clay_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 56469,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "planter_pot_clay_arm_1k.ktx2",
+          "name": "pot_clay_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 9077,
+          "bytes": 826,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "pot_clay_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 40951,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "pot_clay_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 2391,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "pot_soil_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 9204,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "pot_soil_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 45167,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "pot_soil_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 85164,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 35008,
+      "geometryBytes": 13022,
       "gpu": {
-        "desktop": 428225,
-        "mobile": 428225,
-        "rgba8": 3180735
+        "desktop": 799456,
+        "mobile": 799456,
+        "rgba8": 6304476
       },
       "materials": [
         {
-          "name": "planter_pot_clay",
+          "name": "pot_clay",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "pot_soil",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     }

@@ -5,11 +5,15 @@
 // TextureLoader-Texturen unten — Laufspuren/Rost zeigen nach unten und OpenGL-Normalen gelten mit normalScale (1, 1).
 // Aufruf: node tools/assets/textures.mjs [ids…] [--force]
 import { existsSync, readFileSync } from 'node:fs';
+import sharp from 'sharp';
 import { join } from 'node:path';
 import { addGpu, ensureDir, fileSize, GPU0, gpuBytes, hash, loadSources, log, META, OUT, parseArgs, PIPELINE_VERSION, readJSON, rel, writeFileAtomic, writeJSON } from './lib/common.mjs';
 import { encodeKTX2, ktx2Info, loadGray, loadRGBA, neutralize, renormalize } from './lib/ktx.mjs';
 import { fetchTexture } from './lib/sources.mjs';
-import { GENERATORS } from './lib/vorlage-gen.mjs';
+import { GENERATORS as VORLAGE } from './lib/vorlage-gen.mjs';
+import { EIGEN } from './lib/eigen-gen.mjs';
+// eigene Sätze (16.10.: alle früheren Fremd-Texturen selbst erzeugt) + Video-Vorlage-Sätze
+const GENERATORS = { ...VORLAGE, ...EIGEN };
 
 const args = parseArgs();
 const src = loadSources();
@@ -23,7 +27,10 @@ const GEN_HASH = hash(readFileSync(new URL('./lib/vorlage-gen.mjs', import.meta.
 // Video-Sätze: Quell-PNGs gehören zum Rezept (neu herausgelöst → neu gebaut)
 const videoDir = (e) => new URL(`./video-src/${e.sourceId}/`, import.meta.url).pathname;
 const videoHash = (e) => hash(['albedo', 'normal', 'orm'].map((k) => { const f = join(videoDir(e), `${k}.png`); return existsSync(f) ? hash(readFileSync(f)) : ''; }).join('|'));
-const recipe = (e) => hash({ v: PIPELINE_VERSION, s: e.source, sid: e.sourceId, tiers: e.tiers, recolor: e.recolor || null, alpha: !!e.alpha, base: e.base || null, share: e.share || null, profiles: 'k5', yflip: 1, gen: e.source === 'procedural' ? GEN_HASH : e.source === 'video' ? videoHash(e) : null });
+// Eigene Sätze: Hilfsfunktionen (alles vor „export const EIGEN“) + Quelltext des einzelnen Generators
+const EIGEN_HELPERS = hash(readFileSync(new URL('./lib/eigen-gen.mjs', import.meta.url), 'utf8').split('export const EIGEN')[0]);
+const eigenHash = (id) => hash(EIGEN_HELPERS + (EIGEN[id].src || EIGEN[id].toString()));
+const recipe = (e) => hash({ v: PIPELINE_VERSION, s: e.source, sid: e.sourceId, tiers: e.tiers, recolor: e.recolor || null, alpha: !!e.alpha, base: e.base || null, share: e.share || null, profiles: 'k5', yflip: 1, gen: e.source === 'procedural' ? (EIGEN[e.sourceId] ? eigenHash(e.sourceId) : GEN_HASH) : e.source === 'video' ? videoHash(e) : e.source === 'derived' && byId[e.base]?.source === 'procedural' ? eigenHash(byId[e.base].sourceId) : null });
 
 // ---------------------------------------------------------------------------------------------
 // Prozedurale Tarnmuster (kachelbar): periodisches Value-Noise mit Domain-Warping
@@ -166,7 +173,10 @@ async function buildSet(e) {
     const base = byId[e.base];
     const baseMeta = readJSON(join(META, 'textures', `${e.base}.json`), null);
     if (!baseMeta) throw new Error(`${e.id}: Basis ${e.base} zuerst bauen`);
-    const s = await fetchTexture(base);
+    // Grundgewebe: eigener Generator (16.10.) → Albedo als PNG-Puffer für camoAlbedo
+    const s = base.source === 'procedural'
+      ? { albedo: await (async () => { const a = GENERATORS[base.sourceId](1024).albedo; return sharp(Buffer.from(a.data.buffer, a.data.byteOffset, a.data.length), { raw: { width: a.width, height: a.height, channels: 4 } }).png().toBuffer(); })() }
+      : await fetchTexture(base);
     for (const tier of e.tiers) {
       const albedo = await camoAlbedo(e.sourceId.split(':')[1], tier, s.albedo);
       const files = { albedo: await writeKTX(join(outDir, `${e.id}_${tier}_albedo.ktx2`), albedo, 'albedo', tier) };

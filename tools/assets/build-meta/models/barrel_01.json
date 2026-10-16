@@ -1,133 +1,39 @@
 {
   "id": "barrel_01",
-  "recipe": "2cebbfaa4236",
+  "recipe": "e330350cba93",
   "size": [
-    0.562,
-    0.879,
-    0.562
+    0.564,
+    0.88,
+    0.564
   ],
-  "radius": 0.593,
+  "radius": 0.594,
   "lodDistances": [
     0,
     8.3,
-    23.7
+    23.8
   ],
   "tiers": {
     "512": {
       "path": "models/barrel_01/barrel_01_512.glb",
-      "bytes": 153356,
-      "srcTris": 2682,
+      "bytes": 37128,
+      "srcTris": 1712,
       "lods": [
         {
-          "tris": 1071,
+          "tris": 692,
           "level": 1
         },
         {
-          "tris": 374,
+          "tris": 239,
           "level": 2
         }
       ],
       "parts": [
-        "Barrel_01"
+        "barrel_01"
       ],
       "lodShift": true,
       "lodDistances": [
         0,
-        23.7
-      ],
-      "bounds": {
-        "min": [
-          -0.281,
-          -0.007,
-          -0.281
-        ],
-        "max": [
-          0.281,
-          0.872,
-          0.281
-        ]
-      },
-      "textures": [
-        {
-          "name": "Barrel_01_explosive_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 57086,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "Barrel_01_explosive_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 62506,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "Barrel_01_explosive_arm_1k.ktx2",
-          "role": "orm",
-          "width": 256,
-          "height": 256,
-          "codec": "etc1s",
-          "bytes": 12339,
-          "gpu": {
-            "desktop": 43691,
-            "mobile": 43691,
-            "rgba8": 349525
-          }
-        }
-      ],
-      "geometryBytes": 41692,
-      "gpu": {
-        "desktop": 434909,
-        "mobile": 434909,
-        "rgba8": 3187419
-      },
-      "materials": [
-        {
-          "name": "Barrel_01",
-          "alphaMode": "OPAQUE",
-          "doubleSided": true
-        }
-      ]
-    },
-    "1024": {
-      "path": "models/barrel_01/barrel_01_1024.glb",
-      "bytes": 481824,
-      "srcTris": 2682,
-      "lods": [
-        {
-          "tris": 2682,
-          "level": 0
-        },
-        {
-          "tris": 1071,
-          "level": 1
-        },
-        {
-          "tris": 374,
-          "level": 2
-        }
-      ],
-      "parts": [
-        "Barrel_01"
-      ],
-      "lodShift": false,
-      "lodDistances": [
-        0,
-        8.3,
-        23.7
+        23.8
       ],
       "bounds": {
         "min": [
@@ -143,38 +49,77 @@
       },
       "textures": [
         {
-          "name": "Barrel_01_explosive_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 201672,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "Barrel_01_explosive_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 192717,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "Barrel_01_explosive_arm_1k.ktx2",
+          "name": "barrel_red_orm.ktx2",
           "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 2354,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "barrel_red_diff.ktx2",
+          "role": "albedo",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 42388,
+          "bytes": 3741,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "barrel_red_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1549,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "barrel_red_label_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 2991,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "barrel_red_label_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 4514,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "barrel_red_label_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1516,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
@@ -182,17 +127,160 @@
           }
         }
       ],
-      "geometryBytes": 102928,
+      "geometryBytes": 27946,
       "gpu": {
-        "desktop": 1675793,
-        "mobile": 1675793,
-        "rgba8": 12685839
+        "desktop": 814380,
+        "mobile": 814380,
+        "rgba8": 6319400
       },
       "materials": [
         {
-          "name": "Barrel_01",
+          "name": "barrel_red",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "barrel_red_label",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        }
+      ]
+    },
+    "1024": {
+      "path": "models/barrel_01/barrel_01_1024.glb",
+      "bytes": 75952,
+      "srcTris": 1712,
+      "lods": [
+        {
+          "tris": 1712,
+          "level": 0
+        },
+        {
+          "tris": 692,
+          "level": 1
+        },
+        {
+          "tris": 239,
+          "level": 2
+        }
+      ],
+      "parts": [
+        "barrel_01"
+      ],
+      "lodShift": false,
+      "lodDistances": [
+        0,
+        8.3,
+        23.8
+      ],
+      "bounds": {
+        "min": [
+          -0.282,
+          -0.007,
+          -0.282
+        ],
+        "max": [
+          0.282,
+          0.873,
+          0.282
+        ]
+      },
+      "textures": [
+        {
+          "name": "barrel_red_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 4105,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "barrel_red_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 7908,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "barrel_red_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 3333,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "barrel_red_label_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 7846,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "barrel_red_label_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 9325,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "barrel_red_label_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 3377,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      ],
+      "geometryBytes": 69782,
+      "gpu": {
+        "desktop": 3215512,
+        "mobile": 3215512,
+        "rgba8": 25235604
+      },
+      "materials": [
+        {
+          "name": "barrel_red",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        },
+        {
+          "name": "barrel_red_label",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     }

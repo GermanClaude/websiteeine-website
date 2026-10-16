@@ -14,6 +14,7 @@ import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import { download, ensureDir, gpuBytes, hash, loadSources, log, META, OUT, parseArgs, PIPELINE_VERSION, readJSON, rel, SRC, writeFileAtomic, writeJSON } from './lib/common.mjs';
 import { encodeKTX2, ktx2Info, loadRGBA, renormalize } from './lib/ktx.mjs';
 import { fetchModel, phFiles } from './lib/sources.mjs';
+import { modelHash } from './lib/eigen-models.mjs';
 import sharp from 'sharp';
 
 const args = parseArgs();
@@ -35,7 +36,7 @@ function tiersFor(e) {
 // ORM (AO/Rauheit/Metall) ist niederfrequent → halbe Kantenlänge (¼ Speicher), außer bei Waffen (Nahansicht)
 const ormSize = (e, tier) => (e.weapon ? tier : tier / 2);
 
-const recipe = (e, matfix, vcol) => hash({ v: PIPELINE_VERSION, e: { id: e.id, s: e.sourceId, tiers: tiersFor(e), b: e.lod0Tris, kit: e.kit, w: e.weapon, sc: e.scale, kp: e.keepParts, ...(matfix ? { matfix: 4 } : {}), ...(vcol ? { vcol: 1 } : {}) }, k: 'm5' });
+const recipe = (e, matfix, vcol) => hash({ v: PIPELINE_VERSION, e: { id: e.id, s: e.sourceId, tiers: tiersFor(e), b: e.lod0Tris, kit: e.kit, w: e.weapon, sc: e.scale, kp: e.keepParts, ...(matfix ? { matfix: 4 } : {}), ...(vcol ? { vcol: 1 } : {}), ...(e.source === 'procedural' ? { own: modelHash(e.sourceId) } : {}) }, k: 'm5' });
 // Materialien, die three.js sonst als teures MeshPhysicalMaterial (+ Transmissions-Durchgang) anlegt, bzw. mit Alpha
 const MATFIX_RE = /KHR_materials_(transmission|ior|specular|volume)|"BLEND"|"MASK"/;
 
@@ -160,6 +161,7 @@ function textureRoles(doc) {
  */
 async function applyAlphaMaps(doc, e, res) {
   const fixed = new Set();
+  if (e.source === 'procedural') return fixed; // eigene Modelle: Alpha steckt schon in der Grundfarbe
   const files = await phFiles(e.sourceId);
   const strip = (str) => (str.toLowerCase().startsWith(e.sourceId.toLowerCase()) ? str.slice(e.sourceId.length).replace(/^_/, '') : str);
   const fetchMap = async (key) => {
@@ -321,7 +323,7 @@ async function processTier(e, tier) {
     if (!hasAlpha) for (let i = 3; i < rgba.data.length; i += 4) rgba.data[i] = 255;
     const bytes = await encodeKTX2(rgba, role, tier);
     const info = ktx2Info(bytes);
-    tex.setImage(bytes).setMimeType('image/ktx2').setURI((tex.getURI() || 'tex').replace(/\.(jpe?g|png)$/i, '.ktx2').split('/').pop());
+    tex.setImage(bytes).setMimeType('image/ktx2').setURI((tex.getURI() || `${tex.getName() || 'tex'}.png`).replace(/\.(jpe?g|png)$/i, '.ktx2').split('/').pop()); // GLB-Quellen (eigene Modelle) haben keine URI
     texMeta.push({ name: tex.getURI(), role, width: info.width, height: info.height, codec: info.codec, bytes: bytes.length, gpu: gpuBytes(info.width, info.height, { codec: info.codec, alpha: hasAlpha }) });
   }
   doc.createExtension(KHRTextureBasisu).setRequired(true);

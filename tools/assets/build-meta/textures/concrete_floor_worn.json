@@ -1,12 +1,12 @@
 {
   "id": "concrete_floor_worn",
-  "recipe": "1d2b8b0e3cc0",
+  "recipe": "5ba7f0b0687e",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/concrete_floor_worn/concrete_floor_worn_512_albedo.ktx2",
-          "bytes": 46225,
+          "bytes": 22937,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/concrete_floor_worn/concrete_floor_worn_512_normal.ktx2",
-          "bytes": 14551,
+          "bytes": 1690,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/concrete_floor_worn/concrete_floor_worn_512_orm.ktx2",
-          "bytes": 32767,
+          "bytes": 24832,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 93543,
+      "bytes": 49459,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/concrete_floor_worn/concrete_floor_worn_1024_albedo.ktx2",
-          "bytes": 158799,
+          "bytes": 70817,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/concrete_floor_worn/concrete_floor_worn_1024_normal.ktx2",
-          "bytes": 154786,
+          "bytes": 21504,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/concrete_floor_worn/concrete_floor_worn_1024_orm.ktx2",
-          "bytes": 129145,
+          "bytes": 76583,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 442730,
+      "bytes": 168904,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,7 +104,7 @@
       "files": {
         "albedo": {
           "path": "textures/concrete_floor_worn/concrete_floor_worn_2048_albedo.ktx2",
-          "bytes": 605733,
+          "bytes": 199559,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -117,7 +117,7 @@
         },
         "normal": {
           "path": "textures/concrete_floor_worn/concrete_floor_worn_2048_normal.ktx2",
-          "bytes": 698870,
+          "bytes": 129293,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -130,7 +130,7 @@
         },
         "orm": {
           "path": "textures/concrete_floor_worn/concrete_floor_worn_2048_orm.ktx2",
-          "bytes": 562404,
+          "bytes": 232907,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -142,7 +142,7 @@
           }
         }
       },
-      "bytes": 1867007,
+      "bytes": 561759,
       "gpu": {
         "desktop": 8388609,
         "mobile": 8388609,
@@ -153,8 +153,8 @@
   "stats": {
     "avgColor": "#565754",
     "avgRoughness": 0.541,
-    "avgMetalness": 0.005,
-    "avgAO": 0.957,
+    "avgMetalness": 0,
+    "avgAO": 0.995,
     "coverage": 1
   }
 }

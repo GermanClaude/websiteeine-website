@@ -1,12 +1,12 @@
 {
   "id": "fabric_uniform",
-  "recipe": "24c8082f0811",
+  "recipe": "e259501a60be",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/fabric_uniform/fabric_uniform_512_albedo.ktx2",
-          "bytes": 50529,
+          "bytes": 42693,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/fabric_uniform/fabric_uniform_512_normal.ktx2",
-          "bytes": 65674,
+          "bytes": 33013,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/fabric_uniform/fabric_uniform_512_orm.ktx2",
-          "bytes": 20791,
+          "bytes": 26435,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 136994,
+      "bytes": 102141,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/fabric_uniform/fabric_uniform_1024_albedo.ktx2",
-          "bytes": 167017,
+          "bytes": 146231,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/fabric_uniform/fabric_uniform_1024_normal.ktx2",
-          "bytes": 240430,
+          "bytes": 192357,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/fabric_uniform/fabric_uniform_1024_orm.ktx2",
-          "bytes": 88056,
+          "bytes": 101775,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 495503,
+      "bytes": 440363,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -103,9 +103,9 @@
   },
   "stats": {
     "avgColor": "#9a9a9a",
-    "avgRoughness": 0.829,
+    "avgRoughness": 0.83,
     "avgMetalness": 0,
-    "avgAO": 0.704,
+    "avgAO": 0.914,
     "coverage": 1
   }
 }

@@ -1,12 +1,12 @@
 {
   "id": "metal_trash_can",
-  "recipe": "b639c8048fdc",
+  "recipe": "85e2d31da5ce",
   "size": [
-    1.777,
-    0.906,
-    0.552
+    1.776,
+    0.903,
+    0.554
   ],
-  "radius": 1.035,
+  "radius": 1.034,
   "lodDistances": [
     0,
     14.5,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/metal_trash_can/metal_trash_can_512.glb",
-      "bytes": 392028,
-      "srcTris": 13960,
+      "bytes": 85676,
+      "srcTris": 5504,
       "lods": [
         {
-          "tris": 2394,
+          "tris": 2195,
           "level": 1
         },
         {
-          "tris": 832,
+          "tris": 760,
           "level": 2
         }
       ],
@@ -38,50 +38,24 @@
       ],
       "bounds": {
         "min": [
-          -0.953,
+          -0.951,
           0,
-          -0.276
+          -0.277
         ],
         "max": [
-          0.824,
-          0.906,
-          0.276
+          0.825,
+          0.903,
+          0.277
         ]
       },
       "textures": [
         {
-          "name": "metal_trash_can_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 94294,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "metal_trash_can_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 56477,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "metal_trash_can_arm_1k.ktx2",
+          "name": "trash_zinc_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 11582,
+          "bytes": 8997,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
@@ -89,25 +63,12 @@
           }
         },
         {
-          "name": "metal_trash_can_rust_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 107632,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "metal_trash_can_rust_diff_1k.ktx2",
+          "name": "trash_zinc_diff.ktx2",
           "role": "albedo",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 64508,
+          "bytes": 13500,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
@@ -115,53 +76,79 @@
           }
         },
         {
-          "name": "metal_trash_can_rust_arm_1k.ktx2",
+          "name": "trash_rust_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 10718,
+          "bytes": 3628,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
+          }
+        },
+        {
+          "name": "trash_rust_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 9083,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "trash_rust_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 2234,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 88502,
+      "geometryBytes": 87488,
       "gpu": {
-        "desktop": 874936,
-        "mobile": 874936,
-        "rgba8": 6379956
+        "desktop": 699159,
+        "mobile": 699159,
+        "rgba8": 4980841
       },
       "materials": [
         {
-          "name": "metal_trash_can",
+          "name": "trash_zinc",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         },
         {
-          "name": "metal_trash_can_rust",
+          "name": "trash_rust",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/metal_trash_can/metal_trash_can_1024.glb",
-      "bytes": 1149124,
-      "srcTris": 13960,
+      "bytes": 207800,
+      "srcTris": 5504,
       "lods": [
         {
-          "tris": 5998,
+          "tris": 5504,
           "level": 0
         },
         {
-          "tris": 2394,
+          "tris": 2195,
           "level": 1
         },
         {
-          "tris": 832,
+          "tris": 760,
           "level": 2
         }
       ],
@@ -189,38 +176,12 @@
       },
       "textures": [
         {
-          "name": "metal_trash_can_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 271581,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "metal_trash_can_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 180477,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "metal_trash_can_arm_1k.ktx2",
+          "name": "trash_zinc_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 41781,
+          "bytes": 25632,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
@@ -228,25 +189,12 @@
           }
         },
         {
-          "name": "metal_trash_can_rust_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 309284,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "metal_trash_can_rust_diff_1k.ktx2",
+          "name": "trash_zinc_diff.ktx2",
           "role": "albedo",
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
-          "bytes": 203991,
+          "bytes": 34235,
           "gpu": {
             "desktop": 699051,
             "mobile": 699051,
@@ -254,35 +202,61 @@
           }
         },
         {
-          "name": "metal_trash_can_rust_arm_1k.ktx2",
+          "name": "trash_rust_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 37749,
+          "bytes": 7162,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
+          }
+        },
+        {
+          "name": "trash_rust_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 22293,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "trash_rust_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 5955,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
           }
         }
       ],
-      "geometryBytes": 229496,
+      "geometryBytes": 231792,
       "gpu": {
-        "desktop": 3375226,
-        "mobile": 3375226,
-        "rgba8": 25395318
+        "desktop": 2678471,
+        "mobile": 2678471,
+        "rgba8": 19805209
       },
       "materials": [
         {
-          "name": "metal_trash_can",
+          "name": "trash_zinc",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         },
         {
-          "name": "metal_trash_can_rust",
+          "name": "trash_rust",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     }

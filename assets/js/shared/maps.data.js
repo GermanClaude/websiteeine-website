@@ -20,8 +20,8 @@ export const MAPS = {
     weather: 'Bewölkt, weiches Licht',
     // atmosphere-weather: wählbares Wetter (ohne Niederschlag) + Tageszeiten; Standard = Kartenwetter/-zeit (unverändert)
     // Grafik-Vorlage (15.10.): Kartenzeit Nachmittag wie im Video; die frühere Goldene Stunde ist die Zeit „Abend“
-    // 15.10. abends: „Standard“ = bewölkt wie das Video (weatherStandard); Bezugswetter der Kartenbeleuchtung bleibt klar
-    weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'klar', weatherStandard: 'bewoelkt',
+    // 16.10. (Nutzer: „Mach alles“): Standard wieder klar – Video-Einstellung 2 (Containergasse) zeigt Sonne
+    weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'klar',
     timeDefault: 'nachmittag', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'mittag', name: 'Mittag' }, { id: 'abend', name: 'Abend' }],
     modes: ['tdm', 'ult', 'ffa', 'dom', 'gun', 'kc', 'inf', 'messer'],
     palette: ['#f2a65a', '#c8402f', '#2d5f94', '#1f4a57', '#3b3f44'],

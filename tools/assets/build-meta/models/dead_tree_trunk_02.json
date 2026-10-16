@@ -1,12 +1,12 @@
 {
   "id": "dead_tree_trunk_02",
-  "recipe": "23cc06c95a4d",
+  "recipe": "22f77ec24f3f",
   "size": [
-    4.038,
+    4.048,
     1.053,
-    1.04
+    1.053
   ],
-  "radius": 2.15,
+  "radius": 2.157,
   "lodDistances": [
     0,
     30.2,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/dead_tree_trunk_02/dead_tree_trunk_02_512.glb",
-      "bytes": 220644,
-      "srcTris": 83128,
+      "bytes": 136784,
+      "srcTris": 1888,
       "lods": [
         {
-          "tris": 2388,
+          "tris": 755,
           "level": 1
         },
         {
-          "tris": 836,
+          "tris": 257,
           "level": 2
         }
       ],
@@ -39,84 +39,128 @@
         "min": [
           -1.923,
           -0.327,
-          -0.486
+          -0.499
         ],
         "max": [
-          2.115,
+          2.125,
           0.726,
           0.554
         ]
       },
       "textures": [
         {
-          "name": "dead_tree_trunk_02_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 101958,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "dead_tree_trunk_02_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 67891,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "dead_tree_trunk_02_arm_1k.ktx2",
+          "name": "trunk_bark_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 11267,
+          "bytes": 2034,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "trunk_bark_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 36647,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "trunk_bark_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 31518,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "trunk_wood_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 3158,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "trunk_wood_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 20453,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "trunk_wood_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 22040,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 83870,
+      "geometryBytes": 28224,
       "gpu": {
-        "desktop": 477087,
-        "mobile": 477087,
-        "rgba8": 3229597
+        "desktop": 814658,
+        "mobile": 814658,
+        "rgba8": 6319678
       },
       "materials": [
         {
-          "name": "dead_tree_trunk_02",
+          "name": "trunk_bark",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "trunk_wood",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/dead_tree_trunk_02/dead_tree_trunk_02_1024.glb",
-      "bytes": 647572,
-      "srcTris": 83128,
+      "bytes": 339388,
+      "srcTris": 1888,
       "lods": [
         {
-          "tris": 5988,
+          "tris": 1888,
           "level": 0
         },
         {
-          "tris": 2388,
+          "tris": 755,
           "level": 1
         },
         {
-          "tris": 836,
+          "tris": 257,
           "level": 2
         }
       ],
@@ -143,56 +187,100 @@
       },
       "textures": [
         {
-          "name": "dead_tree_trunk_02_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 293774,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "dead_tree_trunk_02_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 222233,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "dead_tree_trunk_02_arm_1k.ktx2",
+          "name": "trunk_bark_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 40774,
+          "bytes": 6901,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "trunk_bark_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 98430,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "trunk_bark_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 79302,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "trunk_wood_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 9467,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "trunk_wood_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 45953,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "trunk_wood_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 58228,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 214948,
+      "geometryBytes": 72182,
       "gpu": {
-        "desktop": 1787813,
-        "mobile": 1787813,
-        "rgba8": 12797859
+        "desktop": 3217912,
+        "mobile": 3217912,
+        "rgba8": 25238004
       },
       "materials": [
         {
-          "name": "dead_tree_trunk_02",
+          "name": "trunk_bark",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "trunk_wood",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     }

@@ -1,6 +1,6 @@
 {
   "id": "metal_jerrycan_green",
-  "recipe": "76b3c2f236ec",
+  "recipe": "2b9e14b579ee",
   "size": [
     0.36,
     0.5,
@@ -15,20 +15,20 @@
   "tiers": {
     "512": {
       "path": "models/metal_jerrycan_green/metal_jerrycan_green_512.glb",
-      "bytes": 174920,
-      "srcTris": 9636,
+      "bytes": 47312,
+      "srcTris": 5084,
       "lods": [
         {
-          "tris": 1998,
+          "tris": 2000,
           "level": 1
         },
         {
-          "tris": 698,
+          "tris": 700,
           "level": 2
         }
       ],
       "parts": [
-        "metal_jerrycan_green_pin"
+        "metal_jerrycan_green"
       ],
       "lodShift": true,
       "lodDistances": [
@@ -49,79 +49,79 @@
       },
       "textures": [
         {
-          "name": "metal_jerrycan_green_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 68087,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "metal_jerrycan_green_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 55099,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "metal_jerrycan_green_arm_1k.ktx2",
+          "name": "jerrycan_green_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 15097,
+          "bytes": 2243,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "jerrycan_green_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 3575,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "jerrycan_green_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1695,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 76962,
+      "geometryBytes": 83254,
       "gpu": {
-        "desktop": 470179,
-        "mobile": 470179,
-        "rgba8": 3222689
+        "desktop": 476471,
+        "mobile": 476471,
+        "rgba8": 3228981
       },
       "materials": [
         {
-          "name": "metal_jerrycan_green",
+          "name": "jerrycan_green",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/metal_jerrycan_green/metal_jerrycan_green_1024.glb",
-      "bytes": 525880,
-      "srcTris": 9636,
+      "bytes": 107768,
+      "srcTris": 5084,
       "lods": [
         {
           "tris": 5000,
           "level": 0
         },
         {
-          "tris": 1998,
+          "tris": 2000,
           "level": 1
         },
         {
-          "tris": 698,
+          "tris": 700,
           "level": 2
         }
       ],
       "parts": [
-        "metal_jerrycan_green_pin"
+        "metal_jerrycan_green"
       ],
       "lodShift": false,
       "lodDistances": [
@@ -143,56 +143,56 @@
       },
       "textures": [
         {
-          "name": "metal_jerrycan_green_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 216817,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "metal_jerrycan_green_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 176352,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "metal_jerrycan_green_arm_1k.ktx2",
+          "name": "jerrycan_green_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 50709,
+          "bytes": 4374,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "jerrycan_green_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 7164,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "jerrycan_green_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 3815,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 196040,
+      "geometryBytes": 216864,
       "gpu": {
-        "desktop": 1768905,
-        "mobile": 1768905,
-        "rgba8": 12778951
+        "desktop": 1789729,
+        "mobile": 1789729,
+        "rgba8": 12799775
       },
       "materials": [
         {
-          "name": "metal_jerrycan_green",
+          "name": "jerrycan_green",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     }

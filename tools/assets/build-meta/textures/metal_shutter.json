@@ -1,12 +1,12 @@
 {
   "id": "metal_shutter",
-  "recipe": "e8b97b9517fc",
+  "recipe": "1c54c7c7e0f3",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/metal_shutter/metal_shutter_512_albedo.ktx2",
-          "bytes": 47381,
+          "bytes": 27225,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/metal_shutter/metal_shutter_512_normal.ktx2",
-          "bytes": 24551,
+          "bytes": 10290,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/metal_shutter/metal_shutter_512_orm.ktx2",
-          "bytes": 10890,
+          "bytes": 5698,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 82822,
+      "bytes": 43213,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/metal_shutter/metal_shutter_1024_albedo.ktx2",
-          "bytes": 166600,
+          "bytes": 61124,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/metal_shutter/metal_shutter_1024_normal.ktx2",
-          "bytes": 158234,
+          "bytes": 34934,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/metal_shutter/metal_shutter_1024_orm.ktx2",
-          "bytes": 56429,
+          "bytes": 14724,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 381263,
+      "bytes": 110782,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -103,9 +103,9 @@
   },
   "stats": {
     "avgColor": "#808487",
-    "avgRoughness": 0.633,
-    "avgMetalness": 0.002,
-    "avgAO": 0.881,
+    "avgRoughness": 0.634,
+    "avgMetalness": 0,
+    "avgAO": 0.964,
     "coverage": 1
   }
 }

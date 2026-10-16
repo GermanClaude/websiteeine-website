@@ -329,7 +329,7 @@ export function createAtmosphere(G, { quality, def, sunDir, openings = [], bvh, 
       beamMat = new THREE.ShaderMaterial({
         name: 'np:sonnenstrahlen',
         uniforms: {
-          uColor: { value: sunCol.clone().multiplyScalar(def.sun.intensity) },
+          uColor: { value: sunCol.clone().multiplyScalar(def.sun.intensity).multiply(new THREE.Color(A.beamTint ?? '#ffffff')) }, // beamTint: Staub färbt das Licht (Werkhalle warm)
           uSunDir: { value: L.clone() }, uTime: { value: 0 }, uG: { value: A.beamG ?? 0.4 },
         },
         vertexShader: BEAM_VERT, fragmentShader: BEAM_FRAG,

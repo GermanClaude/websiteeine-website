@@ -1,0 +1,86 @@
+{
+  "id": "np_sky_morgen_morgennebel",
+  "recipe": "ea85493d2317",
+  "tiers": {
+    "512": {
+      "hdr": {
+        "path": "hdri/np_sky_morgen_morgennebel/np_sky_morgen_morgennebel_512.hdr",
+        "bytes": 154057,
+        "width": 512,
+        "height": 256,
+        "gpu": {
+          "desktop": 1048576,
+          "mobile": 1048576,
+          "rgba8": 1048576
+        }
+      },
+      "background": {
+        "path": "hdri/np_sky_morgen_morgennebel/np_sky_morgen_morgennebel_bg_1024.ktx2",
+        "bytes": 21874,
+        "width": 1024,
+        "height": 512,
+        "codec": "etc1s",
+        "gpu": {
+          "desktop": 262144,
+          "mobile": 262144,
+          "rgba8": 2097152
+        }
+      },
+      "bytes": 175931,
+      "gpu": {
+        "desktop": 6553600,
+        "mobile": 6553600,
+        "rgba8": 8388608
+      }
+    },
+    "1024": {
+      "hdr": {
+        "path": "hdri/np_sky_morgen_morgennebel/np_sky_morgen_morgennebel_1024.hdr",
+        "bytes": 507130,
+        "width": 1024,
+        "height": 512,
+        "gpu": {
+          "desktop": 4194304,
+          "mobile": 4194304,
+          "rgba8": 4194304
+        }
+      },
+      "background": {
+        "path": "hdri/np_sky_morgen_morgennebel/np_sky_morgen_morgennebel_bg_2048.ktx2",
+        "bytes": 54748,
+        "width": 2048,
+        "height": 1024,
+        "codec": "etc1s",
+        "gpu": {
+          "desktop": 1048576,
+          "mobile": 1048576,
+          "rgba8": 8388608
+        }
+      },
+      "bytes": 561878,
+      "gpu": {
+        "desktop": 7340032,
+        "mobile": 7340032,
+        "rgba8": 14680064
+      }
+    }
+  },
+  "stats": {
+    "sun": {
+      "dir": [
+        0.9848,
+        0.1736,
+        0
+      ],
+      "elevationDeg": 10,
+      "azimuthDeg": 90,
+      "peak": 166.27,
+      "dominance": 269.7
+    },
+    "avgLuminance": 0.3727,
+    "skyLuminance": 0.6165,
+    "skyGeoLuminance": 0.3246,
+    "geoLuminance": 0.2001,
+    "backgroundExposure": 0.8996
+  }
+}

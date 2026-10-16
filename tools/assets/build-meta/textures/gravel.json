@@ -1,12 +1,12 @@
 {
   "id": "gravel",
-  "recipe": "78441c80b775",
+  "recipe": "d8a8a30c655e",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/gravel/gravel_512_albedo.ktx2",
-          "bytes": 61795,
+          "bytes": 61537,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/gravel/gravel_512_normal.ktx2",
-          "bytes": 105914,
+          "bytes": 107243,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/gravel/gravel_512_orm.ktx2",
-          "bytes": 27696,
+          "bytes": 31892,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 195405,
+      "bytes": 200672,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/gravel/gravel_1024_albedo.ktx2",
-          "bytes": 210360,
+          "bytes": 176814,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/gravel/gravel_1024_normal.ktx2",
-          "bytes": 313949,
+          "bytes": 301749,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/gravel/gravel_1024_orm.ktx2",
-          "bytes": 110731,
+          "bytes": 98807,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 635040,
+      "bytes": 577370,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -103,9 +103,9 @@
   },
   "stats": {
     "avgColor": "#ada99e",
-    "avgRoughness": 0.473,
-    "avgMetalness": 0.002,
-    "avgAO": 0.671,
+    "avgRoughness": 0.47,
+    "avgMetalness": 0,
+    "avgAO": 0.895,
     "coverage": 1
   }
 }

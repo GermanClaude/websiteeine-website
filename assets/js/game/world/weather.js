@@ -38,32 +38,39 @@ export const WEATHER_FX = Object.freeze({
     sun: 0.16, fill: 1.6, fog: 1.6, beams: 0.06, dust: 0.55, shafts: 0.06, inscatter: 0.25, ref: 0.6,
     sky: { coverage: 0.96, density: 0.82, hazeAmount: 0.95, hazeHigh: 0.22, turbidity: 2.2, exposure: 0.84, tint: '#cbcfd0', elevation: 0.42 }, // 15.10.: heller, kaum blau (Video Hafen)
     // 16.10.: neutral statt bläulich (Video Hafen Einstellung 1: heller, fast farbloser Wolkenhimmel, Schatten grau-grün)
-    // und echter Foto-Wolkenhimmel (Poly Haven „kloofendal_overcast_puresky“, CC0) statt prozeduraler Wolkendecke
     sunColor: { toward: '#ecebe7', amount: 0.65 },
     fogTint: { toward: '#babcb8', amount: 0.45 },
     hemiTint: { toward: '#d0d1cc', amount: 0.6 },
-    hdri: 'kloofendal_overcast_puresky', envTint: '#ebeae6',
+    envTint: '#ebeae6',
     shadowRadius: 7,
     lut: { contrast: -0.03, saturation: 0.9, temperature: -0.02 }, // 15.10.: Video (Hafen bewölkt) kräftiger, tiefere Schwarztöne
   },
 });
 
 /**
- * Tageszeiten (Sonnenstand absolut). hdri: passendes Foto für Umgebungslicht/Himmel; sky: Preetham-Streuung;
+ * Tageszeiten (Sonnenstand absolut; der Himmel kommt aus skyFor). sky: Preetham-Streuung (Ersatzhimmel);
  * fog/hemi: Tönung der Kartenfarben; lut: Temperatur-Verschiebung der Kartenstimmung.
  */
 export const TIME_FX = Object.freeze({
-  morgen: { elevation: 10, azimuth: 102, sun: '#ffc596', hdri: 'zwartkops_straight_morning', sky: { turbidity: 4.5, rayleigh: 2.1, mieCoefficient: 0.007 }, fog: '#c8ccd6', hemi: '#c3cde0', lut: { temperature: 0.03 } },
-  vormittag: { elevation: 36, azimuth: 150, sun: '#fff1dc', hdri: 'kloofendal_48d_partly_cloudy_puresky', sky: { turbidity: 4, rayleigh: 1.5, mieCoefficient: 0.005 }, fog: '#bfcad4', hemi: '#cbd9e8' },
-  mittag: { elevation: 58, azimuth: 196, sun: '#fff3e2', hdri: 'old_outdoor_theater', sky: { turbidity: 2.8, rayleigh: 1.1, mieCoefficient: 0.0035 }, fog: '#d3dee8', hemi: '#d6e0ea', lut: { temperature: 0 } },
-  nachmittag: { elevation: 30, azimuth: 236, sun: '#ffe4bf', hdri: 'kloofendal_38d_partly_cloudy_puresky', sky: { turbidity: 4, rayleigh: 1.5, mieCoefficient: 0.005 }, fog: '#d2d4d2', hemi: '#d2d8de', lut: { temperature: 0.05 } },
-  abend: { elevation: 12, azimuth: 252, sun: '#ffb676', hdri: 'freight_station', sky: { turbidity: 7, rayleigh: 2.4, mieCoefficient: 0.009 }, fog: '#dcb08a', hemi: '#d6c2ad', lut: { temperature: 0.12 } },
+  morgen: { elevation: 10, azimuth: 102, sun: '#ffc596', sky: { turbidity: 4.5, rayleigh: 2.1, mieCoefficient: 0.007 }, fog: '#c8ccd6', hemi: '#c3cde0', lut: { temperature: 0.03 } },
+  vormittag: { elevation: 36, azimuth: 150, sun: '#fff1dc', sky: { turbidity: 4, rayleigh: 1.5, mieCoefficient: 0.005 }, fog: '#bfcad4', hemi: '#cbd9e8' },
+  mittag: { elevation: 58, azimuth: 196, sun: '#fff3e2', sky: { turbidity: 2.8, rayleigh: 1.1, mieCoefficient: 0.0035 }, fog: '#d3dee8', hemi: '#d6e0ea', lut: { temperature: 0 } },
+  nachmittag: { elevation: 30, azimuth: 236, sun: '#ffe4bf', sky: { turbidity: 4, rayleigh: 1.5, mieCoefficient: 0.005 }, fog: '#d2d4d2', hemi: '#d2d8de', lut: { temperature: 0.05 } },
+  abend: { elevation: 12, azimuth: 252, sun: '#ffb676', sky: { turbidity: 7, rayleigh: 2.4, mieCoefficient: 0.009 }, fog: '#dcb08a', hemi: '#d6c2ad', lut: { temperature: 0.12 } },
 });
 
 /**
  * Typische Uhrzeit (Stunde, Ortszeit) je Tageszeit – für „Echtzeit“: gespielt wird die Tageszeit der Karte, die der
  * echten Uhrzeit am nächsten liegt (Sonnenstand der TIME_FX-Einträge: Morgen ≈ 7 Uhr … Abend ≈ 19 Uhr).
  */
+/**
+ * Eigener Himmel (tools/assets/skygen.py, Nutzer 16.10.: alles selbst statt Fotos von Open-Source-Seiten) für
+ * Tageszeit × Wetter → Asset-Id `np_sky_<zeit>_<wetter>`; Himmel und Umgebungslicht der Karte kommen daraus.
+ */
+export function skyFor(time, weather) {
+  return `np_sky_${TIME_FX[time] ? time : 'mittag'}_${WEATHER_FX[weather] ? weather : 'klar'}`;
+}
+
 export const TIME_HOURS = Object.freeze({ morgen: 7, vormittag: 10, mittag: 12.5, nachmittag: 15.5, abend: 19 });
 
 /**
@@ -155,9 +162,6 @@ export function applyConditions(def, cond, mapId) {
     if (L.env.hdriTint) L.env.hdriTint = mixHex(L.env.hdriTint, '#ffffff', 0.7);
     if (L.env.tint) L.env.tint = mixHex(L.env.tint, T.hemi, 0.5);
     if (L.sky.tint) L.sky.tint = mixHex(L.sky.tint, '#ffffff', 0.6);
-    if (T.hdri && assets.hdri) assets.hdri = T.hdri;
-    // Hof der tiefen Sonne bleibt begrenzt; Mischhimmel (Foto oben) nur bei der Originalzeit
-    if (L.sky.hdriBlend && assets.hdri !== def.assets?.hdri) L.sky.hdriBlend = [0.3, 0.6];
   }
   // ---------------------------------------------------------------- Wetter (relativ zum Kartenwetter)
   const r = (k) => (W[k] ?? 1) / (W0[k] ?? 1);
@@ -196,14 +200,14 @@ export function applyConditions(def, cond, mapId) {
     if (W.fogTint) L.fog.color = mixHex(L.fog.color, W.fogTint.toward === 'sun' ? L.sun.color : W.fogTint.toward, W.fogTint.amount);
     if (W.sunColor) L.sun.color = mixHex(L.sun.color, W.sunColor.toward, W.sunColor.amount);
     if (W.hemiTint) L.hemi.sky = mixHex(L.hemi.sky, W.hemiTint.toward, W.hemiTint.amount);
-    if (W.hdri && assets.hdri) {
-      assets.hdri = W.hdri;
-      L.env.hdriTint = W.envTint || L.env.hdriTint;
-      L.env.tint = W.envTint || L.env.tint;
-      if (W.hdriSky === false) L.sky.hdri = false; // Himmel prozedural (geschlossene Wolkendecke)
+    if (W.envTint && assets.hdri) {
+      L.env.hdriTint = W.envTint;
+      L.env.tint = W.envTint;
     }
     if (W.shadowRadius) L.shadow.radius = W.shadowRadius;
   }
+  // ---------------------------------------------------------------- Himmel (eigene Himmel je Tageszeit × Wetter)
+  if (assets.hdri) assets.hdri = skyFor(cond.time || cond.timeDefault, cond.weather);
   // ---------------------------------------------------------------- Stimmung (core-render setMood)
   const moodId = def.grade?.mood || MOOD_FOR_MAP[mapId] || 'neutral';
   const M = MOODS[moodId] || MOODS.neutral;

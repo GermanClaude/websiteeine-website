@@ -1,12 +1,12 @@
 {
   "id": "metal_painted",
-  "recipe": "9c3c51c28ff8",
+  "recipe": "f281e8c7a9a4",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/metal_painted/metal_painted_512_albedo.ktx2",
-          "bytes": 48975,
+          "bytes": 12024,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/metal_painted/metal_painted_512_normal.ktx2",
-          "bytes": 5422,
+          "bytes": 4226,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/metal_painted/metal_painted_512_orm.ktx2",
-          "bytes": 29282,
+          "bytes": 16251,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 83679,
+      "bytes": 32501,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/metal_painted/metal_painted_1024_albedo.ktx2",
-          "bytes": 160442,
+          "bytes": 29692,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/metal_painted/metal_painted_1024_normal.ktx2",
-          "bytes": 18433,
+          "bytes": 12356,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/metal_painted/metal_painted_1024_orm.ktx2",
-          "bytes": 115363,
+          "bytes": 37434,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 294238,
+      "bytes": 79482,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,7 +104,7 @@
       "files": {
         "albedo": {
           "path": "textures/metal_painted/metal_painted_2048_albedo.ktx2",
-          "bytes": 613457,
+          "bytes": 74605,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -117,7 +117,7 @@
         },
         "normal": {
           "path": "textures/metal_painted/metal_painted_2048_normal.ktx2",
-          "bytes": 66680,
+          "bytes": 34064,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -130,7 +130,7 @@
         },
         "orm": {
           "path": "textures/metal_painted/metal_painted_2048_orm.ktx2",
-          "bytes": 478599,
+          "bytes": 92043,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -142,7 +142,7 @@
           }
         }
       },
-      "bytes": 1158736,
+      "bytes": 200712,
       "gpu": {
         "desktop": 8388609,
         "mobile": 8388609,
@@ -153,8 +153,8 @@
   "stats": {
     "avgColor": "#a0a09f",
     "avgRoughness": 0.504,
-    "avgMetalness": 0.003,
-    "avgAO": 0.876,
+    "avgMetalness": 0,
+    "avgAO": 0.997,
     "coverage": 1
   }
 }

@@ -1,6 +1,6 @@
 {
   "id": "hanging_industrial_lamp",
-  "recipe": "d52d074b79ce",
+  "recipe": "aa79de13eaf1",
   "size": [
     0.55,
     1.355,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/hanging_industrial_lamp/hanging_industrial_lamp_512.glb",
-      "bytes": 227008,
-      "srcTris": 9530,
+      "bytes": 163560,
+      "srcTris": 972,
       "lods": [
         {
-          "tris": 1965,
+          "tris": 390,
           "level": 1
         },
         {
-          "tris": 728,
+          "tris": 127,
           "level": 2
         }
       ],
@@ -49,51 +49,12 @@
       },
       "textures": [
         {
-          "name": "hanging_industrial_lamp_emissive_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 4978,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "hanging_industrial_lamp_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 69181,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "hanging_industrial_lamp_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 57945,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "hanging_industrial_lamp_arm_1k.ktx2",
+          "name": "lamp_shade_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 13908,
+          "bytes": 2895,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
@@ -101,12 +62,142 @@
           }
         },
         {
-          "name": "hanging_industrial_lamp_glass_nor_gl_1k.ktx2",
+          "name": "lamp_shade_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 8050,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "lamp_shade_nor.ktx2",
           "role": "normal",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 33338,
+          "bytes": 1449,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "lamp_inner_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 1190,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "lamp_inner_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 6232,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "lamp_inner_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1148,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "lamp_cable_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 7722,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "lamp_cable_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 9203,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "lamp_cable_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 63633,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "lamp_bulb_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 3337,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "lamp_bulb_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 35627,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "lamp_bulb_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 966,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
@@ -114,40 +205,50 @@
           }
         }
       ],
-      "geometryBytes": 95116,
+      "geometryBytes": 17800,
       "gpu": {
-        "desktop": 837859,
-        "mobile": 837859,
-        "rgba8": 6037045
+        "desktop": 1590668,
+        "mobile": 1590668,
+        "rgba8": 12600708
       },
       "materials": [
         {
-          "name": "hanging_industrial_lamp",
+          "name": "lamp_shade",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         },
         {
-          "name": "hanging_industrial_lamp_glass",
-          "alphaMode": "BLEND",
-          "doubleSided": true
+          "name": "lamp_inner",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        },
+        {
+          "name": "lamp_cable",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        },
+        {
+          "name": "lamp_bulb",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/hanging_industrial_lamp/hanging_industrial_lamp_1024.glb",
-      "bytes": 700468,
-      "srcTris": 9530,
+      "bytes": 481532,
+      "srcTris": 972,
       "lods": [
         {
-          "tris": 5000,
+          "tris": 972,
           "level": 0
         },
         {
-          "tris": 1965,
+          "tris": 390,
           "level": 1
         },
         {
-          "tris": 728,
+          "tris": 127,
           "level": 2
         }
       ],
@@ -174,51 +275,12 @@
       },
       "textures": [
         {
-          "name": "hanging_industrial_lamp_emissive_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 9988,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "hanging_industrial_lamp_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 204191,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "hanging_industrial_lamp_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 185836,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "hanging_industrial_lamp_arm_1k.ktx2",
+          "name": "lamp_shade_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 42896,
+          "bytes": 7059,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
@@ -226,12 +288,142 @@
           }
         },
         {
-          "name": "hanging_industrial_lamp_glass_nor_gl_1k.ktx2",
+          "name": "lamp_shade_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 20955,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "lamp_shade_nor.ktx2",
           "role": "normal",
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
-          "bytes": 153839,
+          "bytes": 3105,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "lamp_inner_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1769,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "lamp_inner_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 15869,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "lamp_inner_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 1874,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "lamp_cable_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 30868,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "lamp_cable_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 35755,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "lamp_cable_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 188669,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "lamp_bulb_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 22740,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "lamp_bulb_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 112283,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "lamp_bulb_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 1380,
           "gpu": {
             "desktop": 699051,
             "mobile": 699051,
@@ -239,22 +431,32 @@
           }
         }
       ],
-      "geometryBytes": 236876,
+      "geometryBytes": 45134,
       "gpu": {
-        "desktop": 3207843,
-        "mobile": 3207843,
-        "rgba8": 24004597
+        "desktop": 6336594,
+        "mobile": 6336594,
+        "rgba8": 50376778
       },
       "materials": [
         {
-          "name": "hanging_industrial_lamp",
+          "name": "lamp_shade",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         },
         {
-          "name": "hanging_industrial_lamp_glass",
-          "alphaMode": "BLEND",
-          "doubleSided": true
+          "name": "lamp_inner",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        },
+        {
+          "name": "lamp_cable",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        },
+        {
+          "name": "lamp_bulb",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     }

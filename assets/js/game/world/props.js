@@ -120,6 +120,16 @@ export function container(b, x, y, z, o = {}) {
       const [lx, lz] = f.P(0, side * (W / 2 + 0.005));
       b.sign(lx, y + H * 0.4, lz, Math.min(len * 0.55, 5.2), H * 0.3, o.logo, { ry: (o.ry || 0) + (side < 0 ? Math.PI : 0), back: false, depth: 0.0 });
     }
+  } else if (o.lettering !== false && b.quality !== 'low') {
+    // Reederei-Schriftzug + Containernummer (Video 2,0 s), Auswahl nach Lage (ohne Kartenzufall); helle Schrift außer
+    // auf grauen/weißen Containern. Ein Teil bleibt ohne Namen (neutrale Leasing-Container, nur Nummer).
+    const k = Math.floor(hash01(x, z + y, 31) * 6), tone = fam === 'grau' ? 'd' : 'w', named = hash01(x, z + y, 32) < 0.7;
+    for (const side of [1, -1]) {
+      const ry = (o.ry || 0) + (side < 0 ? Math.PI : 0);
+      if (named) { const [lx, lz] = f.P(-len * 0.08, side * (W / 2 - 0.04)); b.sign(lx, y + H * 0.42, lz, Math.min(len * 0.5, 4.6), H * 0.22, `ctr_line_${k}_${tone}`, { ry, back: false, depth: 0 }); }
+      const [cx, cz] = f.P(len * 0.33 * side, side * (W / 2 - 0.04));
+      b.sign(cx, y + H * 0.78, cz, Math.min(len * 0.22, 1.5), 0.2, `ctr_code_${k}_${tone}`, { ry, back: false, depth: 0 });
+    }
   }
   return { top: y + H };
 }

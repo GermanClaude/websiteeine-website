@@ -31,9 +31,9 @@ export default {
   ambience: 'harbor',
   // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
   // Büro-/Pförtnerwände: glatt gestrichener Putz statt Außenputz
-  // Grafik-Vorlage Etappe 0: Tag-HDRI statt freight_station (Abendgold; bleibt für „Abend“); 16.10.: Foto-Himmel kloofendal_38d (dunstig wie im Video)
+  // 16.10.: eigener Himmel je Tageszeit × Wetter (weather.js skyFor); Standard Nachmittag, klar
   // Grafik-Vorlage 15.10.: Boden = Rissbeton 1:1 aus dem Video (Einstellung Containergasse), Kachel 4 m
-  assets: { hdri: 'kloofendal_38d_partly_cloudy_puresky', materials: { plaster_white: { id: 'plaster_painted', color: 1.6 }, concrete: { id: 'vh_kai', color: 0.3, macro: [0.12, 0.06, 0.1] } } },
+  assets: { hdri: 'np_sky_nachmittag_klar', materials: { plaster_white: { id: 'plaster_painted', color: 1.6 }, concrete: { id: 'vh_kai', color: 0.3, macro: [0.12, 0.06, 0.1] } } },
   defaultSurface: 'concrete',
   lighting: {
     // Grafik-Vorlage Etappe 0 (15.10.): klarer Nachmittag wie im Video statt Goldener Stunde – neutral-weiße Sonne,
@@ -42,7 +42,7 @@ export default {
     // hdri*: Werte mit HDRI-Umgebung (Sonne gedeckelt). Himmel prozedural (Video: blasser Dunsthimmel mit Wolken, das
     // Foto war zu tiefblau); Füllicht kräftiger als zur Abendzeit, damit Schatten grau statt schwarz bleiben (Video)
     // 16.10. am Video gemessen: Himmel dort hell und fast neutral (L ≈ 0,6, Sättigung 0,03; bei uns 0,52 / 0,09) → trüber, weniger Rayleigh-Blau, heller
-    sky: { turbidity: 8, rayleigh: 0.85, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.72, clouds: { coverage: 0.55, density: 0.45, scale: 0.0002, elevation: 0.55 }, hazeHigh: 0.3, hazeAmount: 1, hdriSat: 0.6, hdriIntensity: 1.7 }, // 16.10.: Foto-Himmel (Poly Haven, CC0) statt Preetham-Wolken; Preetham bleibt Ersatz
+    sky: { turbidity: 8, rayleigh: 0.85, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.72, clouds: { coverage: 0.55, density: 0.45, scale: 0.0002, elevation: 0.55 }, hazeHigh: 0.3, hazeAmount: 1, hdriIntensity: 2.0 }, // 16.10.: eigener Himmel (tools/assets/skygen.py) statt Poly-Haven-Foto // 16.10.: Foto-Himmel (Poly Haven, CC0) statt Preetham-Wolken; Preetham bleibt Ersatz
     // Umgebung ohne Mie-Hotspot (lighting.js begrenzt die Env-Map) → Füllicht etwas angehoben
     // Füllicht nach Messung am Video (15.10.): Schatten dort ≈ 1/5 der Sonnenseite und fast neutral grau (bei uns
     // vorher 1/16 und blaustichig) → Himmels-/Umgebungslicht ≈ ×2,5, weniger blau

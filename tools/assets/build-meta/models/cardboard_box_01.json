@@ -1,6 +1,6 @@
 {
   "id": "cardboard_box_01",
-  "recipe": "ee9776954a19",
+  "recipe": "1bf8e41f053b",
   "size": [
     0.386,
     0.342,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/cardboard_box_01/cardboard_box_01_512.glb",
-      "bytes": 167032,
-      "srcTris": 16952,
+      "bytes": 57540,
+      "srcTris": 1500,
       "lods": [
         {
-          "tris": 1200,
+          "tris": 600,
           "level": 1
         },
         {
-          "tris": 420,
+          "tris": 210,
           "level": 2
         }
       ],
@@ -49,74 +49,118 @@
       },
       "textures": [
         {
-          "name": "cardboard_box_01_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 84106,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "cardboard_box_01_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 55894,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "cardboard_box_01_arm_1k.ktx2",
+          "name": "cardboard_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 9346,
+          "bytes": 979,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "cardboard_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 18314,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "cardboard_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1027,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "tape_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 3881,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "tape_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 11574,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "tape_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 966,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 31060,
+      "geometryBytes": 31354,
       "gpu": {
-        "desktop": 424277,
-        "mobile": 424277,
-        "rgba8": 3176787
+        "desktop": 817788,
+        "mobile": 817788,
+        "rgba8": 6322808
       },
       "materials": [
         {
-          "name": "cardboard_box_01",
+          "name": "cardboard",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "tape",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/cardboard_box_01/cardboard_box_01_1024.glb",
-      "bytes": 481272,
-      "srcTris": 16952,
+      "bytes": 181916,
+      "srcTris": 1500,
       "lods": [
         {
-          "tris": 3000,
+          "tris": 1500,
           "level": 0
         },
         {
-          "tris": 1200,
+          "tris": 600,
           "level": 1
         },
         {
-          "tris": 420,
+          "tris": 210,
           "level": 2
         }
       ],
@@ -143,56 +187,100 @@
       },
       "textures": [
         {
-          "name": "cardboard_box_01_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 240071,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "cardboard_box_01_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 172182,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "cardboard_box_01_arm_1k.ktx2",
+          "name": "cardboard_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 28888,
+          "bytes": 1265,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "cardboard_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 53447,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "cardboard_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 5808,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "tape_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 21850,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "tape_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 49374,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "tape_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 1355,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 85492,
+      "geometryBytes": 100570,
       "gpu": {
-        "desktop": 1658357,
-        "mobile": 1658357,
-        "rgba8": 12668403
+        "desktop": 3246300,
+        "mobile": 3246300,
+        "rgba8": 25266392
       },
       "materials": [
         {
-          "name": "cardboard_box_01",
+          "name": "cardboard",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "tape",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     }

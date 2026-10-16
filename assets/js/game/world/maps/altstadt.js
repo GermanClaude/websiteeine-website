@@ -34,7 +34,7 @@ export default {
   chunkSize: 32,
   ambience: 'desert',
   // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
-  assets: { hdri: 'old_outdoor_theater' },
+  assets: { hdri: 'np_sky_mittag_klar' }, // 16.10.: eigener Himmel statt Poly-Haven-Foto
   defaultSurface: 'concrete',
   navSpacing: 1.5,
   groundNoise: 0.18,
@@ -43,7 +43,7 @@ export default {
     sun: { elevation: 61, azimuth: 212, color: '#fff4e6', intensity: 4.9 },
     // HDRI old_outdoor_theater: Umgebungslicht + Foto-Wolken ab ≈ 25° Höhe (darunter Bäume/Mauer des Fotos, die über
     // der Stadt riesig wirkten) – unten bleibt der Preetham-Himmel mit Dunst
-    sky: { turbidity: 2.6, rayleigh: 1.05, mieCoefficient: 0.0035, mieDirectionalG: 0.8, exposure: 0.6, clouds: { coverage: 0.1, density: 0.28, scale: 0.00024, elevation: 0.62 }, hazeHigh: 0.11, hazeAmount: 0.75, hdriBlend: [0.42, 0.75] },
+    sky: { turbidity: 2.6, rayleigh: 1.05, mieCoefficient: 0.0035, mieDirectionalG: 0.8, exposure: 0.6, clouds: { coverage: 0.1, density: 0.28, scale: 0.00024, elevation: 0.62 }, hazeHigh: 0.11, hazeAmount: 0.75, hdriIntensity: 2.0 },
     hemi: { sky: '#d5dbe2', ground: '#b8ab98', intensity: 1.0, hdriIntensity: 0.85 }, // Füllicht wie Video (×1,8)
     env: { intensity: 1.0, ground: '#bdb09c', groundIntensity: 0.9, tint: '#f6f4f0' },
     fog: { color: '#d9e4ec', near: 90, far: 520, density: 0.0026, falloff: 0.03, start: 35, sun: 0.25, sunExp: 6 },

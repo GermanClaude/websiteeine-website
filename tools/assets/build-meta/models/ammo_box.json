@@ -1,6 +1,6 @@
 {
   "id": "ammo_box",
-  "recipe": "0925847b0d6b",
+  "recipe": "133fdf9e0f35",
   "size": [
     0.086,
     0.177,
@@ -15,20 +15,20 @@
   "tiers": {
     "512": {
       "path": "models/ammo_box/ammo_box_512.glb",
-      "bytes": 95916,
-      "srcTris": 4382,
+      "bytes": 28828,
+      "srcTris": 2140,
       "lods": [
         {
-          "tris": 1198,
+          "tris": 856,
           "level": 1
         },
         {
-          "tris": 522,
+          "tris": 298,
           "level": 2
         }
       ],
       "parts": [
-        "ammo_box_handle_ring_b"
+        "ammo_box"
       ],
       "lodShift": true,
       "lodDistances": [
@@ -49,56 +49,56 @@
       },
       "textures": [
         {
-          "name": "ammo_box_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 2655,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "ammo_box_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 53599,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "ammo_box_arm_1k.ktx2",
+          "name": "ammo_od_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 11541,
+          "bytes": 2472,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "ammo_od_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 6278,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "ammo_od_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1837,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 60898,
+      "geometryBytes": 32300,
       "gpu": {
-        "desktop": 454115,
-        "mobile": 454115,
-        "rgba8": 3206625
+        "desktop": 425517,
+        "mobile": 425517,
+        "rgba8": 3178027
       },
       "materials": [
         {
-          "name": "ammo_box",
+          "name": "ammo_od",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     }

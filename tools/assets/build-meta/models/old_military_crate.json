@@ -1,12 +1,12 @@
 {
   "id": "old_military_crate",
-  "recipe": "b0b8f74fe051",
+  "recipe": "96552e6ee715",
   "size": [
-    1.808,
-    0.299,
-    0.968
+    1.814,
+    0.301,
+    0.976
   ],
-  "radius": 1.036,
+  "radius": 1.041,
   "lodDistances": [
     0,
     14.6,
@@ -15,20 +15,20 @@
   "tiers": {
     "512": {
       "path": "models/old_military_crate/old_military_crate_512.glb",
-      "bytes": 191324,
-      "srcTris": 20952,
+      "bytes": 157576,
+      "srcTris": 4944,
       "lods": [
         {
-          "tris": 2400,
+          "tris": 1976,
           "level": 1
         },
         {
-          "tris": 816,
+          "tris": 692,
           "level": 2
         }
       ],
       "parts": [
-        "old_military_crate_lid_a"
+        "old_military_crate"
       ],
       "lodShift": true,
       "lodDistances": [
@@ -37,91 +37,135 @@
       ],
       "bounds": {
         "min": [
-          -0.907,
-          0.001,
-          -0.659
+          -0.912,
+          0,
+          -0.667
         ],
         "max": [
-          0.901,
-          0.3,
+          0.902,
+          0.301,
           0.309
         ]
       },
       "textures": [
         {
-          "name": "old_military_crate_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 65258,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "old_military_crate_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 61366,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "old_military_crate_arm_1k.ktx2",
+          "name": "mcrate_od_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 11126,
+          "bytes": 2627,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "mcrate_od_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 6534,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "mcrate_od_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1808,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "mcrate_strap_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 7004,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "mcrate_strap_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 38060,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "mcrate_strap_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 61302,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 119528,
+      "geometryBytes": 76198,
       "gpu": {
-        "desktop": 512745,
-        "mobile": 512745,
-        "rgba8": 3265255
+        "desktop": 862632,
+        "mobile": 862632,
+        "rgba8": 6367652
       },
       "materials": [
         {
-          "name": "military_crate_m_01",
+          "name": "mcrate_od",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "mcrate_strap",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/old_military_crate/old_military_crate_1024.glb",
-      "bytes": 570248,
-      "srcTris": 20952,
+      "bytes": 496528,
+      "srcTris": 4944,
       "lods": [
         {
-          "tris": 6000,
+          "tris": 4944,
           "level": 0
         },
         {
-          "tris": 2400,
+          "tris": 1976,
           "level": 1
         },
         {
-          "tris": 816,
+          "tris": 692,
           "level": 2
         }
       ],
       "parts": [
-        "old_military_crate_lid_a"
+        "old_military_crate"
       ],
       "lodShift": false,
       "lodDistances": [
@@ -143,56 +187,100 @@
       },
       "textures": [
         {
-          "name": "old_military_crate_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 215996,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "old_military_crate_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 197647,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "old_military_crate_arm_1k.ktx2",
+          "name": "mcrate_od_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 38955,
+          "bytes": 4672,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "mcrate_od_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 15912,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "mcrate_od_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 4302,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "mcrate_strap_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 19685,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "mcrate_strap_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 130185,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "mcrate_strap_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 232224,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 286824,
+      "geometryBytes": 196342,
       "gpu": {
-        "desktop": 1859689,
-        "mobile": 1859689,
-        "rgba8": 12869735
+        "desktop": 3342072,
+        "mobile": 3342072,
+        "rgba8": 25362164
       },
       "materials": [
         {
-          "name": "military_crate_m_01",
+          "name": "mcrate_od",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "mcrate_strap",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     }

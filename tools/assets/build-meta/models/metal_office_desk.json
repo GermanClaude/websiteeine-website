@@ -1,6 +1,6 @@
 {
   "id": "metal_office_desk",
-  "recipe": "9804c4fe0726",
+  "recipe": "ff5ea6fc2cce",
   "size": [
     2,
     0.787,
@@ -15,20 +15,20 @@
   "tiers": {
     "512": {
       "path": "models/metal_office_desk/metal_office_desk_512.glb",
-      "bytes": 130724,
-      "srcTris": 6898,
+      "bytes": 82000,
+      "srcTris": 5100,
       "lods": [
         {
-          "tris": 2758,
+          "tris": 2040,
           "level": 1
         },
         {
-          "tris": 965,
+          "tris": 714,
           "level": 2
         }
       ],
       "parts": [
-        "metal_office_desk_drawer_06"
+        "metal_office_desk"
       ],
       "lodShift": true,
       "lodDistances": [
@@ -49,79 +49,154 @@
       },
       "textures": [
         {
-          "name": "metal_office_desk_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 19559,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "metal_office_desk_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 51482,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "metal_office_desk_arm_1k.ktx2",
+          "name": "desk_metal_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 11711,
+          "bytes": 1776,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "desk_metal_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 5756,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "desk_metal_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1328,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "desk_top_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 2970,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "desk_top_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 4614,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "desk_top_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 966,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "desk_steel_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 8997,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "desk_steel_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 13460,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 124022,
+      "geometryBytes": 76844,
       "gpu": {
-        "desktop": 517239,
-        "mobile": 517239,
-        "rgba8": 3269749
+        "desktop": 1081732,
+        "mobile": 1081732,
+        "rgba8": 8115924
       },
       "materials": [
         {
-          "name": "metal_office_desk",
+          "name": "desk_metal",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "desk_top",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        },
+        {
+          "name": "desk_steel",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/metal_office_desk/metal_office_desk_1024.glb",
-      "bytes": 354520,
-      "srcTris": 6898,
+      "bytes": 207224,
+      "srcTris": 5100,
       "lods": [
         {
-          "tris": 6898,
+          "tris": 5100,
           "level": 0
         },
         {
-          "tris": 2758,
+          "tris": 2040,
           "level": 1
         },
         {
-          "tris": 965,
+          "tris": 714,
           "level": 2
         }
       ],
       "parts": [
-        "metal_office_desk_drawer_06"
+        "metal_office_desk"
       ],
       "lodShift": false,
       "lodDistances": [
@@ -143,56 +218,131 @@
       },
       "textures": [
         {
-          "name": "metal_office_desk_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 51011,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "metal_office_desk_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 161861,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "metal_office_desk_arm_1k.ktx2",
+          "name": "desk_metal_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 38756,
+          "bytes": 2956,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "desk_metal_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 13809,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "desk_metal_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 2547,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "desk_top_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 14973,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "desk_top_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 19503,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "desk_top_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 1353,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "desk_steel_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 25632,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "desk_steel_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 34051,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 298950,
+      "geometryBytes": 202916,
       "gpu": {
-        "desktop": 1871815,
-        "mobile": 1871815,
-        "rgba8": 12881861
+        "desktop": 4222460,
+        "mobile": 4222460,
+        "rgba8": 32359244
       },
       "materials": [
         {
-          "name": "metal_office_desk",
+          "name": "desk_metal",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "desk_top",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        },
+        {
+          "name": "desk_steel",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     }

@@ -32,9 +32,9 @@ export default {
   ambience: 'industrial',
   // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
   // Grafik-Vorlage Etappe 0 (15.10.): Tag wie im Video (Halle mit hellen Fensterbahnen, Gasse mit klarem Himmel) statt
-  // Dämmerung; 16.10.: Foto-Himmel kloofendal_48d mit Haufenwolken (Video-Gasse) als Himmel und Umgebungslicht
+  // Dämmerung; 16.10.: eigener Himmel (Nachmittag, klar) als Himmel und Umgebungslicht
   // Grafik-Vorlage 15.10.: Boden = dunkler Beton aus dem Video (wie Hafen, Gasse und Hallenboden im Video ähnlich)
-  assets: { hdri: 'kloofendal_48d_partly_cloudy_puresky', materials: { concrete: { id: 'vh_kai', color: 0.42, macro: [0.12, 0.06, 0.1] } } },
+  assets: { hdri: 'np_sky_nachmittag_klar', materials: { concrete: { id: 'vh_kai', color: 0.42, macro: [0.12, 0.06, 0.1] } } },
   defaultSurface: 'concrete',
   navSpacing: 1.5,
   groundNoise: 0.22,
@@ -42,7 +42,7 @@ export default {
   lighting: {
     sun: { elevation: 38, azimuth: 252, color: '#ffe8cc', intensity: 3.5 }, // 16.10.: wärmer – Fensterstrahlen im Video goldgelb
     // Himmel prozedural (das Foto zeigt am Horizont nahe Mauern/Bäume, die über dem Werk riesig wirkten)
-    sky: { turbidity: 7, rayleigh: 0.95, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.7, clouds: { coverage: 0.5, density: 0.45, scale: 0.00018, elevation: 0.5, speed: 0.00002 }, hazeHigh: 0.24, hazeAmount: 0.85, hdriSat: 0.5, hdriIntensity: 2.6 }, // 16.10.: Foto-Himmel mit Wolken (Poly Haven, CC0) wie im Video
+    sky: { turbidity: 7, rayleigh: 0.95, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.7, clouds: { coverage: 0.5, density: 0.45, scale: 0.00018, elevation: 0.5, speed: 0.00002 }, hazeHigh: 0.24, hazeAmount: 0.85, hdriIntensity: 2.0 }, // 16.10.: Foto-Himmel mit Wolken (Poly Haven, CC0) wie im Video
     // Füllicht nach Messung am Video (Ziegelgasse im Schatten dort 3,4× heller) → ≈ ×2,5, neutral
     hemi: { sky: '#d4d4ce', ground: '#77726a', intensity: 1.6, hdriIntensity: 1.35 },
     env: { intensity: 1.8, ground: '#6f6b64', groundIntensity: 0.6, tint: '#f2f1ee', hdriIntensity: 1.6, hdriTint: '#ece4d8' },
@@ -52,7 +52,7 @@ export default {
     // Feuertonnen (Lichtgruppe 2) flackern
     probes: { bounce: 2.6, skyMin: 0.05, flicker: [{ group: 2, amount: 0.35, speed: 11 }] },
     // atmosphere-weather: Hallenfenster-Strahlen + Staub kräftig (Video); Gassen ohne Lichtbalken (Video) → keine Schlitze
-    atmos: { beams: 0.026, beamG: 0.5, dust: 1.7, slots: 0, outdoor: 0.3 }, // 16.10.: Strahlen etwas schwächer (Video: warm, nicht weiß)
+    atmos: { beams: 0.026, beamG: 0.5, beamTint: '#ffd29a', dust: 1.7, slots: 0, outdoor: 0.3 }, // 16.10.: Strahlen etwas schwächer (Video: warm, nicht weiß)
   },
 
   build(b, ctx) {
@@ -350,14 +350,14 @@ function hall(b) {
   b.interior(-HX + 0.1, -HZ + 0.1, HX - 0.1, HZ - 0.1, -0.1, H + ridge, 0.5);
   const lower = { h: CW, t, mat: 'brick', tint: BRICK, frameMat: 'metal_painted', frameTint: '#2f3438', minimap: 'wall', plinth: { h: 0.9, mat: 'concrete', tint: '#8a8680', over: 0.04 } };
   const upper = { y: CW, h: H - CW, t, mat: 'brick', tint: BRICK_D, frameMat: 'metal_painted', frameTint: '#2f3438', minimap: false };
-  const winsLong = (skip = []) => { const o = []; for (let i = 0; i < 10; i++) { const at = 3 + i * 6; if (!skip.includes(i)) o.push({ at, w: 3.4, h: 3.5, kind: 'window', sill: 0.95, glass: false, mullion: true }); } return o; };
-  const winsShort = () => [-15, -9, 9, 15].map(xx => ({ at: xx + HX, w: 3.4, h: 3.5, kind: 'window', sill: 0.95, glass: false, mullion: true }));
+  const winsLong = (skip = []) => { const o = []; for (let i = 0; i < 10; i++) { const at = 3 + i * 6; if (!skip.includes(i)) o.push({ at, w: 3.4, h: 3.5, kind: 'window', sill: 0.95, glass: false, grid: [4, 3] }); } return o; };
+  const winsShort = () => [-15, -9, 9, 15].map(xx => ({ at: xx + HX, w: 3.4, h: 3.5, kind: 'window', sill: 0.95, glass: false, grid: [4, 3] }));
   // West (Laderampe): drei Ladetore auf Rampenhöhe
   wall(b, { ...lower, x0: -HX + t / 2, z0: HZ, x1: -HX + t / 2, z1: -HZ, openings: [18, 30, 42].map(at => ({ at, w: 4, h: 3.6, sill: 1.2, kind: 'gap', frame: true })).concat([{ at: 24, w: 1.4, h: 1.2, kind: 'window', sill: 2.6 }, { at: 36, w: 1.4, h: 1.2, kind: 'window', sill: 2.6 }]) });
   wall(b, { ...upper, x0: -HX + t / 2, z0: HZ, x1: -HX + t / 2, z1: -HZ, openings: winsLong() });
   // Ost: zwei Türen + Durchgang, oben Tür zur Rohrbrücke
   wall(b, { ...lower, x0: HX - t / 2, z0: -HZ, x1: HX - t / 2, z1: HZ, openings: [{ at: 18, w: 1.4, h: 2.4, kind: 'door' }, { at: 42, w: 1.4, h: 2.4, kind: 'door' }, { at: 30, w: 4.6, h: 4.2, kind: 'gap' }] });
-  wall(b, { ...upper, x0: HX - t / 2, z0: -HZ, x1: HX - t / 2, z1: HZ, openings: [...winsLong([4, 5]), { at: 30, w: 1.5, h: 2.4, kind: 'door', sill: 0 }, { at: 25.4, w: 2.4, h: 3.5, kind: 'window', sill: 0.95, glass: false }, { at: 34.6, w: 2.4, h: 3.5, kind: 'window', sill: 0.95, glass: false }] });
+  wall(b, { ...upper, x0: HX - t / 2, z0: -HZ, x1: HX - t / 2, z1: HZ, openings: [...winsLong([4, 5]), { at: 30, w: 1.5, h: 2.4, kind: 'door', sill: 0 }, { at: 25.4, w: 2.4, h: 3.5, kind: 'window', sill: 0.95, glass: false, grid: [3, 3] }, { at: 34.6, w: 2.4, h: 3.5, kind: 'window', sill: 0.95, glass: false, grid: [3, 3] }] });
   // Süd + Nord: Haupttor + Personentüren
   for (const s of [1, -1]) {
     const zw = s * (HZ - t / 2), xa = s > 0 ? HX : -HX, xb = -xa;
@@ -378,7 +378,7 @@ function hall(b) {
   // als Moiré-Ringe über die ganze Dachunterseite.
   const ROOF_UV = { uv: 'local', uvSwap: true, uvScale: 2.5 };
   const half = HX + 0.4, ang = Math.atan2(ridge, HX), slope = Math.hypot(half, ridge * half / HX);
-  const broken = new Set(['w3', 'e6', 'e2', 'w7']);
+  const broken = new Set(['w3']); // 16.10.: Video zeigt ein dunkles, geschlossenes Dach – nur noch ein Loch am Ende
   for (let i = 0; i < 10; i++) {
     const zc = -HZ + 3 + i * 6;
     for (const s of [-1, 1]) {
@@ -391,7 +391,7 @@ function hall(b) {
         continue;
       }
       b.box(cx, yy, zc, slope, 0.12, 6.02, 'metal_corrugated', { rz: -ang * s, tint: '#7d868c', collide: false, minimap: false, grad: false, ...ROOF_UV });
-      if (i % 3 === 1) b.box(cx, yy + 0.07, zc, slope * 0.5, 0.06, 2.0, 'glass', { rz: -ang * s, tint: '#b8c8d0', collide: false, minimap: false, grad: false, ao: false });
+      if (i % 3 === 1) b.box(cx, yy + 0.07, zc, slope * 0.5, 0.06, 2.0, 'glass', { rz: -ang * s, tint: '#6a7378', collide: false, minimap: false, grad: false, ao: false }); // verschmutzte Oberlichter (nicht überstrahlt)
     }
   }
   b.box(0, H + ridge - 0.2, 0, 1.0, 0.4, 2 * HZ + 0.6, 'metal_painted', { tint: '#5a646c', collide: false, minimap: false, grad: false });

@@ -1,6 +1,6 @@
 {
   "id": "worn_metal_rack",
-  "recipe": "78ebd0437045",
+  "recipe": "58dc1f04e620",
   "size": [
     0.915,
     1.9,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/worn_metal_rack/worn_metal_rack_512.glb",
-      "bytes": 139716,
-      "srcTris": 6372,
+      "bytes": 119616,
+      "srcTris": 17700,
       "lods": [
         {
-          "tris": 1952,
+          "tris": 7000,
           "level": 1
         },
         {
-          "tris": 880,
+          "tris": 2476,
           "level": 2
         }
       ],
@@ -49,74 +49,74 @@
       },
       "textures": [
         {
-          "name": "worn_metal_rack_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 28271,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "worn_metal_rack_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 57533,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "worn_metal_rack_arm_1k.ktx2",
+          "name": "rack_rust_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 13299,
+          "bytes": 4252,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "rack_rust_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 12220,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "rack_rust_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 2234,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 107632,
+      "geometryBytes": 246526,
       "gpu": {
-        "desktop": 500849,
-        "mobile": 500849,
-        "rgba8": 3253359
+        "desktop": 639743,
+        "mobile": 639743,
+        "rgba8": 3392253
       },
       "materials": [
         {
-          "name": "worn_metal_rack",
+          "name": "rack_rust",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/worn_metal_rack/worn_metal_rack_1024.glb",
-      "bytes": 441648,
-      "srcTris": 6372,
+      "bytes": 295680,
+      "srcTris": 17700,
       "lods": [
         {
-          "tris": 6372,
+          "tris": 17700,
           "level": 0
         },
         {
-          "tris": 1952,
+          "tris": 7000,
           "level": 1
         },
         {
-          "tris": 880,
+          "tris": 2476,
           "level": 2
         }
       ],
@@ -143,56 +143,56 @@
       },
       "textures": [
         {
-          "name": "worn_metal_rack_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 113207,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "worn_metal_rack_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 185271,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "worn_metal_rack_arm_1k.ktx2",
+          "name": "rack_rust_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 43039,
+          "bytes": 8571,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "rack_rust_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 29889,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "rack_rust_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 6426,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 304792,
+      "geometryBytes": 655990,
       "gpu": {
-        "desktop": 1877657,
-        "mobile": 1877657,
-        "rgba8": 12887703
+        "desktop": 2228855,
+        "mobile": 2228855,
+        "rgba8": 13238901
       },
       "materials": [
         {
-          "name": "worn_metal_rack",
+          "name": "rack_rust",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     }

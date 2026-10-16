@@ -1,6 +1,6 @@
 {
   "id": "metal_jerrycan",
-  "recipe": "448233a52e98",
+  "recipe": "71d895d3748f",
   "size": [
     0.349,
     0.455,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/metal_jerrycan/metal_jerrycan_512.glb",
-      "bytes": 184676,
-      "srcTris": 20022,
+      "bytes": 48876,
+      "srcTris": 5084,
       "lods": [
         {
           "tris": 2000,
           "level": 1
         },
         {
-          "tris": 695,
+          "tris": 700,
           "level": 2
         }
       ],
@@ -49,56 +49,56 @@
       },
       "textures": [
         {
-          "name": "metal_jerrycan_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 84594,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "metal_jerrycan_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 57942,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "metal_jerrycan_arm_1k.ktx2",
+          "name": "jerrycan_red_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 12330,
+          "bytes": 2690,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "jerrycan_red_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 4562,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "jerrycan_red_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1714,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 61490,
+      "geometryBytes": 83540,
       "gpu": {
-        "desktop": 454707,
-        "mobile": 454707,
-        "rgba8": 3207217
+        "desktop": 476757,
+        "mobile": 476757,
+        "rgba8": 3229267
       },
       "materials": [
         {
-          "name": "metal_jerrycan",
+          "name": "jerrycan_red",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     }

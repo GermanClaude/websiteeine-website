@@ -1,12 +1,12 @@
 {
   "id": "trashbag",
-  "recipe": "ab0f5fb7d52b",
+  "recipe": "2b84a732c8c2",
   "size": [
-    0.523,
-    0.575,
-    0.463
+    0.527,
+    0.572,
+    0.455
   ],
-  "radius": 0.452,
+  "radius": 0.451,
   "lodDistances": [
     0,
     6.4,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/trashbag/trashbag_512.glb",
-      "bytes": 154720,
-      "srcTris": 4482,
+      "bytes": 46252,
+      "srcTris": 620,
       "lods": [
         {
-          "tris": 1200,
+          "tris": 246,
           "level": 1
         },
         {
-          "tris": 420,
+          "tris": 86,
           "level": 2
         }
       ],
@@ -38,85 +38,85 @@
       "bounds": {
         "min": [
           -0.26,
-          -0.001,
-          -0.24
+          0.002,
+          -0.235
         ],
         "max": [
-          0.263,
+          0.267,
           0.574,
-          0.223
+          0.22
         ]
       },
       "textures": [
         {
-          "name": "trashbag_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 80595,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "trashbag_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 44201,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "trashbag_arm_1k.ktx2",
+          "name": "trashbag_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 11189,
+          "bytes": 7323,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "trashbag_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 3588,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "trashbag_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 25260,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 32182,
+      "geometryBytes": 10858,
       "gpu": {
-        "desktop": 425399,
-        "mobile": 425399,
-        "rgba8": 3177909
+        "desktop": 404075,
+        "mobile": 404075,
+        "rgba8": 3156585
       },
       "materials": [
         {
           "name": "trashbag",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/trashbag/trashbag_1024.glb",
-      "bytes": 426892,
-      "srcTris": 4482,
+      "bytes": 111788,
+      "srcTris": 620,
       "lods": [
         {
-          "tris": 3000,
+          "tris": 620,
           "level": 0
         },
         {
-          "tris": 1200,
+          "tris": 246,
           "level": 1
         },
         {
-          "tris": 420,
+          "tris": 86,
           "level": 2
         }
       ],
@@ -143,56 +143,56 @@
       },
       "textures": [
         {
-          "name": "trashbag_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 219097,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "trashbag_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 127456,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "trashbag_arm_1k.ktx2",
+          "name": "trashbag_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 38079,
+          "bytes": 21080,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "trashbag_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 7886,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "trashbag_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 63623,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 87736,
+      "geometryBytes": 26772,
       "gpu": {
-        "desktop": 1660601,
-        "mobile": 1660601,
-        "rgba8": 12670647
+        "desktop": 1599637,
+        "mobile": 1599637,
+        "rgba8": 12609683
       },
       "materials": [
         {
           "name": "trashbag",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     }

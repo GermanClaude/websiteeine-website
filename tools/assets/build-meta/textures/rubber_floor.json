@@ -1,12 +1,12 @@
 {
   "id": "rubber_floor",
-  "recipe": "fad7a64ae695",
+  "recipe": "6e39dec34e06",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/rubber_floor/rubber_floor_512_albedo.ktx2",
-          "bytes": 59886,
+          "bytes": 42890,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/rubber_floor/rubber_floor_512_normal.ktx2",
-          "bytes": 78202,
+          "bytes": 25884,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/rubber_floor/rubber_floor_512_orm.ktx2",
-          "bytes": 27150,
+          "bytes": 15953,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 165238,
+      "bytes": 84727,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/rubber_floor/rubber_floor_1024_albedo.ktx2",
-          "bytes": 192950,
+          "bytes": 97733,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/rubber_floor/rubber_floor_1024_normal.ktx2",
-          "bytes": 237216,
+          "bytes": 92149,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/rubber_floor/rubber_floor_1024_orm.ktx2",
-          "bytes": 97268,
+          "bytes": 52013,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 527434,
+      "bytes": 241895,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -103,9 +103,9 @@
   },
   "stats": {
     "avgColor": "#1f2223",
-    "avgRoughness": 0.59,
+    "avgRoughness": 0.588,
     "avgMetalness": 0,
-    "avgAO": 1,
+    "avgAO": 0.991,
     "coverage": 1
   }
 }

@@ -1,12 +1,12 @@
 {
   "id": "tiles_terracotta",
-  "recipe": "2609abb33d03",
+  "recipe": "ec3e140d64dc",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/tiles_terracotta/tiles_terracotta_512_albedo.ktx2",
-          "bytes": 48841,
+          "bytes": 16344,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/tiles_terracotta/tiles_terracotta_512_normal.ktx2",
-          "bytes": 23812,
+          "bytes": 9803,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/tiles_terracotta/tiles_terracotta_512_orm.ktx2",
-          "bytes": 27693,
+          "bytes": 20357,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 100346,
+      "bytes": 46504,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/tiles_terracotta/tiles_terracotta_1024_albedo.ktx2",
-          "bytes": 169779,
+          "bytes": 47526,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/tiles_terracotta/tiles_terracotta_1024_normal.ktx2",
-          "bytes": 146958,
+          "bytes": 22271,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/tiles_terracotta/tiles_terracotta_1024_orm.ktx2",
-          "bytes": 114128,
+          "bytes": 57660,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 430865,
+      "bytes": 127457,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,8 +104,8 @@
   "stats": {
     "avgColor": "#4e271a",
     "avgRoughness": 0.751,
-    "avgMetalness": 0.002,
-    "avgAO": 0.935,
+    "avgMetalness": 0,
+    "avgAO": 0.979,
     "coverage": 1
   }
 }

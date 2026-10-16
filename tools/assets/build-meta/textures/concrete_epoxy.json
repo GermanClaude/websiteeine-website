@@ -1,12 +1,12 @@
 {
   "id": "concrete_epoxy",
-  "recipe": "e7616b0a0f44",
+  "recipe": "8e6c713b4887",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/concrete_epoxy/concrete_epoxy_512_albedo.ktx2",
-          "bytes": 30786,
+          "bytes": 10245,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/concrete_epoxy/concrete_epoxy_512_normal.ktx2",
-          "bytes": 41929,
+          "bytes": 966,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/concrete_epoxy/concrete_epoxy_512_orm.ktx2",
-          "bytes": 24817,
+          "bytes": 8300,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 97532,
+      "bytes": 19511,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/concrete_epoxy/concrete_epoxy_1024_albedo.ktx2",
-          "bytes": 137740,
+          "bytes": 27561,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/concrete_epoxy/concrete_epoxy_1024_normal.ktx2",
-          "bytes": 178117,
+          "bytes": 1282,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/concrete_epoxy/concrete_epoxy_1024_orm.ktx2",
-          "bytes": 101576,
+          "bytes": 17432,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 417433,
+      "bytes": 46275,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -103,9 +103,9 @@
   },
   "stats": {
     "avgColor": "#56534d",
-    "avgRoughness": 0.505,
-    "avgMetalness": 0.002,
-    "avgAO": 0.999,
+    "avgRoughness": 0.501,
+    "avgMetalness": 0,
+    "avgAO": 1,
     "coverage": 1
   }
 }

@@ -1,12 +1,12 @@
 {
   "id": "plastic_monobloc_chair_01",
-  "recipe": "bc50037b4322",
+  "recipe": "b264f933f398",
   "size": [
-    0.642,
+    0.632,
     0.88,
     0.628
   ],
-  "radius": 0.629,
+  "radius": 0.626,
   "lodDistances": [
     0,
     8.8,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/plastic_monobloc_chair_01/plastic_monobloc_chair_01_512.glb",
-      "bytes": 166860,
-      "srcTris": 3356,
+      "bytes": 65272,
+      "srcTris": 3496,
       "lods": [
         {
-          "tris": 1342,
+          "tris": 1398,
           "level": 1
         },
         {
-          "tris": 602,
+          "tris": 488,
           "level": 2
         }
       ],
@@ -37,86 +37,86 @@
       ],
       "bounds": {
         "min": [
-          -0.321,
+          -0.316,
           0,
           -0.336
         ],
         "max": [
-          0.321,
+          0.316,
           0.88,
           0.292
         ]
       },
       "textures": [
         {
-          "name": "plastic_monobloc_chair_01_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 61608,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "plastic_monobloc_chair_01_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 60233,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "plastic_monobloc_chair_01_arm_1k.ktx2",
+          "name": "monobloc_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 10118,
+          "bytes": 1738,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "monobloc_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 10275,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "monobloc_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 966,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 68006,
+      "geometryBytes": 120906,
       "gpu": {
-        "desktop": 461223,
-        "mobile": 461223,
-        "rgba8": 3213733
+        "desktop": 514123,
+        "mobile": 514123,
+        "rgba8": 3266633
       },
       "materials": [
         {
-          "name": "plastic_monobloc_chair_01",
+          "name": "monobloc",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/plastic_monobloc_chair_01/plastic_monobloc_chair_01_1024.glb",
-      "bytes": 479556,
-      "srcTris": 3356,
+      "bytes": 170844,
+      "srcTris": 3496,
       "lods": [
         {
-          "tris": 3356,
+          "tris": 3496,
           "level": 0
         },
         {
-          "tris": 1342,
+          "tris": 1398,
           "level": 1
         },
         {
-          "tris": 602,
+          "tris": 488,
           "level": 2
         }
       ],
@@ -143,56 +143,56 @@
       },
       "textures": [
         {
-          "name": "plastic_monobloc_chair_01_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 186123,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "plastic_monobloc_chair_01_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 186977,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "plastic_monobloc_chair_01_arm_1k.ktx2",
+          "name": "monobloc_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 34245,
+          "bytes": 13310,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "monobloc_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 42696,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "monobloc_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 1407,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 160104,
+      "geometryBytes": 275106,
       "gpu": {
-        "desktop": 1732969,
-        "mobile": 1732969,
-        "rgba8": 12743015
+        "desktop": 1847971,
+        "mobile": 1847971,
+        "rgba8": 12858017
       },
       "materials": [
         {
-          "name": "plastic_monobloc_chair_01",
+          "name": "monobloc",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     }

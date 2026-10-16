@@ -107,6 +107,12 @@ function openingDetails(b, o, op, g) {
       if (top - sill > 1.3) at(op.at, y + sill + (top - sill) * 0.55, op.w - fw * 2, 0.05, 0.08, fmat, { tint: ftint, collide: false });
     }
   }
+  if (op.grid && kind === 'window' && !op.glass) {
+    // Stahlsprossen-Fenster ohne Scheibe (Industriehalle, Video 3,5 s): Raster aus Sprossen, Sicht frei
+    const [gc, gr] = op.grid, iw = op.w - fw * 2, ih = top - sill - fw, gw = op.gw ?? 0.045;
+    for (let i = 1; i < gc; i++) at(a + fw + (iw * i) / gc, y + sill, gw, ih, 0.07, fmat, { tint: ftint, collide: false });
+    for (let j = 1; j < gr; j++) at(op.at, y + sill + (ih * j) / gr - gw / 2, iw, gw, 0.07, fmat, { tint: ftint, collide: false });
+  }
   if (op.closed) {
     // geschlossene Fensterläden (massiv)
     at(op.at, y + sill + 0.01, op.w - fw * 2 + 0.02, top - sill - fw - 0.01, Math.min(0.08, t * 0.5), 'wood_painted', { tint: op.closed === true ? (o.shutterTint || '#2f6f9a') : op.closed, collide: true });

@@ -1,187 +1,172 @@
 # Danksagungen & Lizenzen
 
-NULLPUNKT nutzt für Texturen, Umgebungslicht (HDRIs) und Modelle ausschließlich frei verwendbare Assets.
-Alle unten aufgeführten Assets stehen unter **CC0 1.0** (gemeinfrei) — eine Namensnennung ist nicht
-vorgeschrieben, wir nennen die Urheber:innen trotzdem gern. Die Dateien in `assets/lib/` sind von uns
-verkleinert und umkodiert (KTX2/Basis Universal, Meshopt, LOD-Stufen); Tarnmuster sind prozedural erzeugt
-und ebenfalls CC0. Quellenliste mit Download-IDs: `tools/assets/sources.json`, Pipeline: `tools/assets/`.
-
-Vielen Dank an [Poly Haven](https://polyhaven.com) und [ambientCG](https://ambientcg.com) sowie alle
-Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
+Seit 16.10. sind alle Texturen, Himmel (Umgebungslicht) und Requisiten-Modelle von NULLPUNKT **selbst erzeugt**:
+Texturen über eigene Generatoren (Höhenfeld → Albedo/Normalen/ORM, kachelbar), Himmel über einen eigenen
+Atmosphären- und Wolkenrechner (je Tageszeit × Wetterlage), Modelle aus eigenen Grundkörpern mit eigenen Texturen.
+Die früher genutzten Fremd-Assets (Poly Haven, ambientCG) sind vollständig ersetzt und nicht mehr im Spiel.
+Die Dateien in `assets/lib/` sind KTX2/Basis Universal kodiert, Modelle mit Meshopt und LOD-Stufen.
+Liste mit Generator-Schlüsseln: `tools/assets/sources.json`, Pipeline: `tools/assets/`.
 
 ## Texturen (91)
 
-| Asset | ID | Urheber:in | Quelle | Lizenz |
-|---|---|---|---|---|
-| Concrete Floor Worn 001 | `concrete_floor_worn` | Dimitrios Savva, Rico Cilliers | [Poly Haven](https://polyhaven.com/a/concrete_floor_worn_001) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Concrete Wall 006 | `concrete_wall_dark` | Dario Barresi, Charlotte Baglioni | [Poly Haven](https://polyhaven.com/a/concrete_wall_006) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Concrete Wall 004 | `concrete_panels` | Dario Barresi, Charlotte Baglioni | [Poly Haven](https://polyhaven.com/a/concrete_wall_004) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Dirty Concrete | `concrete_dirty` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/dirty_concrete) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Painted Concrete | `concrete_painted_peeling` | Dario Barresi, Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/painted_concrete) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Painted Concrete 02 | `concrete_epoxy` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/painted_concrete_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Rubble | `rubble` | Amal Kumar | [Poly Haven](https://polyhaven.com/a/rubble) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Beige Wall 002 | `plaster_beige` | Dimitrios Savva, Rico Cilliers | [Poly Haven](https://polyhaven.com/a/beige_wall_002) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| White Stucco 02 | `plaster_white` | Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/white_stucco_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| White Rough Plaster | `plaster_white_peeling` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/white_rough_plaster) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Damaged Plaster | `plaster_damaged_brick` | Amal Kumar | [Poly Haven](https://polyhaven.com/a/damaged_plaster) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Worn Plaster Wall | `plaster_worn_patched` | Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/worn_plaster_wall) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Blue Plaster Weathered | `plaster_blue_weathered` | Amal Kumar | [Poly Haven](https://polyhaven.com/a/blue_plaster_weathered) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Painted Plaster Wall | `plaster_painted` | Amal Kumar | [Poly Haven](https://polyhaven.com/a/painted_plaster_wall) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Wallpaper 002 C | `wallpaper_stained` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Wallpaper002C) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Sandstone Blocks 05 | `sandstone_blocks` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/sandstone_blocks_05) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Factory Brick | `brick_factory` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/factory_brick) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Brick Wall 10 | `brick_dark` | Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/brick_wall_10) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Cobblestone Floor 08 | `cobblestone` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/cobblestone_floor_08) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Pavement 02 | `paving_flagstone` | Dario Barresi, Charlotte Baglioni | [Poly Haven](https://polyhaven.com/a/pavement_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Clay Roof Tiles 02 | `roof_clay_tiles` | Amal Kumar | [Poly Haven](https://polyhaven.com/a/clay_roof_tiles_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Terracotta Floor Tiles | `tiles_terracotta` | Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/terracotta_floor_tiles) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Worn Tile Floor | `tiles_worn` | Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/worn_tile_floor) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Floor Tiles 06 | `tiles_checker` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/floor_tiles_06) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Long White Tiles | `tiles_white_wall` | Jenelle van Heerden, Sergej Majboroda | [Poly Haven](https://polyhaven.com/a/long_white_tiles) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Linoleum Brown | `linoleum` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/linoleum_brown) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Dirty Carpet | `carpet_dirty` | Rohit Seervi | [Poly Haven](https://polyhaven.com/a/dirty_carpet) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Office Ceiling 001 | `ceiling_office` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=OfficeCeiling001) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Rubber 001 | `rubber_floor` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Rubber001) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Asphalt 02 | `asphalt_cracked` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/asphalt_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Gravel Floor 02 | `gravel` | Jenelle van Heerden, Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/gravel_floor_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Dense Sand | `sand` | Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/dense_sand) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Dirt | `dirt` | Charlotte Baglioni | [Poly Haven](https://polyhaven.com/a/dirt) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Brown Mud 02 | `mud` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/brown_mud_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Dry Ground 01 | `ground_dry_cracked` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/dry_ground_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Grass 004 | `grass` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Grass004) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Wood Planks | `wood_planks` | Amal Kumar | [Poly Haven](https://polyhaven.com/a/wood_planks) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Weathered Planks | `wood_planks_weathered` | Dario Barresi, Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/weathered_planks) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Dark Wooden Planks | `wood_planks_dark` | Amal Kumar | [Poly Haven](https://polyhaven.com/a/dark_wooden_planks) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Raw Plank Wall | `wood_crate` | Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/raw_plank_wall) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Oriented Strand Board | `osb` | Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/oriented_strand_board) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Old Wood Floor | `wood_floor_old` | Guillaume Monsergent | [Poly Haven](https://polyhaven.com/a/old_wood_floor) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Wood Peeling Paint Weathered | `wood_peeling_paint` | Rob Tuytel, Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/wood_peeling_paint_weathered) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Palm Tree Bark | `bark_palm` | Dimitrios Savva, Rico Cilliers | [Poly Haven](https://polyhaven.com/a/palm_tree_bark) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Cardboard 004 | `cardboard` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Cardboard004) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Green Metal Rust | `metal_painted` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/green_metal_rust) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Rusty Metal 02 | `metal_rust_painted` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/rusty_metal_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Corrugated Iron 02 | `metal_corrugated` | Jenelle van Heerden, Sergej Majboroda | [Poly Haven](https://polyhaven.com/a/corrugated_iron_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Rusty Corrugated Iron | `metal_corrugated_rusty` | Charlotte Baglioni | [Poly Haven](https://polyhaven.com/a/rusty_corrugated_iron) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Factory Wall | `metal_cladding_green` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/factory_wall) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Painted Metal Shutter | `metal_shutter` | Dario Barresi, Rico Cilliers, Charlotte Baglioni | [Poly Haven](https://polyhaven.com/a/painted_metal_shutter) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Metal 009 | `metal_galvanized` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Metal009) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Metal Plate | `metal_tread` | Rob Tuytel | [Poly Haven](https://polyhaven.com/a/metal_plate) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Metal Walkway 010 | `metal_grate` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=MetalWalkway010) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Fence 007 A | `chainlink` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Fence007A) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Painted Metal 016 | `hazard_stripes` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=PaintedMetal016) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Container Side | `container` | Dimitrios Savva | [Poly Haven](https://polyhaven.com/a/container_side) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Hessian 230 | `burlap` | colormass, Rico Cilliers | [Poly Haven](https://polyhaven.com/a/hessian_230) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Rough Linen | `canvas` | colormass, Rico Cilliers | [Poly Haven](https://polyhaven.com/a/rough_linen) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Fabric 006 | `awning_stripes` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Fabric006) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Fabric 034 | `felt_panel` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Fabric034) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Fabric 036 | `fabric_uniform` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Fabric036) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| camo_woodland | `camo_woodland` | NULLPUNKT (prozedurales Tarnmuster, CC0) auf Basis von „Fabric 036“ von Lennart Demes (ambientCG) | [NULLPUNKT (abgeleitet)](https://ambientcg.com/view?id=Fabric036) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| camo_desert | `camo_desert` | NULLPUNKT (prozedurales Tarnmuster, CC0) auf Basis von „Fabric 036“ von Lennart Demes (ambientCG) | [NULLPUNKT (abgeleitet)](https://ambientcg.com/view?id=Fabric036) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| camo_urban | `camo_urban` | NULLPUNKT (prozedurales Tarnmuster, CC0) auf Basis von „Fabric 036“ von Lennart Demes (ambientCG) | [NULLPUNKT (abgeleitet)](https://ambientcg.com/view?id=Fabric036) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Metal 046 B | `gunmetal_worn` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Metal046B) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Plastic 006 | `polymer_black` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Plastic006) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Lacquered Cherry Wood | `wood_stock` | Jenelle van Heerden, Rico Cilliers | [Poly Haven](https://polyhaven.com/a/lacquered_cherry_wood) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Rubber 004 | `rubber` | Lennart Demes (ambientCG) | [ambientCG](https://ambientcg.com/view?id=Rubber004) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Containerwand (Video-Vorlage) | `v_container` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Kaibeton mit Fugen (Video-Vorlage) | `v_concrete_slab` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Trapezblech (Video-Vorlage) | `v_cladding` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Ziegelwand (Video-Vorlage) | `v_brick` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Granit-Reihenpflaster (Video-Vorlage) | `v_setts` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Tonziegeldach (Video-Vorlage) | `v_roof` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Kalkputz (Video-Vorlage) | `v_plaster` | NULLPUNKT (prozedural, Grafik-Vorlage) | [procedural]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Hallen-Wellblech (Video, Hafen) | `vh_wand` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Container blau, Seite (Video) | `vh_ctr_blau_seite` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Container rostrot, Türseite (Video) | `vh_ctr_rost_tuer` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Container rostrot, Seite (Video) | `vh_ctr_rost_seite` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Container rotbraun, Seite (Video) | `vh_ctr_rot_seite` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Container oliv, Seite (Video) | `vh_ctr_gruen_seite` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Container grauweiß, Seite (Video) | `vh_ctr_grau_seite` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Container blau, Türseite (Video) | `vh_ctr_blau_tuer` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Container rotbraun, Türseite (Video) | `vh_ctr_rot_tuer` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Container oliv, Türseite (Video) | `vh_ctr_gruen_tuer` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Container grauweiß, Türseite (Video) | `vh_ctr_grau_tuer` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Rissbeton Kai (Video, Hafen) | `vh_kai` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Kopfsteinpflaster Dorfplatz (Video, Platz) | `vp_pflaster` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Ziegelmauer (Video, Werk) | `vw_ziegel` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Dunkelblaue Blechfassade (Video, Werk) | `vw_blau` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| ID | Herkunft | Werkzeug |
+|---|---|---|
+| `concrete_floor_worn` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `concrete_wall_dark` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `concrete_panels` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `concrete_dirty` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `concrete_painted_peeling` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `concrete_epoxy` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `rubble` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `plaster_beige` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `plaster_white` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `plaster_white_peeling` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `plaster_damaged_brick` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `plaster_worn_patched` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `plaster_blue_weathered` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `plaster_painted` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `wallpaper_stained` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `sandstone_blocks` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `brick_factory` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `brick_dark` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `cobblestone` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `paving_flagstone` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `roof_clay_tiles` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `tiles_terracotta` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `tiles_worn` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `tiles_checker` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `tiles_white_wall` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `linoleum` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `carpet_dirty` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `ceiling_office` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `rubber_floor` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `asphalt_cracked` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `gravel` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `sand` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `dirt` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `mud` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `ground_dry_cracked` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `grass` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `wood_planks` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `wood_planks_weathered` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `wood_planks_dark` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `wood_crate` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `osb` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `wood_floor_old` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `wood_peeling_paint` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `bark_palm` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `cardboard` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `metal_painted` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `metal_rust_painted` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `metal_corrugated` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `metal_corrugated_rusty` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `metal_cladding_green` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `metal_shutter` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `metal_galvanized` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `metal_tread` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `metal_grate` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `chainlink` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `hazard_stripes` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `container` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `burlap` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `canvas` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `awning_stripes` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `felt_panel` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `fabric_uniform` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `camo_woodland` | eigener Generator (abgeleitet) | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `camo_desert` | eigener Generator (abgeleitet) | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `camo_urban` | eigener Generator (abgeleitet) | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `gunmetal_worn` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `polymer_black` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `wood_stock` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `rubber` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `v_container` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `v_concrete_slab` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `v_cladding` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `v_brick` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `v_setts` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `v_roof` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `v_plaster` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
+| `vh_wand` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vh_ctr_blau_seite` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vh_ctr_rost_tuer` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vh_ctr_rost_seite` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vh_ctr_rot_seite` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vh_ctr_gruen_seite` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vh_ctr_grau_seite` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vh_ctr_blau_tuer` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vh_ctr_rot_tuer` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vh_ctr_gruen_tuer` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vh_ctr_grau_tuer` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vh_kai` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vp_pflaster` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vw_ziegel` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `vw_blau` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
 
-## HDRIs (11)
+## Himmel (20)
 
-| Asset | ID | Urheber:in | Quelle | Lizenz |
-|---|---|---|---|---|
-| Freight Station | `freight_station` | Sergej Majboroda | [Poly Haven](https://polyhaven.com/a/freight_station) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Old Outdoor Theater | `old_outdoor_theater` | Sergej Majboroda | [Poly Haven](https://polyhaven.com/a/old_outdoor_theater) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Abandoned Slipway | `abandoned_slipway` | Philip Modin | [Poly Haven](https://polyhaven.com/a/abandoned_slipway) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Zwartkops Straight Morning | `zwartkops_straight_morning` | Dimitrios Savva, Jarod Guest | [Poly Haven](https://polyhaven.com/a/zwartkops_straight_morning) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Cobblestone Street Night | `cobblestone_street_night` | Greg Zaal, Jenelle van Heerden | [Poly Haven](https://polyhaven.com/a/cobblestone_street_night) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Burnt Warehouse | `burnt_warehouse` | Sergej Majboroda | [Poly Haven](https://polyhaven.com/a/burnt_warehouse) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Industrial Pipe & Valve 01 | `industrial_pipe_and_valve_01` | Philip Modin | [Poly Haven](https://polyhaven.com/a/industrial_pipe_and_valve_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Debris Basement Corridor | `debris_basement_corridor` | Elvis Posa | [Poly Haven](https://polyhaven.com/a/debris_basement_corridor) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Kloofendal 48d Partly Cloudy (Pure Sky) | `kloofendal_48d_partly_cloudy_puresky` | Greg Zaal, Jarod Guest | [Poly Haven](https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Kloofendal 38d Partly Cloudy (Pure Sky) | `kloofendal_38d_partly_cloudy_puresky` | Greg Zaal, Jarod Guest | [Poly Haven](https://polyhaven.com/a/kloofendal_38d_partly_cloudy_puresky) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Kloofendal Overcast (Pure Sky) | `kloofendal_overcast_puresky` | Greg Zaal, Jarod Guest | [Poly Haven](https://polyhaven.com/a/kloofendal_overcast_puresky) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| ID | Herkunft | Werkzeug |
+|---|---|---|
+| `np_sky_morgen_klar` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_morgen_dunst` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_morgen_morgennebel` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_morgen_bewoelkt` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_vormittag_klar` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_vormittag_dunst` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_vormittag_morgennebel` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_vormittag_bewoelkt` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_mittag_klar` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_mittag_dunst` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_mittag_morgennebel` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_mittag_bewoelkt` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_nachmittag_klar` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_nachmittag_dunst` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_nachmittag_morgennebel` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_nachmittag_bewoelkt` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_abend_klar` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_abend_dunst` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_abend_morgennebel` | eigener Generator | `tools/assets/skygen.py` |
+| `np_sky_abend_bewoelkt` | eigener Generator | `tools/assets/skygen.py` |
 
-## Modelle (57)
+## Modelle (35)
 
-| Asset | ID | Urheber:in | Quelle | Lizenz |
-|---|---|---|---|---|
-| Bolt Action Rifle 7.62 | `bolt_action_rifle_7_62` | Mateusz Sadek | [Poly Haven](https://polyhaven.com/a/bolt_action_rifle_7_62) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Service Pistol | `service_pistol` | Mateusz Sadek | [Poly Haven](https://polyhaven.com/a/service_pistol) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Ammo Box | `ammo_box` | DanKit | [Poly Haven](https://polyhaven.com/a/ammo_box) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Old Military Crate | `old_military_crate` | Jack Mava | [Poly Haven](https://polyhaven.com/a/old_military_crate) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Wooden Military Crate | `wooden_military_crate` | Prabhjinder Singh | [Poly Haven](https://polyhaven.com/a/wooden_military_crate) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Metal Jerrycan | `metal_jerrycan` | Sean Buckley | [Poly Haven](https://polyhaven.com/a/metal_jerrycan) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Metal Jerrycan Green | `metal_jerrycan_green` | Ulan Cabanilla | [Poly Haven](https://polyhaven.com/a/metal_jerrycan_green) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Barrel_01 | `barrel_01` | Jorge Camacho | [Poly Haven](https://polyhaven.com/a/Barrel_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Barrel 02 | `barrel_02` | Jorge Camacho | [Poly Haven](https://polyhaven.com/a/Barrel_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Barrel 03 | `barrel_03` | Serhii Khromov | [Poly Haven](https://polyhaven.com/a/barrel_03) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Old Tyre | `old_tyre` | MP | [Poly Haven](https://polyhaven.com/a/old_tyre) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Cardboard Box 01 | `cardboard_box_01` | Rahul Chaudhary | [Poly Haven](https://polyhaven.com/a/cardboard_box_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Cement Bag | `cement_bag` | PierreB3D | [Poly Haven](https://polyhaven.com/a/cement_bag) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Metal Trash Can | `metal_trash_can` | GurJas Studios | [Poly Haven](https://polyhaven.com/a/metal_trash_can) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Trashbag | `trashbag` | Benny Weimer | [Poly Haven](https://polyhaven.com/a/trashbag) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Industrial Plastic Container | `industrial_pastic_container` | Galo Benivegna | [Poly Haven](https://polyhaven.com/a/industrial_pastic_container) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Propane Tank | `propane_tank` | Slinc | [Poly Haven](https://polyhaven.com/a/propane_tank) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Exterior Aircon Unit | `exterior_aircon_unit` | Monsta3D | [Poly Haven](https://polyhaven.com/a/exterior_aircon_unit) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Fire Hydrant | `fire_hydrant` | Gonçalo Felício | [Poly Haven](https://polyhaven.com/a/fire_hydrant) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Concrete Road Barrier | `concrete_road_barrier` | Amal Kumar | [Poly Haven](https://polyhaven.com/a/concrete_road_barrier) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Utility Box 01 | `utility_box_01` | James Ray Cock | [Poly Haven](https://polyhaven.com/a/utility_box_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Power Box 01 | `power_box_01` | Rico Cilliers, Yann Kervran | [Poly Haven](https://polyhaven.com/a/power_box_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Street Lamp 01 | `street_lamp_01` | Josh Dean | [Poly Haven](https://polyhaven.com/a/street_lamp_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Rollershutter Door | `rollershutter_door` | MP | [Poly Haven](https://polyhaven.com/a/rollershutter_door) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Water Manhole Cover | `water_manhole_cover` | Raunox | [Poly Haven](https://polyhaven.com/a/water_manhole_cover) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Covered Car | `covered_car` | MP | [Poly Haven](https://polyhaven.com/a/covered_car) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Security Camera 01 | `security_camera_01` | Alexander Otterbeck, Yann Kervran | [Poly Haven](https://polyhaven.com/a/security_camera_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Modular Chainlink Fence | `modular_chainlink_fence` | James Ray Cock, Amal Kumar | [Poly Haven](https://polyhaven.com/a/modular_chainlink_fence) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Modular Electricity Poles | `modular_electricity_poles` | James Ray Cock | [Poly Haven](https://polyhaven.com/a/modular_electricity_poles) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Modular Fire Escape | `modular_fire_escape` | Juniix | [Poly Haven](https://polyhaven.com/a/modular_fire_escape) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Modular Metal Gutter | `modular_metal_gutter` | Maxim Domnin | [Poly Haven](https://polyhaven.com/a/modular_metal_gutter) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Modular Airduct Circular 01 | `modular_airduct_circular_01` | Riley Queen | [Poly Haven](https://polyhaven.com/a/modular_airduct_circular_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Modular Airduct Rectangular 01 | `modular_airduct_rectangular_01` | James Ray Cock | [Poly Haven](https://polyhaven.com/a/modular_airduct_rectangular_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Modular Industrial Pipes 01 | `modular_industrial_pipes_01` | Jorge Camacho | [Poly Haven](https://polyhaven.com/a/modular_industrial_pipes_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Mounted Fluorescent Lights | `mounted_fluorescent_lights` | Ulan Cabanilla | [Poly Haven](https://polyhaven.com/a/mounted_fluorescent_lights) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Hanging Industrial Lamp | `hanging_industrial_lamp` | Kuutti Siitonen | [Poly Haven](https://polyhaven.com/a/hanging_industrial_lamp) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Industrial Wall Lamp | `industrial_wall_lamp` | Kuutti Siitonen | [Poly Haven](https://polyhaven.com/a/industrial_wall_lamp) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Hand Truck | `hand_truck` | Mutanzom3D | [Poly Haven](https://polyhaven.com/a/hand_truck) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Metal Tool Chest | `metal_tool_chest` | Yann Kervran, John Hutcheson | [Poly Haven](https://polyhaven.com/a/metal_tool_chest) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Portable Generator | `portable_generator` | James Ray Cock | [Poly Haven](https://polyhaven.com/a/portable_generator) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Tool Cart | `tool_cart` | Savva Zakharov | [Poly Haven](https://polyhaven.com/a/tool_cart) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Metal Office Desk | `metal_office_desk` | Ulan Cabanilla | [Poly Haven](https://polyhaven.com/a/metal_office_desk) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| School Chair 01 | `schoolchair_01` | Ethan Place | [Poly Haven](https://polyhaven.com/a/SchoolChair_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Steel Frame Shelves 01 | `steel_frame_shelves_01` | James Ray Cock | [Poly Haven](https://polyhaven.com/a/steel_frame_shelves_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Worn Metal Rack | `worn_metal_rack` | Luca B | [Poly Haven](https://polyhaven.com/a/worn_metal_rack) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Sofa 01 | `sofa_01` | Kirill Sannikov | [Poly Haven](https://polyhaven.com/a/Sofa_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Television 01 | `television_01` | Gabriel Radić | [Poly Haven](https://polyhaven.com/a/Television_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Wooden Bookshelf Worn | `wooden_bookshelf_worn` | Ulan Cabanilla | [Poly Haven](https://polyhaven.com/a/wooden_bookshelf_worn) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Plastic Monobloc Chair 01 | `plastic_monobloc_chair_01` | Kuutti Siitonen | [Poly Haven](https://polyhaven.com/a/plastic_monobloc_chair_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Old Bed Frame | `old_bed_frame` | Luca B | [Poly Haven](https://polyhaven.com/a/old_bed_frame) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Wet Floor Sign 01 | `wetfloorsign_01` | Fran Calvente | [Poly Haven](https://polyhaven.com/a/WetFloorSign_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Dead Tree Trunk 02 | `dead_tree_trunk_02` | Jenelle van Heerden, Rico Cilliers | [Poly Haven](https://polyhaven.com/a/dead_tree_trunk_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Rock 07 | `rock_07` | Jenelle van Heerden | [Poly Haven](https://polyhaven.com/a/rock_07) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Planter Pot Clay | `planter_pot_clay` | Amal Kumar | [Poly Haven](https://polyhaven.com/a/planter_pot_clay) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Potted Plant 02 | `potted_plant_02` | Rico Cilliers | [Poly Haven](https://polyhaven.com/a/potted_plant_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Shrub 04 | `shrub_04` | Rico Cilliers | [Poly Haven](https://polyhaven.com/a/shrub_04) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
-| Weed Plant 02 | `weed_plant_02` | Rob Tuytel, Rico Cilliers | [Poly Haven](https://polyhaven.com/a/weed_plant_02) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| ID | Herkunft | Werkzeug |
+|---|---|---|
+| `ammo_box` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `old_military_crate` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `wooden_military_crate` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `metal_jerrycan` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `metal_jerrycan_green` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `barrel_01` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `barrel_02` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `barrel_03` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `old_tyre` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `cardboard_box_01` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `cement_bag` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `metal_trash_can` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `trashbag` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `industrial_pastic_container` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `propane_tank` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `exterior_aircon_unit` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `fire_hydrant` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `concrete_road_barrier` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `utility_box_01` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `power_box_01` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `covered_car` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `hanging_industrial_lamp` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `hand_truck` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `metal_tool_chest` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `portable_generator` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `tool_cart` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `metal_office_desk` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `schoolchair_01` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `steel_frame_shelves_01` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `worn_metal_rack` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `plastic_monobloc_chair_01` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `wetfloorsign_01` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `dead_tree_trunk_02` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `rock_07` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
+| `planter_pot_clay` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
 
 ## Klänge
 

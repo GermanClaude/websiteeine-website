@@ -1,6 +1,6 @@
 {
   "id": "steel_frame_shelves_01",
-  "recipe": "0cdd900d64f0",
+  "recipe": "b2eede031659",
   "size": [
     1.098,
     2.14,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/steel_frame_shelves_01/steel_frame_shelves_01_512.glb",
-      "bytes": 104708,
-      "srcTris": 4348,
+      "bytes": 168236,
+      "srcTris": 1868,
       "lods": [
         {
-          "tris": 1738,
+          "tris": 944,
           "level": 1
         },
         {
-          "tris": 607,
+          "tris": 242,
           "level": 2
         }
       ],
@@ -49,74 +49,118 @@
       },
       "textures": [
         {
-          "name": "steel_frame_shelves_01_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 10898,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "steel_frame_shelves_01_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 50785,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "steel_frame_shelves_01_arm_1k.ktx2",
+          "name": "shelf_frame_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 9670,
+          "bytes": 2142,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "shelf_frame_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 4603,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "shelf_frame_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1579,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "shelf_board_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 8147,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "shelf_board_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 56074,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "shelf_board_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 72322,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 77958,
+      "geometryBytes": 39720,
       "gpu": {
-        "desktop": 471175,
-        "mobile": 471175,
-        "rgba8": 3223685
+        "desktop": 826154,
+        "mobile": 826154,
+        "rgba8": 6331174
       },
       "materials": [
         {
-          "name": "steel_frame_shelves_01",
+          "name": "shelf_frame",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "shelf_board",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/steel_frame_shelves_01/steel_frame_shelves_01_1024.glb",
-      "bytes": 314712,
-      "srcTris": 4348,
+      "bytes": 442568,
+      "srcTris": 1868,
       "lods": [
         {
-          "tris": 4348,
+          "tris": 1868,
           "level": 0
         },
         {
-          "tris": 1738,
+          "tris": 944,
           "level": 1
         },
         {
-          "tris": 607,
+          "tris": 242,
           "level": 2
         }
       ],
@@ -143,56 +187,100 @@
       },
       "textures": [
         {
-          "name": "steel_frame_shelves_01_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 56029,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "steel_frame_shelves_01_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 155053,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "steel_frame_shelves_01_arm_1k.ktx2",
+          "name": "shelf_frame_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 32994,
+          "bytes": 4099,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "shelf_frame_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 10244,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "shelf_frame_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 3488,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "shelf_board_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 28063,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "shelf_board_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 156186,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "shelf_board_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 194424,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 183950,
+      "geometryBytes": 93880,
       "gpu": {
-        "desktop": 1756815,
-        "mobile": 1756815,
-        "rgba8": 12766861
+        "desktop": 3239610,
+        "mobile": 3239610,
+        "rgba8": 25259702
       },
       "materials": [
         {
-          "name": "steel_frame_shelves_01",
+          "name": "shelf_frame",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
+        },
+        {
+          "name": "shelf_board",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     }

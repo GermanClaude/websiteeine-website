@@ -1,12 +1,12 @@
 {
   "id": "rock_07",
-  "recipe": "e2b331227d88",
+  "recipe": "c9d9901eb172",
   "size": [
-    0.168,
-    0.144,
+    0.167,
+    0.134,
     0.32
   ],
-  "radius": 0.195,
+  "radius": 0.193,
   "lodDistances": [
     0,
     6,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/rock_07/rock_07_512.glb",
-      "bytes": 174756,
-      "srcTris": 14844,
+      "bytes": 146360,
+      "srcTris": 320,
       "lods": [
         {
-          "tris": 1198,
+          "tris": 134,
           "level": 1
         },
         {
-          "tris": 420,
+          "tris": 44,
           "level": 2
         }
       ],
@@ -37,8 +37,8 @@
       ],
       "bounds": {
         "min": [
-          -0.087,
-          -0.002,
+          -0.086,
+          0.008,
           -0.178
         ],
         "max": [
@@ -49,56 +49,56 @@
       },
       "textures": [
         {
-          "name": "rock_07_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 86563,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "rock_07_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 60072,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "rock_07_arm_1k.ktx2",
+          "name": "rock_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 9024,
+          "bytes": 7382,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "rock_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 47670,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "rock_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 83583,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 33842,
+      "geometryBytes": 5956,
       "gpu": {
-        "desktop": 427059,
-        "mobile": 427059,
-        "rgba8": 3179569
+        "desktop": 399173,
+        "mobile": 399173,
+        "rgba8": 3151683
       },
       "materials": [
         {
-          "name": "rock_07",
+          "name": "rock",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     }

@@ -76,11 +76,11 @@ for (const e of src.models) {
 // Kartenvorschläge (Verwendung durch world/** ist Sache der Welt-Entwickler) + Budget je Qualität
 // ---------------------------------------------------------------------------------------------
 const MAPS = {
-  hafen: { hdri: 'freight_station', textures: ['concrete_floor_worn', 'asphalt_cracked', 'concrete_wall_dark', 'concrete_panels', 'plaster_white', 'metal_painted', 'metal_corrugated', 'metal_corrugated_rusty', 'metal_galvanized', 'metal_tread', 'metal_grate', 'hazard_stripes', 'container', 'wood_planks', 'wood_crate', 'rubber', 'grass', 'gravel', 'concrete_epoxy', 'tiles_worn', 'chainlink', 'wood_planks_weathered'], models: ['barrel_01', 'barrel_02', 'barrel_03', 'old_tyre', 'wooden_military_crate', 'old_military_crate', 'metal_jerrycan', 'concrete_road_barrier', 'street_lamp_01', 'hand_truck', 'metal_trash_can', 'modular_chainlink_fence', 'modular_electricity_poles', 'rollershutter_door', 'exterior_aircon_unit', 'power_box_01', 'utility_box_01', 'covered_car', 'cardboard_box_01', 'propane_tank', 'fire_hydrant'] },
-  altstadt: { hdri: 'old_outdoor_theater', textures: ['sandstone_blocks', 'plaster_white', 'plaster_white_peeling', 'plaster_beige', 'plaster_blue_weathered', 'cobblestone', 'paving_flagstone', 'roof_clay_tiles', 'tiles_terracotta', 'tiles_checker', 'wood_planks', 'wood_planks_dark', 'wood_peeling_paint', 'metal_painted', 'metal_galvanized', 'canvas', 'awning_stripes', 'sand', 'dirt', 'grass', 'bark_palm', 'rubber', 'cardboard'], models: ['planter_pot_clay', 'potted_plant_02', 'plastic_monobloc_chair_01', 'cement_bag', 'metal_jerrycan_green', 'wooden_military_crate', 'cardboard_box_01', 'trashbag', 'exterior_aircon_unit', 'metal_trash_can', 'water_manhole_cover', 'weed_plant_02', 'shrub_04', 'rock_07', 'modular_metal_gutter', 'covered_car', 'sofa_01', 'television_01', 'fire_hydrant'] },
-  werk: { hdri: 'abandoned_slipway', textures: ['brick_factory', 'brick_dark', 'concrete_floor_worn', 'concrete_dirty', 'concrete_painted_peeling', 'concrete_wall_dark', 'metal_painted', 'metal_rust_painted', 'metal_corrugated', 'metal_corrugated_rusty', 'metal_cladding_green', 'metal_galvanized', 'metal_tread', 'metal_grate', 'hazard_stripes', 'gravel', 'asphalt_cracked', 'wood_planks', 'rubber_floor', 'tiles_white_wall', 'rubble', 'osb', 'plaster_damaged_brick'], models: ['modular_industrial_pipes_01', 'modular_airduct_rectangular_01', 'modular_airduct_circular_01', 'mounted_fluorescent_lights', 'hanging_industrial_lamp', 'industrial_wall_lamp', 'metal_tool_chest', 'tool_cart', 'portable_generator', 'hand_truck', 'barrel_01', 'barrel_03', 'industrial_pastic_container', 'steel_frame_shelves_01', 'worn_metal_rack', 'metal_office_desk', 'schoolchair_01', 'modular_fire_escape', 'modular_metal_gutter', 'old_tyre', 'security_camera_01', 'power_box_01', 'wetfloorsign_01'] },
-  range: { hdri: 'zwartkops_straight_morning', textures: ['concrete_floor_worn', 'concrete_panels', 'gravel', 'grass', 'dirt', 'sand', 'wood_planks', 'wood_planks_dark', 'metal_painted', 'metal_galvanized', 'metal_tread', 'felt_panel', 'concrete_epoxy', 'burlap', 'rubber_floor', 'mud', 'ground_dry_cracked', 'chainlink'], models: ['ammo_box', 'wooden_military_crate', 'old_military_crate', 'metal_jerrycan_green', 'concrete_road_barrier', 'old_tyre', 'hanging_industrial_lamp', 'bolt_action_rifle_7_62', 'service_pistol', 'dead_tree_trunk_02', 'modular_chainlink_fence', 'rock_07'] },
-  innenraum: { planned: true, hdri: 'burnt_warehouse', textures: ['concrete_dirty', 'concrete_painted_peeling', 'plaster_damaged_brick', 'plaster_worn_patched', 'plaster_painted', 'wallpaper_stained', 'tiles_worn', 'tiles_white_wall', 'tiles_checker', 'linoleum', 'carpet_dirty', 'ceiling_office', 'wood_floor_old', 'wood_peeling_paint', 'osb', 'metal_shutter', 'brick_dark', 'rubble', 'metal_rust_painted'], models: ['metal_office_desk', 'schoolchair_01', 'steel_frame_shelves_01', 'sofa_01', 'television_01', 'wooden_bookshelf_worn', 'old_bed_frame', 'wetfloorsign_01', 'mounted_fluorescent_lights', 'hanging_industrial_lamp', 'cardboard_box_01', 'trashbag', 'plastic_monobloc_chair_01', 'old_military_crate'] },
+  hafen: { hdri: 'np_sky_nachmittag_klar', textures: ['concrete_floor_worn', 'asphalt_cracked', 'concrete_wall_dark', 'concrete_panels', 'plaster_white', 'metal_painted', 'metal_corrugated', 'metal_corrugated_rusty', 'metal_galvanized', 'metal_tread', 'metal_grate', 'hazard_stripes', 'container', 'wood_planks', 'wood_crate', 'rubber', 'grass', 'gravel', 'concrete_epoxy', 'tiles_worn', 'chainlink', 'wood_planks_weathered'], models: ['barrel_01', 'barrel_02', 'barrel_03', 'old_tyre', 'wooden_military_crate', 'old_military_crate', 'metal_jerrycan', 'concrete_road_barrier', 'hand_truck', 'metal_trash_can', 'exterior_aircon_unit', 'power_box_01', 'utility_box_01', 'covered_car', 'cardboard_box_01', 'propane_tank', 'fire_hydrant'] },
+  altstadt: { hdri: 'np_sky_mittag_klar', textures: ['sandstone_blocks', 'plaster_white', 'plaster_white_peeling', 'plaster_beige', 'plaster_blue_weathered', 'cobblestone', 'paving_flagstone', 'roof_clay_tiles', 'tiles_terracotta', 'tiles_checker', 'wood_planks', 'wood_planks_dark', 'wood_peeling_paint', 'metal_painted', 'metal_galvanized', 'canvas', 'awning_stripes', 'sand', 'dirt', 'grass', 'bark_palm', 'rubber', 'cardboard'], models: ['planter_pot_clay', 'plastic_monobloc_chair_01', 'cement_bag', 'metal_jerrycan_green', 'wooden_military_crate', 'cardboard_box_01', 'trashbag', 'exterior_aircon_unit', 'metal_trash_can', 'rock_07', 'covered_car', 'fire_hydrant'] },
+  werk: { hdri: 'np_sky_nachmittag_klar', textures: ['brick_factory', 'brick_dark', 'concrete_floor_worn', 'concrete_dirty', 'concrete_painted_peeling', 'concrete_wall_dark', 'metal_painted', 'metal_rust_painted', 'metal_corrugated', 'metal_corrugated_rusty', 'metal_cladding_green', 'metal_galvanized', 'metal_tread', 'metal_grate', 'hazard_stripes', 'gravel', 'asphalt_cracked', 'wood_planks', 'rubber_floor', 'tiles_white_wall', 'rubble', 'osb', 'plaster_damaged_brick'], models: ['hanging_industrial_lamp', 'metal_tool_chest', 'tool_cart', 'portable_generator', 'hand_truck', 'barrel_01', 'barrel_03', 'industrial_pastic_container', 'steel_frame_shelves_01', 'worn_metal_rack', 'metal_office_desk', 'schoolchair_01', 'old_tyre', 'power_box_01', 'wetfloorsign_01'] },
+  range: { hdri: 'np_sky_morgen_klar', textures: ['concrete_floor_worn', 'concrete_panels', 'gravel', 'grass', 'dirt', 'sand', 'wood_planks', 'wood_planks_dark', 'metal_painted', 'metal_galvanized', 'metal_tread', 'felt_panel', 'concrete_epoxy', 'burlap', 'rubber_floor', 'mud', 'ground_dry_cracked', 'chainlink'], models: ['ammo_box', 'wooden_military_crate', 'old_military_crate', 'metal_jerrycan_green', 'concrete_road_barrier', 'old_tyre', 'hanging_industrial_lamp', 'dead_tree_trunk_02', 'rock_07'] },
+  innenraum: { planned: true, hdri: 'np_sky_mittag_bewoelkt', textures: ['concrete_dirty', 'concrete_painted_peeling', 'plaster_damaged_brick', 'plaster_worn_patched', 'plaster_painted', 'wallpaper_stained', 'tiles_worn', 'tiles_white_wall', 'tiles_checker', 'linoleum', 'carpet_dirty', 'ceiling_office', 'wood_floor_old', 'wood_peeling_paint', 'osb', 'metal_shutter', 'brick_dark', 'rubble', 'metal_rust_painted'], models: ['metal_office_desk', 'schoolchair_01', 'steel_frame_shelves_01', 'wetfloorsign_01', 'hanging_industrial_lamp', 'cardboard_box_01', 'trashbag', 'plastic_monobloc_chair_01', 'old_military_crate'] },
   // Charakter-/Waffenmaterialien (Viewmodel + Bots), unabhängig von der Karte geladen
   ausruestung: { shared: true, textures: ['gunmetal_worn', 'polymer_black', 'wood_stock', 'rubber', 'fabric_uniform', 'camo_woodland', 'camo_desert', 'camo_urban'], models: [] },
 };
@@ -151,32 +151,32 @@ writeJSON(join(OUT, 'manifest.json'), manifest, 1);
 // ---------------------------------------------------------------------------------------------
 // CREDITS.md
 // ---------------------------------------------------------------------------------------------
-const SRC_NAME = { polyhaven: 'Poly Haven', ambientcg: 'ambientCG', derived: 'NULLPUNKT (abgeleitet)' };
-const LIC = { 'CC0-1.0': '[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de)' };
-const line = (e) => `| ${e.name || e.id} | \`${e.id}\` | ${e.author || '–'} | [${SRC_NAME[e.source] || e.source}](${e.url}) | ${LIC[e.license] || e.license} |`;
-const table = (rows) => ['| Asset | ID | Urheber:in | Quelle | Lizenz |', '|---|---|---|---|---|', ...rows].join('\n');
+const SRC_NAME = {
+  procedural: 'eigener Generator', video: 'eigene Video-Vorlage (entzerrt)', derived: 'eigener Generator (abgeleitet)',
+};
+const GEN_FILE = { textures: '`tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs`', hdris: '`tools/assets/skygen.py`', models: '`tools/assets/lib/eigen-models.mjs`' };
+const line = (kind) => (e) => `| \`${e.id}\` | ${SRC_NAME[e.source] || e.source} | ${e.source === 'video' ? '`tools/assets/video_material.py`' : GEN_FILE[kind]} |`;
+const table = (rows) => ['| ID | Herkunft | Werkzeug |', '|---|---|---|', ...rows].join('\n');
 const credits = `# Danksagungen & Lizenzen
 
-NULLPUNKT nutzt für Texturen, Umgebungslicht (HDRIs) und Modelle ausschließlich frei verwendbare Assets.
-Alle unten aufgeführten Assets stehen unter **CC0 1.0** (gemeinfrei) — eine Namensnennung ist nicht
-vorgeschrieben, wir nennen die Urheber:innen trotzdem gern. Die Dateien in \`assets/lib/\` sind von uns
-verkleinert und umkodiert (KTX2/Basis Universal, Meshopt, LOD-Stufen); Tarnmuster sind prozedural erzeugt
-und ebenfalls CC0. Quellenliste mit Download-IDs: \`tools/assets/sources.json\`, Pipeline: \`tools/assets/\`.
-
-Vielen Dank an [Poly Haven](https://polyhaven.com) und [ambientCG](https://ambientcg.com) sowie alle
-Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
+Seit 16.10. sind alle Texturen, Himmel (Umgebungslicht) und Requisiten-Modelle von NULLPUNKT **selbst erzeugt**:
+Texturen über eigene Generatoren (Höhenfeld → Albedo/Normalen/ORM, kachelbar), Himmel über einen eigenen
+Atmosphären- und Wolkenrechner (je Tageszeit × Wetterlage), Modelle aus eigenen Grundkörpern mit eigenen Texturen.
+Die früher genutzten Fremd-Assets (Poly Haven, ambientCG) sind vollständig ersetzt und nicht mehr im Spiel.
+Die Dateien in \`assets/lib/\` sind KTX2/Basis Universal kodiert, Modelle mit Meshopt und LOD-Stufen.
+Liste mit Generator-Schlüsseln: \`tools/assets/sources.json\`, Pipeline: \`tools/assets/\`.
 
 ## Texturen (${src.textures.length})
 
-${table(src.textures.map(line))}
+${table(src.textures.map(line('textures')))}
 
-## HDRIs (${src.hdris.length})
+## Himmel (${src.hdris.length})
 
-${table(src.hdris.map(line))}
+${table(src.hdris.map(line('hdris')))}
 
 ## Modelle (${src.models.length})
 
-${table(src.models.map(line))}
+${table(src.models.map(line('models')))}
 
 ## Klänge
 

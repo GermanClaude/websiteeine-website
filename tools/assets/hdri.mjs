@@ -3,7 +3,7 @@
 // Kennzahlen (Sonnenrichtung in three.js-Koordinaten, Leuchtdichten, Belichtung) landen im Manifest,
 // damit Karten Sonne/Schatten passend zur Umgebung ausrichten können.
 // Aufruf: node tools/assets/hdri.mjs [ids…] [--force]
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { ensureDir, gpuBytes, hash, loadSources, log, META, OUT, parseArgs, PIPELINE_VERSION, readJSON, rel, writeFileAtomic, writeJSON } from './lib/common.mjs';
 import { analyze, downsample, readHDR, tonemap, writeHDR } from './lib/hdr.mjs';
@@ -14,7 +14,8 @@ const args = parseArgs();
 const src = loadSources();
 const byId = Object.fromEntries(src.hdris.map((t) => [t.id, t]));
 const ids = args._.length ? args._ : src.hdris.map((t) => t.id);
-const recipe = (e) => hash({ v: PIPELINE_VERSION, id: e.id, s: e.sourceId, tiers: e.tiers, k: 'h4' });
+const srcStamp = (e) => (e.source === 'procedural' ? ['1k', '2k'].map((r) => { try { return statSync(new URL(`./sky-src/${e.sourceId}_${r}.hdr`, import.meta.url)).mtimeMs; } catch { return 0; } }) : null);
+const recipe = (e) => hash({ v: PIPELINE_VERSION, id: e.id, s: e.sourceId, tiers: e.tiers, k: 'h5', ...(e.source === 'procedural' ? { own: srcStamp(e) } : {}) });
 
 // PMREM (CubeUV, 256er Würfel, RGBA16F): ~768×1024 Texel × 8 B — gilt für beide Stufen
 const PMREM_BYTES = 768 * 1024 * 8;
@@ -30,6 +31,13 @@ async function build(e) {
   const img1k = readHDR(readFileSync(s['1k']));
   const img2k = readHDR(readFileSync(s['2k']));
   const stats = analyze(img2k);
+  // Eigene Himmel (skygen.py): Sonnenstand ist bekannt (φ = 0 → Azimut 90°), bei Bedeckung findet die Analyse keine Scheibe
+  const own = e.source === 'procedural' && /^np_sky_([a-z]+)_/.exec(e.sourceId);
+  const OWN_EL = { morgen: 10, vormittag: 36, mittag: 58, nachmittag: 30, abend: 12 };
+  if (own && OWN_EL[own[1]] != null) {
+    const el = OWN_EL[own[1]] * Math.PI / 180;
+    stats.sun = { ...stats.sun, dir: [+Math.cos(el).toFixed(4), +Math.sin(el).toFixed(4), 0], elevationDeg: OWN_EL[own[1]], azimuthDeg: 90 };
+  }
   // Belichtung wie eine Auto-Belichtung: logarithmisches Mittel der ganzen Kugel → Schlüsselwert (Mittelgrau 0,18
   // draußen, dunkler für Innenräume/Nacht, damit die Stimmung bleibt). Gilt für den gebackenen Himmel und als
   // Vorschlag für renderer.toneMappingExposure (Manifest: exposure).

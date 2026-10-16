@@ -171,3 +171,20 @@ vorhandene Tests (tank-model-test, gunsound-test, feedback-test …); ab Etappe 
   (`sky.hdriSat`). Farbstufe leicht wärmer, Schatten neutral-grünlich. Texturen: `vh_kai` Risse flacher,
   `cobble` halbe Weltgröße (`sizeM` je Zuordnung), Dach braunes Terrakotta, Ziegel weniger rot, `metal_navy` halb so
   hell. Werk: Wand- und Hallenlampen nur abends/nachts, Sonne wärmer, Fensterstrahlen etwas schwächer.
+- **Nachtrag 16.10. abends (Nutzer: „Mach alles. Jede Wetterlage, jede Tageszeit … jede Textur aus Open-Source-Seiten
+  selber, selbiges für die Gegenstände“):** Alle Fremd-Assets ersetzt.
+  - **Himmel:** eigener Generator `tools/assets/skygen.py` (Nishita-Atmosphäre + volumetrische Wolken aus
+    Perlin-Worley-Rauschen, Cirren, Bodendunst, Sonnenscheibe) für 5 Tageszeiten × 4 Wetterlagen = 20 HDRs
+    `np_sky_<zeit>_<wetter>`. `weather.js skyFor()` wählt den Himmel nach Tageszeit + Wetter; Karten nennen ihren
+    Standardhimmel. Sonnenstand der eigenen Himmel kommt aus dem Generator (bei Bedeckung findet die Analyse keine
+    Scheibe). Prüfbogen je Karte: `node tools/wetter-matrix.mjs <karte> x,y,z,gier,neigung` (Hafen: alle 20 stimmig).
+  - **Texturen:** 66 Sätze aus `tools/assets/lib/eigen-gen.mjs` (Höhenfeld → Normalen/Hohlraum, periodisches Voronoi,
+    Striche/Fasern, Holzmaserung, Leinwandbindung), gleiche Ids und Kachelmaße wie vorher, Albedo kanalweise auf die
+    gemessene Mittelfarbe des alten Satzes kalibriert (Kartenfaktoren gelten weiter). Tarnmuster aus dem eigenen
+    Uniformstoff. Vorschau: `node tools/assets/eigen-preview.mjs name,…`.
+  - **Modelle:** die 35 benutzten Requisiten aus `tools/assets/lib/eigen-models.mjs` (Drehkörper, Rundquader, Rohre,
+    Extrusionen, verformte Kugeln; eigene Lack-/Kunststoff-/Gummi-/Rinden-/Fels-Texturen mit Tönung und Aufdrucken),
+    exakt in die Hüllquader der alten Modelle eingepasst (`eigen-modelle.json`) → Platzierung und Kollision
+    unverändert (Hash niedrig = hoch). 22 ungenutzte Fremdmodelle und 11 Fremd-HDRIs entfernt. CREDITS.md neu.
+  - **Werkhalle (Video 3,5 s):** Fenster mit Stahlsprossen (4 × 3, `grid` in arch.js), Lichtbahnen warm
+    (`atmos.beamTint`), Oberlichter verschmutzt statt überstrahlt, nur noch ein Dachloch.

@@ -1,14 +1,12 @@
 {
- "$comment": "NULLPUNKT Asset-Quellen. Nur CC0 (bevorzugt) oder CC-BY mit exakter Namensnennung. author/url/dimensions werden von `node tools/assets/resolve.mjs` aus den Quell-APIs ergänzt. Bearbeiten, dann `node tools/assets/build.mjs`.",
+ "$comment": "NULLPUNKT Asset-Quellen. Texturen und Himmel seit 16.10. eigen (procedural: tools/assets/lib/eigen-gen.mjs, tools/assets/skygen.py). Fremdquellen nur CC0 (bevorzugt) oder CC-BY mit exakter Namensnennung. author/url/dimensions werden von `node tools/assets/resolve.mjs` aus den Quell-APIs ergänzt. Bearbeiten, dann `node tools/assets/build.mjs`.",
  "version": 1,
  "textures": [
   {
    "id": "concrete_floor_worn",
-   "source": "polyhaven",
-   "sourceId": "concrete_floor_worn_001",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/concrete_floor_worn_001",
-   "author": "Dimitrios Savva, Rico Cilliers",
+   "source": "procedural",
+   "sourceId": "concrete_floor_worn",
+   "license": "eigen (NULLPUNKT)",
    "category": "concrete",
    "surface": "concrete",
    "replaces": [],
@@ -18,7 +16,6 @@
     2048
    ],
    "hero": true,
-   "name": "Concrete Floor Worn 001",
    "sizeM": [
     3,
     3
@@ -26,11 +23,9 @@
   },
   {
    "id": "concrete_wall_dark",
-   "source": "polyhaven",
-   "sourceId": "concrete_wall_006",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/concrete_wall_006",
-   "author": "Dario Barresi, Charlotte Baglioni",
+   "source": "procedural",
+   "sourceId": "concrete_wall_dark",
+   "license": "eigen (NULLPUNKT)",
    "category": "concrete",
    "surface": "concrete",
    "replaces": [
@@ -40,7 +35,6 @@
     512,
     1024
    ],
-   "name": "Concrete Wall 006",
    "sizeM": [
     2,
     2
@@ -48,11 +42,9 @@
   },
   {
    "id": "concrete_panels",
-   "source": "polyhaven",
-   "sourceId": "concrete_wall_004",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/concrete_wall_004",
-   "author": "Dario Barresi, Charlotte Baglioni",
+   "source": "procedural",
+   "sourceId": "concrete_panels",
+   "license": "eigen (NULLPUNKT)",
    "category": "concrete",
    "surface": "concrete",
    "replaces": [
@@ -62,7 +54,6 @@
     512,
     1024
    ],
-   "name": "Concrete Wall 004",
    "sizeM": [
     2,
     2
@@ -70,11 +61,9 @@
   },
   {
    "id": "concrete_dirty",
-   "source": "polyhaven",
-   "sourceId": "dirty_concrete",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/dirty_concrete",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "concrete_dirty",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "surface": "concrete",
    "replaces": [],
@@ -82,7 +71,6 @@
     512,
     1024
    ],
-   "name": "Dirty Concrete",
    "sizeM": [
     3,
     3
@@ -90,11 +78,9 @@
   },
   {
    "id": "concrete_painted_peeling",
-   "source": "polyhaven",
-   "sourceId": "painted_concrete",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/painted_concrete",
-   "author": "Dario Barresi, Dimitrios Savva",
+   "source": "procedural",
+   "sourceId": "concrete_painted",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "surface": "concrete",
    "replaces": [],
@@ -102,7 +88,6 @@
     512,
     1024
    ],
-   "name": "Painted Concrete",
    "sizeM": [
     2,
     2
@@ -110,11 +95,9 @@
   },
   {
    "id": "concrete_epoxy",
-   "source": "polyhaven",
-   "sourceId": "painted_concrete_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/painted_concrete_02",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "concrete_epoxy",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "surface": "concrete",
    "replaces": [
@@ -126,7 +109,6 @@
     1024
    ],
    "tintable": true,
-   "name": "Painted Concrete 02",
    "sizeM": [
     4,
     4
@@ -134,11 +116,9 @@
   },
   {
    "id": "rubble",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "rubble",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/rubble",
-   "author": "Amal Kumar",
+   "license": "eigen (NULLPUNKT)",
    "category": "ground",
    "surface": "dirt",
    "replaces": [],
@@ -146,7 +126,6 @@
     512,
     1024
    ],
-   "name": "Rubble",
    "sizeM": [
     2,
     2
@@ -154,11 +133,9 @@
   },
   {
    "id": "plaster_beige",
-   "source": "polyhaven",
-   "sourceId": "beige_wall_002",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/beige_wall_002",
-   "author": "Dimitrios Savva, Rico Cilliers",
+   "source": "procedural",
+   "sourceId": "plaster_beige",
+   "license": "eigen (NULLPUNKT)",
    "category": "plaster",
    "surface": "concrete",
    "replaces": [
@@ -168,7 +145,6 @@
     512,
     1024
    ],
-   "name": "Beige Wall 002",
    "sizeM": [
     3,
     3
@@ -176,11 +152,9 @@
   },
   {
    "id": "plaster_white",
-   "source": "polyhaven",
-   "sourceId": "white_stucco_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/white_stucco_02",
-   "author": "Dimitrios Savva",
+   "source": "procedural",
+   "sourceId": "plaster_white",
+   "license": "eigen (NULLPUNKT)",
    "category": "plaster",
    "surface": "concrete",
    "replaces": [],
@@ -188,7 +162,6 @@
     512,
     1024
    ],
-   "name": "White Stucco 02",
    "sizeM": [
     0,
     1.8
@@ -196,11 +169,9 @@
   },
   {
    "id": "plaster_white_peeling",
-   "source": "polyhaven",
-   "sourceId": "white_rough_plaster",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/white_rough_plaster",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "plaster_white_peeling",
+   "license": "eigen (NULLPUNKT)",
    "category": "plaster",
    "surface": "concrete",
    "replaces": [],
@@ -208,7 +179,6 @@
     512,
     1024
    ],
-   "name": "White Rough Plaster",
    "sizeM": [
     1,
     1
@@ -216,11 +186,9 @@
   },
   {
    "id": "plaster_damaged_brick",
-   "source": "polyhaven",
-   "sourceId": "damaged_plaster",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/damaged_plaster",
-   "author": "Amal Kumar",
+   "source": "procedural",
+   "sourceId": "plaster_damaged_brick",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "surface": "concrete",
    "replaces": [],
@@ -228,7 +196,6 @@
     512,
     1024
    ],
-   "name": "Damaged Plaster",
    "sizeM": [
     1.85,
     1.85
@@ -236,11 +203,9 @@
   },
   {
    "id": "plaster_worn_patched",
-   "source": "polyhaven",
-   "sourceId": "worn_plaster_wall",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/worn_plaster_wall",
-   "author": "Dimitrios Savva",
+   "source": "procedural",
+   "sourceId": "plaster_worn_patched",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "surface": "concrete",
    "replaces": [],
@@ -248,7 +213,6 @@
     512,
     1024
    ],
-   "name": "Worn Plaster Wall",
    "sizeM": [
     1.8,
     1.8
@@ -256,11 +220,9 @@
   },
   {
    "id": "plaster_blue_weathered",
-   "source": "polyhaven",
-   "sourceId": "blue_plaster_weathered",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/blue_plaster_weathered",
-   "author": "Amal Kumar",
+   "source": "procedural",
+   "sourceId": "plaster_blue_weathered",
+   "license": "eigen (NULLPUNKT)",
    "category": "plaster",
    "surface": "concrete",
    "replaces": [],
@@ -268,7 +230,6 @@
     512,
     1024
    ],
-   "name": "Blue Plaster Weathered",
    "sizeM": [
     2,
     2
@@ -276,11 +237,9 @@
   },
   {
    "id": "plaster_painted",
-   "source": "polyhaven",
-   "sourceId": "painted_plaster_wall",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/painted_plaster_wall",
-   "author": "Amal Kumar",
+   "source": "procedural",
+   "sourceId": "plaster_painted",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "surface": "concrete",
    "replaces": [],
@@ -289,7 +248,6 @@
     1024
    ],
    "tintable": true,
-   "name": "Painted Plaster Wall",
    "sizeM": [
     2,
     2
@@ -297,11 +255,9 @@
   },
   {
    "id": "wallpaper_stained",
-   "source": "ambientcg",
-   "sourceId": "Wallpaper002C",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=Wallpaper002C",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "wallpaper_stained",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "surface": "concrete",
    "replaces": [],
@@ -309,7 +265,6 @@
     512,
     1024
    ],
-   "name": "Wallpaper 002 C",
    "sizeM": [
     1,
     1
@@ -317,11 +272,9 @@
   },
   {
    "id": "sandstone_blocks",
-   "source": "polyhaven",
-   "sourceId": "sandstone_blocks_05",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/sandstone_blocks_05",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "sandstone_blocks",
+   "license": "eigen (NULLPUNKT)",
    "category": "masonry",
    "surface": "concrete",
    "replaces": [
@@ -333,7 +286,6 @@
     2048
    ],
    "hero": true,
-   "name": "Sandstone Blocks 05",
    "sizeM": [
     3,
     3
@@ -341,11 +293,9 @@
   },
   {
    "id": "brick_factory",
-   "source": "polyhaven",
-   "sourceId": "factory_brick",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/factory_brick",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "brick_factory",
+   "license": "eigen (NULLPUNKT)",
    "category": "masonry",
    "surface": "concrete",
    "replaces": [],
@@ -355,7 +305,6 @@
     2048
    ],
    "hero": true,
-   "name": "Factory Brick",
    "sizeM": [
     1.5,
     1.5
@@ -363,11 +312,9 @@
   },
   {
    "id": "brick_dark",
-   "source": "polyhaven",
-   "sourceId": "brick_wall_10",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/brick_wall_10",
-   "author": "Dimitrios Savva",
+   "source": "procedural",
+   "sourceId": "brick_dark",
+   "license": "eigen (NULLPUNKT)",
    "category": "masonry",
    "surface": "concrete",
    "replaces": [
@@ -377,7 +324,6 @@
     512,
     1024
    ],
-   "name": "Brick Wall 10",
    "sizeM": [
     1.9,
     1.9
@@ -385,11 +331,9 @@
   },
   {
    "id": "cobblestone",
-   "source": "polyhaven",
-   "sourceId": "cobblestone_floor_08",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/cobblestone_floor_08",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "cobblestone",
+   "license": "eigen (NULLPUNKT)",
    "category": "masonry",
    "surface": "concrete",
    "replaces": [],
@@ -397,7 +341,6 @@
     512,
     1024
    ],
-   "name": "Cobblestone Floor 08",
    "sizeM": [
     2,
     2
@@ -405,11 +348,9 @@
   },
   {
    "id": "paving_flagstone",
-   "source": "polyhaven",
-   "sourceId": "pavement_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/pavement_02",
-   "author": "Dario Barresi, Charlotte Baglioni",
+   "source": "procedural",
+   "sourceId": "paving_flagstone",
+   "license": "eigen (NULLPUNKT)",
    "category": "masonry",
    "surface": "concrete",
    "replaces": [
@@ -419,7 +360,6 @@
     512,
     1024
    ],
-   "name": "Pavement 02",
    "sizeM": [
     2.12,
     2.12
@@ -427,11 +367,9 @@
   },
   {
    "id": "roof_clay_tiles",
-   "source": "polyhaven",
-   "sourceId": "clay_roof_tiles_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/clay_roof_tiles_02",
-   "author": "Amal Kumar",
+   "source": "procedural",
+   "sourceId": "roof_clay_tiles",
+   "license": "eigen (NULLPUNKT)",
    "category": "masonry",
    "surface": "tile",
    "replaces": [],
@@ -439,7 +377,6 @@
     512,
     1024
    ],
-   "name": "Clay Roof Tiles 02",
    "sizeM": [
     2.5,
     2.5
@@ -447,11 +384,9 @@
   },
   {
    "id": "tiles_terracotta",
-   "source": "polyhaven",
-   "sourceId": "terracotta_floor_tiles",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/terracotta_floor_tiles",
-   "author": "Dimitrios Savva",
+   "source": "procedural",
+   "sourceId": "tiles_terracotta",
+   "license": "eigen (NULLPUNKT)",
    "category": "floor",
    "surface": "tile",
    "replaces": [
@@ -461,7 +396,6 @@
     512,
     1024
    ],
-   "name": "Terracotta Floor Tiles",
    "sizeM": [
     2.08,
     2.08
@@ -469,11 +403,9 @@
   },
   {
    "id": "tiles_worn",
-   "source": "polyhaven",
-   "sourceId": "worn_tile_floor",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/worn_tile_floor",
-   "author": "Dimitrios Savva",
+   "source": "procedural",
+   "sourceId": "tiles_worn",
+   "license": "eigen (NULLPUNKT)",
    "category": "floor",
    "surface": "tile",
    "replaces": [
@@ -483,7 +415,6 @@
     512,
     1024
    ],
-   "name": "Worn Tile Floor",
    "sizeM": [
     2,
     2
@@ -491,11 +422,9 @@
   },
   {
    "id": "tiles_checker",
-   "source": "polyhaven",
-   "sourceId": "floor_tiles_06",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/floor_tiles_06",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "tiles_checker",
+   "license": "eigen (NULLPUNKT)",
    "category": "floor",
    "surface": "tile",
    "replaces": [
@@ -505,7 +434,6 @@
     512,
     1024
    ],
-   "name": "Floor Tiles 06",
    "sizeM": [
     3,
     3
@@ -513,11 +441,9 @@
   },
   {
    "id": "tiles_white_wall",
-   "source": "polyhaven",
-   "sourceId": "long_white_tiles",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/long_white_tiles",
-   "author": "Jenelle van Heerden, Sergej Majboroda",
+   "source": "procedural",
+   "sourceId": "tiles_white_wall",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "surface": "tile",
    "replaces": [],
@@ -525,7 +451,6 @@
     512,
     1024
    ],
-   "name": "Long White Tiles",
    "sizeM": [
     1.27,
     1.27
@@ -533,11 +458,9 @@
   },
   {
    "id": "linoleum",
-   "source": "polyhaven",
-   "sourceId": "linoleum_brown",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/linoleum_brown",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "linoleum",
+   "license": "eigen (NULLPUNKT)",
    "category": "floor",
    "surface": "fabric",
    "replaces": [],
@@ -546,7 +469,6 @@
     1024
    ],
    "tintable": true,
-   "name": "Linoleum Brown",
    "sizeM": [
     2,
     2
@@ -554,11 +476,9 @@
   },
   {
    "id": "carpet_dirty",
-   "source": "polyhaven",
-   "sourceId": "dirty_carpet",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/dirty_carpet",
-   "author": "Rohit Seervi",
+   "source": "procedural",
+   "sourceId": "carpet_dirty",
+   "license": "eigen (NULLPUNKT)",
    "category": "floor",
    "surface": "fabric",
    "replaces": [],
@@ -566,7 +486,6 @@
     512,
     1024
    ],
-   "name": "Dirty Carpet",
    "sizeM": [
     0.6,
     0.6
@@ -574,11 +493,9 @@
   },
   {
    "id": "ceiling_office",
-   "source": "ambientcg",
-   "sourceId": "OfficeCeiling001",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=OfficeCeiling001",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "ceiling_office",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "surface": "concrete",
    "replaces": [],
@@ -586,7 +503,6 @@
     512,
     1024
    ],
-   "name": "Office Ceiling 001",
    "sizeM": [
     3.85,
     3.85
@@ -594,11 +510,9 @@
   },
   {
    "id": "rubber_floor",
-   "source": "ambientcg",
-   "sourceId": "Rubber001",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=Rubber001",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "rubber_floor",
+   "license": "eigen (NULLPUNKT)",
    "category": "floor",
    "surface": "fabric",
    "replaces": [
@@ -608,7 +522,6 @@
     512,
     1024
    ],
-   "name": "Rubber 001",
    "sizeM": [
     0.75,
     0.75
@@ -616,11 +529,9 @@
   },
   {
    "id": "asphalt_cracked",
-   "source": "polyhaven",
-   "sourceId": "asphalt_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/asphalt_02",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "asphalt",
+   "license": "eigen (NULLPUNKT)",
    "category": "ground",
    "surface": "concrete",
    "replaces": [
@@ -632,7 +543,6 @@
     2048
    ],
    "hero": true,
-   "name": "Asphalt 02",
    "sizeM": [
     3,
     3
@@ -640,11 +550,9 @@
   },
   {
    "id": "gravel",
-   "source": "polyhaven",
-   "sourceId": "gravel_floor_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/gravel_floor_02",
-   "author": "Jenelle van Heerden, Dimitrios Savva",
+   "source": "procedural",
+   "sourceId": "gravel",
+   "license": "eigen (NULLPUNKT)",
    "category": "ground",
    "surface": "dirt",
    "replaces": [
@@ -654,7 +562,6 @@
     512,
     1024
    ],
-   "name": "Gravel Floor 02",
    "sizeM": [
     2,
     2
@@ -662,11 +569,9 @@
   },
   {
    "id": "sand",
-   "source": "polyhaven",
-   "sourceId": "dense_sand",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/dense_sand",
-   "author": "Dimitrios Savva",
+   "source": "procedural",
+   "sourceId": "sand",
+   "license": "eigen (NULLPUNKT)",
    "category": "ground",
    "surface": "sand",
    "replaces": [
@@ -676,7 +581,6 @@
     512,
     1024
    ],
-   "name": "Dense Sand",
    "sizeM": [
     1.8,
     1.8
@@ -684,11 +588,9 @@
   },
   {
    "id": "dirt",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "dirt",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/dirt",
-   "author": "Charlotte Baglioni",
+   "license": "eigen (NULLPUNKT)",
    "category": "ground",
    "surface": "dirt",
    "replaces": [
@@ -698,7 +600,6 @@
     512,
     1024
    ],
-   "name": "Dirt",
    "sizeM": [
     2,
     2
@@ -706,11 +607,9 @@
   },
   {
    "id": "mud",
-   "source": "polyhaven",
-   "sourceId": "brown_mud_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/brown_mud_02",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "mud",
+   "license": "eigen (NULLPUNKT)",
    "category": "ground",
    "surface": "dirt",
    "replaces": [],
@@ -718,7 +617,6 @@
     512,
     1024
    ],
-   "name": "Brown Mud 02",
    "sizeM": [
     1.3,
     1.3
@@ -726,11 +624,9 @@
   },
   {
    "id": "ground_dry_cracked",
-   "source": "polyhaven",
-   "sourceId": "dry_ground_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/dry_ground_01",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "ground_dry",
+   "license": "eigen (NULLPUNKT)",
    "category": "ground",
    "surface": "dirt",
    "replaces": [],
@@ -738,7 +634,6 @@
     512,
     1024
    ],
-   "name": "Dry Ground 01",
    "sizeM": [
     4,
     4
@@ -746,11 +641,9 @@
   },
   {
    "id": "grass",
-   "source": "ambientcg",
-   "sourceId": "Grass004",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=Grass004",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "grass",
+   "license": "eigen (NULLPUNKT)",
    "category": "ground",
    "surface": "grass",
    "replaces": [
@@ -760,7 +653,6 @@
     512,
     1024
    ],
-   "name": "Grass 004",
    "sizeM": [
     1.4,
     1.4
@@ -769,11 +661,9 @@
   },
   {
    "id": "wood_planks",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "wood_planks",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/wood_planks",
-   "author": "Amal Kumar",
+   "license": "eigen (NULLPUNKT)",
    "category": "wood",
    "surface": "wood",
    "replaces": [
@@ -783,7 +673,6 @@
     512,
     1024
    ],
-   "name": "Wood Planks",
    "sizeM": [
     1.5,
     1.5
@@ -791,11 +680,9 @@
   },
   {
    "id": "wood_planks_weathered",
-   "source": "polyhaven",
-   "sourceId": "weathered_planks",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/weathered_planks",
-   "author": "Dario Barresi, Dimitrios Savva",
+   "source": "procedural",
+   "sourceId": "wood_planks_weathered",
+   "license": "eigen (NULLPUNKT)",
    "category": "wood",
    "surface": "wood",
    "replaces": [],
@@ -803,7 +690,6 @@
     512,
     1024
    ],
-   "name": "Weathered Planks",
    "sizeM": [
     2,
     2
@@ -811,11 +697,9 @@
   },
   {
    "id": "wood_planks_dark",
-   "source": "polyhaven",
-   "sourceId": "dark_wooden_planks",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/dark_wooden_planks",
-   "author": "Amal Kumar",
+   "source": "procedural",
+   "sourceId": "wood_planks_dark",
+   "license": "eigen (NULLPUNKT)",
    "category": "wood",
    "surface": "wood",
    "replaces": [
@@ -825,7 +709,6 @@
     512,
     1024
    ],
-   "name": "Dark Wooden Planks",
    "sizeM": [
     2,
     2
@@ -833,11 +716,9 @@
   },
   {
    "id": "wood_crate",
-   "source": "polyhaven",
-   "sourceId": "raw_plank_wall",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/raw_plank_wall",
-   "author": "Dimitrios Savva",
+   "source": "procedural",
+   "sourceId": "wood_crate",
+   "license": "eigen (NULLPUNKT)",
    "category": "wood",
    "surface": "wood",
    "replaces": [
@@ -847,7 +728,6 @@
     512,
     1024
    ],
-   "name": "Raw Plank Wall",
    "sizeM": [
     1.87,
     1.87
@@ -855,11 +735,9 @@
   },
   {
    "id": "osb",
-   "source": "polyhaven",
-   "sourceId": "oriented_strand_board",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/oriented_strand_board",
-   "author": "Dimitrios Savva",
+   "source": "procedural",
+   "sourceId": "osb",
+   "license": "eigen (NULLPUNKT)",
    "category": "wood",
    "surface": "wood",
    "replaces": [],
@@ -867,7 +745,6 @@
     512,
     1024
    ],
-   "name": "Oriented Strand Board",
    "sizeM": [
     2.51,
     2.51
@@ -875,11 +752,9 @@
   },
   {
    "id": "wood_floor_old",
-   "source": "polyhaven",
-   "sourceId": "old_wood_floor",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/old_wood_floor",
-   "author": "Guillaume Monsergent",
+   "source": "procedural",
+   "sourceId": "wood_floor_old",
+   "license": "eigen (NULLPUNKT)",
    "category": "floor",
    "surface": "wood",
    "replaces": [],
@@ -887,7 +762,6 @@
     512,
     1024
    ],
-   "name": "Old Wood Floor",
    "sizeM": [
     3,
     3
@@ -895,11 +769,9 @@
   },
   {
    "id": "wood_peeling_paint",
-   "source": "polyhaven",
-   "sourceId": "wood_peeling_paint_weathered",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/wood_peeling_paint_weathered",
-   "author": "Rob Tuytel, Dimitrios Savva",
+   "source": "procedural",
+   "sourceId": "wood_peeling_paint",
+   "license": "eigen (NULLPUNKT)",
    "category": "wood",
    "surface": "wood",
    "replaces": [],
@@ -907,7 +779,6 @@
     512,
     1024
    ],
-   "name": "Wood Peeling Paint Weathered",
    "sizeM": [
     0.76,
     0.76
@@ -915,11 +786,9 @@
   },
   {
    "id": "bark_palm",
-   "source": "polyhaven",
-   "sourceId": "palm_tree_bark",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/palm_tree_bark",
-   "author": "Dimitrios Savva, Rico Cilliers",
+   "source": "procedural",
+   "sourceId": "bark_palm",
+   "license": "eigen (NULLPUNKT)",
    "category": "wood",
    "surface": "wood",
    "replaces": [
@@ -929,7 +798,6 @@
     512,
     1024
    ],
-   "name": "Palm Tree Bark",
    "sizeM": [
     1.3,
     1.3
@@ -937,11 +805,9 @@
   },
   {
    "id": "cardboard",
-   "source": "ambientcg",
-   "sourceId": "Cardboard004",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=Cardboard004",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "cardboard",
+   "license": "eigen (NULLPUNKT)",
    "category": "misc",
    "surface": "wood",
    "replaces": [
@@ -951,7 +817,6 @@
     512,
     1024
    ],
-   "name": "Cardboard 004",
    "sizeM": [
     0.5,
     0.5
@@ -959,11 +824,9 @@
   },
   {
    "id": "metal_painted",
-   "source": "polyhaven",
-   "sourceId": "green_metal_rust",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/green_metal_rust",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "metal_painted",
+   "license": "eigen (NULLPUNKT)",
    "category": "metal",
    "surface": "metal",
    "replaces": [
@@ -976,14 +839,6 @@
    ],
    "hero": true,
    "tintable": true,
-   "recolor": {
-    "hue": [
-     60,
-     200
-    ],
-    "target": 0.62
-   },
-   "name": "Green Metal Rust",
    "sizeM": [
     1,
     1
@@ -991,11 +846,9 @@
   },
   {
    "id": "metal_rust_painted",
-   "source": "polyhaven",
-   "sourceId": "rusty_metal_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/rusty_metal_02",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "metal_rust_painted",
+   "license": "eigen (NULLPUNKT)",
    "category": "metal",
    "surface": "metal",
    "replaces": [
@@ -1005,7 +858,6 @@
     512,
     1024
    ],
-   "name": "Rusty Metal 02",
    "sizeM": [
     1,
     1
@@ -1013,11 +865,9 @@
   },
   {
    "id": "metal_corrugated",
-   "source": "polyhaven",
-   "sourceId": "corrugated_iron_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/corrugated_iron_02",
-   "author": "Jenelle van Heerden, Sergej Majboroda",
+   "source": "procedural",
+   "sourceId": "metal_corrugated",
+   "license": "eigen (NULLPUNKT)",
    "category": "metal",
    "surface": "metal",
    "replaces": [],
@@ -1025,7 +875,6 @@
     512,
     1024
    ],
-   "name": "Corrugated Iron 02",
    "sizeM": [
     2.7,
     2.7
@@ -1033,11 +882,9 @@
   },
   {
    "id": "metal_corrugated_rusty",
-   "source": "polyhaven",
-   "sourceId": "rusty_corrugated_iron",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/rusty_corrugated_iron",
-   "author": "Charlotte Baglioni",
+   "source": "procedural",
+   "sourceId": "metal_corrugated_rusty",
+   "license": "eigen (NULLPUNKT)",
    "category": "metal",
    "surface": "metal",
    "replaces": [],
@@ -1045,7 +892,6 @@
     512,
     1024
    ],
-   "name": "Rusty Corrugated Iron",
    "sizeM": [
     2,
     2
@@ -1053,11 +899,9 @@
   },
   {
    "id": "metal_cladding_green",
-   "source": "polyhaven",
-   "sourceId": "factory_wall",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/factory_wall",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "metal_cladding_green",
+   "license": "eigen (NULLPUNKT)",
    "category": "metal",
    "surface": "metal",
    "replaces": [],
@@ -1065,7 +909,6 @@
     512,
     1024
    ],
-   "name": "Factory Wall",
    "sizeM": [
     3,
     3
@@ -1073,11 +916,9 @@
   },
   {
    "id": "metal_shutter",
-   "source": "polyhaven",
-   "sourceId": "painted_metal_shutter",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/painted_metal_shutter",
-   "author": "Dario Barresi, Rico Cilliers, Charlotte Baglioni",
+   "source": "procedural",
+   "sourceId": "metal_shutter",
+   "license": "eigen (NULLPUNKT)",
    "category": "metal",
    "surface": "metal",
    "replaces": [],
@@ -1085,7 +926,6 @@
     512,
     1024
    ],
-   "name": "Painted Metal Shutter",
    "sizeM": [
     2,
     2
@@ -1093,11 +933,9 @@
   },
   {
    "id": "metal_galvanized",
-   "source": "ambientcg",
-   "sourceId": "Metal009",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=Metal009",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "metal_galvanized",
+   "license": "eigen (NULLPUNKT)",
    "category": "metal",
    "surface": "metal",
    "replaces": [
@@ -1107,7 +945,6 @@
     512,
     1024
    ],
-   "name": "Metal 009",
    "sizeM": [
     1,
     1
@@ -1115,11 +952,9 @@
   },
   {
    "id": "metal_tread",
-   "source": "polyhaven",
-   "sourceId": "metal_plate",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/metal_plate",
-   "author": "Rob Tuytel",
+   "source": "procedural",
+   "sourceId": "metal_tread",
+   "license": "eigen (NULLPUNKT)",
    "category": "metal",
    "surface": "metal",
    "replaces": [
@@ -1129,7 +964,6 @@
     512,
     1024
    ],
-   "name": "Metal Plate",
    "sizeM": [
     0.5,
     0.5
@@ -1137,11 +971,9 @@
   },
   {
    "id": "metal_grate",
-   "source": "ambientcg",
-   "sourceId": "MetalWalkway010",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=MetalWalkway010",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "metal_grate",
+   "license": "eigen (NULLPUNKT)",
    "category": "metal",
    "surface": "metal",
    "replaces": [
@@ -1152,7 +984,6 @@
     1024
    ],
    "alpha": true,
-   "name": "Metal Walkway 010",
    "sizeM": [
     1,
     1
@@ -1160,11 +991,9 @@
   },
   {
    "id": "chainlink",
-   "source": "ambientcg",
-   "sourceId": "Fence007A",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=Fence007A",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "chainlink",
+   "license": "eigen (NULLPUNKT)",
    "category": "metal",
    "surface": "metal",
    "replaces": [],
@@ -1173,7 +1002,6 @@
     1024
    ],
    "alpha": true,
-   "name": "Fence 007 A",
    "sizeM": [
     0.95,
     0.95
@@ -1181,11 +1009,9 @@
   },
   {
    "id": "hazard_stripes",
-   "source": "ambientcg",
-   "sourceId": "PaintedMetal016",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=PaintedMetal016",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "hazard_stripes",
+   "license": "eigen (NULLPUNKT)",
    "category": "metal",
    "surface": "metal",
    "replaces": [
@@ -1195,7 +1021,6 @@
     512,
     1024
    ],
-   "name": "Painted Metal 016",
    "sizeM": [
     1,
     1
@@ -1203,11 +1028,9 @@
   },
   {
    "id": "container",
-   "source": "polyhaven",
-   "sourceId": "container_side",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/container_side",
-   "author": "Dimitrios Savva",
+   "source": "procedural",
+   "sourceId": "container",
+   "license": "eigen (NULLPUNKT)",
    "category": "metal",
    "surface": "metal",
    "replaces": [],
@@ -1218,14 +1041,6 @@
    ],
    "hero": true,
    "tintable": true,
-   "recolor": {
-    "hue": [
-     70,
-     190
-    ],
-    "target": 0.66
-   },
-   "name": "Container Side",
    "sizeM": [
     1.94,
     1.94
@@ -1233,11 +1048,9 @@
   },
   {
    "id": "burlap",
-   "source": "polyhaven",
-   "sourceId": "hessian_230",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/hessian_230",
-   "author": "colormass, Rico Cilliers",
+   "source": "procedural",
+   "sourceId": "burlap",
+   "license": "eigen (NULLPUNKT)",
    "category": "fabric",
    "surface": "sand",
    "replaces": [
@@ -1247,7 +1060,6 @@
     512,
     1024
    ],
-   "name": "Hessian 230",
    "sizeM": [
     0.27,
     0.27
@@ -1256,11 +1068,9 @@
   },
   {
    "id": "canvas",
-   "source": "polyhaven",
-   "sourceId": "rough_linen",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/rough_linen",
-   "author": "colormass, Rico Cilliers",
+   "source": "procedural",
+   "sourceId": "canvas",
+   "license": "eigen (NULLPUNKT)",
    "category": "fabric",
    "surface": "fabric",
    "replaces": [
@@ -1271,14 +1081,6 @@
     1024
    ],
    "tintable": true,
-   "recolor": {
-    "hue": [
-     0,
-     360
-    ],
-    "target": 0.7
-   },
-   "name": "Rough Linen",
    "sizeM": [
     0.27,
     0.27
@@ -1286,11 +1088,9 @@
   },
   {
    "id": "awning_stripes",
-   "source": "ambientcg",
-   "sourceId": "Fabric006",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=Fabric006",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "awning_stripes",
+   "license": "eigen (NULLPUNKT)",
    "category": "fabric",
    "surface": "fabric",
    "replaces": [
@@ -1300,7 +1100,6 @@
     512,
     1024
    ],
-   "name": "Fabric 006",
    "sizeM": [
     1,
     1
@@ -1308,11 +1107,9 @@
   },
   {
    "id": "felt_panel",
-   "source": "ambientcg",
-   "sourceId": "Fabric034",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=Fabric034",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "felt_panel",
+   "license": "eigen (NULLPUNKT)",
    "category": "fabric",
    "surface": "fabric",
    "replaces": [
@@ -1322,7 +1119,6 @@
     512,
     1024
    ],
-   "name": "Fabric 034",
    "sizeM": [
     0.5,
     0.5
@@ -1330,11 +1126,9 @@
   },
   {
    "id": "fabric_uniform",
-   "source": "ambientcg",
-   "sourceId": "Fabric036",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=Fabric036",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "fabric_uniform",
+   "license": "eigen (NULLPUNKT)",
    "category": "fabric",
    "surface": "fabric",
    "replaces": [],
@@ -1343,14 +1137,6 @@
     1024
    ],
    "tintable": true,
-   "recolor": {
-    "hue": [
-     0,
-     360
-    ],
-    "target": 0.6
-   },
-   "name": "Fabric 036",
    "sizeM": [
     0.1,
     0.1
@@ -1425,11 +1211,9 @@
   },
   {
    "id": "gunmetal_worn",
-   "source": "ambientcg",
-   "sourceId": "Metal046B",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=Metal046B",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "gunmetal_worn",
+   "license": "eigen (NULLPUNKT)",
    "category": "weapon",
    "surface": "metal",
    "replaces": [
@@ -1441,7 +1225,6 @@
     2048
    ],
    "hero": true,
-   "name": "Metal 046 B",
    "sizeM": [
     0.5,
     0.5
@@ -1449,11 +1232,9 @@
   },
   {
    "id": "polymer_black",
-   "source": "ambientcg",
-   "sourceId": "Plastic006",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=Plastic006",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "polymer_black",
+   "license": "eigen (NULLPUNKT)",
    "category": "weapon",
    "surface": "metal",
    "replaces": [
@@ -1465,7 +1246,6 @@
     2048
    ],
    "hero": true,
-   "name": "Plastic 006",
    "sizeM": [
     0.5,
     0.5
@@ -1474,11 +1254,9 @@
   },
   {
    "id": "wood_stock",
-   "source": "polyhaven",
-   "sourceId": "lacquered_cherry_wood",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/lacquered_cherry_wood",
-   "author": "Jenelle van Heerden, Rico Cilliers",
+   "source": "procedural",
+   "sourceId": "wood_stock",
+   "license": "eigen (NULLPUNKT)",
    "category": "weapon",
    "surface": "wood",
    "replaces": [
@@ -1490,7 +1268,6 @@
     2048
    ],
    "hero": true,
-   "name": "Lacquered Cherry Wood",
    "sizeM": [
     1,
     1
@@ -1498,11 +1275,9 @@
   },
   {
    "id": "rubber",
-   "source": "ambientcg",
-   "sourceId": "Rubber004",
-   "license": "CC0-1.0",
-   "url": "https://ambientcg.com/view?id=Rubber004",
-   "author": "Lennart Demes (ambientCG)",
+   "source": "procedural",
+   "sourceId": "rubber",
+   "license": "eigen (NULLPUNKT)",
    "category": "weapon",
    "surface": "fabric",
    "replaces": [
@@ -1512,7 +1287,6 @@
     512,
     1024
    ],
-   "name": "Rubber 004",
    "sizeM": [
     0.75,
     0.75
@@ -2004,261 +1778,338 @@
  ],
  "hdris": [
   {
-   "id": "freight_station",
-   "source": "polyhaven",
-   "sourceId": "freight_station",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/freight_station",
-   "author": "Sergej Majboroda",
+   "id": "np_sky_morgen_klar",
+   "source": "procedural",
+   "sourceId": "np_sky_morgen_klar",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
    "kind": "outdoor",
-   "mood": "golden hour, industrial yard (Hafen)",
-   "maps": [
-    "hafen"
-   ],
-   "tiers": [
-    512,
-    1024
-   ],
-   "name": "Freight Station"
-  },
-  {
-   "id": "old_outdoor_theater",
-   "source": "polyhaven",
-   "sourceId": "old_outdoor_theater",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/old_outdoor_theater",
-   "author": "Sergej Majboroda",
-   "kind": "outdoor",
-   "mood": "bright midday, high sun, sandy walls (Altstadt)",
-   "maps": [
-    "altstadt"
-   ],
-   "tiers": [
-    512,
-    1024
-   ],
-   "name": "Old Outdoor Theater"
-  },
-  {
-   "id": "abandoned_slipway",
-   "source": "polyhaven",
-   "sourceId": "abandoned_slipway",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/abandoned_slipway",
-   "author": "Philip Modin",
-   "kind": "outdoor",
-   "mood": "overcast industrial dusk (Werk)",
-   "maps": [
-    "werk"
-   ],
-   "tiers": [
-    512,
-    1024
-   ],
-   "name": "Abandoned Slipway"
-  },
-  {
-   "id": "zwartkops_straight_morning",
-   "source": "polyhaven",
-   "sourceId": "zwartkops_straight_morning",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/zwartkops_straight_morning",
-   "author": "Dimitrios Savva, Jarod Guest",
-   "kind": "outdoor",
-   "mood": "clear morning (Schießstand)",
-   "maps": [
-    "range"
-   ],
-   "tiers": [
-    512,
-    1024
-   ],
-   "name": "Zwartkops Straight Morning"
-  },
-  {
-   "id": "cobblestone_street_night",
-   "source": "polyhaven",
-   "sourceId": "cobblestone_street_night",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/cobblestone_street_night",
-   "author": "Greg Zaal, Jenelle van Heerden",
-   "kind": "night",
-   "mood": "sodium-lit street at night",
+   "mood": "Morgen, klar (16.10.)",
    "maps": [],
    "tiers": [
     512,
     1024
    ],
-   "name": "Cobblestone Street Night"
+   "name": "Eigener Himmel – Morgen, klar"
   },
   {
-   "id": "burnt_warehouse",
-   "source": "polyhaven",
-   "sourceId": "burnt_warehouse",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/burnt_warehouse",
-   "author": "Sergej Majboroda",
-   "kind": "interior",
-   "mood": "dark burnt-out warehouse interior",
+   "id": "np_sky_morgen_dunst",
+   "source": "procedural",
+   "sourceId": "np_sky_morgen_dunst",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Morgen, Dunst (16.10.)",
    "maps": [],
    "tiers": [
     512,
     1024
    ],
-   "name": "Burnt Warehouse"
+   "name": "Eigener Himmel – Morgen, Dunst"
   },
   {
-   "id": "industrial_pipe_and_valve_01",
-   "source": "polyhaven",
-   "sourceId": "industrial_pipe_and_valve_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/industrial_pipe_and_valve_01",
-   "author": "Philip Modin",
-   "kind": "interior",
-   "mood": "dim industrial hall interior",
+   "id": "np_sky_morgen_morgennebel",
+   "source": "procedural",
+   "sourceId": "np_sky_morgen_morgennebel",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Morgen, Morgennebel (16.10.)",
    "maps": [],
    "tiers": [
     512,
     1024
    ],
-   "name": "Industrial Pipe & Valve 01"
+   "name": "Eigener Himmel – Morgen, Morgennebel"
   },
   {
-   "id": "debris_basement_corridor",
-   "source": "polyhaven",
-   "sourceId": "debris_basement_corridor",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/debris_basement_corridor",
-   "author": "Elvis Posa",
-   "kind": "interior",
-   "mood": "fluorescent-lit basement corridor",
+   "id": "np_sky_morgen_bewoelkt",
+   "source": "procedural",
+   "sourceId": "np_sky_morgen_bewoelkt",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Morgen, bewölkt (16.10.)",
    "maps": [],
    "tiers": [
     512,
     1024
    ],
-   "name": "Debris Basement Corridor"
+   "name": "Eigener Himmel – Morgen, bewölkt"
   },
   {
-   "id": "kloofendal_48d_partly_cloudy_puresky",
-   "source": "polyhaven",
-   "sourceId": "kloofendal_48d_partly_cloudy_puresky",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky",
-   "author": "Greg Zaal, Jarod Guest",
+   "id": "np_sky_vormittag_klar",
+   "source": "procedural",
+   "sourceId": "np_sky_vormittag_klar",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
    "kind": "outdoor",
-   "mood": "Haufenwolken, Sonne (Video-Dorfplatz/Werkgasse, 16.10.)",
-   "maps": [
-    "grenzland",
-    "werk"
-   ],
+   "mood": "Vormittag, klar (16.10.)",
+   "maps": [],
    "tiers": [
     512,
     1024
    ],
-   "name": "Kloofendal 48d Partly Cloudy (Pure Sky)"
+   "name": "Eigener Himmel – Vormittag, klar"
   },
   {
-   "id": "kloofendal_38d_partly_cloudy_puresky",
-   "source": "polyhaven",
-   "sourceId": "kloofendal_38d_partly_cloudy_puresky",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/kloofendal_38d_partly_cloudy_puresky",
-   "author": "Greg Zaal, Jarod Guest",
+   "id": "np_sky_vormittag_dunst",
+   "source": "procedural",
+   "sourceId": "np_sky_vormittag_dunst",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
    "kind": "outdoor",
-   "mood": "dunstig, Sonnenschleier (Video-Hafen, 16.10.)",
-   "maps": [
-    "hafen"
-   ],
+   "mood": "Vormittag, Dunst (16.10.)",
+   "maps": [],
    "tiers": [
     512,
     1024
    ],
-   "name": "Kloofendal 38d Partly Cloudy (Pure Sky)"
+   "name": "Eigener Himmel – Vormittag, Dunst"
   },
   {
-   "id": "kloofendal_overcast_puresky",
-   "source": "polyhaven",
-   "sourceId": "kloofendal_overcast_puresky",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/kloofendal_overcast_puresky",
-   "author": "Greg Zaal, Jarod Guest",
+   "id": "np_sky_vormittag_morgennebel",
+   "source": "procedural",
+   "sourceId": "np_sky_vormittag_morgennebel",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
    "kind": "outdoor",
-   "mood": "bedeckt, hell und neutral (Wetter „bewölkt“, Video-Hafen Einstellung 1, 16.10.)",
-   "maps": [
-    "hafen",
-    "werk",
-    "grenzland",
-    "altstadt"
-   ],
+   "mood": "Vormittag, Morgennebel (16.10.)",
+   "maps": [],
    "tiers": [
     512,
     1024
    ],
-   "name": "Kloofendal Overcast (Pure Sky)"
+   "name": "Eigener Himmel – Vormittag, Morgennebel"
+  },
+  {
+   "id": "np_sky_vormittag_bewoelkt",
+   "source": "procedural",
+   "sourceId": "np_sky_vormittag_bewoelkt",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Vormittag, bewölkt (16.10.)",
+   "maps": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Eigener Himmel – Vormittag, bewölkt"
+  },
+  {
+   "id": "np_sky_mittag_klar",
+   "source": "procedural",
+   "sourceId": "np_sky_mittag_klar",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Mittag, klar (16.10.)",
+   "maps": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Eigener Himmel – Mittag, klar"
+  },
+  {
+   "id": "np_sky_mittag_dunst",
+   "source": "procedural",
+   "sourceId": "np_sky_mittag_dunst",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Mittag, Dunst (16.10.)",
+   "maps": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Eigener Himmel – Mittag, Dunst"
+  },
+  {
+   "id": "np_sky_mittag_morgennebel",
+   "source": "procedural",
+   "sourceId": "np_sky_mittag_morgennebel",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Mittag, Morgennebel (16.10.)",
+   "maps": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Eigener Himmel – Mittag, Morgennebel"
+  },
+  {
+   "id": "np_sky_mittag_bewoelkt",
+   "source": "procedural",
+   "sourceId": "np_sky_mittag_bewoelkt",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Mittag, bewölkt (16.10.)",
+   "maps": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Eigener Himmel – Mittag, bewölkt"
+  },
+  {
+   "id": "np_sky_nachmittag_klar",
+   "source": "procedural",
+   "sourceId": "np_sky_nachmittag_klar",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Nachmittag, klar (16.10.)",
+   "maps": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Eigener Himmel – Nachmittag, klar"
+  },
+  {
+   "id": "np_sky_nachmittag_dunst",
+   "source": "procedural",
+   "sourceId": "np_sky_nachmittag_dunst",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Nachmittag, Dunst (16.10.)",
+   "maps": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Eigener Himmel – Nachmittag, Dunst"
+  },
+  {
+   "id": "np_sky_nachmittag_morgennebel",
+   "source": "procedural",
+   "sourceId": "np_sky_nachmittag_morgennebel",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Nachmittag, Morgennebel (16.10.)",
+   "maps": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Eigener Himmel – Nachmittag, Morgennebel"
+  },
+  {
+   "id": "np_sky_nachmittag_bewoelkt",
+   "source": "procedural",
+   "sourceId": "np_sky_nachmittag_bewoelkt",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Nachmittag, bewölkt (16.10.)",
+   "maps": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Eigener Himmel – Nachmittag, bewölkt"
+  },
+  {
+   "id": "np_sky_abend_klar",
+   "source": "procedural",
+   "sourceId": "np_sky_abend_klar",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Abend, klar (16.10.)",
+   "maps": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Eigener Himmel – Abend, klar"
+  },
+  {
+   "id": "np_sky_abend_dunst",
+   "source": "procedural",
+   "sourceId": "np_sky_abend_dunst",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Abend, Dunst (16.10.)",
+   "maps": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Eigener Himmel – Abend, Dunst"
+  },
+  {
+   "id": "np_sky_abend_morgennebel",
+   "source": "procedural",
+   "sourceId": "np_sky_abend_morgennebel",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Abend, Morgennebel (16.10.)",
+   "maps": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Eigener Himmel – Abend, Morgennebel"
+  },
+  {
+   "id": "np_sky_abend_bewoelkt",
+   "source": "procedural",
+   "sourceId": "np_sky_abend_bewoelkt",
+   "license": "eigen (NULLPUNKT)",
+   "url": "",
+   "author": "NULLPUNKT (eigener Himmelsgenerator tools/assets/skygen.py)",
+   "kind": "outdoor",
+   "mood": "Abend, bewölkt (16.10.)",
+   "maps": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Eigener Himmel – Abend, bewölkt"
   }
  ],
  "models": [
   {
-   "id": "bolt_action_rifle_7_62",
-   "source": "polyhaven",
-   "sourceId": "bolt_action_rifle_7_62",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/bolt_action_rifle_7_62",
-   "author": "Mateusz Sadek",
-   "category": "weapon",
-   "tiers": [
-    512,
-    1024,
-    2048
-   ],
-   "lod0Tris": null,
-   "weapon": true,
-   "name": "Bolt Action Rifle 7.62",
-   "polycount": 19985,
-   "dimensionsM": [
-    1.231,
-    0.067,
-    0.205
-   ]
-  },
-  {
-   "id": "service_pistol",
-   "source": "polyhaven",
-   "sourceId": "service_pistol",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/service_pistol",
-   "author": "Mateusz Sadek",
-   "category": "weapon",
-   "tiers": [
-    512,
-    1024,
-    2048
-   ],
-   "lod0Tris": null,
-   "weapon": true,
-   "name": "Service Pistol",
-   "polycount": 27548,
-   "dimensionsM": [
-    0.302,
-    0.032,
-    0.281
-   ]
-  },
-  {
    "id": "ammo_box",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "ammo_box",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/ammo_box",
-   "author": "DanKit",
+   "license": "eigen (NULLPUNKT)",
    "category": "military",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 3000,
-   "name": "Ammo Box",
    "polycount": 4382,
    "dimensionsM": [
     0.087,
@@ -2268,18 +2119,15 @@
   },
   {
    "id": "old_military_crate",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "old_military_crate",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/old_military_crate",
-   "author": "Jack Mava",
+   "license": "eigen (NULLPUNKT)",
    "category": "military",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 6000,
-   "name": "Old Military Crate",
    "polycount": 10476,
    "dimensionsM": [
     1.815,
@@ -2289,18 +2137,15 @@
   },
   {
    "id": "wooden_military_crate",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "wooden_military_crate",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/wooden_military_crate",
-   "author": "Prabhjinder Singh",
+   "license": "eigen (NULLPUNKT)",
    "category": "military",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 8000,
-   "name": "Wooden Military Crate",
    "polycount": 22986,
    "dimensionsM": [
     1.242,
@@ -2310,18 +2155,15 @@
   },
   {
    "id": "metal_jerrycan",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "metal_jerrycan",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/metal_jerrycan",
-   "author": "Sean Buckley",
+   "license": "eigen (NULLPUNKT)",
    "category": "military",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 5000,
-   "name": "Metal Jerrycan",
    "polycount": 20022,
    "dimensionsM": [
     0.35,
@@ -2331,18 +2173,15 @@
   },
   {
    "id": "metal_jerrycan_green",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "metal_jerrycan_green",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/metal_jerrycan_green",
-   "author": "Ulan Cabanilla",
+   "license": "eigen (NULLPUNKT)",
    "category": "military",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 5000,
-   "name": "Metal Jerrycan Green",
    "polycount": 9636,
    "dimensionsM": [
     0.374,
@@ -2352,18 +2191,15 @@
   },
   {
    "id": "barrel_01",
-   "source": "polyhaven",
-   "sourceId": "Barrel_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/Barrel_01",
-   "author": "Jorge Camacho",
+   "source": "procedural",
+   "sourceId": "barrel_01",
+   "license": "eigen (NULLPUNKT)",
    "category": "containers",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": null,
-   "name": "Barrel_01",
    "polycount": 2682,
    "dimensionsM": [
     0.563,
@@ -2373,18 +2209,15 @@
   },
   {
    "id": "barrel_02",
-   "source": "polyhaven",
-   "sourceId": "Barrel_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/Barrel_02",
-   "author": "Jorge Camacho",
+   "source": "procedural",
+   "sourceId": "barrel_02",
+   "license": "eigen (NULLPUNKT)",
    "category": "containers",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": null,
-   "name": "Barrel 02",
    "polycount": 2688,
    "dimensionsM": [
     0.488,
@@ -2394,18 +2227,15 @@
   },
   {
    "id": "barrel_03",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "barrel_03",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/barrel_03",
-   "author": "Serhii Khromov",
+   "license": "eigen (NULLPUNKT)",
    "category": "containers",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": null,
-   "name": "Barrel 03",
    "polycount": 1473,
    "dimensionsM": [
     0.634,
@@ -2415,18 +2245,15 @@
   },
   {
    "id": "old_tyre",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "old_tyre",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/old_tyre",
-   "author": "MP",
+   "license": "eigen (NULLPUNKT)",
    "category": "containers",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": null,
-   "name": "Old Tyre",
    "polycount": 2880,
    "dimensionsM": [
     0.6,
@@ -2436,18 +2263,15 @@
   },
   {
    "id": "cardboard_box_01",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "cardboard_box_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/cardboard_box_01",
-   "author": "Rahul Chaudhary",
+   "license": "eigen (NULLPUNKT)",
    "category": "containers",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 3000,
-   "name": "Cardboard Box 01",
    "polycount": 16952,
    "dimensionsM": [
     0.387,
@@ -2457,18 +2281,15 @@
   },
   {
    "id": "cement_bag",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "cement_bag",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/cement_bag",
-   "author": "PierreB3D",
+   "license": "eigen (NULLPUNKT)",
    "category": "containers",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": null,
-   "name": "Cement Bag",
    "polycount": 844,
    "dimensionsM": [
     0.462,
@@ -2478,39 +2299,34 @@
   },
   {
    "id": "metal_trash_can",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "metal_trash_can",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/metal_trash_can",
-   "author": "GurJas Studios",
+   "license": "eigen (NULLPUNKT)",
    "category": "containers",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 6000,
-   "name": "Metal Trash Can",
    "polycount": 13960,
    "dimensionsM": [
     1.847,
     0.556,
     0.906
-   ]
+   ],
+   "keepParts": true
   },
   {
    "id": "trashbag",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "trashbag",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/trashbag",
-   "author": "Benny Weimer",
+   "license": "eigen (NULLPUNKT)",
    "category": "containers",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 3000,
-   "name": "Trashbag",
    "polycount": 4482,
    "dimensionsM": [
     0.528,
@@ -2520,18 +2336,15 @@
   },
   {
    "id": "industrial_pastic_container",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "industrial_pastic_container",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/industrial_pastic_container",
-   "author": "Galo Benivegna",
+   "license": "eigen (NULLPUNKT)",
    "category": "containers",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 5000,
-   "name": "Industrial Plastic Container",
    "polycount": 7118,
    "dimensionsM": [
     0.476,
@@ -2541,18 +2354,15 @@
   },
   {
    "id": "propane_tank",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "propane_tank",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/propane_tank",
-   "author": "Slinc",
+   "license": "eigen (NULLPUNKT)",
    "category": "containers",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 3000,
-   "name": "Propane Tank",
    "polycount": 5238,
    "dimensionsM": [
     0.337,
@@ -2562,60 +2372,53 @@
   },
   {
    "id": "exterior_aircon_unit",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "exterior_aircon_unit",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/exterior_aircon_unit",
-   "author": "Monsta3D",
+   "license": "eigen (NULLPUNKT)",
    "category": "urban",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 8000,
-   "name": "Exterior Aircon Unit",
    "polycount": 18986,
    "dimensionsM": [
     1.8,
     0.374,
     0.928
-   ]
+   ],
+   "keepParts": true
   },
   {
    "id": "fire_hydrant",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "fire_hydrant",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/fire_hydrant",
-   "author": "Gonçalo Felício",
+   "license": "eigen (NULLPUNKT)",
    "category": "urban",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 6000,
-   "name": "Fire Hydrant",
    "polycount": 86316,
    "dimensionsM": [
     0.875,
     0.318,
     0.799
-   ]
+   ],
+   "keepParts": true
   },
   {
    "id": "concrete_road_barrier",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "concrete_road_barrier",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/concrete_road_barrier",
-   "author": "Amal Kumar",
+   "license": "eigen (NULLPUNKT)",
    "category": "urban",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 4000,
-   "name": "Concrete Road Barrier",
    "polycount": 80776,
    "dimensionsM": [
     1.545,
@@ -2625,18 +2428,15 @@
   },
   {
    "id": "utility_box_01",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "utility_box_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/utility_box_01",
-   "author": "James Ray Cock",
+   "license": "eigen (NULLPUNKT)",
    "category": "urban",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": null,
-   "name": "Utility Box 01",
    "polycount": 4404,
    "dimensionsM": [
     0.52,
@@ -2646,18 +2446,15 @@
   },
   {
    "id": "power_box_01",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "power_box_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/power_box_01",
-   "author": "Rico Cilliers, Yann Kervran",
+   "license": "eigen (NULLPUNKT)",
    "category": "urban",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 6000,
-   "name": "Power Box 01",
    "polycount": 21272,
    "dimensionsM": [
     0.377,
@@ -2666,82 +2463,16 @@
    ]
   },
   {
-   "id": "street_lamp_01",
-   "source": "polyhaven",
-   "sourceId": "street_lamp_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/street_lamp_01",
-   "author": "Josh Dean",
-   "category": "urban",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 6000,
-   "name": "Street Lamp 01",
-   "polycount": 30610,
-   "dimensionsM": [
-    0.704,
-    0.386,
-    3.871
-   ]
-  },
-  {
-   "id": "rollershutter_door",
-   "source": "polyhaven",
-   "sourceId": "rollershutter_door",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/rollershutter_door",
-   "author": "MP",
-   "category": "urban",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": null,
-   "name": "Rollershutter Door",
-   "polycount": 1104,
-   "dimensionsM": [
-    3.08,
-    0.3,
-    2.4
-   ]
-  },
-  {
-   "id": "water_manhole_cover",
-   "source": "polyhaven",
-   "sourceId": "water_manhole_cover",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/water_manhole_cover",
-   "author": "Raunox",
-   "category": "urban",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 2000,
-   "name": "Water Manhole Cover",
-   "polycount": 6301,
-   "dimensionsM": [
-    0.691,
-    0.691,
-    0.068
-   ]
-  },
-  {
    "id": "covered_car",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "covered_car",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/covered_car",
-   "author": "MP",
+   "license": "eigen (NULLPUNKT)",
    "category": "urban",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 10000,
-   "name": "Covered Car",
    "polycount": 12592,
    "dimensionsM": [
     1.789,
@@ -2750,216 +2481,16 @@
    ]
   },
   {
-   "id": "security_camera_01",
-   "source": "polyhaven",
-   "sourceId": "security_camera_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/security_camera_01",
-   "author": "Alexander Otterbeck, Yann Kervran",
-   "category": "urban",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 4000,
-   "name": "Security Camera 01",
-   "polycount": 13571,
-   "dimensionsM": [
-    0.17,
-    0.554,
-    0.286
-   ]
-  },
-  {
-   "id": "modular_chainlink_fence",
-   "source": "polyhaven",
-   "sourceId": "modular_chainlink_fence",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/modular_chainlink_fence",
-   "author": "James Ray Cock, Amal Kumar",
-   "category": "modular",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 36000,
-   "kit": true,
-   "name": "Modular Chainlink Fence",
-   "polycount": 89232,
-   "dimensionsM": [
-    8.115,
-    2.149,
-    2.523
-   ]
-  },
-  {
-   "id": "modular_electricity_poles",
-   "source": "polyhaven",
-   "sourceId": "modular_electricity_poles",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/modular_electricity_poles",
-   "author": "James Ray Cock",
-   "category": "modular",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 40000,
-   "kit": true,
-   "name": "Modular Electricity Poles",
-   "polycount": 200610,
-   "dimensionsM": [
-    13.119,
-    1.957,
-    7
-   ]
-  },
-  {
-   "id": "modular_fire_escape",
-   "source": "polyhaven",
-   "sourceId": "modular_fire_escape",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/modular_fire_escape",
-   "author": "Juniix",
-   "category": "modular",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": null,
-   "kit": true,
-   "name": "Modular Fire Escape",
-   "polycount": 11322,
-   "dimensionsM": [
-    6.661,
-    1.421,
-    9.757
-   ]
-  },
-  {
-   "id": "modular_metal_gutter",
-   "source": "polyhaven",
-   "sourceId": "modular_metal_gutter",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/modular_metal_gutter",
-   "author": "Maxim Domnin",
-   "category": "modular",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": null,
-   "kit": true,
-   "name": "Modular Metal Gutter",
-   "polycount": 16490,
-   "dimensionsM": [
-    2.268,
-    1.515,
-    1.843
-   ]
-  },
-  {
-   "id": "modular_airduct_circular_01",
-   "source": "polyhaven",
-   "sourceId": "modular_airduct_circular_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/modular_airduct_circular_01",
-   "author": "Riley Queen",
-   "category": "modular",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": null,
-   "kit": true,
-   "name": "Modular Airduct Circular 01",
-   "polycount": 14280,
-   "dimensionsM": [
-    4.171,
-    1.463,
-    1.324
-   ]
-  },
-  {
-   "id": "modular_airduct_rectangular_01",
-   "source": "polyhaven",
-   "sourceId": "modular_airduct_rectangular_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/modular_airduct_rectangular_01",
-   "author": "James Ray Cock",
-   "category": "modular",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 25000,
-   "kit": true,
-   "name": "Modular Airduct Rectangular 01",
-   "polycount": 45090,
-   "dimensionsM": [
-    7.664,
-    2.587,
-    1.256
-   ]
-  },
-  {
-   "id": "modular_industrial_pipes_01",
-   "source": "polyhaven",
-   "sourceId": "modular_industrial_pipes_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/modular_industrial_pipes_01",
-   "author": "Jorge Camacho",
-   "category": "modular",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": null,
-   "kit": true,
-   "name": "Modular Industrial Pipes 01",
-   "polycount": 12340,
-   "dimensionsM": [
-    1.403,
-    0.308,
-    1.955
-   ]
-  },
-  {
-   "id": "mounted_fluorescent_lights",
-   "source": "polyhaven",
-   "sourceId": "mounted_fluorescent_lights",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/mounted_fluorescent_lights",
-   "author": "Ulan Cabanilla",
-   "category": "lighting",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 6000,
-   "kit": true,
-   "name": "Mounted Fluorescent Lights",
-   "polycount": 17820,
-   "dimensionsM": [
-    0.912,
-    0.645,
-    0.035
-   ]
-  },
-  {
    "id": "hanging_industrial_lamp",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "hanging_industrial_lamp",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/hanging_industrial_lamp",
-   "author": "Kuutti Siitonen",
+   "license": "eigen (NULLPUNKT)",
    "category": "lighting",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 5000,
-   "name": "Hanging Industrial Lamp",
    "polycount": 9530,
    "dimensionsM": [
     0.55,
@@ -2968,40 +2499,16 @@
    ]
   },
   {
-   "id": "industrial_wall_lamp",
-   "source": "polyhaven",
-   "sourceId": "industrial_wall_lamp",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/industrial_wall_lamp",
-   "author": "Kuutti Siitonen",
-   "category": "lighting",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": null,
-   "name": "Industrial Wall Lamp",
-   "polycount": 4446,
-   "dimensionsM": [
-    0.273,
-    0.14,
-    0.43
-   ]
-  },
-  {
    "id": "hand_truck",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "hand_truck",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/hand_truck",
-   "author": "Mutanzom3D",
+   "license": "eigen (NULLPUNKT)",
    "category": "industrial",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 6000,
-   "name": "Hand Truck",
    "polycount": 13220,
    "dimensionsM": [
     0.593,
@@ -3011,18 +2518,15 @@
   },
   {
    "id": "metal_tool_chest",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "metal_tool_chest",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/metal_tool_chest",
-   "author": "Yann Kervran, John Hutcheson",
+   "license": "eigen (NULLPUNKT)",
    "category": "industrial",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 6000,
-   "name": "Metal Tool Chest",
    "polycount": 14576,
    "dimensionsM": [
     0.685,
@@ -3032,18 +2536,15 @@
   },
   {
    "id": "portable_generator",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "portable_generator",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/portable_generator",
-   "author": "James Ray Cock",
+   "license": "eigen (NULLPUNKT)",
    "category": "industrial",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 8000,
-   "name": "Portable Generator",
    "polycount": 26419,
    "dimensionsM": [
     0.818,
@@ -3053,18 +2554,15 @@
   },
   {
    "id": "tool_cart",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "tool_cart",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/tool_cart",
-   "author": "Savva Zakharov",
+   "license": "eigen (NULLPUNKT)",
    "category": "industrial",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 8000,
-   "name": "Tool Cart",
    "polycount": 29394,
    "dimensionsM": [
     1.273,
@@ -3074,18 +2572,15 @@
   },
   {
    "id": "metal_office_desk",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "metal_office_desk",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/metal_office_desk",
-   "author": "Ulan Cabanilla",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": null,
-   "name": "Metal Office Desk",
    "polycount": 6898,
    "dimensionsM": [
     2,
@@ -3095,18 +2590,15 @@
   },
   {
    "id": "schoolchair_01",
-   "source": "polyhaven",
-   "sourceId": "SchoolChair_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/SchoolChair_01",
-   "author": "Ethan Place",
+   "source": "procedural",
+   "sourceId": "schoolchair_01",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": null,
-   "name": "School Chair 01",
    "polycount": 5072,
    "dimensionsM": [
     0.566,
@@ -3116,40 +2608,33 @@
   },
   {
    "id": "steel_frame_shelves_01",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "steel_frame_shelves_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/steel_frame_shelves_01",
-   "author": "James Ray Cock",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": null,
-   "name": "Steel Frame Shelves 01",
    "polycount": 4348,
    "dimensionsM": [
     1.097,
     0.502,
     2.141
-   ],
-   "scale": 0.1
+   ]
   },
   {
    "id": "worn_metal_rack",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "worn_metal_rack",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/worn_metal_rack",
-   "author": "Luca B",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": null,
-   "name": "Worn Metal Rack",
    "polycount": 6372,
    "dimensionsM": [
     0.915,
@@ -3158,82 +2643,16 @@
    ]
   },
   {
-   "id": "sofa_01",
-   "source": "polyhaven",
-   "sourceId": "Sofa_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/Sofa_01",
-   "author": "Kirill Sannikov",
-   "category": "interior",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": null,
-   "name": "Sofa 01",
-   "polycount": 4101,
-   "dimensionsM": [
-    1.571,
-    0.658,
-    0.797
-   ]
-  },
-  {
-   "id": "television_01",
-   "source": "polyhaven",
-   "sourceId": "Television_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/Television_01",
-   "author": "Gabriel Radić",
-   "category": "interior",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": null,
-   "name": "Television 01",
-   "polycount": 1918,
-   "dimensionsM": [
-    0.6,
-    0.471,
-    0.457
-   ]
-  },
-  {
-   "id": "wooden_bookshelf_worn",
-   "source": "polyhaven",
-   "sourceId": "wooden_bookshelf_worn",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/wooden_bookshelf_worn",
-   "author": "Ulan Cabanilla",
-   "category": "interior",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 6000,
-   "name": "Wooden Bookshelf Worn",
-   "polycount": 10106,
-   "dimensionsM": [
-    1.374,
-    0.581,
-    2.063
-   ]
-  },
-  {
    "id": "plastic_monobloc_chair_01",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "plastic_monobloc_chair_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/plastic_monobloc_chair_01",
-   "author": "Kuutti Siitonen",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": null,
-   "name": "Plastic Monobloc Chair 01",
    "polycount": 3356,
    "dimensionsM": [
     0.642,
@@ -3242,40 +2661,16 @@
    ]
   },
   {
-   "id": "old_bed_frame",
-   "source": "polyhaven",
-   "sourceId": "old_bed_frame",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/old_bed_frame",
-   "author": "Luca B",
-   "category": "interior",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 10000,
-   "name": "Old Bed Frame",
-   "polycount": 49990,
-   "dimensionsM": [
-    0.905,
-    2.002,
-    1.201
-   ]
-  },
-  {
    "id": "wetfloorsign_01",
-   "source": "polyhaven",
-   "sourceId": "WetFloorSign_01",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/WetFloorSign_01",
-   "author": "Fran Calvente",
+   "source": "procedural",
+   "sourceId": "wetfloorsign_01",
+   "license": "eigen (NULLPUNKT)",
    "category": "interior",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": null,
-   "name": "Wet Floor Sign 01",
    "polycount": 228,
    "dimensionsM": [
     0.3,
@@ -3285,18 +2680,15 @@
   },
   {
    "id": "dead_tree_trunk_02",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "dead_tree_trunk_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/dead_tree_trunk_02",
-   "author": "Jenelle van Heerden, Rico Cilliers",
+   "license": "eigen (NULLPUNKT)",
    "category": "nature",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 6000,
-   "name": "Dead Tree Trunk 02",
    "polycount": 155864,
    "dimensionsM": [
     4.054,
@@ -3306,18 +2698,15 @@
   },
   {
    "id": "rock_07",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "rock_07",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/rock_07",
-   "author": "Jenelle van Heerden",
+   "license": "eigen (NULLPUNKT)",
    "category": "nature",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": 3000,
-   "name": "Rock 07",
    "polycount": 27830,
    "dimensionsM": [
     0.169,
@@ -3327,86 +2716,20 @@
   },
   {
    "id": "planter_pot_clay",
-   "source": "polyhaven",
+   "source": "procedural",
    "sourceId": "planter_pot_clay",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/planter_pot_clay",
-   "author": "Amal Kumar",
+   "license": "eigen (NULLPUNKT)",
    "category": "nature",
    "tiers": [
     512,
     1024
    ],
    "lod0Tris": null,
-   "name": "Planter Pot Clay",
    "polycount": 3080,
    "dimensionsM": [
     0.266,
     0.263,
     0.222
-   ]
-  },
-  {
-   "id": "potted_plant_02",
-   "source": "polyhaven",
-   "sourceId": "potted_plant_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/potted_plant_02",
-   "author": "Rico Cilliers",
-   "category": "nature",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 12000,
-   "name": "Potted Plant 02",
-   "polycount": 69806,
-   "dimensionsM": [
-    0.701,
-    0.657,
-    0.841
-   ]
-  },
-  {
-   "id": "shrub_04",
-   "source": "polyhaven",
-   "sourceId": "shrub_04",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/shrub_04",
-   "author": "Rico Cilliers",
-   "category": "nature",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 12000,
-   "name": "Shrub 04",
-   "polycount": 47813,
-   "dimensionsM": [
-    0.747,
-    0.187,
-    0.281
-   ]
-  },
-  {
-   "id": "weed_plant_02",
-   "source": "polyhaven",
-   "sourceId": "weed_plant_02",
-   "license": "CC0-1.0",
-   "url": "https://polyhaven.com/a/weed_plant_02",
-   "author": "Rob Tuytel, Rico Cilliers",
-   "category": "nature",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 6000,
-   "name": "Weed Plant 02",
-   "polycount": 17062,
-   "dimensionsM": [
-    2.125,
-    0.291,
-    0.075
    ]
   }
  ]

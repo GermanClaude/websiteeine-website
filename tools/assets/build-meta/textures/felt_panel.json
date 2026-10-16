@@ -1,12 +1,12 @@
 {
   "id": "felt_panel",
-  "recipe": "ee4b77e3ed4b",
+  "recipe": "814024714d85",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/felt_panel/felt_panel_512_albedo.ktx2",
-          "bytes": 58223,
+          "bytes": 44136,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/felt_panel/felt_panel_512_normal.ktx2",
-          "bytes": 82635,
+          "bytes": 58816,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/felt_panel/felt_panel_512_orm.ktx2",
-          "bytes": 32491,
+          "bytes": 27053,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 173349,
+      "bytes": 130005,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/felt_panel/felt_panel_1024_albedo.ktx2",
-          "bytes": 189567,
+          "bytes": 130260,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/felt_panel/felt_panel_1024_normal.ktx2",
-          "bytes": 250231,
+          "bytes": 196170,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/felt_panel/felt_panel_1024_orm.ktx2",
-          "bytes": 113223,
+          "bytes": 93199,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 553021,
+      "bytes": 419629,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -103,9 +103,9 @@
   },
   "stats": {
     "avgColor": "#a2a0a6",
-    "avgRoughness": 0.818,
+    "avgRoughness": 0.82,
     "avgMetalness": 0,
-    "avgAO": 1,
+    "avgAO": 0.975,
     "coverage": 1
   }
 }

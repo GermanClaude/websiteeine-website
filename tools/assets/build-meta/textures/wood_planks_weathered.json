@@ -1,12 +1,12 @@
 {
   "id": "wood_planks_weathered",
-  "recipe": "8328254b4006",
+  "recipe": "0e73df40e5ab",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/wood_planks_weathered/wood_planks_weathered_512_albedo.ktx2",
-          "bytes": 53739,
+          "bytes": 37511,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/wood_planks_weathered/wood_planks_weathered_512_normal.ktx2",
-          "bytes": 37178,
+          "bytes": 31213,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/wood_planks_weathered/wood_planks_weathered_512_orm.ktx2",
-          "bytes": 25179,
+          "bytes": 20508,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 116096,
+      "bytes": 89232,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/wood_planks_weathered/wood_planks_weathered_1024_albedo.ktx2",
-          "bytes": 177486,
+          "bytes": 103057,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/wood_planks_weathered/wood_planks_weathered_1024_normal.ktx2",
-          "bytes": 181787,
+          "bytes": 107842,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/wood_planks_weathered/wood_planks_weathered_1024_orm.ktx2",
-          "bytes": 89830,
+          "bytes": 59311,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 449103,
+      "bytes": 270210,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -103,9 +103,9 @@
   },
   "stats": {
     "avgColor": "#51443b",
-    "avgRoughness": 0.736,
+    "avgRoughness": 0.737,
     "avgMetalness": 0.001,
-    "avgAO": 0.894,
+    "avgAO": 0.963,
     "coverage": 1
   }
 }

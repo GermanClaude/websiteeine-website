@@ -1,6 +1,6 @@
 {
   "id": "fire_hydrant",
-  "recipe": "74b0141e299b",
+  "recipe": "3459e947c52b",
   "size": [
     0.873,
     0.799,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/fire_hydrant/fire_hydrant_512.glb",
-      "bytes": 302320,
-      "srcTris": 86316,
+      "bytes": 56184,
+      "srcTris": 2656,
       "lods": [
         {
-          "tris": 2492,
+          "tris": 1061,
           "level": 1
         },
         {
-          "tris": 1044,
+          "tris": 370,
           "level": 2
         }
       ],
@@ -50,38 +50,12 @@
       },
       "textures": [
         {
-          "name": "fire_hydrant_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 57131,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "fire_hydrant_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 58689,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "fire_hydrant_arm_1k.ktx2",
+          "name": "hydrant_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 13163,
+          "bytes": 1757,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
@@ -89,25 +63,12 @@
           }
         },
         {
-          "name": "fire_hydrant_aged_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 61794,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "fire_hydrant_aged_diff_1k.ktx2",
+          "name": "hydrant_diff.ktx2",
           "role": "albedo",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 65695,
+          "bytes": 4932,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
@@ -115,53 +76,92 @@
           }
         },
         {
-          "name": "fire_hydrant_aged_arm_1k.ktx2",
+          "name": "hydrant_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1443,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "hydrant_aged_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 14186,
+          "bytes": 3270,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
+          }
+        },
+        {
+          "name": "hydrant_aged_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 7047,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "hydrant_aged_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 2170,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
           }
         }
       ],
-      "geometryBytes": 56698,
+      "geometryBytes": 61444,
       "gpu": {
-        "desktop": 843132,
-        "mobile": 843132,
-        "rgba8": 6348152
+        "desktop": 847878,
+        "mobile": 847878,
+        "rgba8": 6352898
       },
       "materials": [
         {
-          "name": "fire_hydrant",
+          "name": "hydrant",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         },
         {
-          "name": "fire_hydrant_aged",
+          "name": "hydrant_aged",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/fire_hydrant/fire_hydrant_1024.glb",
-      "bytes": 885736,
-      "srcTris": 86316,
+      "bytes": 107836,
+      "srcTris": 2656,
       "lods": [
         {
-          "tris": 5800,
+          "tris": 2656,
           "level": 0
         },
         {
-          "tris": 2492,
+          "tris": 1061,
           "level": 1
         },
         {
-          "tris": 1044,
+          "tris": 370,
           "level": 2
         }
       ],
@@ -189,38 +189,12 @@
       },
       "textures": [
         {
-          "name": "fire_hydrant_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 167905,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "fire_hydrant_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 179795,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "fire_hydrant_arm_1k.ktx2",
+          "name": "hydrant_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 44529,
+          "bytes": 3015,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
@@ -228,25 +202,12 @@
           }
         },
         {
-          "name": "fire_hydrant_aged_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 180488,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "fire_hydrant_aged_diff_1k.ktx2",
+          "name": "hydrant_diff.ktx2",
           "role": "albedo",
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
-          "bytes": 203073,
+          "bytes": 11408,
           "gpu": {
             "desktop": 699051,
             "mobile": 699051,
@@ -254,35 +215,74 @@
           }
         },
         {
-          "name": "fire_hydrant_aged_arm_1k.ktx2",
+          "name": "hydrant_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 2951,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "hydrant_aged_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 45956,
+          "bytes": 6693,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
+          }
+        },
+        {
+          "name": "hydrant_aged_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 15705,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "hydrant_aged_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 5804,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
           }
         }
       ],
-      "geometryBytes": 130858,
+      "geometryBytes": 113884,
       "gpu": {
-        "desktop": 3276588,
-        "mobile": 3276588,
-        "rgba8": 25296680
+        "desktop": 3259614,
+        "mobile": 3259614,
+        "rgba8": 25279706
       },
       "materials": [
         {
-          "name": "fire_hydrant",
+          "name": "hydrant",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         },
         {
-          "name": "fire_hydrant_aged",
+          "name": "hydrant_aged",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     }

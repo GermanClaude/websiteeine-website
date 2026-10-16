@@ -1,12 +1,12 @@
 {
   "id": "burlap",
-  "recipe": "6c3fe3f33b6b",
+  "recipe": "6dc680bb91b3",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/burlap/burlap_512_albedo.ktx2",
-          "bytes": 57137,
+          "bytes": 52980,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/burlap/burlap_512_normal.ktx2",
-          "bytes": 82684,
+          "bytes": 80102,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/burlap/burlap_512_orm.ktx2",
-          "bytes": 28382,
+          "bytes": 30074,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 168203,
+      "bytes": 163156,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/burlap/burlap_1024_albedo.ktx2",
-          "bytes": 208543,
+          "bytes": 181161,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/burlap/burlap_1024_normal.ktx2",
-          "bytes": 252517,
+          "bytes": 288158,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/burlap/burlap_1024_orm.ktx2",
-          "bytes": 134813,
+          "bytes": 98451,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 595873,
+      "bytes": 567770,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,8 +104,8 @@
   "stats": {
     "avgColor": "#907b5b",
     "avgRoughness": 0.584,
-    "avgMetalness": 0.248,
-    "avgAO": 0.902,
+    "avgMetalness": 0,
+    "avgAO": 0.839,
     "coverage": 1
   }
 }

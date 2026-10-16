@@ -308,6 +308,16 @@ export const DEFAULT_SIGNS = {
   exit: { style: 'plate', text: 'NOTAUSGANG', bg: '#1f7a46', fg: '#ffffff' },
   no_smoking: { style: 'plate', text: 'RAUCHEN VERBOTEN', bg: '#f2f0ea', fg: '#c8302a' },
 };
+// Container-Beschriftung (16.10., Video 2,0 s: Reederei-Schriftzug + Nummer an den Längsseiten). Erfundene Namen;
+// je Name eine helle (w) und eine dunkle (d) Fassung, Nummern im ISO-6346-Format (Eigner + U, sechs Ziffern, Prüfziffer).
+export const CTR_LINES = ['BALTRA', 'OSTERMAR', 'VELMOR', 'HANSEKO', 'NORDVEK', 'SKAGLINE'];
+export const CTR_CODES = ['BLTU 204518 3', 'OSMU 771203 9', 'VLMU 458812 0', 'HSKU 309917 6', 'NVKU 612045 2', 'SKLU 880431 7'];
+CTR_LINES.forEach((t, i) => {
+  DEFAULT_SIGNS[`ctr_line_${i}_w`] = { style: 'stencil', text: t, fg: '#e6e3da' };
+  DEFAULT_SIGNS[`ctr_line_${i}_d`] = { style: 'stencil', text: t, fg: '#2a2b2c' };
+  DEFAULT_SIGNS[`ctr_code_${i}_w`] = { style: 'stencil', text: CTR_CODES[i], fg: '#e6e3da' };
+  DEFAULT_SIGNS[`ctr_code_${i}_d`] = { style: 'stencil', text: CTR_CODES[i], fg: '#2a2b2c' };
+});
 /**
  * entries: [{ key, text, sub, bg, fg, style: 'plate'|'stencil'|'warning'|'logo'|'number'|'neon'|'arrow', aspect, accent }]
  * opts: { quality ('low' → halbe Auflösung), anisotropy }

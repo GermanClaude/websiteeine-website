@@ -1,12 +1,12 @@
 {
   "id": "metal_corrugated_rusty",
-  "recipe": "d5fb5a5479d1",
+  "recipe": "5a0bd33aad15",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/metal_corrugated_rusty/metal_corrugated_rusty_512_albedo.ktx2",
-          "bytes": 53741,
+          "bytes": 35403,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/metal_corrugated_rusty/metal_corrugated_rusty_512_normal.ktx2",
-          "bytes": 25317,
+          "bytes": 64814,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/metal_corrugated_rusty/metal_corrugated_rusty_512_orm.ktx2",
-          "bytes": 20912,
+          "bytes": 22379,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 99970,
+      "bytes": 122596,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/metal_corrugated_rusty/metal_corrugated_rusty_1024_albedo.ktx2",
-          "bytes": 182547,
+          "bytes": 93254,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/metal_corrugated_rusty/metal_corrugated_rusty_1024_normal.ktx2",
-          "bytes": 135447,
+          "bytes": 246289,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/metal_corrugated_rusty/metal_corrugated_rusty_1024_orm.ktx2",
-          "bytes": 76833,
+          "bytes": 66996,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 394827,
+      "bytes": 406539,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -103,9 +103,9 @@
   },
   "stats": {
     "avgColor": "#592b19",
-    "avgRoughness": 0.936,
-    "avgMetalness": 0.001,
-    "avgAO": 0.81,
+    "avgRoughness": 0.937,
+    "avgMetalness": 0,
+    "avgAO": 0.972,
     "coverage": 1
   }
 }

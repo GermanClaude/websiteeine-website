@@ -1,9 +1,9 @@
 {
   "id": "wetfloorsign_01",
-  "recipe": "8ca8099a9e05",
+  "recipe": "19d3b3b22233",
   "size": [
-    0.3,
-    0.63,
+    0.299,
+    0.629,
     0.358
   ],
   "radius": 0.392,
@@ -15,20 +15,20 @@
   "tiers": {
     "512": {
       "path": "models/wetfloorsign_01/wetfloorsign_01_512.glb",
-      "bytes": 55788,
-      "srcTris": 228,
+      "bytes": 27484,
+      "srcTris": 900,
       "lods": [
         {
-          "tris": 116,
+          "tris": 360,
           "level": 1
         },
         {
-          "tris": 40,
+          "tris": 126,
           "level": 2
         }
       ],
       "parts": [
-        "WetFloorSign_01"
+        "wetfloorsign_01"
       ],
       "lodShift": true,
       "lodDistances": [
@@ -37,8 +37,8 @@
       ],
       "bounds": {
         "min": [
-          -0.15,
-          0.002,
+          -0.149,
+          0.003,
           -0.193
         ],
         "max": [
@@ -49,79 +49,79 @@
       },
       "textures": [
         {
-          "name": "WetFloorSign_01_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 31973,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "WetFloorSign_01_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 6776,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "WetFloorSign_01_arm_1k.ktx2",
+          "name": "sign_yellow_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 10124,
+          "bytes": 6754,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "sign_yellow_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 8981,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "sign_yellow_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 966,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 4676,
+      "geometryBytes": 13732,
       "gpu": {
-        "desktop": 397893,
-        "mobile": 397893,
-        "rgba8": 3150403
+        "desktop": 406949,
+        "mobile": 406949,
+        "rgba8": 3159459
       },
       "materials": [
         {
-          "name": "WetFloorSign_01",
+          "name": "sign_yellow",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/wetfloorsign_01/wetfloorsign_01_1024.glb",
-      "bytes": 153700,
-      "srcTris": 228,
+      "bytes": 83164,
+      "srcTris": 900,
       "lods": [
         {
-          "tris": 228,
+          "tris": 900,
           "level": 0
         },
         {
-          "tris": 116,
+          "tris": 360,
           "level": 1
         },
         {
-          "tris": 40,
+          "tris": 126,
           "level": 2
         }
       ],
       "parts": [
-        "WetFloorSign_01"
+        "wetfloorsign_01"
       ],
       "lodShift": false,
       "lodDistances": [
@@ -143,56 +143,56 @@
       },
       "textures": [
         {
-          "name": "WetFloorSign_01_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 89292,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "WetFloorSign_01_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 20998,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "WetFloorSign_01_arm_1k.ktx2",
+          "name": "sign_yellow_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 32031,
+          "bytes": 26078,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "sign_yellow_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 34418,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "sign_yellow_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 1355,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 11632,
+      "geometryBytes": 36188,
       "gpu": {
-        "desktop": 1584497,
-        "mobile": 1584497,
-        "rgba8": 12594543
+        "desktop": 1609053,
+        "mobile": 1609053,
+        "rgba8": 12619099
       },
       "materials": [
         {
-          "name": "WetFloorSign_01",
+          "name": "sign_yellow",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     }

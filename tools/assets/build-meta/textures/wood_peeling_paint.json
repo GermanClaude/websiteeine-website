@@ -1,12 +1,12 @@
 {
   "id": "wood_peeling_paint",
-  "recipe": "d04ae736bbf9",
+  "recipe": "7cfa56f9940f",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/wood_peeling_paint/wood_peeling_paint_512_albedo.ktx2",
-          "bytes": 60229,
+          "bytes": 38352,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/wood_peeling_paint/wood_peeling_paint_512_normal.ktx2",
-          "bytes": 70058,
+          "bytes": 25941,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/wood_peeling_paint/wood_peeling_paint_512_orm.ktx2",
-          "bytes": 21381,
+          "bytes": 15791,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 151668,
+      "bytes": 80084,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/wood_peeling_paint/wood_peeling_paint_1024_albedo.ktx2",
-          "bytes": 200159,
+          "bytes": 96491,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/wood_peeling_paint/wood_peeling_paint_1024_normal.ktx2",
-          "bytes": 215807,
+          "bytes": 81611,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/wood_peeling_paint/wood_peeling_paint_1024_orm.ktx2",
-          "bytes": 68447,
+          "bytes": 38506,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 484413,
+      "bytes": 216608,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -103,9 +103,9 @@
   },
   "stats": {
     "avgColor": "#4e453b",
-    "avgRoughness": 0.839,
-    "avgMetalness": 0.002,
-    "avgAO": 0.977,
+    "avgRoughness": 0.84,
+    "avgMetalness": 0,
+    "avgAO": 0.98,
     "coverage": 1
   }
 }

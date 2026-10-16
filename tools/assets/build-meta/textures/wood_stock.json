@@ -1,12 +1,12 @@
 {
   "id": "wood_stock",
-  "recipe": "dc8d91f0c487",
+  "recipe": "e74576167d1f",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/wood_stock/wood_stock_512_albedo.ktx2",
-          "bytes": 48241,
+          "bytes": 12891,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/wood_stock/wood_stock_512_orm.ktx2",
-          "bytes": 23950,
+          "bytes": 4420,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 73157,
+      "bytes": 18277,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/wood_stock/wood_stock_1024_albedo.ktx2",
-          "bytes": 166474,
+          "bytes": 31040,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/wood_stock/wood_stock_1024_orm.ktx2",
-          "bytes": 103728,
+          "bytes": 8473,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 271472,
+      "bytes": 40783,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,7 +104,7 @@
       "files": {
         "albedo": {
           "path": "textures/wood_stock/wood_stock_2048_albedo.ktx2",
-          "bytes": 679479,
+          "bytes": 71111,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -117,7 +117,7 @@
         },
         "normal": {
           "path": "textures/wood_stock/wood_stock_2048_normal.ktx2",
-          "bytes": 1843,
+          "bytes": 1830,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -130,7 +130,7 @@
         },
         "orm": {
           "path": "textures/wood_stock/wood_stock_2048_orm.ktx2",
-          "bytes": 494565,
+          "bytes": 17471,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -142,7 +142,7 @@
           }
         }
       },
-      "bytes": 1175887,
+      "bytes": 90412,
       "gpu": {
         "desktop": 8388609,
         "mobile": 8388609,
@@ -153,8 +153,8 @@
   "stats": {
     "avgColor": "#2f1c0f",
     "avgRoughness": 0.248,
-    "avgMetalness": 0.001,
-    "avgAO": 0.958,
+    "avgMetalness": 0,
+    "avgAO": 0.999,
     "coverage": 1
   }
 }

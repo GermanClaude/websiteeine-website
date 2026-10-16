@@ -18,7 +18,7 @@ export default {
   chunkSize: 34,
   ambience: 'range',
   // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
-  assets: { hdri: 'zwartkops_straight_morning' },
+  assets: { hdri: 'np_sky_morgen_klar' }, // 16.10.: eigener Himmel statt Poly-Haven-Foto
   defaultSurface: 'dirt',
   navSpacing: 1.6,
   lighting: {

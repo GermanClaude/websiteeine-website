@@ -1,8 +1,12 @@
 # Asset-Pipeline (Texturen · HDRIs · Modelle)
 
-Erzeugt die fotorealistische, komprimierte Asset-Bibliothek unter `assets/lib/` aus frei lizenzierten
-Quellen (Poly Haven, ambientCG — ausschließlich **CC0**). Ziel: Look à la „Bodycam“ (rau, realistisch,
-verlassene Industrie-/Stadträume) bei wenig Grafikspeicher und kleinen Downloads fürs Handy.
+Erzeugt die komprimierte Asset-Bibliothek unter `assets/lib/`. Seit 16.10. ist **alles selbst erzeugt**
+(Nutzerwunsch): Texturen aus `lib/eigen-gen.mjs` (Böden, Putz, Mauerwerk, Holz, Metall, Stoffe — kachelbar, auf
+die mittlere Farbe der früheren Sätze kalibriert), Himmel aus `skygen.py` (5 Tageszeiten × 4 Wetterlagen),
+Requisiten aus `lib/eigen-models.mjs` (Grundkörper + eigene Texturen, exakt in die Maße aus `eigen-modelle.json`
+eingepasst). Fremdquellen (früher Poly Haven/ambientCG) sind nicht mehr enthalten; `source: "procedural"` in
+`sources.json` verweist auf den Generator-Schlüssel. Vorschau: `node tools/assets/eigen-preview.mjs name,…` (Texturen),
+`node tools/assets/modell-bogen.mjs id,…` (Modelle), `node tools/wetter-matrix.mjs karte x,y,z,gier,neigung` (Himmel).
 
 ## Einrichten
 

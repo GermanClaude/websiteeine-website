@@ -1,12 +1,12 @@
 {
   "id": "concrete_road_barrier",
-  "recipe": "5d5a29c52268",
+  "recipe": "0323ef14951e",
   "size": [
     1.544,
-    0.828,
+    0.83,
     0.639
   ],
-  "radius": 0.932,
+  "radius": 0.933,
   "lodDistances": [
     0,
     13.1,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/concrete_road_barrier/concrete_road_barrier_512.glb",
-      "bytes": 174648,
-      "srcTris": 60928,
+      "bytes": 39104,
+      "srcTris": 692,
       "lods": [
         {
-          "tris": 1594,
+          "tris": 276,
           "level": 1
         },
         {
-          "tris": 552,
+          "tris": 116,
           "level": 2
         }
       ],
@@ -43,80 +43,80 @@
         ],
         "max": [
           0.77,
-          0.82,
+          0.822,
           0.344
         ]
       },
       "textures": [
         {
-          "name": "concrete_road_barrier_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 81885,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "concrete_road_barrier_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 61012,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "concrete_road_barrier_arm_1k.ktx2",
+          "name": "barrier_concrete_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 8886,
+          "bytes": 2882,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "barrier_concrete_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 21358,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "barrier_concrete_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1943,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 44534,
+      "geometryBytes": 19408,
       "gpu": {
-        "desktop": 437751,
-        "mobile": 437751,
-        "rgba8": 3190261
+        "desktop": 412625,
+        "mobile": 412625,
+        "rgba8": 3165135
       },
       "materials": [
         {
-          "name": "concrete_road_barrier",
+          "name": "barrier_concrete",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/concrete_road_barrier/concrete_road_barrier_1024.glb",
-      "bytes": 522520,
-      "srcTris": 60928,
+      "bytes": 96164,
+      "srcTris": 692,
       "lods": [
         {
-          "tris": 3994,
+          "tris": 692,
           "level": 0
         },
         {
-          "tris": 1594,
+          "tris": 276,
           "level": 1
         },
         {
-          "tris": 552,
+          "tris": 116,
           "level": 2
         }
       ],
@@ -143,56 +143,56 @@
       },
       "textures": [
         {
-          "name": "concrete_road_barrier_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 238908,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "concrete_road_barrier_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 198724,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "concrete_road_barrier_arm_1k.ktx2",
+          "name": "barrier_concrete_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 31950,
+          "bytes": 5827,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "barrier_concrete_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 60072,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "barrier_concrete_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 7396,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 120858,
+      "geometryBytes": 40616,
       "gpu": {
-        "desktop": 1693723,
-        "mobile": 1693723,
-        "rgba8": 12703769
+        "desktop": 1613481,
+        "mobile": 1613481,
+        "rgba8": 12623527
       },
       "materials": [
         {
-          "name": "concrete_road_barrier",
+          "name": "barrier_concrete",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         }
       ]
     }

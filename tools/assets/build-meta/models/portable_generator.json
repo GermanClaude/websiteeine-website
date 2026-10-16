@@ -1,12 +1,12 @@
 {
   "id": "portable_generator",
-  "recipe": "5823a8b1b4aa",
+  "recipe": "6fd7278a3b65",
   "size": [
     0.817,
     0.575,
-    0.562
+    0.564
   ],
-  "radius": 0.573,
+  "radius": 0.574,
   "lodDistances": [
     0,
     8,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/portable_generator/portable_generator_512.glb",
-      "bytes": 238004,
-      "srcTris": 26419,
+      "bytes": 96556,
+      "srcTris": 4040,
       "lods": [
         {
-          "tris": 3999,
+          "tris": 1610,
           "level": 1
         },
         {
-          "tris": 1115,
+          "tris": 564,
           "level": 2
         }
       ],
@@ -39,7 +39,7 @@
         "min": [
           -0.415,
           0.002,
-          -0.28
+          -0.282
         ],
         "max": [
           0.402,
@@ -49,92 +49,162 @@
       },
       "textures": [
         {
-          "name": "portable_generator_spec_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 3130,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "portable_generator_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 71939,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "portable_generator_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 64892,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "portable_generator_arm_1k.ktx2",
+          "name": "gen_frame_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 13145,
+          "bytes": 2311,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "gen_frame_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 3537,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "gen_frame_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1554,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "gen_tank_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 2098,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "gen_tank_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 7475,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "gen_tank_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1567,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "gen_engine_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 3750,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "gen_engine_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 34992,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "gen_engine_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 966,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 198830,
+      "geometryBytes": 63406,
       "gpu": {
-        "desktop": 766810,
-        "mobile": 766810,
-        "rgba8": 4742658
+        "desktop": 1243057,
+        "mobile": 1243057,
+        "rgba8": 9500587
       },
       "materials": [
         {
-          "name": "portable_generator",
+          "name": "gen_frame",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         },
         {
-          "name": "portable_generator_glass",
-          "alphaMode": "BLEND",
-          "doubleSided": true
+          "name": "gen_tank",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        },
+        {
+          "name": "gen_engine",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     },
     "1024": {
       "path": "models/portable_generator/portable_generator_1024.glb",
-      "bytes": 663176,
-      "srcTris": 26419,
+      "bytes": 217760,
+      "srcTris": 4040,
       "lods": [
         {
-          "tris": 7984,
+          "tris": 4040,
           "level": 0
         },
         {
-          "tris": 3999,
+          "tris": 1610,
           "level": 1
         },
         {
-          "tris": 1115,
+          "tris": 564,
           "level": 2
         }
       ],
@@ -161,74 +231,144 @@
       },
       "textures": [
         {
-          "name": "portable_generator_spec_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 5802,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "portable_generator_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 216123,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "portable_generator_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 207572,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "portable_generator_arm_1k.ktx2",
+          "name": "gen_frame_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 42930,
+          "bytes": 3930,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "gen_frame_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 7866,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "gen_frame_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 3389,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "gen_tank_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 3687,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "gen_tank_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 18742,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "gen_tank_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 3426,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "gen_engine_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 11856,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "gen_engine_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 77895,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "gen_engine_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 2698,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 474412,
+      "geometryBytes": 168454,
       "gpu": {
-        "desktop": 2746328,
-        "mobile": 2746328,
-        "rgba8": 18649728
+        "desktop": 4887049,
+        "mobile": 4887049,
+        "rgba8": 37917187
       },
       "materials": [
         {
-          "name": "portable_generator",
+          "name": "gen_frame",
           "alphaMode": "OPAQUE",
-          "doubleSided": true
+          "doubleSided": false
         },
         {
-          "name": "portable_generator_glass",
-          "alphaMode": "BLEND",
-          "doubleSided": true
+          "name": "gen_tank",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        },
+        {
+          "name": "gen_engine",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
         }
       ]
     }

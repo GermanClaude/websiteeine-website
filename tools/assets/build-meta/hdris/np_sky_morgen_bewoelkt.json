@@ -1,0 +1,86 @@
+{
+  "id": "np_sky_morgen_bewoelkt",
+  "recipe": "6a2fd3e1f983",
+  "tiers": {
+    "512": {
+      "hdr": {
+        "path": "hdri/np_sky_morgen_bewoelkt/np_sky_morgen_bewoelkt_512.hdr",
+        "bytes": 78779,
+        "width": 512,
+        "height": 256,
+        "gpu": {
+          "desktop": 1048576,
+          "mobile": 1048576,
+          "rgba8": 1048576
+        }
+      },
+      "background": {
+        "path": "hdri/np_sky_morgen_bewoelkt/np_sky_morgen_bewoelkt_bg_1024.ktx2",
+        "bytes": 7353,
+        "width": 1024,
+        "height": 512,
+        "codec": "etc1s",
+        "gpu": {
+          "desktop": 262144,
+          "mobile": 262144,
+          "rgba8": 2097152
+        }
+      },
+      "bytes": 86132,
+      "gpu": {
+        "desktop": 6553600,
+        "mobile": 6553600,
+        "rgba8": 8388608
+      }
+    },
+    "1024": {
+      "hdr": {
+        "path": "hdri/np_sky_morgen_bewoelkt/np_sky_morgen_bewoelkt_1024.hdr",
+        "bytes": 272507,
+        "width": 1024,
+        "height": 512,
+        "gpu": {
+          "desktop": 4194304,
+          "mobile": 4194304,
+          "rgba8": 4194304
+        }
+      },
+      "background": {
+        "path": "hdri/np_sky_morgen_bewoelkt/np_sky_morgen_bewoelkt_bg_2048.ktx2",
+        "bytes": 19209,
+        "width": 2048,
+        "height": 1024,
+        "codec": "etc1s",
+        "gpu": {
+          "desktop": 1048576,
+          "mobile": 1048576,
+          "rgba8": 8388608
+        }
+      },
+      "bytes": 291716,
+      "gpu": {
+        "desktop": 7340032,
+        "mobile": 7340032,
+        "rgba8": 14680064
+      }
+    }
+  },
+  "stats": {
+    "sun": {
+      "dir": [
+        0.9848,
+        0.1736,
+        0
+      ],
+      "elevationDeg": 10,
+      "azimuthDeg": 90,
+      "peak": 4.63,
+      "dominance": 10.9
+    },
+    "avgLuminance": 0.254,
+    "skyLuminance": 0.4234,
+    "skyGeoLuminance": 0.4033,
+    "geoLuminance": 0.1834,
+    "backgroundExposure": 0.9815
+  }
+}

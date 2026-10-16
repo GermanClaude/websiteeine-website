@@ -1,5 +1,5 @@
 // Quell-Downloads (Poly Haven / ambientCG) in den Cache tools/out/assets-cache/src/.
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { apiJSON, download, ensureDir, SRC } from './common.mjs';
@@ -51,6 +51,13 @@ export async function fetchTexture(e) {
 
 /** HDRI: 1k + 2k .hdr */
 export async function fetchHDRI(e) {
+  if (e.source === 'procedural') {
+    // eigene Himmel (tools/assets/skygen.py → tools/assets/sky-src/<id>_1k.hdr / _2k.hdr)
+    const dir = new URL('../sky-src/', import.meta.url).pathname;
+    const out = { '1k': join(dir, `${e.sourceId}_1k.hdr`), '2k': join(dir, `${e.sourceId}_2k.hdr`) };
+    for (const f of Object.values(out)) if (!existsSync(f)) throw new Error(`${e.id}: ${f} fehlt – zuerst python3 tools/assets/skygen.py ${e.sourceId}`);
+    return out;
+  }
   const files = await phFiles(e.sourceId);
   const dir = ensureDir(join(SRC, 'hdris', e.id));
   const out = {};
@@ -64,6 +71,14 @@ export async function fetchHDRI(e) {
 
 /** Modell: glTF (+bin +Texturen) in Auflösung res ('1k'|'2k'). → Pfad der .gltf */
 export async function fetchModel(e, res = '1k') {
+  if (e.source === 'procedural') {
+    // Eigene Modelle (lib/eigen-models.mjs): GLB je Auflösung, neu gebaut wenn Quelltext/Maße sich ändern
+    const { buildModelGLB, modelHash } = await import('./eigen-models.mjs');
+    const dir = ensureDir(join(SRC, 'models', e.id, res));
+    const f = join(dir, `eigen-${modelHash(e.sourceId)}.glb`);
+    if (!existsSync(f)) writeFileSync(f, await buildModelGLB(e.sourceId, res === '2k' ? 2048 : 1024));
+    return f;
+  }
   const files = await phFiles(e.sourceId);
   const g = files.gltf?.[res]?.gltf;
   if (!g) throw new Error(`${e.id}: gltf ${res} fehlt`);

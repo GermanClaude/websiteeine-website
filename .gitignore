@@ -6,3 +6,6 @@ tools/out/
 # Video-Texturen: Zwischenstufe (neu erzeugbar mit tools/assets/video_tex.py + video_material.py aus der Video-Vorlage)
 tools/assets/video-src/
 __pycache__/
+
+# Eigene Himmel: Zwischenstufe (neu erzeugbar mit python3 tools/assets/skygen.py, danach node tools/assets/hdri.mjs)
+tools/assets/sky-src/

@@ -1,12 +1,12 @@
 {
   "id": "propane_tank",
-  "recipe": "57d1b2df66e7",
+  "recipe": "4e0e296fee7d",
   "size": [
-    0.334,
-    0.553,
+    0.335,
+    0.552,
     0.338
   ],
-  "radius": 0.365,
+  "radius": 0.364,
   "lodDistances": [
     0,
     6,
@@ -15,15 +15,15 @@
   "tiers": {
     "512": {
       "path": "models/propane_tank/propane_tank_512.glb",
-      "bytes": 143780,
-      "srcTris": 5238,
+      "bytes": 40792,
+      "srcTris": 1424,
       "lods": [
         {
-          "tris": 1198,
+          "tris": 664,
           "level": 1
         },
         {
-          "tris": 454,
+          "tris": 225,
           "level": 2
         }
       ],
@@ -37,66 +37,110 @@
       ],
       "bounds": {
         "min": [
-          -0.165,
+          -0.169,
           0,
           -0.169
         ],
         "max": [
-          0.169,
-          0.553,
+          0.166,
+          0.552,
           0.169
         ]
       },
       "textures": [
         {
-          "name": "propane_tank_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 46896,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "propane_tank_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 512,
-          "height": 512,
-          "codec": "etc1s",
-          "bytes": 59175,
-          "gpu": {
-            "desktop": 174763,
-            "mobile": 174763,
-            "rgba8": 1398101
-          }
-        },
-        {
-          "name": "propane_tank_arm_1k.ktx2",
+          "name": "propane_red_orm.ktx2",
           "role": "orm",
           "width": 256,
           "height": 256,
           "codec": "etc1s",
-          "bytes": 12280,
+          "bytes": 2766,
           "gpu": {
             "desktop": 43691,
             "mobile": 43691,
             "rgba8": 349525
           }
+        },
+        {
+          "name": "propane_red_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 4921,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "propane_red_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 1469,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "propane_valve_orm.ktx2",
+          "role": "orm",
+          "width": 256,
+          "height": 256,
+          "codec": "etc1s",
+          "bytes": 1072,
+          "gpu": {
+            "desktop": 43691,
+            "mobile": 43691,
+            "rgba8": 349525
+          }
+        },
+        {
+          "name": "propane_valve_diff.ktx2",
+          "role": "albedo",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 7688,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "propane_valve_nor.ktx2",
+          "role": "normal",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 2226,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
         }
       ],
-      "geometryBytes": 49534,
+      "geometryBytes": 30658,
       "gpu": {
-        "desktop": 442751,
-        "mobile": 442751,
-        "rgba8": 3195261
+        "desktop": 817092,
+        "mobile": 817092,
+        "rgba8": 6322112
       },
       "materials": [
         {
-          "name": "propane_tank",
+          "name": "propane_red",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        },
+        {
+          "name": "propane_valve",
           "alphaMode": "OPAQUE",
           "doubleSided": false
         }
@@ -104,19 +148,19 @@
     },
     "1024": {
       "path": "models/propane_tank/propane_tank_1024.glb",
-      "bytes": 470684,
-      "srcTris": 5238,
+      "bytes": 88472,
+      "srcTris": 1424,
       "lods": [
         {
-          "tris": 2999,
+          "tris": 1424,
           "level": 0
         },
         {
-          "tris": 1198,
+          "tris": 664,
           "level": 1
         },
         {
-          "tris": 454,
+          "tris": 225,
           "level": 2
         }
       ],
@@ -143,54 +187,98 @@
       },
       "textures": [
         {
-          "name": "propane_tank_nor_gl_1k.ktx2",
-          "role": "normal",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 187935,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "propane_tank_diff_1k.ktx2",
-          "role": "albedo",
-          "width": 1024,
-          "height": 1024,
-          "codec": "etc1s",
-          "bytes": 185422,
-          "gpu": {
-            "desktop": 699051,
-            "mobile": 699051,
-            "rgba8": 5592405
-          }
-        },
-        {
-          "name": "propane_tank_arm_1k.ktx2",
+          "name": "propane_red_orm.ktx2",
           "role": "orm",
           "width": 512,
           "height": 512,
           "codec": "etc1s",
-          "bytes": 41391,
+          "bytes": 8761,
           "gpu": {
             "desktop": 174763,
             "mobile": 174763,
             "rgba8": 1398101
           }
+        },
+        {
+          "name": "propane_red_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 9364,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "propane_red_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 3154,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "propane_valve_orm.ktx2",
+          "role": "orm",
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "bytes": 2570,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        {
+          "name": "propane_valve_diff.ktx2",
+          "role": "albedo",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 17338,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        {
+          "name": "propane_valve_nor.ktx2",
+          "role": "normal",
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "bytes": 5953,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
         }
       ],
-      "geometryBytes": 125982,
+      "geometryBytes": 71936,
       "gpu": {
-        "desktop": 1698847,
-        "mobile": 1698847,
-        "rgba8": 12708893
+        "desktop": 3217666,
+        "mobile": 3217666,
+        "rgba8": 25237758
       },
       "materials": [
         {
-          "name": "propane_tank",
+          "name": "propane_red",
+          "alphaMode": "OPAQUE",
+          "doubleSided": false
+        },
+        {
+          "name": "propane_valve",
           "alphaMode": "OPAQUE",
           "doubleSided": false
         }

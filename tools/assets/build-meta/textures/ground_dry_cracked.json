@@ -1,12 +1,12 @@
 {
   "id": "ground_dry_cracked",
-  "recipe": "9b6dadbeb2bc",
+  "recipe": "e328f581cedf",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/ground_dry_cracked/ground_dry_cracked_512_albedo.ktx2",
-          "bytes": 60501,
+          "bytes": 45239,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/ground_dry_cracked/ground_dry_cracked_512_normal.ktx2",
-          "bytes": 83388,
+          "bytes": 66656,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/ground_dry_cracked/ground_dry_cracked_512_orm.ktx2",
-          "bytes": 32297,
+          "bytes": 29219,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 176186,
+      "bytes": 141114,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/ground_dry_cracked/ground_dry_cracked_1024_albedo.ktx2",
-          "bytes": 202239,
+          "bytes": 122009,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/ground_dry_cracked/ground_dry_cracked_1024_normal.ktx2",
-          "bytes": 241455,
+          "bytes": 219602,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/ground_dry_cracked/ground_dry_cracked_1024_orm.ktx2",
-          "bytes": 124338,
+          "bytes": 83633,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 568032,
+      "bytes": 425244,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,8 +104,8 @@
   "stats": {
     "avgColor": "#867b6b",
     "avgRoughness": 0.829,
-    "avgMetalness": 0.005,
-    "avgAO": 0.513,
+    "avgMetalness": 0,
+    "avgAO": 0.965,
     "coverage": 1
   }
 }
