@@ -5,7 +5,7 @@
 // Sattelzug: Auflieger mit Abstand hinter der Kabine (vorher ragte er 0,6 m in die Kabine), Stützbeine paarweise.
 // Kollision wie bisher als einfache Quader (unabhängig von Grafikstufe und Bibliothek).
 import * as THREE from 'three';
-import { frame, container, pallet, crateStack } from '../props.js';
+import { frame, container, pallet, crateStack, civilSpot, staplerLast } from '../props.js';
 
 const KEIN = { collide: false, minimap: false };
 const shade = (hex, k) => { const c = new THREE.Color(hex); c.multiplyScalar(k); return '#' + c.getHexString(); };
@@ -65,6 +65,8 @@ function kotfluegel(f, lx, y, lz, w, len, tint) {
 
 /** Gabelstapler (lokal z = Fahrtrichtung, Gabel bei +z). o: { ry, color, load, forkY } */
 export function stapler(b, x, z, o = {}) {
+  // Nutzer 16.10.: fahrbar (vehicles/models-civil.js, Palette mit Last auf der Gabel) – hier nur der Stellplatz
+  if (o.drivable !== false && civilSpot(b, 'stapler', x, o.y ?? 0, z, o.ry || 0, o.color || '#e0a02a', staplerLast(o.load))) return;
   const y0 = o.y ?? 0, f = frame(b, x, y0, z, o.ry || 0), col = o.color || '#e0a02a', dark = '#2b2d30';
   // Nutzer 15.10.: Fahrzeuge „absolut undetailliert“ → Aufbau aus dem Seitenprofil (gerundete Haube, Fußraum,
   // Armaturenträger, Radläufe), dunkles Gussgegengewicht, Treibgasflasche, Schutzdach mit Streben, Hubmast mit
@@ -147,62 +149,71 @@ export function lkw(b, x, z, o = {}) {
   const y = o.y ?? 0, f = frame(b, x, y, z, o.ry || 0), col = o.color || '#c8402f', dark = '#26282b';
   const cabZ = o.trailer === null ? 2.2 : 5.6;
   const W = 2.45, hw = W / 2 + 0.004, fz = cabZ + 1.17;
-  // Frontlenker-Kabine aus dem Seitenprofil (runde Kanten, leicht geneigte Front, Scheibe schräg, Dach mit Absatz)
-  const cab = profilKoerper([[-1.1, 0.95], [1.1, 0.95], [1.17, 1.08], [1.18, 1.58], [1.14, 1.66], [0.99, 2.6], [0.84, 2.86], [-1.0, 2.9], [-1.1, 2.8]].map(([zz, yy]) => [zz + cabZ, yy]), W, 0.11);
-  f.geom(cab, 0, 0, 0, 'car_paint', { tint: col, ...KEIN, grad: false, uv: 'world' });
-  cab.dispose();
-  // Frontscheibe (zweiteilig mit Mittelsteg), Seitenfenster mit schräger Vorderkante, Sonnenblende
-  flaeche(f, [[-1.06, 1.7, cabZ + 1.146], [1.06, 1.7, cabZ + 1.146], [0.98, 2.55, cabZ + 1.01], [-0.98, 2.55, cabZ + 1.01]], 'glass');
-  f.box(0, 1.7, cabZ + 1.085, 0.05, 0.86, 0.04, 'polymer', { tint: dark, ...KEIN, grad: false, ao: false, rx: -0.16 });
-  for (const sd of [-1, 1]) flaeche(f, [[sd * hw, 1.72, cabZ + 0.1], [sd * hw, 1.72, cabZ + 1.06], [sd * hw, 2.5, cabZ + 0.92], [sd * hw, 2.5, cabZ + 0.1]], 'glass');
-  f.box(0, 2.6, cabZ + 1.02, W - 0.1, 0.08, 0.32, 'polymer', { tint: dark, ...KEIN, grad: false, rx: 0.25 });
-  // Grill mit Lamellen + Markenplakette, Stoßfänger mit Scheinwerfern und Blinkern
-  f.box(0, 1.08, cabZ + 1.2, 1.7, 0.5, 0.03, 'polymer', { tint: '#141516', ...KEIN, grad: false, ao: false });
-  for (let k = 0; k < 5; k++) f.box(0, 1.11 + k * 0.095, cabZ + 1.222, 1.64, 0.028, 0.02, 'metal_painted', { tint: shade(col, 0.55), ...KEIN, grad: false, ao: false });
-  f.box(0, 1.6, cabZ + 1.19, 0.42, 0.1, 0.02, 'metal_galvanized', { ...KEIN, ao: false });
-  f.box(0, 0.42, fz + 0.04, W + 0.04, 0.52, 0.22, 'polymer', { tint: '#2a2c2f', ...KEIN, grad: false });
-  for (const sd of [-1, 1]) {
-    flaeche(f, [[sd * 0.72, 0.7, fz + 0.155], [sd * 1.08, 0.7, fz + 0.155], [sd * 1.08, 0.88, fz + 0.155], [sd * 0.72, 0.88, fz + 0.155]], 'lamp_lens', { cast: false });
-    f.box(sd * 1.14, 0.7, fz + 0.15, 0.08, 0.18, 0.02, 'lamp_orange', { ...KEIN, ao: false, cast: false });
+  // Nutzer 16.10.: Zugmaschine fahrbar (vehicles/models-civil.js) – ohne Auflieger an der Kabinenstelle, sonst 0,6 m vor
+  // dem auf seinen Stützen abgestellten Auflieger (Kabinenmitte 2,05 m vor ihrem Ursprung, Heck 3,05 m dahinter)
+  const parked = o.drivable !== false && typeof b.civil === 'function';
+  if (parked) {
+    const [tx, tz] = f.P(0, o.trailer === null ? cabZ - 2.05 : cabZ - 1.6 + 0.6 + 3.05);
+    civilSpot(b, 'zugmaschine', tx, y, tz, o.ry || 0, col);
+    if (o.trailer === null) return;
+  } else {
+    // Frontlenker-Kabine aus dem Seitenprofil (runde Kanten, leicht geneigte Front, Scheibe schräg, Dach mit Absatz)
+    const cab = profilKoerper([[-1.1, 0.95], [1.1, 0.95], [1.17, 1.08], [1.18, 1.58], [1.14, 1.66], [0.99, 2.6], [0.84, 2.86], [-1.0, 2.9], [-1.1, 2.8]].map(([zz, yy]) => [zz + cabZ, yy]), W, 0.11);
+    f.geom(cab, 0, 0, 0, 'car_paint', { tint: col, ...KEIN, grad: false, uv: 'world' });
+    cab.dispose();
+    // Frontscheibe (zweiteilig mit Mittelsteg), Seitenfenster mit schräger Vorderkante, Sonnenblende
+    flaeche(f, [[-1.06, 1.7, cabZ + 1.146], [1.06, 1.7, cabZ + 1.146], [0.98, 2.55, cabZ + 1.01], [-0.98, 2.55, cabZ + 1.01]], 'glass');
+    f.box(0, 1.7, cabZ + 1.085, 0.05, 0.86, 0.04, 'polymer', { tint: dark, ...KEIN, grad: false, ao: false, rx: -0.16 });
+    for (const sd of [-1, 1]) flaeche(f, [[sd * hw, 1.72, cabZ + 0.1], [sd * hw, 1.72, cabZ + 1.06], [sd * hw, 2.5, cabZ + 0.92], [sd * hw, 2.5, cabZ + 0.1]], 'glass');
+    f.box(0, 2.6, cabZ + 1.02, W - 0.1, 0.08, 0.32, 'polymer', { tint: dark, ...KEIN, grad: false, rx: 0.25 });
+    // Grill mit Lamellen + Markenplakette, Stoßfänger mit Scheinwerfern und Blinkern
+    f.box(0, 1.08, cabZ + 1.2, 1.7, 0.5, 0.03, 'polymer', { tint: '#141516', ...KEIN, grad: false, ao: false });
+    for (let k = 0; k < 5; k++) f.box(0, 1.11 + k * 0.095, cabZ + 1.222, 1.64, 0.028, 0.02, 'metal_painted', { tint: shade(col, 0.55), ...KEIN, grad: false, ao: false });
+    f.box(0, 1.6, cabZ + 1.19, 0.42, 0.1, 0.02, 'metal_galvanized', { ...KEIN, ao: false });
+    f.box(0, 0.42, fz + 0.04, W + 0.04, 0.52, 0.22, 'polymer', { tint: '#2a2c2f', ...KEIN, grad: false });
+    for (const sd of [-1, 1]) {
+      flaeche(f, [[sd * 0.72, 0.7, fz + 0.155], [sd * 1.08, 0.7, fz + 0.155], [sd * 1.08, 0.88, fz + 0.155], [sd * 0.72, 0.88, fz + 0.155]], 'lamp_lens', { cast: false });
+      f.box(sd * 1.14, 0.7, fz + 0.15, 0.08, 0.18, 0.02, 'lamp_orange', { ...KEIN, ao: false, cast: false });
+    }
+    f.box(0, 0.5, fz + 0.165, 0.52, 0.11, 0.01, 'white', { tint: '#f2f2ee', ...KEIN, grad: false, ao: false });
+    // Türen (Fugen, Griff), Einstieg (zwei Trittstufen), Spiegel an Armen (Haupt- + Weitwinkelspiegel), Druckluftfanfare
+    for (const sd of [-1, 1]) {
+      for (const zz of [cabZ + 0.06, cabZ + 1.08]) f.box(sd * (W / 2 + 0.006), 1.0, zz, 0.008, 1.55, 0.012, 'polymer', { tint: '#0e0f10', ...KEIN, grad: false, ao: false, cast: false });
+      f.box(sd * (W / 2 + 0.02), 1.55, cabZ + 0.25, 0.03, 0.05, 0.22, 'polymer', { tint: dark, ...KEIN, grad: false, ao: false });
+      for (const k of [0, 1]) f.box(sd * 1.1, 0.4 + k * 0.3, cabZ - 0.68, 0.26, 0.04, 0.5, 'metal_painted', { tint: '#3a3d40', ...KEIN, grad: false, ao: false });
+      f.box(sd * 1.2, 0.36, cabZ - 0.68, 0.03, 0.6, 0.5, 'metal_painted', { tint: dark, ...KEIN, grad: false, ao: false });
+      f.box(sd * 1.3, 2.38, cabZ + 1.0, 0.2, 0.04, 0.04, 'polymer', { tint: dark, ...KEIN, grad: false, ao: false });
+      f.box(sd * 1.3, 1.72, cabZ + 1.0, 0.2, 0.04, 0.04, 'polymer', { tint: dark, ...KEIN, grad: false, ao: false });
+      f.box(sd * 1.42, 1.72, cabZ + 0.98, 0.05, 0.7, 0.04, 'metal_galvanized', { ...KEIN, ao: false });
+      f.box(sd * 1.46, 1.86, cabZ + 0.96, 0.08, 0.46, 0.24, 'polymer', { tint: '#1e2023', ...KEIN, grad: false });
+      f.box(sd * 1.46, 1.58, cabZ + 0.96, 0.07, 0.2, 0.18, 'polymer', { tint: '#1e2023', ...KEIN, grad: false });
+      // Radlauf vorn (dunkle Radhausschale unter der Kabine)
+      f.box(sd * 0.85, 0.62, cabZ + 0.2, 0.5, 0.36, 1.25, 'polymer', { tint: '#151617', ...KEIN, grad: false, ao: false });
+    }
+    f.cyl(0.5, 2.92, cabZ + 0.5, 0.05, 0.12, 'metal_galvanized', { ...KEIN, seg: 6, ao: false });
+    // Windleitblech auf dem Dach (nach vorn geneigt, gerundet)
+    const spoiler = profilKoerper([[-0.9, 2.84], [0.62, 2.84], [0.3, 3.32], [-0.9, 3.36]].map(([zz, yy]) => [zz + cabZ, yy]), 2.3, 0.07);
+    f.geom(spoiler, 0, 0, 0, 'car_paint', { tint: shade(col, 0.92), ...KEIN, grad: false, uv: 'world' });
+    spoiler.dispose();
+    // Fahrgestell: Längsträger, Sattelkupplung, Tanks (Diesel + AdBlue), Luftkessel, Seitenverkleidung, Auspuff
+    f.box(0, 0.62, cabZ - 1.6, 1.0, 0.3, 5.0, 'metal_painted', { tint: dark, ...KEIN, grad: false });
+    f.box(0, 0.92, cabZ - 2.6, 1.3, 0.1, 1.1, 'metal_painted', { tint: '#3a3d40', ...KEIN, grad: false });
+    f.cyl(-0.82, 0.68, cabZ - 1.35, 0.3, 1.1, 'metal_galvanized', { axis: 'z', ...KEIN, seg: 14 });
+    f.cyl(0.82, 0.62, cabZ - 1.55, 0.2, 0.55, 'polymer', { axis: 'z', tint: '#2f5a8a', ...KEIN, seg: 12 });
+    f.cyl(0.82, 0.62, cabZ - 1.05, 0.14, 0.35, 'metal_painted', { axis: 'z', tint: '#3a3d40', ...KEIN, seg: 10 });
+    f.cyl(1.05, 1.0, cabZ - 1.22, 0.07, 2.25, 'metal_galvanized', { ...KEIN, seg: 10 });
+    f.cyl(1.05, 3.2, cabZ - 1.22, 0.075, 0.08, 'black', { ...KEIN, seg: 10, ao: false });
+    // Räder: Vorderachse einzeln, Antriebsachse doppelt bereift, Kotflügel + Schmutzfänger hinten
+    for (const sx of [-1, 1]) {
+      rad(f, sx * 1.0, cabZ + 0.2, 0.52, 0.36);
+      rad(f, sx * 1.02, cabZ - 2.6, 0.52, 0.3, { twin: true });
+      kotfluegel(f, sx * 0.88, 1.16, cabZ - 2.6, 0.7, 1.3, '#2b2d30');
+      f.box(sx * 0.88, 0.18, cabZ - 3.3, 0.66, 0.85, 0.02, 'rubber', { ...KEIN, grad: false, ao: false });
+    }
+    f.solid(0, 0, cabZ, 2.5, 3.4, 2.4, { minimap: 'vehicle' });
+    f.solid(0, 0, cabZ - 2.6, 2.5, 1.15, 2.9, { minimap: false });
+    if (o.trailer === null) return;
   }
-  f.box(0, 0.5, fz + 0.165, 0.52, 0.11, 0.01, 'white', { tint: '#f2f2ee', ...KEIN, grad: false, ao: false });
-  // Türen (Fugen, Griff), Einstieg (zwei Trittstufen), Spiegel an Armen (Haupt- + Weitwinkelspiegel), Druckluftfanfare
-  for (const sd of [-1, 1]) {
-    for (const zz of [cabZ + 0.06, cabZ + 1.08]) f.box(sd * (W / 2 + 0.006), 1.0, zz, 0.008, 1.55, 0.012, 'polymer', { tint: '#0e0f10', ...KEIN, grad: false, ao: false, cast: false });
-    f.box(sd * (W / 2 + 0.02), 1.55, cabZ + 0.25, 0.03, 0.05, 0.22, 'polymer', { tint: dark, ...KEIN, grad: false, ao: false });
-    for (const k of [0, 1]) f.box(sd * 1.1, 0.4 + k * 0.3, cabZ - 0.68, 0.26, 0.04, 0.5, 'metal_painted', { tint: '#3a3d40', ...KEIN, grad: false, ao: false });
-    f.box(sd * 1.2, 0.36, cabZ - 0.68, 0.03, 0.6, 0.5, 'metal_painted', { tint: dark, ...KEIN, grad: false, ao: false });
-    f.box(sd * 1.3, 2.38, cabZ + 1.0, 0.2, 0.04, 0.04, 'polymer', { tint: dark, ...KEIN, grad: false, ao: false });
-    f.box(sd * 1.3, 1.72, cabZ + 1.0, 0.2, 0.04, 0.04, 'polymer', { tint: dark, ...KEIN, grad: false, ao: false });
-    f.box(sd * 1.42, 1.72, cabZ + 0.98, 0.05, 0.7, 0.04, 'metal_galvanized', { ...KEIN, ao: false });
-    f.box(sd * 1.46, 1.86, cabZ + 0.96, 0.08, 0.46, 0.24, 'polymer', { tint: '#1e2023', ...KEIN, grad: false });
-    f.box(sd * 1.46, 1.58, cabZ + 0.96, 0.07, 0.2, 0.18, 'polymer', { tint: '#1e2023', ...KEIN, grad: false });
-    // Radlauf vorn (dunkle Radhausschale unter der Kabine)
-    f.box(sd * 0.85, 0.62, cabZ + 0.2, 0.5, 0.36, 1.25, 'polymer', { tint: '#151617', ...KEIN, grad: false, ao: false });
-  }
-  f.cyl(0.5, 2.92, cabZ + 0.5, 0.05, 0.12, 'metal_galvanized', { ...KEIN, seg: 6, ao: false });
-  // Windleitblech auf dem Dach (nach vorn geneigt, gerundet)
-  const spoiler = profilKoerper([[-0.9, 2.84], [0.62, 2.84], [0.3, 3.32], [-0.9, 3.36]].map(([zz, yy]) => [zz + cabZ, yy]), 2.3, 0.07);
-  f.geom(spoiler, 0, 0, 0, 'car_paint', { tint: shade(col, 0.92), ...KEIN, grad: false, uv: 'world' });
-  spoiler.dispose();
-  // Fahrgestell: Längsträger, Sattelkupplung, Tanks (Diesel + AdBlue), Luftkessel, Seitenverkleidung, Auspuff
-  f.box(0, 0.62, cabZ - 1.6, 1.0, 0.3, 5.0, 'metal_painted', { tint: dark, ...KEIN, grad: false });
-  f.box(0, 0.92, cabZ - 2.6, 1.3, 0.1, 1.1, 'metal_painted', { tint: '#3a3d40', ...KEIN, grad: false });
-  f.cyl(-0.82, 0.68, cabZ - 1.35, 0.3, 1.1, 'metal_galvanized', { axis: 'z', ...KEIN, seg: 14 });
-  f.cyl(0.82, 0.62, cabZ - 1.55, 0.2, 0.55, 'polymer', { axis: 'z', tint: '#2f5a8a', ...KEIN, seg: 12 });
-  f.cyl(0.82, 0.62, cabZ - 1.05, 0.14, 0.35, 'metal_painted', { axis: 'z', tint: '#3a3d40', ...KEIN, seg: 10 });
-  f.cyl(1.05, 1.0, cabZ - 1.22, 0.07, 2.25, 'metal_galvanized', { ...KEIN, seg: 10 });
-  f.cyl(1.05, 3.2, cabZ - 1.22, 0.075, 0.08, 'black', { ...KEIN, seg: 10, ao: false });
-  // Räder: Vorderachse einzeln, Antriebsachse doppelt bereift, Kotflügel + Schmutzfänger hinten
-  for (const sx of [-1, 1]) {
-    rad(f, sx * 1.0, cabZ + 0.2, 0.52, 0.36);
-    rad(f, sx * 1.02, cabZ - 2.6, 0.52, 0.3, { twin: true });
-    kotfluegel(f, sx * 0.88, 1.16, cabZ - 2.6, 0.7, 1.3, '#2b2d30');
-    f.box(sx * 0.88, 0.18, cabZ - 3.3, 0.66, 0.85, 0.02, 'rubber', { ...KEIN, grad: false, ao: false });
-  }
-  f.solid(0, 0, cabZ, 2.5, 3.4, 2.4, { minimap: 'vehicle' });
-  f.solid(0, 0, cabZ - 2.6, 2.5, 1.15, 2.9, { minimap: false });
-  if (o.trailer === null) return;
   // Auflieger: Vorderkante 0,5 m hinter der Kabine, Königszapfen über der Sattelkupplung
   const tl = 12.2, front = cabZ - 1.1 - 0.5, tz = front - tl / 2;
   const tt = o.trailer || 'box';
@@ -216,10 +227,10 @@ export function lkw(b, x, z, o = {}) {
     f.box(sx * 0.62, 1.08, tz - tl / 2 - 0.01, 0.12, 0.14, 0.04, 'lamp_orange', { ...KEIN, ao: false, cast: false });
   }
   f.box(0, 1.0, tz - tl / 2 - 0.02, 0.52, 0.11, 0.01, 'white', { tint: '#f2f2ee', ...KEIN, grad: false, ao: false });
-  // Stützbeine (eingefahren: Füße 0,25 m über dem Boden, Kurbel außen)
+  // Stützbeine: abgestellt bis zum Boden, angekuppelt eingefahren (Füße 0,25 m über dem Boden); Kurbel außen
   for (const sx of [-0.9, 0.9]) {
-    f.box(sx, 0.32, front - 2.6, 0.12, 0.73, 0.12, 'metal_painted', { tint: dark, ...KEIN, grad: false });
-    f.box(sx, 0.25, front - 2.6, 0.24, 0.07, 0.3, 'metal_painted', { tint: dark, ...KEIN, grad: false, ao: false });
+    f.box(sx, parked ? 0.07 : 0.32, front - 2.6, 0.12, parked ? 0.98 : 0.73, 0.12, 'metal_painted', { tint: dark, ...KEIN, grad: false });
+    f.box(sx, parked ? 0 : 0.25, front - 2.6, 0.24, 0.07, 0.3, 'metal_painted', { tint: dark, ...KEIN, grad: false, ao: false });
   }
   f.box(1.0, 0.75, front - 2.6, 0.04, 0.04, 0.3, 'metal_galvanized', { ...KEIN, ao: false });
   if (tt === 'container') {
@@ -377,6 +388,7 @@ function flaeche(f, pts, mat, o = {}) {
 /** Lieferwagen / Transporter (Kastenwagen, lokal z = Länge, Front bei +z): gerundete Karosserie mit Haube, schräger
  *  Frontscheibe, Radläufen, Seitenfenster, Schiebetür, Hecktüren, Kunststoffleisten, Scheinwerfer, Grill, Spiegel. */
 export function transporter(b, x, z, o = {}) {
+  if (o.drivable !== false && civilSpot(b, 'transporter', x, o.y ?? 0, z, o.ry || 0, o.color || '#e8e6e0')) return;
   const y = o.y ?? 0, f = frame(b, x, y, z, o.ry || 0), col = o.color || '#e8e6e0', dark = '#1e2023';
   const L = 5.2, W = 2.0, rw = 0.36, zr = -1.55, zf = 1.75, y0 = 0.46;
   const prof = [[-2.6, y0], ...radlauf(zr, rw, 0.46, y0), ...radlauf(zf, rw, 0.46, y0), [2.52, y0], [2.6, 0.62], [2.62, 0.98],
@@ -423,9 +435,10 @@ export function transporter(b, x, z, o = {}) {
   f.solid(0, 0, 0, W, 2.4, L, { minimap: 'vehicle' });
 }
 
-/** PKW (lokal z = Länge): abgedecktes Auto aus der Bibliothek, sonst prozedural mit richtig gedrehten Rädern. */
+/** PKW (lokal z = Länge): fahrbare Limousine (Nutzer 16.10.: kein abgedecktes Auto mehr), sonst prozedural. */
 export function pkw(b, x, z, o = {}) {
   const y = o.y ?? 0, col = o.color || '#3b3d40';
+  if (o.drivable !== false && civilSpot(b, 'pkw', x, y, z, o.ry || 0, col)) { b.decal(x, y + 0.01, z, 2.6, 4.6, 'oil', { ry: o.ry || 0, opacity: 0.5 }); return; }
   const proc = (bb) => {
     const f = frame(bb, x, y, z, o.ry || 0), L = 4.3, W = 1.8, pm = 'car_paint';
     f.box(0, 0.32, 0, W, 0.52, L, pm, { tint: col, ...KEIN, grad: false });
@@ -436,8 +449,7 @@ export function pkw(b, x, z, o = {}) {
     f.box(0, 0.3, -L / 2 - 0.03, W - 0.05, 0.18, 0.1, 'polymer', { ...KEIN, grad: false });
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) rad(f, sx * (W / 2 - 0.12), sz * 1.35, 0.32, 0.22, { rim: '#b8bcc0' });
   };
-  if (b.hasModel('covered_car') && o.model !== false) b.model('covered_car', x, y, z, { ry: o.ry || 0, collide: false, fallback: proc });
-  else proc(b);
+  proc(b);
   // Kollision in festen Maßen (gleich mit und ohne Bibliothek)
   frame(b, x, y, z, o.ry || 0).solid(0, 0, 0, 1.8, 1.42, 4.3, { minimap: 'vehicle' });
   b.decal(x, y + 0.01, z, 2.6, 4.6, 'oil', { ry: o.ry || 0, opacity: 0.5 });

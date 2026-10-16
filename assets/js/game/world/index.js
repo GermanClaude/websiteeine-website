@@ -6,7 +6,7 @@ import { TriangleBVH } from './bvh.js';
 import { MAPS } from '../../shared/maps.data.js';
 import { configureTextures, getMaterial, beginTextureEpoch, releaseUnusedTextures, deferTextureGeneration, planLibraryMaterials, resolveLibraryMaterials, libraryInUse, libraryStats } from '../engine/textures.js';
 import { createWorldAssets } from './library.js';
-import { MapBuilder, SURFACES } from './builder.js';
+import { MapBuilder, civilList, SURFACES } from './builder.js';
 import { createLighting, sunVector } from './lighting.js';
 import { applyWorldShading, initShading, resetShading, setShadingMode, shadingMode, bindShadingScene, watchScene, WS } from './shading.js';
 import { createProbeQuery, PROBE_TIERS, PROBE_BOUNCE_SCALE } from './probes.js';
@@ -417,6 +417,7 @@ export async function loadWorld(G, mapId, opts = {}) {
     objectives,
     nav,
     emplacements: b.emplacements || [], // benutzbare MG-Stellungen (game/mappoints.js)
+    civilVehicles: civilList([...(res.civilVehicles || []), ...(b.civilSpots || [])]), // fahrbare Zivilfahrzeuge (vehicles/)
     doors: b.doors || [], gates: b.gates || [], windows: b.windows || [], // bewegliche Türen und Tore (game/doors.js)
     destructibles: (b.destructibles || []).filter((d) => d.mesh), // zerstörbare Wandpaneele (game/destruction.js)
     lighting: light.lighting,

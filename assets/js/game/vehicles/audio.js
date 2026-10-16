@@ -8,6 +8,10 @@ const RANGE = 95;
 const PROFILES = {
   tank: { base: 34, span: 46, saw: 0.5, sq: 0.55, noise: 0.5, clank: 0.6, cut: 260, cutSpan: 1300, vol: 0.9 },
   car: { base: 52, span: 120, saw: 0.55, sq: 0.35, noise: 0.25, clank: 0, cut: 420, cutSpan: 2400, vol: 0.62 },
+  // Zivilfahrzeuge: Benziner (heller, leiser), Diesel (tief, nagelnd), Treibgas-Stapler (dünn, gleichförmig)
+  pkw: { base: 58, span: 150, saw: 0.45, sq: 0.25, noise: 0.18, clank: 0, cut: 520, cutSpan: 2800, vol: 0.5 },
+  diesel: { base: 40, span: 75, saw: 0.6, sq: 0.45, noise: 0.42, clank: 0.12, cut: 330, cutSpan: 1600, vol: 0.72 },
+  stapler: { base: 46, span: 60, saw: 0.4, sq: 0.5, noise: 0.3, clank: 0.05, cut: 380, cutSpan: 1200, vol: 0.45 },
 };
 
 function noiseBuffer(ctx) {

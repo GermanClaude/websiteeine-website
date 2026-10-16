@@ -245,6 +245,19 @@ export function vehicleMaterials() {
       null: new THREE.MeshStandardMaterial({ name: 'veh:mark', color: TEAM_MARK.null, roughness: 0.6 }),
     },
     wreck: fromBase('metal_rust', { color: 0x2a2420, metalness: 0.2, roughness: 0.95 }),
+    // Zivilfahrzeuge (Nutzer 16.10.): Felgen, Kunststoff (Stoßfänger, Armaturenbrett), Sitzbezug, Himmel/Verkleidung,
+    // Instrumente (leicht leuchtend), Blinker/Rundumleuchte, Kennzeichen, Chrom; Lack je Farbe über civilPaint()
+    rim: new THREE.MeshStandardMaterial({ name: 'veh:felge', color: 0xb4b9bf, roughness: 0.32, metalness: 0.85, envMapIntensity: 1.2 }),
+    plastic: new THREE.MeshStandardMaterial({ name: 'veh:kunststoff', color: 0x1e1f21, roughness: 0.62, metalness: 0.05 }),
+    seat: new THREE.MeshStandardMaterial({ name: 'veh:sitz', color: 0x2b2c30, roughness: 0.96, metalness: 0 }),
+    trim: new THREE.MeshStandardMaterial({ name: 'veh:verkleidung', color: 0x77787a, roughness: 0.9, metalness: 0 }),
+    dial: new THREE.MeshStandardMaterial({ name: 'veh:instrument', color: 0x101214, roughness: 0.3, metalness: 0.1, emissive: 0x3a4a5a, emissiveIntensity: 0.6 }),
+    amber: new THREE.MeshStandardMaterial({ name: 'veh:blinker', color: 0xd9861a, emissive: 0x5a3000, emissiveIntensity: 0.7, roughness: 0.25 }),
+    plate: new THREE.MeshStandardMaterial({ name: 'veh:kennzeichen', color: 0xe6e6e0, roughness: 0.5, metalness: 0.1 }),
+    chrome: new THREE.MeshStandardMaterial({ name: 'veh:chrom', color: 0xd8dadc, roughness: 0.12, metalness: 1, envMapIntensity: 1.4 }),
+    carton: new THREE.MeshStandardMaterial({ name: 'veh:karton', color: 0xa98455, roughness: 0.92, metalness: 0 }),
+    sack: new THREE.MeshStandardMaterial({ name: 'veh:sack', color: 0xd2c9b0, roughness: 0.97, metalness: 0 }),
+    civ: {},
     trackTex: trackTexture(),
     trackHQ: null, // env-look: Kettenglieder mit Normalenkarte (medium+), bei Bedarf erzeugt
     marking: {},
@@ -255,13 +268,20 @@ export function vehicleMaterials() {
   return SET;
 }
 
+/** Autolack einer Farbe (geteilt je Farbton): glatter Klarlack, leicht metallisch – Zivilfahrzeuge. */
+export function civilPaint(hex) {
+  const S = vehicleMaterials(), k = String(hex);
+  if (!S.civ[k]) S.civ[k] = new THREE.MeshStandardMaterial({ name: `veh:lack${k}`, color: new THREE.Color(hex), roughness: 0.34, metalness: 0.4, envMapIntensity: 1.1 });
+  return S.civ[k];
+}
+
 /**
  * Vorzuwärmende Fahrzeugmaterialien (Shader, die nicht sofort sichtbar sind): Scheinwerfer an, Lichtkegel, Wrack,
  * Optikglas, Turm-Innenraum (Wände, Granaten, Verschluss) – index.js kompiliert sie beim Anschluss mit (§D.3).
  */
 export function vehicleWarmMaterials() {
   const S = vehicleMaterials();
-  return [S.lensOn, S.cone, S.wreck, S.optic, S.cabin, S.shell, S.steel, S.red, S.sleeve, S.cabinWk2, S.cabinWk1, S.wood, S.brass, S.lamp];
+  return [S.lensOn, S.cone, S.wreck, S.optic, S.cabin, S.shell, S.steel, S.red, S.sleeve, S.cabinWk2, S.cabinWk1, S.wood, S.brass, S.lamp, S.rim, S.plastic, S.seat, S.trim, S.dial, S.amber, S.plate, S.chrome, S.carton, S.sack];
 }
 
 /** Kettenmaterial je Fahrzeugseite (eigene Texturkopie → eigener Versatz für den Kettenlauf). */

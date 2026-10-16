@@ -2,7 +2,7 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-16T14:27:44.498Z",
+ "generated": "2026-10-16T15:07:53.925Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
@@ -13217,88 +13217,6 @@
     "werk"
    ]
   },
-  "covered_car": {
-   "type": "model",
-   "name": "covered_car",
-   "category": "urban",
-   "kit": false,
-   "weapon": false,
-   "size": [
-    1.789,
-    1.393,
-    4.38
-   ],
-   "radius": 2.466,
-   "lodDistances": [
-    0,
-    34.6,
-    98.7
-   ],
-   "parts": [
-    "covered_car"
-   ],
-   "sourceTris": 14828,
-   "materials": [
-    {
-     "name": "car_cover",
-     "alphaMode": "OPAQUE",
-     "doubleSided": false
-    },
-    {
-     "name": "car_tyre",
-     "alphaMode": "OPAQUE",
-     "doubleSided": false
-    }
-   ],
-   "tiers": {
-    "512": {
-     "glb": "models/covered_car/covered_car_512.glb",
-     "bytes": 213364,
-     "gpu": {
-      "desktop": 1075080,
-      "mobile": 1075080,
-      "rgba8": 6580100
-     },
-     "tris": [
-      4084,
-      1427
-     ],
-     "textures": 6,
-     "lodDistances": [
-      0,
-      98.7
-     ],
-     "lodShift": true
-    },
-    "1024": {
-     "glb": "models/covered_car/covered_car_1024.glb",
-     "bytes": 755348,
-     "gpu": {
-      "desktop": 4148454,
-      "mobile": 4148454,
-      "rgba8": 26168546
-     },
-     "tris": [
-      10216,
-      4084,
-      1427
-     ],
-     "textures": 6,
-     "lodDistances": [
-      0,
-      34.6,
-      98.7
-     ]
-    }
-   },
-   "license": "eigen (NULLPUNKT)",
-   "source": "procedural",
-   "sourceId": "covered_car",
-   "maps": [
-    "hafen",
-    "altstadt"
-   ]
-  },
   "hanging_industrial_lamp": {
    "type": "model",
    "name": "hanging_industrial_lamp",
@@ -14454,42 +14372,41 @@
     "exterior_aircon_unit",
     "power_box_01",
     "utility_box_01",
-    "covered_car",
     "cardboard_box_01",
     "propane_tank",
     "fire_hydrant"
    ],
    "budget": {
     "low": {
-     "bytes": 3880380,
+     "bytes": 3667016,
      "gpu": {
-      "desktop": 33273279,
-      "mobile": 33273279,
-      "rgba8": 210919417
+      "desktop": 32198199,
+      "mobile": 32198199,
+      "rgba8": 204339317
      }
     },
     "medium": {
-     "bytes": 8208536,
+     "bytes": 7995172,
      "gpu": {
-      "desktop": 69711295,
-      "mobile": 69711295,
-      "rgba8": 494034937
+      "desktop": 68636215,
+      "mobile": 68636215,
+      "rgba8": 487454837
      }
     },
     "high": {
-     "bytes": 11683538,
+     "bytes": 10928190,
      "gpu": {
-      "desktop": 111445055,
-      "mobile": 111445055,
-      "rgba8": 813772409
+      "desktop": 107296601,
+      "mobile": 107296601,
+      "rgba8": 787603863
      }
     },
     "ultra": {
-     "bytes": 13335506,
+     "bytes": 12580158,
      "gpu": {
-      "desktop": 136610879,
-      "mobile": 136610879,
-      "rgba8": 1015099001
+      "desktop": 132462425,
+      "mobile": 132462425,
+      "rgba8": 988930455
      }
     }
    }
@@ -14532,40 +14449,39 @@
     "exterior_aircon_unit",
     "metal_trash_can",
     "rock_07",
-    "covered_car",
     "fire_hydrant"
    ],
    "budget": {
     "low": {
-     "bytes": 4236847,
+     "bytes": 4023483,
      "gpu": {
-      "desktop": 27907793,
-      "mobile": 27907793,
-      "rgba8": 172261667
+      "desktop": 26832713,
+      "mobile": 26832713,
+      "rgba8": 165681567
      }
     },
     "medium": {
-     "bytes": 10164266,
+     "bytes": 9950902,
      "gpu": {
-      "desktop": 64870097,
-      "mobile": 64870097,
-      "rgba8": 467960099
+      "desktop": 63795017,
+      "mobile": 63795017,
+      "rgba8": 461379999
      }
     },
     "high": {
-     "bytes": 12634864,
+     "bytes": 11879516,
      "gpu": {
-      "desktop": 88034549,
-      "mobile": 88034549,
-      "rgba8": 640677703
+      "desktop": 83886095,
+      "mobile": 83886095,
+      "rgba8": 614509157
      }
     },
     "ultra": {
-     "bytes": 14546521,
+     "bytes": 13791173,
      "gpu": {
-      "desktop": 100617461,
-      "mobile": 100617461,
-      "rgba8": 741340999
+      "desktop": 96469007,
+      "mobile": 96469007,
+      "rgba8": 715172453
      }
     }
    }
@@ -14846,22 +14762,22 @@
    "bytes": 15270579
   },
   "models": {
-   "files": 66,
-   "bytes": 11530812
+   "files": 64,
+   "bytes": 10562100
   },
   "all": {
-   "files": 711,
-   "bytes": 77332873
+   "files": 709,
+   "bytes": 76364161
   },
   "byTier": {
-   "512": 15107793,
-   "1024": 45706633,
+   "512": 14894429,
+   "1024": 44951285,
    "2048": 16518447
   },
   "counts": {
    "textures": 92,
    "hdris": 20,
-   "models": 35
+   "models": 34
   }
  }
 }

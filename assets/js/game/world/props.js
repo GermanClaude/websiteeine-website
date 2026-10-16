@@ -570,16 +570,45 @@ function wheel(f, lx, ly, lz, r, w) {
   f.cyl(lx + side * 0.012, ly, lz, r * 0.55, w + 0.012, 'metal_galvanized', { axis: 'x', collide: false, minimap: false, seg: 10, ao: false });
 }
 
-/** PKW (lokal z = Länge). style: 'sedan'|'hatch'|'wreck' */
+/**
+ * Fahrbare Zivilfahrzeuge (Nutzer 16.10.: „richtige Autos“ statt abgedeckter, Fahrzeuge der Karten fahrbar in Ego- und
+ * Außenansicht): Pkw, Transporter, Gabelstapler und Sattelzugmaschinen sind echte Fahrzeuge (vehicles/models-civil.js);
+ * die Karte setzt nur den Stellplatz (b.civil). Farbe → Lackvariante, Reihenfolge wie CIVIL_PAINT in models-civil.js.
+ * Ohne Fahrzeugsystem (Prüfseiten mit eigenem Baukasten ohne civil) bleibt das alte Requisit.
+ */
+const CIVIL_COLORS = {
+  pkw: ['#8c2b24', '#2f4f6e', '#c7c7c2', '#3b3d40', '#6b7a52', '#b98b3a', '#1d1f22', '#e8e6e0'],
+  transporter: ['#e8e6e0', '#cfd4d8', '#2d5f94', '#c8402f'],
+  stapler: ['#e0a02a', '#d0502a', '#3a7a3c'],
+  zugmaschine: ['#c8402f', '#2d5f94', '#e8e6e0', '#3e7a4c'],
+};
+function civilVariant(type, color) {
+  const L = CIVIL_COLORS[type];
+  if (!L || !color) return 0;
+  const i = L.indexOf(String(color).toLowerCase());
+  if (i >= 0) return i;
+  const c = new THREE.Color(color);
+  let best = 0, bd = Infinity;
+  L.forEach((h, k) => { const d = new THREE.Color(h), dd = (d.r - c.r) ** 2 + (d.g - c.g) ** 2 + (d.b - c.b) ** 2; if (dd < bd) { bd = dd; best = k; } });
+  return best;
+}
+/** Stellplatz eines fahrbaren Zivilfahrzeugs; extra = Zusatz zur Variante (Stapler: 8 · Last). → false ohne b.civil */
+export function civilSpot(b, type, x, y, z, ry, color, extra = 0) {
+  if (typeof b.civil !== 'function') return false;
+  b.civil(type, x, y, z, ry, civilVariant(type, color) + extra);
+  return true;
+}
+/** Staplerlast (Palette auf der Gabel) → Variantenzusatz: 0 leer, 8 Kartons, 16 Säcke. */
+export const staplerLast = (load) => (load === 'sacks' ? 16 : load ? 8 : 0);
+
+/** PKW (lokal z = Länge). style: 'sedan'|'hatch'|'wreck' – fahrbar, nur Wracks bleiben Kulisse */
 export function car(b, x, z, o = {}) {
-  const f = frame(b, x, o.y ?? 0, z, o.ry || 0), col = o.color || b.pick(['#8c2b24', '#2f4f6e', '#c7c7c2', '#3b3d40', '#6b7a52', '#b98b3a']);
-  if (b.hasModel('covered_car') && o.model !== false) {
-    // abgedecktes Auto (Fotoscan, Plane über der Karosserie) – Maße wie das prozedurale (1,8 × 1,42 × 4,3 m)
-    b.model('covered_car', x, o.y ?? 0, z, { ry: o.ry || 0, collide: false, fallback: (bb) => car(bb, x, z, { ...o, color: col, model: false }) });
-    f.solid(0, 0, 0, 1.8, 1.42, 4.3, { minimap: 'vehicle', mat: 'hull' });
+  const col = o.color || b.pick(['#8c2b24', '#2f4f6e', '#c7c7c2', '#3b3d40', '#6b7a52', '#b98b3a']);
+  if (o.style !== 'wreck' && o.drivable !== false && civilSpot(b, 'pkw', x, o.y ?? 0, z, o.ry || 0, col)) {
     b.decal(x, (o.y ?? 0) + 0.01, z, 2.6, 4.6, 'oil', { ry: o.ry || 0, opacity: 0.5 });
     return;
   }
+  const f = frame(b, x, o.y ?? 0, z, o.ry || 0);
   const L = 4.3, W = 1.8, hatch = o.style === 'hatch';
   const wreck = o.style === 'wreck';
   const pm = 'car_paint';
@@ -607,6 +636,7 @@ export function car(b, x, z, o = {}) {
 
 /** Lieferwagen / Transporter (lokal z = Länge) */
 export function van(b, x, z, o = {}) {
+  if (o.drivable !== false && civilSpot(b, 'transporter', x, o.y ?? 0, z, o.ry || 0, o.color || '#e8e6e0')) return;
   const f = frame(b, x, o.y ?? 0, z, o.ry || 0), col = o.color || '#e8e6e0';
   const L = 5.2, W = 2.0;
   f.box(0, 0.38, -0.35, W, 2.0, L - 0.8, 'car_paint', { tint: col, collide: false, minimap: false, grad: false });
@@ -624,27 +654,38 @@ export function van(b, x, z, o = {}) {
 export function truck(b, x, z, o = {}) {
   const y = o.y ?? 0, f = frame(b, x, y, z, o.ry || 0), col = o.color || '#c8402f';
   const cabZ = o.trailer === null ? 2.2 : 5.6;
-  // Kabine
-  f.box(0, 0.9, cabZ, 2.45, 2.1, 2.2, 'metal_painted', { tint: col, collide: false, minimap: false, grad: false });
-  f.box(0, 1.85, cabZ + 1.11, 2.2, 0.85, 0.02, 'glass', { collide: false, minimap: false, ao: false });
-  for (const sx of [-1, 1]) f.box(sx * 1.235, 1.9, cabZ + 0.55, 0.02, 0.75, 0.9, 'glass', { collide: false, minimap: false, ao: false });
-  f.box(0, 0.55, cabZ + 1.15, 2.45, 0.35, 0.15, 'polymer', { collide: false, minimap: false, grad: false });
-  f.box(0, 1.0, cabZ + 1.13, 1.4, 0.55, 0.04, 'metal_galvanized', { collide: false, minimap: false, ao: false });
-  f.box(0, 3.0, cabZ - 0.2, 2.3, 0.4, 1.6, 'metal_painted', { tint: shade(col, 0.9), collide: false, minimap: false, grad: false });
-  for (const sx of [-1, 1]) f.box(sx * 0.95, 0.75, cabZ + 1.16, 0.32, 0.14, 0.04, 'lamp_warm', { collide: false, minimap: false, ao: false });
-  // Fahrgestell
-  f.box(0, 0.55, cabZ - 2.6, 1.0, 0.35, 5.2, 'metal_painted', { tint: '#26282b', collide: false, minimap: false, grad: false });
-  for (const sx of [-1, 1]) f.cyl(sx * 1.0, 0.65, cabZ - 1.5, 0.28, 1.2, 'metal_galvanized', { axis: 'z', collide: false, minimap: false });
-  for (const sx of [-1, 1]) { wheel(f, sx * 1.05, 0.52, cabZ + 0.2, 0.52, 0.35); wheel(f, sx * 1.05, 0.52, cabZ - 2.6, 0.52, 0.4); }
-  f.solid(0, 0, cabZ, 2.5, 3.4, 2.4, { minimap: 'vehicle' });
-  if (o.trailer === null) return;
+  // fahrbare Sattelzugmaschine: ohne Auflieger an der Kabinenstelle, sonst 0,6 m vor dem abgestellten Auflieger
+  // (Kabinenmitte 2,05 m vor dem Ursprung der Zugmaschine, Heck 3,05 m dahinter)
+  const parked = o.drivable !== false && typeof b.civil === 'function';
+  if (parked) {
+    const [tx, tz] = f.P(0, o.trailer === null ? cabZ - 2.05 : cabZ - 1.6 + 0.6 + 3.05);
+    civilSpot(b, 'zugmaschine', tx, y, tz, o.ry || 0, col);
+    if (o.trailer === null) return;
+  } else {
+    // Kabine
+    f.box(0, 0.9, cabZ, 2.45, 2.1, 2.2, 'metal_painted', { tint: col, collide: false, minimap: false, grad: false });
+    f.box(0, 1.85, cabZ + 1.11, 2.2, 0.85, 0.02, 'glass', { collide: false, minimap: false, ao: false });
+    for (const sx of [-1, 1]) f.box(sx * 1.235, 1.9, cabZ + 0.55, 0.02, 0.75, 0.9, 'glass', { collide: false, minimap: false, ao: false });
+    f.box(0, 0.55, cabZ + 1.15, 2.45, 0.35, 0.15, 'polymer', { collide: false, minimap: false, grad: false });
+    f.box(0, 1.0, cabZ + 1.13, 1.4, 0.55, 0.04, 'metal_galvanized', { collide: false, minimap: false, ao: false });
+    f.box(0, 3.0, cabZ - 0.2, 2.3, 0.4, 1.6, 'metal_painted', { tint: shade(col, 0.9), collide: false, minimap: false, grad: false });
+    for (const sx of [-1, 1]) f.box(sx * 0.95, 0.75, cabZ + 1.16, 0.32, 0.14, 0.04, 'lamp_warm', { collide: false, minimap: false, ao: false });
+    // Fahrgestell
+    f.box(0, 0.55, cabZ - 2.6, 1.0, 0.35, 5.2, 'metal_painted', { tint: '#26282b', collide: false, minimap: false, grad: false });
+    for (const sx of [-1, 1]) f.cyl(sx * 1.0, 0.65, cabZ - 1.5, 0.28, 1.2, 'metal_galvanized', { axis: 'z', collide: false, minimap: false });
+    for (const sx of [-1, 1]) { wheel(f, sx * 1.05, 0.52, cabZ + 0.2, 0.52, 0.35); wheel(f, sx * 1.05, 0.52, cabZ - 2.6, 0.52, 0.4); }
+    f.solid(0, 0, cabZ, 2.5, 3.4, 2.4, { minimap: 'vehicle' });
+    if (o.trailer === null) return;
+  }
   // Auflieger: Vorderkante 0,5 m hinter der Kabine (Kabine bis cabZ − 1,1; vorher ragte er 0,6 m hinein – wie lkw()
   // in maps/hafen-fahrzeuge.js)
   const tl = 12.2, tz = cabZ - 1.6 - tl / 2;
   const tt = o.trailer || 'box';
   f.box(0, 1.05, tz, 2.5, 0.25, tl, 'metal_painted', { tint: '#3a3d40', collide: false, minimap: false, grad: false });
   for (const sx of [-1, 1]) for (const k of [0, 1, 2]) wheel(f, sx * 1.05, 0.52, tz - tl / 2 + 1.2 + k * 1.3, 0.52, 0.4);
-  f.box(0, 0.2, tz + tl / 2 - 2.5, 0.12, 0.85, 0.12, 'metal_painted', { tint: '#26282b', collide: false, minimap: false });
+  // Stützbeine: abgestellt bis zum Boden (Fuß + Platte), angekuppelt eingefahren
+  if (parked) for (const sx of [-0.9, 0.9]) { f.box(sx, 0.06, tz + tl / 2 - 2.5, 0.12, 0.99, 0.12, 'metal_painted', { tint: '#26282b', collide: false, minimap: false }); f.box(sx, 0, tz + tl / 2 - 2.5, 0.26, 0.06, 0.32, 'metal_painted', { tint: '#26282b', collide: false, minimap: false }); }
+  else f.box(0, 0.2, tz + tl / 2 - 2.5, 0.12, 0.85, 0.12, 'metal_painted', { tint: '#26282b', collide: false, minimap: false });
   if (tt === 'container') { const [cx, cz] = f.P(0, tz); container(b, cx, y + 1.3, cz, { len: 12.19, ry: (o.ry || 0) + Math.PI / 2, color: o.containerColor, logo: o.logo, minimap: 'vehicle' }); }
   else if (tt === 'box') {
     f.box(0, 1.3, tz, 2.5, 2.7, tl, 'metal_corrugated', { tint: o.boxColor || '#d8d8d2', minimap: 'vehicle', grad: false, uv: 'local' });
@@ -661,6 +702,7 @@ export function truck(b, x, z, o = {}) {
 
 /** Gabelstapler (lokal z = Fahrtrichtung, Gabel bei +z) */
 export function forklift(b, x, z, o = {}) {
+  if (o.drivable !== false && civilSpot(b, 'stapler', x, o.y ?? 0, z, o.ry || 0, o.color || '#e0a02a', staplerLast(o.load))) return;
   const f = frame(b, x, o.y ?? 0, z, o.ry || 0), col = o.color || '#e0a02a';
   f.box(0, 0.3, -0.2, 1.15, 0.8, 1.7, 'metal_painted', { tint: col, collide: false, minimap: false, grad: false });
   f.cyl(0, 0.3, -1.05, 0.58, 0.85, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, arc: Math.PI, ry: Math.PI / 2, caps: true });

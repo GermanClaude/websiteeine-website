@@ -201,6 +201,12 @@ function geomPrim(geometry) {
 // ---------------------------------------------------------------------------
 // MapBuilder
 // ---------------------------------------------------------------------------
+
+/** Zivilfahrzeug-Stellplätze ({ type, x, y, z, yaw, variant }) → Spawn-Einträge des Fahrzeugsystems (vehicles/index.js). */
+export function civilList(list) {
+  return list.map((e) => ({ type: e.type, position: new THREE.Vector3(e.x, e.y ?? 0, e.z), yaw: e.yaw ?? 0, team: null, variant: e.variant | 0, civil: true }));
+}
+
 export class MapBuilder {
   constructor({ bounds, seed = 1, chunkSize = 30, groundNoise = 0.14, splitTris = 24000, interiorTint = [1, 0.95, 0.86] } = {}) {
     this.bounds = bounds; // { minX, maxX, minZ, maxZ }
@@ -694,6 +700,16 @@ export class MapBuilder {
 
   /** Weicher Lichthof um eine Lampe (additiver Punkt-Sprite; alle Lichthöfe zusammen ein Draw Call). */
   glow(x, y, z, o = {}) { this.glows.push({ x, y, z, size: o.size ?? 1.4, color: o.color || '#ffb060', intensity: o.intensity ?? 1 }); return this; }
+
+  /**
+   * Stellplatz eines fahrbaren Zivilfahrzeugs (vehicles/models-civil.js; Nutzer 16.10.: echte Autos statt abgedeckter,
+   * Hafenfahrzeuge fahrbar). Die Welt sammelt sie in world.civilVehicles, das Fahrzeugsystem setzt sie ein.
+   * (x, y, z) = Boden unter der Fahrzeugmitte, ry wie bei Requisiten (lokal +z = Front), variant = Lack/Last.
+   */
+  civil(type, x, y, z, ry = 0, variant = 0) {
+    (this.civilSpots || (this.civilSpots = [])).push({ type, x, y, z, yaw: ry + Math.PI, variant: variant | 0 });
+    return this;
+  }
 
   /** Separates Objekt (animiert, nicht verschmolzen). */
   object(obj, o = {}) { this.objects.push({ object: obj, update: o.update || null, bullet: o.bullet || false, surface: o.surface }); return this; }

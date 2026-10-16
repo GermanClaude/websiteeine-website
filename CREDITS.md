@@ -129,7 +129,7 @@ Liste mit Generator-Schlüsseln: `tools/assets/sources.json`, Pipeline: `tools/a
 | `np_sky_abend_morgennebel` | eigener Generator | `tools/assets/skygen.py` |
 | `np_sky_abend_bewoelkt` | eigener Generator | `tools/assets/skygen.py` |
 
-## Modelle (35)
+## Modelle (34)
 
 | ID | Herkunft | Werkzeug |
 |---|---|---|
@@ -153,7 +153,6 @@ Liste mit Generator-Schlüsseln: `tools/assets/sources.json`, Pipeline: `tools/a
 | `concrete_road_barrier` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
 | `utility_box_01` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
 | `power_box_01` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
-| `covered_car` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
 | `hanging_industrial_lamp` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
 | `hand_truck` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
 | `metal_tool_chest` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |

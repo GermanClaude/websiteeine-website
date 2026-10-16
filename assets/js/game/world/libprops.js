@@ -9,7 +9,7 @@ import * as THREE from 'three';
 /** Oberfläche je Modell (Kugeleinschläge, Schritte); Standard 'metal'. */
 export const MODEL_SURFACE = {
   wooden_military_crate: 'wood', old_military_crate: 'wood', cardboard_box_01: 'wood', cement_bag: 'sand',
-  trashbag: 'fabric', old_tyre: 'fabric', concrete_road_barrier: 'concrete', covered_car: 'fabric',
+  trashbag: 'fabric', old_tyre: 'fabric', concrete_road_barrier: 'concrete',
   industrial_pastic_container: 'fabric', wetfloorsign_01: 'fabric', steel_frame_shelves_01: 'metal',
   plastic_monobloc_chair_01: 'fabric', schoolchair_01: 'metal', dead_tree_trunk_02: 'wood', rock_07: 'concrete',
   planter_pot_clay: 'tile',

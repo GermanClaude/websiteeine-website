@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { MAPS } from '../../../shared/maps.data.js';
 import { configureTextures, getMaterial, beginTextureEpoch, releaseUnusedTextures, deferTextureGeneration, planLibraryMaterials, resolveLibraryMaterials, libraryInUse, libraryStats } from '../../engine/textures.js';
 import { createWorldAssets } from '../library.js';
-import { MapBuilder, SURFACES } from '../builder.js';
+import { MapBuilder, SURFACES, civilList } from '../builder.js';
 import { createLighting } from '../lighting.js';
 import { applyWorldShading, bindShadingScene, watchScene, initShading, resetShading, setShadingMode } from '../shading.js';
 import { createAtmosphere } from '../atmos.js';
@@ -425,6 +425,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
     targets: [],
     terrain: { heightfield: hf, chunks, size: hf.size, waterY: hf.waterY, material: tmat.material, source: tmat.source },
     roads, vehicleSpawns, vehicleSpots, secrets, secretsAuto: true,
+    civilVehicles: civilList(sites.flatMap((st) => st.b.civilSpots || [])), // fahrbare Zivilautos der Ortschaften
     emplacements: sites.flatMap((st) => st.b.emplacements || []), // benutzbare MG-Stellungen (game/mappoints.js)
     doors: sites.flatMap((st) => st.b.doors || []), gates: sites.flatMap((st) => st.b.gates || []), windows: sites.flatMap((st) => st.b.windows || []), // game/doors.js
     destructibles: sites.flatMap((st) => (st.b.destructibles || []).filter((d) => d.mesh)), // game/destruction.js

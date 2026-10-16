@@ -1017,8 +1017,12 @@ async function runStart(config, gen) {
 
     // vehicles: Spawns aus world.vehicleSpawns bzw. ?vehicles=1; online nur mit Raum-Einstellung „Fahrzeuge“ – der Host
     // simuliert, Clients führen ein Abbild (vehicles/net.js, panzer-mp.md §C)
-    if (!netCfg) { if (cfg.vehicles !== false) safe('vehicles.attach', () => G.vehicles.attach(G)); } // Lobby „Panzer & Fahrzeuge: Aus“
+    // Zivilfahrzeuge der Karte (world.civilVehicles: Autos, Transporter, Stapler, Zugmaschinen) gibt es immer – bei
+    // „Panzer & Fahrzeuge: Aus“ nur sie (civilOnly)
+    const civ = !!(G.world && Array.isArray(G.world.civilVehicles) && G.world.civilVehicles.length);
+    if (!netCfg) { if (cfg.vehicles !== false) safe('vehicles.attach', () => G.vehicles.attach(G)); else if (civ) safe('vehicles.attach', () => G.vehicles.attach(G, { civilOnly: true })); } // Lobby „Panzer & Fahrzeuge: Aus“
     else if (netCfg.vehicles) safe('vehicles.attach', () => G.vehicles.attach(G, { replica: netCfg.role === 'client' }));
+    else if (civ) safe('vehicles.attach', () => G.vehicles.attach(G, { replica: netCfg.role === 'client', civilOnly: true }));
     safe('points', () => { G.points = new MapPoints(G, cfg.mapId); });
     safe('building', () => { G.building = new Building(G); });
     safe('injuries', () => { G.injuries = new Injuries(G); });

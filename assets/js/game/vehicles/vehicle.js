@@ -56,7 +56,7 @@ function rayBox(o, d, cx, cy, cz, hx, hy, hz, maxT) {
 }
 
 export class Vehicle {
-  constructor(sys, type, { position, yaw = 0, team = null, quality = 'high', spawn = null } = {}) {
+  constructor(sys, type, { position, yaw = 0, team = null, quality = 'high', spawn = null, variant = 0 } = {}) {
     const def = VEHICLES[type];
     if (!def) throw new Error(`Unbekannter Fahrzeugtyp „${type}“`);
     this.sys = sys;
@@ -71,7 +71,8 @@ export class Vehicle {
     this.isVehicle = true;
     this.body = new VehicleBody(def);
     this.body.setPose(position, yaw);
-    this.model = createVehicleModel(type, { team, quality });
+    this.variant = variant | 0; // Zivilfahrzeuge: Lackierung/Last je Stellplatz (Netz: Fahrzeugliste)
+    this.model = createVehicleModel(type, { team, quality, variant: this.variant });
     this.health = this.maxHealth = def.health;
     this.zones = {};
     for (const [k, z] of Object.entries(def.zones)) this.zones[k] = { id: k, label: z.label, hp: z.hp, max: z.hp };
@@ -414,6 +415,8 @@ export class Vehicle {
     const ln = _n.set(best.nx, best.ny, best.nz);
     if (turretHit) ln.applyQuaternion(_q2.setFromAxisAngle(Y, this.mount.turretYaw));
     const face = ln.y > 0.7 ? 'top' : ln.z < -0.7 ? 'front' : ln.z > 0.7 ? 'rear' : 'side';
+    // Zivilfahrzeuge: Treffer im Fensterband (bzw. in der Luft über Haube/Fahrgestell) gehen durch – Insassen treffbar
+    if (def.glassBand && !turretHit && face !== 'top') for (const g of def.glassBand) if (local.y > g[0] && local.y < g[1] && local.z > g[2] && local.z < g[3]) return null;
     const zone = this.zoneAt(local, turretHit);
     const point = new THREE.Vector3().copy(origin).addScaledVector(dir, best.t);
     const normal = ln.clone().applyQuaternion(b.quat);
@@ -697,8 +700,26 @@ export class Vehicle {
       }
     }
     if (M.trackMats.length) M.scrollTracks(b.trackSpeed[0], b.trackSpeed[1], dt);
+    // Lenkrad dreht mit dem Einschlag (aus dem Radwinkel – gilt auch im Abbild); Hinterradlenkung mit Gegenvorzeichen
+    if (M.steerWheel) {
+      const sw = b.wheels.find((w) => w.steer);
+      const st = sw ? (sw.steerAngle / (def.wheels.maxSteer || 0.6)) * (sw.rear ? -1 : 1) : 0;
+      M.steerWheel.rotation.z = -st * (def.wheelLock || 2.4);
+    }
+    if (M.occ.length) this._syncOccupants();
     if (M.lightsOn !== this.lights) M.setLights(this.lights);
     this._syncCrew(dt);
+  }
+
+  /** Insassenfiguren der Kabine (Zivilfahrzeuge): sichtbar je besetztem Sitz, der eigene Sitz nicht in der Ego-Sicht. */
+  _syncOccupants() {
+    const M = this.model, st = this._modelState, p = this.G.player;
+    const cv = this.sys && this.sys.camera ? this.sys.camera.view : null;
+    for (const s of this.seats) {
+      const own = !!(p && s.actor === p && cv && !cv.tp);
+      const want = !!s.actor && this.alive && !!s.def.cabin && !own;
+      if (st['o' + s.index] !== want) { st['o' + s.index] = want; M.setOccupant(s.index, want); }
+    }
   }
 
   /**

@@ -21,7 +21,7 @@ import { prepareVehicleModels, createVehicleModel } from './models.js';
 import { VehicleNet } from './net.js';
 import { groundRay } from './sim.js';
 import { collisionRay, canOccupy } from '../engine/physics.js';
-import { falloff } from '../combat.js';
+import { falloff, raycastHumanoid } from '../combat.js';
 import { Thermal } from './thermal.js';
 
 // Sichten mit Wärmebild-Umschalter; in Optiken ist der eigene Panzer ausgeblendet (Periskop/Zieloptik, kein Rohr im Bild)
@@ -30,6 +30,8 @@ const THERMAL_VIEWS = new Set(['optic', 'wide', 'peri']);
 export { VEHICLES, VEHICLE_WEAPONS, VEHICLE_IDS, Vehicle };
 
 const CAP = { low: 6, medium: 10, high: 16, ultra: 20 };
+// Zivilfahrzeuge (Kartenstellplätze world.civilVehicles) mit eigener Obergrenze – sie nehmen Panzern keinen Platz weg
+const CIV_CAP = { low: 8, medium: 12, high: 16, ultra: 20 };
 const STAND_H = 1.8, SEAT_H = 1.15;
 const REACH = 1.7;
 const NULL_HITBOX = () => null;
@@ -80,13 +82,14 @@ export class VehicleSystem {
    * opts.replica (online-Client): Abbild ohne Sim/Schaden/Spawns – Fahrzeuge, Lage und Zustand kommen vom Host
    * (vehicles/net.js, panzer-mp.md §C.2). Online (Host und Client) vermittelt this.net.
    */
-  attach(G = this.G, { replica = false } = {}) {
+  attach(G = this.G, { replica = false, civilOnly = false } = {}) {
     if (this.attached) this.detach();
     this.G = G;
     this.world = G.world;
     if (!this.world) return;
     this.attached = true;
     this.replica = !!replica;
+    this.civilOnly = !!civilOnly; // Panzer & Fahrzeuge aus (Lobby/Raum): nur die zivilen Stellplätze der Karte
     this.quality = (G.renderer && G.renderer.quality) || 'high';
     this.group = new THREE.Group();
     this.group.name = 'vehicles';
@@ -129,7 +132,10 @@ export class VehicleSystem {
     this.tankProgress = new TankProgress(G);
     this._skinTeam = undefined; // update(): sobald das eigene Team feststeht
     if (!this.replica) this._setupSpawns();
-    else prepareVehicleModels([...this.tankTypes, 'jeep'].filter((t) => VEHICLES[t]), ['A', 'B'], this.quality);
+    else {
+      if (!this.civilOnly) prepareVehicleModels([...this.tankTypes, 'jeep'].filter((t) => VEHICLES[t]), ['A', 'B'], this.quality);
+      this._prepareCivil(this._civilEntries());
+    }
     if (this.list.length || this.spawns.length || this.replica) {
       MATS.upgradeVehicleMaterials(G.renderer && G.renderer.renderer, this.quality);
       // Shader vorwärmen (main.warmUp kompiliert sichtbare Szenenobjekte): Granate, Scheinwerfer an, Lichtkegel, Wrack
@@ -143,7 +149,7 @@ export class VehicleSystem {
       for (const m of new Set([this.shells.mat, S.lensOn, S.cone, S.wreck, ...extra])) if (m) warm.add(new THREE.Mesh(g, m));
       // Abbild: Fahrzeuge kommen erst mit der Liste des Hosts – Modelle beider Teams einmal mitkompilieren, nach dem
       // Countdown wieder weg (update)
-      if (this.replica) {
+      if (this.replica && !this.civilOnly) {
         this._warmModels = [];
         for (const type of [...this.tankTypes, 'jeep']) for (const team of ['A', 'B']) {
           if (!VEHICLES[type]) continue;
@@ -195,23 +201,25 @@ export class VehicleSystem {
   /* =============================================================== Spawns */
 
   /** Spawn-Punkt anmelden (erscheint sofort und nach Zerstörung erneut). → Spawn-Eintrag */
-  registerSpawn({ type, position, yaw = 0, team = null, respawn = null }) {
+  registerSpawn({ type, position, yaw = 0, team = null, respawn = null, variant = 0 }) {
     if (!VEHICLES[type]) return null;
-    const sp = { type, position: position.clone ? position.clone() : new THREE.Vector3(position.x, position.y, position.z), yaw, team, respawn: respawn ?? respawnFor(type), vehicle: null, respawnAt: null };
+    const sp = { type, position: position.clone ? position.clone() : new THREE.Vector3(position.x, position.y, position.z), yaw, team, variant: variant | 0, respawn: respawn ?? respawnFor(type), vehicle: null, respawnAt: null };
     this.spawns.push(sp);
     this._spawnAt(sp);
     return sp;
   }
 
   _spawnAt(sp) {
-    if (this.list.length >= (CAP[this.quality] || 16)) {
+    const civil = !!VEHICLES[sp.type].civil;
+    const count = this.list.reduce((n, v) => n + (!!v.def.civil === civil ? 1 : 0), 0);
+    if (count >= ((civil ? CIV_CAP : CAP)[this.quality] || 16)) {
       // Stufen-Obergrenze: ein Stellplatz, der nie ein Fahrzeug bekam, bleibt leer – sonst nähme er beim ersten Wrack den
       // Platz eines anderen Teams/Typs ein (Grenzland low: je Team 2 Panzer + 1 Geländewagen bleiben so erhalten)
       if (!sp.spawned) { sp.capped = true; sp.respawnAt = null; return null; }
       sp.respawnAt = this.G.time.elapsed + 5;
       return null;
     }
-    const v = this.spawnVehicle(sp.type, sp.position, sp.yaw, sp.team, { spawn: sp });
+    const v = this.spawnVehicle(sp.type, sp.position, sp.yaw, sp.team, { spawn: sp, variant: sp.variant });
     sp.vehicle = v;
     sp.spawned = true;
     sp.respawnAt = null;
@@ -219,10 +227,10 @@ export class VehicleSystem {
   }
 
   /** Fahrzeug erzeugen (Modi/Tests/Bots). position = Bodenpunkt unter der Wannenmitte. */
-  spawnVehicle(type, position, yaw = 0, team = null, { spawn = null } = {}) {
+  spawnVehicle(type, position, yaw = 0, team = null, { spawn = null, variant = 0 } = {}) {
     if (!this.attached) return null;
     const pos = position.clone ? position.clone() : new THREE.Vector3(position.x, position.y, position.z);
-    const v = new Vehicle(this, type, { position: pos, yaw, team, quality: this.quality, spawn });
+    const v = new Vehicle(this, type, { position: pos, yaw, team, quality: this.quality, spawn, variant });
     this.list.push(v);
     this.group.add(v.model.root);
     v.sync(0);
@@ -276,12 +284,29 @@ export class VehicleSystem {
   /** Beide Panzer der Runde (Team A, Team B; ohne Doppelte). */
   get tankTypes() { return [...new Set([this.tankTypeFor('A'), this.tankTypeFor('B')])]; }
 
+  /** Zivile Stellplätze der Karte (world.civilVehicles; ?vehicles=0 schaltet auch sie ab). */
+  _civilEntries() {
+    const G = this.G, w = this.world;
+    const param = G.params && typeof G.params.get === 'function' ? G.params.get('vehicles') : null;
+    if (param === '0' || !w || !Array.isArray(w.civilVehicles)) return [];
+    return w.civilVehicles.filter((e) => e && VEHICLES[e.type] && VEHICLES[e.type].civil);
+  }
+
+  /** Vorlagen der Zivilfahrzeuge (je Typ und Lackvariante) vorbauen. */
+  _prepareCivil(list) {
+    const byType = new Map();
+    for (const e of list) { if (!byType.has(e.type)) byType.set(e.type, new Set()); byType.get(e.type).add(e.variant | 0); }
+    for (const [type, vs] of byType) prepareVehicleModels([type], [null], this.quality, [...vs]);
+  }
+
   _setupSpawns() {
     const G = this.G, w = this.world;
     const param = G.params && typeof G.params.get === 'function' ? G.params.get('vehicles') : null;
+    const civil = this._civilEntries();
     let entries = Array.isArray(w.vehicleSpawns) ? w.vehicleSpawns : null;
-    if (param === '0') entries = null;
+    if (param === '0' || this.civilOnly) entries = null;
     else if (!entries && (param === '1' || (G.match && G.match.vehicles))) entries = this.autoSpawns();
+    if (civil.length) { this._prepareCivil(civil); for (const e of civil) this.registerSpawn(e); }
     if (!entries || !entries.length) return;
     // Panzergeneration (Raum/Lobby „Panzer“): Kampfpanzer-Plätze der Karte bekommen den Panzer der gewählten Epoche
     entries = entries.filter((e) => e && VEHICLES[e.type] && !e.secret).map((e) => {
@@ -460,6 +485,8 @@ export class VehicleSystem {
     if (exp) {
       actor.invulnerable = sv.inv;
       if (sv.hb === undefined) delete actor.raycastHitboxes; else actor.raycastHitboxes = sv.hb;
+      // Kabine: Soldatenmodell ausgeblendet → einfache Trefferzonen (Kopf/Rumpf/Beine) an der Sitzposition
+      if (seat.def.cabin) actor.raycastHitboxes = sv.seatHB || (sv.seatHB = (ray, max) => raycastHumanoid(actor, ray, max));
       actor.body && actor.body.setHeight && actor.body.setHeight(SEAT_H);
     } else {
       actor.invulnerable = true;
@@ -903,11 +930,13 @@ export class VehicleSystem {
         const yaw = s.def.mount ? v.yaw + (s.def.mount === 'gun' ? v.mount.turretYaw : s.def.mount === 'cmg' ? (v.def.cmgHull ? 0 : v.mount.turretYaw) + v.mount.cmgYaw : v.mount.mgYaw) : v.yaw;
         a.yaw = wrap(yaw);
         if (fv.hatch) a.crouching = open; // aus der Luke: nur Oberkörper draußen
+        // Kabine (Zivilfahrzeuge): statt des stehenden Soldaten zeigt das Fahrzeugmodell eine sitzende Figur
+        const show = open && !s.def.cabin;
         const sol = a.soldier;
         if (sol && sol.root && sol.state !== 'hidden') {
-          if (sol.root.visible !== open) sol.root.visible = open;
-          a._vehHidden = !open;
-          if (open) sol.place?.(pos, a.yaw);
+          if (sol.root.visible !== show) sol.root.visible = show;
+          a._vehHidden = !show;
+          if (show) sol.place?.(pos, a.yaw);
         }
       }
     }

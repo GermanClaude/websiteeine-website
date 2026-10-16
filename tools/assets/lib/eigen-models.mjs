@@ -664,34 +664,6 @@ MODELS.power_box_01 = (M) => {
   M.add(door, pnt);
 };
 
-/* ---------------------------------------------------------------- Fahrzeug unter Plane */
-MODELS.covered_car = (M) => {
-  const cover = M.mat('car_cover', { mgen: 'cloth', tint: '#596069' });
-  const tyre = M.mat('car_tyre', { mgen: 'tread' });
-  const L = 4.37, W = 1.78;
-  // Seitenriss (z = Länge, y = Höhe) als Spline: Heckschürze, Kofferraum, Heckscheibe, Dach, Frontscheibe, Haube, Bug
-  const top = [[L / 2, 0.5], [L / 2 - 0.12, 0.86], [L / 2 - 0.6, 0.97], [L / 2 - 1.0, 1.08], [L / 2 - 1.45, 1.36], [0.0, 1.41],
-    [-L / 2 + 1.75, 1.36], [-L / 2 + 1.15, 0.98], [-L / 2 + 0.55, 0.86], [-L / 2 + 0.08, 0.72], [-L / 2, 0.5]];
-  const shape = new THREE.Shape();
-  shape.moveTo(L / 2 - 0.04, 0.22);
-  shape.splineThru(top.map(([z, y]) => new THREE.Vector2(z, y)));
-  shape.lineTo(-L / 2 + 0.04, 0.22);
-  shape.lineTo(L / 2 - 0.04, 0.22);
-  const body = new THREE.ExtrudeGeometry(shape, { depth: W - 0.3, bevelEnabled: true, bevelSize: 0.15, bevelThickness: 0.15, bevelSegments: 5, curveSegments: 48 });
-  body.translate(0, 0, -(W - 0.3) / 2);
-  G.rot(body, 0, Math.PI / 2, 0);
-  const n = makeNoise(361);
-  G.warp(body, (v) => {
-    // Fahrgastzelle verjüngt sich nach oben, Flanken leicht gewölbt, Plane hängt durch und wirft Falten
-    const t = clamp01((v.y - 0.9) / 0.5);
-    v.x *= (1 - 0.2 * t) * (1 + 0.03 * Math.sin(clamp01((v.y - 0.2) / 0.7) * Math.PI));
-    v.y += (n(frac(v.x / W + 0.5), frac(v.z / L + 0.5), 6, 14, 3) - 0.5) * 0.045 * (0.4 + 0.6 * t);
-  });
-  M.add(body, cover, { tile: 1.5 });
-  // Schürze bis knapp über den Boden, Reifen schauen heraus
-  for (const [x, z] of [[-0.74, -1.35], [0.74, -1.35], [-0.74, 1.4], [0.74, 1.4]]) M.add(G.lathe([[0.21, -0.1], [0.3, -0.1], [0.32, -0.06], [0.32, 0.06], [0.3, 0.1], [0.21, 0.1]], 24).rotateZ(Math.PI / 2).translate(x, 0.32, z), tyre, { uv: 'cyl', ax: 'x', r: 0.32 });
-};
-
 /* ---------------------------------------------------------------- Werkstatt */
 MODELS.hanging_industrial_lamp = (M) => {
   const shade = M.mat('lamp_shade', { mgen: 'paint', opt: { seed: 371, rust: 0.2, wear: 0.3, gloss: 0.55 }, tint: '#33473b' });

@@ -269,7 +269,7 @@ export class VehicleBody {
     let slip = 0, tSlip = 0;
 
     for (const w of this.wheels) {
-      w.steerAngle = w.steer ? steerA : 0;
+      w.steerAngle = w.steer ? (w.rear ? -steerA : steerA) : 0; // Hinterradlenkung (Stapler): Gegenvorzeichen
       if (!w.contact) continue;
       const N = w.load;
       _tmp.copy(w.normal).multiplyScalar(w.Fs);

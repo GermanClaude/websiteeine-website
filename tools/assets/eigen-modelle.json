@@ -358,20 +358,6 @@
    ]
   }
  },
- "covered_car": {
-  "box": {
-   "min": [
-    -0.847,
-    0,
-    -2.166
-   ],
-   "max": [
-    0.942,
-    1.411,
-    2.214
-   ]
-  }
- },
  "hanging_industrial_lamp": {
   "box": {
    "min": [

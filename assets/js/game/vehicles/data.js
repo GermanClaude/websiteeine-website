@@ -616,7 +616,159 @@ export const VEHICLES = {
       mbt_he: { name: '37 mm Sprenggranate (SG)', speed: 360, life: 2.8, vehicleDamage: 60, actorDamage: 140, reload: 2.8, reloadNoLoader: 3.6, splash: { radius: 4.2, maxDamage: 110, innerRadius: 1.0, minDamage: 12 }, shake: 0.2 },
     },
   },
+
+  // Zivilfahrzeuge (Nutzer 16.10.: „richtige Autos“, Hafenfahrzeuge fahrbar, Ego- und Außenansicht). Ohne Waffen und Team
+  // (jeder darf einsteigen), Lackierung je Stellplatz (variant → models.js CIVIL_PAINT). civil: zählen nicht als
+  // „Fahrzeuge an“ (Lobby-/Raumeinstellung), kommen über world.civilVehicles. Sitze mit cabin: geschlossene Kabine –
+  // Insassen erscheinen als sitzende Figur im Modell (models.js setOccupant) statt als stehendes Soldatenmodell.
+  pkw: {
+    id: 'pkw', name: 'Limousine', cls: 'Pkw', civil: true, drive: 'wheeled', model: 'pkw', sound: 'pkw',
+    health: 300, armored: false, respawn: 40, wreckTime: 15,
+    smallArmsMult: 0.5, explosiveMult: 1.0, ramMult: 1,
+    mass: 1450, com: [0, 0.55, 0.05],
+    hullBox: [0, 0.86, 0, 0.9, 0.6, 2.33],
+    glassBand: [[0.97, 1.39, -2.5, 2.5]], // [y0, y1, z0, z1] lokal: Scheiben bzw. Luft über Haube/Kofferraum
+    wheels: {
+      radius: 0.32, rest: 0.2, stiffness: 58000, damping: 4800,
+      x: 0.78, z: [-1.38, 1.43], steer: [true, false], drive: [true, false], maxSteer: deg(36),
+    },
+    // Benziner 110 kW mit Wandlerautomatik 4/1, Vorderradantrieb
+    engine: {
+      idleRpm: 800, ratedRpm: 6000, cutRpm: 6400, cruiseRpm: 4500,
+      torque: [[700, 120], [800, 150], [1500, 200], [2500, 240], [4000, 245], [5000, 230], [6000, 190], [6400, 0]],
+      gears: { '-1': 3.5, 1: 3.6, 2: 2.1, 3: 1.45, 4: 1.05 },
+      finalDrive: 4.1, sprocketR: 0.32, efficiency: 0.88, rotInertia: 1.06,
+      converter: { stallRpm: 2200, mult: 1.9, coupleRpm: 1900 }, torqueLag: 0.12, shiftTime: 0.25, autoUp: 5600, autoDown: 2200,
+      engineBrake: [20, 0.01],
+      rollRes: { concrete: 0.012, tile: 0.013, wood: 0.018, metal: 0.013, dirt: 0.035, grass: 0.05, sand: 0.1, default: 0.02 },
+      traction: { concrete: 1.0, tile: 0.95, wood: 0.85, metal: 0.8, dirt: 0.75, grass: 0.65, sand: 0.5, default: 0.9 },
+      airRes: 0.5, brake: 21000, maxSpeed: 40, reverseSpeed: 9,
+    },
+    grip: { long: 1.15, lat: 1.15, handbrakeLat: 0.3, rollInfluence: 0.2 },
+    drag: 0.4, angularDamp: 1.4,
+    zones: { hull: { label: 'Karosserie', hp: 300 }, engine: { label: 'Motor', hp: 120 }, tracks: { label: 'Räder', hp: 140 } },
+    seats: [
+      civSeat('driver', 'Fahrer', [-0.38, 0.35, 0.15], [-0.38, 1.22, 0.15], [[-2.0, 0, 0.1], [2.0, 0, 0.1], [0, 0, -3.4], [0, 0, 3.4]], { drive: true, tp: { dist: 7, height: 2.6, pivot: 1.3 } }),
+      civSeat('passenger', 'Beifahrer', [0.38, 0.35, 0.15], [0.38, 1.22, 0.15], [[2.0, 0, 0.1], [-2.0, 0, 0.1], [0, 0, 3.4]], { tp: { dist: 7, height: 2.6, pivot: 1.3 } }),
+      civSeat('rear_l', 'Rücksitz links', [-0.4, 0.35, 0.76], [-0.4, 1.22, 0.8], [[-2.0, 0, 0.9], [2.0, 0, 0.9], [0, 0, 3.4]], { tp: { dist: 7, height: 2.6, pivot: 1.3 } }),
+      civSeat('rear_r', 'Rücksitz rechts', [0.4, 0.35, 0.76], [0.4, 1.22, 0.8], [[2.0, 0, 0.9], [-2.0, 0, 0.9], [0, 0, 3.4]], { tp: { dist: 7, height: 2.6, pivot: 1.3 } }),
+    ],
+    lights: [[-0.62, 0.7, -2.3], [0.62, 0.7, -2.3]],
+  },
+
+  // Kastenwagen 3,5 t (Hafen: Kurier), Heckantrieb, Diesel 100 kW, Sitzbank rechts für zwei
+  transporter: {
+    id: 'transporter', name: 'Kastenwagen', cls: 'Transporter', civil: true, drive: 'wheeled', model: 'transporter', sound: 'diesel',
+    health: 380, armored: false, respawn: 45, wreckTime: 15,
+    smallArmsMult: 0.5, explosiveMult: 1.0, ramMult: 1,
+    mass: 2500, com: [0, 0.82, 0.1],
+    hullBox: [0, 1.38, 0, 1.0, 1.06, 2.62],
+    glassBand: [[1.39, 2.38, -2.8, -0.08]],
+    wheels: {
+      radius: 0.36, rest: 0.22, stiffness: 88000, damping: 7600,
+      x: 0.85, z: [-1.75, 1.55], steer: [true, false], drive: [false, true], maxSteer: deg(35),
+    },
+    engine: {
+      idleRpm: 750, ratedRpm: 4000, cutRpm: 4400, cruiseRpm: 3000,
+      torque: [[700, 180], [750, 220], [1500, 330], [2000, 340], [3000, 320], [4000, 240], [4400, 0]],
+      gears: { '-1': 3.8, 1: 4.2, 2: 2.4, 3: 1.5, 4: 1.05, 5: 0.82 },
+      finalDrive: 3.9, sprocketR: 0.36, efficiency: 0.86, rotInertia: 1.07,
+      converter: { stallRpm: 1900, mult: 1.9, coupleRpm: 1600 }, torqueLag: 0.18, shiftTime: 0.3, autoUp: 3600, autoDown: 1500,
+      engineBrake: [30, 0.015],
+      rollRes: { concrete: 0.013, tile: 0.014, wood: 0.02, metal: 0.014, dirt: 0.035, grass: 0.05, sand: 0.1, default: 0.022 },
+      traction: { concrete: 1.0, tile: 0.95, wood: 0.85, metal: 0.8, dirt: 0.75, grass: 0.65, sand: 0.5, default: 0.9 },
+      airRes: 0.85, brake: 32000, maxSpeed: 36, reverseSpeed: 8,
+    },
+    grip: { long: 1.1, lat: 1.08, handbrakeLat: 0.32, rollInfluence: 0.22 },
+    drag: 0.45, angularDamp: 1.5,
+    zones: { hull: { label: 'Karosserie', hp: 380 }, engine: { label: 'Motor', hp: 140 }, tracks: { label: 'Räder', hp: 160 } },
+    seats: [
+      civSeat('driver', 'Fahrer', [-0.5, 0.87, -0.45], [-0.5, 1.8, -0.5], [[-2.1, 0, -0.7], [2.1, 0, -0.7], [0, 0, -3.8], [0, 0, 3.8]], { drive: true, tp: { dist: 8, height: 3.3, pivot: 1.8 } }),
+      civSeat('passenger', 'Beifahrer', [0.5, 0.87, -0.45], [0.5, 1.8, -0.5], [[2.1, 0, -0.7], [-2.1, 0, -0.7], [0, 0, 3.8]], { tp: { dist: 8, height: 3.3, pivot: 1.8 } }),
+    ],
+    lights: [[-0.7, 0.95, -2.62], [0.7, 0.95, -2.62]],
+  },
+
+  // Frontstapler 2,5 t mit Treibgas: Antrieb vorn, Hinterradlenkung (lenkt mit dem Heck), offener Fahrerplatz unter dem
+  // Schutzdach, Palette auf der Gabel (variant: Last). Langsam, sehr wendig.
+  stapler: {
+    id: 'stapler', name: 'Gabelstapler', cls: 'Stapler', civil: true, drive: 'wheeled', model: 'stapler', sound: 'stapler',
+    health: 420, armored: false, respawn: 40, wreckTime: 15,
+    smallArmsMult: 0.4, explosiveMult: 0.9, ramMult: 0.8,
+    mass: 3900, com: [0, 0.62, 0.25],
+    hullBox: [0, 1.2, -0.3, 0.62, 1.05, 1.75],
+    glassBand: [[1.25, 2.13, -0.75, 0.95], [1.05, 2.3, -2.2, -0.95]], // offener Fahrerplatz, Luft vor dem Mast
+    wheels: {
+      radius: 0.33, rest: 0.1, stiffness: 300000, damping: 26000,
+      x: 0.47, z: [-0.42, 0.86], steer: [false, true], drive: [true, false], maxSteer: deg(62),
+    },
+    engine: {
+      idleRpm: 750, ratedRpm: 2600, cutRpm: 2800, cruiseRpm: 2200,
+      torque: [[700, 110], [750, 130], [1200, 160], [1800, 170], [2200, 160], [2600, 140], [2800, 0]],
+      gears: { '-1': 4.5, 1: 4.5 },
+      finalDrive: 4.0, sprocketR: 0.33, efficiency: 0.8, rotInertia: 1.1,
+      converter: { stallRpm: 1500, mult: 2.0, coupleRpm: 1400 }, torqueLag: 0.15, shiftTime: 0.35, autoUp: 2700, autoDown: 900,
+      engineBrake: [40, 0.03],
+      rollRes: { concrete: 0.015, tile: 0.016, wood: 0.022, metal: 0.016, dirt: 0.05, grass: 0.07, sand: 0.14, default: 0.025 },
+      traction: { concrete: 1.0, tile: 0.95, wood: 0.85, metal: 0.8, dirt: 0.6, grass: 0.5, sand: 0.4, default: 0.9 },
+      airRes: 1.0, brake: 42000, maxSpeed: 5.5, reverseSpeed: 5,
+    },
+    grip: { long: 1.1, lat: 1.2, handbrakeLat: 0.5, rollInfluence: 0.15 },
+    drag: 0.6, angularDamp: 2.0,
+    zones: { hull: { label: 'Rahmen', hp: 420 }, engine: { label: 'Motor', hp: 150 }, tracks: { label: 'Räder', hp: 180 } },
+    seats: [
+      civSeat('driver', 'Fahrer', [0, 1.05, 0.5], [0, 1.95, 0.48], [[-1.6, 0, 0.4], [1.6, 0, 0.4], [0, 0, 2.4]], { drive: true, tp: { dist: 6, height: 2.8, pivot: 1.6 } }),
+    ],
+    lights: [[-0.52, 2.04, -0.47], [0.52, 2.04, -0.47]],
+  },
+
+  // Sattelzugmaschine (Frontlenker, ohne Auflieger – der steht abgestellt auf seinen Stützen): Diesel 300 kW,
+  // Hinterachse zwillingsbereift, hohe Kabine mit Liege-/Beifahrersitz
+  zugmaschine: {
+    id: 'zugmaschine', name: 'Sattelzugmaschine', cls: 'Lkw', civil: true, drive: 'wheeled', model: 'zugmaschine', sound: 'diesel',
+    health: 650, armored: false, respawn: 60, wreckTime: 18,
+    smallArmsMult: 0.35, explosiveMult: 0.8, ramMult: 0.5,
+    mass: 8200, com: [0, 1.15, -0.4],
+    hullBox: [0, 1.75, -0.05, 1.25, 1.45, 3.1],
+    glassBand: [[1.74, 2.55, -3.3, -1.97], [1.15, 3.3, -0.92, 3.2]], // Türfenster/Frontscheibe, Luft über dem Fahrgestell
+    wheels: {
+      radius: 0.52, rest: 0.26, stiffness: 520000, damping: 42000,
+      x: 1.0, z: [-2.2, 1.4], steer: [true, false], drive: [false, true], maxSteer: deg(32),
+    },
+    engine: {
+      idleRpm: 600, ratedRpm: 1900, cutRpm: 2100, cruiseRpm: 1500,
+      torque: [[500, 1200], [600, 1500], [1000, 2300], [1400, 2300], [1700, 2100], [1900, 1800], [2100, 0]],
+      gears: { '-1': 7.0, 1: 7.0, 2: 4.6, 3: 3.0, 4: 2.0, 5: 1.3 },
+      finalDrive: 3.4, sprocketR: 0.52, efficiency: 0.86, rotInertia: 1.12,
+      converter: { stallRpm: 1300, mult: 1.8, coupleRpm: 1100 }, torqueLag: 0.3, shiftTime: 0.45, autoUp: 1800, autoDown: 1000,
+      engineBrake: [180, 0.12],
+      rollRes: { concrete: 0.008, tile: 0.009, wood: 0.014, metal: 0.009, dirt: 0.03, grass: 0.045, sand: 0.09, default: 0.015 },
+      traction: { concrete: 1.0, tile: 0.95, wood: 0.85, metal: 0.8, dirt: 0.7, grass: 0.6, sand: 0.45, default: 0.9 },
+      airRes: 3.2, brake: 110000, maxSpeed: 22, reverseSpeed: 5,
+    },
+    grip: { long: 1.05, lat: 1.0, handbrakeLat: 0.35, rollInfluence: 0.3 },
+    drag: 0.5, angularDamp: 1.8,
+    zones: { hull: { label: 'Fahrgestell', hp: 650 }, engine: { label: 'Motor', hp: 220 }, tracks: { label: 'Räder', hp: 240 } },
+    seats: [
+      civSeat('driver', 'Fahrer', [-0.55, 1.52, -1.85], [-0.55, 2.44, -1.86], [[-2.4, 0, -2.0], [2.4, 0, -2.0], [0, 0, -4.4], [0, 0, 4.4]], { drive: true, tp: { dist: 11, height: 4.6, pivot: 2.6 } }),
+      civSeat('passenger', 'Beifahrer', [0.55, 1.52, -1.85], [0.55, 2.44, -1.86], [[2.4, 0, -2.0], [-2.4, 0, -2.0], [0, 0, 4.4]], { tp: { dist: 11, height: 4.6, pivot: 2.6 } }),
+    ],
+    lights: [[-0.9, 0.82, -3.2], [0.9, 0.82, -3.2]],
+  },
 };
+
+/** Sitz eines Zivilfahrzeugs: Ego-Sicht in der Kabine (frei umsehen, rechte Maustaste zoomt) + Außenansicht. */
+function civSeat(id, label, pos, eye, exit, { drive = false, tp } = {}) {
+  return {
+    id, label, drive, weapons: [], exposed: true, cabin: true, pos, exit,
+    views: [
+      { id: 'sitz', label: 'Ego-Sicht', space: 'hull', pos: eye, look: 'rel', yaw: [-2.4, 2.4], pitch: [-0.8, 0.7], zoom: [1, 1.6], exposed: true },
+      { id: 'aussen', label: 'Außenansicht', look: 'rel', yaw: [-3.1, 3.1], pitch: [-0.7, 0.75], zoom: [1], tp },
+    ],
+  };
+}
+/** Zivile Typen (Stellplätze world.civilVehicles; nicht von der Fahrzeug-Einstellung abhängig). */
+export const CIVIL_TYPES = ['pkw', 'transporter', 'stapler', 'zugmaschine'];
 
 export const VEHICLE_IDS = Object.keys(VEHICLES);
 

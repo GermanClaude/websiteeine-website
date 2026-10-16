@@ -18,6 +18,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { boxUV } from '../engine/textures.js';
 import { VEHICLES, mountY, staticComp } from './data.js';
 import { vehicleMaterials, trackMaterial, markingMaterial, applyVehicleLook } from './materials.js';
+import { CIVIL_BUILDERS } from './models-civil.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
 const PI = Math.PI, HP = PI / 2;
@@ -1661,6 +1662,12 @@ function buildInterior(S, D) {
 /* -------------------------------------------------------------- Vorlagen */
 
 const TEMPLATES = new Map();
+/** Baukasten für models-civil.js (Zivilfahrzeuge): Helfer + aktuelle Detailstufe der Vorlage. */
+const KIT = {
+  Bucket, box, cyl, sph, sideExtrude, topExtrude, tireGeometry,
+  get HQ() { return HQ; }, get DET() { return DET; },
+  setLod(l) { CUR_LOD = l; },
+};
 
 function lodOf(levels, dists) {
   const L = new THREE.LOD();
@@ -1668,8 +1675,8 @@ function lodOf(levels, dists) {
   return L;
 }
 
-function template(type, team, quality) {
-  const key = `${type}:${team}:${quality}`;
+function template(type, team, quality, variant = 0) {
+  const key = `${type}:${team}:${quality}:${variant | 0}`;
   if (TEMPLATES.has(key)) return TEMPLATES.get(key);
   const S = vehicleMaterials();
   HQ = quality !== 'low';
@@ -1710,24 +1717,31 @@ function template(type, team, quality) {
     tur.add(crew.interior);
     gun.add(crew.breech);
   } else {
-    const D = VEHICLES.jeep;
-    const lv = [0, 1, 2].map((l) => buildJeep(l, S, team));
+    // Radfahrzeuge: Geländewagen (MG-Lafette) bzw. Zivilfahrzeuge (models-civil.js: Kabine, Lenkrad, Insassen)
+    const D = DT || VEHICLES.jeep;
+    const civ = CIVIL_BUILDERS[D.model];
+    const lv = [0, 1, 2].map((l) => (civ ? civ(l, S, KIT, variant | 0) : buildJeep(l, S, team)));
     root.add(lodOf(lv.map((x) => x.hull), dists));
-    const mg = new THREE.Group(); mg.name = 'mg';
-    mg.position.fromArray(D.mgPivot);
-    mg.add(lodOf(lv.map((x) => x.mg), dists));
-    root.add(mg);
+    if (lv[0].mg) {
+      const mg = new THREE.Group(); mg.name = 'mg';
+      mg.position.fromArray(D.mgPivot);
+      mg.add(lodOf(lv.map((x) => x.mg), dists));
+      root.add(mg);
+    }
     const my = mountY(D);
     lv[0].wheels.forEach((w0, i) => {
       const pivot = new THREE.Group();
       pivot.name = `wheel${i}`;
       pivot.position.set(w0.x, my - (D.wheels.rest - staticComp(D)), w0.z);
       const spin = new THREE.Group(); spin.name = 'spin';
+      spin.position.set(w0.dx || 0, w0.dy || 0, 0); // Darstellungsversatz (Stapler: kleinere Lenkräder)
       spin.add(lodOf(lv.map((x) => x.wheels[i].spin), dists));
       pivot.add(spin);
       pivot.userData = { axle: w0.axle, side: w0.side };
       root.add(pivot);
     });
+    // Lenkrad + Insassenfiguren außerhalb der LOD-Stufen (klein; Figuren nur sichtbar, wenn der Sitz besetzt ist)
+    for (const o of lv[0].extra || []) root.add(o);
   }
   // Lichtkegel (unbeleuchtet, additiv – nur sichtbar, wenn die Scheinwerfer an sind)
   for (const L of VEHICLES[type].lights) {
@@ -1748,9 +1762,9 @@ function template(type, team, quality) {
 }
 
 /** Fahrzeugmodell erzeugen (Klon der Vorlage). quality: low|medium|high|ultra. */
-export function createVehicleModel(type, { team = null, quality = 'high' } = {}) {
+export function createVehicleModel(type, { team = null, quality = 'high', variant = 0 } = {}) {
   const S = vehicleMaterials();
-  const tpl = template(type, team, quality);
+  const tpl = template(type, team, quality, variant);
   const root = tpl.clone(true);
   const model = {
     root, type,
@@ -1759,7 +1773,7 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
     cmg: root.getObjectByName('cmg') || null,
     mg: root.getObjectByName('mg') || null,
     wheels: [], trackMats: [], trackK: [1, 1], trackLen: [1, 1],
-    lenses: [], cones: [], meshes: [],
+    lenses: [], cones: [], meshes: [], occ: [],
     lightsOn: false, wrecked: false,
   };
   const hq = quality !== 'low';
@@ -1777,7 +1791,11 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
       o.userData.baseMat = o.material;
     }
     if (o.name && o.name.startsWith('wheel')) model.wheels.push({ pivot: o, spin: o.getObjectByName('spin'), axle: o.userData.axle, side: o.userData.side });
+    if (o.name && o.name.startsWith('occ:')) model.occ[+o.name.slice(4)] = o;
   });
+  // Zivilfahrzeuge: Lenkrad (dreht mit dem Einschlag, vehicle.js sync) und Insassenfiguren je Sitz
+  model.steerWheel = root.getObjectByName('lenkrad:dreh') || null;
+  model.setOccupant = (i, on) => { const o = model.occ[i]; if (o) o.visible = !!on && !model.wrecked; };
   if (VEHICLES[type] && VEHICLES[type].drive === 'tracked') model.trackMats = tm;
   else for (const m of tm) { m.map.dispose(); m.normalMap?.dispose(); m.dispose(); }
 
@@ -1797,6 +1815,7 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
       } else { o.visible = true; o.material = base; }
     }
     if (on) {
+      for (const o of model.occ) if (o) o.visible = false;
       model.setLights(false);
       for (const id of Object.keys(model.hatches)) model.setHatch(id, 0);
       model.setInterior(false);
@@ -1923,8 +1942,8 @@ export function createVehicleModel(type, { team = null, quality = 'high' } = {})
 }
 
 /** Vorlagen vorbauen (Ladebildschirm) – optional. */
-export function prepareVehicleModels(types, teams = ['A', 'B'], quality = 'high') {
-  for (const t of types) for (const team of teams) template(t, team, quality);
+export function prepareVehicleModels(types, teams = ['A', 'B'], quality = 'high', variants = [0]) {
+  for (const t of types) for (const team of teams) for (const v of variants) template(t, team, quality, v);
 }
 
 /** Dreiecke je LOD-Stufe (Prüfung/Budget). */

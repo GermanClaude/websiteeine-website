@@ -2481,24 +2481,6 @@
    ]
   },
   {
-   "id": "covered_car",
-   "source": "procedural",
-   "sourceId": "covered_car",
-   "license": "eigen (NULLPUNKT)",
-   "category": "urban",
-   "tiers": [
-    512,
-    1024
-   ],
-   "lod0Tris": 10000,
-   "polycount": 12592,
-   "dimensionsM": [
-    1.789,
-    4.38,
-    1.411
-   ]
-  },
-  {
    "id": "hanging_industrial_lamp",
    "source": "procedural",
    "sourceId": "hanging_industrial_lamp",
