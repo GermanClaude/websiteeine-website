@@ -188,3 +188,21 @@ vorhandene Tests (tank-model-test, gunsound-test, feedback-test …); ab Etappe 
     unverändert (Hash niedrig = hoch). 22 ungenutzte Fremdmodelle und 11 Fremd-HDRIs entfernt. CREDITS.md neu.
   - **Werkhalle (Video 3,5 s):** Fenster mit Stahlsprossen (4 × 3, `grid` in arch.js), Lichtbahnen warm
     (`atmos.beamTint`), Oberlichter verschmutzt statt überstrahlt, nur noch ein Dachloch.
+- **Nachtrag 16.10. nachts (Nutzer: „Container sind nur 3D-Bilder in 2D-Form“, „abgedeckte Autos raus, richtige Autos,
+  Fahrzeuge fahrbar in Ego- und Third-Person“, „Ladeschütze steckt im Drehkranz, keine Öffnung“):**
+  - **Container (props.js `container3d`):** ab „mittel“ echtes Trapez-Wellblech als Geometrie (`corrPanel`, ISO-Teilung
+    278 mm, 36 mm tief): Längs- und Stirnwände, Dach mit flachen Quersicken, Türflügel mit waagrechten Sicken zwischen
+    den Eckpfosten, Eckbeschläge. Lack `ctr_lack` ohne aufgemalte Sicken, Farbe per Tönung. Schrift folgt den Sicken
+    (builder `sign … corr`). Schatten wirft ein glatter Innenkörper (keine Treppenmuster), das Wellblech ist aus dem
+    AO-Vorpass genommen. „niedrig“ (Telefone) behält die Texturfassung. Kollision unverändert.
+  - **Zivilfahrzeuge (vehicles/models-civil.js, data.js `pkw`/`transporter`/`stapler`/`zugmaschine`):** fahrbar mit
+    Ego-Sicht aus der hohlen Kabine (Armaturen, mitdrehendes Lenkrad, Sitze, Scheiben, Himmel) und Außenansicht;
+    sitzende Insassenfiguren; Schüsse durchs Fensterband treffen Insassen (`glassBand`); Stapler mit Hinterradlenkung
+    und Palette (Kartons/Säcke); Zugmaschine vor dem auf Stützen abgestellten Auflieger. Karten setzen nur Stellplätze
+    (`b.civil`, props.js `car/van/truck/forklift`, Hafen `hafen-fahrzeuge.js`) → `world.civilVehicles`; das
+    Fahrzeugsystem setzt sie auch bei „Panzer & Fahrzeuge: Aus“ ein (`civilOnly`), online mit Lackvariante in der
+    Fahrzeugliste. Ausgebrannte Wracks bleiben Kulisse, der Containerstapler bleibt stehendes Requisit. Das abgedeckte
+    Auto (`covered_car`) ist vollständig entfernt (Generator, Manifest, Bibliothek).
+  - **Panzer-Innenraum:** Drehturm-Panzer haben einen offenen Drehkranz mit Turmkorb (Korbboden, Geländer,
+    Drehdurchführung, Richtschützensitz) und darunter den Kampfraum der Wanne (Durchstieg zum Fahrer, Munitionsstand,
+    Motorschott); die Wannen-Außenhülle ist im Innenraum ausgeblendet.

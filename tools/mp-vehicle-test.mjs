@@ -1,7 +1,8 @@
 // NULLPUNKT – Fahrzeuge online Ende-zu-Ende (docs/planung/panzer-mp.md §C.12): Host + 2 Clients („Anna“, „Bert“) in
 // Headless-Chromium über das lokale Nostr-Relay, Hafen, Raum-Einstellung „Fahrzeuge“ an, Anna und Bert im selben Team
 // (pvp 'coop'), Außenansicht aus, Nachladen manuell. Geprüft wird:
-//   1. Host: 4 Fahrzeuge, je Team 1 Panzer (spawnTeam A/B); Clients sehen dieselben vid/Typ/Team ≤ 3 s.
+//   1. Host: 4 Fahrzeuge, je Team 1 Panzer (spawnTeam A/B) + die Zivilfahrzeuge der Karte (16.10.); Clients sehen dieselben
+//      vid/Typ/Team/Lackvariante ≤ 3 s.
 //   2. Anna steigt ein (requestEnter) → Fahrersitz bei allen; Bert → Richtschütze (Sitz 1).
 //   3. Anna fährt (simulate: Gang hoch, Gas) ≥ 20 m; nach dem Bremsen Lage bei Host/Anna/Bert ≤ 0,5 m gleich.
 //   4. Bert schießt auf den feindlichen Panzer → Treffer beim Host, 'vh' bei Bert, HP bei allen gleich ≤ 1 s.
@@ -155,7 +156,7 @@ const hostSees = (host, id, pos, r = 0.8, timeout = 30000) => until(host, ([i, p
 const vehs = (p) => ev(p, () => {
   const V = window.__game.vehicles;
   return (V.list || []).map((v) => ({
-    vid: v.netId, type: v.type, team: v.spawnTeam, alive: v.alive, wreck: v.wreck, hp: Math.round(v.health), pos: [v.body.pos.x, v.body.pos.y, v.body.pos.z],
+    vid: v.netId, type: v.type, team: v.spawnTeam, civil: !!v.def.civil, variant: v.variant | 0, alive: v.alive, wreck: v.wreck, hp: Math.round(v.health), pos: [v.body.pos.x, v.body.pos.y, v.body.pos.z],
     speed: v.body.speed, seats: v.seats.map((s) => (s.actor ? (s.actor.isPlayer ? window.__game.net.selfId : s.actor.netId) : 0)), visible: v.model.root.visible,
   }));
 });
@@ -270,8 +271,9 @@ try {
   info(`Host-Seite verborgen (Simulation im Worker-Takt): ${hostHz.toFixed(1)} Bilder/s`);
 
   // ================================================================== 1. Fahrzeuge, beide Teams
-  const hv = await until(host, () => { const L = window.__game.vehicles.list; return L.length >= 4 ? L.length : null; }, null, 30000);
-  const hostV = await vehs(host);
+  const hv = await until(host, () => { const L = window.__game.vehicles.list.filter((v) => !v.def.civil); return L.length >= 4 ? L.length : null; }, null, 30000);
+  const allV = await vehs(host), hostV = allV.filter((v) => !v.civil), civV = allV.filter((v) => v.civil);
+  check(civV.length > 0 && civV.every((v) => Number.isInteger(v.vid) && v.vid > 0 && v.team == null), `Host: ${civV.length} Zivilfahrzeuge mit Netz-Id, ohne Team (${[...new Set(civV.map((v) => v.type))].join(', ')})`);
   const tanks = hostV.filter((v) => v.type === 'mbt');
   check(hv === 4 && hostV.every((v) => Number.isInteger(v.vid) && v.vid > 0), `Host: ${hostV.length} Fahrzeuge mit Netz-Id (${hostV.map((v) => `${v.vid}:${v.type}/${v.team}`).join(', ')})`);
   check(tanks.length === 2 && tanks.some((v) => v.team === 'A') && tanks.some((v) => v.team === 'B') && hostV.filter((v) => v.team === 'A').length === hostV.filter((v) => v.team === 'B').length,
@@ -282,12 +284,12 @@ try {
     return { team: v.spawnTeam, col };
   }));
   info(`Teamfarben (Markierungsmaterial): ${marks.map((m) => `${m.team}=${m.col != null ? '#' + m.col.toString(16) : '?'}`).join(', ')}`);
-  const sig = (L) => L.map((v) => `${v.vid}:${v.type}:${v.team}`).sort().join(',');
+  const sig = (L) => L.map((v) => `${v.vid}:${v.type}:${v.team}:${v.variant}`).sort().join(',');
   const t1 = Date.now();
   const seen = await Promise.all([anna, bert].map((p) => until(p, (s) => {
     const L = window.__game.vehicles.list;
-    return L.length && L.map((v) => `${v.netId}:${v.type}:${v.spawnTeam}`).sort().join(',') === s && L.every((v) => v.model.root.visible);
-  }, sig(hostV), 30000, 300)));
+    return L.length && L.map((v) => `${v.netId}:${v.type}:${v.spawnTeam}:${v.variant | 0}`).sort().join(',') === s && L.every((v) => v.model.root.visible);
+  }, sig(allV), 30000, 300)));
   check(seen.every(Boolean), `Clients sehen dieselben vid/Typ/Team (${((Date.now() - t1) / 1000).toFixed(1)} s nach dem Host-Abruf)`);
   const tA = tanks.find((v) => v.team === 'A'), tB = tanks.find((v) => v.team === 'B');
 

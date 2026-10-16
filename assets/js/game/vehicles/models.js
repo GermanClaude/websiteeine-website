@@ -1382,6 +1382,22 @@ function buildHatch(id, def, S, paint, base = null) {
   return pivot;
 }
 
+/** Dreiecke einer Deckfläche (alle Ecken auf Höhe y) entfernen – offene Unterseite der Turmhülle (Drehkranz). */
+function dropCap(geom, y = 0, eps = 1e-3) {
+  const g = geom.index ? geom.toNonIndexed() : geom;
+  if (g !== geom) geom.dispose();
+  const P = g.attributes.position, keep = [];
+  for (let t = 0; t < P.count; t += 3) if (!(Math.abs(P.getY(t) - y) < eps && Math.abs(P.getY(t + 1) - y) < eps && Math.abs(P.getY(t + 2) - y) < eps)) keep.push(t);
+  const out = new THREE.BufferGeometry();
+  for (const name of Object.keys(g.attributes)) {
+    const A = g.attributes[name], n = A.itemSize, a = new Float32Array(keep.length * 3 * n);
+    keep.forEach((t, i) => a.set(A.array.subarray(t * n, (t + 3) * n), i * 3 * n));
+    out.setAttribute(name, new THREE.BufferAttribute(a, n));
+  }
+  g.dispose();
+  return out;
+}
+
 /** Geschlossene Körper nach innen kehren (Wicklung + Normalen) – Innenraum-Hülle mit Vorderseiten-Material. */
 function inward(geom) {
   const g = geom.index ? geom.toNonIndexed() : geom;
@@ -1466,8 +1482,25 @@ function buildInterior(S, D) {
   const era = D.era || 'modern', CAB = era === 'wk2' ? S.cabinWk2 : era === 'wk1' ? S.cabinWk1 : S.cabin;
   const LIT = era === 'modern' ? S.lensOn : S.lamp;
   const foot = [[-0.9, 1.15], [0.9, 1.15], [1.24, 0.8], [1.25, -1.45], [0.9, -1.92], [-0.9, -1.92], [-1.25, -1.45], [-1.24, 0.8]];
-  B.add(inward(topExtrude(foot, 0.69)), CAB, [0, 0.06, 0]);
-  B.add(box(1.5, 0.02, 1.3), S.dark, [0.15, 0.07, 0.3]);                          // Bodenplatte
+  // Nutzer 16.10. („man steckt im Drehkranz, da ist keine Öffnung“): Drehturm-Panzer haben unter dem Turm einen offenen
+  // Drehkranz mit Turmkorb, der in den Kampfraum der Wanne hinabreicht – dort stehen Lade- und Richtschütze
+  const basket = !D.turretLimits && I.basket !== false;
+  const ringR = (D.ringR || D.turretBox[3] * 0.8) / sc;                            // Drehkranz-Radius (Gruppenraum)
+  const rc = [-sh[0] / sc, 0.06, -sh[2] / sc];                                      // Drehkranz-Mitte (Turmdrehpunkt)
+  if (basket) {
+    B.add(inward(dropCap(topExtrude(foot, 0.69), 0)), CAB, [0, 0.06, 0]);
+    // Turmboden außerhalb des Drehkranzes (Überhang), mittig die Öffnung
+    const shp = new THREE.Shape(foot.map(([x, v]) => new THREE.Vector2(x, v)));
+    const hole = new THREE.Path();
+    hole.absarc(rc[0], -rc[2], ringR + 0.05, 0, Math.PI * 2, true);
+    shp.holes.push(hole);
+    const shelf = new THREE.ShapeGeometry(shp, DET === 2 ? 24 : 14);
+    shelf.rotateX(-HP);
+    B.add(shelf, CAB, [0, 0.061, 0]);
+  } else {
+    B.add(inward(topExtrude(foot, 0.69)), CAB, [0, 0.06, 0]);
+    B.add(box(1.5, 0.02, 1.3), S.dark, [0.15, 0.07, 0.3]);                        // Bodenplatte
+  }
   B.add(box(0.74, 0.62, 0.03), S.dark, [0, 0.42, -1.135]);                         // Rahmen der Rohrdurchführung
   // Richtschützenplatz (rechts vorn), Kommandantenplatz (links), Funkgerät (links hinten)
   if (!rackRight) B.add(box(0.36, 0.3, 0.32), S.dark, [0.8, 0.5, -0.85]);
@@ -1541,6 +1574,7 @@ function buildInterior(S, D) {
     B.add(cyl(0.05, 0.06, 0.12, 10), S.brass, [0.2, 0.58, 0.95]); B.add(cyl(0.035, 0.035, 0.07, 8), S.lamp, [0.2, 0.5, 0.95]);
     B.add(cyl(0.025, 0.025, 1.1, 8), S.brass, [-0.7, 0.62, -0.5], [Math.PI / 2, 0.3, 0]);
   }
+  if (basket) turretBasket(B, S, D, I, CAB, DET, { ringR, rc, sh, sc });
   B.build(grp, { shadow: false });
   // Granaten im Gestell: Spalten von links (PG) nach rechts (SG), je Spalte von unten nach oben
   const rows = grid ? grid[1] : DET === 0 ? 3 : 4, cols = grid ? grid[0] : DET === 0 ? 8 : 10;
@@ -1656,7 +1690,98 @@ function buildInterior(S, D) {
   K.build(keil, { shadow: false });
   br.add(keil);
   br.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
-  return { interior: grp, breech: br };
+  return { interior: grp, breech: br, hull: basket ? hullCompartment(S, D, I, CAB, DET, ringR * sc) : null };
+}
+
+/** Höhe des Turmkorb-Bodens im Turmraum: auf dem Wannenboden, höchstens so tief, dass der Ladeschütze aufrecht steht. */
+function basketFloor(D, I) {
+  const sh = I.shift || [0, 0, 0], sc = I.scale || 1, hb = D.hullBox;
+  const hullFloor = hb[1] - hb[4] + 0.12 - D.turretPivot[1];
+  const eye = sh[1] + sc * (I.loaderEye || INTERIOR_DEF.loaderEye)[1];
+  return Math.max(hullFloor, eye - 1.68);
+}
+
+/**
+ * Turmkorb (dreht mit dem Turm, Gruppenraum des Innenraums): Drehkranz mit Zahnkranz, Korbboden mit Riffelblech,
+ * Geländer aus Pfosten und Ringen, Trittschutz unten, Drehdurchführung in der Mitte (Hydraulik/Strom), Richtschützensitz
+ * auf Säule, Hülsensack und Bereitschaftskiste, Kabelzug zum Turm.
+ */
+function turretBasket(B, S, D, I, CAB, DET, { ringR, rc, sh, sc }) {
+  const yb = (basketFloor(D, I) - sh[1]) / sc;                // Korbboden (Gruppenraum)
+  const rB = ringR - 0.07, seg = DET === 2 ? 32 : 20;
+  const [cx, , cz] = rc;
+  // Drehkranz: Laufring + Zahnkranz (innen), etwas unter dem Turmboden
+  B.add(new THREE.TorusGeometry(ringR, 0.05, 6, seg), S.steel, [cx, 0.03, cz], [HP, 0, 0]);
+  B.add(new THREE.TorusGeometry(ringR - 0.07, 0.022, 4, seg), S.dark, [cx, -0.02, cz], [HP, 0, 0]);
+  if (DET === 2) for (let i = 0; i < 40; i++) { const a = (i / 40) * Math.PI * 2; B.add(box(0.018, 0.022, 0.016), S.dark, [cx + Math.cos(a) * (ringR - 0.1), -0.02, cz + Math.sin(a) * (ringR - 0.1)], [0, -a, 0]); }
+  // Korbboden (Riffelblech, umlaufender Rand) + Trittschutz
+  B.add(cyl(rB, rB, 0.04, seg), S.dark, [cx, yb - 0.02, cz]);
+  B.add(new THREE.TorusGeometry(rB, 0.02, 4, seg), S.steel, [cx, yb + 0.01, cz], [HP, 0, 0]);
+  if (DET === 2) for (let i = -3; i <= 3; i++) B.add(box(rB * 1.6, 0.006, 0.02), S.steel, [cx, yb + 0.003, cz + i * rB * 0.25], [0, 0.6, 0]);
+  B.add(inward(cyl(rB, rB, 0.22, seg, true)), CAB, [cx, yb + 0.11, cz]);
+  // Geländer: Pfosten (Lücke vorn für den Durchstieg zum Fahrer) und zwei Ringe
+  const top = 0.0, h = top - yb;
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2;
+    if (Math.abs(Math.cos(a)) < 0.3 && Math.sin(a) < 0) continue; // vorn (−z) offen
+    B.add(cyl(0.016, 0.016, h, 6), S.steel, [cx + Math.cos(a) * rB, yb + h / 2, cz + Math.sin(a) * rB]);
+  }
+  for (const y of [yb + h * 0.45, yb + h * 0.82]) B.add(new THREE.TorusGeometry(rB, 0.013, 4, seg), S.steel, [cx, y, cz], [HP, 0, 0]);
+  // Drehdurchführung (Mitte) mit Kabelstrang zum Turm
+  B.add(cyl(0.12, 0.16, 0.26, 12), S.dark, [cx, yb + 0.13, cz]);
+  B.add(cyl(0.06, 0.06, 0.12, 10), S.steel, [cx, yb + 0.32, cz]);
+  B.add(cyl(0.022, 0.022, Math.max(0.2, h - 0.35), 6), S.rubber, [cx + 0.08, yb + 0.35 + Math.max(0.2, h - 0.35) / 2, cz - 0.05], [0, 0, 0.22]);
+  // Richtschützensitz auf Säule (vorn rechts), Fußstütze; Hülsensack, Bereitschaftskiste, Werkzeugtasche
+  const gx = cx + rB * 0.45, gz = cz - rB * 0.45;
+  B.add(cyl(0.04, 0.05, h * 0.55, 8), S.steel, [gx, yb + h * 0.275, gz]);
+  B.add(box(0.36, 0.07, 0.34), S.canvas, [gx, yb + h * 0.56, gz]);
+  B.add(box(0.34, 0.26, 0.06), S.canvas, [gx, yb + h * 0.56 + 0.15, gz + 0.17], [-0.15, 0, 0]);
+  B.add(box(0.3, 0.03, 0.14), S.steel, [gx - 0.05, yb + 0.22, gz - 0.32]);
+  B.add(box(0.32, 0.36, 0.24), S.canvas, [cx - rB * 0.55, yb + 0.18, cz + rB * 0.5], [0, 0.4, 0]);
+  B.add(box(0.42, 0.2, 0.3), S.dark, [cx + rB * 0.55, yb + 0.1, cz + rB * 0.45], [0, -0.3, 0]);
+  if (DET === 2) B.add(box(0.26, 0.14, 0.1), S.canvas, [cx - rB * 0.8, yb + h * 0.6, cz - rB * 0.3], [0, 1.2, 0]);
+}
+
+/**
+ * Kampfraum der Wanne (fest, Wannenraum): nach innen gekehrter Raum unter dem Turmkorb – Boden mit Riffelblech,
+ * Seitenwände bis zu den Kettenkästen, vorn der Durchstieg zum Fahrerplatz (Sitzlehne sichtbar), hinten das Motorschott
+ * mit Klappen, Munitionsstand in der Wanne (Hülsenböden) neben dem Fahrer, Batterie- und Funkkästen, Leitungen.
+ */
+function hullCompartment(S, D, I, CAB, DET, ring) {
+  const grp = new THREE.Group();
+  grp.name = 'hullInterior';
+  grp.visible = false;
+  const B = new Bucket(), hb = D.hullBox, tp = D.turretPivot;
+  const yF = hb[1] - hb[4] + 0.1, yR = tp[1] - 0.02;
+  const wx = Math.max(ring + 0.12, Math.min(hb[3] - 0.5, ring + 0.3));
+  const zF = Math.max(hb[2] - hb[5] + 0.35, tp[2] - ring - 0.75), zB = Math.min(hb[2] + hb[5] - 0.3, tp[2] + ring + 0.55);
+  B.add(inward(topExtrude([[-wx, -zF], [wx, -zF], [wx, -zB], [-wx, -zB]], yR - yF)), CAB, [0, yF, 0]);
+  B.add(box(wx * 2 - 0.1, 0.02, zB - zF - 0.1), S.dark, [0, yF + 0.01, (zF + zB) / 2]);           // Riffelblech
+  if (DET === 2) for (let z = zF + 0.3; z < zB - 0.2; z += 0.35) B.add(box(wx * 2 - 0.2, 0.006, 0.02), S.steel, [0, yF + 0.023, z]);
+  // vorn: Durchstieg zum Fahrer (dunkle Öffnung, Rahmen, Sitzlehne, Lenkhebel dahinter)
+  const dr = D.seats.find((s) => s.drive), dx = dr ? Math.max(-wx + 0.45, Math.min(wx - 0.45, dr.pos[0])) : -0.5;
+  const oh = Math.min(0.95, yR - yF - 0.15);
+  B.add(box(0.72, oh, 0.02), S.rubber, [dx, yF + oh / 2 + 0.05, zF + 0.012]);
+  for (const sx of [-1, 1]) B.add(box(0.05, oh, 0.05), S.steel, [dx + sx * 0.38, yF + oh / 2 + 0.05, zF + 0.03]);
+  B.add(box(0.8, 0.05, 0.05), S.steel, [dx, yF + oh + 0.07, zF + 0.03]);
+  B.add(box(0.46, 0.5, 0.08), S.canvas, [dx, yF + 0.45, zF + 0.06], [0.12, 0, 0]);               // Fahrersitz-Lehne
+  // Munitionsstand in der Wanne neben dem Fahrer (Hülsenböden zum Kampfraum)
+  const mx = dx > 0 ? -wx + 0.35 : wx - 0.35;
+  B.add(box(0.62, 0.7, 0.04), S.dark, [mx, yF + 0.45, zF + 0.04]);
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) B.add(cyl(0.055, 0.055, 0.025, DET === 2 ? 12 : 8), S.brass, [mx - 0.18 + c * 0.18, yF + 0.2 + r * 0.16, zF + 0.07], [HP, 0, 0]);
+  // hinten: Motorschott mit Klappen und Bolzen, Feuerlöschanlage
+  for (const sx of [-1, 1]) B.add(box(wx * 0.8, (yR - yF) * 0.55, 0.03), S.steel, [sx * wx * 0.45, yF + (yR - yF) * 0.4, zB - 0.02]);
+  if (DET === 2) for (const sx of [-1, 1]) for (let k = 0; k < 4; k++) B.add(box(0.025, 0.025, 0.02), S.dark, [sx * wx * 0.45 + (k - 1.5) * wx * 0.2, yF + (yR - yF) * 0.66, zB - 0.04]);
+  B.add(cyl(0.09, 0.09, 0.5, 12), S.red, [wx - 0.2, yF + 0.3, zB - 0.2]);
+  // Seiten: Batterie-/Funkkästen auf den Kettenkästen, Leitungen
+  for (const sx of [-1, 1]) {
+    B.add(box(0.3, 0.32, 0.6), S.dark, [sx * (wx - 0.17), yF + 0.16, (zF + zB) / 2 + 0.3]);
+    B.add(cyl(0.02, 0.02, zB - zF - 0.3, 6), S.rubber, [sx * (wx - 0.04), yR - 0.12, (zF + zB) / 2], [HP, 0, 0]);
+  }
+  B.add(box(0.12, 0.06, 0.06), S.lensOn, [0, yR - 0.04, (zF + zB) / 2 + ring * 0.9]);              // Deckenleuchte
+  B.build(grp, { shadow: false });
+  grp.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+  return grp;
 }
 
 /* -------------------------------------------------------------- Vorlagen */
@@ -1716,6 +1841,7 @@ function template(type, team, quality, variant = 0) {
     const crew = buildInterior(S, D);
     tur.add(crew.interior);
     gun.add(crew.breech);
+    if (crew.hull) root.add(crew.hull); // Kampfraum der Wanne unter dem Turmkorb (fest)
   } else {
     // Radfahrzeuge: Geländewagen (MG-Lafette) bzw. Zivilfahrzeuge (models-civil.js: Kabine, Lenkrad, Insassen)
     const D = DT || VEHICLES.jeep;
@@ -1865,11 +1991,17 @@ export function createVehicleModel(type, { team = null, quality = 'high', varian
   };
   // Turm-Außenhülle (LOD): innen ausgeblendet – beim kleineren Turm (2. WK) ragten Kennung/Seitenluken in den Innenraum
   const turShell = model.turret ? model.turret.children.find((c) => c.isLOD) : null;
+  // Wannen-Außenhülle: mit Turmkorb durch die Drehkranz-Öffnung sichtbar – im Innenraum ausgeblendet (der Kampfraum
+  // der Wanne umschließt den Blick), sonst deckte das Wannendach den Korb ab
+  model.hullInterior = root.getObjectByName('hullInterior') || null;
+  const hullShell = model.hullInterior ? root.children.find((c) => c.isLOD) : null;
   model.setInterior = (on) => {
     if (!model.interior) return;
     const v = !!on && !model.wrecked;
     model.interior.visible = v;
     if (turShell) turShell.visible = !v;
+    if (model.hullInterior) model.hullInterior.visible = v;
+    if (hullShell) hullShell.visible = !v;
     if (model.breech) model.breech.visible = v;
     if (v) applyRack();
   };
@@ -1966,7 +2098,7 @@ export function vehicleExtraTriangles(type, quality = 'high') {
   const count = (o) => { let n = 0; o.traverse((m) => { if (m.isMesh) n += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; }); return n; };
   tpl.traverse((o) => {
     if (o.name.startsWith('hatch:')) out.hatches += count(o);
-    else if (o.name === 'interior' || o.name === 'breech') out.interior += count(o);
+    else if (o.name === 'interior' || o.name === 'breech' || o.name === 'hullInterior') out.interior += count(o);
   });
   out.hatches = Math.round(out.hatches); out.interior = Math.round(out.interior);
   return out;
