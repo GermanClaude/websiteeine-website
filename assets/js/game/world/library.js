@@ -80,6 +80,7 @@ export const LIB_MATERIALS = {
   ctr_rot: { id: 'vh_ctr_rot_seite', color: 1.0, macro: [0.08, 0.05, 0.1] },
   ctr_gruen: { id: 'vh_ctr_gruen_seite', color: 1.0, macro: [0.08, 0.05, 0.1] },
   ctr_grau: { id: 'vh_ctr_grau_seite', color: 1.0, macro: [0.08, 0.05, 0.1] },
+  ctr_lack: { id: 'ctr_lack', color: 1.0, macro: [0.08, 0.05, 0.1] }, // 16.10. abends: 3D-Wellwände (Sicken als Geometrie), Farbe per Tönung
   ctr_blau_tuer: { id: 'vh_ctr_blau_tuer', color: 1.0, repeat: 1, macro: false },
   ctr_rost_tuer: { id: 'vh_ctr_rost_tuer', color: 1.0, repeat: 1, macro: false },
   ctr_rot_tuer: { id: 'vh_ctr_rot_tuer', color: 1.0, repeat: 1, macro: false },
@@ -123,7 +124,7 @@ export const LIB_LOOK = {
   brick: { ...LOOK_MASONRY, pom: 0.022 }, brick_dark: { ...LOOK_MASONRY, pom: 0.022 }, stone_wall: { ...LOOK_MASONRY, pom: 0.03 },
   cobble: { ...LOOK_MASONRY, detail: 0.2, pom: 0.035 }, paving: { ...LOOK_MASONRY, detail: 0.22, pom: 0.012 }, roof_tiles: { ...LOOK_MASONRY, pom: 0.03 },
   tiles: LOOK_MASONRY, tiles_terracotta: LOOK_MASONRY,
-  ctr_blau: LOOK_METAL, ctr_rost: LOOK_METAL, ctr_rot: LOOK_METAL, ctr_gruen: LOOK_METAL, ctr_grau: LOOK_METAL,
+  ctr_blau: LOOK_METAL, ctr_rost: LOOK_METAL, ctr_rot: LOOK_METAL, ctr_gruen: LOOK_METAL, ctr_grau: LOOK_METAL, ctr_lack: LOOK_METAL,
   container: LOOK_METAL, container_red: LOOK_METAL, container_blue: LOOK_METAL, container_green: LOOK_METAL, container_orange: LOOK_METAL, container_gray: LOOK_METAL,
   metal_corrugated: LOOK_METAL, metal_corrugated_rust: LOOK_METAL, metal_cladding: LOOK_METAL, metal_navy: LOOK_METAL, metal_shutter: LOOK_METAL,
   metal_painted: LOOK_METAL, metal_rust: { ...LOOK_METAL, detail: 0.16, anti: 0.35 }, metal_galvanized: LOOK_METAL,

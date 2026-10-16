@@ -141,6 +141,7 @@ const MATS = {
   ctr_rot:           { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#6a3a32' } },
   ctr_gruen:         { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#6e6a4a' } },
   ctr_grau:          { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#b6af9b' } },
+  ctr_lack:          { tex: 'ctr_lack', tile: 2.44, surface: 'metal', params: { metalness: 1 } },
   ctr_blau_tuer:     { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#516466' } },
   ctr_rost_tuer:     { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#8e6a51' } },
   ctr_rot_tuer:      { tex: 'container', tile: 2, surface: 'metal', params: { metalness: 1, color: '#6a3a32' } },

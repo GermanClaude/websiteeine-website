@@ -675,7 +675,7 @@ export class MapBuilder {
   /** Schild mit Canvas-Text. def: { text, sub, bg, fg, style } registriert unter key. */
   defineSign(key, def) { this.signDefs[key] = def; return this; }
   sign(x, y, z, w, h, key, o = {}) {
-    this.signs.push({ x, y, z, w, h, key, ry: o.ry || 0, lit: !!o.lit, back: o.back !== false, depth: o.depth ?? 0.05, frame: o.frame });
+    this.signs.push({ x, y, z, w, h, key, ry: o.ry || 0, lit: !!o.lit, back: o.back !== false, depth: o.depth ?? 0.05, frame: o.frame, corr: o.corr || null });
     return this;
   }
 
@@ -871,6 +871,9 @@ export class MapBuilder {
       mesh.name = mat;
       mesh.userData.surface = material.userData.surface;
       mesh.userData.bullet = bullet;
+      // Container-Wellblech (3 cm tiefe Sicken) nicht in den AO-Vorpass: halbe AO-Auflösung erzeugt darauf Treppenmuster;
+      // der glatte Innenkörper dahinter verdeckt stattdessen (props.js container3d)
+      if (mat === 'ctr_lack') mesh.userData.noAO = true;
       group.add(mesh);
       meshes.push(mesh);
       return mesh;
@@ -1225,11 +1228,39 @@ export class MapBuilder {
       const { P, N, U } = s.lit ? buf.lit : buf.std;
       q.setFromEuler(e.set(0, s.ry, 0));
       const n = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
-      const corners = [[-s.w / 2, 0, r.u0, r.v0], [s.w / 2, 0, r.u1, r.v0], [s.w / 2, s.h, r.u1, r.v1], [-s.w / 2, s.h, r.u0, r.v1]];
-      for (const k of [0, 1, 2, 0, 2, 3]) {
-        const [a, b, uu, vv] = corners[k];
-        v.set(a, b, s.depth + 0.006).applyQuaternion(q);
-        P.push(s.x + v.x, s.y + v.y, s.z + v.z); N.push(n.x, n.y, n.z); U.push(uu, vv);
+      if (s.corr) {
+        // Aufdruck auf Wellblech (Container, 16.10.): Streifen folgen dem Trapezprofil statt flach davor zu schweben.
+        // corr: { p Teilung, o Profillage der Schildmitte, dir ±1, d Tiefe, a/f/i Anteile Außenfläche/Flanke/Innenfläche }
+        const c = s.corr, a0 = c.a * c.p, f0 = c.f * c.p, i0 = c.i * c.p, f1 = c.p - a0 - f0 - i0;
+        const depthAt = (t) => { const q0 = (((c.o + c.dir * t) % c.p) + c.p) % c.p; return q0 < a0 ? 0 : q0 < a0 + f0 ? -c.d * (q0 - a0) / f0 : q0 < a0 + f0 + i0 ? -c.d : -c.d * (1 - (q0 - a0 - f0 - i0) / f1); };
+        const cuts = [-s.w / 2, s.w / 2];
+        const k0 = Math.floor((c.o - c.dir * s.w / 2 - c.p) / c.p), k1 = Math.ceil((c.o + c.dir * s.w / 2 + c.p) / c.p);
+        for (let k = Math.min(k0, k1) - 1; k <= Math.max(k0, k1) + 1; k++) for (const br of [0, a0, a0 + f0, a0 + f0 + i0]) {
+          const t = (k * c.p + br - c.o) * c.dir;
+          if (t > -s.w / 2 && t < s.w / 2) cuts.push(t);
+        }
+        cuts.sort((x0, x1) => x0 - x1);
+        const nn = new THREE.Vector3();
+        for (let j = 0; j + 1 < cuts.length; j++) {
+          const t0 = cuts[j], t1 = cuts[j + 1];
+          if (t1 - t0 < 1e-4) continue;
+          const z0 = depthAt(t0 + 1e-5), z1 = depthAt(t1 - 1e-5);
+          nn.set(-(z1 - z0), 0, t1 - t0).normalize().applyQuaternion(q);
+          const ua = r.u0 + (r.u1 - r.u0) * (t0 / s.w + 0.5), ub = r.u0 + (r.u1 - r.u0) * (t1 / s.w + 0.5);
+          const quad = [[t0, 0, z0, ua, r.v0], [t1, 0, z1, ub, r.v0], [t1, s.h, z1, ub, r.v1], [t0, s.h, z0, ua, r.v1]];
+          for (const k of [0, 1, 2, 0, 2, 3]) {
+            const [qa, qb, qz, uu, vv] = quad[k];
+            v.set(qa, qb, qz + s.depth + 0.004).applyQuaternion(q);
+            P.push(s.x + v.x, s.y + v.y, s.z + v.z); N.push(nn.x, nn.y, nn.z); U.push(uu, vv);
+          }
+        }
+      } else {
+        const corners = [[-s.w / 2, 0, r.u0, r.v0], [s.w / 2, 0, r.u1, r.v0], [s.w / 2, s.h, r.u1, r.v1], [-s.w / 2, s.h, r.u0, r.v1]];
+        for (const k of [0, 1, 2, 0, 2, 3]) {
+          const [a, b, uu, vv] = corners[k];
+          v.set(a, b, s.depth + 0.006).applyQuaternion(q);
+          P.push(s.x + v.x, s.y + v.y, s.z + v.z); N.push(n.x, n.y, n.z); U.push(uu, vv);
+        }
       }
       // Trägerplatte (mit Kugeltreffer)
       if (s.back) this.box(s.x, s.y - 0.02, s.z, s.w + 0.06, s.h + 0.04, s.depth * 2, s.frame || 'metal_painted', { ry: s.ry, tint: '#3a3d40', collide: false, minimap: false, ao: false, chunk: -1 });

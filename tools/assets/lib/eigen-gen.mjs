@@ -1372,4 +1372,31 @@ export const EIGEN = {
       p.rough = 0.83 + (n2(u, v, 30, 30, 2) - 0.5) * 0.05;
     }, { normal: 3, cav: [0.003, 1.5], aoMin: 0.55 });
   }),
+  /* ================================================================ Containerlack (für 3D-Wellwände) */
+  // Lackierter Cortenstahl ohne aufgemalte Sicken (die Sicken sind Geometrie): neutral hell (Farbe per Tönung),
+  // Kreidung/ausgeblichene Flächen, Rostläufer von oben (Dachkante), Spritzschmutz unten, Schrammen, Rostpunkte mit Hof
+  ctr_lack: def('#c4c4c2', 0.62, (size) => {
+    const n1 = makeNoise(9101), n2 = makeNoise(9102), n3 = makeNoise(9103), n4 = makeNoise(9104), pits = makeCells(22, 9105, 0.95);
+    const S = makeStrokes(3, 1, 9106, { ang: [0, 0.2], len: [1.2, 2.5], wid: [0.01, 0.02] });
+    const paint = hex('#c9c9c7'), chalk = hex('#dcdcda'), rust = hex('#6b3a1c'), rustL = hex('#9a5a2a'), dirt = hex('#5f5a52');
+    return assemble(size, (u, v, p) => {
+      const fade = smooth(0.45, 0.8, n1(u, v, 4, 3, 4));
+      const run = smooth(0.55, 0.85, n2(u, v, 70, 2, 3)) * smooth(0.55, 1.0, v);          // Läufer von oben
+      const splash = smooth(0.25, 0.0, v) * smooth(0.35, 0.7, n3(u, v, 30, 6, 3));       // Schmutz unten
+      const pc = pits(u, v), on = hashI(pc.id, 1, 9107) > 0.9 ? 1 : 0;
+      const pit = smooth(0.08, 0.035, pc.d1) * on, halo = smooth(0.2, 0.08, pc.d1) * on * (1 - pit);
+      const hang = on * smooth(0.06, 0.0, Math.abs(u - pc.cx) * 18) * (pc.cy > v ? smooth(0.18, 0.0, pc.cy - v) : 0); // Rostfahne unter dem Punkt
+      const sc = S(u, v).m * smooth(0.6, 0.2, v);                                          // Schrammen eher unten
+      const dent = n4(u, v, 6, 6, 3);
+      p.h = 0.5 + (dent - 0.5) * 0.25 - pit * 0.15 - sc * 0.08;
+      let col = paint.map((x) => x * (0.95 + 0.08 * (n3(u, v, 9, 9, 4) - 0.5)));
+      col = mix3(col, chalk, fade * 0.35);
+      col = mix3(col, rustL, Math.max(run * 0.28, hang * 0.45, halo * 0.35));
+      col = mix3(col, dirt, splash * 0.4);
+      col = mix3(col, mix3(rust, rustL, n4(u, v, 40, 40, 2)), pit);
+      p.col = mix3(col, hex('#8a8a88'), sc * 0.5);
+      p.rough = 0.55 + fade * 0.2 + pit * 0.3 + splash * 0.15;
+      p.metal = sc * 0.6;
+    }, { normal: 2, cav: [0.003, 1.5], aoMin: 0.7 });
+  }),
 };

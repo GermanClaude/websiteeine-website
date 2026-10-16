@@ -1774,6 +1774,24 @@
     3.2,
     3.2
    ]
+  },
+  {
+   "id": "ctr_lack",
+   "source": "procedural",
+   "sourceId": "ctr_lack",
+   "license": "eigen (NULLPUNKT)",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "tiers": [
+    512,
+    1024
+   ],
+   "sizeM": [
+    2.44,
+    2.44
+   ],
+   "tintable": true
   }
  ],
  "hdris": [

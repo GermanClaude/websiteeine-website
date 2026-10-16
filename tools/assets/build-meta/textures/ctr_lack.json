@@ -1,0 +1,111 @@
+{
+  "id": "ctr_lack",
+  "recipe": "170f86b0d741",
+  "tiers": {
+    "512": {
+      "files": {
+        "albedo": {
+          "path": "textures/ctr_lack/ctr_lack_512_albedo.ktx2",
+          "bytes": 22002,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "normal": {
+          "path": "textures/ctr_lack/ctr_lack_512_normal.ktx2",
+          "bytes": 1687,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        },
+        "orm": {
+          "path": "textures/ctr_lack/ctr_lack_512_orm.ktx2",
+          "bytes": 14737,
+          "width": 512,
+          "height": 512,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 174763,
+            "mobile": 174763,
+            "rgba8": 1398101
+          }
+        }
+      },
+      "bytes": 38426,
+      "gpu": {
+        "desktop": 524289,
+        "mobile": 524289,
+        "rgba8": 4194303
+      }
+    },
+    "1024": {
+      "files": {
+        "albedo": {
+          "path": "textures/ctr_lack/ctr_lack_1024_albedo.ktx2",
+          "bytes": 55301,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "normal": {
+          "path": "textures/ctr_lack/ctr_lack_1024_normal.ktx2",
+          "bytes": 4803,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        },
+        "orm": {
+          "path": "textures/ctr_lack/ctr_lack_1024_orm.ktx2",
+          "bytes": 34365,
+          "width": 1024,
+          "height": 1024,
+          "codec": "etc1s",
+          "alpha": false,
+          "gpu": {
+            "desktop": 699051,
+            "mobile": 699051,
+            "rgba8": 5592405
+          }
+        }
+      },
+      "bytes": 94469,
+      "gpu": {
+        "desktop": 2097153,
+        "mobile": 2097153,
+        "rgba8": 16777215
+      }
+    }
+  },
+  "stats": {
+    "avgColor": "#c4c4c2",
+    "avgRoughness": 0.62,
+    "avgMetalness": 0.004,
+    "avgAO": 0.999,
+    "coverage": 1
+  }
+}

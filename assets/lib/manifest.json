@@ -2,7 +2,7 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-16T13:52:32.807Z",
+ "generated": "2026-10-16T14:27:44.498Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
@@ -9539,6 +9539,99 @@
    "url": "",
    "author": "NULLPUNKT (aus der Video-Vorlage des Nutzers)",
    "maps": []
+  },
+  "ctr_lack": {
+   "type": "texture",
+   "name": "ctr_lack",
+   "category": "metal",
+   "surface": "metal",
+   "replaces": [],
+   "sizeM": [
+    2.44,
+    2.44
+   ],
+   "tintable": true,
+   "alpha": false,
+   "hero": false,
+   "stats": {
+    "avgColor": "#c4c4c2",
+    "avgRoughness": 0.62,
+    "avgMetalness": 0.004,
+    "avgAO": 0.999,
+    "coverage": 1
+   },
+   "tiers": {
+    "512": {
+     "albedo": "textures/ctr_lack/ctr_lack_512_albedo.ktx2",
+     "normal": "textures/ctr_lack/ctr_lack_512_normal.ktx2",
+     "orm": "textures/ctr_lack/ctr_lack_512_orm.ktx2",
+     "sizes": {
+      "albedo": 22002,
+      "normal": 1687,
+      "orm": 14737
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "normal": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      },
+      "orm": {
+       "desktop": 174763,
+       "mobile": 174763,
+       "rgba8": 1398101
+      }
+     },
+     "bytes": 38426,
+     "gpu": {
+      "desktop": 524289,
+      "mobile": 524289,
+      "rgba8": 4194303
+     }
+    },
+    "1024": {
+     "albedo": "textures/ctr_lack/ctr_lack_1024_albedo.ktx2",
+     "normal": "textures/ctr_lack/ctr_lack_1024_normal.ktx2",
+     "orm": "textures/ctr_lack/ctr_lack_1024_orm.ktx2",
+     "sizes": {
+      "albedo": 55301,
+      "normal": 4803,
+      "orm": 34365
+     },
+     "gpuFiles": {
+      "albedo": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "normal": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      },
+      "orm": {
+       "desktop": 699051,
+       "mobile": 699051,
+       "rgba8": 5592405
+      }
+     },
+     "bytes": 94469,
+     "gpu": {
+      "desktop": 2097153,
+      "mobile": 2097153,
+      "rgba8": 16777215
+     }
+    }
+   },
+   "license": "eigen (NULLPUNKT)",
+   "source": "procedural",
+   "sourceId": "ctr_lack",
+   "maps": []
   }
  },
  "hdris": {
@@ -14745,8 +14838,8 @@
  },
  "totals": {
   "textures": {
-   "files": 559,
-   "bytes": 50398587
+   "files": 565,
+   "bytes": 50531482
   },
   "hdri": {
    "files": 80,
@@ -14757,16 +14850,16 @@
    "bytes": 11530812
   },
   "all": {
-   "files": 705,
-   "bytes": 77199978
+   "files": 711,
+   "bytes": 77332873
   },
   "byTier": {
-   "512": 15069367,
-   "1024": 45612164,
+   "512": 15107793,
+   "1024": 45706633,
    "2048": 16518447
   },
   "counts": {
-   "textures": 91,
+   "textures": 92,
    "hdris": 20,
    "models": 35
   }

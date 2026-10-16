@@ -995,6 +995,7 @@ export const TEX = {
   metal_grate:    { gen: 'grate', o: {}, normal: 2 },
   hazard:         { gen: 'hazard', o: {}, normal: 1 },
   container:      { gen: 'corrugated', o: { base: '#e6e6e2', ribs: 8, trapezoid: true, rustAmt: 0.8 }, normal: 3.6 },
+  ctr_lack:       { gen: 'paint', o: { base: '#c8c8c6' }, normal: 1 },  // Rückfall ohne Bibliothek (Sicken sind Geometrie)
   sand:           { gen: 'sand', o: {}, normal: 2 },
   dirt:           { gen: 'dirt', o: {}, normal: 3 },
   gravel:         { gen: 'gravel', o: { cells: 30, palette: ['#9a958c', '#8c877e', '#a7a197', '#7f7a72', '#a09789'] }, normal: 3 },

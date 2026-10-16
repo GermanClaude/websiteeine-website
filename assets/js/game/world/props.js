@@ -83,15 +83,91 @@ export function ctrFamily(hex) {
   return 'rot';
 }
 
+/**
+ * Wellblech-Paneel (Container, Nutzer 16.10.: „keine 3D-Form, nur Bilder“): Trapezprofil als echte Geometrie.
+ * Ebene XY, Außenseite +Z (äußere Sicken bei z = 0, Tal bei z = −depth), x ∈ [−w/2, w/2], y ∈ [0, h] (center: y ∈ [−h/2, h/2]).
+ * dir 'v': Sicken senkrecht (Profil entlang x), 'h': Sicken waagrecht (Profil entlang y). flatTop/flatBottom: glatte
+ * Bänder (Tür: Kopf-/Fußfeld). Teilung so, dass ganze Sicken passen (ISO: 278 mm, Außenfläche 72, Flanke 68, Tal 70).
+ * UV in Metern (u entlang x, v entlang y). Gecacht je Maß.
+ */
+export const CTR_PROFILE = { a: 0.26, f: 0.245, i: 0.25 };
+function corrPanel(w, h, { pitch = 0.278, depth = 0.036, dir = 'v', flatTop = 0, flatBottom = 0, center = false } = {}) {
+  return cached(`corr:${w.toFixed(3)}:${h.toFixed(3)}:${pitch}:${depth}:${dir}:${flatTop}:${flatBottom}:${center}`, () => {
+    const P = [], N = [], U = [];
+    const along = dir === 'v' ? w : h - flatTop - flatBottom;
+    const n = Math.max(1, Math.round(along / pitch)), p = along / n, A = CTR_PROFILE;
+    const prof = [];
+    for (let k = 0; k < n; k++) { const s0 = k * p; prof.push([s0, 0], [s0 + A.a * p, 0], [s0 + (A.a + A.f) * p, -depth], [s0 + (A.a + A.f + A.i) * p, -depth]); }
+    prof.push([along, 0]);
+    const y0 = center ? -h / 2 : 0;
+    const quad = (a, b, c, d, nx, ny, nz) => { for (const v of [a, b, c, a, c, d]) { P.push(v[0], v[1], v[2]); N.push(nx, ny, nz); U.push(v[0], v[1] - y0); } };
+    for (let j = 0; j + 1 < prof.length; j++) {
+      const [s0, z0] = prof[j], [s1, z1] = prof[j + 1];
+      const ds = s1 - s0, dz = z1 - z0, l = Math.hypot(ds, dz);
+      if (dir === 'v') {
+        const xa = -w / 2 + s0, xb = -w / 2 + s1;
+        quad([xa, y0, z0], [xb, y0, z1], [xb, y0 + h, z1], [xa, y0 + h, z0], -dz / l, 0, ds / l);
+      } else {
+        const ya = y0 + flatBottom + s0, yb = y0 + flatBottom + s1;
+        quad([w / 2, ya, z0], [w / 2, yb, z1], [-w / 2, yb, z1], [-w / 2, ya, z0], 0, -dz / l, ds / l);
+      }
+    }
+    // glatte Kopf-/Fußfelder (Tür)
+    if (flatBottom > 0) quad([-w / 2, y0, 0], [w / 2, y0, 0], [w / 2, y0 + flatBottom, 0], [-w / 2, y0 + flatBottom, 0], 0, 0, 1);
+    if (flatTop > 0) quad([-w / 2, y0 + h - flatTop, 0], [w / 2, y0 + h - flatTop, 0], [w / 2, y0 + h, 0], [-w / 2, y0 + h, 0], 0, 0, 1);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+    return g;
+  });
+}
+
+/**
+ * Container als echte 3D-Form (mittlere Stufe aufwärts): Seiten- und Stirnwände aus Trapez-Wellblech, Türflügel mit
+ * waagrechten Sicken und glattem Kopf-/Fußfeld, Dach mit flachen Quersicken, Eckbeschläge. Farbe = Tönung des
+ * neutralen Containerlacks (ctr_lack, eigene Textur ohne aufgemalte Sicken). Kollision unverändert (f.solid).
+ */
+function container3d(f, b, x, y, z, o, len, H, W, color, ground) {
+  const L = { collide: false, minimap: false, cast: false, uv: 'keep', tint: color, uvOffset: [hash01(x, z + y, 41) * 2.44, hash01(x, z + y, 42) * 2.44] };
+  const G = ground ? { aoFloor: y, grad: true } : { grad: false };
+  const zw = W / 2 - 0.04, wallW = len - 0.24, wallH = H - 0.16;
+  // Schatten wirft ein glatter Innenkörper hinter den Tälern: Sicken, die sich selbst beschatten, flimmern in der
+  // Schattenkarte als Treppenmuster (16.10.)
+  f.box(0, 0.06, 0, len - 0.2, H - 0.1, W - 0.17, 'black', { collide: false, minimap: false, ao: false, grad: false });
+  // Längsseiten
+  for (const side of [1, -1]) f.geom(corrPanel(wallW, wallH), 0, 0.08, side * zw, 'ctr_lack', { ...L, ...G, ry: side < 0 ? Math.PI : 0 });
+  // Dach: flache Quersicken (Teilung ≈ 0,55 m), leicht unter der Oberkante der Gurte
+  f.geom(corrPanel(len - 0.3, W - 0.14, { pitch: 0.55, depth: 0.022, center: true }), 0, H - 0.012, 0, 'ctr_lack', { ...L, tint: shade(color, 0.92), rx: -Math.PI / 2 });
+  // Stirnseiten: Türen (waagrechte Sicken) bzw. geschlossene Stirnwand (senkrechte Sicken)
+  // Flügel zwischen den Eckpfosten (sonst ragen die Sicken über die Pfosten → Zahnmuster an der Kante)
+  const leafW = W / 2 - 0.18 - 0.006, leafH = H - 0.12;
+  const doorEnd = (sx) => {
+    for (const sz of [-1, 1]) f.geom(corrPanel(leafW, leafH, { dir: 'h', pitch: 0.36, depth: 0.028, flatTop: 0.34, flatBottom: 0.16 }), sx * (len / 2 + 0.003), 0.06, sz * (leafW / 2 + 0.006), 'ctr_lack', { ...L, ...G, ry: sx > 0 ? Math.PI / 2 : -Math.PI / 2 });
+    // Türfuge (dunkel) zwischen den Flügeln
+    f.box(sx * (len / 2 - 0.01), 0.06, 0, 0.02, leafH, 0.014, 'black', { collide: false, minimap: false, cast: false, ao: false });
+  };
+  if (!o.blankEnd) doorEnd(-1);
+  else f.geom(corrPanel(W - 0.3, wallH), -(len / 2 - 0.04), 0.08, 0, 'ctr_lack', { ...L, ...G, ry: -Math.PI / 2 });
+  if (!o.openDoors) doorEnd(1);
+  // Eckbeschläge (ISO-Ecken, Gusseisen mit Langlöchern): 8 Stück, dunkel
+  const cast = shade(color, 0.5);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (const yy of [0, H - 0.118]) {
+    f.box(sx * (len / 2 - 0.089), yy, sz * (W / 2 - 0.081), 0.182, 0.118, 0.166, 'metal_painted', { collide: false, minimap: false, tint: cast, grad: false, uv: 'local' });
+  }
+}
+
 export function container(b, x, y, z, o = {}) {
   const len = o.len ?? 6.06, H = 2.59, W = 2.44, raw = o.color || b.pick(CONTAINER_COLORS), color = videoTone(raw);
   const fam = ctrFamily(raw), wallMat = 'ctr_' + fam;
   const f = frame(b, x, y, z, o.ry || 0);
   const dark = shade(color, 0.72);
   const ground = Math.abs(y) < 0.05;
-  // Wellwand aus dem Video (Kachel 1,05 m, senkrecht genau eine Wandhöhe ab Unterkante)
-  f.box(0, 0, 0, len - 0.1, H - 0.06, W - 0.08, wallMat, { uv: 'local', uvOffset: [0, 0], collide: false, aoFloor: ground ? y : undefined, grad: ground });
   f.solid(0, 0, 0, len, H, W, { minimap: o.minimap ?? 'container' });
+  const d3 = b.quality !== 'low' && o.flat !== true;
+  // Telefone (low): Wellwand aus dem Video als Textur (Kachel 1,05 m); sonst echtes Wellblech (container3d)
+  if (!d3) f.box(0, 0, 0, len - 0.1, H - 0.06, W - 0.08, wallMat, { uv: 'local', uvOffset: [0, 0], collide: false, aoFloor: ground ? y : undefined, grad: ground });
+  else container3d(f, b, x, y, z, o, len, H, W, color, ground);
   // Eckpfosten
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.box(sx * (len / 2 - 0.09), 0, sz * (W / 2 - 0.09), 0.18, H, 0.18, 'metal_painted', { tint: dark, collide: false, minimap: false, grad: ground, uv: 'local' });
   // Ober-/Untergurte
@@ -104,16 +180,23 @@ export function container(b, x, y, z, o = {}) {
   const ex = len / 2 + 0.005;
   const det = o.detail ?? (b.quality === 'low' ? 'low' : 'high');
   if (!o.blankEnd) {
-    f.box(-(ex - 0.012), 0.06, 0, 0.02, H - 0.12, W - 0.14, wallMat + '_tuer', { uv: 'fit', collide: false, minimap: false, grad: false, ao: false, cast: false });
+    if (!d3) f.box(-(ex - 0.012), 0.06, 0, 0.02, H - 0.12, W - 0.14, wallMat + '_tuer', { uv: 'fit', collide: false, minimap: false, grad: false, ao: false, cast: false });
     ctrDoorHardware(f, -1, len, H, W, color, det);
   }
   if (!o.openDoors) {
-    f.box(ex - 0.012, 0.06, 0, 0.02, H - 0.12, W - 0.14, wallMat + '_tuer', { uv: 'fit', collide: false, minimap: false, grad: false, ao: false });
+    if (!d3) f.box(ex - 0.012, 0.06, 0, 0.02, H - 0.12, W - 0.14, wallMat + '_tuer', { uv: 'fit', collide: false, minimap: false, grad: false, ao: false });
     ctrDoorHardware(f, 1, len, H, W, color, det);
   } else {
     // offene Türen (90° aufgeklappt) + dunkles Inneres
     f.box(ex - 0.02, 0.05, 0, 0.02, H - 0.2, W - 0.3, 'black', { collide: false, minimap: false, ao: false });
-    for (const sz of [-1, 1]) f.box(ex + W / 4, 0.05, sz * (W / 2 + 0.02), W / 2 - 0.05, H - 0.18, 0.05, wallMat, { collide: true, minimap: false, uv: 'local', uvOffset: [0, 0], grad: ground });
+    for (const sz of [-1, 1]) {
+      if (!d3) f.box(ex + W / 4, 0.05, sz * (W / 2 + 0.02), W / 2 - 0.05, H - 0.18, 0.05, wallMat, { collide: true, minimap: false, uv: 'local', uvOffset: [0, 0], grad: ground });
+      else {
+        // aufgeklappter Flügel: Wellblech außen, Innenseite glatt, Kollision wie vorher
+        f.box(ex + W / 4, 0.05, sz * (W / 2 + 0.02), W / 2 - 0.05, H - 0.18, 0.05, 'metal_painted', { collide: true, minimap: false, uv: 'local', tint: shade(color, 0.85), grad: ground, visual: true });
+        f.geom(corrPanel(W / 2 - 0.05, H - 0.18, { dir: 'h', pitch: 0.36, depth: 0.028, flatTop: 0.3, flatBottom: 0.14 }), ex + W / 4, 0.05, sz * (W / 2 + 0.046), 'ctr_lack', { collide: false, minimap: false, uv: 'keep', tint: color, ry: sz > 0 ? 0 : Math.PI });
+      }
+    }
   }
   if (o.logo) {
     for (const side of [1, -1]) {
@@ -126,9 +209,12 @@ export function container(b, x, y, z, o = {}) {
     const k = Math.floor(hash01(x, z + y, 31) * 6), tone = fam === 'grau' ? 'd' : 'w', named = hash01(x, z + y, 32) < 0.7;
     for (const side of [1, -1]) {
       const ry = (o.ry || 0) + (side < 0 ? Math.PI : 0);
-      if (named) { const [lx, lz] = f.P(-len * 0.08, side * (W / 2 - 0.04)); b.sign(lx, y + H * 0.42, lz, Math.min(len * 0.5, 4.6), H * 0.22, `ctr_line_${k}_${tone}`, { ry, back: false, depth: 0 }); }
-      const [cx, cz] = f.P(len * 0.33 * side, side * (W / 2 - 0.04));
-      b.sign(cx, y + H * 0.78, cz, Math.min(len * 0.22, 1.5), 0.2, `ctr_code_${k}_${tone}`, { ry, back: false, depth: 0 });
+      // Profil der Wand beginnt am Paneelrand: Seite +1 bei x = −wallW/2, Seite −1 (Paneel um 180° gedreht) bei x = +wallW/2
+      const wallW = len - 0.24, pitch = wallW / Math.max(1, Math.round(wallW / 0.278));
+      const corr = (lxc) => (b.quality !== 'low' && o.flat !== true ? { p: pitch, o: side > 0 ? lxc + wallW / 2 : wallW / 2 - lxc, dir: 1, d: 0.036, ...CTR_PROFILE } : null);
+      if (named) { const lxc = -len * 0.08, [lx, lz] = f.P(lxc, side * (W / 2 - 0.04)); b.sign(lx, y + H * 0.42, lz, Math.min(len * 0.5, 4.6), H * 0.22, `ctr_line_${k}_${tone}`, { ry, back: false, depth: 0, corr: corr(lxc) }); }
+      const lxc = len * 0.33 * side, [cx, cz] = f.P(lxc, side * (W / 2 - 0.04));
+      b.sign(cx, y + H * 0.78, cz, Math.min(len * 0.22, 1.5), 0.2, `ctr_code_${k}_${tone}`, { ry, back: false, depth: 0, corr: corr(lxc) });
     }
   }
   return { top: y + H };

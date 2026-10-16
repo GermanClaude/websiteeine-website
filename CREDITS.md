@@ -7,7 +7,7 @@ Die früher genutzten Fremd-Assets (Poly Haven, ambientCG) sind vollständig ers
 Die Dateien in `assets/lib/` sind KTX2/Basis Universal kodiert, Modelle mit Meshopt und LOD-Stufen.
 Liste mit Generator-Schlüsseln: `tools/assets/sources.json`, Pipeline: `tools/assets/`.
 
-## Texturen (91)
+## Texturen (92)
 
 | ID | Herkunft | Werkzeug |
 |---|---|---|
@@ -102,6 +102,7 @@ Liste mit Generator-Schlüsseln: `tools/assets/sources.json`, Pipeline: `tools/a
 | `vp_pflaster` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
 | `vw_ziegel` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
 | `vw_blau` | eigene Video-Vorlage (entzerrt) | `tools/assets/video_material.py` |
+| `ctr_lack` | eigener Generator | `tools/assets/lib/eigen-gen.mjs` / `vorlage-gen.mjs` |
 
 ## Himmel (20)
 
