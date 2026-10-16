@@ -1184,7 +1184,7 @@ export function isCamoUnlocked(id, ctx = {}) {
  */
 export const CLASS_LOOKS = {
   standard: { id: 'standard', name: 'Standard', glove: '#ffffff', sleeve: '#ffffff', accessory: 'none' },
-  sturm: { id: 'sturm', name: 'Sturm', glove: '#5b5f63', sleeve: '#d8d8d8', accessory: 'pads' },
+  sturm: { id: 'sturm', name: 'Sturm', glove: '#303236', sleeve: '#d8d8d8', accessory: 'pads' },
   sanitaeter: { id: 'sanitaeter', name: 'Sanitäter', glove: '#c9b48d', sleeve: '#ffffff', accessory: 'armband' },
   pionier: { id: 'pionier', name: 'Pionier', glove: '#7a5a3c', sleeve: '#c9c2b0', sleeveCamo: 'neutral', accessory: 'cuffs' },
   aufklaerer: { id: 'aufklaerer', name: 'Aufklärer', glove: '#59614a', sleeve: '#b9c4a6', sleeveCamo: 'wood', accessory: 'wraps' },

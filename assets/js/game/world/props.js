@@ -99,12 +99,17 @@ export function container(b, x, y, z, o = {}) {
     f.box(0, H - 0.12, sz * (W / 2 - 0.06), len - 0.3, 0.12, 0.12, 'metal_painted', { tint: dark, collide: false, minimap: false, grad: false, uv: 'local' });
     f.box(0, 0, sz * (W / 2 - 0.06), len - 0.3, 0.16, 0.12, 'metal_painted', { tint: dark, collide: false, minimap: false, grad: false, uv: 'local' });
   }
-  // Türseite (+x): Türflügel mit Verriegelungsstangen als Videotextur (eine Fläche, UV 0..1). Nutzer 15.10.: an den
-  // Stapeln fehlten die Türen → auch die Stirnseite (−x) trägt Türen (Tunnelcontainer mit Türen an beiden Enden)
+  // Türseiten: Türblatt aus dem Video (Sicken, Aufkleber, Schrift; Stangen/Hebel herausgerechnet) + Beschläge als echte
+  // Geometrie (Nutzer 16.10.: „nur ein Bild draufgeklatscht“). Beide Stirnseiten (Tunnelcontainer, Nutzer 15.10.).
   const ex = len / 2 + 0.005;
-  if (!o.blankEnd) f.box(-(ex - 0.012), 0.06, 0, 0.02, H - 0.12, W - 0.14, wallMat + '_tuer', { uv: 'fit', collide: false, minimap: false, grad: false, ao: false, cast: false });
+  const det = o.detail ?? (b.quality === 'low' ? 'low' : 'high');
+  if (!o.blankEnd) {
+    f.box(-(ex - 0.012), 0.06, 0, 0.02, H - 0.12, W - 0.14, wallMat + '_tuer', { uv: 'fit', collide: false, minimap: false, grad: false, ao: false, cast: false });
+    ctrDoorHardware(f, -1, len, H, W, color, det);
+  }
   if (!o.openDoors) {
     f.box(ex - 0.012, 0.06, 0, 0.02, H - 0.12, W - 0.14, wallMat + '_tuer', { uv: 'fit', collide: false, minimap: false, grad: false, ao: false });
+    ctrDoorHardware(f, 1, len, H, W, color, det);
   } else {
     // offene Türen (90° aufgeklappt) + dunkles Inneres
     f.box(ex - 0.02, 0.05, 0, 0.02, H - 0.2, W - 0.3, 'black', { collide: false, minimap: false, ao: false });
@@ -117,6 +122,45 @@ export function container(b, x, y, z, o = {}) {
     }
   }
   return { top: y + H };
+}
+
+/**
+ * Beschläge einer Containertür (ISO 20/40 Fuß) an der Stirnseite sx (±1, lokal x): je Flügel zwei Verriegelungs-
+ * stangen (Ø 27 mm) mit Führungen, Schließkloben am Türrahmen oben/unten, Hebel mit Halter, Scharniere an den
+ * Außenkanten, Türrahmen (Kopf/Schwelle). Lagen wie auf dem Videotürblatt (Stangen bei 24,5/43/58,5/77,5 % der Breite,
+ * Hebel bei 69/76 % von oben). Nur Optik, ohne Schatten; det: 'high' | 'low' (nur Stangen + Hebel) | 'far' (nur Stangen).
+ */
+function ctrDoorHardware(f, sx, len, H, W, color, det) {
+  const P = { collide: false, minimap: false, grad: false, ao: false, cast: false };
+  const xs = sx * (len / 2 + 0.003);                 // Türblattfläche
+  const out = (d) => xs + sx * d;                    // Abstand vor der Tür
+  const dw = W - 0.14, dh = H - 0.12;
+  const zu = (u) => sx * (0.5 - u) * dw;             // Texturspalte → lokal z (Blickrichtung von außen, nicht gespiegelt)
+  const yv = (v) => 0.06 + (1 - v) * dh;             // Texturzeile (von oben) → Höhe
+  const paint = shade(color, 1.06), dark = shade(color, 0.55), steel = '#5b5d5f';
+  const bars = [0.245, 0.43, 0.585, 0.775];
+  const y0 = 0.1, y1 = H - 0.1;
+  for (let i = 0; i < 4; i++) {
+    const z = zu(bars[i]);
+    if (det === 'high') f.cyl(out(0.045), y0, z, 0.0135, y1 - y0, 'metal_painted', { ...P, tint: paint, seg: 6, caps: false });
+    else f.box(out(0.045), y0, z, 0.026, y1 - y0, 0.026, 'metal_painted', { ...P, tint: paint });
+    if (det === 'far') continue;
+    // Hebel (Flachstahl) zur Türmitte hin, Halter am Ende
+    const hy = yv(i % 2 ? 0.76 : 0.69), hl = i % 2 ? 0.16 : 0.34, dir = i < 2 ? 1 : 1;
+    const zEnd = zu(bars[i] + dir * hl / dw);
+    f.box(out(0.062), hy - 0.018, (z + zEnd) / 2, 0.014, 0.036, Math.abs(zEnd - z) + 0.02, 'metal_painted', { ...P, tint: paint });
+    f.box(out(0.05), hy - 0.04, zEnd, 0.04, 0.08, 0.05, 'metal_painted', { ...P, tint: dark });
+    if (det !== 'high') continue;
+    f.box(out(0.04), hy - 0.035, z, 0.06, 0.07, 0.06, 'metal_painted', { ...P, tint: paint });          // Nabe
+    for (const gy of [0.45, H - 0.55]) f.box(out(0.03), gy, z, 0.04, 0.045, 0.06, 'metal_painted', { ...P, tint: dark });   // Führungen
+    for (const ky of [0.0, H - 0.075]) f.box(out(0.04), ky, z, 0.07, 0.075, 0.1, 'metal_galvanized', { ...P });          // Schließkloben
+  }
+  if (det !== 'high') return;
+  // Scharniere an den Außenkanten beider Flügel
+  for (const u of [0.035, 0.965]) for (const hy of [0.35, H / 2 - 0.05, H - 0.45]) f.box(out(0.02), hy, zu(u), 0.04, 0.09, 0.1, 'metal_painted', { ...P, tint: dark });
+  // Türrahmen: Kopf und Schwelle (bündig mit den Eckpfosten)
+  f.box(out(0.0), H - 0.13, 0, 0.05, 0.13, W - 0.3, 'metal_painted', { ...P, tint: shade(color, 0.72) });
+  f.box(out(0.0), 0, 0, 0.05, 0.12, W - 0.3, 'metal_painted', { ...P, tint: shade(color, 0.62) });
 }
 
 // ---------------------------------------------------------------------------

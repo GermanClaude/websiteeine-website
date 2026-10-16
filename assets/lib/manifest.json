@@ -2,7 +2,7 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-15T21:24:02.353Z",
+ "generated": "2026-10-16T06:27:51.775Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
@@ -8255,10 +8255,10 @@
    "alpha": false,
    "hero": false,
    "stats": {
-    "avgColor": "#846550",
+    "avgColor": "#8a6952",
     "avgRoughness": 0.6,
     "avgMetalness": 0.4,
-    "avgAO": 0.934,
+    "avgAO": 0.949,
     "coverage": 1
    },
    "tiers": {
@@ -8267,9 +8267,9 @@
      "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_normal.ktx2",
      "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_orm.ktx2",
      "sizes": {
-      "albedo": 56799,
-      "normal": 93014,
-      "orm": 31763
+      "albedo": 54782,
+      "normal": 89916,
+      "orm": 29275
      },
      "gpuFiles": {
       "albedo": {
@@ -8288,7 +8288,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 181576,
+     "bytes": 173973,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -8300,9 +8300,9 @@
      "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_normal.ktx2",
      "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_orm.ktx2",
      "sizes": {
-      "albedo": 165171,
-      "normal": 262577,
-      "orm": 99576
+      "albedo": 157171,
+      "normal": 253788,
+      "orm": 89175
      },
      "gpuFiles": {
       "albedo": {
@@ -8321,7 +8321,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 527324,
+     "bytes": 500134,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -8765,7 +8765,7 @@
     "avgColor": "#516466",
     "avgRoughness": 0.6,
     "avgMetalness": 0.4,
-    "avgAO": 0.934,
+    "avgAO": 0.949,
     "coverage": 1
    },
    "tiers": {
@@ -8774,9 +8774,9 @@
      "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_normal.ktx2",
      "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_orm.ktx2",
      "sizes": {
-      "albedo": 53135,
-      "normal": 93014,
-      "orm": 31763
+      "albedo": 51194,
+      "normal": 89916,
+      "orm": 29275
      },
      "gpuFiles": {
       "albedo": {
@@ -8795,7 +8795,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 53135,
+     "bytes": 51194,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -8811,9 +8811,9 @@
      "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_normal.ktx2",
      "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_orm.ktx2",
      "sizes": {
-      "albedo": 152558,
-      "normal": 262577,
-      "orm": 99576
+      "albedo": 143279,
+      "normal": 253788,
+      "orm": 89175
      },
      "gpuFiles": {
       "albedo": {
@@ -8832,7 +8832,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 152558,
+     "bytes": 143279,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -8868,7 +8868,7 @@
     "avgColor": "#6a3a32",
     "avgRoughness": 0.6,
     "avgMetalness": 0.4,
-    "avgAO": 0.934,
+    "avgAO": 0.949,
     "coverage": 1
    },
    "tiers": {
@@ -8877,9 +8877,9 @@
      "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_normal.ktx2",
      "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_orm.ktx2",
      "sizes": {
-      "albedo": 49153,
-      "normal": 93014,
-      "orm": 31763
+      "albedo": 47226,
+      "normal": 89916,
+      "orm": 29275
      },
      "gpuFiles": {
       "albedo": {
@@ -8898,7 +8898,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 49153,
+     "bytes": 47226,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -8914,9 +8914,9 @@
      "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_normal.ktx2",
      "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_orm.ktx2",
      "sizes": {
-      "albedo": 135097,
-      "normal": 262577,
-      "orm": 99576
+      "albedo": 126724,
+      "normal": 253788,
+      "orm": 89175
      },
      "gpuFiles": {
       "albedo": {
@@ -8935,7 +8935,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 135097,
+     "bytes": 126724,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -8971,7 +8971,7 @@
     "avgColor": "#6e6a4a",
     "avgRoughness": 0.6,
     "avgMetalness": 0.4,
-    "avgAO": 0.934,
+    "avgAO": 0.949,
     "coverage": 1
    },
    "tiers": {
@@ -8980,9 +8980,9 @@
      "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_normal.ktx2",
      "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_orm.ktx2",
      "sizes": {
-      "albedo": 54127,
-      "normal": 93014,
-      "orm": 31763
+      "albedo": 51695,
+      "normal": 89916,
+      "orm": 29275
      },
      "gpuFiles": {
       "albedo": {
@@ -9001,7 +9001,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 54127,
+     "bytes": 51695,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -9017,9 +9017,9 @@
      "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_normal.ktx2",
      "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_orm.ktx2",
      "sizes": {
-      "albedo": 156753,
-      "normal": 262577,
-      "orm": 99576
+      "albedo": 146421,
+      "normal": 253788,
+      "orm": 89175
      },
      "gpuFiles": {
       "albedo": {
@@ -9038,7 +9038,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 156753,
+     "bytes": 146421,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -9071,10 +9071,10 @@
    "alpha": false,
    "hero": false,
    "stats": {
-    "avgColor": "#b6ae9b",
+    "avgColor": "#b6af9b",
     "avgRoughness": 0.6,
     "avgMetalness": 0.4,
-    "avgAO": 0.934,
+    "avgAO": 0.949,
     "coverage": 1
    },
    "tiers": {
@@ -9083,9 +9083,9 @@
      "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_normal.ktx2",
      "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_512_orm.ktx2",
      "sizes": {
-      "albedo": 61132,
-      "normal": 93014,
-      "orm": 31763
+      "albedo": 58973,
+      "normal": 89916,
+      "orm": 29275
      },
      "gpuFiles": {
       "albedo": {
@@ -9104,7 +9104,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 61132,
+     "bytes": 58973,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -9120,9 +9120,9 @@
      "normal": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_normal.ktx2",
      "orm": "textures/vh_ctr_rost_tuer/vh_ctr_rost_tuer_1024_orm.ktx2",
      "sizes": {
-      "albedo": 182571,
-      "normal": 262577,
-      "orm": 99576
+      "albedo": 174496,
+      "normal": 253788,
+      "orm": 89175
      },
      "gpuFiles": {
       "albedo": {
@@ -9141,7 +9141,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 182571,
+     "bytes": 174496,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -15542,7 +15542,7 @@
  "totals": {
   "textures": {
    "files": 559,
-   "bytes": 73656673
+   "bytes": 73577362
   },
   "hdri": {
    "files": 32,
@@ -15554,11 +15554,11 @@
   },
   "all": {
    "files": 702,
-   "bytes": 146476264
+   "bytes": 146396953
   },
   "byTier": {
-   "512": 28518330,
-   "1024": 85528934,
+   "512": 28502268,
+   "1024": 85465685,
    "2048": 32429000
   },
   "counts": {

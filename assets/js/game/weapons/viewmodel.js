@@ -674,6 +674,14 @@ export class ViewModel {
    * world.lighting gelesen, damit Anpassungen der Kartenbeleuchtung sofort ankommen.
    */
   _applyIntensities() {
+    this._applyIntensitiesRaw();
+    // 16.10.: Waffe/Arme bekamen Himmels- UND Umgebungslicht voll (bei Bewölkung 2,2 + 2,5) – ≈ 2,5× heller als gleich
+    // helle Flächen der Welt (schwarze Waffe grau, dunkle Handschuhe weiß). Fülllicht auf Weltniveau absenken.
+    this.hemi.intensity *= VM_FILL;
+    this.scene.environmentIntensity *= VM_FILL;
+  }
+
+  _applyIntensitiesRaw() {
     const L = this._lighting, pr = this._probe;
     const sunBase = L ? (L.sunIntensity ?? 2.5) * 0.85 : 2.3;
     const hemiBase = L ? (L.hemiIntensity ?? 0.9) * 1.1 : 1.0;
@@ -1790,6 +1798,8 @@ export class ViewModel {
 
 /** Empfohlenes vertikales Sichtfeld der Viewmodel-Kamera (Positionen sind darauf abgestimmt). */
 ViewModel.FOV = 54;
+// Anteil des Himmels-/Umgebungslichts der Ego-Ansicht relativ zur Welt (siehe _applyIntensities)
+const VM_FILL = 0.42;
 
 // Welle 2 (Arsenal): zusätzliche Choreografien (Nachladen je Mechanik, Inspizieren je Klasse, Platte, Klingenhiebe);
 // Animationen 09.10.: Nachladen mit Varianten, Magazin entlang der Schachtachse (anim/reloads.js, anim/magwell.js),

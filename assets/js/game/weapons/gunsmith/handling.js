@@ -155,7 +155,9 @@ const absSprint = (std, hip, hipRot) => ({
 const bcRifle = (key, hip, hipRot, extra = {}) => ({ hip, hipRot, ...absSprint(HANDLING[key], hip, hipRot), crouchPos: [-0.008, -0.004, 0.01], crouchRot: [0, 0, 0.05], ...extra });
 // Gewehre einheitlich (Griffpunkt-Ursprung macht die Modelle vergleichbar): tiefer und näher an der Brust, Mündung
 // zur Bildmitte, leicht gekantet; Pistolen beidhändig vor der Brust, Mündung gerade nach vorn.
-const BC_RIFLE_HIP = [0.075, -0.23, -0.41], BC_RIFLE_ROT = [0.035, 0.05, 0.1];
+// Nutzer 16.10.: Haltung wie im Video-Vorbild – Waffe groß und nah, rechts unten, Mündung zur Bildmitte, deutlich
+// gekantet (rechte Seite mit Magazinschacht/Auswurffenster zur Kamera), Schaft läuft unter den rechten Bildrand
+const BC_RIFLE_HIP = [0.135, -0.165, -0.26], BC_RIFLE_ROT = [0.1, 0.1, 0.3];
 const BC_PISTOL = { crouchPos: [-0.006, -0.003, 0.006], crouchRot: [0, 0, 0.04] };
 export const BODYCAM = {
   m17: bcRifle('m17', BC_RIFLE_HIP, BC_RIFLE_ROT),

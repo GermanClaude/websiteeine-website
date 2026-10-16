@@ -885,7 +885,7 @@ function backdrop(b) {
       const color = colors[(r * 5 + c * 3 + k) % colors.length];
       // Kollision wie container() auf den höheren Stufen (Mehrspieler: Kollision unabhängig von der Grafikstufe)
       if (b.lookQuality === 'low') { b.box(x, k * H, z, 12.19, H - 0.02, 2.44, 'container', { tint: color, uv: 'local', collide: false, minimap: false, grad: false }); b.solid(x, k * H, z, 12.19, H, 2.44, { minimap: false }); }
-      else container(b, x, k * H, z, { len: 12.19, ry: 0, color, minimap: false });
+      else container(b, x, k * H, z, { len: 12.19, ry: 0, color, minimap: false, detail: 'far' });
     }
     b.box(x, 0, z, 12.2, n * H, 2.44, 'black', { visual: false, collide: false, minimap: false });
   }
@@ -1007,7 +1007,7 @@ function ship(b) {
   // Ladung
   for (let r = 0; r < 9; r++) for (let c = 0; c < 4; c++) {
     const n = 2 + ((r + c * 2) % 3);
-    for (let k = 0; k < n; k++) container(b, x0 + 2.2 + c * 2.5, 6.9 + k * H, z0 + 18 + r * 12.4, { len: 12.19, ry: Math.PI / 2, color: ['#c8402f', '#2d5f94', '#3e7a4c', '#d9762a', '#e3e1da', '#8d9399'][(r + c + k) % 6], minimap: false });
+    for (let k = 0; k < n; k++) container(b, x0 + 2.2 + c * 2.5, 6.9 + k * H, z0 + 18 + r * 12.4, { len: 12.19, ry: Math.PI / 2, color: ['#c8402f', '#2d5f94', '#3e7a4c', '#d9762a', '#e3e1da', '#8d9399'][(r + c + k) % 6], minimap: false, detail: 'far' });
   }
   // Brückenhaus mit Fensterbändern
   b.boxMM(x0 + 1, 6.9, z0 + 2, x1 - 1, 20, z0 + 14, 'plaster_white', { tint: '#e8e4dc', collide: false, minimap: false, grad: false });

@@ -597,6 +597,15 @@ def build(sp):
             img = np.concatenate([img] * reps, axis=0)
     elif mode == 'random':
         img = make_tileable(img, sp.get('overlap', 0.18), sp.get('overlap', 0.18))
+    for u0, u1, v0, v1 in sp.get('extendDown', []):
+        # Bildfehler am Rand (z. B. Himmel in der Ecke der Entzerrung): Zeile unterhalb nach oben fortsetzen
+        h_, w_ = img.shape[:2]
+        x0, x1, y0, y1 = int(u0 * w_), int(u1 * w_), int(v0 * h_), int(v1 * h_)
+        img[y0:y1, x0:x1] = img[y1:y1 + 1, x0:x1]
+    if sp.get('erase'):
+        # Teile, die als 3D-Geometrie nachgebaut werden (Container: Verriegelungsstangen, Hebel), aus dem Bild nehmen:
+        # je Zeile linear zwischen den Nachbarn links/rechts füllen – waagerechte Sicken/Streifen laufen durch
+        img = erase_rows(img, sp['erase'], sp.get('eraseNoise', 0.02), sp.get('seed', 1))
     if sp.get('recolor'):
         # Umfärben (gleiche Struktur, andere Lackfarbe): Helligkeitsdetail × Zielfarbe; Rost/Flecken behalten ihren Anteil
         h = sp['recolor'].lstrip('#')
@@ -630,6 +639,34 @@ def build(sp):
         hrow = ribs(w_px, period, sp.get('rib', {}).get('depth', 6.0), out, sp.get('rib', {}).get('shape', 'trapez'))
         hgt = hgt * 0.4 + hrow[None, :]
     return write_set(sp, alb, hgt, period)
+
+
+def erase_rows(img, rects, noise=0.02, seed=1):
+    """rects: [[u0, u1, v0, v1], …] als Bildanteile (v von oben). Füllt zeilenweise zwischen den Spalten u0/u1."""
+    out = img.copy()
+    h, w = img.shape[:2]
+    rng = np.random.default_rng(seed + 31)
+    for u0, u1, v0, v1 in rects:
+        x0, x1 = max(1, int(u0 * w)), min(w - 2, int(u1 * w))
+        y0, y1 = max(0, int(v0 * h)), min(h, int(v1 * h))
+        if x1 <= x0 or y1 <= y0:
+            continue
+        # Randwerte aus 3 Spalten gemittelt (ruhiger), dazwischen linear + leichtes Korn
+        left = out[y0:y1, x0 - 1:x0 + 0].mean(axis=1) if x0 >= 1 else out[y0:y1, x0]
+        left = img[y0:y1, max(0, x0 - 3):x0].mean(axis=1)
+        right = img[y0:y1, x1:min(w, x1 + 3)].mean(axis=1)
+        t = np.linspace(0, 1, x1 - x0, dtype=np.float32)[None, :, None]
+        fill = left[:, None, :] * (1 - t) + right[:, None, :] * t
+        g = cv2.GaussianBlur(rng.normal(0, 1, fill.shape[:2]).astype(np.float32), (0, 0), 1.2)
+        fill = fill * (1 + noise * g[..., None])
+        # Feinstruktur (Lack, Dellen, Sicken-Kanten) aus dem gleich hohen Nachbarstreifen übernehmen statt glatt zu verwischen
+        bw = x1 - x0
+        sx = x0 - bw if x0 - bw >= 0 else x1
+        if sx + bw <= w:
+            src = out[y0:y1, sx:sx + bw].copy()
+            fill = fill + 0.8 * (src - cv2.GaussianBlur(src, (0, 0), 5))
+        out[y0:y1, x0:x1] = fill
+    return out
 
 
 def write_set(sp, alb, hgt, period):

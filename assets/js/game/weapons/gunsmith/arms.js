@@ -1146,12 +1146,12 @@ const texSize = q => (q === 'low' ? 256 : q === 'medium' ? 512 : 1024);
  * ihren Farbton (Grau, Coyote, Braun, Oliv, Dunkeloliv, Elite schwarz), Sättigung ≤ 0,32, Helligkeit 0,2–0,42
  * (Untergrenze: schwarzer Handschuh säuft im Schatten nicht ab; Glanzsaum im Shader hält die Kontur).
  */
-const GLOVE_DEFAULT = '#383a3d';
+const GLOVE_DEFAULT = '#2a2c2f';   // 16.10.: schwarze Handschuhe wie im Video
 const _hsl = {};
 export function gloveTone(hex, out = new THREE.Color()) {
   if (!hex || /^#?f{6}$/i.test(hex)) return out.set(GLOVE_DEFAULT);
   out.set(hex).getHSL(_hsl, THREE.SRGBColorSpace);
-  return out.setHSL(_hsl.h, Math.min(_hsl.s, 0.32), THREE.MathUtils.clamp(_hsl.l * 0.82, 0.2, 0.42), THREE.SRGBColorSpace);
+  return out.setHSL(_hsl.h, Math.min(_hsl.s, 0.32), THREE.MathUtils.clamp(_hsl.l * 0.82, 0.14, 0.42), THREE.SRGBColorSpace);
 }
 
 // Handschuh-Shader (hands-v3): MeshStandardMaterial + Einschübe. Masken je Ecke (gloveMask: Leder, Polster, Bündchen,
