@@ -14,7 +14,7 @@
 //      aus → Lage = 'vo' ± 0,5 m, keine Verstöße; Einsteigen aus > 40 m → 'vn' weit.
 //   8. thirdPerson aus → Clients bieten keine Außenansicht an; Bert schließt die Seite im Panzer → Sitz frei ≤ 5 s.
 // Voraussetzung: Server auf 8765 (npx http-server -p 8765 -s -c-1 .) und node tools/nostr-relay.mjs 7777.
-// Aufruf: node tools/mp-vehicle-test.mjs [--size=640x360] [--quality=low] [--params="netlag=80"] [--limit=20 (min)]
+// Aufruf: node tools/mp-vehicle-test.mjs [--size=640x360] [--quality=low] [--params="netlag=80"] [--limit=20 (min)] [--stop=fahrt]
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 import { readFileSync, mkdirSync } from 'node:fs';
 
@@ -31,6 +31,7 @@ const ts = () => `${((Date.now() - T0) / 1000).toFixed(0).padStart(4)} s`;
 const LIMIT = (Number(opt.limit) || 20) * 60 * 1000; // ohne Lastwartezeit vor dem Start
 
 let fail = 0;
+const STOP = new Error('stop'); // --stop=fahrt: nach Prüfung 3 beenden (Diagnose)
 let count = 0;
 const check = (ok, text) => { count++; console.log(`${ts()} ${ok ? 'OK  ' : 'FEHL'} ${text}`); if (!ok) fail++; return ok; };
 const info = (text) => console.log(`${ts()}      ${text}`);
@@ -330,11 +331,25 @@ try {
   await ev(anna, () => { const S = window.__game.input.simulate; S.press('move_forward'); }); // 2. Gang
   const gear = await until(host, (vid) => { const v = window.__game.vehicles.list.find((x) => x.netId === vid); return v.body.drive.gear >= 1 ? v.body.drive.gear : null; }, tA.vid, 30000);
   info(`Host: Gang ${gear} eingelegt (Anna hält W = Vollgas)`);
-  const moved = await until(host, ([vid, a]) => {
-    const v = window.__game.vehicles.list.find((x) => x.netId === vid), p = v.body.pos;
-    const d = Math.hypot(p.x - a[0], p.z - a[2]);
-    return d >= 20 ? d : null;
-  }, [tA.vid, p0], 600000, 500);
+  // Fahrzustand beim Host alle 60 s (Diagnose, falls der Panzer nicht vorankommt)
+  const driveState = () => ev(host, ([vid, a]) => {
+    const G = window.__game, v = G.vehicles.list.find((x) => x.netId === vid), b = v.body, D = b.drive, c = b.controls;
+    const ds = v.seats.find((s) => s.def.drive), it = ds.intent, p = b.pos;
+    return {
+      d: +Math.hypot(p.x - a[0], p.z - a[2]).toFixed(2), kmh: +(b.speed * 3.6).toFixed(1), gear: D.gear, tg: D.targetGear, rpm: Math.round(D.rpm),
+      thr: +(c.throttle || 0).toFixed(2), brake: c.brake, hb: !!c.handbrake, box: c.gearbox, itThr: +(it.throttle || 0).toFixed(2), itBrake: it.brake,
+      drv: ds.actor ? ds.actor.netId : null, live: G.vehicles.live, sleep: !!b.sleeping, grounded: +b.grounded.toFixed(2), imm: !!b.mods.immobile, t: +G.time.elapsed.toFixed(1),
+    };
+  }, [tA.vid, p0]);
+  let moved = null;
+  for (let k = 0; k < 10 && !moved; k++) {
+    moved = await until(host, ([vid, a]) => {
+      const v = window.__game.vehicles.list.find((x) => x.netId === vid), p = v.body.pos;
+      const d = Math.hypot(p.x - a[0], p.z - a[2]);
+      return d >= 20 ? d : null;
+    }, [tA.vid, p0], 60000, 500);
+    if (!moved) info(`Fahrt läuft (Host): ${JSON.stringify(await driveState())}`);
+  }
   await ev(anna, () => { const S = window.__game.input.simulate; S.release('move_forward'); S.press('jump'); });
   // runter bis N (so oft S tippen, wie der Gang hoch ist), dabei bremsen bis Stillstand
   const gNow = await ev(host, (vid) => window.__game.vehicles.list.find((x) => x.netId === vid).body.drive.targetGear, tA.vid);
@@ -356,6 +371,7 @@ try {
   const annaCorr = (await ev(anna, () => window.__mv.corrects)) - annaCorr0;
   check(acDrive.length === 0 && annaCorr === 0, `keine Verstöße/'correct' für Anna während der Fahrt (${acDrive.join(', ') || '–'}, correct ${annaCorr})`);
   await shot(bert, '3-bert-nach-fahrt');
+  if (opt.stop === 'fahrt') throw STOP;
 
   // ================================================================== 4. Schuss auf den feindlichen Panzer
   // Feindpanzer frei sichtbar vor den eigenen stellen (Host), Bert zielt über seinen Blick (Optik-Sicht = Lafette)
@@ -619,8 +635,8 @@ try {
 
   for (const [n, list] of Object.entries(errors)) check(list.length === 0, `${n}: keine Seiten-/Konsolenfehler${list.length ? ` (${list.slice(0, 3).join(' | ')})` : ''}`);
 } catch (err) {
-  console.error(err);
-  fail++;
+  if (err === STOP) info('Abbruch nach der Fahrprüfung (--stop=fahrt)');
+  else { console.error(err); fail++; }
 } finally {
   clearTimeout(killer);
   await browser.close();
