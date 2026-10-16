@@ -212,7 +212,8 @@ try {
       const a = actorId === G.net.selfId ? G.player : G.net.actorById(actorId);
       if (!v || !a) return null;
       if (moveVehicle) {
-        // Stellplatz mit freier Bahn nach vorn (≥ 30 m in Brust- und Dachhöhe, drei Spuren) – die Fahrprüfung braucht 20 m
+        // Stellplatz mit freier Bahn nach vorn (≥ 30 m in Ketten-, Brust- und Dachhöhe, drei Spuren über die ganze Wannenbreite,
+        // Grundfläche in der gewählten Richtung frei) – die Fahrprüfung braucht 20 m
         // geradeaus; zu enge Plätze werden ausgeschlossen und weiter gesucht
         const others = V.list.filter((o) => o !== v).map((o) => o.body.pos);
         const rejected = [];
@@ -226,11 +227,15 @@ try {
           if (!spot) { n = Math.floor(n / 10) * 10 + 9; continue; }
           const T = spot.position.constructor;
           let best = spot.yaw, bestLen = -1;
+          const hw = v.def.hullBox[3] + 0.15; // Bahnbreite = Wanne (Ketten außen) + Rand
           for (let k = 0; k < 16; k++) {
             const yaw = (k / 16) * Math.PI * 2;
+            // findSpot prüft die Grundfläche nur für seine eigene Ausrichtung – gedreht erneut prüfen (sonst steckt die Wanne
+            // seitlich in einem Container und der Panzer kommt nicht los)
+            if (!V._clear(spot.position, yaw, v.def)) continue;
             const d = new T(-Math.sin(yaw), 0, -Math.cos(yaw));
             let len = 40;
-            for (const h of [0.8, 2.0]) for (const side of [-1.4, 0, 1.4]) {
+            for (const h of [0.5, 1.2, 2.0]) for (const side of [-hw, 0, hw]) {
               const o = spot.position.clone().add(new T(Math.cos(yaw) * side, h, -Math.sin(yaw) * side));
               const hit = V._rc ? V._rc.orig.call(G.world, o, d, 40) : G.world.raycast(o, d, 40);
               if (hit && hit.distance < len) len = hit.distance;
@@ -338,7 +343,7 @@ try {
     return {
       d: +Math.hypot(p.x - a[0], p.z - a[2]).toFixed(2), kmh: +(b.speed * 3.6).toFixed(1), gear: D.gear, tg: D.targetGear, rpm: Math.round(D.rpm),
       thr: +(c.throttle || 0).toFixed(2), brake: c.brake, hb: !!c.handbrake, box: c.gearbox, itThr: +(it.throttle || 0).toFixed(2), itBrake: it.brake,
-      drv: ds.actor ? ds.actor.netId : null, live: G.vehicles.live, sleep: !!b.sleeping, grounded: +b.grounded.toFixed(2), imm: !!b.mods.immobile, t: +G.time.elapsed.toFixed(1),
+      pos: [p.x, p.y, p.z].map((x) => +x.toFixed(2)), yaw: +b.yaw().toFixed(2), drv: ds.actor ? ds.actor.netId : null, live: G.vehicles.live, sleep: !!b.sleeping, grounded: +b.grounded.toFixed(2), imm: !!b.mods.immobile, t: +G.time.elapsed.toFixed(1),
     };
   }, [tA.vid, p0]);
   let moved = null;

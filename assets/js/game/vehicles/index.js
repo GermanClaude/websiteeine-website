@@ -284,12 +284,23 @@ export class VehicleSystem {
   /** Beide Panzer der Runde (Team A, Team B; ohne Doppelte). */
   get tankTypes() { return [...new Set([this.tankTypeFor('A'), this.tankTypeFor('B')])]; }
 
-  /** Zivile Stellplätze der Karte (world.civilVehicles; ?vehicles=0 schaltet auch sie ab). */
+  /**
+   * Zivile Stellplätze der Karte (world.civilVehicles; ?vehicles=0 schaltet auch sie ab) – reihum je Typ geordnet, damit
+   * unter der Stufen-Obergrenze (CIV_CAP) jeder Typ vertreten bleibt (Hafen low: auch PKW, nicht nur die ersten Stapler).
+   */
   _civilEntries() {
     const G = this.G, w = this.world;
     const param = G.params && typeof G.params.get === 'function' ? G.params.get('vehicles') : null;
     if (param === '0' || !w || !Array.isArray(w.civilVehicles)) return [];
-    return w.civilVehicles.filter((e) => e && VEHICLES[e.type] && VEHICLES[e.type].civil);
+    const byType = new Map();
+    for (const e of w.civilVehicles) {
+      if (!e || !VEHICLES[e.type] || !VEHICLES[e.type].civil) continue;
+      if (!byType.has(e.type)) byType.set(e.type, []);
+      byType.get(e.type).push(e);
+    }
+    const out = [], lists = [...byType.values()];
+    for (let i = 0; out.length < lists.reduce((n, l) => n + l.length, 0); i++) for (const l of lists) if (i < l.length) out.push(l[i]);
+    return out;
   }
 
   /** Vorlagen der Zivilfahrzeuge (je Typ und Lackvariante) vorbauen. */
@@ -306,7 +317,8 @@ export class VehicleSystem {
     let entries = Array.isArray(w.vehicleSpawns) ? w.vehicleSpawns : null;
     if (param === '0' || this.civilOnly) entries = null;
     else if (!entries && (param === '1' || (G.match && G.match.vehicles))) entries = this.autoSpawns();
-    if (civil.length) { this._prepareCivil(civil); for (const e of civil) this.registerSpawn(e); }
+    // Vorlagen nur für Plätze unter der Obergrenze (gekappte Plätze bleiben dauerhaft leer, _spawnAt)
+    if (civil.length) { this._prepareCivil(civil.slice(0, CIV_CAP[this.quality] || 16)); for (const e of civil) this.registerSpawn(e); }
     if (!entries || !entries.length) return;
     // Panzergeneration (Raum/Lobby „Panzer“): Kampfpanzer-Plätze der Karte bekommen den Panzer der gewählten Epoche
     entries = entries.filter((e) => e && VEHICLES[e.type] && !e.secret).map((e) => {
