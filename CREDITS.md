@@ -105,7 +105,7 @@ Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 | Ziegelmauer (Video, Werk) | `vw_ziegel` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Dunkelblaue Blechfassade (Video, Werk) | `vw_blau` | NULLPUNKT (aus der Video-Vorlage des Nutzers) | [video]() | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 
-## HDRIs (8)
+## HDRIs (11)
 
 | Asset | ID | Urheber:in | Quelle | Lizenz |
 |---|---|---|---|---|
@@ -117,6 +117,9 @@ Künstler:innen, die ihre Arbeit der Allgemeinheit schenken.
 | Burnt Warehouse | `burnt_warehouse` | Sergej Majboroda | [Poly Haven](https://polyhaven.com/a/burnt_warehouse) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Industrial Pipe & Valve 01 | `industrial_pipe_and_valve_01` | Philip Modin | [Poly Haven](https://polyhaven.com/a/industrial_pipe_and_valve_01) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 | Debris Basement Corridor | `debris_basement_corridor` | Elvis Posa | [Poly Haven](https://polyhaven.com/a/debris_basement_corridor) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Kloofendal 48d Partly Cloudy (Pure Sky) | `kloofendal_48d_partly_cloudy_puresky` | Greg Zaal, Jarod Guest | [Poly Haven](https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Kloofendal 38d Partly Cloudy (Pure Sky) | `kloofendal_38d_partly_cloudy_puresky` | Greg Zaal, Jarod Guest | [Poly Haven](https://polyhaven.com/a/kloofendal_38d_partly_cloudy_puresky) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
+| Kloofendal Overcast (Pure Sky) | `kloofendal_overcast_puresky` | Greg Zaal, Jarod Guest | [Poly Haven](https://polyhaven.com/a/kloofendal_overcast_puresky) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.de) |
 
 ## Modelle (57)
 

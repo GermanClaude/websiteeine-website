@@ -31,9 +31,9 @@ export default {
   ambience: 'harbor',
   // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
   // Büro-/Pförtnerwände: glatt gestrichener Putz statt Außenputz
-  // Grafik-Vorlage Etappe 0: HDRI zwartkops (klarer Tag) statt freight_station (Abendgold; bleibt für „Abend“)
+  // Grafik-Vorlage Etappe 0: Tag-HDRI statt freight_station (Abendgold; bleibt für „Abend“); 16.10.: Foto-Himmel kloofendal_38d (dunstig wie im Video)
   // Grafik-Vorlage 15.10.: Boden = Rissbeton 1:1 aus dem Video (Einstellung Containergasse), Kachel 4 m
-  assets: { hdri: 'zwartkops_straight_morning', materials: { plaster_white: { id: 'plaster_painted', color: 1.6 }, concrete: { id: 'vh_kai', color: 0.34, macro: [0.12, 0.06, 0.1] } } },
+  assets: { hdri: 'kloofendal_38d_partly_cloudy_puresky', materials: { plaster_white: { id: 'plaster_painted', color: 1.6 }, concrete: { id: 'vh_kai', color: 0.3, macro: [0.12, 0.06, 0.1] } } },
   defaultSurface: 'concrete',
   lighting: {
     // Grafik-Vorlage Etappe 0 (15.10.): klarer Nachmittag wie im Video statt Goldener Stunde – neutral-weiße Sonne,
@@ -41,14 +41,15 @@ export default {
     sun: { elevation: 34, azimuth: 236, color: '#fff2e2', intensity: 3.7 },
     // hdri*: Werte mit HDRI-Umgebung (Sonne gedeckelt). Himmel prozedural (Video: blasser Dunsthimmel mit Wolken, das
     // Foto war zu tiefblau); Füllicht kräftiger als zur Abendzeit, damit Schatten grau statt schwarz bleiben (Video)
-    sky: { turbidity: 5, rayleigh: 1.4, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.5, clouds: { coverage: 0.55, density: 0.45, scale: 0.0002, elevation: 0.55 }, hazeHigh: 0.2, hazeAmount: 1, hdri: false },
+    // 16.10. am Video gemessen: Himmel dort hell und fast neutral (L ≈ 0,6, Sättigung 0,03; bei uns 0,52 / 0,09) → trüber, weniger Rayleigh-Blau, heller
+    sky: { turbidity: 8, rayleigh: 0.85, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.72, clouds: { coverage: 0.55, density: 0.45, scale: 0.0002, elevation: 0.55 }, hazeHigh: 0.3, hazeAmount: 1, hdriSat: 0.6, hdriIntensity: 1.7 }, // 16.10.: Foto-Himmel (Poly Haven, CC0) statt Preetham-Wolken; Preetham bleibt Ersatz
     // Umgebung ohne Mie-Hotspot (lighting.js begrenzt die Env-Map) → Füllicht etwas angehoben
     // Füllicht nach Messung am Video (15.10.): Schatten dort ≈ 1/5 der Sonnenseite und fast neutral grau (bei uns
     // vorher 1/16 und blaustichig) → Himmels-/Umgebungslicht ≈ ×2,5, weniger blau
-    hemi: { sky: '#cfd4d8', ground: '#7a756d', intensity: 1.6, hdriIntensity: 1.3 },
+    hemi: { sky: '#d6d6d0', ground: '#7a756d', intensity: 1.6, hdriIntensity: 1.3 }, // 16.10.: Schatten im Video neutral bis leicht grün, nicht blau
     env: { intensity: 1.8, ground: '#77736c', groundIntensity: 0.6, tint: '#f2f1ee', hdriIntensity: 1.5, hdriTint: '#ece4d8' }, // Himmelsblau aus dem Foto dämpfen
     // Höhennebel: kühler grauer Hafendunst über dem Wasser, dichter am Boden (Skalenhöhe ≈ 30 m)
-    fog: { color: '#c4cad1', near: 70, far: 420, density: 0.003, falloff: 0.033, start: 25, sun: 0.35, sunExp: 6 }, // 15.10.: klarer (Video: Hallen in 30–80 m kaum verschleiert)
+    fog: { color: '#c8cac6', near: 70, far: 420, density: 0.003, falloff: 0.033, start: 25, sun: 0.35, sunExp: 6 }, // 15.10.: klarer (Video: Hallen in 30–80 m kaum verschleiert)
     shadow: { size: 42, radius: 2.8 }, // Etappe 0: etwas weichere Schattenkanten (Video)
     // Sonden-Gitter (Innenräume, Rückprall), Atmosphäre (Strahlen durch die Hallentore, Staub)
     probes: { bounce: 1.1 },

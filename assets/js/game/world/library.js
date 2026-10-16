@@ -38,12 +38,13 @@ export const LIB_MATERIALS = {
   plaster_blue: { id: 'plaster_blue_weathered', color: 1.05 },
   plaster_damaged: { id: 'plaster_damaged_brick', color: 1.1 },
   plaster_patched: { id: 'plaster_worn_patched', color: 1.3 },
-  brick: { id: 'vw_ziegel', color: 1.0 }, // Grafik-Vorlage 15.10.: echte Ziegel aus dem Video (Walzhalle), neu verlegt (vorher v_brick)
+  brick: { id: 'vw_ziegel', color: [0.8, 1.04, 1.04] }, // 16.10.: Video-Ziegel weniger knallrot (gemessen sat 0,48, bei uns 0,68) // Grafik-Vorlage 15.10.: echte Ziegel aus dem Video (Walzhalle), neu verlegt (vorher v_brick)
   brick_dark: { id: 'brick_dark', color: 2.0 },
   stone_wall: { id: 'sandstone_blocks', color: 1.0 },
-  cobble: { id: 'vp_pflaster', color: 1.05, macro: [0.1, 0.05, 0.12] }, // Grafik-Vorlage 15.10.: echte Pflastersteine aus dem Video-Platz (Läuferverband, keine Kreuzfugen; vorher v_setts)
+  // 16.10. am Video-Platz nachgemessen: Steine ≈ 14 cm (nicht 27 cm) → Satz auf halbe Weltgröße, etwas heller wie im Video
+  cobble: { id: 'vp_pflaster', color: 1.2, sizeM: 2.04, macro: [0.1, 0.05, 0.12] }, // Grafik-Vorlage 15.10.: echte Pflastersteine aus dem Video-Platz (Läuferverband, keine Kreuzfugen; vorher v_setts)
   paving: { id: 'paving_flagstone', color: [1.45, 1.6, 1.75] }, // Weißabgleich Richtung Kalkstein
-  roof_tiles: { id: 'v_roof', color: 1.0 }, // Grafik-Vorlage: rot-orange Hohlpfannen wie im Video (vorher roof_clay_tiles)
+  roof_tiles: { id: 'v_roof', color: [0.76, 0.93, 1.0] }, // 16.10. gemessen: Video-Dach #785b4d (braunes Terrakotta), bei uns #a2624d → // Grafik-Vorlage: rot-orange Hohlpfannen wie im Video (vorher roof_clay_tiles)
   wood_planks: { id: 'wood_planks', color: [1.2, 1.32, 1.5] }, // etwas entsättigt (Fotoscan sehr orange)
   wood_dark: { id: 'wood_planks_dark', color: 0.8 },
   wood_crate: { id: 'wood_crate', color: 0.95, repeat: 0.62, macro: [0.16, 0.1, 0.12], normalScale: 1.35, aoMapIntensity: 1.3 }, // LV-7: Bretter in echter Breite (1,87-m-Satz ≈ 1,16 m je Kistenseite), Kisten nicht mehr gleichfarbig
@@ -60,7 +61,7 @@ export const LIB_MATERIALS = {
   metal_corrugated: { id: 'vh_wand', color: 1.55, normalScale: 0.55 }, // 15.10.: Rippenkontrast wie im Video (gemessen: Std. 6,5 statt 19) // Grafik-Vorlage 15.10.: Hallen-Wellblech 1:1 aus dem Video (vorher v_cladding)
   metal_corrugated_rust: { id: 'metal_corrugated_rusty', color: 1.6 },
   metal_cladding: { id: 'metal_cladding_green', color: 1.0 },
-  metal_navy: { id: 'vw_blau', color: 1.0 }, // Grafik-Vorlage 15.10.: dunkelblaue Blechfassade 1:1 aus dem Video (Werkgasse)
+  metal_navy: { id: 'vw_blau', color: 0.5 }, // 16.10. gemessen: Video-Fassade L 0,011, bei uns 0,029 → // Grafik-Vorlage 15.10.: dunkelblaue Blechfassade 1:1 aus dem Video (Werkgasse)
   metal_shutter: { id: 'metal_shutter', color: 1.0 },
   metal_galvanized: { id: 'metal_galvanized', color: 1.1, macro: [0.08, 0.06, 0.1] },
   metal_tread: { id: 'metal_tread', color: 2.4 },
@@ -229,7 +230,8 @@ export function createWorldAssets(G, def, quality) {
       if (q === 'low') look = look && lowLit ? lowLook(look) : null;
       else if (look && q !== 'ultra' && look.pom) look = { ...look, pom: 0 };
       const lk = look ? ':L' + JSON.stringify(look) : '';
-      plan.set(name, { ...spec, look, tier, sizeM: e.sizeM?.[0], key: `${spec.id}@${tier}:${calib}${q === 'low' ? ':lo' : ''}${lk}` });
+      // sizeM in der Zuordnung: abweichender Weltmaßstab der Textur (z. B. kleinere Pflastersteine)
+      plan.set(name, { ...spec, look, tier, sizeM: spec.sizeM ?? e.sizeM?.[0], key: `${spec.id}@${tier}:${calib}${spec.sizeM ? ':s' + spec.sizeM : ''}${q === 'low' ? ':lo' : ''}${lk}` });
     }
     return plan;
   }
@@ -328,9 +330,11 @@ export function createWorldAssets(G, def, quality) {
         // Drehung: Sonnenazimut des HDRIs auf den der Karte (Schattenrichtung) legen
         const rotation = THREE.MathUtils.degToRad((e.sun?.azimuthDeg ?? 0) - (sun?.azimuth ?? e.sun?.azimuthDeg ?? 0));
         const skyTier = pickTier(e.tiers, SKY_TIER[q] || 1024);
+        // reine Himmelsfotos (…_puresky) haben unten keinen Boden → Bodenfarbe der Karte einsetzen (buildEnvironment)
+        const envGround = def.lighting?.env?.hdriGround ?? (/puresky/.test(cfg.hdri) ? { color: def.lighting?.env?.ground || def.lighting?.hemi?.ground } : null);
         const wantSky = def.lighting?.sky?.hdri !== false;
         const [envRT, bg] = await Promise.all([
-          buildEnvironment(renderer, e, tier, rotation, def.lighting?.env?.hdriMax, def.lighting?.env?.hdriTint),
+          buildEnvironment(renderer, e, tier, rotation, def.lighting?.env?.hdriMax, def.lighting?.env?.hdriTint, envGround),
           // Himmels-KTX2 optional: ohne Transcoder bleibt der Preetham-Himmel, das .hdr-Umgebungslicht trotzdem
           wantSky ? assets.loadHDRI(cfg.hdri, renderer, { pmrem: false, tier: skyTier, skyTier }).catch((err) => {
             stats.failed.push(`hdri-sky:${cfg.hdri}: ${err?.message || err}`);
@@ -346,7 +350,7 @@ export function createWorldAssets(G, def, quality) {
         return {
           id: cfg.hdri, meta: e, envRT, background: bg?.background || null, backgroundExposure: e.backgroundExposure || 1, rotation,
           /** Nach Kontextverlust neu aufbauen (Datei kommt aus dem HTTP-Cache). */
-          rebuildEnv: () => buildEnvironment(renderer, e, tier, rotation, def.lighting?.env?.hdriMax, def.lighting?.env?.hdriTint),
+          rebuildEnv: () => buildEnvironment(renderer, e, tier, rotation, def.lighting?.env?.hdriMax, def.lighting?.env?.hdriTint, envGround),
           dispose() { envRT.dispose(); bg?.dispose?.(); },
         };
       } catch (err) {
@@ -386,13 +390,35 @@ export function createWorldAssets(G, def, quality) {
  * im Umgebungslicht wäre sie doppelt und ein Hotspot auf Metallen) und verschiebt die Spalten um die Drehung.
  * → WebGLRenderTarget (PMREM, cubeUV)
  */
-async function buildEnvironment(renderer, entry, tier, rotation, maxLum, tintHex) {
+/**
+ * ground (optional, für reine Himmelsfotos „…_puresky“ ohne Boden): { color: '#hex', k } – die untere Halbkugel wird
+ * durch eine Bodenfarbe ersetzt (Leuchtdichte = k × mittlere Himmelsleuchtdichte, weicher Übergang am Horizont), sonst
+ * käme das Licht von unten aus dem dunkelblauen Füllbereich des Fotos (Blaustich in Schatten und auf Unterseiten).
+ */
+async function buildEnvironment(renderer, entry, tier, rotation, maxLum, tintHex, ground = null) {
   const tint = new THREE.Color(tintHex || '#ffffff');
   const f = entry.tiers[tier];
   const url = new URL(f.hdr, assets.baseUrl).href;
   const tex = await hdr().loadAsync(url);
   const img = tex.image, W = img.width, H = img.height, src = img.data;
   const cap = maxLum ?? Math.max(2.5, (entry.luminance?.sky || 1) * 6);
+  let gr = 0, gg = 0, gb = 0;
+  if (ground) {
+    // mittlere (begrenzte) Leuchtdichte der oberen Halbkugel, cos-gewichtet nach Breite (Zeile 0 = Zenit, flipY)
+    const fh0 = THREE.DataUtils.fromHalfFloat;
+    let sum = 0, wsum = 0;
+    for (let y = 0; y < H / 2; y += 2) {
+      const w = Math.cos(((y + 0.5) / H - 0.5) * Math.PI);
+      for (let x = 0; x < W; x += 4) {
+        const i = (y * W + x) * 4;
+        sum += Math.min(cap, 0.2126 * fh0(src[i]) + 0.7152 * fh0(src[i + 1]) + 0.0722 * fh0(src[i + 2])) * w; wsum += w;
+      }
+    }
+    const gc = new THREE.Color(ground.color || '#77736c');
+    const gl = Math.max(1e-4, 0.2126 * gc.r + 0.7152 * gc.g + 0.0722 * gc.b);
+    const L = (sum / Math.max(wsum, 1e-6)) * (ground.k ?? 0.35) / gl;
+    gr = gc.r * L; gg = gc.g * L; gb = gc.b * L;
+  }
   const shift = ((Math.round((rotation / (Math.PI * 2)) * W) % W) + W) % W;
   const out = new Uint16Array(src.length);
   const fh = THREE.DataUtils.fromHalfFloat, th = THREE.DataUtils.toHalfFloat;
@@ -404,6 +430,11 @@ async function buildEnvironment(renderer, entry, tier, rotation, maxLum, tintHex
       const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       if (l > cap) { const k = cap / l; r *= k; g *= k; b *= k; }
       r *= tint.r; g *= tint.g; b *= tint.b;
+      if (ground) {
+        // ab knapp über dem Horizont weich in den Boden übergehen
+        const t = Math.min(1, Math.max(0, ((y + 0.5) / H - 0.49) / 0.03));
+        if (t > 0) { r += (gr - r) * t; g += (gg - g) * t; b += (gb - b) * t; }
+      }
       // Spalte x' = x − shift: Drehung um +rotation um die y-Achse (Azimut nimmt um rotation ab)
       const o = (y * W + ((x - shift + W) % W)) * 4;
       out[o] = th(r); out[o + 1] = th(g); out[o + 2] = th(b); out[o + 3] = 15360; // 1.0

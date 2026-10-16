@@ -1,12 +1,12 @@
 {
   "id": "vh_kai",
-  "recipe": "e6c05258a10e",
+  "recipe": "d6d1a41e4a37",
   "tiers": {
     "512": {
       "files": {
         "albedo": {
           "path": "textures/vh_kai/vh_kai_512_albedo.ktx2",
-          "bytes": 44738,
+          "bytes": 44339,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -19,7 +19,7 @@
         },
         "normal": {
           "path": "textures/vh_kai/vh_kai_512_normal.ktx2",
-          "bytes": 86994,
+          "bytes": 80711,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -32,7 +32,7 @@
         },
         "orm": {
           "path": "textures/vh_kai/vh_kai_512_orm.ktx2",
-          "bytes": 28875,
+          "bytes": 29129,
           "width": 512,
           "height": 512,
           "codec": "etc1s",
@@ -44,7 +44,7 @@
           }
         }
       },
-      "bytes": 160607,
+      "bytes": 154179,
       "gpu": {
         "desktop": 524289,
         "mobile": 524289,
@@ -55,7 +55,7 @@
       "files": {
         "albedo": {
           "path": "textures/vh_kai/vh_kai_1024_albedo.ktx2",
-          "bytes": 123579,
+          "bytes": 123433,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -68,7 +68,7 @@
         },
         "normal": {
           "path": "textures/vh_kai/vh_kai_1024_normal.ktx2",
-          "bytes": 237823,
+          "bytes": 221027,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -81,7 +81,7 @@
         },
         "orm": {
           "path": "textures/vh_kai/vh_kai_1024_orm.ktx2",
-          "bytes": 89645,
+          "bytes": 89331,
           "width": 1024,
           "height": 1024,
           "codec": "etc1s",
@@ -93,7 +93,7 @@
           }
         }
       },
-      "bytes": 451047,
+      "bytes": 433791,
       "gpu": {
         "desktop": 2097153,
         "mobile": 2097153,
@@ -104,7 +104,7 @@
       "files": {
         "albedo": {
           "path": "textures/vh_kai/vh_kai_2048_albedo.ktx2",
-          "bytes": 353209,
+          "bytes": 351579,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -117,7 +117,7 @@
         },
         "normal": {
           "path": "textures/vh_kai/vh_kai_2048_normal.ktx2",
-          "bytes": 820474,
+          "bytes": 741163,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -130,7 +130,7 @@
         },
         "orm": {
           "path": "textures/vh_kai/vh_kai_2048_orm.ktx2",
-          "bytes": 285168,
+          "bytes": 284050,
           "width": 2048,
           "height": 2048,
           "codec": "etc1s",
@@ -142,7 +142,7 @@
           }
         }
       },
-      "bytes": 1458851,
+      "bytes": 1376792,
       "gpu": {
         "desktop": 8388609,
         "mobile": 8388609,

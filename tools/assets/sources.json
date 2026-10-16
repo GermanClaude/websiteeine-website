@@ -2138,6 +2138,64 @@
     1024
    ],
    "name": "Debris Basement Corridor"
+  },
+  {
+   "id": "kloofendal_48d_partly_cloudy_puresky",
+   "source": "polyhaven",
+   "sourceId": "kloofendal_48d_partly_cloudy_puresky",
+   "license": "CC0-1.0",
+   "url": "https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky",
+   "author": "Greg Zaal, Jarod Guest",
+   "kind": "outdoor",
+   "mood": "Haufenwolken, Sonne (Video-Dorfplatz/Werkgasse, 16.10.)",
+   "maps": [
+    "grenzland",
+    "werk"
+   ],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Kloofendal 48d Partly Cloudy (Pure Sky)"
+  },
+  {
+   "id": "kloofendal_38d_partly_cloudy_puresky",
+   "source": "polyhaven",
+   "sourceId": "kloofendal_38d_partly_cloudy_puresky",
+   "license": "CC0-1.0",
+   "url": "https://polyhaven.com/a/kloofendal_38d_partly_cloudy_puresky",
+   "author": "Greg Zaal, Jarod Guest",
+   "kind": "outdoor",
+   "mood": "dunstig, Sonnenschleier (Video-Hafen, 16.10.)",
+   "maps": [
+    "hafen"
+   ],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Kloofendal 38d Partly Cloudy (Pure Sky)"
+  },
+  {
+   "id": "kloofendal_overcast_puresky",
+   "source": "polyhaven",
+   "sourceId": "kloofendal_overcast_puresky",
+   "license": "CC0-1.0",
+   "url": "https://polyhaven.com/a/kloofendal_overcast_puresky",
+   "author": "Greg Zaal, Jarod Guest",
+   "kind": "outdoor",
+   "mood": "bedeckt, hell und neutral (Wetter „bewölkt“, Video-Hafen Einstellung 1, 16.10.)",
+   "maps": [
+    "hafen",
+    "werk",
+    "grenzland",
+    "altstadt"
+   ],
+   "tiers": [
+    512,
+    1024
+   ],
+   "name": "Kloofendal Overcast (Pure Sky)"
   }
  ],
  "models": [

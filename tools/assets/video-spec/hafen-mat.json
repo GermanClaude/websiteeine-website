@@ -11,7 +11,7 @@
   "delight": 1.2,
   "shadow": true,
   "out": 1024,
-  "normal": 1.1,
+  "normal": 0.8,
   "rough": [
    0.86,
    0.06
@@ -29,9 +29,9 @@
   "crackThresh": 0.06,
   "crackWidth": 12,
   "mottle": 0.22,
-  "crackDark": 0.42,
+  "crackDark": 0.24,
   "slabJoint": 0.012,
-  "slabJointDark": 0.55,
+  "slabJointDark": 0.36,
   "stains": 0.4,
   "grainH": 0.035,
   "waveH": 0.06

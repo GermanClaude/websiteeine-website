@@ -29,11 +29,13 @@ const BASE_EXPOSURE = Object.freeze({ ref: 0.13, strength: 0.72, dead: 0.5, evMi
  * Tagesstimmungen haben dafür `lut` (natürlich) und `lutVideo`; Stimmungen ohne lutVideo (Nacht, Neutral) gelten für beide.
  */
 export const COLOR_LOOKS = Object.freeze(['natuerlich', 'video']);
-const NATURAL_LUT = Object.freeze({ temperature: 0, tint: -0.1, contrast: 1.1, pivot: 0.42, saturation: 0.86, shadowSat: 0.9,
-  highSat: 0.88, shadowTint: [0.98, 1.0, 1.02], highTint: [1.005, 1.0, 0.99], greenShift: 0.25, blackLevel: 0.014, whiteLevel: 0.985 });
+// 16.10. am Video gemessen (Wand, Boden, Schatten): Kanäle dort R ≈ 1,0 · G 1,03 · B 0,96 – bei uns durchweg blauer
+// (B 1,00–1,09) → leicht wärmer, Schatten neutral-grünlich statt blau
+const NATURAL_LUT = Object.freeze({ temperature: 0.08, tint: -0.1, contrast: 1.1, pivot: 0.42, saturation: 0.86, shadowSat: 0.9,
+  highSat: 0.88, shadowTint: [0.995, 1.01, 0.985], highTint: [1.005, 1.0, 0.99], greenShift: 0.25, blackLevel: 0.014, whiteLevel: 0.985 });
 /** Video-Look (Gemini-Vorlage): Grundwerte der Tagesstimmungen (s. MOODS). */
-const VIDEO_LUT = Object.freeze({ temperature: -0.01, tint: -0.45, contrast: 1.07, pivot: 0.42, saturation: 0.46, shadowSat: 0.88,
-  highSat: 0.8, shadowTint: [0.975, 1.008, 1.0], highTint: [1.0, 1.0, 0.985], greenShift: 0.25, blackLevel: 0.02, whiteLevel: 0.975 });
+const VIDEO_LUT = Object.freeze({ temperature: 0.06, tint: -0.45, contrast: 1.07, pivot: 0.42, saturation: 0.46, shadowSat: 0.88,
+  highSat: 0.8, shadowTint: [0.99, 1.012, 0.98], highTint: [1.0, 1.0, 0.985], greenShift: 0.25, blackLevel: 0.02, whiteLevel: 0.975 });
 
 export const MOODS = Object.freeze({
   neutral: {

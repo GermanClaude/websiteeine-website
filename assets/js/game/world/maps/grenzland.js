@@ -507,19 +507,20 @@ export default {
   seed: 4711,
   bounds: { minX: -250, maxX: 250, minZ: -250, maxZ: 250, minY: -8, maxY: 90 },
   ambience: 'range',
-  assets: { hdri: 'zwartkops_straight_morning' },
+  assets: { hdri: 'kloofendal_48d_partly_cloudy_puresky' }, // 16.10.: Haufenwolken wie im Video (Poly Haven, CC0)
   defaultSurface: 'grass',
   wallMargin: 48,
   lighting: {
     sun: { elevation: 36, azimuth: 152, color: '#fff1dc', intensity: 3.6 },
     // Grafik-Vorlage (Video-Dorfplatz bild-7_8s, 15.10.): heller Himmel mit Haufenwolken statt tiefblauem Fotohimmel,
     // Füllicht wie Hafen/Werk am Video gemessen (Schatten ≈ 1/5 der Sonnenseite, neutral grau)
-    sky: { turbidity: 4.8, rayleigh: 1.35, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.5, clouds: { coverage: 0.55, density: 0.5, scale: 0.00016, elevation: 0.5 }, hazeHigh: 0.16, hazeAmount: 1, hdri: false },
-    hemi: { sky: '#d0d6dc', ground: '#6a6b55', intensity: 1.3, hdriIntensity: 1.0 },
+    // 16.10. gemessen: Video-Himmel L ≈ 0,63, fast neutral (bei uns 0,43, blau) → trüber, heller, weniger Rayleigh-Blau
+    sky: { turbidity: 7, rayleigh: 0.9, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.7, clouds: { coverage: 0.55, density: 0.5, scale: 0.00016, elevation: 0.5 }, hazeHigh: 0.26, hazeAmount: 1, hdriSat: 0.45, hdriIntensity: 2.7 }, // Fotohimmel blass und hell wie im Video (gemessen #bbc0bb, Foto #8391a2)
+    hemi: { sky: '#d6d8d2', ground: '#6a6b55', intensity: 1.3, hdriIntensity: 1.0 },
     env: { intensity: 1.6, ground: '#6a6c52', groundIntensity: 0.55, tint: '#f2f1ee', hdriIntensity: 1.3, hdriTint: '#ece4d8' },
     // atmosphere-weather: Höhennebel über dem Tal (baseY = Wasserspiegel, Skalenhöhe ≈ 45 m), Gegenlicht-Einstreuung;
     // lineare Nebelweite bleibt für Materialien ohne Welt-Shading
-    fog: { color: '#b9c7d2', nearFactor: 0.18, density: 0.003, falloff: 0.022, start: 25, max: 0.9, sun: 0.7, sunExp: 4 },
+    fog: { color: '#c4cac9', nearFactor: 0.18, density: 0.003, falloff: 0.022, start: 25, max: 0.9, sun: 0.7, sunExp: 4 },
     // Fernkaskade über die ganze Karte (eine Karte, ≈ 0,3 m/Texel), Nahkaskade 40 m (Bäume scharf)
     shadow: { size: 60, bias: -0.0004, normalBias: 0.04, near: 40, farMaxY: 60 },
     exposure: 1.0,

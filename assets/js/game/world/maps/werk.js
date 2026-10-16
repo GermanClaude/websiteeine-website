@@ -32,27 +32,27 @@ export default {
   ambience: 'industrial',
   // Fotoscan-Bibliothek (assets/lib): HDRI für Umgebungslicht + Himmel, Materialzuordnung siehe world/library.js
   // Grafik-Vorlage Etappe 0 (15.10.): Tag wie im Video (Halle mit hellen Fensterbahnen, Gasse mit klarem Himmel) statt
-  // Dämmerung; HDRI zwartkops (klarer Tag) nur als Umgebungslicht, Himmel prozedural mit lockeren Wolken
+  // Dämmerung; 16.10.: Foto-Himmel kloofendal_48d mit Haufenwolken (Video-Gasse) als Himmel und Umgebungslicht
   // Grafik-Vorlage 15.10.: Boden = dunkler Beton aus dem Video (wie Hafen, Gasse und Hallenboden im Video ähnlich)
-  assets: { hdri: 'zwartkops_straight_morning', materials: { concrete: { id: 'vh_kai', color: 0.42, macro: [0.12, 0.06, 0.1] } } },
+  assets: { hdri: 'kloofendal_48d_partly_cloudy_puresky', materials: { concrete: { id: 'vh_kai', color: 0.42, macro: [0.12, 0.06, 0.1] } } },
   defaultSurface: 'concrete',
   navSpacing: 1.5,
   groundNoise: 0.22,
   interiorTint: [1, 0.97, 0.93],
   lighting: {
-    sun: { elevation: 38, azimuth: 252, color: '#fff1e0', intensity: 3.5 },
+    sun: { elevation: 38, azimuth: 252, color: '#ffe8cc', intensity: 3.5 }, // 16.10.: wärmer – Fensterstrahlen im Video goldgelb
     // Himmel prozedural (das Foto zeigt am Horizont nahe Mauern/Bäume, die über dem Werk riesig wirkten)
-    sky: { turbidity: 4, rayleigh: 1.6, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.5, clouds: { coverage: 0.5, density: 0.45, scale: 0.00018, elevation: 0.5, speed: 0.00002 }, hazeHigh: 0.14, hazeAmount: 0.85, hdri: false },
+    sky: { turbidity: 7, rayleigh: 0.95, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.7, clouds: { coverage: 0.5, density: 0.45, scale: 0.00018, elevation: 0.5, speed: 0.00002 }, hazeHigh: 0.24, hazeAmount: 0.85, hdriSat: 0.5, hdriIntensity: 2.6 }, // 16.10.: Foto-Himmel mit Wolken (Poly Haven, CC0) wie im Video
     // Füllicht nach Messung am Video (Ziegelgasse im Schatten dort 3,4× heller) → ≈ ×2,5, neutral
-    hemi: { sky: '#d0d3d6', ground: '#77726a', intensity: 1.6, hdriIntensity: 1.35 },
+    hemi: { sky: '#d4d4ce', ground: '#77726a', intensity: 1.6, hdriIntensity: 1.35 },
     env: { intensity: 1.8, ground: '#6f6b64', groundIntensity: 0.6, tint: '#f2f1ee', hdriIntensity: 1.6, hdriTint: '#ece4d8' },
-    fog: { color: '#adb4bc', near: 60, far: 340, density: 0.0048, falloff: 0.045, start: 18, sun: 0.35, sunExp: 6 },
+    fog: { color: '#b6b8b4', near: 60, far: 340, density: 0.0048, falloff: 0.045, start: 18, sun: 0.35, sunExp: 6 },
     shadow: { size: 40, bias: -0.0005, radius: 2.8 },
     // Halle: Sonne durch die Westfenster, viel Staub, kräftiger Rückprall (Video: Ziegelwände deutlich sichtbar);
     // Feuertonnen (Lichtgruppe 2) flackern
     probes: { bounce: 2.6, skyMin: 0.05, flicker: [{ group: 2, amount: 0.35, speed: 11 }] },
     // atmosphere-weather: Hallenfenster-Strahlen + Staub kräftig (Video); Gassen ohne Lichtbalken (Video) → keine Schlitze
-    atmos: { beams: 0.034, beamG: 0.5, dust: 1.7, slots: 0, outdoor: 0.3 },
+    atmos: { beams: 0.026, beamG: 0.5, dust: 1.7, slots: 0, outdoor: 0.3 }, // 16.10.: Strahlen etwas schwächer (Video: warm, nicht weiß)
   },
 
   build(b, ctx) {
@@ -327,9 +327,11 @@ function wallLight(b, x, y, z, ry, o = {}) {
   const f = frame(b, x, y, z, ry);
   f.box(0, 0.12, 0.18, 0.06, 0.06, 0.36, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
   f.box(0, -0.05, 0.4, 0.42, 0.16, 0.3, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
-  f.box(0, -0.07, 0.4, 0.36, 0.03, 0.24, o.cool ? 'lamp_cool' : 'lamp_sodium', { collide: false, minimap: false, ao: false, cast: false });
+  // 16.10. (Video: tagsüber brennt keine Lampe): Glas leuchtet nur abends/nachts (lampsOn), sonst mattes Glas
+  const on = lampsOn(b);
+  f.box(0, -0.07, 0.4, 0.36, 0.03, 0.24, !on ? 'white' : o.cool ? 'lamp_cool' : 'lamp_sodium', { tint: on ? undefined : '#d8d5ce', collide: false, minimap: false, ao: false, cast: false });
   const [gx, gz] = f.P(0, 0.42);
-  b.glow(gx, y - 0.15, gz, { color: o.cool ? '#d8e6ff' : '#ffa850', size: o.size ?? 2.2 });
+  if (on) b.glow(gx, y - 0.15, gz, { color: o.cool ? '#d8e6ff' : '#ffa850', size: o.size ?? 2.2 });
 }
 
 /** Hallentor-Rolltor halb offen (Unterkante y0). */
@@ -415,21 +417,25 @@ function hall(b) {
     b.box(s * (HX - 1.1), 10.5, 0, 0.5, 0.6, 2 * HZ - 1, 'metal_painted', { tint: '#5a646c', collide: false, minimap: false, grad: false });
     b.box(s * (HX - 1.1), 11.1, 0, 0.12, 0.1, 2 * HZ - 1, 'metal_galvanized', { collide: false, minimap: false, grad: false, ao: false });
   }
+  const hallLamps = lampsOn(b);
   // Hallenleuchten (Natriumdampf) an den Bindern: Pendelrohr bis zum Untergurt (y 12,2) mit Klemmschelle,
   // dazwischen hingen sie früher frei in der Luft (z ±7, ±21 liegen zwischen den Binderachsen)
   for (const zz of [-18, -6, 6, 18]) for (const xx of [-9, 9]) {
     b.box(xx, H - 0.38, zz, 0.18, 0.08, 0.34, 'metal_painted', { tint: '#2b2d30', collide: false, minimap: false, grad: false, ao: false });
     b.cyl(xx, H - 1.6, zz, 0.022, 1.3, 'metal_galvanized', { collide: false, seg: 5, ao: false, minimap: false });
     b.cyl(xx, H - 2.1, zz, 0.6, 0.5, 'metal_painted', { r1: 0.18, tint: '#2b2d30', collide: false, seg: 12, ao: false, minimap: false });
-    b.cyl(xx, H - 2.12, zz, 0.55, 0.02, 'lamp_sodium', { collide: false, seg: 12, ao: false, cast: false, minimap: false });
-    b.glow(xx, H - 2.35, zz, { color: '#ffa850', size: 3.2, intensity: 0.9 });
+    // 16.10.: Video-Halle tagsüber nur von den Fenstern beleuchtet → Natriumlampen nur abends/nachts an
+    b.cyl(xx, H - 2.12, zz, 0.55, 0.02, hallLamps ? 'lamp_sodium' : 'white', { tint: hallLamps ? undefined : '#c9c5bd', collide: false, seg: 12, ao: false, cast: false, minimap: false });
+    if (hallLamps) b.glow(xx, H - 2.35, zz, { color: '#ffa850', size: 3.2, intensity: 0.9 });
   }
-  b.light('point', -9, 8.6, 6, { color: '#ffae5a', intensity: 40, distance: 24, priority: 1 });
-  b.light('point', 9, 8.6, -6, { color: '#ffae5a', intensity: 40, distance: 24, priority: 1 });
-  // übrige Leuchten nur gebacken (Sonden-Gitter): Lichtinseln unter jeder Lampe ohne Laufzeitkosten
-  for (const zz of [-18, -6, 6, 18]) for (const xx of [-9, 9]) {
-    if ((xx === -9 && zz === 6) || (xx === 9 && zz === -6)) continue;
-    b.light('point', xx, 8.6, zz, { color: '#ffae5a', intensity: 32, distance: 20, realtime: false });
+  if (hallLamps) {
+    b.light('point', -9, 8.6, 6, { color: '#ffae5a', intensity: 40, distance: 24, priority: 1 });
+    b.light('point', 9, 8.6, -6, { color: '#ffae5a', intensity: 40, distance: 24, priority: 1 });
+    // übrige Leuchten nur gebacken (Sonden-Gitter): Lichtinseln unter jeder Lampe ohne Laufzeitkosten
+    for (const zz of [-18, -6, 6, 18]) for (const xx of [-9, 9]) {
+      if ((xx === -9 && zz === 6) || (xx === 9 && zz === -6)) continue;
+      b.light('point', xx, 8.6, zz, { color: '#ffae5a', intensity: 32, distance: 20, realtime: false });
+    }
   }
   // Kaltes Abendlicht durch die Dachlöcher (Lichtkegel als Staubschleier)
   for (const [x, z] of [[-11, -9], [11, 9], [11, -15], [-11, 15]]) dustShaft(b, x, z);

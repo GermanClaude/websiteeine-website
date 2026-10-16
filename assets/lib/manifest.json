@@ -2,7 +2,7 @@
  "$comment": "Generiert von tools/assets/manifest.mjs — nicht von Hand bearbeiten. Pfade relativ zu dieser Datei.",
  "version": 1,
  "pipeline": 3,
- "generated": "2026-10-16T06:27:51.775Z",
+ "generated": "2026-10-16T10:47:20.111Z",
  "qualityTiers": {
   "low": 512,
   "medium": 1024,
@@ -9186,9 +9186,9 @@
      "normal": "textures/vh_kai/vh_kai_512_normal.ktx2",
      "orm": "textures/vh_kai/vh_kai_512_orm.ktx2",
      "sizes": {
-      "albedo": 44738,
-      "normal": 86994,
-      "orm": 28875
+      "albedo": 44339,
+      "normal": 80711,
+      "orm": 29129
      },
      "gpuFiles": {
       "albedo": {
@@ -9207,7 +9207,7 @@
        "rgba8": 1398101
       }
      },
-     "bytes": 160607,
+     "bytes": 154179,
      "gpu": {
       "desktop": 524289,
       "mobile": 524289,
@@ -9219,9 +9219,9 @@
      "normal": "textures/vh_kai/vh_kai_1024_normal.ktx2",
      "orm": "textures/vh_kai/vh_kai_1024_orm.ktx2",
      "sizes": {
-      "albedo": 123579,
-      "normal": 237823,
-      "orm": 89645
+      "albedo": 123433,
+      "normal": 221027,
+      "orm": 89331
      },
      "gpuFiles": {
       "albedo": {
@@ -9240,7 +9240,7 @@
        "rgba8": 5592405
       }
      },
-     "bytes": 451047,
+     "bytes": 433791,
      "gpu": {
       "desktop": 2097153,
       "mobile": 2097153,
@@ -9252,9 +9252,9 @@
      "normal": "textures/vh_kai/vh_kai_2048_normal.ktx2",
      "orm": "textures/vh_kai/vh_kai_2048_orm.ktx2",
      "sizes": {
-      "albedo": 353209,
-      "normal": 820474,
-      "orm": 285168
+      "albedo": 351579,
+      "normal": 741163,
+      "orm": 284050
      },
      "gpuFiles": {
       "albedo": {
@@ -9273,7 +9273,7 @@
        "rgba8": 22369621
       }
      },
-     "bytes": 1458851,
+     "bytes": 1376792,
      "gpu": {
       "desktop": 8388609,
       "mobile": 8388609,
@@ -10481,6 +10481,316 @@
    "sourceId": "debris_basement_corridor",
    "url": "https://polyhaven.com/a/debris_basement_corridor",
    "author": "Elvis Posa"
+  },
+  "kloofendal_48d_partly_cloudy_puresky": {
+   "type": "hdri",
+   "name": "Kloofendal 48d Partly Cloudy (Pure Sky)",
+   "kind": "outdoor",
+   "mood": "Haufenwolken, Sonne (Video-Dorfplatz/Werkgasse, 16.10.)",
+   "maps": [
+    "grenzland",
+    "werk"
+   ],
+   "sun": {
+    "dir": [
+     0.5462,
+     0.7491,
+     0.3747
+    ],
+    "elevationDeg": 48.5,
+    "azimuthDeg": 124.5,
+    "peak": 7245.5,
+    "dominance": 6245
+   },
+   "luminance": {
+    "avg": 0.6928,
+    "sky": 1.1602,
+    "skyGeo": 0.3378
+   },
+   "backgroundExposure": 0.7186,
+   "exposure": 0.7186,
+   "tiers": {
+    "512": {
+     "hdr": "hdri/kloofendal_48d_partly_cloudy_puresky/kloofendal_48d_partly_cloudy_puresky_512.hdr",
+     "background": "hdri/kloofendal_48d_partly_cloudy_puresky/kloofendal_48d_partly_cloudy_puresky_bg_1024.ktx2",
+     "sizes": {
+      "hdr": 375404,
+      "background": 59821
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 262144,
+       "mobile": 262144,
+       "rgba8": 2097152
+      }
+     },
+     "bytes": 435225,
+     "gpu": {
+      "desktop": 6553600,
+      "mobile": 6553600,
+      "rgba8": 8388608
+     },
+     "size": [
+      512,
+      256
+     ],
+     "backgroundSize": [
+      1024,
+      512
+     ]
+    },
+    "1024": {
+     "hdr": "hdri/kloofendal_48d_partly_cloudy_puresky/kloofendal_48d_partly_cloudy_puresky_1024.hdr",
+     "background": "hdri/kloofendal_48d_partly_cloudy_puresky/kloofendal_48d_partly_cloudy_puresky_bg_2048.ktx2",
+     "sizes": {
+      "hdr": 1415772,
+      "background": 162778
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 1048576,
+       "mobile": 1048576,
+       "rgba8": 8388608
+      }
+     },
+     "bytes": 1578550,
+     "gpu": {
+      "desktop": 7340032,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     },
+     "size": [
+      1024,
+      512
+     ],
+     "backgroundSize": [
+      2048,
+      1024
+     ]
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "kloofendal_48d_partly_cloudy_puresky",
+   "url": "https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky",
+   "author": "Greg Zaal, Jarod Guest"
+  },
+  "kloofendal_38d_partly_cloudy_puresky": {
+   "type": "hdri",
+   "name": "Kloofendal 38d Partly Cloudy (Pure Sky)",
+   "kind": "outdoor",
+   "mood": "dunstig, Sonnenschleier (Video-Hafen, 16.10.)",
+   "maps": [
+    "hafen"
+   ],
+   "sun": {
+    "dir": [
+     0.645,
+     0.6055,
+     0.4662
+    ],
+    "elevationDeg": 37.3,
+    "azimuthDeg": 125.9,
+    "peak": 2758.61,
+    "dominance": 2987.3
+   },
+   "luminance": {
+    "avg": 0.5881,
+    "sky": 0.9234,
+    "skyGeo": 0.3077
+   },
+   "backgroundExposure": 0.7857,
+   "exposure": 0.7857,
+   "tiers": {
+    "512": {
+     "hdr": "hdri/kloofendal_38d_partly_cloudy_puresky/kloofendal_38d_partly_cloudy_puresky_512.hdr",
+     "background": "hdri/kloofendal_38d_partly_cloudy_puresky/kloofendal_38d_partly_cloudy_puresky_bg_1024.ktx2",
+     "sizes": {
+      "hdr": 356990,
+      "background": 54157
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 262144,
+       "mobile": 262144,
+       "rgba8": 2097152
+      }
+     },
+     "bytes": 411147,
+     "gpu": {
+      "desktop": 6553600,
+      "mobile": 6553600,
+      "rgba8": 8388608
+     },
+     "size": [
+      512,
+      256
+     ],
+     "backgroundSize": [
+      1024,
+      512
+     ]
+    },
+    "1024": {
+     "hdr": "hdri/kloofendal_38d_partly_cloudy_puresky/kloofendal_38d_partly_cloudy_puresky_1024.hdr",
+     "background": "hdri/kloofendal_38d_partly_cloudy_puresky/kloofendal_38d_partly_cloudy_puresky_bg_2048.ktx2",
+     "sizes": {
+      "hdr": 1348698,
+      "background": 144039
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 1048576,
+       "mobile": 1048576,
+       "rgba8": 8388608
+      }
+     },
+     "bytes": 1492737,
+     "gpu": {
+      "desktop": 7340032,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     },
+     "size": [
+      1024,
+      512
+     ],
+     "backgroundSize": [
+      2048,
+      1024
+     ]
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "kloofendal_38d_partly_cloudy_puresky",
+   "url": "https://polyhaven.com/a/kloofendal_38d_partly_cloudy_puresky",
+   "author": "Greg Zaal, Jarod Guest"
+  },
+  "kloofendal_overcast_puresky": {
+   "type": "hdri",
+   "name": "Kloofendal Overcast (Pure Sky)",
+   "kind": "outdoor",
+   "mood": "bedeckt, hell und neutral (Wetter „bewölkt“, Video-Hafen Einstellung 1, 16.10.)",
+   "maps": [
+    "hafen",
+    "werk",
+    "grenzland",
+    "altstadt"
+   ],
+   "sun": {
+    "dir": [
+     0.7941,
+     0.394,
+     0.4628
+    ],
+    "elevationDeg": 23.2,
+    "azimuthDeg": 120.2,
+    "peak": 5.63,
+    "dominance": 4.6
+   },
+   "luminance": {
+    "avg": 0.9032,
+    "sky": 1.2274,
+    "skyGeo": 1.1313
+   },
+   "backgroundExposure": 0.2307,
+   "exposure": 0.2307,
+   "tiers": {
+    "512": {
+     "hdr": "hdri/kloofendal_overcast_puresky/kloofendal_overcast_puresky_512.hdr",
+     "background": "hdri/kloofendal_overcast_puresky/kloofendal_overcast_puresky_bg_1024.ktx2",
+     "sizes": {
+      "hdr": 326769,
+      "background": 35105
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 262144,
+       "mobile": 262144,
+       "rgba8": 2097152
+      }
+     },
+     "bytes": 361874,
+     "gpu": {
+      "desktop": 6553600,
+      "mobile": 6553600,
+      "rgba8": 8388608
+     },
+     "size": [
+      512,
+      256
+     ],
+     "backgroundSize": [
+      1024,
+      512
+     ]
+    },
+    "1024": {
+     "hdr": "hdri/kloofendal_overcast_puresky/kloofendal_overcast_puresky_1024.hdr",
+     "background": "hdri/kloofendal_overcast_puresky/kloofendal_overcast_puresky_bg_2048.ktx2",
+     "sizes": {
+      "hdr": 1145564,
+      "background": 91475
+     },
+     "gpuParts": {
+      "pmrem": {
+       "desktop": 6291456,
+       "mobile": 6291456,
+       "rgba8": 6291456
+      },
+      "background": {
+       "desktop": 1048576,
+       "mobile": 1048576,
+       "rgba8": 8388608
+      }
+     },
+     "bytes": 1237039,
+     "gpu": {
+      "desktop": 7340032,
+      "mobile": 7340032,
+      "rgba8": 14680064
+     },
+     "size": [
+      1024,
+      512
+     ],
+     "backgroundSize": [
+      2048,
+      1024
+     ]
+    }
+   },
+   "license": "CC0-1.0",
+   "source": "polyhaven",
+   "sourceId": "kloofendal_overcast_puresky",
+   "url": "https://polyhaven.com/a/kloofendal_overcast_puresky",
+   "author": "Greg Zaal, Jarod Guest"
   }
  },
  "models": {
@@ -15542,28 +15852,28 @@
  "totals": {
   "textures": {
    "files": 559,
-   "bytes": 73577362
+   "bytes": 73471619
   },
   "hdri": {
-   "files": 32,
-   "bytes": 19209703
+   "files": 44,
+   "bytes": 24726275
   },
   "models": {
    "files": 111,
    "bytes": 53609888
   },
   "all": {
-   "files": 702,
-   "bytes": 146396953
+   "files": 714,
+   "bytes": 151807782
   },
   "byTier": {
-   "512": 28502268,
-   "1024": 85465685,
-   "2048": 32429000
+   "512": 29704086,
+   "1024": 89756755,
+   "2048": 32346941
   },
   "counts": {
    "textures": 91,
-   "hdris": 8,
+   "hdris": 11,
    "models": 57
   }
  }

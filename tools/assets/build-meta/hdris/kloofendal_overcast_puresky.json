@@ -1,0 +1,86 @@
+{
+  "id": "kloofendal_overcast_puresky",
+  "recipe": "db1f2bdfe0b8",
+  "tiers": {
+    "512": {
+      "hdr": {
+        "path": "hdri/kloofendal_overcast_puresky/kloofendal_overcast_puresky_512.hdr",
+        "bytes": 326769,
+        "width": 512,
+        "height": 256,
+        "gpu": {
+          "desktop": 1048576,
+          "mobile": 1048576,
+          "rgba8": 1048576
+        }
+      },
+      "background": {
+        "path": "hdri/kloofendal_overcast_puresky/kloofendal_overcast_puresky_bg_1024.ktx2",
+        "bytes": 35105,
+        "width": 1024,
+        "height": 512,
+        "codec": "etc1s",
+        "gpu": {
+          "desktop": 262144,
+          "mobile": 262144,
+          "rgba8": 2097152
+        }
+      },
+      "bytes": 361874,
+      "gpu": {
+        "desktop": 6553600,
+        "mobile": 6553600,
+        "rgba8": 8388608
+      }
+    },
+    "1024": {
+      "hdr": {
+        "path": "hdri/kloofendal_overcast_puresky/kloofendal_overcast_puresky_1024.hdr",
+        "bytes": 1145564,
+        "width": 1024,
+        "height": 512,
+        "gpu": {
+          "desktop": 4194304,
+          "mobile": 4194304,
+          "rgba8": 4194304
+        }
+      },
+      "background": {
+        "path": "hdri/kloofendal_overcast_puresky/kloofendal_overcast_puresky_bg_2048.ktx2",
+        "bytes": 91475,
+        "width": 2048,
+        "height": 1024,
+        "codec": "etc1s",
+        "gpu": {
+          "desktop": 1048576,
+          "mobile": 1048576,
+          "rgba8": 8388608
+        }
+      },
+      "bytes": 1237039,
+      "gpu": {
+        "desktop": 7340032,
+        "mobile": 7340032,
+        "rgba8": 14680064
+      }
+    }
+  },
+  "stats": {
+    "sun": {
+      "dir": [
+        0.7941,
+        0.394,
+        0.4628
+      ],
+      "elevationDeg": 23.2,
+      "azimuthDeg": 120.2,
+      "peak": 5.63,
+      "dominance": 4.6
+    },
+    "avgLuminance": 0.9032,
+    "skyLuminance": 1.2274,
+    "skyGeoLuminance": 1.1313,
+    "geoLuminance": 0.7803,
+    "backgroundExposure": 0.2307
+  }
+}

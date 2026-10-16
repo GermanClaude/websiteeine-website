@@ -159,3 +159,15 @@ vorhandene Tests (tank-model-test, gunsound-test, feedback-test …); ab Etappe 
   Rippen/Verschlussstangen), Gabelstapler (Gussgegengewicht, Gasflasche, Mast mit Ketten), Containerstapler
   (verglaste Kabine, Teleskopausleger, Hubzylinder, Spreader). Räder als gedrehte Profile mit Felgenschüssel und
   Radmuttern. Kollision überall unverändert (Hash niedrig = hoch).
+- **Nachtrag 16.10. (Nutzer: „Gesamtbild passt nicht, Texturen/Grafik/Belichtung nicht im Zusammenspiel wie im
+  Video“):** Video und Spiel aus fünf Blickwinkeln je Bereich gemessen (Wand, Boden, Himmel, Dach; Skript im
+  Arbeitsordner). Befunde: Himmel bei uns dunkler/blauer (Video L ≈ 0,6, fast farblos), Schatten/Boden blaustichig
+  (Video R 1,0 · G 1,03 · B 0,96), Standardwetter „bewölkt“ färbte Nebel/Umgebung gezielt blau, Hafen-Risse zu
+  dunkel, Pflastersteine doppelt so groß (Video ≈ 14 cm), Dächer zu rosarot, Werk-Blechfassade 2,6× zu hell,
+  Lampen brannten tagsüber. Umgesetzt: echte Foto-Himmel (Poly Haven, CC0) `kloofendal_48d_partly_cloudy_puresky`
+  (Grenzland, Werk, Vormittag), `kloofendal_38d_partly_cloudy_puresky` (Hafen, Nachmittag),
+  `kloofendal_overcast_puresky` (Wetter „bewölkt“, neutral statt blau); reine Himmelsfotos bekommen unten die
+  Bodenfarbe der Karte (library.js buildEnvironment `ground`); Sättigung des sichtbaren Fotohimmels einstellbar
+  (`sky.hdriSat`). Farbstufe leicht wärmer, Schatten neutral-grünlich. Texturen: `vh_kai` Risse flacher,
+  `cobble` halbe Weltgröße (`sizeM` je Zuordnung), Dach braunes Terrakotta, Ziegel weniger rot, `metal_navy` halb so
+  hell. Werk: Wand- und Hallenlampen nur abends/nachts, Sonne wärmer, Fensterstrahlen etwas schwächer.

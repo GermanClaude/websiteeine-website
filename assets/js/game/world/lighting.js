@@ -121,6 +121,8 @@ function makeHdriSky(hdri, sd, fogColor, intensity) {
       uHazeAmt: { value: sd.hazeAmount ?? 0.85 },
       uTint: { value: new THREE.Color(sd.hdriTint || '#ffffff') },
       uMax: { value: sd.hdriMax ?? 24 },
+      // hdriSat: Sättigung des sichtbaren Fotohimmels (Video: blasser Dunsthimmel statt Tiefblau)
+      uSat: { value: sd.hdriSat ?? 1 },
       // hdriBlend [y0, y1]: nur oberhalb sichtbar (weich ab y0 bis y1, Richtungs-y) – darunter der Preetham-Himmel
       // (Fotos mit nahen Bäumen/Mauern am Horizont, die über der Karte riesig wirken würden)
       uBlend: { value: new THREE.Vector2(sd.hdriBlend?.[0] ?? -2, sd.hdriBlend?.[1] ?? -1) },
@@ -132,7 +134,7 @@ function makeHdriSky(hdri, sd, fogColor, intensity) {
         gl_Position.z = gl_Position.w; // ganz hinten
       }`,
     fragmentShader: `uniform sampler2D tSky; uniform mat3 uInvOut; uniform mat3 uInvIn; uniform float uScale; uniform vec2 uRot;
-      uniform vec3 uFog; uniform vec2 uHaze; uniform float uHazeAmt; uniform vec3 uTint; uniform float uMax; uniform vec2 uBlend;
+      uniform vec3 uFog; uniform vec2 uHaze; uniform float uHazeAmt; uniform vec3 uTint; uniform float uMax; uniform vec2 uBlend; uniform float uSat;
       varying vec3 vDir;
       vec3 npRrtInv( vec3 x ) {
         x = clamp( x, 0.0, 0.985 );
@@ -145,6 +147,7 @@ function makeHdriSky(hdri, sd, fogColor, intensity) {
         vec2 uv = vec2( atan( r.z, r.x ) * 0.15915494 + 0.5, asin( clamp( r.y, -1.0, 1.0 ) ) * 0.31830989 + 0.5 );
         vec3 L = max( uInvIn * npRrtInv( uInvOut * texture2D( tSky, uv ).rgb ), 0.0 ) * uScale * uTint;
         L = min( L, vec3( uMax ) );
+        L = mix( vec3( dot( L, vec3( 0.2126, 0.7152, 0.0722 ) ) ), L, uSat );
         float hz = 1.0 - smoothstep( uHaze.x, uHaze.y, d.y );
         L = mix( L, uFog, clamp( hz * uHazeAmt + ( d.y < 0.0 ? 1.0 : 0.0 ), 0.0, 1.0 ) );
         gl_FragColor = vec4( L, smoothstep( uBlend.x, uBlend.y, d.y ) );

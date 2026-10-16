@@ -37,10 +37,12 @@ export const WEATHER_FX = Object.freeze({
   bewoelkt: {
     sun: 0.16, fill: 1.6, fog: 1.6, beams: 0.06, dust: 0.55, shafts: 0.06, inscatter: 0.25, ref: 0.6,
     sky: { coverage: 0.96, density: 0.82, hazeAmount: 0.95, hazeHigh: 0.22, turbidity: 2.2, exposure: 0.84, tint: '#cbcfd0', elevation: 0.42 }, // 15.10.: heller, kaum blau (Video Hafen)
-    sunColor: { toward: '#e6ebf2', amount: 0.65 },
-    fogTint: { toward: '#a9b0b8', amount: 0.45 },
-    hemiTint: { toward: '#c5cbd2', amount: 0.6 },
-    hdri: 'abandoned_slipway', hdriSky: false, envTint: '#c9cdd3',
+    // 16.10.: neutral statt bläulich (Video Hafen Einstellung 1: heller, fast farbloser Wolkenhimmel, Schatten grau-grün)
+    // und echter Foto-Wolkenhimmel (Poly Haven „kloofendal_overcast_puresky“, CC0) statt prozeduraler Wolkendecke
+    sunColor: { toward: '#ecebe7', amount: 0.65 },
+    fogTint: { toward: '#babcb8', amount: 0.45 },
+    hemiTint: { toward: '#d0d1cc', amount: 0.6 },
+    hdri: 'kloofendal_overcast_puresky', envTint: '#ebeae6',
     shadowRadius: 7,
     lut: { contrast: -0.03, saturation: 0.9, temperature: -0.02 }, // 15.10.: Video (Hafen bewölkt) kräftiger, tiefere Schwarztöne
   },
@@ -52,9 +54,9 @@ export const WEATHER_FX = Object.freeze({
  */
 export const TIME_FX = Object.freeze({
   morgen: { elevation: 10, azimuth: 102, sun: '#ffc596', hdri: 'zwartkops_straight_morning', sky: { turbidity: 4.5, rayleigh: 2.1, mieCoefficient: 0.007 }, fog: '#c8ccd6', hemi: '#c3cde0', lut: { temperature: 0.03 } },
-  vormittag: { elevation: 36, azimuth: 150, sun: '#fff1dc', hdri: 'zwartkops_straight_morning', sky: { turbidity: 4, rayleigh: 1.5, mieCoefficient: 0.005 }, fog: '#bfcad4', hemi: '#cbd9e8' },
+  vormittag: { elevation: 36, azimuth: 150, sun: '#fff1dc', hdri: 'kloofendal_48d_partly_cloudy_puresky', sky: { turbidity: 4, rayleigh: 1.5, mieCoefficient: 0.005 }, fog: '#bfcad4', hemi: '#cbd9e8' },
   mittag: { elevation: 58, azimuth: 196, sun: '#fff3e2', hdri: 'old_outdoor_theater', sky: { turbidity: 2.8, rayleigh: 1.1, mieCoefficient: 0.0035 }, fog: '#d3dee8', hemi: '#d6e0ea', lut: { temperature: 0 } },
-  nachmittag: { elevation: 30, azimuth: 236, sun: '#ffe4bf', hdri: 'zwartkops_straight_morning', sky: { turbidity: 4, rayleigh: 1.5, mieCoefficient: 0.005 }, fog: '#d2d4d2', hemi: '#d2d8de', lut: { temperature: 0.05 } },
+  nachmittag: { elevation: 30, azimuth: 236, sun: '#ffe4bf', hdri: 'kloofendal_38d_partly_cloudy_puresky', sky: { turbidity: 4, rayleigh: 1.5, mieCoefficient: 0.005 }, fog: '#d2d4d2', hemi: '#d2d8de', lut: { temperature: 0.05 } },
   abend: { elevation: 12, azimuth: 252, sun: '#ffb676', hdri: 'freight_station', sky: { turbidity: 7, rayleigh: 2.4, mieCoefficient: 0.009 }, fog: '#dcb08a', hemi: '#d6c2ad', lut: { temperature: 0.12 } },
 });
 
