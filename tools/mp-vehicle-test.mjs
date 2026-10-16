@@ -190,7 +190,10 @@ try {
   const fps = await Promise.all([host, anna, bert].map((p) => ev(p, () => window.__game.renderer.info().fps)));
   info(`Bildrate (SwiftShader, drei Seiten): Host ${fps[0]}, Anna ${fps[1]}, Bert ${fps[2]} FPS`);
   // Host: Feind-Bots ruhen (kein Beschuss, keine Werfer), Menschen unverwundbar – geprüft wird das Netz, nicht das Gefecht
-  await ev(host, async () => { window.__groundRay = (await import('./assets/js/game/vehicles/sim.js')).groundRay; });
+  await ev(host, async () => {
+    window.__groundRay = (await import('./assets/js/game/vehicles/sim.js')).groundRay;
+    window.__collRay = (await import('./assets/js/game/engine/physics.js')).collisionRay; // Strahl der Fahrzeugphysik (auch Zäune)
+  });
   await ev(host, () => {
     const G = window.__game;
     G.player.godMode = true;
@@ -235,10 +238,13 @@ try {
             if (!V._clear(spot.position, yaw, v.def)) continue;
             const d = new T(-Math.sin(yaw), 0, -Math.cos(yaw));
             let len = 40;
-            for (const h of [0.5, 1.2, 2.0]) for (const side of [-hw, 0, hw]) {
+            for (const h of [0.3, 0.6, 1.2, 2.0]) for (const side of [-hw, -hw / 2, 0, hw / 2, hw]) {
               const o = spot.position.clone().add(new T(Math.cos(yaw) * side, h, -Math.sin(yaw) * side));
               const hit = V._rc ? V._rc.orig.call(G.world, o, d, 40) : G.world.raycast(o, d, 40);
               if (hit && hit.distance < len) len = hit.distance;
+              // Kollisionsstrahl wie die Wanne (sim.js): auch reine Bewegungssperren (Zäune, durchschussfrei)
+              const ch = window.__collRay ? window.__collRay(G.world, o, d, 40, {}) : null;
+              if (ch && ch.distance < len) len = ch.distance;
             }
             // Bahn auch befahrbar: fester Boden (Fahrzeug-Bodenstrahl, kein Wasser) ohne Stufe alle 6 m bis 30 m
             if (len >= 30 && window.__groundRay) {
@@ -257,6 +263,7 @@ try {
         if (!pick) return null;
         v.body.setPose(pick.pos, pick.yaw);
         window.__freeAhead = pick.len;
+        window.__pick = { pos: [pick.pos.x, pick.pos.y, pick.pos.z].map((x) => +x.toFixed(2)), yaw: +pick.yaw.toFixed(2) };
       }
       const ex = V._findExit(v, seat);
       if (!ex) return null;
@@ -301,7 +308,7 @@ try {
 
   // ================================================================== 2. Einsteigen
   const placed = await placeActor(host, anna, A, tA.vid, 0, true);
-  info(`Panzer A (vid ${tA.vid}) neben Anna gestellt: ${placed ? `Abstand ${placed.box.toFixed(2)} m, freie Bahn ${(await ev(host, () => window.__freeAhead)).toFixed(0)} m` : 'kein Platz!'}`);
+  info(`Panzer A (vid ${tA.vid}) neben Anna gestellt: ${placed ? `Abstand ${placed.box.toFixed(2)} m, freie Bahn ${(await ev(host, () => window.__freeAhead)).toFixed(0)} m, ${JSON.stringify(await ev(host, () => window.__pick))}` : 'kein Platz!'}`);
   if (placed && placed.tries > 1) info(`Anna: Rücksetzung ${placed.tries}× gesendet (${placed.ok ? 'angekommen' : 'nicht angekommen'})`);
   const eA = await enterSeat(host, anna, A, tA.vid, null);
   if (!eA.ok || eA.tries > 1) info(`Anna einsteigen: ${JSON.stringify(eA)}`);
