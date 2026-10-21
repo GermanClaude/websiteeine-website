@@ -1060,7 +1060,7 @@ G.clay = (t, r, o) => {
  */
 G.trenchwall = (t, r, o) => {
   const { S, n } = t, px = S / 512;
-  const pal = (o.palette || ['#30271f', '#3f342a', '#4d4034', '#5b4c3c']).map(hex);
+  const pal = (o.palette || ['#2a221b', '#3b3027', '#4e4135', '#63533f']).map(hex);
   // Spatenstiche: senkrechte, leicht verbogene Bahnen (10 je Kachel), je Bahn 3 versetzte Abschnitte
   const NS = 10, NV = 3;
   const warp = fbm(S, 3, 3, r), warp2 = fbm(S, 9, 2, r);
@@ -1068,12 +1068,15 @@ G.trenchwall = (t, r, o) => {
   const scrape = fbm(S, 80, 3, r, { py: 6 });                     // feine senkrechte Schabspuren
   const mott = fbm(S, 5, 5, r), fine = fbm(S, 40, 3, r), grain = fbm(S, 150, 2, r);
   const st = worley(S, 16, r), stw = fbm(S, 24, 3, r);            // Steine (unregelmäßiger Rand)
+  const peb = worley(S, 44, r);                                    // Kiesel
+  const clod = worley(S, 26, r, { cy: 30 });                       // Erdklumpen (ausgebrochene Brocken)
   const crumb = worley(S, 70, r);
-  const roots = scratches(S, r, Math.round(n * 0.00006), 25 * px, 120 * px, { width: Math.max(1, Math.round(px)) });
-  const rootsF = scratches(S, r, Math.round(n * 0.00016), 6 * px, 30 * px, { width: 1 });
-  const rust = fbm(S, 12, 3, r);
+  const roots = scratches(S, r, Math.round(n * 0.00007), 25 * px, 120 * px, { width: Math.max(1, Math.round(px)) });
+  const rootsF = scratches(S, r, Math.round(n * 0.00036), 6 * px, 34 * px, { width: 1 });
+  const rust = fbm(S, 12, 3, r), lens = fbm(S, 4, 4, r, { py: 9 }), coal = worley(S, 90, r);
   const stoneC = [hex('#4f4943'), hex('#5c554c'), hex('#433e38'), hex('#62594e')];
   const stones = o.stones ?? 1;
+  const H = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const x = i % S, y = (i / S) | 0;
     const cu = (x / S) * NS + (warp[i] - 0.5) * 0.9 + (warp2[i] - 0.5) * 0.25;
@@ -1082,24 +1085,42 @@ G.trenchwall = (t, r, o) => {
     // Facette: hohl (Mitte tiefer), weiche Kante am Übergang, Eigenneigung/-helligkeit je Stich
     const scoop = -Math.pow(fr - 0.5, 2) * 1.6 + h0 * 0.22 + (fr - 0.5) * (h0 - 0.5) * 0.3;
     const edge = 1 - smooth(0.0, 0.1, Math.min(fr, 1 - fr));
-    // Stein?
+    // Stein? Kiesel?
     const sid = ((st.id[i] * 40503) >>> 0) % 1000 / 1000;
     const srad = 0.12 + ((st.id[i] * 9973) % 9) / 60;
     const sEdge = sid < 0.06 * stones ? 1 - smooth(srad - 0.09, srad + 0.04, st.f1[i] + (stw[i] - 0.5) * 0.4) : 0;
+    const pid = ((peb.id[i] * 2654435761) >>> 0) % 1000 / 1000;
+    const pEdge = pid < 0.1 * stones ? 1 - smooth(0.16, 0.26, peb.f1[i] + (stw[i] - 0.5) * 0.15) : 0;
+    // Klumpen: Eigenhöhe je Zelle, Kante als Bruchkante
+    const cid = ((clod.id[i] * 40503) >>> 0) % 997 / 997;
+    const clodH = (cid - 0.5) * 0.5 * smooth(0.0, 0.25, clod.f2[i] - clod.f1[i]);
     const crumbH = (1 - smooth(0, 0.5, crumb.f1[i])) * 0.5;
     const kk = clamp01(mott[i] * 0.6 + fine[i] * 0.3 + h0 * 0.1);
     const idx = Math.min(pal.length - 2, Math.floor(kk * (pal.length - 1))), f = kk * (pal.length - 1) - idx;
-    let c = mixC(pal[idx], pal[idx + 1], f).map(v => v * (0.88 + grain[i] * 0.14 + scrape[i] * 0.08) * (0.94 + h0 * 0.1));
-    c = mixC(c, [96, 62, 38], smooth(0.72, 0.92, rust[i]) * 0.2);         // Eisenflecken
-    c = mixC(c, [30, 24, 19], edge * 0.12);
-    c = mixC(c, [26, 19, 14], Math.max(roots[i] * 0.7, rootsF[i] * 0.4));
-    if (sEdge > 0) {
-      const sc = stoneC[((st.id[i] * 31) >>> 0) % 4];
-      c = mixC(c, sc.map(v => v * (0.82 + fine[i] * 0.3)), sEdge * 0.85);
+    let c = mixC(pal[idx], pal[idx + 1], f).map(v => v * (0.86 + grain[i] * 0.16 + scrape[i] * 0.08) * (0.92 + h0 * 0.12 + cid * 0.08));
+    c = mixC(c, [96, 62, 38], smooth(0.72, 0.92, rust[i]) * 0.22);        // Eisenflecken
+    c = mixC(c, [112, 98, 78], smooth(0.66, 0.86, lens[i]) * 0.35);        // hellere Lehmlinsen (waagerecht gestreckt)
+    c = mixC(c, [30, 24, 19], edge * 0.14);
+    c = mixC(c, [26, 19, 14], Math.max(roots[i] * 0.75, rootsF[i] * 0.5));
+    const cc = (1 - smooth(0.05, 0.12, coal.f1[i])) * (((coal.id[i] * 9973) >>> 0) % 100 < 7 ? 1 : 0);
+    c = mixC(c, [14, 13, 12], cc * 0.9);                                    // Holzkohlesplitter
+    if (sEdge > 0 || pEdge > 0) {
+      const sc = stoneC[((((sEdge > 0 ? st.id[i] : peb.id[i]) * 31) >>> 0) % 4)];
+      c = mixC(c, sc.map(v => v * (0.82 + fine[i] * 0.3)), Math.max(sEdge, pEdge) * 0.85);
     }
     t.set(i, c[0], c[1], c[2]);
-    t.height[i] = scoop * 0.8 + scrape[i] * 0.14 + crumbH * 0.16 + grain[i] * 0.08 + sEdge * 0.22 + roots[i] * 0.25 + rootsF[i] * 0.1;
-    t.rough[i] = 0.9 - sEdge * 0.12 - (1 - kk) * 0.05;
+    H[i] = scoop * 0.8 + scrape[i] * 0.14 + crumbH * 0.16 + grain[i] * 0.08 + sEdge * 0.22 + pEdge * 0.14 + clodH + roots[i] * 0.25 + rootsF[i] * 0.1;
+    t.height[i] = H[i];
+    t.rough[i] = 0.9 - Math.max(sEdge, pEdge) * 0.12 - (1 - kk) * 0.05;
+  }
+  // Licht von oben einbacken: Oberkanten der Klumpen heller, Unterseiten dunkler (liest sich auch ohne Schatten)
+  const A = t.albedo || t.data;
+  if (A) for (let i = 0; i < n; i++) {
+    const x = i % S, y = (i / S) | 0;
+    const up = H[((y + S - 2) % S) * S + x], dn = H[((y + 2) % S) * S + x];
+    const g = Math.max(-0.25, Math.min(0.25, (dn - up) * 3.0)); // v wächst nach unten
+    const m = 1 + g;
+    A[i * 4] = Math.min(255, A[i * 4] * m); A[i * 4 + 1] = Math.min(255, A[i * 4 + 1] * m); A[i * 4 + 2] = Math.min(255, A[i * 4 + 2] * m);
   }
 };
 
