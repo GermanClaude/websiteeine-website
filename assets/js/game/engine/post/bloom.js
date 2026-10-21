@@ -15,8 +15,14 @@ const PREFILTER_FRAG = /* glsl */ `
   uniform float uExposure;
   uniform float uAutoExp;
   uniform vec3 uThreshold;    // Schwelle, Knie, Obergrenze
+  uniform sampler2D tSkyMask; // Himmelsmaske (¼ Auflösung, vor dem Waffen-Durchgang abgegriffen) – optional
+  uniform float uSky;         // Anteil des Himmels am Bloom (22.10.: 0,3 – sonst flächiger Schein um die Sonne)
   varying vec2 vUv;
-  vec3 tapK(vec2 uv) { return texture2D(tSrc, uv).rgb; }
+  vec3 tapK(vec2 uv) {
+    vec3 c = texture2D(tSrc, uv).rgb;
+    if (uSky < 0.999) c *= mix(1.0, uSky, texture2D(tSkyMask, uv).r);
+    return c;
+  }
   float karis(vec3 c) { return 1.0 / (1.0 + npLuma(c)); }
   void main() {
     float E = uExposure;
@@ -85,12 +91,23 @@ export class Bloom {
     this.threshold = 2.4;
     this.knee = 1.2;
     this.maxBright = 10;
+    /** Himmelsmaske (captureSky vor dem Waffen-Durchgang) und Bloom-Anteil des Himmels. */
+    this.skyMask = null;
+    this.skyFactor = 0.3;
+    this._skyValid = false;
+    this.maskMat = new THREE.ShaderMaterial({
+      name: 'NullpunktSkyMask', vertexShader: FULLSCREEN_VERT, depthTest: false, depthWrite: false, toneMapped: false,
+      uniforms: { tDepth: { value: null } },
+      fragmentShader: `uniform sampler2D tDepth; varying vec2 vUv;
+        void main() { gl_FragColor = vec4(step(0.99995, texture2D(tDepth, vUv).r), 0.0, 0.0, 1.0); }`,
+    });
     const common = { vertexShader: FULLSCREEN_VERT, depthTest: false, depthWrite: false, toneMapped: false };
     this.prefilter = new THREE.ShaderMaterial({
       name: 'NullpunktBloomPrefilter', ...common, fragmentShader: PREFILTER_FRAG,
       uniforms: {
         tSrc: { value: null }, tExposure: { value: null }, uTexel: { value: new THREE.Vector2() },
         uExposure: { value: 1 }, uAutoExp: { value: 0 }, uThreshold: { value: new THREE.Vector3(2.4, 1.2, 10) },
+        tSkyMask: { value: null }, uSky: { value: 1 },
       },
     });
     this.down = new THREE.ShaderMaterial({
@@ -119,6 +136,9 @@ export class Bloom {
     if (bw === this.width && bh === this.height && this.targets.length) return;
     this.width = bw;
     this.height = bh;
+    const mw = Math.max(1, w >> 2), mh = Math.max(1, h >> 2);
+    if (!this.skyMask) this.skyMask = new THREE.WebGLRenderTarget(mw, mh, { depthBuffer: false, magFilter: THREE.LinearFilter, minFilter: THREE.LinearFilter, generateMipmaps: false });
+    else this.skyMask.setSize(mw, mh);
     let lw = bw, lh = bh;
     for (let i = 0; i < this.levels; i++) {
       if (!this.targets[i]) this.targets[i] = hdrTarget(renderer, lw, lh);
@@ -126,6 +146,14 @@ export class Bloom {
       lw = Math.max(1, lw >> 1);
       lh = Math.max(1, lh >> 1);
     }
+  }
+
+  /** Himmelsmaske aus der Welttiefe abgreifen – muss vor dem Viewmodel-Durchgang laufen (der löscht die Tiefe). */
+  captureSky(renderer, fs, depthTex) {
+    if (!this.skyMask || !depthTex) return;
+    this.maskMat.uniforms.tDepth.value = depthTex;
+    fs.draw(renderer, this.maskMat, this.skyMask);
+    this._skyValid = true;
   }
 
   /**
@@ -141,6 +169,9 @@ export class Bloom {
     p.uAutoExp.value = g.auto && g.exposureTex ? 1 : 0;
     p.tExposure.value = g.exposureTex;
     p.uThreshold.value.set(this.threshold, Math.max(0.05, this.knee), this.maxBright);
+    p.tSkyMask.value = this._skyValid ? this.skyMask.texture : null;
+    p.uSky.value = this._skyValid ? this.skyFactor : 1;
+    this._skyValid = false;
     fs.draw(renderer, this.prefilter, t[0]);
     const d = this.down.uniforms;
     for (let i = 1; i < t.length; i++) {
@@ -171,6 +202,8 @@ export class Bloom {
   dispose() {
     for (const rt of this.targets) rt.dispose();
     this.targets.length = 0;
+    if (this.skyMask) { this.skyMask.dispose(); this.skyMask = null; }
+    this.maskMat.dispose();
     this.width = this.height = 0;
     for (const m of this.materials()) m.dispose();
   }

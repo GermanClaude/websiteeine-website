@@ -21,7 +21,8 @@ import { FULLSCREEN_VERT, GLSL_COMMON } from './common.js';
 // Altstadt 0,148. Ändert world den Licht-Look einer Karte, die Referenz neu messen (dev/post.html zeigt L̄) oder per
 // world.grade = { exposure: { ref } } überschreiben. Totzone `dead` (± Blenden): typische Ansichten bleiben unverändert.
 // bloom: threshold (größter Kanal nach Belichtung), strength, dirt (Linsenschmutz im Bodycam-Stil).
-const BASE_EXPOSURE = Object.freeze({ ref: 0.13, strength: 0.72, dead: 0.5, evMin: -1.6, evMax: 1.8, up: 2.6, down: 1.25 });
+// evMin −1,1 (vorher −1,6): beim Blick in hellen Himmel/Sonne wird die Szene nicht mehr so tief abgedunkelt
+const BASE_EXPOSURE = Object.freeze({ ref: 0.13, strength: 0.72, dead: 0.5, evMin: -1.1, evMax: 1.8, up: 2.6, down: 1.25 });
 
 /**
  * Farbstimmung (Einstellung colorLook): „natuerlich“ (Standard seit 15.10. abends: Farben kräftiger, Video-Licht

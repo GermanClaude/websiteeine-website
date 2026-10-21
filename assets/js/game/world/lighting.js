@@ -23,7 +23,7 @@ function patch(src, find, repl) {
 /** Standardgrenzen der Himmelshelligkeit (linear, nach Belichtung; größter Farbkanal). */
 const SKY_LIMITS = Object.freeze({
   // sichtbarer Himmel: Mie-Hof um eine tiefe Sonne (bis > 300) weich auf ≤ 4 begrenzen; Sonnenscheibe extra
-  view: { knee: 1.2, max: 4, sunDisc: 20 },
+  view: { knee: 1.0, max: 3.0, sunDisc: 12 }, // 22.10.: weniger Blendung (Hof ≤ 3, Scheibe 12)
   // Umgebungs-Map (PMREM): flacher, kein Hotspot, den Metalle 1:1 spiegeln würden
   env: { knee: 0.6, max: 2, sunDisc: 0 },
 });
@@ -120,7 +120,9 @@ function makeHdriSky(hdri, sd, fogColor, intensity) {
       uHaze: { value: new THREE.Vector2(sd.hazeLow ?? -0.02, sd.hazeHigh ?? 0.12) },
       uHazeAmt: { value: sd.hazeAmount ?? 0.85 },
       uTint: { value: new THREE.Color(sd.hdriTint || '#ffffff') },
-      uMax: { value: sd.hdriMax ?? 24 },
+      // 22.10.: Sonnenbereich des Fotohimmels auf ≈ 3 begrenzt (bis 24 überstrahlte er mit Bloom/Linsenschmutz halbe
+      // Bildschirme – Spieler wurden beim Blick Richtung Sonne „geblendet“)
+      uMax: { value: sd.hdriMax ?? 3.2 },
       // hdriSat: Sättigung des sichtbaren Fotohimmels (Video: blasser Dunsthimmel statt Tiefblau)
       uSat: { value: sd.hdriSat ?? 1 },
       // hdriBlend [y0, y1]: nur oberhalb sichtbar (weich ab y0 bis y1, Richtungs-y) – darunter der Preetham-Himmel

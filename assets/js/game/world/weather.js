@@ -172,6 +172,10 @@ export function applyConditions(def, cond, mapId) {
   const span = Math.max(20, (L0.fog.far ?? 400) - (L0.fog.near ?? 60));
   if (L.fog.density != null || changed) L.fog.density = (L0.fog.density ?? 1.3 / span) * r('fog');
   L.fog.sun = (L0.fog.sun ?? 0.35) * r('inscatter');
+  // 22.10.: Karten mit bedecktem Kartenwetter (Brandwald, Niemandsland) bekamen bei „klar“ ×6 Sonne und ×4 Einstreuung –
+  // das blendete beim Blick Richtung Sonne. Gedeckelt auf übliche Klar-Werte der übrigen Karten.
+  L.sun.intensity = Math.min(L.sun.intensity, Math.max(L0.sun.intensity, 4.2));
+  L.fog.sun = Math.min(L.fog.sun, Math.max(L0.fog.sun ?? 0.35, 0.35));
   L.atmos.beams = (L0.atmos?.beams ?? 0.02) * r('beams');
   L.atmos.dust = (L0.atmos?.dust ?? 1) * r('dust');
   if (L0.atmos?.slots != null) L.atmos.slots = L0.atmos.slots * r('beams');

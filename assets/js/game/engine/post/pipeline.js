@@ -337,6 +337,8 @@ export class PostPipeline {
         this.shafts.render(r, this.fs, this.hdr.texture, this.hdr.depthTexture, this.inner.w / this.inner.h, gs, camera);
         shaftsOn = true;
       }
+      // Himmelsmaske für den Bloom (Himmel trägt weniger zum Schein bei → keine Blendung), vor dem Waffen-Durchgang
+      if (this.bloom && this.hdr.depthTexture) { r.autoClear = false; this.bloom.captureSky(r, this.fs, this.hdr.depthTexture); }
       if (hasVm) {
         r.setRenderTarget(this.hdr);
         r.autoClear = false;
