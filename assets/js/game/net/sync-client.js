@@ -805,7 +805,7 @@ export class ClientSync {
       const origin = info.origin || p.getEyePosition(_eye);
       net.send(HOST_ID, {
         t: 'hit', target: target.netId, zone: info.zone || 'body', dmg: rnd(amount, 2), weapon: def.id, dist: rnd(Number(info.distance) || 0, 2),
-        origin: arr3(origin), point: arr3(point), serial: p._shotSerial | 0, pellet: info.pelletIndex | 0, ip,
+        origin: arr3(origin), point: arr3(point), serial: p._shotSerial | 0, pellet: info.pelletIndex | 0, ip, pen: info.penetrated ? 1 : undefined,
       });
     }
     // Vorhergesagter Treffer: Trefferanzeige + Blut sofort; Lebenspunkte bleiben beim Host

@@ -607,11 +607,14 @@ export class BotManager {
         G.events.emit('tracer', { from, to: _pt.multiplyScalar(dist).add(_pe).clone(), actor: bot, weaponId: def.id, hit, cosmetic: true });
       }
     }
+    // Einschusslöcher auch für Schüsse entfernter Spieler (jedes Gerät rechnet seine Löcher selbst, inkl. Durchschuss)
+    let hole = null;
+    if (wh && G.holes) { try { hole = G.holes.hit(wh, def, _pd, dist, 1); } catch { hole = null; } }
     if (wh && impact && this.puppetFx.impacts) {
       const nrm = wh.normal ? wh.normal.clone() : _pd.clone().negate();
       if (nrm.dot(_pd) > 0) nrm.negate(); // zum Schützen (doppelseitige Flächen)
       const point = wh.point.clone();
-      G.events.emit('impact', { point, normal: nrm, surface: wh.surface || 'concrete', weaponId: def.id, actor: bot, cosmetic: true });
+      G.events.emit('impact', { point, normal: nrm, surface: wh.surface || 'concrete', weaponId: def.id, actor: bot, cosmetic: true, hole: !!hole, ricochet: !!(hole && hole.ricochet), dir: _pd.clone() });
       this._onImpact({ point, shooter: bot }); // Gehör der Bots (Einschläge in der Nähe)
     }
     if (this.puppetFx.whiz) this._puppetWhiz(bot, dist);

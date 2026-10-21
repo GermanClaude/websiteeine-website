@@ -66,6 +66,7 @@ export class BulletHoles {
     this._viewCam = new THREE.PerspectiveCamera(VIEW_FOV, 1, 0.03, 600);
     this._viewT = 0;
     this._time = 0;
+    this._probeQ = [];
     mat.onBeforeCompile = (sh) => { sh.uniforms.npView = this._uView; sh.uniforms.npViewTan = this._uTan; holeShader(sh); };
     mat.customProgramCacheKey = () => 'np-holes-3';
     this.mesh = new THREE.InstancedMesh(geo, mat, MAX);
@@ -164,6 +165,11 @@ export class BulletHoles {
     return Math.min(4.2, Math.sqrt(1 + s[0] * s[0] + s[1] * s[1]));
   }
 
+  /** Flächenabtastung später (update: nur nahe Löcher, wenige je Bild) – viele Schüsse kosten so kaum Strahlen. */
+  _queueProbe(h) {
+    if (!h._pq) { h._pq = true; this._probeQ.push(h); }
+  }
+
   /** Loch an p (gleiche Fläche) oder null. */
   _near(p, n, surface) {
     let best = null, bd = Infinity;
@@ -206,7 +212,7 @@ export class BulletHoles {
         const rCal = (cal.d / 2000) * S.hole * 0.7;
         g.r = rCal; g.rc = rCal * S.crater * 0.8 + S.craterE * 0.5 * Math.sqrt(cal.E / 1000);
         g.depth = Math.min(0.008, pen * 0.08); g.ricochet = true;
-        this._probe(g);
+        this._queueProbe(g);
         this._write(g);
       }
       return { passed: false, energyLeft: 0, thick, ricochet: true };
@@ -246,7 +252,7 @@ export class BulletHoles {
     }
     if (passed) h.depth = thick;
     if (backN && !h.backN) h.backN = backN;
-    if (h.probed === undefined || h.rc * this._elong(h) > h.probed * 1.4) this._probe(h);
+    if (h.probed === undefined || h.rc * this._elong(h) > h.probed * 1.4) this._queueProbe(h);
     const wasThrough = h.through;
     h.through = wasThrough || h.depth >= thick - 0.002;
     if (h.through && !wasThrough) {
@@ -262,13 +268,13 @@ export class BulletHoles {
         ex.r = h.r * (style === 3 ? 1.15 : 1.5);
         ex.rc = h.rc * (style === 0 || style === 1 || style === 7 ? 1.7 : 1.15);
         ex.depth = thick; ex.through = true; ex.behind = this._behind(h.pos.clone().addScaledVector(dir, -0.02), dir.clone().negate());
-        this._probe(ex);
+        this._queueProbe(ex);
         h.exitHole = ex;
         this._write(ex);
       }
     } else if (h.exitHole) {
       h.exitHole.r = Math.max(h.exitHole.r, h.r * 1.5); h.exitHole.rc = Math.max(h.exitHole.rc, h.rc * 1.4);
-      if (h.exitHole.rc * this._elong(h.exitHole) > h.exitHole.probed * 1.4) this._probe(h.exitHole);
+      if (h.exitHole.probed === undefined || h.exitHole.rc * this._elong(h.exitHole) > h.exitHole.probed * 1.4) this._queueProbe(h.exitHole);
       this._write(h.exitHole);
     }
     this._write(h);
@@ -299,6 +305,7 @@ export class BulletHoles {
       const old = this.holes.splice(i >= 0 ? i : 0, 1)[0];
       slot = old.slot;
       if (old.viewSlot != null) this._slots[old.viewSlot] = null;
+      old.dead = true;
     } else slot = this.holes.length;
     const h = { pos: point.clone(), n: n.clone(), dir: dir.clone(), surface, style, r: 0.005, rc: 0.02, depth: 0.005, thick, through: false, hits: 1, slot, exit, seed: Math.random() * 100, behind: [0.02, 0.02, 0.02], exitHole: null, alb: alb.slice(0, 3) };
     this.holes.push(h);
@@ -347,6 +354,21 @@ export class BulletHoles {
    */
   update(dt) {
     this._time += dt;
+    // Flächenabtastung: bis zu 3 Löcher je Bild, nur im Umkreis von 35 m (ferne bleiben vorgemerkt)
+    if (this._probeQ.length) {
+      const cp = this.G.camera?.position;
+      let done = 0;
+      for (let i = 0; i < this._probeQ.length && done < 3; i++) {
+        const h = this._probeQ[i];
+        if (!h || h.dead) { this._probeQ.splice(i--, 1); continue; }
+        if (cp && h.pos.distanceToSquared(cp) > 35 * 35) continue;
+        this._probeQ.splice(i--, 1);
+        h._pq = false;
+        this._probe(h);
+        this._write(h);
+        done++;
+      }
+    }
     if (!this._viewOn || !this.view) return;
     this._viewT -= dt;
     if (this._viewT > 0) return;
@@ -530,7 +552,7 @@ float npHoleR( vec2 u ) {
 // Außenkante des Abplatzkraters (0..1 des Quads)
 float npEdge( vec2 u ) {
   float e = 0.5 + 0.34 * npN2( u * 1.7 + npSeed * 2.3 ) + 0.14 * npN2( u * 5.0 + npSeed * 0.7 );
-  if ( npSt == 0 ) e = npExit ? e : mix( npR * 1.6, e, 0.35 );
+  if ( npSt == 0 ) e = npExit ? e : min( mix( npR * 1.3, e, 0.15 ), 0.95 ); // Holz: Eintritt fast sauber, Austritt reißt aus
   if ( npSt == 3 ) e = min( 0.95, npR * 2.4 + 0.12 * npN2( u * 3.0 + npSeed ) );
   return e;
 }

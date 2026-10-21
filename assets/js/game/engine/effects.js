@@ -11,6 +11,7 @@
 // Punktlicht wie Explosionen → konstante Lichterzahl), Pulvergas eigener Schüsse, Rauchfäden aus heißen Läufen.
 
 import * as THREE from 'three';
+import { caliberOf } from '../../shared/calibers.js'; // Austritts-Splitter nach Geschossenergie
 import { ParticleLayer, TracerLayer, DecalLayer, PF } from '../weapons/ballistics/fxlayers.js';
 import { getParticleAtlas, getDecalAtlas, getDecalNormalAtlas, CELL, DECAL } from '../weapons/ballistics/fxtex.js';
 import { Debris } from '../weapons/ballistics/debris.js';
@@ -282,7 +283,8 @@ export class Effects {
     // Normale zum Schützen drehen (doppelseitige Flächen liefern sie teils abgewandt)
     const sh = e.shooter;
     let n = e.normal;
-    if (sh && typeof sh.getEyePosition === 'function') {
+    // Austritt (Durchschuss): Normale zeigt bewusst vom Schützen weg – Splitter fliegen auf der Rückseite heraus
+    if (sh && !e.exit && typeof sh.getEyePosition === 'function') {
       sh.getEyePosition(_t2).sub(e.point);
       if (_t2.dot(n) < 0) n = _n.copy(n).negate();
     }
@@ -341,6 +343,9 @@ export class Effects {
       case 'fabric': this._impactFabric(ox, oy, oz, nx, ny, nz, S, lod * k, g); break;
       default: this._impactHard(ox, oy, oz, nx, ny, nz, S, lod * k, g);
     }
+    // Durchschuss: auf der Rückseite platzt Material heraus – Brocken/Splitter fliegen in Schussrichtung und fallen
+    // herunter, dazu ein Staubkegel (Größe nach Kaliberenergie)
+    if (opts.exit && (S.kind === 'hard' || S.kind === 'wood' || S.kind === undefined)) this._exitSpall(ox, oy, oz, nx, ny, nz, S, lod, g, opts.weaponId);
     // Querschläger: Funkengarbe entlang der abgelenkten Bahn
     if (opts.ricochet && opts.dir && (S.kind === 'metal' || S.kind === 'hard' || S.kind === undefined)) {
       const dd = opts.dir, dn = dd.x * nx + dd.y * ny + dd.z * nz;
@@ -350,6 +355,27 @@ export class Effects {
         const sp = rnd(9, 18);
         this._spark(ox, oy, oz, (rx + rnd(-0.12, 0.12)) * sp, (ry + rnd(-0.08, 0.12)) * sp, (rz + rnd(-0.12, 0.12)) * sp, rnd(0.08, 0.2), rnd(0.014, 0.024), i % 2 ? C.spark : C.sparkHot, 4, 9, 0.035);
       }
+    }
+  }
+
+  _exitSpall(x, y, z, nx, ny, nz, S, lod, g, weaponId) {
+    const def = weaponId && this.G.data?.WEAPONS?.[weaponId];
+    const E = def ? caliberOf(def).E : 2000;
+    const k = Math.min(2.2, 0.6 + Math.sqrt(E / 3000)); // .50 ≈ 2,2, Gewehr ≈ 1,3, Pistole ≈ 0,9
+    const wood = S.kind === 'wood';
+    const n = Math.max(2, Math.round(this._count(wood ? 7 : 9, lod) * k));
+    const floor = this._floorY(x, y, z, ny);
+    for (let i = 0; i < n; i++) {
+      this._scatter(nx, ny, nz, 0.55, _v);
+      const sp = rnd(1.8, 5.5) * Math.sqrt(k);
+      this._chip(x, y, z, _v.x * sp, _v.y * sp + rnd(0, 1.2), _v.z * sp, rnd(1.2, 2.2), rnd(0.012, 0.03) * k * (wood ? 1.3 : 1), i % 3 ? S.chip : (S.dustDark || S.chip), 14, floor);
+    }
+    // Staubkegel nach hinten + rieselnder Feinstaub
+    const puffs = Math.max(1, Math.round(this._count(3, lod) * Math.min(1.6, k)));
+    for (let i = 0; i < puffs; i++) {
+      this._scatter(nx, ny, nz, 0.35, _v);
+      const sp = rnd(1.2, 3.2);
+      this._puff(x, y, z, _v.x * sp, _v.y * sp, _v.z * sp, rnd(1.0, 1.8), 0.1 * g * k, rnd(0.5, 0.9) * g * k, S.dust, 0.55, 2.6, -0.05);
     }
   }
 

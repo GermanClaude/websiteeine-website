@@ -279,7 +279,7 @@ export class Combat {
         if (def.id) wstat(shooter, def.id).hits += 1;
       }
       const dealt = this.damage(target, {
-        amount, attacker: shooter, weaponId: def.id, zone, dir: _dir.clone(), point, distance, pelletIndex, origin: _origin,
+        amount, attacker: shooter, weaponId: def.id, zone, dir: _dir.clone(), point, distance, pelletIndex, origin: _origin, penetrated,
       });
       return { hit: 'actor', point, distance, target, zone, normal, surface: 'flesh', damage: dealt, penetrated };
     }
