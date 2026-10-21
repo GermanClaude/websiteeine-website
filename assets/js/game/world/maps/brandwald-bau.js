@@ -37,7 +37,7 @@ function bar(b, ax, ay, az, cx, cy, cz, w, mat, o = {}) {
 // ---------------------------------------------------------------------------
 // Grabenausbau
 // ---------------------------------------------------------------------------
-const PLANK_TINT = '#4f4337', PLANK_DARK = '#3a3129', ROOT_TINT = '#2e2620', EARTH_TINT = '#7a6a5a', CAP_TINT = '#ffffff';
+const PLANK_TINT = '#4f4337', PLANK_DARK = '#3a3129', ROOT_TINT = '#2e2620', EARTH_TINT = '#7a6a5a', CAP_TINT = '#aaa59e';
 
 /** Abstand Punkt → Polylinie (2D). */
 function distToLine(line, x, z) {
@@ -121,6 +121,8 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
     const r = rngOf((tr.id || 'x').split('').reduce((a, c) => a * 31 + c.charCodeAt(0), 7));
     // eigener Zufall für alles mit Kollision (Kisten): gleiche Folge auf jeder Qualitätsstufe (Mehrspieler)
     const rc = rngOf((tr.id || 'x').split('').reduce((a, c) => a * 37 + c.charCodeAt(0), 11));
+    // Zufall für stufenabhängige Kleinteile (Wurzeln, Latten) – so bleibt die Folge von r (Aufbau) überall gleich
+    const rx = rngOf((tr.id || 'x').split('').reduce((a, c) => a * 41 + c.charCodeAt(0), 13));
     const enemySide = Math.sign(tr.pts[0][1]) > 0 ? -1 : 1; // Feind liegt in Richtung Kartenmitte (−z für Süd)
     const tang = line.map((p, i) => {
       const a = line[Math.max(0, i - 1)], c = line[Math.min(N - 1, i + 1)], dx = c[0] - a[0], dz = c[1] - a[1], l = Math.hypot(dx, dz) || 1;
@@ -165,7 +167,7 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
     for (let k = 0; k + 2 < N; k += 2) {
       const [ax, az] = line[k], [bx, bz] = line[k + 2];
       const L = Math.hypot(bx - ax, bz - az);
-      const cr = [rc(), rc(), rc(), rc(), rc()]; // Kisten: immer fünf Ziehungen je Abschnitt
+      const cr = [rc(), rc(), rc(), rc(), rc(), rc(), rc()]; // Kisten/Brustwehr: immer sieben Ziehungen je Abschnitt
       if (L < 0.5) continue;
       const ux = (bx - ax) / L, uz = (bz - az) / L, nx = -uz, nz = ux, ry0 = Math.atan2(-uz, ux);
       const mx = (ax + bx) / 2, mz = (az + bz) / 2;
@@ -180,7 +182,9 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
         const wx = mx + nx * side * (hw - 0.04), wz = mz + nz * side * (hw - 0.04);
         const ry = side > 0 ? ry0 + Math.PI : ry0; // lokal +z zeigt in den Graben
         if (bagsHere && (faceEnemy || r() < 0.55)) {
-          field.addWall(wx, floor - 0.04, wz, ry, L + 0.2, wallH + 0.1, { seed: seed++, wet: 0.45 + r() * 0.3, tone: 0.9 + r() * 0.2 });
+          // vor der Erdwand (gleiche Rückneigung 0,07 m/m), Säcke stecken hinten in der Erde
+          const bx2 = mx + nx * side * (hw - 0.12), bz2 = mz + nz * side * (hw - 0.12);
+          field.addWall(bx2, floor - 0.04, bz2, ry, L + 0.2, wallH + 0.1, { seed: seed++, wet: 0.45 + r() * 0.3, tone: 0.9 + r() * 0.2, lean: 0.07 });
         } else if (planksHere) {
           // Bretterwand: liegende Bohlen (leicht verzogen, einzelne fehlen/gebrochen), zwei Pfosten
           const n = Math.max(3, Math.round(wallH / 0.22));
@@ -193,12 +197,26 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
           for (const s2 of [-0.45, 0.45]) b.cyl(wx + ux * L * s2 - nx * side * 0.08, floor - 0.2, wz + uz * L * s2 - nz * side * 0.08, 0.065, wallH + 0.3, 'wood_dark', { tint: PLANK_DARK, collide: false, minimap: false, seg: 6 });
         } else if (!low) {
           // rohe Erdwand: Wurzeln ragen heraus (gekrümmt, verjüngt, hängend, mit Seitenwurzeln) – meist im oberen Teil
-          const nRoots = 1 + Math.floor(r() * 3);
+          const nRoots = 1 + Math.floor(rx() * 3);
           for (let i = 0; i < nRoots; i++) {
-            const t = (r() - 0.5) * L * 0.9, y = floor + wallH * (0.45 + Math.sqrt(r()) * 0.5);
+            const t = (rx() - 0.5) * L * 0.9, y = floor + wallH * (0.45 + Math.sqrt(rx()) * 0.5);
             const px = mx + ux * t + nx * side * (hw + 0.05), pz = mz + uz * t + nz * side * (hw + 0.05);
-            root(b, r, px, y, pz, -nx * side, -nz * side, ux, uz, 0.25 + r() * 0.7, 0.006 + r() * 0.02, 0, q === 'high' || q === 'ultra');
+            root(b, rx, px, y, pz, -nx * side, -nz * side, ux, uz, 0.25 + rx() * 0.7, 0.006 + rx() * 0.02, 0, q === 'high' || q === 'ultra');
           }
+        }
+      }
+      // Brustwehr aus Sandsäcken auf der Feindseite der Frontgräben (≈ 55 %): drei Lagen auf der Kante, Vorder- und
+      // Rückseite als zwei Säckreihen, Kollision als Quader (Deckung; gleiche Ziehung auf jeder Stufe)
+      if ((tr.sandbags ?? 0) >= 0.4 && cr[5] < 0.55 && !inOther(Lr, mx, mz, 1.2) && !nearRamp(mx, mz, 4.2)) {
+        const es = enemySide * Math.sign(nz || 1) || 1;
+        const top = H(mx + nx * es * (hw + rv + 2.5), mz + nz * es * (hw + rv + 2.5)) + 0.08;
+        if (top - floor > 1.2) {
+          const ph = 0.38 + cr[6] * 0.12, d0 = hw + 0.32;
+          const px = mx + nx * es * d0, pz = mz + nz * es * d0;
+          const ryIn = es > 0 ? ry0 + Math.PI : ry0;           // lokal +z zeigt in den Graben
+          field.addWall(px, top - 0.03, pz, ryIn, L + 0.15, ph, { seed: seed++, wet: 0, tone: 0.95 + r() * 0.15, lean: 0.05 });
+          field.addWall(px + nx * es * 0.3, top - 0.03, pz + nz * es * 0.3, ryIn + Math.PI, L + 0.15, ph - 0.1, { seed: seed++, wet: 0, tone: 0.9 + r() * 0.15, lean: 0.12 });
+          b.solid(px + nx * es * 0.15, top - 0.05, pz + nz * es * 0.15, L, ph + 0.02, 0.62, { ry: ry0, minimap: false });
         }
       }
       // Pfützen auf der Sohle (Schlammwasser), Sturmleitern an der Feindseite der Frontgräben, Munitionskisten
@@ -227,9 +245,9 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
         if (low) { b.box(mx, yb + 0.07, mz, L, 0.025, 0.86, 'wood_planks', { ry: ry0, tint: PLANK_TINT, collide: false, minimap: false, uv: 'local', grad: false }); continue; }
         const ns = Math.floor(L / 0.24);
         for (let i = 0; i < ns; i++) {
-          if (r() < 0.06) continue; // einzelne Latte fehlt
+          if (rx() < 0.06) continue; // einzelne Latte fehlt
           const t = -L / 2 + (i + 0.5) * (L / ns);
-          b.box(mx + ux * t, yb + 0.07, mz + uz * t, 0.11, 0.025, 0.85 + r() * 0.08, 'wood_planks', { ry: ry0 + (r() - 0.5) * 0.06, tint: r() < 0.5 ? PLANK_TINT : PLANK_DARK, collide: false, minimap: false, uv: 'local', grad: false });
+          b.box(mx + ux * t, yb + 0.07, mz + uz * t, 0.11, 0.025, 0.85 + rx() * 0.08, 'wood_planks', { ry: ry0 + (rx() - 0.5) * 0.06, tint: rx() < 0.5 ? PLANK_TINT : PLANK_DARK, collide: false, minimap: false, uv: 'local', grad: false });
         }
       }
     }

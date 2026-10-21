@@ -16,10 +16,17 @@ const NEAR_CAP = { low: 0, medium: 1800, high: 3200, ultra: 4800 };
  * bis unter die Unterkante. cols: Teilungen entlang x, prof: Profilpunkte. seed: Knitter-Variante.
  */
 function bagGeometry(detailed, seed) {
-  // Profil (z, y, Helligkeit): hinten oben → vorn oben → Nase → Stirn → unten → hinten unten (geschlossen gegen Durchblick)
-  const prof = detailed
-    ? [[-0.5, 0.45, 1], [0.1, 0.5, 1], [0.36, 0.44, 0.98], [0.5, 0.1, 0.93], [0.47, -0.25, 0.8], [0.3, -0.48, 0.55], [-0.5, -0.46, 0.4]]
-    : [[-0.5, 0.46, 1], [0.32, 0.47, 1], [0.5, 0.0, 0.9], [0.3, -0.5, 0.5], [-0.5, -0.46, 0.4]];
+  // Querschnitt: Superellipse (prall gefüllt, Ober-/Unterseite leicht abgeflacht, unten etwas breiter – Last),
+  // geschlossener Ring (z, y, Helligkeit); vorn bei +z
+  const nP = detailed ? 12 : 6, pe = 2.6;
+  const prof = [];
+  for (let k = 0; k < nP; k++) {
+    const th = Math.PI / 2 - (k / nP) * Math.PI * 2;      // oben → vorn → unten → hinten
+    const c = Math.cos(th), sn = Math.sin(th);
+    const z = 0.5 * Math.sign(c) * Math.pow(Math.abs(c), 2 / pe), y0 = 0.5 * Math.sign(sn) * Math.pow(Math.abs(sn), 2 / pe);
+    const y = y0 < 0 ? y0 * 0.94 : y0;
+    prof.push([z * (y < 0 ? 1.04 : 1), y, 0.82 + 0.18 * (y + 0.5)]);
+  }
   // Teilung entlang der Länge: dicht an den Enden (stumpfe, umgeschlagene Zipfel)
   const us = detailed ? [-1, -0.93, -0.72, -0.36, 0, 0.36, 0.72, 0.93, 1] : [-1, -0.86, 0.86, 1];
   let s = seed * 9301 + 49297;
@@ -42,15 +49,23 @@ function bagGeometry(detailed, seed) {
       const z = pz * (0.88 + 0.12 * pinch) - back + (pz > 0 ? wr : 0);
       P.push(x, y, z);
       U.push(u * 0.5, arcs[k] * 0.5);
-      const c = sh * (0.5 + 0.5 * (1 - e * 0.8));
+      const c = sh * (1 - e * 0.25);
       C.push(c, c, c);
     }
   }
   const cols = us.length - 1;
   const n = prof.length;
-  for (let i = 0; i < cols; i++) for (let k = 0; k < n - 1; k++) {
-    const a = i * n + k, b = a + n, c = b + 1, d = a + 1;
+  // Mantel geschlossen (letzter Profilpunkt → erster: Rückseite), damit Säcke auch von hinten/unten voll wirken
+  for (let i = 0; i < cols; i++) for (let k = 0; k < n; k++) {
+    const k1 = (k + 1) % n;
+    const a = i * n + k, b = (i + 1) * n + k, c = (i + 1) * n + k1, d = i * n + k1;
     I.push(a, d, b, b, d, c);
+  }
+  // Stirnseiten (eingeschnürte Enden) als Fächer
+  // Ring läuft von +x gesehen gegen den Uhrzeigersinn: Fächer (0, k, k+1) zeigt nach +x → Ende bei u = −1 umdrehen
+  for (const [i, flip] of [[0, false], [cols, true]]) {
+    const base = i * n;
+    for (let k = 1; k < n - 1; k++) { if (flip) I.push(base, base + k, base + k + 1); else I.push(base, base + k + 1, base + k); }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
@@ -105,7 +120,7 @@ export class SandbagField {
 
   build(getMaterial) {
     const q = this.quality;
-    const mat = getMaterial('sandbag', { vertexColors: true });
+    const mat = getMaterial('sackleinen', { vertexColors: true });
     const mk = (geom, n, name, shadow) => {
       const m = new THREE.InstancedMesh(geom, mat, Math.max(1, n));
       m.name = name; m.count = 0; m.frustumCulled = false; m.castShadow = shadow; m.receiveShadow = true;

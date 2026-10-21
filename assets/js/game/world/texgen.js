@@ -1080,7 +1080,7 @@ G.trenchwall = (t, r, o) => {
     // Stein?
     const sid = ((st.id[i] * 40503) >>> 0) % 1000 / 1000;
     const srad = 0.12 + ((st.id[i] * 9973) % 9) / 60;
-    const sEdge = sid < 0.09 * stones ? 1 - smooth(srad - 0.07, srad + 0.03, st.f1[i] + (stw[i] - 0.5) * 0.34) : 0;
+    const sEdge = sid < 0.06 * stones ? 1 - smooth(srad - 0.09, srad + 0.04, st.f1[i] + (stw[i] - 0.5) * 0.4) : 0;
     const crumbH = (1 - smooth(0, 0.5, crumb.f1[i])) * 0.5;
     const kk = clamp01(mott[i] * 0.6 + fine[i] * 0.3 + h0 * 0.1);
     const idx = Math.min(pal.length - 2, Math.floor(kk * (pal.length - 1))), f = kk * (pal.length - 1) - idx;
@@ -1093,7 +1093,7 @@ G.trenchwall = (t, r, o) => {
       c = mixC(c, sc.map(v => v * (0.82 + fine[i] * 0.3)), sEdge * 0.85);
     }
     t.set(i, c[0], c[1], c[2]);
-    t.height[i] = scoop * 0.8 + scrape[i] * 0.14 + crumbH * 0.16 + grain[i] * 0.08 + sEdge * 0.5 + roots[i] * 0.25 + rootsF[i] * 0.1;
+    t.height[i] = scoop * 0.8 + scrape[i] * 0.14 + crumbH * 0.16 + grain[i] * 0.08 + sEdge * 0.22 + roots[i] * 0.25 + rootsF[i] * 0.1;
     t.rough[i] = 0.9 - sEdge * 0.12 - (1 - kk) * 0.05;
   }
 };
@@ -1199,6 +1199,7 @@ export const TEX = {
   tiles_pattern:  { gen: 'tiles', o: { cells: 8, palette: ['#ece4d2'], grout: '#b2a894', pattern: ['#2f5f8a', '#b8643c'], vary: 0.04, glossy: 0.4, groutW: 0.02 }, normal: 1.5 },
   glass:          { gen: 'glass', o: {}, normal: 0.3 },
   sandbag:        { gen: 'burlap', o: { base: '#c4b48c' }, normal: 3 },
+  sackleinen:     { gen: 'burlap', o: { base: '#b8a985' }, normal: 2.4 },
   tarp:           { gen: 'tarp', o: {}, normal: 2.5 },
   awning:         { gen: 'stripes', o: { designs: [
     { count: 10, colors: ['#c8402f', '#efe6d2'] }, { count: 12, colors: ['#2f6f9a', '#efe9da'] },

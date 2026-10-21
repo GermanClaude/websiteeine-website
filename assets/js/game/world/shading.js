@@ -71,7 +71,18 @@ export function ensureWorldVaryings(shader) {
       #endif
       npW = modelMatrix * npW;
       vNpWorld = npW.xyz;
-      vNpNormal = mat3( modelMatrix ) * objectNormal;`);
+      // Normale mit Instanz-/Batch-Drehung (sonst zeigen gedrehte Instanzen – Sandsäcke, Totholz, Streu – ihre
+      // Objektnormale; Detail-/Makro-Projektion wählt dann die falsche Achse)
+      vec3 npN = objectNormal;
+      #ifdef USE_BATCHING
+        npN = mat3( batchingMatrix ) * npN;
+      #endif
+      #ifdef USE_INSTANCING
+        mat3 npIm = mat3( instanceMatrix );
+        npN /= vec3( dot( npIm[ 0 ], npIm[ 0 ] ), dot( npIm[ 1 ], npIm[ 1 ] ), dot( npIm[ 2 ], npIm[ 2 ] ) );
+        npN = npIm * npN;
+      #endif
+      vNpNormal = mat3( modelMatrix ) * npN;`);
   shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vNpWorld;\nvarying vec3 vNpNormal;');
 }
 
