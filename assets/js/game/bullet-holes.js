@@ -48,6 +48,16 @@ const BREACH_K = [1, 0.7, 1.1, 0.5, 0, 0, 0, 1];
 const JAG = [0.14, 0.1, 0.12, 0.05, 0.12, 0.1, 0.1, 0.12];
 // Aufweitung zur Rückseite (Austritt bricht weiter aus): Holz splittert, Mauerwerk platzt, Blech kaum
 const KB = [1.25, 1.15, 1.15, 1.0, 1.0, 1.0, 1.0, 1.18];
+// Explosionen: Ladung relativ zur Splittergranate (Druck auf nahe Flächen) und Zahl der Splitter, die Wände pocken
+const BLAST_Q = { frag: 1, semtex: 1.5, impact: 0.8, rocket: 2.6, shell_he: 3.2, shell_ap: 1.2, drone: 1.1, strike: 3, c4: 3.5, sentry: 0.15 };
+const FRAG_N = { frag: 16, impact: 9, semtex: 6, rocket: 10, shell_he: 18, drone: 7, strike: 12, sentry: 2 };
+// Widerstand gegen Druck je Stil (Holz, Beton, Putz, Blech, Glas, Erde, Stoff, Ziegel): Putzwand bricht, Beton kaum
+const RESIST = [0.4, 1, 0.45, 2.5, 0, 0.6, 0.3, 0.85];
+/** Zufallsfolge aus dem Explosionsort: alle Geräte rechnen dieselbe Bruchform. */
+function rngAt(p) {
+  let st = ((Math.floor(p.x * 97) * 73856093) ^ (Math.floor(p.y * 97) * 19349663) ^ (Math.floor(p.z * 97) * 83492791)) >>> 0;
+  return () => { st = (st + 0x6d2b79f5) >>> 0; let t = st; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
 const CUT_MIN_R = 0.03; // ab diesem Lochradius wird die Wand wirklich ausgeschnitten (echter Durchblick)
 const jag = (th, seed, amp) => 1 + amp * (0.55 * Math.sin(3 * th + seed * 1.7) + 0.3 * Math.sin(5 * th + seed * 2.9) + 0.15 * Math.sin(9 * th + seed * 4.3));
 
@@ -132,6 +142,181 @@ export class BulletHoles {
       };
       W.lineOfSight = this._los;
     }
+    this._fragQ = []; // Splitter unterwegs: { t (Ankunft), f (Treffer), dir, vals }
+    this._offs = G.events && typeof G.events.on === 'function' ? [G.events.on('explosion', (e) => this.blast(e)), G.events.on('dig', (e) => this._dug(e))] : [];
+  }
+
+  // --- Explosionen ---------------------------------------------------------------------------------------------
+
+  /**
+   * Explosion: Druck auf die nächsten Flächen ringsum (Fußpunkt auf jeder Wand-/Bodenebene) – Krater, bei dünnen oder
+   * schwachen Wänden ein Durchbruch (Haftgranate an der Wand, Rakete) –, dazu Splitter, die Wände pocken. Jedes Gerät
+   * rechnet aus demselben 'explosion'-Ereignis mit derselben Zufallsfolge.
+   */
+  blast(e) {
+    if (!e || !e.position || e.nonLethal) return;
+    const W = this.G.world;
+    if (!W || typeof W.raycast !== 'function') return;
+    const Q = BLAST_Q[e.type] ?? BLAST_Q[e.weaponId] ?? Math.max(0.3, (e.radius || 4) / 6);
+    const o = e.position.clone(); o.y += 0.12;
+    const rnd = rngAt(o);
+    const reach = 0.6 + Q * 0.9;
+    const planes = [];
+    const dir = new THREE.Vector3();
+    const N = 14;
+    for (let k = 0; k < N + 2; k++) {
+      if (k < N) { const a = (k / N) * Math.PI * 2 + rnd() * 0.3; dir.set(Math.cos(a), k % 2 ? 0.3 : -0.12, Math.sin(a)).normalize(); }
+      else dir.set(0, k === N ? -1 : 1, 0);
+      const f = W.raycast(o, dir, reach);
+      if (!f || f.solid || f.targetId != null) continue;
+      const n = f.normal.clone(); if (n.dot(dir) > 0) n.negate();
+      const dp = _v.copy(o).sub(f.point).dot(n);
+      if (dp < -0.05) continue;
+      if (planes.some((q) => q.n.dot(n) > 0.95 && Math.abs(q.n.dot(f.point) - q.n.dot(q.p)) < 0.06)) continue;
+      planes.push({ n, p: f.point.clone(), d: Math.max(0, dp), f });
+    }
+    for (const pl of planes) {
+      // Fußpunkt: gerade auf die Fläche zu (nächste Stelle, stärkster Druck)
+      const back = pl.n.clone().negate();
+      const g = W.raycast(o, back, pl.d + 0.12);
+      const hit = g && !g.solid && g.targetId == null && Math.abs(g.distance - pl.d) < 0.06 ? g : pl.f;
+      const dist = hit === g ? g.distance : o.distanceTo(pl.f.point);
+      this._blastHit(hit, back, Q / (dist + 0.25) ** 2, rnd);
+    }
+    // Splitter: sichtbar als glühende Streifen vom Sprengpunkt weg; wo sie einschlagen (beim Eintreffen) Pocken + Staub.
+    // Die Hälfte fliegt nur sichtbar ins Freie (keine Strahlprüfung).
+    const nf = FRAG_N[e.type] ?? FRAG_N[e.weaponId] ?? 0;
+    const fx = this.G.effects;
+    for (let k = 0; k < nf * 2; k++) {
+      const u = rnd() * 2 - 1, a = rnd() * Math.PI * 2, r = Math.sqrt(1 - u * u);
+      dir.set(r * Math.cos(a), u * 0.75 + 0.08, r * Math.sin(a)).normalize();
+      const speed = 150 + rnd() * 150, seg = 0.3 + rnd() * 0.45, width = 0.007 + rnd() * 0.007, inten = 0.5 + rnd() * 0.45;
+      const vals = [rnd(), rnd(), rnd()];
+      const f = k < nf ? W.raycast(o, dir, 9) : null;
+      const end = f ? f.point : o.clone().addScaledVector(dir, 3 + vals[0] * 9);
+      if (fx && typeof fx.tracer === 'function') fx.tracer(o, end, { speed, seg, width: width * 1.6, intensity: inten * 1.5, skip: 0.25 });
+      if (fx && typeof fx.fragment === 'function') fx.fragment(o, dir, o.distanceTo(end), { speed: 60 + vals[1] * 50 });
+      if (f && !f.solid && f.targetId == null) this._fragQ.push({ t: this._time + f.distance / speed, f, dir: dir.clone(), vals });
+    }
+    this.stats.holes = this.holes.length;
+  }
+
+  /**
+   * Explosionstrichter im Gelände (digging.js 'dig' mit crater): aufgewühlte, angesengte Erde als gebogenes Quad in
+   * der Mulde; flache Brandflecken darüber (lägen in der Luft) blendet der Effekt-Layer aus.
+   */
+  _dug(e) {
+    if (!e || !e.crater || !Number.isFinite(e.x) || !Number.isFinite(e.z)) return;
+    const W = this.G.world, r = e.r || 1, d = e.dy || 0.3;
+    const at = (x, z) => (W && typeof W.heightAt === 'function' ? W.heightAt(x, z) : NaN);
+    const dec = this.G.effects && this.G.effects.decals;
+    if (dec && typeof dec.hideAbove === 'function') dec.hideAbove(e.x, e.z, r * 1.6, at);
+    const y = at(e.x, e.z);
+    if (!Number.isFinite(y)) return;
+    // ein Trichter je Stelle: frühere Erdflecken hier ersetzen
+    this.removeWhere((h) => h.scorch && Math.hypot(h.pos.x - e.x, h.pos.z - e.z) < r * 0.6);
+    const h = this._make(new THREE.Vector3(e.x, y, e.z), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -1, 0), 'dirt', 5, Infinity, false, [0.07, 0.055, 0.04]);
+    if (!h) return;
+    h.scorch = true; h.r = 0.002; h.rc = r * 1.08; h.depth = 0.003; h.cos = 1; h.slope = [0, 0];
+    // Mulde: Quad biegt sich zum Rand hin hoch (Tiefe d über Radius r)
+    h.kx = h.ky = (-2 * d) / (r * r) * 0.9;
+    h.clip = [9, 9, 9, 9]; h.probed = 99;
+    this._write(h);
+    this.stats.holes = this.holes.length;
+  }
+
+  /** Druck s (≈ Ladung / Abstand²) auf eine Fläche: Krater, ggf. Durchbruch mit zerrissenem Umriss. */
+  _blastHit(hit, dir, s, rnd) {
+    const surface = hit.surface || 'concrete', style = STYLE[surface];
+    if (style === undefined || style === 4) return;
+    const n = hit.normal.clone(); if (n.dot(dir) > 0) n.negate();
+    const flat = Math.abs(n.y) > 0.7;
+    // Erdboden der Geländekarten: Trichter macht digging.js (echte Höhenänderung)
+    if (n.y > 0.7 && style === 5 && this.G.digging && this.G.digging.active) return;
+    if (this._cutAt(hit.point, 1)) return;
+    const thick = this._thickness(hit.point, dir, surface, hit);
+    const backN = this._backN;
+    const res = RESIST[style] || 1;
+    const pen = (0.05 * s) / res;
+    const rcB = Math.min(1.2, 0.04 + (0.11 * Math.sqrt(s)) / Math.sqrt(res));
+    let h = this._near(hit.point, n, surface, rcB, null);
+    if (!h) {
+      const alb = (hit.tri != null && this.G.world?.albedoAt?.(hit.tri, [0, 0, 0])) || ALBEDO[style];
+      h = this._make(hit.point, n, dir, surface, style, thick, false, alb);
+      if (!h) return;
+      h.cos = 1; h.slope = [0, 0];
+      if (hit.object && hit.object.name) h.objName = hit.object.name;
+      h.r = 0.004; h.rc = rcB; h.depth = Math.min(thick, Math.max(0.006, pen * 0.6));
+    } else {
+      h.hits++;
+      if (!h.cut) h.rc = Math.max(h.rc, rcB);
+      h.depth = Math.min(thick, h.depth + pen * 0.6);
+    }
+    if (backN && !h.backN) h.backN = backN;
+    if (!flat && thick !== Infinity && pen >= thick) {
+      const rb = Math.min(1.2, 0.06 + 0.16 * Math.sqrt(s / res));
+      h.depth = thick;
+      if (!h.through) { h.through = true; this.stats.through++; h.behind = this._behind(h.pos.clone().addScaledVector(dir, thick + 0.02), dir); }
+      if (!h.exitHole) this._newExit(h, dir, n, thick, surface, style, null);
+      if (this._cutOk(h)) {
+        if (!h.cut) { h.r = Math.max(h.r, CUT_MIN_R); this._makeCut(h); }
+        // zerrissener Umriss: Kernloch um den Fußpunkt + ausgebrochene Lappen; Sprengung reißt weiter auf als Beschuss
+        const cap = Math.min(1.2, this._breachCap(h) * 1.7), c = this._cutLocal(h, hit.point);
+        this._addDisc(h, c.x, c.y, rb * 0.7, cap);
+        for (let k = 0; k < 7; k++) {
+          const a = rnd() * Math.PI * 2, d = rb * (0.25 + 0.5 * rnd());
+          this._addDisc(h, c.x + Math.cos(a) * d, c.y + Math.sin(a) * d, rb * (0.2 + 0.35 * rnd()), cap);
+        }
+        // kein glatter Kreis, auch wenn die Grenze greift: jede Richtung bricht anders weit aus
+        for (let k = 0; k < CUT_K; k++) h.prof[k] = Math.max(CUT_MIN_R, h.prof[k] * (0.72 + 0.32 * rnd()));
+        this._sizeCut(h);
+        this._cutDirty = true;
+        this._absorb(h);
+      } else {
+        h.r = Math.max(h.r, Math.min(MAXR[style][0] * 1.5, rb * 0.5));
+        h.rc = Math.max(h.rc, h.r * 1.5);
+      }
+    }
+    this._queueProbe(h);
+    if (h.exitHole) { this._syncExit(h); this._write(h.exitHole); }
+    this._write(h);
+  }
+
+  /** Splitter: kleiner, flacher Einschlag (schräg gestreckt). vals: drei Zufallswerte (gleich auf allen Geräten). */
+  _pock(f, dir, vals) {
+    let vi = 0;
+    const rnd = () => vals[vi++ % vals.length];
+    const surface = f.surface || 'concrete', style = STYLE[surface];
+    if (style === undefined || style === 4 || this._cutAt(f.point, 1)) return;
+    const n = f.normal.clone(); if (n.dot(dir) > 0) n.negate();
+    const alb = (f.tri != null && this.G.world?.albedoAt?.(f.tri, [0, 0, 0])) || ALBEDO[style];
+    const h = this._make(f.point, n, dir, surface, style, Infinity, false, alb);
+    if (!h) return;
+    this._slope(h, dir);
+    h.r = 0.0015 + rnd() * 0.002;
+    h.rc = 0.008 + rnd() * 0.012;
+    h.depth = 0.004 + rnd() * 0.01;
+    if (f.object && f.object.name) h.objName = f.object.name;
+    this._queueProbe(h);
+    this._write(h);
+  }
+
+  /** Austrittsloch auf der Rückseite anlegen (größerer Ausbruch). */
+  _newExit(h, dir, n, thick, surface, style, att) {
+    const ep = h.pos.clone().addScaledVector(dir, thick);
+    // Austrittsfläche: gemessene Rückseite (Stamm, schräge Wand), sonst parallel zur Eintrittsfläche
+    const exN = h.backN || n.clone().negate();
+    const ex = this._make(ep, exN, dir.clone().negate(), surface, style, thick, true, h.alb);
+    if (!ex) return null;
+    this._slope(ex, dir.clone().negate());
+    if (att) ex.att = att;
+    ex.r = Math.min(MAXR[style][0] * 1.2, h.r * (style === 3 ? 1.15 : 1.5));
+    ex.rc = Math.min(MAXR[style][1] * 1.3, h.rc * (style === 0 || style === 1 || style === 7 ? 1.7 : 1.15));
+    ex.depth = thick; ex.through = true; ex.behind = this._behind(h.pos.clone().addScaledVector(dir, -0.02), dir.clone().negate());
+    this._queueProbe(ex);
+    h.exitHole = ex;
+    this._write(ex);
+    return ex;
   }
 
   // --- Wanddurchbrüche -----------------------------------------------------------------------------------------
@@ -232,7 +417,7 @@ export class BulletHoles {
     for (let pass = 0; pass < 3; pass++) {
       let any = false;
       for (const o of this.holes) {
-        if (o === h || o === h.exitHole || o.dead || gone.has(o) || o.att || Math.abs(o.n.dot(h.n)) < 0.9) continue;
+        if (o === h || o === h.exitHole || o.dead || o.scorch || gone.has(o) || o.att || Math.abs(o.n.dot(h.n)) < 0.9) continue;
         if (o.entry === h) continue;
         _v.copy(o.pos).sub(h.pos);
         const hh = _v.dot(h.n);
@@ -430,7 +615,7 @@ export class BulletHoles {
     // gleiche Fläche, Krater überlappen deutlich → dasselbe (wachsende) Loch; weiter auseinander → eigenes Loch
     let best = null, bd = Infinity;
     for (const h of this.holes) {
-      if (h.dead || h.ricochet || h.nick || h.surface !== surface || (h.att || null) !== att) continue;
+      if (h.dead || h.ricochet || h.nick || h.scorch || h.surface !== surface || (h.att || null) !== att) continue;
       if (h.exit) continue;
       // Durchbruch (beide Seiten): Treffer im Bruchsaum gehören dazu – der Rand bricht dort weiter aus
       if (h.cut) {
@@ -574,20 +759,7 @@ export class BulletHoles {
       this.stats.through++;
       h.behind = this._behind(h.pos.clone().addScaledVector(dir, thick + 0.02), dir);
       // Austrittsloch: auf der Rückseite, größerer Ausbruch (Holz reißt Spreißel heraus, Beton platzt ab)
-      const ep = h.pos.clone().addScaledVector(dir, thick);
-      // Austrittsfläche: gemessene Rückseite (Stamm, schräge Wand), sonst parallel zur Eintrittsfläche
-      const exN = h.backN || n.clone().negate();
-      const ex = this._make(ep, exN, dir.clone().negate(), surface, style, thick, true, h.alb);
-      if (ex) {
-        this._slope(ex, dir.clone().negate());
-        if (att) ex.att = att;
-        ex.r = Math.min(MAXR[style][0] * 1.2, h.r * (style === 3 ? 1.15 : 1.5));
-        ex.rc = Math.min(MAXR[style][1] * 1.3, h.rc * (style === 0 || style === 1 || style === 7 ? 1.7 : 1.15));
-        ex.depth = thick; ex.through = true; ex.behind = this._behind(h.pos.clone().addScaledVector(dir, -0.02), dir.clone().negate());
-        this._queueProbe(ex);
-        h.exitHole = ex;
-        this._write(ex);
-      }
+      this._newExit(h, dir, n, thick, surface, style, att);
     } else if (h.exitHole && h.cut) {
       this._syncExit(h);
       if (h.exitHole.probed === undefined || h.exitHole.rc > h.exitHole.probed * 1.4) this._queueProbe(h.exitHole);
@@ -688,6 +860,21 @@ export class BulletHoles {
    */
   update(dt) {
     this._time += dt;
+    // Splitter kommen an: Pocke + kleiner Einschlag (Staub/Funke je Werkstoff)
+    if (this._fragQ.length) {
+      const fx = this.G.effects;
+      for (let i = 0; i < this._fragQ.length; i++) {
+        const q = this._fragQ[i];
+        if (q.t > this._time) continue;
+        this._fragQ.splice(i--, 1);
+        this._pock(q.f, q.dir, q.vals);
+        if (fx && typeof fx.impact === 'function') {
+          const n = q.f.normal.clone(); if (n.dot(q.dir) > 0) n.negate();
+          try { fx.impact(q.f.point, n, q.f.surface || 'concrete', { scale: 0.45, hole: true }); } catch { /* Beiwerk */ }
+        }
+      }
+      this.stats.holes = this.holes.length;
+    }
     // angeheftete Löcher (Türen) folgen ihrem Objekt; verschwindet es, verschwinden sie mit
     let gone = false;
     for (const h of this.holes) {
@@ -852,6 +1039,8 @@ export class BulletHoles {
   }
 
   dispose() {
+    for (const off of this._offs || []) off();
+    this._offs = [];
     this.holes.length = 0;
     setCutCount(0);
     const W = this.G.world;

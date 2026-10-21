@@ -480,6 +480,20 @@ export class DecalLayer {
     this.attr.needsUpdate = true;
   }
 
+  /** Decals über einem frisch gegrabenen Trichter ausblenden (sie lägen flach in der Luft). groundAt(x, z) → Höhe. */
+  hideAbove(x, z, r, groundAt) {
+    const e = this.mesh.instanceMatrix.array, a = this.attr.array;
+    let dirty = false;
+    for (let i = 0; i < this.used; i++) {
+      const px = e[i * 16 + 12], py = e[i * 16 + 13], pz = e[i * 16 + 14];
+      if (Math.hypot(px - x, pz - z) > r || !(a[i * 4 + 2] > 0)) continue;
+      const g = groundAt(px, pz);
+      if (Number.isFinite(g) && py - g < 0.06) continue;
+      a[i * 4 + 2] = 0; this.alpha0[i] = 0; dirty = true;
+    }
+    if (dirty) this.attr.needsUpdate = true;
+  }
+
   /** Verblassen (4×/s genügt). */
   update(dt, now) {
     this._acc += dt;

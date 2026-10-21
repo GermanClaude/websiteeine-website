@@ -383,7 +383,12 @@ export class HostSync {
   relayBuild(msg) { if (this.active && this.net.online) this.net.send('all', { t: 'ev', e: 'bs', ...msg }); }
 
   /** Gegraben ('ev' dg, digging.js). */
-  relayDig(x, z) { if (this.active && this.net.online) this.net.send('all', { t: 'ev', e: 'dg', x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100 }); }
+  relayDig(x, z, r = 0, d = 0) {
+    if (!this.active || !this.net.online) return;
+    const m = { t: 'ev', e: 'dg', x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100 };
+    if (r > 0 && d > 0) { m.r = Math.round(r * 100) / 100; m.d = Math.round(d * 100) / 100; } // Explosionskrater
+    this.net.send('all', m);
+  }
 
   /** Tür/Tor geändert ('ev' dr, doors.js). */
   relayDoor(msg) { if (this.active && this.net.online) this.net.send('all', { t: 'ev', e: 'dr', ...msg }); }

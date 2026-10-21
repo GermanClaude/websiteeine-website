@@ -651,7 +651,7 @@ export class ClientSync {
         owner.setCarry(m.w, { camo, att: m.a && typeof m.a === 'object' ? m.a : null });
         return;
       }
-      case 'dg': if (G.digging && Number.isFinite(m.x) && Number.isFinite(m.z)) G.digging.apply(m.x, m.z, true); return; // Graben (digging.js)
+      case 'dg': if (G.digging && Number.isFinite(m.x) && Number.isFinite(m.z)) G.digging.apply(m.x, m.z, true, Number(m.r) || 0, Number(m.d) || 0); return; // Graben / Explosionskrater (digging.js)
       case 'tf': if (G.trees && Number.isInteger(m.i) && Number.isFinite(m.y) && Number.isFinite(m.dx) && Number.isFinite(m.dz)) G.trees.fell(m.i, m.y, m.dx, m.dz, true, !!m.now); return; // Baum gefallen (treefall.js)
       case 'gr': {
         if (!W) return;

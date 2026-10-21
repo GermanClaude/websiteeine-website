@@ -55,9 +55,9 @@ export class Heightfield {
   /**
    * Graben (Klappspaten, game/digging.js): senkt das Gelände um (x, z) im Radius r um bis zu dy (weich auslaufend),
    * höchstens maxDepth unter die ursprüngliche Höhe. Blockgrenzen werden nachgeführt (Kollision/Strahlen sofort aktuell).
-   * → { minX, minZ, maxX, maxZ } (berührter Bereich) oder null.
+   * bowl: Trichter statt flacher Sohle (Explosionskrater). → { minX, minZ, maxX, maxZ } (berührter Bereich) oder null.
    */
-  dig(x, z, r = 1.1, dy = 0.4, maxDepth = 2.4) {
+  dig(x, z, r = 1.1, dy = 0.4, maxDepth = 2.4, bowl = false) {
     const n = this.n, res = this.res, H = this.heights;
     if (!this._orig) this._orig = Float32Array.from(H);
     let i0 = Math.max(0, Math.floor((x - r - this.minX) / res)), i1 = Math.min(n - 1, Math.ceil((x + r - this.minX) / res));
@@ -67,7 +67,7 @@ export class Heightfield {
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       const d = Math.hypot(this.minX + i * res - x, this.minZ + j * res - z);
       if (d > r) continue;
-      const q = d / r, w = q < 0.45 ? 1 : 1 - ((q - 0.45) / 0.55) ** 2, o = j * n + i; // flacher Boden, Rand weich
+      const q = d / r, w = bowl ? (1 - q * q) * (1 - 0.35 * q) : q < 0.45 ? 1 : 1 - ((q - 0.45) / 0.55) ** 2, o = j * n + i; // flacher Boden, Rand weich
       const nh = Math.max(this._orig[o] - maxDepth, H[o] - dy * w);
       if (nh < H[o] - 1e-4) { H[o] = nh; changed = true; }
     }

@@ -20,7 +20,8 @@ import { handlingFor } from '../weapons/gunsmith/handling.js';
 const ALPHA_CAP = 900;
 const ADD_CAP = 640;
 const DECAL_CAP = 120;
-const TRACER_CAP = 56;
+const TRACER_CAP = 96; // Kugeln + Granatsplitter (bullet-holes.js)
+const FRAG_DARK = [0.05, 0.045, 0.04]; // Granatsplitter (dunkles Metall)
 const PENDING_CAP = 24;
 
 const _v = new THREE.Vector3();
@@ -822,6 +823,19 @@ export class Effects {
     const st = a.weapon && a.weapon.current;
     const rounds = st && typeof st.mag === 'number' ? st.mag : (e.empty ? 0 : 1);
     this.debris.magazine(def.model || def.id, _t1, _w, null, { actor: a, delay: def.cls === 'pistol' ? 0.2 : 0.38, rounds });
+  }
+
+  /**
+   * Granatsplitter (öffentlich, bullet-holes.js): glühender, gestreckter Funke + dunkler Brocken entlang dir
+   * (Einheitsvektor) über etwa dist Meter – auch vor hellen Wänden sichtbar.
+   */
+  fragment(from, dir, dist, opts = {}) {
+    if (!this._built) return;
+    const lod = this._lod(from.x, from.y, from.z);
+    if (lod <= 0) return;
+    const sp = opts.speed || 75, life = Math.min(0.5, Math.max(0.06, dist / (sp * 0.75)));
+    this._spark(from.x, from.y, from.z, dir.x * sp, dir.y * sp, dir.z * sp, life, rnd(0.018, 0.03), C.spark, 2.2, 2, 0.0055);
+    if (lod > 0.45) this._chip(from.x, from.y, from.z, dir.x * sp * 0.6, dir.y * sp * 0.6, dir.z * sp * 0.6, Math.min(0.7, life * 1.7), rnd(0.014, 0.026), FRAG_DARK, 4, null);
   }
 
   /** Leuchtspur (öffentlich). */
