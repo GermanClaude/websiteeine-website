@@ -85,7 +85,7 @@ export default {
     detail: { amp: 0.32, scale: 7 },
     hills: [{ x: -120, z: -20, r: 60, h: 2.5 }, { x: 130, z: 30, r: 55, h: 3 }, { x: 0, z: 220, r: 80, h: 4 }, { x: 0, z: -220, r: 80, h: 4 }],
     edge: { start: 250, end: 315, height: 18 },
-    waterY: -1.6,
+    waterY: -1.9, // Grabensohlen bleiben trocken (tiefste ≈ −1,7), tiefe Trichter füllen sich
     pads: [
       { x: -100, z: 14, w: 46, d: 40, y: 0.3, blend: 12, worn: false },  // Gewächshäuser
       { x: 106, z: -22, w: 40, d: 32, y: 0.5, blend: 12, worn: false },  // Holzplatz
@@ -109,6 +109,8 @@ export default {
     groves: [[-150, 120, 40, 4], [150, -120, 40, 4], [-40, -130, 30, 3.6], [60, 130, 30, 3.6]],
     clearings: [[8, 6, 12], [-100, 14, 26], [106, -22, 22]],
   },
+  // Bodenstreu (je m², Ring um die Kamera): verkohlte Zweige, graue Stöcke, Äste, Rindenstücke, Holzkohle, Steine
+  litter: { seed: 2114, twigs: 0.55, sticks: 0.12, branches: 0.035, bark: 0.18, coals: 0.22, stones: 0.14 },
   clearings: [[8, 6, 12]],
 
   sites: [

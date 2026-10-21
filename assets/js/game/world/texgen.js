@@ -971,7 +971,7 @@ G.waterNormal = (t, r) => {
 G.burnt = (t, r, o) => {
   const { S, n } = t, px = S / 512;
   const pal = (o.palette || ['#141210', '#1d1a17', '#26221e', '#302a24']).map(hex);
-  const ashC = hex(o.ashColor || '#87827a'), ashL = hex('#b6b0a5'), twigC = hex('#0b0a09'), twigG = hex('#6d675f'), twigB = hex('#4a3f35');
+  const ashC = hex(o.ashColor || '#5f5b55'), ashL = hex('#7b766e'), twigC = hex('#0b0a09'), twigG = hex('#6d675f'), twigB = hex('#4a3f35');
   const chipC = hex(o.chipColor || '#a8a08f');
   const a = fbm(S, 4, 6, r), b = fbm(S, 22, 3, r), duff = fbm(S, 120, 2, r);
   const ashF = fbm(S, 6, 5, r, { gain: 0.6 }), ashFine = fbm(S, 40, 3, r);
@@ -989,8 +989,8 @@ G.burnt = (t, r, o) => {
     const k = clamp01(a[i] * 0.55 + b[i] * 0.3 + duff[i] * 0.15), idx = Math.min(pal.length - 2, Math.floor(k * (pal.length - 1))), f = k * (pal.length - 1) - idx;
     let c = mixC(pal[idx], pal[idx + 1], f);
     // Asche: unregelmäßige Flecken unterschiedlicher Größe, körniger Rand, darin feine Struktur
-    const ash = smooth(1 - ashAmt - 0.06, 1 - ashAmt + 0.1, ashF[i] * 0.75 + ashFine[i] * 0.25);
-    c = mixC(c, mixC(ashC, ashL, ashFine[i]), ash * (0.7 + 0.3 * b[i]));
+    const ash = smooth(1 - ashAmt - 0.16, 1 - ashAmt + 0.2, ashF[i] * 0.75 + ashFine[i] * 0.25);
+    c = mixC(c, mixC(ashC, ashL, ashFine[i]), ash * (0.45 + 0.35 * b[i]));
     c = mixC(c, [8, 8, 8], coal[i] * 0.85);
     // Streu
     c = mixC(c, twigC, nDark[i] * 0.75);
@@ -1009,7 +1009,7 @@ G.burnt = (t, r, o) => {
 /** Asche: hellgraues, pudriges Feld mit dunklen Kohlekrümeln und feinen Trockenrissen. */
 G.ash = (t, r, o) => {
   const { S, n } = t, px = S / 512;
-  const base = hex(o.base || '#9b968d'), dark = hex('#4d4944'), light = hex('#c4beb3');
+  const base = hex(o.base || '#6f6b65'), dark = hex('#3a3733'), light = hex('#8e8981');
   const a = fbm(S, 5, 5, r), b = fbm(S, 48, 3, r);
   const crumbs = speckle(S, r, Math.round(n * 0.003), 0.5 * px, 1.6 * px);
   const w = worley(S, 12, r), cm = fbm(S, 4, 3, r);
@@ -1045,6 +1045,56 @@ G.clay = (t, r, o) => {
     t.set(i, c[0], c[1], c[2]);
     t.height[i] = a[i] * 0.25 + b[i] * 0.25 + cl * 0.25 * (o.clods ?? 1) + grain[i] * 0.2 + sv * 0.9 + roots[i] * 0.4;
     t.rough[i] = 0.92;
+  }
+};
+
+/**
+ * Gegrabene Grabenwand (Brandwald, 21.10.): senkrechte Spatenstiche als leicht hohle Facetten mit scharfen Graten,
+ * feine senkrechte Schabspuren, einzelne halb eingebettete, unregelmäßige Steine, Krümel, Wurzelspuren und
+ * Fleckung (Eisen-/Humusflecken). Kachel: u = entlang der Wand, v = Höhe. o: { palette, stones }
+ */
+G.trenchwall = (t, r, o) => {
+  const { S, n } = t, px = S / 512;
+  const pal = (o.palette || ['#30271f', '#3f342a', '#4d4034', '#5b4c3c']).map(hex);
+  // Spatenstiche: senkrechte, leicht verbogene Bahnen (10 je Kachel), je Bahn 3 versetzte Abschnitte
+  const NS = 10, NV = 3;
+  const warp = fbm(S, 3, 3, r), warp2 = fbm(S, 9, 2, r);
+  const hs = Array.from({ length: NS * NV }, () => r()), off = Array.from({ length: NS }, () => r());
+  const scrape = fbm(S, 80, 3, r, { py: 6 });                     // feine senkrechte Schabspuren
+  const mott = fbm(S, 5, 5, r), fine = fbm(S, 40, 3, r), grain = fbm(S, 150, 2, r);
+  const st = worley(S, 16, r), stw = fbm(S, 24, 3, r);            // Steine (unregelmäßiger Rand)
+  const crumb = worley(S, 70, r);
+  const roots = scratches(S, r, Math.round(n * 0.00006), 25 * px, 120 * px, { width: Math.max(1, Math.round(px)) });
+  const rootsF = scratches(S, r, Math.round(n * 0.00016), 6 * px, 30 * px, { width: 1 });
+  const rust = fbm(S, 12, 3, r);
+  const stoneC = [hex('#4f4943'), hex('#5c554c'), hex('#433e38'), hex('#62594e')];
+  const stones = o.stones ?? 1;
+  for (let i = 0; i < n; i++) {
+    const x = i % S, y = (i / S) | 0;
+    const cu = (x / S) * NS + (warp[i] - 0.5) * 0.9 + (warp2[i] - 0.5) * 0.25;
+    const k = ((Math.floor(cu) % NS) + NS) % NS, fr = cu - Math.floor(cu);
+    const seg = ((Math.floor((y / S) * NV + off[k] * NV) % NV) + NV) % NV, h0 = hs[k * NV + seg];
+    // Facette: hohl (Mitte tiefer), weiche Kante am Übergang, Eigenneigung/-helligkeit je Stich
+    const scoop = -Math.pow(fr - 0.5, 2) * 1.6 + h0 * 0.22 + (fr - 0.5) * (h0 - 0.5) * 0.3;
+    const edge = 1 - smooth(0.0, 0.1, Math.min(fr, 1 - fr));
+    // Stein?
+    const sid = ((st.id[i] * 40503) >>> 0) % 1000 / 1000;
+    const srad = 0.12 + ((st.id[i] * 9973) % 9) / 60;
+    const sEdge = sid < 0.09 * stones ? 1 - smooth(srad - 0.07, srad + 0.03, st.f1[i] + (stw[i] - 0.5) * 0.34) : 0;
+    const crumbH = (1 - smooth(0, 0.5, crumb.f1[i])) * 0.5;
+    const kk = clamp01(mott[i] * 0.6 + fine[i] * 0.3 + h0 * 0.1);
+    const idx = Math.min(pal.length - 2, Math.floor(kk * (pal.length - 1))), f = kk * (pal.length - 1) - idx;
+    let c = mixC(pal[idx], pal[idx + 1], f).map(v => v * (0.88 + grain[i] * 0.14 + scrape[i] * 0.08) * (0.94 + h0 * 0.1));
+    c = mixC(c, [96, 62, 38], smooth(0.72, 0.92, rust[i]) * 0.2);         // Eisenflecken
+    c = mixC(c, [30, 24, 19], edge * 0.12);
+    c = mixC(c, [26, 19, 14], Math.max(roots[i] * 0.7, rootsF[i] * 0.4));
+    if (sEdge > 0) {
+      const sc = stoneC[((st.id[i] * 31) >>> 0) % 4];
+      c = mixC(c, sc.map(v => v * (0.82 + fine[i] * 0.3)), sEdge * 0.85);
+    }
+    t.set(i, c[0], c[1], c[2]);
+    t.height[i] = scoop * 0.8 + scrape[i] * 0.14 + crumbH * 0.16 + grain[i] * 0.08 + sEdge * 0.5 + roots[i] * 0.25 + rootsF[i] * 0.1;
+    t.rough[i] = 0.9 - sEdge * 0.12 - (1 - kk) * 0.05;
   }
 };
 
@@ -1169,7 +1219,7 @@ export const TEX = {
   brandboden:     { gen: 'burnt', o: {}, normal: 3.2 },
   brandboden_hell: { gen: 'burnt', o: { ash: 0.62, palette: ['#2a2723', '#36322d', '#423d36', '#4d4740'], litter: 1.2 }, normal: 3.2 },
   asche:          { gen: 'ash', o: {}, normal: 1.8 },
-  grabenlehm:     { gen: 'clay', o: {}, normal: 3.4 },
+  grabenlehm:     { gen: 'trenchwall', o: {}, normal: 3.0 },
   grabenlehm_hell: { gen: 'clay', o: { palette: ['#6b5741', '#7d6750', '#8f7a61', '#a28c72'] }, normal: 3.4 },
   schlamm:        { gen: 'clay', o: { palette: ['#1f1a16', '#28221c', '#302822', '#3a3129'], clods: 0.3 }, normal: 2.2 },
   borke_verkohlt: { gen: 'charbark', o: {}, normal: 5 },

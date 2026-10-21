@@ -378,10 +378,13 @@ export async function generateTerrain(spec, { onProgress } = {}) {
         // Brandwald (21.10.): Grundschicht = Brandboden (Kanal „Gras“), Asche in Flecken (Kanal Kies), hellere,
         // aschegraue Brandflächen großräumig und an Hängen (Kanal Fels), Aushub/Lehm (Erde) nur aus Gräben/Trichtern
         const bt = spec.burnt;
-        gravel = Math.max(gravel, (bt.ash ?? 0.7) * smoothstep(0.56, 0.78, fbm(noise2, x / 17, z / 17, 3) + noise(x / 5.5, z / 5.5) * 0.05));
+        gravel = Math.max(gravel, (bt.ash ?? 0.7) * smoothstep(0.5, 0.86, fbm(noise2, x / 17, z / 17, 3) + noise(x / 5.5, z / 5.5) * 0.06));
         rock = Math.max(smoothstep(0.24, 0.5, steep) * 0.5, (bt.light ?? 0.7) * smoothstep(0.5, 0.78, fbm(noise, x / 48 + 3.1, z / 48 - 1.7, 3)));
         dr = splat[s4] / 255 + (bt.dirt ?? 0.12) * smoothstep(0.62, 0.85, fbm(noise2, x / 26 + 7, z / 26, 3));
         mud = Math.max(mud, (bt.mud ?? 0.35) * smoothstep(0.66, 0.86, fbm(noise, x / 14 - 5, z / 14 + 2, 3)));
+        // Grabensohlen und Trichtergründe: Schlamm statt Asche/heller Brandfläche
+        const tm = splat[s4 + 3] / 255;
+        gravel *= 1 - tm * 0.92; rock *= 1 - tm * 0.92; dr *= 1 - tm * 0.6;
       }
       if (spec.wasteland) { // Ödland: zerwühlte Erde statt Wiese, Schlammflecken
         dr = Math.max(dr, spec.wasteland.dirt - 0.12 * Math.max(0, noise(x / 31, z / 31))); // kaum Grasreste

@@ -27,6 +27,7 @@ import { TerrainChunks, createFarRing } from './chunks.js';
 import { createTerrainMaterial } from './splat.js';
 import { Vegetation } from './vegetation.js';
 import { Deadwood } from './deadwood.js';
+import { Litter } from './litter.js';
 import { RoadNetwork } from './roads.js';
 import { bigNavFromData } from './bignav.js';
 import { createBigMinimap } from './bigminimap.js';
@@ -271,6 +272,9 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   const dead = def.deadwood ? new Deadwood({ hf, spec: def.deadwood, quality, tier, blocked, bounds: pb }) : null;
   const deadCol = dead ? dead.colliders() : null;
   if (dead) group.add(dead.build(getMaterial));
+  // Bodenstreu (Zweige, Äste, Rinde, Kohle, Steine) als Ring um die Kamera – nur Optik
+  const litter = def.litter ? new Litter({ hf, spec: def.litter, quality }) : null; // auch in Gräben (Sohle)
+  if (litter) group.add(litter.build(getMaterial));
   ms.vegetation = Math.round(performance.now() - tV);
 
   // 5) Kollision/Kugeln/Navigation im Worker
@@ -348,7 +352,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
     hdri, heightFog: fxOn && def.lighting.fog?.density != null,
     far: !fxOn || def.lighting.shadow?.far === false ? null : {
       bounds: { minX: pb.minX - 10, maxX: pb.maxX + 10, minZ: pb.minZ - 10, maxZ: pb.maxZ + 10, minY: Math.min(hf.waterY - 4, pb.minY ?? -8), maxY: def.lighting.shadow?.farMaxY ?? 60 },
-      exclude: () => [veg.group, dead?.group, water.mesh || water].filter(Boolean),
+      exclude: () => [veg.group, dead?.group, litter?.group, water.mesh || water].filter(Boolean),
       prepare: () => { for (const s of sites) s.built.props?.showAll(); },
     },
   });
@@ -444,7 +448,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
     mapImage: minimap.canvas,
     stats: {
       totalMs: 0, ms, worker: job.ms, usesWorker, quality,
-      nav: nav.stats, roads: roads.stats, vegetation: veg.stats, deadwood: dead?.stats || null, terrain: chunks.stats, terrainSource: tmat.source,
+      nav: nav.stats, roads: roads.stats, vegetation: veg.stats, deadwood: dead?.stats || null, litter: litter?.stats || null, terrain: chunks.stats, terrainSource: tmat.source,
       colliderTris: colTris.length / 9, bulletTris: bulletTris.length / 9,
       meshes: sites.reduce((n, s) => n + s.built.stats.meshes, 0), triangles: sites.reduce((n, s) => n + s.built.stats.triangles, 0),
       sites: sites.map(s => ({ id: s.def.id, meshes: s.built.stats.meshes, triangles: s.built.stats.triangles })),
@@ -530,6 +534,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
       chunks.update(camera);
       veg.update(camera);
       dead?.update(camera);
+      litter?.update(camera);
       for (const s of sitesVis) {
         const vis = Math.hypot(camera.position.x - s.x, camera.position.z - s.z) - s.rad < tier.siteCull;
         if (s.group.visible !== vis) s.group.visible = vis;
@@ -567,7 +572,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
         s.res.dispose?.();
       }
       chunks.dispose(); farRing.geometry.dispose(); tmat.dispose();
-      veg.dispose(); dead?.dispose(); water.dispose();
+      veg.dispose(); dead?.dispose(); litter?.dispose(); water.dispose();
       group.traverse(o => { if (o.name === 'roads-asphalt') { o.geometry.dispose(); o.material.dispose(); } });
       atmos?.dispose();
       world._sceneWatch?.stop(); world._unbindShading?.(); resetShading();
@@ -587,7 +592,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   // erste Kamera-Stellung: Gelände-LOD + Vegetation am ersten Startpunkt vorbereiten
   const cam0 = new THREE.PerspectiveCamera(70, 1.7, 0.1, 900);
   const s0 = spawns.A[0] || spawns.ffa[0];
-  if (s0) { cam0.position.copy(s0.position).add(new THREE.Vector3(0, 1.7, 0)); chunks.update(cam0, 64); veg.update(cam0, true); dead?.update(cam0, true); }
+  if (s0) { cam0.position.copy(s0.position).add(new THREE.Vector3(0, 1.7, 0)); chunks.update(cam0, 64); veg.update(cam0, true); dead?.update(cam0, true); litter?.update(cam0, true); }
   // atmosphere-weather: Welt-Shading (Höhennebel, Fernschatten, spekulares AA; ohne Sonden-Gitter) + Staub/Strahlen
   let atmos = null;
   if (fxOn) try {

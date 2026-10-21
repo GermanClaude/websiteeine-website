@@ -64,6 +64,34 @@ function meshOf(P, U, C, I) {
 }
 
 /**
+ * Wurzel aus der Grabenwand: Start (x, y, z), Richtung in den Graben (dx, dz), Wandrichtung (ux, uz); 3–4 gekrümmte,
+ * verjüngte Abschnitte, hängt durch, dazu 0–2 dünne Seitenwurzeln.
+ */
+function root(b, r, x, y, z, dx, dz, ux, uz, len, rad, depth = 0, fine = true) {
+  const segs = fine ? 3 + (r() < 0.5 ? 1 : 0) : 2, sl = len / segs;
+  let px = x, py = y, pz = z, ax = dx * 0.75, ay = -0.15 - r() * 0.35, az = dz * 0.75;
+  let side = (r() - 0.5) * 0.9;
+  for (let k = 0; k < segs; k++) {
+    // Richtung driftet: seitlich, zunehmend nach unten (Schwerkraft), etwas zur Wand zurück
+    side += (r() - 0.5) * 0.7;
+    const vx = ax + ux * side, vz = az + uz * side, vy = ay - k * 0.22;
+    const vl = Math.hypot(vx, vy, vz) || 1;
+    const qx = px + (vx / vl) * sl, qy = py + (vy / vl) * sl, qz = pz + (vz / vl) * sl;
+    const r0 = rad * (1 - k / (segs + 0.5)), r1 = rad * (1 - (k + 1) / (segs + 0.5));
+    b.cyl(px, py, pz, Math.max(0.003, r0), sl, 'wood_dark', { ...dirTo(px, py, pz, qx, qy, qz), r1: Math.max(0.002, r1), tint: ROOT_TINT, collide: false, minimap: false, seg: 3, caps: false, ao: false, bullet: false });
+    if (fine && !depth && k < segs - 1 && r() < 0.35) root(b, r, qx, qy, qz, dx * 0.4 + ux * (r() - 0.5), dz * 0.4 + uz * (r() - 0.5), ux, uz, sl * (0.6 + r() * 0.6), Math.max(0.003, r1 * 0.5), 1, fine);
+    px = qx; py = qy; pz = qz;
+    ax *= 0.8; az *= 0.8;
+  }
+}
+/** Drehung (rx, ry, rz in 'YXZ') für einen Zylinder von p nach q. */
+function dirTo(ax, ay, az, cx, cy, cz) {
+  _d.set(cx - ax, cy - ay, cz - az).normalize();
+  _qq.setFromUnitVectors(Y, _d); _ee.setFromQuaternion(_qq, 'YXZ');
+  return { rx: _ee.x, ry: _ee.y, rz: _ee.z };
+}
+
+/**
  * Gräben ausbauen (lateSite; braucht ctx.hf). Das Gelände ist um tr.revet breiter ausgehoben; hier entstehen die
  * eigentlichen, fast senkrechten Grabenwände: je Seite ein Wandband entlang der Geländekurve (Erdwand aus Grabenlehm,
  * verrauscht, unten nass) mit Bodenkappe bis über den Aushub (Brandboden, kleiner Erdwall), Kollision als glatte
@@ -159,18 +187,35 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
           }
           for (const s2 of [-0.45, 0.45]) b.cyl(wx + ux * L * s2 - nx * side * 0.08, floor - 0.2, wz + uz * L * s2 - nz * side * 0.08, 0.065, wallH + 0.3, 'wood_dark', { tint: PLANK_DARK, collide: false, minimap: false, seg: 6 });
         } else if (!low) {
-          // rohe Erdwand: Wurzeln ragen heraus (dünn, nach unten hängend)
-          const nRoots = 1 + Math.floor(r() * 4);
+          // rohe Erdwand: Wurzeln ragen heraus (gekrümmt, verjüngt, hängend, mit Seitenwurzeln) – meist im oberen Teil
+          const nRoots = 1 + Math.floor(r() * 3);
           for (let i = 0; i < nRoots; i++) {
-            const t = (r() - 0.5) * L * 0.9, y = floor + 0.5 + r() * (wallH - 0.6);
-            const px = mx + ux * t + nx * side * (hw + 0.06), pz = mz + uz * t + nz * side * (hw + 0.06);
-            const len = 0.2 + r() * 0.6, ddx = -nx * side * len * 0.8, ddz = -nz * side * len * 0.8;
-            beam(b, px, y, pz, px + ddx, y - len * (0.3 + r() * 0.6), pz + ddz, 0.008 + r() * 0.022, 'wood_dark', { tint: ROOT_TINT, seg: 4 });
+            const t = (r() - 0.5) * L * 0.9, y = floor + wallH * (0.45 + Math.sqrt(r()) * 0.5);
+            const px = mx + ux * t + nx * side * (hw + 0.05), pz = mz + uz * t + nz * side * (hw + 0.05);
+            root(b, r, px, y, pz, -nx * side, -nz * side, ux, uz, 0.25 + r() * 0.7, 0.006 + r() * 0.02, 0, q === 'high' || q === 'ultra');
           }
         }
       }
+      // Pfützen auf der Sohle (Schlammwasser), Sturmleitern an der Feindseite der Frontgräben, Munitionskisten
+      const junction = inOther(Lr, mx, mz, 0.4);
+      if (!junction && r() < 0.3) b.decal(mx + ux * (r() - 0.5) * L * 0.6, floor + 0.035, mz + uz * (r() - 0.5) * L * 0.6, 0.9 + r() * 1.4, 0.6 + r() * 0.5, 'puddle', { opacity: 0.9, ry: ry0 + (r() - 0.5) * 0.3 });
+      if (!junction && (tr.sandbags ?? 0) >= 0.4 && k % 14 === 6) {
+        const es = enemySide * Math.sign(nz || 1) || 1;   // Seite (±1), deren Normale zum Feind zeigt
+        const wl = hw - 0.02, hgt = (H(mx + nx * es * (hw + rv + 2.5), mz + nz * es * (hw + rv + 2.5)) - floor) + 0.5, tilt = 0.32;
+        const fx0 = mx + nx * es * (wl - hgt * Math.sin(tilt)), fz0 = mz + nz * es * (wl - hgt * Math.sin(tilt));
+        for (const s2 of [-0.24, 0.24]) beam(b, fx0 + ux * s2, floor, fz0 + uz * s2, mx + nx * es * wl + ux * s2, floor + hgt * Math.cos(tilt), mz + nz * es * wl + uz * s2, 0.035, 'wood_dark', { tint: PLANK_TINT, seg: 5 });
+        for (let y = 0.3; y < hgt * Math.cos(tilt) - 0.1; y += 0.32) {
+          const f = y / (hgt * Math.cos(tilt)), lx = fx0 + (mx + nx * es * wl - fx0) * f, lz = fz0 + (mz + nz * es * wl - fz0) * f;
+          beam(b, lx - ux * 0.27, floor + y, lz - uz * 0.27, lx + ux * 0.27, floor + y, lz + uz * 0.27, 0.02, 'wood_dark', { tint: PLANK_DARK, seg: 4 });
+        }
+      }
+      if (!junction && r() < 0.08) {
+        const s2 = r() < 0.5 ? 1 : -1;
+        b.box(mx + nx * s2 * (hw - 0.3), floor, mz + nz * s2 * (hw - 0.3), 0.55, 0.32, 0.36, 'wood_crate', { ry: ry0 + (r() - 0.5) * 0.4, tint: '#6d6450', minimap: false });
+        if (r() < 0.5) b.box(mx + nx * s2 * (hw - 0.3), floor + 0.32, mz + nz * s2 * (hw - 0.3), 0.5, 0.28, 0.32, 'wood_crate', { ry: ry0 + (r() - 0.5) * 0.6, tint: '#5e5644', minimap: false, collide: false });
+      }
       // Lattenrost auf der Sohle (≈ 40 %): zwei Längshölzer + Querlatten
-      if (r() < 0.4 && !inOther(Lr, mx, mz, 0.2)) {
+      if (r() < 0.4 && !junction) {
         const yb = floor + 0.02;
         for (const s2 of [-0.32, 0.32]) b.box(mx + nx * s2, yb, mz + nz * s2, L, 0.07, 0.08, 'wood_dark', { ry: ry0, tint: PLANK_DARK, collide: false, minimap: false, uv: 'local', grad: false });
         // Handy: Belag als eine Bohlenplatte statt einzelner Latten
