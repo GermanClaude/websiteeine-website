@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { WS } from './shading.js';
 
 /** Stufen: max. Strahlen, Staubteilchen. */
-const TIERS = { low: { beams: 10, dust: 140 }, medium: { beams: 20, dust: 260 }, high: { beams: 32, dust: 420 }, ultra: { beams: 48, dust: 620 } };
+const TIERS = { low: { beams: 10, dust: 140, ash: 140 }, medium: { beams: 20, dust: 260, ash: 260 }, high: { beams: 32, dust: 420, ash: 420 }, ultra: { beams: 48, dust: 620, ash: 600 } };
 
 const BEAM_VERT = /* glsl */ `
 attribute vec3 aO;   // Mitte der Öffnung (Innenseite)
@@ -141,6 +141,44 @@ void main() {
   if ( r > 1.0 ) discard;
   float a = vA * ( 1.0 - r );
   gl_FragColor = vec4( vCol * a, 1.0 );
+}`;
+
+// Ascheflocken (Brandgebiete, def.atmos.ash = Dichte): graue, trudelnde Flocken, die langsam mit dem Wind fallen –
+// nicht leuchtend (normale Mischung), Helligkeit flackert mit der Drehung der Flocke
+const ASH_VERT = /* glsl */ `
+uniform float uTime;
+uniform float uBox;
+uniform float uScale;
+uniform float uSize;
+uniform vec2 uWind;
+attribute vec4 aSeed;
+varying float vA;
+varying float vShade;
+void main() {
+  float t = uTime + aSeed.w * 97.0;
+  float fall = uTime * ( 0.16 + aSeed.w * 0.2 );
+  vec3 drift = vec3( sin( t * ( 0.5 + aSeed.w * 0.6 ) ) * 0.3 + uTime * uWind.x, -fall, cos( t * ( 0.4 + aSeed.x * 0.5 ) ) * 0.3 + uTime * uWind.y ) / uBox;
+  vec3 b = ( aSeed.xyz + drift ) * uBox;
+  vec3 p = b + uBox * floor( ( cameraPosition - b ) / uBox + 0.5 );
+  vec3 rel = p - cameraPosition;
+  float dist = length( rel );
+  float edge = 1.0 - smoothstep( 0.3, 0.5, max( max( abs( rel.x ), abs( rel.y ) ), abs( rel.z ) ) / uBox );
+  vA = edge * smoothstep( 0.35, 1.2, dist );
+  vShade = 0.55 + 0.45 * abs( sin( t * ( 1.6 + aSeed.y * 2.4 ) ) );
+  vec4 mv = viewMatrix * vec4( p, 1.0 );
+  gl_Position = projectionMatrix * mv;
+  gl_PointSize = clamp( uSize * ( 0.5 + aSeed.z ) * uScale / max( -mv.z, 0.3 ), 1.0, 9.0 );
+}`;
+
+const ASH_FRAG = /* glsl */ `
+uniform vec3 uCol;
+varying float vA;
+varying float vShade;
+void main() {
+  vec2 q = gl_PointCoord - 0.5;
+  float r = ( q.x * q.x * 1.3 + q.y * q.y * 2.6 ) * 4.0; // flach, etwas länglich
+  if ( r > 1.0 ) discard;
+  gl_FragColor = vec4( uCol * vShade, vA * ( 1.0 - r * r ) * 0.9 );
 }`;
 
 const _v = new THREE.Vector3(), _d = new THREE.Vector3();
@@ -392,6 +430,40 @@ export function createAtmosphere(G, { quality, def, sunDir, openings = [], bvh, 
     group.add(dust);
     stats.dust = nDust;
   }
+  // ------------------------------------------------------------------ Ascheflocken
+  let ash = null, ashMat = null;
+  const nAsh = Math.round((tier.ash || 0) * (A.ash ?? 0));
+  if (nAsh > 0) {
+    const seed = new Float32Array(nAsh * 4);
+    let s = 7654321;
+    const rnd = () => { s = (s * 1103515245 + 12345) >>> 0; return s / 4294967296; };
+    for (let i = 0; i < seed.length; i++) seed[i] = rnd();
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nAsh * 3), 3));
+    g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 4));
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
+    // Helligkeit wie eine graue Fläche im Himmelslicht (+ etwas Sonne)
+    const light = (def.hemi.intensity ?? 1) * 0.55 + (def.sun.intensity ?? 1) * 0.12;
+    const col = new THREE.Color(A.ashColor || '#77736d').multiplyScalar(light * (A.ashLight ?? 1));
+    ashMat = new THREE.ShaderMaterial({
+      name: 'np:asche',
+      uniforms: { uTime: { value: 0 }, uBox: { value: A.ashBox ?? 16 }, uScale: { value: 600 }, uSize: { value: A.ashSize ?? 0.022 }, uWind: { value: new THREE.Vector2(...(A.ashWind || [0.14, 0.05])) }, uCol: { value: col } },
+      vertexShader: ASH_VERT, fragmentShader: ASH_FRAG,
+      transparent: true, depthWrite: false, fog: false,
+    });
+    ash = new THREE.Points(g, ashMat);
+    ash.name = 'asche';
+    ash.frustumCulled = false;
+    ash.renderOrder = 7;
+    ash.matrixAutoUpdate = false;
+    const v2 = new THREE.Vector2();
+    ash.onBeforeRender = (renderer, scene, camera) => {
+      renderer.getDrawingBufferSize(v2);
+      ashMat.uniforms.uScale.value = v2.y / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov || 60) / 2));
+    };
+    group.add(ash);
+    stats.ash = nAsh;
+  }
   stats.ms = Math.round(performance.now() - t0);
 
   return {
@@ -400,10 +472,12 @@ export function createAtmosphere(G, { quality, def, sunDir, openings = [], bvh, 
     update(dt) {
       if (beamMat) beamMat.uniforms.uTime.value += dt;
       if (dustMat) dustMat.uniforms.uTime.value += dt;
+      if (ashMat) ashMat.uniforms.uTime.value += dt;
     },
     dispose() {
       beamMesh?.geometry.dispose(); beamMat?.dispose();
       dust?.geometry.dispose(); dustMat?.dispose();
+      ash?.geometry.dispose(); ashMat?.dispose();
       group.removeFromParent();
     },
   };
