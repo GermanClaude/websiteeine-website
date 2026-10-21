@@ -119,6 +119,7 @@ export default {
     clearings: [[8, 6, 12], [-100, 14, 26], [106, -22, 22]],
   },
   // Bodenstreu (je m², Ring um die Kamera): verkohlte Zweige, graue Stöcke, Äste, Rindenstücke, Holzkohle, Steine
+  embers: { count: 26, seed: 2115 },   // schwelende Stümpfe/Stämme mit dünnem Rauch
   litter: { seed: 2114, twigs: 0.55, sticks: 0.12, branches: 0.035, bark: 0.18, coals: 0.22, stones: 0.14 },
   clearings: [[8, 6, 12]],
   // Wegketten für Bots entlang der Grabensohlen (das 4-m-Navigationsgitter trifft die 1,9 m breiten Gräben kaum)

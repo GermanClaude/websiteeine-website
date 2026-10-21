@@ -272,6 +272,23 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   const dead = def.deadwood ? new Deadwood({ hf, spec: def.deadwood, quality, tier, blocked, bounds: pb }) : null;
   const deadCol = dead ? dead.colliders() : null;
   if (dead) group.add(dead.build(getMaterial));
+  // Schwelende Glutnester (def.embers { count, seed }): aus einzelnen Stümpfen/liegenden Stämmen steigen dünne
+  // Rauchfäden auf (Effekt-Partikel, nur in Kameranähe; nur Optik)
+  const embers = [];
+  const EMBER_SMOKE = { size: 1.2, life: 7, alpha: 0.62, color: [0.24, 0.235, 0.228] }; // linear ≈ #868480
+  if (def.embers && dead) {
+    let es = (def.embers.seed || 5) >>> 0;
+    const er = () => ((es = (es * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const pool = [...dead.items.filter((it) => dead.protos[it.p].kind === 'stumpf' || dead.protos[it.p].kind === 'gebrochen'), ...dead.logs];
+    for (let k = 0; k < (def.embers.count || 20) && pool.length; k++) {
+      const it = pool.splice(Math.floor(er() * pool.length), 1)[0];
+      if (it.x < pb.minX - 20 || it.x > pb.maxX + 20 || it.z < pb.minZ - 20 || it.z > pb.maxZ + 20) { k--; continue; }
+      // kurze Stümpfe schwelen oben, hohe Stämme am Fuß (Wurzelstock), liegende Stämme auf der Oberseite
+      const h = dead.items.includes(it) ? dead.protos[it.p].o.H * it.s : -1;
+      const top = h < 0 ? 0.4 : h < 3.2 ? h : 0.15;
+      embers.push({ v: new THREE.Vector3(it.x, it.y + top, it.z), t: er() * 2 });
+    }
+  }
   // Bodenstreu (Zweige, Äste, Rinde, Kohle, Steine) als Ring um die Kamera – nur Optik
   const litter = def.litter ? new Litter({ hf, spec: def.litter, quality }) : null; // auch in Gräben (Sohle)
   if (litter) group.add(litter.build(getMaterial));
@@ -430,6 +447,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   const prevFar = G.camera?.far;
 
   const world = {
+    embers, // Glutnester (Prüfseiten: Position der Rauchfäden)
     id, name: meta.name || def.name, meta, scale: 'gross',
     group, collider, collisionBVH: compCol, bounds, spawns, objectives, nav, minimap,
     lighting: light.lighting,
@@ -535,6 +553,14 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
       veg.update(camera);
       dead?.update(camera);
       litter?.update(camera);
+      if (embers.length && G.effects?.wisp) {
+        for (const e of embers) {
+          if ((e.t -= dt) > 0) continue;
+          e.t = 0.28 + Math.random() * 0.3;
+          if (e.v.distanceToSquared(camera.position) > 8100) continue;
+          G.effects.wisp(e.v, EMBER_SMOKE);
+        }
+      }
       for (const s of sitesVis) {
         const vis = Math.hypot(camera.position.x - s.x, camera.position.z - s.z) - s.rad < tier.siteCull;
         if (s.group.visible !== vis) s.group.visible = vis;

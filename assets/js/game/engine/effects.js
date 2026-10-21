@@ -938,6 +938,17 @@ export class Effects {
     }
   }
 
+  /**
+   * Dünner Rauchfaden (Glutnest, schwelender Stumpf): ein Ballen, der langsam steigt, sich weitet und mit dem Wind
+   * treibt – viele davon hintereinander ergeben eine Fahne. opts: { size, life, alpha, color ([r,g,b] linear), wind ([x, z] m/s) }
+   */
+  wisp(position, opts = {}) {
+    if (!this._built || Math.random() > Math.max(0.5, this.scale)) return;
+    const s = opts.size || 1, w = opts.wind || [0.22, 0.08];
+    this._puff(position.x + rnd(-0.08, 0.08), position.y, position.z + rnd(-0.08, 0.08), w[0] + rnd(-0.06, 0.06), rnd(0.32, 0.5), w[1] + rnd(-0.06, 0.06),
+      (opts.life || 6) * rnd(0.85, 1.15), 0.16 * s, s * rnd(1.5, 2.1), opts.color || C.smokeLight, opts.alpha ?? 0.3, 0.12, 0.1);
+  }
+
   /* ================================================================ Wurfmittel & Raketen (Welle 2) */
 
   /** Blendgranate: greller Kugelblitz, Funkenregen, kurzer weißer Rauch, starkes Licht (ohne Feuerball). */
