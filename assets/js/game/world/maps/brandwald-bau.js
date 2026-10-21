@@ -119,6 +119,8 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
     const N = line.length;
     clearLines.push({ pts: line, r: hw + rv + 2.4 });
     const r = rngOf((tr.id || 'x').split('').reduce((a, c) => a * 31 + c.charCodeAt(0), 7));
+    // eigener Zufall für alles mit Kollision (Kisten): gleiche Folge auf jeder Qualitätsstufe (Mehrspieler)
+    const rc = rngOf((tr.id || 'x').split('').reduce((a, c) => a * 37 + c.charCodeAt(0), 11));
     const enemySide = Math.sign(tr.pts[0][1]) > 0 ? -1 : 1; // Feind liegt in Richtung Kartenmitte (−z für Süd)
     const tang = line.map((p, i) => {
       const a = line[Math.max(0, i - 1)], c = line[Math.min(N - 1, i + 1)], dx = c[0] - a[0], dz = c[1] - a[1], l = Math.hypot(dx, dz) || 1;
@@ -163,6 +165,7 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
     for (let k = 0; k + 2 < N; k += 2) {
       const [ax, az] = line[k], [bx, bz] = line[k + 2];
       const L = Math.hypot(bx - ax, bz - az);
+      const cr = [rc(), rc(), rc(), rc(), rc()]; // Kisten: immer fünf Ziehungen je Abschnitt
       if (L < 0.5) continue;
       const ux = (bx - ax) / L, uz = (bz - az) / L, nx = -uz, nz = ux, ry0 = Math.atan2(-uz, ux);
       const mx = (ax + bx) / 2, mz = (az + bz) / 2;
@@ -211,10 +214,10 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
           beam(b, lx - ux * 0.27, floor + y, lz - uz * 0.27, lx + ux * 0.27, floor + y, lz + uz * 0.27, 0.02, 'wood_dark', { tint: PLANK_DARK, seg: 4 });
         }
       }
-      if (!junction && r() < 0.08) {
-        const s2 = r() < 0.5 ? 1 : -1;
-        b.box(mx + nx * s2 * (hw - 0.3), floor, mz + nz * s2 * (hw - 0.3), 0.55, 0.32, 0.36, 'wood_crate', { ry: ry0 + (r() - 0.5) * 0.4, tint: '#6d6450', minimap: false });
-        if (r() < 0.5) b.box(mx + nx * s2 * (hw - 0.3), floor + 0.32, mz + nz * s2 * (hw - 0.3), 0.5, 0.28, 0.32, 'wood_crate', { ry: ry0 + (r() - 0.5) * 0.6, tint: '#5e5644', minimap: false, collide: false });
+      if (!junction && cr[0] < 0.08) {
+        const s2 = cr[1] < 0.5 ? 1 : -1;
+        b.box(mx + nx * s2 * (hw - 0.3), floor, mz + nz * s2 * (hw - 0.3), 0.55, 0.32, 0.36, 'wood_crate', { ry: ry0 + (cr[2] - 0.5) * 0.4, tint: '#6d6450', minimap: false });
+        if (cr[3] < 0.5) b.box(mx + nx * s2 * (hw - 0.3), floor + 0.32, mz + nz * s2 * (hw - 0.3), 0.5, 0.28, 0.32, 'wood_crate', { ry: ry0 + (cr[4] - 0.5) * 0.6, tint: '#5e5644', minimap: false, collide: false });
       }
       // Lattenrost auf der Sohle (≈ 40 %): zwei Längshölzer + Querlatten
       if (r() < 0.4 && !junction) {
