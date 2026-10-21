@@ -977,12 +977,12 @@ G.burnt = (t, r, o) => {
   const { S, n } = t, px = S / 512;
   const pal = (o.palette || ['#141210', '#1d1a17', '#26221e', '#302a24']).map(hex);
   const ashC = hex(o.ashColor || '#5f5b55'), ashL = hex('#7b766e'), twigC = hex('#0b0a09'), twigG = hex('#6d675f'), twigB = hex('#4a3f35');
-  const chipC = hex(o.chipColor || '#a8a08f');
+  const chipC = hex(o.chipColor || '#7c776d'); // weiße Asche-Splitter gedämpft (im Licht sonst wie Hagelkörner)
   const a = fbm(S, 4, 6, r), b = fbm(S, 22, 3, r), duff = fbm(S, 120, 2, r);
   const ashF = fbm(S, 6, 5, r, { gain: 0.6 }), ashFine = fbm(S, 40, 3, r);
   const coal = speckle(S, r, Math.round(n * 0.0026), 0.6 * px, 2.4 * px);
-  const chips = speckle(S, r, Math.round(n * 0.0005 * (o.chips ?? 1)), 0.7 * px, 2.2 * px);
-  const peb = speckle(S, r, Math.round(n * 0.0005), 0.9 * px, 3 * px);
+  const chips = speckle(S, r, Math.round(n * 0.00028 * (o.chips ?? 1)), 0.7 * px, 2.2 * px);
+  const peb = speckle(S, r, Math.round(n * 0.0003), 0.9 * px, 3 * px);
   const lit = o.litter ?? 1;
   // Streu: dichte kurze Nadeln (verkohlt dunkel bzw. aschegrau überzogen), dazu längere Zweige (1–2 px breit)
   const nDark = scratches(S, r, Math.round(n * 0.0032 * lit), 5 * px, 16 * px, { width: 1, curl: 0.006 });
@@ -1003,11 +1003,11 @@ G.burnt = (t, r, o) => {
     c = mixC(c, twigC, twigs[i] * 0.85);
     c = mixC(c, mixC(twigG, twigB, b[i]), twigsG[i] * 0.85);
     c = mixC(c, chipC, chips[i] * 0.85);
-    c = mixC(c, [120, 114, 106], peb[i] * 0.75);
+    c = mixC(c, [88, 83, 76], peb[i] * 0.6); // Kiesel (gedämpft: hell wirkten sie wie Hagelkörner)
     t.set(i, c[0], c[1], c[2]);
     const tw = Math.max(nDark[i] * 0.6, nGrey[i] * 0.6, twigs[i], twigsG[i]);
-    t.height[i] = a[i] * 0.2 + b[i] * 0.15 + duff[i] * 0.15 - ash * 0.1 + tw * 0.6 + chips[i] * 0.6 + peb[i] * 0.75 + coal[i] * 0.3;
-    t.rough[i] = 0.93 - coal[i] * 0.2 + ash * 0.05;
+    t.height[i] = a[i] * 0.2 + b[i] * 0.15 + duff[i] * 0.15 - ash * 0.1 + tw * 0.6 + chips[i] * 0.6 + peb[i] * 0.75 + coal[i] * 0.12;
+    t.rough[i] = 0.93 - coal[i] * 0.04 + ash * 0.05; // Kohlekrümel matt (glänzend spiegelten sie den Himmel als weiße Punkte)
   }
 };
 

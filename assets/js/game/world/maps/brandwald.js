@@ -76,7 +76,7 @@ export default {
     fog: { color: '#c7c9c8', nearFactor: 0.08, density: 0.011, falloff: 0.025, start: 12, max: 0.95, sun: 0.04, sunExp: 10 },
     shadow: { size: 60, bias: -0.0004, normalBias: 0.04, near: 40, farMaxY: 40 },
     exposure: 1.05,
-    atmos: { beams: 0, beamG: 0.4, dust: 1.6, dustSize: 0.02, ash: 1, ashSize: 0.036, ashBox: 12 }, // ash: fallende Ascheflocken
+    atmos: { beams: 0, beamG: 0.4, dust: 0.25, dustSize: 0.014, ash: 1, ashSize: 0.036, ashBox: 12 }, // Leuchtstaub kaum (wirkte wie Hagel), dafür fallende Ascheflocken
   },
   water: { color: '#2a2a26' },
   // Boden: eigene Brandwald-Sätze statt Wiese/Fotoscans (splat.js), keine Wiesenfarbe
