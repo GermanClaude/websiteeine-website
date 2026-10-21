@@ -36,6 +36,8 @@ const ALBEDO = [[0.25, 0.17, 0.1], [0.3, 0.3, 0.28], [0.6, 0.58, 0.55], [0.3, 0.
 
 const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _s = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0), _tx = new THREE.Vector3(), _ty = new THREE.Vector3();
+// eigene Hilfsvektoren der Durchbruch-Abfragen (laufen auch innerhalb von world.raycast anderer Aufrufer)
+const _cv = new THREE.Vector3(), _ctx = new THREE.Vector3(), _cty = new THREE.Vector3(), _ro = new THREE.Vector3(), _tn = new THREE.Vector3();
 // Dicke einzelner Platten ohne Rückseite (Glasscheiben, Blechtafeln, Karosserie, Stoff, dünne Bretter) in m
 const SHEET = { glass: 0.006, metal: 0.003, vehicle: 0.0015, fabric: 0.003, wood: 0.025, plaster: 0.015, tile: 0.012 };
 // Querschläger unterhalb dieses Einfallskosinus (Stil → cos): Beton/Ziegel ~76°, Metall ~71° von der Normalen
@@ -131,6 +133,7 @@ export class BulletHoles {
     this._cutT = 0;
     this._cutDirty = false;
     this._cutOn = [];
+    this._cutList = []; // alle Durchbrüche (für Strahlen und Kollision)
     setCutCount(0);
     const W = G.world;
     if (W && typeof W.lineOfSight === 'function' && typeof W.raycast === 'function') {
@@ -143,6 +146,7 @@ export class BulletHoles {
       W.lineOfSight = this._los;
     }
     this._fragQ = []; // Splitter unterwegs: { t (Ankunft), f (Treffer), dir, vals }
+    this._wrapWorld();
     this._offs = G.events && typeof G.events.on === 'function' ? [G.events.on('explosion', (e) => this.blast(e)), G.events.on('dig', (e) => this._dug(e))] : [];
   }
 
@@ -181,7 +185,7 @@ export class BulletHoles {
       const g = W.raycast(o, back, pl.d + 0.12);
       const hit = g && !g.solid && g.targetId == null && Math.abs(g.distance - pl.d) < 0.06 ? g : pl.f;
       const dist = hit === g ? g.distance : o.distanceTo(pl.f.point);
-      this._blastHit(hit, back, Q / (dist + 0.25) ** 2, rnd);
+      this._blastHit(hit, back, Q / (dist + 0.25) ** 2, rnd, Q);
     }
     // Splitter: sichtbar als glühende Streifen vom Sprengpunkt weg; wo sie einschlagen (beim Eintreffen) Pocken + Staub.
     // Die Hälfte fliegt nur sichtbar ins Freie (keine Strahlprüfung).
@@ -226,7 +230,7 @@ export class BulletHoles {
   }
 
   /** Druck s (≈ Ladung / Abstand²) auf eine Fläche: Krater, ggf. Durchbruch mit zerrissenem Umriss. */
-  _blastHit(hit, dir, s, rnd) {
+  _blastHit(hit, dir, s, rnd, Q = 1) {
     const surface = hit.surface || 'concrete', style = STYLE[surface];
     if (style === undefined || style === 4) return;
     const n = hit.normal.clone(); if (n.dot(dir) > 0) n.negate();
@@ -261,7 +265,8 @@ export class BulletHoles {
       if (this._cutOk(h)) {
         if (!h.cut) { h.r = Math.max(h.r, CUT_MIN_R); this._makeCut(h); }
         // zerrissener Umriss: Kernloch um den Fußpunkt + ausgebrochene Lappen; Sprengung reißt weiter auf als Beschuss
-        const cap = Math.min(1.2, this._breachCap(h) * 1.7), c = this._cutLocal(h, hit.point);
+        // schwere Ladungen (Rakete, Panzergranate) reißen auch Mauerwerk mannshoch auf
+        const cap = Math.min(1.3, this._breachCap(h) * 1.7 + 0.1 * Q), c = this._cutLocal(h, hit.point);
         this._addDisc(h, c.x, c.y, rb * 0.7, cap);
         for (let k = 0; k < 7; k++) {
           const a = rnd() * Math.PI * 2, d = rb * (0.25 + 0.5 * rnd());
@@ -341,6 +346,7 @@ export class BulletHoles {
   /** Loch wird Wandausschnitt: gerader Kanal entlang der Normalen, Austritt genau dahinter. */
   _makeCut(h) {
     h.cut = true;
+    this._cutList.push(h);
     h.tn = Math.max(0.003, h.thick * Math.min(1, Math.max(0.2, h.cos ?? 1)));
     h.kb = KB[h.style];
     h.slope = [0, 0];
@@ -384,10 +390,10 @@ export class BulletHoles {
 
   /** Punkt p relativ zum Durchbruch h: { x, y } in den Ausschnittachsen, hh Abstand vor der Vorderfläche. */
   _cutLocal(h, p) {
-    _v.copy(p).sub(h.pos);
-    const hh = _v.dot(h.n);
-    this._frame(h.n, _tx, _ty);
-    return { x: _v.dot(_tx), y: _v.dot(_ty), hh };
+    _cv.copy(p).sub(h.pos);
+    const hh = _cv.dot(h.n);
+    this._frame(h.n, _ctx, _cty);
+    return { x: _cv.dot(_ctx), y: _cv.dot(_cty), hh };
   }
 
   /** Umriss um eine Scheibe (Mitte x, y in den Ausschnittachsen, Radius c) erweitern – höchstens bis cap. */
@@ -446,8 +452,8 @@ export class BulletHoles {
 
   /** Liegt p im Ausschnitt eines Durchbruchs? → Loch oder null (inner: Anteil des Radius). */
   _cutAt(p, inner = 0.9) {
-    for (const h of this.holes) {
-      if (!h.cut || h.dead) continue;
+    for (const h of this._cutList) {
+      if (h.dead) continue;
       const c = this._cutLocal(h, p);
       if (c.hh > 0.03 || c.hh < -h.tn - 0.03) continue;
       const d2 = c.x * c.x + c.y * c.y;
@@ -460,24 +466,86 @@ export class BulletHoles {
 
   /** Sichtlinie: Wände, die nur an Durchbrüchen getroffen werden, verdecken nicht. */
   _openLine(a, b2) {
-    if (!this.holes.some((h) => h.cut)) return false;
-    const W = this.G.world;
-    const o = a.clone(), d = b2.clone().sub(a);
-    let L = d.length();
+    if (!this._cutList.length) return false;
+    const d = b2.clone().sub(a);
+    const L = d.length();
     if (L < 1e-4) return true;
-    d.divideScalar(L);
-    for (let i = 0; i < 5; i++) {
-      const f = W.raycast(o, d, L - 0.02);
-      if (!f) return true;
-      const h = this._cutAt(f.point, 0.85);
-      if (!h) return false;
-      const dn = d.dot(h.n);
-      const hh = f.point.clone().sub(h.pos).dot(h.n);
-      const t = Math.abs(dn) < 0.05 ? 0.3 : dn < 0 ? (hh + h.tn + 0.03) / -dn : (0.04 - hh) / dn;
-      const step = f.distance + Math.min(2, Math.max(0.01, t));
-      o.addScaledVector(d, step);
-      L -= step;
-      if (L <= 0.02) return true;
+    // world.raycast lässt Durchbrüche schon aus (_wrapWorld)
+    return !this.G.world.raycast(a, d.divideScalar(L), L - 0.02);
+  }
+
+  /** Strahl-Weiterführung hinter einem Durchbruch: Abstand ab Trefferpunkt bis hinter die Wand. */
+  _cutExit(h, point, dir) {
+    const dn = dir.dot(h.n), hh = _cv.copy(point).sub(h.pos).dot(h.n);
+    const t = Math.abs(dn) < 0.05 ? 0.3 : dn < 0 ? (hh + h.tn + 0.03) / -dn : (0.04 - hh) / dn;
+    return Math.min(2, Math.max(0.01, t));
+  }
+
+  /**
+   * Keine unsichtbare Wand in Durchbrüchen: world.raycast (Kugeln, Granaten, Sicht, Hülsen …) läuft durch
+   * ausgeschnittene Stellen weiter; die Kapsel-Kollision (Spieler, Bots) ignoriert die Wandfläche, wenn der ganze
+   * Körper durch die Öffnung passt. Eigene Messungen (Dicke, Flächenabtastung) nutzen den ursprünglichen Strahl.
+   */
+  _wrapWorld() {
+    const W = this.G.world, self = this;
+    if (!W) return;
+    if (typeof W.raycast === 'function') {
+      const ray0 = W.raycast;
+      this._rayW0 = ray0;
+      this._ray0 = (o, d, m) => ray0.call(W, o, d, m);
+      this._ray = function (origin, dir, max, ...rest) {
+        let hit = ray0.call(this, origin, dir, max, ...rest);
+        if (!hit || hit.solid || !self._cutList.length || self.G.holes !== self) return hit;
+        _ro.copy(origin);
+        let base = 0;
+        for (let i = 0; i < 4 && hit && !hit.solid; i++) {
+          const h = self._cutAt(hit.point, 0.95);
+          if (!h) break;
+          const step = hit.distance + self._cutExit(h, hit.point, dir);
+          base += step;
+          if (base >= max) return null;
+          _ro.addScaledVector(dir, step);
+          hit = ray0.call(this, _ro, dir, max - base, ...rest);
+          if (hit) hit.distance += base;
+        }
+        return hit;
+      };
+      W.raycast = this._ray;
+    }
+    const col = W.collider;
+    if (col && typeof col.triangleCapsuleIntersect === 'function') {
+      const own = Object.prototype.hasOwnProperty.call(col, 'triangleCapsuleIntersect');
+      const tci0 = col.triangleCapsuleIntersect;
+      this._tci = { col, own, tci0 };
+      this._tciW = function (capsule, tri) {
+        const hit = tci0.call(this, capsule, tri);
+        if (!hit || !self._cutList.length || self.G.holes !== self) return hit;
+        return self._capsuleFits(capsule, tri) ? false : hit;
+      };
+      col.triangleCapsuleIntersect = this._tciW;
+    }
+  }
+
+  /** Passt die Kapsel ganz durch einen Durchbruch in der Ebene dieses Dreiecks? */
+  _capsuleFits(capsule, tri) {
+    tri.getNormal(_tn);
+    for (const h of this._cutList) {
+      if (h.dead || Math.abs(_tn.dot(h.n)) < 0.9) continue;
+      const hh = _cv.copy(tri.a).sub(h.pos).dot(h.n);
+      if (hh > 0.04 || hh < -h.tn - 0.04) continue;
+      const r = capsule.radius, s0 = capsule.start, s1 = capsule.end;
+      let ok = true;
+      // Achse in Schritten + Kuppen oben/unten; Querschnitt der Kapsel (Radius r) muss in den Umriss passen
+      for (let k = -1; k <= 6 && ok; k++) {
+        const t = k < 0 ? 0 : k > 5 ? 1 : k / 5;
+        _ro.lerpVectors(s0, s1, t);
+        let rr = r;
+        if (k < 0 || k > 5) { _ro.y += k < 0 ? -r * 0.9 : r * 0.9; rr = r * 0.3; }
+        const c = this._cutLocal(h, _ro);
+        const d = Math.hypot(c.x, c.y);
+        ok = d + rr < this._cutR(h, c.x, c.y, 0.5) * 0.92;
+      }
+      if (ok) return true;
     }
     return false;
   }
@@ -524,7 +592,7 @@ export class BulletHoles {
     const sheet = SHEET[surface];
     if (!W || typeof W.raycast !== 'function') return sheet ?? Infinity;
     _v.copy(point).addScaledVector(dir, 0.003);
-    const f = W.raycast(_v, dir, BACK_PROBE);
+    const f = this._ray0 ? this._ray0(_v, dir, BACK_PROBE) : W.raycast(_v, dir, BACK_PROBE); // ohne Durchbruch-Lücken
     // world.raycast dreht die Normale zum Schützen; f.back sagt, ob die Fläche vom Strahl weg zeigt. Rückseite desselben
     // Körpers = entgegengesetzte Ausrichtung zur Eintrittsfläche (auch bei Modellen mit umgekehrter Windung) und dasselbe Objekt
     const entryBack = !!(entry && entry.back);
@@ -560,7 +628,7 @@ export class BulletHoles {
       for (let i = 1; i <= 3; i++) {
         const x = (d * i) / 3;
         o.copy(h.pos).addScaledVector(ax, x * sg).addScaledVector(n, 0.25);
-        const f = W.raycast(o, back, 0.31);
+        const f = this._ray0 ? this._ray0(o, back, 0.31) : W.raycast(o, back, 0.31);
         const dev = f ? f.distance - 0.25 : Infinity;
         if (!f || dev > 0.035 || dev < -0.006 || f.normal.dot(n) < 0.5) { h.clip[ci] = Math.max(0.004, x - d / 3); break; }
         if (i === 3 && dev > 0.0015) ks[ci >> 1].push((2 * dev) / (x * x));
@@ -709,9 +777,10 @@ export class BulletHoles {
       // weitere Kugel in dasselbe Loch: gräbt weiter (Splitter, Zerlegen → breiter statt tiefer), Loch wird breiter
       h.hits++;
       // je tiefer der Kanal im Verhältnis zur eigenen Eindringtiefe, desto weniger gräbt die nächste Kugel (sie trifft
-      // die Kanalwand, verformt sich): 9 mm bohrt sich durch eine Bohle, braucht für einen 50-cm-Stamm aber ~20 Schuss
+      // die Kanalwand, verformt sich). Treffer auf dieselbe Stelle (30-cm-Hauswand): .50 BMG 1–2, 7,62 × 51 ≈ 8,
+      // 5,56 ≈ 25, 9 mm ≈ 200 (Beton) bzw. ≈ 65 (Ziegel 25 cm), Gipswand 2; Holzstamm 50 cm mit 9 mm ≈ 15
       const ratio = h.depth / Math.max(pen, 1e-3);
-      const gain = 1 / (1 + 0.6 * Math.pow(ratio, 1.5));
+      const gain = 1 / (1 + (style === 0 ? 0.7 : 0.25) * ratio);
       h.depth = Math.min(thick, h.depth + pen * S.dig * (1 - cal.frag * 0.5) * gain);
       // Vereinigung: die Lochflächen addieren sich (Rand reißt mit: × Wachstum je Werkstoff), die Mitte wandert zum
       // Flächenschwerpunkt, der Krater umschließt alten und neuen Einschlag – gezieltes Dauerfeuer frisst ein großes,
@@ -805,7 +874,7 @@ export class BulletHoles {
       slot = old.slot;
       if (old.viewSlot != null) this._slots[old.viewSlot] = null;
       old.dead = true;
-      if (old.cut) this._cutDirty = true;
+      if (old.cut) { this._cutDirty = true; this._cutList = this._cutList.filter((h) => !h.dead); }
     } else slot = this._nextSlot++;
     const h = { pos: point.clone(), n: n.clone(), dir: dir.clone(), surface, style, r: 0.005, rc: 0.02, depth: 0.005, thick, through: false, hits: 1, slot, exit, seed: Math.random() * 100, behind: [0.02, 0.02, 0.02], exitHole: null, alb: alb.slice(0, 3) };
     this.holes.push(h);
@@ -891,7 +960,7 @@ export class BulletHoles {
     if (gone) this.removeWhere((h) => h.att && (!h.att.visible || !h.att.parent));
     // Durchbrüche: Auswahl der nächsten alle 0,3 s bzw. sofort bei Änderung
     this._cutT -= dt;
-    if (this._cutDirty || (this._cutT <= 0 && this.holes.some((h) => h.cut))) { this._cutDirty = false; this._cutT = 0.3; this._uploadCuts(); }
+    if (this._cutDirty || (this._cutT <= 0 && this._cutList.length)) { this._cutDirty = false; this._cutT = 0.3; this._uploadCuts(); }
     // Flächenabtastung: bis zu 3 Löcher je Bild, nur im Umkreis von 35 m (ferne bleiben vorgemerkt)
     if (this._probeQ.length) {
       const cp = this.G.camera?.position;
@@ -1030,6 +1099,7 @@ export class BulletHoles {
     }
     this.holes = keep;
     this.stats.holes = keep.length;
+    if (this._cutList.some((h) => h.dead)) this._cutList = this._cutList.filter((h) => !h.dead);
   }
 
   /** Durchgehendes Loch an dieser Stelle? → Loch oder null. */
@@ -1045,6 +1115,11 @@ export class BulletHoles {
     setCutCount(0);
     const W = this.G.world;
     if (W && this._los && W.lineOfSight === this._los) W.lineOfSight = this._los0;
+    if (W && this._ray && W.raycast === this._ray) W.raycast = this._rayW0;
+    if (this._tci && this._tci.col.triangleCapsuleIntersect === this._tciW) {
+      if (this._tci.own) this._tci.col.triangleCapsuleIntersect = this._tci.tci0; else delete this._tci.col.triangleCapsuleIntersect;
+    }
+    this._cutList = [];
     if (this.mesh.parent) this.mesh.parent.remove(this.mesh);
     if (this.mesh2.parent) this.mesh2.parent.remove(this.mesh2);
     this.mesh.geometry.dispose();
