@@ -839,9 +839,10 @@ export class ClientSync {
   }
 
   /** Tür/Tor ('door' {i, a: t|k|h, d}): der Host schaltet bzw. verrechnet den Treffer und verteilt 'ev' dr. */
-  sendDoor(i, a, d = 0) {
+  sendDoor(i, a, d = 0, x = 0) {
     if (!this.active || this.ended || !Number.isInteger(i)) return;
-    this.net.send(HOST_ID, { t: 'door', i, a: a === 'k' || a === 'h' ? a : 't', d: Math.round(d) });
+    // a: t umschalten, k auframmen, h Treffer, g Scharnier x getroffen, p lose Tür anstoßen (x = Seite)
+    this.net.send(HOST_ID, { t: 'door', i, a: ['k', 'h', 'g', 'p'].includes(a) ? a : 't', d: Math.round(d), x: x | 0 });
   }
 
   /** Grabwunsch ('dig' {x, z}): der Host prüft und verteilt ('ev' dg, digging.js). */

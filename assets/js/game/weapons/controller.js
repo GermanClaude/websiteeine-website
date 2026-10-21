@@ -1164,6 +1164,9 @@ export class WeaponController {
         if (Number.isFinite(y) && _eye.y - y < 4.5) hit = { point: new THREE.Vector3(x, y, z), normal: new THREE.Vector3(0, 1, 0), surface: 'dirt' };
       }
       if (hit) G.events.emit('impact', { point: hit.point, normal: hit.normal, surface: hit.surface || 'concrete', shooter: a, weaponId: (m.def && m.def.id) || 'knife', melee: true });
+      // Kerbe in der Fläche (Messer in Holz: Macke); Türen nehmen etwas Schaden (Scharniere lassen sich aufhebeln)
+      if (hit && !spade && G.holes) G.holes.nick(hit, _aim, m.def);
+      if (hit && hit.solid && hit.solid.attach && typeof hit.solid.onHit === 'function') hit.solid.onHit(14, a, m.def, hit);
     }
   }
 

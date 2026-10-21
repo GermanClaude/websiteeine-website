@@ -158,14 +158,45 @@ export function worldPartsFrom(list, x, y, z, ry) {
   return out;
 }
 
+/**
+ * Teile [x, y, z, hx, hy, hz] im Raum eines Objekts (matrix = dessen matrixWorld, starr) → Weltteile wie oben, aber
+ * beliebig gedreht (gekippte oder liegende Tür). rayPart rechnet dann über die Kehrmatrix.
+ */
+export function worldPartsMatrix(list, matrix) {
+  const out = [];
+  for (const [px, py, pz, hx, hy, hz] of list) {
+    const m = new THREE.Matrix4().makeTranslation(px, py, pz).premultiply(matrix);
+    const mi = m.clone().invert();
+    const corner = (sx, sy, sz) => new THREE.Vector3(sx * hx, sy * hy, sz * hz).applyMatrix4(m);
+    const q = (a, b, cc, d) => [new THREE.Triangle(corner(...a), corner(...b), corner(...cc)), new THREE.Triangle(corner(...a), corner(...cc), corner(...d))];
+    const tris = [
+      ...q([1, -1, -1], [1, 1, -1], [1, 1, 1], [1, -1, 1]), ...q([-1, -1, -1], [-1, -1, 1], [-1, 1, 1], [-1, 1, -1]),
+      ...q([-1, 1, -1], [-1, 1, 1], [1, 1, 1], [1, 1, -1]), ...q([-1, -1, -1], [1, -1, -1], [1, -1, 1], [-1, -1, 1]),
+      ...q([-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]), ...q([-1, -1, -1], [-1, 1, -1], [1, 1, -1], [1, -1, -1]),
+    ];
+    const box = new THREE.Box3();
+    for (const t of tris) { box.expandByPoint(t.a); box.expandByPoint(t.b); box.expandByPoint(t.c); }
+    const e = m.elements;
+    out.push({ cx: e[12], cy: e[13], cz: e[14], c: 1, s: 0, hx, hy, hz, box, tris, m: e.slice(), mi: mi.elements.slice() });
+  }
+  return out;
+}
+
 const _box = new THREE.Box3();
 const _v = new THREE.Vector3();
 
 /** Strahl gegen gedrehten Quader → Abstand oder −1 (Normalen in Welt über n). */
 function rayPart(pt, ox, oy, oz, dx, dy, dz, max, n) {
-  const ex = ox - pt.cx, ez = oz - pt.cz;
-  const lo = [ex * pt.c - ez * pt.s, oy - pt.cy, ex * pt.s + ez * pt.c];
-  const ld = [dx * pt.c - dz * pt.s, dy, dx * pt.s + dz * pt.c];
+  let lo, ld;
+  if (pt.mi) {
+    const e = pt.mi;
+    lo = [e[0] * ox + e[4] * oy + e[8] * oz + e[12], e[1] * ox + e[5] * oy + e[9] * oz + e[13], e[2] * ox + e[6] * oy + e[10] * oz + e[14]];
+    ld = [e[0] * dx + e[4] * dy + e[8] * dz, e[1] * dx + e[5] * dy + e[9] * dz, e[2] * dx + e[6] * dy + e[10] * dz];
+  } else {
+    const ex = ox - pt.cx, ez = oz - pt.cz;
+    lo = [ex * pt.c - ez * pt.s, oy - pt.cy, ex * pt.s + ez * pt.c];
+    ld = [dx * pt.c - dz * pt.s, dy, dx * pt.s + dz * pt.c];
+  }
   const h = [pt.hx, pt.hy, pt.hz];
   let t0 = 0, t1 = max, axis = -1, sign = 1;
   for (let i = 0; i < 3; i++) {
@@ -180,7 +211,8 @@ function rayPart(pt, ox, oy, oz, dx, dy, dz, max, n) {
   if (n) {
     const l = [0, 0, 0];
     l[axis] = sign;
-    n.set(l[0] * pt.c + l[2] * pt.s, l[1], -l[0] * pt.s + l[2] * pt.c);
+    if (pt.m) { const e = pt.m; n.set(e[0] * l[0] + e[4] * l[1] + e[8] * l[2], e[1] * l[0] + e[5] * l[1] + e[9] * l[2], e[2] * l[0] + e[6] * l[1] + e[10] * l[2]); }
+    else n.set(l[0] * pt.c + l[2] * pt.s, l[1], -l[0] * pt.s + l[2] * pt.c);
   }
   return t0;
 }

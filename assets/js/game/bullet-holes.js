@@ -181,17 +181,33 @@ export class BulletHoles {
     return Math.min(4.2, 1 + 0.1 / Math.max(h.rc || 0.02, 0.01), Math.sqrt(1 + s[0] * s[0] + s[1] * s[1]));
   }
 
+  /** Lage eines angehefteten Lochs im Objektraum merken (Tür dreht sich → Loch wandert mit). */
+  _attach(h) {
+    const o = h.att;
+    o.updateMatrixWorld(true);
+    _m.copy(o.matrixWorld).invert();
+    h.lp = h.pos.clone().applyMatrix4(_m);
+    // Blatt (Tür) hängt schief, Kollision gerade: Loch auf die sichtbare Fläche legen
+    const sz = o.userData && o.userData.snapZ;
+    if (sz && Math.abs(h.lp.z) < sz * 4 + 0.1) h.lp.z = (h.lp.z < 0 ? -1 : 1) * sz;
+    h.ln = h.n.clone().transformDirection(_m);
+    h.ld = h.dir.clone().transformDirection(_m);
+    h._attKey = this._objKey(o);
+  }
+
+  _objKey(o) { const e = o.matrixWorld.elements; return e[0] + e[2] * 3 + e[5] * 7 + e[8] * 11 + e[12] * 13 + e[13] * 17 + e[14] * 19; }
+
   /** Flächenabtastung später (update: nur nahe Löcher, wenige je Bild) – viele Schüsse kosten so kaum Strahlen. */
   _queueProbe(h) {
     if (!h._pq) { h._pq = true; this._probeQ.push(h); }
   }
 
   /** Loch an p (gleiche Fläche) oder null. */
-  _near(p, n, surface, rcNew = 0.02) {
+  _near(p, n, surface, rcNew = 0.02, att = null) {
     // gleiche Fläche, Krater überlappen deutlich → dasselbe (wachsende) Loch; weiter auseinander → eigenes Loch
     let best = null, bd = Infinity;
     for (const h of this.holes) {
-      if (h.exit || h.dead || h.ricochet || h.surface !== surface) continue;
+      if (h.exit || h.dead || h.ricochet || h.nick || h.surface !== surface || (h.att || null) !== att) continue;
       const d2 = h.pos.distanceToSquared(p);
       const lim = Math.max(h.r * 1.3, 0.45 * (h.rc + rcNew), 0.008);
       if (d2 < lim * lim && d2 < bd && h.n.dot(n) > 0.7) { best = h; bd = d2; }
@@ -216,7 +232,9 @@ export class BulletHoles {
     const cosI = Math.min(1, Math.max(0, -dir.dot(n)));
     const pen = penetrationDepth(def, surface, distance) * energy * (0.55 + 0.45 * cosI);
     if (pen <= 0) return null;
-    let thick = this._thickness(hit.point, dir, surface, hit);
+    // Türen u. ä. (bewegliche Festkörper mit attach): Löcher haften am Objekt und wandern mit; Dicke bekannt
+    const att = hit.solid && hit.solid.attach ? hit.solid.attach : null;
+    let thick = att && hit.solid.thick ? hit.solid.thick : this._thickness(hit.point, dir, surface, hit);
     const backN = this._backN;
     const cal = caliberOf(def), S = SHAPE[style];
     // Querschläger: sehr flacher Treffer auf Stein/Metall – die Kugel prallt ab und hinterlässt eine lange Schleifspur
@@ -235,13 +253,13 @@ export class BulletHoles {
       return { passed: false, energyLeft: 0, thick, ricochet: true };
     }
     // bewegliche Festkörper (Türen): kein Loch (es würde nicht mitwandern), aber Durchschlag nach Dicke
-    if ((hit.solid && !hit.solid.static) || hit.targetId != null) {
+    if ((hit.solid && !hit.solid.static && !att) || hit.targetId != null) {
       const passed = thick !== Infinity && pen >= thick;
       return { passed, energyLeft: passed ? Math.max(0.15, 1 - thick / pen) : 0, thick, exitPoint: passed ? hit.point.clone().addScaledVector(dir, thick) : null };
     }
     const rCal = (cal.d / 2000) * S.hole;
     const rcNew = rCal * S.crater + S.craterE * Math.sqrt(cal.E / 1000) * (1 - cal.frag * 0.3) + cal.frag * 0.006;
-    let h = this._near(hit.point, n, surface, rcNew);
+    let h = this._near(hit.point, n, surface, rcNew, att);
     const alb = h ? null : (hit.tri != null && this.G.world?.albedoAt?.(hit.tri, [0, 0, 0])) || ALBEDO[style];
     // Dicke eines bestehenden Lochs: kleinste Messung gilt (Folgetreffer liegen leicht versetzt)
     if (h) { thick = Math.min(h.thick, thick); h.thick = thick; }
@@ -253,6 +271,7 @@ export class BulletHoles {
     if (!h) {
       h = this._make(hit.point, n, dir, surface, style, thick, false, alb);
       if (h) this._slope(h, dir);
+      if (h && att) h.att = att;
       if (!h) return passed ? { passed, energyLeft: Math.max(0.15, 1 - rest / pen), thick, exitPoint: hit.point.clone().addScaledVector(dir, thick) } : { passed: false, energyLeft: 0, thick };
       h.r = rCal;
       h.rc = Math.min(MAXR[style][1], rcNew);
@@ -302,6 +321,7 @@ export class BulletHoles {
       const ex = this._make(ep, exN, dir.clone().negate(), surface, style, thick, true, h.alb);
       if (ex) {
         this._slope(ex, dir.clone().negate());
+        if (att) ex.att = att;
         ex.r = Math.min(MAXR[style][0] * 1.2, h.r * (style === 3 ? 1.15 : 1.5));
         ex.rc = Math.min(MAXR[style][1] * 1.3, h.rc * (style === 0 || style === 1 || style === 7 ? 1.7 : 1.15));
         ex.depth = thick; ex.through = true; ex.behind = this._behind(h.pos.clone().addScaledVector(dir, -0.02), dir.clone().negate());
@@ -315,6 +335,8 @@ export class BulletHoles {
       if (h.exitHole.probed === undefined || h.exitHole.rc * this._elong(h.exitHole) > h.exitHole.probed * 1.4) this._queueProbe(h.exitHole);
       this._write(h.exitHole);
     }
+    if (h.att) this._attach(h);
+    if (h.exitHole && h.exitHole.att) this._attach(h.exitHole);
     this._write(h);
     this.stats.holes = this.holes.length;
     const res = { passed, energyLeft: passed ? (inOpen ? 0.92 : Math.max(0.15, 1 - Math.max(0, rest) / pen)) : 0, thick };
@@ -395,6 +417,20 @@ export class BulletHoles {
    */
   update(dt) {
     this._time += dt;
+    // angeheftete Löcher (Türen) folgen ihrem Objekt; verschwindet es, verschwinden sie mit
+    let gone = false;
+    for (const h of this.holes) {
+      if (!h.att || !h.lp) continue;
+      if (!h.att.visible || !h.att.parent) { gone = true; continue; }
+      const key = this._objKey(h.att);
+      if (key === h._attKey) continue;
+      h._attKey = key;
+      h.pos.copy(h.lp).applyMatrix4(h.att.matrixWorld);
+      h.n.copy(h.ln).transformDirection(h.att.matrixWorld);
+      h.dir.copy(h.ld).transformDirection(h.att.matrixWorld);
+      this._write(h);
+    }
+    if (gone) this.removeWhere((h) => h.att && (!h.att.visible || !h.att.parent));
     // Flächenabtastung: bis zu 3 Löcher je Bild, nur im Umkreis von 35 m (ferne bleiben vorgemerkt)
     if (this._probeQ.length) {
       const cp = this.G.camera?.position;
@@ -486,6 +522,39 @@ export class BulletHoles {
   }
 
   /** Löcher entfernen (z. B. am fallenden Stamm, treefall.js): pred(h) → true = weg. */
+  /**
+   * Messer/Kolben gegen eine Fläche: flache, längliche Kerbe (Holz: Macke mit gestauchten Fasern, Putz/Stein: Abplatzer,
+   * Blech: Kratzer, Erde: Schnitt). Rein optisch; Türen (attach) nehmen die Kerbe mit.
+   */
+  nick(hit, dir, def) {
+    if (!hit || !hit.point || hit.targetId != null) return null;
+    const surface = hit.surface || 'concrete';
+    const style = STYLE[surface];
+    if (style === undefined || style === 4) return null;
+    const att = hit.solid && hit.solid.attach ? hit.solid.attach : null;
+    if (hit.solid && !hit.solid.static && !att) return null;
+    const n = _v.copy(hit.normal || dir).normalize().clone();
+    if (n.dot(dir) > 0) n.negate();
+    const alb = (hit.tri != null && this.G.world?.albedoAt?.(hit.tri, [0, 0, 0])) || ALBEDO[style];
+    const h = this._make(hit.point, n, dir, surface, style, (att && hit.solid.thick) || 1, false, alb);
+    if (!h) return null;
+    const heavy = !!(def && (def.id === 'axt' || def.id === 'machete' || def.id === 'spaten'));
+    h.nick = true;
+    h.r = 0.0012;
+    h.rc = [0.012, 0.007, 0.009, 0.006, 0.006, 0.014, 0.01, 0.007][style] * (heavy ? 1.6 : 1) * (0.85 + Math.random() * 0.3);
+    h.depth = [0.006, 0.0015, 0.004, 0.0004, 0, 0.012, 0.003, 0.0018][style] * (heavy ? 1.8 : 1);
+    // Schnitt quer zur Klinge: meist waagrecht über die Fläche, etwas schräg
+    const phi = (Math.random() - 0.5) * 0.9 + (Math.random() < 0.25 ? Math.PI / 2 : 0);
+    const S = heavy ? 3.6 : 3;
+    h.slope = [Math.cos(phi) * S, Math.sin(phi) * S];
+    h.cos = 0.6;
+    if (att) { h.att = att; this._attach(h); }
+    this._queueProbe(h);
+    this._write(h);
+    this.stats.holes = this.holes.length;
+    return h;
+  }
+
   removeWhere(pred) {
     const keep = [];
     for (const h of this.holes) {

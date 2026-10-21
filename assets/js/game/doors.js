@@ -8,9 +8,11 @@
 // zerbricht die Scheibe (Splitter, Klirren) – danach offen zum Durchsteigen/-schießen. Gezeichnet gebündelt (zwei
 // InstancedMesh für alle Scheiben und Rahmen), Reihenfolge der Einträge: Türen, Fenster, Tore (gleich auf allen Geräten).
 import * as THREE from 'three';
-import { worldPartsFrom } from './building.js';
+import { worldPartsFrom, worldPartsMatrix } from './building.js';
 
-const DOOR_HP = 140;
+const DOOR_HP = 420;   // Kugeln: die Tür wird erst durchlöchert, zerfällt spät (Explosionen reißen sie sofort heraus)
+const HINGE_HP = 70;   // je Scharnier (Treffer im Umkreis); beide hin → Tür lose, kippt bei Berührung
+const HINGE_R = 0.2;   // Trefferumkreis um ein Scharnier (m)
 const DOOR_T = 0.06;
 const OPEN_TIME = 0.55, KICK_TIME = 0.14, GATE_TIME = 3.2;
 const USE_REACH = 1.6, PANEL_REACH = 1.4;
@@ -64,9 +66,23 @@ export class Doors {
       knob.scale.set(0.12, 0.03, 0.14);
       knob.position.set(d.w - 0.1, 1.0, 0);
       pivot.add(knob);
+      // Scharniere (zwei Bänder an der Angelseite)
+      const hingeY = [0.22, d.h - 0.25];
+      const hinges = hingeY.map((hy) => {
+        const hm = new THREE.Mesh(M.box, M.panel);
+        hm.scale.set(0.035, 0.11, DOOR_T + 0.02);
+        hm.position.set(0.012, hy, 0);
+        pivot.add(hm);
+        return hm;
+      });
+      pivot.rotation.order = 'YXZ'; // Gier (Öffnen), dann Kippen um die Unterkante (umfallende Tür)
       this.group.add(pivot);
-      const it = { type: 'door', d, mesh: pivot, t: d.open ? 1 : 0, target: d.open ? 1 : 0, speed: 1 / OPEN_TIME, hp: DOOR_HP, broken: false, solid: null };
-      it.solid = { id: `door${this.items.length}`, def: { surface: 'wood' }, mesh: pivot, parts: [], onHit: (dmg, by) => this._hit(it, dmg, by) };
+      pivot.userData.snapZ = DOOR_T / 2; // Einschusslöcher bleiben auf dem Blatt, auch wenn es schief hängt
+      // Raumseite in lokaler z-Richtung (dorthin hängt eine Tür mit zerschossenem Band durch)
+      const rs = -d.dc[1] * d.dopen[0] + d.dc[0] * d.dopen[1] >= 0 ? 1 : -1;
+      const it = { type: 'door', d, mesh: pivot, t: d.open ? 1 : 0, target: d.open ? 1 : 0, speed: 1 / OPEN_TIME, hp: DOOR_HP, broken: false, solid: null,
+        hingeY, hinges, hingeHp: [HINGE_HP, HINGE_HP], loose: false, fall: 0, th: 0, w: 0, sag: 0, sagY: 0, rs };
+      it.solid = { id: `door${this.items.length}`, def: { surface: 'wood' }, mesh: pivot, attach: pivot, thick: DOOR_T, parts: [], onHit: (dmg, by, def, hit) => this._hit(it, dmg, by, hit) };
       this.items.push(it);
     }
     // Fenster: Flügel-Teile als Instanzen (Scheibe + Rahmenleisten), Lage über einen unsichtbaren Drehpunkt
@@ -135,7 +151,14 @@ export class Doors {
       const d = it.d;
       const a = lerpAng(ang(d.dc), ang(d.dopen), it.t);
       it.mesh.rotation.y = a;
-      it.solid.parts = it.broken ? [] : worldPartsFrom([[d.w / 2, d.h / 2, 0, d.w / 2, d.h / 2, DOOR_T / 2, 0]], d.hx, d.y, d.hz, a);
+      // ein Scharnier zerschossen: Blatt kippt um das verbliebene Band aus der Ebene (nie in Rahmen oder Sturz)
+      const phi = it.fall ? it.fall * it.th : it.sag;
+      it.mesh.rotation.x = phi;
+      const yc = it.fall ? 0 : it.sagY, sp = Math.sin(phi);
+      it.mesh.position.set(d.hx - yc * sp * Math.sin(a), d.y + yc * (1 - Math.cos(phi)), d.hz - yc * sp * Math.cos(a));
+      // Kollision/Kugeln folgen dem Blatt genau (auch schief hängend); fallend erst, wenn es liegt (flaches Brett)
+      it.mesh.updateMatrixWorld(true);
+      it.solid.parts = it.broken || (it.fall && it.th <= 1.45) ? [] : worldPartsMatrix([[d.w / 2, d.h / 2, 0, d.w / 2, d.h / 2, DOOR_T / 2 + (it.fall ? 0.02 : 0)]], it.mesh.matrixWorld);
     } else if (it.type === 'window') {
       const d = it.d;
       const a = lerpAng(ang(d.dc), ang(d.dopen), it.t);
@@ -161,6 +184,21 @@ export class Doors {
     const G = this.G;
     const P = G.player;
     for (const it of this.items) {
+      if (it.type === 'door' && it.fall && it.th < Math.PI / 2) {
+        // Blatt kippt um die Unterkante (Stab: ω̇ = 3g/(2h)·sin θ), schlägt flach auf
+        it.w += ((3 * 9.81) / (2 * it.d.h)) * Math.sin(Math.max(0.05, it.th)) * dt;
+        it.th = Math.min(Math.PI / 2 - 0.03, it.th + it.w * dt);
+        if (it.th >= Math.PI / 2 - 0.031) { it.th = Math.PI / 2 - 0.03; it.w = 0; this._landed(it); }
+        this._pose(it);
+        continue;
+      }
+      if (it.type === 'door' && it.loose && !it.fall && !this.replica) {
+        // lose Tür: wer dagegenläuft, kippt sie um
+        for (const a of this.G.actors || []) {
+          if (!a.alive || !a.position || Math.abs(a.position.y - it.d.y) > 1.2) continue;
+          if (this._doorDist(it, a.position) < 0.55) { this._topple(it, a.position); break; }
+        }
+      }
       if (it.type === 'door' || it.type === 'window') {
         if (it.t !== it.target) {
           const step = dt * it.speed;
@@ -180,8 +218,8 @@ export class Doors {
     if (P.sprinting) {
       for (let i = 0; i < this.items.length; i++) {
         const it = this.items[i];
-        if (it.type !== 'door' || it.broken || it.target > 0 || it.t > 0.05) continue;
-        if (this._doorDist(it, P.position) < 0.75 && Math.abs(P.position.y - it.d.y) < 1.2) { this.request(i, 'k'); break; }
+        if (it.type !== 'door' || it.broken || it.fall || it.target > 0 || it.t > 0.05) continue;
+        if (this._doorDist(it, P.position) < 0.75 && Math.abs(P.position.y - it.d.y) < 1.2) { if (it.loose && !this.replica) this._topple(it, P.position); else this.request(i, 'k'); break; }
       }
     }
     // F: nächste Tür bzw. nächstes Schaltpult
@@ -189,7 +227,7 @@ export class Doors {
     let best = -1, bd = Infinity;
     for (let i = 0; i < this.items.length; i++) {
       const it = this.items[i];
-      if (it.broken) continue;
+      if (it.broken || it.fall) continue;
       let dd = Infinity;
       if (it.type === 'door') { if (Math.abs(P.position.y - it.d.y) < 1.2) dd = this._doorDist(it, P.position) - USE_REACH; }
       else if (it.type === 'window') { if (P.position.y > it.d.y - 1.6 && P.position.y < it.d.y + 0.6) dd = this._winDist(it, P.position) - USE_REACH; }
@@ -239,25 +277,34 @@ export class Doors {
   }
 
   /** Spieler-Aktion: offline/Host sofort, Client fragt den Host. */
-  request(i, a, dmg = 0) {
+  request(i, a, dmg = 0, x = 0) {
     const it = this.items[i];
     if (!it) return;
     if (this.replica) {
       const sync = this.G.net && this.G.net.sync;
       const now = this.G.time.elapsed;
-      if (a !== 'h' && now - (it._reqAt || -1) < 0.6) return; // nicht jedes Bild erneut anfragen
+      if (a !== 'h' && a !== 'g' && now - (it._reqAt || -1) < 0.6) return; // nicht jedes Bild erneut anfragen
       it._reqAt = now;
-      if (sync && typeof sync.sendDoor === 'function') sync.sendDoor(i, a, dmg);
+      if (sync && typeof sync.sendDoor === 'function') sync.sendDoor(i, a, dmg, x);
       return;
     }
-    this.act(i, a, this.G.player, dmg);
+    this.act(i, a, this.G.player, dmg, x);
   }
 
   /** Offline/Host: Aktion ausführen (actor für Abstandsprüfung online). → bool */
-  act(i, a, actor, dmg = 0) {
+  act(i, a, actor, dmg = 0, x = 0) {
     const it = this.items[i];
     if (!it || it.broken) return false;
     if (a === 'h') { this._hit(it, dmg, actor); return true; }
+    if (a === 'g' && it.type === 'door') { this._hingeDamage(it, x === 1 ? 1 : 0, dmg); return true; }
+    if (a === 'p' && it.type === 'door') { if (it.loose) this._topple(it, null, x > 0 ? -1 : 1); return true; }
+    if (it.type === 'door' && it.fall) return false;
+    if (it.type === 'door' && it.loose && (a === 't' || a === 'k')) {
+      // lose Tür: Anfassen oder Dagegenrennen wirft sie um (vom Spieler weg)
+      if (actor && actor.position && this._doorDist(it, actor.position) > USE_REACH + 1) return false;
+      this._topple(it, actor && actor.position ? actor.position : null);
+      return true;
+    }
     if (actor && actor.position) {
       const far = it.type === 'window' ? this._winDist(it, actor.position) > USE_REACH + 1 : it.type === 'door' ? this._doorDist(it, actor.position) > USE_REACH + 1 : !(it.d.panels || []).some(([px, pz]) => Math.hypot(px - actor.position.x, pz - actor.position.z) < PANEL_REACH + 1.5);
       if (far) return false;
@@ -289,7 +336,9 @@ export class Doors {
 
   _msg(i, kick = false) {
     const it = this.items[i];
-    return { i, s: Math.round((it.type === 'door' ? it.target : it.target) * 100) / 100, b: it.broken ? 1 : 0, k: kick ? 1 : 0 };
+    const m = { i, s: Math.round((it.type === 'door' ? it.target : it.target) * 100) / 100, b: it.broken ? 1 : 0, k: kick ? 1 : 0 };
+    if (it.type === 'door') { m.h = (it.hingeHp[0] > 0 ? 1 : 0) | (it.hingeHp[1] > 0 ? 2 : 0); if (it.fall) m.f = it.fall; }
+    return m;
   }
 
   /** Abweichungen vom Kartenstand (für nachträglich beigetretene Clients). */
@@ -297,7 +346,7 @@ export class Doors {
     const out = [];
     this.items.forEach((it, i) => {
       const def = it.type === 'door' || it.type === 'window' ? (it.d.open ? 1 : 0) : it.d.bottom ?? 0;
-      if (it.broken || it.target !== def) out.push(this._msg(i));
+      if (it.broken || it.target !== def || it.fall || (it.type === 'door' && it.hingeHp.some((h) => h <= 0))) out.push(this._msg(i));
     });
     return out;
   }
@@ -307,20 +356,29 @@ export class Doors {
     const it = this.items[m && m.i];
     if (!it) return;
     if (m.b && !it.broken) this._break(it);
-    if (!it.broken) this._apply(m.i, Number(m.s) || 0, !!m.k, false, true);
+    if (it.type === 'door' && Number.isInteger(m.h)) {
+      for (let k = 0; k < 2; k++) if (!(m.h & (1 << k)) && it.hingeHp[k] > 0) { it.hingeHp[k] = 0; it.hinges[k].visible = false; }
+      this._sagFromHinges(it);
+      if ((m.f === 1 || m.f === -1) && !it.fall) { it.fall = m.f; it.th = 0.06; it.w = 0.6; }
+      this._pose(it);
+    }
+    if (!it.broken && !it.fall) this._apply(m.i, Number(m.s) || 0, !!m.k, false, true);
   }
 
   /** Host: Wunsch eines Clients ('door' {i, a, d}). */
   netRequest(actor, m) {
     if (!actor || !actor.alive || !m || !Number.isInteger(m.i)) return;
-    const a = m.a === 'k' || m.a === 'h' ? m.a : 't';
-    const dmg = a === 'h' ? Math.max(0, Math.min(200, Number(m.d) || 0)) : 0;
-    this.act(m.i, a, actor, dmg);
+    const a = ['k', 'h', 'g', 'p'].includes(m.a) ? m.a : 't';
+    const dmg = a === 'h' || a === 'g' ? Math.max(0, Math.min(200, Number(m.d) || 0)) : 0;
+    this.act(m.i, a, actor, dmg, m.x | 0);
   }
 
   /** Treffer (Kugel, combat.js onHit): Splitter, ab 0 Leben zerbricht die Tür. */
-  _hit(it, dmg, by) {
+  _hit(it, dmg, by, hit) {
     if (it.broken || !(dmg > 0)) return;
+    // Scharniere: Treffer nahe der Angelseite in Bandhöhe zerstören das Band (alle Geräte gleich aus dem Trefferpunkt);
+    // liegende Tür: nur noch Holzschaden (zerfällt irgendwann)
+    if (it.type === 'door' && !it.fall && hit && hit.point) this._hingeHit(it, hit.point, dmg, by);
     if (this.replica) {
       // Client: Treffer an den Host melden (gebündelt)
       if (by === this.G.player) this.request(this.items.indexOf(it), 'h', dmg);
@@ -332,6 +390,87 @@ export class Doors {
       const sync = this.G.net && this.G.net.sync;
       if (sync && typeof sync.relayDoor === 'function') sync.relayDoor(this._msg(this.items.indexOf(it)));
     }
+  }
+
+  /** Treffer am Scharnier (lokale Lage aus dem Trefferpunkt). Lose Tür: weiterer Treffer kippt sie vom Schützen weg. */
+  _hingeHit(it, p, dmg, by) {
+    const d = it.d;
+    it.mesh.updateMatrixWorld(true);
+    const lp = it.mesh.worldToLocal(p.clone());
+    const i = this.items.indexOf(it);
+    if (it.loose) {
+      if (this.replica) { if (by === this.G.player) this.request(i, 'p', 0, lp.z < 0 ? 1 : -1); }
+      else this._topple(it, by && by.position ? by.position : null, lp.z);
+      return;
+    }
+    for (let k = 0; k < 2; k++) {
+      if (it.hingeHp[k] <= 0) continue;
+      if (lp.x > HINGE_R || Math.abs(lp.y - it.hingeY[k]) > HINGE_R) continue;
+      if (this.replica) { if (by === this.G.player) this.request(i, 'g', dmg, k); }
+      else this._hingeDamage(it, k, dmg);
+    }
+  }
+
+  /** Offline/Host: Schaden an Scharnier k; reißt es, hängt die Tür schief bzw. ist lose (beide). */
+  _hingeDamage(it, k, dmg) {
+    if (it.hingeHp[k] <= 0 || it.fall) return;
+    it.hingeHp[k] -= dmg;
+    if (it.hingeHp[k] <= 0) {
+      it.mesh.updateMatrixWorld(true);
+      // Band reißt: Funken, Teil fällt weg
+      it.hinges[k].visible = false;
+      const hp = new THREE.Vector3(0.01, it.hingeY[k], 0).applyMatrix4(it.mesh.matrixWorld);
+      this.G.events.emit('impact', { point: hp, normal: new THREE.Vector3(0, 1, 0), surface: 'metal', shooter: null, weaponId: null, fx: true });
+      this._sound(it, 'impact_metal', 0.9);
+    }
+    const wasLoose = it.loose;
+    this._sagFromHinges(it);
+    if (it.loose && !wasLoose) this._sound(it, 'melee_hit', 0.5);
+    this._pose(it);
+    this._relayFall(it);
+  }
+
+  /** Lage nach den verbliebenen Bändern: eins hin → Blatt hängt am anderen schief in den Raum, beide hin → lose. */
+  _sagFromHinges(it) {
+    const ok = [it.hingeHp[0] > 0, it.hingeHp[1] > 0];
+    it.loose = !ok[0] && !ok[1];
+    if (ok[0] && ok[1]) { it.sag = 0; it.sagY = 0; }
+    else if (ok[0]) { it.sag = it.rs * 0.035; it.sagY = it.hingeY[0]; } // oben los: Oberkante fällt in den Raum
+    else if (ok[1]) { it.sag = -it.rs * 0.06; it.sagY = it.hingeY[1]; } // unten los: Unterkante schwingt heraus
+    else { it.sag = it.rs * 0.045; it.sagY = 0; } // steht nur noch lose im Rahmen
+  }
+
+  /** Lose Tür kippt um – weg von der Position des Anstoßes (oder nach der Seite lz des Treffers). */
+  _topple(it, from, lz = 0) {
+    if (it.fall || it.broken) return;
+    let side = lz < 0 ? 1 : -1;
+    if (from) {
+      it.mesh.updateMatrixWorld(true);
+      const lp = it.mesh.worldToLocal(from.clone());
+      side = lp.z > 0 ? -1 : 1;
+    }
+    it.fall = side;
+    it.th = 0.06; it.w = 0.6;
+    it.target = it.t;
+    this._sound(it, 'melee_hit', 0.8);
+    this._pose(it);
+    this._relayFall(it);
+    this.G.events.emit('door:fall', { door: it });
+  }
+
+  /** Tür liegt: Aufschlag (Staub, dumpfer Schlag). */
+  _landed(it) {
+    const d = it.d;
+    it.mesh.updateMatrixWorld(true);
+    const c = new THREE.Vector3(d.w / 2, d.h * 0.7, 0).applyMatrix4(it.mesh.matrixWorld);
+    this.G.events.emit('impact', { point: c, normal: new THREE.Vector3(0, 1, 0), surface: 'wood', shooter: null, weaponId: null, fx: true, scale: 1.8 });
+    const au = this.G.audio;
+    if (au && typeof au.play === 'function') { try { au.play('debris', { position: c, volume: 1, pitch: 0.7 }); } catch { /* Beiwerk */ } }
+  }
+
+  _relayFall(it) {
+    const sync = this.G.net && this.G.net.sync;
+    if (!this.replica && sync && typeof sync.relayDoor === 'function') sync.relayDoor(this._msg(this.items.indexOf(it)));
   }
 
   _break(it) {
@@ -398,7 +537,14 @@ export class Doors {
       const it = this.items[i];
       if ((it.type !== 'door' && it.type !== 'window') || it.broken) continue;
       const reach = it.type === 'window' ? (e.radius || 4) * 1.4 + 2 : (e.radius || 4) * 0.8 + 1; // Glas springt weiter
-      if (Math.hypot(it.d.hx - e.position.x, it.d.y + 1 - e.position.y, it.d.hz - e.position.z) < reach) this._hit(it, 999, e.attacker);
+      const dist = Math.hypot(it.d.hx - e.position.x, it.d.y + 1 - e.position.y, it.d.hz - e.position.z);
+      if (dist >= reach) continue;
+      if (it.type === 'door' && !it.fall && dist > (e.radius || 4) * 0.35 + 0.6) {
+        // weiter weg: Druckwelle reißt das Blatt aus den Angeln, es kippt von der Explosion weg
+        for (let k = 0; k < 2; k++) { it.hingeHp[k] = 0; it.hinges[k].visible = false; }
+        this._sagFromHinges(it);
+        this._topple(it, e.position);
+      } else this._hit(it, 999, e.attacker);
     }
   }
 
