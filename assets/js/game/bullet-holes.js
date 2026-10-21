@@ -67,6 +67,7 @@ export class BulletHoles {
     this._viewT = 0;
     this._time = 0;
     this._probeQ = [];
+    this._nextSlot = 0;
     mat.onBeforeCompile = (sh) => { sh.uniforms.npView = this._uView; sh.uniforms.npViewTan = this._uTan; holeShader(sh); };
     mat.customProgramCacheKey = () => 'np-holes-3';
     this.mesh = new THREE.InstancedMesh(geo, mat, MAX);
@@ -218,7 +219,7 @@ export class BulletHoles {
       return { passed: false, energyLeft: 0, thick, ricochet: true };
     }
     // bewegliche Festkörper (Türen): kein Loch (es würde nicht mitwandern), aber Durchschlag nach Dicke
-    if (hit.solid || hit.targetId != null) {
+    if ((hit.solid && !hit.solid.static) || hit.targetId != null) {
       const passed = thick !== Infinity && pen >= thick;
       return { passed, energyLeft: passed ? Math.max(0.15, 1 - thick / pen) : 0, thick, exitPoint: passed ? hit.point.clone().addScaledVector(dir, thick) : null };
     }
@@ -252,6 +253,13 @@ export class BulletHoles {
     }
     if (passed) h.depth = thick;
     if (backN && !h.backN) h.backN = backN;
+    // Holz aus einem Baumstamm: entfernten Querschnitt (Lochbreite × Tiefe) an treefall.js melden
+    if (style === 0 && this.G.trees && hit.object && hit.object.name === 'totholz') {
+      const rem = 2 * h.r * Math.min(h.depth, thick === Infinity ? h.depth : thick);
+      const d = rem - (h._rem || 0);
+      h._rem = rem;
+      if (d > 0) this.G.trees.onBullet(hit, dir, d * (1 + 0.6 * cal.frag));
+    }
     if (h.probed === undefined || h.rc * this._elong(h) > h.probed * 1.4) this._queueProbe(h);
     const wasThrough = h.through;
     h.through = wasThrough || h.depth >= thick - 0.002;
@@ -299,17 +307,18 @@ export class BulletHoles {
 
   _make(point, n, dir, surface, style, thick, exit = false, alb = ALBEDO[style]) {
     let slot;
-    if (this.holes.length >= MAX) {
+    if (this._free.length) slot = this._free.pop();
+    else if (this.holes.length >= MAX) {
       // ältestes Nicht-Durchschuss-Loch wiederverwenden
       const i = this.holes.findIndex((h) => !h.through);
       const old = this.holes.splice(i >= 0 ? i : 0, 1)[0];
       slot = old.slot;
       if (old.viewSlot != null) this._slots[old.viewSlot] = null;
       old.dead = true;
-    } else slot = this.holes.length;
+    } else slot = this._nextSlot++;
     const h = { pos: point.clone(), n: n.clone(), dir: dir.clone(), surface, style, r: 0.005, rc: 0.02, depth: 0.005, thick, through: false, hits: 1, slot, exit, seed: Math.random() * 100, behind: [0.02, 0.02, 0.02], exitHole: null, alb: alb.slice(0, 3) };
     this.holes.push(h);
-    if (this.mesh.count < this.holes.length) this.mesh.count = this.holes.length;
+    if (this.mesh.count < slot + 1) this.mesh.count = slot + 1;
     return h;
   }
 
@@ -441,6 +450,22 @@ export class BulletHoles {
       r.autoClear = prevClear;
       r.setRenderTarget(prevRT);
     }
+  }
+
+  /** Löcher entfernen (z. B. am fallenden Stamm, treefall.js): pred(h) → true = weg. */
+  removeWhere(pred) {
+    const keep = [];
+    for (const h of this.holes) {
+      if (!pred(h)) { keep.push(h); continue; }
+      h.dead = true;
+      if (h.viewSlot != null) this._slots[h.viewSlot] = null;
+      _m.makeScale(0, 0, 0).toArray(this.mesh.instanceMatrix.array, h.slot * 16);
+      this.mesh.instanceMatrix.addUpdateRange(h.slot * 16, 16);
+      this.mesh.instanceMatrix.needsUpdate = true;
+      this._free.push(h.slot);
+    }
+    this.holes = keep;
+    this.stats.holes = keep.length;
   }
 
   /** Durchgehendes Loch an dieser Stelle? → Loch oder null. */

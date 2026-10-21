@@ -364,7 +364,9 @@ export class Deadwood {
     for (const it of this.items) {
       if (!inPlay(it.x, it.z)) continue;
       const o = this.protos[it.p].o;
+      it.tri = out.length / 9; // erstes Dreieck dieses Stamms (treefall.js schaltet es beim Fällen ab)
       prism(it.m, o.r0 * 1.08, -0.3, o.H + (o.tip ? 0 : (o.splinter ?? 1) * 0.4), false);
+      it.triN = out.length / 9 - it.tri;
     }
     for (const it of this.logs) {
       if (!inPlay(it.x, it.z)) continue;
@@ -428,7 +430,7 @@ export class Deadwood {
       const cN = meshes.map(() => 0), cM = meshes.map(() => 0), cF = meshes.map(() => 0);
       for (const it of list) {
         const M = meshes[it.p];
-        if (!M) continue;
+        if (!M || it.hidden) continue; // gefällt (treefall.js zeichnet Stumpf und Stamm selbst)
         const dx = it.x - p.x, dz = it.z - p.z, d2 = dx * dx + dz * dz;
         let mesh, k;
         if (d2 < near2 && cN[it.p] < M.near.instanceMatrix.count) { mesh = M.near; k = cN[it.p]++; }

@@ -40,6 +40,7 @@ import { CarDeform } from './deform.js'; // verformbare Autos
 import { Digging } from './digging.js'; // Graben mit dem Klappspaten (Großkarten)
 import { Doors } from './doors.js'; // bewegliche Türen und Tore (Taste F)
 import { BulletHoles } from './bullet-holes.js'; // Einschusslöcher mit Tiefe, Durchschuss nach Kaliber
+import { TreeFall } from './treefall.js'; // Bäume brechen unter Beschuss und fallen
 import * as Feedback from '../shared/feedback.js'; // Feedback an den Entwickler ab 20 Minuten Spielzeit (Nutzer 11.10.)
 
 const VERSION = '1.1.0';
@@ -1032,6 +1033,7 @@ async function runStart(config, gen) {
     safe('digging', () => { G.digging = new Digging(G); });
     safe('doors', () => { G.doors = new Doors(G); });
     safe('holes', () => { G.holes = new BulletHoles(G); });
+    safe('trees', () => { G.trees = new TreeFall(G); if (!G.trees.active) { G.trees.dispose(); G.trees = null; } });
     G.hud.attach(G);
     safe('audio.startAmbience', () => G.audio.startAmbience(G.world.ambience));
     G.mode.start();
@@ -1245,6 +1247,7 @@ async function teardownMatch({ keepWorld = false } = {}) {
   safe('waffenmodelle', () => { const M = G.modules.models; if (M && M.disposeAttachmentTemplates) M.disposeAttachmentTemplates(); });
   if (G.doors) { safe('doors', () => G.doors.dispose()); G.doors = null; }
   if (G.holes) { safe('holes', () => G.holes.dispose()); G.holes = null; }
+  if (G.trees) { safe('trees', () => G.trees.dispose()); G.trees = null; }
   if (G.building) { safe('building', () => G.building.dispose()); G.building = null; }
   if (G.injuries) { safe('injuries', () => G.injuries.dispose()); G.injuries = null; }
   if (G.gore) { safe('gore', () => G.gore.dispose()); G.gore = null; }
@@ -1633,6 +1636,7 @@ function frame(now, bg = false, xrFrame = null) {
     step('world', () => { if (G.world) G.world.update(dt, G.camera); });
     step('effects', () => G.effects.update(dt));
     if (G.holes) step('holes', () => G.holes.update(dt)); // Durchblick-Ansichten der Einschusslöcher
+    if (G.trees) step('trees', () => G.trees.update(dt)); // fallende Bäume
     step('hud', () => G.hud.update(dt));
     step('audio', () => G.audio.update(dt));
     if (G.mode && G.mode.isOver && (G.match.state === 'playing' || G.match.netLive)) G.events.emit('match:end', { result: G.mode.result });

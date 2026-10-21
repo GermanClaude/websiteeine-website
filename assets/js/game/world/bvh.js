@@ -26,6 +26,14 @@ export class TriangleBVH {
   static transferables(d) { return [d.tri, d.data, d.orig, d.nMin, d.nMax, d.nLeft, d.nStart, d.nCount].map(a => a.buffer); }
 
   /** BVH aus toData()-Daten (ohne Neuaufbau). */
+  /** Dreiecke abschalten (Ursprungsindizes start … start+n−1, z. B. ein gefällter Baum): Strahlen/Kollision übergehen sie. */
+  disableOrig(start, n) {
+    if (!this.count) return;
+    if (!this._inv) { this._inv = new Uint32Array(this.count); for (let i = 0; i < this.count; i++) this._inv[this.orig[i]] = i; }
+    if (!this.off) this.off = new Uint8Array(this.count);
+    for (let k = start; k < start + n && k < this.count; k++) this.off[this._inv[k]] = 1;
+  }
+
   static fromData(d) {
     const b = new TriangleBVH(null);
     Object.assign(b, { count: d.count, nodeCount: d.nodeCount, tri: d.tri, data: d.data, orig: d.orig, nMin: d.nMin, nMax: d.nMax, nLeft: d.nLeft, nStart: d.nStart, nCount: d.nCount });
@@ -155,6 +163,7 @@ export class TriangleBVH {
    */
   raycast(ox, oy, oz, dx, dy, dz, maxDist, out, anyHit = false) {
     if (!this.count) return false;
+    const off = this.off || null; // abgeschaltete Dreiecke (gefällte Bäume, treefall.js)
     const ix = 1 / (Math.abs(dx) > 1e-12 ? dx : 1e-12), iy = 1 / (Math.abs(dy) > 1e-12 ? dy : 1e-12), iz = 1 / (Math.abs(dz) > 1e-12 ? dz : 1e-12);
     const { nMin, nMax, nLeft, nStart, nCount, tri } = this;
     const stack = this._stack;
@@ -174,6 +183,7 @@ export class TriangleBVH {
       if (left < 0) {
         const s = nStart[id], e = s + nCount[id];
         for (let i = s; i < e; i++) {
+          if (off !== null && off[i] === 1) continue;
           const o = i * 9;
           const e1x = tri[o + 3], e1y = tri[o + 4], e1z = tri[o + 5], e2x = tri[o + 6], e2y = tri[o + 7], e2z = tri[o + 8];
           const px = dy * e2z - dz * e2y, py = dz * e2x - dx * e2z, pz = dx * e2y - dy * e2x;
@@ -227,6 +237,7 @@ export class TriangleBVH {
    */
   verticalHits(x, z, yTop, yBottom, cb) {
     if (!this.count) return;
+    const off = this.off || null;
     const { nMin, nMax, nLeft, nStart, nCount, tri } = this;
     const stack = this._stack;
     let sp = 0;
@@ -238,6 +249,7 @@ export class TriangleBVH {
       if (left >= 0) { stack[sp++] = left; stack[sp++] = left + 1; continue; }
       const s = nStart[id], e = s + nCount[id];
       for (let i = s; i < e; i++) {
+        if (off !== null && off[i] === 1) continue;
         const o = i * 9;
         const ax = tri[o], az = tri[o + 2];
         const e1x = tri[o + 3], e1z = tri[o + 5], e2x = tri[o + 6], e2z = tri[o + 8];

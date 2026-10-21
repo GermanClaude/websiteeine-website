@@ -317,6 +317,9 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   albList.push(albFill(vd.length, 46, 36, 26));
   if (dead) {
     const deadObj = objects.push(dead.group) - 1;
+    // Ursprungsindex des ersten Totholz-Dreiecks je BVH (Bäume fällen: treefall.js schaltet Stämme ab)
+    dead.colStart = colList.reduce((n, a) => n + a.length / 9, 0);
+    dead.bulStart = bulList.reduce((n, a) => n + a.length / 9, 0);
     colList.push(deadCol.col); bulList.push(deadCol.bullet);
     datList.push(new Uint32Array(deadCol.bullet.length / 9).fill(2 | (deadObj << 8)));
     albList.push(albFill(deadCol.bullet.length / 9, 16, 15, 14)); // verkohlt
@@ -513,6 +516,16 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
       }
       return best;
     },
+    /** Totholz (Brandwald) für treefall.js: { dw (Deadwood), disable(item) } oder null. */
+    deadwood: dead ? {
+      dw: dead,
+      disable(it) {
+        if (it.tri == null) return;
+        colBVH.disableOrig(dead.colStart + it.tri, it.triN);
+        bulBVH.disableOrig(dead.bulStart + it.tri, it.triN);
+      },
+    } : null,
+
     /** Albedo (linear 0..1) des Kugel-Dreiecks eines raycast-Treffers (hit.tri; Gelände −1 → null). */
     albedoAt(tri, out = [0, 0, 0]) {
       if (tri == null || tri < 0 || tri >= bulBVH.count) return null;
