@@ -12,7 +12,7 @@ import { configureTextures, getMaterial, beginTextureEpoch, releaseUnusedTexture
 import { createWorldAssets } from '../library.js';
 import { MapBuilder, SURFACES, civilList } from '../builder.js';
 import { createLighting } from '../lighting.js';
-import { applyWorldShading, bindShadingScene, watchScene, initShading, resetShading, setShadingMode } from '../shading.js';
+import { applyWorldShading, applyCuts, bindShadingScene, watchScene, initShading, resetShading, setShadingMode } from '../shading.js';
 import { createAtmosphere } from '../atmos.js';
 import { resolveConditions, applyConditions } from '../weather.js';
 import { createWater } from '../water.js';
@@ -648,6 +648,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   const s0 = spawns.A[0] || spawns.ffa[0];
   if (s0) { cam0.position.copy(s0.position).add(new THREE.Vector3(0, 1.7, 0)); chunks.update(cam0, 64); veg.update(cam0, true); dead?.update(cam0, true); litter?.update(cam0, true); }
   // atmosphere-weather: Welt-Shading (Höhennebel, Fernschatten, spekulares AA; ohne Sonden-Gitter) + Staub/Strahlen
+  applyCuts(group); // Wanddurchbrüche (bullet-holes.js)
   let atmos = null;
   if (fxOn) try {
     world.stats.lighting = { materials: applyWorldShading(group), far: null, atmos: null };

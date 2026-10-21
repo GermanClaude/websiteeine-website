@@ -164,6 +164,7 @@ export function resetShading() {
   WS.npBounce.value.setRGB(0, 0, 0);
   WS.npFogCam.value = 1;
   if (dummyDepth) WS.npFarMap.value = dummyDepth.tex;
+  setCutCount(0);
 }
 
 // ---------------------------------------------------------------------------
@@ -337,6 +338,79 @@ function worldShadingPatch(shader) {
 }
 
 // ---------------------------------------------------------------------------
+// Wanddurchbrüche (bullet-holes.js): bis CUT_MAX Zylinder quer durch eine Wand (Vorderfläche → Rückfläche, Rand
+// gezackt). Fragmente der Kartengeometrie darin verwirft der Shader – durch große Löcher sieht man die echte Welt
+// dahinter. Nur Kartenmaterialien (applyCuts), nur während die Weltszene rendert.
+// Aufbau je Ausschnitt: siehe CUT_GLSL. Der Umriss folgt den Treffern (Garbe mit Rückstoß → unregelmäßiges Loch).
+// ---------------------------------------------------------------------------
+export const CUT_MAX = 8, CUT_STRIDE = 8, CUT_K = 16;
+export const CUTS = { npCut: { value: new Float32Array(CUT_MAX * CUT_STRIDE * 4) }, npCutN: { value: 0 }, want: 0 };
+/**
+ * Gemeinsamer Shader-Teil (Weltshader und Lochshader, bullet-holes.js – gleiche Formel, damit Wandausschnitt und
+ * Lochrand exakt zusammenpassen). Je Ausschnitt CUT_STRIDE vec4:
+ *   [Mitte Vorderfläche, Dicke] [Normale nach vorn, Aufweitung hinten] [x-Achse, Zufall] [Zacken, Hüllradius, –, –]
+ *   [Umriss: CUT_K Radien (m) gleichmäßig über den Umfang, ab der x-Achse gegen den Uhrzeigersinn um die Normale]
+ */
+export const CUT_GLSL = `uniform vec4 npCut[ ${CUT_MAX * CUT_STRIDE} ];
+uniform int npCutN;
+float npCutJag( float th, float seed, float amp ) {
+  return 1.0 + amp * ( 0.55 * sin( 3.0 * th + seed * 1.7 ) + 0.3 * sin( 5.0 * th + seed * 2.9 ) + 0.15 * sin( 9.0 * th + seed * 4.3 ) );
+}
+// Radius (m) des Ausschnitts i in Weltrichtung w (in der Wandebene) bei relativer Tiefe f (0 vorn … 1 hinten)
+float npCutRAt( int i, vec3 w, float f ) {
+  int b = i * ${CUT_STRIDE};
+  vec4 c1 = npCut[ b + 1 ], c2 = npCut[ b + 2 ], c3 = npCut[ b + 3 ];
+  float th = atan( dot( w, cross( c1.xyz, c2.xyz ) ), dot( w, c2.xyz ) );
+  float x = ( th < 0.0 ? th + 6.28318531 : th ) * ${(CUT_K / (2 * Math.PI)).toFixed(8)};
+  int k0 = int( x ) % ${CUT_K};
+  float t = fract( x ); t = t * t * ( 3.0 - 2.0 * t );
+  int k1 = ( k0 + 1 ) % ${CUT_K};
+  float r0 = npCut[ b + 4 + k0 / 4 ][ k0 % 4 ], r1 = npCut[ b + 4 + k1 / 4 ][ k1 % 4 ]; // CUT_K = 16 → 4 vec4
+  return mix( r0, r1, t ) * npCutJag( th, c2.w, c3.x ) * ( 1.0 + ( c1.w - 1.0 ) * f );
+}`;
+const CUT_FRAG = `
+  for ( int i = 0; i < ${CUT_MAX}; i++ ) {
+    if ( i >= npCutN ) break;
+    int b = i * ${CUT_STRIDE};
+    vec4 c0 = npCut[ b ], c1 = npCut[ b + 1 ];
+    vec3 d = vNpWorld - c0.xyz;
+    float h = dot( d, c1.xyz );
+    if ( h > 0.03 || h < -c0.w - 0.03 ) continue;
+    vec3 dp = d - c1.xyz * h;
+    float L2 = dot( dp, dp ), rb = npCut[ b + 3 ].y;
+    if ( L2 > rb * rb ) continue;
+    float R = npCutRAt( i, dp * inversesqrt( max( L2, 1e-10 ) ), clamp( -h / max( c0.w, 1e-3 ), 0.0, 1.0 ) ) * 0.97;
+    if ( L2 < R * R ) discard;
+  }`;
+function cutPatch(shader) {
+  if (!shader.fragmentShader.includes('#include <clipping_planes_fragment>')) return;
+  ensureWorldVaryings(shader);
+  shader.uniforms.npCut = CUTS.npCut;
+  shader.uniforms.npCutN = CUTS.npCutN;
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', `#include <common>\n${CUT_GLSL}`)
+    .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>\n${CUT_FRAG}`);
+}
+/** Anzahl gültiger Einträge in CUTS.npCut (wirksam, während die Weltszene rendert). */
+export function setCutCount(n) {
+  CUTS.want = Math.max(0, Math.min(CUT_MAX, n | 0));
+  if (!liveStored) CUTS.npCutN.value = CUTS.want;
+}
+/** Kartengeometrie (Teilbaum) für Wanddurchbrüche vorbereiten. → Anzahl Materialien */
+export function applyCuts(target) {
+  let n = 0;
+  target?.traverse?.((o) => {
+    if (!o.isMesh) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of mats) {
+      if (!m || !m.isMeshStandardMaterial || m.userData?.noWorldShading || m.userData?.viewmodelOnly || m.transparent) continue;
+      if (!hasShaderPatch(m, 'cut')) { addShaderPatch(m, 'cut', cutPatch); n++; }
+    }
+  });
+  return n;
+}
+
+// ---------------------------------------------------------------------------
 // Nur während die Weltszene rendert aktiv: Materialien, die auch in anderen Szenen vorkommen (Viewmodel teilt
 // z. B. Waffenmaterialien), bleiben dort unverändert (neutral: keine Sonden, kein Fernschatten, kein Höhennebel).
 // ---------------------------------------------------------------------------
@@ -346,11 +420,13 @@ function neutralize() {
   if (liveStored) return;
   live.probe = WS.npProbe.value.x; live.far = WS.npFar.value.x; live.fog = WS.npFog.value.x; live.specAA = WS.npSpecAA.value;
   WS.npProbe.value.x = 0; WS.npFar.value.x = 0; WS.npFog.value.x = 0; WS.npSpecAA.value = 0;
+  CUTS.npCutN.value = 0;
   liveStored = true;
 }
 function activate() {
   if (!liveStored) return;
   WS.npProbe.value.x = live.probe; WS.npFar.value.x = live.far; WS.npFog.value.x = live.fog; WS.npSpecAA.value = live.specAA;
+  CUTS.npCutN.value = CUTS.want;
   liveStored = false;
 }
 

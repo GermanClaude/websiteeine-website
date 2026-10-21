@@ -8,7 +8,7 @@ import { configureTextures, getMaterial, beginTextureEpoch, releaseUnusedTexture
 import { createWorldAssets } from './library.js';
 import { MapBuilder, civilList, SURFACES } from './builder.js';
 import { createLighting, sunVector } from './lighting.js';
-import { applyWorldShading, initShading, resetShading, setShadingMode, shadingMode, bindShadingScene, watchScene, WS } from './shading.js';
+import { applyWorldShading, applyCuts, initShading, resetShading, setShadingMode, shadingMode, bindShadingScene, watchScene, WS } from './shading.js';
 import { createProbeQuery, PROBE_TIERS, PROBE_BOUNCE_SCALE } from './probes.js';
 import { createAtmosphere } from './atmos.js';
 import { resolveConditions, applyConditions } from './weather.js';
@@ -121,6 +121,7 @@ function activateLighting(G, def, world, group, light, probes, quality, debug) {
   const t0 = performance.now();
   const L = def.lighting, pc = L.probes || {};
   const materials = applyWorldShading(group);
+  applyCuts(group); // Wanddurchbrüche (bullet-holes.js)
   // nur während die Weltszene rendert aktiv (Viewmodel-Szene bleibt neutral); weitere Objekte der Szene (Figuren,
   // Fahrzeuge …) bekommen den Haken beim Hinzufügen
   world._unbindShading = bindShadingScene(G.scene);

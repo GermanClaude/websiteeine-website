@@ -595,6 +595,12 @@ export class BotManager {
     if (W && typeof W.raycast === 'function') {
       wh = W.raycast(_pe, _pd, range);
       if (wh && wh.distance <= range) dist = wh.distance; else wh = null;
+      // Durchbrüche (bullet-holes.js): durch die ausgeschnittene Öffnung weiter bis zum nächsten Hindernis
+      for (let k = 0; k < 3 && wh && G.holes && G.holes._cutAt(wh.point, 0.9); k++) {
+        const from = wh.point.clone().addScaledVector(_pd, 0.05), base = dist + 0.05;
+        const w2 = W.raycast(from, _pd, range - base);
+        if (w2 && base + w2.distance <= range) { wh = w2; dist = base + w2.distance; } else { wh = null; dist = range; }
+      }
     }
     const ad = this._puppetActorHit(bot, _pe, _pd, dist);
     if (ad > 0) { dist = ad; wh = null; }
