@@ -1184,7 +1184,7 @@ float gL, gPad, gCuf, gWear, gH;`)
   vec3 base = diffuseColor.rgb;
   vec3 fabric = base * (0.9 + 0.3 * (tx.a - 0.5)) * (0.94 + 0.12 * tx.r);
   vec3 leather = base * vec3(0.6, 0.6, 0.63) * (0.9 + 0.3 * (tx.g - 0.5));
-  vec3 padC = base * 0.56 * (0.95 + 0.1 * tx.g);
+  vec3 padC = base * 0.82 * (0.95 + 0.1 * tx.g); // Polster nur leicht dunkler (harte Kontraste wirkten wie Knochen)
   vec3 cuffC = base * 0.8 * (0.92 + 0.16 * tx.r);
   vec3 col = mix(mix(fabric, leather, gL), padC, gPad);
   col = mix(col, cuffC, gCuf);
@@ -1193,7 +1193,7 @@ float gL, gPad, gCuf, gWear, gH;`)
   seam = max(seam, 1.0 - smoothstep(0.0, cw, abs(vGM.z - 0.5)));
   // Steppnaht neben der Kappnaht (heller Faden, gestrichelt entlang der Grenze)
   float st = (1.0 - smoothstep(0.0, sw, abs(abs(vGM.x - 0.5) - 0.09))) * step(0.5, fract(dot(P, vec3(9.0, 11.0, 13.0)))) * (1.0 - gCuf);
-  col *= 1.0 - 0.5 * seam;
+  col *= 1.0 - 0.3 * seam;
   col = mix(col, base * 1.25 + 0.012, st * 0.35);
   gWear = vGM.w * smoothstep(0.3, 0.7, tx.b + vGM.w * 0.3);
   col = mix(col, col * 1.55 + 0.018, gWear * 0.55);

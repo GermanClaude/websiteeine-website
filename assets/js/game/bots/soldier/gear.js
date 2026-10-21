@@ -2,43 +2,66 @@
 // Rucksack, Ärmel, Knieschoner, Holster …) × 3 Detailstufen → eine geteilte, gecachte Geometrie.
 // Farben kommen über Palettenplätze aus dem Material (Farbschema) → dieselbe Geometrie für alle Schemata.
 // Koordinaten: Modellraum der Bindepose (Füße im Ursprung, Blick −Z, rechts +X, Arme hängen).
-// Körper aus gedrehten Profilen mit elliptischem Querschnitt (weiche Silhouette, nahtlose Stoff-UVs in Metern),
+// Körper (21.10.): ein durchgehendes, weich gehäutetes Netz aus tools/assets/soldier/build-body.mjs (body-mesh.js) –
+// Muskeln, Uniform mit Falten/Taschen, Stiefel, Handschuhe, Kopf; Bereiche → Materialien je Ausführung.
 // Ausrüstung aus abgerundeten Quadern; auf Stufe 2 nur noch die Silhouette tragenden Teile.
 // Gesichter sind verdeckt (Realismus-Plan C1: Sturmhaube, Halstuch, Shemagh, Gasmaske + Schutzbrillen) – wie Bodycam,
 // das Gesichter verpixelt; so entsteht kein „Uncanny Valley“ aus der Nähe.
 import * as THREE from 'three';
-import { SkinBuilder, limb, lathe as latheBase, rbox, ellipsoid, cyl, torus, xf } from './builder.js';
+import { SkinBuilder, limb, rbox, ellipsoid, cyl, torus, xf } from './builder.js';
 import { SKIN_TONES } from './materials.js';
 import { BONE, DIM } from './rig.js';
+import { BODY_MESH } from './body-mesh.js';
 
 export const VARIANTS = [
   // Nutzer 16.10.: Grundausführungen wie die Soldaten im Video – Helm mit Tarnbezug (ohne Nachtsicht), dunkle
   // Sturmhaube/Halstuch, Plattenträger, großer Rucksack; Abwechslung nur noch über Weste, Rucksack und Kleinteile
-  { id: 'sturm', name: 'Sturm', head: 'helmet', cover: true, ears: true, face: 'balaclava', eyes: null, vest: 'plate', back: 'assault', knees: true, holster: true, sleeves: 'long', skin: 1, hair: '#2a2119' },
-  { id: 'spaeher', name: 'Späher', head: 'helmet', cover: true, face: 'gaiter', eyes: null, vest: 'rig', back: 'assault', knees: false, holster: false, sleeves: 'long', skin: 2, hair: '#3b2a1c' },
-  { id: 'funker', name: 'Funker', head: 'helmet', cover: true, ears: true, face: 'balaclava', eyes: null, vest: 'plate', back: 'radio', knees: false, holster: true, sleeves: 'long', skin: 0, hair: '#5a4026' },
-  { id: 'grenadier', name: 'Grenadier', head: 'helmet', cover: true, face: 'balaclava', eyes: null, vest: 'plate', back: 'assault', knees: true, dump: true, sleeves: 'long', skin: 3, hair: '#18120d' },
+  { id: 'sturm', name: 'Sturm', shirt: 'combat', head: 'helmet', cover: true, ears: true, face: 'balaclava', eyes: null, vest: 'plate', back: 'assault', knees: true, holster: true, sleeves: 'long', skin: 1, hair: '#2a2119' },
+  { id: 'spaeher', name: 'Späher', head: 'boonie', veil: true, face: 'gaiter', eyes: null, vest: 'rig', back: 'assault', knees: false, holster: false, sleeves: 'long', skin: 2, hair: '#3b2a1c' },
+  { id: 'funker', name: 'Funker', shirt: 'combat', head: 'helmet', cover: true, ears: true, face: 'balaclava', eyes: null, vest: 'plate', back: 'radio', knees: false, holster: true, sleeves: 'long', skin: 0, hair: '#5a4026' },
+  { id: 'grenadier', name: 'Grenadier', shirt: 'combat', head: 'helmet', cover: true, face: 'balaclava', eyes: null, vest: 'plate', back: 'assault', knees: true, dump: true, sleeves: 'long', skin: 3, hair: '#18120d' },
   { id: 'schatten', name: 'Schatten', head: 'helmet', cover: true, face: 'balaclava', eyes: null, vest: 'light', back: 'assault', knees: false, holster: true, sleeves: 'long', skin: 4, hair: '#141110' },
-  { id: 'bastion', name: 'Bastion', head: 'helmet', cover: true, face: 'balaclava', eyes: null, vest: 'heavy', back: 'none', knees: true, pauldrons: true, dump: true, sleeves: 'long', skin: 1, hair: '#2a2119' },
-  { id: 'kundschafter', name: 'Kundschafter', head: 'helmet', cover: true, ears: true, face: 'gaiter', eyes: null, vest: 'rig', back: 'assault', knees: true, sleeves: 'long', skin: 5, hair: '#4a3420' },
-  { id: 'pionier', name: 'Pionier', head: 'helmet', cover: true, ears: true, face: 'balaclava', eyes: null, vest: 'plate', back: 'assault', knees: true, holster: true, dump: true, sleeves: 'long', skin: 2, hair: '#2e2016' },
+  { id: 'bastion', name: 'Bastion', shirt: 'combat', head: 'helmet', cover: true, face: 'balaclava', eyes: null, vest: 'heavy', back: 'none', knees: true, pauldrons: true, dump: true, sleeves: 'long', skin: 1, hair: '#2a2119' },
+  { id: 'kundschafter', name: 'Kundschafter', head: 'cap', capBack: true, ears: true, face: 'gaiter', eyes: null, vest: 'rig', back: 'assault', knees: true, sleeves: 'long', skin: 5, hair: '#4a3420' },
+  { id: 'pionier', name: 'Pionier', shirt: 'combat', head: 'helmet', cover: true, ears: true, face: 'balaclava', eyes: null, vest: 'plate', back: 'assault', knees: true, holster: true, dump: true, sleeves: 'rolled', skin: 2, hair: '#2e2016' },
   // Klassen-Ausführungen (bots-scale): Sanitäter (leichte Weste, Armbinde mit rotem Kreuz, Sanitätstasche), Panzerpionier
   // (schwere Weste mit Schulterschutz, Werfer RW-90 auf dem Rücken), Scharfschütze (Tarnüberwurf/„Ghillie“ über Kopf und Schultern)
-  { id: 'sanitaeter', name: 'Sanitäter', head: 'helmet', cover: true, ears: true, face: 'gaiter', eyes: 'glasses', vest: 'light', back: 'medbag', armband: 'medic', knees: false, holster: true, sleeves: 'long', skin: 3, hair: '#2a2119' },
-  { id: 'panzerpionier', name: 'Panzerpionier', head: 'helmet', face: 'balaclava', eyes: 'goggles', vest: 'heavy', back: 'launcher', knees: true, pauldrons: true, dump: true, sleeves: 'long', skin: 0, hair: '#18120d' },
+  { id: 'sanitaeter', name: 'Sanitäter', shirt: 'combat', head: 'helmet', cover: true, ears: true, face: 'gaiter', eyes: 'glasses', vest: 'light', back: 'medbag', armband: 'medic', knees: false, holster: true, sleeves: 'long', skin: 3, hair: '#2a2119' },
+  { id: 'panzerpionier', name: 'Panzerpionier', shirt: 'combat', head: 'helmet', face: 'balaclava', eyes: 'goggles', vest: 'heavy', back: 'launcher', knees: true, pauldrons: true, dump: true, sleeves: 'long', skin: 0, hair: '#18120d' },
   { id: 'scharfschuetze', name: 'Scharfschütze', head: 'boonie', face: 'shemagh', eyes: null, shemagh: true, vest: 'rig', back: 'hydration', ghillie: true, knees: false, holster: false, sleeves: 'rolled', skin: 5, hair: '#3b2a1c' },
 ];
 export const VARIANT_IDS = VARIANTS.map((v) => v.id);
 
-// Detailstufen: Profilsegmente (Gliedmaßen/Rumpf), Ringe, Kappenringe, Rundquader, Kugel-Segmente, Zylinder
-// Stufe 0 (16.10.): gröbere Profile – mit flacher Schattierung entstehen große Flächen wie bei den Video-Soldaten
+// Auflösung der Ausrüstungsteile je Detailstufe (Körper selbst: body-mesh.js mit eigenen Stufen 7000/2600/700 Dreiecke):
+// Profilsegmente, Ringe, Kappenringe, Rundquader, Kugel-Segmente, Zylinder
 const Q = [
-  { seg: 8, tseg: 9, rings: 2, cap: 2, rb: 1, sw: 10, sh: 7, cs: 9 },
-  { seg: 7, tseg: 9, rings: 2, cap: 1, rb: 0, sw: 9, sh: 6, cs: 7 },
-  { seg: 4, tseg: 6, rings: 1, cap: 1, rb: 0, sw: 6, sh: 3, cs: 4 },
+  { seg: 16, tseg: 14, rings: 3, cap: 3, rb: 2, sw: 16, sh: 10, cs: 12, smooth: 2 },
+  { seg: 10, tseg: 10, rings: 2, cap: 2, rb: 1, sw: 11, sh: 7, cs: 8, smooth: 1 },
+  { seg: 4, tseg: 6, rings: 1, cap: 1, rb: 0, sw: 6, sh: 3, cs: 4, smooth: 0 },
 ];
 
 const cache = new Map();
+
+// Körpernetz je Detailstufe dekodieren (einmalig, geteilt von allen Ausführungen)
+const bodyCache = [];
+function b64(str, T) {
+  const bin = atob(str), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return new T(u.buffer);
+}
+function bodyMesh(lod) {
+  if (bodyCache[lod]) return bodyCache[lod];
+  const E = BODY_MESH.lods[lod];
+  const P = b64(E.pos, Uint16Array), N = b64(E.nrm, Int8Array), U = b64(E.uv, Int16Array);
+  const pos = new Float32Array(E.n * 3), nrm = new Float32Array(E.n * 3), uv = new Float32Array(E.n * 2);
+  for (let v = 0; v < E.n; v++) {
+    for (let k = 0; k < 3; k++) { pos[v * 3 + k] = E.lo[k] + P[v * 3 + k] * E.sc[k]; nrm[v * 3 + k] = N[v * 3 + k] / 127; }
+    uv[v * 2] = U[v * 2] / 16000; uv[v * 2 + 1] = U[v * 2 + 1] / 16000;
+  }
+  const D0 = { n: E.n, pos, nrm, uv, idx: b64(E.idx, Uint16Array), ski: b64(E.ski, Uint8Array), skw: b64(E.skw, Uint8Array), reg: b64(E.reg, Uint8Array), ao: b64(E.ao, Uint8Array) };
+  bodyCache[lod] = D0;
+  return D0;
+}
 
 // Helm nach hinten gekippt (≈ 17°): Vorderkante über den Augenbrauen, Nackenschutz hinten tiefer – wie ein echter Helm
 const HELMET_TILT = new THREE.Matrix4().makeTranslation(0, 1.692, 0.008)
@@ -87,21 +110,13 @@ export function disposeSoldierGeometries() {
  * (Schulter bei x = ±0,19) geschrieben; je Knochen wird quer um die Gliedachse skaliert und die Arme auf die neue
  * Schulterbreite (DIM.shoulderX) geschoben. Kopf/Helm bleiben gleich groß.
  */
-const ARM_X0 = 0.19;
 function bulkTable() {
+  // 21.10.: Der Körper (body-mesh.js) hat seine Endmaße; skaliert werden nur noch die auf die alte Grundfigur
+  // geschriebenen Ausrüstungsteile am Rumpf (Weste, Gürtel, Taschen, Rucksack sitzen so auf dem kräftigeren Rumpf).
   const T = {};
   const set = (name, o) => { T[BONE[name]] = { cx: 0, cz: 0, sx: 1, sz: 1, tx: 0, ...o }; };
-  for (const n of ['hips', 'spine', 'chest']) set(n, { cz: 0.006, sx: 1.24, sz: 1.16 });
-  set('neck', { cz: 0.014, sx: 1.22, sz: 1.18 }); // kurzer, dicker Hals (Kragen/Halstuch wie im Video)
-  for (const [side, k] of [['L', -1], ['R', 1]]) {
-    const arm = { cx: k * ARM_X0, tx: k * (DIM.shoulderX - ARM_X0) };
-    set('upperArm' + side, { ...arm, sx: 1.3, sz: 1.26 });
-    set('foreArm' + side, { ...arm, sx: 1.24, sz: 1.2 });
-    set('hand' + side, { ...arm, sx: 1.06, sz: 1.06 });
-    set('thigh' + side, { cx: k * 0.1, sx: 1.24, sz: 1.18 });
-    set('shin' + side, { cx: k * 0.1, sx: 1.18, sz: 1.14 });
-    set('foot' + side, { cx: k * 0.1, sx: 1.08, sz: 1.04 });
-  }
+  for (const n of ['hips', 'spine', 'chest']) set(n, { cz: 0.006, sx: 1.17, sz: 1.22 });
+  set('neck', { cz: 0.012, sx: 1.22, sz: 1.22 });
   return T;
 }
 const BULK = bulkTable();
@@ -115,6 +130,8 @@ function buildSoldier(V, lod) {
   // Materialien: color = feste Farbe (sRGB-Hex), pal = Schemafarbe (+ shade = sRGB-Faktor); cls = Materialklasse
   const C = {
     top: { color: '#dadada', camo: 1, detail: 1, cls: 'cloth' },
+    // Kampfhemd (unter der Weste): einfarbiger Rumpf aus Funktionsstoff, Ärmel im Tarnmuster
+    shirt: { pal: 'gear', shade: 0.9, detail: 1, cls: 'cloth' },
     pants: { color: '#c6c6c6', camo: 1, detail: 1, cls: 'cloth', wear: 0.3 },
     cover: { color: '#d2d2d2', camo: 1, detail: 1, cls: 'cloth' }, // Helmbezug im Tarnmuster
     // Weste, Taschen, Rucksack im Uniform-Tarn wie im Video (etwas dunkler als der Stoff, damit sich die Teile absetzen)
@@ -142,7 +159,7 @@ function buildSoldier(V, lod) {
     mag: { color: '#2a2b2c', detail: 0.4, shine: 0.55, cls: 'hard' },
     knee: { pal: 'gear2', shade: 0.85, detail: 0.7, shine: 0.2, cls: 'hard', wear: 0.8 },
     eye: { color: '#17120e', detail: 0, shine: 0.9, cls: 'glass' },
-    eyeWhite: { color: '#c9c0b4', detail: 0, shine: 0.6, cls: 'glass' },
+    eyeWhite: { color: '#a89d90', detail: 0, shine: 0.6, cls: 'glass' },
     socket: { color: shade(skin, 0.66), detail: 0.4, shine: 0.12, cls: 'skin' }, // Augenpartie (Schatten unter der Stirn)
     brow: { color: shade(V.hair, 0.9), detail: 0.6, shine: 0.05, cls: 'cloth' },
     patch: { pal: 'gear', shade: 0.72, detail: 1, cls: 'gear' },
@@ -154,6 +171,8 @@ function buildSoldier(V, lod) {
     tube: { color: '#3c4130', detail: 0.6, shine: 0.22, cls: 'hard', wear: 0.5 },
     jute: { color: '#55553a', camo: 0.5, detail: 1, shine: 0, cls: 'cloth' },
     jute2: { color: '#6b6444', detail: 1, shine: 0, cls: 'cloth' },
+    jute3: { color: '#4a4f33', camo: 0.35, detail: 1, shine: 0, cls: 'cloth' }, // grünlicher Bast
+    jute4: { color: '#7a6f4a', detail: 1, shine: 0, cls: 'cloth' }, // trockenes Gras
   };
   const covered = V.face === 'balaclava';
   const lowerCovered = covered || V.face === 'gaiter' || V.face === 'shemagh' || V.face === 'gasmask';
@@ -163,50 +182,50 @@ function buildSoldier(V, lod) {
   const pair = (geo, boneL, boneR, mat) => B.add(geo, { bone: boneL, mirrorBone: boneR, ...mat });
   const R = (w, h, d, r, opts) => rbox(w, h, d, r, q.rb, opts);
   const E = (rx, ry, rz, opts, cut, ws = q.sw, hs = q.sh) => ellipsoid(rx, ry, rz, FAR ? Math.min(ws, 6) : ws, FAR ? Math.min(hs, 3) : hs, opts, cut);
-  // Drehprofile auf Stufe 2 ausdünnen (jeder zweite Punkt, Enden bleiben)
-  const lathe = (profile, seg, opts) => latheBase(FAR ? profile.filter((_, i) => i === 0 || i === profile.length - 1 || i % 2 === 0) : profile, seg, opts);
   // Tasche mit Deckel (Deckel oben, rundum etwas größer → liest sich als überstehende Klappe)
   const pouch = (w, h, d, x, y, z, bone = 'chest', mat = C.gear2) => {
     add(R(w, h, d, Math.min(0.014, d * 0.3), { p: [x, y, z] }), bone, mat);
     if (L0) add(rbox(w + 0.006, h * 0.3, d + 0.006, 0.004, 1, { p: [x, y + h * 0.36, z] }), bone, C.flap);
   };
 
-  /* ------------------------------------------------------------ Beine */
-  pair(lathe([[0.058, 0.44], [0.064, 0.5], [0.075, 0.6], [0.086, 0.72], [0.092, 0.83], [0.094, 0.9], [0.08, 0.96]], q.seg, { p: [-0.098, 0, 0.004], s: [1, 1, 1.06] }), 'thighL', 'thighR', C.pants);
-  if (!FAR) {
-    // Beintasche (Cargo) mit Deckel
-    pair(R(0.045, 0.14, 0.12, 0.02, { p: [-0.178, 0.7, 0.008], r: [0, 0, 0.06] }), 'thighL', 'thighR', { ...C.pants, color: '#c8c8c8' });
-    if (L0) pair(rbox(0.05, 0.03, 0.128, 0.006, 1, { p: [-0.181, 0.772, 0.008], r: [0, 0, 0.06] }), 'thighL', 'thighR', { ...C.pants, color: '#b4b4b4' });
-  }
+  /* ------------------------------------------------------------ Körper (ein Guss, body-mesh.js) */
+  // 21.10. (Nutzer: „wie B1-Kampfdroiden“): durchgehender Körper mit Muskeln, Uniformfalten, Taschen, Stiefeln und
+  // Handschuhen, weich gehäutet (Schultern/Ellbogen/Knie verformen sich statt starrer Röhren). Bereiche → Materialien
+  // je Ausführung (Kampfhemd mit einfarbigem Rumpf unter der Weste, hochgekrempelte Ärmel, Sturmhaube …).
+  const RG = BODY_MESH.regions;
+  const rolled = V.sleeves === 'rolled';
+  const bodyMat = (r) => {
+    switch (r) {
+      case RG.SHIRT: return V.shirt === 'combat' ? C.shirt : C.top;
+      case RG.COLLAR: return V.shirt === 'combat' ? C.shirt : C.top;
+      case RG.SLEEVE: return C.top;
+      case RG.FOREARM: return rolled ? C.skin : C.top;
+      case RG.GLOVE: return C.glove;
+      case RG.PANTS: return C.pants;
+      case RG.POCKET: return { ...C.pants, color: '#cfcfcf', wear: 0.45 };
+      case RG.BOOT: return C.boot;
+      case RG.SOLE: return C.sole;
+      case RG.NECK: return covered || V.face === 'gaiter' ? faceFab : V.shemagh ? C.sand : C.skin;
+      case RG.SKULL: return covered ? faceFab : V.shemagh ? C.sand : V.head === 'wrap' ? { pal: 'gear2', shade: 1.05, detail: 1, cls: 'cloth' } : C.hair;
+      case RG.EARS: return covered ? faceFab : C.skin;
+      case RG.EYES: return covered ? C.socket : C.skin;
+      case RG.FACE: return lowerCovered && V.face !== 'gasmask' ? faceFab : C.skin;
+      default: return C.top;
+    }
+  };
+  B.addMesh(bodyMesh(lod), bodyMat);
   if (V.holster && !FAR) {
-    add(R(0.06, 0.17, 0.1, 0.022, { p: [0.193, 0.74, 0.022], r: [0.08, 0, -0.06] }), 'thighR', C.gear2);
-    add(R(0.03, 0.075, 0.04, 0.008, { p: [0.195, 0.845, 0.055], r: [0.25, 0, -0.06] }), 'thighR', C.plastic);
-    if (L01) add(torus(0.088, 0.008, 3, q.cs + 2, { p: [0.098, 0.66, 0.006], r: [Math.PI / 2, 0, 0], s: [1, 1.08, 1] }), 'thighR', C.strap);
+    add(R(0.06, 0.17, 0.1, 0.022, { p: [0.238, 0.72, 0.022], r: [0.08, 0, -0.03] }), 'thighR', C.gear2);
+    add(R(0.03, 0.075, 0.04, 0.008, { p: [0.24, 0.825, 0.055], r: [0.25, 0, -0.03] }), 'thighR', C.plastic);
+    if (L01) add(torus(0.11, 0.008, 3, q.cs + 2, { p: [0.1, 0.62, 0.006], r: [Math.PI / 2, 0, 0], s: [1, 1.08, 1] }), 'thighR', C.strap);
   }
-  // Knie (Gelenkfüller) + Unterschenkel mit Wade
-  if (L01) pair(E(0.06, 0.06, 0.062, { p: [-0.1, 0.49, 0.0] }, undefined, q.sw / 2 + 2, q.sh / 2 + 1), 'shinL', 'shinR', { ...C.pants, wear: 0.7 });
-  pair(lathe([[0.047, 0.17], [0.05, 0.22], [0.061, 0.3], [0.067, 0.37], [0.064, 0.44], [0.06, 0.5]], q.seg, { p: [-0.1, 0, 0.006], s: [1, 1, 1.1] }), 'shinL', 'shinR', C.pants);
   if (V.knees) {
-    pair(R(0.1, 0.12, 0.045, 0.02, { p: [-0.1, 0.5, -0.066], r: [-0.1, 0, 0] }), 'shinL', 'shinR', C.knee);
-    if (L0) pair(torus(0.064, 0.007, 3, q.cs, { p: [-0.1, 0.45, 0.006], r: [Math.PI / 2, 0, 0], s: [1, 1.1, 1] }), 'shinL', 'shinR', C.strap);
+    pair(R(0.13, 0.13, 0.048, 0.022, { p: [-0.1, 0.5, -0.082], r: [-0.1, 0, 0] }), 'shinL', 'shinR', C.knee);
+    if (L0) pair(torus(0.077, 0.007, 3, q.cs, { p: [-0.1, 0.45, 0.004], r: [Math.PI / 2, 0, 0], s: [1, 1.1, 1] }), 'shinL', 'shinR', C.strap);
   }
-  // Stiefel: Schaft, Hosenaufschlag, Fuß mit Sohle und Zehenkappe, Schnürung
-  pair(cyl(0.058, 0.061, 0.15, q.cs, { p: [-0.1, 0.13, -0.002], s: [1, 1, 1.08] }, FAR), 'shinL', 'shinR', C.boot);
-  if (L01) pair(torus(0.058, 0.013, 4, q.cs, { p: [-0.1, 0.21, 0.004], r: [Math.PI / 2, 0, 0], s: [1, 1.1, 1] }), 'shinL', 'shinR', C.pants);
-  if (L0) for (let i = 0; i < 4; i++) pair(rbox(0.042, 0.006, 0.01, 0, 0, { p: [-0.1, 0.085 + i * 0.03, -0.063] }), 'shinL', 'shinR', C.plastic);
-  pair(R(0.096, 0.07, 0.235, 0.032, { p: [-0.1, 0.058, -0.048] }), 'footL', 'footR', C.boot);
-  if (L01) pair(E(0.048, 0.034, 0.05, { p: [-0.1, 0.048, -0.135] }, undefined, q.sw / 2 + 1, q.sh / 2), 'footL', 'footR', { ...C.boot, wear: 1 });
-  pair(rbox(0.1, 0.022, 0.242, 0.008, L0 ? 1 : 0, { p: [-0.1, 0.011, -0.049] }), 'footL', 'footR', C.sole);
+  // Schnürung vorn am Stiefelschaft
+  if (L0) for (let i = 0; i < 4; i++) pair(rbox(0.042, 0.006, 0.01, 0, 0, { p: [-0.1, 0.095 + i * 0.028, -0.066] }), 'shinL', 'shinR', C.plastic);
 
-  /* ------------------------------------------------------------ Becken + Rumpf (elliptische Profile) */
-  add(lathe([[0.05, 0.79], [0.115, 0.82], [0.15, 0.87], [0.162, 0.93], [0.158, 0.98], [0.146, 1.03]], q.tseg, { s: [1, 1, 0.7], p: [0, 0, 0.006] }), 'hips', C.pants);
-  if (!FAR) pair(E(0.07, 0.085, 0.06, { p: [-0.065, 0.9, 0.05] }, undefined, q.sw / 2 + 2, q.sh / 2 + 1), 'hips', 'hips', C.pants);
-  add(lathe([[0.143, 0.99], [0.14, 1.06], [0.146, 1.13], [0.156, 1.2], [0.16, 1.23]], q.tseg, { s: [1.04, 1, 0.72], p: [0, 0, 0.006] }), 'spine', C.top);
-  add(lathe([[0.156, 1.18], [0.172, 1.26], [0.182, 1.33], [0.18, 1.39], [0.162, 1.44], [0.118, 1.475], [0.07, 1.495]], q.tseg, { s: [1.08, 1, 0.68], p: [0, 0, 0.006] }), 'chest', C.top);
-  // Trapez + Schultern
-  if (!FAR) pair(E(0.085, 0.048, 0.07, { p: [-0.115, 1.452, 0.014] }, undefined, q.sw / 2 + 2, q.sh / 2 + 1), 'chest', 'chest', C.top);
-  // Kragen
-  if (!FAR) add(cyl(0.064, 0.078, 0.06, q.cs, { p: [0, 1.495, 0.014], s: [1, 1, 0.92] }, true), 'chest', V.shemagh ? C.sand : C.top);
   // Gefechtsgürtel (Ring um das Becken) mit Schnalle, Taschen, Erste-Hilfe-Tasche hinten
   add(cyl(0.165, 0.165, 0.058, q.tseg, { p: [0, 0.995, 0.006], s: [1.03, 1, 0.74] }), 'hips', C.gear);
   if (!FAR) {
@@ -270,8 +289,8 @@ function buildSoldier(V, lod) {
   /* ------------------------------------------------------------ Rucksäcke */
   if (V.back === 'assault') {
     // Video: großer Rucksack im Tarnmuster vom Nacken bis unter die Taille, mit Seitentaschen und Deckel
-    add(R(0.27, 0.42, 0.15, 0.065, { p: [0, 1.22, 0.252] }), 'chest', C.gear2);
-    add(R(0.25, 0.1, 0.165, 0.045, { p: [0, 1.41, 0.256] }), 'chest', C.flap);
+    add(R(0.3, 0.44, 0.16, 0.07, { p: [0, 1.22, 0.252] }), 'chest', C.gear2);
+    add(R(0.28, 0.1, 0.175, 0.05, { p: [0, 1.415, 0.256] }), 'chest', C.flap);
     if (!FAR) {
       pair(R(0.045, 0.2, 0.1, 0.02, { p: [-0.145, 1.16, 0.252] }), 'chest', 'chest', C.gear);
       add(R(0.2, 0.18, 0.045, 0.02, { p: [0, 1.14, 0.335] }), 'chest', C.gear);
@@ -306,51 +325,20 @@ function buildSoldier(V, lod) {
     if (L01) add(cyl(0.008, 0.008, 0.3, 4, { p: [-0.13, 1.34, -0.03], r: [0.4, 0, 0.3] }), 'chest', C.plastic);
   }
 
-  /* ------------------------------------------------------------ Hals + Kopf */
-  const neckMat = covered || V.face === 'gaiter' ? faceFab : V.shemagh ? C.sand : C.skin;
-  const neckFab = V.face === 'gaiter' || V.shemagh; // Halstuch/Shemagh: weiter Stoffschlauch statt Hals
-  add(cyl(neckFab ? 0.066 : 0.052, neckFab ? 0.072 : 0.06, 0.13, q.cs, { p: [0, 1.53, 0.014], s: [1, 1, 1.05] }), 'neck', neckMat);
-  if (V.shemagh) add(torus(0.072, 0.034, 5, q.cs, { p: [0, 1.5, 0.01], r: [Math.PI / 2, 0, 0] }), 'neck', C.sand);
-  if (V.face === 'gaiter' && !FAR) add(torus(0.064, 0.016, 4, q.cs, { p: [0, 1.488, 0.012], r: [Math.PI / 2, 0, 0], s: [1, 1.08, 1] }), 'neck', faceFab);
-
+  /* ------------------------------------------------------------ Hals + Kopf (Kopf/Hals selbst: body-mesh.js) */
+  if (V.shemagh) add(torus(0.082, 0.034, 5, q.cs, { p: [0, 1.5, 0.01], r: [Math.PI / 2, 0, 0] }), 'neck', C.sand);
+  if (V.face === 'gaiter' && !FAR) add(torus(0.078, 0.016, 4, q.cs, { p: [0, 1.492, 0.012], r: [Math.PI / 2, 0, 0], s: [1, 1.08, 1] }), 'neck', faceFab);
   const wrapHead = V.head === 'wrap';
-  // Hinterkopf: Haar (kurz) unter Helm/Kappe/Hut, sonst Stoff der Sturmhaube bzw. des Kopftuchs
-  const skullMat = covered ? faceFab : wrapHead ? { pal: 'gear2', shade: 1.05, detail: 1, cls: 'cloth' } : C.hair;
-  // Schädel; Gesicht in Ober- (Augenpartie) und Unterteil (Mund/Kiefer) – das Unterteil trägt bei Halstuch/Shemagh/
-  // Sturmhaube den Stoff (Theta von oben gemessen: 0,42π ≈ Höhe Nasenwurzel)
-  add(E(0.093, 0.106, 0.104, { p: [0, 1.697, 0.014] }), 'head', skullMat);
-  const CUT = Math.PI * 0.42;
-  const upperMat = covered ? faceFab : C.skin;
-  const lowerMat = lowerCovered && V.face !== 'gasmask' ? faceFab : C.skin;
-  add(E(0.08, 0.094, 0.072, { p: [0, 1.652, -0.034] }, { thetaLength: CUT }), 'head', upperMat);
-  add(E(lowerCovered && V.face !== 'gasmask' ? 0.087 : 0.08, 0.094, lowerCovered && V.face !== 'gasmask' ? 0.082 : 0.072, { p: [0, 1.652, lowerCovered && V.face !== 'gasmask' ? -0.03 : -0.034] }, { thetaStart: CUT, thetaLength: Math.PI - CUT }), 'head', lowerMat);
-  if (!FAR) add(E(0.058, 0.038, 0.05, { p: [0, 1.592, -0.052] }, undefined, q.sw / 2 + 2, q.sh / 2 + 1), 'head', lowerMat);
-  // Stoff über der Nase: kleiner Wulst + Saum (Halstuch hochgezogen)
-  if (lowerCovered && V.face !== 'gasmask' && !covered && L01) {
-    add(E(0.022, 0.016, 0.018, { p: [0, 1.666, -0.1] }, undefined, 8, 6), 'head', lowerMat);
-    if (L0) add(torus(0.084, 0.006, 3, 16, { p: [0, 1.673, -0.03], r: [Math.PI / 2 + 0.22, 0, 0], s: [1, 1.0, 1] }, Math.PI), 'head', { ...lowerMat, shade: (lowerMat.shade || 1) * 0.85 });
-  }
-  if (covered && !FAR) add(R(0.112, 0.036, 0.03, 0.013, { p: [0, 1.69, -0.088] }), 'head', C.socket); // Augenschlitz (im Helmschatten dunkel wie im Video)
   if (L01 && V.face !== 'gasmask') {
-    if (!lowerCovered) add(E(0.012, 0.026, 0.018, { p: [0, 1.668, -0.103], r: [-0.3, 0, 0] }, undefined, 6, 5), 'head', C.skin);
-    if (!covered) add(E(0.05, 0.012, 0.02, { p: [0, 1.71, -0.084] }, undefined, q.sw / 2 + 2, q.sh / 2), 'head', C.skin); // Brauenbogen
-    // Augenpartie: dunklere Mulde unter der Stirn (liest sich auch auf Distanz als Gesicht)
-    if (!covered) add(E(0.058, 0.017, 0.011, { p: [0, 1.696, -0.091] }, undefined, q.sw / 2 + 2, q.sh / 2 + 1), 'head', C.socket);
+    const F = BODY_MESH.face;
     const eyesHidden = V.eyes === 'shades' || V.eyes === 'glasses' || V.eyes === 'goggles';
     if (L0 && !eyesHidden) {
-      pair(E(0.0135, 0.0062, 0.005, { p: [-0.032, 1.694, -0.0985] }, undefined, 6, 4), 'head', 'head', C.eyeWhite);
-      pair(E(0.0052, 0.0052, 0.003, { p: [-0.032, 1.694, -0.1025] }, undefined, 5, 4), 'head', 'head', C.eye);
-      if (!covered) pair(rbox(0.034, 0.009, 0.012, 0, 0, { p: [-0.034, 1.716, -0.098], r: [0, 0, -0.1] }), 'head', 'head', C.brow);
+      pair(E(0.012, 0.0052, 0.005, { p: [-0.033, 1.692, F.eyeZ + 0.001] }, undefined, 6, 4), 'head', 'head', C.eyeWhite);
+      pair(E(0.0055, 0.0052, 0.003, { p: [-0.033, 1.692, F.eyeZ - 0.0032] }, undefined, 5, 4), 'head', 'head', C.eye);
+      if (!covered) pair(rbox(0.032, 0.005, 0.008, 0, 0, { p: [-0.035, 1.712, F.browZ + 0.006], r: [0, 0, -0.08] }), 'head', 'head', C.brow);
     } else if (!eyesHidden) {
-      add(rbox(0.07, 0.011, 0.01, 0, 0, { p: [0, 1.694, -0.1] }), 'head', C.eye);
+      add(rbox(0.074, 0.011, 0.01, 0, 0, { p: [0, 1.692, F.eyeZ - 0.002] }), 'head', C.eye);
     }
-    if (!covered && !lowerCovered) add(rbox(0.036, 0.007, 0.01, 0, 0, { p: [0, 1.616, -0.098] }), 'head', { color: shade(skin, 0.78), detail: 0.2, shine: 0.25, cls: 'skin' });
-  }
-
-  // Haare (nur unter Kappe/Boonie sichtbar: kurze Seiten)
-  if (V.head === 'cap' || V.head === 'boonie' || V.head === 'bare') {
-    add(E(0.098, 0.1, 0.11, { p: [0, 1.705, 0.016] }, { thetaLength: Math.PI * 0.5 }), 'head', C.hair);
-    if (!FAR) add(E(0.094, 0.07, 0.09, { p: [0, 1.67, 0.04] }, undefined, q.sw / 2 + 2, q.sh / 2 + 1), 'head', C.hair);
   }
 
   // Kopfbedeckungen
@@ -390,22 +378,6 @@ function buildSoldier(V, lod) {
     add(cyl(0.185, 0.195, 0.014, q.cs + 3, { p: [0, 1.735, 0.012], r: [0.04, 0, 0], s: [1, 1, 1.05] }), 'head', C.top);
     add(cyl(0.112, 0.112, 0.022, q.cs, { p: [0, 1.752, 0.012], s: [1, 1, 1.08] }), 'head', C.band); // Hutband in Teamfarbe
     add(rbox(0.035, 0.022, 0.006, 0, 0, { p: [0.0, 1.752, -0.11] }), 'head', C.accent);
-    if (V.ghillie) {
-      // Tarnüberwurf: Jute-Streifen auf Hutkrempe und Nacken (Kopf) + Umhang über Schultern/Rücken (Brust); feste Anordnung
-      add(E(0.2, 0.05, 0.21, { p: [0, 1.75, 0.02] }, { thetaLength: Math.PI * 0.5 }, q.sw, Math.max(3, q.sh / 2)), 'head', C.jute);
-      add(E(0.27, 0.2, 0.2, { p: [0, 1.4, 0.07] }, { thetaLength: Math.PI * 0.55 }), 'chest', C.jute);
-      const n = FAR ? 6 : L01 ? 14 : 22;
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2 + (i % 3) * 0.37;
-        const onHead = i % 2 === 0;
-        const r = onHead ? 0.17 + (i % 4) * 0.012 : 0.22 + (i % 5) * 0.01;
-        const x = Math.sin(a) * r, z = Math.cos(a) * r * (onHead ? 1 : 0.85) + (onHead ? 0.012 : 0.08);
-        if (!onHead && z < -0.05) continue; // vorn frei (Waffe/Gesicht)
-        const len = onHead ? 0.09 + (i % 3) * 0.03 : 0.16 + (i % 4) * 0.05;
-        const y = onHead ? 1.73 - len * 0.45 : 1.42 - len * 0.45;
-        add(rbox(0.035, len, 0.012, 0, 0, { p: [x, y, z], r: [Math.cos(a) * 0.35, a, -Math.sin(a) * 0.35] }), onHead ? 'head' : 'chest', i % 3 ? C.jute : C.jute2);
-      }
-    }
   } else if (V.head === 'beanie') {
     add(E(0.103, 0.104, 0.114, { p: [0, 1.703, 0.012] }, { thetaLength: Math.PI * 0.55 }), 'head', C.knit);
     add(cyl(0.106, 0.108, 0.04, q.cs + 2, { p: [0, 1.718, 0.012], s: [1, 1, 1.07] }), 'head', { ...C.knit, color: '#323334' });
@@ -455,32 +427,85 @@ function buildSoldier(V, lod) {
     if (L01) pair(rbox(0.012, 0.012, 0.11, 0, 0, { p: [-0.092, 1.67, 0.01], r: [0.4, 0, 0] }), 'head', 'head', C.strap); // Maskenbänder
   }
 
-  /* ------------------------------------------------------------ Arme */
-  pair(E(0.068, 0.072, 0.07, { p: [-0.198, 1.418, 0.0] }, undefined, q.sw / 2 + 2, q.sh / 2 + 1), 'upperArmL', 'upperArmR', C.top);
-  pair(lathe([[0.046, 1.13], [0.05, 1.18], [0.057, 1.26], [0.06, 1.33], [0.062, 1.4]], q.seg, { p: [-0.19, 0, 0.0], s: [0.96, 1, 1.04] }), 'upperArmL', 'upperArmR', C.top);
+  /* ------------------------------------------------------------ Ghillie-Anzug / Tarnschleier */
+  // 21.10. (Nutzer: „Scharfschützen … diese Ghillie-Suits“): Jute- und Bastbüschel über Kopf, Schultern, Rücken,
+  // Arme und Beine; Brust und Gesicht bleiben frei (Waffe/Zielen). Tarnschleier (Späher): nur Kopf und Schultern.
+  if (V.ghillie || V.veil) {
+    let seed = 7 + VARIANTS.indexOf(V) * 101;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const full = !!V.ghillie;
+    // Fransen in Lagen (wie ein echter Ghillie: dicht geschuppte Jutestreifen); ferne Stufen: weniger, breitere Fransen
+    const dens = FAR ? 0.32 : L01 ? 0.6 : 1, wMul = 1 / dens;
+    const juteM = [C.jute, C.jute2, C.jute3, C.jute4];
+    const buckets = new Map();
+    // zweiseitiges Viereck: oben am Punkt P (Breite w entlang t), hängt entlang d (Länge len), unten verjüngt
+    const strip = (bone, P, t, d, len, w) => {
+      const mi = (rnd() * juteM.length) | 0, key = bone + '|' + mi;
+      let arr = buckets.get(key);
+      if (!arr) buckets.set(key, (arr = []));
+      const hw = w / 2, bw = hw * (0.55 + rnd() * 0.3);
+      const a = [P[0] - t[0] * hw, P[1] - t[1] * hw, P[2] - t[2] * hw], b = [P[0] + t[0] * hw, P[1] + t[1] * hw, P[2] + t[2] * hw];
+      const E2 = [P[0] + d[0] * len, P[1] + d[1] * len, P[2] + d[2] * len];
+      const c = [E2[0] + t[0] * bw, E2[1] + t[1] * bw, E2[2] + t[2] * bw], e = [E2[0] - t[0] * bw, E2[1] - t[1] * bw, E2[2] - t[2] * bw];
+      arr.push(...a, ...b, ...c, ...a, ...c, ...e, ...a, ...c, ...b, ...a, ...e, ...c);
+    };
+    // Ring von Fransen um eine senkrechte Achse (cx, cz) mit Halbachsen (ra, rb) in Höhe y, Winkel φ (0 = +x·sx, π/2 = hinten)
+    const ring = (bone, cx, cz, ra, rb, y, sx, phi0, phi1, len0, len1, tilt0, tilt1) => {
+      const arc = Math.abs(phi1 - phi0) * (ra + rb) / 2, w0 = 0.026 * wMul;
+      const n = Math.max(2, Math.round(arc / (w0 * 0.85)));
+      for (let i = 0; i < n; i++) {
+        const ph = phi0 + (phi1 - phi0) * (i + 0.3 + rnd() * 0.4) / n;
+        const ox = Math.cos(ph) * sx, oz = Math.sin(ph);
+        const P = [cx + ox * ra, y + (rnd() - 0.5) * 0.02, cz + oz * rb];
+        const nl = Math.hypot(ox / ra, oz / rb) || 1, nx = ox / ra / nl, nz = oz / rb / nl;
+        const tilt = tilt0 + rnd() * (tilt1 - tilt0), st = Math.sin(tilt), ct = Math.cos(tilt);
+        strip(bone, P, [-nz, 0, nx], [nx * st, -ct, nz * st], len0 + rnd() * (len1 - len0), w0 * (0.8 + rnd() * 0.5));
+      }
+    };
+    const hy = V.head === 'boonie' ? 1.79 : 1.8;
+    // Kapuze: Netz + drei Fransenlagen (Gesicht frei)
+    add(E(0.16, 0.085, 0.17, { p: [0, hy - 0.045, 0.015] }, { thetaLength: Math.PI * 0.55 }, q.sw, Math.max(3, q.sh / 2)), 'head', C.jute3);
+    for (const [dy, r] of [[0.0, 0.12], [-0.035, 0.16], [-0.07, 0.19]]) ring('head', 0, 0.015, r, r, hy + dy, 1, -0.55, Math.PI + 0.55, 0.07, 0.15, 0.35, 0.8);
+    // Schultern (von oben über die Schulterkuppen) und Rücken/Seiten in Lagen bis zur Hüfte
+    add(E(0.24, 0.16, 0.2, { p: [0, 1.4, 0.05] }, { thetaLength: Math.PI * 0.5 }), 'chest', C.jute3);
+    ring('chest', 0, 0.02, 0.13, 0.11, 1.52, 1, -0.75, Math.PI + 0.75, 0.12, 0.2, 0.9, 1.25);
+    const torsoLayers = full ? [1.47, 1.4, 1.33, 1.26, 1.19, 1.12, 1.05] : [1.47, 1.4, 1.33];
+    for (const y of torsoLayers) ring('chest', 0, 0.035, 0.26, 0.27, y, 1, -0.35, Math.PI + 0.35, 0.09, 0.17, 0.12, 0.4);
+    if (full) {
+      for (const y of [0.99, 0.92]) ring('hips', 0, 0.03, 0.24, 0.22, y, 1, -0.25, Math.PI + 0.25, 0.09, 0.16, 0.1, 0.35);
+      // Ärmel (außen/oben/hinten) und Hose (außen/hinten)
+      for (const [ub, fb, sx] of [['upperArmL', 'foreArmL', -1], ['upperArmR', 'foreArmR', 1]]) {
+        for (const y of [1.4, 1.32, 1.24, 1.16]) ring(ub, sx * DIM.shoulderX, 0, 0.082, 0.082, y, sx, -0.4, 2.1, 0.07, 0.13, 0.15, 0.45);
+        for (const y of [1.06, 0.98]) ring(fb, sx * DIM.shoulderX, 0, 0.07, 0.07, y, sx, -0.3, 2.0, 0.05, 0.1, 0.15, 0.4);
+      }
+      for (const [tb, sb, sx] of [['thighL', 'shinL', -1], ['thighR', 'shinR', 1]]) {
+        for (const y of [0.86, 0.78, 0.7, 0.62]) ring(tb, sx * 0.1, 0, 0.125, 0.125, y, sx, -0.5, 2.7, 0.08, 0.15, 0.1, 0.35);
+        for (const y of [0.44, 0.36, 0.28]) ring(sb, sx * 0.1, 0.005, 0.088, 0.088, y, sx, -0.5, 2.7, 0.06, 0.12, 0.08, 0.3);
+      }
+    }
+    for (const [key, arr] of buckets) {
+      const [bone, mi] = key.split('|');
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+      add(g, bone, juteM[+mi]);
+    }
+  }
+
+  /* ------------------------------------------------------------ Arme (Arme/Hände selbst: body-mesh.js) */
+  const AX = -DIM.shoulderX; // Armachse links (rechts gespiegelt)
   // Armbinde in Teamfarbe rund um den Oberarm (auch aus der Ferne und von hinten sichtbar)
-  pair(cyl(0.066, 0.064, 0.06, q.cs, { p: [-0.19, 1.275, 0.0], s: [0.97, 1, 1.05] }, true), 'upperArmL', 'upperArmR', C.band);
-  if (L0) pair(rbox(0.006, 0.05, 0.05, 0, 0, { p: [-0.256, 1.345, 0.0] }), 'upperArmL', 'upperArmR', C.patch); // Ärmeltaschen-Klett
+  pair(cyl(0.081, 0.078, 0.055, q.cs, { p: [AX, 1.25, 0.0], s: [0.88, 1, 1.02] }, true), 'upperArmL', 'upperArmR', C.band);
+  if (L0) pair(rbox(0.006, 0.044, 0.05, 0, 0, { p: [AX - 0.084, 1.35, -0.002] }), 'upperArmL', 'upperArmR', C.patch); // Klett auf der Ärmeltasche
   if (V.armband === 'medic') {
     // Armbinde Sanitäter (weiß, rotes Kreuz außen) unter dem Teamband
-    pair(cyl(0.067, 0.065, 0.07, q.cs, { p: [-0.19, 1.2, 0.0], s: [0.97, 1, 1.05] }, true), 'upperArmL', 'upperArmR', C.medWhite);
-    pair(rbox(0.006, 0.046, 0.014, 0, 0, { p: [-0.259, 1.2, 0.0] }), 'upperArmL', 'upperArmR', C.medRed);
-    pair(rbox(0.006, 0.014, 0.046, 0, 0, { p: [-0.259, 1.2, 0.0] }), 'upperArmL', 'upperArmR', C.medRed);
+    pair(cyl(0.077, 0.074, 0.065, q.cs, { p: [AX, 1.19, 0.0], s: [0.88, 1, 1.0] }, true), 'upperArmL', 'upperArmR', C.medWhite);
+    pair(rbox(0.006, 0.044, 0.014, 0, 0, { p: [AX - 0.069, 1.19, 0.0] }), 'upperArmL', 'upperArmR', C.medRed);
+    pair(rbox(0.006, 0.014, 0.044, 0, 0, { p: [AX - 0.069, 1.19, 0.0] }), 'upperArmL', 'upperArmR', C.medRed);
   }
-  if (V.pauldrons) pair(E(0.08, 0.06, 0.086, { p: [-0.21, 1.41, 0.0] }, { thetaLength: Math.PI * 0.5 }), 'upperArmL', 'upperArmR', C.gear);
-  const rolled = V.sleeves === 'rolled';
-  if (L01) pair(E(0.047, 0.045, 0.048, { p: [-0.19, 1.155, 0.004] }, undefined, q.sw / 2 + 1, q.sh / 2), 'foreArmL', 'foreArmR', rolled ? C.skin : { ...C.top, wear: 0.6 });
-  pair(lathe([[0.038, 0.91], [0.041, 0.96], [0.049, 1.06], [0.05, 1.12], [0.046, 1.17]], q.seg, { p: [-0.19, 0, 0.0], s: [0.92, 1, 1.08] }), 'foreArmL', 'foreArmR', rolled ? C.skin : C.top);
-  if (rolled) pair(torus(0.05, 0.015, 4, q.cs, { p: [-0.19, 1.12, 0.0], r: [Math.PI / 2, 0, 0] }), 'foreArmL', 'foreArmR', C.top);
-  if (!FAR) pair(cyl(0.044, 0.042, 0.05, q.cs, { p: [-0.19, 0.93, 0] }), 'foreArmL', 'foreArmR', C.glove);
-  if (L0) add(R(0.016, 0.026, 0.034, 0.004, { p: [-0.232, 0.962, 0] }), 'foreArmL', C.plastic);
-  // Hände: Handfläche (innen = +X links), gekrümmte Finger, Daumen, Knöchelpolster
-  pair(R(0.032, 0.085, 0.08, 0.014, { p: [-0.19, 0.86, 0.0] }), 'handL', 'handR', C.glove);
-  if (!FAR) {
-    pair(R(0.028, 0.06, 0.075, 0.012, { p: [-0.181, 0.8, 0.0], r: [0, 0, 0.6] }), 'handL', 'handR', C.glove);
-    pair(R(0.022, 0.052, 0.022, 0.009, { p: [-0.178, 0.865, -0.048], r: [0.35, 0, 0.35] }), 'handL', 'handR', C.glove);
-  }
-  if (L0) pair(rbox(0.008, 0.038, 0.066, 0, 0, { p: [-0.207, 0.87, 0.0] }), 'handL', 'handR', C.plastic);
+  if (V.pauldrons) pair(E(0.102, 0.078, 0.108, { p: [AX - 0.018, 1.44, 0.0] }, { thetaLength: Math.PI * 0.5 }), 'upperArmL', 'upperArmR', C.gear);
+  // hochgekrempelte Ärmel: Wulst unter dem Ellbogen
+  if (rolled) pair(torus(0.063, 0.016, 4, q.cs, { p: [AX, 1.1, 0.0], r: [Math.PI / 2, 0, 0], s: [0.9, 1.04, 1] }), 'foreArmL', 'foreArmR', C.top);
+  if (L0) add(R(0.014, 0.024, 0.032, 0.004, { p: [AX - 0.046, 0.965, 0] }), 'foreArmL', C.plastic); // Uhr
 
   const geo = B.build();
   geo.userData.variant = V.id;

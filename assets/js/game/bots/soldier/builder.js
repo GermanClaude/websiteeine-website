@@ -253,9 +253,33 @@ export class SkinBuilder {
     }
   }
 
+  /**
+   * Fertig gehäutetes Netz (body-mesh.js) hinzufügen: D = { n, pos Float32×3, nrm Float32×3, uv Float32×2 (m),
+   * ski/skw Uint8×4, reg Uint8, ao Uint8, idx Uint16 }, matFor(region) → Materialangaben wie bei add() (ohne bone).
+   * Keine Querskalierung (der Körper hat seine Endmaße); die Feld-Verdeckung wird mit der gebackenen gemischt.
+   */
+  addMesh(D, matFor) {
+    const mats = new Map();
+    const spec = (r) => {
+      let m = mats.get(r);
+      if (!m) {
+        const o = matFor(r) || {};
+        const pal = o.pal ? PAL[o.pal] : 0;
+        let cr, cg, cb;
+        if (pal) { const f = Math.min(1, Math.pow(o.shade ?? 1, 2.2) * 0.5); cr = cg = cb = f; } else { _c.set(o.color || '#ffffff'); cr = _c.r; cg = _c.g; cb = _c.b; }
+        const cls = CLS[o.cls || (o.camo ? 'cloth' : 'gear')] ?? 1;
+        m = { col: [cr, cg, cb], np: [o.camo || 0, o.detail ?? (o.camo ? 1 : 0), o.emis || 0, o.shine || 0], nq: [pal, cls, Math.round(Math.min(1, Math.max(0, o.wear || 0)) * 255), Math.floor(hash01(r * 977 + 31) * 255)] };
+        mats.set(r, m);
+      }
+      return m;
+    };
+    this.parts.push({ mesh: D, spec });
+  }
+
   build() {
     let nv = 0, ni = 0;
     for (const p of this.parts) {
+      if (p.mesh) { nv += p.mesh.n; ni += p.mesh.idx.length; continue; }
       nv += p.geo.attributes.position.count;
       ni += p.geo.index ? p.geo.index.count : p.geo.attributes.position.count;
     }
@@ -271,7 +295,24 @@ export class SkinBuilder {
     const q8 = (v) => Math.max(-127, Math.min(127, Math.round(v * 127)));
     const u8 = (v) => Math.max(0, Math.min(255, Math.round(v * 255)));
     let vo = 0, io = 0;
+    const fieldAo = []; // [Startecke, Uint8Array] der fertigen Netze (Feld-Verdeckung)
     for (const p of this.parts) {
+      if (p.mesh) {
+        const D = p.mesh, n = D.n;
+        for (let i = 0; i < n; i++) {
+          const k = vo + i, m = p.spec(D.reg[i]);
+          pos[k * 3] = D.pos[i * 3]; pos[k * 3 + 1] = D.pos[i * 3 + 1]; pos[k * 3 + 2] = D.pos[i * 3 + 2];
+          nor[k * 3] = q8(D.nrm[i * 3]); nor[k * 3 + 1] = q8(D.nrm[i * 3 + 1]); nor[k * 3 + 2] = q8(D.nrm[i * 3 + 2]);
+          uv[k * 2] = D.uv[i * 2]; uv[k * 2 + 1] = D.uv[i * 2 + 1];
+          col[k * 3] = u8(m.col[0]); col[k * 3 + 1] = u8(m.col[1]); col[k * 3 + 2] = u8(m.col[2]);
+          for (let c = 0; c < 4; c++) { np[k * 4 + c] = u8(m.np[c]); nq[k * 4 + c] = m.nq[c]; si[k * 4 + c] = D.ski[i * 4 + c]; sw[k * 4 + c] = D.skw[i * 4 + c]; }
+        }
+        for (let i = 0; i < D.idx.length; i++) idx[io + i] = D.idx[i] + vo;
+        fieldAo.push([vo, D.ao]);
+        io += D.idx.length;
+        vo += n;
+        continue;
+      }
       const g = p.geo;
       const P = g.attributes.position.array;
       if (!g.attributes.normal) g.computeVertexNormals();
@@ -326,6 +367,8 @@ export class SkinBuilder {
     // Umgebungsverdeckung je Vertex (Kontaktschatten unter Taschen, zwischen den Beinen, unter Helm/Kragen …)
     const tAo = performance.now();
     const ao = this.ao ? bakeVertexAO(pos, nor, idx, io, this.ao) : new Uint8Array(nv).fill(255);
+    // Körper: gebackene Verdeckung (Ausrüstung auf dem Körper) × Feld-Verdeckung (Achseln, Schritt, Kniekehlen)
+    for (const [o, A] of fieldAo) for (let i = 0; i < A.length; i++) ao[o + i] = Math.round(ao[o + i] * (0.3 + 0.7 * A[i] / 255));
     const aoMs = performance.now() - tAo;
     const out = new THREE.BufferGeometry();
     out.setAttribute('aNo', new THREE.BufferAttribute(ao, 1, true));

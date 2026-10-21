@@ -98,7 +98,7 @@ function roundBox(x, y, z, bx, by, bz, r) {
 function rotY(x, z, a, out) { const c = Math.cos(a), s = Math.sin(a); out[0] = c * x + s * z; out[1] = -s * x + c * z; return out; }
 const _r = [0, 0];
 
-const GLOVE = 1.045;   // Handschuhzugabe auf die Fingerradien
+const GLOVE = 1.1;     // Handschuhzugabe auf die Fingerradien (22.10.: vollere Finger – dünne Glieder wirkten knöchern)
 
 // Gruppen: 0 Handfläche/-rücken, 1 Daumenballen, 2 Daumen, 3–6 Finger, 7 Handgelenk/Bündchen; Zusatzfelder Polster/Lasche
 const G = new Float64Array(8);
@@ -118,11 +118,12 @@ function fingerD(i, x, y, z) {
     if (s > 0) ds = smax(ds, -(Math.hypot(ly + r1 * 1.0, lz - 0.0006) - 0.0011), 0.0014);
     // Kuppenpolster (Innenseite, abgeflacht)
     if (s === 2) ds = smin(ds, ellipsoid(lx, ly + r2 * 0.35, lz + h * 0.62, r1 * 0.86, r1 * 0.62, h * 0.42), 0.003);
-    // TPR-Polster auf Grund- und Mittelglied
-    if (s < 2) {
-      const pl = roundBox(lx, ly - r1 * 0.86, lz + h * 0.52, r1 * 0.6, 0.0014, h * (s ? 0.27 : 0.3), 0.0011);
+    // Fingerpolster: nur noch ein flacher, weicher Stoffbesatz auf dem Grundglied (22.10.: harte Platten auf jedem
+    // Glied wirkten wie ein Exoskelett/Skelett)
+    if (s === 0) {
+      const pl = roundBox(lx, ly - r1 * 0.9, lz + h * 0.52, r1 * 0.55, 0.0006, h * 0.28, 0.0006);
       pad = Math.min(pad, pl);
-      ds = smin(ds, pl, 0.0016);
+      ds = smin(ds, pl, 0.0024);
     }
     d = s === 0 ? ds : smin(d, ds, 0.0025);
   }
@@ -167,15 +168,12 @@ function palmD(x, y, z) {
   return d;
 }
 function knucklePadD(x, y, z) {
-  // Knöchelschutz: entlang der Knöchellinie gebogene, 4-teilige Polsterleiste; Rückenpolster
+  // Knöchelpolster: eine durchgehende, weiche Schaumleiste entlang der Knöchellinie (keine getrennten Hartsegmente
+  // mehr – 22.10.), flaches Rückenpolster
   const zl = -0.0745 + 0.0055 * smooth(0.005, 0.03, x) - 0.0016 * Math.cos(x / 0.03);
   const yb = 0.0158 - 4.2 * x * x;
-  let d = roundBox(x + 0.0012, y - yb, z - zl, 0.0345, 0.0021, 0.0085, 0.0017);
-  for (let i = 0; i < 3; i++) {
-    const gx = (FINGERS[i].x + FINGERS[i + 1].x) * 0.5;
-    d = smax(d, -(Math.abs(x - gx) - 0.0006), 0.0008);
-  }
-  const back = roundBox(x - 0.003, y - (0.0146 - 3.6 * x * x), z + 0.041, 0.0165, 0.0013, 0.0145, 0.0012);
+  const d = roundBox(x + 0.0012, y - yb, z - zl, 0.0335, 0.0011, 0.0078, 0.0011);
+  const back = roundBox(x - 0.003, y - (0.0146 - 3.6 * x * x), z + 0.041, 0.0155, 0.0007, 0.0135, 0.0007);
   return Math.min(d, back);
 }
 function wristD(x, y, z) {

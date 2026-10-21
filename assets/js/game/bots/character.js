@@ -31,20 +31,20 @@ const BONE_INVERSES = BIND.map((p) => new THREE.Matrix4().makeTranslation(-p[0],
 
 // Trefferzonen: [Name, Zone, Gelenk A, Gelenk B (oder -1 = Kugel), Radius]
 // Gelenke: Knochenindex, oder 'head' (Kopfmitte)
-// 16.10.: Radien an die breitere Statur (gear.js BULK) angepasst – sichtbare Treffer am Rand zählen auch
+// 16.10./21.10.: Radien an die breitere Statur (gear.js BULK) angepasst – sichtbare Treffer am Rand zählen auch
 export const HITBOXES = [
   ['kopf', 'head', 'head', -1, 0.135],
-  ['hals', 'body', BONE.neck, BONE.head, 0.074],
-  ['rumpf', 'body', BONE.spine, BONE.neck, 0.2],
-  ['becken', 'body', 'hipL', 'hipR', 0.15],
-  ['oberarmL', 'limb', BONE.upperArmL, BONE.foreArmL, 0.076],
-  ['unterarmL', 'limb', BONE.foreArmL, BONE.handL, 0.064],
-  ['oberarmR', 'limb', BONE.upperArmR, BONE.foreArmR, 0.076],
-  ['unterarmR', 'limb', BONE.foreArmR, BONE.handR, 0.064],
-  ['oberschenkelL', 'limb', BONE.thighL, BONE.shinL, 0.106],
-  ['unterschenkelL', 'limb', BONE.shinL, BONE.footL, 0.076],
-  ['oberschenkelR', 'limb', BONE.thighR, BONE.shinR, 0.106],
-  ['unterschenkelR', 'limb', BONE.shinR, BONE.footR, 0.076],
+  ['hals', 'body', BONE.neck, BONE.head, 0.078],
+  ['rumpf', 'body', BONE.spine, BONE.neck, 0.22],
+  ['becken', 'body', 'hipL', 'hipR', 0.165],
+  ['oberarmL', 'limb', BONE.upperArmL, BONE.foreArmL, 0.084],
+  ['unterarmL', 'limb', BONE.foreArmL, BONE.handL, 0.07],
+  ['oberarmR', 'limb', BONE.upperArmR, BONE.foreArmR, 0.084],
+  ['unterarmR', 'limb', BONE.foreArmR, BONE.handR, 0.07],
+  ['oberschenkelL', 'limb', BONE.thighL, BONE.shinL, 0.118],
+  ['unterschenkelL', 'limb', BONE.shinL, BONE.footL, 0.084],
+  ['oberschenkelR', 'limb', BONE.thighR, BONE.shinR, 0.118],
+  ['unterschenkelR', 'limb', BONE.shinR, BONE.footR, 0.084],
 ];
 
 // Detailstufen-Schwellen (m, × FOV/60) je Qualitätsstufe: Telefone früh vereinfachen, Ultra lange voll

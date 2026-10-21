@@ -1195,7 +1195,8 @@ export class Animator {
       along *= amp;
       up *= amp;
       // Hüftraum: seitlicher Versatz, Laufweg entlang (hdx, hdz)
-      const lat = side * (0.1 + crouch * 0.05 + 0.01 * run);
+      // Stand: Füße etwa schulterbreit (vorher eng beieinander → wirkte schmächtig/X-beinig); im Gehen enger
+      const lat = side * (0.1 + 0.035 * clamp(1 - s / 1.6, 0, 1) * (1 - crouch) + crouch * 0.05 + 0.01 * run);
       let lx = lat + hdx * along, lz = hdz * along - crouch * 0.02 * side;
       if (crouch > 0.01) lz += crouch * (side < 0 ? -0.1 : 0.12); // Ausfallschritt-Stand in der Hocke
       // zurück in Modellraum (Drehung um hy)

@@ -24,6 +24,7 @@ export const SCHEMES = {
   // brauner, Unterscheidung über Armbinde. 16.10. an der sonnigen Schulter nachgemessen: Flecken Oliv, Khaki,
   // Braunoliv, Dunkelgrün – dunkelster Fleck ≈ halb so hell wie der hellste (das fast Schwarz im Video ist Schatten)
   A: {
+    // 21.10.: zurück zum Splittertarn der Video-Soldaten (Nutzer: „ich habe dir doch das Video geschickt“)
     id: 'A', name: 'Nordwind', camo: ['#6c6646', '#4b4c35', '#958c6a', '#3a3f2d'], pattern: 'splitter',
     gear: '#4a4d37', gear2: '#3a3d2c', strap: '#2f3226', helmet: '#4b4e37', glove: '#24261f', boot: '#2b2926',
     pants: '#55553b', accent: '#38b6ff', metal: '#3a3d40', hostile: false,
@@ -35,7 +36,8 @@ export const SCHEMES = {
   },
   // Wüstenfuchs für helle Karten (Mittagssonne, heller Stein): gleiche Farbfamilie, deutlich dunkler
   Bd: {
-    id: 'Bd', name: 'Wüstenfuchs', camo: ['#6f5b40', '#4d3d2a', '#86704f', '#7a3c2a'], pattern: 'multi',
+    // 21.10.: Splitter wie Team B (vorher rotbrauner Akzentfleck → Gegner wirkten rosa/hautfarben)
+    id: 'Bd', name: 'Wüstenfuchs', camo: ['#655a3a', '#463d28', '#857654', '#3a3324'], pattern: 'splitter',
     gear: '#5a4a35', gear2: '#46392a', strap: '#382d21', helmet: '#6b5a40', glove: '#2f281f', boot: '#2e251c',
     pants: '#6e5a44', accent: '#ff3b3b', metal: '#34312d', hostile: true,
   },
@@ -130,6 +132,20 @@ function makeNoise(period, seed) {
 }
 
 /** Kachelbares fBm im Bereich [0,1) × [0,1): jede Oktave wird über genau ihre Periode abgetastet. */
+/** Periodisches Wertrauschen mit getrennten Perioden in x und y (gestreckte, kachelbare Strukturen wie Zweige). */
+function makeNoiseXY(px, py, seed) {
+  const g = new Float32Array(px * py);
+  let s = seed >>> 0 || 1;
+  for (let i = 0; i < g.length; i++) { s = (s * 1664525 + 1013904223) >>> 0; g[i] = s / 4294967296; }
+  return (u, v) => {
+    const x = u * px, y = v * py, xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+    const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
+    const x0 = ((xi % px) + px) % px, y0 = ((yi % py) + py) % py, x1 = (x0 + 1) % px, y1 = (y0 + 1) % py;
+    const a = g[y0 * px + x0], b = g[y0 * px + x1], c = g[y1 * px + x0], d = g[y1 * px + x1];
+    return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+  };
+}
+
 function fbm(noises, u, v) {
   let sum = 0, amp = 0.5, norm = 0;
   for (let o = 0; o < noises.length; o++) {
@@ -208,6 +224,7 @@ export function camoMaskTexture(pattern = 'multi') {
   const W = [makeNoise(4, seed + 31), makeNoise(8, seed + 32)];
   const W2 = [makeNoise(4, seed + 41), makeNoise(8, seed + 42)];
   const twig = makeNoise(64, seed + 51), twig2 = makeNoise(8, seed + 52);
+  const twigXY = makeNoiseXY(40, 9, seed + 53); // senkrecht gestreckt (Zweige)
   const soft = pattern === 'digital' ? 0.002 : pattern === 'woodland' ? 0.012 : 0.02;
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
@@ -220,6 +237,25 @@ export function camoMaskTexture(pattern = 'multi') {
           const cls = splitCell((x + 0.25 + sx * 0.5) / N, (y + 0.25 + sy * 0.5) / N, seed);
           r += cls === 1 ? 0.25 : 0; g += cls === 2 ? 0.25 : 0; bl += cls === 3 ? 0.25 : 0;
         }
+        const i = (y * N + x) * 4;
+        d[i] = r * 255; d[i + 1] = g * 255; d[i + 2] = bl * 255; d[i + 3] = 255;
+        continue;
+      }
+      if (pattern === 'mc') {
+        // 21.10. Mehrschicht-Tarn (Nutzer: „bessere Tarnung“): verzerrte Grundwolken, große dunkle Flächen mit
+        // ausgefransten Rändern, helle Inseln dazwischen, feine senkrechte Zweige/Äste als Akzent – gedruckte, scharfe
+        // Kanten (leicht geglättet), mehrere Größenordnungen (liest sich nah und auf 30 m)
+        const wu = fbm(W, u, v) - 0.5, wv = fbm(W2, u, v) - 0.5;
+        const uu = (u + wu * 0.11 + 1) % 1, vv = (v + wv * 0.11 + 1) % 1;
+        const a = fbm(L1, uu, vv) + (fbm(L3, (uu + 0.31) % 1, (vv + 0.77) % 1) - 0.5) * 0.18;
+        const b = fbm(L2, (uu + 0.375) % 1, (vv + 0.125) % 1) + (fbm(L3, (uu + 0.6) % 1, (vv + 0.2) % 1) - 0.5) * 0.2;
+        const e = fbm(L3, (u + 0.75) % 1, (v + 0.5) % 1);
+        const r = sstep(0.545, 0.565, a);
+        const g = sstep(0.585, 0.605, b) * (1 - r);
+        // Zweige: gestreckte Rauschlinien (Grat), nur in Teilen der Fläche
+        const n1 = twigXY(u, v), n2 = twig2(u * 8 + 3, v * 8 + 1);
+        const ridge = 1 - Math.abs(n1 * 2 - 1);
+        const bl = sstep(0.86, 0.9, ridge) * sstep(0.5, 0.62, n2) * sstep(0.42, 0.55, e);
         const i = (y * N + x) * 4;
         d[i] = r * 255; d[i + 1] = g * 255; d[i + 2] = bl * 255; d[i + 3] = 255;
         continue;
@@ -439,8 +475,13 @@ varying vec3 vNpPos;
 varying vec2 vNpUv;
 flat varying vec2 vNpUvF;
 varying float vNpAo;
+varying vec3 vNpAlbA;
+varying vec3 vNpAlbB;
+uniform vec3 uPal[ 9 ];
 `;
 const FRAG_HEAD = /* glsl */`
+varying vec3 vNpAlbA;
+varying vec3 vNpAlbB;
 varying vec4 vNp;
 flat varying vec4 vNq;
 varying vec3 vNpPos;
@@ -448,6 +489,7 @@ varying vec2 vNpUv;
 flat varying vec2 vNpUvF;
 varying float vNpAo;
 uniform float uCamoFacet;
+uniform vec2 uFacet;
 uniform vec3 uPal[ 9 ];
 uniform vec3 uCamo[ 4 ];
 uniform vec4 uCls[ 6 ];
@@ -471,19 +513,19 @@ uniform float uAmbRef;
 
 // Albedo: Palette/Vertexfarbe × Tarnmuster × Stoff-Kavität × Teil-Streuung, dann Staub (untere Beine) + Abnutzung
 const ALBEDO = /* glsl */`
-	int sdPal = int( vNq.x + 0.5 );
 	int sdCls = int( vNq.y + 0.5 );
 	vec4 sdC = uCls[ sdCls ];
 	vec2 sdUvD = vNpUv * sdC.x;
-	vec3 sdAlb = vColor.rgb;
-	if ( sdPal > 0 ) sdAlb = uPal[ sdPal ] * vColor.rgb * 2.0;
+	// 21.10.: Farbe je Ecke aufgeteilt in einfarbigen (A) und Tarnmuster-Anteil (B) → Übergänge zwischen Stoffbereichen
+	// (Hemd ↔ Tarnärmel, Sturmhaube ↔ Kragen) linear und ohne Aufhellung, ohne Zacken an Dreieckskanten
+	vec3 sdAlb = vNpAlbA + vNpAlbB;
 	if ( vNp.x > 0.004 ) {
 		// Video-Look: Tarnfarbe je Fläche (flache UV der Dreiecksecke) gemischt mit dem durchlaufenden Muster
 		vec3 sdM = texture2D( map, mix( vNpUv, vNpUvF, uCamoFacet * step( float( sdCls ), 0.5 ) ) * uCamoScale ).rgb; // nur Stoff (große Kastenflächen der Ausrüstung behalten das Muster)
 		vec3 sdCam = mix( uCamo[ 0 ], uCamo[ 1 ], sdM.r );
 		sdCam = mix( sdCam, uCamo[ 2 ], sdM.g );
 		sdCam = mix( sdCam, uCamo[ 3 ], sdM.b );
-		sdAlb *= mix( vec3( 1.0 ), sdCam, vNp.x );
+		sdAlb = vNpAlbA + vNpAlbB * sdCam;
 	}
 	vec3 sdOrm = texture2D( uNpOrm, sdUvD ).rgb;
 	float sdDet = sdC.z * vNp.y;
@@ -508,6 +550,7 @@ const ROUGH = /* glsl */`
 	roughnessFactor = min( 1.0, roughnessFactor + sdDust * 0.2 );
 `;
 
+// Weiche Normalen (Stoff fällt rund), harte Ausrüstung behält einen Hauch Kante (uFacet.y), Stoff fast keine (uFacet.x)
 const NORMAL = /* glsl */`
 #ifdef USE_NORMALMAP_TANGENTSPACE
 	vec3 mapN = texture2D( normalMap, sdUvD ).xyz * 2.0 - 1.0;
@@ -517,7 +560,11 @@ const NORMAL = /* glsl */`
 		vec2 sdW = ( sdMac.rg * 2.0 - 1.0 ) * uNpMacroStr * vNp.x * step( float( sdCls ), 0.5 );
 		mapN.xy += sdW;
 	#endif
-	normal = normalize( tbn * mapN );
+	vec3 sdFn = normalize( cross( dFdx( vViewPosition ), dFdy( vViewPosition ) ) );
+	vec3 sdBase = normalize( mix( tbn[ 2 ], sdFn, sdCls == 0 ? uFacet.x : uFacet.y ) );
+	normal = normalize( sdBase * mapN.z + tbn * vec3( mapN.xy, 0.0 ) );
+	// Schutz: entartete UV-Ableitungen (Kuppen, Nähte) → unendlicher Tangentenrahmen → Ersatz ohne Detailnormale
+	if ( any( isnan( normal ) ) || any( isinf( normal ) ) ) normal = normalize( mix( vNormal, sdFn, 0.0 ) );
 #endif
 `;
 
@@ -554,8 +601,8 @@ function newMaterial(schemeId, low) {
     roughness: 0.88,
     metalness: 0,
     envMapIntensity: 0.75,
-    // Nutzer 16.10. („nicht mal annähernd wie im Video“): die Video-Soldaten sind kantig flächig schattiert
-    flatShading: true,
+    // 21.10.: weiche Normalen statt flacher Dreiecke (wirkte kantig/„Skelett“); Kantenanteil steuert uFacet
+    flatShading: false,
   });
   m.name = 'soldier:' + schemeId;
   const { pal, camo } = schemeUniforms(sc);
@@ -563,8 +610,9 @@ function newMaterial(schemeId, low) {
     uPal: { value: pal },
     uCamo: { value: camo },
     uCls: { value: CLASS_PARAMS.map((p) => new THREE.Vector4(p[0], p[1], p[2], p[3])) },
-    uCamoScale: { value: 1.7 }, // Tarnmuster-Kachel ≈ 59 cm (große Splitter wie im Video)
-    uCamoFacet: { value: 0.65 },
+    uCamoScale: { value: 2.2 }, // Tarnmuster-Kachel ≈ 45 cm (Splitter wie im Video)
+    uCamoFacet: { value: 0 }, // 21.10.: Muster nicht mehr je Dreieck einfrieren (las sich als kantige Dreiecke)
+    uFacet: { value: new THREE.Vector2(0.0, 0.3) }, // Kantenanteil der Schattierung: Stoff, Ausrüstung
     uNpOrm: { value: D.orm },
     uNpDetail: { value: new THREE.Vector3(1 / D.aoMean, 1, D.kind === 'fotoscan' ? 1.0 : 1.0) },
     uNpMacro: { value: wrinkleTexture() },
@@ -574,12 +622,13 @@ function newMaterial(schemeId, low) {
     uDissolve: { value: 0 },
     uDissolveColor: { value: new THREE.Color(0x0b0b0b) },
     // Randlicht: Verbündete dezent, Gegner kräftiger und zur Teamfarbe getönt (Silhouette auch im Schatten)
-    uRim: { value: sc.hostile ? 0.95 : 0.45 },
-    uRimPow: { value: sc.hostile ? 2.2 : 3 },
-    uRimTint: { value: sc.hostile ? 0.35 : 0 },
+    // 21.10.: schmaler und kaum getönt – der breite rote Saum färbte die ganze Uniform rosa (las sich wie nackte Haut)
+    uRim: { value: sc.hostile ? 0.7 : 0.45 },
+    uRimPow: { value: sc.hostile ? 3 : 3 },
+    uRimTint: { value: sc.hostile ? 0.12 : 0 },
     uRimColor: { value: linColor(sc.accent) },
     // Mindesthelligkeit (Anteil der Albedo): Gegner „versinken“ nicht im tiefen Schatten; im Licht ohne Wirkung
-    uLightFloor: { value: sc.hostile ? 0.55 : 0 },
+    uLightFloor: { value: sc.hostile ? 0.4 : 0 },
     // Bezug des Umgebungslichts: Umgebungsleuchtdichte/Albedo ≈ 1/uAmbRef gilt als „volles“ Außenlicht
     uAmbRef: { value: 2.4 },
   });
@@ -594,7 +643,7 @@ function newMaterial(schemeId, low) {
   m.onBeforeCompile = (shader) => {
     for (const k of Object.keys(U)) shader.uniforms[k] = U[k];
     shader.vertexShader = VERT_HEAD + shader.vertexShader
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvNp = aNp;\n\tvNq = aNq;\n\tvNpPos = position;\n\tvNpUv = uv;\n\tvNpUvF = uv;\n\tvNpAo = aNo;');
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvNp = aNp;\n\tvNq = aNq;\n\tvNpPos = position;\n\tvNpUv = uv;\n\tvNpUvF = uv;\n\tvNpAo = aNo;\n\tint sdPalV = int( aNq.x + 0.5 );\n\tvec3 sdAlbV = sdPalV > 0 ? uPal[ sdPalV ] * color.rgb * 2.0 : color.rgb;\n\tvNpAlbA = sdAlbV * ( 1.0 - aNp.x );\n\tvNpAlbB = sdAlbV * aNp.x;');
     let fs = FRAG_HEAD + shader.fragmentShader;
     fs = fs.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
 	float sdDis = 0.0;
@@ -620,7 +669,7 @@ function newMaterial(schemeId, low) {
 	#include <opaque_fragment>`);
     shader.fragmentShader = fs;
   };
-  m.customProgramCacheKey = () => 'np-soldier-7' + (low ? 'l' : 'h');
+  m.customProgramCacheKey = () => 'np-soldier-11' + (low ? 'l' : 'h');
   return m;
 }
 
