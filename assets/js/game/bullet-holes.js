@@ -19,7 +19,7 @@ const STYLE = { wood: 0, concrete: 1, tile: 7, plaster: 2, metal: 3, vehicle: 3,
 // Lochradius-Faktor (× Kaliberradius), Kraterradius (× Lochradius, + Anteil der Energie), Breitenzuwachs je Treffer
 // dc: Kratertiefe (× Kraterradius) – Abplatztrichter vor dem eigentlichen Lochkanal
 const SHAPE = [
-  { hole: 1.15, crater: 2.6, craterE: 0.006, grow: 0.55, dig: 0.55, dc: 0.12 }, // Holz: Fasern reißen, wächst schnell
+  { hole: 1.15, crater: 2.3, craterE: 0.005, grow: 0.55, dig: 0.55, dc: 0.07 }, // Holz: Fasern reißen, wächst schnell
   { hole: 1.0,  crater: 3.0, craterE: 0.012, grow: 0.35, dig: 0.5,  dc: 0.36 }, // Beton: Abplatzkrater
   { hole: 1.2,  crater: 3.4, craterE: 0.012, grow: 0.5,  dig: 0.6,  dc: 0.3 },  // Putz
   { hole: 1.0,  crater: 1.9, craterE: 0.003, grow: 0.15, dig: 0.4,  dc: 0.07 }, // Metall: sauberes Loch, Delle, Glanzring
@@ -28,6 +28,8 @@ const SHAPE = [
   { hole: 1.3,  crater: 1.8, craterE: 0.002, grow: 0.4,  dig: 1,    dc: 0 },    // Stoff
   { hole: 1.0,  crater: 3.0, craterE: 0.012, grow: 0.4,  dig: 0.5,  dc: 0.38 }, // Ziegel
 ];
+// Höchstmaße je Stil [Lochradius, Kraterradius] (m): Holzbohle reißt nicht metergroß auf, Blech nur begrenzt
+const MAXR = [[0.06, 0.13], [0.09, 0.3], [0.09, 0.26], [0.07, 0.1], [0.12, 0.4], [0.1, 0.3], [0.08, 0.12], [0.09, 0.3]];
 // Wandfarbe (linear), wenn das Kugel-Dreieck keine kennt (Gelände, Requisiten)
 const ALBEDO = [[0.25, 0.17, 0.1], [0.3, 0.3, 0.28], [0.6, 0.58, 0.55], [0.3, 0.3, 0.3], [0.6, 0.62, 0.64], [0.12, 0.1, 0.08], [0.2, 0.2, 0.19], [0.3, 0.12, 0.07]];
 
@@ -49,11 +51,12 @@ export class BulletHoles {
     mat.userData.surface = 'concrete';
     // Schritte der Kratersuche: Handy/niedrig 6, sonst 12
     const q = G.renderer?.quality || 'high';
-    mat.defines = { NP_STEPS: q === 'low' ? 6 : 12 };
+    mat.defines = { NP_STEPS: q === 'low' ? 6 : 12, NP_PASS: 0 };
     // Durchblick-Atlas (ab mittlerer Stufe): Lochgrund zeigt die Welt hinter der Wand
     const rr = G.renderer?.renderer || null;
-    this._viewOn = !!(rr && q !== 'low');
-    this._viewRefresh = q === 'medium' ? 4 : q === 'high' ? 0.6 : 0.35; // s bis zur Auffrischung (bewegte Gegner)
+    // nur ab hoch (Handys: Lichtfarbe statt eigener Ansicht – jede Ansicht ist ein volles Szenenbild)
+    this._viewOn = !!(rr && (q === 'high' || q === 'ultra'));
+    this._viewRefresh = q === 'high' ? 0.8 : 0.4; // s bis zur Auffrischung (bewegte Gegner)
     this.view = null;
     if (this._viewOn) {
       this._vres = q === 'ultra' ? 224 : q === 'high' ? 176 : 128; // Feldgröße (px)
@@ -89,7 +92,18 @@ export class BulletHoles {
     geo.setAttribute('aHole4', this.aHole4);
     geo.setAttribute('aHole5', this.aHole5);
     geo.setAttribute('aHole6', this.aHole6);
-    if (G.scene) G.scene.add(this.mesh);
+    // zweiter Durchgang: nur die Öffnungen (Lochkanal), über allen Rändern – überlappende Löcher verdecken sich nicht
+    const mat2 = mat.clone();
+    mat2.defines = { ...mat.defines, NP_PASS: 1 };
+    mat2.onBeforeCompile = mat.onBeforeCompile;
+    mat2.customProgramCacheKey = () => 'np-holes-3-p1';
+    this.mesh2 = new THREE.InstancedMesh(geo, mat2, MAX);
+    this.mesh2.instanceMatrix = this.mesh.instanceMatrix;
+    this.mesh2.name = 'einschussloecher-oeffnung';
+    this.mesh2.count = 0;
+    this.mesh2.frustumCulled = false;
+    this.mesh2.renderOrder = 4;
+    if (G.scene) { G.scene.add(this.mesh); G.scene.add(this.mesh2); }
   }
 
   /**
@@ -163,7 +177,8 @@ export class BulletHoles {
   /** Streckung des Kraters entlang der Schussrichtung (1 = senkrecht getroffen). */
   _elong(h) {
     const s = h.slope || [0, 0];
-    return Math.min(4.2, Math.sqrt(1 + s[0] * s[0] + s[1] * s[1]));
+    // gestreckt höchstens um ~10 cm über den Krater hinaus (große, zusammengeschossene Löcher werden runder)
+    return Math.min(4.2, 1 + 0.1 / Math.max(h.rc || 0.02, 0.01), Math.sqrt(1 + s[0] * s[0] + s[1] * s[1]));
   }
 
   /** Flächenabtastung später (update: nur nahe Löcher, wenige je Bild) – viele Schüsse kosten so kaum Strahlen. */
@@ -172,12 +187,13 @@ export class BulletHoles {
   }
 
   /** Loch an p (gleiche Fläche) oder null. */
-  _near(p, n, surface) {
+  _near(p, n, surface, rcNew = 0.02) {
+    // gleiche Fläche, Krater überlappen deutlich → dasselbe (wachsende) Loch; weiter auseinander → eigenes Loch
     let best = null, bd = Infinity;
     for (const h of this.holes) {
-      if (h.exit || h.surface !== surface) continue;
+      if (h.exit || h.dead || h.ricochet || h.surface !== surface) continue;
       const d2 = h.pos.distanceToSquared(p);
-      const lim = Math.max(h.r * 1.6, 0.03);
+      const lim = Math.max(h.r * 1.3, 0.45 * (h.rc + rcNew), 0.008);
       if (d2 < lim * lim && d2 < bd && h.n.dot(n) > 0.7) { best = h; bd = d2; }
     }
     return best;
@@ -223,7 +239,9 @@ export class BulletHoles {
       const passed = thick !== Infinity && pen >= thick;
       return { passed, energyLeft: passed ? Math.max(0.15, 1 - thick / pen) : 0, thick, exitPoint: passed ? hit.point.clone().addScaledVector(dir, thick) : null };
     }
-    let h = this._near(hit.point, n, surface);
+    const rCal = (cal.d / 2000) * S.hole;
+    const rcNew = rCal * S.crater + S.craterE * Math.sqrt(cal.E / 1000) * (1 - cal.frag * 0.3) + cal.frag * 0.006;
+    let h = this._near(hit.point, n, surface, rcNew);
     const alb = h ? null : (hit.tri != null && this.G.world?.albedoAt?.(hit.tri, [0, 0, 0])) || ALBEDO[style];
     // Dicke eines bestehenden Lochs: kleinste Messung gilt (Folgetreffer liegen leicht versetzt)
     if (h) { thick = Math.min(h.thick, thick); h.thick = thick; }
@@ -232,13 +250,12 @@ export class BulletHoles {
     // durch ein offenes Loch fliegt jede Kugel (nahe der Lochmitte), sonst entscheidet die Restdicke
     const inOpen = !!(h && h.through && h.pos.distanceTo(hit.point) < h.r * 0.85);
     const passed = inOpen || (thick !== Infinity && pen >= rest - 0.002);
-    const rCal = (cal.d / 2000) * S.hole;
     if (!h) {
       h = this._make(hit.point, n, dir, surface, style, thick, false, alb);
       if (h) this._slope(h, dir);
       if (!h) return passed ? { passed, energyLeft: Math.max(0.15, 1 - rest / pen), thick, exitPoint: hit.point.clone().addScaledVector(dir, thick) } : { passed: false, energyLeft: 0, thick };
       h.r = rCal;
-      h.rc = rCal * S.crater + S.craterE * Math.sqrt(cal.E / 1000) * (1 - cal.frag * 0.3) + cal.frag * 0.006;
+      h.rc = Math.min(MAXR[style][1], rcNew);
       h.depth = Math.min(thick, pen * (0.75 + Math.random() * 0.25));
     } else {
       // weitere Kugel in dasselbe Loch: gräbt weiter (Splitter, Zerlegen → breiter statt tiefer), Loch wird breiter
@@ -248,8 +265,20 @@ export class BulletHoles {
       const ratio = h.depth / Math.max(pen, 1e-3);
       const gain = 1 / (1 + 0.6 * Math.pow(ratio, 1.5));
       h.depth = Math.min(thick, h.depth + pen * S.dig * (1 - cal.frag * 0.5) * gain);
-      h.r = Math.min(0.09, h.r + rCal * S.grow * (1 + cal.frag));
-      h.rc = Math.max(h.rc, Math.min(0.32, h.r * S.crater * 0.8 + h.rc * 0.15 + S.craterE * 0.25));
+      // Vereinigung: die Lochflächen addieren sich (Rand reißt mit: × Wachstum je Werkstoff), die Mitte wandert zum
+      // Flächenschwerpunkt, der Krater umschließt alten und neuen Einschlag – gezieltes Dauerfeuer frisst ein großes,
+      // zerfetztes Loch statt vieler Ringe übereinander
+      const [mr, mrc] = MAXR[style];
+      const dd = h.pos.distanceTo(hit.point);
+      const a0 = h.r * h.r, a1 = (rCal * (1 + S.grow * 1.6 * (1 + cal.frag))) ** 2;
+      const w = a1 / (a0 + a1);
+      const rcOld = h.rc;
+      if (dd > 1e-4) {
+        h.pos.lerp(hit.point, w);
+        if (h.exitHole) h.exitHole.pos.copy(h.pos).addScaledVector(dir, thick === Infinity ? 0 : thick);
+      }
+      h.r = Math.min(mr, Math.sqrt(a0 + a1));
+      h.rc = Math.min(mrc, Math.max(rcOld + dd * w, rcNew + dd * (1 - w), h.r * S.crater * 0.75));
     }
     if (passed) h.depth = thick;
     if (backN && !h.backN) h.backN = backN;
@@ -273,15 +302,16 @@ export class BulletHoles {
       const ex = this._make(ep, exN, dir.clone().negate(), surface, style, thick, true, h.alb);
       if (ex) {
         this._slope(ex, dir.clone().negate());
-        ex.r = h.r * (style === 3 ? 1.15 : 1.5);
-        ex.rc = h.rc * (style === 0 || style === 1 || style === 7 ? 1.7 : 1.15);
+        ex.r = Math.min(MAXR[style][0] * 1.2, h.r * (style === 3 ? 1.15 : 1.5));
+        ex.rc = Math.min(MAXR[style][1] * 1.3, h.rc * (style === 0 || style === 1 || style === 7 ? 1.7 : 1.15));
         ex.depth = thick; ex.through = true; ex.behind = this._behind(h.pos.clone().addScaledVector(dir, -0.02), dir.clone().negate());
         this._queueProbe(ex);
         h.exitHole = ex;
         this._write(ex);
       }
     } else if (h.exitHole) {
-      h.exitHole.r = Math.max(h.exitHole.r, h.r * 1.5); h.exitHole.rc = Math.max(h.exitHole.rc, h.rc * 1.4);
+      h.exitHole.r = Math.min(MAXR[style][0] * 1.2, Math.max(h.exitHole.r, h.r * 1.5));
+      h.exitHole.rc = Math.min(MAXR[style][1] * 1.3, Math.max(h.exitHole.rc, h.rc * 1.4));
       if (h.exitHole.probed === undefined || h.exitHole.rc * this._elong(h.exitHole) > h.exitHole.probed * 1.4) this._queueProbe(h.exitHole);
       this._write(h.exitHole);
     }
@@ -318,7 +348,7 @@ export class BulletHoles {
     } else slot = this._nextSlot++;
     const h = { pos: point.clone(), n: n.clone(), dir: dir.clone(), surface, style, r: 0.005, rc: 0.02, depth: 0.005, thick, through: false, hits: 1, slot, exit, seed: Math.random() * 100, behind: [0.02, 0.02, 0.02], exitHole: null, alb: alb.slice(0, 3) };
     this.holes.push(h);
-    if (this.mesh.count < slot + 1) this.mesh.count = slot + 1;
+    if (this.mesh.count < slot + 1) this.mesh.count = this.mesh2.count = slot + 1;
     return h;
   }
 
@@ -348,7 +378,9 @@ export class BulletHoles {
     for (let i = 0; i < 4; i++) e[k * 4 + i] = Math.min(4, cl[i] / Q);
     f[k * 2] = (h.kx || 0) * Q; f[k * 2 + 1] = (h.ky || 0) * Q;
     // Kanal-Versatz je Tiefeneinheit + Formvarianten (Seitenverhältnis, Zacken) aus dem Zufallswert
-    const sl = h.slope || [0, 0];
+    const sl0 = h.slope || [0, 0], sm = Math.hypot(sl0[0], sl0[1]);
+    const sk = sm > 1e-5 ? Math.sqrt(Math.max(0, el * el - 1)) / sm : 0; // Schräge passend zur begrenzten Streckung
+    const sl = [sl0[0] * sk, sl0[1] * sk];
     // w: Querschläger −2, sonst Durchblick-Feld (−1 = keins → Lichtfarbe)
     g[k * 4] = sl[0]; g[k * 4 + 1] = sl[1]; g[k * 4 + 2] = (h.seed * 7.31) % 1; g[k * 4 + 3] = h.ricochet ? -2 : (h.viewSlot ?? -1);
     for (const [attr, w] of [[this.mesh.instanceMatrix, 16], [this.aHole, 4], [this.aHole2, 4], [this.aHole3, 4], [this.aHole4, 4], [this.aHole5, 2], [this.aHole6, 4]]) {
@@ -386,10 +418,11 @@ export class BulletHoles {
     const cp = cam.position;
     let best = null, bestScore = Infinity;
     for (const h of this.holes) {
-      if (!h.through) continue;
+      if (!h.through || h.r < 0.005) continue;
       const dx = cp.x - h.pos.x, dy = cp.y - h.pos.y, dz = cp.z - h.pos.z;
       const d = Math.hypot(dx, dy, dz);
       h._camD = d;
+      if (h.r / Math.max(d, 0.1) < 0.0016) continue; // auf dem Schirm zu klein für einen Durchblick
       if (d > VIEW_RANGE || dx * h.n.x + dy * h.n.y + dz * h.n.z < 0.02 * d) continue;
       const fresh = h.viewSlot == null ? -100 : this._time - (h.viewAt || 0);
       if (h.viewSlot != null && fresh < this._viewRefresh) continue;
@@ -415,7 +448,7 @@ export class BulletHoles {
     }
     this._renderView(best, slot);
     best.viewAt = this._time;
-    this._viewT = 0.12;
+    this._viewT = 0.22;
   }
 
   /** Ansicht aus dem Loch: Kamera knapp hinter der Austrittsseite, Blick gegen die Lochnormale (Achsen = Lochachsen). */
@@ -435,9 +468,9 @@ export class BulletHoles {
     this.view.viewport.set(x, y, R, R);
     this.view.scissor.set(x, y, R, R);
     const prevRT = r.getRenderTarget(), prevClear = r.autoClear, sm = r.shadowMap, prevAU = sm.autoUpdate, prevNU = sm.needsUpdate;
-    const vis = this.mesh.visible;
+    const vis = this.mesh.visible, vis2 = this.mesh2.visible;
     try {
-      this.mesh.visible = false;         // keine Rückkopplung (Löcher lesen den Atlas)
+      this.mesh.visible = this.mesh2.visible = false; // keine Rückkopplung (Löcher lesen den Atlas)
       sm.autoUpdate = false; sm.needsUpdate = false; // Schattenkarten der Hauptkamera weiterverwenden
       r.autoClear = true;
       r.setRenderTarget(this.view);
@@ -445,7 +478,7 @@ export class BulletHoles {
     } catch (err) {
       this._viewOn = false; console.warn('[NULLPUNKT] Durchblick aus:', err);
     } finally {
-      this.mesh.visible = vis;
+      this.mesh.visible = vis; this.mesh2.visible = vis2;
       sm.autoUpdate = prevAU; sm.needsUpdate = prevNU;
       r.autoClear = prevClear;
       r.setRenderTarget(prevRT);
@@ -477,8 +510,10 @@ export class BulletHoles {
   dispose() {
     this.holes.length = 0;
     if (this.mesh.parent) this.mesh.parent.remove(this.mesh);
+    if (this.mesh2.parent) this.mesh2.parent.remove(this.mesh2);
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();
+    this.mesh2.material.dispose();
     if (this.view) this.view.dispose();
     if (this._blank) this._blank.dispose();
   }
@@ -639,6 +674,11 @@ vec3 npSunL() {
     vec3 fresh = npFreshCol( vHole3.rgb );
     vec3 col = fresh; float a = 0.0;
     float d0 = npDepth( p0 );
+#if NP_PASS == 1
+    if ( d0 < 1e2 ) discard; // Durchgang 2: nur die Öffnung
+#else
+    if ( d0 >= 1e2 ) discard; // Durchgang 1: Krater und Rand (Öffnung zeichnet Durchgang 2 darüber)
+#endif
     if ( d0 > 0.0 ) {
       // --- in den Krater/Kanal hinein: Strahl in Tiefenschritten bis zum Kratergrund
       vec3 dir = normalize( vPosL - vCamL );
@@ -670,6 +710,12 @@ vec3 npSunL() {
         float grain = npSt == 0 ? 0.75 + 0.5 * npN2( vec2( q.x * 3.0, q.y * 40.0 ) + npSeed ) : 0.86 + 0.28 * c.y * ( 0.6 + 0.4 * npN2( q * 23.0 + npSeed ) );
         float crack = npSt == 5 || npSt == 3 ? 1.0 : mix( 0.8, 1.0, smoothstep( 0.0, 0.05, c.z ) * ( 0.6 + 0.4 * npN2( q * 13.0 + npSeed ) ) + 0.3 * step( 0.5, npN2( npC( q ) * 4.0 + npSeed * 2.0 ) ) );
         col = fresh * mix( 1.0, 0.75, 1.0 - cav ) * grain * crack;
+        if ( npSt == 0 ) col *= mix( 0.55, 0.95, 1.0 - cav ); // Holz: gestauchte, dunkle Fasern, zum Loch hin heller aufgerissen
+        // Blech: Delle bleibt lackiert, nur ein schmaler Saum am Loch ist blank abgeplatzt
+        if ( npSt == 3 ) {
+          float bare = 1.0 - smoothstep( npR * 1.06, npR * 1.45, length( npC( q ) ) );
+          col = mix( vHole3.rgb * mix( 0.8, 1.0, cav ), col, bare );
+        }
         npAO = cav;
         // Sonne im Krater: Weg zur Oberfläche in Sonnenrichtung frei?
         vec3 Ll = npSunL();
@@ -748,7 +794,7 @@ vec3 npSunL() {
       if ( npSt == 1 || npSt == 7 || npSt == 2 ) {
         // Bruchkante (schmaler heller Saum), feiner Staub, kleine Splitter-Narben drumherum
         float lip = ( 1.0 - smoothstep( 0.0, 0.03 + 0.06 * n2, rel ) ) * ( 0.55 + 0.45 * n1 );
-        float dust = ( 1.0 - smoothstep( 0.0, 1.0, rel ) ) * ( 0.35 + 0.65 * n1 ) * ( npSt == 2 ? 0.55 : 0.3 );
+        float dust = ( 1.0 - smoothstep( 0.0, 1.0, rel ) ) * ( 0.35 + 0.65 * n1 ) * ( npSt == 2 ? 0.35 : 0.18 );
         vec3 c = npCell( p0 * 13.0 + npSeed * 2.0 );
         float pit = ( 1.0 - smoothstep( 0.06, 0.12, c.x ) ) * step( 0.72, c.y ) * ( 1.0 - smoothstep( 0.2, 0.9, rel ) );
         a = max( max( lip * 0.9, dust ), pit * 0.95 );
@@ -766,11 +812,10 @@ vec3 npSunL() {
         npHoleN = vec3( 0.0, ( c.y - 0.5 ) * 0.9 * spl, 1.0 );
       } else if ( npSt == 3 ) {
         // Blech: Lack abgeplatzt (blanker Ring), außen Schmauch
-        float ring = 1.0 - smoothstep( 0.0, 0.18 + 0.12 * n1, rel );
-        float soot = ( 1.0 - smoothstep( 0.1, 1.0, rel ) ) * 0.4 * n1;
-        a = max( ring, soot );
-        col = mix( vec3( npL * 0.25 ), fresh * ( 0.85 + 0.25 * n2 ), ring );
-        npHoleN = vec3( -u * ring * 0.4, 1.0 );
+        // Blech außen: nur feiner Schmauch/Abrieb, kein Ring (die Delle trägt den Lack weiter)
+        float soot = ( 1.0 - smoothstep( 0.0, 0.8, rel ) ) * 0.22 * n1;
+        a = soot;
+        col = vec3( npL * 0.25 );
       } else if ( npSt == 4 ) {
         // Glas: Spinnennetz – Strahlen + Ringe, weiß zerstoßen am Loch
         float ang = atan( p0.y, p0.x );
