@@ -7,6 +7,7 @@
 import { wall } from '../arch.js';
 import { sandbags, crateStack, barrelGroup } from '../props.js';
 import { sampleSpline } from '../terrain/generate.js';
+import { barbedWireOf, wireFence } from '../barbed-wire.js';
 
 const FRONT = 118, SUPPORT = 162, HQZ = 238; // |z| der Linien je Seite
 const XL = 268;                               // Ausdehnung der Gräben in x
@@ -137,19 +138,28 @@ function frontWorks(b, ctx) {
       }
     }
   }
-  // Stacheldrahtgürtel vor beiden Fronten (Lücken alle ~60 m): Pfähle + drei Drähte + Kreuzdrähte (nur Optik)
+  // Stacheldrahtgürtel vor beiden Fronten (Lücken alle ~60 m): Eisen-Schraubpfähle alle 3 m, drei Stränge + zwei
+  // Schrägstränge je Feld (barbed-wire.js), davor zwei Reihen Drahtrollen versetzt; nur Optik
+  let ws = 9173;
+  const wr = () => ((ws = (ws * 1664525 + 1013904223) >>> 0) / 4294967296);
   for (const s of [1, -1]) {
-    const z = s * (FRONT - 14);
-    for (let x = -XL + 8; x < XL - 8; x += 3) {
-      if (((x + XL) % 60) > 50) continue;
-      const zz = z + Math.sin(x * 0.37) * 1.2, y0 = H(x, zz), y1 = H(x + 3, zz);
-      b.cyl(x, y0 - 0.1, zz, 0.035, 1.35, 'wood_dark', { tint: '#3d3328', collide: false, minimap: false, seg: 5, rz: Math.sin(x) * 0.12 });
-      for (const hy of [0.35, 0.75, 1.15]) {
-        const L = Math.hypot(3, y1 - y0);
-        b.cyl(x + 1.5, (y0 + y1) / 2 + hy, zz, 0.006, L, 'metal_rust', { axis: 'x', rz: Math.atan2(y1 - y0, 3), collide: false, minimap: false, seg: 3, ao: false });
+    const z = s * (FRONT - 14), zOf = (x) => z + Math.sin(x * 0.37) * 1.2;
+    let run = [];
+    const flush = () => {
+      if (run.length >= 2) {
+        wireFence(b, run, { heights: [0.35, 0.75, 1.15], post: wr() < 0.5 ? 'iron' : 'wood', postTint: '#3d3328' });
+        const coil = barbedWireOf(b);
+        coil.addCoil(run.map(([x, , zz]) => [x, zz - s * (1.6 + Math.sin(x * 0.4) * 0.2)]), H, { r: 0.42 });
+        if (wr() < 0.5) coil.addCoil(run.slice(1, -1).map(([x, , zz]) => [x, zz - s * 2.5]), H, { r: 0.38 }); // zweite Rolle oben drauf/dahinter
       }
-      b.cyl(x + 1.5, y0 + 0.7, zz, 0.006, 3.4, 'metal_rust', { axis: 'x', rz: 0.42, ry: 0.25, collide: false, minimap: false, seg: 3, ao: false });
+      run = [];
+    };
+    for (let x = -XL + 8; x < XL - 8; x += 3) {
+      if (((x + XL) % 60) > 50) { flush(); continue; }
+      const zz = zOf(x);
+      run.push([x, H(x, zz), zz]);
     }
+    flush();
   }
   // Zersplitterte Bäume (Kollision am Stamm), vor allem im Niemandsland
   let sd = 2718;

@@ -167,6 +167,7 @@ const MATS = {
   sandbag:           { tex: 'sandbag', tile: 0.6, surface: 'sand' },
   // Sackleinen ohne aufgemalte Säcke – für einzeln modellierte Säcke (sandbag-field.js); bewusst ohne Bibliothekssatz
   sackleinen:        { tex: 'sackleinen', tile: 0.45, surface: 'sand' },
+  draht:             { tex: 'draht', tile: 0.25, surface: 'metal', params: { metalness: 0.45 } },
   tarp:              { tex: 'tarp', tile: 2, surface: 'fabric' },
   awning:            { tex: 'awning', tile: 1, surface: 'fabric', params: { side: 'double' } },
   rubber:            { tex: 'rubber', tile: 1, surface: 'fabric' },

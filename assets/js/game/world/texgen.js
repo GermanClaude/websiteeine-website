@@ -745,6 +745,28 @@ G.burlap = (t, r, o) => {
 };
 const mudC = [74, 65, 55];
 
+/**
+ * Draht (Stacheldraht, 22.10.): verzinkter Stahl, stellenweise abgewittert – graue Zinkhaut mit Weißrost-Schleier,
+ * darin Rostnester (orangebraun, porig, matter) und dunkle Fraßstellen; feine Ziehriefen längs. o: { rust (0..1) }
+ */
+G.wirerust = (t, r, o) => {
+  const { S, n } = t;
+  const zinc = hex('#7b7c7a'), zincD = hex('#505250'), white = hex('#9a9a94'), rust = hex('#7a4526'), rustD = hex('#3e2516'), pit = hex('#1d1915');
+  const big = fbm(S, 3, 4, r), mid = fbm(S, 11, 3, r), fine = fbm(S, 70, 2, r), draw = fbm(S, 4, 2, r, { py: 120 }); // Ziehriefen längs (u = Drahtlänge)
+  const pits = speckle(S, r, Math.round(n * 0.002), 0.6, 2.2);
+  const amt = o.rust ?? 0.55;
+  for (let i = 0; i < n; i++) {
+    const rr = smooth(0.62 - amt * 0.3, 0.8 - amt * 0.3, big[i] * 0.55 + mid[i] * 0.45);
+    let c = mixC(zinc, zincD, mid[i] * 0.7 + draw[i] * 0.3);
+    c = mixC(c, white, smooth(0.6, 0.85, fine[i]) * 0.25 * (1 - rr));            // Weißrost-Schleier
+    c = mixC(c, mixC(rust, rustD, fine[i] * 0.8), rr);
+    c = mixC(c, pit, pits[i] * (0.4 + rr * 0.5));
+    t.set(i, c[0], c[1], c[2]);
+    t.height[i] = rr * 0.35 + fine[i] * 0.25 * rr + draw[i] * 0.1 - pits[i] * 0.4;
+    t.rough[i] = 0.42 + rr * 0.45 + pits[i] * 0.1;
+  }
+};
+
 G.tarp = (t, r, o) => {
   const { S, n } = t;
   const base = hex(o.base || '#d8dad6'), k = o.weave || 160;
@@ -1234,6 +1256,7 @@ export const TEX = {
   glass:          { gen: 'glass', o: {}, normal: 0.3 },
   sandbag:        { gen: 'burlap', o: { base: '#c4b48c' }, normal: 3 },
   sackleinen:     { gen: 'burlap', o: { base: '#ada593', mud: 0.75 }, normal: 2.4 },
+  draht:          { gen: 'wirerust', o: { rust: 0.55 }, normal: 1.2 },
   tarp:           { gen: 'tarp', o: {}, normal: 2.5 },
   awning:         { gen: 'stripes', o: { designs: [
     { count: 10, colors: ['#c8402f', '#efe6d2'] }, { count: 12, colors: ['#2f6f9a', '#efe9da'] },

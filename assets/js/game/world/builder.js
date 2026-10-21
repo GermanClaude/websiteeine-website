@@ -817,6 +817,8 @@ export class MapBuilder {
    * @returns {Promise<object>} Ergebnis mit group, meshes, objects, bulletTris/bulletData (Kugel-Dreiecke), colTris (Kollision) …
    */
   async build({ onProgress, quality = 'high', anisotropy = 4 } = {}) {
+    // Sammler, die erst nach allen Aufrufen ihre Meshes bauen (z. B. Stacheldraht), vor dem eigentlichen Aufbau abschließen
+    for (const f of this.beforeBuild || []) f();
     this._quality = quality;
     this._anisotropy = anisotropy;
     const step = async (p, label) => { onProgress?.(p, label); await new Promise(r => setTimeout(r, 0)); };

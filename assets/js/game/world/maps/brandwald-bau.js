@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { sampleSpline } from '../terrain/generate.js';
 import { sandbags, crateStack, barrelGroup } from '../props.js';
 import { SandbagField } from '../sandbag-field.js';
+import { barbedWireOf, wireFence } from '../barbed-wire.js';
 import { getMaterial } from '../../engine/textures.js';
 import { createSimplex } from '../terrain/noise.js';
 import { mgNest } from './grenzland-stellungen.js';
@@ -440,21 +441,25 @@ export function groundDetails(b, ctx, o = {}) {
   // MG-Stellungen hinter den Frontgräben (benutzbar, Blick aufs Niemandsland)
   const keep = [];
   for (const [x, z, ry] of o.nests || []) { mgNest(b, x, z, { y: H(x, z) - 0.05, ry }); keep.push({ pts: [[x, z], [x + 0.1, z]], r: 4.2 }); }
-  // Stacheldraht
+  // Stacheldraht (eigenes Modul): Zäune mit Holzpfählen alle 3 m, drei Stränge + zwei Schrägstränge je Feld, Gassen
+  // alle ≈ 55 m; davor auf der Feindseite stellenweise Drahtrollen. Nur Optik (keine Kollision), auf jeder Stufe gleich.
   for (const wv of o.wire || []) {
-    for (let x = wv.x0; x < wv.x1; x += 3) {
-      if (((x - wv.x0) % 55) > 46) continue; // Gassen
-      const zz = wv.z + Math.sin(x * 0.29) * 1.4 + Math.sin(x * 0.07) * 2, y0 = H(x, zz), x2 = x + 3, zz2 = wv.z + Math.sin(x2 * 0.29) * 1.4 + Math.sin(x2 * 0.07) * 2, y1 = H(x2, zz2);
-      if (nearTrench(x, zz)) continue;
-      const lean = (rnd() - 0.5) * 0.25;
-      b.cyl(x, y0 - 0.15, zz, 0.035, 1.35, 'wood_dark', { tint: '#2f2a25', collide: false, minimap: false, seg: 5, rz: lean, bullet: false });
-      const sag = rnd() < 0.15 ? 0.4 : 0, lowQ = ctx.quality === 'low';
-      for (const hy of lowQ ? [0.4, 1.0] : [0.32, 0.72, 1.12]) beam(b, x, y0 + hy, zz, x2, y1 + hy - sag, zz2, 0.005, 'metal_rust', { tint: '#3a332d', seg: 3, cast: false, ao: false, bullet: false, caps: false });
-      if (!lowQ) {
-        beam(b, x, y0 + 1.1, zz, x2, y1 + 0.3, zz2, 0.005, 'metal_rust', { tint: '#3a332d', seg: 3, cast: false, ao: false, bullet: false, caps: false });
-        beam(b, x, y0 + 0.3, zz, x2, y1 + 1.1, zz2, 0.005, 'metal_rust', { tint: '#3a332d', seg: 3, cast: false, ao: false, bullet: false, caps: false });
+    const zOf = (x) => wv.z + Math.sin(x * 0.29) * 1.4 + Math.sin(x * 0.07) * 2;
+    const toEnemy = -Math.sign(wv.z) || 1;
+    let run = [];
+    const flush = () => {
+      if (run.length >= 2) {
+        wireFence(b, run, { heights: [0.32, 0.72, 1.12] });
+        if (rnd() < 0.6) barbedWireOf(b).addCoil(run.map(([x, , z]) => [x, z + toEnemy * (1.7 + Math.sin(x * 0.5) * 0.25)]), H, { r: 0.4 + rnd() * 0.08 });
       }
+      run = [];
+    };
+    for (let x = wv.x0; x <= wv.x1; x += 3) {
+      const zz = zOf(x);
+      if (((x - wv.x0) % 55) > 46 || nearTrench(x, zz)) { flush(); continue; }
+      run.push([x, H(x, zz), zz]);
     }
+    flush();
   }
   return { clearLines: keep };
 }
