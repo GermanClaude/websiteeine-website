@@ -27,7 +27,7 @@ const MAP_MODULES = {
 };
 
 /** Großkarten (MAPS[id].scale === 'gross'): eigener Lader, nur per import() (GROSSKAMPF_PLAN §12.5). */
-const BIG_MAPS = new Set(['grenzland', 'niemandsland']);
+const BIG_MAPS = new Set(['grenzland', 'niemandsland', 'brandwald']);
 
 export const MAP_IDS = [...Object.keys(MAP_MODULES), ...BIG_MAPS];
 

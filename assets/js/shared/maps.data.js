@@ -356,6 +356,32 @@ export const MAPS = {
     hq: { A: [0, 238], B: [0, -238] },
     spawns: { A: [0, 162], B: [0, -162] },
   },
+  brandwald: {
+    id: 'brandwald',
+    name: 'Brandwald',
+    subtitle: 'Stellungen im verbrannten Wald',
+    description: 'Ein abgebrannter Nadelwald unter hellem, diesigem Himmel: Tausende verkohlte Baumleichen – Spieße, abgebrochene Stämme mit Splitterkronen, graue entrindete Stämme, umgestürzte Bäume mit Wurzeltellern – auf Brandboden voller Asche, Zweige und Pfützen. Beide Seiten halten eine gezackte Frontlinie mit Sandsack- und Bretterwänden, dahinter Unterstützungslinien und Laufgräben. Dazwischen Trichter, eine Stromtrasse mit Gittermasten (einer umgestürzt), die Stahlgerippe einer Gewächshausanlage und ein abgebrannter Holzplatz.',
+    short: 'Großkarte: verbrannter Wald, Schützengräben mit Sandsäcken, Gittermasten – fünf Flaggen.',
+    size: 'groß',
+    scale: 'gross',
+    viewDistance: { low: 340, medium: 600, high: 850, ultra: 850 },
+    dimensions: { x: 360, z: 360 },
+    timeOfDay: 'Heller Vormittag',
+    weather: 'Hoher Dunst, fast weißer Himmel',
+    weathers: ['bewoelkt', 'dunst', 'klar', 'morgennebel'], weatherDefault: 'bewoelkt',
+    timeDefault: 'vormittag', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'abend', name: 'Abend' }],
+    modes: ['cq', 'tdm', 'dom', 'ffa'],
+    palette: ['#2b2824', '#6b6458', '#8f8a81', '#4a3f33', '#c7c9c8'],
+    features: ['Tausende verkohlte Bäume, Stümpfe und umgestürzte Stämme', 'Gräben mit Sandsackwänden, Bretterverschalung, Wurzeln und Lattenrosten', 'Stromtrasse mit Gittermasten, einer umgestürzt', 'Stahlgerippe einer Gewächshausanlage', 'Abgebrannter Holzplatz', 'Fünf Eroberungsflaggen A–E'],
+    lanes: ['Westen: Gewächshäuser', 'Mitte: Trichter unter der Stromtrasse', 'Osten: Holzplatz'],
+    ambience: 'range',
+    bounds: { minX: -180, maxX: 180, minZ: -180, maxZ: 180 },
+    layout: [],
+    flags: [{ id: 'A', x: -100, z: 14 }, { id: 'B', x: 8, z: 6 }, { id: 'C', x: 106, z: -22 }],
+    cq: [{ id: 'A', name: 'Südstellung', x: -135, z: 93 }, { id: 'B', name: 'Gewächshäuser', x: -100, z: 14 }, { id: 'C', name: 'Trichter', x: 8, z: 6 }, { id: 'D', name: 'Holzplatz', x: 106, z: -22 }, { id: 'E', name: 'Nordstellung', x: 135, z: -93 }],
+    hq: { A: [0, 164], B: [0, -164] },
+    spawns: { A: [0, 128], B: [0, -128] },
+  },
 };
 
 /** Wetter ohne Niederschlag (atmosphere-weather; Wirkung in world/weather.js). Lobby: „Wetter“ (Standard = Kartenwetter, Zufall). */
@@ -367,4 +393,4 @@ export const WEATHERS = {
 };
 export const WEATHER_ORDER = ['klar', 'dunst', 'morgennebel', 'bewoelkt'];
 
-export const MAP_ORDER = ['hafen', 'altstadt', 'werk', 'bibliothek', 'range', 'grenzland', 'niemandsland'];
+export const MAP_ORDER = ['hafen', 'altstadt', 'werk', 'bibliothek', 'range', 'grenzland', 'niemandsland', 'brandwald'];

@@ -961,6 +961,150 @@ G.waterNormal = (t, r) => {
 };
 
 // ---------------------------------------------------------------------------
+// Brandwald (eigene Generatoren, 21.10.): Brandboden, Asche, Grabenlehm, verkohlte Borke, verwittertes Totholz
+// ---------------------------------------------------------------------------
+/**
+ * Brandboden: dunkle, verkohlte Humusschicht mit hellen Ascheflecken, dichter Streu aus verkohlten Nadeln/Zweigen
+ * (dünne dunkle Linien mit hellerer Kante), Holzkohlebrocken und einzelnen hellen Rinden-/Holzsplittern und Steinchen.
+ * o: { palette (dunkel→hell), ash (Anteil 0..1), litter (Streudichte), chips }
+ */
+G.burnt = (t, r, o) => {
+  const { S, n } = t, px = S / 512;
+  const pal = (o.palette || ['#141210', '#1d1a17', '#26221e', '#302a24']).map(hex);
+  const ashC = hex(o.ashColor || '#87827a'), ashL = hex('#b6b0a5'), twigC = hex('#0b0a09'), twigG = hex('#6d675f'), twigB = hex('#4a3f35');
+  const chipC = hex(o.chipColor || '#a8a08f');
+  const a = fbm(S, 4, 6, r), b = fbm(S, 22, 3, r), duff = fbm(S, 120, 2, r);
+  const ashF = fbm(S, 6, 5, r, { gain: 0.6 }), ashFine = fbm(S, 40, 3, r);
+  const coal = speckle(S, r, Math.round(n * 0.0026), 0.6 * px, 2.4 * px);
+  const chips = speckle(S, r, Math.round(n * 0.0005 * (o.chips ?? 1)), 0.7 * px, 2.2 * px);
+  const peb = speckle(S, r, Math.round(n * 0.0005), 0.9 * px, 3 * px);
+  const lit = o.litter ?? 1;
+  // Streu: dichte kurze Nadeln (verkohlt dunkel bzw. aschegrau überzogen), dazu längere Zweige (1–2 px breit)
+  const nDark = scratches(S, r, Math.round(n * 0.0032 * lit), 5 * px, 16 * px, { width: 1 });
+  const nGrey = scratches(S, r, Math.round(n * 0.0016 * lit), 5 * px, 14 * px, { width: 1 });
+  const twigs = scratches(S, r, Math.round(n * 0.0003 * lit), 22 * px, 80 * px, { width: Math.max(1, Math.round(2 * px)) });
+  const twigsG = scratches(S, r, Math.round(n * 0.00012 * lit), 18 * px, 60 * px, { width: Math.max(1, Math.round(1.5 * px)) });
+  const ashAmt = o.ash ?? 0.3;
+  for (let i = 0; i < n; i++) {
+    const k = clamp01(a[i] * 0.55 + b[i] * 0.3 + duff[i] * 0.15), idx = Math.min(pal.length - 2, Math.floor(k * (pal.length - 1))), f = k * (pal.length - 1) - idx;
+    let c = mixC(pal[idx], pal[idx + 1], f);
+    // Asche: unregelmäßige Flecken unterschiedlicher Größe, körniger Rand, darin feine Struktur
+    const ash = smooth(1 - ashAmt - 0.06, 1 - ashAmt + 0.1, ashF[i] * 0.75 + ashFine[i] * 0.25);
+    c = mixC(c, mixC(ashC, ashL, ashFine[i]), ash * (0.7 + 0.3 * b[i]));
+    c = mixC(c, [8, 8, 8], coal[i] * 0.85);
+    // Streu
+    c = mixC(c, twigC, nDark[i] * 0.75);
+    c = mixC(c, twigG, nGrey[i] * 0.7 * (1 - ash * 0.6));
+    c = mixC(c, twigC, twigs[i] * 0.85);
+    c = mixC(c, mixC(twigG, twigB, b[i]), twigsG[i] * 0.85);
+    c = mixC(c, chipC, chips[i] * 0.85);
+    c = mixC(c, [120, 114, 106], peb[i] * 0.75);
+    t.set(i, c[0], c[1], c[2]);
+    const tw = Math.max(nDark[i] * 0.6, nGrey[i] * 0.6, twigs[i], twigsG[i]);
+    t.height[i] = a[i] * 0.2 + b[i] * 0.15 + duff[i] * 0.15 - ash * 0.1 + tw * 0.6 + chips[i] * 0.6 + peb[i] * 0.75 + coal[i] * 0.3;
+    t.rough[i] = 0.93 - coal[i] * 0.2 + ash * 0.05;
+  }
+};
+
+/** Asche: hellgraues, pudriges Feld mit dunklen Kohlekrümeln und feinen Trockenrissen. */
+G.ash = (t, r, o) => {
+  const { S, n } = t, px = S / 512;
+  const base = hex(o.base || '#9b968d'), dark = hex('#4d4944'), light = hex('#c4beb3');
+  const a = fbm(S, 5, 5, r), b = fbm(S, 48, 3, r);
+  const crumbs = speckle(S, r, Math.round(n * 0.003), 0.5 * px, 1.6 * px);
+  const w = worley(S, 12, r), cm = fbm(S, 4, 3, r);
+  for (let i = 0; i < n; i++) {
+    const crack = (1 - smooth(0.015, 0.05, w.f2[i] - w.f1[i])) * smooth(0.45, 0.7, cm[i]);
+    let c = mixC(base, light, a[i] * 0.6 + b[i] * 0.25);
+    c = mixC(c, dark, crack * 0.25 + crumbs[i] * 0.8);
+    t.set(i, c[0], c[1], c[2]);
+    t.height[i] = a[i] * 0.2 + b[i] * 0.25 - crack * 0.25 + crumbs[i] * 0.3;
+    t.rough[i] = 0.97;
+  }
+};
+
+/**
+ * Grabenlehm: verdichteter, sandiger Boden (Grabenwände/-sohle, ausgeworfene Erde) mit Steinchen, Wurzelfasern und
+ * feinen Schichtstreifen. o: { palette }
+ */
+G.clay = (t, r, o) => {
+  const { S, n } = t, px = S / 512;
+  const pal = (o.palette || ['#3f3329', '#4e4033', '#5d4d3d', '#6e5c49']).map(hex);
+  const a = fbm(S, 4, 6, r), b = fbm(S, 30, 3, r), strata = fbm(S, 2, 4, r, { py: 18 });
+  const stones = speckle(S, r, Math.round(n * 0.0012), 0.8 * px, 3.5 * px), wst = worley(S, 50, r);
+  const roots = scratches(S, r, Math.round(n * 0.00012), 30 * px, 110 * px, { width: Math.max(1, Math.round(px)) });
+  // Schollen/Krümel: gewölbte Zellen mit dunklen Fugen und Eigenhelligkeit, dazu feines Korn
+  const clod = worley(S, 26, r), grain = fbm(S, 140, 2, r);
+  for (let i = 0; i < n; i++) {
+    const k = clamp01(a[i] * 0.62 + b[i] * 0.26 + strata[i] * 0.12), idx = Math.min(pal.length - 2, Math.floor(k * (pal.length - 1))), f = k * (pal.length - 1) - idx;
+    const cl = smooth(0, 0.45, clod.f2[i] - clod.f1[i]), ct = 0.94 + ((clod.id[i] * 53) % 13) / 110;
+    let c = mixC(pal[idx], pal[idx + 1], f).map(v => v * (0.88 + b[i] * 0.14 + grain[i] * 0.12) * (0.9 + 0.1 * cl * (o.clods ?? 1)) * ct);
+    const sv = stones[i] * (0.6 + ((wst.id[i] * 37) % 10) / 25);
+    c = mixC(c, [128, 118, 104], sv * 0.75);
+    c = mixC(c, [26, 20, 15], roots[i] * 0.7);
+    t.set(i, c[0], c[1], c[2]);
+    t.height[i] = a[i] * 0.25 + b[i] * 0.25 + cl * 0.25 * (o.clods ?? 1) + grain[i] * 0.2 + sv * 0.9 + roots[i] * 0.4;
+    t.rough[i] = 0.92;
+  }
+};
+
+/**
+ * Verkohlte Borke: „Krokodilhaut“ aus senkrecht gestreckten Kohleplatten mit tiefen schwarzen Fugen, dazu lange
+ * Längsrisse; Plattenoberseiten leicht silbrig (Asche) und matt-glänzend. o: { cells, cellsY, ash }
+ */
+G.charbark = (t, r, o) => {
+  const { S, n } = t;
+  const plate = hex(o.plate || '#1f1d1b'), plateL = hex('#3b3835'), ashC = hex(o.ashC || '#6e6b66'), gap = hex('#040404');
+  // zwei Zellgrößen: große, senkrecht gestreckte Blöcke + feinere Unterteilung (Querrisse) darin
+  const w = worley(S, o.cells || 9, r, { cy: o.cellsY || 7, jitter: 1 });
+  const w2 = worley(S, 14, r, { cy: 30, jitter: 1 });
+  const fib = fbm(S, 40, 3, r, { py: 3 }), mott = fbm(S, 3, 4, r), fine = fbm(S, 90, 2, r), gw = fbm(S, 5, 3, r);
+  const f1 = fbm(S, 5, 4, r, { py: 1 });
+  for (let i = 0; i < n; i++) {
+    const tone = 0.75 + ((w.id[i] * 2654435761) >>> 0) % 1000 / 2000; // Eigenhelligkeit je Block
+    const lift = ((w.id[i] * 40503) >>> 0) % 997 / 997;              // Eigenhöhe je Block
+    const gapW = 0.035 + gw[i] * 0.06;
+    const gapV = 1 - smooth(gapW * 0.4, gapW, w.f2[i] - w.f1[i]);
+    const sub = (1 - smooth(0.02, 0.06, w2.f2[i] - w2.f1[i])) * 0.55;
+    const dome = smooth(0.0, 0.3, w.f2[i] - w.f1[i]);
+    const fr = (f1[i] * 3) % 1, furrow = 1 - smooth(0.0, 0.035, Math.min(fr, 1 - fr));
+    const ash = smooth(0.58, 0.85, mott[i] * 0.6 + fine[i] * 0.4) * (o.ash ?? 0.45) * dome;
+    let c = mixC(plate, plateL, dome * 0.35 + (fib[i] - 0.5) * 0.35).map(v => v * tone);
+    c = mixC(c, ashC, ash);
+    c = mixC(c, gap, Math.max(gapV, sub * 0.7, furrow * 0.4));
+    t.set(i, c[0], c[1], c[2]);
+    t.height[i] = dome * 0.6 + lift * 0.35 - gapV * 1.0 - sub * 0.4 - furrow * 0.45 + fib[i] * 0.12;
+    t.rough[i] = 0.68 + fine[i] * 0.14 + gapV * 0.2 + ash * 0.1;
+  }
+};
+
+/** Verwittertes Totholz ohne Rinde: silbergraue, lange Fasern, feine Trockenrisse, braune Adern. o: { base, light } */
+G.deadwood = (t, r, o) => {
+  const { S, n } = t, px = S / 256;
+  const base = hex(o.base || '#625e58'), light = hex(o.light || '#8f8a81'), dark = hex('#2e2a26'), brown = hex('#5c4a3a');
+  const fib = fbm(S, 60, 3, r, { py: 2 }), grain = fbm(S, 12, 4, r, { py: 1 }), mott = fbm(S, 3, 4, r);
+  // gerade Längsrisse (u = Umfang, v = Länge): je Riss eine Spalte mit leichtem Versatz, Länge 15–60 % der Kachel
+  const cracks = new Float32Array(n);
+  for (let c = 0, cn = Math.round(S * 0.12); c < cn; c++) {
+    let x = r() * S; const y0 = r() * S, len = S * (0.15 + r() * 0.45), wv = 0.4 + r() * 0.6;
+    for (let k = 0; k < len; k++) {
+      x += (r() - 0.5) * 0.35;
+      const yy = Math.floor(y0 + k) % S, xx = ((Math.floor(x) % S) + S) % S, v = wv * (1 - Math.abs(k / len - 0.5) * 1.2);
+      const o = yy * S + xx; if (v > cracks[o]) cracks[o] = v;
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    const g = (grain[i] * 7) % 1, vein = 1 - smooth(0.0, 0.08, Math.min(g, 1 - g));
+    let c = mixC(base, light, fib[i] * 0.55 + mott[i] * 0.35);
+    c = mixC(c, brown, vein * 0.35);
+    c = mixC(c, dark, cracks[i] * 0.85);
+    t.set(i, c[0], c[1], c[2]);
+    t.height[i] = fib[i] * 0.45 + vein * 0.15 - cracks[i] * 0.7;
+    t.rough[i] = 0.86 + fib[i] * 0.08;
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Materialtabelle
 // ---------------------------------------------------------------------------
 // tex: Textur-Gruppe (gen + Parameter), tile: Meter pro Kachel, surface: Oberflächentyp für Treffer/Schritte
@@ -1021,6 +1165,15 @@ export const TEX = {
   panel_wall:     { gen: 'panelWall', o: {}, normal: 2 },
   white:          { gen: 'flat', o: { base: '#f2f2f0', rough: 0.55 }, normal: 0.2 },
   water:          { gen: 'waterNormal', o: {}, normal: 4 },
+  // Brandwald (21.10.)
+  brandboden:     { gen: 'burnt', o: {}, normal: 3.2 },
+  brandboden_hell: { gen: 'burnt', o: { ash: 0.62, palette: ['#2a2723', '#36322d', '#423d36', '#4d4740'], litter: 1.2 }, normal: 3.2 },
+  asche:          { gen: 'ash', o: {}, normal: 1.8 },
+  grabenlehm:     { gen: 'clay', o: {}, normal: 3.4 },
+  grabenlehm_hell: { gen: 'clay', o: { palette: ['#6b5741', '#7d6750', '#8f7a61', '#a28c72'] }, normal: 3.4 },
+  schlamm:        { gen: 'clay', o: { palette: ['#1f1a16', '#28221c', '#302822', '#3a3129'], clods: 0.3 }, normal: 2.2 },
+  borke_verkohlt: { gen: 'charbark', o: {}, normal: 5 },
+  totholz:        { gen: 'deadwood', o: {}, normal: 3 },
 };
 
 

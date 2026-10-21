@@ -13,7 +13,7 @@ import { chromium, BASE, GL_ARGS } from './pw.mjs';
 import { writeFileSync, mkdirSync } from 'node:fs';
 
 const opt = Object.fromEntries(process.argv.slice(2).map((a) => { const [k, ...v] = a.replace(/^--/, '').split('='); return [k, v.length ? v.join('=') : true]; }));
-const MAPS = String(opt.maps || 'hafen,altstadt,werk,range,grenzland').split(',').filter(Boolean);
+const MAPS = String(opt.maps || 'hafen,altstadt,werk,range,grenzland,niemandsland,brandwald').split(',').filter(Boolean);
 const QS = String(opt.qualities || 'low,high').split(',').filter(Boolean);
 const TOP = Number(opt.top || 12);
 const OUT = String(opt.out || 'tools/out/collision-hash.json');

@@ -195,7 +195,8 @@ function wedgePrim(w, h, d) {
 function geomPrim(geometry) {
   const g = geometry.index ? geometry.toNonIndexed() : geometry;
   if (!g.attributes.normal) g.computeVertexNormals();
-  return { p: g.attributes.position.array, n: g.attributes.normal.array, uv: g.attributes.uv ? g.attributes.uv.array : null };
+  // Brandwald (21.10.): eigene Vertexfarben der Geometrie (Helligkeit je Sandsack/Brett) multiplizieren die Tönung
+  return { p: g.attributes.position.array, n: g.attributes.normal.array, uv: g.attributes.uv ? g.attributes.uv.array : null, c: g.attributes.color ? g.attributes.color.array : null };
 }
 
 // ---------------------------------------------------------------------------
@@ -302,7 +303,7 @@ export class MapBuilder {
     const aoMin = o.aoMin ?? 0.5, aoH = o.aoH ?? 1.1;
     const grad = ao && this._grad(o, center[1]);
     const flags = (o.interior === false ? 0 : F_INTERIOR) | (o.ground ? F_GROUND : 0) | (o.noise ? F_NOISE : 0);
-    const lp = prim.p, ln = prim.n, luv = prim.uv;
+    const lp = prim.p, ln = prim.n, luv = prim.uv, lc = prim.c || null;
     for (let i = 0; i < nV; i++) {
       const x = lp[i * 3], y = lp[i * 3 + 1], z = lp[i * 3 + 2];
       const wx = e[0] * x + e[4] * y + e[8] * z + e[12];
@@ -333,7 +334,8 @@ export class MapBuilder {
         if (ny < -0.6) k = 0.62;
         else if (grad && ny < 0.6) k = aoMin + (1 - aoMin) * smoothstep(0, aoH, wy - floorY);
       }
-      C[pi] = tint[0] * k; C[pi + 1] = tint[1] * k; C[pi + 2] = tint[2] * k;
+      if (lc) { C[pi] = tint[0] * k * lc[i * 3]; C[pi + 1] = tint[1] * k * lc[i * 3 + 1]; C[pi + 2] = tint[2] * k * lc[i * 3 + 2]; }
+      else { C[pi] = tint[0] * k; C[pi + 1] = tint[1] * k; C[pi + 2] = tint[2] * k; }
       FL[fi] = flags;
       pi += 3; ui += 2; fi++;
     }

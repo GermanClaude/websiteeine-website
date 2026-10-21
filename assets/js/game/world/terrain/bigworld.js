@@ -26,6 +26,7 @@ import { TerrainCollider } from './collide.js';
 import { TerrainChunks, createFarRing } from './chunks.js';
 import { createTerrainMaterial } from './splat.js';
 import { Vegetation } from './vegetation.js';
+import { Deadwood } from './deadwood.js';
 import { RoadNetwork } from './roads.js';
 import { bigNavFromData } from './bignav.js';
 import { createBigMinimap } from './bigminimap.js';
@@ -34,6 +35,7 @@ import { terrainJob, worldJob } from './bigjob.js';
 const BIG_MAPS = {
   grenzland: () => import('../maps/grenzland.js'),
   niemandsland: () => import('../maps/niemandsland.js'),
+  brandwald: () => import('../maps/brandwald.js'),
 };
 export const BIG_MAP_IDS = Object.keys(BIG_MAPS);
 
@@ -212,7 +214,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   group.name = 'world:' + id;
   const tM = performance.now();
   const tLib = performance.now();
-  const tmat = await createTerrainMaterial({ hf, quality, lib, libOk, getMaterial, tier: lib.stats?.tier?.texture });
+  const tmat = await createTerrainMaterial({ hf, quality, lib, libOk, getMaterial, tier: lib.stats?.tier?.texture, look: def.terrainLook || null });
   ms.terrainLib = Math.round(performance.now() - tLib);
   const chunks = new TerrainChunks(hf, tmat.material, { steps: tier.steps, dists: tier.dists, chunk: 128 });
   await chunks.build((p) => progress(0.55 + p * 0.05, 'Gelände-Kacheln'));
@@ -265,6 +267,10 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   const veg = new Vegetation({ hf, spec: def.vegetation, quality, tier, blocked, bounds: pb, fields: def.terrain?.fields || [] });
   const vegCol = veg.colliders();
   group.add(veg.build(getMaterial));
+  // Brandwald (21.10.): verkohltes Totholz – Kollision wie Bäume auf jeder Stufe gleich, Optik nah/fern je Stufe
+  const dead = def.deadwood ? new Deadwood({ hf, spec: def.deadwood, quality, tier, blocked, bounds: pb }) : null;
+  const deadCol = dead ? dead.colliders() : null;
+  if (dead) group.add(dead.build(getMaterial));
   ms.vegetation = Math.round(performance.now() - tV);
 
   // 5) Kollision/Kugeln/Navigation im Worker
@@ -284,6 +290,11 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   bulList.push(vegCol.bullet);
   const vd = new Uint32Array(vegCol.bullet.length / 9).fill(2 | (vegObj << 8)); // Holz/Fels: 'wood'
   datList.push(vd);
+  if (dead) {
+    const deadObj = objects.push(dead.group) - 1;
+    colList.push(deadCol.col); bulList.push(deadCol.bullet);
+    datList.push(new Uint32Array(deadCol.bullet.length / 9).fill(2 | (deadObj << 8)));
+  }
   const wallRect = { minX: pb.minX - (def.wallMargin ?? 45), maxX: pb.maxX + (def.wallMargin ?? 45), minZ: pb.minZ - (def.wallMargin ?? 45), maxZ: pb.maxZ + (def.wallMargin ?? 45) };
   colList.push(boundaryWalls(wallRect, -20, 140));
   const colTris = concatF32(colList), bulletTris = concatF32(bulList);
@@ -337,7 +348,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
     hdri, heightFog: fxOn && def.lighting.fog?.density != null,
     far: !fxOn || def.lighting.shadow?.far === false ? null : {
       bounds: { minX: pb.minX - 10, maxX: pb.maxX + 10, minZ: pb.minZ - 10, maxZ: pb.maxZ + 10, minY: Math.min(hf.waterY - 4, pb.minY ?? -8), maxY: def.lighting.shadow?.farMaxY ?? 60 },
-      exclude: () => [veg.group, water.mesh || water].filter(Boolean),
+      exclude: () => [veg.group, dead?.group, water.mesh || water].filter(Boolean),
       prepare: () => { for (const s of sites) s.built.props?.showAll(); },
     },
   });
@@ -433,7 +444,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
     mapImage: minimap.canvas,
     stats: {
       totalMs: 0, ms, worker: job.ms, usesWorker, quality,
-      nav: nav.stats, roads: roads.stats, vegetation: veg.stats, terrain: chunks.stats, terrainSource: tmat.source,
+      nav: nav.stats, roads: roads.stats, vegetation: veg.stats, deadwood: dead?.stats || null, terrain: chunks.stats, terrainSource: tmat.source,
       colliderTris: colTris.length / 9, bulletTris: bulletTris.length / 9,
       meshes: sites.reduce((n, s) => n + s.built.stats.meshes, 0), triangles: sites.reduce((n, s) => n + s.built.stats.triangles, 0),
       sites: sites.map(s => ({ id: s.def.id, meshes: s.built.stats.meshes, triangles: s.built.stats.triangles })),
@@ -518,6 +529,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
       if (camera.isPerspectiveCamera && camera.far < tier.view + 60) { camera.far = tier.view + 60; camera.updateProjectionMatrix(); }
       chunks.update(camera);
       veg.update(camera);
+      dead?.update(camera);
       for (const s of sitesVis) {
         const vis = Math.hypot(camera.position.x - s.x, camera.position.z - s.z) - s.rad < tier.siteCull;
         if (s.group.visible !== vis) s.group.visible = vis;
@@ -555,7 +567,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
         s.res.dispose?.();
       }
       chunks.dispose(); farRing.geometry.dispose(); tmat.dispose();
-      veg.dispose(); water.dispose();
+      veg.dispose(); dead?.dispose(); water.dispose();
       group.traverse(o => { if (o.name === 'roads-asphalt') { o.geometry.dispose(); o.material.dispose(); } });
       atmos?.dispose();
       world._sceneWatch?.stop(); world._unbindShading?.(); resetShading();
@@ -575,7 +587,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   // erste Kamera-Stellung: Gelände-LOD + Vegetation am ersten Startpunkt vorbereiten
   const cam0 = new THREE.PerspectiveCamera(70, 1.7, 0.1, 900);
   const s0 = spawns.A[0] || spawns.ffa[0];
-  if (s0) { cam0.position.copy(s0.position).add(new THREE.Vector3(0, 1.7, 0)); chunks.update(cam0, 64); veg.update(cam0, true); }
+  if (s0) { cam0.position.copy(s0.position).add(new THREE.Vector3(0, 1.7, 0)); chunks.update(cam0, 64); veg.update(cam0, true); dead?.update(cam0, true); }
   // atmosphere-weather: Welt-Shading (Höhennebel, Fernschatten, spekulares AA; ohne Sonden-Gitter) + Staub/Strahlen
   let atmos = null;
   if (fxOn) try {

@@ -19,7 +19,7 @@ import { eligible as feedbackUnlocked } from '../../shared/feedback.js';
 
 const DIFF_ORDER = ['rekrut', 'regulaer', 'veteran', 'elite'];
 const STAT_LABELS = [['damage', 'Schaden'], ['fireRate', 'Kadenz'], ['range', 'Reichweite'], ['accuracy', 'Präzision'], ['mobility', 'Mobilität'], ['control', 'Kontrolle']];
-const MAP_PREP = { hafen: 'im', altstadt: 'in der', werk: 'im', range: 'am', grenzland: 'im' };
+const MAP_PREP = { hafen: 'im', altstadt: 'in der', werk: 'im', range: 'am', grenzland: 'im', brandwald: 'im' };
 const LENGTHS = [['kurz', 'Kurz'], ['standard', 'Standard'], ['lang', 'Lang']];
 
 export class Lobby {

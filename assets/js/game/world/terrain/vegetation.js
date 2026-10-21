@@ -646,7 +646,8 @@ export class Vegetation {
       }
     }
     // Grasring (eigene Halme statt Laub-Atlas: liest sich auf Wiesen besser und braucht keinen Alpha-Test)
-    if (t.grass > 0) {
+    // spec.grass === false: kein Grasring (Brandwald: die Grundschicht ist Brandboden, kein Gras)
+    if (t.grass > 0 && this.spec.grass !== false) {
       const R = t.grass, look = GRASS_LOOK[q] || GRASS_LOOK.high;
       // gl-ground: Farbe ab 40 % des Radius zum Boden, Höhe ab 62 % weich auf 0 (Rand je Horst ±10 % versetzt)
       const gm = grassMaterial([R * 0.4, R * 0.82, R * 0.62, R * 0.95]);

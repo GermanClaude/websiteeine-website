@@ -175,18 +175,25 @@ export async function createTerrainMaterial(o) {
   const { hf, quality } = o;
   const low = quality === 'low';
   const useNormals = !low;
+  // Kartenlook (def.terrainLook, Brandwald 21.10.): Schichten je Karte durch eigene prozedurale Sätze ersetzen
+  // ({ layers: { grass: 'brandboden', … }, sizes: { grass: 3.4 }, meadow: false, rockTint: [r, g, b] }) – ersetzte
+  // Schichten nehmen keinen Fotoscan aus der Bibliothek; ohne Wiesenfarbe (meadow: false) bleibt die Grundschicht neutral
+  const look = o.look || null;
+  const LAYERS = TERRAIN_LAYERS.map(l => (look?.layers?.[l.key] ? { ...l, lib: null, proc: look.layers[l.key], size: look.sizes?.[l.key] ?? l.size } : l));
+  const meadow = look?.meadow !== false;
+  const rockTint = look?.rockTint || [0.62, 0.6, 0.56];
   // Texturen: Bibliothek (KTX2) oder prozedural
   const maps = new Array(TERRAIN_LAYERS.length).fill(null), normals = new Array(TERRAIN_LAYERS.length).fill(null);
-  const sizes = TERRAIN_LAYERS.map(l => l.size);
+  const sizes = LAYERS.map(l => l.size);
   // env-look: Kalibrierung der Fotoscan-Albedos wie bei den Karten-Materialien (LIB_MATERIALS.color; Kies war ×1 → weiß)
   const cal = TERRAIN_LAYERS.map(() => 1);
   let source = 'prozedural';
   const libIds = [];
   if (o.libOk && o.lib) {
-    const plan = new Map(TERRAIN_LAYERS.map(l => ['gelaende:' + l.key, { id: l.lib, tier: o.tier || 1024 }]));
+    const plan = new Map(LAYERS.filter(l => l.lib).map(l => ['gelaende:' + l.key, { id: l.lib, tier: o.tier || 1024 }]));
     try {
-      const r = await o.lib.load({ names: [...plan.keys()], plan, models: [] });
-      TERRAIN_LAYERS.forEach((l, k) => {
+      const r = plan.size ? await o.lib.load({ names: [...plan.keys()], plan, models: [] }) : { sets: new Map() };
+      LAYERS.forEach((l, k) => {
         const set = r.sets.get('gelaende:' + l.key);
         if (!set) return;
         maps[k] = set.map; normals[k] = set.normalMap;
@@ -200,7 +207,7 @@ export async function createTerrainMaterial(o) {
       if (libIds.length) source = libIds.length === TERRAIN_LAYERS.length ? 'bibliothek' : 'gemischt';
     } catch { /* prozedural */ }
   }
-  TERRAIN_LAYERS.forEach((l, k) => {
+  LAYERS.forEach((l, k) => {
     if (maps[k]) return;
     const m = o.getMaterial(l.proc);
     maps[k] = m.map || null; normals[k] = m.normalMap || null;
@@ -214,7 +221,8 @@ export async function createTerrainMaterial(o) {
     tSize: { value: hf.size + hf.res },
     tWaterY: { value: hf.waterY },
     tScale: { value: sizes.map(s => 1 / s) },
-    tRough: { value: TERRAIN_LAYERS.map(l => l.rough) },
+    tRough: { value: LAYERS.map(l => l.rough) },
+    tRockTint: { value: new THREE.Vector3(...rockTint) },
     tCal: { value: cal },
     // RG: feine Detailnormalen nah an der Kamera (Kopie der geteilten Karte aus engine/textures.js), BA: Gelände-Rauschen
     tNoise: { value: noiseTexture(low ? 1 : 4) },
@@ -233,7 +241,7 @@ export async function createTerrainMaterial(o) {
   mat.name = 'terrain';
   mat.userData.surface = 'grass';
   mat.polygonOffset = true; mat.polygonOffsetFactor = 1; mat.polygonOffsetUnits = 2; // Straßen/Plätze liegen knapp darüber
-  mat.defines = { TERR_NORMALS: haveNormals ? 1 : 0, TERR_ANTITILE: low ? 0 : 1, TERR_DETAIL: 1 };
+  mat.defines = { TERR_NORMALS: haveNormals ? 1 : 0, TERR_ANTITILE: low ? 0 : 1, TERR_DETAIL: 1, TERR_MEADOW: meadow ? 1 : 0 };
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, uniforms);
     sh.vertexShader = 'varying vec3 vTW;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
@@ -244,7 +252,7 @@ export async function createTerrainMaterial(o) {
       #if TERR_NORMALS
       uniform sampler2D tNor0, tNor1, tNor2;
       #endif
-      uniform vec2 tOrigin; uniform float tSize; uniform float tWaterY; uniform float tScale[5]; uniform float tRough[5]; uniform float tCal[5];
+      uniform vec2 tOrigin; uniform float tSize; uniform float tWaterY; uniform float tScale[5]; uniform float tRough[5]; uniform float tCal[5]; uniform vec3 tRockTint;
       uniform sampler2D tNoise;
       vec3 gTerrN; float gTerrRough;
       ${TERRAIN_NOISE_GLSL}
@@ -303,6 +311,7 @@ export async function createTerrainMaterial(o) {
         bool tFar = camD > 135.0;
         vec2 tW = (n2 - 0.5) * 0.9; // weiche UV-Verzerrung
         vec3 aG = tSample(tMap0, vTW.xz * tScale[0] + tW, kA, tFar) * tCal[0];
+        #if TERR_MEADOW
         // Wiesenfarbe: saftig ↔ trocken (großräumig, trockener an Hängen), feucht am Ufer
         aG *= terrMeadowTint(n1, n2, hw, steepS * 1.4);
         #if TERR_ANTITILE
@@ -312,9 +321,13 @@ export async function createTerrainMaterial(o) {
         // zertretenes Gras an Wegrändern und um Erdflecken: heller, bräunlich
         float worn = smoothstep(0.03, 0.2, c.r) * (1.0 - smoothstep(0.3, 0.7, c.r));
         aG = mix(aG, aG * vec3(1.08, 0.97, 0.74), worn * 0.8);
+        #else
+        // neutrale Grundschicht (Brandboden): großräumige Helligkeit + Flecken statt Wiesenfarbe
+        aG *= (0.86 + 0.28 * n1.y) * mix(0.88, 1.08, n3.x);
+        #endif
         vec3 aD = tSample(tMap1, vTW.xz * tScale[1] + tW, kA, tFar) * tCal[1] * mix(vec3(0.9, 0.9, 0.94), vec3(1.08, 1.03, 0.92), n1.y);
         vec3 aK = tSample(tMap2, vTW.xz * tScale[2] + tW, kA, tFar) * tCal[2];
-        vec3 aF = tSample(tMap3, vTW.xz * tScale[3] + tW, kA, tFar) * vec3(0.62, 0.6, 0.56) * tCal[3]; // Fels/Geröll dunkler (kein Schnee-Eindruck)
+        vec3 aF = tSample(tMap3, vTW.xz * tScale[3] + tW, kA, tFar) * tRockTint * tCal[3]; // Fels/Geröll dunkler (kein Schnee-Eindruck; Kartenlook rockTint)
         vec3 aM = texture2D(tMap4, vTW.xz * tScale[4] + tW).rgb * tCal[4];
         float sum = wG + wv.x + wv.y + wv.z + wv.w + 1e-4;
         vec3 alb = (aG * wG + aD * wv.x + aK * wv.y + aF * wv.z + aM * wv.w) / sum;
@@ -372,7 +385,7 @@ export async function createTerrainMaterial(o) {
         #endif
       `);
   };
-  mat.customProgramCacheKey = () => `terrain-v6-${haveNormals ? 1 : 0}-${low ? 0 : 1}`;
+  mat.customProgramCacheKey = () => `terrain-v7-${haveNormals ? 1 : 0}-${low ? 0 : 1}-${meadow ? 1 : 0}`;
   return {
     material: mat, uniforms, libIds, source,
     dispose() { ctrl.dispose(); mat.dispose(); noiseTex?.dispose(); },

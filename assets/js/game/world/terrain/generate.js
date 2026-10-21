@@ -300,7 +300,9 @@ export async function generateTerrain(spec, { onProgress } = {}) {
   //     oder Klettern zu verlassen), Brustwehr aus Aushub davor/dahinter, Ausstiegsrampen `ramps` [[x, z], …] (r 3 m)
   const H0 = spec.trenches?.length || spec.craters ? Float32Array.from(H) : null;
   for (const tr of spec.trenches || []) {
-    const line = sampleSpline(tr.pts, 1.5), hw = (tr.width ?? 2.2) / 2, depth = tr.depth ?? 2.0, wallW = 0.45, par = 1.6;
+    // revet (m): Sohle im Gelände um so viel breiter ausheben – die eigentliche, senkrechte Grabenwand steht dann als
+    // Bauteil (Kartendatei) bei hw davor und deckt den Spalt mit einer Bodenkappe ab (Raster 1 m kann keine Steilwand)
+    const line = sampleSpline(tr.pts, 1.5), hw = (tr.width ?? 2.2) / 2 + (tr.revet || 0), depth = tr.depth ?? 2.0, wallW = 0.45, par = 1.6;
     polyField(hf, line, hw + wallW + par + 0.5, dist, along);
     for (let o = 0; o < N; o++) {
       const d = dist[o];
@@ -314,7 +316,11 @@ export async function generateTerrain(spec, { onProgress } = {}) {
       else if (d < hw + wallW) h = lerp(base - dep, base + 0.3, (d - hw) / wallW);
       else h = base + 0.45 * Math.sin(Math.min(1, (d - hw - wallW) / par) * Math.PI) * (dep / depth); // Brustwehr
       if (d < hw + wallW) H[o] = Math.min(H[o], h); else H[o] = Math.max(H[o], h);
-      if (d < hw + wallW + 0.6) splat[o * 4 + 3] = Math.max(splat[o * 4 + 3], d < hw ? 230 : 160);
+      if (spec.burnt) {
+        // Brandwald: Sohle Schlamm, Wände/Brustwehr Grabenlehm (Aushub), weich auslaufend
+        if (d < hw - 0.15 - (tr.revet || 0)) splat[o * 4 + 3] = Math.max(splat[o * 4 + 3], 215);
+        if (d > hw - 0.4 && d < hw + wallW + par * 0.9) splat[o * 4] = Math.max(splat[o * 4], Math.round(255 * (d < hw + wallW + 0.3 ? 0.95 : 0.6 * (1 - smoothstep(hw + wallW, hw + wallW + par, d)))));
+      } else if (d < hw + wallW + 0.6) splat[o * 4 + 3] = Math.max(splat[o * 4 + 3], d < hw ? 230 : 160);
     }
     await breathe();
   }
@@ -339,8 +345,8 @@ export async function generateTerrain(spec, { onProgress } = {}) {
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       const x = minX + i * res, z = minZ + j * res, o = j * n + i;
       const d = Math.hypot(x - cxp, z - czp) + noise(x / 2.3, z / 2.3) * r * 0.08;
-      if (d < r) { const q = d / r; H[o] -= dep * (1 - q * q); splat[o * 4 + 3] = Math.max(splat[o * 4 + 3], Math.round(200 * (1 - q))); }
-      else if (d < ext) { H[o] += dep * 0.28 * Math.sin(((d - r) / (ext - r)) * Math.PI); splat[o * 4] = Math.max(splat[o * 4], 180); }
+      if (d < r) { const q = d / r; H[o] -= dep * (1 - q * q); splat[o * 4 + 3] = Math.max(splat[o * 4 + 3], Math.round(200 * (1 - q))); if (spec.burnt) splat[o * 4] = Math.max(splat[o * 4], Math.round(170 * q)); }
+      else if (d < ext) { H[o] += dep * 0.28 * Math.sin(((d - r) / (ext - r)) * Math.PI); splat[o * 4] = Math.max(splat[o * 4], spec.burnt ? Math.round(200 * (1 - (d - r) / (ext - r))) : 180); }
     }
   }
   if (crList.length) await breathe();
@@ -368,6 +374,15 @@ export async function generateTerrain(spec, { onProgress } = {}) {
       let gravel = splat[s4 + 1] / 255;
       if (h < waterY - 0.3) gravel = Math.max(gravel, 0.45);
       let dr = Math.max(splat[s4] / 255, dirt);
+      if (spec.burnt) {
+        // Brandwald (21.10.): Grundschicht = Brandboden (Kanal „Gras“), Asche in Flecken (Kanal Kies), hellere,
+        // aschegraue Brandflächen großräumig und an Hängen (Kanal Fels), Aushub/Lehm (Erde) nur aus Gräben/Trichtern
+        const bt = spec.burnt;
+        gravel = Math.max(gravel, (bt.ash ?? 0.7) * smoothstep(0.56, 0.78, fbm(noise2, x / 17, z / 17, 3) + noise(x / 5.5, z / 5.5) * 0.05));
+        rock = Math.max(smoothstep(0.24, 0.5, steep) * 0.5, (bt.light ?? 0.7) * smoothstep(0.5, 0.78, fbm(noise, x / 48 + 3.1, z / 48 - 1.7, 3)));
+        dr = splat[s4] / 255 + (bt.dirt ?? 0.12) * smoothstep(0.62, 0.85, fbm(noise2, x / 26 + 7, z / 26, 3));
+        mud = Math.max(mud, (bt.mud ?? 0.35) * smoothstep(0.66, 0.86, fbm(noise, x / 14 - 5, z / 14 + 2, 3)));
+      }
       if (spec.wasteland) { // Ödland: zerwühlte Erde statt Wiese, Schlammflecken
         dr = Math.max(dr, spec.wasteland.dirt - 0.12 * Math.max(0, noise(x / 31, z / 31))); // kaum Grasreste
         mud = Math.max(mud, spec.wasteland.mud * smoothstep(0.35, 0.8, fbm(noise2, x / 22, z / 22, 3)));
