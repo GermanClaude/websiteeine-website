@@ -383,6 +383,8 @@ export function groundDetails(b, ctx, o = {}) {
     b.decal(mx, my + lvl, mz, rr * (1.6 + rnd() * 0.5), rr * (1.3 + rnd() * 0.4), 'puddle', { opacity: 0.92, ry: rnd() * TAU });
     if (++n > 160) break;
   }
+  // Fahrzeugwracks
+  (o.wrecks || []).forEach(([x, z, ry, kind], i) => burntWreck(b, x, H(x, z) - 0.05, z, ry, kind, i + 1));
   // Stacheldraht
   for (const wv of o.wire || []) {
     for (let x = wv.x0; x < wv.x1; x += 3) {
@@ -608,6 +610,69 @@ export function timberYard(b, cx, cz, y0) {
   b.cyl(cx - 2, y0 + 1.15, cz + 2, 0.45, 0.04, 'metal_rust', { axis: 'z', tint: '#6b5a4c', collide: false, minimap: false, seg: 18 });
   for (let i = 0; i < 12; i++) b.box(cx + (r() - 0.5) * 18, y0 + 0.05 + r() * 0.1, cz + (r() - 0.5) * 14, 2.5 + r() * 1.5, 0.05, 0.22, 'wood_planks', { ry: r() * TAU, rz: (r() - 0.5) * 0.15, tint: r() < 0.5 ? '#3d342c' : '#5a4c3e', minimap: false, collide: false });
   barrelGroup(b, cx + 12, cz + 8, { n: 3 });
+}
+
+// ---------------------------------------------------------------------------
+// Ausgebrannte Fahrzeugwracks (eigene Modelle)
+// ---------------------------------------------------------------------------
+/** Brandfarben: verkohlt (schwarz), Rost (orange-braun), Asche/ausgeglüht (grauweiß) – je Teil gestreut. */
+const BURN = ['#1c1a18', '#26221f', '#2b2724', '#1f1d1b', '#4a3a2e', '#5c4a3c', '#6b655e', '#33302c'];
+
+/**
+ * Ausgebrannter Pritschenwagen: Leiterrahmen, Fahrerhaus als Blechschale ohne Scheiben (eine Tür fehlt, Dach
+ * eingedrückt), Motorblock unter fehlender Haube, Pritsche ohne Bretter (nur Rahmen, verkohlte Reste), Felgen ohne
+ * Reifen (eine Seite tiefer – Wrack schief). kind 'lkw' | 'pkw' (ausgebrannter Kombi). Kollision grob (Quader).
+ */
+export function burntWreck(b, x, y, z, ry, kind = 'lkw', seed = 1) {
+  const r = rngOf(seed * 7717 + 3);
+  const tilt = 0.04 + r() * 0.05;
+  const f = (lx, ly, lz) => { const c = Math.cos(ry), s = Math.sin(ry); return [x + lx * c + lz * s, y + ly + lx * tilt, z - lx * s + lz * c]; };
+  const col = () => BURN[Math.floor(r() * BURN.length)];
+  const panel = (lx, ly, lz, w, h, d, o = {}) => { const [px, py, pz] = f(lx, ly, lz); b.box(px, py, pz, w, h, d, o.mat || (r() < 0.25 ? 'metal_rust' : 'metal_painted'), { ry, rz: tilt + (o.rz || 0), rx: o.rx || 0, tint: o.tint || col(), collide: false, minimap: false, grad: false, uv: 'local' }); };
+  const rim = (lx, lz, rr) => { const [px, py, pz] = f(lx, rr * 0.8, lz); b.cyl(px, py, pz, rr, 0.2, 'metal_rust', { axis: 'x', ry, tint: '#4a3a2e', collide: false, minimap: false, seg: 12 }); b.cyl(px, py, pz, rr * 0.45, 0.24, 'metal_rust', { axis: 'x', ry, tint: '#2a2420', collide: false, minimap: false, seg: 8 }); };
+  if (kind === 'pkw') {
+    const L = 4.5, W = 1.75;
+    panel(0, 0.28, 0, W, 0.45, L);                                        // Wanne/Schweller
+    panel(0, 0.72, 1.55, W - 0.05, 0.12, 1.3, { rx: -0.08 });            // Motorhaube (verzogen)
+    panel(0, 0.72, -1.7, W - 0.05, 0.1, 1.0);                             // Heckdeckel
+    for (const sx of [-1, 1]) for (const zz of [0.85, -0.2, -1.2]) panel(sx * (W / 2 - 0.05), 0.75, zz, 0.06, 0.62, 0.08); // Säulen
+    panel(0, 1.33, -0.2, W - 0.15, 0.05, 2.1, { rz: 0.03, rx: 0.04 });   // Dach (eingesackt)
+    for (const sx of [-1, 1]) panel(sx * (W / 2 - 0.02), 0.32, -0.2, 0.04, 0.42, 2.0);  // Türbleche unten
+    panel(0, 0.45, 1.9, 0.7, 0.4, 0.5, { mat: 'metal_galvanized', tint: '#3d3530' });  // Motor
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) rim(sx * (W / 2 - 0.12), sz * 1.4, 0.24);
+    const [cx, cy, cz] = f(0, 0, 0);
+    b.solid(cx, cy, cz, W, 1.35, L, { ry, minimap: 'vehicle' });
+    return;
+  }
+  // Pritschenwagen
+  const W = 2.1, cabZ = 2.0;
+  for (const sx of [-0.45, 0.45]) panel(sx, 0.55, -0.4, 0.14, 0.2, 6.2, { tint: '#2a221d' });          // Leiterrahmen
+  for (let k = 0; k < 5; k++) panel(0, 0.57, -3 + k * 1.4, 1.05, 0.12, 0.1, { tint: '#2a221d' });       // Quertraversen
+  // Fahrerhaus: Boden, Rückwand, Dach (eingedrückt), Seitenwände (Tür links fehlt), Front mit Kühlergrill
+  panel(0, 0.85, cabZ, W, 0.08, 1.7);
+  panel(0, 0.9, cabZ - 0.82, W, 1.5, 0.06);
+  panel(0, 2.25, cabZ, W - 0.1, 0.06, 1.6, { rx: 0.06, rz: -0.05 });
+  panel(W / 2 - 0.03, 0.9, cabZ, 0.05, 0.75, 1.6);
+  panel(W / 2 - 0.03, 1.65, cabZ - 0.55, 0.05, 0.6, 0.12);
+  panel(W / 2 - 0.03, 1.65, cabZ + 0.75, 0.05, 0.6, 0.1);
+  panel(-W / 2 + 0.03, 0.9, cabZ - 0.6, 0.05, 1.35, 0.15);
+  panel(-W / 2 + 0.03, 1.65, cabZ + 0.75, 0.05, 0.6, 0.1);
+  panel(0, 0.9, cabZ + 0.84, W, 0.75, 0.06);
+  for (let k = 0; k < 5; k++) panel(-0.6 + k * 0.3, 0.98, cabZ + 0.89, 0.06, 0.45, 0.04, { tint: '#3a332d' }); // Grill
+  panel(0, 0.62, cabZ + 0.95, W + 0.05, 0.16, 0.1, { tint: '#2a2420' });                                       // Stoßstange
+  panel(0, 1.0, cabZ + 0.2, 0.75, 0.55, 0.9, { mat: 'metal_galvanized', tint: '#3a332e' });                     // Motor
+  panel(0.35, 1.0, cabZ - 0.25, 0.5, 0.06, 0.45, { tint: '#1e1c1a', rx: 0.3 });                                 // Sitzgerippe
+  // Pritsche: Rahmen und Bordwände halb, verkohlte Bretterreste
+  panel(0, 0.75, -1.6, W, 0.1, 3.9, { tint: '#2c2620' });
+  for (const sx of [-1, 1]) panel(sx * (W / 2 - 0.02), 0.85, -1.6, 0.05, 0.5, 3.9, { rz: sx * 0.08 });
+  panel(0, 0.85, -3.55, W, 0.45, 0.05, { rx: 0.35 });
+  for (let k = 0; k < 6; k++) if (r() < 0.6) panel(-0.8 + k * 0.32, 0.86, -1.6 + (r() - 0.5) * 1.5, 0.22, 0.04, 0.8 + r() * 1.6, { mat: 'borke_verkohlt', tint: '#2a2622', rx: (r() - 0.5) * 0.1 });
+  for (const sx of [-1, 1]) { rim(sx * 0.95, cabZ + 0.1, 0.42); rim(sx * 0.95, -2.3, 0.42); }
+  // Kollision: Fahrerhaus + Pritsche
+  { const [cx, cy, cz] = f(0, 0, cabZ); b.solid(cx, cy, cz, W, 2.3, 1.9, { ry, minimap: 'vehicle' }); }
+  { const [cx, cy, cz] = f(0, 0, -1.6); b.solid(cx, cy, cz, W, 1.3, 4.0, { ry, minimap: 'vehicle' }); }
+  // Brandfleck am Boden
+  b.decal(x, y + 0.02, z, 4.5, 8, 'stain', { ry, opacity: 0.8, tint: '#141210' });
 }
 
 // ---------------------------------------------------------------------------

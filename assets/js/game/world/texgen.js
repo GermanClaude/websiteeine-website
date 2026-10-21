@@ -1009,7 +1009,7 @@ G.burnt = (t, r, o) => {
 /** Asche: hellgraues, pudriges Feld mit dunklen Kohlekrümeln und feinen Trockenrissen. */
 G.ash = (t, r, o) => {
   const { S, n } = t, px = S / 512;
-  const base = hex(o.base || '#6f6b65'), dark = hex('#3a3733'), light = hex('#8e8981');
+  const base = hex(o.base || '#55524d'), dark = hex('#2f2c29'), light = hex('#6c6862');
   const a = fbm(S, 5, 5, r), b = fbm(S, 48, 3, r);
   const crumbs = speckle(S, r, Math.round(n * 0.003), 0.5 * px, 1.6 * px);
   const w = worley(S, 12, r), cm = fbm(S, 4, 3, r);

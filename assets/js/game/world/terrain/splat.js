@@ -207,6 +207,8 @@ export async function createTerrainMaterial(o) {
       if (libIds.length) source = libIds.length === TERRAIN_LAYERS.length ? 'bibliothek' : 'gemischt';
     } catch { /* prozedural */ }
   }
+  // Kartenlook: Helligkeit je Schicht (z. B. Brandwald: Aushub/Lehm dunkler, passend zu den Grabenwänden)
+  if (look?.cal) LAYERS.forEach((l, k) => { if (Number.isFinite(look.cal[l.key])) cal[k] *= look.cal[l.key]; });
   LAYERS.forEach((l, k) => {
     if (maps[k]) return;
     const m = o.getMaterial(l.proc);

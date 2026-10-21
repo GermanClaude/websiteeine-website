@@ -47,6 +47,10 @@ function lineZ(pts, x) {
 }
 const SUP_A = sampleSpline(TRENCHES[1].pts, 1.5), SUP_B = sampleSpline(TRENCHES[TRENCHES.length / 2 + 1].pts, 1.5);
 
+// Forstweg quer durch das Niemandsland (Holzplatz ↔ Gewächshäuser), ausgebrannte Wracks am Weg und im Wald
+const FORSTWEG = [[-205, 26], [-160, 8], [-118, -16], [-80, -16], [-40, -4], [-4, -10], [40, -14], [80, -6], [100, -2], [135, 2], [205, -18]];
+const WRECKS = [[30, -8, 1.75, 'lkw'], [-52, 16, 1.4, 'pkw'], [140, -12, 2.9, 'lkw'], [-160, 64, 0.4, 'pkw']];
+
 // Stromtrasse (Masten alle ≈ 70 m, quer durch das Niemandsland)
 export const POWER_LINE = [[-300, -70], [-215, -48], [-140, -28], [-70, -8], [0, 10], [72, 30], [145, 50], [220, 70], [300, 92]];
 
@@ -77,6 +81,7 @@ export default {
     layers: { grass: 'brandboden', dirt: 'grabenlehm', gravel: 'asche', rock: 'brandboden_hell', mud: 'schlamm' },
     sizes: { grass: 3.4, dirt: 2.8, gravel: 2.6, rock: 3.6, mud: 2.6 },
     meadow: false, rockTint: [1, 1, 1],
+    cal: { dirt: 0.6, gravel: 0.85 },
   },
 
   terrain: {
@@ -93,6 +98,7 @@ export default {
       { x: 0, z: -HQZ - 6, w: 70, d: 26, y: 0.4, blend: 14, worn: false }, // Basis B
     ],
     trenches: TRENCHES,
+    roads: [{ id: 'forstweg', name: 'Forstweg', kind: 'dirt', width: 3.8, pts: FORSTWEG }],
     craters: {
       seed: 2111, count: 420, area: { minX: -175, maxX: 175, minZ: -84, maxZ: 84 }, r: [1.2, 5.5], depth: [0.4, 1.6],
       avoid: [[FRONT, 6], [-FRONT, 6]],
@@ -124,7 +130,7 @@ export default {
   ],
   lateSites: [
     { id: 'front', name: 'Gräben', bounds: { minX: -180, maxX: 180, minZ: -180, maxZ: 180 }, chunkSize: 60, build: (b, ctx) => trenchWorks(b, ctx, TRENCHES, { front: FRONT }) },
-    { id: 'boden', name: 'Pfützen und Draht', bounds: { minX: -180, maxX: 180, minZ: -180, maxZ: 180 }, chunkSize: 60, build: (b, ctx) => groundDetails(b, ctx, { area: { minX: -176, maxX: 176, minZ: -176, maxZ: 176 }, avoid: TRENCHES.map((t) => [t.pts, (t.width ?? 2) / 2 + (t.revet || 0) + 3]), wire: [{ z: FRONT - 13, x0: -165, x1: 165 }, { z: -FRONT + 13, x0: -165, x1: 165 }] }) },
+    { id: 'boden', name: 'Pfützen und Draht', bounds: { minX: -180, maxX: 180, minZ: -180, maxZ: 180 }, chunkSize: 60, build: (b, ctx) => groundDetails(b, ctx, { area: { minX: -176, maxX: 176, minZ: -176, maxZ: 176 }, avoid: TRENCHES.map((t) => [t.pts, (t.width ?? 2) / 2 + (t.revet || 0) + 3]), wire: [{ z: FRONT - 13, x0: -165, x1: 165 }, { z: -FRONT + 13, x0: -165, x1: 165 }], wrecks: WRECKS }) },
     { id: 'leitung', name: 'Stromtrasse', bounds: { minX: -320, maxX: 320, minZ: -200, maxZ: 200 }, chunkSize: 80, build: (b, ctx) => pylonLine(b, ctx, POWER_LINE, { fallen: 4 }) },
   ],
 
