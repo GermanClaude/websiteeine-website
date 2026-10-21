@@ -13,7 +13,7 @@ export class CompositeBVH {
     this.bvh = bvh;
     this.terrainObject = o.terrainObject ?? 0;
     this.count = (bvh?.count || 0) + 1;
-    this._h = { t: 0, tri: 0, nx: 0, ny: 0, nz: 0, data: 0 };
+    this._h = { t: 0, tri: 0, nx: 0, ny: 0, nz: 0, data: 0, back: false };
     this._g = { t: 0, nx: 0, ny: 1, nz: 0 };
   }
 
@@ -24,7 +24,7 @@ export class CompositeBVH {
     if (this.bvh && this.bvh.count && this.bvh.raycast(ox, oy, oz, dx, dy, dz, maxDist, anyHit ? null : h, anyHit)) {
       if (anyHit) return true;
       best = h.t; found = true;
-      if (out) { out.t = h.t; out.tri = h.tri; out.nx = h.nx; out.ny = h.ny; out.nz = h.nz; out.data = h.data; }
+      if (out) { out.t = h.t; out.tri = h.tri; out.nx = h.nx; out.ny = h.ny; out.nz = h.nz; out.data = h.data; out.back = h.back; }
     }
     const g = this._g;
     if (this.hf.raycast(ox, oy, oz, dx, dy, dz, best, anyHit ? null : g)) {
@@ -33,7 +33,7 @@ export class CompositeBVH {
         found = true;
         if (out) {
           const x = ox + dx * g.t, z = oz + dz * g.t;
-          out.t = g.t; out.tri = -1; out.nx = g.nx; out.ny = g.ny; out.nz = g.nz;
+          out.t = g.t; out.tri = -1; out.nx = g.nx; out.ny = g.ny; out.nz = g.nz; out.back = false;
           out.data = this.hf.surfaceIndexAt(x, z, oy + dy * g.t) | (this.terrainObject << 8);
         }
       }

@@ -208,8 +208,10 @@ export class TriangleBVH {
       let nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
       const l = Math.hypot(nx, ny, nz) || 1;
       nx /= l; ny /= l; nz /= l;
-      if (nx * dx + ny * dy + nz * dz > 0) { nx = -nx; ny = -ny; nz = -nz; }
-      out.t = best; out.tri = bestTri; out.nx = nx; out.ny = ny; out.nz = nz; out.data = this.data[bestTri];
+      // back: Strahl traf die Rückseite (Windung von innen) – Wanddicken-Messung (bullet-holes.js)
+      const back = nx * dx + ny * dy + nz * dz > 0;
+      if (back) { nx = -nx; ny = -ny; nz = -nz; }
+      out.t = best; out.tri = bestTri; out.nx = nx; out.ny = ny; out.nz = nz; out.data = this.data[bestTri]; out.back = back;
     }
     return true;
   }

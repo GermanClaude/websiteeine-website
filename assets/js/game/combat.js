@@ -177,6 +177,14 @@ const PENETRABLE = { wood: 0.45, glass: 0.6, fabric: 0.6, metal: 0.22, tile: 0.1
 // ab dort wachsend bis zur vollen Dicke bei 1,0); Panzerbüchsen (antiMateriel) schaffen fast doppelt so viel.
 const HARD = { concrete: 0.3, dirt: 0.35, sand: 0.3 };
 const ASSIST_WINDOW = 6;
+
+/** Durchschlag ohne Loch-System (Prüfseiten): alte Tabelle über combat._penetrate → { passed, energyLeft, thick, exitPoint }. */
+function legacyPenetration(combat, hit, dir, def) {
+  if (!((def.penetration || 0) > 0)) return null;
+  const exit = combat._penetrate(hit, dir, def.penetration || 0.3, def);
+  if (!exit) return { passed: false };
+  return { passed: true, energyLeft: Math.max(0.15, def.penetration * (1 - 0.5 * exit.thickness / Math.max(0.02, exit.max))), thick: exit.thickness, exitPoint: exit.point };
+}
 const ASSIST_MIN = 25;
 
 export class Combat {
@@ -227,41 +235,36 @@ export class Combat {
     _dir.copy(dir).normalize();
     _ray.set(_origin, _dir);
 
-    let worldHit = G.world ? G.world.raycast(_origin, _dir, maxRange) : null;
-    if (worldHit && worldHit.distance > maxRange) worldHit = null;
-    let limit = worldHit ? worldHit.distance : maxRange;
-
-    let actorHit = this._raycastActors(shooter, _ray, limit);
-    let penetrated = false;
-    let penFactor = 1;
-    // durchlöcherte Wände (wallholes.js): jeder Treffer auf feste Geometrie zählt, ab der Schwelle entsteht ein Loch
-    if (worldHit && !actorHit && G.holes) G.holes.hit(worldHit, def, _dir);
-    // bewegliche Festkörper (Türen, doors.js) nehmen Schaden – auch wenn die Kugel durchgeht
-    if (worldHit && !actorHit && worldHit.solid && typeof worldHit.solid.onHit === 'function') worldHit.solid.onHit(falloff(def, worldHit.distance) * damageScale, shooter, def);
-
-    // Durchschlag: Kugel geht durch dünne, durchlässige Deckung und trifft dahinter.
-    if (!actorHit && worldHit && ((def.penetration || 0) > 0 || (G.holes && G.holes.at(worldHit.point)))) {
-      const exit = this._penetrate(worldHit, _dir, def.penetration || 0.3, def);
-      if (exit) {
-        const remaining = maxRange - exit.distance;
-        if (remaining > 0.1) {
-          _ray.origin.copy(exit.point).addScaledVector(_dir, 0.02);
-          const behindWorld = G.world.raycast(_ray.origin, _dir, remaining);
-          const behindLimit = behindWorld ? behindWorld.distance : remaining;
-          const hit = this._raycastActors(shooter, _ray, behindLimit);
-          if (hit) {
-            hit.distance += exit.distance + 0.02;
-            actorHit = hit;
-            penetrated = true;
-            penFactor = def.penetration * (1 - 0.5 * exit.thickness / Math.max(0.02, exit.max)); // dickere Deckung bremst stärker
-            G.events.emit('impact', { point: worldHit.point.clone(), normal: worldHit.normal.clone(), surface: worldHit.surface, shooter, weaponId: def.id, penetrated: true });
-            G.events.emit('impact', { point: exit.point.clone(), normal: _dir.clone(), surface: worldHit.surface, shooter, weaponId: def.id, penetrated: true, exit: true }); // Austrittsloch
-          }
-          _ray.origin.copy(_origin);
-        }
-      }
+    // Flug in Abschnitten: Kugel trifft eine Fläche, macht dort ein Loch (bullet-holes.js) und geht – wenn das Kaliber
+    // die Restdicke schafft – mit dem Energierest weiter (bis zu drei Schichten: Planke, Wand, Fahrzeug …)
+    let segStart = 0, energy = 1, penetrated = false, limit = maxRange, actorHit = null, worldHit = null, lastWorld = null;
+    for (let layer = 0; layer < 4; layer++) {
+      const remaining = maxRange - segStart;
+      if (remaining <= 0.05) break;
+      _ray.origin.copy(_origin).addScaledVector(_dir, segStart);
+      worldHit = G.world ? G.world.raycast(_ray.origin, _dir, remaining) : null;
+      if (worldHit && worldHit.distance > remaining) worldHit = null;
+      const segLimit = worldHit ? worldHit.distance : remaining;
+      const ah = this._raycastActors(shooter, _ray, segLimit);
+      if (ah) { ah.distance += segStart; actorHit = ah; limit = ah.distance; break; }
+      if (!worldHit) { limit = maxRange; break; }
+      lastWorld = worldHit;
+      const dist = segStart + worldHit.distance;
+      limit = dist;
+      // bewegliche Festkörper (Türen) nehmen Schaden – auch wenn die Kugel durchgeht
+      if (worldHit.solid && typeof worldHit.solid.onHit === 'function') worldHit.solid.onHit(falloff(def, dist) * damageScale * energy, shooter, def);
+      const info = G.holes ? G.holes.hit(worldHit, def, _dir, dist, energy) : legacyPenetration(this, worldHit, _dir, def);
+      G.events.emit('impact', { point: worldHit.point.clone(), normal: worldHit.normal.clone(), surface: worldHit.surface || 'concrete', shooter, weaponId: def.id, penetrated: !!(info && info.passed), hole: !!(info && G.holes) });
+      if (!info || !info.passed || !info.exitPoint) break;
+      // Austritt: Splitter/Staub auf der Rückseite, weiter mit dem Rest
+      G.events.emit('impact', { point: info.exitPoint.clone(), normal: _dir.clone(), surface: worldHit.surface || 'concrete', shooter, weaponId: def.id, penetrated: true, exit: true, hole: !!G.holes });
+      penetrated = true;
+      energy *= info.energyLeft;
+      segStart = dist + info.thick + 0.02;
+      if (energy < 0.08) break;
     }
-
+    _ray.origin.copy(_origin);
+    const penFactor = energy;
     this._whiz(shooter, _origin, _dir, actorHit ? actorHit.distance : limit);
 
     if (actorHit) {
@@ -280,9 +283,8 @@ export class Combat {
       });
       return { hit: 'actor', point, distance, target, zone, normal, surface: 'flesh', damage: dealt, penetrated };
     }
-    if (worldHit) {
-      G.events.emit('impact', { point: worldHit.point, normal: worldHit.normal, surface: worldHit.surface || 'concrete', shooter, weaponId: def.id });
-      return { hit: 'world', point: worldHit.point, distance: worldHit.distance, target: null, zone: null, normal: worldHit.normal, surface: worldHit.surface, damage: 0, penetrated: false };
+    if (lastWorld) {
+      return { hit: 'world', point: lastWorld.point, distance: limit, target: null, zone: null, normal: lastWorld.normal, surface: lastWorld.surface, damage: 0, penetrated };
     }
     return { hit: null, point: _v1.copy(_dir).multiplyScalar(maxRange).add(_origin).clone(), distance: maxRange, target: null, zone: null, damage: 0, penetrated: false };
   }
@@ -311,7 +313,7 @@ export class Combat {
     let k = PENETRABLE[hit.surface];
     let f = Math.min(1, power);
     if (!k && HARD[hit.surface] && power >= 0.75) { k = HARD[hit.surface]; f = Math.pow(Math.min(1, (power - 0.7) / 0.3), 1.2); }
-    // durch ein Einschussloch (wallholes.js) geht jedes Kaliber; Panzerbüchse (.50) kommt durch fast jede Wand
+    // durch ein Einschussloch (bullet-holes.js) geht jedes Kaliber; Panzerbüchse (.50) kommt durch fast jede Wand
     if (G.holes && G.holes.at(hit.point)) { k = 1.2; f = 1; }
     if (!k && def.antiMateriel && HARD[hit.surface]) { k = HARD[hit.surface]; f = 1; }
     if (!k) return null;

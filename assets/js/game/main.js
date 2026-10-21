@@ -39,7 +39,7 @@ import { Destruction } from './destruction.js'; // zerstörbare Fassaden
 import { CarDeform } from './deform.js'; // verformbare Autos
 import { Digging } from './digging.js'; // Graben mit dem Klappspaten (Großkarten)
 import { Doors } from './doors.js'; // bewegliche Türen und Tore (Taste F)
-import { WallHoles } from './wallholes.js'; // durchlöcherte Wände
+import { BulletHoles } from './bullet-holes.js'; // Einschusslöcher mit Tiefe, Durchschuss nach Kaliber
 import * as Feedback from '../shared/feedback.js'; // Feedback an den Entwickler ab 20 Minuten Spielzeit (Nutzer 11.10.)
 
 const VERSION = '1.1.0';
@@ -1031,7 +1031,7 @@ async function runStart(config, gen) {
     safe('deform', () => { G.deform = new CarDeform(G); });
     safe('digging', () => { G.digging = new Digging(G); });
     safe('doors', () => { G.doors = new Doors(G); });
-    safe('holes', () => { G.holes = new WallHoles(G); });
+    safe('holes', () => { G.holes = new BulletHoles(G); });
     G.hud.attach(G);
     safe('audio.startAmbience', () => G.audio.startAmbience(G.world.ambience));
     G.mode.start();

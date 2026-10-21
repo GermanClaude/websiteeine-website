@@ -322,7 +322,8 @@ export class Effects {
     const nl = Math.hypot(nx, ny, nz) || 1;
     nx /= nl; ny /= nl; nz /= nl;
     // Einschussloch (verzögert: Schießstand-Klappziele melden sich im selben Ereignis)
-    if (S.decal && !opts.melee && surface !== 'flesh') this._queueDecal(px, py, pz, nx, ny, nz, S, opts);
+    // Kugeltreffer mit Loch-System (bullet-holes.js) zeichnen ihr Loch selbst (Kaliber, Tiefe, Werkstoffrand)
+    if (S.decal && !opts.melee && !opts.hole && surface !== 'flesh') this._queueDecal(px, py, pz, nx, ny, nz, S, opts);
     const lod = this._lod(px, py, pz);
     if (lod <= 0) return;
     const k = opts.melee ? 0.5 : 1;
@@ -942,7 +943,7 @@ export class Effects {
    * Dünner Rauchfaden (Glutnest, schwelender Stumpf): ein Ballen, der langsam steigt, sich weitet und mit dem Wind
    * treibt – viele davon hintereinander ergeben eine Fahne. opts: { size, life, alpha, color ([r,g,b] linear), wind ([x, z] m/s) }
    */
-  wisp(position, opts = {}) {
+  smolder(position, opts = {}) {
     if (!this._built || Math.random() > Math.max(0.5, this.scale)) return;
     const s = opts.size || 1, w = opts.wind || [0.22, 0.08];
     this._puff(position.x + rnd(-0.08, 0.08), position.y, position.z + rnd(-0.08, 0.08), w[0] + rnd(-0.06, 0.06), rnd(0.32, 0.5), w[1] + rnd(-0.06, 0.06),

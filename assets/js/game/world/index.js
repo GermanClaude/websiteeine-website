@@ -329,7 +329,7 @@ export async function loadWorld(G, mapId, opts = {}) {
   const job = await jobPromise;
   const tJob = performance.now() - tJob0;
   const bvh = TriangleBVH.fromData(job.bullet), cbvh = TriangleBVH.fromData(job.col);
-  const hit = { t: 0, tri: 0, nx: 0, ny: 0, nz: 0, data: 0 };
+  const hit = { t: 0, tri: 0, nx: 0, ny: 0, nz: 0, data: 0, back: false };
   const spawns = { A: [], B: [], ffa: [] };
   spawnSrc.forEach(({ team, s }, i) => {
     const position = new THREE.Vector3(points[i].x, job.snapped[i], points[i].z);
@@ -347,6 +347,8 @@ export async function loadWorld(G, mapId, opts = {}) {
   // Bau-Zwischendaten lösen: Die Methoden von `world` (unten) sind Closures dieser Funktion und halten deren
   // Variablen (b, built, job …) so lange wie die Welt. Dreieckslisten für Worker/Octree und die rohen Nav-Daten
   // werden nicht mehr gebraucht (die BVHs haben eigene, umsortierte Kopien); MapBuilder.build() räumt selbst auf.
+  // Albedo je Kugel-Dreieck bleibt (3 B/Dreieck): Farbe frischer Einschusskrater (bullet-holes.js über world.albedoAt)
+  const bulletAlbedo = built.bulletAlbedo;
   built.bulletTris = built.bulletData = built.colTris = built.bulletAlbedo = null;
   job.nav = null;
 
@@ -479,6 +481,7 @@ export async function loadWorld(G, mapId, opts = {}) {
           normal: new THREE.Vector3(hit.nx, hit.ny, hit.nz),
           surface: SURFACES[hit.data & 255] || 'concrete',
           object: objects[hit.data >>> 8] || null,
+          tri: hit.tri, back: !!hit.back,
         };
       }
       for (const t of targets) {
@@ -501,6 +504,14 @@ export async function loadWorld(G, mapId, opts = {}) {
         }
       }
       return best;
+    },
+
+    /** Albedo (linear 0..1) des Kugel-Dreiecks eines raycast-Treffers (hit.tri) → out [r, g, b] oder null. */
+    albedoAt(tri, out = [0, 0, 0]) {
+      if (!bulletAlbedo || tri == null || tri < 0 || tri >= bvh.count) return null;
+      const a = bvh.orig[tri] * 3;
+      out[0] = bulletAlbedo[a] / 255; out[1] = bulletAlbedo[a + 1] / 255; out[2] = bulletAlbedo[a + 2] / 255;
+      return out;
     },
 
     /** Freie Sicht zwischen zwei Punkten (Kugel-Geometrie). */

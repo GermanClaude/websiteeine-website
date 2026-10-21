@@ -296,12 +296,15 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
 
   // 5) Kollision/Kugeln/Navigation im Worker
   const objects = [chunks.group];
-  const colList = [], bulList = [], datList = [];
+  const colList = [], bulList = [], datList = [], albList = [];
+  // Albedo je Kugel-Dreieck (Einschusskrater in Wandfarbe, world.albedoAt); Bewuchs/Totholz pauschal
+  const albFill = (n, r, g, b) => { const a = new Uint8Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = r; a[i * 3 + 1] = g; a[i * 3 + 2] = b; } return a; };
   for (const s of sites) {
     const off = objects.length;
     for (const o of s.built.objects) objects.push(o);
     colList.push(s.built.colTris);
     bulList.push(s.built.bulletTris);
+    albList.push(s.built.bulletAlbedo || albFill(s.built.bulletTris.length / 9, 90, 90, 90));
     const d = new Uint32Array(s.built.bulletData.length);
     for (let i = 0; i < d.length; i++) { const v = s.built.bulletData[i]; d[i] = (v & 255) | (((v >>> 8) + off) << 8); }
     datList.push(d);
@@ -311,16 +314,20 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   bulList.push(vegCol.bullet);
   const vd = new Uint32Array(vegCol.bullet.length / 9).fill(2 | (vegObj << 8)); // Holz/Fels: 'wood'
   datList.push(vd);
+  albList.push(albFill(vd.length, 46, 36, 26));
   if (dead) {
     const deadObj = objects.push(dead.group) - 1;
     colList.push(deadCol.col); bulList.push(deadCol.bullet);
     datList.push(new Uint32Array(deadCol.bullet.length / 9).fill(2 | (deadObj << 8)));
+    albList.push(albFill(deadCol.bullet.length / 9, 16, 15, 14)); // verkohlt
   }
   const wallRect = { minX: pb.minX - (def.wallMargin ?? 45), maxX: pb.maxX + (def.wallMargin ?? 45), minZ: pb.minZ - (def.wallMargin ?? 45), maxZ: pb.maxZ + (def.wallMargin ?? 45) };
   colList.push(boundaryWalls(wallRect, -20, 140));
   const colTris = concatF32(colList), bulletTris = concatF32(bulList);
   const bulletData = new Uint32Array(bulletTris.length / 9);
   { let o = 0; for (const d of datList) { bulletData.set(d, o); o += d.length; } }
+  const bulletAlbedo = new Uint8Array(bulletData.length * 3);
+  { let o = 0; for (const a of albList) { bulletAlbedo.set(a.subarray(0, Math.min(a.length, bulletAlbedo.length - o)), o); o += a.length; } }
 
   // Punkte (Startpunkte, Flaggen, Fahrzeuge, Geheimnisse) auf den Boden setzen
   const pts = [];
@@ -437,7 +444,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   const minimap = createBigMinimap({ hf, bounds: pb, size: tier.mapPx, roads: roads.roads, footprints });
   ms.minimap = Math.round(performance.now() - tMM);
   const bounds = new THREE.Box3(new THREE.Vector3(pb.minX, pb.minY ?? -8, pb.minZ), new THREE.Vector3(pb.maxX, pb.maxY ?? 90, pb.maxZ));
-  const hit = { t: 0, tri: 0, nx: 0, ny: 0, nz: 0, data: 0 };
+  const hit = { t: 0, tri: 0, nx: 0, ny: 0, nz: 0, data: 0, back: false };
   const sitesVis = sites.map(s => {
     const r = s.def.bounds;
     return { group: s.built.group, x: (r.minX + r.maxX) / 2, z: (r.minZ + r.maxZ) / 2, rad: Math.hypot(r.maxX - r.minX, r.maxZ - r.minZ) / 2 + 20, props: s.built.props, objects: s.b.objects, res: s.res };
@@ -491,6 +498,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
           normal: new THREE.Vector3(hit.nx, hit.ny, hit.nz),
           surface: SURFACES[hit.data & 255] || 'grass',
           object: objects[hit.data >>> 8] || null,
+          tri: hit.tri, back: !!hit.back,
         };
       }
       // Wasseroberfläche (Fluss): Kugeln enden mit Spritzer
@@ -504,6 +512,13 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
         }
       }
       return best;
+    },
+    /** Albedo (linear 0..1) des Kugel-Dreiecks eines raycast-Treffers (hit.tri; Gelände −1 → null). */
+    albedoAt(tri, out = [0, 0, 0]) {
+      if (tri == null || tri < 0 || tri >= bulBVH.count) return null;
+      const a = bulBVH.orig[tri] * 3;
+      out[0] = bulletAlbedo[a] / 255; out[1] = bulletAlbedo[a + 1] / 255; out[2] = bulletAlbedo[a + 2] / 255;
+      return out;
     },
     lineOfSight(a, b2) {
       const dx = b2.x - a.x, dy = b2.y - a.y, dz = b2.z - a.z, l = Math.hypot(dx, dy, dz);
@@ -558,7 +573,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
           if ((e.t -= dt) > 0) continue;
           e.t = 0.28 + Math.random() * 0.3;
           if (e.v.distanceToSquared(camera.position) > 8100) continue;
-          G.effects.wisp(e.v, EMBER_SMOKE);
+          G.effects.smolder(e.v, EMBER_SMOKE);
         }
       }
       for (const s of sitesVis) {
