@@ -6,13 +6,13 @@ import {
 } from './dsp.js';
 
 // Abtastraten nach gemessener Bandbreite (Anteil oberhalb 0,45 · Rate ≤ ca. −40 dB)
-export const BED_RATE = { harbor: 16000, desert: 22050, industrial: 16000, range: 22050 };
+export const BED_RATE = { harbor: 16000, desert: 22050, industrial: 16000, range: 22050, burnt: 22050 };
 export const EVENT_RATE = {
   amb_gull: 22050, amb_horn: 16000, amb_creak: 16000, amb_clank: 16000, amb_dog: 16000, amb_chime: 24000, amb_flap: 22050, amb_moped: 16000,
   amb_drip: 16000, amb_steam: 32000, amb_groan: 16000, amb_arc: 32000, amb_bird: 22050, amb_crow: 16000, amb_pa: 16000, loop_drone: 24000,
-  amb_bell: 22050,
+  amb_bell: 22050, amb_crackle: 22050, amb_snap: 22050, amb_shell: 16000,
 };
-export const MAP_AMBIENCE = { hafen: 'harbor', altstadt: 'desert', werk: 'industrial', bibliothek: 'industrial', range: 'range', grenzland: 'range', niemandsland: 'range', brandwald: 'range' };
+export const MAP_AMBIENCE = { hafen: 'harbor', altstadt: 'desert', werk: 'industrial', bibliothek: 'industrial', range: 'range', grenzland: 'range', niemandsland: 'range', brandwald: 'burnt' };
 
 /** Weich interpolierte Zufallskurve (Kosinus) mit Stützstellen alle step Sekunden. */
 function smoothRandom(R, T, step, lo, hi) {
@@ -129,6 +129,23 @@ const BEDS = {
     }
     const lo = brown(n, R); filt(lo, sr, 'lowpass', 120, 0.7, 2);
     mix(L, lo, 0, 0.15); mix(Rt, lo, 0, 0.15);
+    return wrapLoop([L, Rt], n, len(sr, X));
+  },
+  // Brandwald: Wind ohne Laub (hohl, böig), leises Pfeifen an kahlen Stämmen und Aststümpfen, tiefes Grollen
+  // (ferne Front); keine Vögel/Zikaden – der Wald ist tot
+  *burnt(sr, R) {
+    const T = 24, X = 1, n = len(sr, T + X), L = new Float32Array(n), Rt = new Float32Array(n);
+    yield* wind(L, Rt, sr, R, T + X, { lo: 180, hi: 620, amp: 0.34, gust: [0.08, 1] });
+    for (const [ch, f0] of [[L, 760], [Rt, 980]]) { // Pfeifen: schmalbandig, nur in Böen
+      const w = white(n, R), fr = smoothRandom(R, T + X, 2.1, f0 * 0.85, f0 * 1.2), g = smoothRandom(R, T + X, 1.9, 0, 1);
+      yield* sweepSteps(w, sr, 'bandpass', fr, 14);
+      env(w, sr, x => Math.max(0, g(x) - 0.45) ** 2 * 3);
+      mix(ch, w, 0, 0.06); yield;
+    }
+    const lo = brown(n, R); filt(lo, sr, 'lowpass', 85, 0.7, 2);
+    const sw = smoothRandom(R, T + X, 4, 0.4, 1);
+    env(lo, sr, sw);
+    mix(L, lo, 0, 0.22); mix(Rt, lo, 0, 0.2);
     return wrapLoop([L, Rt], n, len(sr, X));
   },
 };
@@ -294,6 +311,37 @@ export const AMB_EVENTS = {
     filt(d, sr, 'bandpass', 1200, 0.6); drive(d, 2);
     return normalize(echoes(reverb(d, sr, { size: 1.6, decay: 0.8, wet: 0.5, dry: 0.6, extra: 1, stereo: false })[0], sr, [[0.42, 0.3, 1500]]), 0.7);
   },
+  // Glut knistert: Häufchen kurzer Knacker und ein leises Zischen (schwelendes Holz in der Nähe)
+  amb_crackle: (sr, R) => {
+    const T = R.range(0.8, 1.6), d = buf(sr, T + 0.3);
+    const pops = 4 + Math.floor(R() * 7);
+    for (let k = 0; k < pops; k++) {
+      const t = R() ** 1.4 * T;
+      click(d, sr, t, { dur: R.range(0.003, 0.012), tau: R.range(0.0006, 0.003), hp: R.range(900, 2500), amp: R.range(0.3, 1), R, lp: 9000 });
+    }
+    grains(d, sr, 0, { dur: T, count: 18, grainDur: [0.001, 0.004], freq: [2500, 7000], q: 1.2, amp: 0.25, R });
+    burst(d, sr, 0, { dur: T, type: 'bandpass', freq: 5200, q: 0.7, R, amp: 0.05, envFn: bell(T, 0.35) });
+    return normalize(reverb(d, sr, { size: 0.5, decay: 0.5, wet: 0.12, stereo: false })[0], 0.6);
+  },
+  // Ast bricht und schlägt auf (totes Holz gibt nach): heller Knack, Splittern, dumpfer Aufschlag
+  amb_snap: (sr, R) => {
+    const fall = R.range(0.5, 1.1), d = buf(sr, fall + 1.4);
+    click(d, sr, 0, { dur: 0.02, tau: 0.004, hp: 500, amp: 1, R, lp: 6000 });
+    grains(d, sr, 0.005, { dur: 0.12, count: 14, grainDur: [0.002, 0.01], freq: [900, 3500], q: 1.5, amp: 0.6, R });
+    modal(d, sr, 0, [[R.range(380, 520), 0.6, 0.05], [R.range(900, 1200), 0.35, 0.03]], 0.6, R);
+    burst(d, sr, fall, { dur: 0.35, type: 'lowpass', freq: 260, q: 0.8, R, amp: 0.9, color: 'brown', envFn: ad(0.004, 0.08) });
+    grains(d, sr, fall, { dur: 0.25, count: 10, grainDur: [0.003, 0.012], freq: [400, 1600], q: 1.2, amp: 0.35, R });
+    filt(d, sr, 'lowpass', 4500, 0.7);
+    return normalize(reverb(d, sr, { size: 1.4, decay: 0.78, wet: 0.35, extra: 0.8, stereo: false })[0], 0.75);
+  },
+  // Ferner Geschützdonner: dumpfer Schlag mit langem, rollendem Nachhall (Wald/Hügel)
+  amb_shell: (sr, R) => {
+    const T = 4.5, d = buf(sr, T);
+    burst(d, sr, 0, { dur: 0.6, type: 'lowpass', freq: 140, q: 0.9, R, amp: 1, color: 'brown', stages: 2, envFn: ad(0.01, 0.18) });
+    burst(d, sr, 0.02, { dur: 2.8, type: 'lowpass', freq: 90, q: 0.7, R, amp: 0.55, color: 'brown', envFn: t => (t < 0.15 ? t / 0.15 : Math.exp(-(t - 0.15) / 0.9)) * (0.75 + 0.25 * Math.sin(t * 7.3)) });
+    const e = echoes(d, sr, [[0.7, 0.35, 220], [1.6, 0.2, 160], [2.6, 0.1, 120]]);
+    return normalize(reverb(e, sr, { size: 2, decay: 0.9, wet: 0.5, dry: 0.7, extra: 2, stereo: false })[0], 0.85);
+  },
   loop_drone: (sr, R) => {
     // Drohnen-Summen als nahtlose Schleife (Dev-Orbit, auch für Spielobjekte nutzbar)
     const T = 2, n = len(sr, T), d = new Float32Array(n), s1 = new Saw(sr), s2 = new Saw(sr, 0.3);
@@ -336,6 +384,16 @@ export const AMBIENCES = {
       { name: 'amb_crow', every: [25, 60], vol: [0.25, 0.4], dist: [60, 120], height: [10, 30] },
       { name: 'amb_pa', every: [60, 120], vol: [0.3, 0.45], dist: [40, 80], height: [4, 8], first: [20, 40] },
       { name: 'gunfar_ar', every: [8, 22], vol: [0.12, 0.25], dist: [150, 300], height: [0, 2], burst: [1, 5], first: [3, 8] },
+    ],
+  },
+  burnt: {
+    name: 'Brandwald', space: 'range', events: [
+      { name: 'amb_crackle', every: [3, 9], vol: [0.12, 0.26], dist: [5, 16], height: [0, 1], first: [1, 3] },
+      { name: 'amb_creak', every: [9, 24], vol: [0.18, 0.34], dist: [12, 40], height: [3, 12], first: [4, 9] },
+      { name: 'amb_crow', every: [22, 55], vol: [0.2, 0.34], dist: [60, 130], height: [8, 25], first: [8, 20] },
+      { name: 'amb_snap', every: [28, 70], vol: [0.2, 0.38], dist: [25, 70], height: [0, 6], first: [12, 30] },
+      { name: 'amb_shell', every: [18, 45], vol: [0.25, 0.45], dist: [500, 900], height: [0, 2], first: [6, 14] },
+      { name: 'gunfar_lmg', every: [14, 34], vol: [0.08, 0.18], dist: [250, 450], height: [0, 2], burst: [3, 8], first: [10, 22] },
     ],
   },
 };
