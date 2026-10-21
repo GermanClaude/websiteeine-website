@@ -120,13 +120,13 @@ function speckle(S, r, count, rMin, rMax) {
 }
 
 /** Dünne Linien (Kratzer). */
-function scratches(S, r, count, lenMin, lenMax, { angle = null, width = 1 } = {}) {
+function scratches(S, r, count, lenMin, lenMax, { angle = null, width = 1, curl = 0.02 } = {}) {
   const f = new Float32Array(S * S);
   for (let c = 0; c < count; c++) {
     let x = r() * S, y = r() * S;
     const a = angle === null ? r() * Math.PI * 2 : angle + (r() - 0.5) * 0.4;
     const len = lenMin + r() * (lenMax - lenMin), dx = Math.cos(a), dy = Math.sin(a), s = 0.4 + r() * 0.6;
-    let bend = (r() - 0.5) * 0.02, ang = a;
+    let bend = (r() - 0.5) * curl, ang = a;
     for (let t = 0; t < len; t++) {
       ang += bend; x += Math.cos(ang); y += Math.sin(ang);
       for (let w = 0; w < width; w++) {
@@ -980,10 +980,10 @@ G.burnt = (t, r, o) => {
   const peb = speckle(S, r, Math.round(n * 0.0005), 0.9 * px, 3 * px);
   const lit = o.litter ?? 1;
   // Streu: dichte kurze Nadeln (verkohlt dunkel bzw. aschegrau überzogen), dazu längere Zweige (1–2 px breit)
-  const nDark = scratches(S, r, Math.round(n * 0.0032 * lit), 5 * px, 16 * px, { width: 1 });
-  const nGrey = scratches(S, r, Math.round(n * 0.0016 * lit), 5 * px, 14 * px, { width: 1 });
-  const twigs = scratches(S, r, Math.round(n * 0.0003 * lit), 22 * px, 80 * px, { width: Math.max(1, Math.round(2 * px)) });
-  const twigsG = scratches(S, r, Math.round(n * 0.00012 * lit), 18 * px, 60 * px, { width: Math.max(1, Math.round(1.5 * px)) });
+  const nDark = scratches(S, r, Math.round(n * 0.0032 * lit), 5 * px, 16 * px, { width: 1, curl: 0.006 });
+  const nGrey = scratches(S, r, Math.round(n * 0.0016 * lit), 5 * px, 14 * px, { width: 1, curl: 0.006 });
+  const twigs = scratches(S, r, Math.round(n * 0.0003 * lit), 22 * px, 80 * px, { width: Math.max(1, Math.round(2 * px)), curl: 0.004 });
+  const twigsG = scratches(S, r, Math.round(n * 0.00012 * lit), 18 * px, 60 * px, { width: Math.max(1, Math.round(1.5 * px)), curl: 0.004 });
   const ashAmt = o.ash ?? 0.3;
   for (let i = 0; i < n; i++) {
     const k = clamp01(a[i] * 0.55 + b[i] * 0.3 + duff[i] * 0.15), idx = Math.min(pal.length - 2, Math.floor(k * (pal.length - 1))), f = k * (pal.length - 1) - idx;

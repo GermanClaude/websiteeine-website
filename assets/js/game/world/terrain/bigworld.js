@@ -333,8 +333,8 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   const tJ = performance.now();
   const jobP = runner.run('world', {
     job: {
-      colTris, bulletTris, bulletData, terrainObject: 0, points: pts, sites: navSites, seeds,
-      grid: { bounds: { minX: pb.minX - 8, maxX: pb.maxX + 8, minZ: pb.minZ - 8, maxZ: pb.maxZ + 8 }, spacing: def.navGrid || 4, exclude: navSites.map(s => ({ minX: s.bounds.minX + 3, maxX: s.bounds.maxX - 3, minZ: s.bounds.minZ + 3, maxZ: s.bounds.maxZ - 3 })) },
+      colTris, bulletTris, bulletData, terrainObject: 0, points: pts, sites: navSites, seeds, lines: def.navLines || [],
+      grid: { bounds: { minX: pb.minX - 8, maxX: pb.maxX + 8, minZ: pb.minZ - 8, maxZ: pb.maxZ + 8 }, spacing: def.navGrid || 4, headroom: def.navHeadroom, exclude: navSites.map(s => ({ minX: s.bounds.minX + 3, maxX: s.bounds.maxX - 3, minZ: s.bounds.minZ + 3, maxZ: s.bounds.maxZ - 3 })) },
     },
   }, (stage) => progress({ Kollision: 0.74, 'Kugel-BVH': 0.77, Navigation: 0.8 }[stage] ?? 0.75, stage), hf);
 

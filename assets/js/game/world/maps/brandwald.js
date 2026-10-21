@@ -6,7 +6,7 @@
 // Gittermasten (einer umgestürzt), die Gerippe einer Gewächshausanlage (West) und ein abgebrannter Holzplatz (Ost).
 // Team A im Süden (+z), Team B im Norden (−z). (Owner: world)
 import { sampleSpline } from '../terrain/generate.js';
-import { trenchWorks, pylonLine, greenhouseRuin, timberYard, fieldPost } from './brandwald-bau.js';
+import { trenchWorks, pylonLine, greenhouseRuin, timberYard, fieldPost, groundDetails } from './brandwald-bau.js';
 
 const FRONT = 92, SUPPORT = 128, HQZ = 158; // |z| der Linien je Seite
 const XL = 168;                               // Ausdehnung der Gräben in x
@@ -112,6 +112,9 @@ export default {
   // Bodenstreu (je m², Ring um die Kamera): verkohlte Zweige, graue Stöcke, Äste, Rindenstücke, Holzkohle, Steine
   litter: { seed: 2114, twigs: 0.55, sticks: 0.12, branches: 0.035, bark: 0.18, coals: 0.22, stones: 0.14 },
   clearings: [[8, 6, 12]],
+  // Wegketten für Bots entlang der Grabensohlen (das 4-m-Navigationsgitter trifft die 1,9 m breiten Gräben kaum)
+  navLines: TRENCHES.map((t) => sampleSpline(t.pts, 2.2)),
+  navHeadroom: 5,
 
   sites: [
     { id: 'gewaechshaus', name: 'Gewächshäuser', y: 0.3, bounds: { minX: -124, maxX: -76, minZ: -8, maxZ: 36 }, build: (b) => greenhouseRuin(b, -100, 14, 0.3), seeds: [[-100, 14, 0.3]], height: 7 },
@@ -121,6 +124,7 @@ export default {
   ],
   lateSites: [
     { id: 'front', name: 'Gräben', bounds: { minX: -180, maxX: 180, minZ: -180, maxZ: 180 }, chunkSize: 60, build: (b, ctx) => trenchWorks(b, ctx, TRENCHES, { front: FRONT }) },
+    { id: 'boden', name: 'Pfützen und Draht', bounds: { minX: -180, maxX: 180, minZ: -180, maxZ: 180 }, chunkSize: 60, build: (b, ctx) => groundDetails(b, ctx, { area: { minX: -176, maxX: 176, minZ: -176, maxZ: 176 }, avoid: TRENCHES.map((t) => [t.pts, (t.width ?? 2) / 2 + (t.revet || 0) + 3]), wire: [{ z: FRONT - 13, x0: -165, x1: 165 }, { z: -FRONT + 13, x0: -165, x1: 165 }] }) },
     { id: 'leitung', name: 'Stromtrasse', bounds: { minX: -320, maxX: 320, minZ: -200, maxZ: 200 }, chunkSize: 80, build: (b, ctx) => pylonLine(b, ctx, POWER_LINE, { fallen: 4 }) },
   ],
 

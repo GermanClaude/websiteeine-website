@@ -20,7 +20,8 @@ const inRect = (r, x, z) => x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.
  * job: { colTris, bulletTris, bulletData, terrainObject,
  *        points: [{ x, y, z }]                      // Startpunkte/Flaggen: Suche ab y + 1,2 m abwärts
  *        sites: [{ id, bounds:{minX,maxX,minZ,maxZ,minY,maxY}, points:[{x,y,z}], exclude, seeds:[{x,y,z}] }],
- *        grid: { bounds, spacing, exclude:[rect] }, seeds: [{ x, z }] }
+ *        grid: { bounds, spacing, exclude:[rect] }, seeds: [{ x, z }],
+ *        lines: [[[x, z], …]] }                    // Wegketten (Grabensohlen): Knoten je Punkt, Nachbarn verbunden
  * → { col, bullet (TriangleBVH.toData), snapped: [y], nav: { nodes, stats }, ms }
  */
 export function worldJob(job, hf, onStage) {
@@ -72,8 +73,9 @@ function buildBigNav(job, hf, col, comp) {
   const cell = new Int32Array(gw * gh).fill(-1);
   const wy = hf.waterY;
   const n3 = { x: 0, y: 1, z: 0 };
+  const headroom = g.headroom || 1.7; // Brandwald: 5 m – keine Knoten unter den Bodenkappen der Grabenwände
   const free = (x, y, z) => {
-    if (col.occluded(x, y + 0.1, z, 0, 1, 0, 1.7)) return false;
+    if (col.occluded(x, y + 0.1, z, 0, 1, 0, headroom)) return false;
     for (let k = 0; k < 8; k += 2) { const [dx, dz] = DIRS8[k]; if (col.occluded(x, y + KNEE, z, dx, 0, dz, AGENT_R + 0.12)) return false; }
     return true;
   };
@@ -94,6 +96,17 @@ function buildBigNav(job, hf, col, comp) {
     }
   }
   const link = (a, c) => { if (!nodes[a].links.includes(c)) nodes[a].links.push(c); if (!nodes[c].links.includes(a)) nodes[c].links.push(a); };
+  /** Deckung (Bäume, Felsen, Mauern, Grabenwände) auf Brusthöhe. */
+  const coverOf = (A) => {
+    let sx = 0, sz = 0;
+    for (const [dx, dz] of DIRS8) {
+      if (!col.occluded(A.x, A.y + 0.9, A.z, dx, 0, dz, 1.6)) continue;
+      A.coverDirs.push(-dx, -dz); sx -= dx; sz -= dz;
+      if (col.occluded(A.x, A.y + 1.65, A.z, dx, 0, dz, 1.6)) A.coverHigh = true;
+    }
+    const nd = A.coverDirs.length / 2;
+    if (nd && nd < 7) { A.cover = true; const l = Math.hypot(sx, sz); A.coverDir = l > 0.1 ? [sx / l, 0, sz / l] : [A.coverDirs[0], 0, A.coverDirs[1]]; }
+  };
   let coarseLinks = 0;
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
     const a = cell[j * gw + i];
@@ -121,15 +134,44 @@ function buildBigNav(job, hf, col, comp) {
       if (side) continue;
       link(a, c); coarseLinks++;
     }
-    // Deckung (Bäume, Felsen, Mauern) auf Brusthöhe
-    let sx = 0, sz = 0;
-    for (const [dx, dz] of DIRS8) {
-      if (!col.occluded(A.x, A.y + 0.9, A.z, dx, 0, dz, 1.6)) continue;
-      A.coverDirs.push(-dx, -dz); sx -= dx; sz -= dz;
-      if (col.occluded(A.x, A.y + 1.65, A.z, dx, 0, dz, 1.6)) A.coverHigh = true;
+    coverOf(A);
+  }
+
+  // 2b) Wegketten (z. B. Grabensohlen, schmaler als das Gitter): Knoten je Punkt, Nachbarn verbunden, dazu
+  //     Verbindungen zu Gitterknoten (Rampen, Ausgänge) und zwischen Ketten (Kreuzungen, Einmündungen)
+  const lineFrom = nodes.length;
+  for (const L of job.lines || []) {
+    let prev = -1;
+    for (const [x, z] of L) {
+      const y = hf.heightAt(x, z);
+      if (y < wy - 0.75 || !free(x, y, z)) { prev = -1; continue; }
+      const k = nodes.length;
+      nodes.push({ x, y, z, links: [], drop: [], cover: false, coverHigh: false, coverDirs: [], coverDir: null, cost: 0, kind: 1 });
+      coverOf(nodes[k]);
+      if (prev >= 0 && T.segmentClear(nodes[prev], nodes[k]) && T.segmentClear(nodes[k], nodes[prev])) link(prev, k);
+      prev = k;
     }
-    const nd = A.coverDirs.length / 2;
-    if (nd && nd < 7) { A.cover = true; const l = Math.hypot(sx, sz); A.coverDir = l > 0.1 ? [sx / l, 0, sz / l] : [A.coverDirs[0], 0, A.coverDirs[1]]; }
+  }
+  let lineLinks = 0;
+  if (nodes.length > lineFrom) {
+    const lh = new Map(), lc = 4;
+    const lkey = (i, j) => i * 100003 + j;
+    const put = (k) => { const n = nodes[k], kk = lkey(Math.floor(n.x / lc), Math.floor(n.z / lc)); if (!lh.has(kk)) lh.set(kk, []); lh.get(kk).push(k); };
+    for (let k = fineCount; k < nodes.length; k++) put(k);
+    for (let k = lineFrom; k < nodes.length; k++) {
+      const A = nodes[k], cand = [];
+      for (let i = Math.floor((A.x - 6) / lc); i <= Math.floor((A.x + 6) / lc); i++) for (let j = Math.floor((A.z - 6) / lc); j <= Math.floor((A.z + 6) / lc); j++) for (const f of lh.get(lkey(i, j)) || []) {
+        if (f === k || A.links.includes(f)) continue;
+        const F = nodes[f], d = Math.hypot(F.x - A.x, F.z - A.z);
+        if (d < 5.5 && Math.abs(F.y - A.y) < 2.2) cand.push([d, f]);
+      }
+      cand.sort((p, q) => p[0] - q[0]);
+      let made = 0;
+      for (let m = 0; m < Math.min(6, cand.length) && made < 3; m++) {
+        const F = nodes[cand[m][1]];
+        if (T.segmentClear(A, F) && T.segmentClear(F, A)) { link(k, cand[m][1]); made++; lineLinks++; }
+      }
+    }
   }
 
   // 3) Ränder der Ortschaften: grobe Knoten mit nahen feinen Knoten verbinden (begehbare Strecke in beide Richtungen)
@@ -172,7 +214,7 @@ function buildBigNav(job, hf, col, comp) {
   for (const n of out) { n.links = n.links.map(k => remap[k]).filter(k => k >= 0); n.drop = n.drop.map(k => remap[k]).filter(k => k >= 0); }
   let links = 0, cover = 0, fine = 0;
   for (const n of out) { links += n.links.length; if (n.cover) cover++; if (n.kind === 0) fine++; }
-  return { nodes: out, stats: { nodes: out.length, fine, coarse: out.length - fine, links, coarseLinks, stitched, cover, removed: N - out.length, sites: fineStats } };
+  return { nodes: out, stats: { nodes: out.length, fine, coarse: out.length - fine, links, coarseLinks, stitched, lineNodes: N - lineFrom, lineLinks, cover, removed: N - out.length, sites: fineStats } };
 }
 
 export function worldTransferables(r) {

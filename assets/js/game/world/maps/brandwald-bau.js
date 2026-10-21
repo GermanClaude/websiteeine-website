@@ -125,6 +125,8 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
       return [dx / l, dz / l];
     });
     const back = hw + rv + 1.75;                       // Kappe reicht bis hinter den Aushubrand
+    // Ausstiegsrampen: dort ist der Graben aufgefüllt – beidseits keine Wand (offener Durchgang)
+    const nearRamp = (x, z, r) => (tr.ramps || []).some(([rx, rz]) => Math.hypot(x - rx, z - rz) < r);
     const capD = [0.1, 0.45, rv * 0.6 + 0.4, rv + 0.9, rv + 1.35, rv + 1.75]; // Kappenpunkte (Abstand ab Wandfront)
     for (const side of [1, -1]) {
       // Querschnitte
@@ -139,7 +141,7 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
           return [px, y, pz];
         });
         const fx = x + nx * hw, fz = z + nz * hw;
-        const skip = inOther(Lr, fx, fz, 0.3) || inOther(Lr, x + nx * (hw + rv * 0.7), z + nz * (hw + rv * 0.7), 0.1);
+        const skip = inOther(Lr, fx, fz, 0.3) || inOther(Lr, x + nx * (hw + rv * 0.7), z + nz * (hw + rv * 0.7), 0.1) || nearRamp(x, z, 3.1);
         return { x, z, nx, nz, hw, ux: tang[i][0], uz: tang[i][1], floor, top: cap[0][1], cap, skip, h: cap[0][1] - floor };
       });
       // Läufe (zusammenhängend, Wand höher als 0,3 m, nicht in anderem Graben), in Stücke ≤ 12 Querschnitte
@@ -168,7 +170,7 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
       const mode = r(), bagsHere = mode < (tr.sandbags ?? 0.3), planksHere = !bagsHere && mode < (tr.sandbags ?? 0.3) + 0.22;
       for (const side of [1, -1]) {
         const fx = mx + nx * side * hw, fz = mz + nz * side * hw;
-        if (inOther(Lr, fx, fz, 0.6)) continue;
+        if (inOther(Lr, fx, fz, 0.6) || nearRamp(mx, mz, 3.6)) continue;
         const edge = H(mx + nx * side * (hw + rv + 2.5), mz + nz * side * (hw + rv + 2.5)) + 0.1, wallH = edge - floor;
         if (wallH < 0.8) continue; // Rampe
         const faceEnemy = Math.sign(nz * side) === enemySide;
@@ -291,6 +293,11 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
       const g2 = meshOf(P, U, null, I.slice().reverse()); // beidseitig: zweite, umgekehrte Lage
       b.geom(g, cx, cy, cz, earthM, { tint: EARTH_TINT, collide: false, minimap: false, uv: 'keep', grad: false, ao: false });
       b.geom(g2, cx, cy, cz, earthM, { tint: EARTH_TINT, collide: false, minimap: false, uv: 'keep', grad: false, ao: false });
+      // Kollision der Stirnfläche (sonst ließe sich unter die Kappe laufen); Punkte ohne Rauschen = auf allen Stufen gleich
+      const gc = new THREE.BufferGeometry();
+      gc.setAttribute('position', new THREE.Float32BufferAttribute(P.slice(), 3));
+      gc.setIndex(I.slice());
+      b.geom(gc, cx, cy, cz, earthM, { visual: false, collide: 'mesh', minimap: false });
     }
     // Kollision: glatte Front + Kappe (unabhängig von der Qualitätsstufe)
     {
@@ -326,6 +333,50 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
 }
 
 const smooth01 = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+
+// ---------------------------------------------------------------------------
+// Gelände-Ausstattung: Pfützen in Senken, Stacheldraht vor den Fronten
+// ---------------------------------------------------------------------------
+/**
+ * Pfützen in Trichtern und Senken: Raster 4 m, tiefster Punkt je Zelle; liegt er deutlich unter seinem Umkreis,
+ * kommt ein waagrechtes Nass-Decal knapp darüber (die Mulde „füllt“ sich bis zu dieser Höhe). Dazu Stacheldraht-
+ * gürtel (Pfähle, drei Drähte, Kreuzverspannung; nur Optik) vor beiden Frontlinien mit Lücken.
+ * o: { area {minX,maxX,minZ,maxZ}, avoid [[pts…], r] (Gräben), wire [{ z, x0, x1 }] }
+ */
+export function groundDetails(b, ctx, o = {}) {
+  const hf = ctx.hf, A = o.area, H = (x, z) => hf.heightAt(x, z);
+  let sd = 9137;
+  const rnd = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const lines = (o.avoid || []).map(([pts, r]) => ({ line: sampleSpline(pts, 2), r }));
+  const nearTrench = (x, z) => lines.some(({ line, r }) => distToLine(line, x, z) < r);
+  let n = 0;
+  for (let z = A.minZ; z < A.maxZ; z += 4) for (let x = A.minX; x < A.maxX; x += 4) {
+    let mx = x, mz = z, my = Infinity;
+    for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) { const px = x + i * 2, pz = z + j * 2, y = H(px, pz); if (y < my) { my = y; mx = px; mz = pz; } }
+    if (my <= hf.waterY + 0.05 || nearTrench(mx, mz)) continue;
+    let ring = 0;
+    for (let k = 0; k < 8; k++) { const a = (k / 8) * TAU; ring += H(mx + Math.cos(a) * 2.6, mz + Math.sin(a) * 2.6); }
+    const depth = ring / 8 - my;
+    if (depth < 0.22 || rnd() > 0.75) continue;
+    const lvl = Math.min(0.16, depth * 0.3), rr = Math.min(3.2, 1.2 + depth * 1.6);
+    b.decal(mx, my + lvl, mz, rr * (1.6 + rnd() * 0.5), rr * (1.3 + rnd() * 0.4), 'puddle', { opacity: 0.92, ry: rnd() * TAU });
+    if (++n > 160) break;
+  }
+  // Stacheldraht
+  for (const wv of o.wire || []) {
+    for (let x = wv.x0; x < wv.x1; x += 3) {
+      if (((x - wv.x0) % 55) > 46) continue; // Gassen
+      const zz = wv.z + Math.sin(x * 0.29) * 1.4 + Math.sin(x * 0.07) * 2, y0 = H(x, zz), x2 = x + 3, zz2 = wv.z + Math.sin(x2 * 0.29) * 1.4 + Math.sin(x2 * 0.07) * 2, y1 = H(x2, zz2);
+      if (nearTrench(x, zz)) continue;
+      const lean = (rnd() - 0.5) * 0.25;
+      b.cyl(x, y0 - 0.15, zz, 0.035, 1.35, 'wood_dark', { tint: '#2f2a25', collide: false, minimap: false, seg: 5, rz: lean, bullet: false });
+      for (const hy of [0.32, 0.72, 1.12]) beam(b, x, y0 + hy, zz, x2, y1 + hy - (rnd() < 0.15 ? 0.4 : 0), zz2, 0.005, 'metal_rust', { tint: '#3a332d', seg: 3, cast: false, ao: false, bullet: false });
+      beam(b, x, y0 + 1.1, zz, x2, y1 + 0.3, zz2, 0.005, 'metal_rust', { tint: '#3a332d', seg: 3, cast: false, ao: false, bullet: false });
+      beam(b, x, y0 + 0.3, zz, x2, y1 + 1.1, zz2, 0.005, 'metal_rust', { tint: '#3a332d', seg: 3, cast: false, ao: false, bullet: false });
+    }
+  }
+  return { clearLines: [] };
+}
 
 // ---------------------------------------------------------------------------
 // Stromtrasse
