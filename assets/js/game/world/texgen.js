@@ -734,11 +734,16 @@ G.burlap = (t, r, o) => {
     const wx = Math.sin((x / S) * Math.PI * 2 * k), wy = Math.sin((y / S) * Math.PI * 2 * k);
     const weave = 0.5 + 0.5 * (((Math.floor(x / S * k * 2) + Math.floor(y / S * k * 2)) % 2) ? wx : wy);
     const v = (0.78 + weave * 0.2 + fibers[i] * 0.1) * (0.9 + (noise[i] - 0.5) * 0.2) * (0.92 + big[i] * 0.12);
-    t.set(i, base[0] * v, base[1] * v, base[2] * v);
-    t.height[i] = weave * 0.6 + noise[i] * 0.3;
+    // Dreck (o.mud): eingetrocknete Schlammflecken und Erdstaub in den Webfugen
+    const m = o.mud ? smooth(0.5, 0.8, big[i] * 0.55 + noise[i] * 0.45) * o.mud : 0;
+    const dust = o.mud ? (1 - weave) * 0.12 * o.mud : 0;
+    const c = mixC(base.map((b) => b * v), mudC, Math.min(1, m + dust));
+    t.set(i, c[0], c[1], c[2]);
+    t.height[i] = weave * 0.6 + noise[i] * 0.3 + m * 0.25;
     t.rough[i] = 0.95;
   }
 };
+const mudC = [74, 65, 55];
 
 G.tarp = (t, r, o) => {
   const { S, n } = t;
@@ -1104,27 +1109,35 @@ G.trenchwall = (t, r, o) => {
  */
 G.charbark = (t, r, o) => {
   const { S, n } = t;
-  const plate = hex(o.plate || '#1f1d1b'), plateL = hex('#3b3835'), ashC = hex(o.ashC || '#6e6b66'), gap = hex('#040404');
-  // zwei Zellgrößen: große, senkrecht gestreckte Blöcke + feinere Unterteilung (Querrisse) darin
-  const w = worley(S, o.cells || 9, r, { cy: o.cellsY || 7, jitter: 1 });
-  const w2 = worley(S, 14, r, { cy: 30, jitter: 1 });
+  const plate = hex(o.plate || '#1c1a18'), plateL = hex('#34312d'), ashC = hex(o.ashC || '#706c66'), gap = hex('#050404'), rust = hex('#3a2a20');
+  // Kiefernborke nach dem Brand: hohe, schmale Platten (senkrecht gestreckt) mit tiefen Längsfurchen, flache Oberseiten
+  // mit feinem Holzkohle-Craquelé (Alligatorrisse), Asche nur auf den Plattenkanten, in tiefen Furchen ein Rest Braun
+  const w = worley(S, o.cells || 12, r, { cy: o.cellsY || 4, jitter: 1 });
+  const w2 = worley(S, 34, r, { cy: 26, jitter: 1 });
   const fib = fbm(S, 40, 3, r, { py: 3 }), mott = fbm(S, 3, 4, r), fine = fbm(S, 90, 2, r), gw = fbm(S, 5, 3, r);
-  const f1 = fbm(S, 5, 4, r, { py: 1 });
+  const f1 = fbm(S, 9, 3, r, { py: 1 });
+  // Fugen verbiegen (sonst gerade Voronoi-Kanten wie Bleiglas): Plattenfeld an verschobener Stelle lesen
+  const wx = fbm(S, 6, 3, r, { py: 3 }), wy = fbm(S, 6, 3, r, { py: 3 }), amp = S * 0.035;
   for (let i = 0; i < n; i++) {
-    const tone = 0.75 + ((w.id[i] * 2654435761) >>> 0) % 1000 / 2000; // Eigenhelligkeit je Block
-    const lift = ((w.id[i] * 40503) >>> 0) % 997 / 997;              // Eigenhöhe je Block
-    const gapW = 0.035 + gw[i] * 0.06;
-    const gapV = 1 - smooth(gapW * 0.4, gapW, w.f2[i] - w.f1[i]);
-    const sub = (1 - smooth(0.02, 0.06, w2.f2[i] - w2.f1[i])) * 0.55;
-    const dome = smooth(0.0, 0.3, w.f2[i] - w.f1[i]);
-    const fr = (f1[i] * 3) % 1, furrow = 1 - smooth(0.0, 0.035, Math.min(fr, 1 - fr));
-    const ash = smooth(0.58, 0.85, mott[i] * 0.6 + fine[i] * 0.4) * (o.ash ?? 0.45) * dome;
-    let c = mixC(plate, plateL, dome * 0.35 + (fib[i] - 0.5) * 0.35).map(v => v * tone);
+    const x = i % S, y = (i - x) / S;
+    const j = (((y + Math.round((wy[i] - 0.5) * amp * 2.2)) % S + S) % S) * S + (((x + Math.round((wx[i] - 0.5) * amp)) % S) + S) % S;
+    const tone = 0.8 + ((w.id[j] * 2654435761) >>> 0) % 1000 / 2600; // Eigenhelligkeit je Platte
+    const lift = ((w.id[j] * 40503) >>> 0) % 997 / 997;              // Eigenhöhe je Platte
+    const e = w.f2[j] - w.f1[j];
+    const gapW = 0.07 + gw[i] * 0.12;
+    const gapV = 1 - smooth(gapW * 0.35, gapW, e);
+    const deep = 1 - smooth(0, gapW * 0.45, e);                       // Furchengrund
+    const check = (1 - smooth(0.015, 0.045, w2.f2[i] - w2.f1[i])) * smooth(0.05, 0.2, e); // Craquelé nur auf der Platte
+    const flat = smooth(0.0, 0.14, e);                                 // Platte: flach mit abgerundeter Kante
+    const fr = (f1[i] * 3) % 1, furrow = (1 - smooth(0.0, 0.03, Math.min(fr, 1 - fr))) * 0.6;
+    const ash = smooth(0.6, 0.86, mott[i] * 0.6 + fine[i] * 0.4) * (o.ash ?? 0.45) * flat * (0.5 + lift * 0.5);
+    let c = mixC(plate, plateL, flat * 0.18 + (fib[i] - 0.5) * 0.25 + lift * 0.12).map(v => v * tone);
     c = mixC(c, ashC, ash);
-    c = mixC(c, gap, Math.max(gapV, sub * 0.7, furrow * 0.4));
+    c = mixC(c, gap, Math.max(gapV * 0.92, check * 0.55, furrow * 0.35));
+    c = mixC(c, rust, deep * (0.25 + mott[i] * 0.3));
     t.set(i, c[0], c[1], c[2]);
-    t.height[i] = dome * 0.6 + lift * 0.35 - gapV * 1.0 - sub * 0.4 - furrow * 0.45 + fib[i] * 0.12;
-    t.rough[i] = 0.68 + fine[i] * 0.14 + gapV * 0.2 + ash * 0.1;
+    t.height[i] = flat * 0.45 + lift * 0.45 - gapV * 1.1 - check * 0.18 - furrow * 0.3 + fib[i] * 0.1;
+    t.rough[i] = 0.7 + fine[i] * 0.12 + gapV * 0.18 + ash * 0.1 - check * 0.08;
   }
 };
 
@@ -1199,7 +1212,7 @@ export const TEX = {
   tiles_pattern:  { gen: 'tiles', o: { cells: 8, palette: ['#ece4d2'], grout: '#b2a894', pattern: ['#2f5f8a', '#b8643c'], vary: 0.04, glossy: 0.4, groutW: 0.02 }, normal: 1.5 },
   glass:          { gen: 'glass', o: {}, normal: 0.3 },
   sandbag:        { gen: 'burlap', o: { base: '#c4b48c' }, normal: 3 },
-  sackleinen:     { gen: 'burlap', o: { base: '#b8a985' }, normal: 2.4 },
+  sackleinen:     { gen: 'burlap', o: { base: '#ada593', mud: 0.75 }, normal: 2.4 },
   tarp:           { gen: 'tarp', o: {}, normal: 2.5 },
   awning:         { gen: 'stripes', o: { designs: [
     { count: 10, colors: ['#c8402f', '#efe6d2'] }, { count: 12, colors: ['#2f6f9a', '#efe9da'] },

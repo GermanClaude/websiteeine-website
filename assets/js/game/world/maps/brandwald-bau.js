@@ -248,8 +248,8 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
           const ph = 0.38 + cr[6] * 0.12, d0 = hw + 0.32;
           const px = mx + nx * es * d0, pz = mz + nz * es * d0;
           const ryIn = es > 0 ? ry0 + Math.PI : ry0;           // lokal +z zeigt in den Graben
-          field.addWall(px, top - 0.03, pz, ryIn, L + 0.15, ph, { seed: seed++, wet: 0, tone: 0.95 + r() * 0.15, lean: 0.05 });
-          field.addWall(px + nx * es * 0.3, top - 0.03, pz + nz * es * 0.3, ryIn + Math.PI, L + 0.15, ph - 0.1, { seed: seed++, wet: 0, tone: 0.9 + r() * 0.15, lean: 0.12 });
+          field.addWall(px, top - 0.03, pz, ryIn, L + 0.15, ph, { seed: seed++, wet: 0.12, tone: 0.82 + r() * 0.15, lean: 0.05 });
+          field.addWall(px + nx * es * 0.3, top - 0.03, pz + nz * es * 0.3, ryIn + Math.PI, L + 0.15, ph - 0.1, { seed: seed++, wet: 0.12, tone: 0.78 + r() * 0.15, lean: 0.12 });
           b.solid(px + nx * es * 0.15, top - 0.05, pz + nz * es * 0.15, L, ph + 0.02, 0.62, { ry: ry0, minimap: false });
         }
       }
@@ -572,7 +572,7 @@ export function greenhouseRuin(b, cx, cz, y0) {
   for (let hall = 0; hall < 3; hall++) {
     const ox = cx - 11 + hall * 11, oz0 = cz - len / 2;
     // Sockelmauer
-    for (const sx of [-1, 1]) b.box(ox + sx * span / 2, y0 - 0.2, cz, 0.25, 0.55, len, 'concrete', { tint: '#7a7770', minimap: 'cover' });
+    for (const sx of [-1, 1]) b.box(ox + sx * span / 2, y0 - 0.2, cz, 0.25, 0.55, len, 'concrete', { tint: '#5f5c57', minimap: 'cover' }); // verrußt
     const ribs = [];
     const nR = Math.round(len / 2.5);
     for (let i = 0; i <= nR; i++) {
@@ -616,10 +616,10 @@ export function greenhouseRuin(b, cx, cz, y0) {
       b.box(ox - 2.4 + r() * 0.3, y0 + 0.75, z, 1.2, 0.06, 3.2, 'wood_dark', { tint: '#2d2620', minimap: false, rz: r() < 0.3 ? 0.25 : 0 });
       for (const sx of [-0.5, 0.5]) for (const sz of [-1.4, 1.4]) b.box(ox - 2.4 + sx, y0, z + sz, 0.06, 0.75, 0.06, 'metal_rust', { tint: '#5a4d42', collide: false, minimap: false });
     }
-    for (let i = 0; i < 40; i++) {
-      const gx = ox + (r() - 0.5) * span * 1.1, gz = oz0 + r() * len;
-      b.box(gx, y0 + 0.31, gz, 0.15 + r() * 0.35, 0.008, 0.1 + r() * 0.3, 'glass', { ry: r() * TAU, rx: (r() - 0.5) * 0.2, collide: false, minimap: false, cast: false, ao: false });
-    }
+    // Scherben: unregelmäßige Splitter (3–5 Ecken, 3–25 cm), flach im Dreck, gehäuft unter den Feldern; eigener Zufall
+    // (reine Optik, Anzahl darf je Stufe schwanken, ohne die Folge von r zu verändern)
+    for (let i = 0; i < 240; i++) r(); // frühere Ziehungen (40 Scherben-Kästen × 6) beibehalten: Folge von r unverändert
+    shards(b, rngOf(4402 + hall), ox, oz0, span, len, y0 + 0.31, b.lookQuality === 'low' ? 60 : 160);
     // Restverglasung: einzelne Scheiben zwischen intakten Rippen, manche nur noch als Splitter (Dreieck) im Rahmen
     for (let i = 0; i < ribs.length - 1; i++) for (let k = 0; k < 12; k++) {
       if (r() > (hall === 0 ? 0.16 : 0.07)) continue;
@@ -644,6 +644,8 @@ export function greenhouseRuin(b, cx, cz, y0) {
 }
 
 /** Glasscheibe im Feld A-B-C-D (eingerückt); broken ≥ 0: nur ein Splitter-Dreieck (Lage nach broken). */
+// Altglas: halbdurchsichtig, grünlich-grau verschmutzt, matter als Fensterglas (sonst spiegelt es wie Papier)
+const GLASS_OPTS = { transparent: true, opacity: 0.42, envMapIntensity: 0.9, roughness: 0.25, depthWrite: false };
 function pane(b, A, B, C, D, broken = -1) {
   const cx = (A[0] + B[0] + C[0] + D[0]) / 4, cy = (A[1] + B[1] + C[1] + D[1]) / 4, cz = (A[2] + B[2] + C[2] + D[2]) / 4;
   const ins = (p) => [cx + (p[0] - cx) * 0.94 - cx, cy + (p[1] - cy) * 0.94 - cy, cz + (p[2] - cz) * 0.94 - cz];
@@ -653,12 +655,42 @@ function pane(b, A, B, C, D, broken = -1) {
     const k = Math.floor(broken * 4) % 4, p0 = pts[k], p1 = pts[(k + 1) % 4], p3 = pts[(k + 3) % 4], t1 = 0.4 + broken * 0.5, t2 = 0.8 - broken * 0.5;
     pts = [p0, p0.map((v, j) => v + (p1[j] - v) * t1), p0.map((v, j) => v + (p3[j] - v) * t2)]; idx = [0, 1, 2];
   }
-  const P = pts.flat(), g = new THREE.BufferGeometry();
+  // Vorder- und Rückseite mit eigenen Eckpunkten (gemeinsame Punkte → Normalen heben sich auf → stumpfgrau)
+  const n = pts.length, P = [...pts.flat(), ...pts.flat()], uv = pts.flatMap((p) => [p[0] + p[2], p[1]]);
+  const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
-  g.setAttribute('uv', new THREE.Float32BufferAttribute(pts.flatMap((p) => [p[0] + p[2], p[1]]), 2));
-  g.setIndex([...idx, ...idx.slice().reverse()]);
+  g.setAttribute('uv', new THREE.Float32BufferAttribute([...uv, ...uv], 2));
+  g.setIndex([...idx, ...idx.slice().reverse().map((i) => i + n)]);
   g.computeVertexNormals();
-  b.geom(g, cx, cy, cz, 'glass', { collide: false, minimap: false, cast: false, ao: false, uv: 'keep' });
+  b.geom(g, cx, cy, cz, 'glass', { collide: false, minimap: false, cast: false, ao: false, uv: 'keep', tint: '#a9b3ab', matOpts: GLASS_OPTS });
+}
+
+/** Glasscherben am Boden einer Halle (eine Geometrie): count Splitter, gehäuft in Bändern unter den Feldern. */
+function shards(b, r, ox, oz0, span, len, y, count) {
+  const P = [], U = [], I = [];
+  for (let i = 0; i < count; i++) {
+    // eher unter dem Bogen (seitlich gehäuft) als in der Mitte
+    const side = r() < 0.5 ? -1 : 1, off = Math.pow(r(), 0.6) * span * 0.55;
+    const x = ox + side * off, z = oz0 + r() * len;
+    const s = 0.03 + Math.pow(r(), 2.2) * 0.22, a0 = r() * TAU, k = 3 + Math.floor(r() * 3);
+    const tx = (r() - 0.5) * 0.25, tz = (r() - 0.5) * 0.25; // leicht schräg (liegt auf Zweigen/Dreck)
+    const base = P.length / 3;
+    for (let j = 0; j < k; j++) {
+      const a = a0 + (j / k) * TAU + (r() - 0.5) * (TAU / k) * 0.7, rr = s * (0.45 + r() * 0.75);
+      const dx = Math.cos(a) * rr, dz = Math.sin(a) * rr;
+      P.push(x + dx, y + 0.004 + dx * tx + dz * tz, z + dz);
+      U.push(x + dx, z + dz);
+    }
+    for (let j = 1; j < k - 1; j++) I.push(base, base + j + 1, base + j);
+  }
+  const cx = ox, cz = oz0 + len / 2;
+  for (let i = 0; i < P.length; i += 3) { P[i] -= cx; P[i + 1] -= y; P[i + 2] -= cz; }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+  g.setIndex(I);
+  g.computeVertexNormals();
+  b.geom(g, cx, y, cz, 'glass', { collide: false, minimap: false, cast: false, ao: false, uv: 'keep', tint: '#8f9891', matOpts: { ...GLASS_OPTS, opacity: 0.6, envMapIntensity: 0.6, roughness: 0.35 } });
 }
 
 // ---------------------------------------------------------------------------

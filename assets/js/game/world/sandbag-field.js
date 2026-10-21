@@ -48,7 +48,7 @@ function bagGeometry(detailed, seed, tiny = false) {
       const y = py * pinch + wr * 0.6;
       const z = pz * (0.88 + 0.12 * pinch) - back + (pz > 0 ? wr : 0);
       P.push(x, y, z);
-      U.push(u * 0.5, arcs[k] * 0.5);
+      U.push(u * 0.5 + seed * 0.37, arcs[k] * 0.5 + seed * 0.61); // je Variante andere Stelle der Textur (Schlammflecken)
       const c = sh * (1 - e * 0.25);
       C.push(c, c, c);
     }
