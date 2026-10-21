@@ -24,7 +24,7 @@ import { BONE, BIND, DIM } from '../../../assets/js/game/bots/soldier/rig.js';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const opt = Object.fromEntries(process.argv.slice(2).map((a) => { const [k, ...v] = a.replace(/^--/, '').split('='); return [k, v.length ? v.join('=') : true]; }));
 const RES = Number(opt.res || 0.004);
-const TARGETS = [Number(opt.lod0 || 7000), Number(opt.lod1 || 2600), Number(opt.lod2 || 700)];
+const TARGETS = [Number(opt.lod0 || 9500), Number(opt.lod1 || 3000), Number(opt.lod2 || 700)];
 const ERRS = [0.03, 0.4, 0.8];           // Fehlergrenzen (relativ) je Stufe
 const AW = [1, 0.5, 0.15];               // Gewicht der Attribute je Stufe
 const t0 = Date.now();
@@ -69,6 +69,14 @@ function coneY(px, y, pz, yT, yB, r1, r2) {
   if (k > a * h) return Math.hypot(qx, qy - h) - r2;
   return qx * a + qy * b - r1;
 }
+// Aufgesetztes Stoffteil (Tasche, Polster, Leiste): Oberfläche um t nach außen versetzt, nur im Bereich reg (< 0 innen) –
+// folgt der Körperform, mit kleiner Rundung an der Kante (Naht)
+function patch(d, reg, t, k = 0.0015) { return smin(d, Math.max(d - t, reg), k); }
+// abgerundetes Rechteck in (u, v) als Bereichsfunktion (Meter)
+function rect(u, v, hu, hv, r = 0.004) {
+  const qu = Math.abs(u) - hu + r, qv = Math.abs(v) - hv + r;
+  return Math.hypot(Math.max(qu, 0), Math.max(qv, 0)) + Math.min(Math.max(qu, qv), 0) - r;
+}
 // Wertrauschen 3D (glatt, deterministisch) für Faltenverläufe
 function hash3(i, j, k) { let h = (i * 374761393 + j * 668265263 + k * 1274126177) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; }
 function vnoise(x, y, z) {
@@ -96,6 +104,15 @@ function trunkD(ax, y, z) {
   const fm = smooth(1.0, 1.02, y) * smooth(1.14, 1.06, y);
   d += 0.0022 * Math.sin(y * 92 + vnoise(ax * 14, y * 6, z * 14) * 2.2) * fm;
   d += 0.0011 * vnoise(ax * 22, y * 9, z * 22) * smooth(1.0, 1.05, y);
+  // 21.10. Kleidungsdetails (Nutzer: „gar keine Details an der Kleidung“): Reißverschlussleiste, Brusttaschen mit
+  // Klappen, Rückenpasse, Gesäßtaschen mit Klappen
+  const front = z + 0.03, back = 0.03 - z;
+  d = patch(d, Math.max(rect(ax, y - 1.27, 0.011, 0.24), front), 0.0035);
+  d = patch(d, Math.max(rect(ax - 0.085, y - 1.345, 0.048, 0.058), front), 0.006);
+  d = patch(d, Math.max(rect(ax - 0.085, y - 1.402, 0.053, 0.016), front), 0.0095);
+  d = patch(d, Math.max(rect(ax, y - 1.43, 0.17, 0.005), back), 0.0028);
+  d = patch(d, Math.max(rect(ax - 0.085, y - 0.9, 0.058, 0.062), 0.05 - z), 0.005);
+  d = patch(d, Math.max(rect(ax - 0.085, y - 0.952, 0.063, 0.014), 0.05 - z), 0.0085);
   return d;
 }
 // Kopf + Hals (Sturmhaube eng anliegend)
@@ -133,6 +150,10 @@ function armD(lx, ly, z) {
   const em = Math.exp(-(((ly - EY - 0.01) / 0.05) ** 2));
   d += 0.0024 * Math.sin((ly - EY) * 125 + vnoise(lx * 30, ly * 20, z * 30) * 2) * em * smooth(0.01, -0.03, z);
   d += 0.001 * vnoise(lx * 25, ly * 12, z * 25) * smooth(WY + 0.04, WY + 0.08, ly);
+  // Ellbogenschoner-Tasche (hinten), Klappe der Ärmeltasche, Klettlasche am Bündchen
+  d = patch(d, Math.max((Math.hypot((ly - EY + 0.01) / 0.065, lx / 0.05) - 1) * 0.05, 0.005 - z), 0.006);
+  d = smin(d, roundBox(lx - 0.085, ly - (SY - 0.052), z + 0.002, 0.005, 0.012, 0.041, 0.003), 0.003);
+  d = smin(d, roundBox(lx - 0.047, ly - (WY + 0.031), z + 0.002, 0.004, 0.012, 0.018, 0.003), 0.003);
   return smin(d, handD(lx, ly, z), 0.012);
 }
 // Handschuh: Handgelenkstulpe, Handteller außen, Finger als Bogen um den Griffpunkt, Knöchel, Daumen mit Ballen
@@ -158,6 +179,7 @@ function handD(lx, ly, z) {
   d = smin(d, capsule(lx, ly, z, 0.009, WY - 0.089, -0.036, 0.009, WY - 0.089, 0.036, 0.0138), 0.01); // Knöchel
   d = smin(d, ellipsoid(lx + 0.006, ly - (WY - 0.03), z + 0.025, 0.016, 0.025, 0.018), 0.01);       // Daumenballen
   d = smin(d, capsule(lx, ly, z, -0.008, WY - 0.02, -0.035, -0.031, WY - 0.054, -0.047, 0.0122), 0.008); // Daumen
+  d = smin(d, roundBox(lx - 0.024, ly - (WY - 0.045), z, 0.004, 0.028, 0.034, 0.004), 0.004);             // Handrückenpolster
   return d;
 }
 // Bein in Gliedkoordinaten (lx nach außen)
@@ -173,6 +195,11 @@ function legD(lx, ly, z) {
   // Beintasche (außen) + Klappe mit Fuge
   d = smin(d, roundBox(lx - 0.097, ly - 0.7, z + 0.004, 0.012, 0.082, 0.078, 0.008), 0.008);
   d = smax(d, -roundBox(lx - 0.111, ly - 0.745, z + 0.004, 0.006, 0.0015, 0.084, 0.001), 0.002);
+  // Kniepolster-Taschen (vorn), Außennaht, Wadentasche, erhabene Klappe der Beintasche
+  d = patch(d, Math.max((Math.hypot((ly - KY - 0.015) / 0.075, lx / 0.065) - 1) * 0.06, z + 0.02), 0.007);
+  d = patch(d, Math.max(Math.abs(z + 0.004) - 0.005, 0.03 - lx, Math.abs(ly - 0.6) - 0.3), 0.0025);
+  d = smin(d, roundBox(lx - 0.077, ly - 0.38, z + 0.006, 0.009, 0.05, 0.04, 0.005), 0.006);
+  d = smin(d, roundBox(lx - 0.112, ly - 0.766, z + 0.004, 0.005, 0.018, 0.081, 0.003), 0.003);
   // Hose über dem Stiefelschaft gebauscht (mit Längsfalten)
   const ang = Math.atan2(z, lx);
   d = smin(d, coneY(lx, ly, z, 0.27, 0.205, 0.074, 0.078) + 0.0028 * Math.sin(ang * 13 + vnoise(ly * 30, 0, ang) * 2), 0.02);
@@ -182,6 +209,13 @@ function legD(lx, ly, z) {
   b = smin(b, capsule(lx, ly, z, 0, 0.075, -0.01, 0, 0.045, -0.14, 0.043), 0.02);
   b = smin(b, ellipsoid(lx - 0.002, ly - 0.04, z + 0.165, 0.046, 0.036, 0.055), 0.02);
   b = smin(b, roundBox(lx - 0.002, ly - 0.014, z + 0.07, 0.051, 0.014, 0.148, 0.008), 0.006);
+  // Schnürung: Querstege vorn auf Schaft und Rist, Fersenkappe
+  for (let i = 0; i < 6; i++) {
+    const yy = 0.1 + i * 0.019, rr = 0.058 + 0.008 * (yy - 0.07) / 0.142;
+    b = smin(b, capsule(lx, ly, z, -0.019, yy, -rr - 0.001, 0.019, yy, -rr - 0.001, 0.0034), 0.002);
+  }
+  for (const [yy, zz] of [[0.11, -0.043], [0.104, -0.068], [0.097, -0.092]]) b = smin(b, capsule(lx, ly, z, -0.018, yy, zz, 0.018, yy, zz, 0.0034), 0.002);
+  b = patch(b, Math.max(rect(lx, ly - 0.05, 0.04, 0.035), 0.04 - z), 0.004);
   d = smin(d, b, 0.015);
   // Kniefalten (ringsum, hinten stärker), Oberschenkel-Faltenwurf, Knitter
   const km = Math.exp(-(((ly - KY - 0.03) / 0.065) ** 2));
@@ -379,7 +413,7 @@ function unpose(x, y, z, n, W, outP, outN) {
 }
 
 // ------------------------------------------------------------------ Bereiche (Materialien), Inseln (UV), AO
-export const REG = { SHIRT: 0, SLEEVE: 1, FOREARM: 2, GLOVE: 3, PANTS: 4, BOOT: 5, SOLE: 6, NECK: 7, SKULL: 8, EYES: 9, FACE: 10, EARS: 11, POCKET: 12, COLLAR: 13 };
+export const REG = { SHIRT: 0, SLEEVE: 1, FOREARM: 2, GLOVE: 3, PANTS: 4, BOOT: 5, SOLE: 6, NECK: 7, SKULL: 8, EYES: 9, FACE: 10, EARS: 11, POCKET: 12, COLLAR: 13, PAD: 14 };
 function dominant() { let best = 0; for (let g = 1; g < 6; g++) if (gw[g] > gw[best]) best = g; return best; }
 // Bereich aus Bauhaltung (Gliedkoordinaten) + Bindehaltung (bx, by, bz)
 function regionAt(x, y, z, bx, by, bz) {
@@ -387,6 +421,9 @@ function regionAt(x, y, z, bx, by, bz) {
   const g = dominant();
   if (g === 0) {
     if (by > 1.452 && Math.hypot(bx, bz - 0.012) < 0.1) return REG.COLLAR;
+    const ab = Math.abs(bx);
+    if (bz < -0.03 && Math.abs(ab - 0.085) < 0.056 && by > 1.283 && by < 1.42) return REG.POCKET;
+    if (bz > 0.05 && Math.abs(ab - 0.085) < 0.066 && by > 0.836 && by < 0.968) return REG.POCKET;
     return by > 1.005 ? REG.SHIRT : REG.PANTS;
   }
   if (g === 1) {
@@ -403,6 +440,7 @@ function regionAt(x, y, z, bx, by, bz) {
     const lx = _a[0], ly = _a[1];
     if (ly < WY + 0.03) return REG.GLOVE;
     if (lx > 0.062 && Math.abs(ly - (SY - 0.1)) < 0.046 && Math.abs(z + 0.002) < 0.041) return REG.POCKET;
+    if (z > 0.005 && Math.hypot((ly - EY + 0.01) / 0.065, lx / 0.05) < 1) return REG.PAD;
     return ly > EY - 0.055 ? REG.SLEEVE : REG.FOREARM;
   }
   const s = g === 4 ? -1 : 1;
@@ -410,6 +448,8 @@ function regionAt(x, y, z, bx, by, bz) {
   const lx = _a[0], ly = _a[1];
   if (ly < 0.212) return ly < 0.03 ? REG.SOLE : REG.BOOT;
   if (lx > 0.09 && Math.abs(ly - 0.7) < 0.084 && Math.abs(z + 0.004) < 0.082) return REG.POCKET;
+  if (lx > 0.068 && Math.abs(ly - 0.38) < 0.052 && Math.abs(z + 0.006) < 0.042) return REG.POCKET;
+  if (z < -0.02 && Math.hypot((ly - KY - 0.015) / 0.075, lx / 0.065) < 1) return REG.PAD;
   return REG.PANTS;
 }
 // Inseln: 0 Rumpf, 1 Kopf, 2/3 Arm L/R, 4/5 Bein L/R → UV-Abwicklung in Bindehaltung
