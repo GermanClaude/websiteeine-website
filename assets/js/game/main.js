@@ -1632,6 +1632,7 @@ function frame(now, bg = false, xrFrame = null) {
     if (net) step('net:post', () => net.postUpdate(dt)); // Host: Schnappschüsse/Modus senden; Client: eigener Zustand
     step('world', () => { if (G.world) G.world.update(dt, G.camera); });
     step('effects', () => G.effects.update(dt));
+    if (G.holes) step('holes', () => G.holes.update(dt)); // Durchblick-Ansichten der Einschusslöcher
     step('hud', () => G.hud.update(dt));
     step('audio', () => G.audio.update(dt));
     if (G.mode && G.mode.isOver && (G.match.state === 'playing' || G.match.netLive)) G.events.emit('match:end', { result: G.mode.result });

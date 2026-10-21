@@ -254,7 +254,7 @@ export class Combat {
       // bewegliche Festkörper (Türen) nehmen Schaden – auch wenn die Kugel durchgeht
       if (worldHit.solid && typeof worldHit.solid.onHit === 'function') worldHit.solid.onHit(falloff(def, dist) * damageScale * energy, shooter, def);
       const info = G.holes ? G.holes.hit(worldHit, def, _dir, dist, energy) : legacyPenetration(this, worldHit, _dir, def);
-      G.events.emit('impact', { point: worldHit.point.clone(), normal: worldHit.normal.clone(), surface: worldHit.surface || 'concrete', shooter, weaponId: def.id, penetrated: !!(info && info.passed), hole: !!(info && G.holes) });
+      G.events.emit('impact', { point: worldHit.point.clone(), normal: worldHit.normal.clone(), surface: worldHit.surface || 'concrete', shooter, weaponId: def.id, penetrated: !!(info && info.passed), hole: !!(info && G.holes), ricochet: !!(info && info.ricochet), dir: _dir.clone() });
       if (!info || !info.passed || !info.exitPoint) break;
       // Austritt: Splitter/Staub auf der Rückseite, weiter mit dem Rest
       G.events.emit('impact', { point: info.exitPoint.clone(), normal: _dir.clone(), surface: worldHit.surface || 'concrete', shooter, weaponId: def.id, penetrated: true, exit: true, hole: !!G.holes });

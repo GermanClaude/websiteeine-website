@@ -1650,7 +1650,8 @@ export class AudioEngine {
       // Hybrid: leise Synthese-Schicht unter der Aufnahme (Staub/Splitter → mehr Variation), nicht auf dem Handy
       if (v?.recorded && this._quality() !== 'low' && PROC_LAYER.has(name) && this._dist(pos) < 25) this.play(name, { position: pos, volume: vol * 0.32, proc: true, priority: 0, delay: 0.002, _deferred: true });
       // Querschläger an Metall und Stein
-      if ((s === 'metal' && this._rand() < 0.14) || (s === 'concrete' && this._rand() < 0.05)) this.play('ricochet', { position: pos, volume: 0.7, delay: 0.008 });
+      // flacher Treffer (bullet-holes.js meldet ricochet) prallt immer ab, sonst selten an Metall/Stein
+      if (p.ricochet || (s === 'metal' && this._rand() < 0.14) || (s === 'concrete' && this._rand() < 0.05)) this.play('ricochet', { position: pos, volume: p.ricochet ? 0.95 : 0.7, delay: 0.008 });
     });
     on('actor:hit', p => {
       const { target, attacker, zone, killed } = p, def = this.weaponDef(p.weaponId), melee = this._isKnife(p.weaponId, def);

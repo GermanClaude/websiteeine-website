@@ -341,6 +341,16 @@ export class Effects {
       case 'fabric': this._impactFabric(ox, oy, oz, nx, ny, nz, S, lod * k, g); break;
       default: this._impactHard(ox, oy, oz, nx, ny, nz, S, lod * k, g);
     }
+    // Querschläger: Funkengarbe entlang der abgelenkten Bahn
+    if (opts.ricochet && opts.dir && (S.kind === 'metal' || S.kind === 'hard' || S.kind === undefined)) {
+      const dd = opts.dir, dn = dd.x * nx + dd.y * ny + dd.z * nz;
+      const rx = dd.x - 2 * dn * nx, ry = dd.y - 2 * dn * ny, rz = dd.z - 2 * dn * nz;
+      const cnt = Math.max(2, Math.round(5 * lod));
+      for (let i = 0; i < cnt; i++) {
+        const sp = rnd(9, 18);
+        this._spark(ox, oy, oz, (rx + rnd(-0.12, 0.12)) * sp, (ry + rnd(-0.08, 0.12)) * sp, (rz + rnd(-0.12, 0.12)) * sp, rnd(0.08, 0.2), rnd(0.014, 0.024), i % 2 ? C.spark : C.sparkHot, 4, 9, 0.035);
+      }
+    }
   }
 
   /** Bodenhöhe unter einem Einschlag (Splitter prallen dort ab statt durch den Boden zu fallen) oder null. */
