@@ -8,17 +8,17 @@ import * as THREE from 'three';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _e = new THREE.Euler();
 /** Abstände [nah, mittel] je Stufe (m) und Obergrenze der Nahstufe (Instanzen). */
-const LOD = { low: [0, 45], medium: [14, 70], high: [20, 95], ultra: [28, 120] };
+const LOD = { low: [0, 32], medium: [14, 70], high: [20, 95], ultra: [28, 120] };
 const NEAR_CAP = { low: 0, medium: 1800, high: 3200, ultra: 4800 };
 
 /**
  * Sackkörper (Länge 1 entlang x, Tiefe 1 entlang z, Höhe 1 entlang y; Stirn bei +z), Profil über Oberseite und Stirn
  * bis unter die Unterkante. cols: Teilungen entlang x, prof: Profilpunkte. seed: Knitter-Variante.
  */
-function bagGeometry(detailed, seed) {
+function bagGeometry(detailed, seed, tiny = false) {
   // Querschnitt: Superellipse (prall gefüllt, Ober-/Unterseite leicht abgeflacht, unten etwas breiter – Last),
   // geschlossener Ring (z, y, Helligkeit); vorn bei +z
-  const nP = detailed ? 12 : 6, pe = 2.6;
+  const nP = detailed ? 12 : tiny ? 4 : 6, pe = 2.6;
   const prof = [];
   for (let k = 0; k < nP; k++) {
     const th = Math.PI / 2 - (k / nP) * Math.PI * 2;      // oben → vorn → unten → hinten
@@ -28,7 +28,7 @@ function bagGeometry(detailed, seed) {
     prof.push([z * (y < 0 ? 1.04 : 1), y, 0.82 + 0.18 * (y + 0.5)]);
   }
   // Teilung entlang der Länge: dicht an den Enden (stumpfe, umgeschlagene Zipfel)
-  const us = detailed ? [-1, -0.93, -0.72, -0.36, 0, 0.36, 0.72, 0.93, 1] : [-1, -0.86, 0.86, 1];
+  const us = detailed ? [-1, -0.93, -0.72, -0.36, 0, 0.36, 0.72, 0.93, 1] : tiny ? [-1, 1] : [-1, -0.86, 0.86, 1];
   let s = seed * 9301 + 49297;
   const rnd = () => ((s = (s * 233280 + 49297) % 2147483647) / 2147483647);
   const ph = [rnd() * 6.28, rnd() * 6.28, rnd() * 6.28];
@@ -135,7 +135,7 @@ export class SandbagField {
     const nearCap = NEAR_CAP[q] ?? 3200;
     this.meshes = [0, 1, 2].map((v) => ({
       near: nearCap ? mk(bagGeometry(true, v + 1), Math.min(byV[v], nearCap), 'sandsack-nah', this.shadow) : null,
-      mid: mk(bagGeometry(false, v + 1), byV[v], 'sandsack', false),
+      mid: mk(bagGeometry(false, v + 1, q === 'low'), byV[v], 'sandsack', false),
     }));
     this.stats.bags = this.bags.length;
     return this.group;
