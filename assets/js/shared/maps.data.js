@@ -372,7 +372,7 @@ export const MAPS = {
     timeDefault: 'vormittag', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'abend', name: 'Abend' }],
     modes: ['cq', 'tdm', 'dom', 'ffa'],
     palette: ['#2b2824', '#6b6458', '#8f8a81', '#4a3f33', '#c7c9c8'],
-    features: ['Tausende verkohlte Bäume, Stümpfe und umgestürzte Stämme', 'Gräben mit Sandsackwänden, Bretterverschalung, Wurzeln und Lattenrosten', 'Stromtrasse mit Gittermasten, einer umgestürzt', 'Stahlgerippe einer Gewächshausanlage', 'Abgebrannter Holzplatz', 'Fünf Eroberungsflaggen A–E'],
+    features: ['Tausende verkohlte Bäume, Stümpfe und umgestürzte Stämme', 'Gräben mit Sandsackwänden, Brustwehren, Bretterverschalung, Wurzeln, Lattenrosten und Unterständen', 'Stromtrasse mit Gittermasten, einer umgestürzt', 'Stahlgerippe einer Gewächshausanlage mit Glasresten', 'Abgebrannter Holzplatz, Forstweg und ausgebrannte Fahrzeugwracks', 'Bodenstreu aus Zweigen, Rinde, Holzkohle; Pfützen und Stacheldraht', 'Fünf Eroberungsflaggen A–E'],
     lanes: ['Westen: Gewächshäuser', 'Mitte: Trichter unter der Stromtrasse', 'Osten: Holzplatz'],
     ambience: 'range',
     bounds: { minX: -180, maxX: 180, minZ: -180, maxZ: 180 },
