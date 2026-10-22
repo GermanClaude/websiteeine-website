@@ -19,6 +19,7 @@ import { estimateMemory } from './post/memory.js';
 import { MOODS, MOOD_FOR_MAP } from './post/grade.js';
 import { resetFormatCache } from './post/common.js';
 import { applyGraphics, samePreset, GFX_KEYS } from '../../shared/graphics.data.js'; // Erweitert-Grafik (S9, ui-controls)
+import { deviceInfo, provisionalTier, decideAuto, autoDecision, gpuName, classifyGpu } from './device.js';
 
 export { LENS_DEFAULTS, LENS_STYLES, MOODS, MOOD_FOR_MAP };
 
@@ -57,38 +58,24 @@ export const BLOOM_DEFAULTS = Object.freeze({ threshold: 3.0, strength: 0.24, ra
 /** Erkennt Touch-/Schwachgeräte für 'auto'. */
 export function isLowEndDevice() {
   if (typeof window === 'undefined') return false;
-  const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  const fine = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
-  const touch = coarse || (navigator.maxTouchPoints > 0 && !fine);
-  const lowMem = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
-  const fewCores = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 2;
-  return touch || lowMem || fewCores;
+  const d = deviceInfo();
+  return d.touch || (d.mem > 0 && d.mem <= 4) || (d.cores > 0 && d.cores <= 2);
 }
 
 /**
- * 'auto' | Stufe → konkrete Stufe. auto: Telefone/Tablets low (Spitzengeräte mit ≥ 8 GB/8 Kernen und große Tablets
- * mit ≥ 8 Kernen medium),
- * schwache Desktops medium, sonst high. Die dynamische Auflösung in main.js regelt danach nach unten.
+ * 'auto' | Stufe → konkrete Stufe. auto (21.10.): Entscheidung aus engine/device.js – GPU-Klasse, GPU-Test beim ersten
+ * Start, in Matches gelernte Stufe (gemerkt), vor dem Kontext das gemerkte Profil bzw. die Gerätewerte (Telefone low,
+ * Spitzengeräte/große Tablets medium, schwache Desktops medium, sonst high). Die dynamische Auflösung und die
+ * Entlastungsstufen in main.js regeln danach nach unten.
  */
 export function resolveQuality(q) {
   if (QUALITY_LEVELS.includes(q)) return q;
   if (typeof window === 'undefined') return 'high';
-  const mem = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : 0;
-  const cores = typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency : 0;
-  const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  const fine = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
-  if (coarse || (navigator.maxTouchPoints > 0 && !fine)) {
-    if (mem >= 8 && cores >= 8) return 'medium';
-    // textures-2: Tablets mit großer, dichter Anzeige (kurze Seite ≥ 700 CSS-px, DPR ≥ 2) und ≥ 8 Kernen – auch
-    // iPadOS (kein deviceMemory) bzw. 6-GB-Android (meldet 4) – starten auf medium; die Stufenrückstufung nach dem
-    // Match (main.js applyAutoTier) fängt Fehlgriffe auf. Telefone bleiben low.
-    const short = Math.min(window.screen?.width || 0, window.screen?.height || 0);
-    if (short >= 700 && (window.devicePixelRatio || 1) >= 2 && cores >= 8 && (mem === 0 || mem >= 4)) return 'medium';
-    return 'low';
-  }
-  if ((mem && mem <= 4) || (cores && cores <= 2)) return 'medium';
-  return 'high';
+  return provisionalTier();
 }
+
+/** Entscheidung für 'auto' dieser Sitzung: { tier, ceiling, reason, gpu, cls, bench, software } | null. */
+export function autoQualityInfo() { return autoDecision(); }
 
 // Einstellungsschlüssel (shared/settings.js) → Objektiv-Konfiguration
 const SETTING_KEYS = {
@@ -122,8 +109,8 @@ const _db = new THREE.Vector2();
  * settings (optional): Einstellungsspeicher (shared/settings.js); der Renderer liest die Objektiv-Schlüssel
  * selbst und folgt Änderungen. Ohne settings gelten LENS_DEFAULTS (Prüfseiten setzen per setLens()).
  */
-export function createRenderer(canvas, { quality = 'auto', settings = null } = {}) {
-  const initial = resolveQuality(quality);
+export function createRenderer(canvas, { quality = 'auto', settings = null, benchmark = true } = {}) {
+  let initial = resolveQuality(quality);
   const reduceMQ = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   let lensCfg = lensConfigFrom(settings, reduceMQ && reduceMQ.matches);
   // VR-Modus (Einstellung vrEnabled, engine/xr): Kontext mit MSAA – three.js gibt die Kantenglättung an den XR-Bildpuffer
@@ -148,6 +135,18 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
   // Max. Anisotropie jetzt abfragen (three.js merkt sie sich): gl.getParameter wartet, bis die GPU alle
   // anstehenden Befehle abgearbeitet hat – beim ersten Kartenladen kostete das einen langen Hänger.
   renderer.capabilities.getMaxAnisotropy();
+  // 'auto' (21.10.): mit dem echten Kontext entscheiden – GPU-Klasse, GPU-Test beim ersten Start, gelernte Stufe
+  // (engine/device.js). Noch ist nichts kompiliert, ein Wechsel der Stufe kostet hier nichts. Auch bei fester Stufe
+  // (dann ohne GPU-Test): wer später auf „Automatisch“ zurückstellt, bekommt so die GPU-Klasse statt nur der Gerätewerte
+  // (setQuality('auto') holt den Test nach).
+  let auto = null;
+  let gpu = { name: '', cls: 'unbekannt' };
+  try { const name = gpuName(renderer.getContext()); gpu = { name, cls: classifyGpu(name, deviceInfo()).cls }; } catch { /* ohne Namen */ }
+  const startAuto = !QUALITY_LEVELS.includes(quality);
+  try {
+    const d = decideAuto(renderer, { bench: benchmark && startAuto });
+    if (startAuto) { auto = d; initial = d.tier; }
+  } catch (err) { console.warn('[NULLPUNKT] Geräteprofil:', err); }
 
   const qualityListeners = new Set();
   const contextListeners = new Set();
@@ -161,6 +160,21 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
   const impulse = { supp: 0, flash: 0 };
   const pipeline = new PostPipeline(renderer);
   if (settings && typeof settings.get === 'function') pipeline.setLook(settings.get('colorLook')); // Farbstimmung
+  // Leistung (21.10.): Vorkompilieren muss die Programmvariante treffen, mit der später gezeichnet wird. Mit Kette
+  // zeichnet die Welt (und das Viewmodel) in ein HDR-Ziel – dort gelten lineare Ausgabe ohne Tonemapping; compile()
+  // ohne gebundenes Ziel übersetzte die Variante für den Bildschirm (sRGB + ACES), die nie benutzt wurde. Folge: jedes
+  // Material, das nicht im Vorwärm-Bild zu sehen war (zweite Waffe, Requisiten, Teile außer Sicht), linkte sein
+  // Programm erst beim ersten Erscheinen mitten im Match (Waffenwechsel: P-9-Schlitten ≈ 1–4 s in SwiftShader).
+  // compileAsync ruft this.compile auf und ist damit mit abgedeckt.
+  const rawCompile = renderer.compile.bind(renderer);
+  /** Unverändertes compile() mit dem gerade gebundenen Ziel (Pässe der Kette, post/common.js Fullscreen.compile). */
+  renderer.compileRaw = rawCompile;
+  renderer.compile = function compile(scene, camera, targetScene = null) {
+    const prev = renderer.getRenderTarget();
+    const target = prev === null && !renderer.xr.isPresenting && pipeline.active ? pipeline.hdr : null;
+    if (target) renderer.setRenderTarget(target);
+    try { return rawCompile(scene, camera, targetScene); } finally { if (target) renderer.setRenderTarget(prev); }
+  };
 
   // CSS-Größe der Leinwand per ResizeObserver zwischenspeichern: resize() läuft jedes Bild und würde mit
   // clientWidth/clientHeight sonst nach den DOM-Schreibzugriffen des HUD eine synchrone Layoutberechnung erzwingen.
@@ -178,6 +192,10 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
     renderer,
     quality: initial,
     requested: quality,
+    /** Entscheidung für 'auto' (engine/device.js: GPU, Klasse, Test, Grund) – null bei fester Stufe. */
+    auto,
+    /** GPU-Name und -Klasse (engine/device.js); cls 'software' = Browser ohne GPU-Beschleunigung. */
+    gpu,
     preset: applyGraphics(QUALITY_PRESETS[initial], settings),
     /** Entfällt seit der eigenen Kette (bleibt null; Kompatibilität). */
     composer: null,
@@ -196,6 +214,10 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
     outputPixelRatio: 1,
     /** Dynamische Auflösung: Faktor auf das Pixelverhältnis der Stufe (0,5…1). */
     resolutionScale: 1,
+    /** Entlastung mitten im Match (engine/dynres.js, 0–3; main setzt sie je Bild): Schatten seltener neu, Pässe aus. */
+    relief: 0,
+    /** Entlastung der Bildpässe (Bloom/Kantenglättung; nur bei GPU-Engpass, engine/dynres.js postRelief). */
+    postRelief: 0,
     _frames: [],
     _last: 0,
     _fps: 0,
@@ -205,6 +227,9 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
     _shadowDirty: true,
     _shadowFrame: 0,
     _cssVignette: null,
+
+    /** Schattenkarte höchstens jedes n-te Bild neu (Stufe × Entlastung); world/lighting.js versetzt die Kaskade danach. */
+    get shadowEvery() { return (this.preset.shadowInterval || 1) * (1 + Math.max(0, Math.min(3, this.relief | 0))); },
 
     /** Bild wird ohne Shader-Vignette gezeichnet → main blendet die CSS-Vignette ein. */
     get cssVignette() { return !pipeline.active; },
@@ -216,6 +241,12 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
     get mood() { return pipeline.mood.id; },
 
     setQuality(q) {
+      if (!QUALITY_LEVELS.includes(q)) {
+        // „Automatisch“ erst in dieser Sitzung gewählt (Start mit fester Stufe): GPU-Test jetzt nachholen (21.10.)
+        const a = autoDecision();
+        if (!a || a.pending) { try { decideAuto(renderer, { bench: benchmark }); } catch (err) { console.warn('[NULLPUNKT] Geräteprofil:', err); } }
+        this.auto = autoDecision();
+      }
       const next = resolveQuality(q);
       this.requested = q;
       // Stufe + erweiterte Grafikoptionen (settings gfx*, shared/graphics.data.js) = wirksame Vorgabe
@@ -349,8 +380,11 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
       // in Wände); sonst wie in den meisten Shootern über der Welt (Tiefe gelöscht)
       const vmWorld = !!(settings && typeof settings.get === 'function' && settings.get('weaponObstruction') === 'clip');
       pipeline.vmWorldDepth = vmWorld;
-      // Gedrosselte Schatten (low): statische Welt + gleiche Kaskade → Karte nur jedes n-te Bild oder nach invalidateShadows()
-      const sm = renderer.shadowMap, every = this.preset.shadowInterval || 1;
+      // Gedrosselte Schatten (low): statische Welt + gleiche Kaskade → Karte nur jedes n-te Bild oder nach invalidateShadows();
+      // Entlastung (21.10.): zusätzlich ×2/×3/×4 (bewegte Schatten von Bots/Fahrzeugen laufen dann leicht hinterher)
+      const sm = renderer.shadowMap, every = this.shadowEvery;
+      pipeline.relief = this.relief | 0;
+      pipeline.postRelief = this.postRelief | 0;
       if (sm.enabled && every > 1) {
         sm.autoUpdate = false;
         if (this._shadowDirty || ++this._shadowFrame >= every) { sm.needsUpdate = true; this._shadowDirty = false; this._shadowFrame = 0; }
@@ -391,7 +425,8 @@ export function createRenderer(canvas, { quality = 'auto', settings = null } = {
       this._lastScene = scene;
       this._lastVmScene = vmScene || null;
       renderer.info.reset();
-      const sm = renderer.shadowMap, every = this.preset.shadowInterval || 1;
+      // gleicher Takt wie am Bildschirm (Stufe × Entlastung) – world/lighting.js versetzt die Kaskade danach
+      const sm = renderer.shadowMap, every = this.shadowEvery;
       if (sm.enabled && every > 1) {
         sm.autoUpdate = false;
         if (this._shadowDirty || ++this._shadowFrame >= every) { sm.needsUpdate = true; this._shadowDirty = false; this._shadowFrame = 0; }

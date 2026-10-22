@@ -30,10 +30,17 @@ export class Fullscreen {
     renderer.setRenderTarget(target);
     renderer.render(this.mesh, _camera);
   }
-  /** Material vorab kompilieren (kein Linken im ersten Bild, in dem der Pass läuft). */
-  compile(renderer, material) {
+  /**
+   * Material vorab kompilieren (kein Linken im ersten Bild, in dem der Pass läuft). target = Ziel, in das der Pass
+   * später zeichnet (null = Bildschirm): die Programmvariante hängt davon ab (sRGB/Tonemapping nur am Bildschirm).
+   */
+  compile(renderer, material, target = null) {
     this.mesh.material = material;
-    try { renderer.compile(this.mesh, _camera); } catch { /* beim Zeichnen nachholen */ }
+    const prev = renderer.getRenderTarget();
+    try {
+      renderer.setRenderTarget(target);
+      (renderer.compileRaw || renderer.compile).call(renderer, this.mesh, _camera);
+    } catch { /* beim Zeichnen nachholen */ } finally { renderer.setRenderTarget(prev); }
   }
 }
 

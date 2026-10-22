@@ -23,7 +23,8 @@ import * as modesData from '../shared/modes.data.js';
 import * as mapsData from '../shared/maps.data.js';
 import * as classesData from '../shared/classes.data.js'; // core-mechanics: Klassen, Panzerung, Spielstile
 import { EventBus } from './engine/events.js';
-import { createRenderer, QUALITY_LEVELS, resolveQuality } from './engine/renderer.js';
+import { createRenderer, QUALITY_LEVELS, resolveQuality, autoQualityInfo } from './engine/renderer.js';
+import { learnTier, deviceInfo } from './engine/device.js';
 import { Input } from './engine/input.js';
 import { watchForUpdates } from './engine/update.js'; // Hinweis auf neue Fassung (nur veröffentlicht)
 import { separateActors } from './engine/physics.js';
@@ -955,7 +956,7 @@ async function runStart(config, gen) {
     };
     if (reuse) {
       onProgress(1);
-      if (dynres) dynres.reset();
+      if (dynres) { dynres.reset(); G.renderer.relief = G.renderer.postRelief = 0; }
     } else {
       sceneBase = new Set(G.scene.children);
       // Vorarbeiten ohne Kartenbezug laufen in den Pausen des Kartenaufbaus (Worker-Phasen) mit
@@ -966,7 +967,7 @@ async function runStart(config, gen) {
       G.world = world;
       safe('renderer.setMood', () => { G.renderer.setMood?.(world.grade || cfg.mapId); G.renderer.setSun?.(world.lighting); }); // core-render: LUT/Belichtung/Lichtstrahlen je Karte
       if (world.group && !world.group.parent) G.scene.add(world.group);
-      if (dynres) { dynres.reset(); G.renderer.setResolutionScale(renderScaleValue(settings.get('renderScale')) || 1); }
+      if (dynres) { dynres.reset(); G.renderer.relief = G.renderer.postRelief = 0; G.renderer.setResolutionScale(renderScaleValue(settings.get('renderScale')) || 1); }
       await early;
       // Abgebrochen (neuer Start/Lobby): Welt stehen lassen – der Nachfolger entscheidet (gleiche Karte → wiederverwenden)
       if (!live()) { await teardownMatch({ keepWorld: true }); return; }
@@ -1122,14 +1123,154 @@ async function warmUp(live = () => true) {
     }
     await nextFrame();
     if (!live()) return;
+    // 21.10.: ein Bild ohne Sichtkegel-Test in 4×4 Pixel – alle Objekte samt aller LOD-Stufen und ausgeblendeter
+    // Teile laden Geometrie/Texturen hoch, Schatten- und AO-Varianten (Skinning, Instanzen) werden übersetzt
+    safe('warmAll', warmAll);
+    await nextFrame();
+    if (!live()) return;
     G.menus.showLoading(0.97);
     G.renderer.compilePost?.(); // core-render: Objektiv/Grade/Belichtung (auch EASU für spätere Skalen < 1)
     // Mündungsfeuer/Rauch unsichtbar mitzeichnen: ihre Programme entstehen so hier statt beim ersten Schuss
     const vm = G.player?.weapon?.viewModel;
     try { vm?.primeEffects?.(true); G.renderer.render(G.scene, G.camera, G.viewmodel.scene, G.viewmodel.camera); } finally { vm?.primeEffects?.(false); }
+    await settleAll(r, live);
   } catch (err) {
     console.warn('[NULLPUNKT] Shader-Vorbereitung:', err);
   }
+}
+
+/**
+ * Ersten Gebrauch aller übersetzten Programme noch im Ladebildschirm erledigen (21.10.): three.js fragt beim ersten
+ * Zeichnen Link-Status, Logs und Uniforms ab – synchron, wartet also aufs Linken. Nur übersetzte, nie gezeichnete
+ * Programme (Zweitwaffe, Requisiten aus ViewModel.warmup, Nachbearbeitung) kamen so erst mitten im Match dran.
+ * Mit KHR_parallel_shader_compile zuerst ohne Blockieren auf fertige Programme warten (höchstens 5 s).
+ */
+async function settleAll(r, live) {
+  const progs = (r.info && r.info.programs) || [];
+  const t0 = performance.now();
+  while (progs.some((p) => typeof p.isReady === 'function' && !p.isReady()) && performance.now() - t0 < 5000) {
+    await nextFrame();
+    if (!live()) return;
+  }
+  for (const p of progs.slice()) if (typeof p.getUniforms === 'function') p.getUniforms();
+  if (DEBUG) console.info(`[NULLPUNKT] Programme bereit: ${progs.length} in ${Math.round(performance.now() - t0)} ms`);
+}
+
+/**
+ * Vorwärm-Bild der ganzen Welt (21.10., Leistung): three.js lädt Geometrie und Texturen erst beim ersten Zeichnen hoch
+ * und übersetzt Schatten-/AO-Programme erst, wenn ein Objekt dieser Art im Schattenpass bzw. AO-Vorpass landet. Alles,
+ * was im Vorwärm-Bild außer Sicht lag (andere LOD-Stufen, Fahrzeug-Innenräume, Bots hinter der Kamera), kam so mitten im
+ * Match: Hafen ≈ 220 Geometrien in den ersten 40 s (bufferData), Programme beim ersten Bot im Bild. Hier einmal alles
+ * ohne Sichtkegel-Test, Schattenpass erzwungen – in die echten Ziele, aber nur 4×4 Pixel. Danach wird jeder Zustand
+ * wiederhergestellt und die Schattenkarte neu gezeichnet.
+ *  - Ab „mittel“ am Desktop zusätzlich alle LOD-Stufen und ausgeblendeten Teile. Auf „niedrig“ und Telefonen/Tablets
+ *    (knapper Grafikspeicher) nur, was ohnehin gezeichnet wird – samt aktueller LOD-Stufe überall auf der Karte; andere
+ *    Stufen und ausgeblendete Teile (Fahrzeug-Insassen, Vorräte, Verdecker) laden erst bei Bedarf hoch. Ihre
+ *    Programme entstehen trotzdem schon in warmUp (compile() erfasst auch unsichtbare Objekte).
+ *  - Lichter bleiben, wie sie sind: ein ausgeblendetes Licht (z. B. die ferne Sonnenkaskade „sun-far“) erzeugte sonst für
+ *    jedes beleuchtete Material eine Programmvariante mit einem Licht mehr, die im Spiel nie vorkommt.
+ *  - Jeder Durchgang einzeln abgesichert; Objekte, deren Hüllkugel three.js nicht berechnen kann (normalisiertes
+ *    Attribut mit nicht unterstütztem Array-Typ → „Invalid component type“), bleiben draußen und werden gemeldet.
+ */
+function warmAll() {
+  const R = G.renderer;
+  const r = R && R.renderer;
+  if (!r || R.lost || !G.scene || !G.camera) return;
+  const lean = R.quality === 'low' || deviceInfo().touch;
+  const undo = [];
+  const forced = new Set();
+  const bad = [];
+  const hide = (o) => { o.visible = false; undo.push(() => { o.visible = true; }); };
+  G.scene.traverse((o) => {
+    if (o.isLight) {
+      // sichtbares Licht unter einem nur fürs Vorwärmen eingeblendeten Teil: aus lassen
+      if (o.visible && forced.size) for (let p = o.parent; p; p = p.parent) if (forced.has(p)) { hide(o); break; }
+      return;
+    }
+    if (!lean) {
+      if (o.isLOD && o.autoUpdate) { o.autoUpdate = false; undo.push(() => { o.autoUpdate = true; }); }
+      if (!o.visible) { o.visible = true; forced.add(o); undo.push(() => { o.visible = false; }); }
+    }
+    if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && o.frustumCulled) { o.frustumCulled = false; undo.push(() => { o.frustumCulled = true; }); }
+    // Hüllkugel vorab (three.js braucht sie zum Sortieren); scheitert sie, das Objekt auslassen statt das Bild abzubrechen
+    if (o.visible && (o.isMesh || o.isPoints || o.isLine) && o.geometry) {
+      try {
+        if (o.boundingSphere !== undefined) { if (o.boundingSphere === null) o.computeBoundingSphere(); } else if (o.geometry.boundingSphere === null) o.geometry.computeBoundingSphere();
+      } catch (err) {
+        bad.push(`${o.name || o.type}${o.geometry.name ? `/${o.geometry.name}` : ''} [${badAttributes(o.geometry).join(', ') || err.message}]`);
+        hide(o);
+      }
+    }
+  });
+  if (bad.length) console.warn(`[NULLPUNKT] warmAll: ${bad.length} Objekt(e) ohne Hüllkugel ausgelassen:`, bad.slice(0, 8).join(' · '));
+  // In die echten Ziele zeichnen (gleiches Format wie später: Metal/Vulkan-Treiber bauen ihre Pipeline-Zustände je
+  // Zielformat beim ersten Zeichnen), aber nur in einen 4×4-Ausschnitt – kaum Pixelarbeit
+  const P = R.pipeline;
+  const sm = r.shadowMap;
+  const prevTarget = r.getRenderTarget(), prevAutoClear = r.autoClear;
+  const vp = new THREE.Vector4(), sc = new THREE.Vector4();
+  const into = (target, fn) => {
+    if (target) {
+      const v = target.viewport.clone(), s = target.scissor.clone(), st = target.scissorTest;
+      target.viewport.set(0, 0, 4, 4); target.scissor.set(0, 0, 4, 4); target.scissorTest = true;
+      try { r.setRenderTarget(target); fn(); } finally { target.viewport.copy(v); target.scissor.copy(s); target.scissorTest = st; r.setRenderTarget(null); }
+    } else {
+      r.setRenderTarget(null);
+      r.getViewport(vp); r.getScissor(sc);
+      const st = r.getScissorTest();
+      r.setViewport(0, 0, 4, 4); r.setScissor(0, 0, 4, 4); r.setScissorTest(true);
+      try { fn(); } finally { r.setViewport(vp); r.setScissor(sc); r.setScissorTest(st); }
+    }
+  };
+  const pass = (label, fn) => {
+    try { fn(); } catch (err) { console.warn(`[NULLPUNKT] warmAll (${label}):`, err, findBadAttributes(G.scene).slice(0, 8).join(' · ')); }
+  };
+  const t0 = performance.now();
+  try {
+    sm.needsUpdate = true;
+    r.autoClear = true;
+    pass('Welt', () => into(P && P.active ? P.hdr : null, () => r.render(G.scene, G.camera)));
+    // AO-Vorpass (hoch/ultra): Normalen-Material mit allen Objektarten, in sein eigenes Ziel
+    const ao = P && P.gtao;
+    if (ao && ao.normalMaterial && ao.normalRenderTarget) {
+      pass('AO', () => {
+        // wie der echte Vorpass (GTAOPass._overrideVisibility): Punkte und Linien zählen nicht
+        const off = [];
+        G.scene.traverse((o) => { if ((o.isPoints || o.isLine || o.isLine2) && o.visible) { o.visible = false; off.push(o); } });
+        G.scene.overrideMaterial = ao.normalMaterial;
+        try { into(ao.normalRenderTarget, () => r.render(G.scene, G.camera)); } finally { G.scene.overrideMaterial = null; for (const o of off) o.visible = true; }
+      });
+    }
+  } finally {
+    r.setRenderTarget(prevTarget);
+    r.autoClear = prevAutoClear;
+    for (let i = undo.length - 1; i >= 0; i--) undo[i]();
+    R.invalidateShadows();
+  }
+  if (DEBUG) console.info(`[NULLPUNKT] Vorwärm-Bild der Welt${lean ? ' (schlank)' : ''}: ${Math.round(performance.now() - t0)} ms, ${undo.length} Zustände`);
+}
+
+// Array-Typen, die three.js (MathUtils.denormalize) bei normalisierten Attributen kennt
+const NORM_TYPES = [Float32Array, Uint32Array, Uint16Array, Uint8Array, Uint8ClampedArray, Int32Array, Int16Array, Int8Array];
+
+/** Normalisierte Attribute einer Geometrie mit nicht unterstütztem Array-Typ → ['name:Typ', …]. */
+function badAttributes(geo) {
+  const out = [];
+  const check = (k, a) => {
+    if (!a || !a.normalized) return;
+    const arr = a.isInterleavedBufferAttribute ? a.data && a.data.array : a.array;
+    if (!arr || !NORM_TYPES.includes(arr.constructor)) out.push(`${k}:${arr && arr.constructor ? arr.constructor.name : typeof arr}`);
+  };
+  for (const k in geo.attributes) check(k, geo.attributes[k]);
+  for (const k in geo.morphAttributes) for (const a of geo.morphAttributes[k]) check(`morph.${k}`, a);
+  return out;
+}
+
+/** Alle Objekte der Szene mit solchen Attributen (Diagnose nach einem Fehler) → ['Objekt [name:Typ]', …]. */
+function findBadAttributes(root) {
+  const out = [];
+  root.traverse((o) => { if (o.geometry && o.geometry.attributes) { const b = badAttributes(o.geometry); if (b.length) out.push(`${o.name || o.type} [${b.join(', ')}]`); } });
+  return out;
 }
 
 /** Gerät hochkant (Telefon) oder Tab verborgen → Match darf nicht ungesehen weiterlaufen. */
@@ -1163,6 +1304,12 @@ function tickCountdown(dt) {
     G.match.startedAt = G.time.elapsed;
     G.match.startedReal = G.time.real;
     G.events.emit('match:start', { modeId: G.match.modeId, mapId: G.match.mapId });
+    if (tierNotice) {
+      // Touch: kurze Fassung (eine Zeile zwischen den Knöpfen oben, Rat, der auf Telefon/Tablet umsetzbar ist)
+      const t = G.input && G.input.mode === 'touch' ? tierNotice.short : tierNotice.text;
+      tierNotice = null;
+      safe('tierNotice', () => G.hud && G.hud._notice && G.hud._notice(t, '', null, 6, 'grafik'));
+    }
   }
 }
 
@@ -1534,23 +1681,37 @@ function applyAutoTier() {
   const R = G.renderer;
   if (QUALITY_OVERRIDE || settings.get('quality') !== 'auto') { dynres.wantTierDrop = false; return; }
   const idx = QUALITY_LEVELS.indexOf(R.quality);
+  // Obergrenze fürs Hochstufen: Entscheidung des Geräteprofils ohne die gelernte Stufe (engine/device.js)
+  const ceiling = (autoQualityInfo() && autoQualityInfo().ceiling) || resolveQuality('auto');
   let next = null;
   if (dynres.wantTierDrop && idx > 0) next = QUALITY_LEVELS[idx - 1];
-  else if (G.matchCount > 0 && idx < QUALITY_LEVELS.indexOf(resolveQuality('auto')) && dynres.stepUpOk() && !stepUps.has(QUALITY_LEVELS[idx + 1])) {
+  else if (G.matchCount > 0 && idx < QUALITY_LEVELS.indexOf(ceiling) && dynres.stepUpOk() && !stepUps.has(QUALITY_LEVELS[idx + 1])) {
     next = QUALITY_LEVELS[idx + 1];
     stepUps.add(next);
   }
   dynres.wantTierDrop = false;
   if (!next) return;
   if (DEBUG) console.info(`[NULLPUNKT] Automatische Qualität: ${R.quality} → ${next}`);
+  const down = QUALITY_LEVELS.indexOf(next) < idx;
   applyQuality(next);
   R.setResolutionScale(1);
+  // 21.10.: Ergebnis merken (nächster Besuch startet gleich so) und den Spieler beim Matchbeginn kurz informieren
+  safe('learnTier', () => learnTier(next));
+  const label = TIER_LABEL[next] || next;
+  tierNotice = down
+    ? { text: `Grafik automatisch auf „${label}“ gesenkt – für eine flüssige Bildrate.`, short: `Grafik auf „${label}“ gesenkt.` }
+    : { text: `Grafik automatisch auf „${label}“ angehoben.`, short: `Grafik auf „${label}“ angehoben.` };
 }
 
+const TIER_LABEL = { low: 'Niedrig', medium: 'Mittel', high: 'Hoch', ultra: 'Ultra' };
+/** Hinweis zum automatischen Stufenwechsel, beim nächsten Matchbeginn gezeigt: { text (Desktop), short (Touch) } | null */
+let tierNotice = null;
+
 function updatePerf(now, workMs, rawMs) {
-  // Feste Auflösungsskala (Einstellung renderScale) statt dynamischer Auflösung
+  // Feste Auflösungsskala (Einstellung renderScale) statt dynamischer Auflösung – Entlastung (Bots, Schatten, Partikel,
+  // Pässe) und Lernen der Stufe laufen trotzdem (21.10.: gerade wer wegen Ruckeln die Skala festlegt, braucht sie)
   const fixed = renderScaleValue(settings.get('renderScale'));
-  if (fixed) { if (Math.abs(G.renderer.resolutionScale - fixed) > 1e-3) G.renderer.setResolutionScale(fixed); return; }
+  if (fixed && Math.abs(G.renderer.resolutionScale - fixed) > 1e-3) G.renderer.setResolutionScale(fixed);
   if (!dynres || QUALITY_OVERRIDE || G.match.startedReal == null || G.time.real - G.match.startedReal < 3) return;
   const cap = fpsLimitValue(settings.get('fpsLimit'));
   dynres.touch = G.input.mode === 'touch' || (cap > 0 && cap <= 30); // Ziel 30 FPS auf Touch (bzw. bei 30er-Begrenzung), 60 auf Desktop
@@ -1559,7 +1720,10 @@ function updatePerf(now, workMs, rawMs) {
   const auto = settings.get('quality') === 'auto';
   const idx = QUALITY_LEVELS.indexOf(R.quality);
   const canDropTier = auto && idx > 0;
-  dynres.update(now, R, { floor: canDropTier ? 0.7 : 0.55, canDropTier });
+  dynres.update(now, R, { floor: canDropTier ? 0.7 : 0.55, canDropTier, lockScale: !!fixed });
+  // Entlastung (21.10.): Renderer (Schattentakt, Pässe) übernimmt sie hier; Effekte, Bots und Handkontakt lesen G.perf.relief
+  R.relief = dynres.relief;
+  R.postRelief = dynres.postRelief;
 }
 
 /* ===================================================== Schleife */
@@ -1721,7 +1885,7 @@ function updateStats(now) {
     const p = dynres ? dynres.stats : null;
     text += `\n${i.drawCalls} Draw Calls · ${(i.triangles / 1000).toFixed(1).replace('.', ',')}k Dreiecke\n${i.quality} · ${i.width}×${i.height} @${i.pixelRatio} · Skala ${String(i.resolutionScale).replace('.', ',')}\n` +
       `${G.match.state} · ${G.actors.length} Akteure · Geo ${i.geometries} · Tex ${i.textures}` +
-      (p && p.interval ? `\nArbeit ${String(p.work).replace('.', ',')} ms / ${String(p.interval).replace('.', ',')} ms${dynres.plateau ? ` · Plateau ${Math.round(dynres.plateau)}` : ''}` : '') +
+      (p && p.interval ? `\nArbeit ${String(p.work).replace('.', ',')} ms / ${String(p.interval).replace('.', ',')} ms${dynres.plateau ? ` · Plateau ${Math.round(dynres.plateau)}` : ''}${dynres.relief ? ` · Entlastung ${dynres.relief}${dynres.reliefGpu ? ' (GPU)' : ''}` : ''}` : '') +
       (i.post && i.post.mode !== 'direct' ? `\nBild ${i.post.style} · ${i.post.mode} · ${i.post.internal}→${i.post.output} (${i.post.upscaler}) · Pässe ${i.post.passes}${i.post.exposure != null ? ` · Bel. ×${String(i.post.exposure).replace('.', ',')}` : ''}` : '') +
       (missing.length ? `\nFehlt: ${missing.join(', ')}` : '');
   }
@@ -1908,13 +2072,27 @@ function wireGlobal() {
     const st = G.match.state;
     if (st === 'playing' || st === 'paused' || st === 'countdown') { e.preventDefault(); e.returnValue = ''; }
   });
+  let ctxTimer = 0;
   G.renderer.onContextChange((kind) => {
     const el = $('context-lost');
+    clearTimeout(ctxTimer);
     if (kind === 'lost') {
       safe('context', releaseLostContext);
       pause();
-      if (el) el.hidden = false;
-    } else if (el) el.hidden = true;
+      if (el) { el.hidden = false; el.classList.remove('is-stuck'); el.textContent = 'Grafik wird wiederhergestellt …'; }
+      // 21.10.: Stellt der Browser den Kontext nicht wieder her (Treiber-Reset, GPU-Prozess beendet), nicht endlos auf
+      // „wird wiederhergestellt“ stehen bleiben – nach 8 s Neuladen anbieten
+      ctxTimer = setTimeout(() => {
+        if (!G.renderer.lost || !el) return;
+        el.classList.add('is-stuck');
+        el.textContent = 'Grafik reagiert nicht mehr. ';
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = 'Neu laden';
+        b.addEventListener('click', () => location.reload());
+        el.appendChild(b);
+      }, 8000);
+    } else if (el) { el.hidden = true; el.classList.remove('is-stuck'); }
   });
   const fatalReload = document.querySelector('[data-fatal-reload]');
   if (fatalReload) fatalReload.addEventListener('click', () => location.reload());
@@ -1949,6 +2127,8 @@ async function bootstrap() {
     G.renderer = createRendererOrNull({ quality: QUALITY_OVERRIDE || settings.get('quality'), settings });
     if (!G.renderer) { showFatal('webgl'); return; }
     G.renderer.onQualityChange(onQualityChanged);
+    // 21.10.: Browser ohne GPU-Beschleunigung (Software-Rendering, häufige Ursache für ≈ 10 FPS) – beim ersten Match sagen
+    if (G.renderer.gpu && G.renderer.gpu.cls === 'software') tierNotice = { text: 'Grafik läuft ohne GPU-Beschleunigung – im Browser die Hardwarebeschleunigung einschalten.', short: 'Grafik ohne GPU – anderen Browser testen.' };
     if (G.renderer.onStyleChange) G.renderer.onStyleChange(applyQualityClasses); // Bildstil (core-render)
     if (DEBUG && G.renderer.exposure) G.renderer.exposure.track = true;
     applyQualityClasses();

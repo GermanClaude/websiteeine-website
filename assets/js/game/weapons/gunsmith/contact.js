@@ -9,13 +9,34 @@ const CELL = 0.012;                 // m Gitterweite (Teilraum; 15.10.: 22 → 1
 const QUANT = 0.003;                // m Raster der Vereinfachung großer Teile (Kontaktnetz, nicht die Grafik)
 const DECIMATE_FROM = 3000;         // Dreiecke je Teil, ab denen vereinfacht wird
 const TIE = 2e-5;                   // m (Teilraum) gleich nahe Dreiecke (gemeinsame Kante/Ecke)
-const OFF = 1 << 9, SPAN = 1 << 10;
-const key = (x, y, z) => ((x + OFF) * SPAN + (y + OFF)) * SPAN + (z + OFF);
 const _inv = new THREE.Matrix4(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _q = new THREE.Quaternion(), _t = new THREE.Vector3();
 
 function visibleChain(o, stop) {
   for (let p = o; p && p !== stop; p = p.parent) if (!p.visible) return false;
   return true;
+}
+
+/**
+ * Zellraster als dichtes Feld (CSR): start[c]..start[c+1] = Dreiecke der Zelle c in aufsteigender Reihenfolge (wie
+ * vorher die Listen der Map). Zellen über die Hüllbox x0..x1 × y0..y1 × z0..z1 (Zellindizes); Dreieck t liegt in allen
+ * Zellen, die seine Hüllbox (B) schneidet.
+ */
+function buildGrid(B, valid, n, x0, y0, z0, x1, y1, z1) {
+  const nx = x1 - x0 + 1, ny = y1 - y0 + 1, nz = z1 - z0 + 1;
+  const start = new Int32Array(nx * ny * nz + 1);
+  const each = (t, fn) => {
+    const b = t * 6;
+    const ax = Math.floor(B[b] / CELL) - x0, bx = Math.floor(B[b + 3] / CELL) - x0;
+    const ay = Math.floor(B[b + 1] / CELL) - y0, by = Math.floor(B[b + 4] / CELL) - y0;
+    const az = Math.floor(B[b + 2] / CELL) - z0, bz = Math.floor(B[b + 5] / CELL) - z0;
+    for (let x = ax; x <= bx; x++) for (let y = ay; y <= by; y++) for (let z = az; z <= bz; z++) fn((x * ny + y) * nz + z);
+  };
+  for (let t = 0; t < n; t++) if (valid[t]) each(t, (c) => { start[c + 1]++; });
+  for (let c = 0; c < nx * ny * nz; c++) start[c + 1] += start[c];
+  const tris = new Int32Array(start[nx * ny * nz]);
+  const fill = start.slice(0, nx * ny * nz);
+  for (let t = 0; t < n; t++) if (valid[t]) each(t, (c) => { tris[fill[c]++] = t; });
+  return { x0, y0, z0, x1, y1, z1, ny, nz, start, tris };
 }
 
 export class GunCollider {
@@ -58,8 +79,14 @@ export class GunCollider {
       const n = T.length / 9;
       if (!n) continue;
       const N = new Float32Array(n * 3);
-      const grid = new Map();
+      // Leistung (21.10.): je Dreieck seine Hüllbox (Vorprüfung vor closestOnTri) und die Zellen als dichtes Feld über
+      // die Hüllbox des Teils statt einer Map – Abfragen mit großem Radius (65 mm = bis 13³ Zellen) kosteten je Zelle
+      // einen Hash-Zugriff; ein Kontaktlösen (Nachladen, Waffenwechsel) brauchte so 40–60 ms je Hand und Bild.
+      // Zellen, Reihenfolge der Zellen und der Dreiecke darin bleiben gleich → identische Ergebnisse.
+      const B = new Float32Array(n * 6);
+      const valid = new Uint8Array(n);
       const box = new THREE.Box3();
+      let cx0 = Infinity, cy0 = Infinity, cz0 = Infinity, cx1 = -Infinity, cy1 = -Infinity, cz1 = -Infinity;
       for (let t = 0; t < n; t++) {
         const o = t * 9;
         const ux = T[o + 3] - T[o], uy = T[o + 4] - T[o + 1], uz = T[o + 5] - T[o + 2];
@@ -67,19 +94,20 @@ export class GunCollider {
         let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
         const l = Math.hypot(nx, ny, nz);
         if (l < 1e-12) continue;            // entartet
+        valid[t] = 1;
         N[t * 3] = nx / l; N[t * 3 + 1] = ny / l; N[t * 3 + 2] = nz / l;
-        const x0 = Math.floor(Math.min(T[o], T[o + 3], T[o + 6]) / CELL), x1 = Math.floor(Math.max(T[o], T[o + 3], T[o + 6]) / CELL);
-        const y0 = Math.floor(Math.min(T[o + 1], T[o + 4], T[o + 7]) / CELL), y1 = Math.floor(Math.max(T[o + 1], T[o + 4], T[o + 7]) / CELL);
-        const z0 = Math.floor(Math.min(T[o + 2], T[o + 5], T[o + 8]) / CELL), z1 = Math.floor(Math.max(T[o + 2], T[o + 5], T[o + 8]) / CELL);
-        for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) {
-          const k = key(x, y, z);
-          let c = grid.get(k);
-          if (!c) grid.set(k, (c = []));
-          c.push(t);
-        }
+        const b = t * 6;
+        B[b] = Math.min(T[o], T[o + 3], T[o + 6]); B[b + 3] = Math.max(T[o], T[o + 3], T[o + 6]);
+        B[b + 1] = Math.min(T[o + 1], T[o + 4], T[o + 7]); B[b + 4] = Math.max(T[o + 1], T[o + 4], T[o + 7]);
+        B[b + 2] = Math.min(T[o + 2], T[o + 5], T[o + 8]); B[b + 5] = Math.max(T[o + 2], T[o + 5], T[o + 8]);
+        cx0 = Math.min(cx0, Math.floor(B[b] / CELL)); cx1 = Math.max(cx1, Math.floor(B[b + 3] / CELL));
+        cy0 = Math.min(cy0, Math.floor(B[b + 1] / CELL)); cy1 = Math.max(cy1, Math.floor(B[b + 4] / CELL));
+        cz0 = Math.min(cz0, Math.floor(B[b + 2] / CELL)); cz1 = Math.max(cz1, Math.floor(B[b + 5] / CELL));
         for (let k = 0; k < 9; k += 3) box.expandByPoint(_p.set(T[o + k], T[o + k + 1], T[o + k + 2]));
       }
-      this.groups.push({ obj, T, N, grid, box, inv: new THREE.Matrix4(), scale: 1, rot: new THREE.Quaternion(), on: true, stamp: new Uint32Array(n) });
+      if (!(cx1 >= cx0)) continue;
+      const grid = buildGrid(B, valid, n, cx0, cy0, cz0, cx1, cy1, cz1);
+      this.groups.push({ obj, T, N, B, grid, box, inv: new THREE.Matrix4(), scale: 1, rot: new THREE.Quaternion(), on: true, stamp: new Uint32Array(n) });
     }
     this._stamp = 1;
     this.frame = -1;
@@ -116,30 +144,38 @@ export class GunCollider {
       const x0 = Math.max(cx - r, Math.floor((_p.x - rr) / CELL)), x1 = Math.min(cx + r, Math.floor((_p.x + rr) / CELL));
       const y0 = Math.max(cy - r, Math.floor((_p.y - rr) / CELL)), y1 = Math.min(cy + r, Math.floor((_p.y + rr) / CELL));
       const z0 = Math.max(cz - r, Math.floor((_p.z - rr) / CELL)), z1 = Math.min(cz + r, Math.floor((_p.z + rr) / CELL));
-      const T = g.T, N = g.N, st = g.stamp;
-      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) {
-        const cell = g.grid.get(key(x, y, z));
-        if (!cell) continue;
-        for (let i = 0; i < cell.length; i++) {
-          const t = cell[i];
-          if (st[t] === stamp) continue;
-          st[t] = stamp;
-          const d2 = closestOnTri(T, t * 9, _p.x, _p.y, _p.z);
-          if (d2 > md * md || d2 > (best + TIE) * (best + TIE)) continue;
-          // Vorzeichen (hands 2): liegt der nächste Punkt auf einer Kante/Ecke, gilt „innen“ nur, wenn ALLE gleich
-          // nahen Dreiecke innen sagen – eine einzelne Flächennormale an einer Außenkante meldete Punkte 4 cm
-          // neben der Waffe als 4 cm tief drin
-          const sd = (_p.x - CP[0]) * N[t * 3] + (_p.y - CP[1]) * N[t * 3 + 1] + (_p.z - CP[2]) * N[t * 3 + 2];
-          const dd = Math.sqrt(d2);
-          if (dd < best - TIE) {
-            best = dd;
-            out.hit = true; out.g = g; out.outv = sd >= 0;
-            out.cx = CP[0]; out.cy = CP[1]; out.cz = CP[2];
-            out.nx = N[t * 3]; out.ny = N[t * 3 + 1]; out.nz = N[t * 3 + 2];
-            out.px = _p.x; out.py = _p.y; out.pz = _p.z;
-          } else if (sd >= 0 && out.g === g) out.outv = true;
+      const G = g.grid;
+      // nur Zellen innerhalb des Teils (außerhalb ist das Feld leer)
+      const gx0 = Math.max(x0, G.x0), gx1 = Math.min(x1, G.x1), gy0 = Math.max(y0, G.y0), gy1 = Math.min(y1, G.y1);
+      const gz0 = Math.max(z0, G.z0), gz1 = Math.min(z1, G.z1);
+      if (gx0 > gx1 || gy0 > gy1 || gz0 > gz1) continue;
+      S.g = g; S.out = out; S.stamp = stamp; S.md = md; S.best = best; S.px = _p.x; S.py = _p.y; S.pz = _p.z;
+      // Leistung (21.10.): Zellen in Schalen um die Zelle des Punkts (Chebyshev-Abstand k) statt zeilenweise; sobald
+      // die nächste Schale weiter weg liegt als das bisher Nächste (+ TIE) bzw. maxD, ist die Suche fertig – große
+      // Suchradien (65 mm) kosten so nur noch, was nahe am Punkt liegt. Gleiche Kandidaten; nur bei fast gleich nahen
+      // Dreiecken (< TIE = 0,02 mm) kann ein anderes als „nächstes“ gelten.
+      const fx = _p.x - cx * CELL, fy = _p.y - cy * CELL, fz = _p.z - cz * CELL;
+      const m = Math.min(fx, CELL - fx, fy, CELL - fy, fz, CELL - fz);
+      const K = Math.max(cx - gx0, gx1 - cx, cy - gy0, gy1 - cy, cz - gz0, gz1 - cz);
+      const k0 = Math.max(0, gx0 - cx, cx - gx1, gy0 - cy, cy - gy1, gz0 - cz, cz - gz1);
+      for (let k = k0; k <= K; k++) {
+        if (k > 0 && (k - 1) * CELL + m > Math.min(md, S.best + TIE)) break;
+        const xa = Math.max(gx0, cx - k), xb = Math.min(gx1, cx + k), ya = Math.max(gy0, cy - k), yb = Math.min(gy1, cy + k);
+        const za = Math.max(gz0, cz - k), zb = Math.min(gz1, cz + k);
+        const zLo = cz - k >= gz0 ? cz - k : null, zHi = k > 0 && cz + k <= gz1 ? cz + k : null;
+        for (let x = xa; x <= xb; x++) {
+          const ex = x === cx - k || x === cx + k;
+          for (let y = ya; y <= yb; y++) {
+            const row = ((x - G.x0) * G.ny + (y - G.y0)) * G.nz - G.z0;
+            if (ex || y === cy - k || y === cy + k) { for (let z = za; z <= zb; z++) scanCell(G, row + z); }
+            else {
+              if (zLo !== null) scanCell(G, row + zLo);
+              if (zHi !== null) scanCell(G, row + zHi);
+            }
+          }
         }
       }
+      best = S.best;
       if (out.hit && out.g === g) out.dl = best;
     }
     if (!out.hit) return false;
@@ -152,6 +188,42 @@ export class GunCollider {
     out.dir.applyQuaternion(g.rot);
     out.d = (inside ? -out.dl : out.dl) * g.scale;
     return true;
+  }
+}
+
+// Zustand der laufenden Abfrage (scanCell wird je Zelle gerufen)
+const S = { g: null, out: null, stamp: 0, md: 0, best: Infinity, px: 0, py: 0, pz: 0 };
+
+/** Dreiecke einer Zelle prüfen (je Dreieck einmal je Abfrage, Stempel); aktualisiert S.best und S.out. */
+function scanCell(G, c) {
+  const e = G.start[c + 1];
+  const g = S.g, out = S.out, T = g.T, N = g.N, B = g.B, st = g.stamp, stamp = S.stamp, md = S.md;
+  const px = S.px, py = S.py, pz = S.pz;
+  for (let i = G.start[c]; i < e; i++) {
+    const t = G.tris[i];
+    if (st[t] === stamp) continue;
+    st[t] = stamp;
+    const best = S.best;
+    // Vorprüfung über die Hüllbox des Dreiecks (ihr Abstand ist nie größer als der zum Dreieck)
+    const lim = Math.min(md, best + TIE), b = t * 6;
+    const ex = px < B[b] ? B[b] - px : px > B[b + 3] ? px - B[b + 3] : 0;
+    const ey = py < B[b + 1] ? B[b + 1] - py : py > B[b + 4] ? py - B[b + 4] : 0;
+    const ez = pz < B[b + 2] ? B[b + 2] - pz : pz > B[b + 5] ? pz - B[b + 5] : 0;
+    if (ex * ex + ey * ey + ez * ez > lim * lim) continue;
+    const d2 = closestOnTri(T, t * 9, px, py, pz);
+    if (d2 > md * md || d2 > (best + TIE) * (best + TIE)) continue;
+    // Vorzeichen (hands 2): liegt der nächste Punkt auf einer Kante/Ecke, gilt „innen“ nur, wenn ALLE gleich
+    // nahen Dreiecke innen sagen – eine einzelne Flächennormale an einer Außenkante meldete Punkte 4 cm
+    // neben der Waffe als 4 cm tief drin
+    const sd = (px - CP[0]) * N[t * 3] + (py - CP[1]) * N[t * 3 + 1] + (pz - CP[2]) * N[t * 3 + 2];
+    const dd = Math.sqrt(d2);
+    if (dd < best - TIE) {
+      S.best = dd;
+      out.hit = true; out.g = g; out.outv = sd >= 0;
+      out.cx = CP[0]; out.cy = CP[1]; out.cz = CP[2];
+      out.nx = N[t * 3]; out.ny = N[t * 3 + 1]; out.nz = N[t * 3 + 2];
+      out.px = px; out.py = py; out.pz = pz;
+    } else if (sd >= 0 && out.g === g) out.outv = true;
   }
 }
 
