@@ -103,6 +103,11 @@ export class PostPipeline {
     this._grainT = 0;
     this._seed = new THREE.Vector2(17, 29);
     this.stats = { passes: 0, sceneRenders: 0 };
+    /** Entlastung mitten im Match (engine/dynres.js, 0–3): ≥ 1 ohne AO und Lichtstrahlen – reine Pass-Auslassungen,
+     *  kein Neukompilieren (21.10.). */
+    this.relief = 0;
+    /** Entlastung der Bildpässe (nur bei GPU-Engpass, sonst 0): ≥ 2 ohne Bloom, 3 ohne Kantenglättung. */
+    this.postRelief = 0;
     this._origDraw = this.fs.draw.bind(this.fs);
     this.fs.draw = (r, m, t) => { this.stats.passes++; this._origDraw(r, m, t); };
   }
@@ -147,7 +152,7 @@ export class PostPipeline {
         this.gtao = new GTAOPass(null, new THREE.PerspectiveCamera(70, 1, 0.05, 600), aw, ah);
         this.gtao.output = GTAOPass.OUTPUT.Off;
         this.gtao.blendIntensity = 0.85;
-        this.gtao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.5, thickness: 1.0, scale: 1.0, samples: this.aoScale < 1 ? 8 : 12 });
+        this.gtao.updateGtaoMaterial({ radius: AO_RADIUS, distanceExponent: 1.5, thickness: 1.0, scale: 1.0, samples: this.aoScale < 1 ? 8 : 12 });
         // Normal-/Tiefen-Vorpass nur für deckende Geometrie: durchsichtige Effekte ohne Tiefenschreiben
         // (Sonnenstrahlen-Quader, Rauch, Decals, Mündungsfeuer, Sprites) sonst als riesige Verdecker → dunkle Keile.
         // Alpha-getestete Karten (Laub, Gras, Schilder) ebenso: der Normalen-Durchlauf (MeshNormalMaterial) kennt keinen
@@ -316,9 +321,29 @@ export class PostPipeline {
       r.autoClear = true;
       r.render(scene, camera);
       this.stats.sceneRenders++;
-      if (this.gtao) {
+      if (this.gtao && this.relief < 1) {
         this.gtao.scene = scene;
-        this.gtao.camera = camera;
+        // Normalen-/Tiefen-Vorpass nur so weit, wie die AO noch sichtbar ist (21.10.): er zeichnete die ganze Szene ein
+        // zweites Mal (Grenzland hoch: ≈ 550 Draw Calls). Grenze = Entfernung, ab der der AO-Radius (0,5 m) auf weniger
+        // als AO_TEXEL AO-Texel schrumpft – aus Sichtfeld (samt Zoom/Zielfernrohr) und AO-Auflösung (folgt also auch der
+        // dynamischen Auflösung). Gemessen (Grenzland hoch, 640×360, gleiches Bild mit voller AO-Reichweite): bei 1 Texel
+        // blieben an Baumreihen und Dächern sichtbare Reste, ab ¼ Texel liegt der Unterschied im Bildrauschen. Beispiele:
+        // 640×360 ≈ 270 m, 1080p hoch ≈ 860 m (dort meist die ganze Sicht), mit 50 % Auflösung die Hälfte.
+        // Eigene Kamera mit kürzerer Sichtweite → three.js verwirft die fernen Objekte schon beim Frustum-Test; die
+        // AO-Rekonstruktion nutzt sie mit. Nur die Werte übernehmen (copy() legte je Bild userData/animations neu an).
+        if (camera.isPerspectiveCamera) {
+          const ao = this._aoCam || (this._aoCam = new THREE.PerspectiveCamera());
+          ao.fov = camera.fov; ao.aspect = camera.aspect; ao.near = camera.near; ao.zoom = camera.zoom;
+          ao.filmGauge = camera.filmGauge; ao.filmOffset = camera.filmOffset; ao.view = camera.view;
+          ao.layers.mask = camera.layers.mask;
+          camera.matrixWorld.decompose(ao.position, ao.quaternion, ao.scale);
+          const tanHalf = Math.tan(THREE.MathUtils.DEG2RAD * 0.5 * camera.fov) / (camera.zoom || 1);
+          const aoH = this.gtao.normalRenderTarget ? this.gtao.normalRenderTarget.height : this.inner.h * this.aoScale;
+          ao.far = Math.min(camera.far, Math.max(AO_FAR_MIN, (AO_RADIUS * aoH) / (2 * tanHalf * AO_TEXEL)));
+          ao.updateMatrixWorld(true);
+          ao.updateProjectionMatrix();
+          this.gtao.camera = ao;
+        } else this.gtao.camera = camera;
         this.gtao.render(r, null, null);
         const bm = this.gtao.blendMaterial;
         bm.uniforms.intensity.value = this.gtao.blendIntensity;
@@ -330,7 +355,7 @@ export class PostPipeline {
       // Lichtstrahlen: Himmelsmaske braucht die Tiefe der Welt (vor dem Viewmodel), Sonne im überscannten Bild
       shaftsOn = false;
       const sStrength = style.classic ? 0 : this.mood.shafts || 0;
-      if (this.shafts && sStrength > 0 && this.shafts.locate(camera, this.sunDir) > 0.01) {
+      if (this.shafts && this.relief < 1 && sStrength > 0 && this.shafts.locate(camera, this.sunDir) > 0.01) {
         const gs = this._gradeState(post, false);
         if (gs.auto) gs.exposureTex = this.exposure.texture;
         r.autoClear = false;
@@ -338,7 +363,7 @@ export class PostPipeline {
         shaftsOn = true;
       }
       // Himmelsmaske für den Bloom (Himmel trägt weniger zum Schein bei → keine Blendung), vor dem Waffen-Durchgang
-      if (this.bloom && this.hdr.depthTexture) { r.autoClear = false; this.bloom.captureSky(r, this.fs, this.hdr.depthTexture); }
+      if (this.bloom && this.postRelief < 2 && this.hdr.depthTexture) { r.autoClear = false; this.bloom.captureSky(r, this.fs, this.hdr.depthTexture); }
       if (hasVm) {
         r.setRenderTarget(this.hdr);
         r.autoClear = false;
@@ -375,7 +400,7 @@ export class PostPipeline {
     if (this.mode === 'full') {
       // Bloom
       let bloomOn = false;
-      if (this.bloom) {
+      if (this.bloom && this.postRelief < 2) {
         const mb = classic ? CLASSIC_BLOOM : this.mood.bloom;
         const customT = post.bloomThreshold !== CLASSIC_BLOOM.threshold;
         const customS = post.bloomStrength !== CLASSIC_BLOOM.strength;
@@ -404,7 +429,7 @@ export class PostPipeline {
       this.fs.draw(r, gm, this.ldr[0]);
       src = this.ldr[0];
       // Kantenglättung im Bildraum
-      if (this.aa) {
+      if (this.aa && this.postRelief < 3) {
         this.aa.renderToScreen = false;
         // SMAA verwirft Pixel ohne Kante → Zwischenziele müssen gelöscht werden (wie im EffectComposer)
         r.getClearColor(_clear);
@@ -458,16 +483,18 @@ export class PostPipeline {
     if (!this.active) return;
     const r = this.renderer;
     const classic = STYLE[this.style].classic;
+    // Ziel wie beim Zeichnen: Objektiv-Pass auf den Bildschirm (null), alle übrigen Pässe in Render-Ziele (21.10.)
+    const off = this.hdr;
     if (this.mode === 'lite') {
-      this.fs.compile(r, this.lensPass.material({ inline: true, classic, resample: 0 }));
+      this.fs.compile(r, this.lensPass.material({ inline: true, classic, resample: 0 }), null);
     } else {
-      this.fs.compile(r, this.gradePass.material(classic));
-      this.fs.compile(r, this.lensPass.material({ resample: 1 }));
-      this.fs.compile(r, this.lensPass.material({ resample: 2 }));
-      if (this.bloom) for (const m of this.bloom.materials()) this.fs.compile(r, m);
-      if (this.shafts) for (const m of this.shafts.materials()) this.fs.compile(r, m);
+      this.fs.compile(r, this.gradePass.material(classic), off);
+      this.fs.compile(r, this.lensPass.material({ resample: 1 }), null);
+      this.fs.compile(r, this.lensPass.material({ resample: 2 }), null);
+      if (this.bloom) for (const m of this.bloom.materials()) this.fs.compile(r, m, off);
+      if (this.shafts) for (const m of this.shafts.materials()) this.fs.compile(r, m, off);
     }
-    if (this.exposure) for (const m of this.exposure.materials()) this.fs.compile(r, m);
+    if (this.exposure) for (const m of this.exposure.materials()) this.fs.compile(r, m, off);
   }
 
   /** Render-Ziele der Kette (für memoryEstimate). */
@@ -523,5 +550,8 @@ export class PostPipeline {
 }
 
 const _clear = new THREE.Color();
+const AO_RADIUS = 0.5; // m – GTAO-Radius
+const AO_TEXEL = 0.25; // AO-Vorpass endet, wo der Radius kleiner als so viele AO-Texel abgebildet wird
+const AO_FAR_MIN = 60; // m – Mindestreichweite des AO-Vorpasses (kleine Ziele, enges Bild)
 const _f0 = new THREE.Vector3();
 const _f1 = new THREE.Vector3();

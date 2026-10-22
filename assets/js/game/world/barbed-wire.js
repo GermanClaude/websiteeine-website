@@ -112,8 +112,10 @@ let CARD_TEX = null;
  * automatisch erzeugte Mipmaps mitteln dünne Linien weg (Alphatest verwirft sie dann, der Draht verschwindet).
  */
 function drawCard(Wpx, Hpx) {
-  const cv = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(Wpx, Hpx) : Object.assign(document.createElement('canvas'), { width: Wpx, height: Hpx });
-  const g = cv.getContext('2d');
+  // OffscreenCanvas ohne 2D-Kontext (ältere Safari-/WebView-Versionen) → normales Canvas (21.10.)
+  let cv = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(Wpx, Hpx) : null;
+  let g = cv ? cv.getContext('2d') : null;
+  if (!g) { cv = Object.assign(document.createElement('canvas'), { width: Wpx, height: Hpx }); g = cv.getContext('2d'); }
   g.clearRect(0, 0, Wpx, Hpx);
   g.lineCap = 'round'; g.lineJoin = 'round';
   const k = Wpx / MOD, kv = Hpx / W, cy = Hpx / 2;

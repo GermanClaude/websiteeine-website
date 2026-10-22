@@ -226,6 +226,8 @@ input, textarea, select { user-select: text; -webkit-user-select: text; touch-ac
   animation: hint-pulse 1.6s ease-in-out infinite;
 }
 #context-lost { top: 50%; bottom: auto; }
+#context-lost.is-stuck { pointer-events: auto; animation: none; }
+#context-lost button { margin-left: 10px; padding: 4px 10px; font: inherit; color: inherit; background: none; border: 1px solid currentColor; cursor: pointer; }
 @keyframes hint-pulse { 50% { opacity: .55; } }
 
 #np-stats {

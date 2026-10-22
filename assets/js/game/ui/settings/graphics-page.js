@@ -64,6 +64,11 @@ export function graphicsPage(P) {
   /** „Automatisch (Hoch)“ – Wert, den die Stufe ohne Abweichung hätte. */
   const labels = (key) => {
     if (!GFX_KEYS.includes(key)) {
+      // 21.10.: welche Stufe „Automatisch“ für dieses Gerät gewählt hat (engine/device.js, gelernt aus den Matches)
+      if (key === 'quality') {
+        const r = R();
+        return r && S.get('quality') === 'auto' && TIER_LABEL[r.quality] ? { auto: `Automatisch (${TIER_LABEL[r.quality]})` } : null;
+      }
       if (key === 'renderScale') {
         const r = R();
         return r && r.resolutionScale < 0.999 ? { auto: `Dynamisch (${Math.round(r.resolutionScale * 100)} %)` } : null;

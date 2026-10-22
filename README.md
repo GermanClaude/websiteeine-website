@@ -64,7 +64,7 @@ KV-47 und M-17 Falke (Sturmgewehre), VP-9 Viper und QX-90 (MPs), HM-60 Hammer (L
 
 Einstellungen (Empfindlichkeit, Sichtfeld, Grafikqualität, Lautstärken, Fadenkreuz, Name, Touch-Hilfen) gelten auf der Website und im Spiel gleichermaßen. Fortschritt, Statistiken und Match-Verlauf liegen nur im lokalen Speicher des Browsers (Schlüssel beginnen mit `nullpunkt:`). Auf der Website lassen sie sich unter **Über → Lokale Daten löschen** entfernen. Es werden keine Daten übertragen. Beim Hosting auf GitHub Pages verarbeitet GitHub technisch notwendige Zugriffsdaten.
 
-Die Grafikqualität wählt sich auf „Automatisch“ selbst: niedrig auf Handys, hoch auf starken Rechnern. Bricht die Bildrate ein, senkt das Spiel die Auflösung.
+Die Grafikqualität wählt sich auf „Automatisch“ selbst: nach Grafikchip (Name und ein kurzer GPU-Test beim ersten Start), Speicher, Kernen und Bildschirm, also niedrig auf Handys und schwacher Laptop-Grafik, hoch auf starken Rechnern. Bricht die Bildrate im Match ein, senkt das Spiel zuerst die Auflösung und schaltet dann teure Effekte stufenweise ab (Schatten seltener, Umgebungsverdeckung, Leuchten, weniger Partikel); hilft das nicht, startet das nächste Match eine Stufe niedriger, und das Gerät merkt sich das. Läuft der Browser ohne GPU-Beschleunigung, weist das Spiel darauf hin.
 
 ## Veröffentlichen mit GitHub Pages
 

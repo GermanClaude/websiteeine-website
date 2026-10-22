@@ -27,6 +27,7 @@ import { MOVE_ACTIONS, GRENADE_LOW } from './anim/moves.js';
 import { COSMETIC } from './anim/reloads.js';
 import { magWellOf } from './anim/magwell.js';
 import { GunCollider, MultiCollider } from './gunsmith/contact.js';
+import { uploadTextures } from '../engine/warm.js';
 import { applyCamo } from './gunsmith/camos.js';
 import { DETAIL, setWeaponDetail } from './gunsmith/builder.js';
 import { setReticleSize } from './gunsmith/materials.js';
@@ -1362,8 +1363,13 @@ export class ViewModel {
       memo.set(key, { d: _v.subVectors(T.pos, _v3).applyQuaternion(_q.copy(T.quat).invert()).toArray(), bones, q, uses: m ? m.uses : 0 });
       return;
     }
-    // Während Aktionen je Bild lösen; auf low nur jedes 3., auf medium jedes 2. Bild (dazwischen letzte Korrektur im Handraum)
-    const every = this.quality === 'low' ? 3 : this.quality === 'medium' ? 2 : 1;
+    // Während Aktionen je Bild lösen; auf low nur jedes 3., auf medium jedes 2. Bild (dazwischen letzte Korrektur im Handraum).
+    // 21.10.: zusätzlich nach gemessener Lösezeit (Budget ≈ 2,5 ms je Bild, high/ultra 4 ms – schwache CPUs lösen so
+    // seltener statt jedes Bild 20–40 ms) und Entlastungsstufe (engine/dynres.js); die Schnellprüfung bleibt die Sicherung
+    const lowTier = this.quality === 'low' || this.quality === 'medium';
+    const relief = (this.G && this.G.perf && this.G.perf.relief) | 0;
+    const every = Math.min(6, Math.max((this.quality === 'low' ? 3 : this.quality === 'medium' ? 2 : 1) + relief,
+      Math.ceil((this._contactMs || 0) / (lowTier ? 2.5 : 4))));
     const lc = arm._lastContact || (arm._lastContact = { d: new THREE.Vector3(), q: new Float32Array(60), bones: [...arm.fingers.flat(), ...arm.thumb], n: 0, frame: -9 });
     if (every > 1 && this._contactFrame - lc.frame < every && !own && !other) {
       T.pos.add(_v.copy(lc.d).applyQuaternion(T.quat));
@@ -1375,7 +1381,10 @@ export class ViewModel {
       arm.applyPose(T.pose);
     }
     _v3.copy(T.pos);
+    const t0 = performance.now();
     arm.contact(col, T, opts);
+    const ms = performance.now() - t0;
+    this._contactMs = this._contactMs ? this._contactMs * 0.8 + ms * 0.2 : ms;
     lc.frame = this._contactFrame;
     lc.d.subVectors(T.pos, _v3).applyQuaternion(_q.copy(T.quat).invert());
     lc.bones.forEach((b, i) => b.quaternion.toArray(lc.q, i * 4));
@@ -1750,6 +1759,9 @@ export class ViewModel {
     this.root.add(holder);
     for (const p of Object.values(this.props)) p.visible = true;
     try { renderer?.compile?.(this.scene, this.camera); } catch { /* optional */ }
+    // Texturen der übrigen Waffen und Requisiten gleich mit hochladen (21.10.: erster Waffenwechsel lud sie mitten im
+    // Match hoch – P-9: 7 Texturen)
+    try { uploadTextures(renderer, this.scene); } catch { /* beim Zeichnen nachholen */ }
     for (const p of Object.values(this.props)) p.visible = false;
     this.haze.mesh.visible = hazeVis;
     for (const c of [...holder.children]) holder.remove(c);

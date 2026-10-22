@@ -20,6 +20,8 @@ import { handlingFor } from '../weapons/gunsmith/handling.js';
 const ALPHA_CAP = 900;
 const ADD_CAP = 640;
 const DECAL_CAP = 120;
+// Partikelfaktor je Entlastungsstufe (engine/dynres.js, 21.10.)
+const RELIEF_FX = [1, 0.75, 0.5, 0.35];
 const TRACER_CAP = 96; // Kugeln + Granatsplitter (bullet-holes.js)
 const FRAG_DARK = [0.05, 0.045, 0.04]; // Granatsplitter (dunkles Metall)
 const PENDING_CAP = 24;
@@ -105,7 +107,12 @@ export class Effects {
   }
 
   get preset() { return (this.G.renderer && this.G.renderer.preset) || { particleScale: 1, decals: 120, id: 'high' }; }
-  get scale() { const s = this.preset.particleScale; return Number.isFinite(s) ? s : 1; }
+  get scale() {
+    const s = this.preset.particleScale;
+    // Entlastung mitten im Match (engine/dynres.js, 21.10.): weniger Partikel je Effekt
+    const r = (this.G && this.G.perf && this.G.perf.relief) | 0;
+    return (Number.isFinite(s) ? s : 1) * (r ? RELIEF_FX[Math.min(3, r)] : 1);
+  }
 
   attach(G) {
     this.G = G;
