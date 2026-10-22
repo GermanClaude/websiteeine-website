@@ -40,7 +40,9 @@ export class Destruction {
   _explosion(e) {
     if (!e || e.nonLethal || !e.position) return;
     const r = (e.radius || 6) + 0.8;
-    const power = 170 * Math.min(2.2, (e.radius || 6) / 5.5) * (e.type === 'strike' || e.type === 'tank' ? 1.6 : 1);
+    // schwere Ladungen: Luftschlag, Panzergranaten (SG/PG, vehicles/projectiles.js) brechen Paneele schneller heraus
+    const heavy = e.type === 'strike' || e.type === 'tank' || e.type === 'shell_he' || e.type === 'shell_ap';
+    const power = 170 * Math.min(2.2, Math.max(e.type === 'shell_ap' ? 1 : 0, (e.radius || 6) / 5.5)) * (heavy ? 1.6 : 1);
     for (const p of this.panels) {
       if (!p.alive) continue;
       // Abstand zur Paneelfläche (nicht zur Mitte): Box-Nächstpunkt

@@ -6,6 +6,7 @@
 // • Längs-/Querreibung mit Reibungskreis, Schlupfbegrenzung, Handbremse (Räder), Differentiallenkung mit
 //   Gier-Regler und reduzierter Seitenführung beim Drehen (Ketten, auch auf der Stelle).
 // • Wannen-Stichproben (Ecken + Kantenmitten) gegen die Welt: Eindringen auflösen, Aufprallgeschwindigkeit melden.
+//   Trifft die Wanne eine Wand, darf body.onWall (vehicles/breach.js, Host/Einzelspiel) sie einreißen – dann kein Rückstoß.
 // • Schlafzustand für stehende, unbesetzte Fahrzeuge (kostet dann nichts).
 import * as THREE from 'three';
 import { collisionRay } from '../engine/physics.js';
@@ -20,7 +21,7 @@ const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _hit = { distance: 0, 
 const _n = new THREE.Vector3(), _f = new THREE.Vector3(), _s = new THREE.Vector3(), _r = new THREE.Vector3();
 const _vc = new THREE.Vector3(), _F = new THREE.Vector3(), _T = new THREE.Vector3(), _tmp = new THREE.Vector3();
 const _tmp2 = new THREE.Vector3(), _app = new THREE.Vector3(), _iq = new THREE.Quaternion(), _q = new THREE.Quaternion();
-const _up = new THREE.Vector3(), _fw = new THREE.Vector3(), _rt = new THREE.Vector3();
+const _up = new THREE.Vector3(), _fw = new THREE.Vector3(), _rt = new THREE.Vector3(), _wp = new THREE.Vector3(), _go = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
@@ -82,6 +83,13 @@ export class VehicleBody {
     this.grounded = 0;     // Anteil Räder mit Bodenkontakt
     this.impact = 0;       // größte Aufprallgeschwindigkeit seit dem letzten Abholen (Schaden/Klang)
     this.impactNormal = new THREE.Vector3();
+    // Rammen (21.10.): onWall(Punkt, Normale zum Fahrzeug, Annäherung m/s) → true, wenn die Wand nachgibt (Bresche);
+    // hullRay(o, d, len, out): Wannenstrahl, der Breschen nur durchlässt, wenn das ganze Fahrzeug hindurchpasst
+    this.onWall = null;
+    this.hullRay = null;
+    // groundFilter(o, d, Abstand, hit) → true: Treffer der Boden-/Federstrahlen übergehen (Einrichtung, die ein schweres
+    // Fahrzeug hinter einer Bresche überfährt – breach.js yields)
+    this.groundFilter = null;
     this.upsideDown = 0;   // Sekunden auf dem Dach/Seite
     this.trackSpeed = [0, 0]; // Ketten links/rechts (m/s, für Texturlauf und Klang)
     this.slip = 0;         // Querrutschen (Reifenquietschen/Staub)
@@ -213,7 +221,7 @@ export class VehicleBody {
     for (const w of this.wheels) {
       this.toWorld(w.local, _o);
       w.prevComp = w.comp;
-      const hit = groundRay(world, _o, _d, this.suspLen, _hit);
+      const hit = this._groundRay(world, _o, _d, this.suspLen, _hit);
       if (hit) {
         w.contact = true;
         w.comp = this.suspLen - hit.distance;
@@ -377,12 +385,19 @@ export class VehicleBody {
       const len = _d.length();
       if (len < 1e-3) continue;
       _d.multiplyScalar(1 / len);
-      const hit = collisionRay(world, _o, _d, len, _hit);
+      const hit = this.hullRay ? this.hullRay(_o, _d, len, _hit) : collisionRay(world, _o, _d, len, _hit);
       if (!hit) continue;
       const depth = len - hit.distance;
       _n.set(hit.nx, hit.ny, hit.nz);
       if (_n.dot(_d) > 0) _n.negate();
-      this.pos.addScaledVector(_n, depth * 0.6);
+      // Wand (steil): Fahrzeugsystem prüft, ob sie unter dem Stoß nachgibt – dann fährt die Wanne weiter
+      if (this.onWall && Math.abs(_n.y) < 0.5) {
+        const vn = -this.vel.dot(_n);
+        if (vn > 0.02 && this.onWall(_wp.copy(_o).addScaledVector(_d, hit.distance), _n, vn)) continue;
+      }
+      // tiefes Eindringen (Wannenmitte schon hinter einer Kante, z. B. beim Hineinfahren in ein Haus) schrittweise
+      // auflösen – sonst springt das Fahrzeug in einem Schritt um Meter (21.10.)
+      this.pos.addScaledVector(_n, Math.min(depth, 0.3) * 0.6);
       this._contactResponse(_n);
     }
     // Boden unter der Wanne (Aufsetzen, Kanten): von oben nach unten prüfen
@@ -391,7 +406,7 @@ export class VehicleBody {
     for (const s of this.floorSamples) {
       _tmp.copy(s); _tmp.y += 1.0;
       this.toWorld(_tmp, _o);
-      const hit = groundRay(world, _o, _d, 1.0, _hit);
+      const hit = this._groundRay(world, _o, _d, 1.0, _hit);
       if (!hit) continue;
       const depth = 1.0 - hit.distance;
       _n.set(hit.nx, hit.ny, hit.nz);
@@ -399,6 +414,20 @@ export class VehicleBody {
       this.pos.addScaledVector(_n, depth * 0.5);
       this._contactResponse(_n, 0.1);
     }
+  }
+
+  /** Boden-/Federstrahl; Treffer, die groundFilter übergeht (überfahrene Einrichtung), werden durchstoßen. */
+  _groundRay(world, o, d, len, out) {
+    let hit = groundRay(world, o, d, len, out);
+    if (!this.groundFilter) return hit;
+    // hit.distance zählt ab o (nach dem Weiterführen ergänzt)
+    for (let i = 0; i < 4 && hit && this.groundFilter(o, d, hit.distance, hit); i++) {
+      const base = hit.distance + 0.02;
+      if (base >= len) return null;
+      hit = groundRay(world, _go.copy(o).addScaledVector(d, base), d, len - base, out);
+      if (hit) hit.distance += base;
+    }
+    return hit;
   }
 
   _contactResponse(n, bounce = 0.15) {

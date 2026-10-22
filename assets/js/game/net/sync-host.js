@@ -374,7 +374,11 @@ export class HostSync {
     if (G.building) for (const b of G.building.snapshot()) this.net.send(id, { t: 'ev', e: 'bs', ...b });
     if (G.doors) for (const d of G.doors.snapshot()) this.net.send(id, { t: 'ev', e: 'dr', ...d }); // Türen/Tore (doors.js)
     if (G.trees) for (const t of G.trees.snapshot()) this.net.send(id, { t: 'ev', e: 'tf', ...t, now: 1 }); // gefallene Bäume
+    if (G.holes && typeof G.holes.breachState === 'function') for (const b of G.holes.breachState()) this.net.send(id, { t: 'ev', e: 'br', ...b, now: 1 }); // Panzerbreschen
   }
+
+  /** Bresche (Panzergranate/Rammen, bullet-holes.js breach): vollständige Form an alle ('ev' br). */
+  relayBreach(msg) { if (this.active && this.net.online) this.net.send('all', { t: 'ev', e: 'br', ...msg }); }
 
   /** Baum gefallen ('ev' tf, treefall.js). */
   relayTree(msg) { if (this.active && this.net.online) this.net.send('all', { t: 'ev', e: 'tf', ...msg }); }

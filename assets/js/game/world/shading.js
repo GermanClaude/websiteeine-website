@@ -341,17 +341,34 @@ function worldShadingPatch(shader) {
 // Wanddurchbrüche (bullet-holes.js): bis CUT_MAX Zylinder quer durch eine Wand (Vorderfläche → Rückfläche, Rand
 // gezackt). Fragmente der Kartengeometrie darin verwirft der Shader – durch große Löcher sieht man die echte Welt
 // dahinter. Nur Kartenmaterialien (applyCuts), nur während die Weltszene rendert.
-// Aufbau je Ausschnitt: siehe CUT_GLSL. Der Umriss folgt den Treffern (Garbe mit Rückstoß → unregelmäßiges Loch).
+// Aufbau je Ausschnitt: siehe cutGLSL(). Der Umriss folgt den Treffern (Garbe mit Rückstoß → unregelmäßiges Loch).
+// CUT_MAX gilt je Match (applyCuts, 21.10.: Panzerbreschen): 16 ab Stufe hoch auf Geräten ohne Touch mit ≥ 1024
+// Fragment-Uniform-Vektoren (Desktop), sonst 8 – Handys bleiben weit unter der Uniform-Grenze (8 × 8 vec4) und
+// rechnen je Pixel nicht mehr. Welche Durchbrüche ins Feld kommen, entscheidet bullet-holes.js (_uploadCuts: nah und
+// groß zuerst); Panzerbreschen derselben Wand wachsen zu einer zusammen, solange die Vereinigung in einen Umriss passt,
+// sonst überlappen sie (bullet-holes.js breach; der Lochshader zeichnet keinen Rand in der Öffnung einer anderen).
 // ---------------------------------------------------------------------------
-export const CUT_MAX = 8, CUT_STRIDE = 8, CUT_K = 16;
+export const CUT_STRIDE = 8, CUT_K = 16;
+export let CUT_MAX = 8;
 export const CUTS = { npCut: { value: new Float32Array(CUT_MAX * CUT_STRIDE * 4) }, npCutN: { value: 0 }, want: 0 };
+/** Obergrenze gleichzeitiger Ausschnitte setzen (8 oder 16; vor dem Kompilieren der Kartenmaterialien). */
+export function setCutLimit(n) {
+  const m = n >= 16 ? 16 : 8;
+  if (m === CUT_MAX) return;
+  CUT_MAX = m;
+  CUTS.npCut.value = new Float32Array(CUT_MAX * CUT_STRIDE * 4);
+  CUTS.want = Math.min(CUTS.want, CUT_MAX);
+  CUTS.npCutN.value = Math.min(CUTS.npCutN.value, CUT_MAX);
+}
 /**
  * Gemeinsamer Shader-Teil (Weltshader und Lochshader, bullet-holes.js – gleiche Formel, damit Wandausschnitt und
  * Lochrand exakt zusammenpassen). Je Ausschnitt CUT_STRIDE vec4:
- *   [Mitte Vorderfläche, Dicke] [Normale nach vorn, Aufweitung hinten] [x-Achse, Zufall] [Zacken, Hüllradius, –, –]
+ *   [Mitte Vorderfläche, Dicke] [Normale nach vorn, Aufweitung hinten] [x-Achse, Zufall] [Zacken, Hüllradius, Zugabe,
+ *   Zugabe vorn] (Zugabe: so weit vor/hinter den Wandflächen wird noch ausgeschnitten – Panzerbreschen 6 cm: Sockel,
+ *   Verkleidung; vorn zusätzlich 9 cm: Fensterläden, Simse, Zargen, die vor der Mauer stehen)
  *   [Umriss: CUT_K Radien (m) gleichmäßig über den Umfang, ab der x-Achse gegen den Uhrzeigersinn um die Normale]
  */
-export const CUT_GLSL = `uniform vec4 npCut[ ${CUT_MAX * CUT_STRIDE} ];
+export const cutGLSL = () => `uniform vec4 npCut[ ${CUT_MAX * CUT_STRIDE} ];
 uniform int npCutN;
 float npCutJag( float th, float seed, float amp ) {
   return 1.0 + amp * ( 0.55 * sin( 3.0 * th + seed * 1.7 ) + 0.3 * sin( 5.0 * th + seed * 2.9 ) + 0.15 * sin( 9.0 * th + seed * 4.3 ) );
@@ -368,16 +385,17 @@ float npCutRAt( int i, vec3 w, float f ) {
   float r0 = npCut[ b + 4 + k0 / 4 ][ k0 % 4 ], r1 = npCut[ b + 4 + k1 / 4 ][ k1 % 4 ]; // CUT_K = 16 → 4 vec4
   return mix( r0, r1, t ) * npCutJag( th, c2.w, c3.x ) * ( 1.0 + ( c1.w - 1.0 ) * f );
 }`;
-const CUT_FRAG = `
+const cutFrag = () => `
   for ( int i = 0; i < ${CUT_MAX}; i++ ) {
     if ( i >= npCutN ) break;
     int b = i * ${CUT_STRIDE};
     vec4 c0 = npCut[ b ], c1 = npCut[ b + 1 ];
     vec3 d = vNpWorld - c0.xyz;
     float h = dot( d, c1.xyz );
-    if ( h > 0.03 || h < -c0.w - 0.03 ) continue;
+    vec4 c3 = npCut[ b + 3 ];
+    if ( h > c3.z + c3.w || h < -c0.w - c3.z ) continue;
     vec3 dp = d - c1.xyz * h;
-    float L2 = dot( dp, dp ), rb = npCut[ b + 3 ].y;
+    float L2 = dot( dp, dp ), rb = c3.y;
     if ( L2 > rb * rb ) continue;
     float R = npCutRAt( i, dp * inversesqrt( max( L2, 1e-10 ) ), clamp( -h / max( c0.w, 1e-3 ), 0.0, 1.0 ) ) * 0.97;
     if ( L2 < R * R ) discard;
@@ -388,23 +406,31 @@ function cutPatch(shader) {
   shader.uniforms.npCut = CUTS.npCut;
   shader.uniforms.npCutN = CUTS.npCutN;
   shader.fragmentShader = shader.fragmentShader
-    .replace('#include <common>', `#include <common>\n${CUT_GLSL}`)
-    .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>\n${CUT_FRAG}`);
+    .replace('#include <common>', `#include <common>\n${cutGLSL()}`)
+    .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>\n${cutFrag()}`);
 }
 /** Anzahl gültiger Einträge in CUTS.npCut (wirksam, während die Weltszene rendert). */
 export function setCutCount(n) {
   CUTS.want = Math.max(0, Math.min(CUT_MAX, n | 0));
   if (!liveStored) CUTS.npCutN.value = CUTS.want;
 }
-/** Kartengeometrie (Teilbaum) für Wanddurchbrüche vorbereiten. → Anzahl Materialien */
-export function applyCuts(target) {
+/**
+ * Kartengeometrie (Teilbaum) für Wanddurchbrüche vorbereiten; quality (Stufe) wählt die Obergrenze (CUT_MAX, Haken
+ * 'cut8'/'cut16' im Programmschlüssel – ein Stufenwechsel zwischen Matches kompiliert neu). → Anzahl Materialien
+ */
+export function applyCuts(target, quality = null) {
+  const caps = dummyDepth && dummyDepth.renderer && dummyDepth.renderer.capabilities;
+  const touch = typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  setCutLimit(!touch && (quality === 'high' || quality === 'ultra') && (caps?.maxFragmentUniforms || 0) >= 1024 ? 16 : 8);
+  const key = `cut${CUT_MAX}`;
   let n = 0;
   target?.traverse?.((o) => {
     if (!o.isMesh) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     for (const m of mats) {
       if (!m || !m.isMeshStandardMaterial || m.userData?.noWorldShading || m.userData?.viewmodelOnly || m.transparent) continue;
-      if (!hasShaderPatch(m, 'cut')) { addShaderPatch(m, 'cut', cutPatch); n++; }
+      for (const k of ['cut8', 'cut16']) if (k !== key && hasShaderPatch(m, k)) removeShaderPatch(m, k);
+      if (!hasShaderPatch(m, key)) { addShaderPatch(m, key, cutPatch); n++; }
     }
   });
   return n;

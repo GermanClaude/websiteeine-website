@@ -652,6 +652,7 @@ export class ClientSync {
         return;
       }
       case 'dg': if (G.digging && Number.isFinite(m.x) && Number.isFinite(m.z)) G.digging.apply(m.x, m.z, true, Number(m.r) || 0, Number(m.d) || 0); return; // Graben / Explosionskrater (digging.js)
+      case 'br': if (G.holes && typeof G.holes.applyBreach === 'function') G.holes.applyBreach(m, { quiet: !!m.now }); return; // Panzerbresche (bullet-holes.js)
       case 'tf': if (G.trees && Number.isInteger(m.i) && Number.isFinite(m.y) && Number.isFinite(m.dx) && Number.isFinite(m.dz)) G.trees.fell(m.i, m.y, m.dx, m.dz, true, !!m.now); return; // Baum gefallen (treefall.js)
       case 'gr': {
         if (!W) return;

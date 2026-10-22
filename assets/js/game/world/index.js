@@ -121,7 +121,7 @@ function activateLighting(G, def, world, group, light, probes, quality, debug) {
   const t0 = performance.now();
   const L = def.lighting, pc = L.probes || {};
   const materials = applyWorldShading(group);
-  applyCuts(group); // Wanddurchbrüche (bullet-holes.js)
+  applyCuts(group, quality); // Wanddurchbrüche (bullet-holes.js); Obergrenze je Stufe
   // nur während die Weltszene rendert aktiv (Viewmodel-Szene bleibt neutral); weitere Objekte der Szene (Figuren,
   // Fahrzeuge …) bekommen den Haken beim Hinzufügen
   world._unbindShading = bindShadingScene(G.scene);

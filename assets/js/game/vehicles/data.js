@@ -26,34 +26,36 @@ export const VEHICLE_WEAPONS = {
     vehicleDamage: 170, actorDamage: 200, splash: { radius: 7.5, maxDamage: 170, innerRadius: 1.6, minDamage: 25 },
     penetrating: false, shake: 0.5, icon: 'shell',
   },
+  // MG-Kaliber (21.10.): Einschuss/Durchschlag über das Kaliber-Lochsystem wie Infanterie (shared/calibers.js) –
+  // 7,62 × 51 (Koax/Bug-MG; 7,92 × 57 der Weltkriegs-MG in derselben Klasse), 12,7 mm (.50 BMG) für schwere MG
   mbt_coax: {
-    id: 'mbt_coax', name: 'Koaxial-MG', short: 'MG', kind: 'mg',
+    id: 'mbt_coax', name: 'Koaxial-MG', short: 'MG', kind: 'mg', caliber: '762x51',
     rpm: 620, mag: 200, belts: 7, reload: 4.5, spread: 0.0045, range: 320, profile: 'lmg',
     damage: { max: 30, min: 22, rangeStart: 30, rangeEnd: 140 }, headMult: 1.6, limbMult: 0.9, penetration: 0.35,
     vehicleMult: 0.4, tracerEvery: 3, icon: 'mg',
   },
   mbt_cmg: {
-    id: 'mbt_cmg', name: 'Fernbedientes MG .50', short: 'MG', kind: 'mg',
+    id: 'mbt_cmg', name: 'Fernbedientes MG .50', short: 'MG', kind: 'mg', caliber: '50bmg',
     rpm: 480, mag: 100, belts: 5, reload: 5.2, spread: 0.005, range: 360, profile: 'ar_heavy',
     damage: { max: 42, min: 30, rangeStart: 40, rangeEnd: 160 }, headMult: 1.5, limbMult: 0.9, penetration: 0.5,
     vehicleMult: 0.55, tracerEvery: 2, icon: 'mg',
   },
   jeep_mg: {
-    id: 'jeep_mg', name: 'Schweres MG', short: 'MG', kind: 'mg',
+    id: 'jeep_mg', name: 'Schweres MG', short: 'MG', kind: 'mg', caliber: '50bmg',
     rpm: 520, mag: 100, belts: 6, reload: 5.0, spread: 0.0065, range: 340, profile: 'ar_heavy',
     damage: { max: 40, min: 28, rangeStart: 35, rangeEnd: 150 }, headMult: 1.5, limbMult: 0.9, penetration: 0.5,
     vehicleMult: 0.55, tracerEvery: 2, icon: 'mg',
   },
   // Panzergenerationen (Nutzer 11.10.): 2. Weltkrieg – schnelles Gurt-MG (Bug- und Koaxial-MG)
   wk2_mg: {
-    id: 'wk2_mg', name: 'Bug-MG (Gurt)', short: 'MG', kind: 'mg',
+    id: 'wk2_mg', name: 'Bug-MG (Gurt)', short: 'MG', kind: 'mg', caliber: '762x51',
     rpm: 900, mag: 150, belts: 6, reload: 6.0, spread: 0.0075, range: 300, profile: 'lmg',
     damage: { max: 31, min: 21, rangeStart: 25, rangeEnd: 120 }, headMult: 1.6, limbMult: 0.9, penetration: 0.35,
     vehicleMult: 0.35, tracerEvery: 4, icon: 'mg',
   },
   // 1. Weltkrieg – wassergekühltes MG im Kugelstand, langsam, langer Gurt
   wk1_mg: {
-    id: 'wk1_mg', name: 'Wassergekühltes MG', short: 'MG', kind: 'mg',
+    id: 'wk1_mg', name: 'Wassergekühltes MG', short: 'MG', kind: 'mg', caliber: '762x51',
     rpm: 450, mag: 250, belts: 5, reload: 8.0, spread: 0.009, range: 260, profile: 'lmg',
     damage: { max: 34, min: 22, rangeStart: 25, rangeEnd: 110 }, headMult: 1.5, limbMult: 0.9, penetration: 0.3,
     vehicleMult: 0.3, tracerEvery: 5, icon: 'mg',

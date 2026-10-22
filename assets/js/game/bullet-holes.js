@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { caliberOf, penetrationDepth } from '../shared/calibers.js';
 import { hdrTarget } from './engine/post/common.js';
-import { CUTS, CUT_MAX, CUT_STRIDE, CUT_K, CUT_GLSL, setCutCount } from './world/shading.js';
+import { CUTS, CUT_MAX, CUT_STRIDE, CUT_K, cutGLSL, setCutCount } from './world/shading.js';
 
 const MAX = 700;
 // Durchblick: kleine Ansichten aus Durchschüssen (Atlas 4 × 4 Felder), was hinter der Wand liegt – mit Gegnern
@@ -62,6 +62,18 @@ function rngAt(p) {
 }
 const CUT_MIN_R = 0.03; // ab diesem Lochradius wird die Wand wirklich ausgeschnitten (echter Durchblick)
 const jag = (th, seed, amp) => 1 + amp * (0.55 * Math.sin(3 * th + seed * 1.7) + 0.3 * Math.sin(5 * th + seed * 2.9) + 0.15 * Math.sin(9 * th + seed * 4.3));
+// Synchrone Breschen (Panzer, 21.10.): Oberfläche je Stil, falls die Wand vor Ort nicht ermittelt werden kann
+const STYLE_SURF = ['wood', 'concrete', 'plaster', 'metal', 'glass', 'dirt', 'fabric', 'brick'];
+// Staubfarbe der Bresche je Stil (Holz bräunlich, Mauerwerk grau-beige, Ziegel rötlich)
+const DUST = [0x6e5d48, 0x8e887e, 0xa49d92, 0x55585a, 0x9aa0a4, 0x6a5a48, 0x6a6662, 0x8e6a58];
+const BREACH_CAP = 3.6; // größter Radius einer Bresche (m)
+// Schutt am Fuß der Breschen: liegende Brocken je Stufe (ein InstancedMesh, ohne Kollision; voll → älteste weichen)
+const RUBBLE_MAX = { low: 300, medium: 600, high: 1200, ultra: 1600 };
+const DOWN = new THREE.Vector3(0, -1, 0), UPV = new THREE.Vector3(0, 1, 0);
+const _wo = new THREE.Vector3(), _wd = new THREE.Vector3(), _wt = new THREE.Vector3(), _co = new THREE.Vector3(), _cp = new THREE.Vector3();
+const _wl = new THREE.Vector3(), _wq = new THREE.Vector3();
+const _eu = new THREE.Euler(), _col = new THREE.Color();
+const _q3 = (v, k = 100) => Math.round(v * k) / k;
 
 export class BulletHoles {
   constructor(G) {
@@ -95,7 +107,7 @@ export class BulletHoles {
     this._probeQ = [];
     this._nextSlot = 0;
     mat.onBeforeCompile = (sh) => { sh.uniforms.npView = this._uView; sh.uniforms.npViewTan = this._uTan; sh.uniforms.npCut = CUTS.npCut; sh.uniforms.npCutN = CUTS.npCutN; holeShader(sh); };
-    mat.customProgramCacheKey = () => 'np-holes-4';
+    mat.customProgramCacheKey = () => `np-holes-4-c${CUT_MAX}`;
     this.mesh = new THREE.InstancedMesh(geo, mat, MAX);
     this.mesh.name = 'einschussloecher';
     this.mesh.count = 0;
@@ -121,7 +133,7 @@ export class BulletHoles {
     const mat2 = mat.clone();
     mat2.defines = { ...mat.defines, NP_PASS: 1 };
     mat2.onBeforeCompile = mat.onBeforeCompile;
-    mat2.customProgramCacheKey = () => 'np-holes-4-p1';
+    mat2.customProgramCacheKey = () => `np-holes-4-p1-c${CUT_MAX}`;
     this.mesh2 = new THREE.InstancedMesh(geo, mat2, MAX);
     this.mesh2.instanceMatrix = this.mesh.instanceMatrix;
     this.mesh2.name = 'einschussloecher-oeffnung';
@@ -134,6 +146,26 @@ export class BulletHoles {
     this._cutDirty = false;
     this._cutOn = [];
     this._cutList = []; // alle Durchbrüche (für Strahlen und Kollision)
+    this._sync = new Map(); // synchrone Breschen (Panzer): Id → Loch (gleich auf allen Geräten)
+    this._syncId = 0;
+    // Host: Nachrichten je Bresche höchstens alle 0,2 s (wächst sie schneller – Panzer schiebt sich durch –, geht der
+    // letzte Stand nach); Effekte gedrosselt (je Bresche 0,3 s, insgesamt ≈ 6/s)
+    this._relayAt = new Map();
+    this._relayPend = new Map();
+    // Schutthaufen der Breschen: gleich angelegt (count 0), damit warmUp sein Programm schon beim Matchstart kompiliert
+    const rg = new THREE.IcosahedronGeometry(1, 0);
+    const rm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0, name: 'schutt' });
+    rm.userData.surface = 'concrete';
+    this._rubble = new THREE.InstancedMesh(rg, rm, RUBBLE_MAX[q] || 600);
+    this._rubble.name = 'schutt';
+    this._rubble.count = 0;
+    this._rubble.frustumCulled = false;
+    this._rubble.receiveShadow = true;
+    this._rubble.castShadow = q === 'high' || q === 'ultra';
+    this._rubble.setColorAt(0, new THREE.Color(1, 1, 1)); // Instanzfarben anlegen (Programm mit Farbe)
+    this._rubbleN = 0;
+    if (G.scene) G.scene.add(this._rubble);
+    this._fxBudget = 6;
     setCutCount(0);
     const W = G.world;
     if (W && typeof W.lineOfSight === 'function' && typeof W.raycast === 'function') {
@@ -162,9 +194,12 @@ export class BulletHoles {
     const W = this.G.world;
     if (!W || typeof W.raycast !== 'function') return;
     const Q = BLAST_Q[e.type] ?? BLAST_Q[e.weaponId] ?? Math.max(0.3, (e.radius || 4) / 6);
-    const o = e.position.clone(); o.y += 0.12;
+    // Ort auf 1 cm gerundet wie im Netz ('ex'): Host und Clients rechnen dieselbe Bruchform
+    const o = new THREE.Vector3(_q3(e.position.x), _q3(e.position.y), _q3(e.position.z)); o.y += 0.12;
     const rnd = rngAt(o);
     const reach = 0.6 + Q * 0.9;
+    // Panzergranaten: Breschen in Wänden verteilt der Host (vehicles/breach.js) – hier nur Krater und Pocken
+    const cutOk = e.type !== 'shell_he' && e.type !== 'shell_ap';
     const planes = [];
     const dir = new THREE.Vector3();
     const N = 14;
@@ -172,7 +207,7 @@ export class BulletHoles {
       if (k < N) { const a = (k / N) * Math.PI * 2 + rnd() * 0.3; dir.set(Math.cos(a), k % 2 ? 0.3 : -0.12, Math.sin(a)).normalize(); }
       else dir.set(0, k === N ? -1 : 1, 0);
       const f = W.raycast(o, dir, reach);
-      if (!f || f.solid || f.targetId != null) continue;
+      if (!f || f.solid || f.targetId != null || f.vehicle) continue;
       const n = f.normal.clone(); if (n.dot(dir) > 0) n.negate();
       const dp = _v.copy(o).sub(f.point).dot(n);
       if (dp < -0.05) continue;
@@ -183,9 +218,9 @@ export class BulletHoles {
       // Fußpunkt: gerade auf die Fläche zu (nächste Stelle, stärkster Druck)
       const back = pl.n.clone().negate();
       const g = W.raycast(o, back, pl.d + 0.12);
-      const hit = g && !g.solid && g.targetId == null && Math.abs(g.distance - pl.d) < 0.06 ? g : pl.f;
+      const hit = g && !g.solid && g.targetId == null && !g.vehicle && Math.abs(g.distance - pl.d) < 0.06 ? g : pl.f;
       const dist = hit === g ? g.distance : o.distanceTo(pl.f.point);
-      this._blastHit(hit, back, Q / (dist + 0.25) ** 2, rnd, Q);
+      this._blastHit(hit, back, Q / (dist + 0.25) ** 2, rnd, Q, cutOk);
     }
     // Splitter: sichtbar als glühende Streifen vom Sprengpunkt weg; wo sie einschlagen (beim Eintreffen) Pocken + Staub.
     // Die Hälfte fliegt nur sichtbar ins Freie (keine Strahlprüfung).
@@ -200,7 +235,7 @@ export class BulletHoles {
       const end = f ? f.point : o.clone().addScaledVector(dir, 3 + vals[0] * 9);
       if (fx && typeof fx.tracer === 'function') fx.tracer(o, end, { speed, seg, width: width * 1.6, intensity: inten * 1.5, skip: 0.25 });
       if (fx && typeof fx.fragment === 'function') fx.fragment(o, dir, o.distanceTo(end), { speed: 60 + vals[1] * 50 });
-      if (f && !f.solid && f.targetId == null) this._fragQ.push({ t: this._time + f.distance / speed, f, dir: dir.clone(), vals });
+      if (f && !f.solid && f.targetId == null && !f.vehicle) this._fragQ.push({ t: this._time + f.distance / speed, f, dir: dir.clone(), vals });
     }
     this.stats.holes = this.holes.length;
   }
@@ -229,8 +264,8 @@ export class BulletHoles {
     this.stats.holes = this.holes.length;
   }
 
-  /** Druck s (≈ Ladung / Abstand²) auf eine Fläche: Krater, ggf. Durchbruch mit zerrissenem Umriss. */
-  _blastHit(hit, dir, s, rnd, Q = 1) {
+  /** Druck s (≈ Ladung / Abstand²) auf eine Fläche: Krater, ggf. Durchbruch mit zerrissenem Umriss (cutOk). */
+  _blastHit(hit, dir, s, rnd, Q = 1, cutOk = true) {
     const surface = hit.surface || 'concrete', style = STYLE[surface];
     if (style === undefined || style === 4) return;
     const n = hit.normal.clone(); if (n.dot(dir) > 0) n.negate();
@@ -262,7 +297,7 @@ export class BulletHoles {
       h.depth = thick;
       if (!h.through) { h.through = true; this.stats.through++; h.behind = this._behind(h.pos.clone().addScaledVector(dir, thick + 0.02), dir); }
       if (!h.exitHole) this._newExit(h, dir, n, thick, surface, style, null);
-      if (this._cutOk(h)) {
+      if (cutOk && this._cutOk(h)) {
         if (!h.cut) { h.r = Math.max(h.r, CUT_MIN_R); this._makeCut(h); }
         // zerrissener Umriss: Kernloch um den Fußpunkt + ausgebrochene Lappen; Sprengung reißt weiter auf als Beschuss
         // schwere Ladungen (Rakete, Panzergranate) reißen auch Mauerwerk mannshoch auf
@@ -346,6 +381,7 @@ export class BulletHoles {
   /** Loch wird Wandausschnitt: gerader Kanal entlang der Normalen, Austritt genau dahinter. */
   _makeCut(h) {
     h.cut = true;
+    h.cm = h.cm || 0.03; // Zugabe vor/hinter den Wandflächen (Shader und Strahlen gleich)
     this._cutList.push(h);
     h.tn = Math.max(0.003, h.thick * Math.min(1, Math.max(0.2, h.cos ?? 1)));
     h.kb = KB[h.style];
@@ -407,7 +443,8 @@ export class BulletHoles {
       let dth = Math.abs(th - phi); if (dth > Math.PI) dth = Math.PI * 2 - dth;
       const half = Math.PI / CUT_K + Math.atan2(c, Math.max(d, 1e-3));
       if (dth < half) far = Math.max(far, (d + c * 0.5) * Math.cos(dth) * (1 - (dth / half) * 0.35));
-      if (far > h.prof[k]) h.prof[k] = Math.min(cap, far);
+      // nur wachsen: über der Grenze (z. B. Panzerbresche, Beschuss am Rand) bleibt der Umriss, wie er ist
+      if (far > h.prof[k]) h.prof[k] = Math.max(h.prof[k], Math.min(cap, far));
     }
   }
 
@@ -424,7 +461,8 @@ export class BulletHoles {
       let any = false;
       for (const o of this.holes) {
         if (o === h || o === h.exitHole || o.dead || o.scorch || gone.has(o) || o.att || Math.abs(o.n.dot(h.n)) < 0.9) continue;
-        if (o.entry === h) continue;
+        // synchrone Breschen (auf allen Geräten gleich) werden nie lokal geschluckt
+        if (o.entry === h || o.sync || (o.entry && o.entry.sync)) continue;
         _v.copy(o.pos).sub(h.pos);
         const hh = _v.dot(h.n);
         if (hh > 0.06 || hh < -tn - 0.06) continue;
@@ -450,12 +488,22 @@ export class BulletHoles {
     if (grew || h.cut) this._cutDirty = true;
   }
 
-  /** Liegt p im Ausschnitt eines Durchbruchs? → Loch oder null (inner: Anteil des Radius). */
-  _cutAt(p, inner = 0.9) {
+  /**
+   * Liegt p im Ausschnitt eines Durchbruchs? → Loch oder null (inner: Anteil des Radius; n: Flächennormale des Treffers –
+   * es zählen Flächen parallel zur Wand und Flächen im Inneren der Wanddicke (Fugen zwischen Wandstücken, Fenster-
+   * laibungen, Brüstungen); Böden/Decken, die in der Wandebene anschließen, bleiben fest; minR: nur Durchbrüche ab
+   * diesem größten Radius).
+   */
+  _cutAt(p, inner = 0.9, n = null, minR = 0) {
     for (const h of this._cutList) {
-      if (h.dead) continue;
-      const c = this._cutLocal(h, p);
-      if (c.hh > 0.03 || c.hh < -h.tn - 0.03) continue;
+      if (h.dead || h.r < minR) continue;
+      const R0 = h.r * h.kb * 1.2 + h.tn + 0.1;
+      if (p.distanceToSquared(h.pos) > R0 * R0) continue;
+      const c = this._cutLocal(h, p), cm = h.cm || 0.03, cf = cm + (h.cmF || 0);
+      if (c.hh > cf || c.hh < -h.tn - cm) continue;
+      // Flächen quer zur Wand: in der Wanddicke (Fugen, Laibungen) und – nur senkrechte – in der Zugabe vorn (Seiten von
+      // Fensterläden, Zargen, Simsen vor der Mauer); waagrechte vor der Wand (Boden, Gelände) bleiben fest
+      if (n && Math.abs(n.x * h.n.x + n.y * h.n.y + n.z * h.n.z) < 0.9 && (c.hh < -h.tn + 0.01 || (c.hh > -0.01 && !(h.cmF && c.hh < cf - 0.01 && Math.abs(n.y) < 0.5)))) continue;
       const d2 = c.x * c.x + c.y * c.y;
       if (d2 > h.r * h.r * 2) continue;
       const R = this._cutR(h, c.x, c.y, Math.min(1, Math.max(0, -c.hh / h.tn))) * inner;
@@ -476,8 +524,8 @@ export class BulletHoles {
 
   /** Strahl-Weiterführung hinter einem Durchbruch: Abstand ab Trefferpunkt bis hinter die Wand. */
   _cutExit(h, point, dir) {
-    const dn = dir.dot(h.n), hh = _cv.copy(point).sub(h.pos).dot(h.n);
-    const t = Math.abs(dn) < 0.05 ? 0.3 : dn < 0 ? (hh + h.tn + 0.03) / -dn : (0.04 - hh) / dn;
+    const dn = dir.dot(h.n), hh = _cv.copy(point).sub(h.pos).dot(h.n), cm = h.cm || 0.03;
+    const t = Math.abs(dn) < 0.05 ? 0.3 : dn < 0 ? (hh + h.tn + cm) / -dn : (cm + (h.cmF || 0) + 0.01 - hh) / dn;
     return Math.min(2, Math.max(0.01, t));
   }
 
@@ -492,25 +540,55 @@ export class BulletHoles {
     if (typeof W.raycast === 'function') {
       const ray0 = W.raycast;
       this._rayW0 = ray0;
-      this._ray0 = (o, d, m) => ray0.call(W, o, d, m);
+      // eigene Messungen nur gegen feste Geometrie: Fahrzeuge (vehicles/index.js-Hülle) bleiben außen vor
+      this._ray0 = (o, d, m) => {
+        const V = this.G.vehicles, was = V ? V._noVeh : false;
+        if (V) V._noVeh = true;
+        try { return ray0.call(W, o, d, m); } finally { if (V) V._noVeh = was; }
+      };
       this._ray = function (origin, dir, max, ...rest) {
         let hit = ray0.call(this, origin, dir, max, ...rest);
-        if (!hit || hit.solid || !self._cutList.length || self.G.holes !== self) return hit;
-        _ro.copy(origin);
-        let base = 0;
-        for (let i = 0; i < 4 && hit && !hit.solid; i++) {
+        if (!hit || hit.solid || hit.vehicle || hit.targetId != null || !self._cutList.length || self.G.holes !== self) return hit;
+        // Fahrzeuge/Ziele in der Öffnung (Panzer fährt durch die Bresche) bleiben treffbar. hit.distance zählt ab origin
+        // (nach dem Weiterführen ergänzt) – der nächste Abschnitt beginnt hinter der Wand (21.10.: vorher wurde der
+        // bisherige Weg doppelt gezählt, ein Strahl durch zwei Breschen sprang über Geometrie hinweg)
+        for (let i = 0; i < 4 && hit && !hit.solid && !hit.vehicle && hit.targetId == null; i++) {
           const h = self._cutAt(hit.point, 0.95);
           if (!h) break;
-          const step = hit.distance + self._cutExit(h, hit.point, dir);
-          base += step;
+          const base = hit.distance + self._cutExit(h, hit.point, dir);
           if (base >= max) return null;
-          _ro.addScaledVector(dir, step);
+          _ro.copy(origin).addScaledVector(dir, base);
           hit = ray0.call(this, _ro, dir, max - base, ...rest);
           if (hit) hit.distance += base;
         }
         return hit;
       };
       W.raycast = this._ray;
+    }
+    // Kollisionsstrahlen (physics.collisionRay: Räder, Klettern, Lehnen, Drohne, Kamera …): durch Breschen weiter, wenn
+    // die getroffene Fläche parallel zur Wand in der Öffnung liegt – nur durch große (ab 20 cm Radius): ein Strahl steht
+    // dort für einen Körper, der durch ein Einschussloch nicht hindurchpasst. Die Fahrzeugwanne prüft selbst, ob sie
+    // ganz hindurchpasst (vehicles/breach.js hullRay).
+    if (typeof W.collisionRaycast === 'function') {
+      const cr0 = W.collisionRaycast;
+      this._crW0 = cr0;
+      this._cr = function (origin, dir, max = 100) {
+        let hit = cr0.call(this, origin, dir, max);
+        if (!hit || !self._cutList.length || self.G.holes !== self) return hit;
+        for (let i = 0; i < 6 && hit; i++) {
+          _cp.copy(origin).addScaledVector(dir, hit.distance); // hit.distance zählt ab origin
+          const h = self._cutAt(_cp, 0.95, hit.normal, 0.2);
+          if (!h) break;
+          // längs der Wand (in der Wanddicke) nur knapp hinter die getroffene Fläche, sonst hinter die Wand
+          const base = hit.distance + (Math.abs(dir.dot(h.n)) < 0.05 ? 0.02 : self._cutExit(h, _cp, dir));
+          if (base >= max) return null;
+          _co.copy(origin).addScaledVector(dir, base);
+          hit = cr0.call(this, _co, dir, max - base);
+          if (hit) hit.distance += base;
+        }
+        return hit;
+      };
+      W.collisionRaycast = this._cr;
     }
     const col = W.collider;
     if (col && typeof col.triangleCapsuleIntersect === 'function') {
@@ -526,13 +604,30 @@ export class BulletHoles {
     }
   }
 
-  /** Passt die Kapsel ganz durch einen Durchbruch in der Ebene dieses Dreiecks? */
+  /**
+   * Darf die Kapsel dieses Dreieck übergehen? Ja, wenn es in der Ebene eines Durchbruchs liegt und die Kapsel ganz
+   * durch die Öffnung passt – überlappende Breschen derselben Wand zählen zusammen (jeder Querschnitt muss in eine von
+   * ihnen passen) –, oder wenn das Dreieck ganz im ausgeschnittenen Raum liegt (Laibungen, Fensterläden, Simse, Zargen
+   * in einer Bresche; der Shader verwirft sie ebenso).
+   */
   _capsuleFits(capsule, tri) {
     tri.getNormal(_tn);
     for (const h of this._cutList) {
-      if (h.dead || Math.abs(_tn.dot(h.n)) < 0.9) continue;
+      if (h.dead) continue;
+      const cm = (h.cm || 0.03) + 0.01, cf = cm + (h.cmF || 0);
+      if (Math.abs(_tn.dot(h.n)) < 0.9) {
+        if (h.r < 0.2) continue;
+        let inside = true;
+        for (const P of [tri.a, tri.b, tri.c]) {
+          const c = this._cutLocal(h, P);
+          if (c.hh > cf || c.hh < -h.tn - cm || Math.hypot(c.x, c.y) >= this._cutR(h, c.x, c.y, Math.min(1, Math.max(0, -c.hh / h.tn))) * 0.97) { inside = false; break; }
+        }
+        if (inside) return true;
+        continue;
+      }
       const hh = _cv.copy(tri.a).sub(h.pos).dot(h.n);
-      if (hh > 0.04 || hh < -h.tn - 0.04) continue;
+      if (hh > cf || hh < -h.tn - cm) continue;
+      const list = h.r >= 0.2 ? this._sameWall(h) : [h];
       const r = capsule.radius, s0 = capsule.start, s1 = capsule.end;
       let ok = true;
       // Achse in Schritten + Kuppen oben/unten; Querschnitt der Kapsel (Radius r) muss in den Umriss passen
@@ -541,21 +636,55 @@ export class BulletHoles {
         _ro.lerpVectors(s0, s1, t);
         let rr = r;
         if (k < 0 || k > 5) { _ro.y += k < 0 ? -r * 0.9 : r * 0.9; rr = r * 0.3; }
-        const c = this._cutLocal(h, _ro);
-        const d = Math.hypot(c.x, c.y);
-        ok = d + rr < this._cutR(h, c.x, c.y, 0.5) * 0.92;
+        ok = this._inCuts(list, _ro, 0.5, rr, 0.92);
       }
       if (ok) return true;
     }
     return false;
   }
 
-  /** Nächste CUT_MAX Durchbrüche (zur Kamera) in die Shader-Uniforms; Löcher außerhalb zeigen weiter die Lichtfarbe. */
+  /**
+   * Große Durchbrüche in derselben Wand wie h (parallel, gleiche Ebene, Umrisse berühren sich): überlappende Breschen
+   * gelten für den Durchgang als eine Öffnung (21.10.). → [h, …]
+   */
+  _sameWall(h) {
+    const out = [h];
+    for (const o of this._cutList) {
+      if (o === h || o.dead || o.r < 0.2 || Math.abs(o.n.dot(h.n)) < 0.95) continue;
+      if (Math.abs(_cv.copy(o.pos).sub(h.pos).dot(h.n)) > 0.12) continue;
+      const R = h.r * h.kb * 1.2 + o.r * o.kb * 1.2 + 0.2;
+      if (o.pos.distanceToSquared(h.pos) > R * R) continue;
+      out.push(o);
+    }
+    return out;
+  }
+
+  /** Liegt p (in die Wandebene projiziert, relative Tiefe f) mit Abstand rr zum Rand in einem der Ausschnitte (× s)? */
+  _inCuts(list, p, f, rr, s) {
+    for (const o of list) {
+      const c = this._cutLocal(o, p);
+      if (Math.hypot(c.x, c.y) + rr < this._cutR(o, c.x, c.y, f) * s) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Die CUT_MAX wichtigsten Durchbrüche in die Shader-Uniforms; Löcher außerhalb zeigen weiter die Lichtfarbe. Rang:
+   * Abstand der Kamera zum Rand im Verhältnis zur Größe – große Breschen bleiben auch weiter weg offen, eine Bresche,
+   * an/in der die Kamera steht, immer.
+   */
   _uploadCuts() {
     const cp = this.G.camera?.position;
     const list = this.holes.filter((h) => h.cut && !h.dead);
-    if (cp) list.sort((a, b) => a.pos.distanceToSquared(cp) - b.pos.distanceToSquared(cp));
-    const on = list.slice(0, CUT_MAX);
+    if (cp && list.length > CUT_MAX) {
+      for (const h of list) h._rank = Math.max(0, h.pos.distanceTo(cp) - h.r * h.kb - 1.5) / Math.max(0.12, h.r);
+      list.sort((a, b) => a._rank - b._rank);
+    }
+    const top = list.slice(0, CUT_MAX);
+    // Felder stabil halten: wer schon aktiv war, behält sein Feld (sonst schriebe jede Kamerabewegung alle Löcher neu)
+    const on = new Array(top.length).fill(null), rest = [];
+    for (const h of top) { if (h.cutOn && h.cutSlot >= 0 && h.cutSlot < on.length && !on[h.cutSlot]) on[h.cutSlot] = h; else rest.push(h); }
+    for (let i = 0; i < on.length; i++) if (!on[i]) on[i] = rest.shift();
     const A = CUTS.npCut.value;
     on.forEach((h, i) => {
       this._frame(h.n, _tx, _ty);
@@ -563,7 +692,7 @@ export class BulletHoles {
       A[o] = h.pos.x; A[o + 1] = h.pos.y; A[o + 2] = h.pos.z; A[o + 3] = h.tn;
       A[o + 4] = h.n.x; A[o + 5] = h.n.y; A[o + 6] = h.n.z; A[o + 7] = h.kb;
       A[o + 8] = _tx.x; A[o + 9] = _tx.y; A[o + 10] = _tx.z; A[o + 11] = h.seed;
-      A[o + 12] = J; A[o + 13] = h.r * h.kb * (1 + J) + 0.01; A[o + 14] = 0; A[o + 15] = 0;
+      A[o + 12] = J; A[o + 13] = h.r * h.kb * (1 + J) + 0.01; A[o + 14] = h.cm || 0.03; A[o + 15] = h.cmF || 0;
       for (let k = 0; k < CUT_K; k++) A[o + 16 + k] = h.prof[k];
     });
     setCutCount(on.length);
@@ -618,7 +747,11 @@ export class BulletHoles {
    */
   _probe(h) {
     const W = this.G.world;
-    h.kx = h.ky = 0; h.clip = [1, 1, 1, 1]; h.probed = Math.max(0.03, Math.min(h.cut || (h.entry && h.entry.cut) ? 1.2 : 0.25, h.rc * this._elong(h) * 1.3));
+    // Durchbrüche weiter abtasten (Panzerbreschen messen mehrere Meter: Rand bis zur Fenster-/Wandkante)
+    const big = h.cut || (h.entry && h.entry.cut);
+    h.kx = h.ky = 0; h.probed = Math.max(0.03, Math.min(big ? Math.max(1.2, Math.min(4.5, h.rc * 1.05)) : 0.25, h.rc * this._elong(h) * 1.3));
+    const c0 = Math.max(1, h.probed + 0.1);
+    h.clip = [c0, c0, c0, c0];
     if (!W || typeof W.raycast !== 'function') return;
     const n = h.n, tx = new THREE.Vector3(), ty = new THREE.Vector3();
     this._frame(n, tx, ty);
@@ -708,6 +841,14 @@ export class BulletHoles {
    */
   hit(hit, def, dir, distance = 0, energy = 1) {
     if (!hit || !hit.point || !def || !def.damage) return null;
+    // Fahrzeuge bewegen sich: kein Loch (es stünde nach dem Wegfahren in der Luft; Schaden: vehicles). Panzerung hält
+    // die Kugel auf, Blech (Pkw, Jeep, Lkw) schlägt sie durch – wie vorher bis zu drei Schichten (combat.fireHitscan)
+    if (hit.vehicle) {
+      if (!hit.vehicle.def || hit.vehicle.def.armored) return { passed: false, energyLeft: 0, thick: 0 };
+      const pv = penetrationDepth(def, 'metal', distance) * energy, t = SHEET.vehicle;
+      if (!(pv >= t)) return { passed: false, energyLeft: 0, thick: t };
+      return { passed: true, energyLeft: Math.max(0.15, 1 - t / pv), thick: t, exitPoint: hit.point.clone().addScaledVector(dir, t) };
+    }
     const surface = hit.surface || 'concrete';
     const style = STYLE[surface];
     if (style === undefined) return null;
@@ -720,9 +861,7 @@ export class BulletHoles {
     if (!hit.solid && hit.targetId == null) {
       const op = this._cutAt(hit.point, 0.9);
       if (op) {
-        const dn = dir.dot(op.n), hh = _v.copy(hit.point).sub(op.pos).dot(op.n);
-        const t = Math.abs(dn) < 0.05 ? 0.3 : dn < 0 ? (hh + op.tn + 0.03) / -dn : (0.04 - hh) / dn;
-        const len = Math.min(2, Math.max(0.01, t));
+        const len = this._cutExit(op, hit.point, dir);
         return { passed: true, open: true, energyLeft: 0.99, thick: len, exitPoint: hit.point.clone().addScaledVector(dir, len) };
       }
     }
@@ -868,8 +1007,9 @@ export class BulletHoles {
     let slot;
     if (this._free.length) slot = this._free.pop();
     else if (this.holes.length >= MAX) {
-      // ältestes Nicht-Durchschuss-Loch wiederverwenden
-      const i = this.holes.findIndex((h) => !h.through);
+      // ältestes Nicht-Durchschuss-Loch wiederverwenden (synchrone Breschen nie)
+      let i = this.holes.findIndex((h) => !h.through && !h.sync);
+      if (i < 0) i = this.holes.findIndex((h) => !h.sync && !(h.entry && h.entry.sync));
       const old = this.holes.splice(i >= 0 ? i : 0, 1)[0];
       slot = old.slot;
       if (old.viewSlot != null) this._slots[old.viewSlot] = null;
@@ -929,6 +1069,8 @@ export class BulletHoles {
    */
   update(dt) {
     this._time += dt;
+    this._fxBudget = Math.min(6, this._fxBudget + dt * 6);
+    if (this._relayPend.size) for (const [id, m] of [...this._relayPend]) if (this._time - (this._relayAt.get(id) ?? -9) >= 0.2) this._relayBreach(m, true);
     // Splitter kommen an: Pocke + kleiner Einschlag (Staub/Funke je Werkstoff)
     if (this._fragQ.length) {
       const fx = this.G.effects;
@@ -1102,6 +1244,474 @@ export class BulletHoles {
     if (this._cutList.some((h) => h.dead)) this._cutList = this._cutList.filter((h) => !h.dead);
   }
 
+  // --- Synchrone Breschen (Panzer, 21.10.) ----------------------------------------------------------------------
+  // Große Breschen (Panzergranaten, Rammen) entscheidet der Host bzw. das Einzelspiel (vehicles/breach.js) und
+  // verteilt sie vollständig – Mitte, Normale, Dicke, Werkstoff, Zufallswert und Umriss (CUT_K Radien in cm). Nachricht
+  // ('ev' br): { id, p, n, w (Wanddicke), s (Stil), sd, kb, r[CUT_K], fx, ep (Effektpunkt), sz, v } – t und e gehören
+  // dem Umschlag ({ t: 'ev', e: 'br', … }) und dürfen nicht vorkommen. Jedes Gerät
+  // schneidet so dieselbe Öffnung aus: Durchgang für Spieler, Fahrzeuge, Kugeln und Granaten ist überall gleich.
+  // Beschuss am Rand vergrößert nur lokal (h.prof ⊇ h.sprof), die verteilte Form h.sprof bleibt unberührt.
+
+  /**
+   * Feste Wand an p (n zeigt aus der Wand zum Betrachter): Werkstoff, Dicke, Ebene → { point, n, surface, style, thick }
+   * oder null (Gelände, massiv/dicker als maxThick, Glas, schräg, beweglich, Fahrzeug). back: Strahlbeginn vor p (p
+   * genau auf der Fläche, z. B. Kontaktpunkt: knapp davor – sonst begänne er womöglich in einer Wand davor).
+   */
+  wallAt(p, n, maxThick = 0.9, back = 0.35) {
+    if (!this._ray0 || !p || !n) return null;
+    _wo.copy(p).addScaledVector(n, back);
+    _wd.copy(n).negate();
+    const f = this._ray0(_wo, _wd, back + 0.55);
+    if (!f || f.solid || f.targetId != null || f.vehicle) return null;
+    const style = STYLE[f.surface];
+    if (style === undefined || !(BREACH_K[style] > 0)) return null;
+    const fn = f.normal.clone();
+    if (fn.dot(_wd) > 0) fn.negate();
+    if (Math.abs(fn.y) > 0.3) return null; // nur Wände (Böden/Dächer bleiben)
+    const into = fn.clone().negate();
+    let thick = this._thickness(f.point, into, f.surface, f);
+    let backN = this._backN;
+    if (!(thick <= maxThick)) return null;
+    if (backN && backN.dot(fn) > -0.94) return null; // Rückseite nicht parallel (Stamm, Keil, Gelände)
+    // schmale Bauteile (Zaun-/Torpfosten, Pfeiler, Balken) sind keine Wand: die Fläche muss sich wenigstens zu einer
+    // Seite 0,4 m weit fortsetzen. Sonst bekäme ein Grenzzaunpfosten eine meterweite Bresche samt Rammdurchbruch, und
+    // ihr Schnitt reichte bis an den unsichtbaren Zaun-Kollisionskörper (5 cm vor der Pfostenfläche) (21.10.)
+    _wl.crossVectors(UPV, fn).normalize();
+    let side = false;
+    for (const s of [-0.4, 0.4]) {
+      _wq.copy(f.point).addScaledVector(fn, 0.25).addScaledVector(_wl, s);
+      const g = this._ray0(_wq, _wd, 0.4);
+      if (!g || g.solid || g.vehicle || g.targetId != null || Math.abs(g.distance - 0.25) > 0.1) continue;
+      const sg = STYLE[g.surface];
+      if (sg !== undefined && BREACH_K[sg] > 0 && Math.abs(g.normal.dot(fn)) > 0.9) { side = true; break; }
+    }
+    if (!side) return null;
+    // weitere Schichten dicht dahinter (Fensterladen/Verkleidung vor der Mauer, Lücke ≤ 15 cm) gehören zur Wand:
+    // die Bresche reicht durch alle, der dickste Werkstoff bestimmt ihren Stil
+    let st = style, big = thick;
+    for (let i = 0; i < 3; i++) {
+      _wt.copy(f.point).addScaledVector(into, thick + 0.004);
+      const g = this._ray0(_wt, into, 0.16);
+      if (!g || g.solid || g.vehicle || g.targetId != null || g.back) break;
+      const s2 = STYLE[g.surface];
+      if (s2 === undefined || !(BREACH_K[s2] > 0) || Math.abs(g.normal.dot(fn)) < 0.94) break;
+      const t2 = this._thickness(g.point, into, g.surface, g);
+      const tot = thick + 0.004 + g.distance + t2;
+      if (!(tot <= maxThick)) break;
+      if (this._backN && this._backN.dot(fn) > -0.94) break;
+      if (t2 > big) { big = t2; st = s2; }
+      thick = tot;
+      backN = this._backN;
+    }
+    // dünne Schicht ohne Mauer dicht dahinter (Fensterladen vor einer Öffnung, Tür-/Fensterzarge, Sims): steht daneben
+    // eine echte Wand (≥ 12 cm, Fläche höchstens 30 cm dahinter bzw. 15 cm davor), gilt sie – Stil, Widerstand und
+    // Schnitttiefe nach der Mauer, Ebene an der vordersten Fläche. Sonst ist das Bauteil selbst die Wand (Bretterbude,
+    // Blech). (21.10., Prüfung: an Zarge oder Laden riss sonst schon ein Jeep eine 10 cm tiefe Scheinbresche – die
+    // Mauer dahinter blieb fest, man sah nur ins Haus.)
+    const point = f.point.clone();
+    if (thick < 0.12) {
+      let best = null;
+      for (const s of [0.35, -0.35, 0.7, -0.7, 1.1, -1.1]) for (const dy of [0, 0.45, -0.45]) {
+        _wq.copy(f.point).addScaledVector(fn, 0.4).addScaledVector(_wl, s).addScaledVector(UPV, dy);
+        const g = this._ray0(_wq, into, 1.0);
+        if (!g || g.solid || g.vehicle || g.targetId != null || g.back) continue;
+        const sg = STYLE[g.surface];
+        if (sg === undefined || !(BREACH_K[sg] > 0) || Math.abs(g.normal.dot(fn)) < 0.94) continue;
+        const off = 0.4 - g.distance; // Lage der Fläche vor (+) bzw. hinter (−) der dünnen Schicht
+        if (off > 0.15 || off < -0.3) continue;
+        const t2 = this._thickness(g.point, into, g.surface, g);
+        if (!(t2 >= 0.12 && t2 + Math.max(0, -off) <= maxThick) || (this._backN && this._backN.dot(fn) > -0.94)) continue;
+        if (!best || t2 > best.t2) best = { t2, off, sg, back: this._backN };
+      }
+      if (best) {
+        const fr = Math.max(0, best.off), bk = Math.min(-thick, best.off - best.t2);
+        point.addScaledVector(fn, fr);
+        thick = fr - bk;
+        st = best.sg;
+        backN = best.back;
+      }
+    }
+    return { point, n: fn, surface: st === style ? f.surface : STYLE_SURF[st], style: st, thick, backN };
+  }
+
+  /**
+   * Boden- und Deckenhöhe beidseits der Wand bei c: je Seite drei Strahlen nebeneinander (niedrigster Boden, höchste
+   * Decke – ein Schrank an der Wand hebt den Boden nicht an) → { lo, hi } (Welt-y).
+   */
+  _span(c, n, thick) {
+    this._frame(n, _tx, _ty);
+    let lo = -Infinity, hi = Infinity;
+    for (const off of [0.35, -(thick + 0.35)]) {
+      let fl = Infinity, ce = -Infinity;
+      for (const s of [-0.9, 0, 0.9]) {
+        _wt.copy(c).addScaledVector(n, off).addScaledVector(_tx, s);
+        const dn = this._ray0(_wt, DOWN, 6);
+        fl = Math.min(fl, dn ? _wt.y - dn.distance : -Infinity);
+        const up = this._ray0(_wt, UPV, 10);
+        ce = Math.max(ce, up ? _wt.y + up.distance : Infinity);
+      }
+      if (Number.isFinite(fl)) lo = Math.max(lo, fl);
+      if (Number.isFinite(ce)) hi = Math.min(hi, ce);
+    }
+    const W = this.G.world;
+    if (!Number.isFinite(lo) && typeof W?.heightAt === 'function') { const g = W.heightAt(c.x, c.z); if (Number.isFinite(g) && g < c.y) lo = g; }
+    if (!Number.isFinite(lo)) lo = c.y - 2.5;
+    return { lo, hi };
+  }
+
+  /**
+   * Host/Einzelspiel: Bresche in der Wand w (wallAt) um den Punkt c mit dem Umriss shape(θ) → Radius (m) (θ in den
+   * Lochachsen der Wand, 0 = waagrecht). Liegt eine synchrone Bresche derselben Wand nahe, wächst sie um die neue Form,
+   * wenn die Vereinigung in einen Umriss passt (BREACH_CAP) – sonst entsteht eine eigene, die überlappen darf (Durchgang
+   * und Darstellung behandeln überlappende Ausschnitte als eine Öffnung). Unter- und Oberkante bleiben über dem Boden und
+   * unter der Decke (sonst fielen Boden-/Deckenplatten in der Wandebene mit aus). opts: { fx (1 SG, 2 PG, 3 Rammen,
+   * 4 Anriss), e (Effektpunkt), sz (Effektgröße), kb (Aufweitung zur Rückseite), v (Fahrzeug-Netz-Id), vehicle (eigenes
+   * Fahrzeug, nur lokal), recenter (Mitte möglichst auf die neue Form, Rammen), exact (neue Form ganz im gezeichneten
+   * Umriss, Zacken nur nach außen – das Fahrzeug passt hindurch), quiet } → verteilte Nachricht oder null.
+   */
+  breach(w, c, shape, opts = {}) {
+    if (!w || !c || typeof shape !== 'function') return null;
+    const n0 = w.n;
+    // Mitte auf die Vorderfläche
+    const cp = c.clone().addScaledVector(n0, -_wt.copy(c).sub(w.point).dot(n0));
+    let R2 = 0;
+    for (let k = 0; k < 32; k++) R2 = Math.max(R2, shape((k / 32) * Math.PI * 2));
+    if (!(R2 >= CUT_MIN_R)) return null;
+    const kbN = Math.max(1, Math.min(1.4, opts.kb || KB[w.style]));
+    // nahe synchrone Breschen derselben Wand, nächste zuerst: die erste, mit der die Vereinigung in einen Umriss passt
+    const near = [];
+    for (const o of this._sync.values()) {
+      if (o.dead || Math.abs(o.n.dot(n0)) < 0.95) continue;
+      const L = this._cutLocal(o, cp);
+      if (Math.abs(L.hh) > 0.1) continue;
+      const d = Math.hypot(L.x, L.y);
+      if (d > o.r * o.kb + R2 + 0.45) continue;
+      near.push({ o, d, hh: L.hh });
+    }
+    near.sort((a, b) => a.d - b.d);
+    let plan = null;
+    for (const q of near) if ((plan = this._mergePlan(q.o, w, cp, q.hh, shape, R2, kbN, opts))) break;
+    if (!plan) plan = this._newPlan(w, cp, shape, kbN, opts);
+    if (!plan) return null;
+    const { center, n, prof } = plan;
+    let m = 0;
+    for (let k = 0; k < CUT_K; k++) m = Math.max(m, prof[k]);
+    if (m < CUT_MIN_R) return null;
+    const id = plan.id || ++this._syncId;
+    const msg = {
+      id, p: [_q3(center.x), _q3(center.y), _q3(center.z)], n: [_q3(n.x, 1000), _q3(n.y, 1000), _q3(n.z, 1000)],
+      w: _q3(Math.max(0.003, plan.thick), 1000), s: plan.style, sd: plan.seed, kb: _q3(plan.kb), r: Array.from(prof, (r) => Math.round(r * 100)),
+      fx: opts.fx | 0, ep: opts.e ? [_q3(opts.e.x), _q3(opts.e.y), _q3(opts.e.z)] : null, sz: _q3(opts.sz || m), v: opts.v | 0,
+    };
+    this.applyBreach(msg, { quiet: !!opts.quiet, vehicle: opts.vehicle || null });
+    this._relayBreach(msg);
+    return msg;
+  }
+
+  /**
+   * Umriss prof (CUT_K Stützradien um die Mitte) so anheben, dass der Punkt (x, y) – relativ zur Mitte, in den
+   * Lochachsen – im gezeichneten Umriss liegt (Zwischenwerte geglättet wie npCutRAt, Zacken jag, Faktor k: Aufweitung
+   * hinten). Beide Nachbarstützen steigen gleich viel – nur wachsen, schon abgedeckte Punkte bleiben abgedeckt.
+   */
+  _cover(prof, x, y, seed, J, k = 1, margin = 0) {
+    const d = Math.hypot(x, y) + margin;
+    if (d < 1e-4) return;
+    const th = Math.atan2(y, x), u = ((th < 0 ? th + Math.PI * 2 : th) * CUT_K) / (Math.PI * 2);
+    const k0 = Math.floor(u) % CUT_K, k1 = (k0 + 1) % CUT_K;
+    let t = u - Math.floor(u); t = t * t * (3 - 2 * t);
+    const need = d / (jag(th, seed, J) * k), r = prof[k0] + (prof[k1] - prof[k0]) * t;
+    if (r < need) { prof[k0] += need - r; prof[k1] += need - r; }
+  }
+
+  /** Randpunkte eines Umrisses (prof, seed, J) um (cx, cy) in den Lochachsen, vorn und hinten (× k) → [[x, y, hinten]] */
+  _rim(prof, seed, J, k, cx, cy, N) {
+    const out = [];
+    for (let i = 0; i < N; i++) {
+      const th = (i / N) * Math.PI * 2, u = (i / N) * CUT_K;
+      const k0 = Math.floor(u) % CUT_K, k1 = (k0 + 1) % CUT_K;
+      let t = u - Math.floor(u); t = t * t * (3 - 2 * t);
+      const r = (prof[k0] + (prof[k1] - prof[k0]) * t) * jag(th, seed, J), c = Math.cos(th), s = Math.sin(th);
+      out.push([cx + c * r, cy + s * r, 0]);
+      if (k > 1.001) out.push([cx + c * r * k, cy + s * r * k, 1]);
+    }
+    return out;
+  }
+
+  /**
+   * Boden/Decke (gemessen an der Mitte der Bresche): der Umriss, wie ihn der Shader zeichnet (Zwischenwerte geglättet,
+   * Zacken, Aufweitung hinten kb), bleibt über dem Boden und unter der Decke. Erst jeder Stützradius auf die Grenze
+   * seiner eigenen Richtung, dann fein abgetastet: steht die Mischung zweier Stützen noch über, werden beide im selben
+   * Verhältnis gekürzt – nur kürzen (frühere Stellen bleiben erfüllt), kein Nachbar fällt dabei auf null.
+   */
+  _clampSpan(prof, center, n, ay, thick, seed, J, kb) {
+    const sp = this._span(center, n, thick), NS = 128;
+    const limAt = (th) => {
+      const s = Math.sin(th) * ay.y;
+      let l;
+      if (s < -0.02) l = (center.y - sp.lo - 0.05) / -s;
+      else if (s > 0.02) l = (sp.hi - center.y - 0.05) / s;
+      else return Infinity;
+      return Math.max(0, l) / (jag(th, seed, J) * kb);
+    };
+    for (let k = 0; k < CUT_K; k++) prof[k] = Math.min(prof[k], limAt((k / CUT_K) * Math.PI * 2));
+    for (let i = 0; i < NS; i++) {
+      const th = (i / NS) * Math.PI * 2, L = limAt(th);
+      if (L === Infinity) continue;
+      const u = (th * CUT_K) / (Math.PI * 2), k0 = Math.floor(u) % CUT_K, k1 = (k0 + 1) % CUT_K;
+      let t = u - Math.floor(u); t = t * t * (3 - 2 * t);
+      const r = prof[k0] + (prof[k1] - prof[k0]) * t;
+      if (r > L + 1e-4) { const f = L / r; prof[k0] *= f; prof[k1] *= f; }
+    }
+  }
+
+  /** Neue Bresche: Umriss = neue Form um cp (opts.exact: ganz abgedeckt), an Boden und Decke gekürzt. */
+  _newPlan(w, cp, shape, kb, opts) {
+    const n = w.n, ax = new THREE.Vector3(), ay = new THREE.Vector3();
+    this._frame(n, ax, ay);
+    const seed = _q3(rngAt(cp)() * 100), J = JAG[w.style];
+    const prof = new Float32Array(CUT_K);
+    for (let k = 0; k < CUT_K; k++) prof[k] = shape((k / CUT_K) * Math.PI * 2);
+    if (opts.exact) for (let i = 0; i < 64; i++) { const th = (i / 64) * Math.PI * 2, r = shape(th); this._cover(prof, Math.cos(th) * r, Math.sin(th) * r, seed, J); }
+    for (let k = 0; k < CUT_K; k++) prof[k] = Math.min(BREACH_CAP, prof[k]);
+    this._clampSpan(prof, cp, n, ay, w.thick, seed, J, kb);
+    return { id: 0, center: cp, n: n.clone(), thick: w.thick, style: w.style, seed, kb, prof };
+  }
+
+  /**
+   * Vereinigung mit der synchronen Bresche h (21.10., Prüfung: eine verlagerte Mitte kappte den alten Umriss am
+   * Größtradius – offene Wand schloss sich wieder, auch um Fahrzeuge darin). Der neue Umriss deckt den bisherigen
+   * (verteilte Form h.sprof, vorn und hinten) und die neue Form ganz ab; geprüft werden drei Mitten (Rammen: zuerst die
+   * neue Form, sonst die alte Mitte, dann die Mitte der gemeinsamen Hülle). Passt keine unter BREACH_CAP → null (eigene
+   * Bresche). hh: Lage der neuen Wandfläche zur Ebene von h.
+   */
+  _mergePlan(h, w, cp, hh, shape, R2, kbN, opts) {
+    if (!h.sprof) return null;
+    const n = h.n, ax = new THREE.Vector3(), ay = new THREE.Vector3();
+    this._frame(n, ax, ay);
+    _wt.copy(cp).sub(h.pos);
+    const ox = _wt.dot(ax), oy = _wt.dot(ay);
+    const J = JAG[h.style], seed = h.seed, kb = Math.max(h.kb, kbN);
+    // Wanddicke: reicht die neue Wand (andere Schicht) tiefer, wird bis zu ihrer Rückseite ausgeschnitten
+    const thick = Math.max(h.tn, Math.min(1.2, w.thick - hh));
+    // Randpunkte [x, y, Aufweitung in ihrer Tiefe] relativ zur alten Mitte: hinten weitet der neue Umriss nur um
+    // 1 + (kb − 1) · Tiefe/Dicke
+    const kAt = (depth) => 1 + (kb - 1) * Math.min(1, Math.max(0, depth / thick));
+    const old = this._rim(h.sprof, seed, J, h.kb, 0, 0, 96).map((q) => [q[0], q[1], q[2] ? kAt(h.tn) : 1]);
+    const add = [];
+    for (let i = 0; i < 64; i++) {
+      const th = (i / 64) * Math.PI * 2, r = shape(th), c = Math.cos(th), s = Math.sin(th);
+      add.push([ox + c * r, oy + s * r, 1]);
+      if (kbN > 1.001) add.push([ox + c * r * kbN, oy + s * r * kbN, kAt(w.thick - hh)]);
+    }
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const q of [...old, ...add]) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
+    const mid = [(x0 + x1) * 0.5, (y0 + y1) * 0.5];
+    const recenter = !!opts.recenter || R2 > h.r * 1.2;
+    const cands = recenter ? [[ox, oy], mid, [0, 0]] : [[0, 0], mid, [ox, oy]];
+    for (const [cx, cy] of cands) {
+      const prof = new Float32Array(CUT_K);
+      const cover = (pts, margin) => { for (const q of pts) this._cover(prof, q[0] - cx, q[1] - cy, seed, J, q[2], margin); };
+      cover(old, 0.02);
+      cover(add, 0);
+      let m = 0;
+      for (let k = 0; k < CUT_K; k++) m = Math.max(m, prof[k]);
+      if (m > BREACH_CAP) continue;
+      const center = h.pos.clone().addScaledVector(ax, cx).addScaledVector(ay, cy);
+      this._clampSpan(prof, center, n, ay, thick, seed, J, kb);
+      cover(old, 0.02); // Boden/Decke an der neuen Mitte: was schon offen war, bleibt offen
+      m = 0;
+      for (let k = 0; k < CUT_K; k++) m = Math.max(m, prof[k]);
+      if (m > BREACH_CAP) continue;
+      return { id: h.sync, center, n: n.clone(), thick, style: h.style, seed, kb, prof };
+    }
+    return null;
+  }
+
+  /** Host: Bresche verteilen ('ev' br) – je Id höchstens alle 0,2 s, dazwischen wird der neueste Stand nachgereicht. */
+  _relayBreach(msg, force = false) {
+    const G = this.G, sync = G.net && G.net.sync;
+    if (!(G.match && G.match.netRole === 'host' && sync && typeof sync.relayBreach === 'function')) return;
+    const last = this._relayAt.get(msg.id);
+    if (!force && last != null && this._time - last < 0.2) { this._relayPend.set(msg.id, msg); return; }
+    this._relayAt.set(msg.id, this._time);
+    this._relayPend.delete(msg.id);
+    sync.relayBreach(msg);
+  }
+
+  /**
+   * Synchrone Bresche anlegen/aktualisieren (Host, Einzelspiel und Clients mit derselben Nachricht, 'ev' br).
+   * opts: { quiet (keine Effekte, z. B. Nachreichen für Späteinsteiger), vehicle (eigenes Fahrzeug, Kamerawackeln) }
+   */
+  applyBreach(m, { quiet = false, vehicle = null } = {}) {
+    if (!m || !Array.isArray(m.p) || !Array.isArray(m.n) || !Array.isArray(m.r) || m.r.length !== CUT_K) return null;
+    const p = new THREE.Vector3(Number(m.p[0]), Number(m.p[1]), Number(m.p[2]));
+    const n = new THREE.Vector3(Number(m.n[0]), Number(m.n[1]), Number(m.n[2]));
+    if (![p.x, p.y, p.z].every(Number.isFinite) || !(n.lengthSq() > 0.5)) return null;
+    n.normalize();
+    const style = Math.max(0, Math.min(7, m.s | 0));
+    if (!(BREACH_K[style] > 0)) return null;
+    const tn = Math.max(0.003, Math.min(1.2, Number(m.w) || 0.2));
+    const id = m.id | 0;
+    if (id <= 0) return null;
+    this._syncId = Math.max(this._syncId, id);
+    let h = this._sync.get(id), keep = null;
+    if (h && h.dead) { this._sync.delete(id); h = null; }
+    if (!h) {
+      // Oberfläche und Farbe der Wand vor Ort (nur Optik)
+      const f = this._ray0 ? this._ray0(_wo.copy(p).addScaledVector(n, 0.2), _wd.copy(n).negate(), 0.5) : null;
+      const surface = f && STYLE[f.surface] === style ? f.surface : STYLE_SURF[style];
+      const alb = (f && f.tri != null && this.G.world?.albedoAt?.(f.tri, [0, 0, 0])) || ALBEDO[style];
+      h = this._make(p, n, n.clone().negate(), surface, style, tn, false, alb);
+      if (!h) return null;
+      h.sync = id;
+      h.cm = 0.06; // Zugabe: Sockel/Verkleidung, die wenige cm vor der Wand stehen, brechen mit aus
+      h.cmF = 0.09; // vorn weiter: Fensterläden, Simse, Zargen (bis 15 cm vor der Mauer) – sonst schwebten sie in der Bresche
+      this._sync.set(id, h);
+      h.seed = Number(m.sd) || 0;
+      h.cos = 1; h.slope = [0, 0];
+      h.through = true; h.depth = tn; h.r = CUT_MIN_R; h.rc = CUT_MIN_R * 2;
+      h.backN = n.clone().negate();
+      h.behind = this._behind(p.clone().addScaledVector(n, -(tn + 0.02)), h.dir);
+      this.stats.through++;
+      this._makeCut(h);
+      h.tn = tn;
+      h.sprof = new Float32Array(CUT_K);
+      this._newExit(h, h.dir, n, tn, surface, style, null);
+    } else {
+      h.hits++;
+      // tiefer reichende Schicht (Vereinigung): Ausschnitt bis zu ihrer Rückseite
+      if (tn > h.tn + 1e-4) { h.tn = tn; h.thick = h.depth = tn; }
+      // Mitte verlagert (Vereinigung): örtliches Wachstum (Beschuss am Rand, h.prof ⊇ h.sprof) wandert in den neuen
+      // Rahmen mit – was offen war, bleibt offen
+      if (h.pos.distanceToSquared(p) > 1e-4) {
+        const ax = new THREE.Vector3(), ay = new THREE.Vector3();
+        this._frame(h.n, ax, ay);
+        _wt.copy(h.pos).sub(p);
+        keep = this._rim(h.prof, h.seed, JAG[h.style], 1, _wt.dot(ax), _wt.dot(ay), 64);
+        h.pos.copy(p);
+        h.prof.fill(0);
+      }
+    }
+    const kb = Number(m.kb);
+    if (Number.isFinite(kb)) h.kb = Math.max(1, Math.min(1.4, kb));
+    for (let k = 0; k < CUT_K; k++) {
+      h.sprof[k] = Math.max(0, Math.min(BREACH_CAP, (Number(m.r[k]) || 0) / 100));
+      h.prof[k] = Math.max(h.prof[k], h.sprof[k]);
+    }
+    if (keep) for (const q of keep) this._cover(h.prof, q[0], q[1], h.seed, JAG[h.style], 1, 0.01);
+    this._sizeCut(h);
+    this._cutDirty = true;
+    this._absorb(h);
+    this._rubblePile(h);
+    this._queueProbe(h);
+    if (h.exitHole) { this._syncExit(h); this._queueProbe(h.exitHole); this._write(h.exitHole); }
+    this._write(h);
+    this.stats.holes = this.holes.length;
+    // Effekte gedrosselt: dieselbe Bresche wächst beim Durchschieben in vielen kleinen Schritten
+    if (!quiet && this._fxBudget >= 1 && !(this._time - (h._fxAt ?? -9) < 0.3)) {
+      this._fxBudget -= 1;
+      h._fxAt = this._time;
+      this._breachFx(m, h, vehicle);
+    }
+    return h;
+  }
+
+  /**
+   * Schutt am Fuß der Bresche h: je neu ausgebrochener Fläche (verteilte Form h.sprof) Brocken beidseits auf dem Boden,
+   * meist nach innen (Granate und Panzer drücken die Wand hinein), dicht an der Wand mehr. Zufall aus Mitte und Fläche –
+   * dieselbe Nachricht ergibt auf jedem Gerät denselben Haufen. Nur Optik (keine Kollision).
+   */
+  _rubblePile(h) {
+    const M = this._rubble;
+    if (!M || !this._ray0 || !h.sprof) return;
+    let A = 0;
+    for (let k = 0; k < CUT_K; k++) A += h.sprof[k] * h.sprof[k];
+    A *= Math.PI / CUT_K; // Fläche des Umrisses (Sektoren)
+    const add = A - (h._pileA || 0);
+    if (add < 0.08) return;
+    h._pileA = A;
+    const tn = Math.min(0.6, h.tn);
+    const n = Math.max(3, Math.min(70, Math.round(add * (6 + 40 * tn))));
+    const rnd = rngAt(_cp.set(h.pos.x + A, h.pos.y, h.pos.z));
+    this._frame(h.n, _tx, _ty);
+    const core = ALBEDO[h.style] || ALBEDO[1], skin = h.alb || core;
+    const cap = M.instanceMatrix.count;
+    for (let i = 0; i < n; i++) {
+      // Punkt auf der unteren Hälfte des Umrisses, dann vor oder hinter die Wand und abwärts auf den Boden
+      const th = Math.PI * (1.05 + 0.9 * rnd()), u = (th * CUT_K) / (Math.PI * 2);
+      const k0 = Math.floor(u) % CUT_K, k1 = (k0 + 1) % CUT_K, t = u - Math.floor(u);
+      const R = (h.sprof[k0] + (h.sprof[k1] - h.sprof[k0]) * t) * (0.6 + 0.4 * rnd());
+      const inside = rnd() < 0.65, d = 0.08 + 1.4 * rnd() * rnd();
+      _wo.copy(h.pos).addScaledVector(_tx, Math.cos(th) * R + (rnd() - 0.5) * 0.4).addScaledVector(_ty, Math.sin(th) * R * 0.5)
+        .addScaledVector(h.n, inside ? -(h.tn + d) : d);
+      const f = this._ray0(_wo, DOWN, 4);
+      if (!f || f.vehicle || f.targetId != null || !(f.normal.y > 0.6 || f.normal.y < -0.6)) continue;
+      const s = 0.05 + (0.06 + 0.3 * tn) * rnd() * (d < 0.5 ? 1 : 0.7);
+      _q.setFromEuler(_eu.set(rnd() * 6.283, rnd() * 6.283, rnd() * 6.283));
+      _s.set(s * (0.8 + 0.5 * rnd()), s * (0.45 + 0.35 * rnd()), s * (0.8 + 0.5 * rnd()));
+      _m.compose(_v.copy(f.point).addScaledVector(UPV, _s.y * 0.55), _q, _s);
+      const slot = this._rubbleN % cap;
+      M.setMatrixAt(slot, _m);
+      const c = rnd() < 0.6 ? core : skin, b = 0.75 + 0.3 * rnd();
+      M.setColorAt(slot, _col.setRGB(c[0] * b, c[1] * b, c[2] * b));
+      this._rubbleN++;
+    }
+    M.count = Math.min(cap, this._rubbleN);
+    M.instanceMatrix.needsUpdate = true;
+    if (M.instanceColor) M.instanceColor.needsUpdate = true;
+  }
+
+  /** Staub, Brocken, Klang und Kamerawackeln einer Bresche (jedes Gerät selbst). */
+  _breachFx(m, h, vehicle = null) {
+    const G = this.G, fx = G.effects;
+    const e = Array.isArray(m.ep) && m.ep.length === 3 ? new THREE.Vector3(Number(m.ep[0]), Number(m.ep[1]), Number(m.ep[2])) : h.pos.clone();
+    if (![e.x, e.y, e.z].every(Number.isFinite)) e.copy(h.pos);
+    const sz = Math.max(0.4, Math.min(4, Number(m.sz) || h.r));
+    const kind = m.fx | 0;
+    try {
+      if (fx && typeof fx.rubble === 'function') {
+        fx.rubble(e, h.n, h.surface, Math.min(2.6, sz));
+        if (sz > 1.2) fx.rubble(e.clone().addScaledVector(h.n, -h.tn), h.n, h.surface, Math.min(2.6, sz * 0.7));
+      }
+      if (fx && typeof fx.smoke === 'function') {
+        const col = DUST[h.style] ?? 0x8e887e;
+        for (const side of [1, -1]) {
+          fx.smoke(e.clone().addScaledVector(h.n, side > 0 ? 0.5 : -(h.tn + 0.5)), { count: 2 + Math.round(sz * (kind === 3 ? 2.2 : 1.4)), color: col, size: 1.1 + sz * 0.7, life: 3 + sz * 0.6, rise: 0.35, alpha: 0.4 });
+        }
+      }
+    } catch { /* Beiwerk */ }
+    const A = G.audio;
+    if (A && typeof A.play === 'function') {
+      try {
+        A.play('debris', { position: e, volume: Math.min(1, 0.55 + sz * 0.25) });
+        if (kind === 3 || kind === 4) A.play('boom_sub', { position: e, volume: kind === 3 ? 0.9 : 0.55, pitch: 0.55 });
+      } catch { /* Klang ist Beiwerk */ }
+    }
+    // Kamerawackeln: Insassen des rammenden Fahrzeugs kräftig (im Sitz wirkt es über vehicles/index.js), Umstehende
+    // nach Abstand
+    const P = G.player;
+    if (P && P.alive && typeof P.shake === 'function') {
+      const own = (vehicle && P.vehicle === vehicle) || (m.v && P.vehicle && P.vehicle.netId === m.v);
+      const d = P.position ? P.position.distanceTo(e) : 99;
+      if (own) P.shake(kind === 3 ? 0.75 : 0.4);
+      else if (d < 16) P.shake(0.45 * (1 - d / 16) * Math.min(1.4, sz));
+    }
+    G.events?.emit?.('wall:breach', { position: e.clone(), surface: h.surface, size: sz, kind, id: h.sync });
+  }
+
+  /** Alle synchronen Breschen als Nachrichten (Host → Späteinsteiger, ohne Effekte). */
+  breachState() {
+    const out = [];
+    for (const [id, h] of this._sync) {
+      if (h.dead) continue;
+      out.push({ id, p: [_q3(h.pos.x), _q3(h.pos.y), _q3(h.pos.z)], n: [_q3(h.n.x, 1000), _q3(h.n.y, 1000), _q3(h.n.z, 1000)], w: _q3(h.tn, 1000), s: h.style, sd: h.seed, kb: _q3(h.kb), r: Array.from(h.sprof, (r) => Math.round(r * 100)), fx: 0 });
+    }
+    return out;
+  }
+
+  /** Stil (0 Holz, 1 Beton, 2 Putz, 3 Metall, 4 Glas, 5 Erde, 6 Stoff, 7 Ziegel) einer Oberfläche oder undefined. */
+  styleOf(surface) { return STYLE[surface]; }
+
   /** Durchgehendes Loch an dieser Stelle? → Loch oder null. */
   at(p) {
     for (const h of this.holes) if (h.through && !h.exit && h.pos.distanceToSquared(p) < (h.r + 0.02) ** 2) return h;
@@ -1116,12 +1726,22 @@ export class BulletHoles {
     const W = this.G.world;
     if (W && this._los && W.lineOfSight === this._los) W.lineOfSight = this._los0;
     if (W && this._ray && W.raycast === this._ray) W.raycast = this._rayW0;
+    if (W && this._cr && W.collisionRaycast === this._cr) W.collisionRaycast = this._crW0;
+    this._sync.clear();
+    this._relayPend.clear();
     if (this._tci && this._tci.col.triangleCapsuleIntersect === this._tciW) {
       if (this._tci.own) this._tci.col.triangleCapsuleIntersect = this._tci.tci0; else delete this._tci.col.triangleCapsuleIntersect;
     }
     this._cutList = [];
     if (this.mesh.parent) this.mesh.parent.remove(this.mesh);
     if (this.mesh2.parent) this.mesh2.parent.remove(this.mesh2);
+    if (this._rubble) {
+      this._rubble.removeFromParent();
+      this._rubble.geometry.dispose();
+      this._rubble.material.dispose();
+      this._rubble.dispose?.();
+      this._rubble = null;
+    }
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();
     this.mesh2.material.dispose();
@@ -1188,7 +1808,26 @@ varying vec3 vCamL;
 varying vec3 vTx;
 varying vec3 vTy;
 varying vec3 vTz;
-${CUT_GLSL}
+${cutGLSL()}
+// Liegt der Weltpunkt w im Ausschnitt eines anderen aktiven Durchbruchs (nicht skip)? Überlappende Breschen (21.10.):
+// Rand und Bruchwand der einen schwebten sonst in der Öffnung der anderen – dort ist keine Wand mehr
+bool npInOther( vec3 w, int skip ) {
+  for ( int i = 0; i < ${CUT_MAX}; i++ ) {
+    if ( i >= npCutN ) break;
+    if ( i == skip ) continue;
+    int b = i * ${CUT_STRIDE};
+    vec4 c0 = npCut[ b ], c1 = npCut[ b + 1 ], c3 = npCut[ b + 3 ];
+    vec3 d = w - c0.xyz;
+    float h = dot( d, c1.xyz );
+    if ( h > c3.z + c3.w + 0.005 || h < -c0.w - c3.z - 0.005 ) continue;
+    vec3 dp = d - c1.xyz * h;
+    float L2 = dot( dp, dp );
+    if ( L2 > c3.y * c3.y ) continue;
+    float R = npCutRAt( i, dp * inversesqrt( max( L2, 1e-10 ) ), clamp( -h / max( c0.w, 1e-3 ), 0.0, 1.0 ) ) * 0.97;
+    if ( L2 < R * R ) return true;
+  }
+  return false;
+}
 // Durchbruch: Wand ist im Weltshader ausgeschnitten (gleicher Umriss npCutRAt) → Öffnung zeigt die echte Welt
 bool npIsCut = false; int npCutI = 0; float npCutF = 0.0, npQ = 1.0;
 vec3 npHoleN = vec3( 0.0, 0.0, 1.0 );
@@ -1291,6 +1930,7 @@ vec3 npSunL() {
     vec2 cpS = npC( p0 );
     float crhoS = length( cpS );
     float npFw = max( fwidth( crhoS ), 1e-4 );
+    vec3 npW = ( -vViewPosition - viewMatrix[ 3 ].xyz ) * mat3( viewMatrix ); // Weltlage (Ansicht starr: R^T (v − t))
     if ( rho0 > 1.0 ) discard;
     // Kanten der Fläche und Flanken gekrümmter Flächen abschneiden (kein Überstehen)
     if ( p0.x > vClip.x || -p0.x > vClip.y || p0.y > vClip.z || -p0.y > vClip.w ) discard;
@@ -1324,6 +1964,8 @@ vec3 npSunL() {
         if ( L > R ) zOut = zm; else zIn = zm;
       }
       vec2 uw = p0 + dxyC * zOut;
+      // Austritt aus dem Kanal liegt in einer anderen Bresche (Überlappung): dort steht keine Bruchwand
+      if ( npInOther( npW + vWX * ( dxyC.x * zOut ) + vWY * ( dxyC.y * zOut ) - cross( vWX, vWY ) / npQ * zOut, npCutI ) ) discard;
       float k = clamp( zOut / D, 0.0, 1.0 );
       float stri = 0.8 + 0.4 * npN2( vec2( atan( uw.y, uw.x ) * 4.0, zOut * 30.0 ) + npSeed );
       vec3 cc = npCell( uw * 9.0 + vec2( zOut * 11.0 ) + npSeed );
@@ -1336,6 +1978,7 @@ vec3 npSunL() {
     }
 #else
     if ( d0 >= 1e2 ) discard; // Durchgang 1: Krater und Rand (Öffnung zeichnet Durchgang 2 darüber)
+    if ( npInOther( npW, npIsCut ? npCutI : -1 ) ) discard; // Rand/Loch in der Öffnung einer anderen Bresche
 #endif
     if ( npDone ) {
     } else if ( d0 > 0.0 ) {
