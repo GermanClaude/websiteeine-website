@@ -151,7 +151,7 @@ check(unpackFlags(FLAGS.VR).vr && packFlags({ vr: true }) === 2048, 'Flag-Bit 11
   const veh = (vid, over = {}) => ({
     vid, kind: 0 | (1 << 4), bits: 0b10101001, seats: 0b00100101, x: 1234.567, y: -12.25, z: 98765.4321, qx: q[0], qy: q[1], qz: q[2], qw: q[3],
     vx: 18.93, vy: -0.42, vz: -7.77, wy: 0.765, a: [3.0, -0.157, -2.5, 0.85], hp: 873.6, zones: [255, 12, 200], gear: -2, rpm: 1.06, drive: 0b10111011,
-    shots: [3, 260, 0, 255, 9, 300], seats2: 0b00100010, gun: 1 | (2 << 2) | (2 << 4) | 128, busy: 0.5, rackAP: 21, rackHE: 18, mag0: 200, mag1: 99, sel: 0b11010110, aux: 2 | (20 << 2), ...over,
+    shots: [3, 260, 0, 255, 9, 300], seats2: 0b00100010, gun: 1 | (2 << 2) | (2 << 4) | 128, busy: 0.5, rackAP: 21, rackHE: 18, mag0: 200, mag1: 99, sel: 0b11010110, aux: 2 | (20 << 2), supply: 5 | (3 << 3) | (1 << 6), ...over,
   });
   const vs = [veh(7), veh(255, { kind: 1 | (2 << 4), qx: 0, qy: 0, qz: 0, qw: 0, a: [Math.PI * 3, 0, 0, 0], gear: 4, rpm: 0, hp: 70000 })];
   // 3 Akteure, einer davon mit VR-Block, dazu 2 Fahrzeuge
@@ -183,6 +183,7 @@ check(unpackFlags(FLAGS.VR).vr && packFlags({ vr: true }) === 2048, 'Flag-Bit 11
   check(V.hp === 874 && V.zones.join() === '255,12,200' && V.gear === -2 && near(V.rpm, 1.06, 0.005) && V.drive === src.drive, 'hp gerundet, Zonen, Gang i8, rpm ×200, drive');
   check(V.shots.join() === '3,4,0,255,9,44' && V.seats2 === 0b00100010 && V.gun === src.gun && near(V.busy, 0.5, 0.003) && V.rackAP === 21 && V.rackHE === 18, 'Schusszähler mod 256 (6 Sitze), Sitze 5–6, Kanone, Fortschritt, Gestell');
   check(V.mag0 === 200 && V.mag1 === 99 && V.sel === src.sel && V.aux === src.aux, 'Magazine, sel, aux');
+  check(V.supply === src.supply && (V.supply & 7) === 5 && ((V.supply >> 3) & 7) === 3 && (V.supply >> 6) === 1, 'Versorgung: Gurte je MG + Zustand (Byte 63)');
   const V2 = dsv.vehicles[1];
   check(V2.vid === 255 && V2.qw === 1 && V2.qx === 0 && near(Math.abs(V2.a[0]), Math.PI, 1e-3) && V2.hp === 65535 && V2.rpm === 0 && V2.gear === 4, 'Nullquaternion → Einheit, Winkel umgebrochen, hp u16 begrenzt');
   // abgeschnitten: 1,5 Fahrzeugblöcke → nur der vollständige

@@ -196,8 +196,10 @@ function hasVeh(e) {
 
 /**
  * Fahrzeugblock schreiben (64 Byte). v: { vid, kind, bits, seats, x, y, z, qx, qy, qz, qw, vx, vy, vz, wy, a:[4], hp,
- * zones:[3] (0…255), gear, rpm (0…1,27), drive, shots:[6], gun, busy (0…1), rackAP, rackHE, mag0, mag1, sel, aux, seats2 }.
+ * zones:[3] (0…255), gear, rpm (0…1,27), drive, shots:[6], gun, busy (0…1), rackAP, rackHE, mag0, mag1, sel, aux, seats2, supply }.
  * shots[4…5]/seats2: Sitze 5–6 (Panzer 1./2. Weltkrieg mit größerer Besatzung; seats2 bits0–1 Luke, bits4–5 bereit).
+ * supply (21.10., vehicles/resupply.js): bits0–2 Ersatzgurte MG 1, bits3–5 MG 2 (je 0…7), bits6–7 Versorgung
+ * (0 frei, 1 aktiv, 2 Abklingzeit).
  */
 function writeVehicle(dv, o, v) {
   dv.setUint8(o, u8(v.vid));
@@ -232,7 +234,7 @@ function writeVehicle(dv, o, v) {
   dv.setUint8(o + 56, u8(v.mag0)); dv.setUint8(o + 57, u8(v.mag1));
   dv.setUint8(o + 58, u8(v.sel)); dv.setUint8(o + 59, u8(v.aux));
   dv.setUint8(o + 60, (fin(sh[4]) | 0) & 255); dv.setUint8(o + 61, (fin(sh[5]) | 0) & 255);
-  dv.setUint8(o + 62, u8(v.seats2)); dv.setUint8(o + 63, 0);
+  dv.setUint8(o + 62, u8(v.seats2)); dv.setUint8(o + 63, u8(v.supply));
   return o + VEH_BLOCK;
 }
 
@@ -252,7 +254,7 @@ function readVehicle(dv, o) {
     gear: dv.getInt8(o + 45), rpm: dv.getUint8(o + 46) / 200, drive: dv.getUint8(o + 47),
     shots: [dv.getUint8(o + 48), dv.getUint8(o + 49), dv.getUint8(o + 50), dv.getUint8(o + 51), dv.getUint8(o + 60), dv.getUint8(o + 61)],
     gun: dv.getUint8(o + 52), busy: dv.getUint8(o + 53) / 255, rackAP: dv.getUint8(o + 54), rackHE: dv.getUint8(o + 55),
-    mag0: dv.getUint8(o + 56), mag1: dv.getUint8(o + 57), sel: dv.getUint8(o + 58), aux: dv.getUint8(o + 59), seats2: dv.getUint8(o + 62),
+    mag0: dv.getUint8(o + 56), mag1: dv.getUint8(o + 57), sel: dv.getUint8(o + 58), aux: dv.getUint8(o + 59), seats2: dv.getUint8(o + 62), supply: dv.getUint8(o + 63),
   };
 }
 

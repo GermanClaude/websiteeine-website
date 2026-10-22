@@ -70,7 +70,8 @@ try {
   await ev(host, () => window.__room.net.updateSettings({ maxPlayers: 4, map: 'altstadt', weather: 'dunst', teamSize: 5, mode: 'gun' }));
   const gotRoom = await waitFor(c1, () => window.__room.net.room.settings.map === 'altstadt' && window.__room.net.room.settings.maxPlayers === 4);
   const s1 = await ev(c1, () => window.__room.net.room.settings);
-  check(gotRoom && s1.weather === 'dunst' && s1.teamSize === 5 && s1.mode === 'tdm', `Einstellungen an Clients verteilt (Karte ${s1.map}, ${s1.maxPlayers} Spieler, Modus „gun“ online abgelehnt → ${s1.mode})`);
+  // Waffenspiel ist online wählbar (ONLINE_MODES); Spielstart unten wieder mit tdm (Fahrzeug-Modus)
+  check(gotRoom && s1.weather === 'dunst' && s1.teamSize === 5 && s1.mode === 'gun', `Einstellungen an Clients verteilt (Karte ${s1.map}, ${s1.maxPlayers} Spieler, Modus ${s1.mode})`);
   check(await ev(c1, () => window.__room.events.some((e) => e.name === 'net:room' && e.p.room.settings.map === 'altstadt')), 'Client: net:room-Ereignis');
   await ev(host, () => window.__room.net.updateSettings({ teamSize: 4 }));
   // Fahrzeuge (panzer-mp.md §C.1): Standard = VEHICLES_ONLINE_DEFAULT, Außenansicht an, Nachladen manuell; Normalisierung
@@ -88,8 +89,8 @@ try {
   });
   check(norm.missing === norm.def && norm.onOff.join() === 'true,false,false' && norm.keep === !norm.def, `normalizeSettings vehicles: fehlt → Standard, sonst Wahrheitswert, Basis bleibt (${JSON.stringify(norm.onOff)})`);
   check(norm.tp.join() === 'true,false,true' && norm.rl.join() === 'automatisch,manuell,manuell', `normalizeSettings thirdPerson (nur false = aus) / vehReload (${norm.rl.join(', ')})`);
-  await ev(host, () => window.__room.net.updateSettings({ vehicles: true, thirdPerson: false, vehReload: 'automatisch' }));
-  const gotVeh = await waitFor(c2, () => window.__room.net.room.settings.thirdPerson === false && window.__room.net.room.settings.vehReload === 'automatisch');
+  await ev(host, () => window.__room.net.updateSettings({ mode: 'tdm', vehicles: true, thirdPerson: false, vehReload: 'automatisch' }));
+  const gotVeh = await waitFor(c2, () => window.__room.net.room.settings.thirdPerson === false && window.__room.net.room.settings.vehReload === 'automatisch' && window.__room.net.room.settings.mode === 'tdm');
   check(gotVeh, 'Fahrzeug-Einstellungen an Clients verteilt (thirdPerson aus, Nachladen automatisch)');
 
   const j3b = await join(c3, code, 'Cleo');
@@ -165,7 +166,8 @@ try {
   check(starts.every((s) => s.cfg && s.cfg.net.role === 'client' && s.cfg.net.selfId === s.self && s.cfg.mapId === 'altstadt' && s.cfg.weather === hostCfg.weather && s.cfg.timeOfDay === hostCfg.timeOfDay && s.cfg.net.roomCode === code && s.state === 'match'),
     "'start' {cfg} bei allen Clients (Rolle client, eigene netId, gleiche Karte/Wetter/Zeit)");
   check(starts.every((s) => s.cfg.net.team === s.roster.find((r) => r.id === s.self).team), 'cfg.net.team = eigenes Team laut Roster');
-  check([hostCfg, ...starts.map((s) => s.cfg)].every((c) => c.net.vehicles === true && c.net.thirdPerson === false && c.net.vehReload === 'automatisch'), 'cfg.net.vehicles/thirdPerson/vehReload bei Host und Clients');
+  // 21.10.: Militärfahrzeuge nur auf großen Karten – Altstadt startet trotz Raum-Einstellung „Fahrzeuge an“ ohne (nur zivile)
+  check([hostCfg, ...starts.map((s) => s.cfg)].every((c) => c.net.vehicles === false && c.net.thirdPerson === false && c.net.vehReload === 'automatisch'), 'cfg.net.vehicles (Altstadt: aus)/thirdPerson/vehReload bei Host und Clients');
   check(starts[1].cfg.loadout && starts[1].cfg.loadout.primary === 'smg_vp9' && starts[0].cfg.loadout.primary === 'ar_m17', 'Clients starten mit eigener Ausrüstung');
   // bereit
   await Promise.all([c1, c2].map((p) => ev(p, () => window.__room.net.onMatchStart(window.__room.started[0]))));

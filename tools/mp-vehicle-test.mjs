@@ -1,8 +1,8 @@
 // NULLPUNKT – Fahrzeuge online Ende-zu-Ende (docs/planung/panzer-mp.md §C.12): Host + 2 Clients („Anna“, „Bert“) in
-// Headless-Chromium über das lokale Nostr-Relay, Hafen, Raum-Einstellung „Fahrzeuge“ an, Anna und Bert im selben Team
-// (pvp 'coop'), Außenansicht aus, Nachladen manuell. Geprüft wird:
-//   1. Host: 4 Fahrzeuge, je Team 1 Panzer (spawnTeam A/B) + die Zivilfahrzeuge der Karte (16.10.); Clients sehen dieselben
-//      vid/Typ/Team/Lackvariante ≤ 3 s.
+// Headless-Chromium über das lokale Nostr-Relay, Grenzland (21.10.: Militärfahrzeuge nur auf großen Karten), Raum-
+// Einstellung „Fahrzeuge“ an, Anna und Bert im selben Team (pvp 'coop'), Außenansicht aus, Nachladen manuell. Geprüft wird:
+//   1. Host: Fahrzeuge der Stellplätze, je Team gleich viele, Panzer in beiden Teams + die Zivilfahrzeuge der Karte (16.10.);
+//      Clients sehen dieselben vid/Typ/Team/Lackvariante ≤ 3 s.
 //   2. Anna steigt ein (requestEnter) → Fahrersitz bei allen; Bert → Richtschütze (Sitz 1).
 //   3. Anna fährt (simulate: Gang hoch, Gas) ≥ 20 m; nach dem Bremsen Lage bei Host/Anna/Bert ≤ 0,5 m gleich.
 //   4. Bert schießt auf den feindlichen Panzer → Treffer beim Host, 'vh' bei Bert, HP bei allen gleich ≤ 1 s.
@@ -169,7 +169,7 @@ try {
   const bert = await open('Bert');
   info(`drei Seiten geladen (${QUALITY}, ${W}×${H}${EXTRA ? `, ${EXTRA.slice(1)}` : ''})`);
   const code = await ev(host, () => window.__game.net.host({
-    name: 'Panzer-Test', mode: 'tdm', map: 'hafen', maxPlayers: 4, teamSize: 3, pvp: 'coop', botFill: false, difficulty: 'rekrut',
+    name: 'Panzer-Test', mode: 'tdm', map: 'grenzland', maxPlayers: 4, teamSize: 3, pvp: 'coop', botFill: false, difficulty: 'rekrut',
     weather: 'standard', time: 'standard', style: 'arcade', vehicles: true, thirdPerson: false, vehReload: 'manuell',
   }).then((r) => r.code, (e) => 'FEHLER:' + e.code));
   check(/^[A-Z2-9]{6}$/.test(code), `Host öffnet Raum ${code} (Fahrzeuge an, Außenansicht aus, Nachladen manuell)`);
@@ -184,7 +184,7 @@ try {
   const [A, B] = joins.map((j) => j.id);
   await until(host, () => window.__game.net.roster.length === 3, null, 15000);
   const cfg = await ev(host, () => { const c = window.__game.net.startMatch(); return c && { map: c.mapId, veh: c.net.vehicles, tp: c.net.thirdPerson, rl: c.net.vehReload, botsB: c.net.botsB }; });
-  check(!!cfg && cfg.map === 'hafen' && cfg.veh === true && cfg.tp === false && cfg.rl === 'manuell', `Host startet Hafen mit Fahrzeugen (Bots B ${cfg && cfg.botsB})`);
+  check(!!cfg && cfg.map === 'grenzland' && cfg.veh === true && cfg.tp === false && cfg.rl === 'manuell', `Host startet Grenzland mit Fahrzeugen (Bots B ${cfg && cfg.botsB})`);
   const inMatch = await Promise.all([host, anna, bert].map((p) => until(p, () => window.__game.match.state === 'playing' && window.__game.player.alive, null, 600000, 1000)));
   if (!check(inMatch.every(Boolean), 'Host + Anna + Bert im Zustand playing, eigener Spieler lebt')) throw new Error('Match nicht erreicht');
   const fps = await Promise.all([host, anna, bert].map((p) => ev(p, () => window.__game.renderer.info().fps)));
@@ -288,8 +288,8 @@ try {
   const allV = await vehs(host), hostV = allV.filter((v) => !v.civil), civV = allV.filter((v) => v.civil);
   check(civV.length > 0 && civV.every((v) => Number.isInteger(v.vid) && v.vid > 0 && v.team == null), `Host: ${civV.length} Zivilfahrzeuge mit Netz-Id, ohne Team (${[...new Set(civV.map((v) => v.type))].join(', ')})`);
   const tanks = hostV.filter((v) => v.type === 'mbt');
-  check(hv === 4 && hostV.every((v) => Number.isInteger(v.vid) && v.vid > 0), `Host: ${hostV.length} Fahrzeuge mit Netz-Id (${hostV.map((v) => `${v.vid}:${v.type}/${v.team}`).join(', ')})`);
-  check(tanks.length === 2 && tanks.some((v) => v.team === 'A') && tanks.some((v) => v.team === 'B') && hostV.filter((v) => v.team === 'A').length === hostV.filter((v) => v.team === 'B').length,
+  check(hv >= 4 && hostV.every((v) => Number.isInteger(v.vid) && v.vid > 0), `Host: ${hostV.length} Fahrzeuge mit Netz-Id (${hostV.map((v) => `${v.vid}:${v.type}/${v.team}`).join(', ')})`);
+  check(tanks.length >= 2 && tanks.some((v) => v.team === 'A') && tanks.some((v) => v.team === 'B') && hostV.filter((v) => v.team === 'A').length === hostV.filter((v) => v.team === 'B').length,
     'je Team ein Panzer, gleich viele Fahrzeuge je Team');
   const marks = await ev(host, () => window.__game.vehicles.list.map((v) => {
     let col = null;

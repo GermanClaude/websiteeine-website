@@ -1,14 +1,15 @@
 // NULLPUNKT — rotierende Minikarte (Canvas): Kartenbild aus world.minimap, Spieler fest in der Mitte mit Blick
 // nach oben, Nordmarke am Rand, Mitspieler (Pfeile), Gegner beim Feuern bzw. per Aufklärer-Sweep, Flaggen
 // (am Rand festgeklemmt), Wachgeschütze, Luftschlag-Zonen, Radar-Sweep bei eigenem Aufklärer,
-// pulsierender roter Rand bei gegnerischem Aufklärer. Beschriftungen (N, Flaggen) als Schrift-Sprites (glyphs.js):
-// fillText erzwänge je Bild eine Stilberechnung des Dokuments.
+// pulsierender roter Rand bei gegnerischem Aufklärer, im Panzer/Geländewagen die eigenen Versorgungspunkte als Kiste
+// (am Rand festgeklemmt; G.vehicles.supplyMarkers, Prüfung 22.10.). Beschriftungen (N, Flaggen) als Schrift-Sprites
+// (glyphs.js): fillText erzwänge je Bild eine Stilberechnung des Dokuments.
 
 import { drawGlyph } from './glyphs.js';
 
 const COL = {
   ally: '#38b6ff', enemy: '#ff3b3b', me: '#ffffff', gold: '#ffc23d', signal: '#ff5b1f', neutral: '#e9e6df',
-  ring: 'rgba(233,230,223,.38)', bg: '#0d1013',
+  ring: 'rgba(233,230,223,.38)', bg: '#0d1013', supply: '#ffb23a',
 };
 const FIRE_SHOW = 1.6; // s sichtbar nach unterdrücktem/lautem Schuss
 
@@ -233,6 +234,18 @@ export class Minimap {
       }
     }
 
+    // Versorgungspunkte des eigenen Fahrzeugs (Munition auffüllen, vehicles/resupply.js) – weit entfernte am Rand
+    const sup = !view && G.vehicles && typeof G.vehicles.supplyMarkers === 'function' ? G.vehicles.supplyMarkers(p) : null;
+    if (sup) {
+      for (const q of sup) {
+        toScreen(q.position.x, q.position.z, pt);
+        let x = pt.x - half, y = pt.y - half;
+        const len = Math.hypot(x, y), lim = rad - 8 * d;
+        if (len > lim) { x = (x / len) * lim; y = (y / len) * lim; }
+        crate(ctx, half + x, half + y, d);
+      }
+    }
+
     // Spieler (im Drohnenflug: Drohne in der Mitte, der stehende Körper als Pfeil)
     if (view) {
       toScreen(p.position.x, p.position.z, pt);
@@ -260,6 +273,20 @@ export class Minimap {
     ctx.fill();
     drawGlyph(ctx, 'N', this.font, COL.signal, nx, ny + 0.5 * d);
   }
+}
+
+/** Versorgungspunkt: Kiste (dunkel, bernsteinfarbener Rand, Deckelfuge). */
+function crate(ctx, x, y, d) {
+  const w = 5.5 * d, h = 4.4 * d;
+  ctx.fillStyle = 'rgba(10,11,13,.85)';
+  ctx.fillRect(x - w, y - h, w * 2, h * 2);
+  ctx.lineWidth = 1.6 * d;
+  ctx.strokeStyle = COL.supply;
+  ctx.strokeRect(x - w, y - h, w * 2, h * 2);
+  ctx.beginPath();
+  ctx.moveTo(x - w, y - h * 0.3);
+  ctx.lineTo(x + w, y - h * 0.3);
+  ctx.stroke();
 }
 
 /** Drohne: kleines X mit vier Rotorpunkten. */

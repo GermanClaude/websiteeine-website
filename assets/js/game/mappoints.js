@@ -1,20 +1,33 @@
 // NULLPUNKT — Interaktionspunkte der Karten (Taste F bzw. Antippen der Aufforderung im HUD, ui/hud.js _updatePrompt).
-// Jede Karte hat eigene Punkte: Munitionskiste und Sanitätsstation an beiden Startbereichen, dazu je Karte Besonderes an
+// Jede Karte hat eigene Punkte: Munitionsausgabe und Sanitätsstation an beiden Startbereichen, dazu je Karte Besonderes an
 // den Flaggenplätzen (Werk: Werkssirene + Leitstand, Hafen: Hafenradar + Nebelhorn, Altstadt: Glockenseil + Brunnen,
 // Grenzland: Funkstation + Beobachtungsposten). Wirkungen: Munition auffüllen, heilen, Gegner markieren (Minikarte,
 // player.spottedUntil/spottedBy), Glocke läuten (world.glocke). Jeder Punkt hat je Spieler eine Abklingzeit.
 // Online: Munition und Markierung wirken beim Client selbst; Heilen meldet er dem Host ('point' {i}), der die Puppe heilt
-// (netUse, prüft Abstand und Abklingzeit). Die Punkte sind reine Optik (keine Kollision) und liegen in G.scene
-// (teardownMatch räumt sie mit weg; Geometrie und Materialien werden über Matches hinweg wiederverwendet).
+// (netUse, prüft Abstand und Abklingzeit). Die Punkte liegen in G.scene (teardownMatch räumt sie mit weg; Geometrie und
+// Materialien werden über Matches hinweg wiederverwendet). Die festen Teile der Stationen (Kistenstapel, Paletten, Trage)
+// haben Kollision und halten Kugeln auf (mappoints-models.js STATION_SOLIDS → building.js addSolid, auf allen Geräten
+// gleich; Teile über einem Spawnpunkt entfallen); Signalkappen der übrigen Punkte bleiben reine Optik.
+// 21.10. (Nutzer): Munition, Sanität und Fahrzeug-Versorgung als glaubwürdige Stationen (mappoints-models.js). Auf großen
+// Karten prüft der Aufbau je Munitionspunkt, ob ein Fahrzeug daneben auf offenem Feld halten kann (vehicleStand: Platz für
+// die Wanne auf ebenem Boden, freier Himmel, nach zwei Seiten offen) – solche Punkte füllen auch Panzer und Geländewagen
+// auf (vehicles/resupply.js). Je Gruppe von Panzer-Stellplätzen eines Teams entsteht dazu ein Versorgungsdepot im Freien.
+// Nur wenn im Match Militärfahrzeuge unterwegs sind (nicht bei „Panzer & Fahrzeuge: Aus“, ?vehicles=0, Raum „Fahrzeuge
+// aus“ – Host und Clients haben dieselbe Einstellung); Halteplätze und Depots halten Abstand zu allen Spawnpunkten.
 import * as THREE from 'three';
-import { MAPS } from '../shared/maps.data.js';
+import { MAPS, militaryVehiclesAllowed } from '../shared/maps.data.js';
 import { EQUIPMENT, WEAPONS, CAMOS, killAmmoFor } from '../shared/weapons.data.js';
 import { ATTACHMENTS } from '../shared/attachments.data.js';
 import { stepDrop } from './bots/character.js';
+import { collisionRay } from './engine/physics.js';
+import { createStation, hasStationModel, STATION_SOLIDS } from './mappoints-models.js';
+import { worldPartsFrom } from './building.js';
 
+// vehicle: Punktart kann Fahrzeuge versorgen (wenn sie auf offenem Feld liegt, s. vehicleStand); reach: Griffweite (m)
 export const POINT_KINDS = Object.freeze({
-  munition: { name: 'Munitionskiste', act: 'Munition auffüllen', effect: 'ammo', cooldown: 30, color: 0xc8a64a },
-  sani: { name: 'Sanitätsstation', act: 'Heilen', effect: 'heal', cooldown: 25, color: 0xe8e8e0 },
+  munition: { name: 'Munitionsausgabe', act: 'Munition auffüllen', effect: 'ammo', cooldown: 30, color: 0xffb23a, vehicle: true, reach: 2.2 },
+  sani: { name: 'Sanitätsstation', act: 'Heilen', effect: 'heal', cooldown: 25, color: 0x56e07e, reach: 2.2 },
+  depot: { name: 'Fahrzeug-Versorgung', act: 'Munition auffüllen', effect: 'ammo', cooldown: 30, color: 0xffc23d, vehicle: true, reach: 2.8 },
   sirene: { name: 'Werkssirene', act: 'Sirene auslösen', effect: 'mark', radius: 45, duration: 6, cooldown: 60, color: 0xd8432c, sound: 'uav' },
   leitstand: { name: 'Leitstand', act: 'Kameras prüfen', effect: 'mark', radius: 400, duration: 5, cooldown: 90, color: 0x3d7fe0, sound: 'uav' },
   radar: { name: 'Hafenradar', act: 'Radar abfragen', effect: 'mark', radius: 400, duration: 6, cooldown: 90, color: 0x3d7fe0, sound: 'uav' },
@@ -32,6 +45,8 @@ export const POINT_LAYOUT = Object.freeze({
   hafen: [...BASE, ['radar', 'fB', 3, 0], ['nebelhorn', 'fA', 3, 0], ['nebelhorn', 'fC', 3, 0]],
   altstadt: [...BASE, ['glocke', 'fB', 3, 0], ['brunnen', 'fA', 3, 0], ['brunnen', 'fC', 3, 0]],
   grenzland: [...BASE, ['funk', 'fB', 3, 0], ['fernglas', 'fA', 3, 0], ['fernglas', 'fC', 3, 0]],
+  niemandsland: [...BASE],
+  brandwald: [...BASE],
   range: [['munition', 'sA', 4, -3], ['sani', 'sA', -4, -3]],
 });
 
@@ -73,6 +88,10 @@ export class MapPoints {
     const layout = POINT_LAYOUT[mapId] || [];
     if (!data) return;
     const world = G.world;
+    this.quality = (G.renderer && G.renderer.quality) || 'high';
+    // Stationen blicken zur Kartenmitte (Startbereiche) bzw. zum Halteplatz der Fahrzeuge (Depot)
+    const fl = data.flags || [];
+    const mid = fl.length ? fl.reduce((a, f) => [a[0] + f.x / fl.length, a[1] + f.z / fl.length], [0, 0]) : [0, 0];
     for (const [kind, ref, dx, dz] of layout) {
       const def = POINT_KINDS[kind];
       let bx = null, bz = null;
@@ -81,14 +100,116 @@ export class MapPoints {
       if (bx == null || !def) continue;
       const x = bx + dx, z = bz + dz;
       const pos = new THREE.Vector3(x, floorAt(world, x, z), z);
-      const p = { i: this.points.length, kind, def, position: pos, readyAt: 0, mesh: this._mesh(def, pos) };
-      this.points.push(p);
-      this.group.add(p.mesh);
+      // Team: Startbereich A/B gehört dem Team (Fahrzeug-Versorgung nur für eigene Fahrzeuge), Flaggenpunkte neutral
+      this._add(kind, pos, ref[0] === 's' ? ref[1] : null, Math.atan2(mid[0] - x, mid[1] - z));
     }
+    // Fahrzeuge (nur große Karten, nur mit Militärfahrzeugen im Match – main.js meldet G.vehicles vorher an):
+    // Munitionspunkte auf offenem Feld versorgen auch Fahrzeuge; je Stellplatzgruppe ein Depot
+    this.military = militaryVehiclesAllowed(mapId) && militaryActive(G);
+    if (this.military && world) {
+      const t0 = performance.now();
+      const ray = rayFn(G);
+      const avoid = spawnPositions(world);
+      for (const p of this.points) if (p.def.vehicle) p.stand = vehicleStand(world, p.position, ray, avoid);
+      this._depots(world, ray, avoid);
+      this.buildMs = Math.round(performance.now() - t0);
+    }
+    // feste Teile der Stationen (Kollision/Kugeln): Anmeldung im ersten update(), G.building entsteht nach den Punkten
+    this._solids = world ? this._stationSolids(world) : [];
+    this._solidsOn = false;
     if (G.scene) G.scene.add(this.group);
     // Beute an Gefallenen: Munition (Spielstil Realistisch statt Munition pro Abschuss) und Waffe (Einstellung „Waffen von Leichen“)
     this.loot = [];
     this._offKill = G.events.on('kill', (e) => this._onKill(e));
+  }
+
+  _add(kind, pos, team, yaw, extra = null) {
+    const def = POINT_KINDS[kind];
+    const p = { i: this.points.length, kind, def, position: pos, team: team || null, yaw, readyAt: 0, stand: null, mesh: this._mesh(def, pos, kind, yaw), ...(extra || {}) };
+    this.points.push(p);
+    this.group.add(p.mesh);
+    return p;
+  }
+
+  /**
+   * Fahrzeug-Versorgungsdepots: je Team die Panzer-/Geländewagen-Stellplätze (world.vehicleSpawns) zu Gruppen (≤ 45 m)
+   * zusammenfassen und neben jeder Gruppe einen freien Platz im Freien suchen – hinter/neben den Stellplätzen (nicht in
+   * der Ausfahrt), ≥ 9 m von jedem Stellplatz, ebener Boden für die Paletten, Halteplatz für eine Wanne daneben.
+   * Feste Reihenfolge (gleiches Ergebnis auf Host und Clients).
+   */
+  _depots(world, ray, spawnPts = spawnPositions(world)) {
+    const pads = (world.vehicleSpawns || []).filter((e) => e && (e.team === 'A' || e.team === 'B') && e.position);
+    if (!pads.length) return;
+    const groups = [];
+    for (const e of pads) {
+      const g = groups.find((x) => x.team === e.team && x.pads.some((q) => Math.hypot(q.position.x - e.position.x, q.position.z - e.position.z) < 45));
+      if (g) g.pads.push(e); else groups.push({ team: e.team, pads: [e] });
+    }
+    const b = world.bounds;
+    for (const g of groups) {
+      // Bezug: die Panzer der Gruppe (Geländewagen sind wendig und nehmen jeden Punkt mit)
+      const tanks = g.pads.filter((e) => e.type !== 'jeep');
+      const A = tanks.length ? tanks : g.pads, n = A.length;
+      const cx = A.reduce((a, e) => a + e.position.x, 0) / n, cz = A.reduce((a, e) => a + e.position.z, 0) / n;
+      const cy = A.reduce((a, e) => a + e.position.y, 0) / n;
+      // Ausfahrtrichtung der Gruppe (Gier 0 = Blick nach −z): dorthin kein Depot
+      let fx = 0, fz = 0;
+      for (const e of A) { fx -= Math.sin(e.yaw || 0); fz -= Math.cos(e.yaw || 0); }
+      const fn = Math.hypot(fx, fz) || 1;
+      fx /= fn; fz /= fn;
+      const spread = A.reduce((a, e) => Math.max(a, Math.hypot(e.position.x - cx, e.position.z - cz)), 0);
+      const cands = [];
+      for (const d of [spread + 9, spread + 13, spread + 18, spread + 24]) {
+        for (let k = 0; k < 16; k++) {
+          const a = (k / 16) * Math.PI * 2, dx = Math.sin(a), dz = Math.cos(a);
+          cands.push({ x: cx + dx * d, z: cz + dz * d, score: d * 0.12 + (1 + dx * fx + dz * fz) * 2.2 + k * 1e-4 });
+        }
+      }
+      cands.sort((p, q) => p.score - q.score);
+      let found = null;
+      for (const c of cands) {
+        if (b && (c.x < b.min.x + 8 || c.x > b.max.x - 8 || c.z < b.min.z + 8 || c.z > b.max.z - 8)) continue;
+        if (pads.some((e) => Math.hypot(e.position.x - c.x, e.position.z - c.z) < 9)) continue;
+        if (spawnPts.some((q) => Math.hypot(q.x - c.x, q.z - c.z) < 3.5)) continue;
+        const y = floorAt(world, c.x, c.z);
+        if (!Number.isFinite(y) || Math.abs(y - cy) > 4) continue;
+        const pos = new THREE.Vector3(c.x, y, c.z);
+        if (!depotFloor(world, pos, ray)) continue;
+        const stand = vehicleStand(world, pos, ray, spawnPts);
+        // Zufahrt: von jedem Panzer-Stellplatz der Gruppe geradeaus zum Halteplatz frei (keine Mauer, kein abgestellter
+        // Wagen im Weg, keine Geländekante)
+        if (stand && A.every((e) => approachClear(world, e.position, stand, pads, e))) { found = { pos, stand }; break; }
+      }
+      if (!found) continue;
+      const { pos, stand } = found;
+      this._add('depot', pos, g.team, Math.atan2(stand.x - pos.x, stand.z - pos.z), { stand });
+    }
+  }
+
+  /**
+   * Feste Teile aller Stationen in Weltlage (STATION_SOLIDS) – je Teil ein Festkörper { id, def: { surface }, mesh,
+   * static, parts }. Teile, unter/in denen ein Spawnpunkt liegt (+ Körperradius), entfallen (niemand erscheint in Kisten).
+   */
+  _stationSolids(world) {
+    const out = [];
+    const spawns = spawnPositions(world);
+    for (const p of this.points) {
+      const list = STATION_SOLIDS[p.kind];
+      if (!list) continue;
+      const body = p.mesh.children.find((c) => c.isMesh) || p.mesh;
+      list.forEach((e, k) => {
+        const part = worldPartsFrom([e.box], p.position.x, p.position.y, p.position.z, p.yaw || 0)[0];
+        const b = part.box;
+        if (spawns.some((q) => q.x > b.min.x - 0.45 && q.x < b.max.x + 0.45 && q.z > b.min.z - 0.45 && q.z < b.max.z + 0.45 && Math.abs(q.y - p.position.y) < 2)) return;
+        out.push({ id: `station${p.i}-${k}`, def: { surface: e.surface }, mesh: body, static: true, parts: [part] });
+      });
+    }
+    return out;
+  }
+
+  /** Fahrzeugtaugliche Versorgungspunkte (offenes Feld) für ein Team (undefined = alle; neutrale Punkte immer). */
+  vehiclePoints(team = undefined) {
+    return this.points.filter((p) => p.stand && (team === undefined || team == null || p.team == null || p.team === team));
   }
 
   /** Waffen von Leichen erlaubt? Online Raum-Einstellung des Hosts, offline Spieleinstellung (Standard an). */
@@ -205,7 +326,14 @@ export class MapPoints {
     return false;
   }
 
-  _mesh(def, pos) {
+  _mesh(def, pos, kind = null, yaw = 0) {
+    if (kind && hasStationModel(kind)) {
+      const st = createStation(kind, { quality: this.quality, color: def.color, yaw });
+      st.group.position.copy(pos);
+      st.group.name = `punkt-${kind}`;
+      st.group.userData.cap = st.lamp;
+      return st.group;
+    }
     const S = shared();
     const g = new THREE.Group();
     g.position.copy(pos);
@@ -226,6 +354,7 @@ export class MapPoints {
     const G = this.G;
     const P = G.player;
     const now = G.time.elapsed;
+    if (!this._solidsOn && G.building && this._solids) { for (const s of this._solids) G.building.addSolid(s); this._solidsOn = true; }
     this._tickLoot();
     // Leuchtkappe pulsiert (bereit) bzw. steht still (Abklingzeit)
     for (const p of this.points) {
@@ -245,9 +374,10 @@ export class MapPoints {
       if (G.input && G.input.pressed('interact')) { G.input.consume && G.input.consume('interact'); this.mount(e); }
       return;
     }
-    let best = null, bd = REACH;
+    // Reichweite je Art (größere Stationen: man steht neben den Kisten, nicht in der Mitte)
+    let best = null, bd = 1;
     for (const p of this.points) {
-      const d = Math.hypot(p.position.x - P.position.x, p.position.z - P.position.z);
+      const d = Math.hypot(p.position.x - P.position.x, p.position.z - P.position.z) / (p.def.reach || REACH);
       if (d < bd && Math.abs(p.position.y - P.position.y) < 2.5) { bd = d; best = p; }
     }
     if (!best && this.loot.length) {
@@ -363,7 +493,7 @@ export class MapPoints {
   netUse(actor, i, from) {
     const p = this.points[i | 0];
     if (!p || !actor || !actor.alive || p.def.effect !== 'heal') return false;
-    if (Math.hypot(p.position.x - actor.position.x, p.position.z - actor.position.z) > REACH + 1.5) return false;
+    if (Math.hypot(p.position.x - actor.position.x, p.position.z - actor.position.z) > (p.def.reach || REACH) + 1.5) return false;
     const key = `${from}#${p.i}`;
     const t = performance.now() / 1000;
     this._netReady = this._netReady || new Map();
@@ -385,6 +515,9 @@ export class MapPoints {
     for (const l of this.loot) this._dropGone(l);
     this.loot.length = 0;
     if (this.group.parent) this.group.parent.remove(this.group);
+    if (this._solidsOn && this.G.building) for (const s of this._solids) this.G.building.removeSolid(s);
+    this._solids = [];
+    this._solidsOn = false;
     this.points.length = 0;
     this.near = null;
   }
@@ -413,6 +546,144 @@ function victimWeapon(v) {
     if (d && (d.slot === 'primary' || d.slot === 'secondary') && d.cls !== 'melee' && d.cls !== 'launcher') return id;
   }
   return null;
+}
+
+/* ---------------------------------------------------------------- Fahrzeugtauglichkeit (offenes Feld) */
+
+const HULL = [1.95, 3.85]; // halbe Breite/Länge einer Wanne (größter Panzer + Rand)
+const UP = new THREE.Vector3(0, 1, 0);
+const _o = new THREE.Vector3(), _dir = new THREE.Vector3(), _rh = {};
+
+/**
+ * Militärfahrzeuge im Match? VehicleSystem angemeldet und nicht nur zivil (kleine Karte, Lobby/Raum „aus“); offline
+ * schaltet ?vehicles=0 alle Stellplätze ab (vehicles/index.js _setupSpawns). Online zählt nur die Raum-Einstellung –
+ * Host und Clients bauen dieselben Depots (deren Kollision muss überall gleich sein).
+ */
+function militaryActive(G) {
+  if (!(G.vehicles && G.vehicles.attached && !G.vehicles.civilOnly)) return false;
+  const param = G.params && typeof G.params.get === 'function' ? G.params.get('vehicles') : null;
+  return !(param === '0' && !(G.match && G.match.netRole));
+}
+
+/** Alle Spawnpunkte der Welt (Teams, frei für alle, Hauptquartiere) als Positionen. */
+function spawnPositions(world) {
+  const sp = (world && world.spawns) || {};
+  return [...(sp.A || []), ...(sp.B || []), ...(sp.ffa || []), ...((sp.hq && sp.hq.A) || []), ...((sp.hq && sp.hq.B) || [])].map((s) => s && s.position).filter(Boolean);
+}
+
+/** Liegt q in der Wanne bei (cx, cz) mit Gier yaw (plus Rand m)? */
+function inHull(q, cx, cy, cz, yaw, m) {
+  if (Math.abs(q.y - cy) > 3) return false;
+  const dx = q.x - cx, dz = q.z - cz, c = Math.cos(yaw), s = Math.sin(yaw);
+  return Math.abs(dx * c - dz * s) <= HULL[0] + m && Math.abs(dx * s + dz * c) <= HULL[1] + m;
+}
+
+/** Strahl gegen die Welt ohne Fahrzeughülle (gleiches Ergebnis auf Host und Clients, egal welche Fahrzeuge schon stehen). */
+function rayFn(G) {
+  const w = G.world, rc = G.vehicles && G.vehicles._rc;
+  if (rc && rc.w === w) return (o, d, m) => rc.orig.call(w, o, d, m);
+  return w && typeof w.raycast === 'function' ? (o, d, m) => w.raycast(o, d, m) : null;
+}
+/** Freier Himmel über (x, y, z)? (sichtbare Geometrie: Dächer, Hallen, Baumkronen) */
+const skyFree = (ray, x, y, z) => !ray || !ray(_o.set(x, y, z), UP, 60);
+const groundAt = (world, x, z, y0) => { const h = world.groundHeight(x, z, y0 + 3.5); return Number.isFinite(h) ? h : null; };
+
+/** Wanne bei (cx, cy, cz) mit Gier yaw: ebener Boden (±0,55 m), Rumpfraum frei, Himmel frei. */
+function hullClear(world, ray, cx, cy, cz, yaw) {
+  const c = Math.cos(yaw), s = Math.sin(yaw);
+  const toW = (lx, lz) => [cx + lx * c + lz * s, cz - lx * s + lz * c];
+  const ring = [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1], [-1, 0], [1, 0]];
+  for (const [lx, lz] of [[0, 0], ...ring]) {
+    const [x, z] = toW(lx * HULL[0], lz * HULL[1]);
+    const g = groundAt(world, x, z, cy);
+    if (g == null || Math.abs(g - cy) > 0.55) return false;
+  }
+  for (const y of [0.7, 1.6, 2.5]) {
+    for (const [lx, lz] of ring) {
+      const [x, z] = toW(lx * HULL[0], lz * HULL[1]);
+      _o.set(cx, cy + y, cz);
+      _dir.set(x - cx, 0, z - cz);
+      const len = _dir.length();
+      if (collisionRay(world, _o, _dir.multiplyScalar(1 / len), len, _rh)) return false;
+    }
+  }
+  if (!skyFree(ray, cx, cy + 2.8, cz)) return false;
+  for (const lz of [-1, 1]) { const [x, z] = toW(0, lz * HULL[1]); if (!skyFree(ray, x, cy + 2.8, z)) return false; }
+  return true;
+}
+
+/** „Offenes Feld“: von der Wanne aus in mindestens zwei von vier Richtungen 14 m frei (kein Hinterhof, keine Halle). */
+function openSides(world, cx, cy, cz, yaw) {
+  let n = 0;
+  for (let k = 0; k < 4; k++) {
+    const a = yaw + (k * Math.PI) / 2;
+    if (!collisionRay(world, _o.set(cx, cy + 1.5, cz), _dir.set(-Math.sin(a), 0, -Math.cos(a)), 14, _rh)) n++;
+  }
+  return n >= 2;
+}
+
+/**
+ * Halteplatz für ein Fahrzeug neben dem Punkt pos (offenes Feld) oder null: der Punkt selbst unter freiem Himmel, daneben
+ * (Breitseite 4,6 bzw. 6,4 m, Bug 6,4 m vom Punkt – die Station bleibt frei) Platz für die Wanne auf ebenem Boden,
+ * freier Himmel, nach zwei Seiten offen; avoid: Spawnpunkte, die die Wanne (+ 2 m) nicht berühren darf (sonst erscheinen
+ * Mitspieler im haltenden Panzer). Feste Suchreihenfolge. → { x, y, z, yaw }
+ */
+export function vehicleStand(world, pos, ray = null, avoid = null) {
+  if (!world || typeof world.groundHeight !== 'function' || !pos) return null;
+  if (!skyFree(ray, pos.x, pos.y + 2.2, pos.z)) return null;
+  for (const [r, bow] of [[4.6, false], [6.4, false], [6.4, true]]) {
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      const cx = pos.x + Math.sin(a) * r, cz = pos.z + Math.cos(a) * r;
+      const cy = groundAt(world, cx, cz, pos.y);
+      if (cy == null || Math.abs(cy - pos.y) > 1.5) continue;
+      const yaw = bow ? a : a + Math.PI / 2;
+      if (avoid && avoid.some((q) => inHull(q, cx, cy, cz, yaw, 2))) continue;
+      if (hullClear(world, ray, cx, cy, cz, yaw) && openSides(world, cx, cy, cz, yaw)) return { x: cx, y: cy, z: cz, yaw };
+    }
+  }
+  return null;
+}
+
+/** Gerade Zufahrt von `from` (Stellplatz) zum Halteplatz `to`: Wannenbreite frei, keine anderen Stellplätze im Weg, sanftes Gelände. */
+function approachClear(world, from, to, pads, self) {
+  const dx = to.x - from.x, dz = to.z - from.z, len = Math.hypot(dx, dz);
+  if (len < 1) return true;
+  const ux = dx / len, uz = dz / len;
+  for (const off of [-1.5, 0, 1.5]) {
+    for (const h of [1.0, 2.0]) {
+      _o.set(from.x - uz * off, from.y + h, from.z + ux * off);
+      if (collisionRay(world, _o, _dir.set(ux, 0, uz), len, _rh)) return false;
+    }
+  }
+  for (const e of pads) {
+    if (e === self) continue;
+    const px = e.position.x - from.x, pz = e.position.z - from.z;
+    const t = Math.max(0, Math.min(len, px * ux + pz * uz));
+    if (Math.hypot(px - ux * t, pz - uz * t) < 4.5) return false;
+  }
+  let last = from.y;
+  for (let s = 3; s < len; s += 3) {
+    const g = groundAt(world, from.x + ux * s, from.z + uz * s, last + 1);
+    if (g == null || Math.abs(g - last) > 1.1) return false;
+    last = g;
+  }
+  return true;
+}
+
+/** Depotfläche (4,2 × 2,6 m) eben, frei von Hindernissen, unter freiem Himmel. */
+function depotFloor(world, pos, ray) {
+  for (const [x, z] of [[-2.1, -1.3], [2.1, -1.3], [-2.1, 1.3], [2.1, 1.3]]) {
+    const g = groundAt(world, pos.x + x, pos.z + z, pos.y);
+    if (g == null || Math.abs(g - pos.y) > 0.45) return false;
+    for (const y of [0.4, 1.3]) {
+      _o.set(pos.x, pos.y + y, pos.z);
+      _dir.set(x, 0, z);
+      const len = _dir.length();
+      if (collisionRay(world, _o, _dir.multiplyScalar(1 / len), len, _rh)) return false;
+    }
+  }
+  return skyFree(ray, pos.x, pos.y + 2.4, pos.z);
 }
 
 /** Unterster begehbarer Boden unter (x, z): von oben nach unten durch Dächer/Stege bis zum Grund (Flaggen/Startbereiche liegen ebenerdig). */

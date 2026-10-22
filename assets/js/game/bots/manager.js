@@ -22,6 +22,7 @@ import { VARIANTS, schemeForTeam, ffaSchemes } from './character.js';
 import { upgradeSoldierMaterials, soldierDetailInfo } from './soldier/materials.js';
 import { analyze } from './ai/tactics.js';
 import { botHearRange } from '../../shared/calibers.data.js';
+import { militaryVehiclesAllowed } from '../../shared/maps.data.js';
 import { TeamTactics, planRoles } from './ai/squad.js';
 import { issueCommand, isCommanded, ORDER_DEFS, ORDER_RADIUS, ORDER_MAX } from './ai/orders.js';
 import { BotAdapt } from './ai/spielstil.js';
@@ -298,11 +299,13 @@ export class BotManager {
     return { cls, primary, secondary, lethal, tactical };
   }
 
-  /** Gibt es in diesem Match Fahrzeuge? (Kartenstellplätze bzw. ?vehicles=1 / Matchoption; ?vehicles=0 schaltet ab) */
+  /** Gibt es in diesem Match Militärfahrzeuge? (Kartenstellplätze bzw. ?vehicles=1 / Matchoption; ?vehicles=0 schaltet ab;
+   *  kleine/mittlere Karten nie – dort nur zivile Fahrzeuge, kein Panzerabwehrwerfer nötig) */
   _vehiclesExpected() {
     const G = this.G, w = G.world;
     const param = G.params && typeof G.params.get === 'function' ? G.params.get('vehicles') : null;
     if (param === '0') return false;
+    if (!militaryVehiclesAllowed((G.match && G.match.mapId) || (w && w.id) || null)) return false;
     if (G.match && G.match.net && G.match.vehicles === false) return false; // online: Raum-Einstellung „Fahrzeuge“ aus
     return !!((w && Array.isArray(w.vehicleSpawns) && w.vehicleSpawns.length) || param === '1' || (G.match && G.match.vehicles));
   }

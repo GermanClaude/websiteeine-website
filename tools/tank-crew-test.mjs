@@ -277,11 +277,11 @@ try {
     sys.removeFromSeat(bot, { teleport: false });
     G.actors.splice(G.actors.indexOf(bot), 1);
     delete G.match.net;
-    // Auffüllen am eigenen Stellplatz (Ersatz-Eintrag ohne Fahrzeug)
+    // Auffüllen am eigenen Stellplatz (Ersatz-Eintrag ohne Fahrzeug; ohne Versorgungspunkte der Karte, resupply.js)
     const r0 = { ...g.rack };
     sys.spawns.push({ type: 'mbt', position: v.position.clone(), yaw: 0, team: 'A', respawn: 90, vehicle: null, respawnAt: null, _test: true });
     C.step(4.2);
-    out.refill = { before: r0, after: { ...g.rack }, flag: g.refilling };
+    out.refill = { before: r0, after: { ...g.rack }, flag: g.refilling, state: v.supply ? v.supply.state : null };
     sys.spawns.splice(sys.spawns.findIndex((s) => s._test), 1);
     // Störung: Treffer ≥ 60 während „gegriffen“ → Granate fällt
     G.match.net = { vehReload: 'manuell' };
@@ -306,7 +306,7 @@ try {
   check(Math.abs(r.autoMax - 8) < 1e-6 && Math.abs(r.t8 - 8) <= 0.1, 'Automatik ohne Ladeschütze 8,0 s', `${r.t8} s`);
   check(r.loadedHe === 'mbt_he', 'Automatik lädt den Wunsch (SG)', r.loadedHe);
   check(r.botSeat === 3 && r.fired2 === 1 && Math.abs(r.autoMax2 - 5) < 1e-6 && Math.abs(r.t5 - 5) <= 0.1, 'Automatik mit Ladeschütze 5,0 s', `${r.t5} s`);
-  check(r.refill.flag && r.refill.after.mbt_ap + r.refill.after.mbt_he - r.refill.before.mbt_ap - r.refill.before.mbt_he === 2, 'Auffüllen am Stellplatz (+1 je 2 s)', JSON.stringify(r.refill));
+  check(r.refill.after.mbt_ap === 22 && r.refill.after.mbt_he === 18 && r.refill.after.mbt_ap + r.refill.after.mbt_he > r.refill.before.mbt_ap + r.refill.before.mbt_he && (r.refill.flag || r.refill.state === 'pause'), 'Auffüllen am Stellplatz (schrittweise bis voll, dann Abklingzeit)', JSON.stringify(r.refill));
   check(r.beforeDrop === 'gegriffen' && r.drop.step === 'leer' && r.drop.held === null && r.drop.rack === 1, 'Treffer ≥ 60: Granate fällt zurück ins Gestell', JSON.stringify(r.drop));
 
   // 9) Pad: Aussteigen nur per Halten (0,5 s)
