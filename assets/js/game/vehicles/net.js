@@ -35,7 +35,7 @@ const STEPS = ['leer', 'gegriffen', 'eingeschoben', 'geladen', 'offen']; // offe
 const BUSY_OF = { leer: 'greifen', gegriffen: 'einschieben', eingeschoben: 'schliessen' };
 const LOAD_ACTIONS = new Set(['greifen', 'einschieben', 'schliessen', 'munition', 'weiter']);
 
-const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _f = new THREE.Vector3();
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _f = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
 const Y = new THREE.Vector3(0, 1, 0);
 const nowSec = () => performance.now() / 1000;
@@ -914,13 +914,32 @@ export class VehicleNet {
     const own = !!(G.player && G.player.vehicle === v && v.seatOf(G.player) === si);
     sys.audio.play(def.profile || 'lmg', { position: own ? null : _a, player: own, actor: seat.actor || null, weapon: def.id });
     if (own) G.player.shake?.(0.05);
+    if (!sys.world) return;
+    // Einschusslöcher (21.10.): jedes Gerät rechnet sie selbst wie bei Schüssen entfernter Spieler (bots/manager.js) –
+    // Kaliber des MG (data.js), Streuung nur zur Darstellung; durch Breschen geht der Strahl ohnehin (world.raycast)
+    const H = G.holes, range = def.range || 300;
+    if (H && typeof H.hit === 'function') {
+      for (let k = 0; k < n; k++) {
+        const s = def.spread || 0.005;
+        _c.copy(_b).add(_d.set((Math.random() - 0.5) * s * 2, (Math.random() - 0.5) * s * 2, (Math.random() - 0.5) * s * 2)).normalize();
+        sys._ignore = v;
+        const w = sys.world.raycast(_a, _c, range);
+        sys._ignore = null;
+        if (!w || w.vehicle || w.targetId != null || w.distance > range) continue;
+        let info = null;
+        try { info = H.hit(w, def, _c, w.distance, 1); } catch { info = null; }
+        const nrm = w.normal ? w.normal.clone() : _c.clone().negate();
+        if (nrm.dot(_c) > 0) nrm.negate();
+        if (!info || !info.open) G.effects?.impact?.(w.point, nrm, w.surface || 'concrete', { hole: !!info, penetrated: !!(info && info.passed) });
+      }
+    }
     // Leuchtspur jede tracerEvery-te Kugel (Zählerstand des Hosts)
     const every = def.tracerEvery || 3;
     let tracer = false;
     for (let k = 0; k < n; k++) if (((total - k) & 255) % every === 0) tracer = true;
-    if (!tracer || !sys.world) return;
+    if (!tracer) return;
     sys._ignore = v;
-    const h = sys.world.raycast(_a, _b, def.range || 300);
+    const h = sys.world.raycast(_a, _b, range);
     sys._ignore = null;
     const to = h && h.point ? h.point.clone() : _c.copy(_a).addScaledVector(_b, def.range || 300).clone();
     G.events.emit('tracer', { from: _a.clone(), to, actor: seat.actor || null, weaponId: def.id, net: true });

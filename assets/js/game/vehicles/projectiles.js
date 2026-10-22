@@ -1,6 +1,7 @@
 // NULLPUNKT — Ballistische Granaten der Fahrzeugkanonen (Schwerkraft, Teilschritt-Strahlen gegen Welt, Fahrzeuge,
 // Akteure). Treffer: Fahrzeuge → Schaden nach Trefferseite (vorn ×0,6, Seite ×1, hinten ×2, oben ×1,6) mit
 // Abprallern bei flachem Auftreffwinkel (> 70°), Akteure → Volltreffer, überall Splash über combat.explode.
+// Hauswände (21.10., breach.js): SG reißt eine Bresche, PG stanzt durch und fliegt weiter; Breschen werden durchflogen.
 // Darstellung: kleiner additiver Leuchtspur-Körper je Granate (Pool, höchstens MAX gleichzeitig).
 // Online-Clients (Abbild): fire(…, { display: true }) – dieselbe Flugbahn, beim Aufschlag nur Funken/Staub/Abpraller;
 // Schaden und Explosion rechnet der Host (die Explosion kommt als 'ex').
@@ -96,9 +97,17 @@ export class ShellPool {
       const mult = (FACE_MULT[hit.face] || 1) * (v.def.armored ? 1 : 1.35);
       const dealt = v.applyDamage(def.vehicleDamage * mult, { attacker, weaponId: def.id, zone: hit.zone, kind: 'shell', point: p, dir });
       if (dealt > 0) G.events.emit('vehicle:hit', { vehicle: v, attacker, amount: dealt, weaponId: def.id, face: hit.face, zone: hit.zone });
-    } else if (s.display) return this._displayImpact(hit, dir);
-    else if (hit.actor) {
+    } else if (s.display) {
+      // Abbild: eine PG schlägt wie beim Host durch die Hauswand und fliegt weiter (die Bresche selbst kommt als 'br')
+      const br = !hit.actor && sys.breaching ? sys.breaching.passes(s, hit, dir) : null;
+      if (br && br.pass) return this._passWall(s, hit, dir, br, true);
+      return this._displayImpact(hit, dir);
+    } else if (hit.actor) {
       G.combat.damage(hit.actor, { amount: def.actorDamage, attacker, weaponId: def.id, explosive: true, point: p, dir, zone: 'body' });
+    } else if (sys.breaching) {
+      // Hauswand (breach.js): SG reißt eine Bresche und zündet, PG stanzt durch und fliegt mit Restenergie weiter
+      const br = sys.breaching.shell(s, hit, dir);
+      if (br && br.pass) return this._passWall(s, hit, dir, br, false);
     }
     // Splash (Infanterie) – leicht vor der Oberfläche, damit die Sichtprüfung nicht in der Wand startet
     const at = p.clone();
@@ -116,11 +125,25 @@ export class ShellPool {
     return true;
   }
 
+  /** PG durch die Wand: hinter der Rückseite weiter, langsamer; Staub am Ein-/Austritt. → false (fliegt weiter) */
+  _passWall(s, hit, dir, br, display) {
+    const G = this.sys.G;
+    const n = hit.normal ? _p.copy(hit.normal) : _p.copy(dir).negate();
+    if (n.dot(dir) > 0) n.negate();
+    G.effects?.impact?.(hit.point, n, hit.surface || 'concrete', { big: true, hole: true });
+    G.effects?.impact?.(br.exit, dir, hit.surface || 'concrete', { big: true, hole: true });
+    if (display) this.sys.audio.play('ricochet', { position: hit.point, volume: 0.5, pitch: 0.4 });
+    s.pos.copy(br.exit);
+    s.vel.multiplyScalar(br.keep);
+    return false;
+  }
+
   /** Darstellungsgranate (Abbild) schlägt ein: Funken/Staub; die Explosion kommt vom Host. → true (verbraucht) */
   _displayImpact(hit, dir) {
     const G = this.sys.G;
     const n = hit.normal || _d.copy(dir).negate();
-    G.effects?.impact?.(hit.point, n, hit.vehicle ? 'metal' : hit.surface || 'concrete', { big: true });
+    // kein Einschuss-Abziehbild: an Wänden folgt die Bresche des Hosts (Abziehbild schwebte sonst in der Öffnung)
+    G.effects?.impact?.(hit.point, n, hit.vehicle ? 'metal' : hit.surface || 'concrete', { big: true, hole: true });
     return true;
   }
 

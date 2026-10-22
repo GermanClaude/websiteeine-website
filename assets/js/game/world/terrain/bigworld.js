@@ -648,7 +648,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   const s0 = spawns.A[0] || spawns.ffa[0];
   if (s0) { cam0.position.copy(s0.position).add(new THREE.Vector3(0, 1.7, 0)); chunks.update(cam0, 64); veg.update(cam0, true); dead?.update(cam0, true); litter?.update(cam0, true); }
   // atmosphere-weather: Welt-Shading (Höhennebel, Fernschatten, spekulares AA; ohne Sonden-Gitter) + Staub/Strahlen
-  applyCuts(group); // Wanddurchbrüche (bullet-holes.js)
+  applyCuts(group, quality); // Wanddurchbrüche (bullet-holes.js); Obergrenze je Stufe
   let atmos = null;
   if (fxOn) try {
     world.stats.lighting = { materials: applyWorldShading(group), far: null, atmos: null };

@@ -10,6 +10,7 @@ import { VEHICLES, VEHICLE_WEAPONS, VEHICLE_CAUSES, VEHICLE_IDS, respawnFor, veh
 import { Vehicle, newIntent } from './vehicle.js';
 import { TankProgress, tankSkin, skinUnlocked } from './skins.js';
 import { ShellPool, raycastActors } from './projectiles.js';
+import { Breaching } from './breach.js';
 import { VehicleCamera, dirFromYawPitch } from './camera.js';
 import { readPlayerControls, resetControlHolds } from './controls.js';
 import { viewsOf, viewOf, fpViewOf, isTp, viewExposed, opticIndex, firstFp, viewAnchor, pinWorld, viewLookDir, worldToRel } from './views.js';
@@ -61,6 +62,8 @@ export class VehicleSystem {
     if (this.remote === undefined) this.remote = null;   // Netz (C): Vermittler auf Clients
     if (this.replica === undefined) this.replica = false;
     this.shells = new ShellPool(this);
+    this.breaching = new Breaching(this); // Breschen durch Granaten und Rammen (breach.js)
+    this._noVeh = false; // world.raycast-Hülle: Fahrzeuge auslassen (feste Messungen, bullet-holes.js)
     this.hud = null;
     this.audio = new VehicleAudio(G);
     this._own = 0;
@@ -184,6 +187,7 @@ export class VehicleSystem {
     this.list.length = 0;
     this.spawns.length = 0;
     this.shells.clear();
+    this.breaching.clear();
     if (this.spot) { this.spot.removeFromParent(); this.spot.target.removeFromParent(); this.spot.dispose?.(); this.spot = null; }
     if (this.group) { this.group.removeFromParent(); this.group = null; }
     this._uninstallRaycast();
@@ -231,6 +235,12 @@ export class VehicleSystem {
     if (!this.attached) return null;
     const pos = position.clone ? position.clone() : new THREE.Vector3(position.x, position.y, position.z);
     const v = new Vehicle(this, type, { position: pos, yaw, team, quality: this.quality, spawn, variant });
+    // Rammen: Wand gibt unter dem Stoß nach (Host/Einzelspiel; Abbilder simulieren nicht)
+    if (!this.replica) {
+      v.body.onWall = (p, n, vn) => this.breaching.ram(v, p, n, vn);
+      v.body.hullRay = (o, d, len, out) => this.breaching.hullRay(v, o, d, len, out);
+      v.body.groundFilter = (o, d, dist, hit) => this.breaching.groundYields(v, o, d, dist, hit);
+    }
     this.list.push(v);
     this.group.add(v.model.root);
     v.sync(0);
@@ -881,6 +891,7 @@ export class VehicleSystem {
     this._collideVehicles();
     this._collideActors(dt);
     this.shells.update(dt);
+    this.breaching.update();
     for (let i = this.list.length - 1; i >= 0; i--) {
       const v = this.list[i];
       if (v.wreck && v.wreckLeft <= 0) this.removeVehicle(v);
@@ -968,6 +979,17 @@ export class VehicleSystem {
       const d = this.camera.dir;
       p.yaw = Math.atan2(-d.x, -d.z);
       p.pitch = Math.asin(clamp(d.y, -1, 1));
+      // Kamerawackeln im Sitz (21.10.: Rammen, Breschen, Kanonenschuss – player.shake erhöht trauma): player.update läuft
+      // im Sitz nicht, deshalb klingt es hier ab; nur die Darstellung wackelt (Zielrichtung bleibt), × Komfort-Einstellung
+      if (p.trauma > 0.001) {
+        const M = Number.isFinite(p.cameraMotion) ? p.cameraMotion : 0.6;
+        const s = p.trauma * p.trauma * (0.35 + 0.65 * clamp(M / 0.6, 0, 1)) * (r.sight ? 0.45 : 1);
+        G.camera.position.x += (Math.sin(now * 37.1) * 0.6 + Math.sin(now * 23.7 + 1.3) * 0.4) * 0.07 * s;
+        G.camera.position.y += (Math.sin(now * 41.3 + 2.1) * 0.6 + Math.sin(now * 19.1 + 0.7) * 0.4) * 0.07 * s;
+        G.camera.rotateX((Math.sin(now * 29.9 + 4.2) * 0.6 + Math.sin(now * 31.3 + 2.9) * 0.4) * 0.018 * s);
+        G.camera.rotateZ((Math.sin(now * 33.7 + 0.4) * 0.6 + Math.sin(now * 17.3 + 1.9) * 0.4) * 0.03 * s);
+        p.trauma = Math.max(0, p.trauma - 1.5 * dt);
+      }
       // Rohr-Marker: wohin die Waffe tatsächlich zeigt
       let gun = null;
       if (seat.def.mount && seat.weapons.length) {
@@ -1217,8 +1239,15 @@ export class VehicleSystem {
     const w = this.world;
     if (!w) return null;
     let best = null;
-    const wh = this._rc ? this._rc.orig.call(w, p, d, len) : w.raycast(p, d, len);
-    if (wh && wh.distance <= len) best = { point: wh.point, normal: wh.normal, distance: wh.distance, surface: wh.surface };
+    // Welt ohne Fahrzeuge (die folgen einzeln), aber mit allen Hüllen: Tür-/Fensterflügel und Fassadenpaneele
+    // (building.js-Festkörper) halten die Granate auf, durch Breschen/Durchbrüche (bullet-holes.js) fliegt sie weiter.
+    // Früher lief der Strahl gegen die nackte Welt (vor building.js): Granaten flogen durch geschlossene Türen und
+    // Fenster und rissen die Bresche erst innen in die gegenüberliegende Wand (21.10.)
+    const was = this._noVeh;
+    this._noVeh = true;
+    let wh;
+    try { wh = w.raycast(p, d, len); } finally { this._noVeh = was; }
+    if (wh && wh.distance <= len) best = { point: wh.point, normal: wh.normal, distance: wh.distance, surface: wh.surface, solid: wh.solid || null };
     for (const v of this.list) {
       if (v === s.vehicle && s.age < 0.25) continue;
       const h = v.raycast(p, d, best ? best.distance : len);
@@ -1255,7 +1284,7 @@ export class VehicleSystem {
     const self = this;
     const fn = function raycastWithVehicles(origin, dir, maxDist = 1000) {
       let best = orig.call(w, origin, dir, maxDist);
-      if (!self.attached || !self.list.length || !self._rc || self._rc.fn !== raycastWithVehicles) return best;
+      if (!self.attached || self._noVeh || !self.list.length || !self._rc || self._rc.fn !== raycastWithVehicles) return best;
       const vh = self.raycastVehicles(origin, dir, best ? best.distance : maxDist, self._ignore);
       if (vh) {
         best = vh;
