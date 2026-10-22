@@ -1,6 +1,6 @@
 // NULLPUNKT — Panzerbesatzung (panzer-mp.md §B.2/§B.5): Hauptkanone mit Ladezustand, manuelles Nachladen als
 // Zustandsautomat des Ladeschützen (Host-autoritativ: offline, Host und Netz-Schritte laufen über dieselbe Funktion),
-// Automatik (Regel/Bots), Munitionsgestell mit Auffüllen am eigenen Stellplatz, Störung durch Treffer/Stöße.
+// Automatik (Regel/Bots), Munitionsgestell (Auffüllen an Versorgungspunkten: resupply.js), Störung durch Treffer/Stöße.
 //
 // vehicle.gun = { loaded, breechOpen, held, step: 'leer'|'gegriffen'|'eingeschoben'|'geladen', busy, busyKind, select,
 //                 rack: { mbt_ap, mbt_he }, auto, autoT }
@@ -12,7 +12,6 @@ import { VEHICLE_WEAPONS, vehicleWeapon } from './data.js';
 const wrap = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
 export const LOAD_TIMES = { tuer: 0.55, greifen: 1.0, einschieben: 0.8, schliessen: 0.4 }; // tuer: Schiebetür des Munitionsbunkers (modern)
 export const SHORT = { mbt_ap: 'PG', mbt_he: 'SG' };
-const REFILL_DIST = 25, REFILL_EVERY = 2;
 
 /** Hauptkanone anlegen (nur Fahrzeuge mit Granatwaffe und Gestell). */
 export function createGun(vehicle) {
@@ -22,7 +21,7 @@ export function createGun(vehicle) {
   return {
     loaded: types[0], breechOpen: false, held: null, step: 'geladen', busy: 0, busyKind: null, select: types[0],
     rack: { ...def.ammo }, auto: false, autoT: 0, autoMax: 0, refilling: false,
-    _refT: 0, _refK: 0, _acc: 0, _pv: null, _msg: null,
+    _acc: 0, _pv: null, _msg: null,
   };
 }
 
@@ -172,7 +171,7 @@ export function dropShell(v) {
   return true;
 }
 
-/** Takt (nur Host/offline): Handgriffe, Automatik, Auffüllen, Störung. */
+/** Takt (nur Host/offline): Handgriffe, Automatik, Störung. */
 export function updateGun(v, dt) {
   const g = v.gun;
   if (!g || !v.alive) return;
@@ -218,30 +217,8 @@ export function updateGun(v, dt) {
     g._pv.x = vel.x; g._pv.z = vel.z;
   } else g._pv = { x: vel.x, z: vel.z };
   if (g._acc > 9 && !g.auto && (g.step === 'gegriffen' || (g.busy > 0 && g.busyKind !== 'schliessen'))) dropShell(v);
-  // Gestell auffüllen: steht (< 1 m/s) nahe einem Stellplatz des eigenen Teams
-  const cap = v.def.ammo;
-  let refill = false;
-  if (Math.abs(v.body.speed) < 1 && Object.keys(cap).some((k) => g.rack[k] < cap[k])) {
-    const team = v.team;
-    const pos = v.body.pos;
-    for (const sp of (v.sys && v.sys.spawns) || []) {
-      if (team == null || sp.team !== team) continue;
-      const dx = sp.position.x - pos.x, dz = sp.position.z - pos.z;
-      if (dx * dx + dz * dz <= REFILL_DIST * REFILL_DIST) { refill = true; break; }
-    }
-  }
-  g.refilling = refill;
-  if (refill) {
-    g._refT += dt;
-    if (g._refT >= REFILL_EVERY) {
-      g._refT = 0;
-      const types = Object.keys(cap);
-      for (let k = 0; k < types.length; k++) {
-        const t = types[(g._refK + k) % types.length];
-        if (g.rack[t] < cap[t]) { g.rack[t] += 1; g._refK = (g._refK + k + 1) % types.length; break; }
-      }
-    }
-  } else g._refT = 0;
+  // Gestell auffüllen (21.10.): an Versorgungspunkten auf offenem Feld bzw. ohne solche am eigenen Stellplatz –
+  // resupply.js (VehicleSystem.update), setzt g.refilling
 }
 
 /**
@@ -280,7 +257,7 @@ export function loaderHint(v, seat, keyFor, touch = false) {
       break;
     case 'leer':
     case 'offen': {
-      if (!(g.rack[g.select] > 0) && !Object.values(g.rack).some((n) => n > 0)) { out.stepText = 'Gestell leer'; out.doHtml = 'Zum eigenen Stellplatz fahren'; break; }
+      if (!(g.rack[g.select] > 0) && !Object.values(g.rack).some((n) => n > 0)) { out.stepText = 'Gestell leer'; out.doHtml = 'Zum Versorgungspunkt fahren (Kiste auf der Minikarte)'; break; }
       const bunker = !!(v.def.interior && v.def.interior.blastDoor);
       out.turn = turnTo('rack');
       if (bunker && g.step === 'leer') {

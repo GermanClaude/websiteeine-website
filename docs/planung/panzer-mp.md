@@ -471,9 +471,15 @@ fallen gelassen“). Alleinfahrer müssen in Sitz 3 wechseln (Wechselzeit 1,2 s)
 **oder** ein Bot im Ladeschützensitz sitzt: nach dem Schuss `autoT` = 5,0 s, wenn Sitz 3 besetzt ist, sonst 8,0 s;
 danach `loaded` = Wunsch des Richtschützen (sonst andere Sorte, sonst leer „Munition leer“). Sonst gilt „manuell“.
 
-**Gestell**: Kapazität `ammo` (PG 22, SG 18). Auffüllen: Fahrzeug < 1 m/s und ≤ 25 m von einem Stellplatz des eigenen Teams
-(`sys.spawns` mit `team === vehicle.team`) → +1 Granate je 2 s (abwechselnd bis voll), HUD „Munition wird aufgefüllt“.
-MGs: Magazin + Nachladen wie bisher (R), unendlicher Vorrat.
+**Gestell**: Kapazität `ammo` (PG 22, SG 18). MGs: Magazin + Nachladen (R) aus `belts` Ersatzgurten (`w.reserve`, 21.10.).
+**Aufmunitionieren** (21.10., `vehicles/resupply.js`): Fahrzeug hält (< 0,8 m/s seit 0,6 s) mit der Wanne ≤ 6 m neben einem
+fahrzeugtauglichen Versorgungspunkt (mappoints.js: Munitionsausgabe auf offenem Feld oder Fahrzeug-Depot an den
+Stellplätzen; eigenes Team oder neutral) → alle 0,6 s je Sorte ⌈Kapazität/8⌉ Granaten und je MG ein Gurt, Rangieren bis
+2 m/s unterbricht nicht; voll → Abklingzeit 40 s je Fahrzeug. Ohne Versorgungspunkt für das Team gilt der eigene
+Stellplatz (≤ 25 m). HUD-Zeile „Versorgungspunkt … m – heranfahren / anhalten / Aufmunitionieren … / wieder in … s“.
+Online: Host entscheidet, Byte 63 des Fahrzeugblocks = Ersatzgurte je MG (3 + 3 Bit) + Zustand (2 Bit).
+**Kartengröße** (21.10.): Panzer und Geländewagen nur auf großen Karten (`militaryVehiclesAllowed`, maps.data.js);
+Hafen/Altstadt/Werk & Co. behalten nur die zivilen Fahrzeuge – auch mit `?vehicles=1`, Lobby, Raum oder Konsole.
 
 Host-Prüfung bei Netz-Schritten: gleiche Funktion `loadAction` mit den Mindestzeiten (busy), Blickprüfung gegen den
 gemeldeten `seat.look.relYaw` (Netz) – Toleranz +0,2 rad. Clients können nichts behaupten.
@@ -510,7 +516,7 @@ Ladeschütze), `vc-ammo` („PG/SG“, `v_ammo`), `vc-cam` beschriftet „Sicht�
 Sitzwechsel dauert 1,2 s ±0,1 (Sitz inaktiv) · Fahrer hat keine Waffe, Richtschütze feuert, Fahrer kann nicht feuern ·
 alle Sichten je Sitz schaltbar, `aussen` gesperrt bei `rules.thirdPerson = false` · Luke offen → Hitboxen aktiv, zu →
 `NULL_HITBOX` · manuelles Nachladen: falsche Reihenfolge abgelehnt, richtige Folge lädt in ≥ 2,2 s Handlungszeit, Schuss
-nur geladen · Automatik 5,0 s / 8,0 s · Gestell zählt runter, Auffüllen am Stellplatz · Bot-Einzelbesatzung zielt+feuert
+nur geladen · Automatik 5,0 s / 8,0 s · Gestell zählt runter, Auffüllen am Stellplatz (ohne Versorgungspunkt) · Bot-Einzelbesatzung zielt+feuert
 (autopilotLap) · Bilder je Sicht (PC 1280×720 + Handy 844×390) nach `tools/out/panzer/` · VR-Rückfall per Stub geprüft
 (`G.xr = { presenting: true }` → Sicht `luke`, Turm folgt `player.yaw`).
 

@@ -24,6 +24,19 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const wrap = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
 const approach = (cur, target, maxStep) => { const d = wrap(target - cur); return Math.abs(d) <= maxStep ? target : cur + Math.sign(d) * maxStep; };
 
+/** Ersatzmunition eines MG in Schuss (def.belts Gurte zu je def.mag); ohne belts unbegrenzt (null). */
+export function beltReserve(def) {
+  return def && def.kind === 'mg' && Number.isFinite(def.belts) ? def.mag * def.belts : null;
+}
+/** Noch ein Gurt zum Nachladen da? */
+const hasBelt = (w) => w.reserve == null || w.reserve > 0;
+/** Gurt einlegen: Magazin aus dem Vorrat auffüllen (ohne Vorrat: voll). */
+function loadBelt(w) {
+  if (w.reserve == null) { w.mag = w.def.mag; return; }
+  const n = Math.min(w.def.mag - w.mag, w.reserve);
+  if (n > 0) { w.mag += n; w.reserve -= n; }
+}
+
 export function newIntent() {
   return {
     throttle: 0, steer: 0, brake: 0, handbrake: false,
@@ -91,7 +104,8 @@ export class Vehicle {
     this._burnAcc = 0;
     this.seats = def.seats.map((sd, i) => ({
       index: i, def: sd, actor: null, intent: newIntent(),
-      weapons: sd.weapons.map((id) => { const wd = vehicleWeapon(type, id); return { def: wd, mag: wd.mag, reloadT: 0, cooldown: 0, shots: 0 }; }),
+      // reserve: Ersatzgurte der MG in Schuss (null = unbegrenzt); Granaten zählt das Gestell (crew.js)
+      weapons: sd.weapons.map((id) => { const wd = vehicleWeapon(type, id); return { def: wd, mag: wd.mag, reserve: beltReserve(wd), reloadT: 0, cooldown: 0, shots: 0 }; }),
       weaponIndex: 0, aimError: 0, zoomIndex: 0,
       look: { yaw, pitch: 0, relYaw: 0, relPitch: 0, idle: 0 },
       // Besatzung (§3.3): Sicht, Luke, Wechselsperre, gewünschte Lafettenrichtung, Bot-Stellvertreter
@@ -333,13 +347,13 @@ export class Vehicle {
       w.cooldown = Math.max(0, w.cooldown - dt);
       if (w.reloadT > 0) {
         w.reloadT -= dt;
-        if (w.reloadT <= 0) { w.reloadT = 0; w.mag = w.def.mag; }
+        if (w.reloadT <= 0) { w.reloadT = 0; loadBelt(w); }
       }
     }
     const w = seat.weapons[seat.weaponIndex];
     const shell = w.def.kind === 'shell';
-    // MG: Magazin nachladen (R); Kanone: Ladeschütze/Automatik (crew.js)
-    if (it.reload && !shell && w.mag < w.def.mag && w.reloadT <= 0) { w.reloadT = w.def.reload; this.G.events.emit('vehicle:reload', { vehicle: this, seat: seat.index, weaponId: w.def.id }); }
+    // MG: Gurt wechseln (R; nur mit Ersatzgurt); Kanone: Ladeschütze/Automatik (crew.js)
+    if (it.reload && !shell && w.mag < w.def.mag && w.reloadT <= 0 && hasBelt(w)) { w.reloadT = w.def.reload; this.G.events.emit('vehicle:reload', { vehicle: this, seat: seat.index, weaponId: w.def.id }); }
     it.reload = false;
     const frozen = !this.sys.live;
     const shooter = seat.actor || seat.proxy;
@@ -364,7 +378,7 @@ export class Vehicle {
     } else {
       w.mag -= 1;
       w.cooldown = 60 / w.def.rpm;
-      if (w.mag <= 0) { w.reloadT = w.def.reload; this.G.events.emit('vehicle:reload', { vehicle: this, seat: seat.index, weaponId: w.def.id }); }
+      if (w.mag <= 0 && hasBelt(w)) { w.reloadT = w.def.reload; this.G.events.emit('vehicle:reload', { vehicle: this, seat: seat.index, weaponId: w.def.id }); }
     }
     if (shell) {
       this.recoil = 1;

@@ -72,6 +72,12 @@ body[data-vehicle][data-vehicle-arms="0"] .tc-fire-r,body[data-vehicle][data-veh
 .vh-gunst i{position:absolute;left:0;bottom:0;height:2px;width:100%;background:#ffc23d;transform-origin:left;transform:scaleX(0)}
 .vh-rack{margin-top:2px;font-size:12px;opacity:.85;font-variant-numeric:tabular-nums}.vh-rack em{font-style:normal;color:#bfe8a8}
 .vh-seats .is-wait{opacity:.6}
+.vh-supply{position:relative;margin-top:4px;padding:3px 6px;border-radius:3px;font-size:12px;font-weight:600;letter-spacing:.02em;background:rgba(233,230,223,.08);overflow:hidden}
+.vh-supply.is-ok{color:#bfe8a8;background:rgba(120,190,90,.16)}.vh-supply.is-warn{color:#ffc23d}.vh-supply.is-dim{opacity:.8}
+.vh-supply i{position:absolute;left:0;bottom:0;height:2px;width:100%;background:#bfe8a8;transform-origin:left;transform:scaleX(0)}
+.vh-supply[hidden]{display:none}
+body[data-input-mode="touch"] .vh-supply{font-size:11px;line-height:14px;padding:0 5px;margin-top:1px;white-space:nowrap;text-overflow:ellipsis}
+body[data-input-mode="touch"] .vh-panel.has-supply .vh-hpn{display:none}
 .vh-note{position:absolute;left:50%;top:30%;transform:translateX(-50%);padding:4px 12px;border-radius:4px;background:rgba(10,11,13,.6);font-size:16px;font-weight:700;letter-spacing:.06em;white-space:nowrap}
 .vh-note.is-warn{background:rgba(160,30,15,.62)}
 .vh-exit{position:absolute;left:50%;top:58%;width:64px;height:64px;margin-left:-32px;border-radius:50%;background:conic-gradient(#ffc23d calc(var(--p,0)*360deg),rgba(233,230,223,.18) 0);-webkit-mask:radial-gradient(circle,transparent 24px,#000 25px);mask:radial-gradient(circle,transparent 24px,#000 25px)}
@@ -147,6 +153,7 @@ export class VehicleHUD {
         <div class="vh-weps"></div>
         <div class="vh-gunst" hidden><b></b><span></span><i></i></div>
         <div class="vh-rack" hidden></div>
+        <div class="vh-supply" hidden><span></span><i></i></div>
         <div class="vh-seats"></div>
         <div class="vh-hint"></div>
       </div>
@@ -160,6 +167,7 @@ export class VehicleHUD {
       warn: q('.vh-warn'), prompt: q('.vh-prompt'), panel: q('.vh-panel'), name: q('.vh-name'), speed: q('.vh-speed'),
       hp: q('.vh-hp'), hpBar: q('.vh-hp i'), hpn: q('.vh-hpn'), zones: q('.vh-zones'), weps: q('.vh-weps'), seats: q('.vh-seats'), hint: q('.vh-hint'),
       gunst: q('.vh-gunst'), gunstB: q('.vh-gunst b'), gunstS: q('.vh-gunst span'), gunstI: q('.vh-gunst i'), rack: q('.vh-rack'),
+      supply: q('.vh-supply'), supplyS: q('.vh-supply span'), supplyI: q('.vh-supply i'),
       note: q('.vh-note'), exit: q('.vh-exit'), exitl: q('.vh-exitl'),
     };
     // Sicht-Overlays (unter allen anderen HUD-Elementen)
@@ -274,6 +282,10 @@ export class VehicleHUD {
       } else if (w.reloadT > 0) {
         txt = `lädt ${fmt1(w.reloadT)} s`;
         prog = (Math.round((1 - w.reloadT / w.def.reload) * 20) / 20).toFixed(2);
+      } else if (w.reserve != null) {
+        // Gurte an Bord (21.10.; aufgefüllt an Versorgungspunkten)
+        const b = Math.ceil(w.reserve / w.def.mag);
+        txt = w.mag <= 0 && b <= 0 ? 'leer – Versorgung' : `${w.mag} · ${b} ${b === 1 ? 'Gurt' : 'Gurte'}`;
       } else txt = `${w.mag}/${w.def.mag}`;
       wh += `<div class="vh-wep${sel ? ' is-sel' : ''}"><b>${esc(w.def.name)}</b><span>${txt}</span><i style="transform:scaleX(${prog})"></i></div>`;
     });
@@ -293,7 +305,17 @@ export class VehicleHUD {
       this._set('gunstB', el.gunstB, 'text', 'Kanone');
       this._set('gunstS', el.gunstS, 'text', st);
       this._set('gunstI', el.gunstI, 'width', (Math.round(prog * 20) / 20).toFixed(2));
-      this._set('rack', el.rack, 'html', `Gestell PG ${gs.rack.mbt_ap ?? 0} · SG ${gs.rack.mbt_he ?? 0}${gs.refilling ? ' · <em>Munition wird aufgefüllt</em>' : ''}`);
+      this._set('rack', el.rack, 'html', `Gestell PG ${gs.rack.mbt_ap ?? 0} · SG ${gs.rack.mbt_he ?? 0}${gs.refilling ? ' · <em>wird aufgefüllt</em>' : ''}`);
+    }
+    // Versorgung (resupply.js): Abstand/Anhalten/Aufmunitionieren/Abklingzeit
+    // Handy: die Zeile ersetzt die HP-Zahlen (Tafel unten mittig wächst sonst über das Fadenkreuz; CSS has-supply)
+    const sup = s.supply;
+    this._set('supplyH', el.supply, 'hidden', !sup);
+    this._set('panelC', el.panel, 'class', sup ? 'vh-panel has-supply' : 'vh-panel');
+    if (sup) {
+      this._set('supplyC', el.supply, 'class', `vh-supply is-${sup.tone || 'dim'}`);
+      this._set('supplyS', el.supplyS, 'text', sup.text);
+      this._set('supplyI', el.supplyI, 'width', (Math.round((sup.progress || 0) * 20) / 20).toFixed(2));
     }
     // Sitze (mit Wechselstatus)
     const now = this.G.time.elapsed;

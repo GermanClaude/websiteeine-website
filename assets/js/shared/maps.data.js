@@ -394,3 +394,15 @@ export const WEATHERS = {
 export const WEATHER_ORDER = ['klar', 'dunst', 'morgennebel', 'bewoelkt'];
 
 export const MAP_ORDER = ['hafen', 'altstadt', 'werk', 'bibliothek', 'range', 'grenzland', 'niemandsland', 'brandwald'];
+
+/**
+ * Militärfahrzeuge (Panzer aller Generationen, Geländewagen) nur auf großen Karten (Nutzer 21.10.: auf Hafen, Altstadt,
+ * Werk „macht das keinen Sinn“) – auf kleinen und mittleren Karten bleiben nur die zivilen Fahrzeuge der Karte.
+ * Ohne Kartendaten (Entwicklungsseiten mit eigener Welt) erlaubt.
+ */
+export function militaryVehiclesAllowed(mapId) {
+  const m = mapId ? MAPS[mapId] : null;
+  return !m || m.size === 'groß';
+}
+/** Namen der großen Karten (Hinweistexte in Lobby/Raum). */
+export const LARGE_MAP_NAMES = MAP_ORDER.filter((id) => MAPS[id] && MAPS[id].size === 'groß').map((id) => MAPS[id].name);

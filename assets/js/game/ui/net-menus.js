@@ -9,7 +9,7 @@ import { esc, el } from './dom.js';
 import { ICON, deviceOf } from './icons.js';
 import { LoadoutPanel } from './loadout-panel.js';
 import { CLASSES, GAME_STYLES, STYLE_ORDER } from '../../shared/classes.data.js';
-import { WEATHERS } from '../../shared/maps.data.js';
+import { WEATHERS, militaryVehiclesAllowed, LARGE_MAP_NAMES } from '../../shared/maps.data.js';
 
 /** Gerät eines Mitspielers (Roster device: PC/Handy/VR-Brille) – Abzeichen in der Raumliste bzw. Symbol vor dem Namen. */
 const devBadge = (r) => { const d = deviceOf(r.device); return `<em class="nr-badge is-dev" data-dev="${esc(r.device || 'pc')}" title="${esc(d.label)}">${d.icon}${esc(d.short)}</em>`; };
@@ -38,7 +38,9 @@ const limitText = (m, s) => ({
   time: s.timeLimit ? minText(s.timeLimit) : m && m.timeLimit > 0 ? `Standard (${minText(m.timeLimit)})` : 'Standard (offen)',
   score: s.scoreLimit ? String(s.scoreLimit) : m && m.scoreLimit > 0 ? `Standard (${m.scoreLimit})` : 'Standard',
 });
-const vehOn = (s) => VEH_MODES.has(s.mode) && (s.vehicles === undefined ? VEH_DEFAULT_ON : s.vehicles === true);
+// Panzer/Geländewagen nur auf großen Karten (Nutzer 21.10.; net/index.js startMatch prüft dasselbe)
+const vehMap = (s) => militaryVehiclesAllowed(s.map);
+const vehOn = (s) => VEH_MODES.has(s.mode) && vehMap(s) && (s.vehicles === undefined ? VEH_DEFAULT_ON : s.vehicles === true);
 const MAX_TEAM = 16;
 const DIFF_ORDER = ['rekrut', 'regulaer', 'veteran', 'elite'];
 const IN_MATCH = ['loading', 'countdown', 'playing', 'paused'];
@@ -873,7 +875,7 @@ export class NetMenus {
       ${item('Rundendauer', limitText(this._data().MODES[s.mode], s).time)}${scoreSteps(this._data().MODES[s.mode]).length ? item('Punkteziel', limitText(this._data().MODES[s.mode], s).score) : ''}
       ${item('Ausdauer', s.stamina === false ? 'unbegrenzt' : 'normal')}${item('Munition pro Abschuss', s.killAmmo === false ? 'aus' : s.style === 'realistisch' ? 'an der Leiche' : 'an')}
       ${item('Waffen von Leichen', s.lootWeapons === false ? 'aus' : 'erlaubt')}
-      ${item('Fahrzeuge', vehOn(s) ? 'Panzer + Geländewagen' : 'aus')}
+      ${item('Fahrzeuge', vehOn(s) ? 'Panzer + Geländewagen' : VEH_MODES.has(s.mode) && !vehMap(s) ? 'nur zivile (kleine Karte)' : 'aus')}
       ${vehOn(s) ? `${item('Außenansicht (Fahrzeuge)', s.thirdPerson === false ? 'aus' : 'erlaubt')}${item('Panzer nachladen', s.vehReload === 'automatisch' ? 'automatisch' : 'manuell')}${item('Panzer-Generation', ({ karte: 'je Karte', modern: 'modern', wk2: '2. Weltkrieg', wk1: '1. Weltkrieg' })[s.tankEra] || 'je Karte')}` : ''}
       ${item('Cheat-Menü', s.cheatMenu === false ? 'verboten' : 'erlaubt')}
     </div>`;
@@ -952,7 +954,7 @@ export class NetMenus {
         </div>
         <div class="nr-two">
           ${sw('stamina', 'Ausdauer', s.stamina === false ? 'Aus: unbegrenzt sprinten, rutschen, springen – für alle' : 'Sprinten, Rutschen und Springen kosten Ausdauer', s.stamina !== false)}
-          ${VEH_MODES.has(s.mode) ? sw('vehicles', 'Fahrzeuge', 'Panzer und Geländewagen für beide Teams', vehOn(s)) : ''}
+          ${VEH_MODES.has(s.mode) ? (vehMap(s) ? sw('vehicles', 'Fahrzeuge', 'Panzer und Geländewagen für beide Teams', vehOn(s)) : `<div class="nr-switch is-locked"><span class="nr-lab2"><b>Fahrzeuge</b><small>${esc(`Panzer und Geländewagen nur auf großen Karten (${LARGE_MAP_NAMES.join(', ')}) – hier nur die zivilen Fahrzeuge der Karte`)}</small></span></div>`) : ''}
           ${sw('killAmmo', 'Munition pro Abschuss', s.killAmmo === false ? 'Aus: nur die Startmunition' : s.style === 'realistisch' ? 'Realistisch: Munition an der Leiche aufsammeln (Taste F)' : 'Jeder Abschuss bringt ein Magazin (MG: 20 Schuss)', s.killAmmo !== false)}
           ${sw('lootWeapons', 'Waffen von Leichen', s.lootWeapons === false ? 'Aus: nur die eigene Ausrüstung' : 'Waffe eines Gefallenen aufheben (Taste F halten)', s.lootWeapons !== false)}
         </div>

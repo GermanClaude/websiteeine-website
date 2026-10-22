@@ -8,7 +8,9 @@
 const deg = (d) => (d * Math.PI) / 180;
 
 /** Fahrzeugwaffen. Maschinengewehre sind Hitscan über combat.fireHitscan (gleiches Schema wie WEAPONS),
- *  Kanonen verschießen ballistische Granaten (Schwerkraft, Splash über combat.explode). */
+ *  Kanonen verschießen ballistische Granaten (Schwerkraft, Splash über combat.explode).
+ *  belts (MG, 21.10.): Ersatzgurte an Bord (je mag Schuss, höchstens 7 – Netzblock 3 Bit); Nachladen nimmt einen Gurt,
+ *  aufgefüllt wird an Versorgungspunkten (resupply.js). */
 export const VEHICLE_WEAPONS = {
   // Kanone (panzer-mp.md §B.9): Mündungsgeschwindigkeiten realer 120-mm-Munition (Wuchtgeschoss ~1650 m/s,
   // Mehrzweckgranate ~1140 m/s); reload = Automatik mit Ladeschütze, reloadNoLoader = ohne (Kommandant/Richtschütze lädt)
@@ -26,33 +28,33 @@ export const VEHICLE_WEAPONS = {
   },
   mbt_coax: {
     id: 'mbt_coax', name: 'Koaxial-MG', short: 'MG', kind: 'mg',
-    rpm: 620, mag: 200, reload: 4.5, spread: 0.0045, range: 320, profile: 'lmg',
+    rpm: 620, mag: 200, belts: 7, reload: 4.5, spread: 0.0045, range: 320, profile: 'lmg',
     damage: { max: 30, min: 22, rangeStart: 30, rangeEnd: 140 }, headMult: 1.6, limbMult: 0.9, penetration: 0.35,
     vehicleMult: 0.4, tracerEvery: 3, icon: 'mg',
   },
   mbt_cmg: {
     id: 'mbt_cmg', name: 'Fernbedientes MG .50', short: 'MG', kind: 'mg',
-    rpm: 480, mag: 100, reload: 5.2, spread: 0.005, range: 360, profile: 'ar_heavy',
+    rpm: 480, mag: 100, belts: 5, reload: 5.2, spread: 0.005, range: 360, profile: 'ar_heavy',
     damage: { max: 42, min: 30, rangeStart: 40, rangeEnd: 160 }, headMult: 1.5, limbMult: 0.9, penetration: 0.5,
     vehicleMult: 0.55, tracerEvery: 2, icon: 'mg',
   },
   jeep_mg: {
     id: 'jeep_mg', name: 'Schweres MG', short: 'MG', kind: 'mg',
-    rpm: 520, mag: 100, reload: 5.0, spread: 0.0065, range: 340, profile: 'ar_heavy',
+    rpm: 520, mag: 100, belts: 6, reload: 5.0, spread: 0.0065, range: 340, profile: 'ar_heavy',
     damage: { max: 40, min: 28, rangeStart: 35, rangeEnd: 150 }, headMult: 1.5, limbMult: 0.9, penetration: 0.5,
     vehicleMult: 0.55, tracerEvery: 2, icon: 'mg',
   },
   // Panzergenerationen (Nutzer 11.10.): 2. Weltkrieg – schnelles Gurt-MG (Bug- und Koaxial-MG)
   wk2_mg: {
     id: 'wk2_mg', name: 'Bug-MG (Gurt)', short: 'MG', kind: 'mg',
-    rpm: 900, mag: 150, reload: 6.0, spread: 0.0075, range: 300, profile: 'lmg',
+    rpm: 900, mag: 150, belts: 6, reload: 6.0, spread: 0.0075, range: 300, profile: 'lmg',
     damage: { max: 31, min: 21, rangeStart: 25, rangeEnd: 120 }, headMult: 1.6, limbMult: 0.9, penetration: 0.35,
     vehicleMult: 0.35, tracerEvery: 4, icon: 'mg',
   },
   // 1. Weltkrieg – wassergekühltes MG im Kugelstand, langsam, langer Gurt
   wk1_mg: {
     id: 'wk1_mg', name: 'Wassergekühltes MG', short: 'MG', kind: 'mg',
-    rpm: 450, mag: 250, reload: 8.0, spread: 0.009, range: 260, profile: 'lmg',
+    rpm: 450, mag: 250, belts: 5, reload: 8.0, spread: 0.009, range: 260, profile: 'lmg',
     damage: { max: 34, min: 22, rangeStart: 25, rangeEnd: 110 }, headMult: 1.5, limbMult: 0.9, penetration: 0.3,
     vehicleMult: 0.3, tracerEvery: 5, icon: 'mg',
   },
@@ -769,6 +771,8 @@ function civSeat(id, label, pos, eye, exit, { drive = false, tp } = {}) {
 }
 /** Zivile Typen (Stellplätze world.civilVehicles; nicht von der Fahrzeug-Einstellung abhängig). */
 export const CIVIL_TYPES = ['pkw', 'transporter', 'stapler', 'zugmaschine'];
+/** Militärfahrzeug (Panzer aller Generationen, Geländewagen) – nur auf großen Karten (maps.data.js militaryVehiclesAllowed). */
+export const isMilitary = (type) => !!(VEHICLES[type] && !VEHICLES[type].civil);
 
 export const VEHICLE_IDS = Object.keys(VEHICLES);
 

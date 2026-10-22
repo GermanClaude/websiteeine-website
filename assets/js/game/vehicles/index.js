@@ -23,6 +23,8 @@ import { groundRay } from './sim.js';
 import { collisionRay, canOccupy } from '../engine/physics.js';
 import { falloff, raycastHumanoid } from '../combat.js';
 import { Thermal } from './thermal.js';
+import { updateResupply, supplyHint, supplyDoneText, suppliable } from './resupply.js';
+import { militaryVehiclesAllowed } from '../../shared/maps.data.js';
 
 // Sichten mit Wärmebild-Umschalter; in Optiken ist der eigene Panzer ausgeblendet (Periskop/Zieloptik, kein Rohr im Bild)
 const THERMAL_VIEWS = new Set(['optic', 'wide', 'peri']);
@@ -89,7 +91,10 @@ export class VehicleSystem {
     if (!this.world) return;
     this.attached = true;
     this.replica = !!replica;
-    this.civilOnly = !!civilOnly; // Panzer & Fahrzeuge aus (Lobby/Raum): nur die zivilen Stellplätze der Karte
+    // Nutzer 21.10.: Militärfahrzeuge (Panzer aller Generationen, Geländewagen) nur auf großen Karten – auf Hafen,
+    // Altstadt, Werk & Co. bleiben nur die zivilen Stellplätze (gilt auch für ?vehicles=1, Lobby, Raum, Konsole)
+    this.military = militaryVehiclesAllowed((G.match && G.match.mapId) || (this.world && this.world.id) || null);
+    this.civilOnly = !!civilOnly || !this.military; // Panzer & Fahrzeuge aus (Lobby/Raum) bzw. kleine Karte
     this.quality = (G.renderer && G.renderer.quality) || 'high';
     this.group = new THREE.Group();
     this.group.name = 'vehicles';
@@ -114,6 +119,8 @@ export class VehicleSystem {
       // Ladeklänge (Greifen, Einschieben, Keil, Sortenwechsel, geladen): im eigenen Turm laut, daneben leise
       ev.on('vehicle:load', (e) => this._loadSound(e && e.vehicle, e && e.step)),
       ev.on('vehicle:loaded', (e) => this._loadSound(e && e.vehicle, 'geladen')),
+      // Aufmunitionieren (resupply.js; Clients leiten es aus dem Netzblock ab): Kistenklang je Schritt, Meldung am Ende
+      ev.on('vehicle:resupply', (e) => this._onResupply(e)),
     ];
     try { this.hud = new VehicleHUD(G); } catch (err) { this.hud = null; console.warn('[vehicles] HUD nicht verfügbar', err); }
     this.camera.reset();
@@ -160,6 +167,33 @@ export class VehicleSystem {
     }
   }
 
+  _onResupply(e) {
+    const v = e && e.vehicle, p = this.G.player;
+    if (!v || !v.body) return;
+    const own = !!(p && p.vehicle === v);
+    if (e.state === 'schritt' || e.state === 'start') {
+      const d = p ? v.body.pos.distanceTo(p.position) : 99;
+      if (own || d < 18) this.audio.loadSound(e.state === 'start' ? 'munition' : 'greifen', own ? 0.7 : 0.25);
+      return;
+    }
+    if (!own) return;
+    const now = this.G.time.elapsed;
+    // Meldung gehört zum Fahrzeug (nach dem Umsteigen nicht im nächsten Wagen)
+    this._supplyMsg = { vehicle: v, text: supplyDoneText(e, v), until: now + 2.6, warn: e.state !== 'voll' };
+    if (e.state === 'voll') this.audio.loadSound('geladen', 0.8);
+  }
+
+  /**
+   * Versorgungspunkte für die Minikarte (ui/minimap.js): sitzt der Spieler in einem Fahrzeug mit begrenzter Munition,
+   * die Punkte seines Teams und die neutralen (mappoints.js vehiclePoints), sonst null.
+   */
+  supplyMarkers(p) {
+    const v = p && p.vehicle, pts = this.G.points;
+    if (!this.attached || !v || !suppliable(v) || !pts || typeof pts.vehiclePoints !== 'function') return null;
+    const list = pts.vehiclePoints(v.team ?? null);
+    return list.length ? list : null;
+  }
+
   _loadSound(v, step) {
     if (step === 'tuer' || step === 'offen') step = step === 'tuer' ? 'einschieben' : 'schliessen'; // Schiebetür: Gleiten, Anschlag
     if (!v || !['greifen', 'einschieben', 'schliessen', 'munition', 'geladen'].includes(step)) return;
@@ -192,6 +226,7 @@ export class VehicleSystem {
     if (this.hud) { this.hud.dispose(); this.hud = null; }
     this.audio.stopAll();
     this._near = null;
+    this._supplyMsg = null;
     this.attached = false;
     this.replica = false;
     this.world = null;
@@ -202,7 +237,7 @@ export class VehicleSystem {
 
   /** Spawn-Punkt anmelden (erscheint sofort und nach Zerstörung erneut). → Spawn-Eintrag */
   registerSpawn({ type, position, yaw = 0, team = null, respawn = null, variant = 0 }) {
-    if (!VEHICLES[type]) return null;
+    if (!VEHICLES[type] || (this.civilOnly && !VEHICLES[type].civil)) return null;
     const sp = { type, position: position.clone ? position.clone() : new THREE.Vector3(position.x, position.y, position.z), yaw, team, variant: variant | 0, respawn: respawn ?? respawnFor(type), vehicle: null, respawnAt: null };
     this.spawns.push(sp);
     this._spawnAt(sp);
@@ -228,7 +263,8 @@ export class VehicleSystem {
 
   /** Fahrzeug erzeugen (Modi/Tests/Bots). position = Bodenpunkt unter der Wannenmitte. */
   spawnVehicle(type, position, yaw = 0, team = null, { spawn = null, variant = 0 } = {}) {
-    if (!this.attached) return null;
+    if (!this.attached || !VEHICLES[type]) return null;
+    if (this.civilOnly && !VEHICLES[type].civil) return null; // kleine Karte / Fahrzeuge aus: keine Militärfahrzeuge
     const pos = position.clone ? position.clone() : new THREE.Vector3(position.x, position.y, position.z);
     const v = new Vehicle(this, type, { position: pos, yaw, team, quality: this.quality, spawn, variant });
     this.list.push(v);
@@ -878,6 +914,7 @@ export class VehicleSystem {
       this._spawnAt(sp);
     }
     for (const v of this.list) v.update(dt, world);
+    updateResupply(this, dt); // Aufmunitionieren an Versorgungspunkten (Host/offline)
     this._collideVehicles();
     this._collideActors(dt);
     this.shells.update(dt);
@@ -1011,7 +1048,8 @@ export class VehicleSystem {
         range: this._range ? this._range.text : '', camPos: G.camera.position, lookYaw: null, lookPitch: 0,
         lob: Vehicle.lobAngle, project: (pt) => projectToScreen(G, pt, this._markScr || (this._markScr = { x: 0, y: 0, on: false })),
         loader: seat.def.loader && g ? loaderHint(v, seat, (a) => this._key(a), touch) : null,
-        gunMsg: g && g._msg && now < g._msg.until ? g._msg : null, ready: now >= (seat.readyAt || 0),
+        gunMsg: g && g._msg && now < g._msg.until ? g._msg : this._supplyMsg && this._supplyMsg.vehicle === v && now < this._supplyMsg.until ? this._supplyMsg : null,
+        ready: now >= (seat.readyAt || 0), supply: supplyHint(this, v, { seat, touch, keyFor: (a) => this._key(a) }),
       });
       if (r.view && r.view.look === 'mount') { state.lookYaw = seat.look.yaw; state.lookPitch = seat.look.pitch; }
       else { const ld = viewLookDir(v, seat, r.view, _n); state.lookYaw = Math.atan2(-ld.x, -ld.z); state.lookPitch = Math.asin(clamp(ld.y, -1, 1)); }

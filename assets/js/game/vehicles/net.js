@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import { VEHICLES, VEHICLE_IDS, VEHICLE_WEAPONS, staticComp, vehicleWeapon } from './data.js';
 import { WHY_TEXT, LOAD_TIMES, autoReload } from './crew.js';
+import { SUPPLY, supplyOf, supplyStateIndex, supplyStateOf, ammoNeed } from './resupply.js';
 import { falloff } from '../combat.js';
 
 const HOST_ID = 1; // net/index.js HOST_ID (hier ohne Import: Fahrzeuge laden auch ohne Netzmodul)
@@ -268,6 +269,9 @@ export class VehicleNet {
     o.sel = ((arm[0] ? arm[0].weaponIndex : 0) & 3) | (((arm[1] ? arm[1].weaponIndex : 0) & 3) << 2)
       | (w0 && w0.reloadT > 0 ? 16 : 0) | (w1 && w1.reloadT > 0 ? 32 : 0) | (g && !autoReload(v) ? 64 : 0) | (g && g.auto ? 128 : 0);
     o.aux = g ? (ammoIdx(g.select) & 3) | (Math.min(63, Math.round(Math.max(0, g.autoT || 0) * 4)) << 2) : 0;
+    // Versorgung (resupply.js): Ersatzgurte je MG (0…7; ohne Vorrat 7) + Zustand
+    const beltsOf = (w) => (w && w.reserve != null ? Math.min(7, Math.ceil(w.reserve / w.def.mag)) : 7);
+    o.supply = beltsOf(w0) | (beltsOf(w1) << 3) | (supplyStateIndex(v.supply ? v.supply.state : 'frei') << 6);
     return o;
   }
 
@@ -892,6 +896,24 @@ export class VehicleNet {
     const setMag = (slot, mag, rl) => { if (!slot) return; const w = v.seats[slot.seat].weapons[slot.w]; w.mag = mag; w.reloadT = rl ? Math.max(w.reloadT, 0.1) : 0; };
     setMag(mg[0], s.mag0, (s.sel & 16) !== 0);
     setMag(mg[1], s.mag1, (s.sel & 32) !== 0);
+    // Ersatzgurte und Versorgung (Byte 63): Zustandswechsel → Ereignisse wie beim Host (Klang, Meldung, Abklingzeit)
+    const sb = s.supply | 0;
+    const setRes = (slot, b) => { if (!slot) return; const w = v.seats[slot.seat].weapons[slot.w]; if (w.reserve != null) w.reserve = b * w.def.mag; };
+    setRes(mg[0], sb & 7);
+    setRes(mg[1], (sb >> 3) & 7);
+    const S = supplyOf(v), sst = supplyStateOf((sb >> 6) & 3);
+    const ammoSum = (g ? (g.rack.mbt_ap | 0) + (g.rack.mbt_he | 0) : 0) + (sb & 7) + ((sb >> 3) & 7) + (s.mag0 | 0) + (s.mag1 | 0);
+    if (sst !== S.state) {
+      if (sst === 'aktiv') G.events.emit('vehicle:resupply', { vehicle: v, state: 'start', net: true });
+      else if (S.state === 'aktiv') {
+        const need = ammoNeed(v);
+        G.events.emit('vehicle:resupply', { vehicle: v, state: need.shells === 0 && need.belts === 0 ? 'voll' : 'abbruch', net: true });
+      }
+      if (sst === 'pause') S.readyAt = S.state === 'aktiv' ? now + SUPPLY.cooldown : 0;
+      S.state = sst;
+    } else if (sst === 'aktiv' && st.ammoSum != null && ammoSum > st.ammoSum) G.events.emit('vehicle:resupply', { vehicle: v, state: 'schritt', net: true });
+    st.ammoSum = ammoSum;
+    if (g) g.refilling = sst === 'aktiv';
     // MG-Schüsse: Zuwachs der Zähler → Mündungsfeuer, Klang, Leuchtspur (nur Darstellung)
     for (let i = 0; i < 6 && i < v.seats.length; i++) {
       const n = s.shots[i] | 0;

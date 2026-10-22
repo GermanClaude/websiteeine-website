@@ -2968,6 +2968,7 @@ body[data-deploy] .h-root, body[data-deploy] #touch-ui, body[data-deploy] .ht-ro
 .nr-lab2 b { display: block; font-size: 15px; letter-spacing: .06em; text-transform: uppercase; }
 .nr-lab2 small { display: block; font-size: 12px; color: var(--np-ink-2); }
 .nr-switch .m-switch { flex: none; }
+.nr-switch.is-locked { opacity: .72; border-style: dashed; } /* 21.10.: Fahrzeuge auf kleinen Karten gesperrt */
 .nr-namefield .m-input { width: min(320px, 100%); }
 .nr-ro { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); border-top: 1px solid var(--np-line); border-left: 1px solid var(--np-line); }
 .nr-ro-i { display: flex; flex-direction: column; min-width: 0; padding: 8px 10px; border-right: 1px solid var(--np-line); border-bottom: 1px solid var(--np-line); background: rgba(12, 13, 16, .6); font-family: var(--font-hud); }

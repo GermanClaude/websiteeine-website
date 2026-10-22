@@ -29,7 +29,7 @@ import { HostSignal, joinRoom, watchLobby, relaysFromUrl, DEFAULT_RELAYS, newRoo
 import { PeerLink, ICE_SERVERS } from './peer.js';
 import { hex, randomBytes } from './crypto.js';
 import { BUILD } from '../../shared/build.js';
-import { MAPS, MAP_ORDER } from '../../shared/maps.data.js';
+import { MAPS, MAP_ORDER, militaryVehiclesAllowed } from '../../shared/maps.data.js';
 import { MODES, DIFFICULTY_ORDER } from '../../shared/modes.data.js';
 import { GAME_STYLES, CLASSES, ARMOR_TIERS, HELMETS } from '../../shared/classes.data.js';
 import { WEAPONS, EQUIPMENT, CAMOS } from '../../shared/weapons.data.js';
@@ -48,8 +48,9 @@ import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
  *  6: Panzergenerationen (Fahrzeugblock 64 Byte: Sitze 5–6; neue Fahrzeugtypen wk2/wk1, Raum-Einstellung tankEra).
  *  7: Granatwerfer (Waffenliste länger → Waffenindizes verschoben), Unterlauf-Aufsätze (ub_gl40/ub_schrot).
  *  8: Ladeschritt „offen“ (Munitionsbunker mit Schiebetür, Kanonenzustand im Fahrzeugblock).
- *  9: Panzer je Team nach eigenem Vorbild (neue Fahrzeugtypen wk2h/wk1l). */
-export const NET_VERSION = 10; // 10: Waffen der ersten Stunde (Waffen-Indizes verschoben), Aufsätze/Tarnung in Ausrüstungen
+ *  9: Panzer je Team nach eigenem Vorbild (neue Fahrzeugtypen wk2h/wk1l).
+ *  10: Waffen der ersten Stunde (Waffen-Indizes verschoben), Aufsätze/Tarnung in Ausrüstungen. */
+export const NET_VERSION = 11; // 11: Versorgung/MG-Gurte im Fahrzeugblock (Byte 63), Militärfahrzeuge nur auf großen Karten
 /** Online wählbare Modi (Eroberung folgt mit den Fahrzeugen online, Training bleibt offline). */
 export const ONLINE_MODES = Object.freeze(['tdm', 'ult', 'ffa', 'dom', 'kc', 'messer', 'inf', 'gun']);
 /** Modi mit Fahrzeugen online (Nur Messer, Waffenspiel und Infiziert bleiben ohne – Ausrüstung kommt dort vom Modus). */
@@ -884,7 +885,8 @@ export class NetSystem {
         botsA, botsB, humans, ffa, conditions: cond, startedAt: this.serverTime(),
         stamina: s.stamina !== false, // Raum-Einstellung „Ausdauer“ (aus = unbegrenzt für alle, _applyMatchRules)
         // Fahrzeuge (panzer-mp.md §C.1): an/aus, Außenansicht erlaubt, Nachladen der Panzerkanone
-        vehicles: s.vehicles === true && VEHICLE_MODES.has(s.mode), thirdPerson: s.thirdPerson !== false, vehReload: s.vehReload === 'automatisch' ? 'automatisch' : 'manuell', tankEra: s.tankEra || 'karte',
+        // Militärfahrzeuge nur auf großen Karten (Nutzer 21.10.); sonst nur die zivilen der Karte (main.js civilOnly)
+        vehicles: s.vehicles === true && VEHICLE_MODES.has(s.mode) && militaryVehiclesAllowed(s.map), thirdPerson: s.thirdPerson !== false, vehReload: s.vehReload === 'automatisch' ? 'automatisch' : 'manuell', tankEra: s.tankEra || 'karte',
         killAmmo: s.killAmmo !== false, // Raum-Einstellung „Munition pro Abschuss“ (weapons/index.js)
         lootWeapons: s.lootWeapons !== false, // Raum-Einstellung „Waffen von Leichen“ (mappoints.js)
         cheatMenu: s.cheatMenu !== false, // Raum-Einstellung „Cheat-Menü“ (cheats.js)
@@ -1468,7 +1470,7 @@ export class NetSystem {
     const st = this.room && this.room.settings ? this.room.settings : DEFAULT_ROOM;
     const actors = st.botFill !== false ? Math.min(MAX_PLAYERS, 2 * (st.teamSize || DEFAULT_ROOM.teamSize)) : 0;
     // Fahrzeuge der Karte (Grenzland: je Team 2 Panzer + 3 Geländewagen, sonst je Team 1 + 1)
-    const vehicles = st.vehicles ? (st.map === 'grenzland' ? 10 : st.map === 'brandwald' ? 2 : 4) : 0;
+    const vehicles = st.vehicles && militaryVehiclesAllowed(st.map) ? (st.map === 'grenzland' ? 10 : st.map === 'brandwald' ? 2 : 4) : 0;
     return recommend({
       actors, vehicles,
       cores: Number.isFinite(nav.hardwareConcurrency) ? nav.hardwareConcurrency : null,

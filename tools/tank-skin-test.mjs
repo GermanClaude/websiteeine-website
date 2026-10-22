@@ -12,10 +12,10 @@ try {
   await ctx.addInitScript(() => { try { if (!sessionStorage.getItem('np-skin-init')) { localStorage.setItem('nullpunkt.panzer', JSON.stringify({ xp: 140, skin: 'wald' })); sessionStorage.setItem('np-skin-init', '1'); } } catch { /* */ } });
   const p = await ctx.newPage();
   p.on('pageerror', (e) => errors.push(e.message));
-  await p.goto(`${BASE}spielen.html?autostart=1&allies=0&enemies=0&quality=medium&mode=tdm&map=hafen&vehicles=1`);
+  await p.goto(`${BASE}spielen.html?autostart=1&allies=0&enemies=0&quality=medium&mode=tdm&map=brandwald&vehicles=1`); // 21.10.: Panzer nur auf großen Karten
   let ok = false;
   for (let i = 0; i < 500 && !ok; i++) { ok = await p.evaluate(() => { const G = window.__game; return !!(G && G.match && G.match.state === 'playing' && G.vehicles && G.vehicles.list.length && G.player.team); }).catch(() => false); if (!ok) await sleep(1000); }
-  check(ok, 'Hafen mit Fahrzeugen');
+  check(ok, 'Brandwald mit Fahrzeugen');
   await sleep(1500);
   let r = await p.evaluate(async () => {
     const G = window.__game, M = await import('/assets/js/game/vehicles/materials.js'), S = M.vehicleMaterials();
@@ -41,8 +41,8 @@ try {
   check(r.x1 > r.x0, `Erfahrung im Panzer ${r.x0.toFixed(1)} → ${r.x1.toFixed(1)}`);
   check(r.x2 >= 150 && r.notes.some((t) => /Wüstensand/.test(t)), `Fahrzeug zerstört → ${r.x2.toFixed(0)}, „${r.notes.join(' | ')}“`);
   await p.evaluate(() => window.__game.vehicles.tankProgress.dispose());
-  // Lobby: Auswahl mit Sperren
-  await p.goto(`${BASE}spielen.html`);
+  // Lobby: Auswahl mit Sperren (zuletzt gespielte Karte Brandwald = große Karte: Panzer-Optionen sichtbar)
+  await p.goto(`${BASE}spielen.html`, { timeout: 180000 });
   await p.waitForFunction(() => document.querySelector('[data-tskin]'), null, { timeout: 120000 }).catch(() => null);
   r = await p.evaluate(() => {
     const b = [...document.querySelectorAll('[data-tskin]')];

@@ -1,6 +1,7 @@
 // NULLPUNKT – Panzergenerationen (Nutzer 11.10.): Niemandsland stellt mit „Panzer-Generation: Karte“ den 1.-WK-Panzer
 // auf, ?panzer=wk2 tauscht die Kampfpanzer einer Karte gegen den 2.-WK-Panzer; Besatzung/Waffen je Generation;
-// Lobby zeigt die Auswahl. Aufruf: node tools/tank-era-test.mjs   (Server NP_BASE)
+// Lobby zeigt die Auswahl. 21.10.: Militärfahrzeuge nur auf großen Karten – Hafen mit ?vehicles=1 hat nur zivile.
+// Aufruf: node tools/tank-era-test.mjs   (Server NP_BASE)
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -32,9 +33,9 @@ try {
   check(r.seats.length === 6 && r.mech, `1. WK: 6 Mann (${r.seats.join(', ')})`);
   check(/57 mm/.test(r.gun) && Array.isArray(r.limits), `1. WK: ${r.gun}, Schwenkbereich ±${r.limits ? r.limits[1] : '?'}`);
   await p.close();
-  // 2) Hafen mit ?panzer=wk2 → Kampfpanzer der Autoaufstellung werden 2.-WK-Panzer, Geländewagen bleiben
-  ({ p, ok } = await match('mode=tdm&map=hafen&vehicles=1&panzer=wk2'));
-  check(ok, 'Hafen geladen, Fahrzeuge da');
+  // 2) Grenzland mit ?panzer=wk2 → Kampfpanzer der Stellplätze werden 2.-WK-Panzer, Geländewagen bleiben
+  ({ p, ok } = await match('mode=tdm&map=grenzland&vehicles=1&panzer=wk2'));
+  check(ok, 'Grenzland geladen, Fahrzeuge da');
   r = await p.evaluate(() => {
     const G = window.__game, V = G.vehicles;
     const types = V.list.map((v) => v.type);
@@ -51,15 +52,26 @@ try {
     }
     return { types, thermal: v ? !!v.def.noThermal : null, mg, seats: v ? v.seats.length : 0, heavy: h ? { team: h.spawnTeam, gun: h.seats[1].weapons[0].def.name, hp: h.maxHealth } : null };
   });
-  check(r.types.includes('wk2') && r.types.includes('wk2h') && !r.types.includes('mbt') && r.types.includes('jeep'), `Hafen ?panzer=wk2: ${r.types.join(', ')}`);
+  check(r.types.includes('wk2') && r.types.includes('wk2h') && !r.types.includes('mbt') && r.types.includes('jeep'), `Grenzland ?panzer=wk2: ${[...new Set(r.types)].join(', ')}`);
   check(r.heavy && r.heavy.team === 'B' && /88 mm/.test(r.heavy.gun), `2. WK Team B: schwerer Panzer (${r.heavy ? r.heavy.gun + ', ' + r.heavy.hp + ' LP' : '?'})`);
   check(r.seats === 5 && r.thermal === true, `2. WK: 5 Mann, kein Wärmebild`);
   check(r.mg && r.mg.w === 'wk2_mg' && Math.abs(r.mg.yaw + 0.45) < 0.02, `Bug-MG im Kugelstand begrenzt (${r.mg ? r.mg.yaw.toFixed(2) : '?'} rad)`);
   await p.close();
-  // 3) Lobby: Auswahl „Panzer-Generation“
+  // 2b) Hafen (mittel) mit ?vehicles=1 → keine Panzer/Geländewagen, nur die zivilen Fahrzeuge der Karte
+  ({ p, ok } = await match('mode=tdm&map=hafen&vehicles=1&panzer=wk2'));
+  r = await p.evaluate(() => { const V = window.__game.vehicles; return { types: V.list.map((v) => v.type), civilOnly: V.civilOnly, spawn: !!V.spawnVehicle('mbt', window.__game.player.position.clone(), 0, 'A') }; });
+  check(ok && r.types.length > 0 && r.types.every((t) => ['pkw', 'transporter', 'stapler', 'zugmaschine'].includes(t)) && r.civilOnly && !r.spawn, `Hafen ?vehicles=1: nur zivile (${[...new Set(r.types)].join(', ')}), Konsole spawnVehicle('mbt') abgelehnt`);
+  await p.close();
+  // 3) Lobby: Auswahl „Panzer-Generation“ (nur auf großen Karten; auf Hafen ein Hinweis)
   const lp = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
   lp.on('pageerror', (e) => errors.push(e.message));
   await lp.goto(`${BASE}spielen.html`);
+  await lp.waitForFunction(() => document.querySelector('[data-map="hafen"]'), null, { timeout: 120000 }).catch(() => null);
+  await lp.evaluate(() => { const b = document.querySelector('[data-map="hafen"]'); if (b) b.click(); });
+  await sleep(300);
+  const small = await lp.evaluate(() => ({ veh: document.querySelectorAll('[data-veh]').length, era: document.querySelectorAll('[data-era]').length, note: !!document.querySelector('.lb-veh-off') }));
+  check(small.veh === 0 && small.era === 0 && small.note, `Lobby Hafen: keine Panzer-Auswahl, Hinweis auf große Karten (${JSON.stringify(small)})`);
+  await lp.evaluate(() => { const b = document.querySelector('[data-map="grenzland"]'); if (b) b.click(); });
   await lp.waitForFunction(() => document.querySelector('[data-veh]'), null, { timeout: 120000 }).catch(() => null);
   const n = await lp.evaluate(() => document.querySelectorAll('[data-era]').length);
   await lp.evaluate(() => { const b = document.querySelector('[data-era="wk1"]'); if (b) b.click(); });
