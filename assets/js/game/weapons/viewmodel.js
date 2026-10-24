@@ -16,7 +16,7 @@
 // Animationen 09.10. (anim/): Nachlade-Varianten mit Magazin entlang der Schachtachse (magwell.js, reloads.js), vier
 // Inspektionen je Mechanik + Kammer-Patrone (inspects.js), Ziehen je Klasse, Bereitmachen, Gesten, Posen (moves.js).
 import * as THREE from 'three';
-import { createWeaponModel, setMagRounds } from './models.js';
+import { createWeaponModel, setMagRounds, holdWeaponModel, lightTier, hasWeaponModel } from './models.js';
 import { WEAPONS, weaponHandling } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
 import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE, MELEE_STYLES } from './gunsmith/handling.js';
@@ -263,6 +263,7 @@ export class ViewModel {
     let entry = this._models.get(mk);
     if (entry) return entry;
     const model = createWeaponModel(key, { lod: 'first', att: ak ? att : null });
+    const release = holdWeaponModel(key);   // Freigabe je Waffe (models.js, 24.10.): gehalten bis dispose()
     model.traverse(o => { if (o.isMesh) { const t = !!(o.material && o.material.transparent); o.castShadow = this._selfShadow && !t; o.receiveShadow = this._selfShadow && !t; o.frustumCulled = false; } });
     if (this._camos.get(id)) applyCamo(model, this._camos.get(id));
     const ud = model.userData;
@@ -271,7 +272,7 @@ export class ViewModel {
     if (rg && trg && !rg.userData.trigger) rg.userData.trigger = rg.worldToLocal(trg.getWorldPosition(new THREE.Vector3())).add(new THREE.Vector3(0, 0, -0.0045)).toArray().map(v => Math.round(v * 1e4) / 1e4);   // Vorderseite des Abzugs
     const rest = new Map();
     for (const [n, p] of Object.entries(ud.parts)) rest.set(n, { pos: p.position.clone(), quat: p.quaternion.clone(), vis: p.visible });
-    entry = { id, key, model, ud, rest, att: ak };
+    entry = { id, key, model, ud, rest, att: ak, release };
     // Arbeitsstelle der Stützhand beim Nachladen (Modellraum, Ruhelage) für _frameWork
     const h0 = handlingFor(key), an = ud.anchors;
     const work = h0.reload === 'revolver' ? an.cylGrab : h0.reload === 'rocket' ? (an.rocketGrab || ud.muzzle) : h0.reload === 'shell' ? an.shellPort : (an.magGrab || ud.magazine);
@@ -1743,7 +1744,7 @@ export class ViewModel {
 
   /** Alle Waffenmodelle vorbauen und Shader kompilieren (z. B. im Ladebildschirm) – auch die der Effekte
    *  (Mündungsfeuer, Rauch, Hülsen je Art), damit der erste Schuss kein Programm mehr linkt. */
-  warmup(renderer, ids = Object.keys(ID_TO_MODEL)) {
+  warmup(renderer, ids = Object.keys(ID_TO_MODEL), more = []) {
     const prev = this.cur;
     const holder = new THREE.Group();
     const shells = new Set();
@@ -1751,6 +1752,13 @@ export class ViewModel {
       const e = this._getModel(id, (this._defFor(id)?.model) || ID_TO_MODEL[id] || id);
       shells.add(handlingFor(e.key).shell);
       if (e !== prev) holder.add(e.model);
+    }
+    // 24.10. (V4): übrige Waffen (Schießstand, Waffenspiel) nur in der leichten Fassung – gleiche Materialien, also
+    // gleiche Shader und Texturen; die volle Fassung entsteht erst beim Ausrüsten
+    for (const id of more) {
+      const key = (this._defFor(id)?.model) || ID_TO_MODEL[id] || id;
+      shells.add(handlingFor(key).shell);
+      holder.add(createWeaponModel(key, { lod: 'first', tier: hasWeaponModel(key) ? null : lightTier() }));   // schon voll gebaut: die nehmen
     }
     this.shells.prepare(shells);
     if (!this.flash.group.parent) holder.add(this.flash.group);   // noch keine Waffe gezogen
@@ -1803,6 +1811,7 @@ export class ViewModel {
     this.arms.dispose();
     this.sun.dispose(); this.hemi.dispose(); this.rim.dispose();
     if (this._ownEnv) { if (this.scene.environment === this._ownEnv) this.scene.environment = null; this._ownEnv.dispose(); }
+    for (const e of this._models.values()) e.release?.();
     this._models.clear();
     if (this.G?.viewmodel?.rig === this) this.G.viewmodel.rig = null;
   }

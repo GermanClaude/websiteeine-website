@@ -4,7 +4,7 @@
 // Querrillen an Vorder- und Rückenteil, Fuge des Rückenteils, Stift, Zierfeld (symmetrisch, damit es rechts nicht
 // spiegelverkehrt steht). Gezeichnet wird direkt in Fotopixeln; slideUV/frameUV bilden Modellpunkte auf den Atlas ab.
 import * as THREE from 'three';
-import { canvas, toTexture, cached, heightToNormal, fbm, rng, bilinear } from './textures.js';
+import { canvas, toTexture, cached, heightToNormal, fbm, rng, bilinear, halfMaps } from './textures.js';
 import * as R from './p9-ref.js';
 
 // ---------------------------------------------------------------- Atlas-Abbildung
@@ -166,18 +166,21 @@ function slideBand(kind) {
   return c;
 }
 
-export function p9SlideMaps() {
-  return cached('p9slide', () => {
-    const h = slideBand('h');
-    const hh = readHeight(h), rg = rng(61);
-    for (let i = 0; i < hh.length; i++) hh[i] += (rg() - 0.5) * 0.05;     // Strahlkorn (nach dem Weichzeichnen ≈ 0,1 mm)
-    blur(hh, S.W, S.H);
-    return {
-      map: toTexture(slideBand('a'), { srgb: true, repeat: false, aniso: 8 }),
-      normalMap: heightToNormal(hh, S.W, S.H, 3.2),
-      roughnessMap: toTexture(slideBand('r'), { repeat: false, aniso: 8 }),
-    };
-  });
+/** Schlitten-Atlas; lite (Handy, 24.10.): halbe Kantenlänge = erste Mipmap-Stufe des PC-Atlas (¼ Speicher). */
+export function p9SlideMaps(lite = false) {
+  if (lite) return cached('p9slide:lite', () => ({ key: 'p9slide:lite', ...halfMaps(slideMaps()) }));
+  return cached('p9slide', () => ({ key: 'p9slide', ...slideMaps() }));
+}
+function slideMaps() {
+  const h = slideBand('h');
+  const hh = readHeight(h), rg = rng(61);
+  for (let i = 0; i < hh.length; i++) hh[i] += (rg() - 0.5) * 0.05;     // Strahlkorn (nach dem Weichzeichnen ≈ 0,1 mm)
+  blur(hh, S.W, S.H);
+  return {
+    map: toTexture(slideBand('a'), { srgb: true, repeat: false, aniso: 8 }),
+    normalMap: heightToNormal(hh, S.W, S.H, 3.2),
+    roughnessMap: toTexture(slideBand('r'), { repeat: false, aniso: 8 }),
+  };
 }
 
 // ---------------------------------------------------------------- Rahmen
@@ -237,19 +240,22 @@ function frameLayer(kind) {
   return c;
 }
 
-export function p9FrameMaps() {
-  return cached('p9frame', () => {
-    const h = readHeight(frameLayer('h'));
-    // feines Spritzgusskorn auf der ganzen Fläche
-    const n = fbm(512, 256, { seed: 67, period: 64, octaves: 2, gain: 0.5 });
-    for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) h[y * F.W + x] += (bilinear(n, 512, 256, x / 4, y / 4) - 0.5) * 0.035;
-    blur(h, F.W, F.H);
-    return {
-      map: toTexture(frameLayer('a'), { srgb: true, repeat: false, aniso: 8 }),
-      normalMap: heightToNormal(h, F.W, F.H, 3.0),
-      roughnessMap: toTexture(frameLayer('r'), { repeat: false, aniso: 8 }),
-    };
-  });
+/** Rahmen-Atlas; lite (Handy, 24.10.): halbe Kantenlänge = erste Mipmap-Stufe des PC-Atlas (¼ Speicher). */
+export function p9FrameMaps(lite = false) {
+  if (lite) return cached('p9frame:lite', () => ({ key: 'p9frame:lite', ...halfMaps(frameMaps()) }));
+  return cached('p9frame', () => ({ key: 'p9frame', ...frameMaps() }));
+}
+function frameMaps() {
+  const h = readHeight(frameLayer('h'));
+  // feines Spritzgusskorn auf der ganzen Fläche
+  const n = fbm(512, 256, { seed: 67, period: 64, octaves: 2, gain: 0.5 });
+  for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) h[y * F.W + x] += (bilinear(n, 512, 256, x / 4, y / 4) - 0.5) * 0.035;
+  blur(h, F.W, F.H);
+  return {
+    map: toTexture(frameLayer('a'), { srgb: true, repeat: false, aniso: 8 }),
+    normalMap: heightToNormal(h, F.W, F.H, 3.0),
+    roughnessMap: toTexture(frameLayer('r'), { repeat: false, aniso: 8 }),
+  };
 }
 
 /** UVs je Dreieck setzen (Geometrie wird dafür entindiziert); fn(x, v, u, nx, ny, nz) → [U, V]. */

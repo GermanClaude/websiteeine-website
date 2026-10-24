@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { getMat, UV_SCALE, lodInfo, LOD_SKIP } from './materials.js';
+import { getMat, UV_SCALE, lodInfo, LOD_SKIP, liteKey } from './materials.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
 
@@ -201,11 +201,13 @@ export function clearPartCache(key = null, tier = null) {
 }
 
 export class Builder {
-  constructor(lod = 'first') {
+  // tier: feste Detailstufe 'max' | 'std' | 'lite' (24.10., V4 – z. B. Schießstand: alle Waffen leicht vorbauen),
+  // sonst nach DETAIL
+  constructor(lod = 'first', tier = null) {
     this.lod = lod;
     this.hi = lod !== 'third';
-    this.max = this.hi && DETAIL.max;
-    this.lite = this.hi && !this.max && DETAIL.lite;
+    this.max = this.hi && (tier ? tier === 'max' : DETAIL.max);
+    this.lite = this.hi && !this.max && (tier ? tier === 'lite' : DETAIL.lite);
     this.parts = new Map();
     this.anchors = [];
     this.meta = {};
@@ -249,6 +251,7 @@ export class Builder {
   }
 
   _push(geo, mat, o, keepUV = false) {
+    if (this.lite) mat = liteKey(mat);   // Handy: Atlas-Materialien mit eigenem, kleinerem Atlas (V4)
     const part = this.parts.get(o.part || 'static');
     if (!part) throw new Error('Unbekanntes Teil ' + o.part);
     if (!this.hi) {
@@ -489,7 +492,7 @@ export class Builder {
             geo.computeBoundingBox();
           }
           const mesh = new THREE.Mesh(geo, getMat(items[0].mat));
-          mesh.name = `${p.name}:${k.split('|')[0]}`;
+          mesh.name = `${p.name}:${k.split('|')[0].replace(/@lite$/, '')}`;   // Handy-Atlas: gleicher Name
           mesh.renderOrder = items[0].order;
           if (getMat(items[0].mat).transparent) mesh.castShadow = false;
           else { mesh.castShadow = true; }

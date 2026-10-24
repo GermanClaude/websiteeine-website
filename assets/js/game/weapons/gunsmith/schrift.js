@@ -5,9 +5,10 @@
 // (gleiche Schrift, Größe, Ränder, Pixelraster), die Fläche bildet nur noch auf ihr Rechteck im Atlas ab. Senkrechte
 // Felder werden wie bisher gezeichnet und pixelgenau um 90° gedreht abgelegt (lange Stempel sonst = hohe Spalte).
 // Der Atlas wächst bei Bedarf nach unten (neue Texte einer anderen Detailstufe); die UVs der Netze beziehen sich
-// auf eine feste virtuelle Höhe, die Textur gleicht das über ihre Wiederholung (repeat.y) aus.
+// auf eine feste virtuelle Höhe, die Textur gleicht das über ihre Wiederholung (repeat.y) aus. Am Handy (b.lite) ein
+// eigenes Material mit halb so großer Schrift-Textur (gleiche Aufteilung, gleiche UVs; V4).
 import * as THREE from 'three';
-import { canvas, toTexture, cached } from './textures.js';
+import { canvas, toTexture, cached, halfCanvas } from './textures.js';
 import { defineMat } from './materials.js';
 
 const W = 1024, VH = 8192, PAD = 8, ALIGN = 8;
@@ -22,11 +23,11 @@ function measure(text, px, weight) {
   return { w: Math.ceil(g.measureText(text).width) + 8, h: Math.ceil(px * 1.2) };
 }
 
-// Zustand je Waffe im Textur-Cache (disposeTextures gibt ihn mit frei)
+// Zustand je Waffe im Textur-Cache (disposeTextures/dropCached geben ihn mit frei); tex: Textur je Fassung (pc, lite)
 function atlasOf(key) {
   return cached('schrift:' + key, () => ({
-    key, cells: new Map(), order: [], sky: [[0, W, 0]], H: 0, c: null, tex: null,
-    dispose() { this.tex?.dispose(); this.tex = null; this.c = null; },
+    key, cells: new Map(), order: [], sky: [[0, W, 0]], H: 0, tex: {},
+    dispose() { for (const t of Object.values(this.tex)) t.dispose(); this.tex = {}; },
   }));
 }
 
@@ -73,21 +74,21 @@ function draw(g, cell) {
   g.restore();
 }
 
-// Leinwand (neu) anlegen bzw. vergrößern und alle bzw. die neuen Felder zeichnen
-function paint(A) {
-  const need = Math.max(64, Math.ceil(A.H / 64) * 64);
-  if (!A.c || A.c.height < need) {
-    const c = canvas(W, need), g = c.getContext('2d');
-    for (const cell of A.order) draw(g, cell);
-    A.c = c;
-    if (A.tex) { A.tex.dispose(); A.tex.image = c; A.tex.needsUpdate = true; }
-  } else {
-    const g = A.c.getContext('2d');
-    for (const cell of A.order) if (!cell.drawn) draw(g, cell);
-    if (A.tex) A.tex.needsUpdate = true;
-  }
-  for (const cell of A.order) cell.drawn = true;
-  if (A.tex) A.tex.repeat.set(1, VH / A.c.height);
+// Leinwand mit allen Feldern; lite: halbe Kantenlänge = erste Mipmap-Stufe (textures.js halfCanvas)
+function render(A, lite) {
+  const H = Math.max(64, Math.ceil(A.H / 64) * 64);
+  const c = canvas(W, H), g = c.getContext('2d', lite ? { willReadFrequently: true } : undefined);   // Handy: halfCanvas liest zurück
+  for (const cell of A.order) draw(g, cell);
+  return lite ? halfCanvas(c, true) : c;
+}
+
+// Textur einer Fassung anlegen bzw. nach neuen Feldern neu zeichnen (Größe geändert → GPU-Textur neu)
+function paint(A, lite) {
+  const v = lite ? 'lite' : 'pc', c = render(A, lite), t = A.tex[v];
+  if (t) { if (t.image.height !== c.height) t.dispose(); t.image = c; t.needsUpdate = true; }
+  else { A.tex[v] = toTexture(c, { srgb: true, repeat: false, aniso: 8 }); A.tex[v].flipY = false; }   // v zählt von oben
+  A.tex[v].repeat.set(1, VH / (c.height * (lite ? 2 : 1)));
+  return A.tex[v];
 }
 
 /** Rechteck eines Texts im Atlas der Waffe (legt ihn bei Bedarf an). */
@@ -99,25 +100,22 @@ function cellOf(A, text, { vertical = false, px = 64, weight = '600' } = {}) {
   const cw = vertical ? h : w, ch = vertical ? w : h;   // Maße der früheren Einzeltextur
   const at = place(A, w, h);                              // abgelegt immer waagrecht (w × h)
   if (!at) throw new Error(`Schrift-Atlas ${A.key} voll („${text}“)`);
-  cell = { text, px, weight, vertical, w, h, cw, ch, ox: at.ox, oy: at.oy, drawn: false };
+  cell = { text, px, weight, vertical, w, h, cw, ch, ox: at.ox, oy: at.oy };
   A.H = Math.max(A.H, at.oy + h + PAD / 2);
   A.cells.set(id, cell); A.order.push(cell);
-  if (A.c) paint(A);   // Material besteht schon: sofort nachzeichnen
+  for (const v of Object.keys(A.tex)) paint(A, v === 'lite');   // Material besteht schon: nachzeichnen
   return cell;
 }
 
 /** Materialschlüssel der Schrift einer Waffe (helle, gravierte Schrift auf transparentem Grund, wie bisher). */
 export function schriftMat(key) {
   const mk = 'schrift:' + key;
-  defineMat(mk, () => {
-    const A = atlasOf(key);
-    paint(A);
-    const t = toTexture(A.c, { srgb: true, repeat: false, aniso: 8 });
-    t.flipY = false;                      // v zählt von oben (Leinwand wächst nach unten)
-    t.repeat.set(1, VH / A.c.height);
-    A.tex = t;
-    return new THREE.MeshStandardMaterial({ map: t, color: 0xb9bcc0, metalness: 0.6, roughness: 0.45, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  });
+  const make = (lite) => () => {
+    const m = new THREE.MeshStandardMaterial({ map: paint(atlasOf(key), lite), color: 0xb9bcc0, metalness: 0.6, roughness: 0.45, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    m.userData.texKey = 'schrift:' + key;
+    return m;
+  };
+  defineMat(mk, make(false), { lite: make(true), atlas: true });
   return mk;
 }
 

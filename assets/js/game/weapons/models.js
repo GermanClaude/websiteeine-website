@@ -23,9 +23,9 @@ import { knife, frag, semtex } from './gunsmith/gear.js';
 import { k36, bx20, g7, wespe, keiler, lm8 } from './gunsmith/guns-wave2.js';
 import { titan, hagel, kobra, donner, rocket, hammer, trommel } from './gunsmith/guns-heavy.js';
 import { karambit, machete, tomahawk, kampfaxt, schlagstock, kampfstock, spaten, flash, smoke, impact, molotov, plate } from './gunsmith/gear2.js';
-import { applyCamo, disposeCamos } from './gunsmith/camos.js';
+import { applyCamo, disposeCamos, disposeCamosFor } from './gunsmith/camos.js';
 export { setMagRounds } from './gunsmith/magfill.js';
-import { disposeMaterials } from './gunsmith/materials.js';
+import { disposeMaterials, freeAtlasMaterials } from './gunsmith/materials.js';
 import { disposeTextures } from './gunsmith/textures.js';
 import { magFillFor, attachMagFill, disposeMagFill } from './gunsmith/magfill.js';
 import { attachToBuilder, attachToRoot } from './gunsmith/attach.js';
@@ -55,10 +55,10 @@ const PART_NAMES = ['selector', 'dustCover', 'mag', 'bolt', 'charge', 'pump', 's
 
 const cache = new Map();
 
-function buildTemplate(key, lod, att = null) {
+function buildTemplate(key, lod, att = null, tier = null) {
   const make = BUILDERS[key];
   if (!make) throw new Error(`Unbekanntes Waffenmodell: ${key}`);
-  const b = new Builder(lod === 'third' ? 'third' : 'first');
+  const b = new Builder(lod === 'third' ? 'third' : 'first', lod === 'third' ? null : tier);
   b.key = key;   // Bauteil-Cache (b.shared): teure Netze je Modell × Stufe nur einmal, in allen Aufsatz-Varianten geteilt
   b.att = att;
   make(b);
@@ -124,12 +124,24 @@ function cloneTemplate(tpl) {
   return bindUserData(c, meta);
 }
 
-function getTemplate(key, lod, att = null) {
+// Detailstufe einer Ego-Vorlage: fest vorgegeben ('max' | 'std' | 'lite', 24.10. V4) oder nach DETAIL (Grafikstufe)
+const tierOf = (tier) => tier || (DETAIL.max ? 'max' : DETAIL.lite ? 'lite' : 'std');
+const tplKey = (key, lod, ak, tier) => key + ':' + lod + (lod !== 'third' ? ({ max: ':max', lite: ':lite' }[tierOf(tier)] || '') : '') + (ak ? '|' + ak : '');
+
+function getTemplate(key, lod, att = null, tier = null) {
   const ak = attKey(att);
-  const k = key + ':' + lod + (lod !== 'third' ? (DETAIL.max ? ':max' : DETAIL.lite ? ':lite' : '') : '') + (ak ? '|' + ak : '');
+  const k = tplKey(key, lod, ak, tier);
   let t = cache.get(k);
-  if (!t) { t = buildTemplate(key, lod, ak ? att : null); cache.set(k, t); }
+  if (!t) { t = buildTemplate(key, lod, ak ? att : null, tier); cache.set(k, t); }
   return t;
+}
+
+/** Leichte Ego-Stufe des Geräts ('lite' am Handy, sonst 'std') – Vorbau ohne volle Fassung (Schießstand, Waffenspiel). */
+export function lightTier() { return DETAIL.lite ? 'lite' : 'std'; }
+
+/** Ist die Vorlage schon gebaut (kein Bau-Hänger)? tier wie bei createWeaponModel. */
+export function hasWeaponModel(key, { lod = 'first', att = null, tier = null } = {}) {
+  return cache.has(tplKey(key, lod === 'third' ? 'third' : 'first', attKey(att), tier));
 }
 
 // Optik-Montage für Waffen mit Kimme und Korn: vor der Kimme, Oberseite des Werksmodells per Strahl von oben abgetastet
@@ -158,9 +170,9 @@ function mountFor(key) {
  * Erzeugt ein Waffenmodell. Gebaute Modelle werden pro Schlüssel + LOD gecacht;
  * Rückgabe ist ein günstiger Klon (geteilte Geometrien und Materialien).
  */
-export function createWeaponModel(key, { lod = 'first', camo = null, att = null } = {}) {
-  if (camo && camo !== 'werk') return applyCamo(createWeaponModel(key, { lod, att }), camo);
-  if (att && attKey(att) && lod !== 'showcase') return cloneTemplate(getTemplate(key, lod === 'third' ? 'third' : 'first', att));
+export function createWeaponModel(key, { lod = 'first', camo = null, att = null, tier = null } = {}) {
+  if (camo && camo !== 'werk') return applyCamo(createWeaponModel(key, { lod, att, tier }), camo);
+  if (att && attKey(att) && lod !== 'showcase') return cloneTemplate(getTemplate(key, lod === 'third' ? 'third' : 'first', att, tier));
   if (lod === 'showcase') {
     const inner = cloneTemplate(getTemplate(key, 'first'));
     const info = inner.userData.info;
@@ -175,7 +187,7 @@ export function createWeaponModel(key, { lod = 'first', camo = null, att = null 
     holder.userData.scale = s;
     return holder;
   }
-  return cloneTemplate(getTemplate(key, lod === 'third' ? 'third' : 'first'));
+  return cloneTemplate(getTemplate(key, lod === 'third' ? 'third' : 'first', null, tier));
 }
 
 /** Metadaten ohne Instanz (Dreiecke, Größe, Visier, Art). */
@@ -183,9 +195,51 @@ export function getWeaponModelInfo(key, lod = 'first', att = null) {
   return { ...getTemplate(key, lod === 'third' ? 'third' : 'first', att).userData.__meta.info };
 }
 
-/** Baut alle Modelle vorab (z. B. während des Ladebildschirms), damit später keine Ruckler entstehen. */
-export function preloadWeaponModels(keys = MODEL_KEYS, lods = ['first', 'third']) {
-  for (const k of keys) for (const l of lods) getTemplate(k, l);
+/** Baut alle Modelle vorab (z. B. während des Ladebildschirms), damit später keine Ruckler entstehen. tier: feste
+ *  Ego-Stufe (z. B. lightTier() im Schießstand – die volle Fassung entsteht erst beim Ausrüsten). */
+export function preloadWeaponModels(keys = MODEL_KEYS, lods = ['first', 'third'], tier = null) {
+  for (const k of keys) for (const l of lods) getTemplate(k, l, null, tier);
+}
+
+// ---------------------------------------------------------------- Freigabe je Waffe (24.10.2026, Vorarbeit V4)
+// Ego-Vorlagen blieben bisher die ganze Sitzung stehen (jede Waffe, jede Stufe, jede Aufsatz-Kombination, dazu die
+// Foto-Atlanten). Halter (Viewmodel, Lobby-Vorschau) melden ihre Waffe an; beim Matchstart gibt freeIdleWeaponModels
+// alles frei, was niemand hält und das neue Match nicht braucht – Geometrie, Bauteil-Cache, Atlas-Texturen.
+const holds = new Map();   // Modellschlüssel → Zahl der Halter
+
+/** Waffe als benutzt anmelden; liefert die Abmeldung (mehrfacher Aufruf harmlos). */
+export function holdWeaponModel(key) {
+  holds.set(key, (holds.get(key) || 0) + 1);
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    const n = (holds.get(key) || 1) - 1;
+    if (n > 0) holds.set(key, n); else holds.delete(key);
+  };
+}
+
+/**
+ * Ego-Vorlagen freigeben, die niemand hält: Waffen außerhalb von keep ganz, Waffen in keep nur in Stufen, die das
+ * Gerät gerade nicht nutzt (aktuelle und leichte Stufe bleiben). Danach Atlas-Materialien ohne Vorlage samt Texturen
+ * und Tarnklonen. Liefert die Zahl der freigegebenen Vorlagen.
+ */
+export function freeIdleWeaponModels(keep = []) {
+  const want = new Set(keep.filter(Boolean)), cur = tierOf(null), light = lightTier(), gone = new Set();
+  for (const [k, t] of [...cache]) {
+    const m = /^([^:]+):first(?::(max|lite))?(?:\||$)/.exec(k);
+    if (!m) continue;
+    const key = m[1], tier = m[2] || 'std';
+    if (holds.has(key) || (want.has(key) && (tier === cur || tier === light))) continue;
+    t.traverse((o) => { if (o.isMesh && o.name !== 'rounds') o.geometry.dispose(); });   // Patronen: geteilt (magfill)
+    cache.delete(k);
+    gone.add(key + ':' + tier);
+  }
+  for (const kt of gone) { const [key, tier] = kt.split(':'); clearPartCache(key, tier); mounts.delete(key); }
+  const used = new Set();
+  for (const t of cache.values()) t.traverse((o) => { if (o.isMesh && o.material && o.material.name) used.add(o.material.name.slice(3)); });
+  disposeCamosFor(freeAtlasMaterials(used));
+  return gone.size;
 }
 
 /**

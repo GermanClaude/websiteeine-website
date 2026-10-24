@@ -757,9 +757,17 @@ function matchAssetJobs(cfg, world) {
     if (key && models && typeof models.preloadWeaponModels === 'function') add(`m:${key}:${lod}`, () => models.preloadWeaponModels([key], [lod]));
   };
   const allWeapons = cfg.modeId === 'gun' || cfg.modeId === 'training';
-  // Ego: Ausrüstung (gun/training: alle Waffen, siehe WeaponController.warmup) + Requisiten des Viewmodels
-  const own = allWeapons ? Object.keys(W) : [cfg.loadout.primary, cfg.loadout.secondary];
+  // Ego: Ausrüstung + Requisiten des Viewmodels; gun/training (24.10., V4): alle übrigen Waffen nur leicht (Standard
+  // am PC, lite am Handy) – die volle Fassung entsteht beim Ausrüsten (vorher: alle Waffen voll vorgebaut)
+  const own = [cfg.loadout.primary, cfg.loadout.secondary];
   for (const id of [...own, 'knife', 'frag', 'semtex']) addModel(modelOf(id), 'first');
+  if (allWeapons && models && typeof models.lightTier === 'function') {
+    // (schon voll gebaut – Ausrüstung, Requisiten, vorige Runde: nicht zusätzlich leicht bauen)
+    for (const id of Object.keys(W)) {
+      const key = modelOf(id);
+      if (key) add(`m:${key}:first:leicht`, () => { if (!models.hasWeaponModel(key)) models.preloadWeaponModels([key], ['first'], models.lightTier()); });
+    }
+  }
   // Ego: einmalige Viewmodel-Texturen (Ärmel-Tarnmuster des Teams, Stoff, Mündungsfeuer …), weapons/viewmodel.js
   const vm = G.modules.viewmodel;
   if (vm && typeof vm.viewModelWarmupSteps === 'function') {
@@ -948,6 +956,20 @@ async function runStart(config, gen) {
     safe('hud.hide', () => G.hud.hide());
 
     vmBase = new Set(G.viewmodel.scene.children);
+    // Freigabe je Waffe (24.10., V4): Ego-Vorlagen und Foto-Atlanten von Waffen, die niemand hält und dieses Match nicht
+    // braucht (z. B. in der Lobby durchprobierte Waffen, andere Grafikstufe)
+    safe('waffenFreigabe', () => {
+      const M = G.modules.models, W = G.data.WEAPONS || {};
+      if (!M || typeof M.freeIdleWeaponModels !== 'function') return;
+      const ids = cfg.modeId === 'gun' || cfg.modeId === 'training' ? Object.keys(W) : [cfg.loadout.primary, cfg.loadout.secondary, cfg.loadout.melee];
+      // + Requisiten, die jedes Viewmodel baut (Messer, Granaten, Platte)
+      M.freeIdleWeaponModels([...ids.map((id) => W[id] && W[id].model), 'knife', 'frag', 'semtex', 'impact', 'molotov', 'flash', 'smoke', 'plate']);
+      // Vorarbeit freigegebener Vorlagen wieder einplanen (sonst übersprungen → Bau erst beim Ausrüsten)
+      for (const k of [...warmed]) {
+        const m = /^m:([^:]+):first(:leicht)?$/.exec(k);
+        if (m && !M.hasWeaponModel(m[1], { tier: m[2] ? M.lightTier() : null })) warmed.delete(k);
+      }
+    });
     const onProgress = (p) => { if (live()) safe('menus', () => G.menus.showLoading(Math.min(0.85, p * 0.85))); };
     const nextStep = async (p) => {
       await nextFrame();

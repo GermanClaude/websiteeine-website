@@ -213,8 +213,11 @@ export class WeaponController {
     const r = this.G.renderer && this.G.renderer.renderer;
     if (!vm || typeof vm.warmup !== 'function' || !r) return;
     const mode = this.G.match && this.G.match.modeId;
-    const ids = mode === 'gun' || mode === 'training' ? Object.keys(this._weapons()) : this.slots.map((s) => s.id);
-    try { vm.warmup(r, ids.filter((id) => this._def(id))); } catch (err) { this._vmError('warmup', err); }
+    const ids = this.slots.map((s) => s.id);
+    // Schießstand/Waffenspiel (24.10., V4): volle Fassung nur für die Ausrüstung, alle übrigen Waffen leicht (Shader,
+    // Texturen) – vorher baute der Ladebildschirm jede Waffe in der vollen Fassung
+    const more = mode === 'gun' || mode === 'training' ? Object.keys(this._weapons()).filter((id) => !ids.includes(id)) : [];
+    try { vm.warmup(r, ids.filter((id) => this._def(id)), more.filter((id) => this._def(id))); } catch (err) { this._vmError('warmup', err); }
   }
 
   /* ================================================================ Ausrüstung */

@@ -325,7 +325,7 @@ export function applyCamo(root, id) {
     const base = o.userData.baseMat || o.material;
     const key = keyOf(base);
     if (!key) return;
-    const target = CAMO_TARGETS.has(key) || key === 'lodMatte' || (metallic && key === 'lodMetal');
+    const target = CAMO_TARGETS.has(key.replace(/@lite$/, '')) || key === 'lodMatte' || (metallic && key === 'lodMetal');   // @lite: Handy-Atlas (V4)
     if (!target) return;
     if (!o.userData.baseMat) o.userData.baseMat = base;
     o.material = def ? camoMaterial(key, id) : base;
@@ -335,6 +335,12 @@ export function applyCamo(root, id) {
   });
   root.userData.camo = def ? id : null;
   return root;
+}
+
+/** Tarnklone freigegebener Atlas-Materialien entsorgen (Freigabe je Waffe, models.js freeIdleWeaponModels). */
+export function disposeCamosFor(baseKeys) {
+  const set = new Set(baseKeys);
+  for (const [k, m] of [...matCache]) if (set.has(k.slice(0, k.lastIndexOf('|')))) { m.dispose(); matCache.delete(k); }
 }
 
 export function disposeCamos() {

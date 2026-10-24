@@ -2,7 +2,7 @@
 // Seiten gleich): Würfelmuster der Griffschale, Gummikappe mit Rippen, Riemenschlitze, eingeformte Schrift.
 // Gravuren (Wahlhebelstellungen, Typ, Nummer, Schienenzahlen) sind Schriftfelder in einer gemeinsamen Schrift-Textur
 // der Waffe (schrift.js, 24.10.) – so stehen sie auf jeder Seite lesbar.
-import { canvas, toTexture, cached, heightToNormal, fbm, bilinear } from './textures.js';
+import { canvas, toTexture, cached, heightToNormal, fbm, bilinear, halfMaps } from './textures.js';
 import * as R from './m17-ref.js';
 
 // ---------------------------------------------------------------- Atlas Schaft + Griff
@@ -90,15 +90,18 @@ function readHeight(c) {
   for (let i = 0; i < h.length; i++) h[i] = d[i * 4] / 255;
   return h;
 }
-export function m17FurnMaps() {
-  return cached('m17furn', () => {
-    const h = readHeight(furnLayer('h'));
-    const n = fbm(512, 256, { seed: 79, period: 64, octaves: 2 });
-    for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) h[y * F.W + x] += (bilinear(n, 512, 256, x / 4, y / 4) - 0.5) * 0.04;
-    return {
-      map: toTexture(furnLayer('a'), { srgb: true, repeat: false, aniso: 8 }),
-      normalMap: heightToNormal(h, F.W, F.H, 2.4),
-      roughnessMap: toTexture(furnLayer('r'), { repeat: false, aniso: 8 }),
-    };
-  });
+/** Atlas Schaft + Griff; lite (Handy, 24.10.): halbe Kantenlänge = erste Mipmap-Stufe des PC-Atlas (¼ Speicher). */
+export function m17FurnMaps(lite = false) {
+  if (lite) return cached('m17furn:lite', () => ({ key: 'm17furn:lite', ...halfMaps(furnMaps()) }));
+  return cached('m17furn', () => ({ key: 'm17furn', ...furnMaps() }));
+}
+function furnMaps() {
+  const h = readHeight(furnLayer('h'));
+  const n = fbm(512, 256, { seed: 79, period: 64, octaves: 2 });
+  for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) h[y * F.W + x] += (bilinear(n, 512, 256, x / 4, y / 4) - 0.5) * 0.04;
+  return {
+    map: toTexture(furnLayer('a'), { srgb: true, repeat: false, aniso: 8 }),
+    normalMap: heightToNormal(h, F.W, F.H, 2.4),
+    roughnessMap: toTexture(furnLayer('r'), { repeat: false, aniso: 8 }),
+  };
 }
