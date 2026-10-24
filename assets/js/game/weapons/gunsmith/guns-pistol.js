@@ -9,7 +9,8 @@ const RAKE = 0.3;
 
 // Magazin im Griff: fällt entlang der Griffachse heraus
 // cal = Kaliber (magfill.js): oberste Patronen an den Lippen bzw. leerer Zubringer (Stahl, beim Wechsel sichtbar)
-function gripMag(b, { u, v, w, len, depth, plate = 'polymer', body = 'steel', rake = RAKE, cal = 'p9' }) {
+// Exportiert (24.10.) für den Pistolen-Baukasten (P-9A, Sperber, Adler …)
+export function gripMag(b, { u, v, w, len, depth, plate = 'polymer', body = 'steel', rake = RAKE, cal = 'p9' }) {
   b.part('mag', 0, v, u);
   const s = Math.sin(rake), c = Math.cos(rake);
   // Körper (im Griff verborgen, sichtbar beim Wechsel)
@@ -52,6 +53,9 @@ export function p9(b) {
         return d;
       };
       // PC (b.max): feineres Netz + Gebrauchsspuren (blanke Kanten am Schlitten, Schmutz in Rillen)
+      // Handy (b.lite): bewusst dasselbe Raster wie Standard – ein gröberes (× 1,4: 37 810 statt 71 666 Dreiecke, auch
+      // × 1,15 oder nur der Schlitten) war im Bildvergleich sichtbar (Hebel, Kanten; 24.10.), die P-9 bleibt optisch
+      // unverändert. Das Handy spart über den halben Atlas (p9Slide@lite/p9Frame@lite, materials.js).
       const sg = surfaceNets(slideF, [-0.0138, P9.bottom - 0.0012, uB - 0.0012], [0.0138, vTop + 0.0012, uF + 0.0012], b.max ? 0.0007 : 0.00115);
       if (b.max) cavityColors(sg, slideF, { r: 0.0008, edge: 0.9, cavity: 0.6 });
       b._push(atlasUV(sg, slideUV), 'p9Slide', { part: 'slide' }, true);
@@ -98,7 +102,7 @@ export function p9(b) {
         if (Math.abs(u - dimple.u) < 0.005 && Math.abs(v - dimple.v) < 0.005) d = Math.max(d, -sdEllipsoid(ax, v, u, 0.0047 + dimple.r - 0.0008, dimple.v, dimple.u, dimple.r, dimple.r, dimple.r));  // Mulde am Bügel
         return d;
       };
-      const fg = surfaceNets(frameF, [-0.0172, R.V(1258), R.U(1698)], [0.0172, R.V(452), R.U(177)], b.max ? 0.0008 : 0.0013);
+      const fg = surfaceNets(frameF, [-0.0172, R.V(1258), R.U(1698)], [0.0172, R.V(452), R.U(177)], b.max ? 0.0008 : 0.0013);   // Handy: Standard-Raster (s. Schlitten)
       if (b.max) cavityColors(fg, frameF, { r: 0.0011, edge: 0.5, cavity: 0.55 });
       b._push(atlasUV(fg, frameUV), 'p9Frame', {}, true);
     });

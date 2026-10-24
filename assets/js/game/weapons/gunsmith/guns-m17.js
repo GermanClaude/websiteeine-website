@@ -70,7 +70,8 @@ export function m17(b) {
   const cu = U(1000), cv = 0.1145;
   b.part('charge', 0, cv, cu);
   b.box('m17Rec', 0.0084, 0.0066, 0.034, 0, cv, cu + 0.016, { part: 'charge', c: 0.001 });
-  b.top('m17Rec', roundRect(-0.0046, cu - 0.0095, 0.0158, cu + 0.0016, 0.0022, 2), 0.0074, cv, { part: 'charge', bevel: 0.0008 });
+  if (b.hi) b.top('m17Rec', roundRect(-0.0046, cu - 0.0095, 0.0158, cu + 0.0016, 0.0022, 2), 0.0074, cv, { part: 'charge', bevel: 0.0008 });
+  else b.box('m17Rec', 0.0204, 0.0074, 0.0111, 0.0056, cv, cu - 0.00395, { part: 'charge', c: 0 });   // Bots: Quader (24.10., ≤ 600 Dreiecke)
   if (b.hi) {
     b.top('m17Rec', roundRect(-0.0214, cu - 0.0095, -0.0052, cu + 0.0026, 0.0028, 2), 0.0068, cv, { part: 'charge', bevel: 0.0008 });
     b.cyl('m17Steel', 0.0009, 0.0009, 0.0072, -0.0062, cv, cu - 0.001, { axis: 'v', part: 'charge', seg: 8 });
@@ -393,9 +394,10 @@ function m17DustCover(b, axis) {
 function m17Birdcage(b, u0, axis) {
   const ro = 0.0104, ri = 0.0062, L = 0.0473, s0 = 0.017, s1 = 0.036;
   const ring = (r, n = 28) => Array.from({ length: n }, (_, i) => [Math.cos(i / n * Math.PI * 2) * r, axis + Math.sin(i / n * Math.PI * 2) * r]);
+  // Bots: ein Zylinder über die ganze Länge (24.10.: Bot-Stufe ≤ 600 Dreiecke; Absätze sind dort ohnehin unsichtbar)
+  if (!b.hi) { b.cyl('m17Steel', ro, ro, L, 0, axis, u0 + L / 2, { seg: 6 }); return u0 + L; }
   b.lathe('m17Steel', [[-0.0016, 0], [-0.0016, 0.0097], [0, 0.0097]], 0, axis, u0, { seg: b.seg(24, 8) });                 // Quetschscheibe
   b.lathe('m17Steel', [[0, 0], [0, ro * 0.92], [0.0012, ro], [0.013, ro]], 0, axis, u0, { seg: b.seg(28, 8) });
-  if (!b.hi) { b.cyl('m17Steel', ro, ro, L - 0.013, 0, axis, u0 + 0.013 + (L - 0.013) / 2, { seg: 6 }); return u0 + L; }
   b.front('m17Steel', ring(ro).reverse(), s0 - 0.013, u0 + 0.013, { holes: [ring(ri)] });
   b.front('m17Steel', ring(ro).reverse(), L - s1 - 0.0006, u0 + s1, { holes: [ring(ri)], bevel: 0.0005 });
   // Stege zwischen den Schlitzen (Schlitzmitten 30°, 90°, 150°, 210°, 330°; 270° = geschlossener Boden)
