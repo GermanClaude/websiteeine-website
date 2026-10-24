@@ -5,9 +5,9 @@
 // guns-ar.js) bleibt für SK-14 und Ursprung unverändert.
 import * as R from './m17-ref.js';
 import { furnUV3, markMat, markAspect, SLOTS } from './m17-tex.js';
-import { atlasUV } from './p9-tex.js';
-import { sdPolygon, extrudeRound, smin, surfaceNets, sdBox, grid2D, simplifyPoly, contours2D, cavityColors } from './sdf.js';
-import { roundRect, shapeFrom, ellipsePts } from './builder.js';
+import { sdPolygon, extrudeRound, smin, surfaceNets, sdBox, simplifyPoly, cavityColors } from './sdf.js';
+import { ALU, STEEL, POLY, box2, field2, sdRoundRect, roundMax, segDist, cutWindow, fase, sdfMesh, sideFurn } from './sdfkit.js';
+import { roundRect, ellipsePts } from './builder.js';
 import { holoSight, birdcage } from './parts.js';
 import { magRounds } from './magfill.js';
 import * as THREE from 'three';
@@ -24,12 +24,6 @@ const EP = (() => {
   const thB = Math.asin((v - hv - 0.0018 - AX) / Rm), thT = Math.asin((v + hv + 0.0018 - AX) / Rm), thH = thB - 0.0785, Rh = Rm + 0.0004;
   return { u, hu, v, hv, r: 0.0024, uBX: u + hu + 0.0015, Rm, thB, thT, cu: u, cl: 0.0395, hx: Rh * Math.cos(thH), hv2: AX + Rh * Math.sin(thH), open: 155 * Math.PI / 180, R: 0.0143 };
 })();
-const box2 = (pts, m = 0.003) => { const us = pts.map((p) => p[0]), vs = pts.map((p) => p[1]); return [Math.min(...us) - m, Math.max(...us) + m, Math.min(...vs) - m, Math.max(...vs) + m]; };
-// Polygon(e) als vorgerechnetes 2D-Feld über ihrem Hüllrechteck (u, v)
-function field2(pts, holes = [], step = 0.0005) {
-  const [u0, u1, v0, v1] = box2(pts, 0.008);
-  return grid2D((u, v) => { let d = sdPolygon(u, v, pts); for (const h of holes) d = Math.max(d, -sdPolygon(u, v, h)); return d; }, u0, u1, v0, v1, step);
-}
 // Schriftfeld (Gravur) als Fläche auf einer Seitenfläche: side = +1 rechts, −1 links; h = Schrifthöhe in m
 function mark(b, text, x, v, u, h, o = {}) {
   if (!b.hi) return;
@@ -55,17 +49,7 @@ function railNumbers(b, x, top, u0, u1, first, prefix = '') {
   for (let i = 0; i < n; i += 2) markTop(b, prefix + (first + i), x, top + 0.00008, start + i * 0.01 + 0.0024, 0.0024, { px: 48 });
 }
 
-// Distanzfeld-Netz: am PC (b.max) feiner und mit Kanten-/Muldenfarbe (Abrieb an Außenkanten, Schmutz in Kehlen)
-const ALU = { r: 0.0009, edge: 0.85, cavity: 0.6 };      // Eloxal reibt sich an Kanten blank (Aluminium)
-const STEEL = { r: 0.0008, edge: 0.7, cavity: 0.6 };
-const POLY = { r: 0.0013, edge: 0.45, cavity: 0.5 };      // Kunststoff: Kanten speckig, Kehlen staubig
-function sdfMesh(b, f, lo, hi, step, mat, o = {}) {
-  // Touch (lite): gröberes Netz (~½ der Dreiecke der Standardfassung)
-  const g = surfaceNets(f, lo, hi, b.max ? step * (o.fine ?? 0.6) : b.lite ? step * 1.4 : step);
-  if (b.max) cavityColors(g, f, o.cav);
-  return b._push(o.uv ? atlasUV(g, o.uv) : g, mat, {}, !!o.uv);
-}
-
+// Distanzfeld-Netze (sdfMesh), Profile (sideFurn), Fenster/Fasen und Gebrauchsspuren-Voreinstellungen: sdfkit.js
 export function m17(b) {
   const axis = AX;
   const rk = b.max ? 0.45 : 1;   // PC: knappe Kantenrundung (gefräst statt geknetet)
@@ -128,7 +112,7 @@ export function m17(b) {
         // beim Schuss sichtbar zurückläuft – vorn schließt die Laufverlängerung an
         if (x > 0.002) {
           const rr = Math.hypot(x, v - axis);
-          d = Math.max(d, -Math.max(sdRoundRect(u - EP.u, v - EP.v, EP.hu, EP.hv, EP.r) - Math.max(0, rr - (EP.R - 0.0007)), 0.0035 - x));
+          d = cutWindow(d, u - EP.u, v - EP.v, EP.hu, EP.hv, EP.r, fase(rr, EP.R, 0.0007), 0.0035 - x);
         }
         if (u > EP.u - EP.hu - 0.012 && u < EP.uBX) d = Math.max(d, -(Math.hypot(x, v - axis) - 0.0126));
       } else d = Math.max(d, -sdBox(x, v, u, 0.012, (port.v0 + port.v1) / 2, (port.u0 + port.u1) / 2, 0.0082, (port.v1 - port.v0) / 2, (port.u1 - port.u0) / 2));
@@ -429,9 +413,6 @@ function m17Birdcage(b, u0, axis) {
 // Verstellschaft mit Batterieröhren (Fotoform): oben breiter Körper aus Wangenauflage und zwei seitlichen Röhren
 // (Querschnitt von hinten wie das Vorbild), darunter der Steg mit Rand, vertieften Feldern, Diagonalrippe und Bolzen,
 // durchgehende Riemenschlitze, Verstellhebel mit Riemenzapfen, Gummikappe hinten. Zwei Netze: Körper grob, Steg fein.
-const roundMax = (a, c, r) => Math.min(Math.max(a + r, c + r), 0) + Math.hypot(Math.max(a + r, 0), Math.max(c + r, 0)) - r;
-const sdRoundRect = (px, py, bx, by, r) => { const qx = Math.abs(px) - bx + r, qy = Math.abs(py) - by + r; return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r; };
-const segDist = (px, py, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy))); return Math.hypot(px - ax - t * dx, py - ay - t * dy); };
 function m17Stock(b) {
   const st = R.M(R.STOCK), stD = field2(st, [], 0.0006);
   const vTop = V(990), vT = V(1150), xT = 0.0205, rT = 0.0116, hoodW = 0.0262;
@@ -455,23 +436,15 @@ function m17Stock(b) {
   const lever = (u, v) => Math.max(uLev - u, v - vLev);
   const recess = (u, v) => Math.max(Math.max(stD(u, v), v - vSplit, uPad - u) + 0.0042, -(segDist(u, v, ...rib) - 0.0021), -(Math.hypot(u - boss[0], v - boss[1]) - 0.0046), -lever(u, v));
   const win = [U(214), U(915), V(1512), vCut + 0.002];
-  sideFurn(b, (u, v) => Math.max(outl(u, v), -lever(u, v), -recess(u, v), uPad - u), win, 0.0104, 0.0012);   // Rand + Rippe
-  sideFurn(b, (u, v) => Math.max(outl(u, v), -lever(u, v)), win, 0.0056, 0.0006);                             // vertiefte Felder
-  sideFurn(b, (u, v) => Math.max(outl(u, v), u - uPad - 0.0004), win, 0.0115, 0.0016);                        // Kappe unten
-  sideFurn(b, (u, v) => Math.max(outl(u, v), lever(u, v), -Math.max(Math.abs(u - (U(743) + U(790)) / 2) - 0.0056, v - V(1279))), win, 0.0072, 0.0016);   // Hebel
+  const furn = { mat: 'm17Furn', uv: furnUV3 };
+  sideFurn(b, (u, v) => Math.max(outl(u, v), -lever(u, v), -recess(u, v), uPad - u), win, 0.0104, 0.0012, furn);   // Rand + Rippe
+  sideFurn(b, (u, v) => Math.max(outl(u, v), -lever(u, v)), win, 0.0056, 0.0006, furn);                             // vertiefte Felder
+  sideFurn(b, (u, v) => Math.max(outl(u, v), u - uPad - 0.0004), win, 0.0115, 0.0016, furn);                        // Kappe unten
+  sideFurn(b, (u, v) => Math.max(outl(u, v), lever(u, v), -Math.max(Math.abs(u - (U(743) + U(790)) / 2) - 0.0056, v - V(1279))), win, 0.0072, 0.0016, furn);   // Hebel
   if (b.hi) {
     b.cyl('m17Furn', 0.0052, 0.0052, V(1279) - V(1311), 0, (V(1279) + V(1311)) / 2, (U(743) + U(790)) / 2, { axis: 'v', seg: 16 });   // Riemenzapfen
     b.cyl('m17Furn', 0.0046, 0.0046, 0.0224, 0, boss[1], boss[0], { axis: 'x', seg: 18 });                                           // Bolzen
     b.cyl('m17Steel', 0.0013, 0.0013, 0.0238, 0, boss[1], boss[0], { axis: 'x', seg: 10 });
-  }
-}
-// Flaches Polymerteil: Kontur eines 2D-Felds (u, v) quer extrudiert (halbe Breite hw, Fase), Atlas-UVs je Fläche
-function sideFurn(b, f, [u0, u1, v0, v1], hw, bevel, step = 0.00035) {
-  for (const { outer, holes } of contours2D(f, u0, u1, v0, v1, b.max ? step * 0.7 : step, b.max ? 0.00007 : 0.00012)) {
-    const geo = b._extrude(shapeFrom(outer, holes), hw * 2, bevel, { bevelSeg: 2, curveSeg: 1 });
-    geo.translate(0, 0, -(hw * 2 - 2 * Math.min(bevel, hw * 0.9)) / 2);
-    geo.rotateY(Math.PI / 2);
-    b._push(atlasUV(geo, furnUV3), 'm17Furn', {}, true);
   }
 }
 
