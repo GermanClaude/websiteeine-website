@@ -145,6 +145,61 @@ export function setWeaponDetail(quality) {
   DETAIL.lite = !PC;
 }
 
+// ---------------------------------------------------------------- Bauteil-Cache (24.10.2026, Vorarbeit V3)
+// Jede Aufsatz-Kombination war ein kompletter Neubau (M-17 am PC ≈ 4,8 s und ≈ 61 MB Geometrie je Kombination). Teure
+// Netze (Distanzfelder, Profile) hängen aber nicht von den Aufsätzen ab: Ein Bauplan legt sie in b.shared(id, fn) an,
+// sie werden je (Modell, Stufe, Block) einmal gerechnet und in allen Varianten wiederverwendet. Beim Zusammenführen je
+// Teil × Material stehen die geteilten Stücke vorn; das fertige Netz wird geteilt, solange es dieselben Stücke enthält
+// (übrige Stücke per Prüfsumme verglichen) – dann bleiben Draw Calls und Aussehen genau wie beim Neubau. Weicht eine
+// spätere Variante ab (z. B. andere Optik aus demselben Material), bekommt sie die geteilten Stücke als Ausschnitt des
+// ersten Netzes (ohne Kopie) und die übrigen als eigenes Netz (ein Draw Call mehr statt doppeltem Speicher).
+// Regel: Ein geteilter Block legt nur Geometrie an (keine Teile, Anker, Meta) und hängt nicht von b.att ab.
+const SHARED = new Map();   // 'Modell:Stufe:Block' → [{ part, geo, mat, order }]
+const MERGED = new Map();   // 'Modell:Stufe:Teil|Material|Ordnung|Signatur' → zusammengeführte Geometrie
+const SHONLY = new Map();   // 'Modell:Stufe:Teil|Material|Ordnung|geteilte Stücke' → Ausschnitt nur der geteilten Stücke
+
+// Prüfsumme einer Geometrie (alle Attribute als 32-Bit-Wörter, zwei unabhängige Streuwerte)
+function geoSig(g) {
+  let h1 = 0x811c9dc5 | 0, h2 = 0x9747b28c | 0;
+  for (const name of ['position', 'normal', 'uv', 'wearDirt']) {
+    const a = g.attributes[name];
+    h1 = Math.imul(h1 ^ name.length, 16777619);
+    if (!a) continue;
+    const w = new Uint32Array(a.array.buffer, a.array.byteOffset, a.array.length);
+    for (let i = 0; i < w.length; i++) { h1 = Math.imul(h1 ^ w[i], 16777619); h2 = Math.imul(h2 ^ w[i], 0x5bd1e995); h2 ^= h2 >>> 15; }
+  }
+  return g.attributes.position.count + '.' + (h1 >>> 0).toString(36) + '.' + (h2 >>> 0).toString(36);
+}
+
+// Geteilte Stücke auf Ausschnitte des zusammengeführten Netzes umlenken (Speicher nur einmal, nicht doppelt)
+function viewInto(merged, items) {
+  let off = 0;
+  for (const it of items) {
+    const n = it.geo.attributes.position.count;
+    if (it.shared) {
+      for (const [name, a] of Object.entries(it.geo.attributes)) {
+        const m = merged.attributes[name];
+        if (m && a.array.byteOffset === 0 && a.array.buffer.byteLength === a.array.byteLength) it.geo.setAttribute(name, new THREE.BufferAttribute(m.array.subarray(off * a.itemSize, (off + n) * a.itemSize), a.itemSize));
+      }
+    }
+    off += n;
+  }
+}
+
+// Ausschnitt der ersten n Ecken eines Netzes als eigene Geometrie (teilt die Arrays, keine Kopie)
+function prefixView(merged, n) {
+  const g = new THREE.BufferGeometry();
+  for (const [name, a] of Object.entries(merged.attributes)) g.setAttribute(name, new THREE.BufferAttribute(a.array.subarray(0, n * a.itemSize), a.itemSize));
+  g.computeBoundingSphere(); g.computeBoundingBox();
+  return g;
+}
+
+/** Bauteil-Cache leeren: alle Modelle bzw. nur Modell key (optional nur eine Stufe). Geometrien gibt models.js frei. */
+export function clearPartCache(key = null, tier = null) {
+  const pre = key ? key + ':' + (tier ? tier + ':' : '') : '';
+  for (const m of [SHARED, MERGED, SHONLY]) for (const k of [...m.keys()]) if (k.startsWith(pre)) m.delete(k);
+}
+
 export class Builder {
   constructor(lod = 'first') {
     this.lod = lod;
@@ -164,6 +219,34 @@ export class Builder {
   }
 
   seg(n, lo) { return this.hi ? n : (lo ?? Math.max(4, Math.round(n / 2.5))); }
+
+  /** Detailstufe als Kennung ('max' | 'std' | 'lite' | 'third'). */
+  get tier() { return !this.hi ? 'third' : this.max ? 'max' : this.lite ? 'lite' : 'std'; }
+
+  /**
+   * Geteilter Block (Bauteil-Cache, siehe oben): fn() legt teure Netze an; je (this.key, Stufe, id) nur einmal
+   * gerechnet, danach werden die fertigen Stücke an derselben Stelle eingehängt. Ohne Modellschlüssel (Werkzeuge)
+   * und in der Bot-Stufe einfach fn().
+   */
+  shared(id, fn) {
+    if (!this.hi || !this.key) return fn();
+    const ck = this.key + ':' + this.tier + ':' + id;
+    const hit = SHARED.get(ck);
+    if (hit && hit.every((it) => this.parts.has(it.part))) {
+      hit.forEach((it, i) => this.parts.get(it.part).items.push({ geo: it.geo, mat: it.mat, order: it.order, shared: ck + '#' + i }));
+      return;
+    }
+    const before = new Map([...this.parts].map(([n, p]) => [n, p.items.length])), anchors = this.anchors.length;
+    fn();
+    if (this.anchors.length !== anchors) throw new Error('Bauteil-Cache ' + ck + ': Anker in einem geteilten Block');
+    const list = [];
+    for (const [n, p] of this.parts) for (let i = before.get(n) ?? 0; i < p.items.length; i++) {
+      const it = p.items[i];
+      it.shared = ck + '#' + list.length;
+      list.push({ part: n, geo: it.geo, mat: it.mat, order: it.order });
+    }
+    SHARED.set(ck, list);
+  }
 
   _push(geo, mat, o, keepUV = false) {
     const part = this.parts.get(o.part || 'static');
@@ -375,19 +458,46 @@ export class Builder {
         byMat.get(k).push(it);
       }
       for (const [k, items] of byMat) {
-        const geo = items.length === 1 ? items[0].geo : mergeGeometries(items.map(i => i.geo), false);
-        if (items.length > 1) items.forEach(i => i.geo.dispose());
-        geo.computeBoundingSphere();
-        geo.computeBoundingBox();
-        const mesh = new THREE.Mesh(geo, getMat(items[0].mat));
-        mesh.name = `${p.name}:${k.split('|')[0]}`;
-        mesh.renderOrder = items[0].order;
-        if (getMat(items[0].mat).transparent) mesh.castShadow = false;
-        else { mesh.castShadow = true; }
-        mesh.receiveShadow = false;
-        obj.add(mesh);
-        tris += geo.attributes.position.count / 3;
-        meshes++;
+        const geos = [];
+        if (items.length === 1) geos.push(items[0].geo);
+        else if (this.key && items.some((i) => i.shared)) {
+          // Teil × Material mit geteilten Stücken (Bauteil-Cache): geteilte vorn, fertiges Netz wiederverwenden
+          const sh = items.filter((i) => i.shared), rest = items.filter((i) => !i.shared);
+          const base = this.key + ':' + this.tier + ':' + p.name + '|' + k + '|', shSig = sh.map((i) => i.shared).join(',');
+          const mk = base + shSig + '|' + rest.map((i) => geoSig(i.geo)).join(',');
+          let geo = MERGED.get(mk);
+          if (geo) geos.push(geo);
+          else if (SHONLY.has(base + shSig)) {
+            geos.push(SHONLY.get(base + shSig));
+            if (rest.length) geos.push(rest.length === 1 ? rest[0].geo : mergeGeometries(rest.map((i) => i.geo), false));
+          } else {
+            const all = [...sh, ...rest];
+            geo = mergeGeometries(all.map((i) => i.geo), false);
+            viewInto(geo, all);
+            MERGED.set(mk, geo);
+            SHONLY.set(base + shSig, prefixView(geo, sh.reduce((n, i) => n + i.geo.attributes.position.count, 0)));
+            geos.push(geo);
+          }
+          rest.forEach((i) => { if (!geos.includes(i.geo)) i.geo.dispose(); });
+        } else {
+          geos.push(mergeGeometries(items.map(i => i.geo), false));
+          items.forEach(i => i.geo.dispose());
+        }
+        for (const geo of geos) {
+          if (!(items.some((i) => i.shared) && geo.boundingSphere && geo.boundingBox)) {   // geteilte Netze haben ihre Hülle schon
+            geo.computeBoundingSphere();
+            geo.computeBoundingBox();
+          }
+          const mesh = new THREE.Mesh(geo, getMat(items[0].mat));
+          mesh.name = `${p.name}:${k.split('|')[0]}`;
+          mesh.renderOrder = items[0].order;
+          if (getMat(items[0].mat).transparent) mesh.castShadow = false;
+          else { mesh.castShadow = true; }
+          mesh.receiveShadow = false;
+          obj.add(mesh);
+          tris += geo.attributes.position.count / 3;
+          meshes++;
+        }
       }
     }
     for (const a of this.anchors) {

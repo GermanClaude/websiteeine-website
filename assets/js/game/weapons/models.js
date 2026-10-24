@@ -13,7 +13,7 @@
 //   adsOffset = Position der Gruppe im Kameraraum (Kamera im Ursprung, Blick −Z), bei der das Visier exakt
 //   auf der optischen Achse liegt (inkl. Augenabstand der Visierung).
 import * as THREE from 'three';
-import { Builder, DETAIL } from './gunsmith/builder.js';
+import { Builder, DETAIL, clearPartCache } from './gunsmith/builder.js';
 import { kv47, sk14 } from './gunsmith/guns-ar.js';
 import { m17 } from './gunsmith/guns-m17.js';
 import { vp9, qx90, hm60 } from './gunsmith/guns-auto.js';
@@ -59,6 +59,7 @@ function buildTemplate(key, lod, att = null) {
   const make = BUILDERS[key];
   if (!make) throw new Error(`Unbekanntes Waffenmodell: ${key}`);
   const b = new Builder(lod === 'third' ? 'third' : 'first');
+  b.key = key;   // Bauteil-Cache (b.shared): teure Netze je Modell × Stufe nur einmal, in allen Aufsatz-Varianten geteilt
   b.att = att;
   make(b);
   const leftGrip = (b.anchors.find((a) => a.name === 'leftHandGrip') || {}).data?.style || null;
@@ -204,6 +205,7 @@ export function disposeWeaponModels() {
   for (const t of cache.values()) t.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
   cache.clear();
   mounts.clear();
+  clearPartCache();
   disposeMagFill();
   disposeCamos();
   disposeMaterials();

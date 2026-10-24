@@ -33,111 +33,18 @@ export function m17(b) {
   const axis = AX;
   const rk = b.max ? 0.45 : 1;   // PC: knappe Kantenrundung (gefräst statt geknetet)
   if (b.hi) {
-    m17Stock(b);
+    // Teure Netze (Distanzfelder, Profile) als geteilte Blöcke: einmal je Stufe gerechnet, in allen Aufsatz-Varianten
+    // wiederverwendet (Bauteil-Cache, builder.js b.shared) – sie hängen nicht von den Aufsätzen ab
+    b.shared('schaft', () => m17Stock(b));
     // ---------------------------------------------------------------- Griff (A2, Rautenfeld)
-    const gp = R.M(R.GRIP), gD = field2(gp, [], 0.0005);
-    const gripF = (x, v, u) => { const d2 = gD(u, v); if (d2 > 0.006) return d2; return extrudeRound(d2, x, 0.0128, 0.0072); };
-    sdfMesh(b, gripF, [-0.015, V(1752), U(950)], [0.015, V(1294), U(1350)], 0.0017, 'm17Furn', { uv: furnUV3, cav: POLY });
-    // ---------------------------------------------------------------- Unterteil (Gehäuse, Abzugsbügel, Magazinschacht)
-    const lo = R.M(R.LOWER), op = R.M(R.OPEN), loD0 = field2(lo, [op], 0.0005), upD0 = field2(R.M(R.UPPER), [], 0.0005);
-    // Trennfuge wie im Foto: hinten (bis zum Auswurffenster) liegt sie 13 mm höher, vorn ragt die Schwenkstift-Nase hoch
-    const lugs = R.LOWER_LUGS.map(([x0, y0, x1, y1]) => [(U(x0) + U(x1)) / 2, (V(y0) + V(y1)) / 2, (U(x1) - U(x0)) / 2, (V(y0) - V(y1)) / 2]);
-    const lugD = (u, v) => Math.min(...lugs.map(([cu, cv, hu, hv]) => Math.max(Math.abs(u - cu) - hu, Math.abs(v - cv) - hv)));
-    const loD = (u, v) => Math.min(loD0(u, v), Math.max(upD0(u, v), lugD(u, v)));
-    const vGuard = V(R.GUARD_Y), uG0 = U(1342), uW0 = U(R.WELL_X0);
-    const [mrx, mry, mrr] = R.MAG_RELEASE, mru = U(mrx), mrv = V(mry), mrR = mrr / R.PPM;
-    const well = { u0: U(1556), u1: U(1846), vTop: V(1250) };
-    const MC = { u: uW0 + 0.0123, v: mrv + 0.0006, hu: 0.0112, hv: 0.0025 };   // Spalt rundum 1,3 mm   // Magazinhalter-Arm links (Schachtwand)
-    const lowerF = (x, v, u) => {
-      const d2 = loD(u, v);
-      if (d2 > 0.006) return d2;
-      const ax = Math.abs(x);
-      let d = extrudeRound(Math.max(d2, u - uW0 - 0.002, Math.min(vGuard - v, u - uG0)), x, 0.0111, 0.0012 * rk);     // Gehäuse
-      d = smin(d, extrudeRound(Math.max(d2, v - vGuard - 0.002, uG0 - u, u - uW0), x, 0.0058, 0.0018 * rk), 0.002 * rk);   // Abzugsbügel
-      d = smin(d, extrudeRound(Math.max(d2, uW0 - u, v - V(1199)), x, 0.0132, 0.0025 * rk), 0.003 * rk);                     // Magazinschacht
-      if (v > V(1203)) d = Math.min(d, extrudeRound(d2, x, 0.0111, 0.0012 * rk));                                      // Nasen über dem Schacht
-      // Schutzrippe um den Magazinknopf (rechts)
-      if (x > 0 && Math.abs(u - mru) < 0.012 && Math.abs(v - mrv) < 0.012) d = smin(d, Math.max(Math.abs(Math.hypot(u - mru, v - mrv) - mrR - 0.0022) - 0.0011, Math.abs(x - 0.0119) - 0.0009), 0.0008);
-      if (b.max) {
-        // Lageraugen des Abzugsbügels (vorn am Schacht, hinten am Griff) – breiter als der Bügel, mit Querstiften
-        d = smin(d, extrudeRound(Math.max(d2, v - vGuard + 0.004, Math.min(Math.max(uG0 - u, u - uG0 - 0.0052), Math.max(uW0 - 0.0056 - u, u - uW0 - 0.001))), x, 0.0089, 0.0009), 0.0012);
-        // Ausgestellter Schachtrand unten (Einführtrichter): Wulst außen, innen angefast
-        d = smin(d, extrudeRound(Math.max(d2, uW0 - u, v - V(1430)), x, 0.0141, 0.0011), 0.0016);
-        // Links: Fräsung für den Magazinhalter-Arm (flacher Stahlbalken liegt darin, siehe unten)
-        if (x < -0.009) d = Math.max(d, -Math.max(sdRoundRect(u - MC.u, v - MC.v, MC.hu + 0.0013, MC.hv + 0.0013, MC.hv + 0.0013), -x - 0.0119));
-      }
-      // Schacht offen: das Magazin steckt sichtbar darin
-      const flare = b.max ? 0.0013 * Math.min(1, Math.max(0, (V(1427) - v) / (V(1427) - V(1442)))) : 0;
-      d = Math.max(d, -Math.max(ax - 0.0106 - flare, well.u0 - u - flare, u - well.u1 - flare, v - well.vTop));
-      return d;
-    };
-    sdfMesh(b, lowerF, [-0.0168, V(1412), U(1026)], [0.0168, V(1133), U(1898)], 0.0016, 'm17Rec', { cav: ALU, fine: 0.45 });
-    // ---------------------------------------------------------------- Oberteil (Gehäuse, Auswurffenster, Hülsenabweiser)
-    const upD = (u, v) => Math.max(upD0(u, v), -lugD(u, v));
-    const [px0, py0, px1, py1] = R.PORT, port = { u0: U(px0), u1: U(px1), v0: V(py1), v1: V(py0) };
-    const defl = R.M(R.DEFLECTOR), dflB = box2(defl), bcU = U(1528);
-    const upperF = (x, v, u) => {
-      const d2 = upD(u, v);
-      if (d2 > 0.006) return d2;
-      let d = extrudeRound(d2, x, 0.0112, 0.0016 * rk);
-      // Runder Gehäusewulst um den Verschlussträger (links durchgehend, rechts vor dem Fenster). Am PC in Originalmaß:
-      // Trägerrohr ≈ 29 mm außen, steht links gut 3 mm über die gefräste Seitenwand (22 mm wie das Unterteil) hinaus –
-      // mit Schattenkante darunter; rechts flacher, damit der Staubschutzdeckel bündig sitzt
-      // PC: beidseitig wie das Original (rundes Trägergehäuse auch um das Auswurffenster, Deckel liegt darauf)
-      const bR = b.max ? 0.0143 : 0.0126;
-      if (b.max || x < 0 || u > port.u1 + 0.004) d = smin(d, Math.max(Math.hypot(x, v - axis) - bR, d2 + 0.0015, b.max ? 0.006 - Math.abs(x) : x > 0 ? 0 : x + 0.006), b.max ? 0.0012 : 0.0025);
-      if (b.max) {
-        // Fenster mit runden Ecken und 0,7-mm-Fase außen; dahinter der hohle Trägerkanal (Ø 25,2 mm), in dem der Träger
-        // beim Schuss sichtbar zurückläuft – vorn schließt die Laufverlängerung an
-        if (x > 0.002) {
-          const rr = Math.hypot(x, v - axis);
-          d = cutWindow(d, u - EP.u, v - EP.v, EP.hu, EP.hv, EP.r, fase(rr, EP.R, 0.0007), 0.0035 - x);
-        }
-        if (u > EP.u - EP.hu - 0.012 && u < EP.uBX) d = Math.max(d, -(Math.hypot(x, v - axis) - 0.0126));
-      } else d = Math.max(d, -sdBox(x, v, u, 0.012, (port.v0 + port.v1) / 2, (port.u0 + port.u1) / 2, 0.0082, (port.v1 - port.v0) / 2, (port.u1 - port.u0) / 2));
-      // Hülsenabweiser hinter dem Fenster (am PC kräftiger, steht ≈ 3 mm über das Gehäuse)
-      if (x > 0 && u > dflB[0] && u < dflB[1] && v > dflB[2] && v < dflB[3]) d = smin(d, b.max ? extrudeRound(sdPolygon(u, v, defl), x - 0.0118, 0.0054, 0.0014) : extrudeRound(sdPolygon(u, v, defl), x - 0.0105, 0.0048, 0.0014), 0.0015);
-      if (b.max && x < 0) {
-        // Links: Freischnitt über dem Verschlussfang (Paddel taucht ins Oberteil)
-        d = Math.max(d, -sdBox(x, v, u, -0.0128, V(1196) + 0.0012, bcU, 0.0036, 0.0034, 0.0066));
-      }
-      return d;
-    };
-    sdfMesh(b, upperF, [b.max ? -0.0195 : -0.0165, V(1200), U(996)], [b.max ? 0.0195 : 0.0165, V(956), U(1900)], 0.0017, 'm17Rec', { cav: ALU, fine: 0.45 });   // PC: Hülsenabweiser steht weiter vor
-    // ---------------------------------------------------------------- Schienen-Handschutz: Profil + Lüftungsfenster (dunkle Öffnungen)
-    const [ra0, ra1] = R.RAS, ru0 = U(ra0), ru1 = U(ra1), H = R.RAS_HALF;
-    const upH = [2049, 2146, 2243, 2340, 2436, 2533, 2630], loH = [2041, 2122, 2211, 2291, 2372, 2453, 2533, 2614];
-    if (b.max) {
-      // Hohler Handschutz aus Wänden mit echten Lüftungslöchern (Lauf und Gasrohr innen sichtbar), runde Ecken, Endringe
-      const t = 0.0022, rc = 0.004, hw = H - rc;
-      const holes = [...upH.map((x) => ellipsePts(U(x), axis + 0.0143, 0.0072, 0.0033, 22)), ...loH.map((x) => ellipsePts(U(x), axis - 0.0156, 0.0046, 0.0018, 16))];
-      for (const s of [-1, 1]) b.side('m17Ras', [[ru0, axis - hw], [ru1, axis - hw], [ru1, axis + hw], [ru0, axis + hw]], t, s * (H - t / 2), { holes, bevel: 0.0003 });
-      for (const s of [-1, 1]) b.top('m17Ras', [[-hw, ru0], [hw, ru0], [hw, ru1], [-hw, ru1]], t, axis + s * (H - t / 2), { bevel: 0.0003 });
-      for (const [sx, sv] of [[1, 1], [-1, 1], [-1, -1], [1, -1]]) {
-        const arc = (r, rev) => Array.from({ length: 7 }, (_, k) => { const a = (rev ? 6 - k : k) / 6 * Math.PI / 2; return [sx * (hw + Math.cos(a) * r), axis + sv * (hw + Math.sin(a) * r)]; });
-        b.front('m17Ras', [...arc(rc, false), ...arc(rc - t, true)], ru1 - ru0, ru0);
-      }
-      const ringOut = roundRect(-H + 0.0003, axis - H + 0.0003, H - 0.0003, axis + H - 0.0003, rc, 3), bore = ellipsePts(0, axis, 0.0128, 0.0128, 28);
-      b.front('m17Ras', ringOut, 0.0032, ru1 - 0.0032, { holes: [bore], bevel: 0.0006 });
-      b.front('m17Ras', ringOut, 0.003, ru0, { holes: [bore] });
-    } else {
-      b.front('m17Ras', roundRect(-H, axis - H, H, axis + H, 0.004, 3), ru1 - ru0, ru0, { bevel: 0.0015 });
-      for (const s of [-1, 1]) {
-        for (const x of upH) b.circle('cavity', 0.0033, s * (H + 0.0002), axis + 0.0143, U(x), { ry: s * Math.PI / 2, sx: 0.0072 / 0.0033, seg: 20 });
-        for (const x of loH) b.circle('cavity', 0.0018, s * (H + 0.0002), axis - 0.0156, U(x), { ry: s * Math.PI / 2, sx: 0.0046 / 0.0018, seg: 16 });
-      }
-    }
-    // ---------------------------------------------------------------- Kornträger (A-Rahmen mit Fenster, Bajonetthalter, Riemenbügel)
-    const fs = R.M(R.FSB), fh = R.M(R.FSB_HOLE), fD = field2(fs, [fh], 0.0004);
-    const fa = U(2778), fb = U(2888);
-    const fsbF = (x, v, u) => {
-      const d2 = fD(u, v);
-      if (d2 > 0.005) return d2;
-      let d = extrudeRound(d2, x, 0.0062, 0.0011 * rk);
-      d = Math.max(d, -Math.max(Math.abs(v - axis) - 0.0091, Math.min(u - fa, fb - u)));   // Lauf läuft frei durch (außer im Fuß)
-      return Math.max(d, -Math.max(Math.abs(x) - 0.0026, V(862) - v));                     // Schutzohren: oben offen, Korn dazwischen
-    };
-    sdfMesh(b, fsbF, [-0.0078, V(1262), U(2686)], [0.0078, V(738), U(2944)], 0.0011, 'm17Steel', { cav: STEEL, fine: 0.5 });
+    b.shared('griff', () => {
+      const gp = R.M(R.GRIP), gD = field2(gp, [], 0.0005);
+      const gripF = (x, v, u) => { const d2 = gD(u, v); if (d2 > 0.006) return d2; return extrudeRound(d2, x, 0.0128, 0.0072); };
+      sdfMesh(b, gripF, [-0.015, V(1752), U(950)], [0.015, V(1294), U(1350)], 0.0017, 'm17Furn', { uv: furnUV3, cav: POLY });
+    });
+    b.shared('gehaeuse', () => m17Receiver(b, axis, rk));
+    b.shared('handschutz', () => m17Handguard(b, axis));
+    b.shared('korntraeger', () => m17FrontSight(b, axis, rk));
   } else {
     // Bot-Detailstufe: dieselben Fotoumrisse, stark vereinfacht
     b.side('polymer', simplifyPoly(R.M(R.STOCK), 0.004), 0.052, 0, { bevel: 0.008, bevelSeg: 1 });
@@ -317,6 +224,118 @@ export function m17(b) {
   b.meta = { sight: 'holo', axis, kind: 'rifle', selector: { semi: Math.PI / 2, auto: Math.PI }, dustCover: { closed: b.max ? EP.open : Math.PI } };
 }
 
+// Unterteil (Gehäuse, Abzugsbügel, Magazinschacht) und Oberteil (Gehäuse, Auswurffenster, Hülsenabweiser) – ein
+// geteilter Block (das Oberteil nutzt die Trennfuge des Unterteils)
+function m17Receiver(b, axis, rk) {
+  const lo = R.M(R.LOWER), op = R.M(R.OPEN), loD0 = field2(lo, [op], 0.0005), upD0 = field2(R.M(R.UPPER), [], 0.0005);
+  // Trennfuge wie im Foto: hinten (bis zum Auswurffenster) liegt sie 13 mm höher, vorn ragt die Schwenkstift-Nase hoch
+  const lugs = R.LOWER_LUGS.map(([x0, y0, x1, y1]) => [(U(x0) + U(x1)) / 2, (V(y0) + V(y1)) / 2, (U(x1) - U(x0)) / 2, (V(y0) - V(y1)) / 2]);
+  const lugD = (u, v) => Math.min(...lugs.map(([cu, cv, hu, hv]) => Math.max(Math.abs(u - cu) - hu, Math.abs(v - cv) - hv)));
+  const loD = (u, v) => Math.min(loD0(u, v), Math.max(upD0(u, v), lugD(u, v)));
+  const vGuard = V(R.GUARD_Y), uG0 = U(1342), uW0 = U(R.WELL_X0);
+  const [mrx, mry, mrr] = R.MAG_RELEASE, mru = U(mrx), mrv = V(mry), mrR = mrr / R.PPM;
+  const well = { u0: U(1556), u1: U(1846), vTop: V(1250) };
+  const MC = { u: uW0 + 0.0123, v: mrv + 0.0006, hu: 0.0112, hv: 0.0025 };   // Spalt rundum 1,3 mm   // Magazinhalter-Arm links (Schachtwand)
+  const lowerF = (x, v, u) => {
+    const d2 = loD(u, v);
+    if (d2 > 0.006) return d2;
+    const ax = Math.abs(x);
+    let d = extrudeRound(Math.max(d2, u - uW0 - 0.002, Math.min(vGuard - v, u - uG0)), x, 0.0111, 0.0012 * rk);     // Gehäuse
+    d = smin(d, extrudeRound(Math.max(d2, v - vGuard - 0.002, uG0 - u, u - uW0), x, 0.0058, 0.0018 * rk), 0.002 * rk);   // Abzugsbügel
+    d = smin(d, extrudeRound(Math.max(d2, uW0 - u, v - V(1199)), x, 0.0132, 0.0025 * rk), 0.003 * rk);                     // Magazinschacht
+    if (v > V(1203)) d = Math.min(d, extrudeRound(d2, x, 0.0111, 0.0012 * rk));                                      // Nasen über dem Schacht
+    // Schutzrippe um den Magazinknopf (rechts)
+    if (x > 0 && Math.abs(u - mru) < 0.012 && Math.abs(v - mrv) < 0.012) d = smin(d, Math.max(Math.abs(Math.hypot(u - mru, v - mrv) - mrR - 0.0022) - 0.0011, Math.abs(x - 0.0119) - 0.0009), 0.0008);
+    if (b.max) {
+      // Lageraugen des Abzugsbügels (vorn am Schacht, hinten am Griff) – breiter als der Bügel, mit Querstiften
+      d = smin(d, extrudeRound(Math.max(d2, v - vGuard + 0.004, Math.min(Math.max(uG0 - u, u - uG0 - 0.0052), Math.max(uW0 - 0.0056 - u, u - uW0 - 0.001))), x, 0.0089, 0.0009), 0.0012);
+      // Ausgestellter Schachtrand unten (Einführtrichter): Wulst außen, innen angefast
+      d = smin(d, extrudeRound(Math.max(d2, uW0 - u, v - V(1430)), x, 0.0141, 0.0011), 0.0016);
+      // Links: Fräsung für den Magazinhalter-Arm (flacher Stahlbalken liegt darin, siehe unten)
+      if (x < -0.009) d = Math.max(d, -Math.max(sdRoundRect(u - MC.u, v - MC.v, MC.hu + 0.0013, MC.hv + 0.0013, MC.hv + 0.0013), -x - 0.0119));
+    }
+    // Schacht offen: das Magazin steckt sichtbar darin
+    const flare = b.max ? 0.0013 * Math.min(1, Math.max(0, (V(1427) - v) / (V(1427) - V(1442)))) : 0;
+    d = Math.max(d, -Math.max(ax - 0.0106 - flare, well.u0 - u - flare, u - well.u1 - flare, v - well.vTop));
+    return d;
+  };
+  sdfMesh(b, lowerF, [-0.0168, V(1412), U(1026)], [0.0168, V(1133), U(1898)], 0.0016, 'm17Rec', { cav: ALU, fine: 0.45 });
+  // ---------------------------------------------------------------- Oberteil (Gehäuse, Auswurffenster, Hülsenabweiser)
+  const upD = (u, v) => Math.max(upD0(u, v), -lugD(u, v));
+  const [px0, py0, px1, py1] = R.PORT, port = { u0: U(px0), u1: U(px1), v0: V(py1), v1: V(py0) };
+  const defl = R.M(R.DEFLECTOR), dflB = box2(defl), bcU = U(1528);
+  const upperF = (x, v, u) => {
+    const d2 = upD(u, v);
+    if (d2 > 0.006) return d2;
+    let d = extrudeRound(d2, x, 0.0112, 0.0016 * rk);
+    // Runder Gehäusewulst um den Verschlussträger (links durchgehend, rechts vor dem Fenster). Am PC in Originalmaß:
+    // Trägerrohr ≈ 29 mm außen, steht links gut 3 mm über die gefräste Seitenwand (22 mm wie das Unterteil) hinaus –
+    // mit Schattenkante darunter; rechts flacher, damit der Staubschutzdeckel bündig sitzt
+    // PC: beidseitig wie das Original (rundes Trägergehäuse auch um das Auswurffenster, Deckel liegt darauf)
+    const bR = b.max ? 0.0143 : 0.0126;
+    if (b.max || x < 0 || u > port.u1 + 0.004) d = smin(d, Math.max(Math.hypot(x, v - axis) - bR, d2 + 0.0015, b.max ? 0.006 - Math.abs(x) : x > 0 ? 0 : x + 0.006), b.max ? 0.0012 : 0.0025);
+    if (b.max) {
+      // Fenster mit runden Ecken und 0,7-mm-Fase außen; dahinter der hohle Trägerkanal (Ø 25,2 mm), in dem der Träger
+      // beim Schuss sichtbar zurückläuft – vorn schließt die Laufverlängerung an
+      if (x > 0.002) {
+        const rr = Math.hypot(x, v - axis);
+        d = cutWindow(d, u - EP.u, v - EP.v, EP.hu, EP.hv, EP.r, fase(rr, EP.R, 0.0007), 0.0035 - x);
+      }
+      if (u > EP.u - EP.hu - 0.012 && u < EP.uBX) d = Math.max(d, -(Math.hypot(x, v - axis) - 0.0126));
+    } else d = Math.max(d, -sdBox(x, v, u, 0.012, (port.v0 + port.v1) / 2, (port.u0 + port.u1) / 2, 0.0082, (port.v1 - port.v0) / 2, (port.u1 - port.u0) / 2));
+    // Hülsenabweiser hinter dem Fenster (am PC kräftiger, steht ≈ 3 mm über das Gehäuse)
+    if (x > 0 && u > dflB[0] && u < dflB[1] && v > dflB[2] && v < dflB[3]) d = smin(d, b.max ? extrudeRound(sdPolygon(u, v, defl), x - 0.0118, 0.0054, 0.0014) : extrudeRound(sdPolygon(u, v, defl), x - 0.0105, 0.0048, 0.0014), 0.0015);
+    if (b.max && x < 0) {
+      // Links: Freischnitt über dem Verschlussfang (Paddel taucht ins Oberteil)
+      d = Math.max(d, -sdBox(x, v, u, -0.0128, V(1196) + 0.0012, bcU, 0.0036, 0.0034, 0.0066));
+    }
+    return d;
+  };
+  sdfMesh(b, upperF, [b.max ? -0.0195 : -0.0165, V(1200), U(996)], [b.max ? 0.0195 : 0.0165, V(956), U(1900)], 0.0017, 'm17Rec', { cav: ALU, fine: 0.45 });   // PC: Hülsenabweiser steht weiter vor
+}
+
+// Schienen-Handschutz: am PC hohl mit echten Lüftungslöchern, sonst Profil mit dunklen Öffnungen
+function m17Handguard(b, axis) {
+  // ---------------------------------------------------------------- Schienen-Handschutz: Profil + Lüftungsfenster (dunkle Öffnungen)
+  const [ra0, ra1] = R.RAS, ru0 = U(ra0), ru1 = U(ra1), H = R.RAS_HALF;
+  const upH = [2049, 2146, 2243, 2340, 2436, 2533, 2630], loH = [2041, 2122, 2211, 2291, 2372, 2453, 2533, 2614];
+  if (b.max) {
+    // Hohler Handschutz aus Wänden mit echten Lüftungslöchern (Lauf und Gasrohr innen sichtbar), runde Ecken, Endringe
+    const t = 0.0022, rc = 0.004, hw = H - rc;
+    const holes = [...upH.map((x) => ellipsePts(U(x), axis + 0.0143, 0.0072, 0.0033, 22)), ...loH.map((x) => ellipsePts(U(x), axis - 0.0156, 0.0046, 0.0018, 16))];
+    for (const s of [-1, 1]) b.side('m17Ras', [[ru0, axis - hw], [ru1, axis - hw], [ru1, axis + hw], [ru0, axis + hw]], t, s * (H - t / 2), { holes, bevel: 0.0003 });
+    for (const s of [-1, 1]) b.top('m17Ras', [[-hw, ru0], [hw, ru0], [hw, ru1], [-hw, ru1]], t, axis + s * (H - t / 2), { bevel: 0.0003 });
+    for (const [sx, sv] of [[1, 1], [-1, 1], [-1, -1], [1, -1]]) {
+      const arc = (r, rev) => Array.from({ length: 7 }, (_, k) => { const a = (rev ? 6 - k : k) / 6 * Math.PI / 2; return [sx * (hw + Math.cos(a) * r), axis + sv * (hw + Math.sin(a) * r)]; });
+      b.front('m17Ras', [...arc(rc, false), ...arc(rc - t, true)], ru1 - ru0, ru0);
+    }
+    const ringOut = roundRect(-H + 0.0003, axis - H + 0.0003, H - 0.0003, axis + H - 0.0003, rc, 3), bore = ellipsePts(0, axis, 0.0128, 0.0128, 28);
+    b.front('m17Ras', ringOut, 0.0032, ru1 - 0.0032, { holes: [bore], bevel: 0.0006 });
+    b.front('m17Ras', ringOut, 0.003, ru0, { holes: [bore] });
+  } else {
+    b.front('m17Ras', roundRect(-H, axis - H, H, axis + H, 0.004, 3), ru1 - ru0, ru0, { bevel: 0.0015 });
+    for (const s of [-1, 1]) {
+      for (const x of upH) b.circle('cavity', 0.0033, s * (H + 0.0002), axis + 0.0143, U(x), { ry: s * Math.PI / 2, sx: 0.0072 / 0.0033, seg: 20 });
+      for (const x of loH) b.circle('cavity', 0.0018, s * (H + 0.0002), axis - 0.0156, U(x), { ry: s * Math.PI / 2, sx: 0.0046 / 0.0018, seg: 16 });
+    }
+  }
+}
+
+// Kornträger (A-Rahmen mit Fenster, Bajonetthalter, Riemenbügel) als Distanzfeld
+function m17FrontSight(b, axis, rk) {
+  // ---------------------------------------------------------------- Kornträger (A-Rahmen mit Fenster, Bajonetthalter, Riemenbügel)
+  const fs = R.M(R.FSB), fh = R.M(R.FSB_HOLE), fD = field2(fs, [fh], 0.0004);
+  const fa = U(2778), fb = U(2888);
+  const fsbF = (x, v, u) => {
+    const d2 = fD(u, v);
+    if (d2 > 0.005) return d2;
+    let d = extrudeRound(d2, x, 0.0062, 0.0011 * rk);
+    d = Math.max(d, -Math.max(Math.abs(v - axis) - 0.0091, Math.min(u - fa, fb - u)));   // Lauf läuft frei durch (außer im Fuß)
+    return Math.max(d, -Math.max(Math.abs(x) - 0.0026, V(862) - v));                     // Schutzohren: oben offen, Korn dazwischen
+  };
+  sdfMesh(b, fsbF, [-0.0078, V(1262), U(2686)], [0.0078, V(738), U(2944)], 0.0011, 'm17Steel', { cav: STEEL, fine: 0.5 });
+}
+
 // Verschlussträgergruppe in voller Länge nach Original: Träger Ø 24,8 mm mit 14 Rastkerben für den Hilfsschließer,
 // Verschluss Ø 13 mm mit sieben Verriegelungswarzen, Auszieher mit Kralle und Stift, Schlagbolzenloch und Auswerfer in
 // der Stirn; Laufverlängerung mit acht Warzen, M4-Zuführrampen und Patronenlager. Der Träger läuft beim Schuss 82 mm
@@ -355,9 +374,11 @@ function m17DustCover(b, axis) {
     return Math.min(d, sdBox(x, v, u, lx, lv, EP.cu - EP.cl + 0.0075, 0.0009, 0.0011, 0.0017) - 0.0002);
   };
   const f = (x, v, u) => { const dx = x - EP.hx, dv = v - EP.hv2; return closed(EP.hx + dx * co - dv * so, EP.hv2 + dx * so + dv * co, u); };
-  const g = surfaceNets(f, [0.0092, 0.057, EP.cu - EP.cl - 0.002], [0.0285, 0.0885, EP.cu + EP.cl + 0.002], 0.00042);
-  cavityColors(g, f, STEEL);
-  b._push(g, 'm17Steel', { part: 'dustCover' });
+  b.shared('staubdeckel', () => {
+    const g = surfaceNets(f, [0.0092, 0.057, EP.cu - EP.cl - 0.002], [0.0285, 0.0885, EP.cu + EP.cl + 0.002], 0.00042);
+    cavityColors(g, f, STEEL);
+    b._push(g, 'm17Steel', { part: 'dustCover' });
+  });
   const rl = 2 * EP.cl + 0.009;
   b.cyl('m17Steel', 0.0008, 0.0008, rl, EP.hx, EP.hv2, EP.cu, { seg: 12 });
   for (const s of [-1, 1]) b.cyl('m17Rec', 0.0018, 0.0018, 0.0034, EP.hx - 0.0004, EP.hv2, EP.cu + s * (EP.cl + 0.0024), { seg: 16 });
