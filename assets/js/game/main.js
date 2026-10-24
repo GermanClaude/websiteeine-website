@@ -733,6 +733,37 @@ const warmed = new Set(); // erledigte Vorarbeiten ('m:<Modell>:<LOD>', 's:<Sche
 const mapSchemes = new Map(); // mapId → { B, ffa }: Tarnschemata der Bots auf dieser Karte (nach dem ersten Laden bekannt)
 
 /**
+ * 24.10. (Vorarbeit V1): Detailstufe der Ego-Waffenmodelle nach der aktuellen Grafikstufe – vor jedem Vorbau (Start, Lobby-Leerlauf,
+ * Lobby-Vorschau, Ladebildschirm) und bei jedem Qualitätswechsel. Vorher galt bis zum ersten Viewmodel die Startannahme „PC = volle
+ * Fassung“: ein PC auf niedrig/mittel baute M-17/P-9 zusätzlich in max (Container ≈ 7 s, ≈ 87 MB). → true, wenn die Stufe wechselte
+ */
+function syncWeaponDetail() {
+  const M = G.modules.models;
+  return !!(M && typeof M.setWeaponDetail === 'function' && G.renderer && M.setWeaponDetail(G.renderer.quality));
+}
+
+/** Ego-Waffen eines Matches: Waffenspiel die Leiter, Schießstand alle, sonst die Ausrüstung (Waffen-Ids). */
+function ownWeapons(cfg) {
+  const W = G.data.WEAPONS || {};
+  if (cfg.modeId === 'gun') return [...new Set((G.data.GUN_GAME_STEPS || []).filter((id) => W[id]))];
+  if (cfg.modeId === 'training') return Object.keys(W);
+  return [cfg.loadout.primary, cfg.loadout.secondary];
+}
+
+/**
+ * Freigabe je Waffe (24.10., V4): Ego-Vorlagen und Foto-Atlanten von Waffen, die niemand hält und cfg nicht braucht (z. B. in der
+ * Lobby durchprobierte Waffen, andere Grafikstufe) – vor dem Vorbau eines Matches und nach einem Stufenwechsel in der Lobby.
+ */
+function freeIdleWeapons(cfg) {
+  const M = G.modules.models, W = G.data.WEAPONS || {};
+  if (!M || typeof M.freeIdleWeaponModels !== 'function') return;
+  // + Nahkampfwaffe und Requisiten, die jedes Viewmodel baut (Messer, Granaten, Platte); die leichte Stufe nur im Schießstand
+  // (Vorbau aller übrigen Waffen) – sonst bliebe nach „niedrig“ → „hoch“ die Standardfassung der Ausrüstung liegen
+  M.freeIdleWeaponModels([...[...ownWeapons(cfg), cfg.loadout.melee].map((id) => W[id] && W[id].model), 'knife', 'frag', 'semtex', 'impact', 'molotov', 'flash', 'smoke', 'plate'],
+    { keepLight: cfg.modeId === 'training' });
+}
+
+/**
  * Vorarbeiten für ein Match als kleine Einzelschritte (je ein Waffen-Template bzw. ein Soldat aus
  * Variante × Schema mit allen Detailstufen, Material und Tarntextur). Nur öffentliche APIs:
  * `models.preloadWeaponModels([key], [lod])` (Ego-Modelle der Ausrüstung – in gun/training aller Waffen –
@@ -753,19 +784,28 @@ function matchAssetJobs(cfg, world) {
     seen.add(k);
     jobs.push(() => { fn(); warmed.add(k); });
   };
-  const addModel = (key, lod) => {
-    if (key && models && typeof models.preloadWeaponModels === 'function') add(`m:${key}:${lod}`, () => models.preloadWeaponModels([key], [lod]));
+  // 24.10.: Ego-Vorlagen in der Stufe der aktuellen Grafikstufe (vorher bis zum ersten Viewmodel „PC = max“). Erledigte Ego-Schritte,
+  // deren Vorlage inzwischen fehlt (Freigabe je Waffe, andere Stufe), neu einplanen – sonst baute erst das Ausrüsten
+  syncWeaponDetail();
+  const unwarm = (k, key, tier) => {
+    if (warmed.has(k) && typeof models.hasWeaponModel === 'function' && !models.hasWeaponModel(key, { tier })) warmed.delete(k);
   };
-  const allWeapons = cfg.modeId === 'gun' || cfg.modeId === 'training';
-  // Ego: Ausrüstung + Requisiten des Viewmodels; gun/training (24.10., V4): alle übrigen Waffen nur leicht (Standard
-  // am PC, lite am Handy) – die volle Fassung entsteht beim Ausrüsten (vorher: alle Waffen voll vorgebaut)
-  const own = [cfg.loadout.primary, cfg.loadout.secondary];
+  const addModel = (key, lod) => {
+    if (!key || !models || typeof models.preloadWeaponModels !== 'function') return;
+    if (lod === 'first') unwarm(`m:${key}:${lod}`, key, null);
+    add(`m:${key}:${lod}`, () => models.preloadWeaponModels([key], [lod]));
+  };
+  // Ego: Ausrüstung (Waffenspiel: die ganze Leiter, 24.10.) + Requisiten des Viewmodels; Schießstand (24.10., V4): Ausrüstung
+  // voll, alle übrigen Waffen nur leicht (Standard am PC, lite am Handy) – die volle Fassung entsteht beim Ausrüsten
+  const own = cfg.modeId === 'training' ? [cfg.loadout.primary, cfg.loadout.secondary] : ownWeapons(cfg);
   for (const id of [...own, 'knife', 'frag', 'semtex']) addModel(modelOf(id), 'first');
-  if (allWeapons && models && typeof models.lightTier === 'function') {
+  if (cfg.modeId === 'training' && models && typeof models.lightTier === 'function') {
     // (schon voll gebaut – Ausrüstung, Requisiten, vorige Runde: nicht zusätzlich leicht bauen)
     for (const id of Object.keys(W)) {
       const key = modelOf(id);
-      if (key) add(`m:${key}:first:leicht`, () => { if (!models.hasWeaponModel(key)) models.preloadWeaponModels([key], ['first'], models.lightTier()); });
+      if (!key) continue;
+      unwarm(`m:${key}:first:leicht`, key, models.lightTier());
+      add(`m:${key}:first:leicht`, () => { if (!models.hasWeaponModel(key)) models.preloadWeaponModels([key], ['first'], models.lightTier()); });
     }
   }
   // Ego: einmalige Viewmodel-Texturen (Ärmel-Tarnmuster des Teams, Stoff, Mündungsfeuer …), weapons/viewmodel.js
@@ -778,7 +818,7 @@ function matchAssetJobs(cfg, world) {
   const bots = (cfg.allies | 0) + (cfg.enemies | 0);
   if (bots > 0) {
     const ids = new Set(['knife', 'frag']);
-    if (allWeapons) for (const id of Object.keys(W)) ids.add(id);
+    if (cfg.modeId === 'gun' || cfg.modeId === 'training') for (const id of Object.keys(W)) ids.add(id);
     else {
       for (const l of G.data.DEFAULT_LOADOUTS || []) { ids.add(l.primary); ids.add(l.secondary); ids.add(l.lethal); }
       for (const id of Object.keys(W)) if (W[id].cls === 'sniper') ids.add(id); // ein Scharfschütze je Seite
@@ -956,20 +996,10 @@ async function runStart(config, gen) {
     safe('hud.hide', () => G.hud.hide());
 
     vmBase = new Set(G.viewmodel.scene.children);
-    // Freigabe je Waffe (24.10., V4): Ego-Vorlagen und Foto-Atlanten von Waffen, die niemand hält und dieses Match nicht
-    // braucht (z. B. in der Lobby durchprobierte Waffen, andere Grafikstufe)
-    safe('waffenFreigabe', () => {
-      const M = G.modules.models, W = G.data.WEAPONS || {};
-      if (!M || typeof M.freeIdleWeaponModels !== 'function') return;
-      const ids = cfg.modeId === 'gun' || cfg.modeId === 'training' ? Object.keys(W) : [cfg.loadout.primary, cfg.loadout.secondary, cfg.loadout.melee];
-      // + Requisiten, die jedes Viewmodel baut (Messer, Granaten, Platte)
-      M.freeIdleWeaponModels([...ids.map((id) => W[id] && W[id].model), 'knife', 'frag', 'semtex', 'impact', 'molotov', 'flash', 'smoke', 'plate']);
-      // Vorarbeit freigegebener Vorlagen wieder einplanen (sonst übersprungen → Bau erst beim Ausrüsten)
-      for (const k of [...warmed]) {
-        const m = /^m:([^:]+):first(:leicht)?$/.exec(k);
-        if (m && !M.hasWeaponModel(m[1], { tier: m[2] ? M.lightTier() : null })) warmed.delete(k);
-      }
-    });
+    // Waffen-Detailstufe zur (ggf. eben automatisch geänderten) Grafikstufe, dann Freigabe je Waffe (24.10., V4) – beides vor
+    // dem Vorbau; freigegebene Vorlagen plant matchAssetJobs neu ein
+    syncWeaponDetail();
+    safe('waffenFreigabe', () => freeIdleWeapons(cfg));
     const onProgress = (p) => { if (live()) safe('menus', () => G.menus.showLoading(Math.min(0.85, p * 0.85))); };
     const nextStep = async (p) => {
       await nextFrame();
@@ -1679,6 +1709,17 @@ function applyQuality(q) {
  */
 function onQualityChanged() {
   applyQualityClasses();
+  // 24.10. (V1): Waffen-Detailstufe folgt (auch beim automatischen Stufenwechsel zwischen Matches). Die Lobby-Vorschau lässt
+  // ihre Fassung der alten Stufe los; in der Lobby gleich Vorlagen der alten Stufe frei (z. B. M-17 max ≈ 61 MB nach „hoch“ →
+  // „niedrig“) und Vorbau neu planen – sonst gibt sie der nächste Matchstart frei
+  if (syncWeaponDetail()) {
+    safe('vorschau', () => G.menus && G.menus.preview && G.menus.preview.refresh && G.menus.preview.refresh());
+    if (G.match.state === 'lobby') {
+      safe('waffenFreigabe', () => freeIdleWeapons(normalizeConfig(configFromParams())));
+      lobbyWarm = null;
+      scheduleLobbyPrewarm();
+    }
+  }
   setTimeout(prewarmShaders, 0); // nach den übrigen Abonnenten (Schattenzustand der Welt)
 }
 
@@ -2160,6 +2201,7 @@ async function bootstrap() {
     phase = 'module';
     await loadModules((p) => setBoot(0.06 + p * 0.66, 'Lade Module …'));
     phase = 'error';
+    syncWeaponDetail(); // 24.10. (V1): vor Lobby-Vorschau und Lobby-Vorbau
 
     setBoot(0.75, 'Starte Systeme …');
     G.player = new Player(G);

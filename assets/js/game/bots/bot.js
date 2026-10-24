@@ -30,7 +30,7 @@ import { GADGETS, CLASSES } from '../../shared/classes.data.js';
 import { BONE } from './soldier/rig.js';
 import { importCC } from '../../shared/customcamo.js';
 import { applyAttachments } from '../../shared/attachments.data.js';
-import { getWeaponModelInfo } from '../weapons/models.js';
+import { getWeaponModelMeta } from '../weapons/models.js';
 import { Stamina, STAMINA_COST, RECOVER } from '../stamina.js';
 
 const STAND_H = 1.8, CROUCH_H = 1.15, PRONE_H = 0.75;
@@ -1023,7 +1023,7 @@ export class Bot {
     const att = looks.att && typeof looks.att === 'object' ? looks.att : null;
     this._carry[def.id] = { camo: typeof looks.camo === 'string' ? looks.camo : null, att };
     let d = def;
-    if (att) { try { d = applyAttachments(def, att, getWeaponModelInfo(def.model || def.id)); } catch { d = def; } }
+    if (att) { try { d = applyAttachments(def, att, getWeaponModelMeta(def.model || def.id)); } catch { d = def; } }
     const i = w.slots.findIndex((s) => s && s.id === def.id);
     if (i >= 0) { w.slots[i].def = d; if (i === w.index && typeof w._refreshStatic === 'function') w._refreshStatic(); }
     else {

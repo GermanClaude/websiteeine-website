@@ -1753,7 +1753,7 @@ export class ViewModel {
       shells.add(handlingFor(e.key).shell);
       if (e !== prev) holder.add(e.model);
     }
-    // 24.10. (V4): übrige Waffen (Schießstand, Waffenspiel) nur in der leichten Fassung – gleiche Materialien, also
+    // 24.10. (V4): übrige Waffen (Schießstand) nur in der leichten Fassung – gleiche Materialien, also
     // gleiche Shader und Texturen; die volle Fassung entsteht erst beim Ausrüsten
     for (const id of more) {
       const key = (this._defFor(id)?.model) || ID_TO_MODEL[id] || id;

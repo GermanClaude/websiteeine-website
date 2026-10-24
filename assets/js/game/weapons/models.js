@@ -13,7 +13,7 @@
 //   adsOffset = Position der Gruppe im Kameraraum (Kamera im Ursprung, Blick −Z), bei der das Visier exakt
 //   auf der optischen Achse liegt (inkl. Augenabstand der Visierung).
 import * as THREE from 'three';
-import { Builder, DETAIL, clearPartCache } from './gunsmith/builder.js';
+import { Builder, DETAIL, clearPartCache, setWeaponDetail as setDetail } from './gunsmith/builder.js';
 import { kv47, sk14 } from './gunsmith/guns-ar.js';
 import { m17 } from './gunsmith/guns-m17.js';
 import { vp9, qx90, hm60 } from './gunsmith/guns-auto.js';
@@ -54,6 +54,23 @@ const PART_NAMES = ['selector', 'dustCover', 'mag', 'bolt', 'charge', 'pump', 's
   'crane', 'cylinder', 'ejector', 'loader', 'rocket'];
 
 const cache = new Map();
+
+/**
+ * 24.10.: Detailstufe der Ego-Fassungen – 'max' (PC hoch/ultra), 'std' (PC niedrig/mittel), 'lite' (Touch). Gehört vor jeden
+ * Vorbau (main.js: Start, Lobby-Leerlauf, Ladebildschirm) und zu jedem Qualitätswechsel – bisher setzte sie erst das Viewmodel,
+ * ein PC auf niedrig/mittel baute M-17/P-9 davor zusätzlich in max (≈ 5 s, ≈ 61 MB). → true bei Wechsel
+ */
+export function weaponDetailTier() { return DETAIL.max ? 'max' : DETAIL.lite ? 'lite' : 'std'; }
+export function setWeaponDetail(quality) {
+  const was = weaponDetailTier();
+  setDetail(quality);
+  return weaponDetailTier() !== was;
+}
+
+// 24.10.: stufenunabhängige Metadaten je Modell – in allen Stufen gleich (geprüft für alle MODEL_KEYS: Bot-Stufe, max, std,
+// lite; info.dustCover hängt an der Stufe und fehlt deshalb). Gefüllt aus der ersten Vorlage ohne Aufsätze, egal welcher Stufe.
+const META_FIELDS = ['sight', 'kind', 'axis', 'leftGrip', 'selector'];
+const metaCache = new Map();
 
 function buildTemplate(key, lod, att = null, tier = null) {
   const make = BUILDERS[key];
@@ -125,14 +142,18 @@ function cloneTemplate(tpl) {
 }
 
 // Detailstufe einer Ego-Vorlage: fest vorgegeben ('max' | 'std' | 'lite', 24.10. V4) oder nach DETAIL (Grafikstufe)
-const tierOf = (tier) => tier || (DETAIL.max ? 'max' : DETAIL.lite ? 'lite' : 'std');
+const tierOf = (tier) => tier || weaponDetailTier();
 const tplKey = (key, lod, ak, tier) => key + ':' + lod + (lod !== 'third' ? ({ max: ':max', lite: ':lite' }[tierOf(tier)] || '') : '') + (ak ? '|' + ak : '');
 
 function getTemplate(key, lod, att = null, tier = null) {
   const ak = attKey(att);
   const k = tplKey(key, lod, ak, tier);
   let t = cache.get(k);
-  if (!t) { t = buildTemplate(key, lod, ak ? att : null, tier); cache.set(k, t); }
+  if (!t) {
+    t = buildTemplate(key, lod, ak ? att : null, tier);
+    cache.set(k, t);
+    if (!ak && !metaCache.has(key)) { const i = t.userData.__meta.info, m = {}; for (const f of META_FIELDS) m[f] = i[f] ?? null; metaCache.set(key, m); }
+  }
   return t;
 }
 
@@ -190,9 +211,20 @@ export function createWeaponModel(key, { lod = 'first', camo = null, att = null,
   return cloneTemplate(getTemplate(key, lod === 'third' ? 'third' : 'first', null, tier));
 }
 
-/** Metadaten ohne Instanz (Dreiecke, Größe, Visier, Art). */
+/** Metadaten ohne Instanz (Dreiecke, Größe, Visier, Art). Ohne lod: Ego-Fassung der aktuellen Stufe (baut sie ggf.!). */
 export function getWeaponModelInfo(key, lod = 'first', att = null) {
   return { ...getTemplate(key, lod === 'third' ? 'third' : 'first', att).userData.__meta.info };
+}
+
+/**
+ * 24.10.: stufenunabhängige Metadaten { sight, kind, axis, leftGrip, selector } – für Aufsatz-Prüfungen
+ * (attachmentsFor/applyAttachments) von Bots, Waffensteuerung und Lobby. Liest eine vorhandene Vorlage, sonst baut sie höchstens
+ * die Bot-Fassung (≤ 30 ms). Vorher baute getWeaponModelInfo(key) die volle Ego-Fassung jeder Waffe, die ein Bot trug – samt
+ * Foto-Atlas, und seit der Freigabe je Waffe (V4) in jedem Match neu.
+ */
+export function getWeaponModelMeta(key) {
+  if (!metaCache.has(key)) getTemplate(key, 'third');
+  return { ...metaCache.get(key) };
 }
 
 /** Baut alle Modelle vorab (z. B. während des Ladebildschirms), damit später keine Ruckler entstehen. tier: feste
@@ -205,37 +237,43 @@ export function preloadWeaponModels(keys = MODEL_KEYS, lods = ['first', 'third']
 // Ego-Vorlagen blieben bisher die ganze Sitzung stehen (jede Waffe, jede Stufe, jede Aufsatz-Kombination, dazu die
 // Foto-Atlanten). Halter (Viewmodel, Lobby-Vorschau) melden ihre Waffe an; beim Matchstart gibt freeIdleWeaponModels
 // alles frei, was niemand hält und das neue Match nicht braucht – Geometrie, Bauteil-Cache, Atlas-Texturen.
-const holds = new Map();   // Modellschlüssel → Zahl der Halter
+const holds = new Map();   // 'Modell:Stufe' → Zahl der Halter
 
-/** Waffe als benutzt anmelden; liefert die Abmeldung (mehrfacher Aufruf harmlos). */
-export function holdWeaponModel(key) {
-  holds.set(key, (holds.get(key) || 0) + 1);
+/**
+ * Waffe als benutzt anmelden – in der Stufe, die der Halter zeigt (Standard: aktuelle Stufe, also direkt nach
+ * createWeaponModel aufrufen); liefert die Abmeldung (mehrfacher Aufruf harmlos). Je Stufe (24.10.): sonst hielt eine
+ * gezeigte Fassung auch alle anderen Stufen derselben Waffe (z. B. M-17 max nach „hoch“ → „niedrig“).
+ */
+export function holdWeaponModel(key, tier = weaponDetailTier()) {
+  const hk = key + ':' + tier;
+  holds.set(hk, (holds.get(hk) || 0) + 1);
   let done = false;
   return () => {
     if (done) return;
     done = true;
-    const n = (holds.get(key) || 1) - 1;
-    if (n > 0) holds.set(key, n); else holds.delete(key);
+    const n = (holds.get(hk) || 1) - 1;
+    if (n > 0) holds.set(hk, n); else holds.delete(hk);
   };
 }
 
 /**
  * Ego-Vorlagen freigeben, die niemand hält: Waffen außerhalb von keep ganz, Waffen in keep nur in Stufen, die das
- * Gerät gerade nicht nutzt (aktuelle und leichte Stufe bleiben). Danach Atlas-Materialien ohne Vorlage samt Texturen
- * und Tarnklonen. Liefert die Zahl der freigegebenen Vorlagen.
+ * Gerät gerade nicht nutzt (aktuelle Stufe bleibt, die leichte nur mit keepLight – Schießstand). Danach Atlas-Materialien
+ * ohne Vorlage samt Texturen und Tarnklonen. Liefert die Zahl der freigegebenen Vorlagen.
  */
-export function freeIdleWeaponModels(keep = []) {
-  const want = new Set(keep.filter(Boolean)), cur = tierOf(null), light = lightTier(), gone = new Set();
+export function freeIdleWeaponModels(keep = [], { keepLight = true } = {}) {
+  const want = new Set(keep.filter(Boolean)), cur = tierOf(null), light = keepLight ? lightTier() : cur, gone = new Set();
   for (const [k, t] of [...cache]) {
     const m = /^([^:]+):first(?::(max|lite))?(?:\||$)/.exec(k);
     if (!m) continue;
     const key = m[1], tier = m[2] || 'std';
-    if (holds.has(key) || (want.has(key) && (tier === cur || tier === light))) continue;
+    if (holds.has(key + ':' + tier) || (want.has(key) && (tier === cur || tier === light))) continue;
     t.traverse((o) => { if (o.isMesh && o.name !== 'rounds') o.geometry.dispose(); });   // Patronen: geteilt (magfill)
     cache.delete(k);
     gone.add(key + ':' + tier);
   }
-  for (const kt of gone) { const [key, tier] = kt.split(':'); clearPartCache(key, tier); mounts.delete(key); }
+  // (Optik-Montagen bleiben: nur Zahlen – sonst baute ein Bot mit Optik auf einer Kimme-Korn-Waffe die Ego-Fassung jedes Match neu)
+  for (const kt of gone) { const [key, tier] = kt.split(':'); clearPartCache(key, tier); }
   const used = new Set();
   for (const t of cache.values()) t.traverse((o) => { if (o.isMesh && o.material && o.material.name) used.add(o.material.name.slice(3)); });
   disposeCamosFor(freeAtlasMaterials(used));
@@ -259,6 +297,7 @@ export function disposeWeaponModels() {
   for (const t of cache.values()) t.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
   cache.clear();
   mounts.clear();
+  metaCache.clear();
   clearPartCache();
   disposeMagFill();
   disposeCamos();

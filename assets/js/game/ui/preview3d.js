@@ -105,7 +105,7 @@ export class WeaponPreview {
     let att = null;
     if (def && def.cls && models) {
       let info = null;
-      try { info = typeof models.getWeaponModelInfo === 'function' ? models.getWeaponModelInfo(def.model) : null; } catch { /* */ }
+      try { info = typeof models.getWeaponModelMeta === 'function' ? models.getWeaponModelMeta(def.model) : null; } catch { /* */ } // 24.10. (V2)
       att = cleanAttachments(def, loadAttachments()[id], info);
       if (!Object.keys(att).length) att = null;
     }
@@ -145,6 +145,19 @@ export class WeaponPreview {
     if (!this.model || !models || typeof models.applyCamo !== 'function') return;
     try { models.applyCamo(this.model, this.camo); } catch { /* Vorschau ist Beiwerk */ }
     this.render();
+  }
+
+  /**
+   * Waffen-Detailstufe gewechselt (24.10.): Modell loslassen, damit die Freigabe je Waffe die alte Stufe abgeben kann (sonst hielt
+   * die Vorschau z. B. die max-Fassung der M-17 nach „hoch“ → „niedrig“ die ganze Sitzung). Läuft die Vorschau, gleich in der neuen
+   * Stufe neu aufbauen, sonst beim nächsten setWeapon (Lobby).
+   */
+  refresh() {
+    if (!this.model) return;
+    const id = this.modelId;
+    this._clearModel();
+    this.modelId = null;
+    if (this.running && id) this.setWeapon(id);
   }
 
   _clearModel() {

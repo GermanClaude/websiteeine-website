@@ -215,7 +215,8 @@ export class BotManager {
       const def = id && WEAPONS[id];
       if (!def || Math.random() > pAny) continue;
       let info = null;
-      try { info = M && M.getWeaponModelInfo ? M.getWeaponModelInfo(def.model || def.id) : null; } catch { info = null; }
+      // 24.10. (V2): stufenunabhängige Metadaten – baut höchstens die Bot-Fassung (vorher: volle Ego-Fassung je Bot-Waffe)
+      try { info = M && M.getWeaponModelMeta ? M.getWeaponModelMeta(def.model || def.id) : null; } catch { info = null; }
       const opts = attachmentsFor(def, info), pick = {};
       for (const [slot, list] of Object.entries(opts)) {
         if (Object.keys(pick).length >= max) break;

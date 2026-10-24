@@ -71,6 +71,23 @@ const out = await p.evaluate(async () => {
   g.font = '600 64px Arial, Helvetica, sans-serif';
   const kurz = (Math.ceil(g.measureText('M17').width) + 8) / Math.ceil(64 * 1.2);   // wie bisher gemessen
   ok('Schrift: langer Stempel passt (' + (err || 'ok') + '), Seitenverhältnis ' + as(lang).toFixed(2) + ', kurzer Text gleich', !err && as(lang) > 15 && as('M17') === kurz);
+  // Nachbesserung 24.10.: Bots/Waffensteuerung lesen nur Metadaten – keine Ego-Fassung (vorher je Bot-Waffe voll samt Atlas)
+  B.DETAIL.max = true; B.DETAIL.lite = false;
+  M.freeIdleWeaponModels([]);
+  const meta = M.getWeaponModelMeta('m17'), metaP = M.getWeaponModelMeta('p9'), metaK = M.getWeaponModelMeta('kv47');   // kv47: noch nie gebaut
+  const ego = (k) => ['max', 'std', 'lite'].some((tier) => M.hasWeaponModel(k, { tier }));
+  ok('Metadaten ohne Ego-Fassung (' + JSON.stringify(metaK) + ')', meta.kind === 'rifle' && meta.sight === 'holo' && metaP.kind === 'pistol' && metaK.kind === 'rifle' &&
+    !ego('m17') && !ego('p9') && !ego('kv47') && M.hasWeaponModel('kv47', { lod: 'third' }));
+  // Detailstufe nach Grafikstufe (main.js vor jedem Vorbau): Wechsel wird gemeldet, gleiche Stufe nicht
+  ok('setWeaponDetail meldet Wechsel', M.setWeaponDetail('medium') === true && M.weaponDetailTier() === 'std' && M.setWeaponDetail('low') === false && M.setWeaponDetail('high') === true && M.weaponDetailTier() === 'max');
+  // Halter je Stufe: eine gezeigte std-Fassung (Vorschau nach „hoch“ → „niedrig“) hält die max-Fassung derselben Waffe nicht fest
+  M.createWeaponModel('p9'); const hMax = M.holdWeaponModel('p9');
+  M.setWeaponDetail('medium'); M.createWeaponModel('p9'); const hStd = M.holdWeaponModel('p9');
+  M.freeIdleWeaponModels([]);
+  const beide = M.hasWeaponModel('p9', { tier: 'max' }) && M.hasWeaponModel('p9', { tier: 'std' });
+  hMax(); M.freeIdleWeaponModels([]);
+  ok('Halter je Stufe (max frei, gehaltene std bleibt)', beide && !M.hasWeaponModel('p9', { tier: 'max' }) && M.hasWeaponModel('p9', { tier: 'std' }));
+  hStd();
   return res;
 });
 let fail = errors.length;
