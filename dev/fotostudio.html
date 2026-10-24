@@ -7,7 +7,8 @@
 <!-- Waffen wie auf einem Produktfoto: Studio-Umgebung (Softbox-Raum) für Spiegelungen, weiche Lichter, Umgebungsverdeckung (GTAO), Kontaktschatten auf
      hellem Hohlkehlen-Hintergrund, ACES-Tonwerte. Für Vorher/Nachher-Vergleiche der Waffenmodelle (Nutzer 13.10.2026).
      ?model=p9&yaw=-90&pitch=0&dist=0.4&camo=…&w=1600&h=1000 – window.__studio.ready, wenn das Bild steht.
-     Fotovergleich: &bg=ffffff&floor=0&fov=4&dist=… (fast parallel), &ty/&tz verschieben den Blickpunkt. -->
+     Fotovergleich: &bg=ffffff&floor=0&fov=4&dist=… (fast parallel), &ty/&tz verschieben den Blickpunkt.
+     &tier=max|std|lite|third: Detailstufe der Waffe (24.10.; ohne: am PC die volle Fassung, wie im Arsenal). -->
 <style>html,body{margin:0;height:100%;background:#c8ccd0;overflow:hidden}canvas{display:block}</style>
 <script type="importmap">{"imports":{"three":"../assets/vendor/three/three.module.min.js","three/addons/":"../assets/vendor/three/addons/"}}</script>
 </head>
@@ -20,6 +21,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { createWeaponModel, applyCamo } from '../assets/js/game/weapons/models.js';
+import { DETAIL } from '../assets/js/game/weapons/gunsmith/builder.js';
 
 const q = new URLSearchParams(location.search);
 const W = +(q.get('w') || 1600), H = +(q.get('h') || 1000);
@@ -62,7 +64,9 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.03).texture;
 scene.environmentIntensity = +(q.get('env') || 0.75);
 
-const model = createWeaponModel(q.get('model') || 'p9', { lod: 'first', att: q.get('att') ? JSON.parse(q.get('att')) : null });
+const tier = q.get('tier');
+if (tier) { DETAIL.max = tier === 'max'; DETAIL.lite = tier === 'lite'; }
+const model = createWeaponModel(q.get('model') || 'p9', { lod: tier === 'third' ? 'third' : 'first', att: q.get('att') ? JSON.parse(q.get('att')) : null });
 if (q.get('camo')) applyCamo(model, q.get('camo'));
 model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
 // auf den Boden stellen (leicht schräg wie hingelegt geht nicht – Waffen stehen im Labor aufrecht), mittig
