@@ -13,7 +13,7 @@
 //   adsOffset = Position der Gruppe im Kameraraum (Kamera im Ursprung, Blick −Z), bei der das Visier exakt
 //   auf der optischen Achse liegt (inkl. Augenabstand der Visierung).
 import * as THREE from 'three';
-import { Builder, DETAIL } from './gunsmith/builder.js';
+import { Builder, DETAIL, setWeaponDetail as setDetail } from './gunsmith/builder.js';
 import { kv47, sk14 } from './gunsmith/guns-ar.js';
 import { m17 } from './gunsmith/guns-m17.js';
 import { vp9, qx90, hm60 } from './gunsmith/guns-auto.js';
@@ -55,9 +55,17 @@ const PART_NAMES = ['selector', 'dustCover', 'mag', 'bolt', 'charge', 'pump', 's
 
 const cache = new Map();
 
-/** 24.10. (V5): Detailstufe der Ego-Fassungen – 'max' (PC hoch/ultra), 'std' (PC niedrig/mittel), 'lite' (Touch); Teil des
- * Vorlagen-Schlüssels. */
+/**
+ * 24.10. (Vorarbeit V1): Detailstufe der Ego-Fassungen – 'max' (PC hoch/ultra), 'std' (PC niedrig/mittel), 'lite' (Touch);
+ * Teil des Vorlagen-Schlüssels. setWeaponDetail(quality) gehört vor jeden Vorbau (main.js: Start, Lobby-Leerlauf, Ladebildschirm)
+ * und zu jedem Qualitätswechsel (Viewmodel) – vorher baute ein PC auf niedrig/mittel M-17/P-9 zusätzlich in max. → true bei Wechsel
+ */
 export function weaponDetailTier() { return DETAIL.max ? 'max' : DETAIL.lite ? 'lite' : 'std'; }
+export function setWeaponDetail(quality) {
+  const was = weaponDetailTier();
+  setDetail(quality);
+  return weaponDetailTier() !== was;
+}
 
 // 24.10. (V2): stufenunabhängige Metadaten je Modell – in allen Stufen gleich (geprüft für alle MODEL_KEYS; info.dustCover
 // hängt an der Stufe und fehlt deshalb). Gefüllt aus der ersten Vorlage ohne Aufsätze, egal welcher Stufe.
@@ -249,6 +257,22 @@ export function weaponBuildCost(key) {
     if (!best || (m.ms || 0) > best.ms) best = { ms: m.ms || 0, triangles: m.info.triangles };
   }
   return best;
+}
+
+/**
+ * 24.10. (V1): Ego-Vorlagen anderer Detailstufen freigeben (Grafikstufe im Match gewechselt, Viewmodel hat umgestellt).
+ * Noch gezeigte Klone (Lobby-Vorschau) laden ihre Geometrie beim nächsten Zeichnen selbst wieder hoch. → Anzahl
+ */
+export function releaseEgoTemplates(keepTier = weaponDetailTier()) {
+  let n = 0;
+  for (const [k, t] of cache) {
+    const [, lod, tier = 'std'] = k.split('|')[0].split(':');
+    if (lod !== 'first' || tier === keepTier) continue;
+    t.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+    cache.delete(k);
+    n++;
+  }
+  return n;
 }
 
 /** 24.10. (V5): eine Ego-/Bot-Vorlage freigeben (ungenutzter Vorrat am Matchende). → true, wenn es sie gab */

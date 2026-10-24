@@ -143,7 +143,7 @@ export class ViewModel {
     this._scheme = schemeForTeam(this._team, G.world) || null;
     // Detailstufe der Waffenmodelle + Eigenschatten nach Grafikstufe (vor dem ersten Modellbau)
     setWeaponDetail(G.renderer?.quality || 'high');
-    this._tier = weaponDetailTier(); // 24.10. (V5): Stufe der gebauten Waffen (Vorrat-Budget, hintergrundbau.js)
+    this._tier = this._propsTier = weaponDetailTier(); // 24.10. (V1): Stufe der gebauten Waffen/Requisiten (hintergrundbau.js)
     this.arms = new Arms({ camo: sleeveCamo(this._scheme), quality: G.renderer?.quality || 'high' });
     this.root.add(this.arms.group);
     if (DETAIL.max) this.arms.group.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
@@ -158,14 +158,7 @@ export class ViewModel {
     // PC (volle Detailstufe): Eigenschatten von Waffe und Armen – Visier auf dem Gehäuse, Hand auf dem Schaft (Nutzer
     // 13.10.2026: „zu spielerhaft, realistischer, auch die Beleuchtung“). Kleiner Schattenraum um die Waffe, feine Auflösung.
     this._selfShadow = DETAIL.max;
-    if (this._selfShadow) {
-      const sh = this.sun.shadow, c = sh.camera;
-      this.sun.castShadow = true;
-      sh.mapSize.set(2048, 2048);
-      c.left = -0.5; c.right = 0.5; c.top = 0.5; c.bottom = -0.5; c.near = 3.6; c.far = 6.4;
-      sh.bias = -0.00025; sh.normalBias = 0.0012;
-      c.updateProjectionMatrix();
-    }
+    if (this._selfShadow) this._shadowSetup();
     this.flash = new MuzzleFlash();
     this.root.add(this.flash.light);
     this.smoke = new SmokeWisps(8);
@@ -780,6 +773,35 @@ export class ViewModel {
     // Hitzeflimmern nur auf ultra (Bildkopie mitten im Bild + ein Billboard; 15.10.: auf „hoch“ kostete die Kopie beim
     // Dauerfeuer auf schwächeren Grafikkarten spürbar – genau dann, wenn der Lauf heiß wird)
     if (this.haze) this.haze.enabled = q === 'ultra';
+    // 24.10. (V1): Detailstufe der Waffen folgt der Grafikstufe auch im Match (Einstellungen, VR-Vorgabe „Niedrig“ auf Brillen) –
+    // Neubau im Hintergrund, die alte Fassung bleibt bis zum Tausch (hintergrundbau.js _retier)
+    setWeaponDetail(q);
+    if (this._models && this._tier !== weaponDetailTier()) this._retier();
+  }
+
+  /** Eigenschatten der Waffe/Arme (nur volle Detailstufe, PC hoch/ultra): kleiner Schattenraum um die Waffe, feine Auflösung. */
+  _shadowSetup() {
+    const sh = this.sun.shadow, c = sh.camera;
+    this.sun.castShadow = true;
+    sh.mapSize.set(2048, 2048);
+    c.left = -0.5; c.right = 0.5; c.top = 0.5; c.bottom = -0.5; c.near = 3.6; c.far = 6.4;
+    sh.bias = -0.00025; sh.normalBias = 0.0012;
+    c.updateProjectionMatrix();
+  }
+
+  /** 24.10. (V1): Eigenschatten bei Stufenwechsel im Match an/aus (Arme, Sonne, vorhandene Waffen). */
+  _setSelfShadow(on) {
+    if (this._selfShadow === on) return;
+    this._selfShadow = on;
+    if (on) this._shadowSetup();
+    else {
+      this.sun.castShadow = false;
+      if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
+    }
+    this.arms.group.traverse((o) => { if (o.isMesh) { o.castShadow = on; o.receiveShadow = on; } });
+    for (const e of this._models.values()) {
+      e.model.traverse((o) => { if (o.isMesh) { const t = !!(o.material && o.material.transparent); o.castShadow = on && !t; o.receiveShadow = on && !t; } });
+    }
   }
 
   _ensureOwnEnv() {
@@ -1840,7 +1862,7 @@ const VM_FILL = 0.42;
 // vier Inspektionen je Mechanik mit Munitionsschätzung (anim/inspects.js), Ziehen je Klasse, Bereitmachen,
 // Leerlauf-Gesten, Bewegungsposen, Nahkampf-/Wurfvarianten (anim/moves.js)
 Object.assign(ViewModel.prototype, EXTRA_ACTIONS, RELOAD_ACTIONS, INSPECT_ACTIONS, MOVE_ACTIONS);
-// 24.10. (V5): Ego-Waffen ohne Hänger – Vorrat, Bot-Fassung als Platzhalter (hintergrundbau.js)
+// 24.10. (V1/V5): Ego-Waffen ohne Hänger – Vorrat, Bot-Fassung als Platzhalter, Neubau bei Stufenwechsel (hintergrundbau.js)
 Object.assign(ViewModel.prototype, BUILD_ACTIONS);
 
 // Zubehör der Klassen-Arme (Binde, Stulpen, Wickel, Band) – Materialien modulweit, überdauern Matches

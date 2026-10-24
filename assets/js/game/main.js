@@ -730,8 +730,18 @@ function nextFrame() {
   });
 }
 
-const warmed = new Set(); // erledigte Vorarbeiten ('m:<Modell>:<LOD>[|<Aufsätze>]', 's:<Schema>:<Variante>:<Qualität>')
+const warmed = new Set(); // erledigte Vorarbeiten ('m:<Modell>:<LOD>[:<Stufe>][|<Aufsätze>]', 's:<Schema>:<Variante>:<Qualität>')
 const mapSchemes = new Map(); // mapId → { B, ffa }: Tarnschemata der Bots auf dieser Karte (nach dem ersten Laden bekannt)
+
+/**
+ * 24.10. (Vorarbeit V1): Detailstufe der Ego-Waffenmodelle nach der aktuellen Grafikstufe – vor jedem Vorbau (Start, Lobby-Leerlauf,
+ * Lobby-Vorschau, Ladebildschirm) und bei jedem Qualitätswechsel. Vorher galt bis zum ersten Viewmodel die Startannahme „PC = volle
+ * Fassung“: ein PC auf niedrig/mittel baute M-17/P-9 zusätzlich in max (Container ≈ 7 s, ≈ 87 MB). → true, wenn die Stufe wechselte
+ */
+function syncWeaponDetail() {
+  const M = G.modules.models;
+  return !!(M && typeof M.setWeaponDetail === 'function' && G.renderer && M.setWeaponDetail(G.renderer.quality));
+}
 
 /**
  * Vorarbeiten für ein Match als kleine Einzelschritte (je ein Waffen-Template bzw. ein Soldat aus
@@ -754,8 +764,18 @@ function matchAssetJobs(cfg, world) {
     seen.add(k);
     jobs.push(() => { fn(); warmed.add(k); });
   };
+  // 24.10. (V1): Ego-Vorlagen in der Stufe der aktuellen Grafikstufe; die Stufe gehört zum Schlüssel (Wechsel → neu bauen)
+  syncWeaponDetail();
+  const tier = models && typeof models.weaponDetailTier === 'function' ? models.weaponDetailTier() : '';
+  // Ego-Vorlage inzwischen freigegeben (Stufenwechsel im Match, ungenutzter Vorrat am Matchende) → wieder einplanen
+  const unwarm = (k, key, att) => {
+    if (warmed.has(k) && typeof models.hasWeaponTemplate === 'function' && !models.hasWeaponTemplate(key, 'first', att)) warmed.delete(k);
+  };
   const addModel = (key, lod) => {
-    if (key && models && typeof models.preloadWeaponModels === 'function') add(`m:${key}:${lod}`, () => models.preloadWeaponModels([key], [lod]));
+    if (!key || !models || typeof models.preloadWeaponModels !== 'function') return;
+    const k = `m:${key}:${lod}${lod === 'first' ? ':' + tier : ''}`;
+    if (lod === 'first') unwarm(k, key, null);
+    add(k, () => models.preloadWeaponModels([key], [lod]));
   };
   const allWeapons = cfg.modeId === 'gun' || cfg.modeId === 'training';
   // Ego: Ausrüstung (gun/training: alle Waffen, siehe WeaponController.warmup) + Requisiten des Viewmodels
@@ -769,7 +789,9 @@ function matchAssetJobs(cfg, world) {
       att = safe('ownAttachments', () => applyAttachments(W[id], ownAtt[id], models.getWeaponModelMeta(key)).att) || null;
     }
     if (!att || typeof models.getWeaponModelInfo !== 'function') { addModel(key, 'first'); return; }
-    add(`m:${key}:first|${Object.values(att).join('+')}`, () => models.getWeaponModelInfo(key, 'first', att));
+    const k = `m:${key}:first:${tier}|${Object.values(att).join('+')}`;
+    unwarm(k, key, att);
+    add(k, () => models.getWeaponModelInfo(key, 'first', att));
   };
   for (const id of own) addOwn(id);
   for (const id of ['knife', 'frag', 'semtex']) addModel(modelOf(id), 'first');
@@ -1725,6 +1747,13 @@ function applyQuality(q) {
  */
 function onQualityChanged() {
   applyQualityClasses();
+  // 24.10. (V1): Waffen-Detailstufe folgt (das Viewmodel im Match stellt seine Waffen selbst um). Lobby: Vorlagen der alten
+  // Stufe frei (z. B. M-17 max ≈ 64 MB nach „hoch“ → „niedrig“; die Vorschau lädt ihren Klon selbst wieder hoch), Vorbau neu planen
+  if (syncWeaponDetail() && G.match.state === 'lobby') {
+    safe('releaseEgoTemplates', () => G.modules.models.releaseEgoTemplates());
+    lobbyWarm = null;
+    scheduleLobbyPrewarm();
+  }
   setTimeout(prewarmShaders, 0); // nach den übrigen Abonnenten (Schattenzustand der Welt)
 }
 
@@ -2208,6 +2237,7 @@ async function bootstrap() {
     phase = 'module';
     await loadModules((p) => setBoot(0.06 + p * 0.66, 'Lade Module …'));
     phase = 'error';
+    syncWeaponDetail(); // 24.10. (V1): vor Lobby-Vorschau und Lobby-Vorbau
 
     setBoot(0.75, 'Starte Systeme …');
     G.player = new Player(G);

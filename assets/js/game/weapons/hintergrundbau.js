@@ -1,8 +1,8 @@
-// NULLPUNKT – Ego-Waffen ohne Hänger (24.10., Vorarbeit V5 vor dem Umbau aller Waffen auf M-17/P-9-Detailgrad).
+// NULLPUNKT – Ego-Waffen ohne Hänger (24.10., Vorarbeiten V1/V5 vor dem Umbau aller Waffen auf M-17/P-9-Detailgrad).
 //
 // Eine Foto-Waffe kostet im Container bis ≈ 5 s Bau (Distanzfeld-Netze, Atlas) + 0,8 s Kontaktgitter – synchron im Hauptthread.
 // Bisher geschah das, wann immer eine Ego-Fassung fehlte: beim Aufheben einer Waffe mitten im Gefecht, beim ersten Wechsel auf eine
-// Zweitwaffe mit Aufsätzen. Darum:
+// Zweitwaffe mit Aufsätzen, nach einem Wechsel der Grafikstufe gar nicht (VR blieb auf der vollen Fassung). Darum:
 //  - prefetch(defs) / prefetchJobs(defs): Vorrat – Ego-Fassungen der im Match getragenen Waffen (Bots, Mitspieler, Beute am Boden,
 //    vorgemerkte eigene Ausrüstung) in der aktuellen Detailstufe, im Ladebildschirm (main.js runJobs) bzw. im Leerlauf (tot, Pause,
 //    Countdown). Budget je Stufe (PREFETCH_TRIS), häufigste Waffen zuerst; was nicht mehr passt, fällt auf den nächsten Punkt zurück.
@@ -10,10 +10,12 @@
 //    und ist sie teuer, kommt sofort die Bot-Fassung derselben Waffe in die Hand (gleiche Anker → Anschlag, Griffe, Mündung, Auswurf
 //    stimmen; ≤ 30 ms). Die Ego-Fassung entsteht in Einzelschritten (Vorlage → Kontaktgitter → Griffe/Schacht → Shader/Texturen)
 //    und ersetzt sie in einem ruhigen Moment.
-// backgroundStep({ idle, quiet }) läuft je Bild (main.js) und macht höchstens einen Schritt: dringende Aufträge (Bot-Fassung in der
-// Hand) im Leerlauf oder in Ruhe (QUIET_S kein Schuss, kein Anschlag, keine Aktion, kein Treffer), Vorrat nur im Leerlauf.
+//  - _retier() (Grafikstufe im Match gewechselt: Einstellungen, VR-Vorgabe „Niedrig“): Waffen in der Hand/im Gepäck in der neuen
+//    Stufe ebenso neu, die alte Fassung bleibt bis zum Tausch; danach werden die Vorlagen der alten Stufe freigegeben.
+// backgroundStep({ idle, quiet }) läuft je Bild (main.js) und macht höchstens einen Schritt: dringende Aufträge (Bot-Fassung oder alte
+// Stufe in der Hand) im Leerlauf oder in Ruhe (QUIET_S kein Schuss, kein Anschlag, keine Aktion, kein Treffer), Vorrat nur im Leerlauf.
 import * as THREE from 'three';
-import { createWeaponModel, weaponDetailTier, hasWeaponTemplate, weaponBuildCost, releaseWeaponTemplate } from './models.js';
+import { createWeaponModel, weaponDetailTier, hasWeaponTemplate, weaponBuildCost, releaseEgoTemplates, releaseWeaponTemplate } from './models.js';
 import { applyCamo } from './gunsmith/camos.js';
 import { ID_TO_MODEL } from './gunsmith/handling.js';
 import { magWellOf } from './anim/magwell.js';
@@ -245,12 +247,48 @@ export const BUILD_ACTIONS = {
   },
 
   /**
+   * Grafikstufe im Match gewechselt (V1): Waffe in der Hand und ausgerüstete Waffen in der neuen Stufe neu (Hand zuerst), übrige
+   * Einträge (Vorrat, alte Aufsätze) fallen weg; Requisiten folgen in einem Schritt, danach Vorlagen der alten Stufe frei.
+   */
+  _retier() {
+    this._tier = weaponDetailTier();
+    this._setSelfShadow(this._tier === 'max');
+    const keep = new Set();
+    if (this.cur) keep.add(this.cur.mk);
+    for (const s of this.G?.player?.weapon?.slots || []) if (s && s.def) keep.add(this._mk(s.id, s.def.att || null));
+    // Vorrat verwerfen; laufende Aufträge in der neuen Stufe von vorn
+    this._bgJobs = (this._bgJobs || []).filter((j) => !j.prefetch);
+    for (const j of this._bgJobs) if (j.entry && j.entry.tier !== this._tier) { j.step = 0; j.entry = null; }
+    for (const [mk, e] of [...this._models]) {
+      if (!keep.has(mk)) { this._models.delete(mk); continue; }
+      if (!e.stub && e.tier === this._tier) { this._bgJobs = this._bgJobs.filter((j) => j.mk !== mk); continue; } // schon in dieser Stufe
+      this._enqueue({ mk, id: e.id, key: e.key, att: e.attObj || null, ak: e.att || '', prio: e === this.cur ? 1 : 0, step: 0 });
+    }
+    this._prefetchTris = this._prefetchN = 0;
+    this._releaseOld = true;
+  },
+
+  /** Requisiten (Messer, Granaten, Platte – je ≤ 2 000 Dreiecke) in der aktuellen Stufe neu. */
+  _rebuildProps() {
+    for (const k of Object.keys(this.props)) {
+      const old = this.props[k];
+      const m = this._prop(createWeaponModel(k === 'knife' ? this._meleeKey : k, { lod: 'first' }));
+      if (k === 'knife' && this._camos.get(this._meleeId)) applyCamo(m, this._camos.get(this._meleeId));
+      old.removeFromParent();
+      this.props[k] = m;
+    }
+    this._propsTier = this._tier;
+  },
+
+  /**
    * Je Bild höchstens ein Schritt (main.js). idle: Spieler tot, Pausenmenü, Countdown; quiet: Spieler lebt und nahm zuletzt keinen
    * Schaden. → true, wenn gearbeitet wurde
    */
   backgroundStep({ idle = false, quiet = true } = {}) {
     if (this._disposed) return false;
     const calm = idle || (quiet && this._quietNow());
+    // Requisiten nach Stufenwechsel (ohne laufende Aktion – Granate/Messer könnten gerade in der Hand sein)
+    if (this._propsTier !== this._tier && calm && !this.action) { this._rebuildProps(); return true; }
     // Pausenmenü/Todesbildschirm: vorgemerkte Waffe (Ausrüstung geändert) schon jetzt bauen – sonst Bot-Fassung beim Weiterspielen
     const p = this._pending;
     if (idle && p && this.deferBuilds) {
@@ -259,7 +297,10 @@ export const BUILD_ACTIONS = {
       if (!this._models.has(mk)) this._enqueue({ mk, id: p.id, key: (p.def && p.def.model) || ID_TO_MODEL[p.id] || p.id, att, ak: attKeyOf(att), prio: 2, step: 0 });
     }
     const q = this._bgJobs;
-    if (!q || !q.length) return false;
+    if (!q || !q.length) {
+      if (this._releaseOld && this._propsTier === this._tier) { this._releaseOld = false; releaseEgoTemplates(this._tier); }
+      return false;
+    }
     let job = null;
     for (const j of q) {
       if (j.prio >= 1 ? !calm : !idle) continue;
