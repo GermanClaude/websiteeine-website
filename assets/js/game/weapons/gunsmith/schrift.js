@@ -23,6 +23,18 @@ function measure(text, px, weight) {
   return { w: Math.ceil(g.measureText(text).width) + 8, h: Math.ceil(px * 1.2) };
 }
 
+// Schriftgröße im Atlas: ein Text breiter als der Atlas (bei 64 px ab ≈ 23 Großbuchstaben) wird kleiner gezeichnet statt den
+// ganzen Waffenbau abzubrechen (24.10.) – die Fläche auf der Waffe behält ihre Größe und ihr Seitenverhältnis, nur die Auflösung
+// der Schrift sinkt. Alles, was passt (z. B. jede M-17-Gravur), bleibt unverändert.
+function fitPx(text, px, weight) {
+  let p = px, w = measure(text, p, weight).w;
+  while (w + PAD > W && p > 4) {
+    p = Math.min(p - 1, Math.floor((p * (W - PAD - 8)) / (w - 8)));
+    w = measure(text, p, weight).w;
+  }
+  return p;
+}
+
 // Zustand je Waffe im Textur-Cache (disposeTextures/dropCached geben ihn mit frei); tex: Textur je Fassung (pc, lite)
 function atlasOf(key) {
   return cached('schrift:' + key, () => ({
@@ -96,11 +108,12 @@ function cellOf(A, text, { vertical = false, px = 64, weight = '600' } = {}) {
   const id = text + '|' + (vertical ? 'v' : 'h') + '|' + px + '|' + weight;
   let cell = A.cells.get(id);
   if (cell) return cell;
-  const { w, h } = measure(text, px, weight);
+  const fpx = fitPx(text, px, weight);
+  const { w, h } = measure(text, fpx, weight);
   const cw = vertical ? h : w, ch = vertical ? w : h;   // Maße der früheren Einzeltextur
   const at = place(A, w, h);                              // abgelegt immer waagrecht (w × h)
-  if (!at) throw new Error(`Schrift-Atlas ${A.key} voll („${text}“)`);
-  cell = { text, px, weight, vertical, w, h, cw, ch, ox: at.ox, oy: at.oy };
+  if (!at) throw new Error(`Text zu breit für den Schrift-Atlas ${A.key} („${text}“)`);
+  cell = { text, px: fpx, weight, vertical, w, h, cw, ch, ox: at.ox, oy: at.oy };
   A.H = Math.max(A.H, at.oy + h + PAD / 2);
   A.cells.set(id, cell); A.order.push(cell);
   for (const v of Object.keys(A.tex)) paint(A, v === 'lite');   // Material besteht schon: nachzeichnen
@@ -138,7 +151,7 @@ export function schrift(key, { lite = false } = {}) {
     }
     return geo;
   };
-  const aspect = (text, o = {}) => { const { w, h } = measure(text, o.px ?? 64, o.weight ?? '600'); return o.vertical ? h / w : w / h; };
+  const aspect = (text, o = {}) => { const wt = o.weight ?? '600', { w, h } = measure(text, fitPx(text, o.px ?? 64, wt), wt); return o.vertical ? h / w : w / h; };
   /** Schriftfeld auf einer Seitenfläche (x > 0 rechts, x < 0 links); h = Schrifthöhe in m. */
   const mark = (b, text, x, v, u, h, o = {}) => {
     if (!b.hi || (b.lite && !lite)) return;

@@ -59,6 +59,18 @@ const out = await p.evaluate(async () => {
   const c = M.applyCamo(M.createWeaponModel('m17'), 'wald');
   let camo = false; c.traverse((o) => { if (o.isMesh && o.userData.baseMat && o.userData.baseMat.name === 'gs:m17Furn@lite' && o.material.name.includes(':camo:')) camo = true; });
   ok('V4 Tarnung auf dem Handy-Atlas', camo);
+  // Schrift-Atlas (Nachbesserung 24.10.): zu breiter Stempel wird kleiner gezeichnet statt den Waffenbau abzubrechen;
+  // kurze Texte unverändert (PC-Stufe: Schriftfelder werden gezeichnet)
+  B.DETAIL.max = true; B.DETAIL.lite = false;
+  const S = await import('/assets/js/game/weapons/gunsmith/schrift.js');
+  const bt = new B.Builder('first'); bt.key = 'test';
+  const lang = 'MADE BY NULLPUNKT WAFFENWERK GMBH · KAL 7,62 × 39 MM';
+  let err = null;
+  try { S.schrift('test').mark(bt, lang, 0.01, 0, 0, 0.002); S.schrift('test').mark(bt, lang, 0.01, 0, 0, 0.002, { vertical: true }); S.schrift('test').mark(bt, 'M17', 0.01, 0, 0, 0.002); } catch (e) { err = e.message; }
+  const as = S.schrift('test').aspect, g = document.createElement('canvas').getContext('2d');
+  g.font = '600 64px Arial, Helvetica, sans-serif';
+  const kurz = (Math.ceil(g.measureText('M17').width) + 8) / Math.ceil(64 * 1.2);   // wie bisher gemessen
+  ok('Schrift: langer Stempel passt (' + (err || 'ok') + '), Seitenverhältnis ' + as(lang).toFixed(2) + ', kurzer Text gleich', !err && as(lang) > 15 && as('M17') === kurz);
   return res;
 });
 let fail = errors.length;
