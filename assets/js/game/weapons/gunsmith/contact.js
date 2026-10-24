@@ -16,6 +16,25 @@ function visibleChain(o, stop) {
   return true;
 }
 
+// Weg vom Modell zu einem Teil als [Name, Typ, Nummer unter gleichnamigen Geschwistern] je Ebene – übersteht Kinder, die
+// später angehängt werden (Mündungsfeuer, Patronen); null, wenn o nicht im Modell hängt
+function pathOf(root, o) {
+  const path = [];
+  for (let p = o; p !== root; p = p.parent) {
+    if (!p || !p.parent) return null;
+    path.push([p.name, p.type, p.parent.children.filter((c) => c.name === p.name && c.type === p.type).indexOf(p)]);
+  }
+  return path.reverse();
+}
+function follow(root, path) {
+  let o = root;
+  for (const [name, type, i] of path) {
+    o = o.children.filter((c) => c.name === name && c.type === type)[i];
+    if (!o) return null;
+  }
+  return o;
+}
+
 /**
  * Zellraster als dichtes Feld (CSR): start[c]..start[c+1] = Dreiecke der Zelle c in aufsteigender Reihenfolge (wie
  * vorher die Listen der Map). Zellen über die Hüllbox x0..x1 × y0..y1 × z0..z1 (Zellindizes); Dreieck t liegt in allen
@@ -111,6 +130,26 @@ export class GunCollider {
     }
     this._stamp = 1;
     this.frame = -1;
+  }
+
+  /**
+   * 24.10. (V5): Kontaktgitter eines Klons derselben Vorlage übernehmen – gleiche Netze im Teilraum → gleiche Dreiecke, Zellen
+   * und Hüllboxen (nur gelesen, geteilt); je Instanz eigene Teil-Bezüge, Lagen und Stempel. Statt eines Neuaufbaus (M-17:
+   * 0,2–0,8 s im Container) unter 1 ms. → null, wenn der Aufbau des Modells abweicht (dann neu bauen).
+   */
+  static share(src, model) {
+    const c = Object.create(GunCollider.prototype);
+    c.model = model;
+    c.groups = [];
+    for (const g of src.groups) {
+      const path = g.obj === src.model ? [] : pathOf(src.model, g.obj);
+      const obj = path && follow(model, path);
+      if (!obj) return null;
+      c.groups.push({ ...g, obj, inv: new THREE.Matrix4(), scale: 1, rot: new THREE.Quaternion(), on: true, stamp: new Uint32Array(g.stamp.length) });
+    }
+    c._stamp = 1;
+    c.frame = -1;
+    return c;
   }
 
   /** Einmal je Bild nach updateMatrixWorld: Teil-Lagen und Sichtbarkeit übernehmen. */

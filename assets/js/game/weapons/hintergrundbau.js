@@ -7,28 +7,35 @@
 //    vorgemerkte eigene Ausrüstung) in der aktuellen Detailstufe, im Ladebildschirm (main.js runJobs) bzw. im Leerlauf (tot, Pause,
 //    Countdown). Budget je Stufe (PREFETCH_TRIS), häufigste Waffen zuerst; was nicht mehr passt, fällt auf den nächsten Punkt zurück.
 //  - _entryForSwap() (aus _swapNow, nur mit deferBuilds = Spiel; Labor/Werkzeuge bauen wie bisher sofort): fehlt die Ego-Fassung
-//    und ist sie teuer, kommt sofort die Bot-Fassung derselben Waffe in die Hand (gleiche Anker → Anschlag, Griffe, Mündung, Auswurf
-//    stimmen; ≤ 30 ms). Die Ego-Fassung entsteht in Einzelschritten (Vorlage → Kontaktgitter → Griffe/Schacht → Shader/Texturen)
-//    und ersetzt sie in einem ruhigen Moment.
+//    und ist sie teuer (Foto-Waffe), kommt sofort ein Platzhalter in die Hand – die Ego-Grundfassung derselben Waffe, wenn deren
+//    Vorlage steht (nur die Aufsätze fehlen), sonst die Bot-Fassung (gleiche Anker → Anschlag, Griffe, Mündung, Auswurf stimmen;
+//    ≤ 30 ms). Waffen alter Bauweise (auch ohne Messung) und Klone vorhandener Vorlagen baut das Aufheben wie bisher sofort.
 //  - _retier() (Grafikstufe im Match gewechselt: Einstellungen, VR-Vorgabe „Niedrig“): Waffen in der Hand/im Gepäck in der neuen
 //    Stufe ebenso neu, die alte Fassung bleibt bis zum Tausch; danach werden die Vorlagen der alten Stufe freigegeben.
-// backgroundStep({ idle, quiet }) läuft je Bild (main.js) und macht höchstens einen Schritt: dringende Aufträge (Bot-Fassung oder alte
-// Stufe in der Hand) im Leerlauf oder in Ruhe (QUIET_S kein Schuss, kein Anschlag, keine Aktion, kein Treffer), Vorrat nur im Leerlauf.
+// backgroundStep({ idle, quiet }) läuft je Bild (main.js) und macht höchstens einen Schritt (Vorlage → Kontaktgitter → Griffe/Schacht
+// → Shader/Texturen → Tausch). Ein Bauplan läuft am Stück (bis Sekunden, kein Bau in Zeitscheiben) – darum die schweren Schritte
+// (Vorlage, Kontaktgitter ohne Teilen) im Spiel NUR im Leerlauf (tot, Pause, Countdown), nie mitten im Gefecht; leichte Schritte
+// dringender Aufträge (Platzhalter/alte Stufe in der Hand) auch in Ruhe (QUIET_S seit Ziehen/Schuss, kein Anschlag, keine Aktion,
+// kein Treffer). Vorrat nur im Leerlauf.
 import * as THREE from 'three';
-import { createWeaponModel, weaponDetailTier, hasWeaponTemplate, weaponBuildCost, releaseEgoTemplates, releaseWeaponTemplate } from './models.js';
+import { createWeaponModel, weaponDetailTier, hasWeaponTemplate, weaponBuildCost, isPhotoWeapon, releaseEgoTemplates, releaseWeaponTemplate } from './models.js';
 import { applyCamo } from './gunsmith/camos.js';
 import { ID_TO_MODEL } from './gunsmith/handling.js';
 import { magWellOf } from './anim/magwell.js';
 import { uploadTextures } from '../engine/warm.js';
 
-// Sofort bauen, was so billig ist wie die Waffen alter Bauweise (1 000–7 000 Dreiecke, 2–90 ms im Container)
-const CHEAP_MS = 40;
+// Sofort bauen, was so billig ist wie die Waffen alter Bauweise (1 000–7 000 Dreiecke; 2–90 ms im Container, unter Last und mit
+// Aufsätzen in max mehr) – Foto-Waffen liegen bei ≥ 70 000 Dreiecken und ≥ 300 ms
+const CHEAP_MS = 150;
 const CHEAP_TRIS = 60000;
 // Vorrat je Match und Detailstufe: höchstens so viele Dreiecke zusätzlicher Ego-Vorlagen (≈ 96–120 B je Dreieck → max ≤ 60 MB,
 // std ≤ 36 MB, lite ≤ 15 MB; nach den Budgets der Bauanleitung ≈ 2 Foto-Waffen in max, 3 in std/lite – jede Aufsatz-Kombination
-// mit Mündung/Optik/Unterlauf ist bis zum Bauteil-Cache eine eigene Vorlage) und teure Einträge (billige zählen nicht); ungenutzte
-// Vorlagen gibt dispose() am Matchende wieder frei (prefetchRelease)
+// mit Mündung/Optik/Unterlauf ist bis zum Bauteil-Cache eine eigene Vorlage) und teure Einträge (billige zählen nicht). Geprüft
+// VOR dem Bau mit einer Schätzung (gemessene Grundfassung, sonst EST_*), also hart bis auf die Dreiecke der Aufsätze; die M-17 in
+// max (534 000) passt deshalb nie. Ungenutzte Vorlagen gibt dispose() am Matchende wieder frei (prefetchRelease)
 const PREFETCH_TRIS = { max: 500000, std: 300000, lite: 150000 };
+const EST_PHOTO_TRIS = { max: 540000, std: 125000, lite: 75000 }; // noch nie gebaute Foto-Waffe: wie die M-17 (größte bisher)
+const EST_OLD_TRIS = 8000; // noch nie gebaute Waffe alter Bauweise
 const PREFETCH_MAX = 6;
 const QUIET_S = 2;
 const STEPS = 5; // 0 Vorlage + Eintrag, 1 Kontaktgitter, 2 Griffe/Schacht, 3 Shader/Texturen, 4 eintragen/tauschen
@@ -40,10 +47,12 @@ export const BUILD_ACTIONS = {
   _mk(id, att) { const ak = attKeyOf(att); return ak ? id + '#' + ak : id; },
 
   /**
-   * Waffe für _swapNow: vorhandener Eintrag; sonst billig sofort (wie bisher); teuer nur im Spiel (deferBuilds): Vorlage schon da →
-   * echtes Modell sofort, Kontaktgitter nachgereicht; Vorlage fehlt → Bot-Fassung + dringender Auftrag.
+   * Waffe für _swapNow: vorhandener Eintrag; ohne deferBuilds (Labor, Werkzeuge) sofort bauen wie bisher. Im Spiel: Klon einer
+   * vorhandenen Vorlage sofort (Kontaktgitter geteilt bzw. im Leerlauf nachgereicht); Waffe alter Bauweise sofort (wie bisher, auch
+   * ohne Messung); Foto-Waffe ohne Vorlage → Platzhalter + dringender Auftrag (Bau im Leerlauf).
    */
   _entryForSwap(id, key, att) {
+    this._restT = this._time; // Ruhe für Hintergrund-Schritte zählt ab dem Ziehen
     const ak = attKeyOf(att);
     const mk = ak ? id + '#' + ak : id;
     const have = this._models.get(mk);
@@ -53,7 +62,7 @@ export const BUILD_ACTIONS = {
     const q = this._bgJobs || (this._bgJobs = []);
     const job = q.find((j) => j.mk === mk);
     if (job && job.entry) {
-      // Ego-Vorlage im Hintergrund schon fertig: gleich zeigen, Kontaktgitter/Griffe/Shader laufen weiter
+      // Ego-Vorlage im Hintergrund schon fertig: gleich zeigen, Kontaktgitter/Griffe/Shader laufen weiter (ohne sie umzuhängen)
       job.prio = 2;
       job.prefetch = false;
       this._bgCamo(job.entry);
@@ -62,7 +71,8 @@ export const BUILD_ACTIONS = {
     }
     if (hasWeaponTemplate(key, 'first', a)) {
       const entry = this._entryFrom(createWeaponModel(key, { lod: 'first', att: a }), id, key, ak, a);
-      if (entry.ud.info.triangles <= CHEAP_TRIS) {
+      // klein oder Kontaktgitter teilbar (Munition, Schaft, Schnellmagazin teilen die Vorlage der Grundfassung): gleich vollständig
+      if (entry.ud.info.triangles <= CHEAP_TRIS || this._colliderShared(entry)) {
         if (job) q.splice(q.indexOf(job), 1);
         this._entryCollider(entry);
         this._models.set(mk, entry);
@@ -70,7 +80,7 @@ export const BUILD_ACTIONS = {
         magWellOf(entry);
         return entry;
       }
-      // Kontaktgitter (bis 0,8 s) später: bis dahin greifen die Hände ohne Oberflächenkontakt (wie bei einem Fehler im Gitter)
+      // Kontaktgitter (bis 0,8 s) im nächsten Leerlauf: bis dahin greifen die Hände ohne Oberflächenkontakt (wie bei einem Fehler im Gitter)
       entry.collider = null;
       entry.contactMemo = new Map();
       this._models.set(mk, entry);
@@ -80,21 +90,40 @@ export const BUILD_ACTIONS = {
       else this._enqueue({ mk, id, key, att: a, ak, prio: 2, step: 1, entry });
       return entry;
     }
+    // Kosten der Grundfassung in dieser Stufe gemessen → danach; unbekannt → alte Bauweise sofort, Foto-Waffe nie im Bild
     const c = weaponBuildCost(key);
-    if (c && c.ms <= CHEAP_MS && c.triangles <= CHEAP_TRIS) {
+    if (c ? c.ms <= CHEAP_MS && c.triangles <= CHEAP_TRIS : !isPhotoWeapon(key)) {
       if (job) q.splice(q.indexOf(job), 1);
       return this._getModel(id, key, att);
     }
-    const stub = this._entryFrom(createWeaponModel(key, { lod: 'third', att: a }), id, key, ak, a);
-    stub.stub = true;
-    stub.tier = 'third';
-    this._entryCollider(stub);
-    stub.mw = null; // Schachtachse nicht aus der Bot-Fassung (magWellOf speichert je Modell – das gehört der Ego-Fassung)
+    const stub = this._placeholder(id, key, ak, a);
     this._models.set(mk, stub);
-    this._prepareGrips(stub);
     if (job) Object.assign(job, { prio: 2, prefetch: false });
     else this._enqueue({ mk, id, key, att: a, ak, prio: 2, step: 0 });
     return stub;
+  },
+
+  /**
+   * Platzhalter, bis die Ego-Fassung im Leerlauf entsteht: Ego-Grundfassung derselben Waffe, wenn deren Vorlage in dieser Stufe steht
+   * (nur die Aufsätze fehlen sichtbar; Kontaktgitter meist geteilt), sonst die Bot-Fassung mit Aufsätzen (≤ 600 Dreiecke).
+   */
+  _placeholder(id, key, ak, a) {
+    let e;
+    if (a && hasWeaponTemplate(key, 'first', null)) {
+      e = this._entryFrom(createWeaponModel(key, { lod: 'first' }), id, key, ak, a);
+      if (e.ud.info.triangles <= CHEAP_TRIS || this._colliderShared(e)) this._entryCollider(e);
+      else { e.collider = null; e.contactMemo = new Map(); }
+      this._prepareGrips(e);
+      magWellOf(e); // Grundfassung derselben Waffe (Schachtachse je Modellschlüssel)
+    } else {
+      e = this._entryFrom(createWeaponModel(key, { lod: 'third', att: a }), id, key, ak, a);
+      e.tier = 'third';
+      this._entryCollider(e);
+      e.mw = null; // Schachtachse nicht aus der Bot-Fassung (magWellOf speichert je Modell – das gehört der Ego-Fassung)
+      this._prepareGrips(e);
+    }
+    e.stub = true;
+    return e;
   },
 
   _enqueue(job) {
@@ -148,11 +177,13 @@ export const BUILD_ACTIONS = {
       case 0: {
         let had = true;
         if (job.prefetch) {
-          // Budget erschöpft: diese Waffe fällt beim Aufheben auf Bot-Fassung + Hintergrund-Bau zurück
-          if ((this._prefetchTris || 0) >= (PREFETCH_TRIS[this._tier] ?? PREFETCH_TRIS.std) || (this._prefetchN || 0) >= PREFETCH_MAX) return true;
+          // Budget VOR dem Bau (Schätzung): passt die Vorlage nicht mehr, fällt die Waffe beim Aufheben auf Platzhalter + Bau im Leerlauf zurück
           had = hasWeaponTemplate(job.key, 'first', job.att);
+          const est = had ? 0 : this._estTris(job.key);
+          if ((this._prefetchTris || 0) + est > (PREFETCH_TRIS[this._tier] ?? PREFETCH_TRIS.std)) return true;
+          if ((this._prefetchN || 0) >= PREFETCH_MAX && est > CHEAP_TRIS) return true;
         }
-        // Der teure Teil: Distanzfeld-Netze, Atlas (Container bis ≈ 5 s, Ziel ≤ 2,5 s) – nur hier, nie mitten im Gefecht
+        // Der teure Teil: Distanzfeld-Netze, Atlas (Container bis ≈ 7 s) – im Spiel nur im Leerlauf (backgroundStep), nie im Gefecht
         const t0 = performance.now();
         job.entry = this._entryFrom(createWeaponModel(job.key, { lod: 'first', att: job.att }), job.id, job.key, job.ak, job.att);
         if (job.prefetch) {
@@ -171,7 +202,7 @@ export const BUILD_ACTIONS = {
     }
   },
 
-  /** Fertigen Eintrag übernehmen; liegt die Vorfassung (Bot-Fassung/alte Stufe) in der Hand, erst in einer ruhigen Pause tauschen. */
+  /** Fertigen Eintrag übernehmen; liegt die Vorfassung (Platzhalter/alte Stufe) in der Hand, erst in einer ruhigen Pause tauschen. */
   _bgFinish(job, idle) {
     const entry = job.entry;
     const have = this._models.get(job.mk);
@@ -202,10 +233,33 @@ export const BUILD_ACTIONS = {
     return idle || this._ads < 0.05;
   },
 
-  /** Ruhe für dringende Bauschritte: QUIET_S kein Schuss, nicht im Anschlag, keine Aktion/kein Wechsel. */
+  /** Ruhe für leichte Schritte dringender Aufträge: QUIET_S seit Ziehen und letztem Schuss, nicht im Anschlag, keine Aktion/kein Wechsel. */
   _quietNow() {
     return !this.action && !this._pending && !this._lowering && this._equipT >= 1 && this._ads < 0.05 &&
-      this._time - (this._lastShotT ?? -1e9) >= QUIET_S;
+      this._time - (this._restT ?? 0) >= QUIET_S;
+  },
+
+  /** Schritt kostet bis zu Sekunden am Stück (Vorlage bauen; Kontaktgitter, wenn es nicht geteilt werden kann). */
+  _heavyStep(job) {
+    if (job.step === 0) return !hasWeaponTemplate(job.key, 'first', job.att);
+    return job.step === 1 && !(job.entry && this._colliderShared(job.entry));
+  },
+
+  /** Geschätzte Dreiecke einer noch nicht gebauten Ego-Vorlage (Vorrat-Budget). */
+  _estTris(key) {
+    const c = weaponBuildCost(key);
+    if (c) return c.triangles;
+    return isPhotoWeapon(key) ? (EST_PHOTO_TRIS[this._tier] ?? EST_PHOTO_TRIS.std) : EST_OLD_TRIS;
+  },
+
+  /** Eintragsschlüssel der Waffen, die der Spieler trägt (Hand, laufender Wechsel, Ausrüstung). */
+  _carriedMks() {
+    const s = new Set();
+    if (this.cur) s.add(this.cur.mk);
+    const p = this._pending;
+    if (p) s.add(this._mk(p.id, (p.def && p.def.att) || null));
+    for (const sl of this.G?.player?.weapon?.slots || []) if (sl && sl.def) s.add(this._mk(sl.id, sl.def.att || null));
+    return s;
   },
 
   /**
@@ -237,13 +291,13 @@ export const BUILD_ACTIONS = {
   _gpuWarm(entry, upload) {
     const r = this.G?.renderer?.renderer;
     if (!r || typeof r.compile !== 'function') return;
-    const holder = new THREE.Group();
-    holder.add(entry.model);
-    this.root.add(holder);
+    // Liegt das Modell schon in der Hand (vm.gun: Aufheben während des Auftrags, Klon einer vorhandenen Vorlage), NICHT umhängen –
+    // holder.add nähme es aus der Hand, die Waffe wäre bis zum nächsten Wechsel unsichtbar; es ist dann ohnehin in der Szene
+    const holder = entry.model.parent ? null : new THREE.Group();
+    if (holder) { holder.add(entry.model); this.root.add(holder); }
     try { r.compile(this.scene, this.camera); } catch { /* beim ersten Zeichnen */ }
-    if (upload) { try { uploadTextures(r, holder); } catch { /* beim ersten Zeichnen */ } }
-    holder.remove(entry.model);
-    this.root.remove(holder);
+    if (upload) { try { uploadTextures(r, entry.model); } catch { /* beim ersten Zeichnen */ } }
+    if (holder) { holder.remove(entry.model); this.root.remove(holder); }
   },
 
   /**
@@ -264,6 +318,9 @@ export const BUILD_ACTIONS = {
       if (!e.stub && e.tier === this._tier) { this._bgJobs = this._bgJobs.filter((j) => j.mk !== mk); continue; } // schon in dieser Stufe
       this._enqueue({ mk, id: e.id, key: e.key, att: e.attObj || null, ak: e.att || '', prio: e === this.cur ? 1 : 0, step: 0 });
     }
+    // geteilte Kontaktgitter nur noch aus Einträgen dieser Stufe (die übrigen hielten sonst ihre Netze im Speicher)
+    this._colliderSrc = new Map();
+    for (const e of this._models.values()) if (!e.stub && e.tier === this._tier && e.collider && e.ud.tpl && !this._colliderSrc.has(e.ud.tpl)) this._colliderSrc.set(e.ud.tpl, e.collider);
     this._prefetchTris = this._prefetchN = 0;
     this._releaseOld = true;
   },
@@ -301,9 +358,21 @@ export const BUILD_ACTIONS = {
       if (this._releaseOld && this._propsTier === this._tier) { this._releaseOld = false; releaseEgoTemplates(this._tier); }
       return false;
     }
+    // Waffe inzwischen wieder abgelegt (anderes aufgehoben, Tod): noch nicht begonnene Aufträge verwerfen und den Platzhalter
+    // vergessen – sonst baute der Leerlauf eine Waffe, die niemand trägt; ein späteres Aufheben fängt neu an
+    if (q.some((j) => !j.prefetch && j.step === 0)) {
+      const carried = this._carriedMks();
+      for (const j of [...q]) {
+        if (j.prefetch || j.step !== 0 || carried.has(j.mk)) continue;
+        q.splice(q.indexOf(j), 1);
+        const e = this._models.get(j.mk);
+        if (e && (e.stub || e.tier !== this._tier)) this._models.delete(j.mk);
+      }
+    }
     let job = null;
     for (const j of q) {
-      if (j.prio >= 1 ? !calm : !idle) continue;
+      // Vorrat/Gepäck (prio 0) nur im Leerlauf; dringende Aufträge: leichte Schritte auch in Ruhe, schwere nur im Leerlauf
+      if (!idle && (j.prio < 1 || !calm || this._heavyStep(j))) continue;
       if (j.step >= 4 && this.cur && this._models.get(j.mk) === this.cur && !this._swapReady(idle)) continue;
       if (!job || j.prio > job.prio) job = j;
     }
@@ -312,10 +381,14 @@ export const BUILD_ACTIONS = {
     return true;
   },
 
-  /** Stand für Prüfwerkzeuge: { tier, jobs: [{ mk, prio, step }], stub (Waffe in der Hand ist die Bot-Fassung), prefetchTris } */
+  /**
+   * Stand für Prüfwerkzeuge: { tier, jobs: [{ mk, prio, step }], stub (Waffe in der Hand ist ein Platzhalter), curLod ('first' = Ego-
+   * Grundfassung, 'third' = Bot-Fassung), inGun (Modell hängt in der Hand), prefetchTris }
+   */
   buildState() {
     return {
       tier: this._tier, stub: !!(this.cur && this.cur.stub), curTier: this.cur ? this.cur.tier : null, prefetchTris: this._prefetchTris || 0,
+      curLod: this.cur ? this.cur.ud.lod : null, inGun: !!(this.cur && this.cur.model.parent === this.gun),
       jobs: (this._bgJobs || []).map((j) => ({ mk: j.mk, prio: j.prio, step: j.step, prefetch: !!j.prefetch })),
       entries: [...this._models].map(([mk, e]) => ({ mk, tier: e.tier, stub: !!e.stub, collider: !!e.collider })),
     };

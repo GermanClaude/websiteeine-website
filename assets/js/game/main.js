@@ -33,7 +33,7 @@ import { DynamicResolution } from './engine/dynres.js';
 import { renderScaleValue, fpsLimitValue } from '../shared/graphics.data.js'; // Erweitert-Grafik (S9, ui-controls)
 import { Player } from './player.js';
 import { Combat } from './combat.js';
-import { MapPoints } from './mappoints.js'; // Interaktionspunkte der Karten (Taste F)
+import { MapPoints, MOUNT_WEAPON } from './mappoints.js'; // Interaktionspunkte der Karten (Taste F)
 import { Building } from './building.js'; // Bauen (Taste K)
 import { Injuries } from './injuries.js'; // Verletzungen, Blutung, Verband (Taste N), Wiederbeleben
 import { Gore } from './gore.js'; // Blutlachen + Spritzer
@@ -767,6 +767,9 @@ function matchAssetJobs(cfg, world) {
   // 24.10. (V1): Ego-Vorlagen in der Stufe der aktuellen Grafikstufe; die Stufe gehört zum Schlüssel (Wechsel → neu bauen)
   syncWeaponDetail();
   const tier = models && typeof models.weaponDetailTier === 'function' ? models.weaponDetailTier() : '';
+  // Vorlagen anderer Stufen frei: Wechsel zwischen zwei Matches außerhalb der Lobby (automatische Stufe bei der Revanche,
+  // Einstellungen auf dem Endbildschirm) – kein Viewmodel lebt mehr, das sie freigäbe (sonst max + std nebeneinander)
+  if (tier && typeof models.releaseEgoTemplates === 'function') safe('releaseEgoTemplates', () => models.releaseEgoTemplates(tier));
   // Ego-Vorlage inzwischen freigegeben (Stufenwechsel im Match, ungenutzter Vorrat am Matchende) → wieder einplanen
   const unwarm = (k, key, att) => {
     if (warmed.has(k) && typeof models.hasWeaponTemplate === 'function' && !models.hasWeaponTemplate(key, 'first', att)) warmed.delete(k);
@@ -866,6 +869,9 @@ function carriedWeapons() {
     for (const id of [lo.primary, lo.secondary]) if (W[id]) add(withAtt(id, own[id]), 100);
   }
   for (const l of (G.points && G.points.loot) || []) if (l && l.weapon && W[l.weapon]) add(withAtt(l.weapon, l.att), 3);
+  // MG-Stellungen der Karte bzw. Pionier-MG-Nester (building.js): ihre Waffe kommt beim Bedienen in die Hand (mappoints.js mount)
+  const nests = (G.world && G.world.emplacements && G.world.emplacements.length) || G.actors.some((a) => (a.cls || (a.loadout && a.loadout.cls)) === 'pionier');
+  if (nests && W[MOUNT_WEAPON]) add(W[MOUNT_WEAPON], 2);
   for (const a of G.actors) {
     if (a === G.player || !a.weapon || !Array.isArray(a.weapon.slots)) continue;
     for (const s of a.weapon.slots) if (s && s.def) add(s.def, 1);

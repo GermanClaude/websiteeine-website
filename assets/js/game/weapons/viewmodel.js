@@ -285,9 +285,19 @@ export class ViewModel {
   }
 
   _entryCollider(entry) {
-    try { entry.collider = new GunCollider(entry.model); } catch (err) { console.warn('[gunsmith] Kontaktgitter', err); entry.collider = null; }
+    // 24.10. (V5): Klone derselben Vorlage (Munition/Schaft/Schnellmagazin teilen sie, Tarnungen auch) teilen das Kontaktgitter
+    const tpl = entry.ud.tpl, src = tpl && this._colliderSrc ? this._colliderSrc.get(tpl) : null;
+    entry.collider = null;
+    if (src) { try { entry.collider = GunCollider.share(src, entry.model); } catch { entry.collider = null; } }
+    if (!entry.collider) {
+      try { entry.collider = new GunCollider(entry.model); } catch (err) { console.warn('[gunsmith] Kontaktgitter', err); entry.collider = null; }
+      if (entry.collider && tpl) (this._colliderSrc || (this._colliderSrc = new Map())).set(tpl, entry.collider);
+    }
     entry.contactMemo = new Map();
   }
+
+  /** 24.10. (V5): Kontaktgitter dieses Eintrags kostet nur das Teilen (gleiche Vorlage schon mit Gitter im Viewmodel). */
+  _colliderShared(entry) { return !!(entry.ud.tpl && this._colliderSrc && this._colliderSrc.has(entry.ud.tpl)); }
 
   // Alle Griffe einer Waffe vorab lösen (je ~2 ms, gecacht) – kein Ruckeln mitten im Nachladen
   _prepareGrips(entry) {
@@ -518,7 +528,7 @@ export class ViewModel {
     this._climb = Math.min(0.09, this._climb + k.up * 0.22 * s * (0.4 + 0.6 * Math.max(0.5, this._motionScale())));
     this._heat = Math.min(1, this._heat + (h.heat ?? HEAT_PER_SHOT[h.action] ?? 0.02));
     this._shotCount++;
-    this._lastShotT = this._time; // Ruhe für den Hintergrund-Bau (hintergrundbau.js)
+    this._restT = this._time; // Ruhe für den Hintergrund-Bau (hintergrundbau.js)
     // loser Kastendeckel (MG): Stoß mit Zufallsstärke – mal kaum, mal deutlich (Winkelgeschwindigkeit rad/s)
     if (this._lid) this._lid.v += (1.2 + Math.random() * Math.random() * 6) * Math.min(1.5, s);
     else if (this._part('lid')) this._lid = { a: 0, v: 1.2 + Math.random() * 4 };
@@ -1847,7 +1857,7 @@ export class ViewModel {
     if (this._ownEnv) { if (this.scene.environment === this._ownEnv) this.scene.environment = null; this._ownEnv.dispose(); }
     try { this.prefetchRelease(); } catch { /* Freigabe ist Beiwerk */ }
     this._models.clear();
-    this._bgJobs = null;
+    this._bgJobs = this._colliderSrc = null;
     if (this.G?.viewmodel?.rig === this) this.G.viewmodel.rig = null;
   }
 }

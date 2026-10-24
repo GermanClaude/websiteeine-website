@@ -3,10 +3,12 @@
 //      Grafikstufe in der Lobby (Vorlagen der alten Stufe frei, Vorbau neu) und im Match → Waffe in der Hand wird in der neuen
 //      Stufe neu gebaut, Vorlagen der alten Stufe freigegeben.
 //  V2  Bots bauen keine Ego-Fassungen (Aufsatz-Auswahl, Waffensteuerung, Optik-Montage lesen nur die Bot-Fassung).
-//  V5  Aufheben einer teuren Waffe ohne fertige Ego-Fassung: sofort die Bot-Fassung (kein Bau im Bild), die Ego-Fassung entsteht
-//      im Hintergrund und ersetzt sie (nicht mitten im Nachladen, Tarnung des Vorbesitzers bleibt); Vorrat im Ladebildschirm baut
-//      die Waffen der Bots in der aktuellen Stufe.
-// Aufruf: node tools/vorbau-test.mjs   (Server NP_BASE; ≈ 6 min im Container)
+//  V5  Aufheben einer teuren Waffe ohne fertige Ego-Fassung: sofort ein Platzhalter (Ego-Grundfassung bzw. Bot-Fassung, kein Bau im
+//      Bild), die Ego-Fassung entsteht im Leerlauf – nie in Ruhe mitten im Spiel – und ersetzt ihn (nicht mitten im Nachladen, Tarnung
+//      des Vorbesitzers bleibt); Vorrat im Ladebildschirm baut die Waffen der Bots in der aktuellen Stufe. Nur-Werte-Aufsatz (Munition)
+//      und Waffen alter Bauweise sofort vollständig; die Waffe in der Hand bleibt in der Hand (auch bei einem Wechsel mitten in einem
+//      laufenden Auftrag); MG-Stellung ohne Platzhalter.
+// Aufruf: node tools/vorbau-test.mjs   (Server NP_BASE; ≈ 8 min im Container)
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -68,6 +70,59 @@ try {
   console.log(`     Vorrat im Ladebildschirm: ${prefetched.map((e) => `${e.mk}:${e.tier}`).join(', ') || '–'}`);
   check(prefetched.every((e) => e.tier === 'std' && !e.stub && e.collider), 'Vorrat in der aktuellen Stufe, mit Kontaktgitter');
 
+  // Schritte im Leerlauf, bis nichts mehr ansteht (Spiel läuft weiter) – liefert Dauer je Schritt und ob die Waffe in der Hand blieb
+  await p.evaluate(() => {
+    window.__idleSteps = async (n = 80) => {
+      const vm = window.__game.player.weapon.viewModel, steps = [];
+      let lost = false;
+      for (let i = 0; i < n; i++) {
+        const t = performance.now();
+        const worked = vm.backgroundStep({ idle: true });
+        if (worked) steps.push(Math.round(performance.now() - t));
+        if (!(vm.cur && vm.cur.model.parent === vm.gun)) lost = true;
+        if (!worked && !vm.buildState().jobs.length) break;
+        await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+      }
+      return { steps, lost };
+    };
+  });
+
+  // ---- V5: Nur-Werte-Aufsatz (Munition) teilt Vorlage und Kontaktgitter der eigenen M-17 → sofort vollständig, bleibt in der Hand
+  const n1 = await p.evaluate(async () => {
+    const G = window.__game, w = G.player.weapon, vm = w.viewModel;
+    vm._models.delete('ar_m17#hohlspitz'); // falls der Vorrat sie schon hatte: den Weg „Vorlage da, Eintrag fehlt“ prüfen
+    w.setLoadout({ primary: 'ar_m17', secondary: w.slots[1] ? w.slots[1].id : null, pickup: { id: 'ar_m17', att: { munition: 'hohlspitz' } }, keepPickups: true });
+    for (let i = 0; i < 60 && !(vm.cur && vm.cur.mk === 'ar_m17#hohlspitz'); i++) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    const st = vm.buildState();
+    const idle = await window.__idleSteps();
+    return { cur: vm.cur && vm.cur.mk, stub: st.stub, collider: !!vm.cur.collider, inGun: st.inGun, jobs: st.jobs.filter((j) => j.mk === 'ar_m17#hohlspitz').length, lost: idle.lost, inGunAfter: vm.buildState().inGun, gunChildren: vm.gun.children.length };
+  });
+  check(n1.cur === 'ar_m17#hohlspitz' && !n1.stub && n1.collider && n1.jobs === 0, `Munition Hohlspitz: sofort Ego-Fassung mit geteiltem Kontaktgitter (${JSON.stringify(n1)})`);
+  check(n1.inGun && !n1.lost && n1.inGunAfter && n1.gunChildren > 0, 'Waffe bleibt in der Hand (auch nach den Hintergrund-Schritten)');
+
+  // ---- V5: Wechsel mitten in einem laufenden Vorrat-Auftrag (Vorlage + Kontaktgitter fertig) → Eintrag in die Hand, Rest im Leerlauf
+  const n2 = await p.evaluate(async () => {
+    const G = window.__game, w = G.player.weapon, vm = w.viewModel;
+    const M = await import('/assets/js/game/weapons/models.js');
+    const att = { muendung: 'kompensator' };
+    M.releaseWeaponTemplate('p9', 'first', att);
+    vm._models.delete('pi_p9#kompensator');
+    vm._bgJobs = (vm._bgJobs || []).filter((j) => j.mk !== 'pi_p9#kompensator');
+    vm.prefetch([{ id: 'pi_p9', att }]);
+    vm._prefetchTris = vm._prefetchN = 0; // Budget des Ladebildschirms hier nicht maßgeblich
+    const job = vm._bgJobs.find((j) => j.mk === 'pi_p9#kompensator');
+    vm._bgPump(job, true); vm._bgPump(job, true); // Vorlage, Kontaktgitter
+    const stepAtSwap = job.step;
+    w.setLoadout({ primary: 'pi_p9', secondary: null, pickup: { id: 'pi_p9', att }, keepPickups: true });
+    for (let i = 0; i < 60 && !(vm.cur && vm.cur.mk === 'pi_p9#kompensator'); i++) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    const same = vm.cur === job.entry;
+    const idle = await window.__idleSteps();
+    const st = vm.buildState();
+    return { stepAtSwap, same, stub: st.stub, lost: idle.lost, inGun: st.inGun, gunChildren: vm.gun.children.length, jobs: st.jobs.length };
+  });
+  check(n2.stepAtSwap === 2 && n2.same && !n2.stub, `Wechsel bei laufendem Auftrag (Schritt ${n2.stepAtSwap}): Eintrag des Auftrags in der Hand`);
+  check(!n2.lost && n2.inGun && n2.gunChildren > 0 && n2.jobs === 0, `… Shader-Schritt hängt ihn nicht aus der Hand (${JSON.stringify(n2)})`);
+
   // ---- V5: teure Waffe ohne Ego-Fassung aufheben (M-17 mit Schalldämpfer + Laser – die Kombination trägt kein Bot)
   const s2 = await p.evaluate(async () => {
     const G = window.__game, w = G.player.weapon, vm = w.viewModel;
@@ -85,23 +140,39 @@ try {
       longest = Math.max(longest, performance.now() - f0);
     }
     const st = vm.buildState();
-    return { had, syncMs: Math.round(t1 - t0), longest: Math.round(longest), cur: vm.cur && vm.cur.mk, stub: st.stub, curTier: st.curTier, jobs: st.jobs, egoBuilt: M.hasWeaponTemplate('m17', 'first', att), camo: vm.cur && vm.cur.model.userData.camo };
+    const out = { had, syncMs: Math.round(t1 - t0), longest: Math.round(longest), cur: vm.cur && vm.cur.mk, stub: st.stub, curLod: st.curLod, curTier: st.curTier, jobs: st.jobs, egoBuilt: M.hasWeaponTemplate('m17', 'first', att), camo: vm.cur && vm.cur.model.userData.camo, inGun: st.inGun };
+    // lange Ruhe mitten im Spiel (gezogen, kein Schuss, kein Treffer): der Vorlagenbau (Sekunden am Stück) darf trotzdem nicht laufen
+    for (let i = 0; i < 60 && vm._equipT < 1; i++) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    vm._restT = vm._time - 30;
+    out.calm = vm._quietNow();
+    let quietWorked = 0, quietLongest = 0;
+    for (let i = 0; i < 6; i++) {
+      const t = performance.now();
+      if (vm.backgroundStep({ idle: false, quiet: true })) quietWorked++;
+      quietLongest = Math.max(quietLongest, performance.now() - t);
+      await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    }
+    out.quiet = { worked: quietWorked, longest: Math.round(quietLongest), egoBuilt: M.hasWeaponTemplate('m17', 'first', att), stub: vm.buildState().stub };
+    return out;
   });
   console.log(`     Aufheben: setLoadout ${s2.syncMs} ms, längstes Bild bis zum Tausch ${s2.longest} ms (SwiftShader)`);
   check(!s2.had, 'M-17 mit Schalldämpfer war noch nicht gebaut');
-  check(s2.cur === 'ar_m17#daempfer+laser' && s2.stub && s2.curTier === 'third', `sofort in der Hand: Bot-Fassung (${s2.cur}, ${s2.curTier})`);
+  check(s2.cur === 'ar_m17#daempfer+laser' && s2.stub && s2.curLod === 'first' && s2.inGun, `sofort in der Hand: Platzhalter = Ego-Grundfassung der M-17 (${s2.cur}, ${s2.curLod}/${s2.curTier})`);
   check(!s2.egoBuilt, 'Ego-Fassung nicht im Bild des Aufhebens gebaut');
   check(s2.jobs.some((j) => j.mk.startsWith('ar_m17#') && j.prio === 2), `dringender Hintergrund-Auftrag (${JSON.stringify(s2.jobs)})`);
-  check(s2.camo === 'wald', `Bot-Fassung trägt die Tarnung des Vorbesitzers (${s2.camo})`);
+  check(s2.camo === 'wald', `Platzhalter trägt die Tarnung des Vorbesitzers (${s2.camo})`);
+  check(s2.calm && !s2.quiet.egoBuilt && s2.quiet.stub && s2.quiet.longest < 300, `in Ruhe mitten im Spiel kein Vorlagenbau (${JSON.stringify(s2.quiet)})`);
   // Leerlauf (Pausenmenü/tot) bzw. Ruhe: Schritte bis zum Tausch – vorher mit der Bot-Fassung nachladen (Teile/Schacht fehlen ihr)
   const s3 = await p.evaluate(async () => {
     const G = window.__game, vm = G.player.weapon.viewModel;
     vm.playReload(true, 0);
     const reloading = !!(vm.action && vm.action.type === 'reload');
+    let lost = false;
     const steps = [];
     let swappedDuringReload = false;
     for (let i = 0; i < 80; i++) {
       if (vm.action && vm.action.type === 'reload' && !vm.cur.stub) swappedDuringReload = true;
+      if (vm.cur.model.parent !== vm.gun) lost = true;
       const t = performance.now();
       const worked = vm.backgroundStep({ idle: true });
       if (worked) steps.push(Math.round(performance.now() - t));
@@ -109,13 +180,62 @@ try {
       await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))); // Spiel läuft weiter (Ziehen fertig → Tausch)
     }
     const st = vm.buildState();
-    return { steps, stub: st.stub, curTier: st.curTier, jobs: st.jobs.length, collider: !!vm.cur.collider, att: vm.cur.att, reloading, swappedDuringReload, camo: vm.cur.model.userData.camo };
+    return { steps, stub: st.stub, curTier: st.curTier, jobs: st.jobs.length, collider: !!vm.cur.collider, att: vm.cur.att, reloading, swappedDuringReload, camo: vm.cur.model.userData.camo, lost, inGun: st.inGun };
   });
-  console.log(`     Hintergrund-Schritte (ms): ${s3.steps.join(', ')}`);
-  check(s3.reloading, 'Nachladen mit der Bot-Fassung in der Hand läuft');
+  console.log(`     Hintergrund-Schritte im Leerlauf (ms): ${s3.steps.join(', ')}`);
+  check(s3.reloading, 'Nachladen mit dem Platzhalter in der Hand läuft');
   check(!s3.swappedDuringReload, 'kein Tausch mitten im Nachladen');
-  check(!s3.stub && s3.curTier === 'std' && s3.collider && s3.jobs === 0, `Ego-Fassung ersetzt die Bot-Fassung (${s3.curTier}, ${s3.att})`);
+  check(!s3.stub && s3.curTier === 'std' && s3.collider && s3.jobs === 0 && s3.inGun && !s3.lost, `Ego-Fassung ersetzt den Platzhalter (${s3.curTier}, ${s3.att})`);
   check(s3.camo === 'wald', `Ego-Fassung mit derselben Tarnung (${s3.camo})`);
+
+  // ---- V5: Foto-Waffe ohne Ego-Grundfassung → Bot-Fassung; abgelegt, bevor der Bau begann → Auftrag verworfen
+  const b1 = await p.evaluate(async () => {
+    const G = window.__game, w = G.player.weapon, vm = w.viewModel;
+    const M = await import('/assets/js/game/weapons/models.js');
+    const att = { muendung: 'daempfer' };
+    for (const a of [null, att]) M.releaseWeaponTemplate('p9', 'first', a);
+    for (const k of [...vm._models.keys()]) if (k.startsWith('pi_p9')) vm._models.delete(k);
+    vm._bgJobs = (vm._bgJobs || []).filter((j) => !j.mk.startsWith('pi_p9'));
+    const keep = { primary: 'ar_m17', secondary: null };
+    w.setLoadout({ primary: 'pi_p9', secondary: null, pickup: { id: 'pi_p9', att }, keepPickups: true });
+    for (let i = 0; i < 60 && !(vm.cur && vm.cur.mk === 'pi_p9#daempfer'); i++) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    const st = vm.buildState();
+    const out = { cur: vm.cur && vm.cur.mk, stub: st.stub, curLod: st.curLod, inGun: st.inGun, job: st.jobs.some((j) => j.mk === 'pi_p9#daempfer') };
+    // wieder ablegen (andere Waffe), dann Leerlauf: der Auftrag für die P-9 entfällt, nichts wird gebaut
+    w.setLoadout(keep);
+    for (let i = 0; i < 60 && !(vm.cur && vm.cur.mk === 'ar_m17'); i++) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    await window.__idleSteps();
+    out.after = { job: vm.buildState().jobs.some((j) => j.mk === 'pi_p9#daempfer'), built: M.hasWeaponTemplate('p9', 'first', att), entry: vm._models.has('pi_p9#daempfer') };
+    return out;
+  });
+  check(b1.cur === 'pi_p9#daempfer' && b1.stub && b1.curLod === 'third' && b1.inGun && b1.job, `P-9 ohne Ego-Vorlage: Bot-Fassung als Platzhalter (${b1.curLod})`);
+  check(!b1.after.job && !b1.after.built && !b1.after.entry, `abgelegt vor dem Bau → Auftrag verworfen, nichts gebaut (${JSON.stringify(b1.after)})`);
+
+  // ---- V5: Waffe alter Bauweise ohne Messung (Kosten unbekannt) und MG-Stellung → sofort Ego-Fassung wie bisher, kein Platzhalter
+  const c1 = await p.evaluate(async () => {
+    const G = window.__game, P = G.player, w = P.weapon, vm = w.viewModel;
+    const M = await import('/assets/js/game/weapons/models.js');
+    const W = G.data.WEAPONS;
+    const ids = ['ar_kv47', 'smg_vp9', 'smg_qx90', 'mr_sk14', 'sg_bulldog', 'pi_adler'].filter((id) => W[id]);
+    const id = ids.find((x) => M.weaponBuildCost(W[x].model || x) === null && !vm._models.has(x)) || ids[0];
+    const unknown = M.weaponBuildCost(W[id].model || id) === null;
+    w.setLoadout({ primary: id, secondary: null, pickup: { id }, keepPickups: true });
+    for (let i = 0; i < 60 && !(vm.cur && vm.cur.id === id); i++) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    const st = vm.buildState();
+    const out = { id, unknown, stub: st.stub, curTier: st.curTier, collider: !!vm.cur.collider, inGun: st.inGun };
+    // MG-Stellung (künstlich am Spieler, wie mappoints.js): HM-60 sofort als Ego-Fassung
+    const e = { x: P.position.x, y: P.position.y, z: P.position.z, dx: 0, dz: -1, arc: 1.2 };
+    out.mounted = G.points.mount(e);
+    for (let i = 0; i < 60 && !(vm.cur && vm.cur.id === 'lmg_hm60'); i++) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    const s2 = vm.buildState();
+    out.mg = { cur: vm.cur && vm.cur.mk, stub: s2.stub, curTier: s2.curTier, inGun: s2.inGun };
+    G.points.unmount();
+    w.setLoadout({ primary: 'ar_m17', secondary: null });
+    for (let i = 0; i < 60 && !(vm.cur && vm.cur.mk === 'ar_m17'); i++) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    return out;
+  });
+  check(!c1.stub && c1.curTier === 'std' && c1.collider && c1.inGun, `alte Bauweise (${c1.id}, Kosten ${c1.unknown ? 'unbekannt' : 'gemessen'}) sofort als Ego-Fassung`);
+  check(c1.mounted && c1.mg.cur && c1.mg.cur.startsWith('lmg_hm60') && !c1.mg.stub && c1.mg.curTier === 'std', `MG-Stellung: HM-60 sofort als Ego-Fassung (${JSON.stringify(c1.mg)})`);
 
   // ---- V1: Grafikstufe im Match → hoch: Waffe in der Hand in max neu, Vorlagen der alten Stufe frei
   const s4 = await p.evaluate(async () => {
@@ -131,10 +251,10 @@ try {
     vm.backgroundStep({ idle: true }); // Freigabe
     const st = vm.buildState();
     const ego = M.weaponTemplateStats().filter((x) => x.k.includes(':first'));
-    return { tier: M.weaponDetailTier(), firstJobs: first.jobs.length, curTier: st.curTier, entries: st.entries, oldLeft: ego.filter((x) => !x.k.includes(':max')).map((x) => x.k), selfShadow: vm._selfShadow };
+    return { tier: M.weaponDetailTier(), firstJobs: first.jobs.length, curTier: st.curTier, entries: st.entries, oldLeft: ego.filter((x) => !x.k.includes(':max')).map((x) => x.k), selfShadow: vm._selfShadow, inGun: st.inGun };
   });
   check(s4.tier === 'max' && s4.firstJobs > 0, `Stufenwechsel → Neubau eingereiht (${s4.firstJobs} Aufträge)`);
-  check(s4.curTier === 'max' && s4.entries.every((e) => e.tier === 'max'), `Waffen in max (${s4.entries.map((e) => `${e.mk}:${e.tier}`).join(', ')})`);
+  check(s4.curTier === 'max' && s4.inGun && s4.entries.every((e) => e.tier === 'max'), `Waffen in max (${s4.entries.map((e) => `${e.mk}:${e.tier}`).join(', ')})`);
   check(s4.selfShadow, 'Eigenschatten mit der vollen Stufe an');
   check(s4.oldLeft.length === 0, `Ego-Vorlagen der alten Stufe freigegeben (${s4.oldLeft.join(', ') || '–'})`);
 

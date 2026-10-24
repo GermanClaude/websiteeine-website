@@ -126,6 +126,7 @@ function bindUserData(obj, meta, lookupRoot = obj) {
   ud.anchors = {};
   for (const n of meta.anchors) ud.anchors[n] = find(n);
   ud.info = { ...meta.info };
+  ud.tpl = meta.tpl || null; // Vorlagen-Schlüssel (24.10., V5)
   // Magazininhalt: setMagRounds(model, n) zeigt n Patronen (magfill.js)
   if (meta.magFill) { ud.magFill = meta.magFill; ud.rounds = find('rounds') || null; ud.follower = find('follower') || null; }
   obj.userData = ud;
@@ -167,6 +168,7 @@ function getTemplate(key, lod, att = null) {
     const t0 = performance.now();
     t = buildTemplate(key, lod, ak ? att : null);
     t.userData.__meta.ms = performance.now() - t0; // Bauzeit (Hintergrund-Bau im Viewmodel schätzt damit, V5)
+    t.userData.__meta.tpl = k; // Klone derselben Vorlage teilen ihr Kontaktgitter (viewmodel _entryCollider)
     cache.set(k, t);
     if (!ak && !metaCache.has(key)) { const i = t.userData.__meta.info, m = {}; for (const f of META_FIELDS) m[f] = i[f] ?? null; metaCache.set(key, m); }
   }
@@ -243,6 +245,12 @@ export function hasWeaponTemplate(key, lod = 'first', att = null) {
   return cache.has(templateKey(key, lod === 'third' ? 'third' : 'first', attKey(modelAtt(att))));
 }
 
+// 24.10. (V5): Foto-Waffen (Distanzfeld-Netze, Atlas – Ego-Bau 0,3–7 s im Container) gelten als teuer, auch bevor eine Messung
+// vorliegt: Aufheben zeigt dann einen Platzhalter statt im Bild zu bauen. Alle übrigen Waffen (alte Bauweise, 2–90 ms) baut das
+// Aufheben ohne Messung sofort. NEUE FOTO-WAFFEN HIER EINTRAGEN (Integrationsschritt je Etappe, Bauanleitung §8.2).
+const PHOTO_MODELS = new Set(['m17', 'p9']);
+export function isPhotoWeapon(key) { return PHOTO_MODELS.has(key); }
+
 /**
  * 24.10. (V5): Bauzeit (ms) und Dreiecke der Ego-Vorlage ohne Aufsätze in der aktuellen Stufe – geschätzt aus der teuersten
  * schon gebauten Ego-Vorlage dieses Modells (gleiche Stufe bevorzugt). null = noch keine gebaut (Kosten unbekannt).
@@ -250,13 +258,14 @@ export function hasWeaponTemplate(key, lod = 'first', att = null) {
 export function weaponBuildCost(key) {
   const own = cache.get(templateKey(key, 'first', ''));
   if (own) return { ms: own.userData.__meta.ms || 0, triangles: own.userData.__meta.info.triangles };
-  let best = null;
+  const tier = templateKey(key, 'first', '');
+  let best = null, other = null;
   for (const [k, t] of cache) {
     if (!k.startsWith(key + ':first')) continue;
-    const m = t.userData.__meta;
-    if (!best || (m.ms || 0) > best.ms) best = { ms: m.ms || 0, triangles: m.info.triangles };
+    const m = t.userData.__meta, c = { ms: m.ms || 0, triangles: m.info.triangles };
+    if (k.split('|')[0] === tier) { if (!best || c.ms > best.ms) best = c; } else if (!other || c.ms > other.ms) other = c;
   }
-  return best;
+  return best || other;
 }
 
 /**
