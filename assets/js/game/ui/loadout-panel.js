@@ -9,7 +9,7 @@ import { OPERATOR_TIERS } from '../../shared/modes.data.js';
 import { esc } from './dom.js';
 import { ICON } from './icons.js';
 import { ATT_SLOTS, ATTACHMENTS, attachmentsFor, loadAttachments, saveAttachment, applyAttachments } from '../../shared/attachments.data.js';
-import { getWeaponModelInfo } from '../weapons/models.js';
+import { getWeaponModelMeta } from '../weapons/models.js';
 
 const SLOTS = [['primary', 'Primär'], ['secondary', 'Sekundär'], ['melee', 'Messer'], ['lethal', 'Granate']];
 
@@ -248,7 +248,7 @@ export function attRowHtml(G, wid) {
   const def = G.data && G.data.WEAPONS && G.data.WEAPONS[wid];
   if (!def) return '';
   let info = null;
-  try { info = getWeaponModelInfo(def.model || wid); } catch { /* */ }
+  try { info = getWeaponModelMeta(def.model || wid); } catch { /* */ } // 24.10. (V2): ohne Ego-Fassung jeder angesehenen Waffe
   const fit = attachmentsFor(def, info);
   const cur = loadAttachments()[wid] || {};
   const rows = ATT_SLOTS.filter((s) => fit[s.id]).map((s) => {

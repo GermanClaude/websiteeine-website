@@ -108,7 +108,7 @@ function underOk(info, needsHand) {
   return needsHand ? g !== 'post' : true;
 }
 
-/** Passende Aufsätze je Platz für eine Waffe (info: getWeaponModelInfo, optional). */
+/** Passende Aufsätze je Platz für eine Waffe (info: getWeaponModelMeta bzw. getWeaponModelInfo, optional). */
 export function attachmentsFor(def, info = null) {
   const out = {};
   if (!def || NO_ATT.has(def.cls)) return out;

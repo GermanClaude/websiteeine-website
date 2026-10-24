@@ -55,6 +55,11 @@ const PART_NAMES = ['selector', 'dustCover', 'mag', 'bolt', 'charge', 'pump', 's
 
 const cache = new Map();
 
+// 24.10. (V2): stufenunabhängige Metadaten je Modell – in allen Stufen gleich (geprüft für alle MODEL_KEYS; info.dustCover
+// hängt an der Stufe und fehlt deshalb). Gefüllt aus der ersten Vorlage ohne Aufsätze, egal welcher Stufe.
+const META_FIELDS = ['sight', 'kind', 'axis', 'leftGrip', 'selector'];
+const metaCache = new Map();
+
 function buildTemplate(key, lod, att = null) {
   const make = BUILDERS[key];
   if (!make) throw new Error(`Unbekanntes Waffenmodell: ${key}`);
@@ -64,7 +69,7 @@ function buildTemplate(key, lod, att = null) {
   const leftGrip = (b.anchors.find((a) => a.name === 'leftHandGrip') || {}).data?.style || null;
   if (att) {
     const iron = !b._opticDone && att.optik && (b.meta.sight === 'iron' || b.meta.sight === 'none');
-    attachToBuilder(b, att, iron ? mountFor(key) : null);
+    attachToBuilder(b, att, iron ? mountFor(key, lod) : null);
     if (att.optik && b._opticDone) b.meta.sight = OPTIC_TYPE[att.optik] || b.meta.sight;
   }
   const root = b.build(key);
@@ -127,17 +132,25 @@ function getTemplate(key, lod, att = null) {
   const ak = attKey(att);
   const k = key + ':' + lod + (lod !== 'third' ? (DETAIL.max ? ':max' : DETAIL.lite ? ':lite' : '') : '') + (ak ? '|' + ak : '');
   let t = cache.get(k);
-  if (!t) { t = buildTemplate(key, lod, ak ? att : null); cache.set(k, t); }
+  if (!t) {
+    t = buildTemplate(key, lod, ak ? att : null);
+    cache.set(k, t);
+    if (!ak && !metaCache.has(key)) { const i = t.userData.__meta.info, m = {}; for (const f of META_FIELDS) m[f] = i[f] ?? null; metaCache.set(key, m); }
+  }
   return t;
 }
 
 // Optik-Montage für Waffen mit Kimme und Korn: vor der Kimme, Oberseite des Werksmodells per Strahl von oben abgetastet
 // (Kornsäule/Kimme über der Visierlinie zählen nicht). { u0, base (Oberkante Waffe), railTop (Optikschiene) }
+// 24.10. (V2): Bot-Fassungen tasten ihre eigene Vorlage ab – vorher baute jeder Bot mit Optik auf einer Kimme-Korn-Waffe die
+// volle Ego-Fassung mit (Lage der Optik gemessen: bei 10 von 11 Kimme-Korn-Waffen gleich, KM-7 Wespe 1,7 mm höher).
 const mounts = new Map();
 const _rc = new THREE.Raycaster();
-function mountFor(key) {
-  if (mounts.has(key)) return mounts.get(key);
-  const tpl = getTemplate(key, 'first');
+function mountFor(key, lod = 'first') {
+  const third = lod === 'third';
+  const mk = third ? key + ':third' : key;
+  if (mounts.has(mk)) return mounts.get(mk);
+  const tpl = getTemplate(key, third ? 'third' : 'first');
   tpl.updateMatrixWorld(true);
   const sp = tpl.getObjectByName('sight').getWorldPosition(new THREE.Vector3());
   const u0 = -sp.z + 0.03;
@@ -149,7 +162,7 @@ function mountFor(key) {
   }
   const top = tops.length ? Math.max(...tops) : sp.y - 0.02;
   const m = { u0, base: Math.max(top - 0.004, sp.y - 0.06), railTop: Math.max(top, sp.y - 0.012) + 0.004 };
-  mounts.set(key, m);
+  mounts.set(mk, m);
   return m;
 }
 
@@ -177,9 +190,19 @@ export function createWeaponModel(key, { lod = 'first', camo = null, att = null 
   return cloneTemplate(getTemplate(key, lod === 'third' ? 'third' : 'first'));
 }
 
-/** Metadaten ohne Instanz (Dreiecke, Größe, Visier, Art). */
+/** Metadaten ohne Instanz (Dreiecke, Größe, Visier, Art). Ohne lod: Ego-Fassung der aktuellen Stufe (baut sie ggf.!). */
 export function getWeaponModelInfo(key, lod = 'first', att = null) {
   return { ...getTemplate(key, lod === 'third' ? 'third' : 'first', att).userData.__meta.info };
+}
+
+/**
+ * 24.10. (Vorarbeit V2): stufenunabhängige Metadaten { sight, kind, axis, leftGrip, selector } – für Aufsatz-Prüfungen
+ * (attachmentsFor/applyAttachments) von Bots, Waffensteuerung und Lobby. Liest eine vorhandene Vorlage, sonst baut sie höchstens
+ * die Bot-Fassung (≤ 30 ms). Vorher baute getWeaponModelInfo(key) die volle Ego-Fassung jeder Waffe, die ein Bot trug.
+ */
+export function getWeaponModelMeta(key) {
+  if (!metaCache.has(key)) getTemplate(key, 'third');
+  return { ...metaCache.get(key) };
 }
 
 /** Baut alle Modelle vorab (z. B. während des Ladebildschirms), damit später keine Ruckler entstehen. */
@@ -204,6 +227,7 @@ export function disposeWeaponModels() {
   for (const t of cache.values()) t.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
   cache.clear();
   mounts.clear();
+  metaCache.clear();
   disposeMagFill();
   disposeCamos();
   disposeMaterials();

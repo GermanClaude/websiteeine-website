@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { WEAPONS as DATA_WEAPONS, EQUIPMENT as DATA_EQUIPMENT, effectiveRange, weaponHandling, fireModesOf, burstCountOf, fireModeLabel } from '../../shared/weapons.data.js';
 import { clamp, damp, smooth01, easeInOut, wrapAngle, samplePellet, sampleCone, patternAt } from './ballistics/math.js';
 import { applyAttachments, loadAttachments, UNDER_WEAPONS } from '../../shared/attachments.data.js';
-import { getWeaponModelInfo } from './models.js';
+import { getWeaponModelMeta } from './models.js';
 import { classDef } from '../../shared/classes.data.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -236,7 +236,8 @@ export class WeaponController {
       const a = d && attAll && attAll[d.id];
       if (!a) return d;
       let info = null;
-      try { info = getWeaponModelInfo(d.model || d.id); } catch { /* ohne Modell (Bots/Tests): Unterlauf nach Klasse */ }
+      // 24.10. (V2): nur stufenunabhängige Metadaten (Stützhand-Griff) – keine Ego-Fassung je Bot-Waffe mit Aufsätzen
+      try { info = getWeaponModelMeta(d.model || d.id); } catch { /* ohne Modell (Bots/Tests): Unterlauf nach Klasse */ }
       return applyAttachments(d, a, info);
     };
     const primary = withAtt(this._def(loadout.primary) || this._def('ar_m17') || FALLBACK);

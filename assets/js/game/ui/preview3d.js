@@ -105,7 +105,7 @@ export class WeaponPreview {
     let att = null;
     if (def && def.cls && models) {
       let info = null;
-      try { info = typeof models.getWeaponModelInfo === 'function' ? models.getWeaponModelInfo(def.model) : null; } catch { /* */ }
+      try { info = typeof models.getWeaponModelMeta === 'function' ? models.getWeaponModelMeta(def.model) : null; } catch { /* */ } // 24.10. (V2)
       att = cleanAttachments(def, loadAttachments()[id], info);
       if (!Object.keys(att).length) att = null;
     }
