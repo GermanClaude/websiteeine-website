@@ -102,3 +102,16 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   Lackring, berußtem Hals) startet an der Verschlussstirn (Anker `boltFace`), Mündung voran, Drall um die Hochachse,
   ≈ 4 Uhr; Rauch aus dem Fenster. Prüfen: `tools/out/eject-seq.mjs` (Bild-für-Bild-Bogen im Waffenlabor).
 - Maßstab für alle weiteren Waffen (Nutzer 13.10.): P-9 und M-17 + KI-Video; Rest ab Do 15.10. 17:10.
+- 24.10.: **Vorarbeiten für alle weiteren Foto-Waffen** (Nutzer: übrige Waffen auf M-17/P-9-Niveau, ohne Ruckler
+  und Speicherhunger; M-17/P-9 optisch unverändert, je Stufe per Bildvergleich belegt):
+  Baukasten `sdfkit.js` (sdfMesh, sideFurn, field2, cutWindow, fase …); Werkzeuge in `tools/ref/` (README);
+  Gravuren je Waffe in einem Atlas (`schrift.js`, M-17 69 → 26 Netze); Bauteil-Cache `b.shared(id, fn)` – Aufsatz-
+  Varianten teilen die Distanzfeld-Netze (M-17 je Variante 3–5 s/61 MB → < 0,15 s/< 2 MB); Atlas je Stufe (Handy
+  halber Atlas `key@lite`, Bots ohne Atlas über `LOD_META`); Freigabe je Waffe (`holdWeaponModel`,
+  `freeIdleWeaponModels` beim Matchstart); Schießstand/Waffenspiel bauen nur die Ausrüstung voll vor, den Rest
+  leicht (`lightTier`, `hasWeaponModel`, `preloadWeaponModels(keys, lods, tier)`) – die volle Fassung einer nicht
+  ausgerüsteten Waffe entsteht beim Ausrüsten (Foto-Waffen am PC ≈ 1–5 s). M-17 Bots 580 Dreiecke; P-9 Handy bleibt
+  beim Standard-Raster (gröberes Raster war im Bildvergleich sichtbar) und spart über den halben Atlas.
+  Prüfen: `tools/waffen-cache-test.mjs`. Neue Foto-Waffe: Distanzfeld-Abschnitte in `b.shared`, Schrift über
+  `schrift(key)`, Atlas-Material als `key`/`key@lite` (halber Atlas über `halfMaps`, `userData.texKey`) in
+  `LITE`/`ATLAS` bzw. `defineMat(key, make, { lite, atlas })`, dazu ein Eintrag in `LOD_META` (Bot-Farbe).
