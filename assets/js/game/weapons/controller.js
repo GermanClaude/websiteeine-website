@@ -213,8 +213,11 @@ export class WeaponController {
     const r = this.G.renderer && this.G.renderer.renderer;
     if (!vm || typeof vm.warmup !== 'function' || !r) return;
     const mode = this.G.match && this.G.match.modeId;
-    const ids = mode === 'gun' || mode === 'training' ? Object.keys(this._weapons()) : this.slots.map((s) => s.id);
-    try { vm.warmup(r, ids.filter((id) => this._def(id))); } catch (err) { this._vmError('warmup', err); }
+    const ids = mode === 'gun' || mode === 'training' ? Object.keys(this._weapons()) : [];
+    // 24.10.: eigene Waffen samt Aufsätzen (Definitionen) – vorher nur die Grundfassung, die Zweitwaffe mit Aufsätzen baute erst
+    // der erste Wechsel mitten im Match
+    const defs = this.slots.map((s) => s.def).filter((d) => d && d.id && this._def(d.id));
+    try { vm.warmup(r, [...ids.filter((id) => this._def(id)), ...defs]); } catch (err) { this._vmError('warmup', err); }
   }
 
   /* ================================================================ Ausrüstung */

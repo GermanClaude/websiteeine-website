@@ -16,7 +16,7 @@
 // Animationen 09.10. (anim/): Nachlade-Varianten mit Magazin entlang der Schachtachse (magwell.js, reloads.js), vier
 // Inspektionen je Mechanik + Kammer-Patrone (inspects.js), Ziehen je Klasse, Bereitmachen, Gesten, Posen (moves.js).
 import * as THREE from 'three';
-import { createWeaponModel, setMagRounds } from './models.js';
+import { createWeaponModel, setMagRounds, weaponDetailTier } from './models.js';
 import { WEAPONS, weaponHandling } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
 import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE, MELEE_STYLES } from './gunsmith/handling.js';
@@ -25,6 +25,7 @@ import { RELOAD_ACTIONS } from './anim/reloads.js';
 import { INSPECT_ACTIONS } from './anim/inspects.js';
 import { MOVE_ACTIONS, GRENADE_LOW } from './anim/moves.js';
 import { COSMETIC } from './anim/reloads.js';
+import { BUILD_ACTIONS } from './hintergrundbau.js';
 import { magWellOf } from './anim/magwell.js';
 import { GunCollider, MultiCollider } from './gunsmith/contact.js';
 import { uploadTextures } from '../engine/warm.js';
@@ -142,6 +143,7 @@ export class ViewModel {
     this._scheme = schemeForTeam(this._team, G.world) || null;
     // Detailstufe der Waffenmodelle + Eigenschatten nach Grafikstufe (vor dem ersten Modellbau)
     setWeaponDetail(G.renderer?.quality || 'high');
+    this._tier = weaponDetailTier(); // 24.10. (V5): Stufe der gebauten Waffen (Vorrat-Budget, hintergrundbau.js)
     this.arms = new Arms({ camo: sleeveCamo(this._scheme), quality: G.renderer?.quality || 'high' });
     this.root.add(this.arms.group);
     if (DETAIL.max) this.arms.group.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
@@ -262,7 +264,17 @@ export class ViewModel {
     const mk = ak ? id + '#' + ak : id;   // Aufsätze: eigenes Modell je Kombination
     let entry = this._models.get(mk);
     if (entry) return entry;
-    const model = createWeaponModel(key, { lod: 'first', att: ak ? att : null });
+    entry = this._entryFrom(createWeaponModel(key, { lod: 'first', att: ak ? att : null }), id, key, ak, ak ? att : null);
+    // Kontaktgitter (hands): Hände legen sich an die echte Oberfläche statt in die Waffe (Arm.contact)
+    this._entryCollider(entry);
+    this._models.set(mk, entry);
+    this._prepareGrips(entry);
+    magWellOf(entry);   // Schachtachse + Freigang vorab (anim/magwell.js, wenige ms je Modell)
+    return entry;
+  }
+
+  /** Eintrag aus einem Modell (Schatten, Tarnung, Abzug, Ruhelagen, Arbeitsstelle) – ohne Kontaktgitter/Griffe (24.10.: aus _getModel). */
+  _entryFrom(model, id, key, ak, att) {
     model.traverse(o => { if (o.isMesh) { const t = !!(o.material && o.material.transparent); o.castShadow = this._selfShadow && !t; o.receiveShadow = this._selfShadow && !t; o.frustumCulled = false; } });
     if (this._camos.get(id)) applyCamo(model, this._camos.get(id));
     const ud = model.userData;
@@ -271,18 +283,17 @@ export class ViewModel {
     if (rg && trg && !rg.userData.trigger) rg.userData.trigger = rg.worldToLocal(trg.getWorldPosition(new THREE.Vector3())).add(new THREE.Vector3(0, 0, -0.0045)).toArray().map(v => Math.round(v * 1e4) / 1e4);   // Vorderseite des Abzugs
     const rest = new Map();
     for (const [n, p] of Object.entries(ud.parts)) rest.set(n, { pos: p.position.clone(), quat: p.quaternion.clone(), vis: p.visible });
-    entry = { id, key, model, ud, rest, att: ak };
+    const entry = { id, key, model, ud, rest, att: ak, attObj: att || null, mk: ak ? id + '#' + ak : id, tier: weaponDetailTier() };
     // Arbeitsstelle der Stützhand beim Nachladen (Modellraum, Ruhelage) für _frameWork
     const h0 = handlingFor(key), an = ud.anchors;
     const work = h0.reload === 'revolver' ? an.cylGrab : h0.reload === 'rocket' ? (an.rocketGrab || ud.muzzle) : h0.reload === 'shell' ? an.shellPort : (an.magGrab || ud.magazine);
     if (work) entry.workRest = model.worldToLocal(work.getWorldPosition(new THREE.Vector3()));
-    // Kontaktgitter (hands): Hände legen sich an die echte Oberfläche statt in die Waffe (Arm.contact)
-    try { entry.collider = new GunCollider(model); } catch (err) { console.warn('[gunsmith] Kontaktgitter', err); entry.collider = null; }
-    entry.contactMemo = new Map();
-    this._models.set(mk, entry);
-    this._prepareGrips(entry);
-    magWellOf(entry);   // Schachtachse + Freigang vorab (anim/magwell.js, wenige ms je Modell)
     return entry;
+  }
+
+  _entryCollider(entry) {
+    try { entry.collider = new GunCollider(entry.model); } catch (err) { console.warn('[gunsmith] Kontaktgitter', err); entry.collider = null; }
+    entry.contactMemo = new Map();
   }
 
   // Alle Griffe einer Waffe vorab lösen (je ~2 ms, gecacht) – kein Ruckeln mitten im Nachladen
@@ -316,7 +327,9 @@ export class ViewModel {
     this._pending = null;
     this._lowering = false; this._lowerT = 0;
     const key = def?.model || ID_TO_MODEL[id] || id;
-    const entry = this._getModel(id, key, def?.att || null);
+    // 24.10. (V5): fehlt die Ego-Fassung einer teuren Waffe (Aufheben), erst die Bot-Fassung – siehe hintergrundbau.js
+    const entry = this._entryForSwap(id, key, def?.att || null);
+    entry.used = true;
     if (this.cur) this.gun.remove(this.cur.model);
     this.cur = entry;
     this.def = def;
@@ -512,6 +525,7 @@ export class ViewModel {
     this._climb = Math.min(0.09, this._climb + k.up * 0.22 * s * (0.4 + 0.6 * Math.max(0.5, this._motionScale())));
     this._heat = Math.min(1, this._heat + (h.heat ?? HEAT_PER_SHOT[h.action] ?? 0.02));
     this._shotCount++;
+    this._lastShotT = this._time; // Ruhe für den Hintergrund-Bau (hintergrundbau.js)
     // loser Kastendeckel (MG): Stoß mit Zufallsstärke – mal kaum, mal deutlich (Winkelgeschwindigkeit rad/s)
     if (this._lid) this._lid.v += (1.2 + Math.random() * Math.random() * 6) * Math.min(1.5, s);
     else if (this._part('lid')) this._lid = { a: 0, v: 1.2 + Math.random() * 4 };
@@ -1747,12 +1761,18 @@ export class ViewModel {
     const prev = this.cur;
     const holder = new THREE.Group();
     const shells = new Set();
-    for (const id of ids) {
-      const e = this._getModel(id, (this._defFor(id)?.model) || ID_TO_MODEL[id] || id);
+    for (const x of ids) {
+      // 24.10.: auch Waffen-Definitionen (mit Aufsätzen) – sonst baute der erste Wechsel auf eine Zweitwaffe mit Aufsätzen mitten im Match
+      const d = typeof x === 'string' ? this._defFor(x) : x;
+      const id = typeof x === 'string' ? x : x.id;
+      const e = this._getModel(id, (d?.model) || ID_TO_MODEL[id] || id, (typeof x !== 'string' && x.att) || null);
       shells.add(handlingFor(e.key).shell);
       if (e !== prev) holder.add(e.model);
     }
     this.shells.prepare(shells);
+    // 24.10. (V5): Bot-Fassung als Platzhalter beim Aufheben (hintergrundbau.js) – ihre Materialien im Viewmodel-Licht mit übersetzen
+    const probeKey = prev ? prev.key : null;
+    if (probeKey) { try { holder.add(this._entryFrom(createWeaponModel(probeKey, { lod: 'third' }), '', probeKey, '', null).model); } catch { /* optional */ } }
     if (!this.flash.group.parent) holder.add(this.flash.group);   // noch keine Waffe gezogen
     const hazeVis = this.haze.mesh.visible;
     this.haze.mesh.visible = this.haze.enabled;                    // Shader des Hitzeflimmerns mit übersetzen
@@ -1803,7 +1823,9 @@ export class ViewModel {
     this.arms.dispose();
     this.sun.dispose(); this.hemi.dispose(); this.rim.dispose();
     if (this._ownEnv) { if (this.scene.environment === this._ownEnv) this.scene.environment = null; this._ownEnv.dispose(); }
+    try { this.prefetchRelease(); } catch { /* Freigabe ist Beiwerk */ }
     this._models.clear();
+    this._bgJobs = null;
     if (this.G?.viewmodel?.rig === this) this.G.viewmodel.rig = null;
   }
 }
@@ -1818,6 +1840,8 @@ const VM_FILL = 0.42;
 // vier Inspektionen je Mechanik mit Munitionsschätzung (anim/inspects.js), Ziehen je Klasse, Bereitmachen,
 // Leerlauf-Gesten, Bewegungsposen, Nahkampf-/Wurfvarianten (anim/moves.js)
 Object.assign(ViewModel.prototype, EXTRA_ACTIONS, RELOAD_ACTIONS, INSPECT_ACTIONS, MOVE_ACTIONS);
+// 24.10. (V5): Ego-Waffen ohne Hänger – Vorrat, Bot-Fassung als Platzhalter (hintergrundbau.js)
+Object.assign(ViewModel.prototype, BUILD_ACTIONS);
 
 // Zubehör der Klassen-Arme (Binde, Stulpen, Wickel, Band) – Materialien modulweit, überdauern Matches
 let _accMats = null;

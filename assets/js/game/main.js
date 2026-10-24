@@ -22,6 +22,7 @@ import * as weaponsData from '../shared/weapons.data.js';
 import * as modesData from '../shared/modes.data.js';
 import * as mapsData from '../shared/maps.data.js';
 import * as classesData from '../shared/classes.data.js'; // core-mechanics: Klassen, Panzerung, Spielstile
+import { applyAttachments, loadAttachments } from '../shared/attachments.data.js'; // Vorbau der Ego-Fassung mit eigenen Aufsätzen
 import { EventBus } from './engine/events.js';
 import { createRenderer, QUALITY_LEVELS, resolveQuality, autoQualityInfo } from './engine/renderer.js';
 import { learnTier, deviceInfo } from './engine/device.js';
@@ -729,7 +730,7 @@ function nextFrame() {
   });
 }
 
-const warmed = new Set(); // erledigte Vorarbeiten ('m:<Modell>:<LOD>', 's:<Schema>:<Variante>:<Qualität>')
+const warmed = new Set(); // erledigte Vorarbeiten ('m:<Modell>:<LOD>[|<Aufsätze>]', 's:<Schema>:<Variante>:<Qualität>')
 const mapSchemes = new Map(); // mapId → { B, ffa }: Tarnschemata der Bots auf dieser Karte (nach dem ersten Laden bekannt)
 
 /**
@@ -759,7 +760,19 @@ function matchAssetJobs(cfg, world) {
   const allWeapons = cfg.modeId === 'gun' || cfg.modeId === 'training';
   // Ego: Ausrüstung (gun/training: alle Waffen, siehe WeaponController.warmup) + Requisiten des Viewmodels
   const own = allWeapons ? Object.keys(W) : [cfg.loadout.primary, cfg.loadout.secondary];
-  for (const id of [...own, 'knife', 'frag', 'semtex']) addModel(modelOf(id), 'first');
+  // 24.10.: eigene Waffe mit gespeicherten Aufsätzen gleich in dieser Fassung (die Grundfassung zeigte das Viewmodel nie)
+  const ownAtt = allWeapons ? {} : safe('loadAttachments', loadAttachments) || {};
+  const addOwn = (id) => {
+    const key = modelOf(id);
+    let att = null;
+    if (key && W[id] && ownAtt[id] && models && typeof models.getWeaponModelMeta === 'function') {
+      att = safe('ownAttachments', () => applyAttachments(W[id], ownAtt[id], models.getWeaponModelMeta(key)).att) || null;
+    }
+    if (!att || typeof models.getWeaponModelInfo !== 'function') { addModel(key, 'first'); return; }
+    add(`m:${key}:first|${Object.values(att).join('+')}`, () => models.getWeaponModelInfo(key, 'first', att));
+  };
+  for (const id of own) addOwn(id);
+  for (const id of ['knife', 'frag', 'semtex']) addModel(modelOf(id), 'first');
   // Ego: einmalige Viewmodel-Texturen (Ärmel-Tarnmuster des Teams, Stoff, Mündungsfeuer …), weapons/viewmodel.js
   const vm = G.modules.viewmodel;
   if (vm && typeof vm.viewModelWarmupSteps === 'function') {
@@ -805,6 +818,53 @@ function matchAssetJobs(cfg, world) {
     });
   }
   return jobs;
+}
+
+const allWeaponsMode = (modeId) => modeId === 'gun' || modeId === 'training'; // Ego-Fassungen aller Waffen (WeaponController.warmup)
+
+/**
+ * 24.10. (V5): Waffen, die der Spieler in diesem Match aufheben oder ausrüsten kann – vorgemerkte eigene Ausrüstung (Pausenmenü,
+ * Todesbildschirm), Beute am Boden, Waffen der übrigen Akteure (Bots, Mitspieler) samt Aufsätzen; häufigste zuerst. → Definitionen
+ */
+function carriedWeapons() {
+  const W = G.data.WEAPONS || {};
+  const M = G.modules.models;
+  const meta = (id) => safe('modelMeta', () => (M && typeof M.getWeaponModelMeta === 'function' ? M.getWeaponModelMeta(W[id].model || id) : null)) || null;
+  const withAtt = (id, att) => (att && typeof att === 'object' ? safe('applyAttachments', () => applyAttachments(W[id], att, meta(id))) || W[id] : W[id]);
+  const count = new Map();
+  const add = (def, w) => {
+    if (!def || !def.id || !W[def.id] || W[def.id].cls === 'melee') return;
+    const k = def.id + '#' + (def.attKey || '');
+    const c = count.get(k);
+    if (c) c.n += w; else count.set(k, { def, n: w });
+  };
+  const lo = G.match.pendingLoadout;
+  if (lo) {
+    const own = safe('loadAttachments', loadAttachments) || {};
+    for (const id of [lo.primary, lo.secondary]) if (W[id]) add(withAtt(id, own[id]), 100);
+  }
+  for (const l of (G.points && G.points.loot) || []) if (l && l.weapon && W[l.weapon]) add(withAtt(l.weapon, l.att), 3);
+  for (const a of G.actors) {
+    if (a === G.player || !a.weapon || !Array.isArray(a.weapon.slots)) continue;
+    for (const s of a.weapon.slots) if (s && s.def) add(s.def, 1);
+  }
+  return [...count.values()].sort((a, b) => b.n - a.n).map((c) => c.def);
+}
+
+let bgIdle = false; // Leerlauf im letzten Bild (Übergang → Vorrat neu planen)
+/** Je Bild ein Schritt des Hintergrund-Baus im Viewmodel (weapons/hintergrundbau.js). */
+function weaponBackground() {
+  const P = G.player;
+  const vm = P && P.weapon && P.weapon.viewModel;
+  if (!vm || typeof vm.backgroundStep !== 'function') return;
+  const st = G.match.state;
+  const idle = st === 'paused' || st === 'countdown' || !P.alive;
+  // Vorrat, sobald der Leerlauf beginnt: Bots wechseln beim Wiedereinstieg ihre Ausrüstung, Beute kommt hinzu (nicht in VR: dort
+  // stünde das Bild der Brille während eines Baus still – Vorrat nur im Ladebildschirm)
+  const vr = !!(G.xr && G.xr.presenting);
+  if (idle && !bgIdle && !vr && !allWeaponsMode(G.match.modeId)) safe('prefetch', () => vm.prefetch(carriedWeapons()));
+  bgIdle = idle;
+  vm.backgroundStep({ idle, quiet: P.alive && G.time.elapsed - (P.lastDamageTime ?? -1e9) > 2 });
 }
 
 /**
@@ -1016,6 +1076,12 @@ async function runStart(config, gen) {
       for (const a of G.actors) spawnActor(a);
     }
     if (!(await nextStep(0.9))) { await teardownMatch({ keepWorld: true }); return; }
+    // 24.10. (V5): Ego-Fassungen der Waffen, die Bots tragen (aufhebbar), in der aktuellen Stufe schon im Ladebildschirm
+    const vmP = G.player.weapon && G.player.weapon.viewModel;
+    if (vmP && typeof vmP.prefetchJobs === 'function' && !allWeaponsMode(cfg.modeId)) {
+      await runJobs(safe('prefetch', () => vmP.prefetchJobs(carriedWeapons())) || [], live);
+      if (!live()) { await teardownMatch({ keepWorld: true }); return; }
+    }
 
     // vehicles: Spawns aus world.vehicleSpawns bzw. ?vehicles=1; online nur mit Raum-Einstellung „Fahrzeuge“ – der Host
     // simuliert, Clients führen ein Abbild (vehicles/net.js, panzer-mp.md §C)
@@ -1042,6 +1108,8 @@ async function runStart(config, gen) {
     await warmUp(live);
     if (!live()) { await teardownMatch({ keepWorld: true }); return; }
     G.menus.showLoading(1);
+    // ab jetzt fehlende teure Ego-Fassungen (Aufheben, neue Aufsätze) nicht mehr synchron bauen (hintergrundbau.js)
+    if (vmP) vmP.deferBuilds = true;
     G.matchCount += 1;
     G.menus.hideAll();
     G.hud.show();
@@ -1808,6 +1876,8 @@ function frame(now, bg = false, xrFrame = null) {
   if (G._endScreenAt && G.time.real >= G._endScreenAt) showEndScreen();
   if (xr) step('xr:end', () => G.xr.endFrame(dt, sim)); // Kamera/Hände auch in der Pause, Overlay, Handgelenk, Menü
 
+  // 24.10. (V1/V5): Ego-Waffen im Hintergrund – je Bild höchstens ein Schritt (Leerlauf: tot, Pause, Countdown; sonst nur in Ruhe)
+  if (bg !== true && (sim || st === 'paused')) step('weapons:bg', weaponBackground);
   // Pausiert/Ende: Bild steht still → nur ~4×/s neu zeichnen (Akku auf Mobilgeräten); VR zeichnet jedes Bild
   if (bg !== true && G.world && G.camera && st !== 'loading' && (sim || xr || now - idleRenderAt > 250)) {
     idleRenderAt = now;

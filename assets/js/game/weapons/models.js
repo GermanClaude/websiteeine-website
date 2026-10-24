@@ -55,6 +55,10 @@ const PART_NAMES = ['selector', 'dustCover', 'mag', 'bolt', 'charge', 'pump', 's
 
 const cache = new Map();
 
+/** 24.10. (V5): Detailstufe der Ego-Fassungen – 'max' (PC hoch/ultra), 'std' (PC niedrig/mittel), 'lite' (Touch); Teil des
+ * Vorlagen-Schlüssels. */
+export function weaponDetailTier() { return DETAIL.max ? 'max' : DETAIL.lite ? 'lite' : 'std'; }
+
 // 24.10. (V2): stufenunabhängige Metadaten je Modell – in allen Stufen gleich (geprüft für alle MODEL_KEYS; info.dustCover
 // hängt an der Stufe und fehlt deshalb). Gefüllt aus der ersten Vorlage ohne Aufsätze, egal welcher Stufe.
 const META_FIELDS = ['sight', 'kind', 'axis', 'leftGrip', 'selector'];
@@ -128,12 +132,33 @@ function cloneTemplate(tpl) {
   return bindUserData(c, meta);
 }
 
+function templateKey(key, lod, ak) {
+  return key + ':' + lod + (lod !== 'third' ? (DETAIL.max ? ':max' : DETAIL.lite ? ':lite' : '') : '') + (ak ? '|' + ak : '');
+}
+
+// 24.10. (V5): Aufsätze, die nur Werte ändern (Munition, Schaft, Schnellwechsel-Magazin), teilen sich die Vorlage ohne sie – vorher
+// ein Komplettbau je Kombination (P-9 max + Hohlspitz = weitere 190 k Dreiecke). null = ganzer Platz. Zeichnet ein Bauplan oder
+// attach.js einen davon einmal sichtbar, hier streichen.
+const STAT_ONLY = { munition: null, schaft: null, magazin: new Set(['schnell']) };
+function modelAtt(att) {
+  if (!att) return att;
+  let out = null;
+  for (const [slot, vals] of Object.entries(STAT_ONLY)) {
+    if (att[slot] && (vals === null || vals.has(att[slot]))) { out = out || { ...att }; delete out[slot]; }
+  }
+  if (!out) return att;
+  return attKey(out) ? out : null;
+}
+
 function getTemplate(key, lod, att = null) {
+  att = modelAtt(att);
   const ak = attKey(att);
-  const k = key + ':' + lod + (lod !== 'third' ? (DETAIL.max ? ':max' : DETAIL.lite ? ':lite' : '') : '') + (ak ? '|' + ak : '');
+  const k = templateKey(key, lod, ak);
   let t = cache.get(k);
   if (!t) {
+    const t0 = performance.now();
     t = buildTemplate(key, lod, ak ? att : null);
+    t.userData.__meta.ms = performance.now() - t0; // Bauzeit (Hintergrund-Bau im Viewmodel schätzt damit, V5)
     cache.set(k, t);
     if (!ak && !metaCache.has(key)) { const i = t.userData.__meta.info, m = {}; for (const f of META_FIELDS) m[f] = i[f] ?? null; metaCache.set(key, m); }
   }
@@ -203,6 +228,42 @@ export function getWeaponModelInfo(key, lod = 'first', att = null) {
 export function getWeaponModelMeta(key) {
   if (!metaCache.has(key)) getTemplate(key, 'third');
   return { ...metaCache.get(key) };
+}
+
+/** 24.10. (V5): Vorlage schon gebaut (Ego: in der aktuellen Stufe)? Dann kostet createWeaponModel nur einen Klon. */
+export function hasWeaponTemplate(key, lod = 'first', att = null) {
+  return cache.has(templateKey(key, lod === 'third' ? 'third' : 'first', attKey(modelAtt(att))));
+}
+
+/**
+ * 24.10. (V5): Bauzeit (ms) und Dreiecke der Ego-Vorlage ohne Aufsätze in der aktuellen Stufe – geschätzt aus der teuersten
+ * schon gebauten Ego-Vorlage dieses Modells (gleiche Stufe bevorzugt). null = noch keine gebaut (Kosten unbekannt).
+ */
+export function weaponBuildCost(key) {
+  const own = cache.get(templateKey(key, 'first', ''));
+  if (own) return { ms: own.userData.__meta.ms || 0, triangles: own.userData.__meta.info.triangles };
+  let best = null;
+  for (const [k, t] of cache) {
+    if (!k.startsWith(key + ':first')) continue;
+    const m = t.userData.__meta;
+    if (!best || (m.ms || 0) > best.ms) best = { ms: m.ms || 0, triangles: m.info.triangles };
+  }
+  return best;
+}
+
+/** 24.10. (V5): eine Ego-/Bot-Vorlage freigeben (ungenutzter Vorrat am Matchende). → true, wenn es sie gab */
+export function releaseWeaponTemplate(key, lod = 'first', att = null) {
+  const k = templateKey(key, lod === 'third' ? 'third' : 'first', attKey(modelAtt(att)));
+  const t = cache.get(k);
+  if (!t) return false;
+  t.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+  cache.delete(k);
+  return true;
+}
+
+/** 24.10.: Übersicht der gebauten Vorlagen (Prüfwerkzeuge): [{ k, triangles, ms }] */
+export function weaponTemplateStats() {
+  return [...cache].map(([k, t]) => ({ k, triangles: t.userData.__meta.info.triangles, ms: Math.round(t.userData.__meta.ms || 0) }));
 }
 
 /** Baut alle Modelle vorab (z. B. während des Ladebildschirms), damit später keine Ruckler entstehen. */
