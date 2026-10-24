@@ -4,13 +4,13 @@
 // abgezogen), Schaft und Griff mit eigenem Atlas, Gravuren als Schriftfelder. Der gemeinsame AR-Unterbau (arLower in
 // guns-ar.js) bleibt für SK-14 und Ursprung unverändert.
 import * as R from './m17-ref.js';
-import { furnUV3, markMat, markAspect, SLOTS } from './m17-tex.js';
+import { furnUV3, SLOTS } from './m17-tex.js';
+import { schrift } from './schrift.js';
 import { sdPolygon, extrudeRound, smin, surfaceNets, sdBox, simplifyPoly, cavityColors } from './sdf.js';
 import { ALU, STEEL, POLY, box2, field2, sdRoundRect, roundMax, segDist, cutWindow, fase, sdfMesh, sideFurn } from './sdfkit.js';
 import { roundRect, ellipsePts } from './builder.js';
 import { holoSight, birdcage } from './parts.js';
 import { magRounds } from './magfill.js';
-import * as THREE from 'three';
 
 const { U, V } = R;
 const AX = R.AXIS;
@@ -24,30 +24,9 @@ const EP = (() => {
   const thB = Math.asin((v - hv - 0.0018 - AX) / Rm), thT = Math.asin((v + hv + 0.0018 - AX) / Rm), thH = thB - 0.0785, Rh = Rm + 0.0004;
   return { u, hu, v, hv, r: 0.0024, uBX: u + hu + 0.0015, Rm, thB, thT, cu: u, cl: 0.0395, hx: Rh * Math.cos(thH), hv2: AX + Rh * Math.sin(thH), open: 155 * Math.PI / 180, R: 0.0143 };
 })();
-// Schriftfeld (Gravur) als Fläche auf einer Seitenfläche: side = +1 rechts, −1 links; h = Schrifthöhe in m
-function mark(b, text, x, v, u, h, o = {}) {
-  if (!b.hi) return;
-  const asp = markAspect(text, o);
-  const geo = new THREE.PlaneGeometry(o.vertical ? h : h * asp, o.vertical ? h / asp : h);
-  const side = Math.sign(x) || 1;
-  geo.rotateY(side > 0 ? Math.PI / 2 : -Math.PI / 2);
-  if (o.rx) geo.rotateX(o.rx);
-  b._push(geo, markMat(text, o), { x, v, u, part: o.part }, true);
-}
-
-// Schriftfeld oben auf einer Fläche (von hinten lesbar), z. B. Schienennummern auf den Zähnen
-function markTop(b, text, x, v, u, h, o = {}) {
-  if (!b.max) return;
-  const asp = markAspect(text, o);
-  const geo = new THREE.PlaneGeometry(h * asp, h);
-  geo.rotateX(-Math.PI / 2);
-  b._push(geo, markMat(text, o), { x, v, u }, true);
-}
-// Nummern auf jedem zweiten Zahn einer Picatinny-Schiene (wie b.picatinny verteilt)
-function railNumbers(b, x, top, u0, u1, first, prefix = '') {
-  const len = u1 - u0, n = Math.max(1, Math.floor((len + 0.0052) / 0.01)), start = u0 + (len - (n * 0.01 - 0.0052)) / 2;
-  for (let i = 0; i < n; i += 2) markTop(b, prefix + (first + i), x, top + 0.00008, start + i * 0.01 + 0.0024, 0.0024, { px: 48 });
-}
+// Gravuren (Wahlhebelstellungen, Typ, Nummer, Stempel, Schienenzahlen) als Schriftfelder auf der Fläche – alle in einer
+// gemeinsamen Schrift-Textur mit einem Material (schrift.js, 24.10.); auch am Handy wie bisher
+const { mark, markTop, railNumbers } = schrift('m17', { lite: true });
 
 // Distanzfeld-Netze (sdfMesh), Profile (sideFurn), Fenster/Fasen und Gebrauchsspuren-Voreinstellungen: sdfkit.js
 export function m17(b) {
