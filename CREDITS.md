@@ -179,6 +179,9 @@ gespeichert. Die Fotos selbst sind weder im Spiel noch im Repository enthalten. 
 | M-17 Falke (rechte Seite) | [PEO M4 Carbine RAS M68 CCO](https://commons.wikimedia.org/wiki/File:PEO_M4_Carbine_RAS_M68_CCO.jpg) | Photo Courtesy of PEO Soldier ([Flickr](https://www.flickr.com/photos/peosoldier/4639044647/)) | gemeinfrei (US Army, PD-USGov-Military-Army) |
 | M-17 Falke (linke Seite) | [Carbine M4 1](https://commons.wikimedia.org/wiki/File:Carbine_M4_1.jpg) | US Army (tri.army.mil) | gemeinfrei (US Army, PD-USGov-Military-Army) |
 | P-9 Kompakt | [GLOCK 17 Gen 4 Pistol MOD 45160305](https://commons.wikimedia.org/wiki/File:GLOCK_17_Gen_4_Pistol_MOD_45160305.jpg) | Photo: Steve Dock/MOD | [Open Government Licence v1.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/1/) |
+| KV-47 (rechte Seite) | [Polish AKM 1971, AM.016072, 01](https://commons.wikimedia.org/wiki/File:Polish_AKM_1971,_AM.016072,_01.jpg) | Torkel Edenborg / Swedish Army Museum (Armémuseum) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) – verändert: nur Maße und Umrisse abgeleitet (perspektivisch entzerrt) |
+| KV-47 (linke Seite) | [Polish AKM 1971, AM.016072, 02](https://commons.wikimedia.org/wiki/File:Polish_AKM_1971,_AM.016072,_02.jpg) | Torkel Edenborg / Swedish Army Museum (Armémuseum) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) – verändert: nur Lagen von Nieten, Prägungen, Deckelkante |
+| KV-47 (Gegenprobe Proportionen) | [AKM automatkarbin – 7,62x39mm](https://commons.wikimedia.org/wiki/File:AKM_automatkarbin_-_7,62x39mm.jpg) | Armémuseum (The Swedish Army Museum) | gemeinfrei |
 
 ## Klänge
 

@@ -454,7 +454,7 @@ const PATTERN = {
 // Waffengefühl je Waffe (siehe Kopfkommentar „handling“; Massen etwa realer Vorbilder mit Optik und Magazin)
 // und Charakter des Rückstoßes (recoil.visual: sichtbarer Stoß relativ zum Zielrückstoß, recoil.firstShotSpread).
 const FEEL = {
-  ar_kv47: { handling: { mass: 3.9, inertia: 1.05, swayScale: 1.05, aimDrift: 0.00055, reach: 1.14 }, recoil: { visual: 1.15, firstShotSpread: 0.8 } },
+  ar_kv47: { handling: { mass: 3.9, inertia: 1.05, swayScale: 1.05, aimDrift: 0.00055, reach: 1.02 }, recoil: { visual: 1.15, firstShotSpread: 0.8 } },   // reach 25.10.: Modell nach Foto 880 mm statt 1,07 m
   ar_m17: { handling: { mass: 3.3, inertia: 0.95, swayScale: 1.0, aimDrift: 0.00045, reach: 0.95 }, recoil: { visual: 0.95, firstShotSpread: 0.7 } },
   smg_vp9: { handling: { mass: 2.9, inertia: 0.82, swayScale: 0.9, aimDrift: 0.0004, reach: 0.88 }, recoil: { visual: 0.9, firstShotSpread: 0.8 } },
   smg_qx90: { handling: { mass: 2.8, inertia: 0.75, swayScale: 0.9, aimDrift: 0.0004, reach: 0.75 }, recoil: { visual: 0.85, firstShotSpread: 0.85 } },

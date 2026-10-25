@@ -20,7 +20,7 @@ const size = await p.evaluate(async ([src, P, cx, cy, cw, ch, s]) => {
   const g = c.getContext('2d'); g.drawImage(img, cx, cy, cw, ch, 0, 0, cw * s, ch * s);
   const cols = ['#f00', '#0a0', '#00f', '#f0f', '#fa0', '#0aa', '#a50', '#08f', '#f08', '#880', '#408', '#0f0'];
   g.font = 'bold 14px Arial'; g.lineWidth = 1.5;
-  Object.entries(P).forEach(([k, pl], i) => {
+  Object.entries(P).filter(([, pl]) => pl && pl.length).forEach(([k, pl], i) => {   // leere Umrisse (Regel ohne Treffer) überspringen
     g.strokeStyle = g.fillStyle = cols[i % cols.length]; g.beginPath();
     pl.forEach(([x, y], n) => { const X = (x - cx) * s, Y = (y - cy) * s; n ? g.lineTo(X, Y) : g.moveTo(X, Y); });
     g.closePath(); g.stroke(); g.fillText(k, (pl[0][0] - cx) * s + 3, (pl[0][1] - cy) * s - 3);

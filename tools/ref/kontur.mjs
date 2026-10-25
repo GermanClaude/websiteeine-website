@@ -2,8 +2,9 @@
 // node tools/ref/kontur.mjs <bild.png|jpg> <regeln.mjs> <ausgabe.json>   (Beispiel: tools/ref/regeln-m17-beispiel.mjs)
 // regeln.mjs: export const PARTS = { NAME: { test: (x, y, L) => bool, tol: 1.3 }, … };
 //             export const HOLES = { NAME: { seed: [x, y], box: [x0, y0, x1, y1], tol: 1.2, light: 200 }, … };
-//   test bekommt Fotopixel x, y und L(x, y) = Helligkeit 0…255 (0,3 R + 0,59 G + 0,11 B); Funktionen müssen in sich
-//   geschlossen sein (keine äußeren Variablen – sie werden als Text in den Browser gegeben).
+//   test bekommt Fotopixel x, y und L(x, y) = Helligkeit 0…255 (0,3 R + 0,59 G + 0,11 B), dazu C(x, y) = [R, G, B]
+//   (25.10.: Holz und brünierter Stahl sind gleich dunkel – getrennt nur über die Farbe, z. B. R − B > 30 für Holz);
+//   Funktionen müssen in sich geschlossen sein (keine äußeren Variablen – sie werden als Text in den Browser gegeben).
 // Ausgabe: { NAME: [[x, y], …] } in Fotopixeln (ganzzahlig), Außenumriss gegen den Uhrzeigersinn egal (sdPolygon ist richtungsfrei).
 import { chromium } from '../pw.mjs';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -23,6 +24,7 @@ const res = await p.evaluate(async ({ data, parts, holes }) => {
   const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0);
   const d = g.getImageData(0, 0, c.width, c.height).data, W = c.width, H = c.height;
   const L = (x, y) => { if (x < 0 || y < 0 || x >= W || y >= H) return 255; const i = ((y | 0) * W + (x | 0)) * 4; return 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]; };
+  const C = (x, y) => { if (x < 0 || y < 0 || x >= W || y >= H) return [255, 255, 255]; const i = ((y | 0) * W + (x | 0)) * 4; return [d[i], d[i + 1], d[i + 2]]; };
   const S = 2, gw = Math.floor(W / S), gh = Math.floor(H / S);
   const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   function largest(m) {
@@ -69,7 +71,7 @@ const res = await p.evaluate(async ({ data, parts, holes }) => {
   for (const [k, v] of Object.entries(parts)) {
     const test = new Function('return ' + v.test)();
     const m = new Uint8Array(gw * gh);
-    for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) m[y * gw + x] = test(x * S + 1, y * S + 1, L) ? 1 : 0;
+    for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) m[y * gw + x] = test(x * S + 1, y * S + 1, L, C) ? 1 : 0;
     const pts = trace(fillHoles(largest(m)));
     out[k] = simplify(pts, v.tol).map(([x, y]) => [Math.round(x), Math.round(y)]);
   }

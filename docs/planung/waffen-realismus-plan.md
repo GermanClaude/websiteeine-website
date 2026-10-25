@@ -130,3 +130,17 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   (Matchstart, Lobby), `releaseEgoTemplates` (andere Stufen nach `_retier`), `releaseWeaponTemplate` (ungenutzter Vorrat) –
   Halter je Viewmodel-Eintrag und Vorschau, Geometrie nur ohne weitere Nutzer (Bauteil-Cache), Bauteil-Cache und Atlas
   erst ohne Vorlage. Prüfen: `tools/vorbau-test.mjs`.
+- 25.10.: **KV-47 (AKM) nach Foto neu gebaut** (Wunsch 24.10.: übrige Waffen auf M-17/P-9-Niveau, echte Fotos als
+  Vorlage). Vorlage polnisches AKM 1971 (Armémuseum, CC BY 4.0, rechts + links), Gegenprobe gemeinfreies AKM-Foto.
+  Die Studiofotos waren perspektivisch verzerrt (Kamera um die Hochachse gekippt) – vor dem Abnehmen entzerrt
+  (k aus dem Spiegelabgleich beider Seiten), kalibriert über 880 mm Gesamtlänge, Visierlinie 375,6 mm (Soll 378).
+  Neu: `kv47-ref.js` (Umrisse/Lagen in Fotopixeln, Quellen im Kopf), `holz-tex.js` (Baukasten G1: Lackholz,
+  Pressstoff, Fischhaut), `kv47-tex.js` (Holzatlas 2048 × 512, Gehäuseatlas 1024 × 1024, Handy je halbe Kante),
+  `ak-parts.js` (Baukasten G3 für alle AK-Abkömmlinge: Blech-U-Gehäuse, Deckel, Träger mit Ladehebel, Sicherungshebel,
+  Visier, Lauf/Gasblock/Bremse, Gasrohr mit oberem Handschutz, unterer Handschutz, Schaft, Griff, Abzugsgruppe,
+  Rippenmagazin, Bot-Stufe), `guns-kv47.js`. Bewegliche Teile: Träger + Ladehebel (Teil bolt, Hub 82 mm), Wahlhebel
+  (Teil selector, D/E −13,6°/−20,5°), Magazin (Teil mag, Patronen über magfill). Eigene Prägungen statt Werkszeichen.
+  Dreiecke max 208 000 / Standard 84 000 / Handy ≈ 44 000 / Bots ≈ 350, 12–13 Netze, Atlanten zusammen 35 MB (M-17 42 MB).
+  Bauzeit im Container stark lastabhängig (gleicher Lauf: KV-47 Standard ≈ 1,5× M-17 Standard) – größter Posten sind die
+  gezeichneten Atlanten (≈ 0,4–0,8 s, einmal je Sitzung). Vergleich Modell ↔ Foto: `tools/ref/vergleich.mjs` (Umrisse
+  decken), Bilder vorher/nachher im Bericht.

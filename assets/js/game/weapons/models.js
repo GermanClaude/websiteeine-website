@@ -14,7 +14,8 @@
 //   auf der optischen Achse liegt (inkl. Augenabstand der Visierung).
 import * as THREE from 'three';
 import { Builder, DETAIL, clearPartCache, setWeaponDetail as setDetail } from './gunsmith/builder.js';
-import { kv47, sk14 } from './gunsmith/guns-ar.js';
+import { sk14 } from './gunsmith/guns-ar.js';
+import { kv47 } from './gunsmith/guns-kv47.js';
 import { m17 } from './gunsmith/guns-m17.js';
 import { vp9, qx90, hm60 } from './gunsmith/guns-auto.js';
 import { brecher, bulldog } from './gunsmith/guns-long.js';
@@ -258,7 +259,7 @@ export function getWeaponModelMeta(key) {
 // 24.10. (V5): Foto-Waffen (Distanzfeld-Netze, Atlas – Ego-Bau 0,3–7 s im Container) gelten als teuer, auch bevor eine Messung
 // vorliegt: Aufheben zeigt dann einen Platzhalter statt im Bild zu bauen. Alle übrigen Waffen (alte Bauweise, 2–90 ms) baut das
 // Aufheben ohne Messung sofort. NEUE FOTO-WAFFEN HIER EINTRAGEN (Integrationsschritt je Etappe, Bauanleitung §8.2).
-const PHOTO_MODELS = new Set(['m17', 'p9']);
+const PHOTO_MODELS = new Set(['m17', 'p9', 'kv47']);
 export function isPhotoWeapon(key) { return PHOTO_MODELS.has(key); }
 
 /**
