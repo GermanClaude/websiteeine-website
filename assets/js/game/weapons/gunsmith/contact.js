@@ -63,6 +63,7 @@ export class GunCollider {
   constructor(model) {
     this.model = model;
     this.groups = [];
+    const quant = model.userData?.info?.contactQuant || QUANT;
     model.updateMatrixWorld(true);
     const byObj = new Map();
     model.traverse((o) => {
@@ -94,7 +95,8 @@ export class GunCollider {
       // Dreiecke (Distanzfeld-Netze, Schritt < 1 mm) – jede Fingerabfrage prüfte Hunderte je Zelle. Große Teile werden
       // fürs Kontaktnetz auf ein Raster von 3 mm zusammengefasst (Ecken je Zelle gemittelt, entartete, doppelte und
       // umgeklappte Dreiecke fallen weg) – Abweichung ≤ ~1 mm, Fingerkontakt unverändert genau genug.
-      const T = tri.length / 9 > DECIMATE_FROM ? decimate(tri, QUANT) : new Float32Array(tri);
+      // Raster je Waffe (b.meta.contactQuant, 25.10.: QX-90 mit großen Kunststoffflächen 3,5 mm), sonst 3 mm
+      const T = tri.length / 9 > DECIMATE_FROM ? decimate(tri, quant) : new Float32Array(tri);
       const n = T.length / 9;
       if (!n) continue;
       const N = new Float32Array(n * 3);

@@ -4,6 +4,7 @@ import { wearMap, brushedMap, grainNormal, stippleNormal, knurlNormal, woodMap, 
 import { p9SlideMaps, p9FrameMaps, SLIDE_CAMO_REPEAT, FRAME_CAMO_REPEAT } from './p9-tex.js';
 import { m17FurnMaps, FURN_CAMO_REPEAT } from './m17-tex.js';
 import { kv47WoodMaps, kv47RecMaps, WOOD_CAMO_REPEAT, REC_CAMO_REPEAT } from './kv47-tex.js';
+import { qx90FrameMaps, qx90UpperMaps, FRAME_CAMO_REPEAT as QX_FRAME_REPEAT, UPPER_CAMO_REPEAT as QX_UPPER_REPEAT } from './qx90-tex.js';
 import { dropCached } from './textures.js';
 
 const mats = new Map();
@@ -148,6 +149,20 @@ const DEFS = {
   // Magazin (Prüfung 25.10.: wirkte flach blaugrau): brünierter Stahl, fast schwarz, glänzend, Kanten/Rippen blank gerieben
   kv47Mag: () => wearPatch(std({ color: 0x41454b, metalness: 0.78, roughness: 0.3, roughnessMap: fine(finishMaps('steel').rough, 2), normalMap: fine(finishMaps('steel').normal, 3), normalScale: new THREE.Vector2(0.12, 0.12) }), { col: 0xb4b8be, metal: 1, rough: 0.2, k: 1.5, bump: 0.00006, tone: 0.14 }),
   kv47Bcg: () => wearPatch(phys({ color: 0x3a3c40, metalness: 0.72, roughness: 0.34, clearcoat: 0.35, clearcoatRoughness: 0.25, roughnessMap: fine(finishMaps('steel').rough, 3), normalMap: fine(finishMaps('steel').normal, 5), normalScale: new THREE.Vector2(0.08, 0.08) }), { col: 0xa4a7ab, metal: 1, rough: 0.22, bump: 0.00003, tone: 0.06 }),
+  // QX-90 nach Foto (25.10., Polymer-Baukasten G12): Rahmen matter Spritzguss (Atlas), Lauf-/Visiergruppe schwarzer Guss
+  // (Atlas, Kratzer, blanke Kanten), Ringvisier eloxiert, Kleinteile schwarzer Kunststoff, Schaftkappe gummiert, Stahl
+  // (Lauf, Dämpfer, Spannhebelstangen, Schrauben) phosphatiert; Magazin Rauch-Polymer (durchscheinend, Patronen sichtbar)
+  qx90Frame: () => qx90FrameMat(false), 'qx90Frame@lite': () => qx90FrameMat(true),
+  qx90Upper: () => qx90UpperMat(false), 'qx90Upper@lite': () => qx90UpperMat(true),
+  qx90Optic: () => wearPatch(phys({ color: 0x18191b, metalness: 0.4, roughness: 0.5, clearcoat: 0.06, clearcoatRoughness: 0.4, roughnessMap: fine(finishMaps('alu').rough, 2), normalMap: fine(finishMaps('alu').normal, 2.5), normalScale: new THREE.Vector2(0.14, 0.14) }), { ...ALU_WEAR, col: 0x7d8186, k: 0.8 }),
+  qx90Black: () => wearPatch(std({ color: 0x1c1d1f, metalness: 0.0, roughness: 0.62, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.14, 0.14) }), POLY_WEAR),
+  qx90Butt: () => wearPatch(std({ color: 0x1a1b1d, metalness: 0.0, roughness: 0.86, normalMap: stippleNormal(), normalScale: new THREE.Vector2(0.3, 0.3) }), { ...POLY_WEAR, k: 0.4 }),
+  qx90Steel: () => wearPatch(std({ color: 0x343537, metalness: 0.72, roughness: 0.44, roughnessMap: fine(finishMaps('steel').rough, 2.5), normalMap: fine(finishMaps('steel').normal, 4), normalScale: new THREE.Vector2(0.12, 0.12) }), { col: 0xa3a6ab, metal: 1, rough: 0.26, bump: 0.00005, tone: 0.08 }),
+  qx90Rod: () => wearPatch(std({ color: 0x67645f, metalness: 0.8, roughness: 0.4, roughnessMap: fine(finishMaps('steel').rough, 3), normalMap: fine(finishMaps('steel').normal, 4), normalScale: new THREE.Vector2(0.1, 0.1) }), { col: 0xb8b8b4, metal: 1, rough: 0.22, bump: 0.00004, tone: 0.1 }),
+  // Rauch-Polymer (Foto: bräunlich-grau, dick, leicht milchig): matter als Glas, damit die Studio-/Himmelsspiegelung den
+  // Ton nicht überdeckt; die Patronen bleiben gedämpft sichtbar
+  qx90Mag: () => solid(std({ color: 0x4f3d2e, metalness: 0.0, roughness: 0.34, transparent: true, opacity: 0.8, envMapIntensity: 0.7 })),
+  qx90MagCap: () => std({ color: 0x1b1c1e, metalness: 0.0, roughness: 0.55, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.12, 0.12) }),
   // Trommelmagazin: eigener Kunststoff (keine Tarnung) und Deckel mit eigener Textur
   drumBody: () => std({ color: 0x2a2c30, map: polymerMap(), metalness: 0.0, roughness: 0.66, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.2, 0.2) }),
   drumFace: () => std({ color: 0xffffff, map: drumFaceMap(), normalMap: drumFaceNormal(), normalScale: new THREE.Vector2(0.9, 0.9), metalness: 0.0, roughness: 0.62 }),
@@ -160,7 +175,7 @@ const DEFS = {
   lensClear: () => std({ color: 0x8fb8d8, metalness: 0.6, roughness: 0.04, transparent: true, opacity: 0.16, depthWrite: false, envMapIntensity: 1.8 }),
   // Holo-Fenster: leicht getöntes Glas
   glass: () => std({ color: 0x9fd8d0, metalness: 0.4, roughness: 0.05, transparent: true, opacity: 0.18, depthWrite: false, envMapIntensity: 1.4 }),
-  // Transluzentes Magazin (QX-90)
+  // Transluzentes Rauchglas/-Magazin (OG-Gewehr, Molotow-Flasche; die QX-90 hat seit 25.10. ihr eigenes qx90Mag)
   smoke: () => std({ color: 0x3c4a50, metalness: 0.1, roughness: 0.18, transparent: true, opacity: 0.62, envMapIntensity: 1.2 }),
   // Durchscheinende Polymermagazine (Rauch, Wüstenbraun, Grau wie Lancer/UMP/AUG): Patronen + Zubringer innen
   // sichtbar (magfill.js). userData.solid: zählt für den Handkontakt (contact.js) wie ein festes Teil;
@@ -208,10 +223,14 @@ function p9FrameMat(lite) { const t = p9FrameMaps(lite); const m = std({ color: 
 // Grundglanz unter dem Lack schwach (specularIntensity 0,4), sonst liegt ein rosa Schleier über dem Holz (Foto: dunkle Zonen satt)
 function kv47WoodMat(lite) { const t = kv47WoodMaps(lite); const m = phys({ color: 0xffffff, map: t.map, metalness: 0.0, roughness: t.roughnessMap ? 1.0 : t.roughness, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), clearcoat: 0.2, clearcoatRoughness: 0.34, specularIntensity: 0.4 }); m.userData.camoRepeat = WOOD_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0xb07850, metal: 0, rough: 0.62, k: 0.35, bump: 0.00005, tone: 0.06, smear: 0.2 }); }
 function kv47RecMat(lite) { const t = kv47RecMaps(lite); const m = phys({ color: 0xffffff, map: t.map, metalness: 0.35, roughness: t.roughnessMap ? 1.0 : t.roughness, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), clearcoat: 0.18, clearcoatRoughness: 0.4 }); m.userData.camoRepeat = REC_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0x8c8f94, metal: 1, rough: 0.3, bump: 0.00006, tone: 0.08 }); }
+// QX-90: Spritzguss matt (Rauheit aus dem Atlas, Handy konstant), Guss metallisch-schwarz mit blanken Kanten
+function qx90FrameMat(lite) { const t = qx90FrameMaps(lite); const m = std({ color: 0xffffff, map: t.map, metalness: 0.0, roughness: t.roughnessMap ? 1.0 : t.roughness, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = QX_FRAME_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0x4a4c50, metal: 0, rough: 0.42, k: 0.75, bump: 0.00005, tone: 0.06, smear: 0.25 }); }
+function qx90UpperMat(lite) { const t = qx90UpperMaps(lite); const m = std({ color: 0xffffff, map: t.map, metalness: 0.5, roughness: t.roughnessMap ? 1.0 : t.roughness, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = QX_UPPER_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0x9a9da2, metal: 1, rough: 0.3, bump: 0.00007, tone: 0.1 }); }
 function m17FurnMat(lite) { const t = m17FurnMaps(lite); const m = std({ color: 0x26272a, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FURN_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, POLY_WEAR); }
 // Schlüssel mit eigener Handy-Fassung (key@lite) und Atlas-Materialien (je Waffe freigebbar)
-const LITE = new Set(['m17Furn', 'p9Slide', 'p9Frame', 'kv47Wood', 'kv47Rec']);
-const ATLAS = new Set(['m17Furn', 'm17Furn@lite', 'p9Slide', 'p9Slide@lite', 'p9Frame', 'p9Frame@lite', 'kv47Wood', 'kv47Wood@lite', 'kv47Rec', 'kv47Rec@lite']);
+const LITE = new Set(['m17Furn', 'p9Slide', 'p9Frame', 'kv47Wood', 'kv47Rec', 'qx90Frame', 'qx90Upper']);
+const ATLAS = new Set(['m17Furn', 'm17Furn@lite', 'p9Slide', 'p9Slide@lite', 'p9Frame', 'p9Frame@lite', 'kv47Wood', 'kv47Wood@lite', 'kv47Rec', 'kv47Rec@lite',
+  'qx90Frame', 'qx90Frame@lite', 'qx90Upper', 'qx90Upper@lite']);
 /** Materialschlüssel für die Handy-Stufe (eigener, kleinerer Atlas), sonst der Schlüssel selbst. */
 export function liteKey(key) { return LITE.has(key) ? key + '@lite' : key; }
 
@@ -222,7 +241,10 @@ const LOD_COLORS = { woodWarm: 0x6a3a22, woodWalnut: 0x4a2d1c, polymerTan: 0x665
 // Metall-Gruppe wie metalness ≥ 0,5
 const LOD_META = { m17Rec: [0x2b2d30, 0], m17Ras: [0x292b2e, 0], m17Steel: [0x2b2c2d, 0], m17Mag: [0x4a4d51, 0], m17Bcg: [0x2c2d2e, 1],
   m17Furn: [0x26272a, 0], p9Slide: [0x5c5e62, 1], p9Frame: [0x232427, 0],
-  kv47Wood: [0x4e1f0c, 0], kv47Rec: [0x222325, 0], kv47Steel: [0x252629, 1], kv47Mag: [0x33363b, 1], kv47Bcg: [0x3a3c40, 1] };
+  kv47Wood: [0x4e1f0c, 0], kv47Rec: [0x222325, 0], kv47Steel: [0x252629, 1], kv47Mag: [0x33363b, 1], kv47Bcg: [0x3a3c40, 1],
+  qx90Frame: [0x2c2d30, 0], qx90Upper: [0x1d1e20, 1], qx90Mag: [0x4a3f36, 0], qx90Rod: [0x67645f, 1],
+  // QX-90 Bots: Farben direkt (sonst baute die Bot-Stufe Alu-/Stahl-/Stippel-Kacheln nur zum Farbablesen, ≈ 130 ms)
+  qx90Optic: [0x18191b, 0], qx90Butt: [0x1a1b1d, 0], qx90Steel: [0x343537, 1], qx90MagCap: [0x1b1c1e, 0], qx90Black: [0x1c1d1f, 0] };
 const _lodCol = new Map();
 /** Farbe (linear) + Metall-Gruppe eines Materials für die zusammengeführte Bot-Detailstufe. */
 export function lodInfo(key) {

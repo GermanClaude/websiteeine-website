@@ -1536,7 +1536,9 @@ export class ViewModel {
       const tgt = selA[this._fireMode] ?? selA.auto ?? 0;
       if (this._selKey !== this.cur) { this._selKey = this.cur; this._selAng = tgt; }
       this._selAng += (tgt - this._selAng) * Math.min(1, dt * 22);
-      this._setPartOffset('selector', 0, 0, 0, this._selAng, 0, 0);
+      // QX-90 (25.10.): Drehscheibe unter dem Abzug dreht um die Hochachse (meta.selector.axis = 'v')
+      if (selA.axis === 'v') this._setPartOffset('selector', 0, 0, 0, 0, this._selAng, 0);
+      else this._setPartOffset('selector', 0, 0, 0, this._selAng, 0, 0);
     }
     // Aktionsteile (Magazin, Ladehebel, Pumpe, Kammerstängel, Deckel …)
     if (act && act.parts) for (const [n, o] of Object.entries(act.parts)) {

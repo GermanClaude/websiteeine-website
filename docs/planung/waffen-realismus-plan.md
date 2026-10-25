@@ -164,3 +164,28 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   Scheiben), Kontaktgitter max 42 307 Dreiecke / 231 ms (Magazinrippen nur als sichtbarer Bogen), Texturen PC 30,7 MB,
   Handy eigene Atlanten 4,0 MB ohne Rauheitskarten (mit Mipmaps und den geteilten Stahl-/Magazinkacheln 8 MB).
   `tools/vorbau-test.mjs` prüft die KV-47 jetzt als Foto-Waffe (Platzhalter-Fall).
+- 25.10.: **QX-90 (FN P90) nach Foto neu gebaut**. Vorlage: FN-Herstal-Studiofotos P90 Standard rechts/links + Mündungsseite
+  (CC BY-SA 2.0), Gegenprobe gemeinfreies P90-Foto ohne Magazin. Die Fotos sind praktisch perspektivfrei (gespiegelte linke
+  Seite deckt die rechte nach Skalierung 1,00979 auf ±2 px); kalibriert über 505 mm Gesamtlänge (3679 px/m), Prüfmaß
+  Höhe 200 mm. Breiten aus Datenblatt (55 mm über die Spannhebelknöpfe) und Schrägansicht geschätzt.
+  Neu: `qx90-ref.js` (Umrisse/Lagen in Fotopixeln, Quellen im Kopf), `polymer-parts.js` (Baukasten G12 für
+  Kunststoffwaffen – Keiler, Wespe, K-36, BX-20: Innensechskantschraube, Taschen/Erhebungen/Langlöcher als Feld,
+  durchscheinender Magazinkasten, Schmalband-Raster `gridBand` für Fotosilhouetten), `poly-tex.js` (Spritzguss-
+  Oberflächen: Wolkigkeit, eingeformte Schrift, Kantenabrieb, Kratzer, Ringnuten), `qx90-tex.js` (Rahmenatlas
+  2048 × 1024, Gehäuseatlas 1024 × 512, Handy halbe Kante), `guns-qx90.js`. Rahmen aus Schaftschale/Oberrahmen und
+  schmalerem Griffmodul (Stufe wie am Original), Daumenloch und Abzugsschlaufe gerundet, Schaftkappe gestippelt; Lauf-
+  und Visiergruppe als Guss mit Brücke über dem Magazin, Seitenschienen mit Schrauben, Knopf rechts/Wulst links;
+  Ringvisier mit Fenster, Glas, Ringabsehen, Lichtsensor; Magazin (Teil mag) als Rauch-Polymer mit 50 quer liegenden
+  Patronen in zwei Reihen (magfill), Zuführblock, Kappe, Teilstrichen; Spannhebel beidseitig (Teil charge, Hub 60 mm);
+  Drehwahlschalter unter dem Abzug (Teil selector, Achse senkrecht → `meta.selector.axis: 'v'`, viewmodel.js dreht
+  dann um die Hochachse); Feuerdämpfer mit Schrägschnitt und vier Schlitzen. Eigene Beschriftung statt Werkszeichen.
+  Pixeltreppen der Kontursuche werden vor dem Distanzfeld begradigt (Douglas-Peucker 1,6 px) – sonst waagrechte Riefen
+  auf Stirn und Schaft. Magazinschacht (anim/magwell.js): hinter dem Magazin steht der Halteblock des Schafts so hoch wie
+  das Magazin; die Achse steigt jetzt 10° nach hinten (Freigang 141 statt 427 mm, das Magazin zog vorher durch den ganzen
+  Schaft). Kontaktgitter je Waffe einstellbar (`b.meta.contactQuant`, Standard 3 mm; QX-90 3,5 mm → 41 000 statt
+  53 000 Dreiecke). Augenabstand 0,2 (Verdeckung 35 % wie K-36/M-17), Reichweite 0,67 m (Mündung 227 statt 305 mm vor
+  dem Griff). Bots: alle QX-90-Materialien mit Farbe in LOD_META (sonst baute die Bot-Stufe Alu-/Stahl-Kacheln nur zum
+  Farbablesen, 135 → 9 ms). Messung (`tools/ref/mess.mjs`, Container, Last ≈ 2): Dreiecke max 198 854 / Standard
+  77 478 / Handy 38 002 / Bots 360, 20/20/19/3 Netze, Bau max 1,6 s / Standard 0,9 s / Handy 0,7 s / Bots 9 ms (M-17 im
+  selben Lauf 4,8 / 1,5 / 3,3 s / 28 ms), Kontaktgitter max 41 161 Dreiecke / 221 ms, Texturen PC 28,1 MB, Handy
+  10,8 MB (mit geteilten Kacheln).

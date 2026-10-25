@@ -8,7 +8,8 @@
 //     key, lod, muzzle, ejection, magazine, sight, leftHandGrip, rightHandGrip, adsOffset (Vector3),
 //     magFill, rounds, follower (Magazininhalt, siehe gunsmith/magfill.js setMagRounds),
 //     parts: { mag, bolt, charge, pump, slide, boltHandle, hammer, cover, belt, pin, spoon, … } (nur vorhandene),
-//     anchors: { chargeGrab, magGrab, magWell, trigger, … }, info: { sight, kind, triangles, meshes, size, axis }
+//     anchors: { chargeGrab, magGrab, magWell, trigger, … }, info: { sight, kind, triangles, meshes, size, axis,
+//       contactQuant (Raster des Kontaktgitters, b.meta) }
 //   }
 //   adsOffset = Position der Gruppe im Kameraraum (Kamera im Ursprung, Blick −Z), bei der das Visier exakt
 //   auf der optischen Achse liegt (inkl. Augenabstand der Visierung).
@@ -17,7 +18,8 @@ import { Builder, DETAIL, clearPartCache, setWeaponDetail as setDetail } from '.
 import { sk14 } from './gunsmith/guns-ar.js';
 import { kv47 } from './gunsmith/guns-kv47.js';
 import { m17 } from './gunsmith/guns-m17.js';
-import { vp9, qx90, hm60 } from './gunsmith/guns-auto.js';
+import { vp9, hm60 } from './gunsmith/guns-auto.js';
+import { qx90 } from './gunsmith/guns-qx90.js';
 import { brecher, bulldog } from './gunsmith/guns-long.js';
 import { p9, adler } from './gunsmith/guns-pistol.js';
 import { knife, frag, semtex } from './gunsmith/gear.js';
@@ -109,7 +111,7 @@ function buildTemplate(key, lod, att = null, tier = null) {
     adsOffset: [-sp.x, -sp.y, -eye - sp.z],
     magFill,
     info: {
-      sight: b.meta.sight || 'none', kind: b.meta.kind || 'gear', axis: b.meta.axis ?? 0, leftGrip, selector: b.meta.selector || null, dustCover: b.meta.dustCover || null,
+      sight: b.meta.sight || 'none', kind: b.meta.kind || 'gear', axis: b.meta.axis ?? 0, leftGrip, selector: b.meta.selector || null, dustCover: b.meta.dustCover || null, contactQuant: b.meta.contactQuant || null,
       triangles: root.userData.stats.triangles, meshes: root.userData.stats.meshes,
       size: size.toArray(), center: box.getCenter(new THREE.Vector3()).toArray(), min: box.min.toArray(), max: box.max.toArray(),
     },
@@ -259,7 +261,7 @@ export function getWeaponModelMeta(key) {
 // 24.10. (V5): Foto-Waffen (Distanzfeld-Netze, Atlas – Ego-Bau 0,3–7 s im Container) gelten als teuer, auch bevor eine Messung
 // vorliegt: Aufheben zeigt dann einen Platzhalter statt im Bild zu bauen. Alle übrigen Waffen (alte Bauweise, 2–90 ms) baut das
 // Aufheben ohne Messung sofort. NEUE FOTO-WAFFEN HIER EINTRAGEN (Integrationsschritt je Etappe, Bauanleitung §8.2).
-const PHOTO_MODELS = new Set(['m17', 'p9', 'kv47']);
+const PHOTO_MODELS = new Set(['m17', 'p9', 'kv47', 'qx90']);
 export function isPhotoWeapon(key) { return PHOTO_MODELS.has(key); }
 
 /**

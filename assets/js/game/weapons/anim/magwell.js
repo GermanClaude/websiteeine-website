@@ -15,8 +15,10 @@ import { clamp, smooth } from '../gunsmith/anim.js';
 // Sonderfälle (Modellraum): Achse, zusätzlicher Freigang
 const OVERRIDE = {
   // QX-90: Magazin liegt quer oben auf dem Gehäuse UNTER der Visierbrücke – es kann nicht senkrecht abgehoben werden,
-  // sondern gleitet erst nach hinten, bis seine Vorderkante hinter der Brücke liegt (Freigang aus der Geometrie)
-  qx90: { axis: [0, 0, 1], margin: [0.004, 0.004, -0.003, 0.004] },
+  // sondern gleitet nach hinten, bis seine Vorderkante hinter der Brücke liegt (Freigang aus der Geometrie). 25.10.: Modell
+  // nach Foto – hinter dem Magazin steht der Halteblock des Schafts so hoch wie das Magazin; waagrecht zog es durch den
+  // ganzen Schaft (Freigang 427 mm). Wie am Original hinten angehoben: Achse 10° steigend nach hinten
+  qx90: { axis: [0, 0.18, 1], margin: [0.004, 0.004, -0.003, 0.004] },
   // HM-60: Gurtkasten hängt seitlich an der Halterung links unter dem Gehäuse – nach unten abziehen
   hm60: { axis: [0, -1, 0] },
 };
