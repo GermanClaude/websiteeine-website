@@ -151,6 +151,16 @@ export function simplifyPoly(pts, tol) {
 }
 
 /**
+ * Geschlossenen Ring vereinfachen, ohne Punkte zu verlieren (25.10.): simplifyPoly lässt den letzten Ringpunkt weg (die
+ * zweite Hälfte endet vor ihm) – bei Fotoumrissen mit wenigen Punkten fehlt damit eine ganze Ecke (Adler-Bot-Stufe:
+ * Schlitten nur noch ein Keil). Hier wird der Ring mit dem ersten Punkt geschlossen; dieser Abschlusspunkt fällt weg.
+ * (simplifyPoly selbst bleibt unverändert – M-17/P-9 sollen optisch gleich bleiben.)
+ */
+export function simplifyRing(pts, tol) {
+  return simplifyPoly([...pts, pts[0]], tol);
+}
+
+/**
  * 2D-Feld f(a, b) einmal auf einem Raster vorberechnen → bilineare Abfrage. Für Profile (Umriss in u/v), die das
  * 3D-Feld an jedem Gitterpunkt erneut braucht; außerhalb des Rasters wird exakt gerechnet.
  */

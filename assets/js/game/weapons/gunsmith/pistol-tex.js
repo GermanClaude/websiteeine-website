@@ -7,7 +7,9 @@ import { canvas, toTexture, fbm, rng } from './textures.js';
 
 export const CPU = { willReadFrequently: true };   // Hilfsleinwände im Hauptspeicher (GPU↔CPU-Kopien kosten im Software-GL viel)
 export const grey = (h) => { const k = Math.max(0, Math.min(255, Math.round(h * 255))); return `rgb(${k},${k},${k})`; };
-export const path = (g, pts) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); };
+export const path = (g, pts) => { g.beginPath(); subPath(g, pts); };
+/** Umriss an den aktuellen Pfad anhängen (ohne beginPath) – mehrere Umrisse in einem Pfad (z. B. ein gemeinsamer Clip). */
+export const subPath = (g, pts) => { pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); };
 
 /**
  * Schräge Griffrillen (Schlitten): n Rillen, unten bei x0 + i·pitch auf Höhe bottom, um ang (Grad gegen die Senkrechte, nach

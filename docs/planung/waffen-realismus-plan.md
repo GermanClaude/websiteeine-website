@@ -185,3 +185,25 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   fest am Rahmen), Verschlusskopf nicht gebaut (geschlossen vom Lager verdeckt), Griffanker wie alt (Hüfthaltung) bei echt
   maßstäblichem, 34 mm kürzerem Modell → `FEEL.reach` 0,66 → 0,6; Anschlag-Verdeckung 18 % bei Augenabstand 0,36 (Pistolenwert;
   Ziel 22–34 % – die Visierlinie liegt 92 mm über der Griffmitte, die Arme tiefer im Bild; 0,44 ergäbe 22 % bei winziger Kimme).
+  **Nachbesserung nach Prüfung (25.10.):** Bot-Stufe war unvollständig – `simplifyPoly` lässt bei geschlossenen Ringen den letzten
+  Punkt fallen (Schlitten 21 mm, Magazinboden 14,5 mm, Bügelöffnung 13 mm zu kurz); neu `simplifyRing` in `sdf.js` (`simplifyPoly`
+  bleibt, sonst ändern sich M-17/P-9). Atlas je Dreieck (`atlasUVTri`: Bereich nach der Dreiecksmitte statt je Ecke → keine Naht
+  links), Stirn-/Ober-/Unterflächen in isotropen Feldern (BLANK gebürstet, MATT = Rahmenoberfläche, INNER dunkle Innenwände) statt
+  gestreckter Seitenstreifen, linke Bänder nur noch für Gravur und Nummer; Rahmen-, Bügel-, Griff- und Magazinboden-Umriss mit
+  Douglas-Peucker 0,3 mm geglättet (2-px-Treppen spiegelten als Wellenbänder). Bügelöffnung nach Foto: Außenwände bis zum Bogen
+  offen, Mittelsteg flach (±10,4 mm), vor dem Magazin tief (±5,2 mm), Abzugsschlitz nur vor dem Magazin; Rahmen eine Breite
+  (27 mm), Sporn 22,4 mm über den Fotobogen `TANG_LINE` weich angesetzt (keine Risskante, keine Stufe am Griffrand), Griffumriss
+  ohne Spalt, Magazinhalter auf der neuen Rahmenfläche. Sicherung nach Detailfoto: ovale Nabenplatte, schlanker Tropfenhebel
+  (2,4 mm, rund gefast), erhabene runde Rippen statt schwarzer Kerben (`raisedRibs`, auch Laufriegel; die Kerben-Riffelung ist
+  aus dem Baukasten entfernt), roter Punkt auf dem Hebel; Kimmenfuß im Schwalbenschwanz (Nut im Schlitten), Hahn mit gerundetem
+  Sporn und 7 Zahnstegen. Mündung: Scheibe zeigt nach vorn (Kreisscheiben zeigen sonst nach hinten und sind nur mit DoubleSide
+  sichtbar), Bohrung 8 mm tief – `muzzle-bore-test` prüft die Adler jetzt mit den echten Materialseiten (`--seiten` für alle).
+  Magazinboden-Bohrungen bündig auf ihrer Fläche. Handy: Normalenkarte halbe Auflösung (Texturspeicher 5,8 → 3,8 MB).
+  Kosten (mess.mjs, Last ≈ 8 durch parallele Läufe – Zeiten etwa doppelt so hoch wie bei Last 3,5): max 117,9 k Dreiecke/
+  19 Netze/2,1–2,7 s, Kontakt 18,7 k; std 51,5 k/19/1,06–1,45 s (Texturen 18,5 MB); lite 26,3 k/17/0,80–1,10 s (3,8 MB); Bots
+  228/3/19 ms; P-9 in denselben Läufen std 1,6–2,1 s, lite 1,9–3,1 s. Abwechselnd gegen den Stand vor der Nachbesserung gemessen
+  (gleiche Last): std 1,08–1,14 → 1,13–1,16 s, lite 0,66–0,88 → 0,92–1,08 s, max 2,0–2,5 → 2,3–2,7 s – kaum Mehrkosten; bei
+  Last 4–7 (Zwischenstand) std 0,91–0,98 s, lite 0,49–0,71 s. Bei ruhigem Rechner nicht nachgemessen.
+  Anschlag-Verdeckung bleibt 18 % (Augenabstand 0,36): 0,40 → 20 %, ab 0,44 sind die Arme am Ende ihrer Reichweite; P-9-Griffdaten
+  oder tieferer Griffanker kippen die Handlösung (Daumen über dem Visier, 39–47 %). Die P-9 hat dieselbe Visierhöhe über dem
+  Griffanker (91 mm), die Ursache ist also nicht die Höhe allein – nicht abschließend geklärt, offen.

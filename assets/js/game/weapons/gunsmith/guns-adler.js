@@ -17,9 +17,9 @@
 // Detailstufen: PC hoch/ultra (max), PC niedrig/mittel, Handy (lite), Bots (≤ 400 Dreiecke) – Anker in allen Stufen gleich.
 import * as R from './adler-ref.js';
 import { adlerSteelUV, adlerBodyUV, adlerGripUV } from './adler-tex.js';
-import { extrudeRound, smin, simplifyPoly } from './sdf.js';
-import { STEEL, POLY, field2, box2, sdfMesh, inBox } from './sdfkit.js';
-import { pinHead, slotScrew, hexPivot, pushButton, notchSight, bladeSight, ridges, sideUV, outlineField } from './pistol-parts.js';
+import { extrudeRound, smin, simplifyRing } from './sdf.js';
+import { STEEL, POLY, field2, box2, sdfMesh, inBox, roundMax } from './sdfkit.js';
+import { pinHead, slotScrew, hexPivot, pushButton, notchSight, bladeSight, raisedRibs, sideUV, outlineField, atlasUVTri } from './pistol-parts.js';
 import { magRounds } from './magfill.js';
 
 const { U, V, M } = R;
@@ -36,6 +36,9 @@ const clamp01 = (t) => Math.min(1, Math.max(0, t));
 const memo = new WeakMap();
 const once = (b, key, make) => { let m = memo.get(b); if (!m) memo.set(b, (m = {})); return m[key] || (m[key] = make()); };
 const rectPts = ([x0, y0, x1, y1]) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+// Fotoumriss geglättet (25.10., Prüfung „Wellenmaserung“ an Stirn-/Rückflächen): die Randverfolgung hinterlässt 2-px-Treppen
+// (0,25 mm); jede Stufe ist eine eigene Facette mit eigener Normale → Spiegelung in Bändern. Douglas-Peucker 0,3 mm entfernt sie.
+const MS = (pts) => simplifyRing(M(pts), 0.0003);
 
 export function adler(b) {
   if (b.hi) {
@@ -45,8 +48,9 @@ export function adler(b) {
     b.shared('rumpf', () => adlerBody(b));
     b.shared('griff', () => adlerGrip(b));
   } else {
-    // Bot-Detailstufe: dieselben Fotoumrisse, stark vereinfacht (Pistole ≤ 400 Dreiecke)
-    const sp = (pts, tol) => simplifyPoly(M(pts), tol);
+    // Bot-Detailstufe: dieselben Fotoumrisse, stark vereinfacht (Pistole ≤ 400 Dreiecke); simplifyRing behält alle
+    // Ecken (25.10.: simplifyPoly verlor den letzten Ringpunkt → Schlitten als Keil, Spalten Lauf/Rahmen und Griff/Boden)
+    const sp = (pts, tol) => simplifyRing(M(pts), tol);
     b.part('slide', 0, AX, 0);
     b.side('adlerSteel', sp(R.SLIDE, 0.0025), HW_SLIDE * 2, 0, { part: 'slide' });
     b.side('adlerSteel', M([[940, 173], [2207, 173], [2245, 257], [2245, 340], [2229, 369], [940, 372]]), HW_BARREL * 2, 0, {});
@@ -57,6 +61,9 @@ export function adler(b) {
   const vS = V(R.SIGHT_Y);
   if (b.hi) {
     notchSight(b, 'adlerBlued', M(R.RSIGHT), 0.0068, { nw: 0.0042, vN: vS, part: 'slide', dots: true, uRear: U(499) });
+    // Kimmenfuß im Schwalbenschwanz (25.10.): füllt die Nut über die ganze Schlittenbreite, Enden bündig mit den 45°-Fasen
+    const [d0, d1, dy] = R.RSIGHT_DOVE, vT = V(R.SLIDE_TOP_Y), vD = V(dy), hw = HW_SLIDE - 0.0001;
+    b.front('adlerBlued', [[-hw, vD], [hw, vD], [hw - (vT - vD), vT], [-(hw - (vT - vD)), vT]], U(d1) - U(d0) - 0.0002, U(d0) + 0.0001, { part: 'slide' });
     bladeSight(b, 'adlerBlued', M(R.FSIGHT), 0.0016, { dot: { v: vS - 0.0013, u: U(2107) } });
   }
   // ---------------------------------------------------------------- Sicherung (beidseitig, am Schlitten)
@@ -64,10 +71,15 @@ export function adler(b) {
   // ---------------------------------------------------------------- Hahn (gespannt wie im Foto), Abzug, Bedienteile am Rahmen
   const [hx, hy] = R.HAMMER_PIVOT;
   b.part('hammer', 0, V(hy), U(hx));
-  b.side('adlerPolish', M(R.HAMMER), 0.0084, 0, { part: 'hammer', bevel: 0.0008, bevelSeg: 2 });
+  // Sporn gerundet (25.10., Prüfung: von hinten nur eine flache Platte mit Pixelstreifen): stark gebrochene Kanten, Zähne als
+  // erhabene blanke Stege quer auf der Spornoberkante (im Profil als Zahnreihe sichtbar)
+  b.side('adlerPolish', M(R.HAMMER), 0.0084, 0, { part: 'hammer', bevel: b.hi ? 0.0019 : 0.0008, bevelSeg: b.hi ? 3 : 1 });
   if (b.hi) {
-    const [t0, t1, n] = R.HAMMER_TEETH;
-    if (!b.lite) for (let i = 0; i < n; i++) b.box('cavity', 0.0086, 0.0005, 0.00055, 0, V(244.5 + (i / (n - 1)) * 4) + 0.0001, U(t0 + (t1 - t0) * (i + 0.5) / n), { part: 'hammer', c: 0 });
+    const [t0, t1, n] = R.HAMMER_TEETH, top = (px) => 242 + (px - 298) * (249 - 242) / (376 - 298);   // Oberkante (Foto)
+    if (!b.lite) for (let i = 0; i < n; i++) {
+      const px = t0 + (t1 - t0) * (i + 0.5) / n;
+      b.box('adlerPolish', 0.0066, 0.0007, 0.00055, 0, V(top(px)) + 0.0002, U(px), { part: 'hammer', rx: -0.09, c: 0.00012 });
+    }
     pinHead(b, 'adlerPolish', HW_FRAME - 0.0003, V(hy), U(hx), 0.0024);
     b.side('adlerPolish', M(R.TRIGGER), 0.0072, 0, { bevel: 0.0011, bevelSeg: 2 });
     for (const [px, py, pr] of R.PINS) pinHead(b, 'adlerPolish', HW_FRAME - 0.0002, V(py), U(px), pr / R.PPM);
@@ -75,9 +87,11 @@ export function adler(b) {
   }
   b.anchor('trigger', 0, V(590), U(964));
   // ---------------------------------------------------------------- Mündung (Bohrung in der Stirn, Scheibe 3,5 mm tief, Krone)
+  // 25.10. (Prüfung): Scheibe nach VORN gedreht (CircleGeometry zeigt nach hinten, +z – mit einseitigem Material war sie von
+  // vorn unsichtbar und der blanke Bohrungsgrund sichtbar); Bohrung 8 mm tief, der Grund bleibt hinter der Scheibe
   const uMz = U(R.MUZZLE_X);
   if (b.hi) {
-    b.circle('cavity', 0.0064, 0, AX, uMz - 0.0035, { seg: 28 });
+    b.circle('cavity', 0.0064, 0, AX, uMz - 0.0035, { seg: 28, ry: Math.PI });
     b.lathe('crown', [[-0.0012, 0.00635], [-0.00005, 0.0073]], 0, AX, uMz, { seg: 32 });
   } else b.circle('cavity', 0.0064, 0, AX, uMz + 0.0003, { seg: 8 });
   b.anchor('muzzle', 0, AX, uMz + 0.002);
@@ -100,6 +114,7 @@ function adlerSlide(b) {
   const sd = field2(M(R.SLIDE), [], G2(b, 0.0003));
   const vTop = V(R.SLIDE_TOP_Y), uP0 = U(R.PORT[0]), uP1 = U(R.PORT[1]), vP = V(R.PORT[2]);
   const rec = field2(M(R.SAFETY_RECESS), [], G2(b, 0.0003)), rb = box2(M(R.SAFETY_RECESS), 0.002);
+  const uD0 = U(R.RSIGHT_DOVE[0]), uD1 = U(R.RSIGHT_DOVE[1]), vD = V(R.RSIGHT_DOVE[2]);
   const f = (x, v, u) => {
     const d2 = sd(u, v);
     if (d2 > 0.005) return d2;
@@ -111,11 +126,12 @@ function adlerSlide(b) {
       d = Math.max(d, -Math.max(uP0 + 0.001 - u, u - uP1 + 0.0025, AX + 0.006 - v, ax - 0.0098));  // Kanal zum Lager (vorn ≥ 1,5 mm Steg)
     }
     if (ax > HW_SLIDE - 0.003 && inBox(rb, u, v)) d = Math.max(d, -Math.max(rec(u, v), HW_SLIDE - 0.0008 - ax));   // Mulde
+    if (u > uD0 - 0.001 && u < uD1 + 0.001 && v > vD - 0.001) d = Math.max(d, -Math.max(uD0 - u, u - uD1, vD - v));   // Schwalbenschwanznut der Kimme
     return d;
   };
   // unten offen (liegt auf dem Rahmen, auch zurückgelaufen nur von unten einsehbar)
   const [u0, u1, , v1] = box2(M(R.SLIDE), 0.002);
-  sdfMesh(b, f, [-HW_SLIDE - 0.002, V(R.SLIDE_BOTTOM_Y) + 0.0003, u0], [HW_SLIDE + 0.002, v1, u1], 0.0014, STEELM(b), { uv: adlerSteelUV, cav: STEEL, fine: 0.66, lite: 1.4, part: 'slide' });
+  sdfMesh(b, f, [-HW_SLIDE - 0.002, V(R.SLIDE_BOTTOM_Y) + 0.0003, u0], [HW_SLIDE + 0.002, v1, u1], 0.0014, STEELM(b), { uv: adlerSteelUV, uvMap: atlasUVTri, cav: STEEL, fine: 0.66, lite: 1.4, part: 'slide' });
 }
 
 // ---------------------------------------------------------------- Lauf (Distanzfeld, Atlas)
@@ -153,8 +169,8 @@ function barrelField(b) {
     }
     // vertiefte Seitenfläche (Gravurfeld) beidseitig 0,8 mm
     if (ax > HW_BARREL - 0.0025 && inBox(pb, u, v)) d = Math.max(d, -Math.max(pan(u, v), HW_BARREL - 0.0008 - ax));
-    // Bohrung (4,5 mm tief sichtbar; dunkle Scheibe davor im Bauplan)
-    if (u > uMz - 0.006 && ax < 0.008 && Math.abs(v - AX) < 0.008) d = Math.max(d, -Math.max(Math.hypot(x, v - AX) - 0.00635, uMz - 0.0045 - u));
+    // Bohrung 8 mm tief (dunkle Scheibe 3,5 mm hinter der Stirn im Bauplan; der Grund liegt sicher dahinter)
+    if (u > uMz - 0.0095 && ax < 0.008 && Math.abs(v - AX) < 0.008) d = Math.max(d, -Math.max(Math.hypot(x, v - AX) - 0.00635, uMz - 0.008 - u));
     return d;
   };
   return f;
@@ -171,7 +187,7 @@ function magWell() {
 
 // ---------------------------------------------------------------- Griff (Wickelgriff, Kunststoff, Atlas)
 function gripField(b) {
-  const gd = once(b, 'griff2d', () => outlineField(M(R.PANEL), [], G2(b, 0.0004), 0.0075));
+  const gd = once(b, 'griff2d', () => outlineField(MS(R.PANEL), [], G2(b, 0.0004), 0.0075));
   const vT = V(400), vB = V(1134);
   return (x, v, u) => {
     const d2 = gd(u, v);
@@ -183,34 +199,64 @@ function adlerGrip(b) {
   const g = gripField(b), well = magWell();
   const f = (x, v, u) => Math.max(g(x, v, u), -well(x, v, u));
   const [u0, u1, v0, v1] = box2(M(R.PANEL), 0.002);
-  sdfMesh(b, f, [-0.0192, v0, u0], [0.0192, v1, u1], 0.0022, GRIPM(b), { uv: adlerGripUV, cav: POLY, fine: 0.7, lite: 1.5 });
+  sdfMesh(b, f, [-0.0192, v0, u0], [0.0192, v1, u1], 0.0022, GRIPM(b), { uv: adlerGripUV, uvMap: atlasUVTri, cav: POLY, fine: 0.7, lite: 1.5 });
 }
 
 // ---------------------------------------------------------------- Rahmen (Distanzfeld, Atlas)
+const sstep = (a, c, t) => { const s = clamp01((t - a) / (c - a)); return s * s * (3 - 2 * s); };
+const smax = (a, c, k) => -smin(-a, -c, k);
 function frameField(b) {
-  const fd = outlineField(M(R.FRAME), [M(R.GUARD_OPEN)], G2(b, 0.0004), 0.006);
-  const vG = V(R.GUARD_Y), uGr = U(R.GRIP_X1), vRail = V(R.RAIL_LINE_Y), vBody = V(470), uTang = U(330);
+  const fd = outlineField(MS(R.FRAME), [MS(R.GUARD_OPEN)], G2(b, 0.0004), 0.006);
+  const vG = V(R.GUARD_Y), uGr = U(R.GRIP_X1), vRail = V(R.RAIL_LINE_Y), vBody = V(470);
   const uSeam = U(R.FRONT_SEAM_X), [gx, gy, gr] = R.GUIDE_HOLE, gu = U(gx), gv = V(gy), grr = gr / R.PPM;
   const TS = R.TRIGGER_SLOT, ts = [U(TS[0]), U(TS[2]), V(TS[3]), V(TS[1])];
   const grip = gripField(b), gbox = box2(M(R.PANEL), 0.003), well = magWell();
   const uH0 = U(262), uH1 = U(358), vH = V(418);
   const vTop = V(R.FRAME_TOP_Y);
+  // Bügelöffnung der Außenwände (25.10., Prüfung: vorher nur der Durchblick – massive Wand bis y 545, Abzug stummelig):
+  // dahinter der Mittelsteg ± 5,2 mm mit Abzugsschlitz, zur Wand mit 3 mm ausgerundet, Außenkante leicht gebrochen. Wo das
+  // Magazin (± 9,4 mm) im Rahmen steckt (oben hinter dem Abzug), bleibt die Vertiefung flach (Steg ± 10,4 mm).
+  const oo = outlineField(M(R.OPEN_OUT), [], G2(b, 0.0004), 0.004), ob = box2(M(R.OPEN_OUT), 0.004);
+  const [mpx, mpy] = R.MAG_PIVOT, mpu = U(mpx), mpv = V(mpy), ms = Math.sin(R.MAG_RAKE), mc = Math.cos(R.MAG_RAKE);
+  // Sporn: links der Trennkante im Foto (Bogen TANG_LINE) schmal, rechts Rahmenbreite
+  const TL = R.TANG_LINE, tangX = (py) => {
+    if (py <= TL[0][1]) return TL[0][0];
+    for (let i = 1; i < TL.length; i++) if (py <= TL[i][1]) { const [xa, ya] = TL[i - 1], [xb, yb] = TL[i]; return xa + (xb - xa) * (py - ya) / (yb - ya); }
+    return TL[TL.length - 1][0];
+  };
+  const PX = (u) => R.XA + (u - R.UA) * R.PPM, PY = (v) => R.YA - (v - R.VA) * R.PPM;
   const f = (x, v, u) => {
     if (v > vTop + 0.006) return v - vTop;   // über dem Rahmen (Laufbereich): Schranke statt exaktem Umriss außerhalb des Rasters
     const d2 = fd(u, v);
     if (d2 > 0.006) return d2;
     const ax = Math.abs(x);
-    // Rumpf (über dem Griff ab y 470, vor dem Griff ab der Bügeloberkante): 27 mm, an der Führungsleiste 26 mm, Sporn 22,4 mm
-    const vb = u < uGr ? vBody : vG;
-    let d = extrudeRound(Math.max(d2, vb - v), x, u < uTang ? 0.0112 : v > vRail ? 0.013 : HW_FRAME, u < uTang ? 0.004 : 0.0012);
+    // Ein Profil für Rumpf, Griffrahmen und Sporn (vor dem Griff erst ab der Bügeloberkante), Breite und Kantenradius stetig
+    // (25.10., Prüfung: harte Wechsel 11,2/12,5/13,5 mm und zwei überlappende Teilstücke ergaben Risslinien am Sporn und eine
+    // Stufe vor dem Griff): Rahmen 27 mm (Führungsleiste 26 mm, 0,4-mm-Absatz), Sporn 22,4 mm (Übergang 4,5 mm an der Trennkante – flach genug,
+    // dass die Schulter ganz in der Fotoprojektion liegt);
+    // Kanten: Rumpf 1,2 mm, Griffrahmen 5 mm, Sporn 4 mm
+    const tT = sstep(-0.00225, 0.00225, (PX(u) - tangX(PY(v))) / R.PPM), tG = Math.max(sstep(uGr - 0.003, uGr, u), sstep(vBody - 0.003, vBody, v));
+    const hw = 0.0112 + (HW_FRAME - 0.0005 * sstep(vRail - 0.0002, vRail + 0.0002, v) - 0.0112) * tT;
+    const rr = 0.004 + (0.005 + (0.0012 - 0.005) * tG - 0.004) * tT;
+    let d = extrudeRound(Math.max(d2, Math.min(u - uGr, vG - v)), x, hw, rr);
     d = smin(d, extrudeRound(Math.max(d2, v - vG - 0.002, uGr - 0.003 - u), x, 0.0056, 0.0022), 0.003);                        // Bügel
-    d = smin(d, extrudeRound(Math.max(d2, u - uGr, v - vBody - 0.002), x, u < uTang ? 0.0112 : 0.0125, u < uTang ? 0.004 : 0.005), 0.003);   // Griffrahmen
     if (d > 0.004) return d;
+    if (inBox(ob, u, v) && ax > 0.0012) {
+      const o = oo(u, v);
+      if (o < 0.002) {
+        // zwei Ausschnitte statt stetig veränderlicher Stegbreite (sonst Feldsprünge → Netzspitzen): flach überall in der Öffnung,
+        // tief erst 1 mm vor der Magazinvorderwand (Absatz vor dem Magazin, ausgerundet)
+        const across = (u - mpu) * mc - (v - mpv) * ms;
+        const flat = roundMax(o, 0.0104 - ax, 0.002), deep = roundMax(roundMax(o, 0.024 - across, 0.0015), 0.0052 - ax, 0.003);
+        d = smax(d, -Math.min(flat, deep), 0.0006);
+      }
+    }
     // im Wickelgriff verborgen: dort kein Rahmen (spart Dreiecke, keine verdeckten Flächen); 0,7 mm Abstand auch außen, damit
     // am Griffrücken (gleicher Fotoumriss) keine Rahmenhaut mit dem Griff flimmert – vorn bleibt eine feine Fuge zum Griffstück
     if (inBox(gbox, u, v)) d = Math.max(d, -(grip(x, v, u) - 0.0007));
     // Schlitze für Abzug und Hahn, Magazinschacht
-    if (u > ts[0] - 0.002 && u < ts[1] + 0.002 && v > ts[2] - 0.002 && v < ts[3] + 0.002) d = Math.max(d, -Math.max(ax - 0.0042, ts[0] - u, u - ts[1], ts[2] - v, v - ts[3]));
+    // Abzugsschlitz erst vor der Magazinvorderwand (sonst sähe man durch ihn das Magazin)
+    if (u > ts[0] - 0.002 && u < ts[1] + 0.002 && v > ts[2] - 0.002 && v < ts[3] + 0.002) d = Math.max(d, -Math.max(ax - 0.0042, ts[0] - u, u - ts[1], ts[2] - v, v - ts[3], 0.0235 - ((u - mpu) * mc - (v - mpv) * ms)));
     if (u > uH0 - 0.002 && u < uH1 + 0.002 && v > vH - 0.002) d = Math.max(d, -Math.max(ax - 0.0047, uH0 - u, u - uH1, vH - v));
     if (v < V(1080)) d = Math.max(d, -well(x, v, u));
     // Vorderstück: Trennfuge (nur PC) und runde Mulde (Führungsstange)
@@ -232,23 +278,23 @@ function adlerBody(b) {
     return d;
   };
   const [u0, u1, v0] = box2(M(R.FRAME), 0.002), [, , , v1] = box2(M(R.BARREL), 0.002);
-  sdfMesh(b, f, [-0.017, v0, Math.min(u0, U(R.PORT[0]) - 0.004)], [0.017, v1, u1], 0.002, STEELM(b), { uv: adlerBodyUV, cav: STEEL, fine: 0.62, lite: 1.45 });
+  sdfMesh(b, f, [-0.017, v0, Math.min(u0, U(R.PORT[0]) - 0.004)], [0.017, v1, u1], 0.002, STEELM(b), { uv: adlerBodyUV, uvMap: atlasUVTri, cav: STEEL, fine: 0.62, lite: 1.45 });
 }
 
 // ---------------------------------------------------------------- Sicherung (Schlitten, beidseitig)
 function adlerSafety(b) {
+  // 25.10. (Prüfung): ovale Nabenplatte statt Scheibe, schlanker gewölbter Hebel (dicker, stark gerundet) statt flacher Platte,
+  // erhabene blanke Querrippen statt schwarzer Kerben, roter Punkt auf der Hebelspitze
   const o = { part: 'slide' };
-  const [hx, hy, hr] = R.SAFETY_HUB, [sx, sy, sr] = R.SAFETY_SCREW, [dx, dy, dr] = R.SAFETY_DOT, [qx, qy, qr] = R.SAFETY_PIN;
-  const lever = M(R.SAFETY_LEVER);
+  const [sx, sy, sr] = R.SAFETY_SCREW, [dx, dy, dr] = R.SAFETY_DOT, [qx, qy, qr] = R.SAFETY_PIN;
+  const plate = M(R.SAFETY_PLATE), lever = M(R.SAFETY_LEVER), x0 = HW_SLIDE - 0.0008;   // Muldengrund
   for (const s of [-1, 1]) {
-    const xs = s * (HW_SLIDE - 0.0008);
-    b.lathe('adlerPolish', [[0, 0], [0, hr / R.PPM], [0.0009, hr / R.PPM], [0.0011, hr / R.PPM - 0.0003], [0.0011, 0]], xs, V(hy), U(hx), { axis: 'x', ry: s > 0 ? 0 : Math.PI, seg: 28, ...o });
-    b.side('adlerPolish', lever, 0.0016, s * (HW_SLIDE + 0.0002), { ...o, bevel: 0.0005, bevelSeg: 2 });
-    // Riffelung am Hebelende (Querkerben)
-    ridges(b, s * (HW_SLIDE + 0.001 + 0.00005), [U(636), V(222)], [U(674), V(162)], 7, 0.0034, { part: 'slide' });
-    if (!b.lite) b.circle('shellRed', dr / R.PPM, s * (HW_SLIDE + 0.00003), V(dy), U(dx), { ry: s > 0 ? Math.PI / 2 : -Math.PI / 2, seg: 12, ...o });
+    b.side('adlerPolish', plate, 0.0013, s * (x0 + 0.00065), { ...o, bevel: 0.00045, bevelSeg: 2 });
+    b.side('adlerPolish', lever, 0.0024, s * (x0 + 0.0012), { ...o, bevel: 0.00115, bevelSeg: 4 });
+    raisedRibs(b, 'adlerPolish', lever, R.SAFETY_RIBS.map(V), x0 + 0.0024, s, { w: 0.0005, h: 0.0003, inset: 0.0011, part: 'slide' });
+    if (!b.lite) b.circle('shellRed', dr / R.PPM, s * (x0 + 0.0024 + 0.00004), V(dy), U(dx), { ry: s > 0 ? Math.PI / 2 : -Math.PI / 2, seg: 12, ...o });
   }
-  slotScrew(b, 'adlerPolish', HW_SLIDE + 0.0003, V(sy), U(sx), sr / R.PPM, 0, { ang: -0.5, ...o });
+  slotScrew(b, 'adlerPolish', x0 + 0.0012, V(sy), U(sx), sr / R.PPM, 0, { ang: -0.5, ...o });
   pinHead(b, 'adlerPolish', HW_SLIDE - 0.0004, V(qy), U(qx), qr / R.PPM, 0, o);
 }
 
@@ -259,9 +305,10 @@ function adlerControls(b) {
   const [sx, sy, sr] = R.SLIDE_STOP_PAD;
   b.lathe('adlerPolish', [[0, 0], [0, sr / R.PPM], [0.0011, sr / R.PPM], [0.0016, sr / R.PPM * 0.75], [0.0016, 0]], -(HW_FRAME + 0.0012), V(sy), U(sx), { axis: 'x', ry: Math.PI, seg: 20 });
   // Laufriegel rechts: geriffelte Platte in der Nut, Arm zur Inbusachse; links Druckknopf über der Achse
-  const [lx0, ly0, lx1, ly1] = R.LEVER_PLATE;
+  const [, ly0, , ly1] = R.LEVER_PLATE;
   b.side('adlerPolish', M(rectPts(R.LEVER_PLATE)), 0.0013, HW_FRAME + 0.00045, { bevel: 0.0004 });
-  ridges(b, HW_FRAME + 0.0011 + 0.00005, [(U(lx0) + U(lx1)) / 2, V(ly1)], [(U(lx0) + U(lx1)) / 2, V(ly0)], 4, (lx1 - lx0) / R.PPM * 0.9);
+  // erhabene Querrippen wie im Foto (25.10.: vorher schwarze Kerben)
+  raisedRibs(b, 'adlerPolish', M(rectPts(R.LEVER_PLATE)), [0.2, 0.35, 0.5, 0.65, 0.8].map((t) => V(ly0 + (ly1 - ly0) * t)), HW_FRAME + 0.0011, 1, { inset: 0.0006 });
   b.side('adlerPolish', M(R.LEVER_ARM), 0.0013, HW_FRAME + 0.00045, { bevel: 0.0004 });
   const [px, py, pr] = R.LEVER_PIVOT, [bx, by, br] = R.LEVER_BUTTON_L;
   hexPivot(b, 'adlerPolish', HW_FRAME + 0.001, V(py), U(px), pr / R.PPM, 1);
@@ -269,8 +316,8 @@ function adlerControls(b) {
   pushButton(b, 'adlerPolish', HW_FRAME, V(by), U(bx), br / R.PPM, -1, { h: 0.0009 });
   // Magazinhalter: rechts Schlitzkopf, links runder Knopf
   const [mx, my, mr] = R.MAG_SCREW;
-  slotScrew(b, 'adlerPolish', 0.0124, V(my), U(mx), mr / R.PPM * 0.85, 1, { ang: 0.3 });
-  pushButton(b, 'adlerPolish', 0.0124, V(my), U(mx), mr / R.PPM * 1.15, -1, { h: 0.0016 });
+  slotScrew(b, 'adlerPolish', HW_FRAME - 0.0001, V(my), U(mx), mr / R.PPM * 0.85, 1, { ang: 0.3 });   // Griffrahmen jetzt 27 mm (25.10.)
+  pushButton(b, 'adlerPolish', HW_FRAME - 0.0001, V(my), U(mx), mr / R.PPM * 1.15, -1, { h: 0.0016 });
 }
 
 // ---------------------------------------------------------------- Magazin (Edelstahl, breiter Boden nach Foto, 7 × .50 AE)
@@ -289,10 +336,12 @@ function adlerMag(b) {
   }
   // Boden: Platte (Umriss nach Foto) mit erhabenem Mittelfeld und Bohrungen
   if (b.hi) {
-    sideUV(b, STEELM(b), M(R.MAGPLATE), 0.0296, 0, adlerSteelUV, { part: 'mag', bevel: 0.0013 });
+    sideUV(b, STEELM(b), MS(R.MAGPLATE), 0.0296, 0, adlerSteelUV, { part: 'mag', bevel: 0.0013 });
     sideUV(b, STEELM(b), M(R.MAG_PAD), 0.0308, 0, adlerSteelUV, { part: 'mag', bevel: 0.0006, bevelSeg: 1 });
-    for (const [hx, hy, hr] of R.MAG_HOLES) for (const sx of [-1, 1]) b.circle('cavity', hr / R.PPM, sx * 0.01545, V(hy), U(hx), { part: 'mag', ry: sx > 0 ? Math.PI / 2 : -Math.PI / 2, seg: 14 });
-  } else b.side('adlerSteel', simplifyPoly(M(R.MAGPLATE), 0.003), 0.0296, 0, { part: 'mag' });
+    // Bohrungen auf der Fläche, die sie trägt (25.10.: die hintere liegt außerhalb des Mittelfelds auf der Platte ± 14,8 mm)
+    const inPad = (x, y) => x >= R.MAG_PAD[0][0] && x <= R.MAG_PAD[1][0] && y >= R.MAG_PAD[0][1];
+    for (const [hx, hy, hr] of R.MAG_HOLES) for (const sx of [-1, 1]) b.circle('cavity', hr / R.PPM, sx * ((inPad(hx, hy) ? 0.0154 : 0.0148) + 0.00005), V(hy), U(hx), { part: 'mag', ry: sx > 0 ? Math.PI / 2 : -Math.PI / 2, seg: 14 });
+  } else b.side('adlerSteel', simplifyRing(M(R.MAGPLATE), 0.003), 0.0296, 0, { part: 'mag' });
   magRounds(b, { cal: 'p50', fit: depth - 0.004, width: w - 0.003, depth: depth - 0.003, show: 3, path: [at(len - 0.0075), at(0.012)] });
   b.anchor('magGrab', 0, pv - 0.011, pu - 0.004, { part: 'mag', data: { w: 0.0148, d: 0.027 } });
   b.anchor('magWell', 0, pv, pu);

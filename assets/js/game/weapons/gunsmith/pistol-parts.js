@@ -3,9 +3,37 @@
 // Griffmagazin). Nur Geometrie (keine Anker/Teile/Meta – die setzt der Bauplan); Koordinaten wie im Bauplan: x quer (rechts +),
 // v hoch, u vorn; Maße in Metern. Kleinteile unter 3 mm entfallen am Handy (b.lite), in der Bot-Stufe fallen Teile < 9 mm
 // ohnehin weg (Builder).
+import * as THREE from 'three';
 import { shapeFrom } from './builder.js';
-import { atlasUV, box2 } from './sdfkit.js';
+import { box2 } from './sdfkit.js';
 import { sdPolygon } from './sdf.js';
+
+// ---------------------------------------------------------------- Atlas-UVs je Dreieck
+/**
+ * Wie atlasUV (p9-tex.js): entindizieren, uvFn(x, v, u, nx, ny, nz, c) je Ecke – zusätzlich mit dem Schwerpunkt c = [x, v, u]
+ * des Dreiecks (25.10., Adler-Prüfung). Atlasbereiche nach Lage (linkes Band, Innenwand, Lagerteil …) über c wählen, nicht über
+ * die Ecke: sonst bekommt ein Dreieck über einer Bereichsgrenze UVs aus zwei weit entfernten Atlasstellen und zeigt einen
+ * gestauchten Atlasstreifen (schwarzer Strich über Schlitten und Rahmen).
+ */
+export function atlasUVTri(geo, fn) {
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  const p = g.attributes.position.array, n = p.length / 3, uv = new Float32Array(n * 2), c = [0, 0, 0];
+  for (let t = 0; t < n; t += 3) {
+    const i = t * 3;
+    const ax = p[i + 3] - p[i], ay = p[i + 4] - p[i + 1], az = p[i + 5] - p[i + 2];
+    const bx = p[i + 6] - p[i], by = p[i + 7] - p[i + 1], bz = p[i + 8] - p[i + 2];
+    let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+    const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+    c[0] = (p[i] + p[i + 3] + p[i + 6]) / 3; c[1] = (p[i + 1] + p[i + 4] + p[i + 7]) / 3; c[2] = -(p[i + 2] + p[i + 5] + p[i + 8]) / 3;
+    for (let k = 0; k < 3; k++) {
+      const j = (t + k) * 3;
+      const [U, W] = fn(p[j], p[j + 1], -p[j + 2], nx, ny, nz, c);
+      uv[(t + k) * 2] = U; uv[(t + k) * 2 + 1] = W;
+    }
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  return g;
+}
 
 // ---------------------------------------------------------------- Polygone
 /**
@@ -140,16 +168,30 @@ export function bladeSight(b, mat, pts, hw, { part, bevel = 0.0003, dot } = {}) 
 }
 
 // ---------------------------------------------------------------- Rillen, Riffelung
+/** Waagrechte Ausdehnung [u0, u1] eines Umrisses [[u, v], …] auf Höhe v (Schnitt der Waagrechten), null wenn außerhalb. */
+export function spanAt(pts, v) {
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [ua, va] = pts[j], [ub, vb] = pts[i];
+    if ((va <= v) === (vb <= v)) continue;
+    const u = ua + (ub - ua) * (v - va) / (vb - va);
+    if (u < lo) lo = u; if (u > hi) hi = u;
+  }
+  return lo < hi ? [lo, hi] : null;
+}
+
 /**
- * Riffelung einer Bedienfläche: n dunkle Kerben, gleichmäßig auf der Strecke a→c ([u, v]) verteilt, jede quer zu ihr (Länge len,
- * Breite w) auf der Fläche x (z. B. Sicherungshebel, Laufriegel). Nur Ego-Stufen ohne Handy.
+ * Erhabene Querrippen auf einer Bedienfläche (25.10., Adler-Prüfung: schwarze Kerben wirkten wie ein aufgemalter Strichcode):
+ * je Höhe v aus vs ein blanker Steg (Material mat, Breite w in v, steht h über der Fläche xs, side ±1) über die Breite des
+ * Umrisses pts ([[u, v], …]) an dieser Höhe, um inset eingerückt. Nur Ego-Stufen ohne Handy.
  */
-export function ridges(b, x, a, c, n, len, { part, w = 0.0004 } = {}) {
+export function raisedRibs(b, mat, pts, vs, xs, side, { w = 0.00055, h = 0.00035, inset = 0.0008, part } = {}) {
   if (!b.hi || b.lite) return;
-  const du = c[0] - a[0], dv = c[1] - a[1], th = Math.atan2(du, -dv);   // Kerbe quer zu a→c (Quader längs u, um x gedreht)
-  for (let i = 1; i <= n; i++) {
-    const t = i / (n + 1);
-    b.box('cavity', 0.0003, w, len, x, a[1] + dv * t, a[0] + du * t, { rx: th, c: 0, part });
+  const r = w / 2;   // runder Steg (Zylinder längs u, halb eingesenkt): fängt Licht aus allen Richtungen wie die gefrästen Rippen
+  for (const v of vs) {
+    const sp = spanAt(pts, v);
+    if (!sp || sp[1] - sp[0] < 2 * inset + 0.001) continue;
+    b.cyl(mat, r, r, sp[1] - sp[0] - 2 * inset, side * (xs + h - r), v, (sp[0] + sp[1]) / 2, { seg: 8, part });
   }
 }
 
@@ -165,5 +207,5 @@ export function sideUV(b, mat, pts, width, x, uvFn, { part, bevel = 0.001, bevel
   geo.translate(0, 0, -(width - 2 * realBev) / 2);
   geo.rotateY(Math.PI / 2);
   geo.translate(x, 0, 0);
-  return b._push(atlasUV(geo, uvFn), mat, { part }, true);
+  return b._push(atlasUVTri(geo, uvFn), mat, { part }, true);
 }

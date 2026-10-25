@@ -38,14 +38,24 @@ export const SLIDE_TOP_Y = 141, SLIDE_BOTTOM_Y = 373, SLIDE_FRONT_X = 1021;   //
 export const SERR = { x0: 367, n: 14, pitch: 40.6, ang: 20.5, top: 192, bottom: 370, w: 7 };
 // Auswurffenster oben rechts (seitlich nur bis y 152 sichtbar), dahinter Patronenlager/Laufhaube
 export const PORT = [762, 1005, 152];
-// Sicherung (beidseitig): Nabe mit Schlitzschraube, Hebel mit Riffelung, Mulde im Schlitten, roter Punkt (Feuer)
-export const SAFETY_HUB = [517, 210, 44], SAFETY_SCREW = [517, 207, 24];
-export const SAFETY_LEVER = [[540, 186], [600, 168], [640, 160], [655, 150], [672, 148], [684, 158], [682, 175], [652, 232], [628, 268], [608, 282], [592, 280], [588, 266], [600, 246], [560, 238]];
-export const SAFETY_RECESS = [[470, 182], [520, 160], [570, 160], [700, 140], [700, 210], [660, 300], [610, 300], [540, 270], [480, 258], [462, 225]];
-export const SAFETY_DOT = [600, 276, 7];
+// Sicherung (beidseitig): ovale Nabenplatte mit Schlitzschraube, schlanker, gewölbter Daumenhebel (Tropfen: unten schmal am roten
+// Punkt, oben breit) mit erhabenen, blanken Querrippen, eng anliegende Mulde im Schlitten (25.10., Prüfung: vorher breite flache
+// Platte mit schwarzen Kerben und eckiger, zu großer Mulde) – aus 3-fach vergrößertem Ausschnitt verfolgt
+export const SAFETY_HUB = [517, 210, 44], SAFETY_SCREW = [515, 207, 26];
+export const SAFETY_PLATE = [[453, 210], [458, 186], [474, 168], [500, 159], [540, 157], [597, 159], [620, 168], [632, 185], [630, 210], [622, 235],
+  [600, 250], [560, 258], [520, 261], [488, 257], [466, 246], [456, 230]];
+export const SAFETY_LEVER = [[600, 284], [596, 270], [603, 252], [612, 233], [622, 205], [637, 170], [650, 156], [672, 150], [690, 157], [694, 172],
+  [687, 190], [673, 206], [663, 222], [653, 238], [638, 255], [622, 272], [610, 285]];
+export const SAFETY_RIBS = [161, 167, 173, 179, 185, 191, 197];   // Querrippen (y), je über die Hebelbreite
+export const SAFETY_RECESS = [[447, 212], [452, 185], [470, 165], [500, 152], [560, 148], [640, 146], [690, 150], [705, 165], [708, 200], [703, 235],
+  [690, 262], [670, 282], [640, 290], [600, 292], [560, 282], [500, 275], [465, 262], [450, 240]];
+export const SAFETY_DOT = [601, 278, 6];
 export const SAFETY_PIN = [657, 276, 9];
 // Kimme (schwarz, im Schwalbenschwanz): Seitenumriss
 export const RSIGHT = [[499, 141], [499, 123], [505, 119], [545, 120], [557, 124], [573, 133], [584, 141]];
+// Schwalbenschwanz der Kimme (25.10.): Nut quer durch die Schlittenoberseite bis y 160 (Unterkante der 45°-Fasen), der schwarze
+// Kimmenfuß füllt sie – im Foto unter der Oberkante sichtbar
+export const RSIGHT_DOVE = [497, 579, 160];
 
 // ---------------------------------------------------------------- Lauf (fest) mit Schiene, Schrägen, vertiefter Seitenfläche
 export const BARREL = [[760, 173], [2207, 173], [2210, 185], [2211, 205], [2215, 219], [2245, 257], [2245, 340], [2237, 355], [2229, 369], [2227, 372], [760, 372]];
@@ -83,11 +93,20 @@ export const FRAME = [
   [167, 421], [171, 421], [179, 417], [185, 417], [187, 415], [193, 415], [195, 413], [213, 411], [215, 409], [235, 409], [237, 407], [255, 407],
   [257, 405], [263, 405], [265, 403], [275, 401], [295, 391], [303, 385], [313, 373],
 ];
-// Bügelöffnung (vollständig, auch hinter dem Abzug), Abzugsschlitz (nur Abzugsbreite)
+// Bügelöffnung: GUARD_OPEN = Durchblick (weißer Grund im Foto, auch hinter dem Abzug), durch die ganze Breite offen.
+// OPEN_OUT (25.10., Prüfung) = Öffnung der Außenwände: blanke Kante der Seitenwand in allen drei Fotos (p1030134, p1030133 links,
+// „Desert Eagle Chrome“) – Bogen oben bei y ≈ 450 (≈ 11 mm über dem Durchblick), Vorderkante senkrecht bei x ≈ 1195, hinten bis
+// 2 mm vor den Griff (x ≈ 836) und um das Auge des Magazinhalters herum. Dazwischen sieht man die Innenfläche des Bügels: ein
+// schmaler Mittelsteg (± 5,2 mm) mit dem Abzugsschlitz, zur Außenwand hin ausgerundet.
 export const GUARD_OPEN = [[1012, 545], [1020, 558], [1103, 561], [1123, 565], [1150, 578], [1180, 605], [1197, 630], [1200, 655], [1192, 672], [1180, 678],
   [1050, 680], [960, 681], [930, 676], [910, 662], [897, 640], [885, 615], [880, 590], [882, 565], [892, 545]];
+export const OPEN_OUT = [[897, 650], [886, 628], [874, 608], [856, 598], [842, 582], [836, 558], [838, 530], [848, 505], [866, 486], [892, 471], [930, 459],
+  [980, 452], [1040, 449], [1100, 450], [1140, 456], [1166, 468], [1184, 488], [1194, 512], [1197, 545], [1198, 600], [1200, 655], [1192, 672], [1180, 678],
+  [1050, 680], [960, 681], [930, 676], [910, 662]];
 export const TRIGGER_SLOT = [905, 490, 1012, 548];
 export const FRAME_TOP_Y = 373, RAIL_LINE_Y = 398;             // Oberkante (Schlitten/Lauf liegen auf), Absatz der Führungsleiste
+// Grenze Griffsporn ↔ Rahmen (25.10.): Bogen der Trennkante im Foto (links schmaler Sporn, rechts Rahmenseite), unten senkrecht
+export const TANG_LINE = [[285, 400], [300, 418], [340, 435], [370, 458], [395, 490], [410, 522], [420, 560], [425, 600], [427, 640]];
 export const GUARD_Y = 545, GRIP_X1 = 900, DUST_X0 = 1240;    // Bereichsgrenzen: Bügel unter GUARD_Y, Griff hinter GRIP_X1
 export const FRONT_SEAM_X = 2128, GUIDE_HOLE = [2142, 404, 16];   // Vorderstück mit Bohrung der Führungsstange
 export const PINS = [[942, 443, 10]];                          // Abzugsstift rechts
@@ -103,23 +122,19 @@ export const SLIDE_STOP_PAD = [928, 415, 16];
 export const TRIGGER = [[1005, 495], [990, 493], [960, 500], [935, 510], [918, 525], [910, 545], [905, 580], [905, 610], [910, 635], [920, 655],
   [940, 670], [965, 678], [990, 680], [1003, 676], [1000, 670], [985, 655], [972, 630], [965, 600], [962, 570], [965, 545], [980, 515], [1005, 500]];
 export const HAMMER = [[323, 373], [318, 353], [307, 330], [288, 303], [277, 277], [272, 263], [273, 250], [280, 243], [298, 242], [376, 249], [378, 262], [352, 373]];
-export const HAMMER_PIVOT = [338, 392], HAMMER_TEETH = [300, 372, 8];
+export const HAMMER_PIVOT = [338, 392], HAMMER_TEETH = [300, 368, 7];   // Zähne auf der Spornoberkante (x von–bis, Anzahl)
 
 // ---------------------------------------------------------------- Griff (Wickelgriff, Kunststoff) und Magazin
+// 25.10. (Prüfung): Vorderkante ohne den Spalt der Verfolgung (sie lief an der Kieselgrenze wieder hoch und als Haarstreifen
+// zurück – Netzfetzen an Griff und Rahmen); Grat bei y 830–880 geglättet (Lichtkante des Rahmens, nicht Griff).
 export const PANEL = [
   [549, 401], [595, 401], [597, 403], [597, 423], [599, 425], [601, 419], [601, 429], [605, 437], [603, 441], [605, 447], [603, 449], [613, 455],
   [691, 455], [693, 457], [713, 457], [715, 459], [749, 461], [751, 463], [765, 463], [767, 465], [781, 465], [783, 467], [795, 467], [809, 471],
   [821, 471], [825, 477], [821, 509], [815, 527], [815, 537], [809, 553], [805, 577], [793, 593], [763, 623], [755, 635], [755, 641], [761, 647],
   [779, 653], [779, 661], [775, 675], [775, 687], [767, 705], [767, 715], [759, 737], [759, 743], [757, 745], [757, 751], [749, 775], [749, 781],
-  [737, 823], [737, 831], [735, 833], [735, 841], [739, 847], [745, 833], [751, 829], [749, 853], [745, 863], [745, 877], [739, 885], [741, 889],
-  [739, 893], [739, 903], [735, 907], [735, 913], [733, 915], [735, 919], [731, 927], [727, 957], [723, 965], [723, 975], [719, 981], [719, 991],
-  [713, 1001], [715, 1005], [709, 1015], [705, 1039], [697, 1049], [701, 1051], [701, 1059], [697, 1071], [699, 1073], [697, 1075], [699, 1079], [697, 1081],
-  [699, 1085], [697, 1091], [701, 1105], [701, 1111], [699, 1113], [701, 1115], [701, 1123], [697, 1123], [697, 1111], [687, 1091], [687, 1083], [685, 1081],
-  [685, 1067], [687, 1065], [685, 1059], [687, 1055], [685, 1053], [689, 1045], [689, 1035], [697, 1011], [697, 1005], [699, 1001], [701, 1003], [703, 1001],
-  [703, 993], [707, 989], [707, 985], [713, 981], [709, 977], [715, 975], [713, 971], [711, 973], [709, 971], [713, 959], [711, 957], [713, 953],
-  [709, 951], [713, 949], [713, 941], [717, 939], [715, 937], [717, 925], [719, 923], [723, 901], [727, 893], [727, 887], [733, 875], [729, 873],
-  [729, 871], [733, 869], [739, 857], [735, 853], [733, 859], [731, 855], [729, 857], [715, 917], [711, 925], [711, 931], [705, 949], [701, 955],
-  [701, 961], [693, 983], [691, 1001], [687, 1009], [687, 1015], [673, 1065], [667, 1105], [659, 1119], [653, 1125], [239, 1125], [237, 1127], [221, 1127],
+  [737, 823], [737, 831], [735, 841], [737, 853], [739, 869],
+  [739, 885], [739, 903], [735, 913], [731, 927], [727, 957], [723, 970], [719, 986], [714, 1003], [709, 1015], [705, 1039], [700, 1050], [699, 1070],
+  [698, 1090], [701, 1105], [701, 1123], [653, 1125], [239, 1125], [237, 1127], [221, 1127],
   [211, 1131], [191, 1133], [179, 1139], [151, 1139], [153, 1115], [155, 1113], [161, 1069], [167, 1051], [167, 1041], [185, 1003], [193, 991], [193, 987],
   [197, 983], [197, 979], [215, 955], [217, 949], [251, 897], [269, 861], [287, 835], [321, 763], [325, 759], [335, 737], [349, 715], [359, 695],
   [359, 691], [363, 687], [363, 683], [367, 679], [373, 657], [393, 629], [399, 625], [407, 627], [415, 619], [441, 567], [441, 563], [451, 545],

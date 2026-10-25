@@ -5,8 +5,13 @@
 //     Kantenabrieb (blank gerieben) und Kratzer;
 //   – Gravuren mit eigener Beschriftung (keine Herstellerzeichen): Lauf rechts/links, Nummer rechts am Rahmen;
 //   – Griff: Kieselstruktur mit glattem Rand, rundes Feld mit dem NULLPUNKT-Zeichen (Fadenkreuz-Null) statt Herstellerlogo.
-// Linke Seite: eigenes Band (Fotopixel + LB) für Lauf/Rahmen vorn und Schlitten – sonst stünde die Schrift spiegelverkehrt;
-// Ober-/Unter-/Stirnflächen ins gebürstete Blankfeld, Griffrücken/-vorderseite ins Kieselfeld (keine verschmierte Projektion).
+// Linke Seite: nur dort eigene Bänder, wo links etwas anderes steht als rechts (Gravurfeld am Lauf, Nummernfeld am Rahmen) –
+// sonst stünde die Schrift spiegelverkehrt; alles andere ist spiegelgleich und nimmt die rechte Fotoprojektion.
+// Ober-/Unterseiten von Schlitten und Lauf ins gebürstete Blankfeld, Stirn-/Rückflächen, Rahmenunterseiten und Innenwände ins
+// gestrahlte Mattfeld (beide isotrop: gleicher Maßstab längs und quer), Griffrücken/-vorderseite ins Kieselfeld.
+// 25.10. (Prüfung): Bereich je DREIECK nach dem Schwerpunkt (atlasUVTri) statt je Ecke – Dreiecke über einer Bereichsgrenze
+// bekamen UVs aus zwei weit entfernten Atlasbereichen (schwarzer Strich links über Schlitten und Rahmen, Streifen am Bügel);
+// Blank-/Mattfeld waren quer 4–6× gestaucht (gestreckte „Wellenmaserung“ am Schlittenheck im Anschlag, an Mündung und Boden).
 // Größe je Stufe (Bauanleitung §8.3): PC hoch 2048 × 1024, PC niedrig/mittel 1536 × 768, Handy 1024 × 512 ohne Rauheitskarte.
 import { canvas, toTexture, cached, rng } from './textures.js';
 import { CPU, grey, path, slantGrooves, engrave, pebblePattern, streak, scratches, noiseCanvas, brushCanvas, grainCanvas, readHeight, blur, normalTex } from './pistol-tex.js';
@@ -14,34 +19,61 @@ import * as R from './adler-ref.js';
 
 // ---------------------------------------------------------------- Atlas-Abbildung (Fotopixel → Atlas)
 const F = { W: 2048, H: 1024, x0: 90, x1: 2650, y0: 100, y1: 1350 };
-const LB = { dx: 300, dy: 700, x0: 560, y1: 520 };            // linke Seite: Fotopixel + (dx, dy) für px ≥ x0, py ≤ y1
-const BLANK = [860, 1228, 2550, 1284];                         // gebürstetes Blankfeld (Ober- und Unterseiten)
-const MATT = [860, 1288, 2550, 1342];                          // gestrahltes Feld (Stirn- und Rückflächen: Heck, Mündung, Vorderstück)
+// Bänder der linken Seite: src = Fotorechteck (Zuordnung je Dreieck über den Schwerpunkt), d = Versatz im Atlas (Fotopixel).
+// Gezeichnet wird src + BM Rand (≥ halbe Dreiecksgröße am Handy), damit Ecken über der Grenze nichts Fremdes greifen; Abrieb
+// und Kratzer sind links wie rechts gleich – an den Bandgrenzen gibt es keine Naht.
+const BM = 16;
+const LBANDS = [
+  { src: [1150, 270, 1690, 372], d: [-264, 552] },   // Gravurfeld Lauf links → Atlas x 870…1442, y 806…940
+  { src: [620, 415, 860, 462], d: [856, 407] },     // Nummernfeld Rahmen (links ohne Nummer) → x 1460…1732, y 806…885
+];
+const BLANK = [870, 950, 2640, 1154];                          // gebürstet (Ober-/Unterseiten Schlitten und Lauf, Lagerteil)
+const MATT = [870, 1160, 2640, 1348];                          // gestrahlt (Stirn-/Rückflächen, Rahmenunterseiten)
+const INNER = [1340, 545, 2240, 785];                          // Innenwände: gestrahlt und dunkler (wenig Licht, Bügel-Innenstück)
+const KB = 0.82, KC = 0.6, KM = 0.6;                           // Maßstab Blankfeld, Lagerteil, Mattfeld (Atlas-Fotopixel je Fotopixel)
 const PEB = [2262, 102, 2648, 832];                            // Kieselfeld (Griffrücken, -vorderseite, -boden)
 const photoX = (u) => R.XA + (u - R.UA) * R.PPM, photoY = (v) => R.YA - (v - R.VA) * R.PPM;
 const at = (px, py) => [(px - F.x0) / (F.x1 - F.x0), 1 - (py - F.y0) / (F.y1 - F.y0)];
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
+const clampX = (x, h) => Math.max(-h, Math.min(h, x));
+const inRect = ([x0, y0, x1, y1], x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
+// Felder: gebürstet längs u (Fotopixel px, Querlage x); gestrahlt isotrop, große Flächen in Stücken (Feld ist gleichförmig)
+const blankTop = (px, x) => at(BLANK[0] + 16 + (Math.min(2250, Math.max(300, px)) - 300) * KB, BLANK[1] + 2 + (clampX(x, 0.0152) + 0.0152) * R.PPM * KB);
+const blankSide = (px, py) => at(BLANK[0] + 16 + (px - 300) * KC, BLANK[1] + 6 + (py - 140) * KC);
+const mattFace = (py, x) => at(MATT[0] + 14 + (py - 100) * KM, MATT[1] + 12 + (clampX(x, 0.0175) + 0.0175) * R.PPM * KM);
+const chunk = (c, o, n) => o + Math.floor((c - o) / n) * n;
+const mattUnder = (px, x, cpx) => at(MATT[0] + 14 + (px - chunk(cpx, 96, 1500)) * KM, MATT[1] + 12 + (clampX(x, 0.0175) + 0.0175) * R.PPM * KM);
+const mattWall = (px, py, cpx, cpy) => at(INNER[0] + 14 + (px - chunk(cpx, 96, 1400)) * KM, INNER[1] + 12 + (py - chunk(cpy, 100, 300)) * KM);
 
-/** Atlas-UV der Stahlteile je Dreieck (Flächennormale n): Seiten aus der Fotoprojektion (links eigenes Band), sonst Blankfeld. */
-export function adlerSteelUV(x, v, u, nx, ny, nz) {
-  const px = photoX(u), py = photoY(v);
-  // Innenwände (Auswurffenster, Abzugs-/Hahnschlitz, Schacht) liegen weit innerhalb der Außenhaut: gestrahlt statt Fotoprojektion
-  // (sonst erscheinen die Schlittenrillen der Außenseite auf den Fensterwänden)
-  if (Math.abs(nx) > 0.55 && Math.abs(x) < 0.0105 && px < 1012) return at(MATT[0] + (px - 96) * 0.786, MATT[1] + clamp01((py - 100) / 1250) * (MATT[3] - MATT[1]));
-  if (Math.abs(nx) > 0.55) return nx < 0 && px >= LB.x0 && py <= LB.y1 ? at(px + LB.dx, py + LB.dy) : at(px, py);
-  const t = clamp01((x + 0.0175) / 0.035);
-  // Ober-/Unterseiten: Strich längs (u); Stirn-/Rückflächen gestrahlt, längs der Höhe (sonst verschmiert zu einem Streifen)
-  if (Math.abs(ny) >= Math.abs(nz)) return at(BLANK[0] + (px - 96) * 0.786, BLANK[1] + t * (BLANK[3] - BLANK[1]));
-  return at(MATT[0] + (py - 100) * 1.0, MATT[1] + t * (MATT[3] - MATT[1]));
+/**
+ * Atlas-UV der Stahlteile (atlasUVTri: Flächennormale n und Schwerpunkt c = [x, v, u] je Dreieck): Seiten aus der Foto-
+ * projektion (links Bänder für die Gravuren), Ober-/Unterseiten gebürstet bzw. gestrahlt, Stirn-/Rückflächen gestrahlt.
+ */
+export function adlerSteelUV(x, v, u, nx, ny, nz, c) {
+  const px = photoX(u), py = photoY(v), cx = c ? c[0] : x, cpx = c ? photoX(c[2]) : px, cpy = c ? photoY(c[1]) : py;
+  if (Math.abs(nx) > 0.55) {
+    // Innenwände weit innerhalb der Außenhaut: gestrahlt und dunkler statt Fotoprojektion (sonst trügen sie die Schlittenrillen) –
+    // Wände von Auswurffenster, Abzugs-/Hahnschlitz und Schacht (Normale zur Mitte) und der Mittelsteg in der Bügelöffnung;
+    // nicht die Außenflächen schmaler Teile (Bügel ± 5,6 mm, Rundung des Sporns)
+    if (Math.abs(cx) < 0.0108 && cpx < 1250 && (nx * cx < 0 || inPoly(R.OPEN_OUT, cpx, cpy))) return mattWall(px, py, cpx, cpy);
+    if (nx < 0) for (const B of LBANDS) if (inRect(B.src, cpx, cpy)) return at(px + B.d[0], py + B.d[1]);
+    return at(px, py);
+  }
+  if (Math.abs(ny) >= Math.abs(nz)) return cpy < R.FRAME_TOP_Y - 1 ? blankTop(px, x) : mattUnder(px, x, cpx);
+  return mattFace(py, x);
 }
 /**
  * Atlas-UV von Lauf + Rahmen: wie adlerSteelUV, aber der Laufteil unter dem Schlitten (Patronenlager, nur bei zurücklaufendem
  * Schlitten sichtbar) bekommt das gebürstete Blankfeld – sonst trüge er die Griffrillen und die Sicherung des Schlittens.
  */
-export function adlerBodyUV(x, v, u, nx, ny, nz) {
-  const px = photoX(u), py = photoY(v);
-  if (px < R.SLIDE_FRONT_X && py < R.FRAME_TOP_Y - 1 && inPoly(R.SLIDE, px, py)) return at(BLANK[0] + (px - 96) * 0.786, BLANK[1] + clamp01((py - 100) / 1250) * (BLANK[3] - BLANK[1]));
-  return adlerSteelUV(x, v, u, nx, ny, nz);
+export function adlerBodyUV(x, v, u, nx, ny, nz, c) {
+  const cpx = c ? photoX(c[2]) : photoX(u), cpy = c ? photoY(c[1]) : photoY(v);
+  if (cpx < R.SLIDE_FRONT_X && cpy < R.FRAME_TOP_Y - 1 && inPoly(R.SLIDE, cpx, cpy)) {
+    const px = photoX(u), py = photoY(v), ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
+    if (ay >= ax && ay >= az) return blankTop(px, x);
+    return az > ax ? at(BLANK[0] + 16 + (clampX(x, 0.0152) + 0.0152) * R.PPM * KC, BLANK[1] + 6 + (py - 140) * KC) : blankSide(px, py);
+  }
+  return adlerSteelUV(x, v, u, nx, ny, nz, c);
 }
 /** Atlas-UV des Griffs: Seiten aus der Fotoprojektion (beidseitig gleich, Zeichen symmetrisch), sonst Kieselfeld. */
 export function adlerGripUV(x, v, u, nx, ny, nz) {
@@ -69,30 +101,34 @@ const FINISH = {
   plate: { a: 'rgba(174,177,181,1)', r: 0.4 },
 };
 
-// eine Waffenseite zeichnen; side 'R' = Fotoprojektion, 'L' = linkes Band (Inhalt in Fotopixeln, Leinwand verschoben)
-function drawSide(g, kind, side, pats) {
-  const L = side === 'L';
+// eine Waffenseite zeichnen (Inhalt in Fotopixeln); L = linke Seite (in ein Band verschoben und beschnitten, siehe layer):
+// gleiche Flächen, Muster, Abrieb und Kratzer wie rechts – nur die Gravuren unterscheiden sich
+function drawSide(g, kind, L, pats) {
   g.save();
-  if (L) {
-    g.translate(LB.dx, LB.dy);
-    g.beginPath(); g.rect(LB.x0, 100, 2300 - LB.x0, LB.y1 - 100); g.clip();
-  }
   const fill = (pts, f) => { path(g, pts); g.fillStyle = kind === 'a' ? f.a : kind === 'r' ? grey(f.r) : grey(0.5); g.fill(); };
   if (kind !== 'h') {
     fill(R.FRAME, FINISH.frame);
     fill(R.BARREL, FINISH.barrel);
     fill(R.PANEL_L, FINISH.panel);
     fill(R.SLIDE, FINISH.slide);
-    if (!L) fill(R.MAGPLATE, FINISH.plate);
+    fill(R.MAGPLATE, FINISH.plate);
   }
-  // Strahlmattierung (Rahmen, Boden) bzw. Bürstenstrich (Schlitten, Lauf) als Muster in Fotopixeln
-  g.save(); path(g, R.FRAME); if (!L) { path(g, R.MAGPLATE); } g.clip();
-  g.globalAlpha = kind === 'h' ? 0.015 : kind === 'r' ? 0.08 : 0.04; g.globalCompositeOperation = 'overlay';
+  // Strahlmattierung Rahmen (Muster in Fotopixeln). 25.10.: eigener Pfad je Umriss – vorher begann path() für den Magazin-
+  // boden einen neuen Pfad, der Clip hielt nur ihn (rechter Rahmen ohne Mattierung, Boden rau wie Putz)
+  g.save(); path(g, R.FRAME); g.clip();
+  g.globalAlpha = kind === 'h' ? 0.008 : kind === 'r' ? 0.08 : 0.04; g.globalCompositeOperation = 'overlay';
   g.fillStyle = pats.grain; g.fillRect(90, 360, 2200, 1000);
   g.restore();
+  // Magazinboden seidenmatt: Korn nur in Albedo/Rauheit und schwach (keine Höhe – sonst rau wie Sandpapier)
+  if (kind !== 'h') {
+    g.save(); path(g, R.MAGPLATE); g.clip();
+    g.globalAlpha = kind === 'r' ? 0.05 : 0.02; g.globalCompositeOperation = 'overlay';
+    g.fillStyle = pats.grain; g.fillRect(140, 1130, 680, 215);
+    g.restore();
+  }
   // Bürstenstrich: Schlitten deutlich, polierter Lauf nur angedeutet
   g.save(); path(g, R.SLIDE); g.clip();
-  g.globalAlpha = kind === 'h' ? 0.035 : kind === 'r' ? 0.16 : 0.06; g.globalCompositeOperation = 'overlay';
+  g.globalAlpha = kind === 'h' ? 0.015 : kind === 'r' ? 0.14 : 0.045; g.globalCompositeOperation = 'overlay';   // fein wie im Foto
   g.fillStyle = pats.brush; g.fillRect(300, 120, 760, 260);
   g.restore();
   g.save(); path(g, R.BARREL); g.clip();
@@ -128,8 +164,9 @@ function drawSide(g, kind, side, pats) {
     engrave(g, kind, 'NULLPUNKT WAFFENWERK · NORDHAFEN', lx0 + 30, ly0 + 58, 30, { stretch: 0.88, mirror: true });
   }
   // ---- Abrieb und Kratzer (Albedo/Rauheit): Holster und Hand reiben Kanten blank, polierter Lauf mit feinen Wischern
+  // (links dieselbe Folge wie rechts – die Bänder der linken Seite schließen ohne Naht an die Fotoprojektion an)
   if (kind !== 'h') {
-    const rw = rng(L ? 313 : 311);
+    const rw = rng(311);
     const wear = (a) => (kind === 'a' ? `rgba(236,238,241,${a})` : `rgba(30,30,30,${a})`);
     streak(g, rw, 420, 1005, R.SLIDE_TOP_Y + 1, 3, 0.55, wear);                 // Oberkante Schlitten
     streak(g, rw, 340, 940, R.SLIDE_BOTTOM_Y - 3, 2.5, 0.45, wear);             // Unterkante Schlitten
@@ -198,40 +235,58 @@ function layer(kind, W, H, shared) {
     g0.save(); g0.globalCompositeOperation = 'overlay'; g0.globalAlpha = kind === 'a' ? 0.08 : 0.3; g0.imageSmoothingQuality = 'low';
     g0.drawImage(shared.noise, 0, 0, W, H); g0.restore();
   }
-  const g = ctxIn(c), k = W / F.W;
+  const g = ctxIn(c), k = W / F.W, sx = c.width / (F.x1 - F.x0), sy = c.height / (F.y1 - F.y0);
+  // Bänder der linken Seite: Grund und Fleckung der Fotoprojektion an die Bandstelle kopieren (gleiche Wolken wie rechts)
+  for (const { src, d } of LBANDS) {
+    const x0 = (src[0] - BM - F.x0) * sx, y0 = (src[1] - BM - F.y0) * sy, w = (src[2] - src[0] + 2 * BM) * sx, h = (src[3] - src[1] + 2 * BM) * sy;
+    g0.drawImage(c, x0, y0, w, h, x0 + d[0] * sx, y0 + d[1] * sy, w, h);
+  }
+  const pat = (src, s, sy2 = 1) => { const p = g.createPattern(src, 'repeat'); if (p.setTransform && typeof DOMMatrix === 'function') p.setTransform(new DOMMatrix().scale(s, s * sy2)); return p; };
+  // Muster in Atlaspixeln (Fotopixel → Atlas: 0,8 Texel/px) – Bürstenstrich längs gestreckt
   const pats = {
-    grain: g.createPattern(shared.grain, 'repeat'),
-    brush: g.createPattern(shared.brush, 'repeat'),
+    grain: pat(shared.grain, 1 / (0.8 * k)),
+    brush: pat(shared.brush, 1 / (0.8 * k), 0.6),
     pebble: pebblePattern(g, kind, { size: 150, scale: 0.8 * k, r0: 2.0, r1: 3.8, n: 700, seed: kind === 'a' ? 7 : 9 }),
   };
-  // Muster in Atlaspixeln (Fotopixel → Atlas: 0,8 Texel/px) – Bürstenstrich längs gestreckt
-  for (const p of [pats.grain, pats.brush]) if (p.setTransform && typeof DOMMatrix === 'function') p.setTransform(new DOMMatrix().scale(1 / (0.8 * k), 1 / (0.8 * k) * (p === pats.brush ? 0.6 : 1)));
-  // Blankfeld (gebürstet) für Ober-/Unter-/Stirnflächen
+  // Blankfeld (gebürstet) für Ober-/Unterseiten von Schlitten und Lauf; Muster im Feldmaßstab (gleich fein wie an den Seiten)
   g.fillStyle = kind === 'a' ? FINISH.slide.a : kind === 'r' ? grey(0.32) : grey(0.5);
   g.fillRect(BLANK[0], BLANK[1], BLANK[2] - BLANK[0], BLANK[3] - BLANK[1]);
   g.save(); g.globalAlpha = kind === 'h' ? 0.03 : kind === 'r' ? 0.14 : 0.05; g.globalCompositeOperation = 'overlay';
-  g.fillStyle = pats.brush; g.fillRect(BLANK[0], BLANK[1], BLANK[2] - BLANK[0], BLANK[3] - BLANK[1]); g.restore();
-  // gestrahltes Feld: etwas dunkler und matter (Heckfläche im Anschlag nicht spiegelnd weiß)
-  g.fillStyle = kind === 'a' ? 'rgb(168,171,175)' : kind === 'r' ? grey(0.46) : grey(0.5);
+  g.fillStyle = pat(shared.brush, KB / (0.8 * k), 0.6); g.fillRect(BLANK[0], BLANK[1], BLANK[2] - BLANK[0], BLANK[3] - BLANK[1]); g.restore();
+  // gestrahltes Feld: genau die Rahmenseite (Ton, Rauheit, Korn im selben Weltmaßstab) – an den gerundeten Kanten wechselt
+  // die Abbildung von der Fotoprojektion hierher, ohne sichtbare Naht (25.10.: vorher dunkler → Sägezahn am Sporn)
+  g.fillStyle = kind === 'a' ? FINISH.frame.a : kind === 'r' ? grey(FINISH.frame.r) : grey(0.5);
   g.fillRect(MATT[0], MATT[1], MATT[2] - MATT[0], MATT[3] - MATT[1]);
-  g.save(); g.globalAlpha = kind === 'h' ? 0.06 : kind === 'r' ? 0.16 : 0.06; g.globalCompositeOperation = 'overlay';
-  g.fillStyle = pats.grain; g.fillRect(MATT[0], MATT[1], MATT[2] - MATT[0], MATT[3] - MATT[1]); g.restore();
-  drawSide(g, kind, 'R', pats);
-  drawSide(g, kind, 'L', pats);
+  g.save(); g.globalAlpha = kind === 'h' ? 0.008 : kind === 'r' ? 0.08 : 0.04; g.globalCompositeOperation = 'overlay';
+  g.fillStyle = pat(shared.grain, KM / (0.8 * k)); g.fillRect(MATT[0], MATT[1], MATT[2] - MATT[0], MATT[3] - MATT[1]); g.restore();
+  // Innenwände: wie gestrahlt, aber dunkler (Fenster-, Schlitz- und Bügelinnenflächen bekommen kaum Licht)
+  g.fillStyle = kind === 'a' ? 'rgb(112,115,120)' : kind === 'r' ? grey(0.55) : grey(0.5);
+  g.fillRect(INNER[0], INNER[1], INNER[2] - INNER[0], INNER[3] - INNER[1]);
+  g.save(); g.globalAlpha = kind === 'h' ? 0.008 : kind === 'r' ? 0.1 : 0.05; g.globalCompositeOperation = 'overlay';
+  g.fillStyle = pat(shared.grain, KM / (0.8 * k)); g.fillRect(INNER[0], INNER[1], INNER[2] - INNER[0], INNER[3] - INNER[1]); g.restore();
+  drawSide(g, kind, false, pats);
+  // linke Seite nur in den Bändern (Inhalt in Fotopixeln, verschoben; Muster wandern mit – gleiche Lage wie rechts)
+  for (const { src, d } of LBANDS) {
+    g.save(); g.translate(d[0], d[1]);
+    g.beginPath(); g.rect(src[0] - BM, src[1] - BM, src[2] - src[0] + 2 * BM, src[3] - src[1] + 2 * BM); g.clip();
+    drawSide(g, kind, true, pats);
+    g.restore();
+  }
   drawGrip(g, kind, pats);
   return c;
 }
 
 // Kantenlänge je Stufe: PC hoch 2048 × 1024 (≈ 0,16 mm je Texel), PC niedrig/mittel 1536 × 768, Handy 1024 × 512 (nur Albedo +
-// Normalen, Rauheit konstant im Material). Normalenstärke mit der Texelgröße skaliert.
+// Normalen, Rauheit konstant im Material). Normalenstärke mit der Texelgröße skaliert. Handy: Normalenkarte halb so groß
+// (512 × 256) – 25.10. (Prüfung): sonst 5,8 MB statt ≤ 4 MB (§8.3); Rillen/Gravuren tragen am Handy vor allem die Albedo.
 const SIZE = { max: 1, std: 0.75, lite: 0.5 };
 function maps(tier) {
-  const f = SIZE[tier], W = F.W * f, H = F.H * f;
+  const f = SIZE[tier], W = F.W * f, H = F.H * f, nf = tier === 'lite' ? 0.5 : 1, NW = W * nf, NH = H * nf;
   const shared = { noise: noiseCanvas(331), grain: grainCanvas(337), brush: brushCanvas(339) };
-  const h = blur(readHeight(layer('h', W, H, shared)), W, H);
+  const h = blur(readHeight(layer('h', NW, NH, shared)), NW, NH);
   return {
     map: toTexture(layer('a', W, H, shared), { srgb: true, repeat: false, aniso: 8 }),
-    normalMap: normalTex(h, W, H, 3.0 * f),
+    normalMap: normalTex(h, NW, NH, 3.0 * f * nf),
     roughnessMap: tier === 'lite' ? null : toTexture(layer('r', W, H, shared), { repeat: false, aniso: 8 }),
   };
 }
