@@ -179,6 +179,10 @@ gespeichert. Die Fotos selbst sind weder im Spiel noch im Repository enthalten. 
 | M-17 Falke (rechte Seite) | [PEO M4 Carbine RAS M68 CCO](https://commons.wikimedia.org/wiki/File:PEO_M4_Carbine_RAS_M68_CCO.jpg) | Photo Courtesy of PEO Soldier ([Flickr](https://www.flickr.com/photos/peosoldier/4639044647/)) | gemeinfrei (US Army, PD-USGov-Military-Army) |
 | M-17 Falke (linke Seite) | [Carbine M4 1](https://commons.wikimedia.org/wiki/File:Carbine_M4_1.jpg) | US Army (tri.army.mil) | gemeinfrei (US Army, PD-USGov-Military-Army) |
 | P-9 Kompakt | [GLOCK 17 Gen 4 Pistol MOD 45160305](https://commons.wikimedia.org/wiki/File:GLOCK_17_Gen_4_Pistol_MOD_45160305.jpg) | Photo: Steve Dock/MOD | [Open Government Licence v1.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/1/) |
+| VP-9 Viper (Umriss, rechte Seite) | [HK MP5 noBG](https://commons.wikimedia.org/wiki/File:HK_MP5_noBG.png) (freigestellt aus [MP5A3](https://commons.wikimedia.org/wiki/File:MP5A3.jpg)) | Dybdal / Mattes (Original: User:Mattes) | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) (Original gemeinfrei), verändert: nur Maße abgeleitet |
+| VP-9 Viper (linke Seite, Griffstück) | [HK MP5 of PASKAL](https://commons.wikimedia.org/wiki/File:HK_MP5_of_PASKAL.JPG) | Rizuan | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), verändert: nur Maße abgeleitet |
+| VP-9 Viper (Wahlhebel, Piktogramme) | [HK MP5 (6110432280)](https://commons.wikimedia.org/wiki/File:HK_MP5_(6110432280).jpg) | Andre Gustavo Stumpf Filho | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/), verändert: nur Maße abgeleitet |
+| VP-9 Viper (Visierbild) | [Visierlinie](https://commons.wikimedia.org/wiki/File:Visierlinie.jpg) | User:Mattes | gemeinfrei |
 
 ## Klänge
 

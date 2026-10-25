@@ -130,3 +130,16 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   (Matchstart, Lobby), `releaseEgoTemplates` (andere Stufen nach `_retier`), `releaseWeaponTemplate` (ungenutzter Vorrat) –
   Halter je Viewmodel-Eintrag und Vorschau, Geometrie nur ohne weitere Nutzer (Bauteil-Cache), Bauteil-Cache und Atlas
   erst ohne Vorlage. Prüfen: `tools/vorbau-test.mjs`.
+- 25.10.: **VP-9 Viper nach Foto neu gebaut** (HK MP5A5 mit Feuerstoß-Griffstück; Seitenfoto „HK MP5 noBG“ CC BY-SA 3.0,
+  Detailfotos MP5A3 gemeinfrei, MP5 der PASKAL CC BY-SA 4.0, MP5 von A. G. Stumpf Filho CC BY 2.0 – siehe CREDITS.md;
+  `vp9-ref.js` kalibriert über die Visierlinie 340 mm = 562 px). Blechgehäuse als Querschnitt Kasten + Spannhebelrohr
+  mit Sicke, Auswurffenster mit Verschluss (Rollen, Auszieher, Anker `boltFace`), Nieten, Prägungen, Spannhebelschlitz
+  mit Raste; Griffstück mit vertieftem Navy-Feld, Piktogrammen und Strahlkorn; Handschutz mit Fischhaut-Feldern;
+  Kornhaube als Schnitt zweier Zylinder mit Fenstern, Trommelkimme (quer liegendes Rad mit Lochblenden); Schulterstütze
+  mit Streben, Riegel und gerippter Gummikappe; Magazin gebogen mit Rippen und Patronen (`magRounds`). Neuer
+  **HK-Baukasten** `hk-parts.js` (Querschnitt, Trommel, Kornhaube, Spannhebel, Haltestifte, Wahlhebel, Dreifach-Warzen)
+  und `hk-tex.js` (Piktogramme) für G-7 (G3) und weitere HK-Waffen. Atlas-Lehre: Hilfsleinwände im Hauptspeicher
+  (`willReadFrequently`) und Punktstrukturen als kleines Bild statt Tausender `fillRect` im Clip – Atlas PC 0,65 → 0,29 s,
+  Handy 0,43 → 0,11 s (Software-GL). Kosten: max 222 k Dreiecke/19 Netze/≈ 1,3 s, std 84 k/17/0,85–1,0 s,
+  lite 40 k/16/0,63 s, Bots 364/3; Kontaktgitter 43 k/0,22 s. Abweichungen vom Foto: Diopter Ø 7,8 mm statt ≈ 3 mm
+  (sonst verdeckt die Trommel beim Zielen zu viel), Augenabstand 0,13, Oberfläche schwarz statt abgegriffen silbrig.
