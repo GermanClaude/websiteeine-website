@@ -63,12 +63,13 @@ export const chamfer = (d, s) => Math.max(d, s * Math.SQRT1_2);
  * fn(x, v, u, nx, ny, nz) → [U, V] (sonst Kachel-UVs), o.part = bewegliches Teil (Netz in Waffenkoordinaten).
  * o.id: als geteilter Block in den Bauteil-Cache (b.shared) – einmal je Stufe gerechnet, in allen Aufsatz-Varianten
  * wiederverwendet. Größere Abschnitte (mit field2-Vorrechnung) besser selbst in b.shared(id, () => …) fassen.
+ * o.uvMap: eigene UV-Zuordnung (geo, o.uv) → geo statt atlasUV (z. B. atlasUVTri aus pistol-parts.js, Bereich je Dreieck).
  */
 export function sdfMesh(b, f, lo, hi, step, mat, o = {}) {
   if (o.id) return b.shared(o.id, () => sdfMesh(b, f, lo, hi, step, mat, { ...o, id: null }));
   const g = surfaceNets(f, lo, hi, b.max ? step * (o.fine ?? 0.6) : b.lite ? step * (o.lite ?? 1.4) : step);
   if (b.max) cavityColors(g, f, o.cav);
-  return b._push(o.uv ? atlasUV(g, o.uv) : g, mat, { part: o.part }, !!o.uv);
+  return b._push(o.uv ? (o.uvMap || atlasUV)(g, o.uv) : g, mat, { part: o.part }, !!o.uv);
 }
 
 /**

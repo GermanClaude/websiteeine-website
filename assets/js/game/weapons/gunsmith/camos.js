@@ -17,7 +17,9 @@ const SIZE = 256;
 export const CAMO_TARGETS = new Set(['alu', 'aluTan', 'aluOD', 'polymer', 'polymerTan', 'polymerOD', 'polymerGrey', 'steel', 'stainless',
   'woodWarm', 'woodWalnut', 'paintOlive', 'bladeCoat', 'canvasOD', 'slideNitride', 'polymerSatin', 'p9Slide', 'p9Frame', 'm17Rec', 'm17Ras', 'm17Steel', 'm17Furn', 'm17Mag', 'm17RecV', 'm17RasV', 'm17SteelV', 'm17FurnV',
   'kv47Rec', 'kv47Wood', 'kv47Steel', 'kv47Mag',   // KV-47 (25.10.): Gehäuse- und Holzatlas, Stahlteile, Magazin – Träger bleibt blank
-  'qx90Frame', 'qx90Upper', 'qx90Optic']);        // QX-90 (25.10.): Rahmen, Guss, Visier – Magazin (durchscheinend) und Stahl bleiben
+  'vp9Rec', 'vp9Furn', 'vp9FurnS', 'vp9Mag',   // VP-9 nach Foto (24.10.): Gehäuse, Kunststoffteile, Magazin
+  'qx90Frame', 'qx90Upper', 'qx90Optic',          // QX-90 (25.10.): Rahmen, Guss, Visier – Magazin (durchscheinend) und Stahl bleiben
+  'adlerSteel', 'adlerSteelS', 'adlerGrip', 'adlerGripS']);   // Adler nach Foto (25.10.): Edelstahl-Atlas, Wickelgriff
 
 const texCache = new Map();
 const matCache = new Map();

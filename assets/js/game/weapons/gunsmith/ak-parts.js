@@ -8,7 +8,7 @@
 // { rec, wood } (Fotopixel → Atlas der jeweiligen Waffe). Teure Netze liegen in geteilten Blöcken (Bauteil-Cache).
 // Koordinaten wie im Bauplan: x quer (rechts +), v hoch, u nach vorn (Meter).
 import * as THREE from 'three';
-import { extrudeRound, smin, simplifyPoly } from './sdf.js';
+import { extrudeRound, smin, simplifyPoly, simplifyRing } from './sdf.js';
 import { STEEL, POLY, field2, sdfMesh, sideFurn, roundMax, segDist, atlasUV } from './sdfkit.js';
 import { shapeFrom } from './builder.js';
 import { magRounds } from './magfill.js';
@@ -274,7 +274,7 @@ export function akRearSight(K) {
     const f = (x, v, u) => { const d2 = dD(u, v); if (d2 > 0.005) return d2; return extrudeRound(d2, x, hw, 0.0016 * rk); };
     sdfMesh(b, f, [-hw - 0.002, V(Math.max(...bys)) - 0.002, U(Math.min(...bxs)) - 0.002], [hw + 0.002, V(Math.min(...bys)) + 0.002, U(Math.max(...bxs)) + 0.002], NET.kimme[0], mat.steel, net('kimme', { cav: STEEL }));
   });
-  else b.side(mat.steel, simplifyPoly(R.M(R.RS_BLOCK), 0.003), 2 * hw, 0, { bevel: 0.001 });
+  else b.side(mat.steel, simplifyRing(R.M(R.RS_BLOCK), 0.003), 2 * hw, 0, { bevel: 0.001 });
   const [lx0, ly0, lx1, ly1] = R.RS_LEAF, [bx0, , bx1, by1] = R.RS_BLADE, vS = V(R.SIGHT_Y);
   b.box(mat.steel, 0.0168, px(ly1 - ly0), px(lx1 - lx0), 0, V((ly0 + ly1) / 2), U((lx0 + lx1) / 2), { c: 0.0006 });
   // Kimmenblatt als ein Querschnitt mit U-Kerbe von oben (Oberkante = Visierlinie, Kerbe NOTCH_W × NOTCH_D, runder Grund)
@@ -328,7 +328,7 @@ export function akFrontSight(K) {
     };
     sdfMesh(b, f, [-0.0135, V(1052), U(3494)], [0.0135, V(774), U(3624)], NET.korn[0], mat.steel, net('korn', { cav: STEEL }));
   });
-  else b.side(mat.steel, simplifyPoly(R.M(R.FS), 0.003), 0.016, 0, { bevel: 0.001 });
+  else b.side(mat.steel, simplifyRing(R.M(R.FS), 0.003), 0.016, 0, { bevel: 0.001 });
   // Korn (Stift auf der Höhentrommel) und Trommel
   const pw = R.POST_W || 0.0019;
   b.box(mat.steel, pw, vS - V(834), pw, 0, (vS + V(834)) / 2, uPost, { c: 0.0003 });
@@ -464,7 +464,7 @@ export function akLowerHandguard(K) {
     };
     sdfMesh(b, f, [-0.025, V(1130), U(2128)], [0.025, V(905), U(2798)], NET.handschutz[0], mat.wood, net('handschutz', { uv: uv.wood, cav: WOOD }));
   });
-  else b.side(mat.wood, simplifyPoly(R.M(R.HG_LOW), 0.004), 0.04, 0, { bevel: 0.004 });
+  else b.side(mat.wood, simplifyRing(R.M(R.HG_LOW), 0.004), 0.04, 0, { bevel: 0.004 });
   // Vorderer Halter: Blechband um das Ende, unten Riemenbügel
   const [f0, f1] = R.HG_FERRULE, fv0 = V(1068), fv1 = V(912), hw = 0.0198;
   b.front(mat.steel, [[-hw, fv0 + 0.004], [-hw + 0.004, fv0], [hw - 0.004, fv0], [hw, fv0 + 0.004], [hw, fv1], [-hw, fv1]], px(f1 - f0), U(f0), { holes: [arc(0, AX, 0.0089, 0, Math.PI * 2, 16)], bevel: 0.0005 });
@@ -489,7 +489,7 @@ export function akStock(K) {
     };
     sdfMesh(b, f, [-0.025, V(1408), uR - 0.003], [0.025, V(955), U(R.REC.x0 + 6)], NET.schaft[0], mat.wood, net('schaft', { uv: uv.wood, cav: WOOD }));
   });
-  else b.side(mat.wood, simplifyPoly(R.M(R.STOCK), 0.005), 0.036, 0, { bevel: 0.004 });
+  else b.side(mat.wood, simplifyRing(R.M(R.STOCK), 0.005), 0.036, 0, { bevel: 0.004 });
   // Schaftkappe (Prüfung 25.10.: vorher lose Platte mit Spalt zum Holz): gewölbte Stahlkappe nach dem Fotoumriss, über die
   // volle Höhe, Kanten wie das Holz gerundet; vorn eben abgeschnitten und 0,4 mm über dem Holz – bündig, ohne Spalt
   const BP = R.BUTT_PROFILE || [[R.BUTTPLATE[1], 1001], [R.BUTTPLATE[0], 1200], [R.BUTTPLATE[1], 1391]];
@@ -499,7 +499,7 @@ export function akStock(K) {
     const f = (x, v, u) => Math.max(extrudeRound(pD(u, v), x, hwP, 0.005), u - uB);
     sdfMesh(b, f, [-hwP - 0.002, V(BP[BP.length - 1][1]) - 0.003, U(R.BUTTPLATE[0]) - 0.003], [hwP + 0.002, V(BP[0][1]) + 0.003, uB + 0.002], 0.002, mat.steel, { fine: 0.65, lite: 1.4, cav: STEEL });
   });
-  else b.side(mat.steel, simplifyPoly(R.M([[xf, BP[0][1]], ...BP, [xf, BP[BP.length - 1][1]]]), 0.003), 2 * hwP, 0, { bevel: 0.002 });
+  else b.side(mat.steel, simplifyRing(R.M([[xf, BP[0][1]], ...BP, [xf, BP[BP.length - 1][1]]]), 0.003), 2 * hwP, 0, { bevel: 0.002 });
   if (b.hi) {
     // Klappe des Zubehörfachs auf der gewölbten Rückfläche: Streifen entlang der Kappenkontur, 0,3 mm erhaben, zwei Schrauben
     const back = (y) => { for (let i = 0; i < BP.length - 1; i++) { const [xa, ya] = BP[i], [xc, yc] = BP[i + 1]; if (y >= ya && y <= yc) return xa + (xc - xa) * (y - ya) / (yc - ya); } return BP[0][0]; };
@@ -535,7 +535,7 @@ export function akGrip(K) {
     };
     sdfMesh(b, f, [-0.0175, V(1552), U(1090)], [0.0175, V(1110), U(1392)], NET.griff[0], mat.wood, net('griff', { uv: uv.wood, cav: POLY }));
   });
-  else b.side(mat.wood, simplifyPoly(R.M(R.GRIP), 0.004), 0.029, 0, { bevel: 0.004 });
+  else b.side(mat.wood, simplifyRing(R.M(R.GRIP), 0.004), 0.029, 0, { bevel: 0.004 });
 }
 
 // ---------------------------------------------------------------- Abzugsgruppe
@@ -547,7 +547,7 @@ export function akTriggerGroup(K) {
     const gD = field2(M(R.GUARD_OUT), [], 0.0003), oD = field2(M(R.GUARD_IN), [], 0.0003), uCut = U(R.MAG_CATCH[0][0]), vTop = V(R.REC.bottom) - 0.0004;
     const box = [U(R.GUARD_OUT[0][0]) - 0.002, uCut + 0.002, V(1254) - 0.002, V(R.REC.bottom) + 0.001];
     sideFurn(b, (u, v) => Math.max(gD(u, v), -oD(u, v), u - uCut, v - vTop), box, 0.0052, 0.0008, { mat: mat.steel, step: 0.0004 });
-  } else b.side(mat.steel, simplifyPoly(M(R.GUARD), 0.003), 0.01, 0, { bevel: 0.001 });
+  } else b.side(mat.steel, simplifyRing(M(R.GUARD), 0.003), 0.01, 0, { bevel: 0.001 });
   b.side(mat.steel, trig, 0.0062, 0, { bevel: 0.0009 });
   b.side(mat.steel, catchP, 0.0165, 0, { bevel: 0.0012 });
   // Bohrung im Magazinhalter (Lagerachse), beidseitig
@@ -632,7 +632,7 @@ export function akMagazine(K, cap = {}) {
     sideFurn(b, (u, v) => Math.max(mD(u, v) - 0.0009, line(u, v) - 0.0062), [fu[0], fu[1], fv[0], fv[1]], hw + 0.0008, 0.0009, { ...P, mat: mat.mag, step: st * 0.8 });
   });
   else {
-    b.side(mat.mag, simplifyPoly(mp, 0.005), 2 * hw, 0, { ...P, bevel: 0.001 });
+    b.side(mat.mag, simplifyRing(mp, 0.005), 2 * hw, 0, { ...P, bevel: 0.001 });
     b.box(mat.mag, 2 * hw - 0.002, px(R.REC.bottom + 8 - yTop), px(top[1][0] - top[0][0]), 0, V((yTop + R.REC.bottom + 8) / 2), U((top[0][0] + top[1][0]) / 2), P);
   }
   const path = R.MAG_PATH.map(([x, y]) => [0, V(y), U(x)]);
@@ -645,7 +645,9 @@ export function akMagazine(K, cap = {}) {
 /** Bot-Stufe: dieselben Fotoumrisse stark vereinfacht (Seitenprofile/Zylinder), Teile mag/bolt mit gleichen Drehpunkten
  *  und Ankern wie die Ego-Fassung. → Mündungsende u */
 export function akBot(K) {
-  const { b, R, U, V, M, px, AX, mat } = K, s = (pts, tol) => simplifyPoly(M(pts), tol);
+  // Umrisse als geschlossene Ringe vereinfachen (simplifyRing, 25.10. Zusammenführung Etappe 1): simplifyPoly ließ den letzten
+  // Ringpunkt fallen – Schaft 9 mm, Kornträger 5 mm, Magazin 6 mm, Griff/Handschutz 3–4 mm vom Fotoumriss weg
+  const { b, R, U, V, M, px, AX, mat } = K, s = (pts, tol) => simplifyRing(M(pts), tol);
   b.side(mat.rec, s(R.REC_SIL, 0.004), 2 * K.hwR + 0.0018, 0, { bevel: 0.001 });
   b.side(mat.wood, s(R.STOCK, 0.006), 0.036, 0, { bevel: 0.003 });
   b.side(mat.wood, s(R.GRIP, 0.005), 0.029, 0, { bevel: 0.003 });

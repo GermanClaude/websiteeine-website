@@ -209,3 +209,92 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   3,5): Dreiecke max 199 552 / Standard 76 500 / Handy 38 194 / Bots 360, 22/22/19/3 Netze, Bau max 1,56 s / Standard
   0,70–1,04 s (4 Läufe, Median 0,81 s; der Prüfer maß am Erstbau 0,88–1,15 s) / Handy 0,51–0,59 s / Bots 8 ms,
   Kontaktgitter 40 985 Dreiecke / 0,20 s, Texturen PC 28,4 MB, Handy 8,5 MB mit geteilten Kacheln.
+- 25.10.: **VP-9 Viper nach Foto neu gebaut** (HK MP5A5 mit Feuerstoß-Griffstück; Seitenfoto „HK MP5 noBG“ CC BY-SA 3.0,
+  Detailfotos MP5A3 gemeinfrei, MP5 der PASKAL CC BY-SA 4.0, MP5 von A. G. Stumpf Filho CC BY 2.0 – siehe CREDITS.md;
+  `vp9-ref.js` kalibriert über die Visierlinie 340 mm = 562 px). Blechgehäuse als Querschnitt Kasten + Spannhebelrohr
+  mit Sicke, Auswurffenster mit Verschluss (Rollen, Auszieher, Anker `boltFace`), Nieten, Prägungen, Spannhebelschlitz
+  mit Raste; Griffstück mit vertieftem Navy-Feld, Piktogrammen und Strahlkorn; Handschutz mit Fischhaut-Feldern;
+  Kornhaube als Schnitt zweier Zylinder mit Fenstern, Trommelkimme (quer liegendes Rad mit Lochblenden); Schulterstütze
+  mit Streben, Riegel und gerippter Gummikappe; Magazin gebogen mit Rippen und Patronen (`magRounds`). Neuer
+  **HK-Baukasten** `hk-parts.js` (Querschnitt, Trommel, Kornhaube, Spannhebel, Haltestifte, Wahlhebel, Dreifach-Warzen)
+  und `hk-tex.js` (Piktogramme) für G-7 (G3) und weitere HK-Waffen. Atlas-Lehre: Hilfsleinwände im Hauptspeicher
+  (`willReadFrequently`) und Punktstrukturen als kleines Bild statt Tausender `fillRect` im Clip – Atlas PC 0,65 → 0,29 s,
+  Handy 0,43 → 0,11 s (Software-GL). Kosten: max 222 k Dreiecke/19 Netze/≈ 1,3 s, std 84 k/17/0,85–1,0 s,
+  lite 40 k/16/0,63 s, Bots 364/3; Kontaktgitter 43 k/0,22 s. Abweichungen vom Foto: Diopter Ø 7,8 mm statt ≈ 3 mm
+  (sonst verdeckt die Trommel beim Zielen zu viel), Augenabstand 0,13, Oberfläche schwarz statt abgegriffen silbrig.
+- 25.10.: **VP-9 nachgebessert (Prüfung)** – Loch unter dem Auswurffenster beseitigt (die Tasche hinter dem Fenster reicht
+  nur noch über die Fensterhöhe; vorher schnitt die Längssicke durch die dünne Hohlraumwand, am Handy verschmolz alles zu
+  einer Öffnung), Lauf beginnt im Kornträger mit Bund aus dem Fotoumriss (vorher 3–3,6 mm Luft), Wahlhebelachse vom Foto
+  neu abgenommen ([557, 212] → [608, 225], ≈ 30 mm weiter vorn; PASKAL-Foto 3697 px als zweite Quelle, dort über dieselbe
+  Visierlinie kalibriert: Bolzenabstand und Griffstückhöhe stimmen auf ≈ 1 %), Piktogramme in Originalgröße mit
+  Spitzoval-Patronen und Doppelrahmen, Hebel 25 mm mit Flügel gegenüber dem Zeiger, Trommel Ø 18 mm mit Stellungsflächen,
+  Kornträger als 3D-Gussform mit Stiften, Prägungen aus dem Foto (obere Rinne, Kante, Hülsenabweiser, Nietlasche, Mulde,
+  Fenster mit runden Enden), Schachtlasche rechts, Halteplatte mit Schrauben links, Mulde um Magazinknopf, Endstück mit
+  Fotomaß-Vertiefung, Schlitz, Riemenbügel; Fischhaut als erhabene Rauten; Navy-Feld entfernt (kein Fotobeleg); Lack
+  glatter. Bauzeit: Atlas je Stufe (PC hoch 2048 × 640, PC niedrig/mittel 1536 × 480, Handy 1024 × 320 nur Albedo +
+  Normalen ≈ 3,5 MB), Umrissfelder je Stufe gröber, Normalen ohne Modulo. Kosten (mess.mjs, Last ≈ 7): max 242 k
+  Dreiecke/19 Netze/1,46 s, Kontakt 43 k/0,26 s; std 85 k/17/0,67 s; lite 41 k/16/0,49 s; Bots 364/3/14 ms. Erster Bau
+  dreimal im selben Lauf mit P-9/M-17 (Last 6–7): VP-9 std 0,63–0,88 s, lite 0,45–0,96 s, max 1,8–2,6 s; P-9 std
+  1,3–2,0 s, M-17 std 1,5–2,0 s (VP-9 std ≈ ½ P-9). Anschlag-Verdeckung 32 % (Augenabstand 0,14).
+- 25.10.: **Adler .50 nach Foto neu gebaut** (IMI Desert Eagle Mark XIX .50 AE, 6″; Seitenfoto „Desert-Eagle-p1030134“ von
+  Rama, CC BY-SA 2.0 fr, linke Seite „p1030133“ (Rama), Detailfotos „Desert Eagle Chrome“ und „Desert Eagle beside a box of Speer
+  325 Grain HP“ (DeepThunder, CC BY-SA 3.0), „DesertEagle 50AE“ (Bobbfwed, CC BY-SA 3.0) – siehe CREDITS.md; `adler-ref.js`
+  um −0,4° gerade gestellt, kalibriert über die Gesamtlänge 273,1 mm = 2150 px, Prüfmaße Lauf +2,6 %, Höhe −2,3 % wegen leichter
+  Perspektive). Neuer Bauplan `guns-adler.js` (alte Funktion aus `guns-pistol.js` entfernt, P-9 unverändert): Schlitten als
+  kurzer Block mit 45°-Fasen, Auswurffenster oben rechts mit Kanal zum Lager (Innenwände gestrahlt), Mulden der beidseitigen
+  Sicherung, 14 schräge Griffrillen als Atlas-Normalen; Lauf + Rahmen als EIN Distanzfeld (Schiene mit Schwalbenschwanz-Kerbe
+  und Querschlitzen, Schrägen zur Schulter, vertiefte Gravurfelder, Lager, Mündung mit 4,5 mm Bohrung und blanker Krone;
+  Staubschutz bis unter die Mündung mit Trennfuge und Mulde der Führungsstange, eckiger Bügel, Sporn, Schlitze für Hahn und
+  Abzug, unten offener Schacht, feine Fuge Lauf/Rahmen), Wickelgriff mit Kieselstruktur, glattem Rand und rundem Feld (eigenes
+  Fadenkreuz-Null-Zeichen). Kleinteile: Kimme mit Rechteckkimme und Punkten, Korn mit Punkt, Sicherung (Nabe, Schlitzschraube,
+  geriffelter Hebel, roter Punkt), gespannter Hahn mit geriffeltem Sporn, Abzug, Stifte, Schlittenfang links, Laufriegel rechts
+  (Platte, Arm, Inbusachse) mit Knopf links, Magazinhalter (rechts Schlitzkopf, links Knopf); Magazin aus Edelstahl mit
+  Zuführlippen, Sichtlöchern, breitem Boden nach Foto und `magRounds` (.50 AE). Gravuren als eigene Beschriftung (NULLPUNKT
+  WAFFENWERK, Nummer), keine Herstellerzeichen. Atlas je Stufe 2048 × 1024 / 1536 × 768 / Handy 1024 × 512 ohne Rauheit; linke
+  Seite in eigenem Band (keine Spiegelschrift). Neuer **Pistolen-Baukasten** (G6) `pistol-parts.js` (Kimme, Korn, Stiftköpfe,
+  Schlitzschrauben, Inbusachsen, Druckknöpfe, Riffelung, Atlas-Profile, schnelles Umrissfeld `outlineField`) und `pistol-tex.js`
+  (Gravur, Kieselmuster, Bürstenstrich, Körnung, Normalen) für Sperber, P-9A, Kobra. Bauzeit: erster Messlauf std 1,47 s (über
+  Budget) – Profil: Umrissfelder (Rahmen 223, Griff 207 Punkte, Griff doppelt, exakter Rückfall außerhalb des Rasters),
+  Detailkarten der Kleinteile, Normalen. Abhilfe: `outlineField` (exakt nur im Streifen um die Kante über Kanten-Fächer und
+  Zeilen-Schnittpunkte – gleiche Werte, Rahmen PC 282 → 64 ms), Griff-Feld je Bau einmal, Schranken über/unter Rahmen und Lauf,
+  Kleinteile mit den geteilten Strich-/Abriebkarten. Kosten (mess.mjs, Last ≈ 3,5): max 117 k Dreiecke/20 Netze/1,08–1,16 s,
+  Kontakt 19 k/0,12 s; std 50,7 k/20/0,67–0,68 s; lite 26,3 k/17/0,46–0,50 s; Bots 198/3/18 ms (P-9 im selben Lauf: max 1,62 s,
+  std 1,29 s, lite 1,41 s). Abweichungen vom Foto: Korn 5 mm statt
+  1,8 mm hoch (Visierlinie parallel zur Laufachse), nur der hintere Schlittenblock bewegt sich (Schlittenarme unter dem Lauf
+  fest am Rahmen), Verschlusskopf nicht gebaut (geschlossen vom Lager verdeckt), Griffanker wie alt (Hüfthaltung) bei echt
+  maßstäblichem, 34 mm kürzerem Modell → `FEEL.reach` 0,66 → 0,6; Anschlag-Verdeckung 18 % bei Augenabstand 0,36 (Pistolenwert;
+  Ziel 22–34 % – die Visierlinie liegt 92 mm über der Griffmitte, die Arme tiefer im Bild; 0,44 ergäbe 22 % bei winziger Kimme).
+  **Nachbesserung nach Prüfung (25.10.):** Bot-Stufe war unvollständig – `simplifyPoly` lässt bei geschlossenen Ringen den letzten
+  Punkt fallen (Schlitten 21 mm, Magazinboden 14,5 mm, Bügelöffnung 13 mm zu kurz); neu `simplifyRing` in `sdf.js` (`simplifyPoly`
+  bleibt, sonst ändern sich M-17/P-9). Atlas je Dreieck (`atlasUVTri`: Bereich nach der Dreiecksmitte statt je Ecke → keine Naht
+  links), Stirn-/Ober-/Unterflächen in isotropen Feldern (BLANK gebürstet, MATT = Rahmenoberfläche, INNER dunkle Innenwände) statt
+  gestreckter Seitenstreifen, linke Bänder nur noch für Gravur und Nummer; Rahmen-, Bügel-, Griff- und Magazinboden-Umriss mit
+  Douglas-Peucker 0,3 mm geglättet (2-px-Treppen spiegelten als Wellenbänder). Bügelöffnung nach Foto: Außenwände bis zum Bogen
+  offen, Mittelsteg flach (±10,4 mm), vor dem Magazin tief (±5,2 mm), Abzugsschlitz nur vor dem Magazin; Rahmen eine Breite
+  (27 mm), Sporn 22,4 mm über den Fotobogen `TANG_LINE` weich angesetzt (keine Risskante, keine Stufe am Griffrand), Griffumriss
+  ohne Spalt, Magazinhalter auf der neuen Rahmenfläche. Sicherung nach Detailfoto: ovale Nabenplatte, schlanker Tropfenhebel
+  (2,4 mm, rund gefast), erhabene runde Rippen statt schwarzer Kerben (`raisedRibs`, auch Laufriegel; die Kerben-Riffelung ist
+  aus dem Baukasten entfernt), roter Punkt auf dem Hebel; Kimmenfuß im Schwalbenschwanz (Nut im Schlitten), Hahn mit gerundetem
+  Sporn und 7 Zahnstegen. Mündung: Scheibe zeigt nach vorn (Kreisscheiben zeigen sonst nach hinten und sind nur mit DoubleSide
+  sichtbar), Bohrung 8 mm tief – `muzzle-bore-test` prüft die Adler jetzt mit den echten Materialseiten (`--seiten` für alle).
+  Magazinboden-Bohrungen bündig auf ihrer Fläche. Handy: Normalenkarte halbe Auflösung (Texturspeicher 5,8 → 3,8 MB).
+  Kosten (mess.mjs, Last ≈ 8 durch parallele Läufe – Zeiten etwa doppelt so hoch wie bei Last 3,5): max 117,9 k Dreiecke/
+  19 Netze/2,1–2,7 s, Kontakt 18,7 k; std 51,5 k/19/1,06–1,45 s (Texturen 18,5 MB); lite 26,3 k/17/0,80–1,10 s (3,8 MB); Bots
+  228/3/19 ms; P-9 in denselben Läufen std 1,6–2,1 s, lite 1,9–3,1 s. Abwechselnd gegen den Stand vor der Nachbesserung gemessen
+  (gleiche Last): std 1,08–1,14 → 1,13–1,16 s, lite 0,66–0,88 → 0,92–1,08 s, max 2,0–2,5 → 2,3–2,7 s – kaum Mehrkosten; bei
+  Last 4–7 (Zwischenstand) std 0,91–0,98 s, lite 0,49–0,71 s. Bei ruhigem Rechner nicht nachgemessen.
+  Anschlag-Verdeckung bleibt 18 % (Augenabstand 0,36): 0,40 → 20 %, ab 0,44 sind die Arme am Ende ihrer Reichweite; P-9-Griffdaten
+  oder tieferer Griffanker kippen die Handlösung (Daumen über dem Visier, 39–47 %). Die P-9 hat dieselbe Visierhöhe über dem
+  Griffanker (91 mm), die Ursache ist also nicht die Höhe allein – nicht abschließend geklärt, offen.
+- 25.10.: **Etappe 1 zusammengeführt** (Zweig waffen-int: Bahn 1 KV-47/QX-90 + Bahn 2 VP-9/Adler). Konflikte nur in den
+  Registern (models.js `PHOTO_MODELS` = m17, p9, kv47, vp9, qx90, adler; materials.js `LITE`/`ATLAS`/`LOD_META`, camos.js,
+  CREDITS.md, FEEL-Reichweiten, Vorladeliste neu erzeugt); guns-auto.js enthält nur noch den HM-60. Der Merge selbst ändert kein
+  Modell (Geometrie-Hash aller vier Waffen × vier Stufen gleich den Bahnen, Bilder pixelgleich; M-17/P-9 bitgleich, 45 Studio-
+  und 18 Ego-Bilder pixelgleich). Beim Zusammenführen nachgezogen: Bot-Umrisse von KV-47 (AK-Baukasten) und VP-9 mit
+  `simplifyRing` statt `simplifyPoly` (Befund der Adler-Prüfung: der letzte Ringpunkt fiel weg – KV-47 Schaft 9 mm, VP-9
+  Schacht 29 mm/Kornträger 25 mm neben dem Fotoumriss); Bots jetzt 344 bzw. 380 Dreiecke, Anker gleich. Der M-17-Bot hat
+  denselben Fehler (Oberteil 5,7 mm, Schaft 3,4 mm) und bleibt bewusst unverändert. Messung (mess.mjs, Last ≈ 3,5–4):
+  KV-47 224 486 / 87 080 / 42 830 / 344, VP-9 241 804 / 84 984 / 41 444 / 380, QX-90 199 552 / 76 500 / 38 194 / 360,
+  Adler 117 906 / 51 516 / 26 264 / 228 Dreiecke (max/std/lite/Bots); Bau std 0,72–1,13 s (QX-90 knapp über 1,0 s), lite
+  0,50–0,68 s. Schießstand mittel: Laden 35 s (vorher 28 s), Heap 217 MB (188); Waffenspiel hoch: 69 s (53 s), Heap 612 MB
+  (510) – die Leiter wird in max vorgebaut; für weitere Etappen dort nur die nächsten Stufen in max (Folgepunkt).

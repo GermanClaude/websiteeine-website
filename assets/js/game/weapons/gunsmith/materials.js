@@ -5,6 +5,8 @@ import { p9SlideMaps, p9FrameMaps, SLIDE_CAMO_REPEAT, FRAME_CAMO_REPEAT } from '
 import { m17FurnMaps, FURN_CAMO_REPEAT } from './m17-tex.js';
 import { kv47WoodMaps, kv47RecMaps, WOOD_CAMO_REPEAT, REC_CAMO_REPEAT } from './kv47-tex.js';
 import { qx90FrameMaps, qx90UpperMaps, FRAME_CAMO_REPEAT as QX_FRAME_REPEAT, UPPER_CAMO_REPEAT as QX_UPPER_REPEAT } from './qx90-tex.js';
+import { vp9FurnMaps, CAMO_REPEAT as VP9_CAMO_REPEAT } from './vp9-tex.js';
+import { adlerMaps, CAMO_REPEAT as ADLER_CAMO_REPEAT } from './adler-tex.js';
 import { dropCached } from './textures.js';
 
 const mats = new Map();
@@ -90,6 +92,8 @@ function wearPatch(m, { col, metal, rough, k = 1, bump = 0.00012, tone = 0.12, s
 }
 const ALU_WEAR = { col: 0x8f9398, metal: 1, rough: 0.3 }, STEEL_WEAR = { col: 0x85878a, metal: 1, rough: 0.34, bump: 0.00008 };
 const POLY_WEAR = { col: 0x3d3e41, metal: 0, rough: 0.5, k: 0.7, bump: 0.00006, tone: 0.06, smear: 0.25 };
+// Edelstahl (Adler): Kanten blank poliert statt dunkler Grund – heller, glatter, kaum Beulen
+const STAINLESS_WEAR = { col: 0xe4e6ea, metal: 1, rough: 0.1, k: 0.75, bump: 0.00002, tone: 0.05, smear: 0.3 };
 function phys(o) { return new THREE.MeshPhysicalMaterial(o); }
 
 const DEFS = {
@@ -169,6 +173,23 @@ const DEFS = {
   qx90Rounds: () => std({ color: 0x4e4944, vertexColors: true, metalness: 0.55, roughness: 0.52, envMapIntensity: 0.35 }),
   qx90MagTick: () => std({ color: 0x8a7656, metalness: 0.0, roughness: 0.55 }),
   qx90MagCap: () => std({ color: 0x1b1c1e, metalness: 0.0, roughness: 0.55, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.12, 0.12) }),
+  // VP-9 nach Foto (24.10.): Gehäuse aus schwarz lackiertem Stahlblech (seidenmatt, an Kanten bis auf den Stahl
+  // abgerieben – das Fotovorbild ist dort fast blank), Kleinteile/Lauf brüniert, Magazin schwarz phosphatiert, Verschluss
+  // geölt; Kunststoffteile (Griffstück, Handschutz, Schulterstütze) mit eigenem Atlas (vp9-tex.js)
+  // 25.10. (Prüfung: wirkte genarbt wie Guss, kaum von Kunststoff zu unterscheiden): Lack glatter – Korn der Normale ×0,4,
+  // kaum Beulen, leichter Lackglanz (Klarschicht); der Kunststoff bleibt matt mit Strahlkorn aus dem Atlas
+  vp9Rec: () => wearPatch(phys({ color: 0x2a2c2f, metalness: 0.28, roughness: 0.44, clearcoat: 0.32, clearcoatRoughness: 0.3, roughnessMap: fine(finishMaps('steel').rough, 2.5), normalMap: fine(finishMaps('steel').normal, 2), normalScale: new THREE.Vector2(0.04, 0.04) }), { col: 0x7d8186, metal: 1, rough: 0.34, bump: 0.000015, k: 1.1, tone: 0.08 }),
+  vp9Steel: () => wearPatch(std({ color: 0x232426, metalness: 0.55, roughness: 0.5, roughnessMap: fine(finishMaps('steel').rough, 3), normalMap: fine(finishMaps('steel').normal, 4), normalScale: new THREE.Vector2(0.1, 0.1) }), { ...STEEL_WEAR, bump: 0.00004 }),
+  vp9Mag: () => wearPatch(std({ color: 0x202123, metalness: 0.5, roughness: 0.46, roughnessMap: fine(finishMaps('steel').rough, 2.5), normalMap: fine(finishMaps('steel').normal, 3), normalScale: new THREE.Vector2(0.1, 0.1) }), { col: 0x8a8d91, metal: 1, rough: 0.3, k: 0.85 }),
+  vp9Bcg: () => wearPatch(phys({ color: 0x2e2f31, metalness: 0.7, roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.2, roughnessMap: fine(finishMaps('steel').rough, 3), normalMap: fine(finishMaps('steel').normal, 5), normalScale: new THREE.Vector2(0.08, 0.08) }), { col: 0xa0a3a6, metal: 1, rough: 0.25, bump: 0.00003, tone: 0.06 }),
+  vp9Furn: () => vp9FurnMat('max'), vp9FurnS: () => vp9FurnMat('std'), 'vp9Furn@lite': () => vp9FurnMat('lite'),
+  // Adler .50 nach Foto (25.10.): Edelstahl mit eigenem Atlas (adler-tex.js – Schlitten gebürstet, Lauf poliert, Rahmen gestrahlt,
+  // Rillen/Gravuren/Abrieb), Wickelgriff aus demselben Atlas (Kunststoff), Kleinteile poliert, Kimme/Korn brüniert
+  adlerSteel: () => adlerMat('max', true), adlerSteelS: () => adlerMat('std', true), 'adlerSteel@lite': () => adlerMat('lite', true),
+  adlerGrip: () => adlerMat('max', false), adlerGripS: () => adlerMat('std', false), 'adlerGrip@lite': () => adlerMat('lite', false),
+  // Kleinteile ohne eigene Detailkarten (25.10., Bauzeit): Strich/Abrieb aus den geteilten Karten, die das Modell ohnehin lädt
+  adlerPolish: () => wearPatch(std({ color: 0xc6cacf, metalness: 1.0, roughness: 0.2, roughnessMap: fine(brushedMap(), 12) }), STAINLESS_WEAR),
+  adlerBlued: () => wearPatch(std({ color: 0x1d1e20, metalness: 0.6, roughness: 0.42, roughnessMap: fine(wearMap(), 6) }), { ...STEEL_WEAR, bump: 0.00003 }),
   // Trommelmagazin: eigener Kunststoff (keine Tarnung) und Deckel mit eigener Textur
   drumBody: () => std({ color: 0x2a2c30, map: polymerMap(), metalness: 0.0, roughness: 0.66, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.2, 0.2) }),
   drumFace: () => std({ color: 0xffffff, map: drumFaceMap(), normalMap: drumFaceNormal(), normalScale: new THREE.Vector2(0.9, 0.9), metalness: 0.0, roughness: 0.62 }),
@@ -234,10 +255,15 @@ function qx90FrameMat(lite) { const t = qx90FrameMaps(lite); const m = std({ col
 // Guss (Prüfung 25.10.): weniger metallisch (0,5 → 0,25) – im Foto satinierter Lack, fast so hell wie der Rahmen
 function qx90UpperMat(lite) { const t = qx90UpperMaps(lite); const m = std({ color: 0xffffff, map: t.map, metalness: 0.25, roughness: t.roughnessMap ? 1.0 : t.roughness, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = QX_UPPER_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0x9a9da2, metal: 1, rough: 0.3, bump: 0.00004, tone: 0.08 }); }
 function m17FurnMat(lite) { const t = m17FurnMaps(lite); const m = std({ color: 0x26272a, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FURN_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, POLY_WEAR); }
+// Handy: Atlas ohne Rauheitskarte (§8.3) – mittlere Rauheit des Kunststoffs als Konstante
+// Adler: Stahl und Griff teilen den Atlas (gleicher texKey); Handy ohne Rauheitskarte (Rauheit konstant)
+function adlerMat(tier, steel) { const t = adlerMaps(tier); const m = std({ color: 0xffffff, map: t.map, metalness: steel ? 1.0 : 0.0, roughness: t.roughnessMap ? 1.0 : steel ? 0.26 : 0.8, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = ADLER_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, steel ? STAINLESS_WEAR : POLY_WEAR); }
+function vp9FurnMat(tier) { const t = vp9FurnMaps(tier); const m = std({ color: 0xffffff, map: t.map, metalness: 0.0, roughness: t.roughnessMap ? 1.0 : 0.8, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = VP9_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, POLY_WEAR); }
 // Schlüssel mit eigener Handy-Fassung (key@lite) und Atlas-Materialien (je Waffe freigebbar)
-const LITE = new Set(['m17Furn', 'p9Slide', 'p9Frame', 'kv47Wood', 'kv47Rec', 'qx90Frame', 'qx90Upper']);
+const LITE = new Set(['m17Furn', 'p9Slide', 'p9Frame', 'kv47Wood', 'kv47Rec', 'vp9Furn', 'qx90Frame', 'qx90Upper', 'adlerSteel', 'adlerGrip']);
 const ATLAS = new Set(['m17Furn', 'm17Furn@lite', 'p9Slide', 'p9Slide@lite', 'p9Frame', 'p9Frame@lite', 'kv47Wood', 'kv47Wood@lite', 'kv47Rec', 'kv47Rec@lite',
-  'qx90Frame', 'qx90Frame@lite', 'qx90Upper', 'qx90Upper@lite']);
+  'vp9Furn', 'vp9FurnS', 'vp9Furn@lite', 'qx90Frame', 'qx90Frame@lite', 'qx90Upper', 'qx90Upper@lite',
+  'adlerSteel', 'adlerSteelS', 'adlerSteel@lite', 'adlerGrip', 'adlerGripS', 'adlerGrip@lite']);
 /** Materialschlüssel für die Handy-Stufe (eigener, kleinerer Atlas), sonst der Schlüssel selbst. */
 export function liteKey(key) { return LITE.has(key) ? key + '@lite' : key; }
 
@@ -252,7 +278,9 @@ const LOD_META = { m17Rec: [0x2b2d30, 0], m17Ras: [0x292b2e, 0], m17Steel: [0x2b
   qx90Frame: [0x3a3b3e, 0], qx90Upper: [0x343538, 0], qx90Mag: [0x2c241d, 0], qx90Rod: [0x67645f, 1],
   // QX-90 Bots: Farben direkt (sonst baute die Bot-Stufe Alu-/Stahl-/Stippel-Kacheln nur zum Farbablesen, ≈ 130 ms)
   qx90Optic: [0x3a3b3e, 0], qx90Butt: [0x3b3c3f, 0], qx90Steel: [0x3e3f42, 1], qx90MagCap: [0x1b1c1e, 0], qx90Black: [0x1c1d1f, 0],
-  qx90MagTick: [0x8a7656, 0] };
+  qx90MagTick: [0x8a7656, 0],
+  vp9Rec: [0x2a2c2f, 0], vp9Steel: [0x232426, 1], vp9Mag: [0x202123, 1], vp9Bcg: [0x2e2f31, 1], vp9Furn: [0x26272a, 0], vp9FurnS: [0x26272a, 0],
+  adlerSteel: [0xb9bdc1, 1], adlerSteelS: [0xb9bdc1, 1], adlerGrip: [0x1c1d1f, 0], adlerGripS: [0x1c1d1f, 0], adlerPolish: [0xc6cacf, 1], adlerBlued: [0x1d1e20, 1] };
 const _lodCol = new Map();
 /** Farbe (linear) + Metall-Gruppe eines Materials für die zusammengeführte Bot-Detailstufe. */
 export function lodInfo(key) {
