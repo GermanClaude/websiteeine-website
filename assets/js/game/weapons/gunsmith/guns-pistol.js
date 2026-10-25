@@ -1,5 +1,5 @@
-// Pistolen: P-9 Kompakt (Polymer, Schlagbolzen) und Adler .50 (schwere Edelstahlpistole mit Dreieckslauf)
-import { slots, engrave } from './parts.js';
+// Pistolen: P-9 Kompakt (Polymer, Schlagbolzen). Adler .50 nach Foto in guns-adler.js (25.10.).
+import { slots } from './parts.js';
 import { magRounds } from './magfill.js';
 import { sdPolygon, extrudeRound, smin, surfaceNets, sdBox, sdEllipsoid, simplifyPoly, grid2D, cavityColors } from './sdf.js';
 import * as R from './p9-ref.js';
@@ -9,7 +9,7 @@ const RAKE = 0.3;
 
 // Magazin im Griff: fällt entlang der Griffachse heraus
 // cal = Kaliber (magfill.js): oberste Patronen an den Lippen bzw. leerer Zubringer (Stahl, beim Wechsel sichtbar)
-// Exportiert (24.10.) für den Pistolen-Baukasten (P-9A, Sperber, Adler …)
+// Exportiert (24.10.) für den Pistolen-Baukasten (P-9A, Sperber …)
 export function gripMag(b, { u, v, w, len, depth, plate = 'polymer', body = 'steel', rake = RAKE, cal = 'p9' }) {
   b.part('mag', 0, v, u);
   const s = Math.sin(rake), c = Math.cos(rake);
@@ -161,77 +161,6 @@ export function p9(b) {
   b.anchor('magWell', 0, R.V(1259), R.U(1462));
   b.anchor('sight', 0, R.V(268), R.U(1503), { data: { type: 'iron', eyeRelief: 0.36 } });
   b.anchor('leftHandGrip', 0, -0.015, R.U(1390), { data: { style: 'pistol', ...grip } });
-  b.meta = { sight: 'iron', axis, kind: 'pistol' };
-}
-
-export function adler(b) {
-  const axis = 0.074;
-  // Fester Lauf: rechteckiger Unterteil + schmale Oberschiene, seitliche Flachpaneele (zweifarbig)
-  b.front('stainless', [[-0.0148, 0.055], [0.0148, 0.055], [0.0148, 0.083], [0.0118, 0.087], [-0.0118, 0.087], [-0.0148, 0.083]], 0.142, 0.086, { bevel: 0.0014 });
-  b.front('stainless', [[-0.0085, 0.086], [0.0085, 0.086], [0.0072, 0.0985], [-0.0072, 0.0985]], 0.14, 0.087, { bevel: 0.001 });
-  if (b.hi) {
-    for (let i = 0; i < 11; i++) b.box('steelDark', 0.0146, 0.0012, 0.0022, 0, 0.0986, 0.096 + i * 0.0115, { c: 0 });
-    for (const s of [-1, 1]) {
-      b.box('steelDark', 0.001, 0.015, 0.11, s * 0.0149, 0.069, 0.158, { c: 0 });
-      b.box('stainless', 0.0012, 0.003, 0.11, s * 0.0149, 0.0785, 0.158, { c: 0 });
-    }
-  }
-  b.box('stainless', 0.0042, 0.0072, 0.012, 0, 0.1018, 0.217, { c: 0.0008 });
-  b.bore(0.0066, 0, axis, 0.2285);
-  b.anchor('muzzle', 0, axis, 0.229);
-  // Schlitten (animiert)
-  b.part('slide', 0, axis, 0);
-  b.front('stainless', [[-0.0166, 0.055], [0.0166, 0.055], [0.0166, 0.087], [0.0115, 0.0975], [-0.0115, 0.0975], [-0.0166, 0.087]], 0.15, -0.064, { part: 'slide', bevel: 0.0018 });
-  b.box('stainless', 0.03, 0.03, 0.012, 0, 0.074, 0.083, { part: 'slide', rx: -0.35, c: 0.002 });
-  if (b.hi) {
-    for (let i = 0; i < 9; i++) for (const s of [-1, 1]) b.box('steelDark', 0.0012, 0.022, 0.0016, s * 0.0167, 0.072, -0.058 + i * 0.0036, { part: 'slide', rx: 0.12, c: 0 });
-    // Auswurffenster rechts
-    b.box('cavity', 0.0012, 0.012, 0.042, 0.0167, 0.084, 0.042, { part: 'slide', c: 0 });
-    b.box('steelBright', 0.001, 0.008, 0.036, 0.0161, 0.084, 0.043, { part: 'slide', c: 0 });
-    // Beidseitige Sicherung
-    for (const s of [-1, 1]) b.box('steel', 0.0045, 0.007, 0.018, s * 0.0188, 0.087, -0.048, { part: 'slide', c: 0.0012 });
-  }
-  b.box('steel', 0.02, 0.0075, 0.01, 0, 0.1005, -0.054, { part: 'slide', c: 0.0012 });
-  b.box('cavity', 0.004, 0.004, 0.0105, 0, 0.1032, -0.054, { part: 'slide', c: 0 });
-  b.anchor('slideGrab', 0, 0.082, -0.045, { part: 'slide', data: { travel: [0, 0, 0.036] } });
-  // Rahmen (schwarz): massiver Block unter dem Lauf bis zur Mündung
-  b.side('steel', [[-0.062, 0.056], [0.228, 0.056], [0.228, 0.036], [0.216, 0.03], [0.1, 0.03], [0.092, 0.04], [0.02, 0.042], [-0.04, 0.04], [-0.064, 0.046]], 0.031, 0, { bevel: 0.0024 });
-  if (b.hi) for (let i = 0; i < 3; i++) b.box('cavity', 0.02, 0.0015, 0.005, 0, 0.0298, 0.15 + i * 0.016, { c: 0 });
-  // Großer eckiger Abzugsbügel mit Fingerhaken
-  b.side('steel', [
-    [0.016, 0.042], [0.012, 0.004], [0.02, -0.01], [0.09, -0.01], [0.098, -0.005], [0.1, 0.003], [0.094, 0.008], [0.094, 0.034],
-    [0.087, 0.034], [0.087, 0.002], [0.082, -0.004], [0.024, -0.004], [0.019, 0.006], [0.022, 0.042],
-  ], 0.013, 0, { bevel: 0.0014 });
-  b.side('stainless', [[0.038, 0.044], [0.042, 0.026], [0.037, 0.008], [0.033, 0.009], [0.036, 0.026], [0.034, 0.044]], 0.006, 0, { bevel: 0.0008 });
-  b.anchor('trigger', 0, 0.02, 0.036);
-  // Griff: Rahmen + Gummigriffschalen mit Fingermulden
-  b.side('steel', [
-    [-0.04, 0.046], [0.02, 0.044], [0.017, 0.0], [0.012, -0.04], [0.006, -0.074], [0.0, -0.086], [-0.044, -0.086], [-0.052, -0.074],
-    [-0.056, -0.04], [-0.052, 0.0], [-0.05, 0.03], [-0.062, 0.042], [-0.064, 0.048],
-  ], 0.028, 0, { bevel: 0.004 });
-  b.side('rubber', [
-    [-0.036, 0.034], [0.013, 0.034], [0.012, 0.016], [0.007, 0.004], [0.01, -0.008], [0.004, -0.022], [0.007, -0.034],
-    [0.002, -0.05], [0.002, -0.066], [-0.004, -0.076], [-0.04, -0.077], [-0.046, -0.04], [-0.044, 0.0],
-  ], 0.037, 0, { bevel: 0.008, bevelSeg: 2 });
-  // Außenliegender Hahn (animiert)
-  b.part('hammer', 0, 0.066, -0.06);
-  b.side('steel', [[-0.058, 0.064], [-0.062, 0.062], [-0.078, 0.082], [-0.076, 0.092], [-0.068, 0.092], [-0.064, 0.082], [-0.056, 0.072]], 0.0085, 0, { part: 'hammer', bevel: 0.001 });
-  if (b.hi) b.box('cavity', 0.009, 0.005, 0.005, 0, 0.084, -0.07, { part: 'hammer', rx: -0.7, c: 0 });
-  if (b.hi) {
-    for (const s of [-1, 1]) for (const [v, u] of [[0.022, -0.012], [-0.058, -0.03]]) b.screw('steelBright', s * 0.0186, v, u, 'x', 0.0024);
-    b.box('steel', 0.004, 0.006, 0.026, -0.0168, 0.05, 0.005, { c: 0.001 }); // Schlittenfang links
-    b.box('steel', 0.004, 0.009, 0.007, -0.0145, 0.03, 0.016, { c: 0.001 }); // Magazinknopf
-    b.box('steelBright', 0.003, 0.008, 0.012, 0.0152, 0.05, 0.065, { c: 0.001 }); // Zerlegeknopf
-    for (const u of [0.02, 0.07]) b.cyl('steelBright', 0.0013, 0.0013, 0.0312, 0, 0.049, u, { axis: 'x', seg: 8 }); // Rahmenstifte
-    engrave(b, -0.0156, 0.0705, 0.19, ['ADLER .50'], { dir: -1, h: 0.0019, cw: 0.0012, line: 0.003 });
-  }
-  gripMag(b, { u: -0.024, v: -0.086, w: 0.024, len: 0.11, depth: 0.036, plate: 'steel', body: 'steel', cal: 'p50' });
-  b.anchor('ejection', 0.018, 0.084, 0.042, { rz: 0.35 });
-  const grip = { rake: RAKE, gw: 0.0185, gd: 0.0255, gu: 0.0, ho: 0.0105, tu: 0.056, wrap: 0.38, tf: 0.055 };   // wrap/tf: hands-v3
-  b.anchor('rightHandGrip', 0, -0.018, -0.02, { data: grip });
-  b.anchor('magWell', 0, -0.086, -0.024);
-  b.anchor('sight', 0, 0.1035, -0.054, { data: { type: 'iron', eyeRelief: 0.36 } });
-  b.anchor('leftHandGrip', 0, -0.018, -0.02, { data: { style: 'pistol', ...grip } });
   b.meta = { sight: 'iron', axis, kind: 'pistol' };
 }
 

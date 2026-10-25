@@ -183,6 +183,11 @@ gespeichert. Die Fotos selbst sind weder im Spiel noch im Repository enthalten. 
 | VP-9 Viper (linke Seite, Griffstück) | [HK MP5 of PASKAL](https://commons.wikimedia.org/wiki/File:HK_MP5_of_PASKAL.JPG) | Rizuan | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), verändert: nur Maße abgeleitet |
 | VP-9 Viper (Wahlhebel, Piktogramme) | [HK MP5 (6110432280)](https://commons.wikimedia.org/wiki/File:HK_MP5_(6110432280).jpg) | Andre Gustavo Stumpf Filho | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/), verändert: nur Maße abgeleitet |
 | VP-9 Viper (Visierbild) | [Visierlinie](https://commons.wikimedia.org/wiki/File:Visierlinie.jpg) | User:Mattes | gemeinfrei |
+| Adler .50 (Umriss, rechte Seite) | [Desert-Eagle-p1030134](https://commons.wikimedia.org/wiki/File:Desert-Eagle-p1030134.jpg) | Rama | [CC BY-SA 2.0 fr](https://creativecommons.org/licenses/by-sa/2.0/fr/deed.en), verändert: nur Maße abgeleitet |
+| Adler .50 (linke Seite) | [Desert-Eagle-p1030133](https://commons.wikimedia.org/wiki/File:Desert-Eagle-p1030133.jpg) | Rama | [CC BY-SA 2.0 fr](https://creativecommons.org/licenses/by-sa/2.0/fr/deed.en), verändert: nur Maße abgeleitet |
+| Adler .50 (Laufquerschnitt, Mündung) | [Desert Eagle Chrome](https://commons.wikimedia.org/wiki/File:Desert_Eagle_Chrome.JPG) | DeepThunder | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), verändert: nur Maße abgeleitet |
+| Adler .50 (Schiene, Patronen) | [DesertEagle 50AE](https://commons.wikimedia.org/wiki/File:DesertEagle_50AE.jpg) | Bobbfwed | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), verändert: nur Maße abgeleitet |
+| Adler .50 (offener Schlitten) | [Desert Eagle beside a box of Speer 325 Grain HP](https://commons.wikimedia.org/wiki/File:Desert_Eagle_beside_a_box_of_Speer_325_Grain_HP.jpg) | DeepThunder | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), verändert: nur Maße abgeleitet |
 
 ## Klänge
 

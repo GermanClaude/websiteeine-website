@@ -463,7 +463,7 @@ const FEEL = {
   sr_brecher: { handling: { mass: 6.4, inertia: 1.4, swayScale: 1.15, aimDrift: 0, reach: 1.34 }, recoil: { visual: 1.0, firstShotSpread: 1 } },
   sg_bulldog: { handling: { mass: 3.6, inertia: 1.1, swayScale: 1.05, aimDrift: 0.0005, reach: 1.06 }, recoil: { visual: 1.1, firstShotSpread: 1 } },
   pi_p9: { handling: { mass: 0.75, inertia: 0.55, swayScale: 0.8, aimDrift: 0.0006, reach: 0.56 }, recoil: { visual: 1.0, firstShotSpread: 0.75 } },
-  pi_adler: { handling: { mass: 2.0, inertia: 0.7, swayScale: 0.9, aimDrift: 0.0007, reach: 0.66 }, recoil: { visual: 1.2, firstShotSpread: 0.75 } },
+  pi_adler: { handling: { mass: 2.0, inertia: 0.7, swayScale: 0.9, aimDrift: 0.0007, reach: 0.6 }, recoil: { visual: 1.2, firstShotSpread: 0.75 } },   // reach 25.10.: Modell nach Foto 34 mm kürzer
   knife: { handling: { mass: 0.3, inertia: 0.4, swayScale: 0.7, aimDrift: 0, reach: 0 } },
   ar_k36: { handling: { mass: 2.9, inertia: 0.88, swayScale: 0.95, aimDrift: 0.00045, reach: 0.84 }, recoil: { visual: 0.95, firstShotSpread: 0.75 } },
   ar_bx20: { handling: { mass: 3.7, inertia: 0.92, swayScale: 0.95, aimDrift: 0.0004, reach: 0.92 }, recoil: { visual: 0.9, firstShotSpread: 0.7 } },

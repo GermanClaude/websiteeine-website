@@ -157,3 +157,31 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   Dreiecke/19 Netze/1,46 s, Kontakt 43 k/0,26 s; std 85 k/17/0,67 s; lite 41 k/16/0,49 s; Bots 364/3/14 ms. Erster Bau
   dreimal im selben Lauf mit P-9/M-17 (Last 6–7): VP-9 std 0,63–0,88 s, lite 0,45–0,96 s, max 1,8–2,6 s; P-9 std
   1,3–2,0 s, M-17 std 1,5–2,0 s (VP-9 std ≈ ½ P-9). Anschlag-Verdeckung 32 % (Augenabstand 0,14).
+- 25.10.: **Adler .50 nach Foto neu gebaut** (IMI Desert Eagle Mark XIX .50 AE, 6″; Seitenfoto „Desert-Eagle-p1030134“ von
+  Rama, CC BY-SA 2.0 fr, linke Seite „p1030133“ (Rama), Detailfotos „Desert Eagle Chrome“ und „Desert Eagle beside a box of Speer
+  325 Grain HP“ (DeepThunder, CC BY-SA 3.0), „DesertEagle 50AE“ (Bobbfwed, CC BY-SA 3.0) – siehe CREDITS.md; `adler-ref.js`
+  um −0,4° gerade gestellt, kalibriert über die Gesamtlänge 273,1 mm = 2150 px, Prüfmaße Lauf +2,6 %, Höhe −2,3 % wegen leichter
+  Perspektive). Neuer Bauplan `guns-adler.js` (alte Funktion aus `guns-pistol.js` entfernt, P-9 unverändert): Schlitten als
+  kurzer Block mit 45°-Fasen, Auswurffenster oben rechts mit Kanal zum Lager (Innenwände gestrahlt), Mulden der beidseitigen
+  Sicherung, 14 schräge Griffrillen als Atlas-Normalen; Lauf + Rahmen als EIN Distanzfeld (Schiene mit Schwalbenschwanz-Kerbe
+  und Querschlitzen, Schrägen zur Schulter, vertiefte Gravurfelder, Lager, Mündung mit 4,5 mm Bohrung und blanker Krone;
+  Staubschutz bis unter die Mündung mit Trennfuge und Mulde der Führungsstange, eckiger Bügel, Sporn, Schlitze für Hahn und
+  Abzug, unten offener Schacht, feine Fuge Lauf/Rahmen), Wickelgriff mit Kieselstruktur, glattem Rand und rundem Feld (eigenes
+  Fadenkreuz-Null-Zeichen). Kleinteile: Kimme mit Rechteckkimme und Punkten, Korn mit Punkt, Sicherung (Nabe, Schlitzschraube,
+  geriffelter Hebel, roter Punkt), gespannter Hahn mit geriffeltem Sporn, Abzug, Stifte, Schlittenfang links, Laufriegel rechts
+  (Platte, Arm, Inbusachse) mit Knopf links, Magazinhalter (rechts Schlitzkopf, links Knopf); Magazin aus Edelstahl mit
+  Zuführlippen, Sichtlöchern, breitem Boden nach Foto und `magRounds` (.50 AE). Gravuren als eigene Beschriftung (NULLPUNKT
+  WAFFENWERK, Nummer), keine Herstellerzeichen. Atlas je Stufe 2048 × 1024 / 1536 × 768 / Handy 1024 × 512 ohne Rauheit; linke
+  Seite in eigenem Band (keine Spiegelschrift). Neuer **Pistolen-Baukasten** (G6) `pistol-parts.js` (Kimme, Korn, Stiftköpfe,
+  Schlitzschrauben, Inbusachsen, Druckknöpfe, Riffelung, Atlas-Profile, schnelles Umrissfeld `outlineField`) und `pistol-tex.js`
+  (Gravur, Kieselmuster, Bürstenstrich, Körnung, Normalen) für Sperber, P-9A, Kobra. Bauzeit: erster Messlauf std 1,47 s (über
+  Budget) – Profil: Umrissfelder (Rahmen 223, Griff 207 Punkte, Griff doppelt, exakter Rückfall außerhalb des Rasters),
+  Detailkarten der Kleinteile, Normalen. Abhilfe: `outlineField` (exakt nur im Streifen um die Kante über Kanten-Fächer und
+  Zeilen-Schnittpunkte – gleiche Werte, Rahmen PC 282 → 64 ms), Griff-Feld je Bau einmal, Schranken über/unter Rahmen und Lauf,
+  Kleinteile mit den geteilten Strich-/Abriebkarten. Kosten (mess.mjs, Last ≈ 3,5): max 117 k Dreiecke/20 Netze/1,08–1,16 s,
+  Kontakt 19 k/0,12 s; std 50,7 k/20/0,67–0,68 s; lite 26,3 k/17/0,46–0,50 s; Bots 198/3/18 ms (P-9 im selben Lauf: max 1,62 s,
+  std 1,29 s, lite 1,41 s). Abweichungen vom Foto: Korn 5 mm statt
+  1,8 mm hoch (Visierlinie parallel zur Laufachse), nur der hintere Schlittenblock bewegt sich (Schlittenarme unter dem Lauf
+  fest am Rahmen), Verschlusskopf nicht gebaut (geschlossen vom Lager verdeckt), Griffanker wie alt (Hüfthaltung) bei echt
+  maßstäblichem, 34 mm kürzerem Modell → `FEEL.reach` 0,66 → 0,6; Anschlag-Verdeckung 18 % bei Augenabstand 0,36 (Pistolenwert;
+  Ziel 22–34 % – die Visierlinie liegt 92 mm über der Griffmitte, die Arme tiefer im Bild; 0,44 ergäbe 22 % bei winziger Kimme).
