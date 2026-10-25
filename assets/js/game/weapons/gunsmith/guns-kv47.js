@@ -6,14 +6,14 @@
 // Detailstufen: PC hoch/ultra (b.max) feinste Netze + Kanten-/Muldenfarbe + Kleinteile, PC niedrig/mittel Standard,
 // Handy (b.lite) gröbere Netze und kleiner Atlas, Bots ≤ 600 Dreiecke – Anker in allen Stufen gleich.
 import * as R from './kv47-ref.js';
-import { woodUV, recUV } from './kv47-tex.js';
+import { woodUV, recUV, hgUpUV } from './kv47-tex.js';
 import { akKit, akReceiver, akDustCover, akSafety, akCarrier, akRearSight, akFrontSight, akBarrel, akGasTube, akLowerHandguard, akStock, akGrip, akTriggerGroup, akMagazine, akBot } from './ak-parts.js';
 
 const { U, V } = R;
 const MAT = { rec: 'kv47Rec', steel: 'kv47Steel', wood: 'kv47Wood', mag: 'kv47Mag', bcg: 'kv47Bcg' };
 
 export function kv47(b) {
-  const K = akKit(b, R, { mat: MAT, uv: { rec: recUV, wood: woodUV } });
+  const K = akKit(b, R, { mat: MAT, uv: { rec: recUV, wood: woodUV, hgUp: hgUpUV } });
   let end;
   if (b.hi) {
     akStock(K); akGrip(K); akReceiver(K); akDustCover(K); akSafety(K); akCarrier(K); akTriggerGroup(K);
@@ -26,7 +26,7 @@ export function kv47(b) {
   b.anchor('rightHandGrip', 0, 0, 0, { data: { rake: 0.33, gw: 0.0148, gd: 0.0198, gu: 0.0, ho: 0.026, tu: 0.04 } });
   b.anchor('leftHandGrip', 0, V(1098), U(2470), { data: { style: 'under', w: 0.022, h: 0.026 } });
   b.anchor('magWell', 0, V(R.MAG_PIVOT[1]), U(R.MAG_PIVOT[0]));
-  b.anchor('sight', 0, V(R.SIGHT_Y), U(R.RS_BLADE[0] + 12), { data: { type: 'iron', eyeRelief: 0.38 } });
+  b.anchor('sight', 0, V(R.SIGHT_Y), U(R.RS_BLADE[0] + 12), { data: { type: 'iron', eyeRelief: 0.32 } });
   // Wahlhebel (in SICHER gebaut): DAUER und EINZEL nach den Rastmarken rechts (Lasche 12° bzw. 19° tiefer)
   // Wahlhebel: Drehung um die Nabe von SICHER (oben, wie im Foto) auf die Marken D (−13,6°) und E (−20,5°), aus SEL_MARKS
   b.meta = { sight: 'iron', axis: R.AXIS, kind: 'rifle', selector: { auto: -0.24, semi: -0.36 } };

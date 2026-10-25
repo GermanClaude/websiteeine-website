@@ -144,3 +144,23 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   Bauzeit im Container stark lastabhängig (gleicher Lauf: KV-47 Standard ≈ 1,5× M-17 Standard) – größter Posten sind die
   gezeichneten Atlanten (≈ 0,4–0,8 s, einmal je Sitzung). Vergleich Modell ↔ Foto: `tools/ref/vergleich.mjs` (Umrisse
   decken), Bilder vorher/nachher im Bericht.
+- 25.10. (Nachbesserung nach der Prüfung, KV-47): **Anschlag** – die Visierlinie lag auf dem Kerbengrund, das Korn
+  verschwand hinter dem Kimmenblatt; jetzt Kornspitze = Blattoberkante (y 780), U-Kerbe 3,6 × 3 mm, Korn 2,4 mm,
+  Kornschutz oben offen, Visierfuß-Buckel/Knöpfe unter der Linie, Augenabstand 0,32 → Korn mittig in der Kerbe,
+  Verdeckung 22 %. **Geometrie nach Foto**: Gehäuseheck unter dem Deckel, vorderes Verschlussstück als Platte mit
+  flachem Niet, Visierfuß bis aufs Gehäuse, Gasblock mit Arm, Laufring und Lücke + Bajonetthalter mit Stiften,
+  Korntrommel gefast und vorstehend, Kornfenster gerundet, Schaftkappe bündig (Distanzfeld nach Zeilenscan) mit Klappe,
+  Schaftunterkante nach Spaltenscan (die alte Kontur hatte Schatten und Riemenbügel mitgenommen), Riemenbügel 340–470,
+  Griff und Abzugsbügel-Platte oben ans Gehäuse, Magazin ohne Stufe, 4 Rippen als flach gewölbte Wülste (≈ 5 mm) +
+  Feldstufe statt Nut, Gasrohr mit 8 gerundeten Sicken, Hülsen um die Enden des oberen Handschutzes in Holzgröße,
+  Handschutz-Schwellung weich auslaufend, Visiermarken bündig, Hebelarm dicker, Schlüsselloch, links Prägungen V/X/V,
+  Bot-Stufe mit Gasblock und offenem Bügel. **Holz**: oberer Handschutz zylindrisch abgebildet (glatte Normalen,
+  Hirnholz an den Stirnflächen), Schaft oben/unten ohne Naht, Ton dunkler/brauner mit Flammung und Randabdunklung,
+  Dellen dunkel statt erhaben, Grundglanz unter dem Lack schwach (sonst rosa Schleier). **Bauzeit**: Foto-Atlanten
+  werden im Hintergrund in 6-ms-Scheiben gezeichnet (`textures.js` `scheduleAtlas`, Platzhalter sofort; Fotostudio und
+  Prüfwerkzeuge warten mit `atlasesReady`), Netzweiten gröber. Messung (`tools/ref/mess.mjs`): Dreiecke max 224 486 /
+  Standard 87 080 / Handy 42 830 / Bots 336, 12 Netze (Bots 3), Bau max 1,19 s / Standard 0,83 s / Handy 0,69 s / Bots
+  23 ms (Container, Last ≈ 3; M-17 Standard im selben Lauf 1,29 s), davon Atlanten nur noch ≈ 20 ms im Bau (Rest ≈ 1 s in
+  Scheiben), Kontaktgitter max 42 307 Dreiecke / 231 ms (Magazinrippen nur als sichtbarer Bogen), Texturen PC 30,7 MB,
+  Handy eigene Atlanten 4,0 MB ohne Rauheitskarten (mit Mipmaps und den geteilten Stahl-/Magazinkacheln 8 MB).
+  `tools/vorbau-test.mjs` prüft die KV-47 jetzt als Foto-Waffe (Platzhalter-Fall).

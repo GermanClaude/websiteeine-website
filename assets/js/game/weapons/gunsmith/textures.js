@@ -73,6 +73,38 @@ export function cached(key, make) {
   return cache.get(key);
 }
 
+// ---------------------------------------------------------------- Atlanten im Hintergrund zeichnen
+// Zeitgeteilte Atlas-Aufträge (25.10., KV-47 – Bauzeit-Budget der Bauanleitung 3.4): Ein Foto-Atlas wird sofort als
+// Platzhalter (volle Größe, Grundfarbe) geliefert und danach in Scheiben zu ≤ ATLAS_SLICE_MS gezeichnet – der Modellbau
+// blockiert nicht mehr ≈ 0,5 s, die Arbeit verteilt sich auf viele kurze Zeitscheiben (Lobby/Ladebild/Leerlauf).
+// job = Generator, der nach jedem Teilschritt yield-et; fertig = Generator beendet (er setzt selbst needsUpdate).
+const ATLAS_JOBS = [], ATLAS_WAIT = [], ATLAS_SLICE_MS = 6;
+let atlasTimer = 0;
+function runAtlasSlices() {
+  atlasTimer = 0;
+  const t0 = performance.now();
+  while (ATLAS_JOBS.length && performance.now() - t0 < ATLAS_SLICE_MS) {
+    const job = ATLAS_JOBS[0];
+    if (job.cancelled || job.gen.next().done) ATLAS_JOBS.shift();
+  }
+  if (ATLAS_JOBS.length) atlasTimer = setTimeout(runAtlasSlices, 0);
+  else for (const f of ATLAS_WAIT.splice(0)) f();
+}
+/** Auftrag einreihen; liefert { cancel() } (z. B. wenn der Atlas vor dem Ende freigegeben wird). */
+export function scheduleAtlas(gen) {
+  const job = { gen, cancelled: false };
+  ATLAS_JOBS.push(job);
+  if (!atlasTimer) atlasTimer = setTimeout(runAtlasSlices, 0);
+  return { cancel() { job.cancelled = true; } };
+}
+/** Promise: alle eingereihten Atlanten fertig gezeichnet (Fotostudio, Prüfwerkzeuge). */
+export function atlasesReady() { return ATLAS_JOBS.length ? new Promise((r) => ATLAS_WAIT.push(r)) : Promise.resolve(); }
+/** Alle offenen Atlas-Aufträge sofort zu Ende zeichnen (synchron, für Werkzeuge ohne Ereignisschleife). */
+export function finishAtlases() {
+  while (ATLAS_JOBS.length) { const job = ATLAS_JOBS.shift(); if (!job.cancelled) while (!job.gen.next().done); }
+  for (const f of ATLAS_WAIT.splice(0)) f();
+}
+
 // Höhenfeld → Normal-Map (Sobel, kachelnd)
 export function heightToNormal(height, w, h, strength = 2) {
   // willReadFrequently: Leinwand im Hauptspeicher – gleiche Pixel, aber halfMaps (Handy-Atlas) liest sie ohne Abgleich

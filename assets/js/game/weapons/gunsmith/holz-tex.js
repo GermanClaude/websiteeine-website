@@ -23,17 +23,23 @@ const lerp = (a, b, t) => a + (b - a) * t;
 
 /** Farbtafeln (sRGB 0…255): früh/spät = helle/dunkle Holzzone, linie = Spätholzlinie, fleck = Markstrahlen. */
 export const WOOD = {
-  // Ostblock-Buche/Birke, rotbraun lackiert (AKM-Schaft; Foto ohne Glanzlicht: Median 114/50/32, Fotostudio hellt ≈ +30 % auf)
-  akBirke: { early: [118, 54, 28], late: [66, 26, 13], linie: [48, 19, 9], fleck: [146, 76, 36], dark: [38, 15, 8], lack: 0.3, ringe: 420 },
-  // Handschutz derselben Waffe: etwas dunkler und röter (Foto ohne Glanzlicht: Median 103/40/24)
-  akHand: { early: [112, 48, 23], late: [62, 23, 10], linie: [45, 17, 7], fleck: [142, 72, 32], dark: [34, 14, 6], lack: 0.28, ringe: 460 },
+  // Ostblock-Buche/Birke, rotbraun lackiert (AKM-Schaft). Prüfung 25.10.: dunkler und satter (Foto oben ohne Glanzlicht
+  // Median 94/31/13, Streuung 30–61 – das Modell lag bei 124/62/48 und 74–80, also zu hell, zu rosa, zu gleichmäßig);
+  // der rosa Schleier kam vom Grundglanz (Lackholz: specularIntensity 0,4 in materials.js), danach Ton etwas
+  // brauner/oranger (Foto Mitteltöne G ≈ 0,5 · R)
+  akBirke: { early: [108, 46, 16], late: [48, 19, 6], linie: [33, 13, 4], fleck: [186, 104, 40], dark: [25, 10, 4], lack: 0.46, ringe: 420 },
+  // Handschutz derselben Waffe: im Foto gleich hell, etwas röter
+  akHand: { early: [112, 46, 15], late: [50, 19, 6], linie: [33, 12, 4], fleck: [186, 100, 38], dark: [24, 9, 4], lack: 0.44, ringe: 460 },
+  // Hirnholz (Stirnflächen): saugt mehr Lack, deutlich dunkler, kaum Glanz
+  akHirn: { early: [70, 26, 10], late: [36, 12, 5], linie: [26, 9, 3], fleck: [96, 44, 18], dark: [20, 8, 3], lack: 0.5, ringe: 900 },
   walnuss: { early: [128, 84, 52], late: [80, 48, 28], linie: [52, 30, 18], fleck: [150, 102, 64], dark: [40, 24, 14], lack: 0.4, ringe: 260 },
 };
 
 /**
  * Lackholz in einen Atlas-Bereich malen (25.10.: ruhiger, nach Foto – feine dunkle Faserlinien statt breiter Streifen,
- * kleine helle Markstrahlen, große Farbwolken; Lack glatt, also kaum Relief). o: { pal (WOOD.*), seed, wear (0…1,
- * Druckstellen/Kratzer), skip(ix, iy) → true = Pixel auslassen }. 6 Rauschabfragen je Pixel.
+ * kleine helle Markstrahlen, große Farbwolken; Lack glatt, also kaum Relief; 25.10. Flammung und Randabdunklung).
+ * o: { pal (WOOD.*), seed, wear (0…1, Druckstellen/Kratzer), skip(ix, iy) → true = Pixel auslassen, edge(u, v) → Abstand
+ * zum Bauteilumriss in m (nur im Grobraster abgefragt) }. 6 Rauschabfragen je Pixel.
  */
 export function paintWood(px, area, toModel, o = {}) {
   const P = o.pal || WOOD.akBirke, s = o.seed ?? 1, wear = o.wear ?? 0.5;
@@ -41,47 +47,52 @@ export function paintWood(px, area, toModel, o = {}) {
   if (!(ax1 > ax0 && ay1 > ay0)) return;
   // Großräumige Anteile (Faserverzug, Farbwolken, Masken) auf einem Raster je 4 Pixel vorrechnen und bilinear lesen –
   // halbiert die Rauschabfragen je Pixel (toModel ist je Bereich affin, das Raster also exakt genug)
-  const S = 4, cw = Math.ceil((ax1 - ax0) / S) + 2, ch = Math.ceil((ay1 - ay0) / S) + 2, LF = new Float32Array(cw * ch * 4);
+  // Kanal 4 (25.10.): Flammung – wellige, längs gestreckte Hell-Dunkel-Bänder; Kanal 5: Randabdunklung (o.edge(u, v) →
+  // Abstand zum Umriss in m; Lack und Schmutz sammeln sich an den Kanten, im Foto deutlich dunkler)
+  const S = 4, NC = 6, cw = Math.ceil((ax1 - ax0) / S) + 2, ch = Math.ceil((ay1 - ay0) / S) + 2, LF = new Float32Array(cw * ch * NC);
   for (let cy = 0; cy < ch; cy++) for (let cx = 0; cx < cw; cx++) {
-    const [u, v] = toModel(ax0 + cx * S, ay0 + cy * S), k = (cy * cw + cx) * 4;
+    const [u, v] = toModel(ax0 + cx * S, ay0 + cy * S), k = (cy * cw + cx) * NC;
     LF[k] = (vn(u * 6, v * 18, s) - 0.5) * 9 + (vn(u * 26, v * 70, s + 5) - 0.5) * 1.8;
     LF[k + 1] = vn(u * 4, v * 7, s + 9) * 0.65 + vn(u * 14, v * 24, s + 10) * 0.35;
-    LF[k + 2] = sstep(0.55, 0.8, vn(u * 16, v * 30, s + 22));
+    LF[k + 2] = sstep(0.45, 0.75, vn(u * 16, v * 30, s + 22));
     LF[k + 3] = sstep(0.6, 0.8, vn(u * 7, v * 7, s + 52));
+    LF[k + 4] = vn(u * 9, v * 95 + 3.5 * vn(u * 2.2, v * 6, s + 71), s + 73) - 0.5;
+    LF[k + 5] = o.edge ? 1 - sstep(0, 0.009, o.edge(u, v, ax0 + cx * S, ay0 + cy * S)) : 0;
   }
   for (let iy = ay0; iy < ay1; iy++) for (let ix = ax0; ix < ax1; ix++) {
     if (o.skip && o.skip(ix, iy)) continue;
     const [u, v] = toModel(ix, iy);
     const gx = (ix - ax0) / S, gy = (iy - ay0) / S, gi = gx | 0, gj = gy | 0, fx = gx - gi, fy = gy - gj;
-    const k00 = (gj * cw + gi) * 4, k10 = k00 + 4, k01 = k00 + cw * 4, k11 = k01 + 4;
+    const k00 = (gj * cw + gi) * NC, k10 = k00 + NC, k01 = k00 + cw * NC, k11 = k01 + NC;
     const lf = (c) => (LF[k00 + c] * (1 - fx) + LF[k10 + c] * fx) * (1 - fy) + (LF[k01 + c] * (1 - fx) + LF[k11 + c] * fx) * fy;
     // Faserverlauf: lange, sanft verzogene Linien entlang u; Abstand und Stärke je Linie verschieden, nur zart sichtbar
     const t = v * P.ringe + lf(0);
     const ti = Math.floor(t), f = t - ti, ri = hash2(ti, 7, s);
     const line = (1 - sstep(0.0, 0.06 + 0.1 * ri, f)) * ri * ri;
     // Farbwolken (groß, kräftig – im Foto hell/dunkel geflammt) und feine Längsstreifen
-    const cloud = lf(1);
+    const cloud = lf(1), flame = lf(4), edge = lf(5);
     const streak = vn(u * 28, v * 1500, s + 13) - 0.5;
-    const k = Math.max(0, Math.min(1, 0.05 + 1.0 * (cloud - 0.15) + streak * 0.14));
+    const k = Math.max(0, Math.min(1, 0.5 + 1.6 * (cloud - 0.5) + flame * 0.9 + streak * 0.18 - edge * 0.45));
     let R = lerp(P.late[0], P.early[0], k), G = lerp(P.late[1], P.early[1], k), B = lerp(P.late[2], P.early[2], k);
     const ln = line * 0.38;
     R = lerp(R, P.linie[0], ln); G = lerp(G, P.linie[1], ln); B = lerp(B, P.linie[2], ln);
     // Markstrahlen: kurze helle Striche (Buche/Birke, im Foto orange Sprenkel), gehäuft in einzelnen Feldern
-    const fleck = sstep(0.86, 0.95, vn(u * 320, v * 1150, s + 21)) * lf(2);
-    R = lerp(R, P.fleck[0], fleck * 0.5); G = lerp(G, P.fleck[1], fleck * 0.5); B = lerp(B, P.fleck[2], fleck * 0.5);
+    const fleck = sstep(0.8, 0.93, vn(u * 320, v * 1150, s + 21)) * lf(2);
+    R = lerp(R, P.fleck[0], fleck * 0.7); G = lerp(G, P.fleck[1], fleck * 0.7); B = lerp(B, P.fleck[2], fleck * 0.7);
     // Poren (dunkle Pünktchen, längs gezogen)
     const pore = sstep(0.9, 0.98, vn(u * 1300, v * 4200, s + 31));
-    // Gebrauchsspuren: seltene kleine Druckstellen (zwei Rauschlagen multipliziert → rundlich statt kantig), feine Kratzer
-    const dent = sstep(0.55, 0.8, vn(u * 220, v * 220, s + 51) * vn(u * 170 + 3.1, v * 170 - 1.7, s + 53)) * lf(3) * wear;
+    // Gebrauchsspuren: Druckstellen als dunkle, matte, unregelmäßige Flecken (Schmutz in der Delle; Prüfung 25.10.: die
+    // runden Mulden mit starker Normalen wirkten wie erhabene Tropfen), feine Kratzer
+    const dent = sstep(0.5, 0.78, vn(u * 150, v * 260, s + 51) * vn(u * 90 + 3.1, v * 330 - 1.7, s + 53)) * lf(3) * wear;
     const scr = sstep(0.975, 0.995, vn(u * 22 + v * 300, v * 16 - u * 5, s + 61)) * wear;
-    const dk = Math.min(0.8, pore * 0.35 + dent * 0.4);
+    const dk = Math.min(0.85, pore * 0.35 + dent * 0.65 + edge * 0.25);
     R = lerp(R, P.dark[0], dk) + scr * 22; G = lerp(G, P.dark[1], dk) + scr * 15; B = lerp(B, P.dark[2], dk) + scr * 10;
     const i = iy * px.W + ix, j = i * 4;
     px.a[j] = R; px.a[j + 1] = G; px.a[j + 2] = B; px.a[j + 3] = 255;
     // Rauheit: Lack glänzt, wolkig abgegriffen; in Poren/Druckstellen/Kratzern stumpf
-    px.r[i] = Math.min(1, P.lack + 0.1 * (cloud - 0.5) + pore * 0.2 + dent * 0.3 + scr * 0.3);
-    // Höhe: unter dem Lack fast glatt, Poren und Druckstellen leicht vertieft
-    px.h[i] = 0.5 - line * 0.006 - pore * 0.025 - dent * 0.05 - scr * 0.03;
+    px.r[i] = Math.min(1, P.lack + 0.14 * (cloud - 0.5) + pore * 0.2 + dent * 0.35 + scr * 0.3 + edge * 0.08);
+    // Höhe: unter dem Lack fast glatt, Poren leicht vertieft, Druckstellen nur flach (Farbe trägt sie)
+    px.h[i] = 0.5 - line * 0.006 - pore * 0.025 - dent * 0.015 - scr * 0.03;
   }
 }
 
@@ -108,7 +119,8 @@ export function paintBakelite(px, area, toModel, o = {}) {
 
 /**
  * Fischhaut im Polygon poly (Atlas-Pixel): Rautenraster unter ±ang zur Achse, Teilung pitch (Atlas-Pixel), erhabene
- * Pyramiden. Farbe in den Rillen dunkler, Rauheit höher (Schmutz). aspect = Pixelmaß y/x (nicht quadratische Atlanten).
+ * Pyramiden. Farbe in den Rillen dunkler, Rauheit höher (Schmutz). aspect = Pixelmaß y/x (nicht quadratische Atlanten),
+ * rows = [y0, y1] nur diese Atlaszeilen (zeitgeteilt zeichnen).
  */
 export function checkering(px, poly, o = {}) {
   const pitch = o.pitch ?? 6, ang = o.ang ?? 0.55, asp = o.aspect ?? 1, rim = o.rim ?? 3;
@@ -117,7 +129,8 @@ export function checkering(px, poly, o = {}) {
   const inside = (x, y) => { let c = false; for (let a = 0, b = poly.length - 1; a < poly.length; b = a++) { const [xa, ya] = poly[a], [xb, yb] = poly[b]; if ((ya > y) !== (yb > y) && x < (xb - xa) * (y - ya) / (yb - ya) + xa) c = !c; } return c; };
   const segD = (x, y) => { let d = Infinity; for (let a = 0, b = poly.length - 1; a < poly.length; b = a++) { const [xa, ya] = poly[a], [xb, yb] = poly[b], dx = xb - xa, dy = (yb - ya) * asp, t = Math.max(0, Math.min(1, ((x - xa) * dx + (y - ya) * asp * dy) / (dx * dx + dy * dy))); d = Math.min(d, Math.hypot(x - xa - t * dx, (y - ya) * asp - t * dy)); } return d; };
   const ca = Math.cos(ang), sa = Math.sin(ang);
-  for (let iy = Math.max(0, y0 | 0); iy <= Math.min(px.H - 1, y1); iy++) for (let ix = Math.max(0, x0 | 0); ix <= Math.min(px.W - 1, x1); ix++) {
+  const r0 = o.rows ? Math.max(y0, o.rows[0]) : y0, r1 = o.rows ? Math.min(y1, o.rows[1]) : y1;   // o.rows: nur diese Zeilen (zeitgeteilt)
+  for (let iy = Math.max(0, r0 | 0); iy <= Math.min(px.H - 1, r1); iy++) for (let ix = Math.max(0, x0 | 0); ix <= Math.min(px.W - 1, x1); ix++) {
     if (!inside(ix + 0.5, iy + 0.5)) continue;
     const X = ix, Y = iy * asp;
     const p = (X * ca + Y * sa) / pitch, q = (X * ca - Y * sa) / pitch;

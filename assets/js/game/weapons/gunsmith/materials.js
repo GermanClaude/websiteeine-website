@@ -144,9 +144,10 @@ const DEFS = {
   // Gehäuse schwarz lackiert (Atlas mit Prägungen), brünierter Stahl (Lauf, Visier, Kleinteile), Magazin und Träger
   kv47Wood: () => kv47WoodMat(false), 'kv47Wood@lite': () => kv47WoodMat(true),
   kv47Rec: () => kv47RecMat(false), 'kv47Rec@lite': () => kv47RecMat(true),
-  kv47Steel: () => wearPatch(std({ color: 0x38393c, metalness: 0.45, roughness: 0.48, roughnessMap: fine(finishMaps('steel').rough, 2.5), normalMap: fine(finishMaps('steel').normal, 4), normalScale: new THREE.Vector2(0.14, 0.14) }), { col: 0x8a8e94, metal: 1, rough: 0.28, bump: 0.00005, tone: 0.1 }),
-  kv47Mag: () => wearPatch(std({ color: 0x484c52, metalness: 0.62, roughness: 0.32, roughnessMap: fine(finishMaps('steel').rough, 2), normalMap: fine(finishMaps('steel').normal, 3), normalScale: new THREE.Vector2(0.16, 0.16) }), { col: 0x9a9ea4, metal: 1, rough: 0.24, k: 1.2, bump: 0.00008, tone: 0.12 }),
-  kv47Bcg: () => wearPatch(phys({ color: 0x4a4d52, metalness: 0.72, roughness: 0.34, clearcoat: 0.35, clearcoatRoughness: 0.25, roughnessMap: fine(finishMaps('steel').rough, 3), normalMap: fine(finishMaps('steel').normal, 5), normalScale: new THREE.Vector2(0.08, 0.08) }), { col: 0xa4a7ab, metal: 1, rough: 0.22, bump: 0.00003, tone: 0.06 }),
+  kv47Steel: () => wearPatch(std({ color: 0x252629, metalness: 0.5, roughness: 0.46, roughnessMap: fine(finishMaps('steel').rough, 2.5), normalMap: fine(finishMaps('steel').normal, 4), normalScale: new THREE.Vector2(0.14, 0.14) }), { col: 0x8a8e94, metal: 1, rough: 0.28, bump: 0.00005, tone: 0.1 }),
+  // Magazin (Prüfung 25.10.: wirkte flach blaugrau): brünierter Stahl, fast schwarz, glänzend, Kanten/Rippen blank gerieben
+  kv47Mag: () => wearPatch(std({ color: 0x41454b, metalness: 0.78, roughness: 0.3, roughnessMap: fine(finishMaps('steel').rough, 2), normalMap: fine(finishMaps('steel').normal, 3), normalScale: new THREE.Vector2(0.12, 0.12) }), { col: 0xb4b8be, metal: 1, rough: 0.2, k: 1.5, bump: 0.00006, tone: 0.14 }),
+  kv47Bcg: () => wearPatch(phys({ color: 0x3a3c40, metalness: 0.72, roughness: 0.34, clearcoat: 0.35, clearcoatRoughness: 0.25, roughnessMap: fine(finishMaps('steel').rough, 3), normalMap: fine(finishMaps('steel').normal, 5), normalScale: new THREE.Vector2(0.08, 0.08) }), { col: 0xa4a7ab, metal: 1, rough: 0.22, bump: 0.00003, tone: 0.06 }),
   // Trommelmagazin: eigener Kunststoff (keine Tarnung) und Deckel mit eigener Textur
   drumBody: () => std({ color: 0x2a2c30, map: polymerMap(), metalness: 0.0, roughness: 0.66, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.2, 0.2) }),
   drumFace: () => std({ color: 0xffffff, map: drumFaceMap(), normalMap: drumFaceNormal(), normalScale: new THREE.Vector2(0.9, 0.9), metalness: 0.0, roughness: 0.62 }),
@@ -202,9 +203,11 @@ const DEFS = {
 // key@lite mit halber Kantenlänge (¼ Speicher); texKey = Eintrag im Textur-Cache, den freeAtlasMaterials freigibt
 function p9SlideMat(lite) { const t = p9SlideMaps(lite); const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: t.map, metalness: 0.78, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), envMapIntensity: 1.1 }); m.userData.camoRepeat = SLIDE_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0x9a9c9f, metal: 1, rough: 0.28 }); }
 function p9FrameMat(lite) { const t = p9FrameMaps(lite); const m = std({ color: 0x232427, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FRAME_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, POLY_WEAR); }
-// Lackholz: Klarlack-Schicht (spiegelt weich), Abrieb heller und matt; Gehäuse: schwarzer Lack, an Kanten Stahl blank
-function kv47WoodMat(lite) { const t = kv47WoodMaps(lite); const m = phys({ color: 0xffffff, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), clearcoat: 0.5, clearcoatRoughness: 0.32 }); m.userData.camoRepeat = WOOD_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0xb07850, metal: 0, rough: 0.62, k: 0.55, bump: 0.00005, tone: 0.06, smear: 0.2 }); }
-function kv47RecMat(lite) { const t = kv47RecMaps(lite); const m = phys({ color: 0xffffff, map: t.map, metalness: 0.35, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), clearcoat: 0.18, clearcoatRoughness: 0.4 }); m.userData.camoRepeat = REC_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0x8c8f94, metal: 1, rough: 0.3, bump: 0.00006, tone: 0.08 }); }
+// Lackholz: Klarlack-Schicht (spiegelt weich), Abrieb heller und matt; Gehäuse: schwarzer Lack, an Kanten Stahl blank.
+// Prüfung 25.10.: Holz-Abrieb schwächer (k 0,35) – im Foto keine hellen Ringe an den Handschutz-Enden, Lack weniger glänzend;
+// Grundglanz unter dem Lack schwach (specularIntensity 0,4), sonst liegt ein rosa Schleier über dem Holz (Foto: dunkle Zonen satt)
+function kv47WoodMat(lite) { const t = kv47WoodMaps(lite); const m = phys({ color: 0xffffff, map: t.map, metalness: 0.0, roughness: t.roughnessMap ? 1.0 : t.roughness, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), clearcoat: 0.2, clearcoatRoughness: 0.34, specularIntensity: 0.4 }); m.userData.camoRepeat = WOOD_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0xb07850, metal: 0, rough: 0.62, k: 0.35, bump: 0.00005, tone: 0.06, smear: 0.2 }); }
+function kv47RecMat(lite) { const t = kv47RecMaps(lite); const m = phys({ color: 0xffffff, map: t.map, metalness: 0.35, roughness: t.roughnessMap ? 1.0 : t.roughness, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), clearcoat: 0.18, clearcoatRoughness: 0.4 }); m.userData.camoRepeat = REC_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0x8c8f94, metal: 1, rough: 0.3, bump: 0.00006, tone: 0.08 }); }
 function m17FurnMat(lite) { const t = m17FurnMaps(lite); const m = std({ color: 0x26272a, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FURN_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, POLY_WEAR); }
 // Schlüssel mit eigener Handy-Fassung (key@lite) und Atlas-Materialien (je Waffe freigebbar)
 const LITE = new Set(['m17Furn', 'p9Slide', 'p9Frame', 'kv47Wood', 'kv47Rec']);
@@ -219,7 +222,7 @@ const LOD_COLORS = { woodWarm: 0x6a3a22, woodWalnut: 0x4a2d1c, polymerTan: 0x665
 // Metall-Gruppe wie metalness ≥ 0,5
 const LOD_META = { m17Rec: [0x2b2d30, 0], m17Ras: [0x292b2e, 0], m17Steel: [0x2b2c2d, 0], m17Mag: [0x4a4d51, 0], m17Bcg: [0x2c2d2e, 1],
   m17Furn: [0x26272a, 0], p9Slide: [0x5c5e62, 1], p9Frame: [0x232427, 0],
-  kv47Wood: [0x5a2815, 0], kv47Rec: [0x2a2b2e, 0], kv47Steel: [0x38393c, 1], kv47Mag: [0x484c52, 1], kv47Bcg: [0x4a4d52, 1] };
+  kv47Wood: [0x4e1f0c, 0], kv47Rec: [0x222325, 0], kv47Steel: [0x252629, 1], kv47Mag: [0x33363b, 1], kv47Bcg: [0x3a3c40, 1] };
 const _lodCol = new Map();
 /** Farbe (linear) + Metall-Gruppe eines Materials für die zusammengeführte Bot-Detailstufe. */
 export function lodInfo(key) {

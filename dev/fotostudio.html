@@ -22,6 +22,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { createWeaponModel, applyCamo } from '../assets/js/game/weapons/models.js';
 import { DETAIL } from '../assets/js/game/weapons/gunsmith/builder.js';
+import { atlasesReady } from '../assets/js/game/weapons/gunsmith/textures.js';
 
 const q = new URLSearchParams(location.search);
 const W = +(q.get('w') || 1600), H = +(q.get('h') || 1000);
@@ -86,6 +87,7 @@ composer.setSize(W, H);
 composer.addPass(new RenderPass(scene, camera));
 if (q.get('ao') !== '0') { const ao = new GTAOPass(scene, camera, W, H); ao.output = GTAOPass.OUTPUT.Default; composer.addPass(ao); }
 composer.addPass(new OutputPass());
+await atlasesReady();                     // im Hintergrund gezeichnete Foto-Atlanten abwarten (25.10.)
 for (let i = 0; i < 2; i++) composer.render();
 window.__studio.ready = true;
 </script>

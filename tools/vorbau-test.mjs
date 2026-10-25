@@ -222,13 +222,14 @@ try {
     const G = window.__game, P = G.player, w = P.weapon, vm = w.viewModel;
     const M = await import('/assets/js/game/weapons/models.js');
     const W = G.data.WEAPONS;
-    const ids = ['ar_kv47', 'smg_vp9', 'smg_qx90', 'mr_sk14', 'sg_bulldog', 'pi_adler'].filter((id) => W[id]);
+    // 25.10.: ohne ar_kv47 – die KV-47 ist jetzt Foto-Waffe (PHOTO_MODELS, Platzhalter-Fall wie die P-9 oben)
+    const ids = ['smg_vp9', 'smg_qx90', 'mr_sk14', 'sg_bulldog', 'pi_adler'].filter((id) => W[id] && !M.isPhotoWeapon(W[id].model || id));
     const id = ids.find((x) => M.weaponBuildCost(W[x].model || x) === null && !vm._models.has(x)) || ids[0];
     const unknown = M.weaponBuildCost(W[id].model || id) === null;
     w.setLoadout({ primary: id, secondary: null, pickup: { id }, keepPickups: true });
     for (let i = 0; i < 60 && !(vm.cur && vm.cur.id === id); i++) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     const st = vm.buildState();
-    const out = { id, unknown, stub: st.stub, curTier: st.curTier, collider: !!vm.cur.collider, inGun: st.inGun };
+    const out = { id, unknown, stub: st.stub, curTier: st.curTier, collider: !!vm.cur.collider, inGun: st.inGun, kvPhoto: M.isPhotoWeapon('kv47') };
     // MG-Stellung (künstlich am Spieler, wie mappoints.js): HM-60 sofort als Ego-Fassung
     const e = { x: P.position.x, y: P.position.y, z: P.position.z, dx: 0, dz: -1, arc: 1.2 };
     out.mounted = G.points.mount(e);
@@ -241,6 +242,7 @@ try {
     return out;
   });
   check(!c1.stub && c1.curTier === 'std' && c1.collider && c1.inGun, `alte Bauweise (${c1.id}, Kosten ${c1.unknown ? 'unbekannt' : 'gemessen'}) sofort als Ego-Fassung`);
+  check(c1.kvPhoto, 'KV-47 ist Foto-Waffe (Platzhalter-Fall, nicht alte Bauweise)');
   check(c1.mounted && c1.mg.cur && c1.mg.cur.startsWith('lmg_hm60') && !c1.mg.stub && c1.mg.curTier === 'std', `MG-Stellung: HM-60 sofort als Ego-Fassung (${JSON.stringify(c1.mg)})`);
 
   // ---- V1: Grafikstufe im Match → hoch: Waffe in der Hand in max neu, Vorlagen der alten Stufe frei
