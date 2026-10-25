@@ -102,3 +102,31 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   Lackring, berußtem Hals) startet an der Verschlussstirn (Anker `boltFace`), Mündung voran, Drall um die Hochachse,
   ≈ 4 Uhr; Rauch aus dem Fenster. Prüfen: `tools/out/eject-seq.mjs` (Bild-für-Bild-Bogen im Waffenlabor).
 - Maßstab für alle weiteren Waffen (Nutzer 13.10.): P-9 und M-17 + KI-Video; Rest ab Do 15.10. 17:10.
+- 24.10.: **Vorarbeiten für alle weiteren Foto-Waffen** (Nutzer: übrige Waffen auf M-17/P-9-Niveau, ohne Ruckler
+  und Speicherhunger; M-17/P-9 optisch unverändert, je Stufe per Bildvergleich belegt):
+  Baukasten `sdfkit.js` (sdfMesh, sideFurn, field2, cutWindow, fase …); Werkzeuge in `tools/ref/` (README); Gravuren
+  je Waffe in einem Atlas (`schrift.js`, M-17 69 → 26 Netze; zu breite Texte kleiner gezeichnet); Bauteil-Cache
+  `b.shared(id, fn)` – Aufsatz-Varianten teilen die Distanzfeld-Netze (M-17 je Variante 3–5 s/61 MB
+  → < 0,15 s/< 2 MB); Atlas je Stufe (Handy halber Atlas `key@lite`, Bots ohne Atlas über `LOD_META`); Freigabe je
+  Waffe (`holdWeaponModel` je Waffe und Stufe, `freeIdleWeaponModels` beim Matchstart und nach einem Stufenwechsel in
+  der Lobby); Bots, Waffensteuerung und Lobby lesen für Aufsätze nur Metadaten (`getWeaponModelMeta`, höchstens
+  Bot-Fassung – vorher je Bot-Waffe die volle Ego-Fassung samt Atlas); Detailstufe vor jedem Vorbau nach der
+  Grafikstufe (`setWeaponDetail`, main.js `syncWeaponDetail` – vorher baute ein PC auf niedrig/mittel M-17/P-9
+  zusätzlich in max); Schießstand baut nur die Ausrüstung voll vor, den Rest leicht (`lightTier`, `hasWeaponModel`,
+  `preloadWeaponModels(keys, lods, tier)`) – die volle Fassung einer nicht ausgerüsteten Waffe entsteht beim Ausrüsten
+  (Foto-Waffen am PC ≈ 1–5 s); Waffenspiel baut die ganze Leiter voll (Aufstieg ohne Bau mitten im Match), sonst
+  nichts. M-17 Bots 580 Dreiecke; P-9 Handy bleibt beim Standard-Raster (gröberes Raster war im Bildvergleich
+  sichtbar) und spart über den halben Atlas.
+  Prüfen: `tools/waffen-cache-test.mjs`. Neue Foto-Waffe: Distanzfeld-Abschnitte in `b.shared`, Schrift über
+  `schrift(key)`, Atlas-Material als `key`/`key@lite` (halber Atlas über `halfMaps`, `userData.texKey`) in
+  `LITE`/`ATLAS` bzw. `defineMat(key, make, { lite, atlas })`, dazu ein Eintrag in `LOD_META` (Bot-Farbe) und in
+  `PHOTO_MODELS` (models.js: gilt beim Aufheben als teuer, bevor eine Messung vorliegt).
+- 24.10. (Vorarbeiten V1/V2/V5, zusammengeführt mit den obigen): Aufheben ohne Hänger (`weapons/hintergrundbau.js`) –
+  Vorrat der Waffen, die Bots/Mitspieler tragen, im Ladebildschirm und im Leerlauf (Budget je Stufe); fehlt die Ego-Fassung
+  einer Foto-Waffe, kommt ein Platzhalter in die Hand (Ego-Grundfassung bzw. Bot-Fassung), der Bau läuft nur im Leerlauf
+  (tot, Pause, Countdown), der Tausch in Ruhe; Nur-Werte-Aufsätze (Munition, Schaft, Schnellmagazin) teilen Vorlage und
+  Kontaktgitter (`STAT_ONLY`); Grafikstufe im Match → Waffen im Hintergrund in der neuen Stufe (`_retier`). Schießstand ohne
+  Platzhalter (dort baut das Ausrüsten). Freigabe auf EINEM Weg (models.js `releaseTemplates`): `freeIdleWeaponModels`
+  (Matchstart, Lobby), `releaseEgoTemplates` (andere Stufen nach `_retier`), `releaseWeaponTemplate` (ungenutzter Vorrat) –
+  Halter je Viewmodel-Eintrag und Vorschau, Geometrie nur ohne weitere Nutzer (Bauteil-Cache), Bauteil-Cache und Atlas
+  erst ohne Vorlage. Prüfen: `tools/vorbau-test.mjs`.

@@ -18,7 +18,7 @@
 // dringender Aufträge (Platzhalter/alte Stufe in der Hand) auch in Ruhe (QUIET_S seit Ziehen/Schuss, kein Anschlag, keine Aktion,
 // kein Treffer). Vorrat nur im Leerlauf.
 import * as THREE from 'three';
-import { createWeaponModel, weaponDetailTier, hasWeaponTemplate, weaponBuildCost, isPhotoWeapon, releaseEgoTemplates, releaseWeaponTemplate } from './models.js';
+import { createWeaponModel, weaponDetailTier, hasWeaponModel, weaponBuildCost, isPhotoWeapon, releaseEgoTemplates, releaseWeaponTemplate } from './models.js';
 import { applyCamo } from './gunsmith/camos.js';
 import { ID_TO_MODEL } from './gunsmith/handling.js';
 import { magWellOf } from './anim/magwell.js';
@@ -69,7 +69,7 @@ export const BUILD_ACTIONS = {
       this._models.set(mk, job.entry);
       return job.entry;
     }
-    if (hasWeaponTemplate(key, 'first', a)) {
+    if (hasWeaponModel(key, { att: a })) {
       const entry = this._entryFrom(createWeaponModel(key, { lod: 'first', att: a }), id, key, ak, a);
       // klein oder Kontaktgitter teilbar (Munition, Schaft, Schnellmagazin teilen die Vorlage der Grundfassung): gleich vollständig
       if (entry.ud.info.triangles <= CHEAP_TRIS || this._colliderShared(entry)) {
@@ -109,7 +109,7 @@ export const BUILD_ACTIONS = {
    */
   _placeholder(id, key, ak, a) {
     let e;
-    if (a && hasWeaponTemplate(key, 'first', null)) {
+    if (a && hasWeaponModel(key)) {
       e = this._entryFrom(createWeaponModel(key, { lod: 'first' }), id, key, ak, a);
       if (e.ud.info.triangles <= CHEAP_TRIS || this._colliderShared(e)) this._entryCollider(e);
       else { e.collider = null; e.contactMemo = new Map(); }
@@ -168,7 +168,11 @@ export const BUILD_ACTIONS = {
     if (!q || !q.includes(job)) return;
     let done = false;
     try { done = this._bgRun(job, idle); } catch (err) { console.warn('[viewmodel] Hintergrund-Bau', job.mk, err); done = true; }
-    if (done) q.splice(q.indexOf(job), 1);
+    if (done) {
+      q.splice(q.indexOf(job), 1);
+      // fertig, aber nicht übernommen (inzwischen anders gebaut, Fehler): Ego-Fassung nicht weiter halten (Freigabe je Waffe, models.js)
+      if (job.entry && this._models.get(job.mk) !== job.entry) this._dropEntry(job.entry);
+    }
   },
 
   /** Ein Schritt (STEPS). → true, wenn der Auftrag erledigt ist (oder entfällt). */
@@ -178,7 +182,7 @@ export const BUILD_ACTIONS = {
         let had = true;
         if (job.prefetch) {
           // Budget VOR dem Bau (Schätzung): passt die Vorlage nicht mehr, fällt die Waffe beim Aufheben auf Platzhalter + Bau im Leerlauf zurück
-          had = hasWeaponTemplate(job.key, 'first', job.att);
+          had = hasWeaponModel(job.key, { att: job.att });
           const est = had ? 0 : this._estTris(job.key);
           if ((this._prefetchTris || 0) + est > (PREFETCH_TRIS[this._tier] ?? PREFETCH_TRIS.std)) return true;
           if ((this._prefetchN || 0) >= PREFETCH_MAX && est > CHEAP_TRIS) return true;
@@ -214,6 +218,7 @@ export const BUILD_ACTIONS = {
       this._models.set(job.mk, entry);
       this._replaceCurrent(entry);
     } else this._models.set(job.mk, entry);
+    this._dropEntry(have); // Platzhalter/alte Stufe abgemeldet
     return true;
   },
 
@@ -241,7 +246,7 @@ export const BUILD_ACTIONS = {
 
   /** Schritt kostet bis zu Sekunden am Stück (Vorlage bauen; Kontaktgitter, wenn es nicht geteilt werden kann). */
   _heavyStep(job) {
-    if (job.step === 0) return !hasWeaponTemplate(job.key, 'first', job.att);
+    if (job.step === 0) return !hasWeaponModel(job.key, { att: job.att });
     return job.step === 1 && !(job.entry && this._colliderShared(job.entry));
   },
 
@@ -268,8 +273,11 @@ export const BUILD_ACTIONS = {
    */
   prefetchRelease() {
     let n = 0;
-    for (const e of [...this._models.values(), ...(this._bgJobs || []).map((j) => j.entry).filter(Boolean)]) {
-      if (!e.prefetched || !e.ownTemplate || e.used || e.tier !== weaponDetailTier()) continue;
+    const all = [...this._models.values(), ...(this._bgJobs || []).map((j) => j.entry).filter(Boolean)];
+    // Vorlage, die ein benutzter Eintrag teilt (Nur-Werte-Aufsätze, STAT_ONLY: Hohlspitz = Grundfassung), bleibt
+    const usedTpl = new Set(all.filter((e) => e.used && e.ud.tpl).map((e) => e.ud.tpl));
+    for (const e of all) {
+      if (!e.prefetched || !e.ownTemplate || e.used || e.tier !== weaponDetailTier() || usedTpl.has(e.ud.tpl)) continue;
       if (releaseWeaponTemplate(e.key, 'first', e.attObj)) n++;
     }
     return n;
@@ -310,12 +318,18 @@ export const BUILD_ACTIONS = {
     const keep = new Set();
     if (this.cur) keep.add(this.cur.mk);
     for (const s of this.G?.player?.weapon?.slots || []) if (s && s.def) keep.add(this._mk(s.id, s.def.att || null));
-    // Vorrat verwerfen; laufende Aufträge in der neuen Stufe von vorn
+    // Vorrat verwerfen; laufende Aufträge in der neuen Stufe von vorn (verworfene Einträge abmelden, sonst hielten sie die alte Stufe)
+    const loose = (j) => { if (j.entry && this._models.get(j.mk) !== j.entry) this._dropEntry(j.entry); };
+    for (const j of this._bgJobs || []) if (j.prefetch) loose(j);
     this._bgJobs = (this._bgJobs || []).filter((j) => !j.prefetch);
-    for (const j of this._bgJobs) if (j.entry && j.entry.tier !== this._tier) { j.step = 0; j.entry = null; }
+    for (const j of this._bgJobs) if (j.entry && j.entry.tier !== this._tier) { loose(j); j.step = 0; j.entry = null; }
     for (const [mk, e] of [...this._models]) {
-      if (!keep.has(mk)) { this._models.delete(mk); continue; }
-      if (!e.stub && e.tier === this._tier) { this._bgJobs = this._bgJobs.filter((j) => j.mk !== mk); continue; } // schon in dieser Stufe
+      if (!keep.has(mk)) { this._models.delete(mk); this._dropEntry(e); continue; }
+      if (!e.stub && e.tier === this._tier) { // schon in dieser Stufe
+        for (const j of this._bgJobs) if (j.mk === mk) loose(j);
+        this._bgJobs = this._bgJobs.filter((j) => j.mk !== mk);
+        continue;
+      }
       this._enqueue({ mk, id: e.id, key: e.key, att: e.attObj || null, ak: e.att || '', prio: e === this.cur ? 1 : 0, step: 0 });
     }
     // geteilte Kontaktgitter nur noch aus Einträgen dieser Stufe (die übrigen hielten sonst ihre Netze im Speicher)
@@ -366,7 +380,7 @@ export const BUILD_ACTIONS = {
         if (j.prefetch || j.step !== 0 || carried.has(j.mk)) continue;
         q.splice(q.indexOf(j), 1);
         const e = this._models.get(j.mk);
-        if (e && (e.stub || e.tier !== this._tier)) this._models.delete(j.mk);
+        if (e && (e.stub || e.tier !== this._tier)) { this._models.delete(j.mk); this._dropEntry(e); }
       }
     }
     let job = null;

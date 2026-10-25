@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { wearMap, brushedMap, grainNormal, stippleNormal, knurlNormal, woodMap, reticleMap, polymerMap, drumFaceMap, drumFaceNormal, finishMaps } from './textures.js';
 import { p9SlideMaps, p9FrameMaps, SLIDE_CAMO_REPEAT, FRAME_CAMO_REPEAT } from './p9-tex.js';
 import { m17FurnMaps, FURN_CAMO_REPEAT } from './m17-tex.js';
+import { dropCached } from './textures.js';
 
 const mats = new Map();
 
@@ -123,8 +124,8 @@ const DEFS = {
   // P-9 nach Foto (p9-tex.js): Nitrid-Schlitten mit Rillen/Gravur/Kratzern, Polymerrahmen mit Würfelraster und Rillen
   // Schlitten: satiniertes Nitrid – echtes Metall (Spiegelung der Umgebung), Glanz längs gezogen (Anisotropie entlang
   // der Atlas-U-Richtung = Schlittenlänge), blank geriebene Kanten aus dem Atlas (Rauheit/Albedo)
-  p9Slide: () => { const t = p9SlideMaps(); const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: t.map, metalness: 0.78, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), envMapIntensity: 1.1 }); m.userData.camoRepeat = SLIDE_CAMO_REPEAT; return wearPatch(m, { col: 0x9a9c9f, metal: 1, rough: 0.28 }); },
-  p9Frame: () => { const t = p9FrameMaps(); const m = std({ color: 0x232427, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FRAME_CAMO_REPEAT; return wearPatch(m, POLY_WEAR); },
+  p9Slide: () => p9SlideMat(false), 'p9Slide@lite': () => p9SlideMat(true),
+  p9Frame: () => p9FrameMat(false), 'p9Frame@lite': () => p9FrameMat(true),
   // M-17 nach Foto: eloxiertes Gehäuse (matt, leichter Glanz), Schienen-Handschutz, phosphatierter Stahl (Lauf,
   // Kornträger), Polymer-Schaft/-Griff mit eigenem Atlas (m17-tex.js)
   // M-17 (Nutzer 13.10.2026: realistisch statt „knetig“): anthrazit eloxiert mit seidiger Klarschicht (spiegelt die
@@ -136,7 +137,7 @@ const DEFS = {
   // Verschlussgruppe (innen, keine Tarnung): manganphosphatiert, leicht geölt – matter Grund mit dünnem Ölglanz
   m17Bcg: () => wearPatch(phys({ color: 0x2c2d2e, metalness: 0.5, roughness: 0.55, clearcoat: 0.45, clearcoatRoughness: 0.22, roughnessMap: fine(finishMaps('steel').rough, 3), normalMap: fine(finishMaps('steel').normal, 5), normalScale: new THREE.Vector2(0.08, 0.08) }), { col: 0x9a9c9e, metal: 1, rough: 0.3, bump: 0.00003, tone: 0.06 }),
   m17RecV: () => DEFS.m17Rec(), m17RasV: () => DEFS.m17Ras(), m17SteelV: () => DEFS.m17Steel(), m17FurnV: () => DEFS.m17Furn(),
-  m17Furn: () => { const t = m17FurnMaps(); const m = std({ color: 0x26272a, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FURN_CAMO_REPEAT; return wearPatch(m, POLY_WEAR); },
+  m17Furn: () => m17FurnMat(false), 'm17Furn@lite': () => m17FurnMat(true),
   barrelNitride: () => std({ color: 0x38393c, metalness: 0.85, roughness: 0.42, roughnessMap: wearMap() }),
   // Trommelmagazin: eigener Kunststoff (keine Tarnung) und Deckel mit eigener Textur
   drumBody: () => std({ color: 0x2a2c30, map: polymerMap(), metalness: 0.0, roughness: 0.66, normalMap: grainNormal(), normalScale: new THREE.Vector2(0.2, 0.2) }),
@@ -189,13 +190,34 @@ const DEFS = {
   lodMatte: () => std({ color: 0xffffff, vertexColors: true, metalness: 0.0, roughness: 0.72, roughnessMap: wearMap() }),
 };
 
+// Atlas-Materialien nach Foto (24.10., Vorarbeit V4): je Stufe eigener Atlas – am Handy (Builder b.lite) die Fassung
+// key@lite mit halber Kantenlänge (¼ Speicher); texKey = Eintrag im Textur-Cache, den freeAtlasMaterials freigibt
+function p9SlideMat(lite) { const t = p9SlideMaps(lite); const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: t.map, metalness: 0.78, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), envMapIntensity: 1.1 }); m.userData.camoRepeat = SLIDE_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0x9a9c9f, metal: 1, rough: 0.28 }); }
+function p9FrameMat(lite) { const t = p9FrameMaps(lite); const m = std({ color: 0x232427, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FRAME_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, POLY_WEAR); }
+function m17FurnMat(lite) { const t = m17FurnMaps(lite); const m = std({ color: 0x26272a, map: t.map, metalness: 0.0, roughness: 1.0, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = FURN_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, POLY_WEAR); }
+// Schlüssel mit eigener Handy-Fassung (key@lite) und Atlas-Materialien (je Waffe freigebbar)
+const LITE = new Set(['m17Furn', 'p9Slide', 'p9Frame']);
+const ATLAS = new Set(['m17Furn', 'm17Furn@lite', 'p9Slide', 'p9Slide@lite', 'p9Frame', 'p9Frame@lite']);
+/** Materialschlüssel für die Handy-Stufe (eigener, kleinerer Atlas), sonst der Schlüssel selbst. */
+export function liteKey(key) { return LITE.has(key) ? key + '@lite' : key; }
+
 // Ersatzfarben (sRGB) für texturierte Materialien in der Bot-Detailstufe
 const LOD_COLORS = { woodWarm: 0x6a3a22, woodWalnut: 0x4a2d1c, polymerTan: 0x66553c, smokeTan: 0x6e5a3e, smokeGrey: 0x45494c, smokeDark: 0x25292c };
+// Bot-Detailstufe ohne Erzeugung der (texturierten) Waffenmaterialien (24.10., V4: Bots ohne Atlas/Texturen – vorher
+// legte schon der erste Bot mit M-17 deren Materialien samt Oberflächenkarten an, ≈ 0,2 s): Farbe wie material.color,
+// Metall-Gruppe wie metalness ≥ 0,5
+const LOD_META = { m17Rec: [0x2b2d30, 0], m17Ras: [0x292b2e, 0], m17Steel: [0x2b2c2d, 0], m17Mag: [0x4a4d51, 0], m17Bcg: [0x2c2d2e, 1],
+  m17Furn: [0x26272a, 0], p9Slide: [0x5c5e62, 1], p9Frame: [0x232427, 0] };
 const _lodCol = new Map();
 /** Farbe (linear) + Metall-Gruppe eines Materials für die zusammengeführte Bot-Detailstufe. */
 export function lodInfo(key) {
   let r = _lodCol.get(key);
+  if (!r && LOD_META[key]) { r = { color: new THREE.Color(LOD_META[key][0]), metal: !!LOD_META[key][1] }; _lodCol.set(key, r); }
   if (!r) {
+    if (ATLAS.has(key)) {   // nie einen Atlas für Bots erzeugen: neutrale Ersatzfarbe, Hinweis für den Bauplan
+      console.warn(`[gunsmith] Atlas-Material ${key} in der Bot-Stufe – LOD_META ergänzen`);
+      r = { color: new THREE.Color(0x333333), metal: false }; _lodCol.set(key, r); return r;
+    }
     const m = getMat(key);
     const color = LOD_COLORS[key] !== undefined ? new THREE.Color(LOD_COLORS[key]) : (m.color ? m.color.clone() : new THREE.Color(0x333333));
     r = { color, metal: (m.metalness ?? 0) >= 0.5 };
@@ -233,8 +255,40 @@ export function setReticleSize(s) {
   }
 }
 
-/** Material nachträglich anmelden (z. B. Schriftzüge einzelner Waffen); vorhandene Schlüssel bleiben unverändert. */
-export function defineMat(key, make) { if (!DEFS[key]) DEFS[key] = make; }
+/**
+ * Material nachträglich anmelden (z. B. Schriftzüge einzelner Waffen); vorhandene Schlüssel bleiben unverändert.
+ * o.lite: eigene Handy-Fassung (key@lite), o.atlas: Atlas-Material (je Waffe freigebbar, nie in der Bot-Stufe).
+ */
+export function defineMat(key, make, o = {}) {
+  if (!DEFS[key]) DEFS[key] = make;
+  if (o.lite && !DEFS[key + '@lite']) { DEFS[key + '@lite'] = o.lite; LITE.add(key); }
+  if (o.atlas) { ATLAS.add(key); if (o.lite) ATLAS.add(key + '@lite'); }
+}
+
+/**
+ * Freigabe je Waffe (24.10., V4): Atlas-Materialien, die keine Vorlage mehr benutzt (used = Menge der Schlüssel),
+ * samt Texturen freigeben; der Atlas entsteht bei Bedarf neu. Liefert die freigegebenen Schlüssel (Tarnklone dazu
+ * gibt camos.js frei).
+ */
+export function freeAtlasMaterials(used) {
+  const freed = [];
+  for (const [key, m] of [...mats]) {
+    if (!ATLAS.has(key) || used.has(key)) continue;
+    mats.delete(key);
+    freed.push(key);
+    // Texturen: der letzte Nutzer eines Cache-Eintrags gibt ihn ganz frei (dropCached), sonst nur die eigenen Karten
+    // (z. B. Schrift PC ↔ Handy); Karten, die ein verbleibendes Material mitbenutzt, bleiben
+    const tk = m.userData.texKey, MAPS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap'];
+    if (tk && ![...mats.values()].some((o) => o.userData.texKey === tk)) dropCached(tk);
+    else {
+      const inUse = new Set();
+      for (const o of mats.values()) for (const p of MAPS) if (o[p]) inUse.add(o[p]);
+      for (const p of MAPS) if (m[p] && !inUse.has(m[p])) m[p].dispose();
+    }
+    m.dispose();
+  }
+  return freed;
+}
 
 // Vorrat für Instanz-Materialien des Viewmodels (Arme, Mündungsfeuer, Rauch, Hülsen). Beim Matchende werden sie
 // hier geparkt statt entsorgt: dispose() gäbe ihre Shaderprogramme frei, und das nächste Match müsste jedes neu

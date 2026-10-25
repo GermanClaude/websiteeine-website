@@ -5,6 +5,8 @@
 // felder) sind aus vergrößerten Ausschnitten abgelesen. Alles in Fotopixeln, Umrechnung über die Kalibrierung:
 // Schlittenlänge 186 mm = 1405 px → 7553 px/m; Schlittenvorderkante x = 171 ↔ u = 0,1462; Unterkante des Schlittens
 // y = 450 ↔ v = 0,0518 (Oberkante des Rahmens, wie beim bisherigen Modell).
+// Quelle: https://commons.wikimedia.org/wiki/File:GLOCK_17_Gen_4_Pistol_MOD_45160305.jpg – „Photo: Steve Dock/MOD“,
+// Open Government Licence v1.0 (Namensnennung, siehe CREDITS.md). Foto nicht im Repo, nur abgeleitete Maße.
 
 export const PPM = 7553, X0 = 171, U0 = 0.1462, Y0 = 450, V0 = 0.0518;
 export const U = (x) => U0 - (x - X0) / PPM;

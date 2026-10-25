@@ -168,6 +168,18 @@ Liste mit Generator-Schlüsseln: `tools/assets/sources.json`, Pipeline: `tools/a
 | `rock_07` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
 | `planter_pot_clay` | eigener Generator | `tools/assets/lib/eigen-models.mjs` |
 
+## Waffen-Referenzfotos (nur Maße abgeleitet, Fotos nicht enthalten)
+
+Die Waffenmodelle sind selbst gebaut (Distanzfelder, Profile, eigene Texturen). Als Maßvorlage dienten frei lizenzierte
+Fotos: Umrisse und Lagen wurden daraus abgenommen und als Zahlen in `assets/js/game/weapons/gunsmith/<name>-ref.js`
+gespeichert. Die Fotos selbst sind weder im Spiel noch im Repository enthalten. Werkzeuge: `tools/ref/`.
+
+| Waffe | Foto | Urheber | Lizenz |
+|---|---|---|---|
+| M-17 Falke (rechte Seite) | [PEO M4 Carbine RAS M68 CCO](https://commons.wikimedia.org/wiki/File:PEO_M4_Carbine_RAS_M68_CCO.jpg) | Photo Courtesy of PEO Soldier ([Flickr](https://www.flickr.com/photos/peosoldier/4639044647/)) | gemeinfrei (US Army, PD-USGov-Military-Army) |
+| M-17 Falke (linke Seite) | [Carbine M4 1](https://commons.wikimedia.org/wiki/File:Carbine_M4_1.jpg) | US Army (tri.army.mil) | gemeinfrei (US Army, PD-USGov-Military-Army) |
+| P-9 Kompakt | [GLOCK 17 Gen 4 Pistol MOD 45160305](https://commons.wikimedia.org/wiki/File:GLOCK_17_Gen_4_Pistol_MOD_45160305.jpg) | Photo: Steve Dock/MOD | [Open Government Licence v1.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/1/) |
+
 ## Klänge
 
 Die aufgenommenen Klänge unter `assets/lib/audio/` (ebenfalls CC0: The Free Firearm Sound Library, Freesound,

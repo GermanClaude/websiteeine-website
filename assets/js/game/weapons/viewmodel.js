@@ -16,7 +16,7 @@
 // Animationen 09.10. (anim/): Nachlade-Varianten mit Magazin entlang der Schachtachse (magwell.js, reloads.js), vier
 // Inspektionen je Mechanik + Kammer-Patrone (inspects.js), Ziehen je Klasse, Bereitmachen, Gesten, Posen (moves.js).
 import * as THREE from 'three';
-import { createWeaponModel, setMagRounds, weaponDetailTier } from './models.js';
+import { createWeaponModel, setMagRounds, weaponDetailTier, holdWeaponModel, lightTier, hasWeaponModel } from './models.js';
 import { WEAPONS, weaponHandling } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
 import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE, MELEE_STYLES } from './gunsmith/handling.js';
@@ -276,12 +276,20 @@ export class ViewModel {
     if (rg && trg && !rg.userData.trigger) rg.userData.trigger = rg.worldToLocal(trg.getWorldPosition(new THREE.Vector3())).add(new THREE.Vector3(0, 0, -0.0045)).toArray().map(v => Math.round(v * 1e4) / 1e4);   // Vorderseite des Abzugs
     const rest = new Map();
     for (const [n, p] of Object.entries(ud.parts)) rest.set(n, { pos: p.position.clone(), quat: p.quaternion.clone(), vis: p.visible });
-    const entry = { id, key, model, ud, rest, att: ak, attObj: att || null, mk: ak ? id + '#' + ak : id, tier: weaponDetailTier() };
+    const tier = weaponDetailTier();
+    // Freigabe je Waffe (models.js, 24.10. V4): Ego-Fassung gehalten, bis der Eintrag verworfen wird (_dropEntry) bzw. bis dispose()
+    const release = ud.lod === 'third' ? null : holdWeaponModel(key, tier);
+    const entry = { id, key, model, ud, rest, att: ak, attObj: att || null, mk: ak ? id + '#' + ak : id, tier, release };
     // Arbeitsstelle der Stützhand beim Nachladen (Modellraum, Ruhelage) für _frameWork
     const h0 = handlingFor(key), an = ud.anchors;
     const work = h0.reload === 'revolver' ? an.cylGrab : h0.reload === 'rocket' ? (an.rocketGrab || ud.muzzle) : h0.reload === 'shell' ? an.shellPort : (an.magGrab || ud.magazine);
     if (work) entry.workRest = model.worldToLocal(work.getWorldPosition(new THREE.Vector3()));
     return entry;
+  }
+
+  /** Eintrag verworfen (Stufenwechsel, Tausch gegen die fertige Fassung, Platzhalter weg): Ego-Fassung nicht mehr halten. */
+  _dropEntry(entry) {
+    if (entry && entry.release) { entry.release(); entry.release = null; }
   }
 
   _entryCollider(entry) {
@@ -1789,7 +1797,7 @@ export class ViewModel {
 
   /** Alle Waffenmodelle vorbauen und Shader kompilieren (z. B. im Ladebildschirm) – auch die der Effekte
    *  (Mündungsfeuer, Rauch, Hülsen je Art), damit der erste Schuss kein Programm mehr linkt. */
-  warmup(renderer, ids = Object.keys(ID_TO_MODEL)) {
+  warmup(renderer, ids = Object.keys(ID_TO_MODEL), more = []) {
     const prev = this.cur;
     const holder = new THREE.Group();
     const shells = new Set();
@@ -1800,6 +1808,13 @@ export class ViewModel {
       const e = this._getModel(id, (d?.model) || ID_TO_MODEL[id] || id, (typeof x !== 'string' && x.att) || null);
       shells.add(handlingFor(e.key).shell);
       if (e !== prev) holder.add(e.model);
+    }
+    // 24.10. (V4): übrige Waffen (Schießstand) nur in der leichten Fassung – gleiche Materialien, also
+    // gleiche Shader und Texturen; die volle Fassung entsteht erst beim Ausrüsten
+    for (const id of more) {
+      const key = (this._defFor(id)?.model) || ID_TO_MODEL[id] || id;
+      shells.add(handlingFor(key).shell);
+      holder.add(createWeaponModel(key, { lod: 'first', tier: hasWeaponModel(key) ? null : lightTier() }));   // schon voll gebaut: die nehmen
     }
     this.shells.prepare(shells);
     // 24.10. (V5): Bot-Fassung als Platzhalter beim Aufheben (hintergrundbau.js) – ihre Materialien im Viewmodel-Licht mit übersetzen
@@ -1856,6 +1871,8 @@ export class ViewModel {
     this.sun.dispose(); this.hemi.dispose(); this.rim.dispose();
     if (this._ownEnv) { if (this.scene.environment === this._ownEnv) this.scene.environment = null; this._ownEnv.dispose(); }
     try { this.prefetchRelease(); } catch { /* Freigabe ist Beiwerk */ }
+    for (const e of this._models.values()) this._dropEntry(e);
+    for (const j of this._bgJobs || []) this._dropEntry(j.entry);
     this._models.clear();
     this._bgJobs = this._colliderSrc = null;
     if (this.G?.viewmodel?.rig === this) this.G.viewmodel.rig = null;

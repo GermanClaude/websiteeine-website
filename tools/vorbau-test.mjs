@@ -72,6 +72,14 @@ try {
 
   // Schritte im Leerlauf, bis nichts mehr ansteht (Spiel läuft weiter) – liefert Dauer je Schritt und ob die Waffe in der Hand blieb
   await p.evaluate(() => {
+    // Einträge/Aufträge des Viewmodels vergessen (Prüfaufbau) – mit Abmeldung der Halter (Freigabe je Waffe, models.js), wie es das
+    // Viewmodel beim Verwerfen selbst tut
+    window.__forget = (match) => {
+      const vm = window.__game.player.weapon.viewModel;
+      for (const [mk, e] of [...vm._models]) if (match(mk)) { vm._dropEntry(e); vm._models.delete(mk); }
+      for (const j of vm._bgJobs || []) if (match(j.mk)) vm._dropEntry(j.entry);
+      vm._bgJobs = (vm._bgJobs || []).filter((j) => !match(j.mk));
+    };
     window.__idleSteps = async (n = 80) => {
       const vm = window.__game.player.weapon.viewModel, steps = [];
       let lost = false;
@@ -90,7 +98,7 @@ try {
   // ---- V5: Nur-Werte-Aufsatz (Munition) teilt Vorlage und Kontaktgitter der eigenen M-17 → sofort vollständig, bleibt in der Hand
   const n1 = await p.evaluate(async () => {
     const G = window.__game, w = G.player.weapon, vm = w.viewModel;
-    vm._models.delete('ar_m17#hohlspitz'); // falls der Vorrat sie schon hatte: den Weg „Vorlage da, Eintrag fehlt“ prüfen
+    window.__forget((mk) => mk === 'ar_m17#hohlspitz'); // falls der Vorrat sie schon hatte: den Weg „Vorlage da, Eintrag fehlt“ prüfen
     w.setLoadout({ primary: 'ar_m17', secondary: w.slots[1] ? w.slots[1].id : null, pickup: { id: 'ar_m17', att: { munition: 'hohlspitz' } }, keepPickups: true });
     for (let i = 0; i < 60 && !(vm.cur && vm.cur.mk === 'ar_m17#hohlspitz'); i++) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     const st = vm.buildState();
@@ -106,8 +114,7 @@ try {
     const M = await import('/assets/js/game/weapons/models.js');
     const att = { muendung: 'kompensator' };
     M.releaseWeaponTemplate('p9', 'first', att);
-    vm._models.delete('pi_p9#kompensator');
-    vm._bgJobs = (vm._bgJobs || []).filter((j) => j.mk !== 'pi_p9#kompensator');
+    window.__forget((mk) => mk === 'pi_p9#kompensator');
     vm.prefetch([{ id: 'pi_p9', att }]);
     vm._prefetchTris = vm._prefetchN = 0; // Budget des Ladebildschirms hier nicht maßgeblich
     const job = vm._bgJobs.find((j) => j.mk === 'pi_p9#kompensator');
@@ -128,7 +135,7 @@ try {
     const G = window.__game, w = G.player.weapon, vm = w.viewModel;
     const M = await import('/assets/js/game/weapons/models.js');
     const att = { muendung: 'daempfer', taktisch: 'laser' };
-    const had = M.hasWeaponTemplate('m17', 'first', att);
+    const had = M.hasWeaponModel('m17', { att });
     const t0 = performance.now();
     w.setLoadout({ primary: 'ar_m17', secondary: w.slots[1] ? w.slots[1].id : null, pickup: { id: 'ar_m17', att, camo: 'wald' }, keepPickups: true });
     const t1 = performance.now();
@@ -140,7 +147,7 @@ try {
       longest = Math.max(longest, performance.now() - f0);
     }
     const st = vm.buildState();
-    const out = { had, syncMs: Math.round(t1 - t0), longest: Math.round(longest), cur: vm.cur && vm.cur.mk, stub: st.stub, curLod: st.curLod, curTier: st.curTier, jobs: st.jobs, egoBuilt: M.hasWeaponTemplate('m17', 'first', att), camo: vm.cur && vm.cur.model.userData.camo, inGun: st.inGun };
+    const out = { had, syncMs: Math.round(t1 - t0), longest: Math.round(longest), cur: vm.cur && vm.cur.mk, stub: st.stub, curLod: st.curLod, curTier: st.curTier, jobs: st.jobs, egoBuilt: M.hasWeaponModel('m17', { att }), camo: vm.cur && vm.cur.model.userData.camo, inGun: st.inGun };
     // lange Ruhe mitten im Spiel (gezogen, kein Schuss, kein Treffer): der Vorlagenbau (Sekunden am Stück) darf trotzdem nicht laufen
     for (let i = 0; i < 60 && vm._equipT < 1; i++) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     vm._restT = vm._time - 30;
@@ -152,7 +159,7 @@ try {
       quietLongest = Math.max(quietLongest, performance.now() - t);
       await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     }
-    out.quiet = { worked: quietWorked, longest: Math.round(quietLongest), egoBuilt: M.hasWeaponTemplate('m17', 'first', att), stub: vm.buildState().stub };
+    out.quiet = { worked: quietWorked, longest: Math.round(quietLongest), egoBuilt: M.hasWeaponModel('m17', { att }), stub: vm.buildState().stub };
     return out;
   });
   console.log(`     Aufheben: setLoadout ${s2.syncMs} ms, längstes Bild bis zum Tausch ${s2.longest} ms (SwiftShader)`);
@@ -194,8 +201,7 @@ try {
     const M = await import('/assets/js/game/weapons/models.js');
     const att = { muendung: 'daempfer' };
     for (const a of [null, att]) M.releaseWeaponTemplate('p9', 'first', a);
-    for (const k of [...vm._models.keys()]) if (k.startsWith('pi_p9')) vm._models.delete(k);
-    vm._bgJobs = (vm._bgJobs || []).filter((j) => !j.mk.startsWith('pi_p9'));
+    window.__forget((mk) => mk.startsWith('pi_p9'));
     const keep = { primary: 'ar_m17', secondary: null };
     w.setLoadout({ primary: 'pi_p9', secondary: null, pickup: { id: 'pi_p9', att }, keepPickups: true });
     for (let i = 0; i < 60 && !(vm.cur && vm.cur.mk === 'pi_p9#daempfer'); i++) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
@@ -205,7 +211,7 @@ try {
     w.setLoadout(keep);
     for (let i = 0; i < 60 && !(vm.cur && vm.cur.mk === 'ar_m17'); i++) await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     await window.__idleSteps();
-    out.after = { job: vm.buildState().jobs.some((j) => j.mk === 'pi_p9#daempfer'), built: M.hasWeaponTemplate('p9', 'first', att), entry: vm._models.has('pi_p9#daempfer') };
+    out.after = { job: vm.buildState().jobs.some((j) => j.mk === 'pi_p9#daempfer'), built: M.hasWeaponModel('p9', { att }), entry: vm._models.has('pi_p9#daempfer') };
     return out;
   });
   check(b1.cur === 'pi_p9#daempfer' && b1.stub && b1.curLod === 'third' && b1.inGun && b1.job, `P-9 ohne Ego-Vorlage: Bot-Fassung als Platzhalter (${b1.curLod})`);

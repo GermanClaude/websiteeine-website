@@ -9,7 +9,8 @@ const RAKE = 0.3;
 
 // Magazin im Griff: fällt entlang der Griffachse heraus
 // cal = Kaliber (magfill.js): oberste Patronen an den Lippen bzw. leerer Zubringer (Stahl, beim Wechsel sichtbar)
-function gripMag(b, { u, v, w, len, depth, plate = 'polymer', body = 'steel', rake = RAKE, cal = 'p9' }) {
+// Exportiert (24.10.) für den Pistolen-Baukasten (P-9A, Sperber, Adler …)
+export function gripMag(b, { u, v, w, len, depth, plate = 'polymer', body = 'steel', rake = RAKE, cal = 'p9' }) {
   b.part('mag', 0, v, u);
   const s = Math.sin(rake), c = Math.cos(rake);
   // Körper (im Griff verborgen, sichtbar beim Wechsel)
@@ -36,22 +37,29 @@ export function p9(b) {
   if (b.hi) {
     // ---------------------------------------------------------------- Schlitten (Distanzfeld)
     const port = { cx: 0.008, hx: 0.012, cu: 0.0405, hu: 0.0205, v0: axis + 0.0034 };
-    const sideD = grid2D((u, v) => sdPolygon(u, v, sideSL), uB - 0.002, uF + 0.002, P9.bottom - 0.002, vTop + 0.002, 0.0004);
-    const slideF = (x, v, u) => {
-      const ax = Math.abs(x);
-      let d = extrudeRound(sideD(u, v), x, HW, 0.0006);
-      d = Math.max(d, (ax - HW + v - (vTop - 0.0025)) * Math.SQRT1_2);                    // Fasen oben
-      const r = u > 0.05 ? 0.0028 : 0.0014;                                               // senkrechte Kanten gerundet
-      const qx = Math.abs(u - (uF + uB) / 2) - (uF - uB) / 2 + r, qz = ax - HW + r;
-      d = Math.max(d, Math.min(Math.max(qx, qz), 0) + Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) - r);
-      d = Math.max(d, -Math.max(Math.hypot(x, v - axis) - 0.0068, uF - 0.008 - u));         // Mündungsöffnung
-      d = Math.max(d, -sdBox(x, v, u, port.cx, (port.v0 + vTop + 0.004) / 2, port.cu, port.hx, (vTop + 0.004 - port.v0) / 2, port.hu));
-      return d;
-    };
-    // PC (b.max): feineres Netz + Gebrauchsspuren (blanke Kanten am Schlitten, Schmutz in Rillen)
-    const sg = surfaceNets(slideF, [-0.0138, P9.bottom - 0.0012, uB - 0.0012], [0.0138, vTop + 0.0012, uF + 0.0012], b.max ? 0.0007 : 0.00115);
-    if (b.max) cavityColors(sg, slideF, { r: 0.0008, edge: 0.9, cavity: 0.6 });
-    b._push(atlasUV(sg, slideUV), 'p9Slide', { part: 'slide' }, true);
+    // Schlitten und Rahmen als geteilte Blöcke (Bauteil-Cache, 24.10.): je Stufe einmal gerechnet, in allen
+    // Aufsatz-Varianten wiederverwendet
+    b.shared('schlitten', () => {
+      const sideD = grid2D((u, v) => sdPolygon(u, v, sideSL), uB - 0.002, uF + 0.002, P9.bottom - 0.002, vTop + 0.002, 0.0004);
+      const slideF = (x, v, u) => {
+        const ax = Math.abs(x);
+        let d = extrudeRound(sideD(u, v), x, HW, 0.0006);
+        d = Math.max(d, (ax - HW + v - (vTop - 0.0025)) * Math.SQRT1_2);                    // Fasen oben
+        const r = u > 0.05 ? 0.0028 : 0.0014;                                               // senkrechte Kanten gerundet
+        const qx = Math.abs(u - (uF + uB) / 2) - (uF - uB) / 2 + r, qz = ax - HW + r;
+        d = Math.max(d, Math.min(Math.max(qx, qz), 0) + Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) - r);
+        d = Math.max(d, -Math.max(Math.hypot(x, v - axis) - 0.0068, uF - 0.008 - u));         // Mündungsöffnung
+        d = Math.max(d, -sdBox(x, v, u, port.cx, (port.v0 + vTop + 0.004) / 2, port.cu, port.hx, (vTop + 0.004 - port.v0) / 2, port.hu));
+        return d;
+      };
+      // PC (b.max): feineres Netz + Gebrauchsspuren (blanke Kanten am Schlitten, Schmutz in Rillen)
+      // Handy (b.lite): bewusst dasselbe Raster wie Standard – ein gröberes (× 1,4: 37 810 statt 71 666 Dreiecke, auch
+      // × 1,15 oder nur der Schlitten) war im Bildvergleich sichtbar (Hebel, Kanten; 24.10.), die P-9 bleibt optisch
+      // unverändert. Das Handy spart über den halben Atlas (p9Slide@lite/p9Frame@lite, materials.js).
+      const sg = surfaceNets(slideF, [-0.0138, P9.bottom - 0.0012, uB - 0.0012], [0.0138, vTop + 0.0012, uF + 0.0012], b.max ? 0.0007 : 0.00115);
+      if (b.max) cavityColors(sg, slideF, { r: 0.0008, edge: 0.9, cavity: 0.6 });
+      b._push(atlasUV(sg, slideUV), 'p9Slide', { part: 'slide' }, true);
+    });
     // Lauf: Haube im Auswurffenster, Mündung mit Krone und Bohrung knapp vor der Schlittenfront
     b.box('barrelNitride', 0.0125, vTop - 0.0007 - (axis - 0.002), port.hu * 2 - 0.0008, 0, (vTop - 0.0007 + axis - 0.002) / 2, port.cu, { part: 'slide', c: 0.0005 });
     b.lathe('barrelNitride', [[0, R.BARREL_R], [uF + 0.0007 - 0.06, R.BARREL_R], [uF + 0.0007 - 0.06, 0.0046]], 0, axis, 0.06, { part: 'slide', seg: 28 });
@@ -61,41 +69,43 @@ export function p9(b) {
     b.box('polymer', 0.0122, 0.0128, 0.0008, 0, axis - 0.0022, uB - 0.0002, { part: 'slide', c: 0.0003 });
     b.circle('cavity', 0.0012, 0, axis, uB - 0.0007, { part: 'slide', ry: Math.PI, seg: 10 });
     // ---------------------------------------------------------------- Rahmen + Abzugsbügel + Griff (ein Spritzgussteil)
-    const [A, B] = R.M(R.GRIP_LINE);
-    const lx = B[0] - A[0], lv = B[1] - A[1], ll = Math.hypot(lx, lv);
-    const vBand = R.V(592), vGuardTop = R.V(565), vGripTop = R.V(540), vFlare0 = R.V(560), vFlare1 = R.V(690);
-    const boss = R.M(R.TAKEDOWN_BOSS), slot = R.M(R.TAKEDOWN), ledge = R.M(R.STOP_LEDGE);
-    const [tx, ty, trx, try_] = R.THUMB_REST, [dx, dy, dr] = R.GUARD_DIMPLE;
-    const thumb = { u: R.U(tx), v: R.V(ty), ru: trx / R.PPM, rv: try_ / R.PPM };
-    const dimple = { u: R.U(dx), v: R.V(dy), r: dr / R.PPM };
-    const railV = R.V(492), railU0 = R.U(600), slotU = R.U(374);
-    const box2 = (pts) => { const us = pts.map((p) => p[0]), vs = pts.map((p) => p[1]); return [Math.min(...us) - 0.002, Math.max(...us) + 0.002, Math.min(...vs) - 0.002, Math.max(...vs) + 0.002]; };
-    const BB = { boss: box2(boss), ledge: box2(ledge), slot: box2(slot) };
-    const inBox = (b, u, v) => u > b[0] && u < b[1] && v > b[2] && v < b[3];
-    const smooth = (e0, e1, t) => { const k = Math.min(1, Math.max(0, (t - e0) / (e1 - e0))); return k * k * (3 - 2 * k); };
-    const outD = grid2D((u, v) => Math.max(sdPolygon(u, v, lower), -sdPolygon(u, v, open)), R.U(1700), R.U(175), R.V(1260), R.V(450), 0.0005);
-    const frameF = (x, v, u) => {
-      const ax = Math.abs(x);
-      const d2 = outD(u, v);
-      if (d2 > 0.004 || ax > 0.02) return Math.max(d2, ax - 0.016);
-      const side = ((u - A[0]) * lv - (v - A[1]) * lx) / ll;                               // > 0: hinter der Griffvorderkante
-      const hwG = 0.0111 + 0.0041 * smooth(vFlare0, vFlare1, v);
-      let d = extrudeRound(Math.max(d2, vBand - v), x, 0.011, 0.0012);                    // Staubschutz, Schienen, Biberschwanz
-      d = smin(d, extrudeRound(Math.max(d2, side, v - vGuardTop), x, 0.0047, 0.0018), 0.003);      // Abzugsbügel
-      d = smin(d, extrudeRound(Math.max(d2, -side, v - vGripTop), x, hwG, 0.0075), 0.004);        // Griff
-      // Kleinteile nur in ihrer Umgebung auswerten (spart den Großteil der Rechenzeit)
-      if (inBox(BB.boss, u, v)) d = smin(d, extrudeRound(sdPolygon(u, v, boss), x, 0.0118, 0.0006), 0.0008);   // Buckel um den Zerlegehebel
-      if (inBox(BB.ledge, u, v)) d = smin(d, extrudeRound(sdPolygon(u, v, ledge), x, 0.0123, 0.0007), 0.0006);  // Abweisleiste unter dem Schlittenfang
-      if (inBox(BB.slot, u, v)) d = Math.max(d, -Math.max(sdPolygon(u, v, slot), 0.0104 - ax));                 // Schlitz für den Zerlegehebel
-      if (u > railU0 && Math.abs(v - railV) < 0.003) d = Math.max(d, -Math.max(Math.abs(v - railV) - 0.0011, 0.0097 - ax, railU0 - u));   // Längsnut der Schiene
-      if (Math.abs(u - slotU) < 0.003) d = Math.max(d, -Math.max(Math.abs(u - slotU) - 0.0009, v - R.V(562)));   // Querschlitz
-      if (Math.abs(u - thumb.u) < thumb.ru + 0.004 && Math.abs(v - thumb.v) < thumb.rv + 0.004) d = -smin(-d, sdEllipsoid(ax, v, u, hwG + 0.0052, thumb.v, thumb.u, 0.0062, thumb.rv, thumb.ru), 0.003);   // Daumenmulde (weich)
-      if (Math.abs(u - dimple.u) < 0.005 && Math.abs(v - dimple.v) < 0.005) d = Math.max(d, -sdEllipsoid(ax, v, u, 0.0047 + dimple.r - 0.0008, dimple.v, dimple.u, dimple.r, dimple.r, dimple.r));  // Mulde am Bügel
-      return d;
-    };
-    const fg = surfaceNets(frameF, [-0.0172, R.V(1258), R.U(1698)], [0.0172, R.V(452), R.U(177)], b.max ? 0.0008 : 0.0013);
-    if (b.max) cavityColors(fg, frameF, { r: 0.0011, edge: 0.5, cavity: 0.55 });
-    b._push(atlasUV(fg, frameUV), 'p9Frame', {}, true);
+    b.shared('rahmen', () => {
+      const [A, B] = R.M(R.GRIP_LINE);
+      const lx = B[0] - A[0], lv = B[1] - A[1], ll = Math.hypot(lx, lv);
+      const vBand = R.V(592), vGuardTop = R.V(565), vGripTop = R.V(540), vFlare0 = R.V(560), vFlare1 = R.V(690);
+      const boss = R.M(R.TAKEDOWN_BOSS), slot = R.M(R.TAKEDOWN), ledge = R.M(R.STOP_LEDGE);
+      const [tx, ty, trx, try_] = R.THUMB_REST, [dx, dy, dr] = R.GUARD_DIMPLE;
+      const thumb = { u: R.U(tx), v: R.V(ty), ru: trx / R.PPM, rv: try_ / R.PPM };
+      const dimple = { u: R.U(dx), v: R.V(dy), r: dr / R.PPM };
+      const railV = R.V(492), railU0 = R.U(600), slotU = R.U(374);
+      const box2 = (pts) => { const us = pts.map((p) => p[0]), vs = pts.map((p) => p[1]); return [Math.min(...us) - 0.002, Math.max(...us) + 0.002, Math.min(...vs) - 0.002, Math.max(...vs) + 0.002]; };
+      const BB = { boss: box2(boss), ledge: box2(ledge), slot: box2(slot) };
+      const inBox = (b, u, v) => u > b[0] && u < b[1] && v > b[2] && v < b[3];
+      const smooth = (e0, e1, t) => { const k = Math.min(1, Math.max(0, (t - e0) / (e1 - e0))); return k * k * (3 - 2 * k); };
+      const outD = grid2D((u, v) => Math.max(sdPolygon(u, v, lower), -sdPolygon(u, v, open)), R.U(1700), R.U(175), R.V(1260), R.V(450), 0.0005);
+      const frameF = (x, v, u) => {
+        const ax = Math.abs(x);
+        const d2 = outD(u, v);
+        if (d2 > 0.004 || ax > 0.02) return Math.max(d2, ax - 0.016);
+        const side = ((u - A[0]) * lv - (v - A[1]) * lx) / ll;                               // > 0: hinter der Griffvorderkante
+        const hwG = 0.0111 + 0.0041 * smooth(vFlare0, vFlare1, v);
+        let d = extrudeRound(Math.max(d2, vBand - v), x, 0.011, 0.0012);                    // Staubschutz, Schienen, Biberschwanz
+        d = smin(d, extrudeRound(Math.max(d2, side, v - vGuardTop), x, 0.0047, 0.0018), 0.003);      // Abzugsbügel
+        d = smin(d, extrudeRound(Math.max(d2, -side, v - vGripTop), x, hwG, 0.0075), 0.004);        // Griff
+        // Kleinteile nur in ihrer Umgebung auswerten (spart den Großteil der Rechenzeit)
+        if (inBox(BB.boss, u, v)) d = smin(d, extrudeRound(sdPolygon(u, v, boss), x, 0.0118, 0.0006), 0.0008);   // Buckel um den Zerlegehebel
+        if (inBox(BB.ledge, u, v)) d = smin(d, extrudeRound(sdPolygon(u, v, ledge), x, 0.0123, 0.0007), 0.0006);  // Abweisleiste unter dem Schlittenfang
+        if (inBox(BB.slot, u, v)) d = Math.max(d, -Math.max(sdPolygon(u, v, slot), 0.0104 - ax));                 // Schlitz für den Zerlegehebel
+        if (u > railU0 && Math.abs(v - railV) < 0.003) d = Math.max(d, -Math.max(Math.abs(v - railV) - 0.0011, 0.0097 - ax, railU0 - u));   // Längsnut der Schiene
+        if (Math.abs(u - slotU) < 0.003) d = Math.max(d, -Math.max(Math.abs(u - slotU) - 0.0009, v - R.V(562)));   // Querschlitz
+        if (Math.abs(u - thumb.u) < thumb.ru + 0.004 && Math.abs(v - thumb.v) < thumb.rv + 0.004) d = -smin(-d, sdEllipsoid(ax, v, u, hwG + 0.0052, thumb.v, thumb.u, 0.0062, thumb.rv, thumb.ru), 0.003);   // Daumenmulde (weich)
+        if (Math.abs(u - dimple.u) < 0.005 && Math.abs(v - dimple.v) < 0.005) d = Math.max(d, -sdEllipsoid(ax, v, u, 0.0047 + dimple.r - 0.0008, dimple.v, dimple.u, dimple.r, dimple.r, dimple.r));  // Mulde am Bügel
+        return d;
+      };
+      const fg = surfaceNets(frameF, [-0.0172, R.V(1258), R.U(1698)], [0.0172, R.V(452), R.U(177)], b.max ? 0.0008 : 0.0013);   // Handy: Standard-Raster (s. Schlitten)
+      if (b.max) cavityColors(fg, frameF, { r: 0.0011, edge: 0.5, cavity: 0.55 });
+      b._push(atlasUV(fg, frameUV), 'p9Frame', {}, true);
+    });
   } else {
     // Bot-Detailstufe: Profile aus denselben Fotoumrissen, stark vereinfacht
     b.side('slideNitride', simplifyPoly(sideSL, 0.0015), HW * 2, 0, { part: 'slide', bevel: 0.0015 });

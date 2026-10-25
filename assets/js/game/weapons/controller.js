@@ -10,7 +10,7 @@
 // Für den Spieler treibt er den Gunsmith-ViewModel (Waffe, Animationen, Anschlag, Overlay).
 
 import * as THREE from 'three';
-import { WEAPONS as DATA_WEAPONS, EQUIPMENT as DATA_EQUIPMENT, effectiveRange, weaponHandling, fireModesOf, burstCountOf, fireModeLabel } from '../../shared/weapons.data.js';
+import { WEAPONS as DATA_WEAPONS, EQUIPMENT as DATA_EQUIPMENT, GUN_GAME_STEPS, effectiveRange, weaponHandling, fireModesOf, burstCountOf, fireModeLabel } from '../../shared/weapons.data.js';
 import { clamp, damp, smooth01, easeInOut, wrapAngle, samplePellet, sampleCone, patternAt } from './ballistics/math.js';
 import { applyAttachments, loadAttachments, UNDER_WEAPONS } from '../../shared/attachments.data.js';
 import { getWeaponModelMeta } from './models.js';
@@ -213,11 +213,30 @@ export class WeaponController {
     const r = this.G.renderer && this.G.renderer.renderer;
     if (!vm || typeof vm.warmup !== 'function' || !r) return;
     const mode = this.G.match && this.G.match.modeId;
-    const ids = mode === 'gun' || mode === 'training' ? Object.keys(this._weapons()) : [];
     // 24.10.: eigene Waffen samt Aufsätzen (Definitionen) – vorher nur die Grundfassung, die Zweitwaffe mit Aufsätzen baute erst
     // der erste Wechsel mitten im Match
     const defs = this.slots.map((s) => s.def).filter((d) => d && d.id && this._def(d.id));
-    try { vm.warmup(r, [...ids.filter((id) => this._def(id)), ...defs]); } catch (err) { this._vmError('warmup', err); }
+    const own = new Set(defs.map((d) => d.id));
+    // Waffenspiel (24.10.): die Leiter steht fest – alle ihre Waffen voll vorbereiten, sonst baute jeder Aufstieg nach einem
+    // Abschuss mitten im Match (M-17 am PC hoch ≈ 5 s, online stünde der Host für alle); mit den gespeicherten Aufsätzen, die
+    // setLoadout beim Aufstieg anlegt (sonst zeigte der Hintergrund-Bau bis zum nächsten Tod die Grundfassung). Übrige Waffen
+    // braucht der Modus nicht.
+    if (mode === 'gun') {
+      let saved = {};
+      try { saved = loadAttachments() || {}; } catch { saved = {}; }
+      for (const id of GUN_GAME_STEPS) {
+        const d = this._def(id);
+        if (!d || own.has(id)) continue;
+        own.add(id);
+        let info = null;
+        if (saved[id]) { try { info = getWeaponModelMeta(d.model || d.id); } catch { /* ohne Modell: Unterlauf nach Klasse */ } }
+        defs.push(saved[id] ? applyAttachments(d, saved[id], info) : d);
+      }
+    }
+    // Schießstand (24.10., V4): volle Fassung nur für die Ausrüstung, alle übrigen Waffen leicht (Shader, Texturen) – vorher
+    // baute der Ladebildschirm jede Waffe in der vollen Fassung
+    const more = mode === 'training' ? Object.keys(this._weapons()).filter((id) => !own.has(id) && this._def(id)) : [];
+    try { vm.warmup(r, defs, more); } catch (err) { this._vmError('warmup', err); }
   }
 
   /* ================================================================ Ausrüstung */

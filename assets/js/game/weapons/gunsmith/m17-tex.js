@@ -1,10 +1,8 @@
 // M-17: Oberflächen nach dem Referenzfoto (m17-ref.js). Schaft + Griff teilen einen Atlas (Seitenprojektion, beide
 // Seiten gleich): Würfelmuster der Griffschale, Gummikappe mit Rippen, Riemenschlitze, eingeformte Schrift.
-// Gravuren (Wahlhebelstellungen, Typ, Nummer, Schienenzahlen) sind kleine Schriftfelder (Abziehbilder) direkt auf der
-// Fläche – so stehen sie auf jeder Seite lesbar.
-import * as THREE from 'three';
-import { canvas, toTexture, cached, heightToNormal, fbm, bilinear } from './textures.js';
-import { defineMat } from './materials.js';
+// Gravuren (Wahlhebelstellungen, Typ, Nummer, Schienenzahlen) sind Schriftfelder in einer gemeinsamen Schrift-Textur
+// der Waffe (schrift.js, 24.10.) – so stehen sie auf jeder Seite lesbar.
+import { canvas, toTexture, cached, heightToNormal, fbm, bilinear, halfMaps } from './textures.js';
 import * as R from './m17-ref.js';
 
 // ---------------------------------------------------------------- Atlas Schaft + Griff
@@ -92,45 +90,18 @@ function readHeight(c) {
   for (let i = 0; i < h.length; i++) h[i] = d[i * 4] / 255;
   return h;
 }
-export function m17FurnMaps() {
-  return cached('m17furn', () => {
-    const h = readHeight(furnLayer('h'));
-    const n = fbm(512, 256, { seed: 79, period: 64, octaves: 2 });
-    for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) h[y * F.W + x] += (bilinear(n, 512, 256, x / 4, y / 4) - 0.5) * 0.04;
-    return {
-      map: toTexture(furnLayer('a'), { srgb: true, repeat: false, aniso: 8 }),
-      normalMap: heightToNormal(h, F.W, F.H, 2.4),
-      roughnessMap: toTexture(furnLayer('r'), { repeat: false, aniso: 8 }),
-    };
-  });
+/** Atlas Schaft + Griff; lite (Handy, 24.10.): halbe Kantenlänge = erste Mipmap-Stufe des PC-Atlas (¼ Speicher). */
+export function m17FurnMaps(lite = false) {
+  if (lite) return cached('m17furn:lite', () => ({ key: 'm17furn:lite', ...halfMaps(furnMaps()) }));
+  return cached('m17furn', () => ({ key: 'm17furn', ...furnMaps() }));
 }
-
-// ---------------------------------------------------------------- Gravuren als Schriftfelder
-/** Schriftfeld-Material (helle, gravierte Schrift auf transparentem Grund); vertical: Schrift um 90° gedreht. */
-export function markMat(text, { vertical = false, px = 64, weight = '600' } = {}) {
-  const key = 'm17mark:' + text + (vertical ? ':v' : '');
-  defineMat(key, () => {
-    const t = cached('tex:' + key, () => {
-      const probe = canvas(8, 8).getContext('2d');
-      probe.font = `${weight} ${px}px Arial, Helvetica, sans-serif`;
-      const w = Math.ceil(probe.measureText(text).width) + 8, h = Math.ceil(px * 1.2);
-      const c = vertical ? canvas(h, w) : canvas(w, h), g = c.getContext('2d');
-      g.font = probe.font; g.fillStyle = '#fff'; g.textBaseline = 'middle';
-      if (vertical) { g.translate(h / 2, w / 2); g.rotate(-Math.PI / 2); g.fillText(text, -w / 2 + 4, 0); } else g.fillText(text, 4, h / 2);
-      const tex = toTexture(c, { srgb: true, repeat: false, aniso: 8 });
-      tex.userData = { aspect: c.width / c.height };
-      return tex;
-    });
-    return new THREE.MeshStandardMaterial({ map: t, color: 0xb9bcc0, metalness: 0.6, roughness: 0.45, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  });
-  return key;
+function furnMaps() {
+  const h = readHeight(furnLayer('h'));
+  const n = fbm(512, 256, { seed: 79, period: 64, octaves: 2 });
+  for (let y = 0; y < F.H; y++) for (let x = 0; x < F.W; x++) h[y * F.W + x] += (bilinear(n, 512, 256, x / 4, y / 4) - 0.5) * 0.04;
+  return {
+    map: toTexture(furnLayer('a'), { srgb: true, repeat: false, aniso: 8 }),
+    normalMap: heightToNormal(h, F.W, F.H, 2.4),
+    roughnessMap: toTexture(furnLayer('r'), { repeat: false, aniso: 8 }),
+  };
 }
-/** Seitenverhältnis (Breite/Höhe) eines Schriftfelds. */
-export function markAspect(text, o = {}) {
-  const probe = canvas(8, 8).getContext('2d');
-  const px = o.px ?? 64;
-  probe.font = `${o.weight ?? '600'} ${px}px Arial, Helvetica, sans-serif`;
-  const w = Math.ceil(probe.measureText(text).width) + 8, h = Math.ceil(px * 1.2);
-  return o.vertical ? h / w : w / h;
-}
-

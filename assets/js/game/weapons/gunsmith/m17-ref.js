@@ -5,6 +5,9 @@
 // Kalibrierung: Gehäusevorderkante → Mündung = 393 mm (14,5-Zoll-Lauf ab Verschlussfläche + Feuerdämpfer) → 4480 px/m;
 // Gesamtlänge ergibt 763 mm (M4 mit eingeschobenem Schaft: 757 mm). Laufachse y = 1074 ↔ v = 0,093, Griffmitte
 // x = 1208 ↔ u = 0 (wie beim bisherigen Modell: Schiene oben v = 0,124, Griffvorderkante u = 0,031 passen exakt).
+// Quellen (gemeinfrei, siehe CREDITS.md; Fotos nicht im Repo, nur abgeleitete Maße): rechte Seite
+// https://commons.wikimedia.org/wiki/File:PEO_M4_Carbine_RAS_M68_CCO.jpg, linke Seite
+// https://commons.wikimedia.org/wiki/File:Carbine_M4_1.jpg
 export const PPM = 4480, XG = 1208, YB = 1074, AXIS = 0.093;
 export const U = (x) => (x - XG) / PPM;
 export const V = (y) => AXIS + (YB - y) / PPM;
