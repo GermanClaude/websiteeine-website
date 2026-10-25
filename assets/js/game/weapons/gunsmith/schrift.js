@@ -162,13 +162,14 @@ export function schrift(key, { lite = false } = {}) {
     if (o.rx) geo.rotateX(o.rx);
     b._push(geo, mat, { x, v, u, part: o.part }, true);
   };
-  /** Schriftfeld oben auf einer Fläche (von hinten lesbar), z. B. Schienennummern – nur PC hoch/ultra. */
+  /** Schriftfeld oben auf einer Fläche (von hinten lesbar), z. B. Schienennummern – nur PC hoch/ultra; o.std: auch PC
+   *  niedrig/mittel (nicht Handy), o.part: am beweglichen Teil (25.10., Wahlscheibe der QX-90). */
   const markTop = (b, text, x, v, u, h, o = {}) => {
-    if (!b.max) return;
+    if (!b.max && !(o.std && b.hi && !b.lite)) return;
     const asp = aspect(text, o);
     const geo = plane(b, text, h * asp, h, o);
     geo.rotateX(-Math.PI / 2);
-    b._push(geo, mat, { x, v, u }, true);
+    b._push(geo, mat, { x, v, u, part: o.part }, true);
   };
   /** Nummern auf jedem zweiten Zahn einer Picatinny-Schiene (wie b.picatinny verteilt). */
   const railNumbers = (b, x, top, u0, u1, first, prefix = '') => {

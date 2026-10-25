@@ -189,3 +189,23 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   77 478 / Handy 38 002 / Bots 360, 20/20/19/3 Netze, Bau max 1,6 s / Standard 0,9 s / Handy 0,7 s / Bots 9 ms (M-17 im
   selben Lauf 4,8 / 1,5 / 3,3 s / 28 ms), Kontaktgitter max 41 161 Dreiecke / 221 ms, Texturen PC 28,1 MB, Handy
   10,8 MB (mit geteilten Kacheln).
+- 25.10.: **QX-90 Nachbesserung nach der Prüfung** (Urteil „nicht abnahmefähig“, 6 major / 10 minor). Atlas: die
+  Zwischenleinwand fürs Zurücklesen der Höhe lag ohne `willReadFrequently` auf der Grafikkarte – ein Generator-Schritt
+  blockierte 0,4–2,2 s; jetzt im Hauptspeicher und jede Ebene in Teilschritten (längster Schritt max/Standard/Handy
+  28/38/11 ms statt bis 2,2 s). Magazinwechsel wie am Original: hinten anheben (6° um die Vorderkante unten), dann
+  schräg nach hinten (`anim/magwell.js` OVERRIDE `tilt`/`tiltS`); Bügel und Träger sind innen hohl wie der Bogen am Foto
+  ohne Magazin (`magClear`) – Kollisionsprüfung der Magazinhülle: vorher 500–2 600 von 17 564 Punkten im Gehäuse/Rahmen
+  über den ganzen Weg, jetzt 0–3 Randpunkte. Werkstoff: Kratzer nur noch in Farbe/Rauheit (nicht im Höhenkanal), Korn
+  und Normalenstärke ≈ ⅓, Grundtöne nach Foto (Fotostudio: Optik/Rahmen 0,89 statt 0,50, Foto 0,97; Brücke 0,78, Foto
+  0,77; Frontblock 0,60, Foto 0,51); Schaftkappe glatt mit Fuge statt Spalt; Magazin dunkles Rauch-Polymer, Patronen mit
+  eigenem gedämpftem Material (`magfill` `roundMat`/`seg`). Fotodetails: Feuerdämpfer als Käfig (Taille, vier Fenster
+  78/168/258/348°, innen weit, Innenkanten gerundet), Schlüsselloch vorn (Fenster mit Hals, Notvisier-Kanal mit Rundloch
+  zwischen den „Ohren“, Optik oben 3 mm gefast, Lichtsensor im Hals), Seitenschienen als Profil (4 Stege, 5 Nuten,
+  Nutgrund dunkel), gewölbter Abzug, der die Mulde füllt, Wahlscheibe vorn/hinten abgeflacht mit S-1-A auf der Scheibe
+  (`schrift.js` `markTop` mit `part`/`std`), Magazinheck aus Rauch-Polymer mit Drehrampe, Sockel unten im Bogen,
+  Frontblock nur unten dicker (keine Fuge mehr), Stirn und Brückenrücken von Hand begradigt (Normalen konstant statt 7
+  Facetten). Hülse 5,7 × 28 als eigene Art `p57`. Augenabstand 0,22 → Verdeckung 32 % (kleinere Werte verdecken mehr:
+  0,18 → 38 %). Handy-Atlanten 768 × 384 / 512 × 256 mit halben Normalen (eigene ≈ 2,9 MB statt 4,9 MB). Messung (Last ≈
+  3,5): Dreiecke max 199 552 / Standard 76 500 / Handy 38 194 / Bots 360, 22/22/19/3 Netze, Bau max 1,56 s / Standard
+  0,70–1,04 s (4 Läufe, Median 0,81 s; der Prüfer maß am Erstbau 0,88–1,15 s) / Handy 0,51–0,59 s / Bots 8 ms,
+  Kontaktgitter 40 985 Dreiecke / 0,20 s, Texturen PC 28,4 MB, Handy 8,5 MB mit geteilten Kacheln.

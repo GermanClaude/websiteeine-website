@@ -131,9 +131,18 @@ export class SmokeWisps {
 // Hülsenprofile nach Maß (m, Achse = lokales Y, Boden unten, Mündung oben) mit Vertex-Farbe je Profilpunkt:
 // Zündhütchen mit Schlagbolzendelle, roter Lackring (NATO), Boden/Rand, Auszieherrille, Körper, Schulter und Hals
 // berußt (abgeschossen), Mündung offen mit dunklem Inneren. rifle = 5,56×45 (Hülse 44,7 mm, Rand Ø 9,6 mm,
-// Schulter 23°, Hals Ø 6,43 mm), pistol = 9×19, big = 5,56-Form in .338-Größe.
+// Schulter 23°, Hals Ø 6,43 mm), pistol = 9×19, big = 5,56-Form in .338-Größe, p57 = 5,7×28 (25.10., QX-90: Flaschenhülse
+// 28,9 mm, Boden Ø 7,95 mm, Hals Ø 6,35 mm – vorher warf die QX-90 eine kurze, gerade Pistolenhülse aus).
 const C_PRIMER = 0xcdb07a, C_SEAL = 0x7a1c28, C_HEAD = 0xb8893c, C_GROOVE = 0x9a7332, C_BODY = 0xd3a650, C_SHOULDER = 0xb48a44, C_NECK = 0x7c6034, C_MOUTH = 0x5a4528, C_IN = 0x2a2016;
 function caseProfile(type) {
+  if (type === 'p57') {
+    const L = 0.0289, y0 = -L / 2;
+    return [[0, y0 + 0.0003, C_PRIMER], [0.0007, y0 + 0.0001, C_PRIMER], [0.0019, y0 + 0.0001, C_PRIMER], [0.002, y0 + 0.00005, C_SEAL], [0.00215, y0, C_SEAL],
+      [0.0038, y0, C_HEAD], [0.00397, y0 + 0.0002, C_HEAD], [0.00397, y0 + 0.001, C_HEAD], [0.0037, y0 + 0.0012, C_GROOVE], [0.0034, y0 + 0.0015, C_GROOVE],
+      [0.0034, y0 + 0.002, C_GROOVE], [0.00393, y0 + 0.0027, C_BODY], [0.0039, y0 + 0.0212, C_BODY], [0.0037, y0 + 0.0228, C_SHOULDER], [0.00318, y0 + 0.0238, C_NECK],
+      [0.00318, y0 + 0.0285, C_MOUTH], [0.0031, y0 + L, C_MOUTH], [0.0029, y0 + L, C_IN], [0.0029, y0 + 0.023, C_IN], [0.0034, y0 + 0.021, C_IN],
+      [0.0035, y0 + 0.004, C_IN], [0, y0 + 0.0035, C_IN]];
+  }
   if (type === 'pistol') {
     const L = 0.0192, y0 = -L / 2;
     return [[0, y0 + 0.0003, C_PRIMER], [0.0007, y0 + 0.0001, C_PRIMER], [0.0020, y0 + 0.0001, C_PRIMER], [0.0021, y0 + 0.00005, C_SEAL], [0.00225, y0, C_SEAL],
@@ -171,7 +180,7 @@ export function casingGeometry(type, seg = 8, detail = false) {
     g.setAttribute('color', new THREE.BufferAttribute(a, 3));
     return g;
   }
-  const dims = { rifle: [0.0032, 0.0048, 0.0447, 0.0055], pistol: [0.0047, 0.0049, 0.019, 0.0], big: [0.006, 0.0074, 0.05, 0.0045] }[type] || [0.0032, 0.0048, 0.0447, 0.0055];
+  const dims = { rifle: [0.0032, 0.0048, 0.0447, 0.0055], pistol: [0.0047, 0.0049, 0.019, 0.0], big: [0.006, 0.0074, 0.05, 0.0045], p57: [0.00318, 0.0039, 0.0289, 0.005] }[type] || [0.0032, 0.0048, 0.0447, 0.0055];
   const [rNeck, rBody, len, neck] = dims;
   const pts = [[0, -len / 2], [rBody * 1.02, -len / 2], [rBody * 1.02, -len / 2 + 0.0015], [rBody * 0.9, -len / 2 + 0.002], [rBody, -len / 2 + 0.003], [rBody * (neck > 0 ? 0.94 : 1), len / 2 - neck - (neck > 0 ? 0.003 : 0)]];
   if (neck > 0) pts.push([rNeck, len / 2 - neck], [rNeck, len / 2]);

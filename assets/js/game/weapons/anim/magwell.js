@@ -6,6 +6,8 @@
 //         (magfill.js f.axis), sonst nach unten; Sonderfälle mit Begründung in OVERRIDE
 //   clear Freigang (m): Weg entlang der Achse, ab dem kein Teil des Magazins mehr im Schacht steckt – aus den
 //         Dreiecken des Gehäuses, die um den Querschnitt des Magazins liegen (tiefster Punkt des Schachts)
+//   tilt  (OVERRIDE, 25.10.) erst kippen, dann gleiten: Drehung um die Vorderkante unten des Magazins (hinten hoch) um
+//         tilt rad auf den ersten tiltS m des Wegs, danach entlang der mitgekippten Achse – wie der Magazinwechsel der P90
 // magOffset() setzt daraus den Teilversatz zusammen: bis zum Freigang NUR Bewegung entlang der Achse (kein Kippen,
 // kein seitliches Gleiten durch die Schachtwände), danach darf die Hand das Magazin frei führen. Gleiches beim
 // Einsetzen: die Ausrichtung ist abgeschlossen, bevor die Oberkante den Schacht erreicht.
@@ -14,11 +16,11 @@ import { clamp, smooth } from '../gunsmith/anim.js';
 
 // Sonderfälle (Modellraum): Achse, zusätzlicher Freigang
 const OVERRIDE = {
-  // QX-90: Magazin liegt quer oben auf dem Gehäuse UNTER der Visierbrücke – es kann nicht senkrecht abgehoben werden,
-  // sondern gleitet nach hinten, bis seine Vorderkante hinter der Brücke liegt (Freigang aus der Geometrie). 25.10.: Modell
-  // nach Foto – hinter dem Magazin steht der Halteblock des Schafts so hoch wie das Magazin; waagrecht zog es durch den
-  // ganzen Schaft (Freigang 427 mm). Wie am Original hinten angehoben: Achse 10° steigend nach hinten
-  qx90: { axis: [0, 0.18, 1], margin: [0.004, 0.004, -0.003, 0.004] },
+  // QX-90: Magazin liegt quer oben auf dem Gehäuse UNTER der Visierbrücke – es kann nicht senkrecht abgehoben werden.
+  // Wie am Original: hinten anheben (Drehung um die Vorderkante unten, 6°, der Halteblock dahinter bleibt frei), dann
+  // schräg nach hinten unter der Brücke heraus. Bügel und Träger lassen dafür innen den Weg frei (guns-qx90.js magClear,
+  // Winkel = qx90-ref.js MAG_TILT). Prüfung 25.10.: vorher stieg es von Anfang an um 10° und fuhr durch die massive Brücke
+  qx90: { axis: [0, 0, 1], tilt: 0.105, tiltS: 0.022, margin: [0.004, 0.004, -0.003, 0.004] },
   // HM-60: Gurtkasten hängt seitlich an der Halterung links unter dem Gehäuse – nach unten abziehen
   hm60: { axis: [0, -1, 0] },
 };
@@ -61,17 +63,29 @@ function compute(entry) {
   const qm = new THREE.Quaternion();
   mag.updateWorldMatrix(true, false);
   new THREE.Matrix4().multiplyMatrices(inv, mag.matrixWorld).decompose(_v, qm, _a);
+  const origin = _v.clone();                // Teilursprung (Modellraum) – _v wird unten wiederverwendet
   const axis = new THREE.Vector3().fromArray(axL).applyQuaternion(ov.axis ? new THREE.Quaternion() : qm).normalize();
-  // Querschnitt-Basis
-  const e1 = Math.abs(axis.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
-  e1.addScaledVector(axis, -e1.dot(axis)).normalize();
-  const e2 = new THREE.Vector3().crossVectors(axis, e1);
   // Magazinpunkte (ohne Gurt – der hängt beim HM-60 als eigenes Teil am Kasten und wird beim Wechsel ausgeblendet)
   const mv = [];
   const belt = ud.parts.belt || null;
   const underBelt = (o) => { for (let p = o; p && p !== mag; p = p.parent) if (p === belt) return true; return false; };
   meshVerts(mag, o => !underBelt(o), inv, mv);
   if (!mv.length) return null;
+  // Kippen (OVERRIDE tilt): Drehpunkt = Vorderkante unten (kleinstes y, kleinstes z = vorn), Magazin und Achse gekippt –
+  // der Freigang gilt dann für das Gleiten aus der gekippten Lage
+  let tilt = null;
+  if (ov.tilt) {
+    let y0 = Infinity, z0 = Infinity;
+    for (const p of mv) { y0 = Math.min(y0, p.y); z0 = Math.min(z0, p.z); }
+    const P = new THREE.Vector3(0, y0, z0), q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -ov.tilt);
+    for (const p of mv) p.sub(P).applyQuaternion(q).add(P);
+    axis.applyQuaternion(q);
+    tilt = { a: ov.tilt, s: ov.tiltS ?? 0.02, d: P.clone().sub(origin) };   // d = Drehpunkt − Teilursprung (Modellraum)
+  }
+  // Querschnitt-Basis
+  const e1 = Math.abs(axis.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+  e1.addScaledVector(axis, -e1.dot(axis)).normalize();
+  const e2 = new THREE.Vector3().crossVectors(axis, e1);
   let top = Infinity;
   for (const p of mv) top = Math.min(top, p.dot(axis));
   // Querschnitt der oberen 35 mm (der Teil, der im Schacht steckt), 4 mm Rand für die Schachtwände
@@ -114,8 +128,8 @@ function compute(entry) {
       }
     }
   });
-  const clear = Math.max(0.008, bottom - top + 0.004);
-  return { axis, clear, depth: bottom - top, key };
+  const clear = Math.max(0.008, bottom - top + 0.004) + (tilt ? tilt.s : 0);
+  return { axis, clear, depth: bottom - top, key, tilt };
 }
 
 /**
@@ -127,10 +141,20 @@ export function magOffset(mw, s, free, out = [0, 0, 0, 0, 0, 0]) {
   const ax = mw ? mw.axis : null;
   s = Math.max(0, s);
   const g = mw && free ? smooth(clamp((s - mw.clear) / 0.012, 0, 1)) : free ? 1 : 0;
-  out[0] = (ax ? ax.x * s : 0) + (free ? free[0] * g : 0);
-  out[1] = (ax ? ax.y * s : -s) + (free ? free[1] * g : 0);
-  out[2] = (ax ? ax.z * s : 0) + (free ? free[2] * g : 0);
-  out[3] = free ? (free[3] || 0) * g : 0;
+  // Kippen (tilt): auf den ersten T.s m des Wegs Drehung um den Drehpunkt (Versatz (I − R)·d gleicht aus, dass das Teil
+  // um seinen Ursprung dreht), danach Gleiten entlang der gekippten Achse
+  let tx = 0, ty = 0, tz = 0, rx = 0, sl = s;
+  const T = mw && mw.tilt;
+  if (T) {
+    rx = -T.a * clamp(s / T.s, 0, 1);
+    const c = Math.cos(rx), sn = Math.sin(rx), d = T.d;
+    ty = d.y - (d.y * c - d.z * sn); tz = d.z - (d.y * sn + d.z * c);
+    sl = Math.max(0, s - T.s);
+  }
+  out[0] = tx + (ax ? ax.x * sl : 0) + (free ? free[0] * g : 0);
+  out[1] = ty + (ax ? ax.y * sl : -sl) + (free ? free[1] * g : 0);
+  out[2] = tz + (ax ? ax.z * sl : 0) + (free ? free[2] * g : 0);
+  out[3] = rx + (free ? (free[3] || 0) * g : 0);
   out[4] = free ? (free[4] || 0) * g : 0;
   out[5] = free ? (free[5] || 0) * g : 0;
   return out;

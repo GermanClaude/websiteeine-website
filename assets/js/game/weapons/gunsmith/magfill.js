@@ -18,6 +18,7 @@
 //     drum   { c: [x, v, u], r0, dr, rmin, a0 } Spirale in der Trommel (Patronen seitlich, Böden zum Fenster)
 //     cyl    { c: [x, v, u], R, n, F, u } Revolvertrommel: Geschossspitzen in den Kammern, Platz 0 unter dem Hahn
 //     link   Gurtglied je Patrone, neck = Plätze im Trommelhals, stagger false = einreihig (Gurt)
+//     roundMat Materialschlüssel der Patronen (sonst 'rounds'), seg Segmente je Patrone (sonst 10) – 25.10., QX-90
 //   }
 //
 // API: magRounds(b, spec) · magFillFor(b, key) → fill · attachMagFill(root, fill) · setMagRounds(model, n, turn)
@@ -140,6 +141,10 @@ function computeFill(spec, pivot, cap) {
   const c = calFor(spec), d = 2 * c.r;
   const mats = [], fol = [];
   const f = { part: spec.part, cal: c, cap, slots: 0, mats: null, fol: null, folDims: null, folMat: spec.folMat || 'follower', mirror: false, step: 0, link: !!spec.link, shell: c.kind === 'shell' };
+  // Optional (25.10., QX-90): eigenes Patronenmaterial (z. B. hinter Rauch-Polymer gedämpft) und Segmentzahl (quer
+  // liegende Patronen zeigen die Hülsenböden frontal – 10 Segmente wirkten als Zehneck)
+  if (spec.roundMat) f.roundMat = spec.roundMat;
+  if (spec.seg) f.seg = spec.seg;
   const toLocal = ([x, v, u]) => new THREE.Vector3(x, v, -u).sub(pivot);
   const push = (pos, A, up) => { const a = new Float32Array(16); frame(a, 0, pos, A, up); mats.push(a); };
 
@@ -226,7 +231,7 @@ export function magFillFor(b, key) {
 /** Ego/Vitrine: Patronen (InstancedMesh 'rounds') + Zubringer ('follower') an das Teil hängen, voll geladen. */
 export function attachMagFill(root, fill) {
   const host = root.getObjectByName(fill.part) || root;
-  const mesh = new THREE.InstancedMesh(roundGeometry(fill.cal, 10, fill.link), getMat(fill.shell ? 'roundsShell' : 'rounds'), fill.slots);
+  const mesh = new THREE.InstancedMesh(roundGeometry(fill.cal, fill.seg || 10, fill.link), getMat(fill.roundMat || (fill.shell ? 'roundsShell' : 'rounds')), fill.slots);
   mesh.name = 'rounds';
   mesh.instanceMatrix.array.set(fill.mats);
   mesh.instanceMatrix.needsUpdate = true;

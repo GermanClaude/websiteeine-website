@@ -1,9 +1,11 @@
 // QX-90: Maße und Umrisse vom Referenzfoto – FN P90 Standard (Ringvisier), Herstellerfotos von FN Herstal auf Wikimedia
-// Commons, CC BY-SA 2.0 (verändert: nur Maße und Umrisse abgeleitet, die Fotos selbst sind nicht enthalten).
+// Commons, CC BY-SA 2.0 (Fotograf laut EXIF der Seitenansichten: Stéphane Moureaux, studioimage.be; verändert: nur Maße
+// und Umrisse abgeleitet, die Fotos selbst sind nicht enthalten).
 // Rechte Seite: https://commons.wikimedia.org/wiki/File:FN_P90_Standard_Submachine_Gun_Right_Side.jpg (Mündung rechts, 2127 px)
 // Linke Seite:  https://commons.wikimedia.org/wiki/File:FN_P90_Submachine_Gun_Left_Side.jpg (Mündung links, 2127 px)
 // Schrägansicht vorn (Visierfenster, Mündung, Breiten): https://commons.wikimedia.org/wiki/File:FN_P90_Standard_Muzzle_End.jpg
-// Gegenprobe ohne Magazin (Magazinauflage, Halter): https://commons.wikimedia.org/wiki/File:FN_P90_PDW.jpg (CC0, DickClarkMises)
+// Gegenprobe ohne Magazin (Magazinauflage, Halter, Bügel als Bogen): https://commons.wikimedia.org/wiki/File:FN_P90_PDW.jpg (CC0, DickClarkMises)
+// Gegenprobe Feuerdämpfer, Abzug, geladenes Magazin: https://commons.wikimedia.org/wiki/File:FN_P90_01.jpg (CC BY-SA 4.0, Gabon100)
 //
 // Geraderichten: keine Drehung nötig (Oberkante Schaft/Magazin y 459 über 1050 px waagrecht, Laufachse y 592 an Laufmutter
 // und Feuerdämpfer gleich). Perspektive: die gespiegelte linke Seite deckt die rechte nach einheitlicher Skalierung
@@ -26,7 +28,10 @@ export const M = (pts) => pts.map(([x, y]) => [U(x), V(y)]);
 export const L2R = (x2, y2) => [2140.3 - 1.00979 * x2, 80.5 + 1.00979 * y2 - (2140.3 - 1.00979 * x2 - 1824) * 0.0063];   // linkes Foto um 0,36° verdreht
 
 // ---------------------------------------------------------------- Silhouette und Durchbrüche (kontur.mjs, Fotopixel)
-export const SIL = [[1417,235],[1737,235],[1739,237],[1739,299],[1741,301],[1813,301],[1815,303],[1815,309],[1819,319],[1819,327],[1821,329],[1821,335],[1823,337],[1823,343],[1827,353],[1827,363],[1829,365],[1829,375],[1831,377],[1831,387],[1833,389],[1833,399],[1835,401],[1835,415],[1837,417],[1839,457],[1841,459],[1841,561],[1843,563],[1847,561],[1847,553],[1873,553],[1873,557],[1875,559],[1879,559],[1881,557],[1881,553],[1895,553],[1895,561],[1897,563],[1903,563],[1905,561],[1923,561],[1925,559],[1925,553],[1933,553],[1941,559],[1949,559],[1951,557],[1955,557],[1959,553],[1989,553],[1991,555],[1991,559],[1997,573],[1997,579],[1999,581],[1999,589],[2001,591],[2001,599],[2003,601],[2003,609],[2005,611],[2005,629],[2003,631],[1959,631],[1951,625],[1941,625],[1931,631],[1907,631],[1907,623],[1905,621],[1897,621],[1895,623],[1895,631],[1883,631],[1879,627],[1875,627],[1873,631],[1817,631],[1815,633],[1817,639],[1823,645],[1827,653],[1845,677],[1843,719],[1841,721],[1841,739],[1839,741],[1839,759],[1837,761],[1837,775],[1835,777],[1835,795],[1833,797],[1833,813],[1831,815],[1831,821],[1829,823],[1791,823],[1785,817],[1783,813],[1783,765],[1771,749],[1759,743],[1695,743],[1679,753],[1669,769],[1669,799],[1667,801],[1667,817],[1665,819],[1665,827],[1663,829],[1663,835],[1661,837],[1657,853],[1641,885],[1635,891],[1631,899],[1601,929],[1581,943],[1553,957],[1549,957],[1541,961],[1535,961],[1525,965],[1517,965],[1515,967],[1499,967],[1497,969],[1387,969],[1383,967],[1377,961],[1377,945],[1379,943],[1379,935],[1381,933],[1385,911],[1389,903],[1389,897],[1391,895],[1391,889],[1393,887],[1393,881],[1397,871],[1395,869],[1397,867],[1395,865],[1395,855],[1393,851],[1381,839],[1365,833],[1343,833],[1341,835],[1339,833],[1337,835],[1315,833],[1313,835],[1305,835],[1293,841],[1247,887],[1203,919],[1161,941],[1157,941],[1151,945],[1147,945],[1141,949],[1137,949],[1123,955],[1117,955],[1115,957],[1095,961],[1093,963],[1069,965],[1067,967],[1047,967],[1045,969],[895,969],[893,965],[885,953],[885,949],[879,945],[867,943],[847,935],[841,935],[815,925],[809,925],[783,915],[777,915],[745,903],[739,903],[737,901],[733,901],[713,893],[707,893],[681,883],[675,883],[667,879],[633,879],[625,885],[625,889],[621,897],[545,897],[543,895],[541,897],[539,895],[491,895],[489,897],[481,897],[479,895],[477,897],[237,897],[235,899],[197,899],[193,897],[191,901],[181,901],[179,899],[155,899],[151,895],[149,887],[151,885],[151,875],[153,873],[153,847],[155,845],[155,827],[157,825],[157,807],[155,803],[159,795],[159,763],[161,761],[161,615],[159,613],[159,565],[157,563],[157,539],[155,537],[155,515],[153,513],[153,495],[151,493],[149,465],[153,461],[157,461],[159,459],[177,459],[179,455],[181,457],[189,457],[193,461],[199,461],[201,459],[687,459],[689,457],[693,457],[695,459],[697,457],[703,457],[711,461],[729,461],[731,459],[1205,459],[1209,455],[1213,447],[1213,443],[1233,405],[1233,401],[1241,387],[1241,383],[1245,379],[1253,363],[1253,359],[1263,341],[1263,337],[1273,319],[1273,315],[1279,303],[1281,301],[1311,301],[1313,299],[1313,295],[1327,295],[1329,293],[1335,293],[1337,295],[1339,293],[1371,293],[1373,291],[1377,293],[1381,291],[1383,293],[1397,293],[1401,291],[1415,275],[1415,271],[1417,269]];
+export const SIL = [[1417,235],[1737,235],[1739,237],[1739,299],[1741,301],[1813,301],[1815,305],[1825,353],[1834,401],[1839,455],[1841,459],[1841,561],[1843,563],[1847,561],[1847,553],[1873,553],[1873,557],[1875,559],[1879,559],[1881,557],[1881,553],[1895,553],[1895,561],[1897,563],[1903,563],[1905,561],[1923,561],[1925,559],[1925,553],[1933,553],[1941,559],[1949,559],[1951,557],[1955,557],[1959,553],[1989,553],[1991,555],[1991,559],[1997,573],[1997,579],[1999,581],[1999,589],[2001,591],[2001,599],[2003,601],[2003,609],[2005,611],[2005,629],[2003,631],[1959,631],[1951,625],[1941,625],[1931,631],[1907,631],[1907,623],[1905,621],[1897,621],[1895,623],[1895,631],[1883,631],[1879,627],[1875,627],[1873,631],[1817,631],[1815,633],[1817,639],[1823,645],[1827,653],[1845,677],[1843,719],[1841,721],[1841,739],[1839,741],[1839,759],[1837,761],[1837,775],[1835,777],[1835,795],[1833,797],[1833,813],[1831,815],[1831,821],[1829,823],[1791,823],[1785,817],[1783,813],[1783,765],[1771,749],[1759,743],[1695,743],[1679,753],[1669,769],[1669,799],[1667,801],[1667,817],[1665,819],[1665,827],[1663,829],[1663,835],[1661,837],[1657,853],[1641,885],[1635,891],[1631,899],[1601,929],[1581,943],[1553,957],[1549,957],[1541,961],[1535,961],[1525,965],[1517,965],[1515,967],[1499,967],[1497,969],[1387,969],[1383,967],[1377,961],[1377,945],[1379,943],[1379,935],[1381,933],[1385,911],[1389,903],[1389,897],[1391,895],[1391,889],[1393,887],[1393,881],[1397,871],[1395,869],[1397,867],[1395,865],[1395,855],[1393,851],[1381,839],[1365,833],[1343,833],[1341,835],[1339,833],[1337,835],[1315,833],[1313,835],[1305,835],[1293,841],[1247,887],[1203,919],[1161,941],[1157,941],[1151,945],[1147,945],[1141,949],[1137,949],[1123,955],[1117,955],[1115,957],[1095,961],[1093,963],[1069,965],[1067,967],[1047,967],[1045,969],[895,969],[893,965],[885,953],[885,949],[879,945],[867,943],[847,935],[841,935],[815,925],[809,925],[783,915],[777,915],[745,903],[739,903],[737,901],[733,901],[713,893],[707,893],[681,883],[675,883],[667,879],[633,879],[625,885],[625,889],[621,897],[545,897],[543,895],[541,897],[539,895],[491,895],[489,897],[481,897],[479,895],[477,897],[237,897],[235,899],[197,899],[193,897],[191,901],[181,901],[179,899],[155,899],[151,895],[149,887],[151,885],[151,875],[153,873],[153,847],[155,845],[155,827],[157,825],[157,807],[155,803],[159,795],[159,763],[161,761],[161,615],[159,613],[159,565],[157,563],[157,539],[155,537],[155,515],[153,513],[153,495],[151,493],[149,465],[153,461],[157,461],[159,459],[177,459],[179,455],[181,457],[189,457],[193,461],[199,461],[201,459],[687,459],[689,457],[693,457],[695,459],[697,457],[703,457],[711,461],[729,461],[731,459],[1205,459],[1209,455],[1213,446],[1278,304],[1281,301],[1311,301],[1313,299],[1313,295],[1327,295],[1329,293],[1335,293],[1337,295],[1339,293],[1371,293],[1373,291],[1377,293],[1381,291],[1383,293],[1397,293],[1401,291],[1415,275],[1415,271],[1417,269]];
+// 25.10. (Prüfung): Stirn des Gehäuses (x 1813–1841, y 301–459) und Rückseite der Brücke (x 1209–1281, y 301–455) von Hand
+// begradigt – die Kontursuche lieferte dort 2-px-Treppen, die sich trotz Glättung als waagrechte Riefen abzeichneten (die
+// Stirn ist im Foto leicht gewölbt: drei Punkte, die Brückenrückseite gerade).
 // Daumenloch (Schusshand), Abzugsschlaufe (Abzug hinten, Stützhand vorn), Visierfenster im Brückenträger, Spalt über dem
 // Magazin unter dem Träger, Fenster vor der Magazinkappe, Riemenschlitz unten in der Schaftkappe
 export const THUMB = [[971,669],[1099,669],[1101,671],[1107,671],[1109,673],[1113,673],[1121,677],[1127,683],[1129,683],[1139,695],[1147,711],[1147,719],[1149,721],[1149,737],[1147,739],[1145,751],[1139,763],[1123,779],[1121,779],[1117,783],[1109,787],[1105,787],[1065,807],[1057,811],[1053,811],[1013,831],[1009,831],[1001,835],[993,835],[991,837],[969,837],[967,835],[953,833],[947,829],[939,827],[935,823],[927,819],[915,807],[915,805],[907,795],[901,783],[899,771],[897,769],[897,737],[899,735],[901,723],[913,701],[927,687],[949,675],[953,675],[961,671]];
@@ -50,6 +55,16 @@ export const STRAP = [[1205, 459], [1213, 443], [1243, 398], [1376, 405], [1336,
 export const STRAP_FRONT = [[1376, 404], [1336, 466], [1330, 592]];                  // Vorderkante der Brücke (schräg)
 export const BEAM_LOW = [[1376, 405], [1450, 418], [1550, 432], [1640, 446], [1660, 457]];   // Unterkante des Trägers
 export const FRONT_X = 1660, LOWER_Y = 545, HOUSING_BOT = 637, BARREL_X0 = 1817;      // Frontblock ab x 1660; Unterteil ab y 545
+// Dicker Teil des Frontblocks (Fotokante: senkrecht bei x 1722 ab y 427 abwärts) – darüber sind Träger und Front gleich
+// breit (Prüfung 25.10.: der Breitensprung bei x 1660 über die ganze Höhe ergab eine Fuge, die es im Foto nicht gibt)
+export const FRONT_BLOCK = [1722, 427];
+// Schlüsselloch vorn (Mündungsseiten-Foto): Hals unter dem Visierfenster (halbe Breite, Tiefe m), U-Kanal des
+// Notvisiers im Gehäuse vor der Optik (halbe Breite m, Unterkante y), Rundloch hinten im Kanal (y, Radius m) –
+// links und rechts des Kanals bleiben die „Ohren“ des Gehäuses stehen
+export const KEYHOLE = { neck: 0.0034, depth: 0.007, chW: 0.0054, chBot: 336, hole: [323, 0.0026] };
+// Magazin herausnehmen wie am Original: hinten anheben (Drehung um die Vorderkante unten, rad), dann schräg nach hinten
+// ziehen (anim/magwell.js) – Bügel und Träger sind innen hohl genug dafür (Foto ohne Magazin: Bügel = Bogen)
+export const MAG_TILT = 0.105;
 // Ringvisier (Optik, eloxiert): Block über dem Gehäuse; Fenster (Visierlinie y 262), Rundung hinten unten in das Gehäuse
 export const OPTIC = [1418, 235, 1740, 300], OPTIC_FILLET = 16, SIGHT_Y = 262;
 export const OPTIC_WIN = { h: 0.0128, w: 0.019, r: 0.004 };     // Fensteröffnung vorn/hinten (Höhe, Breite, Eckradius, m)
@@ -69,15 +84,23 @@ export const MAG_TICKS = [900, 945, 1010, 1075, 1140, 1205, 1270, 1335, 1400, 14
 export const MAG_ARROW = [1585, 497, 1625, 512];                  // Pfeilmarke vorn (Einführrichtung)
 // Magazinhalter hinten (beidseitig): Tasche im Rahmen und geriffelte Taste; runder Sockel darunter (Zuführung)
 export const CATCH_POCKET = [633, 492, 735, 545], CATCH_TAB = [676, 492, 735, 545];
-export const LUG = [740, 545, 842, 592, 16];                      // x0, y0, x1, y1, Eckradius (px)
+export const LUG = [740, 545, 846, 591, 7];                       // x0, y0, x1, y1, Eckradius (px); unten flacher Bogen
+export const LUG_ARC = 9;                                          // Pfeilhöhe des Bogens unten (px, Mitte tiefer als die Ecken)
 // Spannhebel (beidseitig, Teil charge): Stahlstange im Kanal unter dem Magazin, Knopf vorn mit Bügel und Stift
 export const ROD = [1330, 594, 1640, 636], CH_KNOB = [1632, 583, 1730, 648], CH_PIN = [1655, 616, 8], CH_LOOP = [1690, 600, 1716, 629];
 // Lauf und Feuerdämpfer (Radien m): Laufmutter, Bund, Rille, Bund, Hals, Dämpfer mit schrägem Stirnschnitt und 4 Schlitzen
 export const BARREL = [[1817, 0.0095], [1850, 0.0095], [1850, 0.0109], [1872, 0.0109], [1872, 0.0093], [1883, 0.0093], [1883, 0.0109], [1898, 0.0109], [1898, 0.0083], [1910, 0.0083], [1910, 0.0109]];
-export const HIDER = { x0: 1910, top: 1990, bot: 2006, r: 0.0109, slots: [1930, 1978], slotW: 0.0031, bore: 0.0042 };
-// Abzug (breites Blatt hinten in der Schlaufe), Drehwahlschalter unter dem Abzug (Scheibe + geriffelte Lasche rechts)
-export const TRIGGER = [[1334, 668], [1366, 664], [1394, 666], [1412, 676], [1418, 690], [1411, 712], [1410, 745], [1414, 772], [1340, 774], [1334, 760]];
-export const SELECTOR = { c: [1392, 790], r: 0.0128, h: 0.0062, tab: [1350, 778, 1452, 802], ribs: [1407, 1440] };
+// Feuerdämpfer (Fotos rechts und FN_P90_01, Mündungsseite): Käfig – hinten Ring, eingeschnürte Taille (Radius −1,7 mm
+// zwischen x 1928 und 1968), vier große Fenster (≈ 4,6 × 16 mm, gerundete Ecken) unter 78°/168°/258°/348° (rechts
+// gesehen: oben als Kerbe in der Kontur, eins knapp unter der Mitte), vorn dicker Ring mit Schrägschnitt; Innenraum weit
+// (r 6,6 mm), hinten Laufbohrung
+export const HIDER = { x0: 1910, top: 1990, bot: 2006, r: 0.0109, slots: [1921, 1980], slotW: 0.0046, slotR: 0.0014, bore: 0.0042, inner: 0.0066,
+  waist: [1928, 1950, 1968, 0.0017], angles: [78, 168, 258, 348] };
+// Abzug: breites, gewölbtes Blatt, das die hintere Mulde der Schlaufe füllt (Foto: Rückseite folgt der Öffnung, vorn
+// hohl geschwungene Fingerfläche). Drehwahlschalter unter dem Abzug: Scheibe (Achse senkrecht), vorn/hinten abgeflacht –
+// sichtbar sind die Laschen beidseitig (Foto rechts: x 1349–1438, Riffel 1400–1438), vorn endet sie bei x ≈ 1440
+export const TRIGGER = [[1329, 722], [1332, 702], [1339, 687], [1350, 675], [1366, 668], [1395, 665], [1420, 672], [1430, 678], [1420, 688], [1413, 702], [1410, 720], [1410, 744], [1412, 762], [1413, 775], [1345, 776], [1335, 769], [1330, 752]];
+export const SELECTOR = { c: [1393, 790], r: 0.0223, flat: [1349, 1440], h: 0.0062, tab: [1350, 778, 1452, 802], ribs: [1407, 1440] };
 // Schrauben (Innensechskant, beidseitig gleich – die Schalen sind durchgeschraubt; Kreissuche auf beiden Fotos)
 export const SCREWS = [[228, 564], [350, 850], [452, 544], [622, 820], [930, 892], [1148, 874], [1224, 702], [1496, 892], [1646, 700], [1824, 702]];
 export const SCREW_R = 12;
@@ -85,7 +108,8 @@ export const PIN_HOLE = [855, 703, 4];                            // kleine Bohr
 export const EJECT = [770, 905, 862, 932];                        // Auswurföffnung unten hinter dem Griff (Lage geschätzt)
 // Beschriftung links am Rahmen (Foto links, gespiegelt: Werksname des Vorbilds → eigene Beschriftung im Atlas)
 export const TEXT_L = [855, 578, 1165, 600];
-export const SEL_MARKS = { s: [1365, 806], e: [1394, 806], a: [1423, 806] };   // S / 1 / A auf der Scheibe (Atlas)
+// S / 1 / A auf der Oberseite der rechten Lasche der Wahlscheibe (Foto FN_P90_01: weiß/orange auf der Scheibe)
+export const SEL_MARKS = { s: -0.42, e: 0, a: 0.42 };            // Winkel um die Scheibenachse (rad, 0 = rechts quer)
 // Breiten (halbe, m) – geschätzt aus Datenblatt (55 mm) und Schrägansicht
 export const HW = { stock: 0.0255, upper: 0.0245, grip: 0.019, loop: 0.0165, hook: 0.0145, butt: 0.0258, strap: 0.026, beam: 0.0255,
   front: 0.024, lower: 0.0215, optic: 0.0135, mag: 0.0225, rod: 0.0236, knob: 0.0275 };

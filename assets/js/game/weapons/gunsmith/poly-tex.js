@@ -67,8 +67,13 @@ export function edgeWear(g, kind, line, o = {}) {
   }
 }
 
-/** Kratzer/Schlieren: rect = [x0, y0, x1, y1] (Fotopixel), o: { n, seed, len, alpha, col (Farbe heller Kratzer 'r,g,b'), dir (Vorzugswinkel) } */
+/**
+ * Kratzer/Schlieren: rect = [x0, y0, x1, y1] (Fotopixel), o: { n, seed, len, alpha, col (Farbe heller Kratzer 'r,g,b'),
+ * dir (Vorzugswinkel), height (auch in den Höhenkanal – Standard nein: feine Kratzer sind Farbe und Glanz, als Rillen
+ * in der Normal-Map wirkte die Fläche wie Hammerschlaglack, Prüfung QX-90 25.10.) }
+ */
 export function scuffs(g, kind, rect, o = {}) {
+  if (kind === 'h' && !o.height) return;
   const rr = rng(o.seed ?? 29), n = o.n ?? 60, [x0, y0, x1, y1] = rect, len = o.len ?? 30, al = o.alpha ?? 0.14;
   for (let k = 0; k < n; k++) {
     const x = x0 + rr() * (x1 - x0), y = y0 + rr() * (y1 - y0), l = len * (0.15 + rr()), a = (o.dir ?? 0) + (rr() - 0.5) * (o.spread ?? 0.8);
