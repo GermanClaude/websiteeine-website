@@ -11,6 +11,10 @@
 //   0,8–1,0 px; Trennfugen/Kleinteile von Hand aus vergrößerten Ausschnitten (1 px ≈ 0,6 mm).
 // Kalibrierung: Visierlinie (Trommelmitte x 560 → Kornmitte x 1122) = 340 mm = 562 px → 1653 px/m; Prüfmaß Gesamtlänge mit
 //   ausgezogenem Schaft 1146 px = 693 mm (Soll 700 mm, −1,0 %), Magazintiefe quer 53 px = 32 mm (9×19-Doppelreihe ≈ 32–33 mm).
+//   Gegenprobe am PASKAL-Foto (3697 px, A5-Griffstück, links; Nachbesserung 25.10.): dort über dieselbe Visierlinie kalibriert
+//   (≈ 6,0 px/mm, leichte Perspektive ±2 %) – Abstand der Griffstück-Haltebolzen 968 px ≈ 161 mm (hier 267 px = 161,5 mm),
+//   Griffstückhöhe 294 px ≈ 49 mm (hier 81 px = 49 mm). Kleinteile des Griffstücks (Wahlhebel, Piktogramme) von dort übertragen
+//   (das Hauptfoto hat nur 1250 px, 1 px ≈ 0,6 mm).
 // Bezug: Griffmitte an der Griffstück-Unterkante x = 580 ↔ u = 0, Laufachse y = 163 ↔ v = AXIS (wie das alte Modell: Ursprung =
 //   rechte Hand oben am Griff, Achse 60 mm darüber – Haltung/Anschlag bleiben).
 export const PPM = 1653, XG = 580, YB = 163, AXIS = 0.06;
@@ -19,6 +23,8 @@ export const V = (y) => AXIS + (YB - y) / PPM;
 export const M = (pts) => pts.map(([x, y]) => [U(x), V(y)]);
 
 // ---------------------------------------------------------------- Bauteile (Fotopixel), je mit eigener Breite
+// Hinweis (25.10.): REC, HG, FSB, MUZZLE und RSIGHT sind die verfolgten Gesamtumrisse – der Bauplan nutzt daraus abgeleitete
+// Teilumrisse (z. B. Kornträger ohne Laufbund, Lauf als Drehkörper); tools/ref/ueberlagern.mjs zeichnet alle Umrisse zur Kontrolle.
 // Schulterstütze (Kappe mit Gummiauflage), Streben, Gehäuse-Endstück mit Schaftverriegelung
 export const BUTT = [[85, 121], [89, 121], [91, 123], [95, 123], [103, 127], [109, 127], [111, 129], [117, 129], [119, 131], [133, 133], [133, 187], [129, 191], [127, 191], [113, 205], [113, 207], [109, 211], [109, 215], [105, 223], [105, 229], [103, 231], [103, 241], [101, 243], [101, 253], [99, 255], [99, 263], [97, 265], [95, 287], [93, 289], [93, 295], [87, 307], [87, 309], [81, 315], [77, 317], [67, 317], [63, 315], [63, 313], [57, 305], [57, 285], [63, 273], [63, 265], [65, 263], [65, 255], [67, 253], [67, 233], [69, 231], [69, 175], [67, 173], [67, 143], [65, 139], [67, 137], [67, 133], [73, 127], [75, 127], [79, 123]];
 export const STRUT = [130, 151, 402, 185];                 // Strebe (Flachstahl, beidseitig), Ober-/Unterkante
@@ -42,30 +48,49 @@ export const HG = [[873, 118], [1078, 118], [1084, 121], [1087, 127], [1087, 183
 export const HG_PANELS = [[886, 127, 1080, 161], [886, 169, 1080, 187]];   // Fischhaut-Felder (Rechtecke x0, y0, x1, y1)
 export const FSB = [[1115, 51], [1123, 51], [1127, 53], [1131, 57], [1135, 65], [1135, 73], [1137, 75], [1137, 93], [1139, 95], [1139, 99], [1145, 107], [1145, 113], [1147, 115], [1147, 125], [1141, 135], [1141, 149], [1143, 151], [1147, 147], [1149, 147], [1149, 175], [1143, 175], [1137, 181], [1133, 181], [1131, 183], [1115, 183], [1111, 187], [1109, 189], [1087, 189], [1087, 101], [1095, 101], [1097, 103], [1103, 103], [1107, 99], [1107, 85], [1105, 83], [1105, 59], [1109, 53]];
 export const HOOD = [1121, 67, 16];                          // Kornhaube: Mitte x, y und Außenradius (Seitenansicht, px)
+export const FSB_SEAM_X = 1120;                              // Trennfuge Kornträger: hinten Schelle (Handschutz), vorn Gussblock
+export const FSB_PINS = [[1100, 138, 4], [1131, 148, 4]];   // Stifte rechts: Schellenstift (Ω-Kopf) und Querstift mit Bohrung
 export const MUZZLE = [[1147, 147], [1149, 147], [1151, 149], [1159, 149], [1161, 151], [1185, 151], [1187, 153], [1197, 153], [1201, 157], [1201, 171], [1197, 175], [1195, 175], [1163, 175], [1161, 173], [1155, 173], [1153, 175], [1147, 175]];
-// Lauf: [x, Radius m] von der Kornträger-Stirn bis zur Mündung (Ober-/Unterkante gegen die Achse y 163; die Nocken der
-// Dreifachwarze ragen oben bis y 147 = 9,7 mm)
-export const BARREL = [[1146, 0.0080], [1161, 0.0080], [1161, 0.0066], [1163, 0.0066], [1163, 0.0073], [1186, 0.0073], [1187, 0.0068], [1198, 0.0068], [1201, 0.0056]];
+// Lauf: [x, Radius m] aus dem Kornträger (Bund x 1141–1149 wie im Umriss FSB, beginnt 2 px in der Stirn x 1143) bis zur
+// Mündung (Ober-/Unterkante gegen die Achse y 163; die Nocken der Dreifachwarze ragen oben bis y 147 = 9,7 mm)
+export const BARREL = [[1141, 0.0085], [1149, 0.0085], [1149, 0.0080], [1161, 0.0080], [1161, 0.0066], [1163, 0.0066], [1163, 0.0073], [1186, 0.0073], [1187, 0.0068], [1198, 0.0068], [1201, 0.0056]];
 // Trommeldiopter: Sockel (Umriss bis Oberkante Gehäuse), Trommel Mitte + Radius (px)
 export const RSIGHT = [[547, 57], [551, 57], [553, 59], [559, 59], [561, 61], [563, 61], [569, 67], [573, 67], [573, 69], [569, 75], [569, 79], [567, 81], [567, 89], [573, 97], [511, 97], [513, 95], [513, 83], [515, 81], [515, 77], [517, 75], [519, 69], [521, 69], [527, 65], [541, 65], [545, 61]];
-export const DRUM = [557, 71, 15];
+// Trommel (25.10. nachgemessen): Achsschraube bei x 556, y 68 = auf der Visierlinie; Umriss gerundetes Vierkant (Stellungen),
+// über die Ecken Ø ≈ 18 mm (r 15 px), im Foto ≈ 21° verdreht; PASKAL-Foto: gerändelter Zylinder Ø ≈ 18 mm
+export const DRUM = [556, 67, 15];
 export const SIGHT_Y = 67;                                   // Visierlinie (Mitte Kornhaube = Kornspitze = Lochblende)
 
 // ---------------------------------------------------------------- Gehäuse-Einzelheiten (rechte Seite, Fotopixel)
-export const PORT = [709, 109, 773, 142];                    // Auswurffenster (runde Ecken r ≈ 6 px)
+export const PORT = [707, 110, 774, 142], PORT_R = 9;        // Auswurffenster, Enden gerundet (r ≈ 9 px, Nachmessung 25.10.)
 export const GROOVE = [497, 145, 772, 162];                  // Längssicke (Führung der Schaftstreben)
-export const SEAM_Y = 121;                                   // Prägekante unter dem Rohr (bis zum Fenster)
+export const FLUTE = [507, 108, 669, 117];                   // obere Prägerinne unter dem Rohr (endet vor dem Fenster)
+export const SEAM_Y = 121;                                   // Prägekante (kleine Stufe) unter der Rinne bis zum Fenster
+export const DEFLECTOR = [786, 104, 832, 119];               // aufgeprägter Hülsenabweiser vor dem Fenster (rechts)
 export const TUBE = [884, 1092];                             // freies Spannhebelrohr (Gehäuse → Kornträger), Ø ≈ 19 mm
 export const TUBE_TOP_Y = 99;
 export const BOSS = [803, 155, 6];                           // Prägebuckel vorn (Haltestift Handschutz/Laufhalter)
 export const FRONT_PIN = [857, 175, 5];                      // Querstift vorn (Durchgangsloch)
 export const DIMPLES = [688, 852, 1072];                     // Rastmulden der Klemmmontage oben (x)
-export const RIVETS = [[655, 128, 3], [683, 128, 3]];        // Punktnieten Verschlussführung
+export const RIVETS = [[660, 131, 3], [686, 131, 3]];        // Punktnieten der Verschlussführung auf einer Lasche
+export const RIVET_PLATE = [[652, 137], [658, 128], [690, 128], [697, 137]];   // Lasche (Trapez) unter den Nieten
+export const DIMPLE = [855, 133, 2.5];                       // kleine Prägemulde vorn oben
 // Griffstück: Haltebolzen hinten/vorn, Magazinknopf rechts, Wahlhebel (Achse), Schaftstift
 export const PINS = [[468, 198, 6], [735, 250, 5]];          // [x, y, r] Haltebolzen (Kopf) – hinten im Endstück, vorn am Griffstück
 export const MAG_BUTTON = [735, 228, 6];
-export const SELECTOR = [557, 212];                          // Wahlhebel-Achse (beidseitig), Piktogramme relativ dazu (vp9-tex.js)
+// Wahlhebel-Achse (beidseitig), Piktogramme relativ dazu (vp9-tex.js). 25.10.: von [557, 212] berichtigt – rechter Hebel im
+// Hauptfoto mit der Nabe bei x ≈ 610, y ≈ 227; PASKAL: Nabe 507 px vor dem hinteren / 461 px hinter dem vorderen Haltebolzen
+// (≈ 6,0 px/mm) → x 608, 24 mm unter der Griffstück-Oberkante → y 225
+export const SELECTOR = [608, 225];
+export const BUTTON_POCKET = [736, 214, 256, 7];             // Mulde um Magazinknopf und vorderen Bolzen rechts (x, y0, y1, halbe Breite)
+// Magazinschacht: Lasche rechts (heller abgesetzt, Trapez) mit Niet; links Halteplatte mit Schrauben und Rastknopf (aus PASKAL)
+export const WELL_PLATE_R = [[753, 196], [797, 196], [801, 200], [801, 225], [767, 237], [755, 236], [751, 232], [751, 200]];
+export const WELL_RIVET_R = [793, 239, 3];
+export const WELL_PLATE_L = [[766, 202], [818, 202], [821, 206], [821, 248], [804, 258], [770, 258], [766, 254]];
+export const WELL_SCREWS_L = [[795, 220, 4], [779, 213, 2.5], [779, 230, 2.5]];
+export const WELL_LATCH_L = [758, 225, 7, 6.5];             // Rastknopf links (Mitte x, y, halbe Breite/Höhe in px)
 export const STOCK_PIN = [422, 160, 5];
+export const CAP_RECESS = [456, 106, 491, 120], CAP_SLOT = [482, 112, 485, 128];   // Endstück: Vertiefung oben + senkrechter Schlitz
 // Spannhebel links vorn in der Nut (Ruhelage), Knopf überragt das Rohr von oben gesehen bei x 955…990
 export const CHARGE_X = 972, SLOT = [842, 990];              // Spannhebel-Ruhelage (Mitte), Nut im Rohr links (x0, x1)
 export const NOTCH_X = 848;                                  // Rastkerbe hinten (Hebel dort eingehängt, „HK-Schlag“ löst ihn)

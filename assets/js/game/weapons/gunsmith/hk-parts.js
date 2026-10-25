@@ -22,16 +22,18 @@ export function hkSection(x, v, S) {
 /**
  * Trommeldiopter (HK): Trommel um eine Querachse (x) – wie ein Rad gedreht, die Blenden sind radiale Bohrungen im Umfang;
  * die benutzte liegt längs (u) auf der Visierlinie durch die Achse, die nächste (um 90° versetzt) senkrecht. Rechte Hälfte
- * gerändelt (nur PC), Absatzrille, Stirnflächen mit Schlitzschraube. o: { u, v (Achse = Visierlinie), r, len, apR, mat, id }
+ * gerändelt (nur PC), Absatzrille, Stirnflächen mit Schlitzschraube. o: { u, v (Achse = Visierlinie), r, len, apR, mat, id,
+ * flat }: flat = Abstand der vier Stellungsflächen von der Achse (< r: gerundetes Vierkant wie am Original, über die Ecken Ø 2r;
+ * 25.10. nach Foto: Ø ≈ 18 mm über die Ecken, Flächen ≈ 16 mm), die benutzte Blende geht durch eine Fläche.
  */
 export function hkDrum(b, o) {
-  const { u: cu, v: cv, r = 0.0065, len = 0.016, apR = 0.0024, mat = 'steel', id = 'hkTrommel' } = o;
+  const { u: cu, v: cv, r = 0.0065, len = 0.016, apR = 0.0024, mat = 'steel', id = 'hkTrommel', flat = r } = o;
   const knurl = b.max, hl = len / 2;
   const f = (x, v, u) => {
     const pv = v - cv, pu = u - cu, rad = Math.hypot(pv, pu);
     let rr = r;
     if (knurl && x > 0 && x < hl - 0.0011 && rad > r - 0.0012) rr -= 0.00015 * (1 + Math.cos(Math.atan2(pu, pv) * 36));   // Rändel
-    let d = roundMax(rad - rr, Math.abs(x) - hl, 0.0008);
+    let d = roundMax(Math.max(rad - rr, Math.abs(pv) - flat, Math.abs(pu) - flat), Math.abs(x) - hl, 0.0008);
     d = Math.max(d, -Math.max(Math.abs(x) - 0.0004, (r - 0.0005) - rad));            // Absatzrille in der Mitte
     d = Math.max(d, -(Math.hypot(x, pv) - apR));                                     // benutzte Blende (längs)
     d = Math.max(d, -(Math.hypot(x, pu) - apR * 0.6));                               // nächste Blende (senkrecht, kleiner)
@@ -98,18 +100,20 @@ export function hkCockingHandle(b, o) {
  * mit Fase. x = halbe Breite an der Stelle (Außenfläche), r = Kopfradius.
  */
 export function hkPin(b, mat, x, v, u, r, s = -1, o = {}) {
-  const h = o.h ?? 0.0016;
+  const h = o.h ?? 0.0016, xb = o.xb ?? x;   // xb: Außenfläche der Gegenseite (z. B. Boden einer Mulde)
   b.lathe(mat, [[0, 0], [0, r], [h * 0.45, r], [h * 0.55, r * 0.86], [h * 0.7, r * 0.86], [h * 0.8, r * 0.95], [h, r * 0.7], [h, 0]], s * (x - 0.0002), v, u, { axis: 'x', ry: s > 0 ? 0 : Math.PI, seg: b.seg(20, 6), part: o.part });
-  if (b.hi) b.lathe(mat, [[0, 0], [0, r * 0.82], [0.0004, r * 0.7], [0.0004, 0]], -s * (x - 0.0002), v, u, { axis: 'x', ry: s > 0 ? Math.PI : 0, seg: 16, part: o.part });
+  if (b.hi) b.lathe(mat, [[0, 0], [0, r * 0.82], [0.0004, r * 0.7], [0.0004, 0]], -s * (xb - 0.0002), v, u, { axis: 'x', ry: s > 0 ? Math.PI : 0, seg: 16, part: o.part });
 }
 
 /**
  * Beidseitiger Wahlhebel (Navy-/Feuerstoß-Griffstück): Nabe mit weißem Zeigerstrich, Daumenflügel gegenüber (Tropfenform,
- * breiter am Ende). Gebaut in Stellung SICHER: Zeiger nach unten, Flügel nach hinten oben (dir: Winkel des Flügels in der
- * u-v-Ebene, von +u gegen den Uhrzeigersinn). x = Außenfläche des Griffstücks. Teil o.part (Drehung um x).
+ * breiter am Ende). Gebaut in Stellung SICHER: Zeiger (ptr) auf das Sicher-Piktogramm, Flügel (dir) etwa gegenüber – Winkel
+ * in der u-v-Ebene, von +u gegen den Uhrzeigersinn. x = Außenfläche des Griffstücks. Teil o.part (Drehung um x).
+ * 25.10. nach dem PASKAL-Foto (A5, Stellung Einzel): Flügel ≈ 188° gegen den Zeiger, Nabe r ≈ 7 mm, Flügelende ≈ 25 mm von
+ * der Achse.
  */
 export function hkSelector(b, o) {
-  const { v, u, x, dir = Math.PI - 0.28, hubR = 0.0052, tipR = 0.0058, reach = 0.0175, t = 0.0034, mat = 'steel', part = 'selector' } = o;
+  const { v, u, x, ptr = -Math.PI / 2, dir = ptr + Math.PI + 0.14, hubR = 0.0068, tipR = 0.0055, reach = 0.019, t = 0.0034, mat = 'steel', part = 'selector' } = o;
   const du = Math.cos(dir), dv = Math.sin(dir), n = b.hi ? 14 : 5;
   // Umriss: Hüllkurve zweier Kreise (Nabe r = hubR, Flügelende r = tipR im Abstand reach)
   const tu = u + du * reach, tv = v + dv * reach, a = Math.atan2(dv, du), k = Math.asin((tipR - hubR) / reach);
@@ -119,11 +123,12 @@ export function hkSelector(b, o) {
   for (const s of [-1, 1]) {
     b.side(mat, pts, t, s * (x + t / 2), { part, bevel: b.max ? 0.0009 : 0.0006, bevelSeg: b.hi ? 2 : 1 });
     if (b.hi) {
-      // Achsschraube in der Nabe, Zeigerstrich (weiß) nach unten, Griffmulde im Flügel
+      // Achsschraube in der Nabe, Zeigerstrich (weiß) zum Piktogramm, Griffmulde quer im Flügel (Box-Längsachse v → Winkel θ: rx = θ − π/2)
+      const pm = hubR * 0.55, pl = hubR - 0.0012;
       b.cyl(mat, 0.0019, 0.0019, 0.0006, s * (x + t + 0.0002), v, u, { axis: 'x', part, seg: 14 });
       b.box('cavity', 0.0002, 0.0026, 0.00045, s * (x + t + 0.0006), v, u, { part, c: 0 });
-      b.box('paintWhite', 0.0002, 0.0042, 0.0007, s * (x + t + 0.0001), v - hubR + 0.0024, u, { part, c: 0 });
-      if (b.max) b.box('cavity', 0.00015, 0.0036, 0.0004, s * (x + t + 0.00008), tv - dv * 0.001, tu - du * 0.001, { part, c: 0, rx: -(a - Math.PI / 2) });
+      b.box('paintWhite', 0.0002, pl - 0.0019, 0.0008, s * (x + t + 0.0001), v + Math.sin(ptr) * (pm + 0.0004), u + Math.cos(ptr) * (pm + 0.0004), { part, c: 0, rx: ptr - Math.PI / 2 });
+      if (b.max) b.box('cavity', 0.00015, 0.0036, 0.0004, s * (x + t + 0.00008), tv - dv * 0.001, tu - du * 0.001, { part, c: 0, rx: a });
     }
   }
 }

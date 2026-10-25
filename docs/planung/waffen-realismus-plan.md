@@ -143,3 +143,17 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   Handy 0,43 → 0,11 s (Software-GL). Kosten: max 222 k Dreiecke/19 Netze/≈ 1,3 s, std 84 k/17/0,85–1,0 s,
   lite 40 k/16/0,63 s, Bots 364/3; Kontaktgitter 43 k/0,22 s. Abweichungen vom Foto: Diopter Ø 7,8 mm statt ≈ 3 mm
   (sonst verdeckt die Trommel beim Zielen zu viel), Augenabstand 0,13, Oberfläche schwarz statt abgegriffen silbrig.
+- 25.10.: **VP-9 nachgebessert (Prüfung)** – Loch unter dem Auswurffenster beseitigt (die Tasche hinter dem Fenster reicht
+  nur noch über die Fensterhöhe; vorher schnitt die Längssicke durch die dünne Hohlraumwand, am Handy verschmolz alles zu
+  einer Öffnung), Lauf beginnt im Kornträger mit Bund aus dem Fotoumriss (vorher 3–3,6 mm Luft), Wahlhebelachse vom Foto
+  neu abgenommen ([557, 212] → [608, 225], ≈ 30 mm weiter vorn; PASKAL-Foto 3697 px als zweite Quelle, dort über dieselbe
+  Visierlinie kalibriert: Bolzenabstand und Griffstückhöhe stimmen auf ≈ 1 %), Piktogramme in Originalgröße mit
+  Spitzoval-Patronen und Doppelrahmen, Hebel 25 mm mit Flügel gegenüber dem Zeiger, Trommel Ø 18 mm mit Stellungsflächen,
+  Kornträger als 3D-Gussform mit Stiften, Prägungen aus dem Foto (obere Rinne, Kante, Hülsenabweiser, Nietlasche, Mulde,
+  Fenster mit runden Enden), Schachtlasche rechts, Halteplatte mit Schrauben links, Mulde um Magazinknopf, Endstück mit
+  Fotomaß-Vertiefung, Schlitz, Riemenbügel; Fischhaut als erhabene Rauten; Navy-Feld entfernt (kein Fotobeleg); Lack
+  glatter. Bauzeit: Atlas je Stufe (PC hoch 2048 × 640, PC niedrig/mittel 1536 × 480, Handy 1024 × 320 nur Albedo +
+  Normalen ≈ 3,5 MB), Umrissfelder je Stufe gröber, Normalen ohne Modulo. Kosten (mess.mjs, Last ≈ 7): max 242 k
+  Dreiecke/19 Netze/1,46 s, Kontakt 43 k/0,26 s; std 85 k/17/0,67 s; lite 41 k/16/0,49 s; Bots 364/3/14 ms. Erster Bau
+  dreimal im selben Lauf mit P-9/M-17 (Last 6–7): VP-9 std 0,63–0,88 s, lite 0,45–0,96 s, max 1,8–2,6 s; P-9 std
+  1,3–2,0 s, M-17 std 1,5–2,0 s (VP-9 std ≈ ½ P-9). Anschlag-Verdeckung 32 % (Augenabstand 0,14).
