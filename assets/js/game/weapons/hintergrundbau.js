@@ -12,11 +12,19 @@
 //    ≤ 30 ms). Waffen alter Bauweise (auch ohne Messung) und Klone vorhandener Vorlagen baut das Aufheben wie bisher sofort.
 //  - _retier() (Grafikstufe im Match gewechselt: Einstellungen, VR-Vorgabe „Niedrig“): Waffen in der Hand/im Gepäck in der neuen
 //    Stufe ebenso neu, die alte Fassung bleibt bis zum Tausch; danach werden die Vorlagen der alten Stufe freigegeben.
-// backgroundStep({ idle, quiet }) läuft je Bild (main.js) und macht höchstens einen Schritt (Vorlage → Kontaktgitter → Griffe/Schacht
-// → Shader/Texturen → Tausch). Ein Bauplan läuft am Stück (bis Sekunden, kein Bau in Zeitscheiben) – darum die schweren Schritte
+// backgroundStep({ idle, quiet }) läuft je Bild (main.js) und macht höchstens einen Schritt (Vorlage → Shader/Texturen → Griffe/Schacht
+// → Kontaktgitter → Tausch; bis 25.10. kam das Gitter vor Shader/Griffen). Ein Bauplan läuft am Stück (bis Sekunden, kein Bau in Zeitscheiben) – darum die schweren Schritte
 // (Vorlage, Kontaktgitter ohne Teilen) im Spiel NUR im Leerlauf (tot, Pause, Countdown), nie mitten im Gefecht; leichte Schritte
 // dringender Aufträge (Platzhalter/alte Stufe in der Hand) auch in Ruhe (QUIET_S seit Ziehen/Schuss, kein Anschlag, keine Aktion,
 // kein Treffer). Vorrat nur im Leerlauf.
+//
+// 26.10. (Vorab Etappe 2): Plan-Aufträge des Modus (planWeapons). Waffenspiel und Schießstand bauten bisher im Ladebildschirm jede
+// Waffe vor – mit jeder Foto-Waffe länger und größer (Waffenspiel PC hoch nach Etappe 1: Laden +16 s, JS-Speicher +102 MB, die ganze
+// Leiter in max). Jetzt baut der Ladebildschirm im Waffenspiel nur die aktuelle und die nächsten LADDER_AHEAD Stufen, im Schießstand
+// nur die Ausrüstung; den Rest bauen Plan-Aufträge im Leerlauf nach (Waffenspiel: die nächsten Stufen zuerst und dringlich, damit
+// beim Aufstieg die echte Fassung schon steht – fehlt sie doch, gilt die Platzhalter-Regel wie beim Aufheben). Schwere Schritte
+// nicht dringender Aufträge laufen nur, solange der Leerlauf noch reicht (idleLeft, main.js rechnet die Bauzeit auf Countdown und
+// Wiedereinstieg an – der Leerlauf wird nicht länger, nur genutzt).
 import * as THREE from 'three';
 import { createWeaponModel, weaponDetailTier, hasWeaponModel, weaponBuildCost, isPhotoWeapon, releaseEgoTemplates, releaseWeaponTemplate } from './models.js';
 import { applyCamo } from './gunsmith/camos.js';
@@ -38,9 +46,39 @@ const EST_PHOTO_TRIS = { max: 540000, std: 125000, lite: 75000 }; // noch nie ge
 const EST_OLD_TRIS = 8000; // noch nie gebaute Waffe alter Bauweise
 const PREFETCH_MAX = 6;
 const QUIET_S = 2;
-const STEPS = 5; // 0 Vorlage + Eintrag, 1 Kontaktgitter, 2 Griffe/Schacht, 3 Shader/Texturen, 4 eintragen/tauschen
+const STEPS = 5; // 0 Vorlage + Eintrag, 1 Shader/Texturen, 2 Griffe/Schacht, 3 Kontaktgitter, 4 eintragen/tauschen
+// 26.10.: die leichten Schritte (Shader/Texturen, Griffe) vor dem schweren Kontaktgitter – kommt eine Waffe mitten aus ihrem Auftrag in
+// die Hand (Aufstieg im Waffenspiel nach einem kurzen Leerlauf), fehlt höchstens das Gitter; vorher lud dann das erste Bild ihre Atlanten
+// hoch und übersetzte die Shader
+const ST_GPU = 1, ST_GRIPS = 2, ST_COLL = 3;
+// 26.10.: schwerer Schritt eines nicht dringenden Auftrags (Vorrat, Plan) nur, wenn vom Leerlauf noch so viel übrig ist (s) – eine
+// Foto-Waffe kostet am PC grob 0,2–1,5 s, im Container bis 4,5 s; ein Bau überzieht den Leerlauf so höchstens einmal
+const IDLE_MIN_S = 0.75;
 
 const attKeyOf = (att) => (att ? Object.values(att).join('+') : '');
+
+/** Waffenspiel (26.10.): der Ladebildschirm baut die aktuelle und die nächsten LADDER_AHEAD Stufen, den Rest der Hintergrund. */
+export const LADDER_AHEAD = 2;
+
+/** Waffen-Ids der Leiterstufen level … level + ahead (je Id einmal). */
+export function ladderWindow(steps, level = 0, ahead = LADDER_AHEAD) {
+  return [...new Set((steps || []).slice(Math.max(0, level), Math.max(0, level) + ahead + 1))];
+}
+
+/**
+ * Ladebildschirm im Waffenspiel (Prüfung 26.10.): das Fenster (ladderWindow) und dazu alle Waffen alter Bauweise der Leiter – je wenige
+ * Millisekunden und ≈ 1 MB; ohne sie baute der Aufstieg in einer Serie jede davon im Bild (Container 40–100 ms, Probe aufstieg.mjs).
+ * Teuer und dem Leerlauf überlassen sind nur die Foto-Waffen. modelOf(id) → Modellschlüssel.
+ */
+export function ladderPrebuild(steps, level = 0, modelOf = (id) => id) {
+  return [...new Set([...ladderWindow(steps, level), ...(steps || []).filter((id) => !isPhotoWeapon(modelOf(id)))])];
+}
+
+/** Waffen-Ids der Leiter in Bau-Reihenfolge ab Stufe level: die Stufen davor zuletzt (Abstufung durch Messer/Selbsttötung). */
+export function ladderOrder(steps, level = 0) {
+  const s = steps || [], l = Math.max(0, Math.min(level, s.length));
+  return [...new Set([...s.slice(l), ...s.slice(0, l).reverse()])];
+}
 
 export const BUILD_ACTIONS = {
   /** Eintragsschlüssel wie _getModel: Waffen-Id, mit Aufsätzen '#' + Kombination. */
@@ -86,8 +124,8 @@ export const BUILD_ACTIONS = {
       this._models.set(mk, entry);
       this._prepareGrips(entry);
       magWellOf(entry);
-      if (job) Object.assign(job, { entry, step: 1, prio: 2, prefetch: false });
-      else this._enqueue({ mk, id, key, att: a, ak, prio: 2, step: 1, entry });
+      if (job) Object.assign(job, { entry, step: ST_COLL, prio: 2, prefetch: false });
+      else this._enqueue({ mk, id, key, att: a, ak, prio: 2, step: ST_COLL, entry });
       return entry;
     }
     // Kosten der Grundfassung in dieser Stufe gemessen → danach; unbekannt → alte Bauweise sofort, Foto-Waffe nie im Bild
@@ -151,6 +189,55 @@ export const BUILD_ACTIONS = {
     return n;
   },
 
+  /**
+   * 26.10.: Plan-Aufträge des Modus – defs = Waffen-Definitionen samt Aufsätzen (wie setLoadout sie anlegt) in Bau-Reihenfolge; die
+   * ersten near sind dringlich (prio 1, Waffenspiel: die nächsten Stufen – leichte Schritte auch in Ruhe), der Rest prio 0 (nur im
+   * Leerlauf). tier = feste Stufe (Schießstand: die leichte); weicht sie von der aktuellen ab (PC hoch), nur Vorlage + Shader/Texturen
+   * ohne Eintrag – die volle Fassung entsteht beim Ausrüsten (gleiche Materialien und Atlanten). warmOnly (Prüfung 26.10., Schießstand):
+   * auch in der aktuellen Stufe nur Vorlage + Shader/Texturen – fertige Einträge samt Kontaktgitter aller Waffen hielten nach einem
+   * längeren Pausenmenü mehr Speicher als der frühere Vorbau (Schießstand mittel 235 statt 217 MB); Eintrag, Griffe und Gitter der in der
+   * Waffenkammer gewählten Waffe entstehen noch im Pausenmenü (vorgemerkte Waffe). Plan-Aufträge, die nicht mehr im
+   * Plan stehen und noch nicht begonnen haben, entfallen; die übrigen folgen der neuen Reihenfolge. → Anzahl neuer Aufträge
+   */
+  planWeapons(defs, { near = 0, tier = null, warmOnly = false } = {}) {
+    const q = this._bgJobs || (this._bgJobs = []);
+    const warm = tier && (warmOnly || tier !== this._tier) ? tier : null;
+    const order = new Map();
+    let n = 0;
+    for (const d of defs || []) {
+      if (!d || !d.id || d.cls === 'melee') continue;
+      const att = d.att && Object.keys(d.att).length ? d.att : null;
+      const key = d.model || ID_TO_MODEL[d.id] || d.id;
+      const mk = this._mk(d.id, att) + (warm ? '@' + warm : '');
+      if (order.has(mk)) continue;
+      const prio = order.size < near ? 1 : 0;
+      order.set(mk, order.size);
+      const job = q.find((j) => j.mk === mk);
+      if (job) { job.plan = true; if (job.prio < 2) job.prio = prio; continue; }
+      const e = warm ? null : this._models.get(mk);
+      if (warm ? hasWeaponModel(key, { att, tier: warm }) : e && !e.stub && e.tier === this._tier) continue; // steht schon
+      q.push({ mk, id: d.id, key, att, ak: attKeyOf(att), prio, step: 0, plan: true, warm });
+      n++;
+    }
+    const kept = q.filter((j) => !j.plan || j.prio >= 2 || j.step > 0 || order.has(j.mk));
+    const planned = kept.filter((j) => j.plan && order.has(j.mk)).sort((a, b) => order.get(a.mk) - order.get(b.mk));
+    let k = 0;
+    this._bgJobs = kept.map((j) => (j.plan && order.has(j.mk) ? planned[k++] : j));
+    return n;
+  },
+
+  /** 26.10.: Plan-Auftrag in einer anderen festen Stufe (Schießstand am PC hoch: die leichte) – Vorlage, dann Shader/Texturen. */
+  _bgWarm(job) {
+    if (job.step === 0) {
+      job.model = createWeaponModel(job.key, { lod: 'first', att: job.att, tier: job.warm });
+      job.step = 1;
+      return false;
+    }
+    this._gpuWarm({ model: job.model }, true);
+    job.model = null;
+    return true;
+  },
+
   /** Ladebildschirm: Vorrat als Einzelschritte für main.js runJobs (je Auftrag STEPS Schritte; Budget beim Ausführen). */
   prefetchJobs(defs) {
     this.prefetch(defs);
@@ -177,6 +264,7 @@ export const BUILD_ACTIONS = {
 
   /** Ein Schritt (STEPS). → true, wenn der Auftrag erledigt ist (oder entfällt). */
   _bgRun(job, idle) {
+    if (job.warm) return this._bgWarm(job);
     switch (job.step) {
       case 0: {
         let had = true;
@@ -196,12 +284,12 @@ export const BUILD_ACTIONS = {
           job.entry.prefetched = true;
           if (!had) { this._prefetchTris = (this._prefetchTris || 0) + (job.entry.ud.info.triangles || 0); job.entry.ownTemplate = true; }
         }
-        job.step = 1;
+        job.step = ST_GPU;
         return false;
       }
-      case 1: this._entryCollider(job.entry); job.step = 2; return false;
-      case 2: this._prepareGrips(job.entry); magWellOf(job.entry); job.step = 3; return false;
-      case 3: this._gpuWarm(job.entry, !job.prefetch); job.step = 4; return false;
+      case ST_GPU: this._gpuWarm(job.entry, !job.prefetch); job.step = ST_GRIPS; return false;
+      case ST_GRIPS: this._prepareGrips(job.entry); magWellOf(job.entry); job.step = ST_COLL; return false;
+      case ST_COLL: this._entryCollider(job.entry); job.step = 4; return false;
       default: return this._bgFinish(job, idle);
     }
   },
@@ -246,8 +334,8 @@ export const BUILD_ACTIONS = {
 
   /** Schritt kostet bis zu Sekunden am Stück (Vorlage bauen; Kontaktgitter, wenn es nicht geteilt werden kann). */
   _heavyStep(job) {
-    if (job.step === 0) return !hasWeaponModel(job.key, { att: job.att });
-    return job.step === 1 && !(job.entry && this._colliderShared(job.entry));
+    if (job.step === 0) return !hasWeaponModel(job.key, { att: job.att, tier: job.warm || null });
+    return !job.warm && job.step === ST_COLL && !(job.entry && this._colliderShared(job.entry));
   },
 
   /** Geschätzte Dreiecke einer noch nicht gebauten Ego-Vorlage (Vorrat-Budget). */
@@ -318,10 +406,12 @@ export const BUILD_ACTIONS = {
     const keep = new Set();
     if (this.cur) keep.add(this.cur.mk);
     for (const s of this.G?.player?.weapon?.slots || []) if (s && s.def) keep.add(this._mk(s.id, s.def.att || null));
-    // Vorrat verwerfen; laufende Aufträge in der neuen Stufe von vorn (verworfene Einträge abmelden, sonst hielten sie die alte Stufe)
+    // Vorrat und Plan-Aufträge verwerfen (main.js plant sie in der neuen Stufe neu, 26.10.); laufende Aufträge in der neuen Stufe von
+    // vorn (verworfene Einträge abmelden, sonst hielten sie die alte Stufe)
     const loose = (j) => { if (j.entry && this._models.get(j.mk) !== j.entry) this._dropEntry(j.entry); };
-    for (const j of this._bgJobs || []) if (j.prefetch) loose(j);
-    this._bgJobs = (this._bgJobs || []).filter((j) => !j.prefetch);
+    const gone = (j) => j.prefetch || (j.plan && j.prio < 2);
+    for (const j of this._bgJobs || []) if (gone(j)) loose(j);
+    this._bgJobs = (this._bgJobs || []).filter((j) => !gone(j));
     for (const j of this._bgJobs) if (j.entry && j.entry.tier !== this._tier) { loose(j); j.step = 0; j.entry = null; }
     for (const [mk, e] of [...this._models]) {
       if (!keep.has(mk)) { this._models.delete(mk); this._dropEntry(e); continue; }
@@ -353,19 +443,26 @@ export const BUILD_ACTIONS = {
 
   /**
    * Je Bild höchstens ein Schritt (main.js). idle: Spieler tot, Pausenmenü, Countdown; quiet: Spieler lebt und nahm zuletzt keinen
-   * Schaden. → true, wenn gearbeitet wurde
+   * Schaden; idleLeft (26.10.): Rest des Leerlaufs in s (Countdown, Wiedereinstieg; Pause: unbegrenzt) – schwere Schritte nicht
+   * dringender Aufträge (Vorrat, Plan) nur bei mindestens IDLE_MIN_S. busy (Prüfung 26.10.): Menü wird gerade bedient (Pause,
+   * Ausrüstung im Tod) – dann gar keine schweren Schritte, auch nicht für die gewählte Waffe. → true, wenn gearbeitet wurde
    */
-  backgroundStep({ idle = false, quiet = true } = {}) {
+  backgroundStep({ idle = false, quiet = true, idleLeft = Infinity, busy = false } = {}) {
     if (this._disposed) return false;
     const calm = idle || (quiet && this._quietNow());
     // Requisiten nach Stufenwechsel (ohne laufende Aktion – Granate/Messer könnten gerade in der Hand sein)
     if (this._propsTier !== this._tier && calm && !this.action) { this._rebuildProps(); return true; }
-    // Pausenmenü/Todesbildschirm: vorgemerkte Waffe (Ausrüstung geändert) schon jetzt bauen – sonst Bot-Fassung beim Weiterspielen
+    // Pausenmenü/Todesbildschirm: vorgemerkte Waffe (Ausrüstung geändert) schon jetzt bauen – sonst Bot-Fassung beim Weiterspielen;
+    // 26.10. auch ohne deferBuilds (Schießstand-Waffenkammer im Pausenmenü: sonst baute das Ziehen nach dem Weiterspielen am Stück);
+    // pend: Auftrag gehört der Vormerkung – wird sie geändert (andere Waffe angeklickt), entfällt er auch begonnen (unten)
     const p = this._pending;
-    if (idle && p && this.deferBuilds) {
+    if (idle && p) {
       const att = p.def && p.def.att ? p.def.att : null;
       const mk = this._mk(p.id, att);
-      if (!this._models.has(mk)) this._enqueue({ mk, id: p.id, key: (p.def && p.def.model) || ID_TO_MODEL[p.id] || p.id, att, ak: attKeyOf(att), prio: 2, step: 0 });
+      if (!this._models.has(mk)) {
+        const j = this._enqueue({ mk, id: p.id, key: (p.def && p.def.model) || ID_TO_MODEL[p.id] || p.id, att, ak: attKeyOf(att), prio: 2, step: 0 });
+        if (!j.prefetch && !j.plan) j.pend = true;
+      }
     }
     const q = this._bgJobs;
     if (!q || !q.length) {
@@ -374,24 +471,36 @@ export const BUILD_ACTIONS = {
     }
     // Waffe inzwischen wieder abgelegt (anderes aufgehoben, Tod): noch nicht begonnene Aufträge verwerfen und den Platzhalter
     // vergessen – sonst baute der Leerlauf eine Waffe, die niemand trägt; ein späteres Aufheben fängt neu an
-    if (q.some((j) => !j.prefetch && j.step === 0)) {
+    // (Plan-Aufträge gehören dem Modus, 26.10.). Prüfung 26.10.: Aufträge der Vormerkung auch begonnen – wer in der Waffenkammer
+    // mehrere Waffen anklickt, baut nur die zuletzt gewählte (die Vorlage einer abgewählten bleibt im Zwischenspeicher)
+    if (q.some((j) => !j.prefetch && !j.plan && (j.step === 0 || j.pend))) {
       const carried = this._carriedMks();
       for (const j of [...q]) {
-        if (j.prefetch || j.step !== 0 || carried.has(j.mk)) continue;
+        if (j.prefetch || j.plan || (j.step !== 0 && !j.pend) || carried.has(j.mk)) continue;
         q.splice(q.indexOf(j), 1);
+        if (j.entry && this._models.get(j.mk) !== j.entry) this._dropEntry(j.entry);
         const e = this._models.get(j.mk);
         if (e && (e.stub || e.tier !== this._tier)) { this._models.delete(j.mk); this._dropEntry(e); }
       }
     }
     let job = null;
     for (const j of q) {
-      // Vorrat/Gepäck (prio 0) nur im Leerlauf; dringende Aufträge: leichte Schritte auch in Ruhe, schwere nur im Leerlauf
-      if (!idle && (j.prio < 1 || !calm || this._heavyStep(j))) continue;
+      // Vorrat/Gepäck (prio 0) nur im Leerlauf; dringende Aufträge: leichte Schritte auch in Ruhe, schwere nur im Leerlauf. Prüfung
+      // 26.10.: begonnene Plan-Aufträge (Vorlage steht) ebenso – baute der Todesbildschirm die Vorlage gerade noch, lud sonst der
+      // Aufstieg auf diese Waffe ihre Atlanten und Programme erst im Wechselbild (Probe aufstieg.mjs: Adler 3 Texturen, 3 Programme)
+      const urgent = j.prio >= 1 || (j.plan && j.step > 0);
+      if (!idle && (!urgent || !calm || this._heavyStep(j))) continue;
+      if (busy && this._heavyStep(j)) continue; // Menü wird bedient: auch die gewählte Waffe erst in Ruhe (Prüfung 26.10.)
+      if (idle && j.prio < 2 && idleLeft < IDLE_MIN_S && this._heavyStep(j)) continue; // Leerlauf reicht nicht mehr (26.10.)
       if (j.step >= 4 && this.cur && this._models.get(j.mk) === this.cur && !this._swapReady(idle)) continue;
       if (!job || j.prio > job.prio) job = j;
     }
     if (!job) return false;
+    const s0 = job.step;
     this._bgPump(job, idle);
+    // Prüfung 26.10.: im Leerlauf nach der Vorlage gleich Shader/Texturen – die Bauzeit wird angerechnet, und endete der Leerlauf mit
+    // dem Bau (Wiedereinstieg), lud sonst der Aufstieg auf diese Waffe Atlanten und Programme im Wechselbild (Probe aufstieg.mjs)
+    if (idle && s0 === 0 && job.step === ST_GPU && (this._bgJobs || []).includes(job)) this._bgPump(job, idle);
     return true;
   },
 
@@ -403,7 +512,7 @@ export const BUILD_ACTIONS = {
     return {
       tier: this._tier, stub: !!(this.cur && this.cur.stub), curTier: this.cur ? this.cur.tier : null, prefetchTris: this._prefetchTris || 0,
       curLod: this.cur ? this.cur.ud.lod : null, inGun: !!(this.cur && this.cur.model.parent === this.gun),
-      jobs: (this._bgJobs || []).map((j) => ({ mk: j.mk, prio: j.prio, step: j.step, prefetch: !!j.prefetch })),
+      jobs: (this._bgJobs || []).map((j) => ({ mk: j.mk, prio: j.prio, step: j.step, prefetch: !!j.prefetch, plan: !!j.plan, warm: j.warm || null })),
       entries: [...this._models].map(([mk, e]) => ({ mk, tier: e.tier, stub: !!e.stub, collider: !!e.collider })),
     };
   },

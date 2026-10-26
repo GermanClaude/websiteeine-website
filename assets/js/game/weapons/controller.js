@@ -14,6 +14,7 @@ import { WEAPONS as DATA_WEAPONS, EQUIPMENT as DATA_EQUIPMENT, GUN_GAME_STEPS, e
 import { clamp, damp, smooth01, easeInOut, wrapAngle, samplePellet, sampleCone, patternAt } from './ballistics/math.js';
 import { applyAttachments, loadAttachments, UNDER_WEAPONS } from '../../shared/attachments.data.js';
 import { getWeaponModelMeta } from './models.js';
+import { ladderPrebuild } from './hintergrundbau.js';
 import { classDef } from '../../shared/classes.data.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -212,31 +213,45 @@ export class WeaponController {
     const vm = this.viewModel;
     const r = this.G.renderer && this.G.renderer.renderer;
     if (!vm || typeof vm.warmup !== 'function' || !r) return;
-    const mode = this.G.match && this.G.match.modeId;
+    const M = this.G.match || {};
     // 24.10.: eigene Waffen samt Aufsätzen (Definitionen) – vorher nur die Grundfassung, die Zweitwaffe mit Aufsätzen baute erst
     // der erste Wechsel mitten im Match
     const defs = this.slots.map((s) => s.def).filter((d) => d && d.id && this._def(d.id));
     const own = new Set(defs.map((d) => d.id));
-    // Waffenspiel (24.10.): die Leiter steht fest – alle ihre Waffen voll vorbereiten, sonst baute jeder Aufstieg nach einem
-    // Abschuss mitten im Match (M-17 am PC hoch ≈ 5 s, online stünde der Host für alle); mit den gespeicherten Aufsätzen, die
-    // setLoadout beim Aufstieg anlegt (sonst zeigte der Hintergrund-Bau bis zum nächsten Tod die Grundfassung). Übrige Waffen
-    // braucht der Modus nicht.
-    if (mode === 'gun') {
-      let saved = {};
-      try { saved = loadAttachments() || {}; } catch { saved = {}; }
-      for (const id of GUN_GAME_STEPS) {
-        const d = this._def(id);
-        if (!d || own.has(id)) continue;
-        own.add(id);
-        let info = null;
-        if (saved[id]) { try { info = getWeaponModelMeta(d.model || d.id); } catch { /* ohne Modell: Unterlauf nach Klasse */ } }
-        defs.push(saved[id] ? applyAttachments(d, saved[id], info) : d);
-      }
+    // Waffenspiel (24.10.): die Leiter steht fest – ihre Waffen mit den gespeicherten Aufsätzen vorbereiten, die setLoadout beim
+    // Aufstieg anlegt (sonst zeigte der Hintergrund-Bau bis zum nächsten Tod die Grundfassung). 26.10. (Vorab Etappe 2): nur die
+    // aktuelle und die nächsten LADDER_AHEAD Stufen – den Rest baut der Hintergrund im Leerlauf (planWeapons, main.js); vorher die
+    // ganze Leiter in der vollen Fassung (PC hoch nach Etappe 1: Laden +16 s, +102 MB). Ganze Leiter weiter beim Online-Host
+    // (prebuildAll: seine Simulation läuft auch in seinem Leerlauf für alle weiter). Übrige Waffen braucht der Modus nicht.
+    // Schießstand (26.10.): nur die Ausrüstung; die übrigen Waffen baut ebenfalls der Hintergrund (vorher alle leicht, V4).
+    let shellIds = [];
+    if (M.modeId === 'gun') {
+      const steps = GUN_GAME_STEPS.filter((id) => this._def(id));
+      const lvl = this.G.mode && typeof this.G.mode.levelOf === 'function' ? this.G.mode.levelOf(this.actor) || 0 : 0;
+      // (Prüfung 26.10.: dazu alle Waffen alter Bauweise der Leiter – wenige ms je Waffe, sonst baute sie der Aufstieg im Bild)
+      const pre = M.prebuildAll ? steps : ladderPrebuild(steps, lvl, (id) => { const d = this._def(id); return (d && d.model) || id; });
+      for (const d of this.playerDefs(pre)) if (!own.has(d.id)) { own.add(d.id); defs.push(d); }
+      shellIds = steps;
+    } else if (M.modeId === 'training') shellIds = Object.keys(this._weapons());
+    try { vm.warmup(r, defs, shellIds); } catch (err) { this._vmError('warmup', err); }
+  }
+
+  /**
+   * 26.10.: Definitionen der Waffen ids mit den gespeicherten Aufsätzen des Spielers – dieselbe Fassung, die setLoadout beim
+   * Ausrüsten anlegt (Waffenspiel-Aufstieg, Schießstand-Waffenkammer); Vorbau und Hintergrund-Bau treffen so denselben Eintrag.
+   */
+  playerDefs(ids) {
+    let saved = {};
+    try { saved = loadAttachments() || {}; } catch { saved = {}; }
+    const out = [];
+    for (const id of ids || []) {
+      const d = this._def(id);
+      if (!d) continue;
+      let info = null;
+      if (saved[id]) { try { info = getWeaponModelMeta(d.model || d.id); } catch { /* ohne Modell: Unterlauf nach Klasse */ } }
+      out.push(saved[id] ? applyAttachments(d, saved[id], info) : d);
     }
-    // Schießstand (24.10., V4): volle Fassung nur für die Ausrüstung, alle übrigen Waffen leicht (Shader, Texturen) – vorher
-    // baute der Ladebildschirm jede Waffe in der vollen Fassung
-    const more = mode === 'training' ? Object.keys(this._weapons()).filter((id) => !own.has(id) && this._def(id)) : [];
-    try { vm.warmup(r, defs, more); } catch (err) { this._vmError('warmup', err); }
+    return out;
   }
 
   /* ================================================================ Ausrüstung */

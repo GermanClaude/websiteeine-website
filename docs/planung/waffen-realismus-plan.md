@@ -298,3 +298,36 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   Adler 117 906 / 51 516 / 26 264 / 228 Dreiecke (max/std/lite/Bots); Bau std 0,72–1,13 s (QX-90 knapp über 1,0 s), lite
   0,50–0,68 s. Schießstand mittel: Laden 35 s (vorher 28 s), Heap 217 MB (188); Waffenspiel hoch: 69 s (53 s), Heap 612 MB
   (510) – die Leiter wird in max vorgebaut; für weitere Etappen dort nur die nächsten Stufen in max (Folgepunkt).
+- 26.10. (Vorab Etappe 2): **Waffenspiel und Schießstand bauen nicht mehr alles im Ladebildschirm** (Folgepunkt aus Etappe 1:
+  mit jeder Foto-Waffe länger und größer). Waffenspiel: Ladebildschirm nur die aktuelle und die nächsten zwei Stufen
+  (`LADDER_AHEAD`, `weapons/hintergrundbau.js`), der Spieler startet gleich mit der Stufe-1-Waffe (vorher baute er die nie gezeigte
+  Lobby-Ausrüstung mit); den Rest bauen Plan-Aufträge (`planWeapons`, main.js `planModeWeapons`) im Leerlauf (Countdown,
+  Todesbildschirm, Pausenmenü) nach – die nächsten Stufen zuerst und dringlich, die Stufen hinter dem Spieler zuletzt. Fehlt beim
+  Aufstieg die Fassung doch (Serie ohne Leerlauf), gilt die Platzhalter-Regel wie beim Aufheben. Online-Host: weiter die ganze
+  Leiter im Ladebildschirm (seine Simulation läuft auch in seinem Leerlauf für alle weiter); VR: im Spiel keine schweren
+  Plan-Schritte. Schießstand: nur die Ausrüstung, die übrigen Waffen im Leerlauf in der leichten Stufe (PC hoch: Vorlage + Shader,
+  die volle Fassung beim Ausrüsten); die in der Waffenkammer gewählte Waffe entsteht noch im Pausenmenü voll. Leerlauf: Bauzeit wird
+  auf Countdown bzw. Wiedereinstieg angerechnet (der Leerlauf wird genutzt, nicht länger), schwere Schritte nicht dringender Aufträge
+  nur bei ≥ 0,75 s Rest, im Pausenmenü getaktet; Hintergrund-Schritte jetzt Vorlage → Shader/Texturen → Griffe → Kontaktgitter
+  (kommt eine Waffe mitten aus ihrem Auftrag in die Hand, fehlt höchstens das Gitter). Hülsenarten aller Modus-Waffen weiter im
+  Ladebildschirm (Schrot-Shader). Gemessen (Container, Software-GL, Last 5–12, je zwei Läufe gegen 3f13ab0): Waffenspiel PC hoch bis
+  Spielbeginn 69/112 s → 56/48 s, JS-Heap 612 → 563/564 MB, Ego-Vorlagen im Ladebildschirm 1,54 M → 0,98 M Dreiecke (KV-47 entsteht
+  im Countdown, Adler/P-9 in den folgenden Leerläufen); Schießstand PC mittel 36/56 s → 25/21 s, 218 → 194/181 MB; PC hoch 44 → 33 s,
+  315 → 296 MB; Handy: Waffenspiel 225 → 210 MB, Schießstand 148 → 132 MB. Aufstieg: Fenster-Waffen 0–1 ms im Wechsel, gleiche
+  GPU-Arbeit im Wechselbild wie vorher; nicht fertige Foto-Waffe ≈ 10 ms Platzhalter, alte Bauweise wie bisher sofort (≈ 50 ms).
+  Prüfen: `tools/vorbau-test.mjs` (Abschnitte Waffenspiel/Schießstand).
+- 26.10. (Prüfung der Vorab-Arbeit, nachgebessert): **Waffen alter Bauweise der ganzen Leiter im Ladebildschirm** (`ladderPrebuild`,
+  je wenige Millisekunden und ≈ 1 MB – sonst baute der Aufstieg in einer Serie jede davon im Bild, Container 40–100 ms); dem Leerlauf
+  bleiben nur die Foto-Waffen. **Leerlauf zuerst für Foto-Waffen** – der Waffenspiel-Plan baut nach der
+  aktuellen Stufe die Foto-Waffen der kommenden Stufen (die nächsten `LADDER_AHEAD` dringlich), danach die Waffen alter Bauweise
+  (die baut der Aufstieg ohnehin in Millisekunden), die Stufen hinter dem Spieler zuletzt; vorher baute der eine Todesbildschirm
+  einer Serie die SK-14, Adler und P-9 kamen als Bot-Fassung in die Hand (Probe `aufstieg.mjs`). Begonnene Plan-Aufträge machen ihre
+  leichten Schritte (Shader/Texturen, Griffe) auch in Ruhe – sonst lud der Aufstieg auf eine gerade im Tod gebaute Waffe Atlanten
+  und Programme erst im Wechselbild. **Schießstand** plant nur noch Vorlage + Shader/Texturen (`warmOnly`, auch in der aktuellen
+  Stufe): fertige Einträge samt Kontaktgitter aller Waffen hielten nach einem längeren Pausenmenü 235 MB statt der 217 MB des
+  früheren Vorbaus, jetzt 216 MB; Eintrag und Gitter der in der Waffenkammer gewählten Waffe entstehen weiter im Pausenmenü.
+  **Pausenmenü/Ausrüstung im Tod**: solange bedient wird (Eingabe vor < 1,5 s oder seit dem letzten Schritt – bei langen Bildern), keine schweren Schritte – nach der Nachprüfung auch nicht für die in der Waffenkammer gewählte Waffe; gebaut wird die zuletzt gewählte, sobald die Bedienung ruht, Aufträge abgewählter Waffen entfallen auch begonnen (vorher baute jeder Klick seine Waffe am Stück, bis 1,7 s)
+  (ein Bau hielte den Klick bis zu Sekunden auf). **VR-Modus an** (Einstellung): Waffenspiel baut die ganze Leiter im Ladebildschirm
+  wie der Online-Host (in der Brille keine schweren Plan-Schritte). Gemessen gegen 3f13ab0 (Container, Last 7–15): Waffenspiel PC
+  hoch bis Spielbeginn 93 → 63 s, JS-Heap 612 → 564 MB; Schießstand mittel 34 → 29–32 s, 218 → 181–193 MB nach dem Laden, 217 → 216 MB
+  nach vollständigem Plan. Prüfen: `tools/vorbau-test.mjs` (Abschnitte Waffenspiel, Schießstand, VR-Modus).

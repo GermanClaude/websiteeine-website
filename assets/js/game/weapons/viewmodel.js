@@ -16,7 +16,7 @@
 // Animationen 09.10. (anim/): Nachlade-Varianten mit Magazin entlang der Schachtachse (magwell.js, reloads.js), vier
 // Inspektionen je Mechanik + Kammer-Patrone (inspects.js), Ziehen je Klasse, Bereitmachen, Gesten, Posen (moves.js).
 import * as THREE from 'three';
-import { createWeaponModel, setMagRounds, weaponDetailTier, holdWeaponModel, lightTier, hasWeaponModel } from './models.js';
+import { createWeaponModel, setMagRounds, weaponDetailTier, holdWeaponModel } from './models.js';
 import { WEAPONS, weaponHandling } from '../../shared/weapons.data.js';
 import { Arms, gripTransform, getPose, mixPose, newPose, copyPose, PROP_SHAPES } from './gunsmith/arms.js';
 import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE, MELEE_STYLES } from './gunsmith/handling.js';
@@ -26,6 +26,7 @@ import { INSPECT_ACTIONS } from './anim/inspects.js';
 import { MOVE_ACTIONS, GRENADE_LOW } from './anim/moves.js';
 import { COSMETIC } from './anim/reloads.js';
 import { BUILD_ACTIONS } from './hintergrundbau.js';
+export { LADDER_AHEAD, ladderWindow, ladderOrder, ladderPrebuild } from './hintergrundbau.js'; // Waffenspiel-Vorbau (main.js, 26.10.)
 import { magWellOf } from './anim/magwell.js';
 import { GunCollider, MultiCollider } from './gunsmith/contact.js';
 import { uploadTextures } from '../engine/warm.js';
@@ -1798,8 +1799,10 @@ export class ViewModel {
   }
 
   /** Alle Waffenmodelle vorbauen und Shader kompilieren (z. B. im Ladebildschirm) – auch die der Effekte
-   *  (Mündungsfeuer, Rauch, Hülsen je Art), damit der erste Schuss kein Programm mehr linkt. */
-  warmup(renderer, ids = Object.keys(ID_TO_MODEL), more = []) {
+   *  (Mündungsfeuer, Rauch, Hülsen je Art), damit der erste Schuss kein Programm mehr linkt. Übrige Waffen von Waffenspiel und
+   *  Schießstand baut seit 26.10. der Hintergrund (planWeapons, hintergrundbau.js) statt des Ladebildschirms – shellIds: deren
+   *  Hülsenarten trotzdem schon jetzt (nur Daten, kein Modellbau; sonst übersetzte der erste Schrotschuss sein Programm im Match). */
+  warmup(renderer, ids = Object.keys(ID_TO_MODEL), shellIds = []) {
     const prev = this.cur;
     const holder = new THREE.Group();
     const shells = new Set();
@@ -1811,13 +1814,7 @@ export class ViewModel {
       shells.add(handlingFor(e.key).shell);
       if (e !== prev) holder.add(e.model);
     }
-    // 24.10. (V4): übrige Waffen (Schießstand) nur in der leichten Fassung – gleiche Materialien, also
-    // gleiche Shader und Texturen; die volle Fassung entsteht erst beim Ausrüsten
-    for (const id of more) {
-      const key = (this._defFor(id)?.model) || ID_TO_MODEL[id] || id;
-      shells.add(handlingFor(key).shell);
-      holder.add(createWeaponModel(key, { lod: 'first', tier: hasWeaponModel(key) ? null : lightTier() }));   // schon voll gebaut: die nehmen
-    }
+    for (const id of shellIds) shells.add(handlingFor((this._defFor(id)?.model) || ID_TO_MODEL[id] || id).shell);
     this.shells.prepare(shells);
     // 24.10. (V5): Bot-Fassung als Platzhalter beim Aufheben (hintergrundbau.js) – ihre Materialien im Viewmodel-Licht mit übersetzen
     const probeKey = prev ? prev.key : null;
