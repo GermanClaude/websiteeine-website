@@ -21,6 +21,8 @@ export const CAMO_TARGETS = new Set(['alu', 'aluTan', 'aluOD', 'polymer', 'polym
   'qx90Frame', 'qx90Upper', 'qx90Optic',          // QX-90 (25.10.): Rahmen, Guss, Visier – Magazin (durchscheinend) und Stahl bleiben
   'adlerSteel', 'adlerSteelS', 'adlerGrip', 'adlerGripS']);   // Adler nach Foto (25.10.): Edelstahl-Atlas, Wickelgriff
 
+for (const k of ['zwWood', 'zwBlued', 'zwBarrel']) CAMO_TARGETS.add(k);   // ZW-12 Zwilling (26.10.): Holz, Basküle, Läufe – Schloss blank
+
 const texCache = new Map();
 const matCache = new Map();
 

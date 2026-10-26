@@ -7,6 +7,7 @@ import { kv47WoodMaps, kv47RecMaps, WOOD_CAMO_REPEAT, REC_CAMO_REPEAT } from './
 import { qx90FrameMaps, qx90UpperMaps, FRAME_CAMO_REPEAT as QX_FRAME_REPEAT, UPPER_CAMO_REPEAT as QX_UPPER_REPEAT } from './qx90-tex.js';
 import { vp9FurnMaps, CAMO_REPEAT as VP9_CAMO_REPEAT } from './vp9-tex.js';
 import { adlerMaps, CAMO_REPEAT as ADLER_CAMO_REPEAT } from './adler-tex.js';
+import { zwWoodMaps, WOOD_CAMO_REPEAT as ZW_WOOD_REPEAT } from './zwilling-tex.js';
 import { dropCached } from './textures.js';
 
 const mats = new Map();
@@ -120,6 +121,11 @@ const DEFS = {
   rubber: () => std({ color: 0x18181a, metalness: 0.0, roughness: 0.9, normalMap: stippleNormal(), normalScale: new THREE.Vector2(0.22, 0.22) }),
   woodWarm: () => std({ color: 0xffffff, map: woodMap('warm'), metalness: 0.0, roughness: 0.58, roughnessMap: wearMap(), normalMap: grainNormal(), normalScale: new THREE.Vector2(0.2, 0.2) }),
   woodWalnut: () => std({ color: 0xffffff, map: woodMap('walnut'), metalness: 0.0, roughness: 0.42, roughnessMap: wearMap() }),
+  // ZW-12 Zwilling (26.10.): Läufe tief brüniert und glänzender als die Basküle (IZH-43E), Schlossteile blank, Holz-Atlas
+  zwBarrel: () => wearPatch(std({ color: 0x14161a, metalness: 0.72, roughness: 0.3, roughnessMap: fine(finishMaps('steel').rough, 3), normalMap: fine(finishMaps('steel').normal, 5), normalScale: new THREE.Vector2(0.06, 0.06) }), { ...STEEL_WEAR, bump: 0.00003 }),
+  zwBlued: () => wearPatch(std({ color: 0x1c1e21, metalness: 0.62, roughness: 0.4, roughnessMap: fine(finishMaps('steel').rough, 2.5), normalMap: fine(finishMaps('steel').normal, 4), normalScale: new THREE.Vector2(0.1, 0.1) }), { ...STEEL_WEAR, bump: 0.00004 }),
+  zwPolish: () => wearPatch(std({ color: 0x9a9ea4, metalness: 1.0, roughness: 0.26, roughnessMap: fine(brushedMap(), 10) }), { ...STEEL_WEAR, bump: 0.00002 }),
+  zwWood: () => zwWoodMat(false), 'zwWood@lite': () => zwWoodMat(true),
   stainless: () => std({ color: 0x9da1a6, metalness: 1.0, roughness: 0.36, roughnessMap: brushedMap() }),
   brass: () => std({ color: 0xc09a45, metalness: 1.0, roughness: 0.3, roughnessMap: wearMap() }),
   copper: () => std({ color: 0xb8703f, metalness: 1.0, roughness: 0.32 }),
@@ -283,6 +289,10 @@ const LOD_META = { m17Rec: [0x2b2d30, 0], m17Ras: [0x292b2e, 0], m17Steel: [0x2b
   adlerSteel: [0xb9bdc1, 1], adlerSteelS: [0xb9bdc1, 1], adlerGrip: [0x1c1d1f, 0], adlerGripS: [0x1c1d1f, 0], adlerPolish: [0xc6cacf, 1], adlerBlued: [0x1d1e20, 1] };
 const _lodCol = new Map();
 /** Farbe (linear) + Metall-Gruppe eines Materials für die zusammengeführte Bot-Detailstufe. */
+// ZW-12 Zwilling (26.10.): Holz-Atlas wie KV-47 (Lack/Öl-Klarschicht), Handy ohne Rauheitskarte; Bots ohne Atlas
+function zwWoodMat(lite) { const t = zwWoodMaps(lite); const m = phys({ color: 0xffffff, map: t.map, metalness: 0.0, roughness: t.roughnessMap ? 1.0 : t.roughness, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), clearcoat: 0.3, clearcoatRoughness: 0.3, specularIntensity: 0.4 }); m.userData.camoRepeat = ZW_WOOD_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0xa06a40, metal: 0, rough: 0.6, k: 0.35, bump: 0.00005, tone: 0.06, smear: 0.2 }); }
+LITE.add('zwWood'); for (const k of ['zwWood', 'zwWood@lite']) ATLAS.add(k);
+Object.assign(LOD_META, { zwWood: [0x4a1f0b, 0], zwBarrel: [0x14161a, 1], zwBlued: [0x1c1e21, 1], zwPolish: [0x9a9ea4, 1] });
 export function lodInfo(key) {
   let r = _lodCol.get(key);
   if (!r && LOD_META[key]) { r = { color: new THREE.Color(LOD_META[key][0]), metal: !!LOD_META[key][1] }; _lodCol.set(key, r); }

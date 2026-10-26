@@ -158,6 +158,7 @@ export const RELOAD_ACTIONS = {
     if (style === 'revolver') return this._actReloadRevolver(A, out, u);
     if (style === 'rocket') return this._actReloadRocket(A, out, u);
     if (style === 'belt') return this._actReloadBelt(A, out, u);
+    if (style === 'break') return this._actReloadBreak(A, out, u);   // Kipplauf (anim/break.js, 26.10.)
     return u >= 1;
   },
 

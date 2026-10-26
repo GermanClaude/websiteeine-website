@@ -105,6 +105,8 @@ export const FIRE_SELECT = {
   smg_qx90: { modes: ['auto', 'semi'] },                    // P90: Drehschalter unter dem Abzug (0 – 1 – A)
   lmg_hm60: { modes: ['auto'] },                            // M60: nur Dauerfeuer (offener Verschluss)
   mr_sk14: { modes: ['semi', 'auto'] },                     // M14 / Mk 14: Einzelfeuer, Wahlhebel für Dauerfeuer
+  // Doppelflinte (26.10.): ein Abzug je Lauf (erst rechts, dann links) oder beide Abzüge zugleich – Anzeigename je Modus (names)
+  sg_zwilling: { modes: ['semi', 'burst'], burst: 2, names: { semi: 'Einzelabzug', burst: 'Doppelschuss' } },
   ar_k36: { modes: ['auto', 'burst', 'semi'], burst: 2 },   // G36C mit Griffstück 0 – E – 2 – F
   ar_ursprung: { modes: ['auto', 'burst', 'semi'], burst: 2 },
   ar_bx20: { modes: ['auto', 'semi'] },                     // AUG: Druckpunktabzug (halb = Einzel, ganz = Dauer)
@@ -129,6 +131,8 @@ export function burstCountOf(def) {
 /** Anzeige einer Feuerart: „Feuerstoß (3)“, „Dauerfeuer“ … */
 export function fireModeLabel(def, mode, short = true) {
   const m = mode || (def && def.fireMode) || 'auto';
+  const own = def && FIRE_SELECT[def.id] && FIRE_SELECT[def.id].names;   // eigener Name je Waffe (26.10., Zwilling: „Doppelschuss“)
+  if (own && own[m]) return own[m];
   const base = (short ? FIRE_MODES_SHORT : FIRE_MODES)[m] || m;
   return m === 'burst' ? `${base} (${burstCountOf(def)})` : base;
 }
@@ -213,6 +217,10 @@ const ICONS = {
   titan: gunIcon(
     'M4 13H24V19H16L12 25H6L4 21Z M24 11H58V18H24Z M28 8H56 M28 5H56V8H28Z M56 4.5L62 3.5V9.5L56 8.5 ' +
     'M34 18V23H42V18 M44 18V24H52V18 M58 12H86V16H58Z M86 11H94V17H86Z M66 16L62 27 M66 16L71 27'),
+  // ZW-12 Zwilling (26.10.): gerader Kolben, Basküle mit Oberhebel, zwei Läufe übereinander gezeichnet, Vorderschaft, zwei Abzüge
+  zwilling: gunIcon(
+    'M4 13.5L27 10.5V16.5L6 22Z M27 10H35V18H27Z M35 10.5H92V13.5H35 M35 14.5H92 M42 14.5H64V18L44 18.5Z ' +
+    'M28 18Q27.5 22.5 32 22.5H35V18 M30.5 18V21 M33 18V20.5 M29 10V8.5H34 M90 10.5V9.4'),
   hagel: gunIcon(
     'M4 13L22 11V17L6 21Z M22 10H50V17H22Z M28 17L26 24H30L32 17 M36 17V27H46V17 M50 11H80V15H50 ' +
     'M50 16H74V17.5 M80 10.5V9 M30 10V8H42V10'),
@@ -473,6 +481,7 @@ const FEEL = {
   lmg_lm8: { handling: { mass: 6.2, inertia: 1.35, swayScale: 1.15, aimDrift: 0.0008, reach: 1.09 }, recoil: { visual: 1.05, firstShotSpread: 0.85 } },
   sr_titan: { handling: { mass: 12.5, inertia: 1.75, swayScale: 1.3, aimDrift: 0, reach: 1.35 }, recoil: { visual: 1.0, firstShotSpread: 1 } },
   sg_hagel: { handling: { mass: 3.9, inertia: 1.1, swayScale: 1.05, aimDrift: 0.0005, reach: 1.17 }, recoil: { visual: 1.05, firstShotSpread: 1 } },
+  sg_zwilling: { handling: { mass: 3.2, inertia: 0.95, swayScale: 1.0, aimDrift: 0.0005, reach: 0.98 }, recoil: { visual: 1.25, firstShotSpread: 1 } },   // 26.10.: Coach Gun ≈ 3,2 kg
   pi_kobra: { handling: { mass: 1.3, inertia: 0.65, swayScale: 0.88, aimDrift: 0.0007, reach: 0.64 }, recoil: { visual: 1.25, firstShotSpread: 0.75 } },
   at_donner: { handling: { mass: 7.0, inertia: 1.45, swayScale: 1.2, aimDrift: 0.0008, reach: 1.26 }, recoil: { visual: 1.0, firstShotSpread: 1 } },
   gl_hammer: { handling: { mass: 2.8, inertia: 0.95, swayScale: 1.0, aimDrift: 0.0006, reach: 0.8 }, recoil: { visual: 1.1, firstShotSpread: 1 } },
@@ -700,6 +709,23 @@ const RAW = {
     recoil: { vertical: 0.032, horizontal: 0.012, recovery: 7, firstShotMult: 1.0 },
     range: 30, penetration: 0.15, suppressed: false, sound: { profile: 'shotgun', pitch: 1.1 }, model: 'hagel',
   },
+  // Neue Waffe (26.10., Nutzerwunsch „mehr Waffen, unterschiedlichere Waffen“): Doppelflinte mit Kipplauf (Coach Gun / IZH-43E).
+  // Zwei Schuss, dann knicken. Balance nach der Prüfung: je Schrotkugel 18/5 (statt 20) – voller Treffer tötet bis ≈ 11 m wie die
+  // Bulldog, der Doppelschuss (beide Abzüge, burstRpm 1500 = 40 ms) bis ≈ 18 m; engere Garbe (0,034). Ausgleich: nur 2 Schuss, Nachladen
+  // 2,0 s (eine Patrone) bzw. 2,5 s (zwei). Neue Felder: burstRpm (Kadenz im Feuerstoß), breakAction (Kipplauf: Klang/Animation),
+  // muzzles (2 = Mündungsfeuer abwechselnd rechts/links), botWeight (Bots wählen sie seltener), attSlots (Whitelist: kein Magazin, keine Optik).
+  sg_zwilling: {
+    id: 'sg_zwilling', name: 'ZW-12 Zwilling', cls: 'shotgun', slot: 'primary', unlockLevel: 9,
+    description: 'Doppelflinte mit Kipplauf: zwei Läufe, zwei Abzüge, zwei Schuss – dann wird geknickt. Auf Raumlänge endgültig, im Doppelschuss bis über die Hofmitte.',
+    damage: { max: 18, min: 5, rangeStart: 6, rangeEnd: 22 }, headMult: 1.15, limbMult: 0.9, pellets: 8,
+    rpm: 400, burstRpm: 1500, burstDelay: 0.15, fireMode: 'semi', burstCount: 1, mag: 2, reserve: 24, killAmmo: 4,
+    reloadTime: 2.0, reloadEmptyTime: 2.5, perShellReload: false, breakAction: true,
+    equipTime: 0.5, adsTime: 0.22, adsZoom: 1.1, sight: 'iron', scope: null, sprintToFire: 0.14,
+    moveSpeedMult: 0.99, adsMoveMult: 0.72, hipSpread: 0.05, adsSpread: 0.034, moveSpreadMult: 1.1, jumpSpreadMult: 1.6,
+    recoil: { vertical: 0.05, horizontal: 0.014, recovery: 6, firstShotMult: 1.0 },
+    range: 35, penetration: 0.15, suppressed: false, sound: { profile: 'shotgun', pitch: 0.94 }, model: 'zwilling',
+    muzzles: 2, botWeight: 0.35, attSlots: ['munition', 'taktisch', 'schaft'],
+  },
   pi_kobra: {
     id: 'pi_kobra', name: 'R-6 Kobra', cls: 'pistol', slot: 'secondary', unlockLevel: 13,
     description: 'Sechsschüssiger Revolver mit Schnelllader: zwei Treffer auf kurze Distanz, ein Kopftreffer genügt fast immer. Nachladen ist Handarbeit – Trommel raus, Hülsen raus, Lader rein.',
@@ -884,6 +910,7 @@ export const WEAPON_IDS = [
   // Revolver, Panzerabwehr (Pionier) + Nahkampfwaffen
   'ar_k36', 'ar_bx20', 'ar_g7', 'smg_wespe', 'smg_keiler', 'lmg_lm8', 'sr_titan', 'sg_hagel', 'pi_kobra', 'at_donner',
   'gl_hammer', 'gl_trommel', // Granatwerfer (Pionier)
+  'sg_zwilling', // neue Waffen (26.10.): ZW-12 Zwilling (Doppelflinte mit Kipplauf)
   'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock', 'spaten',
   'ar_ursprung', 'pi_funke', 'erstlicht', // Waffen der ersten Stunde (nur Profil.og)
 ];

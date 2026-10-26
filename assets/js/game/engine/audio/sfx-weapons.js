@@ -215,6 +215,38 @@ export const HANDLING = {
     burst(d, sr, 0.42, { dur: 0.04, type: 'bandpass', freq: 900, q: 2, envFn: ad(0.001, 0.008), R, amp: 0.15 });
     return normalize(d, 0.92);
   },
+  // Kipplauf (26.10., Doppelflinte): Oberhebel rastet aus, Läufe schwenken am Stift bis zum Anschlag; satter Schnapp beim Schließen
+  break_open: (sr, R) => {
+    const d = buf(sr, 0.45);
+    metalClick(d, sr, 0, R, R.range(2400, 2700), 0.6, 0.008);
+    scrape(d, sr, 0.03, R, 0.09, 900, 1500, 0.3);
+    thud(d, sr, 0.12, 170, 0.03, 0.8);
+    metalClick(d, sr, 0.12, R, R.range(1500, 1700), 0.9, 0.022);
+    modal(d, sr, 0.12, metalModes(R.range(700, 850), R, { count: 4, decay: 0.1 }), 0.14, R);
+    return normalize(d, 0.85);
+  },
+  break_close: (sr, R) => {
+    const d = buf(sr, 0.5);
+    scrape(d, sr, 0, R, 0.05, 1200, 800, 0.25);
+    thud(d, sr, 0.05, 120, 0.04, 1.0);
+    metalClick(d, sr, 0.05, R, R.range(1300, 1500), 1.15, 0.03);
+    metalClick(d, sr, 0.062, R, R.range(2600, 2900), 0.7, 0.012);
+    modal(d, sr, 0.05, metalModes(R.range(560, 680), R, { count: 5, decay: 0.16 }), 0.22, R);
+    return normalize(d, 0.92);
+  },
+  shell_extract: (sr, R) => {   // Kunststoffhülse gleitet aus dem Lager
+    const d = buf(sr, 0.3);
+    scrape(d, sr, 0, R, 0.08, 700, 1300, 0.35);
+    burst(d, sr, 0.08, { dur: 0.03, type: 'bandpass', freq: 1100, q: 2, envFn: ad(0.001, 0.01), R, amp: 0.25 });
+    return normalize(d, 0.7);
+  },
+  shell_insert: (sr, R) => {   // Patrone gleitet hinein, Messingboden setzt am Lagerrand auf
+    const d = buf(sr, 0.3);
+    scrape(d, sr, 0, R, 0.07, 1300, 800, 0.3);
+    thud(d, sr, 0.07, 260, 0.015, 0.5);
+    metalClick(d, sr, 0.07, R, R.range(1900, 2200), 0.5, 0.01);
+    return normalize(d, 0.75);
+  },
   reload_shell: (sr, R) => {
     const d = buf(sr, 0.22);
     burst(d, sr, 0, { dur: 0.04, type: 'bandpass', freq: R.range(1300, 1700), q: 1.2, envFn: ad(0.001, 0.01), R, amp: 0.5 });

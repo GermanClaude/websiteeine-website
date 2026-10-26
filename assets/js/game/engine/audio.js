@@ -455,6 +455,7 @@ export class AudioEngine {
       const fm = def?.fireMode || (prof === 'shotgun' ? 'pump' : prof === 'sniper' ? 'bolt' : null);
       if (fm === 'pump' || fm === 'bolt') names.push(fm);
       if (def?.perShellReload || prof === 'shotgun') names.push('reload_shell');
+      if (def?.breakAction) names.push('break_open', 'break_close', 'shell_extract', 'shell_insert');
       if (prof === 'lmg') names.push('reload_bolt');
       for (const n of names) if (CATALOG[n] && !this._replaced(n)) this._request(CATALOG[n], PRIO.loadout);
     }
@@ -1556,12 +1557,15 @@ export class AudioEngine {
       this._cancelReload(a);
       if (shell) { this._trackReload(a, this.play('ads_out', { ...base, volume: 0.7 })); return; }
       const T = (p.empty ? def?.reloadEmptyTime : def?.reloadTime) || RELOAD_TIME[prof] * (p.empty ? 1.25 : 1);
-      const seq = prof === 'lmg'
+      // Kipplauf (26.10.): öffnen, Hülse(n) ziehen bzw. ausschwingen, Patrone(n) einschieben, Schnapp beim Schließen (anim/break.js)
+      const seq = def?.breakAction
+        ? [['break_open', 0.1], ['shell_extract', p.empty ? 0.23 : 0.29], ['shell_insert', 0.53], ...(p.empty ? [['shell_insert', 0.57]] : []), ['break_close', 0.735]]
+        : prof === 'lmg'
         ? [['reload_bolt', 0.06], ['reload_mag_out', 0.22], ['reload_mag_in', 0.58], ['reload_bolt', 0.82]]
         : [['reload_mag_out', 0.12], ['reload_mag_in', 0.55]];
       // Leer: Verschluss/Schlitten vor – Pistolen mit echter Schlitten-Aufnahme
       const pistol = prof === 'pistol' || prof === 'pistol_heavy';
-      if (p.empty && prof !== 'lmg') seq.push([prof === 'sniper' ? 'bolt' : pistol && this._recName('slide_release', true) ? 'slide_release' : 'reload_bolt', 0.78]);
+      if (p.empty && prof !== 'lmg' && !def?.breakAction) seq.push([prof === 'sniper' ? 'bolt' : pistol && this._recName('slide_release', true) ? 'slide_release' : 'reload_bolt', 0.78]);
       if (a) this._reloadSeq.set(a, { seq: seq.map(([n, f]) => [n, T * f]), i: 0, t: 0, fresh: true, volume: base.volume });
     } else if (p.phase === 'insert') {
       if (shell) this._trackReload(a, this.play('reload_shell', base));

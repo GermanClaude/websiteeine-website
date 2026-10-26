@@ -28,6 +28,7 @@ export const CALIBERS = Object.freeze({
 const WEAPON_CALIBER = {
   ar_kv47: '762x39', ar_m17: '556', ar_k36: '556', ar_bx20: '68', ar_g7: '762x51',
   smg_vp9: '9mm', smg_qx90: '57', smg_wespe: '46', smg_keiler: '45',
+  sg_zwilling: '12g', // 26.10.
   lmg_hm60: '762x51', lmg_lm8: '556', mr_sk14: '762x51',
   sr_brecher: '338', sr_titan: '50bmg',
   sg_bulldog: '12g', sg_hagel: '12g', ub_schrot: '12g',

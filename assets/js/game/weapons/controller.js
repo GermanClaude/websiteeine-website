@@ -685,7 +685,7 @@ export class WeaponController {
         this._burstLeft -= 1;
         if (this._burstLeft <= 0) {
           this._fireBuffer = 0;
-          this._cooldown += Math.max(0, (def.burstDelay || 0.25) - 60 / Math.max(1, def.rpm || 600));
+          this._cooldown += Math.max(0, (def.burstDelay || 0.25) - 60 / Math.max(1, def.burstRpm || def.rpm || 600));
           break;
         }
       } else {
@@ -725,7 +725,8 @@ export class WeaponController {
     const now = G.time.elapsed;
     const infinite = this.infiniteAmmo;
     st.mag -= 1;
-    const interval = 60 / Math.max(1, def.rpm || 600);
+    // burstRpm (26.10., Zwilling-Doppelschuss): eigene Kadenz innerhalb eines Feuerstoßes
+    const interval = 60 / Math.max(1, (mode === 'burst' && def.burstRpm) || def.rpm || 600);
     if (now - this.lastShotTime > interval * 1.6) this._cooldown = Math.max(this._cooldown, 0);
     this._cooldown += interval;
     this.shotIndex = now - this.lastShotTime > Math.max(0.28, interval * 2.2) ? 0 : this.shotIndex + 1;
@@ -813,7 +814,7 @@ export class WeaponController {
       const base = DATA_WEAPONS[def.baseId || def.id];
       const ratio = base && base.recoil && base.recoil.vertical > 0 ? clamp(r.vertical / base.recoil.vertical, 0.5, 1.6) : 1;
       const visual = (Number.isFinite(r.visual) ? r.visual : 1) * ratio;
-      if (this.viewModel) this._vm('onShot', SHOT_STRENGTH[def.cls] || (def.id === 'pi_adler' ? 1.6 : 1), { empty: st.mag === 0, suppressed: !!def.suppressed, visual, yaw, pitch });
+      if (this.viewModel) this._vm('onShot', SHOT_STRENGTH[def.cls] || (def.id === 'pi_adler' ? 1.6 : 1), { empty: st.mag === 0, mag: st.mag, suppressed: !!def.suppressed, visual, yaw, pitch });
       const sh = (SHOT_SHAKE[def.cls] || (def.sound && def.sound.profile === 'pistol_heavy' ? 0.1 : 0)) * visual * (1 - 0.3 * a);
       if (sh > 0 && typeof actor.shake === 'function') actor.shake(sh);
     }

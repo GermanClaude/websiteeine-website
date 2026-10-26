@@ -22,6 +22,7 @@ import { hm60 } from './gunsmith/guns-auto.js';
 import { vp9 } from './gunsmith/guns-vp9.js';   // VP-9 nach Foto (24.10.)
 import { qx90 } from './gunsmith/guns-qx90.js';   // QX-90 nach Foto (25.10.)
 import { brecher, bulldog } from './gunsmith/guns-long.js';
+import { zwilling } from './gunsmith/guns-zwilling.js';   // ZW-12 Zwilling (Doppelflinte mit Kipplauf, 26.10.)
 import { p9 } from './gunsmith/guns-pistol.js';
 import { adler } from './gunsmith/guns-adler.js';   // Adler nach Foto (25.10.)
 import { knife, frag, semtex } from './gunsmith/gear.js';
@@ -39,6 +40,7 @@ import { attKey } from '../../shared/attachments.data.js';
 import { ursprung, funke, erstlicht } from './gunsmith/guns-og.js';
 
 const BUILDERS = {
+  zwilling, // neue Waffe (26.10.): ZW-12 Zwilling
   kv47, m17, vp9, qx90, hm60, sk14, brecher, bulldog, p9, adler, knife, frag, semtex,
   k36, bx20, g7, wespe, keiler, lm8, titan, hagel, kobra, donner, hammer, trommel,
   karambit, machete, tomahawk, kampfaxt, schlagstock, kampfstock, spaten, flash, smoke, impact, molotov, plate, rocket,
@@ -48,15 +50,18 @@ const BUILDERS = {
 export const MODEL_KEYS = Object.keys(BUILDERS);
 export const GUN_KEYS = ['kv47', 'm17', 'vp9', 'qx90', 'hm60', 'sk14', 'brecher', 'bulldog', 'p9', 'adler',
   'k36', 'bx20', 'g7', 'wespe', 'keiler', 'lm8', 'titan', 'hagel', 'kobra', 'donner', 'hammer', 'trommel', 'ursprung', 'funke'];
+GUN_KEYS.push('zwilling');   // neue Waffe (26.10.)
 export const MELEE_KEYS = ['knife', 'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock', 'spaten', 'erstlicht'];
 export const THROWABLE_KEYS = ['frag', 'semtex', 'impact', 'molotov', 'flash', 'smoke'];
 export { applyCamo };
 
 const REF_NAMES = ['muzzle', 'ejection', 'sight', 'leftHandGrip', 'rightHandGrip'];
 const ANCHOR_NAMES = ['chargeGrab', 'magGrab', 'magWell', 'trigger', 'pumpGrab', 'boltGrab', 'pinGrab', 'shellPort', 'slideGrab', 'boltCatch',
-  'loaderGrab', 'cylGrab', 'ejectorGrab', 'rocketGrab', 'boltFace'];
+  'loaderGrab', 'cylGrab', 'ejectorGrab', 'rocketGrab', 'boltFace',
+  'muzzle2', 'barrelGrab', 'chamberR', 'chamberL'];   // Kipplauf (26.10.): zweite Mündung, Vorderschaft, Patronenlager
 const PART_NAMES = ['selector', 'dustCover', 'mag', 'bolt', 'charge', 'pump', 'slide', 'boltHandle', 'hammer', 'cover', 'belt', 'lid', 'pin', 'spoon', 'blade', 'shell', 'led',
-  'crane', 'cylinder', 'ejector', 'loader', 'rocket'];
+  'crane', 'cylinder', 'ejector', 'loader', 'rocket',
+  'barrels', 'toplever', 'extractor', 'shellR', 'shellL'];   // Kipplauf (26.10.): Läufe, Oberhebel, Auszieher, zwei Patronen
 
 const cache = new Map();
 
@@ -264,6 +269,7 @@ export function getWeaponModelMeta(key) {
 // vorliegt: Aufheben zeigt dann einen Platzhalter statt im Bild zu bauen. Alle übrigen Waffen (alte Bauweise, 2–90 ms) baut das
 // Aufheben ohne Messung sofort. NEUE FOTO-WAFFEN HIER EINTRAGEN (Integrationsschritt je Etappe, Bauanleitung §8.2).
 const PHOTO_MODELS = new Set(['m17', 'p9', 'kv47', 'vp9', 'qx90', 'adler']);   // Etappe 1 (25.10.): KV-47, VP-9, QX-90, Adler
+PHOTO_MODELS.add('zwilling');   // neue Waffe (26.10.)
 export function isPhotoWeapon(key) { return PHOTO_MODELS.has(key); }
 
 /**

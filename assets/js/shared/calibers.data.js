@@ -54,6 +54,7 @@ export const WEAPON_SOUND = {
   // Flinten
   sg_bulldog: { cal: '12ga',    voice: 'model12',      pitch: 0.95, tone: [260, 4], pcal: -0.9 },           // Winchester Model 12
   sg_hagel:   { cal: '12ga',    voice: 'shotgun',      pitch: 1.1,  tone: [1800, 3.5], pcal: 0.1 },          // Benelli Nova
+  sg_zwilling: { cal: '12ga',   voice: 'model12',      pitch: 0.92, tone: [[240, 4], [1400, 2.5]], db: 1.5, pcal: -1.2 },   // Coach Gun 20″ (26.10.): tiefer, kurzer Lauf lauter
   // Werfer und Unterlauf (Synthese; nur Pegel/Hörweite)
   at_donner:  { cal: '90mm',    tone: [200, 3] },
   gl_hammer:  { cal: '40mm',    tone: [300, 2] },

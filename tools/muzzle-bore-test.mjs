@@ -24,9 +24,14 @@ const res = await page.evaluate(async (ALLSIDES) => {
   const STRICT = new Set(['adler']);
   const out = [];
   const rc = new THREE.Raycaster();
+  // 26.10.: Waffen mit attSlots ohne Mündungsplatz (Zwilling: zwei Läufe, P-9A: Kompensator) nur ohne Mündungsgerät prüfen;
+  // der Zwilling (Foto-Modell, Bohrscheiben zeigen nach vorn) zusätzlich mit echten Materialseiten
+  const W = (await import('/assets/js/shared/weapons.data.js')).WEAPONS;
+  const NO_MUZZLE = new Set(Object.values(W).filter((d) => d.attSlots && !d.attSlots.includes('muendung')).map((d) => d.model));
+  STRICT.add('zwilling');
   for (const key of M.GUN_KEYS) {
     if (SKIP.has(key)) continue;
-    const variants = [null, 'daempfer', 'kompensator', 'bremse', 'feuerdaempfer'].map((m) => [m, false]);
+    const variants = (NO_MUZZLE.has(key) ? [null] : [null, 'daempfer', 'kompensator', 'bremse', 'feuerdaempfer']).map((m) => [m, false]);
     if (STRICT.has(key) || ALLSIDES) variants.push([null, true]);
     for (const [muendung, sides] of variants) {
       const root = M.createWeaponModel(key, { lod: 'first', att: muendung ? { muendung } : null });

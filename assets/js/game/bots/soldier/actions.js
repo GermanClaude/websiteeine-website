@@ -93,6 +93,7 @@ export class Handling {
     this.shell = { pos: V(), q: Q(), vis: false };
     this.slideK = 0; this.chargeK = 0; this.coverA = 0; this.craneK = 0; this.ejectK = 0; this.boltU = -1; this.pumpK = 0;
     this.boltMoved = this.pumpMoved = this.craneMoved = false;
+    this.barK = 0; this.barMoved = false;   // Kipplauf (26.10.)
     this.pres = 1; this.phaseEnd = false; this.shellFrom = null; this.shellEnd = 0;
   }
 
@@ -187,8 +188,11 @@ export class Handling {
       if (parts.ejector) rig.ejector = partRec(parts.ejector);
     }
     // Art des Nachladens
+    // Kipplauf (26.10., Zwilling): Teil 'barrels' (Läufe + Vorderschaft) dreht um den Scharnierstift = Teilursprung
+    if (parts.barrels && parts.barrels.parent === gun) rig.barrels = partRec(parts.barrels);
     if (def.perShellReload) rig.kind = 'shell';
     else if (cls === 'pistol') rig.kind = rig.crane ? 'revolver' : rig.mag ? 'pistol' : 'none';
+    else if (rig.barrels) rig.kind = 'break';
     else if (rig.cover && rig.mag) rig.kind = 'belt';
     else if (rig.mag) rig.kind = 'mag';
     else if (cls === 'launcher') rig.kind = 'rocket';
@@ -200,7 +204,7 @@ export class Handling {
   restore() {
     const rig = this.rig;
     if (!rig) return;
-    for (const k of ['mag', 'slide', 'charge', 'bolt', 'pump', 'cover', 'crane', 'ejector', 'shell']) {
+    for (const k of ['mag', 'slide', 'charge', 'bolt', 'pump', 'cover', 'crane', 'ejector', 'shell', 'barrels']) {
       const p = rig[k];
       if (!p) continue;
       p.obj.position.copy(p.p0);
@@ -212,6 +216,7 @@ export class Handling {
     this.slideK = this.chargeK = this.coverA = this.craneK = this.ejectK = this.pumpK = 0;
     this.boltU = -1;
     this.boltMoved = this.pumpMoved = this.craneMoved = false;
+    this.barK = 0; this.barMoved = false;   // Kipplauf (26.10.)
   }
 
   /* ================================================================ Zeitplan */
@@ -366,6 +371,11 @@ export class Handling {
       const u = this._shellU();
       if (u >= 0) g.y += 0.006 * bump(u, 0.9, 0.06, 0.1);
       this.lookP = -0.3 * pres;
+    } else if (kind === 'break') {
+      // Kipplauf: Basküle zur Brust, Mündung nach links unten – die geöffneten Läufe hängen vor dem Körper
+      const pres = win(r, 0, 0.1, 0.8, 0.95);
+      g.rx = -0.3 * pres; g.ry = 0.3 * pres; g.rz = -0.25 * pres; g.z = 0.1 * pres; g.y = -0.02 * pres;
+      this.lookP = -0.3 * pres;
     } else if (kind === 'rocket') {
       // Rohr kippen (Mündung nach unten links) und zurücknehmen, damit die Stützhand vorn laden kann
       const pres = win(r, 0, 0.12, 0.8, 0.95);
@@ -399,6 +409,7 @@ export class Handling {
     if (kind === 'revolver') return this._leftRevolver(out, FG, r);
     if (kind === 'shell') return this._leftShell(out, FG);
     if (kind === 'rocket') return this._leftRocket(out, FG, r);
+    if (kind === 'break') return this._leftBreak(out, FG, r);
     if (kind === 'generic') return this._leftGeneric(out, FG, r);
     return 0;
   }
@@ -784,6 +795,28 @@ export class Handling {
 
   /* --------------------------------------------------------------- Panzerfaust, Allgemein */
 
+  /* --------------------------------------------------------------- Kipplauf (26.10.) */
+
+  /** Öffnungsgrad der Läufe (0…1): auf zwischen 15 % und 24 %, zu zwischen 72 % und 80 % des Nachladens. */
+  _breakK(r) { return ramp(r, 0.15, 0.24) * (1 - ramp(r, 0.72, 0.8)); }
+
+  _leftBreak(out, FG, r) {
+    const a = this.a, rig = this.rig, k = this._breakK(r);
+    this.barK = k;
+    // Griffpunkt am Vorderschaft dreht mit den Läufen um den Stift; Tasche an der Hüfte; Stoßboden (Patronen einschieben)
+    const P = a._gunToModel(_a.copy(rig.barrels.p0), S_P1);
+    _q.setFromAxisAngle(_c.set(1, 0, 0).applyQuaternion(a.gunQuat), -0.6 * k);
+    const FGk = S_P3.copy(FG).sub(P).applyQuaternion(_q).add(P);
+    const belt = this._pouchPoint(POUCH.hipL, 0.04, -0.03, S_P2);
+    const breech = a._gunToModel(_a.copy(rig.barrels.p0).add(_b.set(0, 0.03, 0.05)), S_CH);
+    if (r < 0.26) out.copy(FGk);
+    else if (r < 0.44) out.copy(FGk).lerp(belt, ramp(r, 0.28, 0.42));
+    else if (r < 0.62) out.copy(belt).lerp(breech, ramp(r, 0.46, 0.58));
+    else out.copy(breech).lerp(FGk, ramp(r, 0.62, 0.7));
+    this.lgrip = 1 - win(r, 0.24, 0.3, 0.64, 0.7);
+    return 1;
+  }
+
   _leftRocket(out, FG, r) {
     const a = this.a;
     const back = this._pouchPoint(POUCH.back, 0.0, 0.0, S_P1);
@@ -838,7 +871,7 @@ export class Handling {
     const tl = this.tl;
     const active = (this.on || w > 0.02) && tl;
     // nichts in Bewegung und alles in Ruhelage: nichts zu schreiben (häufigster Fall, je Bot und Bild)
-    if (!active && !this.mag.moved && !this.slideK && !this.chargeK && !this.coverA && !this.craneK && this.boltU < 0 && !this.boltMoved && !this.pumpK && !this.pumpMoved) return;
+    if (!active && !this.mag.moved && !this.slideK && !this.chargeK && !this.coverA && !this.craneK && this.boltU < 0 && !this.boltMoved && !this.pumpK && !this.pumpMoved && !this.barMoved) return;
     // Magazin
     const m = rig.mag;
     if (m) {
@@ -889,6 +922,12 @@ export class Handling {
       o.quaternion.setFromAxisAngle(Z_AX, 1.55 * k).premultiply(rig.crane.q0);
       o.position.copy(rig.crane.p0).add(_a.set(-0.012 * k, -0.006 * k, 0));
       if (rig.ejector) rig.ejector.obj.position.copy(rig.ejector.p0).add(_a.set(0, 0, 0.022 * (active ? this.ejectK : 0)));
+    }
+    // Kipplauf: Läufe öffnen (um x, Mündung nach unten)
+    if (rig.barrels && (active || this.barMoved)) {
+      const k = active && tl.kind === 'break' ? this.barK : 0;
+      this.barMoved = k !== 0;
+      rig.barrels.obj.quaternion.setFromAxisAngle(X_AX, -0.6 * k).premultiply(rig.barrels.q0);
     }
     // Kammerstängel
     if (rig.bolt) {

@@ -23,6 +23,7 @@ import { ID_TO_MODEL, handlingFor, poseFor, KNIFE_MELEE, MELEE_STYLES } from './
 import { EXTRA_ACTIONS } from './gunsmith/actions2.js';
 import { RELOAD_ACTIONS } from './anim/reloads.js';
 import { INSPECT_ACTIONS } from './anim/inspects.js';
+import { BREAK_ACTIONS } from './anim/break.js';   // Kipplauf (26.10., ZW-12 Zwilling)
 import { MOVE_ACTIONS, GRENADE_LOW } from './anim/moves.js';
 import { COSMETIC } from './anim/reloads.js';
 import { BUILD_ACTIONS } from './hintergrundbau.js';
@@ -283,7 +284,7 @@ export class ViewModel {
     const entry = { id, key, model, ud, rest, att: ak, attObj: att || null, mk: ak ? id + '#' + ak : id, tier, release };
     // Arbeitsstelle der Stützhand beim Nachladen (Modellraum, Ruhelage) für _frameWork
     const h0 = handlingFor(key), an = ud.anchors;
-    const work = h0.reload === 'revolver' ? an.cylGrab : h0.reload === 'rocket' ? (an.rocketGrab || ud.muzzle) : h0.reload === 'shell' ? an.shellPort : (an.magGrab || ud.magazine);
+    const work = h0.reload === 'break' ? an.shellPort : h0.reload === 'revolver' ? an.cylGrab : h0.reload === 'rocket' ? (an.rocketGrab || ud.muzzle) : h0.reload === 'shell' ? an.shellPort : (an.magGrab || ud.magazine);
     if (work) entry.workRest = model.worldToLocal(work.getWorldPosition(new THREE.Vector3()));
     return entry;
   }
@@ -517,6 +518,10 @@ export class ViewModel {
     if (!this.cur) return;
     const h = this.h, k = h.kick, ads = this._ads;
     if (h.action === 'knife') { this.playMelee(); return; }
+    // Zwei Mündungen (26.10., Zwilling): erst der rechte Lauf (vorderer Abzug), dann der linke – Feuer/Rauch am jeweiligen Lauf
+    const m2 = this.cur.ud.anchors.muzzle2;
+    let mzObj = this.cur.ud.muzzle;
+    if (m2) { if (Number.isFinite(info.mag) && info.mag < 1) mzObj = m2; if (this.flash.group.parent !== mzObj) mzObj.add(this.flash.group); }
     const vis = Number.isFinite(info.visual) ? clamp(info.visual, 0, 3) : 1;
     // Stärke je Klasse (Controller: Scharfschütze 2,2, Schrot 2,0 …) gedämpft, sonst überschlagen schwere Waffen
     const adsMul = 1 - 0.45 * ads, s = Math.pow(Math.max(0, strength), 0.6) * vis;
@@ -544,7 +549,7 @@ export class ViewModel {
     const suppressed = info.suppressed ?? this.def?.suppressed;
     if (!this.showScopeOverlay) this.flash.fire(h.flash * (this.def?.flashScale || 1), h.flashLen, { suppressed });
     if (!suppressed) {
-      this.cur.ud.muzzle.getWorldPosition(_v);
+      mzObj.getWorldPosition(_v);
       this.root.worldToLocal(_v);
       _v2.set(0, 0.2, -1).applyQuaternion(this.gun.quaternion);
       this.smoke.puff(_v, _v2, h.flash > 1.2 ? 1.2 : 0.8);
@@ -555,6 +560,7 @@ export class ViewModel {
     if (h.action === 'revolver') this._cylTarget = (this._cylTarget || 0) + Math.PI / 3;
     if (info.empty && (h.action === 'auto' || h.action === 'semi')) this._boltLocked = true;
     if (h.action === 'bolt') this._start('boltCycle', Math.max(0.6, Math.min(1.0, (this.def ? 60 / this.def.rpm : 1.3) - 0.35)), { delay: 0.12, ejected: false, variant: this._pickVariant('bolt', 2) });
+    else if (h.action === 'break') { /* Kipplauf: Hülsen bleiben im Lager, der Auszieher hebt sie beim Öffnen */ }
     else if (h.action === 'pump') this._start('pumpCycle', Math.max(0.42, Math.min(0.6, (this.def ? 60 / this.def.rpm : 0.8) - 0.25)), { delay: 0.1, ejected: false });
     else this._eject();
   }
@@ -1887,7 +1893,7 @@ const VM_FILL = 0.42;
 // Animationen 09.10.: Nachladen mit Varianten, Magazin entlang der Schachtachse (anim/reloads.js, anim/magwell.js),
 // vier Inspektionen je Mechanik mit Munitionsschätzung (anim/inspects.js), Ziehen je Klasse, Bereitmachen,
 // Leerlauf-Gesten, Bewegungsposen, Nahkampf-/Wurfvarianten (anim/moves.js)
-Object.assign(ViewModel.prototype, EXTRA_ACTIONS, RELOAD_ACTIONS, INSPECT_ACTIONS, MOVE_ACTIONS);
+Object.assign(ViewModel.prototype, EXTRA_ACTIONS, RELOAD_ACTIONS, INSPECT_ACTIONS, MOVE_ACTIONS, BREAK_ACTIONS);
 // 24.10. (V1/V5): Ego-Waffen ohne Hänger – Vorrat, Bot-Fassung als Platzhalter, Neubau bei Stufenwechsel (hintergrundbau.js)
 Object.assign(ViewModel.prototype, BUILD_ACTIONS);
 

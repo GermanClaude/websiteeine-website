@@ -193,3 +193,11 @@ export function poseFor(modelKey, pose = 'standard') {
   }
   return bc;
 }
+
+// ZW-12 Zwilling (26.10., neue Waffe): Doppelflinte mit Kipplauf – Aktion/Nachladen 'break' (anim/break.js): kein Auswurf beim
+// Schuss (die Hülsen bleiben im Lager, der Auszieher hebt sie beim Öffnen), sehr starker Stoß, Mündungsfeuer abwechselnd aus dem
+// rechten und linken Lauf (Anker muzzle/muzzle2). Hülsen 'shotgun' fallen beim Nachladen aus der Hand bzw. über die Schulter.
+ID_TO_MODEL.sg_zwilling = 'zwilling';
+HANDLING.zwilling = { ...RIFLE, hip: [0.125, -0.13, -0.37], kick: { back: 0.07, up: 0.12, side: 0.012, roll: 0.06, kickRot: 0.09 }, action: 'break', reload: 'break',
+  leftGrip: 'under', shell: 'shotgun', weight: 1.1, flash: 2.0, flashLen: 1.1, reloadTime: 2.0, emptyTime: 2.5, equipTime: 0.5, inspect: 3.0, heat: 0.06 };
+BODYCAM.zwilling = bcRifle('zwilling', BC_RIFLE_HIP, BC_RIFLE_ROT);

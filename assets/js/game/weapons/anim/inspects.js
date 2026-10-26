@@ -28,6 +28,7 @@ const _f = [0, 0, 0, 0, 0, 0];
 export function inspectMech(h) {
   if (h.action === 'knife') return 'knife';
   if (h.reload === 'rocket') return 'launcher';
+  if (h.action === 'break') return 'break';   // Kipplauf (26.10.)
   if (h.action === 'revolver') return 'revolver';
   if (h.action === 'pistol') return 'pistol';
   if (h.action === 'bolt') return 'bolt';
@@ -47,6 +48,7 @@ export const INSPECTS = {
   drum: [['trommel', 0.95], ['kammer', 0.85], ['seite', 1.0], ['optik', 0.9]],
   revolver: [['trommel', 1.0], ['kammern', 1.0], ['seite', 1.0], ['visier', 0.9]],
   launcher: [['rohr', 1.0], ['seite', 0.9]],
+  break: [['kipp', 1.0], ['seite', 1.0], ['visier', 0.9]],
   knife: [['drehen', 1.0], ['klinge', 0.9], ['wirbel', 0.85]],
 };
 
@@ -84,6 +86,7 @@ export const INSPECT_ACTIONS = {
     switch (A.mech) {
       case 'knife': done = n === 'drehen' ? this._actInspectStyle(A, out, 'knife') : this._inspKnife(A, out, u, n); break;
       case 'launcher': done = n === 'rohr' ? this._actInspectStyle(A, out, 'launcher') : this._inspSide(A, out, u, 0.8); break;
+      case 'break': done = n === 'kipp' ? this._inspBreak(A, out, u) : n === 'seite' ? this._inspSide(A, out, u, 0.9) : this._inspSights(A, out, u, false); break;
       case 'revolver':
         if (n === 'trommel') { done = this._actInspectStyle(A, out, 'revolver'); if (u > 0.3) this._setReadout(A, 'cylinder'); }
         else if (n === 'kammern') done = this._inspCylinderLook(A, out, u);

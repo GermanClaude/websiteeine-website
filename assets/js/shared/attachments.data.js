@@ -113,6 +113,7 @@ export function attachmentsFor(def, info = null) {
   const out = {};
   if (!def || NO_ATT.has(def.cls)) return out;
   for (const s of ATT_SLOTS) {
+    if (def.attSlots && !def.attSlots.includes(s.id)) continue;   // 26.10.: Whitelist der Plätze (z. B. eingebauter Kompensator)
     const list = Object.entries(ATTACHMENTS).filter(([, a]) => a.slot === s.id && a.ok(def, info)).map(([id]) => id);
     if (list.length) out[s.id] = list;
   }
@@ -126,7 +127,7 @@ export function cleanAttachments(def, att, info = null) {
   for (const s of ATT_SLOTS) {
     const id = att[s.id];
     const a = typeof id === 'string' ? ATTACHMENTS[id] : null;
-    if (a && a.slot === s.id && a.ok(def, info)) out[s.id] = id;
+    if (a && a.slot === s.id && a.ok(def, info) && (!def.attSlots || def.attSlots.includes(s.id))) out[s.id] = id;
   }
   return out;
 }

@@ -18,6 +18,7 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
 const NAMES = {
+  zwilling: 'ZW-12 Zwilling',   // neue Waffe (26.10.)
   kv47: 'KV-47', m17: 'M-17 Falke', vp9: 'VP-9 Viper', qx90: 'QX-90', hm60: 'HM-60 Hammer', sk14: 'SK-14',
   brecher: 'Brecher .338', bulldog: 'Bulldog 12', p9: 'P-9 Kompakt', adler: 'Adler .50', knife: 'Kampfmesser',
   frag: 'Splittergranate', semtex: 'Haftgranate',
@@ -100,6 +101,7 @@ function showGrid() {
     ['hagel', -0.95, 1.0], ['donner', 0.15, 1.0], ['wespe', 1.0, 1.0],
     ['kobra', -1.05, 0.66], ['karambit', -0.6, 0.66], ['machete', -0.15, 0.66], ['tomahawk', 0.35, 0.66],
     ['impact', 0.62, 0.66], ['molotov', 0.78, 0.66], ['flash', 0.94, 0.66], ['smoke', 1.1, 0.66],
+    ['zwilling', -0.6, 0.33],   // neue Waffe (26.10.)
   ] : [
     ['kv47', -0.95, 1.75], ['m17', 0.0, 1.75], ['hm60', 1.05, 1.75],
     ['sk14', -0.95, 1.38], ['brecher', 0.05, 1.38], ['vp9', 1.0, 1.38],

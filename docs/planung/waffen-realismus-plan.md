@@ -38,6 +38,7 @@ neu gebaut**, nicht ergänzt.
 | M-17 Falke | HK416 / M4A1 (AR-15-Familie) | 1 |
 | P-9 Kompakt | Glock 17/19 | 1 |
 | Adler .50 | Desert Eagle | 2 |
+| ZW-12 Zwilling (neu, 26.10.) | Stoeger Coach Gun (Proportionen, 20″) + Baikal IZH-43E (Basküle, Details) | neu |
 | VP-9 Viper | HK MP5 | 2 |
 | QX-90 | FN P90 | 2 |
 | K-36 Kurzer | HK G36C | 2 |
@@ -331,3 +332,10 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   wie der Online-Host (in der Brille keine schweren Plan-Schritte). Gemessen gegen 3f13ab0 (Container, Last 7–15): Waffenspiel PC
   hoch bis Spielbeginn 93 → 63 s, JS-Heap 612 → 564 MB; Schießstand mittel 34 → 29–32 s, 218 → 181–193 MB nach dem Laden, 217 → 216 MB
   nach vollständigem Plan. Prüfen: `tools/vorbau-test.mjs` (Abschnitte Waffenspiel, Schießstand, VR-Modus).
+- 26.10.: **Neue Waffe ZW-12 Zwilling** (Doppelflinte mit Kipplauf; Nutzer „mehr Waffen, unterschiedlichere Waffen“):
+  `zwilling-ref.js` (IZH-43E-Foto um +0,54° gedreht, 3,25 px/mm, Prüfmaß Lauf-Ø 20,3 mm; Läufe 508 mm, Kolben nach Coach Gun),
+  `zwilling-tex.js` (Walnuss-Atlas 2048 × 512 / Handy 1024 × 256, Fischhaut Griff + Vorderschaft), `guns-zwilling.js` (Läufe als
+  Drehteile mit Schienen, Distanzfelder für Schaft, Vorderschaft, Basküle; Teile barrels/toplever/extractor/shellR/shellL).
+  Neuer Nachladestil **Kipplauf** als Baustein `anim/break.js` (Ego) + Bot-Rig 'break' (für Stummel/Hammer wiederverwendbar),
+  zwei Mündungen (muzzle/muzzle2), `burstRpm` (Doppelschuss), `attSlots`, `botWeight`. Messung: Ego hoch 184 k Dreiecke / 22 Meshes (Bau 2,0 s),
+  niedrig/mittel 73 k / 19 (0,9 s), Handy 40 k / 19 (0,6 s), Bots 176 / 2. Fotovergleich (Bereich Basküle–Vorderschaft): Foto→Modell 0,7 mm im Mittel.

@@ -42,6 +42,11 @@ H('reload_mag_out', { variants: 2, gain: 0.7 });
 H('reload_mag_in', { variants: 2, gain: 0.75 });
 H('reload_bolt', { variants: 2, gain: 0.75, alt: ['bolt'] });
 H('reload_shell', { variants: 3, gain: 0.65 });
+// Kipplauf (26.10., Zwilling): nur Match-Bank Stufe 2, Ersatz falls noch nicht gerendert
+H('break_open', { variants: 2, gain: 0.8, tier: 2, alt: ['reload_bolt'] });
+H('break_close', { variants: 2, gain: 0.9, tier: 2, alt: ['reload_bolt'] });
+H('shell_extract', { variants: 2, gain: 0.6, tier: 2, alt: ['reload_shell'] });
+H('shell_insert', { variants: 2, gain: 0.6, tier: 2, alt: ['reload_shell'] });
 H('bolt', { variants: 2, gain: 0.8, alt: ['reload_bolt'] });
 H('pump', { variants: 2, gain: 0.85, alt: ['reload_bolt'] });
 H('equip', { variants: 2, gain: 0.55 });

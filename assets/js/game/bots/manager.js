@@ -281,7 +281,8 @@ export class BotManager {
     let r = null;
     // Waffen der ersten Stunde (W[id].og) tragen Bots nie
     try { r = resolveClassLoadout(cls, { weapons: W, equipment: EQ, isUnlocked: (id) => !(W[id] && W[id].og) }); } catch { r = null; }
-    const of = (...classes) => Object.keys(W).filter((id) => classes.includes(W[id].cls) && W[id].slot !== 'secondary' && !W[id].og);
+    // botWeight (26.10.): seltene Waffen (z. B. Doppelflinte) nur mit dieser Wahrscheinlichkeit in der Auswahl
+    const of = (...classes) => Object.keys(W).filter((id) => classes.includes(W[id].cls) && W[id].slot !== 'secondary' && !W[id].og && Math.random() < (W[id].botWeight ?? 1));
     let primary = r && r.primary;
     if (role === 'mg') primary = pick(of('lmg')) || primary;
     else if (role === 'marksman') primary = pick(of(cls === 'aufklaerer' ? 'sniper' : 'marksman')) || pick(of('marksman', 'sniper')) || primary;
