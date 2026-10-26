@@ -62,7 +62,7 @@ export const ATTACHMENTS = {
     ok: (d, i) => ['ar', 'carbine', 'lmg'].includes(d.cls) && underOk(i, false), apply: (d) => { d.under = 'ub_schrot'; d.adsTime *= 1.07; d.moveSpeedMult *= 0.98; } },
   // ---------------------------------------------------------------- Magazin
   erweitert: { slot: 'magazin', name: 'Erweitertes Magazin', kurz: '+50 % Patronen, langsamer nachladen',
-    ok: (d) => magOk(d), apply: (d) => { d.mag = Math.round(d.mag * 1.5); d.reserve = Math.round(d.reserve * 1.25); mulReload(d, 1.1); d.adsTime *= 1.04; } },
+    ok: (d) => magOk(d), apply: (d) => { d.mag = d.magExt || Math.round(d.mag * 1.5); d.reserve = Math.round(d.reserve * 1.25); mulReload(d, 1.1); d.adsTime *= 1.04; } },
   trommel: { slot: 'magazin', name: 'Trommelmagazin', kurz: 'doppelte Patronen, schwer und langsam',
     ok: (d) => magOk(d) && ['ar', 'smg', 'shotgun'].includes(d.cls) && d.mag <= 40,
     apply: (d) => { d.mag = d.mag * 2; d.reserve = Math.round(d.reserve * 1.5); mulReload(d, 1.3); d.adsTime *= 1.12; d.moveSpeedMult *= 0.96; } },
@@ -113,6 +113,7 @@ export function attachmentsFor(def, info = null) {
   const out = {};
   if (!def || NO_ATT.has(def.cls)) return out;
   for (const s of ATT_SLOTS) {
+    if (def.attSlots && !def.attSlots.includes(s.id)) continue;   // 26.10.: Whitelist der Plätze (z. B. eingebauter Kompensator)
     const list = Object.entries(ATTACHMENTS).filter(([, a]) => a.slot === s.id && a.ok(def, info)).map(([id]) => id);
     if (list.length) out[s.id] = list;
   }
@@ -126,7 +127,7 @@ export function cleanAttachments(def, att, info = null) {
   for (const s of ATT_SLOTS) {
     const id = att[s.id];
     const a = typeof id === 'string' ? ATTACHMENTS[id] : null;
-    if (a && a.slot === s.id && a.ok(def, info)) out[s.id] = id;
+    if (a && a.slot === s.id && a.ok(def, info) && (!def.attSlots || def.attSlots.includes(s.id))) out[s.id] = id;
   }
   return out;
 }

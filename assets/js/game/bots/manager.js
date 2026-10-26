@@ -295,6 +295,12 @@ export class BotManager {
     const launcher = !veh ? null : r && r.launcher && W[r.launcher] ? r.launcher : cls === 'pionier' && W.at_donner ? 'at_donner' : null;
     let secondary = launcher || (r && r.secondary) || 'pi_p9';
     if (!veh && W[secondary] && W[secondary].cls === 'launcher') secondary = W.pi_p9 ? 'pi_p9' : Object.keys(W).find((id) => W[id].slot === 'secondary' && W[id].cls !== 'launcher') || secondary;
+    // 26.10.: Zweitwaffe abwechslungsreicher – zu 30 % eine andere Pistole (nicht og), sonst trugen Bots immer die erste der
+    // Wunschliste (P-9); so tauchen auch Adler, Kobra und die neue P-9A bei Bots auf
+    if (secondary && W[secondary] && W[secondary].cls === 'pistol' && Math.random() < 0.3) {
+      const ps = Object.keys(W).filter((id) => W[id].cls === 'pistol' && W[id].slot === 'secondary' && !W[id].og);
+      if (ps.length) secondary = pick(ps);
+    }
     const lethal = (r && r.lethal) || 'frag';
     const tactical = (role === 'rifleman' || role === 'grenadier') && EQ.flash ? 'flash' : EQ.smoke ? 'smoke' : undefined;
     return { cls, primary, secondary, lethal, tactical };

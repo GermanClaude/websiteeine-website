@@ -196,6 +196,7 @@ gespeichert. Die Fotos selbst sind weder im Spiel noch im Repository enthalten. 
 | Adler .50 (Laufquerschnitt, Mündung) | [Desert Eagle Chrome](https://commons.wikimedia.org/wiki/File:Desert_Eagle_Chrome.JPG) | DeepThunder | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), verändert: nur Maße abgeleitet |
 | Adler .50 (Schiene, Patronen) | [DesertEagle 50AE](https://commons.wikimedia.org/wiki/File:DesertEagle_50AE.jpg) | Bobbfwed | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), verändert: nur Maße abgeleitet |
 | Adler .50 (offener Schlitten) | [Desert Eagle beside a box of Speer 325 Grain HP](https://commons.wikimedia.org/wiki/File:Desert_Eagle_beside_a_box_of_Speer_325_Grain_HP.jpg) | DeepThunder | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), verändert: nur Maße abgeleitet |
+| P-9A Automatik (linke Seite, Wahlschalter, Korn/Kimme, Magazinboden) | [Glock 18C](https://commons.wikimedia.org/wiki/File:Glock_18C.jpg) | AmmuNation | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), verändert: nur Maße und Umrisse abgeleitet (Kompensatorfenster/Laufbohrungen nach Herstellerangaben geschätzt) |
 
 ## Klänge
 

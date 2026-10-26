@@ -41,7 +41,18 @@ export class MuzzleFlash {
     this.sides = new THREE.Mesh(mergeGeometries([sideGeo, s2]), this.sideMat);
     this.sides.renderOrder = 10;
     sideGeo.dispose(); s2.dispose();
-    this.group.add(this.star, this.sides);
+    // Kompensator (26.10., P-9A): zwei gekreuzte Flammenzungen senkrecht nach oben aus den Bohrungen hinter der Mündung
+    const compGeo = new THREE.PlaneGeometry(1, 0.34);
+    compGeo.translate(0.5, 0, 0);
+    compGeo.rotateZ(Math.PI / 2);
+    const c2 = compGeo.clone();
+    c2.rotateY(Math.PI / 2);
+    this.comp = new THREE.Mesh(mergeGeometries([compGeo, c2]), this.sideMat);
+    this.comp.renderOrder = 10;
+    this.comp.position.set(0, 0.006, 0.025);
+    this.comp.visible = false;
+    compGeo.dispose(); c2.dispose();
+    this.group.add(this.star, this.sides, this.comp);
     this.group.visible = false;
     this.light = new THREE.PointLight(0xffa24a, 0, 3.2, 2);
     this.light.name = 'muendungslicht';
@@ -66,6 +77,13 @@ export class MuzzleFlash {
     this.sides.scale.x *= 0.7 + Math.random() * 0.6;
     this.sides.rotation.z = Math.random() * Math.PI;
     this.sides.visible = !sup && Math.random() < 0.8;
+    this.comp.visible = !!opts.comp && !sup;
+    if (this.comp.visible) {
+      // Strahlhöhe 4,5 … 8,5 cm, Breite je Zunge 2 … 3 cm (0,34 · Maßstab), etwas schräg nach vorn wie bei echten Kompensatoren
+      const w = 0.06 + Math.random() * 0.03;
+      this.comp.scale.set(w, (0.045 + Math.random() * 0.04) * Math.sqrt(size), w);
+      this.comp.rotation.x = -0.12 - Math.random() * 0.12;
+    }
     this.group.visible = true;
     this.peak = 7 * size * (sup ? 0.15 : 0.8 + Math.random() * 0.4);
     this.light.intensity = this.peak;
@@ -83,7 +101,7 @@ export class MuzzleFlash {
   hide() { this.t = this.dur; this.group.visible = false; this.light.intensity = 0; }
 
   dispose() {
-    this.star.geometry.dispose(); this.sides.geometry.dispose();
+    this.star.geometry.dispose(); this.sides.geometry.dispose(); this.comp.geometry.dispose();
     parkMaterials('muzzle', this._mats);
     this.light.dispose();
   }

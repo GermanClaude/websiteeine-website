@@ -47,6 +47,7 @@ export const WEAPON_SOUND = {
   // Pistolen
   pi_p9:      { cal: '9x19',    voice: 'pistol',       pitch: 1.03, tone: [[2600, 3], [600, -2]], pcal: 0.9 },        // Walther PPQ
   pi_adler:   { cal: '.50ae',   voice: 'lever',        pitch: 1.04, tone: [900, 2], pcal: 1.2 },           // Marlin .30-30
+  pi_p9a:     { cal: '9x19',    voice: 'pistol',       pitch: 1.07, tone: [[3400, 4], [700, -2.5]], db: 1, pcal: 1.1 },  // Walther PPQ, Kompensator: greller, lauter (26.10.)
   pi_kobra:   { cal: '.357',    voice: 'revolver',     pitch: 0.97, tone: [[2000, 3.5], [5500, 3]], pcal: -2 },          // S&W 642 Revolver
   // Scharfschützen
   sr_brecher: { cal: '.338',    voice: 'springfield',  pitch: 0.95, tone: [500, 2], pcal: -0.7 },           // Springfield 1917 .30-06

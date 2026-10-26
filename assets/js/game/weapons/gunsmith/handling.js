@@ -8,6 +8,7 @@ export const ID_TO_MODEL = {
   sr_titan: 'titan', sg_hagel: 'hagel', pi_kobra: 'kobra', at_donner: 'donner', gl_hammer: 'hammer', gl_trommel: 'trommel',
   karambit: 'karambit', machete: 'machete', tomahawk: 'tomahawk', kampfaxt: 'kampfaxt', schlagstock: 'schlagstock', kampfstock: 'kampfstock', spaten: 'spaten',
   ar_ursprung: 'ursprung', pi_funke: 'funke', erstlicht: 'erstlicht', // Waffen der ersten Stunde
+  pi_p9a: 'p9a', // neue Waffen (26.10.)
 };
 
 // Hüfte (wie CoD Mobile): Waffe etwas höher und mittiger, rechte Hand mit Daumen und Fingern am Pistolengriff
@@ -139,6 +140,10 @@ export const KNIFE_MELEE = {
 HANDLING.ursprung = { ...HANDLING.k36 };
 HANDLING.funke = { ...HANDLING.p9 };
 HANDLING.erstlicht = { ...HANDLING.knife };
+// P-9A (Glock 18C, 26.10.): Pistole mit Dauerfeuer – Schlittenhub in 48 ms (cycle, ein Zyklus je 50-ms-Schuss), kleinerer Stoß je Schuss
+// (20 Schuss/s), Mündungsfeuer zusätzlich nach oben aus den Kompensatorbohrungen (comp), längeres Magazin beim Wechsel
+HANDLING.p9a = { ...PISTOL, kick: { back: 0.02, up: 0.05, side: 0.013, roll: 0.03, kickRot: 0.032 }, flash: 0.75, flashLen: 0.55, comp: true, cycle: 0.048,
+  reloadTime: 1.55, emptyTime: 1.95, equipTime: 0.34, inspectStyle: 'pistol' };
 
 export function handlingFor(modelKey) {
   return HANDLING[modelKey] || HANDLING.m17;

@@ -31,7 +31,7 @@ const WEAPON_CALIBER = {
   lmg_hm60: '762x51', lmg_lm8: '556', mr_sk14: '762x51',
   sr_brecher: '338', sr_titan: '50bmg',
   sg_bulldog: '12g', sg_hagel: '12g', ub_schrot: '12g',
-  pi_p9: '9mm', pi_adler: '50ae', pi_kobra: '357',
+  pi_p9: '9mm', pi_adler: '50ae', pi_kobra: '357', pi_p9a: '9mm',
 };
 const PROFILE_CALIBER = { pistol: '9mm', pistol_heavy: '357', smg: '9mm', ar: '556', ar_heavy: '762x39', lmg: '762x51', sniper: '338', shotgun: '12g' };
 

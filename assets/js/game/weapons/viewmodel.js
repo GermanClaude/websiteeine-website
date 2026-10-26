@@ -541,7 +541,7 @@ export class ViewModel {
     if (this._lid) this._lid.v += (1.2 + Math.random() * Math.random() * 6) * Math.min(1.5, s);
     else if (this._part('lid')) this._lid = { a: 0, v: 1.2 + Math.random() * 4 };
     const suppressed = info.suppressed ?? this.def?.suppressed;
-    if (!this.showScopeOverlay) this.flash.fire(h.flash * (this.def?.flashScale || 1), h.flashLen, { suppressed });
+    if (!this.showScopeOverlay) this.flash.fire(h.flash * (this.def?.flashScale || 1), h.flashLen, { suppressed, comp: h.comp });
     if (!suppressed) {
       this.cur.ud.muzzle.getWorldPosition(_v);
       this.root.worldToLocal(_v);
@@ -1481,7 +1481,7 @@ export class ViewModel {
     const h = this.h;
     this._resetParts();
     // Verschluss / Schlitten: schneller Hub beim Schuss
-    this._boltT = Math.min(1, this._boltT + dt / 0.075);
+    this._boltT = Math.min(1, this._boltT + dt / (h.cycle || 0.075));   // h.cycle (26.10., P-9A): eigener Hub bei hoher Kadenz
     const pulse = this._boltT < 0.3 ? smooth(this._boltT / 0.3) : smooth(1 - (this._boltT - 0.3) / 0.7);
     if (h.action === 'pistol') {
       const travel = this.cur.ud.anchors.slideGrab?.userData.travel?.[2] ?? 0.03;
