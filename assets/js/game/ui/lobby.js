@@ -3,7 +3,8 @@
 // Vorlagen, 3D-Vorschau). Vorbelegung aus URL-Parametern (erster Aufruf) und den letzten Einstellungen.
 // Reiter „Mehrspieler“: Inhalt und Logik in ui/net-menus.js (menus.net); der Fußknopf wird dort zu „Raum erstellen“.
 
-import { rulesFor, limitsFor, teamWarning } from '../../shared/modes.data.js';
+import { rulesFor, limitsFor, teamWarning, modeOptionDiff } from '../../shared/modes.data.js';
+import { modeOptionsHtml } from './mode-options.js'; // Modus-Einstellungen (B6, 26.10.)
 import { TANK_SKINS, tankSkin, skinUnlocked, loadTankProgress, saveTankProgress } from '../vehicles/skins.js';
 import { WEATHERS, militaryVehiclesAllowed, LARGE_MAP_NAMES } from '../../shared/maps.data.js'; // atmosphere-weather; Fahrzeuge je Kartengröße
 import { realTimePreset } from '../world/weather.js'; // Tageszeit „Echtzeit“ (Vorschau der aufgelösten Zeit)
@@ -189,8 +190,24 @@ export class Lobby {
       style: c.style, crosshair: c.style === 'realistisch' ? !!this.G.settings.get('realisticCrosshair') : null,
       matchLength: c.matchLength, timeOfDay: this._todFor(c) || 'standard', vehicles: c.vehicles !== 'aus', tankEra: c.tankEra || 'karte', weather: c.weather && c.weather !== 'standard' ? c.weather : null,
       loadout: { primary: c.primary, secondary: c.secondary, lethal: c.lethal, melee: c.melee || 'knife', cls: c.cls, camo, att: pickAtt(c), ...(skin ? { skin } : {}) },
+      modeOpts: this._modeOpts(c.modeId), // Modus-Einstellungen (der Modus liest sie offline aus settings.modeOptions)
       ...(c.limits && c.limits.modeId === c.modeId ? { timeLimit: c.limits.timeLimit, scoreLimit: c.limits.scoreLimit } : {}),
     };
+  }
+
+  /** Gemerkte Modus-Einstellungen (settings.modeOptions[modeId], nur Abweichungen vom Standard). */
+  _modeOpts(modeId) {
+    try { return { ...((this.G.settings.get('modeOptions') || {})[modeId] || {}) }; } catch { return {}; }
+  }
+
+  _setModeOpt(modeId, id, v) {
+    const S = this.G.settings;
+    try {
+      const all = { ...(S.get('modeOptions') || {}) };
+      const next = modeOptionDiff(modeId, { ...(all[modeId] || {}), [id]: v });
+      if (Object.keys(next).length) all[modeId] = next; else delete all[modeId];
+      S.set('modeOptions', all);
+    } catch { /* */ }
   }
 
   /* ------------------------------------------------------------ Aufbau */
@@ -294,6 +311,7 @@ export class Lobby {
     if (ds.tskin != null) { const P = loadTankProgress(), sk = tankSkin(ds.tskin); if (skinUnlocked(P, sk)) { P.skin = sk.id; saveTankProgress(P); this.menus.sound('click'); } else this.menus.sound('error'); this._renderDeploy(); return; }
     if (ds.era != null) { c.tankEra = ds.era || 'karte'; try { this.G.settings.set('lastTankEra', c.tankEra); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
     if (ds.veh != null) { c.vehicles = ds.veh === 'aus' ? 'aus' : 'an'; try { this.G.settings.set('lastVehicles', c.vehicles); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
+    if (ds.mopt != null) { this._setModeOpt(c.modeId, ds.mopt, ds.v); this._renderDeploy(); this.menus.sound('click'); return; }
     if (ds.wx != null) { c.weather = ds.wx || 'standard'; this._wxAutoTime(c); try { this.G.settings.set('lastWeather', c.weather); } catch { /* */ } this._renderDeploy(); this.menus.sound('click'); return; }
     if (ds.cls) { this._setClass(ds.cls); return; }
     if (ds.camoedit) { openCamoEditor({ onClose: (changed) => { if (changed) this._renderDetail(); } }); this.menus.sound('click'); return; }
@@ -382,7 +400,8 @@ export class Lobby {
     }
     // Panzer/Geländewagen nur auf großen Karten (Nutzer 21.10.) – auf kleinen/mittleren gesperrt mit Hinweis
     const vehMap = militaryVehiclesAllowed(c.mapId), vehOn = vehMap && c.vehicles !== 'aus';
-    const extra = `${m.matchLengths ? `<div><h2 class="m-h2">Matchlänge</h2><div class="m-seg" role="radiogroup" aria-label="Matchlänge">${LENGTHS.map(([id, l]) => `<button type="button" role="radio" data-len="${id}" aria-checked="${id === c.matchLength}">${l}</button>`).join('')}</div></div>` : ''}
+    const extra = `${modeOptionsHtml(m, this._modeOpts(c.modeId))}
+      ${m.matchLengths ? `<div><h2 class="m-h2">Matchlänge</h2><div class="m-seg" role="radiogroup" aria-label="Matchlänge">${LENGTHS.map(([id, l]) => `<button type="button" role="radio" data-len="${id}" aria-checked="${id === c.matchLength}">${l}</button>`).join('')}</div></div>` : ''}
       ${times.length ? `<div><h2 class="m-h2">Tageszeit</h2><div class="m-seg" role="radiogroup" aria-label="Tageszeit"><button type="button" role="radio" data-tod="" aria-checked="${!todSel}">${esc(map.timeOfDay || 'Standard')}</button>${times.map((t) => `<button type="button" role="radio" data-tod="${esc(t.id)}" aria-checked="${t.id === todSel}">${esc(t.name || t.label || t.id)}</button>`).join('')}<button type="button" role="radio" data-tod="echtzeit" aria-checked="${todSel === 'echtzeit'}" title="Passend zur echten Uhrzeit">Echtzeit</button><button type="button" role="radio" data-tod="zufall" aria-checked="${todSel === 'zufall'}">Zufall</button></div>${rtNote}</div>` : ''}
       ${c.modeId !== 'training' && vehMap ? `<div><h2 class="m-h2">Panzer &amp; Fahrzeuge</h2><div class="m-seg" role="radiogroup" aria-label="Panzer und Fahrzeuge">${[['an', 'An', 'Panzer und Geländewagen der Karte'], ['aus', 'Aus', 'Nur Infanterie']].map(([id, l, t]) => `<button type="button" role="radio" data-veh="${id}" aria-checked="${id === c.vehicles}" title="${t}">${l}</button>`).join('')}</div></div>` : ''}
       ${c.modeId !== 'training' && !vehMap ? `<div><h2 class="m-h2">Panzer &amp; Fahrzeuge</h2><p class="lb-note lb-veh-off">Panzer und Geländewagen gibt es nur auf großen Karten (${esc(LARGE_MAP_NAMES.join(', '))}). Hier fahren nur die zivilen Fahrzeuge der Karte.</p></div>` : ''}

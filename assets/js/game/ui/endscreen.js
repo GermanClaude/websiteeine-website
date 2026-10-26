@@ -67,6 +67,7 @@ export class EndScreen {
       if (r.modeId === 'cq' && ct.vehicles) cells[7] = ['Fahrzeuge zerstört', String(ct.vehicles)];
       if (r.modeId === 'kc') cells[8] = ['Marken', String(ct.confirms ?? 0), ct.denies ? `${ct.denies} verweigert` : ''];
       if (r.modeId === 'inf') cells[8] = ['Infiziert', String(ct.infects ?? 0), ct.survivals ? 'Überlebt' : ''];
+      if (r.modeId === 'hp') cells[8] = ['Halte\u00adzeit', clock(Math.floor(ct.hpTime || 0)), ct.hpCaptures ? `${ct.hpCaptures}× eingenommen` : '']; // Stellung (26.10.)
     }
     const stats = `<div class="e-stats">${cells.map(([l, v, s]) => `<div class="e-cell"><small>${esc(l)}</small><b>${v}</b>${s ? `<span>${esc(s)}</span>` : ''}</div>`).join('')}</div>`;
 

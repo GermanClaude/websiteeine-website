@@ -42,6 +42,8 @@ export const DEFAULTS = Object.freeze({
   fullscreen: 'auto',
   // Lobby: Wetter/Tageszeit (atmosphere-weather): 'standard' | 'zufall' | Wetter-/Zeit-id
   lastWeather: 'standard', lastTime: 'standard', lastVehicles: 'an', lastTankEra: 'karte',
+  // Lobby: Modus-Einstellungen je Modus (B6, 26.10.; MODES[id].options, z. B. { hp: { wechsel: 45 } } – nur Abweichungen)
+  modeOptions: Object.freeze({}),
   // Lernende Bots (ai-adapt): Gegner stellen sich auf den Spielstil ein (Stärke nach Schwierigkeit)
   adaptiveBots: true,
   // Munition pro Abschuss (weapons/index.js, offline; online gilt die Raum-Einstellung des Hosts)
@@ -238,6 +240,7 @@ export const SETTINGS_SCHEMA = Object.freeze({
   lastTankEra: { type: 'id', label: 'Panzer-Generation (Lobby)', group: 'intern' },
   lastTime: { type: 'id', label: 'Letzte Tageszeit', group: 'intern' },
   classLoadouts: { type: 'classLoadouts', label: 'Ausrüstung je Klasse', group: 'intern' },
+  modeOptions: { type: 'modeOptions', label: 'Modus-Einstellungen (Lobby)', group: 'intern' },
   aimAssistLevel: {
     type: 'number', min: 0, max: 1, step: 0.05, label: 'Stärke der Zielhilfe (Bremsen → Ziehen → Einrasten)', group: 'steuerung',
   },
@@ -386,6 +389,22 @@ function validate(key, value) {
         if (!ID_RE.test(k)) continue;
         const lo = validateLoadout(v);
         if (lo) out[k] = lo;
+      }
+      return out;
+    }
+    case 'modeOptions': {
+      // { modeId: { optId: Zahl | id } } – Werte prüft der Modus selbst (modes.data.js modeOptionValues)
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+      const out = {};
+      for (const [m, o] of Object.entries(value).slice(0, 24)) {
+        if (!ID_RE.test(m) || !o || typeof o !== 'object' || Array.isArray(o)) continue;
+        const one = {};
+        for (const [k, v] of Object.entries(o).slice(0, 8)) {
+          if (!ID_RE.test(k)) continue;
+          if (typeof v === 'number' && Number.isFinite(v)) one[k] = v;
+          else if (typeof v === 'string' && ID_RE.test(v)) one[k] = v;
+        }
+        if (Object.keys(one).length) out[m] = one;
       }
       return out;
     }

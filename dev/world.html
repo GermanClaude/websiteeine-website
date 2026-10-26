@@ -52,6 +52,7 @@
     <button data-t="nav">Navigation</button>
     <button data-t="spawns">Spawns</button>
     <button data-t="objectives">Flaggen</button>
+    <button data-t="modeobj" title="Ziele neuer Modi (world/maps/modus-ziele.js): Stellungs-Zonen mit Höhenband und Reihenfolge">Modus-Ziele</button>
     <button data-t="minimap">Minikarte</button>
     <button data-t="walk">Laufen</button>
   </div>
@@ -142,6 +143,13 @@ function drawMiniMarkers() {
   for (const s of world.spawns.ffa) dot(s.position.x, s.position.z, '#ffffff', 2);
   mctx.font = '700 18px "Rajdhani NP", sans-serif'; mctx.textAlign = 'center'; mctx.textBaseline = 'middle';
   for (const o of world.objectives.dom) { const { u, v } = mm.worldToMap(o.position.x, o.position.z); mctx.fillStyle = 'rgba(255,91,31,.9)'; mctx.beginPath(); mctx.arc(u * 512, v * 512, 11, 0, 7); mctx.fill(); mctx.fillStyle = '#111'; mctx.fillText(o.id, u * 512, v * 512 + 1); }
+  // Stellungs-Zonen (26.10.): Kreis in Kartenmaßstab + Nummer der Wanderung
+  const k = 512 / (mm.size ? mm.size.x : 100);
+  for (const o of world.objectives.hp || []) {
+    const { u, v } = mm.worldToMap(o.position.x, o.position.z);
+    mctx.strokeStyle = 'rgba(242,201,76,.95)'; mctx.lineWidth = 2; mctx.beginPath(); mctx.arc(u * 512, v * 512, o.radius * k, 0, 7); mctx.stroke();
+    mctx.fillStyle = 'rgba(242,201,76,.95)'; mctx.fillText(o.id, u * 512, v * 512 + 1);
+  }
 }
 
 function clearDebug() {
@@ -202,6 +210,18 @@ function rebuildDebug() {
       const ring = new THREE.Mesh(new THREE.RingGeometry(o.radius - 0.15, o.radius, 48), new THREE.MeshBasicMaterial({ color: 0xff5b1f, side: THREE.DoubleSide }));
       ring.rotation.x = -Math.PI / 2; ring.position.copy(o.position).y += 0.08; debugGroup.add(ring);
       marker(o.position, 0xff5b1f, 4);
+    }
+  }
+  if (toggles.has('modeobj')) {
+    // Stellungs-Zonen: Ring am Boden, Höhenband als durchsichtiger Zylinder (Standard ±2,6 m), Nummer als Säule
+    for (const o of world.objectives.hp || []) {
+      const band = o.band || [-2.6, 2.6];
+      const ring = new THREE.Mesh(new THREE.RingGeometry(o.radius - 0.2, o.radius, 64), new THREE.MeshBasicMaterial({ color: 0xf2c94c, side: THREE.DoubleSide }));
+      ring.rotation.x = -Math.PI / 2; ring.position.copy(o.position).y += 0.1; debugGroup.add(ring);
+      const h = band[1] - band[0];
+      const cyl = new THREE.Mesh(new THREE.CylinderGeometry(o.radius, o.radius, h, 48, 1, true), new THREE.MeshBasicMaterial({ color: 0xf2c94c, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }));
+      cyl.position.set(o.position.x, o.position.y + band[0] + h / 2, o.position.z); debugGroup.add(cyl);
+      marker(o.position, 0xf2c94c, 1 + Number(o.id) * 0.6);
     }
   }
   if (toggles.has('probeviz') && world.probes) {

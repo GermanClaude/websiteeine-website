@@ -4,11 +4,15 @@
 //        nach dem Wiedereinstieg Messer (wenn es der Client selbst war); keine Anti-Cheat-Verstöße.
 //   gun: beide starten mit Stufe 1; Abschuss der Puppe beim Host → Client wechselt auf die Waffe der Stufe 2
 //        (gun:promote), Punktetabelle zeigt Stufe 2; Host erlaubt Nachbarstufen (netWeaponsOf); keine Verstöße.
-// Aufruf: node tools/modes-online-test.mjs [--only=inf,gun]   (Server NP_BASE, Relay node tools/nostr-relay.mjs 7777)
+//   hp (Stellung, 26.10.): Raum mit Modus-Einstellung „Zonenwechsel 45 s“ → Host und Client lesen sie; Bots geparkt, der
+//        Host steht allein in der Zone → gehalten von seinem Team, Punkte steigen, beim Client dasselbe (Abbild über
+//        netExtra hp/hh) samt Haltezeit des Hosts in der Tabelle; Host erzwingt Vorschau und Wechsel → Client zeigt die
+//        nächste Zone gedimmt, dann dieselbe neue Zone mit Hinweis; keine Verstöße.
+// Aufruf: node tools/modes-online-test.mjs [--only=inf,gun,hp]   (Server NP_BASE, Relay node tools/nostr-relay.mjs 7777)
 import { chromium, BASE, GL_ARGS } from './pw.mjs';
 
 const opt = Object.fromEntries(process.argv.slice(2).map((a) => { const [k, ...v] = a.replace(/^--/, '').split('='); return [k, v.length ? v.join('=') : true]; }));
-const ONLY = opt.only ? String(opt.only).split(',') : ['inf', 'gun'];
+const ONLY = opt.only ? String(opt.only).split(',') : ['inf', 'gun', 'hp'];
 const RELAY = process.env.NP_RELAY || 'ws://localhost:7777';
 const T0 = Date.now();
 const ts = () => `${((Date.now() - T0) / 1000).toFixed(0).padStart(4)} s`;
@@ -20,7 +24,8 @@ async function until(p, fn, arg, ms = 60000, every = 500) {
   const t0 = Date.now();
   for (;;) {
     let v = null;
-    try { v = await p.evaluate(fn, arg); } catch { v = null; }
+    // 26.10.: Abfrage mit Frist – unter Last blockiert der Hauptfaden einer Seite minutenlang (Shader-Bau im Software-GL)
+    try { v = await Promise.race([p.evaluate(fn, arg), sleep(30000).then(() => null)]); } catch { v = null; }
     if (v) return v;
     if (Date.now() - t0 > ms) return null;
     await sleep(every);
@@ -28,13 +33,16 @@ async function until(p, fn, arg, ms = 60000, every = 500) {
 }
 
 const browser = await chromium.launch({ args: [...GL_ARGS, '--disable-features=WebRtcHideLocalIpsWithMdns'] });
+// 26.10.: Client in einem eigenen Browser – zwei Seiten teilen sich sonst einen GPU-Prozess (Software-GL), und der
+// Shader-Bau der einen hält die andere minutenlang an
+const browser2 = await chromium.launch({ args: [...GL_ARGS, '--disable-features=WebRtcHideLocalIpsWithMdns'] });
 
-async function session(modeId, run) {
+async function session(modeId, run, extra = {}) {
   info(`— ${modeId} —`);
   const ctxs = [];
   const errors = [];
-  const open = async (name) => {
-    const ctx = await browser.newContext({ viewport: { width: 800, height: 450 } });
+  const open = async (name, b = browser) => {
+    const ctx = await b.newContext({ viewport: { width: 800, height: 450 } });
     ctxs.push(ctx);
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
@@ -45,8 +53,8 @@ async function session(modeId, run) {
   };
   try {
     const host = await open('Host');
-    const cl = await open('Client');
-    const code = await host.evaluate((m) => window.__game.net.host({ name: 'Modi', mode: m, map: 'werk', maxPlayers: 4, teamSize: 3, pvp: 'pvp', botFill: true, difficulty: 'rekrut', weather: 'standard', time: 'standard', style: 'arcade' }).then((r) => r.code, (e) => 'FEHLER:' + e.code), modeId);
+    const cl = await open('Client', browser2);
+    const code = await host.evaluate(([m, x]) => window.__game.net.host({ name: 'Modi', mode: m, map: 'werk', maxPlayers: 4, teamSize: 3, pvp: 'pvp', botFill: true, difficulty: 'rekrut', weather: 'standard', time: 'standard', style: 'arcade', ...x }).then((r) => r.code, (e) => 'FEHLER:' + e.code), [modeId, extra]);
     const mode = await host.evaluate(() => window.__game.net.room && window.__game.net.room.settings.mode);
     if (!check(/^[A-Z2-9]{6}$/.test(code) && mode === modeId, `Raum ${code}, Modus ${mode}`)) return;
     let j = await cl.evaluate((c) => window.__game.net.join(c, { name: 'Bert' }).then((r) => ({ ok: true, id: r.id }), (e) => ({ ok: false, code: e.code })), code);
@@ -54,8 +62,13 @@ async function session(modeId, run) {
     if (!check(j.ok, `Client tritt bei (${j.id || j.code})`)) return;
     await until(host, () => window.__game.net.roster.length === 2, null, 20000);
     await host.evaluate(() => window.__game.net.startMatch());
-    const ok = await Promise.all([host, cl].map((p) => until(p, () => window.__game.match.state === 'playing' && window.__game.player.alive && window.__game.mode && window.__game.mode.started && window.__game.mode.id, null, 900000, 1000)));
-    if (!check(ok.every((m) => m === modeId), `Host + Client im Match (${ok.join(', ')})`)) return;
+    const ok = await Promise.all([host, cl].map((p) => until(p, () => window.__game.match.state === 'playing' && window.__game.player.alive && window.__game.mode && window.__game.mode.started && window.__game.mode.id, null, 1800000, 15000))); // seltene Abfragen: unter Last bremsen häufige Abfragen den Ladevorgang
+    if (!check(ok.every((m) => m === modeId), `Host + Client im Match (${ok.join(', ')})`)) {
+      // Befund für die Fehlersuche: Zustand beider Seiten und erste Seitenfehler
+      for (const [n, p] of [['Host', host], ['Client', cl]]) info(`${n}: ${await p.evaluate(() => { const G = window.__game; return JSON.stringify({ st: G.match && G.match.state, alive: G.player && G.player.alive, mode: G.mode && G.mode.id, started: G.mode && G.mode.started, net: G.net && G.net.state }); }).catch((e) => e.message)}`);
+      if (errors.length) info(`Seitenfehler: ${errors.slice(0, 3).join(' | ')}`);
+      return;
+    }
     await sleep(3000); // Identitäten/Modus-Zustand nach dem Start
     await cl.evaluate(() => {
       const G = window.__game;
@@ -127,14 +140,51 @@ async function gungame(host, cl, cid) {
   check(!!up && up.row === 2, `Client: Waffe der Stufe 2 (${up ? up.w : '?'}), HUD-Meldung, Punktetabelle Stufe ${up ? up.row : '?'}`);
 }
 
+async function stellung(host, cl) {
+  const o = await Promise.all([host, cl].map((p) => p.evaluate(() => { const M = window.__game.mode; return { opt: M.options.wechsel, n: M.zones.length, names: M.zones.map((z) => z.name).join(','), replica: M.replica }; })));
+  check(o[0].opt === 45 && o[1].opt === 45 && o[1].replica && !o[0].replica, `Modus-Einstellung „Zonenwechsel 45 s“ bei Host und Client (${o[0].opt}/${o[1].opt})`);
+  check(o[0].n >= 2 && o[0].names === o[1].names, `gleiche Zonen (${o[0].names})`);
+  await cl.evaluate(() => { window.__hpN = []; window.__game.events.on('mode:notice', (e) => window.__hpN.push(e.text)); });
+  // Host: Bots parken und anhalten, der Host selbst steht allein in der Zone (der Client bleibt am Start – kein Teleport,
+  // den der Anti-Cheat als Verstoß zählen würde)
+  const team = await host.evaluate(() => {
+    const G = window.__game;
+    const upd = G.bots.update.bind(G.bots);
+    G.bots.update = (dt) => { if (!window.__hpFrozen) upd(dt); };
+    window.__hpFrozen = true;
+    let k = 0;
+    for (const b of G.bots.bots) { b.body.teleport(new G.THREE.Vector3(-74 + (k++ % 4) * 2, 0.2, b.team === 'A' ? 42 : -42)); b.body.velocity.set(0, 0, 0); }
+    G.player.godMode = true;
+    const go = () => { const z = G.mode.objectives[0]; G.debugApi.teleport(z.position.x, z.position.y + 0.3, z.position.z); G.player.body.velocity.set(0, 0, 0); };
+    go();
+    window.__hpHold = setInterval(go, 1500);
+    return G.player.team;
+  });
+  const held = await until(host, (t) => { const M = window.__game.mode; return M.owner === t && !M.contested && M.scores[t] >= 2 && { s: M.scores[t] }; }, team, 600000, 1000); // Frist in Echtzeit: bei ~1 FPS vergeht die Spielzeit sehr langsam
+  if (!check(!!held, `Host: Zone von seinem Team gehalten (${team}, ${held && held.s} Punkte)`)) info(`Host: ${await host.evaluate(() => { const G = window.__game; const M = G.mode; const z = M.objectives[0]; return JSON.stringify({ owner: M.owner, c: M.contested, s: M.scores, t: +G.time.elapsed.toFixed(1), d: +G.player.position.distanceTo(z.position).toFixed(1), r: z.radius, alive: G.player.alive }); }).catch((e) => e.message)}`);
+  const seen = await until(cl, (t) => { const G = window.__game; const M = G.mode; const r = M.scoreboard().find((x) => x.actor && x.actor.netId === 1); return M.owner === t && M.scores[t] >= 3 && r && r.extra && r.extra.value !== '0:00' && { s: M.scores[t], hz: r.extra.value }; }, team, 600000, 1000);
+  check(!!seen, `Client: gehalten von ${team}, Punkte ${seen && seen.s}, Haltezeit des Hosts ${seen && seen.hz} (Abbild)`);
+  // Vorschau und Wechsel vom Host erzwingen
+  await host.evaluate(() => { window.__game.mode.rotLeft = 9; });
+  const pv = await until(cl, () => { const M = window.__game.mode; return M.preview && M.objectives.length === 2 && M.objectives[1].next && M.objectives.map((x) => x.id).join(','); }, null, 30000);
+  check(!!pv, `Client: Vorschau der nächsten Zone (${pv})`);
+  await host.evaluate(() => { window.__game.mode.rotLeft = 0.05; });
+  const hi = await until(host, () => { const M = window.__game.mode; return M.serial >= 1 && { idx: M.idx, name: M.zone.name }; }, null, 30000);
+  const ci = await until(cl, (want) => { const M = window.__game.mode; return want && M.idx === want.idx && !M.preview && M.objectives.length === 1 && window.__hpN.some((t) => t.includes(want.name)) && `${M.idx}`; }, hi, 30000);
+  check(!!hi && !!ci, `Wechsel: Host Zone ${hi && hi.idx + 1} „${hi && hi.name}“, Client gleich mit Hinweis`);
+  await host.evaluate(() => clearInterval(window.__hpHold));
+}
+
 try {
   if (ONLY.includes('inf')) await session('inf', infected);
   if (ONLY.includes('gun')) await session('gun', gungame);
+  if (ONLY.includes('hp')) await session('hp', stellung, { map: 'bibliothek', modeOpts: { wechsel: 45 }, botFill: false }); // kleine Karte, ohne Bots: weniger Last beim Start (Software-GL)
 } catch (err) {
   console.log('FEHL Abbruch:', (err && err.stack) || err);
   fail++;
 } finally {
   await browser.close();
+  await browser2.close();
 }
 console.log(fail ? `${fail} von ${count} Prüfung(en) fehlgeschlagen` : `Alle ${count} Prüfungen bestanden`);
 process.exit(fail ? 1 : 0);

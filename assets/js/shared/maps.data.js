@@ -23,7 +23,7 @@ export const MAPS = {
     // 16.10. (Nutzer: „Mach alles“): Standard wieder klar – Video-Einstellung 2 (Containergasse) zeigt Sonne
     weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'klar',
     timeDefault: 'nachmittag', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'mittag', name: 'Mittag' }, { id: 'abend', name: 'Abend' }],
-    modes: ['tdm', 'ult', 'ffa', 'dom', 'gun', 'kc', 'inf', 'messer'],
+    modes: ['tdm', 'ult', 'ffa', 'dom', 'hp', 'gun', 'kc', 'inf', 'messer'],
     palette: ['#f2a65a', '#c8402f', '#2d5f94', '#1f4a57', '#3b3f44'],
     features: ['Kletterbare Containerstapel', 'Portalkran als Wahrzeichen', 'Lagerhalle mit Büro-Empore', 'Kaikante mit Wasser', 'Osthof mit Schuppen 4 und Kranfundamenten'],
     lanes: ['Kaikante (West)', 'Containerlabyrinth (Mitte)', 'Lagerhalle (Ost)'],
@@ -92,7 +92,7 @@ export const MAPS = {
     // atmosphere-weather: wählbares Wetter (ohne Niederschlag) + Tageszeiten; Standard = Kartenwetter/-zeit (unverändert)
     weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'klar',
     timeDefault: 'mittag', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'nachmittag', name: 'Nachmittag' }, { id: 'abend', name: 'Abend' }],
-    modes: ['tdm', 'ult', 'ffa', 'dom', 'gun', 'kc', 'inf', 'messer'],
+    modes: ['tdm', 'ult', 'ffa', 'dom', 'hp', 'gun', 'kc', 'inf', 'messer'],
     palette: ['#ede6d6', '#2f6f9a', '#b65a37', '#d9b26a', '#7fa0c8'],
     features: ['Begehbare Häuser und Dachterrassen', 'Markt mit Sonnensegeln', 'Brunnenplatz mit Glockenturm', 'Enge Gassen und Torbögen', 'Ostviertel mit Ölbaumplatz, Hof und Dachhaus'],
     lanes: ['Marktgasse (West)', 'Brunnenplatz (Mitte)', 'Gassen & Dächer (Ost)'],
@@ -161,7 +161,7 @@ export const MAPS = {
     // Grafik-Vorlage (15.10.): Tag wie im Video statt bleigrauer Dämmerung (die Dämmerung ist jetzt „Abend“ + „Dunst“)
     weathers: ['klar', 'dunst', 'morgennebel', 'bewoelkt'], weatherDefault: 'klar',
     timeDefault: 'nachmittag', times: [{ id: 'morgen', name: 'Morgen' }, { id: 'mittag', name: 'Mittag' }, { id: 'abend', name: 'Abend' }],
-    modes: ['tdm', 'ult', 'ffa', 'dom', 'gun', 'kc', 'inf', 'messer'],
+    modes: ['tdm', 'ult', 'ffa', 'dom', 'hp', 'gun', 'kc', 'inf', 'messer'],
     palette: ['#ffae4a', '#4b5560', '#7d8a84', '#2a3036', '#a35d2c'],
     features: ['Große Halle mit Laufstegen', 'Maschinen und Rohrbrücken', 'Ladebuchten und Lkw-Hof', 'Warmes Natriumlicht gegen kalte Dämmerung', 'Außenlager mit Rohrbrücke, Halle 9 und Abstellgleis'],
     lanes: ['Lkw-Hof (West)', 'Walzhalle (Mitte)', 'Kesselhaus (Ost)'],
@@ -229,7 +229,7 @@ export const MAPS = {
     timeOfDay: 'Kerzenschein',
     weather: 'Drinnen, staubiges Halbdunkel',
     weathers: ['klar', 'dunst'], weatherDefault: 'dunst',
-    modes: ['tdm', 'ult', 'ffa', 'dom', 'gun', 'kc', 'inf', 'messer'],
+    modes: ['tdm', 'ult', 'ffa', 'dom', 'hp', 'gun', 'kc', 'inf', 'messer'],
     palette: ['#ffc27a', '#5a3b24', '#9a8f7d', '#2a3d6a', '#7a1f1f'],
     features: ['Verwinkelte Lesenischen und schräge Regalgassen', 'Galerien mit Treppen in allen vier Ecken', 'Zwei Holzbrücken quer über die Halle', 'Rotunde mit schwebendem Himmelsglobus', 'Fliegende Bücher und schwebende Kerzen', 'Verbotene Abteilung hinter Eisengittern'],
     lanes: ['Galerie West', 'Mittelgang mit Rotunde', 'Galerie Ost'],

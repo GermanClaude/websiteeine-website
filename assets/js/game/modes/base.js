@@ -780,10 +780,14 @@ export class BaseMode {
     const dep = this._deploySpawn(actor);
     if (dep) return dep;
     const threats = this.streaks ? this.streaks.entities : [];
-    const zones = this.streaks ? this.streaks.dangerZones() : [];
+    let zones = this.streaks ? this.streaks.dangerZones() : [];
+    const avoid = this.spawnAvoid(actor); // 26.10.: Modus-Sperrzonen (z. B. Stellung: ≥ 25 m Abstand)
+    if (avoid && avoid.length) zones = zones.concat(avoid);
     return chooseSpawn(this.G, actor, { teams: this.teams, recent: this._recentSpawns, threats, zones, attract: this.spawnAttract(actor) });
   }
 
   spawnAttract() { return null; }
+  /** Bereiche ohne Wiedereinstieg [{ position, radius }] – wie Luftschlag-Zonen (spawns.js: Abzug im Umkreis radius + 6 m). */
+  spawnAvoid() { return null; }
 }
 

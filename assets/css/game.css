@@ -752,6 +752,12 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-flag[data-cap="a"] { --cap: var(--np-ally); }
 .h-flag[data-cap="e"] { --cap: var(--np-enemy); }
 .h-flag.is-contested { border-color: var(--np-gold); animation: h-blink .8s steps(2) infinite; }
+/* Stellung (26.10.): nächste Zone gedimmt/gestrichelt, Zonenname + Zeit bis zum Wechsel */
+.h-flag.is-next { opacity: .45; border-style: dashed; }
+.h-hpt { display: flex; gap: 8px; align-items: baseline; padding: 1px 10px; background: var(--hud-bg); border-radius: 2px; font-size: 13px; letter-spacing: .06em; color: var(--np-ink-2); white-space: nowrap; }
+.h-hpt b { color: var(--np-ink); font-size: 14px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.h-hpt b:empty { display: none; }
+.h-hpt span.is-soon { color: var(--np-signal); }
 .h-ladder { display: flex; gap: 3px; }
 .h-ladder i { width: 9px; height: 5px; background: rgba(233, 230, 223, .2); border-radius: 1px; }
 .h-ladder i:last-child { width: 14px; background: rgba(255, 194, 61, .3); }
@@ -863,6 +869,11 @@ body[data-input-mode="touch"][data-match-state="countdown"] #touch-ui { display:
 .h-mk.is-edge { opacity: .75; }
 .h-mk.is-edge .h-mk-d { transform: rotate(45deg) scale(.8); }
 .h-mk.is-in { opacity: .35; }
+.h-mk.is-next { opacity: .5; }
+.h-mk.is-next .h-mk-d { border-style: dashed; }
+/* Handy: Zonenname steht schon am Marker – nur die Zeit, schmal (sonst unter den Touch-Knöpfen der oberen Mitte) */
+.h-root[data-input="touch"] .h-hpt { font-size: 10.5px; letter-spacing: 0; padding: 0 6px; }
+.h-root[data-input="touch"] .h-hpt b { display: none; }
 .h-capture { position: absolute; left: 50%; bottom: 26%; width: min(320px, 60vw); transform: translateX(-50%); display: flex; flex-direction: column; gap: 5px; }
 .h-capture-l { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; letter-spacing: .1em; text-transform: uppercase; }
 .h-capture-l b { font-size: 18px; }
