@@ -370,6 +370,35 @@ function bruecke(b) {
   return {};
 }
 
+/**
+ * Sichtbarer Kieshaufen (26.10., K0): Kegelstumpf r → r1 auf Höhe h wie der Kollisionskegel, Mantel leicht verrauscht
+ * (± 2,5 % Radius, nie innerhalb des Kollisionskegels um mehr als wenige cm), gerundete Kuppe, ausgefranster Fuß; Farbe
+ * unten feuchter/dunkler. UV setzt der Builder in Weltmetern (uv: 'world'), daher keine Naht und echte Korngröße.
+ */
+function kiesKegel(r, r1, h, seed) {
+  const S = 40, K = 7, P = [], C = [], I = [];
+  const n = (a, k) => Math.sin(a * 3 + seed) * 0.5 + Math.sin(a * 7 + seed * 1.7 + k) * 0.3 + Math.sin(a * 13 + seed * 0.3) * 0.2;
+  for (let k = 0; k <= K; k++) {
+    const t = k / K, y = h * t, rr = r + (r1 - r) * t;
+    for (let i = 0; i < S; i++) {
+      const a = (i / S) * Math.PI * 2, jitter = 1 + n(a, k) * 0.025 * (1 - t * 0.6) + (k === 0 ? 0.04 + n(a * 2, 9) * 0.03 : 0);
+      const c = 0.8 + 0.2 * Math.min(1, t * 1.6) + n(a, k + 3) * 0.04;
+      P.push(Math.cos(a) * rr * jitter, k === 0 ? -0.05 : y, Math.sin(a) * rr * jitter); C.push(c, c * 0.98, c * 0.95);
+    }
+  }
+  P.push(0, h + 0.14, 0); C.push(1, 0.98, 0.95);
+  const tip = (K + 1) * S, at = (k, i) => k * S + (i % S);
+  // Außenseite gegen den Uhrzeigersinn (von außen gesehen) → Normalen nach außen/oben
+  for (let k = 0; k < K; k++) for (let i = 0; i < S; i++) I.push(at(k, i), at(k + 1, i), at(k + 1, i + 1), at(k, i), at(k + 1, i + 1), at(k, i + 1));
+  for (let i = 0; i < S; i++) I.push(at(K, i), tip, at(K, i + 1));
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+  g.setIndex(I);
+  g.computeVertexNormals(); // glatt (geteilte Ecken); geomPrim entfaltet danach mit diesen Normalen
+  return g;
+}
+
 function kieswerk(b) {
   b.groundTiled(118, -146, 186, -78, 'gravel', { cell: 2 });
   // Halle mit Laufsteg
@@ -381,8 +410,12 @@ function kieswerk(b) {
   for (const [x, z, sw, sh, sd] of [[hx - 3, hz - 6, 3, 2.2, 5], [hx - 3, hz + 5, 3.4, 1.6, 4], [hx + 1, hz, 1.6, 1.2, 1.6]]) b.box(x, 0, z, sw, sh, sd, 'metal_painted', { tint: '#b8862e', minimap: 'cover' });
   palletStack(b, hx - 5, hz + 11, { n: 5 }); barrelGroup(b, hx + 3, hz - 11, { n: 4 });
   // Kieshaufen (Kegel), Förderband, Silo
+  // 26.10. (K0): Kollision wie bisher (unsichtbarer Kegel, gleiche Maße); sichtbar ein eigener Kegel mit Welt-UV –
+  // vorher zog die Zylinder-UV den Kies-Satz riesig über den Mantel (las sich als Trockenrisse in Lehm, mit Naht)
   for (const [x, z, r, h] of [[132, -96, 7, 4.6], [128, -128, 6, 3.8], [142, -82, 4.5, 2.8]]) {
-    b.cyl(x, 0, z, r, h, 'gravel', { r1: 0.6, seg: 16, minimap: 'cover', tint: '#c8beb0' });
+    b.cyl(x, 0, z, r, h, 'gravel', { r1: 0.6, seg: 16, minimap: 'cover', visual: false });
+    // uvScale 0,4: Kies-Satz (2-m-Kachel, Steine ≈ 10 cm) auf ≈ 4 cm Korn – Schüttgut statt Pflasterplatten
+    b.geom(kiesKegel(r, 0.6, h, x * 7 + z), x, 0, z, 'gravel', { tint: '#c8beb0', uv: 'world', uvScale: 0.4, collide: false, minimap: false, grad: false });
   }
   b.cyl(178, 0, -90, 2.8, 12, 'metal_galvanized', { seg: 16, minimap: 'pillar' });
   b.cyl(178, 12, -90, 2.9, 1.8, 'metal_galvanized', { r1: 0.4, seg: 16, collide: false, minimap: false });

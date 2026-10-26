@@ -274,7 +274,13 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
         else if (roll < 0.15) shovel(b, mx + nx * sx2 * (hw - 0.35), floor, mz + nz * sx2 * (hw - 0.35), nx * sx2, nz * sx2, 0.28);
       }
       // Pfützen auf der Sohle (Schlammwasser), Sturmleitern an der Feindseite der Frontgräben, Munitionskisten
-      if (!junction && r() < 0.3) b.decal(mx + ux * (r() - 0.5) * L * 0.6, floor + 0.035, mz + uz * (r() - 0.5) * L * 0.6, 0.9 + r() * 1.4, 0.6 + r() * 0.5, 'puddle', { opacity: 0.9, ry: ry0 + (r() - 0.5) * 0.3 });
+      // 26.10. (K0): auf der Grabenmitte, Spiegel knapp über dem tiefsten Punkt der Fläche (vorher Sohlenmitte + 3,5 cm,
+      // quer versetzt – auf geneigter Sohle und an den Wänden hing es bis 1 m in der Luft); fünf Ziehungen wie bisher
+      if (!junction && r() < 0.3) {
+        const t1 = r() - 0.5, t2 = r() - 0.5, pw = 0.9 + r() * 1.4, pd = 0.6 + r() * 0.5, pry = ry0 + (r() - 0.5) * 0.3;
+        const t = (t1 + t2) * 0.5 * L * 0.6, hwIn = hw - 0.12;
+        puddleIn(b, H, mx + ux * t, mz + uz * t, pw, pd, pry, { search: 0.5, opacity: 0.9, keep: (x, z) => Math.abs((x - mx) * nx + (z - mz) * nz) <= hwIn });
+      }
       if (!junction && (tr.sandbags ?? 0) >= 0.4 && k % 14 === 6) {
         const es = enemySide * Math.sign(nz || 1) || 1;   // Seite (±1), deren Normale zum Feind zeigt
         const wl = hw - 0.02, hgt = (H(mx + nx * es * (hw + rv + 2.5), mz + nz * es * (hw + rv + 2.5)) - floor) + 0.5, tilt = 0.32;
@@ -409,20 +415,99 @@ export function trenchWorks(b, ctx, trenches, o = {}) {
 const smooth01 = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 
 // ---------------------------------------------------------------------------
+// Pfützen (26.10., Etappe K0 „Sofort-Fehler“ B1)
+// ---------------------------------------------------------------------------
+const PUDDLE_MAX = 2.5;     // längste Seite (m)
+const PUDDLE_DEPTH = 0.12;  // tiefster Wasserstand über dem Muldenboden (m)
+const DECAL_LIFT = 0.012;   // MapBuilder hebt jedes Decal um 1,2 cm an (_buildDecals)
+/**
+ * Pfütze als waagrechtes Nass-Decal in die Mulde um (x, z) legen (26.10., K0). Mitte = tiefster Punkt im Umkreis
+ * o.search (m, 0,25-m-Raster). Je Größe (Seiten ≤ 2,5 m, schrumpfend × 0,8) werden der tiefste Punkt der sichtbaren
+ * Ellipse (lo) und der tiefste Punkt ihres Randes (Rand) bestimmt:
+ *   • Becken: der Rand liegt mindestens 3 cm über lo → Wasserspiegel knapp unter dem Rand (höchstens lo + 12 cm).
+ *     Der Rand steckt im Gelände, die Wasserfläche folgt der Höhenlinie – nichts kann über einer Kante schweben.
+ *   • sonst Feuchtfilm: Spiegel = lo + 2–4 cm (fester Wert aus der Lage) – auf ebener/geneigter Sohle höchstens so
+ *     viel Luft, an höheren Stellen verschwindet das Decal im Boden.
+ * Vorher: Rechtecke bis 6,7 m auf Muldenhöhe + bis 16 cm bzw. Grabenmitte + 3,5 cm, quer versetzt – über Grabenkanten
+ * und Hängen standen sie bis zu 1 m in der Luft. Kein Kartenzufall (Ablauf von r()/rnd() bleibt beim Aufrufer).
+ * o: { search (1,1), keep(x, z) → false = Punkt gehört nicht zur Fläche (Grabenwand, Wasser), clear(x, z, r) → false =
+ * Kreis berührt Verbotenes (Graben), opacity }. → true, wenn gesetzt
+ */
+function puddleIn(b, H, x, z, w, d, ry, o = {}) {
+  const keep = o.keep || (() => true), S = o.search ?? 1.1;
+  let cx = x, cz = z, lo0 = keep(x, z) ? H(x, z) : Infinity;
+  for (let j = -S; j <= S + 1e-6; j += 0.25) for (let i = -S; i <= S + 1e-6; i += 0.25) {
+    if (i * i + j * j > S * S) continue;
+    const px = x + i, pz = z + j;
+    if (!keep(px, pz)) continue;
+    const h = H(px, pz);
+    if (h < lo0) { lo0 = h; cx = px; cz = pz; }
+  }
+  if (lo0 === Infinity) return false;
+  const c = Math.cos(ry), s = Math.sin(ry), film = 0.02 + hash2(cx, cz) * 0.02;
+  let hw = Math.min(w, PUDDLE_MAX) / 2, hd = Math.min(d, PUDDLE_MAX) / 2, fallback = null;
+  for (let k = 0; k < 7; k++, hw *= 0.8, hd *= 0.8) {
+    if (Math.max(hw, hd) < 0.3) break;
+    if (o.clear && !o.clear(cx, cz, Math.hypot(hw, hd))) continue;
+    // tiefster Punkt der sichtbaren Ellipse (Pfützen-Zelle des Decal-Atlas läuft zum Rand hin aus). Das Gelände ist
+    // stückweise linear (1-m-Raster): das Minimum liegt auf einem Rasterpunkt im Inneren oder auf dem Rand → beide
+    // vollständig prüfen (Rasterpunkte + Rand alle ≈ 8 cm), dazu ein 0,25-m-Gitter für keep()
+    const inE = (px, pz) => { const dx = px - cx, dz = pz - cz, a = dx * c - dz * s, bb = dx * s + dz * c; return (a * a) / (hw * hw) + (bb * bb) / (hd * hd) <= 1; };
+    let lo = Infinity, ok = true;
+    const nu = Math.max(2, Math.ceil(hw / 0.25)), nv = Math.max(2, Math.ceil(hd / 0.25));
+    for (let j = -nv; j <= nv && ok; j++) for (let i = -nu; i <= nu && ok; i++) {
+      const u = i / nu, v = j / nv;
+      if (u * u + v * v > 1) continue;
+      const a = u * hw, bb = v * hd, px = cx + a * c + bb * s, pz = cz - a * s + bb * c;
+      if (!keep(px, pz)) ok = false; else lo = Math.min(lo, H(px, pz));
+    }
+    if (!ok) continue;
+    const R = Math.max(hw, hd), gs = o.res || 1;
+    for (let gz = Math.ceil((cz - R) / gs) * gs; gz <= cz + R; gz += gs) for (let gx = Math.ceil((cx - R) / gs) * gs; gx <= cx + R; gx += gs) if (inE(gx, gz)) lo = Math.min(lo, H(gx, gz));
+    const ring = (f) => {
+      let m = Infinity;
+      const n = Math.max(24, Math.ceil((TAU * Math.max(hw, hd) * f) / 0.08));
+      for (let q = 0; q < n; q++) { const ang = (q / n) * TAU, a = Math.cos(ang) * hw * f, bb = Math.sin(ang) * hd * f; m = Math.min(m, H(cx + a * c + bb * s, cz - a * s + bb * c)); }
+      return m;
+    };
+    const edge = ring(1);
+    lo = Math.min(lo, edge);
+    // Rand für das Becken: Außenkante und ein innerer Ring – auch schmale Rinnen zum Graben hin fallen auf
+    const rim = Math.min(edge, ring(0.85));
+    if (rim - 0.01 >= lo + 0.03) { // Becken
+      b.decal(cx, Math.min(rim - 0.01, lo + PUDDLE_DEPTH) - DECAL_LIFT, cz, hw * 2, hd * 2, 'puddle', { opacity: o.opacity ?? 0.9, ry });
+      return true;
+    }
+    if (!fallback) fallback = [hw, hd, lo];
+  }
+  if (!fallback) return false;
+  const [fw, fd, flo] = fallback; // Feuchtfilm in der größten zulässigen Fläche
+  b.decal(cx, flo + film - DECAL_LIFT, cz, fw * 2, fd * 2, 'puddle', { opacity: o.opacity ?? 0.9, ry });
+  return true;
+}
+/** Fester Wert 0…1 aus einer Lage (ohne Kartenzufall). */
+function hash2(x, z) {
+  let h = Math.imul(Math.round(x * 100) | 0, 374761393) ^ Math.imul(Math.round(z * 100) | 0, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+// ---------------------------------------------------------------------------
 // Gelände-Ausstattung: Pfützen in Senken, Stacheldraht vor den Fronten
 // ---------------------------------------------------------------------------
 /**
  * Pfützen in Trichtern und Senken: Raster 4 m, tiefster Punkt je Zelle; liegt er deutlich unter seinem Umkreis,
  * kommt ein waagrechtes Nass-Decal knapp darüber (die Mulde „füllt“ sich bis zu dieser Höhe). Dazu Stacheldraht-
  * gürtel (Pfähle, drei Drähte, Kreuzverspannung; nur Optik) vor beiden Frontlinien mit Lücken.
- * o: { area {minX,maxX,minZ,maxZ}, avoid [[pts…], r] (Gräben), wire [{ z, x0, x1 }] }
+ * o: { area {minX,maxX,minZ,maxZ}, avoid [[pts…], r] (Gräben), wire [{ z, x0, x1 }], wrecks, nests [[x, z, ry]…],
+ *      nestTints (Sandsack-Tönungen der MG-Stellungen) }
  */
 export function groundDetails(b, ctx, o = {}) {
   const hf = ctx.hf, A = o.area, H = (x, z) => hf.heightAt(x, z);
   let sd = 9137;
   const rnd = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296);
   const lines = (o.avoid || []).map(([pts, r]) => ({ line: sampleSpline(pts, 2), r }));
-  const nearTrench = (x, z) => lines.some(({ line, r }) => distToLine(line, x, z) < r);
+  const nearTrench = (x, z, pad = 0) => lines.some(({ line, r }) => distToLine(line, x, z) < r + pad);
   let n = 0;
   for (let z = A.minZ; z < A.maxZ; z += 4) for (let x = A.minX; x < A.maxX; x += 4) {
     let mx = x, mz = z, my = Infinity;
@@ -432,15 +517,18 @@ export function groundDetails(b, ctx, o = {}) {
     for (let k = 0; k < 8; k++) { const a = (k / 8) * TAU; ring += H(mx + Math.cos(a) * 2.6, mz + Math.sin(a) * 2.6); }
     const depth = ring / 8 - my;
     if (depth < 0.22 || rnd() > 0.75) continue;
-    const lvl = Math.min(0.16, depth * 0.3), rr = Math.min(3.2, 1.2 + depth * 1.6);
-    b.decal(mx, my + lvl, mz, rr * (1.6 + rnd() * 0.5), rr * (1.3 + rnd() * 0.4), 'puddle', { opacity: 0.92, ry: rnd() * TAU });
+    // 26.10. (K0): vorher Rechteck bis 6,7 m auf Muldenhöhe + bis 16 cm – auf unebenem Boden und über Grabenkanten
+    // schwebte es. Jetzt puddleIn (≤ 2,5 m, Becken bis knapp unter den Rand bzw. Feuchtfilm, nichts schwebt).
+    // Ziehungen und Zählung wie bisher: der Ablauf von rnd() (auch für die Drahtrollen danach) bleibt gleich.
+    const rr = Math.min(3.2, 1.2 + depth * 1.6), pw = rr * (1.6 + rnd() * 0.5), pd = rr * (1.3 + rnd() * 0.4), pry = rnd() * TAU;
+    puddleIn(b, H, mx, mz, pw, pd, pry, { opacity: 0.92, keep: (x, z) => H(x, z) > hf.waterY + 0.05, clear: (x, z, r) => !nearTrench(x, z, r) });
     if (++n > 160) break;
   }
   // Fahrzeugwracks
   (o.wrecks || []).forEach(([x, z, ry, kind], i) => burntWreck(b, x, H(x, z) - 0.05, z, ry, kind, i + 1));
   // MG-Stellungen hinter den Frontgräben (benutzbar, Blick aufs Niemandsland)
   const keep = [];
-  for (const [x, z, ry] of o.nests || []) { mgNest(b, x, z, { y: H(x, z) - 0.05, ry }); keep.push({ pts: [[x, z], [x + 0.1, z]], r: 4.2 }); }
+  for (const [x, z, ry] of o.nests || []) { mgNest(b, x, z, { y: H(x, z) - 0.05, ry, tints: o.nestTints }); keep.push({ pts: [[x, z], [x + 0.1, z]], r: 4.2 }); }
   // Stacheldraht (eigenes Modul): Zäune mit Holzpfählen alle 3 m, drei Stränge + zwei Schrägstränge je Feld, Gassen
   // alle ≈ 55 m; davor auf der Feindseite stellenweise Drahtrollen. Nur Optik (keine Kollision), auf jeder Stufe gleich.
   for (const wv of o.wire || []) {

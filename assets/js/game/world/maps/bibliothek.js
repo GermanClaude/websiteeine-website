@@ -4,10 +4,12 @@
 // Querriegel – verwinkelt, kurze Sichtlinien, Leitern an den Regalen. Galerien an den Längswänden (4,4 m) mit Treppen in
 // allen vier Ecken, zwei Holzbrücken quer über die Halle. Norden: Eingangshalle mit Ausleihtheken (Team A), Süden:
 // Verbotene Abteilung hinter Eisengittern mit drei Durchgängen (Team B). Beide Hälften punktsymmetrisch (fair).
-// Magie: fliegende Bücher, schwebende Kerzen, Globus mit Ringen (ohne Kollision, über Kopfhöhe). (Owner: world)
+// Magie: fliegende Bücher, schwebende Kerzen, schwebende Armillarsphäre (ohne Kollision, über Kopfhöhe). (Owner: world)
 import * as THREE from 'three';
 import { wall, slab, stairs, railing } from '../arch.js';
 import { chair, hash01 } from '../props.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { atlasTexture, atlasScale } from '../atlas.js';
 
 const X = 38, Z = 27, H = 13, GY = 4.4; // Halle, Höhe, Galerie-/Brückenhöhe
 const GAL = X - 4.5, GZ = 22.5; // Innenkante und Länge (±) der Galerien
@@ -268,7 +270,167 @@ function chandelier(b, x, z) {
   }
 }
 
-/** Fliegende Bücher, schwebende Kerzen und der Himmelsglobus (animierte Einzelobjekte). */
+// ---------------------------------------------------------------------------
+// Armillarsphäre (26.10., Etappe K0 L4)
+// ---------------------------------------------------------------------------
+const ARM_Y = 3.2;              // Mitte der schwebenden Sphäre
+const OBLIQ = 0.4091;           // Schiefe der Ekliptik (23,44°)
+const TILT = 0.7;               // Polachse gegen die Senkrechte (≈ 40° – Polhöhe 50°)
+
+/**
+ * Teilungs-Atlas (Messing, 1024 × 128, eigene Zeichnung): Zeilen 0–47 Gradteilung (1°/5°/10°, Rauten alle 30°),
+ * 48–63 blankes Messing (Kanten), 64–127 Tierkreisband mit zwölf Feldern und schlichten, selbst gezeichneten
+ * Zeichen (Bögen, Wellen, Striche – keine Schrift).
+ */
+function drawScaleAtlas(ctx, W, H) {
+  ctx.scale(W / 1024, H / 128);
+  const brass = (y0, y1, a = 0) => {
+    const g = ctx.createLinearGradient(0, y0, 0, y1);
+    g.addColorStop(0, '#8a6a36'); g.addColorStop(0.5, a ? '#c79f5e' : '#d2ab6a'); g.addColorStop(1, '#8a6a36');
+    ctx.fillStyle = g; ctx.fillRect(0, y0, 1024, y1 - y0);
+  };
+  brass(0, 48); brass(48, 64, 1); brass(64, 128);
+  const ink = 'rgba(40,26,10,0.9)';
+  ctx.strokeStyle = ink; ctx.fillStyle = ink;
+  // Gradteilung: 360 Striche auf 1024 px (eine Umdrehung = Wiederholung 1)
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(0, 4); ctx.lineTo(1024, 4); ctx.moveTo(0, 44); ctx.lineTo(1024, 44); ctx.stroke();
+  for (let d = 0; d < 360; d++) {
+    const x = (d / 360) * 1024, L = d % 10 === 0 ? 30 : d % 5 === 0 ? 20 : 11;
+    ctx.lineWidth = d % 10 === 0 ? 1.6 : 0.9;
+    ctx.beginPath(); ctx.moveTo(x, 4); ctx.lineTo(x, 4 + L); ctx.stroke();
+    if (d % 30 === 0) { ctx.beginPath(); ctx.moveTo(x, 36); ctx.lineTo(x + 3, 40); ctx.lineTo(x, 44); ctx.lineTo(x - 3, 40); ctx.closePath(); ctx.fill(); }
+  }
+  // Tierkreisband: Randlinien, zwölf Felder, je ein Zeichen aus einfachen Strichen
+  ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(0, 68); ctx.lineTo(1024, 68); ctx.moveTo(0, 124); ctx.lineTo(1024, 124); ctx.stroke();
+  for (let k = 0; k < 12; k++) {
+    const x0 = (k / 12) * 1024, cx = x0 + 1024 / 24, cy = 96;
+    ctx.beginPath(); ctx.moveTo(x0, 68); ctx.lineTo(x0, 124); ctx.stroke();
+    for (let m = 1; m < 6; m++) { const x = x0 + (m / 6) * (1024 / 12); ctx.beginPath(); ctx.moveTo(x, 68); ctx.lineTo(x, 74); ctx.stroke(); }
+    ctx.lineWidth = 2.2; ctx.beginPath();
+    switch (k % 6) {
+      case 0: ctx.arc(cx - 7, cy - 4, 8, Math.PI, 0); ctx.moveTo(cx + 1, cy - 4); ctx.arc(cx + 9, cy - 4, 8, Math.PI, 0); ctx.moveTo(cx + 1, cy - 4); ctx.lineTo(cx + 1, cy + 14); break;
+      case 1: ctx.arc(cx, cy + 4, 10, 0, Math.PI * 2); ctx.moveTo(cx - 12, cy - 14); ctx.quadraticCurveTo(cx, cy - 2, cx + 12, cy - 14); break;
+      case 2: ctx.moveTo(cx - 10, cy - 12); ctx.lineTo(cx + 10, cy - 12); ctx.moveTo(cx - 10, cy + 12); ctx.lineTo(cx + 10, cy + 12); ctx.moveTo(cx - 5, cy - 12); ctx.lineTo(cx - 5, cy + 12); ctx.moveTo(cx + 5, cy - 12); ctx.lineTo(cx + 5, cy + 12); break;
+      case 3: for (const sy of [-6, 6]) { ctx.moveTo(cx - 13, cy + sy); for (let i = 0; i <= 4; i++) ctx.lineTo(cx - 13 + i * 6.5, cy + sy + (i % 2 ? -5 : 5)); } break;
+      case 4: ctx.arc(cx, cy, 11, 0.4, Math.PI * 2 - 0.4); ctx.moveTo(cx + 11, cy - 4); ctx.lineTo(cx + 16, cy - 10); break;
+      default: ctx.moveTo(cx - 12, cy + 12); ctx.lineTo(cx + 12, cy - 12); ctx.moveTo(cx + 2, cy - 12); ctx.lineTo(cx + 12, cy - 12); ctx.lineTo(cx + 12, cy - 2); ctx.moveTo(cx - 8, cy - 2); ctx.lineTo(cx + 2, cy + 8);
+    }
+    ctx.stroke(); ctx.lineWidth = 1.6;
+  }
+}
+let scaleTex = null, scaleSize = 0;
+function scaleAtlas(quality) {
+  const W = Math.round(1024 * atlasScale(quality));
+  if (!scaleTex || scaleSize !== W) {
+    scaleTex = atlasTexture(W, W / 8, (ctx, w, h) => drawScaleAtlas(ctx, w, h), { anisotropy: 8, name: 'armillar' });
+    scaleTex.wrapS = THREE.RepeatWrapping; scaleSize = W;
+  }
+  return scaleTex;
+}
+// v-Bereiche der Atlas-Zeilen (Canvas oben = v 1)
+const V_SCALE = [1 - 48 / 128, 1 - 2 / 128], V_PLAIN = [1 - 62 / 128, 1 - 50 / 128], V_ZODIAC = [2 / 128, 62 / 128];
+
+/** Offenes Band (Zylindermantel) um die y-Achse: Radius r, Höhe h, UV u = Umlauf × rep, v über die Höhe. */
+function bandGeom(r, h, v, rep = 1, segs = 96) {
+  const P = [], U = [], N = [], I = [];
+  for (let i = 0; i <= segs; i++) {
+    const a = (i / segs) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+    for (const k of [0, 1]) { P.push(r * c, (k - 0.5) * h, r * s); N.push(c, 0, s); U.push((i / segs) * rep, v[k]); }
+    if (i < segs) { const o = i * 2; I.push(o, o + 1, o + 2, o + 1, o + 3, o + 2); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+  g.setIndex(I);
+  return g;
+}
+/** Kreisring (Scheibe mit Loch) in der xz-Ebene, Teilung radial: v von innen (r0) nach außen (r1). */
+function annulusGeom(r0, r1, v, rep = 1, segs = 96) {
+  const P = [], U = [], N = [], I = [];
+  for (let i = 0; i <= segs; i++) {
+    const a = (i / segs) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+    P.push(r0 * c, 0, r0 * s, r1 * c, 0, r1 * s); N.push(0, 1, 0, 0, 1, 0); U.push((i / segs) * rep, v[0], (i / segs) * rep, v[1]);
+    if (i < segs) { const o = i * 2; I.push(o, o + 2, o + 1, o + 1, o + 2, o + 3); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+  g.setIndex(I);
+  return g;
+}
+/** Flacher Messingring mit Stärke: Vorder-/Rückseite geteilt (Annulus), Innen-/Außenkante blank. */
+function flatRing(r0, r1, th) {
+  const top = annulusGeom(r0, r1, V_SCALE); top.translate(0, th / 2, 0);
+  const bot = annulusGeom(r0, r1, V_SCALE); bot.rotateX(Math.PI); bot.translate(0, -th / 2, 0);
+  return mergeGeometries([top, bot, bandGeom(r1, th, V_PLAIN, 6), bandGeom(r0, th, V_PLAIN, 6)]);
+}
+const stripUv = (g) => { g.deleteAttribute('uv'); return g; };
+
+/**
+ * Armillarsphäre: fester Meridian- und Horizontring (geteilt), drehendes Gestell (Äquator- und Tierkreisband, Wende-
+ * und Polarkreise, zwei Koluren, Polachse mit Knäufen), innen eine leuchtende Glaskugel; Ständer mit Baluster und drei
+ * geschwungenen Beinen auf Löwentatzen auf dem Steinsockel (Oberkante 1,18 m). Ohne Kollision (über Kopfhöhe bzw.
+ * auf dem Sockel). → { stand, globe, rete, glass }
+ */
+function armillarySphere(b) {
+  const tex = scaleAtlas(b.quality || 'high');
+  const brass = new THREE.MeshStandardMaterial({ color: '#b48d52', metalness: 1, roughness: 0.34, emissive: '#2a1c0a', emissiveIntensity: 0.35, name: 'messing' });
+  const scale = new THREE.MeshStandardMaterial({ map: tex, color: '#ffffff', metalness: 1, roughness: 0.38, emissive: '#2a1c0a', emissiveIntensity: 0.3, side: THREE.DoubleSide, name: 'messing-teilung' });
+  const glass = new THREE.MeshStandardMaterial({ color: '#1c3048', emissive: '#4c84c8', emissiveIntensity: 0.9, roughness: 0.06, metalness: 0, transparent: true, opacity: 0.62, depthWrite: false, name: 'glaskugel' });
+  const core = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.8, 2.3), name: 'glaskern' });
+  // Ständer (statisch, eine Geometrie): Baluster auf Fußplatte, drei S-Beine mit Tatzen, Schale unter dem Meridian
+  const top = 1.18;
+  const prof = [[0.001, 0], [0.2, 0], [0.2, 0.03], [0.15, 0.05], [0.09, 0.1], [0.075, 0.18], [0.11, 0.24], [0.06, 0.3], [0.05, 0.36], [0.085, 0.4], [0.13, 0.44], [0.001, 0.44]];
+  const parts = [new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, top + y)), 24)];
+  for (let k = 0; k < 3; k++) {
+    const a = (k / 3) * Math.PI * 2 + 0.5, c = Math.cos(a), s = Math.sin(a);
+    const P = (r, y) => new THREE.Vector3(c * r, top + y, s * r);
+    const curve = new THREE.CatmullRomCurve3([P(0.1, 0.2), P(0.26, 0.24), P(0.42, 0.15), P(0.52, 0.06), P(0.6, 0.035)]);
+    parts.push(new THREE.TubeGeometry(curve, 16, 0.026, 6, false));
+    const paw = new THREE.SphereGeometry(1, 10, 6); paw.scale(0.075, 0.045, 0.06); paw.rotateY(-a); paw.translate(c * 0.64, top + 0.04, s * 0.64);
+    parts.push(paw);
+    for (const d of [-0.035, 0, 0.035]) { const toe = new THREE.SphereGeometry(0.022, 6, 4); toe.translate(c * 0.7 - s * d, top + 0.02, s * 0.7 + c * d); parts.push(toe); }
+  }
+  const cup = new THREE.TorusGeometry(0.16, 0.018, 6, 24); cup.rotateX(Math.PI / 2); cup.translate(0, top + 0.44, 0);
+  parts.push(cup);
+  const stand = new THREE.Mesh(mergeGeometries(parts.map((p) => stripUv(p.index ? p.toNonIndexed() : p))), brass);
+  stand.name = 'armillar-staender';
+  // schwebende Sphäre
+  const globe = new THREE.Group();
+  globe.name = 'armillarsphaere';
+  globe.position.set(0, ARM_Y, 0);
+  // fest: Meridian (senkrecht, enthält die Polachse) + Horizont (waagrecht)
+  const mer = flatRing(1.31, 1.42, 0.02); mer.rotateX(Math.PI / 2);
+  const hor = flatRing(1.5, 1.63, 0.02);
+  const fixed = new THREE.Mesh(mergeGeometries([mer, hor]), scale);
+  fixed.name = 'armillar-meridian';
+  // Gestell um die Polachse (gekippt in der Meridianebene); innen dreht sich die Sphäre um die Achse
+  const tilt = new THREE.Group(); tilt.rotation.z = TILT;
+  const rete = new THREE.Group();
+  const R = 1.18;
+  const eq = bandGeom(R, 0.055, V_SCALE, 1);
+  const ecl = bandGeom(R - 0.004, 0.12, V_ZODIAC, 1); ecl.rotateX(OBLIQ);
+  const bands = new THREE.Mesh(mergeGeometries([eq, ecl]), scale);
+  const thin = [];
+  for (const lat of [OBLIQ, -OBLIQ, Math.PI / 2 - OBLIQ, -(Math.PI / 2 - OBLIQ)]) {
+    const t2 = new THREE.TorusGeometry(R * Math.cos(lat), 0.011, 5, 64); t2.rotateX(Math.PI / 2); t2.translate(0, R * Math.sin(lat), 0); thin.push(t2);
+  }
+  for (const ry of [0, Math.PI / 2]) { const t2 = new THREE.TorusGeometry(R, 0.014, 5, 72); t2.rotateY(ry); thin.push(t2); }
+  const axis = new THREE.CylinderGeometry(0.016, 0.016, 3.0, 8); thin.push(axis);
+  for (const sy of [-1, 1]) { const kn = new THREE.SphereGeometry(0.045, 10, 6); kn.translate(0, sy * 1.52, 0); thin.push(kn); }
+  const frame = new THREE.Mesh(mergeGeometries(thin.map((p) => stripUv(p.index ? p.toNonIndexed() : p))), brass);
+  const glassM = new THREE.Mesh(new THREE.SphereGeometry(0.3, 28, 16), glass);
+  const coreM = new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 8), core);
+  glassM.renderOrder = 2;
+  rete.add(bands, frame, glassM, coreM);
+  tilt.add(rete);
+  globe.add(fixed, tilt);
+  for (const m of [brass, scale, glass, core]) m.userData.disposable = true;
+  b.glow(0, ARM_Y, 0, { size: 1.5, color: '#9cc4ff', intensity: 0.55 });
+  return { stand, globe, rete, glass: glassM };
+}
+
+/** Fliegende Bücher, schwebende Kerzen und die Armillarsphäre (animierte Einzelobjekte). */
 function magic(b) {
   const g = new THREE.Group();
   g.name = 'magie';
@@ -310,14 +472,11 @@ function magic(b) {
     candles.push({ o: c, y, ph: hash01(i, 25, 26) * 6.28 });
     g.add(c);
   }
-  // Himmelsglobus mit Ringen (Rotunde)
-  const globe = new THREE.Group();
-  globe.position.set(0, 3.2, 0);
-  const sphere = new THREE.Mesh(new THREE.SphereGeometry(1.1, 28, 18), new THREE.MeshStandardMaterial({ color: '#2a3d6a', emissive: '#1a2a5a', emissiveIntensity: 0.6, roughness: 0.4, metalness: 0.3 }));
-  const ringMat = new THREE.MeshStandardMaterial({ color: '#c8a050', roughness: 0.35, metalness: 0.9, emissive: '#3a2a10', emissiveIntensity: 0.4 });
-  const rings = [0, 1, 2].map((k2) => { const m = new THREE.Mesh(new THREE.TorusGeometry(1.5 + k2 * 0.28, 0.035, 8, 48), ringMat); m.rotation.x = 0.5 + k2 * 0.7; return m; });
-  globe.add(sphere, ...rings);
-  g.add(globe);
+  // Armillarsphäre über der Rotunde (26.10., K0 „Sofort-Fehler“ L4; vorher glatte blaue Kugel mit drei Ringen –
+  // Spielzeug statt Messing): Ständer mit Löwentatzen auf dem Steinsockel, darüber die schwebende Sphäre
+  const arm = armillarySphere(b);
+  g.add(arm.stand, arm.globe);
+  const globe = arm.globe;
   let t = 0;
   b.object(g, {
     update(dt) {
@@ -328,10 +487,10 @@ function magic(b) {
         bk.o.rotation.set(Math.sin(t + bk.ph) * 0.3, -a, Math.sin(t * 1.3 + bk.ph) * 0.25);
       }
       for (const c of candles) c.o.position.y = c.y + Math.sin(t * 0.9 + c.ph) * 0.12;
-      globe.rotation.y = t * 0.15;
-      sphere.rotation.y = t * 0.35;
-      rings.forEach((m, k2) => { m.rotation.z = t * (0.2 + k2 * 0.12) * (k2 % 2 ? -1 : 1); });
-      globe.position.y = 3.2 + Math.sin(t * 0.6) * 0.15;
+      globe.rotation.y = t * 0.06;
+      arm.rete.rotation.y = t * 0.22;
+      arm.glass.rotation.y = -t * 0.3;
+      globe.position.y = ARM_Y + Math.sin(t * 0.6) * 0.05;
     },
   });
 }

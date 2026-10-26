@@ -224,7 +224,13 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
   group.add(chunks.group);
   const farRing = createFarRing(hf, makeCoarse(def.terrain), tmat.material, { radius: tier.far, step: quality === 'low' ? 32 : 20 });
   group.add(farRing);
-  const water = createWater({ x0: hf.minX, z0: hf.minZ, x1: hf.maxX, z1: hf.maxZ, y: hf.waterY, color: def.water?.color || '#2c4a3e', scale: 12, roughness: 0.09 });
+  // 26.10. (K0): Wasser nur in 4-m-Zellen, in denen das Gelände unter den Wasserspiegel reicht (water.js)
+  const wetCell = (x0, z0, x1, z1) => {
+    if (hf.rangeY(x0 - 1, z0 - 1, x1 + 1, z1 + 1)[0] > hf.waterY + 0.05) return false;
+    for (let z = z0 - 1; z <= z1 + 1; z += hf.res) for (let x = x0 - 1; x <= x1 + 1; x += hf.res) if (hf.heightAt(x, z) < hf.waterY + 0.05) return true;
+    return false;
+  };
+  const water = createWater({ x0: hf.minX, z0: hf.minZ, x1: hf.maxX, z1: hf.maxZ, y: hf.waterY, color: def.water?.color || '#2c4a3e', scale: 12, roughness: 0.09, keep: wetCell });
   water.mesh.name = 'fluss';
   group.add(water.mesh);
   ms.terrainMesh = Math.round(performance.now() - tM);
