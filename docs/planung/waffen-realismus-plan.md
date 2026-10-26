@@ -55,6 +55,7 @@ neu gebaut**, nicht ergänzt.
 | Werfer (RW-90, GW-40, GW-6) | Panzerfaust-/M79-/MGL-Typ | 4 |
 | Messer, Beile, Granaten | jeweilige Vorbilder (KA-BAR, Karambit, M67 …) | 4 |
 | UR-1, P-0, Erstlicht | eigene Entwürfe (AR-15 / Glock / Dolch als Basis) | nach Basis |
+| PS-41 Wirbel (neu 26.10.) | PPSch-41 mit 71er-Trommel | neu |
 
 ## Bewährtes Verfahren (P-9, 13.10. abends – Nutzer: „wenn die Waffe so aussieht … Respekt“)
 1. **Seitenfoto** mit freier Lizenz (Wikimedia Commons, Studiofoto auf Weiß, genau seitlich) laden.
@@ -298,3 +299,7 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   Adler 117 906 / 51 516 / 26 264 / 228 Dreiecke (max/std/lite/Bots); Bau std 0,72–1,13 s (QX-90 knapp über 1,0 s), lite
   0,50–0,68 s. Schießstand mittel: Laden 35 s (vorher 28 s), Heap 217 MB (188); Waffenspiel hoch: 69 s (53 s), Heap 612 MB
   (510) – die Leiter wird in max vorgebaut; für weitere Etappen dort nur die nächsten Stufen in max (Folgepunkt).
+- 26.10.: **PS-41 Wirbel neu nach Foto** (PPSch-41, Rama CC BY-SA 3.0 FR; rechte Seite Museum Edinburgh CC0; `wirbel-ref.js`,
+  `wirbel-tex.js`, `guns-wirbel.js`). Schaft/Gehäuse/Kappe als Distanzfelder, Laufmantel als Blechrohr mit Durchlässigkeitskarte
+  (Schlitze, Bremsenfenster, Auswurf, Spannhebelschlitz) und echten Blechkanten, Trommel (Achse längs) als Drehteil. Offener
+  Verschluss (`openBolt`: Ruhelage hinten, leer vorn). Dreiecke: Bot 280, Handy ≈ 40 k, PC niedrig ≈ 76 k, PC hoch ≈ 216 k; Fotoumriss im Mittel 2,6 mm.

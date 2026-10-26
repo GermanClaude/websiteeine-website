@@ -8,6 +8,7 @@ import { qx90FrameMaps, qx90UpperMaps, FRAME_CAMO_REPEAT as QX_FRAME_REPEAT, UPP
 import { vp9FurnMaps, CAMO_REPEAT as VP9_CAMO_REPEAT } from './vp9-tex.js';
 import { adlerMaps, CAMO_REPEAT as ADLER_CAMO_REPEAT } from './adler-tex.js';
 import { p9aMaps, CAMO_REPEAT as P9A_CAMO_REPEAT } from './p9a-tex.js';
+import { wirbelWoodMaps, wirbelMantelAlpha, WOOD_CAMO_REPEAT as WIRBEL_WOOD_REPEAT, MANTEL_CAMO_REPEAT as WIRBEL_MANTEL_REPEAT } from './wirbel-tex.js';
 import { dropCached } from './textures.js';
 
 const mats = new Map();
@@ -192,6 +193,14 @@ const DEFS = {
   // P-9A (Glock 18C, 26.10.): Nitrid-Schlitten und Polymerrahmen teilen einen Atlas (p9a-tex.js) – je Stufe (…S = PC niedrig/mittel)
   p9aSlide: () => p9aMat('max', true), p9aSlideS: () => p9aMat('std', true), 'p9aSlide@lite': () => p9aMat('lite', true),
   p9aFrame: () => p9aMat('max', false), p9aFrameS: () => p9aMat('std', false), 'p9aFrame@lite': () => p9aMat('lite', false),
+  // PS-41 Wirbel (PPSch-41, 26.10.): Birkenschaft mit Atlas (wirbel-tex.js), brünierter Stahl mit blanken Kanten (Foto: stark
+  // abgegriffen, an Mantel und Gehäuse fast blank), Laufmantel mit Durchlässigkeitskarte (Schlitze), Trommel heller gebläut,
+  // Verschluss geölt blank
+  wirbelWood: () => wirbelWoodMat(false), 'wirbelWood@lite': () => wirbelWoodMat(true),
+  wirbelSteel: () => wearPatch(std({ color: 0x323438, metalness: 0.62, roughness: 0.42, roughnessMap: fine(finishMaps('steel').rough, 2.5), normalMap: fine(finishMaps('steel').normal, 4), normalScale: new THREE.Vector2(0.12, 0.12) }), WIRBEL_WEAR),
+  wirbelMantel: () => wirbelMantelMat(false), 'wirbelMantel@lite': () => wirbelMantelMat(true),
+  wirbelDrum: () => wearPatch(std({ color: 0x55585d, metalness: 0.78, roughness: 0.32, roughnessMap: fine(finishMaps('steel').rough, 2), normalMap: fine(finishMaps('steel').normal, 3), normalScale: new THREE.Vector2(0.1, 0.1) }), { ...WIRBEL_WEAR, k: 1.2 }),
+  wirbelBolt: () => wearPatch(phys({ color: 0x55575b, metalness: 0.85, roughness: 0.3, clearcoat: 0.3, clearcoatRoughness: 0.25, roughnessMap: fine(finishMaps('steel').rough, 3), normalMap: fine(finishMaps('steel').normal, 5), normalScale: new THREE.Vector2(0.08, 0.08) }), { col: 0xb0b2b6, metal: 1, rough: 0.2 }),
   adlerPolish: () => wearPatch(std({ color: 0xc6cacf, metalness: 1.0, roughness: 0.2, roughnessMap: fine(brushedMap(), 12) }), STAINLESS_WEAR),
   adlerBlued: () => wearPatch(std({ color: 0x1d1e20, metalness: 0.6, roughness: 0.42, roughnessMap: fine(wearMap(), 6) }), { ...STEEL_WEAR, bump: 0.00003 }),
   // Trommelmagazin: eigener Kunststoff (keine Tarnung) und Deckel mit eigener Textur
@@ -253,6 +262,11 @@ function p9FrameMat(lite) { const t = p9FrameMaps(lite); const m = std({ color: 
 // Prüfung 25.10.: Holz-Abrieb schwächer (k 0,35) – im Foto keine hellen Ringe an den Handschutz-Enden, Lack weniger glänzend;
 // Grundglanz unter dem Lack schwach (specularIntensity 0,4), sonst liegt ein rosa Schleier über dem Holz (Foto: dunkle Zonen satt)
 function kv47WoodMat(lite) { const t = kv47WoodMaps(lite); const m = phys({ color: 0xffffff, map: t.map, metalness: 0.0, roughness: t.roughnessMap ? 1.0 : t.roughness, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), clearcoat: 0.2, clearcoatRoughness: 0.34, specularIntensity: 0.4 }); m.userData.camoRepeat = WOOD_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0xb07850, metal: 0, rough: 0.62, k: 0.35, bump: 0.00005, tone: 0.06, smear: 0.2 }); }
+// PS-41 Wirbel: Abrieb kräftig und fleckig (Kriegsfertigung, lange benutzt), Lackholz wie KV-47 mit etwas mehr Glanz
+const WIRBEL_WEAR = { col: 0x9a948d, metal: 1, rough: 0.3, k: 1.4, bump: 0.00006, tone: 0.12, smear: 0.3 };
+function wirbelWoodMat(lite) { const t = wirbelWoodMaps(lite); const m = phys({ color: 0xffffff, map: t.map, metalness: 0.0, roughness: t.roughnessMap ? 1.0 : t.roughness, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), clearcoat: 0.25, clearcoatRoughness: 0.32, specularIntensity: 0.4 }); m.userData.camoRepeat = WIRBEL_WOOD_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0xa8704a, metal: 0, rough: 0.62, k: 0.45, bump: 0.00005, tone: 0.06, smear: 0.2 }); }
+// Mantel: Rohr mit Ausschnitten über alphaMap/alphaTest (wirbel-tex.js); Innenfläche als eigene Fläche im Bauplan
+function wirbelMantelMat(lite) { const t = wirbelMantelAlpha(lite); const m = std({ color: 0x323438, metalness: 0.62, roughness: 0.42, alphaMap: t.map, alphaTest: 0.5, roughnessMap: fine(finishMaps('steel').rough, 2.5), normalMap: fine(finishMaps('steel').normal, 4), normalScale: new THREE.Vector2(0.12, 0.12) }); m.userData.camoRepeat = WIRBEL_MANTEL_REPEAT; m.userData.texKey = t.key; return wearPatch(m, WIRBEL_WEAR); }
 function kv47RecMat(lite) { const t = kv47RecMaps(lite); const m = phys({ color: 0xffffff, map: t.map, metalness: 0.35, roughness: t.roughnessMap ? 1.0 : t.roughness, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1), clearcoat: 0.18, clearcoatRoughness: 0.4 }); m.userData.camoRepeat = REC_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0x8c8f94, metal: 1, rough: 0.3, bump: 0.00006, tone: 0.08 }); }
 // QX-90: Spritzguss matt (Rauheit aus dem Atlas, Handy konstant), Guss metallisch-schwarz mit blanken Kanten
 function qx90FrameMat(lite) { const t = qx90FrameMaps(lite); const m = std({ color: 0xffffff, map: t.map, metalness: 0.0, roughness: t.roughnessMap ? 1.0 : t.roughness, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = QX_FRAME_REPEAT; m.userData.texKey = t.key; return wearPatch(m, { col: 0x4a4c50, metal: 0, rough: 0.42, k: 0.75, bump: 0.00005, tone: 0.06, smear: 0.25 }); }
@@ -272,11 +286,12 @@ function p9aMat(tier, slide) {
 }
 function vp9FurnMat(tier) { const t = vp9FurnMaps(tier); const m = std({ color: 0xffffff, map: t.map, metalness: 0.0, roughness: t.roughnessMap ? 1.0 : 0.8, roughnessMap: t.roughnessMap, normalMap: t.normalMap, normalScale: new THREE.Vector2(1, 1) }); m.userData.camoRepeat = VP9_CAMO_REPEAT; m.userData.texKey = t.key; return wearPatch(m, POLY_WEAR); }
 // Schlüssel mit eigener Handy-Fassung (key@lite) und Atlas-Materialien (je Waffe freigebbar)
-const LITE = new Set(['m17Furn', 'p9Slide', 'p9Frame', 'kv47Wood', 'kv47Rec', 'vp9Furn', 'qx90Frame', 'qx90Upper', 'adlerSteel', 'adlerGrip', 'p9aSlide', 'p9aFrame']);
+const LITE = new Set(['m17Furn', 'p9Slide', 'p9Frame', 'kv47Wood', 'kv47Rec', 'vp9Furn', 'qx90Frame', 'qx90Upper', 'adlerSteel', 'adlerGrip', 'p9aSlide', 'p9aFrame', 'wirbelWood', 'wirbelMantel']);
 const ATLAS = new Set(['m17Furn', 'm17Furn@lite', 'p9Slide', 'p9Slide@lite', 'p9Frame', 'p9Frame@lite', 'kv47Wood', 'kv47Wood@lite', 'kv47Rec', 'kv47Rec@lite',
   'vp9Furn', 'vp9FurnS', 'vp9Furn@lite', 'qx90Frame', 'qx90Frame@lite', 'qx90Upper', 'qx90Upper@lite',
   'adlerSteel', 'adlerSteelS', 'adlerSteel@lite', 'adlerGrip', 'adlerGripS', 'adlerGrip@lite',
-  'p9aSlide', 'p9aSlideS', 'p9aSlide@lite', 'p9aFrame', 'p9aFrameS', 'p9aFrame@lite']);
+  'p9aSlide', 'p9aSlideS', 'p9aSlide@lite', 'p9aFrame', 'p9aFrameS', 'p9aFrame@lite',
+  'wirbelWood', 'wirbelWood@lite', 'wirbelMantel', 'wirbelMantel@lite']);
 /** Materialschlüssel für die Handy-Stufe (eigener, kleinerer Atlas), sonst der Schlüssel selbst. */
 export function liteKey(key) { return LITE.has(key) ? key + '@lite' : key; }
 
@@ -294,7 +309,8 @@ const LOD_META = { m17Rec: [0x2b2d30, 0], m17Ras: [0x292b2e, 0], m17Steel: [0x2b
   qx90MagTick: [0x8a7656, 0],
   vp9Rec: [0x2a2c2f, 0], vp9Steel: [0x232426, 1], vp9Mag: [0x202123, 1], vp9Bcg: [0x2e2f31, 1], vp9Furn: [0x26272a, 0], vp9FurnS: [0x26272a, 0],
   adlerSteel: [0xb9bdc1, 1], adlerSteelS: [0xb9bdc1, 1], adlerGrip: [0x1c1d1f, 0], adlerGripS: [0x1c1d1f, 0], adlerPolish: [0xc6cacf, 1], adlerBlued: [0x1d1e20, 1],
-  p9aSlide: [0x5c5e62, 1], p9aSlideS: [0x5c5e62, 1], p9aFrame: [0x232427, 0], p9aFrameS: [0x232427, 0] };
+  p9aSlide: [0x5c5e62, 1], p9aSlideS: [0x5c5e62, 1], p9aFrame: [0x232427, 0], p9aFrameS: [0x232427, 0],
+  wirbelWood: [0x52230f, 0], wirbelSteel: [0x323438, 1], wirbelMantel: [0x323438, 1], wirbelDrum: [0x55585d, 1], wirbelBolt: [0x55575b, 1] };
 const _lodCol = new Map();
 /** Farbe (linear) + Metall-Gruppe eines Materials für die zusammengeführte Bot-Detailstufe. */
 export function lodInfo(key) {

@@ -20,7 +20,8 @@ export const CAMO_TARGETS = new Set(['alu', 'aluTan', 'aluOD', 'polymer', 'polym
   'vp9Rec', 'vp9Furn', 'vp9FurnS', 'vp9Mag',   // VP-9 nach Foto (24.10.): Gehäuse, Kunststoffteile, Magazin
   'qx90Frame', 'qx90Upper', 'qx90Optic',          // QX-90 (25.10.): Rahmen, Guss, Visier – Magazin (durchscheinend) und Stahl bleiben
   'adlerSteel', 'adlerSteelS', 'adlerGrip', 'adlerGripS',
-  'p9aSlide', 'p9aSlideS', 'p9aFrame', 'p9aFrameS']);   // P-9A (26.10.): gemeinsamer Atlas Schlitten/Rahmen   // Adler nach Foto (25.10.): Edelstahl-Atlas, Wickelgriff
+  'p9aSlide', 'p9aSlideS', 'p9aFrame', 'p9aFrameS',   // P-9A (26.10.): gemeinsamer Atlas Schlitten/Rahmen   // Adler nach Foto (25.10.): Edelstahl-Atlas, Wickelgriff
+  'wirbelWood', 'wirbelSteel', 'wirbelMantel', 'wirbelDrum']);   // PS-41 Wirbel (26.10.): Schaft, Stahl, Mantel, Trommel – Verschluss bleibt blank
 
 const texCache = new Map();
 const matCache = new Map();

@@ -8,7 +8,7 @@ export const ID_TO_MODEL = {
   sr_titan: 'titan', sg_hagel: 'hagel', pi_kobra: 'kobra', at_donner: 'donner', gl_hammer: 'hammer', gl_trommel: 'trommel',
   karambit: 'karambit', machete: 'machete', tomahawk: 'tomahawk', kampfaxt: 'kampfaxt', schlagstock: 'schlagstock', kampfstock: 'kampfstock', spaten: 'spaten',
   ar_ursprung: 'ursprung', pi_funke: 'funke', erstlicht: 'erstlicht', // Waffen der ersten Stunde
-  pi_p9a: 'p9a', // neue Waffen (26.10.)
+  pi_p9a: 'p9a', smg_wirbel: 'wirbel', // neue Waffen (26.10.)
 };
 
 // Hüfte (wie CoD Mobile): Waffe etwas höher und mittiger, rechte Hand mit Daumen und Fingern am Pistolengriff
@@ -144,6 +144,12 @@ HANDLING.erstlicht = { ...HANDLING.knife };
 // (20 Schuss/s), Mündungsfeuer zusätzlich nach oben aus den Kompensatorbohrungen (comp), längeres Magazin beim Wechsel
 HANDLING.p9a = { ...PISTOL, kick: { back: 0.02, up: 0.05, side: 0.013, roll: 0.03, kickRot: 0.032 }, flash: 0.75, flashLen: 0.55, comp: true, cycle: 0.048,
   reloadTime: 1.55, emptyTime: 1.95, equipTime: 0.34, inspectStyle: 'pistol' };
+// PS-41 Wirbel (PPSch-41, 26.10.): schwere Trommel-MP mit offenem Verschluss – Verschluss ruht hinten und läuft je Schuss vor und
+// zurück (openBolt, Hub 65 mm, Zyklus 55 ms bei 1000/min), leer steht er vorn; Trommelwechsel (drum, Einrast-Ruck 1,6), leer danach
+// Spannhebel rechts zurück. Mündungsbremse lenkt das Feuer auch nach oben (comp). Flaschenhals-Hülse (7,62 × 25) wie p57.
+HANDLING.wirbel = { ...RIFLE, hip: [0.112, -0.168, -0.42], kick: { back: 0.021, up: 0.033, side: 0.015, roll: 0.04, kickRot: 0.016 }, reload: 'drum',
+  openBolt: true, cycle: 0.055, boltTravel: 0.065, comp: true, shell: 'p57', weight: 1.3, flash: 0.9, flashLen: 0.85,
+  reloadTime: 3.4, emptyTime: 4.1, equipTime: 0.6, inspectStyle: 'magcheck', inspect: 3.4 };
 
 export function handlingFor(modelKey) {
   return HANDLING[modelKey] || HANDLING.m17;

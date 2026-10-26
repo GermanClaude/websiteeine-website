@@ -1497,6 +1497,12 @@ export class ViewModel {
     } else if (h.action === 'launcher') {
       const r = this._part('rocket');
       if (r) r.visible = (this._magNow ?? 1) > 0;
+    } else if (this._part('bolt') && h.openBolt) {
+      // Offener Verschluss (26.10., PS-41 Wirbel): Modell zeigt den Verschluss in Ruhelage HINTEN. Beim Schuss stand er vorn
+      // (Zündung) und läuft zurück, bis der Fanghebel ihn hinten hält; leer bleibt er vorn auf dem leeren Lager (_boltLocked)
+      const back = this._boltLocked ? 0 : smooth(Math.min(1, this._boltT / 0.45));
+      this._setPartOffset('bolt', 0, 0, -h.boltTravel * (1 - back));
+      if (this._ejPend && (back > 0.55 || this._boltLocked)) { this._ejPend = false; this._ejectFromBolt(); }
     } else if (this._part('bolt') && h.action !== 'bolt' && h.action !== 'pump') {
       this._setPartOffset('bolt', 0, 0, h.boltTravel * (this._boltLocked ? 1 : pulse));
       // Hülse verlässt das Patronenlager, wenn der Träger gut zwei Drittel seines Wegs zurückgelaufen ist

@@ -13,6 +13,7 @@ export const CALIBERS = {
   '.357':    { label: '.357 Magnum', db: -1,   hear: 330,  weight: 0.5 },
   '.50ae':   { label: '.50 AE',      db: 2.5,  hear: 420,  weight: 0.7 },
   '5.56':    { label: '5,56 mm',     db: 0,    hear: 460,  weight: 0.4 },
+  '7.62x25': { label: '7,62 × 25 mm', db: -3,   hear: 260,  weight: 0.22 },   // Tokarew (PS-41 Wirbel, 26.10.): heiß geladen, scharfer Knall
   '7.62x39': { label: '7,62 × 39 mm', db: 1.5, hear: 540,  weight: 0.55 },
   '7.62x51': { label: '7,62 × 51 mm', db: 3,   hear: 680,  weight: 0.68 },
   '.338':    { label: '.338',        db: 5.5,  hear: 950,  weight: 0.85 },
@@ -41,7 +42,9 @@ export const WEAPON_SOUND = {
   lmg_lm8:    { cal: '5.56',    voice: 'blk',          pitch: 0.94, tone: [[480, 3], [2800, -3]], pcal: 1.3 }, // schwerer Lauf, .300 BLK tiefer
   // Maschinenpistolen
   smg_vp9:    { cal: '9x19',    voice: 'smg',          pitch: 1,    tone: [[1100, 3], [3500, -2]], pcal: 0.2 },          // Carl Gustav M45
-  smg_qx90:   { cal: '5.7x28',  voice: 'ppsh',         pitch: 1.05, tone: [3800, 3] },          // PPSh 7,62×25: scharf
+  // 26.10.: Die PPSch-Aufnahme gehört jetzt exklusiv der PS-41 Wirbel (echtes Vorbild); QX-90 bekommt die MP-Stimme, höher und greller
+  smg_qx90:   { cal: '5.7x28',  voice: 'smg',          pitch: 1.18, tone: [3800, 3], pcal: 0.9 },          // Carl Gustav M45, hochgezogen: 5,7 mm scharf
+  smg_wirbel: { cal: '7.62x25', voice: 'ppsh',         pitch: 1.0,  tone: [[1300, 3], [3600, 1.5]], pcal: -0.2 },   // PPSh 7,62×25 (eigene Aufnahme, 26.10.)
   smg_wespe:  { cal: '4.6x30',  voice: 'bersa',        pitch: 1.08, tone: [4200, 2.5], pcal: -2.5 },        // Bersa .380: dünn
   smg_keiler: { cal: '.45acp',  voice: 'pistol_heavy', pitch: 0.96, tone: [380, 3], pcal: -2.7 },           // 1911 .45: dumpf
   // Pistolen

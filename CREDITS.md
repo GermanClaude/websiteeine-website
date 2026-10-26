@@ -197,6 +197,8 @@ gespeichert. Die Fotos selbst sind weder im Spiel noch im Repository enthalten. 
 | Adler .50 (Schiene, Patronen) | [DesertEagle 50AE](https://commons.wikimedia.org/wiki/File:DesertEagle_50AE.jpg) | Bobbfwed | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), verändert: nur Maße abgeleitet |
 | Adler .50 (offener Schlitten) | [Desert Eagle beside a box of Speer 325 Grain HP](https://commons.wikimedia.org/wiki/File:Desert_Eagle_beside_a_box_of_Speer_325_Grain_HP.jpg) | DeepThunder | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), verändert: nur Maße abgeleitet |
 | P-9A Automatik (linke Seite, Wahlschalter, Korn/Kimme, Magazinboden) | [Glock 18C](https://commons.wikimedia.org/wiki/File:Glock_18C.jpg) | AmmuNation | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), verändert: nur Maße und Umrisse abgeleitet (Kompensatorfenster/Laufbohrungen nach Herstellerangaben geschätzt) |
+| PS-41 Wirbel (linke Seite: Laufmantel, Schlitze, Bremse, Visiere, Schaft, Trommel, Bügel) | [PPSh 41-07450-IMG 7476-gradient](https://commons.wikimedia.org/wiki/File:PPSh_41-07450-IMG_7476-gradient.jpg) | Rama | [CC BY-SA 3.0 FR](https://creativecommons.org/licenses/by-sa/3.0/fr/deed.en), verändert: nur Maße und Umrisse abgeleitet |
+| PS-41 Wirbel (rechte Seite: Spannhebel, Trommelstirn, Trommeldurchmesser) | [PPsh-41 at the National Museum of Scotland](https://commons.wikimedia.org/wiki/File:PPsh-41_at_the_National_Museum_of_Scotland.jpg) | 501ghost | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 
 ## Klänge
 
