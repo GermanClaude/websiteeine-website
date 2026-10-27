@@ -434,6 +434,8 @@ export async function loadWorld(G, mapId, opts = {}) {
     weather: conditions,
     minimap,
     ambience: def.ambience || meta.ambience,
+    /** Größte Kletterhöhe (m) fürs Überklettern; Grabenkarten höher, damit man aus den Gräben kommt (27.10.). */
+    climbMax: def.climbMax || 1.3,
     targets,
     stats: { ...built.stats, buildMs: Math.round(tBuild), colliderMs: Math.round(tCol), lightMs: Math.round(tLight), jobMs: Math.round(tJob), worker: job.ms, totalMs: 0, nav: nav.stats, assets: lib.stats, lighting: null },
     /** Sonden-Gitter (R5): { dims, spacing, min, light(x, y, z) → { sky, sun, bounce[3] }, sample(…) } oder null. */

@@ -1528,7 +1528,7 @@ export class Player {
     } else { dx /= l; dz /= l; }
     // nur Richtungen grob nach vorn (Seitwärts-Klettern sieht falsch aus)
     if (dx * _fwd.x + dz * _fwd.z < 0.35) return false;
-    const ledge = probeLedge(world, body, dx, dz, { crouchH: CROUCH_H });
+    const ledge = probeLedge(world, body, dx, dz, { crouchH: CROUCH_H, maxH: this.G.world?.climbMax || 1.3 });
     if (!ledge) return false;
     if (!body.onGround && ledge.topY < body.position.y + 0.25) return false; // in der Luft schon fast oben: Physik fängt
     if (!this._mantlePathFree(world, ledge, dx, dz)) return false; // walls: Bahn streift Überhang/Seitenwand
@@ -1541,7 +1541,8 @@ export class Player {
     const G = this.G;
     const h = ledge.height;
     const start = body.position.clone();
-    const dur = ledge.vault ? 0.42 + 0.08 * h : 0.32 + 0.16 * h;
+    // hohe Kanten (Grabenausstieg, 27.10.): Hochziehen dauert spürbar länger
+    const dur = ledge.vault ? 0.42 + 0.08 * h : 0.32 + 0.16 * h + Math.max(0, h - 1.4) * 0.4;
     this._mantle = { t: 0, dur, start, end: ledge.end.clone(), topY: ledge.topY, height: h, vault: ledge.vault, dx, dz, wall: ledge.wallDist };
     this.mantling = true;
     this.mantleProgress = 0;

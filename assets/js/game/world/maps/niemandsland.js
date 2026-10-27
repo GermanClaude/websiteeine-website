@@ -190,6 +190,7 @@ export default {
   seed: 1916,
   bounds: { minX: -300, maxX: 300, minZ: -300, maxZ: 300, minY: -10, maxY: 80 },
   ambience: 'range',
+  climbMax: 2.8, // Gräben ≈ 2–2,7 m bis zur Brustwehr: Ausstieg per Klettern (27.10.)
   defaultSurface: 'dirt',
   wallMargin: 40,
   assets: { hdri: 'np_sky_vormittag_bewoelkt' }, // 16.10.: eigener Himmel (Kartenstandard Vormittag, bewölkt)

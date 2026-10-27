@@ -66,6 +66,7 @@ export default {
   seed: 2110,
   bounds: { minX: -180, maxX: 180, minZ: -180, maxZ: 180, minY: -10, maxY: 60 },
   ambience: 'burnt', // Wind ohne Laub, Knistern, Knarzen, ferner Geschützdonner
+  climbMax: 2.8, // Gräben ≈ 2–2,7 m bis zur Brustwehr: Ausstieg per Klettern (27.10.)
   defaultSurface: 'dirt',
   wallMargin: 35,
   assets: { hdri: 'np_sky_vormittag_bewoelkt' },

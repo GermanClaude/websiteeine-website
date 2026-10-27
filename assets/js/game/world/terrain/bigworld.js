@@ -471,6 +471,7 @@ export async function loadBigWorld(G, mapId, { onProgress, weather = null, time 
     grade: def.grade ? { mood: id, ...def.grade } : undefined,
     weather: conditions,
     ambience: def.ambience || meta.ambience || 'range',
+    climbMax: def.climbMax || 1.3, // Grabenkarten: Ausstieg per Klettern (27.10.)
     targets: [],
     terrain: { heightfield: hf, chunks, size: hf.size, waterY: hf.waterY, material: tmat.material, source: tmat.source },
     roads, vehicleSpawns, vehicleSpots, secrets, secretsAuto: true,
