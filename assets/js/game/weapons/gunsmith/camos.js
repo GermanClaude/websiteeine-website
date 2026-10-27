@@ -19,7 +19,9 @@ export const CAMO_TARGETS = new Set(['alu', 'aluTan', 'aluOD', 'polymer', 'polym
   'kv47Rec', 'kv47Wood', 'kv47Steel', 'kv47Mag',   // KV-47 (25.10.): Gehäuse- und Holzatlas, Stahlteile, Magazin – Träger bleibt blank
   'vp9Rec', 'vp9Furn', 'vp9FurnS', 'vp9Mag',   // VP-9 nach Foto (24.10.): Gehäuse, Kunststoffteile, Magazin
   'qx90Frame', 'qx90Upper', 'qx90Optic',          // QX-90 (25.10.): Rahmen, Guss, Visier – Magazin (durchscheinend) und Stahl bleiben
-  'adlerSteel', 'adlerSteelS', 'adlerGrip', 'adlerGripS']);   // Adler nach Foto (25.10.): Edelstahl-Atlas, Wickelgriff
+  'adlerSteel', 'adlerSteelS', 'adlerGrip', 'adlerGripS',   // Adler nach Foto (25.10.): Edelstahl-Atlas, Wickelgriff
+  'p9aSlide', 'p9aSlideS', 'p9aFrame', 'p9aFrameS',   // P-9A (26.10.): gemeinsamer Atlas Schlitten/Rahmen
+  'wirbelWood', 'wirbelSteel', 'wirbelMantel', 'wirbelDrum']);   // PS-41 Wirbel (26.10.): Schaft, Stahl, Mantel, Trommel – Verschluss bleibt blank
 
 for (const k of ['zwWood', 'zwBlued', 'zwBarrel']) CAMO_TARGETS.add(k);   // ZW-12 Zwilling (26.10.): Holz, Basküle, Läufe – Schloss blank
 

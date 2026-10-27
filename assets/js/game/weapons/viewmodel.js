@@ -547,7 +547,7 @@ export class ViewModel {
     if (this._lid) this._lid.v += (1.2 + Math.random() * Math.random() * 6) * Math.min(1.5, s);
     else if (this._part('lid')) this._lid = { a: 0, v: 1.2 + Math.random() * 4 };
     const suppressed = info.suppressed ?? this.def?.suppressed;
-    if (!this.showScopeOverlay) this.flash.fire(h.flash * (this.def?.flashScale || 1), h.flashLen, { suppressed });
+    if (!this.showScopeOverlay) this.flash.fire(h.flash * (this.def?.flashScale || 1), h.flashLen, { suppressed, comp: h.comp });
     if (!suppressed) {
       mzObj.getWorldPosition(_v);
       this.root.worldToLocal(_v);
@@ -1488,7 +1488,7 @@ export class ViewModel {
     const h = this.h;
     this._resetParts();
     // Verschluss / Schlitten: schneller Hub beim Schuss
-    this._boltT = Math.min(1, this._boltT + dt / 0.075);
+    this._boltT = Math.min(1, this._boltT + dt / (h.cycle || 0.075));   // h.cycle (26.10., P-9A): eigener Hub bei hoher Kadenz
     const pulse = this._boltT < 0.3 ? smooth(this._boltT / 0.3) : smooth(1 - (this._boltT - 0.3) / 0.7);
     if (h.action === 'pistol') {
       const travel = this.cur.ud.anchors.slideGrab?.userData.travel?.[2] ?? 0.03;
@@ -1504,6 +1504,12 @@ export class ViewModel {
     } else if (h.action === 'launcher') {
       const r = this._part('rocket');
       if (r) r.visible = (this._magNow ?? 1) > 0;
+    } else if (this._part('bolt') && h.openBolt) {
+      // Offener Verschluss (26.10., PS-41 Wirbel): Modell zeigt den Verschluss in Ruhelage HINTEN. Beim Schuss stand er vorn
+      // (Zündung) und läuft zurück, bis der Fanghebel ihn hinten hält; leer bleibt er vorn auf dem leeren Lager (_boltLocked)
+      const back = this._boltLocked ? 0 : smooth(Math.min(1, this._boltT / 0.45));
+      this._setPartOffset('bolt', 0, 0, -h.boltTravel * (1 - back));
+      if (this._ejPend && (back > 0.55 || this._boltLocked)) { this._ejPend = false; this._ejectFromBolt(); }
     } else if (this._part('bolt') && h.action !== 'bolt' && h.action !== 'pump') {
       this._setPartOffset('bolt', 0, 0, h.boltTravel * (this._boltLocked ? 1 : pulse));
       // Hülse verlässt das Patronenlager, wenn der Träger gut zwei Drittel seines Wegs zurückgelaufen ist

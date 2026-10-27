@@ -16,6 +16,7 @@ export const CALIBERS = Object.freeze({
   '50ae':   { name: '.50 AE',        d: 12.7, E: 1900,  frag: 0.15, pen: { wood: 26, steel: 0.5, brick: 4,   concrete: 2.5, dirt: 20, sand: 15, plaster: 16, glass: 45, fabric: 45, tile: 3 } },
   '556':    { name: '5,56 × 45 mm',  d: 5.7,  E: 1750,  frag: 0.45, pen: { wood: 35, steel: 0.6, brick: 8,   concrete: 5,   dirt: 30, sand: 25, plaster: 28, glass: 50, fabric: 50, tile: 6 } },
   '68':     { name: '6,8 × 51 mm',   d: 7.0,  E: 3400,  frag: 0.3, pen: { wood: 55, steel: 0.9,  brick: 13,  concrete: 9,   dirt: 42, sand: 35, plaster: 40, glass: 60, fabric: 60, tile: 9 } },
+  '762x25': { name: '7,62 × 25 mm Tokarew', d: 7.85, E: 700, frag: 0.15, pen: { wood: 22, steel: 0.45, brick: 3, concrete: 2, dirt: 15, sand: 12, plaster: 15, glass: 40, fabric: 40, tile: 2.5 } },   // Schätzwerte (26.10.)
   '762x39': { name: '7,62 × 39 mm',  d: 7.9,  E: 2100,  frag: 0.25, pen: { wood: 45, steel: 0.6, brick: 10,  concrete: 6,   dirt: 35, sand: 30, plaster: 34, glass: 55, fabric: 55, tile: 7 } },
   '762x51': { name: '7,62 × 51 mm',  d: 7.8,  E: 3300,  frag: 0.25, pen: { wood: 65, steel: 0.9, brick: 15,  concrete: 10,  dirt: 45, sand: 38, plaster: 45, glass: 60, fabric: 60, tile: 10 } },
   '338':    { name: '.338 Lapua',    d: 8.6,  E: 6600,  frag: 0.2, pen: { wood: 100, steel: 1.5, brick: 25,  concrete: 15,  dirt: 65, sand: 55, plaster: 70, glass: 80, fabric: 80, tile: 15 } },
@@ -27,12 +28,12 @@ export const CALIBERS = Object.freeze({
 /** Waffe → Kaliber (ohne Eintrag: nach Klang-Profil/Klasse). */
 const WEAPON_CALIBER = {
   ar_kv47: '762x39', ar_m17: '556', ar_k36: '556', ar_bx20: '68', ar_g7: '762x51',
-  smg_vp9: '9mm', smg_qx90: '57', smg_wespe: '46', smg_keiler: '45',
+  smg_vp9: '9mm', smg_qx90: '57', smg_wespe: '46', smg_keiler: '45', smg_wirbel: '762x25',
   sg_zwilling: '12g', // 26.10.
   lmg_hm60: '762x51', lmg_lm8: '556', mr_sk14: '762x51',
   sr_brecher: '338', sr_titan: '50bmg',
   sg_bulldog: '12g', sg_hagel: '12g', ub_schrot: '12g',
-  pi_p9: '9mm', pi_adler: '50ae', pi_kobra: '357',
+  pi_p9: '9mm', pi_adler: '50ae', pi_kobra: '357', pi_p9a: '9mm',
 };
 const PROFILE_CALIBER = { pistol: '9mm', pistol_heavy: '357', smg: '9mm', ar: '556', ar_heavy: '762x39', lmg: '762x51', sniper: '338', shotgun: '12g' };
 

@@ -21,7 +21,7 @@ const res = await page.evaluate(async (ALLSIDES) => {
   // Werfer schießen Raketen/Granaten aus eigenen Rohren (eigene Prüfung im Modell), Revolver-Trommel ist kein Lauf
   const SKIP = new Set(['donner', 'hammer', 'trommel']);
   // Foto-Modelle, deren Bohrung auch mit den echten (einseitigen) Materialien sichtbar sein muss
-  const STRICT = new Set(['adler']);
+  const STRICT = new Set(['adler', 'p9a']);
   const out = [];
   const rc = new THREE.Raycaster();
   // 26.10.: Waffen mit attSlots ohne Mündungsplatz (Zwilling: zwei Läufe, P-9A: Kompensator) nur ohne Mündungsgerät prüfen;

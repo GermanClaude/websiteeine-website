@@ -103,6 +103,7 @@ export const FIRE_SELECT = {
   ar_m17: { modes: ['auto', 'semi'] },                      // M4A1 / HK416: Sicher – Einzel – Dauer
   smg_vp9: { modes: ['auto', 'burst', 'semi'], burst: 3 },  // MP5 mit Feuerstoß-Griffstück (0 – 1 – 3 – F)
   smg_qx90: { modes: ['auto', 'semi'] },                    // P90: Drehschalter unter dem Abzug (0 – 1 – A)
+  smg_wirbel: { modes: ['auto', 'semi'] },                  // PPSch-41 (26.10.): Schieber vor dem Abzug (hinten Dauer, vorn Einzel)
   lmg_hm60: { modes: ['auto'] },                            // M60: nur Dauerfeuer (offener Verschluss)
   mr_sk14: { modes: ['semi', 'auto'] },                     // M14 / Mk 14: Einzelfeuer, Wahlhebel für Dauerfeuer
   // Doppelflinte (26.10.): ein Abzug je Lauf (erst rechts, dann links) oder beide Abzüge zugleich – Anzeigename je Modus (names)
@@ -114,6 +115,7 @@ export const FIRE_SELECT = {
   smg_wespe: { modes: ['auto', 'burst', 'semi'], burst: 2 },// Vector: Einzel, 2er-Feuerstoß, Dauer
   smg_keiler: { modes: ['auto', 'burst', 'semi'], burst: 2 },// UMP45 mit Griffstück S – E – 2 – F
   lmg_lm8: { modes: ['auto', 'semi'] },                     // RPK: wie AK, Dauer – Einzel
+  pi_p9a: { modes: ['auto', 'semi'] },                      // Glock 18C (26.10.): Wahlschalter hinten am Schlitten (unten Dauer, oben Einzel)
 };
 /** Feuerarten einer Waffe (Standard zuerst) */
 export function fireModesOf(def) {
@@ -184,6 +186,10 @@ const ICONS = {
   p9: gunIcon(
     'M26 8H70V14H26Z M30 9V13 M33 9V13 M36 9V13 M34 14H66V16H46 M28 14L25 27H34L36 17 ' +
     'M37 16Q38 21 44 21Q46 21 46 16 M67 8V6.5 M29 8V6.5'),
+  // P-9A (26.10.): P-9-Umriss mit Wahlschalter hinten am Schlitten, Kompensatorschlitzen und verlängertem Magazinboden
+  p9a: gunIcon(
+    'M26 8H70V14H26Z M30 9V13 M33 9V13 M58 8V9.5 M61 8V9.5 M34 14H66V16H46 M28 14L25 27H34L36 17 M25 27L24.5 30H33.5L34 27 ' +
+    'M37 16Q38 21 44 21Q46 21 46 16 M67 8V6.5 M29 8V6.5', '<circle cx="35.5" cy="11" r="1.6"/>'),
   adler: gunIcon(
     'M22 7H76V14H22Z M60 10.5H68 M26 8.5V12.5 M29 8.5V12.5 M30 14H60V16H48 M24 14L21 28H31L34 17 ' +
     'M35 16Q36 22 42 22Q46 22 47 16 M73 7V5.5 M25 7V5.5'),
@@ -457,6 +463,10 @@ const PATTERN = {
   wespe: [[0, 1], [0.5, 0.9], [-0.4, 0.9], [0.6, 0.85], [-0.6, 0.85], [0.4, 0.8], [-0.3, 0.8], [0.5, 0.8]],
   keiler: [[0, 1.1], [-0.2, 1.05], [-0.35, 1], [-0.1, 0.95], [0.25, 0.9], [0.35, 0.9], [0.1, 0.85], [-0.2, 0.85]],
   lm8: [[0, 1.3], [0.2, 1.2], [0.4, 1.05], [0.3, 0.95], [-0.1, 0.85], [-0.35, 0.8], [-0.15, 0.75], [0.25, 0.75]],
+  // P-9A (26.10.): leichte Waffe, 20 Schuss/s – steigt stetig und schlägt abwechselnd nach links und rechts aus
+  p9a: [[0, 1], [0.3, 1.1], [-0.25, 1.2], [0.4, 1.25], [-0.35, 1.3], [0.45, 1.3], [-0.4, 1.3], [0.35, 1.25], [-0.3, 1.25], [0.4, 1.2]],
+  // PS-41 Wirbel (26.10.): schwerer Masseverschluss, 1000/min – steigt wenig, zittert aber unruhig seitlich hin und her
+  wirbel: [[0, 1], [0.35, 0.95], [-0.3, 1], [0.45, 0.95], [-0.45, 0.95], [0.5, 0.9], [-0.4, 0.9], [0.35, 0.9], [-0.5, 0.85], [0.45, 0.85], [-0.3, 0.85], [0.4, 0.85]],
 };
 
 // Waffengefühl je Waffe (siehe Kopfkommentar „handling“; Massen etwa realer Vorbilder mit Optik und Magazin)
@@ -465,6 +475,7 @@ const FEEL = {
   ar_kv47: { handling: { mass: 3.9, inertia: 1.05, swayScale: 1.05, aimDrift: 0.00055, reach: 1.02 }, recoil: { visual: 1.15, firstShotSpread: 0.8 } },   // reach 25.10.: Modell nach Foto 880 mm statt 1,07 m
   ar_m17: { handling: { mass: 3.3, inertia: 0.95, swayScale: 1.0, aimDrift: 0.00045, reach: 0.95 }, recoil: { visual: 0.95, firstShotSpread: 0.7 } },
   smg_vp9: { handling: { mass: 2.9, inertia: 0.82, swayScale: 0.9, aimDrift: 0.0004, reach: 0.81 }, recoil: { visual: 0.9, firstShotSpread: 0.8 } },
+  smg_wirbel: { handling: { mass: 5.4, inertia: 1.15, swayScale: 1.05, aimDrift: 0.00045, reach: 1.0 }, recoil: { visual: 1.0, firstShotSpread: 0.85 } },   // 26.10.: PPSch mit voller Trommel ≈ 5,4 kg, Mündung 580 mm vor dem Griff
   smg_qx90: { handling: { mass: 2.8, inertia: 0.75, swayScale: 0.9, aimDrift: 0.0004, reach: 0.67 }, recoil: { visual: 0.85, firstShotSpread: 0.85 } },   // reach 25.10.: Modell nach Foto – Mündung 227 mm vor dem Griff statt 305 mm
   lmg_hm60: { handling: { mass: 8.6, inertia: 1.6, swayScale: 1.25, aimDrift: 0.0009, reach: 1.39 }, recoil: { visual: 1.1, firstShotSpread: 0.85 } },
   mr_sk14: { handling: { mass: 4.6, inertia: 1.2, swayScale: 1.1, aimDrift: 0, reach: 1.08 }, recoil: { visual: 1.0, firstShotSpread: 0.6 } },
@@ -472,6 +483,7 @@ const FEEL = {
   sg_bulldog: { handling: { mass: 3.6, inertia: 1.1, swayScale: 1.05, aimDrift: 0.0005, reach: 1.06 }, recoil: { visual: 1.1, firstShotSpread: 1 } },
   pi_p9: { handling: { mass: 0.75, inertia: 0.55, swayScale: 0.8, aimDrift: 0.0006, reach: 0.56 }, recoil: { visual: 1.0, firstShotSpread: 0.75 } },
   pi_adler: { handling: { mass: 2.0, inertia: 0.7, swayScale: 0.9, aimDrift: 0.0007, reach: 0.6 }, recoil: { visual: 1.2, firstShotSpread: 0.75 } },   // reach 25.10.: Modell nach Foto 34 mm kürzer
+  pi_p9a: { handling: { mass: 0.9, inertia: 0.55, swayScale: 0.82, aimDrift: 0.0006, reach: 0.56 }, recoil: { visual: 0.9, firstShotSpread: 0.75 } },   // 26.10.: Glock 18C mit 19 Patronen ≈ 0,9 kg
   knife: { handling: { mass: 0.3, inertia: 0.4, swayScale: 0.7, aimDrift: 0, reach: 0 } },
   ar_k36: { handling: { mass: 2.9, inertia: 0.88, swayScale: 0.95, aimDrift: 0.00045, reach: 0.84 }, recoil: { visual: 0.95, firstShotSpread: 0.75 } },
   ar_bx20: { handling: { mass: 3.7, inertia: 0.92, swayScale: 0.95, aimDrift: 0.0004, reach: 0.92 }, recoil: { visual: 0.9, firstShotSpread: 0.7 } },
@@ -540,6 +552,22 @@ const RAW = {
     recoil: { vertical: 0.0044, horizontal: 0.0042, recovery: 12, firstShotMult: 1.0, pattern: PATTERN.qx90 },
     range: 90, penetration: 0.45, suppressed: false, sound: { profile: 'smg', pitch: 1.12 }, model: 'qx90',
   },
+  // Neue Waffe (26.10., Nutzerwunsch „mehr Waffen, unterschiedlichere Waffen“): PS-41 Wirbel nach PPSch-41 – Sperrfeuer-MP mit
+  // 71er-Trommel und offenem Verschluss. Auf kurze Distanz so schnell wie die Wespe (5 Treffer bis 17 m, 240 ms), aber 71 statt
+  // 32 Schuss; dafür schwer (Bewegung 0,96, Anschlag 0,22 s) und langsam nachgeladen (3,4/4,1 s). Mündungsbremse eingebaut
+  // (kein Mündungsgerät), kein Schienenplatz (kein Laser/Optik), Trommel lässt sich nicht verlängern.
+  smg_wirbel: {
+    id: 'smg_wirbel', name: 'PS-41 Wirbel', cls: 'smg', slot: 'primary', unlockLevel: 19,
+    description: 'Trommel-MP mit 71 Schuss und tausend Schuss pro Minute: Wer den Gang hält, hält ihn lange. Schwer im Arm, die Trommel will mit Gefühl gewechselt werden.',
+    damage: { max: 23, min: 14, rangeStart: 12, rangeEnd: 26 }, headMult: 1.3, limbMult: 0.9, pellets: 1,
+    rpm: 1000, fireMode: 'auto', burstCount: 1, mag: 71, reserve: 142,
+    reloadTime: 3.4, reloadEmptyTime: 4.1, perShellReload: false,
+    equipTime: 0.6, adsTime: 0.22, adsZoom: 1.2, sight: 'iron', scope: null, sprintToFire: 0.16,
+    moveSpeedMult: 0.96, adsMoveMult: 0.66, hipSpread: 0.04, adsSpread: 0.0042, moveSpreadMult: 1.3, jumpSpreadMult: 2.1,
+    recoil: { vertical: 0.0046, horizontal: 0.0048, recovery: 11, firstShotMult: 1.0, pattern: PATTERN.wirbel },
+    range: 85, penetration: 0.45, suppressed: false, sound: { profile: 'smg', pitch: 0.95 }, model: 'wirbel',
+    attSlots: ['magazin', 'munition'], attNo: ['erweitert'],   // Bremse eingebaut, keine Schiene; Trommel nicht verlängerbar
+  },
   lmg_hm60: {
     id: 'lmg_hm60', name: 'HM-60 Hammer', cls: 'lmg', slot: 'primary', unlockLevel: 12,
     description: 'Gurtgespeist, mit Zweibein und hundert Schuss Geduld. Der Hammer hält ganze Korridore dicht – solange ihn niemand beim langsamen Anlegen überrascht.',
@@ -605,6 +633,21 @@ const RAW = {
     moveSpeedMult: 1.05, adsMoveMult: 0.8, hipSpread: 0.034, adsSpread: 0.0035, moveSpreadMult: 1.25, jumpSpreadMult: 2.0,
     recoil: { vertical: 0.03, horizontal: 0.009, recovery: 8, firstShotMult: 1.0 },
     range: 80, penetration: 0.55, suppressed: false, sound: { profile: 'pistol_heavy', pitch: 0.95 }, model: 'adler',
+  },
+  // Neue Waffe (26.10., Nutzerwunsch „mehr Waffen, unterschiedlichere Waffen“): erste vollautomatische Zweitwaffe – Ableitung der P-9
+  // nach Glock 18C. Stark auf Armlänge (5 Treffer in 200 ms), danach fällt der Schaden schnell; der Rückstoß ist kaum zu halten
+  // (Kontrolle 35), 19 Patronen sind in einer Sekunde verschossen. Langes Magazin (Aufsatz) = 33er-Stange.
+  pi_p9a: {
+    id: 'pi_p9a', name: 'P-9A Automatik', cls: 'pistol', slot: 'secondary', unlockLevel: 30,
+    description: 'Vollautomatische Kompaktpistole mit Kompensator: Zwanzig Schuss pro Sekunde machen sie auf Armlänge gefährlicher als jede Maschinenpistole – nach dem dritten Schuss gehört die Mündung dem Rückstoß. Neunzehn Patronen sind schnell verschossen, das lange Magazin fasst dreiunddreißig.',
+    damage: { max: 21, min: 13, rangeStart: 6, rangeEnd: 20 }, headMult: 1.4, limbMult: 0.9, pellets: 1,
+    rpm: 1200, fireMode: 'auto', burstCount: 1, mag: 19, reserve: 76, magExt: 33,
+    reloadTime: 1.55, reloadEmptyTime: 1.95, perShellReload: false,
+    equipTime: 0.34, adsTime: 0.15, adsZoom: 1.15, sight: 'iron', scope: null, sprintToFire: 0.1,
+    moveSpeedMult: 1.04, adsMoveMult: 0.82, hipSpread: 0.034, adsSpread: 0.0036, moveSpreadMult: 1.25, jumpSpreadMult: 2.0,
+    recoil: { vertical: 0.0105, horizontal: 0.0062, recovery: 11, firstShotMult: 1.0, pattern: PATTERN.p9a },
+    range: 60, penetration: 0.3, suppressed: false, sound: { profile: 'pistol', pitch: 1.06 }, model: 'p9a',
+    attSlots: ['magazin', 'taktisch', 'munition'],   // Kompensator eingebaut (kein Mündungsgerät), keine Optik
   },
   knife: {
     id: 'knife', name: 'Kampfmesser', cls: 'melee', slot: 'melee', unlockLevel: 1,
@@ -901,6 +944,12 @@ FEEL.pi_funke = FEEL.pi_p9;
 FEEL.erstlicht = FEEL.knife;
 ICONS.ursprung = ICONS.k36;
 ICONS.funke = ICONS.p9;
+// PS-41 Wirbel (26.10.): Holzschaft mit Kolbenhals, Gehäusekappe, Laufmantel mit Kühlschlitzen und schräger Bremse, Trommel
+ICONS.wirbel = gunIcon(
+  'M4 17.6L21 15.6L24 16.4L28.5 15.2L31.7 13.1H45.9V17.9H33.2L28.9 19.4L24.7 23.9L22.6 23L5 28.2L3.7 19.3Z ' +
+  'M31.7 13.1Q32 10.6 38.5 10.3 M38.5 11.2H87.8L86.2 14.9H61.6L56.7 15.6L55.6 17.8H45.9 ' +
+  'M49.3 15V27.5Q49.3 29.2 51 29.2H52.6Q54.3 29.2 54.3 27.5V15 M41.6 18.1V20.9H34.4L33.7 18.8 ' +
+  'M79.2 11.2V9.8 M46 11.2V9.8H39 M78 13H82 M71.5 13H75.8 M65.5 13H69.7 M59.6 13H63.8');
 ICONS.erstlicht = ICONS.knife;
 
 /** Reihenfolge = Roster-Tabelle des Vertrags. */
@@ -913,6 +962,7 @@ export const WEAPON_IDS = [
   'sg_zwilling', // neue Waffen (26.10.): ZW-12 Zwilling (Doppelflinte mit Kipplauf)
   'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock', 'spaten',
   'ar_ursprung', 'pi_funke', 'erstlicht', // Waffen der ersten Stunde (nur Profil.og)
+  'pi_p9a', 'smg_wirbel', // neue Waffen (26.10.): P-9A Automatik (Glock 18C), PS-41 Wirbel (PPSch-41)
 ];
 /** Nahkampfwaffen (Slot „melee“, Ausrüstung `loadout.melee`; 'knife' ist der Standard). */
 export const MELEE_IDS = ['knife', 'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock', 'spaten', 'erstlicht'];

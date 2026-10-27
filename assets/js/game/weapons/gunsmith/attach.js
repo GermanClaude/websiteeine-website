@@ -80,12 +80,13 @@ export function attachToBuilder(b, att, mount) {
   }
 }
 
-/** Nach dem Bau: Magazin länger (Erweitert) oder mit Trommel. */
-export function attachToRoot(root, att, lod = 'first') {
+/** Nach dem Bau: Magazin länger (Erweitert) oder mit Trommel. meta.magExt (26.10., P-9A): Bauplan baut das lange Magazin selbst. */
+export function attachToRoot(root, att, lod = 'first', meta = null) {
   if (!att || !att.magazin) return;
   const mag = root.getObjectByName('mag');
   if (!mag || mag === root) return;
   if (att.magazin === 'erweitert') {
+    if (meta && meta.magExt) return;
     // Quer liegendes Magazin (QX-90 oben auf dem Gehäuse): nicht in die Höhe ziehen – das verzerrt nur Patronen/Form
     const s = magBox(mag).getSize(_v);
     if (!(s.z > s.y * 1.6)) mag.scale.y = 1.3;

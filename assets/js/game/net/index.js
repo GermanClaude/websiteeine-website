@@ -49,8 +49,9 @@ import { PKT_INTERNAL_MIN, packetType } from './protocol.js';
  *  7: Granatwerfer (Waffenliste länger → Waffenindizes verschoben), Unterlauf-Aufsätze (ub_gl40/ub_schrot).
  *  8: Ladeschritt „offen“ (Munitionsbunker mit Schiebetür, Kanonenzustand im Fahrzeugblock).
  *  9: Panzer je Team nach eigenem Vorbild (neue Fahrzeugtypen wk2h/wk1l).
- *  10: Waffen der ersten Stunde (Waffen-Indizes verschoben), Aufsätze/Tarnung in Ausrüstungen. */
-export const NET_VERSION = 11; // 11: Versorgung/MG-Gurte im Fahrzeugblock (Byte 63), Militärfahrzeuge nur auf großen Karten
+ *  10: Waffen der ersten Stunde (Waffen-Indizes verschoben), Aufsätze/Tarnung in Ausrüstungen.
+ *  11: Versorgung/MG-Gurte im Fahrzeugblock (Byte 63), Militärfahrzeuge nur auf großen Karten. */
+export const NET_VERSION = 12; // 12: neue Waffen ZW-12 Zwilling, P-9A, PS-41 Wirbel (Waffenliste länger → Waffenindizes verschoben, 26.10.)
 /** Online wählbare Modi (Eroberung folgt mit den Fahrzeugen online, Training bleibt offline). */
 export const ONLINE_MODES = Object.freeze(['tdm', 'ult', 'ffa', 'dom', 'kc', 'messer', 'inf', 'gun']);
 /** Modi mit Fahrzeugen online (Nur Messer, Waffenspiel und Infiziert bleiben ohne – Ausrüstung kommt dort vom Modus). */

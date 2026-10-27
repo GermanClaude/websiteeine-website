@@ -25,6 +25,8 @@ import { brecher, bulldog } from './gunsmith/guns-long.js';
 import { zwilling } from './gunsmith/guns-zwilling.js';   // ZW-12 Zwilling (Doppelflinte mit Kipplauf, 26.10.)
 import { p9 } from './gunsmith/guns-pistol.js';
 import { adler } from './gunsmith/guns-adler.js';   // Adler nach Foto (25.10.)
+import { p9a } from './gunsmith/guns-p9a.js';   // P-9A (Glock 18C) als Ableitung der P-9 (26.10.)
+import { wirbel } from './gunsmith/guns-wirbel.js';   // PS-41 Wirbel (PPSch-41) nach Foto (26.10.)
 import { knife, frag, semtex } from './gunsmith/gear.js';
 import { k36, bx20, g7, wespe, keiler, lm8 } from './gunsmith/guns-wave2.js';
 import { titan, hagel, kobra, donner, rocket, hammer, trommel } from './gunsmith/guns-heavy.js';
@@ -45,12 +47,13 @@ const BUILDERS = {
   k36, bx20, g7, wespe, keiler, lm8, titan, hagel, kobra, donner, hammer, trommel,
   karambit, machete, tomahawk, kampfaxt, schlagstock, kampfstock, spaten, flash, smoke, impact, molotov, plate, rocket,
   ursprung, funke, erstlicht, // Waffen der ersten Stunde (guns-og.js)
+  p9a, wirbel, // neue Waffen (26.10.)
 };
 
 export const MODEL_KEYS = Object.keys(BUILDERS);
 export const GUN_KEYS = ['kv47', 'm17', 'vp9', 'qx90', 'hm60', 'sk14', 'brecher', 'bulldog', 'p9', 'adler',
-  'k36', 'bx20', 'g7', 'wespe', 'keiler', 'lm8', 'titan', 'hagel', 'kobra', 'donner', 'hammer', 'trommel', 'ursprung', 'funke'];
-GUN_KEYS.push('zwilling');   // neue Waffe (26.10.)
+  'k36', 'bx20', 'g7', 'wespe', 'keiler', 'lm8', 'titan', 'hagel', 'kobra', 'donner', 'hammer', 'trommel', 'ursprung', 'funke',
+  'zwilling', 'p9a', 'wirbel'];   // neue Waffen (26.10.)
 export const MELEE_KEYS = ['knife', 'karambit', 'machete', 'tomahawk', 'kampfaxt', 'schlagstock', 'kampfstock', 'spaten', 'erstlicht'];
 export const THROWABLE_KEYS = ['frag', 'semtex', 'impact', 'molotov', 'flash', 'smoke'];
 export { applyCamo };
@@ -97,7 +100,7 @@ function buildTemplate(key, lod, att = null, tier = null) {
     if (att.optik && b._opticDone) b.meta.sight = OPTIC_TYPE[att.optik] || b.meta.sight;
   }
   const root = b.build(key);
-  if (att) attachToRoot(root, att, lod);
+  if (att) attachToRoot(root, att, lod, b.meta);   // meta.magExt (26.10.): Bauplan zeigt das lange Magazin selbst
   // Magazininhalt (magfill.js): Patronen + Zubringer nur in Ego/Vitrine; die Plätze reisen in den Metadaten mit
   // (Weltmagazine der Bot-Detailstufe zeigen damit die obersten Patronen bzw. den leeren Zubringer)
   const magFill = magFillFor(b, key);
@@ -268,8 +271,8 @@ export function getWeaponModelMeta(key) {
 // 24.10. (V5): Foto-Waffen (Distanzfeld-Netze, Atlas – Ego-Bau 0,3–7 s im Container) gelten als teuer, auch bevor eine Messung
 // vorliegt: Aufheben zeigt dann einen Platzhalter statt im Bild zu bauen. Alle übrigen Waffen (alte Bauweise, 2–90 ms) baut das
 // Aufheben ohne Messung sofort. NEUE FOTO-WAFFEN HIER EINTRAGEN (Integrationsschritt je Etappe, Bauanleitung §8.2).
-const PHOTO_MODELS = new Set(['m17', 'p9', 'kv47', 'vp9', 'qx90', 'adler']);   // Etappe 1 (25.10.): KV-47, VP-9, QX-90, Adler
-PHOTO_MODELS.add('zwilling');   // neue Waffe (26.10.)
+const PHOTO_MODELS = new Set(['m17', 'p9', 'kv47', 'vp9', 'qx90', 'adler',   // Etappe 1 (25.10.): KV-47, VP-9, QX-90, Adler
+  'zwilling', 'p9a', 'wirbel']);   // neue Waffen 26.10.: ZW-12 Zwilling, P-9A, PS-41 Wirbel
 export function isPhotoWeapon(key) { return PHOTO_MODELS.has(key); }
 
 /**

@@ -38,6 +38,7 @@ export const CAL = {
   p9: { r: 0.0049, len: 0.0295, cl: 0.0192, rn: 0.0048, rb: 0.0045, kind: 'straight' },
   p45: { r: 0.006, len: 0.032, cl: 0.0228, rn: 0.006, rb: 0.0057, kind: 'straight' },
   p57: { r: 0.004, len: 0.0405, cl: 0.0285, rn: 0.0029, rb: 0.0028, kind: 'bottle' },         // 5,7×28
+  p762t: { r: 0.0049, len: 0.0349, cl: 0.0251, rn: 0.0042, rb: 0.0039, kind: 'bottle' },      // 7,62×25 Tokarew (PS-41 Wirbel, 26.10.)
   p50: { r: 0.0068, len: 0.04, cl: 0.0326, rn: 0.0068, rb: 0.0064, kind: 'straight' },
   g12: { r: 0.0105, len: 0.062, cl: 0.062, rn: 0.0105, rb: 0.0105, kind: 'shell' },
   nose357: { r: 0.0046, len: 0.0027, cl: 0, rn: 0.0042, rb: 0.0042, kind: 'nose' },

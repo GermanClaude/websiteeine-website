@@ -25,9 +25,15 @@ export const EXTRA_ACTIONS = {
     if (!ch || c < -0.05) return;
     const st = ch.userData.style || 'pull';
     const travel = ch.userData.travel || [0, 0, 0.06];
-    const pull = curve(c, [[0.2, 0], [0.42, 1], [0.52, 1], [0.58, 0]]);
     const partName = ch.parent?.name || 'charge';
-    out.parts[partName] = [travel[0] * pull, travel[1] * pull, travel[2] * pull, 0, 0, st === 'hkslap' ? -0.6 * windowW(c, 0.3, 0.42, 0.5, 0.56) : 0];
+    if (this.h.openBolt) {
+      // Offener Verschluss (26.10.): Spannhebel sitzt am Verschluss, der leer vorn steht – zurückziehen, er bleibt hinten gefangen
+      const k = 1 - curve(c, [[0.2, 0], [0.42, 1]]);
+      out.parts[partName] = [-travel[0] * k, -travel[1] * k, -travel[2] * k, 0, 0, 0];
+    } else {
+      const pull = curve(c, [[0.2, 0], [0.42, 1], [0.52, 1], [0.58, 0]]);
+      out.parts[partName] = [travel[0] * pull, travel[1] * pull, travel[2] * pull, 0, 0, st === 'hkslap' ? -0.6 * windowW(c, 0.3, 0.42, 0.5, 0.56) : 0];
+    }
     const right = st === 'right' || side === 'right';
     const wC = windowW(c, 0.0, 0.18, 0.62, 0.86);
     if (wC > 0) req(right ? out.right : out.left, wC, { anchor: ch, style: right ? 'pinchRight' : 'pinchSide' });

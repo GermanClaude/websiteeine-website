@@ -56,6 +56,7 @@ neu gebaut**, nicht ergänzt.
 | Werfer (RW-90, GW-40, GW-6) | Panzerfaust-/M79-/MGL-Typ | 4 |
 | Messer, Beile, Granaten | jeweilige Vorbilder (KA-BAR, Karambit, M67 …) | 4 |
 | UR-1, P-0, Erstlicht | eigene Entwürfe (AR-15 / Glock / Dolch als Basis) | nach Basis |
+| PS-41 Wirbel (neu 26.10.) | PPSch-41 mit 71er-Trommel | neu |
 
 ## Bewährtes Verfahren (P-9, 13.10. abends – Nutzer: „wenn die Waffe so aussieht … Respekt“)
 1. **Seitenfoto** mit freier Lizenz (Wikimedia Commons, Studiofoto auf Weiß, genau seitlich) laden.
@@ -342,3 +343,13 @@ Kosten P-9: ≈ 72 000 Dreiecke (Ego), 328 (Bots), Bau ≈ 0,5 s + Texturen ≈ 
   Nachbesserung nach der Prüfung: Bot-Fassung hält die Läufe als eigenes Netz (`meta.botParts` → `builder._buildMerged`, je Teil
   Metall + Matt; ohne `botParts` bitgleich wie vorher), sonst klappte das Bot-Rig 'break' eine leere Gruppe; der Laser hängt am
   Teil seines Ankers (`attach.js`, Vorderschaft = 'barrels') und klappt mit. `tools/weapon-parts-test.mjs` prüft beides.
+- 26.10.: **Neue Waffe P-9A Automatik** (Glock 18C, Foto AmmuNation CC BY-SA 4.0; `p9a-ref.js`, `p9a-tex.js`, `guns-p9a.js`):
+  Ableitung der P-9 – `p9(b, o)` in `guns-pistol.js` nimmt Optionen, ohne Optionen bitgleich (Hash aller alten Waffen geprüft).
+  Griffrücken Gen 3, Wahlschalter hinten links am Schlitten (dreht ≈ 86°), Kompensatorfenster + vier Laufbohrungen, 19er-Magazin
+  mit +2-Boden, 33er-Stange über `meta.magExt`, eigener Atlas Schlitten/Rahmen. Dreiecke: Bot 352, Handy 28 646, PC niedrig 55 370,
+  PC hoch 137 422; Fotoumriss Foto→Modell 0,25 mm im Mittel. Zusammengeführt mit ZW-12 Zwilling und PS-41 Wirbel (27.10.,
+  `NET_VERSION` 12 – drei neue Waffen-Ids verschieben die Netzindizes).
+- 26.10.: **PS-41 Wirbel neu nach Foto** (PPSch-41, Rama CC BY-SA 3.0 FR; rechte Seite Museum Edinburgh CC0; `wirbel-ref.js`,
+  `wirbel-tex.js`, `guns-wirbel.js`). Schaft/Gehäuse/Kappe als Distanzfelder, Laufmantel als Blechrohr mit Durchlässigkeitskarte
+  (Schlitze, Bremsenfenster, Auswurf, Spannhebelschlitz) und echten Blechkanten, Trommel (Achse längs) als Drehteil. Offener
+  Verschluss (`openBolt`: Ruhelage hinten, leer vorn). Dreiecke: Bot 280, Handy ≈ 40 k, PC niedrig ≈ 76 k, PC hoch ≈ 216 k; Fotoumriss im Mittel 2,6 mm.
